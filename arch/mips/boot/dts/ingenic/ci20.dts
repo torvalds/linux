@@ -1,0 +1,598 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "jz4780.dtsi"
+#include <dt-bindings/clock/ingenic,tcu.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/regulator/active-semi,8865-regulator.h>
+
+/ {
+	compatible = "img,ci20", "ingenic,jz4780";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial3 = &uart3;
+		serial4 = &uart4;
+	};
+
+	chosen {
+		stdout-path = &uart4;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x10000000
+		       0x30000000 0x30000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		switch {
+			label = "ci20:sw1";
+			linux,code = <KEY_F13>;
+			gpios = <&gpd 17 GPIO_ACTIVE_HIGH>;
+			wakeup-source;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0 {
+			label = "ci20:red:led0";
+			gpios = <&gpc 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+
+		led1 {
+			label = "ci20:red:led1";
+			gpios = <&gpc 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		led2 {
+			label = "ci20:red:led2";
+			gpios = <&gpc 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "cpu1";
+		};
+
+		led3 {
+			label = "ci20:red:led3";
+			gpios = <&gpc 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "cpu0";
+		};
+	};
+
+	eth0_power: fixedregulator@0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "eth0_power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
+
+	hdmi_out: connector {
+		compatible = "hdmi-connector";
+		label = "HDMI OUT";
+		type = "a";
+
+		ddc-en-gpios = <&gpa 25 GPIO_ACTIVE_HIGH>;
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&dw_hdmi_out>;
+			};
+		};
+	};
+
+	ir: ir {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpe 3 GPIO_ACTIVE_LOW>;
+	};
+
+	wlan0_power: fixedregulator@1 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wlan0_power";
+
+		gpio = <&gpb 19 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
+
+	otg_power: fixedregulator@2 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "otg_power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		gpio = <&gpf 15 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
+};
+
+&ext {
+	clock-frequency = <48000000>;
+};
+
+&cgu {
+	/*
+	 * Use the 32.768 kHz oscillator as the parent of the RTC for a higher
+	 * precision.
+	 */
+	assigned-clocks = <&cgu JZ4780_CLK_OTGPHY>, <&cgu JZ4780_CLK_RTC>,
+			  <&cgu JZ4780_CLK_SSIPLL>, <&cgu JZ4780_CLK_SSI>,
+			  <&cgu JZ4780_CLK_HDMI>;
+	assigned-clock-parents = <0>, <&cgu JZ4780_CLK_RTCLK>,
+				 <&cgu JZ4780_CLK_MPLL>,
+				 <&cgu JZ4780_CLK_SSIPLL>;
+	assigned-clock-rates = <48000000>, <0>, <54000000>, <0>, <27000000>;
+};
+
+&tcu {
+	/*
+	 * 750 kHz for the system timers and clocksource,
+	 * use channel #0 and #1 for the per cpu system timers,
+	 * and use channel #2 for the clocksource.
+	 *
+	 * 3000 kHz for the OST timer to provide a higher
+	 * precision clocksource.
+	 */
+	assigned-clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>,
+					  <&tcu TCU_CLK_TIMER2>, <&tcu TCU_CLK_OST>;
+	assigned-clock-rates = <750000>, <750000>, <750000>, <3000000>;
+};
+
+&mmc0 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <50000000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_mmc0>;
+
+	cd-gpios = <&gpf 20 GPIO_ACTIVE_LOW>;
+};
+
+&mmc1 {
+	status = "okay";
+
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	non-removable;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_mmc1>;
+
+	brcmf: wifi@1 {
+/*		reg = <4>;*/
+		compatible = "brcm,bcm4330-fmac";
+		vcc-supply = <&wlan0_power>;
+		device-wakeup-gpios = <&gpd 9 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpf 7 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart0>;
+};
+
+&uart1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart1>;
+};
+
+&uart2 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart2>;
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		reset-gpios = <&gpf 8 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&wlan0_power>;
+		device-wakeup-gpios = <&gpf 5 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpf 6 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpf 4 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&uart3 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart3>;
+};
+
+&uart4 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart4>;
+};
+
+&i2c0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c0>;
+
+	clock-frequency = <400000>;
+
+	act8600: act8600@5a {
+		compatible = "active-semi,act8600";
+		reg = <0x5a>;
+		status = "okay";
+
+		regulators {
+			vddcore: SUDCDC1 {
+				regulator-name = "DCDC_REG1";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
+			};
+			vddmem: SUDCDC2 {
+				regulator-name = "DCDC_REG2";
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+			};
+			vcc_33: SUDCDC3 {
+				regulator-name = "DCDC_REG3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+			vcc_50: SUDCDC4 {
+				regulator-name = "SUDCDC_REG4";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				regulator-always-on;
+			};
+			vcc_25: LDO_REG5 {
+				regulator-name = "LDO_REG5";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <2500000>;
+				regulator-always-on;
+			};
+			wifi_io: LDO_REG6 {
+				regulator-name = "LDO_REG6";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <2500000>;
+				regulator-always-on;
+			};
+			vcc_28: LDO_REG7 {
+				regulator-name = "LDO_REG7";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-always-on;
+			};
+			vcc_15: LDO_REG8 {
+				regulator-name = "LDO_REG8";
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+			};
+			vrtc_18: LDO_REG9 {
+				regulator-name = "LDO_REG9";
+				/* Despite the datasheet stating 3.3V
+				 * for REG9 and the driver expecting that,
+				 * REG9 outputs 1.8V.
+				 * Likely the CI20 uses a proprietary
+				 * factory programmed chip variant.
+				 * Since this is a simple on/off LDO the
+				 * exact values do not matter.
+				 */
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+			vcc_11: LDO_REG10 {
+				regulator-name = "LDO_REG10";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c1>;
+
+};
+
+&i2c2 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c2>;
+
+};
+
+&i2c3 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c3>;
+
+};
+
+&i2c4 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_i2c4>;
+
+	clock-frequency = <400000>;
+
+		rtc@51 {
+			compatible = "nxp,pcf8563";
+			reg = <0x51>;
+
+			interrupt-parent = <&gpf>;
+			interrupts = <30 IRQ_TYPE_LEVEL_LOW>;
+		};
+};
+
+&nemc {
+	status = "okay";
+
+	nandc: nand-controller@1 {
+		compatible = "ingenic,jz4780-nand";
+		reg = <1 0 0x1000000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ingenic,bch-controller = <&bch>;
+
+		ingenic,nemc-tAS = <10>;
+		ingenic,nemc-tAH = <5>;
+		ingenic,nemc-tBP = <10>;
+		ingenic,nemc-tAW = <15>;
+		ingenic,nemc-tSTRV = <100>;
+
+		/*
+		 * Only CLE/ALE are needed for the devices that are connected, rather
+		 * than the full address line set.
+		 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_nemc>;
+
+		nand@1 {
+			reg = <1>;
+
+			nand-ecc-step-size = <1024>;
+			nand-ecc-strength = <24>;
+			nand-ecc-mode = "hw";
+			nand-on-flash-bbt;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_nemc_cs1>;
+
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <2>;
+				#size-cells = <2>;
+
+				partition@0 {
+					label = "u-boot-spl";
+					reg = <0x0 0x0 0x0 0x800000>;
+				};
+
+				partition@800000 {
+					label = "u-boot";
+					reg = <0x0 0x800000 0x0 0x200000>;
+				};
+
+				partition@a00000 {
+					label = "u-boot-env";
+					reg = <0x0 0xa00000 0x0 0x200000>;
+				};
+
+				partition@c00000 {
+					label = "boot";
+					reg = <0x0 0xc00000 0x0 0x4000000>;
+				};
+
+				partition@4c00000 {
+					label = "system";
+					reg = <0x0 0x4c00000 0x1 0xfb400000>;
+				};
+			};
+		};
+	};
+
+	dm9000@6 {
+		compatible = "davicom,dm9000";
+		davicom,no-eeprom;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_nemc_cs6>;
+
+		reg = <6 0 1   /* addr */
+		       6 2 1>; /* data */
+
+		ingenic,nemc-tAS = <15>;
+		ingenic,nemc-tAH = <10>;
+		ingenic,nemc-tBP = <20>;
+		ingenic,nemc-tAW = <50>;
+		ingenic,nemc-tSTRV = <100>;
+
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&eth0_power>;
+
+		interrupt-parent = <&gpe>;
+		interrupts = <19 4>;
+
+		nvmem-cells = <&eth0_addr>;
+		nvmem-cell-names = "mac-address";
+	};
+};
+
+&bch {
+	status = "okay";
+};
+
+&otg_phy {
+	status = "okay";
+
+	vcc-supply = <&otg_power>;
+};
+
+&otg {
+	status = "okay";
+};
+
+&pinctrl {
+	pins_uart0: uart0 {
+		function = "uart0";
+		groups = "uart0-data";
+		bias-disable;
+	};
+
+	pins_uart1: uart1 {
+		function = "uart1";
+		groups = "uart1-data";
+		bias-disable;
+	};
+
+	pins_uart2: uart2 {
+		function = "uart2";
+		groups = "uart2-data", "uart2-hwflow";
+		bias-disable;
+	};
+
+	pins_uart3: uart3 {
+		function = "uart3";
+		groups = "uart3-data", "uart3-hwflow";
+		bias-disable;
+	};
+
+	pins_uart4: uart4 {
+		function = "uart4";
+		groups = "uart4-data";
+		bias-disable;
+	};
+
+	pins_i2c0: i2c0 {
+		function = "i2c0";
+		groups = "i2c0-data";
+		bias-disable;
+	};
+
+	pins_i2c1: i2c1 {
+		function = "i2c1";
+		groups = "i2c1-data";
+		bias-disable;
+	};
+
+	pins_i2c2: i2c2 {
+		function = "i2c2";
+		groups = "i2c2-data";
+		bias-disable;
+	};
+
+	pins_i2c3: i2c3 {
+		function = "i2c3";
+		groups = "i2c3-data";
+		bias-disable;
+	};
+
+	pins_i2c4: i2c4 {
+		function = "i2c4";
+		groups = "i2c4-data-e";
+		bias-disable;
+	};
+
+	pins_hdmi_ddc: hdmi_ddc {
+		function = "hdmi-ddc";
+		groups = "hdmi-ddc";
+		bias-disable;
+	};
+
+	pins_nemc: nemc {
+		function = "nemc";
+		groups = "nemc-data", "nemc-cle-ale", "nemc-rd-we", "nemc-frd-fwe";
+		bias-disable;
+	};
+
+	pins_nemc_cs1: nemc-cs1 {
+		function = "nemc-cs1";
+		groups = "nemc-cs1";
+		bias-disable;
+	};
+
+	pins_nemc_cs6: nemc-cs6 {
+		function = "nemc-cs6";
+		groups = "nemc-cs6";
+		bias-disable;
+	};
+
+	pins_mmc0: mmc0 {
+		function = "mmc0";
+		groups = "mmc0-1bit-e", "mmc0-4bit-e";
+		bias-disable;
+	};
+
+	pins_mmc1: mmc1 {
+		function = "mmc1";
+		groups = "mmc1-1bit-d", "mmc1-4bit-d";
+		bias-disable;
+	};
+};
+
+&hdmi {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_hdmi_ddc>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dw_hdmi_in: endpoint {
+				remote-endpoint = <&lcd_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dw_hdmi_out: endpoint {
+				remote-endpoint = <&hdmi_con>;
+			};
+		};
+	};
+};
+
+&lcdc0 {
+	status = "okay";
+
+	port {
+		lcd_out: endpoint {
+			remote-endpoint = <&dw_hdmi_in>;
+		};
+	};
+};

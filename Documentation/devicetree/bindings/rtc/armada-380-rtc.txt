@@ -1,0 +1,24 @@
+* Real Time Clock of the Armada 38x/7K/8K SoCs
+
+RTC controller for the Armada 38x, 7K and 8K SoCs
+
+Required properties:
+- compatible : Should be one of the following:
+	"marvell,armada-380-rtc" for Armada 38x SoC
+	"marvell,armada-8k-rtc" for Aramda 7K/8K SoCs
+- reg: a list of base address and size pairs, one for each entry in
+  reg-names
+- reg names: should contain:
+  * "rtc" for the RTC registers
+  * "rtc-soc" for the SoC related registers and among them the one
+    related to the interrupt.
+- interrupts: IRQ line for the RTC.
+
+Example:
+
+rtc@a3800 {
+	compatible = "marvell,armada-380-rtc";
+	reg = <0xa3800 0x20>, <0x184a0 0x0c>;
+	reg-names = "rtc", "rtc-soc";
+	interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+};

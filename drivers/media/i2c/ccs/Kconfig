@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_CCS
+	tristate "MIPI CCS/SMIA++/SMIA sensor support"
+	depends on I2C && VIDEO_DEV && HAVE_CLK
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEO_CCS_PLL
+	select V4L2_FWNODE
+	help
+	  This is a generic driver for MIPI CCS, SMIA++ and SMIA compliant
+	  camera sensors.

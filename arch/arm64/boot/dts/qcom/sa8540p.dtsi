@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Linaro Limited
+ */
+
+#include "sc8280xp.dtsi"
+
+/delete-node/ &cpu0_opp_table;
+/delete-node/ &cpu4_opp_table;
+
+/ {
+	cpu0_opp_table: cpu0-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-403200000 {
+			opp-hz = /bits/ 64 <403200000>;
+		};
+		opp-499200000 {
+			opp-hz = /bits/ 64 <499200000>;
+		};
+		opp-595200000 {
+			opp-hz = /bits/ 64 <595200000>;
+		};
+		opp-710400000 {
+			opp-hz = /bits/ 64 <710400000>;
+		};
+		opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+		};
+		opp-902400000 {
+			opp-hz = /bits/ 64 <902400000>;
+		};
+		opp-1017600000 {
+			opp-hz = /bits/ 64 <1017600000>;
+		};
+		opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+		};
+		opp-1209600000 {
+			opp-hz = /bits/ 64 <1209600000>;
+		};
+		opp-1324800000 {
+			opp-hz = /bits/ 64 <1324800000>;
+		};
+		opp-1440000000 {
+			opp-hz = /bits/ 64 <1440000000>;
+		};
+		opp-1555200000 {
+			opp-hz = /bits/ 64 <1555200000>;
+		};
+		opp-1670400000 {
+			opp-hz = /bits/ 64 <1670400000>;
+		};
+		opp-1785600000 {
+			opp-hz = /bits/ 64 <1785600000>;
+		};
+		opp-1881600000 {
+			opp-hz = /bits/ 64 <1881600000>;
+		};
+		opp-2016000000 {
+			opp-hz = /bits/ 64 <2016000000>;
+		};
+		opp-2131200000 {
+			opp-hz = /bits/ 64 <2131200000>;
+		};
+		opp-2246400000 {
+			opp-hz = /bits/ 64 <2246400000>;
+		};
+	};
+
+	cpu4_opp_table: cpu4-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-825600000 {
+			opp-hz = /bits/ 64 <825600000>;
+		};
+		opp-940800000 {
+			opp-hz = /bits/ 64 <940800000>;
+		};
+		opp-1056000000 {
+			opp-hz = /bits/ 64 <1056000000>;
+		};
+		opp-1171200000 {
+			opp-hz = /bits/ 64 <1171200000>;
+		};
+		opp-1286400000 {
+			opp-hz = /bits/ 64 <1286400000>;
+		};
+		opp-1401600000 {
+			opp-hz = /bits/ 64 <1401600000>;
+		};
+		opp-1516800000 {
+			opp-hz = /bits/ 64 <1516800000>;
+		};
+		opp-1632000000 {
+			opp-hz = /bits/ 64 <1632000000>;
+		};
+		opp-1747200000 {
+			opp-hz = /bits/ 64 <1747200000>;
+		};
+		opp-1862400000 {
+			opp-hz = /bits/ 64 <1862400000>;
+		};
+		opp-1977600000 {
+			opp-hz = /bits/ 64 <1977600000>;
+		};
+		opp-2073600000 {
+			opp-hz = /bits/ 64 <2073600000>;
+		};
+		opp-2169600000 {
+			opp-hz = /bits/ 64 <2169600000>;
+		};
+		opp-2284800000 {
+			opp-hz = /bits/ 64 <2284800000>;
+		};
+		opp-2380800000 {
+			opp-hz = /bits/ 64 <2380800000>;
+		};
+		opp-2496000000 {
+			opp-hz = /bits/ 64 <2496000000>;
+		};
+		opp-2592000000 {
+			opp-hz = /bits/ 64 <2592000000>;
+		};
+	};
+};
+
+&rpmhpd {
+	compatible = "qcom,sa8540p-rpmhpd";
+};

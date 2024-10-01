@@ -1,0 +1,33 @@
+Binding for Broadcom BCM6348/BCM6358 SPI controller
+
+Required properties:
+- compatible: must contain one of "brcm,bcm6348-spi", "brcm,bcm6358-spi".
+- reg: Base address and size of the controllers memory area.
+- interrupts: Interrupt for the SPI block.
+- clocks: phandle of the SPI clock.
+- clock-names: has to be "spi".
+- #address-cells: <1>, as required by generic SPI binding.
+- #size-cells: <0>, also as required by generic SPI binding.
+
+Optional properties:
+- num-cs: some controllers have less than 8 cs signals. Defaults to 8
+  if absent.
+
+Child nodes as per the generic SPI binding.
+
+Example:
+
+	spi@10000800 {
+		compatible = "brcm,bcm6368-spi", "brcm,bcm6358-spi";
+		reg = <0x10000800 0x70c>;
+
+		interrupts = <1>;
+
+		clocks = <&clkctl 9>;
+		clock-names = "spi";
+
+		num-cs = <5>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};

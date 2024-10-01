@@ -1,0 +1,366 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree Source for OMAP243x SoC
+ *
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+#include "omap2.dtsi"
+
+/ {
+	compatible = "ti,omap2430", "ti,omap2";
+
+	ocp {
+		l4_wkup: l4_wkup@49000000 {
+			compatible = "ti,omap2-l4-wkup", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x49000000 0x31000>;
+
+			prcm: prcm@6000 {
+				compatible = "ti,omap2-prcm";
+				reg = <0x6000 0x1000>;
+
+				prcm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prcm_clockdomains: clockdomains {
+				};
+			};
+
+			scm: scm@2000 {
+				compatible = "ti,omap2-scm", "simple-bus";
+				reg = <0x2000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				#pinctrl-cells = <1>;
+				ranges = <0 0x2000 0x1000>;
+
+				omap2430_pmx: pinmux@30 {
+					compatible = "ti,omap2430-padconf",
+						     "pinctrl-single";
+					reg = <0x30 0x0154>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#pinctrl-cells = <1>;
+					pinctrl-single,register-width = <8>;
+					pinctrl-single,function-mask = <0x3f>;
+				};
+
+				scm_conf: scm_conf@270 {
+					compatible = "syscon",
+						     "simple-bus";
+					reg = <0x270 0x240>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x270 0x240>;
+
+					scm_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+
+					pbias_regulator: pbias_regulator@230 {
+						compatible = "ti,pbias-omap2", "ti,pbias-omap";
+						reg = <0x230 0x4>;
+						syscon = <&scm_conf>;
+						pbias_mmc_reg: pbias_mmc_omap2430 {
+							regulator-name = "pbias_mmc_omap2430";
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3000000>;
+						};
+					};
+				};
+
+				scm_clockdomains: clockdomains {
+				};
+			};
+
+			target-module@20000 {
+				compatible = "ti,sysc-omap2", "ti,sysc";
+				reg = <0x20000 0x4>,
+				      <0x20004 0x4>;
+				reg-names = "rev", "sysc";
+				ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+						<SYSC_IDLE_NO>;
+				clocks = <&func_32k_ck>;
+				clock-names = "fck";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x20000 0x1000>;
+
+				counter32k: counter@0 {
+					compatible = "ti,omap-counter32k";
+					reg = <0 0x20>;
+				};
+			};
+		};
+
+		gpio1: gpio@4900c000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4900c000 0x200>;
+			interrupts = <29>;
+			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio2: gpio@4900e000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4900e000 0x200>;
+			interrupts = <30>;
+			ti,hwmods = "gpio2";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio3: gpio@49010000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x49010000 0x200>;
+			interrupts = <31>;
+			ti,hwmods = "gpio3";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio4: gpio@49012000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x49012000 0x200>;
+			interrupts = <32>;
+			ti,hwmods = "gpio4";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio5: gpio@480b6000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x480b6000 0x200>;
+			interrupts = <33>;
+			ti,hwmods = "gpio5";
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpmc: gpmc@6e000000 {
+			compatible = "ti,omap2430-gpmc";
+			reg = <0x6e000000 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupts = <20>;
+			gpmc,num-cs = <8>;
+			gpmc,num-waitpins = <4>;
+			ti,hwmods = "gpmc";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		mcbsp1: mcbsp@48074000 {
+			compatible = "ti,omap2430-mcbsp";
+			reg = <0x48074000 0xff>;
+			reg-names = "mpu";
+			interrupts = <64>, /* OCP compliant interrupt */
+				     <59>, /* TX interrupt */
+				     <60>, /* RX interrupt */
+				     <61>; /* RX overflow interrupt */
+			interrupt-names = "common", "tx", "rx", "rx_overflow";
+			ti,buffer-size = <128>;
+			ti,hwmods = "mcbsp1";
+			dmas = <&sdma 31>,
+			       <&sdma 32>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		mcbsp2: mcbsp@48076000 {
+			compatible = "ti,omap2430-mcbsp";
+			reg = <0x48076000 0xff>;
+			reg-names = "mpu";
+			interrupts = <16>, /* OCP compliant interrupt */
+				     <62>, /* TX interrupt */
+				     <63>; /* RX interrupt */
+			interrupt-names = "common", "tx", "rx";
+			ti,buffer-size = <128>;
+			ti,hwmods = "mcbsp2";
+			dmas = <&sdma 33>,
+			       <&sdma 34>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		mcbsp3: mcbsp@4808c000 {
+			compatible = "ti,omap2430-mcbsp";
+			reg = <0x4808c000 0xff>;
+			reg-names = "mpu";
+			interrupts = <17>, /* OCP compliant interrupt */
+				     <89>, /* TX interrupt */
+				     <90>; /* RX interrupt */
+			interrupt-names = "common", "tx", "rx";
+			ti,buffer-size = <128>;
+			ti,hwmods = "mcbsp3";
+			dmas = <&sdma 17>,
+			       <&sdma 18>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		mcbsp4: mcbsp@4808e000 {
+			compatible = "ti,omap2430-mcbsp";
+			reg = <0x4808e000 0xff>;
+			reg-names = "mpu";
+			interrupts = <18>, /* OCP compliant interrupt */
+				     <54>, /* TX interrupt */
+				     <55>; /* RX interrupt */
+			interrupt-names = "common", "tx", "rx";
+			ti,buffer-size = <128>;
+			ti,hwmods = "mcbsp4";
+			dmas = <&sdma 19>,
+			       <&sdma 20>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		mcbsp5: mcbsp@48096000 {
+			compatible = "ti,omap2430-mcbsp";
+			reg = <0x48096000 0xff>;
+			reg-names = "mpu";
+			interrupts = <19>, /* OCP compliant interrupt */
+				     <81>, /* TX interrupt */
+				     <82>; /* RX interrupt */
+			interrupt-names = "common", "tx", "rx";
+			ti,buffer-size = <128>;
+			ti,hwmods = "mcbsp5";
+			dmas = <&sdma 21>,
+			       <&sdma 22>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		mmc1: mmc@4809c000 {
+			compatible = "ti,omap2-hsmmc";
+			reg = <0x4809c000 0x200>;
+			interrupts = <83>;
+			ti,hwmods = "mmc1";
+			ti,dual-volt;
+			dmas = <&sdma 61>, <&sdma 62>;
+			dma-names = "tx", "rx";
+			pbias-supply = <&pbias_mmc_reg>;
+		};
+
+		mmc2: mmc@480b4000 {
+			compatible = "ti,omap2-hsmmc";
+			reg = <0x480b4000 0x200>;
+			interrupts = <86>;
+			ti,hwmods = "mmc2";
+			dmas = <&sdma 47>, <&sdma 48>;
+			dma-names = "tx", "rx";
+		};
+
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap2-mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>;
+			ti,hwmods = "mailbox";
+			#mbox-cells = <1>;
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <6>;
+			mbox_dsp: mbox-dsp {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <1 0 0>;
+			};
+		};
+
+		timer1_target: target-module@49018000 {
+			compatible = "ti,sysc-omap2-timer", "ti,sysc";
+			reg = <0x49018000 0x4>,
+			      <0x49018010 0x4>,
+			      <0x49018014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
+					 SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			clocks = <&gpt1_fck>, <&gpt1_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x49018000 0x1000>;
+
+			timer1: timer@0 {
+				compatible = "ti,omap2420-timer";
+				reg = <0 0x400>;
+				interrupts = <37>;
+				ti,timer-alwon;
+			};
+		};
+
+		mcspi3: spi@480b8000 {
+			compatible = "ti,omap2-mcspi";
+			ti,hwmods = "mcspi3";
+			reg = <0x480b8000 0x100>;
+			interrupts = <91>;
+			dmas = <&sdma 15 &sdma 16 &sdma 23 &sdma 24>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
+		};
+
+		usb_otg_hs: usb_otg_hs@480ac000 {
+			compatible = "ti,omap2-musb";
+			ti,hwmods = "usb_otg_hs";
+			reg = <0x480ac000 0x1000>;
+			interrupts = <93>;
+		};
+
+		wd_timer2: wdt@49016000 {
+			compatible = "ti,omap2-wdt";
+			ti,hwmods = "wd_timer2";
+			reg = <0x49016000 0x80>;
+		};
+	};
+};
+
+&sdma {
+	compatible = "ti,omap2430-sdma", "ti,omap-sdma";
+};
+
+&i2c1 {
+	compatible = "ti,omap2430-i2c";
+};
+
+&i2c2 {
+	compatible = "ti,omap2430-i2c";
+};
+
+#include "omap24xx-clocks.dtsi"
+#include "omap2430-clocks.dtsi"
+
+/* Preferred always-on timer for clockevent */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt1_fck>;
+		assigned-clock-parents = <&func_32k_ck>;
+	};
+};

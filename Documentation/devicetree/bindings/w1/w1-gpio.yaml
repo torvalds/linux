@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/w1/w1-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bitbanged GPIO 1-Wire Bus
+
+maintainers:
+  - Daniel Mack <zonque@gmail.com>
+
+properties:
+  compatible:
+    const: w1-gpio
+
+  gpios:
+    minItems: 1
+    items:
+      - description: Data I/O pin
+      - description: Enable pin for an external pull-up resistor
+
+  linux,open-drain:
+    type: boolean
+    description: >
+      If specified, the data pin is considered in open-drain mode.
+
+required:
+  - compatible
+  - gpios
+
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    onewire {
+        compatible = "w1-gpio";
+        gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+    };
+
+...

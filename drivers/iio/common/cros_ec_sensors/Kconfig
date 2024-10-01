@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Chrome OS Embedded Controller managed sensors library
+#
+config IIO_CROS_EC_SENSORS_CORE
+	tristate "ChromeOS EC Sensors Core"
+	depends on SYSFS && CROS_EC_SENSORHUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Base module for the ChromeOS EC Sensors module.
+	  Contains core functions used by other IIO CrosEC sensor
+	  drivers.
+	  Define common attributes and sysfs interrupt handler.
+
+config IIO_CROS_EC_SENSORS
+	tristate "ChromeOS EC Contiguous Sensors"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Module to handle 3d contiguous sensors like
+	  Accelerometers, Gyroscope and Magnetometer that are
+	  presented by the ChromeOS EC Sensor hub.
+	  Creates an IIO device for each functions.
+
+config IIO_CROS_EC_SENSORS_LID_ANGLE
+	tristate "ChromeOS EC Sensor for lid angle"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Module to report the angle between lid and base for some
+	  convertible devices.
+	  This module is loaded when the EC can calculate the angle between the base
+	  and the lid.

@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,ads8344.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments ADS8344 ADC
+
+maintainers:
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+description: |
+  16bit 8-channel ADC with single ended inputs.
+
+properties:
+  compatible:
+    const: ti,ads8344
+
+  reg:
+    maxItems: 1
+
+  vref-supply:
+    description: Supply the 2.5V or 5V reference voltage
+
+  "#io-channel-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - vref-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "ti,ads8344";
+            reg = <0>;
+            vref-supply = <&refin_supply>;
+            spi-max-frequency = <10000000>;
+            #io-channel-cells = <1>;
+        };
+    };
+...

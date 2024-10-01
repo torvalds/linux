@@ -1,0 +1,385 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright 2015 Endless Mobile, Inc.
+ * Author: Carlo Caione <carlo@endlessm.com>
+ */
+
+/dts-v1/;
+#include "meson8b.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Hardkernel ODROID-C1";
+	compatible = "hardkernel,odroid-c1", "amlogic,meson8b";
+
+	aliases {
+		serial0 = &uart_AO;
+		mmc0 = &sd_card_slot;
+		mmc1 = &sdhc;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x40000000>;
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		blue {
+			label = "c1:blue:alive";
+			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+	};
+
+	p5v0: regulator-p5v0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "P5V0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	tflash_vdd: regulator-tflash_vdd {
+		/*
+		 * signal name from schematics: TFLASH_VDD_EN
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "TFLASH_VDD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&vcc_3v3>;
+
+		gpio = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	tf_io: gpio-regulator-tf_io {
+		compatible = "regulator-gpio";
+
+		regulator-name = "TF_IO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&vcc_3v3>;
+
+		/*
+		 * signal name from schematics: TF_3V3N_1V8_EN
+		 */
+		gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+
+		states = <3300000 0
+			  1800000 1>;
+	};
+
+	rtc32k_xtal: rtc32k-xtal-clk {
+		/* X3 in the schematics */
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "RTC32K";
+		#clock-cells = <0>;
+	};
+
+	vcc_1v8: regulator-vcc-1v8 {
+		/*
+		 * RICHTEK RT9179 configured for a fixed output voltage of
+		 * 1.8V. This supplies not only VCC1V8 but also IOREF_1V8 and
+		 * VDD1V8 according to the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		vin-supply = <&p5v0>;
+	};
+
+	vcc_3v3: regulator-vcc-3v3 {
+		/*
+		 * Monolithic Power Systems MP2161 configured for a fixed
+		 * output voltage of 3.3V. This supplies not only VCC3V3 but
+		 * also VDD3V3 and VDDIO_AO3V3 according to the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&p5v0>;
+	};
+
+	vcck: regulator-vcck {
+		/* Monolithic Power Systems MP2161 */
+		compatible = "pwm-regulator";
+
+		regulator-name = "VCCK";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1140000>;
+
+		pwm-supply = <&p5v0>;
+
+		pwms = <&pwm_cd 0 12218 0>;
+		pwm-dutycycle-range = <91 0>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddc_ddr: regulator-vddc-ddr {
+		/*
+		 * Monolithic Power Systems MP2161 configured for a fixed
+		 * output voltage of 1.5V. This supplies not only DDR_VDDC but
+		 * also DDR3_1V5 according to the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "DDR_VDDC";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		vin-supply = <&p5v0>;
+	};
+
+	vddee: regulator-vddee {
+		/* Monolithic Power Systems MP2161 */
+		compatible = "pwm-regulator";
+
+		regulator-name = "VDDEE";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1140000>;
+
+		pwm-supply = <&p5v0>;
+
+		pwms = <&pwm_cd 1 12218 0>;
+		pwm-dutycycle-range = <91 0>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd_rtc: regulator-vdd-rtc {
+		/*
+		 * Torex Semiconductor XC6215 configured for a fixed output of
+		 * 0.9V.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_RTC";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		vin-supply = <&vcc_3v3>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vcck>;
+};
+
+&efuse {
+	ethernet_mac_address: mac@1b4 {
+		reg = <0x1b4 0x6>;
+	};
+};
+
+&ethmac {
+	status = "okay";
+
+	pinctrl-0 = <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+
+	phy-handle = <&eth_phy>;
+	phy-mode = "rgmii-id";
+
+	nvmem-cells = <&ethernet_mac_address>;
+	nvmem-cell-names = "mac-address";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Realtek RTL8211F (0x001cc916) */
+		eth_phy: ethernet-phy@0 {
+			reg = <0>;
+
+			reset-assert-us = <10000>;
+			reset-deassert-us = <80000>;
+			reset-gpios = <&gpio GPIOH_4 GPIO_ACTIVE_LOW>;
+
+			interrupt-parent = <&gpio_intc>;
+			/* GPIOH_3 */
+			interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};
+
+&gpio {
+	gpio-line-names = /* Bank GPIOX */
+			  "J2 Header Pin 35", "J2 Header Pin 36",
+			  "J2 Header Pin 32", "J2 Header Pin 31",
+			  "J2 Header Pin 29", "J2 Header Pin 18",
+			  "J2 Header Pin 22", "J2 Header Pin 16",
+			  "J2 Header Pin 23", "J2 Header Pin 21",
+			  "J2 Header Pin 19", "J2 Header Pin 33",
+			  "J2 Header Pin 8", "J2 Header Pin 10",
+			  "J2 Header Pin 15", "J2 Header Pin 13",
+			  "J2 Header Pin 24", "J2 Header Pin 26",
+			  /* Bank GPIOY */
+			  "Revision (upper)", "Revision (lower)",
+			  "J2 Header Pin 7", "", "J2 Header Pin 12",
+			  "J2 Header Pin 11", "", "", "",
+			  "TFLASH_VDD_EN", "", "",
+			  /* Bank GPIODV */
+			  "VCCK_PWM (PWM_C)", "I2CA_SDA", "I2CA_SCL",
+			  "I2CB_SDA", "I2CB_SCL", "VDDEE_PWM (PWM_D)",
+			  "",
+			  /* Bank GPIOH */
+			  "HDMI_HPD", "HDMI_I2C_SDA", "HDMI_I2C_SCL",
+			  "ETH_PHY_INTR", "ETH_PHY_NRST", "ETH_TXD1",
+			  "ETH_TXD0", "ETH_TXD3", "ETH_TXD2",
+			  "ETH_RGMII_TX_CLK",
+			  /* Bank CARD */
+			  "SD_DATA1 (SDB_D1)", "SD_DATA0 (SDB_D0)",
+			  "SD_CLK",  "SD_CMD", "SD_DATA3 (SDB_D3)",
+			  "SD_DATA2 (SDB_D2)", "SD_CDN (SD_DET_N)",
+			  /* Bank BOOT */
+			  "SDC_D0 (EMMC)", "SDC_D1 (EMMC)",
+			  "SDC_D2 (EMMC)", "SDC_D3 (EMMC)",
+			  "SDC_D4 (EMMC)", "SDC_D5 (EMMC)",
+			  "SDC_D6 (EMMC)", "SDC_D7 (EMMC)",
+			  "SDC_CLK (EMMC)", "SDC_RSTn (EMMC)",
+			  "SDC_CMD (EMMC)", "BOOT_SEL", "", "", "",
+			  "", "", "", "",
+			  /* Bank DIF */
+			  "ETH_RXD1", "ETH_RXD0", "ETH_RX_DV",
+			  "RGMII_RX_CLK", "ETH_RXD3", "ETH_RXD2",
+			  "ETH_TXEN", "ETH_PHY_REF_CLK_25MOUT",
+			  "ETH_MDC", "ETH_MDIO";
+};
+
+&gpio_ao {
+	gpio-line-names = "UART TX", "UART RX", "",
+			  "TF_3V3N_1V8_EN", "USB_HUB_RST_N",
+			  "USB_OTG_PWREN", "J7 Header Pin 2",
+			  "IR_IN", "J7 Header Pin 4",
+			  "J7 Header Pin 6", "J7 Header Pin 5",
+			  "J7 Header Pin 7", "HDMI_CEC",
+			  "SYS_LED", "", "";
+
+	/*
+	 * WARNING: The USB Hub on the Odroid-C1/C1+ needs a reset signal
+	 * to be turned high in order to be detected by the USB Controller.
+	 * This signal should be handled by a USB specific power sequence
+	 * in order to reset the Hub when USB bus is powered down.
+	 */
+	usb-hub {
+		gpio-hog;
+		gpios = <GPIOAO_4 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb-hub-reset";
+	};
+};
+
+&ir_receiver {
+	status = "okay";
+	pinctrl-0 = <&ir_recv_pins>;
+	pinctrl-names = "default";
+};
+
+&mali {
+	mali-supply = <&vddee>;
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
+
+&sdhc {
+	status = "okay";
+
+	pinctrl-0 = <&sdxc_c_pins>;
+	pinctrl-names = "default";
+
+	bus-width = <8>;
+	max-frequency = <100000000>;
+
+	disable-wp;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	no-sdio;
+
+	mmc-pwrseq = <&emmc_pwrseq>;
+
+	vmmc-supply = <&vcc_3v3>;
+	vqmmc-supply = <&vcc_1v8>;
+};
+
+&sdio {
+	status = "okay";
+
+	pinctrl-0 = <&sd_b_pins>;
+	pinctrl-names = "default";
+
+	/* SD card */
+	sd_card_slot: slot@1 {
+		compatible = "mmc-slot";
+		reg = <1>;
+		status = "okay";
+
+		bus-width = <4>;
+		no-sdio;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+
+		cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_LOW>;
+
+		vmmc-supply = <&tflash_vdd>;
+		vqmmc-supply = <&tf_io>;
+	};
+};
+
+&pwm_cd {
+	status = "okay";
+	pinctrl-0 = <&pwm_c1_pins>, <&pwm_d_pins>;
+	pinctrl-names = "default";
+	clocks = <&xtal>, <&xtal>;
+	clock-names = "clkin0", "clkin1";
+};
+
+&rtc {
+	/* needs to be enabled manually when a battery is connected */
+	clocks = <&rtc32k_xtal>;
+	vdd-supply = <&vdd_rtc>;
+};
+
+&uart_AO {
+	status = "okay";
+	pinctrl-0 = <&uart_ao_a_pins>;
+	pinctrl-names = "default";
+};
+
+&usb1_phy {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};

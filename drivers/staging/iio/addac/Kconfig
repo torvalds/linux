@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# ADDAC drivers
+#
+menu "Analog digital bi-direction converters"
+
+config ADT7316
+	tristate "Analog Devices ADT7316/7/8 ADT7516/7/9 temperature sensor, ADC and DAC driver"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say yes here to build support for Analog Devices ADT7316, ADT7317, ADT7318
+	  and ADT7516, ADT7517, ADT7519 temperature sensors, ADC and DAC.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adt7316.
+
+config ADT7316_SPI
+	tristate "support SPI bus connection"
+	depends on SPI && ADT7316
+	default y
+	help
+	  Say yes here to build SPI bus support for Analog Devices ADT7316/7/8
+	  and ADT7516/7/9.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adt7316_spi.
+
+config ADT7316_I2C
+	tristate "support I2C bus connection"
+	depends on I2C && ADT7316
+	help
+	  Say yes here to build I2C bus support for Analog Devices ADT7316/7/8
+	  and ADT7516/7/9.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adt7316_i2c.
+
+endmenu

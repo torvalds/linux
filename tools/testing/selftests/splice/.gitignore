@@ -1,0 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0-only
+default_file_splice_read
+splice_read

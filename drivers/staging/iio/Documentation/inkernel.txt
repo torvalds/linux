@@ -1,0 +1,58 @@
+Industrial I/O Subsystem in kernel consumers.
+
+The IIO subsystem can act as a layer under other elements of the kernel
+providing a means of obtaining ADC type readings or of driving DAC type
+signals.  The functionality supported will grow as use cases arise.
+
+Describing the channel mapping (iio/machine.h)
+
+Channel associations are described using:
+
+struct iio_map {
+	const char *adc_channel_label;
+	const char *consumer_dev_name;
+	const char *consumer_channel;
+};
+
+adc_channel_label identifies the channel on the IIO device by being
+matched against the datasheet_name field of the iio_chan_spec.
+
+consumer_dev_name allows identification of the consumer device.
+This are then used to find the channel mapping from the consumer device (see
+below).
+
+Finally consumer_channel is a string identifying the channel to the consumer.
+(Perhaps 'battery_voltage' or similar).
+
+An array of these structures is then passed to the IIO driver.
+
+Supporting in kernel interfaces in the driver (driver.h)
+
+The driver must provide datasheet_name values for its channels and
+must pass the iio_map structures and a pointer to its own iio_dev structure
+ on to the core via a call to iio_map_array_register.  On removal,
+iio_map_array_unregister reverses this process.
+
+The result of this is that the IIO core now has all the information needed
+to associate a given channel with the consumer requesting it.
+
+Acting as an IIO consumer (consumer.h)
+
+The consumer first has to obtain an iio_channel structure from the core
+by calling iio_channel_get().  The correct channel is identified by:
+
+* matching dev or dev_name against consumer_dev and consumer_dev_name
+* matching consumer_channel against consumer_channel in the map
+
+There are then a number of functions that can be used to get information
+about this channel such as it's current reading.
+
+e.g.
+iio_read_channel_raw() - get a reading
+iio_get_channel_type() - get the type of channel
+
+There is also provision for retrieving all of the channels associated
+with a given consumer.  This is useful for generic drivers such as
+iio_hwmon where the number and naming of channels is not known by the
+consumer driver.  To do this, use iio_channel_get_all.
+

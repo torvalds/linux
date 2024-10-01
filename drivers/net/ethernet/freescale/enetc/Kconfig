@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: GPL-2.0
+config FSL_ENETC
+	tristate "ENETC PF driver"
+	depends on PCI && PCI_MSI
+	select FSL_ENETC_IERB
+	select FSL_ENETC_MDIO
+	select PHYLINK
+	select PCS_LYNX
+	select DIMLIB
+	help
+	  This driver supports NXP ENETC gigabit ethernet controller PCIe
+	  physical function (PF) devices, managing ENETC Ports at a privileged
+	  level.
+
+	  If compiled as module (M), the module name is fsl-enetc.
+
+config FSL_ENETC_VF
+	tristate "ENETC VF driver"
+	depends on PCI && PCI_MSI
+	select FSL_ENETC_MDIO
+	select PHYLINK
+	select DIMLIB
+	help
+	  This driver supports NXP ENETC gigabit ethernet controller PCIe
+	  virtual function (VF) devices enabled by the ENETC PF driver.
+
+	  If compiled as module (M), the module name is fsl-enetc-vf.
+
+config FSL_ENETC_IERB
+	tristate "ENETC IERB driver"
+	help
+	  This driver configures the Integrated Endpoint Register Block on NXP
+	  LS1028A.
+
+	  If compiled as module (M), the module name is fsl-enetc-ierb.
+
+config FSL_ENETC_MDIO
+	tristate "ENETC MDIO driver"
+	depends on PCI && MDIO_DEVRES && MDIO_BUS
+	help
+	  This driver supports NXP ENETC Central MDIO controller as a PCIe
+	  physical function (PF) device.
+
+	  If compiled as module (M), the module name is fsl-enetc-mdio.
+
+config FSL_ENETC_PTP_CLOCK
+	tristate "ENETC PTP clock driver"
+	depends on PTP_1588_CLOCK_QORIQ && (FSL_ENETC || FSL_ENETC_VF)
+	default y
+	help
+	  This driver adds support for using the ENETC 1588 timer
+	  as a PTP clock. This clock is only useful if your PTP
+	  programs are getting hardware time stamps on the PTP Ethernet
+	  packets using the SO_TIMESTAMPING API.
+
+	  If compiled as module (M), the module name is fsl-enetc-ptp.
+
+config FSL_ENETC_QOS
+	bool "ENETC hardware Time-sensitive Network support"
+	depends on (FSL_ENETC || FSL_ENETC_VF) && (NET_SCH_TAPRIO || NET_SCH_CBS)
+	help
+	  There are Time-Sensitive Network(TSN) capabilities(802.1Qbv/802.1Qci
+	  /802.1Qbu etc.) supported by ENETC. These TSN capabilities can be set
+	  enable/disable from user space via Qos commands(tc). In the kernel
+	  side, it can be loaded by Qos driver. Currently, it is only support
+	  taprio(802.1Qbv) and Credit Based Shaper(802.1Qbu).

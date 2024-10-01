@@ -1,0 +1,32 @@
+Rockchip mailbox
+
+The Rockchip mailbox is used by the Rockchip CPU cores to communicate
+requests to MCU processor.
+
+Refer to ./mailbox.txt for generic information about mailbox device-tree
+bindings.
+
+Required properties:
+
+ - compatible: should be one of the following.
+   - "rockchip,rk3368-mbox" for rk3368
+ - reg: physical base address of the controller and length of memory mapped
+	region.
+ - interrupts: The interrupt number to the cpu. The interrupt specifier format
+	depends on the interrupt controller.
+ - #mbox-cells: Common mailbox binding property to identify the number
+	of cells required for the mailbox specifier. Should be 1
+
+Example:
+--------
+
+/* RK3368 */
+mbox: mbox@ff6b0000 {
+	compatible = "rockchip,rk3368-mailbox";
+	reg = <0x0 0xff6b0000 0x0 0x1000>,
+	interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+	#mbox-cells = <1>;
+};

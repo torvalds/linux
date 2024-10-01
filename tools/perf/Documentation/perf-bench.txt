@@ -1,0 +1,238 @@
+perf-bench(1)
+=============
+
+NAME
+----
+perf-bench - General framework for benchmark suites
+
+SYNOPSIS
+--------
+[verse]
+'perf bench' [<common options>] <subsystem> <suite> [<options>]
+
+DESCRIPTION
+-----------
+This 'perf bench' command is a general framework for benchmark suites.
+
+COMMON OPTIONS
+--------------
+-r::
+--repeat=::
+Specify amount of times to repeat the run (default 10).
+
+-f::
+--format=::
+Specify format style.
+Current available format styles are:
+
+'default'::
+Default style. This is mainly for human reading.
+---------------------
+% perf bench sched pipe                      # with no style specified
+(executing 1000000 pipe operations between two tasks)
+        Total time:5.855 sec
+                5.855061 usecs/op
+		170792 ops/sec
+---------------------
+
+'simple'::
+This simple style is friendly for automated
+processing by scripts.
+---------------------
+% perf bench --format=simple sched pipe      # specified simple
+5.988
+---------------------
+
+SUBSYSTEM
+---------
+
+'sched'::
+	Scheduler and IPC mechanisms.
+
+'syscall'::
+	System call performance (throughput).
+
+'mem'::
+	Memory access performance.
+
+'numa'::
+	NUMA scheduling and MM benchmarks.
+
+'futex'::
+	Futex stressing benchmarks.
+
+'epoll'::
+	Eventpoll (epoll) stressing benchmarks.
+
+'internals'::
+	Benchmark internal perf functionality.
+
+'all'::
+	All benchmark subsystems.
+
+SUITES FOR 'sched'
+~~~~~~~~~~~~~~~~~~
+*messaging*::
+Suite for evaluating performance of scheduler and IPC mechanisms.
+Based on hackbench by Rusty Russell.
+
+Options of *messaging*
+^^^^^^^^^^^^^^^^^^^^^^
+-p::
+--pipe::
+Use pipe() instead of socketpair()
+
+-t::
+--thread::
+Be multi thread instead of multi process
+
+-g::
+--group=::
+Specify number of groups
+
+-l::
+--nr_loops=::
+Specify number of loops
+
+Example of *messaging*
+^^^^^^^^^^^^^^^^^^^^^^
+
+---------------------
+% perf bench sched messaging                 # run with default
+options (20 sender and receiver processes per group)
+(10 groups == 400 processes run)
+
+      Total time:0.308 sec
+
+% perf bench sched messaging -t -g 20        # be multi-thread, with 20 groups
+(20 sender and receiver threads per group)
+(20 groups == 800 threads run)
+
+      Total time:0.582 sec
+---------------------
+
+*pipe*::
+Suite for pipe() system call.
+Based on pipe-test-1m.c by Ingo Molnar.
+
+Options of *pipe*
+^^^^^^^^^^^^^^^^^
+-l::
+--loop=::
+Specify number of loops.
+
+Example of *pipe*
+^^^^^^^^^^^^^^^^^
+
+---------------------
+% perf bench sched pipe
+(executing 1000000 pipe operations between two tasks)
+
+        Total time:8.091 sec
+                8.091833 usecs/op
+                123581 ops/sec
+
+% perf bench sched pipe -l 1000              # loop 1000
+(executing 1000 pipe operations between two tasks)
+
+        Total time:0.016 sec
+                16.948000 usecs/op
+                59004 ops/sec
+---------------------
+
+SUITES FOR 'syscall'
+~~~~~~~~~~~~~~~~~~
+*basic*::
+Suite for evaluating performance of core system call throughput (both usecs/op and ops/sec metrics).
+This uses a single thread simply doing getppid(2), which is a simple syscall where the result is not
+cached by glibc.
+
+
+SUITES FOR 'mem'
+~~~~~~~~~~~~~~~~
+*memcpy*::
+Suite for evaluating performance of simple memory copy in various ways.
+
+Options of *memcpy*
+^^^^^^^^^^^^^^^^^^^
+-l::
+--size::
+Specify size of memory to copy (default: 1MB).
+Available units are B, KB, MB, GB and TB (case insensitive).
+
+-f::
+--function::
+Specify function to copy (default: default).
+Available functions are depend on the architecture.
+On x86-64, x86-64-unrolled, x86-64-movsq and x86-64-movsb are supported.
+
+-l::
+--nr_loops::
+Repeat memcpy invocation this number of times.
+
+-c::
+--cycles::
+Use perf's cpu-cycles event instead of gettimeofday syscall.
+
+*memset*::
+Suite for evaluating performance of simple memory set in various ways.
+
+Options of *memset*
+^^^^^^^^^^^^^^^^^^^
+-l::
+--size::
+Specify size of memory to set (default: 1MB).
+Available units are B, KB, MB, GB and TB (case insensitive).
+
+-f::
+--function::
+Specify function to set (default: default).
+Available functions are depend on the architecture.
+On x86-64, x86-64-unrolled, x86-64-stosq and x86-64-stosb are supported.
+
+-l::
+--nr_loops::
+Repeat memset invocation this number of times.
+
+-c::
+--cycles::
+Use perf's cpu-cycles event instead of gettimeofday syscall.
+
+SUITES FOR 'numa'
+~~~~~~~~~~~~~~~~~
+*mem*::
+Suite for evaluating NUMA workloads.
+
+SUITES FOR 'futex'
+~~~~~~~~~~~~~~~~~~
+*hash*::
+Suite for evaluating hash tables.
+
+*wake*::
+Suite for evaluating wake calls.
+
+*wake-parallel*::
+Suite for evaluating parallel wake calls.
+
+*requeue*::
+Suite for evaluating requeue calls.
+
+*lock-pi*::
+Suite for evaluating futex lock_pi calls.
+
+SUITES FOR 'epoll'
+~~~~~~~~~~~~~~~~~~
+*wait*::
+Suite for evaluating concurrent epoll_wait calls.
+
+*ctl*::
+Suite for evaluating multiple epoll_ctl calls.
+
+SUITES FOR 'internals'
+~~~~~~~~~~~~~~~~~~~~~~
+*synthesize*::
+Suite for evaluating perf's event synthesis performance.
+
+SEE ALSO
+--------
+linkperf:perf[1]

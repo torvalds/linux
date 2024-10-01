@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright (C) 2016 Freescale Semiconductor, Inc.
+
+#include "imx6sx-sdb.dts"
+
+/ {
+	sound {
+		audio-cpu = <&sai1>;
+	};
+};
+
+&audmux {
+	/* pin conflict with sai */
+	status = "disabled";
+};
+
+&sai1 {
+	status = "okay";
+};
+
+&sdma {
+	gpr = <&gpr>;
+	/* SDMA event remap for SAI1 */
+	fsl,sdma-event-remap = <0 15 1>, <0 16 1>;
+};
+
+&ssi2 {
+	status = "disabled";
+};

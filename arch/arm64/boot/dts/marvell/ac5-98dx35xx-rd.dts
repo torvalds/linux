@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree For RD-AC5X.
+ *
+ * Copyright (C) 2021 Marvell
+ * Copyright (C) 2022 Allied Telesis Labs
+ */
+/*
+ * Device Tree file for Marvell Alleycat 5X development board
+ * This board file supports the B configuration of the board
+ */
+
+/dts-v1/;
+
+#include "ac5-98dx35xx.dtsi"
+
+/ {
+	model = "Marvell RD-AC5X Board";
+	compatible = "marvell,rd-ac5x", "marvell,ac5x", "marvell,ac5";
+
+	aliases {
+		serial0 = &uart0;
+		spiflash0 = &spiflash0;
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x2 0x00000000 0x0 0x40000000>;
+	};
+
+	usb1phy: usb-phy {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&eth0 {
+	status = "okay";
+	phy-handle = <&phy0>;
+};
+
+/* USB0 is a host USB */
+&usb0 {
+	status = "okay";
+};
+
+/* USB1 is a peripheral USB */
+&usb1 {
+	status = "okay";
+	phys = <&usb1phy>;
+	phy-names = "usb-phy";
+	dr_mode = "peripheral";
+};
+
+&spi0 {
+	status = "okay";
+
+	spiflash0: flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>; /* 1-single, 2-dual, 4-quad */
+		spi-rx-bus-width = <1>; /* 1-single, 2-dual, 4-quad */
+		reg = <0>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "spi_flash_part0";
+			reg = <0x0 0x800000>;
+		};
+
+		parition@1 {
+			label = "spi_flash_part1";
+			reg = <0x800000 0x700000>;
+		};
+
+		parition@2 {
+			label = "spi_flash_part2";
+			reg = <0xF00000 0x100000>;
+		};
+	};
+};

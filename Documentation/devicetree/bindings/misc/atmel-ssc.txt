@@ -1,0 +1,50 @@
+* Atmel SSC driver.
+
+Required properties:
+- compatible: "atmel,at91rm9200-ssc" or "atmel,at91sam9g45-ssc"
+	- atmel,at91rm9200-ssc: support pdc transfer
+	- atmel,at91sam9g45-ssc: support dma transfer
+- reg: Should contain SSC registers location and length
+- interrupts: Should contain SSC interrupt
+- clock-names: tuple listing input clock names.
+	Required elements: "pclk"
+- clocks: phandles to input clocks.
+
+
+Required properties for devices compatible with "atmel,at91sam9g45-ssc":
+- dmas: DMA specifier, consisting of a phandle to DMA controller node,
+  the memory interface and SSC DMA channel ID (for tx and rx).
+  See Documentation/devicetree/bindings/dma/atmel-dma.txt for details.
+- dma-names: Must be "tx", "rx".
+
+Optional properties:
+  - atmel,clk-from-rk-pin: bool property.
+     - When SSC works in slave mode, according to the hardware design, the
+       clock can get from TK pin, and also can get from RK pin. So, add
+       this parameter to choose where the clock from.
+     - By default the clock is from TK pin, if the clock from RK pin, this
+       property is needed.
+  - #sound-dai-cells: Should contain <0>.
+     - This property makes the SSC into an automatically registered DAI.
+
+Examples:
+- PDC transfer:
+ssc0: ssc@fffbc000 {
+	compatible = "atmel,at91rm9200-ssc";
+	reg = <0xfffbc000 0x4000>;
+	interrupts = <14 4 5>;
+	clocks = <&ssc0_clk>;
+	clock-names = "pclk";
+};
+
+- DMA transfer:
+ssc0: ssc@f0010000 {
+      compatible = "atmel,at91sam9g45-ssc";
+      reg = <0xf0010000 0x4000>;
+      interrupts = <28 4 5>;
+      dmas = <&dma0 1 13>,
+	     <&dma0 1 14>;
+      dma-names = "tx", "rx";
+      pinctrl-names = "default";
+      pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
+};

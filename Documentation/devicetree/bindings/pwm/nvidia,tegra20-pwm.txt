@@ -1,0 +1,77 @@
+Tegra SoC PWFM controller
+
+Required properties:
+- compatible: Must be:
+  - "nvidia,tegra20-pwm": for Tegra20
+  - "nvidia,tegra30-pwm", "nvidia,tegra20-pwm": for Tegra30
+  - "nvidia,tegra114-pwm", "nvidia,tegra20-pwm": for Tegra114
+  - "nvidia,tegra124-pwm", "nvidia,tegra20-pwm": for Tegra124
+  - "nvidia,tegra132-pwm", "nvidia,tegra20-pwm": for Tegra132
+  - "nvidia,tegra210-pwm", "nvidia,tegra20-pwm": for Tegra210
+  - "nvidia,tegra186-pwm": for Tegra186
+  - "nvidia,tegra194-pwm": for Tegra194
+- reg: physical base address and length of the controller's registers
+- #pwm-cells: should be 2. See pwm.yaml in this directory for a description of
+  the cells format.
+- clocks: Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - pwm
+
+Optional properties:
+============================
+In some of the interface like PWM based regulator device, it is required
+to configure the pins differently in different states, especially in suspend
+state of the system. The configuration of pin is provided via the pinctrl
+DT node as detailed in the pinctrl DT binding document
+	Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+The PWM node will have following optional properties.
+pinctrl-names:	Pin state names. Must be "default" and "sleep".
+pinctrl-0:	phandle for the default/active state of pin configurations.
+pinctrl-1:	phandle for the sleep state of pin configurations.
+
+Example:
+
+	pwm: pwm@7000a000 {
+		compatible = "nvidia,tegra20-pwm";
+		reg = <0x7000a000 0x100>;
+		#pwm-cells = <2>;
+		clocks = <&tegra_car 17>;
+		resets = <&tegra_car 17>;
+		reset-names = "pwm";
+	};
+
+
+Example with the pin configuration for suspend and resume:
+=========================================================
+Suppose pin PE7 (On Tegra210) interfaced with the regulator device and
+it requires PWM output to be tristated when system enters suspend.
+Following will be DT binding to achieve this:
+
+#include <dt-bindings/pinctrl/pinctrl-tegra.h>
+
+	pinmux@700008d4 {
+		pwm_active_state: pwm_active_state {
+                        pe7 {
+                                nvidia,pins = "pe7";
+                                nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+		};
+
+		pwm_sleep_state: pwm_sleep_state {
+                        pe7 {
+                                nvidia,pins = "pe7";
+                                nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+		};
+	};
+
+	pwm@7000a000 {
+		/* Mandatory PWM properties */
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&pwm_active_state>;
+		pinctrl-1 = <&pwm_sleep_state>;
+	};

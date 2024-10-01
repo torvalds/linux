@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * O2I Device Tree Source
+ *
+ * Copyright (C) 2012 DENX Software Engineering
+ * Anatolij Gustschin <agust@denx.de>
+ */
+
+/include/ "o2d.dtsi"
+
+/ {
+	model = "ifm,o2i";
+	compatible = "ifm,o2d";
+
+	localbus {
+		flash@0,0 {
+			partition@60000 {
+				label = "kernel";
+				reg = <0x00060000 0x00260000>;
+				read-only;
+			};
+			/* o2i specific partitions */
+			partition@2c0000 {
+				label = "o2i user defined";
+				reg = <0x002c0000 0x00d40000>;
+			};
+		};
+	};
+};

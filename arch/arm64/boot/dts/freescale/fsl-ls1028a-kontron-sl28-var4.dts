@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Device Tree file for the Kontron SMARC-sAL28 board.
+ *
+ * This is for the network variant 4 which has two ethernet ports. It
+ * extends the base and provides one more port connected via RGMII.
+ *
+ * Copyright (C) 2021 Michael Walle <michael@walle.cc>
+ *
+ */
+
+/dts-v1/;
+#include "fsl-ls1028a-kontron-sl28.dts"
+#include <dt-bindings/net/qca-ar803x.h>
+
+/ {
+	model = "Kontron SMARC-sAL28 (Dual PHY)";
+	compatible = "kontron,sl28-var4", "kontron,sl28", "fsl,ls1028a";
+};
+
+&enetc_mdio_pf3 {
+	phy1: ethernet-phy@4 {
+		reg = <0x4>;
+		eee-broken-1000t;
+		eee-broken-100tx;
+		qca,clk-out-frequency = <125000000>;
+		qca,clk-out-strength = <AR803X_STRENGTH_FULL>;
+		qca,keep-pll-enabled;
+		vddio-supply = <&vddio>;
+
+		vddio: vddio-regulator {
+			regulator-name = "VDDIO";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		vddh: vddh-regulator {
+			regulator-name = "VDDH";
+		};
+	};
+};
+
+&enetc_port1 {
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+};

@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/ingenic,dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic SoCs DMA Controller DT bindings
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+allOf:
+  - $ref: "dma-controller.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - ingenic,jz4740-dma
+          - ingenic,jz4725b-dma
+          - ingenic,jz4760-dma
+          - ingenic,jz4760-bdma
+          - ingenic,jz4760-mdma
+          - ingenic,jz4760b-dma
+          - ingenic,jz4760b-bdma
+          - ingenic,jz4760b-mdma
+          - ingenic,jz4770-dma
+          - ingenic,jz4780-dma
+          - ingenic,x1000-dma
+          - ingenic,x1830-dma
+      - items:
+          - const: ingenic,jz4770-bdma
+          - const: ingenic,jz4760b-bdma
+
+  reg:
+    items:
+      - description: Channel-specific registers
+      - description: System control registers
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  "#dma-cells":
+    enum: [2, 3]
+    description: >
+      DMA clients must use the format described in dma.txt, giving a phandle
+      to the DMA controller plus the following integer cells:
+
+      - Request type: The DMA request type specifies the device endpoint that
+        will be the source or destination of the DMA transfer.
+        If "#dma-cells" is 2, the request type is a single cell, and the
+        direction will be unidirectional (either RX or TX but not both).
+        If "#dma-cells" is 3, the request type has two cells; the first
+        one corresponds to the host to device direction (TX), the second one
+        corresponds to the device to host direction (RX). The DMA channel is
+        then bidirectional.
+
+      - Channel: If set to 0xffffffff, any available channel will be allocated
+        for the client. Otherwise, the exact channel specified will be used.
+        The channel should be reserved on the DMA controller using the
+        ingenic,reserved-channels property.
+
+  ingenic,reserved-channels:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: >
+      Bitmask of channels to reserve for devices that need a specific
+      channel. These channels will only be assigned when explicitely
+      requested by a client. The primary use for this is channels 0 and
+      1, which can be configured to have special behaviour for NAND/BCH
+      when using programmable firmware.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
+    dma: dma-controller@13420000 {
+      compatible = "ingenic,jz4780-dma";
+      reg = <0x13420000 0x400>, <0x13421000 0x40>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <10>;
+
+      clocks = <&cgu JZ4780_CLK_PDMA>;
+
+      #dma-cells = <2>;
+
+      ingenic,reserved-channels = <0x3>;
+    };

@@ -1,0 +1,264 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Security configuration
+#
+
+menu "Security options"
+
+source "security/keys/Kconfig"
+
+config SECURITY_DMESG_RESTRICT
+	bool "Restrict unprivileged access to the kernel syslog"
+	default n
+	help
+	  This enforces restrictions on unprivileged users reading the kernel
+	  syslog via dmesg(8).
+
+	  If this option is not selected, no restrictions will be enforced
+	  unless the dmesg_restrict sysctl is explicitly set to (1).
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY
+	bool "Enable different security models"
+	depends on SYSFS
+	depends on MULTIUSER
+	help
+	  This allows you to choose different security modules to be
+	  configured into your kernel.
+
+	  If this option is not selected, the default Linux security
+	  model will be used.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_WRITABLE_HOOKS
+	depends on SECURITY
+	bool
+	default n
+
+config SECURITYFS
+	bool "Enable the securityfs filesystem"
+	help
+	  This will build the securityfs filesystem.  It is currently used by
+	  various security modules (AppArmor, IMA, SafeSetID, TOMOYO, TPM).
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_NETWORK
+	bool "Socket and Networking Security Hooks"
+	depends on SECURITY
+	help
+	  This enables the socket and networking security hooks.
+	  If enabled, a security module can use these hooks to
+	  implement socket and networking access controls.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_INFINIBAND
+	bool "Infiniband Security Hooks"
+	depends on SECURITY && INFINIBAND
+	help
+	  This enables the Infiniband security hooks.
+	  If enabled, a security module can use these hooks to
+	  implement Infiniband access controls.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_NETWORK_XFRM
+	bool "XFRM (IPSec) Networking Security Hooks"
+	depends on XFRM && SECURITY_NETWORK
+	help
+	  This enables the XFRM (IPSec) networking security hooks.
+	  If enabled, a security module can use these hooks to
+	  implement per-packet access controls based on labels
+	  derived from IPSec policy.  Non-IPSec communications are
+	  designated as unlabelled, and only sockets authorized
+	  to communicate unlabelled data can send without using
+	  IPSec.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_PATH
+	bool "Security hooks for pathname based access control"
+	depends on SECURITY
+	help
+	  This enables the security hooks for pathname based access control.
+	  If enabled, a security module can use these hooks to
+	  implement pathname based access controls.
+	  If you are unsure how to answer this question, answer N.
+
+config INTEL_TXT
+	bool "Enable Intel(R) Trusted Execution Technology (Intel(R) TXT)"
+	depends on HAVE_INTEL_TXT
+	help
+	  This option enables support for booting the kernel with the
+	  Trusted Boot (tboot) module. This will utilize
+	  Intel(R) Trusted Execution Technology to perform a measured launch
+	  of the kernel. If the system does not support Intel(R) TXT, this
+	  will have no effect.
+
+	  Intel TXT will provide higher assurance of system configuration and
+	  initial state as well as data reset protection.  This is used to
+	  create a robust initial kernel measurement and verification, which
+	  helps to ensure that kernel security mechanisms are functioning
+	  correctly. This level of protection requires a root of trust outside
+	  of the kernel itself.
+
+	  Intel TXT also helps solve real end user concerns about having
+	  confidence that their hardware is running the VMM or kernel that
+	  it was configured with, especially since they may be responsible for
+	  providing such assurances to VMs and services running on it.
+
+	  See <https://www.intel.com/technology/security/> for more information
+	  about Intel(R) TXT.
+	  See <http://tboot.sourceforge.net> for more information about tboot.
+	  See Documentation/x86/intel_txt.rst for a description of how to enable
+	  Intel TXT support in a kernel boot.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config LSM_MMAP_MIN_ADDR
+	int "Low address space for LSM to protect from user allocation"
+	depends on SECURITY && SECURITY_SELINUX
+	default 32768 if ARM || (ARM64 && COMPAT)
+	default 65536
+	help
+	  This is the portion of low virtual memory which should be protected
+	  from userspace allocation.  Keeping a user from writing to low pages
+	  can help reduce the impact of kernel NULL pointer bugs.
+
+	  For most ia64, ppc64 and x86 users with lots of address space
+	  a value of 65536 is reasonable and should cause no problems.
+	  On arm and other archs it should not be higher than 32768.
+	  Programs which use vm86 functionality or have some need to map
+	  this low address space will need the permission specific to the
+	  systems running LSM.
+
+config HAVE_HARDENED_USERCOPY_ALLOCATOR
+	bool
+	help
+	  The heap allocator implements __check_heap_object() for
+	  validating memory ranges against heap object sizes in
+	  support of CONFIG_HARDENED_USERCOPY.
+
+config HARDENED_USERCOPY
+	bool "Harden memory copies between kernel and userspace"
+	depends on HAVE_HARDENED_USERCOPY_ALLOCATOR
+	imply STRICT_DEVMEM
+	help
+	  This option checks for obviously wrong memory regions when
+	  copying memory to/from the kernel (via copy_to_user() and
+	  copy_from_user() functions) by rejecting memory ranges that
+	  are larger than the specified heap object, span multiple
+	  separately allocated pages, are not on the process stack,
+	  or are part of the kernel text. This prevents entire classes
+	  of heap overflow exploits and similar kernel memory exposures.
+
+config FORTIFY_SOURCE
+	bool "Harden common str/mem functions against buffer overflows"
+	depends on ARCH_HAS_FORTIFY_SOURCE
+	# https://bugs.llvm.org/show_bug.cgi?id=41459
+	depends on !CC_IS_CLANG || CLANG_VERSION >= 120001
+	# https://github.com/llvm/llvm-project/issues/53645
+	depends on !CC_IS_CLANG || !X86_32
+	help
+	  Detect overflows of buffers in common string and memory functions
+	  where the compiler can determine and validate the buffer sizes.
+
+config STATIC_USERMODEHELPER
+	bool "Force all usermode helper calls through a single binary"
+	help
+	  By default, the kernel can call many different userspace
+	  binary programs through the "usermode helper" kernel
+	  interface.  Some of these binaries are statically defined
+	  either in the kernel code itself, or as a kernel configuration
+	  option.  However, some of these are dynamically created at
+	  runtime, or can be modified after the kernel has started up.
+	  To provide an additional layer of security, route all of these
+	  calls through a single executable that can not have its name
+	  changed.
+
+	  Note, it is up to this single binary to then call the relevant
+	  "real" usermode helper binary, based on the first argument
+	  passed to it.  If desired, this program can filter and pick
+	  and choose what real programs are called.
+
+	  If you wish for all usermode helper programs are to be
+	  disabled, choose this option and then set
+	  STATIC_USERMODEHELPER_PATH to an empty string.
+
+config STATIC_USERMODEHELPER_PATH
+	string "Path to the static usermode helper binary"
+	depends on STATIC_USERMODEHELPER
+	default "/sbin/usermode-helper"
+	help
+	  The binary called by the kernel when any usermode helper
+	  program is wish to be run.  The "real" application's name will
+	  be in the first argument passed to this program on the command
+	  line.
+
+	  If you wish for all usermode helper programs to be disabled,
+	  specify an empty string here (i.e. "").
+
+source "security/selinux/Kconfig"
+source "security/smack/Kconfig"
+source "security/tomoyo/Kconfig"
+source "security/apparmor/Kconfig"
+source "security/loadpin/Kconfig"
+source "security/yama/Kconfig"
+source "security/safesetid/Kconfig"
+source "security/lockdown/Kconfig"
+source "security/landlock/Kconfig"
+
+source "security/integrity/Kconfig"
+
+choice
+	prompt "First legacy 'major LSM' to be initialized"
+	default DEFAULT_SECURITY_SELINUX if SECURITY_SELINUX
+	default DEFAULT_SECURITY_SMACK if SECURITY_SMACK
+	default DEFAULT_SECURITY_TOMOYO if SECURITY_TOMOYO
+	default DEFAULT_SECURITY_APPARMOR if SECURITY_APPARMOR
+	default DEFAULT_SECURITY_DAC
+
+	help
+	  This choice is there only for converting CONFIG_DEFAULT_SECURITY
+	  in old kernel configs to CONFIG_LSM in new kernel configs. Don't
+	  change this choice unless you are creating a fresh kernel config,
+	  for this choice will be ignored after CONFIG_LSM has been set.
+
+	  Selects the legacy "major security module" that will be
+	  initialized first. Overridden by non-default CONFIG_LSM.
+
+	config DEFAULT_SECURITY_SELINUX
+		bool "SELinux" if SECURITY_SELINUX=y
+
+	config DEFAULT_SECURITY_SMACK
+		bool "Simplified Mandatory Access Control" if SECURITY_SMACK=y
+
+	config DEFAULT_SECURITY_TOMOYO
+		bool "TOMOYO" if SECURITY_TOMOYO=y
+
+	config DEFAULT_SECURITY_APPARMOR
+		bool "AppArmor" if SECURITY_APPARMOR=y
+
+	config DEFAULT_SECURITY_DAC
+		bool "Unix Discretionary Access Controls"
+
+endchoice
+
+config LSM
+	string "Ordered list of enabled LSMs"
+	default "landlock,lockdown,yama,loadpin,safesetid,integrity,smack,selinux,tomoyo,apparmor,bpf" if DEFAULT_SECURITY_SMACK
+	default "landlock,lockdown,yama,loadpin,safesetid,integrity,apparmor,selinux,smack,tomoyo,bpf" if DEFAULT_SECURITY_APPARMOR
+	default "landlock,lockdown,yama,loadpin,safesetid,integrity,tomoyo,bpf" if DEFAULT_SECURITY_TOMOYO
+	default "landlock,lockdown,yama,loadpin,safesetid,integrity,bpf" if DEFAULT_SECURITY_DAC
+	default "landlock,lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf"
+	help
+	  A comma-separated list of LSMs, in initialization order.
+	  Any LSMs left off this list will be ignored. This can be
+	  controlled at boot with the "lsm=" parameter.
+
+	  If unsure, leave this as the default.
+
+source "security/Kconfig.hardening"
+
+endmenu
+

@@ -1,0 +1,18 @@
+NVIDIA Tegra Flow Controller
+
+Required properties:
+- compatible: Should contain one of the following:
+  - "nvidia,tegra20-flowctrl": for Tegra20
+  - "nvidia,tegra30-flowctrl": for Tegra30
+  - "nvidia,tegra114-flowctrl": for Tegra114
+  - "nvidia,tegra124-flowctrl": for Tegra124
+  - "nvidia,tegra132-flowctrl", "nvidia,tegra124-flowctrl": for Tegra132
+  - "nvidia,tegra210-flowctrl": for Tegra210
+- reg: Should contain one register range (address and length)
+
+Example:
+
+	flow-controller@60007000 {
+		compatible = "nvidia,tegra20-flowctrl";
+		reg = <0x60007000 0x1000>;
+	};

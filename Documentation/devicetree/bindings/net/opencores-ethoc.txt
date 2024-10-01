@@ -1,0 +1,22 @@
+* OpenCores MAC 10/100 Mbps
+
+Required properties:
+- compatible: Should be "opencores,ethoc".
+- reg: two memory regions (address and length),
+  first region is for the device registers and descriptor rings,
+  second is for the device packet memory.
+- interrupts: interrupt for the device.
+
+Optional properties:
+- clocks: phandle to refer to the clk used as per
+  Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Examples:
+
+	enet0: ethoc@fd030000 {
+		compatible = "opencores,ethoc";
+		reg = <0xfd030000 0x4000 0xfd800000 0x4000>;
+		interrupts = <1>;
+		local-mac-address = [00 50 c2 13 6f 00];
+		clocks = <&osc>;
+        };

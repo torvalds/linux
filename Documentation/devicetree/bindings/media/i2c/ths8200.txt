@@ -1,0 +1,19 @@
+* Texas Instruments THS8200 video encoder
+
+The ths8200 device is a digital to analog converter used in DVD players, video
+recorders, set-top boxes.
+
+Required Properties :
+- compatible : value must be "ti,ths8200"
+
+Example:
+
+	i2c0@1c22000 {
+		...
+		...
+		ths8200@5c {
+			compatible = "ti,ths8200";
+			reg = <0x5c>;
+		};
+		...
+	};

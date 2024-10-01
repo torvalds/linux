@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2013 Christian Hemp, Phytec Messtechnik GmbH
+ */
+
+#include "imx6q.dtsi"
+#include "imx6qdl-phytec-pfla02.dtsi"
+
+/ {
+	model = "Phytec phyFLEX-i.MX6 Quad";
+	compatible = "phytec,imx6q-pfla02", "fsl,imx6q";
+
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0x80000000>;
+	};
+};

@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra-audio-sgtl5000.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra audio complex with SGTL5000 CODEC
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: nvidia,tegra-audio-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - pattern: '^[a-z0-9]+,tegra-audio-sgtl5000([-_][a-z0-9]+)+$'
+      - const: nvidia,tegra-audio-sgtl5000
+
+  nvidia,audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: |
+      A list of the connections between audio components.
+      Each entry is a pair of strings, the first being the connection's sink,
+      the second being the connection's source. Valid names for sources and
+      sinks are the pins (documented in the binding document),
+      and the jacks on the board.
+    minItems: 2
+    items:
+      enum:
+        # Board Connectors
+        - "Headphone Jack"
+        - "Line In Jack"
+        - "Mic Jack"
+
+        # CODEC Pins
+        - HP_OUT
+        - LINE_OUT
+        - LINE_IN
+        - MIC_IN
+
+required:
+  - nvidia,i2s-controller
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra30-car.h>
+
+    sound {
+      compatible = "toradex,tegra-audio-sgtl5000-apalis_t30",
+                   "nvidia,tegra-audio-sgtl5000";
+      nvidia,model = "Toradex Apalis T30 SGTL5000";
+      nvidia,audio-routing =
+              "Headphone Jack", "HP_OUT",
+              "LINE_IN", "Line In Jack",
+              "MIC_IN", "Mic Jack";
+      nvidia,i2s-controller = <&tegra_i2s2>;
+      nvidia,audio-codec = <&codec>;
+      clocks = <&tegra_car TEGRA30_CLK_PLL_A>,
+               <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
+               <&tegra_car TEGRA30_CLK_EXTERN1>;
+      clock-names = "pll_a", "pll_a_out0", "mclk";
+    };

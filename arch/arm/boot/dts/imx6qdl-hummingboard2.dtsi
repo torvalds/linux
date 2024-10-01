@@ -1,0 +1,577 @@
+/*
+ * Copyright (C) 2015 Rabeeh Khoury <rabeeh@solid-run.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include <dt-bindings/sound/fsl-imx-audmux.h>
+
+/ {
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0>;
+	};
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	ir_recv: ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpio7 9 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_gpio7_9>;
+		linux,rc-map-name = "rc-rc6-mce";
+	};
+
+	v_3v2: regulator-v-3v2 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_3v2";
+	};
+
+	v_5v0: regulator-v-5v0 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_5v0";
+	};
+
+	vcc_1p8: regulator-vcc-1p8 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "vcc_1p8";
+		vin-supply = <&v_3v2>;
+	};
+
+	v_sd: regulator-v-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_vmmc>;
+		regulator-boot-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_sd";
+		startup-delay-us = <1000>;
+		vin-supply = <&v_3v2>;
+	};
+
+	v_usb1: regulator-v-usb1 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_usbotg_vbus>;
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb1";
+		vin-supply = <&v_5v0>;
+	};
+
+	v_usb2: regulator-v-usb2 {
+		/* USB hub port 1 */
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_usbh1_vbus>;
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb2";
+		vin-supply = <&v_5v0>;
+	};
+
+	v_usb3: regulator-v-usb3 {
+		/* USB hub port 3 */
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_usbh2_vbus>;
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb3";
+		vin-supply = <&v_5v0>;
+	};
+
+	v_usb4: regulator-v-usb4 {
+		/* USB hub port 4 */
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio7 10 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_usbh3_vbus>;
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb4";
+		vin-supply = <&v_5v0>;
+	};
+
+	audio: sound-sgtl5000 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board Codec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_codec>;
+		simple-audio-card,frame-master = <&sound_codec>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+
+		sound_cpu: simple-audio-card,cpu {
+			sound-dai = <&ssi1>;
+		};
+
+		sound_codec: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
+	};
+};
+
+&audmux {
+	status = "okay";
+
+	ssi1 {
+		fsl,audmux-port = <0>;
+		fsl,port-config = <
+			(IMX_AUDMUX_V2_PTCR_SYN |
+			 IMX_AUDMUX_V2_PTCR_TFSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TCSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TFSDIR |
+			 IMX_AUDMUX_V2_PTCR_TCLKDIR)
+			 IMX_AUDMUX_V2_PDCR_RXDSEL(4)
+		>;
+	};
+
+	pins5 {
+		fsl,audmux-port = <4>;
+		fsl,port-config = <
+			IMX_AUDMUX_V2_PTCR_SYN
+			IMX_AUDMUX_V2_PDCR_RXDSEL(0)
+		>;
+	};
+};
+
+&ecspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_ecspi2>;
+	cs-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_hdmi>;
+	ddc-i2c-bus = <&i2c2>;
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_i2c1>;
+	status = "okay";
+
+	pcf8523: rtc@68 {
+		compatible = "nxp,pcf8523";
+		reg = <0x68>;
+	};
+
+	sgtl5000: codec@a {
+		clocks = <&clks IMX6QDL_CLK_CKO>;
+		compatible = "fsl,sgtl5000";
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_sgtl5000>;
+		reg = <0x0a>;
+		VDDA-supply = <&v_3v2>;
+		VDDD-supply = <&vcc_1p8>;
+		VDDIO-supply = <&v_3v2>;
+	};
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_i2c2>;
+	status = "okay";
+};
+
+&i2c3 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_i2c3>;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hummingboard2 {
+		pinctrl_hog: hoggrp {
+		fsl,pins = <
+				/*
+				 * 36 pin headers GPIO description. The pins
+				 * numbering as following -
+				 *
+				 * 	3.2v	5v	74	75
+				 *	73	72	71	70
+				 *	69	68	67	66
+				 *
+				 *	77	78	79	76
+				 *	65	64	61	60
+				 *	53	52	51	50
+				 *	49	48	166	132
+				 *	95	94	90	91
+				 *	GND	54	24	204
+				 *
+				 * The GPIO numbers can be extracted using
+				 * signal name from below.
+				 * Example -
+				 * MX6QDL_PAD_EIM_DA10__GPIO3_IO10 is
+				 * GPIO(3,10) which is (3-1)*32+10 = gpio 74
+				 *
+				 * i.e. The mapping of GPIO(X,Y) to Linux gpio
+				 * number is : gpio number = (X-1) * 32 + Y
+				 */
+				/* DI1_PIN15 */
+				MX6QDL_PAD_EIM_DA10__GPIO3_IO10 0x400130b1
+				/* DI1_PIN02 */
+				MX6QDL_PAD_EIM_DA11__GPIO3_IO11 0x400130b1
+				/* DISP1_DATA00 */
+				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x400130b1
+				/* DISP1_DATA01 */
+				MX6QDL_PAD_EIM_DA8__GPIO3_IO08 0x400130b1
+				/* DISP1_DATA02 */
+				MX6QDL_PAD_EIM_DA7__GPIO3_IO07 0x400130b1
+				/* DISP1_DATA03 */
+				MX6QDL_PAD_EIM_DA6__GPIO3_IO06 0x400130b1
+				/* DISP1_DATA04 */
+				MX6QDL_PAD_EIM_DA5__GPIO3_IO05 0x400130b1
+				/* DISP1_DATA05 */
+				MX6QDL_PAD_EIM_DA4__GPIO3_IO04 0x400130b1
+				/* DISP1_DATA06 */
+				MX6QDL_PAD_EIM_DA3__GPIO3_IO03 0x400130b1
+				/* DISP1_DATA07 */
+				MX6QDL_PAD_EIM_DA2__GPIO3_IO02 0x400130b1
+				/* DI1_D0_CS */
+				MX6QDL_PAD_EIM_DA13__GPIO3_IO13 0x400130b1
+				/* DI1_D1_CS */
+				MX6QDL_PAD_EIM_DA14__GPIO3_IO14 0x400130b1
+				/* DI1_PIN01 */
+				MX6QDL_PAD_EIM_DA15__GPIO3_IO15 0x400130b1
+				/* DI1_PIN03 */
+				MX6QDL_PAD_EIM_DA12__GPIO3_IO12 0x400130b1
+				/* DISP1_DATA08 */
+				MX6QDL_PAD_EIM_DA1__GPIO3_IO01 0x400130b1
+				/* DISP1_DATA09 */
+				MX6QDL_PAD_EIM_DA0__GPIO3_IO00 0x400130b1
+				/* DISP1_DATA10 */
+				MX6QDL_PAD_EIM_EB1__GPIO2_IO29 0x400130b1
+				/* DISP1_DATA11 */
+				MX6QDL_PAD_EIM_EB0__GPIO2_IO28 0x400130b1
+				/* DISP1_DATA12 */
+				MX6QDL_PAD_EIM_A17__GPIO2_IO21 0x400130b1
+				/* DISP1_DATA13 */
+				MX6QDL_PAD_EIM_A18__GPIO2_IO20 0x400130b1
+				/* DISP1_DATA14 */
+				MX6QDL_PAD_EIM_A19__GPIO2_IO19 0x400130b1
+				/* DISP1_DATA15 */
+				MX6QDL_PAD_EIM_A20__GPIO2_IO18 0x400130b1
+				/* DISP1_DATA16 */
+				MX6QDL_PAD_EIM_A21__GPIO2_IO17 0x400130b1
+				/* DISP1_DATA17 */
+				MX6QDL_PAD_EIM_A22__GPIO2_IO16 0x400130b1
+				/* DISP1_DATA18 */
+				MX6QDL_PAD_EIM_A23__GPIO6_IO06 0x400130b1
+				/* DISP1_DATA19 */
+				MX6QDL_PAD_EIM_A24__GPIO5_IO04 0x400130b1
+				/* DISP1_DATA20 */
+				MX6QDL_PAD_EIM_D31__GPIO3_IO31 0x400130b1
+				/* DISP1_DATA21 */
+				MX6QDL_PAD_EIM_D30__GPIO3_IO30 0x400130b1
+				/* DISP1_DATA22 */
+				MX6QDL_PAD_EIM_D26__GPIO3_IO26 0x400130b1
+				/* DISP1_DATA23 */
+				MX6QDL_PAD_EIM_D27__GPIO3_IO27 0x400130b1
+				/* DI1_DISP_CLK */
+				MX6QDL_PAD_EIM_A16__GPIO2_IO22 0x400130b1
+				/* SPDIF_IN */
+				MX6QDL_PAD_ENET_RX_ER__GPIO1_IO24 0x400130b1
+				/* SPDIF_OUT */
+				MX6QDL_PAD_GPIO_17__GPIO7_IO12 0x400130b1
+
+				/* MikroBUS GPIO pin number 10 */
+				MX6QDL_PAD_EIM_LBA__GPIO2_IO27 0x400130b1
+			>;
+		};
+
+		pinctrl_hummingboard2_ecspi2: hummingboard2-ecspi2grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_OE__ECSPI2_MISO	0x100b1
+				MX6QDL_PAD_EIM_CS1__ECSPI2_MOSI	0x100b1
+				MX6QDL_PAD_EIM_CS0__ECSPI2_SCLK	0x100b1
+				MX6QDL_PAD_EIM_RW__GPIO2_IO26	0x000b1 /* CS */
+			>;
+		};
+
+		pinctrl_hummingboard2_gpio7_9: hummingboard2-gpio7_9 {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_CMD__GPIO7_IO09 0x80000000
+			>;
+		};
+
+		pinctrl_hummingboard2_hdmi: hummingboard2-hdmi {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE 0x1f8b0
+			>;
+		};
+
+		pinctrl_hummingboard2_i2c1: hummingboard2-i2c1 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D21__I2C1_SCL 0x4001b8b1
+				MX6QDL_PAD_EIM_D28__I2C1_SDA 0x4001b8b1
+			>;
+		};
+
+		pinctrl_hummingboard2_i2c2: hummingboard2-i2c2 {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL3__I2C2_SCL 0x4001b8b1
+				MX6QDL_PAD_KEY_ROW3__I2C2_SDA 0x4001b8b1
+			>;
+		};
+
+		pinctrl_hummingboard2_i2c3: hummingboard2-i2c3 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D17__I2C3_SCL 0x4001b8b1
+				MX6QDL_PAD_EIM_D18__I2C3_SDA 0x4001b8b1
+			>;
+		};
+
+		pinctrl_hummingboard2_mipi: hummingboard2_mipi {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_DAT2__GPIO2_IO10 0x4001b8b1
+				MX6QDL_PAD_KEY_COL4__GPIO4_IO14 0x4001b8b1
+				MX6QDL_PAD_NANDF_CS2__CCM_CLKO2 0x130b0
+			>;
+		};
+
+		pinctrl_hummingboard2_pcie_reset: hummingboard2-pcie-reset {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_DAT3__GPIO2_IO11 0x1b0b1
+			>;
+		};
+
+		pinctrl_hummingboard2_pwm1: pwm1grp {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT8__PWM1_OUT 0x1b0b1
+			>;
+		};
+
+		pinctrl_hummingboard2_pwm3: pwm3grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_DAT1__PWM3_OUT 0x1b0b1
+			>;
+		};
+
+		pinctrl_hummingboard2_sgtl5000: hummingboard2-sgtl5000 {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT19__AUD5_RXD 0x130b0
+				MX6QDL_PAD_KEY_COL0__AUD5_TXC 0x130b0
+				MX6QDL_PAD_KEY_ROW0__AUD5_TXD 0x110b0
+				MX6QDL_PAD_KEY_COL1__AUD5_TXFS 0x130b0
+				MX6QDL_PAD_GPIO_5__CCM_CLKO1 0x130b0
+			>;
+		};
+
+		pinctrl_hummingboard2_usbh1_vbus: hummingboard2-usbh1-vbus {
+			fsl,pins = <MX6QDL_PAD_GPIO_0__GPIO1_IO00 0x1b0b0>;
+		};
+
+		pinctrl_hummingboard2_usbh2_vbus: hummingboard2-usbh2-vbus {
+			fsl,pins = <MX6QDL_PAD_SD4_DAT5__GPIO2_IO13 0x1b0b0>;
+		};
+
+		pinctrl_hummingboard2_usbh3_vbus: hummingboard2-usbh3-vbus {
+			fsl,pins = <MX6QDL_PAD_SD4_CLK__GPIO7_IO10 0x1b0b0>;
+		};
+
+		pinctrl_hummingboard2_usbotg_id: hummingboard2-usbotg-id {
+			/*
+			 * We want it pulled down for a fixed host connection.
+			 */
+			fsl,pins = <MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x13059>;
+		};
+
+		pinctrl_hummingboard2_usbotg_vbus: hummingboard2-usbotg-vbus {
+			fsl,pins = <MX6QDL_PAD_EIM_D22__GPIO3_IO22 0x1b0b0>;
+		};
+
+		pinctrl_hummingboard2_usdhc2_aux: hummingboard2-usdhc2-aux {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_4__GPIO1_IO04    0x1f071
+				MX6QDL_PAD_KEY_ROW1__SD2_VSELECT 0x1b071
+			>;
+		};
+
+		pinctrl_hummingboard2_usdhc2: hummingboard2-usdhc2 {
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__SD2_CMD    0x17059
+				MX6QDL_PAD_SD2_CLK__SD2_CLK    0x10059
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0 0x17059
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x17059
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x17059
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x13059
+			>;
+		};
+
+		pinctrl_hummingboard2_usdhc2_100mhz: hummingboard2-usdhc2-100mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__SD2_CMD    0x170b9
+				MX6QDL_PAD_SD2_CLK__SD2_CLK    0x100b9
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0 0x170b9
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x170b9
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x170b9
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x130b9
+			>;
+		};
+
+		pinctrl_hummingboard2_usdhc2_200mhz: hummingboard2-usdhc2-200mhz {
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__SD2_CMD    0x170f9
+				MX6QDL_PAD_SD2_CLK__SD2_CLK    0x100f9
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0 0x170f9
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x170f9
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x170f9
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x130f9
+			>;
+		};
+
+		pinctrl_hummingboard2_vmmc: hummingboard2-vmmc {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30 0x1b0b0
+			>;
+		};
+
+		pinctrl_hummingboard2_uart3: hummingboard2-uart3 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D25__UART3_TX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D24__UART3_RX_DATA	0x40013000
+			>;
+		};
+	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_pcie_reset>;
+	reset-gpio = <&gpio2 11 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_pwm1>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_pwm3>;
+	status = "okay";
+};
+
+&ssi1 {
+	status = "okay";
+};
+
+&usbh1 {
+	disable-over-current;
+	status = "okay";
+};
+
+&usbotg {
+	disable-over-current;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_usbotg_id>;
+	vbus-supply = <&v_usb1>;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <
+		&pinctrl_hummingboard2_usdhc2_aux
+		&pinctrl_hummingboard2_usdhc2
+	>;
+	pinctrl-1 = <
+		&pinctrl_hummingboard2_usdhc2_aux
+		&pinctrl_hummingboard2_usdhc2_100mhz
+	>;
+	pinctrl-2 = <
+		&pinctrl_hummingboard2_usdhc2_aux
+		&pinctrl_hummingboard2_usdhc2_200mhz
+	>;
+	vmmc-supply = <&v_sd>;
+	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_uart3>;
+	status = "okay";
+};
+
+&vcc_3v3 {
+	vin-supply = <&v_3v2>;
+};

@@ -1,0 +1,1 @@
+../../../../../arch/powerpc/lib/copyuser_power7.S

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+config AMIGAONE
+	bool "Eyetech AmigaOne/MAI Teron"
+	depends on PPC_BOOK3S_32 && BROKEN_ON_SMP
+	select PPC_I8259
+	select PPC_INDIRECT_PCI
+	select PPC_UDBG_16550
+	select FORCE_PCI
+	select NOT_COHERENT_CACHE
+	select CHECK_CACHE_COHERENCY
+	select DEFAULT_UIMAGE
+	select HAVE_PCSPKR_PLATFORM
+	help
+	Select AmigaOne for the following machines:
+	- AmigaOne SE/Teron CX (G3 only)
+	- AmigaOne XE/Teron PX
+	- uA1/Teron mini
+	  More information is available at:
+	  <http://amigaone-linux.sourceforge.net/>.

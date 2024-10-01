@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/snps,dw-apb-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare APB GPIO controller
+
+description: |
+  Synopsys DesignWare GPIO controllers have a configurable number of ports,
+  each of which are intended to be represented as child nodes with the generic
+  GPIO-controller properties as desribed in this bindings file.
+
+maintainers:
+  - Hoan Tran <hoan@os.amperecomputing.com>
+  - Serge Semin <fancer.lancer@gmail.com>
+
+properties:
+  $nodename:
+    pattern: "^gpio@[0-9a-f]+$"
+
+  compatible:
+    const: snps,dw-apb-gpio
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: APB interface clock source
+      - description: DW GPIO debounce reference clock source
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: bus
+      - const: db
+
+  resets:
+    maxItems: 1
+
+patternProperties:
+  "^gpio-(port|controller)@[0-9a-f]+$":
+    type: object
+    properties:
+      compatible:
+        const: snps,dw-apb-gpio-port
+
+      reg:
+        maxItems: 1
+
+      gpio-controller: true
+
+      '#gpio-cells':
+        const: 2
+
+      ngpios:
+        default: 32
+        minimum: 1
+        maximum: 32
+
+      snps,nr-gpios:
+        description: The number of GPIO pins exported by the port.
+        deprecated: true
+        $ref: /schemas/types.yaml#/definitions/uint32
+        default: 32
+        minimum: 1
+        maximum: 32
+
+      interrupts:
+        description: |
+          The interrupts to the parent controller raised when GPIOs generate
+          the interrupts. If the controller provides one combined interrupt
+          for all GPIOs, specify a single interrupt. If the controller provides
+          one interrupt for each GPIO, provide a list of interrupts that
+          correspond to each of the GPIO pins.
+        minItems: 1
+        maxItems: 32
+
+      interrupt-controller: true
+
+      '#interrupt-cells':
+        const: 2
+
+    required:
+      - compatible
+      - reg
+      - gpio-controller
+      - '#gpio-cells'
+
+    dependencies:
+      interrupt-controller: [ interrupts ]
+
+    additionalProperties: false
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+
+examples:
+  - |
+    gpio: gpio@20000 {
+      compatible = "snps,dw-apb-gpio";
+      reg = <0x20000 0x1000>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      porta: gpio-port@0 {
+        compatible = "snps,dw-apb-gpio-port";
+        reg = <0>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        snps,nr-gpios = <8>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupt-parent = <&vic1>;
+        interrupts = <0>;
+      };
+
+      portb: gpio-port@1 {
+        compatible = "snps,dw-apb-gpio-port";
+        reg = <1>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        snps,nr-gpios = <8>;
+      };
+    };
+...

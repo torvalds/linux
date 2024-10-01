@@ -1,0 +1,12 @@
+[
+  {
+    "EventCode": "0xC0",
+    "EventName": "EXT_MEM_REQ",
+    "BriefDescription": "External memory request"
+  },
+  {
+    "EventCode": "0xC1",
+    "EventName": "EXT_MEM_REQ_NC",
+    "BriefDescription": "Non-cacheable external memory request"
+  }
+]

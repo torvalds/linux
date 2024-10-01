@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+#include "bcm4908.dtsi"
+
+/ {
+	compatible = "asus,gt-ac5300", "brcm,bcm4908", "brcm,bcmbca";
+	model = "Asus GT-AC5300";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00 0x00 0x00 0x40000000>;
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		poll-interval = <100>;
+
+		key-wifi {
+			label = "WiFi";
+			linux,code = <KEY_RFKILL>;
+			gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;
+		};
+
+		key-wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
+		};
+
+		key-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
+		};
+
+		key-brightness {
+			label = "LEDs";
+			linux,code = <KEY_BRIGHTNESS_ZERO>;
+			gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&enet {
+	nvmem-cells = <&base_mac_addr>;
+	nvmem-cell-names = "mac-address";
+};
+
+&usb_phy {
+	brcm,ioc = <1>;
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
+};
+
+&ports {
+	port@0 {
+		label = "lan2";
+	};
+
+	port@1 {
+		label = "lan1";
+	};
+
+	port@2 {
+		label = "lan6";
+	};
+
+	port@3 {
+		label = "lan5";
+	};
+
+	/* External BCM53134S switch */
+	port@7 {
+		label = "sw";
+		reg = <7>;
+		phy-mode = "rgmii";
+
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+		};
+	};
+};
+
+&mdio {
+	/* lan8 */
+	ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	/* lan7 */
+	ethernet-phy@1 {
+		reg = <1>;
+	};
+
+	/* lan4 */
+	ethernet-phy@2 {
+		reg = <2>;
+	};
+
+	/* lan3 */
+	ethernet-phy@3 {
+		reg = <3>;
+	};
+};
+
+&leds {
+	led@11 {
+		reg = <0x11>;
+		function = LED_FUNCTION_POWER;
+		color = <LED_COLOR_ID_WHITE>;
+		default-state = "on";
+		active-low;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_led_17_a>;
+	};
+
+	led@12 {
+		reg = <0x12>;
+		function = LED_FUNCTION_WAN;
+		color = <LED_COLOR_ID_RED>;
+		active-low;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_led_18_a>;
+	};
+
+	led@14 {
+		reg = <0x14>;
+		function = LED_FUNCTION_WPS;
+		color = <LED_COLOR_ID_WHITE>;
+		active-low;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_led_20_a>;
+	};
+
+	led@15 {
+		reg = <0x15>;
+		function = LED_FUNCTION_WAN;
+		color = <LED_COLOR_ID_WHITE>;
+		active-low;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_led_21_a>;
+	};
+
+	led@19 {
+		reg = <0x19>;
+		function = LED_FUNCTION_LAN;
+		color = <LED_COLOR_ID_WHITE>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_led_25_a>;
+	};
+};
+
+&nandcs {
+	nand-ecc-strength = <4>;
+	nand-ecc-step-size = <512>;
+	nand-on-flash-bbt;
+	brcm,nand-has-wp;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	partitions {
+		compatible = "brcm,bcm4908-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			compatible = "nvmem-cells";
+			label = "cferom";
+			reg = <0x0 0x100000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x100000>;
+
+			base_mac_addr: mac@106a0 {
+				reg = <0x106a0 0x6>;
+			};
+		};
+
+		partition@100000 {
+			compatible = "brcm,bcm4908-firmware";
+			reg = <0x100000 0x5700000>;
+		};
+
+		partition@5800000 {
+			compatible = "brcm,bcm4908-firmware";
+			reg = <0x5800000 0x5700000>;
+		};
+	};
+};

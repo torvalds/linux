@@ -1,0 +1,36 @@
+Rockchip PCIE PHY
+-----------------------
+
+Required properties:
+ - compatible: rockchip,rk3399-pcie-phy
+ - clocks: Must contain an entry in clock-names.
+	See ../clocks/clock-bindings.txt for details.
+ - clock-names: Must be "refclk"
+ - resets: Must contain an entry in reset-names.
+	See ../reset/reset.txt for details.
+ - reset-names: Must be "phy"
+
+Required properties for legacy PHY mode (deprecated):
+ - #phy-cells: must be 0
+
+Required properties for per-lane PHY mode (preferred):
+ - #phy-cells: must be 1
+
+Example:
+
+grf: syscon@ff770000 {
+	compatible = "rockchip,rk3399-grf", "syscon", "simple-mfd";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	...
+
+	pcie_phy: pcie-phy {
+		compatible = "rockchip,rk3399-pcie-phy";
+		#phy-cells = <0>;
+		clocks = <&cru SCLK_PCIEPHY_REF>;
+		clock-names = "refclk";
+		resets = <&cru SRST_PCIEPHY>;
+		reset-names = "phy";
+	};
+};

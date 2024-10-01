@@ -1,0 +1,28 @@
+What:		/sys/bus/iio/devices/iio:deviceX/start_cleaning
+Date:		December 2018
+KernelVersion:	5.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing 1 starts sensor self cleaning. Internal fan accelerates
+		to its maximum speed and keeps spinning for about 10 seconds in
+		order to blow out accumulated dust.
+
+What:		/sys/bus/iio/devices/iio:deviceX/cleaning_period
+Date:		January 2019
+KernelVersion:	5.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Sensor is capable of triggering self cleaning periodically.
+		Period can be changed by writing a new value here. Upon reading
+		the current one is returned. Units are seconds.
+
+		Writing 0 disables periodical self cleaning entirely.
+
+What:		/sys/bus/iio/devices/iio:deviceX/cleaning_period_available
+Date:		January 2019
+KernelVersion:	5.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The range of available values in seconds represented as the
+		minimum value, the step and the maximum value, all enclosed in
+		square brackets.

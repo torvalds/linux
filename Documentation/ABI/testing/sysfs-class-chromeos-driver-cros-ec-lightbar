@@ -1,0 +1,74 @@
+What:		/sys/class/chromeos/<ec-device-name>/lightbar/brightness
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		Writing to this file adjusts the overall brightness of
+		the lightbar, separate from any color intensity. The
+		valid range is 0 (off) to 255 (maximum brightness).
+
+What:		/sys/class/chromeos/<ec-device-name>/lightbar/interval_msec
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		The lightbar is controlled by an embedded controller (EC),
+		which also manages the keyboard, battery charging, fans,
+		and other system hardware. To prevent unprivileged users
+		from interfering with the other EC functions, the rate at
+		which the lightbar control files can be read or written is
+		limited.
+
+		Reading this file will return the number of milliseconds
+		that must elapse between accessing any of the lightbar
+		functions through this interface. Going faster will simply
+		block until the necessary interval has lapsed. The interval
+		applies uniformly to all accesses of any kind by any user.
+
+What:		/sys/class/chromeos/<ec-device-name>/lightbar/led_rgb
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		This allows you to control each LED segment. If the
+		lightbar is already running one of the automatic
+		sequences, you probably won’t see anything change because
+		your color setting will be almost immediately replaced.
+		To get useful results, you should stop the lightbar
+		sequence first.
+
+		The values written to this file are sets of four integers,
+		indicating LED, RED, GREEN, BLUE. The LED number is 0 to 3
+		to select a single segment, or 4 to set all four segments
+		to the same value at once. The RED, GREEN, and BLUE
+		numbers should be in the range 0 (off) to 255 (maximum).
+		You can update more than one segment at a time by writing
+		more than one set of four integers.
+
+What:		/sys/class/chromeos/<ec-device-name>/lightbar/program
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		This allows you to upload and run custom lightbar sequences.
+
+What:		/sys/class/chromeos/<ec-device-name>/lightbar/sequence
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		The Pixel lightbar has a number of built-in sequences
+		that it displays under various conditions, such as at
+		power on, shut down, or while running. Reading from this
+		file displays the current sequence that the lightbar is
+		displaying. Writing to this file allows you to change the
+		sequence.
+
+What:		/sys/class/chromeos/<ec-device-name>/lightbar/userspace_control
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		This allows you to take the control of the lightbar. This
+		prevents the kernel from going through its normal
+		sequences.
+
+What:		/sys/class/chromeos/<ec-device-name>/lightbar/version
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		Show the information about the lightbar version.

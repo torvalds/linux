@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config IIO_ST_LSM9DS0
+	tristate "STMicroelectronics LSM9DS0 IMU driver"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	depends on !SENSORS_LIS3_I2C
+	depends on !SENSORS_LIS3_SPI
+	select IIO_ST_ACCEL_3AXIS
+	select IIO_ST_MAGN_3AXIS
+
+	help
+	  Say yes here to build support for STMicroelectronics LSM9DS0 IMU
+	  sensor. Supported devices: accelerometer/magnetometer of lsm9ds0.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called st_lsm9ds0.
+
+	  Also need to enable at least one of I2C and SPI interface drivers
+
+config IIO_ST_LSM9DS0_I2C
+	tristate "STMicroelectronics LSM9DS0 IMU I2C interface"
+	depends on I2C && IIO_ST_LSM9DS0
+	default I2C && IIO_ST_LSM9DS0
+	select IIO_ST_ACCEL_I2C_3AXIS
+	select IIO_ST_MAGN_I2C_3AXIS
+	select REGMAP_I2C
+	help
+	  Build support for STMicroelectronics LSM9DS0 IMU I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_lsm9ds0_i2c.
+
+config IIO_ST_LSM9DS0_SPI
+	tristate "STMicroelectronics LSM9DS0 IMU SPI interface"
+	depends on SPI_MASTER && IIO_ST_LSM9DS0
+	default SPI_MASTER && IIO_ST_LSM9DS0
+	select IIO_ST_ACCEL_SPI_3AXIS
+	select IIO_ST_MAGN_SPI_3AXIS
+	select REGMAP_SPI
+	help
+	  Build support for STMicroelectronics LSM9DS0 IMU I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_lsm9ds0_spi.

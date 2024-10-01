@@ -1,0 +1,224 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig SND_SOC_QCOM
+	tristate "ASoC support for QCOM platforms"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Say Y or M if you want to add support to use audio devices
+	  in Qualcomm Technologies SOC-based platforms.
+
+if SND_SOC_QCOM
+
+config SND_SOC_LPASS_CPU
+	tristate
+	select REGMAP_MMIO
+
+config SND_SOC_LPASS_HDMI
+	tristate
+	select REGMAP_MMIO
+
+config SND_SOC_LPASS_PLATFORM
+	tristate
+	select REGMAP_MMIO
+
+config SND_SOC_LPASS_CDC_DMA
+	tristate
+	select REGMAP_MMIO
+
+config SND_SOC_LPASS_IPQ806X
+	tristate
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+
+config SND_SOC_LPASS_APQ8016
+	tristate
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+
+config SND_SOC_LPASS_SC7180
+	tristate
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+	select SND_SOC_LPASS_HDMI
+
+config SND_SOC_LPASS_SC7280
+	tristate
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+	select SND_SOC_LPASS_HDMI
+	select SND_SOC_LPASS_CDC_DMA
+
+config SND_SOC_STORM
+	tristate "ASoC I2S support for Storm boards"
+	depends on GPIOLIB
+	select SND_SOC_LPASS_IPQ806X
+	select SND_SOC_MAX98357A
+	help
+	  Say Y or M if you want add support for SoC audio on the
+	  Qualcomm Technologies IPQ806X-based Storm board.
+
+config SND_SOC_APQ8016_SBC
+	tristate "SoC Audio support for APQ8016 SBC platforms"
+	select SND_SOC_LPASS_APQ8016
+	select SND_SOC_QCOM_COMMON
+	help
+	  Support for Qualcomm Technologies LPASS audio block in
+	  APQ8016 SOC-based systems.
+	  Say Y if you want to use audio devices on MI2S.
+
+config SND_SOC_QCOM_COMMON
+	tristate
+
+config SND_SOC_QCOM_SDW
+	tristate
+
+config SND_SOC_QDSP6_COMMON
+	tristate
+
+config SND_SOC_QDSP6_CORE
+	tristate
+
+config SND_SOC_QDSP6_AFE
+	tristate
+
+config SND_SOC_QDSP6_AFE_DAI
+	tristate
+
+config SND_SOC_QDSP6_AFE_CLOCKS
+	tristate
+
+config SND_SOC_QDSP6_ADM
+	tristate
+
+config SND_SOC_QDSP6_ROUTING
+	tristate
+
+config SND_SOC_QDSP6_ASM
+	tristate
+
+config SND_SOC_QDSP6_ASM_DAI
+	select SND_SOC_COMPRESS
+	tristate
+
+config SND_SOC_QDSP6_APM_DAI
+	tristate
+	select SND_SOC_COMPRESS
+
+config SND_SOC_QDSP6_APM_LPASS_DAI
+	tristate
+
+config SND_SOC_QDSP6_APM
+	tristate
+	select SND_SOC_QDSP6_APM_DAI
+	select SND_SOC_QDSP6_APM_LPASS_DAI
+
+config SND_SOC_QDSP6_PRM_LPASS_CLOCKS
+	tristate
+
+config SND_SOC_QDSP6_PRM
+	tristate
+	select SND_SOC_QDSP6_PRM_LPASS_CLOCKS
+
+config SND_SOC_QDSP6
+	tristate "SoC ALSA audio driver for QDSP6"
+	depends on QCOM_APR
+	depends on COMMON_CLK
+	select SND_SOC_QDSP6_COMMON
+	select SND_SOC_QDSP6_CORE
+	select SND_SOC_QDSP6_AFE
+	select SND_SOC_QDSP6_AFE_DAI
+	select SND_SOC_QDSP6_AFE_CLOCKS
+	select SND_SOC_QDSP6_ADM
+	select SND_SOC_QDSP6_ROUTING
+	select SND_SOC_QDSP6_ASM
+	select SND_SOC_QDSP6_ASM_DAI
+	select SND_SOC_TOPOLOGY
+	select SND_SOC_QDSP6_APM
+	select SND_SOC_QDSP6_PRM
+	help
+	 To add support for MSM QDSP6 Soc Audio.
+	 This will enable sound soc platform specific
+	 audio drivers. This includes q6asm, q6adm,
+	 q6afe interfaces to DSP using apr.
+
+config SND_SOC_MSM8996
+	tristate "SoC Machine driver for MSM8996 and APQ8096 boards"
+	depends on QCOM_APR
+	depends on COMMON_CLK
+	select SND_SOC_QDSP6
+	select SND_SOC_QCOM_COMMON
+	help
+	  Support for Qualcomm Technologies LPASS audio block in
+	  APQ8096 SoC-based systems.
+	  Say Y if you want to use audio device on this SoCs
+
+config SND_SOC_SDM845
+	tristate "SoC Machine driver for SDM845 boards"
+	depends on QCOM_APR && I2C && SOUNDWIRE
+	depends on COMMON_CLK
+	select SND_SOC_QDSP6
+	select SND_SOC_QCOM_COMMON
+	select SND_SOC_RT5663
+	select SND_SOC_MAX98927
+	imply SND_SOC_CROS_EC_CODEC
+	help
+	  To add support for audio on Qualcomm Technologies Inc.
+	  SDM845 SoC-based systems.
+	  Say Y if you want to use audio device on this SoCs.
+
+config SND_SOC_SM8250
+	tristate "SoC Machine driver for SM8250 boards"
+	depends on QCOM_APR && SOUNDWIRE
+	depends on COMMON_CLK
+	select SND_SOC_QDSP6
+	select SND_SOC_QCOM_COMMON
+	select SND_SOC_QCOM_SDW
+	help
+	  To add support for audio on Qualcomm Technologies Inc.
+	  SM8250 SoC-based systems.
+	  Say Y if you want to use audio device on this SoCs.
+
+config SND_SOC_SC8280XP
+	tristate "SoC Machine driver for SC8280XP boards"
+	depends on QCOM_APR && SOUNDWIRE
+	depends on COMMON_CLK
+	select SND_SOC_QDSP6
+	select SND_SOC_QCOM_COMMON
+	select SND_SOC_QCOM_SDW
+	help
+	  To add support for audio on Qualcomm Technologies Inc.
+	  SC8280XP SoC-based systems.
+	  Say Y if you want to use audio device on this SoCs.
+
+config SND_SOC_SC7180
+	tristate "SoC Machine driver for SC7180 boards"
+	depends on I2C && GPIOLIB
+	depends on SOUNDWIRE || SOUNDWIRE=n
+	select SND_SOC_QCOM_COMMON
+	select SND_SOC_LPASS_SC7180
+	select SND_SOC_MAX98357A
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT5682S
+	select SND_SOC_ADAU7002
+	help
+	  To add support for audio on Qualcomm Technologies Inc.
+	  SC7180 SoC-based systems.
+	  Say Y if you want to use audio device on this SoCs.
+
+config SND_SOC_SC7280
+	tristate "SoC Machine driver for SC7280 boards"
+	depends on I2C && SOUNDWIRE
+	select SND_SOC_QCOM_COMMON
+	select SND_SOC_LPASS_SC7280
+	select SND_SOC_MAX98357A
+	select SND_SOC_WCD938X_SDW
+	select SND_SOC_LPASS_MACRO_COMMON
+	imply SND_SOC_LPASS_RX_MACRO
+	imply SND_SOC_LPASS_TX_MACRO
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT5682S
+	help
+	  Add support for audio on Qualcomm Technologies Inc.
+	  SC7280 SoC-based systems.
+	  Say Y or M if you want to use audio device on this SoCs.
+
+endif #SND_SOC_QCOM

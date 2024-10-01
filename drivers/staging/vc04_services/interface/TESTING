@@ -1,0 +1,82 @@
+This document contains some hints to test the function of the VCHIQ driver
+without having additional hardware to the Raspberry Pi.
+
+* Requirements & limitations
+
+Testing the VCHIQ driver requires a Raspberry Pi with one of the following SoC:
+  - BCM2835 ( e.g. Raspberry Pi Zero W )
+  - BCM2836 ( e.g. Raspberry Pi 2 )
+  - BCM2837 ( e.g. Raspberry Pi 3 B+ )
+
+The BCM2711 used in the Raspberry Pi 4 is currently not supported in the
+mainline kernel.
+
+There are no specific requirements to the VideoCore firmware to get VCHIQ
+working.
+
+The test scenarios described in this document based on the tool vchiq_test.
+Its source code is available here: https://github.com/raspberrypi/userland
+
+* Configuration
+
+Here are the most common kernel configurations:
+
+ 1. BCM2835 target SoC (ARM 32 bit)
+
+    Just use bcm2835_defconfig which already has VCHIQ enabled.
+
+ 2. BCM2836/7 target SoC (ARM 32 bit)
+
+    Use the multi_v7_defconfig as a base and then enable all VCHIQ options.
+
+ 3. BCM2837 target SoC (ARM 64 bit)
+
+    Use the defconfig as a base and then enable all VCHIQ options.
+
+* Scenarios
+
+ * Initial test
+
+   Check the driver is probed and /dev/vchiq is created
+
+ * Functional test
+
+   Command: vchiq_test -f 10
+
+   Expected output:
+   Functional test - iters:10
+   ======== iteration 1 ========
+   Testing bulk transfer for alignment.
+   Testing bulk transfer at PAGE_SIZE.
+   ...
+
+ * Ping test
+
+   Command: vchiq_test -p 1
+
+   Expected output:
+   Ping test - service:echo, iters:1, version 3
+   vchi ping (size 0) -> 57.000000us
+   vchi ping (size 0, 0 async, 0 oneway) -> 122.000000us
+   vchi bulk (size 0, 0 async, 0 oneway) -> 546.000000us
+   vchi bulk (size 0, 0 oneway) -> 230.000000us
+   vchi ping (size 0) -> 49.000000us
+   vchi ping (size 0, 0 async, 0 oneway) -> 70.000000us
+   vchi bulk (size 0, 0 async, 0 oneway) -> 296.000000us
+   vchi bulk (size 0, 0 oneway) -> 266.000000us
+   vchi ping (size 0, 1 async, 0 oneway) -> 65.000000us
+   vchi bulk (size 0, 0 oneway) -> 456.000000us
+   vchi ping (size 0, 2 async, 0 oneway) -> 74.000000us
+   vchi bulk (size 0, 0 oneway) -> 640.000000us
+   vchi ping (size 0, 10 async, 0 oneway) -> 125.000000us
+   vchi bulk (size 0, 0 oneway) -> 2309.000000us
+   vchi ping (size 0, 0 async, 1 oneway) -> 70.000000us
+   vchi ping (size 0, 0 async, 2 oneway) -> 76.000000us
+   vchi ping (size 0, 0 async, 10 oneway) -> 105.000000us
+   vchi ping (size 0, 10 async, 10 oneway) -> 165.000000us
+   vchi ping (size 0, 100 async, 0 oneway) -> nanus
+   vchi bulk (size 0, 0 oneway) -> nanus
+   vchi ping (size 0, 0 async, 100 oneway) -> nanus
+   vchi ping (size 0, 100 async, 100 oneway) -> infus
+   vchi ping (size 0, 200 async, 0 oneway) -> infus
+   ...

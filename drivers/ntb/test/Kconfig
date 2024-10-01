@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NTB_PINGPONG
+	tristate "NTB Ping Pong Test Client"
+	help
+	 This is a simple ping pong driver that exercises the scratchpads and
+	 doorbells of the ntb hardware.  This driver may be used to test that
+	 your ntb hardware and drivers are functioning at a basic level.
+
+	 If unsure, say N.
+
+config NTB_TOOL
+	tristate "NTB Debugging Tool Test Client"
+	help
+	 This is a simple debugging driver that enables the doorbell and
+	 scratchpad registers to be read and written from the debugfs.  This
+	 enables more complicated debugging to be scripted from user space.
+	 This driver may be used to test that your ntb hardware and drivers are
+	 functioning at a basic level.
+
+	 If unsure, say N.
+
+config NTB_PERF
+	tristate "NTB RAW Perf Measuring Tool"
+	help
+	 This is a tool to measure raw NTB performance by transferring data
+	 to and from the window without additional software interaction.
+
+	 If unsure, say N.
+
+config NTB_MSI_TEST
+	tristate "NTB MSI Test Client"
+	depends on NTB_MSI
+	help
+	  This tool demonstrates the use of the NTB MSI library to
+	  send MSI interrupts between peers.
+
+	  If unsure, say N.

@@ -1,0 +1,19 @@
+Broadcom BCM63138 Processor Monitor Bus binding
+===============================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Require properties:
+
+- compatible: must be "brcm,bcm63138-pmb"
+- reg: base register address and size for this bus controller
+- #reset-cells: must be 2 first cell is the address within the bus instance designated
+  by the phandle, and the second is the number of zones for this peripheral
+
+Example:
+	pmb0: reset-controller@4800c0 {
+		compatible = "brcm,bcm63138-pmb";
+		reg = <0x4800c0 0x10>;
+		#reset-cells = <2>;
+	};

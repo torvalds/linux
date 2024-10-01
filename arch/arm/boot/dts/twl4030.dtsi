@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ */
+
+/*
+ * Integrated Power Management Chip
+ */
+&twl {
+	compatible = "ti,twl4030";
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	rtc {
+		compatible = "ti,twl4030-rtc";
+		interrupts = <11>;
+	};
+
+	charger: bci {
+		compatible = "ti,twl4030-bci";
+		interrupts = <9>, <2>;
+		bci3v1-supply = <&vusb3v1>;
+		io-channels = <&twl_madc 11>;
+		io-channel-names = "vac";
+	};
+
+	watchdog {
+		compatible = "ti,twl4030-wdt";
+	};
+
+	vaux1: regulator-vaux1 {
+		compatible = "ti,twl4030-vaux1";
+	};
+
+	vaux2: regulator-vaux2 {
+		compatible = "ti,twl4030-vaux2";
+	};
+
+	vaux3: regulator-vaux3 {
+		compatible = "ti,twl4030-vaux3";
+	};
+
+	vaux4: regulator-vaux4 {
+		compatible = "ti,twl4030-vaux4";
+	};
+
+	vcc: regulator-vdd1 {
+		compatible = "ti,twl4030-vdd1";
+		regulator-min-microvolt = <600000>;
+		regulator-max-microvolt = <1450000>;
+	};
+
+	vdac: regulator-vdac {
+		compatible = "ti,twl4030-vdac";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vio: regulator-vio {
+		compatible = "ti,twl4030-vio";
+	};
+
+	vintana1: regulator-vintana1 {
+		compatible = "ti,twl4030-vintana1";
+	};
+
+	vintana2: regulator-vintana2 {
+		compatible = "ti,twl4030-vintana2";
+	};
+
+	vintdig: regulator-vintdig {
+		compatible = "ti,twl4030-vintdig";
+	};
+
+	vmmc1: regulator-vmmc1 {
+		compatible = "ti,twl4030-vmmc1";
+		regulator-min-microvolt = <1850000>;
+		regulator-max-microvolt = <3150000>;
+	};
+
+	vmmc2: regulator-vmmc2 {
+		compatible = "ti,twl4030-vmmc2";
+		regulator-min-microvolt = <1850000>;
+		regulator-max-microvolt = <3150000>;
+	};
+
+	vusb1v5: regulator-vusb1v5 {
+		compatible = "ti,twl4030-vusb1v5";
+	};
+
+	vusb1v8: regulator-vusb1v8 {
+		compatible = "ti,twl4030-vusb1v8";
+	};
+
+	vusb3v1: regulator-vusb3v1 {
+		compatible = "ti,twl4030-vusb3v1";
+	};
+
+	vpll1: regulator-vpll1 {
+		compatible = "ti,twl4030-vpll1";
+	};
+
+	vpll2: regulator-vpll2 {
+		compatible = "ti,twl4030-vpll2";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vsim: regulator-vsim {
+		compatible = "ti,twl4030-vsim";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	twl_gpio: gpio {
+		compatible = "ti,twl4030-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	usb2_phy: twl4030-usb {
+		compatible = "ti,twl4030-usb";
+		interrupts = <10>, <4>;
+		usb1v5-supply = <&vusb1v5>;
+		usb1v8-supply = <&vusb1v8>;
+		usb3v1-supply = <&vusb3v1>;
+		usb_mode = <1>;
+		#phy-cells = <0>;
+	};
+
+	twl_pwm: pwm {
+		compatible = "ti,twl4030-pwm";
+		#pwm-cells = <2>;
+	};
+
+	twl_pwmled: pwmled {
+		compatible = "ti,twl4030-pwmled";
+		#pwm-cells = <2>;
+	};
+
+	twl_pwrbutton: pwrbutton {
+		compatible = "ti,twl4030-pwrbutton";
+		interrupts = <8>;
+	};
+
+	twl_keypad: keypad {
+		compatible = "ti,twl4030-keypad";
+		interrupts = <1>;
+		keypad,num-rows = <8>;
+		keypad,num-columns = <8>;
+	};
+
+	twl_madc: madc {
+		compatible = "ti,twl4030-madc";
+		interrupts = <3>;
+		#io-channel-cells = <1>;
+	};
+};

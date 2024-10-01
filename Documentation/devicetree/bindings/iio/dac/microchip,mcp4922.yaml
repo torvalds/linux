@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/microchip,mcp4922.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip MCP4902, MCP4912 and MPC4922 dual output SPI DACs
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+  - Michael Welling <mwelling@ieee.org>
+
+properties:
+  compatible:
+    enum:
+      - microchip,mcp4902
+      - microchip,mcp4912
+      - microchip,mcp4921
+      - microchip,mcp4922
+
+  reg:
+    maxItems: 1
+
+  vref-supply: true
+
+required:
+  - compatible
+  - reg
+  - vref-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@0 {
+            compatible = "microchip,mcp4912";
+            reg = <0>;
+            vref-supply = <&dac_vref>;
+        };
+    };
+...

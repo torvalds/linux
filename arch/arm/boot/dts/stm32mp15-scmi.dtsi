@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) STMicroelectronics 2022 - All Rights Reserved
+ * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
+ */
+
+/ {
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+
+		scmi: scmi {
+			compatible = "linaro,scmi-optee";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			linaro,optee-channel-id = <0>;
+			shmem = <&scmi_shm>;
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+
+			scmi_reset: protocol@16 {
+				reg = <0x16>;
+				#reset-cells = <1>;
+			};
+
+			scmi_voltd: protocol@17 {
+				reg = <0x17>;
+
+				scmi_reguls: regulators {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					scmi_reg11: reg11@0 {
+						reg = <0>;
+						regulator-name = "reg11";
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <1100000>;
+					};
+
+					scmi_reg18: reg18@1 {
+						voltd-name = "reg18";
+						reg = <1>;
+						regulator-name = "reg18";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					scmi_usb33: usb33@2 {
+						reg = <2>;
+						regulator-name = "usb33";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+				};
+			};
+		};
+	};
+
+	soc {
+		scmi_sram: sram@2ffff000 {
+			compatible = "mmio-sram";
+			reg = <0x2ffff000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x2ffff000 0x1000>;
+
+			scmi_shm: scmi-sram@0 {
+				compatible = "arm,scmi-shmem";
+				reg = <0 0x80>;
+			};
+		};
+	};
+};
+
+&reg11 {
+	status = "disabled";
+};
+
+&reg18 {
+	status = "disabled";
+};
+
+&usb33 {
+	status = "disabled";
+};
+
+&usbotg_hs {
+	usb33d-supply = <&scmi_usb33>;
+};
+
+&usbphyc {
+	vdda1v1-supply = <&scmi_reg11>;
+	vdda1v8-supply = <&scmi_reg18>;
+};
+
+/delete-node/ &clk_hse;
+/delete-node/ &clk_hsi;
+/delete-node/ &clk_lse;
+/delete-node/ &clk_lsi;
+/delete-node/ &clk_csi;

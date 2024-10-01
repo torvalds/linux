@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/bcm/brcm,nsp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Northstar Plus device tree bindings
+
+description:
+  Broadcom Northstar Plus family of SoCs are used for switching control
+  and management applications as well as residential router/gateway
+  applications. The SoC features dual core Cortex A9 ARM CPUs, integrating
+  several peripheral interfaces including multiple Gigabit Ethernet PHYs,
+  DDR3 memory, PCIE Gen-2, USB 2.0 and USB 3.0, serial and NAND flash,
+  SATA and several other IO controllers.
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: BCM58522 based boards
+        items:
+          - enum:
+              - brcm,bcm958522er
+          - const: brcm,bcm58522
+          - const: brcm,nsp
+
+      - description: BCM58525 based boards
+        items:
+          - enum:
+              - brcm,bcm958525er
+              - brcm,bcm958525xmc
+          - const: brcm,bcm58525
+          - const: brcm,nsp
+
+      - description: BCM58535 based boards
+        items:
+          - const: brcm,bcm58535
+          - const: brcm,nsp
+
+      - description: BCM58622 based boards
+        items:
+          - enum:
+              - brcm,bcm958622hr
+          - const: brcm,bcm58622
+          - const: brcm,nsp
+
+      - description: BCM58623 based boards
+        items:
+          - enum:
+              - brcm,bcm958623hr
+          - const: brcm,bcm58623
+          - const: brcm,nsp
+
+      - description: BCM58625 based boards
+        items:
+          - enum:
+              - brcm,bcm958625hr
+              - brcm,bcm958625k
+              - meraki,mx64
+              - meraki,mx64-a0
+              - meraki,mx64w
+              - meraki,mx64w-a0
+              - meraki,mx65
+              - meraki,mx65w
+          - const: brcm,bcm58625
+          - const: brcm,nsp
+
+      - description: BCM88312 based boards
+        items:
+          - enum:
+              - brcm,bcm988312hr
+          - const: brcm,bcm88312
+          - const: brcm,nsp
+
+additionalProperties: true
+
+...

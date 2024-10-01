@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Include file for Marvell 98dx3336 family SoC
+ *
+ * Copyright (C) 2016 Allied Telesis Labs
+ *
+ * Contains definitions specific to the 98dx3236 SoC that are not
+ * common to all Armada XP SoCs.
+ */
+
+#include "armada-xp-98dx3236.dtsi"
+
+/ {
+	model = "Marvell 98DX3336 SoC";
+	compatible = "marvell,armadaxp-98dx3336", "marvell,armadaxp-98dx3236", "marvell,armada-370-xp";
+
+	cpus {
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "marvell,sheeva-v7";
+			reg = <1>;
+			clocks = <&cpuclk 1>;
+			clock-latency = <1000000>;
+		};
+	};
+
+	soc {
+		internal-regs {
+			resume@20980 {
+				compatible = "marvell,98dx3336-resume-ctrl";
+				reg = <0x20980 0x10>;
+			};
+		};
+	};
+};
+
+&pp0 {
+	compatible = "marvell,prestera-98dx3336", "marvell,prestera";
+};

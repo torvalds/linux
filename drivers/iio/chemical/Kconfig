@@ -1,0 +1,205 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Chemical sensors
+#
+
+menu "Chemical Sensors"
+
+config ATLAS_PH_SENSOR
+	tristate "Atlas Scientific OEM SM sensors"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IRQ_WORK
+	help
+	  Say Y here to build I2C interface support for the following
+	  Atlas Scientific OEM SM sensors:
+	    * pH SM sensor
+	    * EC SM sensor
+	    * ORP SM sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called atlas-ph-sensor.
+
+config ATLAS_EZO_SENSOR
+	tristate "Atlas Scientific EZO sensors"
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the following
+	  Atlas Scientific EZO sensors
+	    * CO2 EZO Sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called atlas-ezo-sensor.
+
+config BME680
+	tristate "Bosch Sensortec BME680 sensor driver"
+	depends on (I2C || SPI)
+	select REGMAP
+	select BME680_I2C if I2C
+	select BME680_SPI if SPI
+	help
+	  Say yes here to build support for Bosch Sensortec BME680 sensor with
+	  temperature, pressure, humidity and gas sensing capability.
+
+	  This driver can also be built as a module. If so, the module for I2C
+	  would be called bme680_i2c and bme680_spi for SPI support.
+
+config BME680_I2C
+	tristate
+	depends on I2C && BME680
+	select REGMAP_I2C
+
+config BME680_SPI
+	tristate
+	depends on SPI && BME680
+	select REGMAP_SPI
+
+config CCS811
+	tristate "AMS CCS811 VOC sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to build I2C interface support for the AMS
+	  CCS811 VOC (Volatile Organic Compounds) sensor
+
+config IAQCORE
+	tristate "AMS iAQ-Core VOC sensors"
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the AMS
+	  iAQ-Core Continuous/Pulsed VOC (Volatile Organic Compounds)
+	  sensors
+
+config PMS7003
+	tristate "Plantower PMS7003 particulate matter sensor"
+	depends on SERIAL_DEV_BUS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to build support for the Plantower PMS7003 particulate
+	  matter sensor.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called pms7003.
+
+config SCD30_CORE
+	tristate "SCD30 carbon dioxide sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to build support for the Sensirion SCD30 sensor with carbon
+	  dioxide, relative humidity and temperature sensing capabilities.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_core.
+
+config SCD30_I2C
+	tristate "SCD30 carbon dioxide sensor I2C driver"
+	depends on SCD30_CORE && I2C
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SCD30 I2C interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_i2c.
+
+config SCD30_SERIAL
+	tristate "SCD30 carbon dioxide sensor serial driver"
+	depends on SCD30_CORE && SERIAL_DEV_BUS
+	select CRC16
+	help
+	  Say Y here to build support for the Sensirion SCD30 serial interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_serial.
+
+config SCD4X
+	tristate "SCD4X carbon dioxide sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SCD4X sensor with carbon
+	  dioxide, relative humidity and temperature sensing capabilities.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd4x.
+
+config SENSIRION_SGP30
+	tristate "Sensirion SGPxx gas sensors"
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build I2C interface support for the following
+	  Sensirion SGP gas sensors:
+	    * SGP30 gas sensor
+	    * SGPC3 low power gas sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called sgp30.
+
+config SENSIRION_SGP40
+	tristate "Sensirion SGP40 gas sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build I2C interface to support Sensirion SGP40 gas
+	  sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called sgp40.
+
+config SPS30
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config SPS30_I2C
+	tristate "SPS30 particulate matter sensor I2C driver"
+	depends on I2C
+	select SPS30
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SPS30 I2C interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sps30_i2c.
+
+config SPS30_SERIAL
+	tristate "SPS30 particulate matter sensor serial driver"
+	depends on SERIAL_DEV_BUS
+	select SPS30
+	help
+	  Say Y here to build support for the Sensirion SPS30 serial interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sps30_serial.
+
+config SENSEAIR_SUNRISE_CO2
+	tristate "Senseair Sunrise 006-0-0007 CO2 sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Senseair Sunrise 006-0-0007 CO2
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunrise_co2.
+
+config VZ89X
+	tristate "SGX Sensortech MiCS VZ89X VOC sensor"
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the SGX
+	  Sensortech MiCS VZ89X VOC (Volatile Organic Compounds)
+	  sensors
+
+endmenu

@@ -1,0 +1,194 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig EXTCON
+	tristate "External Connector Class (extcon) support"
+	help
+	  Say Y here to enable external connector class (extcon) support.
+	  This allows monitoring external connectors by userspace
+	  via sysfs and uevent and supports external connectors with
+	  multiple states; i.e., an extcon that may have multiple
+	  cables attached. For example, an external connector of a device
+	  may be used to connect an HDMI cable and a AC adaptor, and to
+	  host USB ports. Many of 30-pin connectors including PDMI are
+	  also good examples.
+
+if EXTCON
+
+comment "Extcon Device Drivers"
+
+config EXTCON_ADC_JACK
+	tristate "ADC Jack extcon support"
+	depends on IIO
+	help
+	  Say Y here to enable extcon device driver based on ADC values.
+
+config EXTCON_AXP288
+	tristate "X-Power AXP288 EXTCON support"
+	depends on MFD_AXP20X && USB_SUPPORT && X86 && ACPI && IOSF_MBI
+	select USB_ROLE_SWITCH
+	help
+	  Say Y here to enable support for USB peripheral detection
+	  and USB MUX switching by X-Power AXP288 PMIC.
+
+config EXTCON_FSA9480
+	tristate "FSA9480 EXTCON Support"
+	depends on INPUT && I2C
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Fairchild Semiconductor
+	  FSA9480 microUSB switch and accessory detector chip. The FSA9480 is a USB
+	  port accessory detector and switch. The FSA9480 is fully controlled using
+	  I2C and enables USB data, stereo and mono audio, video, microphone
+	  and UART data to use a common connector port.
+
+config EXTCON_GPIO
+	tristate "GPIO extcon support"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here to enable GPIO based extcon support. Note that GPIO
+	  extcon supports single state per extcon instance.
+
+config EXTCON_INTEL_INT3496
+	tristate "Intel INT3496 ACPI device extcon driver"
+	depends on GPIOLIB && ACPI && (X86 || COMPILE_TEST)
+	help
+	  Say Y here to enable extcon support for USB OTG ports controlled by
+	  an Intel INT3496 ACPI device.
+
+	  This ACPI device is typically found on Intel Baytrail or Cherrytrail
+	  based tablets, or other Baytrail / Cherrytrail devices.
+
+config EXTCON_INTEL_CHT_WC
+	tristate "Intel Cherrytrail Whiskey Cove PMIC extcon driver"
+	depends on INTEL_SOC_PMIC_CHTWC
+	depends on USB_SUPPORT
+	depends on POWER_SUPPLY
+	select USB_ROLE_SWITCH
+	help
+	  Say Y here to enable extcon support for charger detection / control
+	  on the Intel Cherrytrail Whiskey Cove PMIC.
+
+config EXTCON_INTEL_MRFLD
+	tristate "Intel Merrifield Basin Cove PMIC extcon driver"
+	depends on INTEL_SOC_PMIC_MRFLD
+	help
+	  Say Y here to enable extcon support for charger detection / control
+	  on the Intel Merrifield Basin Cove PMIC.
+
+config EXTCON_MAX14577
+	tristate "Maxim MAX14577/77836 EXTCON Support"
+	depends on MFD_MAX14577
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX14577/77836. The MAX14577/77836 MUIC is a USB port accessory
+	  detector and switch.
+
+config EXTCON_MAX3355
+	tristate "Maxim MAX3355 USB OTG EXTCON Support"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  If you say yes here you get support for the USB OTG role detection by
+	  MAX3355. The MAX3355 chip integrates a charge pump and comparators to
+	  enable a system with an integrated USB OTG dual-role transceiver to
+	  function as an USB OTG dual-role device.
+
+config EXTCON_MAX77693
+	tristate "Maxim MAX77693 EXTCON Support"
+	depends on MFD_MAX77693 && INPUT
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX77693 PMIC. The MAX77693 MUIC is a USB port accessory
+	  detector and switch.
+
+config EXTCON_MAX77843
+	tristate "Maxim MAX77843 EXTCON Support"
+	depends on MFD_MAX77843
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX77843. The MAX77843 MUIC is a USB port accessory
+	  detector add switch.
+
+config EXTCON_MAX8997
+	tristate "Maxim MAX8997 EXTCON Support"
+	depends on MFD_MAX8997
+	select IRQ_DOMAIN
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX8997 PMIC. The MAX8997 MUIC is a USB port accessory
+	  detector and switch.
+
+config EXTCON_PALMAS
+	tristate "Palmas USB EXTCON support"
+	depends on MFD_PALMAS
+	help
+	  Say Y here to enable support for USB peripheral and USB host
+	  detection by palmas usb.
+
+config EXTCON_PTN5150
+	tristate "NXP PTN5150 CC LOGIC USB EXTCON support"
+	depends on I2C && (GPIOLIB || COMPILE_TEST)
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for USB peripheral and USB host
+	  detection by NXP PTN5150 CC (Configuration Channel) logic chip.
+
+config EXTCON_QCOM_SPMI_MISC
+	tristate "Qualcomm USB extcon support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Say Y here to enable SPMI PMIC based USB cable detection
+	  support on Qualcomm PMICs such as PM8941.
+
+config EXTCON_RT8973A
+	tristate "Richtek RT8973A EXTCON support"
+	depends on I2C
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Richtek RT8973A. The RT8973A is a USB port accessory detector
+	  and switch that is optimized to protect low voltage system
+	  from abnormal high input voltage (up to 28V).
+
+config EXTCON_SM5502
+	tristate "Silicon Mitus SM5502/SM5504/SM5703 EXTCON support"
+	depends on I2C
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Silicon Mitus SM5502. The SM5502 is a USB port accessory
+	  detector and switch.
+
+config EXTCON_USB_GPIO
+	tristate "USB GPIO extcon support"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here to enable GPIO based USB cable detection extcon support.
+	  Used typically if GPIO is used for USB ID pin detection.
+
+config EXTCON_USBC_CROS_EC
+	tristate "ChromeOS Embedded Controller EXTCON support"
+	depends on CROS_EC
+	help
+	  Say Y here to enable USB Type C cable detection extcon support when
+	  using Chrome OS EC based USB Type-C ports.
+
+config EXTCON_USBC_TUSB320
+	tristate "TI TUSB320 USB-C extcon support"
+	depends on I2C && TYPEC
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for USB Type C cable detection extcon
+	  support using a TUSB320.
+
+endif

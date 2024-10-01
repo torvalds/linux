@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
+ */
+
+#include "imx51-digi-connectcore-som.dtsi"
+
+/ {
+	model = "Digi ConnectCore CC(W)-MX51 JSK";
+	compatible = "digi,connectcore-ccxmx51-jsk",
+		     "digi,connectcore-ccxmx51-som", "fsl,imx51";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	usbphy1: usbphy1 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+	};
+};
+
+&esdhc1 {
+	status = "okay";
+};
+
+&owire {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_owire>;
+	status = "okay";
+};
+
+&pmic {
+	fsl,mc13xxx-uses-rtc;
+
+	regulators {
+		vcoincell_reg: vcoincell {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-always-on;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&usbotg {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh1>;
+	fsl,usbphy = <&usbphy1>;
+	dr_mode = "host";
+	phy_type = "ulpi";
+	disable-over-current;
+	status = "okay";
+};
+
+&iomuxc {
+	imx51-digi-connectcore-jsk {
+		pinctrl_owire: owiregrp {
+			fsl,pins = <
+				MX51_PAD_OWIRE_LINE__OWIRE_LINE		0x40000000
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX51_PAD_UART1_RXD__UART1_RXD		0x1c5
+				MX51_PAD_UART1_TXD__UART1_TXD		0x1c5
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX51_PAD_UART2_RXD__UART2_RXD		0x1c5
+				MX51_PAD_UART2_TXD__UART2_TXD		0x1c5
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX51_PAD_UART3_RXD__UART3_RXD		0x1c5
+				MX51_PAD_UART3_TXD__UART3_TXD		0x1c5
+			>;
+		};
+
+		pinctrl_usbh1: usbh1grp {
+			fsl,pins = <
+				MX51_PAD_USBH1_DATA0__USBH1_DATA0	0x1e5
+				MX51_PAD_USBH1_DATA1__USBH1_DATA1	0x1e5
+				MX51_PAD_USBH1_DATA2__USBH1_DATA2	0x1e5
+				MX51_PAD_USBH1_DATA3__USBH1_DATA3	0x1e5
+				MX51_PAD_USBH1_DATA4__USBH1_DATA4	0x1e5
+				MX51_PAD_USBH1_DATA5__USBH1_DATA5	0x1e5
+				MX51_PAD_USBH1_DATA6__USBH1_DATA6	0x1e5
+				MX51_PAD_USBH1_DATA7__USBH1_DATA7	0x1e5
+				MX51_PAD_USBH1_CLK__USBH1_CLK		0x1e5
+				MX51_PAD_USBH1_DIR__USBH1_DIR		0x1e5
+				MX51_PAD_USBH1_NXT__USBH1_NXT		0x1e5
+				MX51_PAD_USBH1_STP__USBH1_STP		0x1e5
+			>;
+		};
+	};
+};

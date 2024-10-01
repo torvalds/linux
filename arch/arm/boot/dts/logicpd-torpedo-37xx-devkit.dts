@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "omap36xx.dtsi"
+#include "logicpd-torpedo-som.dtsi"
+#include "omap-gpmc-smsc9221.dtsi"
+#include "logicpd-torpedo-baseboard.dtsi"
+
+/ {
+	model = "LogicPD Zoom DM3730 Torpedo + Wireless Development Kit";
+	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3630", "ti,omap3";
+
+	wl12xx_vmmc: wl12xx_vmmc {
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1271";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 29 0>;   /* gpio157 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+		vin-supply = <&vmmc2>;
+	};
+};
+
+/*
+ * Only found on the wireless SOM. For the SOM without wireless, the pins for
+ * MMC3 can be routed with jumpers to the second MMC slot on the devkit and
+ * gpio157 is not connected. So this should be OK to keep common for now,
+ * probably device tree overlays is the way to go with the various SOM and
+ * jumpering combinations for the long run.
+ */
+&mmc3 {
+	interrupts-extended = <&intc 94 &omap3_pmx_core 0x136>;
+	pinctrl-0 = <&mmc3_pins &mmc3_core2_pins>;
+	pinctrl-names = "default";
+	vmmc-supply = <&wl12xx_vmmc>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1283";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <24 IRQ_TYPE_EDGE_RISING>; /* gpio 152 */
+		ref-clock-frequency = <26000000>;
+		tcxo-clock-frequency = <26000000>;
+	};
+};
+
+&uart2 {
+	/delete-property/dma-names;
+	bluetooth {
+		compatible = "ti,wl1283-st";
+		enable-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>; /* gpio 162 */
+		max-speed = <3000000>;
+	};
+};
+
+/* The DM3730 has a faster L3 than OMAP35, so increase pixel clock */
+&mt9p031_out {
+	pixel-clock-frequency = <90000000>;
+};
+
+&omap3_pmx_core {
+	mmc3_pins: pinmux_mm3_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2164, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat4.sdmmc3_dat0 */
+			OMAP3_CORE1_IOPAD(0x2166, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat5.sdmmc3_dat1 */
+			OMAP3_CORE1_IOPAD(0x2168, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat2 */
+			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat3 */
+			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcbsp4_clkx.gpio_152 */
+			OMAP3_CORE1_IOPAD(0x218e, PIN_OUTPUT | MUX_MODE4)	/* mcbsp1_fsr.gpio_157 */
+		>;
+	};
+};
+
+&omap3_pmx_core2 {
+	mmc3_core2_pins: pinmux_mmc3_core2_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25d8, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_clk.sdmmc3_clk */
+			OMAP3630_CORE2_IOPAD(0x25da, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_ctl.sdmmc3_cmd */
+		>;
+	};
+};
+
+/* The gpio muxing between omap3530 and dm3730 is different for GPIO_128 */
+&omap3_pmx_wkup {
+	isp1763_pins: pinmux_isp1763_pins {
+		pinctrl-single,pins = <
+			OMAP3_WKUP_IOPAD(0x2a58, PIN_INPUT_PULLUP | MUX_MODE4)	/* reserved.gpio_128 */
+		>;
+	};
+};

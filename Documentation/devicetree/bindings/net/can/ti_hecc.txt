@@ -1,0 +1,32 @@
+Texas Instruments High End CAN Controller (HECC)
+================================================
+
+This file provides information, what the device node
+for the hecc interface contains.
+
+Required properties:
+- compatible: "ti,am3517-hecc"
+- reg: addresses and lengths of the register spaces for 'hecc', 'hecc-ram'
+       and 'mbx'
+- reg-names :"hecc", "hecc-ram", "mbx"
+- interrupts: interrupt mapping for the hecc interrupts sources
+- clocks: clock phandles (see clock bindings for details)
+
+Optional properties:
+- ti,use-hecc1int: if provided configures HECC to produce all interrupts
+		   on HECC1INT interrupt line. By default HECC0INT interrupt
+		   line will be used.
+- xceiver-supply: regulator that powers the CAN transceiver
+
+Example:
+
+For am3517evm board:
+	hecc: can@5c050000 {
+		compatible = "ti,am3517-hecc";
+		reg = <0x5c050000 0x80>,
+		      <0x5c053000 0x180>,
+		      <0x5c052000 0x200>;
+		reg-names = "hecc", "hecc-ram", "mbx";
+		interrupts = <24>;
+		clocks = <&hecc_ck>;
+	};

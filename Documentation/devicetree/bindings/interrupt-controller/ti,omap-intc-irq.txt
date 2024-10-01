@@ -1,0 +1,28 @@
+Omap2/3 intc controller
+
+On TI omap2 and 3 the intc interrupt controller can provide
+96 or 128 IRQ signals to the ARM host depending on the SoC.
+
+Required Properties:
+- compatible: should be one of
+			"ti,omap2-intc"
+			"ti,omap3-intc"
+			"ti,dm814-intc"
+			"ti,dm816-intc"
+			"ti,am33xx-intc"
+
+- interrupt-controller : Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode interrupt
+		     source, should be 1 for intc
+- interrupts: interrupt reference to primary interrupt controller
+
+Please refer to interrupts.txt in this directory for details of the common
+Interrupt Controllers bindings used by client devices.
+
+Example:
+	intc: interrupt-controller@48200000 {
+		compatible = "ti,omap3-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x48200000 0x1000>;
+	};

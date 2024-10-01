@@ -1,0 +1,610 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2018 SolidRun ltd.
+ * Based on Marvell MACCHIATOBin board
+ *
+ * Device Tree file for SolidRun's ClearFog GT 8K
+ */
+
+#include "armada-8040.dtsi"
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "SolidRun ClearFog GT 8K";
+	compatible = "solidrun,clearfog-gt-8k", "marvell,armada8040",
+			"marvell,armada-ap806-quad", "marvell,armada-ap806";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	aliases {
+		ethernet0 = &cp1_eth1;
+		ethernet1 = &cp0_eth0;
+		ethernet2 = &cp1_eth2;
+	};
+
+	fan: pwm {
+		compatible = "pwm-fan";
+		/* 20% steps */
+		cooling-levels = <0 51 102 153 204 255>;
+		#cooling-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_fan_pwm_pins>;
+		pwms = <&cp0_gpio2 16 40000>;
+	};
+
+	v_3_3: regulator-3-3v {
+		compatible = "regulator-fixed";
+		regulator-name = "v_3_3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	v_5v0_usb3_hst_vbus: regulator-usb3-vbus0 {
+		compatible = "regulator-fixed";
+		gpio = <&cp0_gpio2 15 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_xhci_vbus_pins>;
+		regulator-name = "v_5v0_usb3_hst_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		status = "okay";
+	};
+
+	sfp_cp0_eth0: sfp-cp0-eth0 {
+		compatible = "sff,sfp";
+		i2c-bus = <&cp0_i2c1>;
+		mod-def0-gpios = <&cp0_gpio2 17 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 29 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_sfp_present_pins &cp1_sfp_tx_disable_pins>;
+		maximum-power-milliwatt = <2000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&cp0_led0_pins
+			     &cp0_led1_pins>;
+		pinctrl-names = "default";
+		/* No designated function for these LEDs at the moment */
+		led0 {
+			label = "clearfog-gt-8k:green:led0";
+			gpios = <&cp0_gpio2 8 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+		led1 {
+			label = "clearfog-gt-8k:green:led1";
+			gpios = <&cp0_gpio2 9 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&cp0_gpio_reset_pins &cp1_wps_button_pins>;
+		pinctrl-names = "default";
+
+		button-0 {
+			/* The rear button */
+			label = "Rear Button";
+			gpios = <&cp0_gpio2 7 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_0>;
+		};
+
+		button-1 {
+			/* The wps button */
+			label = "WPS Button";
+			gpios = <&cp1_gpio1 30 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <KEY_WPS_BUTTON>;
+		};
+	};
+};
+
+&ap_thermal_ic {
+	polling-delay = <1000>; /* milliseconds */
+	trips {
+		ap_active: trip-active {
+			temperature = <40000>; /* millicelsius */
+			hysteresis = <4000>; /* millicelsius */
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&ap_active>;
+			cooling-device = <&fan THERMAL_NO_LIMIT 4>;
+		};
+		map1 {
+			trip = <&ap_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+&cp0_thermal_ic {
+	polling-delay = <1000>; /* milliseconds */
+	trips {
+		cp0_active0: trip-active0 {
+			temperature = <40000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp0_active1: trip-active1 {
+			temperature = <45000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp0_active2: trip-active2 {
+			temperature = <50000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp0_active3: trip-active3 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&cp0_active0>;
+			cooling-device = <&fan 0 1>;
+		};
+		map1 {
+			trip = <&cp0_active1>;
+			cooling-device = <&fan 1 2>;
+		};
+		map2 {
+			trip = <&cp0_active2>;
+			cooling-device = <&fan 2 3>;
+		};
+		map3 {
+			trip = <&cp0_active3>;
+			cooling-device = <&fan 3 4>;
+		};
+		map4 {
+			trip = <&cp0_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+&cp1_thermal_ic {
+	polling-delay = <1000>; /* milliseconds */
+	trips {
+		cp1_active0: trip-active0 {
+			temperature = <40000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp1_active1: trip-active1 {
+			temperature = <45000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp1_active2: trip-active2 {
+			temperature = <50000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+		cp1_active3: trip-active3 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <2500>; /* millicelsius */
+			type = "active";
+		};
+	};
+	cooling-maps {
+		map0 {
+			trip = <&cp1_active0>;
+			cooling-device = <&fan 0 1>;
+		};
+		map1 {
+			trip = <&cp1_active1>;
+			cooling-device = <&fan 1 2>;
+		};
+		map2 {
+			trip = <&cp1_active2>;
+			cooling-device = <&fan 2 3>;
+		};
+		map3 {
+			trip = <&cp1_active3>;
+			cooling-device = <&fan 3 4>;
+		};
+		map4 {
+			trip = <&cp1_crit>;
+			cooling-device = <&fan 4 5>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+};
+
+&ap_sdhci0 {
+	bus-width = <8>;
+	no-1-8-v;
+	no-sd;
+	no-sdio;
+	non-removable;
+	status = "okay";
+	vqmmc-supply = <&v_3_3>;
+};
+
+&cp0_i2c0 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_i2c0_pins>;
+	status = "okay";
+};
+
+&cp0_i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_i2c1_pins>;
+	status = "okay";
+};
+
+&cp0_pinctrl {
+	/*
+	 * MPP Bus:
+	 * [0-31] = 0xff: Keep default CP0_shared_pins:
+	 * [11] CLKOUT_MPP_11 (out)
+	 * [23] LINK_RD_IN_CP2CP (in)
+	 * [25] CLKOUT_MPP_25 (out)
+	 * [29] AVS_FB_IN_CP2CP (in)
+	 * [32, 33, 34] pci0/1/2 reset
+	 * [35-38] CP0 I2C1 and I2C0
+	 * [39] GPIO reset button
+	 * [40,41] LED0 and LED1
+	 * [43] 1512 phy reset
+	 * [47] USB VBUS EN (active low)
+	 * [48] FAN PWM
+	 * [49] SFP+ present signal
+	 * [50] TPM interrupt
+	 * [51] WLAN0 disable
+	 * [52] WLAN1 disable
+	 * [53] LTE disable
+	 * [54] NFC reset
+	 * [55] Micro SD card detect
+	 * [56-61] Micro SD
+	 */
+
+	cp0_pci0_reset_pins: pci0-reset-pins {
+		marvell,pins = "mpp32";
+		marvell,function = "gpio";
+	};
+
+	cp0_pci1_reset_pins: pci1-reset-pins {
+		marvell,pins = "mpp33";
+		marvell,function = "gpio";
+	};
+
+	cp0_pci2_reset_pins: pci2-reset-pins {
+		marvell,pins = "mpp34";
+		marvell,function = "gpio";
+	};
+
+	cp0_i2c1_pins: i2c1-pins {
+		marvell,pins = "mpp35", "mpp36";
+		marvell,function = "i2c1";
+	};
+
+	cp0_i2c0_pins: i2c0-pins {
+		marvell,pins = "mpp37", "mpp38";
+		marvell,function = "i2c0";
+	};
+
+	cp0_gpio_reset_pins: gpio-reset-pins {
+		marvell,pins = "mpp39";
+		marvell,function = "gpio";
+	};
+
+	cp0_led0_pins: led0-pins {
+		marvell,pins = "mpp40";
+		marvell,function = "gpio";
+	};
+
+	cp0_led1_pins: led1-pins {
+		marvell,pins = "mpp41";
+		marvell,function = "gpio";
+	};
+
+	cp0_copper_eth_phy_reset: copper-eth-phy-reset {
+		marvell,pins = "mpp43";
+		marvell,function = "gpio";
+	};
+
+	cp0_xhci_vbus_pins: xhci0-vbus-pins {
+		marvell,pins = "mpp47";
+		marvell,function = "gpio";
+	};
+
+	cp0_fan_pwm_pins: fan-pwm-pins {
+		marvell,pins = "mpp48";
+		marvell,function = "gpio";
+	};
+
+	cp0_sfp_present_pins: sfp-present-pins {
+		marvell,pins = "mpp49";
+		marvell,function = "gpio";
+	};
+
+	cp0_tpm_irq_pins: tpm-irq-pins {
+		marvell,pins = "mpp50";
+		marvell,function = "gpio";
+	};
+
+	cp0_wlan_disable_pins: wlan-disable-pins {
+		marvell,pins = "mpp51";
+		marvell,function = "gpio";
+	};
+
+	cp0_sdhci_pins: sdhci-pins {
+		marvell,pins = "mpp55", "mpp56", "mpp57", "mpp58", "mpp59",
+			       "mpp60", "mpp61";
+		marvell,function = "sdio";
+	};
+};
+
+&cp0_pcie0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_pci0_reset_pins &cp0_wlan_disable_pins>;
+	reset-gpios = <&cp0_gpio2 0 GPIO_ACTIVE_LOW>;
+	phys = <&cp0_comphy0 0>;
+	phy-names = "cp0-pcie0-x1-phy";
+	status = "okay";
+};
+
+&cp0_gpio2 {
+	sata_reset {
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	lte_reset {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
+
+	wlan_disable {
+		gpio-hog;
+		gpios = <19 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
+
+	lte_disable {
+		gpio-hog;
+		gpios = <21 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
+};
+
+&cp0_ethernet {
+	status = "okay";
+};
+
+/* SFP */
+&cp0_eth0 {
+	status = "okay";
+	phy-mode = "10gbase-r";
+	managed = "in-band-status";
+	phys = <&cp0_comphy2 0>;
+	sfp = <&sfp_cp0_eth0>;
+};
+
+&cp0_sdhci0 {
+	broken-cd;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_sdhci_pins>;
+	status = "okay";
+	vqmmc-supply = <&v_3_3>;
+};
+
+&cp0_usb3_1 {
+	status = "okay";
+};
+
+&cp1_pinctrl {
+	/*
+	 * MPP Bus:
+	 * [0-5] TDM
+	 * [6]   VHV Enable
+	 * [7]   CP1 SPI0 CSn1 (FXS)
+	 * [8]   CP1 SPI0 CSn0 (TPM)
+	 * [9.11]CP1 SPI0 MOSI/MISO/CLK
+	 * [13]  CP1 SPI1 MISO (TDM and SPI ROM shared)
+	 * [14]  CP1 SPI1 CS0n (64Mb SPI ROM)
+	 * [15]  CP1 SPI1 MOSI (TDM and SPI ROM shared)
+	 * [16]  CP1 SPI1 CLK (TDM and SPI ROM shared)
+	 * [24]  Topaz switch reset
+	 * [26]  Buzzer
+	 * [27]  CP1 SMI MDIO
+	 * [28]  CP1 SMI MDC
+	 * [29]  CP0 10G SFP TX Disable
+	 * [30]  WPS button
+	 * [31]  Front panel button
+	 */
+
+	cp1_spi1_pins: spi1-pins {
+		marvell,pins = "mpp13", "mpp14", "mpp15", "mpp16";
+		marvell,function = "spi1";
+	};
+
+	cp1_switch_reset_pins: switch-reset-pins {
+		marvell,pins = "mpp24";
+		marvell,function = "gpio";
+	};
+
+	cp1_ge_mdio_pins: ge-mdio-pins {
+		marvell,pins = "mpp27", "mpp28";
+		marvell,function = "ge";
+	};
+
+	cp1_sfp_tx_disable_pins: sfp-tx-disable-pins {
+		marvell,pins = "mpp29";
+		marvell,function = "gpio";
+	};
+
+	cp1_wps_button_pins: wps-button-pins {
+		marvell,pins = "mpp30";
+		marvell,function = "gpio";
+	};
+};
+
+&cp1_sata0 {
+	pinctrl-0 = <&cp0_pci1_reset_pins>;
+	status = "okay";
+
+	sata-port@1 {
+		phys = <&cp1_comphy0 1>;
+		phy-names = "cp1-sata0-1-phy";
+	};
+};
+
+&cp1_mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp1_ge_mdio_pins>;
+	status = "okay";
+
+	ge_phy: ethernet-phy@0 {
+		/* LED0 - GB link
+		 * LED1 - on: link, blink: activity
+		 */
+		marvell,reg-init = <3 16 0 0x1017>;
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_copper_eth_phy_reset>;
+		reset-gpios = <&cp0_gpio2 11 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <10000>;
+	};
+
+	switch0: switch0@4 {
+		compatible = "marvell,mv88e6085";
+		reg = <4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp1_switch_reset_pins>;
+		reset-gpios = <&cp1_gpio1 24 GPIO_ACTIVE_LOW>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+				phy-handle = <&switch0phy0>;
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan1";
+				phy-handle = <&switch0phy1>;
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan4";
+				phy-handle = <&switch0phy2>;
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "lan3";
+				phy-handle = <&switch0phy3>;
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&cp1_eth2>;
+				phy-mode = "2500base-x";
+				managed = "in-band-status";
+			};
+		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0phy0: switch0phy0@11 {
+				reg = <0x11>;
+			};
+
+			switch0phy1: switch0phy1@12 {
+				reg = <0x12>;
+			};
+
+			switch0phy2: switch0phy2@13 {
+				reg = <0x13>;
+			};
+
+			switch0phy3: switch0phy3@14 {
+				reg = <0x14>;
+			};
+		};
+	};
+};
+
+&cp1_ethernet {
+	status = "okay";
+};
+
+/* 1G copper */
+&cp1_eth1 {
+	status = "okay";
+	phy-mode = "sgmii";
+	phy = <&ge_phy>;
+	phys = <&cp1_comphy3 1>;
+};
+
+/* Switch uplink */
+&cp1_eth2 {
+	status = "okay";
+	phy-mode = "2500base-x";
+	phys = <&cp1_comphy5 2>;
+	managed = "in-band-status";
+};
+
+&cp1_spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp1_spi1_pins>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "st,w25q32";
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+	};
+};
+
+&cp1_comphy2 {
+	cp1_usbh0_con: connector {
+		compatible = "usb-a-connector";
+		phy-supply = <&v_5v0_usb3_hst_vbus>;
+	};
+};
+
+&cp1_usb3_0 {
+	phys = <&cp1_comphy2 0>;
+	phy-names = "cp1-usb3h0-comphy";
+	status = "okay";
+};

@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2012 Armadeus Systems - <support@armadeus.com>
+ * Copyright 2012 Laurent Cans <laurent.cans@gmail.com>
+ *
+ * Based on mx51-babbage.dts
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ */
+
+/dts-v1/;
+#include "imx51.dtsi"
+
+/ {
+	model = "Armadeus Systems APF51 module";
+	compatible = "armadeus,imx51-apf51", "fsl,imx51";
+
+	memory@90000000 {
+		device_type = "memory";
+		reg = <0x90000000 0x20000000>;
+	};
+
+	clocks {
+		osc {
+			clock-frequency = <33554432>;
+		};
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "mii";
+	phy-reset-gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <1>;
+	status = "okay";
+};
+
+&iomuxc {
+	imx51-apf51 {
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX51_PAD_DI_GP3__FEC_TX_ER		0x80000000
+				MX51_PAD_DI2_PIN4__FEC_CRS		0x80000000
+				MX51_PAD_DI2_PIN2__FEC_MDC		0x80000000
+				MX51_PAD_DI2_PIN3__FEC_MDIO		0x80000000
+				MX51_PAD_DI2_DISP_CLK__FEC_RDATA1	0x80000000
+				MX51_PAD_DI_GP4__FEC_RDATA2		0x80000000
+				MX51_PAD_DISP2_DAT0__FEC_RDATA3		0x80000000
+				MX51_PAD_DISP2_DAT1__FEC_RX_ER		0x80000000
+				MX51_PAD_DISP2_DAT6__FEC_TDATA1		0x80000000
+				MX51_PAD_DISP2_DAT7__FEC_TDATA2		0x80000000
+				MX51_PAD_DISP2_DAT8__FEC_TDATA3		0x80000000
+				MX51_PAD_DISP2_DAT9__FEC_TX_EN		0x80000000
+				MX51_PAD_DISP2_DAT10__FEC_COL		0x80000000
+				MX51_PAD_DISP2_DAT11__FEC_RX_CLK	0x80000000
+				MX51_PAD_DISP2_DAT12__FEC_RX_DV		0x80000000
+				MX51_PAD_DISP2_DAT13__FEC_TX_CLK	0x80000000
+				MX51_PAD_DISP2_DAT14__FEC_RDATA0	0x80000000
+				MX51_PAD_DISP2_DAT15__FEC_TDATA0	0x80000000
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX51_PAD_UART3_RXD__UART3_RXD		0x1c5
+				MX51_PAD_UART3_TXD__UART3_TXD		0x1c5
+			>;
+		};
+	};
+};
+
+&nfc {
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};

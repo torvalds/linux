@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# IBM Coherent Accelerator (CXL) compatible devices
+#
+
+config CXL_BASE
+	bool
+	select PPC_COPRO_BASE
+	select PPC_64S_HASH_MMU
+
+config CXL
+	tristate "Support for IBM Coherent Accelerators (CXL)"
+	depends on PPC_POWERNV && PCI_MSI && EEH
+	select CXL_BASE
+	default m
+	help
+	  Select this option to enable driver support for IBM Coherent
+	  Accelerators (CXL).  CXL is otherwise known as Coherent Accelerator
+	  Processor Interface (CAPI).  CAPI allows accelerators in FPGAs to be
+	  coherently attached to a CPU via an MMU.  This driver enables
+	  userspace programs to access these accelerators via /dev/cxl/afuM.N
+	  devices.
+
+	  CAPI adapters are found in POWER8 based systems.
+
+	  If unsure, say N.

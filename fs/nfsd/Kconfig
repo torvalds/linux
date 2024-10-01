@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NFSD
+	tristate "NFS server support"
+	depends on INET
+	depends on FILE_LOCKING
+	depends on FSNOTIFY
+	select LOCKD
+	select SUNRPC
+	select EXPORTFS
+	select NFS_ACL_SUPPORT if NFSD_V2_ACL
+	select NFS_ACL_SUPPORT if NFSD_V3_ACL
+	depends on MULTIUSER
+	help
+	  Choose Y here if you want to allow other computers to access
+	  files residing on this system using Sun's Network File System
+	  protocol.  To compile the NFS server support as a module,
+	  choose M here: the module will be called nfsd.
+
+	  You may choose to use a user-space NFS server instead, in which
+	  case you can choose N here.
+
+	  To export local file systems using NFS, you also need to install
+	  user space programs which can be found in the Linux nfs-utils
+	  package, available from http://linux-nfs.org/.  More detail about
+	  the Linux NFS server implementation is available via the
+	  exports(5) man page.
+
+	  Below you can choose which versions of the NFS protocol are
+	  available to clients mounting the NFS server on this system.
+	  Support for NFS version 3 (RFC 1813) is always available when
+	  CONFIG_NFSD is selected.
+
+	  If unsure, say N.
+
+config NFSD_V2
+	bool "NFS server support for NFS version 2 (DEPRECATED)"
+	depends on NFSD
+	default n
+	help
+	  NFSv2 (RFC 1094) was the first publicly-released version of NFS.
+	  Unless you are hosting ancient (1990's era) NFS clients, you don't
+	  need this.
+
+	  If unsure, say N.
+
+config NFSD_V2_ACL
+	bool "NFS server support for the NFSv2 ACL protocol extension"
+	depends on NFSD_V2
+
+config NFSD_V3_ACL
+	bool "NFS server support for the NFSv3 ACL protocol extension"
+	depends on NFSD
+	help
+	  Solaris NFS servers support an auxiliary NFSv3 ACL protocol that
+	  never became an official part of the NFS version 3 protocol.
+	  This protocol extension allows applications on NFS clients to
+	  manipulate POSIX Access Control Lists on files residing on NFS
+	  servers.  NFS servers enforce POSIX ACLs on local files whether
+	  this protocol is available or not.
+
+	  This option enables support in your system's NFS server for the
+	  NFSv3 ACL protocol extension allowing NFS clients to manipulate
+	  POSIX ACLs on files exported by your system's NFS server.  NFS
+	  clients which support the Solaris NFSv3 ACL protocol can then
+	  access and modify ACLs on your NFS server.
+
+	  To store ACLs on your NFS server, you also need to enable ACL-
+	  related CONFIG options for your local file systems of choice.
+
+	  If unsure, say N.
+
+config NFSD_V4
+	bool "NFS server support for NFS version 4"
+	depends on NFSD && PROC_FS
+	select FS_POSIX_ACL
+	select SUNRPC_GSS
+	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_SHA256
+	select GRACE_PERIOD
+	select NFS_V4_2_SSC_HELPER if NFS_V4_2
+	help
+	  This option enables support in your system's NFS server for
+	  version 4 of the NFS protocol (RFC 3530).
+
+	  To export files using NFSv4, you need to install additional user
+	  space programs which can be found in the Linux nfs-utils package,
+	  available from http://linux-nfs.org/.
+
+	  If unsure, say N.
+
+config NFSD_PNFS
+	bool
+
+config NFSD_BLOCKLAYOUT
+	bool "NFSv4.1 server support for pNFS block layouts"
+	depends on NFSD_V4 && BLOCK
+	select NFSD_PNFS
+	select EXPORTFS_BLOCK_OPS
+	help
+	  This option enables support for the exporting pNFS block layouts
+	  in the kernel's NFS server. The pNFS block layout enables NFS
+	  clients to directly perform I/O to block devices accessible to both
+	  the server and the clients.  See RFC 5663 for more details.
+
+	  If unsure, say N.
+
+config NFSD_SCSILAYOUT
+	bool "NFSv4.1 server support for pNFS SCSI layouts"
+	depends on NFSD_V4 && BLOCK
+	select NFSD_PNFS
+	select EXPORTFS_BLOCK_OPS
+	help
+	  This option enables support for the exporting pNFS SCSI layouts
+	  in the kernel's NFS server. The pNFS SCSI layout enables NFS
+	  clients to directly perform I/O to SCSI devices accessible to both
+	  the server and the clients.  See draft-ietf-nfsv4-scsi-layout for
+	  more details.
+
+	  If unsure, say N.
+
+config NFSD_FLEXFILELAYOUT
+	bool "NFSv4.1 server support for pNFS Flex File layouts"
+	depends on NFSD_V4
+	select NFSD_PNFS
+	help
+	  This option enables support for the exporting pNFS Flex File
+	  layouts in the kernel's NFS server. The pNFS Flex File  layout
+	  enables NFS clients to directly perform I/O to NFSv3 devices
+	  accessible to both the server and the clients.  See
+	  draft-ietf-nfsv4-flex-files for more details.
+
+	  Warning, this server implements the bare minimum functionality
+	  to be a flex file server - it is for testing the client,
+	  not for use in production.
+
+	  If unsure, say N.
+
+config NFSD_V4_2_INTER_SSC
+	bool "NFSv4.2 inter server to server COPY"
+	depends on NFSD_V4 && NFS_V4_2
+	help
+	  This option enables support for NFSv4.2 inter server to
+	  server copy where the destination server calls the NFSv4.2
+	  client to read the data to copy from the source server.
+
+	  If unsure, say N.
+
+config NFSD_V4_SECURITY_LABEL
+	bool "Provide Security Label support for NFSv4 server"
+	depends on NFSD_V4 && SECURITY
+	help
+
+	Say Y here if you want enable fine-grained security label attribute
+	support for NFS version 4.  Security labels allow security modules like
+	SELinux and Smack to label files to facilitate enforcement of their policies.
+	Without this an NFSv4 mount will have the same label on each file.
+
+	If you do not wish to enable fine-grained security labels SELinux or
+	Smack policies on NFSv4 files, say N.

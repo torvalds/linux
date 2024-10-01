@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+
+#include "loongson64c-package.dtsi"
+#include "rs780e-pch.dtsi"
+
+/ {
+	compatible = "loongson,loongson64c-8core-rs780e";
+};
+
+&package0 {
+	htpic: interrupt-controller@1efdfb000080 {
+		compatible = "loongson,htpic-1.0";
+		reg = <0x1efd 0xfb000080 0x40>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		interrupt-parent = <&liointc>;
+		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>,
+				<25 IRQ_TYPE_LEVEL_HIGH>,
+				<26 IRQ_TYPE_LEVEL_HIGH>,
+				<27 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};

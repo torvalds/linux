@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_DESIGNWARE_I2S
+	tristate "Synopsys I2S Device Driver"
+	depends on HAVE_CLK
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	 Say Y or M if you want to add support for I2S driver for
+	 Synopsys designware I2S device. The device supports up to
+	 a maximum of 8 channels each for play and record.
+
+config SND_DESIGNWARE_PCM
+	bool "PCM PIO extension for I2S driver"
+	depends on SND_DESIGNWARE_I2S
+	help
+	 Say Y or N if you want to add a custom ALSA extension that registers
+	 a PCM and uses PIO to transfer data.
+
+	 This functionality is specially suited for I2S devices that don't have
+	 DMA support.
+

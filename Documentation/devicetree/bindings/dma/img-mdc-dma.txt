@@ -1,0 +1,57 @@
+* IMG Multi-threaded DMA Controller (MDC)
+
+Required properties:
+- compatible: Must be "img,pistachio-mdc-dma".
+- reg: Must contain the base address and length of the MDC registers.
+- interrupts: Must contain all the per-channel DMA interrupts.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clock/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+  - sys: MDC system interface clock.
+- img,cr-periph: Must contain a phandle to the peripheral control syscon
+  node which contains the DMA request to channel mapping registers.
+- img,max-burst-multiplier: Must be the maximum supported burst size multiplier.
+  The maximum burst size is this value multiplied by the hardware-reported bus
+  width.
+- #dma-cells: Must be 3:
+  - The first cell is the peripheral's DMA request line.
+  - The second cell is a bitmap specifying to which channels the DMA request
+    line may be mapped (i.e. bit N set indicates channel N is usable).
+  - The third cell is the thread ID to be used by the channel.
+
+Optional properties:
+- dma-channels: Number of supported DMA channels, up to 32.  If not specified
+  the number reported by the hardware is used.
+
+Example:
+
+mdc: dma-controller@18143000 {
+	compatible = "img,pistachio-mdc-dma";
+	reg = <0x18143000 0x1000>;
+	interrupts = <GIC_SHARED 27 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 28 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 29 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 30 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 31 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 32 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 33 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 34 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 35 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 36 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 37 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SHARED 38 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&system_clk>;
+	clock-names = "sys";
+
+	img,max-burst-multiplier = <16>;
+	img,cr-periph = <&cr_periph>;
+
+	#dma-cells = <3>;
+};
+
+spi@18100f00 {
+	...
+	dmas = <&mdc 9 0xffffffff 0>, <&mdc 10 0xffffffff 0>;
+	dma-names = "tx", "rx";
+	...
+};

@@ -1,0 +1,176 @@
+/*
+ * Copyright 2015 Annapurna Labs Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * Alternatively, redistribution and use in source and binary forms, with or
+ * without modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   *   Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *
+ *   *   Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in
+ *       the documentation and/or other materials provided with the
+ *       distribution.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	/* SOC compatibility */
+	compatible = "al,alpine";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0>;
+	};
+
+	/* CPU Configuration */
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "al,alpine-smp";
+
+		cpu@0 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <0>;
+			clock-frequency = <1700000000>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <1>;
+			clock-frequency = <1700000000>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <2>;
+			clock-frequency = <1700000000>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <3>;
+			clock-frequency = <1700000000>;
+		};
+	};
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		arch-timer {
+			compatible = "arm,cortex-a15-timer",
+				     "arm,armv7-timer";
+			interrupts =
+				<GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				<GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				<GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+			clock-frequency = <50000000>;
+		};
+
+		/* Interrupt Controller */
+		gic: interrupt-controller@fb001000 {
+			compatible = "arm,cortex-a15-gic";
+			#interrupt-cells = <3>;
+			#size-cells = <0>;
+			#address-cells = <0>;
+			interrupt-controller;
+			reg = <0x0 0xfb001000 0x0 0x1000>,
+			      <0x0 0xfb002000 0x0 0x2000>,
+			      <0x0 0xfb004000 0x0 0x2000>,
+			      <0x0 0xfb006000 0x0 0x2000>;
+			interrupts =
+				<GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		};
+
+		/* CPU Resume registers */
+		cpu-resume@fbff5ec0 {
+			compatible = "al,alpine-cpu-resume";
+			reg = <0x0 0xfbff5ec0 0x0 0x30>;
+		};
+
+		/* North Bridge Service Registers */
+		sysfabric-service@fb070000 {
+			compatible = "al,alpine-sysfabric-service", "syscon";
+			reg = <0x0 0xfb070000 0x0 0x10000>;
+		};
+
+		/* Performance Monitor Unit */
+		pmu {
+			compatible = "arm,cortex-a15-pmu";
+			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		uart0: uart@fd883000 {
+			compatible = "ns16550a";
+			reg = <0x0 0xfd883000 0x0 0x1000>;
+			clock-frequency = <375000000>;
+			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		uart1: uart@fd884000 {
+			compatible = "ns16550a";
+			reg = <0x0 0xfd884000 0x0 0x1000>;
+			clock-frequency = <375000000>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		/* Internal PCIe Controller */
+		pcie@fbc00000 {
+			compatible = "pci-host-ecam-generic";
+			device_type = "pci";
+			#size-cells = <2>;
+			#address-cells = <3>;
+			#interrupt-cells = <1>;
+			reg = <0x0 0xfbc00000 0x0 0x100000>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			/* Add legacy interrupts for SATA devices only */
+			interrupt-map = <0x4000 0 0 1 &gic 0 43 4>,
+					<0x4800 0 0 1 &gic 0 44 4>;
+
+			/* 32 bit non prefetchable memory space */
+			ranges = <0x02000000 0x0 0xfe000000 0x0 0xfe000000 0x0 0x1000000>;
+
+			bus-range = <0x00 0x00>;
+			msi-parent = <&msix>;
+		};
+
+		msix: msix@fbe00000 {
+			compatible = "al,alpine-msix";
+			reg = <0x0 0xfbe00000 0x0 0x100000>;
+			interrupt-controller;
+			msi-controller;
+			al,msi-base-spi = <96>;
+			al,msi-num-spis = <64>;
+		};
+	};
+};

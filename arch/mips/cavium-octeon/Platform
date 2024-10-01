@@ -1,0 +1,6 @@
+#
+# Cavium Octeon
+#
+cflags-$(CONFIG_CAVIUM_OCTEON_SOC)	+=				\
+		-I$(srctree)/arch/mips/include/asm/mach-cavium-octeon
+load-$(CONFIG_CAVIUM_OCTEON_SOC)	+= 0xffffffff81100000

@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra186-asrc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra186 ASRC
+
+description: |
+  Asynchronous Sample Rate Converter (ASRC) converts the sampling frequency
+  of the input signal from one frequency to another. It can handle over a
+  wide range of sample rate ratios (freq_in/freq_out) from 1:24 to 24:1.
+  ASRC has two modes of operation. One where ratio can be programmed in SW
+  and the other where it gets the information from ratio estimator module.
+
+  It supports  sample rate conversions in the range of 8 to 192 kHz and
+  supports 6 streams upto 12 total channels. The input data size can be
+  16, 24 and 32 bits.
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Mohan Kumar <mkumard@nvidia.com>
+  - Sameer Pujar <spujar@nvidia.com>
+
+allOf:
+  - $ref: name-prefix.yaml#
+
+properties:
+  $nodename:
+    pattern: "^asrc@[0-9a-f]*$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra186-asrc
+      - items:
+          - enum:
+              - nvidia,tegra234-asrc
+              - nvidia,tegra194-asrc
+          - const: nvidia,tegra186-asrc
+
+  reg:
+    maxItems: 1
+
+  sound-name-prefix:
+    pattern: "^ASRC[1-9]$"
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: |
+      ASRC has seven input ports and six output ports. Accordingly ACIF
+      (Audio Client Interfaces) port nodes are defined to represent the
+      ASRC inputs (port 0 to 6) and outputs (port 7 to 12). These are
+      connected to corresponding ports on AHUB (Audio Hub). Additional
+      input (port 6) is for receiving ratio information from estimator.
+
+    patternProperties:
+      '^port@[0-6]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: ASRC ACIF input ports
+      '^port@[7-9]|1[1-2]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: ASRC ACIF output ports
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+
+    asrc@2910000 {
+        compatible = "nvidia,tegra186-asrc";
+        reg = <0x2910000 0x2000>;
+        sound-name-prefix = "ASRC1";
+    };
+
+...

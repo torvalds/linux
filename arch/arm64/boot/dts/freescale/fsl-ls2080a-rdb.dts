@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Freescale LS2080a RDB Board.
+ *
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
+ *
+ * Abhimanyu Saini <abhimanyu.saini@nxp.com>
+ * Bhupesh Sharma <bhupesh.sharma@freescale.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "fsl-ls2080a.dtsi"
+#include "fsl-ls208xa-rdb.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	model = "Freescale Layerscape 2080a RDB Board";
+	compatible = "fsl,ls2080a-rdb", "fsl,ls2080a";
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+};
+
+&dpmac5 {
+	phy-handle = <&mdio2_phy1>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac6 {
+	phy-handle = <&mdio2_phy2>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac7 {
+	phy-handle = <&mdio2_phy3>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac8 {
+	phy-handle = <&mdio2_phy4>;
+	phy-connection-type = "10gbase-r";
+};
+
+&emdio1 {
+	status = "disabled";
+
+	/* CS4340 PHYs */
+	mdio1_phy1: emdio1-phy@10 {
+		reg = <0x10>;
+	};
+
+	mdio1_phy2: emdio1-phy@11 {
+		reg = <0x11>;
+	};
+
+	mdio1_phy3: emdio1-phy@12 {
+		reg = <0x12>;
+	};
+
+	mdio1_phy4: emdio1-phy@13 {
+		reg = <0x13>;
+	};
+};
+
+&emdio2 {
+	/* AQR405 PHYs */
+	mdio2_phy1: emdio2-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0>;
+	};
+
+	mdio2_phy2: emdio2-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x1>;
+	};
+
+	mdio2_phy3: emdio2-phy@2 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x2>;
+	};
+
+	mdio2_phy4: emdio2-phy@3 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x3>;
+	};
+};

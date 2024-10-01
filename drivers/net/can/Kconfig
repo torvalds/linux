@@ -1,0 +1,232 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig CAN_DEV
+	tristate "CAN Device Drivers"
+	default y
+	depends on CAN
+	help
+	  Controller Area Network (CAN) is serial communications protocol up to
+	  1Mbit/s for its original release (now known as Classical CAN) and up
+	  to 8Mbit/s for the more recent CAN with Flexible Data-Rate
+	  (CAN-FD). The CAN bus was originally mainly for automotive, but is now
+	  widely used in marine (NMEA2000), industrial, and medical
+	  applications. More information on the CAN network protocol family
+	  PF_CAN is contained in <Documentation/networking/can.rst>.
+
+	  This section contains all the CAN(-FD) device drivers including the
+	  virtual ones. If you own such devices or plan to use the virtual CAN
+	  interfaces to develop applications, say Y here.
+
+	  To compile as a module, choose M here: the module will be called
+	  can-dev.
+
+if CAN_DEV
+
+config CAN_VCAN
+	tristate "Virtual Local CAN Interface (vcan)"
+	help
+	  Similar to the network loopback devices, vcan offers a
+	  virtual local CAN interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called vcan.
+
+config CAN_VXCAN
+	tristate "Virtual CAN Tunnel (vxcan)"
+	help
+	  Similar to the virtual ethernet driver veth, vxcan implements a
+	  local CAN traffic tunnel between two virtual CAN network devices.
+	  When creating a vxcan, two vxcan devices are created as pair.
+	  When one end receives the packet it appears on its pair and vice
+	  versa. The vxcan can be used for cross namespace communication.
+
+	  In opposite to vcan loopback devices the vxcan only forwards CAN
+	  frames to its pair and does *not* provide a local echo of sent
+	  CAN frames. To disable a potential echo in af_can.c the vxcan driver
+	  announces IFF_ECHO in the interface flags. To have a clean start
+	  in each namespace the CAN GW hop counter is set to zero.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called vxcan.
+
+config CAN_NETLINK
+	bool "CAN device drivers with Netlink support"
+	default y
+	help
+	  Enables the common framework for CAN device drivers. This is the
+	  standard library and provides features for the Netlink interface such
+	  as bittiming validation, support of CAN error states, device restart
+	  and others.
+
+	  The additional features selected by this option will be added to the
+	  can-dev module.
+
+	  This is required by all platform and hardware CAN drivers. If you
+	  plan to use such devices or if unsure, say Y.
+
+if CAN_NETLINK
+
+config CAN_CALC_BITTIMING
+	bool "CAN bit-timing calculation"
+	default y
+	help
+	  If enabled, CAN bit-timing parameters will be calculated for the
+	  bit-rate specified via Netlink argument "bitrate" when the device
+	  get started. This works fine for the most common CAN controllers
+	  with standard bit-rates but may fail for exotic bit-rates or CAN
+	  source clock frequencies. Disabling saves some space, but then the
+	  bit-timing parameters must be specified directly using the Netlink
+	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
+
+	  The additional features selected by this option will be added to the
+	  can-dev module.
+
+	  If unsure, say Y.
+
+config CAN_RX_OFFLOAD
+	bool
+
+config CAN_AT91
+	tristate "Atmel AT91 onchip CAN controller"
+	depends on (ARCH_AT91 || COMPILE_TEST) && HAS_IOMEM
+	help
+	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
+	  and AT91SAM9X5 processors.
+
+config CAN_CAN327
+	tristate "Serial / USB serial ELM327 based OBD-II Interfaces (can327)"
+	depends on TTY
+	select CAN_RX_OFFLOAD
+	help
+	  CAN driver for several 'low cost' OBD-II interfaces based on the
+	  ELM327 OBD-II interpreter chip.
+
+	  This is a best effort driver - the ELM327 interface was never
+	  designed to be used as a standalone CAN interface. However, it can
+	  still be used for simple request-response protocols (such as OBD II),
+	  and to monitor broadcast messages on a bus (such as in a vehicle).
+
+	  Please refer to the documentation for information on how to use it:
+	  Documentation/networking/device_drivers/can/can327.rst
+
+	  If this driver is built as a module, it will be called can327.
+
+config CAN_FLEXCAN
+	tristate "Support for Freescale FLEXCAN based chips"
+	depends on OF || COLDFIRE || COMPILE_TEST
+	depends on HAS_IOMEM
+	select CAN_RX_OFFLOAD
+	help
+	  Say Y here if you want to support for Freescale FlexCAN.
+
+config CAN_GRCAN
+	tristate "Aeroflex Gaisler GRCAN and GRHCAN CAN devices"
+	depends on OF && HAS_DMA && HAS_IOMEM
+	help
+	  Say Y here if you want to use Aeroflex Gaisler GRCAN or GRHCAN.
+	  Note that the driver supports little endian, even though little
+	  endian syntheses of the cores would need some modifications on
+	  the hardware level to work.
+
+config CAN_JANZ_ICAN3
+	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
+	depends on MFD_JANZ_CMODIO
+	help
+	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
+	  connects to a MODULbus carrier board.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called janz-ican3.ko.
+
+config CAN_KVASER_PCIEFD
+	depends on PCI
+	tristate "Kvaser PCIe FD cards"
+	select CRC32
+	  help
+	  This is a driver for the Kvaser PCI Express CAN FD family.
+
+	  Supported devices:
+	    Kvaser PCIEcan 4xHS
+	    Kvaser PCIEcan 2xHS v2
+	    Kvaser PCIEcan HS v2
+	    Kvaser Mini PCI Express HS v2
+	    Kvaser Mini PCI Express 2xHS v2
+
+config CAN_SLCAN
+	tristate "Serial / USB serial CAN Adaptors (slcan)"
+	depends on TTY
+	help
+	  CAN driver for several 'low cost' CAN interfaces that are attached
+	  via serial lines or via USB-to-serial adapters using the LAWICEL
+	  ASCII protocol. The driver implements the tty linediscipline N_SLCAN.
+
+	  As only the sending and receiving of CAN frames is implemented, this
+	  driver should work with the (serial/USB) CAN hardware from:
+	  www.canusb.com / www.can232.com / www.mictronics.de / www.canhack.de
+
+	  Userspace tools to attach the SLCAN line discipline (slcan_attach,
+	  slcand) can be found in the can-utils at the linux-can project, see
+	  https://github.com/linux-can/can-utils for details.
+
+	  The slcan driver supports up to 10 CAN netdevices by default which
+	  can be changed by the 'maxdev=xx' module option. This driver can
+	  also be built as a module. If so, the module will be called slcan.
+
+config CAN_SUN4I
+	tristate "Allwinner A10 CAN controller"
+	depends on MACH_SUN4I || MACH_SUN7I || (RISCV && ARCH_SUNXI) || COMPILE_TEST
+	help
+	  Say Y here if you want to use CAN controller found on Allwinner
+	  A10/A20/D1 SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sun4i_can.
+
+config CAN_TI_HECC
+	depends on ARM
+	tristate "TI High End CAN Controller"
+	select CAN_RX_OFFLOAD
+	help
+	  Driver for TI HECC (High End CAN Controller) module found on many
+	  TI devices. The device specifications are available from www.ti.com
+
+config CAN_XILINXCAN
+	tristate "Xilinx CAN"
+	depends on ARCH_ZYNQ || ARM64 || MICROBLAZE || COMPILE_TEST
+	depends on COMMON_CLK && HAS_IOMEM
+	help
+	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
+	  Zynq CANPS IP.
+
+config PCH_CAN
+	tristate "Intel EG20T PCH CAN controller"
+	depends on PCI && (X86_32 || COMPILE_TEST)
+	help
+	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
+	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
+	  This driver can access CAN bus.
+
+source "drivers/net/can/c_can/Kconfig"
+source "drivers/net/can/cc770/Kconfig"
+source "drivers/net/can/ctucanfd/Kconfig"
+source "drivers/net/can/ifi_canfd/Kconfig"
+source "drivers/net/can/m_can/Kconfig"
+source "drivers/net/can/mscan/Kconfig"
+source "drivers/net/can/peak_canfd/Kconfig"
+source "drivers/net/can/rcar/Kconfig"
+source "drivers/net/can/sja1000/Kconfig"
+source "drivers/net/can/softing/Kconfig"
+source "drivers/net/can/spi/Kconfig"
+source "drivers/net/can/usb/Kconfig"
+
+endif #CAN_NETLINK
+
+config CAN_DEBUG_DEVICES
+	bool "CAN devices debugging messages"
+	help
+	  Say Y here if you want the CAN device drivers to produce a bunch of
+	  debug messages to the system log.  Select this if you are having
+	  a problem with CAN support and want to see more of what is going
+	  on.
+
+endif #CAN_DEV

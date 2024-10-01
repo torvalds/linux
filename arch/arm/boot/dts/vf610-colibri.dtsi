@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Copyright 2014-2020 Toradex
+ */
+
+#include "vf610.dtsi"
+#include "vf-colibri.dtsi"
+
+/ {
+	model = "Toradex Colibri VF61 COM";
+	compatible = "toradex,vf610-colibri_vf61", "fsl,vf610";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>;
+	};
+};
+
+&nfc {
+	assigned-clocks = <&clks VF610_CLK_NFC>;
+	assigned-clock-rates = <50000000>;
+};

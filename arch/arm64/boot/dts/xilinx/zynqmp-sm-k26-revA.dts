@@ -1,0 +1,289 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * dts file for Xilinx ZynqMP SM-K26 rev1/B/A
+ *
+ * (C) Copyright 2020 - 2021, Xilinx, Inc.
+ *
+ * Michal Simek <michal.simek@xilinx.com>
+ */
+
+/dts-v1/;
+
+#include "zynqmp.dtsi"
+#include "zynqmp-clk-ccf.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/phy/phy.h>
+
+/ {
+	model = "ZynqMP SM-K26 Rev1/B/A";
+	compatible = "xlnx,zynqmp-sm-k26-rev1", "xlnx,zynqmp-sm-k26-revB",
+		     "xlnx,zynqmp-sm-k26-revA", "xlnx,zynqmp-sm-k26",
+		     "xlnx,zynqmp";
+
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		mmc0 = &sdhci0;
+		mmc1 = &sdhci1;
+		nvmem0 = &eeprom;
+		nvmem1 = &eeprom_cc;
+		rtc0 = &rtc;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &dcc;
+		spi0 = &qspi;
+		spi1 = &spi0;
+		spi2 = &spi1;
+		usb0 = &usb0;
+		usb1 = &usb1;
+	};
+
+	chosen {
+		bootargs = "earlycon";
+		stdout-path = "serial1:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory"; /* 4GB */
+		reg = <0x0 0x0 0x0 0x80000000>, <0x8 0x00000000 0x0 0x80000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+		key-fwuen {
+			label = "fwuen";
+			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		ds35-led {
+			label = "heartbeat";
+			gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		ds36-led {
+			label = "vbus_det";
+			gpios = <&gpio 8 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+};
+
+&uart1 { /* MIO36/MIO37 */
+	status = "okay";
+};
+
+&qspi { /* MIO 0-5 - U143 */
+	status = "okay";
+	flash@0 { /* MT25QU512A */
+		compatible = "mt25qu512a", "jedec,spi-nor"; /* 64MB */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <40000000>; /* 40MHz */
+		partition@0 {
+			label = "Image Selector";
+			reg = <0x0 0x80000>; /* 512KB */
+			read-only;
+			lock;
+		};
+		partition@80000 {
+			label = "Image Selector Golden";
+			reg = <0x80000 0x80000>; /* 512KB */
+			read-only;
+			lock;
+		};
+		partition@100000 {
+			label = "Persistent Register";
+			reg = <0x100000 0x20000>; /* 128KB */
+		};
+		partition@120000 {
+			label = "Persistent Register Backup";
+			reg = <0x120000 0x20000>; /* 128KB */
+		};
+		partition@140000 {
+			label = "Open_1";
+			reg = <0x140000 0xC0000>; /* 768KB */
+		};
+		partition@200000 {
+			label = "Image A (FSBL, PMU, ATF, U-Boot)";
+			reg = <0x200000 0xD00000>; /* 13MB */
+		};
+		partition@f00000 {
+			label = "ImgSel Image A Catch";
+			reg = <0xF00000 0x80000>; /* 512KB */
+			read-only;
+			lock;
+		};
+		partition@f80000 {
+			label = "Image B (FSBL, PMU, ATF, U-Boot)";
+			reg = <0xF80000 0xD00000>; /* 13MB */
+		};
+		partition@1c80000 {
+			label = "ImgSel Image B Catch";
+			reg = <0x1C80000 0x80000>; /* 512KB */
+			read-only;
+			lock;
+		};
+		partition@1d00000 {
+			label = "Open_2";
+			reg = <0x1D00000 0x100000>; /* 1MB */
+		};
+		partition@1e00000 {
+			label = "Recovery Image";
+			reg = <0x1E00000 0x200000>; /* 2MB */
+			read-only;
+			lock;
+		};
+		partition@2000000 {
+			label = "Recovery Image Backup";
+			reg = <0x2000000 0x200000>; /* 2MB */
+			read-only;
+			lock;
+		};
+		partition@2200000 {
+			label = "U-Boot storage variables";
+			reg = <0x2200000 0x20000>; /* 128KB */
+		};
+		partition@2220000 {
+			label = "U-Boot storage variables backup";
+			reg = <0x2220000 0x20000>; /* 128KB */
+		};
+		partition@2240000 {
+			label = "SHA256";
+			reg = <0x2240000 0x10000>; /* 256B but 64KB sector */
+			read-only;
+			lock;
+		};
+		partition@2250000 {
+			label = "User";
+			reg = <0x2250000 0x1db0000>; /* 29.5 MB */
+		};
+	};
+};
+
+&sdhci0 { /* MIO13-23 - 16GB emmc MTFC16GAPALBH-IT - U133A */
+	status = "okay";
+	non-removable;
+	disable-wp;
+	bus-width = <8>;
+	xlnx,mio-bank = <0>;
+};
+
+&spi1 { /* MIO6, 9-11 */
+	status = "okay";
+	label = "TPM";
+	num-cs = <1>;
+	tpm@0 { /* slm9670 - U144 */
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		reg = <0>;
+		spi-max-frequency = <18500000>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+	scl-gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
+
+	eeprom: eeprom@50 { /* u46 - also at address 0x58 */
+		compatible = "st,24c64", "atmel,24c64"; /* st m24c64 */
+		reg = <0x50>;
+		/* WP pin EE_WP_EN connected to slg7x644092@68 */
+	};
+
+	eeprom_cc: eeprom@51 { /* required by spec - also at address 0x59 */
+		compatible = "st,24c64", "atmel,24c64"; /* st m24c64 */
+		reg = <0x51>;
+	};
+
+	/* da9062@30 - u170 - also at address 0x31 */
+	/* da9131@33 - u167 */
+	da9131: pmic@33 {
+		compatible = "dlg,da9131";
+		reg = <0x33>;
+		regulators {
+			da9131_buck1: buck1 {
+				regulator-name = "da9131_buck1";
+				regulator-boot-on;
+				regulator-always-on;
+			};
+			da9131_buck2: buck2 {
+				regulator-name = "da9131_buck2";
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+
+	/* da9130@32 - u166 */
+	da9130: pmic@32 {
+		compatible = "dlg,da9130";
+		reg = <0x32>;
+		regulators {
+			da9130_buck1: buck1 {
+				regulator-name = "da9130_buck1";
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+
+	/* slg7x644091@70 - u168 NOT accessible due to address conflict with stdp4320 */
+	/*
+	 * stdp4320 - u27 FW has below two issues to be fixed in next board revision.
+	 * Device acknowledging to addresses 0x5C, 0x5D, 0x70, 0x72, 0x76.
+	 * Address conflict with slg7x644091@70 making both the devices NOT accessible.
+	 * With the FW fix, stdp4320 should respond to address 0x73 only.
+	 */
+	/* slg7x644092@68 - u169 */
+	/* Also connected via JA1C as C23/C24 */
+};
+
+&gpio {
+	status = "okay";
+	gpio-line-names = "QSPI_CLK", "QSPI_DQ1", "QSPI_DQ2", "QSPI_DQ3", "QSPI_DQ0", /* 0 - 4 */
+			  "QSPI_CS_B", "SPI_CLK", "LED1", "LED2", "SPI_CS_B", /* 5 - 9 */
+			  "SPI_MISO", "SPI_MOSI", "FWUEN", "EMMC_DAT0", "EMMC_DAT1", /* 10 - 14 */
+			  "EMMC_DAT2", "EMMC_DAT3", "EMMC_DAT4", "EMMC_DAT5", "EMMC_DAT6", /* 15 - 19 */
+			  "EMMC_DAT7", "EMMC_CMD", "EMMC_CLK", "EMMC_RST", "I2C1_SCL", /* 20 - 24 */
+			  "I2C1_SDA", "", "", "", "", /* 25 - 29 */
+			  "", "", "", "", "", /* 30 - 34 */
+			  "", "", "", "", "", /* 35 - 39 */
+			  "", "", "", "", "", /* 40 - 44 */
+			  "", "", "", "", "", /* 45 - 49 */
+			  "", "", "", "", "", /* 50 - 54 */
+			  "", "", "", "", "", /* 55 - 59 */
+			  "", "", "", "", "", /* 60 - 64 */
+			  "", "", "", "", "", /* 65 - 69 */
+			  "", "", "", "", "", /* 70 - 74 */
+			  "", "", "", /* 75 - 77, MIO end and EMIO start */
+			  "", "", /* 78 - 79 */
+			  "", "", "", "", "", /* 80 - 84 */
+			  "", "", "", "", "", /* 85 - 89 */
+			  "", "", "", "", "", /* 90 - 94 */
+			  "", "", "", "", "", /* 95 - 99 */
+			  "", "", "", "", "", /* 100 - 104 */
+			  "", "", "", "", "", /* 105 - 109 */
+			  "", "", "", "", "", /* 110 - 114 */
+			  "", "", "", "", "", /* 115 - 119 */
+			  "", "", "", "", "", /* 120 - 124 */
+			  "", "", "", "", "", /* 125 - 129 */
+			  "", "", "", "", "", /* 130 - 134 */
+			  "", "", "", "", "", /* 135 - 139 */
+			  "", "", "", "", "", /* 140 - 144 */
+			  "", "", "", "", "", /* 145 - 149 */
+			  "", "", "", "", "", /* 150 - 154 */
+			  "", "", "", "", "", /* 155 - 159 */
+			  "", "", "", "", "", /* 160 - 164 */
+			  "", "", "", "", "", /* 165 - 169 */
+			  "", "", "", ""; /* 170 - 173 */
+};

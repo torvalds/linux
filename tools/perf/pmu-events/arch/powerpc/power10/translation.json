@@ -1,0 +1,52 @@
+[
+  {
+    "EventCode": "0x1F15E",
+    "EventName": "PM_MRK_START_PROBE_NOP_CMPL",
+    "BriefDescription": "Marked Start probe nop (AND R0,R0,R0) completed."
+  },
+  {
+    "EventCode": "0x20018",
+    "EventName": "PM_ST_FWD",
+    "BriefDescription": "Store forwards that finished."
+  },
+  {
+    "EventCode": "0x2011C",
+    "EventName": "PM_MRK_NTF_CYC",
+    "BriefDescription": "Cycles in which the marked instruction is the oldest in the pipeline (next-to-finish or next-to-complete)."
+  },
+  {
+    "EventCode": "0x2E01C",
+    "EventName": "PM_EXEC_STALL_TLBIE",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a TLBIE instruction executing in the Load Store Unit."
+  },
+  {
+    "EventCode": "0x201E6",
+    "EventName": "PM_THRESH_EXC_32",
+    "BriefDescription": "Threshold counter exceeded a value of 32."
+  },
+  {
+    "EventCode": "0x200F0",
+    "EventName": "PM_ST_CMPL",
+    "BriefDescription": "Stores completed from S2Q (2nd-level store queue). This event includes regular stores, stcx and cache inhibited stores. The following operations are excluded (pteupdate, snoop tlbie complete, store atomics, miso, load atomic payloads, tlbie, tlbsync, slbieg, isync, msgsnd, slbiag, cpabort, copy, tcheck, tend, stsync, dcbst, icbi, dcbf, hwsync, lwsync, ptesync, eieio, msgsync)."
+  },
+  {
+    "EventCode": "0x200FE",
+    "EventName": "PM_DATA_FROM_L2MISS",
+    "BriefDescription": "The processor's L1 data cache was reloaded from a source beyond the local core's L2 due to a demand miss."
+  },
+  {
+    "EventCode": "0x30010",
+    "EventName": "PM_PMC2_OVERFLOW",
+    "BriefDescription": "The event selected for PMC2 caused the event counter to overflow."
+  },
+  {
+    "EventCode": "0x4D010",
+    "EventName": "PM_PMC1_SAVED",
+    "BriefDescription": "The conditions for the speculative event selected for PMC1 are met and PMC1 is charged."
+  },
+  {
+    "EventCode": "0x4D05C",
+    "EventName": "PM_DPP_FLOP_CMPL",
+    "BriefDescription": "Double-Precision or Quad-Precision instruction completed."
+  }
+]

@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/arm,realview.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM RealView Boards
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |+
+  The ARM RealView series of reference designs were built to explore the ARM
+  11, Cortex A-8 and Cortex A-9 CPUs. This included new features compared to
+  the earlier CPUs such as TrustZone and multicore (MPCore).
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: ARM RealView Emulation Baseboard (HBI-0140) was created
+          as a generic platform to test different FPGA designs, and has
+          pluggable CPU modules, see ARM DUI 0303E.
+        items:
+          - const: arm,realview-eb
+      - description: ARM RealView Platform Baseboard for ARM1176JZF-S
+          (HBI-0147) was created as a development board to test ARM TrustZone,
+          CoreSight and Intelligent Energy Management (IEM) see ARM DUI 0425F.
+        items:
+          - const: arm,realview-pb1176
+      - description: ARM RealView Platform Baseboard for ARM 11 MPCore
+          (HBI-0159, HBI-0175 and HBI-0176) was created to showcase
+          multiprocessing with ARM11 using MPCore using symmetric
+          multiprocessing (SMP). See ARM DUI 0351E.
+        items:
+          - const: arm,realview-pb11mp
+      - description: ARM RealView Platform Baseboard for Cortex-A8 (HBI-0178,
+          HBI-0176 and HBI-0175) was the first reference platform for the
+          Cortex CPU family, including a Cortex-A8 test chip.
+        items:
+          - const: arm,realview-pba8
+      - description: ARM RealView Platform Baseboard Explore for Cortex-A9
+          (HBI-0182 and HBI-0183) was the reference platform for the Cortex-A9
+          CPU.
+        items:
+          - const: arm,realview-pbx
+
+  soc:
+    description: All RealView boards must provide a soc node in the root of the
+      device tree, representing the System-on-Chip since these test chips are
+      rather complex.
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - items:
+              - const: arm,realview-eb-soc
+              - const: simple-bus
+          - items:
+              - const: arm,realview-pb1176-soc
+              - const: simple-bus
+          - items:
+              - const: arm,realview-pb11mp-soc
+              - const: simple-bus
+          - items:
+              - const: arm,realview-pba8-soc
+              - const: simple-bus
+          - items:
+              - const: arm,realview-pbx-soc
+              - const: simple-bus
+
+    patternProperties:
+      "^.*syscon@[0-9a-f]+$":
+        type: object
+        description: All RealView boards must provide a syscon system controller
+          node inside the soc node.
+        properties:
+          compatible:
+            oneOf:
+              - items:
+                  - const: arm,realview-eb11mp-revb-syscon
+                  - const: arm,realview-eb-syscon
+                  - const: syscon
+                  - const: simple-mfd
+              - items:
+                  - const: arm,realview-eb11mp-revc-syscon
+                  - const: arm,realview-eb-syscon
+                  - const: syscon
+                  - const: simple-mfd
+              - items:
+                  - const: arm,realview-eb-syscon
+                  - const: syscon
+                  - const: simple-mfd
+              - items:
+                  - const: arm,realview-pb1176-syscon
+                  - const: syscon
+                  - const: simple-mfd
+              - items:
+                  - const: arm,realview-pb11mp-syscon
+                  - const: syscon
+                  - const: simple-mfd
+              - items:
+                  - const: arm,realview-pba8-syscon
+                  - const: syscon
+                  - const: simple-mfd
+              - items:
+                  - const: arm,realview-pbx-syscon
+                  - const: syscon
+                  - const: simple-mfd
+
+        required:
+          - compatible
+          - reg
+
+    required:
+      - compatible
+
+required:
+  - compatible
+  - soc
+
+additionalProperties: true
+
+...

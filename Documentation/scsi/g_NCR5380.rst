@@ -1,0 +1,93 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+==========================================
+README file for the Linux g_NCR5380 driver
+==========================================
+
+Copyright |copy| 1993 Drew Eckhard
+
+NCR53c400 extensions Copyright |copy| 1994,1995,1996 Kevin Lentin
+
+This file documents the NCR53c400 extensions by Kevin Lentin and some
+enhancements to the NCR5380 core.
+
+This driver supports NCR5380 and NCR53c400 and compatible cards in port or
+memory mapped modes.
+
+Use of an interrupt is recommended, if supported by the board, as this will
+allow targets to disconnect and thereby improve SCSI bus utilization.
+
+If the irq parameter is 254 or is omitted entirely, the driver will probe
+for the correct IRQ line automatically. If the irq parameter is 0 or 255
+then no IRQ will be used.
+
+The NCR53c400 does not support DMA but it does have Pseudo-DMA which is
+supported by the driver.
+
+This driver provides some information on what it has detected in
+/proc/scsi/g_NCR5380/x where x is the scsi card number as detected at boot
+time. More info to come in the future.
+
+This driver works as a module.
+When included as a module, parameters can be passed on the insmod/modprobe
+command line:
+
+  ============= ===============================================================
+  irq=xx[,...]	the interrupt(s)
+  base=xx[,...]	the port or base address(es) (for port or memory mapped, resp.)
+  card=xx[,...]	card type(s):
+
+		==  ======================================
+		0   NCR5380,
+		1   NCR53C400,
+		2   NCR53C400A,
+		3   Domex Technology Corp 3181E (DTC3181E)
+		4   Hewlett Packard C2502
+		==  ======================================
+  ============= ===============================================================
+
+These old-style parameters can support only one card:
+
+  ============= =================================================
+  ncr_irq=xx    the interrupt
+  ncr_addr=xx   the port or base address (for port or memory
+                mapped, resp.)
+  ncr_5380=1    to set up for a NCR5380 board
+  ncr_53c400=1  to set up for a NCR53C400 board
+  ncr_53c400a=1 to set up for a NCR53C400A board
+  dtc_3181e=1   to set up for a Domex Technology Corp 3181E board
+  hp_c2502=1    to set up for a Hewlett Packard C2502 board
+  ============= =================================================
+
+E.g. Trantor T130B in its default configuration::
+
+	modprobe g_NCR5380 irq=5 base=0x350 card=1
+
+or alternatively, using the old syntax::
+
+	modprobe g_NCR5380 ncr_irq=5 ncr_addr=0x350 ncr_53c400=1
+
+E.g. a port mapped NCR5380 board, driver to probe for IRQ::
+
+	modprobe g_NCR5380 base=0x350 card=0
+
+or alternatively::
+
+	modprobe g_NCR5380 ncr_addr=0x350 ncr_5380=1
+
+E.g. a memory mapped NCR53C400 board with no IRQ::
+
+	modprobe g_NCR5380 irq=255 base=0xc8000 card=1
+
+or alternatively::
+
+	modprobe g_NCR5380 ncr_irq=255 ncr_addr=0xc8000 ncr_53c400=1
+
+E.g. two cards, DTC3181 (in non-PnP mode) at 0x240 with no IRQ
+and HP C2502 at 0x300 with IRQ 7::
+
+	modprobe g_NCR5380 irq=0,7 base=0x240,0x300 card=3,4
+
+Kevin Lentin
+K.Lentin@cs.monash.edu.au

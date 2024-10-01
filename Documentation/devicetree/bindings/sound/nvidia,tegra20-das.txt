@@ -1,0 +1,12 @@
+NVIDIA Tegra 20 DAS (Digital Audio Switch) controller
+
+Required properties:
+- compatible : "nvidia,tegra20-das"
+- reg : Should contain DAS registers location and length
+
+Example:
+
+das@70000c00 {
+	compatible = "nvidia,tegra20-das";
+	reg = <0x70000c00 0x80>;
+};

@@ -1,0 +1,2 @@
+perf-$(CONFIG_LIBPERL)   += perl/Perf-Trace-Util/
+perf-$(CONFIG_LIBPYTHON) += python/Perf-Trace-Util/

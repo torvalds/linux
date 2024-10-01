@@ -1,0 +1,44 @@
+ChangeLog for the UTS Global 3270-support patch
+
+Sep 2002:	Get bootup colors right on 3270 console
+	* In tubttybld.c, substantially revise ESC processing so that
+	  ESC sequences (especially coloring ones) and the strings
+	  they affect work as right as 3270 can get them.  Also, set
+	  screen height to omit the two rows used for input area, in
+	  tty3270_open() in tubtty.c.
+
+Sep 2002:	Dynamically get 3270 input buffer
+	* Oversize 3270 screen widths may exceed GEOM_MAXINPLEN columns,
+	  so get input-area buffer dynamically when sizing the device in
+	  tubmakemin() in tuball.c (if it's the console) or tty3270_open()
+	  in tubtty.c (if needed).  Change tubp->tty_input to be a
+	  pointer rather than an array, in tubio.h.
+
+Sep 2002:	Fix tubfs kmalloc()s
+	* Do read and write lengths correctly in fs3270_read()
+	  and fs3270_write(), while never asking kmalloc()
+	  for more than 0x800 bytes.  Affects tubfs.c and tubio.h.
+
+Sep 2002:	Recognize 3270 control unit type 3174
+	* Recognize control-unit type 0x3174 as well as 0x327?.
+	  The IBM 2047 device emulates a 3174 control unit.
+	  Modularize control-unit recognition in tuball.c by
+	  adding and invoking new tub3270_is_ours().
+
+Apr 2002:	Fix 3270 console reboot loop
+	* (Belated log entry) Fixed reboot loop if 3270 console,
+	  in tubtty.c:ttu3270_bh().
+
+Feb 6, 2001:
+	* This changelog is new
+	* tub3270 now supports 3270 console:
+		Specify y for CONFIG_3270 and y for CONFIG_3270_CONSOLE.
+		Support for 3215 will not appear if 3270 console support
+		is chosen.
+		NOTE:  The default is 3270 console support, NOT 3215.
+	* the components are remodularized: added source modules are
+	  tubttybld.c and tubttyscl.c, for screen-building code and
+	  scroll-timeout code.
+	* tub3270 source for this (2.4.0) version is #ifdeffed to
+	  build with both 2.4.0 and 2.2.16.2.
+	* color support and minimal other ESC-sequence support is added.

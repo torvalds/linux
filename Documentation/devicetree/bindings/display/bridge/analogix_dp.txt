@@ -1,0 +1,51 @@
+Analogix Display Port bridge bindings
+
+Required properties for dp-controller:
+	-compatible:
+		platform specific such as:
+		 * "samsung,exynos5-dp"
+		 * "rockchip,rk3288-dp"
+		 * "rockchip,rk3399-edp"
+	-reg:
+		physical base address of the controller and length
+		of memory mapped region.
+	-interrupts:
+		interrupt combiner values.
+	-clocks:
+		from common clock binding: handle to dp clock.
+	-clock-names:
+		from common clock binding: Shall be "dp".
+	-phys:
+		from general PHY binding: the phandle for the PHY device.
+	-phy-names:
+		from general PHY binding: Should be "dp".
+
+Optional properties for dp-controller:
+	-force-hpd:
+		Indicate driver need force hpd when hpd detect failed, this
+		is used for some eDP screen which don't have hpd signal.
+	-hpd-gpios:
+		Hotplug detect GPIO.
+		Indicates which GPIO should be used for hotplug detection
+	-port@[X]: SoC specific port nodes with endpoint definitions as defined
+		in Documentation/devicetree/bindings/media/video-interfaces.txt,
+		please refer to the SoC specific binding document:
+		* Documentation/devicetree/bindings/display/exynos/exynos_dp.txt
+		* Documentation/devicetree/bindings/display/rockchip/analogix_dp-rockchip.txt
+
+[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
+-------------------------------------------------------------------------------
+
+Example:
+
+	dp-controller {
+		compatible = "samsung,exynos5-dp";
+		reg = <0x145b0000 0x10000>;
+		interrupts = <10 3>;
+		interrupt-parent = <&combiner>;
+		clocks = <&clock 342>;
+		clock-names = "dp";
+
+		phys = <&dp_phy>;
+		phy-names = "dp";
+	};

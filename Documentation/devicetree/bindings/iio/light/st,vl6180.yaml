@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/st,vl6180.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicro VL6180 ALS, range and proximity sensor
+
+maintainers:
+  - Manivannan Sadhasivam <manivannanece23@gmail.com>
+  - Peter Meerwald-Stadler <pmeerw@pmeerw.net>
+
+description: |
+  Proximity sensing module incorporating time of flight sensor
+  Datasheet at https://www.st.com/resource/en/datasheet/vl6180x.pdf
+
+properties:
+  compatible:
+    const: st,vl6180
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        proximity@29 {
+            compatible = "st,vl6180";
+            reg = <0x29>;
+        };
+    };
+...

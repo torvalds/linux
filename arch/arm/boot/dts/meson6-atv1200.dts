@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright 2014 Carlo Caione <carlo@caione.org>
+ */
+
+/dts-v1/;
+#include "meson6.dtsi"
+
+/ {
+	model = "Geniatech ATV1200";
+	compatible = "geniatech,atv1200", "amlogic,meson6";
+
+	aliases {
+		serial0 = &uart_AO;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x80000000>;
+	};
+};
+
+&uart_AO {
+	status = "okay";
+};
+
+&ethmac {
+	status = "okay";
+};

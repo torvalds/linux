@@ -1,0 +1,277 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# MDIO Layer Configuration
+#
+
+menuconfig MDIO_DEVICE
+	tristate "MDIO bus device drivers"
+	help
+	  MDIO devices and driver infrastructure code.
+
+if MDIO_DEVICE
+
+config MDIO_BUS
+	tristate
+	default m if PHYLIB=m
+	default MDIO_DEVICE
+	help
+	  This internal symbol is used for link time dependencies and it
+	  reflects whether the mdio_bus/mdio_device code is built as a
+	  loadable module or built-in.
+
+config FWNODE_MDIO
+	def_tristate PHYLIB
+	depends on (ACPI || OF) || COMPILE_TEST
+	select FIXED_PHY
+	help
+	  FWNODE MDIO bus (Ethernet PHY) accessors
+
+config OF_MDIO
+	def_tristate PHYLIB
+	depends on OF
+	depends on PHYLIB
+	select FIXED_PHY
+	help
+	  OpenFirmware MDIO bus (Ethernet PHY) accessors
+
+config ACPI_MDIO
+	def_tristate PHYLIB
+	depends on ACPI
+	depends on PHYLIB
+	help
+	  ACPI MDIO bus (Ethernet PHY) accessors
+
+if MDIO_BUS
+
+config MDIO_DEVRES
+	tristate
+
+config MDIO_SUN4I
+	tristate "Allwinner sun4i MDIO interface support"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the Allwinner SoC that have an EMAC (A10,
+	  A12, A10s, etc.)
+
+config MDIO_XGENE
+	tristate "APM X-Gene SoC MDIO bus controller"
+	depends on ARCH_XGENE || COMPILE_TEST
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  APM X-Gene SoC's.
+
+config MDIO_ASPEED
+	tristate "ASPEED MDIO bus controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on OF_MDIO && HAS_IOMEM
+	help
+	  This module provides a driver for the independent MDIO bus
+	  controllers found in the ASPEED AST2600 SoC. This is a driver for the
+	  third revision of the ASPEED MDIO register interface - the first two
+	  revisions are the "old" and "new" interfaces found in the AST2400 and
+	  AST2500, embedded in the MAC. For legacy reasons, FTGMAC100 driver
+	  continues to drive the embedded MDIO controller for the AST2400 and
+	  AST2500 SoCs, so say N if AST2600 support is not required.
+
+config MDIO_BITBANG
+	tristate "Bitbanged MDIO buses"
+	help
+	  This module implements the MDIO bus protocol in software,
+	  for use by low level drivers that export the ability to
+	  drive the relevant pins.
+
+	  If in doubt, say N.
+
+config MDIO_BCM_IPROC
+	tristate "Broadcom iProc MDIO bus controller"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF_MDIO
+	default ARCH_BCM_IPROC
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  Broadcom iProc SoC's.
+
+config MDIO_BCM_UNIMAC
+	tristate "Broadcom UniMAC MDIO bus controller"
+	depends on HAS_IOMEM
+	help
+	  This module provides a driver for the Broadcom UniMAC MDIO busses.
+	  This hardware can be found in the Broadcom GENET Ethernet MAC
+	  controllers as well as some Broadcom Ethernet switches such as the
+	  Starfighter 2 switches.
+
+config MDIO_CAVIUM
+	tristate
+
+config MDIO_GPIO
+	tristate "GPIO lib-based bitbanged MDIO buses"
+	depends on MDIO_BITBANG
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Supports GPIO lib-based MDIO busses.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mdio-gpio.
+
+config MDIO_HISI_FEMAC
+	tristate "Hisilicon FEMAC MDIO bus controller"
+	depends on HAS_IOMEM && OF_MDIO
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  Hisilicon SoC that have an Fast Ethernet MAC.
+
+config MDIO_I2C
+	tristate
+	depends on I2C
+	help
+	  Support I2C based PHYs.  This provides a MDIO bus bridged
+	  to I2C to allow PHYs connected in I2C mode to be accessed
+	  using the existing infrastructure.
+
+	  This is library mode.
+
+config MDIO_MVUSB
+	tristate "Marvell USB to MDIO Adapter"
+	depends on USB
+	select MDIO_DEVRES
+	help
+	  A USB to MDIO converter present on development boards for
+	  Marvell's Link Street family of Ethernet switches.
+
+config MDIO_MSCC_MIIM
+	tristate "Microsemi MIIM interface support"
+	depends on HAS_IOMEM && REGMAP_MMIO
+	select MDIO_DEVRES
+	help
+	  This driver supports the MIIM (MDIO) interface found in the network
+	  switches of the Microsemi SoCs; it is recommended to switch on
+	  CONFIG_HIGH_RES_TIMERS
+
+config MDIO_MOXART
+	tristate "MOXA ART MDIO interface support"
+	depends on ARCH_MOXART || COMPILE_TEST
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the MOXA ART SoC
+
+config MDIO_OCTEON
+	tristate "Octeon and some ThunderX SOCs MDIO buses"
+	depends on (64BIT && OF_MDIO) || COMPILE_TEST
+	depends on HAS_IOMEM
+	select MDIO_CAVIUM
+	select MDIO_DEVRES
+	help
+	  This module provides a driver for the Octeon and ThunderX MDIO
+	  buses. It is required by the Octeon and ThunderX ethernet device
+	  drivers on some systems.
+
+config MDIO_IPQ4019
+	tristate "Qualcomm IPQ4019 MDIO interface support"
+	depends on HAS_IOMEM && OF_MDIO
+	depends on COMMON_CLK
+	help
+	  This driver supports the MDIO interface found in Qualcomm
+	  IPQ40xx, IPQ60xx, IPQ807x and IPQ50xx series Soc-s.
+
+config MDIO_IPQ8064
+	tristate "Qualcomm IPQ8064 MDIO interface support"
+	depends on HAS_IOMEM && OF_MDIO
+	depends on MFD_SYSCON
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the IPQ8064 SoC
+
+config MDIO_THUNDER
+	tristate "ThunderX SOCs MDIO buses"
+	depends on 64BIT
+	depends on PCI
+	select MDIO_CAVIUM
+	select MDIO_DEVRES
+	help
+	  This driver supports the MDIO interfaces found on Cavium
+	  ThunderX SoCs when the MDIO bus device appears as a PCI
+	  device.
+
+comment "MDIO Multiplexers"
+
+config MDIO_BUS_MUX
+	tristate
+	depends on OF_MDIO
+	help
+	  This module provides a driver framework for MDIO bus
+	  multiplexers which connect one of several child MDIO busses
+	  to a parent bus.  Switching between child busses is done by
+	  device specific drivers.
+
+config MDIO_BUS_MUX_MESON_G12A
+	tristate "Amlogic G12a based MDIO bus multiplexer"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on OF_MDIO && HAS_IOMEM && COMMON_CLK
+	select MDIO_BUS_MUX
+	default m if ARCH_MESON
+	help
+	  This module provides a driver for the MDIO multiplexer/glue of
+	  the amlogic g12a SoC. The multiplexers connects either the external
+	  or the internal MDIO bus to the parent bus.
+
+config MDIO_BUS_MUX_BCM6368
+	tristate "Broadcom BCM6368 MDIO bus multiplexers"
+	depends on OF && OF_MDIO && (BMIPS_GENERIC || COMPILE_TEST)
+	select MDIO_BUS_MUX
+	default BMIPS_GENERIC
+	help
+	  This module provides a driver for MDIO bus multiplexers found in
+	  BCM6368 based Broadcom SoCs. This multiplexer connects one of several
+	  child MDIO bus to a parent bus. Buses could be internal as well as
+	  external and selection logic lies inside the same multiplexer.
+
+config MDIO_BUS_MUX_BCM_IPROC
+	tristate "Broadcom iProc based MDIO bus multiplexers"
+	depends on OF && OF_MDIO && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select MDIO_BUS_MUX
+	default ARCH_BCM_IPROC
+	help
+	  This module provides a driver for MDIO bus multiplexers found in
+	  iProc based Broadcom SoCs. This multiplexer connects one of several
+	  child MDIO bus to a parent bus. Buses could be internal as well as
+	  external and selection logic lies inside the same multiplexer.
+
+config MDIO_BUS_MUX_GPIO
+	tristate "GPIO controlled MDIO bus multiplexers"
+	depends on OF_GPIO && OF_MDIO
+	select MDIO_BUS_MUX
+	help
+	  This module provides a driver for MDIO bus multiplexers that
+	  are controlled via GPIO lines.  The multiplexer connects one of
+	  several child MDIO busses to a parent bus.  Child bus
+	  selection is under the control of GPIO lines.
+
+config MDIO_BUS_MUX_MULTIPLEXER
+	tristate "MDIO bus multiplexer using kernel multiplexer subsystem"
+	depends on OF_MDIO
+	select MULTIPLEXER
+	select MDIO_BUS_MUX
+	help
+	  This module provides a driver for MDIO bus multiplexer
+	  that is controlled via the kernel multiplexer subsystem. The
+	  bus multiplexer connects one of several child MDIO busses to
+	  a parent bus.  Child bus selection is under the control of
+	  the kernel multiplexer subsystem.
+
+config MDIO_BUS_MUX_MMIOREG
+	tristate "MMIO device-controlled MDIO bus multiplexers"
+	depends on OF_MDIO && HAS_IOMEM
+	select MDIO_BUS_MUX
+	help
+	  This module provides a driver for MDIO bus multiplexers that
+	  are controlled via a simple memory-mapped device, like an FPGA.
+	  The multiplexer connects one of several child MDIO busses to a
+	  parent bus.  Child bus selection is under the control of one of
+	  the FPGA's registers.
+
+	  Currently, only 8/16/32 bits registers are supported.
+
+
+endif
+endif

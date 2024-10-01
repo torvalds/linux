@@ -1,0 +1,921 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig POWER_SUPPLY
+	bool "Power supply class support"
+	help
+	  Say Y here to enable power supply class support. This allows
+	  power supply (batteries, AC, USB) monitoring by userspace
+	  via sysfs and uevent (if available) and/or APM kernel interface
+	  (if selected below).
+
+if POWER_SUPPLY
+
+config POWER_SUPPLY_DEBUG
+	bool "Power supply debug"
+	help
+	  Say Y here to enable debugging messages for power supply class
+	  and drivers.
+
+config POWER_SUPPLY_HWMON
+	bool
+	prompt "Expose power supply sensors as hwmon device"
+	depends on HWMON=y || HWMON=POWER_SUPPLY
+	default y
+	help
+	  This options enables API that allows sensors found on a
+	  power supply device (current, voltage, temperature) to be
+	  exposed as a hwmon device.
+
+	  Say 'Y' here if you want power supplies to
+	  have hwmon sysfs interface too.
+
+
+config PDA_POWER
+	tristate "Generic PDA/phone power driver"
+	depends on !S390
+	help
+	  Say Y here to enable generic power driver for PDAs and phones with
+	  one or two external power supplies (AC/USB) connected to main and
+	  backup batteries, and optional builtin charger.
+
+config APM_POWER
+	tristate "APM emulation for class batteries"
+	depends on APM_EMULATION
+	help
+	  Say Y here to enable support APM status emulation using
+	  battery class devices.
+
+config GENERIC_ADC_BATTERY
+	tristate "Generic battery support using IIO"
+	depends on IIO
+	help
+	  Say Y here to enable support for the generic battery driver
+	  which uses IIO framework to read adc.
+
+config IP5XXX_POWER
+	tristate "Injoinic IP5xxx power bank IC driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to include support for Injoinic IP5xxx power bank ICs,
+	  which include a battery charger and a boost converter.
+
+config MAX8925_POWER
+	tristate "MAX8925 battery charger support"
+	depends on MFD_MAX8925
+	help
+	  Say Y here to enable support for the battery charger in the Maxim
+	  MAX8925 PMIC.
+
+config WM831X_BACKUP
+	tristate "WM831X backup battery charger support"
+	depends on MFD_WM831X
+	help
+	  Say Y here to enable support for the backup battery charger
+	  in the Wolfson Microelectronics WM831x PMICs.
+
+config WM831X_POWER
+	tristate "WM831X PMU support"
+	depends on MFD_WM831X
+	help
+	  Say Y here to enable support for the power management unit
+	  provided by Wolfson Microelectronics WM831x PMICs.
+
+config WM8350_POWER
+	tristate "WM8350 PMU support"
+	depends on MFD_WM8350
+	help
+	  Say Y here to enable support for the power management unit
+	  provided by the Wolfson Microelectronics WM8350 PMIC.
+
+config TEST_POWER
+	tristate "Test power driver"
+	help
+	  This driver is used for testing. It's safe to say M here.
+
+config BATTERY_88PM860X
+	tristate "Marvell 88PM860x battery driver"
+	depends on MFD_88PM860X
+	help
+	  Say Y here to enable battery monitor for Marvell 88PM860x chip.
+
+config CHARGER_ADP5061
+	tristate "ADP5061 battery charger driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the ADP5061 standalone battery
+	  charger.
+
+	  This driver can be built as a module. If so, the module will be
+	  called adp5061.
+
+config BATTERY_ACT8945A
+	tristate "Active-semi ACT8945A charger driver"
+	depends on MFD_ACT8945A || COMPILE_TEST
+	help
+	  Say Y here to enable support for power supply provided by
+	  Active-semi ActivePath ACT8945A charger.
+
+config BATTERY_CPCAP
+	tristate "Motorola CPCAP PMIC battery driver"
+	depends on MFD_CPCAP && IIO
+	default MFD_CPCAP
+	help
+	  Say Y here to enable support for battery on Motorola
+	  phones and tablets such as droid 4.
+
+config BATTERY_CW2015
+	tristate "CW2015 Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the cellwise cw2015
+	  battery fuel gauge (used in the Pinebook Pro & others)
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cw2015_battery.
+
+config BATTERY_DS2760
+	tristate "DS2760 battery driver (HP iPAQ & others)"
+	depends on W1
+	help
+	  Say Y here to enable support for batteries with ds2760 chip.
+
+config BATTERY_DS2780
+	tristate "DS2780 battery driver"
+	depends on HAS_IOMEM
+	select W1
+	select W1_SLAVE_DS2780
+	help
+	  Say Y here to enable support for batteries with ds2780 chip.
+
+config BATTERY_DS2781
+	tristate "DS2781 battery driver"
+	depends on HAS_IOMEM
+	select W1
+	select W1_SLAVE_DS2781
+	help
+	  If you enable this you will have the DS2781 battery driver support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
+config BATTERY_DS2782
+	tristate "DS2782/DS2786 standalone gas-gauge"
+	depends on I2C
+	help
+	  Say Y here to enable support for the DS2782/DS2786 standalone battery
+	  gas-gauge.
+
+config BATTERY_LEGO_EV3
+	tristate "LEGO MINDSTORMS EV3 battery"
+	depends on OF && IIO && GPIOLIB && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
+	help
+	  Say Y here to enable support for the LEGO MINDSTORMS EV3 battery.
+
+config BATTERY_PMU
+	tristate "Apple PMU battery"
+	depends on PPC32 && ADB_PMU
+	help
+	  Say Y here to expose battery information on Apple machines
+	  through the generic battery class.
+
+config BATTERY_OLPC
+	tristate "One Laptop Per Child battery"
+	depends on OLPC_EC
+	help
+	  Say Y to enable support for the battery on the OLPC laptop.
+
+config BATTERY_SAMSUNG_SDI
+	bool "Samsung SDI batteries"
+	help
+	  Say Y to enable support for Samsung SDI battery data.
+	  These batteries are used in Samsung mobile phones.
+
+config BATTERY_TOSA
+	tristate "Sharp SL-6000 (tosa) battery"
+	depends on MACH_TOSA && MFD_TC6393XB && TOUCHSCREEN_WM97XX
+	help
+	  Say Y to enable support for the battery on the Sharp Zaurus
+	  SL-6000 (tosa) models.
+
+config BATTERY_COLLIE
+	tristate "Sharp SL-5500 (collie) battery"
+	depends on SA1100_COLLIE && MCP_UCB1200
+	help
+	  Say Y to enable support for the battery on the Sharp Zaurus
+	  SL-5500 (collie) models.
+
+config BATTERY_INGENIC
+	tristate "Ingenic JZ47xx SoCs battery driver"
+	depends on MIPS || COMPILE_TEST
+	depends on INGENIC_ADC
+	help
+	  Choose this option if you want to monitor battery status on
+	  Ingenic JZ47xx SoC based devices.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ingenic-battery.
+
+config BATTERY_IPAQ_MICRO
+	tristate "iPAQ Atmel Micro ASIC battery driver"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Choose this option if you want to monitor battery status on
+	  Compaq/HP iPAQ h3100 and h3600.
+
+config BATTERY_WM97XX
+	bool "WM97xx generic battery driver"
+	depends on TOUCHSCREEN_WM97XX=y
+	help
+	  Say Y to enable support for battery measured by WM97xx aux port.
+
+config BATTERY_SBS
+	tristate "SBS Compliant gas gauge"
+	depends on I2C
+	help
+	  Say Y to include support for SBS battery driver for SBS-compliant
+	  gas gauges.
+
+config CHARGER_SBS
+	tristate "SBS Compliant charger"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to include support for SBS compliant battery chargers.
+
+config MANAGER_SBS
+	tristate "Smart Battery System Manager"
+	depends on I2C && I2C_MUX && GPIOLIB
+	select I2C_SMBUS
+	help
+	  Say Y here to include support for Smart Battery System Manager
+	  ICs. The driver reports online and charging status via sysfs.
+	  It presents itself also as I2C mux which allows to bind
+	  smart battery driver to its ports.
+	  Supported is for example LTC1760.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called sbs-manager.
+
+config BATTERY_BQ27XXX
+	tristate "BQ27xxx battery driver"
+	help
+	  Say Y here to enable support for batteries with BQ27xxx chips.
+
+config BATTERY_BQ27XXX_I2C
+	tristate "BQ27xxx I2C support"
+	depends on BATTERY_BQ27XXX
+	depends on I2C
+	default y
+	help
+	  Say Y here to enable support for batteries with BQ27xxx chips
+	  connected over an I2C bus.
+
+config BATTERY_BQ27XXX_HDQ
+	tristate "BQ27xxx HDQ support"
+	depends on BATTERY_BQ27XXX
+	depends on W1
+	default y
+	help
+	  Say Y here to enable support for batteries with BQ27xxx chips
+	  connected over an HDQ bus.
+
+config BATTERY_BQ27XXX_DT_UPDATES_NVM
+	bool "BQ27xxx support for update of NVM/flash data memory"
+	depends on BATTERY_BQ27XXX_I2C
+	help
+	  Say Y here to enable devicetree monitored-battery config to update
+	  NVM/flash data memory. Only enable this option for devices with a
+	  fuel gauge mounted on the circuit board, and a battery that cannot
+	  easily be replaced with one of a different type. Not for
+	  general-purpose kernels, as this can cause misconfiguration of a
+	  smart battery with embedded NVM/flash.
+
+config BATTERY_DA9030
+	tristate "DA9030 battery driver"
+	depends on PMIC_DA903X
+	help
+	  Say Y here to enable support for batteries charger integrated into
+	  DA9030 PMIC.
+
+config BATTERY_DA9052
+	tristate "Dialog DA9052 Battery"
+	depends on PMIC_DA9052
+	help
+	  Say Y here to enable support for batteries charger integrated into
+	  DA9052 PMIC.
+
+config CHARGER_DA9150
+	tristate "Dialog Semiconductor DA9150 Charger support"
+	depends on MFD_DA9150
+	depends on DA9150_GPADC
+	depends on IIO
+	help
+	  Say Y here to enable support for charger unit of the DA9150
+	  Integrated Charger & Fuel-Gauge IC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called da9150-charger.
+
+config BATTERY_DA9150
+	tristate "Dialog Semiconductor DA9150 Fuel Gauge support"
+	depends on MFD_DA9150
+	help
+	  Say Y here to enable support for the Fuel-Gauge unit of the DA9150
+	  Integrated Charger & Fuel-Gauge IC
+
+	  This driver can also be built as a module. If so, the module will be
+	  called da9150-fg.
+
+config CHARGER_AXP20X
+	tristate "X-Powers AXP20X and AXP22X AC power supply driver"
+	depends on MFD_AXP20X
+	depends on AXP20X_ADC
+	depends on IIO
+	help
+	  Say Y here to enable support for X-Powers AXP20X and AXP22X PMICs' AC
+	  power supply.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called axp20x_ac_power.
+
+config BATTERY_AXP20X
+	tristate "X-Powers AXP20X battery driver"
+	depends on MFD_AXP20X
+	depends on AXP20X_ADC
+	depends on IIO
+	help
+	  Say Y here to enable support for X-Powers AXP20X PMICs' battery power
+	  supply.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called axp20x_battery.
+
+config AXP20X_POWER
+	tristate "AXP20x power supply driver"
+	depends on MFD_AXP20X
+	depends on IIO
+	help
+	  This driver provides support for the power supply features of
+	  AXP20x PMIC.
+
+config AXP288_CHARGER
+	tristate "X-Powers AXP288 Charger"
+	depends on MFD_AXP20X && EXTCON_AXP288 && IOSF_MBI && ACPI
+	help
+	  Say yes here to have support X-Power AXP288 power management IC (PMIC)
+	  integrated charger.
+
+config AXP288_FUEL_GAUGE
+	tristate "X-Powers AXP288 Fuel Gauge"
+	depends on MFD_AXP20X && IIO && IOSF_MBI && ACPI
+	help
+	  Say yes here to have support for X-Power power management IC (PMIC)
+	  Fuel Gauge. The device provides battery statistics and status
+	  monitoring as well as alerts for battery over/under voltage and
+	  over/under temperature.
+
+config BATTERY_MAX17040
+	tristate "Maxim MAX17040/17041/17043 family Fuel Gauge"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Driver supports Maxim fuel-gauge systems for lithium-ion (Li+)
+	  batteries used mainly in handheld and portable equipment.
+	  Supported devices: max17040, max17041, max17043, max17044, max17048,
+	  max17049, max17058, max17059, max77836.
+
+	  Driver supports reporting SOC (State of Charge, i.e capacity),
+	  voltage and configurable low-SOC wakeup interrupt.
+
+	  Driver can be build as a module (max17040_battery).
+
+config BATTERY_MAX17042
+	tristate "Maxim MAX17042/17047/17050/8997/8966 family Fuel Gauge"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  MAX17042 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17042 is configured
+	  to operate with a single lithium cell. MAX8997 and MAX8966 are
+	  multi-function devices that include fuel gauages that are compatible
+	  with MAX17042.
+	  Supported devices: max8966, max8997, max17042, max17047, max17050,
+	  max17055, max77693, max77849.
+
+	  Driver can be build as a module (max17042_battery).
+
+config BATTERY_MAX1721X
+	tristate "MAX17211/MAX17215 standalone gas-gauge"
+	depends on W1
+	select REGMAP_W1
+	help
+	  MAX1721x is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. MAX17211 used with single cell
+	  battery. MAX17215 designed for muticell battery. Both them have
+	  OneWire (W1) host interface.
+
+	  Say Y here to enable support for the MAX17211/MAX17215 standalone
+	  battery gas-gauge.
+
+config BATTERY_Z2
+	tristate "Z2 battery driver"
+	depends on I2C && MACH_ZIPIT2
+	help
+	  Say Y to include support for the battery on the Zipit Z2.
+
+config BATTERY_S3C_ADC
+	tristate "Battery driver for Samsung ADC based monitoring"
+	depends on S3C_ADC
+	help
+	  Say Y here to enable support for iPAQ h1930/h1940/rx1950 battery
+
+config BATTERY_TWL4030_MADC
+	tristate "TWL4030 MADC battery driver"
+	depends on TWL4030_MADC
+	help
+	  Say Y here to enable this dumb driver for batteries managed
+	  through the TWL4030 MADC.
+
+config CHARGER_88PM860X
+	tristate "Marvell 88PM860x Charger driver"
+	depends on MFD_88PM860X && BATTERY_88PM860X
+	help
+	  Say Y here to enable charger for Marvell 88PM860x chip.
+
+config CHARGER_PCF50633
+	tristate "NXP PCF50633 MBC"
+	depends on MFD_PCF50633
+	help
+	  Say Y to include support for NXP PCF50633 Main Battery Charger.
+
+config BATTERY_RX51
+	tristate "Nokia RX-51 (N900) battery driver"
+	depends on TWL4030_MADC
+	help
+	  Say Y here to enable support for battery information on Nokia
+	  RX-51, also known as N900 tablet.
+
+config CHARGER_CPCAP
+	tristate "CPCAP PMIC Charger Driver"
+	depends on MFD_CPCAP && IIO
+	depends on OMAP_USB2 || (!OMAP_USB2 && COMPILE_TEST)
+	default MFD_CPCAP
+	help
+	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
+	  mobile devices such as Droid 4.
+
+config CHARGER_ISP1704
+	tristate "ISP1704 USB Charger Detection"
+	depends on USB_PHY
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	help
+	  Say Y to enable support for USB Charger Detection with
+	  ISP1707/ISP1704 USB transceivers.
+
+config CHARGER_MAX8903
+	tristate "MAX8903 Battery DC-DC Charger for USB and Adapter Power"
+	help
+	  Say Y to enable support for the MAX8903 DC-DC charger and sysfs.
+	  The driver supports controlling charger-enable and current-limit
+	  pins based on the status of charger connections with interrupt
+	  handlers.
+
+config CHARGER_TWL4030
+	tristate "OMAP TWL4030 BCI charger driver"
+	depends on IIO && TWL4030_CORE
+	help
+	  Say Y here to enable support for TWL4030 Battery Charge Interface.
+
+config CHARGER_LP8727
+	tristate "TI/National Semiconductor LP8727 charger driver"
+	depends on I2C
+	help
+	  Say Y here to enable support for LP8727 Charger Driver.
+
+config CHARGER_LP8788
+	tristate "TI LP8788 charger driver"
+	depends on MFD_LP8788
+	depends on LP8788_ADC
+	depends on IIO
+	help
+	  Say Y to enable support for the LP8788 linear charger.
+
+config CHARGER_GPIO
+	tristate "GPIO charger"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y to include support for chargers which report their online status
+	  through a GPIO pin.
+
+	  This driver can be build as a module. If so, the module will be
+	  called gpio-charger.
+
+config CHARGER_MANAGER
+	tristate "Battery charger manager for multiple chargers"
+	depends on REGULATOR
+	select EXTCON
+	help
+	  Say Y to enable charger-manager support, which allows multiple
+	  chargers attached to a battery and multiple batteries attached to a
+	  system. The charger-manager also can monitor charging status in
+	  runtime and in suspend-to-RAM by waking up the system periodically
+	  with help of suspend_again support.
+
+config CHARGER_LT3651
+	tristate "Analog Devices LT3651 charger"
+	depends on GPIOLIB
+	help
+	  Say Y to include support for the Analog Devices (Linear Technology)
+	  LT3651 battery charger which reports its status via GPIO lines.
+
+config CHARGER_LTC4162L
+	tristate "LTC4162-L charger"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to include support for the Analog Devices (Linear Technology)
+	  LTC4162-L battery charger connected to I2C.
+
+config CHARGER_MAX14577
+	tristate "Maxim MAX14577/77836 battery charger driver"
+	depends on MFD_MAX14577
+	help
+	  Say Y to enable support for the battery charger control sysfs and
+	  platform data of MAX14577/77836 MUICs.
+
+config CHARGER_DETECTOR_MAX14656
+	tristate "Maxim MAX14656 USB charger detector"
+	depends on I2C
+	depends on OF
+	help
+	  Say Y to enable support for the Maxim MAX14656 USB charger detector.
+	  The device is compliant with the USB Battery Charging Specification
+	  Revision 1.2 and can be found e.g. in Kindle 4/5th generation
+	  readers and certain LG devices.
+
+config CHARGER_MAX77650
+	tristate "Maxim MAX77650 battery charger driver"
+	depends on MFD_MAX77650
+	help
+	  Say Y to enable support for the battery charger control of MAX77650
+	  PMICs.
+
+config CHARGER_MAX77693
+	tristate "Maxim MAX77693 battery charger driver"
+	depends on MFD_MAX77693
+	help
+	  Say Y to enable support for the Maxim MAX77693 battery charger.
+
+config CHARGER_MAX77976
+	tristate "Maxim MAX77976 battery charger driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  The Maxim MAX77976 is a 19 Vin, 5.5A 1-Cell Li+ Battery Charger
+	  USB OTG support. It has an I2C interface for configuration.
+
+	  Say Y to enable support for the Maxim MAX77976 battery charger.
+	  This driver can also be built as a module. If so, the module will be
+	  called max77976_charger.
+
+config CHARGER_MAX8997
+	tristate "Maxim MAX8997/MAX8966 PMIC battery charger driver"
+	depends on MFD_MAX8997 && REGULATOR_MAX8997
+	depends on EXTCON || !EXTCON
+	help
+	  Say Y to enable support for the battery charger control sysfs and
+	  platform data of MAX8997/LP3974 PMICs.
+
+config CHARGER_MAX8998
+	tristate "Maxim MAX8998/LP3974 PMIC battery charger driver"
+	depends on MFD_MAX8998 && REGULATOR_MAX8998
+	help
+	  Say Y to enable support for the battery charger control sysfs and
+	  platform data of MAX8998/LP3974 PMICs.
+
+config CHARGER_MP2629
+	tristate "Monolithic power system MP2629 Battery charger"
+	depends on MFD_MP2629
+	depends on MP2629_ADC
+	depends on IIO
+	help
+	  Select this option to enable support for Monolithic power system
+	  Battery charger. This driver provides Battery charger power management
+	  functions on the systems.
+
+config CHARGER_MT6360
+	tristate "Mediatek MT6360 Charger Driver"
+	depends on MFD_MT6360
+	depends on REGULATOR
+	select LINEAR_RANGES
+	help
+	  Say Y here to enable MT6360 Charger Part.
+	  The device supports High-Accuracy Voltage/Current Regulation,
+	  Average Input Current Regulation, Battery Temperature Sensing,
+	  Over-Temperature Protection, DPDM Detection for BC1.2.
+
+config CHARGER_MT6370
+	tristate "MediaTek MT6370 Charger Driver"
+	depends on MFD_MT6370
+	depends on REGULATOR
+	depends on IIO
+	select LINEAR_RANGES
+	help
+	  Say Y here to enable MT6370 Charger Part.
+	  The device supports High-Accuracy Voltage/Current Regulation,
+	  Average Input Current Regulation, Battery Temperature Sensing,
+	  Over-Temperature Protection, DPDM Detection for BC1.2.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "mt6370-charger".
+
+config CHARGER_QCOM_SMBB
+	tristate "Qualcomm Switch-Mode Battery Charger and Boost"
+	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	depends on OF
+	depends on EXTCON
+	depends on REGULATOR
+	help
+	  Say Y to include support for the Switch-Mode Battery Charger and
+	  Boost (SMBB) hardware found in Qualcomm PM8941 PMICs.  The charger
+	  is an integrated, single-cell lithium-ion battery charger.  DT
+	  configuration is required for loading, see the devicetree
+	  documentation for more detail.  The base name for this driver is
+	  'pm8941_charger'.
+
+config CHARGER_BQ2415X
+	tristate "TI BQ2415x battery charger driver"
+	depends on I2C
+	help
+	  Say Y to enable support for the TI BQ2415x battery charger
+	  PMICs.
+
+	  You'll need this driver to charge batteries on e.g. Nokia
+	  RX-51/N900.
+
+config CHARGER_BQ24190
+	tristate "TI BQ24190 battery charger driver"
+	depends on I2C
+	depends on EXTCON
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y to enable support for the TI BQ24190 battery charger.
+
+config CHARGER_BQ24257
+	tristate "TI BQ24250/24251/24257 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ24250, BQ24251, and BQ24257 battery
+	  chargers.
+
+config CHARGER_BQ24735
+	tristate "TI BQ24735 battery charger support"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y to enable support for the TI BQ24735 battery charger.
+
+config CHARGER_BQ2515X
+	tristate "TI BQ2515X battery charger family"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ2515X family of battery
+	  charging integrated circuits. The BQ2515X are highly integrated
+	  battery charge management ICs that integrate the most common
+	  functions for wearable devices, namely a charger, an output voltage
+	  rail, ADC for battery and system monitoring, and push-button
+	  controller.
+
+config CHARGER_BQ25890
+	tristate "TI BQ25890 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ25890 battery charger.
+
+config CHARGER_BQ25980
+	tristate "TI BQ25980 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ25980, BQ25975 and BQ25960
+	  series of fast battery chargers.
+
+config CHARGER_BQ256XX
+	tristate "TI BQ256XX battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ256XX battery chargers. The
+	  BQ256XX family of devices are highly-integrated, switch-mode battery
+	  charge management and system power path management devices for single
+	  cell Li-ion and Li-polymer batteries.
+
+config CHARGER_RK817
+	tristate "Rockchip RK817 PMIC Battery Charger"
+	depends on MFD_RK808
+	help
+	  Say Y to include support for Rockchip RK817 Battery Charger.
+
+config CHARGER_SMB347
+	tristate "Summit Microelectronics SMB3XX Battery Charger"
+	depends on I2C
+	depends on REGULATOR
+	select REGMAP_I2C
+	help
+	  Say Y to include support for Summit Microelectronics SMB345,
+	  SMB347 or SMB358 Battery Charger.
+
+config CHARGER_TPS65090
+	tristate "TPS65090 battery charger driver"
+	depends on MFD_TPS65090
+	help
+	  Say Y here to enable support for battery charging with TPS65090
+	  PMIC chips.
+
+config CHARGER_TPS65217
+	tristate "TPS65217 battery charger driver"
+	depends on MFD_TPS65217
+	help
+	  Say Y here to enable support for battery charging with TPS65217
+	  PMIC chips.
+
+config BATTERY_GAUGE_LTC2941
+	tristate "LTC2941/LTC2943 Battery Gauge Driver"
+	depends on I2C
+	help
+	  Say Y here to include support for LTC2941 and LTC2943 Battery
+	  Gauge IC. The driver reports the charge count continuously, and
+	  measures the voltage and temperature every 10 seconds.
+
+config AB8500_BM
+	bool "AB8500 Battery Management Driver"
+	depends on AB8500_CORE && AB8500_GPADC && (IIO = y) && OF
+	select THERMAL
+	select THERMAL_OF
+	help
+	  Say Y to include support for AB8500 battery management.
+
+config BATTERY_GOLDFISH
+	tristate "Goldfish battery driver"
+	depends on HAS_IOMEM
+	help
+	  Say Y to enable support for the Goldfish battery and AC power
+	  driver. Originated in the Android Studio Emulator (goldfish) it is
+	  going to be used in other emulators.
+
+config BATTERY_RT5033
+	tristate "RT5033 fuel gauge support"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for battery fuel gauge in Richtek RT5033 PMIC.
+	  The fuelgauge calculates and determines the battery state of charge
+	  according to battery open circuit voltage.
+
+config CHARGER_RT9455
+	tristate "Richtek RT9455 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for Richtek RT9455 battery charger.
+
+config CHARGER_CROS_USBPD
+	tristate "ChromeOS EC based USBPD charger"
+	depends on CROS_USBPD_NOTIFY
+	help
+	  Say Y here to enable ChromeOS EC based USBPD charger
+	  driver. This driver gets various bits of information about
+	  what is connected to USB PD ports from the EC and converts
+	  that into power_supply properties.
+
+config CHARGER_CROS_PCHG
+	tristate "ChromeOS EC based peripheral charger"
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
+	help
+	  Say Y here to enable ChromeOS EC based peripheral charge driver.
+	  This driver gets various information about the devices connected to
+	  the peripheral charge ports from the EC and converts that into
+	  power_supply properties.
+
+config CHARGER_SC2731
+	tristate "Spreadtrum SC2731 charger driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  Say Y here to enable support for battery charging with SC2731
+	  PMIC chips.
+
+config FUEL_GAUGE_SC27XX
+	tristate "Spreadtrum SC27XX fuel gauge driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on IIO
+	help
+	  Say Y here to enable support for fuel gauge with SC27XX
+	  PMIC chips.
+
+config CHARGER_UCS1002
+	tristate "Microchip UCS1002 USB Port Power Controller"
+	depends on I2C
+	depends on OF
+	depends on REGULATOR
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for Microchip UCS1002 Programmable
+	  USB Port Power Controller with Charger Emulation.
+
+config CHARGER_BD99954
+	tristate "ROHM bd99954 charger driver"
+	depends on I2C
+	select LINEAR_RANGES
+	help
+	  Say Y here to enable support for getting battery and charger
+	  information and altering charger configurations from the ROHM
+	  BD99954 charger IC.
+
+config CHARGER_WILCO
+	tristate "Wilco EC based charger for ChromeOS"
+	depends on WILCO_EC
+	help
+	  Say Y here to enable control of the charging routines performed
+	  by the Embedded Controller on the Chromebook named Wilco. Further
+	  information can be found in
+	  Documentation/ABI/testing/sysfs-class-power-wilco
+
+config RN5T618_POWER
+	tristate "RN5T618 charger/fuel gauge support"
+	depends on MFD_RN5T618
+	depends on RN5T618_ADC
+	depends on IIO
+	help
+	  Say Y here to have support for RN5T618 PMIC family fuel gauge and charger.
+	  This driver can also be built as a module. If so, the module will be
+	  called rn5t618_power.
+
+config BATTERY_ACER_A500
+	tristate "Acer Iconia Tab A500 battery driver"
+	depends on MFD_ACER_A500_EC
+	help
+	  Say Y to include support for Acer Iconia Tab A500 battery fuel gauge.
+
+config BATTERY_SURFACE
+	tristate "Battery driver for 7th-generation Microsoft Surface devices"
+	depends on SURFACE_AGGREGATOR_REGISTRY
+	help
+	  Driver for battery devices connected via/managed by the Surface System
+	  Aggregator Module (SSAM).
+
+	  This driver provides battery-information and -status support for
+	  Surface devices where said data is not exposed via the standard ACPI
+	  devices. On those models (7th-generation), battery-information is
+	  instead handled directly via SSAM client devices and this driver.
+
+	  Say M or Y here to include battery status support for 7th-generation
+	  Microsoft Surface devices, i.e. Surface Pro 7, Surface Laptop 3,
+	  Surface Book 3, and Surface Laptop Go.
+
+config CHARGER_SURFACE
+	tristate "AC driver for 7th-generation Microsoft Surface devices"
+	depends on SURFACE_AGGREGATOR_REGISTRY
+	help
+	  Driver for AC devices connected via/managed by the Surface System
+	  Aggregator Module (SSAM).
+
+	  This driver provides AC-information and -status support for Surface
+	  devices where said data is not exposed via the standard ACPI devices.
+	  On those models (7th-generation), AC-information is instead handled
+	  directly via a SSAM client device and this driver.
+
+	  Say M or Y here to include AC status support for 7th-generation
+	  Microsoft Surface devices, i.e. Surface Pro 7, Surface Laptop 3,
+	  Surface Book 3, and Surface Laptop Go.
+
+config BATTERY_UG3105
+	tristate "uPI uG3105 battery monitor driver"
+	depends on I2C
+	help
+	  Battery monitor driver for the uPI uG3105 battery monitor.
+
+	  Note the uG3105 is not a full-featured autonomous fuel-gauge. Instead
+	  it is expected to be use in combination with some always on
+	  microcontroller reading its coulomb-counter before it can wrap
+	  (it must be read every 400 seconds!).
+
+	  Since Linux does not monitor coulomb-counter changes while the
+	  device is off or suspended, the functionality of this driver is
+	  limited to reporting capacity only.
+
+endif # POWER_SUPPLY

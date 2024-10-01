@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if PCI
+
+menuconfig MEDIA_PCI_SUPPORT
+	bool "Media PCI Adapters"
+	help
+	  Enable media drivers for PCI/PCIe bus.
+	  If you have such devices, say Y.
+
+if MEDIA_PCI_SUPPORT
+
+if MEDIA_CAMERA_SUPPORT
+	comment "Media capture support"
+
+source "drivers/media/pci/solo6x10/Kconfig"
+source "drivers/media/pci/sta2x11/Kconfig"
+source "drivers/media/pci/tw5864/Kconfig"
+source "drivers/media/pci/tw68/Kconfig"
+source "drivers/media/pci/tw686x/Kconfig"
+source "drivers/media/pci/zoran/Kconfig"
+
+endif
+
+if MEDIA_ANALOG_TV_SUPPORT
+	comment "Media capture/analog TV support"
+
+source "drivers/media/pci/dt3155/Kconfig"
+source "drivers/media/pci/ivtv/Kconfig"
+
+endif
+
+if MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
+	comment "Media capture/analog/hybrid TV support"
+
+source "drivers/media/pci/bt8xx/Kconfig"
+source "drivers/media/pci/cobalt/Kconfig"
+source "drivers/media/pci/cx18/Kconfig"
+source "drivers/media/pci/cx23885/Kconfig"
+source "drivers/media/pci/cx25821/Kconfig"
+source "drivers/media/pci/cx88/Kconfig"
+source "drivers/media/pci/saa7134/Kconfig"
+source "drivers/media/pci/saa7164/Kconfig"
+
+endif
+
+if MEDIA_DIGITAL_TV_SUPPORT
+	comment "Media digital TV PCI Adapters"
+
+source "drivers/media/pci/b2c2/Kconfig"
+source "drivers/media/pci/ddbridge/Kconfig"
+source "drivers/media/pci/dm1105/Kconfig"
+source "drivers/media/pci/mantis/Kconfig"
+source "drivers/media/pci/netup_unidvb/Kconfig"
+source "drivers/media/pci/ngene/Kconfig"
+source "drivers/media/pci/pluto2/Kconfig"
+source "drivers/media/pci/pt1/Kconfig"
+source "drivers/media/pci/pt3/Kconfig"
+source "drivers/media/pci/smipcie/Kconfig"
+
+endif
+
+config VIDEO_PCI_SKELETON
+	tristate "Skeleton PCI V4L2 driver"
+	depends on SAMPLES
+	depends on MEDIA_TEST_SUPPORT
+	depends on PCI && VIDEO_DEV
+	select VIDEOBUF2_MEMOPS
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Enable build of the skeleton PCI driver, used as a reference
+	  when developing new drivers.
+
+source "drivers/media/pci/intel/ipu3/Kconfig"
+
+endif #MEDIA_PCI_SUPPORT
+endif #PCI

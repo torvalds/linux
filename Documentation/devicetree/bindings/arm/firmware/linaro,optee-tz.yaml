@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/firmware/linaro,optee-tz.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OP-TEE Device Tree Bindings
+
+maintainers:
+  - Jens Wiklander <jens.wiklander@linaro.org>
+
+description: |
+  OP-TEE is a piece of software using hardware features to provide a Trusted
+  Execution Environment. The security can be provided with ARM TrustZone, but
+  also by virtualization or a separate chip.
+
+  We're using "linaro" as the first part of the compatible property for
+  the reference implementation maintained by Linaro.
+
+properties:
+  $nodename:
+    const: optee
+
+  compatible:
+    const: linaro,optee-tz
+
+  interrupts:
+    maxItems: 1
+    description: |
+      This interrupt which is used to signal an event by the secure world
+      software is expected to be edge-triggered.
+
+  method:
+    enum: [smc, hvc]
+    description: |
+      The method of calling the OP-TEE Trusted OS depending on smc or hvc
+      instruction usage.
+      SMC #0, register assignments
+      or
+      HVC #0, register assignments
+      register assignments are specified in drivers/tee/optee/optee_smc.h
+
+required:
+  - compatible
+  - method
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    firmware  {
+        optee  {
+            compatible = "linaro,optee-tz";
+            method = "smc";
+            interrupts = <GIC_SPI 187 IRQ_TYPE_EDGE_RISING>;
+        };
+    };
+
+  - |
+    firmware  {
+        optee  {
+            compatible = "linaro,optee-tz";
+            method = "hvc";
+        };
+    };

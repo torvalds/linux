@@ -1,0 +1,23 @@
+Broadcom BCM2835 SPI0 controller
+
+The BCM2835 contains two forms of SPI master controller, one known simply as
+SPI0, and the other known as the "Universal SPI Master"; part of the
+auxiliary block. This binding applies to the SPI0 controller.
+
+Required properties:
+- compatible: Should be one of "brcm,bcm2835-spi" for BCM2835/2836/2837 or
+  "brcm,bcm2711-spi" for BCM2711 or "brcm,bcm7211-spi" for BCM7211.
+- reg: Should contain register location and length.
+- interrupts: Should contain interrupt.
+- clocks: The clock feeding the SPI controller.
+
+Example:
+
+spi@20204000 {
+	compatible = "brcm,bcm2835-spi";
+	reg = <0x7e204000 0x1000>;
+	interrupts = <2 22>;
+	clocks = <&clk_spi>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+};

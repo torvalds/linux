@@ -1,0 +1,16 @@
+WM8580 and WM8581 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+  - compatible : "wlf,wm8580", "wlf,wm8581"
+
+  - reg : the I2C address of the device.
+
+Example:
+
+wm8580: codec@1a {
+	compatible = "wlf,wm8580";
+	reg = <0x1a>;
+};

@@ -1,0 +1,29 @@
+choice
+	prompt "Choose kernel unwinder"
+	default UNWINDER_PROLOGUE if KALLSYMS
+	help
+	  This determines which method will be used for unwinding kernel stack
+	  traces for panics, oopses, bugs, warnings, perf, /proc/<pid>/stack,
+	  lockdep, and more.
+
+config UNWINDER_GUESS
+	bool "Guess unwinder"
+	help
+	  This option enables the "guess" unwinder for unwinding kernel stack
+	  traces.  It scans the stack and reports every kernel text address it
+	  finds.  Some of the addresses it reports may be incorrect.
+
+	  While this option often produces false positives, it can still be
+	  useful in many cases.
+
+config UNWINDER_PROLOGUE
+	bool "Prologue unwinder"
+	depends on KALLSYMS
+	help
+	  This option enables the "prologue" unwinder for unwinding kernel stack
+	  traces.  It unwind the stack frame based on prologue code analyze.  Symbol
+	  information is needed, at least the address and length of each function.
+	  Some of the addresses it reports may be incorrect (but better than the
+	  Guess unwinder).
+
+endchoice
