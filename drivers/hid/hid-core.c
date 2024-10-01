@@ -1214,7 +1214,7 @@ int hid_open_report(struct hid_device *device)
 	struct hid_item item;
 	unsigned int size;
 	const __u8 *start;
-	__u8 *buf;
+	__u8 *buf = NULL;
 	const __u8 *end;
 	const __u8 *next;
 	int ret;
@@ -1235,14 +1235,18 @@ int hid_open_report(struct hid_device *device)
 		return -ENODEV;
 	size = device->bpf_rsize;
 
-	buf = kmemdup(start, size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
+	if (device->driver->report_fixup) {
+		/*
+		 * device->driver->report_fixup() needs to work
+		 * on a copy of our report descriptor so it can
+		 * change it.
+		 */
+		buf = kmemdup(start, size, GFP_KERNEL);
+		if (buf == NULL)
+			return -ENOMEM;
 
-	if (device->driver->report_fixup)
 		start = device->driver->report_fixup(device, buf, &size);
-	else
-		start = buf;
+	}
 
 	start = kmemdup(start, size, GFP_KERNEL);
 	kfree(buf);
