@@ -38,7 +38,6 @@
 #include "fs_cmd.h"
 
 #define MLX5_FC_STATS_PERIOD msecs_to_jiffies(1000)
-#define MLX5_FC_BULK_QUERY_ALLOC_PERIOD msecs_to_jiffies(180 * 1000)
 /* Max number of counters to query in bulk read is 32K */
 #define MLX5_SW_MAX_COUNTERS_BULK BIT(15)
 #define MLX5_INIT_COUNTERS_BULK 8
@@ -263,39 +262,28 @@ static void mlx5_fc_release(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 		mlx5_fc_free(dev, counter);
 }
 
-static void mlx5_fc_stats_bulk_query_size_increase(struct mlx5_core_dev *dev)
+static void mlx5_fc_stats_bulk_query_buf_realloc(struct mlx5_core_dev *dev,
+						 int bulk_query_len)
 {
 	struct mlx5_fc_stats *fc_stats = dev->priv.fc_stats;
-	int max_bulk_len = get_max_bulk_query_len(dev);
-	unsigned long now = jiffies;
 	u32 *bulk_query_out_tmp;
-	int max_out_len;
+	int out_len;
 
-	if (fc_stats->bulk_query_alloc_failed &&
-	    time_before(now, fc_stats->next_bulk_query_alloc))
-		return;
-
-	max_out_len = mlx5_cmd_fc_get_bulk_query_out_len(max_bulk_len);
-	bulk_query_out_tmp = kzalloc(max_out_len, GFP_KERNEL);
+	out_len = mlx5_cmd_fc_get_bulk_query_out_len(bulk_query_len);
+	bulk_query_out_tmp = kvzalloc(out_len, GFP_KERNEL);
 	if (!bulk_query_out_tmp) {
 		mlx5_core_warn_once(dev,
-				    "Can't increase flow counters bulk query buffer size, insufficient memory, bulk_size(%d)\n",
-				    max_bulk_len);
-		fc_stats->bulk_query_alloc_failed = true;
-		fc_stats->next_bulk_query_alloc =
-			now + MLX5_FC_BULK_QUERY_ALLOC_PERIOD;
+				    "Can't increase flow counters bulk query buffer size, alloc failed, bulk_query_len(%d)\n",
+				    bulk_query_len);
 		return;
 	}
 
-	kfree(fc_stats->bulk_query_out);
+	kvfree(fc_stats->bulk_query_out);
 	fc_stats->bulk_query_out = bulk_query_out_tmp;
-	fc_stats->bulk_query_len = max_bulk_len;
-	if (fc_stats->bulk_query_alloc_failed) {
-		mlx5_core_info(dev,
-			       "Flow counters bulk query buffer size increased, bulk_size(%d)\n",
-			       max_bulk_len);
-		fc_stats->bulk_query_alloc_failed = false;
-	}
+	fc_stats->bulk_query_len = bulk_query_len;
+	mlx5_core_info(dev,
+		       "Flow counters bulk query buffer size increased, bulk_query_len(%d)\n",
+		       bulk_query_len);
 }
 
 static void mlx5_fc_stats_work(struct work_struct *work)
@@ -327,13 +315,14 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 		fc_stats->num_counters--;
 	}
 
-	if (fc_stats->bulk_query_len < get_max_bulk_query_len(dev) &&
-	    fc_stats->num_counters > get_init_bulk_query_len(dev))
-		mlx5_fc_stats_bulk_query_size_increase(dev);
-
 	if (time_before(now, fc_stats->next_query) ||
 	    list_empty(&fc_stats->counters))
 		return;
+
+	if (fc_stats->bulk_query_len < get_max_bulk_query_len(dev) &&
+	    fc_stats->num_counters > get_init_bulk_query_len(dev))
+		mlx5_fc_stats_bulk_query_buf_realloc(dev, get_max_bulk_query_len(dev));
+
 	last = list_last_entry(&fc_stats->counters, struct mlx5_fc, list);
 
 	counter = list_first_entry(&fc_stats->counters, struct mlx5_fc,
@@ -453,12 +442,11 @@ EXPORT_SYMBOL(mlx5_fc_destroy);
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fc_stats *fc_stats;
-	int init_bulk_len;
-	int init_out_len;
 
 	fc_stats = kzalloc(sizeof(*fc_stats), GFP_KERNEL);
 	if (!fc_stats)
 		return -ENOMEM;
+	dev->priv.fc_stats = fc_stats;
 
 	spin_lock_init(&fc_stats->counters_idr_lock);
 	idr_init(&fc_stats->counters_idr);
@@ -466,12 +454,10 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 	init_llist_head(&fc_stats->addlist);
 	init_llist_head(&fc_stats->dellist);
 
-	init_bulk_len = get_init_bulk_query_len(dev);
-	init_out_len = mlx5_cmd_fc_get_bulk_query_out_len(init_bulk_len);
-	fc_stats->bulk_query_out = kzalloc(init_out_len, GFP_KERNEL);
+	/* Allocate initial (small) bulk query buffer. */
+	mlx5_fc_stats_bulk_query_buf_realloc(dev, get_init_bulk_query_len(dev));
 	if (!fc_stats->bulk_query_out)
 		goto err_bulk;
-	fc_stats->bulk_query_len = init_bulk_len;
 
 	fc_stats->wq = create_singlethread_workqueue("mlx5_fc");
 	if (!fc_stats->wq)
@@ -481,12 +467,11 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 	INIT_DELAYED_WORK(&fc_stats->work, mlx5_fc_stats_work);
 
 	mlx5_fc_pool_init(&fc_stats->fc_pool, dev);
-	dev->priv.fc_stats = fc_stats;
 
 	return 0;
 
 err_wq_create:
-	kfree(fc_stats->bulk_query_out);
+	kvfree(fc_stats->bulk_query_out);
 err_bulk:
 	kfree(fc_stats);
 	return -ENOMEM;
@@ -512,7 +497,7 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 
 	mlx5_fc_pool_cleanup(&fc_stats->fc_pool);
 	idr_destroy(&fc_stats->counters_idr);
-	kfree(fc_stats->bulk_query_out);
+	kvfree(fc_stats->bulk_query_out);
 	kfree(fc_stats);
 }
 
