@@ -16,6 +16,16 @@
 #define __NR_prctl 167
 #endif
 
+#ifndef NT_ARM_GCS
+#define NT_ARM_GCS 0x410
+
+struct user_gcs {
+	__u64 features_enabled;
+	__u64 features_locked;
+	__u64 gcspr_el0;
+};
+#endif
+
 /* Shadow Stack/Guarded Control Stack interface */
 #define PR_GET_SHADOW_STACK_STATUS	74
 #define PR_SET_SHADOW_STACK_STATUS      75
