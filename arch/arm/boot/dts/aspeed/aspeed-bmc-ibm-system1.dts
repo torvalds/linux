@@ -398,6 +398,12 @@
 	clk-phase-mmc-hs200 = <180>, <180>;
 };
 
+&sgpiom0 {
+	status = "okay";
+	ngpios = <128>;
+	bus-frequency = <1000000>;
+};
+
 &ibt {
 	status = "okay";
 };
