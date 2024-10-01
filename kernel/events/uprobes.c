@@ -99,7 +99,6 @@ static LIST_HEAD(delayed_uprobe_list);
  */
 struct xol_area {
 	wait_queue_head_t 		wq;		/* if all slots are busy */
-	atomic_t 			slot_count;	/* number of in-use slots */
 	unsigned long 			*bitmap;	/* 0 = free slot */
 
 	struct page			*page;
@@ -1556,7 +1555,6 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 	init_waitqueue_head(&area->wq);
 	/* Reserve the 1st slot for get_trampoline_vaddr() */
 	set_bit(0, area->bitmap);
-	atomic_set(&area->slot_count, 1);
 	insns = arch_uprobe_trampoline(&insns_size);
 	arch_uprobe_copy_ixol(area->page, 0, insns, insns_size);
 
@@ -1629,24 +1627,28 @@ void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
 	}
 }
 
+static unsigned long xol_get_slot_nr(struct xol_area *area)
+{
+	unsigned long slot_nr;
+
+	slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
+	if (slot_nr < UINSNS_PER_PAGE) {
+		if (!test_and_set_bit(slot_nr, area->bitmap))
+			return slot_nr;
+	}
+
+	return UINSNS_PER_PAGE;
+}
+
 /*
  *  - search for a free slot.
  */
 static unsigned long xol_take_insn_slot(struct xol_area *area)
 {
-	unsigned int slot_nr;
+	unsigned long slot_nr;
 
-	for (;;) {
-		slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
-		if (slot_nr < UINSNS_PER_PAGE) {
-			if (!test_and_set_bit(slot_nr, area->bitmap))
-				break;
-			continue;
-		}
-		wait_event(area->wq, (atomic_read(&area->slot_count) < UINSNS_PER_PAGE));
-	}
+	wait_event(area->wq, (slot_nr = xol_get_slot_nr(area)) < UINSNS_PER_PAGE);
 
-	atomic_inc(&area->slot_count);
 	return area->vaddr + slot_nr * UPROBE_XOL_SLOT_BYTES;
 }
 
@@ -1682,7 +1684,6 @@ static void xol_free_insn_slot(struct uprobe_task *utask)
 
 	slot_nr = offset / UPROBE_XOL_SLOT_BYTES;
 	clear_bit(slot_nr, area->bitmap);
-	atomic_dec(&area->slot_count);
 	smp_mb__after_atomic(); /* pairs with prepare_to_wait() */
 	if (waitqueue_active(&area->wq))
 		wake_up(&area->wq);
