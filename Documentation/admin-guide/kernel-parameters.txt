@@ -6147,6 +6147,16 @@
 			For more information see Documentation/mm/slub.rst.
 			(slub_nomerge legacy name also accepted for now)
 
+	slab_strict_numa	[MM]
+			Support memory policies on a per object level
+			in the slab allocator. The default is for memory
+			policies to be applied at the folio level when
+			a new folio is needed or a partial folio is
+			retrieved from the lists. Increases overhead
+			in the slab fastpaths but gains more accurate
+			NUMA kernel object placement which helps with slow
+			interconnects in NUMA systems.
+
 	slram=		[HW,MTD]
 
 	smart2=		[HW]
