@@ -84,6 +84,14 @@ config DEVFREQ_GOV_QCOM_BW_HWMON
 	  can conflict with existing profiling tools.  This governor is unlikely
 	  to be useful for non-QCOM devices.
 
+config DEVFREQ_GOV_CPUFREQ
+	tristate "CPUfreq"
+	depends on CPU_FREQ
+	help
+	  Chooses frequency based on the online CPUs' current frequency and a
+	  CPU frequency to device frequency mapping table(s). This governor
+	  can be useful for controlling devices such as DDR, cache, CCI, etc.
+
 comment "DEVFREQ Drivers"
 
 config ARM_EXYNOS_BUS_DEVFREQ
