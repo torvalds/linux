@@ -18,5 +18,7 @@ sample_type=65927
 mmap=0
 comm=0
 task=0
+inherit=0
 
 [event:system-wide-dummy]
+inherit=0
