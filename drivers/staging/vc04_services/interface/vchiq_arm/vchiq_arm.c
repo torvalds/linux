@@ -1799,7 +1799,7 @@ static struct platform_driver vchiq_driver = {
 		.of_match_table = vchiq_of_match,
 	},
 	.probe = vchiq_probe,
-	.remove_new = vchiq_remove,
+	.remove = vchiq_remove,
 };
 
 static int __init vchiq_driver_init(void)

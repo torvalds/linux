@@ -343,7 +343,7 @@ MODULE_DEVICE_TABLE(of, controller_of_match);
 
 static struct platform_driver controller_driver = {
 	.probe = controller_probe,
-	.remove_new = controller_remove,
+	.remove = controller_remove,
 	.driver		= {
 		.name   = "arcx-anybus-controller",
 		.of_match_table	= controller_of_match,

@@ -977,7 +977,7 @@ MODULE_DEVICE_TABLE(of, cvm_oct_match);
 
 static struct platform_driver cvm_oct_driver = {
 	.probe		= cvm_oct_probe,
-	.remove_new	= cvm_oct_remove,
+	.remove		= cvm_oct_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 		.of_match_table = cvm_oct_match,
