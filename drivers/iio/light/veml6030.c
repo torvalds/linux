@@ -740,49 +740,39 @@ static int veml6030_hw_init(struct iio_dev *indio_dev)
 	struct i2c_client *client = data->client;
 
 	ret = veml6030_als_shut_down(data);
-	if (ret) {
-		dev_err(&client->dev, "can't shutdown als %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret, "can't shutdown als\n");
 
 	ret = regmap_write(data->regmap, VEML6030_REG_ALS_CONF, 0x1001);
-	if (ret) {
-		dev_err(&client->dev, "can't setup als configs %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "can't setup als configs\n");
 
 	ret = regmap_update_bits(data->regmap, VEML6030_REG_ALS_PSM,
 				 VEML6030_PSM | VEML6030_PSM_EN, 0x03);
-	if (ret) {
-		dev_err(&client->dev, "can't setup default PSM %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "can't setup default PSM\n");
 
 	ret = regmap_write(data->regmap, VEML6030_REG_ALS_WH, 0xFFFF);
-	if (ret) {
-		dev_err(&client->dev, "can't setup high threshold %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "can't setup high threshold\n");
 
 	ret = regmap_write(data->regmap, VEML6030_REG_ALS_WL, 0x0000);
-	if (ret) {
-		dev_err(&client->dev, "can't setup low threshold %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "can't setup low threshold\n");
 
 	ret = veml6030_als_pwr_on(data);
-	if (ret) {
-		dev_err(&client->dev, "can't poweron als %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&client->dev, ret, "can't poweron als\n");
 
 	/* Clear stale interrupt status bits if any during start */
 	ret = regmap_read(data->regmap, VEML6030_REG_ALS_INT, &val);
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"can't clear als interrupt status %d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret,
+				     "can't clear als interrupt status\n");
 
 	/* Cache currently active measurement parameters */
 	data->cur_gain = 3;
@@ -799,16 +789,14 @@ static int veml6030_probe(struct i2c_client *client)
 	struct iio_dev *indio_dev;
 	struct regmap *regmap;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "i2c adapter doesn't support plain i2c\n");
-		return -EOPNOTSUPP;
-	}
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return dev_err_probe(&client->dev, -EOPNOTSUPP,
+				     "i2c adapter doesn't support plain i2c\n");
 
 	regmap = devm_regmap_init_i2c(client, &veml6030_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "can't setup regmap\n");
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&client->dev, PTR_ERR(regmap),
+				     "can't setup regmap\n");
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -829,11 +817,11 @@ static int veml6030_probe(struct i2c_client *client)
 						NULL, veml6030_event_handler,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"veml6030", indio_dev);
-		if (ret < 0) {
-			dev_err(&client->dev,
-					"irq %d request failed\n", client->irq);
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(&client->dev, ret,
+					     "irq %d request failed\n",
+					     client->irq);
+
 		indio_dev->info = &veml6030_info;
 	} else {
 		indio_dev->info = &veml6030_info_no_irq;
