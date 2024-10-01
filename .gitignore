@@ -24,6 +24,7 @@
 *.dwo
 *.elf
 *.gcno
+*.gcda
 *.gz
 *.i
 *.ko
@@ -46,12 +47,12 @@
 *.so.dbg
 *.su
 *.symtypes
-*.symversions
 *.tab.[ch]
 *.tar
 *.xz
 *.zst
 Module.symvers
+dtbs-list
 modules.order
 
 #
@@ -69,12 +70,12 @@ modules.order
 /Module.markers
 /modules.builtin
 /modules.builtin.modinfo
+/modules.builtin.ranges
 /modules.nsdeps
 
 #
 # RPM spec file (make rpm-pkg)
 #
-/*.spec
 /rpmbuild/
 
 #
@@ -93,10 +94,17 @@ modules.order
 /tar-install/
 
 #
+# pacman files (make pacman-pkg)
+#
+/PKGBUILD
+/pacman/
+
+#
 # We don't want to ignore the following even if they are dot-files
 #
 !.clang-format
 !.cocciconfig
+!.editorconfig
 !.get_maintainer.ignore
 !.gitattributes
 !.gitignore
@@ -135,7 +143,6 @@ GTAGS
 # id-utils files
 ID
 
-*.orig
 *~
 \#*#
 

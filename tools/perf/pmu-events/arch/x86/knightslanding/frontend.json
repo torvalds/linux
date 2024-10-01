@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Counts the number of times the front end resteers for any branch as a result of another branch handling mechanism in the front end.",
+        "Counter": "0,1",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.ALL",
         "SampleAfterValue": "200003",
@@ -8,6 +9,7 @@
     },
     {
         "BriefDescription": "Counts the number of times the front end resteers for conditional branches as a result of another branch handling mechanism in the front end.",
+        "Counter": "0,1",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.COND",
         "SampleAfterValue": "200003",
@@ -15,6 +17,7 @@
     },
     {
         "BriefDescription": "Counts the number of times the front end resteers for RET branches as a result of another branch handling mechanism in the front end.",
+        "Counter": "0,1",
         "EventCode": "0xE6",
         "EventName": "BACLEARS.RETURN",
         "SampleAfterValue": "200003",
@@ -22,6 +25,7 @@
     },
     {
         "BriefDescription": "Counts all instruction fetches, including uncacheable fetches.",
+        "Counter": "0,1",
         "EventCode": "0x80",
         "EventName": "ICACHE.ACCESSES",
         "SampleAfterValue": "200003",
@@ -29,6 +33,7 @@
     },
     {
         "BriefDescription": "Counts all instruction fetches that hit the instruction cache.",
+        "Counter": "0,1",
         "EventCode": "0x80",
         "EventName": "ICACHE.HIT",
         "SampleAfterValue": "200003",
@@ -36,6 +41,7 @@
     },
     {
         "BriefDescription": "Counts all instruction fetches that miss the instruction cache or produce memory requests. An instruction fetch miss is counted only once and not once for every cycle it is outstanding.",
+        "Counter": "0,1",
         "EventCode": "0x80",
         "EventName": "ICACHE.MISSES",
         "SampleAfterValue": "200003",
@@ -43,6 +49,7 @@
     },
     {
         "BriefDescription": "Counts the number of times the MSROM starts a flow of uops.",
+        "Counter": "0,1",
         "EventCode": "0xE7",
         "EventName": "MS_DECODED.MS_ENTRY",
         "SampleAfterValue": "200003",

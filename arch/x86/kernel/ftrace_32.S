@@ -3,10 +3,10 @@
  *  Copyright (C) 2017  Steven Rostedt, VMware Inc.
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/page_types.h>
 #include <asm/segment.h>
-#include <asm/export.h>
 #include <asm/ftrace.h>
 #include <asm/nospec-branch.h>
 #include <asm/frame.h>

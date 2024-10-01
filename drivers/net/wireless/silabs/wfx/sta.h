@@ -20,7 +20,7 @@ struct wfx_sta_priv {
 
 /* mac80211 interface */
 int wfx_start(struct ieee80211_hw *hw);
-void wfx_stop(struct ieee80211_hw *hw);
+void wfx_stop(struct ieee80211_hw *hw, bool suspend);
 int wfx_config(struct ieee80211_hw *hw, u32 changed);
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 void wfx_set_default_unicast_key(struct ieee80211_hw *hw, struct ieee80211_vif *vif, int idx);
@@ -66,6 +66,5 @@ int wfx_update_pm(struct wfx_vif *wvif);
 
 /* Other Helpers */
 void wfx_reset(struct wfx_vif *wvif);
-u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates);
 
 #endif

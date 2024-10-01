@@ -36,7 +36,7 @@ TRACE_EVENT(kmem_cache_alloc,
 		__entry->bytes_alloc	= s->size;
 		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
 		__entry->node		= node;
-		__entry->accounted	= IS_ENABLED(CONFIG_MEMCG_KMEM) ?
+		__entry->accounted	= IS_ENABLED(CONFIG_MEMCG) ?
 					  ((gfp_flags & __GFP_ACCOUNT) ||
 					  (s->flags & SLAB_ACCOUNT)) : false;
 	),
@@ -87,7 +87,7 @@ TRACE_EVENT(kmalloc,
 		__entry->bytes_alloc,
 		show_gfp_flags(__entry->gfp_flags),
 		__entry->node,
-		(IS_ENABLED(CONFIG_MEMCG_KMEM) &&
+		(IS_ENABLED(CONFIG_MEMCG) &&
 		 (__entry->gfp_flags & (__force unsigned long)__GFP_ACCOUNT)) ? "true" : "false")
 );
 
@@ -126,7 +126,7 @@ TRACE_EVENT(kmem_cache_free,
 	TP_fast_assign(
 		__entry->call_site	= call_site;
 		__entry->ptr		= ptr;
-		__assign_str(name, s->name);
+		__assign_str(name);
 	),
 
 	TP_printk("call_site=%pS ptr=%p name=%s",
@@ -302,6 +302,44 @@ TRACE_EVENT(mm_page_alloc_extfrag,
 		__entry->fallback_migratetype,
 		__entry->fallback_order < pageblock_order,
 		__entry->change_ownership)
+);
+
+TRACE_EVENT(mm_alloc_contig_migrate_range_info,
+
+	TP_PROTO(unsigned long start,
+		 unsigned long end,
+		 unsigned long nr_migrated,
+		 unsigned long nr_reclaimed,
+		 unsigned long nr_mapped,
+		 int migratetype),
+
+	TP_ARGS(start, end, nr_migrated, nr_reclaimed, nr_mapped, migratetype),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, start)
+		__field(unsigned long, end)
+		__field(unsigned long, nr_migrated)
+		__field(unsigned long, nr_reclaimed)
+		__field(unsigned long, nr_mapped)
+		__field(int, migratetype)
+	),
+
+	TP_fast_assign(
+		__entry->start = start;
+		__entry->end = end;
+		__entry->nr_migrated = nr_migrated;
+		__entry->nr_reclaimed = nr_reclaimed;
+		__entry->nr_mapped = nr_mapped;
+		__entry->migratetype = migratetype;
+	),
+
+	TP_printk("start=0x%lx end=0x%lx migratetype=%d nr_migrated=%lu nr_reclaimed=%lu nr_mapped=%lu",
+		  __entry->start,
+		  __entry->end,
+		  __entry->migratetype,
+		  __entry->nr_migrated,
+		  __entry->nr_reclaimed,
+		  __entry->nr_mapped)
 );
 
 /*

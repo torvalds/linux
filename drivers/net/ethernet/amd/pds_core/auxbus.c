@@ -8,23 +8,18 @@
 
 /**
  * pds_client_register - Link the client to the firmware
- * @pf_pdev:	ptr to the PF driver struct
+ * @pf:		ptr to the PF driver's private data struct
  * @devname:	name that includes service into, e.g. pds_core.vDPA
  *
- * Return: 0 on success, or
+ * Return: positive client ID (ci) on success, or
  *         negative for error
  */
-int pds_client_register(struct pci_dev *pf_pdev, char *devname)
+int pds_client_register(struct pdsc *pf, char *devname)
 {
 	union pds_core_adminq_comp comp = {};
 	union pds_core_adminq_cmd cmd = {};
-	struct pdsc *pf;
 	int err;
 	u16 ci;
-
-	pf = pci_get_drvdata(pf_pdev);
-	if (pf->state)
-		return -ENXIO;
 
 	cmd.client_reg.opcode = PDS_AQ_CMD_CLIENT_REG;
 	strscpy(cmd.client_reg.devname, devname,
@@ -53,22 +48,17 @@ EXPORT_SYMBOL_GPL(pds_client_register);
 
 /**
  * pds_client_unregister - Unlink the client from the firmware
- * @pf_pdev:	ptr to the PF driver struct
+ * @pf:		ptr to the PF driver's private data struct
  * @client_id:	id returned from pds_client_register()
  *
  * Return: 0 on success, or
  *         negative for error
  */
-int pds_client_unregister(struct pci_dev *pf_pdev, u16 client_id)
+int pds_client_unregister(struct pdsc *pf, u16 client_id)
 {
 	union pds_core_adminq_comp comp = {};
 	union pds_core_adminq_cmd cmd = {};
-	struct pdsc *pf;
 	int err;
-
-	pf = pci_get_drvdata(pf_pdev);
-	if (pf->state)
-		return -ENXIO;
 
 	cmd.client_unreg.opcode = PDS_AQ_CMD_CLIENT_UNREG;
 	cmd.client_unreg.client_id = cpu_to_le16(client_id);
@@ -170,23 +160,19 @@ static struct pds_auxiliary_dev *pdsc_auxbus_dev_register(struct pdsc *cf,
 	if (err < 0) {
 		dev_warn(cf->dev, "auxiliary_device_init of %s failed: %pe\n",
 			 name, ERR_PTR(err));
-		goto err_out;
+		kfree(padev);
+		return ERR_PTR(err);
 	}
 
 	err = auxiliary_device_add(aux_dev);
 	if (err) {
 		dev_warn(cf->dev, "auxiliary_device_add of %s failed: %pe\n",
 			 name, ERR_PTR(err));
-		goto err_out_uninit;
+		auxiliary_device_uninit(aux_dev);
+		return ERR_PTR(err);
 	}
 
 	return padev;
-
-err_out_uninit:
-	auxiliary_device_uninit(aux_dev);
-err_out:
-	kfree(padev);
-	return ERR_PTR(err);
 }
 
 int pdsc_auxbus_dev_del(struct pdsc *cf, struct pdsc *pf)
@@ -194,11 +180,14 @@ int pdsc_auxbus_dev_del(struct pdsc *cf, struct pdsc *pf)
 	struct pds_auxiliary_dev *padev;
 	int err = 0;
 
+	if (!cf)
+		return -ENODEV;
+
 	mutex_lock(&pf->config_lock);
 
 	padev = pf->vfs[cf->vf_id].padev;
 	if (padev) {
-		pds_client_unregister(pf->pdev, padev->client_id);
+		pds_client_unregister(pf, padev->client_id);
 		auxiliary_device_delete(&padev->aux_dev);
 		auxiliary_device_uninit(&padev->aux_dev);
 		padev->client_id = 0;
@@ -212,13 +201,26 @@ int pdsc_auxbus_dev_del(struct pdsc *cf, struct pdsc *pf)
 int pdsc_auxbus_dev_add(struct pdsc *cf, struct pdsc *pf)
 {
 	struct pds_auxiliary_dev *padev;
-	enum pds_core_vif_types vt;
 	char devname[PDS_DEVNAME_LEN];
+	enum pds_core_vif_types vt;
+	unsigned long mask;
 	u16 vt_support;
 	int client_id;
 	int err = 0;
 
+	if (!cf)
+		return -ENODEV;
+
 	mutex_lock(&pf->config_lock);
+
+	mask = BIT_ULL(PDSC_S_FW_DEAD) |
+	       BIT_ULL(PDSC_S_STOPPING_DRIVER);
+	if (cf->state & mask) {
+		dev_err(pf->dev, "%s: can't add dev, VF client in bad state %#lx\n",
+			__func__, cf->state);
+		err = -ENXIO;
+		goto out_unlock;
+	}
 
 	/* We only support vDPA so far, so it is the only one to
 	 * be verified that it is available in the Core device and
@@ -243,7 +245,7 @@ int pdsc_auxbus_dev_add(struct pdsc *cf, struct pdsc *pf)
 	 */
 	snprintf(devname, sizeof(devname), "%s.%s.%d",
 		 PDS_CORE_DRV_NAME, pf->viftype_status[vt].name, cf->uid);
-	client_id = pds_client_register(pf->pdev, devname);
+	client_id = pds_client_register(pf, devname);
 	if (client_id < 0) {
 		err = client_id;
 		goto out_unlock;
@@ -252,7 +254,7 @@ int pdsc_auxbus_dev_add(struct pdsc *cf, struct pdsc *pf)
 	padev = pdsc_auxbus_dev_register(cf, pf, client_id,
 					 pf->viftype_status[vt].name);
 	if (IS_ERR(padev)) {
-		pds_client_unregister(pf->pdev, client_id);
+		pds_client_unregister(pf, client_id);
 		err = PTR_ERR(padev);
 		goto out_unlock;
 	}

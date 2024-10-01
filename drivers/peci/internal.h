@@ -66,22 +66,20 @@ struct peci_request *peci_xfer_ep_mmio64_readl(struct peci_device *device, u8 ba
 /**
  * struct peci_device_id - PECI device data to match
  * @data: pointer to driver private data specific to device
- * @family: device family
- * @model: device model
+ * @x86_vfm: device vendor-family-model
  */
 struct peci_device_id {
 	const void *data;
-	u16 family;
-	u8 model;
+	u32 x86_vfm;
 };
 
-extern struct device_type peci_device_type;
+extern const struct device_type peci_device_type;
 extern const struct attribute_group *peci_device_groups[];
 
 int peci_device_create(struct peci_controller *controller, u8 addr);
 void peci_device_destroy(struct peci_device *device);
 
-extern struct bus_type peci_bus_type;
+extern const struct bus_type peci_bus_type;
 extern const struct attribute_group *peci_bus_groups[];
 
 /**
@@ -98,10 +96,7 @@ struct peci_driver {
 	const struct peci_device_id *id_table;
 };
 
-static inline struct peci_driver *to_peci_driver(struct device_driver *d)
-{
-	return container_of(d, struct peci_driver, driver);
-}
+#define to_peci_driver(__drv)	container_of_const(__drv, struct peci_driver, driver)
 
 int __peci_driver_register(struct peci_driver *driver, struct module *owner,
 			   const char *mod_name);
@@ -129,7 +124,7 @@ void peci_driver_unregister(struct peci_driver *driver);
 #define module_peci_driver(__peci_driver) \
 	module_driver(__peci_driver, peci_driver_register, peci_driver_unregister)
 
-extern struct device_type peci_controller_type;
+extern const struct device_type peci_controller_type;
 
 int peci_controller_scan_devices(struct peci_controller *controller);
 

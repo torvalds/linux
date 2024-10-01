@@ -208,19 +208,14 @@ static int udf_writepages(struct address_space *mapping,
 	return write_cache_pages(mapping, wbc, udf_adinicb_writepage, NULL);
 }
 
-static void udf_adinicb_readpage(struct page *page)
+static void udf_adinicb_read_folio(struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	char *kaddr;
+	struct inode *inode = folio->mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	loff_t isize = i_size_read(inode);
 
-	kaddr = kmap_local_page(page);
-	memcpy(kaddr, iinfo->i_data + iinfo->i_lenEAttr, isize);
-	memset(kaddr + isize, 0, PAGE_SIZE - isize);
-	flush_dcache_page(page);
-	SetPageUptodate(page);
-	kunmap_local(kaddr);
+	folio_fill_tail(folio, 0, iinfo->i_data + iinfo->i_lenEAttr, isize);
+	folio_mark_uptodate(folio);
 }
 
 static int udf_read_folio(struct file *file, struct folio *folio)
@@ -228,7 +223,7 @@ static int udf_read_folio(struct file *file, struct folio *folio)
 	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		udf_adinicb_readpage(&folio->page);
+		udf_adinicb_read_folio(folio);
 		folio_unlock(folio);
 		return 0;
 	}
@@ -251,14 +246,14 @@ static void udf_readahead(struct readahead_control *rac)
 
 static int udf_write_begin(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len,
-			   struct page **pagep, void **fsdata)
+			   struct folio **foliop, void **fsdata)
 {
 	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
-	struct page *page;
+	struct folio *folio;
 	int ret;
 
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
-		ret = block_write_begin(mapping, pos, len, pagep,
+		ret = block_write_begin(mapping, pos, len, foliop,
 					udf_get_block);
 		if (unlikely(ret))
 			udf_write_failed(mapping, pos + len);
@@ -266,31 +261,32 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 	}
 	if (WARN_ON_ONCE(pos >= PAGE_SIZE))
 		return -EIO;
-	page = grab_cache_page_write_begin(mapping, 0);
-	if (!page)
-		return -ENOMEM;
-	*pagep = page;
-	if (!PageUptodate(page))
-		udf_adinicb_readpage(page);
+	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	*foliop = folio;
+	if (!folio_test_uptodate(folio))
+		udf_adinicb_read_folio(folio);
 	return 0;
 }
 
 static int udf_write_end(struct file *file, struct address_space *mapping,
 			 loff_t pos, unsigned len, unsigned copied,
-			 struct page *page, void *fsdata)
+			 struct folio *folio, void *fsdata)
 {
 	struct inode *inode = file_inode(file);
 	loff_t last_pos;
 
 	if (UDF_I(inode)->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
-		return generic_write_end(file, mapping, pos, len, copied, page,
+		return generic_write_end(file, mapping, pos, len, copied, folio,
 					 fsdata);
 	last_pos = pos + copied;
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);
-	set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
+	folio_mark_dirty(folio);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }
@@ -341,7 +337,7 @@ const struct address_space_operations udf_aops = {
  */
 int udf_expand_file_adinicb(struct inode *inode)
 {
-	struct page *page;
+	struct folio *folio;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	int err;
 
@@ -352,19 +348,18 @@ int udf_expand_file_adinicb(struct inode *inode)
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 		else
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
-		/* from now on we have normal address_space methods */
-		inode->i_data.a_ops = &udf_aops;
 		up_write(&iinfo->i_data_sem);
 		mark_inode_dirty(inode);
 		return 0;
 	}
 
-	page = find_or_create_page(inode->i_mapping, 0, GFP_NOFS);
-	if (!page)
-		return -ENOMEM;
+	folio = __filemap_get_folio(inode->i_mapping, 0,
+			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, GFP_KERNEL);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	if (!PageUptodate(page))
-		udf_adinicb_readpage(page);
+	if (!folio_test_uptodate(folio))
+		udf_adinicb_read_folio(folio);
 	down_write(&iinfo->i_data_sem);
 	memset(iinfo->i_data + iinfo->i_lenEAttr, 0x00,
 	       iinfo->i_lenAlloc);
@@ -373,22 +368,22 @@ int udf_expand_file_adinicb(struct inode *inode)
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 	else
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
-	set_page_dirty(page);
-	unlock_page(page);
+	folio_mark_dirty(folio);
+	folio_unlock(folio);
 	up_write(&iinfo->i_data_sem);
 	err = filemap_fdatawrite(inode->i_mapping);
 	if (err) {
 		/* Restore everything back so that we don't lose data... */
-		lock_page(page);
+		folio_lock(folio);
 		down_write(&iinfo->i_data_sem);
-		memcpy_to_page(page, 0, iinfo->i_data + iinfo->i_lenEAttr,
-			       inode->i_size);
-		unlock_page(page);
+		memcpy_from_folio(iinfo->i_data + iinfo->i_lenEAttr,
+				folio, 0, inode->i_size);
+		folio_unlock(folio);
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
 		iinfo->i_lenAlloc = inode->i_size;
 		up_write(&iinfo->i_data_sem);
 	}
-	put_page(page);
+	folio_put(folio);
 	mark_inode_dirty(inode);
 
 	return err;
@@ -910,7 +905,7 @@ static int inode_getblk(struct inode *inode, struct udf_map_rq *map)
 	map->oflags = UDF_BLK_NEW | UDF_BLK_MAPPED;
 	iinfo->i_next_alloc_block = map->lblk + 1;
 	iinfo->i_next_alloc_goal = newblocknum + 1;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 
 	if (IS_SYNC(inode))
 		udf_sync_inode(inode);
@@ -1250,10 +1245,7 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 	      S_ISLNK(inode->i_mode)))
 		return -EINVAL;
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return -EPERM;
 
-	filemap_invalidate_lock(inode->i_mapping);
 	iinfo = UDF_I(inode);
 	if (newsize > inode->i_size) {
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
@@ -1266,11 +1258,11 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 			}
 			err = udf_expand_file_adinicb(inode);
 			if (err)
-				goto out_unlock;
+				return err;
 		}
 		err = udf_extend_file(inode, newsize);
 		if (err)
-			goto out_unlock;
+			return err;
 set_size:
 		truncate_setsize(inode, newsize);
 	} else {
@@ -1288,23 +1280,21 @@ set_size:
 		err = block_truncate_page(inode->i_mapping, newsize,
 					  udf_get_block);
 		if (err)
-			goto out_unlock;
+			return err;
 		truncate_setsize(inode, newsize);
 		down_write(&iinfo->i_data_sem);
 		udf_clear_extent_cache(inode);
 		err = udf_truncate_extents(inode);
 		up_write(&iinfo->i_data_sem);
 		if (err)
-			goto out_unlock;
+			return err;
 	}
 update_time:
-	inode->i_mtime = inode->i_ctime = current_time(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	if (IS_SYNC(inode))
 		udf_sync_inode(inode);
 	else
 		mark_inode_dirty(inode);
-out_unlock:
-	filemap_invalidate_unlock(inode->i_mapping);
 	return err;
 }
 
@@ -1329,6 +1319,7 @@ static int udf_read_inode(struct inode *inode, bool hidden_inode)
 	int bs = inode->i_sb->s_blocksize;
 	int ret = -EIO;
 	uint32_t uid, gid;
+	struct timespec64 ts;
 
 reread:
 	if (iloc->partitionReferenceNum >= sbi->s_partitions) {
@@ -1505,9 +1496,12 @@ reread:
 		inode->i_blocks = le64_to_cpu(fe->logicalBlocksRecorded) <<
 			(inode->i_sb->s_blocksize_bits - 9);
 
-		udf_disk_stamp_to_time(&inode->i_atime, fe->accessTime);
-		udf_disk_stamp_to_time(&inode->i_mtime, fe->modificationTime);
-		udf_disk_stamp_to_time(&inode->i_ctime, fe->attrTime);
+		udf_disk_stamp_to_time(&ts, fe->accessTime);
+		inode_set_atime_to_ts(inode, ts);
+		udf_disk_stamp_to_time(&ts, fe->modificationTime);
+		inode_set_mtime_to_ts(inode, ts);
+		udf_disk_stamp_to_time(&ts, fe->attrTime);
+		inode_set_ctime_to_ts(inode, ts);
 
 		iinfo->i_unique = le64_to_cpu(fe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(fe->lengthExtendedAttr);
@@ -1519,10 +1513,13 @@ reread:
 		inode->i_blocks = le64_to_cpu(efe->logicalBlocksRecorded) <<
 		    (inode->i_sb->s_blocksize_bits - 9);
 
-		udf_disk_stamp_to_time(&inode->i_atime, efe->accessTime);
-		udf_disk_stamp_to_time(&inode->i_mtime, efe->modificationTime);
+		udf_disk_stamp_to_time(&ts, efe->accessTime);
+		inode_set_atime_to_ts(inode, ts);
+		udf_disk_stamp_to_time(&ts, efe->modificationTime);
+		inode_set_mtime_to_ts(inode, ts);
+		udf_disk_stamp_to_time(&ts, efe->attrTime);
+		inode_set_ctime_to_ts(inode, ts);
 		udf_disk_stamp_to_time(&iinfo->i_crtime, efe->createTime);
-		udf_disk_stamp_to_time(&inode->i_ctime, efe->attrTime);
 
 		iinfo->i_unique = le64_to_cpu(efe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(efe->lengthExtendedAttr);
@@ -1797,9 +1794,9 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		       inode->i_sb->s_blocksize - sizeof(struct fileEntry));
 		fe->logicalBlocksRecorded = cpu_to_le64(lb_recorded);
 
-		udf_time_to_disk_stamp(&fe->accessTime, inode->i_atime);
-		udf_time_to_disk_stamp(&fe->modificationTime, inode->i_mtime);
-		udf_time_to_disk_stamp(&fe->attrTime, inode->i_ctime);
+		udf_time_to_disk_stamp(&fe->accessTime, inode_get_atime(inode));
+		udf_time_to_disk_stamp(&fe->modificationTime, inode_get_mtime(inode));
+		udf_time_to_disk_stamp(&fe->attrTime, inode_get_ctime(inode));
 		memset(&(fe->impIdent), 0, sizeof(struct regid));
 		strcpy(fe->impIdent.ident, UDF_ID_DEVELOPER);
 		fe->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
@@ -1828,14 +1825,16 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 				cpu_to_le32(inode->i_sb->s_blocksize);
 		}
 
-		udf_adjust_time(iinfo, inode->i_atime);
-		udf_adjust_time(iinfo, inode->i_mtime);
-		udf_adjust_time(iinfo, inode->i_ctime);
+		udf_adjust_time(iinfo, inode_get_atime(inode));
+		udf_adjust_time(iinfo, inode_get_mtime(inode));
+		udf_adjust_time(iinfo, inode_get_ctime(inode));
 
-		udf_time_to_disk_stamp(&efe->accessTime, inode->i_atime);
-		udf_time_to_disk_stamp(&efe->modificationTime, inode->i_mtime);
+		udf_time_to_disk_stamp(&efe->accessTime,
+				       inode_get_atime(inode));
+		udf_time_to_disk_stamp(&efe->modificationTime,
+				       inode_get_mtime(inode));
 		udf_time_to_disk_stamp(&efe->createTime, iinfo->i_crtime);
-		udf_time_to_disk_stamp(&efe->attrTime, inode->i_ctime);
+		udf_time_to_disk_stamp(&efe->attrTime, inode_get_ctime(inode));
 
 		memset(&(efe->impIdent), 0, sizeof(efe->impIdent));
 		strcpy(efe->impIdent.ident, UDF_ID_DEVELOPER);

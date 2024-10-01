@@ -98,22 +98,6 @@ struct drm_mode_config_funcs {
 	const struct drm_format_info *(*get_format_info)(const struct drm_mode_fb_cmd2 *mode_cmd);
 
 	/**
-	 * @output_poll_changed:
-	 *
-	 * Callback used by helpers to inform the driver of output configuration
-	 * changes.
-	 *
-	 * Drivers implementing fbdev emulation use drm_kms_helper_hotplug_event()
-	 * to call this hook to inform the fbdev helper of output changes.
-	 *
-	 * This hook is deprecated, drivers should instead use
-	 * drm_fbdev_generic_setup() which takes care of any necessary
-	 * hotplug event forwarding already without further involvement by
-	 * the driver.
-	 */
-	void (*output_poll_changed)(struct drm_device *dev);
-
-	/**
 	 * @mode_valid:
 	 *
 	 * Device specific validation of display modes. Can be used to reject
@@ -504,6 +488,16 @@ struct drm_mode_config {
 	 * over the lifetime of a device and hence doesn't need any locks.
 	 */
 	struct list_head plane_list;
+
+	/**
+	 * @panic_lock:
+	 *
+	 * Raw spinlock used to protect critical sections of code that access
+	 * the display hardware or modeset software state, which the panic
+	 * printing code must be protected against. See drm_panic_trylock(),
+	 * drm_panic_lock() and drm_panic_unlock().
+	 */
+	struct raw_spinlock panic_lock;
 
 	/**
 	 * @num_crtc:
@@ -941,6 +935,11 @@ struct drm_mode_config {
 	 * combination.
 	 */
 	struct drm_property *modifiers_property;
+
+	/**
+	 * @size_hints_property: Plane SIZE_HINTS property.
+	 */
+	struct drm_property *size_hints_property;
 
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;

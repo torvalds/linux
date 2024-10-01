@@ -52,7 +52,7 @@ VLAN programming would basically change the CPU port's default PVID and make
 it untagged, undesirable.
 
 In difference to the configuration described in :ref:`dsa-vlan-configuration`
-the default VLAN 1 has to be removed from the slave interface configuration in
+the default VLAN 1 has to be removed from the user interface configuration in
 single port and gateway configuration, while there is no need to add an extra
 VLAN configuration in the bridge showcase.
 
@@ -68,13 +68,13 @@ By default packages are tagged with vid 1:
   ip link add link eth0 name eth0.2 type vlan id 2
   ip link add link eth0 name eth0.3 type vlan id 3
 
-  # The master interface needs to be brought up before the slave ports.
+  # The conduit interface needs to be brought up before the user ports.
   ip link set eth0 up
   ip link set eth0.1 up
   ip link set eth0.2 up
   ip link set eth0.3 up
 
-  # bring up the slave interfaces
+  # bring up the user interfaces
   ip link set wan up
   ip link set lan1 up
   ip link set lan2 up
@@ -113,11 +113,11 @@ bridge
   # tag traffic on CPU port
   ip link add link eth0 name eth0.1 type vlan id 1
 
-  # The master interface needs to be brought up before the slave ports.
+  # The conduit interface needs to be brought up before the user ports.
   ip link set eth0 up
   ip link set eth0.1 up
 
-  # bring up the slave interfaces
+  # bring up the user interfaces
   ip link set wan up
   ip link set lan1 up
   ip link set lan2 up
@@ -149,12 +149,12 @@ gateway
   ip link add link eth0 name eth0.1 type vlan id 1
   ip link add link eth0 name eth0.2 type vlan id 2
 
-  # The master interface needs to be brought up before the slave ports.
+  # The conduit interface needs to be brought up before the user ports.
   ip link set eth0 up
   ip link set eth0.1 up
   ip link set eth0.2 up
 
-  # bring up the slave interfaces
+  # bring up the user interfaces
   ip link set wan up
   ip link set lan1 up
   ip link set lan2 up

@@ -4,3 +4,5 @@ nvkm-y += nvkm/engine/sec2/gp102.o
 nvkm-y += nvkm/engine/sec2/gp108.o
 nvkm-y += nvkm/engine/sec2/tu102.o
 nvkm-y += nvkm/engine/sec2/ga102.o
+
+nvkm-y += nvkm/engine/sec2/r535.o

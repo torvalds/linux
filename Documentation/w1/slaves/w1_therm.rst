@@ -58,7 +58,7 @@ A strong pullup will be applied during the conversion if required.
 
 ``conv_time`` is used to get current conversion time (read), and
 adjust it (write). A temperature conversion time depends on the device type and
-it's current resolution. Default conversion time is set by the driver according
+its current resolution. Default conversion time is set by the driver according
 to the device datasheet. A conversion time for many original device clones
 deviate from datasheet specs. There are three options: 1) manually set the
 correct conversion time by writing a value in milliseconds to ``conv_time``; 2)

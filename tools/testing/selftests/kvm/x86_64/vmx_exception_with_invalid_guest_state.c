@@ -28,7 +28,7 @@ static void __run_vcpu_with_invalid_state(struct kvm_vcpu *vcpu)
 
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_INTERNAL_ERROR);
 	TEST_ASSERT(run->emulation_failure.suberror == KVM_INTERNAL_ERROR_EMULATION,
-		    "Expected emulation failure, got %d\n",
+		    "Expected emulation failure, got %d",
 		    run->emulation_failure.suberror);
 }
 
@@ -50,7 +50,7 @@ static void set_timer(void)
 	timer.it_value.tv_sec  = 0;
 	timer.it_value.tv_usec = 200;
 	timer.it_interval = timer.it_value;
-	ASSERT_EQ(setitimer(ITIMER_REAL, &timer, NULL), 0);
+	TEST_ASSERT_EQ(setitimer(ITIMER_REAL, &timer, NULL), 0);
 }
 
 static void set_or_clear_invalid_guest_state(struct kvm_vcpu *vcpu, bool set)
@@ -114,9 +114,6 @@ int main(int argc, char *argv[])
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	get_set_sigalrm_vcpu(vcpu);
-
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
 

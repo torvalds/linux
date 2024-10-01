@@ -3,6 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _HW_H_
@@ -38,14 +39,12 @@ enum ath10k_bus {
 #define QCA988X_HW_2_0_VERSION		0x4100016c
 #define QCA988X_HW_2_0_CHIP_ID_REV	0x2
 #define QCA988X_HW_2_0_FW_DIR		ATH10K_FW_DIR "/QCA988X/hw2.0"
-#define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9887 1.0 definitions */
 #define QCA9887_HW_1_0_VERSION		0x4100016d
 #define QCA9887_HW_1_0_CHIP_ID_REV	0
 #define QCA9887_HW_1_0_FW_DIR		ATH10K_FW_DIR "/QCA9887/hw1.0"
-#define QCA9887_HW_1_0_BOARD_DATA_FILE	"board.bin"
 #define QCA9887_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA6174 target BMI version signatures */
@@ -84,11 +83,9 @@ enum qca9377_chip_id_rev {
 };
 
 #define QCA6174_HW_2_1_FW_DIR		ATH10K_FW_DIR "/QCA6174/hw2.1"
-#define QCA6174_HW_2_1_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_2_1_PATCH_LOAD_ADDR	0x1234
 
 #define QCA6174_HW_3_0_FW_DIR		ATH10K_FW_DIR "/QCA6174/hw3.0"
-#define QCA6174_HW_3_0_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_3_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA99X0 1.0 definitions (unsupported) */
@@ -98,7 +95,6 @@ enum qca9377_chip_id_rev {
 #define QCA99X0_HW_2_0_DEV_VERSION     0x01000000
 #define QCA99X0_HW_2_0_CHIP_ID_REV     0x1
 #define QCA99X0_HW_2_0_FW_DIR          ATH10K_FW_DIR "/QCA99X0/hw2.0"
-#define QCA99X0_HW_2_0_BOARD_DATA_FILE "board.bin"
 #define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9984 1.0 defines */
@@ -106,8 +102,6 @@ enum qca9377_chip_id_rev {
 #define QCA9984_HW_DEV_TYPE		0xa
 #define QCA9984_HW_1_0_CHIP_ID_REV	0x0
 #define QCA9984_HW_1_0_FW_DIR		ATH10K_FW_DIR "/QCA9984/hw1.0"
-#define QCA9984_HW_1_0_BOARD_DATA_FILE "board.bin"
-#define QCA9984_HW_1_0_EBOARD_DATA_FILE "eboard.bin"
 #define QCA9984_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9888 2.0 defines */
@@ -115,18 +109,15 @@ enum qca9377_chip_id_rev {
 #define QCA9888_HW_DEV_TYPE		0xc
 #define QCA9888_HW_2_0_CHIP_ID_REV	0x0
 #define QCA9888_HW_2_0_FW_DIR		ATH10K_FW_DIR "/QCA9888/hw2.0"
-#define QCA9888_HW_2_0_BOARD_DATA_FILE "board.bin"
 #define QCA9888_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9377 1.0 definitions */
 #define QCA9377_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9377/hw1.0"
-#define QCA9377_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA9377_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA4019 1.0 definitions */
 #define QCA4019_HW_1_0_DEV_VERSION     0x01000000
 #define QCA4019_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA4019/hw1.0"
-#define QCA4019_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
 /* WCN3990 1.0 definitions */
@@ -158,7 +149,9 @@ enum qca9377_chip_id_rev {
 #define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
 #define ATH10K_BOARD_MAGIC                  "QCA-ATH10K-BOARD"
 
+#define ATH10K_BOARD_DATA_FILE         "board.bin"
 #define ATH10K_BOARD_API2_FILE         "board-2.bin"
+#define ATH10K_EBOARD_DATA_FILE        "eboard.bin"
 
 #define REG_DUMP_COUNT_QCA988X 60
 
@@ -519,6 +512,7 @@ struct ath10k_hw_params {
 	const char *name;
 	u32 patch_load_addr;
 	int uart_pin;
+	int led_pin;
 	u32 otp_exe_param;
 
 	/* Type of hw cycle counter wraparound logic, for more info
@@ -552,9 +546,7 @@ struct ath10k_hw_params {
 
 	struct ath10k_hw_params_fw {
 		const char *dir;
-		const char *board;
 		size_t board_size;
-		const char *eboard;
 		size_t ext_board_size;
 		size_t board_ext_size;
 	} fw;
@@ -639,6 +631,9 @@ struct ath10k_hw_params {
 	bool use_fw_tx_credits;
 
 	bool delay_unmap_buffer;
+
+	/* The hardware support multicast frame registrations */
+	bool mcast_frame_registration;
 };
 
 struct htt_resp;

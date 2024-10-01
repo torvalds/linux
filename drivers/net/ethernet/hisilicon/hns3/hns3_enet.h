@@ -6,7 +6,7 @@
 
 #include <linux/dim.h>
 #include <linux/if_vlan.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
 #include <asm/barrier.h>
 
 #include "hnae3.h"
@@ -213,6 +213,8 @@ enum hns3_nic_state {
 #define HNS3_GL2_CQ_MODE_REG			0x20d08
 #define HNS3_CQ_MODE_EQE			1U
 #define HNS3_CQ_MODE_CQE			0U
+
+#define HNS3_RESCHED_BD_NUM			1024
 
 enum hns3_pkt_l2t_type {
 	HNS3_L2_TYPE_UNICAST,

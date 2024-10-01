@@ -14,7 +14,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <asm/bbc.h>
 #include <asm/io.h>
 
@@ -357,9 +358,6 @@ fail:
 	return NULL;
 }
 
-extern int bbc_envctrl_init(struct bbc_i2c_bus *bp);
-extern void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp);
-
 static int bbc_i2c_probe(struct platform_device *op)
 {
 	struct bbc_i2c_bus *bp;
@@ -384,7 +382,7 @@ static int bbc_i2c_probe(struct platform_device *op)
 	return err;
 }
 
-static int bbc_i2c_remove(struct platform_device *op)
+static void bbc_i2c_remove(struct platform_device *op)
 {
 	struct bbc_i2c_bus *bp = dev_get_drvdata(&op->dev);
 
@@ -398,8 +396,6 @@ static int bbc_i2c_remove(struct platform_device *op)
 		of_iounmap(&op->resource[1], bp->i2c_control_regs, 2);
 
 	kfree(bp);
-
-	return 0;
 }
 
 static const struct of_device_id bbc_i2c_match[] = {
@@ -417,9 +413,10 @@ static struct platform_driver bbc_i2c_driver = {
 		.of_match_table = bbc_i2c_match,
 	},
 	.probe		= bbc_i2c_probe,
-	.remove		= bbc_i2c_remove,
+	.remove_new	= bbc_i2c_remove,
 };
 
 module_platform_driver(bbc_i2c_driver);
 
+MODULE_DESCRIPTION("UltraSPARC-III bootbus i2c controller driver");
 MODULE_LICENSE("GPL");

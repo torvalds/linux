@@ -13,7 +13,6 @@
 #include <linux/hwmon.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 
 /*
@@ -219,7 +218,7 @@ static int sbtsi_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sbtsi_id[] = {
-	{"sbtsi", 0},
+	{"sbtsi"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, sbtsi_id);
@@ -233,7 +232,6 @@ static const struct of_device_id __maybe_unused sbtsi_of_match[] = {
 MODULE_DEVICE_TABLE(of, sbtsi_of_match);
 
 static struct i2c_driver sbtsi_driver = {
-	.class = I2C_CLASS_HWMON,
 	.driver = {
 		.name = "sbtsi",
 		.of_match_table = of_match_ptr(sbtsi_of_match),

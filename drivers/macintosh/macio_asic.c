@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/of_irq.h>
 
 #include <asm/machdep.h>
@@ -35,7 +36,7 @@
 
 static struct macio_chip      *macio_on_hold;
 
-static int macio_bus_match(struct device *dev, struct device_driver *drv) 
+static int macio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct of_device_id * matches = drv->of_match_table;
 
@@ -135,7 +136,7 @@ static int macio_device_modalias(const struct device *dev, struct kobj_uevent_en
 
 extern const struct attribute_group *macio_dev_groups[];
 
-struct bus_type macio_bus_type = {
+const struct bus_type macio_bus_type = {
        .name	= "macio",
        .match	= macio_bus_match,
        .uevent	= macio_device_modalias,
@@ -386,7 +387,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	dma_set_max_seg_size(&dev->ofdev.dev, 65536);
 	dma_set_seg_boundary(&dev->ofdev.dev, 0xffffffff);
 
-#if defined(CONFIG_PCI) && defined(CONFIG_DMA_OPS)
+#if defined(CONFIG_PCI) && defined(CONFIG_ARCH_HAS_DMA_OPS)
 	/* Set the DMA ops to the ones from the PCI device, this could be
 	 * fishy if we didn't know that on PowerMac it's always direct ops
 	 * or iommu ops that will work fine
@@ -395,7 +396,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	 */
 	dev->ofdev.dev.archdata = chip->lbus.pdev->dev.archdata;
 	dev->ofdev.dev.dma_ops = chip->lbus.pdev->dev.dma_ops;
-#endif /* CONFIG_PCI && CONFIG_DMA_OPS */
+#endif /* CONFIG_PCI && CONFIG_ARCH_HAS_DMA_OPS */
 
 #ifdef DEBUG
 	printk("preparing mdev @%p, ofdev @%p, dev @%p, kobj @%p\n",

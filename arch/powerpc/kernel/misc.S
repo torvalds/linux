@@ -10,11 +10,11 @@
  *
  * setjmp/longjmp code by Paul Mackerras.
  */
+#include <linux/export.h>
 #include <asm/ppc_asm.h>
 #include <asm/unistd.h>
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 
 	.text
 

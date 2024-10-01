@@ -38,7 +38,7 @@ config PCIE_CADENCE_PLAT_EP
 	select PCIE_CADENCE_EP
 	select PCIE_CADENCE_PLAT
 	help
-	  Say Y here if you want to support the Cadence PCIe  platform controller in
+	  Say Y here if you want to support the Cadence PCIe platform controller in
 	  endpoint mode. This PCIe controller may be embedded into many
 	  different vendors SoCs.
 
@@ -47,6 +47,7 @@ config PCI_J721E
 
 config PCI_J721E_HOST
 	bool "TI J721E PCIe controller (host mode)"
+	depends on ARCH_K3 || COMPILE_TEST
 	depends on OF
 	select PCIE_CADENCE_HOST
 	select PCI_J721E
@@ -57,6 +58,7 @@ config PCI_J721E_HOST
 
 config PCI_J721E_EP
 	bool "TI J721E PCIe controller (endpoint mode)"
+	depends on ARCH_K3 || COMPILE_TEST
 	depends on OF
 	depends on PCI_ENDPOINT
 	select PCIE_CADENCE_EP

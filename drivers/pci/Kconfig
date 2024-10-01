@@ -13,6 +13,11 @@ config FORCE_PCI
 	select HAVE_PCI
 	select PCI
 
+# select this to provide a generic PCI iomap,
+# without PCI itself having to be defined
+config GENERIC_PCI_IOMAP
+	bool
+
 menuconfig PCI
 	bool "PCI support"
 	depends on HAVE_PCI
@@ -138,6 +143,15 @@ config PCI_IOV
 
 	  If unsure, say N.
 
+config PCI_NPEM
+	bool "Native PCIe Enclosure Management"
+	depends on LEDS_CLASS=y
+	help
+	  Support for Native PCIe Enclosure Management. It allows managing LED
+	  indications in storage enclosures. Enclosure must support following
+	  indications: OK, Locate, Fail, Rebuild, other indications are
+	  optional.
+
 config PCI_PRI
 	bool "PCI PRI support"
 	select PCI_ATS
@@ -170,7 +184,7 @@ config PCI_P2PDMA
 	select GENERIC_ALLOCATOR
 	select NEED_SG_DMA_FLAGS
 	help
-	  Enableѕ drivers to do PCI peer-to-peer transactions to and from
+	  Enables drivers to do PCI peer-to-peer transactions to and from
 	  BARs that are exposed in other devices that are the part of
 	  the hierarchy where peer-to-peer DMA is guaranteed by the PCI
 	  specification to work (ie. anything below a single PCI bridge).
@@ -193,6 +207,18 @@ config PCI_HYPERV
 	help
 	  The PCI device frontend driver allows the kernel to import arbitrary
 	  PCI devices from a PCI backend to support PCI driver domains.
+
+config PCI_DYNAMIC_OF_NODES
+	bool "Create Device tree nodes for PCI devices"
+	depends on OF_IRQ
+	select OF_DYNAMIC
+	help
+	  This option enables support for generating device tree nodes for some
+	  PCI devices. Thus, the driver of this kind can load and overlay
+	  flattened device tree for its downstream devices.
+
+	  Once this option is selected, the device tree nodes will be generated
+	  for all PCI bridges.
 
 choice
 	prompt "PCI Express hierarchy optimization setting"
@@ -279,5 +305,6 @@ source "drivers/pci/hotplug/Kconfig"
 source "drivers/pci/controller/Kconfig"
 source "drivers/pci/endpoint/Kconfig"
 source "drivers/pci/switch/Kconfig"
+source "drivers/pci/pwrctl/Kconfig"
 
 endif

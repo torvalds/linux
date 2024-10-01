@@ -68,12 +68,13 @@ properties:
       - items:
           - enum:
               - amd,pensando-elba-qspi
-              - ti,k2g-qspi
-              - ti,am654-ospi
               - intel,lgm-qspi
-              - xlnx,versal-ospi-1.0
               - intel,socfpga-qspi
+              - mobileye,eyeq5-ospi
               - starfive,jh7110-qspi
+              - ti,am654-ospi
+              - ti,k2g-qspi
+              - xlnx,versal-ospi-1.0
           - const: cdns,qspi-nor
       - const: cdns,qspi-nor
 
@@ -86,7 +87,17 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    oneOf:
+      - items:
+          - const: ref
+      - items:
+          - const: ref
+          - const: ahb
+          - const: apb
 
   cdns,fifo-depth:
     description:
@@ -135,7 +146,6 @@ required:
   - reg
   - interrupts
   - clocks
-  - cdns,fifo-depth
   - cdns,fifo-width
   - cdns,trigger-address
   - '#address-cells'

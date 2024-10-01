@@ -6,21 +6,14 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_host.h>
 
-#undef MMU_DEBUG
-
-#ifdef MMU_DEBUG
-extern bool dbg;
-
-#define pgprintk(x...) do { if (dbg) printk(x); } while (0)
-#define rmap_printk(fmt, args...) do { if (dbg) printk("%s: " fmt, __func__, ## args); } while (0)
-#define MMU_WARN_ON(x) WARN_ON(x)
+#ifdef CONFIG_KVM_PROVE_MMU
+#define KVM_MMU_WARN_ON(x) WARN_ON_ONCE(x)
 #else
-#define pgprintk(x...) do { } while (0)
-#define rmap_printk(x...) do { } while (0)
-#define MMU_WARN_ON(x) do { } while (0)
+#define KVM_MMU_WARN_ON(x) BUILD_BUG_ON_INVALID(x)
 #endif
 
 /* Page table builder macros common to shadow (host) PTEs and guest PTEs. */
+#define __PT_BASE_ADDR_MASK GENMASK_ULL(51, 12)
 #define __PT_LEVEL_SHIFT(level, bits_per_level)	\
 	(PAGE_SHIFT + ((level) - 1) * (bits_per_level))
 #define __PT_INDEX(address, level, bits_per_level) \
@@ -44,6 +37,16 @@ extern bool dbg;
 #define INVALID_PAE_ROOT	0
 #define IS_VALID_PAE_ROOT(x)	(!!(x))
 
+static inline hpa_t kvm_mmu_get_dummy_root(void)
+{
+	return my_zero_pfn(0) << PAGE_SHIFT;
+}
+
+static inline bool kvm_mmu_is_dummy_root(hpa_t shadow_page)
+{
+	return is_zero_pfn(shadow_page >> PAGE_SHIFT);
+}
+
 typedef u64 __rcu *tdp_ptep_t;
 
 struct kvm_mmu_page {
@@ -56,7 +59,12 @@ struct kvm_mmu_page {
 
 	bool tdp_mmu_page;
 	bool unsync;
-	u8 mmu_valid_gen;
+	union {
+		u8 mmu_valid_gen;
+
+		/* Only accessed under slots_lock.  */
+		bool tdp_mmu_scheduled_root_to_zap;
+	};
 
 	 /*
 	  * The shadow page can't be replaced by an equivalent huge page
@@ -98,13 +106,7 @@ struct kvm_mmu_page {
 		struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
 		tdp_ptep_t ptep;
 	};
-	union {
-		DECLARE_BITMAP(unsync_child_bitmap, 512);
-		struct {
-			struct work_struct tdp_mmu_async_work;
-			void *tdp_mmu_async_data;
-		};
-	};
+	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
 	/*
 	 * Tracks shadow pages that, if zapped, would allow KVM to create an NX
@@ -170,9 +172,6 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn,
 				    int min_level);
 
-void kvm_flush_remote_tlbs_range(struct kvm *kvm, gfn_t start_gfn,
-				 gfn_t nr_pages);
-
 /* Flush the given page (huge or not) of guest memory. */
 static inline void kvm_flush_remote_tlbs_gfn(struct kvm *kvm, gfn_t gfn, int level)
 {
@@ -191,7 +190,7 @@ static inline bool is_nx_huge_page_enabled(struct kvm *kvm)
 struct kvm_page_fault {
 	/* arguments to kvm_mmu_do_page_fault.  */
 	const gpa_t addr;
-	const u32 error_code;
+	const u64 error_code;
 	const bool prefetch;
 
 	/* Derived from error_code.  */
@@ -203,6 +202,7 @@ struct kvm_page_fault {
 
 	/* Derived from mmu and global state.  */
 	const bool is_tdp;
+	const bool is_private;
 	const bool nx_huge_page_workaround_enabled;
 
 	/*
@@ -258,6 +258,8 @@ int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
  * RET_PF_CONTINUE: So far, so good, keep handling the page fault.
  * RET_PF_RETRY: let CPU fault again on the address.
  * RET_PF_EMULATE: mmio page fault, emulate the instruction directly.
+ * RET_PF_WRITE_PROTECTED: the gfn is write-protected, either unprotected the
+ *                         gfn and retry, or emulate the instruction directly.
  * RET_PF_INVALID: the spte is invalid, let the real page fault path update it.
  * RET_PF_FIXED: The faulting entry has been fixed.
  * RET_PF_SPURIOUS: The faulting entry was already fixed, e.g. by another vCPU.
@@ -274,13 +276,23 @@ enum {
 	RET_PF_CONTINUE = 0,
 	RET_PF_RETRY,
 	RET_PF_EMULATE,
+	RET_PF_WRITE_PROTECTED,
 	RET_PF_INVALID,
 	RET_PF_FIXED,
 	RET_PF_SPURIOUS,
 };
 
+static inline void kvm_mmu_prepare_memory_fault_exit(struct kvm_vcpu *vcpu,
+						     struct kvm_page_fault *fault)
+{
+	kvm_prepare_memory_fault_exit(vcpu, fault->gfn << PAGE_SHIFT,
+				      PAGE_SIZE, fault->write, fault->exec,
+				      fault->is_private);
+}
+
 static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
-					u32 err, bool prefetch, int *emulation_type)
+					u64 err, bool prefetch,
+					int *emulation_type, u8 *level)
 {
 	struct kvm_page_fault fault = {
 		.addr = cr2_or_gpa,
@@ -298,6 +310,10 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		.max_level = KVM_MAX_HUGEPAGE_LEVEL,
 		.req_level = PG_LEVEL_4K,
 		.goal_level = PG_LEVEL_4K,
+		.is_private = err & PFERR_PRIVATE_ACCESS,
+
+		.pfn = KVM_PFN_ERR_FAULT,
+		.hva = KVM_HVA_ERR_BAD,
 	};
 	int r;
 
@@ -306,35 +322,27 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		fault.slot = kvm_vcpu_gfn_to_memslot(vcpu, fault.gfn);
 	}
 
-	/*
-	 * Async #PF "faults", a.k.a. prefetch faults, are not faults from the
-	 * guest perspective and have already been counted at the time of the
-	 * original fault.
-	 */
-	if (!prefetch)
-		vcpu->stat.pf_taken++;
-
-	if (IS_ENABLED(CONFIG_RETPOLINE) && fault.is_tdp)
+	if (IS_ENABLED(CONFIG_MITIGATION_RETPOLINE) && fault.is_tdp)
 		r = kvm_tdp_page_fault(vcpu, &fault);
 	else
 		r = vcpu->arch.mmu->page_fault(vcpu, &fault);
 
+	/*
+	 * Not sure what's happening, but punt to userspace and hope that
+	 * they can fix it by changing memory to shared, or they can
+	 * provide a better error.
+	 */
+	if (r == RET_PF_EMULATE && fault.is_private) {
+		pr_warn_ratelimited("kvm: unexpected emulation request on private memory\n");
+		kvm_mmu_prepare_memory_fault_exit(vcpu, &fault);
+		return -EFAULT;
+	}
+
 	if (fault.write_fault_to_shadow_pgtable && emulation_type)
 		*emulation_type |= EMULTYPE_WRITE_PF_TO_SP;
+	if (level)
+		*level = fault.goal_level;
 
-	/*
-	 * Similar to above, prefetch faults aren't truly spurious, and the
-	 * async #PF path doesn't do emulation.  Do count faults that are fixed
-	 * by the async #PF handler though, otherwise they'll never be counted.
-	 */
-	if (r == RET_PF_FIXED)
-		vcpu->stat.pf_fixed++;
-	else if (prefetch)
-		;
-	else if (r == RET_PF_EMULATE)
-		vcpu->stat.pf_emulate++;
-	else if (r == RET_PF_SPURIOUS)
-		vcpu->stat.pf_spurious++;
 	return r;
 }
 
@@ -343,8 +351,6 @@ int kvm_mmu_max_mapping_level(struct kvm *kvm,
 			      int max_level);
 void kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault);
 void disallowed_hugepage_adjust(struct kvm_page_fault *fault, u64 spte, int cur_level);
-
-void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc);
 
 void track_possible_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp);
 void untrack_possible_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp);

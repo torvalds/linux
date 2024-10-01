@@ -30,7 +30,6 @@
 
 static void proc_evict_inode(struct inode *inode)
 {
-	struct proc_dir_entry *de;
 	struct ctl_table_header *head;
 	struct proc_inode *ei = PROC_I(inode);
 
@@ -38,17 +37,8 @@ static void proc_evict_inode(struct inode *inode)
 	clear_inode(inode);
 
 	/* Stop tracking associated processes */
-	if (ei->pid) {
+	if (ei->pid)
 		proc_pid_evict_inode(ei);
-		ei->pid = NULL;
-	}
-
-	/* Let go of any associated proc directory entry */
-	de = ei->pde;
-	if (de) {
-		pde_put(de);
-		ei->pde = NULL;
-	}
 
 	head = ei->sysctl;
 	if (head) {
@@ -80,6 +70,13 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 
 static void proc_free_inode(struct inode *inode)
 {
+	struct proc_inode *ei = PROC_I(inode);
+
+	if (ei->pid)
+		put_pid(ei->pid);
+	/* Let go of any associated proc directory entry */
+	if (ei->pde)
+		pde_put(ei->pde);
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
 }
 
@@ -95,7 +92,7 @@ void __init proc_init_kmemcache(void)
 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
 					     sizeof(struct proc_inode),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT|
+						SLAB_ACCOUNT|
 						SLAB_PANIC),
 					     init_once);
 	pde_opener_cache =
@@ -110,18 +107,15 @@ void __init proc_init_kmemcache(void)
 
 void proc_invalidate_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock)
 {
-	struct inode *inode;
-	struct proc_inode *ei;
 	struct hlist_node *node;
 	struct super_block *old_sb = NULL;
 
 	rcu_read_lock();
-	for (;;) {
+	while ((node = hlist_first_rcu(inodes))) {
+		struct proc_inode *ei = hlist_entry(node, struct proc_inode, sibling_inodes);
 		struct super_block *sb;
-		node = hlist_first_rcu(inodes);
-		if (!node)
-			break;
-		ei = hlist_entry(node, struct proc_inode, sibling_inodes);
+		struct inode *inode;
+
 		spin_lock(lock);
 		hlist_del_init_rcu(&ei->sibling_inodes);
 		spin_unlock(lock);
@@ -309,9 +303,7 @@ static ssize_t proc_reg_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 static ssize_t pde_read(struct proc_dir_entry *pde, struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	typeof_member(struct proc_ops, proc_read) read;
-
-	read = pde->proc_ops->proc_read;
+	__auto_type read = pde->proc_ops->proc_read;
 	if (read)
 		return read(file, buf, count, ppos);
 	return -EIO;
@@ -333,9 +325,7 @@ static ssize_t proc_reg_read(struct file *file, char __user *buf, size_t count, 
 
 static ssize_t pde_write(struct proc_dir_entry *pde, struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	typeof_member(struct proc_ops, proc_write) write;
-
-	write = pde->proc_ops->proc_write;
+	__auto_type write = pde->proc_ops->proc_write;
 	if (write)
 		return write(file, buf, count, ppos);
 	return -EIO;
@@ -357,9 +347,7 @@ static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t 
 
 static __poll_t pde_poll(struct proc_dir_entry *pde, struct file *file, struct poll_table_struct *pts)
 {
-	typeof_member(struct proc_ops, proc_poll) poll;
-
-	poll = pde->proc_ops->proc_poll;
+	__auto_type poll = pde->proc_ops->proc_poll;
 	if (poll)
 		return poll(file, pts);
 	return DEFAULT_POLLMASK;
@@ -381,9 +369,7 @@ static __poll_t proc_reg_poll(struct file *file, struct poll_table_struct *pts)
 
 static long pde_ioctl(struct proc_dir_entry *pde, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	typeof_member(struct proc_ops, proc_ioctl) ioctl;
-
-	ioctl = pde->proc_ops->proc_ioctl;
+	__auto_type ioctl = pde->proc_ops->proc_ioctl;
 	if (ioctl)
 		return ioctl(file, cmd, arg);
 	return -ENOTTY;
@@ -406,9 +392,7 @@ static long proc_reg_unlocked_ioctl(struct file *file, unsigned int cmd, unsigne
 #ifdef CONFIG_COMPAT
 static long pde_compat_ioctl(struct proc_dir_entry *pde, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	typeof_member(struct proc_ops, proc_compat_ioctl) compat_ioctl;
-
-	compat_ioctl = pde->proc_ops->proc_compat_ioctl;
+	__auto_type compat_ioctl = pde->proc_ops->proc_compat_ioctl;
 	if (compat_ioctl)
 		return compat_ioctl(file, cmd, arg);
 	return -ENOTTY;
@@ -430,9 +414,7 @@ static long proc_reg_compat_ioctl(struct file *file, unsigned int cmd, unsigned 
 
 static int pde_mmap(struct proc_dir_entry *pde, struct file *file, struct vm_area_struct *vma)
 {
-	typeof_member(struct proc_ops, proc_mmap) mmap;
-
-	mmap = pde->proc_ops->proc_mmap;
+	__auto_type mmap = pde->proc_ops->proc_mmap;
 	if (mmap)
 		return mmap(file, vma);
 	return -EIO;
@@ -457,15 +439,13 @@ pde_get_unmapped_area(struct proc_dir_entry *pde, struct file *file, unsigned lo
 			   unsigned long len, unsigned long pgoff,
 			   unsigned long flags)
 {
-	typeof_member(struct proc_ops, proc_get_unmapped_area) get_area;
+	if (pde->proc_ops->proc_get_unmapped_area)
+		return pde->proc_ops->proc_get_unmapped_area(file, orig_addr, len, pgoff, flags);
 
-	get_area = pde->proc_ops->proc_get_unmapped_area;
 #ifdef CONFIG_MMU
-	if (!get_area)
-		get_area = current->mm->get_unmapped_area;
+	return mm_get_unmapped_area(current->mm, file, orig_addr, len, pgoff, flags);
 #endif
-	if (get_area)
-		return get_area(file, orig_addr, len, pgoff, flags);
+
 	return orig_addr;
 }
 
@@ -491,7 +471,6 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	struct proc_dir_entry *pde = PDE(inode);
 	int rv = 0;
 	typeof_member(struct proc_ops, proc_open) open;
-	typeof_member(struct proc_ops, proc_release) release;
 	struct pde_opener *pdeo;
 
 	if (!pde->proc_ops->proc_lseek)
@@ -518,7 +497,7 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	if (!use_pde(pde))
 		return -ENOENT;
 
-	release = pde->proc_ops->proc_release;
+	__auto_type release = pde->proc_ops->proc_release;
 	if (release) {
 		pdeo = kmem_cache_alloc(pde_opener_cache, GFP_KERNEL);
 		if (!pdeo) {
@@ -555,9 +534,7 @@ static int proc_reg_release(struct inode *inode, struct file *file)
 	struct pde_opener *pdeo;
 
 	if (pde_is_permanent(pde)) {
-		typeof_member(struct proc_ops, proc_release) release;
-
-		release = pde->proc_ops->proc_release;
+		__auto_type release = pde->proc_ops->proc_release;
 		if (release) {
 			return release(inode, file);
 		}
@@ -660,7 +637,7 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 
 	inode->i_private = de->data;
 	inode->i_ino = de->low_ino;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	PROC_I(inode)->pde = de;
 	if (is_empty_pde(de)) {
 		make_empty_dir_inode(inode);

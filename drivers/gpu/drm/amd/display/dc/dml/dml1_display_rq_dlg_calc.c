@@ -39,7 +39,7 @@
 
 static unsigned int get_bytes_per_element(enum source_format_class source_format, bool is_chroma)
 {
-	unsigned int ret_val = 0;
+	unsigned int ret_val = 1;
 
 	if (source_format == dm_444_16) {
 		if (!is_chroma)
@@ -1595,11 +1595,6 @@ void dml1_rq_dlg_get_dlg_params(
 		swath_width_pixels_ub_l = swath_width_ub_l * 1;
 		swath_width_pixels_ub_c = swath_width_ub_c * 1;
 	}
-
-	hscale_pixel_rate_l = 0.;
-	hscale_pixel_rate_c = 0.;
-	min_hratio_fact_l = 1.0;
-	min_hratio_fact_c = 1.0;
 
 	if (htaps_l <= 1)
 		min_hratio_fact_l = 2.0;

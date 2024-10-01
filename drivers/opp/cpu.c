@@ -24,7 +24,7 @@
 /**
  * dev_pm_opp_init_cpufreq_table() - create a cpufreq table for a device
  * @dev:	device for which we do this operation
- * @table:	Cpufreq table returned back to caller
+ * @opp_table:	Cpufreq table returned back to caller
  *
  * Generate a cpufreq table for a provided device- this assumes that the
  * opp table is already initialized and ready for usage.
@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_init_cpufreq_table);
 /**
  * dev_pm_opp_free_cpufreq_table() - free the cpufreq table
  * @dev:	device for which we do this operation
- * @table:	table to free
+ * @opp_table:	table to free
  *
  * Free up the table allocated by dev_pm_opp_init_cpufreq_table
  */

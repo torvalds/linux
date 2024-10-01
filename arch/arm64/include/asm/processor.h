@@ -155,6 +155,8 @@ struct thread_struct {
 	struct {
 		unsigned long	tp_value;	/* TLS register */
 		unsigned long	tp2_value;
+		u64		fpmr;
+		unsigned long	pad;
 		struct user_fpsimd_state fpsimd_state;
 	} uw;
 
@@ -167,6 +169,9 @@ struct thread_struct {
 	unsigned long		fault_address;	/* fault info */
 	unsigned long		fault_code;	/* ESR_EL1 value */
 	struct debug_info	debug;		/* debugging */
+
+	struct user_fpsimd_state	kernel_fpsimd_state;
+	unsigned int			kernel_fpsimd_cpu;
 #ifdef CONFIG_ARM64_PTR_AUTH
 	struct ptrauth_keys_user	keys_user;
 #ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
@@ -179,6 +184,7 @@ struct thread_struct {
 	u64			sctlr_user;
 	u64			svcr;
 	u64			tpidr2_el0;
+	u64			por_el0;
 };
 
 static inline unsigned int thread_get_vl(struct thread_struct *thread,
@@ -250,6 +256,8 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 	BUILD_BUG_ON(sizeof_field(struct thread_struct, uw) !=
 		     sizeof_field(struct thread_struct, uw.tp_value) +
 		     sizeof_field(struct thread_struct, uw.tp2_value) +
+		     sizeof_field(struct thread_struct, uw.fpmr) +
+		     sizeof_field(struct thread_struct, uw.pad) +
 		     sizeof_field(struct thread_struct, uw.fpsimd_state));
 
 	*offset = offsetof(struct thread_struct, uw);
@@ -359,14 +367,6 @@ static inline void prefetchw(const void *ptr)
 	asm volatile("prfm pstl1keep, %a0\n" : : "p" (ptr));
 }
 
-#define ARCH_HAS_SPINLOCK_PREFETCH
-static inline void spin_lock_prefetch(const void *ptr)
-{
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-		     "prfm pstl1strm, %a0",
-		     "nop") : : "p" (ptr));
-}
-
 extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */
 extern void __init minsigstksz_setup(void);
 
@@ -402,6 +402,11 @@ long get_tagged_addr_ctrl(struct task_struct *task);
 #define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(current, arg)
 #define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl(current)
 #endif
+
+int get_tsc_mode(unsigned long adr);
+int set_tsc_mode(unsigned int val);
+#define GET_TSC_CTL(adr)        get_tsc_mode((adr))
+#define SET_TSC_CTL(val)        set_tsc_mode((val))
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */

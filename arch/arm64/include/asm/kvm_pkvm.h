@@ -56,10 +56,11 @@ static inline unsigned long hyp_vm_table_pages(void)
 
 static inline unsigned long __hyp_pgtable_max_pages(unsigned long nr_pages)
 {
-	unsigned long total = 0, i;
+	unsigned long total = 0;
+	int i;
 
 	/* Provision the worst case scenario */
-	for (i = 0; i < KVM_PGTABLE_MAX_LEVELS; i++) {
+	for (i = KVM_PGTABLE_FIRST_LEVEL; i <= KVM_PGTABLE_LAST_LEVEL; i++) {
 		nr_pages = DIV_ROUND_UP(nr_pages, PTRS_PER_PTE);
 		total += nr_pages;
 	}
@@ -125,6 +126,15 @@ static inline unsigned long hyp_ffa_proxy_pages(void)
 
 	/* Plus a page each for the hypervisor's RX and TX mailboxes. */
 	return (2 * KVM_FFA_MBOX_NR_PAGES) + DIV_ROUND_UP(desc_max, PAGE_SIZE);
+}
+
+static inline size_t pkvm_host_sve_state_size(void)
+{
+	if (!system_supports_sve())
+		return 0;
+
+	return size_add(sizeof(struct cpu_sve_state),
+			SVE_SIG_REGS_SIZE(sve_vq_from_vl(kvm_host_sve_max_vl)));
 }
 
 #endif	/* __ARM64_KVM_PKVM_H__ */

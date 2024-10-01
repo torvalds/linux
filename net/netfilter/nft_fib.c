@@ -14,19 +14,19 @@
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nft_fib.h>
 
-const struct nla_policy nft_fib_policy[NFTA_FIB_MAX + 1] = {
-	[NFTA_FIB_DREG]		= { .type = NLA_U32 },
-	[NFTA_FIB_RESULT]	= { .type = NLA_U32 },
-	[NFTA_FIB_FLAGS]	= { .type = NLA_U32 },
-};
-EXPORT_SYMBOL(nft_fib_policy);
-
 #define NFTA_FIB_F_ALL (NFTA_FIB_F_SADDR | NFTA_FIB_F_DADDR | \
 			NFTA_FIB_F_MARK | NFTA_FIB_F_IIF | NFTA_FIB_F_OIF | \
 			NFTA_FIB_F_PRESENT)
 
-int nft_fib_validate(const struct nft_ctx *ctx, const struct nft_expr *expr,
-		     const struct nft_data **data)
+const struct nla_policy nft_fib_policy[NFTA_FIB_MAX + 1] = {
+	[NFTA_FIB_DREG]		= { .type = NLA_U32 },
+	[NFTA_FIB_RESULT]	= { .type = NLA_U32 },
+	[NFTA_FIB_FLAGS]	=
+		NLA_POLICY_MASK(NLA_BE32, NFTA_FIB_F_ALL),
+};
+EXPORT_SYMBOL(nft_fib_policy);
+
+int nft_fib_validate(const struct nft_ctx *ctx, const struct nft_expr *expr)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
 	unsigned int hooks;
@@ -34,11 +34,9 @@ int nft_fib_validate(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	switch (priv->result) {
 	case NFT_FIB_RESULT_OIF:
 	case NFT_FIB_RESULT_OIFNAME:
-		hooks = (1 << NF_INET_PRE_ROUTING);
-		if (priv->flags & NFTA_FIB_F_IIF) {
-			hooks |= (1 << NF_INET_LOCAL_IN) |
-				 (1 << NF_INET_FORWARD);
-		}
+		hooks = (1 << NF_INET_PRE_ROUTING) |
+			(1 << NF_INET_LOCAL_IN) |
+			(1 << NF_INET_FORWARD);
 		break;
 	case NFT_FIB_RESULT_ADDRTYPE:
 		if (priv->flags & NFTA_FIB_F_IIF)
@@ -77,7 +75,7 @@ int nft_fib_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	priv->flags = ntohl(nla_get_be32(tb[NFTA_FIB_FLAGS]));
 
-	if (priv->flags == 0 || (priv->flags & ~NFTA_FIB_F_ALL))
+	if (priv->flags == 0)
 		return -EINVAL;
 
 	if ((priv->flags & (NFTA_FIB_F_SADDR | NFTA_FIB_F_DADDR)) ==
@@ -144,13 +142,17 @@ void nft_fib_store_result(void *reg, const struct nft_fib *priv,
 	switch (priv->result) {
 	case NFT_FIB_RESULT_OIF:
 		index = dev ? dev->ifindex : 0;
-		*dreg = (priv->flags & NFTA_FIB_F_PRESENT) ? !!index : index;
+		if (priv->flags & NFTA_FIB_F_PRESENT)
+			nft_reg_store8(dreg, !!index);
+		else
+			*dreg = index;
+
 		break;
 	case NFT_FIB_RESULT_OIFNAME:
 		if (priv->flags & NFTA_FIB_F_PRESENT)
-			*dreg = !!dev;
+			nft_reg_store8(dreg, !!dev);
 		else
-			strncpy(reg, dev ? dev->name : "", IFNAMSIZ);
+			strscpy_pad(reg, dev ? dev->name : "", IFNAMSIZ);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -203,4 +205,5 @@ bool nft_fib_reduce(struct nft_regs_track *track,
 EXPORT_SYMBOL_GPL(nft_fib_reduce);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Query routing table from nftables");
 MODULE_AUTHOR("Florian Westphal <fw@strlen.de>");

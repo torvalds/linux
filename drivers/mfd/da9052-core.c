@@ -533,7 +533,7 @@ const struct regmap_config da9052_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.max_register = DA9052_PAGE1_CON_REG,
 	.readable_reg = da9052_reg_readable,

@@ -71,7 +71,6 @@ config SND_SEQ_UMP
 	  among legacy and UMP clients.
 
 config SND_SEQ_UMP_CLIENT
-	tristate
 	def_tristate SND_UMP
 
 endif # SND_SEQUENCER

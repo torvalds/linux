@@ -9,7 +9,7 @@
 #include <dt-bindings/soc/qcom,apr.h>
 #include <dt-bindings/soc/qcom,gpr.h>
 
-extern struct bus_type aprbus;
+extern const struct bus_type aprbus;
 
 #define APR_HDR_LEN(hdr_len) ((hdr_len)/4)
 
@@ -162,7 +162,7 @@ struct apr_driver {
 };
 
 typedef struct apr_driver gpr_driver_t;
-#define to_apr_driver(d) container_of(d, struct apr_driver, driver)
+#define to_apr_driver(d) container_of_const(d, struct apr_driver, driver)
 
 /*
  * use a macro to avoid include chaining to get THIS_MODULE

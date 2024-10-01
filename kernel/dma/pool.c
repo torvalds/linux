@@ -70,9 +70,9 @@ static bool cma_in_zone(gfp_t gfp)
 	/* CMA can't cross zone boundaries, see cma_activate_area() */
 	end = cma_get_base(cma) + size - 1;
 	if (IS_ENABLED(CONFIG_ZONE_DMA) && (gfp & GFP_DMA))
-		return end <= DMA_BIT_MASK(zone_dma_bits);
+		return end <= zone_dma_limit;
 	if (IS_ENABLED(CONFIG_ZONE_DMA32) && (gfp & GFP_DMA32))
-		return end <= DMA_BIT_MASK(32);
+		return end <= max(DMA_BIT_MASK(32), zone_dma_limit);
 	return true;
 }
 
@@ -84,8 +84,8 @@ static int atomic_pool_expand(struct gen_pool *pool, size_t pool_size,
 	void *addr;
 	int ret = -ENOMEM;
 
-	/* Cannot allocate larger than MAX_ORDER */
-	order = min(get_order(pool_size), MAX_ORDER);
+	/* Cannot allocate larger than MAX_PAGE_ORDER */
+	order = min(get_order(pool_size), MAX_PAGE_ORDER);
 
 	do {
 		pool_size = 1 << (PAGE_SHIFT + order);
@@ -135,9 +135,9 @@ encrypt_mapping:
 remove_mapping:
 #ifdef CONFIG_DMA_DIRECT_REMAP
 	dma_common_free_remap(addr, pool_size);
-#endif
-free_page: __maybe_unused
+free_page:
 	__free_pages(page, order);
+#endif
 out:
 	return ret;
 }
@@ -190,7 +190,7 @@ static int __init dma_atomic_pool_init(void)
 
 	/*
 	 * If coherent_pool was not used on the command line, default the pool
-	 * sizes to 128KB per 1GB of memory, min 128KB, max MAX_ORDER.
+	 * sizes to 128KB per 1GB of memory, min 128KB, max MAX_PAGE_ORDER.
 	 */
 	if (!atomic_pool_size) {
 		unsigned long pages = totalram_pages() / (SZ_1G / SZ_128K);

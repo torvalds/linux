@@ -20,7 +20,9 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	chosen { };
+	chosen {
+		stdout-path = &v2m_serial0;
+	};
 
 	aliases {
 		serial0 = &v2m_serial0;
@@ -185,7 +187,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		oscclk0: extsaxiclk {
+		oscclk0: clock-controller-0 {
 			/* ACLK clock to the AXI master port on the test chip */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
@@ -194,7 +196,7 @@
 			clock-output-names = "extsaxiclk";
 		};
 
-		oscclk1: clcdclk {
+		oscclk1: clock-controller-1 {
 			/* Reference clock for the CLCD */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 1>;
@@ -203,7 +205,7 @@
 			clock-output-names = "clcdclk";
 		};
 
-		smbclk: oscclk2: tcrefclk {
+		smbclk: oscclk2: clock-controller-2 {
 			/* Reference clock for the test chip internal PLLs */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 2>;
@@ -212,7 +214,7 @@
 			clock-output-names = "tcrefclk";
 		};
 
-		volt-vd10 {
+		regulator-vd10 {
 			/* Test Chip internal logic voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;
@@ -221,7 +223,7 @@
 			label = "VD10";
 		};
 
-		volt-vd10-s2 {
+		regulator-vd10-s2 {
 			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 1>;
@@ -230,7 +232,7 @@
 			label = "VD10_S2";
 		};
 
-		volt-vd10-s3 {
+		regulator-vd10-s3 {
 			/* Cortex-A9 system supply, Cores, MPEs, SCU and PL310 logic */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 2>;
@@ -239,7 +241,7 @@
 			label = "VD10_S3";
 		};
 
-		volt-vcc1v8 {
+		regulator-vcc1v8 {
 			/* DDR2 SDRAM and Test Chip DDR2 I/O supply */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 3>;
@@ -248,7 +250,7 @@
 			label = "VCC1V8";
 		};
 
-		volt-ddr2vtt {
+		regulator-ddr2vtt {
 			/* DDR2 SDRAM VTT termination voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 4>;
@@ -257,7 +259,7 @@
 			label = "DDR2VTT";
 		};
 
-		volt-vcc3v3 {
+		regulator-vcc3v3 {
 			/* Local board supply for miscellaneous logic external to the Test Chip */
 			arm,vexpress-sysreg,func = <2 5>;
 			compatible = "arm,vexpress-volt";

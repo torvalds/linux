@@ -93,8 +93,6 @@ struct intel_gvt_gtt_gma_ops {
 struct intel_gvt_gtt {
 	const struct intel_gvt_gtt_pte_ops *pte_ops;
 	const struct intel_gvt_gtt_gma_ops *gma_ops;
-	int (*mm_alloc_page_table)(struct intel_vgpu_mm *mm);
-	void (*mm_free_page_table)(struct intel_vgpu_mm *mm);
 	struct list_head oos_page_use_list_head;
 	struct list_head oos_page_free_list_head;
 	struct mutex ppgtt_mm_lock;
@@ -210,7 +208,6 @@ struct intel_vgpu_scratch_pt {
 
 struct intel_vgpu_gtt {
 	struct intel_vgpu_mm *ggtt_mm;
-	unsigned long active_ppgtt_mm_bitmap;
 	struct list_head ppgtt_mm_list_head;
 	struct radix_tree_root spt_tree;
 	struct list_head oos_page_list_head;
@@ -224,7 +221,6 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu, bool invalidate_old);
 void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu);
 
 int intel_gvt_init_gtt(struct intel_gvt *gvt);
-void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu);
 void intel_gvt_clean_gtt(struct intel_gvt *gvt);
 
 struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,

@@ -38,7 +38,7 @@ Valid values for function properties are:
 	gpio, lpm-control-in, fps-out, 32k-out, sd0-dvs-in, sd1-dvs-in,
 	reference-out
 
-Theres is also customised properties for the GPIO1, GPIO2 and GPIO3. These
+There are also customised properties for the GPIO1, GPIO2 and GPIO3. These
 customised properties are required to configure FPS configuration parameters
 of these GPIOs. Please refer <devicetree/bindings/mfd/max77620.txt> for more
 detail of Flexible Power Sequence (FPS).

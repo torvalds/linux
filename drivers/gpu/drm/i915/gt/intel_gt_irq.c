@@ -31,7 +31,7 @@ static u32
 gen11_gt_engine_identity(struct intel_gt *gt,
 			 const unsigned int bank, const unsigned int bit)
 {
-	void __iomem * const regs = gt->uncore->regs;
+	void __iomem * const regs = intel_uncore_regs(gt->uncore);
 	u32 timeout_ts;
 	u32 ident;
 
@@ -68,9 +68,9 @@ gen11_other_irq_handler(struct intel_gt *gt, const u8 instance,
 	struct intel_gt *media_gt = gt->i915->media_gt;
 
 	if (instance == OTHER_GUC_INSTANCE)
-		return guc_irq_handler(&gt->uc.guc, iir);
+		return guc_irq_handler(gt_to_guc(gt), iir);
 	if (instance == OTHER_MEDIA_GUC_INSTANCE && media_gt)
-		return guc_irq_handler(&media_gt->uc.guc, iir);
+		return guc_irq_handler(gt_to_guc(media_gt), iir);
 
 	if (instance == OTHER_GTPM_INSTANCE)
 		return gen11_rps_irq_handler(&gt->rps, iir);
@@ -148,7 +148,7 @@ gen11_gt_identity_handler(struct intel_gt *gt, const u32 identity)
 static void
 gen11_gt_bank_handler(struct intel_gt *gt, const unsigned int bank)
 {
-	void __iomem * const regs = gt->uncore->regs;
+	void __iomem * const regs = intel_uncore_regs(gt->uncore);
 	unsigned long intr_dw;
 	unsigned int bit;
 
@@ -183,7 +183,7 @@ void gen11_gt_irq_handler(struct intel_gt *gt, const u32 master_ctl)
 bool gen11_gt_reset_one_iir(struct intel_gt *gt,
 			    const unsigned int bank, const unsigned int bit)
 {
-	void __iomem * const regs = gt->uncore->regs;
+	void __iomem * const regs = intel_uncore_regs(gt->uncore);
 	u32 dw;
 
 	lockdep_assert_held(gt->irq_lock);
@@ -404,7 +404,7 @@ void gen6_gt_irq_handler(struct intel_gt *gt, u32 gt_iir)
 
 void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl)
 {
-	void __iomem * const regs = gt->uncore->regs;
+	void __iomem * const regs = intel_uncore_regs(gt->uncore);
 	u32 iir;
 
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
@@ -442,7 +442,7 @@ void gen8_gt_irq_handler(struct intel_gt *gt, u32 master_ctl)
 		iir = raw_reg_read(regs, GEN8_GT_IIR(2));
 		if (likely(iir)) {
 			gen6_rps_irq_handler(&gt->rps, iir);
-			guc_irq_handler(&gt->uc.guc, iir >> 16);
+			guc_irq_handler(gt_to_guc(gt), iir >> 16);
 			raw_reg_write(regs, GEN8_GT_IIR(2), iir);
 		}
 	}

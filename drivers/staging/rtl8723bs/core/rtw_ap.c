@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <asm/unaligned.h>
 
 void init_mlme_ap_info(struct adapter *padapter)
@@ -277,7 +276,7 @@ void expire_timeout_chk(struct adapter *padapter)
 		/* switch to correct channel of current network  before issue keep-alive frames */
 		if (rtw_get_oper_ch(padapter) != pmlmeext->cur_channel) {
 			backup_oper_channel = rtw_get_oper_ch(padapter);
-			SelectChannel(padapter, pmlmeext->cur_channel);
+			r8723bs_select_channel(padapter, pmlmeext->cur_channel);
 		}
 
 		/* issue null data to check sta alive*/
@@ -315,7 +314,7 @@ void expire_timeout_chk(struct adapter *padapter)
 		}
 
 		if (backup_oper_channel > 0) /* back to the original operation channel */
-			SelectChannel(padapter, backup_oper_channel);
+			r8723bs_select_channel(padapter, backup_oper_channel);
 	}
 
 	associated_clients_update(padapter, updated);
@@ -1238,7 +1237,6 @@ void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	struct __queue	*pacl_node_q = &pacl_list->acl_node_q;
-	u8 baddr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };	/* Baddr is used for clearing acl_list */
 
 	spin_lock_bh(&(pacl_node_q->lock));
 
@@ -1248,7 +1246,7 @@ void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 
 		if (
 			!memcmp(paclnode->addr, addr, ETH_ALEN) ||
-			!memcmp(baddr, addr, ETH_ALEN)
+			is_broadcast_ether_addr(addr)
 		) {
 			if (paclnode->valid) {
 				paclnode->valid = false;

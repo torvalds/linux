@@ -1085,13 +1085,19 @@ static void delayed_work(struct work_struct *work)
 	struct ceph_mon_client *monc =
 		container_of(work, struct ceph_mon_client, delayed_work.work);
 
-	dout("monc delayed_work\n");
 	mutex_lock(&monc->mutex);
+	dout("%s mon%d\n", __func__, monc->cur_mon);
+	if (monc->cur_mon < 0) {
+		goto out;
+	}
+
 	if (monc->hunting) {
 		dout("%s continuing hunt\n", __func__);
 		reopen_session(monc);
 	} else {
 		int is_auth = ceph_auth_is_authenticated(monc->auth);
+
+		dout("%s is_authed %d\n", __func__, is_auth);
 		if (ceph_con_keepalive_expired(&monc->con,
 					       CEPH_MONC_PING_TIMEOUT)) {
 			dout("monc keepalive timeout\n");
@@ -1116,6 +1122,8 @@ static void delayed_work(struct work_struct *work)
 		}
 	}
 	__schedule_delayed(monc);
+
+out:
 	mutex_unlock(&monc->mutex);
 }
 
@@ -1136,6 +1144,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 			       GFP_KERNEL);
 	if (!monc->monmap)
 		return -ENOMEM;
+	monc->monmap->num_mon = num_mon;
 
 	for (i = 0; i < num_mon; i++) {
 		struct ceph_entity_inst *inst = &monc->monmap->mon_inst[i];
@@ -1147,7 +1156,6 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 		inst->name.type = CEPH_ENTITY_TYPE_MON;
 		inst->name.num = cpu_to_le64(i);
 	}
-	monc->monmap->num_mon = num_mon;
 	return 0;
 }
 
@@ -1232,12 +1240,14 @@ EXPORT_SYMBOL(ceph_monc_init);
 void ceph_monc_stop(struct ceph_mon_client *monc)
 {
 	dout("stop\n");
-	cancel_delayed_work_sync(&monc->delayed_work);
 
 	mutex_lock(&monc->mutex);
 	__close_session(monc);
+	monc->hunting = false;
 	monc->cur_mon = -1;
 	mutex_unlock(&monc->mutex);
+
+	cancel_delayed_work_sync(&monc->delayed_work);
 
 	/*
 	 * flush msgr queue before we destroy ourselves to ensure that:

@@ -13,9 +13,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
 #include <linux/thermal.h>
 
 #define HI6220_TEMP0_LAG			(0x0)
@@ -388,15 +388,10 @@ static int hi6220_thermal_probe(struct hisi_thermal_data *data)
 {
 	struct platform_device *pdev = data->pdev;
 	struct device *dev = &pdev->dev;
-	int ret;
 
 	data->clk = devm_clk_get(dev, "thermal_clk");
-	if (IS_ERR(data->clk)) {
-		ret = PTR_ERR(data->clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get thermal clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(data->clk))
+		return dev_err_probe(dev, PTR_ERR(data->clk), "failed to get thermal clk\n");
 
 	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor), GFP_KERNEL);
 	if (!data->sensor)
@@ -470,11 +465,22 @@ static irqreturn_t hisi_thermal_alarm_irq_thread(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int hisi_trip_walk_cb(struct thermal_trip *trip, void *arg)
+{
+	struct hisi_thermal_sensor *sensor = arg;
+
+	if (trip->type != THERMAL_TRIP_PASSIVE)
+		return 0;
+
+	sensor->thres_temp = trip->temperature;
+	/* Return nonzero to terminate the search. */
+	return 1;
+}
+
 static int hisi_thermal_register_sensor(struct platform_device *pdev,
 					struct hisi_thermal_sensor *sensor)
 {
-	int ret, i;
-	struct thermal_trip trip;
+	int ret;
 
 	sensor->tzd = devm_thermal_of_zone_register(&pdev->dev,
 						    sensor->id, sensor,
@@ -487,15 +493,7 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 		return ret;
 	}
 
-	for (i = 0; i < thermal_zone_get_num_trips(sensor->tzd); i++) {
-
-		thermal_zone_get_trip(sensor->tzd, i, &trip);
-
-		if (trip.type == THERMAL_TRIP_PASSIVE) {
-			sensor->thres_temp = trip.temperature;
-			break;
-		}
-	}
+	thermal_zone_for_each_trip(sensor->tzd, hisi_trip_walk_cb, sensor);
 
 	return 0;
 }
@@ -597,7 +595,7 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hisi_thermal_remove(struct platform_device *pdev)
+static void hisi_thermal_remove(struct platform_device *pdev)
 {
 	struct hisi_thermal_data *data = platform_get_drvdata(pdev);
 	int i;
@@ -608,8 +606,6 @@ static int hisi_thermal_remove(struct platform_device *pdev)
 		hisi_thermal_toggle_sensor(sensor, false);
 		data->ops->disable_sensor(sensor);
 	}
-
-	return 0;
 }
 
 static int hisi_thermal_suspend(struct device *dev)
@@ -644,7 +640,7 @@ static struct platform_driver hisi_thermal_driver = {
 		.of_match_table = of_hisi_thermal_match,
 	},
 	.probe	= hisi_thermal_probe,
-	.remove	= hisi_thermal_remove,
+	.remove_new = hisi_thermal_remove,
 };
 
 module_platform_driver(hisi_thermal_driver);

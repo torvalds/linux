@@ -573,165 +573,37 @@ int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 	return 0;
 }
 
-static int dwmac5_est_write(void __iomem *ioaddr, u32 reg, u32 val, bool gcl)
-{
-	u32 ctrl;
-
-	writel(val, ioaddr + MTL_EST_GCL_DATA);
-
-	ctrl = (reg << ADDR_SHIFT);
-	ctrl |= gcl ? 0 : GCRR;
-
-	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
-
-	ctrl |= SRWO;
-	writel(ctrl, ioaddr + MTL_EST_GCL_CONTROL);
-
-	return readl_poll_timeout(ioaddr + MTL_EST_GCL_CONTROL,
-				  ctrl, !(ctrl & SRWO), 100, 5000);
-}
-
-int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
-			 unsigned int ptp_rate)
-{
-	int i, ret = 0x0;
-	u32 ctrl;
-
-	ret |= dwmac5_est_write(ioaddr, BTR_LOW, cfg->btr[0], false);
-	ret |= dwmac5_est_write(ioaddr, BTR_HIGH, cfg->btr[1], false);
-	ret |= dwmac5_est_write(ioaddr, TER, cfg->ter, false);
-	ret |= dwmac5_est_write(ioaddr, LLR, cfg->gcl_size, false);
-	ret |= dwmac5_est_write(ioaddr, CTR_LOW, cfg->ctr[0], false);
-	ret |= dwmac5_est_write(ioaddr, CTR_HIGH, cfg->ctr[1], false);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < cfg->gcl_size; i++) {
-		ret = dwmac5_est_write(ioaddr, i, cfg->gcl[i], true);
-		if (ret)
-			return ret;
-	}
-
-	ctrl = readl(ioaddr + MTL_EST_CONTROL);
-	ctrl &= ~PTOV;
-	ctrl |= ((1000000000 / ptp_rate) * 6) << PTOV_SHIFT;
-	if (cfg->enable)
-		ctrl |= EEST | SSWL;
-	else
-		ctrl &= ~EEST;
-
-	writel(ctrl, ioaddr + MTL_EST_CONTROL);
-
-	/* Configure EST interrupt */
-	if (cfg->enable)
-		ctrl = (IECGCE | IEHS | IEHF | IEBE | IECC);
-	else
-		ctrl = 0;
-
-	writel(ctrl, ioaddr + MTL_EST_INT_EN);
-
-	return 0;
-}
-
-void dwmac5_est_irq_status(void __iomem *ioaddr, struct net_device *dev,
-			  struct stmmac_extra_stats *x, u32 txqcnt)
-{
-	u32 status, value, feqn, hbfq, hbfs, btrl;
-	u32 txqcnt_mask = (1 << txqcnt) - 1;
-
-	status = readl(ioaddr + MTL_EST_STATUS);
-
-	value = (CGCE | HLBS | HLBF | BTRE | SWLC);
-
-	/* Return if there is no error */
-	if (!(status & value))
-		return;
-
-	if (status & CGCE) {
-		/* Clear Interrupt */
-		writel(CGCE, ioaddr + MTL_EST_STATUS);
-
-		x->mtl_est_cgce++;
-	}
-
-	if (status & HLBS) {
-		value = readl(ioaddr + MTL_EST_SCH_ERR);
-		value &= txqcnt_mask;
-
-		x->mtl_est_hlbs++;
-
-		/* Clear Interrupt */
-		writel(value, ioaddr + MTL_EST_SCH_ERR);
-
-		/* Collecting info to shows all the queues that has HLBS
-		 * issue. The only way to clear this is to clear the
-		 * statistic
-		 */
-		if (net_ratelimit())
-			netdev_err(dev, "EST: HLB(sched) Queue 0x%x\n", value);
-	}
-
-	if (status & HLBF) {
-		value = readl(ioaddr + MTL_EST_FRM_SZ_ERR);
-		feqn = value & txqcnt_mask;
-
-		value = readl(ioaddr + MTL_EST_FRM_SZ_CAP);
-		hbfq = (value & SZ_CAP_HBFQ_MASK(txqcnt)) >> SZ_CAP_HBFQ_SHIFT;
-		hbfs = value & SZ_CAP_HBFS_MASK;
-
-		x->mtl_est_hlbf++;
-
-		/* Clear Interrupt */
-		writel(feqn, ioaddr + MTL_EST_FRM_SZ_ERR);
-
-		if (net_ratelimit())
-			netdev_err(dev, "EST: HLB(size) Queue %u Size %u\n",
-				   hbfq, hbfs);
-	}
-
-	if (status & BTRE) {
-		if ((status & BTRL) == BTRL_MAX)
-			x->mtl_est_btrlm++;
-		else
-			x->mtl_est_btre++;
-
-		btrl = (status & BTRL) >> BTRL_SHIFT;
-
-		if (net_ratelimit())
-			netdev_info(dev, "EST: BTR Error Loop Count %u\n",
-				    btrl);
-
-		writel(BTRE, ioaddr + MTL_EST_STATUS);
-	}
-
-	if (status & SWLC) {
-		writel(SWLC, ioaddr + MTL_EST_STATUS);
-		netdev_info(dev, "EST: SWOL has been switched\n");
-	}
-}
-
-void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
-			  bool enable)
+void dwmac5_fpe_configure(void __iomem *ioaddr, struct stmmac_fpe_cfg *cfg,
+			  u32 num_txq, u32 num_rxq,
+			  bool tx_enable, bool pmac_enable)
 {
 	u32 value;
 
-	if (!enable) {
-		value = readl(ioaddr + MAC_FPE_CTRL_STS);
+	if (tx_enable) {
+		cfg->fpe_csr = EFPE;
+		value = readl(ioaddr + GMAC_RXQ_CTRL1);
+		value &= ~GMAC_RXQCTRL_FPRQ;
+		value |= (num_rxq - 1) << GMAC_RXQCTRL_FPRQ_SHIFT;
+		writel(value, ioaddr + GMAC_RXQ_CTRL1);
+	} else {
+		cfg->fpe_csr = 0;
+	}
+	writel(cfg->fpe_csr, ioaddr + MAC_FPE_CTRL_STS);
 
-		value &= ~EFPE;
+	value = readl(ioaddr + GMAC_INT_EN);
 
-		writel(value, ioaddr + MAC_FPE_CTRL_STS);
-		return;
+	if (pmac_enable) {
+		if (!(value & GMAC_INT_FPE_EN)) {
+			/* Dummy read to clear any pending masked interrupts */
+			readl(ioaddr + MAC_FPE_CTRL_STS);
+
+			value |= GMAC_INT_FPE_EN;
+		}
+	} else {
+		value &= ~GMAC_INT_FPE_EN;
 	}
 
-	value = readl(ioaddr + GMAC_RXQ_CTRL1);
-	value &= ~GMAC_RXQCTRL_FPRQ;
-	value |= (num_rxq - 1) << GMAC_RXQCTRL_FPRQ_SHIFT;
-	writel(value, ioaddr + GMAC_RXQ_CTRL1);
-
-	value = readl(ioaddr + MAC_FPE_CTRL_STS);
-	value |= EFPE;
-	writel(value, ioaddr + MAC_FPE_CTRL_STS);
+	writel(value, ioaddr + GMAC_INT_EN);
 }
 
 int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev)
@@ -741,44 +613,112 @@ int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev)
 
 	status = FPE_EVENT_UNKNOWN;
 
+	/* Reads from the MAC_FPE_CTRL_STS register should only be performed
+	 * here, since the status flags of MAC_FPE_CTRL_STS are "clear on read"
+	 */
 	value = readl(ioaddr + MAC_FPE_CTRL_STS);
 
 	if (value & TRSP) {
 		status |= FPE_EVENT_TRSP;
-		netdev_info(dev, "FPE: Respond mPacket is transmitted\n");
+		netdev_dbg(dev, "FPE: Respond mPacket is transmitted\n");
 	}
 
 	if (value & TVER) {
 		status |= FPE_EVENT_TVER;
-		netdev_info(dev, "FPE: Verify mPacket is transmitted\n");
+		netdev_dbg(dev, "FPE: Verify mPacket is transmitted\n");
 	}
 
 	if (value & RRSP) {
 		status |= FPE_EVENT_RRSP;
-		netdev_info(dev, "FPE: Respond mPacket is received\n");
+		netdev_dbg(dev, "FPE: Respond mPacket is received\n");
 	}
 
 	if (value & RVER) {
 		status |= FPE_EVENT_RVER;
-		netdev_info(dev, "FPE: Verify mPacket is received\n");
+		netdev_dbg(dev, "FPE: Verify mPacket is received\n");
 	}
 
 	return status;
 }
 
-void dwmac5_fpe_send_mpacket(void __iomem *ioaddr, enum stmmac_mpacket_type type)
+void dwmac5_fpe_send_mpacket(void __iomem *ioaddr, struct stmmac_fpe_cfg *cfg,
+			     enum stmmac_mpacket_type type)
+{
+	u32 value = cfg->fpe_csr;
+
+	if (type == MPACKET_VERIFY)
+		value |= SVER;
+	else if (type == MPACKET_RESPONSE)
+		value |= SRSP;
+
+	writel(value, ioaddr + MAC_FPE_CTRL_STS);
+}
+
+int dwmac5_fpe_get_add_frag_size(const void __iomem *ioaddr)
+{
+	return FIELD_GET(DWMAC5_ADD_FRAG_SZ, readl(ioaddr + MTL_FPE_CTRL_STS));
+}
+
+void dwmac5_fpe_set_add_frag_size(void __iomem *ioaddr, u32 add_frag_size)
 {
 	u32 value;
 
-	value = readl(ioaddr + MAC_FPE_CTRL_STS);
+	value = readl(ioaddr + MTL_FPE_CTRL_STS);
+	writel(u32_replace_bits(value, add_frag_size, DWMAC5_ADD_FRAG_SZ),
+	       ioaddr + MTL_FPE_CTRL_STS);
+}
 
-	if (type == MPACKET_VERIFY) {
-		value &= ~SRSP;
-		value |= SVER;
-	} else {
-		value &= ~SVER;
-		value |= SRSP;
+#define ALG_ERR_MSG "TX algorithm SP is not suitable for one-to-many mapping"
+#define WEIGHT_ERR_MSG "TXQ weight %u differs across other TXQs in TC: [%u]"
+
+int dwmac5_fpe_map_preemption_class(struct net_device *ndev,
+				    struct netlink_ext_ack *extack, u32 pclass)
+{
+	u32 val, offset, count, queue_weight, preemptible_txqs = 0;
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	u32 num_tc = ndev->num_tc;
+
+	if (!pclass)
+		goto update_mapping;
+
+	/* DWMAC CORE4+ can not program TC:TXQ mapping to hardware.
+	 *
+	 * Synopsys Databook:
+	 * "The number of Tx DMA channels is equal to the number of Tx queues,
+	 * and is direct one-to-one mapping."
+	 */
+	for (u32 tc = 0; tc < num_tc; tc++) {
+		count = ndev->tc_to_txq[tc].count;
+		offset = ndev->tc_to_txq[tc].offset;
+
+		if (pclass & BIT(tc))
+			preemptible_txqs |= GENMASK(offset + count - 1, offset);
+
+		/* This is 1:1 mapping, go to next TC */
+		if (count == 1)
+			continue;
+
+		if (priv->plat->tx_sched_algorithm == MTL_TX_ALGORITHM_SP) {
+			NL_SET_ERR_MSG_MOD(extack, ALG_ERR_MSG);
+			return -EINVAL;
+		}
+
+		queue_weight = priv->plat->tx_queues_cfg[offset].weight;
+
+		for (u32 i = 1; i < count; i++) {
+			if (priv->plat->tx_queues_cfg[offset + i].weight !=
+			    queue_weight) {
+				NL_SET_ERR_MSG_FMT_MOD(extack, WEIGHT_ERR_MSG,
+						       queue_weight, tc);
+				return -EINVAL;
+			}
+		}
 	}
 
-	writel(value, ioaddr + MAC_FPE_CTRL_STS);
+update_mapping:
+	val = readl(priv->ioaddr + MTL_FPE_CTRL_STS);
+	writel(u32_replace_bits(val, preemptible_txqs, DWMAC5_PREEMPTION_CLASS),
+	       priv->ioaddr + MTL_FPE_CTRL_STS);
+
+	return 0;
 }

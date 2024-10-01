@@ -138,11 +138,10 @@ associated with the source address of the indirect branch. Specifically,
 the BHB might be shared across privilege levels even in the presence of
 Enhanced IBRS.
 
-Currently the only known real-world BHB attack vector is via
-unprivileged eBPF. Therefore, it's highly recommended to not enable
-unprivileged eBPF, especially when eIBRS is used (without retpolines).
-For a full mitigation against BHB attacks, it's recommended to use
-retpolines (or eIBRS combined with retpolines).
+Previously the only known real-world BHB attack vector was via unprivileged
+eBPF. Further research has found attacks that don't require unprivileged eBPF.
+For a full mitigation against BHB attacks it is recommended to set BHI_DIS_S or
+use the BHB clearing sequence.
 
 Attack scenarios
 ----------------
@@ -430,6 +429,23 @@ The possible values in this file are:
   'PBRSB-eIBRS: Not affected'  CPU is not affected by PBRSB
   ===========================  =======================================================
 
+  - Branch History Injection (BHI) protection status:
+
+.. list-table::
+
+ * - BHI: Not affected
+   - System is not affected
+ * - BHI: Retpoline
+   - System is protected by retpoline
+ * - BHI: BHI_DIS_S
+   - System is protected by BHI_DIS_S
+ * - BHI: SW loop, KVM SW loop
+   - System is protected by software clearing sequence
+ * - BHI: Vulnerable
+   - System is vulnerable to BHI
+ * - BHI: Vulnerable, KVM: SW loop
+   - System is vulnerable; KVM is protected by software clearing sequence
+
 Full mitigation might require a microcode update from the CPU
 vendor. When the necessary microcode is not available, the kernel will
 report vulnerability.
@@ -473,8 +489,8 @@ Spectre variant 2
    -mindirect-branch=thunk-extern -mindirect-branch-register options.
    If the kernel is compiled with a Clang compiler, the compiler needs
    to support -mretpoline-external-thunk option.  The kernel config
-   CONFIG_RETPOLINE needs to be turned on, and the CPU needs to run with
-   the latest updated microcode.
+   CONFIG_MITIGATION_RETPOLINE needs to be turned on, and the CPU needs
+   to run with the latest updated microcode.
 
    On Intel Skylake-era systems the mitigation covers most, but not all,
    cases. See :ref:`[3] <spec_ref3>` for more details.
@@ -484,11 +500,18 @@ Spectre variant 2
 
    Systems which support enhanced IBRS (eIBRS) enable IBRS protection once at
    boot, by setting the IBRS bit, and they're automatically protected against
-   Spectre v2 variant attacks, including cross-thread branch target injections
-   on SMT systems (STIBP). In other words, eIBRS enables STIBP too.
+   some Spectre v2 variant attacks. The BHB can still influence the choice of
+   indirect branch predictor entry, and although branch predictor entries are
+   isolated between modes when eIBRS is enabled, the BHB itself is not isolated
+   between modes. Systems which support BHI_DIS_S will set it to protect against
+   BHI attacks.
 
-   Legacy IBRS systems clear the IBRS bit on exit to userspace and
-   therefore explicitly enable STIBP for that
+   On Intel's enhanced IBRS systems, this includes cross-thread branch target
+   injections on SMT systems (STIBP). In other words, Intel eIBRS enables
+   STIBP, too.
+
+   AMD Automatic IBRS does not protect userspace, and Legacy IBRS systems clear
+   the IBRS bit on exit to userspace, therefore both explicitly enable STIBP.
 
    The retpoline mitigation is turned on by default on vulnerable
    CPUs. It can be forced on or off by the administrator
@@ -569,73 +592,19 @@ Spectre variant 2
 Mitigation control on the kernel command line
 ---------------------------------------------
 
-Spectre variant 2 mitigation can be disabled or force enabled at the
-kernel command line.
+In general the kernel selects reasonable default mitigations for the
+current CPU.
 
-	nospectre_v1
+Spectre default mitigations can be disabled or changed at the kernel
+command line with the following options:
 
-		[X86,PPC] Disable mitigations for Spectre Variant 1
-		(bounds check bypass). With this option data leaks are
-		possible in the system.
+	- nospectre_v1
+	- nospectre_v2
+	- spectre_v2={option}
+	- spectre_v2_user={option}
+	- spectre_bhi={option}
 
-	nospectre_v2
-
-		[X86] Disable all mitigations for the Spectre variant 2
-		(indirect branch prediction) vulnerability. System may
-		allow data leaks with this option, which is equivalent
-		to spectre_v2=off.
-
-
-        spectre_v2=
-
-		[X86] Control mitigation of Spectre variant 2
-		(indirect branch speculation) vulnerability.
-		The default operation protects the kernel from
-		user space attacks.
-
-		on
-			unconditionally enable, implies
-			spectre_v2_user=on
-		off
-			unconditionally disable, implies
-		        spectre_v2_user=off
-		auto
-			kernel detects whether your CPU model is
-		        vulnerable
-
-		Selecting 'on' will, and 'auto' may, choose a
-		mitigation method at run time according to the
-		CPU, the available microcode, the setting of the
-		CONFIG_RETPOLINE configuration option, and the
-		compiler with which the kernel was built.
-
-		Selecting 'on' will also enable the mitigation
-		against user space to user space task attacks.
-
-		Selecting 'off' will disable both the kernel and
-		the user space protections.
-
-		Specific mitigations can also be selected manually:
-
-                retpoline               auto pick between generic,lfence
-                retpoline,generic       Retpolines
-                retpoline,lfence        LFENCE; indirect branch
-                retpoline,amd           alias for retpoline,lfence
-                eibrs                   Enhanced/Auto IBRS
-                eibrs,retpoline         Enhanced/Auto IBRS + Retpolines
-                eibrs,lfence            Enhanced/Auto IBRS + LFENCE
-                ibrs                    use IBRS to protect kernel
-
-		Not specifying this option is equivalent to
-		spectre_v2=auto.
-
-		In general the kernel by default selects
-		reasonable mitigations for the current CPU. To
-		disable Spectre variant 2 mitigations, boot with
-		spectre_v2=off. Spectre variant 1 mitigations
-		cannot be disabled.
-
-For spectre_v2_user see Documentation/admin-guide/kernel-parameters.txt
+For more details on the available options, refer to Documentation/admin-guide/kernel-parameters.txt
 
 Mitigation selection guide
 --------------------------

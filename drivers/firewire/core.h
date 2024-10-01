@@ -7,7 +7,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/list.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/mm_types.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
@@ -115,8 +115,8 @@ struct fw_card_driver {
 
 void fw_card_initialize(struct fw_card *card,
 		const struct fw_card_driver *driver, struct device *device);
-int fw_card_add(struct fw_card *card,
-		u32 max_receive, u32 link_speed, u64 guid);
+int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
+		unsigned int supported_isoc_contexts);
 void fw_core_remove_card(struct fw_card *card);
 int fw_compute_block_crc(__be32 *block);
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
@@ -133,7 +133,7 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p);
 /* -device */
 
 extern struct rw_semaphore fw_device_rwsem;
-extern struct idr fw_device_idr;
+extern struct xarray fw_device_xa;
 extern int fw_cdev_major;
 
 static inline struct fw_device *fw_device_get(struct fw_device *device)
@@ -159,6 +159,11 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count);
 int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
 			  enum dma_data_direction direction);
 
+static inline void fw_iso_context_init_work(struct fw_iso_context *ctx, work_func_t func)
+{
+	INIT_WORK(&ctx->work, func);
+}
+
 
 /* -topology */
 
@@ -183,7 +188,8 @@ struct fw_node {
 			 * local node to this node. */
 	u8 max_depth:4;	/* Maximum depth to any leaf node */
 	u8 max_hops:4;	/* Max hops in this sub tree */
-	refcount_t ref_count;
+
+	struct kref kref;
 
 	/* For serializing node topology into a list. */
 	struct list_head link;
@@ -191,20 +197,26 @@ struct fw_node {
 	/* Upper layer specific data. */
 	void *data;
 
-	struct fw_node *ports[];
+	struct fw_node *ports[] __counted_by(port_count);
 };
 
 static inline struct fw_node *fw_node_get(struct fw_node *node)
 {
-	refcount_inc(&node->ref_count);
+	kref_get(&node->kref);
 
 	return node;
 }
 
+static void release_node(struct kref *kref)
+{
+	struct fw_node *node = container_of(kref, struct fw_node, kref);
+
+	kfree(node);
+}
+
 static inline void fw_node_put(struct fw_node *node)
 {
-	if (refcount_dec_and_test(&node->ref_count))
-		kfree(node);
+	kref_put(&node->kref, release_node);
 }
 
 void fw_core_handle_bus_reset(struct fw_card *card, int node_id,
@@ -225,13 +237,20 @@ static inline bool is_next_generation(int new_generation, int old_generation)
 
 #define TCODE_LINK_INTERNAL		0xe
 
-#define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
-#define TCODE_IS_BLOCK_PACKET(tcode)	(((tcode) &  1) != 0)
-#define TCODE_IS_LINK_INTERNAL(tcode)	((tcode) == TCODE_LINK_INTERNAL)
-#define TCODE_IS_REQUEST(tcode)		(((tcode) &  2) == 0)
-#define TCODE_IS_RESPONSE(tcode)	(((tcode) &  2) != 0)
-#define TCODE_HAS_REQUEST_DATA(tcode)	(((tcode) & 12) != 4)
-#define TCODE_HAS_RESPONSE_DATA(tcode)	(((tcode) & 12) != 0)
+static inline bool tcode_is_read_request(unsigned int tcode)
+{
+	return (tcode & ~1u) == 4u;
+}
+
+static inline bool tcode_is_block_packet(unsigned int tcode)
+{
+	return (tcode & 1u) != 0u;
+}
+
+static inline bool tcode_is_link_internal(unsigned int tcode)
+{
+	return (tcode == TCODE_LINK_INTERNAL);
+}
 
 #define LOCAL_BUS 0xffc0
 

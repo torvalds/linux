@@ -1037,8 +1037,7 @@ bnad_cb_ccb_destroy(struct bnad *bnad, struct bna_ccb *ccb)
 static void
 bnad_cb_tx_stall(struct bnad *bnad, struct bna_tx *tx)
 {
-	struct bnad_tx_info *tx_info =
-			(struct bnad_tx_info *)tx->priv;
+	struct bnad_tx_info *tx_info = tx->priv;
 	struct bna_tcb *tcb;
 	u32 txq_id;
 	int i;
@@ -1056,7 +1055,7 @@ bnad_cb_tx_stall(struct bnad *bnad, struct bna_tx *tx)
 static void
 bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
 {
-	struct bnad_tx_info *tx_info = (struct bnad_tx_info *)tx->priv;
+	struct bnad_tx_info *tx_info = tx->priv;
 	struct bna_tcb *tcb;
 	u32 txq_id;
 	int i;
@@ -1092,10 +1091,10 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
  * Free all TxQs buffers and then notify TX_E_CLEANUP_DONE to Tx fsm.
  */
 static void
-bnad_tx_cleanup(struct delayed_work *work)
+bnad_tx_cleanup(struct work_struct *work)
 {
 	struct bnad_tx_info *tx_info =
-		container_of(work, struct bnad_tx_info, tx_cleanup_work);
+		container_of(work, struct bnad_tx_info, tx_cleanup_work.work);
 	struct bnad *bnad = NULL;
 	struct bna_tcb *tcb;
 	unsigned long flags;
@@ -1133,7 +1132,7 @@ bnad_tx_cleanup(struct delayed_work *work)
 static void
 bnad_cb_tx_cleanup(struct bnad *bnad, struct bna_tx *tx)
 {
-	struct bnad_tx_info *tx_info = (struct bnad_tx_info *)tx->priv;
+	struct bnad_tx_info *tx_info = tx->priv;
 	struct bna_tcb *tcb;
 	int i;
 
@@ -1149,7 +1148,7 @@ bnad_cb_tx_cleanup(struct bnad *bnad, struct bna_tx *tx)
 static void
 bnad_cb_rx_stall(struct bnad *bnad, struct bna_rx *rx)
 {
-	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
+	struct bnad_rx_info *rx_info = rx->priv;
 	struct bna_ccb *ccb;
 	struct bnad_rx_ctrl *rx_ctrl;
 	int i;
@@ -1171,7 +1170,7 @@ bnad_cb_rx_stall(struct bnad *bnad, struct bna_rx *rx)
  * Free all RxQs buffers and then notify RX_E_CLEANUP_DONE to Rx fsm.
  */
 static void
-bnad_rx_cleanup(void *work)
+bnad_rx_cleanup(struct work_struct *work)
 {
 	struct bnad_rx_info *rx_info =
 		container_of(work, struct bnad_rx_info, rx_cleanup_work);
@@ -1208,7 +1207,7 @@ bnad_rx_cleanup(void *work)
 static void
 bnad_cb_rx_cleanup(struct bnad *bnad, struct bna_rx *rx)
 {
-	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
+	struct bnad_rx_info *rx_info = rx->priv;
 	struct bna_ccb *ccb;
 	struct bnad_rx_ctrl *rx_ctrl;
 	int i;
@@ -1231,7 +1230,7 @@ bnad_cb_rx_cleanup(struct bnad *bnad, struct bna_rx *rx)
 static void
 bnad_cb_rx_post(struct bnad *bnad, struct bna_rx *rx)
 {
-	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
+	struct bnad_rx_info *rx_info = rx->priv;
 	struct bna_ccb *ccb;
 	struct bna_rcb *rcb;
 	struct bnad_rx_ctrl *rx_ctrl;
@@ -1535,8 +1534,9 @@ bnad_tx_msix_register(struct bnad *bnad, struct bnad_tx_info *tx_info,
 
 	for (i = 0; i < num_txqs; i++) {
 		vector_num = tx_info->tcb[i]->intr_vector;
-		sprintf(tx_info->tcb[i]->name, "%s TXQ %d", bnad->netdev->name,
-				tx_id + tx_info->tcb[i]->id);
+		snprintf(tx_info->tcb[i]->name, BNA_Q_NAME_SIZE, "%s TXQ %d",
+			 bnad->netdev->name,
+			 tx_id + tx_info->tcb[i]->id);
 		err = request_irq(bnad->msix_table[vector_num].vector,
 				  (irq_handler_t)bnad_msix_tx, 0,
 				  tx_info->tcb[i]->name,
@@ -1586,9 +1586,9 @@ bnad_rx_msix_register(struct bnad *bnad, struct bnad_rx_info *rx_info,
 
 	for (i = 0; i < num_rxps; i++) {
 		vector_num = rx_info->rx_ctrl[i].ccb->intr_vector;
-		sprintf(rx_info->rx_ctrl[i].ccb->name, "%s CQ %d",
-			bnad->netdev->name,
-			rx_id + rx_info->rx_ctrl[i].ccb->id);
+		snprintf(rx_info->rx_ctrl[i].ccb->name, BNA_Q_NAME_SIZE,
+			 "%s CQ %d", bnad->netdev->name,
+			 rx_id + rx_info->rx_ctrl[i].ccb->id);
 		err = request_irq(bnad->msix_table[vector_num].vector,
 				  (irq_handler_t)bnad_msix_rx, 0,
 				  rx_info->rx_ctrl[i].ccb->name,
@@ -1992,8 +1992,7 @@ bnad_setup_tx(struct bnad *bnad, u32 tx_id)
 	}
 	tx_info->tx = tx;
 
-	INIT_DELAYED_WORK(&tx_info->tx_cleanup_work,
-			(work_func_t)bnad_tx_cleanup);
+	INIT_DELAYED_WORK(&tx_info->tx_cleanup_work, bnad_tx_cleanup);
 
 	/* Register ISR for the Tx object */
 	if (intr_info->intr_type == BNA_INTR_T_MSIX) {
@@ -2249,8 +2248,7 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 	rx_info->rx = rx;
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
-	INIT_WORK(&rx_info->rx_cleanup_work,
-			(work_func_t)(bnad_rx_cleanup));
+	INIT_WORK(&rx_info->rx_cleanup_work, bnad_rx_cleanup);
 
 	/*
 	 * Init NAPI, so that state is set to NAPI_STATE_SCHED,
@@ -3279,7 +3277,7 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 	mutex_lock(&bnad->conf_mutex);
 
 	mtu = netdev->mtu;
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	frame = BNAD_FRAME_SIZE(mtu);
 	new_frame = BNAD_FRAME_SIZE(new_mtu);

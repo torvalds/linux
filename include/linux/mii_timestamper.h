@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
+#include <linux/net_tstamp.h>
 
 struct phy_device;
 
@@ -51,13 +52,14 @@ struct mii_timestamper {
 			 struct sk_buff *skb, int type);
 
 	int  (*hwtstamp)(struct mii_timestamper *mii_ts,
-			 struct ifreq *ifreq);
+			 struct kernel_hwtstamp_config *kernel_config,
+			 struct netlink_ext_ack *extack);
 
 	void (*link_state)(struct mii_timestamper *mii_ts,
 			   struct phy_device *phydev);
 
 	int  (*ts_info)(struct mii_timestamper *mii_ts,
-			struct ethtool_ts_info *ts_info);
+			struct kernel_ethtool_ts_info *ts_info);
 
 	struct device *device;
 };

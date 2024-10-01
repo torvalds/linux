@@ -146,6 +146,7 @@ pull.  The git request-pull command can be helpful in this regard; it will
 format the request as other developers expect, and will also check to be
 sure that you have remembered to push those changes to the public server.
 
+.. _development_advancedtopics_reviews:
 
 Reviewing patches
 -----------------
@@ -167,6 +168,12 @@ comments as questions rather than criticisms.  Asking "how does the lock
 get released in this path?" will always work better than stating "the
 locking here is wrong."
 
+Another technique that is useful in case of a disagreement is to ask for others
+to chime in. If a discussion reaches a stalemate after a few exchanges,
+then call for opinions of other reviewers or maintainers. Often those in
+agreement with a reviewer remain silent unless called upon.
+The opinion of multiple people carries exponentially more weight.
+
 Different developers will review code from different points of view.  Some
 are mostly concerned with coding style and whether code lines have trailing
 white space.  Others will focus primarily on whether the change implemented
@@ -176,3 +183,14 @@ security issues, duplication of code found elsewhere, adequate
 documentation, adverse effects on performance, user-space ABI changes, etc.
 All types of review, if they lead to better code going into the kernel, are
 welcome and worthwhile.
+
+There is no strict requirement to use specific tags like ``Reviewed-by``.
+In fact reviews in plain English are more informative and encouraged
+even when a tag is provided, e.g. "I looked at aspects A, B and C of this
+submission and it looks good to me."
+Some form of a review message or reply is obviously necessary otherwise
+maintainers will not know that the reviewer has looked at the patch at all!
+
+Last but not least patch review may become a negative process, focused
+on pointing out problems. Please throw in a compliment once in a while,
+particularly for newbies!

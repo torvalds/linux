@@ -171,7 +171,7 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_find_get);
 struct nf_conntrack_expect *
 nf_ct_find_expectation(struct net *net,
 		       const struct nf_conntrack_zone *zone,
-		       const struct nf_conntrack_tuple *tuple)
+		       const struct nf_conntrack_tuple *tuple, bool unlink)
 {
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	struct nf_conntrack_expect *i, *exp = NULL;
@@ -211,7 +211,7 @@ nf_ct_find_expectation(struct net *net,
 		     !refcount_inc_not_zero(&exp->master->ct_general.use)))
 		return NULL;
 
-	if (exp->flags & NF_CT_EXPECT_PERMANENT) {
+	if (exp->flags & NF_CT_EXPECT_PERMANENT || !unlink) {
 		refcount_inc(&exp->use);
 		return exp;
 	} else if (del_timer(&exp->timeout)) {
@@ -722,9 +722,7 @@ int nf_conntrack_expect_init(void)
 			nf_ct_expect_hsize = 1;
 	}
 	nf_ct_expect_max = nf_ct_expect_hsize * 4;
-	nf_ct_expect_cachep = kmem_cache_create("nf_conntrack_expect",
-				sizeof(struct nf_conntrack_expect),
-				0, 0, NULL);
+	nf_ct_expect_cachep = KMEM_CACHE(nf_conntrack_expect, 0);
 	if (!nf_ct_expect_cachep)
 		return -ENOMEM;
 

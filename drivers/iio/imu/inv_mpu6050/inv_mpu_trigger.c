@@ -4,6 +4,10 @@
 */
 
 #include <linux/pm_runtime.h>
+
+#include <linux/iio/common/inv_sensors_timestamp.h>
+#include <linux/iio/events.h>
+
 #include "inv_mpu_iio.h"
 
 static unsigned int inv_scan_query_mpu6050(struct iio_dev *indio_dev)
@@ -106,7 +110,9 @@ int inv_mpu6050_prepare_fifo(struct inv_mpu6050_state *st, bool enable)
 	int ret;
 
 	if (enable) {
-		st->it_timestamp = 0;
+		/* reset timestamping */
+		inv_sensors_timestamp_reset(&st->timestamp);
+		inv_sensors_timestamp_apply_odr(&st->timestamp, 0, 0, 0);
 		/* reset FIFO */
 		d = st->chip_config.user_ctrl | INV_MPU6050_BIT_FIFO_RST;
 		ret = regmap_write(st->map, st->reg->user_ctrl, d);
@@ -130,11 +136,13 @@ int inv_mpu6050_prepare_fifo(struct inv_mpu6050_state *st, bool enable)
 		ret = regmap_write(st->map, st->reg->user_ctrl, d);
 		if (ret)
 			return ret;
-		/* enable interrupt */
-		ret = regmap_write(st->map, st->reg->int_enable,
-				   INV_MPU6050_BIT_DATA_RDY_EN);
+		/* enable data interrupt */
+		ret = regmap_update_bits(st->map, st->reg->int_enable,
+				INV_MPU6050_BIT_DATA_RDY_EN, INV_MPU6050_BIT_DATA_RDY_EN);
 	} else {
-		ret = regmap_write(st->map, st->reg->int_enable, 0);
+		/* disable data interrupt */
+		ret = regmap_update_bits(st->map, st->reg->int_enable,
+				INV_MPU6050_BIT_DATA_RDY_EN, 0);
 		if (ret)
 			return ret;
 		ret = regmap_write(st->map, st->reg->fifo_en, 0);
@@ -167,9 +175,9 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 			return result;
 		/*
 		 * In case autosuspend didn't trigger, turn off first not
-		 * required sensors.
+		 * required sensors excepted WoM
 		 */
-		result = inv_mpu6050_switch_engine(st, false, ~scan);
+		result = inv_mpu6050_switch_engine(st, false, ~scan & ~INV_MPU6050_SENSOR_WOM);
 		if (result)
 			goto error_power_off;
 		result = inv_mpu6050_switch_engine(st, true, scan);
@@ -180,6 +188,10 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			goto error_power_off;
 	} else {
+		st->chip_config.gyro_fifo_enable = 0;
+		st->chip_config.accl_fifo_enable = 0;
+		st->chip_config.temp_fifo_enable = 0;
+		st->chip_config.magn_fifo_enable = 0;
 		result = inv_mpu6050_prepare_fifo(st, false);
 		if (result)
 			goto error_power_off;
@@ -217,6 +229,74 @@ static const struct iio_trigger_ops inv_mpu_trigger_ops = {
 	.set_trigger_state = &inv_mpu_data_rdy_trigger_set_state,
 };
 
+static irqreturn_t inv_mpu6050_interrupt_timestamp(int irq, void *p)
+{
+	struct iio_dev *indio_dev = p;
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+
+	st->it_timestamp = iio_get_time_ns(indio_dev);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t inv_mpu6050_interrupt_handle(int irq, void *p)
+{
+	struct iio_dev *indio_dev = p;
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	unsigned int int_status, wom_bits;
+	u64 ev_code;
+	int result;
+
+	switch (st->chip_type) {
+	case INV_MPU6000:
+	case INV_MPU6050:
+	case INV_MPU9150:
+		/*
+		 * WoM is not supported and interrupt status read seems to be broken for
+		 * some chips. Since data ready is the only interrupt, bypass interrupt
+		 * status read and always assert data ready bit.
+		 */
+		wom_bits = 0;
+		int_status = INV_MPU6050_BIT_RAW_DATA_RDY_INT;
+		goto data_ready_interrupt;
+	case INV_MPU6500:
+	case INV_MPU6515:
+	case INV_MPU6880:
+	case INV_MPU9250:
+	case INV_MPU9255:
+		wom_bits = INV_MPU6500_BIT_WOM_INT;
+		break;
+	default:
+		wom_bits = INV_ICM20608_BIT_WOM_INT;
+		break;
+	}
+
+	scoped_guard(mutex, &st->lock) {
+		/* ack interrupt and check status */
+		result = regmap_read(st->map, st->reg->int_status, &int_status);
+		if (result) {
+			dev_err(regmap_get_device(st->map), "failed to ack interrupt\n");
+			return IRQ_HANDLED;
+		}
+
+		/* handle WoM event */
+		if (st->chip_config.wom_en && (int_status & wom_bits)) {
+			ev_code = IIO_MOD_EVENT_CODE(IIO_ACCEL, 0, IIO_MOD_X_OR_Y_OR_Z,
+						     IIO_EV_TYPE_ROC, IIO_EV_DIR_RISING);
+			iio_push_event(indio_dev, ev_code, st->it_timestamp);
+		}
+	}
+
+data_ready_interrupt:
+	/* handle raw data interrupt */
+	if (int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT) {
+		indio_dev->pollfunc->timestamp = st->it_timestamp;
+		iio_trigger_poll_nested(st->trig);
+	}
+
+	return IRQ_HANDLED;
+}
+
 int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 {
 	int ret;
@@ -229,11 +309,11 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 	if (!st->trig)
 		return -ENOMEM;
 
-	ret = devm_request_irq(&indio_dev->dev, st->irq,
-			       &iio_trigger_generic_data_rdy_poll,
-			       irq_type,
-			       "inv_mpu",
-			       st->trig);
+	irq_type |= IRQF_ONESHOT;
+	ret = devm_request_threaded_irq(&indio_dev->dev, st->irq,
+					&inv_mpu6050_interrupt_timestamp,
+					&inv_mpu6050_interrupt_handle,
+					irq_type, "inv_mpu", indio_dev);
 	if (ret)
 		return ret;
 

@@ -452,14 +452,7 @@ struct adapter {
 #define DF_RX_BIT		BIT1
 #define DF_IO_BIT		BIT2
 
-/* define RTW_DISABLE_FUNC(padapter, func) (atomic_add(&adapter_to_dvobj(padapter)->disable_func, (func))) */
 /* define RTW_ENABLE_FUNC(padapter, func) (atomic_sub(&adapter_to_dvobj(padapter)->disable_func, (func))) */
-static inline void RTW_DISABLE_FUNC(struct adapter *padapter, int func_bit)
-{
-	int	df = atomic_read(&adapter_to_dvobj(padapter)->disable_func);
-	df |= func_bit;
-	atomic_set(&adapter_to_dvobj(padapter)->disable_func, df);
-}
 
 static inline void RTW_ENABLE_FUNC(struct adapter *padapter, int func_bit)
 {
@@ -490,7 +483,6 @@ static inline u8 *myid(struct eeprom_priv *peepriv)
 }
 
 /*  HCI Related header file */
-#include <sdio_osintf.h>
 #include <sdio_ops.h>
 #include <sdio_hal.h>
 

@@ -995,8 +995,7 @@ __et8ek8_get_pad_format(struct et8ek8_sensor *sensor,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&sensor->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &sensor->format;
 	default:
@@ -1047,9 +1046,17 @@ static int et8ek8_set_pad_format(struct v4l2_subdev *subdev,
 }
 
 static int et8ek8_get_frame_interval(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct et8ek8_sensor *sensor = to_et8ek8_sensor(subdev);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	memset(fi, 0, sizeof(*fi));
 	fi->interval = sensor->current_reglist->mode.timeperframe;
@@ -1058,10 +1065,18 @@ static int et8ek8_get_frame_interval(struct v4l2_subdev *subdev,
 }
 
 static int et8ek8_set_frame_interval(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct et8ek8_sensor *sensor = to_et8ek8_sensor(subdev);
 	struct et8ek8_reglist *reglist;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	reglist = et8ek8_reglist_find_mode_ival(&meta_reglist,
 						sensor->current_reglist,
@@ -1343,8 +1358,6 @@ static int et8ek8_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static const struct v4l2_subdev_video_ops et8ek8_video_ops = {
 	.s_stream = et8ek8_s_stream,
-	.g_frame_interval = et8ek8_get_frame_interval,
-	.s_frame_interval = et8ek8_set_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops et8ek8_core_ops = {
@@ -1357,6 +1370,8 @@ static const struct v4l2_subdev_pad_ops et8ek8_pad_ops = {
 	.enum_frame_interval = et8ek8_enum_frame_ival,
 	.get_fmt = et8ek8_get_pad_format,
 	.set_fmt = et8ek8_set_pad_format,
+	.get_frame_interval = et8ek8_get_frame_interval,
+	.set_frame_interval = et8ek8_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops et8ek8_ops = {
@@ -1460,7 +1475,7 @@ err_mutex:
 	return ret;
 }
 
-static void __exit et8ek8_remove(struct i2c_client *client)
+static void et8ek8_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct et8ek8_sensor *sensor = to_et8ek8_sensor(subdev);
@@ -1486,7 +1501,7 @@ static const struct of_device_id et8ek8_of_table[] = {
 MODULE_DEVICE_TABLE(of, et8ek8_of_table);
 
 static const struct i2c_device_id et8ek8_id_table[] = {
-	{ ET8EK8_NAME, 0 },
+	{ ET8EK8_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, et8ek8_id_table);
@@ -1502,7 +1517,7 @@ static struct i2c_driver et8ek8_i2c_driver = {
 		.of_match_table	= et8ek8_of_table,
 	},
 	.probe		= et8ek8_probe,
-	.remove		= __exit_p(et8ek8_remove),
+	.remove		= et8ek8_remove,
 	.id_table	= et8ek8_id_table,
 };
 

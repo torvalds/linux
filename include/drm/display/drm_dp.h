@@ -148,6 +148,7 @@
 #define DP_RECEIVE_PORT_0_CAP_0		    0x008
 # define DP_LOCAL_EDID_PRESENT		    (1 << 1)
 # define DP_ASSOCIATED_TO_PRECEDING_PORT    (1 << 2)
+# define DP_HBLANK_EXPANSION_CAPABLE        (1 << 3)
 
 #define DP_RECEIVE_PORT_0_BUFFER_SIZE	    0x009
 
@@ -231,6 +232,8 @@
 
 #define DP_RECEIVER_ALPM_CAP		    0x02e   /* eDP 1.4 */
 # define DP_ALPM_CAP			    (1 << 0)
+# define DP_ALPM_PM_STATE_2A_SUPPORT	    (1 << 1) /* eDP 1.5 */
+# define DP_ALPM_AUX_LESS_CAP		    (1 << 2) /* eDP 1.5 */
 
 #define DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP   0x02f   /* eDP 1.4 */
 # define DP_AUX_FRAME_SYNC_CAP		    (1 << 0)
@@ -543,6 +546,17 @@
 /* DFP Capability Extension */
 #define DP_DFP_CAPABILITY_EXTENSION_SUPPORT	0x0a3	/* 2.0 */
 
+#define DP_PANEL_REPLAY_CAP				0x0b0  /* DP 2.0 */
+# define DP_PANEL_REPLAY_SUPPORT			(1 << 0)
+# define DP_PANEL_REPLAY_SU_SUPPORT			(1 << 1)
+# define DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT	(1 << 2) /* eDP 1.5 */
+
+#define DP_PANEL_PANEL_REPLAY_CAPABILITY		0xb1
+# define DP_PANEL_PANEL_REPLAY_SU_GRANULARITY_REQUIRED	(1 << 5)
+
+#define DP_PANEL_PANEL_REPLAY_X_GRANULARITY		0xb2
+#define DP_PANEL_PANEL_REPLAY_Y_GRANULARITY		0xb4
+
 /* Link Configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
@@ -646,6 +660,9 @@
 # define DP_LINK_QUAL_PATTERN_PRSBS31       0x38
 # define DP_LINK_QUAL_PATTERN_CUSTOM        0x40
 # define DP_LINK_QUAL_PATTERN_SQUARE        0x48
+# define DP_LINK_QUAL_PATTERN_SQUARE_PRESHOOT_DISABLED                   0x49
+# define DP_LINK_QUAL_PATTERN_SQUARE_DEEMPHASIS_DISABLED                 0x4a
+# define DP_LINK_QUAL_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED        0x4b
 
 #define DP_TRAINING_LANE0_1_SET2	    0x10f
 #define DP_TRAINING_LANE2_3_SET2	    0x110
@@ -669,7 +686,8 @@
 
 #define DP_RECEIVER_ALPM_CONFIG		    0x116   /* eDP 1.4 */
 # define DP_ALPM_ENABLE			    (1 << 0)
-# define DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE  (1 << 1)
+# define DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE  (1 << 1) /* eDP 1.5 */
+# define DP_ALPM_MODE_AUX_LESS		    (1 << 2) /* eDP 1.5 */
 
 #define DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF  0x117   /* eDP 1.4 */
 # define DP_AUX_FRAME_SYNC_ENABLE	    (1 << 0)
@@ -699,6 +717,7 @@
 
 #define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
 # define DP_DECOMPRESSION_EN                (1 << 0)
+# define DP_DSC_PASSTHROUGH_EN		    (1 << 1)
 #define DP_DSC_CONFIGURATION				0x161	/* DP 2.0 */
 
 #define DP_PSR_EN_CFG				0x170   /* XXX 1.2? */
@@ -709,12 +728,30 @@
 # define DP_PSR_SU_REGION_SCANLINE_CAPTURE	BIT(4) /* eDP 1.4a */
 # define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS		BIT(5) /* eDP 1.4a */
 # define DP_PSR_ENABLE_PSR2			BIT(6) /* eDP 1.4a */
+# define DP_PSR_ENABLE_SU_REGION_ET             BIT(7) /* eDP 1.5 */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
 
 #define DP_BRANCH_DEVICE_CTRL		    0x1a1
 # define DP_BRANCH_DEVICE_IRQ_HPD	    (1 << 0)
+
+#define PANEL_REPLAY_CONFIG                             0x1b0  /* DP 2.0 */
+# define DP_PANEL_REPLAY_ENABLE                         (1 << 0)
+# define DP_PANEL_REPLAY_VSC_SDP_CRC_EN                 (1 << 1) /* eDP 1.5 */
+# define DP_PANEL_REPLAY_UNRECOVERABLE_ERROR_EN         (1 << 3)
+# define DP_PANEL_REPLAY_RFB_STORAGE_ERROR_EN           (1 << 4)
+# define DP_PANEL_REPLAY_ACTIVE_FRAME_CRC_ERROR_EN      (1 << 5)
+# define DP_PANEL_REPLAY_SU_ENABLE                      (1 << 6)
+# define DP_PANEL_REPLAY_ENABLE_SU_REGION_ET            (1 << 7) /* DP 2.1 */
+
+#define PANEL_REPLAY_CONFIG2                                     0x1b1 /* eDP 1.5 */
+# define DP_PANEL_REPLAY_SINK_REFRESH_RATE_UNLOCK_GRANTED	 (1 << 0)
+# define DP_PANEL_REPLAY_CRC_VERIFICATION			 (1 << 1)
+# define DP_PANEL_REPLAY_SU_Y_GRANULARITY_EXTENDED_EN		 (1 << 2)
+# define DP_PANEL_REPLAY_SU_Y_GRANULARITY_EXTENDED_VAL_SEL_SHIFT 3
+# define DP_PANEL_REPLAY_SU_Y_GRANULARITY_EXTENDED_VAL_SEL_MASK  (0xf << 3)
+# define DP_PANEL_REPLAY_SU_REGION_SCANLINE_CAPTURE		 (1 << 7)
 
 #define DP_PAYLOAD_ALLOCATE_SET		    0x1c0
 #define DP_PAYLOAD_ALLOCATE_START_TIME_SLOT 0x1c1
@@ -1064,6 +1101,7 @@
 # define STREAM_STATUS_CHANGED               (1 << 2)
 # define HDMI_LINK_STATUS_CHANGED            (1 << 3)
 # define CONNECTED_OFF_ENTRY_REQUESTED       (1 << 4)
+# define DP_TUNNELING_IRQ                    (1 << 5)
 
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)
@@ -1105,6 +1143,18 @@
 #define DP_LANE_ALIGN_STATUS_UPDATED_ESI       0x200e /* status same as 0x204 */
 #define DP_SINK_STATUS_ESI                     0x200f /* status same as 0x205 */
 
+#define DP_PANEL_REPLAY_ERROR_STATUS                   0x2020  /* DP 2.1*/
+# define DP_PANEL_REPLAY_LINK_CRC_ERROR                (1 << 0)
+# define DP_PANEL_REPLAY_RFB_STORAGE_ERROR             (1 << 1)
+# define DP_PANEL_REPLAY_VSC_SDP_UNCORRECTABLE_ERROR   (1 << 2)
+
+#define DP_SINK_DEVICE_PR_AND_FRAME_LOCK_STATUS        0x2022  /* DP 2.1 */
+# define DP_SINK_DEVICE_PANEL_REPLAY_STATUS_MASK       (7 << 0)
+# define DP_SINK_FRAME_LOCKED_SHIFT                    3
+# define DP_SINK_FRAME_LOCKED_MASK                     (3 << 3)
+# define DP_SINK_FRAME_LOCKED_STATUS_VALID_SHIFT       5
+# define DP_SINK_FRAME_LOCKED_STATUS_VALID_MASK        (1 << 5)
+
 /* Extended Receiver Capability: See DP_DPCD_REV for definitions */
 #define DP_DP13_DPCD_REV                    0x2200
 
@@ -1120,6 +1170,8 @@
 
 #define DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1         0x2214 /* 2.0 E11 */
 # define DP_ADAPTIVE_SYNC_SDP_SUPPORTED    (1 << 0)
+# define DP_ADAPTIVE_SYNC_SDP_OPERATION_MODE		GENMASK(1, 0)
+# define DP_ADAPTIVE_SYNC_SDP_LENGTH				GENMASK(5, 0)
 # define DP_AS_SDP_FIRST_HALF_LINE_OR_3840_PIXEL_CYCLE_WINDOW_NOT_SUPPORTED (1 << 1)
 # define DP_VSC_EXT_SDP_FRAMEWORK_VERSION_1_SUPPORTED  (1 << 4)
 
@@ -1353,6 +1405,66 @@
 #define DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET	0x69494
 #define DP_HDCP_2_2_REG_DBG_OFFSET		0x69518
 
+/* DP-tunneling */
+#define DP_TUNNELING_OUI				0xe0000
+#define  DP_TUNNELING_OUI_BYTES				3
+
+#define DP_TUNNELING_DEV_ID				0xe0003
+#define  DP_TUNNELING_DEV_ID_BYTES			6
+
+#define DP_TUNNELING_HW_REV				0xe0009
+#define  DP_TUNNELING_HW_REV_MAJOR_SHIFT		4
+#define  DP_TUNNELING_HW_REV_MAJOR_MASK			(0xf << DP_TUNNELING_HW_REV_MAJOR_SHIFT)
+#define  DP_TUNNELING_HW_REV_MINOR_SHIFT		0
+#define  DP_TUNNELING_HW_REV_MINOR_MASK			(0xf << DP_TUNNELING_HW_REV_MINOR_SHIFT)
+
+#define DP_TUNNELING_SW_REV_MAJOR			0xe000a
+#define DP_TUNNELING_SW_REV_MINOR			0xe000b
+
+#define DP_TUNNELING_CAPABILITIES			0xe000d
+#define  DP_IN_BW_ALLOCATION_MODE_SUPPORT		(1 << 7)
+#define  DP_PANEL_REPLAY_OPTIMIZATION_SUPPORT		(1 << 6)
+#define  DP_TUNNELING_SUPPORT				(1 << 0)
+
+#define DP_IN_ADAPTER_INFO				0xe000e
+#define  DP_IN_ADAPTER_NUMBER_BITS			7
+#define  DP_IN_ADAPTER_NUMBER_MASK			((1 << DP_IN_ADAPTER_NUMBER_BITS) - 1)
+
+#define DP_USB4_DRIVER_ID				0xe000f
+#define  DP_USB4_DRIVER_ID_BITS				4
+#define  DP_USB4_DRIVER_ID_MASK				((1 << DP_USB4_DRIVER_ID_BITS) - 1)
+
+#define DP_USB4_DRIVER_BW_CAPABILITY			0xe0020
+#define  DP_USB4_DRIVER_BW_ALLOCATION_MODE_SUPPORT	(1 << 7)
+
+#define DP_IN_ADAPTER_TUNNEL_INFORMATION		0xe0021
+#define  DP_GROUP_ID_BITS				3
+#define  DP_GROUP_ID_MASK				((1 << DP_GROUP_ID_BITS) - 1)
+
+#define DP_BW_GRANULARITY				0xe0022
+#define  DP_BW_GRANULARITY_MASK				0x3
+
+#define DP_ESTIMATED_BW					0xe0023
+#define DP_ALLOCATED_BW					0xe0024
+
+#define DP_TUNNELING_STATUS				0xe0025
+#define  DP_BW_ALLOCATION_CAPABILITY_CHANGED		(1 << 3)
+#define  DP_ESTIMATED_BW_CHANGED			(1 << 2)
+#define  DP_BW_REQUEST_SUCCEEDED			(1 << 1)
+#define  DP_BW_REQUEST_FAILED				(1 << 0)
+
+#define DP_TUNNELING_MAX_LINK_RATE			0xe0028
+
+#define DP_TUNNELING_MAX_LANE_COUNT			0xe0029
+#define  DP_TUNNELING_MAX_LANE_COUNT_MASK		0x1f
+
+#define DP_DPTX_BW_ALLOCATION_MODE_CONTROL		0xe0030
+#define  DP_DISPLAY_DRIVER_BW_ALLOCATION_MODE_ENABLE	(1 << 7)
+#define  DP_UNMASK_BW_ALLOCATION_IRQ			(1 << 6)
+
+#define DP_REQUEST_BW					0xe0031
+#define  MAX_DP_REQUEST_BW				255
+
 /* LTTPR: Link Training (LT)-tunable PHY Repeaters */
 #define DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV 0xf0000 /* 1.3 */
 #define DP_MAX_LINK_RATE_PHY_REPEATER			    0xf0001 /* 1.4a */
@@ -1430,6 +1542,10 @@ enum drm_dp_phy {
 #define DP_SYMBOL_ERROR_COUNT_LANE1_PHY_REPEATER1	    0xf0037 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE2_PHY_REPEATER1	    0xf0039 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE3_PHY_REPEATER1	    0xf003b /* 1.3 */
+
+#define DP_OUI_PHY_REPEATER1				    0xf003d /* 1.3 */
+#define DP_OUI_PHY_REPEATER(dp_phy) \
+	DP_LTTPR_REG(dp_phy, DP_OUI_PHY_REPEATER1)
 
 #define __DP_FEC1_BASE					    0xf0290 /* 1.4 */
 #define __DP_FEC2_BASE					    0xf0298 /* 1.4 */
@@ -1537,7 +1653,7 @@ enum drm_dp_phy {
 
 #define DP_BRANCH_OUI_HEADER_SIZE	0xc
 #define DP_RECEIVER_CAP_SIZE		0xf
-#define DP_DSC_RECEIVER_CAP_SIZE        0xf
+#define DP_DSC_RECEIVER_CAP_SIZE        0x10 /* DSC Capabilities 0x60 through 0x6F */
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 #define EDP_DISPLAY_CTL_CAP_SIZE	3
 #define DP_LTTPR_COMMON_CAP_SIZE	8
@@ -1549,10 +1665,12 @@ enum drm_dp_phy {
 #define DP_SDP_AUDIO_COPYMANAGEMENT	0x05 /* DP 1.2 */
 #define DP_SDP_ISRC			0x06 /* DP 1.2 */
 #define DP_SDP_VSC			0x07 /* DP 1.2 */
+#define DP_SDP_ADAPTIVE_SYNC		0x22 /* DP 1.4 */
 #define DP_SDP_CAMERA_GENERIC(i)	(0x08 + (i)) /* 0-7, DP 1.3 */
 #define DP_SDP_PPS			0x10 /* DP 1.4 */
 #define DP_SDP_VSC_EXT_VESA		0x20 /* DP 1.4 */
 #define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
+
 /* 0x80+ CEA-861 infoframe types */
 
 #define DP_SDP_AUDIO_INFOFRAME_HB2	0x1b
@@ -1706,6 +1824,13 @@ enum dp_content_type {
 	DP_CONTENT_TYPE_PHOTO = 0x02,
 	DP_CONTENT_TYPE_VIDEO = 0x03,
 	DP_CONTENT_TYPE_GAME = 0x04,
+};
+
+enum operation_mode {
+	DP_AS_SDP_AVT_DYNAMIC_VTOTAL = 0x00,
+	DP_AS_SDP_AVT_FIXED_VTOTAL = 0x01,
+	DP_AS_SDP_FAVT_TRR_NOT_REACHED = 0x02,
+	DP_AS_SDP_FAVT_TRR_REACHED = 0x03
 };
 
 #endif /* _DRM_DP_H_ */

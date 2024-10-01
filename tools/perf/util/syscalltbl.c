@@ -18,6 +18,10 @@
 #include <asm/syscalls_64.c>
 const int syscalltbl_native_max_id = SYSCALLTBL_x86_64_MAX_ID;
 static const char *const *syscalltbl_native = syscalltbl_x86_64;
+#elif defined(__i386__)
+#include <asm/syscalls_32.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_x86_MAX_ID;
+static const char *const *syscalltbl_native = syscalltbl_x86;
 #elif defined(__s390x__)
 #include <asm/syscalls_64.c>
 const int syscalltbl_native_max_id = SYSCALLTBL_S390_64_MAX_ID;
@@ -121,6 +125,13 @@ int syscalltbl__id(struct syscalltbl *tbl, const char *name)
 				     syscallcmpname);
 
 	return sc ? sc->id : -1;
+}
+
+int syscalltbl__id_at_idx(struct syscalltbl *tbl, int idx)
+{
+	struct syscall *syscalls = tbl->syscalls.entries;
+
+	return idx < tbl->syscalls.nr_entries ? syscalls[idx].id : -1;
 }
 
 int syscalltbl__strglobmatch_next(struct syscalltbl *tbl, const char *syscall_glob, int *idx)

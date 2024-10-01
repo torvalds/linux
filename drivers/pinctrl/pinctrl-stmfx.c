@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
@@ -369,14 +370,14 @@ static void stmfx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		return;
 
 	if (dir == GPIO_LINE_DIRECTION_OUT) {
-		seq_printf(s, "output %s ", val ? "high" : "low");
+		seq_printf(s, "output %s ", str_high_low(val));
 		if (type)
 			seq_printf(s, "open drain %s internal pull-up ",
 				   pupd ? "with" : "without");
 		else
 			seq_puts(s, "push pull no pull ");
 	} else {
-		seq_printf(s, "input %s ", val ? "high" : "low");
+		seq_printf(s, "input %s ", str_high_low(val));
 		if (type)
 			seq_printf(s, "with internal pull-%s ",
 				   pupd ? "up" : "down");
@@ -659,8 +660,8 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return -ENXIO;
+	if (irq < 0)
+		return irq;
 
 	mutex_init(&pctl->lock);
 
@@ -734,14 +735,18 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int stmfx_pinctrl_remove(struct platform_device *pdev)
+static void stmfx_pinctrl_remove(struct platform_device *pdev)
 {
 	struct stmfx *stmfx = dev_get_drvdata(pdev->dev.parent);
+	int ret;
 
-	return stmfx_function_disable(stmfx,
-				      STMFX_FUNC_GPIO |
-				      STMFX_FUNC_ALTGPIO_LOW |
-				      STMFX_FUNC_ALTGPIO_HIGH);
+	ret = stmfx_function_disable(stmfx,
+				     STMFX_FUNC_GPIO |
+				     STMFX_FUNC_ALTGPIO_LOW |
+				     STMFX_FUNC_ALTGPIO_HIGH);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to disable pins (%pe)\n",
+			ERR_PTR(ret));
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -850,7 +855,7 @@ static struct platform_driver stmfx_pinctrl_driver = {
 		.pm = &stmfx_pinctrl_dev_pm_ops,
 	},
 	.probe = stmfx_pinctrl_probe,
-	.remove = stmfx_pinctrl_remove,
+	.remove_new = stmfx_pinctrl_remove,
 };
 module_platform_driver(stmfx_pinctrl_driver);
 

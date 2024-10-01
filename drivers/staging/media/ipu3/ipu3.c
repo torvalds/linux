@@ -13,6 +13,7 @@
 #include <linux/pm_runtime.h>
 
 #include "ipu3.h"
+#include "ipu3-css-fw.h"
 #include "ipu3-dmamap.h"
 #include "ipu3-mmu.h"
 
@@ -762,7 +763,6 @@ static int __maybe_unused imgu_suspend(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct imgu_device *imgu = pci_get_drvdata(pci_dev);
 
-	dev_dbg(dev, "enter %s\n", __func__);
 	imgu->suspend_in_stream = imgu_css_is_streaming(&imgu->css);
 	if (!imgu->suspend_in_stream)
 		goto out;
@@ -783,7 +783,6 @@ static int __maybe_unused imgu_suspend(struct device *dev)
 	imgu_powerdown(imgu);
 	pm_runtime_force_suspend(dev);
 out:
-	dev_dbg(dev, "leave %s\n", __func__);
 	return 0;
 }
 
@@ -792,8 +791,6 @@ static int __maybe_unused imgu_resume(struct device *dev)
 	struct imgu_device *imgu = dev_get_drvdata(dev);
 	int r = 0;
 	unsigned int pipe;
-
-	dev_dbg(dev, "enter %s\n", __func__);
 
 	if (!imgu->suspend_in_stream)
 		goto out;
@@ -821,8 +818,6 @@ static int __maybe_unused imgu_resume(struct device *dev)
 	}
 
 out:
-	dev_dbg(dev, "leave %s\n", __func__);
-
 	return r;
 }
 
@@ -859,10 +854,13 @@ static struct pci_driver imgu_pci_driver = {
 
 module_pci_driver(imgu_pci_driver);
 
-MODULE_AUTHOR("Tuukka Toivonen <tuukka.toivonen@intel.com>");
+MODULE_AUTHOR("Tuukka Toivonen");
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Jian Xu Zheng <jian.xu.zheng@intel.com>");
-MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
+MODULE_AUTHOR("Jian Xu Zheng");
+MODULE_AUTHOR("Yuning Pu");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel ipu3_imgu PCI driver");
+MODULE_FIRMWARE(IMGU_FW_NAME);
+MODULE_FIRMWARE(IMGU_FW_NAME_20161208);
+MODULE_FIRMWARE(IMGU_FW_NAME_IPU_20161208);

@@ -14,7 +14,7 @@
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 
 #define TEMPERATURE			0x2c
@@ -117,7 +117,7 @@ struct tps23861_data {
 	struct dentry *debugfs_dir;
 };
 
-static struct regmap_config tps23861_regmap_config = {
+static const struct regmap_config tps23861_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x6f,

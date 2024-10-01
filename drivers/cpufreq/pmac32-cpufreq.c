@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/hardirq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -119,9 +120,9 @@ static int cpu_750fx_cpu_speed(int low_speed)
 
 		/* tweak L2 for high voltage */
 		if (has_cpu_l2lve) {
-			hid2 = mfspr(SPRN_HID2);
+			hid2 = mfspr(SPRN_HID2_750FX);
 			hid2 &= ~0x2000;
-			mtspr(SPRN_HID2, hid2);
+			mtspr(SPRN_HID2_750FX, hid2);
 		}
 	}
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -130,9 +131,9 @@ static int cpu_750fx_cpu_speed(int low_speed)
 	if (low_speed == 1) {
 		/* tweak L2 for low voltage */
 		if (has_cpu_l2lve) {
-			hid2 = mfspr(SPRN_HID2);
+			hid2 = mfspr(SPRN_HID2_750FX);
 			hid2 |= 0x2000;
-			mtspr(SPRN_HID2, hid2);
+			mtspr(SPRN_HID2_750FX, hid2);
 		}
 
 		/* ramping down, set voltage last */
@@ -378,10 +379,9 @@ static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 static u32 read_gpio(struct device_node *np)
 {
-	const u32 *reg = of_get_property(np, "reg", NULL);
-	u32 offset;
+	u64 offset;
 
-	if (reg == NULL)
+	if (of_property_read_reg(np, 0, &offset, NULL) < 0)
 		return 0;
 	/* That works for all keylargos but shall be fixed properly
 	 * some day... The problem is that it seems we can't rely
@@ -389,7 +389,6 @@ static u32 read_gpio(struct device_node *np)
 	 * relative to the base of KeyLargo or to the base of the
 	 * GPIO space, and the device-tree doesn't help.
 	 */
-	offset = *reg;
 	if (offset < KEYLARGO_GPIO_LEVELS0)
 		offset += KEYLARGO_GPIO_LEVELS0;
 	return offset;

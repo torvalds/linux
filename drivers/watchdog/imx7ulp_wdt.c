@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
@@ -24,6 +23,7 @@
 #define LPO_CLK_SHIFT		8
 #define WDOG_CS_CLK		(LPO_CLK << LPO_CLK_SHIFT)
 #define WDOG_CS_EN		BIT(7)
+#define WDOG_CS_INT_EN		BIT(6)
 #define WDOG_CS_UPDATE		BIT(5)
 #define WDOG_CS_WAIT		BIT(1)
 #define WDOG_CS_STOP		BIT(0)
@@ -55,6 +55,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 
 struct imx_wdt_hw_feature {
 	bool prescaler_enable;
+	bool post_rcs_wait;
 	u32 wdog_clock_rate;
 };
 
@@ -62,7 +63,7 @@ struct imx7ulp_wdt_device {
 	struct watchdog_device wdd;
 	void __iomem *base;
 	struct clk *clk;
-	bool post_rcs_wait;
+	bool ext_reset;
 	const struct imx_wdt_hw_feature *hw;
 };
 
@@ -94,7 +95,7 @@ static int imx7ulp_wdt_wait_rcs(struct imx7ulp_wdt_device *wdt)
 		ret = -ETIMEDOUT;
 
 	/* Wait 2.5 clocks after RCS done */
-	if (wdt->post_rcs_wait)
+	if (wdt->hw->post_rcs_wait)
 		usleep_range(wait_min, wait_min + 2000);
 
 	return ret;
@@ -286,6 +287,14 @@ static int imx7ulp_wdt_init(struct imx7ulp_wdt_device *wdt, unsigned int timeout
 	if (wdt->hw->prescaler_enable)
 		val |= WDOG_CS_PRES;
 
+	if (wdt->ext_reset)
+		val |= WDOG_CS_INT_EN;
+
+	if (readl(wdt->base + WDOG_CS) & WDOG_CS_EN) {
+		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
+		val |= WDOG_CS_EN;
+	}
+
 	do {
 		ret = _imx7ulp_wdt_init(wdt, timeout, val);
 		toval = readl(wdt->base + WDOG_TOVAL);
@@ -322,14 +331,8 @@ static int imx7ulp_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(imx7ulp_wdt->clk);
 	}
 
-	imx7ulp_wdt->post_rcs_wait = true;
-	if (of_device_is_compatible(dev->of_node,
-				    "fsl,imx8ulp-wdt")) {
-		dev_info(dev, "imx8ulp wdt probe\n");
-		imx7ulp_wdt->post_rcs_wait = false;
-	} else {
-		dev_info(dev, "imx7ulp wdt probe\n");
-	}
+	/* The WDOG may need to do external reset through dedicated pin */
+	imx7ulp_wdt->ext_reset = of_property_read_bool(dev->of_node, "fsl,ext-reset-output");
 
 	wdog = &imx7ulp_wdt->wdd;
 	wdog->info = &imx7ulp_wdt_info;
@@ -391,6 +394,12 @@ static const struct dev_pm_ops imx7ulp_wdt_pm_ops = {
 static const struct imx_wdt_hw_feature imx7ulp_wdt_hw = {
 	.prescaler_enable = false,
 	.wdog_clock_rate = 1000,
+	.post_rcs_wait = true,
+};
+
+static const struct imx_wdt_hw_feature imx8ulp_wdt_hw = {
+	.prescaler_enable = false,
+	.wdog_clock_rate = 1000,
 };
 
 static const struct imx_wdt_hw_feature imx93_wdt_hw = {
@@ -399,8 +408,8 @@ static const struct imx_wdt_hw_feature imx93_wdt_hw = {
 };
 
 static const struct of_device_id imx7ulp_wdt_dt_ids[] = {
-	{ .compatible = "fsl,imx8ulp-wdt", .data = &imx7ulp_wdt_hw, },
 	{ .compatible = "fsl,imx7ulp-wdt", .data = &imx7ulp_wdt_hw, },
+	{ .compatible = "fsl,imx8ulp-wdt", .data = &imx8ulp_wdt_hw, },
 	{ .compatible = "fsl,imx93-wdt", .data = &imx93_wdt_hw, },
 	{ /* sentinel */ }
 };

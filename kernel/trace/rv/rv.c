@@ -245,6 +245,7 @@ static int __rv_disable_monitor(struct rv_monitor_def *mdef, bool sync)
 
 /**
  * rv_disable_monitor - disable a given runtime monitor
+ * @mdef: Pointer to the monitor definition structure.
  *
  * Returns 0 on success.
  */
@@ -256,6 +257,7 @@ int rv_disable_monitor(struct rv_monitor_def *mdef)
 
 /**
  * rv_enable_monitor - enable a given runtime monitor
+ * @mdef: Pointer to the monitor definition structure.
  *
  * Returns 0 on success, error otherwise.
  */
@@ -304,7 +306,6 @@ static ssize_t monitor_enable_write_data(struct file *filp, const char __user *u
 
 static const struct file_operations interface_enable_fops = {
 	.open   = simple_open,
-	.llseek = no_llseek,
 	.write  = monitor_enable_write_data,
 	.read   = monitor_enable_read_data,
 };
@@ -327,7 +328,6 @@ static ssize_t monitor_desc_read_data(struct file *filp, char __user *user_buf, 
 
 static const struct file_operations interface_desc_fops = {
 	.open   = simple_open,
-	.llseek	= no_llseek,
 	.read	= monitor_desc_read_data,
 };
 
@@ -672,7 +672,6 @@ static ssize_t monitoring_on_write_data(struct file *filp, const char __user *us
 
 static const struct file_operations monitoring_on_fops = {
 	.open   = simple_open,
-	.llseek = no_llseek,
 	.write  = monitoring_on_write_data,
 	.read   = monitoring_on_read_data,
 };

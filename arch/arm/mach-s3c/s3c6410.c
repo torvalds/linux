@@ -57,7 +57,7 @@ void __init s3c6410_init_irq(void)
 	s3c64xx_init_irq(~0 & ~(1 << 7), ~0);
 }
 
-struct bus_type s3c6410_subsys = {
+const struct bus_type s3c6410_subsys = {
 	.name		= "s3c6410-core",
 	.dev_name	= "s3c6410-core",
 };

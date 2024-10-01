@@ -35,14 +35,6 @@ config SCSI_UFS_CRYPTO
 	  capabilities of the UFS device (if present) to perform crypto
 	  operations on data being transferred to/from the device.
 
-config SCSI_UFS_HPB
-	bool "Support UFS Host Performance Booster"
-	help
-	  The UFS HPB feature improves random read performance. It caches
-	  L2P (logical to physical) map of UFS to host DRAM. The driver uses HPB
-	  read command by piggybacking physical page number for bypassing FTL (flash
-	  translation layer)'s L2P address translation.
-
 config SCSI_UFS_FAULT_INJECTION
 	bool "UFS Fault Injection Support"
 	depends on FAULT_INJECTION

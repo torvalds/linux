@@ -23,8 +23,6 @@
 #include <linux/time-internal.h>
 
 
-extern void free_irqs(void);
-
 /* When epoll triggers we do not know why it did so
  * we can also have different IRQs for read and write.
  * This is why we keep a small irq_reg array for each fd -
@@ -39,7 +37,7 @@ struct irq_reg {
 	bool pending;
 	bool wakeup;
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-	bool pending_on_resume;
+	bool pending_event;
 	void (*timetravel_handler)(int, int, void *,
 				   struct time_travel_event *);
 	struct time_travel_event event;
@@ -58,6 +56,9 @@ static DEFINE_SPINLOCK(irq_lock);
 static LIST_HEAD(active_fds);
 static DECLARE_BITMAP(irqs_allocated, UM_LAST_SIGNAL_IRQ);
 static bool irqs_suspended;
+#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
+static bool irqs_pending;
+#endif
 
 static void irq_io_loop(struct irq_reg *irq, struct uml_pt_regs *regs)
 {
@@ -86,9 +87,12 @@ static void irq_event_handler(struct time_travel_event *ev)
 {
 	struct irq_reg *reg = container_of(ev, struct irq_reg, event);
 
-	/* do nothing if suspended - just to cause a wakeup */
-	if (irqs_suspended)
+	/* do nothing if suspended; just cause a wakeup and mark as pending */
+	if (irqs_suspended) {
+		irqs_pending = true;
+		reg->pending_event = true;
 		return;
+	}
 
 	generic_handle_irq(reg->irq);
 }
@@ -112,15 +116,46 @@ static bool irq_do_timetravel_handler(struct irq_entry *entry,
 	if (!reg->event.pending)
 		return false;
 
-	if (irqs_suspended)
-		reg->pending_on_resume = true;
 	return true;
+}
+
+static void irq_do_pending_events(bool timetravel_handlers_only)
+{
+	struct irq_entry *entry;
+
+	if (!irqs_pending || timetravel_handlers_only)
+		return;
+
+	irqs_pending = false;
+
+	list_for_each_entry(entry, &active_fds, list) {
+		enum um_irq_type t;
+
+		for (t = 0; t < NUM_IRQ_TYPES; t++) {
+			struct irq_reg *reg = &entry->reg[t];
+
+			/*
+			 * Any timetravel_handler was invoked already, just
+			 * directly run the IRQ.
+			 */
+			if (reg->pending_event) {
+				irq_enter();
+				generic_handle_irq(reg->irq);
+				irq_exit();
+				reg->pending_event = false;
+			}
+		}
+	}
 }
 #else
 static bool irq_do_timetravel_handler(struct irq_entry *entry,
 				      enum um_irq_type t)
 {
 	return false;
+}
+
+static void irq_do_pending_events(bool timetravel_handlers_only)
+{
 }
 #endif
 
@@ -147,6 +182,8 @@ static void sigio_reg_handler(int idx, struct irq_entry *entry, enum um_irq_type
 	 */
 	if (timetravel_handlers_only) {
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
+		reg->pending_event = true;
+		irqs_pending = true;
 		mark_sigio_pending();
 #endif
 		return;
@@ -163,6 +200,10 @@ static void _sigio_handler(struct uml_pt_regs *regs,
 
 	if (timetravel_handlers_only && !um_irq_timetravel_handler_used())
 		return;
+
+	/* Flush out pending events that were ignored due to time-travel. */
+	if (!irqs_suspended)
+		irq_do_pending_events(timetravel_handlers_only);
 
 	while (1) {
 		/* This is now lockless - epoll keeps back-referencesto the irqs
@@ -197,7 +238,9 @@ static void _sigio_handler(struct uml_pt_regs *regs,
 
 void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
+	preempt_disable();
 	_sigio_handler(regs, irqs_suspended);
+	preempt_enable();
 }
 
 static struct irq_entry *get_irq_entry_by_fd(int fd)
@@ -545,30 +588,7 @@ void um_irqs_resume(void)
 	unsigned long flags;
 
 
-	local_irq_save(flags);
-#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-	/*
-	 * We don't need to lock anything here since we're in resume
-	 * and nothing else is running, but have disabled IRQs so we
-	 * don't try anything else with the interrupt list from there.
-	 */
-	list_for_each_entry(entry, &active_fds, list) {
-		enum um_irq_type t;
-
-		for (t = 0; t < NUM_IRQ_TYPES; t++) {
-			struct irq_reg *reg = &entry->reg[t];
-
-			if (reg->pending_on_resume) {
-				irq_enter();
-				generic_handle_irq(reg->irq);
-				irq_exit();
-				reg->pending_on_resume = false;
-			}
-		}
-	}
-#endif
-
-	spin_lock(&irq_lock);
+	spin_lock_irqsave(&irq_lock, flags);
 	list_for_each_entry(entry, &active_fds, list) {
 		if (entry->suspended) {
 			int err = os_set_fd_async(entry->fd);

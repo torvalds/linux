@@ -7,21 +7,21 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/spinlock.h>
-#include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
-#include <linux/property.h>
-#include <linux/mod_devicetable.h>
-#include <linux/slab.h>
-#include <linux/irq.h>
-#include <linux/gpio/driver.h>
 #include <linux/bitops.h>
+#include <linux/gpio/driver.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
+#include <linux/property.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
 
 #define MPC8XXX_GPIO_PINS	32
 
@@ -415,13 +415,15 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	device_init_wakeup(&pdev->dev, true);
+
 	return 0;
 err:
 	irq_domain_remove(mpc8xxx_gc->irq);
 	return ret;
 }
 
-static int mpc8xxx_remove(struct platform_device *pdev)
+static void mpc8xxx_remove(struct platform_device *pdev)
 {
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
 
@@ -429,9 +431,30 @@ static int mpc8xxx_remove(struct platform_device *pdev)
 		irq_set_chained_handler_and_data(mpc8xxx_gc->irqn, NULL, NULL);
 		irq_domain_remove(mpc8xxx_gc->irq);
 	}
+}
+
+static int mpc8xxx_suspend(struct device *dev)
+{
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = dev_get_drvdata(dev);
+
+	if (mpc8xxx_gc->irqn && device_may_wakeup(dev))
+		enable_irq_wake(mpc8xxx_gc->irqn);
 
 	return 0;
 }
+
+static int mpc8xxx_resume(struct device *dev)
+{
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = dev_get_drvdata(dev);
+
+	if (mpc8xxx_gc->irqn && device_may_wakeup(dev))
+		disable_irq_wake(mpc8xxx_gc->irqn);
+
+	return 0;
+}
+
+static DEFINE_RUNTIME_DEV_PM_OPS(mpc8xx_pm_ops,
+				 mpc8xxx_suspend, mpc8xxx_resume, NULL);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id gpio_acpi_ids[] = {
@@ -443,11 +466,12 @@ MODULE_DEVICE_TABLE(acpi, gpio_acpi_ids);
 
 static struct platform_driver mpc8xxx_plat_driver = {
 	.probe		= mpc8xxx_probe,
-	.remove		= mpc8xxx_remove,
+	.remove_new	= mpc8xxx_remove,
 	.driver		= {
 		.name = "gpio-mpc8xxx",
 		.of_match_table	= mpc8xxx_gpio_ids,
 		.acpi_match_table = ACPI_PTR(gpio_acpi_ids),
+		.pm = pm_ptr(&mpc8xx_pm_ops),
 	},
 };
 

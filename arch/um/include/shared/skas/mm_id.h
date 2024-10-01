@@ -7,12 +7,11 @@
 #define __MM_ID_H
 
 struct mm_id {
-	union {
-		int mm_fd;
-		int pid;
-	} u;
+	int pid;
 	unsigned long stack;
-	int kill;
+	int syscall_data_len;
 };
+
+void __switch_mm(struct mm_id *mm_idp);
 
 #endif

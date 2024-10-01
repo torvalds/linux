@@ -70,6 +70,7 @@ struct intel_uc_fw_ver {
 	u32 major;
 	u32 minor;
 	u32 patch;
+	u32 build;
 };
 
 /*
@@ -257,6 +258,11 @@ static inline bool intel_uc_fw_is_running(struct intel_uc_fw *uc_fw)
 	return __intel_uc_fw_status(uc_fw) == INTEL_UC_FIRMWARE_RUNNING;
 }
 
+static inline bool intel_uc_fw_is_in_error(struct intel_uc_fw *uc_fw)
+{
+	return intel_uc_fw_status_to_error(__intel_uc_fw_status(uc_fw)) != 0;
+}
+
 static inline bool intel_uc_fw_is_overridden(const struct intel_uc_fw *uc_fw)
 {
 	return uc_fw->user_overridden;
@@ -289,6 +295,9 @@ static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 	return __intel_uc_fw_get_upload_size(uc_fw);
 }
 
+void intel_uc_fw_version_from_gsc_manifest(struct intel_uc_fw_ver *ver,
+					   const void *data);
+int intel_uc_check_file_version(struct intel_uc_fw *uc_fw, bool *old_ver);
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 			    enum intel_uc_fw_type type,
 			    bool needs_ggtt_mapping);

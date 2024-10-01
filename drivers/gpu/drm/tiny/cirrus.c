@@ -31,7 +31,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_file.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
@@ -411,7 +411,8 @@ static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
 		unsigned int offset = drm_fb_clip_offset(pitch, format, &damage);
 		struct iosys_map dst = IOSYS_MAP_INIT_OFFSET(&vaddr, offset);
 
-		drm_fb_blit(&dst, &pitch, format->format, shadow_plane_state->data, fb, &damage);
+		drm_fb_blit(&dst, &pitch, format->format, shadow_plane_state->data, fb,
+			    &damage, &shadow_plane_state->fmtcnv_state);
 	}
 
 	drm_dev_exit(idx);
@@ -715,7 +716,7 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(dev, 16);
+	drm_fbdev_shmem_setup(dev, 16);
 	return 0;
 }
 
@@ -725,6 +726,11 @@ static void cirrus_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unplug(dev);
 	drm_atomic_helper_shutdown(dev);
+}
+
+static void cirrus_pci_shutdown(struct pci_dev *pdev)
+{
+	drm_atomic_helper_shutdown(pci_get_drvdata(pdev));
 }
 
 static const struct pci_device_id pciidlist[] = {
@@ -748,9 +754,11 @@ static struct pci_driver cirrus_pci_driver = {
 	.id_table = pciidlist,
 	.probe = cirrus_pci_probe,
 	.remove = cirrus_pci_remove,
+	.shutdown = cirrus_pci_shutdown,
 };
 
 drm_module_pci_driver(cirrus_pci_driver)
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
+MODULE_DESCRIPTION("Cirrus driver for QEMU emulated device");
 MODULE_LICENSE("GPL");

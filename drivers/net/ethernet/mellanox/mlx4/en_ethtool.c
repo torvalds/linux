@@ -450,7 +450,6 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				uint32_t stringset, uint8_t *data)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int index = 0;
 	int i, strings = 0;
 	struct bitmap_iterator it;
 
@@ -459,10 +458,10 @@ static void mlx4_en_get_strings(struct net_device *dev,
 	switch (stringset) {
 	case ETH_SS_TEST:
 		for (i = 0; i < MLX4_EN_NUM_SELF_TEST - 2; i++)
-			strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+			ethtool_puts(&data, mlx4_en_test_names[i]);
 		if (priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_UC_LOOPBACK)
 			for (; i < MLX4_EN_NUM_SELF_TEST; i++)
-				strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+				ethtool_puts(&data, mlx4_en_test_names[i]);
 		break;
 
 	case ETH_SS_STATS:
@@ -470,74 +469,56 @@ static void mlx4_en_get_strings(struct net_device *dev,
 		for (i = 0; i < NUM_MAIN_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PORT_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PF_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_FLOW_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PKT_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_XDP_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < NUM_PHY_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
-				strcpy(data + (index++) * ETH_GSTRING_LEN,
-				       main_strings[strings]);
+				ethtool_puts(&data, main_strings[strings]);
 
 		for (i = 0; i < priv->tx_ring_num[TX]; i++) {
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"tx%d_packets", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"tx%d_bytes", i);
+			ethtool_sprintf(&data, "tx%d_packets", i);
+			ethtool_sprintf(&data, "tx%d_bytes", i);
 		}
 		for (i = 0; i < priv->rx_ring_num; i++) {
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_packets", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_bytes", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_dropped", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_drop", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_redirect", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_redirect_fail", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_tx", i);
-			sprintf(data + (index++) * ETH_GSTRING_LEN,
-				"rx%d_xdp_tx_full", i);
+			ethtool_sprintf(&data, "rx%d_packets", i);
+			ethtool_sprintf(&data, "rx%d_bytes", i);
+			ethtool_sprintf(&data, "rx%d_dropped", i);
+			ethtool_sprintf(&data, "rx%d_xdp_drop", i);
+			ethtool_sprintf(&data, "rx%d_xdp_redirect", i);
+			ethtool_sprintf(&data, "rx%d_xdp_redirect_fail", i);
+			ethtool_sprintf(&data, "rx%d_xdp_tx", i);
+			ethtool_sprintf(&data, "rx%d_xdp_tx_full", i);
 		}
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		for (i = 0; i < ARRAY_SIZE(mlx4_en_priv_flags); i++)
-			strcpy(data + i * ETH_GSTRING_LEN,
-			       mlx4_en_priv_flags[i]);
+			ethtool_puts(&data, mlx4_en_priv_flags[i]);
 		break;
 
 	}
@@ -1258,8 +1239,8 @@ static int mlx4_en_check_rxfh_func(struct net_device *dev, u8 hfunc)
 	return -EINVAL;
 }
 
-static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
-			    u8 *hfunc)
+static int mlx4_en_get_rxfh(struct net_device *dev,
+			    struct ethtool_rxfh_param *rxfh)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u32 n = mlx4_en_get_rxfh_indir_size(dev);
@@ -1269,19 +1250,19 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
 	rss_rings = rounddown_pow_of_two(rss_rings);
 
 	for (i = 0; i < n; i++) {
-		if (!ring_index)
+		if (!rxfh->indir)
 			break;
-		ring_index[i] = i % rss_rings;
+		rxfh->indir[i] = i % rss_rings;
 	}
-	if (key)
-		memcpy(key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
-	if (hfunc)
-		*hfunc = priv->rss_hash_fn;
+	if (rxfh->key)
+		memcpy(rxfh->key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
+	rxfh->hfunc = priv->rss_hash_fn;
 	return 0;
 }
 
-static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
-			    const u8 *key, const u8 hfunc)
+static int mlx4_en_set_rxfh(struct net_device *dev,
+			    struct ethtool_rxfh_param *rxfh,
+			    struct netlink_ext_ack *extack)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u32 n = mlx4_en_get_rxfh_indir_size(dev);
@@ -1295,12 +1276,12 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 	 * between rings
 	 */
 	for (i = 0; i < n; i++) {
-		if (!ring_index)
+		if (!rxfh->indir)
 			break;
-		if (i > 0 && !ring_index[i] && !rss_rings)
+		if (i > 0 && !rxfh->indir[i] && !rss_rings)
 			rss_rings = i;
 
-		if (ring_index[i] != (i % (rss_rings ?: n)))
+		if (rxfh->indir[i] != (i % (rss_rings ?: n)))
 			return -EINVAL;
 	}
 
@@ -1311,8 +1292,8 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 	if (!is_power_of_2(rss_rings))
 		return -EINVAL;
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE) {
-		err = mlx4_en_check_rxfh_func(dev, hfunc);
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE) {
+		err = mlx4_en_check_rxfh_func(dev, rxfh->hfunc);
 		if (err)
 			return err;
 	}
@@ -1323,12 +1304,12 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 		mlx4_en_stop_port(dev, 1);
 	}
 
-	if (ring_index)
+	if (rxfh->indir)
 		priv->prof->rss_rings = rss_rings;
-	if (key)
-		memcpy(priv->rss_key, key, MLX4_EN_RSS_KEY_SIZE);
-	if (hfunc !=  ETH_RSS_HASH_NO_CHANGE)
-		priv->rss_hash_fn = hfunc;
+	if (rxfh->key)
+		memcpy(priv->rss_key, rxfh->key, MLX4_EN_RSS_KEY_SIZE);
+	if (rxfh->hfunc !=  ETH_RSS_HASH_NO_CHANGE)
+		priv->rss_hash_fn = rxfh->hfunc;
 
 	if (port_up) {
 		err = mlx4_en_start_port(dev);
@@ -1467,8 +1448,8 @@ static int add_ip_rule(struct mlx4_en_priv *priv,
 		       struct list_head *list_h)
 {
 	int err;
-	struct mlx4_spec_list *spec_l2 = NULL;
-	struct mlx4_spec_list *spec_l3 = NULL;
+	struct mlx4_spec_list *spec_l2;
+	struct mlx4_spec_list *spec_l3;
 	struct ethtool_usrip4_spec *l3_mask = &cmd->fs.m_u.usr_ip4_spec;
 
 	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
@@ -1505,9 +1486,9 @@ static int add_tcp_udp_rule(struct mlx4_en_priv *priv,
 			     struct list_head *list_h, int proto)
 {
 	int err;
-	struct mlx4_spec_list *spec_l2 = NULL;
-	struct mlx4_spec_list *spec_l3 = NULL;
-	struct mlx4_spec_list *spec_l4 = NULL;
+	struct mlx4_spec_list *spec_l2;
+	struct mlx4_spec_list *spec_l3;
+	struct mlx4_spec_list *spec_l4;
 	struct ethtool_tcpip4_spec *l4_mask = &cmd->fs.m_u.tcp_ip4_spec;
 
 	spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);
@@ -1903,7 +1884,7 @@ out:
 }
 
 static int mlx4_en_get_ts_info(struct net_device *dev,
-			       struct ethtool_ts_info *info)
+			       struct kernel_ethtool_ts_info *info)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -2055,20 +2036,20 @@ static int mlx4_en_get_module_info(struct net_device *dev,
 	switch (data[0] /* identifier */) {
 	case MLX4_MODULE_ID_QSFP:
 		modinfo->type = ETH_MODULE_SFF_8436;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		break;
 	case MLX4_MODULE_ID_QSFP_PLUS:
 		if (data[1] >= 0x3) { /* revision id */
 			modinfo->type = ETH_MODULE_SFF_8636;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
 		} else {
 			modinfo->type = ETH_MODULE_SFF_8436;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		}
 		break;
 	case MLX4_MODULE_ID_QSFP28:
 		modinfo->type = ETH_MODULE_SFF_8636;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
 		break;
 	case MLX4_MODULE_ID_SFP:
 		modinfo->type = ETH_MODULE_SFF_8472;

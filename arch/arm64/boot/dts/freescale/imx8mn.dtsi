@@ -371,6 +371,7 @@
 						      "pll8k", "pll11k", "clkext3";
 					dmas = <&sdma2 24 25 0x80000000>;
 					dma-names = "rx";
+					#sound-dai-cells = <0>;
 					status = "disabled";
 				};
 
@@ -636,6 +637,8 @@
 			clk: clock-controller@30380000 {
 				compatible = "fsl,imx8mn-ccm";
 				reg = <0x30380000 0x10000>;
+				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 				#clock-cells = <1>;
 				clocks = <&osc_32k>, <&osc_24m>, <&clk_ext1>, <&clk_ext2>,
 					 <&clk_ext3>, <&clk_ext4>;
@@ -1101,6 +1104,13 @@
 							remote-endpoint = <&lcdif_to_dsim>;
 						};
 					};
+
+					port@1 {
+						reg = <1>;
+
+						mipi_dsi_out: endpoint {
+						};
+					};
 				};
 			};
 
@@ -1165,7 +1175,7 @@
 							 <&clk IMX8MN_SYS_PLL1_800M>;
 				assigned-clock-rates = <266000000>,
 						       <24000000>,
-						       <594000000>,
+						       <24000000>,
 						       <500000000>,
 						       <200000000>;
 				#power-domain-cells = <1>;
@@ -1175,10 +1185,8 @@
 				compatible = "fsl,imx8mm-mipi-csi2";
 				reg = <0x32e30000 0x1000>;
 				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-				assigned-clocks = <&clk IMX8MN_CLK_CAMERA_PIXEL>,
-						  <&clk IMX8MN_CLK_CSI1_PHY_REF>;
-				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_1000M>,
-							  <&clk IMX8MN_SYS_PLL2_1000M>;
+				assigned-clocks = <&clk IMX8MN_CLK_CAMERA_PIXEL>;
+				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_1000M>;
 				assigned-clock-rates = <333000000>;
 				clock-frequency = <333000000>;
 				clocks = <&clk IMX8MN_CLK_DISP_APB_ROOT>,
@@ -1212,7 +1220,6 @@
 				reg = <0x32e40000 0x200>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MN_CLK_USB1_CTRL_ROOT>;
-				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MN_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_500M>;
 				phys = <&usbphynop1>;

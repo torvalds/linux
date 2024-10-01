@@ -24,4 +24,14 @@ int conf_get_bool(snd_config_t *root, const char *key1, const char *key2, int de
 void conf_get_string_array(snd_config_t *root, const char *key1, const char *key2,
 			   const char **array, int array_size, const char *def);
 
+struct card_cfg_data {
+	int card;
+	snd_config_t *config;
+	const char *filename;
+	const char *config_id;
+	struct card_cfg_data *next;
+};
+
+extern struct card_cfg_data *conf_cards;
+
 #endif /* __ALSA_LOCAL_H */

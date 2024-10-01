@@ -493,7 +493,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(apds9300_pm_ops, apds9300_suspend,
 				apds9300_resume);
 
 static const struct i2c_device_id apds9300_id[] = {
-	{ APDS9300_DRV_NAME, 0 },
+	{ APDS9300_DRV_NAME },
 	{ }
 };
 

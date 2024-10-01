@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/fb.h>
+#include <linux/math.h>
 #include <linux/svga.h>
 #include <asm/types.h>
 #include <asm/io.h>
@@ -353,12 +354,19 @@ void svga_get_caps(struct fb_info *info, struct fb_blit_caps *caps,
 {
 	if (var->bits_per_pixel == 0) {
 		/* can only support 256 8x16 bitmap */
-		caps->x = 1 << (8 - 1);
-		caps->y = 1 << (16 - 1);
+		bitmap_zero(caps->x, FB_MAX_BLIT_WIDTH);
+		set_bit(8 - 1, caps->x);
+		bitmap_zero(caps->y, FB_MAX_BLIT_HEIGHT);
+		set_bit(16 - 1, caps->y);
 		caps->len = 256;
 	} else {
-		caps->x = (var->bits_per_pixel == 4) ? 1 << (8 - 1) : ~(u32)0;
-		caps->y = ~(u32)0;
+		if (var->bits_per_pixel == 4) {
+			bitmap_zero(caps->x, FB_MAX_BLIT_WIDTH);
+			set_bit(8 - 1, caps->x);
+		} else {
+			bitmap_fill(caps->x, FB_MAX_BLIT_WIDTH);
+		}
+		bitmap_fill(caps->y, FB_MAX_BLIT_HEIGHT);
 		caps->len = ~(u32)0;
 	}
 }
@@ -372,12 +380,6 @@ EXPORT_SYMBOL(svga_get_caps);
  *  F_VCO = (F_BASE * M) / N
  *  F_OUT = F_VCO / (2^R)
  */
-
-static inline u32 abs_diff(u32 a, u32 b)
-{
-	return (a > b) ? (a - b) : (b - a);
-}
-
 int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u16 *r, int node)
 {
 	u16 am, an, ar;

@@ -45,20 +45,6 @@ nvif_conn_event_ctor(struct nvif_conn *conn, const char *name, nvif_event_func f
 	return ret;
 }
 
-int
-nvif_conn_hpd_status(struct nvif_conn *conn)
-{
-	struct nvif_conn_hpd_status_v0 args;
-	int ret;
-
-	args.version = 0;
-
-	ret = nvif_mthd(&conn->object, NVIF_CONN_V0_HPD_STATUS, &args, sizeof(args));
-	NVIF_ERRON(ret, &conn->object, "[HPD_STATUS] support:%d present:%d",
-		   args.support, args.present);
-	return ret ? ret : !!args.support + !!args.present;
-}
-
 void
 nvif_conn_dtor(struct nvif_conn *conn)
 {
@@ -77,5 +63,25 @@ nvif_conn_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_con
 	ret = nvif_object_ctor(&disp->object, name ?: "nvifConn", id, NVIF_CLASS_CONN,
 			       &args, sizeof(args), &conn->object);
 	NVIF_ERRON(ret, &disp->object, "[NEW conn id:%d]", id);
-	return ret;
+	if (ret)
+		return ret;
+
+	conn->id = id;
+
+	switch (args.type) {
+	case NVIF_CONN_V0_VGA      : conn->info.type = NVIF_CONN_VGA; break;
+	case NVIF_CONN_V0_TV       : conn->info.type = NVIF_CONN_TV; break;
+	case NVIF_CONN_V0_DVI_I    : conn->info.type = NVIF_CONN_DVI_I; break;
+	case NVIF_CONN_V0_DVI_D    : conn->info.type = NVIF_CONN_DVI_D; break;
+	case NVIF_CONN_V0_LVDS     : conn->info.type = NVIF_CONN_LVDS; break;
+	case NVIF_CONN_V0_LVDS_SPWG: conn->info.type = NVIF_CONN_LVDS_SPWG; break;
+	case NVIF_CONN_V0_HDMI     : conn->info.type = NVIF_CONN_HDMI; break;
+	case NVIF_CONN_V0_DP       : conn->info.type = NVIF_CONN_DP; break;
+	case NVIF_CONN_V0_EDP      : conn->info.type = NVIF_CONN_EDP; break;
+	default:
+		break;
+	}
+
+	return 0;
+
 }

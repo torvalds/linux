@@ -71,11 +71,11 @@
 	.word		0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 
 	/*
-	 * void sha2_ce_transform(struct sha256_ce_state *sst, u8 const *src,
-	 *			  int blocks)
+	 * int __sha256_ce_transform(struct sha256_ce_state *sst, u8 const *src,
+	 *			     int blocks)
 	 */
 	.text
-SYM_FUNC_START(sha2_ce_transform)
+SYM_FUNC_START(__sha256_ce_transform)
 	/* load round constants */
 	adr_l		x8, .Lsha2_rcon
 	ld1		{ v0.4s- v3.4s}, [x8], #64
@@ -154,4 +154,4 @@ CPU_LE(	rev32		v19.16b, v19.16b	)
 3:	st1		{dgav.4s, dgbv.4s}, [x0]
 	mov		w0, w2
 	ret
-SYM_FUNC_END(sha2_ce_transform)
+SYM_FUNC_END(__sha256_ce_transform)

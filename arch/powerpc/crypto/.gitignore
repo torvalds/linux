@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+aesp10-ppc.S
+aesp8-ppc.S
+ghashp10-ppc.S
+ghashp8-ppc.S

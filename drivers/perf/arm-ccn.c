@@ -215,18 +215,9 @@ static void arm_ccn_pmu_config_set(u64 *config, u32 node_xp, u32 type, u32 port)
 	*config |= (node_xp << 0) | (type << 8) | (port << 24);
 }
 
-static ssize_t arm_ccn_pmu_format_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *ea = container_of(attr,
-			struct dev_ext_attribute, attr);
-
-	return sysfs_emit(buf, "%s\n", (char *)ea->var);
-}
-
 #define CCN_FORMAT_ATTR(_name, _config) \
 	struct dev_ext_attribute arm_ccn_pmu_format_attr_##_name = \
-			{ __ATTR(_name, S_IRUGO, arm_ccn_pmu_format_show, \
+			{ __ATTR(_name, S_IRUGO, device_show_string, \
 			NULL), _config }
 
 static CCN_FORMAT_ATTR(node, "config:0-7");
@@ -1265,6 +1256,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	/* Perf driver registration */
 	ccn->dt.pmu = (struct pmu) {
 		.module = THIS_MODULE,
+		.parent = ccn->dev,
 		.attr_groups = arm_ccn_pmu_attr_groups,
 		.task_ctx_nr = perf_invalid_context,
 		.event_init = arm_ccn_pmu_event_init,
@@ -1515,13 +1507,11 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	return arm_ccn_pmu_init(ccn);
 }
 
-static int arm_ccn_remove(struct platform_device *pdev)
+static void arm_ccn_remove(struct platform_device *pdev)
 {
 	struct arm_ccn *ccn = platform_get_drvdata(pdev);
 
 	arm_ccn_pmu_cleanup(ccn);
-
-	return 0;
 }
 
 static const struct of_device_id arm_ccn_match[] = {
@@ -1539,7 +1529,7 @@ static struct platform_driver arm_ccn_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = arm_ccn_probe,
-	.remove = arm_ccn_remove,
+	.remove_new = arm_ccn_remove,
 };
 
 static int __init arm_ccn_init(void)
@@ -1571,4 +1561,5 @@ module_init(arm_ccn_init);
 module_exit(arm_ccn_exit);
 
 MODULE_AUTHOR("Pawel Moll <pawel.moll@arm.com>");
+MODULE_DESCRIPTION("ARM CCN (Cache Coherent Network) Performance Monitor Driver");
 MODULE_LICENSE("GPL v2");

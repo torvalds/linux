@@ -1016,7 +1016,6 @@ static struct parport_driver lp_driver = {
 	.name = "lp",
 	.match_port = lp_attach,
 	.detach = lp_detach,
-	.devmodel = true,
 };
 
 static int __init lp_init(void)
@@ -1123,4 +1122,5 @@ module_init(lp_init_module);
 module_exit(lp_cleanup_module);
 
 MODULE_ALIAS_CHARDEV_MAJOR(LP_MAJOR);
+MODULE_DESCRIPTION("Generic parallel printer driver");
 MODULE_LICENSE("GPL");

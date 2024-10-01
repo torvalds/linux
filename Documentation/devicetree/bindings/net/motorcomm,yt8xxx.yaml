@@ -52,6 +52,40 @@ properties:
       for a timer.
     type: boolean
 
+  motorcomm,rx-clk-drv-microamp:
+    description: |
+      drive strength of rx_clk rgmii pad.
+      The YT8531 RGMII LDO voltage supports 1.8V/3.3V, and the LDO voltage can
+      be configured with hardware pull-up resistors to match the SOC voltage
+      (usually 1.8V).
+      The software can read the registers to obtain the LDO voltage and configure
+      the legal drive strength(curren).
+      =====================================================
+      | voltage |        current Available (uA)           |
+      |   1.8v  | 1200 2100 2700 2910 3110 3600 3970 4350 |
+      |   3.3v  | 3070 4080 4370 4680 5020 5450 5740 6140 |
+      =====================================================
+    enum: [ 1200, 2100, 2700, 2910, 3070, 3110, 3600, 3970,
+            4080, 4350, 4370, 4680, 5020, 5450, 5740, 6140 ]
+    default: 2910
+
+  motorcomm,rx-data-drv-microamp:
+    description: |
+      drive strength of rx_data/rx_ctl rgmii pad.
+      The YT8531 RGMII LDO voltage supports 1.8V/3.3V, and the LDO voltage can
+      be configured with hardware pull-up resistors to match the SOC voltage
+      (usually 1.8V).
+      The software can read the registers to obtain the LDO voltage and configure
+      the legal drive strength(curren).
+      =====================================================
+      | voltage |        current Available (uA)           |
+      |   1.8v  | 1200 2100 2700 2910 3110 3600 3970 4350 |
+      |   3.3v  | 3070 4080 4370 4680 5020 5450 5740 6140 |
+      =====================================================
+    enum: [ 1200, 2100, 2700, 2910, 3070, 3110, 3600, 3970,
+            4080, 4350, 4370, 4680, 5020, 5450, 5740, 6140 ]
+    default: 2910
+
   motorcomm,tx-clk-adj-enabled:
     description: |
       This configuration is mainly to adapt to VF2 with JH7110 SoC.

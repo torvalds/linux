@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -36,13 +35,24 @@ struct sun4i_csi_traits {
 	bool has_isp;
 };
 
+static int sun4i_csi_video_link_validate(struct media_link *link)
+{
+	dev_warn_once(link->graph_obj.mdev->dev,
+		      "Driver bug: link validation not implemented\n");
+	return 0;
+}
+
 static const struct media_entity_operations sun4i_csi_video_entity_ops = {
+	.link_validate = sun4i_csi_video_link_validate,
+};
+
+static const struct media_entity_operations sun4i_csi_subdev_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
 static int sun4i_csi_notify_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *subdev,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct sun4i_csi *csi = container_of(notifier, struct sun4i_csi,
 					     notifier);
@@ -118,11 +128,11 @@ static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep;
 	int ret;
 
-	v4l2_async_nf_init(&csi->notifier);
+	v4l2_async_nf_init(&csi->notifier, &csi->v4l);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -136,7 +146,7 @@ static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
 	csi->bus = vep.bus.parallel;
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out;
@@ -212,8 +222,10 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 
 	/* Initialize subdev */
 	v4l2_subdev_init(subdev, &sun4i_csi_subdev_ops);
+	subdev->internal_ops = &sun4i_csi_subdev_internal_ops;
 	subdev->flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	subdev->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	subdev->entity.ops = &sun4i_csi_subdev_entity_ops;
 	subdev->owner = THIS_MODULE;
 	snprintf(subdev->name, sizeof(subdev->name), "sun4i-csi-0");
 	v4l2_set_subdevdata(subdev, csi);
@@ -240,7 +252,7 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unregister_media;
 
-	ret = v4l2_async_nf_register(&csi->v4l, &csi->notifier);
+	ret = v4l2_async_nf_register(&csi->notifier);
 	if (ret) {
 		dev_err(csi->dev, "Couldn't register our notifier.\n");
 		goto err_unregister_media;

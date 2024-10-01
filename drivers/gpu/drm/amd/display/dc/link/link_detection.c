@@ -41,12 +41,15 @@
 #include "protocols/link_dp_dpia.h"
 #include "protocols/link_dp_phy.h"
 #include "protocols/link_dp_training.h"
+#include "protocols/link_dp_dpia_bw.h"
 #include "accessories/link_dp_trace.h"
 
 #include "link_enc_cfg.h"
 #include "dm_helpers.h"
 #include "clk_mgr.h"
 
+#define DC_LOGGER \
+	link->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #define LINK_INFO(...) \
@@ -62,7 +65,7 @@
 
 static const u8 DP_SINK_BRANCH_DEV_NAME_7580[] = "7580\x80u";
 
-static const uint8_t dp_hdmi_dongle_signature_str[] = "DP-HDMI ADAPTOR";
+static const u8 dp_hdmi_dongle_signature_str[] = "DP-HDMI ADAPTOR";
 
 static enum ddc_transaction_type get_ddc_transaction_type(enum signal_type sink_signal)
 {
@@ -322,6 +325,7 @@ static void query_dp_dual_mode_adaptor(
 	bool is_type2_dongle = false;
 	int retry_count = 2;
 	struct dp_hdmi_dongle_signature_data *dongle_signature;
+	struct dc_link *link = ddc->link;
 
 	/* Assume we have no valid DP passive dongle connected */
 	*dongle = DISPLAY_DONGLE_NONE;
@@ -512,8 +516,8 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 static void read_current_link_settings_on_detect(struct dc_link *link)
 {
 	union lane_count_set lane_count_set = {0};
-	uint8_t link_bw_set;
-	uint8_t link_rate_set;
+	uint8_t link_bw_set = 0;
+	uint8_t link_rate_set = 0;
 	uint32_t read_dpcd_retry_cnt = 10;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	int i;
@@ -859,7 +863,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	struct dc_sink *prev_sink = NULL;
 	struct dpcd_caps prev_dpcd_caps;
 	enum dc_connection_type new_connection_type = dc_connection_none;
-	enum dc_connection_type pre_connection_type = link->type;
 	const uint32_t post_oui_delay = 30; // 30ms
 
 	DC_LOGGER_INIT(link->ctx->logger);
@@ -877,7 +880,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			dpcd_set_source_specific_data(link);
 			msleep(post_oui_delay);
 			set_default_brightness_aux(link);
-			//TODO: use cached
 		}
 
 		return true;
@@ -962,7 +964,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			}
 
 			if (!detect_dp(link, &sink_caps, reason)) {
-				link->type = pre_connection_type;
 
 				if (prev_sink)
 					dc_sink_release(prev_sink);
@@ -989,6 +990,23 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
 					link->reported_link_cap.link_rate > LINK_RATE_HIGH3)
 				link->reported_link_cap.link_rate = LINK_RATE_HIGH3;
+
+			/*
+			 * If this is DP over USB4 link then we need to:
+			 * - Enable BW ALLOC support on DPtx if applicable
+			 */
+			if (dc->config.usb4_bw_alloc_support) {
+				if (link_dp_dpia_set_dptx_usb4_bw_alloc_support(link)) {
+					/* update with non reduced link cap if bw allocation mode is supported */
+					if (link->dpia_bw_alloc_config.nrd_max_link_rate &&
+						link->dpia_bw_alloc_config.nrd_max_lane_count) {
+						link->reported_link_cap.link_rate =
+							link->dpia_bw_alloc_config.nrd_max_link_rate;
+						link->reported_link_cap.lane_count =
+							link->dpia_bw_alloc_config.nrd_max_lane_count;
+					}
+				}
+			}
 			break;
 		}
 
@@ -1086,6 +1104,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		if (sink->edid_caps.panel_patch.skip_scdc_overwrite)
 			link->ctx->dc->debug.hdmi20_disable = true;
 
+		if (sink->edid_caps.panel_patch.remove_sink_ext_caps)
+			link->dpcd_sink_ext_caps.raw = 0;
+
 		if (dc_is_hdmi_signal(link->connector_signal))
 			read_scdc_caps(link->ddc, link->local_sink);
 
@@ -1164,6 +1185,11 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			dm_helpers_init_panel_settings(dc_ctx, &link->panel_config, sink);
 			// Override dc_panel_config if system has specific settings
 			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);
+
+			//sink only can use supported link rate table, we are foreced to enable it
+			if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
+				link->panel_config.ilr.optimize_edp_link_rate = true;
+			link->reported_link_cap.link_rate = get_max_edp_link_rate(link);
 		}
 
 	} else {
@@ -1270,8 +1296,7 @@ bool link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			link->dpcd_caps.is_mst_capable)
 		is_delegated_to_mst_top_mgr = discover_dp_mst_topology(link, reason);
 
-	if (is_local_sink_detect_success &&
-			pre_link_type == dc_connection_mst_branch &&
+	if (pre_link_type == dc_connection_mst_branch &&
 			link->type != dc_connection_mst_branch)
 		is_delegated_to_mst_top_mgr = link_reset_cur_dp_mst_topology(link);
 

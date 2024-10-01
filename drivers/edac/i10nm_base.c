@@ -47,10 +47,6 @@
 	readl((m)->mbase + ((m)->hbm_mc ? 0xef8 :	\
 	(res_cfg->type == GNR ? 0xaf8 : 0x20ef8)) +	\
 	(i) * (m)->chan_mmio_sz)
-#define I10NM_GET_AMAP(m, i)		\
-	readl((m)->mbase + ((m)->hbm_mc ? 0x814 :	\
-	(res_cfg->type == GNR ? 0xc14 : 0x20814)) +	\
-	(i) * (m)->chan_mmio_sz)
 #define I10NM_GET_REG32(m, i, offset)	\
 	readl((m)->mbase + (i) * (m)->chan_mmio_sz + (offset))
 #define I10NM_GET_REG64(m, i, offset)	\
@@ -658,13 +654,49 @@ static struct pci_dev *get_ddr_munit(struct skx_dev *d, int i, u32 *offset, unsi
 	return mdev;
 }
 
+/**
+ * i10nm_imc_absent() - Check whether the memory controller @imc is absent
+ *
+ * @imc    : The pointer to the structure of memory controller EDAC device.
+ *
+ * RETURNS : true if the memory controller EDAC device is absent, false otherwise.
+ */
+static bool i10nm_imc_absent(struct skx_imc *imc)
+{
+	u32 mcmtr;
+	int i;
+
+	switch (res_cfg->type) {
+	case SPR:
+		for (i = 0; i < res_cfg->ddr_chan_num; i++) {
+			mcmtr = I10NM_GET_MCMTR(imc, i);
+			edac_dbg(1, "ch%d mcmtr reg %x\n", i, mcmtr);
+			if (mcmtr != ~0)
+				return false;
+		}
+
+		/*
+		 * Some workstations' absent memory controllers still
+		 * appear as PCIe devices, misleading the EDAC driver.
+		 * By observing that the MMIO registers of these absent
+		 * memory controllers consistently hold the value of ~0.
+		 *
+		 * We identify a memory controller as absent by checking
+		 * if its MMIO register "mcmtr" == ~0 in all its channels.
+		 */
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int i10nm_get_ddr_munits(void)
 {
 	struct pci_dev *mdev;
 	void __iomem *mbase;
 	unsigned long size;
 	struct skx_dev *d;
-	int i, j = 0;
+	int i, lmc, j = 0;
 	u32 reg, off;
 	u64 base;
 
@@ -690,7 +722,7 @@ static int i10nm_get_ddr_munits(void)
 		edac_dbg(2, "socket%d mmio base 0x%llx (reg 0x%x)\n",
 			 j++, base, reg);
 
-		for (i = 0; i < res_cfg->ddr_imc_num; i++) {
+		for (lmc = 0, i = 0; i < res_cfg->ddr_imc_num; i++) {
 			mdev = get_ddr_munit(d, i, &off, &size);
 
 			if (i == 0 && !mdev) {
@@ -699,8 +731,6 @@ static int i10nm_get_ddr_munits(void)
 			}
 			if (!mdev)
 				continue;
-
-			d->imc[i].mdev = mdev;
 
 			edac_dbg(2, "mc%d mmio base 0x%llx size 0x%lx (reg 0x%x)\n",
 				 i, base + off, size, reg);
@@ -712,7 +742,17 @@ static int i10nm_get_ddr_munits(void)
 				return -ENODEV;
 			}
 
-			d->imc[i].mbase = mbase;
+			d->imc[lmc].mbase = mbase;
+			if (i10nm_imc_absent(&d->imc[lmc])) {
+				pci_dev_put(mdev);
+				iounmap(mbase);
+				d->imc[lmc].mbase = NULL;
+				edac_dbg(2, "Skip absent mc%d\n", i);
+				continue;
+			} else {
+				d->imc[lmc].mdev = mdev;
+				lmc++;
+			}
 		}
 	}
 
@@ -898,15 +938,16 @@ static struct res_config gnr_cfg = {
 };
 
 static const struct x86_cpu_id i10nm_cpuids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(ATOM_TREMONT_D,	X86_STEPPINGS(0x0, 0x3), &i10nm_cfg0),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(ATOM_TREMONT_D,	X86_STEPPINGS(0x4, 0xf), &i10nm_cfg1),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(ICELAKE_X,		X86_STEPPINGS(0x0, 0x3), &i10nm_cfg0),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(ICELAKE_X,		X86_STEPPINGS(0x4, 0xf), &i10nm_cfg1),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(ICELAKE_D,		X86_STEPPINGS(0x0, 0xf), &i10nm_cfg1),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(SAPPHIRERAPIDS_X,	X86_STEPPINGS(0x0, 0xf), &spr_cfg),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(EMERALDRAPIDS_X,	X86_STEPPINGS(0x0, 0xf), &spr_cfg),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(GRANITERAPIDS_X,	X86_STEPPINGS(0x0, 0xf), &gnr_cfg),
-	X86_MATCH_INTEL_FAM6_MODEL_STEPPINGS(SIERRAFOREST_X,	X86_STEPPINGS(0x0, 0xf), &gnr_cfg),
+	X86_MATCH_VFM_STEPPINGS(INTEL_ATOM_TREMONT_D,	X86_STEPPINGS(0x0, 0x3), &i10nm_cfg0),
+	X86_MATCH_VFM_STEPPINGS(INTEL_ATOM_TREMONT_D,	X86_STEPPINGS(0x4, 0xf), &i10nm_cfg1),
+	X86_MATCH_VFM_STEPPINGS(INTEL_ICELAKE_X,	X86_STEPPINGS(0x0, 0x3), &i10nm_cfg0),
+	X86_MATCH_VFM_STEPPINGS(INTEL_ICELAKE_X,	X86_STEPPINGS(0x4, 0xf), &i10nm_cfg1),
+	X86_MATCH_VFM_STEPPINGS(INTEL_ICELAKE_D,	X86_STEPPINGS(0x0, 0xf), &i10nm_cfg1),
+	X86_MATCH_VFM_STEPPINGS(INTEL_SAPPHIRERAPIDS_X,	X86_STEPPINGS(0x0, 0xf), &spr_cfg),
+	X86_MATCH_VFM_STEPPINGS(INTEL_EMERALDRAPIDS_X,	X86_STEPPINGS(0x0, 0xf), &spr_cfg),
+	X86_MATCH_VFM_STEPPINGS(INTEL_GRANITERAPIDS_X,	X86_STEPPINGS(0x0, 0xf), &gnr_cfg),
+	X86_MATCH_VFM_STEPPINGS(INTEL_ATOM_CRESTMONT_X,	X86_STEPPINGS(0x0, 0xf), &gnr_cfg),
+	X86_MATCH_VFM_STEPPINGS(INTEL_ATOM_CRESTMONT,	X86_STEPPINGS(0x0, 0xf), &gnr_cfg),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, i10nm_cpuids);
@@ -926,7 +967,7 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci,
 {
 	struct skx_pvt *pvt = mci->pvt_info;
 	struct skx_imc *imc = pvt->imc;
-	u32 mtr, amap, mcddrtcfg = 0;
+	u32 mtr, mcddrtcfg = 0;
 	struct dimm_info *dimm;
 	int i, j, ndimms;
 
@@ -935,7 +976,6 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci,
 			continue;
 
 		ndimms = 0;
-		amap = I10NM_GET_AMAP(imc, i);
 
 		if (res_cfg->type != GNR)
 			mcddrtcfg = I10NM_GET_MCDDRTCFG(imc, i);
@@ -947,7 +987,7 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci,
 				 mtr, mcddrtcfg, imc->mc, i, j);
 
 			if (IS_DIMM_PRESENT(mtr))
-				ndimms += skx_get_dimm_info(mtr, 0, amap, dimm,
+				ndimms += skx_get_dimm_info(mtr, 0, 0, dimm,
 							    imc, i, j, cfg);
 			else if (IS_NVDIMM_PRESENT(mcddrtcfg, j))
 				ndimms += skx_get_nvdimm_info(dimm, imc, i, j,
@@ -967,54 +1007,6 @@ static struct notifier_block i10nm_mce_dec = {
 	.notifier_call	= skx_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
-
-#ifdef CONFIG_EDAC_DEBUG
-/*
- * Debug feature.
- * Exercise the address decode logic by writing an address to
- * /sys/kernel/debug/edac/i10nm_test/addr.
- */
-static struct dentry *i10nm_test;
-
-static int debugfs_u64_set(void *data, u64 val)
-{
-	struct mce m;
-
-	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
-
-	memset(&m, 0, sizeof(m));
-	/* ADDRV + MemRd + Unknown channel */
-	m.status = MCI_STATUS_ADDRV + 0x90;
-	/* One corrected error */
-	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
-	m.addr = val;
-	skx_mce_check_error(NULL, 0, &m);
-
-	return 0;
-}
-DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
-
-static void setup_i10nm_debug(void)
-{
-	i10nm_test = edac_debugfs_create_dir("i10nm_test");
-	if (!i10nm_test)
-		return;
-
-	if (!edac_debugfs_create_file("addr", 0200, i10nm_test,
-				      NULL, &fops_u64_wo)) {
-		debugfs_remove(i10nm_test);
-		i10nm_test = NULL;
-	}
-}
-
-static void teardown_i10nm_debug(void)
-{
-	debugfs_remove_recursive(i10nm_test);
-}
-#else
-static inline void setup_i10nm_debug(void) {}
-static inline void teardown_i10nm_debug(void) {}
-#endif /*CONFIG_EDAC_DEBUG*/
 
 static int __init i10nm_init(void)
 {
@@ -1114,7 +1106,7 @@ static int __init i10nm_init(void)
 
 	opstate_init();
 	mce_register_decode_chain(&i10nm_mce_dec);
-	setup_i10nm_debug();
+	skx_setup_debug("i10nm_test");
 
 	if (retry_rd_err_log && res_cfg->offsets_scrub && res_cfg->offsets_demand) {
 		skx_set_decode(i10nm_mc_decode, show_retry_rd_err_log);
@@ -1142,7 +1134,7 @@ static void __exit i10nm_exit(void)
 			enable_retry_rd_err_log(false);
 	}
 
-	teardown_i10nm_debug();
+	skx_teardown_debug();
 	mce_unregister_decode_chain(&i10nm_mce_dec);
 	skx_adxl_put();
 	skx_remove();

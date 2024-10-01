@@ -177,7 +177,4 @@
 #define CLK_MOUT_MPLL		1029
 #define CLK_MOUT_VPLLSRC	1030
 
-/* must be greater than maximal clock id */
-#define CLK_NR_CLKS		1031
-
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_5250_H */

@@ -5,6 +5,7 @@
 #define _TXGBE_TYPE_H_
 
 #include <linux/property.h>
+#include <linux/irq.h>
 
 /* Device IDs */
 #define TXGBE_DEV_ID_SP1000                     0x1001
@@ -88,8 +89,54 @@
 #define TXGBE_XPCS_IDA_ADDR                     0x13000
 #define TXGBE_XPCS_IDA_DATA                     0x13004
 
-/* Part Number String Length */
-#define TXGBE_PBANUM_LENGTH                     32
+/********************************* Flow Director *****************************/
+#define TXGBE_RDB_FDIR_DROP_QUEUE               127
+#define TXGBE_RDB_FDIR_CTL                      0x19500
+#define TXGBE_RDB_FDIR_CTL_INIT_DONE            BIT(3)
+#define TXGBE_RDB_FDIR_CTL_PERFECT_MATCH        BIT(4)
+#define TXGBE_RDB_FDIR_CTL_DROP_Q(v)            FIELD_PREP(GENMASK(14, 8), v)
+#define TXGBE_RDB_FDIR_CTL_HASH_BITS(v)         FIELD_PREP(GENMASK(23, 20), v)
+#define TXGBE_RDB_FDIR_CTL_MAX_LENGTH(v)        FIELD_PREP(GENMASK(27, 24), v)
+#define TXGBE_RDB_FDIR_CTL_FULL_THRESH(v)       FIELD_PREP(GENMASK(31, 28), v)
+#define TXGBE_RDB_FDIR_IP6(_i)                  (0x1950C + ((_i) * 4)) /* 0-2 */
+#define TXGBE_RDB_FDIR_SA                       0x19518
+#define TXGBE_RDB_FDIR_DA                       0x1951C
+#define TXGBE_RDB_FDIR_PORT                     0x19520
+#define TXGBE_RDB_FDIR_PORT_DESTINATION_SHIFT   16
+#define TXGBE_RDB_FDIR_FLEX                     0x19524
+#define TXGBE_RDB_FDIR_FLEX_FLEX_SHIFT          16
+#define TXGBE_RDB_FDIR_HASH                     0x19528
+#define TXGBE_RDB_FDIR_HASH_SIG_SW_INDEX(v)     FIELD_PREP(GENMASK(31, 16), v)
+#define TXGBE_RDB_FDIR_HASH_BUCKET_VALID        BIT(15)
+#define TXGBE_RDB_FDIR_CMD                      0x1952C
+#define TXGBE_RDB_FDIR_CMD_CMD_MASK             GENMASK(1, 0)
+#define TXGBE_RDB_FDIR_CMD_CMD(v)               FIELD_PREP(GENMASK(1, 0), v)
+#define TXGBE_RDB_FDIR_CMD_CMD_ADD_FLOW         TXGBE_RDB_FDIR_CMD_CMD(1)
+#define TXGBE_RDB_FDIR_CMD_CMD_REMOVE_FLOW      TXGBE_RDB_FDIR_CMD_CMD(2)
+#define TXGBE_RDB_FDIR_CMD_CMD_QUERY_REM_FILT   TXGBE_RDB_FDIR_CMD_CMD(3)
+#define TXGBE_RDB_FDIR_CMD_FILTER_VALID         BIT(2)
+#define TXGBE_RDB_FDIR_CMD_FILTER_UPDATE        BIT(3)
+#define TXGBE_RDB_FDIR_CMD_FLOW_TYPE(v)         FIELD_PREP(GENMASK(6, 5), v)
+#define TXGBE_RDB_FDIR_CMD_DROP                 BIT(9)
+#define TXGBE_RDB_FDIR_CMD_LAST                 BIT(11)
+#define TXGBE_RDB_FDIR_CMD_QUEUE_EN             BIT(15)
+#define TXGBE_RDB_FDIR_CMD_RX_QUEUE(v)          FIELD_PREP(GENMASK(22, 16), v)
+#define TXGBE_RDB_FDIR_CMD_VT_POOL(v)           FIELD_PREP(GENMASK(29, 24), v)
+#define TXGBE_RDB_FDIR_DA4_MSK                  0x1953C
+#define TXGBE_RDB_FDIR_SA4_MSK                  0x19540
+#define TXGBE_RDB_FDIR_TCP_MSK                  0x19544
+#define TXGBE_RDB_FDIR_UDP_MSK                  0x19548
+#define TXGBE_RDB_FDIR_SCTP_MSK                 0x19560
+#define TXGBE_RDB_FDIR_HKEY                     0x19568
+#define TXGBE_RDB_FDIR_SKEY                     0x1956C
+#define TXGBE_RDB_FDIR_OTHER_MSK                0x19570
+#define TXGBE_RDB_FDIR_OTHER_MSK_POOL           BIT(2)
+#define TXGBE_RDB_FDIR_OTHER_MSK_L4P            BIT(3)
+#define TXGBE_RDB_FDIR_FLEX_CFG(_i)             (0x19580 + ((_i) * 4))
+#define TXGBE_RDB_FDIR_FLEX_CFG_FIELD0          GENMASK(7, 0)
+#define TXGBE_RDB_FDIR_FLEX_CFG_BASE_MAC        FIELD_PREP(GENMASK(1, 0), 0)
+#define TXGBE_RDB_FDIR_FLEX_CFG_MSK             BIT(2)
+#define TXGBE_RDB_FDIR_FLEX_CFG_OFST(v)         FIELD_PREP(GENMASK(7, 3), v)
 
 /* Checksum and EEPROM pointers */
 #define TXGBE_EEPROM_LAST_WORD                  0x800
@@ -98,12 +145,10 @@
 #define TXGBE_EEPROM_VERSION_L                  0x1D
 #define TXGBE_EEPROM_VERSION_H                  0x1E
 #define TXGBE_ISCSI_BOOT_CONFIG                 0x07
-#define TXGBE_PBANUM0_PTR                       0x05
-#define TXGBE_PBANUM1_PTR                       0x06
-#define TXGBE_PBANUM_PTR_GUARD                  0xFAFA
 
 #define TXGBE_MAX_MSIX_VECTORS          64
 #define TXGBE_MAX_FDIR_INDICES          63
+#define TXGBE_MAX_RSS_INDICES           63
 
 #define TXGBE_MAX_RX_QUEUES   (TXGBE_MAX_FDIR_INDICES + 1)
 #define TXGBE_MAX_TX_QUEUES   (TXGBE_MAX_FDIR_INDICES + 1)
@@ -115,6 +160,98 @@
 #define TXGBE_SP_VFT_TBL_SIZE   128
 #define TXGBE_SP_RX_PB_SIZE     512
 #define TXGBE_SP_TDB_PB_SZ      (160 * 1024) /* 160KB Packet Buffer */
+
+#define TXGBE_DEFAULT_ATR_SAMPLE_RATE           20
+
+/* Software ATR hash keys */
+#define TXGBE_ATR_BUCKET_HASH_KEY               0x3DAD14E2
+#define TXGBE_ATR_SIGNATURE_HASH_KEY            0x174D3614
+
+/* Software ATR input stream values and masks */
+#define TXGBE_ATR_HASH_MASK                     0x7fff
+#define TXGBE_ATR_L4TYPE_MASK                   0x3
+#define TXGBE_ATR_L4TYPE_UDP                    0x1
+#define TXGBE_ATR_L4TYPE_TCP                    0x2
+#define TXGBE_ATR_L4TYPE_SCTP                   0x3
+#define TXGBE_ATR_L4TYPE_IPV6_MASK              0x4
+#define TXGBE_ATR_L4TYPE_TUNNEL_MASK            0x10
+
+enum txgbe_atr_flow_type {
+	TXGBE_ATR_FLOW_TYPE_IPV4                = 0x0,
+	TXGBE_ATR_FLOW_TYPE_UDPV4               = 0x1,
+	TXGBE_ATR_FLOW_TYPE_TCPV4               = 0x2,
+	TXGBE_ATR_FLOW_TYPE_SCTPV4              = 0x3,
+	TXGBE_ATR_FLOW_TYPE_IPV6                = 0x4,
+	TXGBE_ATR_FLOW_TYPE_UDPV6               = 0x5,
+	TXGBE_ATR_FLOW_TYPE_TCPV6               = 0x6,
+	TXGBE_ATR_FLOW_TYPE_SCTPV6              = 0x7,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_IPV4       = 0x10,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_UDPV4      = 0x11,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_TCPV4      = 0x12,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_SCTPV4     = 0x13,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_IPV6       = 0x14,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_UDPV6      = 0x15,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_TCPV6      = 0x16,
+	TXGBE_ATR_FLOW_TYPE_TUNNELED_SCTPV6     = 0x17,
+};
+
+/* Flow Director ATR input struct. */
+union txgbe_atr_input {
+	/* Byte layout in order, all values with MSB first:
+	 *
+	 * vm_pool    - 1 byte
+	 * flow_type  - 1 byte
+	 * vlan_id    - 2 bytes
+	 * dst_ip     - 16 bytes
+	 * src_ip     - 16 bytes
+	 * src_port   - 2 bytes
+	 * dst_port   - 2 bytes
+	 * flex_bytes - 2 bytes
+	 * bkt_hash   - 2 bytes
+	 */
+	struct {
+		u8 vm_pool;
+		u8 flow_type;
+		__be16 vlan_id;
+		__be32 dst_ip[4];
+		__be32 src_ip[4];
+		__be16 src_port;
+		__be16 dst_port;
+		__be16 flex_bytes;
+		__be16 bkt_hash;
+	} formatted;
+	__be32 dword_stream[11];
+};
+
+/* Flow Director compressed ATR hash input struct */
+union txgbe_atr_hash_dword {
+	struct {
+		u8 vm_pool;
+		u8 flow_type;
+		__be16 vlan_id;
+	} formatted;
+	__be32 ip;
+	struct {
+		__be16 src;
+		__be16 dst;
+	} port;
+	__be16 flex_bytes;
+	__be32 dword;
+};
+
+enum txgbe_fdir_pballoc_type {
+	TXGBE_FDIR_PBALLOC_NONE = 0,
+	TXGBE_FDIR_PBALLOC_64K  = 1,
+	TXGBE_FDIR_PBALLOC_128K = 2,
+	TXGBE_FDIR_PBALLOC_256K = 3,
+};
+
+struct txgbe_fdir_filter {
+	struct hlist_node fdir_node;
+	union txgbe_atr_input filter;
+	u16 sw_idx;
+	u16 action;
+};
 
 /* TX/RX descriptor defines */
 #define TXGBE_DEFAULT_TXD               512
@@ -128,19 +265,17 @@
 #define TXGBE_DEFAULT_RX_WORK           128
 #endif
 
-#define TXGBE_INTR_MISC(A)    BIT((A)->num_q_vectors)
-#define TXGBE_INTR_QALL(A)    (TXGBE_INTR_MISC(A) - 1)
+#define TXGBE_INTR_MISC       BIT(0)
+#define TXGBE_INTR_QALL(A)    GENMASK((A)->num_q_vectors, 1)
 
 #define TXGBE_MAX_EITR        GENMASK(11, 3)
 
 extern char txgbe_driver_name[];
 
-static inline struct txgbe *netdev_to_txgbe(struct net_device *netdev)
-{
-	struct wx *wx = netdev_priv(netdev);
-
-	return wx->priv;
-}
+void txgbe_down(struct wx *wx);
+void txgbe_up(struct wx *wx);
+int txgbe_setup_tc(struct net_device *dev, u8 tc);
+void txgbe_do_reset(struct net_device *netdev);
 
 #define NODE_PROP(_NAME, _PROP)			\
 	(const struct software_node) {		\
@@ -177,16 +312,37 @@ struct txgbe_nodes {
 	const struct software_node *group[SWNODE_MAX + 1];
 };
 
+enum txgbe_misc_irqs {
+	TXGBE_IRQ_GPIO = 0,
+	TXGBE_IRQ_LINK,
+	TXGBE_IRQ_MAX
+};
+
+struct txgbe_irq {
+	struct irq_chip chip;
+	struct irq_domain *domain;
+	int nirqs;
+	int irq;
+};
+
 struct txgbe {
 	struct wx *wx;
 	struct txgbe_nodes nodes;
+	struct txgbe_irq misc;
 	struct dw_xpcs *xpcs;
-	struct phylink *phylink;
 	struct platform_device *sfp_dev;
 	struct platform_device *i2c_dev;
 	struct clk_lookup *clock;
 	struct clk *clk;
 	struct gpio_chip *gpio;
+	unsigned int gpio_irq;
+	unsigned int link_irq;
+
+	/* flow director */
+	struct hlist_head fdir_filter_list;
+	union txgbe_atr_input fdir_mask;
+	int fdir_filter_count;
+	spinlock_t fdir_perfect_lock; /* spinlock for FDIR */
 };
 
 #endif /* _TXGBE_TYPE_H_ */

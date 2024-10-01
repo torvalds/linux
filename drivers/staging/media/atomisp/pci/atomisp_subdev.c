@@ -31,6 +31,7 @@
 #include "atomisp_compat.h"
 #include "atomisp_fops.h"
 #include "atomisp_internal.h"
+#include "atomisp_ioctl.h"
 
 const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[] = {
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8, 8, ATOMISP_INPUT_FORMAT_RAW_8, IA_CSS_BAYER_ORDER_BGGR },
@@ -148,18 +149,6 @@ static long isp_subdev_ioctl(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * isp_subdev_set_power - Power on/off the CCDC module
- * @sd: ISP V4L2 subdevice
- * @on: power on/off
- *
- * Return 0 on success or a negative error code otherwise.
- */
-static int isp_subdev_set_power(struct v4l2_subdev *sd, int on)
-{
-	return 0;
-}
-
 static int isp_subdev_subscribe_event(struct v4l2_subdev *sd,
 				      struct v4l2_fh *fh,
 				      struct v4l2_event_subscription *sub)
@@ -240,9 +229,9 @@ struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
 		switch (target) {
 		case V4L2_SEL_TGT_CROP:
-			return v4l2_subdev_get_try_crop(sd, sd_state, pad);
+			return v4l2_subdev_state_get_crop(sd_state, pad);
 		case V4L2_SEL_TGT_COMPOSE:
-			return v4l2_subdev_get_try_compose(sd, sd_state, pad);
+			return v4l2_subdev_state_get_compose(sd_state, pad);
 		}
 	}
 
@@ -264,7 +253,7 @@ struct v4l2_mbus_framefmt
 	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 
 	return &isp_sd->fmt[pad].fmt;
 }
@@ -284,35 +273,6 @@ static void isp_get_fmt_rect(struct v4l2_subdev *sd,
 						  V4L2_SEL_TGT_CROP);
 		comp[i] = atomisp_subdev_get_rect(sd, sd_state, which, i,
 						  V4L2_SEL_TGT_COMPOSE);
-	}
-}
-
-static void isp_subdev_propagate(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_state *sd_state,
-				 u32 which, uint32_t pad, uint32_t target,
-				 uint32_t flags)
-{
-	struct v4l2_mbus_framefmt *ffmt[ATOMISP_SUBDEV_PADS_NUM];
-	struct v4l2_rect *crop[ATOMISP_SUBDEV_PADS_NUM],
-		       *comp[ATOMISP_SUBDEV_PADS_NUM];
-
-	if (flags & V4L2_SEL_FLAG_KEEP_CONFIG)
-		return;
-
-	isp_get_fmt_rect(sd, sd_state, which, ffmt, crop, comp);
-
-	switch (pad) {
-	case ATOMISP_SUBDEV_PAD_SINK: {
-		struct v4l2_rect r = {0};
-
-		/* Only crop target supported on sink pad. */
-		r.width = ffmt[pad]->width;
-		r.height = ffmt[pad]->height;
-
-		atomisp_subdev_set_selection(sd, sd_state, which, pad,
-					     target, flags, &r);
-		break;
-	}
 	}
 }
 
@@ -390,11 +350,12 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 
 		if (isp_sd->params.video_dis_en &&
 		    isp_sd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-			/* This resolution contains 20 % of DVS slack
+			/*
+			 * This resolution contains 20 % of DVS slack
 			 * (of the desired captured image before
 			 * scaling, or 1 / 6 of what we get from the
-			 * sensor) in both width and height. Remove
-			 * it. */
+			 * sensor) in both width and height. Remove it.
+			 */
 			crop[pad]->width = roundup(crop[pad]->width * 5 / 6,
 						   ATOM_ISP_STEP_WIDTH);
 			crop[pad]->height = roundup(crop[pad]->height * 5 / 6,
@@ -541,6 +502,7 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 	case ATOMISP_SUBDEV_PAD_SINK: {
 		const struct atomisp_in_fmt_conv *fc =
 		    atomisp_find_in_fmt_conv(ffmt->code);
+		struct v4l2_rect r = {};
 
 		if (!fc) {
 			fc = atomisp_in_fmt_conv;
@@ -551,8 +513,12 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 
 		*__ffmt = *ffmt;
 
-		isp_subdev_propagate(sd, sd_state, which, pad,
-				     V4L2_SEL_TGT_CROP, 0);
+		/* Propagate new ffmt to selection */
+		r.width = ffmt->width;
+		r.height = ffmt->height;
+		/* Only crop target supported on sink pad. */
+		atomisp_subdev_set_selection(sd, sd_state, which, pad,
+					     V4L2_SEL_TGT_CROP, 0, &r);
 
 		if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 			atomisp_css_input_set_resolution(isp_sd,
@@ -618,7 +584,7 @@ static int isp_subdev_set_format(struct v4l2_subdev *sd,
 
 /* V4L2 subdev core operations */
 static const struct v4l2_subdev_core_ops isp_subdev_v4l2_core_ops = {
-	.ioctl = isp_subdev_ioctl, .s_power = isp_subdev_set_power,
+	.ioctl = isp_subdev_ioctl,
 	.subscribe_event = isp_subdev_subscribe_event,
 	.unsubscribe_event = isp_subdev_unsubscribe_event,
 };
@@ -658,55 +624,46 @@ static void isp_subdev_init_params(struct atomisp_sub_device *asd)
 }
 
 /* media operations */
-static const struct media_entity_operations isp_subdev_media_ops = {
-	.link_validate = v4l2_subdev_link_validate,
-	/*	 .set_power = v4l2_subdev_set_power,	*/
-};
-
-static int __atomisp_update_run_mode(struct atomisp_sub_device *asd)
+static int atomisp_link_setup(struct media_entity *entity,
+			      const struct media_pad *local,
+			      const struct media_pad *remote, u32 flags)
 {
+	struct v4l2_subdev *sd = container_of(entity, struct v4l2_subdev,
+					      entity);
+	struct atomisp_sub_device *asd = v4l2_get_subdevdata(sd);
 	struct atomisp_device *isp = asd->isp;
-	struct v4l2_ctrl *ctrl = asd->run_mode;
-	struct v4l2_ctrl *c;
-	s32 mode;
+	int i;
 
-	mode = ctrl->val;
-
-	c = v4l2_ctrl_find(
-		isp->inputs[asd->input_curr].camera->ctrl_handler,
-		V4L2_CID_RUN_MODE);
-
-	if (c)
-		return v4l2_ctrl_s_ctrl(c, mode);
-
-	return 0;
-}
-
-int atomisp_update_run_mode(struct atomisp_sub_device *asd)
-{
-	int rval;
-
-	mutex_lock(asd->ctrl_handler.lock);
-	rval = __atomisp_update_run_mode(asd);
-	mutex_unlock(asd->ctrl_handler.lock);
-
-	return rval;
-}
-
-static int s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct atomisp_sub_device *asd = container_of(
-					     ctrl->handler, struct atomisp_sub_device, ctrl_handler);
-	switch (ctrl->id) {
-	case V4L2_CID_RUN_MODE:
-		return __atomisp_update_run_mode(asd);
+	/* ISP's source is immutable */
+	if (local != &asd->pads[ATOMISP_SUBDEV_PAD_SINK]) {
+		v4l2_err(sd, "Error pad %d does not support changing flags\n",
+			 local->index);
+		return -EINVAL;
 	}
 
-	return 0;
+	for (i = 0; i < isp->input_cnt; i++) {
+		if (&isp->inputs[i].csi_port->entity.pads[CSI2_PAD_SOURCE] == remote)
+			break;
+	}
+
+	if (i == isp->input_cnt) {
+		v4l2_err(sd, "Error no sensor for selected CSI receiver\n");
+		return -EINVAL;
+	}
+
+	/* Turn off the sensor on link disable */
+	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
+		atomisp_s_sensor_power(isp, i, 0);
+		return 0;
+	}
+
+	return atomisp_select_input(isp, i);
 }
 
-static const struct v4l2_ctrl_ops ctrl_ops = {
-	.s_ctrl = &s_ctrl,
+static const struct media_entity_operations isp_subdev_media_ops = {
+	.link_validate = v4l2_subdev_link_validate,
+	.link_setup = atomisp_link_setup,
+	/*	 .set_power = v4l2_subdev_set_power,	*/
 };
 
 static const char *const ctrl_run_mode_menu[] = {
@@ -716,7 +673,6 @@ static const char *const ctrl_run_mode_menu[] = {
 };
 
 static const struct v4l2_ctrl_config ctrl_run_mode = {
-	.ops = &ctrl_ops,
 	.id = V4L2_CID_RUN_MODE,
 	.name = "Atomisp run mode",
 	.type = V4L2_CTRL_TYPE_MENU,
@@ -754,7 +710,6 @@ static const struct v4l2_ctrl_config ctrl_vfpp = {
  * the CSS subsystem.
  */
 static const struct v4l2_ctrl_config ctrl_continuous_raw_buffer_size = {
-	.ops = &ctrl_ops,
 	.id = V4L2_CID_ATOMISP_CONTINUOUS_RAW_BUFFER_SIZE,
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.name = "Continuous raw ringbuffer size",
@@ -837,17 +792,17 @@ static int atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 
 	/* Init videobuf2 queue structure */
 	pipe->vb_queue.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	pipe->vb_queue.io_modes = VB2_MMAP | VB2_USERPTR;
+	pipe->vb_queue.io_modes = VB2_MMAP | VB2_DMABUF;
 	pipe->vb_queue.buf_struct_size = sizeof(struct ia_css_frame);
 	pipe->vb_queue.ops = &atomisp_vb2_ops;
 	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;
 	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	pipe->vb_queue.lock = &pipe->vb_queue_mutex;
 	ret = vb2_queue_init(&pipe->vb_queue);
 	if (ret)
 		return ret;
 
 	pipe->vdev.queue = &pipe->vb_queue;
-	pipe->vdev.queue->lock = &pipe->vb_queue_mutex;
 
 	INIT_LIST_HEAD(&pipe->buffers_in_css);
 	INIT_LIST_HEAD(&pipe->activeq);
@@ -871,10 +826,9 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	int ret;
 
 	v4l2_subdev_init(sd, &isp_subdev_v4l2_ops);
-	sprintf(sd->name, "ATOMISP_SUBDEV");
+	sprintf(sd->name, "Atom ISP");
 	v4l2_set_subdevdata(sd, asd);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
-	sd->devnode = &asd->video_out.vdev;
 
 	pads[ATOMISP_SUBDEV_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[ATOMISP_SUBDEV_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;

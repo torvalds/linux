@@ -7,7 +7,9 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Freescale i.MX/MXC GPIO controller
 
 maintainers:
-  - Anson Huang <Anson.Huang@nxp.com>
+  - Shawn Guo <shawnguo@kernel.org>
+  - Sascha Hauer <s.hauer@pengutronix.de>
+  - Fabio Estevam <festevam@gmail.com>
 
 properties:
   compatible:
@@ -19,8 +21,16 @@ properties:
           - fsl,imx35-gpio
           - fsl,imx7d-gpio
       - items:
+          - enum:
+              - fsl,imx27-gpio
+          - const: fsl,imx21-gpio
+      - items:
           - const: fsl,imx35-gpio
           - const: fsl,imx31-gpio
+      - items:
+          - enum:
+              - fsl,imx25-gpio
+          - const: fsl,imx35-gpio
       - items:
           - enum:
               - fsl,imx50-gpio
@@ -32,10 +42,12 @@ properties:
               - fsl,imx6sx-gpio
               - fsl,imx6ul-gpio
               - fsl,imx7d-gpio
+              - fsl,imx8dxl-gpio
               - fsl,imx8mm-gpio
               - fsl,imx8mn-gpio
               - fsl,imx8mp-gpio
               - fsl,imx8mq-gpio
+              - fsl,imx8qm-gpio
               - fsl,imx8qxp-gpio
               - fsl,imxrt1050-gpio
               - fsl,imxrt1170-gpio
@@ -73,19 +85,8 @@ properties:
 patternProperties:
   "^(hog-[0-9]+|.+-hog(-[0-9]+)?)$":
     type: object
-    properties:
-      gpio-hog: true
-      gpios: true
-      input: true
-      output-high: true
-      output-low: true
-      line-name: true
-
     required:
       - gpio-hog
-      - gpios
-
-    additionalProperties: false
 
 required:
   - compatible

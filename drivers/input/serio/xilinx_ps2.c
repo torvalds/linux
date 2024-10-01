@@ -14,10 +14,10 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #define DRIVER_NAME		"xilinx_ps2"
 
@@ -219,8 +219,7 @@ static void sxps2_close(struct serio *pserio)
 
 /**
  * xps2_of_probe - probe method for the PS/2 device.
- * @of_dev:	pointer to OF device structure
- * @match:	pointer to the structure used for matching a device
+ * @ofdev:	pointer to OF device structure
  *
  * This function probes the PS/2 device in the device tree.
  * It initializes the driver data structure and the hardware.
@@ -253,8 +252,8 @@ static int xps2_of_probe(struct platform_device *ofdev)
 		return -ENODEV;
 	}
 
-	drvdata = kzalloc(sizeof(struct xps2data), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
 		error = -ENOMEM;
 		goto failed1;
@@ -329,7 +328,7 @@ failed1:
  * if the driver module is being unloaded. It frees any resources allocated to
  * the device.
  */
-static int xps2_of_remove(struct platform_device *of_dev)
+static void xps2_of_remove(struct platform_device *of_dev)
 {
 	struct xps2data *drvdata = platform_get_drvdata(of_dev);
 	struct resource r_mem; /* IO mem resources */
@@ -344,8 +343,6 @@ static int xps2_of_remove(struct platform_device *of_dev)
 		release_mem_region(r_mem.start, resource_size(&r_mem));
 
 	kfree(drvdata);
-
-	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -361,7 +358,7 @@ static struct platform_driver xps2_of_driver = {
 		.of_match_table = xps2_of_match,
 	},
 	.probe		= xps2_of_probe,
-	.remove		= xps2_of_remove,
+	.remove_new	= xps2_of_remove,
 };
 module_platform_driver(xps2_of_driver);
 

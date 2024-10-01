@@ -199,7 +199,7 @@
 &pmx_core {
 	status = "okay";
 
-	mcasp0_pins: pinmux_mcasp0_pins {
+	mcasp0_pins: mcasp0-pins {
 		pinctrl-single,bits = <
 			/* AHCLKX AFSX ACLKX */
 			0x00 0x00101010 0x00f0f0f0
@@ -208,7 +208,7 @@
 		>;
 	};
 
-	nand_pins: nand_pins {
+	nand_pins: nand-pins {
 		pinctrl-single,bits = <
 			/* EMA_WAIT[0], EMA_OE, EMA_WE, EMA_CS[3] */
 			0x1c 0x10110010  0xf0ff00f0

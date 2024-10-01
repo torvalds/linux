@@ -9,7 +9,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
-#include <linux/vmalloc.h>
 #include <linux/export.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -38,17 +37,15 @@ static void __update_allocated_size(struct snd_card *card, ssize_t bytes)
 
 static void update_allocated_size(struct snd_card *card, ssize_t bytes)
 {
-	mutex_lock(&card->memory_mutex);
+	guard(mutex)(&card->memory_mutex);
 	__update_allocated_size(card, bytes);
-	mutex_unlock(&card->memory_mutex);
 }
 
 static void decrease_allocated_size(struct snd_card *card, size_t bytes)
 {
-	mutex_lock(&card->memory_mutex);
+	guard(mutex)(&card->memory_mutex);
 	WARN_ON(card->total_pcm_alloc_bytes < bytes);
 	__update_allocated_size(card, -(ssize_t)bytes);
-	mutex_unlock(&card->memory_mutex);
 }
 
 static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
@@ -58,14 +55,12 @@ static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
 	int err;
 
 	/* check and reserve the requested size */
-	mutex_lock(&card->memory_mutex);
-	if (max_alloc_per_card &&
-	    card->total_pcm_alloc_bytes + size > max_alloc_per_card) {
-		mutex_unlock(&card->memory_mutex);
-		return -ENOMEM;
+	scoped_guard(mutex, &card->memory_mutex) {
+		if (max_alloc_per_card &&
+		    card->total_pcm_alloc_bytes + size > max_alloc_per_card)
+			return -ENOMEM;
+		__update_allocated_size(card, size);
 	}
-	__update_allocated_size(card, size);
-	mutex_unlock(&card->memory_mutex);
 
 	if (str == SNDRV_PCM_STREAM_PLAYBACK)
 		dir = DMA_TO_DEVICE;
@@ -188,23 +183,26 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 	struct snd_pcm_substream *substream = entry->private_data;
 	struct snd_card *card = substream->pcm->card;
 	char line[64], str[64];
-	size_t size;
+	unsigned long size;
 	struct snd_dma_buffer new_dmab;
 
-	mutex_lock(&substream->pcm->open_mutex);
+	guard(mutex)(&substream->pcm->open_mutex);
 	if (substream->runtime) {
 		buffer->error = -EBUSY;
-		goto unlock;
+		return;
 	}
 	if (!snd_info_get_line(buffer, line, sizeof(line))) {
 		snd_info_get_str(str, line, sizeof(str));
-		size = simple_strtoul(str, NULL, 10) * 1024;
+		buffer->error = kstrtoul(str, 10, &size);
+		if (buffer->error != 0)
+			return;
+		size *= 1024;
 		if ((size != 0 && size < 8192) || size > substream->dma_max) {
 			buffer->error = -EINVAL;
-			goto unlock;
+			return;
 		}
 		if (substream->dma_buffer.bytes == size)
-			goto unlock;
+			return;
 		memset(&new_dmab, 0, sizeof(new_dmab));
 		new_dmab.dev = substream->dma_buffer.dev;
 		if (size > 0) {
@@ -214,11 +212,11 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 					   substream->stream,
 					   size, &new_dmab) < 0) {
 				buffer->error = -ENOMEM;
-				pr_debug("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %zu\n",
+				pr_debug("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %lu\n",
 					 substream->pcm->card->number, substream->pcm->device,
 					 substream->stream ? 'c' : 'p', substream->number,
 					 substream->pcm->name, size);
-				goto unlock;
+				return;
 			}
 			substream->buffer_bytes_max = size;
 		} else {
@@ -230,8 +228,6 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 	} else {
 		buffer->error = -EINVAL;
 	}
- unlock:
-	mutex_unlock(&substream->pcm->open_mutex);
 }
 
 static inline void preallocate_info_init(struct snd_pcm_substream *substream)
@@ -503,61 +499,3 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 	return 0;
 }
 EXPORT_SYMBOL(snd_pcm_lib_free_pages);
-
-int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
-				      size_t size, gfp_t gfp_flags)
-{
-	struct snd_pcm_runtime *runtime;
-
-	if (PCM_RUNTIME_CHECK(substream))
-		return -EINVAL;
-	runtime = substream->runtime;
-	if (runtime->dma_area) {
-		if (runtime->dma_bytes >= size)
-			return 0; /* already large enough */
-		vfree(runtime->dma_area);
-	}
-	runtime->dma_area = __vmalloc(size, gfp_flags);
-	if (!runtime->dma_area)
-		return -ENOMEM;
-	runtime->dma_bytes = size;
-	return 1;
-}
-EXPORT_SYMBOL(_snd_pcm_lib_alloc_vmalloc_buffer);
-
-/**
- * snd_pcm_lib_free_vmalloc_buffer - free vmalloc buffer
- * @substream: the substream with a buffer allocated by
- *	snd_pcm_lib_alloc_vmalloc_buffer()
- *
- * Return: Zero if successful, or a negative error code on failure.
- */
-int snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime;
-
-	if (PCM_RUNTIME_CHECK(substream))
-		return -EINVAL;
-	runtime = substream->runtime;
-	vfree(runtime->dma_area);
-	runtime->dma_area = NULL;
-	return 0;
-}
-EXPORT_SYMBOL(snd_pcm_lib_free_vmalloc_buffer);
-
-/**
- * snd_pcm_lib_get_vmalloc_page - map vmalloc buffer offset to page struct
- * @substream: the substream with a buffer allocated by
- *	snd_pcm_lib_alloc_vmalloc_buffer()
- * @offset: offset in the buffer
- *
- * This function is to be used as the page callback in the PCM ops.
- *
- * Return: The page struct, or %NULL on failure.
- */
-struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
-					  unsigned long offset)
-{
-	return vmalloc_to_page(substream->runtime->dma_area + offset);
-}
-EXPORT_SYMBOL(snd_pcm_lib_get_vmalloc_page);

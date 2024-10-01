@@ -21,7 +21,6 @@
 #include <linux/tty_flip.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/atmel_pdc.h>
@@ -97,7 +96,9 @@ struct atmel_uart_char {
  * can contain up to 1024 characters in PIO mode and up to 4096 characters in
  * DMA mode.
  */
-#define ATMEL_SERIAL_RINGSIZE 1024
+#define ATMEL_SERIAL_RINGSIZE	1024
+#define ATMEL_SERIAL_RX_SIZE	array_size(sizeof(struct atmel_uart_char), \
+					   ATMEL_SERIAL_RINGSIZE)
 
 /*
  * at91: 6 USARTs and one DBGU port (SAM9260)
@@ -133,8 +134,8 @@ struct atmel_uart_port {
 	struct dma_async_tx_descriptor	*desc_rx;
 	dma_cookie_t			cookie_tx;
 	dma_cookie_t			cookie_rx;
-	struct scatterlist		sg_tx;
-	struct scatterlist		sg_rx;
+	dma_addr_t			tx_phys;
+	dma_addr_t			rx_phys;
 	struct tasklet_struct	tasklet_rx;
 	struct tasklet_struct	tasklet_tx;
 	atomic_t		tasklet_shutdown;
@@ -858,11 +859,11 @@ static void atmel_complete_tx_dma(void *arg)
 {
 	struct atmel_uart_port *atmel_port = arg;
 	struct uart_port *port = &atmel_port->uart;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	struct dma_chan *chan = atmel_port->chan_tx;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	if (chan)
 		dmaengine_terminate_all(chan);
@@ -874,15 +875,15 @@ static void atmel_complete_tx_dma(void *arg)
 	atmel_port->desc_tx = NULL;
 	spin_unlock(&atmel_port->lock_tx);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	/*
-	 * xmit is a circular buffer so, if we have just send data from
-	 * xmit->tail to the end of xmit->buf, now we have to transmit the
-	 * remaining data from the beginning of xmit->buf to xmit->head.
+	 * xmit is a circular buffer so, if we have just send data from the
+	 * tail to the end, now we have to transmit the remaining data from the
+	 * beginning to the head.
 	 */
-	if (!uart_circ_empty(xmit))
+	if (!kfifo_is_empty(&tport->xmit_fifo))
 		atmel_tasklet_schedule(atmel_port, &atmel_port->tasklet_tx);
 	else if (atmel_uart_is_half_duplex(port)) {
 		/*
@@ -894,7 +895,7 @@ static void atmel_complete_tx_dma(void *arg)
 				  atmel_port->tx_done_mask);
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void atmel_release_tx_dma(struct uart_port *port)
@@ -905,8 +906,8 @@ static void atmel_release_tx_dma(struct uart_port *port)
 	if (chan) {
 		dmaengine_terminate_all(chan);
 		dma_release_channel(chan);
-		dma_unmap_sg(port->dev, &atmel_port->sg_tx, 1,
-				DMA_TO_DEVICE);
+		dma_unmap_single(port->dev, atmel_port->tx_phys,
+				 UART_XMIT_SIZE, DMA_TO_DEVICE);
 	}
 
 	atmel_port->desc_tx = NULL;
@@ -920,18 +921,18 @@ static void atmel_release_tx_dma(struct uart_port *port)
 static void atmel_tx_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	struct dma_chan *chan = atmel_port->chan_tx;
 	struct dma_async_tx_descriptor *desc;
-	struct scatterlist sgl[2], *sg, *sg_tx = &atmel_port->sg_tx;
-	unsigned int tx_len, part1_len, part2_len, sg_len;
+	struct scatterlist sgl[2], *sg;
+	unsigned int tx_len, tail, part1_len, part2_len, sg_len;
 	dma_addr_t phys_addr;
 
 	/* Make sure we have an idle channel */
 	if (atmel_port->desc_tx != NULL)
 		return;
 
-	if (!uart_circ_empty(xmit) && !uart_tx_stopped(port)) {
+	if (!kfifo_is_empty(&tport->xmit_fifo) && !uart_tx_stopped(port)) {
 		/*
 		 * DMA is idle now.
 		 * Port xmit buffer is already mapped,
@@ -941,9 +942,8 @@ static void atmel_tx_dma(struct uart_port *port)
 		 * Take the port lock to get a
 		 * consistent xmit buffer state.
 		 */
-		tx_len = CIRC_CNT_TO_END(xmit->head,
-					 xmit->tail,
-					 UART_XMIT_SIZE);
+		tx_len = kfifo_out_linear(&tport->xmit_fifo, &tail,
+				UART_XMIT_SIZE);
 
 		if (atmel_port->fifo_size) {
 			/* multi data mode */
@@ -957,7 +957,7 @@ static void atmel_tx_dma(struct uart_port *port)
 
 		sg_init_table(sgl, 2);
 		sg_len = 0;
-		phys_addr = sg_dma_address(sg_tx) + xmit->tail;
+		phys_addr = atmel_port->tx_phys + tail;
 		if (part1_len) {
 			sg = &sgl[sg_len++];
 			sg_dma_address(sg) = phys_addr;
@@ -974,7 +974,7 @@ static void atmel_tx_dma(struct uart_port *port)
 
 		/*
 		 * save tx_len so atmel_complete_tx_dma() will increase
-		 * xmit->tail correctly
+		 * tail correctly
 		 */
 		atmel_port->tx_len = tx_len;
 
@@ -989,7 +989,8 @@ static void atmel_tx_dma(struct uart_port *port)
 			return;
 		}
 
-		dma_sync_sg_for_device(port->dev, sg_tx, 1, DMA_TO_DEVICE);
+		dma_sync_single_for_device(port->dev, atmel_port->tx_phys,
+					   UART_XMIT_SIZE, DMA_TO_DEVICE);
 
 		atmel_port->desc_tx = desc;
 		desc->callback = atmel_complete_tx_dma;
@@ -1004,48 +1005,45 @@ static void atmel_tx_dma(struct uart_port *port)
 		dma_async_issue_pending(chan);
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 }
 
 static int atmel_prepare_tx_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct tty_port *tport = &port->state->port;
 	struct device *mfd_dev = port->dev->parent;
 	dma_cap_mask_t		mask;
 	struct dma_slave_config config;
-	int ret, nent;
+	struct dma_chan *chan;
+	int ret;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	atmel_port->chan_tx = dma_request_slave_channel(mfd_dev, "tx");
-	if (atmel_port->chan_tx == NULL)
+	chan = dma_request_chan(mfd_dev, "tx");
+	if (IS_ERR(chan)) {
+		atmel_port->chan_tx = NULL;
 		goto chan_err;
+	}
+	atmel_port->chan_tx = chan;
 	dev_info(port->dev, "using %s for tx DMA transfers\n",
 		dma_chan_name(atmel_port->chan_tx));
 
 	spin_lock_init(&atmel_port->lock_tx);
-	sg_init_table(&atmel_port->sg_tx, 1);
 	/* UART circular tx buffer is an aligned page. */
-	BUG_ON(!PAGE_ALIGNED(port->state->xmit.buf));
-	sg_set_page(&atmel_port->sg_tx,
-			virt_to_page(port->state->xmit.buf),
-			UART_XMIT_SIZE,
-			offset_in_page(port->state->xmit.buf));
-	nent = dma_map_sg(port->dev,
-				&atmel_port->sg_tx,
-				1,
-				DMA_TO_DEVICE);
+	BUG_ON(!PAGE_ALIGNED(tport->xmit_buf));
+	atmel_port->tx_phys = dma_map_single(port->dev, tport->xmit_buf,
+					     UART_XMIT_SIZE, DMA_TO_DEVICE);
 
-	if (!nent) {
+	if (dma_mapping_error(port->dev, atmel_port->tx_phys)) {
 		dev_dbg(port->dev, "need to release resource of dma\n");
 		goto chan_err;
 	} else {
-		dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
-			sg_dma_len(&atmel_port->sg_tx),
-			port->state->xmit.buf,
-			&sg_dma_address(&atmel_port->sg_tx));
+		dev_dbg(port->dev, "%s: mapped %lu@%p to %pad\n", __func__,
+			UART_XMIT_SIZE, tport->xmit_buf,
+			&atmel_port->tx_phys);
 	}
 
 	/* Configure the slave DMA */
@@ -1090,8 +1088,8 @@ static void atmel_release_rx_dma(struct uart_port *port)
 	if (chan) {
 		dmaengine_terminate_all(chan);
 		dma_release_channel(chan);
-		dma_unmap_sg(port->dev, &atmel_port->sg_rx, 1,
-				DMA_FROM_DEVICE);
+		dma_unmap_single(port->dev, atmel_port->rx_phys,
+				 ATMEL_SERIAL_RX_SIZE, DMA_FROM_DEVICE);
 	}
 
 	atmel_port->desc_rx = NULL;
@@ -1124,10 +1122,8 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	}
 
 	/* CPU claims ownership of RX DMA buffer */
-	dma_sync_sg_for_cpu(port->dev,
-			    &atmel_port->sg_rx,
-			    1,
-			    DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(port->dev, atmel_port->rx_phys,
+				ATMEL_SERIAL_RX_SIZE, DMA_FROM_DEVICE);
 
 	/*
 	 * ring->head points to the end of data already written by the DMA.
@@ -1136,8 +1132,8 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	 * The current transfer size should not be larger than the dma buffer
 	 * length.
 	 */
-	ring->head = sg_dma_len(&atmel_port->sg_rx) - state.residue;
-	BUG_ON(ring->head > sg_dma_len(&atmel_port->sg_rx));
+	ring->head = ATMEL_SERIAL_RX_SIZE - state.residue;
+	BUG_ON(ring->head > ATMEL_SERIAL_RX_SIZE);
 	/*
 	 * At this point ring->head may point to the first byte right after the
 	 * last byte of the dma buffer:
@@ -1151,7 +1147,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	 * tail to the end of the buffer then reset tail.
 	 */
 	if (ring->head < ring->tail) {
-		count = sg_dma_len(&atmel_port->sg_rx) - ring->tail;
+		count = ATMEL_SERIAL_RX_SIZE - ring->tail;
 
 		tty_insert_flip_string(tport, ring->buf + ring->tail, count);
 		ring->tail = 0;
@@ -1164,17 +1160,15 @@ static void atmel_rx_from_dma(struct uart_port *port)
 
 		tty_insert_flip_string(tport, ring->buf + ring->tail, count);
 		/* Wrap ring->head if needed */
-		if (ring->head >= sg_dma_len(&atmel_port->sg_rx))
+		if (ring->head >= ATMEL_SERIAL_RX_SIZE)
 			ring->head = 0;
 		ring->tail = ring->head;
 		port->icount.rx += count;
 	}
 
 	/* USART retreives ownership of RX DMA buffer */
-	dma_sync_sg_for_device(port->dev,
-			       &atmel_port->sg_rx,
-			       1,
-			       DMA_FROM_DEVICE);
+	dma_sync_single_for_device(port->dev, atmel_port->rx_phys,
+				   ATMEL_SERIAL_RX_SIZE, DMA_FROM_DEVICE);
 
 	tty_flip_buffer_push(tport);
 
@@ -1189,40 +1183,36 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	dma_cap_mask_t		mask;
 	struct dma_slave_config config;
 	struct circ_buf		*ring;
-	int ret, nent;
+	struct dma_chan *chan;
+	int ret;
 
 	ring = &atmel_port->rx_ring;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_CYCLIC, mask);
 
-	atmel_port->chan_rx = dma_request_slave_channel(mfd_dev, "rx");
-	if (atmel_port->chan_rx == NULL)
+	chan = dma_request_chan(mfd_dev, "rx");
+	if (IS_ERR(chan)) {
+		atmel_port->chan_rx = NULL;
 		goto chan_err;
+	}
+	atmel_port->chan_rx = chan;
 	dev_info(port->dev, "using %s for rx DMA transfers\n",
 		dma_chan_name(atmel_port->chan_rx));
 
 	spin_lock_init(&atmel_port->lock_rx);
-	sg_init_table(&atmel_port->sg_rx, 1);
 	/* UART circular rx buffer is an aligned page. */
 	BUG_ON(!PAGE_ALIGNED(ring->buf));
-	sg_set_page(&atmel_port->sg_rx,
-		    virt_to_page(ring->buf),
-		    sizeof(struct atmel_uart_char) * ATMEL_SERIAL_RINGSIZE,
-		    offset_in_page(ring->buf));
-	nent = dma_map_sg(port->dev,
-			  &atmel_port->sg_rx,
-			  1,
-			  DMA_FROM_DEVICE);
+	atmel_port->rx_phys = dma_map_single(port->dev, ring->buf,
+					     ATMEL_SERIAL_RX_SIZE,
+					     DMA_FROM_DEVICE);
 
-	if (!nent) {
+	if (dma_mapping_error(port->dev, atmel_port->rx_phys)) {
 		dev_dbg(port->dev, "need to release resource of dma\n");
 		goto chan_err;
 	} else {
-		dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
-			sg_dma_len(&atmel_port->sg_rx),
-			ring->buf,
-			&sg_dma_address(&atmel_port->sg_rx));
+		dev_dbg(port->dev, "%s: mapped %zu@%p to %pad\n", __func__,
+			ATMEL_SERIAL_RX_SIZE, ring->buf, &atmel_port->rx_phys);
 	}
 
 	/* Configure the slave DMA */
@@ -1243,9 +1233,9 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	 * each one is half ring buffer size
 	 */
 	desc = dmaengine_prep_dma_cyclic(atmel_port->chan_rx,
-					 sg_dma_address(&atmel_port->sg_rx),
-					 sg_dma_len(&atmel_port->sg_rx),
-					 sg_dma_len(&atmel_port->sg_rx)/2,
+					 atmel_port->rx_phys,
+					 ATMEL_SERIAL_RX_SIZE,
+					 ATMEL_SERIAL_RX_SIZE / 2,
 					 DMA_DEV_TO_MEM,
 					 DMA_PREP_INTERRUPT);
 	if (!desc) {
@@ -1452,9 +1442,8 @@ static void atmel_release_tx_pdc(struct uart_port *port)
 static void atmel_tx_pdc(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	struct atmel_dma_buffer *pdc = &atmel_port->pdc_tx;
-	int count;
 
 	/* nothing left to transmit? */
 	if (atmel_uart_readl(port, ATMEL_PDC_TCR))
@@ -1467,17 +1456,19 @@ static void atmel_tx_pdc(struct uart_port *port)
 	/* disable PDC transmit */
 	atmel_uart_writel(port, ATMEL_PDC_PTCR, ATMEL_PDC_TXTDIS);
 
-	if (!uart_circ_empty(xmit) && !uart_tx_stopped(port)) {
+	if (!kfifo_is_empty(&tport->xmit_fifo) && !uart_tx_stopped(port)) {
+		unsigned int count, tail;
+
 		dma_sync_single_for_device(port->dev,
 					   pdc->dma_addr,
 					   pdc->dma_size,
 					   DMA_TO_DEVICE);
 
-		count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+		count = kfifo_out_linear(&tport->xmit_fifo, &tail,
+				UART_XMIT_SIZE);
 		pdc->ofs = count;
 
-		atmel_uart_writel(port, ATMEL_PDC_TPR,
-				  pdc->dma_addr + xmit->tail);
+		atmel_uart_writel(port, ATMEL_PDC_TPR, pdc->dma_addr + tail);
 		atmel_uart_writel(port, ATMEL_PDC_TCR, count);
 		/* re-enable PDC transmit */
 		atmel_uart_writel(port, ATMEL_PDC_PTCR, ATMEL_PDC_TXTEN);
@@ -1491,7 +1482,7 @@ static void atmel_tx_pdc(struct uart_port *port)
 		}
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 }
 
@@ -1499,9 +1490,9 @@ static int atmel_prepare_tx_pdc(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	struct atmel_dma_buffer *pdc = &atmel_port->pdc_tx;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
-	pdc->buf = xmit->buf;
+	pdc->buf = tport->xmit_buf;
 	pdc->dma_addr = dma_map_single(port->dev,
 					pdc->buf,
 					UART_XMIT_SIZE,
@@ -1516,8 +1507,8 @@ static void atmel_rx_from_ring(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	struct circ_buf *ring = &atmel_port->rx_ring;
-	unsigned int flg;
 	unsigned int status;
+	u8 flg;
 
 	while (ring->head != ring->tail) {
 		struct atmel_uart_char c;
@@ -1712,9 +1703,9 @@ static void atmel_tasklet_rx_func(struct tasklet_struct *t)
 	struct uart_port *port = &atmel_port->uart;
 
 	/* The interrupt handler does not take the lock */
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 	atmel_port->schedule_rx(port);
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 }
 
 static void atmel_tasklet_tx_func(struct tasklet_struct *t)
@@ -1724,9 +1715,9 @@ static void atmel_tasklet_tx_func(struct tasklet_struct *t)
 	struct uart_port *port = &atmel_port->uart;
 
 	/* The interrupt handler does not take the lock */
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 	atmel_port->schedule_tx(port);
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 }
 
 static void atmel_init_property(struct atmel_uart_port *atmel_port,
@@ -2176,7 +2167,7 @@ static void atmel_set_termios(struct uart_port *port,
 	} else
 		mode |= ATMEL_US_PAR_NONE;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	port->read_status_mask = ATMEL_US_OVRE;
 	if (termios->c_iflag & INPCK)
@@ -2378,22 +2369,22 @@ gclk_fail:
 	else
 		atmel_disable_ms(port);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void atmel_set_ldisc(struct uart_port *port, struct ktermios *termios)
 {
 	if (termios->c_line == N_PPS) {
 		port->flags |= UPF_HARDPPS_CD;
-		spin_lock_irq(&port->lock);
+		uart_port_lock_irq(port);
 		atmel_enable_ms(port);
-		spin_unlock_irq(&port->lock);
+		uart_port_unlock_irq(port);
 	} else {
 		port->flags &= ~UPF_HARDPPS_CD;
 		if (!UART_ENABLE_MS(port, termios->c_cflag)) {
-			spin_lock_irq(&port->lock);
+			uart_port_lock_irq(port);
 			atmel_disable_ms(port);
-			spin_unlock_irq(&port->lock);
+			uart_port_unlock_irq(port);
 		}
 	}
 }
@@ -2523,7 +2514,7 @@ static const struct uart_ops atmel_pops = {
 };
 
 static const struct serial_rs485 atmel_rs485_supported = {
-	.flags = SER_RS485_ENABLED | SER_RS485_RTS_AFTER_SEND | SER_RS485_RX_DURING_TX,
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RX_DURING_TX,
 	.delay_rts_before_send = 1,
 	.delay_rts_after_send = 1,
 };
@@ -2946,9 +2937,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 
 	if (!atmel_use_pdc_rx(&atmel_port->uart)) {
 		ret = -ENOMEM;
-		data = kmalloc_array(ATMEL_SERIAL_RINGSIZE,
-				     sizeof(struct atmel_uart_char),
-				     GFP_KERNEL);
+		data = kmalloc(ATMEL_SERIAL_RX_SIZE, GFP_KERNEL);
 		if (!data)
 			goto err_clk_disable_unprepare;
 		atmel_port->rx_ring.buf = data;
@@ -3002,7 +2991,7 @@ err:
  * protocol that needs bitbanging on IO lines, but use the regular serial
  * port in the normal case.
  */
-static int atmel_serial_remove(struct platform_device *pdev)
+static void atmel_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -3021,8 +3010,6 @@ static int atmel_serial_remove(struct platform_device *pdev)
 	clear_bit(port->line, atmel_ports_in_use);
 
 	pdev->dev.of_node = NULL;
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
@@ -3030,7 +3017,7 @@ static SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
 
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
-	.remove		= atmel_serial_remove,
+	.remove_new	= atmel_serial_remove,
 	.driver		= {
 		.name			= "atmel_usart_serial",
 		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),

@@ -267,10 +267,10 @@ static int spmi_controller_probe(struct platform_device *pdev)
 	struct resource *iores;
 	int ret;
 
-	ctrl = spmi_controller_alloc(&pdev->dev, sizeof(*spmi_controller));
-	if (!ctrl) {
+	ctrl = devm_spmi_controller_alloc(&pdev->dev, sizeof(*spmi_controller));
+	if (IS_ERR(ctrl)) {
 		dev_err(&pdev->dev, "can not allocate spmi_controller data\n");
-		return -ENOMEM;
+		return PTR_ERR(ctrl);
 	}
 	spmi_controller = spmi_controller_get_drvdata(ctrl);
 	spmi_controller->controller = ctrl;
@@ -278,24 +278,21 @@ static int spmi_controller_probe(struct platform_device *pdev)
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iores) {
 		dev_err(&pdev->dev, "can not get resource!\n");
-		ret = -EINVAL;
-		goto err_put_controller;
+		return -EINVAL;
 	}
 
 	spmi_controller->base = devm_ioremap(&pdev->dev, iores->start,
 					     resource_size(iores));
 	if (!spmi_controller->base) {
 		dev_err(&pdev->dev, "can not remap base addr!\n");
-		ret = -EADDRNOTAVAIL;
-		goto err_put_controller;
+		return -EADDRNOTAVAIL;
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "hisilicon,spmi-channel",
 				   &spmi_controller->channel);
 	if (ret) {
 		dev_err(&pdev->dev, "can not get channel\n");
-		ret = -ENODEV;
-		goto err_put_controller;
+		return -ENODEV;
 	}
 
 	platform_set_drvdata(pdev, spmi_controller);
@@ -303,7 +300,6 @@ static int spmi_controller_probe(struct platform_device *pdev)
 
 	spin_lock_init(&spmi_controller->lock);
 
-	ctrl->nr = spmi_controller->channel;
 	ctrl->dev.parent = pdev->dev.parent;
 	ctrl->dev.of_node = of_node_get(pdev->dev.of_node);
 
@@ -311,25 +307,13 @@ static int spmi_controller_probe(struct platform_device *pdev)
 	ctrl->read_cmd = spmi_read_cmd;
 	ctrl->write_cmd = spmi_write_cmd;
 
-	ret = spmi_controller_add(ctrl);
+	ret = devm_spmi_controller_add(&pdev->dev, ctrl);
 	if (ret) {
 		dev_err(&pdev->dev, "spmi_controller_add failed with error %d!\n", ret);
-		goto err_put_controller;
+		return ret;
 	}
 
 	return 0;
-
-err_put_controller:
-	spmi_controller_put(ctrl);
-	return ret;
-}
-
-static void spmi_del_controller(struct platform_device *pdev)
-{
-	struct spmi_controller *ctrl = platform_get_drvdata(pdev);
-
-	spmi_controller_remove(ctrl);
-	spmi_controller_put(ctrl);
 }
 
 static const struct of_device_id spmi_controller_match_table[] = {
@@ -342,7 +326,6 @@ MODULE_DEVICE_TABLE(of, spmi_controller_match_table);
 
 static struct platform_driver spmi_controller_driver = {
 	.probe		= spmi_controller_probe,
-	.remove_new	= spmi_del_controller,
 	.driver		= {
 		.name	= "hisi_spmi_controller",
 		.of_match_table = spmi_controller_match_table,
@@ -361,6 +344,7 @@ static void __exit spmi_controller_exit(void)
 }
 module_exit(spmi_controller_exit);
 
+MODULE_DESCRIPTION("Hisilicon 3670 SPMI Controller driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
 MODULE_ALIAS("platform:spmi_controller");

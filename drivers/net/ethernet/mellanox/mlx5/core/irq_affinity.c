@@ -48,6 +48,7 @@ static struct mlx5_irq *
 irq_pool_request_irq(struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_desc)
 {
 	struct irq_affinity_desc auto_desc = {};
+	struct mlx5_irq *irq;
 	u32 irq_index;
 	int err;
 
@@ -64,9 +65,12 @@ irq_pool_request_irq(struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_de
 		else
 			cpu_get(pool, cpumask_first(&af_desc->mask));
 	}
-	return mlx5_irq_alloc(pool, irq_index,
-			      cpumask_empty(&auto_desc.mask) ? af_desc : &auto_desc,
-			      NULL);
+	irq = mlx5_irq_alloc(pool, irq_index,
+			     cpumask_empty(&auto_desc.mask) ? af_desc : &auto_desc,
+			     NULL);
+	if (IS_ERR(irq))
+		xa_erase(&pool->irqs, irq_index);
+	return irq;
 }
 
 /* Looking for the IRQ with the smallest refcount that fits req_mask.
@@ -112,15 +116,18 @@ irq_pool_find_least_loaded(struct mlx5_irq_pool *pool, const struct cpumask *req
 
 /**
  * mlx5_irq_affinity_request - request an IRQ according to the given mask.
+ * @dev: mlx5 core device which is requesting the IRQ.
  * @pool: IRQ pool to request from.
  * @af_desc: affinity descriptor for this IRQ.
  *
  * This function returns a pointer to IRQ, or ERR_PTR in case of error.
  */
 struct mlx5_irq *
-mlx5_irq_affinity_request(struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_desc)
+mlx5_irq_affinity_request(struct mlx5_core_dev *dev, struct mlx5_irq_pool *pool,
+			  struct irq_affinity_desc *af_desc)
 {
 	struct mlx5_irq *least_loaded_irq, *new_irq;
+	int ret;
 
 	mutex_lock(&pool->lock);
 	least_loaded_irq = irq_pool_find_least_loaded(pool, &af_desc->mask);
@@ -153,70 +160,31 @@ out:
 			      mlx5_irq_read_locked(least_loaded_irq) / MLX5_EQ_REFS_PER_IRQ);
 unlock:
 	mutex_unlock(&pool->lock);
+	if (mlx5_irq_pool_is_sf_pool(pool)) {
+		ret = auxiliary_device_sysfs_irq_add(mlx5_sf_coredev_to_adev(dev),
+						     mlx5_irq_get_irq(least_loaded_irq));
+		if (ret) {
+			mlx5_core_err(dev, "Failed to create sysfs entry for irq %d, ret = %d\n",
+				      mlx5_irq_get_irq(least_loaded_irq), ret);
+			mlx5_irq_put(least_loaded_irq);
+			least_loaded_irq = ERR_PTR(ret);
+		}
+	}
 	return least_loaded_irq;
 }
 
-void mlx5_irq_affinity_irqs_release(struct mlx5_core_dev *dev, struct mlx5_irq **irqs,
-				    int num_irqs)
+void mlx5_irq_affinity_irq_release(struct mlx5_core_dev *dev, struct mlx5_irq *irq)
 {
 	struct mlx5_irq_pool *pool = mlx5_irq_pool_get(dev);
-	int i;
+	int cpu;
 
-	for (i = 0; i < num_irqs; i++) {
-		int cpu = cpumask_first(mlx5_irq_get_affinity_mask(irqs[i]));
-
-		synchronize_irq(pci_irq_vector(pool->dev->pdev,
-					       mlx5_irq_get_index(irqs[i])));
-		if (mlx5_irq_put(irqs[i]))
-			if (pool->irqs_per_cpu)
-				cpu_put(pool, cpu);
-	}
-}
-
-/**
- * mlx5_irq_affinity_irqs_request_auto - request one or more IRQs for mlx5 device.
- * @dev: mlx5 device that is requesting the IRQs.
- * @nirqs: number of IRQs to request.
- * @irqs: an output array of IRQs pointers.
- *
- * Each IRQ is bounded to at most 1 CPU.
- * This function is requesting IRQs according to the default assignment.
- * The default assignment policy is:
- * - in each iteration, request the least loaded IRQ which is not bound to any
- *   CPU of the previous IRQs requested.
- *
- * This function returns the number of IRQs requested, (which might be smaller than
- * @nirqs), if successful, or a negative error code in case of an error.
- */
-int mlx5_irq_affinity_irqs_request_auto(struct mlx5_core_dev *dev, int nirqs,
-					struct mlx5_irq **irqs)
-{
-	struct mlx5_irq_pool *pool = mlx5_irq_pool_get(dev);
-	struct irq_affinity_desc af_desc = {};
-	struct mlx5_irq *irq;
-	int i = 0;
-
-	af_desc.is_managed = 1;
-	cpumask_copy(&af_desc.mask, cpu_online_mask);
-	for (i = 0; i < nirqs; i++) {
-		if (mlx5_irq_pool_is_sf_pool(pool))
-			irq = mlx5_irq_affinity_request(pool, &af_desc);
-		else
-			/* In case SF pool doesn't exists, fallback to the PF IRQs.
-			 * The PF IRQs are already allocated and binded to CPU
-			 * at this point. Hence, only an index is needed.
-			 */
-			irq = mlx5_irq_request(dev, i, NULL, NULL);
-		if (IS_ERR(irq))
-			break;
-		irqs[i] = irq;
-		cpumask_clear_cpu(cpumask_first(mlx5_irq_get_affinity_mask(irq)), &af_desc.mask);
-		mlx5_core_dbg(pool->dev, "IRQ %u mapped to cpu %*pbl, %u EQs on this irq\n",
-			      pci_irq_vector(dev->pdev, mlx5_irq_get_index(irq)),
-			      cpumask_pr_args(mlx5_irq_get_affinity_mask(irq)),
-			      mlx5_irq_read_locked(irq) / MLX5_EQ_REFS_PER_IRQ);
-	}
-	if (!i)
-		return PTR_ERR(irq);
-	return i;
+	cpu = cpumask_first(mlx5_irq_get_affinity_mask(irq));
+	synchronize_irq(pci_irq_vector(pool->dev->pdev,
+				       mlx5_irq_get_index(irq)));
+	if (mlx5_irq_pool_is_sf_pool(pool))
+		auxiliary_device_sysfs_irq_remove(mlx5_sf_coredev_to_adev(dev),
+						  mlx5_irq_get_irq(irq));
+	if (mlx5_irq_put(irq))
+		if (pool->irqs_per_cpu)
+			cpu_put(pool, cpu);
 }

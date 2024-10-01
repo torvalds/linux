@@ -26,13 +26,6 @@
 		};
 	};
 
-	pmu {
-		compatible = "arm,cortex-a9-pmu";
-		interrupts =
-			<GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -67,33 +60,6 @@
 			clock-div = <2>;
 			clock-mult = <1>;
 		};
-	};
-
-	mdio-mux@18003000 {
-		compatible = "mdio-mux-mmioreg", "mdio-mux";
-		mdio-parent-bus = <&mdio>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x18003000 0x4>;
-		mux-mask = <0x200>;
-
-		mdio@0 {
-			reg = <0x0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			usb3_phy: usb3-phy@10 {
-				compatible = "brcm,ns-ax-usb3-phy";
-				reg = <0x10>;
-				usb3-dmp-syscon = <&usb3_dmp>;
-				#phy-cells = <0>;
-				status = "disabled";
-			};
-		};
-	};
-
-	usb3_dmp: syscon@18105000 {
-		reg = <0x18105000 0x1000>;
 	};
 
 	i2c0: i2c@18009000 {

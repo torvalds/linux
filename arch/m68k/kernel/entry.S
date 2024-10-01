@@ -1,12 +1,9 @@
-/* -*- mode: asm -*-
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * -*- mode: asm -*-
  *
  *  linux/arch/m68k/kernel/entry.S
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file README.legal in the main directory of this archive
- * for more details.
  *
  * Linux/m68k support by Hamish Macdonald
  *
@@ -433,7 +430,9 @@ resume:
 	movec	%a0,%dfc
 
 	/* restore status register */
-	movew	%a1@(TASK_THREAD+THREAD_SR),%sr
+	movew	%a1@(TASK_THREAD+THREAD_SR),%d0
+	oriw	#0x0700,%d0
+	movew	%d0,%sr
 
 	rts
 

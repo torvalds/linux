@@ -24,7 +24,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <linux/platform_data/dma-ep93xx.h>
 #include <linux/soc/cirrus/ep93xx.h>
 
 #include "ep93xx-pcm.h"
@@ -78,19 +77,6 @@ struct ep93xx_i2s_info {
 	void __iomem			*regs;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
-};
-
-static struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
-	[SNDRV_PCM_STREAM_PLAYBACK] = {
-		.name		= "i2s-pcm-out",
-		.port		= EP93XX_DMA_I2S1,
-		.direction	= DMA_MEM_TO_DEV,
-	},
-	[SNDRV_PCM_STREAM_CAPTURE] = {
-		.name		= "i2s-pcm-in",
-		.port		= EP93XX_DMA_I2S1,
-		.direction	= DMA_DEV_TO_MEM,
-	},
 };
 
 static inline void ep93xx_i2s_write_reg(struct ep93xx_i2s_info *info,
@@ -197,11 +183,6 @@ static irqreturn_t ep93xx_i2s_interrupt(int irq, void *dev_id)
 static int ep93xx_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
-
-	info->dma_params_tx.filter_data =
-		&ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_PLAYBACK];
-	info->dma_params_rx.filter_data =
-		&ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_CAPTURE];
 
 	snd_soc_dai_init_dma_data(dai,	&info->dma_params_tx,
 					&info->dma_params_rx);
@@ -407,6 +388,7 @@ static int ep93xx_i2s_resume(struct snd_soc_component *component)
 #endif
 
 static const struct snd_soc_dai_ops ep93xx_i2s_dai_ops = {
+	.probe		= ep93xx_i2s_dai_probe,
 	.startup	= ep93xx_i2s_startup,
 	.shutdown	= ep93xx_i2s_shutdown,
 	.hw_params	= ep93xx_i2s_hw_params,
@@ -418,7 +400,6 @@ static const struct snd_soc_dai_ops ep93xx_i2s_dai_ops = {
 
 static struct snd_soc_dai_driver ep93xx_i2s_dai = {
 	.symmetric_rate	= 1,
-	.probe		= ep93xx_i2s_dai_probe,
 	.playback	= {
 		.channels_min	= 2,
 		.channels_max	= 2,
@@ -523,7 +504,7 @@ MODULE_DEVICE_TABLE(of, ep93xx_i2s_of_ids);
 
 static struct platform_driver ep93xx_i2s_driver = {
 	.probe	= ep93xx_i2s_probe,
-	.remove_new = ep93xx_i2s_remove,
+	.remove = ep93xx_i2s_remove,
 	.driver	= {
 		.name	= "ep93xx-i2s",
 		.of_match_table = ep93xx_i2s_of_ids,

@@ -30,7 +30,7 @@
 #include "dcn_calc_auto.h"
 #include "dal_asic_id.h"
 #include "resource.h"
-#include "dcn10/dcn10_resource.h"
+#include "resource/dcn10/dcn10_resource.h"
 #include "dcn10/dcn10_hubbub.h"
 #include "dml/dml1_display_rq_dlg_calc.h"
 
@@ -690,7 +690,7 @@ static void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		unsigned int pixel_rate_100hz)
 {
-	float pixel_rate_mhz = pixel_rate_100hz / 10000;
+	float pixel_rate_mhz = pixel_rate_100hz / 10000.0;
 
 	/*
 	 * force enabling pipe split by lower dpp clock for DPM0 to just
@@ -1258,7 +1258,7 @@ bool dcn_validate_bandwidth(
 						hsplit_pipe->pipe_dlg_param.vblank_end = pipe->pipe_dlg_param.vblank_end;
 					} else {
 						/* pipe not split previously needs split */
-						hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, pool, pipe);
+						hsplit_pipe = resource_find_free_secondary_pipe_legacy(&context->res_ctx, pool, pipe);
 						ASSERT(hsplit_pipe);
 						split_stream_across_pipes(&context->res_ctx, pool, pipe, hsplit_pipe);
 					}
@@ -1453,10 +1453,9 @@ void dcn_bw_update_from_pplib_fclks(
 	ASSERT(fclks->num_levels);
 
 	vmin0p65_idx = 0;
-	vmid0p72_idx = fclks->num_levels -
-		(fclks->num_levels > 2 ? 3 : (fclks->num_levels > 1 ? 2 : 1));
-	vnom0p8_idx = fclks->num_levels - (fclks->num_levels > 1 ? 2 : 1);
-	vmax0p9_idx = fclks->num_levels - 1;
+	vmid0p72_idx = fclks->num_levels > 2 ? fclks->num_levels - 3 : 0;
+	vnom0p8_idx = fclks->num_levels > 1 ? fclks->num_levels - 2 : 0;
+	vmax0p9_idx = fclks->num_levels > 0 ? fclks->num_levels - 1 : 0;
 
 	dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 =
 		32 * (fclks->data[vmin0p65_idx].clocks_in_khz / 1000.0) / 1000.0;

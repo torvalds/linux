@@ -5,7 +5,6 @@
 #include <mach/maple.h>
 
 struct device;
-extern struct bus_type maple_bus_type;
 
 /* Maple Bus command and response codes */
 enum maple_code {
@@ -98,7 +97,7 @@ int maple_add_packet(struct maple_device *mdev, u32 function,
 void maple_clear_dev(struct maple_device *mdev);
 
 #define to_maple_dev(n) container_of(n, struct maple_device, dev)
-#define to_maple_driver(n) container_of(n, struct maple_driver, drv)
+#define to_maple_driver(n) container_of_const(n, struct maple_driver, drv)
 
 #define maple_get_drvdata(d)		dev_get_drvdata(&(d)->dev)
 #define maple_set_drvdata(d,p)		dev_set_drvdata(&(d)->dev, (p))

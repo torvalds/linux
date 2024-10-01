@@ -17,7 +17,6 @@ arch/arm/kernel/head-nommu.o
 arch/arm/kernel/head.o
 arch/csky/kernel/head.o
 arch/hexagon/kernel/head.o
-arch/ia64/kernel/head.o
 arch/loongarch/kernel/head.o
 arch/m68k/68000/head.o
 arch/m68k/coldfire/head.o
@@ -28,7 +27,6 @@ arch/mips/kernel/head.o
 arch/nios2/kernel/head.o
 arch/openrisc/kernel/head.o
 arch/parisc/kernel/head.o
-arch/powerpc/kernel/head_40x.o
 arch/powerpc/kernel/head_44x.o
 arch/powerpc/kernel/head_64.o
 arch/powerpc/kernel/head_8xx.o

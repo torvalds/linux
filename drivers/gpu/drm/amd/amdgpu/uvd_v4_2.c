@@ -127,8 +127,6 @@ static int uvd_v4_2_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_entity_init(adev);
-
 	return r;
 }
 
@@ -218,6 +216,13 @@ static int uvd_v4_2_hw_fini(void *handle)
 		uvd_v4_2_stop(adev);
 
 	return 0;
+}
+
+static int uvd_v4_2_prepare_suspend(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return amdgpu_uvd_prepare_suspend(adev);
 }
 
 static int uvd_v4_2_suspend(void *handle)
@@ -756,6 +761,7 @@ static const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 	.sw_fini = uvd_v4_2_sw_fini,
 	.hw_init = uvd_v4_2_hw_init,
 	.hw_fini = uvd_v4_2_hw_fini,
+	.prepare_suspend = uvd_v4_2_prepare_suspend,
 	.suspend = uvd_v4_2_suspend,
 	.resume = uvd_v4_2_resume,
 	.is_idle = uvd_v4_2_is_idle,
@@ -763,6 +769,8 @@ static const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 	.soft_reset = uvd_v4_2_soft_reset,
 	.set_clockgating_state = uvd_v4_2_set_clockgating_state,
 	.set_powergating_state = uvd_v4_2_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {

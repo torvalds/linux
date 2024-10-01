@@ -1,0 +1,769 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/azoteq,iqs7211.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Azoteq IQS7210A/7211A/E Trackpad/Touchscreen Controller
+
+maintainers:
+  - Jeff LaBundy <jeff@labundy.com>
+
+description: |
+  The Azoteq IQS7210A, IQS7211A and IQS7211E trackpad and touchscreen control-
+  lers employ projected-capacitance sensing and can track two contacts.
+
+  Link to datasheets: https://www.azoteq.com/
+
+properties:
+  compatible:
+    enum:
+      - azoteq,iqs7210a
+      - azoteq,iqs7211a
+      - azoteq,iqs7211e
+
+  reg:
+    maxItems: 1
+
+  irq-gpios:
+    maxItems: 1
+    description:
+      Specifies the GPIO connected to the device's active-low RDY output. The
+      pin doubles as the IQS7211E's active-low MCLR input, in which case this
+      GPIO must be configured as open-drain.
+
+  reset-gpios:
+    maxItems: 1
+    description:
+      Specifies the GPIO connected to the device's active-low MCLR input. The
+      device is temporarily held in hardware reset prior to initialization if
+      this property is present.
+
+  azoteq,forced-comms:
+    type: boolean
+    description:
+      Enables forced communication; to be used with host adapters that cannot
+      tolerate clock stretching.
+
+  azoteq,forced-comms-default:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description:
+      Indicates if the device's OTP memory enables (1) or disables (0) forced
+      communication by default. Specifying this property can expedite startup
+      time if the default value is known.
+
+      If this property is not specified, communication is not initiated until
+      the device asserts its RDY pin shortly after exiting hardware reset. At
+      that point, forced communication is either enabled or disabled based on
+      the presence or absence of the 'azoteq,forced-comms' property.
+
+  azoteq,rate-active-ms:
+    minimum: 0
+    maximum: 65535
+    description: Specifies the report rate (in ms) during active mode.
+
+  azoteq,rate-touch-ms:
+    minimum: 0
+    maximum: 65535
+    description: Specifies the report rate (in ms) during idle-touch mode.
+
+  azoteq,rate-idle-ms:
+    minimum: 0
+    maximum: 65535
+    description: Specifies the report rate (in ms) during idle mode.
+
+  azoteq,rate-lp1-ms:
+    minimum: 0
+    maximum: 65535
+    description: Specifies the report rate (in ms) during low-power mode 1.
+
+  azoteq,rate-lp2-ms:
+    minimum: 0
+    maximum: 65535
+    description: Specifies the report rate (in ms) during low-power mode 2.
+
+  azoteq,timeout-active-ms:
+    multipleOf: 1000
+    minimum: 0
+    maximum: 65535000
+    description:
+      Specifies the length of time (in ms) to wait for an event before moving
+      from active mode to idle or idle-touch modes.
+
+  azoteq,timeout-touch-ms:
+    multipleOf: 1000
+    minimum: 0
+    maximum: 65535000
+    description:
+      Specifies the length of time (in ms) to wait for an event before moving
+      from idle-touch mode to idle mode.
+
+  azoteq,timeout-idle-ms:
+    multipleOf: 1000
+    minimum: 0
+    maximum: 65535000
+    description:
+      Specifies the length of time (in ms) to wait for an event before moving
+      from idle mode to low-power mode 1.
+
+  azoteq,timeout-lp1-ms:
+    multipleOf: 1000
+    minimum: 0
+    maximum: 65535000
+    description:
+      Specifies the length of time (in ms) to wait for an event before moving
+      from low-power mode 1 to low-power mode 2.
+
+  azoteq,timeout-lp2-ms:
+    multipleOf: 1000
+    minimum: 0
+    maximum: 60000
+    description:
+      Specifies the rate (in ms) at which the trackpad reference values
+      are updated during low-power modes 1 and 2.
+
+  azoteq,timeout-ati-ms:
+    multipleOf: 1000
+    minimum: 0
+    maximum: 60000
+    description:
+      Specifies the delay (in ms) before the automatic tuning implementation
+      (ATI) is retried in the event it fails to complete.
+
+  azoteq,timeout-comms-ms:
+    minimum: 0
+    maximum: 65535
+    description:
+      Specifies the delay (in ms) before a communication window is closed.
+
+  azoteq,timeout-press-ms:
+    multipleOf: 1000
+    minimum: 0
+    maximum: 60000
+    description:
+      Specifies the length of time (in ms) to wait before automatically
+      releasing a press event. Specify zero to allow the press state to
+      persist indefinitely.
+
+  azoteq,fosc-freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description: |
+      Specifies the device's core clock frequency as follows:
+      0: 14 MHz
+      1: 18 MHz
+
+  azoteq,fosc-trim:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+    description: Specifies the device's core clock frequency trim.
+
+  azoteq,num-contacts:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 2
+    default: 0
+    description: Specifies the number of contacts reported by the device.
+
+  azoteq,contact-split:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 255
+    description: Specifies the contact (finger) split factor.
+
+  azoteq,trim-x:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 255
+    description: Specifies the horizontal trim width.
+
+  azoteq,trim-y:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 255
+    description: Specifies the vertical trim height.
+
+  trackpad:
+    type: object
+    description: Represents all channels associated with the trackpad.
+
+    properties:
+      azoteq,rx-enable:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8
+        items:
+          minimum: 0
+          maximum: 7
+        description:
+          Specifies the order of the CRx pin(s) associated with the trackpad.
+
+      azoteq,tx-enable:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 12
+        items:
+          minimum: 0
+          maximum: 11
+        description:
+          Specifies the order of the CTx pin(s) associated with the trackpad.
+
+      azoteq,channel-select:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 36
+        items:
+          minimum: 0
+          maximum: 255
+        description: |
+          Specifies the channels mapped to each cycle in the following order:
+          Cycle 0, slot 0
+          Cycle 0, slot 1
+          Cycle 1, slot 0
+          Cycle 1, slot 1
+          ...and so on. Specify 255 to disable a given slot.
+
+      azoteq,ati-frac-div-fine:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the trackpad's ATI fine fractional divider.
+
+      azoteq,ati-frac-mult-coarse:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 15
+        description: Specifies the trackpad's ATI coarse fractional multiplier.
+
+      azoteq,ati-frac-div-coarse:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the trackpad's ATI coarse fractional divider.
+
+      azoteq,ati-comp-div:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the trackpad's ATI compensation divider.
+
+      azoteq,ati-target:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 65535
+        description: Specifies the trackpad's ATI target.
+
+      azoteq,touch-enter:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the trackpad's touch entrance factor.
+
+      azoteq,touch-exit:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the trackpad's touch exit factor.
+
+      azoteq,thresh:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the trackpad's stationary touch threshold.
+
+      azoteq,conv-period:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the trackpad's conversion period.
+
+      azoteq,conv-frac:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the trackpad's conversion frequency fraction.
+
+    patternProperties:
+      "^event-(tap(-double|-triple)?|hold|palm|swipe-(x|y)-(pos|neg)(-hold)?)$":
+        type: object
+        $ref: ../input.yaml#
+        description:
+          Represents a gesture event reported by the trackpad. In the case of
+          axial gestures, the duration or distance specified in one direction
+          applies to both directions along the same axis.
+
+        properties:
+          linux,code: true
+
+          azoteq,gesture-max-ms:
+            minimum: 0
+            maximum: 65535
+            description: Specifies the maximum duration of tap/swipe gestures.
+
+          azoteq,gesture-mid-ms:
+            minimum: 0
+            maximum: 65535
+            description:
+              Specifies the maximum duration between subsequent tap gestures
+              (IQS7211E only).
+
+          azoteq,gesture-min-ms:
+            minimum: 0
+            maximum: 65535
+            description: Specifies the minimum duration of hold gestures.
+
+          azoteq,gesture-dist:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 65535
+            description:
+              Specifies the minimum (swipe) or maximum (tap and hold) distance
+              a finger may travel to be considered a gesture.
+
+          azoteq,gesture-dist-rep:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 65535
+            description:
+              Specifies the minimum distance a finger must travel to elicit a
+              repeated swipe gesture (IQS7211E only).
+
+          azoteq,gesture-angle:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 75
+            description:
+              Specifies the maximum angle (in degrees) a finger may travel to
+              be considered a swipe gesture.
+
+          azoteq,thresh:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 42
+            description: Specifies the palm gesture threshold (IQS7211E only).
+
+        additionalProperties: false
+
+    dependencies:
+      azoteq,rx-enable: ["azoteq,tx-enable"]
+      azoteq,tx-enable: ["azoteq,rx-enable"]
+      azoteq,channel-select: ["azoteq,rx-enable"]
+
+    additionalProperties: false
+
+  alp:
+    type: object
+    $ref: ../input.yaml#
+    description: Represents the alternate low-power channel (ALP).
+
+    properties:
+      azoteq,rx-enable:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8
+        items:
+          minimum: 0
+          maximum: 7
+        description:
+          Specifies the CRx pin(s) associated with the ALP in no particular
+          order.
+
+      azoteq,tx-enable:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 12
+        items:
+          minimum: 0
+          maximum: 11
+        description:
+          Specifies the CTx pin(s) associated with the ALP in no particular
+          order.
+
+      azoteq,ati-frac-div-fine:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the ALP's ATI fine fractional divider.
+
+      azoteq,ati-frac-mult-coarse:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 15
+        description: Specifies the ALP's ATI coarse fractional multiplier.
+
+      azoteq,ati-frac-div-coarse:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the ALP's ATI coarse fractional divider.
+
+      azoteq,ati-comp-div:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the ALP's ATI compensation divider.
+
+      azoteq,ati-target:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 65535
+        description: Specifies the ALP's ATI target.
+
+      azoteq,ati-base:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        multipleOf: 8
+        minimum: 0
+        maximum: 255
+        description: Specifies the ALP's ATI base.
+
+      azoteq,ati-mode:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
+        description: |
+          Specifies the ALP's ATI mode as follows:
+          0: Partial
+          1: Full
+
+      azoteq,sense-mode:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
+        description: |
+          Specifies the ALP's sensing mode as follows:
+          0: Self capacitive
+          1: Mutual capacitive
+
+      azoteq,debounce-enter:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the ALP's debounce entrance factor.
+
+      azoteq,debounce-exit:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the ALP's debounce exit factor.
+
+      azoteq,thresh:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 65535
+        description: Specifies the ALP's proximity or touch threshold.
+
+      azoteq,conv-period:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the ALP's conversion period.
+
+      azoteq,conv-frac:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the ALP's conversion frequency fraction.
+
+      linux,code: true
+
+    additionalProperties: false
+
+  button:
+    type: object
+    description: Represents the inductive or capacitive button.
+
+    properties:
+      azoteq,ati-frac-div-fine:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the button's ATI fine fractional divider.
+
+      azoteq,ati-frac-mult-coarse:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 15
+        description: Specifies the button's ATI coarse fractional multiplier.
+
+      azoteq,ati-frac-div-coarse:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the button's ATI coarse fractional divider.
+
+      azoteq,ati-comp-div:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 31
+        description: Specifies the button's ATI compensation divider.
+
+      azoteq,ati-target:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 65535
+        description: Specifies the button's ATI target.
+
+      azoteq,ati-base:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        multipleOf: 8
+        minimum: 0
+        maximum: 255
+        description: Specifies the button's ATI base.
+
+      azoteq,ati-mode:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
+        description: |
+          Specifies the button's ATI mode as follows:
+          0: Partial
+          1: Full
+
+      azoteq,sense-mode:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2]
+        description: |
+          Specifies the button's sensing mode as follows:
+          0: Self capacitive
+          1: Mutual capacitive
+          2: Inductive
+
+      azoteq,touch-enter:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the button's touch entrance factor.
+
+      azoteq,touch-exit:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the button's touch exit factor.
+
+      azoteq,debounce-enter:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the button's debounce entrance factor.
+
+      azoteq,debounce-exit:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the button's debounce exit factor.
+
+      azoteq,thresh:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 65535
+        description: Specifies the button's proximity threshold.
+
+      azoteq,conv-period:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the button's conversion period.
+
+      azoteq,conv-frac:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the button's conversion frequency fraction.
+
+    patternProperties:
+      "^event-(prox|touch)$":
+        type: object
+        $ref: ../input.yaml#
+        description:
+          Represents a proximity or touch event reported by the button.
+
+        properties:
+          linux,code: true
+
+        additionalProperties: false
+
+    additionalProperties: false
+
+  wakeup-source: true
+
+  touchscreen-size-x: true
+  touchscreen-size-y: true
+  touchscreen-inverted-x: true
+  touchscreen-inverted-y: true
+  touchscreen-swapped-x-y: true
+
+dependencies:
+  touchscreen-size-x: ["azoteq,num-contacts"]
+  touchscreen-size-y: ["azoteq,num-contacts"]
+  touchscreen-inverted-x: ["azoteq,num-contacts"]
+  touchscreen-inverted-y: ["azoteq,num-contacts"]
+  touchscreen-swapped-x-y: ["azoteq,num-contacts"]
+
+required:
+  - compatible
+  - reg
+  - irq-gpios
+
+additionalProperties: false
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: azoteq,iqs7210a
+
+    then:
+      properties:
+        alp:
+          properties:
+            azoteq,rx-enable:
+              maxItems: 4
+              items:
+                minimum: 4
+
+    else:
+      properties:
+        azoteq,timeout-press-ms: false
+
+        alp:
+          properties:
+            azoteq,ati-mode: false
+
+        button: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: azoteq,iqs7211e
+
+    then:
+      properties:
+        reset-gpios: false
+
+        trackpad:
+          properties:
+            azoteq,tx-enable:
+              maxItems: 13
+              items:
+                maximum: 12
+
+        alp:
+          properties:
+            azoteq,tx-enable:
+              maxItems: 13
+              items:
+                maximum: 12
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/input/input.h>
+
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            touchscreen@56 {
+                    compatible = "azoteq,iqs7210a";
+                    reg = <0x56>;
+                    irq-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
+                    reset-gpios = <&gpio 17 (GPIO_ACTIVE_LOW |
+                                             GPIO_PUSH_PULL)>;
+                    azoteq,num-contacts = <2>;
+
+                    trackpad {
+                            azoteq,rx-enable = <6>, <5>, <4>, <3>, <2>;
+                            azoteq,tx-enable = <1>, <7>, <8>, <9>, <10>;
+                    };
+
+                    button {
+                            azoteq,sense-mode = <2>;
+                            azoteq,touch-enter = <40>;
+                            azoteq,touch-exit = <36>;
+
+                            event-touch {
+                                    linux,code = <KEY_HOME>;
+                            };
+                    };
+
+                    alp {
+                            azoteq,sense-mode = <1>;
+                            linux,code = <KEY_POWER>;
+                    };
+            };
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/input/input.h>
+
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            touchscreen@56 {
+                    compatible = "azoteq,iqs7211e";
+                    reg = <0x56>;
+                    irq-gpios = <&gpio 4 (GPIO_ACTIVE_LOW |
+                                          GPIO_OPEN_DRAIN)>;
+
+                    trackpad {
+                            event-tap {
+                                    linux,code = <KEY_PLAYPAUSE>;
+                            };
+
+                            event-tap-double {
+                                    linux,code = <KEY_SHUFFLE>;
+                            };
+
+                            event-tap-triple {
+                                    linux,code = <KEY_AGAIN>;
+                            };
+
+                            event-hold {
+                                    linux,code = <KEY_STOP>;
+                            };
+
+                            event-palm {
+                                    linux,code = <KEY_EXIT>;
+                            };
+
+                            event-swipe-x-pos {
+                                    linux,code = <KEY_REWIND>;
+                            };
+
+                            event-swipe-x-pos-hold {
+                                    linux,code = <KEY_PREVIOUS>;
+                            };
+
+                            event-swipe-x-neg {
+                                    linux,code = <KEY_FASTFORWARD>;
+                            };
+
+                            event-swipe-x-neg-hold {
+                                    linux,code = <KEY_NEXT>;
+                            };
+
+                            event-swipe-y-pos {
+                                    linux,code = <KEY_VOLUMEUP>;
+                            };
+
+                            event-swipe-y-pos-hold {
+                                    linux,code = <KEY_MUTE>;
+                            };
+
+                            event-swipe-y-neg {
+                                    linux,code = <KEY_VOLUMEDOWN>;
+                            };
+
+                            event-swipe-y-neg-hold {
+                                    linux,code = <KEY_MUTE>;
+                            };
+                    };
+            };
+    };
+
+...

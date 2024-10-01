@@ -37,6 +37,7 @@
 #include "clk_mgr.h"
 #include "resource.h"
 #include "link_enc_cfg.h"
+#include "atomfirmware.h"
 #define DC_LOGGER \
 	link->ctx->logger
 
@@ -73,7 +74,8 @@ void dp_disable_link_phy(struct dc_link *link,
 {
 	struct dc  *dc = link->ctx->dc;
 
-	if (!link->wa_flags.dp_keep_receiver_powered)
+	if (!link->wa_flags.dp_keep_receiver_powered &&
+		!link->skip_implict_edp_power_control)
 		dpcd_write_rx_power_ctrl(link, false);
 
 	dc->hwss.disable_link_output(link, link_res, signal);
@@ -99,8 +101,11 @@ void dp_set_hw_lane_settings(
 {
 	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 
+	// Don't return here if using FIXED_VS link HWSS and encoding is 128b/132b
 	if ((link_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) &&
-			!is_immediate_downstream(link, offset))
+			!is_immediate_downstream(link, offset) &&
+			(!(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) ||
+			link_dp_get_encoding_format(&link_settings->link_settings) == DP_8b_10b_ENCODING))
 		return;
 
 	if (link_hwss->ext.set_dp_lane_settings)
@@ -142,32 +147,25 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 
 	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
+	if (link_enc->funcs->fec_set_ready == NULL)
+		return DC_NOT_SUPPORTED;
 
-	if (!dp_should_enable_fec(link))
-		return status;
+	if (ready && dp_should_enable_fec(link)) {
+		fec_config = 1;
 
-	if (link_enc->funcs->fec_set_ready &&
-			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
-		if (ready) {
-			fec_config = 1;
-			status = core_link_write_dpcd(link,
-					DP_FEC_CONFIGURATION,
-					&fec_config,
-					sizeof(fec_config));
-			if (status == DC_OK) {
-				link_enc->funcs->fec_set_ready(link_enc, true);
-				link->fec_state = dc_link_fec_ready;
-			} else {
-				link_enc->funcs->fec_set_ready(link_enc, false);
-				link->fec_state = dc_link_fec_not_ready;
-				dm_error("dpcd write failed to set fec_ready");
-			}
-		} else if (link->fec_state == dc_link_fec_ready) {
+		status = core_link_write_dpcd(link, DP_FEC_CONFIGURATION,
+				&fec_config, sizeof(fec_config));
+
+		if (status == DC_OK) {
+			link_enc->funcs->fec_set_ready(link_enc, true);
+			link->fec_state = dc_link_fec_ready;
+		}
+	} else {
+		if (link->fec_state == dc_link_fec_ready) {
 			fec_config = 0;
-			status = core_link_write_dpcd(link,
-					DP_FEC_CONFIGURATION,
-					&fec_config,
-					sizeof(fec_config));
+			core_link_write_dpcd(link, DP_FEC_CONFIGURATION,
+				&fec_config, sizeof(fec_config));
+
 			link_enc->funcs->fec_set_ready(link_enc, false);
 			link->fec_state = dc_link_fec_not_ready;
 		}
@@ -182,14 +180,12 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 
 	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
-
-	if (!dp_should_enable_fec(link))
+	if (link_enc->funcs->fec_set_enable == NULL)
 		return;
 
-	if (link_enc->funcs->fec_set_enable &&
-			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
-		if (link->fec_state == dc_link_fec_ready && enable) {
-			/* Accord to DP spec, FEC enable sequence can first
+	if (enable && dp_should_enable_fec(link)) {
+		if (link->fec_state == dc_link_fec_ready) {
+			/* According to DP spec, FEC enable sequence can first
 			 * be transmitted anytime after 1000 LL codes have
 			 * been transmitted on the link after link training
 			 * completion. Using 1 lane RBR should have the maximum
@@ -199,7 +195,9 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 			udelay(7);
 			link_enc->funcs->fec_set_enable(link_enc, true);
 			link->fec_state = dc_link_fec_enabled;
-		} else if (link->fec_state == dc_link_fec_enabled && !enable) {
+		}
+	} else {
+		if (link->fec_state == dc_link_fec_enabled) {
 			link_enc->funcs->fec_set_enable(link_enc, false);
 			link->fec_state = dc_link_fec_ready;
 		}

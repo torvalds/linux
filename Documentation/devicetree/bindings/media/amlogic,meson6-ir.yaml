@@ -19,6 +19,7 @@ properties:
           - amlogic,meson6-ir
           - amlogic,meson8b-ir
           - amlogic,meson-gxbb-ir
+          - amlogic,meson-s4-ir
       - items:
           - const: amlogic,meson-gx-ir
           - const: amlogic,meson-gxbb-ir

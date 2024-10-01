@@ -320,10 +320,6 @@ struct pci_dev;
 #define CIO2_CSIRX_DLY_CNT_TERMEN_DEFAULT		0x4
 #define CIO2_CSIRX_DLY_CNT_SETTLE_DEFAULT		0x570
 
-#define CIO2_PMCSR_OFFSET				4U
-#define CIO2_PMCSR_D0D3_SHIFT				2U
-#define CIO2_PMCSR_D3					0x3
-
 struct cio2_csi2_timing {
 	s32 clk_termen;
 	s32 clk_settle;
@@ -458,11 +454,5 @@ static inline struct cio2_queue *vb2q_to_cio2_queue(struct vb2_queue *vq)
 {
 	return container_of(vq, struct cio2_queue, vbq);
 }
-
-#if IS_ENABLED(CONFIG_CIO2_BRIDGE)
-int cio2_bridge_init(struct pci_dev *cio2);
-#else
-static inline int cio2_bridge_init(struct pci_dev *cio2) { return 0; }
-#endif
 
 #endif

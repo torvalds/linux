@@ -1014,7 +1014,7 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 
-	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_usb_napi_poll);
+	netif_napi_add(ar->napi_dev, &ar->napi, ath10k_usb_napi_poll);
 
 	usb_get_dev(dev);
 	vendor_id = le16_to_cpu(dev->descriptor.idVendor);
@@ -1126,5 +1126,5 @@ static struct usb_driver ath10k_usb_driver = {
 module_usb_driver(ath10k_usb_driver);
 
 MODULE_AUTHOR("Atheros Communications, Inc.");
-MODULE_DESCRIPTION("Driver support for Qualcomm Atheros 802.11ac WLAN USB devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Atheros USB 802.11ac WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");

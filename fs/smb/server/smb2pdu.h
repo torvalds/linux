@@ -64,7 +64,7 @@ struct preauth_integrity_info {
 #define SMB2_SESSION_TIMEOUT		(10 * HZ)
 
 struct create_durable_req_v2 {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	__le32 Timeout;
 	__le32 Flags;
@@ -72,8 +72,22 @@ struct create_durable_req_v2 {
 	__u8 CreateGuid[16];
 } __packed;
 
+#define DURABLE_HANDLE_MAX_TIMEOUT	300000
+
+struct create_durable_reconn_req {
+	struct create_context_hdr ccontext;
+	__u8   Name[8];
+	union {
+		__u8  Reserved[16];
+		struct {
+			__u64 PersistentFileId;
+			__u64 VolatileFileId;
+		} Fid;
+	} Data;
+} __packed;
+
 struct create_durable_reconn_v2_req {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct {
 		__u64 PersistentFileId;
@@ -84,13 +98,13 @@ struct create_durable_reconn_v2_req {
 } __packed;
 
 struct create_alloc_size_req {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	__le64 AllocationSize;
 } __packed;
 
 struct create_durable_rsp {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	union {
 		__u8  Reserved[8];
@@ -98,8 +112,11 @@ struct create_durable_rsp {
 	} Data;
 } __packed;
 
+/* See MS-SMB2 2.2.13.2.11 */
+/* Flags */
+#define SMB2_DHANDLE_FLAG_PERSISTENT	0x00000002
 struct create_durable_v2_rsp {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	__le32 Timeout;
 	__le32 Flags;
@@ -107,7 +124,7 @@ struct create_durable_v2_rsp {
 
 /* equivalent of the contents of SMB3.1.1 POSIX open context response */
 struct create_posix_rsp {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8    Name[16];
 	__le32 nlink;
 	__le32 reparse_tag;
@@ -177,7 +194,7 @@ struct copychunk_ioctl_req {
 	__le64 ResumeKey[3];
 	__le32 ChunkCount;
 	__le32 Reserved;
-	__u8 Chunks[1]; /* array of srv_copychunk */
+	__u8 Chunks[]; /* array of srv_copychunk */
 } __packed;
 
 struct srv_copychunk {
@@ -353,7 +370,7 @@ struct smb2_file_attr_tag_info {
 struct smb2_ea_info_req {
 	__le32 NextEntryOffset;
 	__u8   EaNameLength;
-	char name[1];
+	char name[];
 } __packed; /* level 15 Query */
 
 struct smb2_ea_info {
@@ -361,18 +378,18 @@ struct smb2_ea_info {
 	__u8   Flags;
 	__u8   EaNameLength;
 	__le16 EaValueLength;
-	char name[1];
+	char name[];
 	/* optionally followed by value */
 } __packed; /* level 15 Query */
 
 struct create_ea_buf_req {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct smb2_ea_info ea;
 } __packed;
 
 struct create_sd_buf_req {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct smb_ntsd ntsd;
 } __packed;

@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/mediatek,mtk-ahci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Serial ATA controller
+
+maintainers:
+  - Ryder Lee <ryder.lee@mediatek.com>
+
+allOf:
+  - $ref: ahci-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - mediatek,mt7622-ahci
+      - const: mediatek,mtk-ahci
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    const: hostc
+
+  clocks:
+    maxItems: 5
+
+  clock-names:
+    items:
+      - const: ahb
+      - const: axi
+      - const: asic
+      - const: rbc
+      - const: pm
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 3
+
+  reset-names:
+    items:
+      - const: axi
+      - const: sw
+      - const: reg
+
+  mediatek,phy-mode:
+    description: System controller phandle, used to enable SATA function
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - phys
+  - phy-names
+  - ports-implemented
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt7622-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/phy/phy.h>
+    #include <dt-bindings/power/mt7622-power.h>
+    #include <dt-bindings/reset/mt7622-reset.h>
+
+    sata@1a200000 {
+        compatible = "mediatek,mt7622-ahci", "mediatek,mtk-ahci";
+        reg = <0x1a200000 0x1100>;
+        interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "hostc";
+        clocks = <&pciesys CLK_SATA_AHB_EN>,
+                 <&pciesys CLK_SATA_AXI_EN>,
+                 <&pciesys CLK_SATA_ASIC_EN>,
+                 <&pciesys CLK_SATA_RBC_EN>,
+                 <&pciesys CLK_SATA_PM_EN>;
+        clock-names = "ahb", "axi", "asic", "rbc", "pm";
+        phys = <&u3port1 PHY_TYPE_SATA>;
+        phy-names = "sata-phy";
+        ports-implemented = <0x1>;
+        power-domains = <&scpsys MT7622_POWER_DOMAIN_HIF0>;
+        resets = <&pciesys MT7622_SATA_AXI_BUS_RST>,
+                 <&pciesys MT7622_SATA_PHY_SW_RST>,
+                 <&pciesys MT7622_SATA_PHY_REG_RST>;
+        reset-names = "axi", "sw", "reg";
+        mediatek,phy-mode = <&pciesys>;
+    };

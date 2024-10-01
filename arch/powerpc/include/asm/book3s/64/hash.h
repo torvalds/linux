@@ -4,6 +4,7 @@
 #ifdef __KERNEL__
 
 #include <asm/asm-const.h>
+#include <asm/book3s/64/slice.h>
 
 /*
  * Common bits between 4K and 64K pages in a linux-style PTE.
@@ -132,8 +133,22 @@ static inline int get_region_id(unsigned long ea)
 	return region_id;
 }
 
+static inline int hash__pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+{
+	return (((pmd_raw(pmd_a) ^ pmd_raw(pmd_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
+}
+
 #define	hash__pmd_bad(pmd)		(pmd_val(pmd) & H_PMD_BAD_BITS)
+
+/*
+ * pud comparison that will work with both pte and page table pointer.
+ */
+static inline int hash__pud_same(pud_t pud_a, pud_t pud_b)
+{
+	return (((pud_raw(pud_a) ^ pud_raw(pud_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
+}
 #define	hash__pud_bad(pud)		(pud_val(pud) & H_PUD_BAD_BITS)
+
 static inline int hash__p4d_bad(p4d_t p4d)
 {
 	return (p4d_val(p4d) == 0);
@@ -147,14 +162,10 @@ extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 			    pte_t *ptep, unsigned long pte, int huge);
 unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags);
 /* Atomic PTE updates */
-static inline unsigned long hash__pte_update(struct mm_struct *mm,
-					 unsigned long addr,
-					 pte_t *ptep, unsigned long clr,
-					 unsigned long set,
-					 int huge)
+static inline unsigned long hash__pte_update_one(pte_t *ptep, unsigned long clr,
+						 unsigned long set)
 {
 	__be64 old_be, tmp_be;
-	unsigned long old;
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%3		# pte_update\n\
@@ -168,11 +179,40 @@ static inline unsigned long hash__pte_update(struct mm_struct *mm,
 	: "r" (ptep), "r" (cpu_to_be64(clr)), "m" (*ptep),
 	  "r" (cpu_to_be64(H_PAGE_BUSY)), "r" (cpu_to_be64(set))
 	: "cc" );
+
+	return be64_to_cpu(old_be);
+}
+
+static inline unsigned long hash__pte_update(struct mm_struct *mm,
+					 unsigned long addr,
+					 pte_t *ptep, unsigned long clr,
+					 unsigned long set,
+					 int huge)
+{
+	unsigned long old;
+
+	old = hash__pte_update_one(ptep, clr, set);
+
+	if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && huge) {
+		unsigned int psize = get_slice_psize(mm, addr);
+		int nb, i;
+
+		if (psize == MMU_PAGE_16M)
+			nb = SZ_16M / PMD_SIZE;
+		else if (psize == MMU_PAGE_16G)
+			nb = SZ_16G / PUD_SIZE;
+		else
+			nb = 1;
+
+		WARN_ON_ONCE(nb == 1);	/* Should never happen */
+
+		for (i = 1; i < nb; i++)
+			hash__pte_update_one(ptep + i, clr, set);
+	}
 	/* huge pages use the old page table lock */
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
-	old = be64_to_cpu(old_be);
 	if (old & H_PAGE_HASHPTE)
 		hpte_need_flush(mm, addr, ptep, old, huge);
 
@@ -254,8 +294,6 @@ extern void hash__vmemmap_remove_mapping(unsigned long start,
 int hash__create_section_mapping(unsigned long start, unsigned long end,
 				 int nid, pgprot_t prot);
 int hash__remove_section_mapping(unsigned long start, unsigned long end);
-
-void hash__kernel_map_pages(struct page *page, int numpages, int enable);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */

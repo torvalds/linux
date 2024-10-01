@@ -8,9 +8,9 @@
 // Author: Weidong Wang <wangweidong.a@awinic.com>
 //
 
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/firmware.h>
-#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include "aw88395.h"
@@ -175,9 +175,8 @@ static int aw88395_profile_info(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct aw88395 *aw88395 = snd_soc_component_get_drvdata(codec);
-	const char *prof_name;
-	char *name;
-	int count;
+	char *prof_name, *name;
+	int count, ret;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -196,8 +195,8 @@ static int aw88395_profile_info(struct snd_kcontrol *kcontrol,
 	name = uinfo->value.enumerated.name;
 	count = uinfo->value.enumerated.item;
 
-	prof_name = aw88395_dev_get_prof_name(aw88395->aw_pa, count);
-	if (!prof_name) {
+	ret = aw88395_dev_get_prof_name(aw88395->aw_pa, count, &prof_name);
+	if (ret) {
 		strscpy(uinfo->value.enumerated.name, "null",
 						strlen("null") + 1);
 		return 0;
@@ -357,7 +356,7 @@ static const struct snd_kcontrol_new aw88395_controls[] = {
 		aw88395_get_fade_in_time, aw88395_set_fade_in_time),
 	SOC_SINGLE_EXT("Volume Ramp Down Step", 0, 0, FADE_TIME_MAX, FADE_TIME_MIN,
 		aw88395_get_fade_out_time, aw88395_set_fade_out_time),
-	SOC_SINGLE_EXT("Calib", 0, 0, 100, 0,
+	SOC_SINGLE_EXT("Calib", 0, 0, AW88395_CALI_RE_MAX, 0,
 		aw88395_re_get, aw88395_re_set),
 	AW88395_PROFILE_EXT("Profile Set", aw88395_profile_info,
 		aw88395_profile_get, aw88395_profile_set),
@@ -561,7 +560,7 @@ static int aw88395_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id aw88395_i2c_id[] = {
-	{ AW88395_I2C_NAME, 0 },
+	{ AW88395_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw88395_i2c_id);

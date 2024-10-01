@@ -46,6 +46,8 @@ properties:
     allOf:
       - $ref: /schemas/thermal/qcom-tsens.yaml#
 
+  '#power-domain-cells': false
+
 required:
   - compatible
   - clocks
@@ -65,7 +67,6 @@ examples:
       clock-names = "pxo", "cxo", "pll4";
       #clock-cells = <1>;
       #reset-cells = <1>;
-      #power-domain-cells = <1>;
 
       tsens: thermal-sensor {
         compatible = "qcom,ipq8064-tsens";

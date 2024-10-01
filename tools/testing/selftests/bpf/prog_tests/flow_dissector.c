@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#define _GNU_SOURCE
 #include <test_progs.h>
 #include <network_helpers.h>
-#include <error.h>
-#include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/uio.h>
 
@@ -379,8 +378,8 @@ struct test tests[] = {
 			.iph_inner.ihl = 5,
 			.iph_inner.protocol = IPPROTO_TCP,
 			.iph_inner.tot_len =
-				__bpf_constant_htons(MAGIC_BYTES) -
-				sizeof(struct iphdr),
+				__bpf_constant_htons(MAGIC_BYTES -
+				sizeof(struct iphdr)),
 			.tcp.doff = 5,
 			.tcp.source = 80,
 			.tcp.dest = 8080,
@@ -408,8 +407,8 @@ struct test tests[] = {
 			.iph_inner.ihl = 5,
 			.iph_inner.protocol = IPPROTO_TCP,
 			.iph_inner.tot_len =
-				__bpf_constant_htons(MAGIC_BYTES) -
-				sizeof(struct iphdr),
+				__bpf_constant_htons(MAGIC_BYTES -
+				sizeof(struct iphdr)),
 			.tcp.doff = 5,
 			.tcp.source = 80,
 			.tcp.dest = 8080,
@@ -437,8 +436,8 @@ struct test tests[] = {
 			.iph_inner.ihl = 5,
 			.iph_inner.protocol = IPPROTO_TCP,
 			.iph_inner.tot_len =
-				__bpf_constant_htons(MAGIC_BYTES) -
-				sizeof(struct iphdr),
+				__bpf_constant_htons(MAGIC_BYTES -
+				sizeof(struct iphdr)),
 			.tcp.doff = 5,
 			.tcp.source = 99,
 			.tcp.dest = 9090,

@@ -5,7 +5,6 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "btrfs_inode.h"
-#include "print-tree.h"
 #include "export.h"
 #include "accessors.h"
 #include "super.h"
@@ -35,15 +34,15 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	type = FILEID_BTRFS_WITHOUT_PARENT;
 
 	fid->objectid = btrfs_ino(BTRFS_I(inode));
-	fid->root_objectid = BTRFS_I(inode)->root->root_key.objectid;
+	fid->root_objectid = btrfs_root_id(BTRFS_I(inode)->root);
 	fid->gen = inode->i_generation;
 
 	if (parent) {
 		u64 parent_root_id;
 
-		fid->parent_objectid = BTRFS_I(parent)->location.objectid;
+		fid->parent_objectid = btrfs_ino(BTRFS_I(parent));
 		fid->parent_gen = parent->i_generation;
-		parent_root_id = BTRFS_I(parent)->root->root_key.objectid;
+		parent_root_id = btrfs_root_id(BTRFS_I(parent)->root);
 
 		if (parent_root_id != fid->root_objectid) {
 			fid->parent_root_objectid = parent_root_id;
@@ -85,7 +84,7 @@ struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	if (IS_ERR(root))
 		return ERR_CAST(root);
 
-	inode = btrfs_iget(sb, objectid, root);
+	inode = btrfs_iget(objectid, root);
 	btrfs_put_root(root);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
@@ -161,7 +160,7 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 		return ERR_PTR(-ENOMEM);
 
 	if (btrfs_ino(BTRFS_I(dir)) == BTRFS_FIRST_FREE_OBJECTID) {
-		key.objectid = root->root_key.objectid;
+		key.objectid = btrfs_root_id(root);
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;
@@ -174,8 +173,15 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto fail;
+	if (ret == 0) {
+		/*
+		 * Key with offset of -1 found, there would have to exist an
+		 * inode with such number or a root with such id.
+		 */
+		ret = -EUCLEAN;
+		goto fail;
+	}
 
-	BUG_ON(ret == 0); /* Key with offset of -1 found */
 	if (path->slots[0] == 0) {
 		ret = -ENOENT;
 		goto fail;
@@ -204,7 +210,7 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 					found_key.offset, 0);
 	}
 
-	return d_obtain_alias(btrfs_iget(fs_info->sb, key.objectid, root));
+	return d_obtain_alias(btrfs_iget(key.objectid, root));
 fail:
 	btrfs_free_path(path);
 	return ERR_PTR(ret);
@@ -215,7 +221,7 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 {
 	struct inode *inode = d_inode(child);
 	struct inode *dir = d_inode(parent);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct btrfs_path *path;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_inode_ref *iref;
@@ -237,7 +243,7 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 		return -ENOMEM;
 
 	if (ino == BTRFS_FIRST_FREE_OBJECTID) {
-		key.objectid = BTRFS_I(inode)->root->root_key.objectid;
+		key.objectid = btrfs_root_id(BTRFS_I(inode)->root);
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;

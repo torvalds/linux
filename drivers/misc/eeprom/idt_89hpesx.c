@@ -129,7 +129,7 @@ struct idt_smb_seq {
 struct idt_eeprom_seq {
 	u8 cmd;
 	u8 eeaddr;
-	u16 memaddr;
+	__le16 memaddr;
 	u8 data;
 } __packed;
 
@@ -141,8 +141,8 @@ struct idt_eeprom_seq {
  */
 struct idt_csr_seq {
 	u8 cmd;
-	u16 csraddr;
-	u32 data;
+	__le16 csraddr;
+	__le32 data;
 } __packed;
 
 /*
@@ -905,7 +905,7 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 {
 	struct idt_89hpesx_dev *pdev = filep->private_data;
 	char *colon_ch, *csraddr_str, *csrval_str;
-	int ret, csraddr_len;
+	int ret;
 	u32 csraddr, csrval;
 	char *buf;
 
@@ -913,15 +913,9 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 		return 0;
 
 	/* Copy data from User-space */
-	buf = kmalloc(count + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, count)) {
-		ret = -EFAULT;
-		goto free_buf;
-	}
-	buf[count] = 0;
+	buf = memdup_user_nul(ubuf, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	/* Find position of colon in the buffer */
 	colon_ch = strnchr(buf, count, ':');
@@ -933,21 +927,16 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	 * no new CSR value
 	 */
 	if (colon_ch != NULL) {
-		csraddr_len = colon_ch - buf;
-		csraddr_str =
-			kmalloc(csraddr_len + 1, GFP_KERNEL);
+		/* Copy the register address to the substring buffer */
+		csraddr_str = kmemdup_nul(buf, colon_ch - buf, GFP_KERNEL);
 		if (csraddr_str == NULL) {
 			ret = -ENOMEM;
 			goto free_buf;
 		}
-		/* Copy the register address to the substring buffer */
-		strncpy(csraddr_str, buf, csraddr_len);
-		csraddr_str[csraddr_len] = '\0';
 		/* Register value must follow the colon */
 		csrval_str = colon_ch + 1;
 	} else /* if (str_colon == NULL) */ {
 		csraddr_str = (char *)buf; /* Just to shut warning up */
-		csraddr_len = strnlen(csraddr_str, count);
 		csrval_str = NULL;
 	}
 
@@ -1294,13 +1283,14 @@ static int idt_create_sysfs_files(struct idt_89hpesx_dev *pdev)
 		return 0;
 	}
 
-	/* Allocate memory for attribute file */
-	pdev->ee_file = devm_kmalloc(dev, sizeof(*pdev->ee_file), GFP_KERNEL);
+	/*
+	 * Allocate memory for attribute file and copy the declared EEPROM attr
+	 * structure to change some of fields
+	 */
+	pdev->ee_file = devm_kmemdup(dev, &bin_attr_eeprom,
+				     sizeof(*pdev->ee_file), GFP_KERNEL);
 	if (!pdev->ee_file)
 		return -ENOMEM;
-
-	/* Copy the declared EEPROM attr structure to change some of fields */
-	memcpy(pdev->ee_file, &bin_attr_eeprom, sizeof(*pdev->ee_file));
 
 	/* In case of read-only EEPROM get rid of write ability */
 	if (pdev->eero) {
@@ -1436,58 +1426,58 @@ MODULE_DEVICE_TABLE(i2c, ee_ids);
  * idt_ids - supported IDT 89HPESx devices
  */
 static const struct i2c_device_id idt_ids[] = {
-	{ "89hpes8nt2", 0 },
-	{ "89hpes12nt3", 0 },
+	{ "89hpes8nt2" },
+	{ "89hpes12nt3" },
 
-	{ "89hpes24nt6ag2", 0 },
-	{ "89hpes32nt8ag2", 0 },
-	{ "89hpes32nt8bg2", 0 },
-	{ "89hpes12nt12g2", 0 },
-	{ "89hpes16nt16g2", 0 },
-	{ "89hpes24nt24g2", 0 },
-	{ "89hpes32nt24ag2", 0 },
-	{ "89hpes32nt24bg2", 0 },
+	{ "89hpes24nt6ag2" },
+	{ "89hpes32nt8ag2" },
+	{ "89hpes32nt8bg2" },
+	{ "89hpes12nt12g2" },
+	{ "89hpes16nt16g2" },
+	{ "89hpes24nt24g2" },
+	{ "89hpes32nt24ag2" },
+	{ "89hpes32nt24bg2" },
 
-	{ "89hpes12n3", 0 },
-	{ "89hpes12n3a", 0 },
-	{ "89hpes24n3", 0 },
-	{ "89hpes24n3a", 0 },
+	{ "89hpes12n3" },
+	{ "89hpes12n3a" },
+	{ "89hpes24n3" },
+	{ "89hpes24n3a" },
 
-	{ "89hpes32h8", 0 },
-	{ "89hpes32h8g2", 0 },
-	{ "89hpes48h12", 0 },
-	{ "89hpes48h12g2", 0 },
-	{ "89hpes48h12ag2", 0 },
-	{ "89hpes16h16", 0 },
-	{ "89hpes22h16", 0 },
-	{ "89hpes22h16g2", 0 },
-	{ "89hpes34h16", 0 },
-	{ "89hpes34h16g2", 0 },
-	{ "89hpes64h16", 0 },
-	{ "89hpes64h16g2", 0 },
-	{ "89hpes64h16ag2", 0 },
+	{ "89hpes32h8" },
+	{ "89hpes32h8g2" },
+	{ "89hpes48h12" },
+	{ "89hpes48h12g2" },
+	{ "89hpes48h12ag2" },
+	{ "89hpes16h16" },
+	{ "89hpes22h16" },
+	{ "89hpes22h16g2" },
+	{ "89hpes34h16" },
+	{ "89hpes34h16g2" },
+	{ "89hpes64h16" },
+	{ "89hpes64h16g2" },
+	{ "89hpes64h16ag2" },
 
-	/* { "89hpes3t3", 0 }, // No SMBus-slave iface */
-	{ "89hpes12t3g2", 0 },
-	{ "89hpes24t3g2", 0 },
-	/* { "89hpes4t4", 0 }, // No SMBus-slave iface */
-	{ "89hpes16t4", 0 },
-	{ "89hpes4t4g2", 0 },
-	{ "89hpes10t4g2", 0 },
-	{ "89hpes16t4g2", 0 },
-	{ "89hpes16t4ag2", 0 },
-	{ "89hpes5t5", 0 },
-	{ "89hpes6t5", 0 },
-	{ "89hpes8t5", 0 },
-	{ "89hpes8t5a", 0 },
-	{ "89hpes24t6", 0 },
-	{ "89hpes6t6g2", 0 },
-	{ "89hpes24t6g2", 0 },
-	{ "89hpes16t7", 0 },
-	{ "89hpes32t8", 0 },
-	{ "89hpes32t8g2", 0 },
-	{ "89hpes48t12", 0 },
-	{ "89hpes48t12g2", 0 },
+	/* { "89hpes3t3" }, // No SMBus-slave iface */
+	{ "89hpes12t3g2" },
+	{ "89hpes24t3g2" },
+	/* { "89hpes4t4" }, // No SMBus-slave iface */
+	{ "89hpes16t4" },
+	{ "89hpes4t4g2" },
+	{ "89hpes10t4g2" },
+	{ "89hpes16t4g2" },
+	{ "89hpes16t4ag2" },
+	{ "89hpes5t5" },
+	{ "89hpes6t5" },
+	{ "89hpes8t5" },
+	{ "89hpes8t5a" },
+	{ "89hpes24t6" },
+	{ "89hpes6t6g2" },
+	{ "89hpes24t6g2" },
+	{ "89hpes16t7" },
+	{ "89hpes32t8" },
+	{ "89hpes32t8g2" },
+	{ "89hpes48t12" },
+	{ "89hpes48t12g2" },
 	{ /* END OF LIST */ }
 };
 MODULE_DEVICE_TABLE(i2c, idt_ids);

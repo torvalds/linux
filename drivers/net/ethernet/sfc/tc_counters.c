@@ -129,8 +129,8 @@ static void efx_tc_counter_work(struct work_struct *work)
 
 /* Counter allocation */
 
-static struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
-							     int type)
+struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
+						      int type)
 {
 	struct efx_tc_counter *cnt;
 	int rc, rc2;
@@ -169,8 +169,8 @@ fail1:
 	return ERR_PTR(rc > 0 ? -EIO : rc);
 }
 
-static void efx_tc_flower_release_counter(struct efx_nic *efx,
-					  struct efx_tc_counter *cnt)
+void efx_tc_flower_release_counter(struct efx_nic *efx,
+				   struct efx_tc_counter *cnt)
 {
 	int rc;
 
@@ -236,6 +236,8 @@ struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 	if (old) {
 		/* don't need our new entry */
 		kfree(ctr);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return ERR_CAST(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */
@@ -247,7 +249,7 @@ struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 					       &ctr->linkage,
 					       efx_tc_counter_id_ht_params);
 			kfree(ctr);
-			return (void *)cnt; /* it's an ERR_PTR */
+			return ERR_CAST(cnt);
 		}
 		ctr->cnt = cnt;
 		refcount_set(&ctr->ref, 1);

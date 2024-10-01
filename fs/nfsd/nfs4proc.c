@@ -158,7 +158,7 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 	return fh_verify(rqstp, current_fh, S_IFREG, accmode);
 }
 
-static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
+static __be32 nfsd_check_obj_isreg(struct svc_fh *fh, u32 minor_version)
 {
 	umode_t mode = d_inode(fh->fh_dentry)->i_mode;
 
@@ -166,14 +166,15 @@ static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
 		return nfs_ok;
 	if (S_ISDIR(mode))
 		return nfserr_isdir;
-	/*
-	 * Using err_symlink as our catch-all case may look odd; but
-	 * there's no other obvious error for this case in 4.0, and we
-	 * happen to know that it will cause the linux v4 client to do
-	 * the right thing on attempts to open something other than a
-	 * regular file.
-	 */
-	return nfserr_symlink;
+	if (S_ISLNK(mode))
+		return nfserr_symlink;
+
+	/* RFC 7530 - 16.16.6 */
+	if (minor_version == 0)
+		return nfserr_symlink;
+	else
+		return nfserr_wrong_type;
+
 }
 
 static void nfsd4_set_open_owner_reply_cache(struct nfsd4_compound_state *cstate, struct nfsd4_open *open, struct svc_fh *resfh)
@@ -297,12 +298,12 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	}
 
 	if (d_really_is_positive(child)) {
-		status = nfs_ok;
-
 		/* NFSv4 protocol requires change attributes even though
 		 * no change happened.
 		 */
-		fh_fill_both_attrs(fhp);
+		status = fh_fill_both_attrs(fhp);
+		if (status != nfs_ok)
+			goto out;
 
 		switch (open->op_createmode) {
 		case NFS4_CREATE_UNCHECKED:
@@ -322,8 +323,8 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			status = nfserr_exist;
 			break;
 		case NFS4_CREATE_EXCLUSIVE:
-			if (d_inode(child)->i_mtime.tv_sec == v_mtime &&
-			    d_inode(child)->i_atime.tv_sec == v_atime &&
+			if (inode_get_mtime_sec(d_inode(child)) == v_mtime &&
+			    inode_get_atime_sec(d_inode(child)) == v_atime &&
 			    d_inode(child)->i_size == 0) {
 				open->op_created = true;
 				break;		/* subtle */
@@ -331,8 +332,8 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			status = nfserr_exist;
 			break;
 		case NFS4_CREATE_EXCLUSIVE4_1:
-			if (d_inode(child)->i_mtime.tv_sec == v_mtime &&
-			    d_inode(child)->i_atime.tv_sec == v_atime &&
+			if (inode_get_mtime_sec(d_inode(child)) == v_mtime &&
+			    inode_get_atime_sec(d_inode(child)) == v_atime &&
 			    d_inode(child)->i_size == 0) {
 				open->op_created = true;
 				goto set_attr;	/* subtle */
@@ -345,7 +346,9 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (!IS_POSIXACL(inode))
 		iap->ia_mode &= ~current_umask();
 
-	fh_fill_pre_attrs(fhp);
+	status = fh_fill_pre_attrs(fhp);
+	if (status != nfs_ok)
+		goto out;
 	status = nfsd4_vfs_create(fhp, child, open);
 	if (status != nfs_ok)
 		goto out;
@@ -378,6 +381,38 @@ out:
 		dput(child);
 	fh_drop_write(fhp);
 	return status;
+}
+
+/**
+ * set_change_info - set up the change_info4 for a reply
+ * @cinfo: pointer to nfsd4_change_info to be populated
+ * @fhp: pointer to svc_fh to use as source
+ *
+ * Many operations in NFSv4 require change_info4 in the reply. This function
+ * populates that from the info that we (should!) have already collected. In
+ * the event that we didn't get any pre-attrs, just zero out both.
+ */
+static void
+set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
+{
+	cinfo->atomic = (u32)(fhp->fh_pre_saved && fhp->fh_post_saved && !fhp->fh_no_atomic_attr);
+	cinfo->before_change = fhp->fh_pre_change;
+	cinfo->after_change = fhp->fh_post_change;
+
+	/*
+	 * If fetching the pre-change attributes failed, then we should
+	 * have already failed the whole operation. We could have still
+	 * failed to fetch post-change attributes however.
+	 *
+	 * If we didn't get post-op attrs, just zero-out the after
+	 * field since we don't know what it should be. If the pre_saved
+	 * field isn't set for some reason, throw warning and just copy
+	 * whatever is in the after field.
+	 */
+	if (WARN_ON_ONCE(!fhp->fh_pre_saved))
+		cinfo->before_change = 0;
+	if (!fhp->fh_post_saved)
+		cinfo->after_change = cinfo->before_change + 1;
 }
 
 static __be32
@@ -424,15 +459,15 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 	} else {
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname, open->op_fnamelen, *resfh);
-		if (!status)
+		if (status == nfs_ok)
 			/* NFSv4 protocol requires change attributes even though
 			 * no change happened.
 			 */
-			fh_fill_both_attrs(current_fh);
+			status = fh_fill_both_attrs(current_fh);
 	}
 	if (status)
 		goto out;
-	status = nfsd_check_obj_isreg(*resfh);
+	status = nfsd_check_obj_isreg(*resfh, cstate->minorversion);
 	if (status)
 		goto out;
 
@@ -717,15 +752,6 @@ nfsd4_access(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			   &access->ac_supported);
 }
 
-static void gen_boot_verifier(nfs4_verifier *verifier, struct net *net)
-{
-	__be32 *verf = (__be32 *)verifier->data;
-
-	BUILD_BUG_ON(2*sizeof(*verf) != sizeof(verifier->data));
-
-	nfsd_copy_write_verifier(verf, net_generic(net, nfsd_net_id));
-}
-
 static __be32
 nfsd4_commit(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	     union nfsd4_op_u *u)
@@ -936,8 +962,11 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * To ensure proper ordering, we therefore turn off zero copy if
 	 * the client wants us to do more in this compound:
 	 */
-	if (!nfsd4_last_compound_op(rqstp))
-		clear_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
+	if (!nfsd4_last_compound_op(rqstp)) {
+		struct nfsd4_compoundargs *argp = rqstp->rq_argp;
+
+		argp->splice_ok = false;
+	}
 
 	/* check stateid */
 	status = nfs4_preprocess_stateid_op(rqstp, cstate, &cstate->current_fh,
@@ -1024,8 +1053,8 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			     rename->rn_tname, rename->rn_tnamelen);
 	if (status)
 		return status;
-	set_change_info(&rename->rn_sinfo, &cstate->current_fh);
-	set_change_info(&rename->rn_tinfo, &cstate->save_fh);
+	set_change_info(&rename->rn_sinfo, &cstate->save_fh);
+	set_change_info(&rename->rn_tinfo, &cstate->current_fh);
 	return nfs_ok;
 }
 
@@ -1106,6 +1135,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	};
 	struct inode *inode;
 	__be32 status = nfs_ok;
+	bool save_no_wcc;
 	int err;
 
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
@@ -1131,8 +1161,10 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (status)
 		goto out;
-	status = nfsd_setattr(rqstp, &cstate->current_fh, &attrs,
-				0, (time64_t)0);
+	save_no_wcc = cstate->current_fh.fh_no_wcc;
+	cstate->current_fh.fh_no_wcc = true;
+	status = nfsd_setattr(rqstp, &cstate->current_fh, &attrs, NULL);
+	cstate->current_fh.fh_no_wcc = save_no_wcc;
 	if (!status)
 		status = nfserrno(attrs.na_labelerr);
 	if (!status)
@@ -1248,6 +1280,7 @@ static void nfs4_put_copy(struct nfsd4_copy *copy)
 {
 	if (!refcount_dec_and_test(&copy->refcount))
 		return;
+	atomic_dec(&copy->cp_nn->pending_async_copies);
 	kfree(copy->cp_src);
 	kfree(copy);
 }
@@ -1295,7 +1328,8 @@ extern void nfs_sb_deactive(struct super_block *sb);
  * setup a work entry in the ssc delayed unmount list.
  */
 static __be32 nfsd4_ssc_setup_dul(struct nfsd_net *nn, char *ipaddr,
-				  struct nfsd4_ssc_umount_item **nsui)
+				  struct nfsd4_ssc_umount_item **nsui,
+				  struct svc_rqst *rqstp)
 {
 	struct nfsd4_ssc_umount_item *ni = NULL;
 	struct nfsd4_ssc_umount_item *work = NULL;
@@ -1313,12 +1347,11 @@ try_again:
 		/* found a match */
 		if (ni->nsui_busy) {
 			/*  wait - and try again */
-			prepare_to_wait(&nn->nfsd_ssc_waitq, &wait,
-				TASK_INTERRUPTIBLE);
+			prepare_to_wait(&nn->nfsd_ssc_waitq, &wait, TASK_IDLE);
 			spin_unlock(&nn->nfsd_ssc_lock);
 
 			/* allow 20secs for mount/unmount for now - revisit */
-			if (signal_pending(current) ||
+			if (svc_thread_should_stop(rqstp) ||
 					(schedule_timeout(20*HZ) == 0)) {
 				finish_wait(&nn->nfsd_ssc_waitq, &wait);
 				kfree(work);
@@ -1434,7 +1467,7 @@ nfsd4_interssc_connect(struct nl4_server *nss, struct svc_rqst *rqstp,
 		goto out_free_rawdata;
 	snprintf(dev_name, len + 5, "%s%s%s:/", startsep, ipaddr, endsep);
 
-	status = nfsd4_ssc_setup_dul(nn, ipaddr, nsui);
+	status = nfsd4_ssc_setup_dul(nn, ipaddr, nsui, rqstp);
 	if (status)
 		goto out_free_devname;
 	if ((*nsui)->nsui_vfsmount)
@@ -1581,7 +1614,8 @@ static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
 
 static const struct nfsd4_callback_ops nfsd4_cb_offload_ops = {
 	.release = nfsd4_cb_offload_release,
-	.done = nfsd4_cb_offload_done
+	.done = nfsd4_cb_offload_done,
+	.opcode = OP_CB_OFFLOAD,
 };
 
 static void nfsd4_init_copy_res(struct nfsd4_copy *copy, bool sync)
@@ -1590,7 +1624,6 @@ static void nfsd4_init_copy_res(struct nfsd4_copy *copy, bool sync)
 		test_bit(NFSD4_COPY_F_COMMITTED, &copy->cp_flags) ?
 			NFS_FILE_SYNC : NFS_UNSTABLE;
 	nfsd4_copy_set_sync(copy, sync);
-	gen_boot_verifier(&copy->cp_res.wr_verifier, copy->cp_clp->net);
 }
 
 static ssize_t _nfsd_copy_file_range(struct nfsd4_copy *copy,
@@ -1609,6 +1642,7 @@ static ssize_t _nfsd_copy_file_range(struct nfsd4_copy *copy,
 	if (bytes_total == 0)
 		bytes_total = ULLONG_MAX;
 	do {
+		/* Only async copies can be stopped here */
 		if (kthread_should_stop())
 			break;
 		bytes_copied = nfsd_copy_file_range(src, src_pos, dst, dst_pos,
@@ -1696,7 +1730,7 @@ static void cleanup_async_copy(struct nfsd4_copy *copy)
 	nfs4_put_copy(copy);
 }
 
-static void nfsd4_send_cb_offload(struct nfsd4_copy *copy, __be32 nfserr)
+static void nfsd4_send_cb_offload(struct nfsd4_copy *copy)
 {
 	struct nfsd4_cb_offload *cbo;
 
@@ -1706,12 +1740,12 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy, __be32 nfserr)
 
 	memcpy(&cbo->co_res, &copy->cp_res, sizeof(copy->cp_res));
 	memcpy(&cbo->co_fh, &copy->fh, sizeof(copy->fh));
-	cbo->co_nfserr = nfserr;
+	cbo->co_nfserr = copy->nfserr;
 
 	nfsd4_init_cb(&cbo->co_cb, copy->cp_clp, &nfsd4_cb_offload_ops,
 		      NFSPROC4_CLNT_CB_OFFLOAD);
 	trace_nfsd_cb_offload(copy->cp_clp, &cbo->co_res.cb_stateid,
-			      &cbo->co_fh, copy->cp_count, nfserr);
+			      &cbo->co_fh, copy->cp_count, copy->nfserr);
 	nfsd4_run_cb(&cbo->co_cb);
 }
 
@@ -1725,8 +1759,8 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy, __be32 nfserr)
 static int nfsd4_do_async_copy(void *data)
 {
 	struct nfsd4_copy *copy = (struct nfsd4_copy *)data;
-	__be32 nfserr;
 
+	trace_nfsd_copy_async(copy);
 	if (nfsd4_ssc_is_inter(copy)) {
 		struct file *filp;
 
@@ -1735,24 +1769,26 @@ static int nfsd4_do_async_copy(void *data)
 		if (IS_ERR(filp)) {
 			switch (PTR_ERR(filp)) {
 			case -EBADF:
-				nfserr = nfserr_wrong_type;
+				copy->nfserr = nfserr_wrong_type;
 				break;
 			default:
-				nfserr = nfserr_offload_denied;
+				copy->nfserr = nfserr_offload_denied;
 			}
 			/* ss_mnt will be unmounted by the laundromat */
 			goto do_callback;
 		}
-		nfserr = nfsd4_do_copy(copy, filp, copy->nf_dst->nf_file,
-				       false);
+		copy->nfserr = nfsd4_do_copy(copy, filp, copy->nf_dst->nf_file,
+					     false);
 		nfsd4_cleanup_inter_ssc(copy->ss_nsui, filp, copy->nf_dst);
 	} else {
-		nfserr = nfsd4_do_copy(copy, copy->nf_src->nf_file,
-				       copy->nf_dst->nf_file, false);
+		copy->nfserr = nfsd4_do_copy(copy, copy->nf_src->nf_file,
+					     copy->nf_dst->nf_file, false);
 	}
 
 do_callback:
-	nfsd4_send_cb_offload(copy, nfserr);
+	set_bit(NFSD4_COPY_F_COMPLETED, &copy->cp_flags);
+	trace_nfsd_copy_async_done(copy);
+	nfsd4_send_cb_offload(copy);
 	cleanup_async_copy(copy);
 	return 0;
 }
@@ -1761,34 +1797,56 @@ static __be32
 nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		union nfsd4_op_u *u)
 {
-	struct nfsd4_copy *copy = &u->copy;
-	__be32 status;
+	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct nfsd4_copy *async_copy = NULL;
+	struct nfsd4_copy *copy = &u->copy;
+	struct nfsd42_write_res *result;
+	__be32 status;
 
+	/*
+	 * Currently, async COPY is not reliable. Force all COPY
+	 * requests to be synchronous to avoid client application
+	 * hangs waiting for COPY completion.
+	 */
+	nfsd4_copy_set_sync(copy, true);
+
+	result = &copy->cp_res;
+	nfsd_copy_write_verifier((__be32 *)&result->wr_verifier.data, nn);
+
+	copy->cp_clp = cstate->clp;
 	if (nfsd4_ssc_is_inter(copy)) {
+		trace_nfsd_copy_inter(copy);
 		if (!inter_copy_offload_enable || nfsd4_copy_is_sync(copy)) {
 			status = nfserr_notsupp;
 			goto out;
 		}
 		status = nfsd4_setup_inter_ssc(rqstp, cstate, copy);
-		if (status)
+		if (status) {
+			trace_nfsd_copy_done(copy, status);
 			return nfserr_offload_denied;
+		}
 	} else {
+		trace_nfsd_copy_intra(copy);
 		status = nfsd4_setup_intra_ssc(rqstp, cstate, copy);
-		if (status)
+		if (status) {
+			trace_nfsd_copy_done(copy, status);
 			return status;
+		}
 	}
 
-	copy->cp_clp = cstate->clp;
 	memcpy(&copy->fh, &cstate->current_fh.fh_handle,
 		sizeof(struct knfsd_fh));
 	if (nfsd4_copy_is_async(copy)) {
-		struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
-
-		status = nfserrno(-ENOMEM);
 		async_copy = kzalloc(sizeof(struct nfsd4_copy), GFP_KERNEL);
 		if (!async_copy)
 			goto out_err;
+		async_copy->cp_nn = nn;
+		/* Arbitrary cap on number of pending async copy operations */
+		if (atomic_inc_return(&nn->pending_async_copies) >
+				(int)rqstp->rq_pool->sp_nrthreads) {
+			atomic_dec(&nn->pending_async_copies);
+			goto out_err;
+		}
 		INIT_LIST_HEAD(&async_copy->copies);
 		refcount_set(&async_copy->refcount, 1);
 		async_copy->cp_src = kmalloc(sizeof(*async_copy->cp_src), GFP_KERNEL);
@@ -1796,8 +1854,8 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out_err;
 		if (!nfs4_init_copy_state(nn, copy))
 			goto out_err;
-		memcpy(&copy->cp_res.cb_stateid, &copy->cp_stateid.cs_stid,
-			sizeof(copy->cp_res.cb_stateid));
+		memcpy(&result->cb_stateid, &copy->cp_stateid.cs_stid,
+			sizeof(result->cb_stateid));
 		dup_copy_fields(copy, async_copy);
 		async_copy->copy_task = kthread_create(nfsd4_do_async_copy,
 				async_copy, "%s", "copy thread");
@@ -1814,6 +1872,7 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				       copy->nf_dst->nf_file, true);
 	}
 out:
+	trace_nfsd_copy_done(copy, status);
 	release_copy_files(copy);
 	return status;
 out_err:
@@ -1827,7 +1886,7 @@ out_err:
 	}
 	if (async_copy)
 		cleanup_async_copy(async_copy);
-	status = nfserrno(-ENOMEM);
+	status = nfserr_jukebox;
 	goto out;
 }
 
@@ -1886,7 +1945,7 @@ nfsd4_copy_notify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd4_copy_notify *cn = &u->copy_notify;
 	__be32 status;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
-	struct nfs4_stid *stid;
+	struct nfs4_stid *stid = NULL;
 	struct nfs4_cpntf_state *cps;
 	struct nfs4_client *clp = cstate->clp;
 
@@ -1895,9 +1954,11 @@ nfsd4_copy_notify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 					&stid);
 	if (status)
 		return status;
+	if (!stid)
+		return nfserr_bad_stateid;
 
-	cn->cpn_sec = nn->nfsd4_lease;
-	cn->cpn_nsec = 0;
+	cn->cpn_lease_time.tv_sec = nn->nfsd4_lease;
+	cn->cpn_lease_time.tv_nsec = 0;
 
 	status = nfserrno(-ENOMEM);
 	cps = nfs4_alloc_init_cpntf_state(nn, stid);
@@ -1954,11 +2015,16 @@ nfsd4_offload_status(struct svc_rqst *rqstp,
 	struct nfsd4_copy *copy;
 	struct nfs4_client *clp = cstate->clp;
 
+	os->completed = false;
 	spin_lock(&clp->async_lock);
 	copy = find_async_copy_locked(clp, &os->stateid);
-	if (copy)
+	if (copy) {
 		os->count = copy->cp_res.wr_bytes_written;
-	else
+		if (test_bit(NFSD4_COPY_F_COMPLETED, &copy->cp_flags)) {
+			os->completed = true;
+			os->status = copy->nfserr;
+		}
+	} else
 		status = nfserr_bad_stateid;
 	spin_unlock(&clp->async_lock);
 
@@ -2105,6 +2171,29 @@ nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	return status == nfserr_same ? nfs_ok : status;
 }
 
+static __be32
+nfsd4_get_dir_delegation(struct svc_rqst *rqstp,
+			 struct nfsd4_compound_state *cstate,
+			 union nfsd4_op_u *u)
+{
+	struct nfsd4_get_dir_delegation *gdd = &u->get_dir_delegation;
+
+	/*
+	 * RFC 8881, section 18.39.3 says:
+	 *
+	 * "The server may refuse to grant the delegation. In that case, the
+	 *  server will return NFS4ERR_DIRDELEG_UNAVAIL."
+	 *
+	 * This is sub-optimal, since it means that the server would need to
+	 * abort compound processing just because the delegation wasn't
+	 * available. RFC8881bis should change this to allow the server to
+	 * return NFS4_OK with a non-fatal status of GDD4_UNAVAIL in this
+	 * situation.
+	 */
+	gdd->gddrnf_status = GDD4_UNAVAIL;
+	return nfs_ok;
+}
+
 #ifdef CONFIG_NFSD_PNFS
 static const struct nfsd4_layout_ops *
 nfsd4_layout_verify(struct svc_export *exp, unsigned int layout_type)
@@ -2147,7 +2236,9 @@ nfsd4_getdeviceinfo(struct svc_rqst *rqstp,
 		return nfserr_noent;
 	}
 
-	exp = rqst_exp_find(rqstp, map->fsid_type, map->fsid);
+	exp = rqst_exp_find(&rqstp->rq_chandle, SVC_NET(rqstp),
+			    rqstp->rq_client, rqstp->rq_gssclient,
+			    map->fsid_type, map->fsid);
 	if (IS_ERR(exp)) {
 		dprintk("%s: could not find device id\n", __func__);
 		return nfserr_noent;
@@ -2185,7 +2276,7 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	const struct nfsd4_layout_ops *ops;
 	struct nfs4_layout_stateid *ls;
 	__be32 nfserr;
-	int accmode = NFSD_MAY_READ_IF_EXEC;
+	int accmode = NFSD_MAY_READ_IF_EXEC | NFSD_MAY_OWNER_OVERRIDE;
 
 	switch (lgp->lg_seg.iomode) {
 	case IOMODE_READ:
@@ -2275,7 +2366,8 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	struct nfs4_layout_stateid *ls;
 	__be32 nfserr;
 
-	nfserr = fh_verify(rqstp, current_fh, 0, NFSD_MAY_WRITE);
+	nfserr = fh_verify(rqstp, current_fh, 0,
+			   NFSD_MAY_WRITE | NFSD_MAY_OWNER_OVERRIDE);
 	if (nfserr)
 		goto out;
 
@@ -2314,10 +2406,10 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	mutex_unlock(&ls->ls_mutex);
 
 	if (new_size > i_size_read(inode)) {
-		lcp->lc_size_chg = 1;
+		lcp->lc_size_chg = true;
 		lcp->lc_newsize = new_size;
 	} else {
-		lcp->lc_size_chg = 0;
+		lcp->lc_size_chg = false;
 	}
 
 	nfserr = ops->proc_layoutcommit(inode, lcp);
@@ -2444,10 +2536,10 @@ nfsd4_proc_null(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
-static inline void nfsd4_increment_op_stats(u32 opnum)
+static inline void nfsd4_increment_op_stats(struct nfsd_net *nn, u32 opnum)
 {
 	if (opnum >= FIRST_NFS4_OP && opnum <= LAST_NFS4_OP)
-		percpu_counter_inc(&nfsdstats.counter[NFSD_STATS_NFS4_OP(opnum)]);
+		percpu_counter_inc(&nn->counter[NFSD_STATS_NFS4_OP(opnum)]);
 }
 
 static const struct nfsd4_operation nfsd4_ops[];
@@ -2722,7 +2814,7 @@ encode_op:
 					   status, nfsd4_op_name(op->opnum));
 
 		nfsd4_cstate_clear_replay(cstate);
-		nfsd4_increment_op_stats(op->opnum);
+		nfsd4_increment_op_stats(nn, op->opnum);
 	}
 
 	fh_put(current_fh);
@@ -3033,6 +3125,18 @@ static u32 nfsd4_copy_notify_rsize(const struct svc_rqst *rqstp,
 		* sizeof(__be32);
 }
 
+static u32 nfsd4_get_dir_delegation_rsize(const struct svc_rqst *rqstp,
+					  const struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size +
+		1 /* gddr_status */ +
+		op_encode_verifier_maxsz +
+		op_encode_stateid_maxsz +
+		2 /* gddr_notification */ +
+		2 /* gddr_child_attributes */ +
+		2 /* gddr_dir_attributes */);
+}
+
 #ifdef CONFIG_NFSD_PNFS
 static u32 nfsd4_getdeviceinfo_rsize(const struct svc_rqst *rqstp,
 				     const struct nfsd4_op *op)
@@ -3167,6 +3271,7 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_LOCK] = {
 		.op_func = nfsd4_lock,
+		.op_release = nfsd4_lock_release,
 		.op_flags = OP_MODIFIES_SOMETHING |
 				OP_NONTRIVIAL_ERROR_ENCODE,
 		.op_name = "OP_LOCK",
@@ -3175,6 +3280,7 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_LOCKT] = {
 		.op_func = nfsd4_lockt,
+		.op_release = nfsd4_lockt_release,
 		.op_flags = OP_NONTRIVIAL_ERROR_ENCODE,
 		.op_name = "OP_LOCKT",
 		.op_rsize_bop = nfsd4_lock_rsize,
@@ -3418,6 +3524,12 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_FREE_STATEID",
 		.op_get_currentstateid = nfsd4_get_freestateid,
 		.op_rsize_bop = nfsd4_only_status_rsize,
+	},
+	[OP_GET_DIR_DELEGATION] = {
+		.op_func = nfsd4_get_dir_delegation,
+		.op_flags = OP_MODIFIES_SOMETHING,
+		.op_name = "OP_GET_DIR_DELEGATION",
+		.op_rsize_bop = nfsd4_get_dir_delegation_rsize,
 	},
 #ifdef CONFIG_NFSD_PNFS
 	[OP_GETDEVICEINFO] = {

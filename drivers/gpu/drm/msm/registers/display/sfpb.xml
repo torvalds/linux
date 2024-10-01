@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns="http://nouveau.freedesktop.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
+<import file="freedreno_copyright.xml"/>
+
+<domain name="SFPB" width="32">
+	<enum name="sfpb_ahb_arb_master_port_en">
+		<value name="SFPB_MASTER_PORT_ENABLE" value="3"/>
+		<value name="SFPB_MASTER_PORT_DISABLE" value="0"/>
+	</enum>
+	<reg32 offset="0x0058" name="GPREG">
+		<bitfield name="MASTER_PORT_EN" low="11" high="12" type="sfpb_ahb_arb_master_port_en"/>
+	</reg32>
+</domain>
+
+</database>

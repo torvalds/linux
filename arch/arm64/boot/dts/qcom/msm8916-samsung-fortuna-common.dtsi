@@ -1,0 +1,485 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+#include "msm8916-pm8916.dtsi"
+#include "msm8916-modem-qdsp6.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+
+/ {
+	aliases {
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
+		serial0 = &blsp_uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	reserved-memory {
+		/* Additional memory used by Samsung firmware modifications */
+		tz-apps@85a00000 {
+			reg = <0x0 0x85a00000 0x0 0x600000>;
+			no-map;
+		};
+	};
+
+	battery: battery {
+		compatible = "simple-battery";
+		precharge-current-microamp = <450000>;
+		precharge-upper-limit-microvolt = <3500000>;
+	};
+
+	clk_pwm_backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&clk_pwm 0 100000>;
+
+		enable-gpios = <&tlmm 98 GPIO_ACTIVE_HIGH>;
+
+		brightness-levels = <0 255>;
+		num-interpolated-steps = <255>;
+		default-brightness-level = <128>;
+
+		pinctrl-0 = <&backlight_en_default>;
+		pinctrl-names = "default";
+	};
+
+	clk_pwm: pwm {
+		compatible = "clk-pwm";
+		#pwm-cells = <2>;
+
+		clocks = <&gcc GCC_GP2_CLK>;
+
+		pinctrl-0 = <&backlight_pwm_default>;
+		pinctrl-names = "default";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&gpio_keys_default>;
+		pinctrl-names = "default";
+
+		label = "GPIO Buttons";
+
+		button-volume-up {
+			label = "Volume Up";
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+
+		button-home {
+			label = "Home";
+			gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOMEPAGE>;
+		};
+	};
+
+	haptic {
+		compatible = "regulator-haptic";
+		haptic-supply = <&reg_motor_vdd>;
+		min-microvolt = <3300000>;
+		max-microvolt = <3300000>;
+	};
+
+	i2c_nfc: i2c-nfc {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 0 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 1 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-0 = <&nfc_i2c_default>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		s3fwrn5_nfc: nfc@27 {
+			compatible = "samsung,s3fwrn5-i2c";
+			reg = <0x27>;
+
+			interrupts-extended = <&tlmm 21 IRQ_TYPE_EDGE_RISING>;
+
+			en-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+			wake-gpios = <&tlmm 49 GPIO_ACTIVE_HIGH>;
+
+			clocks = <&rpmcc RPM_SMD_BB_CLK2_PIN>;
+
+			pinctrl-0 = <&nfc_default>, <&nfc_clk_req>;
+			pinctrl-names = "default";
+
+			status = "disabled";
+		};
+	};
+
+	reg_motor_vdd: regulator-motor-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "motor_vdd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&motor_en_default>;
+		pinctrl-names = "default";
+	};
+
+	reg_vdd_tsp_a: regulator-vdd-tsp-a {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_tsp_a";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		gpio = <&tlmm 73 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&tsp_en_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&blsp_i2c1 {
+	status = "okay";
+
+	muic: extcon@25 {
+		compatible = "siliconmitus,sm5502-muic";
+		reg = <0x25>;
+		interrupts-extended = <&tlmm 12 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&muic_int_default>;
+		pinctrl-names = "default";
+
+		usb_con: connector {
+			compatible = "usb-b-connector";
+			label = "micro-USB";
+			type = "micro";
+		};
+	};
+};
+
+&blsp_i2c2 {
+	/* Available sensors vary depending on model variant */
+	status = "okay";
+
+	bosch_accel: accelerometer@10 {
+		compatible = "bosch,bmc150_accel";
+		reg = <0x10>;
+		interrupts-extended = <&tlmm 115 IRQ_TYPE_EDGE_RISING>;
+
+		vdd-supply = <&pm8916_l5>;
+		vddio-supply = <&pm8916_l5>;
+
+		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+
+		mount-matrix = "0", "-1", "0",
+			      "-1",  "0", "0",
+			       "0",  "0", "1";
+
+		status = "disabled";
+	};
+
+	bosch_magn: magnetometer@12 {
+		compatible = "bosch,bmc150_magn";
+		reg = <0x12>;
+
+		vdd-supply = <&pm8916_l5>;
+		vddio-supply = <&pm8916_l5>;
+
+		mount-matrix = "0", "-1", "0",
+			      "-1",  "0", "0",
+			       "0",  "0", "1";
+
+		status = "disabled";
+	};
+
+	st_accel: accelerometer@1d {
+		compatible = "st,lsm303c-accel";
+		reg = <0x1d>;
+		interrupts-extended = <&tlmm 115 IRQ_TYPE_LEVEL_HIGH>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l5>;
+
+		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+
+		st,drdy-int-pin = <1>;
+		mount-matrix = "0", "-1",  "0",
+			       "1",  "0",  "0",
+			       "0",  "0", "-1";
+
+		status = "disabled";
+	};
+
+	st_magn: magnetometer@1e {
+		compatible = "st,lsm303c-magn";
+		reg = <0x1e>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l5>;
+
+		mount-matrix = "0", "-1",  "0",
+			       "1",  "0",  "0",
+			       "0",  "0", "-1";
+
+		status = "disabled";
+	};
+};
+
+&blsp_i2c4 {
+	status = "okay";
+
+	fuel-gauge@35 {
+		compatible = "richtek,rt5033-battery";
+		reg = <0x35>;
+
+		interrupts-extended = <&tlmm 121 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&fg_alert_default>;
+		pinctrl-names = "default";
+
+		power-supplies = <&charger>;
+	};
+};
+
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen: touchscreen@20 {
+		compatible = "zinitix,bt541";
+		reg = <0x20>;
+
+		interrupts-extended = <&tlmm 13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <540>;
+		touchscreen-size-y = <960>;
+
+		vcca-supply = <&reg_vdd_tsp_a>;
+		vdd-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&tsp_int_default>;
+		pinctrl-names = "default";
+
+		linux,keycodes = <KEY_APPSELECT KEY_BACK>;
+	};
+};
+
+&blsp_i2c6 {
+	status = "okay";
+
+	pmic@34 {
+		compatible = "richtek,rt5033";
+		reg = <0x34>;
+
+		interrupts-extended = <&tlmm 62 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&pmic_int_default>;
+		pinctrl-names = "default";
+
+		regulators {
+			rt5033_reg_safe_ldo: SAFE_LDO {
+				regulator-min-microvolt = <4900000>;
+				regulator-max-microvolt = <4900000>;
+				regulator-always-on;
+			};
+
+			/*
+			 * Needed for camera, but not used yet.
+			 * Define empty nodes to allow disabling the unused
+			 * regulators.
+			 */
+			LDO {};
+			BUCK {};
+		};
+
+		charger: charger {
+			compatible = "richtek,rt5033-charger";
+			monitored-battery = <&battery>;
+			richtek,usb-connector = <&usb_con>;
+		};
+	};
+};
+
+&blsp_uart2 {
+	status = "okay";
+};
+
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x5000000>;
+};
+
+&pm8916_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
+};
+
+&pm8916_rpm_regulators {
+	pm8916_l17: l17 {
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+	};
+};
+
+&sdhc_1 {
+	status = "okay";
+};
+
+&sdhc_2 {
+	pinctrl-0 = <&sdc2_default &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default>;
+	pinctrl-names = "default", "sleep";
+
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
+};
+
+&sound {
+	model = "msm8916-1mic";
+	audio-routing =
+		"AMIC1", "MIC BIAS External1",
+		"AMIC2", "MIC BIAS Internal2",
+		"AMIC3", "MIC BIAS External1";
+};
+
+&usb {
+	extcon = <&muic>, <&muic>;
+	status = "okay";
+};
+
+&usb_hs_phy {
+	extcon = <&muic>;
+};
+
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
+};
+
+&tlmm {
+	accel_int_default: accel-int-default-state {
+		pins = "gpio115";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	backlight_en_default: backlight-en-default-state {
+		pins = "gpio98";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	backlight_pwm_default: backlight-pwm-default-state {
+		pins = "gpio50";
+		function = "gcc_gp2_clk_a";
+	};
+
+	fg_alert_default: fg-alert-default-state {
+		pins = "gpio121";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	gpio_keys_default: gpio-keys-default-state {
+		pins = "gpio107", "gpio109";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	motor_en_default: motor-en-default-state {
+		pins = "gpio72";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	muic_int_default: muic-int-default-state {
+		pins = "gpio12";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	nfc_default: nfc-default-state {
+		irq-pins {
+			pins = "gpio21";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
+		nfc-pins {
+			pins = "gpio20", "gpio49";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	nfc_i2c_default: nfc-i2c-default-state {
+		pins = "gpio0", "gpio1";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	pmic_int_default: pmic-int-default-state {
+		pins = "gpio62";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	sdc2_cd_default: sdc2-cd-default-state {
+		pins = "gpio38";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tsp_en_default: tsp-en-default-state {
+		pins = "gpio73";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tsp_int_default: tsp-int-default-state {
+		pins = "gpio13";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&pm8916_gpios {
+	nfc_clk_req: nfc-clk-req-state {
+		pins = "gpio2";
+		function = "func1";
+		power-source = <PM8916_GPIO_L2>;
+		bias-disable;
+		input-enable;
+	};
+};

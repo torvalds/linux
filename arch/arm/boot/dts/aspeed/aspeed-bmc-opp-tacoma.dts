@@ -456,7 +456,7 @@
 	status = "okay";
 
 	tpm: tpm@2e {
-		compatible = "tcg,tpm-tis-i2c";
+		compatible = "nuvoton,npct75x", "tcg,tpm-tis-i2c";
 		reg = <0x2e>;
 	};
 };
@@ -868,11 +868,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpc_default>,
 		    <&pinctrl_lsirq_default>;
-};
-
-&xdma {
-	status = "okay";
-	memory-region = <&vga_memory>;
 };
 
 &kcs2 {

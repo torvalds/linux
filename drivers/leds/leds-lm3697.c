@@ -89,7 +89,7 @@ struct lm3697 {
 	int bank_cfg;
 	int num_banks;
 
-	struct lm3697_led leds[];
+	struct lm3697_led leds[] __counted_by(num_banks);
 };
 
 static const struct reg_default lm3697_reg_defs[] = {
@@ -360,7 +360,7 @@ static void lm3697_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm3697_id[] = {
-	{ "lm3697", 0 },
+	{ "lm3697" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm3697_id);

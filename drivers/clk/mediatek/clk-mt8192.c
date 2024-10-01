@@ -6,9 +6,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -1028,7 +1026,9 @@ static struct platform_driver clk_mt8192_drv = {
 		.of_match_table = of_match_clk_mt8192,
 	},
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 };
 module_platform_driver(clk_mt8192_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8192 main clocks driver");
 MODULE_LICENSE("GPL");

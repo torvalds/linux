@@ -13,13 +13,15 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox/mtk-cmdq-mailbox.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+
+#define CMDQ_MBOX_AUTOSUSPEND_DELAY_MS	100
 
 #define CMDQ_OP_CODE_MASK		(0xff << CMDQ_OP_CODE_SHIFT)
 #define CMDQ_NUM_CMD(t)			(t->cmd_buf_size / CMDQ_INST_SIZE)
-#define CMDQ_GCE_NUM_MAX		(2)
 
 #define CMDQ_CURR_IRQ_STATUS		0x10
 #define CMDQ_SYNC_TOKEN_UPDATE		0x68
@@ -78,7 +80,7 @@ struct cmdq {
 	u32			irq_mask;
 	const struct gce_plat	*pdata;
 	struct cmdq_thread	*thread;
-	struct clk_bulk_data	clocks[CMDQ_GCE_NUM_MAX];
+	struct clk_bulk_data	*clocks;
 	bool			suspended;
 };
 
@@ -283,10 +285,8 @@ static void cmdq_thread_irq_handler(struct cmdq *cmdq,
 			break;
 	}
 
-	if (list_empty(&thread->task_busy_list)) {
+	if (list_empty(&thread->task_busy_list))
 		cmdq_thread_disable(cmdq, thread);
-		clk_bulk_disable(cmdq->pdata->gce_num, cmdq->clocks);
-	}
 }
 
 static irqreturn_t cmdq_irq_handler(int irq, void *dev)
@@ -307,7 +307,24 @@ static irqreturn_t cmdq_irq_handler(int irq, void *dev)
 		spin_unlock_irqrestore(&thread->chan->lock, flags);
 	}
 
+	pm_runtime_mark_last_busy(cmdq->mbox.dev);
+
 	return IRQ_HANDLED;
+}
+
+static int cmdq_runtime_resume(struct device *dev)
+{
+	struct cmdq *cmdq = dev_get_drvdata(dev);
+
+	return clk_bulk_enable(cmdq->pdata->gce_num, cmdq->clocks);
+}
+
+static int cmdq_runtime_suspend(struct device *dev)
+{
+	struct cmdq *cmdq = dev_get_drvdata(dev);
+
+	clk_bulk_disable(cmdq->pdata->gce_num, cmdq->clocks);
+	return 0;
 }
 
 static int cmdq_suspend(struct device *dev)
@@ -333,16 +350,14 @@ static int cmdq_suspend(struct device *dev)
 	if (cmdq->pdata->sw_ddr_en)
 		cmdq_sw_ddr_enable(cmdq, false);
 
-	clk_bulk_unprepare(cmdq->pdata->gce_num, cmdq->clocks);
-
-	return 0;
+	return pm_runtime_force_suspend(dev);
 }
 
 static int cmdq_resume(struct device *dev)
 {
 	struct cmdq *cmdq = dev_get_drvdata(dev);
 
-	WARN_ON(clk_bulk_prepare(cmdq->pdata->gce_num, cmdq->clocks));
+	WARN_ON(pm_runtime_force_resume(dev));
 	cmdq->suspended = false;
 
 	if (cmdq->pdata->sw_ddr_en)
@@ -351,15 +366,17 @@ static int cmdq_resume(struct device *dev)
 	return 0;
 }
 
-static int cmdq_remove(struct platform_device *pdev)
+static void cmdq_remove(struct platform_device *pdev)
 {
 	struct cmdq *cmdq = platform_get_drvdata(pdev);
 
 	if (cmdq->pdata->sw_ddr_en)
 		cmdq_sw_ddr_enable(cmdq, false);
 
+	if (!IS_ENABLED(CONFIG_PM))
+		cmdq_runtime_suspend(&pdev->dev);
+
 	clk_bulk_unprepare(cmdq->pdata->gce_num, cmdq->clocks);
-	return 0;
 }
 
 static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
@@ -369,13 +386,20 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	struct cmdq *cmdq = dev_get_drvdata(chan->mbox->dev);
 	struct cmdq_task *task;
 	unsigned long curr_pa, end_pa;
+	int ret;
 
 	/* Client should not flush new tasks if suspended. */
 	WARN_ON(cmdq->suspended);
 
+	ret = pm_runtime_get_sync(cmdq->mbox.dev);
+	if (ret < 0)
+		return ret;
+
 	task = kzalloc(sizeof(*task), GFP_ATOMIC);
-	if (!task)
+	if (!task) {
+		pm_runtime_put_autosuspend(cmdq->mbox.dev);
 		return -ENOMEM;
+	}
 
 	task->cmdq = cmdq;
 	INIT_LIST_HEAD(&task->list_entry);
@@ -384,8 +408,6 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	task->pkt = pkt;
 
 	if (list_empty(&thread->task_busy_list)) {
-		WARN_ON(clk_bulk_enable(cmdq->pdata->gce_num, cmdq->clocks));
-
 		/*
 		 * The thread reset will clear thread related register to 0,
 		 * including pc, end, priority, irq, suspend and enable. Thus
@@ -424,6 +446,9 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	}
 	list_move_tail(&task->list_entry, &thread->task_busy_list);
 
+	pm_runtime_mark_last_busy(cmdq->mbox.dev);
+	pm_runtime_put_autosuspend(cmdq->mbox.dev);
+
 	return 0;
 }
 
@@ -438,6 +463,8 @@ static void cmdq_mbox_shutdown(struct mbox_chan *chan)
 	struct cmdq *cmdq = dev_get_drvdata(chan->mbox->dev);
 	struct cmdq_task *task, *tmp;
 	unsigned long flags;
+
+	WARN_ON(pm_runtime_get_sync(cmdq->mbox.dev) < 0);
 
 	spin_lock_irqsave(&thread->chan->lock, flags);
 	if (list_empty(&thread->task_busy_list))
@@ -457,7 +484,6 @@ static void cmdq_mbox_shutdown(struct mbox_chan *chan)
 	}
 
 	cmdq_thread_disable(cmdq, thread);
-	clk_bulk_disable(cmdq->pdata->gce_num, cmdq->clocks);
 
 done:
 	/*
@@ -467,6 +493,9 @@ done:
 	 * to do any operation here, only unlock and leave.
 	 */
 	spin_unlock_irqrestore(&thread->chan->lock, flags);
+
+	pm_runtime_mark_last_busy(cmdq->mbox.dev);
+	pm_runtime_put_autosuspend(cmdq->mbox.dev);
 }
 
 static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
@@ -477,6 +506,11 @@ static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 	struct cmdq_task *task, *tmp;
 	unsigned long flags;
 	u32 enable;
+	int ret;
+
+	ret = pm_runtime_get_sync(cmdq->mbox.dev);
+	if (ret < 0)
+		return ret;
 
 	spin_lock_irqsave(&thread->chan->lock, flags);
 	if (list_empty(&thread->task_busy_list))
@@ -497,10 +531,12 @@ static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 
 	cmdq_thread_resume(thread);
 	cmdq_thread_disable(cmdq, thread);
-	clk_bulk_disable(cmdq->pdata->gce_num, cmdq->clocks);
 
 out:
 	spin_unlock_irqrestore(&thread->chan->lock, flags);
+	pm_runtime_mark_last_busy(cmdq->mbox.dev);
+	pm_runtime_put_autosuspend(cmdq->mbox.dev);
+
 	return 0;
 
 wait:
@@ -513,6 +549,8 @@ wait:
 
 		return -EFAULT;
 	}
+	pm_runtime_mark_last_busy(cmdq->mbox.dev);
+	pm_runtime_put_autosuspend(cmdq->mbox.dev);
 	return 0;
 }
 
@@ -539,16 +577,64 @@ static struct mbox_chan *cmdq_xlate(struct mbox_controller *mbox,
 	return &mbox->chans[ind];
 }
 
+static int cmdq_get_clocks(struct device *dev, struct cmdq *cmdq)
+{
+	static const char * const gce_name = "gce";
+	struct device_node *node, *parent = dev->of_node->parent;
+	struct clk_bulk_data *clks;
+
+	cmdq->clocks = devm_kcalloc(dev, cmdq->pdata->gce_num,
+				    sizeof(cmdq->clocks), GFP_KERNEL);
+	if (!cmdq->clocks)
+		return -ENOMEM;
+
+	if (cmdq->pdata->gce_num == 1) {
+		clks = &cmdq->clocks[0];
+
+		clks->id = gce_name;
+		clks->clk = devm_clk_get(dev, NULL);
+		if (IS_ERR(clks->clk))
+			return dev_err_probe(dev, PTR_ERR(clks->clk),
+					     "failed to get gce clock\n");
+
+		return 0;
+	}
+
+	/*
+	 * If there is more than one GCE, get the clocks for the others too,
+	 * as the clock of the main GCE must be enabled for additional IPs
+	 * to be reachable.
+	 */
+	for_each_child_of_node(parent, node) {
+		int alias_id = of_alias_get_id(node, gce_name);
+
+		if (alias_id < 0 || alias_id >= cmdq->pdata->gce_num)
+			continue;
+
+		clks = &cmdq->clocks[alias_id];
+
+		clks->id = devm_kasprintf(dev, GFP_KERNEL, "gce%d", alias_id);
+		if (!clks->id) {
+			of_node_put(node);
+			return -ENOMEM;
+		}
+
+		clks->clk = of_clk_get(node, 0);
+		if (IS_ERR(clks->clk)) {
+			of_node_put(node);
+			return dev_err_probe(dev, PTR_ERR(clks->clk),
+					     "failed to get gce%d clock\n", alias_id);
+		}
+	}
+
+	return 0;
+}
+
 static int cmdq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cmdq *cmdq;
 	int err, i;
-	struct device_node *phandle = dev->of_node;
-	struct device_node *node;
-	int alias_id = 0;
-	static const char * const clk_name = "gce";
-	static const char * const clk_names[] = { "gce0", "gce1" };
 
 	cmdq = devm_kzalloc(dev, sizeof(*cmdq), GFP_KERNEL);
 	if (!cmdq)
@@ -573,29 +659,9 @@ static int cmdq_probe(struct platform_device *pdev)
 	dev_dbg(dev, "cmdq device: addr:0x%p, va:0x%p, irq:%d\n",
 		dev, cmdq->base, cmdq->irq);
 
-	if (cmdq->pdata->gce_num > 1) {
-		for_each_child_of_node(phandle->parent, node) {
-			alias_id = of_alias_get_id(node, clk_name);
-			if (alias_id >= 0 && alias_id < cmdq->pdata->gce_num) {
-				cmdq->clocks[alias_id].id = clk_names[alias_id];
-				cmdq->clocks[alias_id].clk = of_clk_get(node, 0);
-				if (IS_ERR(cmdq->clocks[alias_id].clk)) {
-					of_node_put(node);
-					return dev_err_probe(dev,
-							     PTR_ERR(cmdq->clocks[alias_id].clk),
-							     "failed to get gce clk: %d\n",
-							     alias_id);
-				}
-			}
-		}
-	} else {
-		cmdq->clocks[alias_id].id = clk_name;
-		cmdq->clocks[alias_id].clk = devm_clk_get(&pdev->dev, clk_name);
-		if (IS_ERR(cmdq->clocks[alias_id].clk)) {
-			return dev_err_probe(dev, PTR_ERR(cmdq->clocks[alias_id].clk),
-					     "failed to get gce clk\n");
-		}
-	}
+	err = cmdq_get_clocks(dev, cmdq);
+	if (err)
+		return err;
 
 	cmdq->mbox.dev = dev;
 	cmdq->mbox.chans = devm_kcalloc(dev, cmdq->pdata->thread_nr,
@@ -623,12 +689,6 @@ static int cmdq_probe(struct platform_device *pdev)
 		cmdq->mbox.chans[i].con_priv = (void *)&cmdq->thread[i];
 	}
 
-	err = devm_mbox_controller_register(dev, &cmdq->mbox);
-	if (err < 0) {
-		dev_err(dev, "failed to register mailbox: %d\n", err);
-		return err;
-	}
-
 	platform_set_drvdata(pdev, cmdq);
 
 	WARN_ON(clk_bulk_prepare(cmdq->pdata->gce_num, cmdq->clocks));
@@ -642,50 +702,58 @@ static int cmdq_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	/* If Runtime PM is not available enable the clocks now. */
+	if (!IS_ENABLED(CONFIG_PM)) {
+		err = cmdq_runtime_resume(dev);
+		if (err)
+			return err;
+	}
+
+	err = devm_pm_runtime_enable(dev);
+	if (err)
+		return err;
+
+	pm_runtime_set_autosuspend_delay(dev, CMDQ_MBOX_AUTOSUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+
+	err = devm_mbox_controller_register(dev, &cmdq->mbox);
+	if (err < 0) {
+		dev_err(dev, "failed to register mailbox: %d\n", err);
+		return err;
+	}
+
 	return 0;
 }
 
 static const struct dev_pm_ops cmdq_pm_ops = {
 	.suspend = cmdq_suspend,
 	.resume = cmdq_resume,
+	SET_RUNTIME_PM_OPS(cmdq_runtime_suspend,
+			   cmdq_runtime_resume, NULL)
 };
 
-static const struct gce_plat gce_plat_v2 = {
+static const struct gce_plat gce_plat_mt6779 = {
+	.thread_nr = 24,
+	.shift = 3,
+	.control_by_sw = false,
+	.gce_num = 1
+};
+
+static const struct gce_plat gce_plat_mt8173 = {
 	.thread_nr = 16,
 	.shift = 0,
 	.control_by_sw = false,
 	.gce_num = 1
 };
 
-static const struct gce_plat gce_plat_v3 = {
+static const struct gce_plat gce_plat_mt8183 = {
 	.thread_nr = 24,
 	.shift = 0,
 	.control_by_sw = false,
 	.gce_num = 1
 };
 
-static const struct gce_plat gce_plat_v4 = {
-	.thread_nr = 24,
-	.shift = 3,
-	.control_by_sw = false,
-	.gce_num = 1
-};
-
-static const struct gce_plat gce_plat_v5 = {
-	.thread_nr = 24,
-	.shift = 3,
-	.control_by_sw = true,
-	.gce_num = 1
-};
-
-static const struct gce_plat gce_plat_v6 = {
-	.thread_nr = 24,
-	.shift = 3,
-	.control_by_sw = true,
-	.gce_num = 2
-};
-
-static const struct gce_plat gce_plat_v7 = {
+static const struct gce_plat gce_plat_mt8186 = {
 	.thread_nr = 24,
 	.shift = 3,
 	.control_by_sw = true,
@@ -693,19 +761,42 @@ static const struct gce_plat gce_plat_v7 = {
 	.gce_num = 1
 };
 
+static const struct gce_plat gce_plat_mt8188 = {
+	.thread_nr = 32,
+	.shift = 3,
+	.control_by_sw = true,
+	.gce_num = 2
+};
+
+static const struct gce_plat gce_plat_mt8192 = {
+	.thread_nr = 24,
+	.shift = 3,
+	.control_by_sw = true,
+	.gce_num = 1
+};
+
+static const struct gce_plat gce_plat_mt8195 = {
+	.thread_nr = 24,
+	.shift = 3,
+	.control_by_sw = true,
+	.gce_num = 2
+};
+
 static const struct of_device_id cmdq_of_ids[] = {
-	{.compatible = "mediatek,mt8173-gce", .data = (void *)&gce_plat_v2},
-	{.compatible = "mediatek,mt8183-gce", .data = (void *)&gce_plat_v3},
-	{.compatible = "mediatek,mt8186-gce", .data = (void *)&gce_plat_v7},
-	{.compatible = "mediatek,mt6779-gce", .data = (void *)&gce_plat_v4},
-	{.compatible = "mediatek,mt8192-gce", .data = (void *)&gce_plat_v5},
-	{.compatible = "mediatek,mt8195-gce", .data = (void *)&gce_plat_v6},
+	{.compatible = "mediatek,mt6779-gce", .data = (void *)&gce_plat_mt6779},
+	{.compatible = "mediatek,mt8173-gce", .data = (void *)&gce_plat_mt8173},
+	{.compatible = "mediatek,mt8183-gce", .data = (void *)&gce_plat_mt8183},
+	{.compatible = "mediatek,mt8186-gce", .data = (void *)&gce_plat_mt8186},
+	{.compatible = "mediatek,mt8188-gce", .data = (void *)&gce_plat_mt8188},
+	{.compatible = "mediatek,mt8192-gce", .data = (void *)&gce_plat_mt8192},
+	{.compatible = "mediatek,mt8195-gce", .data = (void *)&gce_plat_mt8195},
 	{}
 };
+MODULE_DEVICE_TABLE(of, cmdq_of_ids);
 
 static struct platform_driver cmdq_drv = {
 	.probe = cmdq_probe,
-	.remove = cmdq_remove,
+	.remove_new = cmdq_remove,
 	.driver = {
 		.name = "mtk_cmdq",
 		.pm = &cmdq_pm_ops,
@@ -726,4 +817,5 @@ static void __exit cmdq_drv_exit(void)
 subsys_initcall(cmdq_drv_init);
 module_exit(cmdq_drv_exit);
 
+MODULE_DESCRIPTION("Mediatek Command Queue(CMDQ) Mailbox driver");
 MODULE_LICENSE("GPL v2");

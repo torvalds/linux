@@ -335,9 +335,6 @@ static void default_trap(int code, struct pt_regs *regs)
 	show_regs(regs);
 }
 
-void (*cpu_lpmc) (int code, struct pt_regs *regs) __read_mostly = default_trap;
-
-
 static void transfer_pim_to_trap_frame(struct pt_regs *regs)
 {
     register int i;
@@ -507,7 +504,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	if (((unsigned long)regs->iaoq[0] & 3) &&
 	    ((unsigned long)regs->iasq[0] != (unsigned long)regs->sr[7])) { 
 		/* Kill the user process later */
-		regs->iaoq[0] = 0 | 3;
+		regs->iaoq[0] = 0 | PRIV_USER;
 		regs->iaoq[1] = regs->iaoq[0] + 4;
 		regs->iasq[0] = regs->iasq[1] = regs->sr[7];
 		regs->gr[0] &= ~PSW_B;
@@ -557,7 +554,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		
 		flush_cache_all();
 		flush_tlb_all();
-		cpu_lpmc(5, regs);
+		default_trap(code, regs);
 		return;
 
 	case  PARISC_ITLB_TRAP:

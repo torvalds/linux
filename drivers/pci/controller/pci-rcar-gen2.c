@@ -290,8 +290,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	priv = pci_host_bridge_priv(bridge);
 	bridge->sysdata = priv;
 
-	cfg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(dev, cfg_res);
+	reg = devm_platform_get_and_ioremap_resource(pdev, 0, &cfg_res);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 

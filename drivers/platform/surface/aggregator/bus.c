@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 
@@ -34,6 +35,8 @@ static struct attribute *ssam_device_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(ssam_device);
+
+static const struct bus_type ssam_bus_type;
 
 static int ssam_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
@@ -304,9 +307,9 @@ const void *ssam_device_get_match_data(const struct ssam_device *dev)
 }
 EXPORT_SYMBOL_GPL(ssam_device_get_match_data);
 
-static int ssam_bus_match(struct device *dev, struct device_driver *drv)
+static int ssam_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct ssam_device_driver *sdrv = to_ssam_device_driver(drv);
+	const struct ssam_device_driver *sdrv = to_ssam_device_driver(drv);
 	struct ssam_device *sdev = to_ssam_device(dev);
 
 	if (!is_ssam_device(dev))
@@ -329,13 +332,12 @@ static void ssam_bus_remove(struct device *dev)
 		sdrv->remove(to_ssam_device(dev));
 }
 
-struct bus_type ssam_bus_type = {
+static const struct bus_type ssam_bus_type = {
 	.name   = "surface_aggregator",
 	.match  = ssam_bus_match,
 	.probe  = ssam_bus_probe,
 	.remove = ssam_bus_remove,
 };
-EXPORT_SYMBOL_GPL(ssam_bus_type);
 
 /**
  * __ssam_device_driver_register() - Register a SSAM client device driver.
@@ -440,6 +442,7 @@ static int ssam_add_client_device(struct device *parent, struct ssam_controller 
 
 	sdev->dev.parent = parent;
 	sdev->dev.fwnode = fwnode_handle_get(node);
+	sdev->dev.of_node = to_of_node(node);
 
 	status = ssam_device_add(sdev);
 	if (status)

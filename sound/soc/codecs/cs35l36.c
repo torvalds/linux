@@ -17,19 +17,17 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/irq.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <linux/gpio.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/cs35l36.h>
-#include <linux/of_irq.h>
 #include <linux/completion.h>
 
 #include "cs35l36.h"
@@ -951,31 +949,21 @@ static const struct cs35l36_pll_config *cs35l36_get_clk_config(
 	return NULL;
 }
 
-static const unsigned int cs35l36_src_rates[] = {
-	8000, 12000, 11025, 16000, 22050, 24000, 32000,
-	44100, 48000, 88200, 96000, 176400, 192000, 384000
-};
-
-static const struct snd_pcm_hw_constraint_list cs35l36_constraints = {
-	.count  = ARRAY_SIZE(cs35l36_src_rates),
-	.list   = cs35l36_src_rates,
-};
-
-static int cs35l36_pcm_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
-{
-	snd_pcm_hw_constraint_list(substream->runtime, 0,
-				SNDRV_PCM_HW_PARAM_RATE, &cs35l36_constraints);
-
-	return 0;
-}
-
 static const struct snd_soc_dai_ops cs35l36_ops = {
-	.startup = cs35l36_pcm_startup,
 	.set_fmt = cs35l36_set_dai_fmt,
 	.hw_params = cs35l36_pcm_hw_params,
 	.set_sysclk = cs35l36_dai_set_sysclk,
 };
+
+#define CS35L36_RATES (		    \
+	SNDRV_PCM_RATE_8000_48000 | \
+	SNDRV_PCM_RATE_12000 |	    \
+	SNDRV_PCM_RATE_24000 |	    \
+	SNDRV_PCM_RATE_88200 |	    \
+	SNDRV_PCM_RATE_96000 |	    \
+	SNDRV_PCM_RATE_176400 |	    \
+	SNDRV_PCM_RATE_192000 |	    \
+	SNDRV_PCM_RATE_384000)
 
 static struct snd_soc_dai_driver cs35l36_dai[] = {
 	{
@@ -985,14 +973,14 @@ static struct snd_soc_dai_driver cs35l36_dai[] = {
 			.stream_name = "AMP Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = CS35L36_RATES,
 			.formats = CS35L36_RX_FORMATS,
 		},
 		.capture = {
 			.stream_name = "AMP Capture",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = CS35L36_RATES,
 			.formats = CS35L36_TX_FORMATS,
 		},
 		.ops = &cs35l36_ops,
@@ -1302,7 +1290,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l36 = {
 	.endianness		= 1,
 };
 
-static struct regmap_config cs35l36_regmap = {
+static const struct regmap_config cs35l36_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -1312,7 +1300,7 @@ static struct regmap_config cs35l36_regmap = {
 	.precious_reg = cs35l36_precious_reg,
 	.volatile_reg = cs35l36_volatile_reg,
 	.readable_reg = cs35l36_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t cs35l36_irq(int irq, void *data)
@@ -1932,7 +1920,7 @@ static const struct of_device_id cs35l36_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs35l36_of_match);
 
 static const struct i2c_device_id cs35l36_id[] = {
-	{"cs35l36", 0},
+	{"cs35l36"},
 	{}
 };
 

@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -255,6 +254,7 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	struct sama5d4_wdt *wdt;
 	void __iomem *regs;
 	u32 irq = 0;
+	u32 reg;
 	int ret;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
@@ -304,6 +304,12 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 	}
 
 	watchdog_init_timeout(wdd, wdt_timeout, dev);
+
+	reg = wdt_read(wdt, AT91_WDT_MR);
+	if (!(reg & AT91_WDT_WDDIS)) {
+		wdt->mr &= ~AT91_WDT_WDDIS;
+		set_bit(WDOG_HW_RUNNING, &wdd->status);
+	}
 
 	ret = sama5d4_wdt_init(wdt);
 	if (ret)

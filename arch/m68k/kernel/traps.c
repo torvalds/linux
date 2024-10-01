@@ -41,6 +41,9 @@
 #include <asm/siginfo.h>
 #include <asm/tlbflush.h>
 
+#include "traps.h"
+#include "../mm/fault.h"
+
 static const char *vec_names[] = {
 	[VEC_RESETSP]	= "RESET SP",
 	[VEC_RESETPC]	= "RESET PC",
@@ -124,10 +127,6 @@ static const char *space_names[] = {
 };
 
 void die_if_kernel(char *,struct pt_regs *,int);
-asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
-                             unsigned long error_code);
-int send_fault_sig(struct pt_regs *regs);
-
 asmlinkage void trap_c(struct frame *fp);
 
 #if defined (CONFIG_M68060)
@@ -365,7 +364,7 @@ disable_wb:
 #if defined(CONFIG_SUN3)
 #include <asm/sun3mmu.h>
 
-extern int mmu_emu_handle_fault (unsigned long, int, int);
+#include "../sun3/sun3.h"
 
 /* sun3 version of bus_error030 */
 
@@ -487,10 +486,10 @@ static inline void bus_error030 (struct frame *fp)
 	if (buserr_type & SUN3_BUSERR_INVALID) {
 		if (!mmu_emu_handle_fault(addr, 1, 0))
 			do_page_fault (&fp->ptregs, addr, 0);
-       } else {
+	} else {
 		pr_debug("protection fault on insn access (segv).\n");
 		force_sig (SIGSEGV);
-       }
+	}
 }
 #else
 #if defined(CPU_M68020_OR_M68030)
@@ -851,9 +850,9 @@ void show_registers(struct pt_regs *regs)
 	pr_info("PC: [<%08lx>] %pS\n", regs->pc, (void *)regs->pc);
 	pr_info("SR: %04x  SP: %p  a2: %08lx\n", regs->sr, regs, regs->a2);
 	pr_info("d0: %08lx    d1: %08lx    d2: %08lx    d3: %08lx\n",
-	       regs->d0, regs->d1, regs->d2, regs->d3);
+		regs->d0, regs->d1, regs->d2, regs->d3);
 	pr_info("d4: %08lx    d5: %08lx    a0: %08lx    a1: %08lx\n",
-	       regs->d4, regs->d5, regs->a0, regs->a1);
+		regs->d4, regs->d5, regs->a0, regs->a1);
 
 	pr_info("Process %s (pid: %d, task=%p)\n",
 		current->comm, task_pid_nr(current), current);
@@ -965,7 +964,7 @@ void show_stack(struct task_struct *task, unsigned long *stack,
  * real 68k parts, but it won't hurt either.
  */
 
-void bad_super_trap (struct frame *fp)
+static void bad_super_trap(struct frame *fp)
 {
 	int vector = (fp->ptregs.vector >> 2) & 0xff;
 

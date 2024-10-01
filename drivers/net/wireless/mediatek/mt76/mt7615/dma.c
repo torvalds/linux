@@ -26,14 +26,14 @@ mt7622_init_tx_queues_multi(struct mt7615_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
 		ret = mt76_init_tx_queue(&dev->mphy, i, wmm_queue_map[i],
 					 MT7615_TX_RING_SIZE / 2,
-					 MT_TX_RING_BASE, 0);
+					 MT_TX_RING_BASE, NULL, 0);
 		if (ret)
 			return ret;
 	}
 
 	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_PSD, MT7622_TXQ_MGMT,
 				 MT7615_TX_MGMT_RING_SIZE,
-				 MT_TX_RING_BASE, 0);
+				 MT_TX_RING_BASE, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -55,7 +55,7 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 		return mt7622_init_tx_queues_multi(dev);
 
 	ret = mt76_connac_init_tx_queues(&dev->mphy, 0, MT7615_TX_RING_SIZE,
-					 MT_TX_RING_BASE, 0);
+					 MT_TX_RING_BASE, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -67,7 +67,7 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct mt7615_dev *dev;
 
-	dev = container_of(napi, struct mt7615_dev, mt76.tx_napi);
+	dev = mt76_priv(napi->dev);
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		napi_complete(napi);
 		queue_work(dev->mt76.wq, &dev->pm.wake_work);
@@ -89,7 +89,7 @@ static int mt7615_poll_rx(struct napi_struct *napi, int budget)
 	struct mt7615_dev *dev;
 	int done;
 
-	dev = container_of(napi->dev, struct mt7615_dev, mt76.napi_dev);
+	dev = mt76_priv(napi->dev);
 
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		napi_complete(napi);
@@ -282,7 +282,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_napi_add_tx(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
+	netif_napi_add_tx(dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt7615_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 

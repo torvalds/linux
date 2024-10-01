@@ -7,8 +7,7 @@
 // Copyright (C) 2009 Jon Smirl, Digispeaker
 
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -38,8 +37,8 @@ static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	u32 mode;
 
 	dev_dbg(psc_dma->dev, "%s(substream=%p) p_size=%i p_bytes=%i"
@@ -185,7 +184,7 @@ static int psc_i2s_of_probe(struct platform_device *op)
 
 	/* Check for the codec handle.  If it is not present then we
 	 * are done */
-	if (!of_get_property(op->dev.of_node, "codec-handle", NULL))
+	if (!of_property_present(op->dev.of_node, "codec-handle"))
 		return 0;
 
 	/* Due to errata in the dma mode; need to line up enabling
@@ -226,7 +225,7 @@ MODULE_DEVICE_TABLE(of, psc_i2s_match);
 
 static struct platform_driver psc_i2s_driver = {
 	.probe = psc_i2s_of_probe,
-	.remove_new = psc_i2s_of_remove,
+	.remove = psc_i2s_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-i2s",
 		.of_match_table = psc_i2s_match,

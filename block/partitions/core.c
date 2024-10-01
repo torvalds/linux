@@ -173,7 +173,7 @@ static struct parsed_partitions *check_partition(struct gendisk *hd)
 static ssize_t part_partition_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev_to_bdev(dev)->bd_partno);
+	return sprintf(buf, "%d\n", bdev_partno(dev_to_bdev(dev)));
 }
 
 static ssize_t part_start_show(struct device *dev,
@@ -243,14 +243,14 @@ static const struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	put_disk(dev_to_bdev(dev)->bd_disk);
-	iput(dev_to_bdev(dev)->bd_inode);
+	bdev_drop(dev_to_bdev(dev));
 }
 
 static int part_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct block_device *part = dev_to_bdev(dev);
 
-	add_uevent_var(env, "PARTN=%u", part->bd_partno);
+	add_uevent_var(env, "PARTN=%u", bdev_partno(part));
 	if (part->bd_meta_info && part->bd_meta_info->volname[0])
 		add_uevent_var(env, "PARTNAME=%s", part->bd_meta_info->volname);
 	return 0;
@@ -267,25 +267,11 @@ void drop_partition(struct block_device *part)
 {
 	lockdep_assert_held(&part->bd_disk->open_mutex);
 
-	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
+	xa_erase(&part->bd_disk->part_tbl, bdev_partno(part));
 	kobject_put(part->bd_holder_dir);
 
 	device_del(&part->bd_device);
 	put_device(&part->bd_device);
-}
-
-static void delete_partition(struct block_device *part)
-{
-	/*
-	 * Remove the block device from the inode hash, so that it cannot be
-	 * looked up any more even when openers still hold references.
-	 */
-	remove_inode_hash(part->bd_inode);
-
-	fsync_bdev(part);
-	__invalidate_device(part, true);
-
-	drop_partition(part);
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -319,18 +305,10 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	 * Partitions are not supported on zoned block devices that are used as
 	 * such.
 	 */
-	switch (disk->queue->limits.zoned) {
-	case BLK_ZONED_HM:
+	if (bdev_is_zoned(disk->part0)) {
 		pr_warn("%s: partitions not supported on host managed zoned block device\n",
 			disk->disk_name);
 		return ERR_PTR(-ENXIO);
-	case BLK_ZONED_HA:
-		pr_info("%s: disabling host aware zoned block device support due to partitions\n",
-			disk->disk_name);
-		disk_set_zoned(disk, BLK_ZONED_NONE);
-		break;
-	case BLK_ZONED_NONE:
-		break;
 	}
 
 	if (xa_load(&disk->part_tbl, partno))
@@ -360,8 +338,8 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	pdev->parent = ddev;
 
 	/* in consecutive minor range? */
-	if (bdev->bd_partno < disk->minors) {
-		devt = MKDEV(disk->major, disk->first_minor + bdev->bd_partno);
+	if (bdev_partno(bdev) < disk->minors) {
+		devt = MKDEV(disk->major, disk->first_minor + bdev_partno(bdev));
 	} else {
 		err = blk_alloc_ext_minor();
 		if (err < 0)
@@ -426,7 +404,7 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 
 	rcu_read_lock();
 	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
-		if (part->bd_partno != skip_partno &&
+		if (bdev_partno(part) != skip_partno &&
 		    start < part->bd_start_sect + bdev_nr_sectors(part) &&
 		    start + length > part->bd_start_sect) {
 			overlap = true;
@@ -441,23 +419,17 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		sector_t length)
 {
-	sector_t capacity = get_capacity(disk), end;
 	struct block_device *part;
 	int ret;
 
 	mutex_lock(&disk->open_mutex);
-	if (check_add_overflow(start, length, &end)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (start >= capacity || end > capacity) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!disk_live(disk)) {
 		ret = -ENXIO;
+		goto out;
+	}
+
+	if (disk->flags & GENHD_FL_NO_PART) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -488,7 +460,18 @@ int bdev_del_partition(struct gendisk *disk, int partno)
 	if (atomic_read(&part->bd_openers))
 		goto out_unlock;
 
-	delete_partition(part);
+	/*
+	 * We verified that @part->bd_openers is zero above and so
+	 * @part->bd_holder{_ops} can't be set. And since we hold
+	 * @disk->open_mutex the device can't be claimed by anyone.
+	 *
+	 * So no need to call @part->bd_holder_ops->mark_dead() here.
+	 * Just delete the partition and invalidate it.
+	 */
+
+	bdev_unhash(part);
+	invalidate_bdev(part);
+	drop_partition(part);
 	ret = 0;
 out_unlock:
 	mutex_unlock(&disk->open_mutex);
@@ -572,9 +555,11 @@ static bool blk_add_partition(struct gendisk *disk,
 
 	part = add_partition(disk, p, from, size, state->parts[p].flags,
 			     &state->parts[p].info);
-	if (IS_ERR(part) && PTR_ERR(part) != -ENXIO) {
-		printk(KERN_ERR " %s: p%d could not be added: %ld\n",
-		       disk->disk_name, p, -PTR_ERR(part));
+	if (IS_ERR(part)) {
+		if (PTR_ERR(part) != -ENXIO) {
+			printk(KERN_ERR " %s: p%d could not be added: %pe\n",
+			       disk->disk_name, p, part);
+		}
 		return true;
 	}
 
@@ -590,10 +575,7 @@ static int blk_add_partitions(struct gendisk *disk)
 	struct parsed_partitions *state;
 	int ret = -EAGAIN, p;
 
-	if (disk->flags & GENHD_FL_NO_PART)
-		return 0;
-
-	if (test_bit(GD_SUPPRESS_PART_SCAN, &disk->state))
+	if (!disk_has_partscan(disk))
 		return 0;
 
 	state = check_partition(disk);
@@ -616,7 +598,7 @@ static int blk_add_partitions(struct gendisk *disk)
 	/*
 	 * Partitions are not supported on host managed zoned block devices.
 	 */
-	if (disk->queue->limits.zoned == BLK_ZONED_HM) {
+	if (bdev_is_zoned(disk->part0)) {
 		pr_warn("%s: ignoring partition table on host managed zoned block device\n",
 			disk->disk_name);
 		ret = 0;
@@ -666,8 +648,23 @@ rescan:
 	sync_blockdev(disk->part0);
 	invalidate_bdev(disk->part0);
 
-	xa_for_each_start(&disk->part_tbl, idx, part, 1)
-		delete_partition(part);
+	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
+		/*
+		 * Remove the block device from the inode hash, so that
+		 * it cannot be looked up any more even when openers
+		 * still hold references.
+		 */
+		bdev_unhash(part);
+
+		/*
+		 * If @disk->open_partitions isn't elevated but there's
+		 * still an active holder of that block device things
+		 * are broken.
+		 */
+		WARN_ON_ONCE(atomic_read(&part->bd_openers));
+		invalidate_bdev(part);
+		drop_partition(part);
+	}
 	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
 	/*
@@ -706,7 +703,7 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
 
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 {
-	struct address_space *mapping = state->disk->part0->bd_inode->i_mapping;
+	struct address_space *mapping = state->disk->part0->bd_mapping;
 	struct folio *folio;
 
 	if (n >= get_capacity(state->disk)) {

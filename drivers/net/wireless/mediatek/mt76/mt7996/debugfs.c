@@ -225,6 +225,11 @@ mt7996_radar_trigger(void *data, u64 val)
 	if (val > MT_RX_SEL2)
 		return -EINVAL;
 
+	if (val == MT_RX_SEL2 && !dev->rdd2_phy) {
+		dev_err(dev->mt76.dev, "Background radar is not enabled\n");
+		return -EINVAL;
+	}
+
 	return mt7996_mcu_rdd_cmd(dev, RDD_RADAR_EMULATE,
 				  val, 0, 0);
 }
@@ -474,10 +479,10 @@ mt7996_ampdu_stat_read_phy(struct mt7996_phy *phy, struct seq_file *file)
 static void
 mt7996_txbf_stat_read_phy(struct mt7996_phy *phy, struct seq_file *s)
 {
+	struct mt76_mib_stats *mib = &phy->mib;
 	static const char * const bw[] = {
-		"BW20", "BW40", "BW80", "BW160"
+		"BW20", "BW40", "BW80", "BW160", "BW320"
 	};
-	struct mib_stats *mib = &phy->mib;
 
 	/* Tx Beamformer monitor */
 	seq_puts(s, "\nTx Beamformer applied PPDU counts: ");
@@ -489,8 +494,9 @@ mt7996_txbf_stat_read_phy(struct mt7996_phy *phy, struct seq_file *s)
 	/* Tx Beamformer Rx feedback monitor */
 	seq_puts(s, "Tx Beamformer Rx feedback statistics: ");
 
-	seq_printf(s, "All: %d, HE: %d, VHT: %d, HT: %d, ",
+	seq_printf(s, "All: %d, EHT: %d, HE: %d, VHT: %d, HT: %d, ",
 		   mib->tx_bf_rx_fb_all_cnt,
+		   mib->tx_bf_rx_fb_eht_cnt,
 		   mib->tx_bf_rx_fb_he_cnt,
 		   mib->tx_bf_rx_fb_vht_cnt,
 		   mib->tx_bf_rx_fb_ht_cnt);
@@ -523,7 +529,7 @@ mt7996_tx_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7996_phy *phy = file->private;
 	struct mt7996_dev *dev = phy->dev;
-	struct mib_stats *mib = &phy->mib;
+	struct mt76_mib_stats *mib = &phy->mib;
 	int i;
 	u32 attempts, success, per;
 

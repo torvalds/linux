@@ -11,6 +11,7 @@
  */
 
 #include "boot.h"
+#include <asm/desc_defs.h>
 #include <asm/segment.h>
 
 /*
@@ -67,13 +68,13 @@ static void setup_gdt(void)
 	   being 8-byte unaligned.  Intel recommends 16 byte alignment. */
 	static const u64 boot_gdt[] __attribute__((aligned(16))) = {
 		/* CS: code, read/execute, 4 GB, base 0 */
-		[GDT_ENTRY_BOOT_CS] = GDT_ENTRY(0xc09b, 0, 0xfffff),
+		[GDT_ENTRY_BOOT_CS] = GDT_ENTRY(DESC_CODE32, 0, 0xfffff),
 		/* DS: data, read/write, 4 GB, base 0 */
-		[GDT_ENTRY_BOOT_DS] = GDT_ENTRY(0xc093, 0, 0xfffff),
+		[GDT_ENTRY_BOOT_DS] = GDT_ENTRY(DESC_DATA32, 0, 0xfffff),
 		/* TSS: 32-bit tss, 104 bytes, base 4096 */
 		/* We only have a TSS here to keep Intel VT happy;
 		   we don't actually use it for anything. */
-		[GDT_ENTRY_BOOT_TSS] = GDT_ENTRY(0x0089, 4096, 103),
+		[GDT_ENTRY_BOOT_TSS] = GDT_ENTRY(DESC_TSS32, 4096, 103),
 	};
 	/* Xen HVM incorrectly stores a pointer to the gdt_ptr, instead
 	   of the gdt_ptr contents.  Thus, make it static so it will

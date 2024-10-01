@@ -357,8 +357,8 @@ static int iproc_adc_enable(struct iio_dev *indio_dev)
 	int ret;
 
 	/* Set i_amux = 3b'000, select channel 0 */
-	ret = regmap_update_bits(adc_priv->regmap, IPROC_ANALOG_CONTROL,
-				IPROC_ADC_CHANNEL_SEL_MASK, 0);
+	ret = regmap_clear_bits(adc_priv->regmap, IPROC_ANALOG_CONTROL,
+				IPROC_ADC_CHANNEL_SEL_MASK);
 	if (ret) {
 		dev_err(&indio_dev->dev,
 			"failed to write IPROC_ANALOG_CONTROL %d\n", ret);
@@ -540,11 +540,11 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	adc_priv->irqno = platform_get_irq(pdev, 0);
-	if (adc_priv->irqno <= 0)
-		return -ENODEV;
+	if (adc_priv->irqno < 0)
+		return adc_priv->irqno;
 
-	ret = regmap_update_bits(adc_priv->regmap, IPROC_REGCTL2,
-				IPROC_ADC_AUXIN_SCAN_ENA, 0);
+	ret = regmap_clear_bits(adc_priv->regmap, IPROC_REGCTL2,
+				IPROC_ADC_AUXIN_SCAN_ENA);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to write IPROC_REGCTL2 %d\n", ret);
 		return ret;
@@ -594,7 +594,7 @@ err_adc_enable:
 	return ret;
 }
 
-static int iproc_adc_remove(struct platform_device *pdev)
+static void iproc_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct iproc_adc_priv *adc_priv = iio_priv(indio_dev);
@@ -602,19 +602,17 @@ static int iproc_adc_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 	iproc_adc_disable(indio_dev);
 	clk_disable_unprepare(adc_priv->adc_clk);
-
-	return 0;
 }
 
 static const struct of_device_id iproc_adc_of_match[] = {
 	{.compatible = "brcm,iproc-static-adc", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, iproc_adc_of_match);
 
 static struct platform_driver iproc_adc_driver = {
 	.probe  = iproc_adc_probe,
-	.remove	= iproc_adc_remove,
+	.remove_new = iproc_adc_remove,
 	.driver	= {
 		.name	= "iproc-static-adc",
 		.of_match_table = iproc_adc_of_match,

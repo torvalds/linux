@@ -22,6 +22,8 @@
 #include "dm-ima.h"
 
 #define DM_RESERVED_MAX_IOS		1024
+#define DM_MAX_TARGETS			1048576
+#define DM_MAX_TARGET_PARAMS		1024
 
 struct dm_io;
 
@@ -138,7 +140,7 @@ struct mapped_device {
 
 #ifdef CONFIG_BLK_DEV_ZONED
 	unsigned int nr_zones;
-	unsigned int *zwp_offset;
+	void *zone_revalidate_map;
 #endif
 
 #ifdef CONFIG_IMA
@@ -204,7 +206,8 @@ struct dm_table {
 
 	bool integrity_supported:1;
 	bool singleton:1;
-	unsigned integrity_added:1;
+	/* set if all the targets in the table have "flush_bypasses_map" set */
+	bool flush_bypasses_map:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical device.  This
@@ -214,6 +217,7 @@ struct dm_table {
 
 	/* a list of devices used by this table */
 	struct list_head devices;
+	struct rw_semaphore devices_lock;
 
 	/* events get handed up using this callback */
 	void (*event_fn)(void *data);

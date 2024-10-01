@@ -320,4 +320,5 @@ static void __exit exit_nls_koi8_r(void)
 module_init(init_nls_koi8_r)
 module_exit(exit_nls_koi8_r)
 
+MODULE_DESCRIPTION("NLS KOI8-R (Russian)");
 MODULE_LICENSE("Dual BSD/GPL");

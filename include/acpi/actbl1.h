@@ -402,7 +402,7 @@ struct acpi_cdat_dsmas {
 
 /* Flags for subtable above */
 
-#define ACPI_CEDT_DSMAS_NON_VOLATILE        (1 << 2)
+#define ACPI_CDAT_DSMAS_NON_VOLATILE        (1 << 2)
 
 /* Subtable 1: Device scoped Latency and Bandwidth Information Structure (DSLBIS) */
 
@@ -464,6 +464,9 @@ struct acpi_cdat_sslbe {
 	u16 latency_or_bandwidth;
 	u16 reserved;
 };
+
+#define ACPI_CDAT_SSLBIS_US_PORT	0x0100
+#define ACPI_CDAT_SSLBIS_ANY_PORT	0xffff
 
 /*******************************************************************************
  *
@@ -564,12 +567,14 @@ struct acpi_cedt_cxims {
 	u64 xormap_list[];
 };
 
+struct acpi_cedt_cxims_target_element {
+	u64 xormap;
+};
+
 /* 3: CXL RCEC Downstream Port Association Structure */
 
 struct acpi_cedt_rdpas {
 	struct acpi_cedt_header header;
-	u8 reserved1;
-	u16 length;
 	u16 segment;
 	u16 bdf;
 	u8 protocol;
@@ -750,6 +755,7 @@ struct acpi_dbg2_device {
 #define ACPI_DBG2_16550_WITH_GAS    0x0012
 #define ACPI_DBG2_SDM845_7_372MHZ   0x0013
 #define ACPI_DBG2_INTEL_LPSS        0x0014
+#define ACPI_DBG2_RISCV_SBI_CON     0x0015
 
 #define ACPI_DBG2_1394_STANDARD     0x0000
 
@@ -1093,6 +1099,12 @@ enum acpi_einj_command_status {
 #define ACPI_EINJ_PLATFORM_CORRECTABLE      (1<<9)
 #define ACPI_EINJ_PLATFORM_UNCORRECTABLE    (1<<10)
 #define ACPI_EINJ_PLATFORM_FATAL            (1<<11)
+#define ACPI_EINJ_CXL_CACHE_CORRECTABLE     (1<<12)
+#define ACPI_EINJ_CXL_CACHE_UNCORRECTABLE   (1<<13)
+#define ACPI_EINJ_CXL_CACHE_FATAL           (1<<14)
+#define ACPI_EINJ_CXL_MEM_CORRECTABLE       (1<<15)
+#define ACPI_EINJ_CXL_MEM_UNCORRECTABLE     (1<<16)
+#define ACPI_EINJ_CXL_MEM_FATAL             (1<<17)
 #define ACPI_EINJ_VENDOR_DEFINED            (1<<31)
 
 /*******************************************************************************
@@ -1784,7 +1796,7 @@ struct acpi_hmat_cache {
 	u32 reserved1;
 	u64 cache_size;
 	u32 cache_attributes;
-	u16 reserved2;
+	u16 address_mode;
 	u16 number_of_SMBIOShandles;
 };
 
@@ -1795,6 +1807,9 @@ struct acpi_hmat_cache {
 #define ACPI_HMAT_CACHE_ASSOCIATIVITY   (0x00000F00)
 #define ACPI_HMAT_WRITE_POLICY          (0x0000F000)
 #define ACPI_HMAT_CACHE_LINE_SIZE       (0xFFFF0000)
+
+#define ACPI_HMAT_CACHE_MODE_UNKNOWN            (0)
+#define ACPI_HMAT_CACHE_MODE_EXTENDED_LINEAR    (1)
 
 /* Values for cache associativity flag */
 

@@ -31,6 +31,7 @@
  */
 static int amdgpu_vm_cpu_map_table(struct amdgpu_bo_vm *table)
 {
+	table->bo.flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	return amdgpu_bo_kmap(&table->bo, NULL);
 }
 
@@ -38,20 +39,18 @@ static int amdgpu_vm_cpu_map_table(struct amdgpu_bo_vm *table)
  * amdgpu_vm_cpu_prepare - prepare page table update with the CPU
  *
  * @p: see amdgpu_vm_update_params definition
- * @resv: reservation object with embedded fence
- * @sync_mode: synchronization mode
+ * @sync: sync obj with fences to wait on
  *
  * Returns:
  * Negativ errno, 0 for success.
  */
 static int amdgpu_vm_cpu_prepare(struct amdgpu_vm_update_params *p,
-				 struct dma_resv *resv,
-				 enum amdgpu_sync_mode sync_mode)
+				 struct amdgpu_sync *sync)
 {
-	if (!resv)
+	if (!sync)
 		return 0;
 
-	return amdgpu_bo_sync_wait_resv(p->adev, resv, sync_mode, p->vm, true);
+	return amdgpu_sync_wait(sync, true);
 }
 
 /**
@@ -107,7 +106,9 @@ static int amdgpu_vm_cpu_update(struct amdgpu_vm_update_params *p,
 static int amdgpu_vm_cpu_commit(struct amdgpu_vm_update_params *p,
 				struct dma_fence **fence)
 {
-	/* Flush HDP */
+	if (p->needs_flush)
+		atomic64_inc(&p->vm->tlb_seq);
+
 	mb();
 	amdgpu_device_flush_hdp(p->adev, NULL);
 	return 0;

@@ -150,16 +150,7 @@ static inline resource_size_t p2_size(struct pci_dev *dev)
 
 static int find_cxl_vsec(struct pci_dev *dev)
 {
-	int vsec = 0;
-	u16 val;
-
-	while ((vsec = pci_find_next_ext_capability(dev, vsec, PCI_EXT_CAP_ID_VNDR))) {
-		pci_read_config_word(dev, vsec + 0x4, &val);
-		if (val == CXL_PCI_VSEC_ID)
-			return vsec;
-	}
-	return 0;
-
+	return pci_find_vsec_capability(dev, PCI_VENDOR_ID_IBM, CXL_PCI_VSEC_ID);
 }
 
 static void dump_cxl_config_space(struct pci_dev *dev)
@@ -372,17 +363,17 @@ int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 {
 	int rc;
 	struct device_node *np;
-	const __be32 *prop;
+	u32 id;
 
 	if (!(np = pnv_pci_get_phb_node(dev)))
 		return -ENODEV;
 
-	while (np && !(prop = of_get_property(np, "ibm,chip-id", NULL)))
+	while (np && of_property_read_u32(np, "ibm,chip-id", &id))
 		np = of_get_next_parent(np);
 	if (!np)
 		return -ENODEV;
 
-	*chipid = be32_to_cpup(prop);
+	*chipid = id;
 
 	rc = get_phb_index(np, phb_index);
 	if (rc) {
@@ -407,32 +398,26 @@ static DEFINE_MUTEX(indications_mutex);
 static int get_phb_indications(struct pci_dev *dev, u64 *capiind, u64 *asnind,
 			       u64 *nbwind)
 {
-	static u64 nbw, asn, capi = 0;
+	static u32 val[3];
 	struct device_node *np;
-	const __be32 *prop;
 
 	mutex_lock(&indications_mutex);
-	if (!capi) {
+	if (!val[0]) {
 		if (!(np = pnv_pci_get_phb_node(dev))) {
 			mutex_unlock(&indications_mutex);
 			return -ENODEV;
 		}
 
-		prop = of_get_property(np, "ibm,phb-indications", NULL);
-		if (!prop) {
-			nbw = 0x0300UL; /* legacy values */
-			asn = 0x0400UL;
-			capi = 0x0200UL;
-		} else {
-			nbw = (u64)be32_to_cpu(prop[2]);
-			asn = (u64)be32_to_cpu(prop[1]);
-			capi = (u64)be32_to_cpu(prop[0]);
+		if (of_property_read_u32_array(np, "ibm,phb-indications", val, 3)) {
+			val[2] = 0x0300UL; /* legacy values */
+			val[1] = 0x0400UL;
+			val[0] = 0x0200UL;
 		}
 		of_node_put(np);
 	}
-	*capiind = capi;
-	*asnind = asn;
-	*nbwind = nbw;
+	*capiind = val[0];
+	*asnind = val[1];
+	*nbwind = val[2];
 	mutex_unlock(&indications_mutex);
 	return 0;
 }
@@ -614,7 +599,7 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 
 	/* Do not fail when CAPP timebase sync is not supported by OPAL */
 	of_node_get(np);
-	if (! of_get_property(np, "ibm,capp-timebase-sync", NULL)) {
+	if (!of_property_present(np, "ibm,capp-timebase-sync")) {
 		of_node_put(np);
 		dev_info(&dev->dev, "PSL timebase inactive: OPAL support missing\n");
 		return;

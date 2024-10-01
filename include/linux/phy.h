@@ -30,6 +30,7 @@
 #include <linux/refcount.h>
 
 #include <linux/atomic.h>
+#include <net/eee.h>
 
 #define PHY_DEFAULT_FEATURES	(SUPPORTED_Autoneg | \
 				 SUPPORTED_TP | \
@@ -54,6 +55,7 @@ extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
 extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
 extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_eee_cap1_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_eee_cap2_features) __ro_after_init;
 
 #define PHY_BASIC_FEATURES ((unsigned long *)&phy_basic_features)
 #define PHY_BASIC_T1_FEATURES ((unsigned long *)&phy_basic_t1_features)
@@ -65,6 +67,7 @@ extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_eee_cap1_features) __ro_after_init;
 #define PHY_10GBIT_FEC_FEATURES ((unsigned long *)&phy_10gbit_fec_features)
 #define PHY_10GBIT_FULL_FEATURES ((unsigned long *)&phy_10gbit_full_features)
 #define PHY_EEE_CAP1_FEATURES ((unsigned long *)&phy_eee_cap1_features)
+#define PHY_EEE_CAP2_FEATURES ((unsigned long *)&phy_eee_cap2_features)
 
 extern const int phy_basic_ports_array[3];
 extern const int phy_fibre_port_array[1];
@@ -110,6 +113,7 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_XGMII: 10 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_XLGMII:40 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_MOCA: Multimedia over Coax
+ * @PHY_INTERFACE_MODE_PSGMII: Penta SGMII
  * @PHY_INTERFACE_MODE_QSGMII: Quad SGMII
  * @PHY_INTERFACE_MODE_TRGMII: Turbo RGMII
  * @PHY_INTERFACE_MODE_100BASEX: 100 BaseX
@@ -124,6 +128,7 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_10GKR: 10GBASE-KR - with Clause 73 AN
  * @PHY_INTERFACE_MODE_QUSGMII: Quad Universal SGMII
  * @PHY_INTERFACE_MODE_1000BASEKX: 1000Base-KX - with Clause 73 AN
+ * @PHY_INTERFACE_MODE_10G_QXGMII: 10G-QXGMII - 4 ports over 10G USXGMII
  * @PHY_INTERFACE_MODE_MAX: Book keeping
  *
  * Describes the interface between the MAC and PHY.
@@ -147,6 +152,7 @@ typedef enum {
 	PHY_INTERFACE_MODE_XGMII,
 	PHY_INTERFACE_MODE_XLGMII,
 	PHY_INTERFACE_MODE_MOCA,
+	PHY_INTERFACE_MODE_PSGMII,
 	PHY_INTERFACE_MODE_QSGMII,
 	PHY_INTERFACE_MODE_TRGMII,
 	PHY_INTERFACE_MODE_100BASEX,
@@ -163,6 +169,7 @@ typedef enum {
 	PHY_INTERFACE_MODE_10GKR,
 	PHY_INTERFACE_MODE_QUSGMII,
 	PHY_INTERFACE_MODE_1000BASEKX,
+	PHY_INTERFACE_MODE_10G_QXGMII,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -254,6 +261,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "xlgmii";
 	case PHY_INTERFACE_MODE_MOCA:
 		return "moca";
+	case PHY_INTERFACE_MODE_PSGMII:
+		return "psgmii";
 	case PHY_INTERFACE_MODE_QSGMII:
 		return "qsgmii";
 	case PHY_INTERFACE_MODE_TRGMII:
@@ -282,6 +291,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "100base-x";
 	case PHY_INTERFACE_MODE_QUSGMII:
 		return "qusgmii";
+	case PHY_INTERFACE_MODE_10G_QXGMII:
+		return "10g-qxgmii";
 	default:
 		return "unknown";
 	}
@@ -298,6 +309,7 @@ static inline const char *phy_modes(phy_interface_t interface)
 #define MII_BUS_ID_SIZE	61
 
 struct device;
+struct kernel_hwtstamp_config;
 struct phylink;
 struct sfp_bus;
 struct sfp_upstream_ops;
@@ -322,7 +334,9 @@ struct mdio_bus_stats {
 
 /**
  * struct phy_package_shared - Shared information in PHY packages
- * @addr: Common PHY address used to combine PHYs in one package
+ * @base_addr: Base PHY address of PHY package used to combine PHYs
+ *   in one package and for offset calculation of phy_package_read/write
+ * @np: Pointer to the Device Node if PHY package defined in DT
  * @refcnt: Number of PHYs connected to this shared data
  * @flags: Initialization of PHY package
  * @priv_size: Size of the shared private data @priv
@@ -333,7 +347,9 @@ struct mdio_bus_stats {
  * phy_package_leave().
  */
 struct phy_package_shared {
-	int addr;
+	u8 base_addr;
+	/* With PHY package defined in DT this points to the PHY package node */
+	struct device_node *np;
 	refcount_t refcnt;
 	unsigned long flags;
 	size_t priv_size;
@@ -538,6 +554,9 @@ struct macsec_ops;
  * @drv: Pointer to the driver for this PHY instance
  * @devlink: Create a link between phy dev and mac dev, if the external phy
  *           used by current mac interface is managed by another mac interface.
+ * @phyindex: Unique id across the phy's parent tree of phys to address the PHY
+ *	      from userspace, similar to ifindex. A zero index means the PHY
+ *	      wasn't assigned an id yet.
  * @phy_id: UID for this device found during discovery
  * @c45_ids: 802.3-c45 Device Identifiers if is_c45.
  * @is_c45:  Set to true if this PHY uses clause 45 addressing.
@@ -563,7 +582,6 @@ struct macsec_ops;
  *      - Bits [31:24] are reserved for defining generic
  *        PHY driver behavior.
  * @irq: IRQ number of the PHY's interrupt (-1 if none)
- * @phy_timer: The timer for handling the state machine
  * @phylink: Pointer to phylink instance for this PHY
  * @sfp_bus_attached: Flag indicating whether the SFP bus has been attached
  * @sfp_bus: SFP bus attached to this PHY's fiber port
@@ -584,6 +602,8 @@ struct macsec_ops;
  * @supported_eee: supported PHY EEE linkmodes
  * @advertising_eee: Currently advertised EEE linkmodes
  * @eee_enabled: Flag indicating whether the EEE feature is enabled
+ * @enable_tx_lpi: When True, MAC should transmit LPI to PHY
+ * @eee_cfg: User configuration of EEE
  * @lp_advertising: Current link partner advertised linkmodes
  * @host_interfaces: PHY interface modes supported by host
  * @eee_broken_modes: Energy efficient ethernet modes which should be prohibited
@@ -599,7 +619,11 @@ struct macsec_ops;
  *                 handling shall be postponed until PHY has resumed
  * @irq_rerun: Flag indicating interrupts occurred while PHY was suspended,
  *             requiring a rerun of the interrupt handler after resume
+ * @default_timestamp: Flag indicating whether we are using the phy
+ *		       timestamp as the default one
  * @interface: enum phy_interface_t value
+ * @possible_interfaces: bitmap if interface modes that the attached PHY
+ *			 will switch between depending on media speed.
  * @skb: Netlink message for cable diagnostics
  * @nest: Netlink nest used for cable diagnostics
  * @ehdr: nNtlink header for cable diagnostics
@@ -631,10 +655,11 @@ struct phy_device {
 
 	/* Information about the PHY type */
 	/* And management functions */
-	struct phy_driver *drv;
+	const struct phy_driver *drv;
 
 	struct device_link *devlink;
 
+	u32 phyindex;
 	u32 phy_id;
 
 	struct phy_c45_device_ids c45_ids;
@@ -662,6 +687,8 @@ struct phy_device {
 	unsigned irq_suspended:1;
 	unsigned irq_rerun:1;
 
+	unsigned default_timestamp:1;
+
 	int rate_matching;
 
 	enum phy_state state;
@@ -669,6 +696,7 @@ struct phy_device {
 	u32 dev_flags;
 
 	phy_interface_t interface;
+	DECLARE_PHY_INTERFACE_MASK(possible_interfaces);
 
 	/*
 	 * forced speed & duplex (no autoneg)
@@ -690,7 +718,7 @@ struct phy_device {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
 	/* used with phy_speed_down */
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_old);
-	/* used for eee validation */
+	/* used for eee validation and configuration*/
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported_eee);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising_eee);
 	bool eee_enabled;
@@ -700,6 +728,8 @@ struct phy_device {
 
 	/* Energy efficient ethernet modes which should be prohibited */
 	u32 eee_broken_modes;
+	bool enable_tx_lpi;
+	struct eee_config eee_cfg;
 
 #ifdef CONFIG_LED_TRIGGER_PHY
 	struct phy_led_trigger *phy_led_triggers;
@@ -760,6 +790,7 @@ struct phy_device {
 
 /* Generic phy_device::dev_flags */
 #define PHY_F_NO_IRQ		0x80000000
+#define PHY_F_RXC_ALWAYS_ON	0x40000000
 
 static inline struct phy_device *to_phy_device(const struct device *dev)
 {
@@ -842,6 +873,15 @@ struct phy_plca_cfg {
  */
 struct phy_plca_status {
 	bool pst;
+};
+
+/* Modes for PHY LED configuration */
+enum phy_led_modes {
+	PHY_LED_ACTIVE_LOW = 0,
+	PHY_LED_INACTIVE_HIGH_IMPEDANCE = 1,
+
+	/* keep it last */
+	__PHY_LED_MODES_NUM,
 };
 
 /**
@@ -1094,7 +1134,7 @@ struct phy_driver {
 				  u8 index, enum led_brightness value);
 
 	/**
-	 * @led_blink_set: Set a PHY LED brightness.  Index indicates
+	 * @led_blink_set: Set a PHY LED blinking.  Index indicates
 	 * which of the PHYs led should be configured to blink. Delays
 	 * are in milliseconds and if both are zero then a sensible
 	 * default should be chosen.  The call should adjust the
@@ -1104,8 +1144,54 @@ struct phy_driver {
 	int (*led_blink_set)(struct phy_device *dev, u8 index,
 			     unsigned long *delay_on,
 			     unsigned long *delay_off);
+	/**
+	 * @led_hw_is_supported: Can the HW support the given rules.
+	 * @dev: PHY device which has the LED
+	 * @index: Which LED of the PHY device
+	 * @rules The core is interested in these rules
+	 *
+	 * Return 0 if yes,  -EOPNOTSUPP if not, or an error code.
+	 */
+	int (*led_hw_is_supported)(struct phy_device *dev, u8 index,
+				   unsigned long rules);
+	/**
+	 * @led_hw_control_set: Set the HW to control the LED
+	 * @dev: PHY device which has the LED
+	 * @index: Which LED of the PHY device
+	 * @rules The rules used to control the LED
+	 *
+	 * Returns 0, or a an error code.
+	 */
+	int (*led_hw_control_set)(struct phy_device *dev, u8 index,
+				  unsigned long rules);
+	/**
+	 * @led_hw_control_get: Get how the HW is controlling the LED
+	 * @dev: PHY device which has the LED
+	 * @index: Which LED of the PHY device
+	 * @rules Pointer to the rules used to control the LED
+	 *
+	 * Set *@rules to how the HW is currently blinking. Returns 0
+	 * on success, or a error code if the current blinking cannot
+	 * be represented in rules, or some other error happens.
+	 */
+	int (*led_hw_control_get)(struct phy_device *dev, u8 index,
+				  unsigned long *rules);
+
+	/**
+	 * @led_polarity_set: Set the LED polarity modes
+	 * @dev: PHY device which has the LED
+	 * @index: Which LED of the PHY device
+	 * @modes: bitmap of LED polarity modes
+	 *
+	 * Configure LED with all the required polarity modes in @modes
+	 * to make it correctly turn ON or OFF.
+	 *
+	 * Returns 0, or an error code.
+	 */
+	int (*led_polarity_set)(struct phy_device *dev, int index,
+				unsigned long modes);
 };
-#define to_phy_driver(d) container_of(to_mdio_common_driver(d),		\
+#define to_phy_driver(d) container_of_const(to_mdio_common_driver(d),		\
 				      struct phy_driver, mdiodrv)
 
 #define PHY_ANY_ID "MATCH ANY PHY"
@@ -1522,9 +1608,11 @@ static inline bool phy_has_txtstamp(struct phy_device *phydev)
 	return phydev && phydev->mii_ts && phydev->mii_ts->txtstamp;
 }
 
-static inline int phy_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
+static inline int phy_hwtstamp(struct phy_device *phydev,
+			       struct kernel_hwtstamp_config *cfg,
+			       struct netlink_ext_ack *extack)
 {
-	return phydev->mii_ts->hwtstamp(phydev->mii_ts, ifr);
+	return phydev->mii_ts->hwtstamp(phydev->mii_ts, cfg, extack);
 }
 
 static inline bool phy_rxtstamp(struct phy_device *phydev, struct sk_buff *skb,
@@ -1534,7 +1622,7 @@ static inline bool phy_rxtstamp(struct phy_device *phydev, struct sk_buff *skb,
 }
 
 static inline int phy_ts_info(struct phy_device *phydev,
-			      struct ethtool_ts_info *tsinfo)
+			      struct kernel_ethtool_ts_info *tsinfo)
 {
 	return phydev->mii_ts->ts_info(phydev->mii_ts, tsinfo);
 }
@@ -1543,6 +1631,21 @@ static inline void phy_txtstamp(struct phy_device *phydev, struct sk_buff *skb,
 				int type)
 {
 	phydev->mii_ts->txtstamp(phydev->mii_ts, skb, type);
+}
+
+/**
+ * phy_is_default_hwtstamp - Is the PHY hwtstamp the default timestamp
+ * @phydev: Pointer to phy_device
+ *
+ * This is used to get default timestamping device taking into account
+ * the new API choice, which is selecting the timestamping from MAC by
+ * default if the phydev does not have default_timestamp flag enabled.
+ *
+ * Return: True if phy is the default hw timestamp, false otherwise.
+ */
+static inline bool phy_is_default_hwtstamp(struct phy_device *phydev)
+{
+	return phy_has_hwtstamp(phydev) && phydev->default_timestamp;
 }
 
 /**
@@ -1678,6 +1781,8 @@ int phy_suspend(struct phy_device *phydev);
 int phy_resume(struct phy_device *phydev);
 int __phy_resume(struct phy_device *phydev);
 int phy_loopback(struct phy_device *phydev, bool enable);
+int phy_sfp_connect_phy(void *upstream, struct phy_device *phy);
+void phy_sfp_disconnect_phy(void *upstream, struct phy_device *phy);
 void phy_sfp_attach(void *upstream, struct sfp_bus *bus);
 void phy_sfp_detach(void *upstream, struct sfp_bus *bus);
 int phy_sfp_probe(struct phy_device *phydev,
@@ -1698,6 +1803,7 @@ void phy_detach(struct phy_device *phydev);
 void phy_start(struct phy_device *phydev);
 void phy_stop(struct phy_device *phydev);
 int phy_config_aneg(struct phy_device *phydev);
+int _phy_start_aneg(struct phy_device *phydev);
 int phy_start_aneg(struct phy_device *phydev);
 int phy_aneg_done(struct phy_device *phydev);
 int phy_speed_down(struct phy_device *phydev, bool sync);
@@ -1730,10 +1836,6 @@ int phy_start_cable_test_tdr(struct phy_device *phydev,
 	return -EOPNOTSUPP;
 }
 #endif
-
-int phy_cable_test_result(struct phy_device *phydev, u8 pair, u16 result);
-int phy_cable_test_fault_length(struct phy_device *phydev, u8 pair,
-				u16 cm);
 
 static inline void phy_device_reset(struct phy_device *phydev, int value)
 {
@@ -1811,7 +1913,7 @@ int genphy_write_mmd_unsupported(struct phy_device *phdev, int devnum,
 
 /* Clause 37 */
 int genphy_c37_config_aneg(struct phy_device *phydev);
-int genphy_c37_read_status(struct phy_device *phydev);
+int genphy_c37_read_status(struct phy_device *phydev, bool *changed);
 
 /* Clause 45 PHY */
 int genphy_c45_restart_aneg(struct phy_device *phydev);
@@ -1826,6 +1928,8 @@ int genphy_c45_an_config_aneg(struct phy_device *phydev);
 int genphy_c45_an_disable_aneg(struct phy_device *phydev);
 int genphy_c45_read_mdix(struct phy_device *phydev);
 int genphy_c45_pma_read_abilities(struct phy_device *phydev);
+int genphy_c45_pma_read_ext_abilities(struct phy_device *phydev);
+int genphy_c45_pma_baset1_read_abilities(struct phy_device *phydev);
 int genphy_c45_read_eee_abilities(struct phy_device *phydev);
 int genphy_c45_pma_baset1_read_master_slave(struct phy_device *phydev);
 int genphy_c45_read_status(struct phy_device *phydev);
@@ -1844,9 +1948,9 @@ int genphy_c45_plca_get_status(struct phy_device *phydev,
 int genphy_c45_eee_is_active(struct phy_device *phydev, unsigned long *adv,
 			     unsigned long *lp, bool *is_enabled);
 int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data);
+			       struct ethtool_keee *data);
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data);
+			       struct ethtool_keee *data);
 int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv);
 int genphy_c45_an_config_eee_aneg(struct phy_device *phydev);
 int genphy_c45_read_eee_adv(struct phy_device *phydev, unsigned long *adv);
@@ -1896,8 +2000,10 @@ int phy_get_rate_matching(struct phy_device *phydev,
 void phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode);
 void phy_advertise_supported(struct phy_device *phydev);
+void phy_advertise_eee_all(struct phy_device *phydev);
 void phy_support_sym_pause(struct phy_device *phydev);
 void phy_support_asym_pause(struct phy_device *phydev);
+void phy_support_eee(struct phy_device *phydev);
 void phy_set_sym_pause(struct phy_device *phydev, bool rx, bool tx,
 		       bool autoneg);
 void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx);
@@ -1924,8 +2030,8 @@ int phy_unregister_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask);
 
 int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable);
 int phy_get_eee_err(struct phy_device *phydev);
-int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data);
-int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data);
+int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_keee *data);
+int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_keee *data);
 int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 void phy_ethtool_get_wol(struct phy_device *phydev,
 			 struct ethtool_wolinfo *wol);
@@ -1934,10 +2040,13 @@ int phy_ethtool_get_link_ksettings(struct net_device *ndev,
 int phy_ethtool_set_link_ksettings(struct net_device *ndev,
 				   const struct ethtool_link_ksettings *cmd);
 int phy_ethtool_nway_reset(struct net_device *ndev);
-int phy_package_join(struct phy_device *phydev, int addr, size_t priv_size);
+int phy_package_join(struct phy_device *phydev, int base_addr, size_t priv_size);
+int of_phy_package_join(struct phy_device *phydev, size_t priv_size);
 void phy_package_leave(struct phy_device *phydev);
 int devm_phy_package_join(struct device *dev, struct phy_device *phydev,
-			  int addr, size_t priv_size);
+			  int base_addr, size_t priv_size);
+int devm_of_phy_package_join(struct device *dev, struct phy_device *phydev,
+			     size_t priv_size);
 
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
@@ -1954,47 +2063,88 @@ int phy_ethtool_set_plca_cfg(struct phy_device *phydev,
 int phy_ethtool_get_plca_status(struct phy_device *phydev,
 				struct phy_plca_status *plca_st);
 
-static inline int phy_package_read(struct phy_device *phydev, u32 regnum)
+int __phy_hwtstamp_get(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config);
+int __phy_hwtstamp_set(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack);
+
+static inline int phy_package_address(struct phy_device *phydev,
+				      unsigned int addr_offset)
 {
 	struct phy_package_shared *shared = phydev->shared;
+	u8 base_addr = shared->base_addr;
 
-	if (!shared)
+	if (addr_offset >= PHY_MAX_ADDR - base_addr)
 		return -EIO;
 
-	return mdiobus_read(phydev->mdio.bus, shared->addr, regnum);
+	/* we know that addr will be in the range 0..31 and thus the
+	 * implicit cast to a signed int is not a problem.
+	 */
+	return base_addr + addr_offset;
 }
 
-static inline int __phy_package_read(struct phy_device *phydev, u32 regnum)
+static inline int phy_package_read(struct phy_device *phydev,
+				   unsigned int addr_offset, u32 regnum)
 {
-	struct phy_package_shared *shared = phydev->shared;
+	int addr = phy_package_address(phydev, addr_offset);
 
-	if (!shared)
-		return -EIO;
+	if (addr < 0)
+		return addr;
 
-	return __mdiobus_read(phydev->mdio.bus, shared->addr, regnum);
+	return mdiobus_read(phydev->mdio.bus, addr, regnum);
+}
+
+static inline int __phy_package_read(struct phy_device *phydev,
+				     unsigned int addr_offset, u32 regnum)
+{
+	int addr = phy_package_address(phydev, addr_offset);
+
+	if (addr < 0)
+		return addr;
+
+	return __mdiobus_read(phydev->mdio.bus, addr, regnum);
 }
 
 static inline int phy_package_write(struct phy_device *phydev,
-				    u32 regnum, u16 val)
+				    unsigned int addr_offset, u32 regnum,
+				    u16 val)
 {
-	struct phy_package_shared *shared = phydev->shared;
+	int addr = phy_package_address(phydev, addr_offset);
 
-	if (!shared)
-		return -EIO;
+	if (addr < 0)
+		return addr;
 
-	return mdiobus_write(phydev->mdio.bus, shared->addr, regnum, val);
+	return mdiobus_write(phydev->mdio.bus, addr, regnum, val);
 }
 
 static inline int __phy_package_write(struct phy_device *phydev,
-				      u32 regnum, u16 val)
+				      unsigned int addr_offset, u32 regnum,
+				      u16 val)
 {
-	struct phy_package_shared *shared = phydev->shared;
+	int addr = phy_package_address(phydev, addr_offset);
 
-	if (!shared)
-		return -EIO;
+	if (addr < 0)
+		return addr;
 
-	return __mdiobus_write(phydev->mdio.bus, shared->addr, regnum, val);
+	return __mdiobus_write(phydev->mdio.bus, addr, regnum, val);
 }
+
+int __phy_package_read_mmd(struct phy_device *phydev,
+			   unsigned int addr_offset, int devad,
+			   u32 regnum);
+
+int phy_package_read_mmd(struct phy_device *phydev,
+			 unsigned int addr_offset, int devad,
+			 u32 regnum);
+
+int __phy_package_write_mmd(struct phy_device *phydev,
+			    unsigned int addr_offset, int devad,
+			    u32 regnum, u16 val);
+
+int phy_package_write_mmd(struct phy_device *phydev,
+			  unsigned int addr_offset, int devad,
+			  u32 regnum, u16 val);
 
 static inline bool __phy_package_set_once(struct phy_device *phydev,
 					  unsigned int b)
@@ -2017,7 +2167,7 @@ static inline bool phy_package_probe_once(struct phy_device *phydev)
 	return __phy_package_set_once(phydev, PHY_SHARED_F_PROBE_DONE);
 }
 
-extern struct bus_type mdio_bus_type;
+extern const struct bus_type mdio_bus_type;
 
 struct mdio_board_info {
 	const char	*bus_id;

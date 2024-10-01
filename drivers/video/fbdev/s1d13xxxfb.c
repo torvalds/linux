@@ -596,18 +596,26 @@ s1d13xxxfb_bitblt_solidfill(struct fb_info *info, const struct fb_fillrect *rect
 }
 
 /* framebuffer information structures */
-static struct fb_ops s1d13xxxfb_fbops = {
+static const struct fb_ops s1d13xxxfb_fbops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_set_par	= s1d13xxxfb_set_par,
 	.fb_setcolreg	= s1d13xxxfb_setcolreg,
 	.fb_blank	= s1d13xxxfb_blank,
-
 	.fb_pan_display	= s1d13xxxfb_pan_display,
+};
 
-	/* gets replaced at chip detection time */
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
+static const struct fb_ops s1d13xxxfb_fbops_s1d13506 = {
+	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
+	.fb_set_par	= s1d13xxxfb_set_par,
+	.fb_setcolreg	= s1d13xxxfb_setcolreg,
+	.fb_blank	= s1d13xxxfb_blank,
+	.fb_pan_display	= s1d13xxxfb_pan_display,
+	.fb_fillrect	= s1d13xxxfb_bitblt_solidfill,
+	.fb_copyarea	= s1d13xxxfb_bitblt_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int s1d13xxxfb_width_tab[2][4] = {
@@ -869,17 +877,16 @@ static int s1d13xxxfb_probe(struct platform_device *pdev)
 	       default_par->regs, info->fix.smem_len / 1024, info->screen_base);
 
 	info->par = default_par;
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
-	info->fbops = &s1d13xxxfb_fbops;
 
 	switch(prod_id) {
 	case S1D13506_PROD_ID:	/* activate acceleration */
-		s1d13xxxfb_fbops.fb_fillrect = s1d13xxxfb_bitblt_solidfill;
-		s1d13xxxfb_fbops.fb_copyarea = s1d13xxxfb_bitblt_copyarea;
-		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN |
+		info->flags = FBINFO_HWACCEL_YPAN |
 			FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_COPYAREA;
+		info->fbops = &s1d13xxxfb_fbops_s1d13506;
 		break;
 	default:
+		info->flags = FBINFO_HWACCEL_YPAN;
+		info->fbops = &s1d13xxxfb_fbops;
 		break;
 	}
 

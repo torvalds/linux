@@ -127,12 +127,21 @@
 		};
 	};
 
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_in: spdif-in {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
 		model = "imx-spdif";
-		spdif-controller = <&spdif>;
-		spdif-out;
-		spdif-in;
+		audio-cpu = <&spdif>;
+		audio-codec = <&spdif_out>, <&spdif_in>;
 	};
 };
 
@@ -263,7 +272,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p", "jedec,spi-nor";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};

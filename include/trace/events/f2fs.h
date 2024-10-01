@@ -139,7 +139,8 @@ TRACE_DEFINE_ENUM(EX_BLOCK_AGE);
 		{ CP_NODE_NEED_CP,	"node needs cp" },		\
 		{ CP_FASTBOOT_MODE,	"fastboot mode" },		\
 		{ CP_SPEC_LOG_NUM,	"log type is 2" },		\
-		{ CP_RECOVER_DIR,	"dir needs recovery" })
+		{ CP_RECOVER_DIR,	"dir needs recovery" },		\
+		{ CP_XATTR_DIR,		"dir's xattr updated" })
 
 #define show_shutdown_mode(type)					\
 	__print_symbolic(type,						\
@@ -160,6 +161,19 @@ TRACE_DEFINE_ENUM(EX_BLOCK_AGE);
 	__print_symbolic(type,						\
 		{ EX_READ,	"Read" },				\
 		{ EX_BLOCK_AGE,	"Block Age" })
+
+#define show_inode_type(x) \
+	__print_symbolic(x, \
+		{ S_IFLNK,		"symbolic" }, \
+		{ S_IFREG,		"regular" }, \
+		{ S_IFDIR,		"directory" }, \
+		{ S_IFCHR,		"character" }, \
+		{ S_IFBLK,		"block" }, \
+		{ S_IFIFO,		"fifo" }, \
+		{ S_IFSOCK,		"sock" })
+
+#define S_ALL_PERM	(S_ISUID | S_ISGID | S_ISVTX |	\
+			S_IRWXU | S_IRWXG | S_IRWXO)
 
 struct f2fs_sb_info;
 struct f2fs_io_info;
@@ -215,17 +229,21 @@ DECLARE_EVENT_CLASS(f2fs__inode_exit,
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
+		__field(umode_t, mode)
 		__field(int,	ret)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
+		__entry->mode	= inode->i_mode;
 		__entry->ret	= ret;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, ret = %d",
+	TP_printk("dev = (%d,%d), ino = %lu, type: %s, mode = 0%o, ret = %d",
 		show_dev_ino(__entry),
+		show_inode_type(__entry->mode & S_IFMT),
+		__entry->mode & S_ALL_PERM,
 		__entry->ret)
 );
 
@@ -337,7 +355,7 @@ TRACE_EVENT(f2fs_unlink_enter,
 		__entry->ino	= dir->i_ino;
 		__entry->size	= dir->i_size;
 		__entry->blocks	= dir->i_blocks;
-		__assign_str(name, dentry->d_name.name);
+		__assign_str(name);
 	),
 
 	TP_printk("dev = (%d,%d), dir ino = %lu, i_size = %lld, "
@@ -826,7 +844,7 @@ TRACE_EVENT(f2fs_lookup_start,
 	TP_fast_assign(
 		__entry->dev	= dir->i_sb->s_dev;
 		__entry->ino	= dir->i_ino;
-		__assign_str(name, dentry->d_name.name);
+		__assign_str(name);
 		__entry->flags	= flags;
 	),
 
@@ -854,7 +872,7 @@ TRACE_EVENT(f2fs_lookup_end,
 	TP_fast_assign(
 		__entry->dev	= dir->i_sb->s_dev;
 		__entry->ino	= dir->i_ino;
-		__assign_str(name, dentry->d_name.name);
+		__assign_str(name);
 		__entry->cino	= ino;
 		__entry->err	= err;
 	),
@@ -864,6 +882,75 @@ TRACE_EVENT(f2fs_lookup_end,
 		__get_str(name),
 		__entry->cino,
 		__entry->err)
+);
+
+TRACE_EVENT(f2fs_rename_start,
+
+	TP_PROTO(struct inode *old_dir, struct dentry *old_dentry,
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags),
+
+	TP_ARGS(old_dir, old_dentry, new_dir, new_dentry, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(ino_t,		ino)
+		__string(old_name,	old_dentry->d_name.name)
+		__field(ino_t,		new_pino)
+		__string(new_name,	new_dentry->d_name.name)
+		__field(unsigned int,	flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= old_dir->i_sb->s_dev;
+		__entry->ino		= old_dir->i_ino;
+		__assign_str(old_name);
+		__entry->new_pino	= new_dir->i_ino;
+		__assign_str(new_name);
+		__entry->flags		= flags;
+	),
+
+	TP_printk("dev = (%d,%d), old_dir = %lu, old_name: %s, "
+		"new_dir = %lu, new_name: %s, flags = %u",
+		show_dev_ino(__entry),
+		__get_str(old_name),
+		__entry->new_pino,
+		__get_str(new_name),
+		__entry->flags)
+);
+
+TRACE_EVENT(f2fs_rename_end,
+
+	TP_PROTO(struct dentry *old_dentry, struct dentry *new_dentry,
+			unsigned int flags, int ret),
+
+	TP_ARGS(old_dentry, new_dentry, flags, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(ino_t,		ino)
+		__string(old_name,	old_dentry->d_name.name)
+		__string(new_name,	new_dentry->d_name.name)
+		__field(unsigned int,	flags)
+		__field(int,		ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= old_dentry->d_sb->s_dev;
+		__entry->ino		= old_dentry->d_inode->i_ino;
+		__assign_str(old_name);
+		__assign_str(new_name);
+		__entry->flags		= flags;
+		__entry->ret		= ret;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, old_name: %s, "
+		"new_name: %s, flags = %u, ret = %d",
+		show_dev_ino(__entry),
+		__get_str(old_name),
+		__get_str(new_name),
+		__entry->flags,
+		__entry->ret)
 );
 
 TRACE_EVENT(f2fs_readdir,
@@ -1218,11 +1305,11 @@ TRACE_EVENT(f2fs_write_end,
 		__entry->copied)
 );
 
-DECLARE_EVENT_CLASS(f2fs__page,
+DECLARE_EVENT_CLASS(f2fs__folio,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type),
+	TP_ARGS(folio, type),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -1235,14 +1322,14 @@ DECLARE_EVENT_CLASS(f2fs__page,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= page_file_mapping(page)->host->i_sb->s_dev;
-		__entry->ino	= page_file_mapping(page)->host->i_ino;
+		__entry->dev	= folio_file_mapping(folio)->host->i_sb->s_dev;
+		__entry->ino	= folio_file_mapping(folio)->host->i_ino;
 		__entry->type	= type;
 		__entry->dir	=
-			S_ISDIR(page_file_mapping(page)->host->i_mode);
-		__entry->index	= page->index;
-		__entry->dirty	= PageDirty(page);
-		__entry->uptodate = PageUptodate(page);
+			S_ISDIR(folio_file_mapping(folio)->host->i_mode);
+		__entry->index	= folio_index(folio);
+		__entry->dirty	= folio_test_dirty(folio);
+		__entry->uptodate = folio_test_uptodate(folio);
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, "
@@ -1255,39 +1342,32 @@ DECLARE_EVENT_CLASS(f2fs__page,
 		__entry->uptodate)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_writepage,
+DEFINE_EVENT(f2fs__folio, f2fs_writepage,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_do_write_data_page,
+DEFINE_EVENT(f2fs__folio, f2fs_do_write_data_page,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_readpage,
+DEFINE_EVENT(f2fs__folio, f2fs_readpage,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
+DEFINE_EVENT(f2fs__folio, f2fs_set_page_dirty,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
-);
-
-DEFINE_EVENT(f2fs__page, f2fs_vm_page_mkwrite,
-
-	TP_PROTO(struct page *page, int type),
-
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
 TRACE_EVENT(f2fs_replace_atomic_write_block,
@@ -1327,30 +1407,50 @@ TRACE_EVENT(f2fs_replace_atomic_write_block,
 		__entry->recovery)
 );
 
-TRACE_EVENT(f2fs_filemap_fault,
+DECLARE_EVENT_CLASS(f2fs_mmap,
 
-	TP_PROTO(struct inode *inode, pgoff_t index, unsigned long ret),
+	TP_PROTO(struct inode *inode, pgoff_t index,
+			vm_flags_t flags, vm_fault_t ret),
 
-	TP_ARGS(inode, index, ret),
+	TP_ARGS(inode, index, flags, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
 		__field(pgoff_t, index)
-		__field(unsigned long, ret)
+		__field(vm_flags_t, flags)
+		__field(vm_fault_t, ret)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
 		__entry->index	= index;
+		__entry->flags	= flags;
 		__entry->ret	= ret;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, index = %lu, ret = %lx",
+	TP_printk("dev = (%d,%d), ino = %lu, index = %lu, flags: %s, ret: %s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
-		__entry->ret)
+		__print_flags(__entry->flags, "|", FAULT_FLAG_TRACE),
+		__print_flags(__entry->ret, "|", VM_FAULT_RESULT_TRACE))
+);
+
+DEFINE_EVENT(f2fs_mmap, f2fs_filemap_fault,
+
+	TP_PROTO(struct inode *inode, pgoff_t index,
+			vm_flags_t flags, vm_fault_t ret),
+
+	TP_ARGS(inode, index, flags, ret)
+);
+
+DEFINE_EVENT(f2fs_mmap, f2fs_vm_page_mkwrite,
+
+	TP_PROTO(struct inode *inode, pgoff_t index,
+			vm_flags_t flags, vm_fault_t ret),
+
+	TP_ARGS(inode, index, flags, ret)
 );
 
 TRACE_EVENT(f2fs_writepages,
@@ -1458,7 +1558,7 @@ TRACE_EVENT(f2fs_write_checkpoint,
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
 		__entry->reason		= reason;
-		__assign_str(dest_msg, msg);
+		__assign_str(dest_msg);
 	),
 
 	TP_printk("dev = (%d,%d), checkpoint for %s, state = %s",
@@ -2234,12 +2334,12 @@ DECLARE_EVENT_CLASS(f2fs__rw_start,
 		 * because this screws up the tooling that parses
 		 * the traces.
 		 */
-		__assign_str(pathbuf, pathname);
+		__assign_str(pathbuf);
 		(void)strreplace(__get_str(pathbuf), ' ', '_');
 		__entry->offset = offset;
 		__entry->bytes = bytes;
 		__entry->i_size = i_size_read(inode);
-		__assign_str(cmdline, command);
+		__assign_str(cmdline);
 		(void)strreplace(__get_str(cmdline), ' ', '_');
 		__entry->pid = pid;
 		__entry->ino = inode->i_ino;

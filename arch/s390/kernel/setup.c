@@ -97,10 +97,10 @@ EXPORT_SYMBOL(console_irq);
  * relocated above 2 GB, because it has to use 31 bit addresses.
  * Such code and data is part of the .amode31 section.
  */
-unsigned long __amode31_ref __samode31 = (unsigned long)&_samode31;
-unsigned long __amode31_ref __eamode31 = (unsigned long)&_eamode31;
-unsigned long __amode31_ref __stext_amode31 = (unsigned long)&_stext_amode31;
-unsigned long __amode31_ref __etext_amode31 = (unsigned long)&_etext_amode31;
+char __amode31_ref *__samode31 = _samode31;
+char __amode31_ref *__eamode31 = _eamode31;
+char __amode31_ref *__stext_amode31 = _stext_amode31;
+char __amode31_ref *__etext_amode31 = _etext_amode31;
 struct exception_table_entry __amode31_ref *__start_amode31_ex_table = _start_amode31_ex_table;
 struct exception_table_entry __amode31_ref *__stop_amode31_ex_table = _stop_amode31_ex_table;
 
@@ -145,17 +145,16 @@ static u32 __amode31_ref *__ctl_duald = __ctl_duald_amode31;
 static u32 __amode31_ref *__ctl_linkage_stack = __ctl_linkage_stack_amode31;
 static u32 __amode31_ref *__ctl_duct = __ctl_duct_amode31;
 
-int __bootdata(noexec_disabled);
-unsigned long __bootdata(ident_map_size);
+unsigned long __bootdata_preserved(max_mappable);
 struct physmem_info __bootdata(physmem_info);
 
-unsigned long __bootdata_preserved(__kaslr_offset);
+struct vm_layout __bootdata_preserved(vm_layout);
+EXPORT_SYMBOL(vm_layout);
 int __bootdata_preserved(__kaslr_enabled);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
 u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
-u64 __bootdata_preserved(alt_stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
 unsigned long VMALLOC_START;
@@ -305,7 +304,7 @@ static void __init setup_zfcpdump(void)
 		return;
 	if (oldmem_data.start)
 		return;
-	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
+	strlcat(boot_command_line, " cio_ignore=all,!ipldev,!condev", COMMAND_LINE_SIZE);
 	console_loglevel = 2;
 }
 #else
@@ -381,12 +380,6 @@ void stack_free(unsigned long stack)
 #endif
 }
 
-void __init __noreturn arch_call_rest_init(void)
-{
-	smp_reinit_ipl_cpu();
-	rest_init();
-}
-
 static unsigned long __init stack_alloc_early(void)
 {
 	unsigned long stack;
@@ -412,31 +405,32 @@ static void __init setup_lowcore(void)
 		panic("%s: Failed to allocate %zu bytes align=%zx\n",
 		      __func__, sizeof(*lc), sizeof(*lc));
 
+	lc->pcpu = (unsigned long)per_cpu_ptr(&pcpu_devices, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
 	lc->restart_psw.addr = __pa(restart_int_handler);
-	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = PSW_KERNEL_BITS;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->svc_new_psw.mask = PSW_KERNEL_BITS;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = PSW_KERNEL_BITS;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = PSW_KERNEL_BITS;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
-	lc->machine_flags = S390_lowcore.machine_flags;
-	lc->preempt_count = S390_lowcore.preempt_count;
+	lc->machine_flags = get_lowcore()->machine_flags;
+	lc->preempt_count = get_lowcore()->preempt_count;
 	nmi_alloc_mcesa_early(&lc->mcesad);
-	lc->sys_enter_timer = S390_lowcore.sys_enter_timer;
-	lc->exit_timer = S390_lowcore.exit_timer;
-	lc->user_timer = S390_lowcore.user_timer;
-	lc->system_timer = S390_lowcore.system_timer;
-	lc->steal_timer = S390_lowcore.steal_timer;
-	lc->last_update_timer = S390_lowcore.last_update_timer;
-	lc->last_update_clock = S390_lowcore.last_update_clock;
+	lc->sys_enter_timer = get_lowcore()->sys_enter_timer;
+	lc->exit_timer = get_lowcore()->exit_timer;
+	lc->user_timer = get_lowcore()->user_timer;
+	lc->system_timer = get_lowcore()->system_timer;
+	lc->steal_timer = get_lowcore()->steal_timer;
+	lc->last_update_timer = get_lowcore()->last_update_timer;
+	lc->last_update_clock = get_lowcore()->last_update_clock;
 	/*
 	 * Allocate the global restart stack which is the same for
 	 * all CPUs in case *one* of them does a PSW restart.
@@ -445,7 +439,7 @@ static void __init setup_lowcore(void)
 	lc->mcck_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->async_stack = stack_alloc_early() + STACK_INIT_OFFSET;
 	lc->nodat_stack = stack_alloc_early() + STACK_INIT_OFFSET;
-	lc->kernel_stack = S390_lowcore.kernel_stack;
+	lc->kernel_stack = get_lowcore()->kernel_stack;
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
 	 * restart data to the absolute zero lowcore. This is necessary if
@@ -455,16 +449,16 @@ static void __init setup_lowcore(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
-	__ctl_store(lc->cregs_save_area, 0, 15);
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
-	lc->kernel_asce = S390_lowcore.kernel_asce;
-	lc->user_asce = S390_lowcore.user_asce;
+	lc->kernel_asce = get_lowcore()->kernel_asce;
+	lc->user_asce = get_lowcore()->user_asce;
 
+	system_ctlreg_init_save_area(lc);
 	abs_lc = get_abs_lowcore();
 	abs_lc->restart_stack = lc->restart_stack;
 	abs_lc->restart_fn = lc->restart_fn;
@@ -472,7 +466,6 @@ static void __init setup_lowcore(void)
 	abs_lc->restart_source = lc->restart_source;
 	abs_lc->restart_psw = lc->restart_psw;
 	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
-	memcpy(abs_lc->cregs_save_area, lc->cregs_save_area, sizeof(abs_lc->cregs_save_area));
 	abs_lc->program_new_psw = lc->program_new_psw;
 	abs_lc->mcesad = lc->mcesad;
 	put_abs_lowcore(abs_lc);
@@ -511,12 +504,12 @@ static void __init setup_resources(void)
 	int j;
 	u64 i;
 
-	code_resource.start = (unsigned long) _text;
-	code_resource.end = (unsigned long) _etext - 1;
-	data_resource.start = (unsigned long) _etext;
-	data_resource.end = (unsigned long) _edata - 1;
-	bss_resource.start = (unsigned long) __bss_start;
-	bss_resource.end = (unsigned long) __bss_stop - 1;
+	code_resource.start = __pa_symbol(_text);
+	code_resource.end = __pa_symbol(_etext) - 1;
+	data_resource.start = __pa_symbol(_etext);
+	data_resource.end = __pa_symbol(_edata) - 1;
+	bss_resource.start = __pa_symbol(__bss_start);
+	bss_resource.end = __pa_symbol(__bss_stop) - 1;
 
 	for_each_mem_range(i, &start, &end) {
 		res = memblock_alloc(sizeof(*res), 8);
@@ -625,8 +618,8 @@ static void __init reserve_crashkernel(void)
 	phys_addr_t low, high;
 	int rc;
 
-	rc = parse_crashkernel(boot_command_line, ident_map_size, &crash_size,
-			       &crash_base);
+	rc = parse_crashkernel(boot_command_line, ident_map_size,
+			       &crash_size, &crash_base, NULL, NULL);
 
 	crash_base = ALIGN(crash_base, KEXEC_CRASH_MEM_ALIGN);
 	crash_size = ALIGN(crash_size, KEXEC_CRASH_MEM_ALIGN);
@@ -741,7 +734,23 @@ static void __init memblock_add_physmem_info(void)
 }
 
 /*
- * Reserve memory used for lowcore/command line/kernel image.
+ * Reserve memory used for lowcore.
+ */
+static void __init reserve_lowcore(void)
+{
+	void *lowcore_start = get_lowcore();
+	void *lowcore_end = lowcore_start + sizeof(struct lowcore);
+	void *start, *end;
+
+	if ((void *)__identity_base < lowcore_end) {
+		start = max(lowcore_start, (void *)__identity_base);
+		end = min(lowcore_end, (void *)(__identity_base + ident_map_size));
+		memblock_reserve(__pa(start), __pa(end));
+	}
+}
+
+/*
+ * Reserve memory used for absolute lowcore/command line/kernel image.
  */
 static void __init reserve_kernel(void)
 {
@@ -770,15 +779,15 @@ static void __init setup_memory(void)
 static void __init relocate_amode31_section(void)
 {
 	unsigned long amode31_size = __eamode31 - __samode31;
-	long amode31_offset = physmem_info.reserved[RR_AMODE31].start - __samode31;
-	long *ptr;
+	long amode31_offset, *ptr;
 
+	amode31_offset = AMODE31_START - (unsigned long)__samode31;
 	pr_info("Relocating AMODE31 section of size 0x%08lx\n", amode31_size);
 
 	/* Move original AMODE31 section to the new one */
-	memmove((void *)physmem_info.reserved[RR_AMODE31].start, (void *)__samode31, amode31_size);
+	memmove((void *)physmem_info.reserved[RR_AMODE31].start, __samode31, amode31_size);
 	/* Zero out the old AMODE31 section to catch invalid accesses within it */
-	memset((void *)__samode31, 0, amode31_size);
+	memset(__samode31, 0, amode31_size);
 
 	/* Update all AMODE31 region references */
 	for (ptr = _start_amode31_refs; ptr != _end_amode31_refs; ptr++)
@@ -797,15 +806,15 @@ static void __init setup_cr(void)
 	__ctl_duct[4] = (unsigned long)__ctl_duald;
 
 	/* Update control registers CR2, CR5 and CR15 */
-	__ctl_store(cr2.val, 2, 2);
-	__ctl_store(cr5.val, 5, 5);
-	__ctl_store(cr15.val, 15, 15);
+	local_ctl_store(2, &cr2.reg);
+	local_ctl_store(5, &cr5.reg);
+	local_ctl_store(15, &cr15.reg);
 	cr2.ducto = (unsigned long)__ctl_duct >> 6;
 	cr5.pasteo = (unsigned long)__ctl_duct >> 6;
 	cr15.lsea = (unsigned long)__ctl_linkage_stack >> 3;
-	__ctl_load(cr2.val, 2, 2);
-	__ctl_load(cr5.val, 5, 5);
-	__ctl_load(cr15.val, 15, 15);
+	system_ctl_load(2, &cr2.reg);
+	system_ctl_load(5, &cr5.reg);
+	system_ctl_load(15, &cr15.reg);
 }
 
 /*
@@ -824,22 +833,6 @@ static void __init setup_randomness(void)
 
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
 		static_branch_enable(&s390_arch_random_available);
-}
-
-/*
- * Find the correct size for the task_struct. This depends on
- * the size of the struct fpu at the end of the thread_struct
- * which is embedded in the task_struct.
- */
-static void __init setup_task_size(void)
-{
-	int task_size = sizeof(struct task_struct);
-
-	if (!MACHINE_HAS_VX) {
-		task_size -= sizeof(__vector128) * __NUM_VXRS;
-		task_size += sizeof(freg_t) * __NUM_FPRS;
-	}
-	arch_task_struct_size = task_size;
 }
 
 /*
@@ -874,7 +867,7 @@ static void __init log_component_list(void)
 		pr_info("Linux is running with Secure-IPL enabled\n");
 	else
 		pr_info("Linux is running with Secure-IPL disabled\n");
-	ptr = (void *) early_ipl_comp_list_addr;
+	ptr = __va(early_ipl_comp_list_addr);
 	end = (void *) ptr + early_ipl_comp_list_size;
 	pr_info("The IPL report contains the following components:\n");
 	while (ptr < end) {
@@ -912,6 +905,9 @@ void __init setup_arch(char **cmdline_p)
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
 
+	if (have_relocated_lowcore())
+		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
+
 	log_component_list();
 
 	/* Have one command line that is parsed and saved in /proc/cmdline */
@@ -934,11 +930,11 @@ void __init setup_arch(char **cmdline_p)
 
 	os_info_init();
 	setup_ipl();
-	setup_task_size();
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_pgtables();
+	reserve_lowcore();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();

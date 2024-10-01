@@ -49,6 +49,19 @@ properties:
     enum: [ 0, 1 ]
     default: 0
 
+  power-domains:
+    maxItems: 1
+
+  label:
+    description: Descriptive name of the SPI controller.
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: spi
+
 required:
   - compatible
   - reg

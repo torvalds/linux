@@ -8,8 +8,8 @@
 
 #include "msm8976.dtsi"
 
-&pmu {
-	interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_HIGH)>;
+&pmu_a72 {
+	interrupts = <GIC_PPI 7 (GIC_CPU_MASK_RAW(0x30) | IRQ_TYPE_LEVEL_HIGH)>;
 };
 
 &tsens {

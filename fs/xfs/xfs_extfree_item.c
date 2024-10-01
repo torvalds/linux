@@ -40,9 +40,9 @@ STATIC void
 xfs_efi_item_free(
 	struct xfs_efi_log_item	*efip)
 {
-	kmem_free(efip->efi_item.li_lv_shadow);
+	kvfree(efip->efi_item.li_lv_shadow);
 	if (efip->efi_format.efi_nextents > XFS_EFI_MAX_FAST_EXTENTS)
-		kmem_free(efip);
+		kfree(efip);
 	else
 		kmem_cache_free(xfs_efi_cache, efip);
 }
@@ -229,9 +229,9 @@ static inline struct xfs_efd_log_item *EFD_ITEM(struct xfs_log_item *lip)
 STATIC void
 xfs_efd_item_free(struct xfs_efd_log_item *efdp)
 {
-	kmem_free(efdp->efd_item.li_lv_shadow);
+	kvfree(efdp->efd_item.li_lv_shadow);
 	if (efdp->efd_format.efd_nextents > XFS_EFD_MAX_FAST_EXTENTS)
-		kmem_free(efdp);
+		kfree(efdp);
 	else
 		kmem_cache_free(xfs_efd_cache, efdp);
 }
@@ -303,37 +303,9 @@ static const struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_intent	= xfs_efd_item_intent,
 };
 
-/*
- * Allocate an "extent free done" log item that will hold nextents worth of
- * extents.  The caller must use all nextents extents, because we are not
- * flexible about this at all.
- */
-static struct xfs_efd_log_item *
-xfs_trans_get_efd(
-	struct xfs_trans		*tp,
-	struct xfs_efi_log_item		*efip,
-	unsigned int			nextents)
+static inline struct xfs_extent_free_item *xefi_entry(const struct list_head *e)
 {
-	struct xfs_efd_log_item		*efdp;
-
-	ASSERT(nextents > 0);
-
-	if (nextents > XFS_EFD_MAX_FAST_EXTENTS) {
-		efdp = kzalloc(xfs_efd_log_item_sizeof(nextents),
-				GFP_KERNEL | __GFP_NOFAIL);
-	} else {
-		efdp = kmem_cache_zalloc(xfs_efd_cache,
-					GFP_KERNEL | __GFP_NOFAIL);
-	}
-
-	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,
-			  &xfs_efd_item_ops);
-	efdp->efd_efip = efip;
-	efdp->efd_format.efd_nextents = nextents;
-	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
-
-	xfs_trans_add_item(tp, &efdp->efd_item);
-	return efdp;
+	return list_entry(e, struct xfs_extent_free_item, xefi_list);
 }
 
 /*
@@ -364,67 +336,20 @@ xfs_efd_from_efi(
 	efdp->efd_next_extent = efip->efi_format.efi_nextents;
 }
 
-/*
- * Free an extent and log it to the EFD. Note that the transaction is marked
- * dirty regardless of whether the extent free succeeds or fails to support the
- * EFI/EFD lifecycle rules.
- */
-static int
-xfs_trans_free_extent(
-	struct xfs_trans		*tp,
+static void
+xfs_efd_add_extent(
 	struct xfs_efd_log_item		*efdp,
 	struct xfs_extent_free_item	*xefi)
 {
-	struct xfs_owner_info		oinfo = { };
-	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent		*extp;
-	uint				next_extent;
-	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp,
-							xefi->xefi_startblock);
-	int				error;
 
-	oinfo.oi_owner = xefi->xefi_owner;
-	if (xefi->xefi_flags & XFS_EFI_ATTR_FORK)
-		oinfo.oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
-	if (xefi->xefi_flags & XFS_EFI_BMBT_BLOCK)
-		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
+	ASSERT(efdp->efd_next_extent < efdp->efd_format.efd_nextents);
 
-	trace_xfs_bmap_free_deferred(tp->t_mountp, xefi->xefi_pag->pag_agno, 0,
-			agbno, xefi->xefi_blockcount);
-
-	error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
-			xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
-			xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
-
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the EFI and frees the EFD
-	 * 2.) shuts down the filesystem
-	 */
-	tp->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
-	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
-
-	/*
-	 * If we need a new transaction to make progress, the caller will log a
-	 * new EFI with the current contents. It will also log an EFD to cancel
-	 * the existing EFI, and so we need to copy all the unprocessed extents
-	 * in this EFI to the EFD so this works correctly.
-	 */
-	if (error == -EAGAIN) {
-		xfs_efd_from_efi(efdp);
-		return error;
-	}
-
-	next_extent = efdp->efd_next_extent;
-	ASSERT(next_extent < efdp->efd_format.efd_nextents);
-	extp = &(efdp->efd_format.efd_extents[next_extent]);
+	extp = &efdp->efd_format.efd_extents[efdp->efd_next_extent];
 	extp->ext_start = xefi->xefi_startblock;
 	extp->ext_len = xefi->xefi_blockcount;
-	efdp->efd_next_extent++;
 
-	return error;
+	efdp->efd_next_extent++;
 }
 
 /* Sort bmap items by AG. */
@@ -434,11 +359,8 @@ xfs_extent_free_diff_items(
 	const struct list_head		*a,
 	const struct list_head		*b)
 {
-	struct xfs_extent_free_item	*ra;
-	struct xfs_extent_free_item	*rb;
-
-	ra = container_of(a, struct xfs_extent_free_item, xefi_list);
-	rb = container_of(b, struct xfs_extent_free_item, xefi_list);
+	struct xfs_extent_free_item	*ra = xefi_entry(a);
+	struct xfs_extent_free_item	*rb = xefi_entry(b);
 
 	return ra->xefi_pag->pag_agno - rb->xefi_pag->pag_agno;
 }
@@ -452,9 +374,6 @@ xfs_extent_free_log_item(
 {
 	uint				next_extent;
 	struct xfs_extent		*extp;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &efip->efi_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;
@@ -481,7 +400,6 @@ xfs_extent_free_create_intent(
 
 	ASSERT(count > 0);
 
-	xfs_trans_add_item(tp, &efip->efi_item);
 	if (sort)
 		list_sort(mp, items, xfs_extent_free_diff_items);
 	list_for_each_entry(xefi, items, xefi_list)
@@ -496,27 +414,57 @@ xfs_extent_free_create_done(
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return &xfs_trans_get_efd(tp, EFI_ITEM(intent), count)->efd_item;
+	struct xfs_efi_log_item		*efip = EFI_ITEM(intent);
+	struct xfs_efd_log_item		*efdp;
+
+	ASSERT(count > 0);
+
+	if (count > XFS_EFD_MAX_FAST_EXTENTS) {
+		efdp = kzalloc(xfs_efd_log_item_sizeof(count),
+				GFP_KERNEL | __GFP_NOFAIL);
+	} else {
+		efdp = kmem_cache_zalloc(xfs_efd_cache,
+					GFP_KERNEL | __GFP_NOFAIL);
+	}
+
+	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,
+			  &xfs_efd_item_ops);
+	efdp->efd_efip = efip;
+	efdp->efd_format.efd_nextents = count;
+	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
+
+	return &efdp->efd_item;
 }
 
-/* Take a passive ref to the AG containing the space we're freeing. */
+/* Add this deferred EFI to the transaction. */
 void
-xfs_extent_free_get_group(
-	struct xfs_mount		*mp,
-	struct xfs_extent_free_item	*xefi)
+xfs_extent_free_defer_add(
+	struct xfs_trans		*tp,
+	struct xfs_extent_free_item	*xefi,
+	struct xfs_defer_pending	**dfpp)
 {
-	xfs_agnumber_t			agno;
+	struct xfs_mount		*mp = tp->t_mountp;
 
-	agno = XFS_FSB_TO_AGNO(mp, xefi->xefi_startblock);
-	xefi->xefi_pag = xfs_perag_intent_get(mp, agno);
+	trace_xfs_extent_free_defer(mp, xefi);
+
+	xefi->xefi_pag = xfs_perag_intent_get(mp, xefi->xefi_startblock);
+	if (xefi->xefi_agresv == XFS_AG_RESV_AGFL)
+		*dfpp = xfs_defer_add(tp, &xefi->xefi_list,
+				&xfs_agfl_free_defer_type);
+	else
+		*dfpp = xfs_defer_add(tp, &xefi->xefi_list,
+				&xfs_extent_free_defer_type);
 }
 
-/* Release a passive AG ref after some freeing work. */
-static inline void
-xfs_extent_free_put_group(
-	struct xfs_extent_free_item	*xefi)
+/* Cancel a free extent. */
+STATIC void
+xfs_extent_free_cancel_item(
+	struct list_head		*item)
 {
+	struct xfs_extent_free_item	*xefi = xefi_entry(item);
+
 	xfs_perag_intent_put(xefi->xefi_pag);
+	kmem_cache_free(xfs_extfree_item_cache, xefi);
 }
 
 /* Process a free extent. */
@@ -527,22 +475,40 @@ xfs_extent_free_finish_item(
 	struct list_head		*item,
 	struct xfs_btree_cur		**state)
 {
-	struct xfs_extent_free_item	*xefi;
-	int				error;
+	struct xfs_owner_info		oinfo = { };
+	struct xfs_extent_free_item	*xefi = xefi_entry(item);
+	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
+	struct xfs_mount		*mp = tp->t_mountp;
+	xfs_agblock_t			agbno;
+	int				error = 0;
 
-	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
+	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
 
-	error = xfs_trans_free_extent(tp, EFD_ITEM(done), xefi);
+	oinfo.oi_owner = xefi->xefi_owner;
+	if (xefi->xefi_flags & XFS_EFI_ATTR_FORK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
+	if (xefi->xefi_flags & XFS_EFI_BMBT_BLOCK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
+
+	trace_xfs_extent_free_deferred(mp, xefi);
 
 	/*
-	 * Don't free the XEFI if we need a new transaction to complete
-	 * processing of it.
+	 * If we need a new transaction to make progress, the caller will log a
+	 * new EFI with the current contents. It will also log an EFD to cancel
+	 * the existing EFI, and so we need to copy all the unprocessed extents
+	 * in this EFI to the EFD so this works correctly.
 	 */
-	if (error == -EAGAIN)
+	if (!(xefi->xefi_flags & XFS_EFI_CANCELLED))
+		error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
+				xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
+				xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
+	if (error == -EAGAIN) {
+		xfs_efd_from_efi(efdp);
 		return error;
+	}
 
-	xfs_extent_free_put_group(xefi);
-	kmem_cache_free(xfs_extfree_item_cache, xefi);
+	xfs_efd_add_extent(efdp, xefi);
+	xfs_extent_free_cancel_item(item);
 	return error;
 }
 
@@ -553,28 +519,6 @@ xfs_extent_free_abort_intent(
 {
 	xfs_efi_release(EFI_ITEM(intent));
 }
-
-/* Cancel a free extent. */
-STATIC void
-xfs_extent_free_cancel_item(
-	struct list_head		*item)
-{
-	struct xfs_extent_free_item	*xefi;
-
-	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
-
-	xfs_extent_free_put_group(xefi);
-	kmem_cache_free(xfs_extfree_item_cache, xefi);
-}
-
-const struct xfs_defer_op_type xfs_extent_free_defer_type = {
-	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_extent_free_create_intent,
-	.abort_intent	= xfs_extent_free_abort_intent,
-	.create_done	= xfs_extent_free_create_done,
-	.finish_item	= xfs_extent_free_finish_item,
-	.cancel_item	= xfs_extent_free_cancel_item,
-};
 
 /*
  * AGFL blocks are accounted differently in the reserve pools and are not
@@ -590,57 +534,26 @@ xfs_agfl_free_finish_item(
 	struct xfs_owner_info		oinfo = { };
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
-	struct xfs_extent_free_item	*xefi;
-	struct xfs_extent		*extp;
+	struct xfs_extent_free_item	*xefi = xefi_entry(item);
 	struct xfs_buf			*agbp;
 	int				error;
 	xfs_agblock_t			agbno;
-	uint				next_extent;
 
-	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
 	ASSERT(xefi->xefi_blockcount == 1);
 	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
 	oinfo.oi_owner = xefi->xefi_owner;
 
-	trace_xfs_agfl_free_deferred(mp, xefi->xefi_pag->pag_agno, 0, agbno,
-			xefi->xefi_blockcount);
+	trace_xfs_agfl_free_deferred(mp, xefi);
 
 	error = xfs_alloc_read_agf(xefi->xefi_pag, tp, 0, &agbp);
 	if (!error)
-		error = xfs_free_agfl_block(tp, xefi->xefi_pag->pag_agno,
-				agbno, agbp, &oinfo);
+		error = xfs_free_ag_extent(tp, agbp, xefi->xefi_pag->pag_agno,
+				agbno, 1, &oinfo, XFS_AG_RESV_AGFL);
 
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the EFI and frees the EFD
-	 * 2.) shuts down the filesystem
-	 */
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
-
-	next_extent = efdp->efd_next_extent;
-	ASSERT(next_extent < efdp->efd_format.efd_nextents);
-	extp = &(efdp->efd_format.efd_extents[next_extent]);
-	extp->ext_start = xefi->xefi_startblock;
-	extp->ext_len = xefi->xefi_blockcount;
-	efdp->efd_next_extent++;
-
-	xfs_extent_free_put_group(xefi);
-	kmem_cache_free(xfs_extfree_item_cache, xefi);
+	xfs_efd_add_extent(efdp, xefi);
+	xfs_extent_free_cancel_item(&xefi->xefi_list);
 	return error;
 }
-
-/* sub-type with special handling for AGFL deferred frees */
-const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
-	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_extent_free_create_intent,
-	.abort_intent	= xfs_extent_free_abort_intent,
-	.create_done	= xfs_extent_free_create_done,
-	.finish_item	= xfs_agfl_free_finish_item,
-	.cancel_item	= xfs_extent_free_cancel_item,
-};
 
 /* Is this recovered EFI ok? */
 static inline bool
@@ -651,22 +564,41 @@ xfs_efi_validate_ext(
 	return xfs_verify_fsbext(mp, extp->ext_start, extp->ext_len);
 }
 
+static inline void
+xfs_efi_recover_work(
+	struct xfs_mount		*mp,
+	struct xfs_defer_pending	*dfp,
+	struct xfs_extent		*extp)
+{
+	struct xfs_extent_free_item	*xefi;
+
+	xefi = kmem_cache_zalloc(xfs_extfree_item_cache,
+			       GFP_KERNEL | __GFP_NOFAIL);
+	xefi->xefi_startblock = extp->ext_start;
+	xefi->xefi_blockcount = extp->ext_len;
+	xefi->xefi_agresv = XFS_AG_RESV_NONE;
+	xefi->xefi_owner = XFS_RMAP_OWN_UNKNOWN;
+	xefi->xefi_pag = xfs_perag_intent_get(mp, extp->ext_start);
+
+	xfs_defer_add_item(dfp, &xefi->xefi_list);
+}
+
 /*
  * Process an extent free intent item that was recovered from
  * the log.  We need to free the extents that it describes.
  */
 STATIC int
-xfs_efi_item_recover(
-	struct xfs_log_item		*lip,
+xfs_extent_free_recover_work(
+	struct xfs_defer_pending	*dfp,
 	struct list_head		*capture_list)
 {
+	struct xfs_trans_res		resv;
+	struct xfs_log_item		*lip = dfp->dfp_intent;
 	struct xfs_efi_log_item		*efip = EFI_ITEM(lip);
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_efd_log_item		*efdp;
 	struct xfs_trans		*tp;
 	int				i;
 	int				error = 0;
-	bool				requeue_only = false;
 
 	/*
 	 * First check the validity of the extents described by the
@@ -681,54 +613,22 @@ xfs_efi_item_recover(
 					sizeof(efip->efi_format));
 			return -EFSCORRUPTED;
 		}
+
+		xfs_efi_recover_work(mp, dfp, &efip->efi_format.efi_extents[i]);
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	resv = xlog_recover_resv(&M_RES(mp)->tr_itruncate);
+	error = xfs_trans_alloc(mp, &resv, 0, 0, 0, &tp);
 	if (error)
 		return error;
-	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
-	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
-		struct xfs_extent_free_item	fake = {
-			.xefi_owner		= XFS_RMAP_OWN_UNKNOWN,
-			.xefi_agresv		= XFS_AG_RESV_NONE,
-		};
-		struct xfs_extent		*extp;
-
-		extp = &efip->efi_format.efi_extents[i];
-
-		fake.xefi_startblock = extp->ext_start;
-		fake.xefi_blockcount = extp->ext_len;
-
-		if (!requeue_only) {
-			xfs_extent_free_get_group(mp, &fake);
-			error = xfs_trans_free_extent(tp, efdp, &fake);
-			xfs_extent_free_put_group(&fake);
-		}
-
-		/*
-		 * If we can't free the extent without potentially deadlocking,
-		 * requeue the rest of the extents to a new so that they get
-		 * run again later with a new transaction context.
-		 */
-		if (error == -EAGAIN || requeue_only) {
-			error = xfs_free_extent_later(tp, fake.xefi_startblock,
-					fake.xefi_blockcount,
-					&XFS_RMAP_OINFO_ANY_OWNER,
-					fake.xefi_agresv);
-			if (!error) {
-				requeue_only = true;
-				continue;
-			}
-		}
-
-		if (error == -EFSCORRUPTED)
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					extp, sizeof(*extp));
-		if (error)
-			goto abort_error;
-
-	}
+	error = xlog_recover_finish_intent(tp, dfp);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				&efip->efi_format,
+				sizeof(efip->efi_format));
+	if (error)
+		goto abort_error;
 
 	return xfs_defer_ops_capture_and_commit(tp, capture_list);
 
@@ -736,6 +636,56 @@ abort_error:
 	xfs_trans_cancel(tp);
 	return error;
 }
+
+/* Relog an intent item to push the log tail forward. */
+static struct xfs_log_item *
+xfs_extent_free_relog_intent(
+	struct xfs_trans		*tp,
+	struct xfs_log_item		*intent,
+	struct xfs_log_item		*done_item)
+{
+	struct xfs_efd_log_item		*efdp = EFD_ITEM(done_item);
+	struct xfs_efi_log_item		*efip;
+	struct xfs_extent		*extp;
+	unsigned int			count;
+
+	count = EFI_ITEM(intent)->efi_format.efi_nextents;
+	extp = EFI_ITEM(intent)->efi_format.efi_extents;
+
+	efdp->efd_next_extent = count;
+	memcpy(efdp->efd_format.efd_extents, extp, count * sizeof(*extp));
+
+	efip = xfs_efi_init(tp->t_mountp, count);
+	memcpy(efip->efi_format.efi_extents, extp, count * sizeof(*extp));
+	atomic_set(&efip->efi_next_extent, count);
+
+	return &efip->efi_item;
+}
+
+const struct xfs_defer_op_type xfs_extent_free_defer_type = {
+	.name		= "extent_free",
+	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_extent_free_create_intent,
+	.abort_intent	= xfs_extent_free_abort_intent,
+	.create_done	= xfs_extent_free_create_done,
+	.finish_item	= xfs_extent_free_finish_item,
+	.cancel_item	= xfs_extent_free_cancel_item,
+	.recover_work	= xfs_extent_free_recover_work,
+	.relog_intent	= xfs_extent_free_relog_intent,
+};
+
+/* sub-type with special handling for AGFL deferred frees */
+const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
+	.name		= "agfl_free",
+	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_extent_free_create_intent,
+	.abort_intent	= xfs_extent_free_abort_intent,
+	.create_done	= xfs_extent_free_create_done,
+	.finish_item	= xfs_agfl_free_finish_item,
+	.cancel_item	= xfs_extent_free_cancel_item,
+	.recover_work	= xfs_extent_free_recover_work,
+	.relog_intent	= xfs_extent_free_relog_intent,
+};
 
 STATIC bool
 xfs_efi_item_match(
@@ -745,43 +695,13 @@ xfs_efi_item_match(
 	return EFI_ITEM(lip)->efi_format.efi_id == intent_id;
 }
 
-/* Relog an intent item to push the log tail forward. */
-static struct xfs_log_item *
-xfs_efi_item_relog(
-	struct xfs_log_item		*intent,
-	struct xfs_trans		*tp)
-{
-	struct xfs_efd_log_item		*efdp;
-	struct xfs_efi_log_item		*efip;
-	struct xfs_extent		*extp;
-	unsigned int			count;
-
-	count = EFI_ITEM(intent)->efi_format.efi_nextents;
-	extp = EFI_ITEM(intent)->efi_format.efi_extents;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	efdp = xfs_trans_get_efd(tp, EFI_ITEM(intent), count);
-	efdp->efd_next_extent = count;
-	memcpy(efdp->efd_format.efd_extents, extp, count * sizeof(*extp));
-	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
-
-	efip = xfs_efi_init(tp->t_mountp, count);
-	memcpy(efip->efi_format.efi_extents, extp, count * sizeof(*extp));
-	atomic_set(&efip->efi_next_extent, count);
-	xfs_trans_add_item(tp, &efip->efi_item);
-	set_bit(XFS_LI_DIRTY, &efip->efi_item.li_flags);
-	return &efip->efi_item;
-}
-
 static const struct xfs_item_ops xfs_efi_item_ops = {
 	.flags		= XFS_ITEM_INTENT,
 	.iop_size	= xfs_efi_item_size,
 	.iop_format	= xfs_efi_item_format,
 	.iop_unpin	= xfs_efi_item_unpin,
 	.iop_release	= xfs_efi_item_release,
-	.iop_recover	= xfs_efi_item_recover,
 	.iop_match	= xfs_efi_item_match,
-	.iop_relog	= xfs_efi_item_relog,
 };
 
 /*
@@ -818,12 +738,9 @@ xlog_recover_efi_commit_pass2(
 		return error;
 	}
 	atomic_set(&efip->efi_next_extent, efi_formatp->efi_nextents);
-	/*
-	 * Insert the intent into the AIL directly and drop one reference so
-	 * that finishing or canceling the work will drop the other.
-	 */
-	xfs_trans_ail_insert(log->l_ailp, &efip->efi_item, lsn);
-	xfs_efi_release(efip);
+
+	xlog_recover_intent_item(log, &efip->efi_item, lsn,
+			&xfs_extent_free_defer_type);
 	return 0;
 }
 

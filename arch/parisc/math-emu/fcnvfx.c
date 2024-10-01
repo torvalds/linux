@@ -18,10 +18,10 @@
  *	Double Floating-point to Double Fixed-point 
  *
  *  External Interfaces:
- *	dbl_to_dbl_fcnvfx(srcptr,nullptr,dstptr,status)
- *	dbl_to_sgl_fcnvfx(srcptr,nullptr,dstptr,status)
- *	sgl_to_dbl_fcnvfx(srcptr,nullptr,dstptr,status)
- *	sgl_to_sgl_fcnvfx(srcptr,nullptr,dstptr,status)
+ *	dbl_to_dbl_fcnvfx(srcptr,_nullptr,dstptr,status)
+ *	dbl_to_sgl_fcnvfx(srcptr,_nullptr,dstptr,status)
+ *	sgl_to_dbl_fcnvfx(srcptr,_nullptr,dstptr,status)
+ *	sgl_to_sgl_fcnvfx(srcptr,_nullptr,dstptr,status)
  *
  *  Internal Interfaces:
  *
@@ -44,7 +44,7 @@
 int
 sgl_to_sgl_fcnvfx(
 		    sgl_floating_point *srcptr,
-		    sgl_floating_point *nullptr,
+		    sgl_floating_point *_nullptr,
 		    int *dstptr,
 		    sgl_floating_point *status)
 {
@@ -141,7 +141,7 @@ sgl_to_sgl_fcnvfx(
 int
 sgl_to_dbl_fcnvfx(
 		sgl_floating_point *srcptr,
-		unsigned int *nullptr,
+		unsigned int *_nullptr,
 		dbl_integer *dstptr,
 		unsigned int *status)
 {
@@ -262,7 +262,7 @@ sgl_to_dbl_fcnvfx(
 int
 dbl_to_sgl_fcnvfx(
 		    dbl_floating_point *srcptr,
-		    unsigned int *nullptr,
+		    unsigned int *_nullptr,
 		    int *dstptr,
 		    unsigned int *status)
 {
@@ -373,7 +373,7 @@ dbl_to_sgl_fcnvfx(
 int
 dbl_to_dbl_fcnvfx(
 		    dbl_floating_point *srcptr,
-		    unsigned int *nullptr,
+		    unsigned int *_nullptr,
 		    dbl_integer *dstptr,
 		    unsigned int *status)
 {

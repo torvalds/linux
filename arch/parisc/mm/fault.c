@@ -150,11 +150,16 @@ int fixup_exception(struct pt_regs *regs)
 		 * Fix up get_user() and put_user().
 		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
 		 * bit in the relative address of the fixup routine to indicate
-		 * that gr[ASM_EXCEPTIONTABLE_REG] should be loaded with
-		 * -EFAULT to report a userspace access error.
+		 * that the register encoded in the "or %r0,%r0,register"
+		 * opcode should be loaded with -EFAULT to report a userspace
+		 * access error.
 		 */
 		if (fix->fixup & 1) {
-			regs->gr[ASM_EXCEPTIONTABLE_REG] = -EFAULT;
+			int fault_error_reg = fix->err_opcode & 0x1f;
+			if (!WARN_ON(!fault_error_reg))
+				regs->gr[fault_error_reg] = -EFAULT;
+			pr_debug("Unalignment fixup of register %d at %pS\n",
+				fault_error_reg, (void*)regs->iaoq[0]);
 
 			/* zero target register for get_user() */
 			if (parisc_acctyp(0, regs->iir) == VM_READ) {
@@ -192,31 +197,31 @@ int fixup_exception(struct pt_regs *regs)
  * For implementation see handle_interruption() in traps.c
  */
 static const char * const trap_description[] = {
-	[1] "High-priority machine check (HPMC)",
-	[2] "Power failure interrupt",
-	[3] "Recovery counter trap",
-	[5] "Low-priority machine check",
-	[6] "Instruction TLB miss fault",
-	[7] "Instruction access rights / protection trap",
-	[8] "Illegal instruction trap",
-	[9] "Break instruction trap",
-	[10] "Privileged operation trap",
-	[11] "Privileged register trap",
-	[12] "Overflow trap",
-	[13] "Conditional trap",
-	[14] "FP Assist Exception trap",
-	[15] "Data TLB miss fault",
-	[16] "Non-access ITLB miss fault",
-	[17] "Non-access DTLB miss fault",
-	[18] "Data memory protection/unaligned access trap",
-	[19] "Data memory break trap",
-	[20] "TLB dirty bit trap",
-	[21] "Page reference trap",
-	[22] "Assist emulation trap",
-	[25] "Taken branch trap",
-	[26] "Data memory access rights trap",
-	[27] "Data memory protection ID trap",
-	[28] "Unaligned data reference trap",
+	[1] =	"High-priority machine check (HPMC)",
+	[2] =	"Power failure interrupt",
+	[3] =	"Recovery counter trap",
+	[5] =	"Low-priority machine check",
+	[6] =	"Instruction TLB miss fault",
+	[7] =	"Instruction access rights / protection trap",
+	[8] =	"Illegal instruction trap",
+	[9] =	"Break instruction trap",
+	[10] =	"Privileged operation trap",
+	[11] =	"Privileged register trap",
+	[12] =	"Overflow trap",
+	[13] =	"Conditional trap",
+	[14] =	"FP Assist Exception trap",
+	[15] =	"Data TLB miss fault",
+	[16] =	"Non-access ITLB miss fault",
+	[17] =	"Non-access DTLB miss fault",
+	[18] =	"Data memory protection/unaligned access trap",
+	[19] =	"Data memory break trap",
+	[20] =	"TLB dirty bit trap",
+	[21] =	"Page reference trap",
+	[22] =	"Assist emulation trap",
+	[25] =	"Taken branch trap",
+	[26] =	"Data memory access rights trap",
+	[27] =	"Data memory protection ID trap",
+	[28] =	"Unaligned data reference trap",
 };
 
 const char *trap_name(unsigned long code)

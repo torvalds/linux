@@ -30,7 +30,7 @@ void tcp_eat_skb(struct sock *sk, struct sk_buff *skb)
 }
 
 static int bpf_tcp_ingress(struct sock *sk, struct sk_psock *psock,
-			   struct sk_msg *msg, u32 apply_bytes, int flags)
+			   struct sk_msg *msg, u32 apply_bytes)
 {
 	bool apply = apply_bytes;
 	struct scatterlist *sge;
@@ -167,7 +167,7 @@ int tcp_bpf_sendmsg_redir(struct sock *sk, bool ingress,
 	if (unlikely(!psock))
 		return -EPIPE;
 
-	ret = ingress ? bpf_tcp_ingress(sk, psock, msg, bytes, flags) :
+	ret = ingress ? bpf_tcp_ingress(sk, psock, msg, bytes) :
 			tcp_bpf_push_locked(sk, msg, bytes, flags, false);
 	sk_psock_put(sk, psock);
 	return ret;
@@ -222,6 +222,7 @@ static int tcp_bpf_recvmsg_parser(struct sock *sk,
 				  int *addr_len)
 {
 	struct tcp_sock *tcp = tcp_sk(sk);
+	int peek = flags & MSG_PEEK;
 	u32 seq = tcp->copied_seq;
 	struct sk_psock *psock;
 	int copied = 0;
@@ -306,15 +307,22 @@ msg_bytes_ready:
 		}
 
 		data = tcp_msg_wait_data(sk, psock, timeo);
+		if (data < 0) {
+			copied = data;
+			goto unlock;
+		}
 		if (data && !sk_psock_queue_empty(psock))
 			goto msg_bytes_ready;
 		copied = -EAGAIN;
 	}
 out:
-	WRITE_ONCE(tcp->copied_seq, seq);
+	if (!peek)
+		WRITE_ONCE(tcp->copied_seq, seq);
 	tcp_rcv_space_adjust(sk);
 	if (copied > 0)
 		__tcp_cleanup_rbuf(sk, copied);
+
+unlock:
 	release_sock(sk);
 	sk_psock_put(sk, psock);
 	return copied;
@@ -349,6 +357,10 @@ msg_bytes_ready:
 
 		timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 		data = tcp_msg_wait_data(sk, psock, timeo);
+		if (data < 0) {
+			ret = data;
+			goto unlock;
+		}
 		if (data) {
 			if (!sk_psock_queue_empty(psock))
 				goto msg_bytes_ready;
@@ -359,6 +371,8 @@ msg_bytes_ready:
 		copied = -EAGAIN;
 	}
 	ret = copied;
+
+unlock:
 	release_sock(sk);
 	sk_psock_put(sk, psock);
 	return ret;
@@ -563,7 +577,7 @@ out_err:
 		err = sk_stream_error(sk, msg->msg_flags, err);
 	release_sock(sk);
 	sk_psock_put(sk, psock);
-	return copied ? copied : err;
+	return copied > 0 ? copied : err;
 }
 
 enum {

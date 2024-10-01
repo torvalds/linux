@@ -82,6 +82,18 @@ config MSI_BITMAP_SELFTEST
 	bool "Run self-tests of the MSI bitmap code"
 	depends on DEBUG_KERNEL
 
+config GUEST_STATE_BUFFER_TEST
+	def_tristate n
+	prompt "Enable Guest State Buffer unit tests"
+	depends on KUNIT
+	depends on KVM_BOOK3S_HV_POSSIBLE
+	default KUNIT_ALL_TESTS
+	help
+	  The Guest State Buffer is a data format specified in the PAPR.
+	  It is by hcalls to communicate the state of L2 guests between
+	  the L1 and L0 hypervisors. Enable unit tests for the library
+	  used to create and use guest state buffers.
+
 config PPC_IRQ_SOFT_MASK_DEBUG
 	bool "Include extra checks for powerpc irq soft masking"
 	depends on PPC64
@@ -147,6 +159,8 @@ config BDI_SWITCH
 config BOOTX_TEXT
 	bool "Support for early boot text console (BootX or OpenFirmware only)"
 	depends on PPC_BOOK3S
+	select FONT_SUN8x16
+	select FONT_SUPPORT
 	help
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires either BootX or Open Firmware.
@@ -230,14 +244,6 @@ config PPC_EARLY_DEBUG_44x
 	  inbuilt serial port.  If you enable this, ensure you set
 	  PPC_EARLY_DEBUG_44x_PHYSLOW below to suit your target board.
 
-config PPC_EARLY_DEBUG_40x
-	bool "Early serial debugging for IBM/AMCC 40x CPUs"
-	depends on 40x
-	help
-	  Select this to enable early debugging for IBM 40x chips via the
-	  inbuilt serial port. This works on chips with a 16550 compatible
-	  UART.
-
 config PPC_EARLY_DEBUG_CPM
 	bool "Early serial debugging for Freescale CPM-based serial ports"
 	depends on SERIAL_CPM=y
@@ -257,7 +263,6 @@ config PPC_EARLY_DEBUG_USBGECKO
 config PPC_EARLY_DEBUG_PS3GELIC
 	bool "Early debugging through the PS3 Ethernet port"
 	depends on PPC_PS3
-	select PS3GELIC_UDBG
 	help
 	  Select this to enable early debugging for the PlayStation3 via
 	  UDP broadcasts sent out through the Ethernet port.
@@ -343,11 +348,6 @@ config PPC_EARLY_DEBUG_44x_PHYSHIGH
 	depends on PPC_EARLY_DEBUG_44x
 	default "0x1"
 
-config PPC_EARLY_DEBUG_40x_PHYSADDR
-	hex "Early debug UART physical address"
-	depends on PPC_EARLY_DEBUG_40x
-	default "0xef600300"
-
 config PPC_EARLY_DEBUG_CPM_ADDR
 	hex "CPM UART early debug transmit descriptor address"
 	depends on PPC_EARLY_DEBUG_CPM
@@ -378,12 +378,6 @@ config FAIL_IOMMU
 	  be selectively enabled via the fail_iommu property.
 
 	  If you are unsure, say N.
-
-config PPC_FAST_ENDIAN_SWITCH
-	bool "Deprecated fast endian-switch syscall"
-	depends on DEBUG_KERNEL && PPC_BOOK3S_64
-	help
-	  If you're unsure what this is, say N.
 
 config KASAN_SHADOW_OFFSET
 	hex

@@ -13,7 +13,6 @@
  * "DVSEC" redundancies removed. When obvious, abbreviations may be used.
  */
 #define PCI_DVSEC_HEADER1_LENGTH_MASK	GENMASK(31, 20)
-#define PCI_DVSEC_VENDOR_ID_CXL		0x1E98
 
 /* CXL 2.0 8.1.3: PCIe DVSEC for CXL Device */
 #define CXL_DVSEC_PCIE_DEVICE					0
@@ -71,6 +70,15 @@ enum cxl_regloc_type {
 	CXL_REGLOC_RBI_TYPES
 };
 
+/*
+ * Table Access DOE, CDAT Read Entry Response
+ *
+ * Spec refs:
+ *
+ * CXL 3.1 8.1.11, Table 8-14: Read Entry Response
+ * CDAT Specification 1.03: 2 CDAT Data Structures
+ */
+
 struct cdat_header {
 	__le32 length;
 	u8 revision;
@@ -84,6 +92,34 @@ struct cdat_entry_header {
 	u8 reserved;
 	__le16 length;
 } __packed;
+
+/*
+ * The DOE CDAT read response contains a CDAT read entry (either the
+ * CDAT header or a structure).
+ */
+union cdat_data {
+	struct cdat_header header;
+	struct cdat_entry_header entry;
+} __packed;
+
+/* There is an additional CDAT response header of 4 bytes. */
+struct cdat_doe_rsp {
+	__le32 doe_header;
+	u8 data[];
+} __packed;
+
+/*
+ * CXL v3.0 6.2.3 Table 6-4
+ * The table indicates that if PCIe Flit Mode is set, then CXL is in 256B flits
+ * mode, otherwise it's 68B flits mode.
+ */
+static inline bool cxl_pci_flit_256(struct pci_dev *pdev)
+{
+	u16 lnksta2;
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKSTA2, &lnksta2);
+	return lnksta2 & PCI_EXP_LNKSTA2_FLIT;
+}
 
 int devm_cxl_port_enumerate_dports(struct cxl_port *port);
 struct cxl_dev_state;

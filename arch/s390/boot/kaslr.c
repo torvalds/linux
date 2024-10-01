@@ -32,7 +32,7 @@ struct prng_parm {
 static int check_prng(void)
 {
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG)) {
-		sclp_early_printk("KASLR disabled: CPU has no PRNG\n");
+		boot_printk("KASLR disabled: CPU has no PRNG\n");
 		return 0;
 	}
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
@@ -43,7 +43,7 @@ static int check_prng(void)
 		return PRNG_MODE_TDES;
 }
 
-static int get_random(unsigned long limit, unsigned long *value)
+int get_random(unsigned long limit, unsigned long *value)
 {
 	struct prng_parm prng = {
 		/* initial parameter block for tdes mode, copied from libica */

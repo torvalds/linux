@@ -7,9 +7,6 @@
 
 #define NVIF_CLASS_CONTROL                           /* if0001.h */ -0x00000001
 
-#define NVIF_CLASS_PERFMON                           /* if0002.h */ -0x00000002
-#define NVIF_CLASS_PERFDOM                           /* if0003.h */ -0x00000003
-
 #define NVIF_CLASS_SW_NV04                           /* if0004.h */ -0x00000004
 #define NVIF_CLASS_SW_NV10                           /* if0005.h */ -0x00000005
 #define NVIF_CLASS_SW_NV50                           /* if0005.h */ -0x00000006
@@ -104,6 +101,7 @@
 #define GV100_DISP                                    /* if0010.h */ 0x0000c370
 #define TU102_DISP                                    /* if0010.h */ 0x0000c570
 #define GA102_DISP                                    /* if0010.h */ 0x0000c670
+#define AD102_DISP                                    /* if0010.h */ 0x0000c770
 
 #define GV100_DISP_CAPS                                              0x0000c373
 
@@ -154,6 +152,7 @@
 #define GV100_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c37d
 #define TU102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c57d
 #define GA102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c67d
+#define AD102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c77d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* if0014.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* if0014.h */ 0x0000827e
@@ -192,7 +191,14 @@
 
 #define AMPERE_B                                      /* cl9097.h */ 0x0000c797
 
+#define ADA_A                                         /* cl9097.h */ 0x0000c997
+
 #define NV74_BSP                                                     0x000074b0
+
+#define NVC4B0_VIDEO_DECODER                                         0x0000c4b0
+#define NVC6B0_VIDEO_DECODER                                         0x0000c6b0
+#define NVC7B0_VIDEO_DECODER                                         0x0000c7b0
+#define NVC9B0_VIDEO_DECODER                                         0x0000c9b0
 
 #define GT212_MSVLD                                                  0x000085b1
 #define IGT21A_MSVLD                                                 0x000086b1
@@ -222,6 +228,10 @@
 #define AMPERE_DMA_COPY_A                                            0x0000c6b5
 #define AMPERE_DMA_COPY_B                                            0x0000c7b5
 
+#define NVC4B7_VIDEO_ENCODER                                         0x0000c4b7
+#define NVC7B7_VIDEO_ENCODER                                         0x0000c7b7
+#define NVC9B7_VIDEO_ENCODER                                         0x0000c9b7
+
 #define FERMI_DECOMPRESS                                             0x000090b8
 
 #define NV50_COMPUTE                                                 0x000050c0
@@ -237,6 +247,14 @@
 #define VOLTA_COMPUTE_A                                              0x0000c3c0
 #define TURING_COMPUTE_A                                             0x0000c5c0
 #define AMPERE_COMPUTE_B                                             0x0000c7c0
+#define ADA_COMPUTE_A                                                0x0000c9c0
 
 #define NV74_CIPHER                                                  0x000074c1
+
+#define NVC4D1_VIDEO_NVJPG                                           0x0000c4d1
+#define NVC9D1_VIDEO_NVJPG                                           0x0000c9d1
+
+#define NVC6FA_VIDEO_OFA                                             0x0000c6fa
+#define NVC7FA_VIDEO_OFA                                             0x0000c7fa
+#define NVC9FA_VIDEO_OFA                                             0x0000c9fa
 #endif

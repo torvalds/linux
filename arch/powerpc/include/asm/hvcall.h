@@ -100,6 +100,18 @@
 #define H_COP_HW	-74
 #define H_STATE		-75
 #define H_IN_USE	-77
+
+#define H_INVALID_ELEMENT_ID			-79
+#define H_INVALID_ELEMENT_SIZE			-80
+#define H_INVALID_ELEMENT_VALUE			-81
+#define H_INPUT_BUFFER_NOT_DEFINED		-82
+#define H_INPUT_BUFFER_TOO_SMALL		-83
+#define H_OUTPUT_BUFFER_NOT_DEFINED		-84
+#define H_OUTPUT_BUFFER_TOO_SMALL		-85
+#define H_PARTITION_PAGE_TABLE_NOT_DEFINED	-86
+#define H_GUEST_VCPU_STATE_NOT_HV_OWNED		-87
+
+
 #define H_UNSUPPORTED_FLAG_START	-256
 #define H_UNSUPPORTED_FLAG_END		-511
 #define H_MULTI_THREADS_ACTIVE	-9005
@@ -337,7 +349,16 @@
 #define H_GET_ENERGY_SCALE_INFO	0x450
 #define H_PKS_SIGNED_UPDATE	0x454
 #define H_WATCHDOG		0x45C
-#define MAX_HCALL_OPCODE	H_WATCHDOG
+#define H_GUEST_GET_CAPABILITIES 0x460
+#define H_GUEST_SET_CAPABILITIES 0x464
+#define H_GUEST_CREATE		0x470
+#define H_GUEST_CREATE_VCPU	0x474
+#define H_GUEST_GET_STATE	0x478
+#define H_GUEST_SET_STATE	0x47C
+#define H_GUEST_RUN_VCPU	0x480
+#define H_GUEST_COPY_MEMORY	0x484
+#define H_GUEST_DELETE		0x488
+#define MAX_HCALL_OPCODE	H_GUEST_DELETE
 
 /* Scope args for H_SCM_UNBIND_ALL */
 #define H_UNBIND_SCOPE_ALL (0x1)
@@ -467,6 +488,15 @@
 #define H_RPTI_PAGE_1G	0x08
 #define H_RPTI_PAGE_ALL (-1UL)
 
+/* Flags for H_GUEST_{S,G}_STATE */
+#define H_GUEST_FLAGS_WIDE     (1UL<<(63-0))
+
+/* Flag values used for H_{S,G}SET_GUEST_CAPABILITIES */
+#define H_GUEST_CAP_COPY_MEM	(1UL<<(63-0))
+#define H_GUEST_CAP_POWER9	(1UL<<(63-1))
+#define H_GUEST_CAP_POWER10	(1UL<<(63-2))
+#define H_GUEST_CAP_BITMAP2	(1UL<<(63-63))
+
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 
@@ -494,7 +524,7 @@ long plpar_hcall_norets_notrace(unsigned long opcode, ...);
  * Used for all but the craziest of phyp interfaces (see plpar_hcall9)
  */
 #define PLPAR_HCALL_BUFSIZE 4
-long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
+long plpar_hcall(unsigned long opcode, unsigned long retbuf[static PLPAR_HCALL_BUFSIZE], ...);
 
 /**
  * plpar_hcall_raw: - Make a hypervisor call without calculating hcall stats
@@ -508,7 +538,7 @@ long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
  * plpar_hcall, but plpar_hcall_raw works in real mode and does not
  * calculate hypervisor call statistics.
  */
-long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
+long plpar_hcall_raw(unsigned long opcode, unsigned long retbuf[static PLPAR_HCALL_BUFSIZE], ...);
 
 /**
  * plpar_hcall9: - Make a pseries hypervisor call with up to 9 return arguments
@@ -519,8 +549,8 @@ long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
  * PLPAR_HCALL9_BUFSIZE to size the return argument buffer.
  */
 #define PLPAR_HCALL9_BUFSIZE 9
-long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
-long plpar_hcall9_raw(unsigned long opcode, unsigned long *retbuf, ...);
+long plpar_hcall9(unsigned long opcode, unsigned long retbuf[static PLPAR_HCALL9_BUFSIZE], ...);
+long plpar_hcall9_raw(unsigned long opcode, unsigned long retbuf[static PLPAR_HCALL9_BUFSIZE], ...);
 
 /* pseries hcall tracing */
 extern struct static_key hcall_tracepoint_key;
@@ -540,7 +570,7 @@ struct hvcall_mpp_data {
 	unsigned long backing_mem;
 };
 
-int h_get_mpp(struct hvcall_mpp_data *);
+long h_get_mpp(struct hvcall_mpp_data *mpp_data);
 
 struct hvcall_mpp_x_data {
 	unsigned long coalesced_bytes;

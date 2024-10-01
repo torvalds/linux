@@ -111,15 +111,15 @@ INFO OPTIONS
 
 -t::
 --threads::
-	dump thread list in perf.data
+	dump only the thread list in perf.data
 
 -m::
 --map::
-	dump map of lock instances (address:name table)
+	dump only the map of lock instances (address:name table)
 
 
 CONTENTION OPTIONS
---------------
+------------------
 
 -k::
 --key=<value>::
@@ -207,6 +207,13 @@ CONTENTION OPTIONS
 --field-separator=<SEP>::
 	Show results using a CSV-style output to make it easy to import directly
 	into spreadsheets. Columns are separated by the string specified in SEP.
+
+--lock-cgroup::
+	Show lock contention stat by cgroup.  Requires --use-bpf.
+
+-G::
+--cgroup-filter=<value>::
+	Show lock contention only in the given cgroups (comma separated list).
 
 
 SEE ALSO

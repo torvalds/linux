@@ -22,6 +22,7 @@
 #define MLXCPLD_I2C_BUS_NUM		1
 #define MLXCPLD_I2C_DATA_REG_SZ		36
 #define MLXCPLD_I2C_DATA_SZ_BIT		BIT(5)
+#define MLXCPLD_I2C_DATA_EXT2_SZ_BIT	BIT(6)
 #define MLXCPLD_I2C_DATA_SZ_MASK	GENMASK(6, 5)
 #define MLXCPLD_I2C_SMBUS_BLK_BIT	BIT(7)
 #define MLXCPLD_I2C_MAX_ADDR_LEN	4
@@ -196,8 +197,8 @@ static int mlxcpld_i2c_check_status(struct mlxcpld_i2c_priv *priv, int *status)
 	if (val & MLXCPLD_LPCI2C_TRANS_END) {
 		if (val & MLXCPLD_LPCI2C_STATUS_NACK)
 			/*
-			 * The slave is unable to accept the data. No such
-			 * slave, command not understood, or unable to accept
+			 * The target is unable to accept the data. No such
+			 * target, command not understood, or unable to accept
 			 * any more data.
 			 */
 			*status = MLXCPLD_LPCI2C_NACK_IND;
@@ -279,7 +280,7 @@ static int mlxcpld_i2c_wait_for_free(struct mlxcpld_i2c_priv *priv)
 }
 
 /*
- * Wait for master transfer to complete.
+ * Wait for transfer to complete.
  * It puts current process to sleep until we get interrupt or timeout expires.
  * Returns the number of transferred or read bytes or error (<0).
  */
@@ -314,7 +315,7 @@ static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 		/*
 		 * Actual read data len will be always the same as
 		 * requested len. 0xff (line pull-up) will be returned
-		 * if slave has no data to return. Thus don't read
+		 * if target has no data to return. Thus don't read
 		 * MLXCPLD_LPCI2C_NUM_DAT_REG reg from CPLD.  Only in case of
 		 * SMBus block read transaction data len can be different,
 		 * check this case.
@@ -374,7 +375,7 @@ static void mlxcpld_i2c_xfer_msg(struct mlxcpld_i2c_priv *priv)
 	}
 
 	/*
-	 * Set target slave address with command for master transfer.
+	 * Set target address with command for transfer.
 	 * It should be latest executed function before CPLD transaction.
 	 */
 	cmd = (priv->xfer.msg[0].addr << 1) | priv->xfer.cmd;
@@ -448,8 +449,8 @@ static u32 mlxcpld_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm mlxcpld_i2c_algo = {
-	.master_xfer	= mlxcpld_i2c_xfer,
-	.functionality	= mlxcpld_i2c_func
+	.xfer = mlxcpld_i2c_xfer,
+	.functionality = mlxcpld_i2c_func
 };
 
 static const struct i2c_adapter_quirks mlxcpld_i2c_quirks = {
@@ -466,10 +467,17 @@ static const struct i2c_adapter_quirks mlxcpld_i2c_quirks_ext = {
 	.max_comb_1st_msg_len = 4,
 };
 
+static const struct i2c_adapter_quirks mlxcpld_i2c_quirks_ext2 = {
+	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
+	.max_read_len = (MLXCPLD_I2C_DATA_REG_SZ - 4) * 4,
+	.max_write_len = (MLXCPLD_I2C_DATA_REG_SZ - 4) * 4 + MLXCPLD_I2C_MAX_ADDR_LEN,
+	.max_comb_1st_msg_len = 4,
+};
+
 static struct i2c_adapter mlxcpld_i2c_adapter = {
 	.owner          = THIS_MODULE,
 	.name           = "i2c-mlxcpld",
-	.class          = I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class          = I2C_CLASS_HWMON,
 	.algo           = &mlxcpld_i2c_algo,
 	.quirks		= &mlxcpld_i2c_quirks,
 	.retries	= MLXCPLD_I2C_RETR_NUM,
@@ -547,6 +555,8 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 	/* Check support for extended transaction length */
 	if ((val & MLXCPLD_I2C_DATA_SZ_MASK) == MLXCPLD_I2C_DATA_SZ_BIT)
 		mlxcpld_i2c_adapter.quirks = &mlxcpld_i2c_quirks_ext;
+	else if ((val & MLXCPLD_I2C_DATA_SZ_MASK) == MLXCPLD_I2C_DATA_EXT2_SZ_BIT)
+		mlxcpld_i2c_adapter.quirks = &mlxcpld_i2c_quirks_ext2;
 	/* Check support for smbus block transaction */
 	if (val & MLXCPLD_I2C_SMBUS_BLK_BIT)
 		priv->smbus_block = true;

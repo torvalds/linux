@@ -5,7 +5,7 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 
@@ -20,8 +20,6 @@ struct visionox_rm69299 {
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
 	struct mipi_dsi_device *dsi;
-	bool prepared;
-	bool enabled;
 };
 
 static inline struct visionox_rm69299 *panel_to_ctx(struct drm_panel *panel)
@@ -80,7 +78,6 @@ static int visionox_rm69299_unprepare(struct drm_panel *panel)
 
 	ret = visionox_rm69299_power_off(ctx);
 
-	ctx->prepared = false;
 	return ret;
 }
 
@@ -88,9 +85,6 @@ static int visionox_rm69299_prepare(struct drm_panel *panel)
 {
 	struct visionox_rm69299 *ctx = panel_to_ctx(panel);
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	ret = visionox_rm69299_power_on(ctx);
 	if (ret < 0)
@@ -139,8 +133,6 @@ static int visionox_rm69299_prepare(struct drm_panel *panel)
 
 	/* Per DSI spec wait 120ms after sending set_display_on DCS command */
 	msleep(120);
-
-	ctx->prepared = true;
 
 	return 0;
 
@@ -205,7 +197,9 @@ static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
 	ctx->dsi = dsi;
 
 	ctx->supplies[0].supply = "vdda";
+	ctx->supplies[0].init_load_uA = 32000;
 	ctx->supplies[1].supply = "vdd3p3";
+	ctx->supplies[1].init_load_uA = 13200;
 
 	ret = devm_regulator_bulk_get(ctx->panel.dev, ARRAY_SIZE(ctx->supplies),
 				      ctx->supplies);
@@ -235,22 +229,8 @@ static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
 		goto err_dsi_attach;
 	}
 
-	ret = regulator_set_load(ctx->supplies[0].consumer, 32000);
-	if (ret) {
-		dev_err(dev, "regulator set load failed for vdda supply ret = %d\n", ret);
-		goto err_set_load;
-	}
-
-	ret = regulator_set_load(ctx->supplies[1].consumer, 13200);
-	if (ret) {
-		dev_err(dev, "regulator set load failed for vdd3p3 supply ret = %d\n", ret);
-		goto err_set_load;
-	}
-
 	return 0;
 
-err_set_load:
-	mipi_dsi_detach(dsi);
 err_dsi_attach:
 	drm_panel_remove(&ctx->panel);
 	return ret;
@@ -261,8 +241,6 @@ static void visionox_rm69299_remove(struct mipi_dsi_device *dsi)
 	struct visionox_rm69299 *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(ctx->dsi);
-	mipi_dsi_device_unregister(ctx->dsi);
-
 	drm_panel_remove(&ctx->panel);
 }
 

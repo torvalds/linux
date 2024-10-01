@@ -49,8 +49,6 @@ int register_adapter_interrupt(struct airq_struct *airq)
 			return -ENOMEM;
 		airq->flags |= AIRQ_PTR_ALLOCATED;
 	}
-	if (!airq->lsi_mask)
-		airq->lsi_mask = 0xff;
 	snprintf(dbf_txt, sizeof(dbf_txt), "rairq:%p", airq);
 	CIO_TRACE_EVENT(4, dbf_txt);
 	isc_register(airq->isc);
@@ -92,13 +90,12 @@ static irqreturn_t do_airq_interrupt(int irq, void *dummy)
 	struct airq_struct *airq;
 	struct hlist_head *head;
 
-	set_cpu_flag(CIF_NOHZ_DELAY);
 	tpi_info = &get_irq_regs()->tpi_info;
 	trace_s390_cio_adapter_int(tpi_info);
 	head = &airq_lists[tpi_info->isc];
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(airq, head, list)
-		if ((*airq->lsi_ptr & airq->lsi_mask) != 0)
+		if (*airq->lsi_ptr != 0)
 			airq->handler(airq, tpi_info);
 	rcu_read_unlock();
 

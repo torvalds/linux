@@ -86,16 +86,9 @@ static int imx8mm_icc_probe(struct platform_device *pdev)
 	return imx_icc_register(pdev, nodes, ARRAY_SIZE(nodes), NULL);
 }
 
-static int imx8mm_icc_remove(struct platform_device *pdev)
-{
-	imx_icc_unregister(pdev);
-
-	return 0;
-}
-
 static struct platform_driver imx8mm_icc_driver = {
 	.probe = imx8mm_icc_probe,
-	.remove = imx8mm_icc_remove,
+	.remove_new = imx_icc_unregister,
 	.driver = {
 		.name = "imx8mm-interconnect",
 	},
@@ -103,5 +96,6 @@ static struct platform_driver imx8mm_icc_driver = {
 
 module_platform_driver(imx8mm_icc_driver);
 MODULE_AUTHOR("Alexandre Bailon <abailon@baylibre.com>");
+MODULE_DESCRIPTION("Interconnect framework driver for i.MX8MM SoC");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:imx8mm-interconnect");

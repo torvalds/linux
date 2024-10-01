@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2014 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  */
 #ifndef __iwl_fw_api_offload_h__
 #define __iwl_fw_api_offload_h__
@@ -18,7 +18,9 @@ enum iwl_prot_offload_subcmd_ids {
 	WOWLAN_WAKE_PKT_NOTIFICATION = 0xFC,
 
 	/**
-	 * @WOWLAN_INFO_NOTIFICATION: Notification in &struct iwl_wowlan_info_notif
+	 * @WOWLAN_INFO_NOTIFICATION: Notification in
+	 * &struct iwl_wowlan_info_notif_v1, &struct iwl_wowlan_info_notif_v2,
+	 * or &struct iwl_wowlan_info_notif
 	 */
 	WOWLAN_INFO_NOTIFICATION = 0xFD,
 
@@ -58,7 +60,7 @@ struct iwl_stored_beacon_notif_common {
 } __packed;
 
 /**
- * struct iwl_stored_beacon_notif - Stored beacon notification
+ * struct iwl_stored_beacon_notif_v2 - Stored beacon notification
  *
  * @common: fields common for all versions
  * @data: beacon data, length in @byte_count

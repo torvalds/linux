@@ -207,7 +207,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return(pte);
 }
 
-static inline pte_t pte_mkwrite(pte_t pte)
+static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
 	if (unlikely(pte_get_bits(pte,  _PAGE_RW)))
 		return pte;
@@ -242,10 +242,38 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 	if(pte_present(*pteptr)) *pteptr = pte_mknewprot(*pteptr);
 }
 
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *pteptr, pte_t pteval)
+#define PFN_PTE_SHIFT		PAGE_SHIFT
+
+static inline void um_tlb_mark_sync(struct mm_struct *mm, unsigned long start,
+				    unsigned long end)
 {
-	set_pte(pteptr, pteval);
+	if (!mm->context.sync_tlb_range_to) {
+		mm->context.sync_tlb_range_from = start;
+		mm->context.sync_tlb_range_to = end;
+	} else {
+		if (start < mm->context.sync_tlb_range_from)
+			mm->context.sync_tlb_range_from = start;
+		if (end > mm->context.sync_tlb_range_to)
+			mm->context.sync_tlb_range_to = end;
+	}
+}
+
+#define set_ptes set_ptes
+static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
+			    pte_t *ptep, pte_t pte, int nr)
+{
+	/* Basically the default implementation */
+	size_t length = nr * PAGE_SIZE;
+
+	for (;;) {
+		set_pte(ptep, pte);
+		if (--nr == 0)
+			break;
+		ptep++;
+		pte = __pte(pte_val(pte) + (nr << PFN_PTE_SHIFT));
+	}
+
+	um_tlb_mark_sync(mm, addr, addr + length);
 }
 
 #define __HAVE_ARCH_PTE_SAME
@@ -290,6 +318,7 @@ struct mm_struct;
 extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 
 #define update_mmu_cache(vma,address,ptep) do {} while (0)
+#define update_mmu_cache_range(vmf, vma, address, ptep, nr) do {} while (0)
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
@@ -329,12 +358,5 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 	pte_clear_bits(pte, _PAGE_SWP_EXCLUSIVE);
 	return pte;
 }
-
-/* Clear a kernel PTE and flush it from the TLB */
-#define kpte_clear_flush(ptep, vaddr)		\
-do {						\
-	pte_clear(&init_mm, (vaddr), (ptep));	\
-	__flush_tlb_one((vaddr));		\
-} while (0)
 
 #endif

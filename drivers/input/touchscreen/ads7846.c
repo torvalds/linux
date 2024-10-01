@@ -138,6 +138,7 @@ struct ads7846 {
 	void			*filter_data;
 	int			(*get_pendown_state)(void);
 	struct gpio_desc	*gpio_pendown;
+	struct gpio_desc	*gpio_hsync;
 
 	void			(*wait_for_sync)(void);
 };
@@ -625,21 +626,14 @@ static ssize_t ads7846_disable_store(struct device *dev,
 
 static DEVICE_ATTR(disable, 0664, ads7846_disable_show, ads7846_disable_store);
 
-static struct attribute *ads784x_attributes[] = {
+static struct attribute *ads784x_attrs[] = {
 	&dev_attr_pen_down.attr,
 	&dev_attr_disable.attr,
 	NULL,
 };
-
-static const struct attribute_group ads784x_attr_group = {
-	.attrs = ads784x_attributes,
-};
+ATTRIBUTE_GROUPS(ads784x);
 
 /*--------------------------------------------------------------------------*/
-
-static void null_wait_for_sync(void)
-{
-}
 
 static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 {
@@ -793,6 +787,28 @@ static int ads7846_filter(struct ads7846 *ts)
 	return 0;
 }
 
+static void ads7846_wait_for_hsync(struct ads7846 *ts)
+{
+	if (ts->wait_for_sync) {
+		ts->wait_for_sync();
+		return;
+	}
+
+	if (!ts->gpio_hsync)
+		return;
+
+	/*
+	 * Wait for HSYNC to assert the line should be flagged
+	 * as active low so here we are waiting for it to assert
+	 */
+	while (!gpiod_get_value(ts->gpio_hsync))
+		cpu_relax();
+
+	/* Then we wait for it do de-assert */
+	while (gpiod_get_value(ts->gpio_hsync))
+		cpu_relax();
+}
+
 static void ads7846_read_state(struct ads7846 *ts)
 {
 	struct ads7846_packet *packet = ts->packet;
@@ -803,12 +819,12 @@ static void ads7846_read_state(struct ads7846 *ts)
 	packet->last_cmd_idx = 0;
 
 	while (true) {
-		ts->wait_for_sync();
+		ads7846_wait_for_hsync(ts);
 
 		m = &ts->msg[msg_idx];
 		error = spi_sync(ts->spi, m);
 		if (error) {
-			dev_err(&ts->spi->dev, "spi_sync --> %d\n", error);
+			dev_err_ratelimited(&ts->spi->dev, "spi_sync --> %d\n", error);
 			packet->ignore = true;
 			return;
 		}
@@ -1114,6 +1130,16 @@ static const struct of_device_id ads7846_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, ads7846_dt_ids);
 
+static const struct spi_device_id ads7846_spi_ids[] = {
+	{ "tsc2046", 7846 },
+	{ "ads7843", 7843 },
+	{ "ads7845", 7845 },
+	{ "ads7846", 7846 },
+	{ "ads7873", 7873 },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, ads7846_spi_ids);
+
 static const struct ads7846_platform_data *ads7846_get_props(struct device *dev)
 {
 	struct ads7846_platform_data *pdata;
@@ -1261,7 +1287,11 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->penirq_recheck_delay_usecs =
 				pdata->penirq_recheck_delay_usecs;
 
-	ts->wait_for_sync = pdata->wait_for_sync ? : null_wait_for_sync;
+	ts->wait_for_sync = pdata->wait_for_sync;
+
+	ts->gpio_hsync = devm_gpiod_get_optional(dev, "ti,hsync", GPIOD_IN);
+	if (IS_ERR(ts->gpio_hsync))
+		return PTR_ERR(ts->gpio_hsync);
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
 	snprintf(ts->name, sizeof(ts->name), "ADS%d Touchscreen", ts->model);
@@ -1357,10 +1387,6 @@ static int ads7846_probe(struct spi_device *spi)
 	else
 		(void) ads7846_read12_ser(dev, READ_12BIT_SER(vaux));
 
-	err = devm_device_add_group(dev, &ads784x_attr_group);
-	if (err)
-		return err;
-
 	err = input_register_device(input_dev);
 	if (err)
 		return err;
@@ -1386,16 +1412,17 @@ static void ads7846_remove(struct spi_device *spi)
 
 static struct spi_driver ads7846_driver = {
 	.driver = {
-		.name	= "ads7846",
-		.pm	= pm_sleep_ptr(&ads7846_pm),
-		.of_match_table = ads7846_dt_ids,
+		.name		= "ads7846",
+		.dev_groups	= ads784x_groups,
+		.pm		= pm_sleep_ptr(&ads7846_pm),
+		.of_match_table	= ads7846_dt_ids,
 	},
 	.probe		= ads7846_probe,
 	.remove		= ads7846_remove,
+	.id_table	= ads7846_spi_ids,
 };
 
 module_spi_driver(ads7846_driver);
 
 MODULE_DESCRIPTION("ADS7846 TouchScreen Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("spi:ads7846");

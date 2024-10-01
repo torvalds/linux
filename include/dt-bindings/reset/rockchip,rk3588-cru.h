@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 or MIT) */
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 /*
  * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
  * Copyright (c) 2022 Collabora Ltd.
@@ -750,5 +750,7 @@
 #define SRST_SDMMC			657
 #define SRST_P_TRNG_CHK			658
 #define SRST_TRNG_S			659
+
+#define SRST_A_HDMIRX_BIU		660
 
 #endif

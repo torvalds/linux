@@ -122,4 +122,5 @@ static void __exit ip_vs_rr_cleanup(void)
 
 module_init(ip_vs_rr_init);
 module_exit(ip_vs_rr_cleanup);
+MODULE_DESCRIPTION("ipvs round-robin scheduler");
 MODULE_LICENSE("GPL");

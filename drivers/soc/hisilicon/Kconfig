@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "Hisilicon SoC drivers"
+	depends on ARCH_HISI || COMPILE_TEST
+
+config KUNPENG_HCCS
+	tristate "HCCS driver on Kunpeng SoC"
+	depends on ACPI
+	depends on PCC
+	depends on ARM64 || COMPILE_TEST
+	help
+	  The Huawei Cache Coherence System (HCCS) is a multi-chip
+	  interconnection bus protocol.
+	  The performance of application may be affected if some HCCS
+	  ports are not in full lane status, have a large number of CRC
+	  errors and so on.
+
+	  Say M here if you want to include support for querying the
+	  health status and port information of HCCS on Kunpeng SoC.
+
+endmenu

@@ -8,9 +8,8 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -1035,7 +1034,7 @@ static struct platform_driver tegra186_asrc_driver = {
 		.pm = &tegra186_asrc_pm_ops,
 	},
 	.probe = tegra186_asrc_platform_probe,
-	.remove_new = tegra186_asrc_platform_remove,
+	.remove = tegra186_asrc_platform_remove,
 };
 module_platform_driver(tegra186_asrc_driver)
 

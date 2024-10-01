@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 

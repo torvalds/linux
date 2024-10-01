@@ -57,7 +57,6 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = debugfs_attr_read,					\
 	.write	 = (__is_signed) ? debugfs_attr_write_signed : debugfs_attr_write,	\
-	.llseek  = no_llseek,						\
 }
 
 #define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt)		\
@@ -170,6 +169,25 @@ ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
 
 ssize_t debugfs_read_file_str(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos);
+
+/**
+ * struct debugfs_cancellation - cancellation data
+ * @list: internal, for keeping track
+ * @cancel: callback to call
+ * @cancel_data: extra data for the callback to call
+ */
+struct debugfs_cancellation {
+	struct list_head list;
+	void (*cancel)(struct dentry *, void *);
+	void *cancel_data;
+};
+
+void __acquires(cancellation)
+debugfs_enter_cancellation(struct file *file,
+			   struct debugfs_cancellation *cancellation);
+void __releases(cancellation)
+debugfs_leave_cancellation(struct file *file,
+			   struct debugfs_cancellation *cancellation);
 
 #else
 

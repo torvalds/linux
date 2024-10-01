@@ -11,6 +11,7 @@
 
 #include <linux/pci.h>
 #include <linux/export.h>
+#include <linux/node.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
@@ -21,8 +22,21 @@
 struct pci_controller *init_phb_dynamic(struct device_node *dn)
 {
 	struct pci_controller *phb;
+	int nid;
 
 	pr_debug("PCI: Initializing new hotplug PHB %pOF\n", dn);
+
+	nid = of_node_to_nid(dn);
+	if (likely((nid) >= 0)) {
+		if (!node_online(nid)) {
+			if (__register_one_node(nid)) {
+				pr_err("PCI: Failed to register node %d\n", nid);
+			} else {
+				update_numa_distance(dn);
+				node_set_online(nid);
+			}
+		}
+	}
 
 	phb = pcibios_alloc_controller(dn);
 	if (!phb)
@@ -34,6 +48,8 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 	pci_devs_phb_init_dynamic(phb);
 
 	pseries_msi_allocate_domains(phb);
+
+	ppc_iommu_register_device(phb);
 
 	/* Create EEH devices for the PHB */
 	eeh_phb_pe_create(phb);
@@ -75,6 +91,8 @@ int remove_phb_dynamic(struct pci_controller *phb)
 			return 1;
 		}
 	}
+
+	ppc_iommu_unregister_device(phb);
 
 	pseries_msi_free_domains(phb);
 

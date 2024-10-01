@@ -318,7 +318,7 @@ static int z2ram_register_disk(int minor)
 	struct gendisk *disk;
 	int err;
 
-	disk = blk_mq_alloc_disk(&tag_set, NULL);
+	disk = blk_mq_alloc_disk(&tag_set, NULL, NULL);
 	if (IS_ERR(disk))
 		return PTR_ERR(disk);
 
@@ -409,4 +409,5 @@ static void __exit z2_exit(void)
 
 module_init(z2_init);
 module_exit(z2_exit);
+MODULE_DESCRIPTION("Amiga Zorro II ramdisk driver");
 MODULE_LICENSE("GPL");

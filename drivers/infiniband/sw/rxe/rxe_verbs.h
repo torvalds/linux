@@ -113,7 +113,7 @@ struct rxe_req_info {
 	int			need_retry;
 	int			wait_for_rnr_timer;
 	int			noack_pkts;
-	struct rxe_task		task;
+	int			again;
 };
 
 struct rxe_comp_info {
@@ -124,7 +124,6 @@ struct rxe_comp_info {
 	int			started_retry;
 	u32			retry_cnt;
 	u32			rnr_retry;
-	struct rxe_task		task;
 };
 
 enum rdatm_res_state {
@@ -196,7 +195,6 @@ struct rxe_resp_info {
 	unsigned int		res_head;
 	unsigned int		res_tail;
 	struct resp_res		*res;
-	struct rxe_task		task;
 };
 
 struct rxe_qp {
@@ -228,6 +226,9 @@ struct rxe_qp {
 
 	struct sk_buff_head	req_pkts;
 	struct sk_buff_head	resp_pkts;
+
+	struct rxe_task		send_task;
+	struct rxe_task		recv_task;
 
 	struct rxe_req_info	req;
 	struct rxe_comp_info	comp;

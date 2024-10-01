@@ -9,8 +9,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/platform_data/dma-mv_xor.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <linux/platform_device.h>
@@ -84,7 +82,7 @@ static void __init dove_clk_init(void)
 {
 	struct clk *usb0, *usb1, *sata, *pex0, *pex1, *sdio0, *sdio1;
 	struct clk *nand, *camera, *i2s0, *i2s1, *crypto, *ac97, *pdma;
-	struct clk *xor0, *xor1, *ge, *gephy;
+	struct clk *xor0, *xor1, *ge;
 
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, 0, dove_tclk);
 
@@ -104,7 +102,7 @@ static void __init dove_clk_init(void)
 	pdma = dove_register_gate("pdma", "tclk", CLOCK_GATING_BIT_PDMA);
 	xor0 = dove_register_gate("xor0", "tclk", CLOCK_GATING_BIT_XOR0);
 	xor1 = dove_register_gate("xor1", "tclk", CLOCK_GATING_BIT_XOR1);
-	gephy = dove_register_gate("gephy", "tclk", CLOCK_GATING_BIT_GIGA_PHY);
+	dove_register_gate("gephy", "tclk", CLOCK_GATING_BIT_GIGA_PHY);
 	ge = dove_register_gate("ge", "gephy", CLOCK_GATING_BIT_GBE);
 
 	orion_clkdev_add(NULL, "orion_spi.0", tclk);

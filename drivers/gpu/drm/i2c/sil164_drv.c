@@ -420,7 +420,7 @@ MODULE_DEVICE_TABLE(i2c, sil164_ids);
 
 static struct drm_i2c_encoder_driver sil164_driver = {
 	.i2c_driver = {
-		.probe_new = sil164_probe,
+		.probe = sil164_probe,
 		.driver = {
 			.name = "sil164",
 		},

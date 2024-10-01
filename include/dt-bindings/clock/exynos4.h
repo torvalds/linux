@@ -239,9 +239,6 @@
 #define CLK_DIV_GDR		460
 #define CLK_DIV_CORE2		461
 
-/* must be greater than maximal clock id */
-#define CLK_NR_CLKS		462
-
 /* Exynos4x12 ISP clocks */
 #define CLK_ISP_FIMC_ISP		 1
 #define CLK_ISP_FIMC_DRC		 2
@@ -274,7 +271,5 @@
 #define CLK_ISP_DIV_ISP1		28
 #define CLK_ISP_DIV_MCUISP0		29
 #define CLK_ISP_DIV_MCUISP1		30
-
-#define CLK_NR_ISP_CLKS			31
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_4_H */

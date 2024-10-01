@@ -508,7 +508,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 	return rc;
 }
 
-static int mac53c94_remove(struct macio_dev *mdev)
+static void mac53c94_remove(struct macio_dev *mdev)
 {
 	struct fsc_state *fp = (struct fsc_state *)macio_get_drvdata(mdev);
 	struct Scsi_Host *host = fp->host;
@@ -526,10 +526,7 @@ static int mac53c94_remove(struct macio_dev *mdev)
 	scsi_host_put(host);
 
 	macio_release_resources(mdev);
-
-	return 0;
 }
-
 
 static struct of_device_id mac53c94_match[] = 
 {

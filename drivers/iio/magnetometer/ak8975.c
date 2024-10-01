@@ -78,6 +78,7 @@
  */
 #define AK09912_REG_WIA1		0x00
 #define AK09912_REG_WIA2		0x01
+#define AK09918_DEVICE_ID		0x0C
 #define AK09916_DEVICE_ID		0x09
 #define AK09912_DEVICE_ID		0x04
 #define AK09911_DEVICE_ID		0x05
@@ -204,12 +205,12 @@ static long ak09912_raw_to_gauss(u16 data)
 
 /* Compatible Asahi Kasei Compass parts */
 enum asahi_compass_chipset {
-	AKXXXX		= 0,
 	AK8975,
 	AK8963,
 	AK09911,
 	AK09912,
 	AK09916,
+	AK09918,
 };
 
 enum ak_ctrl_reg_addr {
@@ -248,7 +249,7 @@ struct ak_def {
 };
 
 static const struct ak_def ak_def_array[] = {
-	{
+	[AK8975] = {
 		.type = AK8975,
 		.raw_to_gauss = ak8975_raw_to_gauss,
 		.range = 4096,
@@ -273,7 +274,7 @@ static const struct ak_def ak_def_array[] = {
 			AK8975_REG_HYL,
 			AK8975_REG_HZL},
 	},
-	{
+	[AK8963] = {
 		.type = AK8963,
 		.raw_to_gauss = ak8963_09911_raw_to_gauss,
 		.range = 8190,
@@ -298,7 +299,7 @@ static const struct ak_def ak_def_array[] = {
 			AK8975_REG_HYL,
 			AK8975_REG_HZL},
 	},
-	{
+	[AK09911] = {
 		.type = AK09911,
 		.raw_to_gauss = ak8963_09911_raw_to_gauss,
 		.range = 8192,
@@ -323,7 +324,7 @@ static const struct ak_def ak_def_array[] = {
 			AK09912_REG_HYL,
 			AK09912_REG_HZL},
 	},
-	{
+	[AK09912] = {
 		.type = AK09912,
 		.raw_to_gauss = ak09912_raw_to_gauss,
 		.range = 32752,
@@ -348,8 +349,36 @@ static const struct ak_def ak_def_array[] = {
 			AK09912_REG_HYL,
 			AK09912_REG_HZL},
 	},
-	{
+	[AK09916] = {
 		.type = AK09916,
+		.raw_to_gauss = ak09912_raw_to_gauss,
+		.range = 32752,
+		.ctrl_regs = {
+			AK09912_REG_ST1,
+			AK09912_REG_ST2,
+			AK09912_REG_CNTL2,
+			AK09912_REG_ASAX,
+			AK09912_MAX_REGS},
+		.ctrl_masks = {
+			AK09912_REG_ST1_DRDY_MASK,
+			AK09912_REG_ST2_HOFL_MASK,
+			0,
+			AK09912_REG_CNTL2_MODE_MASK},
+		.ctrl_modes = {
+			AK09912_REG_CNTL_MODE_POWER_DOWN,
+			AK09912_REG_CNTL_MODE_ONCE,
+			AK09912_REG_CNTL_MODE_SELF_TEST,
+			AK09912_REG_CNTL_MODE_FUSE_ROM},
+		.data_regs = {
+			AK09912_REG_HXL,
+			AK09912_REG_HYL,
+			AK09912_REG_HZL},
+	},
+	[AK09918] = {
+		/* ak09918 is register compatible with ak09912 this is for avoid
+		 * unknown id messages.
+		 */
+		.type = AK09918,
 		.raw_to_gauss = ak09912_raw_to_gauss,
 		.range = 32752,
 		.ctrl_regs = {
@@ -453,6 +482,7 @@ static int ak8975_who_i_am(struct i2c_client *client,
 	/*
 	 * Signature for each device:
 	 * Device   |  WIA1      |  WIA2
+	 * AK09918  |  DEVICE_ID_|  AK09918_DEVICE_ID
 	 * AK09916  |  DEVICE_ID_|  AK09916_DEVICE_ID
 	 * AK09912  |  DEVICE_ID |  AK09912_DEVICE_ID
 	 * AK09911  |  DEVICE_ID |  AK09911_DEVICE_ID
@@ -485,10 +515,18 @@ static int ak8975_who_i_am(struct i2c_client *client,
 		if (wia_val[1] == AK09916_DEVICE_ID)
 			return 0;
 		break;
-	default:
-		dev_err(&client->dev, "Type %d unknown\n", type);
+	case AK09918:
+		if (wia_val[1] == AK09918_DEVICE_ID)
+			return 0;
+		break;
 	}
-	return -ENODEV;
+
+	dev_info(&client->dev, "Device ID %x is unknown.\n", wia_val[1]);
+	/*
+	 * Let driver to probe on unknown id for support more register
+	 * compatible variants.
+	 */
+	return 0;
 }
 
 /*
@@ -693,22 +731,8 @@ static int ak8975_start_read_axis(struct ak8975_data *data,
 	if (ret < 0)
 		return ret;
 
-	/* This will be executed only for non-interrupt based waiting case */
-	if (ret & data->def->ctrl_masks[ST1_DRDY]) {
-		ret = i2c_smbus_read_byte_data(client,
-					       data->def->ctrl_regs[ST2]);
-		if (ret < 0) {
-			dev_err(&client->dev, "Error in reading ST2\n");
-			return ret;
-		}
-		if (ret & (data->def->ctrl_masks[ST2_DERR] |
-			   data->def->ctrl_masks[ST2_HOFL])) {
-			dev_err(&client->dev, "ST2 status error 0x%x\n", ret);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
+	/* Return with zero if the data is ready. */
+	return !data->def->ctrl_regs[ST1_DRDY];
 }
 
 /* Retrieve raw flux value for one of the x, y, or z axis.  */
@@ -734,6 +758,20 @@ static int ak8975_read_axis(struct iio_dev *indio_dev, int index, int *val)
 			sizeof(rval), (u8*)&rval);
 	if (ret < 0)
 		goto exit;
+
+	/* Read out ST2 for release lock on measurment data. */
+	ret = i2c_smbus_read_byte_data(client, data->def->ctrl_regs[ST2]);
+	if (ret < 0) {
+		dev_err(&client->dev, "Error in reading ST2\n");
+		goto exit;
+	}
+
+	if (ret & (data->def->ctrl_masks[ST2_DERR] |
+		   data->def->ctrl_masks[ST2_HOFL])) {
+		dev_err(&client->dev, "ST2 status error 0x%x\n", ret);
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	mutex_unlock(&data->lock);
 
@@ -812,18 +850,6 @@ static const struct iio_info ak8975_info = {
 	.read_raw = &ak8975_read_raw,
 };
 
-static const struct acpi_device_id ak_acpi_match[] = {
-	{"AK8975", AK8975},
-	{"AK8963", AK8963},
-	{"INVN6500", AK8963},
-	{"AK009911", AK09911},
-	{"AK09911", AK09911},
-	{"AKM9911", AK09911},
-	{"AK09912", AK09912},
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
-
 static void ak8975_fill_buffer(struct iio_dev *indio_dev)
 {
 	struct ak8975_data *data = iio_priv(indio_dev);
@@ -883,10 +909,7 @@ static int ak8975_probe(struct i2c_client *client)
 	struct iio_dev *indio_dev;
 	struct gpio_desc *eoc_gpiod;
 	struct gpio_desc *reset_gpiod;
-	const void *match;
-	unsigned int i;
 	int err;
-	enum asahi_compass_chipset chipset;
 	const char *name = NULL;
 
 	/*
@@ -928,27 +951,15 @@ static int ak8975_probe(struct i2c_client *client)
 		return err;
 
 	/* id will be NULL when enumerated via ACPI */
-	match = device_get_match_data(&client->dev);
-	if (match) {
-		chipset = (uintptr_t)match;
-		name = dev_name(&client->dev);
-	} else if (id) {
-		chipset = (enum asahi_compass_chipset)(id->driver_data);
-		name = id->name;
-	} else
-		return -ENOSYS;
-
-	for (i = 0; i < ARRAY_SIZE(ak_def_array); i++)
-		if (ak_def_array[i].type == chipset)
-			break;
-
-	if (i == ARRAY_SIZE(ak_def_array)) {
-		dev_err(&client->dev, "AKM device type unsupported: %d\n",
-			chipset);
+	data->def = i2c_get_match_data(client);
+	if (!data->def)
 		return -ENODEV;
-	}
 
-	data->def = &ak_def_array[i];
+	/* If enumerated via firmware node, fix the ABI */
+	if (dev_fwnode(&client->dev))
+		name = dev_name(&client->dev);
+	else
+		name = id->name;
 
 	/* Fetch the regulators */
 	data->vdd = devm_regulator_get(&client->dev, "vdd");
@@ -1076,29 +1087,41 @@ static int ak8975_runtime_resume(struct device *dev)
 static DEFINE_RUNTIME_DEV_PM_OPS(ak8975_dev_pm_ops, ak8975_runtime_suspend,
 				 ak8975_runtime_resume, NULL);
 
+static const struct acpi_device_id ak_acpi_match[] = {
+	{"AK8963", (kernel_ulong_t)&ak_def_array[AK8963] },
+	{"AK8975", (kernel_ulong_t)&ak_def_array[AK8975] },
+	{"AK009911", (kernel_ulong_t)&ak_def_array[AK09911] },
+	{"AK09911", (kernel_ulong_t)&ak_def_array[AK09911] },
+	{"AK09912", (kernel_ulong_t)&ak_def_array[AK09912] },
+	{"AKM9911", (kernel_ulong_t)&ak_def_array[AK09911] },
+	{"INVN6500", (kernel_ulong_t)&ak_def_array[AK8963] },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
+
 static const struct i2c_device_id ak8975_id[] = {
-	{"ak8975", AK8975},
-	{"ak8963", AK8963},
-	{"AK8963", AK8963},
-	{"ak09911", AK09911},
-	{"ak09912", AK09912},
-	{"ak09916", AK09916},
+	{"AK8963", (kernel_ulong_t)&ak_def_array[AK8963] },
+	{"ak8963", (kernel_ulong_t)&ak_def_array[AK8963] },
+	{"ak8975", (kernel_ulong_t)&ak_def_array[AK8975] },
+	{"ak09911", (kernel_ulong_t)&ak_def_array[AK09911] },
+	{"ak09912", (kernel_ulong_t)&ak_def_array[AK09912] },
+	{"ak09916", (kernel_ulong_t)&ak_def_array[AK09916] },
+	{"ak09918", (kernel_ulong_t)&ak_def_array[AK09918] },
 	{}
 };
-
 MODULE_DEVICE_TABLE(i2c, ak8975_id);
 
 static const struct of_device_id ak8975_of_match[] = {
-	{ .compatible = "asahi-kasei,ak8975", },
-	{ .compatible = "ak8975", },
-	{ .compatible = "asahi-kasei,ak8963", },
-	{ .compatible = "ak8963", },
-	{ .compatible = "asahi-kasei,ak09911", },
-	{ .compatible = "ak09911", },
-	{ .compatible = "asahi-kasei,ak09912", },
-	{ .compatible = "ak09912", },
-	{ .compatible = "asahi-kasei,ak09916", },
-	{ .compatible = "ak09916", },
+	{ .compatible = "asahi-kasei,ak8975", .data = &ak_def_array[AK8975] },
+	{ .compatible = "ak8975", .data = &ak_def_array[AK8975] },
+	{ .compatible = "asahi-kasei,ak8963", .data = &ak_def_array[AK8963] },
+	{ .compatible = "ak8963", .data = &ak_def_array[AK8963] },
+	{ .compatible = "asahi-kasei,ak09911", .data = &ak_def_array[AK09911] },
+	{ .compatible = "ak09911", .data = &ak_def_array[AK09911] },
+	{ .compatible = "asahi-kasei,ak09912", .data = &ak_def_array[AK09912] },
+	{ .compatible = "ak09912", .data = &ak_def_array[AK09912] },
+	{ .compatible = "asahi-kasei,ak09916", .data = &ak_def_array[AK09916] },
+	{ .compatible = "asahi-kasei,ak09918", .data = &ak_def_array[AK09918] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ak8975_of_match);

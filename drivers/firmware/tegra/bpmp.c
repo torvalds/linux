@@ -3,13 +3,13 @@
  * Copyright (c) 2016, NVIDIA CORPORATION.  All rights reserved.
  */
 
+#include <linux/cleanup.h>
 #include <linux/clk/tegra.h>
 #include <linux/genalloc.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/semaphore.h>
@@ -25,12 +25,6 @@
 #define MSG_RING	BIT(1)
 #define TAG_SZ		32
 
-static inline struct tegra_bpmp *
-mbox_client_to_bpmp(struct mbox_client *client)
-{
-	return container_of(client, struct tegra_bpmp, mbox.client);
-}
-
 static inline const struct tegra_bpmp_ops *
 channel_to_ops(struct tegra_bpmp_channel *channel)
 {
@@ -41,29 +35,24 @@ channel_to_ops(struct tegra_bpmp_channel *channel)
 
 struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 {
+	struct device_node *np __free(device_node);
 	struct platform_device *pdev;
 	struct tegra_bpmp *bpmp;
-	struct device_node *np;
 
 	np = of_parse_phandle(dev->of_node, "nvidia,bpmp", 0);
 	if (!np)
 		return ERR_PTR(-ENOENT);
 
 	pdev = of_find_device_by_node(np);
-	if (!pdev) {
-		bpmp = ERR_PTR(-ENODEV);
-		goto put;
-	}
+	if (!pdev)
+		return ERR_PTR(-ENODEV);
 
 	bpmp = platform_get_drvdata(pdev);
 	if (!bpmp) {
-		bpmp = ERR_PTR(-EPROBE_DEFER);
 		put_device(&pdev->dev);
-		goto put;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-put:
-	of_node_put(np);
 	return bpmp;
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_get);
@@ -314,6 +303,8 @@ static ssize_t tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
 	return __tegra_bpmp_channel_write(channel, mrq, flags, data, size);
 }
 
+static int __maybe_unused tegra_bpmp_resume(struct device *dev);
+
 int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 			       struct tegra_bpmp_message *msg)
 {
@@ -325,6 +316,14 @@ int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 
 	if (!tegra_bpmp_message_valid(msg))
 		return -EINVAL;
+
+	if (bpmp->suspended) {
+		/* Reset BPMP IPC channels during resume based on flags passed */
+		if (msg->flags & TEGRA_BPMP_MESSAGE_RESET)
+			tegra_bpmp_resume(bpmp->dev);
+		else
+			return -EAGAIN;
+	}
 
 	channel = bpmp->tx_channel;
 
@@ -364,6 +363,14 @@ int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 
 	if (!tegra_bpmp_message_valid(msg))
 		return -EINVAL;
+
+	if (bpmp->suspended) {
+		/* Reset BPMP IPC channels during resume based on flags passed */
+		if (msg->flags & TEGRA_BPMP_MESSAGE_RESET)
+			tegra_bpmp_resume(bpmp->dev);
+		else
+			return -EAGAIN;
+	}
 
 	channel = tegra_bpmp_write_threaded(bpmp, msg->mrq, msg->tx.data,
 					    msg->tx.size);
@@ -797,9 +804,20 @@ deinit:
 	return err;
 }
 
+static int __maybe_unused tegra_bpmp_suspend(struct device *dev)
+{
+	struct tegra_bpmp *bpmp = dev_get_drvdata(dev);
+
+	bpmp->suspended = true;
+
+	return 0;
+}
+
 static int __maybe_unused tegra_bpmp_resume(struct device *dev)
 {
 	struct tegra_bpmp *bpmp = dev_get_drvdata(dev);
+
+	bpmp->suspended = false;
 
 	if (bpmp->soc->ops->resume)
 		return bpmp->soc->ops->resume(bpmp);
@@ -808,6 +826,7 @@ static int __maybe_unused tegra_bpmp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_bpmp_pm_ops = {
+	.suspend_noirq = tegra_bpmp_suspend,
 	.resume_noirq = tegra_bpmp_resume,
 };
 

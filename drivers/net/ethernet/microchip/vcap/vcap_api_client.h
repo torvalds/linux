@@ -200,6 +200,8 @@ int vcap_rule_add_action_bit(struct vcap_rule *rule,
 			     enum vcap_action_field action, enum vcap_bit val);
 int vcap_rule_add_action_u32(struct vcap_rule *rule,
 			     enum vcap_action_field action, u32 value);
+int vcap_rule_add_action_u72(struct vcap_rule *rule, enum vcap_action_field action,
+			     struct vcap_u72_action *fieldval);
 
 /* Get number of rules in a vcap instance lookup chain id range */
 int vcap_admin_rule_count(struct vcap_admin *admin, int cid);
@@ -226,9 +228,6 @@ int vcap_chain_offset(struct vcap_control *vctrl, int from_cid, int to_cid);
 bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid);
 /* Is this chain id the last lookup of all VCAPs */
 bool vcap_is_last_chain(struct vcap_control *vctrl, int cid, bool ingress);
-/* Provide all rules via a callback interface */
-int vcap_rule_iter(struct vcap_control *vctrl,
-		   int (*callback)(void *, struct vcap_rule *), void *arg);
 /* Match a list of keys against the keysets available in a vcap type */
 bool vcap_rule_find_keysets(struct vcap_rule *rule,
 			    struct vcap_keyset_list *matches);
@@ -239,7 +238,7 @@ const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
 /* Copy to host byte order */
 void vcap_netbytes_copy(u8 *dst, u8 *src, int count);
 
-/* Convert validation error code into tc extact error message */
+/* Convert validation error code into tc extack error message */
 void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule);
 
 /* Cleanup a VCAP instance */

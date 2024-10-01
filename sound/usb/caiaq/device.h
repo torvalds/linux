@@ -53,7 +53,7 @@ struct caiaq_device_spec {
 	unsigned char num_midi_out;
 	unsigned char num_midi_in;
 	unsigned char data_alignment;
-} __attribute__ ((packed));
+} __packed;
 
 struct snd_usb_caiaq_cb_info;
 

@@ -73,15 +73,6 @@ extern void __update_cache(pte_t pte);
 		mb();				\
 	} while(0)
 
-#define set_pte_at(mm, addr, pteptr, pteval)	\
-	do {					\
-		if (pte_present(pteval) &&	\
-		    pte_user(pteval))		\
-			__update_cache(pteval);	\
-		*(pteptr) = (pteval);		\
-		purge_tlb_entries(mm, addr);	\
-	} while (0)
-
 #endif /* !__ASSEMBLY__ */
 
 #define pte_ERROR(e) \
@@ -285,7 +276,7 @@ extern unsigned long *empty_zero_page;
 #define pte_none(x)     (pte_val(x) == 0)
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_user(x)	(pte_val(x) & _PAGE_USER)
-#define pte_clear(mm, addr, xp)  set_pte_at(mm, addr, xp, __pte(0))
+#define pte_clear(mm, addr, xp)  set_pte(xp, __pte(0))
 
 #define pmd_flag(x)	(pmd_val(x) & PxD_FLAG_MASK)
 #define pmd_address(x)	((unsigned long)(pmd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
@@ -331,7 +322,7 @@ static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~_PAGE_ACCESSED; retu
 static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~_PAGE_WRITE; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return pte; }
+static inline pte_t pte_mkwrite_novma(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte)	{ pte_val(pte) |= _PAGE_SPECIAL; return pte; }
 
 /*
@@ -391,11 +382,29 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 
 extern void paging_init (void);
 
+static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
+		pte_t *ptep, pte_t pte, unsigned int nr)
+{
+	if (pte_present(pte) && pte_user(pte))
+		__update_cache(pte);
+	for (;;) {
+		*ptep = pte;
+		purge_tlb_entries(mm, addr);
+		if (--nr == 0)
+			break;
+		ptep++;
+		pte_val(pte) += 1 << PFN_PTE_SHIFT;
+		addr += PAGE_SIZE;
+	}
+}
+#define set_ptes set_ptes
+
 /* Used for deferring calls to flush_dcache_page() */
 
 #define PG_dcache_dirty         PG_arch_1
 
-#define update_mmu_cache(vms,addr,ptep) __update_cache(*ptep)
+#define update_mmu_cache_range(vmf, vma, addr, ptep, nr) __update_cache(*ptep)
+#define update_mmu_cache(vma, addr, ptep) __update_cache(*ptep)
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
@@ -439,35 +448,31 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 	return pte;
 }
 
+static inline pte_t ptep_get(pte_t *ptep)
+{
+	return READ_ONCE(*ptep);
+}
+#define ptep_get ptep_get
+
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	pte_t pte;
 
-	if (!pte_young(*ptep))
-		return 0;
-
-	pte = *ptep;
+	pte = ptep_get(ptep);
 	if (!pte_young(pte)) {
 		return 0;
 	}
-	set_pte_at(vma->vm_mm, addr, ptep, pte_mkold(pte));
+	set_pte(ptep, pte_mkold(pte));
 	return 1;
 }
 
+int ptep_clear_flush_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep);
+pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep);
+
 struct mm_struct;
-static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-{
-	pte_t old_pte;
-
-	old_pte = *ptep;
-	set_pte_at(mm, addr, ptep, __pte(0));
-
-	return old_pte;
-}
-
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	set_pte_at(mm, addr, ptep, pte_wrprotect(*ptep));
+	set_pte(ptep, pte_wrprotect(*ptep));
 }
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))
@@ -502,7 +507,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+#define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
 

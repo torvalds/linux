@@ -649,7 +649,7 @@ static int octeon_mgmt_change_mtu(struct net_device *netdev, int new_mtu)
 	struct octeon_mgmt *p = netdev_priv(netdev);
 	int max_packet = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	/* HW lifts the limit if the frame is VLAN tagged
 	 * (+4 bytes per each tag, up to two tags)
@@ -1521,7 +1521,7 @@ err:
 	return result;
 }
 
-static int octeon_mgmt_remove(struct platform_device *pdev)
+static void octeon_mgmt_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct octeon_mgmt *p = netdev_priv(netdev);
@@ -1529,7 +1529,6 @@ static int octeon_mgmt_remove(struct platform_device *pdev)
 	unregister_netdev(netdev);
 	of_node_put(p->phy_np);
 	free_netdev(netdev);
-	return 0;
 }
 
 static const struct of_device_id octeon_mgmt_match[] = {
@@ -1546,7 +1545,7 @@ static struct platform_driver octeon_mgmt_driver = {
 		.of_match_table = octeon_mgmt_match,
 	},
 	.probe		= octeon_mgmt_probe,
-	.remove		= octeon_mgmt_remove,
+	.remove_new	= octeon_mgmt_remove,
 };
 
 module_platform_driver(octeon_mgmt_driver);

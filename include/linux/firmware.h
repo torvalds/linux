@@ -4,6 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
+#include <linux/cleanup.h>
 #include <linux/gfp.h>
 
 #define FW_ACTION_NOUEVENT 0
@@ -27,6 +28,7 @@ struct firmware {
  * @FW_UPLOAD_ERR_INVALID_SIZE: invalid firmware image size
  * @FW_UPLOAD_ERR_RW_ERROR: read or write to HW failed, see kernel log
  * @FW_UPLOAD_ERR_WEAROUT: FLASH device is approaching wear-out, wait & retry
+ * @FW_UPLOAD_ERR_FW_INVALID: invalid firmware file
  * @FW_UPLOAD_ERR_MAX: Maximum error code marker
  */
 enum fw_upload_err {
@@ -38,6 +40,7 @@ enum fw_upload_err {
 	FW_UPLOAD_ERR_INVALID_SIZE,
 	FW_UPLOAD_ERR_RW_ERROR,
 	FW_UPLOAD_ERR_WEAROUT,
+	FW_UPLOAD_ERR_FW_INVALID,
 	FW_UPLOAD_ERR_MAX
 };
 
@@ -95,6 +98,10 @@ static inline bool firmware_request_builtin(struct firmware *fw,
 #if IS_REACHABLE(CONFIG_FW_LOADER)
 int request_firmware(const struct firmware **fw, const char *name,
 		     struct device *device);
+int firmware_request_nowait_nowarn(
+	struct module *module, const char *name,
+	struct device *device, gfp_t gfp, void *context,
+	void (*cont)(const struct firmware *fw, void *context));
 int firmware_request_nowarn(const struct firmware **fw, const char *name,
 			    struct device *device);
 int firmware_request_platform(const struct firmware **fw, const char *name,
@@ -116,6 +123,14 @@ void release_firmware(const struct firmware *fw);
 static inline int request_firmware(const struct firmware **fw,
 				   const char *name,
 				   struct device *device)
+{
+	return -EINVAL;
+}
+
+static inline int firmware_request_nowait_nowarn(
+	struct module *module, const char *name,
+	struct device *device, gfp_t gfp, void *context,
+	void (*cont)(const struct firmware *fw, void *context))
 {
 	return -EINVAL;
 }
@@ -195,5 +210,7 @@ static inline void firmware_upload_unregister(struct fw_upload *fw_upload)
 #endif
 
 int firmware_request_cache(struct device *device, const char *name);
+
+DEFINE_FREE(firmware, struct firmware *, release_firmware(_T))
 
 #endif

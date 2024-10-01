@@ -14,7 +14,7 @@
 #include <linux/usb/serial.h>
 
 static int usb_serial_device_match(struct device *dev,
-						struct device_driver *drv)
+				   const struct device_driver *drv)
 {
 	const struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct usb_serial_driver *driver = to_usb_serial_driver(drv);
@@ -113,7 +113,7 @@ static ssize_t new_id_store(struct device_driver *driver,
 	if (retval >= 0 && usb_drv->usb_driver != NULL)
 		retval = usb_store_new_id(&usb_drv->usb_driver->dynids,
 					  usb_drv->usb_driver->id_table,
-					  &usb_drv->usb_driver->drvwrap.driver,
+					  &usb_drv->usb_driver->driver,
 					  buf, count);
 	return retval;
 }

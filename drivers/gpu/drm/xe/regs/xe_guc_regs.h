@@ -1,0 +1,152 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * Copyright © 2022 Intel Corporation
+ */
+
+#ifndef _XE_GUC_REGS_H_
+#define _XE_GUC_REGS_H_
+
+#include <linux/compiler.h>
+#include <linux/types.h>
+
+#include "regs/xe_reg_defs.h"
+
+/* Definitions of GuC H/W registers, bits, etc */
+
+#define DIST_DBS_POPULATED			XE_REG(0xd08)
+#define   DOORBELLS_PER_SQIDI_MASK		REG_GENMASK(23, 16)
+#define   SQIDIS_DOORBELL_EXIST_MASK		REG_GENMASK(15, 0)
+
+#define DRBREGL(x)				XE_REG(0x1000 + (x) * 8)
+#define   DRB_VALID				REG_BIT(0)
+#define DRBREGU(x)				XE_REG(0x1000 + (x) * 8 + 4)
+
+#define GTCR					XE_REG(0x4274)
+#define   GTCR_INVALIDATE			REG_BIT(0)
+
+#define GUC_ARAT_C6DIS				XE_REG(0xa178)
+
+#define GUC_STATUS				XE_REG(0xc000)
+#define   GS_AUTH_STATUS_MASK			REG_GENMASK(31, 30)
+#define   GS_AUTH_STATUS_BAD			REG_FIELD_PREP(GS_AUTH_STATUS_MASK, 0x1)
+#define   GS_AUTH_STATUS_GOOD			REG_FIELD_PREP(GS_AUTH_STATUS_MASK, 0x2)
+#define   GS_MIA_MASK				REG_GENMASK(18, 16)
+#define   GS_MIA_CORE_STATE			REG_FIELD_PREP(GS_MIA_MASK, 0x1)
+#define   GS_MIA_HALT_REQUESTED			REG_FIELD_PREP(GS_MIA_MASK, 0x2)
+#define   GS_MIA_ISR_ENTRY			REG_FIELD_PREP(GS_MIA_MASK, 0x4)
+#define   GS_UKERNEL_MASK			REG_GENMASK(15, 8)
+#define   GS_BOOTROM_MASK			REG_GENMASK(7, 1)
+#define   GS_BOOTROM_RSA_FAILED			REG_FIELD_PREP(GS_BOOTROM_MASK, 0x50)
+#define   GS_BOOTROM_JUMP_PASSED		REG_FIELD_PREP(GS_BOOTROM_MASK, 0x76)
+#define   GS_MIA_IN_RESET			REG_BIT(0)
+
+#define GUC_HEADER_INFO				XE_REG(0xc014)
+
+#define GUC_WOPCM_SIZE				XE_REG(0xc050)
+#define   GUC_WOPCM_SIZE_MASK			REG_GENMASK(31, 12)
+#define   GUC_WOPCM_SIZE_LOCKED			REG_BIT(0)
+
+#define GUC_SHIM_CONTROL			XE_REG(0xc064)
+#define   GUC_MOCS_INDEX_MASK			REG_GENMASK(27, 24)
+#define   GUC_SHIM_WC_ENABLE			REG_BIT(21)
+#define   GUC_ENABLE_MIA_CLOCK_GATING		REG_BIT(15)
+#define   GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA	REG_BIT(10)
+#define   GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA	REG_BIT(9)
+#define   GUC_MSGCH_ENABLE			REG_BIT(4)
+#define   GUC_ENABLE_MIA_CACHING		REG_BIT(2)
+#define   GUC_ENABLE_READ_CACHE_LOGIC		REG_BIT(1)
+#define   GUC_DISABLE_SRAM_INIT_TO_ZEROES	REG_BIT(0)
+
+#define SOFT_SCRATCH(n)				XE_REG(0xc180 + (n) * 4)
+#define SOFT_SCRATCH_COUNT			16
+
+#define HUC_KERNEL_LOAD_INFO			XE_REG(0xc1dc)
+#define   HUC_LOAD_SUCCESSFUL			REG_BIT(0)
+
+#define UOS_RSA_SCRATCH(i)			XE_REG(0xc200 + (i) * 4)
+#define UOS_RSA_SCRATCH_COUNT			64
+
+#define DMA_ADDR_0_LOW				XE_REG(0xc300)
+#define DMA_ADDR_0_HIGH				XE_REG(0xc304)
+#define DMA_ADDR_1_LOW				XE_REG(0xc308)
+#define DMA_ADDR_1_HIGH				XE_REG(0xc30c)
+#define   DMA_ADDR_SPACE_MASK			REG_GENMASK(20, 16)
+#define   DMA_ADDRESS_SPACE_WOPCM		REG_FIELD_PREP(DMA_ADDR_SPACE_MASK, 7)
+#define   DMA_ADDRESS_SPACE_GGTT		REG_FIELD_PREP(DMA_ADDR_SPACE_MASK, 8)
+#define DMA_COPY_SIZE				XE_REG(0xc310)
+#define DMA_CTRL				XE_REG(0xc314)
+#define   HUC_UKERNEL				REG_BIT(9)
+#define   UOS_MOVE				REG_BIT(4)
+#define   START_DMA				REG_BIT(0)
+#define DMA_GUC_WOPCM_OFFSET			XE_REG(0xc340)
+#define   GUC_WOPCM_OFFSET_SHIFT		14
+#define   GUC_WOPCM_OFFSET_MASK			REG_GENMASK(31, GUC_WOPCM_OFFSET_SHIFT)
+#define   HUC_LOADING_AGENT_GUC			REG_BIT(1)
+#define   GUC_WOPCM_OFFSET_VALID		REG_BIT(0)
+#define GUC_MAX_IDLE_COUNT			XE_REG(0xc3e4)
+
+#define GUC_SEND_INTERRUPT			XE_REG(0xc4c8)
+#define   GUC_SEND_TRIGGER			REG_BIT(0)
+
+#define GUC_BCS_RCS_IER				XE_REG(0xc550)
+#define GUC_VCS2_VCS1_IER			XE_REG(0xc554)
+#define GUC_WD_VECS_IER				XE_REG(0xc558)
+#define GUC_PM_P24C_IER				XE_REG(0xc55c)
+
+#define GUC_TLB_INV_CR				XE_REG(0xcee8)
+#define   GUC_TLB_INV_CR_INVALIDATE		REG_BIT(0)
+
+#define HUC_STATUS2				XE_REG(0xd3b0)
+#define   HUC_FW_VERIFIED			REG_BIT(7)
+
+#define GT_PM_CONFIG				XE_REG(0x13816c)
+#define   GT_DOORBELL_ENABLE			REG_BIT(0)
+
+#define GUC_HOST_INTERRUPT			XE_REG(0x1901f0, XE_REG_OPTION_VF)
+
+#define VF_SW_FLAG(n)				XE_REG(0x190240 + (n) * 4, XE_REG_OPTION_VF)
+#define VF_SW_FLAG_COUNT			4
+
+#define MED_GUC_HOST_INTERRUPT			XE_REG(0x190304, XE_REG_OPTION_VF)
+
+#define MED_VF_SW_FLAG(n)			XE_REG(0x190310 + (n) * 4, XE_REG_OPTION_VF)
+#define MED_VF_SW_FLAG_COUNT			4
+
+#define GUC_TLB_INV_CR				XE_REG(0xcee8)
+#define   GUC_TLB_INV_CR_INVALIDATE		REG_BIT(0)
+#define PVC_GUC_TLB_INV_DESC0			XE_REG(0xcf7c)
+#define   PVC_GUC_TLB_INV_DESC0_VALID		REG_BIT(0)
+#define PVC_GUC_TLB_INV_DESC1			XE_REG(0xcf80)
+#define   PVC_GUC_TLB_INV_DESC1_INVALIDATE	REG_BIT(6)
+
+/* GuC Interrupt Vector */
+#define GUC_INTR_GUC2HOST			REG_BIT(15)
+#define GUC_INTR_EXEC_ERROR			REG_BIT(14)
+#define GUC_INTR_DISPLAY_EVENT			REG_BIT(13)
+#define GUC_INTR_SEM_SIG			REG_BIT(12)
+#define GUC_INTR_IOMMU2GUC			REG_BIT(11)
+#define GUC_INTR_DOORBELL_RANG			REG_BIT(10)
+#define GUC_INTR_DMA_DONE			REG_BIT(9)
+#define GUC_INTR_FATAL_ERROR			REG_BIT(8)
+#define GUC_INTR_NOTIF_ERROR			REG_BIT(7)
+#define GUC_INTR_SW_INT_6			REG_BIT(6)
+#define GUC_INTR_SW_INT_5			REG_BIT(5)
+#define GUC_INTR_SW_INT_4			REG_BIT(4)
+#define GUC_INTR_SW_INT_3			REG_BIT(3)
+#define GUC_INTR_SW_INT_2			REG_BIT(2)
+#define GUC_INTR_SW_INT_1			REG_BIT(1)
+#define GUC_INTR_SW_INT_0			REG_BIT(0)
+
+#define GUC_NUM_DOORBELLS			256
+
+/* format of the HW-monitored doorbell cacheline */
+struct guc_doorbell_info {
+	u32 db_status;
+#define GUC_DOORBELL_DISABLED			0
+#define GUC_DOORBELL_ENABLED			1
+
+	u32 cookie;
+	u32 reserved[14];
+} __packed;
+
+#endif

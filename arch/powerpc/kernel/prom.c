@@ -151,6 +151,9 @@ static void __init move_device_tree(void)
  * pa-features property is missing, or a 1/0 to indicate if the feature
  * is supported/not supported.  Note that the bit numbers are
  * big-endian to match the definition in PAPR.
+ * Note: the 'clear' flag clears the feature if the bit is set in the
+ * ibm,pa/pi-features property, it does not set the feature if the
+ * bit is clear.
  */
 struct ibm_feature {
 	unsigned long	cpu_features;	/* CPU_FTR_xxx bit */
@@ -159,7 +162,7 @@ struct ibm_feature {
 	unsigned int	cpu_user_ftrs2;	/* PPC_FEATURE2_xxx bit */
 	unsigned char	pabyte;		/* byte number in ibm,pa/pi-features */
 	unsigned char	pabit;		/* bit number (big-endian) */
-	unsigned char	invert;		/* if 1, pa bit set => clear feature */
+	unsigned char	clear;		/* if 1, pa bit set => clear feature */
 };
 
 static struct ibm_feature ibm_pa_features[] __initdata = {
@@ -193,6 +196,7 @@ static struct ibm_feature ibm_pa_features[] __initdata = {
  */
 static struct ibm_feature ibm_pi_features[] __initdata = {
 	{ .pabyte = 0, .pabit = 3, .mmu_features  = MMU_FTR_NX_DSI },
+	{ .pabyte = 0, .pabit = 4, .cpu_features  = CPU_FTR_DBELL, .clear = 1 },
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -220,12 +224,12 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 		if (fp->pabyte >= ftrs[0])
 			continue;
 		bit = (ftrs[2 + fp->pabyte] >> (7 - fp->pabit)) & 1;
-		if (bit ^ fp->invert) {
+		if (bit && !fp->clear) {
 			cur_cpu_spec->cpu_features |= fp->cpu_features;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftrs;
 			cur_cpu_spec->cpu_user_features2 |= fp->cpu_user_ftrs2;
 			cur_cpu_spec->mmu_features |= fp->mmu_features;
-		} else {
+		} else if (bit == fp->clear) {
 			cur_cpu_spec->cpu_features &= ~fp->cpu_features;
 			cur_cpu_spec->cpu_user_features &= ~fp->cpu_user_ftrs;
 			cur_cpu_spec->cpu_user_features2 &= ~fp->cpu_user_ftrs2;
@@ -327,6 +331,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 					  void *data)
 {
 	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *cpu_version = NULL;
 	const __be32 *prop;
 	const __be32 *intserv;
 	int i, nthreads;
@@ -368,12 +373,30 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	if (found < 0)
 		return 0;
 
-	DBG("boot cpu: logical %d physical %d\n", found,
-	    be32_to_cpu(intserv[found_thread]));
 	boot_cpuid = found;
 
 	if (IS_ENABLED(CONFIG_PPC64))
 		boot_cpu_hwid = be32_to_cpu(intserv[found_thread]);
+
+	if (nr_cpu_ids % nthreads != 0) {
+		set_nr_cpu_ids(ALIGN(nr_cpu_ids, nthreads));
+		pr_warn("nr_cpu_ids was not a multiple of threads_per_core, adjusted to %d\n",
+			nr_cpu_ids);
+	}
+
+	if (boot_cpuid >= nr_cpu_ids) {
+		// Remember boot core for smp_setup_cpu_maps()
+		boot_core_hwid = be32_to_cpu(intserv[0]);
+
+		pr_warn("Boot CPU %d (core hwid %d) >= nr_cpu_ids, adjusted boot CPU to %d\n",
+			boot_cpuid, boot_core_hwid, found_thread);
+
+		// Adjust boot CPU to appear on logical core 0
+		boot_cpuid = found_thread;
+	}
+
+	DBG("boot cpu: logical %d physical %d\n", boot_cpuid,
+	    be32_to_cpu(intserv[found_thread]));
 
 	/*
 	 * PAPR defines "logical" PVR values for cpus that
@@ -398,7 +421,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		prop = of_get_flat_dt_prop(node, "cpu-version", NULL);
 		if (prop && (be32_to_cpup(prop) & 0xff000000) == 0x0f000000) {
 			identify_cpu(0, be32_to_cpup(prop));
-			seq_buf_printf(&ppc_hw_desc, "0x%04x ", be32_to_cpup(prop));
+			cpu_version = prop;
 		}
 
 		check_cpu_feature_properties(node);
@@ -409,6 +432,12 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	}
 
 	identical_pvr_fixup(node);
+
+	// We can now add the CPU name & PVR to the hardware description
+	seq_buf_printf(&ppc_hw_desc, "%s 0x%04lx ", cur_cpu_spec->cpu_name, mfspr(SPRN_PVR));
+	if (cpu_version)
+		seq_buf_printf(&ppc_hw_desc, "0x%04x ", be32_to_cpup(cpu_version));
+
 	init_mmu_slb_size(node);
 
 #ifdef CONFIG_PPC64
@@ -453,7 +482,7 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
 		tce_alloc_end = *lprop;
 #endif
 
-#ifdef CONFIG_KEXEC_CORE
+#ifdef CONFIG_CRASH_RESERVE
 	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
 	if (lprop)
 		crashk_res.start = *lprop;
@@ -757,7 +786,7 @@ static inline void save_fscr_to_task(void) {}
 
 void __init early_init_devtree(void *params)
 {
-	phys_addr_t limit;
+	phys_addr_t int_vector_size;
 
 	DBG(" -> early_init_devtree(%px)\n", params);
 
@@ -791,6 +820,9 @@ void __init early_init_devtree(void *params)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, boot_command_line);
 
+	/* Append additional parameters passed for fadump capture kernel */
+	fadump_append_bootargs();
+
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	early_init_dt_scan_root();
 	early_init_dt_scan_memory_ppc();
@@ -810,9 +842,16 @@ void __init early_init_devtree(void *params)
 	setup_initial_memory_limit(memstart_addr, first_memblock_size);
 	/* Reserve MEMBLOCK regions used by kernel, initrd, dt, etc... */
 	memblock_reserve(PHYSICAL_START, __pa(_end) - PHYSICAL_START);
+#ifdef CONFIG_PPC64
+	/* If relocatable, reserve at least 32k for interrupt vectors etc. */
+	int_vector_size = __end_interrupts - _stext;
+	int_vector_size = max_t(phys_addr_t, SZ_32K, int_vector_size);
+#else
 	/* If relocatable, reserve first 32k for interrupt vectors etc. */
+	int_vector_size = SZ_32K;
+#endif
 	if (PHYSICAL_START > MEMORY_START)
-		memblock_reserve(MEMORY_START, 0x8000);
+		memblock_reserve(MEMORY_START, int_vector_size);
 	reserve_kdump_trampoline();
 #if defined(CONFIG_FA_DUMP) || defined(CONFIG_PRESERVE_FA_DUMP)
 	/*
@@ -824,9 +863,12 @@ void __init early_init_devtree(void *params)
 		reserve_crashkernel();
 	early_reserve_mem();
 
-	/* Ensure that total memory size is page-aligned. */
-	limit = ALIGN(memory_limit ?: memblock_phys_mem_size(), PAGE_SIZE);
-	memblock_enforce_memory_limit(limit);
+	if (memory_limit > memblock_phys_mem_size())
+		memory_limit = 0;
+
+	/* Align down to 16 MB which is large page size with hash page translation */
+	memory_limit = ALIGN_DOWN(memory_limit ?: memblock_phys_mem_size(), SZ_16M);
+	memblock_enforce_memory_limit(memory_limit);
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_4K_PAGES)
 	if (!early_radix_enabled())
@@ -845,9 +887,6 @@ void __init early_init_devtree(void *params)
 	DBG("Scanning CPUs ...\n");
 
 	dt_cpu_ftrs_scan();
-
-	// We can now add the CPU name & PVR to the hardware description
-	seq_buf_printf(&ppc_hw_desc, "%s 0x%04lx ", cur_cpu_spec->cpu_name, mfspr(SPRN_PVR));
 
 	/* Retrieve CPU related informations from the flat tree
 	 * (altivec support, boot CPU ID, ...)

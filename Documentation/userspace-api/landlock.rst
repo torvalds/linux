@@ -8,40 +8,55 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: October 2022
+:Date: September 2024
 
 The goal of Landlock is to enable to restrict ambient rights (e.g. global
-filesystem access) for a set of processes.  Because Landlock is a stackable
-LSM, it makes possible to create safe security sandboxes as new security layers
-in addition to the existing system-wide access-controls. This kind of sandbox
-is expected to help mitigate the security impact of bugs or
+filesystem or network access) for a set of processes.  Because Landlock
+is a stackable LSM, it makes possible to create safe security sandboxes as new
+security layers in addition to the existing system-wide access-controls. This
+kind of sandbox is expected to help mitigate the security impact of bugs or
 unexpected/malicious behaviors in user space applications.  Landlock empowers
 any process, including unprivileged ones, to securely restrict themselves.
 
 We can quickly make sure that Landlock is enabled in the running system by
-looking for "landlock: Up and running" in kernel logs (as root): ``dmesg | grep
-landlock || journalctl -kg landlock`` .  Developers can also easily check for
-Landlock support with a :ref:`related system call <landlock_abi_versions>`.  If
-Landlock is not currently supported, we need to :ref:`configure the kernel
-appropriately <kernel_support>`.
+looking for "landlock: Up and running" in kernel logs (as root):
+``dmesg | grep landlock || journalctl -kb -g landlock`` .
+Developers can also easily check for Landlock support with a
+:ref:`related system call <landlock_abi_versions>`.
+If Landlock is not currently supported, we need to
+:ref:`configure the kernel appropriately <kernel_support>`.
 
 Landlock rules
 ==============
 
-A Landlock rule describes an action on an object.  An object is currently a
-file hierarchy, and the related filesystem actions are defined with `access
-rights`_.  A set of rules is aggregated in a ruleset, which can then restrict
+A Landlock rule describes an action on an object which the process intends to
+perform.  A set of rules is aggregated in a ruleset, which can then restrict
 the thread enforcing it, and its future children.
+
+The two existing types of rules are:
+
+Filesystem rules
+    For these rules, the object is a file hierarchy,
+    and the related filesystem actions are defined with
+    `filesystem access rights`.
+
+Network rules (since ABI v4)
+    For these rules, the object is a TCP port,
+    and the related actions are defined with `network access rights`.
 
 Defining and enforcing a security policy
 ----------------------------------------
 
-We first need to define the ruleset that will contain our rules.  For this
-example, the ruleset will contain rules that only allow read actions, but write
-actions will be denied.  The ruleset then needs to handle both of these kind of
-actions.  This is required for backward and forward compatibility (i.e. the
-kernel and user space may not know each other's supported restrictions), hence
-the need to be explicit about the denied-by-default access rights.
+We first need to define the ruleset that will contain our rules.
+
+For this example, the ruleset will contain rules that only allow filesystem
+read actions and establish a specific TCP connection. Filesystem write
+actions and other TCP actions will be denied.
+
+The ruleset then needs to handle both these kinds of actions.  This is
+required for backward and forward compatibility (i.e. the kernel and user
+space may not know each other's supported restrictions), hence the need
+to be explicit about the denied-by-default access rights.
 
 .. code-block:: c
 
@@ -61,18 +76,23 @@ the need to be explicit about the denied-by-default access rights.
             LANDLOCK_ACCESS_FS_MAKE_BLOCK |
             LANDLOCK_ACCESS_FS_MAKE_SYM |
             LANDLOCK_ACCESS_FS_REFER |
-            LANDLOCK_ACCESS_FS_TRUNCATE,
+            LANDLOCK_ACCESS_FS_TRUNCATE |
+            LANDLOCK_ACCESS_FS_IOCTL_DEV,
+        .handled_access_net =
+            LANDLOCK_ACCESS_NET_BIND_TCP |
+            LANDLOCK_ACCESS_NET_CONNECT_TCP,
+        .scoped =
+            LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
+            LANDLOCK_SCOPE_SIGNAL,
     };
 
 Because we may not know on which kernel version an application will be
 executed, it is safer to follow a best-effort security approach.  Indeed, we
 should try to protect users as much as possible whatever the kernel they are
-using.  To avoid binary enforcement (i.e. either all security features or
-none), we can leverage a dedicated Landlock command to get the current version
-of the Landlock ABI and adapt the handled accesses.  Let's check if we should
-remove the ``LANDLOCK_ACCESS_FS_REFER`` or ``LANDLOCK_ACCESS_FS_TRUNCATE``
-access rights, which are only supported starting with the second and third
-version of the ABI.
+using.
+
+To be compatible with older Linux versions, we detect the available Landlock ABI
+version, and only use the available subset of access rights:
 
 .. code-block:: c
 
@@ -92,6 +112,21 @@ version of the ABI.
     case 2:
         /* Removes LANDLOCK_ACCESS_FS_TRUNCATE for ABI < 3 */
         ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_TRUNCATE;
+        __attribute__((fallthrough));
+    case 3:
+        /* Removes network support for ABI < 4 */
+        ruleset_attr.handled_access_net &=
+            ~(LANDLOCK_ACCESS_NET_BIND_TCP |
+              LANDLOCK_ACCESS_NET_CONNECT_TCP);
+        __attribute__((fallthrough));
+    case 4:
+        /* Removes LANDLOCK_ACCESS_FS_IOCTL_DEV for ABI < 5 */
+        ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_IOCTL_DEV;
+        __attribute__((fallthrough));
+    case 5:
+        /* Removes LANDLOCK_SCOPE_* for ABI < 6 */
+        ruleset_attr.scoped &= ~(LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
+                                 LANDLOCK_SCOPE_SIGNAL);
     }
 
 This enables to create an inclusive ruleset that will contain our rules.
@@ -143,10 +178,23 @@ for the ruleset creation, by filtering access rights according to the Landlock
 ABI version.  In this example, this is not required because all of the requested
 ``allowed_access`` rights are already available in ABI 1.
 
-We now have a ruleset with one rule allowing read access to ``/usr`` while
-denying all other handled accesses for the filesystem.  The next step is to
-restrict the current thread from gaining more privileges (e.g. thanks to a SUID
-binary).
+For network access-control, we can add a set of rules that allow to use a port
+number for a specific action: HTTPS connections.
+
+.. code-block:: c
+
+    struct landlock_net_port_attr net_port = {
+        .allowed_access = LANDLOCK_ACCESS_NET_CONNECT_TCP,
+        .port = 443,
+    };
+
+    err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
+                            &net_port, 0);
+
+The next step is to restrict the current thread from gaining more privileges
+(e.g. through a SUID binary).  We now have a ruleset with the first rule
+allowing read access to ``/usr`` while denying all other handled accesses for
+the filesystem, and a second rule allowing HTTPS connections.
 
 .. code-block:: c
 
@@ -190,6 +238,7 @@ access rights per directory enables to change the location of such directory
 without relying on the destination directory access rights (except those that
 are required for this operation, see ``LANDLOCK_ACCESS_FS_REFER``
 documentation).
+
 Having self-sufficient hierarchies also helps to tighten the required access
 rights to the minimal set of data.  This also helps avoid sinkhole directories,
 i.e.  directories where data can be linked to but not linked from.  However,
@@ -265,6 +314,38 @@ To be allowed to use :manpage:`ptrace(2)` and related syscalls on a target
 process, a sandboxed process should have a subset of the target process rules,
 which means the tracee must be in a sub-domain of the tracer.
 
+IPC scoping
+-----------
+
+Similar to the implicit `Ptrace restrictions`_, we may want to further restrict
+interactions between sandboxes. Each Landlock domain can be explicitly scoped
+for a set of actions by specifying it on a ruleset.  For example, if a
+sandboxed process should not be able to :manpage:`connect(2)` to a
+non-sandboxed process through abstract :manpage:`unix(7)` sockets, we can
+specify such restriction with ``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET``.
+Moreover, if a sandboxed process should not be able to send a signal to a
+non-sandboxed process, we can specify this restriction with
+``LANDLOCK_SCOPE_SIGNAL``.
+
+A sandboxed process can connect to a non-sandboxed process when its domain is
+not scoped. If a process's domain is scoped, it can only connect to sockets
+created by processes in the same scope.
+Moreover, If a process is scoped to send signal to a non-scoped process, it can
+only send signals to processes in the same scope.
+
+A connected datagram socket behaves like a stream socket when its domain is
+scoped, meaning if the domain is scoped after the socket is connected , it can
+still :manpage:`send(2)` data just like a stream socket.  However, in the same
+scenario, a non-connected datagram socket cannot send data (with
+:manpage:`sendto(2)`) outside its scope.
+
+A process with a scoped domain can inherit a socket created by a non-scoped
+process. The process cannot connect to this socket since it has a scoped
+domain.
+
+IPC scoping does not support exceptions, so if a domain is scoped, no rules can
+be added to allow access to resources or processes outside of the scope.
+
 Truncating files
 ----------------
 
@@ -283,18 +364,26 @@ It should also be noted that truncating files does not require the
 system call, this can also be done through :manpage:`open(2)` with the flags
 ``O_RDONLY | O_TRUNC``.
 
-When opening a file, the availability of the ``LANDLOCK_ACCESS_FS_TRUNCATE``
-right is associated with the newly created file descriptor and will be used for
-subsequent truncation attempts using :manpage:`ftruncate(2)`.  The behavior is
-similar to opening a file for reading or writing, where permissions are checked
-during :manpage:`open(2)`, but not during the subsequent :manpage:`read(2)` and
+The truncate right is associated with the opened file (see below).
+
+Rights associated with file descriptors
+---------------------------------------
+
+When opening a file, the availability of the ``LANDLOCK_ACCESS_FS_TRUNCATE`` and
+``LANDLOCK_ACCESS_FS_IOCTL_DEV`` rights is associated with the newly created
+file descriptor and will be used for subsequent truncation and ioctl attempts
+using :manpage:`ftruncate(2)` and :manpage:`ioctl(2)`.  The behavior is similar
+to opening a file for reading or writing, where permissions are checked during
+:manpage:`open(2)`, but not during the subsequent :manpage:`read(2)` and
 :manpage:`write(2)` calls.
 
-As a consequence, it is possible to have multiple open file descriptors for the
-same file, where one grants the right to truncate the file and the other does
-not.  It is also possible to pass such file descriptors between processes,
-keeping their Landlock properties, even when these processes do not have an
-enforced Landlock ruleset.
+As a consequence, it is possible that a process has multiple open file
+descriptors referring to the same file, but Landlock enforces different things
+when operating with these file descriptors.  This can happen when a Landlock
+ruleset gets enforced and the process keeps file descriptors which were opened
+both before and after the enforcement.  It is also possible to pass such file
+descriptors between processes, keeping their Landlock properties, even when some
+of the involved processes do not have an enforced Landlock ruleset.
 
 Compatibility
 =============
@@ -355,7 +444,7 @@ Access rights
 -------------
 
 .. kernel-doc:: include/uapi/linux/landlock.h
-    :identifiers: fs_access
+    :identifiers: fs_access net_access scope
 
 Creating a new ruleset
 ----------------------
@@ -374,6 +463,7 @@ Extending a ruleset
 
 .. kernel-doc:: include/uapi/linux/landlock.h
     :identifiers: landlock_rule_type landlock_path_beneath_attr
+                  landlock_net_port_attr
 
 Enforcing a ruleset
 -------------------
@@ -387,9 +477,9 @@ Current limitations
 Filesystem topology modification
 --------------------------------
 
-As for file renaming and linking, a sandboxed thread cannot modify its
-filesystem topology, whether via :manpage:`mount(2)` or
-:manpage:`pivot_root(2)`.  However, :manpage:`chroot(2)` calls are not denied.
+Threads sandboxed with filesystem restrictions cannot modify filesystem
+topology, whether via :manpage:`mount(2)` or :manpage:`pivot_root(2)`.
+However, :manpage:`chroot(2)` calls are not denied.
 
 Special filesystems
 -------------------
@@ -422,6 +512,28 @@ Memory usage
 Kernel memory allocated to create rulesets is accounted and can be restricted
 by the Documentation/admin-guide/cgroup-v1/memory.rst.
 
+IOCTL support
+-------------
+
+The ``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right restricts the use of
+:manpage:`ioctl(2)`, but it only applies to *newly opened* device files.  This
+means specifically that pre-existing file descriptors like stdin, stdout and
+stderr are unaffected.
+
+Users should be aware that TTY devices have traditionally permitted to control
+other processes on the same TTY through the ``TIOCSTI`` and ``TIOCLINUX`` IOCTL
+commands.  Both of these require ``CAP_SYS_ADMIN`` on modern Linux systems, but
+the behavior is configurable for ``TIOCSTI``.
+
+On older systems, it is therefore recommended to close inherited TTY file
+descriptors, or to reopen them from ``/proc/self/fd/*`` without the
+``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right, if possible.
+
+Landlock's IOCTL support is coarse-grained at the moment, but may become more
+fine-grained in the future.  Until then, users are advised to establish the
+guarantees that they need through the file hierarchy, by only allowing the
+``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right on files where it is really required.
+
 Previous limitations
 ====================
 
@@ -451,10 +563,45 @@ always allowed when using a kernel that only supports the first or second ABI.
 Starting with the Landlock ABI version 3, it is now possible to securely control
 truncation thanks to the new ``LANDLOCK_ACCESS_FS_TRUNCATE`` access right.
 
+Network support (ABI < 4)
+-------------------------
+
+Starting with the Landlock ABI version 4, it is now possible to restrict TCP
+bind and connect actions to only a set of allowed ports thanks to the new
+``LANDLOCK_ACCESS_NET_BIND_TCP`` and ``LANDLOCK_ACCESS_NET_CONNECT_TCP``
+access rights.
+
+IOCTL (ABI < 5)
+---------------
+
+IOCTL operations could not be denied before the fifth Landlock ABI, so
+:manpage:`ioctl(2)` is always allowed when using a kernel that only supports an
+earlier ABI.
+
+Starting with the Landlock ABI version 5, it is possible to restrict the use of
+:manpage:`ioctl(2)` using the new ``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right.
+
+Abstract UNIX socket scoping (ABI < 6)
+--------------------------------------
+
+Starting with the Landlock ABI version 6, it is possible to restrict
+connections to an abstract :manpage:`unix(7)` socket by setting
+``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`` to the ``scoped`` ruleset attribute.
+
+Signal scoping (ABI < 6)
+------------------------
+
+Starting with the Landlock ABI version 6, it is possible to restrict
+:manpage:`signal(7)` sending by setting ``LANDLOCK_SCOPE_SIGNAL`` to the
+``scoped`` ruleset attribute.
+
 .. _kernel_support:
 
 Kernel support
 ==============
+
+Build time configuration
+------------------------
 
 Landlock was first introduced in Linux 5.13 but it must be configured at build
 time with ``CONFIG_SECURITY_LANDLOCK=y``.  Landlock must also be enabled at boot
@@ -464,10 +611,57 @@ contains ``CONFIG_LSM=landlock,[...]`` with ``[...]``  as the list of other
 potentially useful security modules for the running system (see the
 ``CONFIG_LSM`` help).
 
+Boot time configuration
+-----------------------
+
 If the running kernel does not have ``landlock`` in ``CONFIG_LSM``, then we can
-still enable it by adding ``lsm=landlock,[...]`` to
-Documentation/admin-guide/kernel-parameters.rst thanks to the bootloader
+enable Landlock by adding ``lsm=landlock,[...]`` to
+Documentation/admin-guide/kernel-parameters.rst in the boot loader
 configuration.
+
+For example, if the current built-in configuration is:
+
+.. code-block:: console
+
+    $ zgrep -h "^CONFIG_LSM=" "/boot/config-$(uname -r)" /proc/config.gz 2>/dev/null
+    CONFIG_LSM="lockdown,yama,integrity,apparmor"
+
+...and if the cmdline doesn't contain ``landlock`` either:
+
+.. code-block:: console
+
+    $ sed -n 's/.*\(\<lsm=\S\+\).*/\1/p' /proc/cmdline
+    lsm=lockdown,yama,integrity,apparmor
+
+...we should configure the boot loader to set a cmdline extending the ``lsm``
+list with the ``landlock,`` prefix::
+
+  lsm=landlock,lockdown,yama,integrity,apparmor
+
+After a reboot, we can check that Landlock is up and running by looking at
+kernel logs:
+
+.. code-block:: console
+
+    # dmesg | grep landlock || journalctl -kb -g landlock
+    [    0.000000] Command line: [...] lsm=landlock,lockdown,yama,integrity,apparmor
+    [    0.000000] Kernel command line: [...] lsm=landlock,lockdown,yama,integrity,apparmor
+    [    0.000000] LSM: initializing lsm=lockdown,capability,landlock,yama,integrity,apparmor
+    [    0.000000] landlock: Up and running.
+
+The kernel may be configured at build time to always load the ``lockdown`` and
+``capability`` LSMs.  In that case, these LSMs will appear at the beginning of
+the ``LSM: initializing`` log line as well, even if they are not configured in
+the boot loader.
+
+Network support
+---------------
+
+To be able to explicitly allow TCP operations (e.g., adding a network rule with
+``LANDLOCK_ACCESS_NET_BIND_TCP``), the kernel must support TCP
+(``CONFIG_INET=y``).  Otherwise, sys_landlock_add_rule() returns an
+``EAFNOSUPPORT`` error, which can safely be ignored because this kind of TCP
+operation is already not possible.
 
 Questions and answers
 =====================

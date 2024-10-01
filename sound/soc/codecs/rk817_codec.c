@@ -10,7 +10,6 @@
 #include <linux/mfd/rk808.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
@@ -530,7 +529,7 @@ static struct platform_driver rk817_codec_driver = {
 		   .name = "rk817-codec",
 		   },
 	.probe = rk817_platform_probe,
-	.remove_new = rk817_platform_remove,
+	.remove = rk817_platform_remove,
 };
 
 module_platform_driver(rk817_codec_driver);

@@ -31,5 +31,6 @@ extern struct mips_abi mips_abi_32;
 
 extern int protected_save_fp_context(void __user *sc);
 extern int protected_restore_fp_context(void __user *sc);
+void do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags);
 
 #endif /* _ASM_SIGNAL_H */

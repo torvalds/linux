@@ -3,6 +3,8 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/hugetlb.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 
 /*
  * We want to know the real level where a entry is located ignoring any
@@ -48,14 +50,17 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	if (walk->no_vma) {
 		/*
 		 * pte_offset_map() might apply user-specific validation.
+		 * Indeed, on x86_64 the pmd entries set up by init_espfix_ap()
+		 * fit its pmd_bad() check (_PAGE_NX set and _PAGE_RW clear),
+		 * and CONFIG_EFI_PGT_DUMP efi_mm goes so far as to walk them.
 		 */
-		if (walk->mm == &init_mm)
+		if (walk->mm == &init_mm || addr >= TASK_SIZE)
 			pte = pte_offset_kernel(pmd, addr);
 		else
 			pte = pte_offset_map(pmd, addr);
 		if (pte) {
 			err = walk_pte_range_inner(pte, addr, end, walk);
-			if (walk->mm != &init_mm)
+			if (walk->mm != &init_mm && addr < TASK_SIZE)
 				pte_unmap(pte);
 		}
 	} else {
@@ -69,45 +74,6 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		walk->action = ACTION_AGAIN;
 	return err;
 }
-
-#ifdef CONFIG_ARCH_HAS_HUGEPD
-static int walk_hugepd_range(hugepd_t *phpd, unsigned long addr,
-			     unsigned long end, struct mm_walk *walk, int pdshift)
-{
-	int err = 0;
-	const struct mm_walk_ops *ops = walk->ops;
-	int shift = hugepd_shift(*phpd);
-	int page_size = 1 << shift;
-
-	if (!ops->pte_entry)
-		return 0;
-
-	if (addr & (page_size - 1))
-		return 0;
-
-	for (;;) {
-		pte_t *pte;
-
-		spin_lock(&walk->mm->page_table_lock);
-		pte = hugepte_offset(*phpd, addr, pdshift);
-		err = ops->pte_entry(pte, addr, addr + page_size, walk);
-		spin_unlock(&walk->mm->page_table_lock);
-
-		if (err)
-			break;
-		if (addr >= end - page_size)
-			break;
-		addr += page_size;
-	}
-	return err;
-}
-#else
-static int walk_hugepd_range(hugepd_t *phpd, unsigned long addr,
-			     unsigned long end, struct mm_walk *walk, int pdshift)
-{
-	return 0;
-}
-#endif
 
 static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
 			  struct mm_walk *walk)
@@ -156,10 +122,7 @@ again:
 		if (walk->vma)
 			split_huge_pmd(walk->vma, pmd, addr);
 
-		if (is_hugepd(__hugepd(pmd_val(*pmd))))
-			err = walk_hugepd_range((hugepd_t *)pmd, addr, next, walk, PMD_SHIFT);
-		else
-			err = walk_pte_range(pmd, addr, next, walk);
+		err = walk_pte_range(pmd, addr, next, walk);
 		if (err)
 			break;
 
@@ -212,10 +175,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
 		if (pud_none(*pud))
 			goto again;
 
-		if (is_hugepd(__hugepd(pud_val(*pud))))
-			err = walk_hugepd_range((hugepd_t *)pud, addr, next, walk, PUD_SHIFT);
-		else
-			err = walk_pmd_range(pud, addr, next, walk);
+		err = walk_pmd_range(pud, addr, next, walk);
 		if (err)
 			break;
 	} while (pud++, addr = next, addr != end);
@@ -247,9 +207,7 @@ static int walk_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end,
 			if (err)
 				break;
 		}
-		if (is_hugepd(__hugepd(p4d_val(*p4d))))
-			err = walk_hugepd_range((hugepd_t *)p4d, addr, next, walk, P4D_SHIFT);
-		else if (ops->pud_entry || ops->pmd_entry || ops->pte_entry)
+		if (ops->pud_entry || ops->pmd_entry || ops->pte_entry)
 			err = walk_pud_range(p4d, addr, next, walk);
 		if (err)
 			break;
@@ -284,9 +242,7 @@ static int walk_pgd_range(unsigned long addr, unsigned long end,
 			if (err)
 				break;
 		}
-		if (is_hugepd(__hugepd(pgd_val(*pgd))))
-			err = walk_hugepd_range((hugepd_t *)pgd, addr, next, walk, PGDIR_SHIFT);
-		else if (ops->p4d_entry || ops->pud_entry || ops->pmd_entry || ops->pte_entry)
+		if (ops->p4d_entry || ops->pud_entry || ops->pmd_entry || ops->pte_entry)
 			err = walk_p4d_range(pgd, addr, next, walk);
 		if (err)
 			break;
@@ -397,6 +353,33 @@ static int __walk_page_range(unsigned long start, unsigned long end,
 	return err;
 }
 
+static inline void process_mm_walk_lock(struct mm_struct *mm,
+					enum page_walk_lock walk_lock)
+{
+	if (walk_lock == PGWALK_RDLOCK)
+		mmap_assert_locked(mm);
+	else
+		mmap_assert_write_locked(mm);
+}
+
+static inline void process_vma_walk_lock(struct vm_area_struct *vma,
+					 enum page_walk_lock walk_lock)
+{
+#ifdef CONFIG_PER_VMA_LOCK
+	switch (walk_lock) {
+	case PGWALK_WRLOCK:
+		vma_start_write(vma);
+		break;
+	case PGWALK_WRLOCK_VERIFY:
+		vma_assert_write_locked(vma);
+		break;
+	case PGWALK_RDLOCK:
+		/* PGWALK_RDLOCK is handled by process_mm_walk_lock */
+		break;
+	}
+#endif
+}
+
 /**
  * walk_page_range - walk page table with caller specific callbacks
  * @mm:		mm_struct representing the target process of page table walk
@@ -456,7 +439,7 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
 	if (!walk.mm)
 		return -EINVAL;
 
-	mmap_assert_locked(walk.mm);
+	process_mm_walk_lock(walk.mm, ops->walk_lock);
 
 	vma = find_vma(walk.mm, start);
 	do {
@@ -471,6 +454,7 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
 			if (ops->pte_hole)
 				err = ops->pte_hole(start, next, -1, &walk);
 		} else { /* inside vma */
+			process_vma_walk_lock(vma, ops->walk_lock);
 			walk.vma = vma;
 			next = min(end, vma->vm_end);
 			vma = find_vma(mm, vma->vm_end);
@@ -508,6 +492,11 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
  * not backed by VMAs. Because 'unusual' entries may be walked this function
  * will also not lock the PTEs for the pte_entry() callback. This is useful for
  * walking the kernel pages tables or page tables for firmware.
+ *
+ * Note: Be careful to walk the kernel pages tables, the caller may be need to
+ * take other effective approache (mmap lock may be insufficient) to prevent
+ * the intermediate kernel page tables belonging to the specified address range
+ * from being freed (e.g. memory hot-remove).
  */
 int walk_page_range_novma(struct mm_struct *mm, unsigned long start,
 			  unsigned long end, const struct mm_walk_ops *ops,
@@ -525,7 +514,29 @@ int walk_page_range_novma(struct mm_struct *mm, unsigned long start,
 	if (start >= end || !walk.mm)
 		return -EINVAL;
 
-	mmap_assert_write_locked(walk.mm);
+	/*
+	 * 1) For walking the user virtual address space:
+	 *
+	 * The mmap lock protects the page walker from changes to the page
+	 * tables during the walk.  However a read lock is insufficient to
+	 * protect those areas which don't have a VMA as munmap() detaches
+	 * the VMAs before downgrading to a read lock and actually tearing
+	 * down PTEs/page tables. In which case, the mmap write lock should
+	 * be hold.
+	 *
+	 * 2) For walking the kernel virtual address space:
+	 *
+	 * The kernel intermediate page tables usually do not be freed, so
+	 * the mmap map read lock is sufficient. But there are some exceptions.
+	 * E.g. memory hot-remove. In which case, the mmap lock is insufficient
+	 * to prevent the intermediate kernel pages tables belonging to the
+	 * specified address range from being freed. The caller should take
+	 * other actions to prevent this race.
+	 */
+	if (mm == &init_mm)
+		mmap_assert_locked(walk.mm);
+	else
+		mmap_assert_write_locked(walk.mm);
 
 	return walk_pgd_range(start, end, &walk);
 }
@@ -546,7 +557,8 @@ int walk_page_range_vma(struct vm_area_struct *vma, unsigned long start,
 	if (start < vma->vm_start || end > vma->vm_end)
 		return -EINVAL;
 
-	mmap_assert_locked(walk.mm);
+	process_mm_walk_lock(walk.mm, ops->walk_lock);
+	process_vma_walk_lock(vma, ops->walk_lock);
 	return __walk_page_range(start, end, &walk);
 }
 
@@ -563,7 +575,8 @@ int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,
 	if (!walk.mm)
 		return -EINVAL;
 
-	mmap_assert_locked(walk.mm);
+	process_mm_walk_lock(walk.mm, ops->walk_lock);
+	process_vma_walk_lock(vma, ops->walk_lock);
 	return __walk_page_range(vma->vm_start, vma->vm_end, &walk);
 }
 
@@ -642,4 +655,204 @@ int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
 	}
 
 	return err;
+}
+
+/**
+ * folio_walk_start - walk the page tables to a folio
+ * @fw: filled with information on success.
+ * @vma: the VMA.
+ * @addr: the virtual address to use for the page table walk.
+ * @flags: flags modifying which folios to walk to.
+ *
+ * Walk the page tables using @addr in a given @vma to a mapped folio and
+ * return the folio, making sure that the page table entry referenced by
+ * @addr cannot change until folio_walk_end() was called.
+ *
+ * As default, this function returns only folios that are not special (e.g., not
+ * the zeropage) and never returns folios that are supposed to be ignored by the
+ * VM as documented by vm_normal_page(). If requested, zeropages will be
+ * returned as well.
+ *
+ * As default, this function only considers present page table entries.
+ * If requested, it will also consider migration entries.
+ *
+ * If this function returns NULL it might either indicate "there is nothing" or
+ * "there is nothing suitable".
+ *
+ * On success, @fw is filled and the function returns the folio while the PTL
+ * is still held and folio_walk_end() must be called to clean up,
+ * releasing any held locks. The returned folio must *not* be used after the
+ * call to folio_walk_end(), unless a short-term folio reference is taken before
+ * that call.
+ *
+ * @fw->page will correspond to the page that is effectively referenced by
+ * @addr. However, for migration entries and shared zeropages @fw->page is
+ * set to NULL. Note that large folios might be mapped by multiple page table
+ * entries, and this function will always only lookup a single entry as
+ * specified by @addr, which might or might not cover more than a single page of
+ * the returned folio.
+ *
+ * This function must *not* be used as a naive replacement for
+ * get_user_pages() / pin_user_pages(), especially not to perform DMA or
+ * to carelessly modify page content. This function may *only* be used to grab
+ * short-term folio references, never to grab long-term folio references.
+ *
+ * Using the page table entry pointers in @fw for reading or modifying the
+ * entry should be avoided where possible: however, there might be valid
+ * use cases.
+ *
+ * WARNING: Modifying page table entries in hugetlb VMAs requires a lot of care.
+ * For example, PMD page table sharing might require prior unsharing. Also,
+ * logical hugetlb entries might span multiple physical page table entries,
+ * which *must* be modified in a single operation (set_huge_pte_at(),
+ * huge_ptep_set_*, ...). Note that the page table entry stored in @fw might
+ * not correspond to the first physical entry of a logical hugetlb entry.
+ *
+ * The mmap lock must be held in read mode.
+ *
+ * Return: folio pointer on success, otherwise NULL.
+ */
+struct folio *folio_walk_start(struct folio_walk *fw,
+		struct vm_area_struct *vma, unsigned long addr,
+		folio_walk_flags_t flags)
+{
+	unsigned long entry_size;
+	bool expose_page = true;
+	struct page *page;
+	pud_t *pudp, pud;
+	pmd_t *pmdp, pmd;
+	pte_t *ptep, pte;
+	spinlock_t *ptl;
+	pgd_t *pgdp;
+	p4d_t *p4dp;
+
+	mmap_assert_locked(vma->vm_mm);
+	vma_pgtable_walk_begin(vma);
+
+	if (WARN_ON_ONCE(addr < vma->vm_start || addr >= vma->vm_end))
+		goto not_found;
+
+	pgdp = pgd_offset(vma->vm_mm, addr);
+	if (pgd_none_or_clear_bad(pgdp))
+		goto not_found;
+
+	p4dp = p4d_offset(pgdp, addr);
+	if (p4d_none_or_clear_bad(p4dp))
+		goto not_found;
+
+	pudp = pud_offset(p4dp, addr);
+	pud = pudp_get(pudp);
+	if (pud_none(pud))
+		goto not_found;
+	if (IS_ENABLED(CONFIG_PGTABLE_HAS_HUGE_LEAVES) && pud_leaf(pud)) {
+		ptl = pud_lock(vma->vm_mm, pudp);
+		pud = pudp_get(pudp);
+
+		entry_size = PUD_SIZE;
+		fw->level = FW_LEVEL_PUD;
+		fw->pudp = pudp;
+		fw->pud = pud;
+
+		if (!pud_present(pud) || pud_devmap(pud) || pud_special(pud)) {
+			spin_unlock(ptl);
+			goto not_found;
+		} else if (!pud_leaf(pud)) {
+			spin_unlock(ptl);
+			goto pmd_table;
+		}
+		/*
+		 * TODO: vm_normal_page_pud() will be handy once we want to
+		 * support PUD mappings in VM_PFNMAP|VM_MIXEDMAP VMAs.
+		 */
+		page = pud_page(pud);
+		goto found;
+	}
+
+pmd_table:
+	VM_WARN_ON_ONCE(pud_leaf(*pudp));
+	pmdp = pmd_offset(pudp, addr);
+	pmd = pmdp_get_lockless(pmdp);
+	if (pmd_none(pmd))
+		goto not_found;
+	if (IS_ENABLED(CONFIG_PGTABLE_HAS_HUGE_LEAVES) && pmd_leaf(pmd)) {
+		ptl = pmd_lock(vma->vm_mm, pmdp);
+		pmd = pmdp_get(pmdp);
+
+		entry_size = PMD_SIZE;
+		fw->level = FW_LEVEL_PMD;
+		fw->pmdp = pmdp;
+		fw->pmd = pmd;
+
+		if (pmd_none(pmd)) {
+			spin_unlock(ptl);
+			goto not_found;
+		} else if (!pmd_leaf(pmd)) {
+			spin_unlock(ptl);
+			goto pte_table;
+		} else if (pmd_present(pmd)) {
+			page = vm_normal_page_pmd(vma, addr, pmd);
+			if (page) {
+				goto found;
+			} else if ((flags & FW_ZEROPAGE) &&
+				    is_huge_zero_pmd(pmd)) {
+				page = pfn_to_page(pmd_pfn(pmd));
+				expose_page = false;
+				goto found;
+			}
+		} else if ((flags & FW_MIGRATION) &&
+			   is_pmd_migration_entry(pmd)) {
+			swp_entry_t entry = pmd_to_swp_entry(pmd);
+
+			page = pfn_swap_entry_to_page(entry);
+			expose_page = false;
+			goto found;
+		}
+		spin_unlock(ptl);
+		goto not_found;
+	}
+
+pte_table:
+	VM_WARN_ON_ONCE(pmd_leaf(pmdp_get_lockless(pmdp)));
+	ptep = pte_offset_map_lock(vma->vm_mm, pmdp, addr, &ptl);
+	if (!ptep)
+		goto not_found;
+	pte = ptep_get(ptep);
+
+	entry_size = PAGE_SIZE;
+	fw->level = FW_LEVEL_PTE;
+	fw->ptep = ptep;
+	fw->pte = pte;
+
+	if (pte_present(pte)) {
+		page = vm_normal_page(vma, addr, pte);
+		if (page)
+			goto found;
+		if ((flags & FW_ZEROPAGE) &&
+		    is_zero_pfn(pte_pfn(pte))) {
+			page = pfn_to_page(pte_pfn(pte));
+			expose_page = false;
+			goto found;
+		}
+	} else if (!pte_none(pte)) {
+		swp_entry_t entry = pte_to_swp_entry(pte);
+
+		if ((flags & FW_MIGRATION) &&
+		    is_migration_entry(entry)) {
+			page = pfn_swap_entry_to_page(entry);
+			expose_page = false;
+			goto found;
+		}
+	}
+	pte_unmap_unlock(ptep, ptl);
+not_found:
+	vma_pgtable_walk_end(vma);
+	return NULL;
+found:
+	if (expose_page)
+		/* Note: Offset from the mapped page, not the folio start. */
+		fw->page = nth_page(page, (addr & (entry_size - 1)) >> PAGE_SHIFT);
+	else
+		fw->page = NULL;
+	fw->ptl = ptl;
+	return page_folio(page);
 }

@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/nvidia,tegra20-hsuart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra20/Tegra30 high speed (DMA based) UART controller driver
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - nvidia,tegra20-hsuart
+          - nvidia,tegra30-hsuart
+          - nvidia,tegra186-hsuart
+          - nvidia,tegra194-hsuart
+      - items:
+          - const: nvidia,tegra124-hsuart
+          - const: nvidia,tegra30-hsuart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: serial
+
+  dmas:
+    items:
+      - description: DMA channel used for reception
+      - description: DMA channel used for transmission
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  nvidia,enable-modem-interrupt:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Enable modem interrupts. Should be enable only if all 8 lines of UART controller
+      are pinmuxed.
+
+  nvidia,adjust-baud-rates:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: |
+      List of entries providing percentage of baud rate adjustment within a range. Each entry
+      contains a set of 3 values: range low/high and adjusted rate. When the baud rate set on the
+      controller falls within the range mentioned in this field, the baud rate will be adjusted by
+      percentage mentioned here.
+
+      Example: <9600 115200 200>
+
+      Increase baud rate by 2% when set baud rate falls within range 9600 to 115200.
+
+      Standard UART devices are expected to have tolerance for baud rate error by -4 to +4 %. All
+      Tegra devices till Tegra210 had this support. However, Tegra186 chip has a known hardware
+      issue. UART RX baud rate tolerance level is 0% to +4% in 1-stop config. Otherwise, the
+      received data will have corruption/invalid framing errors. Parker errata suggests adjusting
+      baud rate to be higher than the deviations observed in TX.
+
+      TX deviation of connected device can be captured over scope (or noted from its spec) for
+      valid range and Tegra baud rate has to be set above actual TX baud rate observed. To do this
+      we use nvidia,adjust-baud-rates.
+
+      As an example, consider there is deviation observed in TX for baud rates as listed below. 0
+      to 9600 has 1% deviation 9600 to 115200 2% deviation. This slight deviation is expected and
+      Tegra UART is expected to handle it. Due to the issue stated above, baud rate on Tegra UART
+      should be set equal to or above deviation observed for avoiding frame errors. Property
+      should be set like this:
+
+        nvidia,adjust-baud-rates = <0 9600 100>,
+                                   <9600 115200 200>;
+    items:
+      items:
+        - description: range lower bound
+        - description: range upper bound
+        - description: adjustment (in permyriad, i.e. 0.01%)
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+  - reset-names
+  - dmas
+  - dma-names
+
+allOf:
+  - $ref: serial.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra30-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    serial@70006000 {
+        compatible = "nvidia,tegra30-hsuart";
+        reg = <0x70006000 0x40>;
+        interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+        nvidia,enable-modem-interrupt;
+        clocks = <&tegra_car TEGRA30_CLK_UARTA>;
+        resets = <&tegra_car 6>;
+        reset-names = "serial";
+        dmas = <&apbdma 8>, <&apbdma 8>;
+        dma-names = "rx", "tx";
+        nvidia,adjust-baud-rates = <1000000 4000000 136>; /* 1.36% shift */
+    };

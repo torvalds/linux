@@ -19,6 +19,7 @@ static const struct rtw89_pci_bd_idx_addr rtw8852c_bd_idx_addr_low_power = {
 };
 
 static const struct rtw89_pci_info rtw8852c_pci_info = {
+	.gen_def		= &rtw89_pci_gen_ax,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,
@@ -33,6 +34,8 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.autok_en		= MAC_AX_PCIE_DISABLE,
 	.io_rcy_en		= MAC_AX_PCIE_ENABLE,
 	.io_rcy_tmr		= MAC_AX_IO_RCY_ANA_TMR_6MS,
+	.rx_ring_eq_is_full	= false,
+	.check_rx_tag		= false,
 
 	.init_cfg_reg		= R_AX_HAXI_INIT_CFG1,
 	.txhci_en_bit		= B_AX_TXHCI_EN_V1,
@@ -42,6 +45,7 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.max_tag_num_mask	= B_AX_MAX_TAG_NUM_V1_MASK,
 	.rxbd_rwptr_clr_reg	= R_AX_RXBD_RWPTR_CLR_V1,
 	.txbd_rwptr_clr2_reg	= R_AX_TXBD_RWPTR_CLR2_V1,
+	.dma_io_stop		= {R_AX_HAXI_INIT_CFG1, B_AX_STOP_AXI_MST},
 	.dma_stop1		= {R_AX_HAXI_DMA_STOP1, B_AX_TX_STOP1_MASK},
 	.dma_stop2		= {R_AX_HAXI_DMA_STOP2, B_AX_TX_STOP2_ALL},
 	.dma_busy1		= {R_AX_HAXI_DMA_BUSY1, DMA_BUSY1_CHECK},
@@ -50,6 +54,8 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 
 	.rpwm_addr		= R_AX_PCIE_HRPWM_V1,
 	.cpwm_addr		= R_AX_PCIE_CRPWM,
+	.mit_addr		= R_AX_INT_MIT_RX_V1,
+	.wp_sel_addr		= R_AX_WP_ADDR_H_SEL0_3,
 	.tx_dma_ch_mask		= 0,
 	.bd_idx_addr_low_power	= &rtw8852c_bd_idx_addr_low_power,
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set_v1,
@@ -63,8 +69,31 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.recognize_intrs	= rtw89_pci_recognize_intrs_v1,
 };
 
+static const struct dmi_system_id rtw8852c_pci_quirks[] = {
+	{
+		.ident = "Dell Inc. Vostro 16 5640",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 16 5640"),
+			DMI_MATCH(DMI_PRODUCT_SKU, "0CA0"),
+		},
+		.driver_data = (void *)RTW89_QUIRK_PCI_BER,
+	},
+	{
+		.ident = "Dell Inc. Inspiron 16 5640",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 16 5640"),
+			DMI_MATCH(DMI_PRODUCT_SKU, "0C9F"),
+		},
+		.driver_data = (void *)RTW89_QUIRK_PCI_BER,
+	},
+	{},
+};
+
 static const struct rtw89_driver_info rtw89_8852ce_info = {
 	.chip = &rtw8852c_chip_info,
+	.quirks = rtw8852c_pci_quirks,
 	.bus = {
 		.pci = &rtw8852c_pci_info,
 	},

@@ -9,9 +9,11 @@
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pci_regs.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 
 #include "../../pci.h"
@@ -130,7 +132,7 @@ static void intel_pcie_link_setup(struct intel_pcie *pcie)
 
 static void intel_pcie_init_n_fts(struct dw_pcie *pci)
 {
-	switch (pci->link_gen) {
+	switch (pci->max_link_speed) {
 	case 3:
 		pci->n_fts[1] = PORT_AFR_N_FTS_GEN3;
 		break;
@@ -250,7 +252,7 @@ static int intel_pcie_wait_l2(struct intel_pcie *pcie)
 	int ret;
 	struct dw_pcie *pci = &pcie->pci;
 
-	if (pci->link_gen < 3)
+	if (pci->max_link_speed < 3)
 		return 0;
 
 	/* Send PME_TURN_OFF message */
@@ -389,7 +391,7 @@ static const struct dw_pcie_ops intel_pcie_ops = {
 };
 
 static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
-	.host_init =		intel_pcie_rc_init,
+	.init = intel_pcie_rc_init,
 };
 
 static int intel_pcie_probe(struct platform_device *pdev)

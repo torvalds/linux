@@ -8,6 +8,7 @@
 #include "intel_crt.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dpll.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
 #include "intel_lvds.h"
@@ -223,20 +224,20 @@ static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_s
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	intel_de_write(dev_priv, PCH_TRANS_HTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_HTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HTOTAL(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_HBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HBLANK(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_HSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HSYNC(dev_priv, cpu_transcoder)));
 
 	intel_de_write(dev_priv, PCH_TRANS_VTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VBLANK(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNC(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNCSHIFT(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VSYNCSHIFT(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNCSHIFT(dev_priv, cpu_transcoder)));
 }
 
 static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
@@ -270,7 +271,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 
 	reg = PCH_TRANSCONF(pipe);
 	val = intel_de_read(dev_priv, reg);
-	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(pipe));
+	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe));
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Configure frame start delay to match the CPU */
@@ -357,6 +358,7 @@ void ilk_pch_pre_enable(struct intel_atomic_state *state,
 void ilk_pch_enable(struct intel_atomic_state *state,
 		    struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -398,7 +400,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	intel_enable_shared_dpll(crtc_state);
 
 	/* set transcoder timing, panel must allow it */
-	assert_pps_unlocked(dev_priv, pipe);
+	assert_pps_unlocked(display, pipe);
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
 		intel_pch_transcoder_set_m1_n1(crtc, &crtc_state->dp_m_n);
 		intel_pch_transcoder_set_m2_n2(crtc, &crtc_state->dp_m2_n2);
@@ -412,7 +414,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	    intel_crtc_has_dp_encoder(crtc_state)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc_state->hw.adjusted_mode;
-		u32 bpc = (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) >> 5;
+		u32 bpc = (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) >> 5;
 		i915_reg_t reg = TRANS_DP_CTL(pipe);
 		enum port port;
 
@@ -473,7 +475,7 @@ static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	/* read out port_clock from the DPLL */
-	i9xx_crtc_clock_get(crtc, crtc_state);
+	i9xx_crtc_clock_get(crtc_state);
 
 	/*
 	 * In case there is an active pipe without active ports,
@@ -528,7 +530,7 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 					     &crtc_state->dpll_hw_state);
 	drm_WARN_ON(&dev_priv->drm, !pll_active);
 
-	tmp = crtc_state->dpll_hw_state.dpll;
+	tmp = crtc_state->dpll_hw_state.i9xx.dpll;
 	crtc_state->pixel_multiplier =
 		((tmp & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK)
 		 >> PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT) + 1;
@@ -556,7 +558,8 @@ static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
 
 	val = TRANS_ENABLE;
-	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
+	pipeconf_val = intel_de_read(dev_priv,
+				     TRANSCONF(dev_priv, cpu_transcoder));
 
 	if ((pipeconf_val & TRANSCONF_INTERLACE_MASK_HSW) == TRANSCONF_INTERLACE_IF_ID_ILK)
 		val |= TRANS_INTERLACE_INTERLACED;

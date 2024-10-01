@@ -954,7 +954,7 @@ bool tomoyo_str_starts(char **src, const char *find);
 char *tomoyo_encode(const char *str);
 char *tomoyo_encode2(const char *str, int str_len);
 char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
-		      va_list args);
+		      va_list args) __printf(3, 0);
 char *tomoyo_read_token(struct tomoyo_acl_param *param);
 char *tomoyo_realpath_from_path(const struct path *path);
 char *tomoyo_realpath_nofollow(const char *pathname);
@@ -978,6 +978,7 @@ int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     struct tomoyo_domain_info *domain,
 			     const u8 index);
+int __init tomoyo_interface_init(void);
 int tomoyo_mkdev_perm(const u8 operation, const struct path *path,
 		      const unsigned int mode, unsigned int dev);
 int tomoyo_mount_permission(const char *dev_name, const struct path *path,
@@ -1037,8 +1038,6 @@ struct tomoyo_policy_namespace *tomoyo_assign_namespace
 (const char *domainname);
 struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
 				      const u8 profile);
-unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
-				const u8 index);
 u8 tomoyo_parse_ulong(unsigned long *result, char **str);
 void *tomoyo_commit_ok(void *data, const unsigned int size);
 void __init tomoyo_load_builtin_policy(void);
@@ -1067,7 +1066,7 @@ void tomoyo_warn_oom(const char *function);
 void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 	__printf(2, 3);
 void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
-		       va_list args);
+		       va_list args) __printf(3, 0);
 
 /********** External variable definitions. **********/
 
@@ -1216,10 +1215,14 @@ static inline void tomoyo_put_group(struct tomoyo_group *group)
  *
  * Returns pointer to "struct tomoyo_task" for specified thread.
  */
+#ifdef CONFIG_SECURITY_TOMOYO_LKM
+extern struct tomoyo_task *tomoyo_task(struct task_struct *task);
+#else
 static inline struct tomoyo_task *tomoyo_task(struct task_struct *task)
 {
 	return task->security + tomoyo_blob_sizes.lbs_task;
 }
+#endif
 
 /**
  * tomoyo_same_name_union - Check for duplicated "struct tomoyo_name_union" entry.
@@ -1285,5 +1288,72 @@ static inline struct tomoyo_policy_namespace *tomoyo_current_namespace(void)
 	if (!pos)							\
 		pos =  srcu_dereference((head)->next, &tomoyo_ss);	\
 	for ( ; pos != (head); pos = srcu_dereference(pos->next, &tomoyo_ss))
+
+#ifdef CONFIG_SECURITY_TOMOYO_LKM
+
+#define LSM_HOOK(RET, DEFAULT, NAME, ...) typedef RET (NAME##_t)(__VA_ARGS__);
+#include <linux/lsm_hook_defs.h>
+#undef LSM_HOOK
+
+struct tomoyo_hooks {
+	cred_prepare_t *cred_prepare;
+	bprm_committed_creds_t *bprm_committed_creds;
+	task_alloc_t *task_alloc;
+	task_free_t *task_free;
+	bprm_check_security_t *bprm_check_security;
+	file_fcntl_t *file_fcntl;
+	file_open_t *file_open;
+	file_truncate_t *file_truncate;
+	path_truncate_t *path_truncate;
+	path_unlink_t *path_unlink;
+	path_mkdir_t *path_mkdir;
+	path_rmdir_t *path_rmdir;
+	path_symlink_t *path_symlink;
+	path_mknod_t *path_mknod;
+	path_link_t *path_link;
+	path_rename_t *path_rename;
+	inode_getattr_t *inode_getattr;
+	file_ioctl_t *file_ioctl;
+	file_ioctl_compat_t *file_ioctl_compat;
+	path_chmod_t *path_chmod;
+	path_chown_t *path_chown;
+	path_chroot_t *path_chroot;
+	sb_mount_t *sb_mount;
+	sb_umount_t *sb_umount;
+	sb_pivotroot_t *sb_pivotroot;
+	socket_bind_t *socket_bind;
+	socket_connect_t *socket_connect;
+	socket_listen_t *socket_listen;
+	socket_sendmsg_t *socket_sendmsg;
+};
+
+extern void tomoyo_register_hooks(const struct tomoyo_hooks *tomoyo_hooks);
+
+struct tomoyo_operations {
+	void (*check_profile)(void);
+	int enabled;
+};
+
+extern struct tomoyo_operations tomoyo_ops;
+
+/*
+ * Temporary hack: functions needed by tomoyo.ko . This will be removed
+ * after all functions are marked as EXPORT_STMBOL_GPL().
+ */
+struct tomoyo_tmp_exports {
+	struct task_struct * (*find_task_by_vpid)(pid_t nr);
+	struct task_struct * (*find_task_by_pid_ns)(pid_t nr, struct pid_namespace *ns);
+	void (*put_filesystem)(struct file_system_type *fs);
+	struct file * (*get_mm_exe_file)(struct mm_struct *mm);
+	char * (*d_absolute_path)(const struct path *path, char *buf, int buflen);
+};
+extern const struct tomoyo_tmp_exports tomoyo_tmp_exports;
+#define find_task_by_vpid tomoyo_tmp_exports.find_task_by_vpid
+#define find_task_by_pid_ns tomoyo_tmp_exports.find_task_by_pid_ns
+#define put_filesystem tomoyo_tmp_exports.put_filesystem
+#define get_mm_exe_file tomoyo_tmp_exports.get_mm_exe_file
+#define d_absolute_path tomoyo_tmp_exports.d_absolute_path
+
+#endif /* defined(CONFIG_SECURITY_TOMOYO_LKM) */
 
 #endif /* !defined(_SECURITY_TOMOYO_COMMON_H) */

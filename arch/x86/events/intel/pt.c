@@ -22,7 +22,7 @@
 #include <asm/insn.h>
 #include <asm/io.h>
 #include <asm/intel_pt.h>
-#include <asm/intel-family.h>
+#include <asm/cpu_device_id.h>
 
 #include "../perf_event.h"
 #include "pt.h"
@@ -211,11 +211,11 @@ static int __init pt_pmu_hw_init(void)
 	}
 
 	/* model-specific quirks */
-	switch (boot_cpu_data.x86_model) {
-	case INTEL_FAM6_BROADWELL:
-	case INTEL_FAM6_BROADWELL_D:
-	case INTEL_FAM6_BROADWELL_G:
-	case INTEL_FAM6_BROADWELL_X:
+	switch (boot_cpu_data.x86_vfm) {
+	case INTEL_BROADWELL:
+	case INTEL_BROADWELL_D:
+	case INTEL_BROADWELL_G:
+	case INTEL_BROADWELL_X:
 		/* not setting BRANCH_EN will #GP, erratum BDM106 */
 		pt_pmu.branch_en_always_on = true;
 		break;
@@ -416,7 +416,7 @@ static bool pt_event_valid(struct perf_event *event)
 static void pt_config_start(struct perf_event *event)
 {
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
-	u64 ctl = event->hw.config;
+	u64 ctl = event->hw.aux_config;
 
 	ctl |= RTIT_CTL_TRACEEN;
 	if (READ_ONCE(pt->vmx_on))
@@ -424,7 +424,7 @@ static void pt_config_start(struct perf_event *event)
 	else
 		wrmsrl(MSR_IA32_RTIT_CTL, ctl);
 
-	WRITE_ONCE(event->hw.config, ctl);
+	WRITE_ONCE(event->hw.aux_config, ctl);
 }
 
 /* Address ranges and their corresponding msr configuration registers */
@@ -503,7 +503,7 @@ static void pt_config(struct perf_event *event)
 	u64 reg;
 
 	/* First round: clear STATUS, in particular the PSB byte counter. */
-	if (!event->hw.config) {
+	if (!event->hw.aux_config) {
 		perf_event_itrace_started(event);
 		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 	}
@@ -533,14 +533,14 @@ static void pt_config(struct perf_event *event)
 
 	reg |= (event->attr.config & PT_CONFIG_MASK);
 
-	event->hw.config = reg;
+	event->hw.aux_config = reg;
 	pt_config_start(event);
 }
 
 static void pt_config_stop(struct perf_event *event)
 {
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
-	u64 ctl = READ_ONCE(event->hw.config);
+	u64 ctl = READ_ONCE(event->hw.aux_config);
 
 	/* may be already stopped by a PMI */
 	if (!(ctl & RTIT_CTL_TRACEEN))
@@ -550,7 +550,7 @@ static void pt_config_stop(struct perf_event *event)
 	if (!READ_ONCE(pt->vmx_on))
 		wrmsrl(MSR_IA32_RTIT_CTL, ctl);
 
-	WRITE_ONCE(event->hw.config, ctl);
+	WRITE_ONCE(event->hw.aux_config, ctl);
 
 	/*
 	 * A wrmsr that disables trace generation serializes other PT
@@ -736,6 +736,7 @@ static bool topa_table_full(struct topa *topa)
 /**
  * topa_insert_pages() - create a list of ToPA tables
  * @buf:	PT buffer being initialized.
+ * @cpu:	CPU on which to allocate.
  * @gfp:	Allocation flags.
  *
  * This initializes a list of ToPA tables with entries from
@@ -877,7 +878,7 @@ static void pt_update_head(struct pt *pt)
  */
 static void *pt_buffer_region(struct pt_buffer *buf)
 {
-	return phys_to_virt(TOPA_ENTRY(buf->cur, buf->cur_idx)->base << TOPA_SHIFT);
+	return phys_to_virt((phys_addr_t)TOPA_ENTRY(buf->cur, buf->cur_idx)->base << TOPA_SHIFT);
 }
 
 /**
@@ -989,7 +990,7 @@ pt_topa_entry_for_page(struct pt_buffer *buf, unsigned int pg)
 	 * order allocations, there shouldn't be many of these.
 	 */
 	list_for_each_entry(topa, &buf->tables, list) {
-		if (topa->offset + topa->size > pg << PAGE_SHIFT)
+		if (topa->offset + topa->size > (unsigned long)pg << PAGE_SHIFT)
 			goto found;
 	}
 
@@ -1207,8 +1208,11 @@ static void pt_buffer_fini_topa(struct pt_buffer *buf)
 /**
  * pt_buffer_init_topa() - initialize ToPA table for pt buffer
  * @buf:	PT buffer.
- * @size:	Total size of all regions within this ToPA.
+ * @cpu:	CPU on which to allocate.
+ * @nr_pages:	No. of pages to allocate.
  * @gfp:	Allocation flags.
+ *
+ * Return:	0 on success or error code.
  */
 static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 			       unsigned long nr_pages, gfp_t gfp)
@@ -1281,7 +1285,7 @@ out:
 
 /**
  * pt_buffer_setup_aux() - set up topa tables for a PT buffer
- * @cpu:	Cpu on which to allocate, -1 means current.
+ * @event:	Performance event
  * @pages:	Array of pointers to buffer pages passed from perf core.
  * @nr_pages:	Number of pages in the buffer.
  * @snapshot:	If this is a snapshot/overwrite counter.
@@ -1553,7 +1557,7 @@ void intel_pt_handle_vmx(int on)
 
 	/* Turn PTs back on */
 	if (!on && event)
-		wrmsrl(MSR_IA32_RTIT_CTL, event->hw.config);
+		wrmsrl(MSR_IA32_RTIT_CTL, event->hw.aux_config);
 
 	local_irq_restore(flags);
 }
@@ -1602,6 +1606,7 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	 * see comment in intel_pt_interrupt().
 	 */
 	WRITE_ONCE(pt->handle_nmi, 0);
+	barrier();
 
 	pt_config_stop(event);
 
@@ -1653,11 +1658,10 @@ static long pt_event_snapshot_aux(struct perf_event *event,
 		return 0;
 
 	/*
-	 * Here, handle_nmi tells us if the tracing is on
+	 * There is no PT interrupt in this mode, so stop the trace and it will
+	 * remain stopped while the buffer is copied.
 	 */
-	if (READ_ONCE(pt->handle_nmi))
-		pt_config_stop(event);
-
+	pt_config_stop(event);
 	pt_read_offset(buf);
 	pt_update_head(pt);
 
@@ -1669,11 +1673,10 @@ static long pt_event_snapshot_aux(struct perf_event *event,
 	ret = perf_output_copy_aux(&pt->handle, handle, from, to);
 
 	/*
-	 * If the tracing was on when we turned up, restart it.
-	 * Compiler barrier not needed as we couldn't have been
-	 * preempted by anything that touches pt->handle_nmi.
+	 * Here, handle_nmi tells us if the tracing was on.
+	 * If the tracing was on, restart it.
 	 */
-	if (pt->handle_nmi)
+	if (READ_ONCE(pt->handle_nmi))
 		pt_config_start(event);
 
 	return ret;

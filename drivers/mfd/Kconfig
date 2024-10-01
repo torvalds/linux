@@ -20,6 +20,18 @@ config MFD_CS5535
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
 	  necessary for using the board's GPIO and MFGPT functionality.
 
+config MFD_ADP5585
+	tristate "Analog Devices ADP5585 keypad decoder and I/O expander driver"
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C
+	depends on OF || COMPILE_TEST
+	help
+	  Say yes here to add support for the Analog Devices ADP5585 GPIO
+	  expander, PWM and keypad controller. This includes the I2C driver and
+	  the core APIs _only_, you have to select individual components like
+	  the GPIO and PWM functions under the corresponding menus.
+
 config MFD_ALTERA_A10SR
 	bool "Altera Arria10 DevKit System Resource chip"
 	depends on ARCH_INTEL_SOCFPGA && SPI_MASTER=y && OF
@@ -237,6 +249,30 @@ config MFD_CROS_EC_DEV
 	  To compile this driver as a module, choose M here: the module will be
 	  called cros-ec-dev.
 
+config MFD_CS42L43
+	tristate
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_IRQ
+
+config MFD_CS42L43_I2C
+	tristate "Cirrus Logic CS42L43 (I2C)"
+	depends on I2C
+	select REGMAP_I2C
+	select MFD_CS42L43
+	help
+	  Select this to support the Cirrus Logic CS42L43 PC CODEC with
+	  headphone and class D speaker drivers over I2C.
+
+config MFD_CS42L43_SDW
+	tristate "Cirrus Logic CS42L43 (SoundWire)"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select MFD_CS42L43
+	help
+	  Select this to support the Cirrus Logic CS42L43 PC CODEC with
+	  headphone and class D speaker drivers over SoundWire.
+
 config MFD_MADERA
 	tristate "Cirrus Logic Madera codecs"
 	select MFD_CORE
@@ -268,7 +304,7 @@ config MFD_MADERA_SPI
 
 config MFD_MAX5970
 	tristate "Maxim 5970/5978 power switch and monitor"
-	depends on (I2C && OF)
+	depends on I2C && OF
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  This driver controls a Maxim 5970/5978 switch via I2C bus.
@@ -434,7 +470,7 @@ config MFD_EXYNOS_LPASS
 
 config MFD_GATEWORKS_GSC
 	tristate "Gateworks System Controller"
-	depends on (I2C && OF)
+	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -449,7 +485,7 @@ config MFD_GATEWORKS_GSC
 
 config MFD_MC13XXX
 	tristate
-	depends on (SPI_MASTER || I2C)
+	depends on SPI_MASTER || I2C
 	select MFD_CORE
 	select REGMAP_IRQ
 	help
@@ -770,6 +806,18 @@ config MFD_88PM860X
 	  select individual components like voltage regulators, RTC and
 	  battery-charger under the corresponding menus.
 
+config MFD_88PM886_PMIC
+	bool "Marvell 88PM886 PMIC"
+	depends on I2C=y
+	depends on OF
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  This enables support for Marvell 88PM886 Power Management IC.
+	  This includes the I2C driver and the core APIs _only_, you have to
+	  select individual components like onkey under the corresponding menus.
+
 config MFD_MAX14577
 	tristate "Maxim Semiconductor MAX14577/77836 MUIC + Charger Support"
 	depends on I2C
@@ -1085,7 +1133,7 @@ config PCF50633_GPIO
 
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
-	depends on (ARM || HEXAGON || COMPILE_TEST)
+	depends on ARM || HEXAGON || COMPILE_TEST
 	select IRQ_DOMAIN_HIERARCHY
 	select MFD_CORE
 	select REGMAP
@@ -1197,11 +1245,11 @@ config MFD_RC5T583
 	  different functionality of the device.
 
 config MFD_RK8XX
-	bool
+	tristate
 	select MFD_CORE
 
 config MFD_RK8XX_I2C
-	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 Power Management Chip"
+	tristate "Rockchip RK805/RK808/RK809/RK816/RK817/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
@@ -1209,7 +1257,7 @@ config MFD_RK8XX_I2C
 	select MFD_RK8XX
 	help
 	  If you say yes here you get support for the RK805, RK808, RK809,
-	  RK817 and RK818 Power Management chips.
+	  RK816, RK817 and RK818 Power Management chips.
 	  This driver provides common support for accessing the device
 	  through I2C interface. The device supports multiple sub-devices
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
@@ -1348,8 +1396,9 @@ config MFD_SC27XX_PMIC
 	  and it also adds the irq_chip parts for handling the PMIC chip events.
 
 config RZ_MTU3
-	bool "Renesas RZ/G2L MTU3a core driver"
+	tristate "Renesas RZ/G2L MTU3a core driver"
 	depends on (ARCH_RZG2L && OF) || COMPILE_TEST
+	select MFD_CORE
 	help
 	  Select this option to enable Renesas RZ/G2L MTU3a core driver for
 	  the Multi-Function Timer Pulse Unit 3 (MTU3a) hardware available
@@ -1393,7 +1442,7 @@ config MFD_DB8500_PRCMU
 
 config MFD_STMPE
 	bool "STMicroelectronics STMPE"
-	depends on (I2C=y || SPI_MASTER=y)
+	depends on I2C=y || SPI_MASTER=y
 	depends on OF
 	select MFD_CORE
 	help
@@ -1458,6 +1507,7 @@ config MFD_SYSCON
 
 config MFD_TI_AM335X_TSCADC
 	tristate "TI ADC / Touch Screen chip support"
+	depends on ARCH_OMAP2PLUS || ARCH_K3 || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP
 	select REGMAP_MMIO
@@ -1747,6 +1797,7 @@ config TWL4030_CORE
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 Support"
 	depends on I2C=y
 	select IRQ_DOMAIN
+	select MFD_CORE
 	select REGMAP_I2C
 	help
 	  Say yes here if you have TWL4030 / TWL6030 family chip on your board.
@@ -2062,6 +2113,19 @@ config MFD_ROHM_BD957XMUF
 	  BD9573MUF Power Management ICs. BD9576 and BD9573 are primarily
 	  designed to be used to power R-Car series processors.
 
+config MFD_ROHM_BD96801
+	tristate "ROHM BD96801 Power Management IC"
+	depends on I2C=y
+	depends on OF
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Select this option to get support for the ROHM BD96801 Power
+	  Management IC. The ROHM BD96801 is a highly scalable Power Management
+	  IC for industrial and automotive use. The BD96801 can be used as a
+	  master PMIC in a chained PMIC solution with suitable companion PMICs.
+
 config MFD_STM32_LPTIMER
 	tristate "Support for STM32 Low-Power Timer"
 	depends on (ARCH_STM32 && OF) || COMPILE_TEST
@@ -2089,7 +2153,7 @@ config MFD_STM32_TIMERS
 
 config MFD_STPMIC1
 	tristate "Support for STPMIC1 PMIC"
-	depends on (I2C=y && OF)
+	depends on I2C=y && OF
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
@@ -2181,6 +2245,7 @@ config MFD_ACER_A500_EC
 config MFD_QCOM_PM8008
 	tristate "QCOM PM8008 Power Management IC"
 	depends on I2C && OF
+	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
@@ -2216,6 +2281,36 @@ config MCP_UCB1200_TS
 
 endmenu
 
+config MFD_CS40L50_CORE
+	tristate
+	select MFD_CORE
+	select FW_CS_DSP
+	select REGMAP_IRQ
+
+config MFD_CS40L50_I2C
+	tristate "Cirrus Logic CS40L50 (I2C)"
+	select REGMAP_I2C
+	select MFD_CS40L50_CORE
+	depends on I2C
+	help
+	  Select this to support the Cirrus Logic CS40L50 Haptic
+	  Driver over I2C.
+
+	  This driver can be built as a module. If built as a module it will be
+	  called "cs40l50-i2c".
+
+config MFD_CS40L50_SPI
+	tristate "Cirrus Logic CS40L50 (SPI)"
+	select REGMAP_SPI
+	select MFD_CS40L50_CORE
+	depends on SPI
+	help
+	  Select this to support the Cirrus Logic CS40L50 Haptic
+	  Driver over SPI.
+
+	  This driver can be built as a module. If built as a module it will be
+	  called "cs40l50-spi".
+
 config MFD_VEXPRESS_SYSREG
 	tristate "Versatile Express System Registers"
 	depends on VEXPRESS_CONFIG && GPIOLIB
@@ -2230,7 +2325,7 @@ config MFD_VEXPRESS_SYSREG
 config RAVE_SP_CORE
 	tristate "RAVE SP MCU core driver"
 	depends on SERIAL_DEV_BUS
-	select CRC_CCITT
+	select CRC_ITU_T
 	help
 	  Select this to get support for the Supervisory Processor
 	  device found on several devices in RAVE line of hardware.

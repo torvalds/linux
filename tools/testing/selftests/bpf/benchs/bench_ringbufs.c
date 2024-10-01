@@ -399,7 +399,7 @@ static void perfbuf_libbpf_setup(void)
 	ctx->skel = perfbuf_setup_skeleton();
 
 	memset(&attr, 0, sizeof(attr));
-	attr.config = PERF_COUNT_SW_BPF_OUTPUT,
+	attr.config = PERF_COUNT_SW_BPF_OUTPUT;
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.sample_type = PERF_SAMPLE_RAW;
 	/* notify only every Nth sample */

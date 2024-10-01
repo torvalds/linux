@@ -58,6 +58,9 @@ properties:
 
   wakeup-source: true
 
+  power-domains:
+    maxItems: 1
+
   rx-threshold:
     description:
       If value is set to 1, RX FIFO threshold is disabled.
@@ -69,6 +72,10 @@ properties:
       If value is set to 1, TX FIFO threshold is disabled.
     enum: [1, 2, 4, 8, 12, 14, 16]
     default: 8
+
+  access-controllers:
+    minItems: 1
+    maxItems: 2
 
 allOf:
   - $ref: rs485.yaml#

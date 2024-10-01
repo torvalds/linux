@@ -67,7 +67,7 @@ static inline u32 sel_netif_hashfn(const struct net *ns, int ifindex)
 static inline struct sel_netif *sel_netif_find(const struct net *ns,
 					       int ifindex)
 {
-	int idx = sel_netif_hashfn(ns, ifindex);
+	u32 idx = sel_netif_hashfn(ns, ifindex);
 	struct sel_netif *netif;
 
 	list_for_each_entry_rcu(netif, &sel_netif_hash[idx], list)
@@ -89,7 +89,7 @@ static inline struct sel_netif *sel_netif_find(const struct net *ns,
  */
 static int sel_netif_insert(struct sel_netif *netif)
 {
-	int idx;
+	u32 idx;
 
 	if (sel_netif_total >= SEL_NETIF_HASH_MAX)
 		return -ENOSPC;

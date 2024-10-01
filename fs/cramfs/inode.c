@@ -133,7 +133,8 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
 	}
 
 	/* Struct copy intentional */
-	inode->i_mtime = inode->i_atime = inode->i_ctime = zerotime;
+	inode_set_mtime_to_ts(inode,
+			      inode_set_atime_to_ts(inode, inode_set_ctime_to_ts(inode, zerotime)));
 	/* inode->i_nlink is left 1 - arguably wrong for directories,
 	   but it's the best we can do without reading the directory
 	   contents.  1 yields the right result in GNU find, even
@@ -182,7 +183,7 @@ static int next_buffer;
 static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
 				unsigned int len)
 {
-	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
+	struct address_space *mapping = sb->s_bdev->bd_mapping;
 	struct file_ra_state ra = {};
 	struct page *pages[BLKS_PER_BUF];
 	unsigned i, blocknr, buffer;
@@ -485,12 +486,16 @@ static void cramfs_kill_sb(struct super_block *sb)
 {
 	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
 
+	generic_shutdown_super(sb);
+
 	if (IS_ENABLED(CONFIG_CRAMFS_MTD) && sb->s_mtd) {
 		if (sbi && sbi->mtd_point_size)
 			mtd_unpoint(sb->s_mtd, 0, sbi->mtd_point_size);
-		kill_mtd_super(sb);
+		put_mtd_device(sb->s_mtd);
+		sb->s_mtd = NULL;
 	} else if (IS_ENABLED(CONFIG_CRAMFS_BLOCKDEV) && sb->s_bdev) {
-		kill_block_super(sb);
+		sync_blockdev(sb->s_bdev);
+		bdev_fput(sb->s_bdev_file);
 	}
 	kfree(sbi);
 }
@@ -806,19 +811,19 @@ out:
 
 static int cramfs_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	u32 maxblock;
 	int bytes_filled;
 	void *pgdata;
+	bool success = false;
 
 	maxblock = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	bytes_filled = 0;
-	pgdata = kmap_local_page(page);
+	pgdata = kmap_local_folio(folio, 0);
 
-	if (page->index < maxblock) {
+	if (folio->index < maxblock) {
 		struct super_block *sb = inode->i_sb;
-		u32 blkptr_offset = OFFSET(inode) + page->index * 4;
+		u32 blkptr_offset = OFFSET(inode) + folio->index * 4;
 		u32 block_ptr, block_start, block_len;
 		bool uncompressed, direct;
 
@@ -839,7 +844,7 @@ static int cramfs_read_folio(struct file *file, struct folio *folio)
 			if (uncompressed) {
 				block_len = PAGE_SIZE;
 				/* if last block: cap to file length */
-				if (page->index == maxblock - 1)
+				if (folio->index == maxblock - 1)
 					block_len =
 						offset_in_page(inode->i_size);
 			} else {
@@ -856,7 +861,7 @@ static int cramfs_read_folio(struct file *file, struct folio *folio)
 			 * from the previous block's pointer.
 			 */
 			block_start = OFFSET(inode) + maxblock * 4;
-			if (page->index)
+			if (folio->index)
 				block_start = *(u32 *)
 					cramfs_read(sb, blkptr_offset - 4, 4);
 			/* Beware... previous ptr might be a direct ptr */
@@ -901,17 +906,12 @@ static int cramfs_read_folio(struct file *file, struct folio *folio)
 	}
 
 	memset(pgdata + bytes_filled, 0, PAGE_SIZE - bytes_filled);
-	flush_dcache_page(page);
-	kunmap_local(pgdata);
-	SetPageUptodate(page);
-	unlock_page(page);
-	return 0;
+	flush_dcache_folio(folio);
 
+	success = true;
 err:
 	kunmap_local(pgdata);
-	ClearPageUptodate(page);
-	SetPageError(page);
-	unlock_page(page);
+	folio_end_read(folio, success);
 	return 0;
 }
 
@@ -998,4 +998,5 @@ static void __exit exit_cramfs_fs(void)
 
 module_init(init_cramfs_fs)
 module_exit(exit_cramfs_fs)
+MODULE_DESCRIPTION("Compressed ROM file system support");
 MODULE_LICENSE("GPL");

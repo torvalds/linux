@@ -23,6 +23,18 @@
 #ifndef __AMDGPU_SMUIO_H__
 #define __AMDGPU_SMUIO_H__
 
+enum amdgpu_pkg_type {
+	AMDGPU_PKG_TYPE_APU = 2,
+	AMDGPU_PKG_TYPE_CEM = 3,
+	AMDGPU_PKG_TYPE_OAM = 4,
+	AMDGPU_PKG_TYPE_UNKNOWN,
+};
+
+struct amdgpu_smuio_mcm_config_info {
+	int socket_id;
+	int die_id;
+};
+
 struct amdgpu_smuio_funcs {
 	u32 (*get_rom_index_offset)(struct amdgpu_device *adev);
 	u32 (*get_rom_data_offset)(struct amdgpu_device *adev);
@@ -32,6 +44,7 @@ struct amdgpu_smuio_funcs {
 	u32 (*get_socket_id)(struct amdgpu_device *adev);
 	enum amdgpu_pkg_type (*get_pkg_type)(struct amdgpu_device *adev);
 	bool (*is_host_gpu_xgmi_supported)(struct amdgpu_device *adev);
+	u64 (*get_gpu_clock_counter)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_smuio {

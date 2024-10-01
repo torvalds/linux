@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 
@@ -23,6 +22,10 @@
 #include "clk-regmap-divider.h"
 #include "clk-regmap-mux.h"
 
+static struct clk_parent_data pxo_parent_data = {
+	.fw_name = "pxo", .name = "pxo_board",
+};
+
 static struct clk_pll pll4 = {
 	.l_reg = 0x4,
 	.m_reg = 0x8,
@@ -33,9 +36,7 @@ static struct clk_pll pll4 = {
 	.status_bit = 16,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pll4",
-		.parent_data = (const struct clk_parent_data[]){
-			{ .fw_name = "pxo", .name = "pxo_board" },
-		},
+		.parent_data = &pxo_parent_data,
 		.num_parents = 1,
 		.ops = &clk_pll_ops,
 	},
@@ -51,12 +52,12 @@ static const struct parent_map lcc_pxo_pll4_map[] = {
 	{ P_PLL4, 2 }
 };
 
-static const struct clk_parent_data lcc_pxo_pll4[] = {
+static struct clk_parent_data lcc_pxo_pll4[] = {
 	{ .fw_name = "pxo", .name = "pxo_board" },
 	{ .fw_name = "pll4_vote", .name = "pll4_vote" },
 };
 
-static struct freq_tbl clk_tbl_aif_osr_492[] = {
+static const struct freq_tbl clk_tbl_aif_osr_492[] = {
 	{   512000, P_PLL4, 4, 1, 240 },
 	{   768000, P_PLL4, 4, 1, 160 },
 	{  1024000, P_PLL4, 4, 1, 120 },
@@ -72,7 +73,7 @@ static struct freq_tbl clk_tbl_aif_osr_492[] = {
 	{ }
 };
 
-static struct freq_tbl clk_tbl_aif_osr_393[] = {
+static const struct freq_tbl clk_tbl_aif_osr_393[] = {
 	{   512000, P_PLL4, 4, 1, 192 },
 	{   768000, P_PLL4, 4, 1, 128 },
 	{  1024000, P_PLL4, 4, 1,  96 },
@@ -217,7 +218,7 @@ CLK_AIF_OSR_DIV(spare_i2s_mic, 0x78, 0x7c, 0x80);
 CLK_AIF_OSR_DIV(codec_i2s_spkr, 0x6c, 0x70, 0x74);
 CLK_AIF_OSR_DIV(spare_i2s_spkr, 0x84, 0x88, 0x8c);
 
-static struct freq_tbl clk_tbl_pcm_492[] = {
+static const struct freq_tbl clk_tbl_pcm_492[] = {
 	{   256000, P_PLL4, 4, 1, 480 },
 	{   512000, P_PLL4, 4, 1, 240 },
 	{   768000, P_PLL4, 4, 1, 160 },
@@ -234,7 +235,7 @@ static struct freq_tbl clk_tbl_pcm_492[] = {
 	{ }
 };
 
-static struct freq_tbl clk_tbl_pcm_393[] = {
+static const struct freq_tbl clk_tbl_pcm_393[] = {
 	{   256000, P_PLL4, 4, 1, 384 },
 	{   512000, P_PLL4, 4, 1, 192 },
 	{   768000, P_PLL4, 4, 1, 128 },
@@ -444,6 +445,7 @@ static const struct qcom_cc_desc lcc_msm8960_desc = {
 static const struct of_device_id lcc_msm8960_match_table[] = {
 	{ .compatible = "qcom,lcc-msm8960" },
 	{ .compatible = "qcom,lcc-apq8064" },
+	{ .compatible = "qcom,lcc-mdm9615" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lcc_msm8960_match_table);
@@ -452,6 +454,14 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 {
 	u32 val;
 	struct regmap *regmap;
+
+	/* patch for the cxo <-> pxo difference */
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,lcc-mdm9615")) {
+		pxo_parent_data.fw_name = "cxo";
+		pxo_parent_data.name = "cxo_board";
+		lcc_pxo_pll4[0].fw_name = "cxo";
+		lcc_pxo_pll4[0].name = "cxo_board";
+	}
 
 	regmap = qcom_cc_map(pdev, &lcc_msm8960_desc);
 	if (IS_ERR(regmap))
@@ -471,7 +481,7 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 	/* Enable PLL4 source on the LPASS Primary PLL Mux */
 	regmap_write(regmap, 0xc4, 0x1);
 
-	return qcom_cc_really_probe(pdev, &lcc_msm8960_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &lcc_msm8960_desc, regmap);
 }
 
 static struct platform_driver lcc_msm8960_driver = {

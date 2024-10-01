@@ -400,7 +400,6 @@ static struct parport_driver i2c_parport_driver = {
 	.name = "i2c-parport",
 	.match_port = i2c_parport_attach,
 	.detach = i2c_parport_detach,
-	.devmodel = true,
 };
 module_parport_driver(i2c_parport_driver);
 

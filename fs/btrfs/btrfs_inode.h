@@ -8,10 +8,30 @@
 
 #include <linux/hash.h>
 #include <linux/refcount.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include <linux/rwsem.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/compiler.h>
+#include <linux/fscrypt.h>
+#include <linux/lockdep.h>
+#include <uapi/linux/btrfs_tree.h>
+#include <trace/events/btrfs.h>
+#include "block-rsv.h"
 #include "extent_map.h"
 #include "extent_io.h"
+#include "extent-io-tree.h"
 #include "ordered-data.h"
 #include "delayed-inode.h"
+
+struct extent_state;
+struct posix_acl;
+struct iov_iter;
+struct writeback_control;
+struct btrfs_root;
+struct btrfs_fs_info;
+struct btrfs_trans_handle;
 
 /*
  * Since we search a directory based on f_pos (struct dir_context::pos) we have
@@ -39,7 +59,6 @@ enum {
 	  */
 	BTRFS_INODE_NEEDS_FULL_SYNC,
 	BTRFS_INODE_COPY_EVERYTHING,
-	BTRFS_INODE_IN_DELALLOC_LIST,
 	BTRFS_INODE_HAS_PROPS,
 	BTRFS_INODE_SNAPSHOT_FLUSH,
 	/*
@@ -67,6 +86,41 @@ enum {
 	BTRFS_INODE_VERITY_IN_PROGRESS,
 	/* Set when this inode is a free space inode. */
 	BTRFS_INODE_FREE_SPACE_INODE,
+	/* Set when there are no capabilities in XATTs for the inode. */
+	BTRFS_INODE_NO_CAP_XATTR,
+	/*
+	 * Set if an error happened when doing a COW write before submitting a
+	 * bio or during writeback. Used for both buffered writes and direct IO
+	 * writes. This is to signal a fast fsync that it has to wait for
+	 * ordered extents to complete and therefore not log extent maps that
+	 * point to unwritten extents (when an ordered extent completes and it
+	 * has the BTRFS_ORDERED_IOERR flag set, it drops extent maps in its
+	 * range).
+	 */
+	BTRFS_INODE_COW_WRITE_ERROR,
+	/*
+	 * Indicate this is a directory that points to a subvolume for which
+	 * there is no root reference item. That's a case like the following:
+	 *
+	 *   $ btrfs subvolume create /mnt/parent
+	 *   $ btrfs subvolume create /mnt/parent/child
+	 *   $ btrfs subvolume snapshot /mnt/parent /mnt/snap
+	 *
+	 * If subvolume "parent" is root 256, subvolume "child" is root 257 and
+	 * snapshot "snap" is root 258, then there's no root reference item (key
+	 * BTRFS_ROOT_REF_KEY in the root tree) for the subvolume "child"
+	 * associated to root 258 (the snapshot) - there's only for the root
+	 * of the "parent" subvolume (root 256). In the chunk root we have a
+	 * (256 BTRFS_ROOT_REF_KEY 257) key but we don't have a
+	 * (258 BTRFS_ROOT_REF_KEY 257) key - the sames goes for backrefs, we
+	 * have a (257 BTRFS_ROOT_BACKREF_KEY 256) but we don't have a
+	 * (257 BTRFS_ROOT_BACKREF_KEY 258) key.
+	 *
+	 * So when opening the "child" dentry from the snapshot's directory,
+	 * we don't find a root ref item and we create a stub inode. This is
+	 * done at new_simple_dir(), called from btrfs_lookup_dentry().
+	 */
+	BTRFS_INODE_ROOT_STUB,
 };
 
 /* in memory btrfs inode */
@@ -74,16 +128,31 @@ struct btrfs_inode {
 	/* which subvolume this inode belongs to */
 	struct btrfs_root *root;
 
-	/* key used to find this inode on disk.  This is used by the code
-	 * to read in roots of subvolumes
+#if BITS_PER_LONG == 32
+	/*
+	 * The objectid of the corresponding BTRFS_INODE_ITEM_KEY.
+	 * On 64 bits platforms we can get it from vfs_inode.i_ino, which is an
+	 * unsigned long and therefore 64 bits on such platforms.
 	 */
-	struct btrfs_key location;
+	u64 objectid;
+#endif
+
+	/* Cached value of inode property 'compression'. */
+	u8 prop_compress;
+
+	/*
+	 * Force compression on the file using the defrag ioctl, could be
+	 * different from prop_compress and takes precedence if set.
+	 */
+	u8 defrag_compress;
 
 	/*
 	 * Lock for counters and all fields used to determine if the inode is in
 	 * the log or not (last_trans, last_sub_trans, last_log_commit,
-	 * logged_trans), to access/update new_delalloc_bytes and to update the
-	 * VFS' inode number of bytes used.
+	 * logged_trans), to access/update delalloc_bytes, new_delalloc_bytes,
+	 * defrag_bytes, disk_i_size, outstanding_extents, csum_bytes and to
+	 * update the VFS' inode number of bytes used.
+	 * Also protects setting struct file::private_data.
 	 */
 	spinlock_t lock;
 
@@ -95,24 +164,33 @@ struct btrfs_inode {
 
 	/*
 	 * Keep track of where the inode has extent items mapped in order to
-	 * make sure the i_size adjustments are accurate
+	 * make sure the i_size adjustments are accurate. Not required when the
+	 * filesystem is NO_HOLES, the status can't be set while mounted as
+	 * it's a mkfs-time feature.
 	 */
-	struct extent_io_tree file_extent_tree;
+	struct extent_io_tree *file_extent_tree;
 
 	/* held while logging the inode in tree-log.c */
 	struct mutex log_mutex;
 
+	/*
+	 * Counters to keep track of the number of extent item's we may use due
+	 * to delalloc and such.  outstanding_extents is the number of extent
+	 * items we think we'll end up using, and reserved_extents is the number
+	 * of extent items we've reserved metadata for. Protected by 'lock'.
+	 */
+	unsigned outstanding_extents;
+
 	/* used to order data wrt metadata */
-	struct btrfs_ordered_inode_tree ordered_tree;
+	spinlock_t ordered_tree_lock;
+	struct rb_root ordered_tree;
+	struct rb_node *ordered_tree_last;
 
 	/* list of all the delalloc inodes in the FS.  There are times we need
 	 * to write all the delalloc pages to disk, and this list is used
 	 * to walk them all.
 	 */
 	struct list_head delalloc_inodes;
-
-	/* node for the red-black tree that links inodes in subvolume root */
-	struct rb_node rb_node;
 
 	unsigned long runtime_flags;
 
@@ -122,28 +200,31 @@ struct btrfs_inode {
 	u64 generation;
 
 	/*
-	 * transid of the trans_handle that last modified this inode
+	 * ID of the transaction handle that last modified this inode.
+	 * Protected by 'lock'.
 	 */
 	u64 last_trans;
 
 	/*
-	 * transid that last logged this inode
+	 * ID of the transaction that last logged this inode.
+	 * Protected by 'lock'.
 	 */
 	u64 logged_trans;
 
 	/*
-	 * log transid when this inode was last modified
+	 * Log transaction ID when this inode was last modified.
+	 * Protected by 'lock'.
 	 */
 	int last_sub_trans;
 
-	/* a local copy of root's last_log_commit */
+	/* A local copy of root's last_log_commit. Protected by 'lock'. */
 	int last_log_commit;
 
 	union {
 		/*
 		 * Total number of bytes pending delalloc, used by stat to
 		 * calculate the real block usage of the file. This is used
-		 * only for files.
+		 * only for files. Protected by 'lock'.
 		 */
 		u64 delalloc_bytes;
 		/*
@@ -161,7 +242,7 @@ struct btrfs_inode {
 		 * Total number of bytes pending delalloc that fall within a file
 		 * range that is either a hole or beyond EOF (and no prealloc extent
 		 * exists in the range). This is always <= delalloc_bytes and this
-		 * is used only for files.
+		 * is used only for files. Protected by 'lock'.
 		 */
 		u64 new_delalloc_bytes;
 		/*
@@ -171,25 +252,43 @@ struct btrfs_inode {
 		u64 last_dir_index_offset;
 	};
 
-	/*
-	 * total number of bytes pending defrag, used by stat to check whether
-	 * it needs COW.
-	 */
-	u64 defrag_bytes;
+	union {
+		/*
+		 * Total number of bytes pending defrag, used by stat to check whether
+		 * it needs COW. Protected by 'lock'.
+		 * Used by inodes other than the data relocation inode.
+		 */
+		u64 defrag_bytes;
+
+		/*
+		 * Logical address of the block group being relocated.
+		 * Used only by the data relocation inode.
+		 */
+		u64 reloc_block_group_start;
+	};
 
 	/*
-	 * the size of the file stored in the metadata on disk.  data=ordered
+	 * The size of the file stored in the metadata on disk.  data=ordered
 	 * means the in-memory i_size might be larger than the size on disk
-	 * because not all the blocks are written yet.
+	 * because not all the blocks are written yet. Protected by 'lock'.
 	 */
 	u64 disk_i_size;
 
-	/*
-	 * If this is a directory then index_cnt is the counter for the index
-	 * number for new files that are created. For an empty directory, this
-	 * must be initialized to BTRFS_DIR_START_INDEX.
-	 */
-	u64 index_cnt;
+	union {
+		/*
+		 * If this is a directory then index_cnt is the counter for the
+		 * index number for new files that are created. For an empty
+		 * directory, this must be initialized to BTRFS_DIR_START_INDEX.
+		 */
+		u64 index_cnt;
+
+		/*
+		 * If this is not a directory, this is the number of bytes
+		 * outstanding that are going to need csums. This is used in
+		 * ENOSPC accounting. Protected by 'lock'.
+		 */
+		u64 csum_bytes;
+	};
 
 	/* Cache the directory index number to speed the dir/file remove */
 	u64 dir_index;
@@ -201,52 +300,38 @@ struct btrfs_inode {
 	 */
 	u64 last_unlink_trans;
 
-	/*
-	 * The id/generation of the last transaction where this inode was
-	 * either the source or the destination of a clone/dedupe operation.
-	 * Used when logging an inode to know if there are shared extents that
-	 * need special care when logging checksum items, to avoid duplicate
-	 * checksum items in a log (which can lead to a corruption where we end
-	 * up with missing checksum ranges after log replay).
-	 * Protected by the vfs inode lock.
-	 */
-	u64 last_reflink_trans;
+	union {
+		/*
+		 * The id/generation of the last transaction where this inode
+		 * was either the source or the destination of a clone/dedupe
+		 * operation. Used when logging an inode to know if there are
+		 * shared extents that need special care when logging checksum
+		 * items, to avoid duplicate checksum items in a log (which can
+		 * lead to a corruption where we end up with missing checksum
+		 * ranges after log replay). Protected by the VFS inode lock.
+		 * Used for regular files only.
+		 */
+		u64 last_reflink_trans;
 
-	/*
-	 * Number of bytes outstanding that are going to need csums.  This is
-	 * used in ENOSPC accounting.
-	 */
-	u64 csum_bytes;
+		/*
+		 * In case this a root stub inode (BTRFS_INODE_ROOT_STUB flag set),
+		 * the ID of that root.
+		 */
+		u64 ref_root_id;
+	};
 
 	/* Backwards incompatible flags, lower half of inode_item::flags  */
 	u32 flags;
 	/* Read-only compatibility flags, upper half of inode_item::flags */
 	u32 ro_flags;
 
-	/*
-	 * Counters to keep track of the number of extent item's we may use due
-	 * to delalloc and such.  outstanding_extents is the number of extent
-	 * items we think we'll end up using, and reserved_extents is the number
-	 * of extent items we've reserved metadata for.
-	 */
-	unsigned outstanding_extents;
-
 	struct btrfs_block_rsv block_rsv;
-
-	/*
-	 * Cached values of inode properties
-	 */
-	unsigned prop_compress;		/* per-file compression algorithm */
-	/*
-	 * Force compression on the file using the defrag ioctl, could be
-	 * different from prop_compress and takes precedence if set
-	 */
-	unsigned defrag_compress;
 
 	struct btrfs_delayed_node *delayed_node;
 
 	/* File creation time. */
-	struct timespec64 i_otime;
+	u64 i_otime_sec;
+	u32 i_otime_nsec;
 
 	/* Hook into fs_info->delayed_iputs */
 	struct list_head delayed_iput;
@@ -266,10 +351,12 @@ static inline void btrfs_set_first_dir_index_to_log(struct btrfs_inode *inode,
 	WRITE_ONCE(inode->first_dir_index_to_log, index);
 }
 
-static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
-{
-	return container_of(inode, struct btrfs_inode, vfs_inode);
-}
+/* Type checked and const-preserving VFS inode -> btrfs inode. */
+#define BTRFS_I(_inode)								\
+	_Generic(_inode,							\
+		 struct inode *: container_of(_inode, struct btrfs_inode, vfs_inode),	\
+		 const struct inode *: (const struct btrfs_inode *)container_of(	\
+					_inode, const struct btrfs_inode, vfs_inode))
 
 static inline unsigned long btrfs_inode_hash(u64 objectid,
 					     const struct btrfs_root *root)
@@ -291,10 +378,9 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
  */
 static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
-	u64 ino = inode->location.objectid;
+	u64 ino = inode->objectid;
 
-	/* type == BTRFS_ROOT_ITEM_KEY: subvol dir */
-	if (inode->location.type == BTRFS_ROOT_ITEM_KEY)
+	if (test_bit(BTRFS_INODE_ROOT_STUB, &inode->runtime_flags))
 		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
@@ -308,20 +394,36 @@ static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 
 #endif
 
+static inline void btrfs_get_inode_key(const struct btrfs_inode *inode,
+				       struct btrfs_key *key)
+{
+	key->objectid = btrfs_ino(inode);
+	key->type = BTRFS_INODE_ITEM_KEY;
+	key->offset = 0;
+}
+
+static inline void btrfs_set_inode_number(struct btrfs_inode *inode, u64 ino)
+{
+#if BITS_PER_LONG == 32
+	inode->objectid = ino;
+#endif
+	inode->vfs_inode.i_ino = ino;
+}
+
 static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 {
 	i_size_write(&inode->vfs_inode, size);
 	inode->disk_i_size = size;
 }
 
-static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
+static inline bool btrfs_is_free_space_inode(const struct btrfs_inode *inode)
 {
 	return test_bit(BTRFS_INODE_FREE_SPACE_INODE, &inode->runtime_flags);
 }
 
-static inline bool is_data_inode(struct inode *inode)
+static inline bool is_data_inode(const struct btrfs_inode *inode)
 {
-	return btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID;
+	return btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID;
 }
 
 static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,
@@ -351,9 +453,11 @@ static inline void btrfs_set_inode_last_sub_trans(struct btrfs_inode *inode)
 }
 
 /*
- * Should be called while holding the inode's VFS lock in exclusive mode or in a
- * context where no one else can access the inode concurrently (during inode
- * creation or when loading an inode from disk).
+ * Should be called while holding the inode's VFS lock in exclusive mode, or
+ * while holding the inode's mmap lock (struct btrfs_inode::i_mmap_lock) in
+ * either shared or exclusive mode, or in a context where no one else can access
+ * the inode concurrently (during inode creation or when loading an inode from
+ * disk).
  */
 static inline void btrfs_set_inode_full_sync(struct btrfs_inode *inode)
 {
@@ -387,7 +491,7 @@ static inline bool btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 	spin_lock(&inode->lock);
 	if (inode->logged_trans == generation &&
 	    inode->last_sub_trans <= inode->last_log_commit &&
-	    inode->last_sub_trans <= inode->root->last_log_commit)
+	    inode->last_sub_trans <= btrfs_get_root_last_log_commit(inode->root))
 		ret = true;
 	spin_unlock(&inode->lock);
 	return ret;
@@ -404,6 +508,14 @@ static inline bool btrfs_inode_can_compress(const struct btrfs_inode *inode)
 	return true;
 }
 
+static inline void btrfs_assert_inode_locked(struct btrfs_inode *inode)
+{
+	/* Immediately trigger a crash if the inode is not locked. */
+	ASSERT(inode_is_locked(&inode->vfs_inode));
+	/* Trigger a splat in dmesg if this task is not holding the lock. */
+	lockdep_assert_held(&inode->vfs_inode.i_rwsem);
+}
+
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes
@@ -413,10 +525,10 @@ int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 			u32 bio_offset, struct bio_vec *bv);
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
-			      u64 *orig_start, u64 *orig_block_len,
-			      u64 *ram_bytes, bool nowait, bool strict);
+			      struct btrfs_file_extent *file_extent,
+			      bool nowait, bool strict);
 
-void __btrfs_del_delalloc_inode(struct btrfs_root *root, struct btrfs_inode *inode);
+void btrfs_del_delalloc_inode(struct btrfs_inode *inode);
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
 int btrfs_set_inode_index(struct btrfs_inode *dir, u64 *index);
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
@@ -466,7 +578,6 @@ void btrfs_merge_delalloc_extent(struct btrfs_inode *inode, struct extent_state 
 void btrfs_split_delalloc_extent(struct btrfs_inode *inode,
 				 struct extent_state *orig, u64 split);
 void btrfs_set_range_writeback(struct btrfs_inode *inode, u64 start, u64 end);
-vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf);
 void btrfs_evict_inode(struct inode *inode);
 struct inode *btrfs_alloc_inode(struct super_block *sb);
 void btrfs_destroy_inode(struct inode *inode);
@@ -474,16 +585,15 @@ void btrfs_free_inode(struct inode *inode);
 int btrfs_drop_inode(struct inode *inode);
 int __init btrfs_init_cachep(void);
 void __cold btrfs_destroy_cachep(void);
-struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
-			      struct btrfs_root *root, struct btrfs_path *path);
-struct inode *btrfs_iget(struct super_block *s, u64 ino, struct btrfs_root *root);
+struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
+			      struct btrfs_path *path);
+struct inode *btrfs_iget(u64 ino, struct btrfs_root *root);
 struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
-				    struct page *page, size_t pg_offset,
-				    u64 start, u64 end);
+				    struct folio *folio, u64 start, u64 len);
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *root, struct btrfs_inode *inode);
+		       struct btrfs_inode *inode);
 int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root, struct btrfs_inode *inode);
+				struct btrfs_inode *inode);
 int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct btrfs_inode *inode);
 int btrfs_orphan_cleanup(struct btrfs_root *root);
 int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size);
@@ -497,13 +607,9 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
 				    struct btrfs_trans_handle *trans, int mode,
 				    u64 start, u64 num_bytes, u64 min_size,
 				    loff_t actual_len, u64 *alloc_hint);
-int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page,
-			     u64 start, u64 end, int *page_started,
-			     unsigned long *nr_written, struct writeback_control *wbc);
-int btrfs_writepage_cow_fixup(struct page *page);
-void btrfs_writepage_endio_finish_ordered(struct btrfs_inode *inode,
-					  struct page *page, u64 start,
-					  u64 end, bool uptodate);
+int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_folio,
+			     u64 start, u64 end, struct writeback_control *wbc);
+int btrfs_writepage_cow_fixup(struct folio *folio);
 int btrfs_encoded_io_compression_from_extent(struct btrfs_fs_info *fs_info,
 					     int compress_type);
 int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
@@ -515,10 +621,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 			       const struct btrfs_ioctl_encoded_io_args *encoded);
 
-ssize_t btrfs_dio_read(struct kiocb *iocb, struct iov_iter *iter,
-		       size_t done_before);
-struct iomap_dio *btrfs_dio_write(struct kiocb *iocb, struct iov_iter *iter,
-				  size_t done_before);
+struct btrfs_inode *btrfs_find_first_inode(struct btrfs_root *root, u64 min_ino);
 
 extern const struct dentry_operations btrfs_dentry_operations;
 
@@ -534,5 +637,10 @@ void btrfs_inode_unlock(struct btrfs_inode *inode, unsigned int ilock_flags);
 void btrfs_update_inode_bytes(struct btrfs_inode *inode, const u64 add_bytes,
 			      const u64 del_bytes);
 void btrfs_assert_inode_range_clean(struct btrfs_inode *inode, u64 start, u64 end);
+u64 btrfs_get_extent_allocation_hint(struct btrfs_inode *inode, u64 start,
+				     u64 num_bytes);
+struct extent_map *btrfs_create_io_em(struct btrfs_inode *inode, u64 start,
+				      const struct btrfs_file_extent *file_extent,
+				      int type);
 
 #endif

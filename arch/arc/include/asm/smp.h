@@ -29,6 +29,8 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 extern void __init smp_init_cpus(void);
 extern void first_lines_of_secondary(void);
 extern const char *arc_platform_smp_cpuinfo(void);
+extern void arc_platform_smp_wait_to_boot(int);
+extern void start_kernel_secondary(void);
 
 /*
  * API expected BY platform smp code (FROM arch smp code)
@@ -75,7 +77,7 @@ static inline const char *arc_platform_smp_cpuinfo(void)
 
 /*
  * ARC700 doesn't support atomic Read-Modify-Write ops.
- * Originally Interrupts had to be disabled around code to gaurantee atomicity.
+ * Originally Interrupts had to be disabled around code to guarantee atomicity.
  * The LLOCK/SCOND insns allow writing interrupt-hassle-free based atomic ops
  * based on retry-if-irq-in-atomic (with hardware assist).
  * However despite these, we provide the IRQ disabling variant
@@ -84,7 +86,7 @@ static inline const char *arc_platform_smp_cpuinfo(void)
  *	support needed.
  *
  * (2) In a SMP setup, the LLOCK/SCOND atomicity across CPUs needs to be
- *	gaurantted by the platform (not something which core handles).
+ *	guaranteed by the platform (not something which core handles).
  *	Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
  *	disabling for atomicity.
  *

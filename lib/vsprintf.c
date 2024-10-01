@@ -34,6 +34,7 @@
 #include <linux/dcache.h>
 #include <linux/cred.h>
 #include <linux/rtc.h>
+#include <linux/sprintf.h>
 #include <linux/time.h>
 #include <linux/uuid.h>
 #include <linux/of.h>
@@ -59,7 +60,8 @@
 bool no_hash_pointers __ro_after_init;
 EXPORT_SYMBOL_GPL(no_hash_pointers);
 
-static noinline unsigned long long simple_strntoull(const char *startp, size_t max_chars, char **endp, unsigned int base)
+noinline
+static unsigned long long simple_strntoull(const char *startp, char **endp, unsigned int base, size_t max_chars)
 {
 	const char *cp;
 	unsigned long long result = 0ULL;
@@ -94,7 +96,7 @@ static noinline unsigned long long simple_strntoull(const char *startp, size_t m
 noinline
 unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int base)
 {
-	return simple_strntoull(cp, INT_MAX, endp, base);
+	return simple_strntoull(cp, endp, base, INT_MAX);
 }
 EXPORT_SYMBOL(simple_strtoull);
 
@@ -129,8 +131,8 @@ long simple_strtol(const char *cp, char **endp, unsigned int base)
 }
 EXPORT_SYMBOL(simple_strtol);
 
-static long long simple_strntoll(const char *cp, size_t max_chars, char **endp,
-				 unsigned int base)
+noinline
+static long long simple_strntoll(const char *cp, char **endp, unsigned int base, size_t max_chars)
 {
 	/*
 	 * simple_strntoull() safely handles receiving max_chars==0 in the
@@ -139,9 +141,9 @@ static long long simple_strntoll(const char *cp, size_t max_chars, char **endp,
 	 * and the content of *cp is irrelevant.
 	 */
 	if (*cp == '-' && max_chars > 0)
-		return -simple_strntoull(cp + 1, max_chars - 1, endp, base);
+		return -simple_strntoull(cp + 1, endp, base, max_chars - 1);
 
-	return simple_strntoull(cp, max_chars, endp, base);
+	return simple_strntoull(cp, endp, base, max_chars);
 }
 
 /**
@@ -154,7 +156,7 @@ static long long simple_strntoll(const char *cp, size_t max_chars, char **endp,
  */
 long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 {
-	return simple_strntoll(cp, INT_MAX, endp, base);
+	return simple_strntoll(cp, endp, base, INT_MAX);
 }
 EXPORT_SYMBOL(simple_strtoll);
 
@@ -964,13 +966,13 @@ char *bdev_name(char *buf, char *end, struct block_device *bdev,
 
 	hd = bdev->bd_disk;
 	buf = string(buf, end, hd->disk_name, spec);
-	if (bdev->bd_partno) {
+	if (bdev_is_partition(bdev)) {
 		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
 			if (buf < end)
 				*buf = 'p';
 			buf++;
 		}
-		buf = number(buf, end, bdev->bd_partno, spec);
+		buf = number(buf, end, bdev_partno(bdev), spec);
 	}
 	return buf;
 }
@@ -1078,7 +1080,7 @@ char *resource_string(char *buf, char *end, struct resource *res,
 #define FLAG_BUF_SIZE		(2 * sizeof(res->flags))
 #define DECODED_BUF_SIZE	sizeof("[mem - 64bit pref window disabled]")
 #define RAW_BUF_SIZE		sizeof("[mem - flags 0x]")
-	char sym[max(2*RSRC_BUF_SIZE + DECODED_BUF_SIZE,
+	char sym[MAX(2*RSRC_BUF_SIZE + DECODED_BUF_SIZE,
 		     2*RSRC_BUF_SIZE + FLAG_BUF_SIZE + RAW_BUF_SIZE)];
 
 	char *p = sym, *pend = sym + sizeof(sym);
@@ -2052,25 +2054,6 @@ char *format_page_flags(char *buf, char *end, unsigned long flags)
 	return buf;
 }
 
-static
-char *format_page_type(char *buf, char *end, unsigned int page_type)
-{
-	buf = number(buf, end, page_type, default_flag_spec);
-
-	if (buf < end)
-		*buf = '(';
-	buf++;
-
-	if (page_type_has_type(page_type))
-		buf = format_flags(buf, end, ~page_type, pagetype_names);
-
-	if (buf < end)
-		*buf = ')';
-	buf++;
-
-	return buf;
-}
-
 static noinline_for_stack
 char *flags_string(char *buf, char *end, void *flags_ptr,
 		   struct printf_spec spec, const char *fmt)
@@ -2084,8 +2067,6 @@ char *flags_string(char *buf, char *end, void *flags_ptr,
 	switch (fmt[1]) {
 	case 'p':
 		return format_page_flags(buf, end, *(unsigned long *)flags_ptr);
-	case 't':
-		return format_page_type(buf, end, *(unsigned int *)flags_ptr);
 	case 'v':
 		flags = *(unsigned long *)flags_ptr;
 		names = vmaflag_names;
@@ -2109,15 +2090,20 @@ char *fwnode_full_name_string(struct fwnode_handle *fwnode, char *buf,
 
 	/* Loop starting from the root node to the current node. */
 	for (depth = fwnode_count_parents(fwnode); depth >= 0; depth--) {
-		struct fwnode_handle *__fwnode =
-			fwnode_get_nth_parent(fwnode, depth);
+		/*
+		 * Only get a reference for other nodes (i.e. parent nodes).
+		 * fwnode refcount may be 0 here.
+		 */
+		struct fwnode_handle *__fwnode = depth ?
+			fwnode_get_nth_parent(fwnode, depth) : fwnode;
 
 		buf = string(buf, end, fwnode_get_name_prefix(__fwnode),
 			     default_str_spec);
 		buf = string(buf, end, fwnode_get_name(__fwnode),
 			     default_str_spec);
 
-		fwnode_handle_put(__fwnode);
+		if (depth)
+			fwnode_handle_put(__fwnode);
 	}
 
 	return buf;
@@ -3647,13 +3633,11 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			break;
 
 		if (is_sign)
-			val.s = simple_strntoll(str,
-						field_width >= 0 ? field_width : INT_MAX,
-						&next, base);
+			val.s = simple_strntoll(str, &next, base,
+						field_width >= 0 ? field_width : INT_MAX);
 		else
-			val.u = simple_strntoull(str,
-						 field_width >= 0 ? field_width : INT_MAX,
-						 &next, base);
+			val.u = simple_strntoull(str, &next, base,
+						 field_width >= 0 ? field_width : INT_MAX);
 
 		switch (qualifier) {
 		case 'H':	/* that's 'hh' in format */

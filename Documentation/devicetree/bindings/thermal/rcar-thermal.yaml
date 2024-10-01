@@ -98,8 +98,8 @@ examples:
   # Example (non interrupt support)
   - |
     thermal@ffc48000 {
-            compatible = "renesas,thermal-r8a7779", "renesas,rcar-thermal";
-            reg = <0xffc48000 0x38>;
+        compatible = "renesas,thermal-r8a7779", "renesas,rcar-thermal";
+        reg = <0xffc48000 0x38>;
     };
 
   # Example (interrupt support)
@@ -109,12 +109,12 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     thermal@e61f0000 {
-            compatible = "renesas,thermal-r8a73a4", "renesas,rcar-thermal";
-            reg = <0xe61f0000 0x14>, <0xe61f0100 0x38>,
-                  <0xe61f0200 0x38>, <0xe61f0300 0x38>;
-            interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&mstp5_clks R8A73A4_CLK_THERMAL>;
-            power-domains = <&pd_c5>;
+        compatible = "renesas,thermal-r8a73a4", "renesas,rcar-thermal";
+        reg = <0xe61f0000 0x14>, <0xe61f0100 0x38>,
+              <0xe61f0200 0x38>, <0xe61f0300 0x38>;
+        interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&mstp5_clks R8A73A4_CLK_THERMAL>;
+        power-domains = <&pd_c5>;
     };
 
   # Example (with thermal-zone)
@@ -124,32 +124,32 @@ examples:
     #include <dt-bindings/power/r8a7790-sysc.h>
 
     thermal: thermal@e61f0000 {
-      compatible = "renesas,thermal-r8a7790",
-                   "renesas,rcar-gen2-thermal",
-                   "renesas,rcar-thermal";
-            reg = <0xe61f0000 0x10>, <0xe61f0100 0x38>;
-            interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&cpg CPG_MOD 522>;
-            power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
-            resets = <&cpg 522>;
-            #thermal-sensor-cells = <0>;
+        compatible = "renesas,thermal-r8a7790",
+                     "renesas,rcar-gen2-thermal",
+                     "renesas,rcar-thermal";
+        reg = <0xe61f0000 0x10>, <0xe61f0100 0x38>;
+        interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 522>;
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+        resets = <&cpg 522>;
+        #thermal-sensor-cells = <0>;
     };
 
     thermal-zones {
-            cpu_thermal: cpu-thermal {
-                    polling-delay-passive = <1000>;
-                    polling-delay = <5000>;
+        cpu_thermal: cpu-thermal {
+            polling-delay-passive = <1000>;
+            polling-delay = <5000>;
 
-                    thermal-sensors = <&thermal>;
+            thermal-sensors = <&thermal>;
 
-                    trips {
-                            cpu-crit {
-                                    temperature = <115000>;
-                                    hysteresis = <0>;
-                                    type = "critical";
-                            };
-                    };
-                    cooling-maps {
-                    };
+            trips {
+                cpu-crit {
+                    temperature = <115000>;
+                    hysteresis = <0>;
+                    type = "critical";
+                };
             };
+            cooling-maps {
+            };
+        };
     };

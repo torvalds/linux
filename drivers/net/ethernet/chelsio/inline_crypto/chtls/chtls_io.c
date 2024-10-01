@@ -911,7 +911,7 @@ static int csk_wait_memory(struct chtls_dev *cdev,
 			   struct sock *sk, long *timeo_p)
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int err = 0;
+	int ret, err = 0;
 	long current_timeo;
 	long vm_wait = 0;
 	bool noblock;
@@ -942,10 +942,13 @@ static int csk_wait_memory(struct chtls_dev *cdev,
 
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 		sk->sk_write_pending++;
-		sk_wait_event(sk, &current_timeo, sk->sk_err ||
-			      (sk->sk_shutdown & SEND_SHUTDOWN) ||
-			      (csk_mem_free(cdev, sk) && !vm_wait), &wait);
+		ret = sk_wait_event(sk, &current_timeo, sk->sk_err ||
+				    (sk->sk_shutdown & SEND_SHUTDOWN) ||
+				    (csk_mem_free(cdev, sk) && !vm_wait),
+				    &wait);
 		sk->sk_write_pending--;
+		if (ret < 0)
+			goto do_error;
 
 		if (vm_wait) {
 			vm_wait -= current_timeo;
@@ -1348,6 +1351,7 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int copied = 0;
 	int target;
 	long timeo;
+	int ret;
 
 	buffers_freed = 0;
 
@@ -1423,7 +1427,11 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		if (copied >= target)
 			break;
 		chtls_cleanup_rbuf(sk, copied);
-		sk_wait_data(sk, &timeo, NULL);
+		ret = sk_wait_data(sk, &timeo, NULL);
+		if (ret < 0) {
+			copied = copied ? : ret;
+			goto unlock;
+		}
 		continue;
 found_ok_skb:
 		if (!skb->len) {
@@ -1518,6 +1526,8 @@ skip_copy:
 
 	if (buffers_freed)
 		chtls_cleanup_rbuf(sk, copied);
+
+unlock:
 	release_sock(sk);
 	return copied;
 }
@@ -1534,6 +1544,7 @@ static int peekmsg(struct sock *sk, struct msghdr *msg,
 	int copied = 0;
 	size_t avail;          /* amount of available data in current skb */
 	long timeo;
+	int ret;
 
 	lock_sock(sk);
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
@@ -1585,7 +1596,12 @@ static int peekmsg(struct sock *sk, struct msghdr *msg,
 			release_sock(sk);
 			lock_sock(sk);
 		} else {
-			sk_wait_data(sk, &timeo, NULL);
+			ret = sk_wait_data(sk, &timeo, NULL);
+			if (ret < 0) {
+				/* here 'copied' is 0 due to previous checks */
+				copied = ret;
+				break;
+			}
 		}
 
 		if (unlikely(peek_seq != tp->copied_seq)) {
@@ -1656,6 +1672,7 @@ int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int copied = 0;
 	long timeo;
 	int target;             /* Read at least this many bytes */
+	int ret;
 
 	buffers_freed = 0;
 
@@ -1747,7 +1764,11 @@ int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		if (copied >= target)
 			break;
 		chtls_cleanup_rbuf(sk, copied);
-		sk_wait_data(sk, &timeo, NULL);
+		ret = sk_wait_data(sk, &timeo, NULL);
+		if (ret < 0) {
+			copied = copied ? : ret;
+			goto unlock;
+		}
 		continue;
 
 found_ok_skb:
@@ -1816,6 +1837,7 @@ skip_copy:
 	if (buffers_freed)
 		chtls_cleanup_rbuf(sk, copied);
 
+unlock:
 	release_sock(sk);
 	return copied;
 }

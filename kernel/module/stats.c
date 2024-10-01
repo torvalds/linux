@@ -126,7 +126,7 @@ static LIST_HEAD(dup_failed_modules);
  *     These typically should not happen unless your system is under memory
  *     pressure.
  *   * invalid_becoming_bytes: total number of bytes allocated and freed used
- *     used to read the kernel module userspace wants us to read before we
+ *     to read the kernel module userspace wants us to read before we
  *     promote it to be processed to be added to our @modules linked list. These
  *     failures can happen if we had a check in between a successful kernel_read_file_from_fd()
  *     call and right before we allocate the our private memory for the module

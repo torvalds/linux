@@ -1,0 +1,7 @@
+device_reset@cold-reset-bound,Fail
+device_reset@reset-bound,Fail
+device_reset@unbind-cold-reset-rebind,Fail
+device_reset@unbind-reset-rebind,Fail
+dumb_buffer@invalid-bpp,Fail
+kms_3d,Fail
+kms_lease@lease-uevent,Fail

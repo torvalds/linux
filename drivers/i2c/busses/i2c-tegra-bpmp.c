@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -275,8 +275,8 @@ static u32 tegra_bpmp_i2c_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm tegra_bpmp_i2c_algo = {
-	.master_xfer = tegra_bpmp_i2c_xfer,
-	.master_xfer_atomic = tegra_bpmp_i2c_xfer_atomic,
+	.xfer = tegra_bpmp_i2c_xfer,
+	.xfer_atomic = tegra_bpmp_i2c_xfer_atomic,
 	.functionality = tegra_bpmp_i2c_func,
 };
 

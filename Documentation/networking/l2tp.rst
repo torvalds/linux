@@ -386,12 +386,19 @@ Sample userspace code:
 
   - Create session PPPoX data socket::
 
-        struct sockaddr_pppol2tp sax;
-        int fd;
-
-        /* Note, the tunnel socket must be bound already, else it
-         * will not be ready
+        /* Input: the L2TP tunnel UDP socket `tunnel_fd`, which needs to be
+         * bound already (both sockname and peername), otherwise it will not be
+         * ready.
          */
+
+        struct sockaddr_pppol2tp sax;
+        int session_fd;
+        int ret;
+
+        session_fd = socket(AF_PPPOX, SOCK_DGRAM, PX_PROTO_OL2TP);
+        if (session_fd < 0)
+                return -errno;
+
         sax.sa_family = AF_PPPOX;
         sax.sa_protocol = PX_PROTO_OL2TP;
         sax.pppol2tp.fd = tunnel_fd;
@@ -406,11 +413,127 @@ Sample userspace code:
         /* session_fd is the fd of the session's PPPoL2TP socket.
          * tunnel_fd is the fd of the tunnel UDP / L2TPIP socket.
          */
-        fd = connect(session_fd, (struct sockaddr *)&sax, sizeof(sax));
-        if (fd < 0 ) {
+        ret = connect(session_fd, (struct sockaddr *)&sax, sizeof(sax));
+        if (ret < 0 ) {
+                close(session_fd);
                 return -errno;
         }
+
+        return session_fd;
+
+L2TP control packets will still be available for read on `tunnel_fd`.
+
+  - Create PPP channel::
+
+        /* Input: the session PPPoX data socket `session_fd` which was created
+         * as described above.
+         */
+
+        int ppp_chan_fd;
+        int chindx;
+        int ret;
+
+        ret = ioctl(session_fd, PPPIOCGCHAN, &chindx);
+        if (ret < 0)
+                return -errno;
+
+        ppp_chan_fd = open("/dev/ppp", O_RDWR);
+        if (ppp_chan_fd < 0)
+                return -errno;
+
+        ret = ioctl(ppp_chan_fd, PPPIOCATTCHAN, &chindx);
+        if (ret < 0) {
+                close(ppp_chan_fd);
+                return -errno;
+        }
+
+        return ppp_chan_fd;
+
+LCP PPP frames will be available for read on `ppp_chan_fd`.
+
+  - Create PPP interface::
+
+        /* Input: the PPP channel `ppp_chan_fd` which was created as described
+         * above.
+         */
+
+        int ifunit = -1;
+        int ppp_if_fd;
+        int ret;
+
+        ppp_if_fd = open("/dev/ppp", O_RDWR);
+        if (ppp_if_fd < 0)
+                return -errno;
+
+        ret = ioctl(ppp_if_fd, PPPIOCNEWUNIT, &ifunit);
+        if (ret < 0) {
+                close(ppp_if_fd);
+                return -errno;
+        }
+
+        ret = ioctl(ppp_chan_fd, PPPIOCCONNECT, &ifunit);
+        if (ret < 0) {
+                close(ppp_if_fd);
+                return -errno;
+        }
+
+        return ppp_if_fd;
+
+IPCP/IPv6CP PPP frames will be available for read on `ppp_if_fd`.
+
+The ppp<ifunit> interface can then be configured as usual with netlink's
+RTM_NEWLINK, RTM_NEWADDR, RTM_NEWROUTE, or ioctl's SIOCSIFMTU, SIOCSIFADDR,
+SIOCSIFDSTADDR, SIOCSIFNETMASK, SIOCSIFFLAGS, or with the `ip` command.
+
+  - Bridging L2TP sessions which have PPP pseudowire types (this is also called
+    L2TP tunnel switching or L2TP multihop) is supported by bridging the PPP
+    channels of the two L2TP sessions to be bridged::
+
+        /* Input: the session PPPoX data sockets `session_fd1` and `session_fd2`
+         * which were created as described further above.
+         */
+
+        int ppp_chan_fd;
+        int chindx1;
+        int chindx2;
+        int ret;
+
+        ret = ioctl(session_fd1, PPPIOCGCHAN, &chindx1);
+        if (ret < 0)
+                return -errno;
+
+        ret = ioctl(session_fd2, PPPIOCGCHAN, &chindx2);
+        if (ret < 0)
+                return -errno;
+
+        ppp_chan_fd = open("/dev/ppp", O_RDWR);
+        if (ppp_chan_fd < 0)
+                return -errno;
+
+        ret = ioctl(ppp_chan_fd, PPPIOCATTCHAN, &chindx1);
+        if (ret < 0) {
+                close(ppp_chan_fd);
+                return -errno;
+        }
+
+        ret = ioctl(ppp_chan_fd, PPPIOCBRIDGECHAN, &chindx2);
+        close(ppp_chan_fd);
+        if (ret < 0)
+                return -errno;
+
         return 0;
+
+It can be noted that when bridging PPP channels, the PPP session is not locally
+terminated, and no local PPP interface is created.  PPP frames arriving on one
+channel are directly passed to the other channel, and vice versa.
+
+The PPP channel does not need to be kept open.  Only the session PPPoX data
+sockets need to be kept open.
+
+More generally, it is also possible in the same way to e.g. bridge a PPPoL2TP
+PPP channel with other types of PPP channels, such as PPPoE.
+
+See more details for the PPP side in ppp_generic.rst.
 
 Old L2TPv2-only API
 -------------------
@@ -515,9 +638,8 @@ Tunnels are identified by a unique tunnel id. The id is 16-bit for
 L2TPv2 and 32-bit for L2TPv3. Internally, the id is stored as a 32-bit
 value.
 
-Tunnels are kept in a per-net list, indexed by tunnel id. The tunnel
-id namespace is shared by L2TPv2 and L2TPv3. The tunnel context can be
-derived from the socket's sk_user_data.
+Tunnels are kept in a per-net list, indexed by tunnel id. The
+tunnel id namespace is shared by L2TPv2 and L2TPv3.
 
 Handling tunnel socket close is perhaps the most tricky part of the
 L2TP implementation. If userspace closes a tunnel socket, the L2TP
@@ -529,9 +651,7 @@ socket's encap_destroy handler is invoked, which L2TP uses to initiate
 its tunnel close actions. For L2TPIP sockets, the socket's close
 handler initiates the same tunnel close actions. All sessions are
 first closed. Each session drops its tunnel ref. When the tunnel ref
-reaches zero, the tunnel puts its socket ref. When the socket is
-eventually destroyed, its sk_destruct finally frees the L2TP tunnel
-context.
+reaches zero, the tunnel drops its socket ref.
 
 Sessions
 --------
@@ -544,10 +664,7 @@ pseudowire) or other data types such as PPP, ATM, HDLC or Frame
 Relay. Linux currently implements only Ethernet and PPP session types.
 
 Some L2TP session types also have a socket (PPP pseudowires) while
-others do not (Ethernet pseudowires). We can't therefore use the
-socket reference count as the reference count for session
-contexts. The L2TP implementation therefore has its own internal
-reference counts on the session contexts.
+others do not (Ethernet pseudowires).
 
 Like tunnels, L2TP sessions are identified by a unique
 session id. Just as with tunnel ids, the session id is 16-bit for
@@ -557,21 +674,19 @@ value.
 Sessions hold a ref on their parent tunnel to ensure that the tunnel
 stays extant while one or more sessions references it.
 
-Sessions are kept in a per-tunnel list, indexed by session id. L2TPv3
-sessions are also kept in a per-net list indexed by session id,
-because L2TPv3 session ids are unique across all tunnels and L2TPv3
-data packets do not contain a tunnel id in the header. This list is
-therefore needed to find the session context associated with a
-received data packet when the tunnel context cannot be derived from
-the tunnel socket.
+Sessions are kept in a per-net list. L2TPv2 sessions and L2TPv3
+sessions are stored in separate lists. L2TPv2 sessions are keyed
+by a 32-bit key made up of the 16-bit tunnel ID and 16-bit
+session ID. L2TPv3 sessions are keyed by the 32-bit session ID, since
+L2TPv3 session ids are unique across all tunnels.
 
 Although the L2TPv3 RFC specifies that L2TPv3 session ids are not
-scoped by the tunnel, the kernel does not police this for L2TPv3 UDP
-tunnels and does not add sessions of L2TPv3 UDP tunnels into the
-per-net session list. In the UDP receive code, we must trust that the
-tunnel can be identified using the tunnel socket's sk_user_data and
-lookup the session in the tunnel's session list instead of the per-net
-session list.
+scoped by the tunnel, the Linux implementation has historically
+allowed this. Such session id collisions are supported using a per-net
+hash table keyed by sk and session ID. When looking up L2TPv3
+sessions, the list entry may link to multiple sessions with that
+session ID, in which case the session matching the given sk (tunnel)
+is used.
 
 PPP
 ---
@@ -591,10 +706,9 @@ The L2TP PPP implementation handles the closing of a PPPoL2TP socket
 by closing its corresponding L2TP session. This is complicated because
 it must consider racing with netlink session create/destroy requests
 and pppol2tp_connect trying to reconnect with a session that is in the
-process of being closed. Unlike tunnels, PPP sessions do not hold a
-ref on their associated socket, so code must be careful to sock_hold
-the socket where necessary. For all the details, see commit
-3d609342cc04129ff7568e19316ce3d7451a27e8.
+process of being closed. PPP sessions hold a ref on their associated
+socket in order that the socket remains extants while the session
+references it.
 
 Ethernet
 --------
@@ -638,15 +752,10 @@ Limitations
 
 The current implementation has a number of limitations:
 
-  1) Multiple UDP sockets with the same 5-tuple address cannot be
-     used. The kernel's tunnel context is identified using private
-     data associated with the socket so it is important that each
-     socket is uniquely identified by its address.
-
-  2) Interfacing with openvswitch is not yet implemented. It may be
+  1) Interfacing with openvswitch is not yet implemented. It may be
      useful to map OVS Ethernet and VLAN ports into L2TPv3 tunnels.
 
-  3) VLAN pseudowires are implemented using an ``l2tpethN`` interface
+  2) VLAN pseudowires are implemented using an ``l2tpethN`` interface
      configured with a VLAN sub-interface. Since L2TPv3 VLAN
      pseudowires carry one and only one VLAN, it may be better to use
      a single netdevice rather than an ``l2tpethN`` and ``l2tpethN``:M

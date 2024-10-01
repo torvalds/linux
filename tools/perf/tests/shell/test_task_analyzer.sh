@@ -11,6 +11,9 @@ if [ -e "$perfdir/scripts/python/Perf-Trace-Util" ]; then
   export PERF_EXEC_PATH=$perfdir
 fi
 
+# Disable lsan to avoid warnings about python memory leaks.
+export ASAN_OPTIONS=detect_leaks=0
+
 cleanup() {
   rm -f perf.data
   rm -f perf.data.old
@@ -52,8 +55,8 @@ find_str_or_fail() {
 
 # check if perf is compiled with libtraceevent support
 skip_no_probe_record_support() {
-	perf record -e "sched:sched_switch" -a -- sleep 1 2>&1 | grep "libtraceevent is necessary for tracepoint support" && return 2
-	return 0
+	perf check feature -q libtraceevent && return 0
+	return 2
 }
 
 prepare_perf_data() {

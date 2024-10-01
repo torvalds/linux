@@ -24,6 +24,8 @@
 
 #include "../i915_selftest.h"
 
+#include "gt/intel_gt.h"
+
 static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
 				unsigned int num_ranges,
 				bool is_watertight)
@@ -69,7 +71,6 @@ static int intel_shadow_table_check(void)
 		{ gen11_shadowed_regs, ARRAY_SIZE(gen11_shadowed_regs) },
 		{ gen12_shadowed_regs, ARRAY_SIZE(gen12_shadowed_regs) },
 		{ dg2_shadowed_regs, ARRAY_SIZE(dg2_shadowed_regs) },
-		{ pvc_shadowed_regs, ARRAY_SIZE(pvc_shadowed_regs) },
 		{ mtl_shadowed_regs, ARRAY_SIZE(mtl_shadowed_regs) },
 		{ xelpmp_shadowed_regs, ARRAY_SIZE(xelpmp_shadowed_regs) },
 	};
@@ -117,8 +118,6 @@ int intel_uncore_mock_selftests(void)
 		{ __gen9_fw_ranges, ARRAY_SIZE(__gen9_fw_ranges), true },
 		{ __gen11_fw_ranges, ARRAY_SIZE(__gen11_fw_ranges), true },
 		{ __gen12_fw_ranges, ARRAY_SIZE(__gen12_fw_ranges), true },
-		{ __xehp_fw_ranges, ARRAY_SIZE(__xehp_fw_ranges), true },
-		{ __pvc_fw_ranges, ARRAY_SIZE(__pvc_fw_ranges), true },
 		{ __mtl_fw_ranges, ARRAY_SIZE(__mtl_fw_ranges), true },
 		{ __xelpmp_fw_ranges, ARRAY_SIZE(__xelpmp_fw_ranges), true },
 	};
@@ -210,7 +209,7 @@ static int live_forcewake_ops(void *arg)
 
 	for_each_engine(engine, gt, id) {
 		i915_reg_t mmio = _MMIO(engine->mmio_base + r->offset);
-		u32 __iomem *reg = uncore->regs + engine->mmio_base + r->offset;
+		u32 __iomem *reg = intel_uncore_regs(uncore) + engine->mmio_base + r->offset;
 		enum forcewake_domains fw_domains;
 		u32 val;
 

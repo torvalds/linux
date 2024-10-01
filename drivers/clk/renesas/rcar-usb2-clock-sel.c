@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -213,7 +212,7 @@ static struct platform_driver rcar_usb2_clock_sel_driver = {
 		.pm	= &rcar_usb2_clock_sel_pm_ops,
 	},
 	.probe		= rcar_usb2_clock_sel_probe,
-	.remove_new	= rcar_usb2_clock_sel_remove,
+	.remove		= rcar_usb2_clock_sel_remove,
 };
 builtin_platform_driver(rcar_usb2_clock_sel_driver);
 

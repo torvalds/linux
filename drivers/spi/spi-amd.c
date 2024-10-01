@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/iopoll.h>
+#include <linux/spi/spi-mem.h>
 
 #define AMD_SPI_CTRL0_REG	0x00
 #define AMD_SPI_EXEC_CMD	BIT(16)
@@ -35,6 +36,7 @@
 
 #define AMD_SPI_FIFO_SIZE	70
 #define AMD_SPI_MEM_SIZE	200
+#define AMD_SPI_MAX_DATA	64
 
 #define AMD_SPI_ENA_REG		0x20
 #define AMD_SPI_ALT_SPD_SHIFT	20
@@ -215,9 +217,9 @@ static int amd_spi_execute_opcode(struct amd_spi *amd_spi)
 	}
 }
 
-static int amd_spi_master_setup(struct spi_device *spi)
+static int amd_spi_host_setup(struct spi_device *spi)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(spi->master);
+	struct amd_spi *amd_spi = spi_controller_get_devdata(spi->controller);
 
 	amd_spi_clear_fifo_ptr(amd_spi);
 
@@ -272,7 +274,7 @@ static int amd_set_spi_freq(struct amd_spi *amd_spi, u32 speed_hz)
 }
 
 static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
-				    struct spi_master *master,
+				    struct spi_controller *host,
 				    struct spi_message *message)
 {
 	struct spi_transfer *xfer = NULL;
@@ -353,15 +355,124 @@ fin_msg:
 		return -ENODEV;
 	}
 
-	spi_finalize_current_message(master);
+	spi_finalize_current_message(host);
 
 	return message->status;
 }
 
-static int amd_spi_master_transfer(struct spi_master *master,
+static bool amd_spi_supports_op(struct spi_mem *mem,
+				const struct spi_mem_op *op)
+{
+	/* bus width is number of IO lines used to transmit */
+	if (op->cmd.buswidth > 1 || op->addr.buswidth > 1 ||
+	    op->data.buswidth > 1 || op->data.nbytes > AMD_SPI_MAX_DATA)
+		return false;
+
+	return spi_mem_default_supports_op(mem, op);
+}
+
+static int amd_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
+{
+	op->data.nbytes = clamp_val(op->data.nbytes, 0, AMD_SPI_MAX_DATA);
+	return 0;
+}
+
+static void amd_spi_set_addr(struct amd_spi *amd_spi,
+			     const struct spi_mem_op *op)
+{
+	u8 nbytes = op->addr.nbytes;
+	u64 addr_val = op->addr.val;
+	int base_addr, i;
+
+	base_addr = AMD_SPI_FIFO_BASE + nbytes;
+
+	for (i = 0; i < nbytes; i++) {
+		amd_spi_writereg8(amd_spi, base_addr - i - 1, addr_val &
+				  GENMASK(7, 0));
+		addr_val >>= 8;
+	}
+}
+
+static void amd_spi_mem_data_out(struct amd_spi *amd_spi,
+				 const struct spi_mem_op *op)
+{
+	int base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes;
+	u8 *buf = (u8 *)op->data.buf.out;
+	u32 nbytes = op->data.nbytes;
+	int i;
+
+	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
+	amd_spi_set_addr(amd_spi, op);
+
+	for (i = 0; i < nbytes; i++)
+		amd_spi_writereg8(amd_spi, (base_addr + i), buf[i]);
+
+	amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->data.nbytes);
+	amd_spi_set_rx_count(amd_spi, 0);
+	amd_spi_clear_fifo_ptr(amd_spi);
+	amd_spi_execute_opcode(amd_spi);
+}
+
+static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
+				const struct spi_mem_op *op)
+{
+	int offset = (op->addr.nbytes == 0) ? 0 : 1;
+	u8 *buf = (u8 *)op->data.buf.in;
+	u32 nbytes = op->data.nbytes;
+	int base_addr, i;
+
+	base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes + offset;
+
+	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
+	amd_spi_set_addr(amd_spi, op);
+	amd_spi_set_tx_count(amd_spi, op->addr.nbytes);
+	amd_spi_set_rx_count(amd_spi, op->data.nbytes + 1);
+	amd_spi_clear_fifo_ptr(amd_spi);
+	amd_spi_execute_opcode(amd_spi);
+	amd_spi_busy_wait(amd_spi);
+
+	for (i = 0; i < nbytes; i++)
+		buf[i] = amd_spi_readreg8(amd_spi, base_addr + i);
+}
+
+static int amd_spi_exec_mem_op(struct spi_mem *mem,
+			       const struct spi_mem_op *op)
+{
+	struct amd_spi *amd_spi;
+	int ret;
+
+	amd_spi = spi_controller_get_devdata(mem->spi->controller);
+
+	ret = amd_set_spi_freq(amd_spi, mem->spi->max_speed_hz);
+	if (ret)
+		return ret;
+
+	switch (op->data.dir) {
+	case SPI_MEM_DATA_IN:
+		amd_spi_mem_data_in(amd_spi, op);
+		break;
+	case SPI_MEM_DATA_OUT:
+		fallthrough;
+	case SPI_MEM_NO_DATA:
+		amd_spi_mem_data_out(amd_spi, op);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static const struct spi_controller_mem_ops amd_spi_mem_ops = {
+	.exec_op = amd_spi_exec_mem_op,
+	.adjust_op_size = amd_spi_adjust_op_size,
+	.supports_op = amd_spi_supports_op,
+};
+
+static int amd_spi_host_transfer(struct spi_controller *host,
 				   struct spi_message *msg)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(master);
+	struct amd_spi *amd_spi = spi_controller_get_devdata(host);
 	struct spi_device *spi = msg->spi;
 
 	amd_spi_select_chip(amd_spi, spi_get_chipselect(spi, 0));
@@ -370,7 +481,7 @@ static int amd_spi_master_transfer(struct spi_master *master,
 	 * Extract spi_transfers from the spi message and
 	 * program the controller.
 	 */
-	return amd_spi_fifo_xfer(amd_spi, master, msg);
+	return amd_spi_fifo_xfer(amd_spi, host, msg);
 }
 
 static size_t amd_spi_max_transfer_size(struct spi_device *spi)
@@ -381,16 +492,16 @@ static size_t amd_spi_max_transfer_size(struct spi_device *spi)
 static int amd_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct amd_spi *amd_spi;
 	int err;
 
-	/* Allocate storage for spi_master and driver private data */
-	master = devm_spi_alloc_master(dev, sizeof(struct amd_spi));
-	if (!master)
-		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI master\n");
+	/* Allocate storage for host and driver private data */
+	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
+	if (!host)
+		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
 
-	amd_spi = spi_master_get_devdata(master);
+	amd_spi = spi_controller_get_devdata(host);
 	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(amd_spi->io_remap_addr))
 		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
@@ -398,22 +509,23 @@ static int amd_spi_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
 
-	amd_spi->version = (enum amd_spi_versions) device_get_match_data(dev);
+	amd_spi->version = (uintptr_t) device_get_match_data(dev);
 
-	/* Initialize the spi_master fields */
-	master->bus_num = 0;
-	master->num_chipselect = 4;
-	master->mode_bits = 0;
-	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->max_speed_hz = AMD_SPI_MAX_HZ;
-	master->min_speed_hz = AMD_SPI_MIN_HZ;
-	master->setup = amd_spi_master_setup;
-	master->transfer_one_message = amd_spi_master_transfer;
-	master->max_transfer_size = amd_spi_max_transfer_size;
-	master->max_message_size = amd_spi_max_transfer_size;
+	/* Initialize the spi_controller fields */
+	host->bus_num = 0;
+	host->num_chipselect = 4;
+	host->mode_bits = 0;
+	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
+	host->max_speed_hz = AMD_SPI_MAX_HZ;
+	host->min_speed_hz = AMD_SPI_MIN_HZ;
+	host->setup = amd_spi_host_setup;
+	host->transfer_one_message = amd_spi_host_transfer;
+	host->mem_ops = &amd_spi_mem_ops;
+	host->max_transfer_size = amd_spi_max_transfer_size;
+	host->max_message_size = amd_spi_max_transfer_size;
 
 	/* Register the controller with SPI framework */
-	err = devm_spi_register_master(dev, master);
+	err = devm_spi_register_controller(dev, host);
 	if (err)
 		return dev_err_probe(dev, err, "error registering SPI controller\n");
 

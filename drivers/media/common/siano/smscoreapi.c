@@ -839,7 +839,7 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 		mtu_msg.x_msg_header.msg_flags = 0;
 		mtu_msg.x_msg_header.msg_type = MSG_SMS_SET_MAX_TX_MSG_LEN_REQ;
 		mtu_msg.x_msg_header.msg_length = sizeof(mtu_msg);
-		mtu_msg.msg_data[0] = board->mtu;
+		mtu_msg.msg_data = board->mtu;
 
 		coredev->sendrequest_handler(coredev->context, &mtu_msg,
 					     sizeof(mtu_msg));
@@ -852,7 +852,7 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 		SMS_INIT_MSG(&crys_msg.x_msg_header,
 				MSG_SMS_NEW_CRYSTAL_REQ,
 				sizeof(crys_msg));
-		crys_msg.msg_data[0] = board->crystal;
+		crys_msg.msg_data = board->crystal;
 
 		coredev->sendrequest_handler(coredev->context, &crys_msg,
 					     sizeof(crys_msg));
@@ -1132,8 +1132,7 @@ static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
  * return: 0 on success, <0 on error.
  */
 static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
-					   int mode,
-					   loadfirmware_t loadfirmware_handler)
+					   int mode)
 {
 	int rc = -ENOENT;
 	u8 *fw_buf;
@@ -1147,8 +1146,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	}
 	pr_debug("Firmware name: %s\n", fw_filename);
 
-	if (!loadfirmware_handler &&
-	    !(coredev->device_flags & SMS_DEVICE_FAMILY2))
+	if (!(coredev->device_flags & SMS_DEVICE_FAMILY2))
 		return -EINVAL;
 
 	rc = request_firmware(&fw, fw_filename, coredev->device);
@@ -1166,10 +1164,8 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 		memcpy(fw_buf, fw->data, fw->size);
 		fw_buf_size = fw->size;
 
-		rc = (coredev->device_flags & SMS_DEVICE_FAMILY2) ?
-			smscore_load_firmware_family2(coredev, fw_buf, fw_buf_size)
-			: loadfirmware_handler(coredev->context, fw_buf,
-			fw_buf_size);
+		rc = smscore_load_firmware_family2(coredev, fw_buf,
+						   fw_buf_size);
 	}
 
 	kfree(fw_buf);
@@ -1306,7 +1302,7 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 	msg = (struct sms_msg_data *)SMS_ALIGN_ADDRESS(buffer);
 	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
 			sizeof(struct sms_msg_data));
-	msg->msg_data[0] = mode;
+	msg->msg_data = mode;
 
 	rc = smscore_sendrequest_and_wait(coredev, msg,
 			msg->x_msg_header. msg_length,
@@ -1353,8 +1349,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		}
 
 		if (!(coredev->modes_supported & (1 << mode))) {
-			rc = smscore_load_firmware_from_file(coredev,
-							     mode, NULL);
+			rc = smscore_load_firmware_from_file(coredev, mode);
 			if (rc >= 0)
 				pr_debug("firmware download success\n");
 		} else {
@@ -1394,7 +1389,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 
 			SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
 				     sizeof(struct sms_msg_data));
-			msg->msg_data[0] = mode;
+			msg->msg_data = mode;
 
 			rc = smscore_sendrequest_and_wait(
 				coredev, msg, msg->x_msg_header.msg_length,
@@ -1554,7 +1549,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			struct sms_msg_data *validity = (struct sms_msg_data *) phdr;
 
 			pr_debug("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x\n",
-				validity->msg_data[0]);
+				validity->msg_data);
 			complete(&coredev->data_validity_done);
 			break;
 		}
@@ -2155,7 +2150,7 @@ module_init(smscore_module_init);
 module_exit(smscore_module_exit);
 
 MODULE_DESCRIPTION("Siano MDTV Core module");
-MODULE_AUTHOR("Siano Mobile Silicon, Inc. (uris@siano-ms.com)");
+MODULE_AUTHOR("Siano Mobile Silicon, Inc. <uris@siano-ms.com>");
 MODULE_LICENSE("GPL");
 
 /* This should match what's defined at smscoreapi.h */

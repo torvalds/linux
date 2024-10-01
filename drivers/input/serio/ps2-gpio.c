@@ -404,8 +404,8 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int error;
 
-	drvdata = devm_kzalloc(dev, sizeof(struct ps2_gpio_data), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
 		error = -ENOMEM;
 		goto err_free_serio;
@@ -429,15 +429,13 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	}
 
 	error = devm_request_irq(dev, drvdata->irq, ps2_gpio_irq,
-				 IRQF_NO_THREAD, DRIVER_NAME, drvdata);
+				 IRQF_NO_THREAD | IRQF_NO_AUTOEN, DRIVER_NAME,
+				 drvdata);
 	if (error) {
 		dev_err(dev, "failed to request irq %d: %d\n",
 			drvdata->irq, error);
 		goto err_free_serio;
 	}
-
-	/* Keep irq disabled until serio->open is called. */
-	disable_irq(drvdata->irq);
 
 	serio->id.type = SERIO_8042;
 	serio->open = ps2_gpio_open;
@@ -476,12 +474,11 @@ err_free_serio:
 	return error;
 }
 
-static int ps2_gpio_remove(struct platform_device *pdev)
+static void ps2_gpio_remove(struct platform_device *pdev)
 {
 	struct ps2_gpio_data *drvdata = platform_get_drvdata(pdev);
 
 	serio_unregister_port(drvdata->serio);
-	return 0;
 }
 
 #if defined(CONFIG_OF)
@@ -494,7 +491,7 @@ MODULE_DEVICE_TABLE(of, ps2_gpio_match);
 
 static struct platform_driver ps2_gpio_driver = {
 	.probe		= ps2_gpio_probe,
-	.remove		= ps2_gpio_remove,
+	.remove_new	= ps2_gpio_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(ps2_gpio_match),

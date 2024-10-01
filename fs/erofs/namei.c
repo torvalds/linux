@@ -99,8 +99,8 @@ static void *erofs_find_target_block(struct erofs_buf *target,
 		struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 		struct erofs_dirent *de;
 
-		buf.inode = dir;
-		de = erofs_bread(&buf, mid, EROFS_KMAP);
+		buf.mapping = dir->i_mapping;
+		de = erofs_bread(&buf, erofs_pos(dir->i_sb, mid), EROFS_KMAP);
 		if (!IS_ERR(de)) {
 			const int nameoff = nameoff_from_disk(de->nameoff, bsz);
 			const int ndirents = nameoff / sizeof(*de);
@@ -130,24 +130,24 @@ static void *erofs_find_target_block(struct erofs_buf *target,
 			/* string comparison without already matched prefix */
 			diff = erofs_dirnamecmp(name, &dname, &matched);
 
-			if (!diff) {
-				*_ndirents = 0;
-				goto out;
-			} else if (diff > 0) {
-				head = mid + 1;
-				startprfx = matched;
-
-				if (!IS_ERR(candidate))
-					erofs_put_metabuf(target);
-				*target = buf;
-				candidate = de;
-				*_ndirents = ndirents;
-			} else {
+			if (diff < 0) {
 				erofs_put_metabuf(&buf);
-
 				back = mid - 1;
 				endprfx = matched;
+				continue;
 			}
+
+			if (!IS_ERR(candidate))
+				erofs_put_metabuf(target);
+			*target = buf;
+			if (!diff) {
+				*_ndirents = 0;
+				return de;
+			}
+			head = mid + 1;
+			startprfx = matched;
+			candidate = de;
+			*_ndirents = ndirents;
 			continue;
 		}
 out:		/* free if the candidate is valid */
@@ -171,7 +171,7 @@ int erofs_namei(struct inode *dir, const struct qstr *name, erofs_nid_t *nid,
 
 	qn.name = name->name;
 	qn.end = name->name + name->len;
-	buf.inode = dir;
+	buf.mapping = dir->i_mapping;
 
 	ndirents = 0;
 	de = erofs_find_target_block(&buf, dir, &qn, &ndirents);

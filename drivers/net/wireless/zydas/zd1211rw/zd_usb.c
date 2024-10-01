@@ -380,7 +380,7 @@ static inline void handle_regs_int(struct urb *urb)
 	spin_lock_irqsave(&intr->lock, flags);
 
 	int_num = le16_to_cpu(*(__le16 *)(urb->transfer_buffer+2));
-	if (int_num == CR_INTERRUPT) {
+	if (int_num == (u16)CR_INTERRUPT) {
 		struct zd_mac *mac = zd_hw_mac(zd_usb_to_hw(urb->context));
 		spin_lock(&mac->lock);
 		memcpy(&mac->intr_buffer, urb->transfer_buffer,
@@ -416,7 +416,8 @@ out:
 	spin_unlock_irqrestore(&intr->lock, flags);
 
 	/* CR_INTERRUPT might override read_reg too. */
-	if (int_num == CR_INTERRUPT && atomic_read(&intr->read_regs_enabled))
+	if (int_num == (u16)CR_INTERRUPT &&
+	    atomic_read(&intr->read_regs_enabled))
 		handle_regs_int_override(urb);
 }
 
@@ -1006,7 +1007,7 @@ resubmit:
  * @usb: the zd1211rw-private USB structure
  * @skb: a &struct sk_buff pointer
  *
- * This function tranmits a frame to the device. It doesn't wait for
+ * This function transmits a frame to the device. It doesn't wait for
  * completion. The frame must contain the control set and have all the
  * control set information available.
  *
@@ -1475,7 +1476,7 @@ static void zd_usb_stop(struct zd_usb *usb)
 {
 	dev_dbg_f(zd_usb_dev(usb), "\n");
 
-	zd_op_stop(zd_usb_to_hw(usb));
+	zd_op_stop(zd_usb_to_hw(usb), false);
 
 	zd_usb_disable_tx(usb);
 	zd_usb_disable_rx(usb);
@@ -1697,7 +1698,7 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 	int r, i, req_len, actual_req_len, try_count = 0;
 	struct usb_device *udev;
 	struct usb_req_read_regs *req = NULL;
-	unsigned long timeout;
+	unsigned long time_left;
 	bool retry = false;
 
 	if (count < 1) {
@@ -1747,9 +1748,9 @@ retry_read:
 		goto error;
 	}
 
-	timeout = wait_for_completion_timeout(&usb->intr.read_regs.completion,
-					      msecs_to_jiffies(50));
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(&usb->intr.read_regs.completion,
+						msecs_to_jiffies(50));
+	if (!time_left) {
 		disable_read_regs_int(usb);
 		dev_dbg_f(zd_usb_dev(usb), "read timed out\n");
 		r = -ETIMEDOUT;

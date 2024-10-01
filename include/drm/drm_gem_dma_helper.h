@@ -166,11 +166,8 @@ drm_gem_dma_prime_import_sg_table(struct drm_device *dev,
  * DRM_GEM_DMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE() instead.
  */
 #define DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(dumb_create_func) \
-	.dumb_create		= (dumb_create_func), \
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \
-	.gem_prime_import_sg_table = drm_gem_dma_prime_import_sg_table, \
-	.gem_prime_mmap		= drm_gem_prime_mmap
+	.dumb_create		   = (dumb_create_func), \
+	.gem_prime_import_sg_table = drm_gem_dma_prime_import_sg_table
 
 /**
  * DRM_GEM_DMA_DRIVER_OPS - DMA GEM driver operations
@@ -204,11 +201,8 @@ drm_gem_dma_prime_import_sg_table(struct drm_device *dev,
  * DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE() instead.
  */
 #define DRM_GEM_DMA_DRIVER_OPS_VMAP_WITH_DUMB_CREATE(dumb_create_func) \
-	.dumb_create		= dumb_create_func, \
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \
-	.gem_prime_import_sg_table = drm_gem_dma_prime_import_sg_table_vmap, \
-	.gem_prime_mmap		= drm_gem_prime_mmap
+	.dumb_create		   = (dumb_create_func), \
+	.gem_prime_import_sg_table = drm_gem_dma_prime_import_sg_table_vmap
 
 /**
  * DRM_GEM_DMA_DRIVER_OPS_VMAP - DMA GEM driver operations ensuring a virtual
@@ -273,6 +267,7 @@ unsigned long drm_gem_dma_get_unmapped_area(struct file *filp,
 		.read		= drm_read,\
 		.llseek		= noop_llseek,\
 		.mmap		= drm_gem_mmap,\
+		.fop_flags = FOP_UNSIGNED_OFFSET, \
 		DRM_GEM_DMA_UNMAPPED_AREA_FOPS \
 	}
 

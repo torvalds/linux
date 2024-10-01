@@ -36,6 +36,7 @@
 #include "focaltech.h"
 #include "vmmouse.h"
 #include "byd.h"
+#include "pixart_ps2.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -906,6 +907,15 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.init		= byd_init,
 	},
 #endif
+#ifdef CONFIG_MOUSE_PS2_PIXART
+	{
+		.type		= PSMOUSE_PIXART,
+		.name		= "PixArtPS/2",
+		.alias		= "pixart",
+		.detect		= pixart_detect,
+		.init		= pixart_init,
+	},
+#endif
 	{
 		.type		= PSMOUSE_AUTO,
 		.name		= "auto",
@@ -1170,6 +1180,13 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		ret = elantech_init(psmouse);
 		if (ret >= 0)
 			return ret;
+	}
+
+	/* Try PixArt touchpad */
+	if (max_proto > PSMOUSE_IMEX &&
+	    psmouse_try_protocol(psmouse, PSMOUSE_PIXART, &max_proto,
+				 set_properties, true)) {
+		return PSMOUSE_PIXART;
 	}
 
 	if (max_proto > PSMOUSE_IMEX) {
@@ -1591,7 +1608,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		psmouse_deactivate(parent);
 	}
 
-	psmouse = kzalloc(sizeof(struct psmouse), GFP_KERNEL);
+	psmouse = kzalloc(sizeof(*psmouse), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!psmouse || !input_dev)
 		goto err_free;

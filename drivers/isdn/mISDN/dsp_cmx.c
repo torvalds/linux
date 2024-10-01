@@ -82,7 +82,7 @@
  *  - has multiple clocks.
  *  - has no usable clock due to jitter or packet loss (VoIP).
  * In this case the system's clock is used. The clock resolution depends on
- * the jiffie resolution.
+ * the jiffy resolution.
  *
  * If a member joins a conference:
  *
@@ -1614,7 +1614,7 @@ static u16	dsp_count; /* last sample count */
 static int	dsp_count_valid; /* if we have last sample count */
 
 void
-dsp_cmx_send(void *arg)
+dsp_cmx_send(struct timer_list *arg)
 {
 	struct dsp_conf *conf;
 	struct dsp_conf_member *member;

@@ -11,11 +11,17 @@
 
 #include <linux/types.h>
 #include <asm/ptrace.h>
+#include <asm/ctlreg.h>
 #include <asm/cpu.h>
 #include <asm/types.h>
+#include <asm/alternative.h>
 
 #define LC_ORDER 1
 #define LC_PAGES 2
+
+#define LOWCORE_ALT_ADDRESS	_AC(0x70000, UL)
+
+#ifndef __ASSEMBLY__
 
 struct pgm_tdb {
 	u64 data[32];
@@ -92,12 +98,11 @@ struct lowcore {
 	psw_t	io_new_psw;			/* 0x01f0 */
 
 	/* Save areas. */
-	__u64	save_area_sync[8];		/* 0x0200 */
-	__u64	save_area_async[8];		/* 0x0240 */
+	__u64	save_area[8];			/* 0x0200 */
+	__u8	pad_0x0240[0x0280-0x0240];	/* 0x0240 */
 	__u64	save_area_restart[1];		/* 0x0280 */
 
-	/* CPU flags. */
-	__u64	cpu_flags;			/* 0x0288 */
+	__u64	pcpu;				/* 0x0288 */
 
 	/* Return psws. */
 	psw_t	return_psw;			/* 0x0290 */
@@ -139,8 +144,8 @@ struct lowcore {
 	__u32	restart_flags;			/* 0x0384 */
 
 	/* Address space pointer. */
-	__u64	kernel_asce;			/* 0x0388 */
-	__u64	user_asce;			/* 0x0390 */
+	struct ctlreg kernel_asce;		/* 0x0388 */
+	struct ctlreg user_asce;		/* 0x0390 */
 
 	/*
 	 * The lpp and current_pid fields form a
@@ -156,7 +161,7 @@ struct lowcore {
 	__s32	preempt_count;			/* 0x03a8 */
 	__u32	spinlock_lockval;		/* 0x03ac */
 	__u32	spinlock_index;			/* 0x03b0 */
-	__u32	fpu_flags;			/* 0x03b4 */
+	__u8	pad_0x03b4[0x03b8-0x03b4];	/* 0x03b4 */
 	__u64	percpu_offset;			/* 0x03b8 */
 	__u8	pad_0x03c0[0x03c8-0x03c0];	/* 0x03c0 */
 	__u64	machine_flags;			/* 0x03c8 */
@@ -199,7 +204,7 @@ struct lowcore {
 	__u32	clock_comp_save_area[2];	/* 0x1330 */
 	__u64	last_break_save_area;		/* 0x1338 */
 	__u32	access_regs_save_area[16];	/* 0x1340 */
-	__u64	cregs_save_area[16];		/* 0x1380 */
+	struct ctlreg cregs_save_area[16];	/* 0x1380 */
 	__u8	pad_0x1400[0x1500-0x1400];	/* 0x1400 */
 	/* Cryptography-counter designation */
 	__u64	ccd;				/* 0x1500 */
@@ -212,7 +217,17 @@ struct lowcore {
 	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
 } __packed __aligned(8192);
 
-#define S390_lowcore (*((struct lowcore *) 0))
+static __always_inline struct lowcore *get_lowcore(void)
+{
+	struct lowcore *lc;
+
+	if (__is_defined(__DECOMPRESSOR))
+		return NULL;
+	asm(ALTERNATIVE("llilh %[lc],0", "llilh %[lc],%[alt]", ALT_LOWCORE)
+	    : [lc] "=d" (lc)
+	    : [alt] "i" (LOWCORE_ALT_ADDRESS >> 16));
+	return lc;
+}
 
 extern struct lowcore *lowcore_ptr[];
 
@@ -221,12 +236,19 @@ static inline void set_prefix(__u32 address)
 	asm volatile("spx %0" : : "Q" (address) : "memory");
 }
 
-static inline __u32 store_prefix(void)
-{
-	__u32 address;
+#else /* __ASSEMBLY__ */
 
-	asm volatile("stpx %0" : "=Q" (address));
-	return address;
-}
+.macro GET_LC reg
+	ALTERNATIVE "llilh	\reg,0",					\
+		__stringify(llilh	\reg, LOWCORE_ALT_ADDRESS >> 16),	\
+		ALT_LOWCORE
+.endm
 
+.macro STMG_LC start, end, savearea
+	ALTERNATIVE "stmg	\start, \end, \savearea",				\
+		__stringify(stmg	\start, \end, LOWCORE_ALT_ADDRESS + \savearea),	\
+		ALT_LOWCORE
+.endm
+
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_LOWCORE_H */

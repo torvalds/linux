@@ -406,11 +406,8 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tps_rtc);
 
 	irq  = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
-			irq);
-		return -ENXIO;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 		tps65910_rtc_interrupt, IRQF_TRIGGER_LOW,
@@ -469,4 +466,5 @@ static struct platform_driver tps65910_rtc_driver = {
 module_platform_driver(tps65910_rtc_driver);
 MODULE_ALIAS("platform:tps65910-rtc");
 MODULE_AUTHOR("Venu Byravarasu <vbyravarasu@nvidia.com>");
+MODULE_DESCRIPTION("TI TPS65910 RTC driver");
 MODULE_LICENSE("GPL");

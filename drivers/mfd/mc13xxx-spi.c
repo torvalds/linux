@@ -8,13 +8,12 @@
  */
 
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/mc13xxx.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 
@@ -117,7 +116,7 @@ static int mc13xxx_spi_write(void *context, const void *data, size_t count)
  * single transfer.
  */
 
-static struct regmap_bus regmap_mc13xxx_bus = {
+static const struct regmap_bus regmap_mc13xxx_bus = {
 	.write = mc13xxx_spi_write,
 	.read = mc13xxx_spi_read,
 };
@@ -151,16 +150,7 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	if (spi->dev.of_node) {
-		const struct of_device_id *of_id =
-			of_match_device(mc13xxx_dt_ids, &spi->dev);
-
-		mc13xxx->variant = of_id->data;
-	} else {
-		const struct spi_device_id *id_entry = spi_get_device_id(spi);
-
-		mc13xxx->variant = (void *)id_entry->driver_data;
-	}
+	mc13xxx->variant = spi_get_device_match_data(spi);
 
 	return mc13xxx_common_init(&spi->dev);
 }

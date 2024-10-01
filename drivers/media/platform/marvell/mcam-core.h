@@ -9,6 +9,7 @@
 
 #include <linux/list.h>
 #include <linux/clk-provider.h>
+#include <linux/workqueue.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
@@ -167,7 +168,7 @@ struct mcam_camera {
 	unsigned int dma_buf_size;	/* allocated size */
 	void *dma_bufs[MAX_DMA_BUFS];	/* Internal buffer addresses */
 	dma_addr_t dma_handles[MAX_DMA_BUFS]; /* Buffer bus addresses */
-	struct tasklet_struct s_tasklet;
+	struct work_struct s_bh_work;
 #endif
 	unsigned int sequence;		/* Frame sequence number */
 	unsigned int buf_seq[MAX_DMA_BUFS]; /* Sequence for individual bufs */

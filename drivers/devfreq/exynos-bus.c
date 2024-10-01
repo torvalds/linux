@@ -160,7 +160,6 @@ static void exynos_bus_exit(struct device *dev)
 	platform_device_unregister(bus->icc_pdev);
 
 	dev_pm_opp_of_remove_table(dev);
-	clk_disable_unprepare(bus->clk);
 	dev_pm_opp_put_regulators(bus->opp_token);
 }
 
@@ -171,7 +170,6 @@ static void exynos_bus_passive_exit(struct device *dev)
 	platform_device_unregister(bus->icc_pdev);
 
 	dev_pm_opp_of_remove_table(dev);
-	clk_disable_unprepare(bus->clk);
 }
 
 static int exynos_bus_parent_parse_of(struct device_node *np,
@@ -247,23 +245,16 @@ static int exynos_bus_parse_of(struct device_node *np,
 	int ret;
 
 	/* Get the clock to provide each bus with source clock */
-	bus->clk = devm_clk_get(dev, "bus");
-	if (IS_ERR(bus->clk)) {
-		dev_err(dev, "failed to get bus clock\n");
-		return PTR_ERR(bus->clk);
-	}
-
-	ret = clk_prepare_enable(bus->clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to get enable clock\n");
-		return ret;
-	}
+	bus->clk = devm_clk_get_enabled(dev, "bus");
+	if (IS_ERR(bus->clk))
+		return dev_err_probe(dev, PTR_ERR(bus->clk),
+				"failed to get bus clock\n");
 
 	/* Get the freq and voltage from OPP table to scale the bus freq */
 	ret = dev_pm_opp_of_add_table(dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to get OPP table\n");
-		goto err_clk;
+		return ret;
 	}
 
 	rate = clk_get_rate(bus->clk);
@@ -281,8 +272,6 @@ static int exynos_bus_parse_of(struct device_node *np,
 
 err_opp:
 	dev_pm_opp_of_remove_table(dev);
-err_clk:
-	clk_disable_unprepare(bus->clk);
 
 	return ret;
 }
@@ -453,7 +442,6 @@ static int exynos_bus_probe(struct platform_device *pdev)
 
 err:
 	dev_pm_opp_of_remove_table(dev);
-	clk_disable_unprepare(bus->clk);
 err_reg:
 	dev_pm_opp_put_regulators(bus->opp_token);
 
@@ -467,7 +455,6 @@ static void exynos_bus_shutdown(struct platform_device *pdev)
 	devfreq_suspend_device(bus->devfreq);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int exynos_bus_resume(struct device *dev)
 {
 	struct exynos_bus *bus = dev_get_drvdata(dev);
@@ -495,11 +482,9 @@ static int exynos_bus_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static const struct dev_pm_ops exynos_bus_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(exynos_bus_suspend, exynos_bus_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(exynos_bus_pm,
+				exynos_bus_suspend, exynos_bus_resume);
 
 static const struct of_device_id exynos_bus_of_match[] = {
 	{ .compatible = "samsung,exynos-bus", },
@@ -512,7 +497,7 @@ static struct platform_driver exynos_bus_platdrv = {
 	.shutdown	= exynos_bus_shutdown,
 	.driver = {
 		.name	= "exynos-bus",
-		.pm	= &exynos_bus_pm,
+		.pm	= pm_sleep_ptr(&exynos_bus_pm),
 		.of_match_table = exynos_bus_of_match,
 	},
 };

@@ -36,15 +36,21 @@ TRACE_EVENT(nullb_zone_op,
 	    TP_ARGS(cmd, zone_no, zone_cond),
 	    TP_STRUCT__entry(
 		__array(char, disk, DISK_NAME_LEN)
-		__field(enum req_op, op)
+		/*
+		 * __field() uses is_signed_type(). is_signed_type() does not
+		 * support bitwise types. Use __field_struct() instead because
+		 * it does not use is_signed_type().
+		 */
+		__field_struct(enum req_op, op)
 		__field(unsigned int, zone_no)
 		__field(unsigned int, zone_cond)
 	    ),
 	    TP_fast_assign(
-		__entry->op = req_op(cmd->rq);
+		__entry->op = req_op(blk_mq_rq_from_pdu(cmd));
 		__entry->zone_no = zone_no;
 		__entry->zone_cond = zone_cond;
-		__assign_disk_name(__entry->disk, cmd->rq->q->disk);
+		__assign_disk_name(__entry->disk,
+			blk_mq_rq_from_pdu(cmd)->q->disk);
 	    ),
 	    TP_printk("%s req=%-15s zone_no=%u zone_cond=%-10s",
 		      __print_disk_name(__entry->disk),

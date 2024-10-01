@@ -9,79 +9,84 @@
 #include <linux/crash_dump.h>
 #include <linux/errno.h>
 #include <linux/io.h>
-#include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/rpmb.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/types.h>
-#include <linux/workqueue.h>
 #include "optee_private.h"
 
-int optee_pool_op_alloc_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
-			       size_t size, size_t align,
-			       int (*shm_register)(struct tee_context *ctx,
-						   struct tee_shm *shm,
-						   struct page **pages,
-						   size_t num_pages,
-						   unsigned long start))
+struct blocking_notifier_head optee_rpmb_intf_added =
+	BLOCKING_NOTIFIER_INIT(optee_rpmb_intf_added);
+
+static int rpmb_add_dev(struct device *dev)
 {
-	unsigned int order = get_order(size);
-	struct page *page;
-	int rc = 0;
-
-	/*
-	 * Ignore alignment since this is already going to be page aligned
-	 * and there's no need for any larger alignment.
-	 */
-	page = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
-	if (!page)
-		return -ENOMEM;
-
-	shm->kaddr = page_address(page);
-	shm->paddr = page_to_phys(page);
-	shm->size = PAGE_SIZE << order;
-
-	if (shm_register) {
-		unsigned int nr_pages = 1 << order, i;
-		struct page **pages;
-
-		pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
-		if (!pages) {
-			rc = -ENOMEM;
-			goto err;
-		}
-
-		for (i = 0; i < nr_pages; i++)
-			pages[i] = page + i;
-
-		rc = shm_register(shm->ctx, shm, pages, nr_pages,
-				  (unsigned long)shm->kaddr);
-		kfree(pages);
-		if (rc)
-			goto err;
-	}
+	blocking_notifier_call_chain(&optee_rpmb_intf_added, 0,
+				     to_rpmb_dev(dev));
 
 	return 0;
-
-err:
-	free_pages((unsigned long)shm->kaddr, order);
-	return rc;
 }
 
-void optee_pool_op_free_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
-			       int (*shm_unregister)(struct tee_context *ctx,
-						     struct tee_shm *shm))
+static struct class_interface rpmb_class_intf = {
+	.add_dev = rpmb_add_dev,
+};
+
+void optee_bus_scan_rpmb(struct work_struct *work)
 {
-	if (shm_unregister)
-		shm_unregister(shm->ctx, shm);
-	free_pages((unsigned long)shm->kaddr, get_order(shm->size));
-	shm->kaddr = NULL;
+	struct optee *optee = container_of(work, struct optee,
+					   rpmb_scan_bus_work);
+	int ret;
+
+	if (!optee->rpmb_scan_bus_done) {
+		ret = optee_enumerate_devices(PTA_CMD_GET_DEVICES_RPMB);
+		optee->rpmb_scan_bus_done = !ret;
+		if (ret && ret != -ENODEV)
+			pr_info("Scanning for RPMB device: ret %d\n", ret);
+	}
+}
+
+int optee_rpmb_intf_rdev(struct notifier_block *intf, unsigned long action,
+			 void *data)
+{
+	struct optee *optee = container_of(intf, struct optee, rpmb_intf);
+
+	schedule_work(&optee->rpmb_scan_bus_work);
+
+	return 0;
 }
 
 static void optee_bus_scan(struct work_struct *work)
 {
 	WARN_ON(optee_enumerate_devices(PTA_CMD_GET_DEVICES_SUPP));
+}
+
+static ssize_t rpmb_routing_model_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct optee *optee = dev_get_drvdata(dev);
+	const char *s;
+
+	if (optee->in_kernel_rpmb_routing)
+		s = "kernel";
+	else
+		s = "user";
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", s);
+}
+static DEVICE_ATTR_RO(rpmb_routing_model);
+
+static struct attribute *optee_dev_attrs[] = {
+	&dev_attr_rpmb_routing_model.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(optee_dev);
+
+void optee_set_dev_group(struct optee *optee)
+{
+	tee_device_set_dev_groups(optee->teedev, optee_dev_groups);
+	tee_device_set_dev_groups(optee->supp_teedev, optee_dev_groups);
 }
 
 int optee_open(struct tee_context *ctx, bool cap_memref_null)
@@ -110,12 +115,7 @@ int optee_open(struct tee_context *ctx, bool cap_memref_null)
 
 		if (!optee->scan_bus_done) {
 			INIT_WORK(&optee->scan_bus_work, optee_bus_scan);
-			optee->scan_bus_wq = create_workqueue("optee_bus_scan");
-			if (!optee->scan_bus_wq) {
-				kfree(ctxdata);
-				return -ECHILD;
-			}
-			queue_work(optee->scan_bus_wq, &optee->scan_bus_work);
+			schedule_work(&optee->scan_bus_work);
 			optee->scan_bus_done = true;
 		}
 	}
@@ -129,7 +129,8 @@ int optee_open(struct tee_context *ctx, bool cap_memref_null)
 
 static void optee_release_helper(struct tee_context *ctx,
 				 int (*close_session)(struct tee_context *ctx,
-						      u32 session))
+						      u32 session,
+						      bool system_thread))
 {
 	struct optee_context_data *ctxdata = ctx->data;
 	struct optee_session *sess;
@@ -141,7 +142,7 @@ static void optee_release_helper(struct tee_context *ctx,
 	list_for_each_entry_safe(sess, sess_tmp, &ctxdata->sess_list,
 				 list_node) {
 		list_del(&sess->list_node);
-		close_session(ctx, sess->session_id);
+		close_session(ctx, sess->session_id, sess->use_sys_thread);
 		kfree(sess);
 	}
 	kfree(ctxdata);
@@ -158,15 +159,15 @@ void optee_release_supp(struct tee_context *ctx)
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 
 	optee_release_helper(ctx, optee_close_session_helper);
-	if (optee->scan_bus_wq) {
-		destroy_workqueue(optee->scan_bus_wq);
-		optee->scan_bus_wq = NULL;
-	}
+
 	optee_supp_release(&optee->supp);
 }
 
 void optee_remove_common(struct optee *optee)
 {
+	blocking_notifier_chain_unregister(&optee_rpmb_intf_added,
+					   &optee->rpmb_intf);
+	cancel_work_sync(&optee->rpmb_scan_bus_work);
 	/* Unregister OP-TEE specific client devices on TEE bus */
 	optee_unregister_devices();
 
@@ -183,13 +184,18 @@ void optee_remove_common(struct optee *optee)
 	tee_shm_pool_free(optee->pool);
 	optee_supp_uninit(&optee->supp);
 	mutex_destroy(&optee->call_queue.mutex);
+	rpmb_dev_put(optee->rpmb_dev);
+	mutex_destroy(&optee->rpmb_dev_mutex);
 }
 
 static int smc_abi_rc;
 static int ffa_abi_rc;
+static bool intf_is_regged;
 
 static int __init optee_core_init(void)
 {
+	int rc;
+
 	/*
 	 * The kernel may have crashed at the same time that all available
 	 * secure world threads were suspended and we cannot reschedule the
@@ -200,18 +206,36 @@ static int __init optee_core_init(void)
 	if (is_kdump_kernel())
 		return -ENODEV;
 
+	if (IS_REACHABLE(CONFIG_RPMB)) {
+		rc = rpmb_interface_register(&rpmb_class_intf);
+		if (rc)
+			return rc;
+		intf_is_regged = true;
+	}
+
 	smc_abi_rc = optee_smc_abi_register();
 	ffa_abi_rc = optee_ffa_abi_register();
 
 	/* If both failed there's no point with this module */
-	if (smc_abi_rc && ffa_abi_rc)
+	if (smc_abi_rc && ffa_abi_rc) {
+		if (IS_REACHABLE(CONFIG_RPMB)) {
+			rpmb_interface_unregister(&rpmb_class_intf);
+			intf_is_regged = false;
+		}
 		return smc_abi_rc;
+	}
+
 	return 0;
 }
 module_init(optee_core_init);
 
 static void __exit optee_core_exit(void)
 {
+	if (IS_REACHABLE(CONFIG_RPMB) && intf_is_regged) {
+		rpmb_interface_unregister(&rpmb_class_intf);
+		intf_is_regged = false;
+	}
+
 	if (!smc_abi_rc)
 		optee_smc_abi_unregister();
 	if (!ffa_abi_rc)

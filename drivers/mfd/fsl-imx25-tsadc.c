@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-static struct regmap_config mx25_tsadc_regmap_config = {
+static const struct regmap_config mx25_tsadc_regmap_config = {
 	.fast_io = true,
 	.max_register = 8,
 	.reg_bits = 32,
@@ -194,11 +194,9 @@ err_irq:
 	return ret;
 }
 
-static int mx25_tsadc_remove(struct platform_device *pdev)
+static void mx25_tsadc_remove(struct platform_device *pdev)
 {
 	mx25_tsadc_unset_irq(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id mx25_tsadc_ids[] = {
@@ -213,7 +211,7 @@ static struct platform_driver mx25_tsadc_driver = {
 		.of_match_table = mx25_tsadc_ids,
 	},
 	.probe = mx25_tsadc_probe,
-	.remove = mx25_tsadc_remove,
+	.remove_new = mx25_tsadc_remove,
 };
 module_platform_driver(mx25_tsadc_driver);
 

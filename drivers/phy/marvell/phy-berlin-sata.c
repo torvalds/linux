@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -154,7 +155,7 @@ static int phy_berlin_sata_power_off(struct phy *phy)
 }
 
 static struct phy *phy_berlin_sata_phy_xlate(struct device *dev,
-					     struct of_phandle_args *args)
+					     const struct of_phandle_args *args)
 {
 	struct phy_berlin_priv *priv = dev_get_drvdata(dev);
 	int i;

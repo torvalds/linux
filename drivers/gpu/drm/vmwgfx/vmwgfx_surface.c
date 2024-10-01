@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2009-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -36,15 +37,11 @@
 #include <drm/ttm/ttm_placement.h>
 
 #define SVGA3D_FLAGS_64(upper32, lower32) (((uint64_t)upper32 << 32) | lower32)
-#define SVGA3D_FLAGS_UPPER_32(svga3d_flags) (svga3d_flags >> 32)
-#define SVGA3D_FLAGS_LOWER_32(svga3d_flags) \
-	(svga3d_flags & ((uint64_t)U32_MAX))
 
 /**
  * struct vmw_user_surface - User-space visible surface resource
  *
  * @prime:          The TTM prime object.
- * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
  * @master:         Master of the creating client. Used for security check.
  */
@@ -77,7 +74,7 @@ struct vmw_surface_offset {
 struct vmw_surface_dirty {
 	struct vmw_surface_cache cache;
 	u32 num_subres;
-	SVGA3dBox boxes[];
+	SVGA3dBox boxes[] __counted_by(num_subres);
 };
 
 static void vmw_user_surface_free(struct vmw_resource *res);
@@ -686,10 +683,15 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	    container_of(base, struct vmw_user_surface, prime.base);
 	struct vmw_resource *res = &user_srf->srf.res;
 
-	if (res->guest_memory_bo)
-		drm_gem_object_put(&res->guest_memory_bo->tbo.base);
-
 	*p_base = NULL;
+
+	/*
+	 * Dumb buffers own the resource and they'll unref the
+	 * resource themselves
+	 */
+	if (res && res->guest_memory_bo && res->guest_memory_bo->is_dumb)
+		return;
+
 	vmw_resource_unreference(&res);
 }
 
@@ -777,9 +779,9 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	       sizeof(metadata->mip_levels));
 	metadata->num_sizes = num_sizes;
 	metadata->sizes =
-		memdup_user((struct drm_vmw_size __user *)(unsigned long)
+		memdup_array_user((struct drm_vmw_size __user *)(unsigned long)
 			    req->size_addr,
-			    sizeof(*metadata->sizes) * metadata->num_sizes);
+			    metadata->num_sizes, sizeof(*metadata->sizes));
 	if (IS_ERR(metadata->sizes)) {
 		ret = PTR_ERR(metadata->sizes);
 		goto out_no_sizes;
@@ -816,7 +818,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 	res->guest_memory_size = cur_bo_offset;
-	if (metadata->scanout &&
+	if (!file_priv->atomic &&
+	    metadata->scanout &&
 	    metadata->num_sizes == 1 &&
 	    metadata->sizes[0].width == VMW_CURSOR_SNOOP_WIDTH &&
 	    metadata->sizes[0].height == VMW_CURSOR_SNOOP_HEIGHT &&
@@ -836,8 +839,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		srf->snooper.image = NULL;
 	}
 
-	user_srf->prime.base.shareable = false;
-	user_srf->prime.base.tfile = NULL;
 	if (drm_is_primary_client(file_priv))
 		user_srf->master = drm_file_get_master(file_priv);
 
@@ -851,32 +852,32 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	/*
-	 * A gb-aware client referencing a shared surface will
-	 * expect a backup buffer to be present.
+	 * A gb-aware client referencing a surface will expect a backup
+	 * buffer to be present.
 	 */
-	if (dev_priv->has_mob && req->shareable) {
-		uint32_t backup_handle;
+	if (dev_priv->has_mob) {
+		struct vmw_bo_params params = {
+			.domain = VMW_BO_DOMAIN_SYS,
+			.busy_domain = VMW_BO_DOMAIN_SYS,
+			.bo_type = ttm_bo_type_device,
+			.size = res->guest_memory_size,
+			.pin = false
+		};
 
-		ret = vmw_gem_object_create_with_handle(dev_priv,
-							file_priv,
-							res->guest_memory_size,
-							&backup_handle,
-							&res->guest_memory_bo);
+		ret = vmw_gem_object_create(dev_priv,
+					    &params,
+					    &res->guest_memory_bo);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;
 		}
-		vmw_bo_reference(res->guest_memory_bo);
-		/*
-		 * We don't expose the handle to the userspace and surface
-		 * already holds a gem reference
-		 */
-		drm_gem_handle_delete(file_priv, backup_handle);
+		vmw_bo_add_detached_resource(res->guest_memory_bo, res);
 	}
 
 	tmp = vmw_resource_reference(&srf->res);
-	ret = ttm_prime_object_init(tfile, res->guest_memory_size, &user_srf->prime,
-				    req->shareable, VMW_RES_SURFACE,
+	ret = ttm_prime_object_init(tfile, res->guest_memory_size,
+				    &user_srf->prime,
+				    VMW_RES_SURFACE,
 				    &vmw_user_surface_base_release);
 
 	if (unlikely(ret != 0)) {
@@ -899,6 +900,113 @@ out_unlock:
 	return ret;
 }
 
+static struct vmw_user_surface *
+vmw_lookup_user_surface_for_buffer(struct vmw_private *vmw, struct vmw_bo *bo,
+				   u32 handle)
+{
+	struct vmw_user_surface *user_srf = NULL;
+	struct vmw_surface *surf;
+	struct ttm_base_object *base;
+
+	surf = vmw_bo_surface(bo);
+	if (surf) {
+		rcu_read_lock();
+		user_srf = container_of(surf, struct vmw_user_surface, srf);
+		base = &user_srf->prime.base;
+		if (base && !kref_get_unless_zero(&base->refcount)) {
+			drm_dbg_driver(&vmw->drm,
+				       "%s: referencing a stale surface handle %d\n",
+					__func__, handle);
+			base = NULL;
+			user_srf = NULL;
+		}
+		rcu_read_unlock();
+	}
+
+	return user_srf;
+}
+
+struct vmw_surface *vmw_lookup_surface_for_buffer(struct vmw_private *vmw,
+						  struct vmw_bo *bo,
+						  u32 handle)
+{
+	struct vmw_user_surface *user_srf =
+		vmw_lookup_user_surface_for_buffer(vmw, bo, handle);
+	struct vmw_surface *surf = NULL;
+	struct ttm_base_object *base;
+
+	if (user_srf) {
+		surf = vmw_surface_reference(&user_srf->srf);
+		base = &user_srf->prime.base;
+		ttm_base_object_unref(&base);
+	}
+	return surf;
+}
+
+u32 vmw_lookup_surface_handle_for_buffer(struct vmw_private *vmw,
+					 struct vmw_bo *bo,
+					 u32 handle)
+{
+	struct vmw_user_surface *user_srf =
+		vmw_lookup_user_surface_for_buffer(vmw, bo, handle);
+	int surf_handle = 0;
+	struct ttm_base_object *base;
+
+	if (user_srf) {
+		base = &user_srf->prime.base;
+		surf_handle = (u32)base->handle;
+		ttm_base_object_unref(&base);
+	}
+	return surf_handle;
+}
+
+static int vmw_buffer_prime_to_surface_base(struct vmw_private *dev_priv,
+					    struct drm_file *file_priv,
+					    u32 fd, u32 *handle,
+					    struct ttm_base_object **base_p)
+{
+	struct ttm_base_object *base;
+	struct vmw_bo *bo;
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_user_surface *user_srf;
+	int ret;
+
+	ret = drm_gem_prime_fd_to_handle(&dev_priv->drm, file_priv, fd, handle);
+	if (ret) {
+		drm_warn(&dev_priv->drm,
+			 "Wasn't able to find user buffer for fd = %u.\n", fd);
+		return ret;
+	}
+
+	ret = vmw_user_bo_lookup(file_priv, *handle, &bo);
+	if (ret) {
+		drm_warn(&dev_priv->drm,
+			 "Wasn't able to lookup user buffer for handle = %u.\n", *handle);
+		return ret;
+	}
+
+	user_srf = vmw_lookup_user_surface_for_buffer(dev_priv, bo, *handle);
+	if (WARN_ON(!user_srf)) {
+		drm_warn(&dev_priv->drm,
+			 "User surface fd %d (handle %d) is null.\n", fd, *handle);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	base = &user_srf->prime.base;
+	ret = ttm_ref_object_add(tfile, base, NULL, false);
+	if (ret) {
+		drm_warn(&dev_priv->drm,
+			 "Couldn't add an object ref for the buffer (%d).\n", *handle);
+		goto out;
+	}
+
+	*base_p = base;
+out:
+	vmw_user_bo_unref(&bo);
+
+	return ret;
+}
 
 static int
 vmw_surface_handle_reference(struct vmw_private *dev_priv,
@@ -908,15 +1016,19 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 			     struct ttm_base_object **base_p)
 {
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_user_surface *user_srf;
+	struct vmw_user_surface *user_srf = NULL;
 	uint32_t handle;
 	struct ttm_base_object *base;
 	int ret;
 
 	if (handle_type == DRM_VMW_HANDLE_PRIME) {
 		ret = ttm_prime_fd_to_handle(tfile, u_handle, &handle);
-		if (unlikely(ret != 0))
-			return ret;
+		if (ret)
+			return vmw_buffer_prime_to_surface_base(dev_priv,
+								file_priv,
+								u_handle,
+								&handle,
+								base_p);
 	} else {
 		handle = u_handle;
 	}
@@ -1510,9 +1622,14 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		ret = vmw_user_bo_lookup(file_priv, req->base.buffer_handle,
 					 &res->guest_memory_bo);
 		if (ret == 0) {
-			if (res->guest_memory_bo->tbo.base.size < res->guest_memory_size) {
+			if (res->guest_memory_bo->is_dumb) {
+				VMW_DEBUG_USER("Can't backup surface with a dumb buffer.\n");
+				vmw_user_bo_unref(&res->guest_memory_bo);
+				ret = -EINVAL;
+				goto out_unlock;
+			} else if (res->guest_memory_bo->tbo.base.size < res->guest_memory_size) {
 				VMW_DEBUG_USER("Surface backup buffer too small.\n");
-				vmw_bo_unreference(&res->guest_memory_bo);
+				vmw_user_bo_unref(&res->guest_memory_bo);
 				ret = -EINVAL;
 				goto out_unlock;
 			} else {
@@ -1526,8 +1643,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 							res->guest_memory_size,
 							&backup_handle,
 							&res->guest_memory_bo);
-		if (ret == 0)
-			vmw_bo_reference(res->guest_memory_bo);
 	}
 
 	if (unlikely(ret != 0)) {
@@ -1557,8 +1672,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 
 	tmp = vmw_resource_reference(res);
 	ret = ttm_prime_object_init(tfile, res->guest_memory_size, &user_srf->prime,
-				    req->base.drm_surface_flags &
-				    drm_vmw_surface_flag_shareable,
 				    VMW_RES_SURFACE,
 				    &vmw_user_surface_base_release);
 
@@ -1571,6 +1684,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	rep->handle      = user_srf->prime.base.handle;
 	rep->backup_size = res->guest_memory_size;
 	if (res->guest_memory_bo) {
+		vmw_bo_add_detached_resource(res->guest_memory_bo, res);
 		rep->buffer_map_handle =
 			drm_vma_node_offset_addr(&res->guest_memory_bo->tbo.base.vma_node);
 		rep->buffer_size = res->guest_memory_bo->tbo.base.size;
@@ -2060,8 +2174,6 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	}
 
 	*srf_out  = &user_srf->srf;
-	user_srf->prime.base.shareable = false;
-	user_srf->prime.base.tfile = NULL;
 
 	srf = &user_srf->srf;
 	srf->metadata = *req;
@@ -2111,5 +2223,144 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	return ret;
 
 out_unlock:
+	return ret;
+}
+
+static SVGA3dSurfaceFormat vmw_format_bpp_to_svga(struct vmw_private *vmw,
+						  int bpp)
+{
+	switch (bpp) {
+	case 8: /* DRM_FORMAT_C8 */
+		return SVGA3D_P8;
+	case 16: /* DRM_FORMAT_RGB565 */
+		return SVGA3D_R5G6B5;
+	case 32: /* DRM_FORMAT_XRGB8888 */
+		if (has_sm4_context(vmw))
+			return SVGA3D_B8G8R8X8_UNORM;
+		return SVGA3D_X8R8G8B8;
+	default:
+		drm_warn(&vmw->drm, "Unsupported format bpp: %d\n", bpp);
+		return SVGA3D_X8R8G8B8;
+	}
+}
+
+/**
+ * vmw_dumb_create - Create a dumb kms buffer
+ *
+ * @file_priv: Pointer to a struct drm_file identifying the caller.
+ * @dev: Pointer to the drm device.
+ * @args: Pointer to a struct drm_mode_create_dumb structure
+ * Return: Zero on success, negative error code on failure.
+ *
+ * This is a driver callback for the core drm create_dumb functionality.
+ * Note that this is very similar to the vmw_bo_alloc ioctl, except
+ * that the arguments have a different format.
+ */
+int vmw_dumb_create(struct drm_file *file_priv,
+		    struct drm_device *dev,
+		    struct drm_mode_create_dumb *args)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_bo *vbo = NULL;
+	struct vmw_resource *res = NULL;
+	union drm_vmw_gb_surface_create_ext_arg arg = { 0 };
+	struct drm_vmw_gb_surface_create_ext_req *req = &arg.req;
+	int ret;
+	struct drm_vmw_size drm_size = {
+		.width = args->width,
+		.height = args->height,
+		.depth = 1,
+	};
+	SVGA3dSurfaceFormat format = vmw_format_bpp_to_svga(dev_priv, args->bpp);
+	const struct SVGA3dSurfaceDesc *desc = vmw_surface_get_desc(format);
+	SVGA3dSurfaceAllFlags flags = SVGA3D_SURFACE_HINT_TEXTURE |
+				      SVGA3D_SURFACE_HINT_RENDERTARGET |
+				      SVGA3D_SURFACE_SCREENTARGET |
+				      SVGA3D_SURFACE_BIND_SHADER_RESOURCE |
+				      SVGA3D_SURFACE_BIND_RENDER_TARGET;
+
+	/*
+	 * Without mob support we're just going to use raw memory buffer
+	 * because we wouldn't be able to support full surface coherency
+	 * without mobs. There also no reason to support surface coherency
+	 * without 3d (i.e. gpu usage on the host) because then all the
+	 * contents is going to be rendered guest side.
+	 */
+	if (!dev_priv->has_mob || !vmw_supports_3d(dev_priv)) {
+		int cpp = DIV_ROUND_UP(args->bpp, 8);
+
+		switch (cpp) {
+		case 1: /* DRM_FORMAT_C8 */
+		case 2: /* DRM_FORMAT_RGB565 */
+		case 4: /* DRM_FORMAT_XRGB8888 */
+			break;
+		default:
+			/*
+			 * Dumb buffers don't allow anything else.
+			 * This is tested via IGT's dumb_buffers
+			 */
+			return -EINVAL;
+		}
+
+		args->pitch = args->width * cpp;
+		args->size = ALIGN(args->pitch * args->height, PAGE_SIZE);
+
+		ret = vmw_gem_object_create_with_handle(dev_priv, file_priv,
+							args->size, &args->handle,
+							&vbo);
+		/* drop reference from allocate - handle holds it now */
+		drm_gem_object_put(&vbo->tbo.base);
+		return ret;
+	}
+
+	req->version = drm_vmw_gb_surface_v1;
+	req->multisample_pattern = SVGA3D_MS_PATTERN_NONE;
+	req->quality_level = SVGA3D_MS_QUALITY_NONE;
+	req->buffer_byte_stride = 0;
+	req->must_be_zero = 0;
+	req->base.svga3d_flags = SVGA3D_FLAGS_LOWER_32(flags);
+	req->svga3d_flags_upper_32_bits = SVGA3D_FLAGS_UPPER_32(flags);
+	req->base.format = (uint32_t)format;
+	req->base.drm_surface_flags = drm_vmw_surface_flag_scanout;
+	req->base.drm_surface_flags |= drm_vmw_surface_flag_shareable;
+	req->base.drm_surface_flags |= drm_vmw_surface_flag_create_buffer;
+	req->base.drm_surface_flags |= drm_vmw_surface_flag_coherent;
+	req->base.base_size.width = args->width;
+	req->base.base_size.height = args->height;
+	req->base.base_size.depth = 1;
+	req->base.array_size = 0;
+	req->base.mip_levels = 1;
+	req->base.multisample_count = 0;
+	req->base.buffer_handle = SVGA3D_INVALID_ID;
+	req->base.autogen_filter = SVGA3D_TEX_FILTER_NONE;
+	ret = vmw_gb_surface_define_ext_ioctl(dev, &arg, file_priv);
+	if (ret) {
+		drm_warn(dev, "Unable to create a dumb buffer\n");
+		return ret;
+	}
+
+	args->handle = arg.rep.buffer_handle;
+	args->size = arg.rep.buffer_size;
+	args->pitch = vmw_surface_calculate_pitch(desc, &drm_size);
+
+	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, arg.rep.handle,
+					      user_surface_converter,
+					      &res);
+	if (ret) {
+		drm_err(dev, "Created resource handle doesn't exist!\n");
+		goto err;
+	}
+
+	vbo = res->guest_memory_bo;
+	vbo->is_dumb = true;
+	vbo->dumb_surface = vmw_res_to_srf(res);
+
+err:
+	if (res)
+		vmw_resource_unreference(&res);
+	if (ret)
+		ttm_ref_object_base_unref(tfile, arg.rep.handle);
+
 	return ret;
 }

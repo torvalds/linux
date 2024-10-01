@@ -50,6 +50,10 @@ struct v4l2_subdev_format {
  * @rect: pad crop rectangle boundaries
  * @stream: stream number, defined in subdev routing
  * @reserved: drivers and applications must zero this array
+ *
+ * The subdev crop API is an obsolete interface and may be removed in the
+ * future. It is superseded by the selection API. No new extensions to this
+ * structure will be accepted.
  */
 struct v4l2_subdev_crop {
 	__u32 which;
@@ -116,13 +120,15 @@ struct v4l2_subdev_frame_size_enum {
  * @pad: pad number, as reported by the media API
  * @interval: frame interval in seconds
  * @stream: stream number, defined in subdev routing
+ * @which: interval type (from enum v4l2_subdev_format_whence)
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_frame_interval {
 	__u32 pad;
 	struct v4l2_fract interval;
 	__u32 stream;
-	__u32 reserved[8];
+	__u32 which;
+	__u32 reserved[7];
 };
 
 /**
@@ -133,7 +139,7 @@ struct v4l2_subdev_frame_interval {
  * @width: frame width in pixels
  * @height: frame height in pixels
  * @interval: frame interval in seconds
- * @which: format type (from enum v4l2_subdev_format_whence)
+ * @which: interval type (from enum v4l2_subdev_format_whence)
  * @stream: stream number, defined in subdev routing
  * @reserved: drivers and applications must zero this array
  */
@@ -222,15 +228,19 @@ struct v4l2_subdev_route {
  * struct v4l2_subdev_routing - Subdev routing information
  *
  * @which: configuration type (from enum v4l2_subdev_format_whence)
- * @num_routes: the total number of routes in the routes array
+ * @len_routes: the length of the routes array, in routes; set by the user, not
+ *		modified by the kernel
  * @routes: pointer to the routes array
+ * @num_routes: the total number of routes, possibly more than fits in the
+ *		routes array
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_routing {
 	__u32 which;
-	__u32 num_routes;
+	__u32 len_routes;
 	__u64 routes;
-	__u32 reserved[6];
+	__u32 num_routes;
+	__u32 reserved[11];
 };
 
 /*
@@ -239,7 +249,14 @@ struct v4l2_subdev_routing {
  * set (which is the default), the 'stream' fields will be forced to 0 by the
  * kernel.
  */
- #define V4L2_SUBDEV_CLIENT_CAP_STREAMS		(1U << 0)
+#define V4L2_SUBDEV_CLIENT_CAP_STREAMS			(1ULL << 0)
+
+/*
+ * The client is aware of the struct v4l2_subdev_frame_interval which field. If
+ * this is not set (which is the default), the which field is forced to
+ * V4L2_SUBDEV_FORMAT_ACTIVE by the kernel.
+ */
+#define V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH	(1ULL << 1)
 
 /**
  * struct v4l2_subdev_client_capability - Capabilities of the client accessing

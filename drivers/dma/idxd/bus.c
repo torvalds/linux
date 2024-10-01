@@ -33,10 +33,10 @@ void idxd_driver_unregister(struct idxd_device_driver *idxd_drv)
 EXPORT_SYMBOL_GPL(idxd_driver_unregister);
 
 static int idxd_config_bus_match(struct device *dev,
-				 struct device_driver *drv)
+				 const struct device_driver *drv)
 {
-	struct idxd_device_driver *idxd_drv =
-		container_of(drv, struct idxd_device_driver, drv);
+	const struct idxd_device_driver *idxd_drv =
+		container_of_const(drv, struct idxd_device_driver, drv);
 	struct idxd_dev *idxd_dev = confdev_to_idxd_dev(dev);
 	int i = 0;
 
@@ -67,11 +67,17 @@ static void idxd_config_bus_remove(struct device *dev)
 	idxd_drv->remove(idxd_dev);
 }
 
-struct bus_type dsa_bus_type = {
+static int idxd_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
+{
+	return add_uevent_var(env, "MODALIAS=" IDXD_DEVICES_MODALIAS_FMT, 0);
+}
+
+const struct bus_type dsa_bus_type = {
 	.name = "dsa",
 	.match = idxd_config_bus_match,
 	.probe = idxd_config_bus_probe,
 	.remove = idxd_config_bus_remove,
+	.uevent = idxd_bus_uevent,
 };
 EXPORT_SYMBOL_GPL(dsa_bus_type);
 

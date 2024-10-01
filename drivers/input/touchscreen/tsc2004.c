@@ -42,13 +42,8 @@ static int tsc2004_probe(struct i2c_client *i2c)
 			     tsc2004_cmd);
 }
 
-static void tsc2004_remove(struct i2c_client *i2c)
-{
-	tsc200x_remove(&i2c->dev);
-}
-
 static const struct i2c_device_id tsc2004_idtable[] = {
-	{ "tsc2004", 0 },
+	{ "tsc2004" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tsc2004_idtable);
@@ -63,13 +58,13 @@ MODULE_DEVICE_TABLE(of, tsc2004_of_match);
 
 static struct i2c_driver tsc2004_driver = {
 	.driver = {
-		.name   = "tsc2004",
-		.of_match_table = of_match_ptr(tsc2004_of_match),
-		.pm     = pm_sleep_ptr(&tsc200x_pm_ops),
+		.name		= "tsc2004",
+		.dev_groups	= tsc200x_groups,
+		.of_match_table	= of_match_ptr(tsc2004_of_match),
+		.pm		= pm_sleep_ptr(&tsc200x_pm_ops),
 	},
 	.id_table       = tsc2004_idtable,
 	.probe          = tsc2004_probe,
-	.remove         = tsc2004_remove,
 };
 module_i2c_driver(tsc2004_driver);
 

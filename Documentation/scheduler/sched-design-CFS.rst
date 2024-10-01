@@ -1,3 +1,5 @@
+.. _sched_design_CFS:
+
 =============
 CFS Scheduler
 =============
@@ -6,10 +8,12 @@ CFS Scheduler
 1.  OVERVIEW
 ============
 
-CFS stands for "Completely Fair Scheduler," and is the new "desktop" process
-scheduler implemented by Ingo Molnar and merged in Linux 2.6.23.  It is the
-replacement for the previous vanilla scheduler's SCHED_OTHER interactivity
-code.
+CFS stands for "Completely Fair Scheduler," and is the "desktop" process
+scheduler implemented by Ingo Molnar and merged in Linux 2.6.23. When
+originally merged, it was the replacement for the previous vanilla
+scheduler's SCHED_OTHER interactivity code. Nowadays, CFS is making room
+for EEVDF, for which documentation can be found in
+Documentation/scheduler/sched-eevdf.rst.
 
 80% of CFS's design can be summed up in a single sentence: CFS basically models
 an "ideal, precise multi-tasking CPU" on real hardware.
@@ -94,11 +98,14 @@ other HZ detail.  Thus the CFS scheduler has no notion of "timeslices" in the
 way the previous scheduler had, and has no heuristics whatsoever.  There is
 only one central tunable (you have to switch on CONFIG_SCHED_DEBUG):
 
-   /sys/kernel/debug/sched/min_granularity_ns
+   /sys/kernel/debug/sched/base_slice_ns
 
 which can be used to tune the scheduler from "desktop" (i.e., low latencies) to
 "server" (i.e., good batching) workloads.  It defaults to a setting suitable
 for desktop workloads.  SCHED_BATCH is handled by the CFS scheduler module too.
+
+In case CONFIG_HZ results in base_slice_ns < TICK_NSEC, the value of
+base_slice_ns will have little to no impact on the workloads.
 
 Due to its design, the CFS scheduler is not prone to any of the "attacks" that
 exist today against the heuristics of the stock scheduler: fiftyp.c, thud.c,
@@ -180,7 +187,7 @@ This is the (partial) list of the hooks:
    compat_yield sysctl is turned on; in that case, it places the scheduling
    entity at the right-most end of the red-black tree.
 
- - check_preempt_curr(...)
+ - wakeup_preempt(...)
 
    This function checks if a task that entered the runnable state should
    preempt the currently running task.
@@ -189,10 +196,10 @@ This is the (partial) list of the hooks:
 
    This function chooses the most appropriate task eligible to run next.
 
- - set_curr_task(...)
+ - set_next_task(...)
 
-   This function is called when a task changes its scheduling class or changes
-   its task group.
+   This function is called when a task changes its scheduling class, changes
+   its task group or is scheduled.
 
  - task_tick(...)
 

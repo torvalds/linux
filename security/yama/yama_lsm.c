@@ -18,6 +18,7 @@
 #include <linux/task_work.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <uapi/linux/lsm.h>
 
 #define YAMA_SCOPE_DISABLED	0
 #define YAMA_SCOPE_RELATIONAL	1
@@ -110,6 +111,7 @@ static void report_access(const char *access, struct task_struct *target,
 
 /**
  * yama_relation_cleanup - remove invalid entries from the relation list
+ * @work: unused
  *
  */
 static void yama_relation_cleanup(struct work_struct *work)
@@ -421,6 +423,11 @@ static int yama_ptrace_traceme(struct task_struct *parent)
 	return rc;
 }
 
+static const struct lsm_id yama_lsmid = {
+	.name = "yama",
+	.id = LSM_ID_YAMA,
+};
+
 static struct security_hook_list yama_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, yama_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, yama_ptrace_traceme),
@@ -429,7 +436,7 @@ static struct security_hook_list yama_hooks[] __ro_after_init = {
 };
 
 #ifdef CONFIG_SYSCTL
-static int yama_dointvec_minmax(struct ctl_table *table, int write,
+static int yama_dointvec_minmax(const struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table table_copy;
@@ -457,7 +464,6 @@ static struct ctl_table yama_sysctl_table[] = {
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = &max_scope,
 	},
-	{ }
 };
 static void __init yama_init_sysctl(void)
 {
@@ -471,7 +477,7 @@ static inline void yama_init_sysctl(void) { }
 static int __init yama_init(void)
 {
 	pr_info("Yama: becoming mindful.\n");
-	security_add_hooks(yama_hooks, ARRAY_SIZE(yama_hooks), "yama");
+	security_add_hooks(yama_hooks, ARRAY_SIZE(yama_hooks), &yama_lsmid);
 	yama_init_sysctl();
 	return 0;
 }

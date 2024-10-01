@@ -65,6 +65,7 @@ acpi_status acpi_ev_initialize_op_regions(void)
 						acpi_gbl_default_address_spaces
 						[i])) {
 			acpi_ev_execute_reg_methods(acpi_gbl_root_node,
+						    ACPI_UINT32_MAX,
 						    acpi_gbl_default_address_spaces
 						    [i], ACPI_REG_CONNECT);
 		}
@@ -672,6 +673,7 @@ cleanup1:
  * FUNCTION:    acpi_ev_execute_reg_methods
  *
  * PARAMETERS:  node            - Namespace node for the device
+ *              max_depth       - Depth to which search for _REG
  *              space_id        - The address space ID
  *              function        - Passed to _REG: On (1) or Off (0)
  *
@@ -683,7 +685,7 @@ cleanup1:
  ******************************************************************************/
 
 void
-acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
+acpi_ev_execute_reg_methods(struct acpi_namespace_node *node, u32 max_depth,
 			    acpi_adr_space_type space_id, u32 function)
 {
 	struct acpi_reg_walk_info info;
@@ -717,7 +719,7 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	 * regions and _REG methods. (i.e. handlers must be installed for all
 	 * regions of this Space ID before we can run any _REG methods)
 	 */
-	(void)acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
+	(void)acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, max_depth,
 				     ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run, NULL,
 				     &info, NULL);
 

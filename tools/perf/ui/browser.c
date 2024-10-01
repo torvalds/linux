@@ -57,12 +57,12 @@ void ui_browser__gotorc(struct ui_browser *browser, int y, int x)
 void ui_browser__write_nstring(struct ui_browser *browser __maybe_unused, const char *msg,
 			       unsigned int width)
 {
-	slsmg_write_nstring(msg, width);
+	SLsmg_write_nstring(msg, width);
 }
 
 void ui_browser__vprintf(struct ui_browser *browser __maybe_unused, const char *fmt, va_list args)
 {
-	slsmg_vprintf(fmt, args);
+	SLsmg_vprintf(fmt, args);
 }
 
 void ui_browser__printf(struct ui_browser *browser __maybe_unused, const char *fmt, ...)
@@ -203,7 +203,7 @@ void ui_browser__refresh_dimensions(struct ui_browser *browser)
 void ui_browser__handle_resize(struct ui_browser *browser)
 {
 	ui__refresh_dimensions(false);
-	ui_browser__show(browser, browser->title, ui_helpline__current);
+	ui_browser__show(browser, browser->title ?: "", ui_helpline__current);
 	ui_browser__refresh(browser);
 }
 
@@ -287,7 +287,8 @@ int ui_browser__show(struct ui_browser *browser, const char *title,
 	mutex_lock(&ui__lock);
 	__ui_browser__show_title(browser, title);
 
-	browser->title = title;
+	free(browser->title);
+	browser->title = strdup(title);
 	zfree(&browser->helpline);
 
 	va_start(ap, helpline);
@@ -304,6 +305,7 @@ void ui_browser__hide(struct ui_browser *browser)
 	mutex_lock(&ui__lock);
 	ui_helpline__pop();
 	zfree(&browser->helpline);
+	zfree(&browser->title);
 	mutex_unlock(&ui__lock);
 }
 
@@ -808,6 +810,6 @@ void ui_browser__init(void)
 
 	while (ui_browser__colorsets[i].name) {
 		struct ui_browser_colorset *c = &ui_browser__colorsets[i++];
-		sltt_set_color(c->colorset, c->name, c->fg, c->bg);
+		SLtt_set_color(c->colorset, c->name, c->fg, c->bg);
 	}
 }

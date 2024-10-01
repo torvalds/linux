@@ -15,8 +15,8 @@
 #include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
 #include <dt-bindings/clock/qcom,sm8250-lpass-audiocc.h>
 #include <dt-bindings/clock/qcom,sm8250-lpass-aoncc.h>
 
@@ -315,3 +315,4 @@ static struct platform_driver lpass_gfm_clk_driver = {
 };
 module_platform_driver(lpass_gfm_clk_driver);
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("QTI SM8250 LPASS Glitch Free Mux clock driver");

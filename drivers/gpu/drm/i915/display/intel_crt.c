@@ -42,6 +42,7 @@
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
@@ -192,7 +193,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 		adpa |= ADPA_PIPE_SEL(crtc->pipe);
 
 	if (!HAS_PCH_SPLIT(dev_priv))
-		intel_de_write(dev_priv, BCLRPAT(crtc->pipe), 0);
+		intel_de_write(dev_priv, BCLRPAT(dev_priv, crtc->pipe), 0);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -347,11 +348,13 @@ intel_crt_mode_valid(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int max_dotclk = dev_priv->max_dotclk_freq;
+	int max_dotclk = dev_priv->display.cdclk.max_dotclk_freq;
+	enum drm_mode_status status;
 	int max_clock;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+	status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	if (status != MODE_OK)
+		return status;
 
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
@@ -413,6 +416,9 @@ static int pch_crt_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	pipe_config->has_pch_encoder = true;
+	if (!intel_fdi_compute_pipe_bpp(pipe_config))
+		return -EINVAL;
+
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	return 0;
@@ -435,10 +441,14 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	pipe_config->has_pch_encoder = true;
+	if (!intel_fdi_compute_pipe_bpp(pipe_config))
+		return -EINVAL;
+
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	/* LPT FDI RX only supports 8bpc. */
 	if (HAS_PCH_LPT(dev_priv)) {
+		/* TODO: Check crtc_state->max_link_bpp_x16 instead of bw_constrained */
 		if (pipe_config->bw_constrained && pipe_config->pipe_bpp < 24) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "LPT only supports 24bpp\n");
@@ -450,6 +460,8 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 
 	/* FDI must always be 2.7 GHz */
 	pipe_config->port_clock = 135000 * 2;
+
+	pipe_config->enhanced_framing = true;
 
 	adjusted_mode->crtc_clock = lpt_iclkip(pipe_config);
 
@@ -591,18 +603,19 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
-		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN,
+		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN(dev_priv),
 					    CRT_HOTPLUG_FORCE_DETECT, 1000))
 			drm_dbg_kms(&dev_priv->drm,
 				    "timed out waiting for FORCE_DETECT to go off");
 	}
 
-	stat = intel_de_read(dev_priv, PORT_HOTPLUG_STAT);
+	stat = intel_de_read(dev_priv, PORT_HOTPLUG_STAT(dev_priv));
 	if ((stat & CRT_HOTPLUG_MONITOR_MASK) != CRT_HOTPLUG_MONITOR_NONE)
 		ret = true;
 
 	/* clear the interrupt we just generated, if any */
-	intel_de_write(dev_priv, PORT_HOTPLUG_STAT, CRT_HOTPLUG_INT_STATUS);
+	intel_de_write(dev_priv, PORT_HOTPLUG_STAT(dev_priv),
+		       CRT_HOTPLUG_INT_STATUS);
 
 	i915_hotplug_interrupt_update(dev_priv, CRT_HOTPLUG_FORCE_DETECT, 0);
 
@@ -610,18 +623,18 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 }
 
 static const struct drm_edid *intel_crt_get_edid(struct drm_connector *connector,
-						 struct i2c_adapter *i2c)
+						 struct i2c_adapter *ddc)
 {
 	const struct drm_edid *drm_edid;
 
-	drm_edid = drm_edid_read_ddc(connector, i2c);
+	drm_edid = drm_edid_read_ddc(connector, ddc);
 
-	if (!drm_edid && !intel_gmbus_is_forced_bit(i2c)) {
+	if (!drm_edid && !intel_gmbus_is_forced_bit(ddc)) {
 		drm_dbg_kms(connector->dev,
 			    "CRT GMBUS EDID read failed, retry using GPIO bit-banging\n");
-		intel_gmbus_force_bit(i2c, true);
-		drm_edid = drm_edid_read_ddc(connector, i2c);
-		intel_gmbus_force_bit(i2c, false);
+		intel_gmbus_force_bit(ddc, true);
+		drm_edid = drm_edid_read_ddc(connector, ddc);
+		intel_gmbus_force_bit(ddc, false);
 	}
 
 	return drm_edid;
@@ -629,12 +642,12 @@ static const struct drm_edid *intel_crt_get_edid(struct drm_connector *connector
 
 /* local version of intel_ddc_get_modes() to use intel_crt_get_edid() */
 static int intel_crt_ddc_get_modes(struct drm_connector *connector,
-				struct i2c_adapter *adapter)
+				   struct i2c_adapter *ddc)
 {
 	const struct drm_edid *drm_edid;
 	int ret;
 
-	drm_edid = intel_crt_get_edid(connector, adapter);
+	drm_edid = intel_crt_get_edid(connector, ddc);
 	if (!drm_edid)
 		return 0;
 
@@ -650,28 +663,23 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(crt->base.base.dev);
 	const struct drm_edid *drm_edid;
-	struct i2c_adapter *i2c;
 	bool ret = false;
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
-	drm_edid = intel_crt_get_edid(connector, i2c);
+	drm_edid = intel_crt_get_edid(connector, connector->ddc);
 
 	if (drm_edid) {
-		const struct edid *edid = drm_edid_raw(drm_edid);
-		bool is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
-
 		/*
 		 * This may be a DVI-I connector with a shared DDC
 		 * link between analog and digital outputs, so we
 		 * have to check the EDID input spec of the attached device.
 		 */
-		if (!is_digital) {
+		if (drm_edid_is_digital(drm_edid)) {
+			drm_dbg_kms(&dev_priv->drm,
+				    "CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
+		} else {
 			drm_dbg_kms(&dev_priv->drm,
 				    "CRT detected via DDC:0x50 [EDID]\n");
 			ret = true;
-		} else {
-			drm_dbg_kms(&dev_priv->drm,
-				    "CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 		}
 	} else {
 		drm_dbg_kms(&dev_priv->drm,
@@ -700,9 +708,12 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 
 	drm_dbg_kms(&dev_priv->drm, "starting load-detect on CRT\n");
 
-	save_bclrpat = intel_de_read(dev_priv, BCLRPAT(cpu_transcoder));
-	save_vtotal = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
-	vblank = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
+	save_bclrpat = intel_de_read(dev_priv,
+				     BCLRPAT(dev_priv, cpu_transcoder));
+	save_vtotal = intel_de_read(dev_priv,
+				    TRANS_VTOTAL(dev_priv, cpu_transcoder));
+	vblank = intel_de_read(dev_priv,
+			       TRANS_VBLANK(dev_priv, cpu_transcoder));
 
 	vtotal = REG_FIELD_GET(VTOTAL_MASK, save_vtotal) + 1;
 	vactive = REG_FIELD_GET(VACTIVE_MASK, save_vtotal) + 1;
@@ -711,14 +722,16 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	vblank_end = REG_FIELD_GET(VBLANK_END_MASK, vblank) + 1;
 
 	/* Set the border color to purple. */
-	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), 0x500050);
+	intel_de_write(dev_priv, BCLRPAT(dev_priv, cpu_transcoder), 0x500050);
 
 	if (DISPLAY_VER(dev_priv) != 2) {
-		u32 transconf = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
+		u32 transconf = intel_de_read(dev_priv,
+					      TRANSCONF(dev_priv, cpu_transcoder));
 
-		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder),
+		intel_de_write(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
 			       transconf | TRANSCONF_FORCE_BORDER);
-		intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
+		intel_de_posting_read(dev_priv,
+				      TRANSCONF(dev_priv, cpu_transcoder));
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
@@ -727,7 +740,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			connector_status_connected :
 			connector_status_disconnected;
 
-		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), transconf);
+		intel_de_write(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
+			       transconf);
 	} else {
 		bool restore_vblank = false;
 		int count, detect;
@@ -737,11 +751,13 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 		* Yes, this will flicker
 		*/
 		if (vblank_start <= vactive && vblank_end >= vtotal) {
-			u32 vsync = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
+			u32 vsync = intel_de_read(dev_priv,
+						  TRANS_VSYNC(dev_priv, cpu_transcoder));
 			u32 vsync_start = REG_FIELD_GET(VSYNC_START_MASK, vsync) + 1;
 
 			vblank_start = vsync_start;
-			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, cpu_transcoder),
 				       VBLANK_START(vblank_start - 1) |
 				       VBLANK_END(vblank_end - 1));
 			restore_vblank = true;
@@ -755,9 +771,9 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 		/*
 		 * Wait for the border to be displayed
 		 */
-		while (intel_de_read(dev_priv, PIPEDSL(pipe)) >= vactive)
+		while (intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe)) >= vactive)
 			;
-		while ((dsl = intel_de_read(dev_priv, PIPEDSL(pipe))) <= vsample)
+		while ((dsl = intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe))) <= vsample)
 			;
 		/*
 		 * Watch ST00 for an entire scanline
@@ -770,11 +786,13 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			st00 = intel_de_read8(dev_priv, _VGA_MSR_WRITE);
 			if (st00 & (1 << 4))
 				detect++;
-		} while ((intel_de_read(dev_priv, PIPEDSL(pipe)) == dsl));
+		} while ((intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe)) == dsl));
 
 		/* restore vblank if necessary */
 		if (restore_vblank)
-			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder), vblank);
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, cpu_transcoder),
+				       vblank);
 		/*
 		 * If more than 3/4 of the scanline detected a monitor,
 		 * then it is assumed to be present. This works even on i830,
@@ -787,7 +805,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	}
 
 	/* Restore previous settings */
-	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), save_bclrpat);
+	intel_de_write(dev_priv, BCLRPAT(dev_priv, cpu_transcoder),
+		       save_bclrpat);
 
 	return status;
 }
@@ -834,10 +853,13 @@ intel_crt_detect(struct drm_connector *connector,
 		    connector->base.id, connector->name,
 		    force);
 
-	if (!INTEL_DISPLAY_ENABLED(dev_priv))
+	if (!intel_display_device_enabled(dev_priv))
 		return connector_status_disconnected;
 
-	if (dev_priv->params.load_detect_test) {
+	if (!intel_display_driver_check_access(dev_priv))
+		return connector->status;
+
+	if (dev_priv->display.params.load_detect_test) {
 		wakeref = intel_display_power_get(dev_priv,
 						  intel_encoder->power_domain);
 		goto load_detect;
@@ -897,7 +919,7 @@ load_detect:
 		else if (DISPLAY_VER(dev_priv) < 4)
 			status = intel_crt_load_detect(crt,
 				to_intel_crtc(connector->state->crtc)->pipe);
-		else if (dev_priv->params.load_detect_test)
+		else if (dev_priv->display.params.load_detect_test)
 			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;
@@ -906,12 +928,6 @@ load_detect:
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
-
-	/*
-	 * Make sure the refs for power wells enabled during detect are
-	 * dropped to avoid a new detect cycle triggered by HPD polling.
-	 */
-	intel_display_power_flush_work(dev_priv);
 
 	return status;
 }
@@ -923,20 +939,22 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
 	intel_wakeref_t wakeref;
-	struct i2c_adapter *i2c;
+	struct i2c_adapter *ddc;
 	int ret;
+
+	if (!intel_display_driver_check_access(dev_priv))
+		return drm_edid_connector_add_modes(connector);
 
 	wakeref = intel_display_power_get(dev_priv,
 					  intel_encoder->power_domain);
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
-	ret = intel_crt_ddc_get_modes(connector, i2c);
+	ret = intel_crt_ddc_get_modes(connector, connector->ddc);
 	if (ret || !IS_G4X(dev_priv))
 		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
-	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPB);
-	ret = intel_crt_ddc_get_modes(connector, i2c);
+	ddc = intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPB);
+	ret = intel_crt_ddc_get_modes(connector, ddc);
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
@@ -994,6 +1012,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	struct intel_crt *crt;
 	struct intel_connector *intel_connector;
 	i915_reg_t adpa_reg;
+	u8 ddc_pin;
 	u32 adpa;
 
 	if (HAS_PCH_SPLIT(dev_priv))
@@ -1030,10 +1049,14 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		return;
 	}
 
+	ddc_pin = dev_priv->display.vbt.crt_ddc_pin;
+
 	connector = &intel_connector->base;
 	crt->connector = intel_connector;
-	drm_connector_init(&dev_priv->drm, &intel_connector->base,
-			   &intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
+	drm_connector_init_with_ddc(&dev_priv->drm, connector,
+				    &intel_crt_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA,
+				    intel_gmbus_get_adapter(dev_priv, ddc_pin));
 
 	drm_encoder_init(&dev_priv->drm, &crt->base.base, &intel_crt_enc_funcs,
 			 DRM_MODE_ENCODER_DAC, "CRT");
@@ -1062,8 +1085,11 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	} else {
 		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	}
+	intel_connector->base.polled = intel_connector->polled;
 
 	if (HAS_DDI(dev_priv)) {
+		assert_port_valid(dev_priv, PORT_E);
+
 		crt->base.port = PORT_E;
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;

@@ -23,17 +23,58 @@
 #include <linux/rmap.h>
 #include <linux/pagemap.h>
 
-static struct page *fb_deferred_io_page(struct fb_info *info, unsigned long offs)
+static struct page *fb_deferred_io_get_page(struct fb_info *info, unsigned long offs)
 {
-	void *screen_base = (void __force *) info->screen_base;
-	struct page *page;
+	struct fb_deferred_io *fbdefio = info->fbdefio;
+	const void *screen_buffer = info->screen_buffer;
+	struct page *page = NULL;
 
-	if (is_vmalloc_addr(screen_base + offs))
-		page = vmalloc_to_page(screen_base + offs);
-	else
+	if (fbdefio->get_page)
+		return fbdefio->get_page(info, offs);
+
+	if (is_vmalloc_addr(screen_buffer + offs))
+		page = vmalloc_to_page(screen_buffer + offs);
+	else if (info->fix.smem_start)
 		page = pfn_to_page((info->fix.smem_start + offs) >> PAGE_SHIFT);
 
+	if (page)
+		get_page(page);
+
 	return page;
+}
+
+static struct fb_deferred_io_pageref *fb_deferred_io_pageref_lookup(struct fb_info *info,
+								    unsigned long offset,
+								    struct page *page)
+{
+	unsigned long pgoff = offset >> PAGE_SHIFT;
+	struct fb_deferred_io_pageref *pageref;
+
+	if (fb_WARN_ON_ONCE(info, pgoff >= info->npagerefs))
+		return NULL; /* incorrect allocation size */
+
+	/* 1:1 mapping between pageref and page offset */
+	pageref = &info->pagerefs[pgoff];
+
+	if (pageref->page)
+		goto out;
+
+	pageref->page = page;
+	pageref->offset = pgoff << PAGE_SHIFT;
+	INIT_LIST_HEAD(&pageref->list);
+
+out:
+	if (fb_WARN_ON_ONCE(info, pageref->page != page))
+		return NULL; /* inconsistent state */
+	return pageref;
+}
+
+static void fb_deferred_io_pageref_clear(struct fb_deferred_io_pageref *pageref)
+{
+	struct page *page = pageref->page;
+
+	if (page)
+		page->mapping = NULL;
 }
 
 static struct fb_deferred_io_pageref *fb_deferred_io_pageref_get(struct fb_info *info,
@@ -42,14 +83,11 @@ static struct fb_deferred_io_pageref *fb_deferred_io_pageref_get(struct fb_info 
 {
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct list_head *pos = &fbdefio->pagereflist;
-	unsigned long pgoff = offset >> PAGE_SHIFT;
 	struct fb_deferred_io_pageref *pageref, *cur;
 
-	if (WARN_ON_ONCE(pgoff >= info->npagerefs))
-		return NULL; /* incorrect allocation size */
-
-	/* 1:1 mapping between pageref and page offset */
-	pageref = &info->pagerefs[pgoff];
+	pageref = fb_deferred_io_pageref_lookup(info, offset, page);
+	if (!pageref)
+		return NULL;
 
 	/*
 	 * This check is to catch the case where a new process could start
@@ -59,9 +97,6 @@ static struct fb_deferred_io_pageref *fb_deferred_io_pageref_get(struct fb_info 
 	 */
 	if (!list_empty(&pageref->list))
 		goto pageref_already_added;
-
-	pageref->page = page;
-	pageref->offset = pgoff << PAGE_SHIFT;
 
 	if (unlikely(fbdefio->sort_pagereflist)) {
 		/*
@@ -101,11 +136,9 @@ static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 	if (offset >= info->fix.smem_len)
 		return VM_FAULT_SIGBUS;
 
-	page = fb_deferred_io_page(info, offset);
+	page = fb_deferred_io_get_page(info, offset);
 	if (!page)
 		return VM_FAULT_SIGBUS;
-
-	get_page(page);
 
 	if (vmf->vma->vm_file)
 		page->mapping = vmf->vma->vm_file->f_mapping;
@@ -113,7 +146,7 @@ static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 		printk(KERN_ERR "no mapping available\n");
 
 	BUG_ON(!page->mapping);
-	page->index = vmf->pgoff; /* for page_mkclean() */
+	page->index = vmf->pgoff; /* for folio_mkclean() */
 
 	vmf->page = page;
 	return 0;
@@ -132,11 +165,7 @@ int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasy
 		return 0;
 
 	inode_lock(inode);
-	/* Kill off the delayed work */
-	cancel_delayed_work_sync(&info->deferred_work);
-
-	/* Run it immediately */
-	schedule_delayed_work(&info->deferred_work, 0);
+	flush_delayed_work(&info->deferred_work);
 	inode_unlock(inode);
 
 	return 0;
@@ -165,7 +194,7 @@ static vm_fault_t fb_deferred_io_track_page(struct fb_info *info, unsigned long 
 
 	/*
 	 * We want the page to remain locked from ->page_mkwrite until
-	 * the PTE is marked dirty to avoid page_mkclean() being called
+	 * the PTE is marked dirty to avoid folio_mkclean() being called
 	 * before the PTE is updated, which would leave the page ignored
 	 * by defio.
 	 * Do this by locking the page here and informing the caller
@@ -200,7 +229,7 @@ err_mutex_unlock:
  */
 static vm_fault_t fb_deferred_io_page_mkwrite(struct fb_info *info, struct vm_fault *vmf)
 {
-	unsigned long offset = vmf->address - vmf->vma->vm_start;
+	unsigned long offset = vmf->pgoff << PAGE_SHIFT;
 	struct page *page = vmf->page;
 
 	file_update_time(vmf->vma->vm_file);
@@ -227,6 +256,8 @@ static const struct address_space_operations fb_deferred_io_aops = {
 
 int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	vma->vm_ops = &fb_deferred_io_vm_ops;
 	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 	if (!(info->flags & FBINFO_VIRTFB))
@@ -246,10 +277,11 @@ static void fb_deferred_io_work(struct work_struct *work)
 	/* here we mkclean the pages, then do all deferred IO */
 	mutex_lock(&fbdefio->lock);
 	list_for_each_entry(pageref, &fbdefio->pagereflist, list) {
-		struct page *cur = pageref->page;
-		lock_page(cur);
-		page_mkclean(cur);
-		unlock_page(cur);
+		struct folio *folio = page_folio(pageref->page);
+
+		folio_lock(folio);
+		folio_mkclean(folio);
+		folio_unlock(folio);
 	}
 
 	/* driver's callback with pagereflist */
@@ -266,7 +298,7 @@ int fb_deferred_io_init(struct fb_info *info)
 {
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct fb_deferred_io_pageref *pagerefs;
-	unsigned long npagerefs, i;
+	unsigned long npagerefs;
 	int ret;
 
 	BUG_ON(!fbdefio);
@@ -288,8 +320,6 @@ int fb_deferred_io_init(struct fb_info *info)
 		ret = -ENOMEM;
 		goto err;
 	}
-	for (i = 0; i < npagerefs; ++i)
-		INIT_LIST_HEAD(&pagerefs[i].list);
 	info->npagerefs = npagerefs;
 	info->pagerefs = pagerefs;
 
@@ -314,16 +344,13 @@ EXPORT_SYMBOL_GPL(fb_deferred_io_open);
 
 static void fb_deferred_io_lastclose(struct fb_info *info)
 {
-	struct page *page;
-	int i;
+	unsigned long i;
 
-	cancel_delayed_work_sync(&info->deferred_work);
+	flush_delayed_work(&info->deferred_work);
 
 	/* clear out the mapping that we setup */
-	for (i = 0 ; i < info->fix.smem_len; i += PAGE_SIZE) {
-		page = fb_deferred_io_page(info, i);
-		page->mapping = NULL;
-	}
+	for (i = 0; i < info->npagerefs; ++i)
+		fb_deferred_io_pageref_clear(&info->pagerefs[i]);
 }
 
 void fb_deferred_io_release(struct fb_info *info)

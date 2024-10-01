@@ -48,10 +48,10 @@ DECLARE_EVENT_CLASS(drm_sched_job,
 			   __entry->entity = entity;
 			   __entry->id = sched_job->id;
 			   __entry->fence = &sched_job->s_fence->finished;
-			   __assign_str(name, sched_job->sched->name);
+			   __assign_str(name);
 			   __entry->job_count = spsc_queue_count(&entity->job_queue);
 			   __entry->hw_job_count = atomic_read(
-				   &sched_job->sched->hw_rq_count);
+				   &sched_job->sched->credit_count);
 			   ),
 	    TP_printk("entity=%p, id=%llu, fence=%p, ring=%s, job count:%u, hw job count:%d",
 		      __entry->entity, __entry->id,
@@ -94,7 +94,7 @@ TRACE_EVENT(drm_sched_job_wait_dep,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(name, sched_job->sched->name);
+			   __assign_str(name);
 			   __entry->id = sched_job->id;
 			   __entry->fence = fence;
 			   __entry->ctx = fence->context;

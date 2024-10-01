@@ -54,7 +54,7 @@ static irqreturn_t vfio_fsl_mc_irq_handler(int irq_num, void *arg)
 {
 	struct vfio_fsl_mc_irq *mc_irq = (struct vfio_fsl_mc_irq *)arg;
 
-	eventfd_signal(mc_irq->trigger, 1);
+	eventfd_signal(mc_irq->trigger);
 	return IRQ_HANDLED;
 }
 
@@ -108,10 +108,10 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 				       void *data)
 {
 	struct fsl_mc_device *mc_dev = vdev->mc_dev;
-	int ret, hwirq;
 	struct vfio_fsl_mc_irq *irq;
 	struct device *cont_dev = fsl_mc_cont_dev(&mc_dev->dev);
 	struct fsl_mc_device *mc_cont = to_fsl_mc_device(cont_dev);
+	int ret;
 
 	if (!count && (flags & VFIO_IRQ_SET_DATA_NONE))
 		return vfio_set_trigger(vdev, index, -1);
@@ -136,18 +136,17 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 		return vfio_set_trigger(vdev, index, fd);
 	}
 
-	hwirq = vdev->mc_dev->irqs[index]->virq;
-
 	irq = &vdev->mc_irqs[index];
 
 	if (flags & VFIO_IRQ_SET_DATA_NONE) {
-		vfio_fsl_mc_irq_handler(hwirq, irq);
+		if (irq->trigger)
+			eventfd_signal(irq->trigger);
 
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
 		u8 trigger = *(u8 *)data;
 
-		if (trigger)
-			vfio_fsl_mc_irq_handler(hwirq, irq);
+		if (trigger && irq->trigger)
+			eventfd_signal(irq->trigger);
 	}
 
 	return 0;

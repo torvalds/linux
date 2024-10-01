@@ -12,12 +12,15 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/time_namespace.h>
 #include <linux/random.h>
 #include <vdso/datapage.h>
+#include <asm/vdso/vsyscall.h>
+#include <asm/alternative.h>
 #include <asm/vdso.h>
 
 extern char vdso64_start[], vdso64_end[];
@@ -25,18 +28,9 @@ extern char vdso32_start[], vdso32_end[];
 
 static struct vm_special_mapping vvar_mapping;
 
-static union {
-	struct vdso_data	data[CS_BASES];
-	u8			page[PAGE_SIZE];
-} vdso_data_store __page_aligned_data;
+static union vdso_data_store vdso_data_store __page_aligned_data;
 
 struct vdso_data *vdso_data = vdso_data_store.data;
-
-enum vvar_pages {
-	VVAR_DATA_PAGE_OFFSET,
-	VVAR_TIMENS_PAGE_OFFSET,
-	VVAR_NR_PAGES,
-};
 
 #ifdef CONFIG_TIME_NS
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
@@ -213,15 +207,20 @@ static unsigned long vdso_addr(unsigned long start, unsigned long len)
 	return addr;
 }
 
-unsigned long vdso_size(void)
+unsigned long vdso_text_size(void)
 {
-	unsigned long size = VVAR_NR_PAGES * PAGE_SIZE;
+	unsigned long size;
 
 	if (is_compat_task())
-		size += vdso32_end - vdso32_start;
+		size = vdso32_end - vdso32_start;
 	else
-		size += vdso64_end - vdso64_start;
+		size = vdso64_end - vdso64_start;
 	return PAGE_ALIGN(size);
+}
+
+unsigned long vdso_size(void)
+{
+	return vdso_text_size() + VVAR_NR_PAGES * PAGE_SIZE;
 }
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
@@ -248,8 +247,25 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 	return pagelist;
 }
 
+static void vdso_apply_alternatives(void)
+{
+	const struct elf64_shdr *alt, *shdr;
+	struct alt_instr *start, *end;
+	const struct elf64_hdr *hdr;
+
+	hdr = (struct elf64_hdr *)vdso64_start;
+	shdr = (void *)hdr + hdr->e_shoff;
+	alt = find_section(hdr, shdr, ".altinstructions");
+	if (!alt)
+		return;
+	start = (void *)hdr + alt->sh_offset;
+	end = (void *)hdr + alt->sh_offset + alt->sh_size;
+	apply_alternatives(start, end);
+}
+
 static int __init vdso_init(void)
 {
+	vdso_apply_alternatives();
 	vdso64_mapping.pages = vdso_setup_pages(vdso64_start, vdso64_end);
 	if (IS_ENABLED(CONFIG_COMPAT))
 		vdso32_mapping.pages = vdso_setup_pages(vdso32_start, vdso32_end);

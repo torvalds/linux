@@ -57,9 +57,14 @@ enum {
 
 #define ALIGN(x, a) (((x) + (a - 1)) & (~((a) - 1)))
 /* Just the flags we need, copied from mm.h: */
-#define FOLL_WRITE	0x01	/* check pte is writable */
-#define FOLL_LONGTERM   0x10000 /* mapping lifetime is indefinite */
 
+#ifndef FOLL_WRITE
+#define FOLL_WRITE	0x01	/* check pte is writable */
+#endif
+
+#ifndef FOLL_LONGTERM
+#define FOLL_LONGTERM   0x100 /* mapping lifetime is indefinite */
+#endif
 FIXTURE(hmm)
 {
 	int		fd;
@@ -133,7 +138,7 @@ FIXTURE_SETUP(hmm)
 
 	self->fd = hmm_open(variant->device_number);
 	if (self->fd < 0 && hmm_is_coherent_type(variant->device_number))
-		SKIP(exit(0), "DEVICE_COHERENT not available");
+		SKIP(return, "DEVICE_COHERENT not available");
 	ASSERT_GE(self->fd, 0);
 }
 
@@ -144,7 +149,7 @@ FIXTURE_SETUP(hmm2)
 
 	self->fd0 = hmm_open(variant->device_number0);
 	if (self->fd0 < 0 && hmm_is_coherent_type(variant->device_number0))
-		SKIP(exit(0), "DEVICE_COHERENT not available");
+		SKIP(return, "DEVICE_COHERENT not available");
 	ASSERT_GE(self->fd0, 0);
 	self->fd1 = hmm_open(variant->device_number1);
 	ASSERT_GE(self->fd1, 0);

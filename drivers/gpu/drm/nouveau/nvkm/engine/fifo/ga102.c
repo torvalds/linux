@@ -21,6 +21,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 #include <nvif/class.h>
 
 static const struct nvkm_fifo_func
@@ -34,12 +36,15 @@ ga102_fifo = {
 	.engn = &ga100_engn,
 	.engn_ce = &ga100_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &ga100_cgrp, .force = true },
-	.chan = {{ 0, 0, AMPERE_CHANNEL_GPFIFO_B }, &ga100_chan },
+	.chan = {{ 0, 0, AMPERE_CHANNEL_GPFIFO_A }, &ga100_chan },
 };
 
 int
 ga102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_fifo_new(&ga102_fifo, device, type, inst, pfifo);
+
 	return nvkm_fifo_new_(&ga102_fifo, device, type, inst, pfifo);
 }

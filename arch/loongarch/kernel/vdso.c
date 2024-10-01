@@ -21,15 +21,13 @@
 #include <asm/vdso.h>
 #include <vdso/helpers.h>
 #include <vdso/vsyscall.h>
+#include <vdso/datapage.h>
 #include <generated/vdso-offsets.h>
 
 extern char vdso_start[], vdso_end[];
 
 /* Kernel-provided data used by the VDSO. */
-static union {
-	u8 page[PAGE_SIZE];
-	struct vdso_data data[CS_BASES];
-} generic_vdso_data __page_aligned_data;
+static union vdso_data_store generic_vdso_data __page_aligned_data;
 
 static union {
 	u8 page[LOONGARCH_VDSO_DATA_SIZE];
@@ -39,6 +37,7 @@ static union {
 static struct page *vdso_pages[] = { NULL };
 struct vdso_data *vdso_data = generic_vdso_data.data;
 struct vdso_pcpu_data *vdso_pdata = loongarch_vdso_data.vdata.pdata;
+struct vdso_rng_data *vdso_rng_data = &loongarch_vdso_data.vdata.rng_data;
 
 static int vdso_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma)
 {

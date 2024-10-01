@@ -427,8 +427,7 @@ static void gb_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(&gb_tty->port);
 }
 
-static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
-			int count)
+static ssize_t gb_tty_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
 
@@ -1025,4 +1024,5 @@ static void gb_uart_driver_exit(void)
 }
 
 module_exit(gb_uart_driver_exit);
+MODULE_DESCRIPTION("UART driver for the Greybus 'generic' UART module");
 MODULE_LICENSE("GPL v2");

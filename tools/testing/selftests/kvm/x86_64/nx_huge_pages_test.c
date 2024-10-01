@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tools/testing/selftests/kvm/nx_huge_page_test.c
- *
  * Usage: to be run via nx_huge_page_test.sh, which does the necessary
  * environment setup and teardown
  *
  * Copyright (C) 2022, Google LLC.
  */
-
-#define _GNU_SOURCE
-
 #include <fcntl.h>
 #include <stdint.h>
 #include <time.h>
@@ -259,9 +254,9 @@ int main(int argc, char **argv)
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_DISABLE_NX_HUGE_PAGES));
 
 	__TEST_REQUIRE(token == MAGIC_TOKEN,
-		       "This test must be run with the magic token %d.\n"
-		       "This is done by nx_huge_pages_test.sh, which\n"
-		       "also handles environment setup for the test.");
+		       "This test must be run with the magic token via '-t %d'.\n"
+		       "Running via nx_huge_pages_test.sh, which also handles "
+		       "environment setup, is strongly recommended.", MAGIC_TOKEN);
 
 	run_test(reclaim_period_ms, false, reboot_permissions);
 	run_test(reclaim_period_ms, true, reboot_permissions);

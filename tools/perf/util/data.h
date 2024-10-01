@@ -80,7 +80,7 @@ int perf_data__open(struct perf_data *data);
 void perf_data__close(struct perf_data *data);
 ssize_t perf_data__read(struct perf_data *data, void *buf, size_t size);
 ssize_t perf_data__write(struct perf_data *data,
-			      void *buf, size_t size);
+			 void *buf, size_t size);
 ssize_t perf_data_file__write(struct perf_data_file *file,
 			      void *buf, size_t size);
 /*
@@ -91,8 +91,8 @@ ssize_t perf_data_file__write(struct perf_data_file *file,
  * Return value is fd of new output.
  */
 int perf_data__switch(struct perf_data *data,
-			   const char *postfix,
-			   size_t pos, bool at_exit, char **new_filepath);
+		      const char *postfix,
+		      size_t pos, bool at_exit, char **new_filepath);
 
 int perf_data__create_dir(struct perf_data *data, int nr);
 int perf_data__open_dir(struct perf_data *data);

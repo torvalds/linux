@@ -115,7 +115,7 @@ void __init atari_stram_reserve_pages(void *start_mem)
  * This function is called as arch initcall to reserve the pages needed for
  * ST-RAM management, if the kernel does not reside in ST-RAM.
  */
-int __init atari_stram_map_pages(void)
+static int __init atari_stram_map_pages(void)
 {
 	if (!kernel_in_stram) {
 		/*

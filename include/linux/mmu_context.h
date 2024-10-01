@@ -11,7 +11,7 @@
 #endif
 
 #ifndef leave_mm
-static inline void leave_mm(int cpu) { }
+static inline void leave_mm(void) { }
 #endif
 
 /*

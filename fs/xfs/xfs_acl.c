@@ -167,7 +167,7 @@ xfs_get_acl(struct inode *inode, int type, bool rcu)
 		acl = ERR_PTR(error);
 	}
 
-	kmem_free(args.value);
+	kvfree(args.value);
 	return acl;
 }
 
@@ -201,16 +201,17 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		if (!args.value)
 			return -ENOMEM;
 		xfs_acl_to_disk(args.value, acl);
+		error = xfs_attr_change(&args, XFS_ATTRUPDATE_UPSERT);
+		kvfree(args.value);
+	} else {
+		error = xfs_attr_change(&args, XFS_ATTRUPDATE_REMOVE);
+		/*
+		 * If the attribute didn't exist to start with that's fine.
+		 */
+		if (error == -ENOATTR)
+			error = 0;
 	}
 
-	error = xfs_attr_change(&args);
-	kmem_free(args.value);
-
-	/*
-	 * If the attribute didn't exist to start with that's fine.
-	 */
-	if (!acl && error == -ENOATTR)
-		error = 0;
 	if (!error)
 		set_cached_acl(inode, type, acl);
 	return error;
@@ -233,7 +234,7 @@ xfs_acl_set_mode(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	inode->i_mode = mode;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	if (xfs_has_wsync(mp))

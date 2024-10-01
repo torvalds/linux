@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -379,6 +380,9 @@ static struct clk_branch gpu_cc_sleep_clk = {
 
 static struct gdsc cx_gdsc = {
 	.gdscr = 0x106c,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0x2,
 	.gds_hw_ctrl = 0x1540,
 	.pd = {
 		.name = "cx_gdsc",
@@ -389,6 +393,9 @@ static struct gdsc cx_gdsc = {
 
 static struct gdsc gx_gdsc = {
 	.gdscr = 0x100c,
+	.en_rest_wait_val = 0x2,
+	.en_few_wait_val = 0x2,
+	.clk_dis_wait_val = 0x2,
 	.clamp_io_ctrl = 0x1508,
 	.pd = {
 		.name = "gx_gdsc",
@@ -457,15 +464,12 @@ static int gpu_cc_sc7280_probe(struct platform_device *pdev)
 
 	clk_lucid_pll_configure(&gpu_cc_pll1, regmap, &gpu_cc_pll1_config);
 
-	/*
-	 * Keep the clocks always-ON
-	 * GPU_CC_CB_CLK, GPUCC_CX_GMU_CLK
-	 */
-	regmap_update_bits(regmap, 0x1170, BIT(0), BIT(0));
-	regmap_update_bits(regmap, 0x1098, BIT(0), BIT(0));
+	/* Keep some clocks always-on */
+	qcom_branch_set_clk_en(regmap, 0x1170); /* GPU_CC_CB_CLK */
+	qcom_branch_set_clk_en(regmap, 0x1098); /* GPUCC_CX_GMU_CLK */
 	regmap_update_bits(regmap, 0x1098, BIT(13), BIT(13));
 
-	return qcom_cc_really_probe(pdev, &gpu_cc_sc7280_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gpu_cc_sc7280_desc, regmap);
 }
 
 static struct platform_driver gpu_cc_sc7280_driver = {
@@ -476,17 +480,7 @@ static struct platform_driver gpu_cc_sc7280_driver = {
 	},
 };
 
-static int __init gpu_cc_sc7280_init(void)
-{
-	return platform_driver_register(&gpu_cc_sc7280_driver);
-}
-subsys_initcall(gpu_cc_sc7280_init);
-
-static void __exit gpu_cc_sc7280_exit(void)
-{
-	platform_driver_unregister(&gpu_cc_sc7280_driver);
-}
-module_exit(gpu_cc_sc7280_exit);
+module_platform_driver(gpu_cc_sc7280_driver);
 
 MODULE_DESCRIPTION("QTI GPU_CC SC7280 Driver");
 MODULE_LICENSE("GPL v2");

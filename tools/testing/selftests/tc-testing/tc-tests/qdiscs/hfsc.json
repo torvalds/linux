@@ -9,17 +9,14 @@
         "plugins": {
             "requires": "nsPlugin"
         },
-        "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
-        ],
+        "setup": [],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root hfsc",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc hfsc 1: root refcnt [0-9]+",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -33,7 +30,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root hfsc default 11"
         ],
         "cmdUnderTest": "$TC class add dev $DUMMY parent 1: classid 1:1 hfsc sc rate 20000 ul rate 10000",
@@ -42,8 +38,7 @@
         "matchPattern": "class hfsc 1:1 parent 1: sc m1 0bit d 0us m2 20Kbit ul m1 0bit d 0us m2 10Kbit",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -57,7 +52,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root hfsc default 11"
         ],
         "cmdUnderTest": "$TC class add dev $DUMMY parent 1: classid 1:1 hfsc sc umax 1540 dmax 5ms rate 10000 ul rate 10000",
@@ -66,8 +60,7 @@
         "matchPattern": "class hfsc 1:1 parent 1: sc m1 2464Kbit d 5ms m2 10Kbit ul m1 0bit d 0us m2 10Kbit",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -81,7 +74,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root hfsc default 11"
         ],
         "cmdUnderTest": "$TC class add dev $DUMMY parent 1: classid 1:1 hfsc rt rate 20000 ls rate 10000",
@@ -90,8 +82,7 @@
         "matchPattern": "class hfsc 1:1 parent 1: rt m1 0bit d 0us m2 20Kbit ls m1 0bit d 0us m2 10Kbit",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -105,7 +96,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root hfsc default 11"
         ],
         "cmdUnderTest": "$TC class add dev $DUMMY parent 1: classid 1:1 hfsc rt umax 1540 dmax 5ms rate 10000 ls rate 10000",
@@ -114,8 +104,7 @@
         "matchPattern": "class hfsc 1:1 parent 1: rt m1 2464Kbit d 5ms m2 10Kbit ls m1 0bit d 0us m2 10Kbit",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -129,7 +118,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root hfsc default 11"
         ],
         "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
@@ -137,9 +125,7 @@
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc hfsc 1: root refcnt [0-9]+",
         "matchCount": "0",
-        "teardown": [
-            "$IP link del dev $DUMMY type dummy"
-        ]
+        "teardown": []
     },
     {
         "id": "8436",
@@ -151,17 +137,37 @@
         "plugins": {
             "requires": "nsPlugin"
         },
-        "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
-        ],
+        "setup": [],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root hfsc",
         "expExitCode": "0",
         "verifyCmd": "$TC class show dev $DUMMY",
         "matchPattern": "class hfsc 1: root",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "bef4",
+        "name": "HFSC rt inner class upgrade to sc",
+        "category": [
+            "qdisc",
+            "hfsc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root hfsc default 1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 hfsc rt rate 8"
+        ],
+        "cmdUnderTest": "$TC class add dev $DUMMY parent 1:1 classid 1:2 hfsc rt rate 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC class show dev $DUMMY",
+        "matchPattern": "class hfsc 1:1 parent 1: sc m1 0bit d 0us m2 8bit.*rt m1 0bit d 0us m2 8bit",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     }
 ]

@@ -39,7 +39,7 @@ KernelVersion:	2.6.29
 Contact:	linux-mtd@lists.infradead.org
 Description:
 		Major and minor numbers of the character device corresponding
-		to the read-only variant of thie MTD device (in
+		to the read-only variant of the MTD device (in
 		<major>:<minor> format).  In this case <minor> will be odd.
 
 What:		/sys/class/mtd/mtdX/erasesize

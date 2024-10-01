@@ -12,6 +12,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_simple_kms_helper.h>
 
+struct drm_format_conv_state;
 struct drm_rect;
 struct gpio_desc;
 struct iosys_map;
@@ -56,6 +57,11 @@ struct mipi_dbi {
 	struct spi_device *spi;
 
 	/**
+	 * @write_memory_bpw: Bits per word used on a MIPI_DCS_WRITE_MEMORY_START transfer
+	 */
+	unsigned int write_memory_bpw;
+
+	/**
 	 * @dc: Optional D/C gpio.
 	 */
 	struct gpio_desc *dc;
@@ -94,6 +100,11 @@ struct mipi_dbi_dev {
 	 * @mode: Fixed display mode
 	 */
 	struct drm_display_mode mode;
+
+	/**
+	 * @pixel_format: Native pixel format (DRM_FORMAT\_\*)
+	 */
+	u32 pixel_format;
 
 	/**
 	 * @tx_buf: Buffer used for transfer (copy clip rect area)
@@ -192,7 +203,8 @@ int mipi_dbi_command_buf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
 int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, const u8 *data,
 			      size_t len);
 int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
-		      struct drm_rect *clip, bool swap);
+		      struct drm_rect *clip, bool swap,
+		      struct drm_format_conv_state *fmtcnv_state);
 
 /**
  * mipi_dbi_command - MIPI DCS command with optional parameter(s)

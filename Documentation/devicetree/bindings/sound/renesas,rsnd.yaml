@@ -48,13 +48,16 @@ properties:
           - const: renesas,rcar_sound-gen3
       # for Gen4 SoC
       - items:
-          - const: renesas,rcar_sound-r8a779g0  # R-Car V4H
+          - enum:
+              - renesas,rcar_sound-r8a779g0  # R-Car V4H
+              - renesas,rcar_sound-r8a779h0  # R-Car V4M
           - const: renesas,rcar_sound-gen4
       # for Generic
       - enum:
           - renesas,rcar_sound-gen1
           - renesas,rcar_sound-gen2
           - renesas,rcar_sound-gen3
+          - renesas,rcar_sound-gen4
 
   reg:
     minItems: 1
@@ -76,6 +79,12 @@ properties:
       it must be 0 if your system has audio_clkout
       it must be 1 if your system has audio_clkout0/1/2/3
     enum: [0, 1]
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
 
   clock-frequency:
     description: for audio_clkout0/1/2/3
@@ -103,23 +112,13 @@ properties:
     description: List of necessary clock names.
     # details are defined below
 
-  ports:
-    $ref: audio-graph-port.yaml#/definitions/port-base
-    unevaluatedProperties: false
-    patternProperties:
-      '^port(@[0-9a-f]+)?$':
-        $ref: audio-graph-port.yaml#/definitions/port-base
-        unevaluatedProperties: false
-        patternProperties:
-          "^endpoint(@[0-9a-f]+)?":
-            $ref: audio-graph-port.yaml#/definitions/endpoint-base
-            properties:
-              playback:
-                $ref: /schemas/types.yaml#/definitions/phandle-array
-              capture:
-                $ref: /schemas/types.yaml#/definitions/phandle-array
-            unevaluatedProperties: false
+  post-init-providers:
+    description: At least if rsnd is using DPCM connection on Audio-Graph-Card2,
+      fw_devlink might doesn't have enough information to break the cycle. rsnd
+      driver will not be probed in such case. Same problem might occur with
+      Multi-CPU/Codec or Codec2Codec.
 
+  # ports is below
   port:
     $ref: audio-graph-port.yaml#/definitions/port-base
     unevaluatedProperties: false
@@ -248,8 +247,9 @@ properties:
           - interrupts
     additionalProperties: false
 
+patternProperties:
   # For DAI base
-  rcar_sound,dai:
+  'rcar_sound,dai(@[0-9a-f]+)?$':
     description: DAI subnode.
     type: object
     patternProperties:
@@ -268,6 +268,13 @@ properties:
           - required:
               - capture
     additionalProperties: false
+
+  'ports(@[0-9a-f]+)?$':
+    $ref: audio-graph-port.yaml#/definitions/port-base
+    unevaluatedProperties: false
+    patternProperties:
+      '^port(@[0-9a-f]+)?$':
+        $ref: "#/properties/port"
 
 required:
   - compatible
@@ -499,19 +506,19 @@ examples:
         rcar_sound,dai {
             dai0 {
                 playback = <&ssi5>, <&src5>;
-                capture  = <&ssi6>;
+                capture = <&ssi6>;
             };
             dai1 {
                 playback = <&ssi3>;
             };
             dai2 {
-                capture  = <&ssi4>;
+                capture = <&ssi4>;
             };
             dai3 {
                 playback = <&ssi7>;
             };
             dai4 {
-                capture  = <&ssi8>;
+                capture = <&ssi8>;
             };
         };
 
@@ -525,7 +532,7 @@ examples:
                 frame-master = <&rsnd_endpoint0>;
 
                 playback = <&ssi0>, <&src0>, <&dvc0>;
-                capture  = <&ssi1>, <&src1>, <&dvc1>;
+                capture = <&ssi1>, <&src1>, <&dvc1>;
             };
         };
     };

@@ -1114,7 +1114,8 @@ int efct_scsi_tgt_new_device(struct efct *efct)
 	atomic_set(&efct->tgt_efct.watermark_hit, 0);
 	atomic_set(&efct->tgt_efct.initiator_count, 0);
 
-	lio_wq = create_singlethread_workqueue("efct_lio_worker");
+	lio_wq = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM,
+					 "efct_lio_worker");
 	if (!lio_wq) {
 		efc_log_err(efct, "workqueue create failed\n");
 		return -EIO;
@@ -1611,6 +1612,8 @@ static const struct target_core_fabric_ops efct_lio_ops = {
 	.sess_get_initiator_sid		= NULL,
 	.tfc_tpg_base_attrs		= efct_lio_tpg_attrs,
 	.tfc_tpg_attrib_attrs           = efct_lio_tpg_attrib_attrs,
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static const struct target_core_fabric_ops efct_lio_npiv_ops = {
@@ -1646,6 +1649,9 @@ static const struct target_core_fabric_ops efct_lio_npiv_ops = {
 	.sess_get_initiator_sid		= NULL,
 	.tfc_tpg_base_attrs		= efct_lio_npiv_tpg_attrs,
 	.tfc_tpg_attrib_attrs		= efct_lio_npiv_tpg_attrib_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 int efct_scsi_tgt_driver_init(void)

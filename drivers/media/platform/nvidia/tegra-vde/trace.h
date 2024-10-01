@@ -20,7 +20,7 @@ DECLARE_EVENT_CLASS(register_access,
 		__field(u32, value)
 	),
 	TP_fast_assign(
-		__assign_str(hw_name, tegra_vde_reg_base_name(vde, base));
+		__assign_str(hw_name);
 		__entry->offset = offset;
 		__entry->value = value;
 	),

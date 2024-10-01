@@ -64,4 +64,5 @@ static void __exit exit_nls_utf8(void)
 
 module_init(init_nls_utf8)
 module_exit(exit_nls_utf8)
+MODULE_DESCRIPTION("NLS UTF-8");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -704,8 +704,7 @@ static void process_queued_bios(struct work_struct *work)
 		return;
 	}
 
-	bio_list_merge(&bios, &m->queued_bios);
-	bio_list_init(&m->queued_bios);
+	bio_list_merge_init(&bios, &m->queued_bios);
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
@@ -1420,8 +1419,7 @@ out:
 /*
  * Fail or reinstate all paths that match the provided struct dm_dev.
  */
-static int action_dev(struct multipath *m, struct dm_dev *dev,
-		      action_fn action)
+static int action_dev(struct multipath *m, dev_t dev, action_fn action)
 {
 	int r = -EINVAL;
 	struct pgpath *pgpath;
@@ -1429,7 +1427,7 @@ static int action_dev(struct multipath *m, struct dm_dev *dev,
 
 	list_for_each_entry(pg, &m->priority_groups, list) {
 		list_for_each_entry(pgpath, &pg->pgpaths, list) {
-			if (pgpath->path.dev == dev)
+			if (pgpath->path.dev->bdev->bd_dev == dev)
 				r = action(pgpath);
 		}
 	}
@@ -1960,7 +1958,7 @@ static int multipath_message(struct dm_target *ti, unsigned int argc, char **arg
 			     char *result, unsigned int maxlen)
 {
 	int r = -EINVAL;
-	struct dm_dev *dev;
+	dev_t dev;
 	struct multipath *m = ti->private;
 	action_fn action;
 	unsigned long flags;
@@ -2009,7 +2007,7 @@ static int multipath_message(struct dm_target *ti, unsigned int argc, char **arg
 		goto out;
 	}
 
-	r = dm_get_device(ti, argv[1], dm_table_get_mode(ti->table), &dev);
+	r = dm_devt_from_path(argv[1], &dev);
 	if (r) {
 		DMWARN("message: error getting device %s",
 		       argv[1]);
@@ -2017,8 +2015,6 @@ static int multipath_message(struct dm_target *ti, unsigned int argc, char **arg
 	}
 
 	r = action_dev(m, dev, action);
-
-	dm_put_device(ti, dev);
 
 out:
 	mutex_unlock(&m->work_mutex);
@@ -2266,5 +2262,5 @@ module_param_named(queue_if_no_path_timeout_secs, queue_if_no_path_timeout_secs,
 MODULE_PARM_DESC(queue_if_no_path_timeout_secs, "No available paths queue IO timeout in seconds");
 
 MODULE_DESCRIPTION(DM_NAME " multipath target");
-MODULE_AUTHOR("Sistina Software <dm-devel@redhat.com>");
+MODULE_AUTHOR("Sistina Software <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

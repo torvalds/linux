@@ -7,7 +7,16 @@
 
 #include "trace/beauty/beauty.h"
 #include <linux/log2.h>
-#include <uapi/linux/fs.h>
+#include <linux/fs.h>
+
+#ifndef SYNC_FILE_RANGE_WRITE_AND_WAIT
+#define SYNC_FILE_RANGE_WAIT_BEFORE     1
+#define SYNC_FILE_RANGE_WRITE           2
+#define SYNC_FILE_RANGE_WAIT_AFTER      4
+#define SYNC_FILE_RANGE_WRITE_AND_WAIT  (SYNC_FILE_RANGE_WRITE | \
+                                         SYNC_FILE_RANGE_WAIT_BEFORE | \
+                                         SYNC_FILE_RANGE_WAIT_AFTER)
+#endif
 
 static size_t sync_file_range__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {

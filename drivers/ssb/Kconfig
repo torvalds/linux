@@ -134,7 +134,8 @@ config SSB_SFLASH
 # Assumption: We are on embedded, if we compile the MIPS core.
 config SSB_EMBEDDED
 	bool
-	depends on SSB_DRIVER_MIPS && SSB_PCICORE_HOSTMODE
+	depends on SSB_DRIVER_MIPS
+	depends on PCI=n || SSB_PCICORE_HOSTMODE
 	default y
 
 config SSB_DRIVER_EXTIF

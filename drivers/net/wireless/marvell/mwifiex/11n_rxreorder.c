@@ -810,8 +810,6 @@ void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags)
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
-		if (!priv)
-			continue;
 
 		spin_lock_bh(&priv->rx_reorder_tbl_lock);
 		list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list)
@@ -834,8 +832,6 @@ static void mwifiex_update_ampdu_rxwinsize(struct mwifiex_adapter *adapter,
 	dev_dbg(adapter->dev, "Update rxwinsize %d\n", coex_flag);
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (!adapter->priv[i])
-			continue;
 		priv = adapter->priv[i];
 		rx_win_size = priv->add_ba_param.rx_win_size;
 		if (coex_flag) {
@@ -882,17 +878,16 @@ void mwifiex_coex_ampdu_rxwinsize(struct mwifiex_adapter *adapter)
 	u8 count = 0;
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			priv = adapter->priv[i];
-			if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) {
-				if (priv->media_connected)
-					count++;
-			}
-			if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
-				if (priv->bss_started)
-					count++;
-			}
+		priv = adapter->priv[i];
+		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) {
+			if (priv->media_connected)
+				count++;
 		}
+		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+			if (priv->bss_started)
+				count++;
+		}
+
 		if (count >= MWIFIEX_BSS_COEX_COUNT)
 			break;
 	}
@@ -918,9 +913,17 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 
 	mwifiex_dbg_dump(priv->adapter, EVT_D, "RXBA_SYNC event:",
 			 event_buf, len);
-	while (tlv_buf_left >= sizeof(*tlv_rxba)) {
+	while (tlv_buf_left > sizeof(*tlv_rxba)) {
 		tlv_type = le16_to_cpu(tlv_rxba->header.type);
 		tlv_len  = le16_to_cpu(tlv_rxba->header.len);
+		if (size_add(sizeof(tlv_rxba->header), tlv_len) > tlv_buf_left) {
+			mwifiex_dbg(priv->adapter, WARN,
+				    "TLV size (%zu) overflows event_buf buf_left=%d\n",
+				    size_add(sizeof(tlv_rxba->header), tlv_len),
+				    tlv_buf_left);
+			return;
+		}
+
 		if (tlv_type != TLV_TYPE_RXBA_SYNC) {
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "Wrong TLV id=0x%x\n", tlv_type);
@@ -929,6 +932,14 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 
 		tlv_seq_num = le16_to_cpu(tlv_rxba->seq_num);
 		tlv_bitmap_len = le16_to_cpu(tlv_rxba->bitmap_len);
+		if (size_add(sizeof(*tlv_rxba), tlv_bitmap_len) > tlv_buf_left) {
+			mwifiex_dbg(priv->adapter, WARN,
+				    "TLV size (%zu) overflows event_buf buf_left=%d\n",
+				    size_add(sizeof(*tlv_rxba), tlv_bitmap_len),
+				    tlv_buf_left);
+			return;
+		}
+
 		mwifiex_dbg(priv->adapter, INFO,
 			    "%pM tid=%d seq_num=%d bitmap_len=%d\n",
 			    tlv_rxba->mac, tlv_rxba->tid, tlv_seq_num,
@@ -965,8 +976,8 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 			}
 		}
 
-		tlv_buf_left -= (sizeof(*tlv_rxba) + tlv_len);
-		tmp = (u8 *)tlv_rxba + tlv_len + sizeof(*tlv_rxba);
+		tlv_buf_left -= (sizeof(tlv_rxba->header) + tlv_len);
+		tmp = (u8 *)tlv_rxba  + sizeof(tlv_rxba->header) + tlv_len;
 		tlv_rxba = (struct mwifiex_ie_types_rxba_sync *)tmp;
 	}
 }

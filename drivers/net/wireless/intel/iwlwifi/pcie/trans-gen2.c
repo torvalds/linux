@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
@@ -161,6 +161,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
 			       "DEVICE_ENABLED bit was set and is now cleared\n");
+		iwl_pcie_synchronize_irqs(trans);
 		iwl_pcie_rx_napi_sync(trans);
 		iwl_txq_gen2_tx_free(trans);
 		iwl_pcie_rx_stop(trans);
@@ -230,11 +231,14 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int queue_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			       trans->cfg->min_txq_size);
+	int ret;
 
 	/* TODO: most of the logic can be removed in A0 - but not in Z0 */
 	spin_lock_bh(&trans_pcie->irq_lock);
-	iwl_pcie_gen2_apm_init(trans);
+	ret = iwl_pcie_gen2_apm_init(trans);
 	spin_unlock_bh(&trans_pcie->irq_lock);
+	if (ret)
+		return ret;
 
 	iwl_op_mode_nic_config(trans->op_mode);
 
@@ -243,7 +247,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 		return -ENOMEM;
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (iwl_txq_gen2_init(trans, trans->txqs.cmd.q_id, queue_size))
+	if (iwl_txq_gen2_init(trans, trans_pcie->txqs.cmd.q_id, queue_size))
 		return -ENOMEM;
 
 	/* enable shadow regs in HW */
@@ -286,6 +290,16 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_MS):
 		pos = scnprintf(buf, buflen, "MS");
 		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_FM):
+		pos = scnprintf(buf, buflen, "FM");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_WP):
+		if (SILICON_Z_STEP ==
+		    CSR_HW_RFID_STEP(trans->hw_rf_id))
+			pos = scnprintf(buf, buflen, "WHTC");
+		else
+			pos = scnprintf(buf, buflen, "WH");
+		break;
 	default:
 		return;
 	}
@@ -325,16 +339,17 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	pos += scnprintf(buf + pos, buflen - pos, "\n");
 }
 
-void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
+void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	iwl_pcie_reset_ict(trans);
 
 	/* make sure all queue are not stopped/used */
-	memset(trans->txqs.queue_stopped, 0,
-	       sizeof(trans->txqs.queue_stopped));
-	memset(trans->txqs.queue_used, 0, sizeof(trans->txqs.queue_used));
+	memset(trans_pcie->txqs.queue_stopped, 0,
+	       sizeof(trans_pcie->txqs.queue_stopped));
+	memset(trans_pcie->txqs.queue_used, 0,
+	       sizeof(trans_pcie->txqs.queue_used));
 
 	/* now that we got alive we can free the fw image & the context info.
 	 * paging memory cannot be freed included since FW will still use it
@@ -511,6 +526,8 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 	keep_ram_busy = !iwl_pcie_set_ltr(trans);
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		IWL_DEBUG_POWER(trans, "function scratch register value is 0x%08x\n",
+				iwl_read32(trans, CSR_FUNC_SCRATCH));
 		iwl_write32(trans, CSR_FUNC_SCRATCH, CSR_FUNC_SCRATCH_INIT_VALUE);
 		iwl_set_bit(trans, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_ROM_START);

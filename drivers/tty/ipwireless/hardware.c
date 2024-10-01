@@ -1292,7 +1292,7 @@ static void *alloc_ctrl_packet(int header_size,
 }
 
 int ipwireless_send_packet(struct ipw_hardware *hw, unsigned int channel_idx,
-			    const unsigned char *data, unsigned int length,
+			    const u8 *data, unsigned int length,
 			    void (*callback) (void *cb, unsigned int length),
 			    void *callback_data)
 {

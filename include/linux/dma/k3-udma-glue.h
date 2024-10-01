@@ -26,6 +26,11 @@ struct k3_udma_glue_tx_channel;
 struct k3_udma_glue_tx_channel *k3_udma_glue_request_tx_chn(struct device *dev,
 		const char *name, struct k3_udma_glue_tx_channel_cfg *cfg);
 
+struct k3_udma_glue_tx_channel *
+k3_udma_glue_request_tx_chn_for_thread_id(struct device *dev,
+					  struct k3_udma_glue_tx_channel_cfg *cfg,
+					  struct device_node *udmax_np, u32 thread_id);
+
 void k3_udma_glue_release_tx_chn(struct k3_udma_glue_tx_channel *tx_chn);
 int k3_udma_glue_push_tx_chn(struct k3_udma_glue_tx_channel *tx_chn,
 			     struct cppi5_host_desc_t *desc_tx,
@@ -109,6 +114,11 @@ struct k3_udma_glue_rx_channel *k3_udma_glue_request_rx_chn(
 		const char *name,
 		struct k3_udma_glue_rx_channel_cfg *cfg);
 
+struct k3_udma_glue_rx_channel *
+k3_udma_glue_request_remote_rx_chn_for_thread_id(struct device *dev,
+						 struct k3_udma_glue_rx_channel_cfg *cfg,
+						 struct device_node *udmax_np, u32 thread_id);
+
 void k3_udma_glue_release_rx_chn(struct k3_udma_glue_rx_channel *rx_chn);
 int k3_udma_glue_enable_rx_chn(struct k3_udma_glue_rx_channel *rx_chn);
 void k3_udma_glue_disable_rx_chn(struct k3_udma_glue_rx_channel *rx_chn);
@@ -126,8 +136,6 @@ u32 k3_udma_glue_rx_flow_get_fdq_id(struct k3_udma_glue_rx_channel *rx_chn,
 u32 k3_udma_glue_rx_get_flow_id_base(struct k3_udma_glue_rx_channel *rx_chn);
 int k3_udma_glue_rx_get_irq(struct k3_udma_glue_rx_channel *rx_chn,
 			    u32 flow_num);
-void k3_udma_glue_rx_put_irq(struct k3_udma_glue_rx_channel *rx_chn,
-			     u32 flow_num);
 void k3_udma_glue_reset_rx_chn(struct k3_udma_glue_rx_channel *rx_chn,
 		u32 flow_num, void *data,
 		void (*cleanup)(void *data, dma_addr_t desc_dma),

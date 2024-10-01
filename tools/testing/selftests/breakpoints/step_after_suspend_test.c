@@ -89,7 +89,7 @@ int run_test(int cpu)
 
 	wpid = waitpid(pid, &status, __WALL);
 	if (wpid != pid) {
-		ksft_print_msg("waitpid() failed: $s\n", strerror(errno));
+		ksft_print_msg("waitpid() failed: %s\n", strerror(errno));
 		return KSFT_FAIL;
 	}
 	if (WIFEXITED(status)) {
@@ -130,7 +130,6 @@ int run_test(int cpu)
 void suspend(void)
 {
 	int power_state_fd;
-	struct sigevent event = {};
 	int timerfd;
 	int err;
 	struct itimerspec spec = {};

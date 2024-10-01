@@ -142,14 +142,14 @@ struct dw_spi_dma_ops {
 	int (*dma_init)(struct device *dev, struct dw_spi *dws);
 	void (*dma_exit)(struct dw_spi *dws);
 	int (*dma_setup)(struct dw_spi *dws, struct spi_transfer *xfer);
-	bool (*can_dma)(struct spi_controller *master, struct spi_device *spi,
+	bool (*can_dma)(struct spi_controller *host, struct spi_device *spi,
 			struct spi_transfer *xfer);
 	int (*dma_transfer)(struct dw_spi *dws, struct spi_transfer *xfer);
 	void (*dma_stop)(struct dw_spi *dws);
 };
 
 struct dw_spi {
-	struct spi_controller	*master;
+	struct spi_controller	*host;
 
 	u32			ip;		/* Synopsys DW SSI IP-core ID */
 	u32			ver;		/* Synopsys component version */
@@ -164,8 +164,8 @@ struct dw_spi {
 	u32			max_freq;	/* max bus freq supported */
 
 	u32			reg_io_width;	/* DR I/O width in bytes */
+	u32			num_cs;		/* chip select lines */
 	u16			bus_num;
-	u16			num_cs;		/* supported slave numbers */
 	void (*set_cs)(struct spi_device *spi, bool enable);
 
 	/* Current message transfer state info */

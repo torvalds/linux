@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 or MIT) */
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 /*
  * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
  * Copyright (c) 2022 Collabora Ltd.
@@ -733,8 +733,7 @@
 #define ACLK_AV1_PRE			718
 #define PCLK_AV1_PRE			719
 #define HCLK_SDIO_PRE			720
-
-#define CLK_NR_CLKS			(HCLK_SDIO_PRE + 1)
+#define PCLK_VO1GRF			721
 
 /* scmi-clocks indices */
 

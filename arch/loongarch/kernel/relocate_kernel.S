@@ -15,6 +15,7 @@
 #include <asm/addrspace.h>
 
 SYM_CODE_START(relocate_new_kernel)
+	UNWIND_HINT_UNDEFINED
 	/*
 	 * a0: EFI boot flag for the new kernel
 	 * a1: Command line pointer for the new kernel
@@ -72,7 +73,6 @@ copy_word:
 	LONG_ADDI	s5, s5, -1
 	beqz		s5, process_entry
 	b		copy_word
-	b		process_entry
 
 done:
 	ibar		0
@@ -91,6 +91,7 @@ SYM_CODE_END(relocate_new_kernel)
  * then start at the entry point from LOONGARCH_IOCSR_MBUF0.
  */
 SYM_CODE_START(kexec_smp_wait)
+	UNWIND_HINT_UNDEFINED
 1:	li.w		t0, 0x100			/* wait for init loop */
 2:	addi.w		t0, t0, -1			/* limit mailbox access */
 	bnez		t0, 2b
@@ -107,6 +108,5 @@ SYM_CODE_END(kexec_smp_wait)
 
 relocate_new_kernel_end:
 
-SYM_DATA_START(relocate_new_kernel_size)
-	PTR		relocate_new_kernel_end - relocate_new_kernel
-SYM_DATA_END(relocate_new_kernel_size)
+	.section ".data"
+SYM_DATA(relocate_new_kernel_size, .long relocate_new_kernel_end - relocate_new_kernel)

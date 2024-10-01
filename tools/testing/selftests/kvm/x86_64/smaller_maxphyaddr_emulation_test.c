@@ -5,9 +5,6 @@
  * Test that KVM emulates instructions in response to EPT violations when
  * allow_smaller_maxphyaddr is enabled and guest.MAXPHYADDR < host.MAXPHYADDR.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
-
 #include "flds_emulation.h"
 
 #include "test_util.h"
@@ -60,10 +57,7 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	vcpu_args_set(vcpu, 1, kvm_is_tdp_enabled());
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
-
-	vcpu_set_cpuid_maxphyaddr(vcpu, MAXPHYADDR);
+	vcpu_set_cpuid_property(vcpu, X86_PROPERTY_MAX_PHY_ADDR, MAXPHYADDR);
 
 	rc = kvm_check_cap(KVM_CAP_EXIT_ON_EMULATION_FAILURE);
 	TEST_ASSERT(rc, "KVM_CAP_EXIT_ON_EMULATION_FAILURE is unavailable");
@@ -74,7 +68,7 @@ int main(int argc, char *argv[])
 				    MEM_REGION_SIZE / PAGE_SIZE, 0);
 	gpa = vm_phy_pages_alloc(vm, MEM_REGION_SIZE / PAGE_SIZE,
 				 MEM_REGION_GPA, MEM_REGION_SLOT);
-	TEST_ASSERT(gpa == MEM_REGION_GPA, "Failed vm_phy_pages_alloc\n");
+	TEST_ASSERT(gpa == MEM_REGION_GPA, "Failed vm_phy_pages_alloc");
 	virt_map(vm, MEM_REGION_GVA, MEM_REGION_GPA, 1);
 	hva = addr_gpa2hva(vm, MEM_REGION_GPA);
 	memset(hva, 0, PAGE_SIZE);
@@ -102,7 +96,7 @@ int main(int argc, char *argv[])
 	case UCALL_DONE:
 		break;
 	default:
-		TEST_FAIL("Unrecognized ucall: %lu\n", uc.cmd);
+		TEST_FAIL("Unrecognized ucall: %lu", uc.cmd);
 	}
 
 	kvm_vm_free(vm);

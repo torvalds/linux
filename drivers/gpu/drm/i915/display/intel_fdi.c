@@ -5,14 +5,18 @@
 
 #include <linux/string_helpers.h>
 
+#include <drm/drm_fixed.h>
+
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
+#include "intel_dp.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
+#include "intel_link_bw.h"
 
 struct intel_fdi_funcs {
 	void (*fdi_link_train)(struct intel_crtc *crtc,
@@ -32,7 +36,8 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 		 * so pipe->transcoder cast is fine here.
 		 */
 		enum transcoder cpu_transcoder = (enum transcoder)pipe;
-		cur_state = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
+		cur_state = intel_de_read(dev_priv,
+					  TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
 	} else {
 		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
 	}
@@ -119,6 +124,53 @@ void intel_fdi_link_train(struct intel_crtc *crtc,
 	dev_priv->display.funcs.fdi->fdi_link_train(crtc, crtc_state);
 }
 
+/**
+ * intel_fdi_add_affected_crtcs - add CRTCs on FDI affected by other modeset CRTCs
+ * @state: intel atomic state
+ *
+ * Add a CRTC using FDI to @state if changing another CRTC's FDI BW usage is
+ * known to affect the available FDI BW for the former CRTC. In practice this
+ * means adding CRTC B on IVYBRIDGE if its use of FDI lanes is limited (by
+ * CRTC C) and CRTC C is getting disabled.
+ *
+ * Returns 0 in case of success, or a negative error code otherwise.
+ */
+int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state;
+	const struct intel_crtc_state *new_crtc_state;
+	struct intel_crtc *crtc;
+
+	if (!IS_IVYBRIDGE(i915) || INTEL_NUM_PIPES(i915) != 3)
+		return 0;
+
+	crtc = intel_crtc_for_pipe(i915, PIPE_C);
+	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+	if (!new_crtc_state)
+		return 0;
+
+	if (!intel_crtc_needs_modeset(new_crtc_state))
+		return 0;
+
+	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
+	if (!old_crtc_state->fdi_lanes)
+		return 0;
+
+	crtc = intel_crtc_for_pipe(i915, PIPE_B);
+	new_crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+	if (IS_ERR(new_crtc_state))
+		return PTR_ERR(new_crtc_state);
+
+	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
+	if (!old_crtc_state->fdi_lanes)
+		return 0;
+
+	return intel_modeset_pipes_in_mask_early(state,
+						 "FDI link BW decrease on pipe C",
+						 BIT(PIPE_B));
+}
+
 /* units of 100MHz */
 static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
 {
@@ -129,12 +181,15 @@ static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
 }
 
 static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
-			       struct intel_crtc_state *pipe_config)
+			       struct intel_crtc_state *pipe_config,
+			       enum pipe *pipe_to_reduce)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state = pipe_config->uapi.state;
 	struct intel_crtc *other_crtc;
 	struct intel_crtc_state *other_crtc_state;
+
+	*pipe_to_reduce = pipe;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "checking fdi config on pipe %c, lanes %i\n",
@@ -198,6 +253,9 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		if (pipe_required_fdi_lanes(other_crtc_state) > 2) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "fdi link B uses too many lanes to enable link C\n");
+
+			*pipe_to_reduce = PIPE_B;
+
 			return -EINVAL;
 		}
 		return 0;
@@ -232,16 +290,42 @@ int intel_fdi_link_freq(struct drm_i915_private *i915,
 		return i915->display.fdi.pll_freq;
 }
 
+/**
+ * intel_fdi_compute_pipe_bpp - compute pipe bpp limited by max link bpp
+ * @crtc_state: the crtc state
+ *
+ * Compute the pipe bpp limited by the CRTC's maximum link bpp. Encoders can
+ * call this function during state computation in the simple case where the
+ * link bpp will always match the pipe bpp. This is the case for all non-DP
+ * encoders, while DP encoders will use a link bpp lower than pipe bpp in case
+ * of DSC compression.
+ *
+ * Returns %true in case of success, %false if pipe bpp would need to be
+ * reduced below its valid range.
+ */
+bool intel_fdi_compute_pipe_bpp(struct intel_crtc_state *crtc_state)
+{
+	int pipe_bpp = min(crtc_state->pipe_bpp,
+			   fxp_q4_to_int(crtc_state->max_link_bpp_x16));
+
+	pipe_bpp = rounddown(pipe_bpp, 2 * 3);
+
+	if (pipe_bpp < 6 * 3)
+		return false;
+
+	crtc_state->pipe_bpp = pipe_bpp;
+
+	return true;
+}
+
 int ilk_fdi_compute_config(struct intel_crtc *crtc,
 			   struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *i915 = to_i915(dev);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	int lane, link_bw, fdi_dotclock, ret;
-	bool needs_recompute = false;
+	int lane, link_bw, fdi_dotclock;
 
-retry:
 	/* FDI is a binary signal running at ~2.7GHz, encoding
 	 * each output octet as 10 bits. The actual frequency
 	 * is stored as a divider into a 100MHz clock, and the
@@ -258,28 +342,75 @@ retry:
 
 	pipe_config->fdi_lanes = lane;
 
-	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, fdi_dotclock,
-			       link_bw, &pipe_config->fdi_m_n, false);
+	intel_link_compute_m_n(fxp_q4_from_int(pipe_config->pipe_bpp),
+			       lane, fdi_dotclock,
+			       link_bw,
+			       intel_dp_bw_fec_overhead(false),
+			       &pipe_config->fdi_m_n);
 
-	ret = ilk_check_fdi_lanes(dev, crtc->pipe, pipe_config);
-	if (ret == -EDEADLK)
+	return 0;
+}
+
+static int intel_fdi_atomic_check_bw(struct intel_atomic_state *state,
+				     struct intel_crtc *crtc,
+				     struct intel_crtc_state *pipe_config,
+				     struct intel_link_bw_limits *limits)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	enum pipe pipe_to_reduce;
+	int ret;
+
+	ret = ilk_check_fdi_lanes(&i915->drm, crtc->pipe, pipe_config,
+				  &pipe_to_reduce);
+	if (ret != -EINVAL)
 		return ret;
 
-	if (ret == -EINVAL && pipe_config->pipe_bpp > 6*3) {
-		pipe_config->pipe_bpp -= 2*3;
-		drm_dbg_kms(&i915->drm,
-			    "fdi link bw constraint, reducing pipe bpp to %i\n",
-			    pipe_config->pipe_bpp);
-		needs_recompute = true;
-		pipe_config->bw_constrained = true;
+	ret = intel_link_bw_reduce_bpp(state, limits,
+				       BIT(pipe_to_reduce),
+				       "FDI link BW");
 
-		goto retry;
+	return ret ? : -EAGAIN;
+}
+
+/**
+ * intel_fdi_atomic_check_link - check all modeset FDI link configuration
+ * @state: intel atomic state
+ * @limits: link BW limits
+ *
+ * Check the link configuration for all modeset FDI outputs. If the
+ * configuration is invalid @limits will be updated if possible to
+ * reduce the total BW, after which the configuration for all CRTCs in
+ * @state must be recomputed with the updated @limits.
+ *
+ * Returns:
+ *   - 0 if the confugration is valid
+ *   - %-EAGAIN, if the configuration is invalid and @limits got updated
+ *     with fallback values with which the configuration of all CRTCs
+ *     in @state must be recomputed
+ *   - Other negative error, if the configuration is invalid without a
+ *     fallback possibility, or the check failed for another reason
+ */
+int intel_fdi_atomic_check_link(struct intel_atomic_state *state,
+				struct intel_link_bw_limits *limits)
+{
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		int ret;
+
+		if (!crtc_state->has_pch_encoder ||
+		    !intel_crtc_needs_modeset(crtc_state) ||
+		    !crtc_state->hw.enable)
+			continue;
+
+		ret = intel_fdi_atomic_check_bw(state, crtc, crtc_state, limits);
+		if (ret)
+			return ret;
 	}
 
-	if (needs_recompute)
-		return -EAGAIN;
-
-	return ret;
+	return 0;
 }
 
 static void cpt_set_fdi_bc_bifurcation(struct drm_i915_private *dev_priv, bool enable)
@@ -386,7 +517,7 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 	 * detection works.
 	 */
 	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
-		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
+		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* FDI needs bits from pipe first */
 	assert_transcoder_enabled(dev_priv, crtc_state->cpu_transcoder);
@@ -488,7 +619,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	 * detection works.
 	 */
 	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
-		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
+		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -626,7 +757,7 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 	 * detection works.
 	 */
 	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
-		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
+		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -766,7 +897,10 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 	 * WaFDIAutoLinkSetTimingOverrride:hsw
 	 */
 	intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A),
-		       FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2) | FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
+		       FDI_RX_PWRDN_LANE1_VAL(2) |
+		       FDI_RX_PWRDN_LANE0_VAL(2) |
+		       FDI_RX_TP1_TO_TP2_48 |
+		       FDI_RX_FDI_DELAY_90);
 
 	/* Enable the PCH Receiver FDI PLL */
 	rx_ctl_val = dev_priv->display.fdi.rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
@@ -799,7 +933,9 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		 * achieved on the PCH side in FDI_RX_CTL, so no need to set the
 		 * port reversal bit */
 		intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E),
-			       DDI_BUF_CTL_ENABLE | ((crtc_state->fdi_lanes - 1) << 1) | DDI_BUF_TRANS_SELECT(i / 2));
+			       DDI_BUF_CTL_ENABLE |
+			       ((crtc_state->fdi_lanes - 1) << 1) |
+			       DDI_BUF_TRANS_SELECT(i / 2));
 		intel_de_posting_read(dev_priv, DDI_BUF_CTL(PORT_E));
 
 		udelay(600);
@@ -901,7 +1037,7 @@ void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 	temp = intel_de_read(dev_priv, reg);
 	temp &= ~(FDI_DP_PORT_WIDTH_MASK | (0x7 << 16));
 	temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
-	temp |= (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) << 11;
+	temp |= (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) << 11;
 	intel_de_write(dev_priv, reg, temp | FDI_RX_PLL_ENABLE);
 
 	intel_de_posting_read(dev_priv, reg);
@@ -957,7 +1093,7 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 	reg = FDI_RX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
 	temp &= ~(0x7 << 16);
-	temp |= (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) << 11;
+	temp |= (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) << 11;
 	intel_de_write(dev_priv, reg, temp & ~FDI_RX_ENABLE);
 
 	intel_de_posting_read(dev_priv, reg);
@@ -983,7 +1119,7 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 	}
 	/* BPC in FDI rx is consistent with that in TRANSCONF */
 	temp &= ~(0x07 << 16);
-	temp |= (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) << 11;
+	temp |= (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) << 11;
 	intel_de_write(dev_priv, reg, temp);
 
 	intel_de_posting_read(dev_priv, reg);

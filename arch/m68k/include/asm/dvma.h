@@ -58,11 +58,15 @@ extern void dvma_free(void *vaddr);
 #define dvma_vtob(x) dvma_vtop(x)
 #define dvma_btov(x) dvma_ptov(x)
 
+void sun3_dvma_init(void);
+
 static inline int dvma_map_cpu(unsigned long kaddr, unsigned long vaddr,
 			       int len)
 {
 	return 0;
 }
+
+static inline void dvma_unmap_iommu(unsigned long baddr, int len) { }
 
 #else /* Sun3x */
 
@@ -78,9 +82,11 @@ static inline int dvma_map_cpu(unsigned long kaddr, unsigned long vaddr,
 #define dvma_vtob(x) ((unsigned long)(x) & 0x00ffffff)
 #define dvma_btov(x) ((unsigned long)(x) | 0xff000000)
 
-extern int dvma_map_cpu(unsigned long kaddr, unsigned long vaddr, int len);
+static inline void sun3_dvma_init(void) { }
 
+int dvma_map_cpu(unsigned long kaddr, unsigned long vaddr, int len);
 
+void dvma_unmap_iommu(unsigned long baddr, int len);
 
 /* everything below this line is specific to dma used for the onboard
    ESP scsi on sun3x */

@@ -582,23 +582,18 @@ static int tsensor_group_thermtrip_get(struct tegra_soctherm *ts, int id)
 	return temp;
 }
 
-static int tegra_thermctl_set_trip_temp(struct thermal_zone_device *tz, int trip_id, int temp)
+static int tegra_thermctl_set_trip_temp(struct thermal_zone_device *tz,
+					const struct thermal_trip *trip, int temp)
 {
 	struct tegra_thermctl_zone *zone = thermal_zone_device_priv(tz);
 	struct tegra_soctherm *ts = zone->ts;
-	struct thermal_trip trip;
 	const struct tegra_tsensor_group *sg = zone->sg;
 	struct device *dev = zone->dev;
-	int ret;
 
 	if (!tz)
 		return -EINVAL;
 
-	ret = __thermal_zone_get_trip(tz, trip_id, &trip);
-	if (ret)
-		return ret;
-
-	if (trip.type == THERMAL_TRIP_CRITICAL) {
+	if (trip->type == THERMAL_TRIP_CRITICAL) {
 		/*
 		 * If thermtrips property is set in DT,
 		 * doesn't need to program critical type trip to HW,
@@ -609,7 +604,7 @@ static int tegra_thermctl_set_trip_temp(struct thermal_zone_device *tz, int trip
 		else
 			return 0;
 
-	} else if (trip.type == THERMAL_TRIP_HOT) {
+	} else if (trip->type == THERMAL_TRIP_HOT) {
 		int i;
 
 		for (i = 0; i < THROTTLE_SIZE; i++) {
@@ -620,7 +615,7 @@ static int tegra_thermctl_set_trip_temp(struct thermal_zone_device *tz, int trip
 				continue;
 
 			cdev = ts->throt_cfgs[i].cdev;
-			if (get_thermal_instance(tz, cdev, trip_id))
+			if (thermal_trip_is_bound_to_cdev(tz, trip, cdev))
 				stc = find_throttle_cfg_by_name(ts, cdev->type);
 			else
 				continue;
@@ -687,24 +682,25 @@ static const struct thermal_zone_device_ops tegra_of_thermal_ops = {
 	.set_trips = tegra_thermctl_set_trips,
 };
 
-static int get_hot_temp(struct thermal_zone_device *tz, int *trip_id, int *temp)
+static int get_hot_trip_cb(struct thermal_trip *trip, void *arg)
 {
-	int i, ret;
-	struct thermal_trip trip;
+	const struct thermal_trip **trip_ret = arg;
 
-	for (i = 0; i < thermal_zone_get_num_trips(tz); i++) {
+	if (trip->type != THERMAL_TRIP_HOT)
+		return 0;
 
-		ret = thermal_zone_get_trip(tz, i, &trip);
-		if (ret)
-			return -EINVAL;
+	*trip_ret = trip;
+	/* Return nonzero to terminate the search. */
+	return 1;
+}
 
-		if (trip.type == THERMAL_TRIP_HOT) {
-			*trip_id = i;
-			return 0;
-		}
-	}
+static const struct thermal_trip *get_hot_trip(struct thermal_zone_device *tz)
+{
+	const struct thermal_trip *trip = NULL;
 
-	return -EINVAL;
+	thermal_zone_for_each_trip(tz, get_hot_trip_cb, &trip);
+
+	return trip;
 }
 
 /**
@@ -736,8 +732,9 @@ static int tegra_soctherm_set_hwtrips(struct device *dev,
 				      struct thermal_zone_device *tz)
 {
 	struct tegra_soctherm *ts = dev_get_drvdata(dev);
+	const struct thermal_trip *hot_trip;
 	struct soctherm_throt_cfg *stc;
-	int i, trip, temperature, ret;
+	int i, temperature, ret;
 
 	/* Get thermtrips. If missing, try to get critical trips. */
 	temperature = tsensor_group_thermtrip_get(ts, sg->id);
@@ -754,8 +751,8 @@ static int tegra_soctherm_set_hwtrips(struct device *dev,
 	dev_info(dev, "thermtrip: will shut down when %s reaches %d mC\n",
 		 sg->name, temperature);
 
-	ret = get_hot_temp(tz, &trip, &temperature);
-	if (ret) {
+	hot_trip = get_hot_trip(tz);
+	if (!hot_trip) {
 		dev_info(dev, "throttrip: %s: missing hot temperature\n",
 			 sg->name);
 		return 0;
@@ -768,7 +765,7 @@ static int tegra_soctherm_set_hwtrips(struct device *dev,
 			continue;
 
 		cdev = ts->throt_cfgs[i].cdev;
-		if (get_thermal_instance(tz, cdev, trip))
+		if (thermal_trip_is_bound_to_cdev(tz, hot_trip, cdev))
 			stc = find_throttle_cfg_by_name(ts, cdev->type);
 		else
 			continue;
@@ -2219,15 +2216,13 @@ disable_clocks:
 	return err;
 }
 
-static int tegra_soctherm_remove(struct platform_device *pdev)
+static void tegra_soctherm_remove(struct platform_device *pdev)
 {
 	struct tegra_soctherm *tegra = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(tegra->debugfs_dir);
 
 	soctherm_clk_enable(pdev, false);
-
-	return 0;
 }
 
 static int __maybe_unused soctherm_suspend(struct device *dev)
@@ -2274,7 +2269,7 @@ static SIMPLE_DEV_PM_OPS(tegra_soctherm_pm, soctherm_suspend, soctherm_resume);
 
 static struct platform_driver tegra_soctherm_driver = {
 	.probe = tegra_soctherm_probe,
-	.remove = tegra_soctherm_remove,
+	.remove_new = tegra_soctherm_remove,
 	.driver = {
 		.name = "tegra_soctherm",
 		.pm = &tegra_soctherm_pm,

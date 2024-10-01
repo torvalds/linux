@@ -4,10 +4,11 @@ TEST_GEN_FILES := exec_target
 
 TEST_FILES := settings
 
-CFLAGS += -O2
-
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
+
+CFLAGS += -O2
 
 $(TEST_GEN_PROGS): ../harness.c
 
@@ -17,4 +18,4 @@ $(OUTPUT)/context_switch: LDLIBS += -lpthread
 
 $(OUTPUT)/fork: LDLIBS += -lpthread
 
-$(OUTPUT)/exec_target: CFLAGS += -static -nostartfiles
+$(OUTPUT)/exec_target: CFLAGS += -nostartfiles

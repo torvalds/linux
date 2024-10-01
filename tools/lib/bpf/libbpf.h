@@ -98,7 +98,10 @@ typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
 
 /**
  * @brief **libbpf_set_print()** sets user-provided log callback function to
- * be used for libbpf warnings and informational messages.
+ * be used for libbpf warnings and informational messages. If the user callback
+ * is not set, messages are logged to stderr by default. The verbosity of these
+ * messages can be controlled by setting the environment variable
+ * LIBBPF_LOG_LEVEL to either warn, info, or debug.
  * @param fn The log print function. If NULL, libbpf won't print anything.
  * @return Pointer to old print function.
  *
@@ -149,7 +152,7 @@ struct bpf_object_open_opts {
 	 * log_buf and log_level settings.
 	 *
 	 * If specified, this log buffer will be passed for:
-	 *   - each BPF progral load (BPF_PROG_LOAD) attempt, unless overriden
+	 *   - each BPF progral load (BPF_PROG_LOAD) attempt, unless overridden
 	 *     with bpf_program__set_log() on per-program level, to get
 	 *     BPF verifier log output.
 	 *   - during BPF object's BTF load into kernel (BPF_BTF_LOAD) to get
@@ -177,10 +180,29 @@ struct bpf_object_open_opts {
 	 * logs through its print callback.
 	 */
 	__u32 kernel_log_level;
+	/* Path to BPF FS mount point to derive BPF token from.
+	 *
+	 * Created BPF token will be used for all bpf() syscall operations
+	 * that accept BPF token (e.g., map creation, BTF and program loads,
+	 * etc) automatically within instantiated BPF object.
+	 *
+	 * If bpf_token_path is not specified, libbpf will consult
+	 * LIBBPF_BPF_TOKEN_PATH environment variable. If set, it will be
+	 * taken as a value of bpf_token_path option and will force libbpf to
+	 * either create BPF token from provided custom BPF FS path, or will
+	 * disable implicit BPF token creation, if envvar value is an empty
+	 * string. bpf_token_path overrides LIBBPF_BPF_TOKEN_PATH, if both are
+	 * set at the same time.
+	 *
+	 * Setting bpf_token_path option to empty string disables libbpf's
+	 * automatic attempt to create BPF token from default BPF FS mount
+	 * point (/sys/fs/bpf), in case this default behavior is undesirable.
+	 */
+	const char *bpf_token_path;
 
 	size_t :0;
 };
-#define bpf_object_open_opts__last_field kernel_log_level
+#define bpf_object_open_opts__last_field bpf_token_path
 
 /**
  * @brief **bpf_object__open()** creates a bpf_object by opening
@@ -266,10 +288,19 @@ LIBBPF_API int bpf_object__pin_programs(struct bpf_object *obj,
 LIBBPF_API int bpf_object__unpin_programs(struct bpf_object *obj,
 					  const char *path);
 LIBBPF_API int bpf_object__pin(struct bpf_object *object, const char *path);
+LIBBPF_API int bpf_object__unpin(struct bpf_object *object, const char *path);
 
 LIBBPF_API const char *bpf_object__name(const struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(const struct bpf_object *obj);
 LIBBPF_API int bpf_object__set_kversion(struct bpf_object *obj, __u32 kern_version);
+
+/**
+ * @brief **bpf_object__token_fd** is an accessor for BPF token FD associated
+ * with BPF object.
+ * @param obj Pointer to a valid BPF object
+ * @return BPF token FD or -1, if it wasn't set
+ */
+LIBBPF_API int bpf_object__token_fd(const struct bpf_object *obj);
 
 struct btf;
 LIBBPF_API struct btf *bpf_object__btf(const struct bpf_object *obj);
@@ -432,7 +463,7 @@ LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
 /**
  * @brief **bpf_program__attach()** is a generic function for attaching
  * a BPF program based on auto-detection of program type, attach type,
- * and extra paremeters, where applicable.
+ * and extra parameters, where applicable.
  *
  * @param prog BPF program to attach
  * @return Reference to the newly created BPF link; or NULL is returned on error,
@@ -519,15 +550,68 @@ struct bpf_kprobe_multi_opts {
 	size_t cnt;
 	/* create return kprobes */
 	bool retprobe;
+	/* create session kprobes */
+	bool session;
 	size_t :0;
 };
 
-#define bpf_kprobe_multi_opts__last_field retprobe
+#define bpf_kprobe_multi_opts__last_field session
 
 LIBBPF_API struct bpf_link *
 bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 				      const char *pattern,
 				      const struct bpf_kprobe_multi_opts *opts);
+
+struct bpf_uprobe_multi_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* array of function symbols to attach to */
+	const char **syms;
+	/* array of function addresses to attach to */
+	const unsigned long *offsets;
+	/* optional, array of associated ref counter offsets */
+	const unsigned long *ref_ctr_offsets;
+	/* optional, array of associated BPF cookies */
+	const __u64 *cookies;
+	/* number of elements in syms/addrs/cookies arrays */
+	size_t cnt;
+	/* create return uprobes */
+	bool retprobe;
+	size_t :0;
+};
+
+#define bpf_uprobe_multi_opts__last_field retprobe
+
+/**
+ * @brief **bpf_program__attach_uprobe_multi()** attaches a BPF program
+ * to multiple uprobes with uprobe_multi link.
+ *
+ * User can specify 2 mutually exclusive set of inputs:
+ *
+ *   1) use only path/func_pattern/pid arguments
+ *
+ *   2) use path/pid with allowed combinations of
+ *      syms/offsets/ref_ctr_offsets/cookies/cnt
+ *
+ *      - syms and offsets are mutually exclusive
+ *      - ref_ctr_offsets and cookies are optional
+ *
+ *
+ * @param prog BPF program to attach
+ * @param pid Process ID to attach the uprobe to, 0 for self (own process),
+ * -1 for all processes
+ * @param binary_path Path to binary
+ * @param func_pattern Regular expression to specify functions to attach
+ * BPF program to
+ * @param opts Additional options (see **struct bpf_uprobe_multi_opts**)
+ * @return 0, on success; negative error code, otherwise
+ */
+LIBBPF_API struct bpf_link *
+bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
+				 pid_t pid,
+				 const char *binary_path,
+				 const char *func_pattern,
+				 const struct bpf_uprobe_multi_opts *opts);
 
 struct bpf_ksyscall_opts {
 	/* size of this struct, for forward/backward compatibility */
@@ -603,7 +687,7 @@ struct bpf_uprobe_opts {
 /**
  * @brief **bpf_program__attach_uprobe()** attaches a BPF program
  * to the userspace function which is found by binary path and
- * offset. You can optionally specify a particular proccess to attach
+ * offset. You can optionally specify a particular process to attach
  * to. You can also optionally attach the program to the function
  * exit instead of entry.
  *
@@ -689,9 +773,20 @@ bpf_program__attach_tracepoint_opts(const struct bpf_program *prog,
 				    const char *tp_name,
 				    const struct bpf_tracepoint_opts *opts);
 
+struct bpf_raw_tracepoint_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	__u64 cookie;
+	size_t :0;
+};
+#define bpf_raw_tracepoint_opts__last_field cookie
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_raw_tracepoint(const struct bpf_program *prog,
 				   const char *tp_name);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_raw_tracepoint_opts(const struct bpf_program *prog,
+					const char *tp_name,
+					struct bpf_raw_tracepoint_opts *opts);
 
 struct bpf_trace_opts {
 	/* size of this struct, for forward/backward compatibility */
@@ -713,10 +808,57 @@ bpf_program__attach_cgroup(const struct bpf_program *prog, int cgroup_fd);
 LIBBPF_API struct bpf_link *
 bpf_program__attach_netns(const struct bpf_program *prog, int netns_fd);
 LIBBPF_API struct bpf_link *
+bpf_program__attach_sockmap(const struct bpf_program *prog, int map_fd);
+LIBBPF_API struct bpf_link *
 bpf_program__attach_xdp(const struct bpf_program *prog, int ifindex);
 LIBBPF_API struct bpf_link *
 bpf_program__attach_freplace(const struct bpf_program *prog,
 			     int target_fd, const char *attach_func_name);
+
+struct bpf_netfilter_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+
+	__u32 pf;
+	__u32 hooknum;
+	__s32 priority;
+	__u32 flags;
+};
+#define bpf_netfilter_opts__last_field flags
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_netfilter(const struct bpf_program *prog,
+			      const struct bpf_netfilter_opts *opts);
+
+struct bpf_tcx_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	__u32 flags;
+	__u32 relative_fd;
+	__u32 relative_id;
+	__u64 expected_revision;
+	size_t :0;
+};
+#define bpf_tcx_opts__last_field expected_revision
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_tcx(const struct bpf_program *prog, int ifindex,
+			const struct bpf_tcx_opts *opts);
+
+struct bpf_netkit_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	__u32 flags;
+	__u32 relative_fd;
+	__u32 relative_id;
+	__u64 expected_revision;
+	size_t :0;
+};
+#define bpf_netkit_opts__last_field expected_revision
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_netkit(const struct bpf_program *prog, int ifindex,
+			   const struct bpf_netkit_opts *opts);
 
 struct bpf_map;
 
@@ -845,6 +987,23 @@ LIBBPF_API int bpf_map__set_autocreate(struct bpf_map *map, bool autocreate);
 LIBBPF_API bool bpf_map__autocreate(const struct bpf_map *map);
 
 /**
+ * @brief **bpf_map__set_autoattach()** sets whether libbpf has to auto-attach
+ * map during BPF skeleton attach phase.
+ * @param map the BPF map instance
+ * @param autoattach whether to attach map during BPF skeleton attach phase
+ * @return 0 on success; negative error code, otherwise
+ */
+LIBBPF_API int bpf_map__set_autoattach(struct bpf_map *map, bool autoattach);
+
+/**
+ * @brief **bpf_map__autoattach()** returns whether BPF map is configured to
+ * auto-attach during BPF skeleton attach phase.
+ * @param map the BPF map instance
+ * @return true if map is set to auto-attach during skeleton attach phase; false, otherwise
+ */
+LIBBPF_API bool bpf_map__autoattach(const struct bpf_map *map);
+
+/**
  * @brief **bpf_map__fd()** gets the file descriptor of the passed
  * BPF map
  * @param map the BPF map instance
@@ -898,7 +1057,7 @@ LIBBPF_API int bpf_map__set_map_extra(struct bpf_map *map, __u64 map_extra);
 
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
-LIBBPF_API void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
+LIBBPF_API void *bpf_map__initial_value(const struct bpf_map *map, size_t *psize);
 
 /**
  * @brief **bpf_map__is_internal()** tells the caller whether or not the
@@ -1090,9 +1249,10 @@ struct bpf_xdp_query_opts {
 	__u32 skb_prog_id;	/* output */
 	__u8 attach_mode;	/* output */
 	__u64 feature_flags;	/* output */
+	__u32 xdp_zc_max_segs;	/* output */
 	size_t :0;
 };
-#define bpf_xdp_query_opts__last_field feature_flags
+#define bpf_xdp_query_opts__last_field xdp_zc_max_segs
 
 LIBBPF_API int bpf_xdp_attach(int ifindex, int prog_fd, __u32 flags,
 			      const struct bpf_xdp_attach_opts *opts);
@@ -1146,6 +1306,7 @@ LIBBPF_API int bpf_tc_query(const struct bpf_tc_hook *hook,
 
 /* Ring buffer APIs */
 struct ring_buffer;
+struct ring;
 struct user_ring_buffer;
 
 typedef int (*ring_buffer_sample_fn)(void *ctx, void *data, size_t size);
@@ -1164,7 +1325,91 @@ LIBBPF_API int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 				ring_buffer_sample_fn sample_cb, void *ctx);
 LIBBPF_API int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms);
 LIBBPF_API int ring_buffer__consume(struct ring_buffer *rb);
+LIBBPF_API int ring_buffer__consume_n(struct ring_buffer *rb, size_t n);
 LIBBPF_API int ring_buffer__epoll_fd(const struct ring_buffer *rb);
+
+/**
+ * @brief **ring_buffer__ring()** returns the ringbuffer object inside a given
+ * ringbuffer manager representing a single BPF_MAP_TYPE_RINGBUF map instance.
+ *
+ * @param rb A ringbuffer manager object.
+ * @param idx An index into the ringbuffers contained within the ringbuffer
+ * manager object. The index is 0-based and corresponds to the order in which
+ * ring_buffer__add was called.
+ * @return A ringbuffer object on success; NULL and errno set if the index is
+ * invalid.
+ */
+LIBBPF_API struct ring *ring_buffer__ring(struct ring_buffer *rb,
+					  unsigned int idx);
+
+/**
+ * @brief **ring__consumer_pos()** returns the current consumer position in the
+ * given ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The current consumer position.
+ */
+LIBBPF_API unsigned long ring__consumer_pos(const struct ring *r);
+
+/**
+ * @brief **ring__producer_pos()** returns the current producer position in the
+ * given ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The current producer position.
+ */
+LIBBPF_API unsigned long ring__producer_pos(const struct ring *r);
+
+/**
+ * @brief **ring__avail_data_size()** returns the number of bytes in the
+ * ringbuffer not yet consumed. This has no locking associated with it, so it
+ * can be inaccurate if operations are ongoing while this is called. However, it
+ * should still show the correct trend over the long-term.
+ *
+ * @param r A ringbuffer object.
+ * @return The number of bytes not yet consumed.
+ */
+LIBBPF_API size_t ring__avail_data_size(const struct ring *r);
+
+/**
+ * @brief **ring__size()** returns the total size of the ringbuffer's map data
+ * area (excluding special producer/consumer pages). Effectively this gives the
+ * amount of usable bytes of data inside the ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The total size of the ringbuffer map data area.
+ */
+LIBBPF_API size_t ring__size(const struct ring *r);
+
+/**
+ * @brief **ring__map_fd()** returns the file descriptor underlying the given
+ * ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The underlying ringbuffer file descriptor
+ */
+LIBBPF_API int ring__map_fd(const struct ring *r);
+
+/**
+ * @brief **ring__consume()** consumes available ringbuffer data without event
+ * polling.
+ *
+ * @param r A ringbuffer object.
+ * @return The number of records consumed (or INT_MAX, whichever is less), or
+ * a negative number if any of the callbacks return an error.
+ */
+LIBBPF_API int ring__consume(struct ring *r);
+
+/**
+ * @brief **ring__consume_n()** consumes up to a requested amount of items from
+ * a ringbuffer without event polling.
+ *
+ * @param r A ringbuffer object.
+ * @param n Maximum amount of items to consume.
+ * @return The number of items consumed, or a negative number if any of the
+ * callbacks return an error.
+ */
+LIBBPF_API int ring__consume_n(struct ring *r, size_t n);
 
 struct user_ring_buffer_opts {
 	size_t sz; /* size of this struct, for forward/backward compatibility */
@@ -1356,11 +1601,11 @@ LIBBPF_API int perf_buffer__buffer_fd(const struct perf_buffer *pb, size_t buf_i
  * memory region of the ring buffer.
  * This ring buffer can be used to implement a custom events consumer.
  * The ring buffer starts with the *struct perf_event_mmap_page*, which
- * holds the ring buffer managment fields, when accessing the header
+ * holds the ring buffer management fields, when accessing the header
  * structure it's important to be SMP aware.
  * You can refer to *perf_event_read_simple* for a simple example.
  * @param pb the perf buffer structure
- * @param buf_idx the buffer index to retreive
+ * @param buf_idx the buffer index to retrieve
  * @param buf (out) gets the base pointer of the mmap()'ed memory
  * @param buf_size (out) gets the size of the mmap()'ed region
  * @return 0 on success, negative error code for failure
@@ -1452,6 +1697,7 @@ struct bpf_map_skeleton {
 	const char *name;
 	struct bpf_map **map;
 	void **mmaped;
+	struct bpf_link **link;
 };
 
 struct bpf_prog_skeleton {

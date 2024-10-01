@@ -180,17 +180,6 @@ mwifiex_is_wpa_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 }
 
 /*
- * This function compares two SSIDs and checks if they match.
- */
-s32
-mwifiex_ssid_cmp(struct cfg80211_ssid *ssid1, struct cfg80211_ssid *ssid2)
-{
-	if (!ssid1 || !ssid2 || (ssid1->ssid_len != ssid2->ssid_len))
-		return -1;
-	return memcmp(ssid1->ssid, ssid2->ssid, ssid1->ssid_len);
-}
-
-/*
  * This function checks if wapi is enabled in driver and scanned network is
  * compatible with it.
  */
@@ -612,7 +601,6 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct mwifiex_chan_scan_param_set *tmp_chan_list;
-	struct mwifiex_chan_scan_param_set *start_chan;
 	u32 tlv_idx, rates_size, cmd_no;
 	u32 total_scan_time;
 	u32 done_early;
@@ -643,7 +631,6 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		total_scan_time = 0;
 		radio_type = 0;
 		chan_tlv_out->header.len = 0;
-		start_chan = tmp_chan_list;
 		done_early = false;
 
 		/*
@@ -677,15 +664,14 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 
 			/* Copy the current channel TLV to the command being
 			   prepared */
-			memcpy(chan_tlv_out->chan_scan_param + tlv_idx,
+			memcpy(&chan_tlv_out->chan_scan_param[tlv_idx],
 			       tmp_chan_list,
-			       sizeof(chan_tlv_out->chan_scan_param));
+			       sizeof(*chan_tlv_out->chan_scan_param));
 
 			/* Increment the TLV header length by the size
 			   appended */
 			le16_unaligned_add_cpu(&chan_tlv_out->header.len,
-					       sizeof(
-						chan_tlv_out->chan_scan_param));
+					       sizeof(*chan_tlv_out->chan_scan_param));
 
 			/*
 			 * The tlv buffer length is set to the number of bytes
@@ -749,8 +735,6 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 
 		rates_size = mwifiex_append_rate_tlv(priv, scan_cfg_out,
 						     radio_type);
-
-		priv->adapter->scan_channels = start_chan;
 
 		/* Send the scan command to the firmware with the specified
 		   cfg */
@@ -828,7 +812,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	u8 ssid_filter;
 	struct mwifiex_ie_types_htcap *ht_cap;
 	struct mwifiex_ie_types_bss_mode *bss_mode;
-	const u8 zero_mac[6] = {0, 0, 0, 0, 0, 0};
 
 	/* The tlv_buf_len is calculated for each scan command.  The TLVs added
 	   in this routine will be preserved since the routine that sends the
@@ -966,7 +949,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 				  sizeof(struct mwifiex_ie_types_scan_chan_gap);
 		}
 
-		if (!ether_addr_equal(user_scan_in->random_mac, zero_mac)) {
+		if (!is_zero_ether_addr(user_scan_in->random_mac)) {
 			random_mac_tlv = (void *)tlv_pos;
 			random_mac_tlv->header.type =
 					 cpu_to_le16(TLV_TYPE_RANDOM_MAC);
@@ -1387,6 +1370,12 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 				(struct ieee_types_generic *) current_ptr;
 			bss_entry->rsn_offset = (u16) (current_ptr -
 							bss_entry->beacon_buf);
+			break;
+		case WLAN_EID_RSNX:
+			bss_entry->bcn_rsnx_ie =
+				(struct ieee_types_generic *)current_ptr;
+			bss_entry->rsnx_offset =
+				(u16)(current_ptr - bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_BSS_AC_ACCESS_DELAY:
 			bss_entry->bcn_wapi_ie =
@@ -2062,8 +2051,6 @@ void mwifiex_cancel_scan(struct mwifiex_adapter *adapter)
 		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		for (i = 0; i < adapter->priv_num; i++) {
 			priv = adapter->priv[i];
-			if (!priv)
-				continue;
 			if (priv->scan_request) {
 				struct cfg80211_scan_info info = {
 					.aborted = true,
@@ -2385,12 +2372,11 @@ int mwifiex_cmd_802_11_bg_scan_config(struct mwifiex_private *priv,
 		     chan_idx < MWIFIEX_BG_SCAN_CHAN_MAX &&
 		     bgscan_cfg_in->chan_list[chan_idx].chan_number;
 		     chan_idx++) {
-			temp_chan = chan_list_tlv->chan_scan_param + chan_idx;
+			temp_chan = &chan_list_tlv->chan_scan_param[chan_idx];
 
 			/* Increment the TLV header length by size appended */
 			le16_unaligned_add_cpu(&chan_list_tlv->header.len,
-					       sizeof(
-					       chan_list_tlv->chan_scan_param));
+					       sizeof(*chan_list_tlv->chan_scan_param));
 
 			temp_chan->chan_number =
 				bgscan_cfg_in->chan_list[chan_idx].chan_number;
@@ -2429,7 +2415,7 @@ int mwifiex_cmd_802_11_bg_scan_config(struct mwifiex_private *priv,
 							   chan_scan_param);
 		le16_unaligned_add_cpu(&chan_list_tlv->header.len,
 				       chan_num *
-			     sizeof(chan_list_tlv->chan_scan_param[0]));
+			     sizeof(*chan_list_tlv->chan_scan_param));
 	}
 
 	tlv_pos += (sizeof(chan_list_tlv->header)
@@ -2548,8 +2534,7 @@ int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv,
 	ext_scan_resp = &resp->params.ext_scan;
 
 	tlv = (void *)ext_scan_resp->tlv_buffer;
-	buf_left = le16_to_cpu(resp->size) - (sizeof(*ext_scan_resp) + S_DS_GEN
-					      - 1);
+	buf_left = le16_to_cpu(resp->size) - (sizeof(*ext_scan_resp) + S_DS_GEN);
 
 	while (buf_left >= sizeof(struct mwifiex_ie_types_header)) {
 		type = le16_to_cpu(tlv->type);

@@ -21,6 +21,7 @@
 #define _ICE_TRACE_H_
 
 #include <linux/tracepoint.h>
+#include "ice_eswitch_br.h"
 
 /* ice_trace() macro enables shared code to refer to trace points
  * like:
@@ -68,7 +69,7 @@ DECLARE_EVENT_CLASS(ice_rx_dim_template,
 
 		    TP_fast_assign(__entry->q_vector = q_vector;
 				   __entry->dim = dim;
-				   __assign_str(devname, q_vector->rx.rx_ring->netdev->name);),
+				   __assign_str(devname);),
 
 		    TP_printk("netdev: %s Rx-Q: %d dim-state: %d dim-profile: %d dim-tune: %d dim-st-right: %d dim-st-left: %d dim-tired: %d",
 			      __get_str(devname),
@@ -95,7 +96,7 @@ DECLARE_EVENT_CLASS(ice_tx_dim_template,
 
 		    TP_fast_assign(__entry->q_vector = q_vector;
 				   __entry->dim = dim;
-				   __assign_str(devname, q_vector->tx.tx_ring->netdev->name);),
+				   __assign_str(devname);),
 
 		    TP_printk("netdev: %s Tx-Q: %d dim-state: %d dim-profile: %d dim-tune: %d dim-st-right: %d dim-st-left: %d dim-tired: %d",
 			      __get_str(devname),
@@ -127,7 +128,7 @@ DECLARE_EVENT_CLASS(ice_tx_template,
 		    TP_fast_assign(__entry->ring = ring;
 				   __entry->desc = desc;
 				   __entry->buf = buf;
-				   __assign_str(devname, ring->netdev->name);),
+				   __assign_str(devname);),
 
 		    TP_printk("netdev: %s ring: %pK desc: %pK buf %pK", __get_str(devname),
 			      __entry->ring, __entry->desc, __entry->buf)
@@ -155,7 +156,7 @@ DECLARE_EVENT_CLASS(ice_rx_template,
 
 		    TP_fast_assign(__entry->ring = ring;
 				   __entry->desc = desc;
-				   __assign_str(devname, ring->netdev->name);),
+				   __assign_str(devname);),
 
 		    TP_printk("netdev: %s ring: %pK desc: %pK", __get_str(devname),
 			      __entry->ring, __entry->desc)
@@ -179,7 +180,7 @@ DECLARE_EVENT_CLASS(ice_rx_indicate_template,
 		    TP_fast_assign(__entry->ring = ring;
 				   __entry->desc = desc;
 				   __entry->skb = skb;
-				   __assign_str(devname, ring->netdev->name);),
+				   __assign_str(devname);),
 
 		    TP_printk("netdev: %s ring: %pK desc: %pK skb %pK", __get_str(devname),
 			      __entry->ring, __entry->desc, __entry->skb)
@@ -202,7 +203,7 @@ DECLARE_EVENT_CLASS(ice_xmit_template,
 
 		    TP_fast_assign(__entry->ring = ring;
 				   __entry->skb = skb;
-				   __assign_str(devname, ring->netdev->name);),
+				   __assign_str(devname);),
 
 		    TP_printk("netdev: %s skb: %pK ring: %pK", __get_str(devname),
 			      __entry->skb, __entry->ring)
@@ -239,6 +240,113 @@ DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_request);
 DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_fw_req);
 DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_fw_done);
 DEFINE_TX_TSTAMP_OP_EVENT(ice_tx_tstamp_complete);
+
+DECLARE_EVENT_CLASS(ice_esw_br_fdb_template,
+		    TP_PROTO(struct ice_esw_br_fdb_entry *fdb),
+		    TP_ARGS(fdb),
+		    TP_STRUCT__entry(__array(char, dev_name, IFNAMSIZ)
+				     __array(unsigned char, addr, ETH_ALEN)
+				     __field(u16, vid)
+				     __field(int, flags)),
+		    TP_fast_assign(strscpy(__entry->dev_name,
+					   netdev_name(fdb->dev),
+					   IFNAMSIZ);
+				   memcpy(__entry->addr, fdb->data.addr, ETH_ALEN);
+				   __entry->vid = fdb->data.vid;
+				   __entry->flags = fdb->flags;),
+		    TP_printk("net_device=%s addr=%pM vid=%u flags=%x",
+			      __entry->dev_name,
+			      __entry->addr,
+			      __entry->vid,
+			      __entry->flags)
+);
+
+DEFINE_EVENT(ice_esw_br_fdb_template,
+	     ice_eswitch_br_fdb_entry_create,
+	     TP_PROTO(struct ice_esw_br_fdb_entry *fdb),
+	     TP_ARGS(fdb)
+);
+
+DEFINE_EVENT(ice_esw_br_fdb_template,
+	     ice_eswitch_br_fdb_entry_find_and_delete,
+	     TP_PROTO(struct ice_esw_br_fdb_entry *fdb),
+	     TP_ARGS(fdb)
+);
+
+DECLARE_EVENT_CLASS(ice_esw_br_vlan_template,
+		    TP_PROTO(struct ice_esw_br_vlan *vlan),
+		    TP_ARGS(vlan),
+		    TP_STRUCT__entry(__field(u16, vid)
+				     __field(u16, flags)),
+		    TP_fast_assign(__entry->vid = vlan->vid;
+				   __entry->flags = vlan->flags;),
+		    TP_printk("vid=%u flags=%x",
+			      __entry->vid,
+			      __entry->flags)
+);
+
+DEFINE_EVENT(ice_esw_br_vlan_template,
+	     ice_eswitch_br_vlan_create,
+	     TP_PROTO(struct ice_esw_br_vlan *vlan),
+	     TP_ARGS(vlan)
+);
+
+DEFINE_EVENT(ice_esw_br_vlan_template,
+	     ice_eswitch_br_vlan_cleanup,
+	     TP_PROTO(struct ice_esw_br_vlan *vlan),
+	     TP_ARGS(vlan)
+);
+
+#define ICE_ESW_BR_PORT_NAME_L 16
+
+DECLARE_EVENT_CLASS(ice_esw_br_port_template,
+		    TP_PROTO(struct ice_esw_br_port *port),
+		    TP_ARGS(port),
+		    TP_STRUCT__entry(__field(u16, vport_num)
+				     __array(char, port_type, ICE_ESW_BR_PORT_NAME_L)),
+		    TP_fast_assign(__entry->vport_num = port->vsi_idx;
+					if (port->type == ICE_ESWITCH_BR_UPLINK_PORT)
+						strscpy(__entry->port_type,
+							"Uplink",
+							ICE_ESW_BR_PORT_NAME_L);
+					else
+						strscpy(__entry->port_type,
+							"VF Representor",
+							ICE_ESW_BR_PORT_NAME_L);),
+		    TP_printk("vport_num=%u port type=%s",
+			      __entry->vport_num,
+			      __entry->port_type)
+);
+
+DEFINE_EVENT(ice_esw_br_port_template,
+	     ice_eswitch_br_port_link,
+	     TP_PROTO(struct ice_esw_br_port *port),
+	     TP_ARGS(port)
+);
+
+DEFINE_EVENT(ice_esw_br_port_template,
+	     ice_eswitch_br_port_unlink,
+	     TP_PROTO(struct ice_esw_br_port *port),
+	     TP_ARGS(port)
+);
+
+DECLARE_EVENT_CLASS(ice_switch_stats_template,
+		    TP_PROTO(struct ice_switch_info *sw_info),
+		    TP_ARGS(sw_info),
+		    TP_STRUCT__entry(__field(u16, rule_cnt)
+				     __field(u8, recp_cnt)),
+		    TP_fast_assign(__entry->rule_cnt = sw_info->rule_cnt;
+				   __entry->recp_cnt = sw_info->recp_cnt;),
+		    TP_printk("rules=%u recipes=%u",
+			      __entry->rule_cnt,
+			      __entry->recp_cnt)
+);
+
+DEFINE_EVENT(ice_switch_stats_template,
+	     ice_aq_sw_rules,
+	     TP_PROTO(struct ice_switch_info *sw_info),
+	     TP_ARGS(sw_info)
+);
 
 /* End tracepoints */
 

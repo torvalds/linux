@@ -141,16 +141,13 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
-	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
-	if (!dev->lstats)
-		return -ENOMEM;
+	netdev_lockdep_set_classes(dev);
 	return 0;
 }
 
 static void loopback_dev_free(struct net_device *dev)
 {
 	dev_net(dev)->loopback_dev = NULL;
-	free_percpu(dev->lstats);
 }
 
 static const struct net_device_ops loopback_ops = {
@@ -174,6 +171,8 @@ static void gen_lo_setup(struct net_device *dev,
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
 	dev->flags		= IFF_LOOPBACK;
 	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
+	dev->lltx		= true;
+	dev->netns_local	= true;
 	netif_keep_dst(dev);
 	dev->hw_features	= NETIF_F_GSO_SOFTWARE;
 	dev->features		= NETIF_F_SG | NETIF_F_FRAGLIST
@@ -182,14 +181,13 @@ static void gen_lo_setup(struct net_device *dev,
 		| NETIF_F_RXCSUM
 		| NETIF_F_SCTP_CRC
 		| NETIF_F_HIGHDMA
-		| NETIF_F_LLTX
-		| NETIF_F_NETNS_LOCAL
 		| NETIF_F_VLAN_CHALLENGED
 		| NETIF_F_LOOPBACK;
 	dev->ethtool_ops	= eth_ops;
 	dev->header_ops		= hdr_ops;
 	dev->netdev_ops		= dev_ops;
 	dev->needs_free_netdev	= true;
+	dev->pcpu_stat_type	= NETDEV_PCPU_STAT_LSTATS;
 	dev->priv_destructor	= dev_destructor;
 
 	netif_set_tso_max_size(dev, GSO_MAX_SIZE);

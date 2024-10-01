@@ -20,15 +20,14 @@
 #include <asm/code-patching.h>
 #include <asm/inst.h>
 
-static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr)
+static int __patch_mem(void *exec_addr, unsigned long val, void *patch_addr, bool is_dword)
 {
-	if (!ppc_inst_prefixed(instr)) {
-		u32 val = ppc_inst_val(instr);
+	if (!IS_ENABLED(CONFIG_PPC64) || likely(!is_dword)) {
+		/* For big endian correctness: plain address would use the wrong half */
+		u32 val32 = val;
 
-		__put_kernel_nofault(patch_addr, &val, u32, failed);
+		__put_kernel_nofault(patch_addr, &val32, u32, failed);
 	} else {
-		u64 val = ppc_inst_as_ulong(instr);
-
 		__put_kernel_nofault(patch_addr, &val, u64, failed);
 	}
 
@@ -38,12 +37,16 @@ static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr
 	return 0;
 
 failed:
+	mb();  /* sync */
 	return -EPERM;
 }
 
 int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
-	return __patch_instruction(addr, instr, addr);
+	if (ppc_inst_prefixed(instr))
+		return __patch_mem(addr, ppc_inst_as_ulong(instr), addr, true);
+	else
+		return __patch_mem(addr, ppc_inst_val(instr), addr, false);
 }
 
 struct patch_context {
@@ -204,9 +207,6 @@ void __init poking_init(void)
 {
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
-		return;
-
 	if (mm_patch_enabled())
 		ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 					"powerpc/text_poke_mm:online",
@@ -227,7 +227,7 @@ void __init poking_init(void)
 
 static unsigned long get_patch_pfn(void *addr)
 {
-	if (IS_ENABLED(CONFIG_MODULES) && is_vmalloc_or_module_addr(addr))
+	if (IS_ENABLED(CONFIG_EXECMEM) && is_vmalloc_or_module_addr(addr))
 		return vmalloc_to_pfn(addr);
 	else
 		return __pa_symbol(addr) >> PAGE_SHIFT;
@@ -278,7 +278,7 @@ static void unmap_patch_area(unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 }
 
-static int __do_patch_instruction_mm(u32 *addr, ppc_inst_t instr)
+static int __do_patch_mem_mm(void *addr, unsigned long val, bool is_dword)
 {
 	int err;
 	u32 *patch_addr;
@@ -307,11 +307,7 @@ static int __do_patch_instruction_mm(u32 *addr, ppc_inst_t instr)
 
 	orig_mm = start_using_temp_mm(patching_mm);
 
-	err = __patch_instruction(addr, instr, patch_addr);
-
-	/* hwsync performed by __patch_instruction (sync) if successful */
-	if (err)
-		mb();  /* sync */
+	err = __patch_mem(addr, val, patch_addr, is_dword);
 
 	/* context synchronisation performed by __patch_instruction (isync or exception) */
 	stop_using_temp_mm(patching_mm, orig_mm);
@@ -328,7 +324,7 @@ static int __do_patch_instruction_mm(u32 *addr, ppc_inst_t instr)
 	return err;
 }
 
-static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
+static int __do_patch_mem(void *addr, unsigned long val, bool is_dword)
 {
 	int err;
 	u32 *patch_addr;
@@ -345,7 +341,7 @@ static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	if (radix_enabled())
 		asm volatile("ptesync": : :"memory");
 
-	err = __patch_instruction(addr, instr, patch_addr);
+	err = __patch_mem(addr, val, patch_addr, is_dword);
 
 	pte_clear(&init_mm, text_poke_addr, pte);
 	flush_tlb_kernel_range(text_poke_addr, text_poke_addr + PAGE_SIZE);
@@ -353,7 +349,7 @@ static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 	return err;
 }
 
-int patch_instruction(u32 *addr, ppc_inst_t instr)
+static int patch_mem(void *addr, unsigned long val, bool is_dword)
 {
 	int err;
 	unsigned long flags;
@@ -365,18 +361,217 @@ int patch_instruction(u32 *addr, ppc_inst_t instr)
 	 */
 	if (!IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) ||
 	    !static_branch_likely(&poking_init_done))
-		return raw_patch_instruction(addr, instr);
+		return __patch_mem(addr, val, addr, is_dword);
 
 	local_irq_save(flags);
 	if (mm_patch_enabled())
-		err = __do_patch_instruction_mm(addr, instr);
+		err = __do_patch_mem_mm(addr, val, is_dword);
 	else
-		err = __do_patch_instruction(addr, instr);
+		err = __do_patch_mem(addr, val, is_dword);
 	local_irq_restore(flags);
 
 	return err;
 }
+
+#ifdef CONFIG_PPC64
+
+int patch_instruction(u32 *addr, ppc_inst_t instr)
+{
+	if (ppc_inst_prefixed(instr))
+		return patch_mem(addr, ppc_inst_as_ulong(instr), true);
+	else
+		return patch_mem(addr, ppc_inst_val(instr), false);
+}
 NOKPROBE_SYMBOL(patch_instruction);
+
+int patch_uint(void *addr, unsigned int val)
+{
+	if (!IS_ALIGNED((unsigned long)addr, sizeof(unsigned int)))
+		return -EINVAL;
+
+	return patch_mem(addr, val, false);
+}
+NOKPROBE_SYMBOL(patch_uint);
+
+int patch_ulong(void *addr, unsigned long val)
+{
+	if (!IS_ALIGNED((unsigned long)addr, sizeof(unsigned long)))
+		return -EINVAL;
+
+	return patch_mem(addr, val, true);
+}
+NOKPROBE_SYMBOL(patch_ulong);
+
+#else
+
+int patch_instruction(u32 *addr, ppc_inst_t instr)
+{
+	return patch_mem(addr, ppc_inst_val(instr), false);
+}
+NOKPROBE_SYMBOL(patch_instruction)
+
+#endif
+
+static int patch_memset64(u64 *addr, u64 val, size_t count)
+{
+	for (u64 *end = addr + count; addr < end; addr++)
+		__put_kernel_nofault(addr, &val, u64, failed);
+
+	return 0;
+
+failed:
+	return -EPERM;
+}
+
+static int patch_memset32(u32 *addr, u32 val, size_t count)
+{
+	for (u32 *end = addr + count; addr < end; addr++)
+		__put_kernel_nofault(addr, &val, u32, failed);
+
+	return 0;
+
+failed:
+	return -EPERM;
+}
+
+static int __patch_instructions(u32 *patch_addr, u32 *code, size_t len, bool repeat_instr)
+{
+	unsigned long start = (unsigned long)patch_addr;
+	int err;
+
+	/* Repeat instruction */
+	if (repeat_instr) {
+		ppc_inst_t instr = ppc_inst_read(code);
+
+		if (ppc_inst_prefixed(instr)) {
+			u64 val = ppc_inst_as_ulong(instr);
+
+			err = patch_memset64((u64 *)patch_addr, val, len / 8);
+		} else {
+			u32 val = ppc_inst_val(instr);
+
+			err = patch_memset32(patch_addr, val, len / 4);
+		}
+	} else {
+		err = copy_to_kernel_nofault(patch_addr, code, len);
+	}
+
+	smp_wmb();	/* smp write barrier */
+	flush_icache_range(start, start + len);
+	return err;
+}
+
+/*
+ * A page is mapped and instructions that fit the page are patched.
+ * Assumes 'len' to be (PAGE_SIZE - offset_in_page(addr)) or below.
+ */
+static int __do_patch_instructions_mm(u32 *addr, u32 *code, size_t len, bool repeat_instr)
+{
+	struct mm_struct *patching_mm, *orig_mm;
+	unsigned long pfn = get_patch_pfn(addr);
+	unsigned long text_poke_addr;
+	spinlock_t *ptl;
+	u32 *patch_addr;
+	pte_t *pte;
+	int err;
+
+	patching_mm = __this_cpu_read(cpu_patching_context.mm);
+	text_poke_addr = __this_cpu_read(cpu_patching_context.addr);
+	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
+
+	pte = get_locked_pte(patching_mm, text_poke_addr, &ptl);
+	if (!pte)
+		return -ENOMEM;
+
+	__set_pte_at(patching_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
+
+	/* order PTE update before use, also serves as the hwsync */
+	asm volatile("ptesync" ::: "memory");
+
+	/* order context switch after arbitrary prior code */
+	isync();
+
+	orig_mm = start_using_temp_mm(patching_mm);
+
+	err = __patch_instructions(patch_addr, code, len, repeat_instr);
+
+	/* context synchronisation performed by __patch_instructions */
+	stop_using_temp_mm(patching_mm, orig_mm);
+
+	pte_clear(patching_mm, text_poke_addr, pte);
+	/*
+	 * ptesync to order PTE update before TLB invalidation done
+	 * by radix__local_flush_tlb_page_psize (in _tlbiel_va)
+	 */
+	local_flush_tlb_page_psize(patching_mm, text_poke_addr, mmu_virtual_psize);
+
+	pte_unmap_unlock(pte, ptl);
+
+	return err;
+}
+
+/*
+ * A page is mapped and instructions that fit the page are patched.
+ * Assumes 'len' to be (PAGE_SIZE - offset_in_page(addr)) or below.
+ */
+static int __do_patch_instructions(u32 *addr, u32 *code, size_t len, bool repeat_instr)
+{
+	unsigned long pfn = get_patch_pfn(addr);
+	unsigned long text_poke_addr;
+	u32 *patch_addr;
+	pte_t *pte;
+	int err;
+
+	text_poke_addr = (unsigned long)__this_cpu_read(cpu_patching_context.addr) & PAGE_MASK;
+	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
+
+	pte = __this_cpu_read(cpu_patching_context.pte);
+	__set_pte_at(&init_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
+	/* See ptesync comment in radix__set_pte_at() */
+	if (radix_enabled())
+		asm volatile("ptesync" ::: "memory");
+
+	err = __patch_instructions(patch_addr, code, len, repeat_instr);
+
+	pte_clear(&init_mm, text_poke_addr, pte);
+	flush_tlb_kernel_range(text_poke_addr, text_poke_addr + PAGE_SIZE);
+
+	return err;
+}
+
+/*
+ * Patch 'addr' with 'len' bytes of instructions from 'code'.
+ *
+ * If repeat_instr is true, the same instruction is filled for
+ * 'len' bytes.
+ */
+int patch_instructions(u32 *addr, u32 *code, size_t len, bool repeat_instr)
+{
+	while (len > 0) {
+		unsigned long flags;
+		size_t plen;
+		int err;
+
+		plen = min_t(size_t, PAGE_SIZE - offset_in_page(addr), len);
+
+		local_irq_save(flags);
+		if (mm_patch_enabled())
+			err = __do_patch_instructions_mm(addr, code, plen, repeat_instr);
+		else
+			err = __do_patch_instructions(addr, code, plen, repeat_instr);
+		local_irq_restore(flags);
+		if (err)
+			return err;
+
+		len -= plen;
+		addr = (u32 *)((unsigned long)addr + plen);
+		if (!repeat_instr)
+			code = (u32 *)((unsigned long)code + plen);
+	}
+
+	return 0;
+}
+NOKPROBE_SYMBOL(patch_instructions);
 
 int patch_branch(u32 *addr, unsigned long target, int flags)
 {

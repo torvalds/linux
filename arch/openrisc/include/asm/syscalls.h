@@ -25,8 +25,4 @@ asmlinkage long __sys_clone(unsigned long clone_flags, unsigned long newsp,
 asmlinkage long __sys_clone3(struct clone_args __user *uargs, size_t size);
 asmlinkage long __sys_fork(void);
 
-#define sys_clone __sys_clone
-#define sys_clone3 __sys_clone3
-#define sys_fork __sys_fork
-
 #endif /* __ASM_OPENRISC_SYSCALLS_H */

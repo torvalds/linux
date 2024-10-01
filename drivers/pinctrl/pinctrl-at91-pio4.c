@@ -632,7 +632,6 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				     struct pinctrl_map **map,
 				     unsigned int *num_maps)
 {
-	struct device_node *np;
 	unsigned int reserved_maps;
 	int ret;
 
@@ -648,13 +647,11 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	ret = atmel_pctl_dt_subnode_to_map(pctldev, np_config, map,
 					   &reserved_maps, num_maps);
 	if (ret) {
-		for_each_child_of_node(np_config, np) {
+		for_each_child_of_node_scoped(np_config, np) {
 			ret = atmel_pctl_dt_subnode_to_map(pctldev, np, map,
 						    &reserved_maps, num_maps);
-			if (ret < 0) {
-				of_node_put(np);
+			if (ret < 0)
 				break;
-			}
 		}
 	}
 
@@ -939,10 +936,9 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 	if (!atmel_pioctrl->pins[pin_id]->device)
 		return;
 
-	if (atmel_pioctrl->pins[pin_id])
-		seq_printf(s, " (%s, ioset %u) ",
-			   atmel_pioctrl->pins[pin_id]->device,
-			   atmel_pioctrl->pins[pin_id]->ioset);
+	seq_printf(s, " (%s, ioset %u) ",
+		   atmel_pioctrl->pins[pin_id]->device,
+		   atmel_pioctrl->pins[pin_id]->ioset);
 
 	conf = atmel_pin_config_read(pctldev, pin_id);
 	if (conf & ATMEL_PIO_PUEN_MASK)
@@ -1068,6 +1064,13 @@ static const struct of_device_id atmel_pctrl_of_match[] = {
 		/* sentinel */
 	}
 };
+
+/*
+ * This lock class allows to tell lockdep that parent IRQ and children IRQ do
+ * not share the same class so it does not raise false positive
+ */
+static struct lock_class_key atmel_lock_key;
+static struct lock_class_key atmel_request_key;
 
 static int atmel_pinctrl_probe(struct platform_device *pdev)
 {
@@ -1215,6 +1218,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		irq_set_chip_and_handler(irq, &atmel_gpio_irq_chip,
 					 handle_simple_irq);
 		irq_set_chip_data(irq, atmel_pioctrl);
+		irq_set_lockdep_class(irq, &atmel_lock_key, &atmel_request_key);
 		dev_dbg(dev,
 			"atmel gpio irq domain: hwirq: %d, linux irq: %d\n",
 			i, irq);

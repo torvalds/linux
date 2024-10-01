@@ -138,7 +138,6 @@ static void oti6858_port_remove(struct usb_serial_port *port);
 /* device info */
 static struct usb_serial_driver oti6858_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"oti6858",
 	},
 	.id_table =		id_table,
@@ -409,7 +408,6 @@ static void oti6858_set_termios(struct tty_struct *tty,
 	cflag = tty->termios.c_cflag;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	divisor = priv->pending_setup.divisor;
 	frame_fmt = priv->pending_setup.frame_fmt;
 	control = priv->pending_setup.control;
 	spin_unlock_irqrestore(&priv->lock, flags);

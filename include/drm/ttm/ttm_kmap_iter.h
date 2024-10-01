@@ -20,7 +20,7 @@ struct iosys_map;
  */
 struct ttm_kmap_iter_ops {
 	/**
-	 * kmap_local() - Map a PAGE_SIZE part of the resource using
+	 * @map_local: Map a PAGE_SIZE part of the resource using
 	 * kmap_local semantics.
 	 * @res_iter: Pointer to the struct ttm_kmap_iter representing
 	 * the resource.
@@ -31,7 +31,7 @@ struct ttm_kmap_iter_ops {
 	void (*map_local)(struct ttm_kmap_iter *res_iter,
 			  struct iosys_map *dmap, pgoff_t i);
 	/**
-	 * unmap_local() - Unmap a PAGE_SIZE part of the resource previously
+	 * @unmap_local: Unmap a PAGE_SIZE part of the resource previously
 	 * mapped using kmap_local.
 	 * @res_iter: Pointer to the struct ttm_kmap_iter representing
 	 * the resource.

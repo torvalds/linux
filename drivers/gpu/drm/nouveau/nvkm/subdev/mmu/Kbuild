@@ -16,6 +16,8 @@ nvkm-y += nvkm/subdev/mmu/gp10b.o
 nvkm-y += nvkm/subdev/mmu/gv100.o
 nvkm-y += nvkm/subdev/mmu/tu102.o
 
+nvkm-y += nvkm/subdev/mmu/r535.o
+
 nvkm-y += nvkm/subdev/mmu/mem.o
 nvkm-y += nvkm/subdev/mmu/memnv04.o
 nvkm-y += nvkm/subdev/mmu/memnv50.o

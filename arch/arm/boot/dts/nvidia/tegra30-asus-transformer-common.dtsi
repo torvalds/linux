@@ -1088,6 +1088,7 @@
 
 	serial@70006040 {
 		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 		status = "okay";
 
@@ -1096,6 +1097,7 @@
 
 	serial@70006200 {
 		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 		status = "okay";
 

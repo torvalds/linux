@@ -244,8 +244,8 @@ static struct snd_pcm_chmap_elem *convert_chmap(int channels, unsigned int bits,
 		SNDRV_CHMAP_FR,		/* right front */
 		SNDRV_CHMAP_FC,		/* center front */
 		SNDRV_CHMAP_LFE,	/* LFE */
-		SNDRV_CHMAP_SL,		/* left surround */
-		SNDRV_CHMAP_SR,		/* right surround */
+		SNDRV_CHMAP_RL,		/* left surround */
+		SNDRV_CHMAP_RR,		/* right surround */
 		SNDRV_CHMAP_FLC,	/* left of center */
 		SNDRV_CHMAP_FRC,	/* right of center */
 		SNDRV_CHMAP_RC,		/* surround */
@@ -300,9 +300,12 @@ static struct snd_pcm_chmap_elem *convert_chmap(int channels, unsigned int bits,
 	c = 0;
 
 	if (bits) {
-		for (; bits && *maps; maps++, bits >>= 1)
+		for (; bits && *maps; maps++, bits >>= 1) {
 			if (bits & 1)
 				chmap->map[c++] = *maps;
+			if (c == chmap->channels)
+				break;
+		}
 	} else {
 		/* If we're missing wChannelConfig, then guess something
 		    to make sure the channel map is not skipped entirely */
@@ -710,9 +713,12 @@ snd_usb_get_audioformat_uac12(struct snd_usb_audio *chip,
 	struct usb_device *dev = chip->dev;
 	struct uac_format_type_i_continuous_descriptor *fmt;
 	unsigned int num_channels = 0, chconfig = 0;
+	struct usb_host_interface *ctrl_intf;
 	struct audioformat *fp;
 	int clock = 0;
 	u64 format;
+
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, iface_no);
 
 	/* get audio formats */
 	if (protocol == UAC_VERSION_1) {
@@ -737,7 +743,7 @@ snd_usb_get_audioformat_uac12(struct snd_usb_audio *chip,
 
 		format = le16_to_cpu(as->wFormatTag); /* remember the format value */
 
-		iterm = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
+		iterm = snd_usb_find_input_terminal_descriptor(ctrl_intf,
 							       as->bTerminalLink,
 							       protocol);
 		if (iterm) {
@@ -773,7 +779,7 @@ snd_usb_get_audioformat_uac12(struct snd_usb_audio *chip,
 		 * lookup the terminal associated to this interface
 		 * to extract the clock
 		 */
-		input_term = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
+		input_term = snd_usb_find_input_terminal_descriptor(ctrl_intf,
 								    as->bTerminalLink,
 								    protocol);
 		if (input_term) {
@@ -783,7 +789,7 @@ snd_usb_get_audioformat_uac12(struct snd_usb_audio *chip,
 			goto found_clock;
 		}
 
-		output_term = snd_usb_find_output_terminal_descriptor(chip->ctrl_intf,
+		output_term = snd_usb_find_output_terminal_descriptor(ctrl_intf,
 								      as->bTerminalLink,
 								      protocol);
 		if (output_term) {
@@ -867,6 +873,7 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 	struct uac3_cluster_header_descriptor *cluster;
 	struct uac3_as_header_descriptor *as = NULL;
 	struct uac3_hc_descriptor_header hc_header;
+	struct usb_host_interface *ctrl_intf;
 	struct snd_pcm_chmap_elem *chmap;
 	struct snd_usb_power_domain *pd;
 	unsigned char badd_profile;
@@ -878,6 +885,7 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 	int err;
 
 	badd_profile = chip->badd_profile;
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, iface_no);
 
 	if (badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
 		unsigned int maxpacksize =
@@ -963,7 +971,7 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 			UAC3_CS_REQ_HIGH_CAPABILITY_DESCRIPTOR,
 			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			cluster_id,
-			snd_usb_ctrl_intf(chip),
+			snd_usb_ctrl_intf(ctrl_intf),
 			&hc_header, sizeof(hc_header));
 	if (err < 0)
 		return ERR_PTR(err);
@@ -987,7 +995,7 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 			UAC3_CS_REQ_HIGH_CAPABILITY_DESCRIPTOR,
 			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			cluster_id,
-			snd_usb_ctrl_intf(chip),
+			snd_usb_ctrl_intf(ctrl_intf),
 			cluster, wLength);
 	if (err < 0) {
 		kfree(cluster);
@@ -1008,7 +1016,7 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 	 * lookup the terminal associated to this interface
 	 * to extract the clock
 	 */
-	input_term = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
+	input_term = snd_usb_find_input_terminal_descriptor(ctrl_intf,
 							    as->bTerminalLink,
 							    UAC_VERSION_3);
 	if (input_term) {
@@ -1016,7 +1024,7 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 		goto found_clock;
 	}
 
-	output_term = snd_usb_find_output_terminal_descriptor(chip->ctrl_intf,
+	output_term = snd_usb_find_output_terminal_descriptor(ctrl_intf,
 							      as->bTerminalLink,
 							      UAC_VERSION_3);
 	if (output_term) {
@@ -1065,7 +1073,7 @@ found_clock:
 							       UAC_VERSION_3,
 							       iface_no);
 
-		pd = snd_usb_find_power_domain(chip->ctrl_intf,
+		pd = snd_usb_find_power_domain(ctrl_intf,
 					       as->bTerminalLink);
 
 		/* ok, let's parse further... */
@@ -1093,6 +1101,7 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 	int i, altno, err, stream;
 	struct audioformat *fp = NULL;
 	struct snd_usb_power_domain *pd = NULL;
+	bool set_iface_first;
 	int num, protocol;
 
 	dev = chip->dev;
@@ -1223,11 +1232,19 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 				return err;
 		}
 
+		set_iface_first = false;
+		if (protocol == UAC_VERSION_1 ||
+		    (chip->quirk_flags & QUIRK_FLAG_SET_IFACE_FIRST))
+			set_iface_first = true;
+
 		/* try to set the interface... */
 		usb_set_interface(chip->dev, iface_no, 0);
+		if (set_iface_first)
+			usb_set_interface(chip->dev, iface_no, altno);
 		snd_usb_init_pitch(chip, fp);
 		snd_usb_init_sample_rate(chip, fp, fp->rate_max);
-		usb_set_interface(chip->dev, iface_no, altno);
+		if (!set_iface_first)
+			usb_set_interface(chip->dev, iface_no, altno);
 	}
 	return 0;
 }

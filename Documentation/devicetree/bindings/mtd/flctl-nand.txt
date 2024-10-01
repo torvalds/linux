@@ -15,7 +15,7 @@ The DMA fields are not used yet in the driver but are listed here for
 completing the bindings.
 
 The device tree may optionally contain sub-nodes describing partitions of the
-address space. See partition.txt for more detail.
+address space. See mtd.yaml for more detail.
 
 Example:
 

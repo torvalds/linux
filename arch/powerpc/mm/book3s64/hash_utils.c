@@ -125,7 +125,7 @@ int mmu_ci_restrictions;
 #endif
 static u8 *linear_map_hash_slots;
 static unsigned long linear_map_hash_count;
-struct mmu_hash_ops mmu_hash_ops;
+struct mmu_hash_ops mmu_hash_ops __ro_after_init;
 EXPORT_SYMBOL(mmu_hash_ops);
 
 /*
@@ -310,9 +310,16 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags
 			else
 				rflags |= 0x3;
 		}
+		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "no-access mapping request");
 	} else {
 		if (pteflags & _PAGE_RWX)
 			rflags |= 0x2;
+		/*
+		 * We should never hit this in normal fault handling because
+		 * a permission check (check_pte_access()) will bubble this
+		 * to higher level linux handler even for PAGE_NONE.
+		 */
+		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "no-access mapping request");
 		if (!((pteflags & _PAGE_WRITE) && (pteflags & _PAGE_DIRTY)))
 			rflags |= 0x1;
 	}
@@ -1226,10 +1233,6 @@ void __init hash__early_init_mmu(void)
 	__pmd_table_size = H_PMD_TABLE_SIZE;
 	__pud_table_size = H_PUD_TABLE_SIZE;
 	__pgd_table_size = H_PGD_TABLE_SIZE;
-	/*
-	 * 4k use hugepd format, so for hash set then to
-	 * zero
-	 */
 	__pmd_val_bits = HASH_PMD_VAL_BITS;
 	__pud_val_bits = HASH_PUD_VAL_BITS;
 	__pgd_val_bits = HASH_PGD_VAL_BITS;
@@ -1307,18 +1310,19 @@ void hash__early_init_mmu_secondary(void)
  */
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 {
-	struct page *page;
+	struct folio *folio;
 
 	if (!pfn_valid(pte_pfn(pte)))
 		return pp;
 
-	page = pte_page(pte);
+	folio = page_folio(pte_page(pte));
 
 	/* page is dirty */
-	if (!test_bit(PG_dcache_clean, &page->flags) && !PageReserved(page)) {
+	if (!test_bit(PG_dcache_clean, &folio->flags) &&
+	    !folio_test_reserved(folio)) {
 		if (trap == INTERRUPT_INST_STORAGE) {
-			flush_dcache_icache_page(page);
-			set_bit(PG_dcache_clean, &page->flags);
+			flush_dcache_icache_folio(folio);
+			set_bit(PG_dcache_clean, &folio->flags);
 		} else
 			pp |= HPTE_R_N;
 	}
@@ -1536,6 +1540,13 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		DBG_LOW(" no PTE !\n");
 		rc = 1;
 		goto bail;
+	}
+
+	if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && !radix_enabled()) {
+		if (hugeshift == PMD_SHIFT && psize == MMU_PAGE_16M)
+			hugeshift = mmu_psize_defs[MMU_PAGE_16M].shift;
+		if (hugeshift == PUD_SHIFT && psize == MMU_PAGE_16G)
+			hugeshift = mmu_psize_defs[MMU_PAGE_16G].shift;
 	}
 
 	/*
@@ -2164,7 +2175,7 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 				     mmu_kernel_ssize, 0);
 }
 
-void hash__kernel_map_pages(struct page *page, int numpages, int enable)
+int hash__kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long flags, vaddr, lmi;
 	int i;
@@ -2181,6 +2192,7 @@ void hash__kernel_map_pages(struct page *page, int numpages, int enable)
 			kernel_unmap_linear_page(vaddr, lmi);
 	}
 	local_irq_restore(flags);
+	return 0;
 }
 #endif /* CONFIG_DEBUG_PAGEALLOC || CONFIG_KFENCE */
 

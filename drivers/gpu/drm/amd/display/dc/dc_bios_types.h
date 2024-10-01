@@ -140,7 +140,7 @@ struct dc_vbios_funcs {
 	enum bp_result (*enable_lvtma_control)(
 		struct dc_bios *bios,
 		uint8_t uc_pwr_on,
-		uint8_t panel_instance,
+		uint8_t pwrseq_instance,
 		uint8_t bypass_panel_control_wait);
 
 	enum bp_result (*get_soc_bb_info)(
@@ -183,6 +183,7 @@ struct dc_bios {
 	struct dc_firmware_info fw_info;
 	bool fw_info_valid;
 	struct dc_vram_info vram_info;
+	struct bp_soc_bb_info bb_info;
 	struct dc_golden_table golden_table;
 };
 

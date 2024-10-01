@@ -9,6 +9,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
+#include "intel_frontbuffer.h"
 #include "intel_panel.h"
 
 /**
@@ -62,6 +63,15 @@ const char *intel_drrs_type_str(enum drrs_type drrs_type)
 	return str[drrs_type];
 }
 
+bool intel_cpu_transcoder_has_drrs(struct drm_i915_private *i915,
+				   enum transcoder cpu_transcoder)
+{
+	if (HAS_DOUBLE_BUFFERED_M_N(i915))
+		return true;
+
+	return intel_cpu_transcoder_has_m2_n2(i915, cpu_transcoder);
+}
+
 static void
 intel_drrs_set_refresh_rate_pipeconf(struct intel_crtc *crtc,
 				     enum drrs_refresh_rate refresh_rate)
@@ -75,7 +85,7 @@ intel_drrs_set_refresh_rate_pipeconf(struct intel_crtc *crtc,
 	else
 		bit = TRANSCONF_REFRESH_RATE_ALT_ILK;
 
-	intel_de_rmw(dev_priv, TRANSCONF(cpu_transcoder),
+	intel_de_rmw(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
 		     bit, refresh_rate == DRRS_REFRESH_RATE_LOW ? bit : 0);
 }
 
@@ -125,7 +135,7 @@ static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *c
 	frontbuffer_bits = INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc,
-					 crtc_state->bigjoiner_pipes)
+					 crtc_state->joiner_pipes)
 		frontbuffer_bits |= INTEL_FRONTBUFFER_ALL_MASK(crtc->pipe);
 
 	return frontbuffer_bits;
@@ -147,7 +157,7 @@ void intel_drrs_activate(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->hw.active)
 		return;
 
-	if (intel_crtc_is_bigjoiner_slave(crtc_state))
+	if (intel_crtc_is_joiner_secondary(crtc_state))
 		return;
 
 	mutex_lock(&crtc->drrs.mutex);
@@ -179,7 +189,7 @@ void intel_drrs_deactivate(const struct intel_crtc_state *old_crtc_state)
 	if (!old_crtc_state->hw.active)
 		return;
 
-	if (intel_crtc_is_bigjoiner_slave(old_crtc_state))
+	if (intel_crtc_is_joiner_secondary(old_crtc_state))
 		return;
 
 	mutex_lock(&crtc->drrs.mutex);
@@ -298,6 +308,7 @@ void intel_drrs_crtc_init(struct intel_crtc *crtc)
 static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 {
 	struct intel_crtc *crtc = m->private;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state;
 	int ret;
 
@@ -308,6 +319,10 @@ static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 	crtc_state = to_intel_crtc_state(crtc->base.state);
 
 	mutex_lock(&crtc->drrs.mutex);
+
+	seq_printf(m, "DRRS capable: %s\n",
+		   str_yes_no(intel_cpu_transcoder_has_drrs(i915,
+							    crtc_state->cpu_transcoder)));
 
 	seq_printf(m, "DRRS enabled: %s\n",
 		   str_yes_no(crtc_state->has_drrs));

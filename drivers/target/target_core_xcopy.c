@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/rculist.h>
 #include <linux/configfs.h>
 #include <linux/ratelimit.h>
 #include <scsi/scsi_proto.h>

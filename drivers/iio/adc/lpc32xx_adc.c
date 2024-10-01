@@ -176,8 +176,8 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return -ENXIO;
+	if (irq < 0)
+		return irq;
 
 	retval = devm_request_irq(&pdev->dev, irq, lpc32xx_adc_isr, 0,
 				  LPC32XXAD_NAME, st);
@@ -217,7 +217,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 
 static const struct of_device_id lpc32xx_adc_match[] = {
 	{ .compatible = "nxp,lpc3220-adc" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, lpc32xx_adc_match);
 

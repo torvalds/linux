@@ -165,8 +165,6 @@ static void __irq_entry indy_buserror_irq(void)
 #define SGI_INTERRUPTS	SGINT_LOCAL3
 #endif
 
-extern void indy_8254timer_irq(void);
-
 /*
  * IRQs on the INDY look basically (barring software IRQs which we don't use
  * at all) like:

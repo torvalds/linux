@@ -20,7 +20,7 @@ properties:
 
   device_type:
     items:
-      - const: "ipmi"
+      - const: ipmi
 
   reg:
     maxItems: 1

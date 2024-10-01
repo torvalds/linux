@@ -17,11 +17,12 @@ config CAN_EMS_USB
 config CAN_ESD_USB
 	tristate "esd electronics gmbh CAN/USB interfaces"
 	help
-	  This driver adds supports for several CAN/USB interfaces
+	  This driver adds support for several CAN/USB interfaces
 	  from esd electronics gmbh (https://www.esd.eu).
 
 	  The drivers supports the following devices:
 	    - esd CAN-USB/2
+	    - esd CAN-USB/3-FD
 	    - esd CAN-USB/Micro
 
 	  To compile this driver as a module, choose M here: the module
@@ -52,6 +53,7 @@ config CAN_F81604
 
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG and candleLight compatible interfaces"
+	select CAN_RX_OFFLOAD
 	help
 	  This driver supports the Geschwister Schneider and
 	  bytewerk.org candleLight compatible
@@ -90,6 +92,7 @@ config CAN_KVASER_USB
 	    - Kvaser Leaf Light R v2
 	    - Kvaser Mini PCI Express HS
 	    - Kvaser Mini PCI Express 2xHS
+	    - Kvaser Mini PCIe 1xCAN
 	    - Kvaser USBcan Light 2xHS
 	    - Kvaser USBcan II HS/HS
 	    - Kvaser USBcan II HS/LS
@@ -99,6 +102,7 @@ config CAN_KVASER_USB
 	    - Scania VCI2 (if you have the Kvaser logo on top)
 	    - Kvaser BlackBird v2
 	    - Kvaser Leaf Pro HS v2
+	    - Kvaser Leaf v3
 	    - Kvaser Hybrid CAN/LIN
 	    - Kvaser Hybrid 2xCAN/LIN
 	    - Kvaser Hybrid Pro CAN/LIN
@@ -109,12 +113,14 @@ config CAN_KVASER_USB
 	    - Kvaser USBcan Light 4xHS
 	    - Kvaser USBcan Pro 2xHS v2
 	    - Kvaser USBcan Pro 4xHS
+	    - Kvaser USBcan Pro 5xCAN
 	    - Kvaser USBcan Pro 5xHS
 	    - Kvaser U100
 	    - Kvaser U100P
 	    - Kvaser U100S
 	    - ATI Memorator Pro 2xHS v2
 	    - ATI USBcan Pro 2xHS v2
+	    - Vining 800
 
 	  If unsure, say N.
 

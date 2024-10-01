@@ -147,6 +147,7 @@ struct gf100_gr_func_zbc {
 };
 
 struct gf100_gr_func {
+	int (*nonstall)(struct gf100_gr *);
 	struct nvkm_intr *(*oneinit_intr)(struct gf100_gr *, enum nvkm_intr_type *);
 	void (*oneinit_tiles)(struct gf100_gr *);
 	int (*oneinit_sm_id)(struct gf100_gr *);
@@ -444,4 +445,6 @@ void gp108_gr_acr_bld_patch(struct nvkm_acr *, u32, s64);
 
 int gf100_gr_new_(const struct gf100_gr_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_gr **);
+int r535_gr_new(const struct gf100_gr_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		struct nvkm_gr **);
 #endif

@@ -29,6 +29,7 @@
 #include "blk-wbt.h"
 #include "blk-rq-qos.h"
 #include "elevator.h"
+#include "blk.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/wbt.h>
@@ -36,7 +37,7 @@
 enum wbt_flags {
 	WBT_TRACKED		= 1,	/* write, tracked for throttling */
 	WBT_READ		= 2,	/* read */
-	WBT_KSWAPD		= 4,	/* write, from kswapd */
+	WBT_SWAP		= 4,	/* write, from swap_writepage() */
 	WBT_DISCARD		= 8,	/* discard */
 
 	WBT_NR_BITS		= 4,	/* number of bits */
@@ -44,7 +45,7 @@ enum wbt_flags {
 
 enum {
 	WBT_RWQ_BG		= 0,
-	WBT_RWQ_KSWAPD,
+	WBT_RWQ_SWAP,
 	WBT_RWQ_DISCARD,
 	WBT_NUM_RWQ,
 };
@@ -83,8 +84,6 @@ struct rq_wb {
 
 	u64 sync_issue;
 	void *sync_cookie;
-
-	unsigned int wc;
 
 	unsigned long last_issue;		/* last non-throttled issue */
 	unsigned long last_comp;		/* last non-throttled comp */
@@ -165,16 +164,16 @@ static void wb_timestamp(struct rq_wb *rwb, unsigned long *var)
  */
 static bool wb_recent_wait(struct rq_wb *rwb)
 {
-	struct bdi_writeback *wb = &rwb->rqos.disk->bdi->wb;
+	struct backing_dev_info *bdi = rwb->rqos.disk->bdi;
 
-	return time_before(jiffies, wb->dirty_sleep + HZ);
+	return time_before(jiffies, bdi->last_bdp_sleep + HZ);
 }
 
 static inline struct rq_wait *get_rq_wait(struct rq_wb *rwb,
 					  enum wbt_flags wb_acct)
 {
-	if (wb_acct & WBT_KSWAPD)
-		return &rwb->rq_wait[WBT_RWQ_KSWAPD];
+	if (wb_acct & WBT_SWAP)
+		return &rwb->rq_wait[WBT_RWQ_SWAP];
 	else if (wb_acct & WBT_DISCARD)
 		return &rwb->rq_wait[WBT_RWQ_DISCARD];
 
@@ -207,7 +206,8 @@ static void wbt_rqw_done(struct rq_wb *rwb, struct rq_wait *rqw,
 	 */
 	if (wb_acct & WBT_DISCARD)
 		limit = rwb->wb_background;
-	else if (rwb->wc && !wb_recent_wait(rwb))
+	else if (blk_queue_write_cache(rwb->rqos.disk->queue) &&
+		 !wb_recent_wait(rwb))
 		limit = 0;
 	else
 		limit = rwb->wb_normal;
@@ -275,13 +275,12 @@ static inline bool stat_sample_valid(struct blk_rq_stat *stat)
 
 static u64 rwb_sync_issue_lat(struct rq_wb *rwb)
 {
-	u64 now, issue = READ_ONCE(rwb->sync_issue);
+	u64 issue = READ_ONCE(rwb->sync_issue);
 
 	if (!issue || !rwb->sync_cookie)
 		return 0;
 
-	now = ktime_to_ns(ktime_get());
-	return now - issue;
+	return blk_time_get_ns() - issue;
 }
 
 static inline unsigned int wbt_inflight(struct rq_wb *rwb)
@@ -529,7 +528,7 @@ static bool close_io(struct rq_wb *rwb)
 		time_before(now, rwb->last_comp + HZ / 10);
 }
 
-#define REQ_HIPRIO	(REQ_SYNC | REQ_META | REQ_PRIO)
+#define REQ_HIPRIO	(REQ_SYNC | REQ_META | REQ_PRIO | REQ_SWAP)
 
 static inline unsigned int get_limit(struct rq_wb *rwb, blk_opf_t opf)
 {
@@ -540,13 +539,13 @@ static inline unsigned int get_limit(struct rq_wb *rwb, blk_opf_t opf)
 
 	/*
 	 * At this point we know it's a buffered write. If this is
-	 * kswapd trying to free memory, or REQ_SYNC is set, then
+	 * swap trying to free memory, or REQ_SYNC is set, then
 	 * it's WB_SYNC_ALL writeback, and we'll use the max limit for
 	 * that. If the write is marked as a background write, then use
 	 * the idle limit, or go to normal if we haven't had competing
 	 * IO for a bit.
 	 */
-	if ((opf & REQ_HIPRIO) || wb_recent_wait(rwb) || current_is_kswapd())
+	if ((opf & REQ_HIPRIO) || wb_recent_wait(rwb))
 		limit = rwb->rq_depth.max_depth;
 	else if ((opf & REQ_BACKGROUND) || close_io(rwb)) {
 		/*
@@ -623,8 +622,8 @@ static enum wbt_flags bio_to_wbt_flags(struct rq_wb *rwb, struct bio *bio)
 	if (bio_op(bio) == REQ_OP_READ) {
 		flags = WBT_READ;
 	} else if (wbt_should_throttle(bio)) {
-		if (current_is_kswapd())
-			flags |= WBT_KSWAPD;
+		if (bio->bi_opf & REQ_SWAP)
+			flags |= WBT_SWAP;
 		if (bio_op(bio) == REQ_OP_DISCARD)
 			flags |= WBT_DISCARD;
 		flags |= WBT_TRACKED;
@@ -697,13 +696,6 @@ static void wbt_requeue(struct rq_qos *rqos, struct request *rq)
 		rwb->sync_issue = 0;
 		rwb->sync_cookie = NULL;
 	}
-}
-
-void wbt_set_write_cache(struct request_queue *q, bool write_cache_on)
-{
-	struct rq_qos *rqos = wbt_rq_qos(q);
-	if (rqos)
-		RQWB(rqos)->wc = write_cache_on;
 }
 
 /*
@@ -918,7 +910,6 @@ int wbt_init(struct gendisk *disk)
 	rwb->last_comp = rwb->last_issue = jiffies;
 	rwb->win_nsec = RWB_WINDOW_NSEC;
 	rwb->enable_state = WBT_STATE_ON_DEFAULT;
-	rwb->wc = test_bit(QUEUE_FLAG_WC, &q->queue_flags);
 	rwb->rq_depth.default_depth = RWB_DEF_DEPTH;
 	rwb->min_lat_nsec = wbt_default_latency_nsec(q);
 	rwb->rq_depth.queue_depth = blk_queue_depth(q);

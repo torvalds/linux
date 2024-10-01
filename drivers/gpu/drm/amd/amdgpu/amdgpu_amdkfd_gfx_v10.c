@@ -881,62 +881,102 @@ uint32_t kgd_gfx_v10_set_wave_launch_mode(struct amdgpu_device *adev,
 }
 
 #define TCP_WATCH_STRIDE (mmTCP_WATCH1_ADDR_H - mmTCP_WATCH0_ADDR_H)
+#define SQ_WATCH_STRIDE (mmSQ_WATCH1_ADDR_H - mmSQ_WATCH0_ADDR_H)
 uint32_t kgd_gfx_v10_set_address_watch(struct amdgpu_device *adev,
 					uint64_t watch_address,
 					uint32_t watch_address_mask,
 					uint32_t watch_id,
 					uint32_t watch_mode,
-					uint32_t debug_vmid)
+					uint32_t debug_vmid,
+					uint32_t inst)
 {
+	/* SQ_WATCH?_ADDR_* and TCP_WATCH?_ADDR_* are programmed with the
+	 * same values.
+	 */
 	uint32_t watch_address_high;
 	uint32_t watch_address_low;
-	uint32_t watch_address_cntl;
-
-	watch_address_cntl = 0;
+	uint32_t tcp_watch_address_cntl;
+	uint32_t sq_watch_address_cntl;
 
 	watch_address_low = lower_32_bits(watch_address);
 	watch_address_high = upper_32_bits(watch_address) & 0xffff;
 
-	watch_address_cntl = REG_SET_FIELD(watch_address_cntl,
+	tcp_watch_address_cntl = 0;
+	tcp_watch_address_cntl = REG_SET_FIELD(tcp_watch_address_cntl,
 			TCP_WATCH0_CNTL,
 			VMID,
 			debug_vmid);
-	watch_address_cntl = REG_SET_FIELD(watch_address_cntl,
+	tcp_watch_address_cntl = REG_SET_FIELD(tcp_watch_address_cntl,
 			TCP_WATCH0_CNTL,
 			MODE,
 			watch_mode);
-	watch_address_cntl = REG_SET_FIELD(watch_address_cntl,
+	tcp_watch_address_cntl = REG_SET_FIELD(tcp_watch_address_cntl,
 			TCP_WATCH0_CNTL,
 			MASK,
 			watch_address_mask >> 7);
 
+	sq_watch_address_cntl = 0;
+	sq_watch_address_cntl = REG_SET_FIELD(sq_watch_address_cntl,
+			SQ_WATCH0_CNTL,
+			VMID,
+			debug_vmid);
+	sq_watch_address_cntl = REG_SET_FIELD(sq_watch_address_cntl,
+			SQ_WATCH0_CNTL,
+			MODE,
+			watch_mode);
+	sq_watch_address_cntl = REG_SET_FIELD(sq_watch_address_cntl,
+			SQ_WATCH0_CNTL,
+			MASK,
+			watch_address_mask >> 6);
+
 	/* Turning off this watch point until we set all the registers */
-	watch_address_cntl = REG_SET_FIELD(watch_address_cntl,
+	tcp_watch_address_cntl = REG_SET_FIELD(tcp_watch_address_cntl,
 			TCP_WATCH0_CNTL,
 			VALID,
 			0);
-
 	WREG32((SOC15_REG_OFFSET(GC, 0, mmTCP_WATCH0_CNTL) +
 			(watch_id * TCP_WATCH_STRIDE)),
-			watch_address_cntl);
+			tcp_watch_address_cntl);
 
+	sq_watch_address_cntl = REG_SET_FIELD(sq_watch_address_cntl,
+			SQ_WATCH0_CNTL,
+			VALID,
+			0);
+	WREG32((SOC15_REG_OFFSET(GC, 0, mmSQ_WATCH0_CNTL) +
+			(watch_id * SQ_WATCH_STRIDE)),
+			sq_watch_address_cntl);
+
+	/* Program {TCP,SQ}_WATCH?_ADDR* */
 	WREG32((SOC15_REG_OFFSET(GC, 0, mmTCP_WATCH0_ADDR_H) +
 			(watch_id * TCP_WATCH_STRIDE)),
 			watch_address_high);
-
 	WREG32((SOC15_REG_OFFSET(GC, 0, mmTCP_WATCH0_ADDR_L) +
 			(watch_id * TCP_WATCH_STRIDE)),
 			watch_address_low);
 
+	WREG32((SOC15_REG_OFFSET(GC, 0, mmSQ_WATCH0_ADDR_H) +
+			(watch_id * SQ_WATCH_STRIDE)),
+			watch_address_high);
+	WREG32((SOC15_REG_OFFSET(GC, 0, mmSQ_WATCH0_ADDR_L) +
+			(watch_id * SQ_WATCH_STRIDE)),
+			watch_address_low);
+
 	/* Enable the watch point */
-	watch_address_cntl = REG_SET_FIELD(watch_address_cntl,
+	tcp_watch_address_cntl = REG_SET_FIELD(tcp_watch_address_cntl,
 			TCP_WATCH0_CNTL,
 			VALID,
 			1);
-
 	WREG32((SOC15_REG_OFFSET(GC, 0, mmTCP_WATCH0_CNTL) +
 			(watch_id * TCP_WATCH_STRIDE)),
-			watch_address_cntl);
+			tcp_watch_address_cntl);
+
+	sq_watch_address_cntl = REG_SET_FIELD(sq_watch_address_cntl,
+			SQ_WATCH0_CNTL,
+			VALID,
+			1);
+	WREG32((SOC15_REG_OFFSET(GC, 0, mmSQ_WATCH0_CNTL) +
+			(watch_id * SQ_WATCH_STRIDE)),
+			sq_watch_address_cntl);
 
 	return 0;
 }
@@ -952,8 +992,14 @@ uint32_t kgd_gfx_v10_clear_address_watch(struct amdgpu_device *adev,
 			(watch_id * TCP_WATCH_STRIDE)),
 			watch_address_cntl);
 
+	WREG32((SOC15_REG_OFFSET(GC, 0, mmSQ_WATCH0_CNTL) +
+			(watch_id * SQ_WATCH_STRIDE)),
+			watch_address_cntl);
+
 	return 0;
 }
+#undef TCP_WATCH_STRIDE
+#undef SQ_WATCH_STRIDE
 
 
 /* kgd_gfx_v10_get_iq_wait_times: Returns the mmCP_IQ_WAIT_TIME1/2 values
@@ -968,7 +1014,8 @@ uint32_t kgd_gfx_v10_clear_address_watch(struct amdgpu_device *adev,
  *     deq_retry_wait_time      -- Wait Count for Global Wave Syncs.
  */
 void kgd_gfx_v10_get_iq_wait_times(struct amdgpu_device *adev,
-					uint32_t *wait_times)
+					uint32_t *wait_times,
+					uint32_t inst)
 
 {
 	*wait_times = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2));
@@ -1023,6 +1070,20 @@ static void program_trap_handler_settings(struct amdgpu_device *adev,
 	unlock_srbm(adev);
 }
 
+uint64_t kgd_gfx_v10_hqd_get_pq_addr(struct amdgpu_device *adev,
+				     uint32_t pipe_id, uint32_t queue_id,
+				     uint32_t inst)
+{
+	return 0;
+}
+
+uint64_t kgd_gfx_v10_hqd_reset(struct amdgpu_device *adev,
+			       uint32_t pipe_id, uint32_t queue_id,
+			       uint32_t inst, unsigned int utimeout)
+{
+	return 0;
+}
+
 const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
@@ -1050,4 +1111,6 @@ const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.get_iq_wait_times = kgd_gfx_v10_get_iq_wait_times,
 	.build_grace_period_packet_info = kgd_gfx_v10_build_grace_period_packet_info,
 	.program_trap_handler_settings = program_trap_handler_settings,
+	.hqd_get_pq_addr = kgd_gfx_v10_hqd_get_pq_addr,
+	.hqd_reset = kgd_gfx_v10_hqd_reset
 };

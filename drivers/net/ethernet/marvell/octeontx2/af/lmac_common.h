@@ -132,6 +132,7 @@ struct mac_ops {
 	/* FEC stats */
 	int			(*get_fec_stats)(void *cgxd, int lmac_id,
 						 struct cgx_fec_stats_rsp *rsp);
+	int			(*mac_stats_reset)(void *cgxd, int lmac_id);
 };
 
 struct cgx {

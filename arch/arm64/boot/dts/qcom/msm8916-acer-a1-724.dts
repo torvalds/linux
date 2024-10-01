@@ -3,10 +3,12 @@
 /dts-v1/;
 
 #include "msm8916-pm8916.dtsi"
+#include "msm8916-modem-qdsp6.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
 
 /*
  * NOTE: The original firmware from Acer can only boot 32-bit kernels.
@@ -48,7 +50,7 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&tlmm 110 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&tlmm 110 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -83,6 +85,29 @@
 	};
 };
 
+&blsp_i2c4 {
+	status = "okay";
+
+	led-controller@30 {
+		compatible = "kinetic,ktd2026";
+		reg = <0x30>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			reg = <0>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+		};
+
+		led@1 {
+			reg = <1>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+	};
+};
+
 &blsp_i2c5 {
 	status = "okay";
 
@@ -109,6 +134,17 @@
 
 &blsp_uart2 {
 	status = "okay";
+};
+
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x4500000>;
+};
+
+&pm8916_codec {
+	qcom,micbias-lvl = <2800>;
+	qcom,mbhc-vthreshold-low = <150 237 450 500 590>;
+	qcom,mbhc-vthreshold-high = <150 237 450 500 590>;
+	qcom,hphl-jack-type-normally-open;
 };
 
 &pm8916_resin {
@@ -146,6 +182,20 @@
 	status = "okay";
 };
 
+&sound {
+	model = "acer-a1-724";
+	audio-routing =
+		"DMIC1", "MIC BIAS External1",
+		"DMIC1", "Digital Mic1",
+		"AMIC2", "MIC BIAS Internal2",
+		"DMIC2", "MIC BIAS External1",
+		"DMIC2", "Digital Mic2";
+
+	pinctrl-0 = <&cdc_pdm_default &sec_mi2s_default &pri_mi2s_mclk_default &cdc_dmic_default>;
+	pinctrl-1 = <&cdc_pdm_sleep &sec_mi2s_sleep &pri_mi2s_mclk_sleep &cdc_dmic_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
 &usb {
 	extcon = <&usb_id>, <&usb_id>;
 	status = "okay";
@@ -155,12 +205,24 @@
 	extcon = <&usb_id>;
 };
 
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 };
 
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 &tlmm {

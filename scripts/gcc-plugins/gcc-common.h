@@ -62,11 +62,7 @@
 #include "pass_manager.h"
 #include "predict.h"
 #include "ipa-utils.h"
-
-#if BUILDING_GCC_VERSION >= 8000
 #include "stringpool.h"
-#endif
-
 #include "attribs.h"
 #include "varasm.h"
 #include "stor-layout.h"
@@ -78,7 +74,6 @@
 #include "context.h"
 #include "tree-ssa-alias.h"
 #include "tree-ssa.h"
-#include "stringpool.h"
 #if BUILDING_GCC_VERSION >= 7000
 #include "tree-vrp.h"
 #endif
@@ -438,6 +433,10 @@ static inline void debug_gimple_stmt(const_gimple s)
 #if BUILDING_GCC_VERSION < 7000
 #define SET_DECL_ALIGN(decl, align)	DECL_ALIGN(decl) = (align)
 #define SET_DECL_MODE(decl, mode)	DECL_MODE(decl) = (mode)
+#endif
+
+#if BUILDING_GCC_VERSION >= 14000
+#define last_stmt(x)			last_nondebug_stmt(x)
 #endif
 
 #endif

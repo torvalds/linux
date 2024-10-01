@@ -9,6 +9,7 @@
  * Copyright (C) 2009 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  */
+#include <linux/cleanup.h>
 #include <linux/cpu_pm.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -989,18 +990,18 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 	if (size > (1 << GPMC_SECTION_SHIFT))
 		return -ENOMEM;
 
-	spin_lock(&gpmc_mem_lock);
-	if (gpmc_cs_reserved(cs)) {
-		r = -EBUSY;
-		goto out;
-	}
+	guard(spinlock)(&gpmc_mem_lock);
+
+	if (gpmc_cs_reserved(cs))
+		return -EBUSY;
+
 	if (gpmc_cs_mem_enabled(cs))
 		r = adjust_resource(res, res->start & ~(size - 1), size);
 	if (r < 0)
 		r = allocate_resource(&gpmc_mem_root, res, size, 0, ~0,
 				      size, NULL, NULL);
 	if (r < 0)
-		goto out;
+		return r;
 
 	/* Disable CS while changing base address and size mask */
 	gpmc_cs_disable_mem(cs);
@@ -1008,16 +1009,15 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 	r = gpmc_cs_set_memconf(cs, res->start, resource_size(res));
 	if (r < 0) {
 		release_resource(res);
-		goto out;
+		return r;
 	}
 
 	/* Enable CS */
 	gpmc_cs_enable_mem(cs);
 	*base = res->start;
 	gpmc_cs_set_reserved(cs, 1);
-out:
-	spin_unlock(&gpmc_mem_lock);
-	return r;
+
+	return 0;
 }
 EXPORT_SYMBOL(gpmc_cs_request);
 
@@ -1026,10 +1026,9 @@ void gpmc_cs_free(int cs)
 	struct gpmc_cs_data *gpmc;
 	struct resource *res;
 
-	spin_lock(&gpmc_mem_lock);
+	guard(spinlock)(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
 		WARN(1, "Trying to free non-reserved GPMC CS%d\n", cs);
-		spin_unlock(&gpmc_mem_lock);
 		return;
 	}
 	gpmc = &gpmc_cs[cs];
@@ -1039,7 +1038,6 @@ void gpmc_cs_free(int cs)
 	if (res->flags)
 		release_resource(res);
 	gpmc_cs_set_reserved(cs, 0);
-	spin_unlock(&gpmc_mem_lock);
 }
 EXPORT_SYMBOL(gpmc_cs_free);
 
@@ -2690,7 +2688,7 @@ gpio_init_failed:
 	return rc;
 }
 
-static int gpmc_remove(struct platform_device *pdev)
+static void gpmc_remove(struct platform_device *pdev)
 {
 	int i;
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
@@ -2702,8 +2700,6 @@ static int gpmc_remove(struct platform_device *pdev)
 	gpmc_mem_exit();
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2747,7 +2743,7 @@ MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
 
 static struct platform_driver gpmc_driver = {
 	.probe		= gpmc_probe,
-	.remove		= gpmc_remove,
+	.remove_new	= gpmc_remove,
 	.driver		= {
 		.name	= DEVICE_NAME,
 		.of_match_table = of_match_ptr(gpmc_dt_ids),

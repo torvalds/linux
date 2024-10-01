@@ -6,8 +6,6 @@
  *
  * Test for KVM_CAP_MAX_VCPUS and KVM_CAP_MAX_VCPU_ID.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,7 +63,7 @@ int main(int argc, char *argv[])
 
 			int r = setrlimit(RLIMIT_NOFILE, &rl);
 			__TEST_REQUIRE(r >= 0,
-				       "RLIMIT_NOFILE hard limit is too low (%d, wanted %d)\n",
+				       "RLIMIT_NOFILE hard limit is too low (%d, wanted %d)",
 				       old_rlim_max, nr_fds_wanted);
 		} else {
 			TEST_ASSERT(!setrlimit(RLIMIT_NOFILE, &rl), "setrlimit() failed!");

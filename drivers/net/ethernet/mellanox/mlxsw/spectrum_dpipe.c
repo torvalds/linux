@@ -283,7 +283,7 @@ static u64 mlxsw_sp_dpipe_table_erif_size_get(void *priv)
 	return MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_erif_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_erif_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_erif_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_erif_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_erif_entries_dump,
@@ -734,7 +734,7 @@ static u64 mlxsw_sp_dpipe_table_host4_size_get(void *priv)
 	return mlxsw_sp_dpipe_table_host_size_get(mlxsw_sp, AF_INET);
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_host4_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_host4_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_host4_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_host_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_host4_entries_dump,
@@ -811,7 +811,7 @@ static u64 mlxsw_sp_dpipe_table_host6_size_get(void *priv)
 	return mlxsw_sp_dpipe_table_host_size_get(mlxsw_sp, AF_INET6);
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_host6_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_host6_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_host6_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_host_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_host6_entries_dump,
@@ -1181,9 +1181,11 @@ static int mlxsw_sp_dpipe_table_adj_counters_update(void *priv, bool enable)
 	char ratr_pl[MLXSW_REG_RATR_LEN];
 	struct mlxsw_sp *mlxsw_sp = priv;
 	struct mlxsw_sp_nexthop *nh;
+	unsigned int n_done = 0;
 	u32 adj_hash_index = 0;
 	u32 adj_index = 0;
 	u32 adj_size = 0;
+	int err;
 
 	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router) {
 		if (!mlxsw_sp_nexthop_is_forward(nh) ||
@@ -1192,15 +1194,27 @@ static int mlxsw_sp_dpipe_table_adj_counters_update(void *priv, bool enable)
 
 		mlxsw_sp_nexthop_indexes(nh, &adj_index, &adj_size,
 					 &adj_hash_index);
-		if (enable)
-			mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
-		else
-			mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+		if (enable) {
+			err = mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
+			if (err)
+				goto err_counter_enable;
+		} else {
+			mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
+		}
 		mlxsw_sp_nexthop_eth_update(mlxsw_sp,
 					    adj_index + adj_hash_index, nh,
 					    true, ratr_pl);
+		n_done++;
 	}
 	return 0;
+
+err_counter_enable:
+	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router) {
+		if (!n_done--)
+			break;
+		mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
+	}
+	return err;
 }
 
 static u64
@@ -1216,7 +1230,7 @@ mlxsw_sp_dpipe_table_adj_size_get(void *priv)
 	return size;
 }
 
-static struct devlink_dpipe_table_ops mlxsw_sp_dpipe_table_adj_ops = {
+static const struct devlink_dpipe_table_ops mlxsw_sp_dpipe_table_adj_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_adj_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_adj_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_adj_entries_dump,

@@ -19,7 +19,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -161,11 +160,12 @@ struct max9286_source {
 };
 
 struct max9286_asd {
-	struct v4l2_async_subdev base;
+	struct v4l2_async_connection base;
 	struct max9286_source *source;
 };
 
-static inline struct max9286_asd *to_max9286_asd(struct v4l2_async_subdev *asd)
+static inline struct max9286_asd *
+to_max9286_asd(struct v4l2_async_connection *asd)
 {
 	return container_of(asd, struct max9286_asd, base);
 }
@@ -196,12 +196,6 @@ struct max9286_priv {
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *pixelrate_ctrl;
 	unsigned int pixelrate;
-
-	struct v4l2_mbus_framefmt fmt[MAX9286_N_SINKS];
-	struct v4l2_fract interval;
-
-	/* Protects controls and fmt structures */
-	struct mutex mutex;
 
 	unsigned int nsources;
 	unsigned int source_mask;
@@ -382,7 +376,7 @@ static int max9286_i2c_mux_init(struct max9286_priv *priv)
 	for_each_source(priv, source) {
 		unsigned int index = to_index(priv, source);
 
-		ret = i2c_mux_add_adapter(priv->mux, 0, index, 0);
+		ret = i2c_mux_add_adapter(priv->mux, 0, index);
 		if (ret < 0)
 			goto error;
 	}
@@ -575,11 +569,14 @@ static void max9286_set_video_format(struct max9286_priv *priv,
 		      MAX9286_INVVS | MAX9286_HVSRC_D14);
 }
 
-static void max9286_set_fsync_period(struct max9286_priv *priv)
+static void max9286_set_fsync_period(struct max9286_priv *priv,
+				     struct v4l2_subdev_state *state)
 {
+	const struct v4l2_fract *interval;
 	u32 fsync;
 
-	if (!priv->interval.numerator || !priv->interval.denominator) {
+	interval = v4l2_subdev_state_get_interval(state, MAX9286_SRC_PAD);
+	if (!interval->numerator || !interval->denominator) {
 		/*
 		 * Special case, a null interval enables automatic FRAMESYNC
 		 * mode. FRAMESYNC is taken from the slowest link.
@@ -595,8 +592,8 @@ static void max9286_set_fsync_period(struct max9286_priv *priv)
 	 * The FRAMESYNC generator is configured with a period expressed as a
 	 * number of PCLK periods.
 	 */
-	fsync = div_u64((u64)priv->pixelrate * priv->interval.numerator,
-			priv->interval.denominator);
+	fsync = div_u64((u64)priv->pixelrate * interval->numerator,
+			interval->denominator);
 
 	dev_dbg(&priv->client->dev, "fsync period %u (pclk %u)\n", fsync,
 		priv->pixelrate);
@@ -659,7 +656,7 @@ static int max9286_set_pixelrate(struct max9286_priv *priv)
 
 static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				struct v4l2_async_connection *asd)
 {
 	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
 	struct max9286_source *source = to_max9286_asd(asd)->source;
@@ -721,7 +718,7 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void max9286_notify_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *subdev,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
 	struct max9286_source *source = to_max9286_asd(asd)->source;
@@ -745,7 +742,7 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 	if (!priv->nsources)
 		return 0;
 
-	v4l2_async_nf_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
 
 	for_each_source(priv, source) {
 		unsigned int i = to_index(priv, source);
@@ -765,7 +762,7 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 
 	priv->notifier.ops = &max9286_notify_ops;
 
-	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret) {
 		dev_err(dev, "Failed to register subdev_notifier");
 		v4l2_async_nf_cleanup(&priv->notifier);
@@ -787,22 +784,25 @@ static void max9286_v4l2_notifier_unregister(struct max9286_priv *priv)
 static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
+	struct v4l2_subdev_state *state;
 	struct max9286_source *source;
 	unsigned int i;
 	bool sync = false;
-	int ret;
+	int ret = 0;
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	if (enable) {
 		const struct v4l2_mbus_framefmt *format;
 
 		/*
-		 * Get the format from the first used sink pad, as all sink
-		 * formats must be identical.
+		 * Get the format from the source pad, as all formats must be
+		 * identical.
 		 */
-		format = &priv->fmt[__ffs(priv->bound_sources)];
+		format = v4l2_subdev_state_get_format(state, MAX9286_SRC_PAD);
 
 		max9286_set_video_format(priv, format);
-		max9286_set_fsync_period(priv);
+		max9286_set_fsync_period(priv, state);
 
 		/*
 		 * The frame sync between cameras is transmitted across the
@@ -815,12 +815,12 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 		for_each_source(priv, source) {
 			ret = v4l2_subdev_call(source->sd, video, s_stream, 1);
 			if (ret)
-				return ret;
+				goto unlock;
 		}
 
 		ret = max9286_check_video_links(priv);
 		if (ret)
-			return ret;
+			goto unlock;
 
 		/*
 		 * Wait until frame synchronization is locked.
@@ -841,7 +841,8 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 		if (!sync) {
 			dev_err(&priv->client->dev,
 				"Failed to get frame synchronization\n");
-			return -EXDEV; /* Invalid cross-device link */
+			ret = -EXDEV; /* Invalid cross-device link */
+			goto unlock;
 		}
 
 		/*
@@ -864,31 +865,34 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 		max9286_i2c_mux_close(priv);
 	}
 
-	return 0;
+unlock:
+	v4l2_subdev_unlock_state(state);
+
+	return ret;
 }
 
-static int max9286_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *interval)
+static int max9286_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *interval)
 {
-	struct max9286_priv *priv = sd_to_max9286(sd);
-
 	if (interval->pad != MAX9286_SRC_PAD)
 		return -EINVAL;
 
-	interval->interval = priv->interval;
+	interval->interval = *v4l2_subdev_state_get_interval(sd_state,
+							     interval->pad);
 
 	return 0;
 }
 
-static int max9286_s_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *interval)
+static int max9286_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *interval)
 {
-	struct max9286_priv *priv = sd_to_max9286(sd);
-
 	if (interval->pad != MAX9286_SRC_PAD)
 		return -EINVAL;
 
-	priv->interval = interval->interval;
+	*v4l2_subdev_state_get_interval(sd_state,
+					interval->pad) = interval->interval;
 
 	return 0;
 }
@@ -897,39 +901,28 @@ static int max9286_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->pad || code->index > 0)
+	if (code->pad || code->index >= ARRAY_SIZE(max9286_formats))
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_UYVY8_1X16;
+	code->code = max9286_formats[code->index].code;
 
 	return 0;
 }
 
-static struct v4l2_mbus_framefmt *
-max9286_get_pad_format(struct max9286_priv *priv,
-		       struct v4l2_subdev_state *sd_state,
-		       unsigned int pad, u32 which)
-{
-	switch (which) {
-	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&priv->sd, sd_state, pad);
-	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return &priv->fmt[pad];
-	default:
-		return NULL;
-	}
-}
-
 static int max9286_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_state *state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
-	struct v4l2_mbus_framefmt *cfg_fmt;
+	struct max9286_source *source;
 	unsigned int i;
 
+	/*
+	 * Disable setting format on the source pad: format is propagated
+	 * from the sinks.
+	 */
 	if (format->pad == MAX9286_SRC_PAD)
-		return -EINVAL;
+		return v4l2_subdev_get_fmt(sd, state, format);
 
 	/* Validate the format. */
 	for (i = 0; i < ARRAY_SIZE(max9286_formats); ++i) {
@@ -940,56 +933,31 @@ static int max9286_set_fmt(struct v4l2_subdev *sd,
 	if (i == ARRAY_SIZE(max9286_formats))
 		format->format.code = max9286_formats[0].code;
 
-	cfg_fmt = max9286_get_pad_format(priv, sd_state, format->pad,
-					 format->which);
-	if (!cfg_fmt)
-		return -EINVAL;
-
-	mutex_lock(&priv->mutex);
-	*cfg_fmt = format->format;
-	mutex_unlock(&priv->mutex);
-
-	return 0;
-}
-
-static int max9286_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
-			   struct v4l2_subdev_format *format)
-{
-	struct max9286_priv *priv = sd_to_max9286(sd);
-	struct v4l2_mbus_framefmt *cfg_fmt;
-	unsigned int pad = format->pad;
-
 	/*
-	 * Multiplexed Stream Support: Support link validation by returning the
-	 * format of the first bound link. All links must have the same format,
-	 * as we do not support mixing and matching of cameras connected to the
-	 * max9286.
+	 * Apply the same format on all the other pad as all links must have the
+	 * same format.
 	 */
-	if (pad == MAX9286_SRC_PAD)
-		pad = __ffs(priv->bound_sources);
+	for_each_source(priv, source) {
+		unsigned int index = to_index(priv, source);
 
-	cfg_fmt = max9286_get_pad_format(priv, sd_state, pad, format->which);
-	if (!cfg_fmt)
-		return -EINVAL;
+		*v4l2_subdev_state_get_format(state, index) = format->format;
+	}
 
-	mutex_lock(&priv->mutex);
-	format->format = *cfg_fmt;
-	mutex_unlock(&priv->mutex);
+	*v4l2_subdev_state_get_format(state, MAX9286_SRC_PAD) = format->format;
 
 	return 0;
 }
 
 static const struct v4l2_subdev_video_ops max9286_video_ops = {
 	.s_stream	= max9286_s_stream,
-	.g_frame_interval = max9286_g_frame_interval,
-	.s_frame_interval = max9286_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops max9286_pad_ops = {
 	.enum_mbus_code = max9286_enum_mbus_code,
-	.get_fmt	= max9286_get_fmt,
+	.get_fmt	= v4l2_subdev_get_fmt,
 	.set_fmt	= max9286_set_fmt,
+	.get_frame_interval = max9286_get_frame_interval,
+	.set_frame_interval = max9286_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops max9286_subdev_ops = {
@@ -1008,26 +976,29 @@ static const struct v4l2_mbus_framefmt max9286_default_format = {
 	.xfer_func	= V4L2_XFER_FUNC_DEFAULT,
 };
 
-static void max9286_init_format(struct v4l2_mbus_framefmt *fmt)
+static int max9286_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state)
 {
-	*fmt = max9286_default_format;
-}
+	struct v4l2_fract *interval;
 
-static int max9286_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
-{
-	struct v4l2_mbus_framefmt *format;
-	unsigned int i;
+	for (unsigned int i = 0; i < MAX9286_N_PADS; i++)
+		*v4l2_subdev_state_get_format(state, i) = max9286_default_format;
 
-	for (i = 0; i < MAX9286_N_SINKS; i++) {
-		format = v4l2_subdev_get_try_format(subdev, fh->state, i);
-		max9286_init_format(format);
-	}
+	/*
+	 * Special case: a null interval enables automatic FRAMESYNC mode.
+	 *
+	 * FRAMESYNC is taken from the slowest link. See register 0x01
+	 * configuration.
+	 */
+	interval = v4l2_subdev_state_get_interval(state, MAX9286_SRC_PAD);
+	interval->numerator = 0;
+	interval->denominator = 0;
 
 	return 0;
 }
 
 static const struct v4l2_subdev_internal_ops max9286_subdev_internal_ops = {
-	.open = max9286_open,
+	.init_state = max9286_init_state,
 };
 
 static const struct media_entity_operations max9286_media_ops = {
@@ -1051,7 +1022,6 @@ static const struct v4l2_ctrl_ops max9286_ctrl_ops = {
 static int max9286_v4l2_register(struct max9286_priv *priv)
 {
 	struct device *dev = &priv->client->dev;
-	struct fwnode_handle *ep;
 	int ret;
 	int i;
 
@@ -1063,10 +1033,6 @@ static int max9286_v4l2_register(struct max9286_priv *priv)
 	}
 
 	/* Configure V4L2 for the MAX9286 itself */
-
-	for (i = 0; i < MAX9286_N_SINKS; i++)
-		max9286_init_format(&priv->fmt[i]);
-
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max9286_subdev_ops);
 	priv->sd.internal_ops = &max9286_subdev_internal_ops;
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1093,25 +1059,21 @@ static int max9286_v4l2_register(struct max9286_priv *priv)
 	if (ret)
 		goto err_async;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), MAX9286_SRC_PAD,
-					     0, 0);
-	if (!ep) {
-		dev_err(dev, "Unable to retrieve endpoint on \"port@4\"\n");
-		ret = -ENOENT;
+	priv->sd.state_lock = priv->ctrls.lock;
+	ret = v4l2_subdev_init_finalize(&priv->sd);
+	if (ret)
 		goto err_async;
-	}
-	priv->sd.fwnode = ep;
 
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret < 0) {
 		dev_err(dev, "Unable to register subdevice\n");
-		goto err_put_node;
+		goto err_subdev;
 	}
 
 	return 0;
 
-err_put_node:
-	fwnode_handle_put(ep);
+err_subdev:
+	v4l2_subdev_cleanup(&priv->sd);
 err_async:
 	v4l2_ctrl_handler_free(&priv->ctrls);
 	max9286_v4l2_notifier_unregister(priv);
@@ -1121,7 +1083,7 @@ err_async:
 
 static void max9286_v4l2_unregister(struct max9286_priv *priv)
 {
-	fwnode_handle_put(priv->sd.fwnode);
+	v4l2_subdev_cleanup(&priv->sd);
 	v4l2_ctrl_handler_free(&priv->ctrls);
 	v4l2_async_unregister_subdev(&priv->sd);
 	max9286_v4l2_notifier_unregister(priv);
@@ -1178,7 +1140,6 @@ static int max9286_setup(struct max9286_priv *priv)
 	max9286_write(priv, 0x69, (0xf & ~priv->route_mask));
 
 	max9286_set_video_format(priv, &max9286_default_format);
-	max9286_set_fsync_period(priv);
 
 	cfg = max9286_read(priv, 0x1c);
 	if (cfg < 0)
@@ -1461,7 +1422,6 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 
 		i2c_mux_mask |= BIT(id);
 	}
-	of_node_put(node);
 	of_node_put(i2c_mux);
 
 	/* Parse the endpoints */
@@ -1525,7 +1485,6 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 		priv->source_mask |= BIT(ep.port);
 		priv->nsources++;
 	}
-	of_node_put(node);
 
 	of_property_read_u32(dev->of_node, "maxim,bus-width", &priv->bus_width);
 	switch (priv->bus_width) {
@@ -1627,8 +1586,6 @@ static int max9286_probe(struct i2c_client *client)
 	if (!priv)
 		return -ENOMEM;
 
-	mutex_init(&priv->mutex);
-
 	priv->client = client;
 
 	/* GPIO values default to high */
@@ -1714,7 +1671,7 @@ MODULE_DEVICE_TABLE(of, max9286_dt_ids);
 static struct i2c_driver max9286_i2c_driver = {
 	.driver	= {
 		.name		= "max9286",
-		.of_match_table	= of_match_ptr(max9286_dt_ids),
+		.of_match_table	= max9286_dt_ids,
 	},
 	.probe		= max9286_probe,
 	.remove		= max9286_remove,

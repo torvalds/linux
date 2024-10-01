@@ -73,7 +73,7 @@ enum dentist_divider_range {
 	clk_mgr->base.ctx
 
 #define DC_LOGGER \
-	clk_mgr->base.ctx->logger
+	dc->ctx->logger
 
 
 
@@ -97,11 +97,6 @@ enum dentist_divider_range {
 #define CLK_COMMON_REG_LIST_DCN_BASE() \
 	SR(DENTIST_DISPCLK_CNTL)
 
-#define VBIOS_SMU_MSG_BOX_REG_LIST_RV() \
-	.MP1_SMN_C2PMSG_91 = mmMP1_SMN_C2PMSG_91, \
-	.MP1_SMN_C2PMSG_83 = mmMP1_SMN_C2PMSG_83, \
-	.MP1_SMN_C2PMSG_67 = mmMP1_SMN_C2PMSG_67
-
 #define CLK_COMMON_REG_LIST_DCN_201() \
 	SR(DENTIST_DISPCLK_CNTL), \
 	CLK_SRI(CLK4_CLK_PLL_REQ, CLK4, 0), \
@@ -113,7 +108,7 @@ enum dentist_divider_range {
 	CLK_SRI(CLK3_CLK2_DFS_CNTL, CLK3, 0)
 
 #define CLK_REG_LIST_DCN3()	  \
-	CLK_COMMON_REG_LIST_DCN_BASE(), \
+	SR(DENTIST_DISPCLK_CNTL), \
 	CLK_SRI(CLK0_CLK_PLL_REQ,   CLK02, 0), \
 	CLK_SRI(CLK0_CLK2_DFS_CNTL, CLK02, 0)
 
@@ -163,7 +158,13 @@ enum dentist_divider_range {
 	CLK_SR_DCN32(CLK1_CLK1_DFS_CNTL), \
 	CLK_SR_DCN32(CLK1_CLK2_DFS_CNTL), \
 	CLK_SR_DCN32(CLK1_CLK3_DFS_CNTL), \
-	CLK_SR_DCN32(CLK1_CLK4_DFS_CNTL)
+	CLK_SR_DCN32(CLK1_CLK4_DFS_CNTL), \
+    CLK_SR_DCN32(CLK1_CLK0_CURRENT_CNT), \
+    CLK_SR_DCN32(CLK1_CLK1_CURRENT_CNT), \
+    CLK_SR_DCN32(CLK1_CLK2_CURRENT_CNT), \
+    CLK_SR_DCN32(CLK1_CLK3_CURRENT_CNT), \
+    CLK_SR_DCN32(CLK1_CLK4_CURRENT_CNT), \
+    CLK_SR_DCN32(CLK4_CLK0_CURRENT_CNT)
 
 #define CLK_COMMON_MASK_SH_LIST_DCN32(mask_sh) \
 	CLK_COMMON_MASK_SH_LIST_DCN20_BASE(mask_sh),\
@@ -184,43 +185,44 @@ enum dentist_divider_range {
 	CLK_SF(CLK0_CLK_PLL_REQ, FbMult_int, mask_sh),\
 	CLK_SF(CLK0_CLK_PLL_REQ, FbMult_frac, mask_sh)
 
+#define CLK_REG_LIST_DCN401()	  \
+	CLK_SR_DCN401(CLK0_CLK_PLL_REQ,   CLK01, 0), \
+	CLK_SR_DCN401(CLK0_CLK0_DFS_CNTL, CLK01, 0), \
+	CLK_SR_DCN401(CLK0_CLK1_DFS_CNTL,  CLK01, 0), \
+	CLK_SR_DCN401(CLK0_CLK2_DFS_CNTL,  CLK01, 0), \
+	CLK_SR_DCN401(CLK0_CLK3_DFS_CNTL,  CLK01, 0), \
+	CLK_SR_DCN401(CLK0_CLK4_DFS_CNTL,  CLK01, 0), \
+	CLK_SR_DCN401(CLK2_CLK2_DFS_CNTL,  CLK20, 0)
+
+#define CLK_COMMON_MASK_SH_LIST_DCN401(mask_sh) \
+	CLK_COMMON_MASK_SH_LIST_DCN321(mask_sh)
+
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
 	type DENTIST_DPREFCLK_WDIVIDER; \
 	type DENTIST_DISPCLK_WDIVIDER; \
 	type DENTIST_DISPCLK_CHG_DONE;
 
-/*
- ***************************************************************************************
- ****************** Clock Manager Private Structures ***********************************
- ***************************************************************************************
- */
 #define CLK20_REG_FIELD_LIST(type) \
 	type DENTIST_DPPCLK_WDIVIDER; \
 	type DENTIST_DPPCLK_CHG_DONE; \
 	type FbMult_int; \
 	type FbMult_frac;
 
-#define VBIOS_SMU_REG_FIELD_LIST(type) \
-	type CONTENT;
-
-struct clk_mgr_shift {
-	CLK_REG_FIELD_LIST(uint8_t)
-	CLK20_REG_FIELD_LIST(uint8_t)
-	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
-};
-
-struct clk_mgr_mask {
-	CLK_REG_FIELD_LIST(uint32_t)
-	CLK20_REG_FIELD_LIST(uint32_t)
-	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
-};
+/*
+ ***************************************************************************************
+ ****************** Clock Manager Private Structures ***********************************
+ ***************************************************************************************
+ */
 
 struct clk_mgr_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
+
 	uint32_t CLK4_CLK2_CURRENT_CNT;
 	uint32_t CLK4_CLK_PLL_REQ;
+
+	uint32_t CLK4_CLK0_CURRENT_CNT;
 
 	uint32_t CLK3_CLK2_DFS_CNTL;
 	uint32_t CLK3_CLK_PLL_REQ;
@@ -234,15 +236,28 @@ struct clk_mgr_registers {
 	uint32_t CLK1_CLK2_DFS_CNTL;
 	uint32_t CLK1_CLK3_DFS_CNTL;
 	uint32_t CLK1_CLK4_DFS_CNTL;
+	uint32_t CLK2_CLK2_DFS_CNTL;
+
+	uint32_t CLK1_CLK0_CURRENT_CNT;
+    uint32_t CLK1_CLK1_CURRENT_CNT;
+    uint32_t CLK1_CLK2_CURRENT_CNT;
+    uint32_t CLK1_CLK3_CURRENT_CNT;
+    uint32_t CLK1_CLK4_CURRENT_CNT;
 
 	uint32_t CLK0_CLK0_DFS_CNTL;
 	uint32_t CLK0_CLK1_DFS_CNTL;
 	uint32_t CLK0_CLK3_DFS_CNTL;
 	uint32_t CLK0_CLK4_DFS_CNTL;
+};
 
-	uint32_t MP1_SMN_C2PMSG_67;
-	uint32_t MP1_SMN_C2PMSG_83;
-	uint32_t MP1_SMN_C2PMSG_91;
+struct clk_mgr_shift {
+	CLK_REG_FIELD_LIST(uint8_t)
+	CLK20_REG_FIELD_LIST(uint8_t)
+};
+
+struct clk_mgr_mask {
+	CLK_REG_FIELD_LIST(uint32_t)
+	CLK20_REG_FIELD_LIST(uint32_t)
 };
 
 enum clock_type {
@@ -335,13 +350,14 @@ struct clk_mgr_internal {
 	enum dm_pp_clocks_state cur_min_clks_state;
 	bool periodic_retraining_disabled;
 
-	unsigned int cur_phyclk_req_table[MAX_PIPES * 2];
+	unsigned int cur_phyclk_req_table[MAX_LINKS];
 
 	bool smu_present;
 	void *wm_range_table;
 	long long wm_range_table_addr;
 
 	bool dpm_present;
+	bool pme_trigger_pending;
 };
 
 struct clk_mgr_internal_funcs {
@@ -377,6 +393,11 @@ static inline bool should_update_pstate_support(bool safe_to_lower, bool calc_su
 static inline int khz_to_mhz_ceil(int khz)
 {
 	return (khz + 999) / 1000;
+}
+
+static inline int khz_to_mhz_floor(int khz)
+{
+	return khz / 1000;
 }
 
 int clk_mgr_helper_get_active_display_cnt(

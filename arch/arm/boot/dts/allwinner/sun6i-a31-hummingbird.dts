@@ -109,7 +109,7 @@
 		};
 	};
 
-	reg_vga_3v3: vga_3v3_regulator {
+	reg_vga_3v3: vga-3v3-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vga-3v3";
 		regulator-min-microvolt = <3300000>;
@@ -119,7 +119,7 @@
 		gpio = <&pio 7 25 GPIO_ACTIVE_HIGH>; /* PH25 */
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&pio 6 10 GPIO_ACTIVE_LOW>; /* PG10 */
 	};

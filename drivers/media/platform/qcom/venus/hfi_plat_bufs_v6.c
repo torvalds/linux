@@ -1063,51 +1063,51 @@ struct enc_bufsize_ops {
 	u32 (*persist)(void);
 };
 
-static struct dec_bufsize_ops dec_h264_ops = {
+static const struct dec_bufsize_ops dec_h264_ops = {
 	.scratch = h264d_scratch_size,
 	.scratch1 = h264d_scratch1_size,
 	.persist1 = h264d_persist1_size,
 };
 
-static struct dec_bufsize_ops dec_h265_ops = {
+static const struct dec_bufsize_ops dec_h265_ops = {
 	.scratch = h265d_scratch_size,
 	.scratch1 = h265d_scratch1_size,
 	.persist1 = h265d_persist1_size,
 };
 
-static struct dec_bufsize_ops dec_vp8_ops = {
+static const struct dec_bufsize_ops dec_vp8_ops = {
 	.scratch = vpxd_scratch_size,
 	.scratch1 = vp8d_scratch1_size,
 	.persist1 = vp8d_persist1_size,
 };
 
-static struct dec_bufsize_ops dec_vp9_ops = {
+static const struct dec_bufsize_ops dec_vp9_ops = {
 	.scratch = vpxd_scratch_size,
 	.scratch1 = vp9d_scratch1_size,
 	.persist1 = vp9d_persist1_size,
 };
 
-static struct dec_bufsize_ops dec_mpeg2_ops = {
+static const struct dec_bufsize_ops dec_mpeg2_ops = {
 	.scratch = mpeg2d_scratch_size,
 	.scratch1 = mpeg2d_scratch1_size,
 	.persist1 = mpeg2d_persist1_size,
 };
 
-static struct enc_bufsize_ops enc_h264_ops = {
+static const struct enc_bufsize_ops enc_h264_ops = {
 	.scratch = h264e_scratch_size,
 	.scratch1 = h264e_scratch1_size,
 	.scratch2 = enc_scratch2_size,
 	.persist = enc_persist_size,
 };
 
-static struct enc_bufsize_ops enc_h265_ops = {
+static const struct enc_bufsize_ops enc_h265_ops = {
 	.scratch = h265e_scratch_size,
 	.scratch1 = h265e_scratch1_size,
 	.scratch2 = enc_scratch2_size,
 	.persist = enc_persist_size,
 };
 
-static struct enc_bufsize_ops enc_vp8_ops = {
+static const struct enc_bufsize_ops enc_vp8_ops = {
 	.scratch = vp8e_scratch_size,
 	.scratch1 = vp8e_scratch1_size,
 	.scratch2 = enc_scratch2_size,
@@ -1186,7 +1186,7 @@ static int bufreq_dec(struct hfi_plat_buffers_params *params, u32 buftype,
 	u32 codec = params->codec;
 	u32 width = params->width, height = params->height, out_min_count;
 	u32 out_width = params->out_width, out_height = params->out_height;
-	struct dec_bufsize_ops *dec_ops;
+	const struct dec_bufsize_ops *dec_ops;
 	bool is_secondary_output = params->dec.is_secondary_output;
 	bool is_interlaced = params->dec.is_interlaced;
 	u32 max_mbs_per_frame = params->dec.max_mbs_per_frame;
@@ -1215,24 +1215,24 @@ static int bufreq_dec(struct hfi_plat_buffers_params *params, u32 buftype,
 
 	out_min_count = output_buffer_count(VIDC_SESSION_TYPE_DEC, codec);
 	/* Max of driver and FW count */
-	out_min_count = max(out_min_count, bufreq->count_min);
+	out_min_count = max(out_min_count, hfi_bufreq_get_count_min(bufreq, version));
 
 	bufreq->type = buftype;
 	bufreq->region_size = 0;
-	bufreq->count_min = 1;
 	bufreq->count_actual = 1;
-	bufreq->hold_count = 1;
+	hfi_bufreq_set_count_min(bufreq, version, 1);
+	hfi_bufreq_set_hold_count(bufreq, version, 1);
 	bufreq->contiguous = 1;
 	bufreq->alignment = 256;
 
 	if (buftype == HFI_BUFFER_INPUT) {
-		bufreq->count_min = MIN_INPUT_BUFFERS;
+		hfi_bufreq_set_count_min(bufreq, version, MIN_INPUT_BUFFERS);
 		bufreq->size =
 			calculate_dec_input_frame_size(width, height, codec,
 						       max_mbs_per_frame,
 						       buffer_size_limit);
 	} else if (buftype == HFI_BUFFER_OUTPUT || buftype == HFI_BUFFER_OUTPUT2) {
-		bufreq->count_min = out_min_count;
+		hfi_bufreq_set_count_min(bufreq, version, out_min_count);
 		bufreq->size =
 			venus_helper_get_framesz_raw(params->hfi_color_fmt,
 						     out_width, out_height);
@@ -1260,7 +1260,7 @@ static int bufreq_enc(struct hfi_plat_buffers_params *params, u32 buftype,
 		      struct hfi_buffer_requirements *bufreq)
 {
 	enum hfi_version version = params->version;
-	struct enc_bufsize_ops *enc_ops;
+	const struct enc_bufsize_ops *enc_ops;
 	u32 width = params->width;
 	u32 height = params->height;
 	bool is_tenbit = params->enc.is_tenbit;
@@ -1269,7 +1269,7 @@ static int bufreq_enc(struct hfi_plat_buffers_params *params, u32 buftype,
 	u32 work_mode = params->enc.work_mode;
 	u32 rc_type = params->enc.rc_type;
 	u32 num_vpp_pipes = params->num_vpp_pipes;
-	u32 num_ref;
+	u32 num_ref, count_min;
 
 	switch (codec) {
 	case V4L2_PIX_FMT_H264:
@@ -1289,21 +1289,21 @@ static int bufreq_enc(struct hfi_plat_buffers_params *params, u32 buftype,
 
 	bufreq->type = buftype;
 	bufreq->region_size = 0;
-	bufreq->count_min = 1;
 	bufreq->count_actual = 1;
-	bufreq->hold_count = 1;
+	hfi_bufreq_set_count_min(bufreq, version, 1);
+	hfi_bufreq_set_hold_count(bufreq, version, 1);
 	bufreq->contiguous = 1;
 	bufreq->alignment = 256;
 
 	if (buftype == HFI_BUFFER_INPUT) {
-		bufreq->count_min = MIN_INPUT_BUFFERS;
+		hfi_bufreq_set_count_min(bufreq, version, MIN_INPUT_BUFFERS);
 		bufreq->size =
 			venus_helper_get_framesz_raw(params->hfi_color_fmt,
 						     width, height);
 	} else if (buftype == HFI_BUFFER_OUTPUT ||
 		   buftype == HFI_BUFFER_OUTPUT2) {
-		bufreq->count_min =
-			output_buffer_count(VIDC_SESSION_TYPE_ENC, codec);
+		count_min = output_buffer_count(VIDC_SESSION_TYPE_ENC, codec);
+		hfi_bufreq_set_count_min(bufreq, version, count_min);
 		bufreq->size = calculate_enc_output_frame_size(width, height,
 							       rc_type);
 	} else if (buftype == HFI_BUFFER_INTERNAL_SCRATCH(version)) {

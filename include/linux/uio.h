@@ -11,6 +11,7 @@
 #include <uapi/linux/uio.h>
 
 struct page;
+struct folio_queue;
 
 typedef unsigned int __bitwise iov_iter_extraction_t;
 
@@ -21,12 +22,13 @@ struct kvec {
 
 enum iter_type {
 	/* iter types */
+	ITER_UBUF,
 	ITER_IOVEC,
-	ITER_KVEC,
 	ITER_BVEC,
+	ITER_KVEC,
+	ITER_FOLIOQ,
 	ITER_XARRAY,
 	ITER_DISCARD,
-	ITER_UBUF,
 };
 
 #define ITER_SOURCE	1	// == WRITE
@@ -40,14 +42,9 @@ struct iov_iter_state {
 
 struct iov_iter {
 	u8 iter_type;
-	bool copy_mc;
 	bool nofault;
 	bool data_source;
-	bool user_backed;
-	union {
-		size_t iov_offset;
-		int last_offset;
-	};
+	size_t iov_offset;
 	/*
 	 * Hack alert: overlay ubuf_iovec with iovec + count, so
 	 * that the members resolve correctly regardless of the type
@@ -71,6 +68,7 @@ struct iov_iter {
 				const struct iovec *__iov;
 				const struct kvec *kvec;
 				const struct bio_vec *bvec;
+				const struct folio_queue *folioq;
 				struct xarray *xarray;
 				void __user *ubuf;
 			};
@@ -79,6 +77,7 @@ struct iov_iter {
 	};
 	union {
 		unsigned long nr_segs;
+		u8 folioq_slot;
 		loff_t xarray_start;
 	};
 };
@@ -131,6 +130,11 @@ static inline bool iov_iter_is_discard(const struct iov_iter *i)
 	return iov_iter_type(i) == ITER_DISCARD;
 }
 
+static inline bool iov_iter_is_folioq(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_FOLIOQ;
+}
+
 static inline bool iov_iter_is_xarray(const struct iov_iter *i)
 {
 	return iov_iter_type(i) == ITER_XARRAY;
@@ -143,7 +147,7 @@ static inline unsigned char iov_iter_rw(const struct iov_iter *i)
 
 static inline bool user_backed_iter(const struct iov_iter *i)
 {
-	return i->user_backed;
+	return iter_is_ubuf(i) || iter_is_iovec(i);
 }
 
 /*
@@ -163,7 +167,7 @@ static inline size_t iov_length(const struct iovec *iov, unsigned long nr_segs)
 	return ret;
 }
 
-size_t copy_page_from_iter_atomic(struct page *page, unsigned offset,
+size_t copy_page_from_iter_atomic(struct page *page, size_t offset,
 				  size_t bytes, struct iov_iter *i);
 void iov_iter_advance(struct iov_iter *i, size_t bytes);
 void iov_iter_revert(struct iov_iter *i, size_t bytes);
@@ -184,6 +188,19 @@ static inline size_t copy_folio_to_iter(struct folio *folio, size_t offset,
 {
 	return copy_page_to_iter(&folio->page, offset, bytes, i);
 }
+
+static inline size_t copy_folio_from_iter(struct folio *folio, size_t offset,
+					  size_t bytes, struct iov_iter *i)
+{
+	return copy_page_from_iter(&folio->page, offset, bytes, i);
+}
+
+static inline size_t copy_folio_from_iter_atomic(struct folio *folio,
+		size_t offset, size_t bytes, struct iov_iter *i)
+{
+	return copy_page_from_iter_atomic(&folio->page, offset, bytes, i);
+}
+
 size_t copy_page_to_iter_nofault(struct page *page, unsigned offset,
 				 size_t bytes, struct iov_iter *i);
 
@@ -201,6 +218,16 @@ size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 	if (check_copy_size(addr, bytes, false))
 		return _copy_from_iter(addr, bytes, i);
 	return 0;
+}
+
+static __always_inline __must_check
+bool copy_to_iter_full(const void *addr, size_t bytes, struct iov_iter *i)
+{
+	size_t copied = copy_to_iter(addr, bytes, i);
+	if (likely(copied == bytes))
+		return true;
+	iov_iter_revert(i, copied);
+	return false;
 }
 
 static __always_inline __must_check
@@ -245,22 +272,8 @@ size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i);
 
 #ifdef CONFIG_ARCH_HAS_COPY_MC
 size_t _copy_mc_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
-static inline void iov_iter_set_copy_mc(struct iov_iter *i)
-{
-	i->copy_mc = true;
-}
-
-static inline bool iov_iter_is_copy_mc(const struct iov_iter *i)
-{
-	return i->copy_mc;
-}
 #else
 #define _copy_mc_to_iter _copy_to_iter
-static inline void iov_iter_set_copy_mc(struct iov_iter *i) { }
-static inline bool iov_iter_is_copy_mc(const struct iov_iter *i)
-{
-	return false;
-}
 #endif
 
 size_t iov_iter_zero(size_t bytes, struct iov_iter *);
@@ -275,6 +288,9 @@ void iov_iter_kvec(struct iov_iter *i, unsigned int direction, const struct kvec
 void iov_iter_bvec(struct iov_iter *i, unsigned int direction, const struct bio_vec *bvec,
 			unsigned long nr_segs, size_t count);
 void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count);
+void iov_iter_folio_queue(struct iov_iter *i, unsigned int direction,
+			  const struct folio_queue *folioq,
+			  unsigned int first_slot, unsigned int offset, size_t count);
 void iov_iter_xarray(struct iov_iter *i, unsigned int direction, struct xarray *xarray,
 		     loff_t start, size_t count);
 ssize_t iov_iter_get_pages2(struct iov_iter *i, struct page **pages,
@@ -335,27 +351,6 @@ iov_iter_npages_cap(struct iov_iter *i, int maxpages, size_t max_bytes)
 	return npages;
 }
 
-struct csum_state {
-	__wsum csum;
-	size_t off;
-};
-
-size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csstate, struct iov_iter *i);
-size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
-
-static __always_inline __must_check
-bool csum_and_copy_from_iter_full(void *addr, size_t bytes,
-				  __wsum *csum, struct iov_iter *i)
-{
-	size_t copied = csum_and_copy_from_iter(addr, bytes, csum, i);
-	if (likely(copied == bytes))
-		return true;
-	iov_iter_revert(i, copied);
-	return false;
-}
-size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
-		struct iov_iter *i);
-
 struct iovec *iovec_from_user(const struct iovec __user *uvector,
 		unsigned long nr_segs, unsigned long fast_segs,
 		struct iovec *fast_iov, bool compat);
@@ -365,8 +360,6 @@ ssize_t import_iovec(int type, const struct iovec __user *uvec,
 ssize_t __import_iovec(int type, const struct iovec __user *uvec,
 		 unsigned nr_segs, unsigned fast_segs, struct iovec **iovp,
 		 struct iov_iter *i, bool compat);
-int import_single_range(int type, void __user *buf, size_t len,
-		 struct iovec *iov, struct iov_iter *i);
 int import_ubuf(int type, void __user *buf, size_t len, struct iov_iter *i);
 
 static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
@@ -375,8 +368,6 @@ static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter) {
 		.iter_type = ITER_UBUF,
-		.copy_mc = false,
-		.user_backed = true,
 		.data_source = direction,
 		.ubuf = buf,
 		.count = count,

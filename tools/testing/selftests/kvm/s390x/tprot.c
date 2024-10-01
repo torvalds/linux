@@ -4,14 +4,13 @@
  *
  * Copyright IBM Corp. 2021
  */
-
 #include <sys/mman.h>
 #include "test_util.h"
 #include "kvm_util.h"
 #include "kselftest.h"
+#include "ucall_common.h"
+#include "processor.h"
 
-#define PAGE_SHIFT 12
-#define PAGE_SIZE (1 << PAGE_SHIFT)
 #define CR0_FETCH_PROTECTION_OVERRIDE	(1UL << (63 - 38))
 #define CR0_STORAGE_PROTECTION_OVERRIDE	(1UL << (63 - 39))
 
@@ -151,12 +150,14 @@ static enum stage perform_next_stage(int *i, bool mapped_0)
 		 * instead.
 		 * In order to skip these tests we detect this inside the guest
 		 */
-		skip = tests[*i].addr < (void *)4096 &&
+		skip = tests[*i].addr < (void *)PAGE_SIZE &&
 		       tests[*i].expected != TRANSL_UNAVAIL &&
 		       !mapped_0;
 		if (!skip) {
 			result = test_protection(tests[*i].addr, tests[*i].key);
-			GUEST_ASSERT_2(result == tests[*i].expected, *i, result);
+			__GUEST_ASSERT(result == tests[*i].expected,
+				       "Wanted %u, got %u, for i = %u",
+				       tests[*i].expected, result, *i);
 		}
 	}
 	return stage;
@@ -190,9 +191,9 @@ static void guest_code(void)
 	vcpu_run(__vcpu);					\
 	get_ucall(__vcpu, &uc);					\
 	if (uc.cmd == UCALL_ABORT)				\
-		REPORT_GUEST_ASSERT_2(uc, "hints: %lu, %lu");	\
-	ASSERT_EQ(uc.cmd, UCALL_SYNC);				\
-	ASSERT_EQ(uc.args[1], __stage);				\
+		REPORT_GUEST_ASSERT(uc);			\
+	TEST_ASSERT_EQ(uc.cmd, UCALL_SYNC);			\
+	TEST_ASSERT_EQ(uc.args[1], __stage);			\
 })
 
 #define HOST_SYNC(vcpu, stage)			\

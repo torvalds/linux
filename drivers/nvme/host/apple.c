@@ -797,6 +797,7 @@ static int apple_nvme_init_request(struct blk_mq_tag_set *set,
 
 static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 {
+	enum nvme_ctrl_state state = nvme_ctrl_state(&anv->ctrl);
 	u32 csts = readl(anv->mmio_nvme + NVME_REG_CSTS);
 	bool dead = false, freeze = false;
 	unsigned long flags;
@@ -808,8 +809,8 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	if (csts & NVME_CSTS_CFS)
 		dead = true;
 
-	if (anv->ctrl.state == NVME_CTRL_LIVE ||
-	    anv->ctrl.state == NVME_CTRL_RESETTING) {
+	if (state == NVME_CTRL_LIVE ||
+	    state == NVME_CTRL_RESETTING) {
 		freeze = true;
 		nvme_start_freeze(&anv->ctrl);
 	}
@@ -881,7 +882,7 @@ static enum blk_eh_timer_return apple_nvme_timeout(struct request *req)
 	unsigned long flags;
 	u32 csts = readl(anv->mmio_nvme + NVME_REG_CSTS);
 
-	if (anv->ctrl.state != NVME_CTRL_LIVE) {
+	if (nvme_ctrl_state(&anv->ctrl) != NVME_CTRL_LIVE) {
 		/*
 		 * From rdma.c:
 		 * If we are resetting, connecting or deleting we should
@@ -985,10 +986,10 @@ static void apple_nvme_reset_work(struct work_struct *work)
 	u32 boot_status, aqa;
 	struct apple_nvme *anv =
 		container_of(work, struct apple_nvme, ctrl.reset_work);
+	enum nvme_ctrl_state state = nvme_ctrl_state(&anv->ctrl);
 
-	if (anv->ctrl.state != NVME_CTRL_RESETTING) {
-		dev_warn(anv->dev, "ctrl state %d is not RESETTING\n",
-			 anv->ctrl.state);
+	if (state != NVME_CTRL_RESETTING) {
+		dev_warn(anv->dev, "ctrl state %d is not RESETTING\n", state);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -1387,7 +1388,7 @@ static void devm_apple_nvme_mempool_destroy(void *data)
 	mempool_destroy(data);
 }
 
-static int apple_nvme_probe(struct platform_device *pdev)
+static struct apple_nvme *apple_nvme_alloc(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct apple_nvme *anv;
@@ -1395,7 +1396,7 @@ static int apple_nvme_probe(struct platform_device *pdev)
 
 	anv = devm_kzalloc(dev, sizeof(*anv), GFP_KERNEL);
 	if (!anv)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	anv->dev = get_device(dev);
 	anv->adminq.is_adminq = true;
@@ -1515,10 +1516,30 @@ static int apple_nvme_probe(struct platform_device *pdev)
 		goto put_dev;
 	}
 
-	anv->ctrl.admin_q = blk_mq_init_queue(&anv->admin_tagset);
+	return anv;
+put_dev:
+	put_device(anv->dev);
+	return ERR_PTR(ret);
+}
+
+static int apple_nvme_probe(struct platform_device *pdev)
+{
+	struct apple_nvme *anv;
+	int ret;
+
+	anv = apple_nvme_alloc(pdev);
+	if (IS_ERR(anv))
+		return PTR_ERR(anv);
+
+	ret = nvme_add_ctrl(&anv->ctrl);
+	if (ret)
+		goto out_put_ctrl;
+
+	anv->ctrl.admin_q = blk_mq_alloc_queue(&anv->admin_tagset, NULL, NULL);
 	if (IS_ERR(anv->ctrl.admin_q)) {
 		ret = -ENOMEM;
-		goto put_dev;
+		anv->ctrl.admin_q = NULL;
+		goto out_uninit_ctrl;
 	}
 
 	nvme_reset_ctrl(&anv->ctrl);
@@ -1526,12 +1547,14 @@ static int apple_nvme_probe(struct platform_device *pdev)
 
 	return 0;
 
-put_dev:
-	put_device(anv->dev);
+out_uninit_ctrl:
+	nvme_uninit_ctrl(&anv->ctrl);
+out_put_ctrl:
+	nvme_put_ctrl(&anv->ctrl);
 	return ret;
 }
 
-static int apple_nvme_remove(struct platform_device *pdev)
+static void apple_nvme_remove(struct platform_device *pdev)
 {
 	struct apple_nvme *anv = platform_get_drvdata(pdev);
 
@@ -1546,8 +1569,6 @@ static int apple_nvme_remove(struct platform_device *pdev)
 		apple_rtkit_shutdown(anv->rtk);
 
 	apple_nvme_detach_genpd(anv);
-
-	return 0;
 }
 
 static void apple_nvme_shutdown(struct platform_device *pdev)
@@ -1597,10 +1618,11 @@ static struct platform_driver apple_nvme_driver = {
 		.pm = pm_sleep_ptr(&apple_nvme_pm_ops),
 	},
 	.probe = apple_nvme_probe,
-	.remove = apple_nvme_remove,
+	.remove_new = apple_nvme_remove,
 	.shutdown = apple_nvme_shutdown,
 };
 module_platform_driver(apple_nvme_driver);
 
 MODULE_AUTHOR("Sven Peter <sven@svenpeter.dev>");
+MODULE_DESCRIPTION("Apple ANS NVM Express device driver");
 MODULE_LICENSE("GPL");

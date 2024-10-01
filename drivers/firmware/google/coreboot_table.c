@@ -22,14 +22,23 @@
 #include "coreboot_table.h"
 
 #define CB_DEV(d) container_of(d, struct coreboot_device, dev)
-#define CB_DRV(d) container_of(d, struct coreboot_driver, drv)
+#define CB_DRV(d) container_of_const(d, struct coreboot_driver, drv)
 
-static int coreboot_bus_match(struct device *dev, struct device_driver *drv)
+static int coreboot_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct coreboot_device *device = CB_DEV(dev);
-	struct coreboot_driver *driver = CB_DRV(drv);
+	const struct coreboot_driver *driver = CB_DRV(drv);
+	const struct coreboot_device_id *id;
 
-	return device->entry.tag == driver->tag;
+	if (!driver->id_table)
+		return 0;
+
+	for (id = driver->id_table; id->tag; id++) {
+		if (device->entry.tag == id->tag)
+			return 1;
+	}
+
+	return 0;
 }
 
 static int coreboot_bus_probe(struct device *dev)
@@ -53,11 +62,20 @@ static void coreboot_bus_remove(struct device *dev)
 		driver->remove(device);
 }
 
-static struct bus_type coreboot_bus_type = {
+static int coreboot_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
+{
+	struct coreboot_device *device = CB_DEV(dev);
+	u32 tag = device->entry.tag;
+
+	return add_uevent_var(env, "MODALIAS=coreboot:t%08X", tag);
+}
+
+static const struct bus_type coreboot_bus_type = {
 	.name		= "coreboot",
 	.match		= coreboot_bus_match,
 	.probe		= coreboot_bus_probe,
 	.remove		= coreboot_bus_remove,
+	.uevent		= coreboot_bus_uevent,
 };
 
 static void coreboot_device_release(struct device *dev)
@@ -67,13 +85,15 @@ static void coreboot_device_release(struct device *dev)
 	kfree(device);
 }
 
-int coreboot_driver_register(struct coreboot_driver *driver)
+int __coreboot_driver_register(struct coreboot_driver *driver,
+			       struct module *owner)
 {
 	driver->drv.bus = &coreboot_bus_type;
+	driver->drv.owner = owner;
 
 	return driver_register(&driver->drv);
 }
-EXPORT_SYMBOL(coreboot_driver_register);
+EXPORT_SYMBOL(__coreboot_driver_register);
 
 void coreboot_driver_unregister(struct coreboot_driver *driver)
 {
@@ -176,10 +196,9 @@ static int __cb_dev_unregister(struct device *dev, void *dummy)
 	return 0;
 }
 
-static int coreboot_table_remove(struct platform_device *pdev)
+static void coreboot_table_remove(struct platform_device *pdev)
 {
 	bus_for_each_dev(&coreboot_bus_type, NULL, NULL, __cb_dev_unregister);
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -201,7 +220,7 @@ MODULE_DEVICE_TABLE(of, coreboot_of_match);
 
 static struct platform_driver coreboot_table_driver = {
 	.probe = coreboot_table_probe,
-	.remove = coreboot_table_remove,
+	.remove_new = coreboot_table_remove,
 	.driver = {
 		.name = "coreboot_table",
 		.acpi_match_table = ACPI_PTR(cros_coreboot_acpi_match),
@@ -236,4 +255,5 @@ module_init(coreboot_table_driver_init);
 module_exit(coreboot_table_driver_exit);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("Module providing coreboot table access");
 MODULE_LICENSE("GPL");

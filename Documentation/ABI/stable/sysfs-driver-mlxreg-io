@@ -662,3 +662,56 @@ Description:	This file shows the system reset cause due to AC power failure.
 		Value 1 in file means this is reset cause, 0 - otherwise.
 
 		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld5_pn
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld5_version
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld5_version_min
+Date:		August 2023
+KernelVersion:	6.6
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files show with which CPLD part numbers, version and minor
+		versions have been burned the 5-th CPLD device equipped on a
+		system.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_cap
+Date:		August 2023
+KernelVersion:	6.6
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file indicates the available method of CPLD/FPGA devices
+		field update through the JTAG chain:
+
+		b00 - field update through LPC bus register memory space.
+		b01 - Reserved.
+		b10 - Reserved.
+		b11 - field update through CPU GPIOs bit-banging.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/lid_open
+Date:		August 2023
+KernelVersion:	6.6
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	1 - indicates that system lid is opened, otherwise 0.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_long_pwr_pb
+Date:		August 2023
+KernelVersion:	6.6
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file if set 1 indicates that system has been reset by
+		long press of power button.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_swb_dc_dc_pwr_fail
+Date:		August 2023
+KernelVersion:	6.6
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file shows 1 in case the system reset happened due to the
+		failure of any DC-DC power converter devices equipped on the
+		switch board.
+
+		The file is read only.

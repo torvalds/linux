@@ -162,8 +162,10 @@ Base 2 log and power Functions
 .. kernel-doc:: include/linux/log2.h
    :internal:
 
-Integer power Functions
------------------------
+Integer log and power Functions
+-------------------------------
+
+.. kernel-doc:: include/linux/int_log.h
 
 .. kernel-doc:: lib/math/int_pow.c
    :export:

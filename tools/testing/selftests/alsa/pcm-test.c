@@ -24,6 +24,8 @@ typedef struct timespec timestamp_t;
 
 struct card_data {
 	int card;
+	snd_ctl_card_info_t *info;
+	const char *name;
 	pthread_t thread;
 	struct card_data *next;
 };
@@ -35,6 +37,7 @@ struct pcm_data {
 	int card;
 	int device;
 	int subdevice;
+	const char *card_name;
 	snd_pcm_stream_t stream;
 	snd_config_t *pcm_config;
 	struct pcm_data *next;
@@ -167,6 +170,10 @@ static void find_pcms(void)
 	config = get_alsalib_config();
 
 	while (card >= 0) {
+		card_data = calloc(1, sizeof(*card_data));
+		if (!card_data)
+			ksft_exit_fail_msg("Out of memory\n");
+
 		sprintf(name, "hw:%d", card);
 
 		err = snd_ctl_open_lconf(&handle, name, 0, config);
@@ -182,14 +189,29 @@ static void find_pcms(void)
 		err = snd_card_get_longname(card, &card_longname);
 		if (err != 0)
 			card_longname = "Unknown";
-		ksft_print_msg("Card %d - %s (%s)\n", card,
-			       card_name, card_longname);
+
+		err = snd_ctl_card_info_malloc(&card_data->info);
+		if (err != 0)
+			ksft_exit_fail_msg("Failed to allocate card info: %d\n",
+				err);
+
+		err = snd_ctl_card_info(handle, card_data->info);
+		if (err == 0) {
+			card_data->name = snd_ctl_card_info_get_id(card_data->info);
+			if (!card_data->name)
+				ksft_print_msg("Failed to get card ID\n");
+		} else {
+			ksft_print_msg("Failed to get card info: %d\n", err);
+		}
+
+		if (!card_data->name)
+			card_data->name = "Unknown";
+
+		ksft_print_msg("Card %d/%s - %s (%s)\n", card,
+			       card_data->name, card_name, card_longname);
 
 		card_config = conf_by_card(card);
 
-		card_data = calloc(1, sizeof(*card_data));
-		if (!card_data)
-			ksft_exit_fail_msg("Out of memory\n");
 		card_data->card = card;
 		card_data->next = card_list;
 		card_list = card_data;
@@ -218,6 +240,10 @@ static void find_pcms(void)
 				if (err < 0)
 					ksft_exit_fail_msg("snd_ctl_pcm_info: %d:%d:%d\n",
 							   dev, 0, stream);
+
+				ksft_print_msg("%s.0 - %s\n", card_data->name,
+					       snd_pcm_info_get_id(pcm_info));
+
 				count = snd_pcm_info_get_subdevices_count(pcm_info);
 				for (subdev = 0; subdev < count; subdev++) {
 					sprintf(key, "pcm.%d.%d.%s", dev, subdev, snd_pcm_stream_name(stream));
@@ -232,6 +258,7 @@ static void find_pcms(void)
 					pcm_data->card = card;
 					pcm_data->device = dev;
 					pcm_data->subdevice = subdev;
+					pcm_data->card_name = card_data->name;
 					pcm_data->stream = stream;
 					pcm_data->pcm_config = conf_get_subtree(card_config, key, NULL);
 					pcm_data->next = pcm_list;
@@ -257,7 +284,9 @@ static void find_pcms(void)
 static void test_pcm_time(struct pcm_data *data, enum test_class class,
 			  const char *test_name, snd_config_t *pcm_cfg)
 {
-	char name[64], key[128], msg[256];
+	char name[64], msg[256];
+	const int duration_s = 2, margin_ms = 100;
+	const int duration_ms = duration_s * 1000;
 	const char *cs;
 	int i, err;
 	snd_pcm_t *handle = NULL;
@@ -292,9 +321,9 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 
 	desc = conf_get_string(pcm_cfg, "description", NULL, NULL);
 	if (desc)
-		ksft_print_msg("%s.%s.%d.%d.%d.%s - %s\n",
+		ksft_print_msg("%s.%s.%s.%d.%d.%s - %s\n",
 			       test_class_name, test_name,
-			       data->card, data->device, data->subdevice,
+			       data->card_name, data->device, data->subdevice,
 			       snd_pcm_stream_name(data->stream),
 			       desc);
 
@@ -350,9 +379,9 @@ __format:
 			old_format = format;
 			format = snd_pcm_format_value(alt_formats[i]);
 			if (format != SND_PCM_FORMAT_UNKNOWN) {
-				ksft_print_msg("%s.%d.%d.%d.%s.%s format %s -> %s\n",
+				ksft_print_msg("%s.%s.%d.%d.%s.%s format %s -> %s\n",
 						 test_name,
-						 data->card, data->device, data->subdevice,
+						 data->card_name, data->device, data->subdevice,
 						 snd_pcm_stream_name(data->stream),
 						 snd_pcm_access_name(access),
 						 snd_pcm_format_name(old_format),
@@ -381,7 +410,7 @@ __format:
 		goto __close;
 	}
 	if (rrate != rate) {
-		snprintf(msg, sizeof(msg), "rate mismatch %ld != %d", rate, rrate);
+		snprintf(msg, sizeof(msg), "rate mismatch %ld != %u", rate, rrate);
 		goto __close;
 	}
 	rperiod_size = period_size;
@@ -428,9 +457,9 @@ __format:
 		goto __close;
 	}
 
-	ksft_print_msg("%s.%s.%d.%d.%d.%s hw_params.%s.%s.%ld.%ld.%ld.%ld sw_params.%ld\n",
+	ksft_print_msg("%s.%s.%s.%d.%d.%s hw_params.%s.%s.%ld.%ld.%ld.%ld sw_params.%ld\n",
 		         test_class_name, test_name,
-			 data->card, data->device, data->subdevice,
+			 data->card_name, data->device, data->subdevice,
 			 snd_pcm_stream_name(data->stream),
 			 snd_pcm_access_name(access),
 			 snd_pcm_format_name(format),
@@ -442,7 +471,7 @@ __format:
 	skip = false;
 
 	timestamp_now(&tstamp);
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < duration_s; i++) {
 		if (data->stream == SND_PCM_STREAM_PLAYBACK) {
 			frames = snd_pcm_writei(handle, samples, rate);
 			if (frames < 0) {
@@ -472,8 +501,8 @@ __format:
 
 	snd_pcm_drain(handle);
 	ms = timestamp_diff_ms(&tstamp);
-	if (ms < 3900 || ms > 4100) {
-		snprintf(msg, sizeof(msg), "time mismatch: expected 4000ms got %lld", ms);
+	if (ms < duration_ms - margin_ms || ms > duration_ms + margin_ms) {
+		snprintf(msg, sizeof(msg), "time mismatch: expected %dms got %lld", duration_ms, ms);
 		goto __close;
 	}
 
@@ -489,9 +518,10 @@ __close:
 		 * Anything specified as specific to this system
 		 * should always be supported.
 		 */
-		ksft_test_result(!skip, "%s.%s.%d.%d.%d.%s.params\n",
+		ksft_test_result(!skip, "%s.%s.%s.%d.%d.%s.params\n",
 				 test_class_name, test_name,
-				 data->card, data->device, data->subdevice,
+				 data->card_name, data->device,
+				 data->subdevice,
 				 snd_pcm_stream_name(data->stream));
 		break;
 	default:
@@ -499,14 +529,16 @@ __close:
 	}
 
 	if (!skip)
-		ksft_test_result(pass, "%s.%s.%d.%d.%d.%s\n",
+		ksft_test_result(pass, "%s.%s.%s.%d.%d.%s\n",
 				 test_class_name, test_name,
-				 data->card, data->device, data->subdevice,
+				 data->card_name, data->device,
+				 data->subdevice,
 				 snd_pcm_stream_name(data->stream));
 	else
-		ksft_test_result_skip("%s.%s.%d.%d.%d.%s\n",
+		ksft_test_result_skip("%s.%s.%s.%d.%d.%s\n",
 				 test_class_name, test_name,
-				 data->card, data->device, data->subdevice,
+				 data->card_name, data->device,
+				 data->subdevice,
 				 snd_pcm_stream_name(data->stream));
 
 	if (msg[0])
@@ -564,8 +596,9 @@ void *card_thread(void *data)
 int main(void)
 {
 	struct card_data *card;
+	struct card_cfg_data *conf;
 	struct pcm_data *pcm;
-	snd_config_t *global_config, *cfg, *pcm_cfg;
+	snd_config_t *global_config, *cfg;
 	int num_pcm_tests = 0, num_tests, num_std_pcm_tests;
 	int ret;
 	void *thread_ret;
@@ -580,6 +613,10 @@ int main(void)
 	conf_load();
 
 	find_pcms();
+
+	for (conf = conf_cards; conf; conf = conf->next)
+		if (conf->card < 0)
+			num_missing++;
 
 	num_std_pcm_tests = conf_get_count(default_pcm_config, "test", NULL);
 
@@ -596,9 +633,14 @@ int main(void)
 
 	ksft_set_plan(num_missing + num_pcm_tests);
 
+	for (conf = conf_cards; conf; conf = conf->next)
+		if (conf->card < 0)
+			ksft_test_result_fail("test.missing.%s.%s\n",
+					      conf->filename, conf->config_id);
+
 	for (pcm = pcm_missing; pcm != NULL; pcm = pcm->next) {
-		ksft_test_result(false, "test.missing.%d.%d.%d.%s\n",
-				 pcm->card, pcm->device, pcm->subdevice,
+		ksft_test_result(false, "test.missing.%s.%d.%d.%s\n",
+				 pcm->card_name, pcm->device, pcm->subdevice,
 				 snd_pcm_stream_name(pcm->stream));
 	}
 

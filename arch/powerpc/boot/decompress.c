@@ -101,7 +101,7 @@ static void print_err(char *s)
  * @input_size:  length of the input buffer
  * @outbuf:      output buffer
  * @output_size: length of the output buffer
- * @skip         number of output bytes to ignore
+ * @_skip:       number of output bytes to ignore
  *
  * This function takes compressed data from inbuf, decompresses and write it to
  * outbuf. Once output_size bytes are written to the output buffer, or the

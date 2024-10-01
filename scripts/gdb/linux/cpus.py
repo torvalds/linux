@@ -26,11 +26,7 @@ def get_current_cpu():
     if utils.get_gdbserver_type() == utils.GDBSERVER_QEMU:
         return gdb.selected_thread().num - 1
     elif utils.get_gdbserver_type() == utils.GDBSERVER_KGDB:
-        tid = gdb.selected_thread().ptid[2]
-        if tid > (0x100000000 - MAX_CPUS - 2):
-            return 0x100000000 - tid - 2
-        else:
-            return tasks.get_thread_info(tasks.get_task_by_pid(tid))['cpu']
+        return gdb.parse_and_eval("kgdb_active.counter")
     else:
         raise gdb.GdbError("Sorry, obtaining the current CPU is not yet "
                            "supported with this gdb server.")
@@ -152,9 +148,8 @@ Note that VAR has to be quoted as string."""
     def __init__(self):
         super(PerCpu, self).__init__("lx_per_cpu")
 
-    def invoke(self, var_name, cpu=-1):
-        var_ptr = gdb.parse_and_eval("&" + var_name.string())
-        return per_cpu(var_ptr, cpu)
+    def invoke(self, var, cpu=-1):
+        return per_cpu(var.address, cpu)
 
 
 PerCpu()
@@ -179,6 +174,21 @@ def get_current_task(cpu):
         else:
             raise gdb.GdbError("Sorry, obtaining the current task is not allowed "
                                "while running in userspace(EL0)")
+    elif utils.is_target_arch("riscv"):
+        current_tp = gdb.parse_and_eval("$tp")
+        scratch_reg = gdb.parse_and_eval("$sscratch")
+
+        # by default tp points to current task
+        current_task = current_tp.cast(task_ptr_type)
+
+        # scratch register is set 0 in trap handler after entering kernel.
+        # When hart is in user mode, scratch register is pointing to task_struct.
+        # and tp is used by user mode. So when scratch register holds larger value
+        # (negative address as ulong is larger value) than tp, then use scratch register.
+        if (scratch_reg.cast(utils.get_ulong_type()) > current_tp.cast(utils.get_ulong_type())):
+            current_task = scratch_reg.cast(task_ptr_type)
+
+        return current_task.dereference()
     else:
         raise gdb.GdbError("Sorry, obtaining the current task is not yet "
                            "supported with this arch")

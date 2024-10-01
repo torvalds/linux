@@ -8,7 +8,6 @@
 //
 // Inspired from tps65086-regulator.c
 
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -108,10 +107,11 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 	return REGULATOR_MODE_INVALID;
 }
 
-#define MCP16502_REGULATOR(_name, _id, _ranges, _ops, _ramp_table)	\
+#define MCP16502_REGULATOR(_name, _id, _sn, _ranges, _ops, _ramp_table)	\
 	[_id] = {							\
 		.name			= _name,			\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.supply_name		= #_sn,				\
+		.regulators_node	= "regulators",			\
 		.id			= _id,				\
 		.ops			= &(_ops),			\
 		.type			= REGULATOR_VOLTAGE,		\
@@ -120,7 +120,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 		.linear_ranges		= _ranges,			\
 		.linear_min_sel		= VDD_LOW_SEL,			\
 		.n_linear_ranges	= ARRAY_SIZE(_ranges),		\
-		.of_match		= of_match_ptr(_name),		\
+		.of_match		= _name,			\
 		.of_map_mode		= mcp16502_of_map_mode,		\
 		.vsel_reg		= (((_id) + 1) << 4),		\
 		.vsel_mask		= MCP16502_VSEL,		\
@@ -468,18 +468,18 @@ static const struct linear_range b234_ranges[] = {
 };
 
 static const struct regulator_desc mcp16502_desc[] = {
-	/* MCP16502_REGULATOR(_name, _id, ranges, regulator_ops, ramp_table) */
-	MCP16502_REGULATOR("VDD_IO", BUCK1, b1l12_ranges, mcp16502_buck_ops,
+	/* MCP16502_REGULATOR(_name, _id, _sn, _ranges, _ops, _ramp_table) */
+	MCP16502_REGULATOR("VDD_IO", BUCK1, pvin1, b1l12_ranges, mcp16502_buck_ops,
 			   mcp16502_ramp_b1l12),
-	MCP16502_REGULATOR("VDD_DDR", BUCK2, b234_ranges, mcp16502_buck_ops,
+	MCP16502_REGULATOR("VDD_DDR", BUCK2, pvin2, b234_ranges, mcp16502_buck_ops,
 			   mcp16502_ramp_b234),
-	MCP16502_REGULATOR("VDD_CORE", BUCK3, b234_ranges, mcp16502_buck_ops,
+	MCP16502_REGULATOR("VDD_CORE", BUCK3, pvin3, b234_ranges, mcp16502_buck_ops,
 			   mcp16502_ramp_b234),
-	MCP16502_REGULATOR("VDD_OTHER", BUCK4, b234_ranges, mcp16502_buck_ops,
+	MCP16502_REGULATOR("VDD_OTHER", BUCK4, pvin4, b234_ranges, mcp16502_buck_ops,
 			   mcp16502_ramp_b234),
-	MCP16502_REGULATOR("LDO1", LDO1, b1l12_ranges, mcp16502_ldo_ops,
+	MCP16502_REGULATOR("LDO1", LDO1, lvin, b1l12_ranges, mcp16502_ldo_ops,
 			   mcp16502_ramp_b1l12),
-	MCP16502_REGULATOR("LDO2", LDO2, b1l12_ranges, mcp16502_ldo_ops,
+	MCP16502_REGULATOR("LDO2", LDO2, lvin, b1l12_ranges, mcp16502_ldo_ops,
 			   mcp16502_ramp_b1l12)
 };
 
@@ -578,7 +578,7 @@ static const struct dev_pm_ops mcp16502_pm_ops = {
 };
 #endif
 static const struct i2c_device_id mcp16502_i2c_id[] = {
-	{ "mcp16502", 0 },
+	{ "mcp16502" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp16502_i2c_id);
@@ -588,7 +588,7 @@ static struct i2c_driver mcp16502_drv = {
 	.driver		= {
 		.name	= "mcp16502-regulator",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table	= of_match_ptr(mcp16502_ids),
+		.of_match_table	= mcp16502_ids,
 #ifdef CONFIG_PM
 		.pm = &mcp16502_pm_ops,
 #endif

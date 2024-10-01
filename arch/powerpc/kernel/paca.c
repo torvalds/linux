@@ -68,7 +68,7 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long limit,
 		memblock_set_bottom_up(true);
 
 		/*
-		 * See Documentation/powerpc/ultravisor.rst for more details.
+		 * See Documentation/arch/powerpc/ultravisor.rst for more details.
 		 *
 		 * UV/HV data sharing is in PAGE_SIZE granularity. In order to
 		 * minimize the number of pages shared, align the allocation to

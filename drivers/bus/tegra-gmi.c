@@ -211,7 +211,6 @@ static int tegra_gmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tegra_gmi *gmi;
-	struct resource *res;
 	int err;
 
 	gmi = devm_kzalloc(dev, sizeof(*gmi), GFP_KERNEL);
@@ -221,8 +220,7 @@ static int tegra_gmi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gmi);
 	gmi->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gmi->base = devm_ioremap_resource(dev, res);
+	gmi->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gmi->base))
 		return PTR_ERR(gmi->base);
 
@@ -260,14 +258,12 @@ static int tegra_gmi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_gmi_remove(struct platform_device *pdev)
+static void tegra_gmi_remove(struct platform_device *pdev)
 {
 	struct tegra_gmi *gmi = platform_get_drvdata(pdev);
 
 	of_platform_depopulate(gmi->dev);
 	tegra_gmi_disable(gmi);
-
-	return 0;
 }
 
 static int __maybe_unused tegra_gmi_runtime_resume(struct device *dev)
@@ -307,7 +303,7 @@ MODULE_DEVICE_TABLE(of, tegra_gmi_id_table);
 
 static struct platform_driver tegra_gmi_driver = {
 	.probe = tegra_gmi_probe,
-	.remove = tegra_gmi_remove,
+	.remove_new = tegra_gmi_remove,
 	.driver = {
 		.name		= "tegra-gmi",
 		.of_match_table	= tegra_gmi_id_table,

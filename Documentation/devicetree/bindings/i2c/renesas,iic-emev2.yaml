@@ -44,11 +44,11 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     iic0: i2c@e0070000 {
-            #address-cells = <1>;
-            #size-cells = <0>;
-            compatible = "renesas,iic-emev2";
-            reg = <0xe0070000 0x28>;
-            interrupts = <GIC_SPI 32 IRQ_TYPE_EDGE_RISING>;
-            clocks = <&iic0_sclk>;
-            clock-names = "sclk";
+        compatible = "renesas,iic-emev2";
+        reg = <0xe0070000 0x28>;
+        interrupts = <GIC_SPI 32 IRQ_TYPE_EDGE_RISING>;
+        clocks = <&iic0_sclk>;
+        clock-names = "sclk";
+        #address-cells = <1>;
+        #size-cells = <0>;
     };

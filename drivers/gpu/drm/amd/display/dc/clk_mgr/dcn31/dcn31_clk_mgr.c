@@ -87,6 +87,11 @@ static int dcn31_get_active_display_cnt_wa(
 				stream->signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
 				stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK)
 			tmds_present = true;
+
+		/* Checking stream / link detection ensuring that PHY is active*/
+		if (dc_is_dp_signal(stream->signal) && !stream->dpms_off)
+			display_count++;
+
 	}
 
 	for (i = 0; i < dc->link_count; i++) {
@@ -248,7 +253,7 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
@@ -557,7 +562,8 @@ static void dcn31_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk
 
 	j = -1;
 
-	ASSERT(NUM_DF_PSTATE_LEVELS <= MAX_NUM_DPM_LVL);
+	static_assert(NUM_DF_PSTATE_LEVELS <= MAX_NUM_DPM_LVL,
+		"number of reported pstate levels exceeds maximum");
 
 	/* Find lowest DPM, FCLK is filled in reverse order*/
 
@@ -779,7 +785,7 @@ void dcn31_clk_mgr_construct(
 					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].MemClk,
 					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].Voltage);
 		}
-		if (ctx->dc_bios && ctx->dc_bios->integrated_info) {
+		if (ctx->dc_bios->integrated_info) {
 			dcn31_clk_mgr_helper_populate_bw_params(
 					&clk_mgr->base,
 					ctx->dc_bios->integrated_info,

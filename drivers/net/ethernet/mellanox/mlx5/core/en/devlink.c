@@ -12,11 +12,19 @@ struct mlx5e_dev *mlx5e_create_devlink(struct device *dev,
 {
 	struct mlx5e_dev *mlx5e_dev;
 	struct devlink *devlink;
+	int err;
 
 	devlink = devlink_alloc_ns(&mlx5e_devlink_ops, sizeof(*mlx5e_dev),
 				   devlink_net(priv_to_devlink(mdev)), dev);
 	if (!devlink)
 		return ERR_PTR(-ENOMEM);
+
+	err = devl_nested_devlink_set(priv_to_devlink(mdev), devlink);
+	if (err) {
+		devlink_free(devlink);
+		return ERR_PTR(err);
+	}
+
 	devlink_register(devlink);
 	return devlink_priv(devlink);
 }

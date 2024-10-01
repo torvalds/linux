@@ -58,9 +58,6 @@ static inline u64 get_vtb(void)
  */
 static inline u64 get_dec(void)
 {
-	if (IS_ENABLED(CONFIG_40x))
-		return mfspr(SPRN_PIT);
-
 	return mfspr(SPRN_DEC);
 }
 
@@ -71,9 +68,7 @@ static inline u64 get_dec(void)
  */
 static inline void set_dec(u64 val)
 {
-	if (IS_ENABLED(CONFIG_40x))
-		mtspr(SPRN_PIT, (u32)val);
-	else if (IS_ENABLED(CONFIG_BOOKE))
+	if (IS_ENABLED(CONFIG_BOOKE))
 		mtspr(SPRN_DEC, val);
 	else
 		mtspr(SPRN_DEC, val - 1);

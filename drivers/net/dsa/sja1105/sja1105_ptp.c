@@ -111,7 +111,7 @@ int sja1105_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr)
 }
 
 int sja1105_get_ts_info(struct dsa_switch *ds, int port,
-			struct ethtool_ts_info *info)
+			struct kernel_ethtool_ts_info *info)
 {
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_ptp_data *ptp_data = &priv->ptp_data;

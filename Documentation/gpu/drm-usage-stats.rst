@@ -8,7 +8,7 @@ DRM drivers can choose to export partly standardised text output via the
 `fops->show_fdinfo()` as part of the driver specific file operations registered
 in the `struct drm_driver` object registered with the DRM core.
 
-One purpose of this output is to enable writing as generic as practicaly
+One purpose of this output is to enable writing as generic as practically
 feasible `top(1)` like userspace monitoring tools.
 
 Given the differences between various DRM drivers the specification of the
@@ -112,6 +112,19 @@ larger value within a reasonable period. Upon observing a value lower than what
 was previously read, userspace is expected to stay with that larger previous
 value until a monotonic update is seen.
 
+- drm-total-cycles-<keystr>: <uint>
+
+Engine identifier string must be the same as the one specified in the
+drm-cycles-<keystr> tag and shall contain the total number cycles for the given
+engine.
+
+This is a timestamp in GPU unspecified unit that matches the update rate
+of drm-cycles-<keystr>. For drivers that implement this interface, the engine
+utilization can be calculated entirely on the GPU clock domain, without
+considering the CPU sleep time between 2 samples.
+
+A driver may implement either this key or drm-maxfreq-<keystr>, but not both.
+
 - drm-maxfreq-<keystr>: <uint> [Hz|MHz|KHz]
 
 Engine identifier string must be the same as the one specified in the
@@ -119,7 +132,10 @@ drm-engine-<keystr> tag and shall contain the maximum frequency for the given
 engine.  Taken together with drm-cycles-<keystr>, this can be used to calculate
 percentage utilization of the engine, whereas drm-engine-<keystr> only reflects
 time active without considering what frequency the engine is operating as a
-percentage of it's maximum frequency.
+percentage of its maximum frequency.
+
+A driver may implement either this key or drm-total-cycles-<keystr>, but not
+both.
 
 Memory
 ^^^^^^
@@ -138,7 +154,7 @@ indicating kibi- or mebi-bytes.
 
 - drm-shared-<region>: <uint> [KiB|MiB]
 
-The total size of buffers that are shared with another file (ie. have more
+The total size of buffers that are shared with another file (e.g., have more
 than a single handle).
 
 - drm-total-<region>: <uint> [KiB|MiB]
@@ -168,4 +184,6 @@ be documented above and where possible, aligned with other drivers.
 Driver specific implementations
 -------------------------------
 
-:ref:`i915-usage-stats`
+* :ref:`i915-usage-stats`
+* :ref:`panfrost-usage-stats`
+* :ref:`xe-usage-stats`

@@ -84,7 +84,7 @@ static const struct regmap_config regmap = {
 	.rd_table = &rd_table,
 	.volatile_table = &volatile_table,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.num_reg_defaults_raw = FXL6408_REG_INT_STS + 1,
 };
 
@@ -138,7 +138,7 @@ static const __maybe_unused struct of_device_id fxl6408_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, fxl6408_dt_ids);
 
 static const struct i2c_device_id fxl6408_id[] = {
-	{ "fxl6408", 0 },
+	{ "fxl6408" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxl6408_id);

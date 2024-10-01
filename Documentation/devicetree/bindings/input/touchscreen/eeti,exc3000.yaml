@@ -14,16 +14,22 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - eeti,exc3000
-      - eeti,exc80h60
-      - eeti,exc80h84
+    oneOf:
+      - const: eeti,exc3000
+      - const: eeti,exc80h60
+      - const: eeti,exc80h84
+      - items:
+          - enum:
+              - eeti,exc81w32
+          - const: eeti,exc80h84
   reg:
     const: 0x2a
   interrupts:
     maxItems: 1
   reset-gpios:
     maxItems: 1
+  vdd-supply:
+    description: Power supply regulator for the chip
   touchscreen-size-x: true
   touchscreen-size-y: true
   touchscreen-inverted-x: true

@@ -22,7 +22,7 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void mt76x2u_stop(struct ieee80211_hw *hw)
+static void mt76x2u_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
@@ -31,32 +31,20 @@ static void mt76x2u_stop(struct ieee80211_hw *hw)
 	mt76x2u_stop_hw(dev);
 }
 
-static int
-mt76x2u_set_channel(struct mt76x02_dev *dev,
-		    struct cfg80211_chan_def *chandef)
+int mt76x2u_set_channel(struct mt76_phy *mphy)
 {
+	struct mt76x02_dev *dev = container_of(mphy->dev, struct mt76x02_dev, mt76);
 	int err;
 
-	cancel_delayed_work_sync(&dev->cal_work);
 	mt76x02_pre_tbtt_enable(dev, false);
-
-	mutex_lock(&dev->mt76.mutex);
-	set_bit(MT76_RESET, &dev->mphy.state);
-
-	mt76_set_channel(&dev->mphy);
-
 	mt76x2_mac_stop(dev, false);
 
-	err = mt76x2u_phy_set_channel(dev, chandef);
+	err = mt76x2u_phy_set_channel(dev, &mphy->chandef);
 
 	mt76x02_mac_cc_reset(dev);
 	mt76x2_mac_resume(dev);
 
-	clear_bit(MT76_RESET, &dev->mphy.state);
-	mutex_unlock(&dev->mt76.mutex);
-
 	mt76x02_pre_tbtt_enable(dev, true);
-	mt76_txq_schedule_all(&dev->mphy);
 
 	return err;
 }
@@ -93,16 +81,17 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_unlock(&dev->mt76.mutex);
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ieee80211_stop_queues(hw);
-		err = mt76x2u_set_channel(dev, &hw->conf.chandef);
-		ieee80211_wake_queues(hw);
-	}
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
+		mt76_update_channel(&dev->mphy);
 
 	return err;
 }
 
 const struct ieee80211_ops mt76x2u_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = mt76x02_tx,
 	.start = mt76x2u_start,
 	.stop = mt76x2u_stop,

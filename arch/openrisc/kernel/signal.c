@@ -23,6 +23,7 @@
 #include <linux/stddef.h>
 #include <linux/resume_user_mode.h>
 
+#include <asm/fpu.h>
 #include <asm/processor.h>
 #include <asm/syscall.h>
 #include <asm/ucontext.h>
@@ -33,6 +34,42 @@ struct rt_sigframe {
 	struct ucontext uc;
 	unsigned char retcode[16];	/* trampoline code */
 };
+
+asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs);
+
+asmlinkage int do_work_pending(struct pt_regs *regs, unsigned int thread_flags,
+			       int syscall);
+
+#ifdef CONFIG_FPU
+static long restore_fp_state(struct sigcontext __user *sc)
+{
+	long err;
+
+	err = __copy_from_user(&current->thread.fpcsr, &sc->fpcsr, sizeof(unsigned long));
+	if (unlikely(err))
+		return err;
+
+	/* Restore the FPU state */
+	restore_fpu(current);
+
+	return 0;
+}
+
+static long save_fp_state(struct sigcontext __user *sc)
+{
+	long err;
+
+	/* Sync the user FPU state so we can copy to sigcontext */
+	save_fpu(current);
+
+	err = __copy_to_user(&sc->fpcsr, &current->thread.fpcsr, sizeof(unsigned long));
+
+	return err;
+}
+#else
+#define save_fp_state(sc) (0)
+#define restore_fp_state(sc) (0)
+#endif
 
 static int restore_sigcontext(struct pt_regs *regs,
 			      struct sigcontext __user *sc)
@@ -50,7 +87,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 	err |= __copy_from_user(regs, sc->regs.gpr, 32 * sizeof(unsigned long));
 	err |= __copy_from_user(&regs->pc, &sc->regs.pc, sizeof(unsigned long));
 	err |= __copy_from_user(&regs->sr, &sc->regs.sr, sizeof(unsigned long));
-	err |= __copy_from_user(&regs->fpcsr, &sc->fpcsr, sizeof(unsigned long));
+	err |= restore_fp_state(sc);
 
 	/* make sure the SM-bit is cleared so user-mode cannot fool us */
 	regs->sr &= ~SPR_SR_SM;
@@ -113,7 +150,7 @@ static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	err |= __copy_to_user(sc->regs.gpr, regs, 32 * sizeof(unsigned long));
 	err |= __copy_to_user(&sc->regs.pc, &regs->pc, sizeof(unsigned long));
 	err |= __copy_to_user(&sc->regs.sr, &regs->sr, sizeof(unsigned long));
-	err |= __copy_to_user(&sc->fpcsr, &regs->fpcsr, sizeof(unsigned long));
+	err |= save_fp_state(sc);
 
 	return err;
 }
@@ -224,7 +261,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
  * mode below.
  */
 
-int do_signal(struct pt_regs *regs, int syscall)
+static int do_signal(struct pt_regs *regs, int syscall)
 {
 	struct ksignal ksig;
 	unsigned long continue_addr = 0;

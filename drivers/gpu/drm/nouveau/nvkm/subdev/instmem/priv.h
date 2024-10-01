@@ -7,6 +7,8 @@
 struct nvkm_instmem_func {
 	void *(*dtor)(struct nvkm_instmem *);
 	int (*oneinit)(struct nvkm_instmem *);
+	int (*suspend)(struct nvkm_instmem *);
+	void (*resume)(struct nvkm_instmem *);
 	void (*fini)(struct nvkm_instmem *);
 	u32  (*rd32)(struct nvkm_instmem *, u32 addr);
 	void (*wr32)(struct nvkm_instmem *, u32 addr, u32 data);
@@ -16,19 +18,31 @@ struct nvkm_instmem_func {
 	bool zero;
 };
 
+int nv50_instmem_new_(const struct nvkm_instmem_func *, struct nvkm_device *,
+		      enum nvkm_subdev_type, int, struct nvkm_instmem **);
+
 void nvkm_instmem_ctor(const struct nvkm_instmem_func *, struct nvkm_device *,
 		       enum nvkm_subdev_type, int, struct nvkm_instmem *);
 void nvkm_instmem_boot(struct nvkm_instmem *);
+
+int nv04_instmem_suspend(struct nvkm_instmem *);
+void nv04_instmem_resume(struct nvkm_instmem *);
+
+int r535_instmem_new(const struct nvkm_instmem_func *,
+		     struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_instmem **);
 
 #include <core/memory.h>
 
 struct nvkm_instobj {
 	struct nvkm_memory memory;
 	struct list_head head;
+	bool preserve;
 	u32 *suspend;
 };
 
 void nvkm_instobj_ctor(const struct nvkm_memory_func *func,
 		       struct nvkm_instmem *, struct nvkm_instobj *);
 void nvkm_instobj_dtor(struct nvkm_instmem *, struct nvkm_instobj *);
+int nvkm_instobj_save(struct nvkm_instobj *);
+void nvkm_instobj_load(struct nvkm_instobj *);
 #endif

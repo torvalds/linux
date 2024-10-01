@@ -125,6 +125,7 @@ enum psp_fw_type {
 	PSP_FW_TYPE_PSP_INTF_DRV,
 	PSP_FW_TYPE_PSP_DBG_DRV,
 	PSP_FW_TYPE_PSP_RAS_DRV,
+	PSP_FW_TYPE_PSP_IPKEYMGR_DRV,
 	PSP_FW_TYPE_MAX_INDEX,
 };
 
@@ -132,6 +133,14 @@ enum psp_fw_type {
 struct psp_firmware_header_v2_0 {
 	struct common_firmware_header header;
 	uint32_t psp_fw_bin_count;
+	struct psp_fw_bin_desc psp_fw_bin[];
+};
+
+/* version_major=2, version_minor=1 */
+struct psp_firmware_header_v2_1 {
+	struct common_firmware_header header;
+	uint32_t psp_fw_bin_count;
+	uint32_t psp_aux_fw_bin_index;
 	struct psp_fw_bin_desc psp_fw_bin[];
 };
 
@@ -315,6 +324,44 @@ struct sdma_firmware_header_v2_0 {
 	uint32_t ctl_jt_size; /* control thread size of jt */
 };
 
+/* version_major=1, version_minor=0 */
+struct vpe_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t ucode_feature_version;
+	uint32_t ctx_ucode_size_bytes; /* context thread ucode size */
+	uint32_t ctx_jt_offset; /* context thread jt location */
+	uint32_t ctx_jt_size; /* context thread size of jt */
+	uint32_t ctl_ucode_offset;
+	uint32_t ctl_ucode_size_bytes; /* control thread ucode size */
+	uint32_t ctl_jt_offset; /* control thread jt location */
+	uint32_t ctl_jt_size; /* control thread size of jt */
+};
+
+/* version_major=1, version_minor=0 */
+struct umsch_mm_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t umsch_mm_ucode_version;
+	uint32_t umsch_mm_ucode_size_bytes;
+	uint32_t umsch_mm_ucode_offset_bytes;
+	uint32_t umsch_mm_ucode_data_version;
+	uint32_t umsch_mm_ucode_data_size_bytes;
+	uint32_t umsch_mm_ucode_data_offset_bytes;
+	uint32_t umsch_mm_irq_start_addr_lo;
+	uint32_t umsch_mm_irq_start_addr_hi;
+	uint32_t umsch_mm_uc_start_addr_lo;
+	uint32_t umsch_mm_uc_start_addr_hi;
+	uint32_t umsch_mm_data_start_addr_lo;
+	uint32_t umsch_mm_data_start_addr_hi;
+};
+
+/* version_major=3, version_minor=0 */
+struct sdma_firmware_header_v3_0 {
+    struct common_firmware_header header;
+    uint32_t ucode_feature_version;
+    uint32_t ucode_offset_bytes;
+    uint32_t ucode_size_bytes;
+};
+
 /* gpu info payload */
 struct gpu_info_firmware_v1_0 {
 	uint32_t gc_num_se;
@@ -387,6 +434,7 @@ union amdgpu_firmware_header {
 	struct psp_firmware_header_v1_1 psp_v1_1;
 	struct psp_firmware_header_v1_3 psp_v1_3;
 	struct psp_firmware_header_v2_0 psp_v2_0;
+	struct psp_firmware_header_v2_0 psp_v2_1;
 	struct ta_firmware_header_v1_0 ta;
 	struct ta_firmware_header_v2_0 ta_v2_0;
 	struct gfx_firmware_header_v1_0 gfx;
@@ -400,6 +448,7 @@ union amdgpu_firmware_header {
 	struct sdma_firmware_header_v1_0 sdma;
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct sdma_firmware_header_v2_0 sdma_v2_0;
+	struct sdma_firmware_header_v3_0 sdma_v3_0;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
 	struct dmcu_firmware_header_v1_0 dmcu;
 	struct dmcub_firmware_header_v1_0 dmcub;
@@ -407,7 +456,7 @@ union amdgpu_firmware_header {
 	uint8_t raw[0x100];
 };
 
-#define UCODE_MAX_PSP_PACKAGING ((sizeof(union amdgpu_firmware_header) - sizeof(struct common_firmware_header) - 4) / sizeof(struct psp_fw_bin_desc))
+#define UCODE_MAX_PSP_PACKAGING (((sizeof(union amdgpu_firmware_header) - sizeof(struct common_firmware_header) - 4) / sizeof(struct psp_fw_bin_desc)) * 2)
 
 /*
  * fw loading support
@@ -424,6 +473,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_SDMA7,
 	AMDGPU_UCODE_ID_SDMA_UCODE_TH0,
 	AMDGPU_UCODE_ID_SDMA_UCODE_TH1,
+	AMDGPU_UCODE_ID_SDMA_RS64,
 	AMDGPU_UCODE_ID_CP_CE,
 	AMDGPU_UCODE_ID_CP_PFP,
 	AMDGPU_UCODE_ID_CP_ME,
@@ -474,6 +524,15 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_VCN0_RAM,
 	AMDGPU_UCODE_ID_VCN1_RAM,
 	AMDGPU_UCODE_ID_DMCUB,
+	AMDGPU_UCODE_ID_VPE_CTX,
+	AMDGPU_UCODE_ID_VPE_CTL,
+	AMDGPU_UCODE_ID_VPE,
+	AMDGPU_UCODE_ID_UMSCH_MM_UCODE,
+	AMDGPU_UCODE_ID_UMSCH_MM_DATA,
+	AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER,
+	AMDGPU_UCODE_ID_P2S_TABLE,
+	AMDGPU_UCODE_ID_JPEG_RAM,
+	AMDGPU_UCODE_ID_ISP,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 
@@ -544,8 +603,9 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr);
+__printf(3, 4)
 int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
-			 const char *fw_name);
+			 const char *fmt, ...);
 void amdgpu_ucode_release(const struct firmware **fw);
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 				uint16_t hdr_major, uint16_t hdr_minor);

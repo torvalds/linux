@@ -142,7 +142,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		oscclk0 {
+		clock-controller-0 {
 			/* CPU PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
@@ -151,7 +151,7 @@
 			clock-output-names = "oscclk0";
 		};
 
-		oscclk4 {
+		clock-controller-4 {
 			/* Multiplexed AXI master clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 4>;
@@ -160,7 +160,7 @@
 			clock-output-names = "oscclk4";
 		};
 
-		hdlcd_clk: oscclk5 {
+		hdlcd_clk: clock-controller-5 {
 			/* HDLCD PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 5>;
@@ -169,7 +169,7 @@
 			clock-output-names = "oscclk5";
 		};
 
-		smbclk: oscclk6 {
+		smbclk: clock-controller-6 {
 			/* SMB clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 6>;
@@ -178,7 +178,7 @@
 			clock-output-names = "oscclk6";
 		};
 
-		sys_pll: oscclk7 {
+		sys_pll: clock-controller-7 {
 			/* SYS PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 7>;
@@ -187,7 +187,7 @@
 			clock-output-names = "oscclk7";
 		};
 
-		oscclk8 {
+		clock-controller-8 {
 			/* DDR2 PLL reference clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 8>;
@@ -196,7 +196,7 @@
 			clock-output-names = "oscclk8";
 		};
 
-		volt-cores {
+		regulator-cores {
 			/* CPU core voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;

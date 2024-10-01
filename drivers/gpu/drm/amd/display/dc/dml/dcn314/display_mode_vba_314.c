@@ -24,10 +24,7 @@
  *
  */
 
-#define UNIT_TEST 0
-#if !UNIT_TEST
 #include "dc.h"
-#endif
 #include "../display_mode_lib.h"
 #include "display_mode_vba_314.h"
 #include "../dml_inline_defs.h"
@@ -1944,15 +1941,6 @@ static unsigned int CalculateVMAndRowBytes(
 		*PixelPTEReqWidth = 32768.0 / BytePerPixel;
 		*PTERequestSize = 64;
 		FractionOfPTEReturnDrop = 0;
-	} else if (MacroTileSizeBytes == 4096) {
-		PixelPTEReqHeightPTEs = 1;
-		*PixelPTEReqHeight = MacroTileHeight;
-		*PixelPTEReqWidth = 8 * *MacroTileWidth;
-		*PTERequestSize = 64;
-		if (ScanDirection != dm_vert)
-			FractionOfPTEReturnDrop = 0;
-		else
-			FractionOfPTEReturnDrop = 7 / 8;
 	} else if (GPUVMMinPageSize == 4 && MacroTileSizeBytes > 4096) {
 		PixelPTEReqHeightPTEs = 16;
 		*PixelPTEReqHeight = 16 * BlockHeight256Bytes;
@@ -2311,6 +2299,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 								v->OutputFormat[k],
 								v->Output[k]) + dscComputeDelay(v->OutputFormat[k], v->Output[k]));
 			}
+			v->DSCDelay[k] = v->DSCDelay[k] + (v->HTotal[k] - v->HActive[k]) * dml_ceil((double) v->DSCDelay[k] / v->HActive[k], 1);
 			v->DSCDelay[k] = v->DSCDelay[k] * v->PixelClock[k] / v->PixelClockBackEnd[k];
 		} else {
 			v->DSCDelay[k] = 0;
@@ -3613,7 +3602,7 @@ static void CalculateFlipSchedule(
 	unsigned int HostVMDynamicLevelsTrips;
 	double TimeForFetchingMetaPTEImmediateFlip;
 	double TimeForFetchingRowInVBlankImmediateFlip;
-	double ImmediateFlipBW;
+	double ImmediateFlipBW = 1.0;
 	double LineTime = v->HTotal[k] / v->PixelClock[k];
 
 	if (v->GPUVMEnable == true && v->HostVMEnable == true) {
@@ -3725,7 +3714,7 @@ static double TruncToValidBPP(
 		NonDSCBPP1 = 15;
 		NonDSCBPP2 = 18;
 		MinDSCBPP = 6;
-		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1 / 16;
+		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1.0 / 16;
 	} else if (Format == dm_444) {
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;
@@ -3787,7 +3776,6 @@ static double TruncToValidBPP(
 			return DesiredBPP;
 		}
 	}
-	return BPP_INVALID;
 }
 
 static noinline void CalculatePrefetchSchedulePerPlane(
@@ -4227,7 +4215,9 @@ void dml314_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 				}
 				if (v->OutputFormat[k] == dm_420 && v->HActive[k] > DCN314_MAX_FMT_420_BUFFER_WIDTH
 						&& v->ODMCombineEnablePerState[i][k] != dm_odm_combine_mode_4to1) {
-					if (v->HActive[k] / 2 > DCN314_MAX_FMT_420_BUFFER_WIDTH) {
+					if (v->Output[k] == dm_hdmi) {
+						FMTBufferExceeded = true;
+					} else if (v->HActive[k] / 2 > DCN314_MAX_FMT_420_BUFFER_WIDTH) {
 						v->ODMCombineEnablePerState[i][k] = dm_odm_combine_mode_4to1;
 						v->PlaneRequiredDISPCLK = v->PlaneRequiredDISPCLKWithODMCombine4To1;
 
@@ -4717,6 +4707,7 @@ void dml314_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 									v->OutputFormat[k],
 									v->Output[k]) + dscComputeDelay(v->OutputFormat[k], v->Output[k]));
 				}
+				v->DSCDelayPerState[i][k] = v->DSCDelayPerState[i][k] + (v->HTotal[k] - v->HActive[k]) * dml_ceil((double) v->DSCDelayPerState[i][k] / v->HActive[k], 1.0);
 				v->DSCDelayPerState[i][k] = v->DSCDelayPerState[i][k] * v->PixelClock[k] / v->PixelClockBackEnd[k];
 			} else {
 				v->DSCDelayPerState[i][k] = 0.0;

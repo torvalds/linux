@@ -5,9 +5,14 @@
  * Copyright (C) 2019, Google LLC.
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
+#include "linux/gfp_types.h"
 #include <kunit/test.h>
 #include <kunit/test-bug.h>
 
+#include <linux/device.h>
+#include <kunit/device.h>
+
+#include "string-stream.h"
 #include "try-catch-impl.h"
 
 struct kunit_try_catch_test_context {
@@ -102,6 +107,48 @@ static struct kunit_suite kunit_try_catch_test_suite = {
 	.name = "kunit-try-catch-test",
 	.init = kunit_try_catch_test_init,
 	.test_cases = kunit_try_catch_test_cases,
+};
+
+#if IS_ENABLED(CONFIG_KUNIT_FAULT_TEST)
+
+static void kunit_test_null_dereference(void *data)
+{
+	struct kunit *test = data;
+	int *null = NULL;
+
+	*null = 0;
+
+	KUNIT_FAIL(test, "This line should never be reached\n");
+}
+
+static void kunit_test_fault_null_dereference(struct kunit *test)
+{
+	struct kunit_try_catch_test_context *ctx = test->priv;
+	struct kunit_try_catch *try_catch = ctx->try_catch;
+
+	kunit_try_catch_init(try_catch,
+			     test,
+			     kunit_test_null_dereference,
+			     kunit_test_catch);
+	kunit_try_catch_run(try_catch, test);
+
+	KUNIT_EXPECT_EQ(test, try_catch->try_result, -EINTR);
+	KUNIT_EXPECT_TRUE(test, ctx->function_called);
+}
+
+#endif /* CONFIG_KUNIT_FAULT_TEST */
+
+static struct kunit_case kunit_fault_test_cases[] = {
+#if IS_ENABLED(CONFIG_KUNIT_FAULT_TEST)
+	KUNIT_CASE(kunit_test_fault_null_dereference),
+#endif /* CONFIG_KUNIT_FAULT_TEST */
+	{}
+};
+
+static struct kunit_suite kunit_fault_test_suite = {
+	.name = "kunit_fault",
+	.init = kunit_try_catch_test_init,
+	.test_cases = kunit_fault_test_cases,
 };
 
 /*
@@ -530,12 +577,24 @@ static struct kunit_suite kunit_resource_test_suite = {
 	.test_cases = kunit_resource_test_cases,
 };
 
+/*
+ * Log tests call string_stream functions, which aren't exported. So only
+ * build this code if this test is built-in.
+ */
+#if IS_BUILTIN(CONFIG_KUNIT_TEST)
+
+/* This avoids a cast warning if kfree() is passed direct to kunit_add_action(). */
+KUNIT_DEFINE_ACTION_WRAPPER(kfree_wrapper, kfree, const void *);
+
 static void kunit_log_test(struct kunit *test)
 {
 	struct kunit_suite suite;
-
-	suite.log = kunit_kzalloc(test, KUNIT_LOG_SIZE, GFP_KERNEL);
+#ifdef CONFIG_KUNIT_DEBUGFS
+	char *full_log;
+#endif
+	suite.log = kunit_alloc_string_stream(test, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, suite.log);
+	string_stream_set_append_newlines(suite.log, true);
 
 	kunit_log(KERN_INFO, test, "put this in log.");
 	kunit_log(KERN_INFO, test, "this too.");
@@ -543,14 +602,21 @@ static void kunit_log_test(struct kunit *test)
 	kunit_log(KERN_INFO, &suite, "along with this.");
 
 #ifdef CONFIG_KUNIT_DEBUGFS
+	KUNIT_EXPECT_TRUE(test, test->log->append_newlines);
+
+	full_log = string_stream_get_string(test->log);
+	kunit_add_action(test, kfree_wrapper, full_log);
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
-				     strstr(test->log, "put this in log."));
+				     strstr(full_log, "put this in log."));
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
-				     strstr(test->log, "this too."));
+				     strstr(full_log, "this too."));
+
+	full_log = string_stream_get_string(suite.log);
+	kunit_add_action(test, kfree_wrapper, full_log);
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
-				     strstr(suite.log, "add to suite log."));
+				     strstr(full_log, "add to suite log."));
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test,
-				     strstr(suite.log, "along with this."));
+				     strstr(full_log, "along with this."));
 #else
 	KUNIT_EXPECT_NULL(test, test->log);
 #endif
@@ -558,15 +624,30 @@ static void kunit_log_test(struct kunit *test)
 
 static void kunit_log_newline_test(struct kunit *test)
 {
+	char *full_log;
+
 	kunit_info(test, "Add newline\n");
 	if (test->log) {
-		KUNIT_ASSERT_NOT_NULL_MSG(test, strstr(test->log, "Add newline\n"),
-			"Missing log line, full log:\n%s", test->log);
-		KUNIT_EXPECT_NULL(test, strstr(test->log, "Add newline\n\n"));
+		full_log = string_stream_get_string(test->log);
+		kunit_add_action(test, kfree_wrapper, full_log);
+		KUNIT_ASSERT_NOT_NULL_MSG(test, strstr(full_log, "Add newline\n"),
+			"Missing log line, full log:\n%s", full_log);
+		KUNIT_EXPECT_NULL(test, strstr(full_log, "Add newline\n\n"));
 	} else {
 		kunit_skip(test, "only useful when debugfs is enabled");
 	}
 }
+#else
+static void kunit_log_test(struct kunit *test)
+{
+	kunit_skip(test, "Log tests only run when built-in");
+}
+
+static void kunit_log_newline_test(struct kunit *test)
+{
+	kunit_skip(test, "Log tests only run when built-in");
+}
+#endif /* IS_BUILTIN(CONFIG_KUNIT_TEST) */
 
 static struct kunit_case kunit_log_test_cases[] = {
 	KUNIT_CASE(kunit_log_test),
@@ -652,6 +733,134 @@ static struct kunit_case kunit_current_test_cases[] = {
 	{}
 };
 
+static void test_dev_action(void *priv)
+{
+	*(void **)priv = (void *)1;
+}
+
+static void kunit_device_test(struct kunit *test)
+{
+	struct device *test_device;
+	long action_was_run = 0;
+
+	test_device = kunit_device_register(test, "my_device");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+
+	// Add an action to verify cleanup.
+	devm_add_action(test_device, test_dev_action, &action_was_run);
+
+	KUNIT_EXPECT_EQ(test, action_was_run, 0);
+
+	kunit_device_unregister(test, test_device);
+
+	KUNIT_EXPECT_EQ(test, action_was_run, 1);
+}
+
+static void kunit_device_cleanup_test(struct kunit *test)
+{
+	struct device *test_device;
+	long action_was_run = 0;
+
+	test_device = kunit_device_register(test, "my_device");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+
+	/* Add an action to verify cleanup. */
+	devm_add_action(test_device, test_dev_action, &action_was_run);
+
+	KUNIT_EXPECT_EQ(test, action_was_run, 0);
+
+	/* Force KUnit to run cleanup early. */
+	kunit_cleanup(test);
+
+	KUNIT_EXPECT_EQ(test, action_was_run, 1);
+}
+
+struct driver_test_state {
+	bool driver_device_probed;
+	bool driver_device_removed;
+	long action_was_run;
+};
+
+static int driver_probe_hook(struct device *dev)
+{
+	struct kunit *test = kunit_get_current_test();
+	struct driver_test_state *state = (struct driver_test_state *)test->priv;
+
+	state->driver_device_probed = true;
+	return 0;
+}
+
+static int driver_remove_hook(struct device *dev)
+{
+	struct kunit *test = kunit_get_current_test();
+	struct driver_test_state *state = (struct driver_test_state *)test->priv;
+
+	state->driver_device_removed = true;
+	return 0;
+}
+
+static void kunit_device_driver_test(struct kunit *test)
+{
+	struct device_driver *test_driver;
+	struct device *test_device;
+	struct driver_test_state *test_state = kunit_kzalloc(test, sizeof(*test_state), GFP_KERNEL);
+
+	test->priv = test_state;
+	test_driver = kunit_driver_create(test, "my_driver");
+
+	// This can fail with an error pointer.
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_driver);
+
+	test_driver->probe = driver_probe_hook;
+	test_driver->remove = driver_remove_hook;
+
+	test_device = kunit_device_register_with_driver(test, "my_device", test_driver);
+
+	// This can fail with an error pointer.
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+
+	// Make sure the probe function was called.
+	KUNIT_ASSERT_TRUE(test, test_state->driver_device_probed);
+
+	// Add an action to verify cleanup.
+	devm_add_action(test_device, test_dev_action, &test_state->action_was_run);
+
+	KUNIT_EXPECT_EQ(test, test_state->action_was_run, 0);
+
+	kunit_device_unregister(test, test_device);
+	test_device = NULL;
+
+	// Make sure the remove hook was called.
+	KUNIT_ASSERT_TRUE(test, test_state->driver_device_removed);
+
+	// We're going to test this again.
+	test_state->driver_device_probed = false;
+
+	// The driver should not automatically be destroyed by
+	// kunit_device_unregister, so we can re-use it.
+	test_device = kunit_device_register_with_driver(test, "my_device", test_driver);
+
+	// This can fail with an error pointer.
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
+
+	// Probe was called again.
+	KUNIT_ASSERT_TRUE(test, test_state->driver_device_probed);
+
+	// Everything is automatically freed here.
+}
+
+static struct kunit_case kunit_device_test_cases[] = {
+	KUNIT_CASE(kunit_device_test),
+	KUNIT_CASE(kunit_device_cleanup_test),
+	KUNIT_CASE(kunit_device_driver_test),
+	{}
+};
+
+static struct kunit_suite kunit_device_test_suite = {
+	.name = "kunit_device",
+	.test_cases = kunit_device_test_cases,
+};
+
 static struct kunit_suite kunit_current_test_suite = {
 	.name = "kunit_current",
 	.test_cases = kunit_current_test_cases,
@@ -659,6 +868,8 @@ static struct kunit_suite kunit_current_test_suite = {
 
 kunit_test_suites(&kunit_try_catch_test_suite, &kunit_resource_test_suite,
 		  &kunit_log_test_suite, &kunit_status_test_suite,
-		  &kunit_current_test_suite);
+		  &kunit_current_test_suite, &kunit_device_test_suite,
+		  &kunit_fault_test_suite);
 
+MODULE_DESCRIPTION("KUnit test for core test infrastructure");
 MODULE_LICENSE("GPL v2");

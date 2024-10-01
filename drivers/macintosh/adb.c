@@ -74,7 +74,9 @@ static struct adb_driver *adb_driver_list[] = {
 	NULL
 };
 
-static struct class *adb_dev_class;
+static const struct class adb_dev_class = {
+	.name = "adb",
+};
 
 static struct adb_driver *adb_controller;
 BLOCKING_NOTIFIER_HEAD(adb_client_list);
@@ -840,7 +842,6 @@ out:
 
 static const struct file_operations adb_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= adb_read,
 	.write		= adb_write,
 	.open		= adb_open,
@@ -888,10 +889,10 @@ adbdev_init(void)
 		return;
 	}
 
-	adb_dev_class = class_create("adb");
-	if (IS_ERR(adb_dev_class))
+	if (class_register(&adb_dev_class))
 		return;
-	device_create(adb_dev_class, NULL, MKDEV(ADB_MAJOR, 0), NULL, "adb");
+
+	device_create(&adb_dev_class, NULL, MKDEV(ADB_MAJOR, 0), NULL, "adb");
 
 	platform_device_register(&adb_pfdev);
 	platform_driver_probe(&adb_pfdrv, adb_dummy_probe);

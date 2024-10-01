@@ -10,12 +10,6 @@
 
 #define GBAUDIO_INVALID_ID	0xFF
 
-/* mixer control */
-struct gb_mixer_control {
-	int min, max;
-	unsigned int reg, rreg, shift, rshift, invert;
-};
-
 struct gbaudio_ctl_pvt {
 	unsigned int ctl_id;
 	unsigned int data_cport;
@@ -761,7 +755,6 @@ static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 {
 	int ret, wi, ctl_id;
 	unsigned int val, mux, change;
-	unsigned int mask;
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct gb_audio_ctl_elem_value gbvalue;
@@ -802,7 +795,6 @@ static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 
 	mux = ucontrol->value.enumerated.item[0];
 	val = mux << e->shift_l;
-	mask = e->mask << e->shift_l;
 
 	if (le32_to_cpu(gbvalue.value.enumerated_item[0]) !=
 	    ucontrol->value.enumerated.item[0]) {
@@ -815,7 +807,6 @@ static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 		if (ucontrol->value.enumerated.item[1] > e->items - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
-		mask |= e->mask << e->shift_r;
 		if (le32_to_cpu(gbvalue.value.enumerated_item[1]) !=
 		    ucontrol->value.enumerated.item[1]) {
 			change = 1;

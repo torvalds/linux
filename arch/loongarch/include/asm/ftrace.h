@@ -28,7 +28,6 @@ struct dyn_ftrace;
 struct dyn_arch_ftrace { };
 
 #define ARCH_SUPPORTS_FTRACE_OPS 1
-#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
 #define ftrace_init_nop ftrace_init_nop
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
@@ -63,7 +62,7 @@ ftrace_regs_get_instruction_pointer(struct ftrace_regs *fregs)
 static __always_inline void
 ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs, unsigned long ip)
 {
-	regs_set_return_value(&fregs->regs, ip);
+	instruction_pointer_set(&fregs->regs, ip);
 }
 
 #define ftrace_regs_get_argument(fregs, n) \

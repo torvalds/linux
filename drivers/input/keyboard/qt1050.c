@@ -208,12 +208,12 @@ static const struct regmap_access_table qt1050_writeable_table = {
 	.n_yes_ranges = ARRAY_SIZE(qt1050_writeable_ranges),
 };
 
-static struct regmap_config qt1050_regmap_config = {
+static const struct regmap_config qt1050_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = QT1050_RES_CAL,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.wr_table = &qt1050_writeable_table,
 	.rd_table = &qt1050_readable_table,
@@ -226,7 +226,12 @@ static bool qt1050_identify(struct qt1050_priv *ts)
 	int err;
 
 	/* Read Chip ID */
-	regmap_read(ts->regmap, QT1050_CHIP_ID, &val);
+	err = regmap_read(ts->regmap, QT1050_CHIP_ID, &val);
+	if (err) {
+		dev_err(&ts->client->dev, "Failed to read chip ID: %d\n", err);
+		return false;
+	}
+
 	if (val != QT1050_CHIP_ID_VER) {
 		dev_err(&ts->client->dev, "ID %d not supported\n", val);
 		return false;
@@ -341,35 +346,34 @@ static int qt1050_apply_fw_data(struct qt1050_priv *ts)
 static int qt1050_parse_fw(struct qt1050_priv *ts)
 {
 	struct device *dev = &ts->client->dev;
-	struct fwnode_handle *child;
 	int nbuttons;
 
 	nbuttons = device_get_child_node_count(dev);
 	if (nbuttons == 0 || nbuttons > QT1050_MAX_KEYS)
 		return -ENODEV;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		struct qt1050_key button;
 
 		/* Required properties */
 		if (fwnode_property_read_u32(child, "linux,code",
 					     &button.keycode)) {
 			dev_err(dev, "Button without keycode\n");
-			goto err;
+			return -EINVAL;
 		}
 		if (button.keycode >= KEY_MAX) {
 			dev_err(dev, "Invalid keycode 0x%x\n",
 				button.keycode);
-			goto err;
+			return -EINVAL;
 		}
 
 		if (fwnode_property_read_u32(child, "reg",
 					     &button.num)) {
 			dev_err(dev, "Button without pad number\n");
-			goto err;
+			return -EINVAL;
 		}
 		if (button.num < 0 || button.num > QT1050_MAX_KEYS - 1)
-			goto err;
+			return -EINVAL;
 
 		ts->reg_keys |= BIT(button.num);
 
@@ -419,10 +423,6 @@ static int qt1050_parse_fw(struct qt1050_priv *ts)
 	}
 
 	return 0;
-
-err:
-	fwnode_handle_put(child);
-	return -EINVAL;
 }
 
 static int qt1050_probe(struct i2c_client *client)

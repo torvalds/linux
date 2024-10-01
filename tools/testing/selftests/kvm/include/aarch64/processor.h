@@ -8,6 +8,8 @@
 #define SELFTEST_KVM_PROCESSOR_H
 
 #include "kvm_util.h"
+#include "ucall_common.h"
+
 #include <linux/stringify.h>
 #include <linux/types.h>
 #include <asm/sysreg.h>
@@ -58,8 +60,6 @@
 	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL, MT_NORMAL) |				\
 	 MAIR_ATTRIDX(MAIR_ATTR_NORMAL_WT, MT_NORMAL_WT))
 
-#define MPIDR_HWID_BITMASK (0xff00fffffful)
-
 void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init);
 struct kvm_vcpu *aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 				  struct kvm_vcpu_init *init, void *guest_code);
@@ -104,6 +104,7 @@ enum {
 #define ESR_EC_SHIFT		26
 #define ESR_EC_MASK		(ESR_EC_NUM - 1)
 
+#define ESR_EC_UNKNOWN		0x0
 #define ESR_EC_SVC64		0x15
 #define ESR_EC_IABT		0x21
 #define ESR_EC_DABT		0x25
@@ -118,8 +119,8 @@ enum {
 /* Access flag update enable/disable */
 #define TCR_EL1_HA		(1ULL << 39)
 
-void aarch64_get_supported_page_sizes(uint32_t ipa,
-				      bool *ps4k, bool *ps16k, bool *ps64k);
+void aarch64_get_supported_page_sizes(uint32_t ipa, uint32_t *ipa4k,
+					uint32_t *ipa16k, uint32_t *ipa64k);
 
 void vm_init_descriptor_tables(struct kvm_vm *vm);
 void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
@@ -176,11 +177,28 @@ static __always_inline u32 __raw_readl(const volatile void *addr)
 	return val;
 }
 
+static __always_inline void __raw_writeq(u64 val, volatile void *addr)
+{
+	asm volatile("str %0, [%1]" : : "rZ" (val), "r" (addr));
+}
+
+static __always_inline u64 __raw_readq(const volatile void *addr)
+{
+	u64 val;
+	asm volatile("ldr %0, [%1]" : "=r" (val) : "r" (addr));
+	return val;
+}
+
 #define writel_relaxed(v,c)	((void)__raw_writel((__force u32)cpu_to_le32(v),(c)))
 #define readl_relaxed(c)	({ u32 __r = le32_to_cpu((__force __le32)__raw_readl(c)); __r; })
+#define writeq_relaxed(v,c)	((void)__raw_writeq((__force u64)cpu_to_le64(v),(c)))
+#define readq_relaxed(c)	({ u64 __r = le64_to_cpu((__force __le64)__raw_readq(c)); __r; })
 
 #define writel(v,c)		({ __iowmb(); writel_relaxed((v),(c));})
 #define readl(c)		({ u32 __v = readl_relaxed(c); __iormb(__v); __v; })
+#define writeq(v,c)		({ __iowmb(); writeq_relaxed((v),(c));})
+#define readq(c)		({ u64 __v = readq_relaxed(c); __iormb(__v); __v; })
+
 
 static inline void local_irq_enable(void)
 {
@@ -225,8 +243,7 @@ void smccc_smc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
 	       uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5,
 	       uint64_t arg6, struct arm_smccc_res *res);
 
-
-
-uint32_t guest_get_vcpuid(void);
+/* Execute a Wait For Interrupt instruction. */
+void wfi(void);
 
 #endif /* SELFTEST_KVM_PROCESSOR_H */

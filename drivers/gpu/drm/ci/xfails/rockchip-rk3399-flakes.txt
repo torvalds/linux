@@ -1,0 +1,48 @@
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_bw@linear-tiling-1-displays-2560x1440p
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_cursor_legacy@nonblocking-modeset-vs-cursor-atomic
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_flip@dpms-vs-vblank-race-interruptible
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_flip@flip-vs-absolute-wf_vblank-interruptible
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_flip@flip-vs-wf_vblank-interruptible
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_setmode@basic
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_bw@connected-linear-tiling-1-displays-2560x1440p

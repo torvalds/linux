@@ -114,6 +114,11 @@ properties:
     description: Enable pull down resistor when the regulator is disabled.
     type: boolean
 
+  system-critical-regulator:
+    description: Set if the regulator is critical to system stability or
+      functionality.
+    type: boolean
+
   regulator-over-current-protection:
     description: Enable over current protection.
     type: boolean
@@ -126,7 +131,7 @@ properties:
 
   regulator-oc-error-microamp:
     description: Set over current error limit. This is a limit where part of
-      the hardware propably is malfunctional and damage prevention is requested.
+      the hardware probably is malfunctional and damage prevention is requested.
       Zero can be passed to disable error detection and value '1' indicates
       that detection should be enabled but limit setting can be omitted.
 
@@ -146,7 +151,7 @@ properties:
 
   regulator-ov-error-microvolt:
     description: Set over voltage error limit. This is a limit where part of
-      the hardware propably is malfunctional and damage prevention is requested
+      the hardware probably is malfunctional and damage prevention is requested
       Zero can be passed to disable error detection and value '1' indicates
       that detection should be enabled but limit setting can be omitted. Limit
       is given as microvolt offset from voltage set to regulator.
@@ -168,7 +173,7 @@ properties:
 
   regulator-uv-error-microvolt:
     description: Set under voltage error limit. This is a limit where part of
-      the hardware propably is malfunctional and damage prevention is requested
+      the hardware probably is malfunctional and damage prevention is requested
       Zero can be passed to disable error detection and value '1' indicates
       that detection should be enabled but limit setting can be omitted. Limit
       is given as microvolt offset from voltage set to regulator.
@@ -181,6 +186,14 @@ properties:
       be enabled but limit setting can be omitted. Limit is given as microvolt
       offset from voltage set to regulator.
 
+  regulator-uv-less-critical-window-ms:
+    description: Specifies the time window (in milliseconds) following a
+      critical under-voltage event during which the system can continue to
+      operate safely while performing less critical operations. This property
+      provides a defined duration before a more severe reaction to the
+      under-voltage event is needed, allowing for certain non-urgent actions to
+      be carried out in preparation for potential power loss.
+
   regulator-temp-protection-kelvin:
     description: Set over temperature protection limit. This is a limit where
       hardware performs emergency shutdown. Zero can be passed to disable
@@ -189,7 +202,7 @@ properties:
 
   regulator-temp-error-kelvin:
     description: Set over temperature error limit. This is a limit where part of
-      the hardware propably is malfunctional and damage prevention is requested
+      the hardware probably is malfunctional and damage prevention is requested
       Zero can be passed to disable error detection and value '1' indicates
       that detection should be enabled but limit setting can be omitted.
 

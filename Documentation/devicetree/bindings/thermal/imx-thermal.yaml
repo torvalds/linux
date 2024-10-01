@@ -8,7 +8,6 @@ title: NXP i.MX Thermal
 
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>
-  - Anson Huang <Anson.Huang@nxp.com>
 
 properties:
   compatible:
@@ -60,12 +59,18 @@ properties:
   clocks:
     maxItems: 1
 
+  "#thermal-sensor-cells":
+    const: 0
+
 required:
   - compatible
   - interrupts
   - fsl,tempmon
   - nvmem-cells
   - nvmem-cell-names
+
+allOf:
+  - $ref: thermal-sensor.yaml#
 
 additionalProperties: false
 
@@ -104,5 +109,6 @@ examples:
              nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
              nvmem-cell-names = "calib", "temp_grade";
              clocks = <&clks IMX6SX_CLK_PLL3_USB_OTG>;
+             #thermal-sensor-cells = <0>;
         };
     };

@@ -85,7 +85,7 @@ xlog_add_buffer_cancelled(
 		return false;
 	}
 
-	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), 0);
+	bcp = kmalloc(sizeof(struct xfs_buf_cancel), GFP_KERNEL | __GFP_NOFAIL);
 	bcp->bc_blkno = blkno;
 	bcp->bc_len = len;
 	bcp->bc_refcount = 1;
@@ -129,7 +129,7 @@ xlog_put_buffer_cancelled(
 
 	if (--bcp->bc_refcount == 0) {
 		list_del(&bcp->bc_list);
-		kmem_free(bcp);
+		kfree(bcp);
 	}
 	return true;
 }
@@ -1062,10 +1062,10 @@ xlog_free_buf_cancel_table(
 				&log->l_buf_cancel_table[i],
 				struct xfs_buf_cancel, bc_list))) {
 			list_del(&bc->bc_list);
-			kmem_free(bc);
+			kfree(bc);
 		}
 	}
 
-	kmem_free(log->l_buf_cancel_table);
+	kfree(log->l_buf_cancel_table);
 	log->l_buf_cancel_table = NULL;
 }

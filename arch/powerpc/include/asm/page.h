@@ -9,6 +9,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/bug.h>
 #else
 #include <asm/types.h>
 #endif
@@ -20,7 +21,7 @@
  * page size. When using 64K pages however, whether we are really supporting
  * 64K pages in HW or not is irrelevant to those definitions.
  */
-#define PAGE_SHIFT		CONFIG_PPC_PAGE_SHIFT
+#define PAGE_SHIFT		CONFIG_PAGE_SHIFT
 #define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
 
 #ifndef __ASSEMBLY__
@@ -118,16 +119,6 @@ extern long long virt_phys_offset;
 #ifdef CONFIG_FLATMEM
 #define ARCH_PFN_OFFSET		((unsigned long)(MEMORY_START >> PAGE_SHIFT))
 #endif
-
-#define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
-#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
-#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
-
-#define virt_addr_valid(vaddr)	({					\
-	unsigned long _addr = (unsigned long)vaddr;			\
-	_addr >= PAGE_OFFSET && _addr < (unsigned long)high_memory &&	\
-	pfn_valid(virt_to_pfn(_addr));					\
-})
 
 /*
  * On Book-E parts we need __va to parse the device tree and we can't
@@ -233,6 +224,25 @@ extern long long virt_phys_offset;
 #endif
 #endif
 
+#ifndef __ASSEMBLY__
+static inline unsigned long virt_to_pfn(const void *kaddr)
+{
+	return __pa(kaddr) >> PAGE_SHIFT;
+}
+
+static inline const void *pfn_to_kaddr(unsigned long pfn)
+{
+	return __va(pfn << PAGE_SHIFT);
+}
+#endif
+
+#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
+#define virt_addr_valid(vaddr)	({					\
+	unsigned long _addr = (unsigned long)vaddr;			\
+	_addr >= PAGE_OFFSET && _addr < (unsigned long)high_memory &&	\
+	pfn_valid(virt_to_pfn((void *)_addr));				\
+})
+
 /*
  * Unfortunately the PLT is in the BSS in the PPC32 ELF ABI,
  * and needs to be executable.  This means the whole heap ends
@@ -257,38 +267,6 @@ extern long long virt_phys_offset;
 #define is_kernel_addr(x)	((x) >= PAGE_OFFSET)
 #else
 #define is_kernel_addr(x)	((x) >= TASK_SIZE)
-#endif
-
-#ifndef CONFIG_PPC_BOOK3S_64
-/*
- * Use the top bit of the higher-level page table entries to indicate whether
- * the entries we point to contain hugepages.  This works because we know that
- * the page tables live in kernel space.  If we ever decide to support having
- * page tables at arbitrary addresses, this breaks and will have to change.
- */
-#ifdef CONFIG_PPC64
-#define PD_HUGE 0x8000000000000000UL
-#else
-#define PD_HUGE 0x80000000
-#endif
-
-#else	/* CONFIG_PPC_BOOK3S_64 */
-/*
- * Book3S 64 stores real addresses in the hugepd entries to
- * avoid overlaps with _PAGE_PRESENT and _PAGE_PTE.
- */
-#define HUGEPD_ADDR_MASK	(0x0ffffffffffffffful & ~HUGEPD_SHIFT_MASK)
-#endif /* CONFIG_PPC_BOOK3S_64 */
-
-/*
- * Some number of bits at the level of the page table that points to
- * a hugepte are used to encode the size.  This masks those bits.
- * On 8xx, HW assistance requires 4k alignment for the hugepte.
- */
-#ifdef CONFIG_PPC_8xx
-#define HUGEPD_SHIFT_MASK     0xfff
-#else
-#define HUGEPD_SHIFT_MASK     0x3f
 #endif
 
 #ifndef __ASSEMBLY__

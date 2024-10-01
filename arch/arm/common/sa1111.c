@@ -785,19 +785,6 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	return ret;
 }
 
-/**
- *	sa1111_probe - probe for a single SA1111 chip.
- *	@phys_addr: physical address of device.
- *
- *	Probe for a SA1111 chip.  This must be called
- *	before any other SA1111-specific code.
- *
- *	Returns:
- *	%-ENODEV	device not found.
- *	%-EBUSY		physical address already marked in-use.
- *	%-EINVAL	no platform data passed
- *	%0		successful.
- */
 static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 {
 	struct sa1111_platform_data *pd = me->platform_data;
@@ -1108,6 +1095,20 @@ static int sa1111_resume_noirq(struct device *dev)
 #define sa1111_resume_noirq  NULL
 #endif
 
+/**
+ *	sa1111_probe - probe for a single SA1111 chip.
+ *	@pdev: platform device.
+ *
+ *	Probe for a SA1111 chip.  This must be called
+ *	before any other SA1111-specific code.
+ *
+ *	Returns:
+ *	* %-ENODEV	- device not found.
+ *	* %-ENOMEM	- memory allocation failure.
+ *	* %-EBUSY	- physical address already marked in-use.
+ *	* %-EINVAL	- no platform data passed
+ *	* %0		- successful.
+ */
 static int sa1111_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
@@ -1338,10 +1339,10 @@ EXPORT_SYMBOL_GPL(sa1111_get_irq);
  *	We model this as a regular bus type, and hang devices directly
  *	off this.
  */
-static int sa1111_match(struct device *_dev, struct device_driver *_drv)
+static int sa1111_match(struct device *_dev, const struct device_driver *_drv)
 {
 	struct sa1111_dev *dev = to_sa1111_device(_dev);
-	struct sa1111_driver *drv = SA1111_DRV(_drv);
+	const struct sa1111_driver *drv = SA1111_DRV(_drv);
 
 	return !!(dev->devid & drv->devid);
 }

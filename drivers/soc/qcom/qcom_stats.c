@@ -35,11 +35,15 @@ static const struct subsystem_data subsystems[] = {
 	{ "wpss", 605, 13 },
 	{ "adsp", 606, 2 },
 	{ "cdsp", 607, 5 },
+	{ "cdsp1", 607, 12 },
+	{ "gpdsp0", 607, 17 },
+	{ "gpdsp1", 607, 18 },
 	{ "slpi", 608, 3 },
 	{ "gpu", 609, 0 },
 	{ "display", 610, 0 },
 	{ "adsp_island", 613, 2 },
 	{ "slpi_island", 613, 3 },
+	{ "apss", 631, QCOM_SMEM_HOST_ANY },
 };
 
 struct stats_config {
@@ -216,13 +220,11 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_stats_remove(struct platform_device *pdev)
+static void qcom_stats_remove(struct platform_device *pdev)
 {
 	struct dentry *root = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(root);
-
-	return 0;
 }
 
 static const struct stats_config rpm_data = {
@@ -272,7 +274,7 @@ MODULE_DEVICE_TABLE(of, qcom_stats_table);
 
 static struct platform_driver qcom_stats = {
 	.probe = qcom_stats_probe,
-	.remove = qcom_stats_remove,
+	.remove_new = qcom_stats_remove,
 	.driver = {
 		.name = "qcom_stats",
 		.of_match_table = qcom_stats_table,

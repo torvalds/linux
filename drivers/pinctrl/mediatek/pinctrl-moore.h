@@ -37,12 +37,16 @@
 		.funcs = NULL,				\
 	}
 
-#define PINCTRL_PIN_GROUP(name, id)			\
-	{						\
-		name,					\
-		id##_pins,				\
-		ARRAY_SIZE(id##_pins),			\
-		id##_funcs,				\
+#define PINCTRL_PIN_GROUP(_name_, id)							\
+	{										\
+		.grp = PINCTRL_PINGROUP(_name_, id##_pins, ARRAY_SIZE(id##_pins)),	\
+		.data = id##_funcs,							\
+	}
+
+#define PINCTRL_PIN_FUNCTION(_name_, id)							\
+	{											\
+		.func = PINCTRL_PINFUNCTION(_name_, id##_groups, ARRAY_SIZE(id##_groups)),	\
+		.data = NULL,									\
 	}
 
 int mtk_moore_pinctrl_probe(struct platform_device *pdev,

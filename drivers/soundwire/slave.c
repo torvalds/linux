@@ -16,7 +16,7 @@ static void sdw_slave_release(struct device *dev)
 	kfree(slave);
 }
 
-struct device_type sdw_slave_type = {
+const struct device_type sdw_slave_type = {
 	.name =		"sdw_slave",
 	.release =	sdw_slave_release,
 	.uevent =	sdw_slave_uevent,
@@ -39,14 +39,14 @@ int sdw_slave_add(struct sdw_bus *bus,
 	slave->dev.fwnode = fwnode;
 
 	if (id->unique_id == SDW_IGNORED_UNIQUE_ID) {
-		/* name shall be sdw:link:mfg:part:class */
-		dev_set_name(&slave->dev, "sdw:%01x:%04x:%04x:%02x",
-			     bus->link_id, id->mfg_id, id->part_id,
+		/* name shall be sdw:ctrl:link:mfg:part:class */
+		dev_set_name(&slave->dev, "sdw:%01x:%01x:%04x:%04x:%02x",
+			     bus->controller_id, bus->link_id, id->mfg_id, id->part_id,
 			     id->class_id);
 	} else {
-		/* name shall be sdw:link:mfg:part:class:unique */
-		dev_set_name(&slave->dev, "sdw:%01x:%04x:%04x:%02x:%01x",
-			     bus->link_id, id->mfg_id, id->part_id,
+		/* name shall be sdw:ctrl:link:mfg:part:class:unique */
+		dev_set_name(&slave->dev, "sdw:%01x:%01x:%04x:%04x:%02x:%01x",
+			     bus->controller_id, bus->link_id, id->mfg_id, id->part_id,
 			     id->class_id, id->unique_id);
 	}
 
@@ -97,18 +97,13 @@ static bool find_slave(struct sdw_bus *bus,
 		       struct acpi_device *adev,
 		       struct sdw_slave_id *id)
 {
-	u64 addr;
 	unsigned int link_id;
-	acpi_status status;
+	u64 addr;
+	int ret;
 
-	status = acpi_evaluate_integer(adev->handle,
-				       METHOD_NAME__ADR, NULL, &addr);
-
-	if (ACPI_FAILURE(status)) {
-		dev_err(bus->dev, "_ADR resolution failed: %x\n",
-			status);
+	ret = acpi_get_local_u64_address(adev->handle, &addr);
+	if (ret < 0)
 		return false;
-	}
 
 	if (bus->ops->override_adr)
 		addr = bus->ops->override_adr(bus, addr);

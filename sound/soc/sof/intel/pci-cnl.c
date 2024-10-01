@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -28,23 +28,23 @@ static const struct sof_dev_desc cnl_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &cnl_chip_info,
-	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3) | BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_IPC] = "intel/sof",
-		[SOF_INTEL_IPC4] = "intel/avs/cnl",
+		[SOF_IPC_TYPE_3] = "intel/sof",
+		[SOF_IPC_TYPE_4] = "intel/avs/cnl",
 	},
 	.default_lib_path = {
-		[SOF_INTEL_IPC4] = "intel/avs-lib/cnl",
+		[SOF_IPC_TYPE_4] = "intel/avs-lib/cnl",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "intel/sof-tplg",
-		[SOF_INTEL_IPC4] = "intel/avs-tplg",
+		[SOF_IPC_TYPE_3] = "intel/sof-tplg",
+		[SOF_IPC_TYPE_4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-cnl.ri",
-		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+		[SOF_IPC_TYPE_3] = "sof-cnl.ri",
+		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
@@ -61,23 +61,23 @@ static const struct sof_dev_desc cfl_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &cnl_chip_info,
-	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3) | BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_IPC] = "intel/sof",
-		[SOF_INTEL_IPC4] = "intel/avs/cnl",
+		[SOF_IPC_TYPE_3] = "intel/sof",
+		[SOF_IPC_TYPE_4] = "intel/avs/cnl",
 	},
 	.default_lib_path = {
-		[SOF_INTEL_IPC4] = "intel/avs-lib/cnl",
+		[SOF_IPC_TYPE_4] = "intel/avs-lib/cnl",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "intel/sof-tplg",
-		[SOF_INTEL_IPC4] = "intel/avs-tplg",
+		[SOF_IPC_TYPE_3] = "intel/sof-tplg",
+		[SOF_IPC_TYPE_4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-cfl.ri",
-		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+		[SOF_IPC_TYPE_3] = "sof-cfl.ri",
+		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
@@ -94,23 +94,23 @@ static const struct sof_dev_desc cml_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &cnl_chip_info,
-	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3) | BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_IPC] = "intel/sof",
-		[SOF_INTEL_IPC4] = "intel/avs/cnl",
+		[SOF_IPC_TYPE_3] = "intel/sof",
+		[SOF_IPC_TYPE_4] = "intel/avs/cnl",
 	},
 	.default_lib_path = {
-		[SOF_INTEL_IPC4] = "intel/avs-lib/cnl",
+		[SOF_IPC_TYPE_4] = "intel/avs-lib/cnl",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "intel/sof-tplg",
-		[SOF_INTEL_IPC4] = "intel/avs-tplg",
+		[SOF_IPC_TYPE_3] = "intel/sof-tplg",
+		[SOF_IPC_TYPE_4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-cml.ri",
-		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+		[SOF_IPC_TYPE_3] = "sof-cml.ri",
+		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
@@ -120,16 +120,11 @@ static const struct sof_dev_desc cml_desc = {
 
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
-	{ PCI_DEVICE(0x8086, 0x9dc8), /* CNL-LP */
-		.driver_data = (unsigned long)&cnl_desc},
-	{ PCI_DEVICE(0x8086, 0xa348), /* CNL-H */
-		.driver_data = (unsigned long)&cfl_desc},
-	{ PCI_DEVICE(0x8086, 0x02c8), /* CML-LP */
-		.driver_data = (unsigned long)&cml_desc},
-	{ PCI_DEVICE(0x8086, 0x06c8), /* CML-H */
-		.driver_data = (unsigned long)&cml_desc},
-	{ PCI_DEVICE(0x8086, 0xa3f0), /* CML-S */
-		.driver_data = (unsigned long)&cml_desc},
+	{ PCI_DEVICE_DATA(INTEL, HDA_CNL_LP, &cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CNL_H, &cfl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_LP, &cml_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_H, &cml_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_S, &cml_desc) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);
@@ -148,5 +143,7 @@ static struct pci_driver snd_sof_pci_intel_cnl_driver = {
 module_pci_driver(snd_sof_pci_intel_cnl_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for CannonLake platforms");
+MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_GENERIC);
 MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_COMMON);
 MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);

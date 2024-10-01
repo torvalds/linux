@@ -158,8 +158,6 @@ struct param_id_enc_bitrate_param {
 
 #define MEDIA_FMT_ID_PCM	0x09001000
 #define MEDIA_FMT_ID_MP3	0x09001009
-#define PCM_CHANNEL_L		1
-#define PCM_CHANNEL_R		2
 #define SAMPLE_RATE_48K		48000
 #define BIT_WIDTH_16		16
 
@@ -757,7 +755,6 @@ struct audioreach_module_config {
 
 	u16	data_format;
 	u16	num_channels;
-	u16	active_channels_mask;
 	u16	dp_idx;
 	u32	channel_allocation;
 	u32	sd_line_mask;
@@ -769,6 +766,7 @@ struct audioreach_module_config {
 /* Packet Allocation routines */
 void *audioreach_alloc_apm_cmd_pkt(int pkt_size, uint32_t opcode, uint32_t
 				    token);
+void audioreach_set_default_channel_mapping(u8 *ch_map, int num_channels);
 void *audioreach_alloc_cmd_pkt(int payload_size, uint32_t opcode,
 			       uint32_t token, uint32_t src_port,
 			       uint32_t dest_port);

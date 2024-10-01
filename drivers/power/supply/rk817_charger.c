@@ -673,11 +673,6 @@ static enum power_supply_property rk817_chg_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 };
 
-static enum power_supply_usb_type rk817_usb_type[] = {
-	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-};
-
 static const struct power_supply_desc rk817_bat_desc = {
 	.name = "rk817-battery",
 	.type = POWER_SUPPLY_TYPE_BATTERY,
@@ -689,8 +684,8 @@ static const struct power_supply_desc rk817_bat_desc = {
 static const struct power_supply_desc rk817_chg_desc = {
 	.name = "rk817-charger",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = rk817_usb_type,
-	.num_usb_types = ARRAY_SIZE(rk817_usb_type),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
 	.properties = rk817_chg_props,
 	.num_properties = ARRAY_SIZE(rk817_chg_props),
 	.get_property = rk817_chg_get_prop,
@@ -1045,6 +1040,13 @@ static void rk817_charging_monitor(struct work_struct *work)
 	queue_delayed_work(system_wq, &charger->work, msecs_to_jiffies(8000));
 }
 
+static void rk817_cleanup_node(void *data)
+{
+	struct device_node *node = data;
+
+	of_node_put(node);
+}
+
 static int rk817_charger_probe(struct platform_device *pdev)
 {
 	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
@@ -1061,11 +1063,13 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	if (!node)
 		return -ENODEV;
 
+	ret = devm_add_action_or_reset(&pdev->dev, rk817_cleanup_node, node);
+	if (ret)
+		return ret;
+
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
-	if (!charger) {
-		of_node_put(node);
+	if (!charger)
 		return -ENOMEM;
-	}
 
 	charger->rk808 = rk808;
 
@@ -1198,11 +1202,24 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rk817_resume(struct device *dev)
+{
+
+	struct rk817_charger *charger = dev_get_drvdata(dev);
+
+	/* force an immediate update */
+	mod_delayed_work(system_wq, &charger->work, 0);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rk817_charger_pm, NULL, rk817_resume);
 
 static struct platform_driver rk817_charger_driver = {
 	.probe    = rk817_charger_probe,
 	.driver   = {
 		.name  = "rk817-charger",
+		.pm		= &rk817_charger_pm,
 	},
 };
 module_platform_driver(rk817_charger_driver);
@@ -1211,3 +1228,4 @@ MODULE_DESCRIPTION("Battery power supply driver for RK817 PMIC");
 MODULE_AUTHOR("Maya Matuszczyk <maccraft123mc@gmail.com>");
 MODULE_AUTHOR("Chris Morgan <macromorgan@hotmail.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:rk817-charger");

@@ -653,7 +653,7 @@ static void test_btf_dump_struct_data(struct btf *btf, struct btf_dump *d,
 		cmpstr =
 "(struct file_operations){\n"
 "	.owner = (struct module *)0xffffffffffffffff,\n"
-"	.llseek = (loff_t (*)(struct file *, loff_t, int))0xffffffffffffffff,";
+"	.fop_flags = (fop_flags_t)4294967295,";
 
 		ASSERT_STRNEQ(str, cmpstr, strlen(cmpstr), "file_operations");
 	}
@@ -805,8 +805,8 @@ static void test_btf_dump_var_data(struct btf *btf, struct btf_dump *d,
 	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "cpu_number", int, BTF_F_COMPACT,
 			  "int cpu_number = (int)100", 100);
 #endif
-	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "cpu_profile_flip", int, BTF_F_COMPACT,
-			  "static int cpu_profile_flip = (int)2", 2);
+	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "bpf_cgrp_storage_busy", int, BTF_F_COMPACT,
+			  "static int bpf_cgrp_storage_busy = (int)2", 2);
 }
 
 static void test_btf_datasec(struct btf *btf, struct btf_dump *d, char *str,

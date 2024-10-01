@@ -248,8 +248,8 @@ static void ip22zilog_maybe_update_regs(struct uart_ip22zilog_port *up,
 static bool ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 						  struct zilog_channel *channel)
 {
-	unsigned char ch, flag;
 	unsigned int r1;
+	u8 ch, flag;
 	bool push = up->port.state != NULL;
 
 	for (;;) {
@@ -355,7 +355,8 @@ static void ip22zilog_status_handle(struct uart_ip22zilog_port *up,
 static void ip22zilog_transmit_chars(struct uart_ip22zilog_port *up,
 				    struct zilog_channel *channel)
 {
-	struct circ_buf *xmit;
+	struct tty_port *tport;
+	unsigned char c;
 
 	if (ZS_IS_CONS(up)) {
 		unsigned char status = readb(&channel->control);
@@ -398,20 +399,18 @@ static void ip22zilog_transmit_chars(struct uart_ip22zilog_port *up,
 
 	if (up->port.state == NULL)
 		goto ack_tx_int;
-	xmit = &up->port.state->xmit;
-	if (uart_circ_empty(xmit))
-		goto ack_tx_int;
+	tport = &up->port.state->port;
 	if (uart_tx_stopped(&up->port))
+		goto ack_tx_int;
+	if (!uart_fifo_get(&up->port, &c))
 		goto ack_tx_int;
 
 	up->flags |= IP22ZILOG_FLAG_TX_ACTIVE;
-	writeb(xmit->buf[xmit->tail], &channel->data);
+	writeb(c, &channel->data);
 	ZSDELAY();
 	ZS_WSYNC(channel);
 
-	uart_xmit_advance(&up->port, 1);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&up->port);
 
 	return;
@@ -432,7 +431,7 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 		unsigned char r3;
 		bool push = false;
 
-		spin_lock(&up->port.lock);
+		uart_port_lock(&up->port);
 		r3 = read_zsreg(channel, R3);
 
 		/* Channel A */
@@ -448,7 +447,7 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 			if (r3 & CHATxIP)
 				ip22zilog_transmit_chars(up, channel);
 		}
-		spin_unlock(&up->port.lock);
+		uart_port_unlock(&up->port);
 
 		if (push)
 			tty_flip_buffer_push(&up->port.state->port);
@@ -458,7 +457,7 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 		channel = ZILOG_CHANNEL_FROM_PORT(&up->port);
 		push = false;
 
-		spin_lock(&up->port.lock);
+		uart_port_lock(&up->port);
 		if (r3 & (CHBEXT | CHBTxIP | CHBRxIP)) {
 			writeb(RES_H_IUS, &channel->control);
 			ZSDELAY();
@@ -471,7 +470,7 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 			if (r3 & CHBTxIP)
 				ip22zilog_transmit_chars(up, channel);
 		}
-		spin_unlock(&up->port.lock);
+		uart_port_unlock(&up->port);
 
 		if (push)
 			tty_flip_buffer_push(&up->port.state->port);
@@ -504,11 +503,11 @@ static unsigned int ip22zilog_tx_empty(struct uart_port *port)
 	unsigned char status;
 	unsigned int ret;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	status = ip22zilog_read_channel_status(port);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	if (status & Tx_BUF_EMP)
 		ret = TIOCSER_TEMT;
@@ -600,17 +599,16 @@ static void ip22zilog_start_tx(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 	} else {
-		struct circ_buf *xmit = &port->state->xmit;
+		struct tty_port *tport = &port->state->port;
+		unsigned char c;
 
-		if (uart_circ_empty(xmit))
+		if (!uart_fifo_get(port, &c))
 			return;
-		writeb(xmit->buf[xmit->tail], &channel->data);
+		writeb(c, &channel->data);
 		ZSDELAY();
 		ZS_WSYNC(channel);
 
-		uart_xmit_advance(port, 1);
-
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 			uart_write_wakeup(&up->port);
 	}
 }
@@ -664,7 +662,7 @@ static void ip22zilog_break_ctl(struct uart_port *port, int break_state)
 	else
 		clear_bits |= SND_BRK;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	new_reg = (up->curregs[R5] | set_bits) & ~clear_bits;
 	if (new_reg != up->curregs[R5]) {
@@ -674,7 +672,7 @@ static void ip22zilog_break_ctl(struct uart_port *port, int break_state)
 		write_zsreg(channel, R5, up->curregs[R5]);
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void __ip22zilog_reset(struct uart_ip22zilog_port *up)
@@ -735,9 +733,9 @@ static int ip22zilog_startup(struct uart_port *port)
 	if (ZS_IS_CONS(up))
 		return 0;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	__ip22zilog_startup(up);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 	return 0;
 }
 
@@ -775,7 +773,7 @@ static void ip22zilog_shutdown(struct uart_port *port)
 	if (ZS_IS_CONS(up))
 		return;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	channel = ZILOG_CHANNEL_FROM_PORT(port);
 
@@ -788,7 +786,7 @@ static void ip22zilog_shutdown(struct uart_port *port)
 	up->curregs[R5] &= ~SND_BRK;
 	ip22zilog_maybe_update_regs(up, channel);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /* Shared by TTY driver and serial console setup.  The port lock is held
@@ -880,7 +878,7 @@ ip22zilog_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	baud = uart_get_baud_rate(port, termios, old, 1200, 76800);
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 
 	brg = BPS_TO_BRG(baud, ZS_CLOCK / ZS_CLOCK_DIVISOR);
 
@@ -894,7 +892,7 @@ ip22zilog_set_termios(struct uart_port *port, struct ktermios *termios,
 	ip22zilog_maybe_update_regs(up, ZILOG_CHANNEL_FROM_PORT(port));
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 }
 
 static const char *ip22zilog_type(struct uart_port *port)
@@ -1016,10 +1014,10 @@ ip22zilog_console_write(struct console *con, const char *s, unsigned int count)
 	struct uart_ip22zilog_port *up = &ip22zilog_port_table[con->index];
 	unsigned long flags;
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 	uart_console_write(&up->port, s, count, ip22zilog_put_char);
 	udelay(2);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 }
 
 static int __init ip22zilog_console_setup(struct console *con, char *options)
@@ -1034,13 +1032,13 @@ static int __init ip22zilog_console_setup(struct console *con, char *options)
 
 	printk(KERN_INFO "Console: ttyS%d (IP22-Zilog)\n", con->index);
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 
 	up->curregs[R15] |= BRKIE;
 
 	__ip22zilog_startup(up);
 
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);

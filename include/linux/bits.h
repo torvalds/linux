@@ -4,6 +4,7 @@
 
 #include <linux/const.h>
 #include <vdso/bits.h>
+#include <uapi/linux/bits.h>
 #include <asm/bitsperlong.h>
 
 #define BIT_MASK(nr)		(UL(1) << ((nr) % BITS_PER_LONG))
@@ -30,16 +31,24 @@
 #define GENMASK_INPUT_CHECK(h, l) 0
 #endif
 
-#define __GENMASK(h, l) \
-	(((~UL(0)) - (UL(1) << (l)) + 1) & \
-	 (~UL(0) >> (BITS_PER_LONG - 1 - (h))))
 #define GENMASK(h, l) \
 	(GENMASK_INPUT_CHECK(h, l) + __GENMASK(h, l))
-
-#define __GENMASK_ULL(h, l) \
-	(((~ULL(0)) - (ULL(1) << (l)) + 1) & \
-	 (~ULL(0) >> (BITS_PER_LONG_LONG - 1 - (h))))
 #define GENMASK_ULL(h, l) \
 	(GENMASK_INPUT_CHECK(h, l) + __GENMASK_ULL(h, l))
+
+#if !defined(__ASSEMBLY__)
+/*
+ * Missing asm support
+ *
+ * __GENMASK_U128() depends on _BIT128() which would not work
+ * in the asm code, as it shifts an 'unsigned __init128' data
+ * type instead of direct representation of 128 bit constants
+ * such as long and unsigned long. The fundamental problem is
+ * that a 128 bit constant will get silently truncated by the
+ * gcc compiler.
+ */
+#define GENMASK_U128(h, l) \
+	(GENMASK_INPUT_CHECK(h, l) + __GENMASK_U128(h, l))
+#endif
 
 #endif	/* __LINUX_BITS_H */

@@ -97,7 +97,7 @@ config BOOT_PRINTK_DELAY
 	  using "boot_delay=N".
 
 	  It is likely that you would also need to use "lpj=M" to preset
-	  the "loops per jiffie" value.
+	  the "loops per jiffy" value.
 	  See a previous boot log for the "lpj" value to use for your
 	  system, and then set "lpj=M" before setting "boot_delay=N".
 	  NOTE:  Using this option may adversely affect SMP systems.
@@ -231,9 +231,10 @@ config DEBUG_INFO
 	  in the "Debug information" choice below, indicating that debug
 	  information will be generated for build targets.
 
-# Clang is known to generate .{s,u}leb128 with symbol deltas with DWARF5, which
-# some targets may not support: https://sourceware.org/bugzilla/show_bug.cgi?id=27215
-config AS_HAS_NON_CONST_LEB128
+# Clang generates .uleb128 with label differences for DWARF v5, a feature that
+# older binutils ports do not support when utilizing RISC-V style linker
+# relaxation: https://sourceware.org/bugzilla/show_bug.cgi?id=27215
+config AS_HAS_NON_CONST_ULEB128
 	def_bool $(as-instr,.uleb128 .Lexpr_end4 - .Lexpr_start3\n.Lexpr_start3:\n.Lexpr_end4:)
 
 choice
@@ -258,7 +259,7 @@ config DEBUG_INFO_NONE
 config DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
 	bool "Rely on the toolchain's implicit default DWARF version"
 	select DEBUG_INFO
-	depends on !CC_IS_CLANG || AS_IS_LLVM || CLANG_VERSION < 140000 || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_LEB128)
+	depends on !CC_IS_CLANG || AS_IS_LLVM || CLANG_VERSION < 140000 || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_ULEB128)
 	help
 	  The implicit default version of DWARF debug info produced by a
 	  toolchain changes over time.
@@ -282,7 +283,8 @@ config DEBUG_INFO_DWARF4
 config DEBUG_INFO_DWARF5
 	bool "Generate DWARF Version 5 debuginfo"
 	select DEBUG_INFO
-	depends on !CC_IS_CLANG || AS_IS_LLVM || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_LEB128)
+	depends on !ARCH_HAS_BROKEN_DWARF5
+	depends on !CC_IS_CLANG || AS_IS_LLVM || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_ULEB128)
 	help
 	  Generate DWARF v5 debug info. Requires binutils 2.35.2, gcc 5.0+ (gcc
 	  5.0+ accepts the -gdwarf-5 flag but only had partial support for some
@@ -355,6 +357,11 @@ endchoice # "Compressed Debug information"
 config DEBUG_INFO_SPLIT
 	bool "Produce split debuginfo in .dwo files"
 	depends on $(cc-option,-gsplit-dwarf)
+	# RISC-V linker relaxation + -gsplit-dwarf has issues with LLVM and GCC
+	# prior to 12.x:
+	# https://github.com/llvm/llvm-project/issues/56642
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99090
+	depends on !RISCV || GCC_VERSION >= 120000
 	help
 	  Generate debug info into separate .dwo files. This significantly
 	  reduces the build directory size for builds with DEBUG_INFO,
@@ -368,15 +375,19 @@ config DEBUG_INFO_SPLIT
 	  Incompatible with older versions of ccache.
 
 config DEBUG_INFO_BTF
-	bool "Generate BTF typeinfo"
+	bool "Generate BTF type information"
 	depends on !DEBUG_INFO_SPLIT && !DEBUG_INFO_REDUCED
 	depends on !GCC_PLUGIN_RANDSTRUCT || COMPILE_TEST
 	depends on BPF_SYSCALL
-	depends on !DEBUG_INFO_DWARF5 || PAHOLE_VERSION >= 121
+	depends on PAHOLE_VERSION >= 116
+	depends on DEBUG_INFO_DWARF4 || PAHOLE_VERSION >= 121
+	# pahole uses elfutils, which does not have support for Hexagon relocations
+	depends on !HEXAGON
 	help
 	  Generate deduplicated BTF type information from DWARF debug info.
-	  Turning this on expects presence of pahole tool, which will convert
-	  DWARF type info into equivalent deduplicated BTF type info.
+	  Turning this on requires pahole v1.16 or later (v1.21 or later to
+	  support DWARF 5), which will convert DWARF type info into equivalent
+	  deduplicated BTF type info.
 
 config PAHOLE_HAS_SPLIT_BTF
 	def_bool PAHOLE_VERSION >= 119
@@ -399,7 +410,8 @@ config PAHOLE_HAS_LANG_EXCLUDE
 	  using DEBUG_INFO_BTF_MODULES.
 
 config DEBUG_INFO_BTF_MODULES
-	def_bool y
+	bool "Generate BTF type information for kernel modules"
+	default y
 	depends on DEBUG_INFO_BTF && MODULES && PAHOLE_HAS_SPLIT_BTF
 	help
 	  Generate compact split BTF type information for kernel modules.
@@ -502,7 +514,7 @@ config SECTION_MISMATCH_WARN_ONLY
 
 config DEBUG_FORCE_FUNCTION_ALIGN_64B
 	bool "Force all function address 64B aligned"
-	depends on EXPERT && (X86_64 || ARM64 || PPC32 || PPC64 || ARC || S390)
+	depends on EXPERT && (X86_64 || ARM64 || PPC32 || PPC64 || ARC || RISCV || S390)
 	select FUNCTION_ALIGNMENT_64B
 	help
 	  There are cases that a commit from one domain changes the function
@@ -560,6 +572,21 @@ config VMLINUX_MAP
 	  and debugging magic section games, and for seeing which
 	  pieces of code get eliminated with
 	  CONFIG_LD_DEAD_CODE_DATA_ELIMINATION.
+
+config BUILTIN_MODULE_RANGES
+	bool "Generate address range information for builtin modules"
+	depends on !LTO
+	depends on VMLINUX_MAP
+	help
+	 When modules are built into the kernel, there will be no module name
+	 associated with its symbols in /proc/kallsyms.  Tracers may want to
+	 identify symbols by module name and symbol name regardless of whether
+	 the module is configured as loadable or not.
+
+	 This option generates modules.builtin.ranges in the build tree with
+	 offset ranges (per ELF section) for the module(s) they belong to.
+	 It also records an anchor symbol to determine the load address of the
+	 section.
 
 config DEBUG_FORCE_WEAK_PER_CPU
 	bool "Force weak per-cpu definitions"
@@ -754,10 +781,12 @@ config SHRINKER_DEBUG
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL && !IA64
+	depends on DEBUG_KERNEL
 	help
 	  Enables the display of the minimum amount of free stack which each
 	  task has ever had available in the sysrq-T and sysrq-P debug output.
+	  Also emits a message to dmesg when a process exits if that process
+	  used more stack space than previously exiting processes.
 
 	  This option will slow down process creation somewhat.
 
@@ -957,6 +986,37 @@ config DEBUG_STACKOVERFLOW
 
 	  If in doubt, say "N".
 
+config CODE_TAGGING
+	bool
+	select KALLSYMS
+
+config MEM_ALLOC_PROFILING
+	bool "Enable memory allocation profiling"
+	default n
+	depends on PROC_FS
+	depends on !DEBUG_FORCE_WEAK_PER_CPU
+	select CODE_TAGGING
+	select PAGE_EXTENSION
+	select SLAB_OBJ_EXT
+	help
+	  Track allocation source code and record total allocation size
+	  initiated at that code location. The mechanism can be used to track
+	  memory leaks with a low performance and memory impact.
+
+config MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT
+	bool "Enable memory allocation profiling by default"
+	default y
+	depends on MEM_ALLOC_PROFILING
+
+config MEM_ALLOC_PROFILING_DEBUG
+	bool "Memory allocation profiler debugging"
+	default n
+	depends on MEM_ALLOC_PROFILING
+	select MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT
+	help
+	  Adds warnings with helpful error messages for memory allocation
+	  profiling.
+
 source "lib/Kconfig.kasan"
 source "lib/Kconfig.kfence"
 source "lib/Kconfig.kmsan"
@@ -1000,7 +1060,9 @@ config PANIC_TIMEOUT
 	  Set the timeout value (in seconds) until a reboot occurs when
 	  the kernel panics. If n = 0, then we wait forever. A timeout
 	  value n > 0 will wait n seconds before rebooting, while a timeout
-	  value n < 0 will reboot immediately.
+	  value n < 0 will reboot immediately. This setting can be overridden
+	  with the kernel command line option panic=, and from userspace via
+	  /proc/sys/kernel/panic.
 
 config LOCKUP_DETECTOR
 	bool
@@ -1017,6 +1079,20 @@ config SOFTLOCKUP_DETECTOR
 	  mode for more than 20 seconds, without giving other tasks a
 	  chance to run.  The current stack trace is displayed upon
 	  detection and the system will stay locked up.
+
+config SOFTLOCKUP_DETECTOR_INTR_STORM
+	bool "Detect Interrupt Storm in Soft Lockups"
+	depends on SOFTLOCKUP_DETECTOR && IRQ_TIME_ACCOUNTING
+	select GENERIC_IRQ_STAT_SNAPSHOT
+	default y if NR_CPUS <= 128
+	help
+	  Say Y here to enable the kernel to detect interrupt storm
+	  during "soft lockups".
+
+	  "soft lockups" can be caused by a variety of reasons. If one is
+	  caused by an interrupt storm, then the storming interrupts will not
+	  be on the callstack. To detect this case, it is necessary to report
+	  the CPU stats and the interrupt counts during the "soft lockups".
 
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"
@@ -1200,7 +1276,7 @@ config WQ_CPU_INTENSIVE_REPORT
 	help
 	  Say Y here to enable reporting of concurrency-managed per-cpu work
 	  items that hog CPUs for longer than
-	  workqueue.cpu_intensive_threshold_us. Workqueue automatically
+	  workqueue.cpu_intensive_thresh_us. Workqueue automatically
 	  detects and excludes them from concurrency management to prevent
 	  them from stalling other per-cpu work items. Occassional
 	  triggering may not necessarily indicate a problem. Repeated
@@ -1239,7 +1315,7 @@ config SCHED_INFO
 
 config SCHEDSTATS
 	bool "Collect scheduler statistics"
-	depends on DEBUG_KERNEL && PROC_FS
+	depends on PROC_FS
 	select SCHED_INFO
 	help
 	  If you say Y here, additional code will be inserted into the
@@ -1292,7 +1368,7 @@ config PROVE_LOCKING
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES if !PREEMPT_RT
 	select DEBUG_RT_MUTEXES if RT_MUTEXES
-	select DEBUG_RWSEMS
+	select DEBUG_RWSEMS if !PREEMPT_RT
 	select DEBUG_WW_MUTEX_SLOWPATH
 	select DEBUG_LOCK_ALLOC
 	select PREEMPT_COUNT if !ARCH_NO_PREEMPT
@@ -1415,7 +1491,7 @@ config DEBUG_WW_MUTEX_SLOWPATH
 
 config DEBUG_RWSEMS
 	bool "RW Semaphore debugging: basic checks"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && !PREEMPT_RT
 	help
 	  This debugging feature allows mismatched rw semaphore locks
 	  and unlocks to be detected and reported.
@@ -1456,7 +1532,7 @@ config LOCKDEP_BITS
 config LOCKDEP_CHAINS_BITS
 	int "Bitsize for MAX_LOCKDEP_CHAINS"
 	depends on LOCKDEP && !LOCKDEP_SMALL
-	range 10 30
+	range 10 21
 	default 16
 	help
 	  Try increasing this value if you hit "BUG: MAX_LOCKDEP_CHAINS too low!" message.
@@ -1555,6 +1631,7 @@ config SCF_TORTURE_TEST
 config CSD_LOCK_WAIT_DEBUG
 	bool "Debugging for csd_lock_wait(), called from smp_call_function*()"
 	depends on DEBUG_KERNEL
+	depends on SMP
 	depends on 64BIT
 	default n
 	help
@@ -1673,10 +1750,15 @@ menu "Debug kernel data structures"
 
 config DEBUG_LIST
 	bool "Debug linked list manipulation"
-	depends on DEBUG_KERNEL || BUG_ON_DATA_CORRUPTION
+	depends on DEBUG_KERNEL
+	select LIST_HARDENED
 	help
-	  Enable this to turn on extended checks in the linked-list
-	  walking routines.
+	  Enable this to turn on extended checks in the linked-list walking
+	  routines.
+
+	  This option trades better quality error reports for performance, and
+	  is more suitable for kernel debugging. If you care about performance,
+	  you should only enable CONFIG_LIST_HARDENED instead.
 
 	  If unsure, say N.
 
@@ -1710,15 +1792,14 @@ config DEBUG_NOTIFIERS
 	  This is a relatively cheap check but if you care about maximum
 	  performance, say N.
 
-config BUG_ON_DATA_CORRUPTION
-	bool "Trigger a BUG when data corruption is detected"
-	select DEBUG_LIST
+config DEBUG_CLOSURES
+	bool "Debug closures (bcache async widgits)"
+	depends on CLOSURES
+	select DEBUG_FS
 	help
-	  Select this option if the kernel should BUG when it encounters
-	  data corruption in kernel memory structures when they get checked
-	  for validity.
-
-	  If unsure, say N.
+	  Keeps all active closures in a linked list and provides a debugfs
+	  interface to list them, which makes it possible to see asynchronous
+	  operations that get stuck.
 
 config DEBUG_MAPLE_TREE
 	bool "Debug maple trees"
@@ -1729,21 +1810,6 @@ config DEBUG_MAPLE_TREE
 	  If unsure, say N.
 
 endmenu
-
-config DEBUG_CREDENTIALS
-	bool "Debug credential management"
-	depends on DEBUG_KERNEL
-	help
-	  Enable this to turn on some debug checking for credential
-	  management.  The additional code keeps track of the number of
-	  pointers from task_structs to any given cred struct, and checks to
-	  see that this number never exceeds the usage count of the cred
-	  struct.
-
-	  Furthermore, if SELinux is enabled, this also checks that the
-	  security pointer in the cred struct is never seen to be invalid.
-
-	  If unsure, say N.
 
 source "kernel/rcu/Kconfig.debug"
 
@@ -1976,7 +2042,6 @@ config FAULT_INJECTION
 config FAILSLAB
 	bool "Fault-injection capability for kmalloc"
 	depends on FAULT_INJECTION
-	depends on SLAB || SLUB
 	help
 	  Provide fault-injection capability for kmalloc.
 
@@ -2086,17 +2151,13 @@ config KCOV
 	depends on ARCH_HAS_KCOV
 	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
 	depends on !ARCH_WANTS_NO_INSTR || HAVE_NOINSTR_HACK || \
-		   GCC_VERSION >= 120000 || CLANG_VERSION >= 130000
+		   GCC_VERSION >= 120000 || CC_IS_CLANG
 	select DEBUG_FS
 	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
 	select OBJTOOL if HAVE_NOINSTR_HACK
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
-
-	  If RANDOMIZE_BASE is enabled, PC values will not be stable across
-	  different machines and across reboots. If you need stable PC values,
-	  disable RANDOMIZE_BASE.
 
 	  For more details, see Documentation/dev-tools/kcov.rst.
 
@@ -2130,9 +2191,17 @@ config KCOV_IRQ_AREA_SIZE
 	  soft interrupts. This specifies the size of those areas in the
 	  number of unsigned long words.
 
+config KCOV_SELFTEST
+	bool "Perform short selftests on boot"
+	depends on KCOV
+	help
+	  Run short KCOV coverage collection selftests on boot.
+	  On test failure, causes the kernel to panic. Recommended to be
+	  enabled, ensuring critical functionality works as intended.
+
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
-	def_bool y
+	default y
 
 if RUNTIME_TESTING_MENU
 
@@ -2147,7 +2216,7 @@ config TEST_DHRY
 
 	  To run the benchmark, it needs to be enabled explicitly, either from
 	  the kernel command line (when built-in), or from userspace (when
-	  built-in or modular.
+	  built-in or modular).
 
 	  Run once during kernel boot:
 
@@ -2234,6 +2303,28 @@ config TEST_DIV64
 	  Enable this to turn on 'do_div()' function test. This test is
 	  executed only once during system boot (so affects only boot time),
 	  or at module load time.
+
+	  If unsure, say N.
+
+config TEST_MULDIV64
+	tristate "mul_u64_u64_div_u64() test"
+	depends on DEBUG_KERNEL || m
+	help
+	  Enable this to turn on 'mul_u64_u64_div_u64()' function test.
+	  This test is executed only once during system boot (so affects
+	  only boot time), or at module load time.
+
+	  If unsure, say N.
+
+config TEST_IOV_ITER
+	tristate "Test iov_iter operation" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on MMU
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this to turn on testing of the operation of the I/O iterator
+	  (iov_iter). This test is executed only once during system boot (so
+	  affects only boot time), or at module load time.
 
 	  If unsure, say N.
 
@@ -2346,11 +2437,15 @@ config ASYNC_RAID6_TEST
 config TEST_HEXDUMP
 	tristate "Test functions located in the hexdump module at runtime"
 
-config STRING_SELFTEST
-	tristate "Test string functions at runtime"
+config STRING_KUNIT_TEST
+	tristate "KUnit test string functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
 
-config TEST_STRING_HELPERS
-	tristate "Test functions located in the string_helpers module at runtime"
+config STRING_HELPERS_KUNIT_TEST
+	tristate "KUnit test string helpers at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
@@ -2425,7 +2520,6 @@ config TEST_LKM
 
 config TEST_BITOPS
 	tristate "Test module for compilation of bitops operations"
-	depends on m
 	help
 	  This builds the "test_bitops" module that is much like the
 	  TEST_LKM module except that it does a basic exercise of the
@@ -2446,18 +2540,6 @@ config TEST_VMALLOC
 	  stress and performance analysis. So, any new change for vmalloc
 	  subsystem can be evaluated from performance and stability point
 	  of view.
-
-	  If unsure, say N.
-
-config TEST_USER_COPY
-	tristate "Test user/kernel boundary protections"
-	depends on m
-	help
-	  This builds the "test_user_copy" module that runs sanity checks
-	  on the copy_to/from_user infrastructure, making sure basic
-	  user/kernel boundary testing is working. If it fails to load,
-	  a regression has been detected in the user/kernel memory boundary
-	  protections.
 
 	  If unsure, say N.
 
@@ -2570,6 +2652,7 @@ config RESOURCE_KUNIT_TEST
 	tristate "KUnit test for resource API" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
+	select GET_FREE_REGION
 	help
 	  This builds the resource API unit test.
 	  Tests the logic of API provided by resource.c and ioport.h.
@@ -2692,15 +2775,6 @@ config MEMCPY_KUNIT_TEST
 
 	  If unsure, say N.
 
-config MEMCPY_SLOW_KUNIT_TEST
-	bool "Include exhaustive memcpy tests"
-	depends on MEMCPY_KUNIT_TEST
-	default y
-	help
-	  Some memcpy tests are quite exhaustive in checking for overlaps
-	  and bit ranges. These can be very slow, so they are split out
-	  as a separate config, in case they need to be disabled.
-
 config IS_SIGNED_TYPE_KUNIT_TEST
 	tristate "Test is_signed_type() macro" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2739,7 +2813,7 @@ config STACKINIT_KUNIT_TEST
 
 config FORTIFY_KUNIT_TEST
 	tristate "Test fortified str*() and mem*() function internals at runtime" if !KUNIT_ALL_TESTS
-	depends on KUNIT && FORTIFY_SOURCE
+	depends on KUNIT
 	default KUNIT_ALL_TESTS
 	help
 	  Builds unit tests for checking internals of FORTIFY_SOURCE as used
@@ -2756,16 +2830,6 @@ config HW_BREAKPOINT_KUNIT_TEST
 
 	  If unsure, say N.
 
-config STRCAT_KUNIT_TEST
-	tristate "Test strcat() family of functions at runtime" if !KUNIT_ALL_TESTS
-	depends on KUNIT
-	default KUNIT_ALL_TESTS
-
-config STRSCPY_KUNIT_TEST
-	tristate "Test strscpy*() family of functions at runtime" if !KUNIT_ALL_TESTS
-	depends on KUNIT
-	default KUNIT_ALL_TESTS
-
 config SIPHASH_KUNIT_TEST
 	tristate "Perform selftest on siphash functions" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2776,6 +2840,15 @@ config SIPHASH_KUNIT_TEST
 
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
+
+config USERCOPY_KUNIT_TEST
+	tristate "KUnit Test for user/kernel boundary protections"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the "usercopy_kunit" module that runs sanity checks
+	  on the copy_to/from_user infrastructure, making sure basic
+	  user/kernel boundary testing is working.
 
 config TEST_UDELAY
 	tristate "udelay test driver"
@@ -2848,28 +2921,6 @@ config TEST_MEMCAT_P
 
 	  If unsure, say N.
 
-config TEST_LIVEPATCH
-	tristate "Test livepatching"
-	default n
-	depends on DYNAMIC_DEBUG
-	depends on LIVEPATCH
-	depends on m
-	help
-	  Test kernel livepatching features for correctness.  The tests will
-	  load test modules that will be livepatched in various scenarios.
-
-	  To run all the livepatching tests:
-
-	  make -C tools/testing/selftests TARGETS=livepatch run_tests
-
-	  Alternatively, individual tests may be invoked:
-
-	  tools/testing/selftests/livepatch/test-callbacks.sh
-	  tools/testing/selftests/livepatch/test-livepatch.sh
-	  tools/testing/selftests/livepatch/test-shadow-vars.sh
-
-	  If unsure, say N.
-
 config TEST_OBJAGG
 	tristate "Perform selftest on object aggreration manager"
 	default n
@@ -2910,7 +2961,7 @@ config TEST_FREE_PAGES
 
 config TEST_FPU
 	tristate "Test floating point operations in kernel space"
-	depends on X86 && !KCOV_INSTRUMENT_ALL
+	depends on ARCH_HAS_KERNEL_FPU_SUPPORT && !KCOV_INSTRUMENT_ALL
 	help
 	  Enable this option to add /sys/kernel/debug/selftest_helpers/test_fpu
 	  which will trigger a sequence of floating point operations. This is used
@@ -2928,6 +2979,17 @@ config TEST_CLOCKSOURCE_WATCHDOG
 	  via modprobe or insmod in which case it will run upon being
 	  loaded, or it may be built in, in which case it will run
 	  shortly after boot.
+
+	  If unsure, say N.
+
+config TEST_OBJPOOL
+	tristate "Test module for correctness and stress of objpool"
+	default n
+	depends on m && DEBUG_KERNEL
+	help
+	  This builds the "test_objpool" module that should be used for
+	  correctness verification and concurrent testings of objects
+	  allocation and reclamation.
 
 	  If unsure, say N.
 
@@ -3010,6 +3072,35 @@ config RUST_BUILD_ASSERT_ALLOW
 
 	  If unsure, say N.
 
+config RUST_KERNEL_DOCTESTS
+	bool "Doctests for the `kernel` crate" if !KUNIT_ALL_TESTS
+	depends on RUST && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the documentation tests of the `kernel` crate
+	  as KUnit tests.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 endmenu # "Rust"
 
 endmenu # Kernel hacking
+
+config INT_POW_TEST
+	tristate "Integer exponentiation (int_pow) test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the int_pow function,
+	  which performs integer exponentiation. The test suite is designed to
+	  verify that the implementation of int_pow correctly computes the power
+	  of a given base raised to a given exponent.
+
+	  Enabling this option will include tests that check various scenarios
+	  and edge cases to ensure the accuracy and reliability of the exponentiation
+	  function.
+
+	  If unsure, say N

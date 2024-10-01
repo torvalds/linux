@@ -480,7 +480,6 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 	struct mem_ctl_info *mci;
 	void __iomem *reg_base;
 	u32 irq_mask_all = 0;
-	struct resource *res;
 	struct device *dev;
 	int ret, idx, irq;
 	u32 reg_val;
@@ -505,8 +504,7 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize dmc520 edac */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg_base = devm_ioremap_resource(dev, res);
+	reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 
@@ -602,7 +600,7 @@ err:
 	return ret;
 }
 
-static int dmc520_edac_remove(struct platform_device *pdev)
+static void dmc520_edac_remove(struct platform_device *pdev)
 {
 	u32 reg_val, idx, irq_mask_all = 0;
 	struct mem_ctl_info *mci;
@@ -626,8 +624,6 @@ static int dmc520_edac_remove(struct platform_device *pdev)
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
-
-	return 0;
 }
 
 static const struct of_device_id dmc520_edac_driver_id[] = {
@@ -644,7 +640,7 @@ static struct platform_driver dmc520_edac_driver = {
 	},
 
 	.probe = dmc520_edac_probe,
-	.remove = dmc520_edac_remove
+	.remove_new = dmc520_edac_remove
 };
 
 module_platform_driver(dmc520_edac_driver);

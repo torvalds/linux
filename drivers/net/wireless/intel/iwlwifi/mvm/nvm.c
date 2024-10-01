@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -9,8 +9,7 @@
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "mvm.h"
-#include "iwl-eeprom-parse.h"
-#include "iwl-eeprom-read.h"
+#include "iwl-nvm-utils.h"
 #include "iwl-nvm-parse.h"
 #include "iwl-prph.h"
 #include "fw/acpi.h"
@@ -220,6 +219,8 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 	const __be16 *hw;
 	const __le16 *sw, *calib, *regulatory, *mac_override, *phy_sku;
+	u8 tx_ant = mvm->fw->valid_tx_ant;
+	u8 rx_ant = mvm->fw->valid_rx_ant;
 	int regulatory_type;
 
 	/* Checking for required sections */
@@ -270,9 +271,15 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY_SDP].data :
 		(const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 
+	if (mvm->set_tx_ant)
+		tx_ant &= mvm->set_tx_ant;
+
+	if (mvm->set_rx_ant)
+		rx_ant &= mvm->set_rx_ant;
+
 	return iwl_parse_nvm_data(mvm->trans, mvm->cfg, mvm->fw, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
-				  mvm->fw->valid_tx_ant, mvm->fw->valid_rx_ant);
+				  tx_ant, rx_ant);
 }
 
 /* Loads the NVM data stored in mvm->nvm_sections into the NIC */
@@ -565,7 +572,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	 * try to replay the last set MCC to FW. If it doesn't exist,
 	 * queue an update to cfg80211 to retrieve the default alpha2 from FW.
 	 */
-	retval = iwl_mvm_init_fw_regd(mvm);
+	retval = iwl_mvm_init_fw_regd(mvm, true);
 	if (retval != -ENOENT)
 		return retval;
 
@@ -582,7 +589,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 		return -EIO;
 
 	if (iwl_mvm_is_wifi_mcc_supported(mvm) &&
-	    !iwl_acpi_get_mcc(mvm->dev, mcc)) {
+	    !iwl_bios_get_mcc(&mvm->fwrt, mcc)) {
 		kfree(regd);
 		regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc,
 					     MCC_SOURCE_BIOS, NULL);
@@ -604,6 +611,7 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	char mcc[3];
 	struct ieee80211_regdomain *regd;
 	int wgds_tbl_idx;
+	bool changed = false;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -623,9 +631,14 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	IWL_DEBUG_LAR(mvm,
 		      "RX: received chub update mcc cmd (mcc '%s' src %d)\n",
 		      mcc, src);
-	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src, NULL);
+	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src, &changed);
 	if (IS_ERR_OR_NULL(regd))
 		return;
+
+	if (!changed) {
+		IWL_DEBUG_LAR(mvm, "RX: No change in the regulatory data\n");
+		goto out;
+	}
 
 	wgds_tbl_idx = iwl_mvm_get_sar_geo_profile(mvm);
 	if (wgds_tbl_idx < 1)
@@ -637,5 +650,7 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 			       wgds_tbl_idx);
 
 	regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
+
+out:
 	kfree(regd);
 }

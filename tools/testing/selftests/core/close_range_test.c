@@ -12,36 +12,22 @@
 #include <syscall.h>
 #include <unistd.h>
 #include <sys/resource.h>
+#include <linux/close_range.h>
 
 #include "../kselftest_harness.h"
 #include "../clone3/clone3_selftests.h"
 
-#ifndef __NR_close_range
-	#if defined __alpha__
-		#define __NR_close_range 546
-	#elif defined _MIPS_SIM
-		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
-			#define __NR_close_range (436 + 4000)
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
-			#define __NR_close_range (436 + 6000)
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
-			#define __NR_close_range (436 + 5000)
-		#endif
-	#elif defined __ia64__
-		#define __NR_close_range (436 + 1024)
-	#else
-		#define __NR_close_range 436
-	#endif
+
+#ifndef F_LINUX_SPECIFIC_BASE
+#define F_LINUX_SPECIFIC_BASE 1024
 #endif
 
-#ifndef CLOSE_RANGE_UNSHARE
-#define CLOSE_RANGE_UNSHARE	(1U << 1)
+#ifndef F_DUPFD_QUERY
+#define F_DUPFD_QUERY (F_LINUX_SPECIFIC_BASE + 3)
 #endif
 
-#ifndef CLOSE_RANGE_CLOEXEC
-#define CLOSE_RANGE_CLOEXEC	(1U << 2)
+#ifndef F_CREATED_QUERY
+#define F_CREATED_QUERY (F_LINUX_SPECIFIC_BASE + 4)
 #endif
 
 static inline int sys_close_range(unsigned int fd, unsigned int max_fd,
@@ -70,6 +56,15 @@ TEST(core_close_range)
 	EXPECT_EQ(-1, sys_close_range(open_fds[0], open_fds[100], -1)) {
 		if (errno == ENOSYS)
 			SKIP(return, "close_range() syscall not supported");
+	}
+
+	for (i = 0; i < 100; i++) {
+		ret = fcntl(open_fds[i], F_DUPFD_QUERY, open_fds[i + 1]);
+		if (ret < 0) {
+			EXPECT_EQ(errno, EINVAL);
+		} else {
+			EXPECT_EQ(ret, 0);
+		}
 	}
 
 	EXPECT_EQ(0, sys_close_range(open_fds[0], open_fds[50], 0));
@@ -385,7 +380,7 @@ TEST(close_range_cloexec_unshare)
  */
 TEST(close_range_cloexec_syzbot)
 {
-	int fd1, fd2, fd3, flags, ret, status;
+	int fd1, fd2, fd3, fd4, flags, ret, status;
 	pid_t pid;
 	struct __clone_args args = {
 		.flags = CLONE_FILES,
@@ -398,6 +393,13 @@ TEST(close_range_cloexec_syzbot)
 
 	fd2 = dup2(fd1, 1000);
 	EXPECT_GT(fd2, 0);
+
+	flags = fcntl(fd1, F_DUPFD_QUERY, fd2);
+	if (flags < 0) {
+		EXPECT_EQ(errno, EINVAL);
+	} else {
+		EXPECT_EQ(flags, 1);
+	}
 
 	pid = sys_clone3(&args, sizeof(args));
 	ASSERT_GE(pid, 0);
@@ -422,6 +424,15 @@ TEST(close_range_cloexec_syzbot)
 
 		fd3 = dup2(fd1, 42);
 		EXPECT_GT(fd3, 0);
+
+		flags = fcntl(fd1, F_DUPFD_QUERY, fd3);
+		if (flags < 0) {
+			EXPECT_EQ(errno, EINVAL);
+		} else {
+			EXPECT_EQ(flags, 1);
+		}
+
+
 
 		/*
 			 * Duplicating the file descriptor must remove the
@@ -453,6 +464,24 @@ TEST(close_range_cloexec_syzbot)
 	fd3 = dup2(fd1, 42);
 	EXPECT_GT(fd3, 0);
 
+	flags = fcntl(fd1, F_DUPFD_QUERY, fd3);
+	if (flags < 0) {
+		EXPECT_EQ(errno, EINVAL);
+	} else {
+		EXPECT_EQ(flags, 1);
+	}
+
+	fd4 = open("/dev/null", O_RDWR);
+	EXPECT_GT(fd4, 0);
+
+	/* Same inode, different file pointers. */
+	flags = fcntl(fd1, F_DUPFD_QUERY, fd4);
+	if (flags < 0) {
+		EXPECT_EQ(errno, EINVAL);
+	} else {
+		EXPECT_EQ(flags, 0);
+	}
+
 	flags = fcntl(fd3, F_GETFD);
 	EXPECT_GT(flags, -1);
 	EXPECT_EQ(flags & FD_CLOEXEC, 0);
@@ -460,6 +489,7 @@ TEST(close_range_cloexec_syzbot)
 	EXPECT_EQ(close(fd1), 0);
 	EXPECT_EQ(close(fd2), 0);
 	EXPECT_EQ(close(fd3), 0);
+	EXPECT_EQ(close(fd4), 0);
 }
 
 /*
@@ -561,6 +591,76 @@ TEST(close_range_cloexec_unshare_syzbot)
 	EXPECT_EQ(close(fd1), 0);
 	EXPECT_EQ(close(fd2), 0);
 	EXPECT_EQ(close(fd3), 0);
+}
+
+TEST(close_range_bitmap_corruption)
+{
+	pid_t pid;
+	int status;
+	struct __clone_args args = {
+		.flags = CLONE_FILES,
+		.exit_signal = SIGCHLD,
+	};
+
+	/* get the first 128 descriptors open */
+	for (int i = 2; i < 128; i++)
+		EXPECT_GE(dup2(0, i), 0);
+
+	/* get descriptor table shared */
+	pid = sys_clone3(&args, sizeof(args));
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* unshare and truncate descriptor table down to 64 */
+		if (sys_close_range(64, ~0U, CLOSE_RANGE_UNSHARE))
+			exit(EXIT_FAILURE);
+
+		ASSERT_EQ(fcntl(64, F_GETFD), -1);
+		/* ... and verify that the range 64..127 is not
+		   stuck "fully used" according to secondary bitmap */
+		EXPECT_EQ(dup(0), 64)
+			exit(EXIT_FAILURE);
+		exit(EXIT_SUCCESS);
+	}
+
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+}
+
+TEST(fcntl_created)
+{
+	for (int i = 0; i < 101; i++) {
+		int fd;
+		char path[PATH_MAX];
+
+		fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
+		ASSERT_GE(fd, 0) {
+			if (errno == ENOENT)
+				SKIP(return,
+					   "Skipping test since /dev/null does not exist");
+		}
+
+		/* We didn't create "/dev/null". */
+		EXPECT_EQ(fcntl(fd, F_CREATED_QUERY, 0), 0);
+		close(fd);
+
+		sprintf(path, "aaaa_%d", i);
+		fd = open(path, O_CREAT | O_RDONLY | O_CLOEXEC, 0600);
+		ASSERT_GE(fd, 0);
+
+		/* We created "aaaa_%d". */
+		EXPECT_EQ(fcntl(fd, F_CREATED_QUERY, 0), 1);
+		close(fd);
+
+		fd = open(path, O_RDONLY | O_CLOEXEC);
+		ASSERT_GE(fd, 0);
+
+		/* We're opening it again, so no positive creation check. */
+		EXPECT_EQ(fcntl(fd, F_CREATED_QUERY, 0), 0);
+		close(fd);
+		unlink(path);
+	}
 }
 
 TEST_HARNESS_MAIN

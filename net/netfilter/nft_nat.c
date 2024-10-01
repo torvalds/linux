@@ -132,15 +132,20 @@ static const struct nla_policy nft_nat_policy[NFTA_NAT_MAX + 1] = {
 	[NFTA_NAT_REG_ADDR_MAX]	 = { .type = NLA_U32 },
 	[NFTA_NAT_REG_PROTO_MIN] = { .type = NLA_U32 },
 	[NFTA_NAT_REG_PROTO_MAX] = { .type = NLA_U32 },
-	[NFTA_NAT_FLAGS]	 = { .type = NLA_U32 },
+	[NFTA_NAT_FLAGS]	 =
+		NLA_POLICY_MASK(NLA_BE32, NF_NAT_RANGE_MASK),
 };
 
 static int nft_nat_validate(const struct nft_ctx *ctx,
-			    const struct nft_expr *expr,
-			    const struct nft_data **data)
+			    const struct nft_expr *expr)
 {
 	struct nft_nat *priv = nft_expr_priv(expr);
 	int err;
+
+	if (ctx->family != NFPROTO_IPV4 &&
+	    ctx->family != NFPROTO_IPV6 &&
+	    ctx->family != NFPROTO_INET)
+		return -EOPNOTSUPP;
 
 	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
 	if (err < 0)
@@ -208,13 +213,13 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	priv->family = family;
 
 	if (tb[NFTA_NAT_REG_ADDR_MIN]) {
-		err = nft_parse_register_load(tb[NFTA_NAT_REG_ADDR_MIN],
+		err = nft_parse_register_load(ctx, tb[NFTA_NAT_REG_ADDR_MIN],
 					      &priv->sreg_addr_min, alen);
 		if (err < 0)
 			return err;
 
 		if (tb[NFTA_NAT_REG_ADDR_MAX]) {
-			err = nft_parse_register_load(tb[NFTA_NAT_REG_ADDR_MAX],
+			err = nft_parse_register_load(ctx, tb[NFTA_NAT_REG_ADDR_MAX],
 						      &priv->sreg_addr_max,
 						      alen);
 			if (err < 0)
@@ -228,13 +233,13 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	plen = sizeof_field(struct nf_nat_range, min_proto.all);
 	if (tb[NFTA_NAT_REG_PROTO_MIN]) {
-		err = nft_parse_register_load(tb[NFTA_NAT_REG_PROTO_MIN],
+		err = nft_parse_register_load(ctx, tb[NFTA_NAT_REG_PROTO_MIN],
 					      &priv->sreg_proto_min, plen);
 		if (err < 0)
 			return err;
 
 		if (tb[NFTA_NAT_REG_PROTO_MAX]) {
-			err = nft_parse_register_load(tb[NFTA_NAT_REG_PROTO_MAX],
+			err = nft_parse_register_load(ctx, tb[NFTA_NAT_REG_PROTO_MAX],
 						      &priv->sreg_proto_max,
 						      plen);
 			if (err < 0)
@@ -246,11 +251,8 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		priv->flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
-	if (tb[NFTA_NAT_FLAGS]) {
+	if (tb[NFTA_NAT_FLAGS])
 		priv->flags |= ntohl(nla_get_be32(tb[NFTA_NAT_FLAGS]));
-		if (priv->flags & ~NF_NAT_RANGE_MASK)
-			return -EOPNOTSUPP;
-	}
 
 	return nf_ct_netns_get(ctx->net, family);
 }

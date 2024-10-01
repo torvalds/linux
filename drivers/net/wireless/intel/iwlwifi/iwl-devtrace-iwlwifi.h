@@ -4,7 +4,7 @@
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018, 2023-2024  Intel Corporation
  *****************************************************************************/
 
 #if !defined(__IWLWIFI_DEVICE_TRACE_IWLWIFI) || defined(TRACE_HEADER_MULTI_READ)
@@ -50,23 +50,20 @@ TRACE_EVENT(iwlwifi_dev_hcmd,
 );
 
 TRACE_EVENT(iwlwifi_dev_rx,
-	TP_PROTO(const struct device *dev, const struct iwl_trans *trans,
-		 struct iwl_rx_packet *pkt, size_t len),
-	TP_ARGS(dev, trans, pkt, len),
+	TP_PROTO(const struct device *dev,
+		 struct iwl_rx_packet *pkt, size_t len, size_t trace_len,
+		 size_t hdr_offset),
+	TP_ARGS(dev, pkt, len, trace_len, hdr_offset),
 	TP_STRUCT__entry(
 		DEV_ENTRY
 		__field(u16, cmd)
 		__field(u8, hdr_offset)
-		__dynamic_array(u8, rxbuf,
-				iwl_rx_trace_len(trans, pkt, len, NULL))
+		__dynamic_array(u8, rxbuf, trace_len)
 	),
 	TP_fast_assign(
-		size_t hdr_offset = 0;
-
 		DEV_ASSIGN;
 		__entry->cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
-		memcpy(__get_dynamic_array(rxbuf), pkt,
-		       iwl_rx_trace_len(trans, pkt, len, &hdr_offset));
+		memcpy(__get_dynamic_array(rxbuf), pkt, trace_len);
 		__entry->hdr_offset = hdr_offset;
 	),
 	TP_printk("[%s] RX cmd %#.2x",
@@ -91,8 +88,8 @@ TRACE_EVENT(iwlwifi_dev_tx,
 		 * for the possible padding).
 		 */
 		__dynamic_array(u8, buf0, buf0_len)
-		__dynamic_array(u8, buf1, hdr_len > 0 && iwl_trace_data(skb) ?
-						0 : skb->len - hdr_len)
+		__dynamic_array(u8, buf1, hdr_len > 0 && !iwl_trace_data(skb) ?
+						skb->len - hdr_len : 0)
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
@@ -102,7 +99,7 @@ TRACE_EVENT(iwlwifi_dev_tx,
 			__entry->framelen += skb->len - hdr_len;
 		memcpy(__get_dynamic_array(tfd), tfd, tfdlen);
 		memcpy(__get_dynamic_array(buf0), buf0, buf0_len);
-		if (hdr_len > 0 && !iwl_trace_data(skb))
+		if (__get_dynamic_array_len(buf1))
 			skb_copy_bits(skb, hdr_len,
 				      __get_dynamic_array(buf1),
 				      skb->len - hdr_len);

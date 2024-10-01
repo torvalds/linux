@@ -70,12 +70,11 @@ enum lm3601x_type {
 };
 
 /**
- * struct lm3601x_led -
+ * struct lm3601x_led - private lm3601x LED data
  * @fled_cdev: flash LED class device pointer
  * @client: Pointer to the I2C client
  * @regmap: Devices register map
  * @lock: Lock for reading/writing the device
- * @led_name: LED label for the Torch or IR LED
  * @flash_timeout: the timeout for the flash
  * @last_flag: last known flags register value
  * @torch_current_max: maximum current for the torch
@@ -123,7 +122,7 @@ static const struct regmap_config lm3601x_regmap = {
 	.max_register = LM3601X_DEV_ID_REG,
 	.reg_defaults = lm3601x_regmap_defs,
 	.num_reg_defaults = ARRAY_SIZE(lm3601x_regmap_defs),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = lm3601x_volatile_reg,
 };
 
@@ -191,7 +190,7 @@ static int lm3601x_brightness_set(struct led_classdev *cdev,
 		goto out;
 	}
 
-	ret = regmap_write(led->regmap, LM3601X_LED_TORCH_REG, brightness);
+	ret = regmap_write(led->regmap, LM3601X_LED_TORCH_REG, brightness - 1);
 	if (ret < 0)
 		goto out;
 
@@ -342,8 +341,9 @@ static int lm3601x_register_leds(struct lm3601x_led *led,
 
 	led_cdev = &led->fled_cdev.led_cdev;
 	led_cdev->brightness_set_blocking = lm3601x_brightness_set;
-	led_cdev->max_brightness = DIV_ROUND_UP(led->torch_current_max,
-						LM3601X_TORCH_REG_DIV);
+	led_cdev->max_brightness =
+			DIV_ROUND_UP(led->torch_current_max - LM3601X_MIN_TORCH_I_UA + 1,
+				     LM3601X_TORCH_REG_DIV);
 	led_cdev->flags |= LED_DEV_CAP_FLASH;
 
 	init_data.fwnode = fwnode;
@@ -385,6 +385,14 @@ static int lm3601x_parse_node(struct lm3601x_led *led,
 		dev_warn(&led->client->dev,
 			"led-max-microamp DT property missing\n");
 		goto out_err;
+	}
+
+	if (led->torch_current_max > LM3601X_MAX_TORCH_I_UA) {
+		dev_warn(&led->client->dev,
+			 "Max torch current set too high (%d vs %d)\n",
+			 led->torch_current_max,
+			 LM3601X_MAX_TORCH_I_UA);
+		led->torch_current_max = LM3601X_MAX_TORCH_I_UA;
 	}
 
 	ret = fwnode_property_read_u32(child, "flash-max-microamp",
@@ -434,6 +442,10 @@ static int lm3601x_probe(struct i2c_client *client)
 			"Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
+
+	ret = regmap_write(led->regmap, LM3601X_DEV_ID_REG, LM3601X_SW_RESET);
+	if (ret)
+		dev_warn(&client->dev, "Failed to reset the LED controller\n");
 
 	mutex_init(&led->lock);
 

@@ -15,6 +15,13 @@ source $lib_dir/mirror_lib.sh
 source $lib_dir/mirror_gre_lib.sh
 source $lib_dir/mirror_gre_topo_lib.sh
 
+ALL_TESTS="
+	test_keyful
+	test_soft
+	test_tos_fixed
+	test_ttl_inherit
+"
+
 setup_keyful()
 {
 	tunnel_create gt6-key ip6gretap 2001:db8:3::1 2001:db8:3::2 \
@@ -118,15 +125,15 @@ test_span_gre_ttl_inherit()
 	RET=0
 
 	ip link set dev $tundev type $type ttl inherit
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type ttl 100
 
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: no offload on TTL of inherit ($tcflags)"
+	log_test "$what: no offload on TTL of inherit"
 }
 
 test_span_gre_tos_fixed()
@@ -138,61 +145,49 @@ test_span_gre_tos_fixed()
 	RET=0
 
 	ip link set dev $tundev type $type tos 0x10
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type tos inherit
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: no offload on a fixed TOS ($tcflags)"
+	log_test "$what: no offload on a fixed TOS"
 }
 
 test_span_failable()
 {
-	local should_fail=$1; shift
 	local tundev=$1; shift
 	local what=$1; shift
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	if ((should_fail)); then
-	    fail_test_span_gre_dir  $tundev ingress
-	else
-	    quick_test_span_gre_dir $tundev ingress
-	fi
+	mirror_install $swp1 ingress $tundev "matchall"
+	fail_test_span_gre_dir  $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: should_fail=$should_fail ($tcflags)"
+	log_test "fail $what"
 }
 
-test_failable()
+test_keyful()
 {
-	local should_fail=$1; shift
-
-	test_span_failable $should_fail gt6-key "mirror to keyful gretap"
-	test_span_failable $should_fail gt6-soft "mirror to gretap w/ soft underlay"
+	test_span_failable gt6-key "mirror to keyful gretap"
 }
 
-test_sw()
+test_soft()
 {
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	test_failable 0
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
+	test_span_failable gt6-soft "mirror to gretap w/ soft underlay"
 }
 
-test_hw()
+test_tos_fixed()
 {
-	test_failable 1
-
 	test_span_gre_tos_fixed gt4 gretap "mirror to gretap"
 	test_span_gre_tos_fixed gt6 ip6gretap "mirror to ip6gretap"
+}
 
+
+test_ttl_inherit()
+{
 	test_span_gre_ttl_inherit gt4 gretap "mirror to gretap"
 	test_span_gre_ttl_inherit gt6 ip6gretap "mirror to ip6gretap"
 }
@@ -202,16 +197,6 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-if ! tc_offload_check; then
-    check_err 1 "Could not test offloaded functionality"
-    log_test "mlxsw-specific tests for mirror to gretap"
-    exit
-fi
-
-tcflags="skip_hw"
-test_sw
-
-tcflags="skip_sw"
-test_hw
+tests_run
 
 exit $EXIT_STATUS

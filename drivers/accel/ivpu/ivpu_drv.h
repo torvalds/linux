@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_DRV_H__
@@ -17,19 +17,40 @@
 #include <uapi/drm/ivpu_accel.h>
 
 #include "ivpu_mmu_context.h"
+#include "ivpu_ipc.h"
 
 #define DRIVER_NAME "intel_vpu"
-#define DRIVER_DESC "Driver for Intel Versatile Processing Unit (VPU)"
+#define DRIVER_DESC "Driver for Intel NPU (Neural Processing Unit)"
 #define DRIVER_DATE "20230117"
 
 #define PCI_DEVICE_ID_MTL   0x7d1d
+#define PCI_DEVICE_ID_ARL   0xad1d
+#define PCI_DEVICE_ID_LNL   0x643e
 
-#define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
-/* SSID 1 is used by the VPU to represent invalid context */
-#define IVPU_USER_CONTEXT_MIN_SSID   2
-#define IVPU_USER_CONTEXT_MAX_SSID   (IVPU_USER_CONTEXT_MIN_SSID + 63)
+#define IVPU_HW_IP_37XX 37
+#define IVPU_HW_IP_40XX 40
+#define IVPU_HW_IP_50XX 50
+#define IVPU_HW_IP_60XX 60
 
-#define IVPU_NUM_ENGINES	     2
+#define IVPU_HW_IP_REV_LNL_B0 4
+
+#define IVPU_HW_BTRS_MTL 1
+#define IVPU_HW_BTRS_LNL 2
+
+#define IVPU_GLOBAL_CONTEXT_MMU_SSID   0
+/* SSID 1 is used by the VPU to represent reserved context */
+#define IVPU_RESERVED_CONTEXT_MMU_SSID 1
+#define IVPU_USER_CONTEXT_MIN_SSID     2
+#define IVPU_USER_CONTEXT_MAX_SSID     (IVPU_USER_CONTEXT_MIN_SSID + 63)
+
+#define IVPU_MIN_DB 1
+#define IVPU_MAX_DB 255
+
+#define IVPU_NUM_ENGINES       2
+#define IVPU_NUM_PRIORITIES    4
+#define IVPU_NUM_CMDQS_PER_CTX (IVPU_NUM_ENGINES * IVPU_NUM_PRIORITIES)
+
+#define IVPU_CMDQ_INDEX(engine, priority) ((engine) * IVPU_NUM_PRIORITIES + (priority))
 
 #define IVPU_PLATFORM_SILICON 0
 #define IVPU_PLATFORM_SIMICS  2
@@ -49,6 +70,7 @@
 #define IVPU_DBG_JSM	 BIT(10)
 #define IVPU_DBG_KREF	 BIT(11)
 #define IVPU_DBG_RPM	 BIT(12)
+#define IVPU_DBG_MMU_MAP BIT(13)
 
 #define ivpu_err(vdev, fmt, ...) \
 	drm_err(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)
@@ -71,11 +93,18 @@
 
 #define IVPU_WA(wa_name) (vdev->wa.wa_name)
 
+#define IVPU_PRINT_WA(wa_name) do {					\
+	if (IVPU_WA(wa_name))						\
+		ivpu_dbg(vdev, MISC, "Using WA: " #wa_name "\n");	\
+} while (0)
+
 struct ivpu_wa_table {
 	bool punit_disabled;
 	bool clear_runtime_mem;
-	bool d3hot_after_power_off;
 	bool interrupt_clear_with_0;
+	bool disable_clock_relinquish;
+	bool disable_d0i3_msg;
+	bool wp0_during_power_up;
 };
 
 struct ivpu_hw_info;
@@ -99,19 +128,30 @@ struct ivpu_device {
 	struct ivpu_pm_info *pm;
 
 	struct ivpu_mmu_context gctx;
+	struct ivpu_mmu_context rctx;
+	struct mutex context_list_lock; /* Protects user context addition/removal */
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
+	struct xarray db_xa;
+
+	struct mutex bo_list_lock; /* Protects bo_list */
+	struct list_head bo_list;
+
 	struct xarray submitted_jobs_xa;
-	struct task_struct *job_done_thread;
+	struct ivpu_ipc_consumer job_done_consumer;
 
 	atomic64_t unique_id_counter;
+
+	ktime_t busy_start_ts;
+	ktime_t busy_time;
 
 	struct {
 		int boot;
 		int jsm;
 		int tdr;
-		int reschedule_suspend;
+		int autosuspend;
+		int d0i3_entry_msg;
 	} timeout;
 };
 
@@ -123,32 +163,39 @@ struct ivpu_file_priv {
 	struct kref ref;
 	struct ivpu_device *vdev;
 	struct mutex lock; /* Protects cmdq */
-	struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
+	struct ivpu_cmdq *cmdq[IVPU_NUM_CMDQS_PER_CTX];
 	struct ivpu_mmu_context ctx;
-	u32 priority;
+	struct mutex ms_lock; /* Protects ms_instance_list, ms_info_bo */
+	struct list_head ms_instance_list;
+	struct ivpu_bo *ms_info_bo;
 	bool has_mmu_faults;
+	bool bound;
+	bool aborted;
 };
 
 extern int ivpu_dbg_mask;
 extern u8 ivpu_pll_min_ratio;
 extern u8 ivpu_pll_max_ratio;
+extern int ivpu_sched_mode;
+extern bool ivpu_disable_mmu_cont_pages;
+extern bool ivpu_force_snoop;
 
-#define IVPU_TEST_MODE_DISABLED  0
-#define IVPU_TEST_MODE_FW_TEST   1
-#define IVPU_TEST_MODE_NULL_HW   2
+#define IVPU_TEST_MODE_FW_TEST            BIT(0)
+#define IVPU_TEST_MODE_NULL_HW            BIT(1)
+#define IVPU_TEST_MODE_NULL_SUBMISSION    BIT(2)
+#define IVPU_TEST_MODE_D0I3_MSG_DISABLE   BIT(4)
+#define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
+#define IVPU_TEST_MODE_PREEMPTION_DISABLE BIT(6)
+#define IVPU_TEST_MODE_HWS_EXTRA_EVENTS	  BIT(7)
+#define IVPU_TEST_MODE_DISABLE_TIMEOUTS   BIT(8)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
-struct ivpu_file_priv *ivpu_file_priv_get_by_ctx_id(struct ivpu_device *vdev, unsigned long id);
 void ivpu_file_priv_put(struct ivpu_file_priv **link);
 
 int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
-
-static inline bool ivpu_is_mtl(struct ivpu_device *vdev)
-{
-	return to_pci_dev(vdev->drm.dev)->device == PCI_DEVICE_ID_MTL;
-}
+void ivpu_prepare_for_reset(struct ivpu_device *vdev);
 
 static inline u8 ivpu_revision(struct ivpu_device *vdev)
 {
@@ -158,6 +205,36 @@ static inline u8 ivpu_revision(struct ivpu_device *vdev)
 static inline u16 ivpu_device_id(struct ivpu_device *vdev)
 {
 	return to_pci_dev(vdev->drm.dev)->device;
+}
+
+static inline int ivpu_hw_ip_gen(struct ivpu_device *vdev)
+{
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_MTL:
+	case PCI_DEVICE_ID_ARL:
+		return IVPU_HW_IP_37XX;
+	case PCI_DEVICE_ID_LNL:
+		return IVPU_HW_IP_40XX;
+	default:
+		dump_stack();
+		ivpu_err(vdev, "Unknown NPU IP generation\n");
+		return 0;
+	}
+}
+
+static inline int ivpu_hw_btrs_gen(struct ivpu_device *vdev)
+{
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_MTL:
+	case PCI_DEVICE_ID_ARL:
+		return IVPU_HW_BTRS_MTL;
+	case PCI_DEVICE_ID_LNL:
+		return IVPU_HW_BTRS_LNL;
+	default:
+		dump_stack();
+		ivpu_err(vdev, "Unknown buttress generation\n");
+		return 0;
+	}
 }
 
 static inline struct ivpu_device *to_ivpu_device(struct drm_device *dev)
@@ -191,6 +268,11 @@ static inline bool ivpu_is_simics(struct ivpu_device *vdev)
 static inline bool ivpu_is_fpga(struct ivpu_device *vdev)
 {
 	return ivpu_get_platform(vdev) == IVPU_PLATFORM_FPGA;
+}
+
+static inline bool ivpu_is_force_snoop_enabled(struct ivpu_device *vdev)
+{
+	return ivpu_force_snoop;
 }
 
 #endif /* __IVPU_DRV_H__ */

@@ -177,7 +177,7 @@ int mlx5_cmd_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn, u16 uid)
 	return mlx5_cmd_exec_in(dev, dealloc_xrcd, in);
 }
 
-int mlx5_cmd_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
+int mlx5_cmd_mad_ifc(struct mlx5_ib_dev *dev, const void *inb, void *outb,
 		     u16 opmod, u8 port)
 {
 	int outlen = MLX5_ST_SZ_BYTES(mad_ifc_out);
@@ -195,12 +195,18 @@ int mlx5_cmd_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
 
 	MLX5_SET(mad_ifc_in, in, opcode, MLX5_CMD_OP_MAD_IFC);
 	MLX5_SET(mad_ifc_in, in, op_mod, opmod);
-	MLX5_SET(mad_ifc_in, in, port, port);
+	if (dev->ib_dev.type == RDMA_DEVICE_TYPE_SMI) {
+		MLX5_SET(mad_ifc_in, in, plane_index, port);
+		MLX5_SET(mad_ifc_in, in, port,
+			 smi_to_native_portnum(dev, port));
+	} else {
+		MLX5_SET(mad_ifc_in, in, port, port);
+	}
 
 	data = MLX5_ADDR_OF(mad_ifc_in, in, mad);
 	memcpy(data, inb, MLX5_FLD_SZ_BYTES(mad_ifc_in, mad));
 
-	err = mlx5_cmd_exec_inout(dev, mad_ifc, in, out);
+	err = mlx5_cmd_exec_inout(dev->mdev, mad_ifc, in, out);
 	if (err)
 		goto out;
 
@@ -238,4 +244,25 @@ int mlx5_cmd_uar_dealloc(struct mlx5_core_dev *dev, u32 uarn, u16 uid)
 	MLX5_SET(dealloc_uar_in, in, uar, uarn);
 	MLX5_SET(dealloc_uar_in, in, uid, uid);
 	return mlx5_cmd_exec_in(dev, dealloc_uar, in);
+}
+
+int mlx5_cmd_query_vuid(struct mlx5_core_dev *dev, bool data_direct,
+			char *out_vuid)
+{
+	u8 out[MLX5_ST_SZ_BYTES(query_vuid_out) +
+		MLX5_ST_SZ_BYTES(array1024_auto)] = {};
+	u8 in[MLX5_ST_SZ_BYTES(query_vuid_in)] = {};
+	char *vuid;
+	int err;
+
+	MLX5_SET(query_vuid_in, in, opcode, MLX5_CMD_OPCODE_QUERY_VUID);
+	MLX5_SET(query_vuid_in, in, vhca_id, MLX5_CAP_GEN(dev, vhca_id));
+	MLX5_SET(query_vuid_in, in, data_direct, data_direct);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	vuid = MLX5_ADDR_OF(query_vuid_out, out, vuid);
+	memcpy(out_vuid, vuid, MLX5_ST_SZ_BYTES(array1024_auto));
+	return 0;
 }

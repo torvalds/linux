@@ -665,7 +665,7 @@ static int  mv_u3d_ep_disable(struct usb_ep *_ep)
 static struct usb_request *
 mv_u3d_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct mv_u3d_req *req = NULL;
+	struct mv_u3d_req *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
 	if (!req)
@@ -1307,7 +1307,7 @@ static int mv_u3d_eps_init(struct mv_u3d *u3d)
 	/* initialize ep0, ep0 in/out use eps[1] */
 	ep = &u3d->eps[1];
 	ep->u3d = u3d;
-	strncpy(ep->name, "ep0", sizeof(ep->name));
+	strscpy(ep->name, "ep0");
 	ep->ep.name = ep->name;
 	ep->ep.ops = &mv_u3d_ep_ops;
 	ep->wedge = 0;
@@ -1337,7 +1337,7 @@ static int mv_u3d_eps_init(struct mv_u3d *u3d)
 			ep->ep.caps.dir_out = true;
 		}
 		ep->u3d = u3d;
-		strncpy(ep->name, name, sizeof(ep->name));
+		strscpy(ep->name, name);
 		ep->ep.name = ep->name;
 
 		ep->ep.caps.type_iso = true;
@@ -1779,7 +1779,7 @@ static void mv_u3d_remove(struct platform_device *dev)
 
 static int mv_u3d_probe(struct platform_device *dev)
 {
-	struct mv_u3d *u3d = NULL;
+	struct mv_u3d *u3d;
 	struct mv_usb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	int retval = 0;
 	struct resource *r;

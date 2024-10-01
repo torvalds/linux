@@ -184,6 +184,7 @@ static bool tomoyo_manage_by_non_root;
  *
  * Returns nothing.
  */
+__printf(3, 4)
 static void tomoyo_addprintf(char *buffer, int len, const char *fmt, ...)
 {
 	va_list args;
@@ -997,8 +998,13 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
 			p = find_task_by_pid_ns(pid, &init_pid_ns);
 		else
 			p = find_task_by_vpid(pid);
-		if (p)
+		if (p) {
 			domain = tomoyo_task(p)->domain_info;
+#ifdef CONFIG_SECURITY_TOMOYO_LKM
+			if (!domain)
+				domain = &tomoyo_kernel_domain;
+#endif
+		}
 		rcu_read_unlock();
 	} else if (!strncmp(data, "domain=", 7)) {
 		if (tomoyo_domain_def(data + 7))
@@ -1709,8 +1715,13 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 		p = find_task_by_pid_ns(pid, &init_pid_ns);
 	else
 		p = find_task_by_vpid(pid);
-	if (p)
+	if (p) {
 		domain = tomoyo_task(p)->domain_info;
+#ifdef CONFIG_SECURITY_TOMOYO_LKM
+		if (!domain)
+			domain = &tomoyo_kernel_domain;
+#endif
+	}
 	rcu_read_unlock();
 	if (!domain)
 		return;
@@ -2648,13 +2659,14 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 {
 	int error = buffer_len;
 	size_t avail_len = buffer_len;
-	char *cp0 = head->write_buf;
+	char *cp0;
 	int idx;
 
 	if (!head->write)
 		return -EINVAL;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;
+	cp0 = head->write_buf;
 	head->read_user_buf_avail = 0;
 	idx = tomoyo_read_lock();
 	/* Read a line and dispatch it to the policy handler. */
@@ -2785,7 +2797,7 @@ void tomoyo_check_profile(void)
 		else
 			continue;
 		pr_err("Userland tools for TOMOYO 2.6 must be installed and policy must be initialized.\n");
-		pr_err("Please see https://tomoyo.osdn.jp/2.6/ for more information.\n");
+		pr_err("Please see https://tomoyo.sourceforge.net/2.6/ for more information.\n");
 		panic("STOP!");
 	}
 	tomoyo_read_unlock(idx);

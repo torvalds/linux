@@ -287,16 +287,13 @@ static int lpss8250_dma_setup(struct lpss8250 *lpss, struct uart_8250_port *port
 		return 0;
 	}
 
-	rx_param = devm_kzalloc(dev, sizeof(*rx_param), GFP_KERNEL);
+	rx_param = devm_kmemdup(dev, &lpss->dma_param, sizeof(*rx_param), GFP_KERNEL);
 	if (!rx_param)
 		return -ENOMEM;
 
-	tx_param = devm_kzalloc(dev, sizeof(*tx_param), GFP_KERNEL);
+	tx_param = devm_kmemdup(dev, &lpss->dma_param, sizeof(*tx_param), GFP_KERNEL);
 	if (!tx_param)
 		return -ENOMEM;
-
-	*rx_param = lpss->dma_param;
-	*tx_param = lpss->dma_param;
 
 	dma->fn = lpss8250_dma_filter;
 	dma->rx_param = rx_param;

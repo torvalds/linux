@@ -60,7 +60,7 @@ static inline struct v9_sdma_mqd *get_sdma_mqd(void *mqd)
 }
 
 static void update_cu_mask(struct mqd_manager *mm, void *mqd,
-			struct mqd_update_info *minfo)
+			struct mqd_update_info *minfo, uint32_t inst)
 {
 	struct v9_mqd *m;
 	uint32_t se_mask[KFD_MAX_NUM_SE] = {0};
@@ -69,27 +69,37 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		return;
 
 	mqd_symmetrically_map_cu_mask(mm,
-		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask);
+		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask, inst);
 
 	m = get_mqd(mqd);
+
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
 	m->compute_static_thread_mgmt_se1 = se_mask[1];
 	m->compute_static_thread_mgmt_se2 = se_mask[2];
 	m->compute_static_thread_mgmt_se3 = se_mask[3];
-	m->compute_static_thread_mgmt_se4 = se_mask[4];
-	m->compute_static_thread_mgmt_se5 = se_mask[5];
-	m->compute_static_thread_mgmt_se6 = se_mask[6];
-	m->compute_static_thread_mgmt_se7 = se_mask[7];
+	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3) &&
+	    KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 4)) {
+		m->compute_static_thread_mgmt_se4 = se_mask[4];
+		m->compute_static_thread_mgmt_se5 = se_mask[5];
+		m->compute_static_thread_mgmt_se6 = se_mask[6];
+		m->compute_static_thread_mgmt_se7 = se_mask[7];
 
-	pr_debug("update cu mask to %#x %#x %#x %#x %#x %#x %#x %#x\n",
-		m->compute_static_thread_mgmt_se0,
-		m->compute_static_thread_mgmt_se1,
-		m->compute_static_thread_mgmt_se2,
-		m->compute_static_thread_mgmt_se3,
-		m->compute_static_thread_mgmt_se4,
-		m->compute_static_thread_mgmt_se5,
-		m->compute_static_thread_mgmt_se6,
-		m->compute_static_thread_mgmt_se7);
+		pr_debug("update cu mask to %#x %#x %#x %#x %#x %#x %#x %#x\n",
+			m->compute_static_thread_mgmt_se0,
+			m->compute_static_thread_mgmt_se1,
+			m->compute_static_thread_mgmt_se2,
+			m->compute_static_thread_mgmt_se3,
+			m->compute_static_thread_mgmt_se4,
+			m->compute_static_thread_mgmt_se5,
+			m->compute_static_thread_mgmt_se6,
+			m->compute_static_thread_mgmt_se7);
+	} else {
+		pr_debug("inst: %u, update cu mask to %#x %#x %#x %#x\n",
+			inst, m->compute_static_thread_mgmt_se0,
+			m->compute_static_thread_mgmt_se1,
+			m->compute_static_thread_mgmt_se2,
+			m->compute_static_thread_mgmt_se3);
+	}
 }
 
 static void set_priority(struct v9_mqd *m, struct queue_properties *q)
@@ -290,18 +300,32 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address)
 		m->cp_hqd_ctx_save_control = 0;
 
-	update_cu_mask(mm, mqd, minfo);
+	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3) &&
+	    KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 4))
+		update_cu_mask(mm, mqd, minfo, 0);
 	set_priority(m, q);
+
+	if (minfo && KFD_GC_VERSION(mm->dev) >= IP_VERSION(9, 4, 2)) {
+		if (minfo->update_flag & UPDATE_FLAG_IS_GWS)
+			m->compute_resource_limits |=
+				COMPUTE_RESOURCE_LIMITS__FORCE_SIMD_DIST_MASK;
+		else
+			m->compute_resource_limits &=
+				~COMPUTE_RESOURCE_LIMITS__FORCE_SIMD_DIST_MASK;
+	}
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 }
 
 
-static uint32_t read_doorbell_id(void *mqd)
+static bool check_preemption_failed(struct mqd_manager *mm, void *mqd)
 {
 	struct v9_mqd *m = (struct v9_mqd *)mqd;
+	uint32_t doorbell_id = m->queue_doorbell_id0;
 
-	return m->queue_doorbell_id0;
+	m->queue_doorbell_id0 = 0;
+
+	return kfd_check_hiq_mqd_doorbell_id(mm->dev, doorbell_id, 0);
 }
 
 static int get_wave_state(struct mqd_manager *mm, void *mqd,
@@ -405,6 +429,25 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT;
 }
 
+static int destroy_hiq_mqd(struct mqd_manager *mm, void *mqd,
+			enum kfd_preempt_type type, unsigned int timeout,
+			uint32_t pipe_id, uint32_t queue_id)
+{
+	int err;
+	struct v9_mqd *m;
+	u32 doorbell_off;
+
+	m = get_mqd(mqd);
+
+	doorbell_off = m->cp_hqd_pq_doorbell_control >>
+			CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
+	err = amdgpu_amdkfd_unmap_hiq(mm->dev->adev, doorbell_off, 0);
+	if (err)
+		pr_debug("Destroy HIQ MQD failed: %d\n", err);
+
+	return err;
+}
+
 static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
@@ -506,6 +549,9 @@ static void init_mqd_hiq_v9_4_3(struct mqd_manager *mm, void **mqd,
 		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK |
 					1 << CP_HQD_PQ_CONTROL__PRIV_STATE__SHIFT |
 					1 << CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT;
+		if (amdgpu_sriov_vf(mm->dev->adev))
+			m->cp_hqd_pq_doorbell_control |= 1 <<
+				CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_MODE__SHIFT;
 		m->cp_mqd_stride_size = kfd_hiq_mqd_stride(mm->dev);
 		if (xcc == 0) {
 			/* Set no_update_rptr = 0 in Master XCC */
@@ -548,22 +594,44 @@ static int destroy_hiq_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 {
 	uint32_t xcc_mask = mm->dev->xcc_mask;
 	int xcc_id, err, inst = 0;
-	void *xcc_mqd;
 	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
+	struct v9_mqd *m;
+	u32 doorbell_off;
 
 	for_each_inst(xcc_id, xcc_mask) {
-		xcc_mqd = mqd + hiq_mqd_size * inst;
-		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
-						    type, timeout, pipe_id,
-						    queue_id, xcc_id);
+		m = get_mqd(mqd + hiq_mqd_size * inst);
+
+		doorbell_off = m->cp_hqd_pq_doorbell_control >>
+				CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
+
+		err = amdgpu_amdkfd_unmap_hiq(mm->dev->adev, doorbell_off, xcc_id);
 		if (err) {
-			pr_debug("Destroy MQD failed for xcc: %d\n", inst);
+			pr_debug("Destroy HIQ MQD failed for xcc: %d\n", inst);
 			break;
 		}
 		++inst;
 	}
 
 	return err;
+}
+
+static bool check_preemption_failed_v9_4_3(struct mqd_manager *mm, void *mqd)
+{
+	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
+	uint32_t xcc_mask = mm->dev->xcc_mask;
+	int inst = 0, xcc_id;
+	struct v9_mqd *m;
+	bool ret = false;
+
+	for_each_inst(xcc_id, xcc_mask) {
+		m = get_mqd(mqd + hiq_mqd_size * inst);
+		ret |= kfd_check_hiq_mqd_doorbell_id(mm->dev,
+					m->queue_doorbell_id0, inst);
+		m->queue_doorbell_id0 = 0;
+		++inst;
+	}
+
+	return ret;
 }
 
 static void get_xcc_mqd(struct kfd_mem_obj *mqd_mem_obj,
@@ -653,6 +721,8 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
 		m = get_mqd(mqd + size * xcc);
 		update_mqd(mm, m, q, minfo);
+
+		update_cu_mask(mm, m, minfo, xcc);
 
 		if (q->format == KFD_QUEUE_FORMAT_AQL) {
 			switch (xcc) {
@@ -814,7 +884,8 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
-		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) {
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) {
 			mqd->init_mqd = init_mqd_v9_4_3;
 			mqd->load_mqd = load_mqd_v9_4_3;
 			mqd->update_mqd = update_mqd_v9_4_3;
@@ -838,15 +909,17 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
-		mqd->read_doorbell_id = read_doorbell_id;
-		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) {
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) {
 			mqd->init_mqd = init_mqd_hiq_v9_4_3;
 			mqd->load_mqd = hiq_load_mqd_kiq_v9_4_3;
 			mqd->destroy_mqd = destroy_hiq_mqd_v9_4_3;
+			mqd->check_preemption_failed = check_preemption_failed_v9_4_3;
 		} else {
 			mqd->init_mqd = init_mqd_hiq;
 			mqd->load_mqd = kfd_hiq_load_mqd_kiq;
-			mqd->destroy_mqd = kfd_destroy_mqd_cp;
+			mqd->destroy_mqd = destroy_hiq_mqd;
+			mqd->check_preemption_failed = check_preemption_failed;
 		}
 		break;
 	case KFD_MQD_TYPE_DIQ:

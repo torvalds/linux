@@ -1882,7 +1882,8 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 	}
 
 	if (!io->io_setup) {
-		if (io->addr_space == IPMI_IO_ADDR_SPACE) {
+		if (IS_ENABLED(CONFIG_HAS_IOPORT) &&
+		    io->addr_space == IPMI_IO_ADDR_SPACE) {
 			io->io_setup = ipmi_si_port_setup;
 		} else if (io->addr_space == IPMI_MEM_ADDR_SPACE) {
 			io->io_setup = ipmi_si_mem_setup;
@@ -2080,6 +2081,11 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (rv && new_smi->io.io_cleanup) {
 		new_smi->io.io_cleanup(&new_smi->io);
 		new_smi->io.io_cleanup = NULL;
+	}
+
+	if (rv && new_smi->si_sm) {
+		kfree(new_smi->si_sm);
+		new_smi->si_sm = NULL;
 	}
 
 	return rv;

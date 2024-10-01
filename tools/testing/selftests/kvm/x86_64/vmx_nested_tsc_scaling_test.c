@@ -116,23 +116,6 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_DONE();
 }
 
-static bool system_has_stable_tsc(void)
-{
-	bool tsc_is_stable;
-	FILE *fp;
-	char buf[4];
-
-	fp = fopen("/sys/devices/system/clocksource/clocksource0/current_clocksource", "r");
-	if (fp == NULL)
-		return false;
-
-	tsc_is_stable = fgets(buf, sizeof(buf), fp) &&
-			!strncmp(buf, "tsc", sizeof(buf));
-
-	fclose(fp);
-	return tsc_is_stable;
-}
-
 int main(int argc, char *argv[])
 {
 	struct kvm_vcpu *vcpu;
@@ -148,7 +131,7 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_TSC_CONTROL));
-	TEST_REQUIRE(system_has_stable_tsc());
+	TEST_REQUIRE(sys_clocksource_is_based_on_tsc());
 
 	/*
 	 * We set L1's scale factor to be a random number from 2 to 10.

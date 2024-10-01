@@ -27,6 +27,7 @@
 
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fixed.h>
 #include <drm/drm_mipi_dsi.h>
 
 #include "i915_reg.h"
@@ -330,7 +331,7 @@ static int afe_clk(struct intel_encoder *encoder,
 	int bpp;
 
 	if (crtc_state->dsc.compression_enable)
-		bpp = crtc_state->dsc.compressed_bpp;
+		bpp = fxp_q4_to_int(crtc_state->dsc.compressed_bpp_x16);
 	else
 		bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
@@ -444,7 +445,8 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		intel_de_write(dev_priv, ICL_PORT_TX_DW2_GRP(phy), tmp);
 
 		/* For EHL, TGL, set latency optimization for PCS_DW1 lanes */
-		if (IS_JSL_EHL(dev_priv) || (DISPLAY_VER(dev_priv) >= 12)) {
+		if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv) ||
+		    (DISPLAY_VER(dev_priv) >= 12)) {
 			intel_de_rmw(dev_priv, ICL_PORT_PCS_DW1_AUX(phy),
 				     LATENCY_OPTIM_MASK, LATENCY_OPTIM_VAL(0));
 
@@ -528,30 +530,15 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 	enum port port;
 	enum phy phy;
 
-	/* Program T-INIT master registers */
-	for_each_dsi_port(port, intel_dsi->ports)
-		intel_de_rmw(dev_priv, ICL_DSI_T_INIT_MASTER(port),
-			     DSI_T_INIT_MASTER_MASK, intel_dsi->init_count);
-
 	/* Program DPHY clock lanes timings */
-	for_each_dsi_port(port, intel_dsi->ports) {
+	for_each_dsi_port(port, intel_dsi->ports)
 		intel_de_write(dev_priv, DPHY_CLK_TIMING_PARAM(port),
 			       intel_dsi->dphy_reg);
 
-		/* shadow register inside display core */
-		intel_de_write(dev_priv, DSI_CLK_TIMING_PARAM(port),
-			       intel_dsi->dphy_reg);
-	}
-
 	/* Program DPHY data lanes timings */
-	for_each_dsi_port(port, intel_dsi->ports) {
+	for_each_dsi_port(port, intel_dsi->ports)
 		intel_de_write(dev_priv, DPHY_DATA_TIMING_PARAM(port),
 			       intel_dsi->dphy_data_lane_reg);
-
-		/* shadow register inside display core */
-		intel_de_write(dev_priv, DSI_DATA_TIMING_PARAM(port),
-			       intel_dsi->dphy_data_lane_reg);
-	}
 
 	/*
 	 * If DSI link operating at or below an 800 MHz,
@@ -561,23 +548,52 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 	 */
 	if (DISPLAY_VER(dev_priv) == 11) {
 		if (afe_clk(encoder, crtc_state) <= 800000) {
-			for_each_dsi_port(port, intel_dsi->ports) {
+			for_each_dsi_port(port, intel_dsi->ports)
 				intel_de_rmw(dev_priv, DPHY_TA_TIMING_PARAM(port),
 					     TA_SURE_MASK,
 					     TA_SURE_OVERRIDE | TA_SURE(0));
+		}
+	}
 
-				/* shadow register inside display core */
+	if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
+		for_each_dsi_phy(phy, intel_dsi->phys)
+			intel_de_rmw(dev_priv, ICL_DPHY_CHKN(phy),
+				     0, ICL_DPHY_CHKN_AFE_OVER_PPI_STRAP);
+	}
+}
+
+static void
+gen11_dsi_setup_timings(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	enum port port;
+
+	/* Program T-INIT master registers */
+	for_each_dsi_port(port, intel_dsi->ports)
+		intel_de_rmw(dev_priv, ICL_DSI_T_INIT_MASTER(port),
+			     DSI_T_INIT_MASTER_MASK, intel_dsi->init_count);
+
+	/* shadow register inside display core */
+	for_each_dsi_port(port, intel_dsi->ports)
+		intel_de_write(dev_priv, DSI_CLK_TIMING_PARAM(port),
+			       intel_dsi->dphy_reg);
+
+	/* shadow register inside display core */
+	for_each_dsi_port(port, intel_dsi->ports)
+		intel_de_write(dev_priv, DSI_DATA_TIMING_PARAM(port),
+			       intel_dsi->dphy_data_lane_reg);
+
+	/* shadow register inside display core */
+	if (DISPLAY_VER(dev_priv) == 11) {
+		if (afe_clk(encoder, crtc_state) <= 800000) {
+			for_each_dsi_port(port, intel_dsi->ports) {
 				intel_de_rmw(dev_priv, DSI_TA_TIMING_PARAM(port),
 					     TA_SURE_MASK,
 					     TA_SURE_OVERRIDE | TA_SURE(0));
 			}
 		}
-	}
-
-	if (IS_JSL_EHL(dev_priv)) {
-		for_each_dsi_phy(phy, intel_dsi->phys)
-			intel_de_rmw(dev_priv, ICL_DPHY_CHKN(phy),
-				     0, ICL_DPHY_CHKN_AFE_OVER_PPI_STRAP);
 	}
 }
 
@@ -769,7 +785,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 	if (intel_dsi->dual_link) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL2(dsi_trans),
+			intel_de_rmw(dev_priv,
+				     TRANS_DDI_FUNC_CTL2(dev_priv, dsi_trans),
 				     0, PORT_SYNC_MODE_ENABLE);
 		}
 
@@ -781,7 +798,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 
 		/* select data lane width */
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans));
 		tmp &= ~DDI_PORT_WIDTH_MASK;
 		tmp |= DDI_PORT_WIDTH(intel_dsi->lane_count);
 
@@ -807,7 +825,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 		/* enable DDI buffer */
 		tmp |= TRANS_DDI_FUNC_ENABLE;
-		intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans), tmp);
+		intel_de_write(dev_priv,
+			       TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans), tmp);
 	}
 
 	/* wait for link ready */
@@ -845,7 +864,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	 * compressed and non-compressed bpp.
 	 */
 	if (crtc_state->dsc.compression_enable) {
-		mul = crtc_state->dsc.compressed_bpp;
+		mul = fxp_q4_to_int(crtc_state->dsc.compressed_bpp_x16);
 		div = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	}
 
@@ -869,7 +888,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		int bpp, line_time_us, byte_clk_period_ns;
 
 		if (crtc_state->dsc.compression_enable)
-			bpp = crtc_state->dsc.compressed_bpp;
+			bpp = fxp_q4_to_int(crtc_state->dsc.compressed_bpp_x16);
 		else
 			bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
@@ -900,7 +919,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	/* program TRANS_HTOTAL register */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_write(dev_priv, TRANS_HTOTAL(dsi_trans),
+		intel_de_write(dev_priv, TRANS_HTOTAL(dev_priv, dsi_trans),
 			       HACTIVE(hactive - 1) | HTOTAL(htotal - 1));
 	}
 
@@ -923,7 +942,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_HSYNC(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_HSYNC(dev_priv, dsi_trans),
 				       HSYNC_START(hsync_start - 1) | HSYNC_END(hsync_end - 1));
 		}
 	}
@@ -937,7 +957,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		 * struct drm_display_mode.
 		 * For interlace mode: program required pixel minus 2
 		 */
-		intel_de_write(dev_priv, TRANS_VTOTAL(dsi_trans),
+		intel_de_write(dev_priv, TRANS_VTOTAL(dev_priv, dsi_trans),
 			       VACTIVE(vactive - 1) | VTOTAL(vtotal - 1));
 	}
 
@@ -951,7 +971,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_VSYNC(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_VSYNC(dev_priv, dsi_trans),
 				       VSYNC_START(vsync_start - 1) | VSYNC_END(vsync_end - 1));
 		}
 	}
@@ -965,7 +986,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_VSYNCSHIFT(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_VSYNCSHIFT(dev_priv, dsi_trans),
 				       vsync_shift);
 		}
 	}
@@ -979,7 +1001,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_VBLANK(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, dsi_trans),
 				       VBLANK_START(vactive - 1) | VBLANK_END(vtotal - 1));
 		}
 	}
@@ -994,10 +1017,11 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_rmw(dev_priv, TRANSCONF(dsi_trans), 0, TRANSCONF_ENABLE);
+		intel_de_rmw(dev_priv, TRANSCONF(dev_priv, dsi_trans), 0,
+			     TRANSCONF_ENABLE);
 
 		/* wait for transcoder to be enabled */
-		if (intel_de_wait_for_set(dev_priv, TRANSCONF(dsi_trans),
+		if (intel_de_wait_for_set(dev_priv, TRANSCONF(dev_priv, dsi_trans),
 					  TRANSCONF_STATE_ENABLE, 10))
 			drm_err(&dev_priv->drm,
 				"DSI transcoder not enabled\n");
@@ -1090,11 +1114,15 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	/* step 4c: configure voltage swing and skew */
 	gen11_dsi_voltage_swing_program_seq(encoder);
 
+	/* setup D-PHY timings */
+	gen11_dsi_setup_dphy_timings(encoder, crtc_state);
+
 	/* enable DDI buffer */
 	gen11_dsi_enable_ddi_buffer(encoder);
 
-	/* setup D-PHY timings */
-	gen11_dsi_setup_dphy_timings(encoder, crtc_state);
+	gen11_dsi_gate_clocks(encoder);
+
+	gen11_dsi_setup_timings(encoder, crtc_state);
 
 	/* Since transcoder is configured to take events from GPIO */
 	gen11_dsi_config_util_pin(encoder, true);
@@ -1104,9 +1132,6 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 
 	/* Step (4h, 4i, 4j, 4k): Configure transcoder */
 	gen11_dsi_configure_transcoder(encoder, crtc_state);
-
-	/* Step 4l: Gate DDI clocks */
-	gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
@@ -1138,12 +1163,7 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 				"error setting max return pkt size%d\n", tmp);
 	}
 
-	/* panel power on related mipi dsi vbt sequences */
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
-	msleep(intel_dsi->panel_on_delay);
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
 
 	/* ensure all panel commands dispatched before enabling transcoder */
 	wait_for_cmds_dispatched_to_panel(encoder);
@@ -1154,6 +1174,14 @@ static void gen11_dsi_pre_pll_enable(struct intel_atomic_state *state,
 				     const struct intel_crtc_state *crtc_state,
 				     const struct drm_connector_state *conn_state)
 {
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
+
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_ON);
+	msleep(intel_dsi->panel_on_delay);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
+
 	/* step2: enable IO power */
 	gen11_dsi_enable_io_power(encoder);
 
@@ -1225,9 +1253,7 @@ static void gen11_dsi_enable(struct intel_atomic_state *state,
 			     const struct drm_connector_state *conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(conn_state->crtc);
-
-	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	/* Wa_1409054076:icl,jsl,ehl */
 	icl_apply_kvmr_pipe_a_wa(encoder, crtc->pipe, true);
@@ -1237,6 +1263,8 @@ static void gen11_dsi_enable(struct intel_atomic_state *state,
 
 	/* step6d: enable dsi transcoder */
 	gen11_dsi_enable_transcoder(encoder);
+
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
 
 	/* step7: enable backlight */
 	intel_backlight_enable(crtc_state, conn_state);
@@ -1256,10 +1284,11 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		dsi_trans = dsi_port_to_transcoder(port);
 
 		/* disable transcoder */
-		intel_de_rmw(dev_priv, TRANSCONF(dsi_trans), TRANSCONF_ENABLE, 0);
+		intel_de_rmw(dev_priv, TRANSCONF(dev_priv, dsi_trans),
+			     TRANSCONF_ENABLE, 0);
 
 		/* wait for transcoder to be disabled */
-		if (intel_de_wait_for_clear(dev_priv, TRANSCONF(dsi_trans),
+		if (intel_de_wait_for_clear(dev_priv, TRANSCONF(dev_priv, dsi_trans),
 					    TRANSCONF_STATE_ENABLE, 50))
 			drm_err(&dev_priv->drm,
 				"DSI trancoder not disabled\n");
@@ -1271,8 +1300,6 @@ static void gen11_dsi_powerdown_panel(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
-	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 
 	/* ensure cmds dispatched to panel */
 	wait_for_cmds_dispatched_to_panel(encoder);
@@ -1310,7 +1337,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	/* disable ddi function */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans),
+		intel_de_rmw(dev_priv,
+			     TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans),
 			     TRANS_DDI_FUNC_ENABLE, 0);
 	}
 
@@ -1318,7 +1346,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	if (intel_dsi->dual_link) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL2(dsi_trans),
+			intel_de_rmw(dev_priv,
+				     TRANS_DDI_FUNC_CTL2(dev_priv, dsi_trans),
 				     PORT_SYNC_MODE_ENABLE, 0);
 		}
 	}
@@ -1373,11 +1402,21 @@ static void gen11_dsi_disable(struct intel_atomic_state *state,
 			      const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(old_conn_state->crtc);
 
 	/* step1: turn off backlight */
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_backlight_disable(old_conn_state);
+}
+
+static void gen11_dsi_post_disable(struct intel_atomic_state *state,
+				   struct intel_encoder *encoder,
+				   const struct intel_crtc_state *old_crtc_state,
+				   const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
+
+	intel_crtc_vblank_off(old_crtc_state);
 
 	/* step2d,e: disable transcoder and wait */
 	gen11_dsi_disable_transcoder(encoder);
@@ -1391,6 +1430,9 @@ static void gen11_dsi_disable(struct intel_atomic_state *state,
 	/* step2h,i,j: deconfig trancoder */
 	gen11_dsi_deconfigure_trancoder(encoder);
 
+	intel_dsc_disable(old_crtc_state);
+	skl_scaler_disable(old_crtc_state);
+
 	/* step3: disable port */
 	gen11_dsi_disable_port(encoder);
 
@@ -1398,23 +1440,25 @@ static void gen11_dsi_disable(struct intel_atomic_state *state,
 
 	/* step4: disable IO power */
 	gen11_dsi_disable_io_power(encoder);
-}
 
-static void gen11_dsi_post_disable(struct intel_atomic_state *state,
-				   struct intel_encoder *encoder,
-				   const struct intel_crtc_state *old_crtc_state,
-				   const struct drm_connector_state *old_conn_state)
-{
-	intel_crtc_vblank_off(old_crtc_state);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
 
-	intel_dsc_disable(old_crtc_state);
+	msleep(intel_dsi->panel_off_delay);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
 
-	skl_scaler_disable(old_crtc_state);
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
 }
 
 static enum drm_mode_status gen11_dsi_mode_valid(struct drm_connector *connector,
 						 struct drm_display_mode *mode)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+	enum drm_mode_status status;
+
+	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	if (status != MODE_OK)
+		return status;
+
 	/* FIXME: DSC? */
 	return intel_dsi_mode_valid(connector, mode);
 }
@@ -1426,8 +1470,8 @@ static void gen11_dsi_get_timings(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode =
 					&pipe_config->hw.adjusted_mode;
 
-	if (pipe_config->dsc.compressed_bpp) {
-		int div = pipe_config->dsc.compressed_bpp;
+	if (pipe_config->dsc.compressed_bpp_x16) {
+		int div = fxp_q4_to_int(pipe_config->dsc.compressed_bpp_x16);
 		int mul = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
 		adjusted_mode->crtc_htotal =
@@ -1584,8 +1628,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
-						   base);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
@@ -1660,7 +1703,8 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans));
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			*pipe = PIPE_A;
@@ -1679,7 +1723,7 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 			goto out;
 		}
 
-		tmp = intel_de_read(dev_priv, TRANSCONF(dsi_trans));
+		tmp = intel_de_read(dev_priv, TRANSCONF(dev_priv, dsi_trans));
 		ret = tmp & TRANSCONF_ENABLE;
 	}
 out:
@@ -1797,7 +1841,7 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
 	u32 ths_prepare_ns, tclk_trail_ns;
 	u32 hs_zero_cnt;
-	u32 tclk_pre_cnt, tclk_post_cnt;
+	u32 tclk_pre_cnt;
 
 	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
 
@@ -1844,15 +1888,6 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 		tclk_pre_cnt = ICL_TCLK_PRE_CNT_MAX;
 	}
 
-	/* tclk post count in escape clocks */
-	tclk_post_cnt = DIV_ROUND_UP(mipi_config->tclk_post, tlpx_ns);
-	if (tclk_post_cnt > ICL_TCLK_POST_CNT_MAX) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "tclk_post_cnt out of range (%d)\n",
-			    tclk_post_cnt);
-		tclk_post_cnt = ICL_TCLK_POST_CNT_MAX;
-	}
-
 	/* hs zero cnt in escape clocks */
 	hs_zero_cnt = DIV_ROUND_UP(mipi_config->ths_prepare_hszero -
 				   ths_prepare_ns, tlpx_ns);
@@ -1878,8 +1913,6 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 			       CLK_ZERO(clk_zero_cnt) |
 			       CLK_PRE_OVERRIDE |
 			       CLK_PRE(tclk_pre_cnt) |
-			       CLK_POST_OVERRIDE |
-			       CLK_POST(tclk_post_cnt) |
 			       CLK_TRAIL_OVERRIDE |
 			       CLK_TRAIL(trail_cnt));
 
@@ -1909,15 +1942,18 @@ static void icl_dsi_add_properties(struct intel_connector *connector)
 						       fixed_mode->vdisplay);
 }
 
-void icl_dsi_init(struct drm_i915_private *dev_priv)
+void icl_dsi_init(struct drm_i915_private *dev_priv,
+		  const struct intel_bios_encoder_data *devdata)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	enum port port;
 
-	if (!intel_bios_is_dsi_present(dev_priv, &port))
+	port = intel_bios_encoder_port(devdata);
+	if (port == PORT_NONE)
 		return;
 
 	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
@@ -1933,6 +1969,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder = &intel_dsi->base;
 	intel_dsi->attached_connector = intel_connector;
 	connector = &intel_connector->base;
+
+	encoder->devdata = devdata;
 
 	/* register DSI encoder with DRM subsystem */
 	drm_encoder_init(&dev_priv->drm, &encoder->base, &gen11_dsi_encoder_funcs,
@@ -1957,6 +1995,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->get_power_domains = gen11_dsi_get_power_domains;
 	encoder->disable_clock = gen11_dsi_gate_clocks;
 	encoder->is_clock_enabled = gen11_dsi_is_clock_enabled;
+	encoder->shutdown = intel_dsi_shutdown;
 
 	/* register DSI connector with DRM subsystem */
 	drm_connector_init(&dev_priv->drm, connector, &gen11_dsi_connector_funcs,
@@ -1968,8 +2007,9 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	/* attach connector to encoder */
 	intel_connector_attach_encoder(intel_connector, encoder);
 
-	encoder->devdata = intel_bios_encoder_data_lookup(dev_priv, port);
-	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, encoder->devdata, NULL);
+	intel_dsi->panel_power_off_time = ktime_get_boottime();
+
+	intel_bios_init_panel_late(display, &intel_connector->panel, encoder->devdata, NULL);
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);

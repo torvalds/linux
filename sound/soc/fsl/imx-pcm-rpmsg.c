@@ -16,9 +16,10 @@
 #include "fsl_rpmsg.h"
 #include "imx-pcm-rpmsg.h"
 
-static struct snd_pcm_hardware imx_rpmsg_pcm_hardware = {
+static const struct snd_pcm_hardware imx_rpmsg_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP |
@@ -228,6 +229,10 @@ static int imx_rpmsg_pcm_open(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream)
 {
 	struct rpmsg_info *info = dev_get_drvdata(component->dev);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
+	struct snd_pcm_hardware pcm_hardware;
 	struct rpmsg_msg *msg;
 	int ret = 0;
 	int cmd;
@@ -255,10 +260,11 @@ static int imx_rpmsg_pcm_open(struct snd_soc_component *component,
 
 	info->send_message(msg, info);
 
-	imx_rpmsg_pcm_hardware.period_bytes_max =
-			imx_rpmsg_pcm_hardware.buffer_bytes_max / 2;
+	pcm_hardware = imx_rpmsg_pcm_hardware;
+	pcm_hardware.buffer_bytes_max = rpmsg->buffer_size;
+	pcm_hardware.period_bytes_max = pcm_hardware.buffer_bytes_max / 2;
 
-	snd_soc_set_runtime_hwparams(substream, &imx_rpmsg_pcm_hardware);
+	snd_soc_set_runtime_hwparams(substream, &pcm_hardware);
 
 	ret = snd_pcm_hw_constraint_integer(substream->runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
@@ -278,7 +284,7 @@ static int imx_rpmsg_pcm_open(struct snd_soc_component *component,
 static int imx_rpmsg_pcm_close(struct snd_soc_component *component,
 			       struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct rpmsg_info *info = dev_get_drvdata(component->dev);
 	struct rpmsg_msg *msg;
 
@@ -310,8 +316,8 @@ static int imx_rpmsg_pcm_prepare(struct snd_soc_component *component,
 				 struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
 
 	/*
@@ -455,8 +461,8 @@ static int imx_rpmsg_pcm_trigger(struct snd_soc_component *component,
 				 struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
 	int ret = 0;
 
@@ -509,8 +515,8 @@ static int imx_rpmsg_pcm_ack(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
 	struct rpmsg_info *info = dev_get_drvdata(component->dev);
 	snd_pcm_uframes_t period_size = runtime->period_size;
@@ -589,7 +595,7 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
 	int ret;
 
@@ -597,7 +603,6 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
-	imx_rpmsg_pcm_hardware.buffer_bytes_max = rpmsg->buffer_size;
 	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
 					    pcm->card->dev, rpmsg->buffer_size);
 }
@@ -727,9 +732,6 @@ static int imx_rpmsg_pcm_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	/* platform component name is used by machine driver to link with */
-	component->name = info->rpdev->id.name;
-
 #ifdef CONFIG_DEBUG_FS
 	component->debugfs_prefix = "rpmsg";
 #endif
@@ -751,7 +753,6 @@ static void imx_rpmsg_pcm_remove(struct platform_device *pdev)
 		destroy_workqueue(info->rpmsg_wq);
 }
 
-#ifdef CONFIG_PM
 static int imx_rpmsg_pcm_runtime_resume(struct device *dev)
 {
 	struct rpmsg_info *info = dev_get_drvdata(dev);
@@ -769,9 +770,7 @@ static int imx_rpmsg_pcm_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static int imx_rpmsg_pcm_suspend(struct device *dev)
 {
 	struct rpmsg_info *info = dev_get_drvdata(dev);
@@ -807,22 +806,27 @@ static int imx_rpmsg_pcm_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops imx_rpmsg_pcm_pm_ops = {
-	SET_RUNTIME_PM_OPS(imx_rpmsg_pcm_runtime_suspend,
-			   imx_rpmsg_pcm_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(imx_rpmsg_pcm_suspend,
-				imx_rpmsg_pcm_resume)
+	RUNTIME_PM_OPS(imx_rpmsg_pcm_runtime_suspend,
+		       imx_rpmsg_pcm_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(imx_rpmsg_pcm_suspend, imx_rpmsg_pcm_resume)
 };
+
+static const struct platform_device_id imx_rpmsg_pcm_id_table[] = {
+	{ .name	= "rpmsg-audio-channel" },
+	{ .name	= "rpmsg-micfil-channel" },
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, imx_rpmsg_pcm_id_table);
 
 static struct platform_driver imx_pcm_rpmsg_driver = {
 	.probe  = imx_rpmsg_pcm_probe,
-	.remove_new = imx_rpmsg_pcm_remove,
+	.remove = imx_rpmsg_pcm_remove,
+	.id_table = imx_rpmsg_pcm_id_table,
 	.driver = {
 		.name = IMX_PCM_DRV_NAME,
-		.pm = &imx_rpmsg_pcm_pm_ops,
+		.pm = pm_ptr(&imx_rpmsg_pcm_pm_ops),
 	},
 };
 module_platform_driver(imx_pcm_rpmsg_driver);

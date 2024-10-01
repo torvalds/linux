@@ -1669,8 +1669,8 @@ tda1997x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 };
 
-static int tda1997x_s_dv_timings(struct v4l2_subdev *sd,
-				struct v4l2_dv_timings *timings)
+static int tda1997x_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_dv_timings *timings)
 {
 	struct tda1997x_state *state = to_state(sd);
 
@@ -1694,7 +1694,7 @@ static int tda1997x_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tda1997x_g_dv_timings(struct v4l2_subdev *sd,
+static int tda1997x_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct tda1997x_state *state = to_state(sd);
@@ -1707,7 +1707,7 @@ static int tda1997x_g_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tda1997x_query_dv_timings(struct v4l2_subdev *sd,
+static int tda1997x_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				     struct v4l2_dv_timings *timings)
 {
 	struct tda1997x_state *state = to_state(sd);
@@ -1724,9 +1724,6 @@ static int tda1997x_query_dv_timings(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops tda1997x_video_ops = {
 	.g_input_status = tda1997x_g_input_status,
-	.s_dv_timings = tda1997x_s_dv_timings,
-	.g_dv_timings = tda1997x_g_dv_timings,
-	.query_dv_timings = tda1997x_query_dv_timings,
 };
 
 
@@ -1734,13 +1731,13 @@ static const struct v4l2_subdev_video_ops tda1997x_video_ops = {
  * v4l2_subdev_pad_ops
  */
 
-static int tda1997x_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *sd_state)
+static int tda1997x_init_state(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *sd_state)
 {
 	struct tda1997x_state *state = to_state(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
+	mf = v4l2_subdev_state_get_format(sd_state, 0);
 	mf->code = state->mbus_codes[0];
 
 	return 0;
@@ -1792,7 +1789,7 @@ static int tda1997x_get_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		format->format.code = fmt->code;
 	} else
 		format->format.code = state->mbus_code;
@@ -1826,7 +1823,7 @@ static int tda1997x_set_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		*fmt = format->format;
 	} else {
 		int ret = tda1997x_setup_format(state, format->format.code);
@@ -1925,12 +1922,14 @@ static int tda1997x_enum_dv_timings(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops tda1997x_pad_ops = {
-	.init_cfg = tda1997x_init_cfg,
 	.enum_mbus_code = tda1997x_enum_mbus_code,
 	.get_fmt = tda1997x_get_format,
 	.set_fmt = tda1997x_set_format,
 	.get_edid = tda1997x_get_edid,
 	.set_edid = tda1997x_set_edid,
+	.s_dv_timings = tda1997x_s_dv_timings,
+	.g_dv_timings = tda1997x_g_dv_timings,
+	.query_dv_timings = tda1997x_query_dv_timings,
 	.dv_timings_cap = tda1997x_get_dv_timings_cap,
 	.enum_dv_timings = tda1997x_enum_dv_timings,
 };
@@ -2045,6 +2044,10 @@ static const struct v4l2_subdev_ops tda1997x_subdev_ops = {
 	.core = &tda1997x_core_ops,
 	.video = &tda1997x_video_ops,
 	.pad = &tda1997x_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops tda1997x_internal_ops = {
+	.init_state = tda1997x_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -2307,7 +2310,7 @@ static int tda1997x_parse_dt(struct tda1997x_state *state)
 	pdata->vidout_sel_de = DE_FREF_SEL_DE_VHREF;
 
 	np = state->client->dev.of_node;
-	ep = of_graph_get_next_endpoint(np, NULL);
+	ep = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!ep)
 		return -EINVAL;
 
@@ -2511,7 +2514,7 @@ static void tda1997x_codec_remove(struct snd_soc_component *component)
 {
 }
 
-static struct snd_soc_component_driver tda1997x_codec_driver = {
+static const struct snd_soc_component_driver tda1997x_codec_driver = {
 	.probe			= tda1997x_codec_probe,
 	.remove			= tda1997x_codec_remove,
 	.idle_bias_on		= 1,
@@ -2588,6 +2591,7 @@ static int tda1997x_probe(struct i2c_client *client)
 	/* initialize subdev */
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &tda1997x_subdev_ops);
+	sd->internal_ops = &tda1997x_internal_ops;
 	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
 		 id->name, i2c_adapter_id(client->adapter),
 		 client->addr);

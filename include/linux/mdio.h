@@ -31,13 +31,14 @@ struct mdio_device {
 	struct mii_bus *bus;
 	char modalias[MDIO_NAME_SIZE];
 
-	int (*bus_match)(struct device *dev, struct device_driver *drv);
+	int (*bus_match)(struct device *dev, const struct device_driver *drv);
 	void (*device_free)(struct mdio_device *mdiodev);
 	void (*device_remove)(struct mdio_device *mdiodev);
 
 	/* Bus address of the MDIO device (0-31) */
 	int addr;
 	int flags;
+	int reset_state;
 	struct gpio_desc *reset_gpio;
 	struct reset_control *reset_ctrl;
 	unsigned int reset_assert_delay;
@@ -56,11 +57,8 @@ struct mdio_driver_common {
 };
 #define MDIO_DEVICE_FLAG_PHY		1
 
-static inline struct mdio_driver_common *
-to_mdio_common_driver(const struct device_driver *driver)
-{
-	return container_of(driver, struct mdio_driver_common, driver);
-}
+#define to_mdio_common_driver(__drv_c)	container_of_const(__drv_c, struct mdio_driver_common,	\
+							   driver)
 
 /* struct mdio_driver: Generic MDIO driver */
 struct mdio_driver {
@@ -79,12 +77,8 @@ struct mdio_driver {
 	void (*shutdown)(struct mdio_device *mdiodev);
 };
 
-static inline struct mdio_driver *
-to_mdio_driver(const struct device_driver *driver)
-{
-	return container_of(to_mdio_common_driver(driver), struct mdio_driver,
-			    mdiodrv);
-}
+#define to_mdio_driver(__drv_m)	container_of_const(to_mdio_common_driver(__drv_m),	\
+						   struct mdio_driver, mdiodrv)
 
 /* device driver data */
 static inline void mdiodev_set_drvdata(struct mdio_device *mdio, void *data)
@@ -104,7 +98,7 @@ void mdio_device_remove(struct mdio_device *mdiodev);
 void mdio_device_reset(struct mdio_device *mdiodev, int value);
 int mdio_driver_register(struct mdio_driver *drv);
 void mdio_driver_unregister(struct mdio_driver *drv);
-int mdio_device_bus_match(struct device *dev, struct device_driver *drv);
+int mdio_device_bus_match(struct device *dev, const struct device_driver *drv);
 
 static inline void mdio_device_get(struct mdio_device *mdiodev)
 {
@@ -372,6 +366,10 @@ static inline void mii_t1_adv_m_mod_linkmode_t(unsigned long *advertising, u32 l
 {
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
 			 advertising, lpa & MDIO_AN_T1_ADV_M_B10L);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
+			 advertising, lpa & MDIO_AN_T1_ADV_M_100BT1);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
+			 advertising, lpa & MDIO_AN_T1_ADV_M_1000BT1);
 }
 
 /**
@@ -408,6 +406,10 @@ static inline u32 linkmode_adv_to_mii_t1_adv_m_t(unsigned long *advertising)
 
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT, advertising))
 		result |= MDIO_AN_T1_ADV_M_B10L;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT1_Full_BIT, advertising))
+		result |= MDIO_AN_T1_ADV_M_100BT1;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT1_Full_BIT, advertising))
+		result |= MDIO_AN_T1_ADV_M_1000BT1;
 
 	return result;
 }
@@ -420,7 +422,7 @@ static inline u32 linkmode_adv_to_mii_t1_adv_m_t(unsigned long *advertising)
  * A function that translates value of following registers to the linkmode:
  * IEEE 802.3-2018 45.2.3.10 "EEE control and capability 1" register (3.20)
  * IEEE 802.3-2018 45.2.7.13 "EEE advertisement 1" register (7.60)
- * IEEE 802.3-2018 45.2.7.14 "EEE "link partner ability 1 register (7.61)
+ * IEEE 802.3-2018 45.2.7.14 "EEE link partner ability 1" register (7.61)
  */
 static inline void mii_eee_cap1_mod_linkmode_t(unsigned long *adv, u32 val)
 {
@@ -436,6 +438,42 @@ static inline void mii_eee_cap1_mod_linkmode_t(unsigned long *adv, u32 val)
 			 adv, val & MDIO_EEE_10GKX4);
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
 			 adv, val & MDIO_EEE_10GKR);
+}
+
+/**
+ * mii_eee_cap2_mod_linkmode_sup_t()
+ * @adv: target the linkmode settings
+ * @val: register value
+ *
+ * A function that translates value of following registers to the linkmode:
+ * IEEE 802.3-2022 45.2.3.11 "EEE control and capability 2" register (3.21)
+ */
+static inline void mii_eee_cap2_mod_linkmode_sup_t(unsigned long *adv, u32 val)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 adv, val & MDIO_EEE_2_5GT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 adv, val & MDIO_EEE_5GT);
+}
+
+/**
+ * mii_eee_cap2_mod_linkmode_adv_t()
+ * @adv: target the linkmode advertisement settings
+ * @val: register value
+ *
+ * A function that translates value of following registers to the linkmode:
+ * IEEE 802.3-2022 45.2.7.16 "EEE advertisement 2" register (7.62)
+ * IEEE 802.3-2022 45.2.7.17 "EEE link partner ability 2" register (7.63)
+ * Note: Currently this function is the same as mii_eee_cap2_mod_linkmode_sup_t.
+ *       For certain, not yet supported, modes however the bits differ.
+ *       Therefore create separate functions already.
+ */
+static inline void mii_eee_cap2_mod_linkmode_adv_t(unsigned long *adv, u32 val)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 adv, val & MDIO_EEE_2_5GT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 adv, val & MDIO_EEE_5GT);
 }
 
 /**
@@ -461,6 +499,25 @@ static inline u32 linkmode_to_mii_eee_cap1_t(unsigned long *adv)
 		result |= MDIO_EEE_10GKX4;
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT, adv))
 		result |= MDIO_EEE_10GKR;
+
+	return result;
+}
+
+/**
+ * linkmode_to_mii_eee_cap2_t()
+ * @adv: the linkmode advertisement settings
+ *
+ * A function that translates linkmode to value for IEEE 802.3-2022 45.2.7.16
+ * "EEE advertisement 2" register (7.62)
+ */
+static inline u32 linkmode_to_mii_eee_cap2_t(unsigned long *adv)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, adv))
+		result |= MDIO_EEE_2_5GT;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT, adv))
+		result |= MDIO_EEE_5GT;
 
 	return result;
 }
@@ -537,6 +594,8 @@ static inline void mii_c73_mod_linkmode(unsigned long *adv, u16 *lpa)
 
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+int __mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask,
+		     u16 set);
 int __mdiobus_modify_changed(struct mii_bus *bus, int addr, u32 regnum,
 			     u16 mask, u16 set);
 
@@ -563,6 +622,30 @@ int mdiobus_c45_modify(struct mii_bus *bus, int addr, int devad, u32 regnum,
 
 int mdiobus_c45_modify_changed(struct mii_bus *bus, int addr, int devad,
 			       u32 regnum, u16 mask, u16 set);
+
+static inline int __mdiodev_read(struct mdio_device *mdiodev, u32 regnum)
+{
+	return __mdiobus_read(mdiodev->bus, mdiodev->addr, regnum);
+}
+
+static inline int __mdiodev_write(struct mdio_device *mdiodev, u32 regnum,
+				  u16 val)
+{
+	return __mdiobus_write(mdiodev->bus, mdiodev->addr, regnum, val);
+}
+
+static inline int __mdiodev_modify(struct mdio_device *mdiodev, u32 regnum,
+				   u16 mask, u16 set)
+{
+	return __mdiobus_modify(mdiodev->bus, mdiodev->addr, regnum, mask, set);
+}
+
+static inline int __mdiodev_modify_changed(struct mdio_device *mdiodev,
+					   u32 regnum, u16 mask, u16 set)
+{
+	return __mdiobus_modify_changed(mdiodev->bus, mdiodev->addr, regnum,
+					mask, set);
+}
 
 static inline int mdiodev_read(struct mdio_device *mdiodev, u32 regnum)
 {

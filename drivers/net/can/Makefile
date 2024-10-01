@@ -8,7 +8,9 @@ obj-$(CONFIG_CAN_VXCAN)		+= vxcan.o
 obj-$(CONFIG_CAN_SLCAN)		+= slcan/
 
 obj-y				+= dev/
+obj-y				+= esd/
 obj-y				+= rcar/
+obj-y				+= rockchip/
 obj-y				+= spi/
 obj-y				+= usb/
 obj-y				+= softing/

@@ -541,8 +541,8 @@ static void ds2482_remove(struct i2c_client *client)
  * Driver data (common to all clients)
  */
 static const struct i2c_device_id ds2482_id[] = {
-	{ "ds2482", 0 },
-	{ "ds2484", 0 },
+	{ "ds2482" },
+	{ "ds2484" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds2482_id);
@@ -551,7 +551,7 @@ static struct i2c_driver ds2482_driver = {
 	.driver = {
 		.name	= "ds2482",
 	},
-	.probe_new	= ds2482_probe,
+	.probe		= ds2482_probe,
 	.remove		= ds2482_remove,
 	.id_table	= ds2482_id,
 };

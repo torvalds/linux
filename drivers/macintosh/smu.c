@@ -37,6 +37,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
@@ -1313,7 +1314,6 @@ static int smu_release(struct inode *inode, struct file *file)
 
 
 static const struct file_operations smu_device_fops = {
-	.llseek		= no_llseek,
 	.read		= smu_read,
 	.write		= smu_write,
 	.poll		= smu_fpoll,

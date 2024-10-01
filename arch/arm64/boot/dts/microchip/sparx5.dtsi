@@ -447,7 +447,7 @@
 			pinctrl-names = "default";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0x6 0x110102d4 0x24>;
+			reg = <0x6 0x110102f8 0x24>;
 		};
 
 		mdio3: mdio@61101031c {
@@ -460,7 +460,7 @@
 			reg = <0x6 0x1101031c 0x24>;
 		};
 
-		serdes: serdes@10808000 {
+		serdes: serdes@610808000 {
 			compatible = "microchip,sparx5-serdes";
 			#phy-cells = <1>;
 			clocks = <&sys_clk>;
@@ -469,14 +469,14 @@
 
 		switch: switch@600000000 {
 			compatible = "microchip,sparx5-switch";
-			reg =	<0x6 0 0x401000>,
-				<0x6 0x10004000 0x7fc000>,
-				<0x6 0x11010000 0xaf0000>;
+			reg = <0x6 0 0x401000>,
+			      <0x6 0x10004000 0x7fc000>,
+			      <0x6 0x11010000 0xaf0000>;
 			reg-names = "cpu", "dev", "gcb";
 			interrupt-names = "xtr", "fdma", "ptp";
-			interrupts =	<GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&reset 0>;
 			reset-names = "switch";
 		};

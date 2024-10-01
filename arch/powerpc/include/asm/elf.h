@@ -12,14 +12,8 @@
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
- * 64le only supports ELFv2 64-bit binaries (64be supports v1 and v2).
  */
-#if defined(CONFIG_PPC64) && defined(CONFIG_CPU_LITTLE_ENDIAN)
-#define elf_check_arch(x) (((x)->e_machine == ELF_ARCH) && \
-			   (((x)->e_flags & 0x3) == 0x2))
-#else
 #define elf_check_arch(x) ((x)->e_machine == ELF_ARCH)
-#endif
 #define compat_elf_check_arch(x)	((x)->e_machine == EM_PPC)
 
 #define CORE_DUMP_USE_REGSET
@@ -132,8 +126,6 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 #ifdef CONFIG_SPU_BASE
 /* Notes used in ET_CORE. Note name is "SPU/<fd>/<filename>". */
 #define NT_SPU		1
-
-#define ARCH_HAVE_EXTRA_ELF_NOTES
 
 #endif /* CONFIG_SPU_BASE */
 

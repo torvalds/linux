@@ -265,7 +265,7 @@ static void free_midi_urbs(struct snd_usb_midi2_endpoint *ep)
 
 	if (!ep)
 		return;
-	for (i = 0; i < ep->num_urbs; ++i) {
+	for (i = 0; i < NUM_URBS; ++i) {
 		ctx = &ep->urbs[i];
 		if (!ctx->urb)
 			break;
@@ -279,6 +279,7 @@ static void free_midi_urbs(struct snd_usb_midi2_endpoint *ep)
 }
 
 /* allocate URBs for an EP */
+/* the callers should handle allocation errors via free_midi_urbs() */
 static int alloc_midi_urbs(struct snd_usb_midi2_endpoint *ep)
 {
 	struct snd_usb_midi2_urb *ctx;
@@ -351,8 +352,10 @@ static int snd_usb_midi_v2_open(struct snd_ump_endpoint *ump, int dir)
 		return -EIO;
 	if (ep->direction == STR_OUT) {
 		err = alloc_midi_urbs(ep);
-		if (err)
+		if (err) {
+			free_midi_urbs(ep);
 			return err;
+		}
 	}
 	return 0;
 }
@@ -604,12 +607,8 @@ static int parse_group_terminal_block(struct snd_usb_midi2_ump *rmidi,
 		return 0;
 	}
 
-	if (ump->info.protocol && ump->info.protocol != protocol)
-		usb_audio_info(rmidi->umidi->chip,
-			       "Overriding preferred MIDI protocol in GTB %d: %x -> %x\n",
-			       rmidi->usb_block_id, ump->info.protocol,
-			       protocol);
-	ump->info.protocol = protocol;
+	if (!ump->info.protocol)
+		ump->info.protocol = protocol;
 
 	protocol_caps = protocol;
 	switch (desc->bMIDIProtocol) {
@@ -621,13 +620,7 @@ static int parse_group_terminal_block(struct snd_usb_midi2_ump *rmidi,
 		break;
 	}
 
-	if (ump->info.protocol_caps && ump->info.protocol_caps != protocol_caps)
-		usb_audio_info(rmidi->umidi->chip,
-			       "Overriding MIDI protocol caps in GTB %d: %x -> %x\n",
-			       rmidi->usb_block_id, ump->info.protocol_caps,
-			       protocol_caps);
-	ump->info.protocol_caps = protocol_caps;
-
+	ump->info.protocol_caps |= protocol_caps;
 	return 0;
 }
 
@@ -870,9 +863,25 @@ static int create_gtb_block(struct snd_usb_midi2_ump *rmidi, int dir, int blk)
 		fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1 |
 			SNDRV_UMP_BLOCK_IS_LOWSPEED;
 
+	/* if MIDI 2.0 protocol is supported and yet the GTB shows MIDI 1.0,
+	 * treat it as a MIDI 1.0-specific block
+	 */
+	if (rmidi->ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2) {
+		switch (desc->bMIDIProtocol) {
+		case USB_MS_MIDI_PROTO_1_0_64:
+		case USB_MS_MIDI_PROTO_1_0_64_JRTS:
+		case USB_MS_MIDI_PROTO_1_0_128:
+		case USB_MS_MIDI_PROTO_1_0_128_JRTS:
+			fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1;
+			break;
+		}
+	}
+
+	snd_ump_update_group_attrs(rmidi->ump);
+
 	usb_audio_dbg(umidi->chip,
-		      "Created a UMP block %d from GTB, name=%s\n",
-		      blk, fb->info.name);
+		      "Created a UMP block %d from GTB, name=%s, flags=0x%x\n",
+		      blk, fb->info.name, fb->info.flags);
 	return 0;
 }
 
@@ -990,7 +999,7 @@ static int parse_midi_2_0(struct snd_usb_midi2_interface *umidi)
 		}
 	}
 
-	return attach_legacy_rawmidi(umidi);
+	return 0;
 }
 
 /* is the given interface for MIDI 2.0? */
@@ -1059,12 +1068,6 @@ static void set_fallback_rawmidi_names(struct snd_usb_midi2_interface *umidi)
 			usb_string(dev, dev->descriptor.iSerialNumber,
 				   ump->info.product_id,
 				   sizeof(ump->info.product_id));
-#if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
-		if (ump->legacy_rmidi && !*ump->legacy_rmidi->name)
-			snprintf(ump->legacy_rmidi->name,
-				 sizeof(ump->legacy_rmidi->name),
-				 "%s (MIDI 1.0)", ump->info.name);
-#endif
 	}
 }
 
@@ -1088,7 +1091,7 @@ int snd_usb_midi_v2_create(struct snd_usb_audio *chip,
 	}
 	if ((quirk && quirk->type != QUIRK_MIDI_STANDARD_INTERFACE) ||
 	    iface->num_altsetting < 2) {
-		usb_audio_info(chip, "Quirk or no altest; falling back to MIDI 1.0\n");
+		usb_audio_info(chip, "Quirk or no altset; falling back to MIDI 1.0\n");
 		goto fallback_to_midi1;
 	}
 	hostif = &iface->altsetting[1];
@@ -1157,6 +1160,13 @@ int snd_usb_midi_v2_create(struct snd_usb_audio *chip,
 	}
 
 	set_fallback_rawmidi_names(umidi);
+
+	err = attach_legacy_rawmidi(umidi);
+	if (err < 0) {
+		usb_audio_err(chip, "Failed to create legacy rawmidi\n");
+		goto error;
+	}
+
 	return 0;
 
  error:

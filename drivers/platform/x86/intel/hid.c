@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 #include <linux/suspend.h>
 #include "../dual_accel_detect.h"
 
@@ -38,6 +39,7 @@ MODULE_PARM_DESC(enable_sw_tablet_mode,
 /* When NOT in tablet mode, VGBS returns with the flag 0x40 */
 #define TABLET_MODE_FLAG BIT(6)
 
+MODULE_DESCRIPTION("Intel HID Event hotkey driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
 
@@ -49,6 +51,8 @@ static const struct acpi_device_id intel_hid_ids[] = {
 	{"INTC1076", 0},
 	{"INTC1077", 0},
 	{"INTC1078", 0},
+	{"INTC107B", 0},
+	{"INTC10CB", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, intel_hid_ids);
@@ -148,6 +152,12 @@ static const struct dmi_system_id dmi_vgbs_allow_list[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Surface Go"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Elite Dragonfly G2 Notebook PC"),
 		},
 	},
 	{ }
@@ -322,10 +332,8 @@ static int intel_hid_set_enable(struct device *device, bool enable)
 	acpi_handle handle = ACPI_HANDLE(device);
 
 	/* Enable|disable features - power button is always enabled */
-	if (!intel_hid_execute_method(handle, INTEL_HID_DSM_HDSM_FN,
-				      enable)) {
-		dev_warn(device, "failed to %sable hotkeys\n",
-			 enable ? "en" : "dis");
+	if (!intel_hid_execute_method(handle, INTEL_HID_DSM_HDSM_FN, enable)) {
+		dev_warn(device, "failed to %s hotkeys\n", str_enable_disable(enable));
 		return -EIO;
 	}
 
@@ -498,6 +506,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	struct platform_device *device = context;
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
 	unsigned long long ev_index;
+	struct key_entry *ke;
 	int err;
 
 	/*
@@ -539,10 +548,14 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 		if (event == 0xc0 || !priv->array)
 			return;
 
-		if (!sparse_keymap_entry_from_scancode(priv->array, event)) {
+		ke = sparse_keymap_entry_from_scancode(priv->array, event);
+		if (!ke) {
 			dev_info(&device->dev, "unknown event 0x%x\n", event);
 			return;
 		}
+
+		if (ke->type == KE_IGNORE)
+			return;
 
 wakeup:
 		pm_wakeup_hard_event(&device->dev);
@@ -620,7 +633,7 @@ static bool button_array_present(struct platform_device *device)
 static int intel_hid_probe(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
-	unsigned long long mode;
+	unsigned long long mode, dummy;
 	struct intel_hid_priv *priv;
 	acpi_status status;
 	int err;
@@ -692,18 +705,15 @@ static int intel_hid_probe(struct platform_device *device)
 	if (err)
 		goto err_remove_notify;
 
-	if (priv->array) {
-		unsigned long long dummy;
+	intel_button_array_enable(&device->dev, true);
 
-		intel_button_array_enable(&device->dev, true);
-
-		/* Call button load method to enable HID power button */
-		if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_BTNL_FN,
-					       &dummy)) {
-			dev_warn(&device->dev,
-				 "failed to enable HID power button\n");
-		}
-	}
+	/*
+	 * Call button load method to enable HID power button
+	 * Always do this since it activates events on some devices without
+	 * a button array too.
+	 */
+	if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_BTNL_FN, &dummy))
+		dev_warn(&device->dev, "failed to enable HID power button\n");
 
 	device_init_wakeup(&device->dev, true);
 	/*

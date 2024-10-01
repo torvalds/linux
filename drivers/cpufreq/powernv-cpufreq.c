@@ -692,7 +692,7 @@ static void gpstate_timer_handler(struct timer_list *t)
 	}
 
 	/*
-	 * If PMCR was last updated was using fast_swtich then
+	 * If PMCR was last updated was using fast_switch then
 	 * We may have wrong in gpstate->last_lpstate_idx
 	 * value. Hence, read from PMCR to get correct data.
 	 */
@@ -874,7 +874,7 @@ static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int powernv_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+static void powernv_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct powernv_smp_call_data freq_data;
 	struct global_pstate_info *gpstates = policy->driver_data;
@@ -886,8 +886,6 @@ static int powernv_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 		del_timer_sync(&gpstates->timer);
 
 	kfree(policy->driver_data);
-
-	return 0;
 }
 
 static int powernv_cpufreq_reboot_notifier(struct notifier_block *nb,
@@ -1162,5 +1160,6 @@ static void __exit powernv_cpufreq_exit(void)
 }
 module_exit(powernv_cpufreq_exit);
 
+MODULE_DESCRIPTION("cpufreq driver for IBM/OpenPOWER powernv systems");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vaidyanathan Srinivasan <svaidy at linux.vnet.ibm.com>");

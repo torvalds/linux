@@ -28,7 +28,6 @@
 #include <linux/err.h>
 #include <linux/proc_fs.h>
 #include <linux/backlight.h>
-#include <linux/fb.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
@@ -818,7 +817,7 @@ static int asus_backlight_init(struct asus_laptop *asus)
 
 	asus->backlight_device = bd;
 	bd->props.brightness = asus_read_brightness(bd);
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(bd);
 	return 0;
 }
@@ -852,8 +851,8 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 	 * so we don't set eof to 1
 	 */
 
-	len += sprintf(page, ASUS_LAPTOP_NAME " " ASUS_LAPTOP_VERSION "\n");
-	len += sprintf(page + len, "Model reference    : %s\n", asus->name);
+	len += sysfs_emit_at(page, len, ASUS_LAPTOP_NAME " " ASUS_LAPTOP_VERSION "\n");
+	len += sysfs_emit_at(page, len, "Model reference    : %s\n", asus->name);
 	/*
 	 * The SFUN method probably allows the original driver to get the list
 	 * of features supported by a given model. For now, 0x0100 or 0x0800
@@ -862,7 +861,7 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 	 */
 	rv = acpi_evaluate_integer(asus->handle, "SFUN", NULL, &temp);
 	if (ACPI_SUCCESS(rv))
-		len += sprintf(page + len, "SFUN value         : %#x\n",
+		len += sysfs_emit_at(page, len, "SFUN value         : %#x\n",
 			       (uint) temp);
 	/*
 	 * The HWRS method return informations about the hardware.
@@ -874,7 +873,7 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 	 */
 	rv = acpi_evaluate_integer(asus->handle, "HWRS", NULL, &temp);
 	if (ACPI_SUCCESS(rv))
-		len += sprintf(page + len, "HWRS value         : %#x\n",
+		len += sysfs_emit_at(page, len, "HWRS value         : %#x\n",
 			       (uint) temp);
 	/*
 	 * Another value for userspace: the ASYM method returns 0x02 for
@@ -885,25 +884,25 @@ static ssize_t infos_show(struct device *dev, struct device_attribute *attr,
 	 */
 	rv = acpi_evaluate_integer(asus->handle, "ASYM", NULL, &temp);
 	if (ACPI_SUCCESS(rv))
-		len += sprintf(page + len, "ASYM value         : %#x\n",
+		len += sysfs_emit_at(page, len, "ASYM value         : %#x\n",
 			       (uint) temp);
 	if (asus->dsdt_info) {
 		snprintf(buf, 16, "%d", asus->dsdt_info->length);
-		len += sprintf(page + len, "DSDT length        : %s\n", buf);
+		len += sysfs_emit_at(page, len, "DSDT length        : %s\n", buf);
 		snprintf(buf, 16, "%d", asus->dsdt_info->checksum);
-		len += sprintf(page + len, "DSDT checksum      : %s\n", buf);
+		len += sysfs_emit_at(page, len, "DSDT checksum      : %s\n", buf);
 		snprintf(buf, 16, "%d", asus->dsdt_info->revision);
-		len += sprintf(page + len, "DSDT revision      : %s\n", buf);
+		len += sysfs_emit_at(page, len, "DSDT revision      : %s\n", buf);
 		snprintf(buf, 7, "%s", asus->dsdt_info->oem_id);
-		len += sprintf(page + len, "OEM id             : %s\n", buf);
+		len += sysfs_emit_at(page, len, "OEM id             : %s\n", buf);
 		snprintf(buf, 9, "%s", asus->dsdt_info->oem_table_id);
-		len += sprintf(page + len, "OEM table id       : %s\n", buf);
+		len += sysfs_emit_at(page, len, "OEM table id       : %s\n", buf);
 		snprintf(buf, 16, "%x", asus->dsdt_info->oem_revision);
-		len += sprintf(page + len, "OEM revision       : 0x%s\n", buf);
+		len += sysfs_emit_at(page, len, "OEM revision       : 0x%s\n", buf);
 		snprintf(buf, 5, "%s", asus->dsdt_info->asl_compiler_id);
-		len += sprintf(page + len, "ASL comp vendor id : %s\n", buf);
+		len += sysfs_emit_at(page, len, "ASL comp vendor id : %s\n", buf);
 		snprintf(buf, 16, "%x", asus->dsdt_info->asl_compiler_revision);
-		len += sprintf(page + len, "ASL comp revision  : 0x%s\n", buf);
+		len += sysfs_emit_at(page, len, "ASL comp revision  : 0x%s\n", buf);
 	}
 
 	return len;
@@ -933,7 +932,7 @@ static ssize_t ledd_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "0x%08x\n", asus->ledd_status);
+	return sysfs_emit(buf, "0x%08x\n", asus->ledd_status);
 }
 
 static ssize_t ledd_store(struct device *dev, struct device_attribute *attr,
@@ -993,7 +992,7 @@ static ssize_t wlan_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", asus_wireless_status(asus, WL_RSTS));
+	return sysfs_emit(buf, "%d\n", asus_wireless_status(asus, WL_RSTS));
 }
 
 static ssize_t wlan_store(struct device *dev, struct device_attribute *attr,
@@ -1022,7 +1021,7 @@ static ssize_t bluetooth_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", asus_wireless_status(asus, BT_RSTS));
+	return sysfs_emit(buf, "%d\n", asus_wireless_status(asus, BT_RSTS));
 }
 
 static ssize_t bluetooth_store(struct device *dev,
@@ -1052,7 +1051,7 @@ static ssize_t wimax_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", asus_wireless_status(asus, WM_RSTS));
+	return sysfs_emit(buf, "%d\n", asus_wireless_status(asus, WM_RSTS));
 }
 
 static ssize_t wimax_store(struct device *dev, struct device_attribute *attr,
@@ -1081,7 +1080,7 @@ static ssize_t wwan_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", asus_wireless_status(asus, WW_RSTS));
+	return sysfs_emit(buf, "%d\n", asus_wireless_status(asus, WW_RSTS));
 }
 
 static ssize_t wwan_store(struct device *dev, struct device_attribute *attr,
@@ -1151,7 +1150,7 @@ static ssize_t ls_switch_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", asus->light_switch);
+	return sysfs_emit(buf, "%d\n", asus->light_switch);
 }
 
 static ssize_t ls_switch_store(struct device *dev,
@@ -1182,7 +1181,7 @@ static ssize_t ls_level_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", asus->light_level);
+	return sysfs_emit(buf, "%d\n", asus->light_level);
 }
 
 static ssize_t ls_level_store(struct device *dev, struct device_attribute *attr,
@@ -1228,7 +1227,7 @@ static ssize_t ls_value_show(struct device *dev, struct device_attribute *attr,
 	if (!err)
 		err = pega_int_read(asus, PEGA_READ_ALS_L, &lo);
 	if (!err)
-		return sprintf(buf, "%d\n", 10 * hi + lo);
+		return sysfs_emit(buf, "%d\n", 10 * hi + lo);
 	return err;
 }
 static DEVICE_ATTR_RO(ls_value);
@@ -1264,7 +1263,7 @@ static ssize_t gps_show(struct device *dev, struct device_attribute *attr,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", asus_gps_status(asus));
+	return sysfs_emit(buf, "%d\n", asus_gps_status(asus));
 }
 
 static ssize_t gps_store(struct device *dev, struct device_attribute *attr,
@@ -1816,9 +1815,8 @@ static void asus_dmi_check(void)
 		return;
 
 	/* On L1400B WLED control the sound card, don't mess with it ... */
-	if (strncmp(model, "L1400B", 6) == 0) {
+	if (strncmp(model, "L1400B", 6) == 0)
 		wlan_status = -1;
-	}
 }
 
 static bool asus_device_present;
@@ -1926,7 +1924,6 @@ MODULE_DEVICE_TABLE(acpi, asus_device_ids);
 static struct acpi_driver asus_acpi_driver = {
 	.name = ASUS_LAPTOP_NAME,
 	.class = ASUS_LAPTOP_CLASS,
-	.owner = THIS_MODULE,
 	.ids = asus_device_ids,
 	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {

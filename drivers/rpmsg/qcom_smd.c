@@ -1479,6 +1479,9 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 	struct qcom_smd_edge *edge;
 	int ret;
 
+	if (!qcom_smem_is_available())
+		return ERR_PTR(-EPROBE_DEFER);
+
 	edge = kzalloc(sizeof(*edge), GFP_KERNEL);
 	if (!edge)
 		return ERR_PTR(-ENOMEM);
@@ -1553,12 +1556,9 @@ EXPORT_SYMBOL(qcom_smd_unregister_edge);
 static int qcom_smd_probe(struct platform_device *pdev)
 {
 	struct device_node *node;
-	void *p;
 
-	/* Wait for smem */
-	p = qcom_smem_get(QCOM_SMEM_HOST_ANY, smem_items[0].alloc_tbl_id, NULL);
-	if (PTR_ERR(p) == -EPROBE_DEFER)
-		return PTR_ERR(p);
+	if (!qcom_smem_is_available())
+		return -EPROBE_DEFER;
 
 	for_each_available_child_of_node(pdev->dev.of_node, node)
 		qcom_smd_register_edge(&pdev->dev, node);

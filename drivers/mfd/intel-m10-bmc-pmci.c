@@ -336,7 +336,7 @@ static const struct regmap_access_table m10bmc_pmci_access_table = {
 	.n_yes_ranges	= ARRAY_SIZE(m10bmc_pmci_regmap_range),
 };
 
-static struct regmap_config m10bmc_pmci_regmap_config = {
+static const struct regmap_config m10bmc_pmci_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -370,6 +370,7 @@ static const struct m10bmc_csr_map m10bmc_n6000_csr_map = {
 	.pr_reh_addr = M10BMC_N6000_PR_REH_ADDR,
 	.pr_magic = M10BMC_N6000_PR_PROG_MAGIC,
 	.rsu_update_counter = M10BMC_N6000_STAGING_FLASH_COUNT,
+	.staging_size = M10BMC_STAGING_SIZE,
 };
 
 static const struct intel_m10bmc_platform_info m10bmc_pmci_n6000 = {

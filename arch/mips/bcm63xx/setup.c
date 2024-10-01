@@ -12,6 +12,7 @@
 #include <linux/memblock.h>
 #include <linux/ioport.h>
 #include <linux/pm.h>
+#include <asm/bmips.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -21,6 +22,13 @@
 #include <bcm63xx_regs.h>
 #include <bcm63xx_io.h>
 #include <bcm63xx_gpio.h>
+
+/*
+ * CBR addr doesn't change and we can cache it.
+ * For broken SoC/Bootloader CBR addr might also be provided via DT
+ * with "brcm,bmips-cbr-reg" in the "cpus" node.
+ */
+void __iomem *bmips_cbr_addr __read_mostly;
 
 void bcm63xx_machine_halt(void)
 {
@@ -159,7 +167,7 @@ void __init plat_mem_setup(void)
 	board_setup();
 }
 
-int __init bcm63xx_register_devices(void)
+static int __init bcm63xx_register_devices(void)
 {
 	/* register gpiochip */
 	bcm63xx_gpio_init();

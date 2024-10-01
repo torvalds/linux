@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Atmel Universal Synchronous Asynchronous Receiver/Transmitter (USART)
 
 maintainers:
-  - Richard Genoud <richard.genoud@gmail.com>
+  - Richard Genoud <richard.genoud@bootlin.com>
 
 properties:
   compatible:
@@ -16,7 +16,6 @@ properties:
       - enum:
           - atmel,at91rm9200-usart
           - atmel,at91sam9260-usart
-          - microchip,sam9x60-usart
       - items:
           - const: atmel,at91rm9200-dbgu
           - const: atmel,at91rm9200-usart
@@ -24,9 +23,19 @@ properties:
           - const: atmel,at91sam9260-dbgu
           - const: atmel,at91sam9260-usart
       - items:
+          - enum:
+              - microchip,sam9x60-usart
+              - microchip,sam9x7-usart
+          - const: atmel,at91sam9260-usart
+      - items:
           - const: microchip,sam9x60-dbgu
           - const: microchip,sam9x60-usart
           - const: atmel,at91sam9260-dbgu
+          - const: atmel,at91sam9260-usart
+      - items:
+          - const: microchip,sam9x7-dbgu
+          - const: atmel,at91sam9260-dbgu
+          - const: microchip,sam9x7-usart
           - const: atmel,at91sam9260-usart
 
   reg:

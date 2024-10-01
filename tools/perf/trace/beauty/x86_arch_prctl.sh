@@ -2,14 +2,14 @@
 # Copyright (C) 2018, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
 # SPDX-License-Identifier: LGPL-2.1
 
-[ $# -eq 1 ] && x86_header_dir=$1 || x86_header_dir=tools/arch/x86/include/uapi/asm/
+[ $# -eq 1 ] && beauty_x86_arch_asm_uapi_dir=$1 || beauty_x86_arch_asm_uapi_dir=tools/perf/trace/beauty/arch/x86/include/uapi/asm/
 
-prctl_arch_header=${x86_header_dir}/prctl.h
+prctl_arch_header=${beauty_x86_arch_asm_uapi_dir}/prctl.h
 
 print_range () {
-	local idx=$1
-	local prefix=$2
-	local first_entry=$3
+	idx=$1
+	prefix=$2
+	first_entry=$3
 
 	printf "#define x86_arch_prctl_codes_%d_offset %s\n" $idx $first_entry
 	printf "static const char *x86_arch_prctl_codes_%d[] = {\n" $idx

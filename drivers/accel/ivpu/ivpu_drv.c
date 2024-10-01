@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_accel.h>
 #include <drm/drm_file.h>
@@ -14,8 +15,10 @@
 #include <drm/drm_prime.h>
 
 #include "vpu_boot_api.h"
+#include "ivpu_debugfs.h"
 #include "ivpu_drv.h"
 #include "ivpu_fw.h"
+#include "ivpu_fw_log.h"
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
@@ -23,14 +26,14 @@
 #include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
+#include "ivpu_ms.h"
 #include "ivpu_pm.h"
+#include "ivpu_sysfs.h"
 
 #ifndef DRIVER_VERSION_STR
 #define DRIVER_VERSION_STR __stringify(DRM_IVPU_DRIVER_MAJOR) "." \
 			   __stringify(DRM_IVPU_DRIVER_MINOR) "."
 #endif
-
-static const struct drm_driver driver;
 
 static struct lock_class_key submitted_jobs_xa_lock_class_key;
 
@@ -40,15 +43,27 @@ MODULE_PARM_DESC(dbg_mask, "Driver debug mask. See IVPU_DBG_* macros.");
 
 int ivpu_test_mode;
 module_param_named_unsafe(test_mode, ivpu_test_mode, int, 0644);
-MODULE_PARM_DESC(test_mode, "Test mode: 0 - normal operation, 1 - fw unit test, 2 - null hw");
+MODULE_PARM_DESC(test_mode, "Test mode mask. See IVPU_TEST_MODE_* macros.");
 
 u8 ivpu_pll_min_ratio;
 module_param_named(pll_min_ratio, ivpu_pll_min_ratio, byte, 0644);
-MODULE_PARM_DESC(pll_min_ratio, "Minimum PLL ratio used to set VPU frequency");
+MODULE_PARM_DESC(pll_min_ratio, "Minimum PLL ratio used to set NPU frequency");
 
 u8 ivpu_pll_max_ratio = U8_MAX;
 module_param_named(pll_max_ratio, ivpu_pll_max_ratio, byte, 0644);
-MODULE_PARM_DESC(pll_max_ratio, "Maximum PLL ratio used to set VPU frequency");
+MODULE_PARM_DESC(pll_max_ratio, "Maximum PLL ratio used to set NPU frequency");
+
+int ivpu_sched_mode;
+module_param_named(sched_mode, ivpu_sched_mode, int, 0444);
+MODULE_PARM_DESC(sched_mode, "Scheduler mode: 0 - Default scheduler, 1 - Force HW scheduler");
+
+bool ivpu_disable_mmu_cont_pages;
+module_param_named(disable_mmu_cont_pages, ivpu_disable_mmu_cont_pages, bool, 0444);
+MODULE_PARM_DESC(disable_mmu_cont_pages, "Disable MMU contiguous pages optimization");
+
+bool ivpu_force_snoop;
+module_param_named(force_snoop, ivpu_force_snoop, bool, 0444);
+MODULE_PARM_DESC(force_snoop, "Force snooping for NPU host memory access");
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv)
 {
@@ -62,22 +77,19 @@ struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv)
 	return file_priv;
 }
 
-struct ivpu_file_priv *ivpu_file_priv_get_by_ctx_id(struct ivpu_device *vdev, unsigned long id)
+static void file_priv_unbind(struct ivpu_device *vdev, struct ivpu_file_priv *file_priv)
 {
-	struct ivpu_file_priv *file_priv;
+	mutex_lock(&file_priv->lock);
+	if (file_priv->bound) {
+		ivpu_dbg(vdev, FILE, "file_priv unbind: ctx %u\n", file_priv->ctx.id);
 
-	xa_lock_irq(&vdev->context_xa);
-	file_priv = xa_load(&vdev->context_xa, id);
-	/* file_priv may still be in context_xa during file_priv_release() */
-	if (file_priv && !kref_get_unless_zero(&file_priv->ref))
-		file_priv = NULL;
-	xa_unlock_irq(&vdev->context_xa);
-
-	if (file_priv)
-		ivpu_dbg(vdev, KREF, "file_priv get by id: ctx %u refcount %u\n",
-			 file_priv->ctx.id, kref_read(&file_priv->ref));
-
-	return file_priv;
+		ivpu_cmdq_release_all_locked(file_priv);
+		ivpu_bo_unbind_all_bos_from_context(vdev, &file_priv->ctx);
+		ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
+		file_priv->bound = false;
+		drm_WARN_ON(&vdev->drm, !xa_erase_irq(&vdev->context_xa, file_priv->ctx.id));
+	}
+	mutex_unlock(&file_priv->lock);
 }
 
 static void file_priv_release(struct kref *ref)
@@ -85,13 +97,16 @@ static void file_priv_release(struct kref *ref)
 	struct ivpu_file_priv *file_priv = container_of(ref, struct ivpu_file_priv, ref);
 	struct ivpu_device *vdev = file_priv->vdev;
 
-	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u\n", file_priv->ctx.id);
+	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u bound %d\n",
+		 file_priv->ctx.id, (bool)file_priv->bound);
 
-	ivpu_cmdq_release_all(file_priv);
-	ivpu_bo_remove_all_bos_from_context(&file_priv->ctx);
-	ivpu_jsm_context_release(vdev, file_priv->ctx.id);
-	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
-	drm_WARN_ON(&vdev->drm, xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
+	pm_runtime_get_sync(vdev->drm.dev);
+	mutex_lock(&vdev->context_list_lock);
+	file_priv_unbind(vdev, file_priv);
+	mutex_unlock(&vdev->context_list_lock);
+	pm_runtime_put_autosuspend(vdev->drm.dev);
+
+	mutex_destroy(&file_priv->ms_lock);
 	mutex_destroy(&file_priv->lock);
 	kfree(file_priv);
 }
@@ -108,6 +123,22 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link)
 
 	*link = NULL;
 	kref_put(&file_priv->ref, file_priv_release);
+}
+
+static int ivpu_get_capabilities(struct ivpu_device *vdev, struct drm_ivpu_param *args)
+{
+	switch (args->index) {
+	case DRM_IVPU_CAP_METRIC_STREAMER:
+		args->value = 1;
+		break;
+	case DRM_IVPU_CAP_DMA_MEMORY_RANGE:
+		args->value = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -133,16 +164,13 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		args->value = vdev->platform;
 		break;
 	case DRM_IVPU_PARAM_CORE_CLOCK_RATE:
-		args->value = ivpu_hw_reg_pll_freq_get(vdev);
+		args->value = ivpu_hw_ratio_to_freq(vdev, vdev->hw->pll.max_ratio);
 		break;
 	case DRM_IVPU_PARAM_NUM_CONTEXTS:
 		args->value = ivpu_get_context_count(vdev);
 		break;
 	case DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS:
-		args->value = vdev->hw->ranges.user_low.start;
-		break;
-	case DRM_IVPU_PARAM_CONTEXT_PRIORITY:
-		args->value = file_priv->priority;
+		args->value = vdev->hw->ranges.user.start;
 		break;
 	case DRM_IVPU_PARAM_CONTEXT_ID:
 		args->value = file_priv->ctx.id;
@@ -169,6 +197,9 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	case DRM_IVPU_PARAM_SKU:
 		args->value = vdev->hw->sku;
 		break;
+	case DRM_IVPU_PARAM_CAPABILITIES:
+		ret = ivpu_get_capabilities(vdev, args);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -180,17 +211,10 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 
 static int ivpu_set_param_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
-	struct ivpu_file_priv *file_priv = file->driver_priv;
 	struct drm_ivpu_param *args = data;
 	int ret = 0;
 
 	switch (args->param) {
-	case DRM_IVPU_PARAM_CONTEXT_PRIORITY:
-		if (args->value <= DRM_IVPU_CONTEXT_PRIORITY_REALTIME)
-			file_priv->priority = args->value;
-		else
-			ret = -EINVAL;
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -203,50 +227,57 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 	struct ivpu_device *vdev = to_ivpu_device(dev);
 	struct ivpu_file_priv *file_priv;
 	u32 ctx_id;
-	void *old;
-	int ret;
+	int idx, ret;
 
-	ret = xa_alloc_irq(&vdev->context_xa, &ctx_id, NULL, vdev->context_xa_limit, GFP_KERNEL);
-	if (ret) {
-		ivpu_err(vdev, "Failed to allocate context id: %d\n", ret);
-		return ret;
-	}
+	if (!drm_dev_enter(dev, &idx))
+		return -ENODEV;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv) {
 		ret = -ENOMEM;
-		goto err_xa_erase;
+		goto err_dev_exit;
 	}
 
+	INIT_LIST_HEAD(&file_priv->ms_instance_list);
+
 	file_priv->vdev = vdev;
-	file_priv->priority = DRM_IVPU_CONTEXT_PRIORITY_NORMAL;
+	file_priv->bound = true;
 	kref_init(&file_priv->ref);
 	mutex_init(&file_priv->lock);
+	mutex_init(&file_priv->ms_lock);
+
+	mutex_lock(&vdev->context_list_lock);
+
+	ret = xa_alloc_irq(&vdev->context_xa, &ctx_id, file_priv,
+			   vdev->context_xa_limit, GFP_KERNEL);
+	if (ret) {
+		ivpu_err(vdev, "Failed to allocate context id: %d\n", ret);
+		goto err_unlock;
+	}
 
 	ret = ivpu_mmu_user_context_init(vdev, &file_priv->ctx, ctx_id);
 	if (ret)
-		goto err_mutex_destroy;
+		goto err_xa_erase;
 
-	old = xa_store_irq(&vdev->context_xa, ctx_id, file_priv, GFP_KERNEL);
-	if (xa_is_err(old)) {
-		ret = xa_err(old);
-		ivpu_err(vdev, "Failed to store context %u: %d\n", ctx_id, ret);
-		goto err_ctx_fini;
-	}
+	mutex_unlock(&vdev->context_list_lock);
+	drm_dev_exit(idx);
+
+	file->driver_priv = file_priv;
 
 	ivpu_dbg(vdev, FILE, "file_priv create: ctx %u process %s pid %d\n",
 		 ctx_id, current->comm, task_pid_nr(current));
 
-	file->driver_priv = file_priv;
 	return 0;
 
-err_ctx_fini:
-	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
-err_mutex_destroy:
-	mutex_destroy(&file_priv->lock);
-	kfree(file_priv);
 err_xa_erase:
 	xa_erase_irq(&vdev->context_xa, ctx_id);
+err_unlock:
+	mutex_unlock(&vdev->context_list_lock);
+	mutex_destroy(&file_priv->ms_lock);
+	mutex_destroy(&file_priv->lock);
+	kfree(file_priv);
+err_dev_exit:
+	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -258,6 +289,7 @@ static void ivpu_postclose(struct drm_device *dev, struct drm_file *file)
 	ivpu_dbg(vdev, FILE, "file_priv close: ctx %u process %s pid %d\n",
 		 file_priv->ctx.id, current->comm, task_pid_nr(current));
 
+	ivpu_ms_cleanup(file_priv);
 	ivpu_file_priv_put(&file_priv);
 }
 
@@ -268,6 +300,10 @@ static const struct drm_ioctl_desc ivpu_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(IVPU_BO_INFO, ivpu_bo_info_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_SUBMIT, ivpu_submit_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_BO_WAIT, ivpu_bo_wait_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_START, ivpu_ms_start_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_GET_DATA, ivpu_ms_get_data_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_STOP, ivpu_ms_stop_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_GET_INFO, ivpu_ms_get_info_ioctl, 0),
 };
 
 static int ivpu_wait_for_ready(struct ivpu_device *vdev)
@@ -277,16 +313,14 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 	unsigned long timeout;
 	int ret;
 
-	if (ivpu_test_mode == IVPU_TEST_MODE_FW_TEST)
+	if (ivpu_test_mode & IVPU_TEST_MODE_FW_TEST)
 		return 0;
 
-	ivpu_ipc_consumer_add(vdev, &cons, IVPU_IPC_CHAN_BOOT_MSG);
+	ivpu_ipc_consumer_add(vdev, &cons, IVPU_IPC_CHAN_BOOT_MSG, NULL);
 
 	timeout = jiffies + msecs_to_jiffies(vdev->timeout.boot);
 	while (1) {
-		ret = ivpu_ipc_irq_handler(vdev);
-		if (ret)
-			break;
+		ivpu_ipc_irq_handler(vdev);
 		ret = ivpu_ipc_receive(vdev, &cons, &ipc_hdr, NULL, 0);
 		if (ret != -ETIMEDOUT || time_after_eq(jiffies, timeout))
 			break;
@@ -297,15 +331,28 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 	ivpu_ipc_consumer_del(vdev, &cons);
 
 	if (!ret && ipc_hdr.data_addr != IVPU_IPC_BOOT_MSG_DATA_ADDR) {
-		ivpu_err(vdev, "Invalid VPU ready message: 0x%x\n",
+		ivpu_err(vdev, "Invalid NPU ready message: 0x%x\n",
 			 ipc_hdr.data_addr);
 		return -EIO;
 	}
 
 	if (!ret)
-		ivpu_info(vdev, "VPU ready message received successfully\n");
-	else
-		ivpu_hw_diagnose_failure(vdev);
+		ivpu_dbg(vdev, PM, "NPU ready message received successfully\n");
+
+	return ret;
+}
+
+static int ivpu_hw_sched_init(struct ivpu_device *vdev)
+{
+	int ret = 0;
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW) {
+		ret = ivpu_jsm_hws_setup_priority_bands(vdev);
+		if (ret) {
+			ivpu_err(vdev, "Failed to enable hw scheduler: %d", ret);
+			return ret;
+		}
+	}
 
 	return ret;
 }
@@ -322,7 +369,7 @@ int ivpu_boot(struct ivpu_device *vdev)
 	int ret;
 
 	/* Update boot params located at first 4KB of FW memory */
-	ivpu_fw_boot_params_setup(vdev, vdev->fw->mem->kvaddr);
+	ivpu_fw_boot_params_setup(vdev, ivpu_bo_vaddr(vdev->fw->mem));
 
 	ret = ivpu_hw_boot_fw(vdev);
 	if (ret) {
@@ -333,6 +380,9 @@ int ivpu_boot(struct ivpu_device *vdev)
 	ret = ivpu_wait_for_ready(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to boot the firmware: %d\n", ret);
+		ivpu_hw_diagnose_failure(vdev);
+		ivpu_mmu_evtq_dump(vdev);
+		ivpu_fw_log_dump(vdev);
 		return ret;
 	}
 
@@ -340,21 +390,38 @@ int ivpu_boot(struct ivpu_device *vdev)
 	enable_irq(vdev->irq);
 	ivpu_hw_irq_enable(vdev);
 	ivpu_ipc_enable(vdev);
+
+	if (ivpu_fw_is_cold_boot(vdev)) {
+		ret = ivpu_pm_dct_init(vdev);
+		if (ret)
+			return ret;
+
+		return ivpu_hw_sched_init(vdev);
+	}
+
 	return 0;
+}
+
+void ivpu_prepare_for_reset(struct ivpu_device *vdev)
+{
+	ivpu_hw_irq_disable(vdev);
+	disable_irq(vdev->irq);
+	ivpu_ipc_disable(vdev);
+	ivpu_mmu_disable(vdev);
 }
 
 int ivpu_shutdown(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ivpu_hw_irq_disable(vdev);
-	disable_irq(vdev->irq);
-	ivpu_ipc_disable(vdev);
-	ivpu_mmu_disable(vdev);
+	/* Save PCI state before powering down as it sometimes gets corrupted if NPU hangs */
+	pci_save_state(to_pci_dev(vdev->drm.dev));
 
 	ret = ivpu_hw_power_down(vdev);
 	if (ret)
 		ivpu_warn(vdev, "Failed to power down HW: %d\n", ret);
+
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 
 	return ret;
 }
@@ -369,10 +436,9 @@ static const struct drm_driver driver = {
 
 	.open = ivpu_open,
 	.postclose = ivpu_postclose,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import = ivpu_gem_prime_import,
-	.gem_prime_mmap = drm_gem_prime_mmap,
+
+	.gem_create_object = ivpu_gem_create_object,
+	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
 
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),
@@ -385,6 +451,54 @@ static const struct drm_driver driver = {
 	.minor = DRM_IVPU_DRIVER_MINOR,
 };
 
+static void ivpu_context_abort_invalid(struct ivpu_device *vdev)
+{
+	struct ivpu_file_priv *file_priv;
+	unsigned long ctx_id;
+
+	mutex_lock(&vdev->context_list_lock);
+
+	xa_for_each(&vdev->context_xa, ctx_id, file_priv) {
+		if (!file_priv->has_mmu_faults || file_priv->aborted)
+			continue;
+
+		mutex_lock(&file_priv->lock);
+		ivpu_context_abort_locked(file_priv);
+		file_priv->aborted = true;
+		mutex_unlock(&file_priv->lock);
+	}
+
+	mutex_unlock(&vdev->context_list_lock);
+}
+
+static irqreturn_t ivpu_irq_thread_handler(int irq, void *arg)
+{
+	struct ivpu_device *vdev = arg;
+	u8 irq_src;
+
+	if (kfifo_is_empty(&vdev->hw->irq.fifo))
+		return IRQ_NONE;
+
+	while (kfifo_get(&vdev->hw->irq.fifo, &irq_src)) {
+		switch (irq_src) {
+		case IVPU_HW_IRQ_SRC_IPC:
+			ivpu_ipc_irq_thread_handler(vdev);
+			break;
+		case IVPU_HW_IRQ_SRC_MMU_EVTQ:
+			ivpu_context_abort_invalid(vdev);
+			break;
+		case IVPU_HW_IRQ_SRC_DCT:
+			ivpu_pm_dct_irq_thread_handler(vdev);
+			break;
+		default:
+			ivpu_err_ratelimited(vdev, "Unknown IRQ source: %u\n", irq_src);
+			break;
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int ivpu_irq_init(struct ivpu_device *vdev)
 {
 	struct pci_dev *pdev = to_pci_dev(vdev->drm.dev);
@@ -396,10 +510,12 @@ static int ivpu_irq_init(struct ivpu_device *vdev)
 		return ret;
 	}
 
+	ivpu_irq_handlers_init(vdev);
+
 	vdev->irq = pci_irq_vector(pdev, 0);
 
-	ret = devm_request_irq(vdev->drm.dev, vdev->irq, vdev->hw->ops->irq_handler,
-			       IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
+	ret = devm_request_threaded_irq(vdev->drm.dev, vdev->irq, ivpu_hw_irq_handler,
+					ivpu_irq_thread_handler, IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to request an IRQ %d\n", ret);
 
@@ -427,7 +543,7 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 		return PTR_ERR(vdev->regb);
 	}
 
-	ret = dma_set_mask_and_coherent(vdev->drm.dev, DMA_BIT_MASK(38));
+	ret = dma_set_mask_and_coherent(vdev->drm.dev, DMA_BIT_MASK(vdev->hw->dma_bits));
 	if (ret) {
 		ivpu_err(vdev, "Failed to set DMA mask: %d\n", ret);
 		return ret;
@@ -437,9 +553,8 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 	/* Clear any pending errors */
 	pcie_capability_clear_word(pdev, PCI_EXP_DEVSTA, 0x3f);
 
-	/* VPU MTL does not require PCI spec 10m D3hot delay */
-	if (ivpu_is_mtl(vdev))
-		pdev->d3hot_delay = 0;
+	/* NPU does not require 10m D3hot delay */
+	pdev->d3hot_delay = 0;
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
@@ -476,124 +591,127 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->pm)
 		return -ENOMEM;
 
-	vdev->hw->ops = &ivpu_hw_mtl_ops;
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX)
+		vdev->hw->dma_bits = 48;
+	else
+		vdev->hw->dma_bits = 38;
+
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
 	vdev->context_xa_limit.max = IVPU_USER_CONTEXT_MAX_SSID;
 	atomic64_set(&vdev->unique_id_counter, 0);
-	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
+	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
+	xa_init_flags(&vdev->db_xa, XA_FLAGS_ALLOC1);
 	lockdep_set_class(&vdev->submitted_jobs_xa.xa_lock, &submitted_jobs_xa_lock_class_key);
+	INIT_LIST_HEAD(&vdev->bo_list);
+
+	ret = drmm_mutex_init(&vdev->drm, &vdev->context_list_lock);
+	if (ret)
+		goto err_xa_destroy;
+
+	ret = drmm_mutex_init(&vdev->drm, &vdev->bo_list_lock);
+	if (ret)
+		goto err_xa_destroy;
 
 	ret = ivpu_pci_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize PCI device: %d\n", ret);
+	if (ret)
 		goto err_xa_destroy;
-	}
 
 	ret = ivpu_irq_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize IRQs: %d\n", ret);
+	if (ret)
 		goto err_xa_destroy;
-	}
 
 	/* Init basic HW info based on buttress registers which are accessible before power up */
-	ret = ivpu_hw_info_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize HW info: %d\n", ret);
+	ret = ivpu_hw_init(vdev);
+	if (ret)
 		goto err_xa_destroy;
-	}
 
 	/* Power up early so the rest of init code can access VPU registers */
 	ret = ivpu_hw_power_up(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to power up HW: %d\n", ret);
-		goto err_xa_destroy;
-	}
+	if (ret)
+		goto err_shutdown;
 
 	ret = ivpu_mmu_global_context_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize global MMU context: %d\n", ret);
-		goto err_power_down;
-	}
+	if (ret)
+		goto err_shutdown;
 
 	ret = ivpu_mmu_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize MMU device: %d\n", ret);
+	if (ret)
 		goto err_mmu_gctx_fini;
-	}
+
+	ret = ivpu_mmu_reserved_context_init(vdev);
+	if (ret)
+		goto err_mmu_gctx_fini;
 
 	ret = ivpu_fw_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize firmware: %d\n", ret);
-		goto err_mmu_gctx_fini;
-	}
+	if (ret)
+		goto err_mmu_rctx_fini;
 
 	ret = ivpu_ipc_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize IPC: %d\n", ret);
+	if (ret)
 		goto err_fw_fini;
-	}
 
-	ret = ivpu_pm_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize PM: %d\n", ret);
-		goto err_ipc_fini;
-	}
-
-	ret = ivpu_job_done_thread_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize job done thread: %d\n", ret);
-		goto err_ipc_fini;
-	}
-
-	ret = ivpu_fw_load(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to load firmware: %d\n", ret);
-		goto err_job_done_thread_fini;
-	}
+	ivpu_pm_init(vdev);
 
 	ret = ivpu_boot(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to boot: %d\n", ret);
-		goto err_job_done_thread_fini;
-	}
+	if (ret)
+		goto err_ipc_fini;
 
+	ivpu_job_done_consumer_init(vdev);
 	ivpu_pm_enable(vdev);
 
 	return 0;
 
-err_job_done_thread_fini:
-	ivpu_job_done_thread_fini(vdev);
 err_ipc_fini:
 	ivpu_ipc_fini(vdev);
 err_fw_fini:
 	ivpu_fw_fini(vdev);
+err_mmu_rctx_fini:
+	ivpu_mmu_reserved_context_fini(vdev);
 err_mmu_gctx_fini:
 	ivpu_mmu_global_context_fini(vdev);
-err_power_down:
-	ivpu_hw_power_down(vdev);
-	if (IVPU_WA(d3hot_after_power_off))
-		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
+err_shutdown:
+	ivpu_shutdown(vdev);
 err_xa_destroy:
+	xa_destroy(&vdev->db_xa);
 	xa_destroy(&vdev->submitted_jobs_xa);
 	xa_destroy(&vdev->context_xa);
 	return ret;
 }
 
+static void ivpu_bo_unbind_all_user_contexts(struct ivpu_device *vdev)
+{
+	struct ivpu_file_priv *file_priv;
+	unsigned long ctx_id;
+
+	mutex_lock(&vdev->context_list_lock);
+
+	xa_for_each(&vdev->context_xa, ctx_id, file_priv)
+		file_priv_unbind(vdev, file_priv);
+
+	mutex_unlock(&vdev->context_list_lock);
+}
+
 static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
-	ivpu_pm_disable(vdev);
-	ivpu_shutdown(vdev);
-	if (IVPU_WA(d3hot_after_power_off))
-		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
-	ivpu_job_done_thread_fini(vdev);
+	ivpu_jobs_abort_all(vdev);
 	ivpu_pm_cancel_recovery(vdev);
+	ivpu_pm_disable(vdev);
+	ivpu_prepare_for_reset(vdev);
+	ivpu_shutdown(vdev);
+
+	ivpu_ms_cleanup_all(vdev);
+	ivpu_job_done_consumer_fini(vdev);
+	ivpu_bo_unbind_all_user_contexts(vdev);
 
 	ivpu_ipc_fini(vdev);
 	ivpu_fw_fini(vdev);
+	ivpu_mmu_reserved_context_fini(vdev);
 	ivpu_mmu_global_context_fini(vdev);
 
+	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->db_xa));
+	xa_destroy(&vdev->db_xa);
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
 	xa_destroy(&vdev->submitted_jobs_xa);
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->context_xa));
@@ -602,6 +720,8 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 
 static struct pci_device_id ivpu_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_MTL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_ARL) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_LNL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ivpu_pci_ids);
@@ -618,10 +738,11 @@ static int ivpu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, vdev);
 
 	ret = ivpu_dev_init(vdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize VPU device: %d\n", ret);
+	if (ret)
 		return ret;
-	}
+
+	ivpu_debugfs_init(vdev);
+	ivpu_sysfs_init(vdev);
 
 	ret = drm_dev_register(&vdev->drm, 0);
 	if (ret) {

@@ -24,6 +24,7 @@
 #include "rkisp1-regs.h"
 
 struct dentry;
+struct regmap;
 
 /*
  * flags on the 'direction' field in struct rkisp1_mbus_info' that indicate
@@ -32,9 +33,10 @@ struct dentry;
 #define RKISP1_ISP_SD_SRC			BIT(0)
 #define RKISP1_ISP_SD_SINK			BIT(1)
 
-/* min and max values for the widths and heights of the entities */
-#define RKISP1_ISP_MAX_WIDTH			4032
-#define RKISP1_ISP_MAX_HEIGHT			3024
+/*
+ * Minimum values for the width and height of entities. The maximum values are
+ * model-specific and stored in the rkisp1_info structure.
+ */
 #define RKISP1_ISP_MIN_WIDTH			32
 #define RKISP1_ISP_MIN_HEIGHT			32
 
@@ -60,6 +62,14 @@ struct dentry;
 						 RKISP1_CIF_ISP_AFM_FIN |	\
 						 RKISP1_CIF_ISP_EXP_END |	\
 						 RKISP1_CIF_ISP_HIST_MEASURE_RDY)
+
+/* IRQ lines */
+enum rkisp1_irq_line {
+	RKISP1_IRQ_ISP = 0,
+	RKISP1_IRQ_MI,
+	RKISP1_IRQ_MIPI,
+	RKISP1_NUM_IRQS,
+};
 
 /* enum for the resizer pads */
 enum rkisp1_rsz_pad {
@@ -102,6 +112,12 @@ enum rkisp1_isp_pad {
  * enum rkisp1_feature - ISP features
  *
  * @RKISP1_FEATURE_MIPI_CSI2: The ISP has an internal MIPI CSI-2 receiver
+ * @RKISP1_FEATURE_MAIN_STRIDE: The ISP supports configurable stride on the main path
+ * @RKISP1_FEATURE_SELF_PATH: The ISP has a self path
+ * @RKISP1_FEATURE_DUAL_CROP: The ISP has the dual crop block at the resizer input
+ * @RKISP1_FEATURE_DMA_34BIT: The ISP uses 34-bit DMA addresses
+ * @RKISP1_FEATURE_BLS: The ISP has a dedicated BLS block
+ * @RKISP1_FEATURE_COMPAND: The ISP has a companding block
  *
  * The ISP features are stored in a bitmask in &rkisp1_info.features and allow
  * the driver to implement support for features present in some ISP versions
@@ -109,7 +125,16 @@ enum rkisp1_isp_pad {
  */
 enum rkisp1_feature {
 	RKISP1_FEATURE_MIPI_CSI2 = BIT(0),
+	RKISP1_FEATURE_MAIN_STRIDE = BIT(1),
+	RKISP1_FEATURE_SELF_PATH = BIT(2),
+	RKISP1_FEATURE_DUAL_CROP = BIT(3),
+	RKISP1_FEATURE_DMA_34BIT = BIT(4),
+	RKISP1_FEATURE_BLS = BIT(5),
+	RKISP1_FEATURE_COMPAND = BIT(6),
 };
+
+#define rkisp1_has_feature(rkisp1, feature) \
+	((rkisp1)->info->features & RKISP1_FEATURE_##feature)
 
 /*
  * struct rkisp1_info - Model-specific ISP Information
@@ -120,6 +145,8 @@ enum rkisp1_feature {
  * @isr_size: number of entries in the @isrs array
  * @isp_ver: ISP version
  * @features: bitmask of rkisp1_feature features implemented by the ISP
+ * @max_width: maximum input frame width
+ * @max_height: maximum input frame height
  *
  * This structure contains information about the ISP specific to a particular
  * ISP model, version, or integration in a particular SoC.
@@ -131,6 +158,8 @@ struct rkisp1_info {
 	unsigned int isr_size;
 	enum rkisp1_cif_isp_version isp_ver;
 	unsigned int features;
+	unsigned int max_width;
+	unsigned int max_height;
 };
 
 /*
@@ -148,7 +177,7 @@ struct rkisp1_info {
  * @port:		port number (0: MIPI, 1: Parallel)
  */
 struct rkisp1_sensor_async {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	unsigned int index;
 	struct fwnode_handle *source_ep;
 	unsigned int lanes;
@@ -167,9 +196,6 @@ struct rkisp1_sensor_async {
  * @is_dphy_errctrl_disabled: if dphy errctrl is disabled (avoid endless interrupt)
  * @sd: v4l2_subdev variable
  * @pads: media pads
- * @pad_cfg: configurations for the pads
- * @sink_fmt: input format
- * @lock: protects pad_cfg and sink_fmt
  * @source: source in-use, set when starting streaming
  */
 struct rkisp1_csi {
@@ -178,9 +204,6 @@ struct rkisp1_csi {
 	bool is_dphy_errctrl_disabled;
 	struct v4l2_subdev sd;
 	struct media_pad pads[RKISP1_CSI_PAD_NUM];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_CSI_PAD_NUM];
-	const struct rkisp1_mbus_info *sink_fmt;
-	struct mutex lock;
 	struct v4l2_subdev *source;
 };
 
@@ -190,20 +213,14 @@ struct rkisp1_csi {
  * @sd:				v4l2_subdev variable
  * @rkisp1:			pointer to rkisp1_device
  * @pads:			media pads
- * @pad_cfg:			pads configurations
  * @sink_fmt:			input format
- * @src_fmt:			output format
- * @ops_lock:			ops serialization
  * @frame_sequence:		used to synchronize frame_id between video devices.
  */
 struct rkisp1_isp {
 	struct v4l2_subdev sd;
 	struct rkisp1_device *rkisp1;
 	struct media_pad pads[RKISP1_ISP_PAD_MAX];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
 	const struct rkisp1_mbus_info *sink_fmt;
-	const struct rkisp1_mbus_info *src_fmt;
-	struct mutex ops_lock; /* serialize the subdevice ops */
 	__u32 frame_sequence;
 };
 
@@ -224,7 +241,7 @@ struct rkisp1_vdev_node {
 
 /*
  * struct rkisp1_buffer - A container for the vb2 buffers used by the video devices:
- *			  params, stats, mainpath, selfpath
+ *			  stats, mainpath, selfpath
  *
  * @vb:		vb2 buffer
  * @queue:	entry of the buffer in the queue
@@ -233,8 +250,28 @@ struct rkisp1_vdev_node {
 struct rkisp1_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
-	u32 buff_addr[VIDEO_MAX_PLANES];
+	dma_addr_t buff_addr[VIDEO_MAX_PLANES];
 };
+
+/*
+ * struct rkisp1_params_buffer - A container for the vb2 buffers used by the
+ *				 params video device
+ *
+ * @vb:		vb2 buffer
+ * @queue:	entry of the buffer in the queue
+ * @cfg:	scratch buffer used for caching the ISP configuration parameters
+ */
+struct rkisp1_params_buffer {
+	struct vb2_v4l2_buffer vb;
+	struct list_head queue;
+	void *cfg;
+};
+
+static inline struct rkisp1_params_buffer *
+to_rkisp1_params_buffer(struct vb2_v4l2_buffer *vbuf)
+{
+	return container_of(vbuf, struct rkisp1_params_buffer, vb);
+}
 
 /*
  * struct rkisp1_dummy_buffer - A buffer to write the next frame to in case
@@ -267,7 +304,7 @@ struct rkisp1_device;
  *		  handler to stop the streaming by waiting on the 'done' wait queue.
  *		  If the irq handler is not called, the stream is stopped by the callback
  *		  after timeout.
- * @sp_y_stride:  the selfpath allows to configure a y stride that is longer than the image width.
+ * @stride:       the line stride for the first plane, in pixel units
  * @buf.lock:	  lock to protect buf.queue
  * @buf.queue:	  queued buffer list
  * @buf.dummy:	  dummy space to store dropped data
@@ -288,7 +325,7 @@ struct rkisp1_capture {
 	bool is_streaming;
 	bool is_stopping;
 	wait_queue_head_t done;
-	unsigned int sp_y_stride;
+	unsigned int stride;
 	struct {
 		/* protects queue, curr and next */
 		spinlock_t lock;
@@ -364,9 +401,11 @@ struct rkisp1_params_ops {
  * @ops:		pointer to the variant-specific operations
  * @config_lock:	locks the buffer list 'params'
  * @params:		queue of rkisp1_buffer
- * @vdev_fmt:		v4l2_format of the metadata format
+ * @metafmt		the currently enabled metadata format
  * @quantization:	the quantization configured on the isp's src pad
+ * @ycbcr_encoding	the YCbCr encoding
  * @raw_type:		the bayer pattern on the isp video sink pad
+ * @enabled_blocks:	bitmask of enabled ISP blocks
  */
 struct rkisp1_params {
 	struct rkisp1_vdev_node vnode;
@@ -375,11 +414,14 @@ struct rkisp1_params {
 
 	spinlock_t config_lock; /* locks the buffers list 'params' */
 	struct list_head params;
-	struct v4l2_format vdev_fmt;
+
+	const struct v4l2_meta_format *metafmt;
 
 	enum v4l2_quantization quantization;
 	enum v4l2_ycbcr_encoding ycbcr_encoding;
 	enum rkisp1_fmt_raw_pat_type raw_type;
+
+	u32 enabled_blocks;
 };
 
 /*
@@ -390,10 +432,7 @@ struct rkisp1_params {
  * @id:	       id of the resizer, one of RKISP1_SELFPATH, RKISP1_MAINPATH
  * @rkisp1:    pointer to the rkisp1 device
  * @pads:      media pads
- * @pad_cfg:   configurations for the pads
  * @config:    the set of registers to configure the resizer
- * @pixel_enc: pixel encoding of the resizer
- * @ops_lock:  a lock for the subdev ops
  */
 struct rkisp1_resizer {
 	struct v4l2_subdev sd;
@@ -401,10 +440,7 @@ struct rkisp1_resizer {
 	enum rkisp1_stream_id id;
 	struct rkisp1_device *rkisp1;
 	struct media_pad pads[RKISP1_RSZ_PAD_MAX];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_RSZ_PAD_MAX];
 	const struct rkisp1_rsz_config *config;
-	enum v4l2_pixel_encoding pixel_enc;
-	struct mutex ops_lock; /* serialize the subdevice ops */
 };
 
 /*
@@ -435,16 +471,18 @@ struct rkisp1_debug {
 	unsigned long stats_error;
 	unsigned long stop_timeout[2];
 	unsigned long frame_drop[2];
+	unsigned long complete_frames;
 };
 
 /*
  * struct rkisp1_device - ISP platform device
  *
  * @base_addr:	   base register address
- * @irq:	   the irq number
  * @dev:	   a pointer to the struct device
  * @clk_size:	   number of clocks
  * @clks:	   array of clocks
+ * @gasket:	   the gasket - i.MX8MP only
+ * @gasket_id:	   the gasket ID (0 or 1) - i.MX8MP only
  * @v4l2_dev:	   v4l2_device variable
  * @media_dev:	   media_device variable
  * @notifier:	   a notifier to register on the v4l2-async API to be notified on the sensor
@@ -459,12 +497,16 @@ struct rkisp1_debug {
  * @stream_lock:   serializes {start/stop}_streaming callbacks between the capture devices.
  * @debug:	   debug params to be exposed on debugfs
  * @info:	   version-specific ISP information
+ * @irqs:          IRQ line numbers
+ * @irqs_enabled:  the hardware is enabled and can cause interrupts
  */
 struct rkisp1_device {
 	void __iomem *base_addr;
 	struct device *dev;
 	unsigned int clk_size;
 	struct clk_bulk_data clks[RKISP1_MAX_BUS_CLK];
+	struct regmap *gasket;
+	unsigned int gasket_id;
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
 	struct v4l2_async_notifier notifier;
@@ -479,6 +521,8 @@ struct rkisp1_device {
 	struct mutex stream_lock; /* serialize {start/stop}_streaming cb between capture devices */
 	struct rkisp1_debug debug;
 	const struct rkisp1_info *info;
+	int irqs[RKISP1_NUM_IRQS];
+	bool irqs_enabled;
 };
 
 /*
@@ -533,6 +577,19 @@ int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
 const struct rkisp1_mbus_info *rkisp1_mbus_info_get_by_index(unsigned int index);
 
 /*
+ * rkisp1_path_count - Return the number of paths supported by the device
+ *
+ * Some devices only have a main path, while other device have both a main path
+ * and a self path. This function returns the number of paths that this device
+ * has, based on the feature flags. It should be used insted of checking
+ * ARRAY_SIZE of capture_devs/resizer_devs.
+ */
+static inline unsigned int rkisp1_path_count(struct rkisp1_device *rkisp1)
+{
+	return rkisp1_has_feature(rkisp1, SELF_PATH) ? 2 : 1;
+}
+
+/*
  * rkisp1_sd_adjust_crop_rect - adjust a rectangle to fit into another rectangle.
  *
  * @crop:   rectangle to adjust.
@@ -549,6 +606,9 @@ void rkisp1_sd_adjust_crop_rect(struct v4l2_rect *crop,
  */
 void rkisp1_sd_adjust_crop(struct v4l2_rect *crop,
 			   const struct v4l2_mbus_framefmt *bounds);
+
+void rkisp1_bls_swap_regs(enum rkisp1_fmt_raw_pat_type pattern,
+			  const u32 input[4], u32 output[4]);
 
 /*
  * rkisp1_mbus_info_get_by_code - get the isp info of the media bus code

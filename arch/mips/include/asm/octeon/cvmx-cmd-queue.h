@@ -145,7 +145,7 @@ typedef struct {
 /**
  * This structure contains the global state of all command queues.
  * It is stored in a bootmem named block and shared by all
- * applications running on Octeon. Tickets are stored in a differnet
+ * applications running on Octeon. Tickets are stored in a different
  * cache line that queue information to reduce the contention on the
  * ll/sc used to get a ticket. If this is not the case, the update
  * of queue state causes the ll/sc to fail quite often.
@@ -172,7 +172,7 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id,
 						  int pool_size);
 
 /**
- * Shutdown a queue a free it's command buffers to the FPA. The
+ * Shutdown a queue and free its command buffers to the FPA. The
  * hardware connected to the queue must be stopped before this
  * function is called.
  *
@@ -194,7 +194,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id);
 
 /**
  * Return the command buffer to be written to. The purpose of this
- * function is to allow CVMX routine access t othe low level buffer
+ * function is to allow CVMX routine access to the low level buffer
  * for initial hardware setup. User applications should not call this
  * function directly.
  *

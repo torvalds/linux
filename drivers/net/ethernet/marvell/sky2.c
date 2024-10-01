@@ -32,9 +32,9 @@
 #include <linux/prefetch.h>
 #include <linux/debugfs.h>
 #include <linux/mii.h>
-#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/dmi.h>
+#include <linux/skbuff_ref.h>
 
 #include <asm/irq.h>
 
@@ -2384,7 +2384,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	u32 imask;
 
 	if (!netif_running(dev)) {
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 		netdev_update_features(dev);
 		return 0;
 	}
@@ -2407,7 +2407,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	sky2_rx_stop(sky2);
 	sky2_rx_clean(sky2);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	netdev_update_features(dev);
 
 	mode = DATA_BLIND_VAL(DATA_BLIND_DEF) |	GM_SMOD_VLAN_ENA;
@@ -4529,7 +4529,7 @@ static __init void sky2_debug_init(void)
 	struct dentry *ent;
 
 	ent = debugfs_create_dir("sky2", NULL);
-	if (!ent || IS_ERR(ent))
+	if (IS_ERR(ent))
 		return;
 
 	sky2_debug = ent;

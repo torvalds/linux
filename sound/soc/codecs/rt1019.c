@@ -18,7 +18,6 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
-#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -541,7 +540,7 @@ static const struct regmap_config rt1019_regmap = {
 };
 
 static const struct i2c_device_id rt1019_i2c_id[] = {
-	{ "rt1019", 0 },
+	{ "rt1019" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt1019_i2c_id);

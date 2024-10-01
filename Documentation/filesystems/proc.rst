@@ -443,6 +443,15 @@ is not associated with a file:
 
  or if empty, the mapping is anonymous.
 
+Starting with 6.11 kernel, /proc/PID/maps provides an alternative
+ioctl()-based API that gives ability to flexibly and efficiently query and
+filter individual VMAs. This interface is binary and is meant for more
+efficient and easy programmatic use. `struct procmap_query`, defined in
+linux/fs.h UAPI header, serves as an input/output argument to the
+`PROCMAP_QUERY` ioctl() command. See comments in linus/fs.h UAPI header for
+details on query semantics, supported flags, data returned, and general API
+usage information.
+
 The /proc/PID/smaps is an extension based on maps, showing the memory
 consumption for each of the process's mappings. For each mapping (aka Virtual
 Memory Area, or VMA) there is a series of lines such as the following::
@@ -461,6 +470,7 @@ Memory Area, or VMA) there is a series of lines such as the following::
     Private_Dirty:         0 kB
     Referenced:          892 kB
     Anonymous:             0 kB
+    KSM:                   0 kB
     LazyFree:              0 kB
     AnonHugePages:         0 kB
     ShmemPmdMapped:        0 kB
@@ -501,18 +511,21 @@ accessed.
 a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
 and a page is modified, the file page is replaced by a private anonymous copy.
 
+"KSM" reports how many of the pages are KSM pages. Note that KSM-placed zeropages
+are not included, only actual KSM pages.
+
 "LazyFree" shows the amount of memory which is marked by madvise(MADV_FREE).
 The memory isn't freed immediately with madvise(). It's freed in memory
 pressure if the memory is clean. Please note that the printed value might
 be lower than the real value due to optimizations used in the current
 implementation. If this is not desirable please file a bug report.
 
-"AnonHugePages" shows the ammount of memory backed by transparent hugepage.
+"AnonHugePages" shows the amount of memory backed by transparent hugepage.
 
-"ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
+"ShmemPmdMapped" shows the amount of shared (shmem/tmpfs) memory backed by
 huge pages.
 
-"Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
+"Shared_Hugetlb" and "Private_Hugetlb" show the amounts of memory backed by
 hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
 reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
 
@@ -524,9 +537,9 @@ replaced by copy-on-write) part of the underlying shmem object out on swap.
 does not take into account swapped out page of underlying shmem objects.
 "Locked" indicates whether the mapping is locked in memory or not.
 
-"THPeligible" indicates whether the mapping is eligible for allocating THP
-pages as well as the THP is PMD mappable or not - 1 if true, 0 otherwise.
-It just shows the current status.
+"THPeligible" indicates whether the mapping is eligible for allocating
+naturally aligned THP pages of any currently enabled size. 1 if true, 0
+otherwise.
 
 "VmFlags" field deserves a separate description. This member represents the
 kernel flags associated with the particular virtual memory area in two letter
@@ -561,11 +574,13 @@ encoded manner. The codes are the following:
     mm    mixed map area
     hg    huge page advise flag
     nh    no huge page advise flag
-    mg    mergable advise flag
+    mg    mergeable advise flag
     bt    arm64 BTI guarded page
     mt    arm64 MTE allocation tags are enabled
     um    userfaultfd missing tracking
     uw    userfaultfd wr-protect tracking
+    ss    shadow stack page
+    sl    sealed
     ==    =======================================
 
 Note that there is no guarantee that every flag and associated mnemonic will
@@ -683,10 +698,17 @@ files are there, and which are missing.
  ============ ===============================================================
  File         Content
  ============ ===============================================================
+ allocinfo    Memory allocations profiling information
  apm          Advanced power management info
+ bootconfig   Kernel command line obtained from boot config,
+ 	      and, if there were kernel parameters from the
+	      boot loader, a "# Parameters from bootloader:"
+	      line followed by a line containing those
+	      parameters prefixed by "# ".			(5.5)
  buddyinfo    Kernel memory allocator information (see text)	(2.5)
  bus          Directory containing bus specific information
- cmdline      Kernel command line
+ cmdline      Kernel command line, both from bootloader and embedded
+              in the kernel image
  cpuinfo      Info about the CPU
  devices      Available devices (block and character)
  dma          Used DMS channels
@@ -942,6 +964,35 @@ also be allocatable although a lot of filesystem metadata may have to be
 reclaimed to achieve this.
 
 
+allocinfo
+~~~~~~~~~
+
+Provides information about memory allocations at all locations in the code
+base. Each allocation in the code is identified by its source file, line
+number, module (if originates from a loadable module) and the function calling
+the allocation. The number of bytes allocated and number of calls at each
+location are reported. The first line indicates the version of the file, the
+second line is the header listing fields in the file.
+
+Example output.
+
+::
+
+    > tail -n +3 /proc/allocinfo | sort -rn
+   127664128    31168 mm/page_ext.c:270 func:alloc_page_ext
+    56373248     4737 mm/slub.c:2259 func:alloc_slab_page
+    14880768     3633 mm/readahead.c:247 func:page_cache_ra_unbounded
+    14417920     3520 mm/mm_init.c:2530 func:alloc_large_system_hash
+    13377536      234 block/blk-mq.c:3421 func:blk_mq_alloc_rqs
+    11718656     2861 mm/filemap.c:1919 func:__filemap_get_folio
+     9192960     2800 kernel/fork.c:307 func:alloc_thread_stack_node
+     4206592        4 net/netfilter/nf_conntrack_core.c:2567 func:nf_ct_alloc_hashtable
+     4136960     1010 drivers/staging/ctagmod/ctagmod.c:20 [ctagmod] func:ctagmod_start
+     3940352      962 mm/memory.c:4214 func:alloc_anon_folio
+     2894464    22613 fs/kernfs/dir.c:615 func:__kernfs_new_node
+     ...
+
+
 meminfo
 ~~~~~~~
 
@@ -1081,7 +1132,7 @@ Writeback
 AnonPages
               Non-file backed pages mapped into userspace page tables
 Mapped
-              files which have been mmaped, such as libraries
+              files which have been mmapped, such as libraries
 Shmem
               Total memory used by shared memory (shmem) and tmpfs
 KReclaimable
@@ -1099,8 +1150,8 @@ KernelStack
 PageTables
               Memory consumed by userspace page tables
 SecPageTables
-              Memory consumed by secondary page tables, this currently
-              currently includes KVM mmu allocations on x86 and arm64.
+              Memory consumed by secondary page tables, this currently includes
+              KVM mmu and IOMMU allocations on x86 and arm64.
 NFS_Unstable
               Always zero. Previous counted pages which had been written to
               the server, but has not been committed to stable storage.
@@ -1888,8 +1939,8 @@ For more information on mount propagation see:
 These files provide a method to access a task's comm value. It also allows for
 a task to set its own or one of its thread siblings comm value. The comm value
 is limited in size compared to the cmdline value, so writing anything longer
-then the kernel's TASK_COMM_LEN (currently 16 chars) will result in a truncated
-comm value.
+then the kernel's TASK_COMM_LEN (currently 16 chars, including the NUL
+terminator) will result in a truncated comm value.
 
 
 3.7	/proc/<pid>/task/<tid>/children - Information about task children
@@ -2229,7 +2280,7 @@ are not related to tasks.
 Chapter 5: Filesystem behavior
 ==============================
 
-Originally, before the advent of pid namepsace, procfs was a global file
+Originally, before the advent of pid namespace, procfs was a global file
 system. It means that there was only one procfs instance in the system.
 
 When pid namespace was added, a separate procfs instance was mounted in

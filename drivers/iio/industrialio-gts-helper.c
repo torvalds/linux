@@ -34,24 +34,11 @@
 static int iio_gts_get_gain(const u64 max, const u64 scale)
 {
 	u64 full = max;
-	int tmp = 1;
 
 	if (scale > full || !scale)
 		return -EINVAL;
 
-	if (U64_MAX - full < scale) {
-		/* Risk of overflow */
-		if (full - scale < scale)
-			return 1;
-
-		full -= scale;
-		tmp++;
-	}
-
-	while (full > scale * (u64)tmp)
-		tmp++;
-
-	return tmp;
+	return div64_u64(full, scale);
 }
 
 /**
@@ -375,17 +362,20 @@ static int iio_gts_build_avail_time_table(struct iio_gts *gts)
 	for (i = gts->num_itime - 1; i >= 0; i--) {
 		int new = gts->itime_table[i].time_us;
 
-		if (times[idx] < new) {
+		if (idx == 0 || times[idx - 1] < new) {
 			times[idx++] = new;
 			continue;
 		}
 
-		for (j = 0; j <= idx; j++) {
+		for (j = 0; j < idx; j++) {
+			if (times[j] == new)
+				break;
 			if (times[j] > new) {
 				memmove(&times[j + 1], &times[j],
 					(idx - j) * sizeof(int));
 				times[j] = new;
 				idx++;
+				break;
 			}
 		}
 	}

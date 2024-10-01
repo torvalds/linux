@@ -6,7 +6,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
@@ -359,21 +359,17 @@ static int sprd_thm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	thm->clk = devm_clk_get(&pdev->dev, "enable");
+	thm->clk = devm_clk_get_enabled(&pdev->dev, "enable");
 	if (IS_ERR(thm->clk)) {
 		dev_err(&pdev->dev, "failed to get enable clock\n");
 		return PTR_ERR(thm->clk);
 	}
 
-	ret = clk_prepare_enable(thm->clk);
-	if (ret)
-		return ret;
-
 	sprd_thm_para_config(thm);
 
 	ret = sprd_thm_cal_read(np, "thm_sign_cal", &val);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
 	if (val > 0)
 		thm->ratio_sign = -1;
@@ -382,7 +378,7 @@ static int sprd_thm_probe(struct platform_device *pdev)
 
 	ret = sprd_thm_cal_read(np, "thm_ratio_cal", &thm->ratio_off);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
 	for_each_child_of_node(np, sen_child) {
 		sen = devm_kzalloc(&pdev->dev, sizeof(*sen), GFP_KERNEL);
@@ -439,8 +435,6 @@ static int sprd_thm_probe(struct platform_device *pdev)
 
 of_put:
 	of_node_put(sen_child);
-disable_clk:
-	clk_disable_unprepare(thm->clk);
 	return ret;
 }
 
@@ -516,7 +510,7 @@ disable_clk:
 }
 #endif
 
-static int sprd_thm_remove(struct platform_device *pdev)
+static void sprd_thm_remove(struct platform_device *pdev)
 {
 	struct sprd_thermal_data *thm = platform_get_drvdata(pdev);
 	int i;
@@ -526,9 +520,6 @@ static int sprd_thm_remove(struct platform_device *pdev)
 		devm_thermal_of_zone_unregister(&pdev->dev,
 						thm->sensor[i]->tzd);
 	}
-
-	clk_disable_unprepare(thm->clk);
-	return 0;
 }
 
 static const struct of_device_id sprd_thermal_of_match[] = {
@@ -543,7 +534,7 @@ static const struct dev_pm_ops sprd_thermal_pm_ops = {
 
 static struct platform_driver sprd_thermal_driver = {
 	.probe = sprd_thm_probe,
-	.remove = sprd_thm_remove,
+	.remove_new = sprd_thm_remove,
 	.driver = {
 		.name = "sprd-thermal",
 		.pm = &sprd_thermal_pm_ops,

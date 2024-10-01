@@ -180,7 +180,7 @@ static void wake_hw_thread(void *info)
 	unsigned long inia;
 	int cpu = *(const int *)info;
 
-	inia = *(unsigned long *)fsl_secondary_thread_init;
+	inia = ppc_function_entry(fsl_secondary_thread_init);
 	book3e_start_thread(cpu_thread_in_core(cpu), inia);
 }
 #endif
@@ -398,6 +398,7 @@ static void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 	hard_irq_disable();
 	mpic_teardown_this_cpu(secondary);
 
+#ifdef CONFIG_CRASH_DUMP
 	if (cpu == crashing_cpu && cpu_thread_in_core(cpu) != 0) {
 		/*
 		 * We enter the crash kernel on whatever cpu crashed,
@@ -406,9 +407,11 @@ static void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 		 */
 		disable_threadbit = 1;
 		disable_cpu = cpu_first_thread_sibling(cpu);
-	} else if (sibling != crashing_cpu &&
-		   cpu_thread_in_core(cpu) == 0 &&
-		   cpu_thread_in_core(sibling) != 0) {
+	} else if (sibling == crashing_cpu) {
+		return;
+	}
+#endif
+	if (cpu_thread_in_core(cpu) == 0 && cpu_thread_in_core(sibling) != 0) {
 		disable_threadbit = 2;
 		disable_cpu = sibling;
 	}

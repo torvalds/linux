@@ -37,7 +37,9 @@
 
 #define OCTEP_CTRL_MBOX_INFO_MAGIC_NUM(m)	(m)
 #define OCTEP_CTRL_MBOX_INFO_BARMEM_SZ(m)	((m) + 8)
+#define OCTEP_CTRL_MBOX_INFO_HOST_VERSION(m)   ((m) + 16)
 #define OCTEP_CTRL_MBOX_INFO_HOST_STATUS(m)	((m) + 24)
+#define OCTEP_CTRL_MBOX_INFO_FW_VERSION(m)     ((m) + 136)
 #define OCTEP_CTRL_MBOX_INFO_FW_STATUS(m)	((m) + 144)
 
 #define OCTEP_CTRL_MBOX_H2FQ_INFO(m)	((m) + OCTEP_CTRL_MBOX_INFO_SZ)
@@ -71,7 +73,7 @@ static u32 octep_ctrl_mbox_circq_depth(u32 pi, u32 ci, u32 sz)
 
 int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 {
-	u64 magic_num, status;
+	u64 magic_num, status, fw_versions;
 
 	if (!mbox)
 		return -EINVAL;
@@ -93,10 +95,16 @@ int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 		return -EINVAL;
 	}
 
+	fw_versions = readq(OCTEP_CTRL_MBOX_INFO_FW_VERSION(mbox->barmem));
+	mbox->min_fw_version = ((fw_versions & 0xffffffff00000000ull) >> 32);
+	mbox->max_fw_version = (fw_versions & 0xffffffff);
 	mbox->barmem_sz = readl(OCTEP_CTRL_MBOX_INFO_BARMEM_SZ(mbox->barmem));
 
 	writeq(OCTEP_CTRL_MBOX_STATUS_INIT,
 	       OCTEP_CTRL_MBOX_INFO_HOST_STATUS(mbox->barmem));
+
+	mutex_init(&mbox->h2fq_lock);
+	mutex_init(&mbox->f2hq_lock);
 
 	mbox->h2fq.sz = readl(OCTEP_CTRL_MBOX_H2FQ_SZ(mbox->barmem));
 	mbox->h2fq.hw_prod = OCTEP_CTRL_MBOX_H2FQ_PROD(mbox->barmem);
@@ -110,6 +118,7 @@ int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 			  OCTEP_CTRL_MBOX_TOTAL_INFO_SZ +
 			  mbox->h2fq.sz;
 
+	writeq(mbox->version, OCTEP_CTRL_MBOX_INFO_HOST_VERSION(mbox->barmem));
 	/* ensure ready state is seen after everything is initialized */
 	wmb();
 	writeq(OCTEP_CTRL_MBOX_STATUS_READY,
@@ -255,6 +264,7 @@ int octep_ctrl_mbox_uninit(struct octep_ctrl_mbox *mbox)
 	if (!mbox->barmem)
 		return -EINVAL;
 
+	writeq(0, OCTEP_CTRL_MBOX_INFO_HOST_VERSION(mbox->barmem));
 	writeq(OCTEP_CTRL_MBOX_STATUS_INVALID,
 	       OCTEP_CTRL_MBOX_INFO_HOST_STATUS(mbox->barmem));
 	/* ensure uninit state is written before uninitialization */

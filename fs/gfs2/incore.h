@@ -218,19 +218,17 @@ struct gfs2_glock_operations {
 	int (*go_sync) (struct gfs2_glock *gl);
 	int (*go_xmote_bh)(struct gfs2_glock *gl);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
-	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_instantiate) (struct gfs2_glock *gl);
 	int (*go_held)(struct gfs2_holder *gh);
 	void (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl,
 			const char *fs_id_buf);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
-	void (*go_free)(struct gfs2_glock *gl);
+	void (*go_unlocked)(struct gfs2_glock *gl);
 	const int go_subclass;
 	const int go_type;
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1 /* address space attached */
 #define GLOF_LVB    2 /* Lock Value Block attached */
-#define GLOF_LRU    4 /* LRU managed */
 #define GLOF_NONDISK   8 /* not I/O related */
 };
 
@@ -322,14 +320,14 @@ enum {
 	GLF_DIRTY			= 6,
 	GLF_LFLUSH			= 7,
 	GLF_INVALIDATE_IN_PROGRESS	= 8,
-	GLF_REPLY_PENDING		= 9,
+	GLF_HAVE_REPLY			= 9,
 	GLF_INITIAL			= 10,
-	GLF_FROZEN			= 11,
+	GLF_HAVE_FROZEN_REPLY		= 11,
 	GLF_INSTANTIATE_IN_PROG		= 12, /* instantiate happening now */
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
-	GLF_FREEING			= 16, /* Wait for glock to be freed */
+	GLF_UNLOCKED			= 16, /* Wait for glock to be unlocked */
 	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
 	GLF_VERIFY_EVICT		= 18, /* iopen glocks only */
 };
@@ -452,7 +450,7 @@ struct gfs2_quota_data {
 	s64 qd_change_sync;
 
 	unsigned int qd_slot;
-	unsigned int qd_slot_count;
+	unsigned int qd_slot_ref;
 
 	struct buffer_head *qd_bh;
 	struct gfs2_quota_change *qd_bh_qc;
@@ -537,6 +535,7 @@ struct gfs2_statfs_change_host {
 #define GFS2_QUOTA_OFF		0
 #define GFS2_QUOTA_ACCOUNT	1
 #define GFS2_QUOTA_ON		2
+#define GFS2_QUOTA_QUIET	3 /* on but not complaining */
 
 #define GFS2_DATA_DEFAULT	GFS2_DATA_ORDERED
 #define GFS2_DATA_WRITEBACK	1
@@ -606,7 +605,7 @@ enum {
 	SDF_REMOTE_WITHDRAW	= 13, /* Performing remote recovery */
 	SDF_WITHDRAW_RECOVERY	= 14, /* Wait for journal recovery when we are
 					 withdrawing */
-	SDF_DEACTIVATING	= 15,
+	SDF_KILL		= 15,
 	SDF_EVICTING		= 16,
 	SDF_FROZEN		= 17,
 };
@@ -716,7 +715,7 @@ struct gfs2_sbd {
 	struct gfs2_glock *sd_rename_gl;
 	struct gfs2_glock *sd_freeze_gl;
 	struct work_struct sd_freeze_work;
-	wait_queue_head_t sd_glock_wait;
+	wait_queue_head_t sd_kill_wait;
 	wait_queue_head_t sd_async_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;
@@ -771,6 +770,7 @@ struct gfs2_sbd {
 
 	/* Workqueue stuff */
 
+	struct workqueue_struct *sd_glock_wq;
 	struct workqueue_struct *sd_delete_wq;
 
 	/* Daemon stuff */
@@ -782,7 +782,6 @@ struct gfs2_sbd {
 
 	struct list_head sd_quota_list;
 	atomic_t sd_quota_count;
-	struct mutex sd_quota_mutex;
 	struct mutex sd_quota_sync_mutex;
 	wait_queue_head_t sd_quota_wait;
 
@@ -837,6 +836,7 @@ struct gfs2_sbd {
 	/* For quiescing the filesystem */
 	struct gfs2_holder sd_freeze_gh;
 	struct mutex sd_freeze_mutex;
+	struct list_head sd_dead_glocks;
 
 	char sd_fsname[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
 	char sd_table_name[GFS2_FSNAME_LEN];
@@ -862,7 +862,7 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 	preempt_enable();
 }
 
-extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
+struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
 
 static inline unsigned gfs2_max_stuffed_size(const struct gfs2_inode *ip)
 {

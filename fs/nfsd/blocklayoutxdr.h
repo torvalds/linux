@@ -47,13 +47,13 @@ struct pnfs_block_volume {
 
 struct pnfs_block_deviceaddr {
 	u32				nr_volumes;
-	struct pnfs_block_volume	volumes[];
+	struct pnfs_block_volume	volumes[] __counted_by(nr_volumes);
 };
 
 __be32 nfsd4_block_encode_getdeviceinfo(struct xdr_stream *xdr,
-		struct nfsd4_getdeviceinfo *gdp);
+		const struct nfsd4_getdeviceinfo *gdp);
 __be32 nfsd4_block_encode_layoutget(struct xdr_stream *xdr,
-		struct nfsd4_layoutget *lgp);
+		const struct nfsd4_layoutget *lgp);
 int nfsd4_block_decode_layoutupdate(__be32 *p, u32 len, struct iomap **iomapp,
 		u32 block_size);
 int nfsd4_scsi_decode_layoutupdate(__be32 *p, u32 len, struct iomap **iomapp,

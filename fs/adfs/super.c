@@ -249,7 +249,7 @@ static int __init init_inodecache(void)
 	adfs_inode_cachep = kmem_cache_create("adfs_inode_cache",
 					     sizeof(struct adfs_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+						SLAB_ACCOUNT),
 					     init_once);
 	if (adfs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -491,4 +491,5 @@ static void __exit exit_adfs_fs(void)
 
 module_init(init_adfs_fs)
 module_exit(exit_adfs_fs)
+MODULE_DESCRIPTION("Acorn Disc Filing System");
 MODULE_LICENSE("GPL");

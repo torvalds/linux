@@ -33,7 +33,7 @@
 #include <linux/pci.h>
 #endif
 
-MODULE_AUTHOR("Thomas K. Dyas (tdyas@noc.rutgers.edu) and Eddie C. Dost  (ecd@skynet.be)");
+MODULE_AUTHOR("Thomas K. Dyas <tdyas@noc.rutgers.edu> and Eddie C. Dost <ecd@skynet.be>");
 MODULE_DESCRIPTION("OPENPROM Configuration Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
@@ -687,7 +687,6 @@ static int openprom_release(struct inode * inode, struct file * file)
 
 static const struct file_operations openprom_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
 	.unlocked_ioctl = openprom_ioctl,
 	.compat_ioctl =	openprom_compat_ioctl,
 	.open =		openprom_open,

@@ -201,18 +201,16 @@ static int tve_setup_vga(struct imx_tve *tve)
 static int imx_tve_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_tve *tve = con_to_tve(connector);
-	struct edid *edid;
-	int ret = 0;
+	const struct drm_edid *drm_edid;
+	int ret;
 
 	if (!tve->ddc)
 		return 0;
 
-	edid = drm_get_edid(connector, tve->ddc);
-	if (edid) {
-		drm_connector_update_edid_property(connector, edid);
-		ret = drm_add_edid_modes(connector, edid);
-		kfree(edid);
-	}
+	drm_edid = drm_edid_read_ddc(connector, tve->ddc);
+	drm_edid_connector_update(connector, drm_edid);
+	ret = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return ret;
 }
@@ -645,10 +643,9 @@ static int imx_tve_probe(struct platform_device *pdev)
 	return component_add(dev, &imx_tve_ops);
 }
 
-static int imx_tve_remove(struct platform_device *pdev)
+static void imx_tve_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &imx_tve_ops);
-	return 0;
 }
 
 static const struct of_device_id imx_tve_dt_ids[] = {
@@ -659,7 +656,7 @@ MODULE_DEVICE_TABLE(of, imx_tve_dt_ids);
 
 static struct platform_driver imx_tve_driver = {
 	.probe		= imx_tve_probe,
-	.remove		= imx_tve_remove,
+	.remove_new	= imx_tve_remove,
 	.driver		= {
 		.of_match_table = imx_tve_dt_ids,
 		.name	= "imx-tve",

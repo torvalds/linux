@@ -34,7 +34,7 @@ struct imx_parallel_display_encoder {
 
 struct imx_parallel_display {
 	struct device *dev;
-	void *edid;
+	const struct drm_edid *drm_edid;
 	u32 bus_format;
 	u32 bus_flags;
 	struct drm_display_mode mode;
@@ -62,9 +62,9 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 	if (num_modes > 0)
 		return num_modes;
 
-	if (imxpd->edid) {
-		drm_connector_update_edid_property(connector, imxpd->edid);
-		num_modes = drm_add_edid_modes(connector, imxpd->edid);
+	if (imxpd->drm_edid) {
+		drm_edid_connector_update(connector, imxpd->drm_edid);
+		num_modes = drm_edid_connector_add_modes(connector);
 	}
 
 	if (np) {
@@ -72,14 +72,14 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 		int ret;
 
 		if (!mode)
-			return -EINVAL;
+			return 0;
 
 		ret = of_get_drm_display_mode(np, &imxpd->mode,
 					      &imxpd->bus_flags,
 					      OF_USE_NATIVE_MODE);
 		if (ret) {
 			drm_mode_destroy(connector->dev, mode);
-			return ret;
+			return 0;
 		}
 
 		drm_mode_copy(mode, &imxpd->mode);
@@ -331,7 +331,7 @@ static int imx_pd_probe(struct platform_device *pdev)
 
 	edidp = of_get_property(np, "edid", &edid_len);
 	if (edidp)
-		imxpd->edid = devm_kmemdup(dev, edidp, edid_len, GFP_KERNEL);
+		imxpd->drm_edid = drm_edid_alloc(edidp, edid_len);
 
 	ret = of_property_read_string(np, "interface-pix-fmt", &fmt);
 	if (!ret) {
@@ -353,11 +353,13 @@ static int imx_pd_probe(struct platform_device *pdev)
 	return component_add(dev, &imx_pd_ops);
 }
 
-static int imx_pd_remove(struct platform_device *pdev)
+static void imx_pd_remove(struct platform_device *pdev)
 {
+	struct imx_parallel_display *imxpd = platform_get_drvdata(pdev);
+
 	component_del(&pdev->dev, &imx_pd_ops);
 
-	return 0;
+	drm_edid_free(imxpd->drm_edid);
 }
 
 static const struct of_device_id imx_pd_dt_ids[] = {
@@ -368,7 +370,7 @@ MODULE_DEVICE_TABLE(of, imx_pd_dt_ids);
 
 static struct platform_driver imx_pd_driver = {
 	.probe		= imx_pd_probe,
-	.remove		= imx_pd_remove,
+	.remove_new	= imx_pd_remove,
 	.driver		= {
 		.of_match_table = imx_pd_dt_ids,
 		.name	= "imx-parallel-display",

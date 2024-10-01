@@ -13,7 +13,7 @@
 #include <linux/mfd/rohm-bd957x.h>
 #include <linux/mfd/rohm-generic.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 
@@ -57,15 +57,15 @@ static const struct regmap_access_table volatile_regs = {
 	.n_yes_ranges = ARRAY_SIZE(volatile_ranges),
 };
 
-static struct regmap_config bd957x_regmap = {
+static const struct regmap_config bd957x_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_table = &volatile_regs,
 	.max_register = BD957X_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
-static struct regmap_irq bd9576_irqs[] = {
+static const struct regmap_irq bd9576_irqs[] = {
 	REGMAP_IRQ_REG(BD9576_INT_THERM, 0, BD957X_MASK_INT_MAIN_THERM),
 	REGMAP_IRQ_REG(BD9576_INT_OVP, 0, BD957X_MASK_INT_MAIN_OVP),
 	REGMAP_IRQ_REG(BD9576_INT_SCP, 0, BD957X_MASK_INT_MAIN_SCP),
@@ -76,7 +76,7 @@ static struct regmap_irq bd9576_irqs[] = {
 	REGMAP_IRQ_REG(BD9576_INT_SYS, 0, BD957X_MASK_INT_MAIN_SYS),
 };
 
-static struct regmap_irq_chip bd9576_irq_chip = {
+static const struct regmap_irq_chip bd9576_irq_chip = {
 	.name = "bd9576_irq",
 	.irqs = &bd9576_irqs[0],
 	.num_irqs = ARRAY_SIZE(bd9576_irqs),

@@ -14,6 +14,7 @@
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info (|-able))." DVB_USB_DEBUG_STATUS);
+MODULE_DESCRIPTION("Common methods for dibusb-based receivers");
 MODULE_LICENSE("GPL");
 
 #define deb_info(args...) dprintk(debug,0x01,args)

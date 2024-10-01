@@ -457,7 +457,7 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-static void brcms_ops_stop(struct ieee80211_hw *hw)
+static void brcms_ops_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct brcms_info *wl = hw->priv;
 	int status;
@@ -810,7 +810,6 @@ brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	brcms_c_init_scb(scb);
 
 	wl->pub->global_ampdu = &(scb->scb_ampdu);
-	wl->pub->global_ampdu->scb = scb;
 	wl->pub->global_ampdu->max_pdu = 16;
 
 	/*
@@ -831,7 +830,6 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 	struct ieee80211_sta *sta = params->sta;
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	u16 tid = params->tid;
-	u8 buf_size = params->buf_size;
 
 	if (WARN_ON(scb->magic != SCB_MAGIC))
 		return -EIDRM;
@@ -863,11 +861,11 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		/*
 		 * BA window size from ADDBA response ('buf_size') defines how
 		 * many outstanding MPDUs are allowed for the BA stream by
-		 * recipient and traffic class. 'ampdu_factor' gives maximum
-		 * AMPDU size.
+		 * recipient and traffic class (this is actually unused by the
+		 * rest of the driver). 'ampdu_factor' gives maximum AMPDU size.
 		 */
 		spin_lock_bh(&wl->lock);
-		brcms_c_ampdu_tx_operational(wl->wlc, tid, buf_size,
+		brcms_c_ampdu_tx_operational(wl->wlc, tid,
 			(1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 			 sta->deflink.ht_cap.ampdu_factor)) - 1);
 		spin_unlock_bh(&wl->lock);
@@ -961,6 +959,10 @@ static int brcms_ops_beacon_set_tim(struct ieee80211_hw *hw,
 }
 
 static const struct ieee80211_ops brcms_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = brcms_ops_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = brcms_ops_start,
@@ -1088,6 +1090,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, MFP_CAPABLE);
 
 	hw->extra_tx_headroom = brcms_c_get_header_len();
 	hw->queues = N_TX_QUEUES;
@@ -1494,7 +1497,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 {
 	struct brcms_timer *t;
 
-	t = kzalloc(sizeof(struct brcms_timer), GFP_ATOMIC);
+	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t)
 		return NULL;
 
@@ -1608,10 +1611,9 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 			if (le32_to_cpu(hdr->idx) == idx) {
 				pdata = wl->fw.fw_bin[i]->data +
 					le32_to_cpu(hdr->offset);
-				*pbuf = kvmalloc(len, GFP_KERNEL);
+				*pbuf = kvmemdup(pdata, len, GFP_KERNEL);
 				if (*pbuf == NULL)
-					goto fail;
-				memcpy(*pbuf, pdata, len);
+					return -ENOMEM;
 				return 0;
 			}
 		}
@@ -1619,7 +1621,6 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 	brcms_err(wl->wlc->hw->d11core,
 		  "ERROR: ucode buf tag:%d can not be found!\n", idx);
 	*pbuf = NULL;
-fail:
 	return -ENODATA;
 }
 

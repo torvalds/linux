@@ -18,7 +18,6 @@
 	spdif_dit: audio-codec-0 {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
-		status = "okay";
 		sound-name-prefix = "DIT";
 	};
 
@@ -46,6 +45,10 @@
 	sound {
 		compatible = "amlogic,gx-sound-card";
 		model = "KII-PRO";
+		clocks = <&clkc CLKID_MPLL0>,
+			 <&clkc CLKID_MPLL1>,
+			 <&clkc CLKID_MPLL2>;
+
 		assigned-clocks = <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>,
 				  <&clkc CLKID_MPLL2>;

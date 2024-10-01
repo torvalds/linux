@@ -8,7 +8,6 @@
 
 #include <sound/jack.h>
 #include <sound/soc.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
@@ -37,7 +36,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	struct snd_soc_jack_pin *pin;
 	unsigned int sync = 0;
 
-	if (!jack)
+	if (!jack || !jack->jack)
 		return;
 	trace_snd_soc_jack_report(jack, mask, status);
 
@@ -345,21 +344,9 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 				goto undo;
 			}
 		} else {
-			/* legacy GPIO number */
-			if (!gpio_is_valid(gpios[i].gpio)) {
-				dev_err(jack->card->dev,
-					"ASoC: Invalid gpio %d\n",
-					gpios[i].gpio);
-				ret = -EINVAL;
-				goto undo;
-			}
-
-			ret = gpio_request_one(gpios[i].gpio, GPIOF_IN,
-					       gpios[i].name);
-			if (ret)
-				goto undo;
-
-			gpios[i].desc = gpio_to_desc(gpios[i].gpio);
+			dev_err(jack->card->dev, "ASoC: Invalid gpio at index %d\n", i);
+		        ret = -EINVAL;
+		        goto undo;
 		}
 got_gpio:
 		INIT_DELAYED_WORK(&gpios[i].work, gpio_work);
@@ -373,7 +360,7 @@ got_gpio:
 					      gpios[i].name,
 					      &gpios[i]);
 		if (ret < 0)
-			goto err;
+			goto undo;
 
 		if (gpios[i].wake) {
 			ret = irq_set_irq_wake(gpiod_to_irq(gpios[i].desc), 1);
@@ -401,8 +388,6 @@ got_gpio:
 	devres_add(jack->card->dev, tbl);
 	return 0;
 
-err:
-	gpio_free(gpios[i].gpio);
 undo:
 	jack_free_gpios(jack, i, gpios);
 	devres_free(tbl);

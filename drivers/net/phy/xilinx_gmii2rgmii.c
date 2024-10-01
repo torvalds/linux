@@ -15,6 +15,7 @@
 #include <linux/mii.h>
 #include <linux/mdio.h>
 #include <linux/phy.h>
+#include <linux/clk.h>
 #include <linux/of_mdio.h>
 
 #define XILINX_GMII2RGMII_REG		0x10
@@ -22,7 +23,7 @@
 
 struct gmii2rgmii {
 	struct phy_device *phy_dev;
-	struct phy_driver *phy_drv;
+	const struct phy_driver *phy_drv;
 	struct phy_driver conv_phy_drv;
 	struct mdio_device *mdio;
 };
@@ -85,10 +86,16 @@ static int xgmiitorgmii_probe(struct mdio_device *mdiodev)
 	struct device *dev = &mdiodev->dev;
 	struct device_node *np = dev->of_node, *phy_node;
 	struct gmii2rgmii *priv;
+	struct clk *clkin;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	clkin = devm_clk_get_optional_enabled(dev, NULL);
+	if (IS_ERR(clkin))
+		return dev_err_probe(dev, PTR_ERR(clkin),
+					"Failed to get and enable clock from Device Tree\n");
 
 	phy_node = of_parse_phandle(np, "phy-handle", 0);
 	if (!phy_node) {

@@ -419,7 +419,7 @@ xrx200_change_mtu(struct net_device *net_dev, int new_mtu)
 	int curr_desc;
 	int ret = 0;
 
-	net_dev->mtu = new_mtu;
+	WRITE_ONCE(net_dev->mtu, new_mtu);
 	priv->rx_buf_size = xrx200_buffer_size(new_mtu);
 	priv->rx_skb_size = xrx200_skb_size(priv->rx_buf_size);
 
@@ -440,7 +440,7 @@ xrx200_change_mtu(struct net_device *net_dev, int new_mtu)
 		buff = ch_rx->rx_buff[ch_rx->dma.desc];
 		ret = xrx200_alloc_buf(ch_rx, netdev_alloc_frag);
 		if (ret) {
-			net_dev->mtu = old_mtu;
+			WRITE_ONCE(net_dev->mtu, old_mtu);
 			priv->rx_buf_size = xrx200_buffer_size(old_mtu);
 			priv->rx_skb_size = xrx200_skb_size(priv->rx_buf_size);
 			break;
@@ -641,7 +641,7 @@ err_uninit_dma:
 	return err;
 }
 
-static int xrx200_remove(struct platform_device *pdev)
+static void xrx200_remove(struct platform_device *pdev)
 {
 	struct xrx200_priv *priv = platform_get_drvdata(pdev);
 	struct net_device *net_dev = priv->net_dev;
@@ -659,8 +659,6 @@ static int xrx200_remove(struct platform_device *pdev)
 
 	/* shut down hardware */
 	xrx200_hw_cleanup(priv);
-
-	return 0;
 }
 
 static const struct of_device_id xrx200_match[] = {
@@ -671,7 +669,7 @@ MODULE_DEVICE_TABLE(of, xrx200_match);
 
 static struct platform_driver xrx200_driver = {
 	.probe = xrx200_probe,
-	.remove = xrx200_remove,
+	.remove_new = xrx200_remove,
 	.driver = {
 		.name = "lantiq,xrx200-net",
 		.of_match_table = xrx200_match,

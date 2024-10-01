@@ -13,6 +13,15 @@ struct snd_ump_ops;
 struct ump_cvt_to_ump;
 struct snd_seq_ump_ops;
 
+struct snd_ump_group {
+	int group;			/* group index (0-based) */
+	unsigned int dir_bits;		/* directions */
+	bool active;			/* activeness */
+	bool valid;			/* valid group (referred by blocks) */
+	bool is_midi1;			/* belongs to a MIDI1 FB */
+	char name[64];			/* group name */
+};
+
 struct snd_ump_endpoint {
 	struct snd_rawmidi core;	/* raw UMP access */
 
@@ -41,10 +50,13 @@ struct snd_ump_endpoint {
 
 	struct mutex open_mutex;
 
+	struct snd_ump_group groups[SNDRV_UMP_MAX_GROUPS]; /* table of groups */
+
 #if IS_ENABLED(CONFIG_SND_UMP_LEGACY_RAWMIDI)
 	spinlock_t legacy_locks[2];
 	struct snd_rawmidi *legacy_rmidi;
 	struct snd_rawmidi_substream *legacy_substreams[2][SNDRV_UMP_MAX_GROUPS];
+	unsigned char legacy_mapping[SNDRV_UMP_MAX_GROUPS];
 
 	/* for legacy output; need to open the actual substream unlike input */
 	int legacy_out_opens;
@@ -111,6 +123,7 @@ static inline int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 
 int snd_ump_receive_ump_val(struct snd_ump_endpoint *ump, u32 val);
 int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol);
+void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump);
 
 /*
  * Some definitions for UMP

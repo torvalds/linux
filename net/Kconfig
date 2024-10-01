@@ -52,11 +52,25 @@ config NET_INGRESS
 config NET_EGRESS
 	bool
 
+config NET_XGRESS
+	select NET_INGRESS
+	select NET_EGRESS
+	bool
+
 config NET_REDIRECT
+	bool
+
+config SKB_DECRYPTED
 	bool
 
 config SKB_EXTENSIONS
 	bool
+
+config NET_DEVMEM
+	def_bool y
+	depends on DMA_SHARED_BUFFER
+	depends on GENERIC_ALLOCATOR
+	depends on PAGE_POOL
 
 menu "Networking options"
 
@@ -228,8 +242,6 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
-source "net/bpfilter/Kconfig"
-
 source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/rds/Kconfig"
@@ -241,7 +253,7 @@ source "net/bridge/Kconfig"
 source "net/dsa/Kconfig"
 source "net/8021q/Kconfig"
 source "net/llc/Kconfig"
-source "drivers/net/appletalk/Kconfig"
+source "net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
 source "net/phonet/Kconfig"
@@ -284,15 +296,21 @@ config MAX_SKB_FRAGS
 	  If unsure, say 17.
 
 config RPS
-	bool
+	bool "Receive packet steering"
 	depends on SMP && SYSFS
 	default y
+	help
+	  Software receive side packet steering (RPS) distributes the
+	  load of received packet processing across multiple CPUs.
 
 config RFS_ACCEL
-	bool
+	bool "Hardware acceleration of RFS"
 	depends on RPS
 	select CPU_RMAP
 	default y
+	help
+	  Allowing drivers for multiqueue hardware with flow filter tables to
+	  accelerate RFS.
 
 config SOCK_RX_QUEUE_MAPPING
 	bool
@@ -328,6 +346,7 @@ config NET_RX_BUSY_POLL
 
 config BQL
 	bool
+	prompt "Enable Byte Queue Limits"
 	depends on SYSFS
 	select DQL
 	default y
@@ -344,7 +363,7 @@ config BPF_STREAM_PARSER
 	  BPF_MAP_TYPE_SOCKMAP.
 
 config NET_FLOW_LIMIT
-	bool
+	bool "Net flow limit"
 	depends on RPS
 	default y
 	help
@@ -445,6 +464,9 @@ config GRO_CELLS
 config SOCK_VALIDATE_XMIT
 	bool
 
+config NET_IEEE8021Q_HELPERS
+	bool
+
 config NET_SELFTESTS
 	def_tristate PHYLIB
 	depends on PHYLIB && INET
@@ -492,6 +514,7 @@ config FAILOVER
 
 config ETHTOOL_NETLINK
 	bool "Netlink interface for ethtool"
+	select DIMLIB
 	default y
 	help
 	  An alternative userspace interface for ethtool based on generic
@@ -502,5 +525,14 @@ config NETDEV_ADDR_LIST_TEST
 	tristate "Unit tests for device address list"
 	default KUNIT_ALL_TESTS
 	depends on KUNIT
+
+config NET_TEST
+	tristate "KUnit tests for networking" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  KUnit tests covering core networking infra, such as sk_buff.
+
+	  If unsure, say N.
 
 endif   # if NET

@@ -139,6 +139,10 @@ static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
 
 	struct i2c_client *client = file->private_data;
 
+	/* Adapter must support I2C transfers */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
+
 	if (count > 8192)
 		count = 8192;
 
@@ -162,6 +166,10 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 	int ret;
 	char *tmp;
 	struct i2c_client *client = file->private_data;
+
+	/* Adapter must support I2C transfers */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
 
 	if (count > 8192)
 		count = 8192;
@@ -237,6 +245,10 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 {
 	u8 __user **data_ptrs;
 	int i, res;
+
+	/* Adapter must support I2C transfers */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
 
 	data_ptrs = kmalloc_array(nmsgs, sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {
@@ -450,8 +462,8 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (rdwr_arg.nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
 			return -EINVAL;
 
-		rdwr_pa = memdup_user(rdwr_arg.msgs,
-				      rdwr_arg.nmsgs * sizeof(struct i2c_msg));
+		rdwr_pa = memdup_array_user(rdwr_arg.msgs,
+					    rdwr_arg.nmsgs, sizeof(struct i2c_msg));
 		if (IS_ERR(rdwr_pa))
 			return PTR_ERR(rdwr_pa);
 
@@ -625,7 +637,6 @@ static int i2cdev_release(struct inode *inode, struct file *file)
 
 static const struct file_operations i2cdev_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= i2cdev_read,
 	.write		= i2cdev_write,
 	.unlocked_ioctl	= i2cdev_ioctl,
@@ -636,7 +647,10 @@ static const struct file_operations i2cdev_fops = {
 
 /* ------------------------------------------------------------------------- */
 
-static struct class *i2c_dev_class;
+static const struct class i2c_dev_class = {
+	.name = "i2c-dev",
+	.dev_groups = i2c_groups,
+};
 
 static void i2cdev_dev_release(struct device *dev)
 {
@@ -665,7 +679,7 @@ static int i2cdev_attach_adapter(struct device *dev)
 
 	device_initialize(&i2c_dev->dev);
 	i2c_dev->dev.devt = MKDEV(I2C_MAJOR, adap->nr);
-	i2c_dev->dev.class = i2c_dev_class;
+	i2c_dev->dev.class = &i2c_dev_class;
 	i2c_dev->dev.parent = &adap->dev;
 	i2c_dev->dev.release = i2cdev_dev_release;
 
@@ -751,12 +765,9 @@ static int __init i2c_dev_init(void)
 	if (res)
 		goto out;
 
-	i2c_dev_class = class_create("i2c-dev");
-	if (IS_ERR(i2c_dev_class)) {
-		res = PTR_ERR(i2c_dev_class);
+	res = class_register(&i2c_dev_class);
+	if (res)
 		goto out_unreg_chrdev;
-	}
-	i2c_dev_class->dev_groups = i2c_groups;
 
 	/* Keep track of adapters which will be added or removed later */
 	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
@@ -769,7 +780,7 @@ static int __init i2c_dev_init(void)
 	return 0;
 
 out_unreg_class:
-	class_destroy(i2c_dev_class);
+	class_unregister(&i2c_dev_class);
 out_unreg_chrdev:
 	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS);
 out:
@@ -781,7 +792,7 @@ static void __exit i2c_dev_exit(void)
 {
 	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
 	i2c_for_each_dev(NULL, i2c_dev_detach_adapter);
-	class_destroy(i2c_dev_class);
+	class_unregister(&i2c_dev_class);
 	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS);
 }
 

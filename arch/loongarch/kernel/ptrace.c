@@ -38,6 +38,7 @@
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
 #include <asm/fpu.h>
+#include <asm/lbt.h>
 #include <asm/loongarch.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -146,6 +147,8 @@ static int fpr_get(struct task_struct *target,
 		   struct membuf to)
 {
 	int r;
+
+	save_fpu_regs(target);
 
 	if (sizeof(target->thread.fpu.fpr[0]) == sizeof(elf_fpreg_t))
 		r = gfpr_get(target, &to);
@@ -278,6 +281,8 @@ static int simd_get(struct task_struct *target,
 {
 	const unsigned int wr_size = NUM_FPU_REGS * regset->size;
 
+	save_fpu_regs(target);
+
 	if (!tsk_used_math(target)) {
 		/* The task hasn't used FP or LSX, fill with 0xff */
 		copy_pad_fprs(target, regset, &to, 0);
@@ -333,6 +338,46 @@ static int simd_set(struct task_struct *target,
 }
 
 #endif /* CONFIG_CPU_HAS_LSX */
+
+#ifdef CONFIG_CPU_HAS_LBT
+static int lbt_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   struct membuf to)
+{
+	int r;
+
+	r = membuf_write(&to, &target->thread.lbt.scr0, sizeof(target->thread.lbt.scr0));
+	r = membuf_write(&to, &target->thread.lbt.scr1, sizeof(target->thread.lbt.scr1));
+	r = membuf_write(&to, &target->thread.lbt.scr2, sizeof(target->thread.lbt.scr2));
+	r = membuf_write(&to, &target->thread.lbt.scr3, sizeof(target->thread.lbt.scr3));
+	r = membuf_write(&to, &target->thread.lbt.eflags, sizeof(u32));
+	r = membuf_write(&to, &target->thread.fpu.ftop, sizeof(u32));
+
+	return r;
+}
+
+static int lbt_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int err = 0;
+	const int eflags_start = 4 * sizeof(target->thread.lbt.scr0);
+	const int ftop_start = eflags_start + sizeof(u32);
+
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.lbt.scr0,
+				  0, 4 * sizeof(target->thread.lbt.scr0));
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.lbt.eflags,
+				  eflags_start, ftop_start);
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu.ftop,
+				  ftop_start, ftop_start + sizeof(u32));
+
+	return err;
+}
+#endif /* CONFIG_CPU_HAS_LBT */
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
@@ -449,28 +494,14 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 				     struct arch_hw_breakpoint_ctrl ctrl,
 				     struct perf_event_attr *attr)
 {
-	int err, len, type, offset;
+	int err, len, type;
 
-	err = arch_bp_generic_fields(ctrl, &len, &type, &offset);
+	err = arch_bp_generic_fields(ctrl, &len, &type);
 	if (err)
 		return err;
 
-	switch (note_type) {
-	case NT_LOONGARCH_HW_BREAK:
-		if ((type & HW_BREAKPOINT_X) != type)
-			return -EINVAL;
-		break;
-	case NT_LOONGARCH_HW_WATCH:
-		if ((type & HW_BREAKPOINT_RW) != type)
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	attr->bp_len	= len;
 	attr->bp_type	= type;
-	attr->bp_addr	+= offset;
 
 	return 0;
 }
@@ -558,16 +589,36 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 	struct arch_hw_breakpoint_ctrl ctrl;
+	struct thread_info *ti = task_thread_info(tsk);
 
 	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
 	if (IS_ERR(bp))
 		return PTR_ERR(bp);
 
 	attr = bp->attr;
-	decode_ctrl_reg(uctrl, &ctrl);
-	err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
-	if (err)
-		return err;
+
+	switch (note_type) {
+	case NT_LOONGARCH_HW_BREAK:
+		ctrl.type = LOONGARCH_BREAKPOINT_EXECUTE;
+		ctrl.len = LOONGARCH_BREAKPOINT_LEN_4;
+		break;
+	case NT_LOONGARCH_HW_WATCH:
+		decode_ctrl_reg(uctrl, &ctrl);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (uctrl & CTRL_PLV_ENABLE) {
+		err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
+		if (err)
+			return err;
+		attr.disabled = 0;
+		set_ti_thread_flag(ti, TIF_LOAD_WATCH);
+	} else {
+		attr.disabled = 1;
+		clear_ti_thread_flag(ti, TIF_LOAD_WATCH);
+	}
 
 	return modify_user_hw_breakpoint(bp, &attr);
 }
@@ -597,6 +648,10 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 {
 	struct perf_event *bp;
 	struct perf_event_attr attr;
+
+	/* Kernel-space address cannot be monitored by user-space */
+	if ((unsigned long)addr >= XKPRANGE)
+		return -EINVAL;
 
 	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
 	if (IS_ERR(bp))
@@ -798,6 +853,9 @@ enum loongarch_regset {
 #ifdef CONFIG_CPU_HAS_LASX
 	REGSET_LASX,
 #endif
+#ifdef CONFIG_CPU_HAS_LBT
+	REGSET_LBT,
+#endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	REGSET_HW_BREAK,
 	REGSET_HW_WATCH,
@@ -847,6 +905,16 @@ static const struct user_regset loongarch64_regsets[] = {
 		.align		= 32,
 		.regset_get	= simd_get,
 		.set		= simd_set,
+	},
+#endif
+#ifdef CONFIG_CPU_HAS_LBT
+	[REGSET_LBT] = {
+		.core_note_type	= NT_LOONGARCH_LBT,
+		.n		= 5,
+		.size		= sizeof(u64),
+		.align		= sizeof(u64),
+		.regset_get	= lbt_get,
+		.set		= lbt_set,
 	},
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT

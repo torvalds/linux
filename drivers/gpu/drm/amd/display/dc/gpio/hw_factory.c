@@ -52,6 +52,7 @@
 #include "dcn30/hw_factory_dcn30.h"
 #include "dcn315/hw_factory_dcn315.h"
 #include "dcn32/hw_factory_dcn32.h"
+#include "dcn401/hw_factory_dcn401.h"
 
 bool dal_hw_factory_init(
 	struct hw_factory *factory,
@@ -109,7 +110,12 @@ bool dal_hw_factory_init(
 		return true;
 	case DCN_VERSION_3_2:
 	case DCN_VERSION_3_21:
+	case DCN_VERSION_3_5:
+	case DCN_VERSION_3_51:
 		dal_hw_factory_dcn32_init(factory);
+		return true;
+	case DCN_VERSION_4_01:
+		dal_hw_factory_dcn401_init(factory);
 		return true;
 	default:
 		ASSERT_CRITICAL(false);

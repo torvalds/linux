@@ -5,8 +5,8 @@
 
 #include <linux/component.h>
 
-#include <drm/i915_component.h>
-#include <drm/i915_gsc_proxy_mei_interface.h>
+#include <drm/intel/i915_component.h>
+#include <drm/intel/i915_gsc_proxy_mei_interface.h>
 
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_print.h"
@@ -322,6 +322,7 @@ static int i915_gsc_proxy_component_bind(struct device *i915_kdev,
 	gsc->proxy.component = data;
 	gsc->proxy.component->mei_dev = mei_kdev;
 	mutex_unlock(&gsc->proxy.mutex);
+	gt_dbg(gt, "GSC proxy mei component bound\n");
 
 	return 0;
 }
@@ -342,6 +343,7 @@ static void i915_gsc_proxy_component_unbind(struct device *i915_kdev,
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		intel_uncore_rmw(gt->uncore, HECI_H_CSR(MTL_GSC_HECI2_BASE),
 				 HECI_H_CSR_IE | HECI_H_CSR_RST, 0);
+	gt_dbg(gt, "GSC proxy mei component unbound\n");
 }
 
 static const struct component_ops i915_gsc_proxy_component_ops = {
@@ -356,7 +358,8 @@ static int proxy_channel_alloc(struct intel_gsc_uc *gsc)
 	void *vaddr;
 	int err;
 
-	err = intel_guc_allocate_and_map_vma(&gt->uc.guc, GSC_PROXY_CHANNEL_SIZE,
+	err = intel_guc_allocate_and_map_vma(gt_to_guc(gt),
+					     GSC_PROXY_CHANNEL_SIZE,
 					     &vma, &vaddr);
 	if (err)
 		return err;

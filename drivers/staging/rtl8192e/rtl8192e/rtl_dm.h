@@ -33,8 +33,6 @@
 #define		RATE_ADAPTIVE_TH_LOW_40M		10
 #define		VERY_LOW_RSSI				15
 
-#define		WA_IOT_TH_VAL				25
-
 #define		E_FOR_TX_POWER_TRACK	       300
 #define		TX_POWER_NEAR_FIELD_THRESH_HIGH		68
 #define		TX_POWER_NEAR_FIELD_THRESH_LOW		62
@@ -44,24 +42,18 @@
 #define		CURRENT_TX_RATE_REG		0x1e0
 #define		INITIAL_TX_RATE_REG		0x1e1
 #define		TX_RETRY_COUNT_REG		0x1ac
-#define		RegC38_TH				 20
+#define		REG_C38_TH				 20
 
 /*--------------------------Define Parameters-------------------------------*/
 
 /*------------------------------Define structure----------------------------*/
 struct dig_t {
-	u8		dig_enable_flag;
-	u8		dig_algorithm;
-	u8		dig_algorithm_switch;
-
 	long		rssi_low_thresh;
 	long		rssi_high_thresh;
 
 	long		rssi_high_power_lowthresh;
 	long		rssi_high_power_highthresh;
 
-	u8		dig_state;
-	u8		dig_highpwr_state;
 	u8		cur_sta_connect_state;
 	u8		pre_sta_connect_state;
 
@@ -80,12 +72,6 @@ struct dig_t {
 	long		rssi_val;
 };
 
-enum dm_dig_sta {
-	DM_STA_DIG_OFF = 0,
-	DM_STA_DIG_ON,
-	DM_STA_DIG_MAX
-};
-
 enum dm_ratr_sta {
 	DM_RATR_STA_HIGH = 0,
 	DM_RATR_STA_MIDDLE = 1,
@@ -93,22 +79,9 @@ enum dm_ratr_sta {
 	DM_RATR_STA_MAX
 };
 
-enum dm_dig_alg {
-	DIG_ALGO_BY_FALSE_ALARM = 0,
-	DIG_ALGO_BY_RSSI	= 1,
-	DIG_ALGO_BEFORE_CONNECT_BY_RSSI_AND_ALARM = 2,
-	DIG_ALGO_BY_TOW_PORT = 3,
-	DIG_ALGO_MAX
-};
-
 enum dm_dig_connect {
 	DIG_STA_DISCONNECT = 0,
 	DIG_STA_CONNECT = 1,
-	DIG_STA_BEFORE_CONNECT = 2,
-	DIG_AP_DISCONNECT = 3,
-	DIG_AP_CONNECT = 4,
-	DIG_AP_ADD_STATION = 5,
-	DIG_CONNECT_MAX
 };
 
 enum dm_dig_pd_th {
@@ -160,8 +133,6 @@ extern	struct dig_t dm_digtable;
 extern const u32 dm_tx_bb_gain[TX_BB_GAIN_TABLE_LEN];
 extern const u8 dm_cck_tx_bb_gain[CCK_TX_BB_GAIN_TABLE_LEN][8];
 extern const u8 dm_cck_tx_bb_gain_ch14[CCK_TX_BB_GAIN_TABLE_LEN][8];
-/* Maps table index to iq amplify gain (dB, 12 to -24dB) */
-#define dm_tx_bb_gain_idx_to_amplify(idx) (-idx + 12)
 
 /*------------------------Export global variable----------------------------*/
 
@@ -178,8 +149,6 @@ void    rtl92e_dm_txpower_tracking_wq(void *data);
 
 void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
 
-void    rtl92e_dm_restore_state(struct net_device *dev);
-void    rtl92e_dm_backup_state(struct net_device *dev);
 void    rtl92e_dm_init_edca_turbo(struct net_device *dev);
 void    rtl92e_dm_rf_pathcheck_wq(void *data);
 void rtl92e_dm_init_txpower_tracking(struct net_device *dev);

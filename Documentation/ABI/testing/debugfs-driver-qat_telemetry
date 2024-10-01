@@ -1,0 +1,228 @@
+What:		/sys/kernel/debug/qat_<device>_<BDF>/telemetry/control
+Date:		March 2024
+KernelVersion:	6.8
+Contact:	qat-linux@intel.com
+Description:	(RW) Enables/disables the reporting of telemetry metrics.
+
+		Allowed values to write:
+		========================
+		* 0: disable telemetry
+		* 1: enable telemetry
+		* 2, 3, 4: enable telemetry and calculate minimum, maximum
+		  and average for each counter over 2, 3 or 4 samples
+
+		Returned values:
+		================
+		* 1-4: telemetry is enabled and running
+		* 0: telemetry is disabled
+
+		Example.
+
+		Writing '3' to this file starts the collection of
+		telemetry metrics. Samples are collected every second and
+		stored in a circular buffer of size 3. These values are then
+		used to calculate the minimum, maximum and average for each
+		counter. After enabling, counters can be retrieved through
+		the ``device_data`` file::
+
+		  echo 3 > /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/control
+
+		Writing '0' to this file stops the collection of telemetry
+		metrics::
+
+		  echo 0 > /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/control
+
+		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/telemetry/device_data
+Date:		March 2024
+KernelVersion:	6.8
+Contact:	qat-linux@intel.com
+Description:	(RO) Reports device telemetry counters.
+		Reads report metrics about performance and utilization of
+		a QAT device:
+
+		=======================	========================================
+		Field			Description
+		=======================	========================================
+		sample_cnt		number of acquisitions of telemetry data
+					from the device. Reads are performed
+					every 1000 ms.
+		pci_trans_cnt		number of PCIe partial transactions
+		max_rd_lat		maximum logged read latency [ns] (could
+					be any read operation)
+		rd_lat_acc_avg		average read latency [ns]
+		max_gp_lat		max get to put latency [ns] (only takes
+					samples for AE0)
+		gp_lat_acc_avg		average get to put latency [ns]
+		bw_in			PCIe, write bandwidth [Mbps]
+		bw_out			PCIe, read bandwidth [Mbps]
+		at_page_req_lat_avg	Address Translator(AT), average page
+					request latency [ns]
+		at_trans_lat_avg	AT, average page translation latency [ns]
+		at_max_tlb_used		AT, maximum uTLB used
+		util_cpr<N>		utilization of Compression slice N [%]
+		exec_cpr<N>		execution count of Compression slice N
+		util_xlt<N>		utilization of Translator slice N [%]
+		exec_xlt<N>		execution count of Translator slice N
+		util_dcpr<N>		utilization of Decompression slice N [%]
+		exec_dcpr<N>		execution count of Decompression slice N
+		util_pke<N>		utilization of PKE N [%]
+		exec_pke<N>		execution count of PKE N
+		util_ucs<N>		utilization of UCS slice N [%]
+		exec_ucs<N>		execution count of UCS slice N
+		util_wat<N>		utilization of Wireless Authentication
+					slice N [%]
+		exec_wat<N>		execution count of Wireless Authentication
+					slice N
+		util_wcp<N>		utilization of Wireless Cipher slice N [%]
+		exec_wcp<N>		execution count of Wireless Cipher slice N
+		util_cph<N>		utilization of Cipher slice N [%]
+		exec_cph<N>		execution count of Cipher slice N
+		util_ath<N>		utilization of Authentication slice N [%]
+		exec_ath<N>		execution count of Authentication slice N
+		=======================	========================================
+
+		The telemetry report file can be read with the following command::
+
+		  cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/device_data
+
+		If ``control`` is set to 1, only the current values of the
+		counters are displayed::
+
+		  <counter_name> <current>
+
+		If ``control`` is 2, 3 or 4, counters are displayed in the
+		following format::
+
+		  <counter_name> <current> <min> <max> <avg>
+
+		If a device lacks of a specific accelerator, the corresponding
+		attribute is not reported.
+
+		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/telemetry/rp_<A/B/C/D>_data
+Date:		March 2024
+KernelVersion:	6.8
+Contact:	qat-linux@intel.com
+Description:	(RW) Selects up to 4 Ring Pairs (RP) to monitor, one per file,
+		and report telemetry counters related to each.
+
+		Allowed values to write:
+		========================
+		* 0 to ``<num_rps - 1>``:
+		  Ring pair to be monitored. The value of ``num_rps`` can be
+		  retrieved through ``/sys/bus/pci/devices/<BDF>/qat/num_rps``.
+		  See Documentation/ABI/testing/sysfs-driver-qat.
+
+		Reads report metrics about performance and utilization of
+		the selected RP:
+
+		=======================	========================================
+		Field			Description
+		=======================	========================================
+		sample_cnt		number of acquisitions of telemetry data
+					from the device. Reads are performed
+					every 1000 ms
+		rp_num			RP number associated with slot <A/B/C/D>
+		service_type		service associated to the RP
+		pci_trans_cnt		number of PCIe partial transactions
+		gp_lat_acc_avg		average get to put latency [ns]
+		bw_in			PCIe, write bandwidth [Mbps]
+		bw_out			PCIe, read bandwidth [Mbps]
+		at_glob_devtlb_hit	Message descriptor DevTLB hit rate
+		at_glob_devtlb_miss	Message descriptor DevTLB miss rate
+		tl_at_payld_devtlb_hit	Payload DevTLB hit rate
+		tl_at_payld_devtlb_miss	Payload DevTLB miss rate
+		======================= ========================================
+
+		Example.
+
+		Writing the value '32' to the file ``rp_C_data`` starts the
+		collection of telemetry metrics for ring pair 32::
+
+		  echo 32 > /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/rp_C_data
+
+		Once a ring pair is selected, statistics can be read accessing
+		the file::
+
+		  cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/rp_C_data
+
+		If ``control`` is set to 1, only the current values of the
+		counters are displayed::
+
+		  <counter_name> <current>
+
+		If ``control`` is 2, 3 or 4, counters are displayed in the
+		following format::
+
+		  <counter_name> <current> <min> <max> <avg>
+
+
+		On QAT GEN4 devices there are 64 RPs on a PF, so the allowed
+		values are 0..63. This number is absolute to the device.
+		If Virtual Functions (VF) are used, the ring pair number can
+		be derived from the Bus, Device, Function of the VF:
+
+		============ ====== ====== ====== ======
+		PCI BDF/VF   RP0    RP1    RP2    RP3
+		============ ====== ====== ====== ======
+		0000:6b:0.1  RP  0  RP  1  RP  2  RP  3
+		0000:6b:0.2  RP  4  RP  5  RP  6  RP  7
+		0000:6b:0.3  RP  8  RP  9  RP 10  RP 11
+		0000:6b:0.4  RP 12  RP 13  RP 14  RP 15
+		0000:6b:0.5  RP 16  RP 17  RP 18  RP 19
+		0000:6b:0.6  RP 20  RP 21  RP 22  RP 23
+		0000:6b:0.7  RP 24  RP 25  RP 26  RP 27
+		0000:6b:1.0  RP 28  RP 29  RP 30  RP 31
+		0000:6b:1.1  RP 32  RP 33  RP 34  RP 35
+		0000:6b:1.2  RP 36  RP 37  RP 38  RP 39
+		0000:6b:1.3  RP 40  RP 41  RP 42  RP 43
+		0000:6b:1.4  RP 44  RP 45  RP 46  RP 47
+		0000:6b:1.5  RP 48  RP 49  RP 50  RP 51
+		0000:6b:1.6  RP 52  RP 53  RP 54  RP 55
+		0000:6b:1.7  RP 56  RP 57  RP 58  RP 59
+		0000:6b:2.0  RP 60  RP 61  RP 62  RP 63
+		============ ====== ====== ====== ======
+
+		The mapping is only valid for the BDFs of VFs on the host.
+
+
+		The service provided on a ring-pair varies depending on the
+		configuration. The configuration for a given device can be
+		queried and set using ``cfg_services``.
+		See Documentation/ABI/testing/sysfs-driver-qat for details.
+
+		The following table reports how ring pairs are mapped to VFs
+		on the PF 0000:6b:0.0 configured for `sym;asym` or `asym;sym`:
+
+		=========== ============ =========== ============ ===========
+		PCI BDF/VF  RP0/service  RP1/service RP2/service  RP3/service
+		=========== ============ =========== ============ ===========
+		0000:6b:0.1 RP 0 asym    RP 1 sym    RP 2 asym    RP 3 sym
+		0000:6b:0.2 RP 4 asym    RP 5 sym    RP 6 asym    RP 7 sym
+		0000:6b:0.3 RP 8 asym    RP 9 sym    RP10 asym    RP11 sym
+		...         ...          ...         ...          ...
+		=========== ============ =========== ============ ===========
+
+		All VFs follow the same pattern.
+
+
+		The following table reports how ring pairs are mapped to VFs on
+		the PF 0000:6b:0.0 configured for `dc`:
+
+		=========== ============ =========== ============ ===========
+		PCI BDF/VF  RP0/service  RP1/service RP2/service  RP3/service
+		=========== ============ =========== ============ ===========
+		0000:6b:0.1 RP 0 dc      RP 1 dc     RP 2 dc      RP 3 dc
+		0000:6b:0.2 RP 4 dc      RP 5 dc     RP 6 dc      RP 7 dc
+		0000:6b:0.3 RP 8 dc      RP 9 dc     RP10 dc      RP11 dc
+		...         ...          ...         ...          ...
+		=========== ============ =========== ============ ===========
+
+		The mapping of a RP to a service can be retrieved using
+		``rp2srv`` from sysfs.
+		See Documentation/ABI/testing/sysfs-driver-qat for details.
+
+		This attribute is only available for qat_4xxx devices.

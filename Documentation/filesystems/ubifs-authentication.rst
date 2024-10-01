@@ -130,7 +130,7 @@ marked as dirty are written to the flash to update the persisted index.
 Journal
 ~~~~~~~
 
-To avoid wearing out the flash, the index is only persisted (*commited*) when
+To avoid wearing out the flash, the index is only persisted (*committed*) when
 certain conditions are met (eg. ``fsync(2)``). The journal is used to record
 any changes (in form of inode nodes, data nodes etc.) between commits
 of the index. During mount, the journal is read from the flash and replayed

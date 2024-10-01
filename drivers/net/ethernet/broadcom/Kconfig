@@ -255,4 +255,16 @@ config BNXT_HWMON
 	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
 	  devices, via the hwmon sysfs interface.
 
+config BCMASP
+	tristate "Broadcom ASP 2.0 Ethernet support"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	default ARCH_BRCMSTB
+	depends on OF
+	select MII
+	select PHYLIB
+	select MDIO_BCM_UNIMAC
+	help
+	  This configuration enables the Broadcom ASP 2.0 Ethernet controller
+	  driver which is present in Broadcom STB SoCs such as 72165.
+
 endif # NET_VENDOR_BROADCOM

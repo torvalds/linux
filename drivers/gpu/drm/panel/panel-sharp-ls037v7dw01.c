@@ -189,15 +189,13 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ls037v7dw01_remove(struct platform_device *pdev)
+static void ls037v7dw01_remove(struct platform_device *pdev)
 {
 	struct ls037v7dw01_panel *lcd = platform_get_drvdata(pdev);
 
 	drm_panel_remove(&lcd->panel);
 	drm_panel_disable(&lcd->panel);
 	drm_panel_unprepare(&lcd->panel);
-
-	return 0;
 }
 
 static const struct of_device_id ls037v7dw01_of_match[] = {
@@ -209,7 +207,7 @@ MODULE_DEVICE_TABLE(of, ls037v7dw01_of_match);
 
 static struct platform_driver ls037v7dw01_driver = {
 	.probe		= ls037v7dw01_probe,
-	.remove		= ls037v7dw01_remove,
+	.remove_new	= ls037v7dw01_remove,
 	.driver		= {
 		.name = "panel-sharp-ls037v7dw01",
 		.of_match_table = ls037v7dw01_of_match,

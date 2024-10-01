@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <asm/unaligned.h>
 
+#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -44,6 +45,7 @@ struct vhci_data {
 	bool wakeup;
 	__u16 msft_opcode;
 	bool aosp_capable;
+	atomic_t initialized;
 };
 
 static int vhci_open_dev(struct hci_dev *hdev)
@@ -74,9 +76,11 @@ static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	struct vhci_data *data = hci_get_drvdata(hdev);
 
 	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
+
 	skb_queue_tail(&data->readq, skb);
 
-	wake_up_interruptible(&data->read_wait);
+	if (atomic_read(&data->initialized))
+		wake_up_interruptible(&data->read_wait);
 	return 0;
 }
 
@@ -380,16 +384,9 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 {
 	struct hci_dev *hdev;
 	struct sk_buff *skb;
-	__u8 dev_type;
 
 	if (data->hdev)
 		return -EBADFD;
-
-	/* bits 0-1 are dev_type (Primary or AMP) */
-	dev_type = opcode & 0x03;
-
-	if (dev_type != HCI_PRIMARY && dev_type != HCI_AMP)
-		return -EINVAL;
 
 	/* bits 2-5 are reserved (must be zero) */
 	if (opcode & 0x3c)
@@ -408,7 +405,6 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	data->hdev = hdev;
 
 	hdev->bus = HCI_VIRTUAL;
-	hdev->dev_type = dev_type;
 	hci_set_drvdata(hdev, data);
 
 	hdev->open  = vhci_open_dev;
@@ -428,8 +424,6 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	/* bit 7 is for raw device */
 	if (opcode & 0x80)
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
-
-	set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
@@ -461,7 +455,8 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	skb_put_u8(skb, 0xff);
 	skb_put_u8(skb, opcode);
 	put_unaligned_le16(hdev->id, skb_put(skb, 2));
-	skb_queue_tail(&data->readq, skb);
+	skb_queue_head(&data->readq, skb);
+	atomic_inc(&data->initialized);
 
 	wake_up_interruptible(&data->read_wait);
 	return 0;
@@ -629,14 +624,14 @@ static void vhci_open_timeout(struct work_struct *work)
 	struct vhci_data *data = container_of(work, struct vhci_data,
 					      open_timeout.work);
 
-	vhci_create_device(data, amp ? HCI_AMP : HCI_PRIMARY);
+	vhci_create_device(data, 0x00);
 }
 
 static int vhci_open(struct inode *inode, struct file *file)
 {
 	struct vhci_data *data;
 
-	data = kzalloc(sizeof(struct vhci_data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -684,7 +679,6 @@ static const struct file_operations vhci_fops = {
 	.poll		= vhci_poll,
 	.open		= vhci_open,
 	.release	= vhci_release,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice vhci_miscdev = {

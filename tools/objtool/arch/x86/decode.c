@@ -125,8 +125,14 @@ bool arch_pc_relative_reloc(struct reloc *reloc)
 #define is_RIP()   ((modrm_rm & 7) == CFI_BP && modrm_mod == 0)
 #define have_SIB() ((modrm_rm & 7) == CFI_SP && mod_is_mem())
 
+/*
+ * Check the ModRM register. If there is a SIB byte then check with
+ * the SIB base register. But if the SIB base is 5 (i.e. CFI_BP) and
+ * ModRM mod is 0 then there is no base register.
+ */
 #define rm_is(reg) (have_SIB() ? \
-		    sib_base == (reg) && sib_index == CFI_SP : \
+		    sib_base == (reg) && sib_index == CFI_SP && \
+		    (sib_base != CFI_BP || modrm_mod != 0) :	\
 		    modrm_rm == (reg))
 
 #define rm_is_mem(reg)	(mod_is_mem() && !is_RIP() && rm_is(reg))
@@ -291,7 +297,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		switch (modrm_reg & 7) {
 		case 5:
 			imm = -imm;
-			/* fallthrough */
+			fallthrough;
 		case 0:
 			/* add/sub imm, %rsp */
 			ADD_OP(op) {
@@ -375,7 +381,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case 0x88:
 		if (!rex_w)
 			break;
@@ -509,11 +515,20 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 
 		if (op2 == 0x01) {
 
-			if (modrm == 0xca)
-				insn->type = INSN_CLAC;
-			else if (modrm == 0xcb)
-				insn->type = INSN_STAC;
-
+			switch (insn_last_prefix_id(&ins)) {
+			case INAT_PFX_REPE:
+			case INAT_PFX_REPNE:
+				if (modrm == 0xca)
+					/* eretu/erets */
+					insn->type = INSN_CONTEXT_SWITCH;
+				break;
+			default:
+				if (modrm == 0xca)
+					insn->type = INSN_CLAC;
+				else if (modrm == 0xcb)
+					insn->type = INSN_STAC;
+				break;
+			}
 		} else if (op2 >= 0x80 && op2 <= 0x8f) {
 
 			insn->type = INSN_JUMP_CONDITIONAL;
@@ -656,7 +671,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 		}
 
-		/* fallthrough */
+		fallthrough;
 
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
@@ -825,4 +840,10 @@ bool arch_is_retpoline(struct symbol *sym)
 bool arch_is_rethunk(struct symbol *sym)
 {
 	return !strcmp(sym->name, "__x86_return_thunk");
+}
+
+bool arch_is_embedded_insn(struct symbol *sym)
+{
+	return !strcmp(sym->name, "retbleed_return_thunk") ||
+	       !strcmp(sym->name, "srso_safe_ret");
 }

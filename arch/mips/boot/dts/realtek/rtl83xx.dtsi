@@ -22,7 +22,7 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x18000000 0x10000>;
 
-		uart0: uart@2000 {
+		uart0: serial@2000 {
 			compatible = "ns16550a";
 			reg = <0x2000 0x100>;
 
@@ -39,7 +39,7 @@
 			status = "disabled";
 		};
 
-		uart1: uart@2100 {
+		uart1: serial@2100 {
 			compatible = "ns16550a";
 			reg = <0x2100 0x100>;
 

@@ -441,4 +441,5 @@ int cfi_varsize_frob(struct mtd_info *mtd, varsize_frob_t frob,
 
 EXPORT_SYMBOL(cfi_varsize_frob);
 
+MODULE_DESCRIPTION("Common Flash Interface Generic utility functions");
 MODULE_LICENSE("GPL");

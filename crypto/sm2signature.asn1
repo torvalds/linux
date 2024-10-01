@@ -1,4 +1,0 @@
-Sm2Signature ::= SEQUENCE {
-	sig_r	INTEGER ({ sm2_get_signature_r }),
-	sig_s	INTEGER ({ sm2_get_signature_s })
-}

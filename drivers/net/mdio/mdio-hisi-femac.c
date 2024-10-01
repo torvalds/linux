@@ -118,7 +118,7 @@ err_out_free_mdiobus:
 	return ret;
 }
 
-static int hisi_femac_mdio_remove(struct platform_device *pdev)
+static void hisi_femac_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 	struct hisi_femac_mdio_data *data = bus->priv;
@@ -126,8 +126,6 @@ static int hisi_femac_mdio_remove(struct platform_device *pdev)
 	mdiobus_unregister(bus);
 	clk_disable_unprepare(data->clk);
 	mdiobus_free(bus);
-
-	return 0;
 }
 
 static const struct of_device_id hisi_femac_mdio_dt_ids[] = {
@@ -138,7 +136,7 @@ MODULE_DEVICE_TABLE(of, hisi_femac_mdio_dt_ids);
 
 static struct platform_driver hisi_femac_mdio_driver = {
 	.probe = hisi_femac_mdio_probe,
-	.remove = hisi_femac_mdio_remove,
+	.remove_new = hisi_femac_mdio_remove,
 	.driver = {
 		.name = "hisi-femac-mdio",
 		.of_match_table = hisi_femac_mdio_dt_ids,

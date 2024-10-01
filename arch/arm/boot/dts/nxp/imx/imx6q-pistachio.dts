@@ -124,7 +124,7 @@
 
 	backlight_lvds: backlight-lvds {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 50000>;
+		pwms = <&pwm1 0 50000 0>;
 		brightness-levels = <
 			0  /*1  2  3  4  5  6*/  7  8  9
 			10 11 12 13 14 15 16 17 18 19
@@ -196,6 +196,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c1_sgtl5000>;
 		reg = <0x0a>;
+		#sound-dai-cells = <0>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		VDDA-supply = <&reg_1p8v>;
 		VDDIO-supply = <&reg_1p8v>;
@@ -570,7 +571,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
@@ -636,11 +636,11 @@
 };
 
 &usbphy1 {
-	fsl,tx-d-cal = <0x5>;
+	fsl,tx-d-cal = <79>;
 };
 
 &usbphy2 {
-	fsl,tx-d-cal = <0x5>;
+	fsl,tx-d-cal = <79>;
 };
 
 &usdhc1 {

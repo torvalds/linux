@@ -14,10 +14,10 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -543,7 +543,7 @@ static const struct regmap_config wm8741_regmap = {
 
 	.reg_defaults = wm8741_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8741_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
@@ -606,7 +606,7 @@ static int wm8741_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8741_i2c_id[] = {
-	{ "wm8741", 0 },
+	{ "wm8741" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8741_i2c_id);

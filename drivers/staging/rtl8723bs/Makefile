@@ -3,7 +3,6 @@ r8723bs-y = \
 		core/rtw_ap.o \
 		core/rtw_btcoex.o \
 	 	core/rtw_cmd.o \
-		core/rtw_debug.o \
 		core/rtw_efuse.o \
 		core/rtw_io.o \
 		core/rtw_ioctl_set.o \
@@ -12,7 +11,6 @@ r8723bs-y = \
 		core/rtw_mlme_ext.o \
 		core/rtw_pwrctrl.o \
 		core/rtw_recv.o \
-		core/rtw_rf.o \
 		core/rtw_security.o \
 		core/rtw_sta_mgt.o \
 		core/rtw_wlan_util.o \
@@ -62,4 +60,4 @@ r8723bs-y = \
 
 obj-$(CONFIG_RTL8723BS) := r8723bs.o
 
-ccflags-y += -I$(srctree)/$(src)/include -I$(srctree)/$(src)/hal
+ccflags-y += -I$(src)/include -I$(src)/hal

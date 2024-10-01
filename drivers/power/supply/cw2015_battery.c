@@ -491,7 +491,7 @@ static int cw_battery_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		if (cw_battery_valid_time_to_empty(cw_bat))
-			val->intval = cw_bat->time_to_empty;
+			val->intval = cw_bat->time_to_empty * 60;
 		else
 			val->intval = 0;
 		break;
@@ -731,7 +731,7 @@ static int __maybe_unused cw_bat_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cw_bat_pm_ops, cw_bat_suspend, cw_bat_resume);
 
 static const struct i2c_device_id cw_bat_id_table[] = {
-	{ "cw2015", 0 },
+	{ "cw2015" },
 	{ }
 };
 

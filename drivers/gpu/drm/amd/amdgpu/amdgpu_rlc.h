@@ -26,6 +26,8 @@
 
 #include "clearstate_defs.h"
 
+#define AMDGPU_MAX_RLC_INSTANCES	8
+
 /* firmware ID used in rlc toc */
 typedef enum _FIRMWARE_ID_ {
 	FIRMWARE_ID_INVALID					= 0,
@@ -110,6 +112,53 @@ typedef enum _SOC21_FIRMWARE_ID_ {
     SOC21_FIRMWARE_ID_MAX                         = 37
 } SOC21_FIRMWARE_ID;
 
+typedef enum _SOC24_FIRMWARE_ID_ {
+    SOC24_FIRMWARE_ID_INVALID                     = 0,
+    SOC24_FIRMWARE_ID_RLC_G_UCODE                 = 1,
+    SOC24_FIRMWARE_ID_RLC_TOC                     = 2,
+    SOC24_FIRMWARE_ID_RLCG_SCRATCH                = 3,
+    SOC24_FIRMWARE_ID_RLC_SRM_ARAM                = 4,
+    SOC24_FIRMWARE_ID_RLC_P_UCODE                 = 5,
+    SOC24_FIRMWARE_ID_RLC_V_UCODE                 = 6,
+    SOC24_FIRMWARE_ID_RLX6_UCODE                  = 7,
+    SOC24_FIRMWARE_ID_RLX6_UCODE_CORE1            = 8,
+    SOC24_FIRMWARE_ID_RLX6_DRAM_BOOT              = 9,
+    SOC24_FIRMWARE_ID_RLX6_DRAM_BOOT_CORE1        = 10,
+    SOC24_FIRMWARE_ID_SDMA_UCODE_TH0              = 11,
+    SOC24_FIRMWARE_ID_SDMA_UCODE_TH1              = 12,
+    SOC24_FIRMWARE_ID_CP_PFP                      = 13,
+    SOC24_FIRMWARE_ID_CP_ME                       = 14,
+    SOC24_FIRMWARE_ID_CP_MEC                      = 15,
+    SOC24_FIRMWARE_ID_RS64_MES_P0                 = 16,
+    SOC24_FIRMWARE_ID_RS64_MES_P1                 = 17,
+    SOC24_FIRMWARE_ID_RS64_PFP                    = 18,
+    SOC24_FIRMWARE_ID_RS64_ME                     = 19,
+    SOC24_FIRMWARE_ID_RS64_MEC                    = 20,
+    SOC24_FIRMWARE_ID_RS64_MES_P0_STACK           = 21,
+    SOC24_FIRMWARE_ID_RS64_MES_P1_STACK           = 22,
+    SOC24_FIRMWARE_ID_RS64_PFP_P0_STACK           = 23,
+    SOC24_FIRMWARE_ID_RS64_PFP_P1_STACK           = 24,
+    SOC24_FIRMWARE_ID_RS64_ME_P0_STACK            = 25,
+    SOC24_FIRMWARE_ID_RS64_ME_P1_STACK            = 26,
+    SOC24_FIRMWARE_ID_RS64_MEC_P0_STACK           = 27,
+    SOC24_FIRMWARE_ID_RS64_MEC_P1_STACK           = 28,
+    SOC24_FIRMWARE_ID_RS64_MEC_P2_STACK           = 29,
+    SOC24_FIRMWARE_ID_RS64_MEC_P3_STACK           = 30,
+    SOC24_FIRMWARE_ID_RLC_SRM_DRAM_SR             = 31,
+    SOC24_FIRMWARE_ID_RLCG_SCRATCH_SR             = 32,
+    SOC24_FIRMWARE_ID_RLCP_SCRATCH_SR             = 33,
+    SOC24_FIRMWARE_ID_RLCV_SCRATCH_SR             = 34,
+    SOC24_FIRMWARE_ID_RLX6_DRAM_SR                = 35,
+    SOC24_FIRMWARE_ID_RLX6_DRAM_SR_CORE1          = 36,
+    SOC24_FIRMWARE_ID_RLCDEBUGLOG                 = 37,
+    SOC24_FIRMWARE_ID_SRIOV_DEBUG                 = 38,
+    SOC24_FIRMWARE_ID_SRIOV_CSA_RLC               = 39,
+    SOC24_FIRMWARE_ID_SRIOV_CSA_SDMA              = 40,
+    SOC24_FIRMWARE_ID_SRIOV_CSA_CP                = 41,
+    SOC24_FIRMWARE_ID_UMF_ZONE_PAD                = 42,
+    SOC24_FIRMWARE_ID_MAX                         = 43
+} SOC24_FIRMWARE_ID;
+
 typedef struct _RLC_TABLE_OF_CONTENT {
 	union {
 		unsigned int	DW0;
@@ -153,6 +202,33 @@ typedef struct _RLC_TABLE_OF_CONTENT {
 	};
 } RLC_TABLE_OF_CONTENT;
 
+typedef struct _RLC_TABLE_OF_CONTENT_V2 {
+	union {
+		unsigned int    DW0;
+		struct {
+			uint32_t offset         : 25;
+			uint32_t id             : 7;
+		};
+	};
+
+	union {
+		unsigned int    DW1;
+		struct {
+			uint32_t reserved0              : 1;
+			uint32_t reserved1              : 1;
+			uint32_t reserved2              : 1;
+			uint32_t memory_destination     : 2;
+			uint32_t vfflr_image_code       : 4;
+			uint32_t reserved9              : 1;
+			uint32_t reserved10             : 1;
+			uint32_t reserved11             : 1;
+			uint32_t size_x16               : 1;
+			uint32_t reserved13             : 1;
+			uint32_t size                   : 18;
+		};
+	};
+} RLC_TABLE_OF_CONTENT_V2;
+
 #define RLC_TOC_MAX_SIZE		64
 
 struct amdgpu_rlc_funcs {
@@ -167,7 +243,7 @@ struct amdgpu_rlc_funcs {
 	void (*stop)(struct amdgpu_device *adev);
 	void (*reset)(struct amdgpu_device *adev);
 	void (*start)(struct amdgpu_device *adev);
-	void (*update_spm_vmid)(struct amdgpu_device *adev, unsigned vmid);
+	void (*update_spm_vmid)(struct amdgpu_device *adev, struct amdgpu_ring *ring, unsigned vmid);
 	bool (*is_rlcg_access_range)(struct amdgpu_device *adev, uint32_t reg);
 };
 
@@ -201,7 +277,7 @@ struct amdgpu_rlc {
 	u32                     cp_table_size;
 
 	/* safe mode for updating CG/PG state */
-	bool in_safe_mode[8];
+	bool in_safe_mode[AMDGPU_MAX_RLC_INSTANCES];
 	const struct amdgpu_rlc_funcs *funcs;
 
 	/* for firmware data */
@@ -257,7 +333,7 @@ struct amdgpu_rlc {
 
 	bool rlcg_reg_access_supported;
 	/* registers for rlcg indirect reg access */
-	struct amdgpu_rlcg_reg_access_ctrl reg_access_ctrl;
+	struct amdgpu_rlcg_reg_access_ctrl reg_access_ctrl[AMDGPU_MAX_RLC_INSTANCES];
 };
 
 void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev, int xcc_id);

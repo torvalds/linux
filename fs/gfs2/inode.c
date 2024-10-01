@@ -185,8 +185,9 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		set_bit(GLF_INSTANTIATE_NEEDED, &ip->i_gl->gl_flags);
 
 		/* Lowest possible timestamp; will be overwritten in gfs2_dinode_in. */
-		inode->i_atime.tv_sec = 1LL << (8 * sizeof(inode->i_atime.tv_sec) - 1);
-		inode->i_atime.tv_nsec = 0;
+		inode_set_atime(inode,
+				1LL << (8 * sizeof(inode_get_atime_sec(inode)) - 1),
+				0);
 
 		glock_set_object(ip->i_gl, ip);
 
@@ -265,21 +266,28 @@ fail_iput:
 }
 
 
-struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
+/**
+ * gfs2_lookup_meta - Look up an inode in a metadata directory
+ * @dip: The directory
+ * @name: The name of the inode
+ */
+struct inode *gfs2_lookup_meta(struct inode *dip, const char *name)
 {
 	struct qstr qstr;
 	struct inode *inode;
+
 	gfs2_str2qstr(&qstr, name);
 	inode = gfs2_lookupi(dip, &qstr, 1);
-	/* gfs2_lookupi has inconsistent callers: vfs
-	 * related routines expect NULL for no entry found,
-	 * gfs2_lookup_simple callers expect ENOENT
-	 * and do not check for NULL.
+	if (IS_ERR_OR_NULL(inode))
+		return inode ? inode : ERR_PTR(-ENOENT);
+
+	/*
+	 * Must not call back into the filesystem when allocating
+	 * pages in the metadata inode's address space.
 	 */
-	if (inode == NULL)
-		return ERR_PTR(-ENOENT);
-	else
-		return inode;
+	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+
+	return inode;
 }
 
 
@@ -411,7 +419,7 @@ static int alloc_dinode(struct gfs2_inode *ip, u32 flags, unsigned *dblocks)
 	if (error)
 		goto out_ipreserv;
 
-	error = gfs2_alloc_blocks(ip, &ip->i_no_addr, dblocks, 1, &ip->i_generation);
+	error = gfs2_alloc_blocks(ip, &ip->i_no_addr, dblocks, 1);
 	if (error)
 		goto out_trans_end;
 
@@ -690,7 +698,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	set_nlink(inode, S_ISDIR(mode) ? 2 : 1);
 	inode->i_rdev = dev;
 	inode->i_size = size;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	munge_mode_uid_gid(dip, inode);
 	check_and_update_goal(dip);
 	ip->i_goal = dip->i_goal;
@@ -1029,7 +1037,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 
 	gfs2_trans_add_meta(ip->i_gl, dibh);
 	inc_nlink(&ip->i_inode);
-	ip->i_inode.i_ctime = current_time(&ip->i_inode);
+	inode_set_ctime_current(&ip->i_inode);
 	ihold(inode);
 	d_instantiate(dentry, inode);
 	mark_inode_dirty(inode);
@@ -1114,7 +1122,7 @@ static int gfs2_unlink_inode(struct gfs2_inode *dip,
 		return error;
 
 	ip->i_entries = 0;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	if (S_ISDIR(inode->i_mode))
 		clear_nlink(inode);
 	else
@@ -1371,7 +1379,7 @@ static int update_moved_ino(struct gfs2_inode *ip, struct gfs2_inode *ndip,
 	if (dir_rename)
 		return gfs2_dir_mvino(ip, &gfs2_qdotdot, ndip, DT_DIR);
 
-	ip->i_inode.i_ctime = current_time(&ip->i_inode);
+	inode_set_ctime_current(&ip->i_inode);
 	mark_inode_dirty_sync(&ip->i_inode);
 	return 0;
 }
@@ -1860,16 +1868,24 @@ out:
 int gfs2_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
+	int may_not_block = mask & MAY_NOT_BLOCK;
 	struct gfs2_inode *ip;
 	struct gfs2_holder i_gh;
+	struct gfs2_glock *gl;
 	int error;
 
 	gfs2_holder_mark_uninitialized(&i_gh);
 	ip = GFS2_I(inode);
-	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
-		if (mask & MAY_NOT_BLOCK)
+	gl = rcu_dereference_check(ip->i_gl, !may_not_block);
+	if (unlikely(!gl)) {
+		/* inode is getting torn down, must be RCU mode */
+		WARN_ON_ONCE(!may_not_block);
+		return -ECHILD;
+        }
+	if (gfs2_glock_is_locked_by_me(gl) == NULL) {
+		if (may_not_block)
 			return -ECHILD;
-		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
+		error = gfs2_glock_nq_init(gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 		if (error)
 			return error;
 	}
@@ -1914,7 +1930,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	kuid_t ouid, nuid;
 	kgid_t ogid, ngid;
 	int error;
-	struct gfs2_alloc_parms ap;
+	struct gfs2_alloc_parms ap = {};
 
 	ouid = inode->i_uid;
 	ogid = inode->i_gid;
@@ -2071,7 +2087,7 @@ static int gfs2_getattr(struct mnt_idmap *idmap,
 				  STATX_ATTR_IMMUTABLE |
 				  STATX_ATTR_NODUMP);
 
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
@@ -2139,8 +2155,7 @@ loff_t gfs2_seek_hole(struct file *file, loff_t offset)
 	return vfs_setpos(file, ret, inode->i_sb->s_maxbytes);
 }
 
-static int gfs2_update_time(struct inode *inode, struct timespec64 *time,
-			    int flags)
+static int gfs2_update_time(struct inode *inode, int flags)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_glock *gl = ip->i_gl;
@@ -2148,14 +2163,15 @@ static int gfs2_update_time(struct inode *inode, struct timespec64 *time,
 	int error;
 
 	gh = gfs2_glock_is_locked_by_me(gl);
-	if (gh && !gfs2_glock_is_held_excl(gl)) {
+	if (gh && gl->gl_state != LM_ST_EXCLUSIVE) {
 		gfs2_glock_dq(gh);
 		gfs2_holder_reinit(LM_ST_EXCLUSIVE, 0, gh);
 		error = gfs2_glock_nq(gh);
 		if (error)
 			return error;
 	}
-	return generic_update_time(inode, time, flags);
+	generic_update_time(inode, flags);
+	return 0;
 }
 
 static const struct inode_operations gfs2_file_iops = {

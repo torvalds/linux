@@ -20,7 +20,7 @@ TRACE_EVENT(sync_timeline,
 	),
 
 	TP_fast_assign(
-			__assign_str(name, timeline->name);
+			__assign_str(name);
 			__entry->value = timeline->value;
 	),
 

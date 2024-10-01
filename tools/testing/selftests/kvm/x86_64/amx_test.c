@@ -6,8 +6,6 @@
  *
  * Tests for amx #NM exception and save/restore.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -221,7 +219,7 @@ int main(int argc, char *argv[])
 	vm_vaddr_t amx_cfg, tiledata, xstate;
 	struct ucall uc;
 	u32 amx_offset;
-	int stage, ret;
+	int ret;
 
 	/*
 	 * Note, all off-by-default features must be enabled before anything
@@ -246,8 +244,6 @@ int main(int argc, char *argv[])
 	vcpu_regs_get(vcpu, &regs1);
 
 	/* Register #NM handler */
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
 	vm_install_exception_handler(vm, NM_VECTOR, guest_nm_handler);
 
 	/* amx cfg for guest_code */
@@ -263,7 +259,7 @@ int main(int argc, char *argv[])
 	memset(addr_gva2hva(vm, xstate), 0, PAGE_SIZE * DIV_ROUND_UP(XSAVE_SIZE, PAGE_SIZE));
 	vcpu_args_set(vcpu, 3, amx_cfg, tiledata, xstate);
 
-	for (stage = 1; ; stage++) {
+	for (;;) {
 		vcpu_run(vcpu);
 		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
@@ -296,7 +292,7 @@ int main(int argc, char *argv[])
 				void *tiles_data = (void *)addr_gva2hva(vm, tiledata);
 				/* Only check TMM0 register, 1 tile */
 				ret = memcmp(amx_start, tiles_data, TILE_SIZE);
-				TEST_ASSERT(ret == 0, "memcmp failed, ret=%d\n", ret);
+				TEST_ASSERT(ret == 0, "memcmp failed, ret=%d", ret);
 				kvm_x86_state_cleanup(state);
 				break;
 			case 9:

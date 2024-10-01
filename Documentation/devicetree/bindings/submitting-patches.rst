@@ -15,6 +15,11 @@ I. For patch submitters
 
        "dt-bindings: <binding dir>: ..."
 
+     Few subsystems, like ASoC, media, regulators and SPI, expect reverse order
+     of the prefixes::
+
+       "<binding dir>: dt-bindings: ..."
+
      The 80 characters of the subject are precious. It is recommended to not
      use "Documentation" or "doc" because that is implied. All bindings are
      docs. Repeating "binding" again should also be avoided.
@@ -42,28 +47,18 @@ I. For patch submitters
      the code implementing the binding.
 
   6) Any compatible strings used in a chip or board DTS file must be
-     previously documented in the corresponding DT binding text file
+     previously documented in the corresponding DT binding file
      in Documentation/devicetree/bindings.  This rule applies even if
      the Linux device driver does not yet match on the compatible
      string.  [ checkpatch will emit warnings if this step is not
      followed as of commit bff5da4335256513497cc8c79f9a9d1665e09864
      ("checkpatch: add DT compatible string documentation checks"). ]
 
-  7) The wildcard "<chip>" may be used in compatible strings, as in
-     the following example:
-
-         - compatible: Must contain '"nvidia,<chip>-pcie",
-           "nvidia,tegra20-pcie"' where <chip> is tegra30, tegra132, ...
-
-     As in the above example, the known values of "<chip>" should be
-     documented if it is used.
-
-  8) If a documented compatible string is not yet matched by the
+  7) If a documented compatible string is not yet matched by the
      driver, the documentation should also include a compatible
-     string that is matched by the driver (as in the "nvidia,tegra20-pcie"
-     example above).
+     string that is matched by the driver.
 
-  9) Bindings are actively used by multiple projects other than the Linux
+  8) Bindings are actively used by multiple projects other than the Linux
      Kernel, extra care and consideration may need to be taken when making changes
      to existing bindings.
 

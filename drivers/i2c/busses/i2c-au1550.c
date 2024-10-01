@@ -81,11 +81,10 @@ static int wait_ack(struct i2c_au1550_data *adap)
 	return 0;
 }
 
-static int wait_master_done(struct i2c_au1550_data *adap)
+static int wait_controller_done(struct i2c_au1550_data *adap)
 {
 	int i;
 
-	/* Wait for Master Done. */
 	for (i = 0; i < 2 * adap->xfer_timeout; i++) {
 		if ((RD(adap, PSC_SMBEVNT) & PSC_SMBEVNT_MD) != 0)
 			return 0;
@@ -120,12 +119,12 @@ do_address(struct i2c_au1550_data *adap, unsigned int addr, int rd, int q)
 	if (q)
 		addr |= PSC_SMBTXRX_STP;
 
-	/* Put byte into fifo, start up master. */
+	/* Put byte into fifo, start up controller */
 	WR(adap, PSC_SMBTXRX, addr);
 	WR(adap, PSC_SMBPCR, PSC_SMBPCR_MS);
 	if (wait_ack(adap))
 		return -EIO;
-	return (q) ? wait_master_done(adap) : 0;
+	return (q) ? wait_controller_done(adap) : 0;
 }
 
 static int wait_for_rx_byte(struct i2c_au1550_data *adap, unsigned char *out)
@@ -175,7 +174,7 @@ static int i2c_read(struct i2c_au1550_data *adap, unsigned char *buf,
 
 	/* The last byte has to indicate transfer done. */
 	WR(adap, PSC_SMBTXRX, PSC_SMBTXRX_STP);
-	if (wait_master_done(adap))
+	if (wait_controller_done(adap))
 		return -EIO;
 
 	buf[i] = (unsigned char)(RD(adap, PSC_SMBTXRX) & 0xff);
@@ -204,7 +203,7 @@ static int i2c_write(struct i2c_au1550_data *adap, unsigned char *buf,
 	data = buf[i];
 	data |= PSC_SMBTXRX_STP;
 	WR(adap, PSC_SMBTXRX, data);
-	if (wait_master_done(adap))
+	if (wait_controller_done(adap))
 		return -EIO;
 	return 0;
 }
@@ -246,8 +245,8 @@ static u32 au1550_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm au1550_algo = {
-	.master_xfer	= au1550_xfer,
-	.functionality	= au1550_func,
+	.xfer = au1550_xfer,
+	.functionality = au1550_func,
 };
 
 static void i2c_au1550_setup(struct i2c_au1550_data *priv)
@@ -342,7 +341,6 @@ static void i2c_au1550_remove(struct platform_device *pdev)
 	i2c_au1550_disable(priv);
 }
 
-#ifdef CONFIG_PM
 static int i2c_au1550_suspend(struct device *dev)
 {
 	struct i2c_au1550_data *priv = dev_get_drvdata(dev);
@@ -361,21 +359,13 @@ static int i2c_au1550_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops i2c_au1550_pmops = {
-	.suspend	= i2c_au1550_suspend,
-	.resume		= i2c_au1550_resume,
-};
-
-#define AU1XPSC_SMBUS_PMOPS (&i2c_au1550_pmops)
-
-#else
-#define AU1XPSC_SMBUS_PMOPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(i2c_au1550_pmops,
+				i2c_au1550_suspend, i2c_au1550_resume);
 
 static struct platform_driver au1xpsc_smbus_driver = {
 	.driver = {
 		.name	= "au1xpsc_smbus",
-		.pm	= AU1XPSC_SMBUS_PMOPS,
+		.pm	= pm_sleep_ptr(&i2c_au1550_pmops),
 	},
 	.probe		= i2c_au1550_probe,
 	.remove_new	= i2c_au1550_remove,

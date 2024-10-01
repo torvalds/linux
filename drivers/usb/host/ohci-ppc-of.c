@@ -15,9 +15,10 @@
  */
 
 #include <linux/signal.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 static int
 ohci_ppc_of_start(struct usb_hcd *hcd)
@@ -201,10 +202,6 @@ static const struct of_device_id ohci_hcd_ppc_of_match[] = {
 	},
 #endif
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF_LE
-	{
-		.name = "usb",
-		.compatible = "ohci-littledian",
-	},
 	{
 		.name = "usb",
 		.compatible = "ohci-le",

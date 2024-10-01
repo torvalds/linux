@@ -82,7 +82,7 @@
 		};
 	};
 
-	reg_axp_ipsout: axp_ipsout {
+	reg_axp_ipsout: regulator-axp-ipsout {
 		compatible = "regulator-fixed";
 		regulator-name = "axp-ipsout";
 		regulator-min-microvolt = <5000000>;

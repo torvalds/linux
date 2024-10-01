@@ -27,10 +27,10 @@
 #include <linux/scatterlist.h>
 #include <linux/ctype.h>
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/skcipher.h>
+#include <crypto/utils.h>
 
 #include "encrypted.h"
 #include "ecryptfs_format.h"
@@ -1040,4 +1040,5 @@ static void __exit cleanup_encrypted(void)
 late_initcall(init_encrypted);
 module_exit(cleanup_encrypted);
 
+MODULE_DESCRIPTION("Encrypted key type");
 MODULE_LICENSE("GPL");

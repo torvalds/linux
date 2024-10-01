@@ -8,7 +8,7 @@
 #include "sun50i-a64-sopine.dtsi"
 
 / {
-	model = "SoPine with baseboard";
+	model = "Pine64 SOPINE on Baseboard carrier board";
 	compatible = "pine64,sopine-baseboard", "pine64,sopine",
 		     "allwinner,sun50i-a64";
 

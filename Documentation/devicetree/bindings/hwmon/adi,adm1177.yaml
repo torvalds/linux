@@ -27,7 +27,7 @@ properties:
 
   shunt-resistor-micro-ohms:
     description:
-      The value of curent sense resistor in microohms. If not provided,
+      The value of current sense resistor in microohms. If not provided,
       the current reading and overcurrent alert is disabled.
 
   adi,shutdown-threshold-microamp:
@@ -46,7 +46,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: hwmon-common.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

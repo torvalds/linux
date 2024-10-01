@@ -242,61 +242,6 @@
 			status = "okay";
 		};
 
-		prcmu@80157000 {
-			ab8500 {
-				gpio {
-				};
-
-				phy {
-					pinctrl-names = "default", "sleep";
-					pinctrl-0 = <&usb_a_1_default>;
-					pinctrl-1 = <&usb_a_1_sleep>;
-				};
-
-				regulator {
-					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
-						regulator-name = "V-DISPLAY";
-					};
-
-					ab8500_ldo_aux2_reg: ab8500_ldo_aux2 {
-						regulator-name = "V-eMMC1";
-					};
-
-					ab8500_ldo_aux3_reg: ab8500_ldo_aux3 {
-						regulator-name = "V-MMC-SD";
-					};
-
-					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
-						regulator-name = "V-INTCORE";
-					};
-
-					ab8500_ldo_tvout_reg: ab8500_ldo_tvout {
-						regulator-name = "V-TVOUT";
-					};
-
-					ab8500_ldo_audio_reg: ab8500_ldo_audio {
-						regulator-name = "V-AUD";
-					};
-
-					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
-						regulator-name = "V-AMIC1";
-					};
-
-					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
-						regulator-name = "V-AMIC2";
-					};
-
-					ab8500_ldo_dmic_reg: ab8500_ldo_dmic {
-						regulator-name = "V-DMIC";
-					};
-
-					ab8500_ldo_ana_reg: ab8500_ldo_ana {
-						regulator-name = "V-CSI/DSI";
-					};
-				};
-			};
-		};
-
 		pinctrl {
 			sdi0 {
 				sdi0_default_mode: sdi0_default {

@@ -177,6 +177,8 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 			flags |= CIP_JUMBO_PAYLOAD;
 		if (oxfw->quirks & SND_OXFW_QUIRK_WRONG_DBS)
 			flags |= CIP_WRONG_DBS;
+		if (oxfw->quirks & SND_OXFW_QUIRK_DBC_IS_TOTAL_PAYLOAD_QUADLETS)
+			flags |= CIP_DBC_IS_END_EVENT | CIP_DBC_IS_PAYLOAD_QUADLETS;
 	} else {
 		conn = &oxfw->in_conn;
 		c_dir = CMP_INPUT;
@@ -486,26 +488,57 @@ int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
 				enum avc_general_plug_dir dir,
 				struct snd_oxfw_stream_formation *formation)
 {
-	u8 *format;
-	unsigned int len;
 	int err;
 
-	len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
-	format = kmalloc(len, GFP_KERNEL);
-	if (format == NULL)
-		return -ENOMEM;
+	if (!(oxfw->quirks & SND_OXFW_QUIRK_STREAM_FORMAT_INFO_UNSUPPORTED)) {
+		u8 *format;
+		unsigned int len;
 
-	err = avc_stream_get_format_single(oxfw->unit, dir, 0, format, &len);
-	if (err < 0)
-		goto end;
-	if (len < 3) {
-		err = -EIO;
-		goto end;
+		len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
+		format = kmalloc(len, GFP_KERNEL);
+		if (format == NULL)
+			return -ENOMEM;
+
+		err = avc_stream_get_format_single(oxfw->unit, dir, 0, format, &len);
+		if (err >= 0) {
+			if (len < 3)
+				err = -EIO;
+			else
+				err = snd_oxfw_stream_parse_format(format, formation);
+		}
+
+		kfree(format);
+	} else {
+		// Miglia Harmony Audio does not support Extended Stream Format Information
+		// command. Use the duplicated hard-coded format, instead.
+		unsigned int rate;
+		u8 *const *formats;
+		int i;
+
+		err = avc_general_get_sig_fmt(oxfw->unit, &rate, dir, 0);
+		if (err < 0)
+			return err;
+
+		if (dir == AVC_GENERAL_PLUG_DIR_IN)
+			formats = oxfw->rx_stream_formats;
+		else
+			formats = oxfw->tx_stream_formats;
+
+		for (i = 0; (i < SND_OXFW_STREAM_FORMAT_ENTRIES); ++i) {
+			if (!formats[i])
+				continue;
+
+			err = snd_oxfw_stream_parse_format(formats[i], formation);
+			if (err < 0)
+				continue;
+
+			if (formation->rate == rate)
+				break;
+		}
+		if (i == SND_OXFW_STREAM_FORMAT_ENTRIES)
+			return -EIO;
 	}
 
-	err = snd_oxfw_stream_parse_format(format, formation);
-end:
-	kfree(format);
 	return err;
 }
 
@@ -515,7 +548,7 @@ end:
  * in AV/C Stream Format Information Specification 1.1 (Apr 2005, 1394TA)
  * Also 'Clause 12 AM824 sequence adaption layers' in IEC 61883-6:2005
  */
-int snd_oxfw_stream_parse_format(u8 *format,
+int snd_oxfw_stream_parse_format(const u8 *format,
 				 struct snd_oxfw_stream_formation *formation)
 {
 	unsigned int i, e, channels, type;
@@ -600,14 +633,33 @@ assume_stream_formats(struct snd_oxfw *oxfw, enum avc_general_plug_dir dir,
 	unsigned int i, eid;
 	int err;
 
-	/* get format at current sampling rate */
-	err = avc_stream_get_format_single(oxfw->unit, dir, pid, buf, len);
-	if (err < 0) {
-		dev_err(&oxfw->unit->device,
-		"fail to get current stream format for isoc %s plug %d:%d\n",
-			(dir == AVC_GENERAL_PLUG_DIR_IN) ? "in" : "out",
-			pid, err);
-		goto end;
+	// get format at current sampling rate.
+	if (!(oxfw->quirks & SND_OXFW_QUIRK_STREAM_FORMAT_INFO_UNSUPPORTED)) {
+		err = avc_stream_get_format_single(oxfw->unit, dir, pid, buf, len);
+		if (err < 0) {
+			dev_err(&oxfw->unit->device,
+				"fail to get current stream format for isoc %s plug %d:%d\n",
+				(dir == AVC_GENERAL_PLUG_DIR_IN) ? "in" : "out",
+				pid, err);
+			goto end;
+		}
+	} else {
+		// Miglia Harmony Audio does not support Extended Stream Format Information
+		// command. Use the hard-coded format, instead.
+		buf[0] = 0x90;
+		buf[1] = 0x40;
+		buf[2] = avc_stream_rate_table[0];
+		buf[3] = 0x00;
+		buf[4] = 0x01;
+
+		if (dir == AVC_GENERAL_PLUG_DIR_IN)
+			buf[5] = 0x08;
+		else
+			buf[5] = 0x02;
+
+		buf[6] = 0x06;
+
+		*len = 7;
 	}
 
 	/* parse and set stream format */

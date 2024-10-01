@@ -31,7 +31,7 @@
 #include <linux/completion.h>
 #include <crypto/hash_info.h>
 #include <crypto/hash.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 
 #include <linux/fscrypt.h>
 
@@ -156,13 +156,6 @@
 #define UBIFS_HASH_ARR_SZ 0
 #define UBIFS_HMAC_ARR_SZ 0
 #endif
-
-/*
- * The UBIFS sysfs directory name pattern and maximum name length (3 for "ubi"
- * + 1 for "_" and plus 2x2 for 2 UBI numbers and 1 for the trailing zero byte.
- */
-#define UBIFS_DFS_DIR_NAME "ubi%d_%d"
-#define UBIFS_DFS_DIR_LEN  (3 + 1 + 2*2 + 1)
 
 /*
  * Lockdep classes for UBIFS inode @ui_mutex.
@@ -923,8 +916,6 @@ struct ubifs_budget_req {
  * @rb: rb-tree node of rb-tree of orphans sorted by inode number
  * @list: list head of list of orphans in order added
  * @new_list: list head of list of orphans added since the last commit
- * @child_list: list of xattr children if this orphan hosts xattrs, list head
- * if this orphan is a xattr, not used otherwise.
  * @cnext: next orphan to commit
  * @dnext: next orphan to delete
  * @inum: inode number
@@ -936,7 +927,6 @@ struct ubifs_orphan {
 	struct rb_node rb;
 	struct list_head list;
 	struct list_head new_list;
-	struct list_head child_list;
 	struct ubifs_orphan *cnext;
 	struct ubifs_orphan *dnext;
 	ino_t inum;
@@ -1047,6 +1037,8 @@ struct ubifs_debug_info;
  * @bg_bud_bytes: number of bud bytes when background commit is initiated
  * @old_buds: buds to be released after commit ends
  * @max_bud_cnt: maximum number of buds
+ * @need_wait_space: Non %0 means space reservation tasks need to wait in queue
+ * @reserve_space_wq: wait queue to sleep on if @need_wait_space is not %0
  *
  * @commit_sem: synchronizes committer with other processes
  * @cmt_state: commit state
@@ -1305,6 +1297,8 @@ struct ubifs_info {
 	long long bg_bud_bytes;
 	struct list_head old_buds;
 	int max_bud_cnt;
+	atomic_t need_wait_space;
+	wait_queue_head_t reserve_space_wq;
 
 	struct rw_semaphore commit_sem;
 	int cmt_state;
@@ -1799,7 +1793,7 @@ int ubifs_consolidate_log(struct ubifs_info *c);
 /* journal.c */
 int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		     const struct fscrypt_name *nm, const struct inode *inode,
-		     int deletion, int xent);
+		     int deletion, int xent, int in_orphan);
 int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 			 const union ubifs_key *key, const void *buf, int len);
 int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode);
@@ -1816,7 +1810,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct inode *new_dir,
 		     const struct inode *new_inode,
 		     const struct fscrypt_name *new_nm,
-		     const struct inode *whiteout, int sync);
+		     const struct inode *whiteout, int sync, int delete_orphan);
 int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 		       loff_t old_size, loff_t new_size);
 int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
@@ -1903,6 +1897,7 @@ struct ubifs_znode *ubifs_tnc_postorder_next(const struct ubifs_info *c,
 					     struct ubifs_znode *znode);
 long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
 			       struct ubifs_znode *zr);
+void ubifs_destroy_tnc_tree(struct ubifs_info *c);
 struct ubifs_znode *ubifs_load_znode(struct ubifs_info *c,
 				     struct ubifs_zbranch *zbr,
 				     struct ubifs_znode *parent, int iip);
@@ -2027,7 +2022,7 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 int ubifs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr);
-int ubifs_update_time(struct inode *inode, struct timespec64 *time, int flags);
+int ubifs_update_time(struct inode *inode, int flags);
 
 /* dir.c */
 struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
@@ -2043,7 +2038,7 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 			size_t size);
 
 #ifdef CONFIG_UBIFS_FS_XATTR
-extern const struct xattr_handler *ubifs_xattr_handlers[];
+extern const struct xattr_handler * const ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum);
 int ubifs_purge_xattrs(struct inode *host);

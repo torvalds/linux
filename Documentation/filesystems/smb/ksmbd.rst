@@ -13,7 +13,7 @@ KSMBD architecture
 The subset of performance related operations belong in kernelspace and
 the other subset which belong to operations which are not really related with
 performance in userspace. So, DCE/RPC management that has historically resulted
-into number of buffer overflow issues and dangerous security bugs and user
+into a number of buffer overflow issues and dangerous security bugs and user
 account management are implemented in user space as ksmbd.mountd.
 File operations that are related with performance (open/read/write/close etc.)
 in kernel space (ksmbd). This also allows for easier integration with VFS
@@ -24,8 +24,8 @@ ksmbd (kernel daemon)
 
 When the server daemon is started, It starts up a forker thread
 (ksmbd/interface name) at initialization time and open a dedicated port 445
-for listening to SMB requests. Whenever new clients make request, Forker
-thread will accept the client connection and fork a new thread for dedicated
+for listening to SMB requests. Whenever new clients make a request, the Forker
+thread will accept the client connection and fork a new thread for a dedicated
 communication channel between the client and the server. It allows for parallel
 processing of SMB requests(commands) from clients as well as allowing for new
 clients to make new connections. Each instance is named ksmbd/1~n(port number)
@@ -34,12 +34,12 @@ thread can decide to pass through the commands to the user space (ksmbd.mountd),
 currently DCE/RPC commands are identified to be handled through the user space.
 To further utilize the linux kernel, it has been chosen to process the commands
 as workitems and to be executed in the handlers of the ksmbd-io kworker threads.
-It allows for multiplexing of the handlers as the kernel take care of initiating
+It allows for multiplexing of the handlers as the kernel takes care of initiating
 extra worker threads if the load is increased and vice versa, if the load is
-decreased it destroys the extra worker threads. So, after connection is
-established with client. Dedicated ksmbd/1..n(port number) takes complete
+decreased it destroys the extra worker threads. So, after the connection is
+established with the client. Dedicated ksmbd/1..n(port number) takes complete
 ownership of receiving/parsing of SMB commands. Each received command is worked
-in parallel i.e., There can be multiple clients commands which are worked in
+in parallel i.e., there can be multiple client commands which are worked in
 parallel. After receiving each command a separated kernel workitem is prepared
 for each command which is further queued to be handled by ksmbd-io kworkers.
 So, each SMB workitem is queued to the kworkers. This allows the benefit of load
@@ -49,9 +49,9 @@ performance by handling client commands in parallel.
 ksmbd.mountd (user space daemon)
 --------------------------------
 
-ksmbd.mountd is userspace process to, transfer user account and password that
+ksmbd.mountd is a userspace process to, transfer the user account and password that
 are registered using ksmbd.adduser (part of utils for user space). Further it
-allows sharing information parameters that parsed from smb.conf to ksmbd in
+allows sharing information parameters that are parsed from smb.conf to ksmbd in
 kernel. For the execution part it has a daemon which is continuously running
 and connected to the kernel interface using netlink socket, it waits for the
 requests (dcerpc and share/user info). It handles RPC calls (at a minimum few
@@ -73,15 +73,14 @@ Auto Negotiation               Supported.
 Compound Request               Supported.
 Oplock Cache Mechanism         Supported.
 SMB2 leases(v1 lease)          Supported.
-Directory leases(v2 lease)     Planned for future.
+Directory leases(v2 lease)     Supported.
 Multi-credits                  Supported.
 NTLM/NTLMv2                    Supported.
 HMAC-SHA256 Signing            Supported.
 Secure negotiate               Supported.
 Signing Update                 Supported.
 Pre-authentication integrity   Supported.
-SMB3 encryption(CCM, GCM)      Supported. (CCM and GCM128 supported, GCM256 in
-                               progress)
+SMB3 encryption(CCM, GCM)      Supported. (CCM/GCM128 and CCM/GCM256 supported)
 SMB direct(RDMA)               Supported.
 SMB3 Multi-channel             Partially Supported. Planned to implement
                                replay/retry mechanisms for future.
@@ -112,6 +111,10 @@ DCE/RPC support                Partially Supported. a few calls(NetShareEnumAll,
                                for Witness protocol e.g.)
 ksmbd/nfsd interoperability    Planned for future. The features that ksmbd
                                support are Leases, Notify, ACLs and Share modes.
+SMB3.1.1 Compression           Planned for future.
+SMB3.1.1 over QUIC             Planned for future.
+Signing/Encryption over RDMA   Planned for future.
+SMB3.1.1 GMAC signing support  Planned for future.
 ============================== =================================================
 
 
@@ -121,7 +124,7 @@ How to run
 1. Download ksmbd-tools(https://github.com/cifsd-team/ksmbd-tools/releases) and
    compile them.
 
-   - Refer README(https://github.com/cifsd-team/ksmbd-tools/blob/master/README.md)
+   - Refer to README(https://github.com/cifsd-team/ksmbd-tools/blob/master/README.md)
      to know how to use ksmbd.mountd/adduser/addshare/control utils
 
      $ ./autogen.sh
@@ -130,7 +133,7 @@ How to run
 
 2. Create /usr/local/etc/ksmbd/ksmbd.conf file, add SMB share in ksmbd.conf file.
 
-   - Refer ksmbd.conf.example in ksmbd-utils, See ksmbd.conf manpage
+   - Refer to ksmbd.conf.example in ksmbd-utils, See ksmbd.conf manpage
      for details to configure shares.
 
         $ man ksmbd.conf
@@ -142,7 +145,7 @@ How to run
      $ man ksmbd.adduser
      $ sudo ksmbd.adduser -a <Enter USERNAME for SMB share access>
 
-4. Insert ksmbd.ko module after build your kernel. No need to load module
+4. Insert the ksmbd.ko module after you build your kernel. No need to load the module
    if ksmbd is built into the kernel.
 
    - Set ksmbd in menuconfig(e.g. $ make menuconfig)
@@ -172,7 +175,7 @@ Each layer
 1. Enable all component prints
 	# sudo ksmbd.control -d "all"
 
-2. Enable one of components (smb, auth, vfs, oplock, ipc, conn, rdma)
+2. Enable one of the components (smb, auth, vfs, oplock, ipc, conn, rdma)
 	# sudo ksmbd.control -d "smb"
 
 3. Show what prints are enabled.

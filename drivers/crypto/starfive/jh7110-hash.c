@@ -6,25 +6,20 @@
  *
  */
 
+#include <crypto/engine.h>
+#include <crypto/internal/hash.h>
+#include <crypto/scatterwalk.h>
+#include "jh7110-cryp.h"
+#include <linux/amba/pl080.h>
 #include <linux/clk.h>
-#include <linux/crypto.h>
 #include <linux/dma-direct.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-#include <linux/amba/pl080.h>
-
-#include <crypto/hash.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/internal/hash.h>
-
-#include "jh7110-cryp.h"
 
 #define STARFIVE_HASH_REGS_OFFSET	0x300
 #define STARFIVE_HASH_SHACSR		(STARFIVE_HASH_REGS_OFFSET + 0x0)
@@ -41,13 +36,20 @@
 #define STARFIVE_HASH_BUFLEN		SHA512_BLOCK_SIZE
 #define STARFIVE_HASH_RESET		0x2
 
-static inline int starfive_hash_wait_busy(struct starfive_cryp_ctx *ctx)
+static inline int starfive_hash_wait_busy(struct starfive_cryp_dev *cryp)
 {
-	struct starfive_cryp_dev *cryp = ctx->cryp;
 	u32 status;
 
 	return readl_relaxed_poll_timeout(cryp->base + STARFIVE_HASH_SHACSR, status,
 					  !(status & STARFIVE_HASH_BUSY), 10, 100000);
+}
+
+static inline int starfive_hash_wait_hmac_done(struct starfive_cryp_dev *cryp)
+{
+	u32 status;
+
+	return readl_relaxed_poll_timeout(cryp->base + STARFIVE_HASH_SHACSR, status,
+					  (status & STARFIVE_HASH_HMAC_DONE), 10, 100000);
 }
 
 static inline int starfive_hash_wait_key_done(struct starfive_cryp_ctx *ctx)
@@ -89,64 +91,26 @@ static int starfive_hash_hmac_key(struct starfive_cryp_ctx *ctx)
 	return 0;
 }
 
-static void starfive_hash_start(void *param)
+static void starfive_hash_start(struct starfive_cryp_dev *cryp)
 {
-	struct starfive_cryp_ctx *ctx = param;
-	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
-	struct starfive_cryp_dev *cryp = ctx->cryp;
-	union starfive_alg_cr alg_cr;
 	union starfive_hash_csr csr;
-	u32 stat;
-
-	dma_unmap_sg(cryp->dev, rctx->in_sg, rctx->in_sg_len, DMA_TO_DEVICE);
-
-	alg_cr.v = 0;
-	alg_cr.clear = 1;
-
-	writel(alg_cr.v, cryp->base + STARFIVE_ALG_CR_OFFSET);
 
 	csr.v = readl(cryp->base + STARFIVE_HASH_SHACSR);
 	csr.firstb = 0;
 	csr.final = 1;
-
-	stat = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
-	stat &= ~STARFIVE_IE_MASK_HASH_DONE;
-	writel(stat, cryp->base + STARFIVE_IE_MASK_OFFSET);
 	writel(csr.v, cryp->base + STARFIVE_HASH_SHACSR);
 }
 
-static int starfive_hash_xmit_dma(struct starfive_cryp_ctx *ctx)
+static void starfive_hash_dma_callback(void *param)
 {
-	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
-	struct starfive_cryp_dev *cryp = ctx->cryp;
-	struct dma_async_tx_descriptor	*in_desc;
-	union  starfive_alg_cr alg_cr;
-	int total_len;
-	int ret;
+	struct starfive_cryp_dev *cryp = param;
 
-	if (!rctx->total) {
-		starfive_hash_start(ctx);
-		return 0;
-	}
+	complete(&cryp->dma_done);
+}
 
-	writel(rctx->total, cryp->base + STARFIVE_DMA_IN_LEN_OFFSET);
-
-	total_len = rctx->total;
-	total_len = (total_len & 0x3) ? (((total_len >> 2) + 1) << 2) : total_len;
-	sg_dma_len(rctx->in_sg) = total_len;
-
-	alg_cr.v = 0;
-	alg_cr.start = 1;
-	alg_cr.hash_dma_en = 1;
-
-	writel(alg_cr.v, cryp->base + STARFIVE_ALG_CR_OFFSET);
-
-	ret = dma_map_sg(cryp->dev, rctx->in_sg, rctx->in_sg_len, DMA_TO_DEVICE);
-	if (!ret)
-		return dev_err_probe(cryp->dev, -EINVAL, "dma_map_sg() error\n");
-
-	cryp->cfg_in.direction = DMA_MEM_TO_DEV;
-	cryp->cfg_in.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+static void starfive_hash_dma_init(struct starfive_cryp_dev *cryp)
+{
+	cryp->cfg_in.src_addr_width = DMA_SLAVE_BUSWIDTH_16_BYTES;
 	cryp->cfg_in.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cryp->cfg_in.src_maxburst = cryp->dma_maxburst;
 	cryp->cfg_in.dst_maxburst = cryp->dma_maxburst;
@@ -154,50 +118,48 @@ static int starfive_hash_xmit_dma(struct starfive_cryp_ctx *ctx)
 
 	dmaengine_slave_config(cryp->tx, &cryp->cfg_in);
 
-	in_desc = dmaengine_prep_slave_sg(cryp->tx, rctx->in_sg,
-					  ret, DMA_MEM_TO_DEV,
-					  DMA_PREP_INTERRUPT  |  DMA_CTRL_ACK);
+	init_completion(&cryp->dma_done);
+}
 
-	if (!in_desc)
-		return -EINVAL;
+static int starfive_hash_dma_xfer(struct starfive_cryp_dev *cryp,
+				  struct scatterlist *sg)
+{
+	struct dma_async_tx_descriptor *in_desc;
+	union starfive_alg_cr alg_cr;
+	int ret = 0;
 
-	in_desc->callback = starfive_hash_start;
-	in_desc->callback_param = ctx;
+	alg_cr.v = 0;
+	alg_cr.start = 1;
+	alg_cr.hash_dma_en = 1;
+	writel(alg_cr.v, cryp->base + STARFIVE_ALG_CR_OFFSET);
+
+	writel(sg_dma_len(sg), cryp->base + STARFIVE_DMA_IN_LEN_OFFSET);
+	sg_dma_len(sg) = ALIGN(sg_dma_len(sg), sizeof(u32));
+
+	in_desc = dmaengine_prep_slave_sg(cryp->tx, sg, 1, DMA_MEM_TO_DEV,
+					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!in_desc) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	reinit_completion(&cryp->dma_done);
+	in_desc->callback = starfive_hash_dma_callback;
+	in_desc->callback_param = cryp;
 
 	dmaengine_submit(in_desc);
 	dma_async_issue_pending(cryp->tx);
 
-	return 0;
-}
+	if (!wait_for_completion_timeout(&cryp->dma_done,
+					 msecs_to_jiffies(1000)))
+		ret = -ETIMEDOUT;
 
-static int starfive_hash_xmit(struct starfive_cryp_ctx *ctx)
-{
-	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
-	struct starfive_cryp_dev *cryp = ctx->cryp;
-	int ret = 0;
+end:
+	alg_cr.v = 0;
+	alg_cr.clear = 1;
+	writel(alg_cr.v, cryp->base + STARFIVE_ALG_CR_OFFSET);
 
-	rctx->csr.hash.v = 0;
-	rctx->csr.hash.reset = 1;
-	writel(rctx->csr.hash.v, cryp->base + STARFIVE_HASH_SHACSR);
-
-	if (starfive_hash_wait_busy(ctx))
-		return dev_err_probe(cryp->dev, -ETIMEDOUT, "Error resetting engine.\n");
-
-	rctx->csr.hash.v = 0;
-	rctx->csr.hash.mode = ctx->hash_mode;
-	rctx->csr.hash.ie = 1;
-
-	if (ctx->is_hmac) {
-		ret = starfive_hash_hmac_key(ctx);
-		if (ret)
-			return ret;
-	} else {
-		rctx->csr.hash.start = 1;
-		rctx->csr.hash.firstb = 1;
-		writel(rctx->csr.hash.v, cryp->base + STARFIVE_HASH_SHACSR);
-	}
-
-	return starfive_hash_xmit_dma(ctx);
+	return ret;
 }
 
 static int starfive_hash_copy_hash(struct ahash_request *req)
@@ -214,50 +176,20 @@ static int starfive_hash_copy_hash(struct ahash_request *req)
 	data = (u32 *)req->result;
 
 	for (count = 0; count < mlen; count++)
-		data[count] = readl(ctx->cryp->base + STARFIVE_HASH_SHARDR);
+		put_unaligned(readl(ctx->cryp->base + STARFIVE_HASH_SHARDR),
+			      &data[count]);
 
 	return 0;
 }
 
-void starfive_hash_done_task(unsigned long param)
+static void starfive_hash_done_task(struct starfive_cryp_dev *cryp)
 {
-	struct starfive_cryp_dev *cryp = (struct starfive_cryp_dev *)param;
 	int err = cryp->err;
 
 	if (!err)
 		err = starfive_hash_copy_hash(cryp->req.hreq);
 
-	/* Reset to clear hash_done in irq register*/
-	writel(STARFIVE_HASH_RESET, cryp->base + STARFIVE_HASH_SHACSR);
-
 	crypto_finalize_hash_request(cryp->engine, cryp->req.hreq, err);
-}
-
-static int starfive_hash_check_aligned(struct scatterlist *sg, size_t total, size_t align)
-{
-	int len = 0;
-
-	if (!total)
-		return 0;
-
-	if (!IS_ALIGNED(total, align))
-		return -EINVAL;
-
-	while (sg) {
-		if (!IS_ALIGNED(sg->offset, sizeof(u32)))
-			return -EINVAL;
-
-		if (!IS_ALIGNED(sg->length, align))
-			return -EINVAL;
-
-		len += sg->length;
-		sg = sg_next(sg);
-	}
-
-	if (len != total)
-		return -EINVAL;
-
-	return 0;
 }
 
 static int starfive_hash_one_request(struct crypto_engine *engine, void *areq)
@@ -265,12 +197,59 @@ static int starfive_hash_one_request(struct crypto_engine *engine, void *areq)
 	struct ahash_request *req = container_of(areq, struct ahash_request,
 						 base);
 	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
+	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
 	struct starfive_cryp_dev *cryp = ctx->cryp;
+	struct scatterlist *tsg;
+	int ret, src_nents, i;
 
-	if (!cryp)
-		return -ENODEV;
+	writel(STARFIVE_HASH_RESET, cryp->base + STARFIVE_HASH_SHACSR);
 
-	return starfive_hash_xmit(ctx);
+	if (starfive_hash_wait_busy(cryp))
+		return dev_err_probe(cryp->dev, -ETIMEDOUT, "Error resetting hardware\n");
+
+	rctx->csr.hash.v = 0;
+	rctx->csr.hash.mode = ctx->hash_mode;
+
+	if (ctx->is_hmac) {
+		ret = starfive_hash_hmac_key(ctx);
+		if (ret)
+			return ret;
+	} else {
+		rctx->csr.hash.start = 1;
+		rctx->csr.hash.firstb = 1;
+		writel(rctx->csr.hash.v, cryp->base + STARFIVE_HASH_SHACSR);
+	}
+
+	/* No input message, get digest and end. */
+	if (!rctx->total)
+		goto hash_start;
+
+	starfive_hash_dma_init(cryp);
+
+	for_each_sg(rctx->in_sg, tsg, rctx->in_sg_len, i) {
+		src_nents = dma_map_sg(cryp->dev, tsg, 1, DMA_TO_DEVICE);
+		if (src_nents == 0)
+			return dev_err_probe(cryp->dev, -ENOMEM,
+					     "dma_map_sg error\n");
+
+		ret = starfive_hash_dma_xfer(cryp, tsg);
+		dma_unmap_sg(cryp->dev, tsg, 1, DMA_TO_DEVICE);
+		if (ret)
+			return ret;
+	}
+
+hash_start:
+	starfive_hash_start(cryp);
+
+	if (starfive_hash_wait_busy(cryp))
+		return dev_err_probe(cryp->dev, -ETIMEDOUT, "Error generating digest\n");
+
+	if (ctx->is_hmac)
+		cryp->err = starfive_hash_wait_hmac_done(cryp);
+
+	starfive_hash_done_task(cryp);
+
+	return 0;
 }
 
 static int starfive_hash_init(struct ahash_request *req)
@@ -341,22 +320,6 @@ static int starfive_hash_finup(struct ahash_request *req)
 	return crypto_ahash_finup(&rctx->ahash_fbk_req);
 }
 
-static int starfive_hash_digest_fb(struct ahash_request *req)
-{
-	struct starfive_cryp_request_ctx *rctx = ahash_request_ctx(req);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(tfm);
-
-	ahash_request_set_tfm(&rctx->ahash_fbk_req, ctx->ahash_fbk);
-	ahash_request_set_callback(&rctx->ahash_fbk_req, req->base.flags,
-				   req->base.complete, req->base.data);
-
-	ahash_request_set_crypt(&rctx->ahash_fbk_req, req->src,
-				req->result, req->nbytes);
-
-	return crypto_ahash_digest(&rctx->ahash_fbk_req);
-}
-
 static int starfive_hash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -373,9 +336,6 @@ static int starfive_hash_digest(struct ahash_request *req)
 	rctx->digsize = crypto_ahash_digestsize(tfm);
 	rctx->in_sg_len = sg_nents_for_len(rctx->in_sg, rctx->total);
 	ctx->rctx = rctx;
-
-	if (starfive_hash_check_aligned(rctx->in_sg, rctx->total, rctx->blksize))
-		return starfive_hash_digest_fb(req);
 
 	return crypto_transfer_hash_request_to_engine(cryp->engine, req);
 }
@@ -410,7 +370,8 @@ static int starfive_hash_import(struct ahash_request *req, const void *in)
 
 static int starfive_hash_init_tfm(struct crypto_ahash *hash,
 				  const char *alg_name,
-				  unsigned int mode)
+				  unsigned int mode,
+				  bool is_hmac)
 {
 	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
 
@@ -430,12 +391,8 @@ static int starfive_hash_init_tfm(struct crypto_ahash *hash,
 	crypto_ahash_set_reqsize(hash, sizeof(struct starfive_cryp_request_ctx) +
 				 crypto_ahash_reqsize(ctx->ahash_fbk));
 
-	ctx->keylen = 0;
+	ctx->is_hmac = is_hmac;
 	ctx->hash_mode = mode;
-
-	ctx->enginectx.op.do_one_request = starfive_hash_one_request;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }
@@ -445,11 +402,6 @@ static void starfive_hash_exit_tfm(struct crypto_ahash *hash)
 	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
 
 	crypto_free_ahash(ctx->ahash_fbk);
-
-	ctx->ahash_fbk = NULL;
-	ctx->enginectx.op.do_one_request = NULL;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 }
 
 static int starfive_hash_long_setkey(struct starfive_cryp_ctx *ctx,
@@ -542,95 +494,75 @@ static int starfive_hash_setkey(struct crypto_ahash *hash,
 static int starfive_sha224_init_tfm(struct crypto_ahash *hash)
 {
 	return starfive_hash_init_tfm(hash, "sha224-generic",
-				      STARFIVE_HASH_SHA224);
+				      STARFIVE_HASH_SHA224, 0);
 }
 
 static int starfive_sha256_init_tfm(struct crypto_ahash *hash)
 {
 	return starfive_hash_init_tfm(hash, "sha256-generic",
-				      STARFIVE_HASH_SHA256);
+				      STARFIVE_HASH_SHA256, 0);
 }
 
 static int starfive_sha384_init_tfm(struct crypto_ahash *hash)
 {
 	return starfive_hash_init_tfm(hash, "sha384-generic",
-				      STARFIVE_HASH_SHA384);
+				      STARFIVE_HASH_SHA384, 0);
 }
 
 static int starfive_sha512_init_tfm(struct crypto_ahash *hash)
 {
 	return starfive_hash_init_tfm(hash, "sha512-generic",
-				      STARFIVE_HASH_SHA512);
+				      STARFIVE_HASH_SHA512, 0);
 }
 
 static int starfive_sm3_init_tfm(struct crypto_ahash *hash)
 {
 	return starfive_hash_init_tfm(hash, "sm3-generic",
-				      STARFIVE_HASH_SM3);
+				      STARFIVE_HASH_SM3, 0);
 }
 
 static int starfive_hmac_sha224_init_tfm(struct crypto_ahash *hash)
 {
-	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
-
-	ctx->is_hmac = true;
-
 	return starfive_hash_init_tfm(hash, "hmac(sha224-generic)",
-				      STARFIVE_HASH_SHA224);
+				      STARFIVE_HASH_SHA224, 1);
 }
 
 static int starfive_hmac_sha256_init_tfm(struct crypto_ahash *hash)
 {
-	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
-
-	ctx->is_hmac = true;
-
 	return starfive_hash_init_tfm(hash, "hmac(sha256-generic)",
-				      STARFIVE_HASH_SHA256);
+				      STARFIVE_HASH_SHA256, 1);
 }
 
 static int starfive_hmac_sha384_init_tfm(struct crypto_ahash *hash)
 {
-	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
-
-	ctx->is_hmac = true;
-
 	return starfive_hash_init_tfm(hash, "hmac(sha384-generic)",
-				      STARFIVE_HASH_SHA384);
+				      STARFIVE_HASH_SHA384, 1);
 }
 
 static int starfive_hmac_sha512_init_tfm(struct crypto_ahash *hash)
 {
-	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
-
-	ctx->is_hmac = true;
-
 	return starfive_hash_init_tfm(hash, "hmac(sha512-generic)",
-				      STARFIVE_HASH_SHA512);
+				      STARFIVE_HASH_SHA512, 1);
 }
 
 static int starfive_hmac_sm3_init_tfm(struct crypto_ahash *hash)
 {
-	struct starfive_cryp_ctx *ctx = crypto_ahash_ctx(hash);
-
-	ctx->is_hmac = true;
-
 	return starfive_hash_init_tfm(hash, "hmac(sm3-generic)",
-				      STARFIVE_HASH_SM3);
+				      STARFIVE_HASH_SM3, 1);
 }
 
-static struct ahash_alg algs_sha2_sm3[] = {
+static struct ahash_engine_alg algs_sha2_sm3[] = {
 {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha224_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha224_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA224_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -642,22 +574,24 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA224_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha224_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha224_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA224_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -669,21 +603,23 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA224_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha256_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha256_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA256_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -695,22 +631,24 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA256_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha256_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha256_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA256_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha256_state),
 		.base = {
@@ -722,21 +660,23 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA256_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha384_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha384_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA384_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -748,22 +688,24 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA384_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha384_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha384_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA384_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -775,21 +717,23 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA384_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sha512_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sha512_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SHA512_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -801,22 +745,24 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA512_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_hmac_sha512_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey   = starfive_hash_setkey,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sha512_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey   = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SHA512_DIGEST_SIZE,
 		.statesize  = sizeof(struct sha512_state),
 		.base = {
@@ -828,21 +774,23 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SHA512_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init     = starfive_hash_init,
-	.update   = starfive_hash_update,
-	.final    = starfive_hash_final,
-	.finup    = starfive_hash_finup,
-	.digest   = starfive_hash_digest,
-	.export   = starfive_hash_export,
-	.import   = starfive_hash_import,
-	.init_tfm = starfive_sm3_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.halg = {
+	.base.init     = starfive_hash_init,
+	.base.update   = starfive_hash_update,
+	.base.final    = starfive_hash_final,
+	.base.finup    = starfive_hash_finup,
+	.base.digest   = starfive_hash_digest,
+	.base.export   = starfive_hash_export,
+	.base.import   = starfive_hash_import,
+	.base.init_tfm = starfive_sm3_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.halg = {
 		.digestsize = SM3_DIGEST_SIZE,
 		.statesize  = sizeof(struct sm3_state),
 		.base = {
@@ -854,22 +802,24 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SM3_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 }, {
-	.init	  = starfive_hash_init,
-	.update	  = starfive_hash_update,
-	.final	  = starfive_hash_final,
-	.finup	  = starfive_hash_finup,
-	.digest	  = starfive_hash_digest,
-	.export	  = starfive_hash_export,
-	.import	  = starfive_hash_import,
-	.init_tfm = starfive_hmac_sm3_init_tfm,
-	.exit_tfm = starfive_hash_exit_tfm,
-	.setkey	  = starfive_hash_setkey,
-	.halg = {
+	.base.init	  = starfive_hash_init,
+	.base.update	  = starfive_hash_update,
+	.base.final	  = starfive_hash_final,
+	.base.finup	  = starfive_hash_finup,
+	.base.digest	  = starfive_hash_digest,
+	.base.export	  = starfive_hash_export,
+	.base.import	  = starfive_hash_import,
+	.base.init_tfm = starfive_hmac_sm3_init_tfm,
+	.base.exit_tfm = starfive_hash_exit_tfm,
+	.base.setkey	  = starfive_hash_setkey,
+	.base.halg = {
 		.digestsize = SM3_DIGEST_SIZE,
 		.statesize  = sizeof(struct sm3_state),
 		.base = {
@@ -881,19 +831,21 @@ static struct ahash_alg algs_sha2_sm3[] = {
 						  CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize		= SM3_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-			.cra_alignmask		= 3,
 			.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.op = {
+		.do_one_request = starfive_hash_one_request,
+	},
 },
 };
 
 int starfive_hash_register_algs(void)
 {
-	return crypto_register_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
+	return crypto_engine_register_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
 }
 
 void starfive_hash_unregister_algs(void)
 {
-	crypto_unregister_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
+	crypto_engine_unregister_ahashes(algs_sha2_sm3, ARRAY_SIZE(algs_sha2_sm3));
 }

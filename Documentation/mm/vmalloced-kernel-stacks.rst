@@ -22,7 +22,7 @@ Kernel stack overflows are often hard to debug and make the kernel
 susceptible to exploits. Problems could show up at a later time making
 it difficult to isolate and root-cause.
 
-Virtually-mapped kernel stacks with guard pages causes kernel stack
+Virtually mapped kernel stacks with guard pages cause kernel stack
 overflows to be caught immediately rather than causing difficult to
 diagnose corruptions.
 
@@ -57,7 +57,7 @@ enable this bool configuration option. The requirements are:
 VMAP_STACK
 ----------
 
-VMAP_STACK bool configuration option when enabled allocates virtually
+When enabled, the VMAP_STACK bool configuration option allocates virtually
 mapped task stacks. This option depends on HAVE_ARCH_VMAP_STACK.
 
 - Enable this if you want the use virtually-mapped kernel stacks
@@ -83,7 +83,7 @@ the latest code base:
 Allocation
 -----------
 
-When a new kernel thread is created, thread stack is allocated from
+When a new kernel thread is created, a thread stack is allocated from
 virtually contiguous memory pages from the page level allocator. These
 pages are mapped into contiguous kernel virtual space with PAGE_KERNEL
 protections.
@@ -103,14 +103,14 @@ with PAGE_KERNEL protections.
 - This does not address interrupt stacks - according to the original patch
 
 Thread stack allocation is initiated from clone(), fork(), vfork(),
-kernel_thread() via kernel_clone(). Leaving a few hints for searching
-the code base to understand when and how thread stack is allocated.
+kernel_thread() via kernel_clone(). These are a few hints for searching
+the code base to understand when and how a thread stack is allocated.
 
 Bulk of the code is in:
 `kernel/fork.c <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/fork.c>`.
 
 stack_vm_area pointer in task_struct keeps track of the virtually allocated
-stack and a non-null stack_vm_area pointer serves as a indication that the
+stack and a non-null stack_vm_area pointer serves as an indication that the
 virtually mapped kernel stacks are enabled.
 
 ::
@@ -120,8 +120,8 @@ virtually mapped kernel stacks are enabled.
 Stack overflow handling
 -----------------------
 
-Leading and trailing guard pages help detect stack overflows. When stack
-overflows into the guard pages, handlers have to be careful not overflow
+Leading and trailing guard pages help detect stack overflows. When the stack
+overflows into the guard pages, handlers have to be careful not to overflow
 the stack again. When handlers are called, it is likely that very little
 stack space is left.
 
@@ -148,6 +148,6 @@ Conclusions
 - THREAD_INFO_IN_TASK gets rid of arch-specific thread_info entirely and
   simply embed the thread_info (containing only flags) and 'int cpu' into
   task_struct.
-- The thread stack can be free'ed as soon as the task is dead (without
+- The thread stack can be freed as soon as the task is dead (without
   waiting for RCU) and then, if vmapped stacks are in use, cache the
   entire stack for reuse on the same cpu.

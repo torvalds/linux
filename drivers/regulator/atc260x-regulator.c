@@ -7,7 +7,8 @@
 
 #include <linux/mfd/atc260x/core.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 
@@ -37,7 +38,7 @@ static const struct linear_range atc2609a_ldo_voltage_ranges1[] = {
 };
 
 static const unsigned int atc260x_ldo_voltage_range_sel[] = {
-	0x0, 0x20,
+	0x0, 0x1,
 };
 
 static int atc260x_dcdc_set_voltage_time_sel(struct regulator_dev *rdev,
@@ -427,7 +428,7 @@ enum atc2609a_reg_ids {
 	.vsel_mask = GENMASK(4, 1), \
 	.vsel_range_reg = ATC2609A_PMU_LDO##num##_CTL0, \
 	.vsel_range_mask = BIT(5), \
-	.linear_range_selectors = atc260x_ldo_voltage_range_sel, \
+	.linear_range_selectors_bitfield = atc260x_ldo_voltage_range_sel, \
 	.enable_reg = ATC2609A_PMU_LDO##num##_CTL0, \
 	.enable_mask = BIT(0), \
 	.enable_time = 2000, \

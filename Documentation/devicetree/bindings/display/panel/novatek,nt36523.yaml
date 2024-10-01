@@ -14,9 +14,6 @@ description: |
   panels. Support video mode panels from China Star Optoelectronics
   Technology (CSOT) and BOE Technology.
 
-allOf:
-  - $ref: panel-common.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -30,6 +27,9 @@ properties:
               - lenovo,j606f-boe-nt36523w
           - const: novatek,nt36523w
 
+  reg:
+    maxItems: 1
+
   reset-gpios:
     maxItems: 1
     description: phandle of gpio for reset line - This should be 8mA
@@ -37,8 +37,6 @@ properties:
   vddio-supply:
     description: regulator that supplies the I/O voltage
 
-  reg: true
-  ports: true
   rotation: true
   backlight: true
 
@@ -47,7 +45,26 @@ required:
   - reg
   - vddio-supply
   - reset-gpios
-  - ports
+
+allOf:
+  - $ref: panel-common-dual.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - novatek,nt36523w
+    then:
+      properties:
+        ports:
+          properties:
+            port@1: false
+    else:
+      properties:
+        port: false
+        ports:
+          required:
+            - port@1
 
 unevaluatedProperties: false
 

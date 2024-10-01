@@ -1545,7 +1545,8 @@ static int bq27xxx_battery_read_soc(struct bq27xxx_device_info *di)
  * Return a battery charge value in µAh
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
+static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg,
+				       union power_supply_propval *val)
 {
 	int charge;
 
@@ -1561,43 +1562,55 @@ static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
 	else
 		charge *= 1000;
 
-	return charge;
+	val->intval = charge;
+
+	return 0;
 }
 
 /*
  * Return the battery Nominal available capacity in µAh
  * Or < 0 if something fails.
  */
-static inline int bq27xxx_battery_read_nac(struct bq27xxx_device_info *di)
+static inline int bq27xxx_battery_read_nac(struct bq27xxx_device_info *di,
+					   union power_supply_propval *val)
 {
-	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_NAC);
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_NAC, val);
 }
 
 /*
  * Return the battery Remaining Capacity in µAh
  * Or < 0 if something fails.
  */
-static inline int bq27xxx_battery_read_rc(struct bq27xxx_device_info *di)
+static inline int bq27xxx_battery_read_rc(struct bq27xxx_device_info *di,
+					  union power_supply_propval *val)
 {
-	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_RC);
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_RC, val);
 }
 
 /*
  * Return the battery Full Charge Capacity in µAh
  * Or < 0 if something fails.
  */
-static inline int bq27xxx_battery_read_fcc(struct bq27xxx_device_info *di)
+static inline int bq27xxx_battery_read_fcc(struct bq27xxx_device_info *di,
+					   union power_supply_propval *val)
 {
-	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_FCC);
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_FCC, val);
 }
 
 /*
  * Return the Design Capacity in µAh
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di,
+				     union power_supply_propval *val)
 {
 	int dcap;
+
+	/* We only have to read charge design full once */
+	if (di->charge_design_full > 0) {
+		val->intval = di->charge_design_full;
+		return 0;
+	}
 
 	if (di->opts & BQ27XXX_O_ZERO)
 		dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, true);
@@ -1605,7 +1618,7 @@ static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
 		dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, false);
 
 	if (dcap < 0) {
-		dev_dbg(di->dev, "error reading initial last measured discharge\n");
+		dev_dbg(di->dev, "error reading design capacity\n");
 		return dcap;
 	}
 
@@ -1614,14 +1627,20 @@ static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
 	else
 		dcap *= 1000;
 
-	return dcap;
+	/* Save for later reads */
+	di->charge_design_full = dcap;
+
+	val->intval = dcap;
+
+	return 0;
 }
 
 /*
  * Return the battery Available energy in µWh
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di,
+				       union power_supply_propval *val)
 {
 	int ae;
 
@@ -1636,14 +1655,17 @@ static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di)
 	else
 		ae *= 1000;
 
-	return ae;
+	val->intval = ae;
+
+	return 0;
 }
 
 /*
- * Return the battery temperature in tenths of degree Kelvin
+ * Return the battery temperature in tenths of degree Celsius
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di,
+					    union power_supply_propval *val)
 {
 	int temp;
 
@@ -1656,14 +1678,20 @@ static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di)
 	if (di->opts & BQ27XXX_O_ZERO)
 		temp = 5 * temp / 2;
 
-	return temp;
+	/* Convert decidegree Kelvin to Celsius */
+	temp -= 2731;
+
+	val->intval = temp;
+
+	return 0;
 }
 
 /*
  * Return the battery Cycle count total
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di,
+				     union power_supply_propval *val)
 {
 	int cyct;
 
@@ -1671,14 +1699,17 @@ static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di)
 	if (cyct < 0)
 		dev_err(di->dev, "error reading cycle count total\n");
 
-	return cyct;
+	val->intval = cyct;
+
+	return 0;
 }
 
 /*
  * Read a time register.
  * Return < 0 if something fails.
  */
-static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg)
+static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg,
+				     union power_supply_propval *val)
 {
 	int tval;
 
@@ -1692,7 +1723,9 @@ static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg)
 	if (tval == 65535)
 		return -ENODATA;
 
-	return tval * 60;
+	val->intval = tval * 60;
+
+	return 0;
 }
 
 /*
@@ -1744,19 +1777,26 @@ static bool bq27xxx_battery_capacity_inaccurate(struct bq27xxx_device_info *di,
 		return false;
 }
 
-static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di,
+				       union power_supply_propval *val)
 {
+	int health;
+
 	/* Unlikely but important to return first */
 	if (unlikely(bq27xxx_battery_overtemp(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_OVERHEAT;
-	if (unlikely(bq27xxx_battery_undertemp(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_COLD;
-	if (unlikely(bq27xxx_battery_dead(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_DEAD;
-	if (unlikely(bq27xxx_battery_capacity_inaccurate(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
+		health = POWER_SUPPLY_HEALTH_OVERHEAT;
+	else if (unlikely(bq27xxx_battery_undertemp(di, di->cache.flags)))
+		health = POWER_SUPPLY_HEALTH_COLD;
+	else if (unlikely(bq27xxx_battery_dead(di, di->cache.flags)))
+		health = POWER_SUPPLY_HEALTH_DEAD;
+	else if (unlikely(bq27xxx_battery_capacity_inaccurate(di, di->cache.flags)))
+		health = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
+	else
+		health = POWER_SUPPLY_HEALTH_GOOD;
 
-	return POWER_SUPPLY_HEALTH_GOOD;
+	val->intval = health;
+
+	return 0;
 }
 
 static bool bq27xxx_battery_is_full(struct bq27xxx_device_info *di, int flags)
@@ -1816,17 +1856,14 @@ static int bq27xxx_battery_current_and_status(
 		val_curr->intval = curr;
 
 	if (val_status) {
-		if (curr > 0) {
+		if (bq27xxx_battery_is_full(di, flags))
+			val_status->intval = POWER_SUPPLY_STATUS_FULL;
+		else if (curr > 0)
 			val_status->intval = POWER_SUPPLY_STATUS_CHARGING;
-		} else if (curr < 0) {
+		else if (curr < 0)
 			val_status->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		} else {
-			if (bq27xxx_battery_is_full(di, flags))
-				val_status->intval = POWER_SUPPLY_STATUS_FULL;
-			else
-				val_status->intval =
-					POWER_SUPPLY_STATUS_NOT_CHARGING;
-		}
+		else
+			val_status->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 	}
 
 	return 0;
@@ -1842,22 +1879,8 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 	if ((cache.flags & 0xff) == 0xff)
 		cache.flags = -1; /* read error */
 	if (cache.flags >= 0) {
-		cache.temperature = bq27xxx_battery_read_temperature(di);
-		if (di->regs[BQ27XXX_REG_TTE] != INVALID_REG_ADDR)
-			cache.time_to_empty = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTE);
-		if (di->regs[BQ27XXX_REG_TTECP] != INVALID_REG_ADDR)
-			cache.time_to_empty_avg = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTECP);
-		if (di->regs[BQ27XXX_REG_TTF] != INVALID_REG_ADDR)
-			cache.time_to_full = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTF);
-
-		cache.charge_full = bq27xxx_battery_read_fcc(di);
 		cache.capacity = bq27xxx_battery_read_soc(di);
-		if (di->regs[BQ27XXX_REG_AE] != INVALID_REG_ADDR)
-			cache.energy = bq27xxx_battery_read_energy(di);
 		di->cache.flags = cache.flags;
-		cache.health = bq27xxx_battery_read_health(di);
-		if (di->regs[BQ27XXX_REG_CYCT] != INVALID_REG_ADDR)
-			cache.cycle_count = bq27xxx_battery_read_cyct(di);
 
 		/*
 		 * On gauges with signed current reporting the current must be
@@ -1865,10 +1888,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 		 */
 		if (!(di->opts & BQ27XXX_O_ZERO))
 			bq27xxx_battery_current_and_status(di, NULL, &status, &cache);
-
-		/* We only have to read charge design full once */
-		if (di->charge_design_full <= 0)
-			di->charge_design_full = bq27xxx_battery_read_dcap(di);
 	}
 
 	if ((di->cache.capacity != cache.capacity) ||
@@ -2033,18 +2052,16 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		ret = bq27xxx_battery_capacity_level(di, val);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		ret = bq27xxx_simple_value(di->cache.temperature, val);
-		if (ret == 0)
-			val->intval -= 2731; /* convert decidegree k to c */
+		ret = bq27xxx_battery_read_temperature(di, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
-		ret = bq27xxx_simple_value(di->cache.time_to_empty, val);
+		ret = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTE, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
-		ret = bq27xxx_simple_value(di->cache.time_to_empty_avg, val);
+		ret = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTECP, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
-		ret = bq27xxx_simple_value(di->cache.time_to_full, val);
+		ret = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTF, val);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		if (di->opts & BQ27XXX_O_MUL_CHEM)
@@ -2054,15 +2071,15 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		if (di->regs[BQ27XXX_REG_NAC] != INVALID_REG_ADDR)
-			ret = bq27xxx_simple_value(bq27xxx_battery_read_nac(di), val);
+			ret = bq27xxx_battery_read_nac(di, val);
 		else
-			ret = bq27xxx_simple_value(bq27xxx_battery_read_rc(di), val);
+			ret = bq27xxx_battery_read_rc(di, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		ret = bq27xxx_simple_value(di->cache.charge_full, val);
+		ret = bq27xxx_battery_read_fcc(di, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		ret = bq27xxx_simple_value(di->charge_design_full, val);
+		ret = bq27xxx_battery_read_dcap(di, val);
 		break;
 	/*
 	 * TODO: Implement these to make registers set from
@@ -2072,16 +2089,16 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		return -EINVAL;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
-		ret = bq27xxx_simple_value(di->cache.cycle_count, val);
+		ret = bq27xxx_battery_read_cyct(di, val);
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
-		ret = bq27xxx_simple_value(di->cache.energy, val);
+		ret = bq27xxx_battery_read_energy(di, val);
 		break;
 	case POWER_SUPPLY_PROP_POWER_AVG:
 		ret = bq27xxx_battery_pwr_avg(di, val);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		ret = bq27xxx_simple_value(di->cache.health, val);
+		ret = bq27xxx_battery_read_health(di, val);
 		break;
 	case POWER_SUPPLY_PROP_MANUFACTURER:
 		val->strval = BQ27XXX_MANUFACTURER;
@@ -2101,6 +2118,13 @@ static void bq27xxx_external_power_changed(struct power_supply *psy)
 	mod_delayed_work(system_wq, &di->work, HZ / 2);
 }
 
+static void bq27xxx_battery_mutex_destroy(void *data)
+{
+	struct mutex *lock = data;
+
+	mutex_destroy(lock);
+}
+
 int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 {
 	struct power_supply_desc *psy_desc;
@@ -2108,9 +2132,14 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 		.of_node = di->dev->of_node,
 		.drv_data = di,
 	};
+	int ret;
 
 	INIT_DELAYED_WORK(&di->work, bq27xxx_battery_poll);
 	mutex_init(&di->lock);
+	ret = devm_add_action_or_reset(di->dev, bq27xxx_battery_mutex_destroy,
+				       &di->lock);
+	if (ret)
+		return ret;
 
 	di->regs       = bq27xxx_chip_data[di->chip].regs;
 	di->unseal_key = bq27xxx_chip_data[di->chip].unseal_key;
@@ -2128,7 +2157,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 	psy_desc->get_property = bq27xxx_battery_get_property;
 	psy_desc->external_power_changed = bq27xxx_external_power_changed;
 
-	di->bat = power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
+	di->bat = devm_power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
 	if (IS_ERR(di->bat))
 		return dev_err_probe(di->dev, PTR_ERR(di->bat),
 				     "failed to register battery\n");
@@ -2156,11 +2185,30 @@ void bq27xxx_battery_teardown(struct bq27xxx_device_info *di)
 	mutex_unlock(&di->lock);
 
 	cancel_delayed_work_sync(&di->work);
-
-	power_supply_unregister(di->bat);
-	mutex_destroy(&di->lock);
 }
 EXPORT_SYMBOL_GPL(bq27xxx_battery_teardown);
+
+#ifdef CONFIG_PM_SLEEP
+static int bq27xxx_battery_suspend(struct device *dev)
+{
+	struct bq27xxx_device_info *di = dev_get_drvdata(dev);
+
+	cancel_delayed_work(&di->work);
+	return 0;
+}
+
+static int bq27xxx_battery_resume(struct device *dev)
+{
+	struct bq27xxx_device_info *di = dev_get_drvdata(dev);
+
+	schedule_delayed_work(&di->work, 0);
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(bq27xxx_battery_battery_pm_ops,
+		  bq27xxx_battery_suspend, bq27xxx_battery_resume);
+EXPORT_SYMBOL_GPL(bq27xxx_battery_battery_pm_ops);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
 MODULE_DESCRIPTION("BQ27xxx battery monitor driver");

@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
-// Copyright(c) 2023 Intel Corporation. All rights reserved.
+// Copyright(c) 2023 Intel Corporation
 
 /*
  * Soundwire Intel ops for LunarLake
  */
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
+#include <sound/hdaudio.h>
 #include <sound/hda-mlink.h>
+#include <sound/hda_register.h>
+#include <sound/pcm_params.h>
 #include "cadence_master.h"
 #include "bus.h"
 #include "intel.h"
@@ -22,48 +26,101 @@
 static void intel_shim_vs_init(struct sdw_intel *sdw)
 {
 	void __iomem *shim_vs = sdw->link_res->shim_vs;
-	u16 act = 0;
+	struct sdw_bus *bus = &sdw->cdns.bus;
+	struct sdw_intel_prop *intel_prop;
+	u16 clde;
+	u16 doaise2;
+	u16 dodse2;
+	u16 clds;
+	u16 clss;
+	u16 doaise;
+	u16 doais;
+	u16 dodse;
+	u16 dods;
+	u16 act;
 
-	u16p_replace_bits(&act, 0x1, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
+	intel_prop = bus->vendor_specific_prop;
+	clde = intel_prop->clde;
+	doaise2 = intel_prop->doaise2;
+	dodse2 = intel_prop->dodse2;
+	clds = intel_prop->clds;
+	clss = intel_prop->clss;
+	doaise = intel_prop->doaise;
+	doais = intel_prop->doais;
+	dodse = intel_prop->dodse;
+	dods = intel_prop->dods;
+
+	act = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL);
+	u16p_replace_bits(&act, clde, SDW_SHIM3_INTEL_VS_ACTMCTL_CLDE);
+	u16p_replace_bits(&act, doaise2, SDW_SHIM3_INTEL_VS_ACTMCTL_DOAISE2);
+	u16p_replace_bits(&act, dodse2, SDW_SHIM3_INTEL_VS_ACTMCTL_DODSE2);
+	u16p_replace_bits(&act, clds, SDW_SHIM3_INTEL_VS_ACTMCTL_CLDS);
+	u16p_replace_bits(&act, clss, SDW_SHIM3_INTEL_VS_ACTMCTL_CLSS);
+	u16p_replace_bits(&act, doaise, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAISE);
+	u16p_replace_bits(&act, doais, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
+	u16p_replace_bits(&act, dodse, SDW_SHIM2_INTEL_VS_ACTMCTL_DODSE);
+	u16p_replace_bits(&act, dods, SDW_SHIM2_INTEL_VS_ACTMCTL_DODS);
 	act |= SDW_SHIM2_INTEL_VS_ACTMCTL_DACTQE;
-	act |=  SDW_SHIM2_INTEL_VS_ACTMCTL_DODS;
 	intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL, act);
 	usleep_range(10, 15);
 }
 
+static void intel_shim_vs_set_clock_source(struct sdw_intel *sdw, u32 source)
+{
+	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u32 val;
+
+	val = intel_readl(shim_vs, SDW_SHIM2_INTEL_VS_LVSCTL);
+
+	u32p_replace_bits(&val, source, SDW_SHIM2_INTEL_VS_LVSCTL_MLCS);
+
+	intel_writel(shim_vs, SDW_SHIM2_INTEL_VS_LVSCTL, val);
+
+	dev_dbg(sdw->cdns.dev, "clock source %d LVSCTL %#x\n", source, val);
+}
+
 static int intel_shim_check_wake(struct sdw_intel *sdw)
 {
-	void __iomem *shim_vs;
-	u16 wake_sts;
+	/*
+	 * We follow the HDaudio example and resume unconditionally
+	 * without checking the WAKESTS bit for that specific link
+	 */
 
-	shim_vs = sdw->link_res->shim_vs;
-	wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
-
-	return wake_sts & SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
+	return 1;
 }
 
 static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
 {
-	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u16 lsdiid = 0;
 	u16 wake_en;
 	u16 wake_sts;
+	int ret;
 
-	wake_en = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN);
+	mutex_lock(sdw->link_res->shim_lock);
+
+	ret = hdac_bus_eml_sdw_get_lsdiid_unlocked(sdw->link_res->hbus, sdw->instance, &lsdiid);
+	if (ret < 0)
+		goto unlock;
+
+	wake_en = snd_hdac_chip_readw(sdw->link_res->hbus, WAKEEN);
 
 	if (wake_enable) {
 		/* Enable the wakeup */
-		wake_en |= SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+		wake_en |= lsdiid;
+
+		snd_hdac_chip_writew(sdw->link_res->hbus, WAKEEN, wake_en);
 	} else {
 		/* Disable the wake up interrupt */
-		wake_en &= ~SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+		wake_en &= ~lsdiid;
+		snd_hdac_chip_writew(sdw->link_res->hbus, WAKEEN, wake_en);
 
 		/* Clear wake status (W1C) */
-		wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
-		wake_sts |= SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS, wake_sts);
+		wake_sts = snd_hdac_chip_readw(sdw->link_res->hbus, STATESTS);
+		wake_sts |= lsdiid;
+		snd_hdac_chip_writew(sdw->link_res->hbus, STATESTS, wake_sts);
 	}
+unlock:
+	mutex_unlock(sdw->link_res->shim_lock);
 }
 
 static int intel_link_power_up(struct sdw_intel *sdw)
@@ -72,27 +129,24 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	struct sdw_master_prop *prop = &bus->prop;
 	u32 *shim_mask = sdw->link_res->shim_mask;
 	unsigned int link_id = sdw->instance;
+	u32 clock_source;
 	u32 syncprd;
 	int ret;
 
-	mutex_lock(sdw->link_res->shim_lock);
-
-	if (!*shim_mask) {
-		/* we first need to program the SyncPRD/CPU registers */
-		dev_dbg(sdw->cdns.dev, "first link up, programming SYNCPRD\n");
-
-		if (prop->mclk_freq % 6000000)
+	if (prop->mclk_freq % 6000000) {
+		if (prop->mclk_freq % 2400000) {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24_576;
+			clock_source = SDW_SHIM2_MLCS_CARDINAL_CLK;
+		} else {
 			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
-		else
-			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
-
-		ret =  hdac_bus_eml_sdw_set_syncprd_unlocked(sdw->link_res->hbus, syncprd);
-		if (ret < 0) {
-			dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_set_syncprd failed: %d\n",
-				__func__, ret);
-			goto out;
+			clock_source = SDW_SHIM2_MLCS_XTAL_CLK;
 		}
+	} else {
+		syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_96;
+		clock_source = SDW_SHIM2_MLCS_AUDIO_PLL_CLK;
 	}
+
+	mutex_lock(sdw->link_res->shim_lock);
 
 	ret = hdac_bus_eml_sdw_power_up_unlocked(sdw->link_res->hbus, link_id);
 	if (ret < 0) {
@@ -101,7 +155,19 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 		goto out;
 	}
 
+	intel_shim_vs_set_clock_source(sdw, clock_source);
+
 	if (!*shim_mask) {
+		/* we first need to program the SyncPRD/CPU registers */
+		dev_dbg(sdw->cdns.dev, "first link up, programming SYNCPRD\n");
+
+		ret =  hdac_bus_eml_sdw_set_syncprd_unlocked(sdw->link_res->hbus, syncprd);
+		if (ret < 0) {
+			dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_set_syncprd failed: %d\n",
+				__func__, ret);
+			goto out;
+		}
+
 		/* SYNCPU will change once link is active */
 		ret =  hdac_bus_eml_sdw_wait_syncpu_unlocked(sdw->link_res->hbus);
 		if (ret < 0) {
@@ -191,10 +257,290 @@ static bool intel_check_cmdsync_unlocked(struct sdw_intel *sdw)
 	return hdac_bus_eml_sdw_check_cmdsync_unlocked(sdw->link_res->hbus);
 }
 
+/* DAI callbacks */
+static int intel_params_stream(struct sdw_intel *sdw,
+			       struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai,
+			       struct snd_pcm_hw_params *hw_params,
+			       int link_id, int alh_stream_id)
+{
+	struct sdw_intel_link_res *res = sdw->link_res;
+	struct sdw_intel_stream_params_data params_data;
+
+	params_data.substream = substream;
+	params_data.dai = dai;
+	params_data.hw_params = hw_params;
+	params_data.link_id = link_id;
+	params_data.alh_stream_id = alh_stream_id;
+
+	if (res->ops && res->ops->params_stream && res->dev)
+		return res->ops->params_stream(res->dev,
+					       &params_data);
+	return -EIO;
+}
+
+static int intel_free_stream(struct sdw_intel *sdw,
+			     struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai,
+			     int link_id)
+
+{
+	struct sdw_intel_link_res *res = sdw->link_res;
+	struct sdw_intel_stream_free_data free_data;
+
+	free_data.substream = substream;
+	free_data.dai = dai;
+	free_data.link_id = link_id;
+
+	if (res->ops && res->ops->free_stream && res->dev)
+		return res->ops->free_stream(res->dev,
+					     &free_data);
+
+	return 0;
+}
+
 /*
  * DAI operations
  */
+static int intel_hw_params(struct snd_pcm_substream *substream,
+			   struct snd_pcm_hw_params *params,
+			   struct snd_soc_dai *dai)
+{
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_cdns_dai_runtime *dai_runtime;
+	struct sdw_cdns_pdi *pdi;
+	struct sdw_stream_config sconfig;
+	int ch, dir;
+	int ret;
+
+	dai_runtime = cdns->dai_runtime_array[dai->id];
+	if (!dai_runtime)
+		return -EIO;
+
+	ch = params_channels(params);
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		dir = SDW_DATA_DIR_RX;
+	else
+		dir = SDW_DATA_DIR_TX;
+
+	pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pcm, ch, dir, dai->id);
+	if (!pdi)
+		return -EINVAL;
+
+	/* use same definitions for alh_id as previous generations */
+	pdi->intel_alh_id = (sdw->instance * 16) + pdi->num + 3;
+	if (pdi->num >= 2)
+		pdi->intel_alh_id += 2;
+
+	/* the SHIM will be configured in the callback functions */
+
+	sdw_cdns_config_stream(cdns, ch, dir, pdi);
+
+	/* store pdi and state, may be needed in prepare step */
+	dai_runtime->paused = false;
+	dai_runtime->suspended = false;
+	dai_runtime->pdi = pdi;
+
+	/* Inform DSP about PDI stream number */
+	ret = intel_params_stream(sdw, substream, dai, params,
+				  sdw->instance,
+				  pdi->intel_alh_id);
+	if (ret)
+		return ret;
+
+	sconfig.direction = dir;
+	sconfig.ch_count = ch;
+	sconfig.frame_rate = params_rate(params);
+	sconfig.type = dai_runtime->stream_type;
+
+	sconfig.bps = snd_pcm_format_width(params_format(params));
+
+	/* Port configuration */
+	struct sdw_port_config *pconfig __free(kfree) = kzalloc(sizeof(*pconfig),
+								GFP_KERNEL);
+	if (!pconfig)
+		return -ENOMEM;
+
+	pconfig->num = pdi->num;
+	pconfig->ch_mask = (1 << ch) - 1;
+
+	ret = sdw_stream_add_master(&cdns->bus, &sconfig,
+				    pconfig, 1, dai_runtime->stream);
+	if (ret)
+		dev_err(cdns->dev, "add master to stream failed:%d\n", ret);
+
+	return ret;
+}
+
+static int intel_prepare(struct snd_pcm_substream *substream,
+			 struct snd_soc_dai *dai)
+{
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_cdns_dai_runtime *dai_runtime;
+	int ch, dir;
+	int ret = 0;
+
+	dai_runtime = cdns->dai_runtime_array[dai->id];
+	if (!dai_runtime) {
+		dev_err(dai->dev, "failed to get dai runtime in %s\n",
+			__func__);
+		return -EIO;
+	}
+
+	if (dai_runtime->suspended) {
+		struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+		struct snd_pcm_hw_params *hw_params;
+
+		hw_params = &rtd->dpcm[substream->stream].hw_params;
+
+		dai_runtime->suspended = false;
+
+		/*
+		 * .prepare() is called after system resume, where we
+		 * need to reinitialize the SHIM/ALH/Cadence IP.
+		 * .prepare() is also called to deal with underflows,
+		 * but in those cases we cannot touch ALH/SHIM
+		 * registers
+		 */
+
+		/* configure stream */
+		ch = params_channels(hw_params);
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			dir = SDW_DATA_DIR_RX;
+		else
+			dir = SDW_DATA_DIR_TX;
+
+		/* the SHIM will be configured in the callback functions */
+
+		sdw_cdns_config_stream(cdns, ch, dir, dai_runtime->pdi);
+
+		/* Inform DSP about PDI stream number */
+		ret = intel_params_stream(sdw, substream, dai,
+					  hw_params,
+					  sdw->instance,
+					  dai_runtime->pdi->intel_alh_id);
+	}
+
+	return ret;
+}
+
+static int
+intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_cdns_dai_runtime *dai_runtime;
+	int ret;
+
+	dai_runtime = cdns->dai_runtime_array[dai->id];
+	if (!dai_runtime)
+		return -EIO;
+
+	/*
+	 * The sdw stream state will transition to RELEASED when stream->
+	 * master_list is empty. So the stream state will transition to
+	 * DEPREPARED for the first cpu-dai and to RELEASED for the last
+	 * cpu-dai.
+	 */
+	ret = sdw_stream_remove_master(&cdns->bus, dai_runtime->stream);
+	if (ret < 0) {
+		dev_err(dai->dev, "remove master from stream %s failed: %d\n",
+			dai_runtime->stream->name, ret);
+		return ret;
+	}
+
+	ret = intel_free_stream(sdw, substream, dai, sdw->instance);
+	if (ret < 0) {
+		dev_err(dai->dev, "intel_free_stream: failed %d\n", ret);
+		return ret;
+	}
+
+	dai_runtime->pdi = NULL;
+
+	return 0;
+}
+
+static int intel_pcm_set_sdw_stream(struct snd_soc_dai *dai,
+				    void *stream, int direction)
+{
+	return cdns_set_sdw_stream(dai, stream, direction);
+}
+
+static void *intel_get_sdw_stream(struct snd_soc_dai *dai,
+				  int direction)
+{
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_cdns_dai_runtime *dai_runtime;
+
+	dai_runtime = cdns->dai_runtime_array[dai->id];
+	if (!dai_runtime)
+		return ERR_PTR(-EINVAL);
+
+	return dai_runtime->stream;
+}
+
+static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai)
+{
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_intel_link_res *res = sdw->link_res;
+	struct sdw_cdns_dai_runtime *dai_runtime;
+	int ret = 0;
+
+	/*
+	 * The .trigger callback is used to program HDaudio DMA and send required IPC to audio
+	 * firmware.
+	 */
+	if (res->ops && res->ops->trigger) {
+		ret = res->ops->trigger(substream, cmd, dai);
+		if (ret < 0)
+			return ret;
+	}
+
+	dai_runtime = cdns->dai_runtime_array[dai->id];
+	if (!dai_runtime) {
+		dev_err(dai->dev, "failed to get dai runtime in %s\n",
+			__func__);
+		return -EIO;
+	}
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+
+		/*
+		 * The .prepare callback is used to deal with xruns and resume operations.
+		 * In the case of xruns, the DMAs and SHIM registers cannot be touched,
+		 * but for resume operations the DMAs and SHIM registers need to be initialized.
+		 * the .trigger callback is used to track the suspend case only.
+		 */
+
+		dai_runtime->suspended = true;
+
+		break;
+
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		dai_runtime->paused = true;
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		dai_runtime->paused = false;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
+	.hw_params = intel_hw_params,
+	.prepare = intel_prepare,
+	.hw_free = intel_hw_free,
+	.trigger = intel_trigger,
+	.set_stream = intel_pcm_set_sdw_stream,
+	.get_stream = intel_get_sdw_stream,
 };
 
 static const struct snd_soc_component_driver dai_component = {
@@ -360,9 +706,29 @@ static void intel_program_sdi(struct sdw_intel *sdw, int dev_num)
 			__func__, sdw->instance, dev_num);
 }
 
+static int intel_get_link_count(struct sdw_intel *sdw)
+{
+	int ret;
+
+	ret = hdac_bus_eml_get_count(sdw->link_res->hbus, true, AZX_REG_ML_LEPTR_ID_SDW);
+	if (!ret) {
+		dev_err(sdw->cdns.dev, "%s: could not retrieve link count\n", __func__);
+		return -ENODEV;
+	}
+
+	if (ret > SDW_INTEL_MAX_LINKS) {
+		dev_err(sdw->cdns.dev, "%s: link count %d exceed max %d\n", __func__, ret, SDW_INTEL_MAX_LINKS);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 	.debugfs_init = intel_ace2x_debugfs_init,
 	.debugfs_exit = intel_ace2x_debugfs_exit,
+
+	.get_link_count = intel_get_link_count,
 
 	.register_dai = intel_register_dai,
 

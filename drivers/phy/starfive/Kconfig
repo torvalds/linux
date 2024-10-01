@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for StarFive platforms
+#
+
+if ARCH_STARFIVE || COMPILE_TEST
+
+config PHY_STARFIVE_JH7110_DPHY_RX
+	tristate "StarFive JH7110 D-PHY RX support"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Choose this option if you have a StarFive D-PHY in your
+	  system. If M is selected, the module will be called
+	  phy-jh7110-dphy-rx.ko.
+
+config PHY_STARFIVE_JH7110_DPHY_TX
+	tristate "StarFive JH7110 D-PHY TX Support"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Choose this option if you have a StarFive D-PHY TX in your
+	  system. If M is selected, the module will be called
+	  phy-jh7110-dphy-tx.ko.
+
+config PHY_STARFIVE_JH7110_PCIE
+	tristate "Starfive JH7110 PCIE 2.0/USB 3.0 PHY support"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support the StarFive PCIe 2.0 PHY,
+	  or used as USB 3.0 PHY.
+	  If M is selected, the module will be called
+	  phy-jh7110-pcie.ko.
+
+config PHY_STARFIVE_JH7110_USB
+	tristate "Starfive JH7110 USB 2.0 PHY support"
+	depends on USB_SUPPORT
+	select GENERIC_PHY
+	help
+	  Enable this to support the StarFive USB 2.0 PHY,
+	  used with the Cadence USB controller.
+	  If M is selected, the module will be called
+	  phy-jh7110-usb.ko.
+
+endif # ARCH_STARFIVE || COMPILE_TEST

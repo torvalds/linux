@@ -783,7 +783,6 @@ static const struct file_operations atk_debugfs_ggrp_fops = {
 	.read		= atk_debugfs_ggrp_read,
 	.open		= atk_debugfs_ggrp_open,
 	.release	= atk_debugfs_ggrp_release,
-	.llseek		= no_llseek,
 };
 
 static void atk_debugfs_init(struct atk_data *data)
@@ -1389,4 +1388,5 @@ static void __exit atk0110_exit(void)
 module_init(atk0110_init);
 module_exit(atk0110_exit);
 
+MODULE_DESCRIPTION("ASUS ATK0110 driver");
 MODULE_LICENSE("GPL");

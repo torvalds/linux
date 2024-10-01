@@ -39,15 +39,21 @@ struct sas_phy_data {
 	struct sas_work enable_work;
 };
 
+void sas_hash_addr(u8 *hashed, const u8 *sas_addr);
+
+int sas_discover_root_expander(struct domain_device *dev);
+
+int sas_ex_revalidate_domain(struct domain_device *dev);
+void sas_unregister_domain_devices(struct asd_sas_port *port, int gone);
+void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port);
+void sas_discover_event(struct asd_sas_port *port, enum discover_event ev);
+
+void sas_init_dev(struct domain_device *dev);
+void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev);
+
 void sas_scsi_recover_host(struct Scsi_Host *shost);
 
-int sas_show_class(enum sas_class class, char *buf);
-int sas_show_proto(enum sas_protocol proto, char *buf);
-int sas_show_linkrate(enum sas_linkrate linkrate, char *buf);
-int sas_show_oob_mode(enum sas_oob_mode oob_mode, char *buf);
-
 int  sas_register_phys(struct sas_ha_struct *sas_ha);
-void sas_unregister_phys(struct sas_ha_struct *sas_ha);
 
 struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy, gfp_t gfp_flags);
 void sas_free_event(struct asd_sas_event *event);
@@ -91,7 +97,6 @@ int sas_get_report_phy_sata(struct domain_device *dev, int phy_id,
 int sas_get_phy_attached_dev(struct domain_device *dev, int phy_id,
 			     u8 *sas_addr, enum sas_device_type *type);
 int sas_try_ata_reset(struct asd_sas_phy *phy);
-void sas_hae_reset(struct work_struct *work);
 
 void sas_free_device(struct kref *kref);
 void sas_destruct_devices(struct asd_sas_port *port);
@@ -140,6 +145,20 @@ static inline void sas_fail_probe(struct domain_device *dev, const char *func, i
 		func, dev->parent ? "exp-attached" :
 		"direct-attached",
 		SAS_ADDR(dev->sas_addr), err);
+
+	/*
+	 * If the device probe failed, the expander phy attached address
+	 * needs to be reset so that the phy will not be treated as flutter
+	 * in the next revalidation
+	 */
+	if (dev->parent && !dev_is_expander(dev->dev_type)) {
+		struct sas_phy *phy = dev->phy;
+		struct domain_device *parent = dev->parent;
+		struct ex_phy *ex_phy = &parent->ex_dev.ex_phy[phy->number];
+
+		memset(ex_phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
+	}
+
 	sas_unregister_dev(dev->port, dev);
 }
 
@@ -182,21 +201,6 @@ static inline void sas_phy_set_target(struct asd_sas_phy *p, struct domain_devic
 		phy->identify.device_type = SAS_PHY_UNUSED;
 		phy->identify.target_port_protocols = 0;
 	}
-}
-
-static inline void sas_add_parent_port(struct domain_device *dev, int phy_id)
-{
-	struct expander_device *ex = &dev->ex_dev;
-	struct ex_phy *ex_phy = &ex->ex_phy[phy_id];
-
-	if (!ex->parent_port) {
-		ex->parent_port = sas_port_alloc(&dev->rphy->dev, phy_id);
-		/* FIXME: error handling */
-		BUG_ON(!ex->parent_port);
-		BUG_ON(sas_port_add(ex->parent_port));
-		sas_port_mark_backlink(ex->parent_port);
-	}
-	sas_port_add_phy(ex->parent_port, ex_phy->phy);
 }
 
 static inline struct domain_device *sas_alloc_device(void)

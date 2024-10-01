@@ -746,8 +746,6 @@ void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 			 die_id);
 		break;
 	}
-
-	return;
 }
 
 void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
@@ -1548,8 +1546,8 @@ static void gfx_v9_4_2_log_utc_edc_count(struct amdgpu_device *adev,
 					 uint32_t ded_cnt)
 {
 	uint32_t bank, way, mem;
-	static const char *vml2_way_str[] = { "BIGK", "4K" };
-	static const char *utcl2_rounter_str[] = { "VMC", "APT" };
+	static const char * const vml2_way_str[] = { "BIGK", "4K" };
+	static const char * const utcl2_rounter_str[] = { "VMC", "APT" };
 
 	mem = instance % blk->num_mem_blocks;
 	way = (instance / blk->num_mem_blocks) % blk->num_ways;
@@ -1911,18 +1909,7 @@ static void gfx_v9_4_2_reset_sq_timeout_status(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
-static bool gfx_v9_4_2_query_uctl2_poison_status(struct amdgpu_device *adev)
-{
-	u32 status = 0;
-	struct amdgpu_vmhub *hub;
 
-	hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
-	status = RREG32(hub->vm_l2_pro_fault_status);
-	/* reset page fault status */
-	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
-
-	return REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, FED);
-}
 
 struct amdgpu_ras_block_hw_ops  gfx_v9_4_2_ras_ops = {
 		.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
@@ -1936,5 +1923,4 @@ struct amdgpu_gfx_ras gfx_v9_4_2_ras = {
 		.hw_ops = &gfx_v9_4_2_ras_ops,
 	},
 	.enable_watchdog_timer = &gfx_v9_4_2_enable_watchdog_timer,
-	.query_utcl2_poison_status = gfx_v9_4_2_query_uctl2_poison_status,
 };

@@ -35,15 +35,17 @@ struct pds_vdpa_device {
 	struct pds_vdpa_aux *vdpa_aux;
 
 	struct pds_vdpa_vq_info vqs[PDS_VDPA_MAX_QUEUES];
-	u64 supported_features;		/* specified device features */
-	u64 req_features;		/* features requested by vdpa */
+	u64 supported_features;		/* supported device features */
+	u64 negotiated_features;	/* negotiated features */
 	u8 vdpa_index;			/* rsvd for future subdevice use */
 	u8 num_vqs;			/* num vqs in use */
+	u8 mac[ETH_ALEN];		/* mac selected when the device was added */
 	struct vdpa_callback config_cb;
 	struct notifier_block nb;
 };
 
 #define PDS_VDPA_PACKED_INVERT_IDX	0x8000
 
+void pds_vdpa_release_irqs(struct pds_vdpa_device *pdsv);
 int pds_vdpa_get_mgmt_info(struct pds_vdpa_aux *vdpa_aux);
 #endif /* _VDPA_DEV_H_ */

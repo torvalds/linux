@@ -562,6 +562,27 @@ struct fc_vft_header {
 #include <uapi/scsi/fc/fc_els.h>
 
 /*
+ * Application Header
+ */
+struct fc_app_header {
+	uint32_t dst_app_id;
+	uint32_t src_app_id;
+#define LOOPBACK_SRC_APPID	0x4321
+	uint32_t word2;
+	uint32_t word3;
+};
+
+/*
+ * dfctl optional header definition
+ */
+enum lpfc_fc_dfctl {
+	LPFC_FC_NO_DEVICE_HEADER,
+	LPFC_FC_16B_DEVICE_HEADER,
+	LPFC_FC_32B_DEVICE_HEADER,
+	LPFC_FC_64B_DEVICE_HEADER,
+};
+
+/*
  *  Extended Link Service LS_COMMAND codes (Payload Word 0)
  */
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -764,6 +785,8 @@ typedef struct _PRLI {		/* Structure is in Big Endian format */
 #define PRLI_PREDEF_CONFIG    0x5
 #define PRLI_PARTIAL_SUCCESS  0x6
 #define PRLI_INVALID_PAGE_CNT 0x7
+#define PRLI_INV_SRV_PARM     0x8
+
 	uint8_t word0Reserved3;	/* FC Parm Word 0, bit 0:7 */
 
 	uint32_t origProcAssoc;	/* FC Parm Word 1, bit 0:31 */

@@ -291,7 +291,7 @@ static inline void pnp_set_drvdata(struct pnp_dev *pdev, void *data)
 
 struct pnp_fixup {
 	char id[7];
-	void (*quirk_function) (struct pnp_dev * dev);	/* fixup function */
+	void (*quirk_function) (struct pnp_dev *dev);	/* fixup function */
 };
 
 /* config parameters */
@@ -383,7 +383,7 @@ struct pnp_driver {
 	struct device_driver driver;
 };
 
-#define	to_pnp_driver(drv) container_of(drv, struct pnp_driver, driver)
+#define	to_pnp_driver(drv) container_of_const(drv, struct pnp_driver, driver)
 
 struct pnp_card_driver {
 	struct list_head global_list;
@@ -419,8 +419,8 @@ struct pnp_protocol {
 
 	/* protocol specific suspend/resume */
 	bool (*can_wakeup) (struct pnp_dev *dev);
-	int (*suspend) (struct pnp_dev * dev, pm_message_t state);
-	int (*resume) (struct pnp_dev * dev);
+	int (*suspend) (struct pnp_dev *dev, pm_message_t state);
+	int (*resume) (struct pnp_dev *dev);
 
 	/* used by pnp layer only (look but don't touch) */
 	unsigned char number;	/* protocol number */
@@ -434,8 +434,6 @@ struct pnp_protocol {
 	list_for_each_entry(card, &(protocol)->cards, protocol_list)
 #define protocol_for_each_dev(protocol, dev)	\
 	list_for_each_entry(dev, &(protocol)->devices, protocol_list)
-
-extern struct bus_type pnp_bus_type;
 
 #if defined(CONFIG_PNP)
 
@@ -469,6 +467,8 @@ int compare_pnp_id(struct pnp_id *pos, const char *id);
 int pnp_register_driver(struct pnp_driver *drv);
 void pnp_unregister_driver(struct pnp_driver *drv);
 
+bool dev_is_pnp(const struct device *dev);
+
 #else
 
 /* device management */
@@ -492,13 +492,15 @@ static inline int pnp_start_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_stop_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_activate_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_disable_dev(struct pnp_dev *dev) { return -ENODEV; }
-static inline int pnp_range_reserved(resource_size_t start, resource_size_t end) { return 0;}
+static inline int pnp_range_reserved(resource_size_t start, resource_size_t end) { return 0; }
 
 /* protocol helpers */
 static inline int pnp_is_active(struct pnp_dev *dev) { return 0; }
 static inline int compare_pnp_id(struct pnp_id *pos, const char *id) { return -ENODEV; }
 static inline int pnp_register_driver(struct pnp_driver *drv) { return -ENODEV; }
 static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
+
+static inline bool dev_is_pnp(const struct device *dev) { return false; }
 
 #endif /* CONFIG_PNP */
 

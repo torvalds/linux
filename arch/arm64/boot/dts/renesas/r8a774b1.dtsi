@@ -10,8 +10,6 @@
 #include <dt-bindings/clock/r8a774b1-cpg-mssr.h>
 #include <dt-bindings/power/r8a774b1-sysc.h>
 
-#define CPG_AUDIO_CLK_I		R8A774B1_CLK_S0D4
-
 / {
 	compatible = "renesas,r8a774b1";
 	#address-cells = <2>;
@@ -415,6 +413,7 @@
 			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2";
 			clocks = <&cpg CPG_MOD 125>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
@@ -427,7 +426,9 @@
 			reg = <0 0xe6fc0000 0 0x30>;
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 124>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
@@ -440,7 +441,9 @@
 			reg = <0 0xe6fd0000 0 0x30>;
 			interrupts = <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 123>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
@@ -454,6 +457,7 @@
 			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2";
 			clocks = <&cpg CPG_MOD 122>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
@@ -467,6 +471,7 @@
 			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2";
 			clocks = <&cpg CPG_MOD 121>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
@@ -1597,7 +1602,7 @@
 				 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
 				 <&audio_clk_a>, <&audio_clk_b>,
 				 <&audio_clk_c>,
-				 <&cpg CPG_CORE R8A774B1_CLK_S0D4>;
+				 <&cpg CPG_MOD 922>;
 			clock-names = "ssi-all",
 				      "ssi.9", "ssi.8", "ssi.7", "ssi.6",
 				      "ssi.5", "ssi.4", "ssi.3", "ssi.2",
@@ -1999,6 +2004,14 @@
 			resets = <&cpg 502>;
 			#dma-cells = <1>;
 			dma-channels = <16>;
+			iommus = <&ipmmu_mp 0>, <&ipmmu_mp 1>,
+				 <&ipmmu_mp 2>, <&ipmmu_mp 3>,
+				 <&ipmmu_mp 4>, <&ipmmu_mp 5>,
+				 <&ipmmu_mp 6>, <&ipmmu_mp 7>,
+				 <&ipmmu_mp 8>, <&ipmmu_mp 9>,
+				 <&ipmmu_mp 10>, <&ipmmu_mp 11>,
+				 <&ipmmu_mp 12>, <&ipmmu_mp 13>,
+				 <&ipmmu_mp 14>, <&ipmmu_mp 15>;
 		};
 
 		audma1: dma-controller@ec720000 {
@@ -2033,6 +2046,14 @@
 			resets = <&cpg 501>;
 			#dma-cells = <1>;
 			dma-channels = <16>;
+			iommus = <&ipmmu_mp 16>, <&ipmmu_mp 17>,
+				 <&ipmmu_mp 18>, <&ipmmu_mp 19>,
+				 <&ipmmu_mp 20>, <&ipmmu_mp 21>,
+				 <&ipmmu_mp 22>, <&ipmmu_mp 23>,
+				 <&ipmmu_mp 24>, <&ipmmu_mp 25>,
+				 <&ipmmu_mp 26>, <&ipmmu_mp 27>,
+				 <&ipmmu_mp 28>, <&ipmmu_mp 29>,
+				 <&ipmmu_mp 30>, <&ipmmu_mp 31>;
 		};
 
 		xhci0: usb@ee000000 {
@@ -2140,6 +2161,7 @@
 			max-frequency = <200000000>;
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 314>;
+			iommus = <&ipmmu_ds1 32>;
 			status = "disabled";
 		};
 
@@ -2153,6 +2175,7 @@
 			max-frequency = <200000000>;
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 313>;
+			iommus = <&ipmmu_ds1 33>;
 			status = "disabled";
 		};
 
@@ -2166,6 +2189,7 @@
 			max-frequency = <200000000>;
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 312>;
+			iommus = <&ipmmu_ds1 34>;
 			status = "disabled";
 		};
 
@@ -2179,6 +2203,7 @@
 			max-frequency = <200000000>;
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 311>;
+			iommus = <&ipmmu_ds1 35>;
 			status = "disabled";
 		};
 
@@ -2206,6 +2231,7 @@
 			clocks = <&cpg CPG_MOD 815>;
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 815>;
+			iommus = <&ipmmu_hc 2>;
 			status = "disabled";
 		};
 
@@ -2338,6 +2364,7 @@
 			clocks = <&cpg CPG_MOD 615>;
 			power-domains = <&sysc R8A774B1_PD_A3VP>;
 			resets = <&cpg 615>;
+			iommus = <&ipmmu_vp0 0>;
 		};
 
 		vspb: vsp@fe960000 {
@@ -2390,6 +2417,7 @@
 			clocks = <&cpg CPG_MOD 607>;
 			power-domains = <&sysc R8A774B1_PD_A3VP>;
 			resets = <&cpg 607>;
+			iommus = <&ipmmu_vp0 5>;
 		};
 
 		fcpvd0: fcp@fea27000 {
@@ -2398,6 +2426,7 @@
 			clocks = <&cpg CPG_MOD 603>;
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 603>;
+			iommus = <&ipmmu_vi0 8>;
 		};
 
 		fcpvd1: fcp@fea2f000 {
@@ -2406,6 +2435,7 @@
 			clocks = <&cpg CPG_MOD 602>;
 			power-domains = <&sysc R8A774B1_PD_ALWAYS_ON>;
 			resets = <&cpg 602>;
+			iommus = <&ipmmu_vi0 9>;
 		};
 
 		fcpvi0: fcp@fe9af000 {
@@ -2414,6 +2444,7 @@
 			clocks = <&cpg CPG_MOD 611>;
 			power-domains = <&sysc R8A774B1_PD_A3VP>;
 			resets = <&cpg 611>;
+			iommus = <&ipmmu_vp0 8>;
 		};
 
 		csi20: csi2@fea80000 {
@@ -2699,6 +2730,7 @@
 				      <&gic GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 				      <&gic GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 				      <&gic GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-names = "sec-phys", "phys", "virt", "hyp-phys";
 	};
 
 	/* External USB clocks - can be overridden by the board */

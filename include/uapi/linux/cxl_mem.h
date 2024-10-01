@@ -46,6 +46,10 @@
 	___C(GET_SCAN_MEDIA_CAPS, "Get Scan Media Capabilities"),         \
 	___DEPRECATED(SCAN_MEDIA, "Scan Media"),                          \
 	___DEPRECATED(GET_SCAN_MEDIA, "Get Scan Media Results"),          \
+	___C(GET_TIMESTAMP, "Get Timestamp"),                             \
+	___C(GET_LOG_CAPS, "Get Log Capabilities"),			  \
+	___C(CLEAR_LOG, "Clear Log"),					  \
+	___C(GET_SUP_LOG_SUBLIST, "Get Supported Logs Sub-List"),	  \
 	___C(MAX, "invalid / last command")
 
 #define ___C(a, b) CXL_MEM_COMMAND_ID_##a

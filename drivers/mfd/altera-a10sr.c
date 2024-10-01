@@ -163,7 +163,7 @@ static struct spi_driver altr_a10sr_spi_driver = {
 	.probe = altr_a10sr_spi_probe,
 	.driver = {
 		.name = "altr_a10sr",
-		.of_match_table = of_match_ptr(altr_a10sr_spi_of_match),
+		.of_match_table = altr_a10sr_spi_of_match,
 	},
 	.id_table = altr_a10sr_spi_ids,
 };

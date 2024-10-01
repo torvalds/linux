@@ -78,9 +78,11 @@ struct clk_fracn_gppll {
  * The Fvco should be in range 2.5Ghz to 5Ghz
  */
 static const struct imx_fracn_gppll_rate_table fracn_tbl[] = {
+	PLL_FRACN_GP(1039500000U, 173, 25, 100, 1, 4),
 	PLL_FRACN_GP(650000000U, 162, 50, 100, 0, 6),
 	PLL_FRACN_GP(594000000U, 198, 0, 1, 0, 8),
 	PLL_FRACN_GP(560000000U, 140, 0, 1, 0, 6),
+	PLL_FRACN_GP(519750000U, 173, 25, 100, 1, 8),
 	PLL_FRACN_GP(498000000U, 166, 0, 1, 0, 8),
 	PLL_FRACN_GP(484000000U, 121, 0, 1, 0, 6),
 	PLL_FRACN_GP(445333333U, 167, 0, 1, 0, 9),
@@ -105,6 +107,7 @@ static const struct imx_fracn_gppll_rate_table int_tbl[] = {
 	PLL_FRACN_GP_INTEGER(1700000000U, 141, 1, 2),
 	PLL_FRACN_GP_INTEGER(1400000000U, 175, 1, 3),
 	PLL_FRACN_GP_INTEGER(900000000U, 150, 1, 4),
+	PLL_FRACN_GP_INTEGER(800000000U, 200, 1, 6),
 };
 
 struct imx_fracn_gppll_clk imx_fracn_gppll_integer = {
@@ -289,6 +292,10 @@ static int clk_fracn_gppll_prepare(struct clk_hw *hw)
 	val = readl_relaxed(pll->base + PLL_CTRL);
 	if (val & POWERUP_MASK)
 		return 0;
+
+	if (pll->flags & CLK_FRACN_GPPLL_FRACN)
+		writel_relaxed(readl_relaxed(pll->base + PLL_NUMERATOR),
+			       pll->base + PLL_NUMERATOR);
 
 	val |= CLKMUX_BYPASS;
 	writel_relaxed(val, pll->base + PLL_CTRL);

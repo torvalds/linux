@@ -5,6 +5,9 @@
  * Copyright (C) 2019 Pengutronix, Michael Grzeschik <kernel@pengutronix.de>
  */
 
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
+
 #include "ksz8.h"
 #include "ksz_common.h"
 
@@ -196,11 +199,11 @@ static void ksz8863_smi_shutdown(struct mdio_device *mdiodev)
 static const struct of_device_id ksz8863_dt_ids[] = {
 	{
 		.compatible = "microchip,ksz8863",
-		.data = &ksz_switch_chips[KSZ8830]
+		.data = &ksz_switch_chips[KSZ88X3]
 	},
 	{
 		.compatible = "microchip,ksz8873",
-		.data = &ksz_switch_chips[KSZ8830]
+		.data = &ksz_switch_chips[KSZ88X3]
 	},
 	{ },
 };

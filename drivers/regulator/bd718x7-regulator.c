@@ -2,6 +2,7 @@
 // Copyright (C) 2018 ROHM Semiconductors
 // bd71837-regulator.c ROHM BD71837MWV/BD71847MWV regulator driver
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -289,7 +290,7 @@ static const struct linear_range bd71837_buck5_volts[] = {
  * and 0x1 for last 3 ranges.
  */
 static const unsigned int bd71837_buck5_volt_range_sel[] = {
-	0x0, 0x0, 0x0, 0x80, 0x80, 0x80
+	0x0, 0x0, 0x0, 0x1, 0x1, 0x1
 };
 
 /*
@@ -309,7 +310,7 @@ static const struct linear_range bd71847_buck3_volts[] = {
 };
 
 static const unsigned int bd71847_buck3_volt_range_sel[] = {
-	0x0, 0x0, 0x0, 0x40, 0x80, 0x80, 0x80
+	0x0, 0x0, 0x0, 0x1, 0x2, 0x2, 0x2
 };
 
 static const struct linear_range bd71847_buck4_volts[] = {
@@ -317,7 +318,7 @@ static const struct linear_range bd71847_buck4_volts[] = {
 	REGULATOR_LINEAR_RANGE(2600000, 0x00, 0x03, 100000),
 };
 
-static const unsigned int bd71847_buck4_volt_range_sel[] = { 0x0, 0x40 };
+static const unsigned int bd71847_buck4_volt_range_sel[] = { 0x0, 0x1 };
 
 /*
  * BUCK6
@@ -360,7 +361,7 @@ static const struct linear_range bd718xx_ldo1_volts[] = {
 	REGULATOR_LINEAR_RANGE(1600000, 0x00, 0x03, 100000),
 };
 
-static const unsigned int bd718xx_ldo1_volt_range_sel[] = { 0x0, 0x20 };
+static const unsigned int bd718xx_ldo1_volt_range_sel[] = { 0x0, 0x1 };
 
 /*
  * LDO2
@@ -403,7 +404,7 @@ static const struct linear_range bd71847_ldo5_volts[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x00, 0x0F, 100000),
 };
 
-static const unsigned int bd71847_ldo5_volt_range_sel[] = { 0x0, 0x20 };
+static const unsigned int bd71847_ldo5_volt_range_sel[] = { 0x0, 0x1 };
 
 /*
  * LDO6
@@ -817,7 +818,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD718XX_1ST_NODVS_BUCK_MASK,
 			.vsel_range_reg = BD718XX_REG_1ST_NODVS_BUCK_VOLT,
 			.vsel_range_mask = BD71847_BUCK3_RANGE_MASK,
-			.linear_range_selectors = bd71847_buck3_volt_range_sel,
+			.linear_range_selectors_bitfield = bd71847_buck3_volt_range_sel,
 			.enable_reg = BD718XX_REG_1ST_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.enable_time = BD71847_BUCK3_STARTUP_TIME,
@@ -845,7 +846,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD71847_BUCK4_MASK,
 			.vsel_range_reg = BD718XX_REG_2ND_NODVS_BUCK_VOLT,
 			.vsel_range_mask = BD71847_BUCK4_RANGE_MASK,
-			.linear_range_selectors = bd71847_buck4_volt_range_sel,
+			.linear_range_selectors_bitfield = bd71847_buck4_volt_range_sel,
 			.enable_mask = BD718XX_BUCK_EN,
 			.enable_time = BD71847_BUCK4_STARTUP_TIME,
 			.owner = THIS_MODULE,
@@ -916,7 +917,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD718XX_LDO1_MASK,
 			.vsel_range_reg = BD718XX_REG_LDO1_VOLT,
 			.vsel_range_mask = BD718XX_LDO1_RANGE_MASK,
-			.linear_range_selectors = bd718xx_ldo1_volt_range_sel,
+			.linear_range_selectors_bitfield = bd718xx_ldo1_volt_range_sel,
 			.enable_reg = BD718XX_REG_LDO1_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
 			.enable_time = BD71847_LDO1_STARTUP_TIME,
@@ -1010,7 +1011,7 @@ static struct bd718xx_regulator_data bd71847_regulators[] = {
 			.vsel_mask = BD71847_LDO5_MASK,
 			.vsel_range_reg = BD718XX_REG_LDO5_VOLT,
 			.vsel_range_mask = BD71847_LDO5_RANGE_MASK,
-			.linear_range_selectors = bd71847_ldo5_volt_range_sel,
+			.linear_range_selectors_bitfield = bd71847_ldo5_volt_range_sel,
 			.enable_reg = BD718XX_REG_LDO5_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
 			.enable_time = BD71847_LDO5_STARTUP_TIME,
@@ -1232,7 +1233,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD71837_BUCK5_MASK,
 			.vsel_range_reg = BD718XX_REG_1ST_NODVS_BUCK_VOLT,
 			.vsel_range_mask = BD71837_BUCK5_RANGE_MASK,
-			.linear_range_selectors = bd71837_buck5_volt_range_sel,
+			.linear_range_selectors_bitfield = bd71837_buck5_volt_range_sel,
 			.enable_reg = BD718XX_REG_1ST_NODVS_BUCK_CTRL,
 			.enable_mask = BD718XX_BUCK_EN,
 			.enable_time = BD71837_BUCK5_STARTUP_TIME,
@@ -1328,7 +1329,7 @@ static struct bd718xx_regulator_data bd71837_regulators[] = {
 			.vsel_mask = BD718XX_LDO1_MASK,
 			.vsel_range_reg = BD718XX_REG_LDO1_VOLT,
 			.vsel_range_mask = BD718XX_LDO1_RANGE_MASK,
-			.linear_range_selectors = bd718xx_ldo1_volt_range_sel,
+			.linear_range_selectors_bitfield = bd718xx_ldo1_volt_range_sel,
 			.enable_reg = BD718XX_REG_LDO1_VOLT,
 			.enable_mask = BD718XX_LDO_EN,
 			.enable_time = BD71837_LDO1_STARTUP_TIME,
@@ -1635,18 +1636,17 @@ static int get_special_regulators(struct device *dev,
 				  unsigned int num_reg_data, int *info)
 {
 	int ret;
-	struct device_node *np;
-	struct device_node *nproot = dev->of_node;
 	int uv;
 
 	*info = 0;
 
-	nproot = of_get_child_by_name(nproot, "regulators");
+	struct device_node *nproot __free(device_node) = of_get_child_by_name(dev->of_node,
+									      "regulators");
 	if (!nproot) {
 		dev_err(dev, "failed to find regulators node\n");
 		return -ENODEV;
 	}
-	for_each_child_of_node(nproot, np) {
+	for_each_child_of_node_scoped(nproot, np) {
 		if (of_property_read_bool(np, "rohm,no-regulator-enable-control"))
 			mark_hw_controlled(dev, np, reg_data, num_reg_data,
 					   info);
@@ -1656,22 +1656,15 @@ static int get_special_regulators(struct device *dev,
 			if (ret == -EINVAL)
 				continue;
 			else
-				goto err_out;
+				return ret;
 		}
 
 		ret = setup_feedback_loop(dev, np, reg_data, num_reg_data, uv);
 		if (ret)
-			goto err_out;
+			return ret;
 	}
 
-	of_node_put(nproot);
 	return 0;
-
-err_out:
-	of_node_put(np);
-	of_node_put(nproot);
-
-	return ret;
 }
 
 static int bd718xx_probe(struct platform_device *pdev)

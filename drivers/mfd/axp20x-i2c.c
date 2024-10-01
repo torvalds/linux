@@ -65,6 +65,7 @@ static const struct of_device_id axp20x_i2c_of_match[] = {
 	{ .compatible = "x-powers,axp221", .data = (void *)AXP221_ID },
 	{ .compatible = "x-powers,axp223", .data = (void *)AXP223_ID },
 	{ .compatible = "x-powers,axp313a", .data = (void *)AXP313A_ID },
+	{ .compatible = "x-powers,axp717", .data = (void *)AXP717_ID },
 	{ .compatible = "x-powers,axp803", .data = (void *)AXP803_ID },
 	{ .compatible = "x-powers,axp806", .data = (void *)AXP806_ID },
 	{ .compatible = "x-powers,axp15060", .data = (void *)AXP15060_ID },
@@ -74,17 +75,18 @@ MODULE_DEVICE_TABLE(of, axp20x_i2c_of_match);
 #endif
 
 static const struct i2c_device_id axp20x_i2c_id[] = {
-	{ "axp152", 0 },
-	{ "axp192", 0 },
-	{ "axp202", 0 },
-	{ "axp209", 0 },
-	{ "axp221", 0 },
-	{ "axp223", 0 },
-	{ "axp313a", 0 },
-	{ "axp803", 0 },
-	{ "axp806", 0 },
-	{ "axp15060", 0 },
-	{ },
+	{ "axp152" },
+	{ "axp192" },
+	{ "axp202" },
+	{ "axp209" },
+	{ "axp221" },
+	{ "axp223" },
+	{ "axp313a" },
+	{ "axp717" },
+	{ "axp803" },
+	{ "axp806" },
+	{ "axp15060" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, axp20x_i2c_id);
 

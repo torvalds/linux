@@ -7,8 +7,6 @@
 #include <asm/processor.h>
 #include <asm/spinlock_types.h>
 
-#define SPINLOCK_BREAK_INSN	0x0000c006	/* break 6,6 */
-
 static inline void arch_spin_val_check(int lock_val)
 {
 	if (IS_ENABLED(CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK))

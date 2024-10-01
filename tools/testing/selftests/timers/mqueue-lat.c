@@ -107,8 +107,8 @@ int main(int argc, char **argv)
 	ret = mqueue_lat_test();
 	if (ret < 0) {
 		printf("[FAILED]\n");
-		return ksft_exit_fail();
+		ksft_exit_fail();
 	}
 	printf("[OK]\n");
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

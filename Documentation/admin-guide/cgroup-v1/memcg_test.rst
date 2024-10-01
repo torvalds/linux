@@ -62,7 +62,7 @@ Please note that implementation details can be changed.
 
 	At cancel(), simply usage -= PAGE_SIZE.
 
-Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
+Under below explanation, we assume CONFIG_SWAP=y.
 
 4. Anonymous
 ============
@@ -102,7 +102,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	The logic is very clear. (About migration, see below)
 
 	Note:
-	  __remove_from_page_cache() is called by remove_from_page_cache()
+	  __filemap_remove_folio() is called by filemap_remove_folio()
 	  and __remove_mapping().
 
 6. Shmem(tmpfs) Page Cache

@@ -387,7 +387,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(itg3200_pm_ops, itg3200_suspend,
 				itg3200_resume);
 
 static const struct i2c_device_id itg3200_id[] = {
-	{ "itg3200", 0 },
+	{ "itg3200" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, itg3200_id);

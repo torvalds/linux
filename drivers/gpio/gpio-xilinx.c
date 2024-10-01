@@ -15,8 +15,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
@@ -52,7 +52,6 @@
  * @dir: GPIO direction shadow register
  * @gpio_lock: Lock used for synchronization
  * @irq: IRQ used by GPIO device
- * @irqchip: IRQ chip
  * @enable: GPIO IRQ enable/disable bitfield
  * @rising_edge: GPIO IRQ rising edge enable/disable bitfield
  * @falling_edge: GPIO IRQ falling edge enable/disable bitfield
@@ -332,16 +331,11 @@ static int __maybe_unused xgpio_suspend(struct device *dev)
  *
  * Return: 0 always
  */
-static int xgpio_remove(struct platform_device *pdev)
+static void xgpio_remove(struct platform_device *pdev)
 {
-	struct xgpio_instance *gpio = platform_get_drvdata(pdev);
-
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(gpio->clk);
-
-	return 0;
 }
 
 /**
@@ -647,15 +641,10 @@ static int xgpio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->regs);
 	}
 
-	chip->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	chip->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
 	if (IS_ERR(chip->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(chip->clk), "input clock not found.\n");
 
-	status = clk_prepare_enable(chip->clk);
-	if (status < 0) {
-		dev_err(&pdev->dev, "Failed to prepare clk\n");
-		return status;
-	}
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
@@ -702,7 +691,6 @@ skip_irq:
 err_pm_put:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
-	clk_disable_unprepare(chip->clk);
 	return status;
 }
 
@@ -715,7 +703,7 @@ MODULE_DEVICE_TABLE(of, xgpio_of_match);
 
 static struct platform_driver xgpio_plat_driver = {
 	.probe		= xgpio_probe,
-	.remove		= xgpio_remove,
+	.remove_new	= xgpio_remove,
 	.driver		= {
 			.name = "gpio-xilinx",
 			.of_match_table	= xgpio_of_match,

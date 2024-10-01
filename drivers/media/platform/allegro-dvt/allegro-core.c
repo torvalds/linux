@@ -17,7 +17,6 @@
 #include <linux/mfd/syscon/xlnx-vcu.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -180,7 +179,7 @@ struct allegro_dev {
 	struct list_head channels;
 };
 
-static struct regmap_config allegro_regmap_config = {
+static const struct regmap_config allegro_regmap_config = {
 	.name = "regmap",
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -189,7 +188,7 @@ static struct regmap_config allegro_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static struct regmap_config allegro_sram_config = {
+static const struct regmap_config allegro_sram_config = {
 	.name = "sram",
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -1416,11 +1415,11 @@ static int allegro_mcu_send_encode_frame(struct allegro_dev *dev,
 static int allegro_mcu_wait_for_init_timeout(struct allegro_dev *dev,
 					     unsigned long timeout_ms)
 {
-	unsigned long tmo;
+	unsigned long time_left;
 
-	tmo = wait_for_completion_timeout(&dev->init_complete,
-					  msecs_to_jiffies(timeout_ms));
-	if (tmo == 0)
+	time_left = wait_for_completion_timeout(&dev->init_complete,
+						msecs_to_jiffies(timeout_ms));
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
 	reinit_completion(&dev->init_complete);
@@ -2482,14 +2481,14 @@ static void allegro_mcu_interrupt(struct allegro_dev *dev)
 static void allegro_destroy_channel(struct allegro_channel *channel)
 {
 	struct allegro_dev *dev = channel->dev;
-	unsigned long timeout;
+	unsigned long time_left;
 
 	if (channel_exists(channel)) {
 		reinit_completion(&channel->completion);
 		allegro_mcu_send_destroy_channel(dev, channel);
-		timeout = wait_for_completion_timeout(&channel->completion,
-						      msecs_to_jiffies(5000));
-		if (timeout == 0)
+		time_left = wait_for_completion_timeout(&channel->completion,
+							msecs_to_jiffies(5000));
+		if (time_left == 0)
 			v4l2_warn(&dev->v4l2_dev,
 				  "channel %d: timeout while destroying\n",
 				  channel->mcu_channel_id);
@@ -2545,7 +2544,7 @@ static void allegro_destroy_channel(struct allegro_channel *channel)
 static int allegro_create_channel(struct allegro_channel *channel)
 {
 	struct allegro_dev *dev = channel->dev;
-	unsigned long timeout;
+	unsigned long time_left;
 
 	if (channel_exists(channel)) {
 		v4l2_warn(&dev->v4l2_dev,
@@ -2596,9 +2595,9 @@ static int allegro_create_channel(struct allegro_channel *channel)
 
 	reinit_completion(&channel->completion);
 	allegro_mcu_send_create_channel(dev, channel);
-	timeout = wait_for_completion_timeout(&channel->completion,
-					      msecs_to_jiffies(5000));
-	if (timeout == 0)
+	time_left = wait_for_completion_timeout(&channel->completion,
+						msecs_to_jiffies(5000));
+	if (time_left == 0)
 		channel->error = -ETIMEDOUT;
 	if (channel->error)
 		goto err;
@@ -4007,7 +4006,7 @@ static struct platform_driver allegro_driver = {
 	.remove_new = allegro_remove,
 	.driver = {
 		.name = "allegro",
-		.of_match_table = of_match_ptr(allegro_dt_ids),
+		.of_match_table = allegro_dt_ids,
 		.pm = &allegro_pm_ops,
 	},
 };

@@ -57,14 +57,13 @@ struct lpc32xx_kscan_drv {
 	struct input_dev *input;
 	struct clk *clk;
 	void __iomem *kscan_base;
-	unsigned int irq;
 
 	u32 matrix_sz;		/* Size of matrix in XxY, ie. 3 = 3x3 */
 	u32 deb_clks;		/* Debounce clocks (based on 32KHz clock) */
 	u32 scan_delay;		/* Scan delay (based on 32KHz clock) */
 
-	unsigned short *keymap;	/* Pointer to key map for the scan matrix */
 	unsigned int row_shift;
+	unsigned short *keymap;	/* Pointer to key map for the scan matrix */
 
 	u8 lastkeystates[8];
 };
@@ -160,16 +159,9 @@ static int lpc32xx_kscan_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_kscan_drv *kscandat;
 	struct input_dev *input;
-	struct resource *res;
 	size_t keymap_size;
 	int error;
 	int irq;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get platform I/O memory\n");
-		return -EINVAL;
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -221,7 +213,7 @@ static int lpc32xx_kscan_probe(struct platform_device *pdev)
 
 	input_set_drvdata(kscandat->input, kscandat);
 
-	kscandat->kscan_base = devm_ioremap_resource(&pdev->dev, res);
+	kscandat->kscan_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kscandat->kscan_base))
 		return PTR_ERR(kscandat->kscan_base);
 

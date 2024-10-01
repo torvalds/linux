@@ -32,9 +32,10 @@
 #include <drm/ttm/ttm_caching.h>
 
 struct device;
-struct ttm_tt;
-struct ttm_pool;
+struct seq_file;
 struct ttm_operation_ctx;
+struct ttm_pool;
+struct ttm_tt;
 
 /**
  * struct ttm_pool_type - Pool for a certain memory type
@@ -74,7 +75,7 @@ struct ttm_pool {
 	bool use_dma32;
 
 	struct {
-		struct ttm_pool_type orders[MAX_ORDER + 1];
+		struct ttm_pool_type orders[NR_PAGE_ORDERS];
 	} caching[TTM_NUM_CACHING_TYPES];
 };
 

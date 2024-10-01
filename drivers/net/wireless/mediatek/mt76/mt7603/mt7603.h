@@ -64,7 +64,6 @@ struct mt7603_sta {
 
 	struct mt7603_vif *vif;
 
-	struct list_head poll_list;
 	u32 tx_airtime_ac[4];
 
 	struct sk_buff_head psq;
@@ -109,9 +108,6 @@ struct mt7603_dev {
 	const struct mt76_bus_ops *bus_ops;
 
 	u32 rxfilter;
-
-	struct list_head sta_poll_list;
-	spinlock_t sta_poll_lock;
 
 	struct mt7603_sta global_sta;
 
@@ -217,6 +213,7 @@ void mt7603_mac_sta_poll(struct mt7603_dev *dev);
 
 void mt7603_pse_client_reset(struct mt7603_dev *dev);
 
+int mt7603_set_channel(struct mt76_phy *mphy);
 int mt7603_mcu_set_channel(struct mt7603_dev *dev);
 int mt7603_mcu_set_eeprom(struct mt7603_dev *dev);
 void mt7603_mcu_exit(struct mt7603_dev *dev);
@@ -234,7 +231,7 @@ void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 			bool enabled);
 void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 			  bool enabled);
-void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort);
+void mt7603_filter_tx(struct mt7603_dev *dev, int mac_idx, int idx, bool abort);
 
 int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
@@ -249,8 +246,8 @@ void mt7603_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
 void mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
 int mt7603_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
-void mt7603_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-		      struct ieee80211_sta *sta);
+int mt7603_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta, enum mt76_sta_event ev);
 void mt7603_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 

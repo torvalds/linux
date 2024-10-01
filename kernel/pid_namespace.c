@@ -23,6 +23,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
+#include <uapi/linux/wait.h>
 #include "pid_sysctl.h"
 
 static DEFINE_MUTEX(pid_caches_mutex);
@@ -110,9 +111,9 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
 	ns->pid_allocated = PIDNS_ADDING;
-
-	initialize_memfd_noexec_scope(ns);
-
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
+	ns->memfd_noexec_scope = pidns_memfd_noexec_scope(parent_pid_ns);
+#endif
 	return ns;
 
 out_free_idr:
@@ -217,6 +218,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 */
 	do {
 		clear_thread_flag(TIF_SIGPENDING);
+		clear_thread_flag(TIF_NOTIFY_SIGNAL);
 		rc = kernel_wait4(-1, NULL, __WALL, NULL);
 	} while (rc != -ECHILD);
 
@@ -247,24 +249,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (pid_ns->pid_allocated == init_pids)
 			break;
-		/*
-		 * Release tasks_rcu_exit_srcu to avoid following deadlock:
-		 *
-		 * 1) TASK A unshare(CLONE_NEWPID)
-		 * 2) TASK A fork() twice -> TASK B (child reaper for new ns)
-		 *    and TASK C
-		 * 3) TASK B exits, kills TASK C, waits for TASK A to reap it
-		 * 4) TASK A calls synchronize_rcu_tasks()
-		 *                   -> synchronize_srcu(tasks_rcu_exit_srcu)
-		 * 5) *DEADLOCK*
-		 *
-		 * It is considered safe to release tasks_rcu_exit_srcu here
-		 * because we assume the current task can not be concurrently
-		 * reaped at this point.
-		 */
-		exit_tasks_rcu_stop();
 		schedule();
-		exit_tasks_rcu_start();
 	}
 	__set_current_state(TASK_RUNNING);
 
@@ -276,7 +261,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-static int pid_ns_ctl_handler(struct ctl_table *table, int write,
+static int pid_ns_ctl_handler(const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
@@ -285,12 +270,6 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 
 	if (write && !checkpoint_restore_ns_capable(pid_ns->user_ns))
 		return -EPERM;
-
-	/*
-	 * Writing directly to ns' last_pid field is OK, since this field
-	 * is volatile in a living namespace anyway and a code writing to
-	 * it should synchronize its usage with external means.
-	 */
 
 	next = idr_get_cursor(&pid_ns->idr) - 1;
 
@@ -312,7 +291,6 @@ static struct ctl_table pid_ns_ctl_table[] = {
 		.extra1 = SYSCTL_ZERO,
 		.extra2 = &pid_max,
 	},
-	{ }
 };
 #endif	/* CONFIG_CHECKPOINT_RESTORE */
 

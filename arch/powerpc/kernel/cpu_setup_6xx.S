@@ -26,6 +26,15 @@ BEGIN_FTR_SECTION
 	bl	__init_fpu_registers
 END_FTR_SECTION_IFCLR(CPU_FTR_FPU_UNAVAILABLE)
 	bl	setup_common_caches
+
+	/*
+	 * This assumes that all cores using __setup_cpu_603 with
+	 * MMU_FTR_USE_HIGH_BATS are G2_LE compatible
+	 */
+BEGIN_MMU_FTR_SECTION
+	bl      setup_g2_le_hid2
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
+
 	mtlr	r5
 	blr
 _GLOBAL(__setup_cpu_604)
@@ -114,6 +123,16 @@ SYM_FUNC_START_LOCAL(setup_604_hid0)
 	isync
 	blr
 SYM_FUNC_END(setup_604_hid0)
+
+/* Enable high BATs for G2_LE and derivatives like e300cX */
+SYM_FUNC_START_LOCAL(setup_g2_le_hid2)
+	mfspr	r11,SPRN_HID2_G2_LE
+	oris	r11,r11,HID2_G2_LE_HBE@h
+	mtspr	SPRN_HID2_G2_LE,r11
+	sync
+	isync
+	blr
+SYM_FUNC_END(setup_g2_le_hid2)
 
 /* 7400 <= rev 2.7 and 7410 rev = 1.0 suffer from some
  * erratas we work around here.
@@ -382,7 +401,7 @@ _GLOBAL(__save_cpu_setup)
 	andi.	r3,r3,0xff00
 	cmpwi	cr0,r3,0x0200
 	bne	1f
-	mfspr	r4,SPRN_HID2
+	mfspr	r4,SPRN_HID2_750FX
 	stw	r4,CS_HID2(r5)
 1:
 	mtcr	r7
@@ -477,7 +496,7 @@ _GLOBAL(__restore_cpu_setup)
 	bne	4f
 	lwz	r4,CS_HID2(r5)
 	rlwinm	r4,r4,0,19,17
-	mtspr	SPRN_HID2,r4
+	mtspr	SPRN_HID2_750FX,r4
 	sync
 4:
 	lwz	r4,CS_HID1(r5)
@@ -495,4 +514,3 @@ _GLOBAL(__restore_cpu_setup)
 	mtcr	r7
 	blr
 _ASM_NOKPROBE_SYMBOL(__restore_cpu_setup)
-

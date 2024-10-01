@@ -34,18 +34,8 @@ static void cpu_update_secondary_bootdata(unsigned int cpuid,
 
 	/* Make sure tidle is updated */
 	smp_mb();
-	WRITE_ONCE(__cpu_spinwait_stack_pointer[hartid],
-		   task_stack_page(tidle) + THREAD_SIZE);
+	WRITE_ONCE(__cpu_spinwait_stack_pointer[hartid], task_pt_regs(tidle));
 	WRITE_ONCE(__cpu_spinwait_task_pointer[hartid], tidle);
-}
-
-static int spinwait_cpu_prepare(unsigned int cpuid)
-{
-	if (!cpu_ops_spinwait.cpu_start) {
-		pr_err("cpu start method not defined for CPU [%d]\n", cpuid);
-		return -ENODEV;
-	}
-	return 0;
 }
 
 static int spinwait_cpu_start(unsigned int cpuid, struct task_struct *tidle)
@@ -64,7 +54,5 @@ static int spinwait_cpu_start(unsigned int cpuid, struct task_struct *tidle)
 }
 
 const struct cpu_operations cpu_ops_spinwait = {
-	.name		= "spinwait",
-	.cpu_prepare	= spinwait_cpu_prepare,
 	.cpu_start	= spinwait_cpu_start,
 };

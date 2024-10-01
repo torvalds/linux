@@ -90,7 +90,8 @@ static int map_gicc_mpidr(struct acpi_subtable_header *entry,
 	struct acpi_madt_generic_interrupt *gicc =
 	    container_of(entry, struct acpi_madt_generic_interrupt, header);
 
-	if (!(gicc->flags & ACPI_MADT_ENABLED))
+	if (!(gicc->flags &
+	      (ACPI_MADT_ENABLED | ACPI_MADT_GICC_ONLINE_CAPABLE)))
 		return -ENODEV;
 
 	/* device_declaration means Device object in DSDT, in the
@@ -132,6 +133,30 @@ static int map_rintc_hartid(struct acpi_subtable_header *entry,
 	return -EINVAL;
 }
 
+/*
+ * Retrieve LoongArch CPU physical id
+ */
+static int map_core_pic_id(struct acpi_subtable_header *entry,
+		int device_declaration, u32 acpi_id, phys_cpuid_t *phys_id)
+{
+	struct acpi_madt_core_pic *core_pic =
+		container_of(entry, struct acpi_madt_core_pic, header);
+
+	if (!(core_pic->flags & ACPI_MADT_ENABLED))
+		return -ENODEV;
+
+	/* device_declaration means Device object in DSDT, in LoongArch
+	 * system, logical processor acpi_id is required in _UID property
+	 * of DSDT table, so we should check device_declaration here
+	 */
+	if (device_declaration && (core_pic->processor_id == acpi_id)) {
+		*phys_id = core_pic->core_id;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static phys_cpuid_t map_madt_entry(struct acpi_table_madt *madt,
 				   int type, u32 acpi_id)
 {
@@ -165,6 +190,9 @@ static phys_cpuid_t map_madt_entry(struct acpi_table_madt *madt,
 		} else if (header->type == ACPI_MADT_TYPE_RINTC) {
 			if (!map_rintc_hartid(header, type, acpi_id, &phys_id))
 				break;
+		} else if (header->type == ACPI_MADT_TYPE_CORE_PIC) {
+			if (!map_core_pic_id(header, type, acpi_id, &phys_id))
+				break;
 		}
 		entry += header->length;
 	}
@@ -186,6 +214,21 @@ phys_cpuid_t __init acpi_map_madt_entry(u32 acpi_id)
 	acpi_put_table((struct acpi_table_header *)madt);
 
 	return rv;
+}
+
+int __init acpi_get_madt_revision(void)
+{
+	struct acpi_table_header *madt = NULL;
+	int revision;
+
+	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_MADT, 0, &madt)))
+		return -EINVAL;
+
+	revision = madt->revision;
+
+	acpi_put_table(madt);
+
+	return revision;
 }
 
 static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
@@ -216,6 +259,8 @@ static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
 		map_x2apic_id(header, type, acpi_id, &phys_id);
 	else if (header->type == ACPI_MADT_TYPE_GENERIC_INTERRUPT)
 		map_gicc_mpidr(header, type, acpi_id, &phys_id);
+	else if (header->type == ACPI_MADT_TYPE_CORE_PIC)
+		map_core_pic_id(header, type, acpi_id, &phys_id);
 
 exit:
 	kfree(buffer.pointer);

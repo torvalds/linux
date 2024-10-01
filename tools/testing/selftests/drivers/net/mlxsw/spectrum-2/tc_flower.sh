@@ -10,7 +10,8 @@ lib_dir=$(dirname $0)/../../../../net/forwarding
 ALL_TESTS="single_mask_test identical_filters_test two_masks_test \
 	multiple_masks_test ctcam_edge_cases_test delta_simple_test \
 	delta_two_masks_one_key_test delta_simple_rehash_test \
-	bloom_simple_test bloom_complex_test bloom_delta_test"
+	bloom_simple_test bloom_complex_test bloom_delta_test \
+	max_erp_entries_test max_group_size_test collision_test"
 NUM_NETIFS=2
 source $lib_dir/lib.sh
 source $lib_dir/tc_common.sh
@@ -456,7 +457,7 @@ delta_two_masks_one_key_test()
 {
 	# If 2 keys are the same and only differ in mask in a way that
 	# they belong under the same ERP (second is delta of the first),
-	# there should be no C-TCAM spill.
+	# there should be C-TCAM spill.
 
 	RET=0
 
@@ -473,8 +474,8 @@ delta_two_masks_one_key_test()
 	tp_record "mlxsw:*" "tc filter add dev $h2 ingress protocol ip \
 		   pref 2 handle 102 flower $tcflags dst_ip 192.0.2.2 \
 		   action drop"
-	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 0
-	check_err $? "incorrect C-TCAM spill while inserting the second rule"
+	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 1
+	check_err $? "C-TCAM spill did not happen while inserting the second rule"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
@@ -868,7 +869,7 @@ bloom_simple_test()
 bloom_complex_test()
 {
 	# Bloom filter index computation is affected from region ID, eRP
-	# ID and from the region key size. In order to excercise those parts
+	# ID and from the region key size. In order to exercise those parts
 	# of the Bloom filter code, use a series of regions, each with a
 	# different key size and send packet that should hit all of them.
 	local index
@@ -981,6 +982,156 @@ bloom_delta_test()
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
 	log_test "bloom delta test ($tcflags)"
+}
+
+max_erp_entries_test()
+{
+	# The number of eRP entries is limited. Once the maximum number of eRPs
+	# has been reached, filters cannot be added. This test verifies that
+	# when this limit is reached, inserstion fails without crashing.
+
+	RET=0
+
+	local num_masks=32
+	local num_regions=15
+	local chain_failed
+	local mask_failed
+	local ret
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	for ((i=1; i < $num_regions; i++)); do
+		for ((j=$num_masks; j >= 0; j--)); do
+			tc filter add dev $h2 ingress chain $i protocol ip \
+				pref $i	handle $j flower $tcflags \
+				dst_ip 192.1.0.0/$j &> /dev/null
+			ret=$?
+
+			if [ $ret -ne 0 ]; then
+				chain_failed=$i
+				mask_failed=$j
+				break 2
+			fi
+		done
+	done
+
+	# We expect to exceed the maximum number of eRP entries, so that
+	# insertion eventually fails. Otherwise, the test should be adjusted to
+	# add more filters.
+	check_fail $ret "expected to exceed number of eRP entries"
+
+	for ((; i >= 1; i--)); do
+		for ((j=0; j <= $num_masks; j++)); do
+			tc filter del dev $h2 ingress chain $i protocol ip \
+				pref $i handle $j flower &> /dev/null
+		done
+	done
+
+	log_test "max eRP entries test ($tcflags). " \
+		"max chain $chain_failed, mask $mask_failed"
+}
+
+max_group_size_test()
+{
+	# The number of ACLs in an ACL group is limited. Once the maximum
+	# number of ACLs has been reached, filters cannot be added. This test
+	# verifies that when this limit is reached, insertion fails without
+	# crashing.
+
+	RET=0
+
+	local num_acls=32
+	local max_size
+	local ret
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	for ((i=1; i < $num_acls; i++)); do
+		if [[ $(( i % 2 )) == 1 ]]; then
+			tc filter add dev $h2 ingress pref $i proto ipv4 \
+				flower $tcflags dst_ip 198.51.100.1/32 \
+				ip_proto tcp tcp_flags 0x01/0x01 \
+				action drop &> /dev/null
+		else
+			tc filter add dev $h2 ingress pref $i proto ipv6 \
+				flower $tcflags dst_ip 2001:db8:1::1/128 \
+				action drop &> /dev/null
+		fi
+
+		ret=$?
+		[[ $ret -ne 0 ]] && max_size=$((i - 1)) && break
+	done
+
+	# We expect to exceed the maximum number of ACLs in a group, so that
+	# insertion eventually fails. Otherwise, the test should be adjusted to
+	# add more filters.
+	check_fail $ret "expected to exceed number of ACLs in a group"
+
+	for ((; i >= 1; i--)); do
+		if [[ $(( i % 2 )) == 1 ]]; then
+			tc filter del dev $h2 ingress pref $i proto ipv4 \
+				flower $tcflags dst_ip 198.51.100.1/32 \
+				ip_proto tcp tcp_flags 0x01/0x01 \
+				action drop &> /dev/null
+		else
+			tc filter del dev $h2 ingress pref $i proto ipv6 \
+				flower $tcflags dst_ip 2001:db8:1::1/128 \
+				action drop &> /dev/null
+		fi
+	done
+
+	log_test "max ACL group size test ($tcflags). max size $max_size"
+}
+
+collision_test()
+{
+	# Filters cannot share an eRP if in the common unmasked part (i.e.,
+	# without the delta bits) they have the same values. If the driver does
+	# not prevent such configuration (by spilling into the C-TCAM), then
+	# multiple entries will be present in the device with the same key,
+	# leading to collisions and a reduced scale.
+	#
+	# Create such a scenario and make sure all the filters are successfully
+	# added.
+
+	RET=0
+
+	local ret
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	# Add a single dst_ip/24 filter and multiple dst_ip/32 filters that all
+	# have the same values in the common unmasked part (dst_ip/24).
+
+	tc filter add dev $h2 ingress pref 1 proto ipv4 handle 101 \
+		flower $tcflags dst_ip 198.51.100.0/24 \
+		action drop
+
+	for i in {0..255}; do
+		tc filter add dev $h2 ingress pref 2 proto ipv4 \
+			handle $((102 + i)) \
+			flower $tcflags dst_ip 198.51.100.${i}/32 \
+			action drop
+		ret=$?
+		[[ $ret -ne 0 ]] && break
+	done
+
+	check_err $ret "failed to add all the filters"
+
+	for i in {255..0}; do
+		tc filter del dev $h2 ingress pref 2 proto ipv4 \
+			handle $((102 + i)) flower
+	done
+
+	tc filter del dev $h2 ingress pref 1 proto ipv4 handle 101 flower
+
+	log_test "collision test ($tcflags)"
 }
 
 setup_prepare()

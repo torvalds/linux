@@ -88,6 +88,9 @@ static int vendor_command(struct cypress *dev, unsigned char request,
 				 USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_OTHER,
 				 address, data, iobuf, CYPRESS_MAX_REQSIZE,
 				 USB_CTRL_GET_TIMEOUT);
+	/* we must not process garbage */
+	if (retval < 2)
+		goto err_buf;
 
 	/* store returned data (more READs to be added) */
 	switch (request) {
@@ -107,6 +110,7 @@ static int vendor_command(struct cypress *dev, unsigned char request,
 			break;
 	}
 
+err_buf:
 	kfree(iobuf);
 error:
 	return retval;
@@ -203,7 +207,7 @@ ATTRIBUTE_GROUPS(cypress);
 static int cypress_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id)
 {
-	struct cypress *dev = NULL;
+	struct cypress *dev;
 	int retval = -ENOMEM;
 
 	/* allocate memory for our device state and initialize it */

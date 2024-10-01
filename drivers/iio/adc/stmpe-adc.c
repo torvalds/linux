@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/stmpe.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
 
@@ -347,7 +347,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stmpe_adc_pm_ops, NULL, stmpe_adc_resume);
 
 static const struct of_device_id stmpe_adc_ids[] = {
 	{ .compatible = "st,stmpe-adc", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stmpe_adc_ids);
 

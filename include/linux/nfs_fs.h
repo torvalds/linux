@@ -561,6 +561,9 @@ extern int nfs_may_open(struct inode *inode, const struct cred *cred, int openfl
 extern void nfs_access_zap_cache(struct inode *inode);
 extern int nfs_access_get_cached(struct inode *inode, const struct cred *cred,
 				 u32 *mask, bool may_block);
+extern int nfs_atomic_open_v23(struct inode *dir, struct dentry *dentry,
+			       struct file *file, unsigned int open_flags,
+			       umode_t mode);
 
 /*
  * linux/fs/nfs/symlink.c
@@ -595,7 +598,6 @@ extern void nfs_complete_unlink(struct dentry *dentry, struct inode *);
  * linux/fs/nfs/write.c
  */
 extern int  nfs_congestion_kb;
-extern int  nfs_writepage(struct page *page, struct writeback_control *wbc);
 extern int  nfs_writepages(struct address_space *, struct writeback_control *);
 extern int  nfs_flush_incompatible(struct file *file, struct folio *folio);
 extern int  nfs_update_folio(struct file *file, struct folio *folio,
@@ -612,6 +614,7 @@ int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio);
 extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_commit_data *nfs_commitdata_alloc(void);
 extern void nfs_commit_free(struct nfs_commit_data *data);
+void nfs_commit_begin(struct nfs_mds_commit_info *cinfo);
 bool nfs_commit_end(struct nfs_mds_commit_info *cinfo);
 
 static inline bool nfs_have_writebacks(const struct inode *inode)

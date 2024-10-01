@@ -551,7 +551,7 @@ static void ccs811_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ccs811_id[] = {
-	{"ccs811", 0},
+	{ "ccs811" },
 	{	}
 };
 MODULE_DEVICE_TABLE(i2c, ccs811_id);

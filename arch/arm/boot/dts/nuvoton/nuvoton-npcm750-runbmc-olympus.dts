@@ -111,7 +111,7 @@
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			bmc@0{
+			bmc@0 {
 				label = "bmc";
 				reg = <0x000000 0x2000000>;
 			};
@@ -120,7 +120,7 @@
 				reg = <0x0000000 0x80000>;
 				read-only;
 			};
-			u-boot-env@100000{
+			u-boot-env@100000 {
 				label = "u-boot-env";
 				reg = <0x00100000 0x40000>;
 			};
@@ -208,81 +208,81 @@
 &i2c1 {
 	status = "okay";
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
 
-		i2c_slot1a: i2c-bus@0 {
+		i2c_slot1a: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
 		};
 
-		i2c_slot1b: i2c-bus@1 {
+		i2c_slot1b: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
 		};
 
-		i2c_slot2a: i2c-bus@2 {
+		i2c_slot2a: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
 		};
 
-		i2c_slot2b: i2c-bus@3 {
+		i2c_slot2b: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
 		};
 
-		i2c_slot3: i2c-bus@4 {
+		i2c_slot3: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
 		};
 
-		i2c_slot4: i2c-bus@5 {
+		i2c_slot4: i2c@5 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <5>;
 		};
 
-		i2c_slot5: i2c-bus@6 {
+		i2c_slot5: i2c@6 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <6>;
 		};
 	};
 
-	i2c-switch@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9546";
 		reg = <0x71>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		i2c-mux-idle-disconnect;
 
-		i2c_m2_s1: i2c-bus@0 {
+		i2c_m2_s1: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
 		};
 
-		i2c_m2_s2: i2c-bus@1 {
+		i2c_m2_s2: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
 		};
-		i2c_m2_s3: i2c-bus@2 {
+		i2c_m2_s3: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
 		};
 
-		i2c_m2_s4: i2c-bus@3 {
+		i2c_m2_s4: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;

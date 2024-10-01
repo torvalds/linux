@@ -51,7 +51,8 @@ static void nft_symhash_eval(const struct nft_expr *expr,
 	struct sk_buff *skb = pkt->skb;
 	u32 h;
 
-	h = reciprocal_scale(__skb_get_hash_symmetric(skb), priv->modulus);
+	h = reciprocal_scale(__skb_get_hash_symmetric_net(nft_net(pkt), skb),
+			     priv->modulus);
 
 	regs->data[priv->dreg] = h + priv->offset;
 }
@@ -91,7 +92,7 @@ static int nft_jhash_init(const struct nft_ctx *ctx,
 
 	priv->len = len;
 
-	err = nft_parse_register_load(tb[NFTA_HASH_SREG], &priv->sreg, len);
+	err = nft_parse_register_load(ctx, tb[NFTA_HASH_SREG], &priv->sreg, len);
 	if (err < 0)
 		return err;
 

@@ -155,7 +155,6 @@ static int clu_set_format(struct v4l2_subdev *subdev,
  */
 
 static const struct v4l2_subdev_pad_ops clu_pad_ops = {
-	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = clu_enum_mbus_code,
 	.enum_frame_size = clu_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
@@ -171,6 +170,7 @@ static const struct v4l2_subdev_ops clu_ops = {
  */
 
 static void clu_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -182,9 +182,7 @@ static void clu_configure_stream(struct vsp1_entity *entity,
 	 * The yuv_mode can't be changed during streaming. Cache it internally
 	 * for future runtime configuration calls.
 	 */
-	format = vsp1_entity_get_pad_format(&clu->entity,
-					    clu->entity.config,
-					    CLU_PAD_SINK);
+	format = v4l2_subdev_state_get_format(state, CLU_PAD_SINK);
 	clu->yuv_mode = format->code == MEDIA_BUS_FMT_AYUV8_1X32;
 }
 

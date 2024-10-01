@@ -493,7 +493,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		/* Use a fixed tag for OA and friends */
 		GEM_BUG_ON(ce->tag <= BITS_PER_LONG);
 		ce->lrc.ccid = ce->tag;
-	} else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+	} else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55)) {
 		/* We don't need a strict matching tag, just different values */
 		unsigned int tag = ffs(READ_ONCE(engine->context_tag));
 
@@ -613,7 +613,7 @@ static void __execlists_schedule_out(struct i915_request * const rq,
 		intel_engine_add_retire(engine, ce->timeline);
 
 	ccid = ce->lrc.ccid;
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55)) {
 		ccid >>= XEHP_SW_CTX_ID_SHIFT - 32;
 		ccid &= XEHP_MAX_CONTEXT_HW_ID;
 	} else {
@@ -630,7 +630,7 @@ static void __execlists_schedule_out(struct i915_request * const rq,
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 	if (engine->fw_domain && !--engine->fw_active)
 		intel_uncore_forcewake_put(engine->uncore, engine->fw_domain);
-	intel_gt_pm_put_async(engine->gt);
+	intel_gt_pm_put_async_untracked(engine->gt);
 
 	/*
 	 * If this is part of a virtual engine, its next request may
@@ -1907,7 +1907,7 @@ process_csb(struct intel_engine_cs *engine, struct i915_request **inactive)
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
 			     head, upper_32_bits(csb), lower_32_bits(csb));
 
-		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 			promote = xehp_csb_parse(csb);
 		else if (GRAPHICS_VER(engine->i915) >= 12)
 			promote = gen12_csb_parse(csb);
@@ -2718,7 +2718,7 @@ static int emit_pdps(struct i915_request *rq)
 	int err, i;
 	u32 *cs;
 
-	GEM_BUG_ON(intel_vgpu_active(rq->engine->i915));
+	GEM_BUG_ON(intel_vgpu_active(rq->i915));
 
 	/*
 	 * Beware ye of the dragons, this sequence is magic!
@@ -2898,7 +2898,7 @@ static void enable_error_interrupt(struct intel_engine_cs *engine)
 		drm_err(&engine->i915->drm,
 			"engine '%s' resumed still in error: %08x\n",
 			engine->name, status);
-		__intel_gt_reset(engine->gt, engine->mask);
+		intel_gt_reset_engine(engine);
 	}
 
 	/*
@@ -3001,9 +3001,7 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	 * Wa_22011802037: In addition to stopping the cs, we need
 	 * to wait for any pending mi force wakeups
 	 */
-	if (IS_MTL_GRAPHICS_STEP(engine->i915, M, STEP_A0, STEP_B0) ||
-	    (GRAPHICS_VER(engine->i915) >= 11 &&
-	    GRAPHICS_VER_FULL(engine->i915) < IP_VER(12, 70)))
+	if (intel_engine_reset_needs_wa_22011802037(engine->gt))
 		intel_engine_wait_for_pending_mi_fw(engine);
 
 	engine->execlists.reset_ccid = active_ccid(engine);
@@ -3274,6 +3272,9 @@ static void execlists_park(struct intel_engine_cs *engine)
 {
 	cancel_timer(&engine->execlists.timer);
 	cancel_timer(&engine->execlists.preempt);
+
+	/* Reset upon idling, or we may delay the busy wakeup. */
+	WRITE_ONCE(engine->sched_engine->queue_priority_hint, INT_MIN);
 }
 
 static void add_to_engine(struct i915_request *rq)
@@ -3314,11 +3315,7 @@ static void remove_from_engine(struct i915_request *rq)
 
 static bool can_preempt(struct intel_engine_cs *engine)
 {
-	if (GRAPHICS_VER(engine->i915) > 8)
-		return true;
-
-	/* GPGPU on bdw requires extra w/a; not implemented */
-	return engine->class != RENDER_CLASS;
+	return GRAPHICS_VER(engine->i915) > 8;
 }
 
 static void kick_execlists(const struct i915_request *rq, int prio)
@@ -3481,7 +3478,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		}
 	}
 
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55)) {
 		if (intel_engine_has_preemption(engine))
 			engine->emit_bb_start = xehp_emit_bb_start;
 		else
@@ -3550,22 +3547,24 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
 
+	seqcount_init(&engine->stats.execlists.lock);
+
 	if (engine->flags & I915_ENGINE_HAS_RCS_REG_STATE)
 		rcs_submission_override(engine);
 
 	lrc_init_wa_ctx(engine);
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
-		execlists->submit_reg = uncore->regs +
+		execlists->submit_reg = intel_uncore_regs(uncore) +
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(base));
-		execlists->ctrl_reg = uncore->regs +
+		execlists->ctrl_reg = intel_uncore_regs(uncore) +
 			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(base));
 
 		engine->fw_domain = intel_uncore_forcewake_for_reg(engine->uncore,
 				    RING_EXECLIST_CONTROL(engine->mmio_base),
 				    FW_REG_WRITE);
 	} else {
-		execlists->submit_reg = uncore->regs +
+		execlists->submit_reg = intel_uncore_regs(uncore) +
 			i915_mmio_reg_offset(RING_ELSP(base));
 	}
 
@@ -3582,7 +3581,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 
 	engine->context_tag = GENMASK(BITS_PER_LONG - 2, 0);
 	if (GRAPHICS_VER(engine->i915) >= 11 &&
-	    GRAPHICS_VER_FULL(engine->i915) < IP_VER(12, 50)) {
+	    GRAPHICS_VER_FULL(engine->i915) < IP_VER(12, 55)) {
 		execlists->ccid |= engine->instance << (GEN11_ENGINE_INSTANCE_SHIFT - 32);
 		execlists->ccid |= engine->class << (GEN11_ENGINE_CLASS_SHIFT - 32);
 	}

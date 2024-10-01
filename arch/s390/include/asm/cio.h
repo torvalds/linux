@@ -7,6 +7,7 @@
 
 #include <linux/bitops.h>
 #include <linux/genalloc.h>
+#include <asm/dma-types.h>
 #include <asm/types.h>
 #include <asm/tpi.h>
 
@@ -32,7 +33,7 @@ struct ccw1 {
 	__u8  cmd_code;
 	__u8  flags;
 	__u16 count;
-	__u32 cda;
+	dma32_t cda;
 } __attribute__ ((packed,aligned(8)));
 
 /**
@@ -152,8 +153,8 @@ struct sublog {
 struct esw0 {
 	struct sublog sublog;
 	struct erw erw;
-	__u32  faddr[2];
-	__u32  saddr;
+	dma32_t faddr[2];
+	dma32_t saddr;
 } __attribute__ ((packed));
 
 /**
@@ -364,6 +365,8 @@ extern struct device *cio_get_dma_css_dev(void);
 
 void *cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
 			size_t size);
+void *__cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
+			  size_t size, dma32_t *dma_handle);
 void cio_gp_dma_free(struct gen_pool *gp_dma, void *cpu_addr, size_t size);
 void cio_gp_dma_destroy(struct gen_pool *gp_dma, struct device *dma_dev);
 struct gen_pool *cio_gp_dma_create(struct device *dma_dev, int nr_pages);

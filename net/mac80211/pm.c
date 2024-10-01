@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Portions
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2021, 2023-2024 Intel Corporation
  */
 #include <net/mac80211.h>
 #include <net/rtnetlink.h>
@@ -32,7 +32,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	ieee80211_scan_cancel(local);
 
-	ieee80211_dfs_cac_cancel(local);
+	ieee80211_dfs_cac_cancel(local, NULL);
 
 	ieee80211_roc_purge(local, NULL);
 
@@ -40,13 +40,12 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION) &&
 	    !(wowlan && wowlan->any)) {
-		mutex_lock(&local->sta_mtx);
+		lockdep_assert_wiphy(local->hw.wiphy);
 		list_for_each_entry(sta, &local->sta_list, list) {
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 			ieee80211_sta_tear_down_BA_sessions(
 					sta, AGG_STOP_LOCAL_REQUEST);
 		}
-		mutex_unlock(&local->sta_mtx);
 	}
 
 	/* keep sched_scan only in case of 'any' trigger */
@@ -76,7 +75,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	 * Note that this particular timer doesn't need to be
 	 * restarted at resume.
 	 */
-	cancel_work_sync(&local->dynamic_ps_enable_work);
+	wiphy_work_cancel(local->hw.wiphy, &local->dynamic_ps_enable_work);
 	del_timer_sync(&local->dynamic_ps_timer);
 
 	local->wowlan = wowlan;
@@ -119,12 +118,11 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			local->quiescing = false;
 			local->wowlan = false;
 			if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
-				mutex_lock(&local->sta_mtx);
+				lockdep_assert_wiphy(local->hw.wiphy);
 				list_for_each_entry(sta,
 						    &local->sta_list, list) {
 					clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 				}
-				mutex_unlock(&local->sta_mtx);
 			}
 			ieee80211_wake_queues_by_reason(hw,
 					IEEE80211_MAX_QUEUE_MAP,
@@ -161,7 +159,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			break;
 		}
 
-		flush_delayed_work(&sdata->dec_tailroom_needed_wk);
+		wiphy_delayed_work_flush(local->hw.wiphy,
+					 &sdata->dec_tailroom_needed_wk);
 		drv_remove_interface(local, sdata);
 	}
 
@@ -172,7 +171,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	WARN_ON(!list_empty(&local->chanctx_list));
 
 	/* stop hardware - this must stop RX */
-	ieee80211_stop_device(local);
+	ieee80211_stop_device(local, true);
 
  suspend:
 	local->suspended = true;

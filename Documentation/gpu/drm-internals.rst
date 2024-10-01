@@ -57,8 +57,8 @@ is larger than the driver minor, the DRM_IOCTL_SET_VERSION call will
 return an error. Otherwise the driver's set_version() method will be
 called with the requested version.
 
-Name, Description and Date
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Name and Description
+~~~~~~~~~~~~~~~~~~~~
 
 char \*name; char \*desc; char \*date;
 The driver name is printed to the kernel log at initialization time,
@@ -68,12 +68,6 @@ DRM_IOCTL_VERSION.
 The driver description is a purely informative string passed to
 userspace through the DRM_IOCTL_VERSION ioctl and otherwise unused by
 the kernel.
-
-The driver date, formatted as YYYYMMDD, is meant to identify the date of
-the latest modification to the driver. However, as most drivers fail to
-update it, its value is mostly useless. The DRM core prints it to the
-kernel log at initialization time and passes it to userspace through the
-DRM_IOCTL_VERSION ioctl.
 
 Module Initialization
 ---------------------
@@ -152,18 +146,6 @@ Managed Resources
 
 .. kernel-doc:: include/drm/drm_managed.h
    :internal:
-
-Bus-specific Device Registration and PCI Support
-------------------------------------------------
-
-A number of functions are provided to help with device registration. The
-functions deal with PCI and platform devices respectively and are only
-provided for historical reasons. These are all deprecated and shouldn't
-be used in new drivers. Besides that there's a few helpers for pci
-drivers.
-
-.. kernel-doc:: drivers/gpu/drm/drm_pci.c
-   :export:
 
 Open/Close, File Operations and IOCTLs
 ======================================

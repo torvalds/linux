@@ -14,12 +14,12 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/ssbi.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 
 /* SSBI 2.0 controller registers */
 #define SSBI2_CMD			0x0008
@@ -64,7 +64,6 @@ enum ssbi_controller_type {
 };
 
 struct ssbi {
-	struct device		*slave;
 	void __iomem		*base;
 	spinlock_t		lock;
 	enum ssbi_controller_type controller_type;
@@ -320,6 +319,7 @@ static struct platform_driver ssbi_driver = {
 };
 module_platform_driver(ssbi_driver);
 
+MODULE_DESCRIPTION("Qualcomm Single-wire Serial Bus Interface (SSBI) driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
 MODULE_ALIAS("platform:ssbi");

@@ -5,6 +5,7 @@
  * Written by David Howells (dhowells@redhat.com)
  */
 
+#include <linux/cleanup.h>
 #include <linux/time.h>
 #include <crypto/public_key.h>
 #include <keys/asymmetric-type.h>
@@ -41,18 +42,11 @@ struct x509_certificate {
 };
 
 /*
- * selftest.c
- */
-#ifdef CONFIG_FIPS_SIGNATURE_SELFTEST
-extern int __init fips_signature_selftest(void);
-#else
-static inline int fips_signature_selftest(void) { return 0; }
-#endif
-
-/*
  * x509_cert_parser.c
  */
 extern void x509_free_certificate(struct x509_certificate *cert);
+DEFINE_FREE(x509_free_certificate, struct x509_certificate *,
+	    if (!IS_ERR(_T)) x509_free_certificate(_T))
 extern struct x509_certificate *x509_cert_parse(const void *data, size_t datalen);
 extern int x509_decode_time(time64_t *_t,  size_t hdrlen,
 			    unsigned char tag,

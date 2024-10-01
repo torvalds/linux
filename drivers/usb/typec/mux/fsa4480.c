@@ -13,6 +13,10 @@
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
 
+#define FSA4480_DEVICE_ID	0x00
+ #define FSA4480_DEVICE_ID_VENDOR_ID	GENMASK(7, 6)
+ #define FSA4480_DEVICE_ID_VERSION_ID	GENMASK(5, 3)
+ #define FSA4480_DEVICE_ID_REV_ID	GENMASK(2, 0)
 #define FSA4480_SWITCH_ENABLE	0x04
 #define FSA4480_SWITCH_SELECT	0x05
 #define FSA4480_SWITCH_STATUS1	0x07
@@ -60,6 +64,7 @@ struct fsa4480 {
 	unsigned int svid;
 
 	u8 cur_enable;
+	bool swap_sbu_lanes;
 };
 
 static const struct regmap_config fsa4480_regmap_config = {
@@ -75,6 +80,9 @@ static int fsa4480_set(struct fsa4480 *fsa)
 	bool reverse = (fsa->orientation == TYPEC_ORIENTATION_REVERSE);
 	u8 enable = FSA4480_ENABLE_DEVICE;
 	u8 sel = 0;
+
+	if (fsa->swap_sbu_lanes)
+		reverse = !reverse;
 
 	/* USB Mode */
 	if (fsa->mode < TYPEC_STATE_MODAL ||
@@ -179,12 +187,76 @@ static int fsa4480_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *st
 	return ret;
 }
 
+enum {
+	NORMAL_LANE_MAPPING,
+	INVERT_LANE_MAPPING,
+};
+
+#define DATA_LANES_COUNT	2
+
+static const int supported_data_lane_mapping[][DATA_LANES_COUNT] = {
+	[NORMAL_LANE_MAPPING] = { 0, 1 },
+	[INVERT_LANE_MAPPING] = { 1, 0 },
+};
+
+static int fsa4480_parse_data_lanes_mapping(struct fsa4480 *fsa)
+{
+	struct fwnode_handle *ep;
+	u32 data_lanes[DATA_LANES_COUNT];
+	int ret, i, j;
+
+	ep = fwnode_graph_get_next_endpoint(dev_fwnode(&fsa->client->dev), NULL);
+	if (!ep)
+		return 0;
+
+	ret = fwnode_property_read_u32_array(ep, "data-lanes", data_lanes, DATA_LANES_COUNT);
+	if (ret == -EINVAL)
+		/* Property isn't here, consider default mapping */
+		goto out_done;
+	if (ret) {
+		dev_err(&fsa->client->dev, "invalid data-lanes property: %d\n", ret);
+		goto out_error;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(supported_data_lane_mapping); i++) {
+		for (j = 0; j < DATA_LANES_COUNT; j++) {
+			if (data_lanes[j] != supported_data_lane_mapping[i][j])
+				break;
+		}
+
+		if (j == DATA_LANES_COUNT)
+			break;
+	}
+
+	switch (i) {
+	case NORMAL_LANE_MAPPING:
+		break;
+	case INVERT_LANE_MAPPING:
+		fsa->swap_sbu_lanes = true;
+		break;
+	default:
+		dev_err(&fsa->client->dev, "invalid data-lanes mapping\n");
+		ret = -EINVAL;
+		goto out_error;
+	}
+
+out_done:
+	ret = 0;
+
+out_error:
+	fwnode_handle_put(ep);
+
+	return ret;
+}
+
 static int fsa4480_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct typec_switch_desc sw_desc = { };
 	struct typec_mux_desc mux_desc = { };
 	struct fsa4480 *fsa;
+	int val = 0;
+	int ret;
 
 	fsa = devm_kzalloc(dev, sizeof(*fsa), GFP_KERNEL);
 	if (!fsa)
@@ -193,9 +265,22 @@ static int fsa4480_probe(struct i2c_client *client)
 	fsa->client = client;
 	mutex_init(&fsa->lock);
 
+	ret = fsa4480_parse_data_lanes_mapping(fsa);
+	if (ret)
+		return ret;
+
 	fsa->regmap = devm_regmap_init_i2c(client, &fsa4480_regmap_config);
 	if (IS_ERR(fsa->regmap))
 		return dev_err_probe(dev, PTR_ERR(fsa->regmap), "failed to initialize regmap\n");
+
+	ret = regmap_read(fsa->regmap, FSA4480_DEVICE_ID, &val);
+	if (ret)
+		return dev_err_probe(dev, -ENODEV, "FSA4480 not found\n");
+
+	dev_dbg(dev, "Found FSA4480 v%lu.%lu (Vendor ID = %lu)\n",
+		FIELD_GET(FSA4480_DEVICE_ID_VERSION_ID, val),
+		FIELD_GET(FSA4480_DEVICE_ID_REV_ID, val),
+		FIELD_GET(FSA4480_DEVICE_ID_VENDOR_ID, val));
 
 	/* Safe mode */
 	fsa->cur_enable = FSA4480_ENABLE_DEVICE | FSA4480_ENABLE_USB;

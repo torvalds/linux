@@ -52,8 +52,7 @@ static void rsi_coex_sched_tx_pkts(struct rsi_coex_ctrl_block *coex_cb)
 
 static void rsi_coex_scheduler_thread(struct rsi_common *common)
 {
-	struct rsi_coex_ctrl_block *coex_cb =
-		(struct rsi_coex_ctrl_block *)common->coex_cb;
+	struct rsi_coex_ctrl_block *coex_cb = common->coex_cb;
 	u32 timeout = EVENT_WAIT_FOREVER;
 
 	do {
@@ -100,9 +99,8 @@ static inline int rsi_map_coex_q(u8 hal_queue)
 
 int rsi_coex_send_pkt(void *priv, struct sk_buff *skb, u8 hal_queue)
 {
-	struct rsi_common *common = (struct rsi_common *)priv;
-	struct rsi_coex_ctrl_block *coex_cb =
-		(struct rsi_coex_ctrl_block *)common->coex_cb;
+	struct rsi_common *common = priv;
+	struct rsi_coex_ctrl_block *coex_cb = common->coex_cb;
 	struct skb_info *tx_params = NULL;
 	enum rsi_coex_queues coex_q;
 	int status;
@@ -168,8 +166,7 @@ int rsi_coex_attach(struct rsi_common *common)
 
 void rsi_coex_detach(struct rsi_common *common)
 {
-	struct rsi_coex_ctrl_block *coex_cb =
-		(struct rsi_coex_ctrl_block *)common->coex_cb;
+	struct rsi_coex_ctrl_block *coex_cb = common->coex_cb;
 	int cnt;
 
 	rsi_kill_thread(&coex_cb->coex_tx_thread);

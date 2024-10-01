@@ -4,18 +4,17 @@
  *
  * Copyright (C) 2020-2022 Microchip Technology Inc. All rights reserved.
  */
-#include <linux/auxiliary_bus.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <dt-bindings/clock/microchip,mpfs-clock.h>
 #include <soc/microchip/mpfs.h>
 
 /* address offset of control registers */
 #define REG_MSSPLL_REF_CR	0x08u
-#define REG_MSSPLL_POSTDIV_CR	0x10u
+#define REG_MSSPLL_POSTDIV01_CR	0x10u
+#define REG_MSSPLL_POSTDIV23_CR	0x14u
 #define REG_MSSPLL_SSCG_2_CR	0x2Cu
 #define REG_CLOCK_CONFIG_CR	0x08u
 #define REG_RTC_CLOCK_CR	0x0Cu
@@ -26,9 +25,17 @@
 #define MSSPLL_FBDIV_WIDTH	0x0Cu
 #define MSSPLL_REFDIV_SHIFT	0x08u
 #define MSSPLL_REFDIV_WIDTH	0x06u
-#define MSSPLL_POSTDIV_SHIFT	0x08u
+#define MSSPLL_POSTDIV02_SHIFT	0x08u
+#define MSSPLL_POSTDIV13_SHIFT	0x18u
 #define MSSPLL_POSTDIV_WIDTH	0x07u
 #define MSSPLL_FIXED_DIV	4u
+
+/*
+ * This clock ID is defined here, rather than the binding headers, as it is an
+ * internal clock only, and therefore has no consumers in other peripheral
+ * blocks.
+ */
+#define CLK_MSSPLL_INTERNAL	38u
 
 struct mpfs_clock_data {
 	struct device *dev;
@@ -39,16 +46,26 @@ struct mpfs_clock_data {
 
 struct mpfs_msspll_hw_clock {
 	void __iomem *base;
+	struct clk_hw hw;
+	struct clk_init_data init;
 	unsigned int id;
 	u32 reg_offset;
 	u32 shift;
 	u32 width;
 	u32 flags;
-	struct clk_hw hw;
-	struct clk_init_data init;
 };
 
 #define to_mpfs_msspll_clk(_hw) container_of(_hw, struct mpfs_msspll_hw_clock, hw)
+
+struct mpfs_msspll_out_hw_clock {
+	void __iomem *base;
+	struct clk_divider output;
+	struct clk_init_data init;
+	unsigned int id;
+	u32 reg_offset;
+};
+
+#define to_mpfs_msspll_out_clk(_hw) container_of(_hw, struct mpfs_msspll_out_hw_clock, hw)
 
 struct mpfs_cfg_hw_clock {
 	struct clk_divider cfg;
@@ -93,93 +110,40 @@ static const struct clk_div_table mpfs_div_rtcref_table[] = {
 	{ 0, 0 }
 };
 
+/*
+ * MSS PLL internal clock
+ */
+
 static unsigned long mpfs_clk_msspll_recalc_rate(struct clk_hw *hw, unsigned long prate)
 {
 	struct mpfs_msspll_hw_clock *msspll_hw = to_mpfs_msspll_clk(hw);
 	void __iomem *mult_addr = msspll_hw->base + msspll_hw->reg_offset;
 	void __iomem *ref_div_addr = msspll_hw->base + REG_MSSPLL_REF_CR;
-	void __iomem *postdiv_addr = msspll_hw->base + REG_MSSPLL_POSTDIV_CR;
-	u32 mult, ref_div, postdiv;
-
-	mult = readl_relaxed(mult_addr) >> MSSPLL_FBDIV_SHIFT;
-	mult &= clk_div_mask(MSSPLL_FBDIV_WIDTH);
-	ref_div = readl_relaxed(ref_div_addr) >> MSSPLL_REFDIV_SHIFT;
-	ref_div &= clk_div_mask(MSSPLL_REFDIV_WIDTH);
-	postdiv = readl_relaxed(postdiv_addr) >> MSSPLL_POSTDIV_SHIFT;
-	postdiv &= clk_div_mask(MSSPLL_POSTDIV_WIDTH);
-
-	return prate * mult / (ref_div * MSSPLL_FIXED_DIV * postdiv);
-}
-
-static long mpfs_clk_msspll_round_rate(struct clk_hw *hw, unsigned long rate, unsigned long *prate)
-{
-	struct mpfs_msspll_hw_clock *msspll_hw = to_mpfs_msspll_clk(hw);
-	void __iomem *mult_addr = msspll_hw->base + msspll_hw->reg_offset;
-	void __iomem *ref_div_addr = msspll_hw->base + REG_MSSPLL_REF_CR;
 	u32 mult, ref_div;
-	unsigned long rate_before_ctrl;
 
 	mult = readl_relaxed(mult_addr) >> MSSPLL_FBDIV_SHIFT;
 	mult &= clk_div_mask(MSSPLL_FBDIV_WIDTH);
 	ref_div = readl_relaxed(ref_div_addr) >> MSSPLL_REFDIV_SHIFT;
 	ref_div &= clk_div_mask(MSSPLL_REFDIV_WIDTH);
 
-	rate_before_ctrl = rate * (ref_div * MSSPLL_FIXED_DIV) / mult;
-
-	return divider_round_rate(hw, rate_before_ctrl, prate, NULL, MSSPLL_POSTDIV_WIDTH,
-				  msspll_hw->flags);
-}
-
-static int mpfs_clk_msspll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long prate)
-{
-	struct mpfs_msspll_hw_clock *msspll_hw = to_mpfs_msspll_clk(hw);
-	void __iomem *mult_addr = msspll_hw->base + msspll_hw->reg_offset;
-	void __iomem *ref_div_addr = msspll_hw->base + REG_MSSPLL_REF_CR;
-	void __iomem *postdiv_addr = msspll_hw->base + REG_MSSPLL_POSTDIV_CR;
-	u32 mult, ref_div, postdiv;
-	int divider_setting;
-	unsigned long rate_before_ctrl, flags;
-
-	mult = readl_relaxed(mult_addr) >> MSSPLL_FBDIV_SHIFT;
-	mult &= clk_div_mask(MSSPLL_FBDIV_WIDTH);
-	ref_div = readl_relaxed(ref_div_addr) >> MSSPLL_REFDIV_SHIFT;
-	ref_div &= clk_div_mask(MSSPLL_REFDIV_WIDTH);
-
-	rate_before_ctrl = rate * (ref_div * MSSPLL_FIXED_DIV) / mult;
-	divider_setting = divider_get_val(rate_before_ctrl, prate, NULL, MSSPLL_POSTDIV_WIDTH,
-					  msspll_hw->flags);
-
-	if (divider_setting < 0)
-		return divider_setting;
-
-	spin_lock_irqsave(&mpfs_clk_lock, flags);
-
-	postdiv = readl_relaxed(postdiv_addr);
-	postdiv &= ~(clk_div_mask(MSSPLL_POSTDIV_WIDTH) << MSSPLL_POSTDIV_SHIFT);
-	writel_relaxed(postdiv, postdiv_addr);
-
-	spin_unlock_irqrestore(&mpfs_clk_lock, flags);
-
-	return 0;
+	return prate * mult / (ref_div * MSSPLL_FIXED_DIV);
 }
 
 static const struct clk_ops mpfs_clk_msspll_ops = {
 	.recalc_rate = mpfs_clk_msspll_recalc_rate,
-	.round_rate = mpfs_clk_msspll_round_rate,
-	.set_rate = mpfs_clk_msspll_set_rate,
 };
 
 #define CLK_PLL(_id, _name, _parent, _shift, _width, _flags, _offset) {			\
 	.id = _id,									\
+	.flags = _flags,								\
 	.shift = _shift,								\
 	.width = _width,								\
 	.reg_offset = _offset,								\
-	.flags = _flags,								\
 	.hw.init = CLK_HW_INIT_PARENTS_DATA(_name, _parent, &mpfs_clk_msspll_ops, 0),	\
 }
 
 static struct mpfs_msspll_hw_clock mpfs_msspll_clks[] = {
-	CLK_PLL(CLK_MSSPLL, "clk_msspll", mpfs_ext_ref, MSSPLL_FBDIV_SHIFT,
+	CLK_PLL(CLK_MSSPLL_INTERNAL, "clk_msspll_internal", mpfs_ext_ref, MSSPLL_FBDIV_SHIFT,
 		MSSPLL_FBDIV_WIDTH, 0, REG_MSSPLL_SSCG_2_CR),
 };
 
@@ -196,9 +160,57 @@ static int mpfs_clk_register_mssplls(struct device *dev, struct mpfs_msspll_hw_c
 		ret = devm_clk_hw_register(dev, &msspll_hw->hw);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed to register msspll id: %d\n",
-					     CLK_MSSPLL);
+					     CLK_MSSPLL_INTERNAL);
 
 		data->hw_data.hws[msspll_hw->id] = &msspll_hw->hw;
+	}
+
+	return 0;
+}
+
+/*
+ * MSS PLL output clocks
+ */
+
+#define CLK_PLL_OUT(_id, _name, _parent, _flags, _shift, _width, _offset) {	\
+	.id = _id,								\
+	.output.shift = _shift,							\
+	.output.width = _width,							\
+	.output.table = NULL,							\
+	.reg_offset = _offset,							\
+	.output.flags = _flags,							\
+	.output.hw.init = CLK_HW_INIT(_name, _parent, &clk_divider_ops, 0),	\
+	.output.lock = &mpfs_clk_lock,						\
+}
+
+static struct mpfs_msspll_out_hw_clock mpfs_msspll_out_clks[] = {
+	CLK_PLL_OUT(CLK_MSSPLL0, "clk_msspll", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
+		    MSSPLL_POSTDIV02_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV01_CR),
+	CLK_PLL_OUT(CLK_MSSPLL1, "clk_msspll1", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
+		    MSSPLL_POSTDIV13_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV01_CR),
+	CLK_PLL_OUT(CLK_MSSPLL2, "clk_msspll2", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
+		    MSSPLL_POSTDIV02_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV23_CR),
+	CLK_PLL_OUT(CLK_MSSPLL3, "clk_msspll3", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
+		    MSSPLL_POSTDIV13_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV23_CR),
+};
+
+static int mpfs_clk_register_msspll_outs(struct device *dev,
+					 struct mpfs_msspll_out_hw_clock *msspll_out_hws,
+					 unsigned int num_clks, struct mpfs_clock_data *data)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < num_clks; i++) {
+		struct mpfs_msspll_out_hw_clock *msspll_out_hw = &msspll_out_hws[i];
+
+		msspll_out_hw->output.reg = data->msspll_base + msspll_out_hw->reg_offset;
+		ret = devm_clk_hw_register(dev, &msspll_out_hw->output.hw);
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to register msspll out id: %d\n",
+					     msspll_out_hw->id);
+
+		data->hw_data.hws[msspll_out_hw->id] = &msspll_out_hw->output.hw;
 	}
 
 	return 0;
@@ -347,93 +359,6 @@ static int mpfs_clk_register_periphs(struct device *dev, struct mpfs_periph_hw_c
 	return 0;
 }
 
-/*
- * Peripheral clock resets
- */
-
-#if IS_ENABLED(CONFIG_RESET_CONTROLLER)
-
-u32 mpfs_reset_read(struct device *dev)
-{
-	struct mpfs_clock_data *clock_data = dev_get_drvdata(dev->parent);
-
-	return readl_relaxed(clock_data->base + REG_SUBBLK_RESET_CR);
-}
-EXPORT_SYMBOL_NS_GPL(mpfs_reset_read, MCHP_CLK_MPFS);
-
-void mpfs_reset_write(struct device *dev, u32 val)
-{
-	struct mpfs_clock_data *clock_data = dev_get_drvdata(dev->parent);
-
-	writel_relaxed(val, clock_data->base + REG_SUBBLK_RESET_CR);
-}
-EXPORT_SYMBOL_NS_GPL(mpfs_reset_write, MCHP_CLK_MPFS);
-
-static void mpfs_reset_unregister_adev(void *_adev)
-{
-	struct auxiliary_device *adev = _adev;
-
-	auxiliary_device_delete(adev);
-	auxiliary_device_uninit(adev);
-}
-
-static void mpfs_reset_adev_release(struct device *dev)
-{
-	struct auxiliary_device *adev = to_auxiliary_dev(dev);
-
-	kfree(adev);
-}
-
-static struct auxiliary_device *mpfs_reset_adev_alloc(struct mpfs_clock_data *clk_data)
-{
-	struct auxiliary_device *adev;
-	int ret;
-
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
-	if (!adev)
-		return ERR_PTR(-ENOMEM);
-
-	adev->name = "reset-mpfs";
-	adev->dev.parent = clk_data->dev;
-	adev->dev.release = mpfs_reset_adev_release;
-	adev->id = 666u;
-
-	ret = auxiliary_device_init(adev);
-	if (ret) {
-		kfree(adev);
-		return ERR_PTR(ret);
-	}
-
-	return adev;
-}
-
-static int mpfs_reset_controller_register(struct mpfs_clock_data *clk_data)
-{
-	struct auxiliary_device *adev;
-	int ret;
-
-	adev = mpfs_reset_adev_alloc(clk_data);
-	if (IS_ERR(adev))
-		return PTR_ERR(adev);
-
-	ret = auxiliary_device_add(adev);
-	if (ret) {
-		auxiliary_device_uninit(adev);
-		return ret;
-	}
-
-	return devm_add_action_or_reset(clk_data->dev, mpfs_reset_unregister_adev, adev);
-}
-
-#else /* !CONFIG_RESET_CONTROLLER */
-
-static int mpfs_reset_controller_register(struct mpfs_clock_data *clk_data)
-{
-	return 0;
-}
-
-#endif /* !CONFIG_RESET_CONTROLLER */
-
 static int mpfs_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -442,8 +367,8 @@ static int mpfs_clk_probe(struct platform_device *pdev)
 	int ret;
 
 	/* CLK_RESERVED is not part of clock arrays, so add 1 */
-	num_clks = ARRAY_SIZE(mpfs_msspll_clks) + ARRAY_SIZE(mpfs_cfg_clks)
-		   + ARRAY_SIZE(mpfs_periph_clks) + 1;
+	num_clks = ARRAY_SIZE(mpfs_msspll_clks) + ARRAY_SIZE(mpfs_msspll_out_clks)
+		   + ARRAY_SIZE(mpfs_cfg_clks)  + ARRAY_SIZE(mpfs_periph_clks) + 1;
 
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hw_data.hws, num_clks), GFP_KERNEL);
 	if (!clk_data)
@@ -466,6 +391,12 @@ static int mpfs_clk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = mpfs_clk_register_msspll_outs(dev, mpfs_msspll_out_clks,
+					    ARRAY_SIZE(mpfs_msspll_out_clks),
+					    clk_data);
+	if (ret)
+		return ret;
+
 	ret = mpfs_clk_register_cfgs(dev, mpfs_cfg_clks, ARRAY_SIZE(mpfs_cfg_clks), clk_data);
 	if (ret)
 		return ret;
@@ -479,7 +410,7 @@ static int mpfs_clk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return mpfs_reset_controller_register(clk_data);
+	return mpfs_reset_controller_register(dev, clk_data->base + REG_SUBBLK_RESET_CR);
 }
 
 static const struct of_device_id mpfs_clk_of_match_table[] = {
@@ -512,3 +443,4 @@ MODULE_DESCRIPTION("Microchip PolarFire SoC Clock Driver");
 MODULE_AUTHOR("Padmarao Begari <padmarao.begari@microchip.com>");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");
 MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_IMPORT_NS(MCHP_CLK_MPFS);

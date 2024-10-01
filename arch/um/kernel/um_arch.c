@@ -23,6 +23,7 @@
 #include <asm/cpufeature.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/text-patching.h>
 #include <as-layout.h>
 #include <arch.h>
 #include <init.h>
@@ -124,9 +125,6 @@ EXPORT_SYMBOL(uml_physmem);
 unsigned long uml_reserved; /* Also modified in mem_init */
 unsigned long start_vm;
 unsigned long end_vm;
-
-/* Set in uml_ncpus_setup */
-int ncpus = 1;
 
 /* Set in early boot */
 static int have_root __initdata;
@@ -373,10 +371,10 @@ int __init linux_main(int argc, char **argv)
 	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
 
 	/*
-	 * Zones have to begin on a 1 << MAX_ORDER page boundary,
+	 * Zones have to begin on a 1 << MAX_PAGE_ORDER page boundary,
 	 * so this makes sure that's true for highmem
 	 */
-	max_physmem &= ~((1 << (PAGE_SHIFT + MAX_ORDER)) - 1);
+	max_physmem &= ~((1 << (PAGE_SHIFT + MAX_PAGE_ORDER)) - 1);
 	if (physmem_size + iomem_size > max_physmem) {
 		highmem = physmem_size + iomem_size - max_physmem;
 		physmem_size -= highmem;
@@ -437,7 +435,7 @@ void __init arch_cpu_finalize_init(void)
 	os_check_bugs();
 }
 
-void apply_ibt_endbr(s32 *start, s32 *end)
+void apply_seal_endbr(s32 *start, s32 *end)
 {
 }
 

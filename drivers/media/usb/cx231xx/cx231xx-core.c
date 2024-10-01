@@ -751,13 +751,12 @@ int cx231xx_ep5_bulkout(struct cx231xx *dev, u8 *firmware, u16 size)
 	int ret = -ENOMEM;
 	u32 *buffer;
 
-	buffer = kzalloc(4096, GFP_KERNEL);
+	buffer = kmemdup(firmware, EP5_BUF_SIZE, GFP_KERNEL);
 	if (buffer == NULL)
 		return -ENOMEM;
-	memcpy(&buffer[0], firmware, 4096);
 
 	ret = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 5),
-			buffer, 4096, &actlen, 2000);
+			buffer, EP5_BUF_SIZE, &actlen, EP5_TIMEOUT_MS);
 
 	if (ret)
 		dev_err(dev->dev,
@@ -994,7 +993,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	/* De-allocates all pending stuff */
 	cx231xx_uninit_isoc(dev);
 
-	dma_q->p_left_data = kzalloc(4096, GFP_KERNEL);
+	dma_q->p_left_data = kzalloc(EP5_BUF_SIZE, GFP_KERNEL);
 	if (dma_q->p_left_data == NULL)
 		return -ENOMEM;
 
@@ -1024,6 +1023,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	if (!dev->video_mode.isoc_ctl.urb) {
 		dev_err(dev->dev,
 			"cannot alloc memory for usb buffers\n");
+		kfree(dma_q->p_left_data);
 		return -ENOMEM;
 	}
 
@@ -1033,6 +1033,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 		dev_err(dev->dev,
 			"cannot allocate memory for usbtransfer\n");
 		kfree(dev->video_mode.isoc_ctl.urb);
+		kfree(dma_q->p_left_data);
 		return -ENOMEM;
 	}
 

@@ -40,7 +40,7 @@ struct sam9x5_drvdata {
  */
 static int sam9x5_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct device *dev = rtd->dev;
 	int ret;
 
@@ -196,7 +196,7 @@ static struct platform_driver sam9x5_wm8731_driver = {
 		.of_match_table = of_match_ptr(sam9x5_wm8731_of_match),
 	},
 	.probe = sam9x5_wm8731_driver_probe,
-	.remove_new = sam9x5_wm8731_driver_remove,
+	.remove = sam9x5_wm8731_driver_remove,
 };
 module_platform_driver(sam9x5_wm8731_driver);
 

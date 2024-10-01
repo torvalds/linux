@@ -34,6 +34,15 @@
 			};
 		};
 	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "1P8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 };
 
 &du {
@@ -80,6 +89,12 @@
 		clocks = <&cec_clock>;
 		clock-names = "cec";
 		pd-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
+
+		avdd-supply = <&reg_1p8v>;
+		dvdd-supply = <&reg_1p8v>;
+		pvdd-supply = <&reg_1p8v>;
+		dvdd-3v-supply = <&reg_3p3v>;
+		bgvdd-supply = <&reg_1p8v>;
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";

@@ -637,7 +637,7 @@ static const struct of_device_id icp10100_of_match[] = {
 MODULE_DEVICE_TABLE(of, icp10100_of_match);
 
 static const struct i2c_device_id icp10100_id[] = {
-	{ "icp10100", 0 },
+	{ "icp10100" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, icp10100_id);

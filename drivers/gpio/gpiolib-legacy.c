@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/bitops.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/gfp.h>
+
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 
@@ -6,6 +12,9 @@
 
 #include "gpiolib.h"
 
+/*
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ */
 void gpio_free(unsigned gpio)
 {
 	gpiod_free(gpio_to_desc(gpio));
@@ -17,16 +26,20 @@ EXPORT_SYMBOL_GPL(gpio_free);
  * @gpio:	the GPIO number
  * @flags:	GPIO configuration as specified by GPIOF_*
  * @label:	a literal description string of this GPIO
+ *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ *
+ * Returns:
+ * 0 on success, or negative errno on failure.
  */
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 {
 	struct gpio_desc *desc;
 	int err;
 
-	desc = gpio_to_desc(gpio);
-
 	/* Compatibility: assume unavailable "valid" GPIOs will appear later */
-	if (!desc && gpio_is_valid(gpio))
+	desc = gpio_to_desc(gpio);
+	if (!desc)
 		return -EPROBE_DEFER;
 
 	err = gpiod_request(desc, label);
@@ -36,11 +49,10 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 	if (flags & GPIOF_ACTIVE_LOW)
 		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
 
-	if (flags & GPIOF_DIR_IN)
+	if (flags & GPIOF_IN)
 		err = gpiod_direction_input(desc);
 	else
-		err = gpiod_direction_output_raw(desc,
-				(flags & GPIOF_INIT_HIGH) ? 1 : 0);
+		err = gpiod_direction_output_raw(desc, !!(flags & GPIOF_OUT_INIT_HIGH));
 
 	if (err)
 		goto free_gpio;
@@ -53,49 +65,98 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 }
 EXPORT_SYMBOL_GPL(gpio_request_one);
 
+/*
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ */
 int gpio_request(unsigned gpio, const char *label)
 {
-	struct gpio_desc *desc = gpio_to_desc(gpio);
+	struct gpio_desc *desc;
 
 	/* Compatibility: assume unavailable "valid" GPIOs will appear later */
-	if (!desc && gpio_is_valid(gpio))
+	desc = gpio_to_desc(gpio);
+	if (!desc)
 		return -EPROBE_DEFER;
 
 	return gpiod_request(desc, label);
 }
 EXPORT_SYMBOL_GPL(gpio_request);
 
-/**
- * gpio_request_array - request multiple GPIOs in a single call
- * @array:	array of the 'struct gpio'
- * @num:	how many GPIOs in the array
- */
-int gpio_request_array(const struct gpio *array, size_t num)
+static void devm_gpio_release(struct device *dev, void *res)
 {
-	int i, err;
+	unsigned *gpio = res;
 
-	for (i = 0; i < num; i++, array++) {
-		err = gpio_request_one(array->gpio, array->flags, array->label);
-		if (err)
-			goto err_free;
+	gpio_free(*gpio);
+}
+
+/**
+ * devm_gpio_request - request a GPIO for a managed device
+ * @dev: device to request the GPIO for
+ * @gpio: GPIO to allocate
+ * @label: the name of the requested GPIO
+ *
+ * Except for the extra @dev argument, this function takes the
+ * same arguments and performs the same function as gpio_request().
+ * GPIOs requested with this function will be automatically freed
+ * on driver detach.
+ *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ *
+ * Returns:
+ * 0 on success, or negative errno on failure.
+ */
+int devm_gpio_request(struct device *dev, unsigned gpio, const char *label)
+{
+	unsigned *dr;
+	int rc;
+
+	dr = devres_alloc(devm_gpio_release, sizeof(unsigned), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	rc = gpio_request(gpio, label);
+	if (rc) {
+		devres_free(dr);
+		return rc;
 	}
-	return 0;
 
-err_free:
-	while (i--)
-		gpio_free((--array)->gpio);
-	return err;
+	*dr = gpio;
+	devres_add(dev, dr);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(gpio_request_array);
+EXPORT_SYMBOL_GPL(devm_gpio_request);
 
 /**
- * gpio_free_array - release multiple GPIOs in a single call
- * @array:	array of the 'struct gpio'
- * @num:	how many GPIOs in the array
+ * devm_gpio_request_one - request a single GPIO with initial setup
+ * @dev: device to request for
+ * @gpio: the GPIO number
+ * @flags: GPIO configuration as specified by GPIOF_*
+ * @label: a literal description string of this GPIO
+ *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ *
+ * Returns:
+ * 0 on success, or negative errno on failure.
  */
-void gpio_free_array(const struct gpio *array, size_t num)
+int devm_gpio_request_one(struct device *dev, unsigned gpio,
+			  unsigned long flags, const char *label)
 {
-	while (num--)
-		gpio_free((array++)->gpio);
+	unsigned *dr;
+	int rc;
+
+	dr = devres_alloc(devm_gpio_release, sizeof(unsigned), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	rc = gpio_request_one(gpio, flags, label);
+	if (rc) {
+		devres_free(dr);
+		return rc;
+	}
+
+	*dr = gpio;
+	devres_add(dev, dr);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(gpio_free_array);
+EXPORT_SYMBOL_GPL(devm_gpio_request_one);

@@ -110,7 +110,7 @@ Optional properties:
   It depends on the SoC configuration.
 - snps,read-requests: Number of read requests that the AXI port can issue.
   It depends on the SoC configuration.
-- snps,burst-map: Bitmap of allowed AXI burst lengts, with the LSB
+- snps,burst-map: Bitmap of allowed AXI burst lengths, with the LSB
   representing 4, then 8 etc.
 - snps,txpbl: DMA Programmable burst length for the TX DMA
 - snps,rxpbl: DMA Programmable burst length for the RX DMA

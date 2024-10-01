@@ -3,7 +3,7 @@
  * zcore module to export memory content and register sets for creating system
  * dumps on SCSI/NVMe disks (zfcp/nvme dump).
  *
- * For more information please refer to Documentation/s390/zfcpdump.rst
+ * For more information please refer to Documentation/arch/s390/zfcpdump.rst
  *
  * Copyright IBM Corp. 2003, 2008
  * Author(s): Michael Holzheu
@@ -29,7 +29,6 @@
 #include <asm/irqflags.h>
 #include <asm/checksum.h>
 #include <asm/os_info.h>
-#include <asm/switch_to.h>
 #include <asm/maccess.h>
 #include "sclp.h"
 
@@ -166,7 +165,6 @@ static const struct file_operations zcore_reipl_fops = {
 	.write		= zcore_reipl_write,
 	.open		= zcore_reipl_open,
 	.release	= zcore_reipl_release,
-	.llseek		= no_llseek,
 };
 
 static ssize_t zcore_hsa_read(struct file *filp, char __user *buf,
@@ -201,7 +199,6 @@ static const struct file_operations zcore_hsa_fops = {
 	.write		= zcore_hsa_write,
 	.read		= zcore_hsa_read,
 	.open		= nonseekable_open,
-	.llseek		= no_llseek,
 };
 
 static int __init check_sdias(void)

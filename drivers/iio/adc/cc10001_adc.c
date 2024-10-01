@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -158,9 +157,7 @@ static irqreturn_t cc10001_adc_trigger_h(int irq, void *p)
 
 	i = 0;
 	sample_invalid = false;
-	for_each_set_bit(scan_idx, indio_dev->active_scan_mask,
-				  indio_dev->masklength) {
-
+	iio_for_each_active_channel(indio_dev, scan_idx) {
 		channel = indio_dev->channels[scan_idx].channel;
 		cc10001_adc_start(adc_dev, channel);
 

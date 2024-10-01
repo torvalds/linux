@@ -117,6 +117,8 @@ struct amdgpu_vmhub {
 
 	uint32_t	vm_contexts_disable;
 
+	bool		sdma_invalidation_workaround;
+
 	const struct amdgpu_vmhub_funcs *vmhub_funcs;
 };
 
@@ -128,9 +130,9 @@ struct amdgpu_gmc_funcs {
 	void (*flush_gpu_tlb)(struct amdgpu_device *adev, uint32_t vmid,
 				uint32_t vmhub, uint32_t flush_type);
 	/* flush the vm tlb via pasid */
-	int (*flush_gpu_tlb_pasid)(struct amdgpu_device *adev, uint16_t pasid,
-					uint32_t flush_type, bool all_hub,
-					uint32_t inst);
+	void (*flush_gpu_tlb_pasid)(struct amdgpu_device *adev, uint16_t pasid,
+				    uint32_t flush_type, bool all_hub,
+				    uint32_t inst);
 	/* flush the vm tlb via ring */
 	uint64_t (*emit_flush_gpu_tlb)(struct amdgpu_ring *ring, unsigned vmid,
 				       uint64_t pd_addr);
@@ -154,6 +156,8 @@ struct amdgpu_gmc_funcs {
 				      uint64_t addr, uint64_t *flags);
 	/* get the amount of memory used by the vbios for pre-OS console */
 	unsigned int (*get_vbios_fb_size)(struct amdgpu_device *adev);
+	/* get the DCC buffer alignment */
+	unsigned int (*get_dcc_alignment)(struct amdgpu_device *adev);
 
 	enum amdgpu_memory_partition (*query_mem_partition_mode)(
 		struct amdgpu_device *adev);
@@ -196,6 +200,19 @@ struct amdgpu_mem_partition_info {
 };
 
 #define INVALID_PFN    -1
+
+struct amdgpu_gmc_memrange {
+	uint64_t base_address;
+	uint64_t limit_address;
+	uint32_t flags;
+	int nid_mask;
+};
+
+enum amdgpu_gart_placement {
+	AMDGPU_GART_PLACEMENT_BEST_FIT = 0,
+	AMDGPU_GART_PLACEMENT_HIGH,
+	AMDGPU_GART_PLACEMENT_LOW,
+};
 
 struct amdgpu_gmc {
 	/* FB's physical address in MMIO space (for CPU to
@@ -331,12 +348,14 @@ struct amdgpu_gmc {
 	u64 VM_CONTEXT_PAGE_TABLE_END_ADDR_LO32[16];
 	u64 VM_CONTEXT_PAGE_TABLE_END_ADDR_HI32[16];
 	u64 MC_VM_MX_L1_TLB_CNTL;
+
+	u64 noretry_flags;
+
+	bool flush_tlb_needs_extra_type_0;
+	bool flush_tlb_needs_extra_type_2;
+	bool flush_pasid_uses_kiq;
 };
 
-#define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
-#define amdgpu_gmc_flush_gpu_tlb_pasid(adev, pasid, type, allhub, inst) \
-	((adev)->gmc.gmc_funcs->flush_gpu_tlb_pasid \
-	((adev), (pasid), (type), (allhub), (inst)))
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
 #define amdgpu_gmc_map_mtype(adev, flags) (adev)->gmc.gmc_funcs->map_mtype((adev),(flags))
@@ -346,6 +365,10 @@ struct amdgpu_gmc {
 	(adev)->gmc.gmc_funcs->override_vm_pte_flags			\
 		((adev), (vm), (addr), (pte_flags))
 #define amdgpu_gmc_get_vbios_fb_size(adev) (adev)->gmc.gmc_funcs->get_vbios_fb_size((adev))
+#define amdgpu_gmc_get_dcc_alignment(adev) ({			\
+	typeof(adev) _adev = (adev);				\
+	_adev->gmc.gmc_funcs->get_dcc_alignment(_adev);		\
+})
 
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
@@ -387,9 +410,12 @@ void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc
 void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 			      u64 base);
 void amdgpu_gmc_gart_location(struct amdgpu_device *adev,
-			      struct amdgpu_gmc *mc);
+			      struct amdgpu_gmc *mc,
+			      enum amdgpu_gart_placement gart_placement);
 void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
+void amdgpu_gmc_set_agp_default(struct amdgpu_device *adev,
+				struct amdgpu_gmc *mc);
 bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
 			      struct amdgpu_ih_ring *ih, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp);
@@ -399,6 +425,15 @@ int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
 int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);
+void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+			      uint32_t vmhub, uint32_t flush_type);
+int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, uint16_t pasid,
+				   uint32_t flush_type, bool all_hub,
+				   uint32_t inst);
+void amdgpu_gmc_fw_reg_write_reg_wait(struct amdgpu_device *adev,
+				      uint32_t reg0, uint32_t reg1,
+				      uint32_t ref, uint32_t mask,
+				      uint32_t xcc_inst);
 
 extern void amdgpu_gmc_tmz_set(struct amdgpu_device *adev);
 extern void amdgpu_gmc_noretry_set(struct amdgpu_device *adev);
@@ -416,5 +451,9 @@ uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev);
 int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev);
+
+int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
+				 struct amdgpu_mem_partition_info *mem_ranges,
+				 int exp_ranges);
 
 #endif

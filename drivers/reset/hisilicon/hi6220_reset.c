@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/reset-controller.h>
@@ -164,7 +163,7 @@ static int hi6220_reset_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	type = (enum hi6220_reset_ctrl_type)of_device_get_match_data(dev);
+	type = (uintptr_t)of_device_get_match_data(dev);
 
 	regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(regmap)) {
@@ -220,4 +219,5 @@ static int __init hi6220_reset_init(void)
 
 postcore_initcall(hi6220_reset_init);
 
+MODULE_DESCRIPTION("Hisilicon Hi6220 reset controller driver");
 MODULE_LICENSE("GPL v2");

@@ -258,12 +258,8 @@ static int cy8ctma140_probe(struct i2c_client *client)
 	ts->regulators[1].supply = "vdd";
 	error = devm_regulator_bulk_get(dev, ARRAY_SIZE(ts->regulators),
 				      ts->regulators);
-	if (error) {
-		if (error != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get regulators %d\n",
-				error);
-		return error;
-	}
+	if (error)
+		return dev_err_probe(dev, error, "Failed to get regulators\n");
 
 	error = cy8ctma140_power_up(ts);
 	if (error)
@@ -326,7 +322,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cy8ctma140_pm,
 				cy8ctma140_suspend, cy8ctma140_resume);
 
 static const struct i2c_device_id cy8ctma140_idtable[] = {
-	{ CY8CTMA140_NAME, 0 },
+	{ CY8CTMA140_NAME },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, cy8ctma140_idtable);

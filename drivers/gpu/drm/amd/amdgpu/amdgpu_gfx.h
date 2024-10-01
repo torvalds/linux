@@ -34,6 +34,7 @@
 #include "soc15.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_ring_mux.h"
+#include "amdgpu_xcp.h"
 
 /* GFX current status */
 #define AMDGPU_GFX_NORMAL_MODE			0x00000000L
@@ -43,9 +44,10 @@
 #define AMDGPU_GFX_LBPW_DISABLED_MODE		0x00000008L
 
 #define AMDGPU_MAX_GC_INSTANCES		8
+#define AMDGPU_MAX_QUEUES		128
 
-#define AMDGPU_MAX_GFX_QUEUES KGD_MAX_QUEUES
-#define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
+#define AMDGPU_MAX_GFX_QUEUES AMDGPU_MAX_QUEUES
+#define AMDGPU_MAX_COMPUTE_QUEUES AMDGPU_MAX_QUEUES
 
 enum amdgpu_gfx_pipe_priority {
 	AMDGPU_GFX_PIPE_PRIO_NORMAL = AMDGPU_RING_PRIO_1,
@@ -67,11 +69,6 @@ enum amdgpu_gfx_partition {
 };
 
 #define NUM_XCC(x) hweight16(x)
-
-enum amdgpu_pkg_type {
-	AMDGPU_PKG_TYPE_APU = 2,
-	AMDGPU_PKG_TYPE_UNKNOWN,
-};
 
 enum amdgpu_gfx_ras_mem_id_type {
 	AMDGPU_GFX_CP_MEM = 0,
@@ -142,6 +139,10 @@ struct kiq_pm4_funcs {
 	void (*kiq_invalidate_tlbs)(struct amdgpu_ring *kiq_ring,
 				uint16_t pasid, uint32_t flush_type,
 				bool all_hub);
+	void (*kiq_reset_hw_queue)(struct amdgpu_ring *kiq_ring,
+				   uint32_t queue_type, uint32_t me_id,
+				   uint32_t pipe_id, uint32_t queue_id,
+				   uint32_t xcc_id, uint32_t vmid);
 	/* Packet sizes */
 	int set_resources_size;
 	int map_queues_size;
@@ -241,6 +242,15 @@ struct amdgpu_gfx_config {
 	uint32_t gc_gl1c_per_sa;
 	uint32_t gc_gl1c_size_per_instance;
 	uint32_t gc_gl2c_per_gpu;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_num_cu_per_sqc;
+	uint32_t gc_tcc_size;
+	uint32_t gc_tcp_cache_line_size;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_instruction_cache_line_size;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_line_size;
+	uint32_t gc_tcc_cache_line_size;
 };
 
 struct amdgpu_cu_info {
@@ -254,13 +264,12 @@ struct amdgpu_cu_info {
 	uint32_t number;
 	uint32_t ao_cu_mask;
 	uint32_t ao_cu_bitmap[4][4];
-	uint32_t bitmap[4][4];
+	uint32_t bitmap[AMDGPU_MAX_GC_INSTANCES][4][4];
 };
 
 struct amdgpu_gfx_ras {
 	struct amdgpu_ras_block_object  ras_block;
 	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
-	bool (*query_utcl2_poison_status)(struct amdgpu_device *adev);
 	int (*rlc_gc_fed_irq)(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry);
@@ -299,6 +308,7 @@ struct amdgpu_gfx_funcs {
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
 				     int num_xccs_per_xcp);
 	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
+	int (*get_xccs_per_xcp)(struct amdgpu_device *adev);
 };
 
 struct sq_work {
@@ -338,6 +348,12 @@ struct amdgpu_me {
 
 	/* These are the resources for which amdgpu takes ownership */
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
+};
+
+struct amdgpu_isolation_work {
+	struct amdgpu_device		*adev;
+	u32				xcp_id;
+	struct delayed_work		work;
 };
 
 struct amdgpu_gfx {
@@ -392,6 +408,7 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		eop_irq;
 	struct amdgpu_irq_src		priv_reg_irq;
 	struct amdgpu_irq_src		priv_inst_irq;
+	struct amdgpu_irq_src		bad_op_irq;
 	struct amdgpu_irq_src		cp_ecc_error_irq;
 	struct amdgpu_irq_src		sq_irq;
 	struct amdgpu_irq_src		rlc_gc_fed_irq;
@@ -435,6 +452,26 @@ struct amdgpu_gfx {
 	uint32_t			num_xcc_per_xcp;
 	struct mutex			partition_mutex;
 	bool				mcbp; /* mid command buffer preemption */
+
+	/* IP reg dump */
+	uint32_t			*ip_dump_core;
+	uint32_t			*ip_dump_compute_queues;
+	uint32_t			*ip_dump_gfx_queues;
+
+	struct mutex			reset_sem_mutex;
+
+	/* cleaner shader */
+	struct amdgpu_bo		*cleaner_shader_obj;
+	unsigned int                    cleaner_shader_size;
+	u64				cleaner_shader_gpu_addr;
+	void				*cleaner_shader_cpu_ptr;
+	const void			*cleaner_shader_ptr;
+	bool				enable_cleaner_shader;
+	struct amdgpu_isolation_work	enforce_isolation[MAX_XCP];
+	/* Mutex for synchronizing KFD scheduler operations */
+	struct mutex                    kfd_sch_mutex;
+	u64				kfd_sch_req_count[MAX_XCP];
+	bool				kfd_sch_inactive[MAX_XCP];
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -472,9 +509,7 @@ static inline u32 amdgpu_gfx_create_bitmask(u32 bit_width)
 void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 				 unsigned max_sh);
 
-int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
-			     struct amdgpu_ring *ring,
-			     struct amdgpu_irq_src *irq, int xcc_id);
+int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev, int xcc_id);
 
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring);
 
@@ -522,8 +557,8 @@ int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 				  struct amdgpu_irq_src *source,
 				  struct amdgpu_iv_entry *entry);
-uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
-void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
+uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_id);
+void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint32_t xcc_id);
 int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev);
 void amdgpu_gfx_cp_init_microcode(struct amdgpu_device *adev, uint32_t ucode_id);
 
@@ -538,6 +573,17 @@ void amdgpu_gfx_ras_error_func(struct amdgpu_device *adev,
 		void *ras_error_status,
 		void (*func)(struct amdgpu_device *adev, void *ras_error_status,
 				int xcc_id));
+int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
+				      unsigned int cleaner_shader_size);
+void amdgpu_gfx_cleaner_shader_sw_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
+				    unsigned int cleaner_shader_size,
+				    const void *cleaner_shader_ptr);
+int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev);
+void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work);
+void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring);
+void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring);
 
 static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 {
@@ -555,8 +601,6 @@ static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 	default:
 		return "UNKNOWN";
 	}
-
-	return "UNKNOWN";
 }
 
 #endif

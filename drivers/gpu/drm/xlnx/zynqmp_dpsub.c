@@ -227,7 +227,9 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	dpsub->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dpsub);
 
-	dma_set_mask(dpsub->dev, DMA_BIT_MASK(ZYNQMP_DISP_MAX_DMA_BIT));
+	ret = dma_set_mask(dpsub->dev, DMA_BIT_MASK(ZYNQMP_DISP_MAX_DMA_BIT));
+	if (ret)
+		return ret;
 
 	/* Try the reserved memory. Proceed if there's none. */
 	of_reserved_mem_device_init(&pdev->dev);
@@ -254,12 +256,12 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dp;
 
+	drm_bridge_add(dpsub->bridge);
+
 	if (dpsub->dma_enabled) {
 		ret = zynqmp_dpsub_drm_init(dpsub);
 		if (ret)
 			goto err_disp;
-	} else {
-		drm_bridge_add(dpsub->bridge);
 	}
 
 	dev_info(&pdev->dev, "ZynqMP DisplayPort Subsystem driver probed");
@@ -267,6 +269,7 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	return 0;
 
 err_disp:
+	drm_bridge_remove(dpsub->bridge);
 	zynqmp_disp_remove(dpsub);
 err_dp:
 	zynqmp_dp_remove(dpsub);
@@ -280,15 +283,14 @@ err_mem:
 	return ret;
 }
 
-static int zynqmp_dpsub_remove(struct platform_device *pdev)
+static void zynqmp_dpsub_remove(struct platform_device *pdev)
 {
 	struct zynqmp_dpsub *dpsub = platform_get_drvdata(pdev);
 
 	if (dpsub->drm)
 		zynqmp_dpsub_drm_cleanup(dpsub);
-	else
-		drm_bridge_remove(dpsub->bridge);
 
+	drm_bridge_remove(dpsub->bridge);
 	zynqmp_disp_remove(dpsub);
 	zynqmp_dp_remove(dpsub);
 
@@ -298,8 +300,6 @@ static int zynqmp_dpsub_remove(struct platform_device *pdev)
 
 	if (!dpsub->drm)
 		zynqmp_dpsub_release(dpsub);
-
-	return 0;
 }
 
 static void zynqmp_dpsub_shutdown(struct platform_device *pdev)
@@ -320,7 +320,7 @@ MODULE_DEVICE_TABLE(of, zynqmp_dpsub_of_match);
 
 static struct platform_driver zynqmp_dpsub_driver = {
 	.probe			= zynqmp_dpsub_probe,
-	.remove			= zynqmp_dpsub_remove,
+	.remove_new		= zynqmp_dpsub_remove,
 	.shutdown		= zynqmp_dpsub_shutdown,
 	.driver			= {
 		.name		= "zynqmp-dpsub",

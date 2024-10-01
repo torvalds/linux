@@ -145,6 +145,8 @@
 			/* MDIO */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLUP | SLEWCTRL_FAST, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MDC, PIN_OUTPUT_PULLUP, MUX_MODE0)
+			/* Added to support GPIO controlled PHY reset */
+			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_OUTPUT_PULLUP, MUX_MODE7)
 		>;
 	};
 
@@ -153,6 +155,8 @@
 			/* MDIO reset value */
 			AM33XX_PADCONF(AM335X_PIN_MDIO, PIN_INPUT_PULLDOWN, MUX_MODE7)
 			AM33XX_PADCONF(AM335X_PIN_MDC, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* Added to support GPIO controlled PHY reset */
+			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_INPUT_PULLDOWN, MUX_MODE7)
 		>;
 	};
 
@@ -215,11 +219,16 @@
 	baseboard_eeprom: baseboard_eeprom@50 {
 		compatible = "atmel,24c256";
 		reg = <0x50>;
+		vcc-supply = <&ldo4_reg>;
 
-		#address-cells = <1>;
-		#size-cells = <1>;
-		baseboard_data: baseboard_data@0 {
-			reg = <0 0x100>;
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			baseboard_data: baseboard_data@0 {
+				reg = <0 0x100>;
+			};
 		};
 	};
 };
@@ -234,40 +243,60 @@
 	cape_eeprom0: cape_eeprom0@54 {
 		compatible = "atmel,24c256";
 		reg = <0x54>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		cape0_data: cape_data@0 {
-			reg = <0 0x100>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			cape0_data: cape_data@0 {
+				reg = <0 0x100>;
+			};
 		};
 	};
 
 	cape_eeprom1: cape_eeprom1@55 {
 		compatible = "atmel,24c256";
 		reg = <0x55>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		cape1_data: cape_data@0 {
-			reg = <0 0x100>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			cape1_data: cape_data@0 {
+				reg = <0 0x100>;
+			};
 		};
 	};
 
 	cape_eeprom2: cape_eeprom2@56 {
 		compatible = "atmel,24c256";
 		reg = <0x56>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		cape2_data: cape_data@0 {
-			reg = <0 0x100>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			cape2_data: cape_data@0 {
+				reg = <0 0x100>;
+			};
 		};
 	};
 
 	cape_eeprom3: cape_eeprom3@57 {
 		compatible = "atmel,24c256";
 		reg = <0x57>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		cape3_data: cape_data@0 {
-			reg = <0 0x100>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			cape3_data: cape_data@0 {
+				reg = <0 0x100>;
+			};
 		};
 	};
 };
@@ -284,8 +313,8 @@
 	 * For details, see linux-omap mailing list May 2015 thread
 	 *	[PATCH] ARM: dts: am335x-bone* enable pmic-shutdown-controller
 	 * In particular, messages:
-	 *	http://www.spinics.net/lists/linux-omap/msg118585.html
-	 *	http://www.spinics.net/lists/linux-omap/msg118615.html
+	 *	https://www.spinics.net/lists/linux-omap/msg118585.html
+	 *	https://www.spinics.net/lists/linux-omap/msg118615.html
 	 *
 	 * You can override this later with
 	 *	&tps {  /delete-property/ ti,pmic-shutdown-controller;  }
@@ -377,6 +406,10 @@
 
 	ethphy0: ethernet-phy@0 {
 		reg = <0>;
+		/* Support GPIO reset on revision C3 boards */
+		reset-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <300>;
+		reset-deassert-us = <13000>;
 	};
 };
 

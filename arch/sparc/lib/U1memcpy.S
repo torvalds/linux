@@ -6,10 +6,10 @@
  */
 
 #ifdef __KERNEL__
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/visasm.h>
 #include <asm/asi.h>
-#include <asm/export.h>
 #define GLOBAL_SPARE	g7
 #else
 #define GLOBAL_SPARE	g5

@@ -2085,7 +2085,7 @@ int ef4_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
-/* Context: process, dev_base_lock or RTNL held, non-blocking. */
+/* Context: process, rcu_read_lock or RTNL held, non-blocking. */
 static void ef4_net_stats(struct net_device *net_dev,
 			  struct rtnl_link_stats64 *stats)
 {
@@ -2125,7 +2125,7 @@ static int ef4_change_mtu(struct net_device *net_dev, int new_mtu)
 	ef4_stop_all(efx);
 
 	mutex_lock(&efx->mac_lock);
-	net_dev->mtu = new_mtu;
+	WRITE_ONCE(net_dev->mtu, new_mtu);
 	ef4_mac_reconfigure(efx);
 	mutex_unlock(&efx->mac_lock);
 

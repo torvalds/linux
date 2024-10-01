@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-BPF_SAMPLES_PATH ?= $(abspath $(srctree)/$(src))
+BPF_SAMPLES_PATH ?= $(abspath $(src))
 TOOLS_PATH := $(BPF_SAMPLES_PATH)/../../tools
 
 pound := \#
@@ -13,7 +13,6 @@ tprogs-y += sockex1
 tprogs-y += sockex2
 tprogs-y += sockex3
 tprogs-y += tracex1
-tprogs-y += tracex2
 tprogs-y += tracex3
 tprogs-y += tracex4
 tprogs-y += tracex5
@@ -30,8 +29,6 @@ tprogs-y += test_cgrp2_array_pin
 tprogs-y += test_cgrp2_attach
 tprogs-y += test_cgrp2_sock
 tprogs-y += test_cgrp2_sock2
-tprogs-y += xdp1
-tprogs-y += xdp2
 tprogs-y += xdp_router_ipv4
 tprogs-y += test_current_task_under_cgroup
 tprogs-y += trace_event
@@ -41,21 +38,13 @@ tprogs-y += lwt_len_hist
 tprogs-y += xdp_tx_iptunnel
 tprogs-y += test_map_in_map
 tprogs-y += per_socket_stats_example
-tprogs-y += xdp_rxq_info
 tprogs-y += syscall_tp
 tprogs-y += cpustat
 tprogs-y += xdp_adjust_tail
 tprogs-y += xdp_fwd
 tprogs-y += task_fd_query
-tprogs-y += xdp_sample_pkts
 tprogs-y += ibumad
 tprogs-y += hbm
-
-tprogs-y += xdp_redirect_cpu
-tprogs-y += xdp_redirect_map_multi
-tprogs-y += xdp_redirect_map
-tprogs-y += xdp_redirect
-tprogs-y += xdp_monitor
 
 # Libbpf dependencies
 LIBBPF_SRC = $(TOOLS_PATH)/lib/bpf
@@ -73,7 +62,6 @@ sockex1-objs := sockex1_user.o
 sockex2-objs := sockex2_user.o
 sockex3-objs := sockex3_user.o
 tracex1-objs := tracex1_user.o $(TRACE_HELPERS)
-tracex2-objs := tracex2_user.o
 tracex3-objs := tracex3_user.o
 tracex4-objs := tracex4_user.o
 tracex5-objs := tracex5_user.o $(TRACE_HELPERS)
@@ -90,9 +78,6 @@ test_cgrp2_array_pin-objs := test_cgrp2_array_pin.o
 test_cgrp2_attach-objs := test_cgrp2_attach.o
 test_cgrp2_sock-objs := test_cgrp2_sock.o
 test_cgrp2_sock2-objs := test_cgrp2_sock2.o
-xdp1-objs := xdp1_user.o
-# reuse xdp1 source intentionally
-xdp2-objs := xdp1_user.o
 test_current_task_under_cgroup-objs := $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
 trace_event-objs := trace_event_user.o $(TRACE_HELPERS)
@@ -102,21 +87,14 @@ lwt_len_hist-objs := lwt_len_hist_user.o
 xdp_tx_iptunnel-objs := xdp_tx_iptunnel_user.o
 test_map_in_map-objs := test_map_in_map_user.o
 per_socket_stats_example-objs := cookie_uid_helper_example.o
-xdp_rxq_info-objs := xdp_rxq_info_user.o
 syscall_tp-objs := syscall_tp_user.o
 cpustat-objs := cpustat_user.o
 xdp_adjust_tail-objs := xdp_adjust_tail_user.o
 xdp_fwd-objs := xdp_fwd_user.o
 task_fd_query-objs := task_fd_query_user.o $(TRACE_HELPERS)
-xdp_sample_pkts-objs := xdp_sample_pkts_user.o
 ibumad-objs := ibumad_user.o
 hbm-objs := hbm.o $(CGROUP_HELPERS)
 
-xdp_redirect_map_multi-objs := xdp_redirect_map_multi_user.o $(XDP_SAMPLE)
-xdp_redirect_cpu-objs := xdp_redirect_cpu_user.o $(XDP_SAMPLE)
-xdp_redirect_map-objs := xdp_redirect_map_user.o $(XDP_SAMPLE)
-xdp_redirect-objs := xdp_redirect_user.o $(XDP_SAMPLE)
-xdp_monitor-objs := xdp_monitor_user.o $(XDP_SAMPLE)
 xdp_router_ipv4-objs := xdp_router_ipv4_user.o $(XDP_SAMPLE)
 
 # Tell kbuild to always build the programs
@@ -124,29 +102,26 @@ always-y := $(tprogs-y)
 always-y += sockex1_kern.o
 always-y += sockex2_kern.o
 always-y += sockex3_kern.o
-always-y += tracex1_kern.o
-always-y += tracex2.bpf.o
-always-y += tracex3_kern.o
-always-y += tracex4_kern.o
-always-y += tracex5_kern.o
-always-y += tracex6_kern.o
-always-y += tracex7_kern.o
+always-y += tracex1.bpf.o
+always-y += tracex3.bpf.o
+always-y += tracex4.bpf.o
+always-y += tracex5.bpf.o
+always-y += tracex6.bpf.o
+always-y += tracex7.bpf.o
 always-y += sock_flags.bpf.o
 always-y += test_probe_write_user.bpf.o
 always-y += trace_output.bpf.o
 always-y += tcbpf1_kern.o
 always-y += tc_l2_redirect_kern.o
 always-y += lathist_kern.o
-always-y += offwaketime_kern.o
-always-y += spintest_kern.o
+always-y += offwaketime.bpf.o
+always-y += spintest.bpf.o
 always-y += map_perf_test.bpf.o
 always-y += test_overhead_tp.bpf.o
 always-y += test_overhead_raw_tp.bpf.o
 always-y += test_overhead_kprobe.bpf.o
 always-y += parse_varlen.o parse_simple.o parse_ldabs.o
 always-y += test_cgrp2_tc.bpf.o
-always-y += xdp1_kern.o
-always-y += xdp2_kern.o
 always-y += test_current_task_under_cgroup.bpf.o
 always-y += trace_event_kern.o
 always-y += sampleip_kern.o
@@ -162,17 +137,18 @@ always-y += tcp_clamp_kern.o
 always-y += tcp_basertt_kern.o
 always-y += tcp_tos_reflect_kern.o
 always-y += tcp_dumpstats_kern.o
-always-y += xdp_rxq_info_kern.o
 always-y += xdp2skb_meta_kern.o
 always-y += syscall_tp_kern.o
 always-y += cpustat_kern.o
 always-y += xdp_adjust_tail_kern.o
 always-y += xdp_fwd_kern.o
 always-y += task_fd_query_kern.o
-always-y += xdp_sample_pkts_kern.o
 always-y += ibumad_kern.o
 always-y += hbm_out_kern.o
 always-y += hbm_edt_kern.o
+
+TPROGS_CFLAGS = $(TPROGS_USER_CFLAGS)
+TPROGS_LDFLAGS = $(TPROGS_USER_LDFLAGS)
 
 ifeq ($(ARCH), arm)
 # Strip all except -D__LINUX_ARM_ARCH__ option needed to handle linux
@@ -190,15 +166,23 @@ BPF_EXTRA_CFLAGS += -I$(srctree)/arch/mips/include/asm/mach-generic
 endif
 endif
 
+ifeq ($(ARCH), x86)
+BPF_EXTRA_CFLAGS += -fcf-protection
+endif
+
 TPROGS_CFLAGS += -Wall -O2
 TPROGS_CFLAGS += -Wmissing-prototypes
 TPROGS_CFLAGS += -Wstrict-prototypes
+TPROGS_CFLAGS += $(call try-run,\
+	printf "int main() { return 0; }" |\
+	$(CC) -Werror -fsanitize=bounds -x c - -o "$$TMP",-fsanitize=bounds,)
 
 TPROGS_CFLAGS += -I$(objtree)/usr/include
 TPROGS_CFLAGS += -I$(srctree)/tools/testing/selftests/bpf/
 TPROGS_CFLAGS += -I$(LIBBPF_INCLUDE)
 TPROGS_CFLAGS += -I$(srctree)/tools/include
 TPROGS_CFLAGS += -I$(srctree)/tools/perf
+TPROGS_CFLAGS += -I$(srctree)/tools/lib
 TPROGS_CFLAGS += -DHAVE_ATTR_TEST=0
 
 ifdef SYSROOT
@@ -207,11 +191,6 @@ TPROGS_LDFLAGS := -L$(SYSROOT)/usr/lib
 endif
 
 TPROGS_LDLIBS			+= $(LIBBPF) -lelf -lz
-TPROGLDLIBS_xdp_monitor		+= -lm
-TPROGLDLIBS_xdp_redirect	+= -lm
-TPROGLDLIBS_xdp_redirect_cpu	+= -lm
-TPROGLDLIBS_xdp_redirect_map	+= -lm
-TPROGLDLIBS_xdp_redirect_map_multi += -lm
 TPROGLDLIBS_xdp_router_ipv4	+= -lm -pthread
 TPROGLDLIBS_tracex4		+= -lrt
 TPROGLDLIBS_trace_output	+= -lrt
@@ -248,7 +227,7 @@ BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help 2>&1 | grep dwarfris)
 BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help 2>&1 | grep BTF)
 BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --help 2>&1 | grep -i 'usage.*llvm')
 BTF_LLVM_PROBE := $(shell echo "int main() { return 0; }" | \
-			  $(CLANG) -target bpf -O2 -g -c -x c - -o ./llvm_btf_verify.o; \
+			  $(CLANG) --target=bpf -O2 -g -c -x c - -o ./llvm_btf_verify.o; \
 			  $(LLVM_READELF) -S ./llvm_btf_verify.o | grep BTF; \
 			  /bin/rm -f ./llvm_btf_verify.o)
 
@@ -276,14 +255,15 @@ clean:
 $(LIBBPF): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(LIBBPF_OUTPUT)
 # Fix up variables inherited from Kbuild that tools/ build system won't like
 	$(MAKE) -C $(LIBBPF_SRC) RM='rm -rf' EXTRA_CFLAGS="$(TPROGS_CFLAGS)" \
-		LDFLAGS=$(TPROGS_LDFLAGS) srctree=$(BPF_SAMPLES_PATH)/../../ \
+		LDFLAGS="$(TPROGS_LDFLAGS)" srctree=$(BPF_SAMPLES_PATH)/../../ \
 		O= OUTPUT=$(LIBBPF_OUTPUT)/ DESTDIR=$(LIBBPF_DESTDIR) prefix= \
 		$@ install_headers
 
 BPFTOOLDIR := $(TOOLS_PATH)/bpf/bpftool
 BPFTOOL_OUTPUT := $(abspath $(BPF_SAMPLES_PATH))/bpftool
-BPFTOOL := $(BPFTOOL_OUTPUT)/bootstrap/bpftool
-$(BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile) | $(BPFTOOL_OUTPUT)
+DEFAULT_BPFTOOL := $(BPFTOOL_OUTPUT)/bootstrap/bpftool
+BPFTOOL ?= $(DEFAULT_BPFTOOL)
+$(DEFAULT_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile) | $(BPFTOOL_OUTPUT)
 	$(MAKE) -C $(BPFTOOLDIR) srctree=$(BPF_SAMPLES_PATH)/../../ 		\
 		OUTPUT=$(BPFTOOL_OUTPUT)/ bootstrap
 
@@ -326,14 +306,9 @@ $(obj)/$(TRACE_HELPERS) $(obj)/$(CGROUP_HELPERS) $(obj)/$(XDP_SAMPLE): | libbpf_
 
 .PHONY: libbpf_hdrs
 
-$(obj)/xdp_redirect_cpu_user.o: $(obj)/xdp_redirect_cpu.skel.h
-$(obj)/xdp_redirect_map_multi_user.o: $(obj)/xdp_redirect_map_multi.skel.h
-$(obj)/xdp_redirect_map_user.o: $(obj)/xdp_redirect_map.skel.h
-$(obj)/xdp_redirect_user.o: $(obj)/xdp_redirect.skel.h
-$(obj)/xdp_monitor_user.o: $(obj)/xdp_monitor.skel.h
 $(obj)/xdp_router_ipv4_user.o: $(obj)/xdp_router_ipv4.skel.h
 
-$(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
+$(obj)/tracex5.bpf.o: $(obj)/syscall_nrs.h
 $(obj)/hbm_out_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
 $(obj)/hbm.o: $(src)/hbm.h
 $(obj)/hbm_edt_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
@@ -346,8 +321,11 @@ XDP_SAMPLE_CFLAGS += -Wall -O2 \
 		     -I$(LIBBPF_INCLUDE) \
 		     -I$(src)/../../tools/testing/selftests/bpf
 
-$(obj)/$(XDP_SAMPLE): TPROGS_CFLAGS = $(XDP_SAMPLE_CFLAGS)
+$(obj)/$(XDP_SAMPLE): TPROGS_CFLAGS = $(XDP_SAMPLE_CFLAGS) $(TPROGS_USER_CFLAGS)
 $(obj)/$(XDP_SAMPLE): $(src)/xdp_sample_user.h $(src)/xdp_sample_shared.h
+# Override includes for trace_helpers.o because __must_check won't be defined
+# in our include path.
+$(obj)/$(TRACE_HELPERS): TPROGS_CFLAGS := $(TPROGS_CFLAGS) -D__must_check=
 
 -include $(BPF_SAMPLES_PATH)/Makefile.target
 
@@ -360,7 +338,7 @@ $(obj)/vmlinux.h: $(VMLINUX_BTF) $(BPFTOOL)
 ifeq ($(VMLINUX_H),)
 ifeq ($(VMLINUX_BTF),)
 	$(error Cannot find a vmlinux for VMLINUX_BTF at any of "$(VMLINUX_BTF_PATHS)",\
-		build the kernel or set VMLINUX_BTF or VMLINUX_H variable)
+		build the kernel or set VMLINUX_BTF like "VMLINUX_BTF=/sys/kernel/btf/vmlinux" or VMLINUX_H variable)
 endif
 	$(Q)$(BPFTOOL) btf dump file $(VMLINUX_BTF) format c > $@
 else
@@ -370,7 +348,7 @@ endif
 clean-files += vmlinux.h
 
 # Get Clang's default includes on this system, as opposed to those seen by
-# '-target bpf'. This fixes "missing" files on some architectures/distros,
+# '--target=bpf'. This fixes "missing" files on some architectures/distros,
 # such as asm/byteorder.h, asm/socket.h, asm/sockios.h, sys/cdefs.h etc.
 #
 # Use '-idirafter': Don't interfere with include mechanics except where the
@@ -383,31 +361,19 @@ endef
 
 CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG))
 
-$(obj)/xdp_redirect_cpu.bpf.o: $(obj)/xdp_sample.bpf.o
-$(obj)/xdp_redirect_map_multi.bpf.o: $(obj)/xdp_sample.bpf.o
-$(obj)/xdp_redirect_map.bpf.o: $(obj)/xdp_sample.bpf.o
-$(obj)/xdp_redirect.bpf.o: $(obj)/xdp_sample.bpf.o
-$(obj)/xdp_monitor.bpf.o: $(obj)/xdp_sample.bpf.o
 $(obj)/xdp_router_ipv4.bpf.o: $(obj)/xdp_sample.bpf.o
 
 $(obj)/%.bpf.o: $(src)/%.bpf.c $(obj)/vmlinux.h $(src)/xdp_sample.bpf.h $(src)/xdp_sample_shared.h
 	@echo "  CLANG-BPF " $@
-	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(SRCARCH) \
+	$(Q)$(CLANG) -g -O2 --target=bpf -D__TARGET_ARCH_$(SRCARCH) \
 		-Wno-compare-distinct-pointer-types -I$(srctree)/include \
 		-I$(srctree)/samples/bpf -I$(srctree)/tools/include \
 		-I$(LIBBPF_INCLUDE) $(CLANG_SYS_INCLUDES) \
 		-c $(filter %.bpf.c,$^) -o $@
 
-LINKED_SKELS := xdp_redirect_cpu.skel.h xdp_redirect_map_multi.skel.h \
-		xdp_redirect_map.skel.h xdp_redirect.skel.h xdp_monitor.skel.h \
-		xdp_router_ipv4.skel.h
+LINKED_SKELS := xdp_router_ipv4.skel.h
 clean-files += $(LINKED_SKELS)
 
-xdp_redirect_cpu.skel.h-deps := xdp_redirect_cpu.bpf.o xdp_sample.bpf.o
-xdp_redirect_map_multi.skel.h-deps := xdp_redirect_map_multi.bpf.o xdp_sample.bpf.o
-xdp_redirect_map.skel.h-deps := xdp_redirect_map.bpf.o xdp_sample.bpf.o
-xdp_redirect.skel.h-deps := xdp_redirect.bpf.o xdp_sample.bpf.o
-xdp_monitor.skel.h-deps := xdp_monitor.bpf.o xdp_sample.bpf.o
 xdp_router_ipv4.skel.h-deps := xdp_router_ipv4.bpf.o xdp_sample.bpf.o
 
 LINKED_BPF_SRCS := $(patsubst %.bpf.o,%.bpf.c,$(foreach skel,$(LINKED_SKELS),$($(skel)-deps)))

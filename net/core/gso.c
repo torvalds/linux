@@ -17,7 +17,7 @@ struct sk_buff *skb_eth_gso_segment(struct sk_buff *skb,
 	struct packet_offload *ptype;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(ptype, &offload_base, list) {
+	list_for_each_entry_rcu(ptype, &net_hotdata.offload_base, list) {
 		if (ptype->type == type && ptype->callbacks.gso_segment) {
 			segs = ptype->callbacks.gso_segment(skb, features);
 			break;
@@ -48,7 +48,7 @@ struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 	__skb_pull(skb, vlan_depth);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(ptype, &offload_base, list) {
+	list_for_each_entry_rcu(ptype, &net_hotdata.offload_base, list) {
 		if (ptype->type == type && ptype->callbacks.gso_segment) {
 			segs = ptype->callbacks.gso_segment(skb, features);
 			break;

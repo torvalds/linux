@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -67,11 +68,13 @@ static const struct ci_hdrc_imx_platform_flag imx7d_usb_data = {
 
 static const struct ci_hdrc_imx_platform_flag imx7ulp_usb_data = {
 	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
+		CI_HDRC_HAS_PORTSC_PEC_MISSED |
 		CI_HDRC_PMQOS,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx8ulp_usb_data = {
-	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM,
+	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
+		CI_HDRC_HAS_PORTSC_PEC_MISSED,
 };
 
 static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
@@ -93,6 +96,7 @@ struct ci_hdrc_imx_data {
 	struct usb_phy *phy;
 	struct platform_device *ci_pdev;
 	struct clk *clk;
+	struct clk *clk_wakeup;
 	struct imx_usbmisc_data *usbmisc_data;
 	bool supports_runtime_pm;
 	bool override_phy_control;
@@ -124,7 +128,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	 * In case the fsl,usbmisc property is not present this device doesn't
 	 * need usbmisc. Return NULL (which is no error here)
 	 */
-	if (!of_get_property(np, "fsl,usbmisc", NULL))
+	if (!of_property_present(np, "fsl,usbmisc"))
 		return NULL;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -175,10 +179,15 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	if (of_usb_get_phy_mode(np) == USBPHY_INTERFACE_MODE_ULPI)
 		data->ulpi = 1;
 
-	of_property_read_u32(np, "samsung,picophy-pre-emp-curr-control",
-			&data->emp_curr_control);
-	of_property_read_u32(np, "samsung,picophy-dc-vol-level-adjust",
-			&data->dc_vol_level_adjust);
+	if (of_property_read_u32(np, "samsung,picophy-pre-emp-curr-control",
+			&data->emp_curr_control))
+		data->emp_curr_control = -1;
+	if (of_property_read_u32(np, "samsung,picophy-dc-vol-level-adjust",
+			&data->dc_vol_level_adjust))
+		data->dc_vol_level_adjust = -1;
+	if (of_property_read_u32(np, "fsl,picophy-rise-fall-time-adjust",
+			&data->rise_fall_time_adjust))
+		data->rise_fall_time_adjust = -1;
 
 	return data;
 }
@@ -191,7 +200,7 @@ static int imx_get_clks(struct device *dev)
 
 	data->clk_ipg = devm_clk_get(dev, "ipg");
 	if (IS_ERR(data->clk_ipg)) {
-		/* If the platform only needs one clocks */
+		/* If the platform only needs one primary clock */
 		data->clk = devm_clk_get(dev, NULL);
 		if (IS_ERR(data->clk)) {
 			ret = PTR_ERR(data->clk);
@@ -200,6 +209,13 @@ static int imx_get_clks(struct device *dev)
 				PTR_ERR(data->clk), PTR_ERR(data->clk_ipg));
 			return ret;
 		}
+		/* Get wakeup clock. Not all of the platforms need to
+		 * handle this clock. So make it optional.
+		 */
+		data->clk_wakeup = devm_clk_get_optional(dev, "usb_wakeup");
+		if (IS_ERR(data->clk_wakeup))
+			ret = dev_err_probe(dev, PTR_ERR(data->clk_wakeup),
+					"Failed to get wakeup clk\n");
 		return ret;
 	}
 
@@ -415,6 +431,10 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_hsic_regulator;
 
+	ret = clk_prepare_enable(data->clk_wakeup);
+	if (ret)
+		goto err_wakeup_clk;
+
 	data->phy = devm_usb_get_phy_by_phandle(dev, "fsl,usbphy", 0);
 	if (IS_ERR(data->phy)) {
 		ret = PTR_ERR(data->phy);
@@ -496,6 +516,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 disable_device:
 	ci_hdrc_remove_device(data->ci_pdev);
 err_clk:
+	clk_disable_unprepare(data->clk_wakeup);
+err_wakeup_clk:
 	imx_disable_unprepare_clks(dev);
 disable_hsic_regulator:
 	if (data->hsic_pad_regulator)
@@ -522,6 +544,7 @@ static void ci_hdrc_imx_remove(struct platform_device *pdev)
 		usb_phy_shutdown(data->phy);
 	if (data->ci_pdev) {
 		imx_disable_unprepare_clks(&pdev->dev);
+		clk_disable_unprepare(data->clk_wakeup);
 		if (data->plat_data->flags & CI_HDRC_PMQOS)
 			cpu_latency_qos_remove_request(&data->pm_qos_req);
 		if (data->hsic_pad_regulator)
@@ -534,7 +557,7 @@ static void ci_hdrc_imx_shutdown(struct platform_device *pdev)
 	ci_hdrc_imx_remove(pdev);
 }
 
-static int __maybe_unused imx_controller_suspend(struct device *dev,
+static int imx_controller_suspend(struct device *dev,
 						 pm_message_t msg)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
@@ -559,7 +582,7 @@ static int __maybe_unused imx_controller_suspend(struct device *dev,
 	return 0;
 }
 
-static int __maybe_unused imx_controller_resume(struct device *dev,
+static int imx_controller_resume(struct device *dev,
 						pm_message_t msg)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
@@ -595,7 +618,7 @@ clk_disable:
 	return ret;
 }
 
-static int __maybe_unused ci_hdrc_imx_suspend(struct device *dev)
+static int ci_hdrc_imx_suspend(struct device *dev)
 {
 	int ret;
 
@@ -613,7 +636,7 @@ static int __maybe_unused ci_hdrc_imx_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused ci_hdrc_imx_resume(struct device *dev)
+static int ci_hdrc_imx_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -629,7 +652,7 @@ static int __maybe_unused ci_hdrc_imx_resume(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused ci_hdrc_imx_runtime_suspend(struct device *dev)
+static int ci_hdrc_imx_runtime_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 
@@ -641,15 +664,14 @@ static int __maybe_unused ci_hdrc_imx_runtime_suspend(struct device *dev)
 	return imx_controller_suspend(dev, PMSG_AUTO_SUSPEND);
 }
 
-static int __maybe_unused ci_hdrc_imx_runtime_resume(struct device *dev)
+static int ci_hdrc_imx_runtime_resume(struct device *dev)
 {
 	return imx_controller_resume(dev, PMSG_AUTO_RESUME);
 }
 
 static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
-	SET_RUNTIME_PM_OPS(ci_hdrc_imx_runtime_suspend,
-			ci_hdrc_imx_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
+	RUNTIME_PM_OPS(ci_hdrc_imx_runtime_suspend, ci_hdrc_imx_runtime_resume, NULL)
 };
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,
@@ -658,7 +680,7 @@ static struct platform_driver ci_hdrc_imx_driver = {
 	.driver = {
 		.name = "imx_usb",
 		.of_match_table = ci_hdrc_imx_dt_ids,
-		.pm = &ci_hdrc_imx_pm_ops,
+		.pm = pm_ptr(&ci_hdrc_imx_pm_ops),
 	 },
 };
 

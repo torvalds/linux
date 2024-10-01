@@ -598,17 +598,25 @@ SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 // In stereo mode, the two channels' caches are concatenated into one,
 // and hold the interleaved frames.
 // The cache holds 64 frames, so the upper half is not used in 8-bit mode.
-// All registers mentioned below count in frames.
-// The cache is a ring buffer; CCR_READADDRESS operates modulo 64.
-// The cache is filled from (CCCA_CURRADDR - CCR_CACHEINVALIDSIZE)
-// into (CCR_READADDRESS - CCR_CACHEINVALIDSIZE).
+// All registers mentioned below count in frames. Shortcuts:
+//   CA = CCCA_CURRADDR, CRA = CCR_READADDRESS,
+//   CLA = CCR_CACHELOOPADDRHI:CLP_CACHELOOPADDR,
+//   CIS = CCR_CACHEINVALIDSIZE, LIS = CCR_LOOPINVALSIZE,
+//   CLF = CCR_CACHELOOPFLAG, LF = CCR_LOOPFLAG
+// The cache is a ring buffer; CRA operates modulo 64.
+// The cache is filled from (CA - CIS) into (CRA - CIS).
 // The engine has a fetch threshold of 32 bytes, so it tries to keep
-// CCR_CACHEINVALIDSIZE below 8 (16-bit stereo), 16 (16-bit mono,
-// 8-bit stereo), or 32 (8-bit mono). The actual transfers are pretty
-// unpredictable, especially if several voices are running.
-// Frames are consumed at CCR_READADDRESS, which is incremented afterwards,
-// along with CCCA_CURRADDR and CCR_CACHEINVALIDSIZE. This implies that the
-// actual playback position always lags CCCA_CURRADDR by exactly 64 frames.
+// CIS below 8 (16-bit stereo), 16 (16-bit mono, 8-bit stereo), or
+// 32 (8-bit mono). The actual transfers are pretty unpredictable,
+// especially if several voices are running.
+// Frames are consumed at CRA, which is incremented afterwards,
+// along with CA and CIS. This implies that the actual playback
+// position always lags CA by exactly 64 frames.
+// When CA reaches DSL_LOOPENDADDR, LF is set for one frame's time.
+// LF's rising edge causes the current values of CA and CIS to be
+// copied into CLA and LIS, resp., and CLF to be set.
+// If CLF is set, the first LIS of the CIS frames are instead
+// filled from (CLA - LIS), and CLF is subsequently reset.
 #define CD0			0x20		/* Cache data registers 0 .. 0x1f			*/
 
 #define PTB			0x40		/* Page table base register				*/
@@ -902,6 +910,11 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_TTDA			0x7a		/* Tank Table DMA Address			*/
 #define A_TTDD			0x7b		/* Tank Table DMA Data				*/
 
+// In A_FXRT1 & A_FXRT2, the 0x80 bit of each byte completely disables the
+// filter (CVCF_CURRENTFILTER) for the corresponding channel. There is no
+// effect on the volume (CVCF_CURRENTVOLUME) or the interpolator's filter
+// (CCCA_INTERPROM_MASK).
+
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
 #define A_FXRT_CHANNELF		0x00003f00	/* Effects send bus number for channel's effects send F	*/
@@ -914,8 +927,6 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_FXSENDAMOUNT_G_MASK	0x0000FF00
 #define A_FXSENDAMOUNT_H_MASK	0x000000FF
 
-/* 0x7c, 0x7e "high bit is used for filtering" */
- 
 /* The send amounts for this one are the same as used with the emu10k1 */
 #define A_FXRT1			0x7e
 #define A_FXRT_CHANNELA		0x0000003f
@@ -992,6 +1003,9 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_HANA_WCLOCK_4X		0x10
 #define EMU_HANA_WCLOCK_MULT_RESERVED	0x18
 
+// If the selected external clock source is/becomes invalid or incompatible
+// with the clock multiplier, the clock source is reset to this value, and
+// a WCLK_CHANGED interrupt is raised.
 #define EMU_HANA_DEFCLOCK	0x06	/* 000000x  1 bits Default Word Clock  */
 #define EMU_HANA_DEFCLOCK_48K		0x00
 #define EMU_HANA_DEFCLOCK_44_1K		0x01
@@ -1523,10 +1537,10 @@ struct snd_emu10k1_pcm_mixer {
 ((route[0] | (route[1] << 4) | (route[2] << 8) | (route[3] << 12)) << 16)
 
 #define snd_emu10k1_compose_audigy_fxrt1(route) \
-((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24))
+((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24) | 0x80808080)
 
 #define snd_emu10k1_compose_audigy_fxrt2(route) \
-((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24))
+((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24) | 0x80808080)
 
 #define snd_emu10k1_compose_audigy_sendamounts(vol) \
 (((unsigned int)vol[4] << 24) | ((unsigned int)vol[5] << 16) | ((unsigned int)vol[6] << 8) | (unsigned int)vol[7])
@@ -1678,8 +1692,8 @@ struct snd_emu1010 {
 	unsigned int clock_fallback;
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
 	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
-	struct delayed_work firmware_work;
-	u32 last_reg;
+	struct work_struct work;
+	struct mutex lock;
 };
 
 struct snd_emu10k1 {
@@ -1754,6 +1768,7 @@ struct snd_emu10k1 {
 	struct snd_kcontrol *ctl_efx_send_routing;
 	struct snd_kcontrol *ctl_efx_send_volume;
 	struct snd_kcontrol *ctl_efx_attn;
+	struct snd_kcontrol *ctl_clock_source;
 
 	void (*hwvol_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*capture_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
@@ -1761,6 +1776,7 @@ struct snd_emu10k1 {
 	void (*capture_efx_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*spdif_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*dsp_interrupt)(struct snd_emu10k1 *emu);
+	void (*gpio_interrupt)(struct snd_emu10k1 *emu);
 	void (*p16v_interrupt)(struct snd_emu10k1 *emu);
 
 	struct snd_pcm_substream *pcm_capture_substream;
@@ -1826,12 +1842,16 @@ unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, 
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
 int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
+static inline void snd_emu1010_fpga_lock(struct snd_emu10k1 *emu) { mutex_lock(&emu->emu1010.lock); };
+static inline void snd_emu1010_fpga_unlock(struct snd_emu10k1 *emu) { mutex_unlock(&emu->emu1010.lock); };
+void snd_emu1010_fpga_write_lock(struct snd_emu10k1 *emu, u32 reg, u32 value);
 void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
 void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value);
 void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src);
 u32 snd_emu1010_fpga_link_dst_src_read(struct snd_emu10k1 *emu, u32 dst);
 int snd_emu1010_get_raw_rate(struct snd_emu10k1 *emu, u8 src);
 void snd_emu1010_update_clock(struct snd_emu10k1 *emu);
+void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu, int dock, const struct firmware *fw_entry);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);
@@ -1874,8 +1894,8 @@ int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
 					struct snd_dma_buffer *dmab);
 struct snd_util_memblk *snd_emu10k1_synth_alloc(struct snd_emu10k1 *emu, unsigned int size);
 int snd_emu10k1_synth_free(struct snd_emu10k1 *emu, struct snd_util_memblk *blk);
-int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk, int offset, int size);
-int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_memblk *blk, int offset, const char __user *data, int size);
+int snd_emu10k1_synth_memset(struct snd_emu10k1 *emu, struct snd_util_memblk *blk, int offset, int size, u8 value);
+int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_memblk *blk, int offset, const char __user *data, int size, u32 xor);
 int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk);
 
 /* voice allocation */

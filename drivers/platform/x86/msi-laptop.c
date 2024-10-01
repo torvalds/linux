@@ -208,7 +208,7 @@ static ssize_t set_device_state(const char *buf, size_t count, u8 mask)
 		return -EINVAL;
 
 	if (quirks->ec_read_only)
-		return -EOPNOTSUPP;
+		return 0;
 
 	/* read current device state */
 	result = ec_read(MSI_STANDARD_EC_COMMAND_ADDRESS, &rdata);
@@ -317,7 +317,7 @@ static ssize_t show_wlan(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", enabled);
+	return sysfs_emit(buf, "%i\n", enabled);
 }
 
 static ssize_t store_wlan(struct device *dev,
@@ -341,7 +341,7 @@ static ssize_t show_bluetooth(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", enabled);
+	return sysfs_emit(buf, "%i\n", enabled);
 }
 
 static ssize_t store_bluetooth(struct device *dev,
@@ -364,7 +364,7 @@ static ssize_t show_threeg(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", threeg_s);
+	return sysfs_emit(buf, "%i\n", threeg_s);
 }
 
 static ssize_t store_threeg(struct device *dev,
@@ -383,7 +383,7 @@ static ssize_t show_lcd_level(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", ret);
+	return sysfs_emit(buf, "%i\n", ret);
 }
 
 static ssize_t store_lcd_level(struct device *dev,
@@ -413,7 +413,7 @@ static ssize_t show_auto_brightness(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", ret);
+	return sysfs_emit(buf, "%i\n", ret);
 }
 
 static ssize_t store_auto_brightness(struct device *dev,
@@ -443,7 +443,7 @@ static ssize_t show_touchpad(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TOUCHPAD_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TOUCHPAD_MASK));
 }
 
 static ssize_t show_turbo(struct device *dev,
@@ -457,7 +457,7 @@ static ssize_t show_turbo(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TURBO_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TURBO_MASK));
 }
 
 static ssize_t show_eco(struct device *dev,
@@ -471,7 +471,7 @@ static ssize_t show_eco(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_ECO_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_ECO_MASK));
 }
 
 static ssize_t show_turbo_cooldown(struct device *dev,
@@ -485,7 +485,7 @@ static ssize_t show_turbo_cooldown(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", (!!(rdata & MSI_STANDARD_EC_TURBO_MASK)) |
+	return sysfs_emit(buf, "%i\n", (!!(rdata & MSI_STANDARD_EC_TURBO_MASK)) |
 		(!!(rdata & MSI_STANDARD_EC_TURBO_COOLDOWN_MASK) << 1));
 }
 
@@ -500,7 +500,7 @@ static ssize_t show_auto_fan(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_AUTOFAN_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_AUTOFAN_MASK));
 }
 
 static ssize_t store_auto_fan(struct device *dev,
@@ -838,15 +838,15 @@ static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 static void msi_init_rfkill(struct work_struct *ignored)
 {
 	if (rfk_wlan) {
-		rfkill_set_sw_state(rfk_wlan, !wlan_s);
+		msi_rfkill_set_state(rfk_wlan, !wlan_s);
 		rfkill_wlan_set(NULL, !wlan_s);
 	}
 	if (rfk_bluetooth) {
-		rfkill_set_sw_state(rfk_bluetooth, !bluetooth_s);
+		msi_rfkill_set_state(rfk_bluetooth, !bluetooth_s);
 		rfkill_bluetooth_set(NULL, !bluetooth_s);
 	}
 	if (rfk_threeg) {
-		rfkill_set_sw_state(rfk_threeg, !threeg_s);
+		msi_rfkill_set_state(rfk_threeg, !threeg_s);
 		rfkill_threeg_set(NULL, !threeg_s);
 	}
 }

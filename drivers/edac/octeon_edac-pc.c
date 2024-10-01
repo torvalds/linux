@@ -92,7 +92,7 @@ static int co_cache_error_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, p);
 
 	p->ed = edac_device_alloc_ctl_info(0, "cpu", num_possible_cpus(),
-					   "cache", 2, 0, NULL, 0,
+					   "cache", 2, 0,
 					   edac_device_alloc_index());
 	if (!p->ed)
 		goto err;
@@ -119,24 +119,24 @@ err:
 	return -ENXIO;
 }
 
-static int co_cache_error_remove(struct platform_device *pdev)
+static void co_cache_error_remove(struct platform_device *pdev)
 {
 	struct co_cache_error *p = platform_get_drvdata(pdev);
 
 	unregister_co_cache_error_notifier(&p->notifier);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(p->ed);
-	return 0;
 }
 
 static struct platform_driver co_cache_error_driver = {
 	.probe = co_cache_error_probe,
-	.remove = co_cache_error_remove,
+	.remove_new = co_cache_error_remove,
 	.driver = {
 		   .name = "octeon_pc_edac",
 	}
 };
 module_platform_driver(co_cache_error_driver);
 
+MODULE_DESCRIPTION("Cavium Octeon Primary Caches EDAC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");

@@ -12,6 +12,9 @@
 #include <linux/coresight.h>
 #include <linux/pm_runtime.h>
 
+extern struct mutex coresight_mutex;
+extern const struct device_type coresight_dev_type[];
+
 /*
  * Coresight management registers (0xf00-0xfcc)
  * 0xfa0 - 0xfa4: Management	registers in PFTv1.0
@@ -130,8 +133,6 @@ void coresight_disable_path(struct list_head *path);
 int coresight_enable_path(struct list_head *path, enum cs_mode mode,
 			  void *sink_data);
 struct coresight_device *coresight_get_sink(struct list_head *path);
-struct coresight_device *
-coresight_get_enabled_sink(struct coresight_device *source);
 struct coresight_device *coresight_get_sink_by_id(u32 id);
 struct coresight_device *
 coresight_find_default_sink(struct coresight_device *csdev);
@@ -147,6 +148,7 @@ int coresight_make_links(struct coresight_device *orig,
 			 struct coresight_device *target);
 void coresight_remove_links(struct coresight_device *orig,
 			    struct coresight_connection *conn);
+u32 coresight_get_sink_id(struct coresight_device *csdev);
 
 #if IS_ENABLED(CONFIG_CORESIGHT_SOURCE_ETM3X)
 extern int etm_readl_cp14(u32 off, unsigned int *val);
@@ -221,6 +223,16 @@ static inline void *coresight_get_uci_data(const struct amba_id *id)
 	return uci_id->data;
 }
 
+static inline void *coresight_get_uci_data_from_amba(const struct amba_id *table, u32 pid)
+{
+	while (table->mask) {
+		if ((pid & table->mask) == table->id)
+			return coresight_get_uci_data(table);
+		table++;
+	};
+	return NULL;
+}
+
 void coresight_release_platform_data(struct coresight_device *csdev,
 				     struct device *dev,
 				     struct coresight_platform_data *pdata);
@@ -231,8 +243,6 @@ void coresight_add_helper(struct coresight_device *csdev,
 
 void coresight_set_percpu_sink(int cpu, struct coresight_device *csdev);
 struct coresight_device *coresight_get_percpu_sink(int cpu);
-int coresight_enable_source(struct coresight_device *csdev, enum cs_mode mode,
-			    void *data);
-bool coresight_disable_source(struct coresight_device *csdev, void *data);
+void coresight_disable_source(struct coresight_device *csdev, void *data);
 
 #endif

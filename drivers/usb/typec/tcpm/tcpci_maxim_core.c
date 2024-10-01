@@ -92,11 +92,18 @@ static void max_tcpci_init_regs(struct max_tcpci_chip *chip)
 		return;
 	}
 
-	alert_mask = TCPC_ALERT_TX_SUCCESS | TCPC_ALERT_TX_DISCARDED | TCPC_ALERT_TX_FAILED |
-		TCPC_ALERT_RX_HARD_RST | TCPC_ALERT_RX_STATUS | TCPC_ALERT_CC_STATUS |
-		TCPC_ALERT_VBUS_DISCNCT | TCPC_ALERT_RX_BUF_OVF | TCPC_ALERT_POWER_STATUS |
-		/* Enable Extended alert for detecting Fast Role Swap Signal */
-		TCPC_ALERT_EXTND | TCPC_ALERT_EXTENDED_STATUS;
+	/* Vconn Over Current Protection */
+	ret = max_tcpci_write8(chip, TCPC_FAULT_STATUS_MASK, TCPC_FAULT_STATUS_MASK_VCONN_OC);
+	if (ret < 0)
+		return;
+
+	alert_mask = (TCPC_ALERT_TX_SUCCESS | TCPC_ALERT_TX_DISCARDED |
+		      TCPC_ALERT_TX_FAILED | TCPC_ALERT_RX_HARD_RST |
+		      TCPC_ALERT_RX_STATUS | TCPC_ALERT_POWER_STATUS |
+		      TCPC_ALERT_CC_STATUS |
+		      TCPC_ALERT_EXTND | TCPC_ALERT_EXTENDED_STATUS |
+		      TCPC_ALERT_VBUS_DISCNCT | TCPC_ALERT_RX_BUF_OVF |
+		      TCPC_ALERT_FAULT);
 
 	ret = max_tcpci_write16(chip, TCPC_ALERT_MASK, alert_mask);
 	if (ret < 0) {
@@ -123,6 +130,7 @@ static void process_rx(struct max_tcpci_chip *chip, u16 status)
 	u8 count, frame_type, rx_buf[TCPC_RECEIVE_BUFFER_LEN];
 	int ret, payload_index;
 	u8 *rx_buf_ptr;
+	enum tcpm_transmit_type rx_type;
 
 	/*
 	 * READABLE_BYTE_COUNT: Indicates the number of bytes in the RX_BUF_BYTE_x registers
@@ -138,10 +146,23 @@ static void process_rx(struct max_tcpci_chip *chip, u16 status)
 	count = rx_buf[TCPC_RECEIVE_BUFFER_COUNT_OFFSET];
 	frame_type = rx_buf[TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET];
 
-	if (count == 0 || frame_type != TCPC_RX_BUF_FRAME_TYPE_SOP) {
+	switch (frame_type) {
+	case TCPC_RX_BUF_FRAME_TYPE_SOP1:
+		rx_type = TCPC_TX_SOP_PRIME;
+		break;
+	case TCPC_RX_BUF_FRAME_TYPE_SOP:
+		rx_type = TCPC_TX_SOP;
+		break;
+	default:
+		rx_type = TCPC_TX_SOP;
+		break;
+	}
+
+	if (count == 0 || (frame_type != TCPC_RX_BUF_FRAME_TYPE_SOP &&
+	    frame_type != TCPC_RX_BUF_FRAME_TYPE_SOP1)) {
 		max_tcpci_write16(chip, TCPC_ALERT, TCPC_ALERT_RX_STATUS);
 		dev_err(chip->dev, "%s\n", count ==  0 ? "error: count is 0" :
-			"error frame_type is not SOP");
+			"error frame_type is not SOP/SOP'");
 		return;
 	}
 
@@ -172,13 +193,12 @@ static void process_rx(struct max_tcpci_chip *chip, u16 status)
 	 * Read complete, clear RX status alert bit.
 	 * Clear overflow as well if set.
 	 */
-	ret = max_tcpci_write16(chip, TCPC_ALERT, status & TCPC_ALERT_RX_BUF_OVF ?
-				TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF :
-				TCPC_ALERT_RX_STATUS);
+	ret = max_tcpci_write16(chip, TCPC_ALERT,
+				TCPC_ALERT_RX_STATUS | (status & TCPC_ALERT_RX_BUF_OVF));
 	if (ret < 0)
 		return;
 
-	tcpm_pd_receive(chip->port, &msg);
+	tcpm_pd_receive(chip->port, &msg, rx_type);
 }
 
 static int max_tcpci_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool source, bool sink)
@@ -276,9 +296,8 @@ static irqreturn_t _max_tcpci_irq(struct max_tcpci_chip *chip, u16 status)
 	 * be cleared until we have successfully retrieved message.
 	 */
 	if (status & ~TCPC_ALERT_RX_STATUS) {
-		mask = status & TCPC_ALERT_RX_BUF_OVF ?
-			status & ~(TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF) :
-			status & ~TCPC_ALERT_RX_STATUS;
+		mask = status & ~(TCPC_ALERT_RX_STATUS
+				  | (status & TCPC_ALERT_RX_BUF_OVF));
 		ret = max_tcpci_write16(chip, TCPC_ALERT, mask);
 		if (ret < 0) {
 			dev_err(chip->dev, "ALERT clear failed\n");
@@ -292,6 +311,21 @@ static irqreturn_t _max_tcpci_irq(struct max_tcpci_chip *chip, u16 status)
 		if (ret < 0) {
 			dev_err(chip->dev, "ALERT clear failed\n");
 			return ret;
+		}
+	}
+
+	if (status & TCPC_ALERT_FAULT) {
+		ret = max_tcpci_read8(chip, TCPC_FAULT_STATUS, &reg_status);
+		if (ret < 0)
+			return ret;
+
+		ret = max_tcpci_write8(chip, TCPC_FAULT_STATUS, reg_status);
+		if (ret < 0)
+			return ret;
+
+		if (reg_status & TCPC_FAULT_STATUS_VCONN_OC) {
+			chip->veto_vconn_swap = true;
+			tcpm_port_error_recovery(chip->port);
 		}
 	}
 
@@ -323,12 +357,14 @@ static irqreturn_t _max_tcpci_irq(struct max_tcpci_chip *chip, u16 status)
 		tcpm_vbus_change(chip->port);
 
 	if (status & TCPC_ALERT_CC_STATUS) {
+		bool cc_handled = false;
+
 		if (chip->contaminant_state == DETECTED || tcpm_port_is_toggling(chip->port)) {
-			if (!max_contaminant_is_contaminant(chip, false))
+			if (!max_contaminant_is_contaminant(chip, false, &cc_handled))
 				tcpm_port_clean(chip->port);
-		} else {
-			tcpm_cc_change(chip->port);
 		}
+		if (!cc_handled)
+			tcpm_cc_change(chip->port);
 	}
 
 	if (status & TCPC_ALERT_POWER_STATUS)
@@ -363,7 +399,7 @@ static irqreturn_t max_tcpci_irq(int irq, void *dev_id)
 	}
 	while (status) {
 		irq_return = _max_tcpci_irq(chip, status);
-		/* Do not return if the ALERT is already set. */
+		/* Do not return if a (new) ALERT is set (again). */
 		ret = max_tcpci_read16(chip, TCPC_ALERT, &status);
 		if (ret < 0)
 			break;
@@ -421,9 +457,27 @@ static int tcpci_init(struct tcpci *tcpci, struct tcpci_data *data)
 static void max_tcpci_check_contaminant(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
 	struct max_tcpci_chip *chip = tdata_to_max_tcpci(tdata);
+	bool cc_handled;
 
-	if (!max_contaminant_is_contaminant(chip, true))
+	if (!max_contaminant_is_contaminant(chip, true, &cc_handled))
 		tcpm_port_clean(chip->port);
+}
+
+static bool max_tcpci_attempt_vconn_swap_discovery(struct tcpci *tcpci, struct tcpci_data *tdata)
+{
+	struct max_tcpci_chip *chip = tdata_to_max_tcpci(tdata);
+
+	if (chip->veto_vconn_swap) {
+		chip->veto_vconn_swap = false;
+		return false;
+	}
+
+	return true;
+}
+
+static void max_tcpci_unregister_tcpci_port(void *tcpci)
+{
+	tcpci_unregister_port(tcpci);
 }
 
 static int max_tcpci_probe(struct i2c_client *client)
@@ -438,17 +492,17 @@ static int max_tcpci_probe(struct i2c_client *client)
 
 	chip->client = client;
 	chip->data.regmap = devm_regmap_init_i2c(client, &max_tcpci_regmap_config);
-	if (IS_ERR(chip->data.regmap)) {
-		dev_err(&client->dev, "Regmap init failed\n");
-		return PTR_ERR(chip->data.regmap);
-	}
+	if (IS_ERR(chip->data.regmap))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->data.regmap),
+				     "Regmap init failed\n");
 
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
 
 	ret = max_tcpci_read8(chip, TCPC_POWER_STATUS, &power_status);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to read TCPC_POWER_STATUS\n");
 
 	/* Chip level tcpci callbacks */
 	chip->data.set_vbus = max_tcpci_set_vbus;
@@ -460,37 +514,34 @@ static int max_tcpci_probe(struct i2c_client *client)
 	chip->data.vbus_vsafe0v = true;
 	chip->data.set_partner_usb_comm_capable = max_tcpci_set_partner_usb_comm_capable;
 	chip->data.check_contaminant = max_tcpci_check_contaminant;
+	chip->data.cable_comm_capable = true;
+	chip->data.attempt_vconn_swap_discovery = max_tcpci_attempt_vconn_swap_discovery;
 
 	max_tcpci_init_regs(chip);
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
-	if (IS_ERR(chip->tcpci)) {
-		dev_err(&client->dev, "TCPCI port registration failed\n");
-		return PTR_ERR(chip->tcpci);
-	}
+	if (IS_ERR(chip->tcpci))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->tcpci),
+				     "TCPCI port registration failed\n");
+
+        ret = devm_add_action_or_reset(&client->dev,
+				       max_tcpci_unregister_tcpci_port,
+				       chip->tcpci);
+        if (ret)
+                return ret;
+
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
+
 	ret = max_tcpci_init_alert(chip, client);
 	if (ret < 0)
-		goto unreg_port;
+		return dev_err_probe(&client->dev, ret,
+				     "IRQ initialization failed\n");
 
 	device_init_wakeup(chip->dev, true);
 	return 0;
-
-unreg_port:
-	tcpci_unregister_port(chip->tcpci);
-
-	return ret;
-}
-
-static void max_tcpci_remove(struct i2c_client *client)
-{
-	struct max_tcpci_chip *chip = i2c_get_clientdata(client);
-
-	if (!IS_ERR_OR_NULL(chip->tcpci))
-		tcpci_unregister_port(chip->tcpci);
 }
 
 static const struct i2c_device_id max_tcpci_id[] = {
-	{ "maxtcpc", 0 },
+	{ "maxtcpc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max_tcpci_id);
@@ -509,7 +560,6 @@ static struct i2c_driver max_tcpci_i2c_driver = {
 		.of_match_table = of_match_ptr(max_tcpci_of_match),
 	},
 	.probe = max_tcpci_probe,
-	.remove = max_tcpci_remove,
 	.id_table = max_tcpci_id,
 };
 module_i2c_driver(max_tcpci_i2c_driver);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -304,15 +304,14 @@
 #define CSR_HW_RFID_IS_CDB(_val)       (((_val) & 0x10000000) >> 28)
 #define CSR_HW_RFID_IS_JACKET(_val)    (((_val) & 0x20000000) >> 29)
 
-/**
- *  hw_rev values
- */
+/* hw_rev values */
 enum {
 	SILICON_A_STEP = 0,
 	SILICON_B_STEP,
 	SILICON_C_STEP,
 	SILICON_D_STEP,
 	SILICON_E_STEP,
+	SILICON_TC_STEP = 0xe,
 	SILICON_Z_STEP = 0xf,
 };
 
@@ -353,6 +352,8 @@ enum {
 #define CSR_HW_RF_ID_TYPE_GF		(0x0010D000)
 #define CSR_HW_RF_ID_TYPE_GF4		(0x0010E000)
 #define CSR_HW_RF_ID_TYPE_MS		(0x00111000)
+#define CSR_HW_RF_ID_TYPE_FM		(0x00112000)
+#define CSR_HW_RF_ID_TYPE_WP		(0x00113000)
 
 /* HW_RF CHIP STEP  */
 #define CSR_HW_RF_STEP(_val) (((_val) >> 8) & 0xF)
@@ -618,6 +619,7 @@ enum msix_hw_int_causes {
 	MSIX_HW_INT_CAUSES_REG_WAKEUP		= BIT(1),
 	MSIX_HW_INT_CAUSES_REG_IML              = BIT(1),
 	MSIX_HW_INT_CAUSES_REG_RESET_DONE	= BIT(2),
+	MSIX_HW_INT_CAUSES_REG_TOP_FATAL_ERR	= BIT(3),
 	MSIX_HW_INT_CAUSES_REG_SW_ERR_BZ	= BIT(5),
 	MSIX_HW_INT_CAUSES_REG_CT_KILL		= BIT(6),
 	MSIX_HW_INT_CAUSES_REG_RF_KILL		= BIT(7),

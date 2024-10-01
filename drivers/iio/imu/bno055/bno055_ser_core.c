@@ -378,12 +378,12 @@ static void bno055_ser_handle_rx(struct bno055_ser_priv *priv, int status)
  * Also, we assume to RX one pkt per time (i.e. the HW doesn't send anything
  * unless we require to AND we don't queue more than one request per time).
  */
-static int bno055_ser_receive_buf(struct serdev_device *serdev,
-				  const unsigned char *buf, size_t size)
+static size_t bno055_ser_receive_buf(struct serdev_device *serdev,
+				     const u8 *buf, size_t size)
 {
 	int status;
 	struct bno055_ser_priv *priv = serdev_device_get_drvdata(serdev);
-	int remaining = size;
+	size_t remaining = size;
 
 	if (size == 0)
 		return 0;
@@ -492,7 +492,7 @@ static const struct serdev_device_ops bno055_ser_serdev_ops = {
 	.write_wakeup = serdev_device_write_wakeup,
 };
 
-static struct regmap_bus bno055_ser_regmap_bus = {
+static const struct regmap_bus bno055_ser_regmap_bus = {
 	.write = bno055_ser_write_reg,
 	.read = bno055_ser_read_reg,
 };

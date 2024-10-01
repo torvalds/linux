@@ -444,6 +444,24 @@ definitions are specified for CAN specific MTUs in include/linux/can.h:
   #define CANFD_MTU (sizeof(struct canfd_frame)) == 72  => CAN FD frame
 
 
+Returned Message Flags
+----------------------
+
+When using the system call recvmsg(2) on a RAW or a BCM socket, the
+msg->msg_flags field may contain the following flags:
+
+MSG_DONTROUTE:
+	set when the received frame was created on the local host.
+
+MSG_CONFIRM:
+	set when the frame was sent via the socket it is received on.
+	This flag can be interpreted as a 'transmission confirmation' when the
+	CAN driver supports the echo of frames on driver level, see
+	:ref:`socketcan-local-loopback1` and :ref:`socketcan-local-loopback2`.
+	(Note: In order to receive such messages on a RAW socket,
+	CAN_RAW_RECV_OWN_MSGS must be set.)
+
+
 .. _socketcan-raw-sockets:
 
 RAW Protocol Sockets with can_filters (SOCK_RAW)
@@ -691,22 +709,6 @@ semantic for the applied filters is therefore changed to a logical AND.
 This is useful especially when the filterset is a combination of filters
 where the CAN_INV_FILTER flag is set in order to notch single CAN IDs or
 CAN ID ranges from the incoming traffic.
-
-
-RAW Socket Returned Message Flags
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-When using recvmsg() call, the msg->msg_flags may contain following flags:
-
-MSG_DONTROUTE:
-	set when the received frame was created on the local host.
-
-MSG_CONFIRM:
-	set when the frame was sent via the socket it is received on.
-	This flag can be interpreted as a 'transmission confirmation' when the
-	CAN driver supports the echo of frames on driver level, see
-	:ref:`socketcan-local-loopback1` and :ref:`socketcan-local-loopback2`.
-	In order to receive such messages, CAN_RAW_RECV_OWN_MSGS must be set.
 
 
 Broadcast Manager Protocol Sockets (SOCK_DGRAM)

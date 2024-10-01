@@ -573,5 +573,5 @@ static struct target_type dust_target = {
 module_dm(dust);
 
 MODULE_DESCRIPTION(DM_NAME " dust test target");
-MODULE_AUTHOR("Bryan Gurney <dm-devel@redhat.com>");
+MODULE_AUTHOR("Bryan Gurney <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

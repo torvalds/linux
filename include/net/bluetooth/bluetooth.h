@@ -164,6 +164,8 @@ struct bt_voice {
 #define BT_ISO_QOS_BIG_UNSET	0xff
 #define BT_ISO_QOS_BIS_UNSET	0xff
 
+#define BT_ISO_SYNC_TIMEOUT	0x07d0 /* 20 secs */
+
 struct bt_iso_io_qos {
 	__u32 interval;
 	__u16 latency;
@@ -283,7 +285,7 @@ void bt_err_ratelimited(const char *fmt, ...);
 	bt_err_ratelimited("%s: " fmt, bt_dev_name(hdev), ##__VA_ARGS__)
 
 /* Connection and socket states */
-enum {
+enum bt_sock_state {
 	BT_CONNECTED = 1, /* Equal to TCP_ESTABLISHED to make net code happy */
 	BT_OPEN,
 	BT_BOUND,
@@ -386,6 +388,7 @@ struct bt_sock {
 enum {
 	BT_SK_DEFER_SETUP,
 	BT_SK_SUSPEND,
+	BT_SK_PKT_STATUS
 };
 
 struct bt_sock_list {
@@ -400,6 +403,8 @@ int  bt_sock_register(int proto, const struct net_proto_family *ops);
 void bt_sock_unregister(int proto);
 void bt_sock_link(struct bt_sock_list *l, struct sock *s);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *s);
+struct sock *bt_sock_alloc(struct net *net, struct socket *sock,
+			   struct proto *prot, int proto, gfp_t prio, int kern);
 int  bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		     int flags);
 int  bt_sock_stream_recvmsg(struct socket *sock, struct msghdr *msg,
@@ -430,15 +435,15 @@ struct l2cap_ctrl {
 	struct l2cap_chan *chan;
 };
 
-struct sco_ctrl {
-	u8	pkt_status;
-};
-
 struct hci_dev;
 
 typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
 typedef void (*hci_req_complete_skb_t)(struct hci_dev *hdev, u8 status,
 				       u16 opcode, struct sk_buff *skb);
+
+void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
+			  hci_req_complete_t *req_complete,
+			  hci_req_complete_skb_t *req_complete_skb);
 
 #define HCI_REQ_START	BIT(0)
 #define HCI_REQ_SKB	BIT(1)
@@ -464,16 +469,18 @@ struct bt_skb_cb {
 	u8 force_active;
 	u16 expect;
 	u8 incoming:1;
+	u8 pkt_status:2;
 	union {
 		struct l2cap_ctrl l2cap;
-		struct sco_ctrl sco;
 		struct hci_ctrl hci;
 		struct mgmt_ctrl mgmt;
+		struct scm_creds creds;
 	};
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
 #define hci_skb_pkt_type(skb) bt_cb((skb))->pkt_type
+#define hci_skb_pkt_status(skb) bt_cb((skb))->pkt_status
 #define hci_skb_expect(skb) bt_cb((skb))->expect
 #define hci_skb_opcode(skb) bt_cb((skb))->hci.opcode
 #define hci_skb_event(skb) bt_cb((skb))->hci.req_event
@@ -540,7 +547,7 @@ static inline struct sk_buff *bt_skb_sendmsg(struct sock *sk,
 		return ERR_PTR(-EFAULT);
 	}
 
-	skb->priority = sk->sk_priority;
+	skb->priority = READ_ONCE(sk->sk_priority);
 
 	return skb;
 }
@@ -580,6 +587,15 @@ static inline struct sk_buff *bt_skb_sendmmsg(struct sock *sk,
 	}
 
 	return skb;
+}
+
+static inline int bt_copy_from_sockptr(void *dst, size_t dst_size,
+				       sockptr_t src, size_t src_size)
+{
+	if (dst_size > src_size)
+		return -EINVAL;
+
+	return copy_from_sockptr(dst, src, dst_size);
 }
 
 int bt_to_errno(u16 code);

@@ -389,7 +389,6 @@ void i915_vma_unpin_iomap(struct i915_vma *vma);
  * i915_vma_unpin_fence().
  *
  * Returns:
- *
  * True if the vma has a fence, false otherwise.
  */
 int __must_check i915_vma_pin_fence(struct i915_vma *vma);
@@ -418,6 +417,11 @@ i915_vma_unpin_fence(struct i915_vma *vma)
 		__i915_vma_unpin_fence(vma);
 }
 
+static inline int i915_vma_fence_id(const struct i915_vma *vma)
+{
+	return vma->fence ? vma->fence->id : -1;
+}
+
 void i915_vma_parked(struct intel_gt *gt);
 
 static inline bool i915_vma_is_scanout(const struct i915_vma *vma)
@@ -434,6 +438,8 @@ static inline void i915_vma_clear_scanout(struct i915_vma *vma)
 {
 	clear_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
 }
+
+void i915_ggtt_clear_scanout(struct drm_i915_gem_object *obj);
 
 #define for_each_until(cond) if (cond) break; else
 

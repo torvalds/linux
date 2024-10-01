@@ -1192,8 +1192,6 @@ static void w83781d_remove_files(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &w83781d_group_other);
 }
 
-static const struct i2c_device_id w83781d_ids[];
-
 static int w83781d_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -1208,7 +1206,7 @@ static int w83781d_probe(struct i2c_client *client)
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 
-	data->type = i2c_match_id(w83781d_ids, client)->driver_data;
+	data->type = (uintptr_t)i2c_get_match_data(client);
 	data->client = client;
 
 	/* attach secondary i2c lm75-like clients */
@@ -1816,16 +1814,13 @@ w83781d_isa_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int
-w83781d_isa_remove(struct platform_device *pdev)
+static void w83781d_isa_remove(struct platform_device *pdev)
 {
 	struct w83781d_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	w83781d_remove_files(&pdev->dev);
 	device_remove_file(&pdev->dev, &dev_attr_name);
-
-	return 0;
 }
 
 static struct platform_driver w83781d_isa_driver = {
@@ -1833,7 +1828,7 @@ static struct platform_driver w83781d_isa_driver = {
 		.name = "w83781d",
 	},
 	.probe = w83781d_isa_probe,
-	.remove = w83781d_isa_remove,
+	.remove_new = w83781d_isa_remove,
 };
 
 /* return 1 if a supported chip is found, 0 otherwise */

@@ -66,8 +66,13 @@
 #define DMC620_PMU_COUNTERn_OFFSET(n) \
 	(DMC620_PMU_COUNTERS_BASE + 0x28 * (n))
 
-static LIST_HEAD(dmc620_pmu_irqs);
+/*
+ * dmc620_pmu_irqs_lock: protects dmc620_pmu_irqs list
+ * dmc620_pmu_node_lock: protects pmus_node lists in all dmc620_pmu instances
+ */
 static DEFINE_MUTEX(dmc620_pmu_irqs_lock);
+static DEFINE_MUTEX(dmc620_pmu_node_lock);
+static LIST_HEAD(dmc620_pmu_irqs);
 
 struct dmc620_pmu_irq {
 	struct hlist_node node;
@@ -475,9 +480,9 @@ static int dmc620_pmu_get_irq(struct dmc620_pmu *dmc620_pmu, int irq_num)
 		return PTR_ERR(irq);
 
 	dmc620_pmu->irq = irq;
-	mutex_lock(&dmc620_pmu_irqs_lock);
+	mutex_lock(&dmc620_pmu_node_lock);
 	list_add_rcu(&dmc620_pmu->pmus_node, &irq->pmus_node);
-	mutex_unlock(&dmc620_pmu_irqs_lock);
+	mutex_unlock(&dmc620_pmu_node_lock);
 
 	return 0;
 }
@@ -486,9 +491,11 @@ static void dmc620_pmu_put_irq(struct dmc620_pmu *dmc620_pmu)
 {
 	struct dmc620_pmu_irq *irq = dmc620_pmu->irq;
 
-	mutex_lock(&dmc620_pmu_irqs_lock);
+	mutex_lock(&dmc620_pmu_node_lock);
 	list_del_rcu(&dmc620_pmu->pmus_node);
+	mutex_unlock(&dmc620_pmu_node_lock);
 
+	mutex_lock(&dmc620_pmu_irqs_lock);
 	if (!refcount_dec_and_test(&irq->refcount)) {
 		mutex_unlock(&dmc620_pmu_irqs_lock);
 		return;
@@ -535,12 +542,16 @@ static int dmc620_pmu_event_init(struct perf_event *event)
 	if (event->cpu < 0)
 		return -EINVAL;
 
+	hwc->idx = -1;
+
+	if (event->group_leader == event)
+		return 0;
+
 	/*
 	 * We can't atomically disable all HW counters so only one event allowed,
 	 * although software events are acceptable.
 	 */
-	if (event->group_leader != event &&
-			!is_software_event(event->group_leader))
+	if (!is_software_event(event->group_leader))
 		return -EINVAL;
 
 	for_each_sibling_event(sibling, event->group_leader) {
@@ -549,7 +560,6 @@ static int dmc620_pmu_event_init(struct perf_event *event)
 			return -EINVAL;
 	}
 
-	hwc->idx = -1;
 	return 0;
 }
 
@@ -638,10 +648,10 @@ static int dmc620_pmu_cpu_teardown(unsigned int cpu,
 		return 0;
 
 	/* We're only reading, but this isn't the place to be involving RCU */
-	mutex_lock(&dmc620_pmu_irqs_lock);
+	mutex_lock(&dmc620_pmu_node_lock);
 	list_for_each_entry(dmc620_pmu, &irq->pmus_node, pmus_node)
 		perf_pmu_migrate_context(&dmc620_pmu->pmu, irq->cpu, target);
-	mutex_unlock(&dmc620_pmu_irqs_lock);
+	mutex_unlock(&dmc620_pmu_node_lock);
 
 	WARN_ON(irq_set_affinity(irq->irq_num, cpumask_of(target)));
 	irq->cpu = target;
@@ -666,6 +676,7 @@ static int dmc620_pmu_device_probe(struct platform_device *pdev)
 
 	dmc620_pmu->pmu = (struct pmu) {
 		.module = THIS_MODULE,
+		.parent		= &pdev->dev,
 		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= dmc620_pmu_event_init,
@@ -717,7 +728,7 @@ out_teardown_dev:
 	return ret;
 }
 
-static int dmc620_pmu_device_remove(struct platform_device *pdev)
+static void dmc620_pmu_device_remove(struct platform_device *pdev)
 {
 	struct dmc620_pmu *dmc620_pmu = platform_get_drvdata(pdev);
 
@@ -725,8 +736,6 @@ static int dmc620_pmu_device_remove(struct platform_device *pdev)
 
 	/* perf will synchronise RCU before devres can free dmc620_pmu */
 	perf_pmu_unregister(&dmc620_pmu->pmu);
-
-	return 0;
 }
 
 static const struct acpi_device_id dmc620_acpi_match[] = {
@@ -741,7 +750,7 @@ static struct platform_driver dmc620_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= dmc620_pmu_device_probe,
-	.remove	= dmc620_pmu_device_remove,
+	.remove_new = dmc620_pmu_device_remove,
 };
 
 static int __init dmc620_pmu_init(void)

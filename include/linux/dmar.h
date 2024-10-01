@@ -106,8 +106,6 @@ static inline bool dmar_rcu_check(void)
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
 extern void dmar_register_bus_notifier(void);
-extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				struct dmar_dev_scope **devices, u16 segment);
 extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);
 extern void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt);
 extern int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
@@ -119,7 +117,7 @@ extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
 				 int count);
 /* Intel IOMMU detection */
 void detect_intel_iommu(void);
-extern int enable_drhd_fault_handling(void);
+extern int enable_drhd_fault_handling(unsigned int cpu);
 extern int dmar_device_add(acpi_handle handle);
 extern int dmar_device_remove(acpi_handle handle);
 

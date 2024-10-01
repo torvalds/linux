@@ -14,6 +14,7 @@
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_device.h>
+#include <drm/drm_edid.h>
 
 /*
  * Unfortunately it turns out that we have a chicken-and-egg situation
@@ -297,7 +298,7 @@ static void drm_dp_cec_unregister_work(struct work_struct *work)
  * were unchanged and just update the CEC physical address. Otherwise
  * unregister the old CEC adapter and create a new one.
  */
-void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
+void drm_dp_cec_attach(struct drm_dp_aux *aux, u16 source_physical_address)
 {
 	struct drm_connector *connector = aux->cec.connector;
 	u32 cec_caps = CEC_CAP_DEFAULTS | CEC_CAP_NEEDS_HPD |
@@ -339,7 +340,7 @@ void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
 		if (aux->cec.adap->capabilities == cec_caps &&
 		    aux->cec.adap->available_log_addrs == num_las) {
 			/* Unchanged, so just set the phys addr */
-			cec_s_phys_addr_from_edid(aux->cec.adap, edid);
+			cec_s_phys_addr(aux->cec.adap, source_physical_address, false);
 			goto unlock;
 		}
 		/*
@@ -370,10 +371,26 @@ void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
 		 * from drm_dp_cec_register_connector() edid == NULL, so in
 		 * that case the phys addr is just invalidated.
 		 */
-		cec_s_phys_addr_from_edid(aux->cec.adap, edid);
+		cec_s_phys_addr(aux->cec.adap, source_physical_address, false);
 	}
 unlock:
 	mutex_unlock(&aux->cec.lock);
+}
+EXPORT_SYMBOL(drm_dp_cec_attach);
+
+/*
+ * Note: Prefer calling drm_dp_cec_attach() with
+ * connector->display_info.source_physical_address if possible.
+ */
+void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
+{
+	u16 pa = CEC_PHYS_ADDR_INVALID;
+
+	if (edid && edid->extensions)
+		pa = cec_get_edid_phys_addr((const u8 *)edid,
+					    EDID_LENGTH * (edid->extensions + 1), NULL);
+
+	drm_dp_cec_attach(aux, pa);
 }
 EXPORT_SYMBOL(drm_dp_cec_set_edid);
 

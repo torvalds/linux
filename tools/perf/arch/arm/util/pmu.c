@@ -11,25 +11,37 @@
 
 #include "arm-spe.h"
 #include "hisi-ptt.h"
+#include "../../../util/cpumap.h"
 #include "../../../util/pmu.h"
 #include "../../../util/cs-etm.h"
+#include "../../arm64/util/mem-events.h"
 
-struct perf_event_attr
-*perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
+void perf_pmu__arch_init(struct perf_pmu *pmu)
 {
+	struct perf_cpu_map *intersect;
+
 #ifdef HAVE_AUXTRACE_SUPPORT
 	if (!strcmp(pmu->name, CORESIGHT_ETM_PMU_NAME)) {
 		/* add ETM default config here */
+		pmu->auxtrace = true;
 		pmu->selectable = true;
-		return cs_etm_get_default_config(pmu);
+		pmu->perf_event_attr_init_default = cs_etm_get_default_config;
 #if defined(__aarch64__)
 	} else if (strstarts(pmu->name, ARM_SPE_PMU_NAME)) {
-		return arm_spe_pmu_default_config(pmu);
+		pmu->auxtrace = true;
+		pmu->selectable = true;
+		pmu->is_uncore = false;
+		pmu->perf_event_attr_init_default = arm_spe_pmu_default_config;
+		if (strstarts(pmu->name, "arm_spe_"))
+			pmu->mem_events = perf_mem_events_arm;
 	} else if (strstarts(pmu->name, HISI_PTT_PMU_NAME)) {
+		pmu->auxtrace = true;
 		pmu->selectable = true;
 #endif
 	}
-
 #endif
-	return NULL;
+	/* Workaround some ARM PMU's failing to correctly set CPU maps for online processors. */
+	intersect = perf_cpu_map__intersect(cpu_map__online(), pmu->cpus);
+	perf_cpu_map__put(pmu->cpus);
+	pmu->cpus = intersect;
 }

@@ -544,7 +544,7 @@ static const struct backlight_ops dcon_bl_ops = {
 static struct backlight_properties dcon_bl_props = {
 	.max_brightness = 15,
 	.type = BACKLIGHT_RAW,
-	.power = FB_BLANK_UNBLANK,
+	.power = BACKLIGHT_POWER_ON,
 };
 
 static int dcon_reboot_notify(struct notifier_block *nb,
@@ -777,7 +777,7 @@ static struct i2c_driver dcon_driver = {
 		.name	= "olpc_dcon",
 		.pm = &dcon_pm_ops,
 	},
-	.class = I2C_CLASS_DDC | I2C_CLASS_HWMON,
+	.class = I2C_CLASS_HWMON,
 	.id_table = dcon_idtable,
 	.probe = dcon_probe,
 	.remove = dcon_remove,

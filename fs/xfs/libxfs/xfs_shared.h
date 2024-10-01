@@ -43,6 +43,60 @@ extern const struct xfs_buf_ops xfs_sb_buf_ops;
 extern const struct xfs_buf_ops xfs_sb_quiet_buf_ops;
 extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 
+/* btree ops */
+extern const struct xfs_btree_ops xfs_bnobt_ops;
+extern const struct xfs_btree_ops xfs_cntbt_ops;
+extern const struct xfs_btree_ops xfs_inobt_ops;
+extern const struct xfs_btree_ops xfs_finobt_ops;
+extern const struct xfs_btree_ops xfs_bmbt_ops;
+extern const struct xfs_btree_ops xfs_refcountbt_ops;
+extern const struct xfs_btree_ops xfs_rmapbt_ops;
+extern const struct xfs_btree_ops xfs_rmapbt_mem_ops;
+
+static inline bool xfs_btree_is_bno(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_bnobt_ops;
+}
+
+static inline bool xfs_btree_is_cnt(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_cntbt_ops;
+}
+
+static inline bool xfs_btree_is_bmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_bmbt_ops;
+}
+
+static inline bool xfs_btree_is_ino(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_inobt_ops;
+}
+
+static inline bool xfs_btree_is_fino(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_finobt_ops;
+}
+
+static inline bool xfs_btree_is_refcount(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_refcountbt_ops;
+}
+
+static inline bool xfs_btree_is_rmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rmapbt_ops;
+}
+
+#ifdef CONFIG_XFS_BTREE_IN_MEM
+static inline bool xfs_btree_is_mem_rmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rmapbt_mem_ops;
+}
+#else
+# define xfs_btree_is_mem_rmap(...)	(false)
+#endif
+
 /* log size calculation functions */
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
 int	xfs_log_calc_minimum_size(struct xfs_mount *);
@@ -70,7 +124,6 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define XFS_TRANS_RES_FDBLKS		(1u << 6)
 /* Transaction contains an intent done log item */
 #define XFS_TRANS_HAS_INTENT_DONE	(1u << 7)
-
 /*
  * LOWMODE is used by the allocator to activate the lowspace algorithm - when
  * free space is running low the extent allocator may choose to allocate an
@@ -82,7 +135,10 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
  * for free space from AG 0. If the correct transaction reservations have been
  * made then this algorithm will eventually find all the space it needs.
  */
-#define XFS_TRANS_LOWMODE	0x100	/* allocate in low space mode */
+#define XFS_TRANS_LOWMODE		(1u << 8)
+
+/* Transaction has locked the rtbitmap and rtsum inodes */
+#define XFS_TRANS_RTBITMAP_LOCKED	(1u << 9)
 
 /*
  * Field values for xfs_trans_mod_sb.
@@ -120,26 +176,6 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define	XFS_DQUOT_REF		1
 #define	XFS_REFC_BTREE_REF	1
 #define	XFS_SSB_REF		0
-
-/*
- * Flags for xfs_trans_ichgtime().
- */
-#define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
-#define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
-#define	XFS_ICHGTIME_CREATE	0x4	/* inode create timestamp */
-
-
-/*
- * Symlink decoding/encoding functions
- */
-int xfs_symlink_blocks(struct xfs_mount *mp, int pathlen);
-int xfs_symlink_hdr_set(struct xfs_mount *mp, xfs_ino_t ino, uint32_t offset,
-			uint32_t size, struct xfs_buf *bp);
-bool xfs_symlink_hdr_ok(xfs_ino_t ino, uint32_t offset,
-			uint32_t size, struct xfs_buf *bp);
-void xfs_symlink_local_to_remote(struct xfs_trans *tp, struct xfs_buf *bp,
-				 struct xfs_inode *ip, struct xfs_ifork *ifp);
-xfs_failaddr_t xfs_symlink_shortform_verify(struct xfs_inode *ip);
 
 /* Computed inode geometry for the filesystem. */
 struct xfs_ino_geometry {
@@ -187,6 +223,9 @@ struct xfs_ino_geometry {
 
 	/* precomputed value for di_flags2 */
 	uint64_t	new_diflags2;
+
+	/* minimum folio order of a page cache allocation */
+	unsigned int	min_folio_order;
 
 };
 

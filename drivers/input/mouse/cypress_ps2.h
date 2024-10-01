@@ -72,12 +72,6 @@
 #define CYTP_DATA_TIMEOUT 30
 
 #define CYTP_EXT_CMD   0xe8
-#define CYTP_PS2_RETRY 0xfe
-#define CYTP_PS2_ERROR 0xfc
-
-#define CYTP_RESP_RETRY 0x01
-#define CYTP_RESP_ERROR 0xfe
-
 
 #define CYTP_105001_WIDTH  97   /* Dell XPS 13 */
 #define CYTP_105001_HIGH   59

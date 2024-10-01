@@ -60,16 +60,6 @@ static void ps2_stopstreaming(struct serio *ser_dev)
 	nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
-static int ps2_sendcommand(struct serio *ser_dev, unsigned char cmd)
-{
-	unsigned char buf[] = { NVEC_PS2, SEND_COMMAND, ENABLE_MOUSE, 1 };
-
-	buf[2] = cmd & 0xff;
-
-	dev_dbg(&ser_dev->dev, "Sending ps2 cmd %02x\n", cmd);
-	return nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
-}
-
 static int nvec_ps2_notifier(struct notifier_block *nb,
 			     unsigned long event_type, void *data)
 {
@@ -96,6 +86,27 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 	}
 
 	return NOTIFY_DONE;
+}
+
+static int ps2_sendcommand(struct serio *ser_dev, unsigned char cmd)
+{
+	unsigned char buf[] = { NVEC_PS2, SEND_COMMAND, ENABLE_MOUSE, 1 };
+	struct nvec_msg *msg;
+	int ret;
+
+	buf[2] = cmd & 0xff;
+
+	dev_dbg(&ser_dev->dev, "Sending ps2 cmd %02x\n", cmd);
+
+	ret = nvec_write_sync(ps2_dev.nvec, buf, sizeof(buf), &msg);
+	if (ret < 0)
+		return ret;
+
+	nvec_ps2_notifier(NULL, NVEC_PS2, msg->data);
+
+	nvec_msg_free(ps2_dev.nvec, msg);
+
+	return 0;
 }
 
 static int nvec_mouse_probe(struct platform_device *pdev)

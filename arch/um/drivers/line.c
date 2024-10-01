@@ -83,7 +83,7 @@ unsigned int line_chars_in_buffer(struct tty_struct *tty)
  *
  * Must be called while holding line->lock!
  */
-static int buffer_data(struct line *line, const char *buf, int len)
+static int buffer_data(struct line *line, const u8 *buf, size_t len)
 {
 	int end, room;
 
@@ -184,7 +184,7 @@ void line_flush_chars(struct tty_struct *tty)
 	line_flush_buffer(tty);
 }
 
-int line_write(struct tty_struct *tty, const unsigned char *buf, int len)
+ssize_t line_write(struct tty_struct *tty, const u8 *buf, size_t len)
 {
 	struct line *line = tty->driver_data;
 	unsigned long flags;
@@ -383,6 +383,7 @@ int setup_one_line(struct line *lines, int n, char *init,
 			parse_chan_pair(NULL, line, n, opts, error_out);
 			err = 0;
 		}
+		*error_out = "configured as 'none'";
 	} else {
 		char *new = kstrdup(init, GFP_KERNEL);
 		if (!new) {
@@ -406,6 +407,7 @@ int setup_one_line(struct line *lines, int n, char *init,
 			}
 		}
 		if (err) {
+			*error_out = "failed to parse channel pair";
 			line->init_str = NULL;
 			line->valid = 0;
 			kfree(new);
@@ -629,15 +631,18 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 
 	if (fd != -1) {
 		err = generic_read(fd, &c, NULL);
-		if (err < 0) {
+		/* A read of 2 means the winch thread failed and has warned */
+		if (err < 0 || (err == 1 && c == 2)) {
 			if (err != -EAGAIN) {
 				winch->fd = -1;
 				list_del(&winch->list);
 				os_close_file(fd);
-				printk(KERN_ERR "winch_interrupt : "
-				       "read failed, errno = %d\n", -err);
-				printk(KERN_ERR "fd %d is losing SIGWINCH "
-				       "support\n", winch->tty_fd);
+				if (err < 0) {
+					printk(KERN_ERR "winch_interrupt : read failed, errno = %d\n",
+					       -err);
+					printk(KERN_ERR "fd %d is losing SIGWINCH support\n",
+					       winch->tty_fd);
+				}
 				INIT_WORK(&winch->work, __free_winch);
 				schedule_work(&winch->work);
 				return IRQ_HANDLED;
@@ -673,23 +678,25 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_port *port,
 		goto cleanup;
 	}
 
-	*winch = ((struct winch) { .list  	= LIST_HEAD_INIT(winch->list),
-				   .fd  	= fd,
+	*winch = ((struct winch) { .fd  	= fd,
 				   .tty_fd 	= tty_fd,
 				   .pid  	= pid,
 				   .port 	= port,
 				   .stack	= stack });
 
+	spin_lock(&winch_handler_lock);
+	list_add(&winch->list, &winch_handlers);
+	spin_unlock(&winch_handler_lock);
+
 	if (um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
 			   IRQF_SHARED, "winch", winch) < 0) {
 		printk(KERN_ERR "register_winch_irq - failed to register "
 		       "IRQ\n");
+		spin_lock(&winch_handler_lock);
+		list_del(&winch->list);
+		spin_unlock(&winch_handler_lock);
 		goto out_free;
 	}
-
-	spin_lock(&winch_handler_lock);
-	list_add(&winch->list, &winch_handlers);
-	spin_unlock(&winch_handler_lock);
 
 	return;
 

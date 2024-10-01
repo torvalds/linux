@@ -13,7 +13,6 @@
 #include <linux/mutex.h>
 #include <linux/mfd/qcom_rpm.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include <dt-bindings/mfd/qcom-rpm.h>
@@ -99,7 +98,6 @@ struct clk_rpm {
 };
 
 struct rpm_cc {
-	struct qcom_rpm *rpm;
 	struct clk_rpm **clks;
 	size_t num_clks;
 	u32 xo_buffer_value;

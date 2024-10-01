@@ -15,8 +15,10 @@
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/of_device.h>
 #include <linux/iopoll.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 /*
@@ -526,12 +528,7 @@ struct cdns_nand_chip {
 	/* ECC strength index. */
 	u8 corr_str_idx;
 
-	u8 cs[];
-};
-
-struct ecc_info {
-	int (*calc_ecc_bytes)(int step_size, int strength);
-	int max_step_size;
+	u8 cs[] __counted_by(nsels);
 };
 
 static inline struct
@@ -2839,7 +2836,6 @@ static void cadence_nand_chips_cleanup(struct cdns_nand_ctrl *cdns_ctrl)
 static int cadence_nand_chips_init(struct cdns_nand_ctrl *cdns_ctrl)
 {
 	struct device_node *np = cdns_ctrl->dev->of_node;
-	struct device_node *nand_np;
 	int max_cs = cdns_ctrl->caps2.max_banks;
 	int nchips, ret;
 
@@ -2852,10 +2848,9 @@ static int cadence_nand_chips_init(struct cdns_nand_ctrl *cdns_ctrl)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_node_scoped(np, nand_np) {
 		ret = cadence_nand_chip_init(cdns_ctrl, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
 			cadence_nand_chips_cleanup(cdns_ctrl);
 			return ret;
 		}
@@ -2995,15 +2990,11 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 	struct cadence_nand_dt *dt;
 	struct cdns_nand_ctrl *cdns_ctrl;
 	int ret;
-	const struct of_device_id *of_id;
 	const struct cadence_nand_dt_devdata *devdata;
 	u32 val;
 
-	of_id = of_match_device(cadence_nand_dt_ids, &ofdev->dev);
-	if (of_id) {
-		ofdev->id_entry = of_id->data;
-		devdata = of_id->data;
-	} else {
+	devdata = device_get_match_data(&ofdev->dev);
+	if (!devdata) {
 		pr_err("Failed to find the right device id.\n");
 		return -ENOMEM;
 	}

@@ -3,7 +3,7 @@
  *
  * EETS GmbH PDU001 board device tree file
  *
- * Copyright (C) 2018 EETS GmbH - http://www.eets.ch/
+ * Copyright (C) 2018 EETS GmbH - https://www.eets.ch/
  *
  * Copyright (C) 2011, Texas Instruments, Incorporated - https://www.ti.com/
  *
@@ -67,7 +67,7 @@
 		};
 
 		display-timings {
-			240x320p16 {
+			timing-240x320p16 {
 				clock-frequency = <6500000>;
 				hactive = <240>;
 				vactive = <320>;

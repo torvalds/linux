@@ -77,8 +77,8 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 		}
 		ret = ACT_P_CREATED;
 	} else if (err > 0) {
-		if (bind)/* dont override defaults */
-			return 0;
+		if (bind) /* dont override defaults */
+			return ACT_P_BOUND;
 		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
@@ -709,6 +709,7 @@ static struct tc_action_ops act_csum_ops = {
 	.offload_act_setup = tcf_csum_offload_act_setup,
 	.size		= sizeof(struct tcf_csum),
 };
+MODULE_ALIAS_NET_ACT("csum");
 
 static __net_init int csum_init_net(struct net *net)
 {

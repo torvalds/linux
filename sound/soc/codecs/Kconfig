@@ -15,7 +15,6 @@ config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
 	depends on COMPILE_TEST
 	imply SND_SOC_88PM860X
-	imply SND_SOC_L3
 	imply SND_SOC_AB8500_CODEC
 	imply SND_SOC_AC97_CODEC
 	imply SND_SOC_AD1836
@@ -46,6 +45,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AK4535
 	imply SND_SOC_AK4554
 	imply SND_SOC_AK4613
+	imply SND_SOC_AK4619
 	imply SND_SOC_AK4641
 	imply SND_SOC_AK4642
 	imply SND_SOC_AK4671
@@ -53,8 +53,12 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AK5558
 	imply SND_SOC_ALC5623
 	imply SND_SOC_ALC5632
+	imply SND_SOC_AUDIO_IIO_AUX
 	imply SND_SOC_AW8738
+	imply SND_SOC_AW87390
 	imply SND_SOC_AW88395
+	imply SND_SOC_AW88261
+	imply SND_SOC_AW88399
 	imply SND_SOC_BT_SCO
 	imply SND_SOC_BD28623
 	imply SND_SOC_CHV3_CODEC
@@ -72,8 +76,11 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L56_I2C
 	imply SND_SOC_CS35L56_SPI
 	imply SND_SOC_CS35L56_SDW
+	imply SND_SOC_CS40L50
 	imply SND_SOC_CS42L42
 	imply SND_SOC_CS42L42_SDW
+	imply SND_SOC_CS42L43
+	imply SND_SOC_CS42L43_SDW
 	imply SND_SOC_CS42L51_I2C
 	imply SND_SOC_CS42L52
 	imply SND_SOC_CS42L56
@@ -94,6 +101,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS47L90
 	imply SND_SOC_CS47L92
 	imply SND_SOC_CS53L30
+	imply SND_SOC_CS530X_I2C
 	imply SND_SOC_CX20442
 	imply SND_SOC_CX2072X
 	imply SND_SOC_DA7210
@@ -109,6 +117,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES8328_I2C
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
+	imply SND_SOC_FRAMER
 	imply SND_SOC_GTM601
 	imply SND_SOC_HDAC_HDMI
 	imply SND_SOC_HDAC_HDA
@@ -148,6 +157,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MC13783
 	imply SND_SOC_ML26124
 	imply SND_SOC_MT6351
+	imply SND_SOC_MT6357
 	imply SND_SOC_MT6358
 	imply SND_SOC_MT6359
 	imply SND_SOC_MT6660
@@ -173,7 +183,9 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM5102A
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
+	imply SND_SOC_PCM6240
 	imply SND_SOC_PEB2466
+	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
@@ -183,6 +195,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1015
 	imply SND_SOC_RT1015P
 	imply SND_SOC_RT1016
+	imply SND_SOC_RT1017_SDCA_SDW
 	imply SND_SOC_RT1019
 	imply SND_SOC_RT1305
 	imply SND_SOC_RT1308
@@ -212,8 +225,11 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT722_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_RT1316_SDW
+	imply SND_SOC_RT1318
 	imply SND_SOC_RT1318_SDW
+	imply SND_SOC_RT1320_SDW
 	imply SND_SOC_RT9120
+	imply SND_SOC_RTQ9128
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
@@ -265,11 +281,12 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TWL4030
 	imply SND_SOC_TWL6040
 	imply SND_SOC_UDA1334
-	imply SND_SOC_UDA134X
 	imply SND_SOC_UDA1380
 	imply SND_SOC_WCD9335
 	imply SND_SOC_WCD934X
+	imply SND_SOC_WCD937X_SDW
 	imply SND_SOC_WCD938X_SDW
+	imply SND_SOC_WCD939X_SDW
 	imply SND_SOC_LPASS_MACRO_COMMON
 	imply SND_SOC_LPASS_RX_MACRO
 	imply SND_SOC_LPASS_TX_MACRO
@@ -586,6 +603,10 @@ config SND_SOC_AK4613
 	tristate "AKM AK4613 CODEC"
 	depends on I2C
 
+config SND_SOC_AK4619
+        tristate "AKM AK4619 CODEC"
+        depends on I2C
+
 config SND_SOC_AK4641
 	tristate
 	depends on I2C
@@ -614,6 +635,17 @@ config SND_SOC_ALC5632
 	tristate
 	depends on I2C
 
+config SND_SOC_AUDIO_IIO_AUX
+	tristate "Audio IIO Auxiliary device"
+	depends on IIO
+	help
+	  Enable support for Industrial I/O devices as audio auxiliary devices.
+	  This allows to have an IIO device present in the audio path and
+	  controlled using mixer controls.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-audio-iio-aux.
+
 config SND_SOC_AW8738
 	tristate "Awinic AW8738 Audio Amplifier"
 	select GPIOLIB
@@ -624,12 +656,12 @@ config SND_SOC_AW8738
 	  operation mode using the Awinic-specific one-wire pulse control.
 
 config SND_SOC_AW88395_LIB
+	select CRC8
 	tristate
 
 config SND_SOC_AW88395
 	tristate "Soc Audio for awinic aw88395"
 	depends on I2C
-	select CRC8
 	select CRC32
 	select REGMAP_I2C
 	select GPIOLIB
@@ -639,6 +671,43 @@ config SND_SOC_AW88395
 	  The Awinic AW88395 is an I2S/TDM input, high efficiency
 	  digital Smart K audio amplifier with an integrated 10V
 	  smart boost convert.
+
+config SND_SOC_AW88261
+	tristate "Soc Audio for awinic aw88261"
+	depends on I2C
+	select REGMAP_I2C
+	select GPIOLIB
+	select SND_SOC_AW88395_LIB
+	help
+	  This option enables support for aw88261 Smart PA.
+	  The awinic AW88261 is an I2S/TDM input, high efficiency
+	  digital Smart K audio amplifier. The output voltage of
+	  boost converter can be adjusted smartly according to
+	  the input amplitude.
+
+config SND_SOC_AW87390
+	tristate "Soc Audio for awinic aw87390"
+	depends on I2C
+	select REGMAP_I2C
+	select SND_SOC_AW88395_LIB
+	help
+	  The awinic aw87390 is specifically designed to improve
+	  the musical output dynamic range, enhance the overall
+	  sound quality, which is a new high efficiency, low
+	  noise, constant large volume, 6th Smart K audio amplifier.
+
+config SND_SOC_AW88399
+	tristate "Soc Audio for awinic aw88399"
+	depends on I2C
+	select CRC8
+	select REGMAP_I2C
+	select GPIOLIB
+	select SND_SOC_AW88395_LIB
+	help
+	  This option enables support for aw88399 Smart PA.
+	  The awinic AW88399 is an I2S/TDM input, high efficiency
+	  digital Smart K audio amplifier and SKTune speaker
+	  protection algorithms.
 
 config SND_SOC_BD28623
 	tristate "ROHM BD28623 CODEC"
@@ -672,6 +741,22 @@ config SND_SOC_CROS_EC_CODEC
 	help
 	  If you say yes here you will get support for the
 	  ChromeOS Embedded Controller's Audio Codec.
+
+config SND_SOC_CS_AMP_LIB
+	tristate
+
+config SND_SOC_CS_AMP_LIB_TEST
+	tristate "KUnit test for Cirrus Logic cs-amp-lib"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	select SND_SOC_CS_AMP_LIB
+	help
+	  This builds KUnit tests for the Cirrus Logic common
+	  amplifier library.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
 
 config SND_SOC_CS35L32
 	tristate "Cirrus Logic CS35L32 CODEC"
@@ -715,6 +800,7 @@ config SND_SOC_CS35L41_I2C
 
 config SND_SOC_CS35L45
 	tristate
+	select REGMAP_IRQ
 
 config SND_SOC_CS35L45_SPI
 	tristate "Cirrus Logic CS35L45 CODEC (SPI)"
@@ -740,6 +826,7 @@ config SND_SOC_CS35L56
 	tristate
 
 config SND_SOC_CS35L56_SHARED
+	select SND_SOC_CS_AMP_LIB
 	tristate
 
 config SND_SOC_CS35L56_I2C
@@ -771,6 +858,16 @@ config SND_SOC_CS35L56_SDW
 	help
 	  Enable support for Cirrus Logic CS35L56 boosted amplifier with SoundWire control
 
+config SND_SOC_CS40L50
+	tristate "Cirrus Logic CS40L50 CODEC"
+	depends on MFD_CS40L50_CORE
+	help
+	  This option enables support for I2S streaming to Cirrus Logic CS40L50.
+
+	  CS40L50 is a haptic driver with waveform memory, an integrated
+	  DSP, and closed-loop algorithms. If built as a module, it will be
+	  called snd-soc-cs40l50.
+
 config SND_SOC_CS42L42_CORE
 	tristate
 
@@ -787,6 +884,20 @@ config SND_SOC_CS42L42_SDW
 	select SND_SOC_CS42L42_CORE
 	help
 	  Enable support for Cirrus Logic CS42L42 codec with Soundwire control
+
+config SND_SOC_CS42L43
+	tristate "Cirrus Logic CS42L43 CODEC"
+	depends on MFD_CS42L43
+	help
+	  Select this to support the audio functions of the Cirrus Logic
+	  CS42L43 PC CODEC.
+
+config SND_SOC_CS42L43_SDW
+	tristate "Cirrus Logic CS42L43 CODEC (SoundWire)"
+	depends on SND_SOC_CS42L43 && MFD_CS42L43_SDW
+	help
+	  Select this to support the audio functions of the Cirrus Logic
+	  CS42L43 PC CODEC over SoundWire.
 
 config SND_SOC_CS42L51
 	tristate
@@ -907,6 +1018,19 @@ config SND_SOC_CS53L30
 	tristate "Cirrus Logic CS53L30 CODEC"
 	depends on I2C
 
+config SND_SOC_CS530X
+	tristate
+
+config SND_SOC_CS530X_I2C
+	tristate "Cirrus Logic CS530x ADCs (I2C)"
+	depends on I2C
+	select REGMAP
+	select REGMAP_I2C
+	select SND_SOC_CS530X
+	help
+	  Enable support for Cirrus Logic CS530X ADCs
+	  with I2C control.
+
 config SND_SOC_CX20442
 	tristate
 	depends on TTY
@@ -965,9 +1089,6 @@ config SND_SOC_JZ4770_CODEC
 	  This driver can also be built as a module. If so, the module
 	  will be called snd-soc-jz4770-codec.
 
-config SND_SOC_L3
-	tristate
-
 config SND_SOC_DA7210
 	tristate
 	depends on SND_SOC_I2C_AND_SPI
@@ -1010,6 +1131,14 @@ config SND_SOC_ES7134
 config SND_SOC_ES7241
 	tristate "Everest Semi ES7241 CODEC"
 
+config SND_SOC_ES83XX_DSM_COMMON
+	depends on ACPI
+	tristate
+
+config SND_SOC_ES8311
+	tristate "Everest Semi ES8311 CODEC"
+	depends on I2C
+
 config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
 	depends on I2C
@@ -1030,6 +1159,20 @@ config SND_SOC_ES8328_SPI
 	tristate "Everest Semi ES8328 CODEC (SPI)"
 	depends on SPI_MASTER
 	select SND_SOC_ES8328
+
+config SND_SOC_FRAMER
+	tristate "Framer codec"
+	depends on GENERIC_FRAMER
+	help
+	  Enable support for the framer codec.
+	  The framer codec uses the generic framer infrastructure to transport
+	  some audio data over an analog E1/T1/J1 line.
+	  This codec allows to use some of the time slots available on the TDM
+	  bus on which the framer is connected to transport the audio data.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-framer.
+
 
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
@@ -1069,6 +1212,7 @@ config SND_SOC_IDT821034
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
@@ -1319,6 +1463,15 @@ config SND_SOC_PCM512x_SPI
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
 
+config SND_SOC_PCM6240
+	tristate "Texas Instruments PCM6240 Family Audio chips based on I2C"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments PCM6240 Family Audio chips.
+	  Note the PCM6240 driver implements a flexible and configurable
+	  setting for register and filter coefficients, to one, two or
+	  even multiple PCM6240 Family Audio chips.
+
 config SND_SOC_PEB2466
 	tristate "Infineon PEB2466 quad PCM codec"
 	depends on SPI
@@ -1330,8 +1483,21 @@ config SND_SOC_PEB2466
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-peb2466.
 
+config SND_SOC_RK3308
+	tristate "Rockchip RK3308 audio CODEC"
+	depends on ARM64 || COMPILE_TEST
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This is a device driver for the audio codec embedded in the
+	  Rockchip RK3308 SoC.
+
+	  It has 8 24-bit ADCs and 2 24-bit DACs. The maximum supported
+	  sampling rate is 192 kHz.
+
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 
 config SND_SOC_RK817
@@ -1415,6 +1581,11 @@ config SND_SOC_RT1016
 	tristate
 	depends on I2C
 
+config SND_SOC_RT1017_SDCA_SDW
+	tristate "Realtek RT1017 SDCA Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+
 config SND_SOC_RT1019
 	tristate
 	depends on I2C
@@ -1437,10 +1608,20 @@ config SND_SOC_RT1316_SDW
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 
+config SND_SOC_RT1318
+	tristate
+	depends on I2C
+
 config SND_SOC_RT1318_SDW
 	tristate "Realtek RT1318 Codec - SDW"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT1320_SDW
+	tristate "Realtek RT1320 Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
 
 config SND_SOC_RT5514
 	tristate
@@ -1591,6 +1772,20 @@ config SND_SOC_RT9120
 	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
 	  high-efficiency Class-D audio amplifier.
 
+config SND_SOC_RTQ9128
+	tristate "Richtek RTQ9128 45W Digital Input Amplifier"
+	depends on I2C
+	select REGMAP
+	help
+	  Enable support for Richtek RTQ9128 digital input 4-channel
+	  automotive audio amplifier.  It is a ultra-low output noise,
+	  high-efficiency, four-channel class-D audio power amplifier
+	  that can deliver over 87% power efficienty at 4x75W into 4Ohm,
+	  25V supply in automotive applications.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-rtq9128.
+
 config SND_SOC_SDW_MOCKUP
 	tristate "SoundWire mockup codec"
 	depends on EXPERT
@@ -1707,6 +1902,7 @@ config SND_SOC_STA529
 config SND_SOC_STAC9766
 	tristate
 	depends on SND_SOC_AC97_BUS
+	select REGMAP_AC97
 
 config SND_SOC_STI_SAS
 	tristate "codec Audio support for STI SAS codec"
@@ -1918,18 +2114,19 @@ config SND_SOC_UDA1334
 	  and has basic features such as de-emphasis (at 44.1 kHz sampling
 	  rate) and mute.
 
-config SND_SOC_UDA134X
-	tristate
-
 config SND_SOC_UDA1380
 	tristate
 	depends on I2C
+
+config SND_SOC_WCD_CLASSH
+	tristate
 
 config SND_SOC_WCD9335
 	tristate "WCD9335 Codec"
 	depends on SLIMBUS
 	select REGMAP_SLIMBUS
 	select REGMAP_IRQ
+	select SND_SOC_WCD_CLASSH
 	help
 	  The WCD9335 is a standalone Hi-Fi audio CODEC IC, supports
 	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
@@ -1942,17 +2139,39 @@ config SND_SOC_WCD934X
 	tristate "WCD9340/WCD9341 Codec"
 	depends on COMMON_CLK
 	depends on SLIMBUS
+	select REGMAP_IRQ
 	select REGMAP_SLIMBUS
+	select SND_SOC_WCD_CLASSH
 	select SND_SOC_WCD_MBHC
 	depends on MFD_WCD934X || COMPILE_TEST
 	help
 	  The WCD9340/9341 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SDM845.
 
+config SND_SOC_WCD937X
+	depends on SND_SOC_WCD937X_SDW
+	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
+	select SND_SOC_WCD_CLASSH
+
+config SND_SOC_WCD937X_SDW
+	tristate "WCD9370/WCD9375 Codec - SDW"
+	select SND_SOC_WCD937X
+	select SND_SOC_WCD_MBHC
+	select REGMAP_IRQ
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The WCD9370/9375 is an audio codec IC used with SoCs
+	  like SC7280 or QCM6490 chipsets, and it connected
+	  via soundwire.
+	  To compile this codec driver say Y or m.
+
 config SND_SOC_WCD938X
 	depends on SND_SOC_WCD938X_SDW
 	tristate
 	depends on SOUNDWIRE || !SOUNDWIRE
+	select SND_SOC_WCD_CLASSH
 
 config SND_SOC_WCD938X_SDW
 	tristate "WCD9380/WCD9385 Codec - SDW"
@@ -1964,6 +2183,25 @@ config SND_SOC_WCD938X_SDW
 	help
 	  The WCD9380/9385 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8250.
+
+config SND_SOC_WCD939X
+	depends on SND_SOC_WCD939X_SDW
+	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
+	depends on TYPEC || !TYPEC
+	select SND_SOC_WCD_CLASSH
+
+config SND_SOC_WCD939X_SDW
+	tristate "WCD9390/WCD9395 Codec - SDW"
+	depends on TYPEC || !TYPEC
+	select SND_SOC_WCD939X
+	select SND_SOC_WCD_MBHC
+	select REGMAP_IRQ
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The WCD9390/9395 is a audio codec IC Integrated in
+	  Qualcomm SoCs like SM8650.
 
 config SND_SOC_WL1273
 	tristate
@@ -2206,7 +2444,6 @@ config SND_SOC_WSA881X
 	tristate "WSA881X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8810/WSA8815 Class-D
 	  Smart Speaker Amplifier.
@@ -2215,7 +2452,6 @@ config SND_SOC_WSA883X
 	tristate "WSA883X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8830/WSA8835 Class-D
 	  Smart Speaker Amplifier.
@@ -2224,7 +2460,6 @@ config SND_SOC_WSA884X
 	tristate "WSA884X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8840/WSA8845/WSA8845H Class-D
 	  Smart Speaker Amplifier.
@@ -2266,6 +2501,12 @@ config SND_SOC_ML26124
 
 config SND_SOC_MT6351
 	tristate "MediaTek MT6351 Codec"
+
+config SND_SOC_MT6357
+	tristate "MediaTek MT6357 Codec"
+	help
+	  Enable support for the platform which uses MT6357 as
+	  external codec device.
 
 config SND_SOC_MT6358
 	tristate "MediaTek MT6358 Codec"
@@ -2334,6 +2575,7 @@ config SND_SOC_LPASS_MACRO_COMMON
 config SND_SOC_LPASS_WSA_MACRO
 	depends on COMMON_CLK
 	select REGMAP_MMIO
+	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm WSA Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_VA_MACRO

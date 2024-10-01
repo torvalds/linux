@@ -8,6 +8,7 @@
  *
  */
 
+#include "linux/virtio_net.h"
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/cdev.h>
@@ -28,6 +29,7 @@
 #include <uapi/linux/virtio_config.h>
 #include <uapi/linux/virtio_ids.h>
 #include <uapi/linux/virtio_blk.h>
+#include <uapi/linux/virtio_ring.h>
 #include <linux/mod_devicetable.h>
 
 #include "iova_domain.h"
@@ -134,7 +136,6 @@ static DEFINE_MUTEX(vduse_lock);
 static DEFINE_IDR(vduse_idr);
 
 static dev_t vduse_major;
-static struct class *vduse_class;
 static struct cdev vduse_ctrl_cdev;
 static struct cdev vduse_cdev;
 static struct workqueue_struct *vduse_irq_wq;
@@ -142,6 +143,7 @@ static struct workqueue_struct *vduse_irq_bound_wq;
 
 static u32 allowed_device_id[] = {
 	VIRTIO_ID_BLOCK,
+	VIRTIO_ID_NET,
 };
 
 static inline struct vduse_dev *vdpa_to_vduse(struct vdpa_device *vdpa)
@@ -494,7 +496,7 @@ static void vduse_vq_kick(struct vduse_virtqueue *vq)
 		goto unlock;
 
 	if (vq->kickfd)
-		eventfd_signal(vq->kickfd, 1);
+		eventfd_signal(vq->kickfd);
 	else
 		vq->kicked = true;
 unlock:
@@ -540,6 +542,17 @@ static void vduse_vdpa_set_vq_num(struct vdpa_device *vdpa, u16 idx, u32 num)
 	struct vduse_virtqueue *vq = dev->vqs[idx];
 
 	vq->num = num;
+}
+
+static u16 vduse_vdpa_get_vq_size(struct vdpa_device *vdpa, u16 idx)
+{
+	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
+	struct vduse_virtqueue *vq = dev->vqs[idx];
+
+	if (vq->num)
+		return vq->num;
+	else
+		return vq->num_max;
 }
 
 static void vduse_vdpa_set_vq_ready(struct vdpa_device *vdpa,
@@ -774,6 +787,7 @@ static const struct vdpa_config_ops vduse_vdpa_config_ops = {
 	.kick_vq		= vduse_vdpa_kick_vq,
 	.set_vq_cb		= vduse_vdpa_set_vq_cb,
 	.set_vq_num             = vduse_vdpa_set_vq_num,
+	.get_vq_size		= vduse_vdpa_get_vq_size,
 	.set_vq_ready		= vduse_vdpa_set_vq_ready,
 	.get_vq_ready		= vduse_vdpa_get_vq_ready,
 	.set_vq_state		= vduse_vdpa_set_vq_state,
@@ -798,6 +812,26 @@ static const struct vdpa_config_ops vduse_vdpa_config_ops = {
 	.set_map		= vduse_vdpa_set_map,
 	.free			= vduse_vdpa_free,
 };
+
+static void vduse_dev_sync_single_for_device(struct device *dev,
+					     dma_addr_t dma_addr, size_t size,
+					     enum dma_data_direction dir)
+{
+	struct vduse_dev *vdev = dev_to_vduse(dev);
+	struct vduse_iova_domain *domain = vdev->domain;
+
+	vduse_domain_sync_single_for_device(domain, dma_addr, size, dir);
+}
+
+static void vduse_dev_sync_single_for_cpu(struct device *dev,
+					     dma_addr_t dma_addr, size_t size,
+					     enum dma_data_direction dir)
+{
+	struct vduse_dev *vdev = dev_to_vduse(dev);
+	struct vduse_iova_domain *domain = vdev->domain;
+
+	vduse_domain_sync_single_for_cpu(domain, dma_addr, size, dir);
+}
 
 static dma_addr_t vduse_dev_map_page(struct device *dev, struct page *page,
 				     unsigned long offset, size_t size,
@@ -859,6 +893,8 @@ static size_t vduse_dev_max_mapping_size(struct device *dev)
 }
 
 static const struct dma_map_ops vduse_dev_dma_ops = {
+	.sync_single_for_device = vduse_dev_sync_single_for_device,
+	.sync_single_for_cpu = vduse_dev_sync_single_for_cpu,
 	.map_page = vduse_dev_map_page,
 	.unmap_page = vduse_dev_unmap_page,
 	.alloc = vduse_dev_alloc_coherent,
@@ -912,7 +948,7 @@ static int vduse_kickfd_setup(struct vduse_dev *dev,
 		eventfd_ctx_put(vq->kickfd);
 	vq->kickfd = ctx;
 	if (vq->ready && vq->kicked && vq->kickfd) {
-		eventfd_signal(vq->kickfd, 1);
+		eventfd_signal(vq->kickfd);
 		vq->kicked = false;
 	}
 	spin_unlock(&vq->kick_lock);
@@ -935,10 +971,10 @@ static void vduse_dev_irq_inject(struct work_struct *work)
 {
 	struct vduse_dev *dev = container_of(work, struct vduse_dev, inject);
 
-	spin_lock_irq(&dev->irq_lock);
+	spin_lock_bh(&dev->irq_lock);
 	if (dev->config_cb.callback)
 		dev->config_cb.callback(dev->config_cb.private);
-	spin_unlock_irq(&dev->irq_lock);
+	spin_unlock_bh(&dev->irq_lock);
 }
 
 static void vduse_vq_irq_inject(struct work_struct *work)
@@ -946,10 +982,10 @@ static void vduse_vq_irq_inject(struct work_struct *work)
 	struct vduse_virtqueue *vq = container_of(work,
 					struct vduse_virtqueue, inject);
 
-	spin_lock_irq(&vq->irq_lock);
+	spin_lock_bh(&vq->irq_lock);
 	if (vq->ready && vq->cb.callback)
 		vq->cb.callback(vq->cb.private);
-	spin_unlock_irq(&vq->irq_lock);
+	spin_unlock_bh(&vq->irq_lock);
 }
 
 static bool vduse_vq_signal_irqfd(struct vduse_virtqueue *vq)
@@ -961,7 +997,7 @@ static bool vduse_vq_signal_irqfd(struct vduse_virtqueue *vq)
 
 	spin_lock_irq(&vq->irq_lock);
 	if (vq->ready && vq->cb.trigger) {
-		eventfd_signal(vq->cb.trigger, 1);
+		eventfd_signal(vq->cb.trigger);
 		signal = true;
 	}
 	spin_unlock_irq(&vq->irq_lock);
@@ -1158,7 +1194,7 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			fput(f);
 			break;
 		}
-		ret = receive_fd(f, perm_to_file_flags(entry.perm));
+		ret = receive_fd(f, NULL, perm_to_file_flags(entry.perm));
 		fput(f);
 		break;
 	}
@@ -1528,6 +1564,16 @@ static const struct kobj_type vq_type = {
 	.default_groups	= vq_groups,
 };
 
+static char *vduse_devnode(const struct device *dev, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "vduse/%s", dev_name(dev));
+}
+
+static const struct class vduse_class = {
+	.name = "vduse",
+	.devnode = vduse_devnode,
+};
+
 static void vduse_dev_deinit_vqs(struct vduse_dev *dev)
 {
 	int i;
@@ -1638,7 +1684,7 @@ static int vduse_destroy_dev(char *name)
 	mutex_unlock(&dev->lock);
 
 	vduse_dev_reset(dev);
-	device_destroy(vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
+	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
 	idr_remove(&vduse_idr, dev->minor);
 	kvfree(dev->config);
 	vduse_dev_deinit_vqs(dev);
@@ -1662,13 +1708,21 @@ static bool device_is_allowed(u32 device_id)
 	return false;
 }
 
-static bool features_is_valid(u64 features)
+static bool features_is_valid(struct vduse_dev_config *config)
 {
-	if (!(features & (1ULL << VIRTIO_F_ACCESS_PLATFORM)))
+	if (!(config->features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM)))
 		return false;
 
 	/* Now we only support read-only configuration space */
-	if (features & (1ULL << VIRTIO_BLK_F_CONFIG_WCE))
+	if ((config->device_id == VIRTIO_ID_BLOCK) &&
+			(config->features & BIT_ULL(VIRTIO_BLK_F_CONFIG_WCE)))
+		return false;
+	else if ((config->device_id == VIRTIO_ID_NET) &&
+			(config->features & BIT_ULL(VIRTIO_NET_F_CTRL_VQ)))
+		return false;
+
+	if ((config->device_id == VIRTIO_ID_NET) &&
+			!(config->features & BIT_ULL(VIRTIO_F_VERSION_1)))
 		return false;
 
 	return true;
@@ -1695,7 +1749,7 @@ static bool vduse_validate_config(struct vduse_dev_config *config)
 	if (!device_is_allowed(config->device_id))
 		return false;
 
-	if (!features_is_valid(config->features))
+	if (!features_is_valid(config))
 		return false;
 
 	return true;
@@ -1778,6 +1832,10 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 	int ret;
 	struct vduse_dev *dev;
 
+	ret = -EPERM;
+	if ((config->device_id == VIRTIO_ID_NET) && !capable(CAP_NET_ADMIN))
+		goto err;
+
 	ret = -EEXIST;
 	if (vduse_find_dev(config->name))
 		goto err;
@@ -1805,7 +1863,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 
 	dev->minor = ret;
 	dev->msg_timeout = VDUSE_MSG_DEFAULT_TIMEOUT;
-	dev->dev = device_create_with_groups(vduse_class, NULL,
+	dev->dev = device_create_with_groups(&vduse_class, NULL,
 				MKDEV(MAJOR(vduse_major), dev->minor),
 				dev, vduse_dev_groups, "%s", config->name);
 	if (IS_ERR(dev->dev)) {
@@ -1821,7 +1879,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 
 	return 0;
 err_vqs:
-	device_destroy(vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
+	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
 err_dev:
 	idr_remove(&vduse_idr, dev->minor);
 err_idr:
@@ -1934,11 +1992,6 @@ static const struct file_operations vduse_ctrl_fops = {
 	.llseek		= noop_llseek,
 };
 
-static char *vduse_devnode(const struct device *dev, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "vduse/%s", dev_name(dev));
-}
-
 struct vduse_mgmt_dev {
 	struct vdpa_mgmt_dev mgmt_dev;
 	struct device dev;
@@ -2026,6 +2079,7 @@ static const struct vdpa_mgmtdev_ops vdpa_dev_mgmtdev_ops = {
 
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_BLOCK, VIRTIO_DEV_ANY_ID },
+	{ VIRTIO_ID_NET, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };
 
@@ -2082,11 +2136,9 @@ static int vduse_init(void)
 	int ret;
 	struct device *dev;
 
-	vduse_class = class_create("vduse");
-	if (IS_ERR(vduse_class))
-		return PTR_ERR(vduse_class);
-
-	vduse_class->devnode = vduse_devnode;
+	ret = class_register(&vduse_class);
+	if (ret)
+		return ret;
 
 	ret = alloc_chrdev_region(&vduse_major, 0, VDUSE_DEV_MAX, "vduse");
 	if (ret)
@@ -2099,7 +2151,7 @@ static int vduse_init(void)
 	if (ret)
 		goto err_ctrl_cdev;
 
-	dev = device_create(vduse_class, NULL, vduse_major, NULL, "control");
+	dev = device_create(&vduse_class, NULL, vduse_major, NULL, "control");
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto err_device;
@@ -2141,13 +2193,13 @@ err_bound_wq:
 err_wq:
 	cdev_del(&vduse_cdev);
 err_cdev:
-	device_destroy(vduse_class, vduse_major);
+	device_destroy(&vduse_class, vduse_major);
 err_device:
 	cdev_del(&vduse_ctrl_cdev);
 err_ctrl_cdev:
 	unregister_chrdev_region(vduse_major, VDUSE_DEV_MAX);
 err_chardev_region:
-	class_destroy(vduse_class);
+	class_unregister(&vduse_class);
 	return ret;
 }
 module_init(vduse_init);
@@ -2159,10 +2211,10 @@ static void vduse_exit(void)
 	destroy_workqueue(vduse_irq_bound_wq);
 	destroy_workqueue(vduse_irq_wq);
 	cdev_del(&vduse_cdev);
-	device_destroy(vduse_class, vduse_major);
+	device_destroy(&vduse_class, vduse_major);
 	cdev_del(&vduse_ctrl_cdev);
 	unregister_chrdev_region(vduse_major, VDUSE_DEV_MAX);
-	class_destroy(vduse_class);
+	class_unregister(&vduse_class);
 }
 module_exit(vduse_exit);
 

@@ -751,7 +751,7 @@ static int __component_add(struct device *dev, const struct component_ops *ops,
  * component_bind_all(). See also &struct component_ops.
  *
  * @subcomponent must be nonzero and is used to differentiate between multiple
- * components registerd on the same device @dev. These components are match
+ * components registered on the same device @dev. These components are match
  * using component_match_add_typed().
  *
  * The component needs to be unregistered at driver unload/disconnect by
@@ -781,7 +781,7 @@ EXPORT_SYMBOL_GPL(component_add_typed);
  * The component needs to be unregistered at driver unload/disconnect by
  * calling component_del().
  *
- * See also component_add_typed() for a variant that allows multipled different
+ * See also component_add_typed() for a variant that allows multiple different
  * components on the same device.
  */
 int component_add(struct device *dev, const struct component_ops *ops)

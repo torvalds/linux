@@ -83,13 +83,6 @@ bool elv_bio_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_bio_merge_ok);
 
-static inline bool elv_support_features(struct request_queue *q,
-		const struct elevator_type *e)
-{
-	return (q->required_elevator_features & e->elevator_features) ==
-		q->required_elevator_features;
-}
-
 /**
  * elevator_match - Check whether @e's name or alias matches @name
  * @e: Scheduler to test
@@ -120,7 +113,7 @@ static struct elevator_type *elevator_find_get(struct request_queue *q,
 
 	spin_lock(&elv_list_lock);
 	e = __elevator_find(name);
-	if (e && (!elv_support_features(q, e) || !elevator_tryget(e)))
+	if (e && (!elevator_tryget(e)))
 		e = NULL;
 	spin_unlock(&elv_list_lock);
 	return e;
@@ -499,6 +492,9 @@ void elv_unregister_queue(struct request_queue *q)
 
 int elv_register(struct elevator_type *e)
 {
+	/* finish request is mandatory */
+	if (WARN_ON_ONCE(!e->ops.finish_request))
+		return -EINVAL;
 	/* insert_requests and dispatch_request are mandatory */
 	if (WARN_ON_ONCE(!e->ops.insert_requests || !e->ops.dispatch_request))
 		return -EINVAL;
@@ -577,34 +573,8 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 }
 
 /*
- * Get the first elevator providing the features required by the request queue.
- * Default to "none" if no matching elevator is found.
- */
-static struct elevator_type *elevator_get_by_features(struct request_queue *q)
-{
-	struct elevator_type *e, *found = NULL;
-
-	spin_lock(&elv_list_lock);
-
-	list_for_each_entry(e, &elv_list, list) {
-		if (elv_support_features(q, e)) {
-			found = e;
-			break;
-		}
-	}
-
-	if (found && !elevator_tryget(found))
-		found = NULL;
-
-	spin_unlock(&elv_list_lock);
-	return found;
-}
-
-/*
- * For a device queue that has no required features, use the default elevator
- * settings. Otherwise, use the first elevator available matching the required
- * features. If no suitable elevator is find or if the chosen elevator
- * initialization fails, fall back to the "none" elevator (no elevator).
+ * Use the default elevator settings. If the chosen elevator initialization
+ * fails, fall back to the "none" elevator (no elevator).
  */
 void elevator_init_mq(struct request_queue *q)
 {
@@ -619,10 +589,7 @@ void elevator_init_mq(struct request_queue *q)
 	if (unlikely(q->elevator))
 		return;
 
-	if (!q->required_elevator_features)
-		e = elevator_get_default(q);
-	else
-		e = elevator_get_by_features(q);
+	e = elevator_get_default(q);
 	if (!e)
 		return;
 
@@ -731,35 +698,47 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 		return 0;
 
 	e = elevator_find_get(q, elevator_name);
-	if (!e) {
-		request_module("%s-iosched", elevator_name);
-		e = elevator_find_get(q, elevator_name);
-		if (!e)
-			return -EINVAL;
-	}
+	if (!e)
+		return -EINVAL;
 	ret = elevator_switch(q, e);
 	elevator_put(e);
 	return ret;
 }
 
-ssize_t elv_iosched_store(struct request_queue *q, const char *buf,
+int elv_iosched_load_module(struct gendisk *disk, const char *buf,
+			    size_t count)
+{
+	char elevator_name[ELV_NAME_MAX];
+
+	if (!elv_support_iosched(disk->queue))
+		return -EOPNOTSUPP;
+
+	strscpy(elevator_name, buf, sizeof(elevator_name));
+
+	request_module("%s-iosched", strstrip(elevator_name));
+
+	return 0;
+}
+
+ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
 			  size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
 	int ret;
 
-	if (!elv_support_iosched(q))
+	if (!elv_support_iosched(disk->queue))
 		return count;
 
 	strscpy(elevator_name, buf, sizeof(elevator_name));
-	ret = elevator_change(q, strstrip(elevator_name));
+	ret = elevator_change(disk->queue, strstrip(elevator_name));
 	if (!ret)
 		return count;
 	return ret;
 }
 
-ssize_t elv_iosched_show(struct request_queue *q, char *name)
+ssize_t elv_iosched_show(struct gendisk *disk, char *name)
 {
+	struct request_queue *q = disk->queue;
 	struct elevator_queue *eq = q->elevator;
 	struct elevator_type *cur = NULL, *e;
 	int len = 0;
@@ -778,7 +757,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	list_for_each_entry(e, &elv_list, list) {
 		if (e == cur)
 			len += sprintf(name+len, "[%s] ", e->elevator_name);
-		else if (elv_support_features(q, e))
+		else
 			len += sprintf(name+len, "%s ", e->elevator_name);
 	}
 	spin_unlock(&elv_list_lock);

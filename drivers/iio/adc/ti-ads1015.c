@@ -456,7 +456,7 @@ static irqreturn_t ads1015_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->lock);
 	chan = find_first_bit(indio_dev->active_scan_mask,
-			      indio_dev->masklength);
+			      iio_get_masklength(indio_dev));
 	ret = ads1015_get_adc_result(data, chan, &res);
 	if (ret < 0) {
 		mutex_unlock(&data->lock);
@@ -902,10 +902,9 @@ static int ads1015_client_get_channels_config(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ads1015_data *data = iio_priv(indio_dev);
 	struct device *dev = &client->dev;
-	struct fwnode_handle *node;
 	int i = -1;
 
-	device_for_each_child_node(dev, node) {
+	device_for_each_child_node_scoped(dev, node) {
 		u32 pval;
 		unsigned int channel;
 		unsigned int pga = ADS1015_DEFAULT_PGA;
@@ -925,9 +924,8 @@ static int ads1015_client_get_channels_config(struct i2c_client *client)
 
 		if (!fwnode_property_read_u32(node, "ti,gain", &pval)) {
 			pga = pval;
-			if (pga > 6) {
+			if (pga > 5) {
 				dev_err(dev, "invalid gain on %pfw\n", node);
-				fwnode_handle_put(node);
 				return -EINVAL;
 			}
 		}
@@ -936,7 +934,6 @@ static int ads1015_client_get_channels_config(struct i2c_client *client)
 			data_rate = pval;
 			if (data_rate > 7) {
 				dev_err(dev, "invalid data_rate on %pfw\n", node);
-				fwnode_handle_put(node);
 				return -EINVAL;
 			}
 		}
@@ -976,16 +973,13 @@ static int ads1015_set_conv_mode(struct ads1015_data *data, int mode)
 
 static int ads1015_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct ads1015_chip_data *chip;
 	struct iio_dev *indio_dev;
 	struct ads1015_data *data;
 	int ret;
 	int i;
 
-	chip = device_get_match_data(&client->dev);
-	if (!chip)
-		chip = (const struct ads1015_chip_data *)id->driver_data;
+	chip = i2c_get_match_data(client);
 	if (!chip)
 		return dev_err_probe(&client->dev, -EINVAL, "Unknown chip\n");
 
@@ -1047,11 +1041,13 @@ static int ads1015_probe(struct i2c_client *client)
 			1 << ADS1015_CFG_COMP_LAT_SHIFT;
 
 		switch (irq_trig) {
+		case IRQF_TRIGGER_FALLING:
 		case IRQF_TRIGGER_LOW:
 			cfg_comp |= ADS1015_CFG_COMP_POL_LOW <<
 					ADS1015_CFG_COMP_POL_SHIFT;
 			break;
 		case IRQF_TRIGGER_HIGH:
+		case IRQF_TRIGGER_RISING:
 			cfg_comp |= ADS1015_CFG_COMP_POL_HIGH <<
 					ADS1015_CFG_COMP_POL_SHIFT;
 			break;
@@ -1177,7 +1173,7 @@ static const struct i2c_device_id ads1015_id[] = {
 	{ "ads1015", (kernel_ulong_t)&ads1015_data },
 	{ "ads1115", (kernel_ulong_t)&ads1115_data },
 	{ "tla2024", (kernel_ulong_t)&tla2024_data },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);
 
@@ -1185,7 +1181,7 @@ static const struct of_device_id ads1015_of_match[] = {
 	{ .compatible = "ti,ads1015", .data = &ads1015_data },
 	{ .compatible = "ti,ads1115", .data = &ads1115_data },
 	{ .compatible = "ti,tla2024", .data = &tla2024_data },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ads1015_of_match);
 

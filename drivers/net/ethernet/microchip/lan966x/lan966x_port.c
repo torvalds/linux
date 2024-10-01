@@ -88,7 +88,7 @@ static void lan966x_port_link_down(struct lan966x_port *port)
 		SYS_FRONT_PORT_MODE_HDX_MODE,
 		lan966x, SYS_FRONT_PORT_MODE(port->chip_port));
 
-	/* 8: Flush the queues accociated with the port */
+	/* 8: Flush the queues associated with the port */
 	lan_rmw(QSYS_SW_PORT_MODE_AGING_MODE_SET(3),
 		QSYS_SW_PORT_MODE_AGING_MODE,
 		lan966x, QSYS_SW_PORT_MODE(port->chip_port));
@@ -168,9 +168,10 @@ static void lan966x_port_link_up(struct lan966x_port *port)
 	lan966x_taprio_speed_set(port, config->speed);
 
 	/* Also the GIGA_MODE_ENA(1) needs to be set regardless of the
-	 * port speed for QSGMII ports.
+	 * port speed for QSGMII or SGMII ports.
 	 */
-	if (phy_interface_num_ports(config->portmode) == 4)
+	if (phy_interface_num_ports(config->portmode) == 4 ||
+	    config->portmode == PHY_INTERFACE_MODE_SGMII)
 		mode = DEV_MAC_MODE_CFG_GIGA_MODE_ENA_SET(1);
 
 	lan_wr(config->duplex | mode,

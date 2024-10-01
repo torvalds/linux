@@ -97,11 +97,13 @@ MODULE_DEVICE_TABLE(platform, clk_mt8188_vdo0_id_table);
 
 static struct platform_driver clk_mt8188_vdo0_drv = {
 	.probe = mtk_clk_pdev_probe,
-	.remove_new = mtk_clk_pdev_remove,
+	.remove = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt8188-vdo0",
 	},
 	.id_table = clk_mt8188_vdo0_id_table,
 };
 module_platform_driver(clk_mt8188_vdo0_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8188 Video Output 0 clocks driver");
 MODULE_LICENSE("GPL");

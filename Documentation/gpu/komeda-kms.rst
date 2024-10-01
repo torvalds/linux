@@ -86,7 +86,7 @@ types of working mode:
 -   Single display mode
     Two pipelines work together to drive only one display output.
 
-    On this mode, pipeline_B doesn't work indenpendently, but outputs its
+    On this mode, pipeline_B doesn't work independently, but outputs its
     composition result into pipeline_A, and its pixel timing also derived from
     pipeline_A.timing_ctrlr. The pipeline_B works just like a "slave" of
     pipeline_A(master)
@@ -328,7 +328,7 @@ of course we’d better share as much as possible between different products. To
 achieve this, split the komeda device into two layers: CORE and CHIP.
 
 -   CORE: for common features and capabilities handling.
--   CHIP: for register programing and HW specific feature (limitation) handling.
+-   CHIP: for register programming and HW specific feature (limitation) handling.
 
 CORE can access CHIP by three chip function structures:
 
@@ -481,7 +481,7 @@ Build komeda to be a Linux module driver
 Now we have two level devices:
 
 -   komeda_dev: describes the real display hardware.
--   komeda_kms_dev: attachs or connects komeda_dev to DRM-KMS.
+-   komeda_kms_dev: attaches or connects komeda_dev to DRM-KMS.
 
 All komeda operations are supplied or operated by komeda_dev or komeda_kms_dev,
 the module driver is only a simple wrapper to pass the Linux command

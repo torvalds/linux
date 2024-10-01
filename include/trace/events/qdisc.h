@@ -81,15 +81,15 @@ TRACE_EVENT(qdisc_reset,
 	TP_ARGS(q),
 
 	TP_STRUCT__entry(
-		__string(	dev,		qdisc_dev(q)	)
-		__string(	kind,		q->ops->id	)
-		__field(	u32,		parent		)
-		__field(	u32,		handle		)
+		__string(	dev,		qdisc_dev(q) ? qdisc_dev(q)->name : "(null)"	)
+		__string(	kind,		q->ops->id		)
+		__field(	u32,		parent			)
+		__field(	u32,		handle			)
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, qdisc_dev(q));
-		__assign_str(kind, q->ops->id);
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->parent = q->parent;
 		__entry->handle = q->handle;
 	),
@@ -106,15 +106,15 @@ TRACE_EVENT(qdisc_destroy,
 	TP_ARGS(q),
 
 	TP_STRUCT__entry(
-		__string(	dev,		qdisc_dev(q)	)
-		__string(	kind,		q->ops->id	)
-		__field(	u32,		parent		)
-		__field(	u32,		handle		)
+		__string(	dev,		qdisc_dev(q)->name	)
+		__string(	kind,		q->ops->id		)
+		__field(	u32,		parent			)
+		__field(	u32,		handle			)
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, qdisc_dev(q));
-		__assign_str(kind, q->ops->id);
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->parent = q->parent;
 		__entry->handle = q->handle;
 	),
@@ -137,8 +137,8 @@ TRACE_EVENT(qdisc_create,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev->name);
-		__assign_str(kind, ops->id);
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->parent = parent;
 	),
 

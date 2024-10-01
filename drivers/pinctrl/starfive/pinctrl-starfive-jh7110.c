@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
@@ -136,7 +135,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 	int ret;
 
 	ngroups = 0;
-	for_each_child_of_node(np, child)
+	for_each_available_child_of_node(np, child)
 		ngroups += 1;
 	nmaps = 2 * ngroups;
 
@@ -151,7 +150,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 	nmaps = 0;
 	ngroups = 0;
 	mutex_lock(&sfp->mutex);
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node_scoped(np, child) {
 		int npins = of_property_count_u32_elems(child, "pinmux");
 		int *pins;
 		u32 *pinmux;
@@ -162,13 +161,13 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 				"invalid pinctrl group %pOFn.%pOFn: pinmux not set\n",
 				np, child);
 			ret = -EINVAL;
-			goto put_child;
+			goto free_map;
 		}
 
 		grpname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn.%pOFn", np, child);
 		if (!grpname) {
 			ret = -ENOMEM;
-			goto put_child;
+			goto free_map;
 		}
 
 		pgnames[ngroups++] = grpname;
@@ -176,18 +175,18 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 		pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
 		if (!pins) {
 			ret = -ENOMEM;
-			goto put_child;
+			goto free_map;
 		}
 
 		pinmux = devm_kcalloc(dev, npins, sizeof(*pinmux), GFP_KERNEL);
 		if (!pinmux) {
 			ret = -ENOMEM;
-			goto put_child;
+			goto free_map;
 		}
 
 		ret = of_property_read_u32_array(child, "pinmux", pinmux, npins);
 		if (ret)
-			goto put_child;
+			goto free_map;
 
 		for (i = 0; i < npins; i++)
 			pins[i] = jh7110_pinmux_pin(pinmux[i]);
@@ -201,7 +200,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 						pins, npins, pinmux);
 		if (ret < 0) {
 			dev_err(dev, "error adding group %s: %d\n", grpname, ret);
-			goto put_child;
+			goto free_map;
 		}
 
 		ret = pinconf_generic_parse_dt_config(child, pctldev,
@@ -210,7 +209,7 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 		if (ret) {
 			dev_err(dev, "error parsing pin config of group %s: %d\n",
 				grpname, ret);
-			goto put_child;
+			goto free_map;
 		}
 
 		/* don't create a map if there are no pinconf settings */
@@ -234,8 +233,6 @@ static int jh7110_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = nmaps;
 	return 0;
 
-put_child:
-	of_node_put(child);
 free_map:
 	pinctrl_utils_free_map(pctldev, map, nmaps);
 	mutex_unlock(&sfp->mutex);
@@ -308,7 +305,7 @@ static int jh7110_set_mux(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	pinmux = group->data;
-	for (i = 0; i < group->num_pins; i++) {
+	for (i = 0; i < group->grp.npins; i++) {
 		u32 v = pinmux[i];
 
 		if (info->jh7110_set_one_pin_mux)
@@ -438,7 +435,7 @@ static int jh7110_pinconf_group_get(struct pinctrl_dev *pctldev,
 	if (!group)
 		return -EINVAL;
 
-	return jh7110_pinconf_get(pctldev, group->pins[0], config);
+	return jh7110_pinconf_get(pctldev, group->grp.pins[0], config);
 }
 
 static int jh7110_pinconf_group_set(struct pinctrl_dev *pctldev,
@@ -509,8 +506,8 @@ static int jh7110_pinconf_group_set(struct pinctrl_dev *pctldev,
 		}
 	}
 
-	for (i = 0; i < group->num_pins; i++)
-		jh7110_padcfg_rmw(sfp, group->pins[i], mask, value);
+	for (i = 0; i < group->grp.npins; i++)
+		jh7110_padcfg_rmw(sfp, group->grp.pins[i], mask, value);
 
 	return 0;
 }
@@ -545,16 +542,6 @@ static const struct pinconf_ops jh7110_pinconf_ops = {
 	.pin_config_dbg_show	= jh7110_pinconf_dbg_show,
 	.is_generic		= true,
 };
-
-static int jh7110_gpio_request(struct gpio_chip *gc, unsigned int gpio)
-{
-	return pinctrl_gpio_request(gc->base + gpio);
-}
-
-static void jh7110_gpio_free(struct gpio_chip *gc, unsigned int gpio)
-{
-	pinctrl_gpio_free(gc->base + gpio);
-}
 
 static int jh7110_gpio_get_direction(struct gpio_chip *gc,
 				     unsigned int gpio)
@@ -806,12 +793,12 @@ static int jh7110_irq_set_type(struct irq_data *d, unsigned int trigger)
 	case IRQ_TYPE_LEVEL_HIGH:
 		irq_type  = 0;    /* 0: level triggered */
 		edge_both = 0;    /* 0: ignored */
-		polarity  = mask; /* 1: high level */
+		polarity  = 0;    /* 0: high level */
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		irq_type  = 0;    /* 0: level triggered */
 		edge_both = 0;    /* 0: ignored */
-		polarity  = 0;    /* 0: low level */
+		polarity  = mask; /* 1: low level */
 		break;
 	default:
 		return -EINVAL;
@@ -872,6 +859,13 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	sfp = devm_kzalloc(dev, sizeof(*sfp), GFP_KERNEL);
 	if (!sfp)
 		return -ENOMEM;
+
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+	sfp->saved_regs = devm_kcalloc(dev, info->nsaved_regs,
+				       sizeof(*sfp->saved_regs), GFP_KERNEL);
+	if (!sfp->saved_regs)
+		return -ENOMEM;
+#endif
 
 	sfp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sfp->base))
@@ -934,8 +928,8 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 
 	sfp->gc.label = dev_name(dev);
 	sfp->gc.owner = THIS_MODULE;
-	sfp->gc.request = jh7110_gpio_request;
-	sfp->gc.free = jh7110_gpio_free;
+	sfp->gc.request = pinctrl_gpio_request;
+	sfp->gc.free = pinctrl_gpio_free;
 	sfp->gc.get_direction = jh7110_gpio_get_direction;
 	sfp->gc.direction_input = jh7110_gpio_direction_input;
 	sfp->gc.direction_output = jh7110_gpio_direction_output;
@@ -968,13 +962,44 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "could not register gpiochip\n");
 
-	irq_domain_set_pm_device(sfp->gc.irq.domain, dev);
-
 	dev_info(dev, "StarFive GPIO chip registered %d GPIOs\n", sfp->gc.ngpio);
 
 	return pinctrl_enable(sfp->pctl);
 }
 EXPORT_SYMBOL_GPL(jh7110_pinctrl_probe);
+
+static int jh7110_pinctrl_suspend(struct device *dev)
+{
+	struct jh7110_pinctrl *sfp = dev_get_drvdata(dev);
+	unsigned long flags;
+	unsigned int i;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	for (i = 0 ; i < sfp->info->nsaved_regs ; i++)
+		sfp->saved_regs[i] = readl_relaxed(sfp->base + 4 * i);
+
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+	return 0;
+}
+
+static int jh7110_pinctrl_resume(struct device *dev)
+{
+	struct jh7110_pinctrl *sfp = dev_get_drvdata(dev);
+	unsigned long flags;
+	unsigned int i;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	for (i = 0 ; i < sfp->info->nsaved_regs ; i++)
+		writel_relaxed(sfp->saved_regs[i], sfp->base + 4 * i);
+
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+	return 0;
+}
+
+const struct dev_pm_ops jh7110_pinctrl_pm_ops = {
+	LATE_SYSTEM_SLEEP_PM_OPS(jh7110_pinctrl_suspend, jh7110_pinctrl_resume)
+};
+EXPORT_SYMBOL_GPL(jh7110_pinctrl_pm_ops);
 
 MODULE_DESCRIPTION("Pinctrl driver for the StarFive JH7110 SoC");
 MODULE_AUTHOR("Emil Renner Berthing <kernel@esmil.dk>");

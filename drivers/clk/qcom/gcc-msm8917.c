@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -64,7 +63,7 @@ static struct clk_alpha_pll gpll0_sleep_clk_src = {
 				.index = DT_XO,
 			},
 			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
+			.ops = &clk_branch_simple_ops,
 		},
 	},
 };
@@ -3042,6 +3041,7 @@ static struct gdsc cpp_gdsc = {
 static struct clk_regmap *gcc_msm8917_clocks[] = {
 	[GPLL0] = &gpll0.clkr,
 	[GPLL0_EARLY] = &gpll0_early.clkr,
+	[GPLL0_SLEEP_CLK_SRC] = &gpll0_sleep_clk_src.clkr,
 	[GPLL3] = &gpll3.clkr,
 	[GPLL3_EARLY] = &gpll3_early.clkr,
 	[GPLL4] = &gpll4.clkr,
@@ -3270,7 +3270,7 @@ static int gcc_msm8917_probe(struct platform_device *pdev)
 
 	clk_alpha_pll_configure(&gpll3_early, regmap, &gpll3_early_config);
 
-	return qcom_cc_really_probe(pdev, gcc_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, gcc_desc, regmap);
 }
 
 static const struct of_device_id gcc_msm8917_match_table[] = {
@@ -3278,6 +3278,7 @@ static const struct of_device_id gcc_msm8917_match_table[] = {
 	{ .compatible = "qcom,gcc-qm215", .data = &gcc_qm215_desc },
 	{},
 };
+MODULE_DEVICE_TABLE(of, gcc_msm8917_match_table);
 
 static struct platform_driver gcc_msm8917_driver = {
 	.probe = gcc_msm8917_probe,

@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
-#include <linux/acpi.h>
 #include <linux/regmap.h>
 
 #include "bmc150_magn.h"
@@ -55,7 +54,7 @@ static struct spi_driver bmc150_magn_spi_driver = {
 	.remove		= bmc150_magn_spi_remove,
 	.id_table	= bmc150_magn_spi_id,
 	.driver = {
-		.acpi_match_table = ACPI_PTR(bmc150_magn_acpi_match),
+		.acpi_match_table = bmc150_magn_acpi_match,
 		.name	= "bmc150_magn_spi",
 	},
 };

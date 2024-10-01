@@ -128,4 +128,5 @@ static struct platform_driver sgi_buttons_driver = {
 };
 module_platform_driver(sgi_buttons_driver);
 
+MODULE_DESCRIPTION("SGI Indy/O2 volume button interface driver");
 MODULE_LICENSE("GPL");

@@ -3884,7 +3884,7 @@ static inline int madera_set_fll_clks(struct madera_fll *fll, int base, bool ena
 	return madera_set_fll_clks_reg(fll, ena,
 				       base + MADERA_FLL_CONTROL_6_OFFS,
 				       MADERA_FLL1_REFCLK_SRC_MASK,
-				       MADERA_FLL1_REFCLK_DIV_SHIFT);
+				       MADERA_FLL1_REFCLK_SRC_SHIFT);
 }
 
 static inline int madera_set_fllao_clks(struct madera_fll *fll, int base, bool ena)

@@ -193,11 +193,6 @@ asmlinkage void __init mmu_init(void)
 {
 	unsigned int kstart, ksize;
 
-	if (!memblock.reserved.cnt) {
-		pr_emerg("Error memory count\n");
-		machine_restart(NULL);
-	}
-
 	if ((u32) memblock.memory.regions[0].size < 0x400000) {
 		pr_emerg("Memory must be greater than 4MB\n");
 		machine_restart(NULL);
@@ -268,22 +263,6 @@ asmlinkage void __init mmu_init(void)
 	dma_contiguous_reserve(memory_start + lowmem_size - 1);
 
 	memblock_dump_all();
-}
-
-void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
-{
-	void *p;
-
-	if (mem_init_done) {
-		p = kzalloc(size, mask);
-	} else {
-		p = memblock_alloc(size, SMP_CACHE_BYTES);
-		if (!p)
-			panic("%s: Failed to allocate %zu bytes\n",
-			      __func__, size);
-	}
-
-	return p;
 }
 
 static const pgprot_t protection_map[16] = {

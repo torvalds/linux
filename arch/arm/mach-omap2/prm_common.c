@@ -67,6 +67,12 @@ struct omap_domain_base prm_base;
 u16 prm_features;
 
 /*
+ * Platforms that implement different reboot modes can store the requested
+ * mode here.
+ */
+enum reboot_mode prm_reboot_mode;
+
+/*
  * prm_ll_data: function pointers to SoC-specific implementations of
  * common PRM functions
  */
@@ -370,7 +376,7 @@ bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
 }
 
 /**
- * prm_clear_context_lost_flags_old - clear context loss flags (old API)
+ * prm_clear_context_loss_flags_old - clear context loss flags (old API)
  * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
  * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
  * @idx: CONTEXT register offset
@@ -497,6 +503,7 @@ int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
 
 /**
  * omap_prm_vp_check_txdone - check voltage processor TX done status
+ * @vp_id: unique VP instance ID
  *
  * Checks if voltage processor transmission has been completed.
  * Returns non-zero if a transmission has completed, 0 otherwise.
@@ -514,6 +521,7 @@ u32 omap_prm_vp_check_txdone(u8 vp_id)
 
 /**
  * omap_prm_vp_clear_txdone - clears voltage processor TX done status
+ * @vp_id: unique VP instance ID
  *
  * Clears the status bit for completed voltage processor transmission
  * returned by prm_vp_check_txdone.

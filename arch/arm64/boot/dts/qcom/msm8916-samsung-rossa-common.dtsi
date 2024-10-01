@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+#include "msm8916-samsung-fortuna-common.dtsi"
+
+/* SM5504 MUIC instead of SM5502 */
+/delete-node/ &muic;
+
+/* Touchscreen varies depending on model variant */
+/delete-node/ &touchscreen;
+
+&blsp_i2c1 {
+	muic: extcon@14 {
+		compatible = "siliconmitus,sm5504-muic";
+		reg = <0x14>;
+		interrupts-extended = <&tlmm 12 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&muic_int_default>;
+		pinctrl-names = "default";
+
+		usb_con: connector {
+			compatible = "usb-b-connector";
+			label = "micro-USB";
+			type = "micro";
+		};
+	};
+};
+
+/* On rossa backlight is controlled with MIPI DCS commands */
+&clk_pwm {
+	status = "disabled";
+};
+
+&clk_pwm_backlight {
+	status = "disabled";
+};
+
+&s3fwrn5_nfc {
+	status = "okay";
+};
+
+&st_accel {
+	compatible = "st,lis2hh12";
+	mount-matrix = "1",  "0", "0",
+		       "0", "-1", "0",
+		       "0",  "0", "1";
+	status = "okay";
+};

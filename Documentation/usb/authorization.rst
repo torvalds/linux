@@ -33,12 +33,9 @@ Remove the lock down::
 
 	$ echo 1 > /sys/bus/usb/devices/usbX/authorized_default
 
-By default, Wired USB devices are authorized by default to
-connect. Wireless USB hosts deauthorize by default all new connected
-devices (this is so because we need to do an authentication phase
-before authorizing). Writing "2" to the authorized_default attribute
-causes kernel to only authorize by default devices connected to internal
-USB ports.
+By default, all USB devices are authorized.  Writing "2" to the
+authorized_default attribute causes the kernel to authorize by default
+only devices connected to internal USB ports.
 
 
 Example system lockdown (lame)

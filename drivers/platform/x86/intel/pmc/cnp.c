@@ -200,25 +200,43 @@ const struct pmc_reg_map cnp_reg_map = {
 	.ppfear_buckets = CNP_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
+	.acpi_pm_tmr_ctl_offset = SPT_PMC_ACPI_PM_TMR_CTL_OFFSET,
+	.acpi_pm_tmr_disable_bit = SPT_PMC_BIT_ACPI_PM_TMR_DISABLE,
 	.ltr_ignore_max = CNP_NUM_IP_IGN_ALLOWED,
 	.etr3_offset = ETR3_OFFSET,
 };
+
+void cnl_suspend(struct pmc_dev *pmcdev)
+{
+	/*
+	 * Due to a hardware limitation, the GBE LTR blocks PC10
+	 * when a cable is attached. To unblock PC10 during suspend,
+	 * tell the PMC to ignore it.
+	 */
+	pmc_core_send_ltr_ignore(pmcdev, 3, 1);
+}
+
+int cnl_resume(struct pmc_dev *pmcdev)
+{
+	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
+
+	return pmc_core_resume_common(pmcdev);
+}
 
 int cnp_core_init(struct pmc_dev *pmcdev)
 {
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
+	pmcdev->suspend = cnl_suspend;
+	pmcdev->resume = cnl_resume;
+
 	pmc->map = &cnp_reg_map;
 	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
 
-	/* Due to a hardware limitation, the GBE LTR blocks PC10
-	 * when a cable is attached. Tell the PMC to ignore it.
-	 */
-	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
-	pmc_core_send_ltr_ignore(pmcdev, 3);
+	pmc_core_get_low_power_modes(pmcdev);
 
 	return 0;
 }

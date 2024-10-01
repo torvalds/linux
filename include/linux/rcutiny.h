@@ -111,6 +111,11 @@ static inline void __kvfree_call_rcu(struct rcu_head *head, void *ptr)
 	kvfree(ptr);
 }
 
+static inline void kvfree_rcu_barrier(void)
+{
+	rcu_barrier();
+}
+
 #ifdef CONFIG_KASAN_GENERIC
 void kvfree_call_rcu(struct rcu_head *head, void *ptr);
 #else
@@ -138,6 +143,8 @@ static inline int rcu_needs_cpu(void)
 	return 0;
 }
 
+static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
+
 /*
  * Take advantage of the fact that there is only one CPU, which
  * allows us to ignore virtualization-based context switches.
@@ -156,7 +163,7 @@ void rcu_scheduler_starting(void);
 static inline void rcu_end_inkernel_boot(void) { }
 static inline bool rcu_inkernel_boot_has_ended(void) { return true; }
 static inline bool rcu_is_watching(void) { return true; }
-static inline void rcu_momentary_dyntick_idle(void) { }
+static inline void rcu_momentary_eqs(void) { }
 static inline void kfree_rcu_scheduler_running(void) { }
 static inline bool rcu_gp_might_be_stalled(void) { return false; }
 
@@ -169,6 +176,6 @@ static inline void rcu_all_qs(void) { barrier(); }
 #define rcutree_offline_cpu      NULL
 #define rcutree_dead_cpu         NULL
 #define rcutree_dying_cpu        NULL
-static inline void rcu_cpu_starting(unsigned int cpu) { }
+static inline void rcutree_report_cpu_starting(unsigned int cpu) { }
 
 #endif /* __LINUX_RCUTINY_H */

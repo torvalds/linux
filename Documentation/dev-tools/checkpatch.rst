@@ -168,7 +168,7 @@ Available options:
 
  - --fix
 
-   This is an EXPERIMENTAL feature.  If correctable errors exists, a file
+   This is an EXPERIMENTAL feature.  If correctable errors exist, a file
    <inputfile>.EXPERIMENTAL-checkpatch-fixes is created which has the
    automatically fixable errors corrected.
 
@@ -181,7 +181,7 @@ Available options:
 
  - --ignore-perl-version
 
-   Override checking of perl version.  Runtime errors maybe encountered after
+   Override checking of perl version.  Runtime errors may be encountered after
    enabling this flag if the perl version does not meet the minimum specified.
 
  - --codespell
@@ -905,6 +905,20 @@ Macros, Attributes and Symbols
     orphaned.
 
     See: https://lore.kernel.org/lkml/1399671106.2912.21.camel@joe-AO725/
+
+  **MACRO_ARG_UNUSED**
+    If function-like macros do not utilize a parameter, it might result
+    in a build warning. We advocate for utilizing static inline functions
+    to replace such macros.
+    For example, for a macro such as the one below::
+
+      #define test(a) do { } while (0)
+
+    there would be a warning like below::
+
+      WARNING: Argument 'a' is not used in function-like macro.
+
+    See: https://www.kernel.org/doc/html/latest/process/coding-style.html#macros-enums-and-rtl
 
   **SINGLE_STATEMENT_DO_WHILE_MACRO**
     For the multi-statement macros, it is necessary to use the do-while

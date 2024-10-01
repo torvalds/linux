@@ -12,7 +12,6 @@
 #include <linux/dmapool.h>
 #include <linux/dsa/ocelot.h>
 #include <linux/netdevice.h>
-#include <linux/of_platform.h>
 #include <linux/skbuff.h>
 
 #include "ocelot_fdma.h"
@@ -368,7 +367,8 @@ static bool ocelot_fdma_receive_skb(struct ocelot *ocelot, struct sk_buff *skb)
 	if (unlikely(!ndev))
 		return false;
 
-	pskb_trim(skb, skb->len - ETH_FCS_LEN);
+	if (pskb_trim(skb, skb->len - ETH_FCS_LEN))
+		return false;
 
 	skb->dev = ndev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
@@ -665,8 +665,7 @@ static int ocelot_fdma_prepare_skb(struct ocelot *ocelot, int port, u32 rew_op,
 
 	ifh = skb_push(skb, OCELOT_TAG_LEN);
 	skb_put(skb, ETH_FCS_LEN);
-	memset(ifh, 0, OCELOT_TAG_LEN);
-	ocelot_ifh_port_set(ifh, port, rew_op, skb_vlan_tag_get(skb));
+	ocelot_ifh_set_basic(ifh, ocelot, port, rew_op, skb);
 
 	return 0;
 }

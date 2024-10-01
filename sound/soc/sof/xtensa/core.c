@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Pan Xiuli <xiuli.pan@linux.intel.com>
 //
@@ -132,6 +132,17 @@ static void xtensa_stack(struct snd_sof_dev *sdev, const char *level, void *oops
 				   buf, sizeof(buf), false);
 		dev_printk(level, sdev->dev, "0x%08x: %s\n", stack_ptr + i * 4, buf);
 	}
+
+	if (!xoops->plat_hdr.numaregs)
+		return;
+
+	dev_printk(level, sdev->dev, "AR registers:\n");
+	/* the number of ar registers is a multiple of 4 */
+	for (i = 0; i < xoops->plat_hdr.numaregs; i += 4) {
+		hex_dump_to_buffer(xoops->ar + i, 16, 16, 4,
+				   buf, sizeof(buf), false);
+		dev_printk(level, sdev->dev, "%#x: %s\n", i * 4, buf);
+	}
 }
 
 const struct dsp_arch_ops sof_xtensa_arch_ops = {
@@ -140,5 +151,5 @@ const struct dsp_arch_ops sof_xtensa_arch_ops = {
 };
 EXPORT_SYMBOL_NS(sof_xtensa_arch_ops, SND_SOC_SOF_XTENSA);
 
-MODULE_DESCRIPTION("SOF Xtensa DSP support");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF Xtensa DSP support");

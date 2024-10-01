@@ -24,7 +24,8 @@ static int mlx5e_set_int_port_tunnel(struct mlx5e_priv *priv,
 
 	route_dev = dev_get_by_index(dev_net(e->out_dev), e->route_dev_ifindex);
 
-	if (!route_dev || !netif_is_ovs_master(route_dev))
+	if (!route_dev || !netif_is_ovs_master(route_dev) ||
+	    attr->parse_attr->filter_dev == e->out_dev)
 		goto out;
 
 	err = mlx5e_set_fwd_to_int_port_actions(priv, attr, e->route_dev_ifindex,
@@ -586,7 +587,7 @@ bool mlx5e_tc_tun_encap_info_equal_generic(struct mlx5e_encap_key *a,
 
 bool mlx5e_tc_tun_encap_info_equal_options(struct mlx5e_encap_key *a,
 					   struct mlx5e_encap_key *b,
-					   __be16 tun_flags)
+					   u32 tun_type)
 {
 	struct ip_tunnel_info *a_info;
 	struct ip_tunnel_info *b_info;
@@ -595,8 +596,8 @@ bool mlx5e_tc_tun_encap_info_equal_options(struct mlx5e_encap_key *a,
 	if (!mlx5e_tc_tun_encap_info_equal_generic(a, b))
 		return false;
 
-	a_has_opts = !!(a->ip_tun_key->tun_flags & tun_flags);
-	b_has_opts = !!(b->ip_tun_key->tun_flags & tun_flags);
+	a_has_opts = test_bit(tun_type, a->ip_tun_key->tun_flags);
+	b_has_opts = test_bit(tun_type, b->ip_tun_key->tun_flags);
 
 	/* keys are equal when both don't have any options attached */
 	if (!a_has_opts && !b_has_opts)
@@ -1030,9 +1031,6 @@ int mlx5e_tc_tun_encap_dests_set(struct mlx5e_priv *priv,
 	int out_index;
 	int err = 0;
 
-	if (!mlx5e_is_eswitch_flow(flow))
-		return 0;
-
 	parse_attr = attr->parse_attr;
 	esw_attr = attr->esw_attr;
 	*vf_tun = false;
@@ -1066,7 +1064,8 @@ int mlx5e_tc_tun_encap_dests_set(struct mlx5e_priv *priv,
 
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
-		esw_attr->dests[out_index].rep = rpriv->rep;
+		esw_attr->dests[out_index].vport_valid = true;
+		esw_attr->dests[out_index].vport = rpriv->rep->vport;
 		esw_attr->dests[out_index].mdev = out_priv->mdev;
 	}
 
@@ -1464,10 +1463,12 @@ static void mlx5e_invalidate_encap(struct mlx5e_priv *priv,
 		attr = mlx5e_tc_get_encap_attr(flow);
 		esw_attr = attr->esw_attr;
 
-		if (flow_flag_test(flow, SLOW))
+		if (flow_flag_test(flow, SLOW)) {
 			mlx5e_tc_unoffload_from_slow_path(esw, flow);
-		else
+		} else {
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->attr);
+			mlx5e_tc_unoffload_flow_post_acts(flow);
+		}
 
 		mlx5e_tc_detach_mod_hdr(priv, flow, attr);
 		attr->modify_hdr = NULL;

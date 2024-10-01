@@ -17,9 +17,12 @@
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/serdev.h>
 #include <linux/sysfs.h>
+#include <linux/units.h>
 
 #include <linux/surface_aggregator/controller.h>
 #include <linux/surface_aggregator/device.h>
@@ -227,13 +230,16 @@ EXPORT_SYMBOL_GPL(ssam_client_bind);
 
 /* -- Glue layer (serdev_device -> ssam_controller). ------------------------ */
 
-static int ssam_receive_buf(struct serdev_device *dev, const unsigned char *buf,
-			    size_t n)
+static size_t ssam_receive_buf(struct serdev_device *dev, const u8 *buf,
+			       size_t n)
 {
 	struct ssam_controller *ctrl;
+	int ret;
 
 	ctrl = serdev_device_get_drvdata(dev);
-	return ssam_controller_receive_buf(ctrl, buf, n);
+	ret = ssam_controller_receive_buf(ctrl, buf, n);
+
+	return ret < 0 ? 0 : ret;
 }
 
 static void ssam_write_wakeup(struct serdev_device *dev)
@@ -296,7 +302,7 @@ static const struct attribute_group ssam_sam_group = {
 };
 
 
-/* -- ACPI based device setup. ---------------------------------------------- */
+/* -- Serial device setup. -------------------------------------------------- */
 
 static acpi_status ssam_serdev_setup_via_acpi_crs(struct acpi_resource *rsc,
 						  void *ctx)
@@ -349,13 +355,28 @@ static acpi_status ssam_serdev_setup_via_acpi_crs(struct acpi_resource *rsc,
 	return AE_CTRL_TERMINATE;
 }
 
-static acpi_status ssam_serdev_setup_via_acpi(acpi_handle handle,
-					      struct serdev_device *serdev)
+static int ssam_serdev_setup_via_acpi(struct serdev_device *serdev, acpi_handle handle)
 {
-	return acpi_walk_resources(handle, METHOD_NAME__CRS,
-				   ssam_serdev_setup_via_acpi_crs, serdev);
+	acpi_status status;
+
+	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
+				     ssam_serdev_setup_via_acpi_crs, serdev);
+
+	return status ? -ENXIO : 0;
 }
 
+static int ssam_serdev_setup(struct acpi_device *ssh, struct serdev_device *serdev)
+{
+	if (ssh)
+		return ssam_serdev_setup_via_acpi(serdev, ssh->handle);
+
+	/* TODO: these values may differ per board/implementation */
+	serdev_device_set_baudrate(serdev, 4 * HZ_PER_MHZ);
+	serdev_device_set_flow_control(serdev, true);
+	serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+
+	return 0;
+}
 
 /* -- Power management. ----------------------------------------------------- */
 
@@ -615,17 +636,20 @@ static const struct acpi_gpio_mapping ssam_acpi_gpios[] = {
 
 static int ssam_serial_hub_probe(struct serdev_device *serdev)
 {
-	struct acpi_device *ssh = ACPI_COMPANION(&serdev->dev);
+	struct device *dev = &serdev->dev;
+	struct acpi_device *ssh = ACPI_COMPANION(dev);
 	struct ssam_controller *ctrl;
-	acpi_status astatus;
 	int status;
 
-	if (gpiod_count(&serdev->dev, NULL) < 0)
-		return -ENODEV;
+	if (ssh) {
+		status = gpiod_count(dev, NULL);
+		if (status < 0)
+			return dev_err_probe(dev, status, "no GPIO found\n");
 
-	status = devm_acpi_dev_add_driver_gpios(&serdev->dev, ssam_acpi_gpios);
-	if (status)
-		return status;
+		status = devm_acpi_dev_add_driver_gpios(dev, ssam_acpi_gpios);
+		if (status)
+			return status;
+	}
 
 	/* Allocate controller. */
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
@@ -634,8 +658,10 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 
 	/* Initialize controller. */
 	status = ssam_controller_init(ctrl, serdev);
-	if (status)
+	if (status) {
+		dev_err_probe(dev, status, "failed to initialize ssam controller\n");
 		goto err_ctrl_init;
+	}
 
 	ssam_controller_lock(ctrl);
 
@@ -643,12 +669,14 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	serdev_device_set_drvdata(serdev, ctrl);
 	serdev_device_set_client_ops(serdev, &ssam_serdev_ops);
 	status = serdev_device_open(serdev);
-	if (status)
+	if (status) {
+		dev_err_probe(dev, status, "failed to open serdev device\n");
 		goto err_devopen;
+	}
 
-	astatus = ssam_serdev_setup_via_acpi(ssh->handle, serdev);
-	if (ACPI_FAILURE(astatus)) {
-		status = -ENXIO;
+	status = ssam_serdev_setup(ssh, serdev);
+	if (status) {
+		status = dev_err_probe(dev, status, "failed to setup serdev\n");
 		goto err_devinit;
 	}
 
@@ -664,25 +692,33 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	 * states.
 	 */
 	status = ssam_log_firmware_version(ctrl);
-	if (status)
+	if (status) {
+		dev_err_probe(dev, status, "failed to get firmware version\n");
 		goto err_initrq;
+	}
 
 	status = ssam_ctrl_notif_d0_entry(ctrl);
-	if (status)
+	if (status) {
+		dev_err_probe(dev, status, "D0-entry notification failed\n");
 		goto err_initrq;
+	}
 
 	status = ssam_ctrl_notif_display_on(ctrl);
-	if (status)
+	if (status) {
+		dev_err_probe(dev, status, "display-on notification failed\n");
 		goto err_initrq;
+	}
 
-	status = sysfs_create_group(&serdev->dev.kobj, &ssam_sam_group);
+	status = sysfs_create_group(&dev->kobj, &ssam_sam_group);
 	if (status)
 		goto err_initrq;
 
 	/* Set up IRQ. */
 	status = ssam_irq_setup(ctrl);
-	if (status)
+	if (status) {
+		dev_err_probe(dev, status, "failed to setup IRQ\n");
 		goto err_irq;
+	}
 
 	/* Finally, set main controller reference. */
 	status = ssam_try_set_controller(ctrl);
@@ -699,15 +735,31 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	 *       resumed. In short, this causes some spurious unwanted wake-ups.
 	 *       For now let's thus default power/wakeup to false.
 	 */
-	device_set_wakeup_capable(&serdev->dev, true);
-	acpi_dev_clear_dependencies(ssh);
+	device_set_wakeup_capable(dev, true);
+
+	/*
+	 * When using DT, we have to register the platform hub driver manually,
+	 * as it can't be matched based on top-level board compatible (like it
+	 * does the ACPI case).
+	 */
+	if (!ssh) {
+		struct platform_device *ph_pdev =
+			platform_device_register_simple("surface_aggregator_platform_hub",
+							0, NULL, 0);
+		if (IS_ERR(ph_pdev))
+			return dev_err_probe(dev, PTR_ERR(ph_pdev),
+					     "Failed to register the platform hub driver\n");
+	}
+
+	if (ssh)
+		acpi_dev_clear_dependencies(ssh);
 
 	return 0;
 
 err_mainref:
 	ssam_irq_free(ctrl);
 err_irq:
-	sysfs_remove_group(&serdev->dev.kobj, &ssam_sam_group);
+	sysfs_remove_group(&dev->kobj, &ssam_sam_group);
 err_initrq:
 	ssam_controller_lock(ctrl);
 	ssam_controller_shutdown(ctrl);
@@ -765,18 +817,27 @@ static void ssam_serial_hub_remove(struct serdev_device *serdev)
 	device_set_wakeup_capable(&serdev->dev, false);
 }
 
-static const struct acpi_device_id ssam_serial_hub_match[] = {
+static const struct acpi_device_id ssam_serial_hub_acpi_match[] = {
 	{ "MSHW0084", 0 },
 	{ },
 };
-MODULE_DEVICE_TABLE(acpi, ssam_serial_hub_match);
+MODULE_DEVICE_TABLE(acpi, ssam_serial_hub_acpi_match);
+
+#ifdef CONFIG_OF
+static const struct of_device_id ssam_serial_hub_of_match[] = {
+	{ .compatible = "microsoft,surface-sam", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ssam_serial_hub_of_match);
+#endif
 
 static struct serdev_device_driver ssam_serial_hub = {
 	.probe = ssam_serial_hub_probe,
 	.remove = ssam_serial_hub_remove,
 	.driver = {
 		.name = "surface_serial_hub",
-		.acpi_match_table = ssam_serial_hub_match,
+		.acpi_match_table = ACPI_PTR(ssam_serial_hub_acpi_match),
+		.of_match_table = of_match_ptr(ssam_serial_hub_of_match),
 		.pm = &ssam_serial_hub_pm_ops,
 		.shutdown = ssam_serial_hub_shutdown,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

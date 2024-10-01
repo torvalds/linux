@@ -30,42 +30,129 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "amdgpu_reset.h"
+#include "amdgpu_dev_coredump.h"
+#include "amdgpu_xgmi.h"
+
+static void amdgpu_job_do_core_dump(struct amdgpu_device *adev,
+				    struct amdgpu_job *job)
+{
+	int i;
+
+	dev_info(adev->dev, "Dumping IP State\n");
+	for (i = 0; i < adev->num_ip_blocks; i++)
+		if (adev->ip_blocks[i].version->funcs->dump_ip_state)
+			adev->ip_blocks[i].version->funcs
+				->dump_ip_state((void *)adev);
+	dev_info(adev->dev, "Dumping IP State Completed\n");
+
+	amdgpu_coredump(adev, true, false, job);
+}
+
+static void amdgpu_job_core_dump(struct amdgpu_device *adev,
+				 struct amdgpu_job *job)
+{
+	struct list_head device_list, *device_list_handle =  NULL;
+	struct amdgpu_device *tmp_adev = NULL;
+	struct amdgpu_hive_info *hive = NULL;
+
+	if (!amdgpu_sriov_vf(adev))
+		hive = amdgpu_get_xgmi_hive(adev);
+	if (hive)
+		mutex_lock(&hive->hive_lock);
+	/*
+	 * Reuse the logic in amdgpu_device_gpu_recover() to build list of
+	 * devices for code dump
+	 */
+	INIT_LIST_HEAD(&device_list);
+	if (!amdgpu_sriov_vf(adev) && (adev->gmc.xgmi.num_physical_nodes > 1) && hive) {
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head)
+			list_add_tail(&tmp_adev->reset_list, &device_list);
+		if (!list_is_first(&adev->reset_list, &device_list))
+			list_rotate_to_front(&adev->reset_list, &device_list);
+		device_list_handle = &device_list;
+	} else {
+		list_add_tail(&adev->reset_list, &device_list);
+		device_list_handle = &device_list;
+	}
+
+	/* Do the coredump for each device */
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list)
+		amdgpu_job_do_core_dump(tmp_adev, job);
+
+	if (hive) {
+		mutex_unlock(&hive->hive_lock);
+		amdgpu_put_xgmi_hive(hive);
+	}
+}
 
 static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 {
 	struct amdgpu_ring *ring = to_amdgpu_ring(s_job->sched);
 	struct amdgpu_job *job = to_amdgpu_job(s_job);
-	struct amdgpu_task_info ti;
+	struct amdgpu_task_info *ti;
 	struct amdgpu_device *adev = ring->adev;
 	int idx;
 	int r;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx)) {
-		DRM_INFO("%s - device unplugged skipping recovery on scheduler:%s",
+		dev_info(adev->dev, "%s - device unplugged skipping recovery on scheduler:%s",
 			 __func__, s_job->sched->name);
 
 		/* Effectively the job is aborted as the device is gone */
 		return DRM_GPU_SCHED_STAT_ENODEV;
 	}
 
-	memset(&ti, 0, sizeof(struct amdgpu_task_info));
 	adev->job_hang = true;
+
+	/*
+	 * Do the coredump immediately after a job timeout to get a very
+	 * close dump/snapshot/representation of GPU's current error status
+	 * Skip it for SRIOV, since VF FLR will be triggered by host driver
+	 * before job timeout
+	 */
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_job_core_dump(adev, job);
 
 	if (amdgpu_gpu_recovery &&
 	    amdgpu_ring_soft_recovery(ring, job->vmid, s_job->s_fence->parent)) {
-		DRM_ERROR("ring %s timeout, but soft recovered\n",
-			  s_job->sched->name);
+		dev_err(adev->dev, "ring %s timeout, but soft recovered\n",
+			s_job->sched->name);
 		goto exit;
 	}
 
-	amdgpu_vm_get_task_info(ring->adev, job->pasid, &ti);
-	DRM_ERROR("ring %s timeout, signaled seq=%u, emitted seq=%u\n",
-		  job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
-		  ring->fence_drv.sync_seq);
-	DRM_ERROR("Process information: process %s pid %d thread %s pid %d\n",
-		  ti.process_name, ti.tgid, ti.task_name, ti.pid);
+	dev_err(adev->dev, "ring %s timeout, signaled seq=%u, emitted seq=%u\n",
+		job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
+		ring->fence_drv.sync_seq);
+
+	ti = amdgpu_vm_get_task_info_pasid(ring->adev, job->pasid);
+	if (ti) {
+		dev_err(adev->dev,
+			"Process information: process %s pid %d thread %s pid %d\n",
+			ti->process_name, ti->tgid, ti->task_name, ti->pid);
+		amdgpu_vm_put_task_info(ti);
+	}
 
 	dma_fence_set_error(&s_job->s_fence->finished, -ETIME);
+
+	/* attempt a per ring reset */
+	if (amdgpu_gpu_recovery &&
+	    ring->funcs->reset) {
+		/* stop the scheduler, but don't mess with the
+		 * bad job yet because if ring reset fails
+		 * we'll fall back to full GPU reset.
+		 */
+		drm_sched_wqueue_stop(&ring->sched);
+		r = amdgpu_ring_reset(ring, job->vmid);
+		if (!r) {
+			if (amdgpu_ring_sched_ready(ring))
+				drm_sched_stop(&ring->sched, s_job);
+			atomic_inc(&ring->adev->gpu_reset_counter);
+			amdgpu_fence_driver_force_completion(ring);
+			if (amdgpu_ring_sched_ready(ring))
+				drm_sched_start(&ring->sched);
+			goto exit;
+		}
+	}
 
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {
 		struct amdgpu_reset_context reset_context;
@@ -73,11 +160,18 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 
 		reset_context.method = AMD_RESET_METHOD_NONE;
 		reset_context.reset_req_dev = adev;
+		reset_context.src = AMDGPU_RESET_SRC_JOB;
 		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+		/*
+		 * To avoid an unnecessary extra coredump, as we have already
+		 * got the very close representation of GPU's error status
+		 */
+		set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);
 
 		r = amdgpu_device_gpu_recover(ring->adev, job, &reset_context);
 		if (r)
-			DRM_ERROR("GPU Recovery Failed: %d\n", r);
+			dev_err(adev->dev, "GPU Recovery Failed: %d\n", r);
 	} else {
 		drm_sched_suspend_timeout(&ring->sched);
 		if (amdgpu_sriov_vf(adev))
@@ -115,7 +209,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (!entity)
 		return 0;
 
-	return drm_sched_job_init(&(*job)->base, entity, owner);
+	return drm_sched_job_init(&(*job)->base, entity, 1, owner);
 }
 
 int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev,
@@ -258,9 +352,8 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 	struct dma_fence *fence = NULL;
 	int r;
 
-	/* Ignore soft recovered fences here */
 	r = drm_sched_entity_error(s_entity);
-	if (r && r != -ENODATA)
+	if (r)
 		goto error;
 
 	if (!fence && job->gang_submit)
@@ -269,7 +362,7 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 	while (!fence && job->vm && !job->vmid) {
 		r = amdgpu_vmid_grab(job->vm, ring, job, &fence);
 		if (r) {
-			DRM_ERROR("Error getting VM ID (%d)\n", r);
+			dev_err(ring->adev->dev, "Error getting VM ID (%d)\n", r);
 			goto error;
 		}
 	}
@@ -300,12 +393,15 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 		dma_fence_set_error(finished, -ECANCELED);
 
 	if (finished->error < 0) {
-		DRM_INFO("Skip scheduling IBs!\n");
+		dev_dbg(adev->dev, "Skip scheduling IBs in ring(%s)",
+			ring->name);
 	} else {
 		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs, job,
 				       &fence);
 		if (r)
-			DRM_ERROR("Error scheduling IBs (%d)\n", r);
+			dev_err(adev->dev,
+				"Error scheduling IBs (%d) in ring(%s)", r,
+				ring->name);
 	}
 
 	job->job_run_counter++;
@@ -325,8 +421,8 @@ void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
 	int i;
 
 	/* Signal all jobs not yet scheduled */
-	for (i = DRM_SCHED_PRIORITY_COUNT - 1; i >= DRM_SCHED_PRIORITY_MIN; i--) {
-		struct drm_sched_rq *rq = &sched->sched_rq[i];
+	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++) {
+		struct drm_sched_rq *rq = sched->sched_rq[i];
 		spin_lock(&rq->lock);
 		list_for_each_entry(s_entity, &rq->entities, list) {
 			while ((s_job = to_drm_sched_job(spsc_queue_pop(&s_entity->job_queue)))) {

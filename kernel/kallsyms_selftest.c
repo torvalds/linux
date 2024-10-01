@@ -82,14 +82,13 @@ static struct test_item test_items[] = {
 	ITEM_FUNC(kallsyms_test_func_static),
 	ITEM_FUNC(kallsyms_test_func),
 	ITEM_FUNC(kallsyms_test_func_weak),
-	ITEM_FUNC(vmalloc),
+	ITEM_FUNC(vmalloc_noprof),
 	ITEM_FUNC(vfree),
 #ifdef CONFIG_KALLSYMS_ALL
 	ITEM_DATA(kallsyms_test_var_bss_static),
 	ITEM_DATA(kallsyms_test_var_data_static),
 	ITEM_DATA(kallsyms_test_var_bss),
 	ITEM_DATA(kallsyms_test_var_data),
-	ITEM_DATA(vmap_area_list),
 #endif
 };
 
@@ -188,31 +187,11 @@ static void test_perf_kallsyms_lookup_name(void)
 		stat.min, stat.max, div_u64(stat.sum, stat.real_cnt));
 }
 
-static bool match_cleanup_name(const char *s, const char *name)
-{
-	char *p;
-	int len;
-
-	if (!IS_ENABLED(CONFIG_LTO_CLANG))
-		return false;
-
-	p = strchr(s, '.');
-	if (!p)
-		return false;
-
-	len = strlen(name);
-	if (p - s != len)
-		return false;
-
-	return !strncmp(s, name, len);
-}
-
 static int find_symbol(void *data, const char *name, unsigned long addr)
 {
 	struct test_stat *stat = (struct test_stat *)data;
 
-	if (strcmp(name, stat->name) == 0 ||
-	    (!stat->perf && match_cleanup_name(name, stat->name))) {
+	if (!strcmp(name, stat->name)) {
 		stat->real_cnt++;
 		stat->addr = addr;
 
@@ -341,29 +320,9 @@ static int test_kallsyms_basic_function(void)
 		ret = lookup_symbol_name(addr, namebuf);
 		if (unlikely(ret)) {
 			namebuf[0] = 0;
+			pr_info("%d: lookup_symbol_name(%lx) failed\n", i, addr);
 			goto failed;
 		}
-
-		/*
-		 * The first '.' may be the initial letter, in which case the
-		 * entire symbol name will be truncated to an empty string in
-		 * cleanup_symbol_name(). Do not test these symbols.
-		 *
-		 * For example:
-		 * cat /proc/kallsyms | awk '{print $3}' | grep -E "^\." | head
-		 * .E_read_words
-		 * .E_leading_bytes
-		 * .E_trailing_bytes
-		 * .E_write_words
-		 * .E_copy
-		 * .str.292.llvm.12122243386960820698
-		 * .str.24.llvm.12122243386960820698
-		 * .str.29.llvm.12122243386960820698
-		 * .str.75.llvm.12122243386960820698
-		 * .str.99.llvm.12122243386960820698
-		 */
-		if (IS_ENABLED(CONFIG_LTO_CLANG) && !namebuf[0])
-			continue;
 
 		lookup_addr = kallsyms_lookup_name(namebuf);
 
@@ -388,8 +347,11 @@ static int test_kallsyms_basic_function(void)
 			if (stat->addr != stat2->addr ||
 			    stat->real_cnt != stat2->real_cnt ||
 			    memcmp(stat->addrs, stat2->addrs,
-				   stat->save_cnt * sizeof(stat->addrs[0])))
+				   stat->save_cnt * sizeof(stat->addrs[0]))) {
+				pr_info("%s: mismatch between kallsyms_on_each_symbol() and kallsyms_on_each_match_symbol()\n",
+					namebuf);
 				goto failed;
+			}
 
 			/*
 			 * The average of random increments is 128, that is, one of
@@ -400,15 +362,23 @@ static int test_kallsyms_basic_function(void)
 		}
 
 		/* Need to be found at least once */
-		if (!stat->real_cnt)
+		if (!stat->real_cnt) {
+			pr_info("%s: Never found\n", namebuf);
 			goto failed;
+		}
 
 		/*
 		 * kallsyms_lookup_name() returns the address of the first
 		 * symbol found and cannot be NULL.
 		 */
-		if (!lookup_addr || lookup_addr != stat->addrs[0])
+		if (!lookup_addr) {
+			pr_info("%s: NULL lookup_addr?!\n", namebuf);
 			goto failed;
+		}
+		if (lookup_addr != stat->addrs[0]) {
+			pr_info("%s: lookup_addr != stat->addrs[0]\n", namebuf);
+			goto failed;
+		}
 
 		/*
 		 * If the addresses of all matching symbols are recorded, the
@@ -420,8 +390,10 @@ static int test_kallsyms_basic_function(void)
 					break;
 			}
 
-			if (j == stat->save_cnt)
+			if (j == stat->save_cnt) {
+				pr_info("%s: j == save_cnt?!\n", namebuf);
 				goto failed;
+			}
 		}
 	}
 

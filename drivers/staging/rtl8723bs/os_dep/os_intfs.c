@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <hal_data.h>
 
 MODULE_LICENSE("GPL");
@@ -415,7 +414,7 @@ static int rtw_ndev_init(struct net_device *dev)
 	struct adapter *adapter = rtw_netdev_priv(dev);
 
 	netdev_dbg(dev, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
-	strncpy(adapter->old_ifname, dev->name, IFNAMSIZ);
+	strscpy(adapter->old_ifname, dev->name);
 
 	return 0;
 }

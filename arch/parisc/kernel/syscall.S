@@ -39,6 +39,7 @@ registers).
 #include <asm/assembly.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
+#include <asm/spinlock_types.h>
 
 #include <linux/linkage.h>
 
@@ -64,6 +65,16 @@ registers).
 	ldw	0(%sr2,\reg2), \reg1
 	ldo	-1(\reg1), \reg1
 	stw	\reg1, 0(%sr2,\reg2)
+	.endm
+
+	/* raise exception if spinlock content is not zero or
+	 * __ARCH_SPIN_LOCK_UNLOCKED_VAL */
+	.macro	spinlock_check spin_val,tmpreg
+#ifdef CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK
+	ldi	__ARCH_SPIN_LOCK_UNLOCKED_VAL, \tmpreg
+	andcm,=	\spin_val, \tmpreg, %r0
+	.word	SPINLOCK_BREAK_INSN
+#endif
 	.endm
 
 	.text
@@ -232,10 +243,10 @@ linux_gateway_entry:
 
 #ifdef CONFIG_64BIT
 	ldil	L%sys_call_table, %r1
-	or,=	%r2,%r2,%r2
-	addil	L%(sys_call_table64-sys_call_table), %r1
+	or,ev	%r2,%r2,%r2
+	ldil	L%sys_call_table64, %r1
 	ldo	R%sys_call_table(%r1), %r19
-	or,=	%r2,%r2,%r2
+	or,ev	%r2,%r2,%r2
 	ldo	R%sys_call_table64(%r1), %r19
 #else
 	load32	sys_call_table, %r19
@@ -368,10 +379,10 @@ tracesys_next:
 	extrd,u	%r19,63,1,%r2			/* W hidden in bottom bit */
 
 	ldil	L%sys_call_table, %r1
-	or,=	%r2,%r2,%r2
-	addil	L%(sys_call_table64-sys_call_table), %r1
+	or,ev	%r2,%r2,%r2
+	ldil	L%sys_call_table64, %r1
 	ldo	R%sys_call_table(%r1), %r19
-	or,=	%r2,%r2,%r2
+	or,ev	%r2,%r2,%r2
 	ldo	R%sys_call_table64(%r1), %r19
 #else
 	load32	sys_call_table, %r19
@@ -508,7 +519,8 @@ lws_start:
 
 lws_exit_noerror:
 	lws_pagefault_enable	%r1,%r21
-	stw,ma	%r20, 0(%sr2,%r20)
+	ldi	__ARCH_SPIN_LOCK_UNLOCKED_VAL, %r21
+	stw,ma	%r21, 0(%sr2,%r20)
 	ssm	PSW_SM_I, %r0
 	b	lws_exit
 	copy	%r0, %r21
@@ -521,7 +533,8 @@ lws_wouldblock:
 
 lws_pagefault:
 	lws_pagefault_enable	%r1,%r21
-	stw,ma	%r20, 0(%sr2,%r20)
+	ldi	__ARCH_SPIN_LOCK_UNLOCKED_VAL, %r21
+	stw,ma	%r21, 0(%sr2,%r20)
 	ssm	PSW_SM_I, %r0
 	ldo	3(%r0),%r28
 	b	lws_exit
@@ -619,6 +632,7 @@ lws_compare_and_swap:
 
 	/* Try to acquire the lock */
 	LDCW	0(%sr2,%r20), %r28
+	spinlock_check	%r28, %r21
 	comclr,<>	%r0, %r28, %r0
 	b,n	lws_wouldblock
 
@@ -772,6 +786,7 @@ cas2_lock_start:
 
 	/* Try to acquire the lock */
 	LDCW	0(%sr2,%r20), %r28
+	spinlock_check	%r28, %r21
 	comclr,<>	%r0, %r28, %r0
 	b,n	lws_wouldblock
 
@@ -1001,6 +1016,7 @@ atomic_xchg_start:
 
 	/* Try to acquire the lock */
 	LDCW	0(%sr2,%r20), %r28
+	spinlock_check	%r28, %r21
 	comclr,<>	%r0, %r28, %r0
 	b,n	lws_wouldblock
 
@@ -1199,6 +1215,7 @@ atomic_store_start:
 
 	/* Try to acquire the lock */
 	LDCW	0(%sr2,%r20), %r28
+	spinlock_check	%r28, %r21
 	comclr,<>	%r0, %r28, %r0
 	b,n	lws_wouldblock
 
@@ -1310,6 +1327,8 @@ ENTRY(sys_call_table)
 END(sys_call_table)
 
 #ifdef CONFIG_64BIT
+#undef __SYSCALL_WITH_COMPAT
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
 	.align 8
 ENTRY(sys_call_table64)
 #include <asm/syscall_table_64.h>    /* 64-bit syscalls */
@@ -1330,7 +1349,7 @@ ENTRY(lws_lock_start)
 	/* lws locks */
 	.rept 256
 	/* Keep locks aligned at 16-bytes */
-	.word 1
+	.word __ARCH_SPIN_LOCK_UNLOCKED_VAL
 	.word 0 
 	.word 0
 	.word 0

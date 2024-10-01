@@ -450,8 +450,6 @@ static int vce_v3_0_sw_init(void *handle)
 			return r;
 	}
 
-	r = amdgpu_vce_entity_init(adev);
-
 	return r;
 }
 
@@ -915,6 +913,8 @@ static const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.set_clockgating_state = vce_v3_0_set_clockgating_state,
 	.set_powergating_state = vce_v3_0_set_powergating_state,
 	.get_clockgating_state = vce_v3_0_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
@@ -950,7 +950,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
-	.parse_cs = amdgpu_vce_ring_parse_cs_vm,
+	.patch_cs_in_place = amdgpu_vce_ring_parse_cs_vm,
 	.emit_frame_size =
 		6 + /* vce_v3_0_emit_vm_flush */
 		4 + /* vce_v3_0_emit_pipeline_sync */
@@ -998,8 +998,7 @@ static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->vce.irq.funcs = &vce_v3_0_irq_funcs;
 };
 
-const struct amdgpu_ip_block_version vce_v3_0_ip_block =
-{
+const struct amdgpu_ip_block_version vce_v3_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
 	.minor = 0,
@@ -1007,8 +1006,7 @@ const struct amdgpu_ip_block_version vce_v3_0_ip_block =
 	.funcs = &vce_v3_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version vce_v3_1_ip_block =
-{
+const struct amdgpu_ip_block_version vce_v3_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
 	.minor = 1,
@@ -1016,8 +1014,7 @@ const struct amdgpu_ip_block_version vce_v3_1_ip_block =
 	.funcs = &vce_v3_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version vce_v3_4_ip_block =
-{
+const struct amdgpu_ip_block_version vce_v3_4_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 3,
 	.minor = 4,

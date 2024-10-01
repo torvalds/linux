@@ -23,11 +23,11 @@ static int regcache_flat_init(struct regmap *map)
 	int i;
 	unsigned int *cache;
 
-	if (!map || map->reg_stride_order < 0 || !map->max_register)
+	if (!map || map->reg_stride_order < 0 || !map->max_register_is_set)
 		return -EINVAL;
 
 	map->cache = kcalloc(regcache_flat_get_index(map, map->max_register)
-			     + 1, sizeof(unsigned int), GFP_KERNEL);
+			     + 1, sizeof(unsigned int), map->alloc_flags);
 	if (!map->cache)
 		return -ENOMEM;
 

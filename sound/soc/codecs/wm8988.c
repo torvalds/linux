@@ -832,7 +832,7 @@ static const struct regmap_config wm8988_regmap = {
 	.max_register = WM8988_LPPB,
 	.writeable_reg = wm8988_writeable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8988_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8988_reg_defaults),
 };
@@ -896,7 +896,7 @@ static int wm8988_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8988_i2c_id[] = {
-	{ "wm8988", 0 },
+	{ "wm8988" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8988_i2c_id);

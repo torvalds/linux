@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <regex.h>
 #include <test_progs.h>
 #include <network_helpers.h>
 
@@ -12,19 +13,23 @@ static struct {
 	const char *err_msg;
 } spin_lock_fail_tests[] = {
 	{ "lock_id_kptr_preserve",
-	  "5: (bf) r1 = r0                       ; R0_w=ptr_foo(id=2,ref_obj_id=2,off=0,imm=0) "
-	  "R1_w=ptr_foo(id=2,ref_obj_id=2,off=0,imm=0) refs=2\n6: (85) call bpf_this_cpu_ptr#154\n"
+	  "5: (bf) r1 = r0                       ; R0_w=ptr_foo(id=2,ref_obj_id=2) "
+	  "R1_w=ptr_foo(id=2,ref_obj_id=2) refs=2\n6: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=ptr_ expected=percpu_ptr_" },
 	{ "lock_id_global_zero",
-	  "; R1_w=map_value(off=0,ks=4,vs=4,imm=0)\n2: (85) call bpf_this_cpu_ptr#154\n"
+	  "; R1_w=map_value(map=.data.A,ks=4,vs=4)\n2: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=map_value expected=percpu_ptr_" },
 	{ "lock_id_mapval_preserve",
-	  "8: (bf) r1 = r0                       ; R0_w=map_value(id=1,off=0,ks=4,vs=8,imm=0) "
-	  "R1_w=map_value(id=1,off=0,ks=4,vs=8,imm=0)\n9: (85) call bpf_this_cpu_ptr#154\n"
+	  "[0-9]\\+: (bf) r1 = r0                       ;"
+	  " R0_w=map_value(id=1,map=array_map,ks=4,vs=8)"
+	  " R1_w=map_value(id=1,map=array_map,ks=4,vs=8)\n"
+	  "[0-9]\\+: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=map_value expected=percpu_ptr_" },
 	{ "lock_id_innermapval_preserve",
-	  "13: (bf) r1 = r0                      ; R0=map_value(id=2,off=0,ks=4,vs=8,imm=0) "
-	  "R1_w=map_value(id=2,off=0,ks=4,vs=8,imm=0)\n14: (85) call bpf_this_cpu_ptr#154\n"
+	  "[0-9]\\+: (bf) r1 = r0                      ;"
+	  " R0=map_value(id=2,ks=4,vs=8)"
+	  " R1_w=map_value(id=2,ks=4,vs=8)\n"
+	  "[0-9]\\+: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=map_value expected=percpu_ptr_" },
 	{ "lock_id_mismatch_kptr_kptr", "bpf_spin_unlock of different lock" },
 	{ "lock_id_mismatch_kptr_global", "bpf_spin_unlock of different lock" },
@@ -43,7 +48,27 @@ static struct {
 	{ "lock_id_mismatch_innermapval_kptr", "bpf_spin_unlock of different lock" },
 	{ "lock_id_mismatch_innermapval_global", "bpf_spin_unlock of different lock" },
 	{ "lock_id_mismatch_innermapval_mapval", "bpf_spin_unlock of different lock" },
+	{ "lock_global_subprog_call1", "global function calls are not allowed while holding a lock" },
+	{ "lock_global_subprog_call2", "global function calls are not allowed while holding a lock" },
 };
+
+static int match_regex(const char *pattern, const char *string)
+{
+	int err, rc;
+	regex_t re;
+
+	err = regcomp(&re, pattern, REG_NOSUB);
+	if (err) {
+		char errbuf[512];
+
+		regerror(err, &re, errbuf, sizeof(errbuf));
+		PRINT_FAIL("Can't compile regex: %s\n", errbuf);
+		return -1;
+	}
+	rc = regexec(&re, string, 0, NULL, 0);
+	regfree(&re);
+	return rc == 0 ? 1 : 0;
+}
 
 static void test_spin_lock_fail_prog(const char *prog_name, const char *err_msg)
 {
@@ -74,7 +99,11 @@ static void test_spin_lock_fail_prog(const char *prog_name, const char *err_msg)
 		goto end;
 	}
 
-	if (!ASSERT_OK_PTR(strstr(log_buf, err_msg), "expected error message")) {
+	ret = match_regex(err_msg, log_buf);
+	if (!ASSERT_GE(ret, 0, "match_regex"))
+		goto end;
+
+	if (!ASSERT_TRUE(ret, "no match for expected error message")) {
 		fprintf(stderr, "Expected: %s\n", err_msg);
 		fprintf(stderr, "Verifier: %s\n", log_buf);
 	}

@@ -21,6 +21,7 @@
 
 #include <asm/current.h>
 #include <asm/debug-monitors.h>
+#include <asm/esr.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/traps.h>
 #include <asm/cputype.h>
@@ -779,7 +780,7 @@ static int watchpoint_handler(unsigned long addr, unsigned long esr,
 		 * Check that the access type matches.
 		 * 0 => load, otherwise => store
 		 */
-		access = (esr & AARCH64_ESR_ACCESS_MASK) ? HW_BREAKPOINT_W :
+		access = (esr & ESR_ELx_WNR) ? HW_BREAKPOINT_W :
 			 HW_BREAKPOINT_R;
 		if (!(access & hw_breakpoint_type(wp)))
 			continue;

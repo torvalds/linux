@@ -3,7 +3,7 @@
 # Building
 # ==========================================================================
 
-src := $(obj)
+src := $(if $(VPATH),$(VPATH)/)$(obj)
 
 PHONY := $(obj)/
 $(obj)/:
@@ -40,20 +40,6 @@ include $(srctree)/scripts/Kbuild.include
 include $(srctree)/scripts/Makefile.compiler
 include $(kbuild-file)
 include $(srctree)/scripts/Makefile.lib
-
-# Do not include hostprogs rules unless needed.
-# $(sort ...) is used here to remove duplicated words and excessive spaces.
-hostprogs := $(sort $(hostprogs))
-ifneq ($(hostprogs),)
-include $(srctree)/scripts/Makefile.host
-endif
-
-# Do not include userprogs rules unless needed.
-# $(sort ...) is used here to remove duplicated words and excessive spaces.
-userprogs := $(sort $(userprogs))
-ifneq ($(userprogs),)
-include $(srctree)/scripts/Makefile.userprogs
-endif
 
 ifndef obj
 $(warning kbuild: Makefile.build is included improperly)
@@ -112,13 +98,13 @@ endif
 quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
       cmd_cc_s_c = $(CC) $(filter-out $(DEBUG_CFLAGS) $(CC_FLAGS_LTO), $(c_flags)) -fverbose-asm -S -o $@ $<
 
-$(obj)/%.s: $(src)/%.c FORCE
+$(obj)/%.s: $(obj)/%.c FORCE
 	$(call if_changed_dep,cc_s_c)
 
 quiet_cmd_cpp_i_c = CPP $(quiet_modtag) $@
 cmd_cpp_i_c       = $(CPP) $(c_flags) -o $@ $<
 
-$(obj)/%.i: $(src)/%.c FORCE
+$(obj)/%.i: $(obj)/%.c FORCE
 	$(call if_changed_dep,cpp_i_c)
 
 genksyms = scripts/genksyms/genksyms		\
@@ -132,7 +118,7 @@ cmd_gensymtypes_c = $(CPP) -D__GENKSYMS__ $(c_flags) $< | $(genksyms)
 quiet_cmd_cc_symtypes_c = SYM $(quiet_modtag) $@
       cmd_cc_symtypes_c = $(call cmd_gensymtypes_c,true,$@) >/dev/null
 
-$(obj)/%.symtypes : $(src)/%.c FORCE
+$(obj)/%.symtypes : $(obj)/%.c FORCE
 	$(call cmd,cc_symtypes_c)
 
 # LLVM assembly
@@ -140,7 +126,7 @@ $(obj)/%.symtypes : $(src)/%.c FORCE
 quiet_cmd_cc_ll_c = CC $(quiet_modtag)  $@
       cmd_cc_ll_c = $(CC) $(c_flags) -emit-llvm -S -fno-discard-value-names -o $@ $<
 
-$(obj)/%.ll: $(src)/%.c FORCE
+$(obj)/%.ll: $(obj)/%.c FORCE
 	$(call if_changed_dep,cc_ll_c)
 
 # C (.c) files
@@ -213,9 +199,9 @@ endif # CONFIG_FTRACE_MCOUNT_USE_RECORDMCOUNT
 # 'OBJECT_FILES_NON_STANDARD_foo.o := 'y': skip objtool checking for a file
 # 'OBJECT_FILES_NON_STANDARD_foo.o := 'n': override directory skip for a file
 
-is-standard-object = $(if $(filter-out y%, $(OBJECT_FILES_NON_STANDARD_$(basetarget).o)$(OBJECT_FILES_NON_STANDARD)n),y)
+is-standard-object = $(if $(filter-out y%, $(OBJECT_FILES_NON_STANDARD_$(target-stem).o)$(OBJECT_FILES_NON_STANDARD)n),$(is-kernel-object))
 
-$(obj)/%.o: objtool-enabled = $(if $(is-standard-object),$(if $(delay-objtool),$(is-single-obj-m),y))
+$(obj)/%.o: private objtool-enabled = $(if $(is-standard-object),$(if $(delay-objtool),$(is-single-obj-m),y))
 
 ifneq ($(findstring 1, $(KBUILD_EXTRA_WARN)),)
 cmd_warn_shared_object = $(if $(word 2, $(modname-multi)),$(warning $(kbuild-file): $*.o is added to multiple modules: $(modname-multi)))
@@ -239,7 +225,7 @@ define rule_as_o_S
 endef
 
 # Built-in and composite module parts
-$(obj)/%.o: $(src)/%.c $(recordmcount_source) FORCE
+$(obj)/%.o: $(obj)/%.c $(recordmcount_source) FORCE
 	$(call if_changed_rule,cc_o_c)
 	$(call cmd,force_checksrc)
 
@@ -256,7 +242,7 @@ quiet_cmd_cc_lst_c = MKLST   $@
 		     $(CONFIG_SHELL) $(srctree)/scripts/makelst $*.o \
 				     System.map $(OBJDUMP) > $@
 
-$(obj)/%.lst: $(src)/%.c FORCE
+$(obj)/%.lst: $(obj)/%.c FORCE
 	$(call if_changed_dep,cc_lst_c)
 
 # Compile Rust sources (.rs)
@@ -264,15 +250,19 @@ $(obj)/%.lst: $(src)/%.c FORCE
 
 rust_allowed_features := new_uninit
 
+# `--out-dir` is required to avoid temporaries being created by `rustc` in the
+# current working directory, which may be not accessible in the out-of-tree
+# modules case.
 rust_common_cmd = \
 	RUST_MODFILE=$(modfile) $(RUSTC_OR_CLIPPY) $(rust_flags) \
 	-Zallow-features=$(rust_allowed_features) \
 	-Zcrate-attr=no_std \
 	-Zcrate-attr='feature($(rust_allowed_features))' \
-	--extern alloc --extern kernel \
+	-Zunstable-options --extern force:alloc --extern kernel \
 	--crate-type rlib -L $(objtree)/rust/ \
 	--crate-name $(basename $(notdir $@)) \
-	--emit=dep-info=$(depfile)
+	--sysroot=/dev/null \
+	--out-dir $(dir $@) --emit=dep-info=$(depfile)
 
 # `--emit=obj`, `--emit=asm` and `--emit=llvm-ir` imply a single codegen unit
 # will be used. We explicitly request `-Ccodegen-units=1` in any case, and
@@ -283,30 +273,35 @@ rust_common_cmd = \
 # would not match each other.
 
 quiet_cmd_rustc_o_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
-      cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $<
+      cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $< $(cmd_objtool)
 
-$(obj)/%.o: $(src)/%.rs FORCE
-	$(call if_changed_dep,rustc_o_rs)
+define rule_rustc_o_rs
+	$(call cmd_and_fixdep,rustc_o_rs)
+	$(call cmd,gen_objtooldep)
+endef
+
+$(obj)/%.o: $(obj)/%.rs FORCE
+	+$(call if_changed_rule,rustc_o_rs)
 
 quiet_cmd_rustc_rsi_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
       cmd_rustc_rsi_rs = \
 	$(rust_common_cmd) -Zunpretty=expanded $< >$@; \
 	command -v $(RUSTFMT) >/dev/null && $(RUSTFMT) $@
 
-$(obj)/%.rsi: $(src)/%.rs FORCE
-	$(call if_changed_dep,rustc_rsi_rs)
+$(obj)/%.rsi: $(obj)/%.rs FORCE
+	+$(call if_changed_dep,rustc_rsi_rs)
 
 quiet_cmd_rustc_s_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
       cmd_rustc_s_rs = $(rust_common_cmd) --emit=asm=$@ $<
 
-$(obj)/%.s: $(src)/%.rs FORCE
-	$(call if_changed_dep,rustc_s_rs)
+$(obj)/%.s: $(obj)/%.rs FORCE
+	+$(call if_changed_dep,rustc_s_rs)
 
 quiet_cmd_rustc_ll_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
       cmd_rustc_ll_rs = $(rust_common_cmd) --emit=llvm-ir=$@ $<
 
-$(obj)/%.ll: $(src)/%.rs FORCE
-	$(call if_changed_dep,rustc_ll_rs)
+$(obj)/%.ll: $(obj)/%.rs FORCE
+	+$(call if_changed_dep,rustc_ll_rs)
 
 # Compile assembler sources (.S)
 # ---------------------------------------------------------------------------
@@ -331,14 +326,14 @@ cmd_gensymtypes_S =                                                         \
 quiet_cmd_cc_symtypes_S = SYM $(quiet_modtag) $@
       cmd_cc_symtypes_S = $(call cmd_gensymtypes_S,true,$@) >/dev/null
 
-$(obj)/%.symtypes : $(src)/%.S FORCE
+$(obj)/%.symtypes : $(obj)/%.S FORCE
 	$(call cmd,cc_symtypes_S)
 
 
 quiet_cmd_cpp_s_S = CPP $(quiet_modtag) $@
 cmd_cpp_s_S       = $(CPP) $(a_flags) -o $@ $<
 
-$(obj)/%.s: $(src)/%.S FORCE
+$(obj)/%.s: $(obj)/%.S FORCE
 	$(call if_changed_dep,cpp_s_S)
 
 quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
@@ -353,12 +348,12 @@ cmd_gen_symversions_S = $(call gen_symversions,S)
 
 endif
 
-$(obj)/%.o: $(src)/%.S FORCE
+$(obj)/%.o: $(obj)/%.S FORCE
 	$(call if_changed_rule,as_o_S)
 
 targets += $(filter-out $(subdir-builtin), $(real-obj-y))
 targets += $(filter-out $(subdir-modorder), $(real-obj-m))
-targets += $(real-dtb-y) $(lib-y) $(always-y)
+targets += $(lib-y) $(always-y)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -399,20 +394,15 @@ quiet_cmd_ar_builtin = AR      $@
 $(obj)/built-in.a: $(real-obj-y) FORCE
 	$(call if_changed,ar_builtin)
 
-#
-# Rule to create modules.order file
-#
-# Create commands to either record .ko file or cat modules.order from
-# a subdirectory
-# Add $(obj-m) as the prerequisite to avoid updating the timestamp of
-# modules.order unless contained modules are updated.
+# This is a list of build artifacts from the current Makefile and its
+# sub-directories. The timestamp should be updated when any of the member files.
 
-cmd_modules_order = { $(foreach m, $(real-prereqs), \
-	$(if $(filter %/modules.order, $m), cat $m, echo $m);) :; } \
+cmd_gen_order = { $(foreach m, $(real-prereqs), \
+	$(if $(filter %/$(notdir $@), $m), cat $m, echo $m);) :; } \
 	> $@
 
 $(obj)/modules.order: $(obj-m) FORCE
-	$(call if_changed,modules_order)
+	$(call if_changed,gen_order)
 
 #
 # Rule to compile a set of .o files into one .a file (with symbol table)
@@ -422,15 +412,15 @@ $(obj)/lib.a: $(lib-y) FORCE
 	$(call if_changed,ar)
 
 quiet_cmd_ld_multi_m = LD [M]  $@
-      cmd_ld_multi_m = $(LD) $(ld_flags) -r -o $@ @$(patsubst %.o,%.mod,$@) $(cmd_objtool)
+      cmd_ld_multi_m = $(LD) $(ld_flags) -r -o $@ @$< $(cmd_objtool)
 
 define rule_ld_multi_m
 	$(call cmd_and_savecmd,ld_multi_m)
 	$(call cmd,gen_objtooldep)
 endef
 
-$(multi-obj-m): objtool-enabled := $(delay-objtool)
-$(multi-obj-m): part-of-module := y
+$(multi-obj-m): private objtool-enabled := $(delay-objtool)
+$(multi-obj-m): private part-of-module := y
 $(multi-obj-m): %.o: %.mod FORCE
 	$(call if_changed_rule,ld_multi_m)
 $(call multi_depend, $(multi-obj-m), .o, -objs -y -m)
@@ -442,15 +432,26 @@ intermediate_targets = $(foreach sfx, $(2), \
 				$(patsubst %$(strip $(1)),%$(sfx), \
 					$(filter %$(strip $(1)), $(targets))))
 # %.asn1.o <- %.asn1.[ch] <- %.asn1
-# %.dtb.o <- %.dtb.S <- %.dtb <- %.dts
-# %.dtbo.o <- %.dtbo.S <- %.dtbo <- %.dtso
-# %.lex.o <- %.lex.c <- %.l
-# %.tab.o <- %.tab.[ch] <- %.y
-targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
-	   $(call intermediate_targets, .dtb.o, .dtb.S .dtb) \
-	   $(call intermediate_targets, .dtbo.o, .dtbo.S .dtbo) \
-	   $(call intermediate_targets, .lex.o, .lex.c) \
-	   $(call intermediate_targets, .tab.o, .tab.c .tab.h)
+targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h)
+
+# Include additional build rules when necessary
+# ---------------------------------------------------------------------------
+
+# $(sort ...) is used here to remove duplicated words and excessive spaces.
+hostprogs := $(sort $(hostprogs))
+ifneq ($(hostprogs),)
+include $(srctree)/scripts/Makefile.host
+endif
+
+# $(sort ...) is used here to remove duplicated words and excessive spaces.
+userprogs := $(sort $(userprogs))
+ifneq ($(userprogs),)
+include $(srctree)/scripts/Makefile.userprogs
+endif
+
+ifneq ($(need-dtbslist)$(dtb-y)$(dtb-)$(filter %.dtb %.dtb.o %.dtbo.o,$(targets)),)
+include $(srctree)/scripts/Makefile.dtbs
+endif
 
 # Build
 # ---------------------------------------------------------------------------
@@ -479,7 +480,7 @@ $(subdir-ym):
 	need-modorder=$(if $(filter $@/modules.order, $(subdir-modorder)),1) \
 	$(filter $@/%, $(single-subdir-goals))
 
-# Add FORCE to the prequisites of a target to force it to be always rebuilt.
+# Add FORCE to the prerequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------
 
 PHONY += FORCE

@@ -6,6 +6,7 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -322,15 +323,15 @@ static int cs42l42_sdw_read_prop(struct sdw_slave *peripheral)
 	prop->scp_int1_mask = SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY;
 
 	/* DP1 - capture */
-	ports[0].num = CS42L42_SDW_CAPTURE_PORT,
-	ports[0].type = SDW_DPN_FULL,
-	ports[0].ch_prep_timeout = 10,
+	ports[0].num = CS42L42_SDW_CAPTURE_PORT;
+	ports[0].type = SDW_DPN_FULL;
+	ports[0].ch_prep_timeout = 10;
 	prop->src_dpn_prop = &ports[0];
 
 	/* DP2 - playback */
-	ports[1].num = CS42L42_SDW_PLAYBACK_PORT,
-	ports[1].type = SDW_DPN_FULL,
-	ports[1].ch_prep_timeout = 10,
+	ports[1].num = CS42L42_SDW_PLAYBACK_PORT;
+	ports[1].type = SDW_DPN_FULL;
+	ports[1].ch_prep_timeout = 10;
 	prop->sink_dpn_prop = &ports[1];
 
 	return 0;
@@ -344,6 +345,16 @@ static int cs42l42_sdw_update_status(struct sdw_slave *peripheral,
 	switch (status) {
 	case SDW_SLAVE_ATTACHED:
 		dev_dbg(cs42l42->dev, "ATTACHED\n");
+
+		/*
+		 * The SoundWire core can report stale ATTACH notifications
+		 * if we hard-reset CS42L42 in probe() but it had already been
+		 * enumerated. Reject the ATTACH if we haven't yet seen an
+		 * UNATTACH report for the device being in reset.
+		 */
+		if (cs42l42->sdw_waiting_first_unattach)
+			break;
+
 		/*
 		 * Initialise codec, this only needs to be done once.
 		 * When resuming from suspend, resume callback will handle re-init of codec,
@@ -354,6 +365,16 @@ static int cs42l42_sdw_update_status(struct sdw_slave *peripheral,
 		break;
 	case SDW_SLAVE_UNATTACHED:
 		dev_dbg(cs42l42->dev, "UNATTACHED\n");
+
+		if (cs42l42->sdw_waiting_first_unattach) {
+			/*
+			 * SoundWire core has seen that CS42L42 is not on
+			 * the bus so release RESET and wait for ATTACH.
+			 */
+			cs42l42->sdw_waiting_first_unattach = false;
+			gpiod_set_value_cansleep(cs42l42->reset_gpio, 1);
+		}
+
 		break;
 	default:
 		break;

@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
+#include <linux/kgdb.h>
 #include <linux/percpu.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
@@ -21,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/irq_work.h>
+#include <linux/nmi.h>
 
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
@@ -33,6 +35,8 @@ enum ipi_message_type {
 	IPI_CPU_CRASH_STOP,
 	IPI_IRQ_WORK,
 	IPI_TIMER,
+	IPI_CPU_BACKTRACE,
+	IPI_KGDB_ROUNDUP,
 	IPI_MAX
 };
 
@@ -61,11 +65,6 @@ int riscv_hartid_to_cpuid(unsigned long hartid)
 	return -ENOENT;
 }
 
-bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
-{
-	return phys_id == cpuid_to_hartid_map(cpu);
-}
-
 static void ipi_stop(void)
 {
 	set_cpu_online(smp_processor_id(), false);
@@ -86,7 +85,7 @@ static inline void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	if (cpu_has_hotplug(cpu))
-		cpu_ops[cpu]->cpu_stop();
+		cpu_ops->cpu_stop();
 #endif
 
 	for(;;)
@@ -118,6 +117,7 @@ void arch_irq_work_raise(void)
 
 static irqreturn_t handle_IPI(int irq, void *data)
 {
+	unsigned int cpu = smp_processor_id();
 	int ipi = irq - ipi_virq_base;
 
 	switch (ipi) {
@@ -131,7 +131,7 @@ static irqreturn_t handle_IPI(int irq, void *data)
 		ipi_stop();
 		break;
 	case IPI_CPU_CRASH_STOP:
-		ipi_cpu_crash_stop(smp_processor_id(), get_irq_regs());
+		ipi_cpu_crash_stop(cpu, get_irq_regs());
 		break;
 	case IPI_IRQ_WORK:
 		irq_work_run();
@@ -141,8 +141,14 @@ static irqreturn_t handle_IPI(int irq, void *data)
 		tick_receive_broadcast();
 		break;
 #endif
+	case IPI_CPU_BACKTRACE:
+		nmi_cpu_backtrace(get_irq_regs());
+		break;
+	case IPI_KGDB_ROUNDUP:
+		kgdb_nmicallback(cpu, get_irq_regs());
+		break;
 	default:
-		pr_warn("CPU%d: unhandled IPI%d\n", smp_processor_id(), ipi);
+		pr_warn("CPU%d: unhandled IPI%d\n", cpu, ipi);
 		break;
 	}
 
@@ -176,10 +182,7 @@ bool riscv_ipi_have_virq_range(void)
 	return (ipi_virq_base) ? true : false;
 }
 
-DEFINE_STATIC_KEY_FALSE(riscv_ipi_for_rfence);
-EXPORT_SYMBOL_GPL(riscv_ipi_for_rfence);
-
-void riscv_ipi_set_virq_range(int virq, int nr, bool use_for_rfence)
+void riscv_ipi_set_virq_range(int virq, int nr)
 {
 	int i, err;
 
@@ -202,12 +205,6 @@ void riscv_ipi_set_virq_range(int virq, int nr, bool use_for_rfence)
 
 	/* Enabled IPIs for boot CPU immediately */
 	riscv_ipi_enable();
-
-	/* Update RFENCE static key */
-	if (use_for_rfence)
-		static_branch_enable(&riscv_ipi_for_rfence);
-	else
-		static_branch_disable(&riscv_ipi_for_rfence);
 }
 
 static const char * const ipi_names[] = {
@@ -217,6 +214,8 @@ static const char * const ipi_names[] = {
 	[IPI_CPU_CRASH_STOP]	= "CPU stop (for crash dump) interrupts",
 	[IPI_IRQ_WORK]		= "IRQ work interrupts",
 	[IPI_TIMER]		= "Timer broadcast interrupts",
+	[IPI_CPU_BACKTRACE]     = "CPU backtrace interrupts",
+	[IPI_KGDB_ROUNDUP]	= "KGDB roundup interrupts",
 };
 
 void show_ipi_stats(struct seq_file *p, int prec)
@@ -337,3 +336,29 @@ void arch_smp_send_reschedule(int cpu)
 	send_ipi_single(cpu, IPI_RESCHEDULE);
 }
 EXPORT_SYMBOL_GPL(arch_smp_send_reschedule);
+
+static void riscv_backtrace_ipi(cpumask_t *mask)
+{
+	send_ipi_mask(mask, IPI_CPU_BACKTRACE);
+}
+
+void arch_trigger_cpumask_backtrace(const cpumask_t *mask, int exclude_cpu)
+{
+	nmi_trigger_cpumask_backtrace(mask, exclude_cpu, riscv_backtrace_ipi);
+}
+
+#ifdef CONFIG_KGDB
+void kgdb_roundup_cpus(void)
+{
+	int this_cpu = raw_smp_processor_id();
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		/* No need to roundup ourselves */
+		if (cpu == this_cpu)
+			continue;
+
+		send_ipi_single(cpu, IPI_KGDB_ROUNDUP);
+	}
+}
+#endif

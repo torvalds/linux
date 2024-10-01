@@ -11,7 +11,6 @@
 #include "rzg2lc-smarc-pinfunction.dtsi"
 #include "rz-smarc-common.dtsi"
 
-
 / {
 	aliases {
 		serial1 = &scif1;
@@ -34,6 +33,16 @@
 			};
 		};
 	};
+
+#if (SW_I2S0_I2S1)
+	/delete-node/ sound;
+
+	sound_card {
+		compatible = "audio-graph-card";
+		label = "HDMI-Audio";
+		dais = <&i2s2_port>;
+	};
+#endif
 };
 
 #if (SW_SCIF_CAN || SW_RSPI_CAN)
@@ -49,31 +58,27 @@
 };
 #endif
 
+#if (!SW_I2S0_I2S1)
 &cpu_dai {
 	sound-dai = <&ssi0>;
 };
+#endif
 
 &dsi {
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			dsi0_in: endpoint {
-			};
-		};
-
 		port@1 {
-			reg = <1>;
 			dsi0_out: endpoint {
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&adv7535_in>;
 			};
 		};
 	};
+};
+
+&du {
+	status = "okay";
 };
 
 &i2c1 {
@@ -111,6 +116,15 @@
 					remote-endpoint = <&hdmi_con_out>;
 				};
 			};
+
+#if (SW_I2S0_I2S1)
+			port@2 {
+				reg = <2>;
+				codec_endpoint: endpoint {
+					remote-endpoint = <&i2s2_cpu_endpoint>;
+				};
+			};
+#endif
 		};
 	};
 };
@@ -127,7 +141,40 @@
 		#sound-dai-cells = <0>;
 		reg = <0x1a>;
 	};
+
+	versa3: clock-generator@68 {
+		compatible = "renesas,5p35023";
+		reg = <0x68>;
+		#clock-cells = <1>;
+		clocks = <&x1>;
+
+		renesas,settings = [
+			80 00 11 19 4c 02 23 7f 83 19 08 a9 5f 25 24 bf
+			00 14 7a e1 00 00 00 00 01 55 59 bb 3f 30 90 b6
+			80 b0 45 c4 95
+		];
+
+		assigned-clocks = <&versa3 0>, <&versa3 1>,
+				  <&versa3 2>, <&versa3 3>,
+				  <&versa3 4>, <&versa3 5>;
+		assigned-clock-rates = <24000000>, <11289600>,
+				       <11289600>, <12000000>,
+				       <25000000>, <12288000>;
+	};
 };
+
+#if PMOD_MTU3
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&spi1 {
+	status = "disabled";
+};
+#endif
 
 /*
  * To enable SCIF1 (SER0) on PMOD1 (CN7), On connector board
@@ -151,6 +198,18 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+
+#if (SW_I2S0_I2S1)
+	i2s2_port: port {
+		i2s2_cpu_endpoint: endpoint {
+			remote-endpoint = <&codec_endpoint>;
+			dai-format = "i2s";
+
+			bitclock-master = <&i2s2_cpu_endpoint>;
+			frame-master = <&i2s2_cpu_endpoint>;
+		};
+	};
+#endif
 };
 
 #if (SW_RSPI_CAN)

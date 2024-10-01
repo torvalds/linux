@@ -991,7 +991,7 @@ const struct regmap_config adau1977_regmap_config = {
 	.max_register = ADAU1977_REG_DC_HPF_CAL,
 	.volatile_reg = adau1977_register_volatile,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = adau1977_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adau1977_reg_defaults),
 };

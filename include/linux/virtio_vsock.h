@@ -12,6 +12,7 @@
 struct virtio_vsock_skb_cb {
 	bool reply;
 	bool tap_delivered;
+	u32 offset;
 };
 
 #define VIRTIO_VSOCK_SKB_CB(skb) ((struct virtio_vsock_skb_cb *)((skb)->cb))
@@ -132,6 +133,7 @@ struct virtio_vsock_sock {
 	u32 tx_cnt;
 	u32 peer_fwd_cnt;
 	u32 peer_buf_alloc;
+	size_t bytes_unsent;
 
 	/* Protected by rx_lock */
 	u32 fwd_cnt;
@@ -159,6 +161,15 @@ struct virtio_transport {
 
 	/* Takes ownership of the packet */
 	int (*send_pkt)(struct sk_buff *skb);
+
+	/* Used in MSG_ZEROCOPY mode. Checks, that provided data
+	 * (number of buffers) could be transmitted with zerocopy
+	 * mode. If this callback is not implemented for the current
+	 * transport - this means that this transport doesn't need
+	 * extra checks and can perform zerocopy transmission by
+	 * default.
+	 */
+	bool (*can_msgzerocopy)(int bufs_num);
 };
 
 ssize_t
@@ -182,6 +193,11 @@ virtio_transport_seqpacket_dequeue(struct vsock_sock *vsk,
 s64 virtio_transport_stream_has_data(struct vsock_sock *vsk);
 s64 virtio_transport_stream_has_space(struct vsock_sock *vsk);
 u32 virtio_transport_seqpacket_has_data(struct vsock_sock *vsk);
+
+ssize_t virtio_transport_unsent_bytes(struct vsock_sock *vsk);
+
+void virtio_transport_consume_skb_sent(struct sk_buff *skb,
+				       bool consume);
 
 int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 				 struct vsock_sock *psk);
@@ -246,4 +262,5 @@ void virtio_transport_put_credit(struct virtio_vsock_sock *vvs, u32 credit);
 void virtio_transport_deliver_tap_pkt(struct sk_buff *skb);
 int virtio_transport_purge_skbs(void *vsk, struct sk_buff_head *list);
 int virtio_transport_read_skb(struct vsock_sock *vsk, skb_read_actor_t read_actor);
+int virtio_transport_notify_set_rcvlowat(struct vsock_sock *vsk, int val);
 #endif /* _LINUX_VIRTIO_VSOCK_H */

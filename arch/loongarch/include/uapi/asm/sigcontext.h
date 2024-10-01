@@ -9,7 +9,6 @@
 #define _UAPI_ASM_SIGCONTEXT_H
 
 #include <linux/types.h>
-#include <linux/posix_types.h>
 
 /* FP context was used */
 #define SC_USED_FP		(1 << 0)
@@ -58,5 +57,15 @@ struct lasx_context {
 	__u64	fcc;
 	__u32	fcsr;
 };
+
+/* LBT context */
+#define LBT_CTX_MAGIC		0x42540001
+#define LBT_CTX_ALIGN		8
+struct lbt_context {
+	__u64	regs[4];
+	__u32	eflags;
+	__u32	ftop;
+};
+
 
 #endif /* _UAPI_ASM_SIGCONTEXT_H */

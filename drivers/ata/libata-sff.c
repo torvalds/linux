@@ -26,7 +26,6 @@ static struct workqueue_struct *ata_sff_wq;
 const struct ata_port_operations ata_sff_port_ops = {
 	.inherits		= &ata_base_port_ops,
 
-	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_sff_qc_issue,
 	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 
@@ -883,31 +882,21 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 {
 	struct ata_port *ap = qc->ap;
 
-	if (ap->ops->error_handler) {
-		if (in_wq) {
-			/* EH might have kicked in while host lock is
-			 * released.
-			 */
-			qc = ata_qc_from_tag(ap, qc->tag);
-			if (qc) {
-				if (likely(!(qc->err_mask & AC_ERR_HSM))) {
-					ata_sff_irq_on(ap);
-					ata_qc_complete(qc);
-				} else
-					ata_port_freeze(ap);
-			}
-		} else {
-			if (likely(!(qc->err_mask & AC_ERR_HSM)))
+	if (in_wq) {
+		/* EH might have kicked in while host lock is released. */
+		qc = ata_qc_from_tag(ap, qc->tag);
+		if (qc) {
+			if (likely(!(qc->err_mask & AC_ERR_HSM))) {
+				ata_sff_irq_on(ap);
 				ata_qc_complete(qc);
-			else
+			} else
 				ata_port_freeze(ap);
 		}
 	} else {
-		if (in_wq) {
-			ata_sff_irq_on(ap);
+		if (likely(!(qc->err_mask & AC_ERR_HSM)))
 			ata_qc_complete(qc);
-		} else
-			ata_qc_complete(qc);
+		else
+			ata_port_freeze(ap);
 	}
 }
 
@@ -980,7 +969,7 @@ fsm_start:
 			 * We ignore ERR here to workaround and proceed sending
 			 * the CDB.
 			 */
-			if (!(qc->dev->horkage & ATA_HORKAGE_STUCK_ERR)) {
+			if (!(qc->dev->quirks & ATA_QUIRK_STUCK_ERR)) {
 				ata_ehi_push_desc(ehi, "ST_FIRST: "
 					"DRQ=1 with device error, "
 					"dev_stat 0x%X", status);
@@ -1055,8 +1044,8 @@ fsm_start:
 					 * IDENTIFY, it's likely a phantom
 					 * device.  Mark hint.
 					 */
-					if (qc->dev->horkage &
-					    ATA_HORKAGE_DIAGNOSTIC)
+					if (qc->dev->quirks &
+					    ATA_QUIRK_DIAGNOSTIC)
 						qc->err_mask |=
 							AC_ERR_NODEV_HINT;
 				} else {
@@ -1772,7 +1761,7 @@ unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 	/* see if device passed diags: continue and warn later */
 	if (err == 0)
 		/* diagnostic fail : do nothing _YET_ */
-		dev->horkage |= ATA_HORKAGE_DIAGNOSTIC;
+		dev->quirks |= ATA_QUIRK_DIAGNOSTIC;
 	else if (err == 1)
 		/* do nothing */ ;
 	else if ((dev->devno == 0) && (err == 0x81))
@@ -1791,7 +1780,7 @@ unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 		 * device signature is invalid with diagnostic
 		 * failure.
 		 */
-		if (present && (dev->horkage & ATA_HORKAGE_DIAGNOSTIC))
+		if (present && (dev->quirks & ATA_QUIRK_DIAGNOSTIC))
 			class = ATA_DEV_ATA;
 		else
 			class = ATA_DEV_NONE;
@@ -1971,7 +1960,7 @@ int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 		       unsigned long deadline)
 {
 	struct ata_eh_context *ehc = &link->eh_context;
-	const unsigned long *timing = sata_ehc_deb_timing(ehc);
+	const unsigned int *timing = sata_ehc_deb_timing(ehc);
 	bool online;
 	int rc;
 
@@ -2326,7 +2315,7 @@ int ata_pci_sff_activate_host(struct ata_host *host,
 		for (i = 0; i < 2; i++) {
 			if (ata_port_is_dummy(host->ports[i]))
 				continue;
-			ata_port_desc(host->ports[i], "irq %d", pdev->irq);
+			ata_port_desc_misc(host->ports[i], pdev->irq);
 		}
 	} else if (legacy_mode) {
 		if (!ata_port_is_dummy(host->ports[0])) {
@@ -2336,8 +2325,8 @@ int ata_pci_sff_activate_host(struct ata_host *host,
 			if (rc)
 				goto out;
 
-			ata_port_desc(host->ports[0], "irq %d",
-				      ATA_PRIMARY_IRQ(pdev));
+			ata_port_desc_misc(host->ports[0],
+					   ATA_PRIMARY_IRQ(pdev));
 		}
 
 		if (!ata_port_is_dummy(host->ports[1])) {
@@ -2347,8 +2336,8 @@ int ata_pci_sff_activate_host(struct ata_host *host,
 			if (rc)
 				goto out;
 
-			ata_port_desc(host->ports[1], "irq %d",
-				      ATA_SECONDARY_IRQ(pdev));
+			ata_port_desc_misc(host->ports[1],
+					   ATA_SECONDARY_IRQ(pdev));
 		}
 	}
 
@@ -3042,6 +3031,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_port_start32);
  */
 int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
 {
+#ifdef CONFIG_HAS_IOPORT
 	unsigned long bmdma = pci_resource_start(pdev, 4);
 	u8 simplex;
 
@@ -3054,6 +3044,9 @@ int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
 	if (simplex & 0x80)
 		return -EOPNOTSUPP;
 	return 0;
+#else
+	return -ENOENT;
+#endif /* CONFIG_HAS_IOPORT */
 }
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_clear_simplex);
 

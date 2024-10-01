@@ -80,6 +80,8 @@ static void whitelist(struct mei_cl_device *cldev)
 	cldev->do_match = 1;
 }
 
+#define MKHI_SEND_MAX_TIMEOUT_MSEC 4000
+
 #define OSTYPE_LINUX    2
 struct mei_os_ver {
 	__le16 build;
@@ -128,7 +130,7 @@ static int mei_osver(struct mei_cl_device *cldev)
 	os_ver = (struct mei_os_ver *)fwcaps->data;
 	os_ver->os_type = OSTYPE_LINUX;
 
-	return __mei_cl_send(cldev->cl, buf, size, 0, mode);
+	return __mei_cl_send_timeout(cldev->cl, buf, size, 0, mode, MKHI_SEND_MAX_TIMEOUT_MSEC);
 }
 
 #define MKHI_FWVER_BUF_LEN (sizeof(struct mkhi_msg_hdr) + \
@@ -148,8 +150,8 @@ static int mei_fwver(struct mei_cl_device *cldev)
 	req.hdr.group_id = MKHI_GEN_GROUP_ID;
 	req.hdr.command = MKHI_GEN_GET_FW_VERSION_CMD;
 
-	ret = __mei_cl_send(cldev->cl, (u8 *)&req, sizeof(req), 0,
-			    MEI_CL_IO_TX_BLOCKING);
+	ret = __mei_cl_send_timeout(cldev->cl, (u8 *)&req, sizeof(req), 0,
+				    MEI_CL_IO_TX_BLOCKING, MKHI_SEND_MAX_TIMEOUT_MSEC);
 	if (ret < 0) {
 		dev_info(&cldev->dev, "Could not send ReqFWVersion cmd ret = %d\n", ret);
 		return ret;
@@ -184,6 +186,7 @@ static int mei_fwver(struct mei_cl_device *cldev)
 		cldev->bus->fw_ver[i].hotfix = fwver->ver[i].hotfix;
 		cldev->bus->fw_ver[i].buildno = fwver->ver[i].buildno;
 	}
+	cldev->bus->fw_ver_received = 1;
 
 	return ret;
 }
@@ -237,8 +240,11 @@ static void mei_gsc_mkhi_ver(struct mei_cl_device *cldev)
 {
 	int ret;
 
-	/* No need to enable the client if nothing is needed from it */
-	if (!cldev->bus->fw_f_fw_ver_supported)
+	/*
+	 * No need to enable the client if nothing is needed from it.
+	 * No need to fill in version if it is already filled in by the fix address client.
+	 */
+	if (!cldev->bus->fw_f_fw_ver_supported || cldev->bus->fw_ver_received)
 		return;
 
 	ret = mei_cldev_enable(cldev);
@@ -555,8 +561,8 @@ static struct mei_fixup {
 	MEI_FIXUP(MEI_UUID_NFC_HCI, mei_nfc),
 	MEI_FIXUP(MEI_UUID_WD, mei_wd),
 	MEI_FIXUP(MEI_UUID_MKHIF_FIX, mei_mkhi_fix),
-	MEI_FIXUP(MEI_UUID_IGSC_MKHI, mei_gsc_mkhi_ver),
 	MEI_FIXUP(MEI_UUID_IGSC_MKHI_FIX, mei_gsc_mkhi_fix_ver),
+	MEI_FIXUP(MEI_UUID_IGSC_MKHI, mei_gsc_mkhi_ver),
 	MEI_FIXUP(MEI_UUID_HDCP, whitelist),
 	MEI_FIXUP(MEI_UUID_ANY, vt_support),
 	MEI_FIXUP(MEI_UUID_PAVP, pxp_is_ready),

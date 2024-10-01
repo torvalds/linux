@@ -14,6 +14,7 @@
 #include <asm/page.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
+#include <asm/set_memory.h>
 
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
@@ -29,10 +30,12 @@ SECTIONS
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	/* we have to discard exit text and such at runtime, not link time */
+	__exittext_begin = .;
 	.exit.text :
 	{
 		EXIT_TEXT
 	}
+	__exittext_end = .;
 
 	.text : {
 		_text = .;
@@ -63,10 +66,10 @@ SECTIONS
  * From this point, stuff is considered writable and will be copied to RAM
  */
 	__data_loc = ALIGN(PAGE_SIZE);		/* location in file */
-	. = KERNEL_LINK_ADDR + XIP_OFFSET;	/* location in memory */
+	. = ALIGN(SECTION_ALIGN);		/* location in memory */
 
 #undef LOAD_OFFSET
-#define LOAD_OFFSET (KERNEL_LINK_ADDR + XIP_OFFSET - (__data_loc & XIP_OFFSET_MASK))
+#define LOAD_OFFSET (KERNEL_LINK_ADDR + _sdata - __data_loc)
 
 	_sdata = .;			/* Start of data section */
 	_data = .;

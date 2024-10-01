@@ -9,6 +9,7 @@
  * PPC64 updates by Dave Engebretsen (engebret@us.ibm.com)
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <asm/unistd.h>
@@ -23,7 +24,6 @@
 #include <asm/kexec.h>
 #include <asm/ptrace.h>
 #include <asm/mmu.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 
 	.text
@@ -192,7 +192,7 @@ _GLOBAL(scom970_read)
 	xori	r0,r0,MSR_EE
 	mtmsrd	r0,1
 
-	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	/* rotate 24 bits SCOM address 8 bits left and mask out its low 8 bits
 	 * (including parity). On current CPUs they must be 0'd,
 	 * and finally or in RW bit
 	 */
@@ -226,7 +226,7 @@ _GLOBAL(scom970_write)
 	xori	r0,r0,MSR_EE
 	mtmsrd	r0,1
 
-	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	/* rotate 24 bits SCOM address 8 bits left and mask out its low 8 bits
 	 * (including parity). On current CPUs they must be 0'd.
 	 */
 

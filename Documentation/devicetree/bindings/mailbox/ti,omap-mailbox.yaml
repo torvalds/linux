@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/mailbox/ti,omap-mailbox.yaml#
@@ -159,7 +159,7 @@ properties:
       a corresponding sysc interconnect node.
 
       This property is only needed on some legacy OMAP SoCs which have not
-      yet been converted to the ti,sysc interconnect hierarachy, but is
+      yet been converted to the ti,sysc interconnect hierarchy, but is
       otherwise considered obsolete.
 
 patternProperties:

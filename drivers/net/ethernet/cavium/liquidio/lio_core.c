@@ -27,6 +27,7 @@
 #include "octeon_network.h"
 
 MODULE_AUTHOR("Cavium Networks, <support@cavium.com>");
+MODULE_DESCRIPTION("Cavium LiquidIO Intelligent Server Adapter Core");
 MODULE_LICENSE("GPL");
 
 /* OOM task polling interval */
@@ -1261,7 +1262,7 @@ int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 	lio->mtu = new_mtu;
 
 	WRITE_ONCE(sc->caller_is_done, true);

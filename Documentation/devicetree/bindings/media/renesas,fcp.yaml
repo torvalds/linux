@@ -27,6 +27,7 @@ properties:
           - renesas,fcpf # FCP for FDP
       - items:
           - enum:
+              - renesas,r9a07g043u-fcpvd # RZ/G2UL
               - renesas,r9a07g044-fcpvd # RZ/G2{L,LC}
               - renesas,r9a07g054-fcpvd # RZ/V2L
           - const: renesas,fcpv         # Generic FCP for VSP fallback
@@ -62,6 +63,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - renesas,r9a07g043u-fcpvd
               - renesas,r9a07g044-fcpvd
               - renesas,r9a07g054-fcpvd
     then:

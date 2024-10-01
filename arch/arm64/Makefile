@@ -36,10 +36,19 @@ ifeq ($(CONFIG_BROKEN_GAS_INST),y)
 $(warning Detected assembler with broken .inst; disassembly will be unreliable)
 endif
 
-KBUILD_CFLAGS	+= -mgeneral-regs-only	\
+# The GCC option -ffreestanding is required in order to compile code containing
+# ARM/NEON intrinsics in a non C99-compliant environment (such as the kernel)
+CC_FLAGS_FPU	:= -ffreestanding
+# Enable <arm_neon.h>
+CC_FLAGS_FPU	+= -isystem $(shell $(CC) -print-file-name=include)
+CC_FLAGS_NO_FPU	:= -mgeneral-regs-only
+
+KBUILD_CFLAGS	+= $(CC_FLAGS_NO_FPU) \
 		   $(compat_vdso) $(cc_has_k_constraint)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
 KBUILD_AFLAGS	+= $(compat_vdso)
+
+KBUILD_RUSTFLAGS += --target=aarch64-unknown-none -Ctarget-feature="-neon"
 
 KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
 KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
@@ -48,9 +57,11 @@ KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
 ifneq ($(CONFIG_UNWIND_TABLES),y)
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
 KBUILD_AFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
+KBUILD_RUSTFLAGS += -Cforce-unwind-tables=n
 else
 KBUILD_CFLAGS	+= -fasynchronous-unwind-tables
 KBUILD_AFLAGS	+= -fasynchronous-unwind-tables
+KBUILD_RUSTFLAGS += -Cforce-unwind-tables=y -Zuse-sync-unwind=n
 endif
 
 ifeq ($(CONFIG_STACKPROTECTOR_PER_TASK),y)
@@ -65,7 +76,9 @@ endif
 
 ifeq ($(CONFIG_ARM64_BTI_KERNEL),y)
   KBUILD_CFLAGS += -mbranch-protection=pac-ret+bti
+  KBUILD_RUSTFLAGS += -Zbranch-protection=bti,pac-ret
 else ifeq ($(CONFIG_ARM64_PTR_AUTH_KERNEL),y)
+  KBUILD_RUSTFLAGS += -Zbranch-protection=pac-ret
   ifeq ($(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET),y)
     KBUILD_CFLAGS += -mbranch-protection=pac-ret
   else
@@ -103,6 +116,7 @@ endif
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
 KBUILD_CFLAGS	+= -ffixed-x18
+KBUILD_RUSTFLAGS += -Zfixed-x18
 endif
 
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
@@ -150,6 +164,10 @@ libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 # Default target when executing plain make
 boot		:= arch/arm64/boot
 
+BOOT_TARGETS	:= Image vmlinuz.efi image.fit
+
+PHONY += $(BOOT_TARGETS)
+
 ifeq ($(CONFIG_EFI_ZBOOT),)
 KBUILD_IMAGE	:= $(boot)/Image.gz
 else
@@ -158,22 +176,24 @@ endif
 
 all:	$(notdir $(KBUILD_IMAGE))
 
+image.fit: dtbs
 
-Image vmlinuz.efi: vmlinux
+vmlinuz.efi image.fit: Image
+$(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 Image.%: Image
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-install: KBUILD_IMAGE := $(boot)/Image
+ifeq ($(CONFIG_COMPRESSED_INSTALL),y)
+ DEFAULT_KBUILD_IMAGE = $(KBUILD_IMAGE)
+else
+ DEFAULT_KBUILD_IMAGE = $(boot)/Image
+endif
+
+install: KBUILD_IMAGE := $(DEFAULT_KBUILD_IMAGE)
 install zinstall:
 	$(call cmd,install)
-
-PHONY += vdso_install
-vdso_install:
-	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
-	$(if $(CONFIG_COMPAT_VDSO), \
-		$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 $@)
 
 archprepare:
 	$(Q)$(MAKE) $(build)=arch/arm64/tools kapi
@@ -201,9 +221,12 @@ vdso_prepare: prepare0
 	include/generated/vdso-offsets.h arch/arm64/kernel/vdso/vdso.so
 ifdef CONFIG_COMPAT_VDSO
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 \
-	include/generated/vdso32-offsets.h arch/arm64/kernel/vdso32/vdso.so
+	arch/arm64/kernel/vdso32/vdso.so
 endif
 endif
+
+vdso-install-y				+= arch/arm64/kernel/vdso/vdso.so.dbg
+vdso-install-$(CONFIG_COMPAT_VDSO)	+= arch/arm64/kernel/vdso32/vdso32.so.dbg
 
 include $(srctree)/scripts/Makefile.defconf
 
@@ -214,7 +237,8 @@ virtconfig:
 define archhelp
   echo  '* Image.gz      - Compressed kernel image (arch/$(ARCH)/boot/Image.gz)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
-  echo  '  install       - Install uncompressed kernel'
+  echo  '  image.fit     - Flat Image Tree (arch/$(ARCH)/boot/image.fit)'
+  echo  '  install       - Install kernel (compressed if COMPRESSED_INSTALL set)'
   echo  '  zinstall      - Install compressed kernel'
   echo  '                  Install using (your) ~/bin/installkernel or'
   echo  '                  (distribution) /sbin/installkernel or'

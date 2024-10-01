@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
@@ -25,7 +25,7 @@
 #define	DA9062_IRQ_LOW	0
 #define	DA9062_IRQ_HIGH	1
 
-static struct regmap_irq da9061_irqs[] = {
+static const struct regmap_irq da9061_irqs[] = {
 	/* EVENT A */
 	[DA9061_IRQ_ONKEY] = {
 		.reg_offset = DA9062_REG_EVENT_A_OFFSET,
@@ -79,7 +79,7 @@ static struct regmap_irq da9061_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip da9061_irq_chip = {
+static const struct regmap_irq_chip da9061_irq_chip = {
 	.name = "da9061-irq",
 	.irqs = da9061_irqs,
 	.num_irqs = DA9061_NUM_IRQ,
@@ -89,7 +89,7 @@ static struct regmap_irq_chip da9061_irq_chip = {
 	.ack_base = DA9062AA_EVENT_A,
 };
 
-static struct regmap_irq da9062_irqs[] = {
+static const struct regmap_irq da9062_irqs[] = {
 	/* EVENT A */
 	[DA9062_IRQ_ONKEY] = {
 		.reg_offset = DA9062_REG_EVENT_A_OFFSET,
@@ -151,7 +151,7 @@ static struct regmap_irq da9062_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip da9062_irq_chip = {
+static const struct regmap_irq_chip da9062_irq_chip = {
 	.name = "da9062-irq",
 	.irqs = da9062_irqs,
 	.num_irqs = DA9062_NUM_IRQ,
@@ -470,13 +470,13 @@ static const struct regmap_range_cfg da9061_range_cfg[] = {
 	}
 };
 
-static struct regmap_config da9061_regmap_config = {
+static const struct regmap_config da9061_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.ranges = da9061_range_cfg,
 	.num_ranges = ARRAY_SIZE(da9061_range_cfg),
 	.max_register = DA9062AA_CONFIG_ID,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.rd_table = &da9061_aa_readable_table,
 	.wr_table = &da9061_aa_writeable_table,
 	.volatile_table = &da9061_aa_volatile_table,
@@ -576,28 +576,20 @@ static const struct regmap_range_cfg da9062_range_cfg[] = {
 	}
 };
 
-static struct regmap_config da9062_regmap_config = {
+static const struct regmap_config da9062_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.ranges = da9062_range_cfg,
 	.num_ranges = ARRAY_SIZE(da9062_range_cfg),
 	.max_register = DA9062AA_CONFIG_ID,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.rd_table = &da9062_aa_readable_table,
 	.wr_table = &da9062_aa_writeable_table,
 	.volatile_table = &da9062_aa_volatile_table,
 };
 
-static const struct of_device_id da9062_dt_ids[] = {
-	{ .compatible = "dlg,da9061", .data = (void *)COMPAT_TYPE_DA9061, },
-	{ .compatible = "dlg,da9062", .data = (void *)COMPAT_TYPE_DA9062, },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, da9062_dt_ids);
-
 static int da9062_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct da9062 *chip;
 	unsigned int irq_base = 0;
 	const struct mfd_cell *cell;
@@ -611,10 +603,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c)
 	if (!chip)
 		return -ENOMEM;
 
-	if (i2c->dev.of_node)
-		chip->chip_type = (uintptr_t)of_device_get_match_data(&i2c->dev);
-	else
-		chip->chip_type = id->driver_data;
+	chip->chip_type = (uintptr_t)i2c_get_match_data(i2c);
 
 	i2c_set_clientdata(i2c, chip);
 	chip->dev = &i2c->dev;
@@ -714,10 +703,17 @@ static void da9062_i2c_remove(struct i2c_client *i2c)
 	regmap_del_irq_chip(i2c->irq, chip->regmap_irq);
 }
 
+static const struct of_device_id da9062_dt_ids[] = {
+	{ .compatible = "dlg,da9061", .data = (void *)COMPAT_TYPE_DA9061 },
+	{ .compatible = "dlg,da9062", .data = (void *)COMPAT_TYPE_DA9062 },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, da9062_dt_ids);
+
 static const struct i2c_device_id da9062_i2c_id[] = {
 	{ "da9061", COMPAT_TYPE_DA9061 },
 	{ "da9062", COMPAT_TYPE_DA9062 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da9062_i2c_id);
 

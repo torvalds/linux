@@ -47,7 +47,16 @@ config PCIEAER_INJECT
 	  error injection can fake almost all kinds of errors with the
 	  help of a user space helper tool aer-inject, which can be
 	  gotten from:
-	     https://git.kernel.org/cgit/linux/kernel/git/gong.chen/aer-inject.git/
+	     https://github.com/intel/aer-inject.git
+
+config PCIEAER_CXL
+	bool "PCI Express CXL RAS support"
+	default y
+	depends on PCIEAER && CXL_PCI
+	help
+	  Enables CXL error handling.
+
+	  If unsure, say Y.
 
 #
 # PCI Express ECRC

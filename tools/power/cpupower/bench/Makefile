@@ -1,4 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
+ifeq ($(MAKELEVEL),0)
+$(error This Makefile is not intended to be run standalone, but only as a part \
+of the  main one in the parent dir)
+endif
+
 OUTPUT := ./
 ifeq ("$(origin O)", "command line")
 ifneq ($(O),)
@@ -15,7 +20,7 @@ LIBS = -L../ -L$(OUTPUT) -lm -lcpupower
 OBJS = $(OUTPUT)main.o $(OUTPUT)parse.o $(OUTPUT)system.o $(OUTPUT)benchmark.o
 endif
 
-CFLAGS += -D_GNU_SOURCE -I../lib -DDEFAULT_CONFIG_FILE=\"$(confdir)/cpufreq-bench.conf\"
+override CFLAGS += -D_GNU_SOURCE -I../lib -DDEFAULT_CONFIG_FILE=\"$(confdir)/cpufreq-bench.conf\"
 
 $(OUTPUT)%.o : %.c
 	$(ECHO) "  CC      " $@

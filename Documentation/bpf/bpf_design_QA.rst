@@ -140,11 +140,6 @@ A: Because if we picked one-to-one relationship to x64 it would have made
 it more complicated to support on arm64 and other archs. Also it
 needs div-by-zero runtime check.
 
-Q: Why there is no BPF_SDIV for signed divide operation?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-A: Because it would be rarely used. llvm errors in such case and
-prints a suggestion to use unsigned divide instead.
-
 Q: Why BPF has implicit prologue and epilogue?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A: Because architectures like sparc have register windows and in general

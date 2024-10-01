@@ -10,7 +10,6 @@
  *      1    |  0    |  0x1C
  *      1    |  1    |  0x1F
  */
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -37,7 +36,7 @@ static int fxos8700_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id fxos8700_i2c_id[] = {
-	{"fxos8700", 0},
+	{ "fxos8700" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxos8700_i2c_id);
@@ -57,7 +56,7 @@ MODULE_DEVICE_TABLE(of, fxos8700_of_match);
 static struct i2c_driver fxos8700_i2c_driver = {
 	.driver = {
 		.name                   = "fxos8700_i2c",
-		.acpi_match_table       = ACPI_PTR(fxos8700_acpi_match),
+		.acpi_match_table       = fxos8700_acpi_match,
 		.of_match_table         = fxos8700_of_match,
 	},
 	.probe          = fxos8700_i2c_probe,

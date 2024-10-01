@@ -93,8 +93,7 @@ static struct net_device *rdma_get_xmit_slave_udp(struct ib_device *device,
 	slave = netdev_get_xmit_slave(master, skb,
 				      !!(device->lag_flags &
 					 RDMA_LAG_FLAGS_HASH_ALL_SLAVES));
-	if (slave)
-		dev_hold(slave);
+	dev_hold(slave);
 	rcu_read_unlock();
 	kfree_skb(skb);
 	return slave;
@@ -102,8 +101,7 @@ static struct net_device *rdma_get_xmit_slave_udp(struct ib_device *device,
 
 void rdma_lag_put_ah_roce_slave(struct net_device *xmit_slave)
 {
-	if (xmit_slave)
-		dev_put(xmit_slave);
+	dev_put(xmit_slave);
 }
 
 struct net_device *rdma_lag_get_ah_roce_slave(struct ib_device *device,

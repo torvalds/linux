@@ -568,13 +568,14 @@ static inline void local_r4k_flush_cache_page(void *args)
 	if ((mm == current->active_mm) && (pte_val(*ptep) & _PAGE_VALID))
 		vaddr = NULL;
 	else {
+		struct folio *folio = page_folio(page);
 		/*
 		 * Use kmap_coherent or kmap_atomic to do flushes for
 		 * another ASID than the current one.
 		 */
 		map_coherent = (cpu_has_dc_aliases &&
-				page_mapcount(page) &&
-				!Page_dcache_dirty(page));
+				folio_mapped(folio) &&
+				!folio_test_dcache_dirty(folio));
 		if (map_coherent)
 			vaddr = kmap_coherent(page, addr);
 		else
@@ -1484,10 +1485,6 @@ static void loongson3_sc_init(void)
 	return;
 }
 
-extern int r5k_sc_init(void);
-extern int rm7k_sc_init(void);
-extern int mips_sc_init(void);
-
 static void setup_scache(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -1653,7 +1650,7 @@ static void coherency_setup(void)
 
 	/*
 	 * c0_status.cu=0 specifies that updates by the sc instruction use
-	 * the coherency mode specified by the TLB; 1 means cachable
+	 * the coherency mode specified by the TLB; 1 means cacheable
 	 * coherent update on write will be used.  Not all processors have
 	 * this bit and; some wire it to zero, others like Toshiba had the
 	 * silly idea of putting something else there ...
@@ -1827,7 +1824,7 @@ static struct notifier_block r4k_cache_pm_notifier_block = {
 	.notifier_call = r4k_cache_pm_notifier,
 };
 
-int __init r4k_cache_init_pm(void)
+static int __init r4k_cache_init_pm(void)
 {
 	return cpu_pm_register_notifier(&r4k_cache_pm_notifier_block);
 }

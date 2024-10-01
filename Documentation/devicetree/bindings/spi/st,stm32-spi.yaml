@@ -18,21 +18,14 @@ maintainers:
 
 allOf:
   - $ref: spi-controller.yaml#
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: st,stm32f4-spi
-
-    then:
-      properties:
-        st,spi-midi-ns: false
 
 properties:
   compatible:
     enum:
       - st,stm32f4-spi
+      - st,stm32f7-spi
       - st,stm32h7-spi
+      - st,stm32mp25-spi
 
   reg:
     maxItems: 1
@@ -49,7 +42,7 @@ properties:
   dmas:
     description: |
       DMA specifiers for tx and rx dma. DMA fifo mode must be used. See
-      the STM32 DMA bindings Documentation/devicetree/bindings/dma/st,stm32-dma.yaml.
+      the STM32 DMA controllers bindings Documentation/devicetree/bindings/dma/stm32/*.yaml.
     items:
       - description: rx DMA channel
       - description: tx DMA channel
@@ -59,16 +52,9 @@ properties:
       - const: rx
       - const: tx
 
-patternProperties:
-  "^[a-zA-Z][a-zA-Z0-9,+\\-._]{0,63}@[0-9a-f]+$":
-    type: object
-    # SPI slave nodes must be children of the SPI master node and can
-    # contain the following properties.
-    properties:
-      st,spi-midi-ns:
-        description: |
-          Only for STM32H7, (Master Inter-Data Idleness) minimum time
-          delay in nanoseconds inserted between two consecutive data frames.
+  access-controllers:
+    minItems: 1
+    maxItems: 2
 
 required:
   - compatible

@@ -6,9 +6,10 @@
 
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/mt6323/core.h>
@@ -134,12 +135,18 @@ static const struct mfd_cell mt6323_devs[] = {
 
 static const struct mfd_cell mt6357_devs[] = {
 	{
+		.name = "mt6359-auxadc",
+		.of_compatible = "mediatek,mt6357-auxadc"
+	}, {
 		.name = "mt6357-regulator",
 	}, {
 		.name = "mt6357-rtc",
 		.num_resources = ARRAY_SIZE(mt6357_rtc_resources),
 		.resources = mt6357_rtc_resources,
 		.of_compatible = "mediatek,mt6357-rtc",
+	}, {
+		.name = "mt6357-sound",
+		.of_compatible = "mediatek,mt6357-sound"
 	}, {
 		.name = "mtk-pmic-keys",
 		.num_resources = ARRAY_SIZE(mt6357_keys_resources),
@@ -171,6 +178,9 @@ static const struct mfd_cell mt6331_mt6332_devs[] = {
 
 static const struct mfd_cell mt6358_devs[] = {
 	{
+		.name = "mt6359-auxadc",
+		.of_compatible = "mediatek,mt6358-auxadc"
+	}, {
 		.name = "mt6358-regulator",
 		.of_compatible = "mediatek,mt6358-regulator"
 	}, {
@@ -190,6 +200,10 @@ static const struct mfd_cell mt6358_devs[] = {
 };
 
 static const struct mfd_cell mt6359_devs[] = {
+	{
+		.name = "mt6359-auxadc",
+		.of_compatible = "mediatek,mt6359-auxadc"
+	},
 	{ .name = "mt6359-regulator", },
 	{
 		.name = "mt6359-rtc",

@@ -22,6 +22,11 @@ modules.builtin.modinfo
 This file contains modinfo from all modules that are built into the kernel.
 Unlike modinfo of a separate module, all fields are prefixed with module name.
 
+modules.builtin.ranges
+----------------------
+This file contains address offset ranges (per ELF section) for all modules
+that are built into the kernel. Together with System.map, it can be used
+to associate module names with symbols.
 
 Environment variables
 =====================
@@ -128,6 +133,11 @@ Setting "M=..." takes precedence over KBUILD_EXTMOD.
 KBUILD_OUTPUT
 -------------
 Specify the output directory when building the kernel.
+
+This variable can also be used to point to the kernel output directory when
+building external modules against a pre-built kernel in a separate build
+directory. Please note that this does NOT specify the output directory for the
+external modules themselves.
 
 The output directory can also be specified using "O=...".
 
@@ -242,6 +252,12 @@ $(objtree) is the directory where output files are saved.
 The output directory is often set using "O=..." on the commandline.
 
 The value can be overridden in which case the default value is ignored.
+
+INSTALL_DTBS_PATH
+-----------------
+INSTALL_DTBS_PATH specifies where to install device tree blobs for
+relocations required by build roots.  This is not defined in the
+makefile but the argument can be passed to make if needed.
 
 KBUILD_ABS_SRCTREE
 --------------------------------------------------

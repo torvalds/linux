@@ -92,11 +92,23 @@ static void desc_smp_init(struct irq_desc *desc, int node,
 #endif
 }
 
+static void free_masks(struct irq_desc *desc)
+{
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	free_cpumask_var(desc->pending_mask);
+#endif
+	free_cpumask_var(desc->irq_common_data.affinity);
+#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
+	free_cpumask_var(desc->irq_common_data.effective_affinity);
+#endif
+}
+
 #else
 static inline int
 alloc_masks(struct irq_desc *desc, int node) { return 0; }
 static inline void
 desc_smp_init(struct irq_desc *desc, int node, const struct cpumask *affinity) { }
+static inline void free_masks(struct irq_desc *desc) { }
 #endif
 
 static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
@@ -122,7 +134,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 	desc->name = NULL;
 	desc->owner = owner;
 	for_each_possible_cpu(cpu)
-		*per_cpu_ptr(desc->kstat_irqs, cpu) = 0;
+		*per_cpu_ptr(desc->kstat_irqs, cpu) = (struct irqstat) { };
 	desc_smp_init(desc, node, affinity);
 }
 
@@ -148,7 +160,10 @@ static int irq_find_free_area(unsigned int from, unsigned int cnt)
 static unsigned int irq_find_at_or_after(unsigned int offset)
 {
 	unsigned long index = offset;
-	struct irq_desc *desc = mt_find(&sparse_irqs, &index, nr_irqs);
+	struct irq_desc *desc;
+
+	guard(rcu)();
+	desc = mt_find(&sparse_irqs, &index, nr_irqs);
 
 	return desc ? irq_desc_get_irq(desc) : nr_irqs;
 }
@@ -163,6 +178,39 @@ static void delete_irq_desc(unsigned int irq)
 {
 	MA_STATE(mas, &sparse_irqs, irq, irq);
 	mas_erase(&mas);
+}
+
+#ifdef CONFIG_SPARSE_IRQ
+static const struct kobj_type irq_kobj_type;
+#endif
+
+static int init_desc(struct irq_desc *desc, int irq, int node,
+		     unsigned int flags,
+		     const struct cpumask *affinity,
+		     struct module *owner)
+{
+	desc->kstat_irqs = alloc_percpu(struct irqstat);
+	if (!desc->kstat_irqs)
+		return -ENOMEM;
+
+	if (alloc_masks(desc, node)) {
+		free_percpu(desc->kstat_irqs);
+		return -ENOMEM;
+	}
+
+	raw_spin_lock_init(&desc->lock);
+	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
+	mutex_init(&desc->request_mutex);
+	init_waitqueue_head(&desc->wait_for_threads);
+	desc_set_defaults(irq, desc, node, affinity, owner);
+	irqd_set(&desc->irq_data, flags);
+	irq_resend_init(desc);
+#ifdef CONFIG_SPARSE_IRQ
+	kobject_init(&desc->kobj, &irq_kobj_type);
+	init_rcu_head(&desc->rcu);
+#endif
+
+	return 0;
 }
 
 #ifdef CONFIG_SPARSE_IRQ
@@ -384,21 +432,6 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 EXPORT_SYMBOL_GPL(irq_to_desc);
 #endif
 
-#ifdef CONFIG_SMP
-static void free_masks(struct irq_desc *desc)
-{
-#ifdef CONFIG_GENERIC_PENDING_IRQ
-	free_cpumask_var(desc->pending_mask);
-#endif
-	free_cpumask_var(desc->irq_common_data.affinity);
-#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
-	free_cpumask_var(desc->irq_common_data.effective_affinity);
-#endif
-}
-#else
-static inline void free_masks(struct irq_desc *desc) { }
-#endif
-
 void irq_lock_sparse(void)
 {
 	mutex_lock(&sparse_irq_lock);
@@ -414,36 +447,19 @@ static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
 				   struct module *owner)
 {
 	struct irq_desc *desc;
+	int ret;
 
 	desc = kzalloc_node(sizeof(*desc), GFP_KERNEL, node);
 	if (!desc)
 		return NULL;
-	/* allocate based on nr_cpu_ids */
-	desc->kstat_irqs = alloc_percpu(unsigned int);
-	if (!desc->kstat_irqs)
-		goto err_desc;
 
-	if (alloc_masks(desc, node))
-		goto err_kstat;
-
-	raw_spin_lock_init(&desc->lock);
-	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
-	mutex_init(&desc->request_mutex);
-	init_rcu_head(&desc->rcu);
-	init_waitqueue_head(&desc->wait_for_threads);
-
-	desc_set_defaults(irq, desc, node, affinity, owner);
-	irqd_set(&desc->irq_data, flags);
-	kobject_init(&desc->kobj, &irq_kobj_type);
-	irq_resend_init(desc);
+	ret = init_desc(desc, irq, node, flags, affinity, owner);
+	if (unlikely(ret)) {
+		kfree(desc);
+		return NULL;
+	}
 
 	return desc;
-
-err_kstat:
-	free_percpu(desc->kstat_irqs);
-err_desc:
-	kfree(desc);
-	return NULL;
 }
 
 static void irq_kobj_release(struct kobject *kobj)
@@ -514,6 +530,7 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 				flags = IRQD_AFFINITY_MANAGED |
 					IRQD_MANAGED_SHUTDOWN;
 			}
+			flags |= IRQD_AFFINITY_SET;
 			mask = &affinity->mask;
 			node = cpu_to_node(cpumask_first(mask));
 			affinity++;
@@ -583,26 +600,29 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 int __init early_irq_init(void)
 {
 	int count, i, node = first_online_node;
-	struct irq_desc *desc;
+	int ret;
 
 	init_irq_default_affinity();
 
 	printk(KERN_INFO "NR_IRQS: %d\n", NR_IRQS);
 
-	desc = irq_desc;
 	count = ARRAY_SIZE(irq_desc);
 
 	for (i = 0; i < count; i++) {
-		desc[i].kstat_irqs = alloc_percpu(unsigned int);
-		alloc_masks(&desc[i], node);
-		raw_spin_lock_init(&desc[i].lock);
-		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
-		mutex_init(&desc[i].request_mutex);
-		init_waitqueue_head(&desc[i].wait_for_threads);
-		desc_set_defaults(i, &desc[i], node, NULL, NULL);
-		irq_resend_init(desc);
+		ret = init_desc(irq_desc + i, i, node, 0, NULL, NULL);
+		if (unlikely(ret))
+			goto __free_desc_res;
 	}
+
 	return arch_early_irq_init();
+
+__free_desc_res:
+	while (--i >= 0) {
+		free_masks(irq_desc + i);
+		free_percpu(irq_desc[i].kstat_irqs);
+	}
+
+	return ret;
 }
 
 struct irq_desc *irq_to_desc(unsigned int irq)
@@ -895,10 +915,7 @@ int irq_set_percpu_devid_partition(unsigned int irq,
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (!desc)
-		return -EINVAL;
-
-	if (desc->percpu_enabled)
+	if (!desc || desc->percpu_enabled)
 		return -EINVAL;
 
 	desc->percpu_enabled = kzalloc(sizeof(*desc->percpu_enabled), GFP_KERNEL);
@@ -906,10 +923,7 @@ int irq_set_percpu_devid_partition(unsigned int irq,
 	if (!desc->percpu_enabled)
 		return -ENOMEM;
 
-	if (affinity)
-		desc->percpu_affinity = affinity;
-	else
-		desc->percpu_affinity = cpu_possible_mask;
+	desc->percpu_affinity = affinity ? : cpu_possible_mask;
 
 	irq_set_percpu_devid_flags(irq);
 	return 0;
@@ -952,32 +966,57 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	return desc && desc->kstat_irqs ?
-			*per_cpu_ptr(desc->kstat_irqs, cpu) : 0;
+	return desc && desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, cpu) : 0;
 }
 
-static bool irq_is_nmi(struct irq_desc *desc)
+unsigned int kstat_irqs_desc(struct irq_desc *desc, const struct cpumask *cpumask)
 {
-	return desc->istate & IRQS_NMI;
-}
-
-static unsigned int kstat_irqs(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned int sum = 0;
 	int cpu;
 
-	if (!desc || !desc->kstat_irqs)
-		return 0;
 	if (!irq_settings_is_per_cpu_devid(desc) &&
 	    !irq_settings_is_per_cpu(desc) &&
 	    !irq_is_nmi(desc))
 		return data_race(desc->tot_count);
 
-	for_each_possible_cpu(cpu)
-		sum += data_race(*per_cpu_ptr(desc->kstat_irqs, cpu));
+	for_each_cpu(cpu, cpumask)
+		sum += data_race(per_cpu(desc->kstat_irqs->cnt, cpu));
 	return sum;
 }
+
+static unsigned int kstat_irqs(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (!desc || !desc->kstat_irqs)
+		return 0;
+	return kstat_irqs_desc(desc, cpu_possible_mask);
+}
+
+#ifdef CONFIG_GENERIC_IRQ_STAT_SNAPSHOT
+
+void kstat_snapshot_irqs(void)
+{
+	struct irq_desc *desc;
+	unsigned int irq;
+
+	for_each_irq_desc(irq, desc) {
+		if (!desc->kstat_irqs)
+			continue;
+		this_cpu_write(desc->kstat_irqs->ref, this_cpu_read(desc->kstat_irqs->cnt));
+	}
+}
+
+unsigned int kstat_get_irq_since_snapshot(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (!desc || !desc->kstat_irqs)
+		return 0;
+	return this_cpu_read(desc->kstat_irqs->cnt) - this_cpu_read(desc->kstat_irqs->ref);
+}
+
+#endif
 
 /**
  * kstat_irqs_usr - Get the statistics for an interrupt from thread context

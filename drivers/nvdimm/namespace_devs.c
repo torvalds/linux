@@ -2,6 +2,7 @@
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
  */
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/sort.h>
@@ -26,7 +27,7 @@ static void namespace_pmem_release(struct device *dev)
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 
 	if (nspm->id >= 0)
-		ida_simple_remove(&nd_region->ns_ida, nspm->id);
+		ida_free(&nd_region->ns_ida, nspm->id);
 	kfree(nspm->alt_name);
 	kfree(nspm->uuid);
 	kfree(nspm);
@@ -70,6 +71,8 @@ static int is_namespace_uuid_busy(struct device *dev, void *data)
  * nd_is_uuid_unique - verify that no other namespace has @uuid
  * @dev: any device on a nvdimm_bus
  * @uuid: uuid to check
+ *
+ * Returns: %true if the uuid is unique, %false if not
  */
 bool nd_is_uuid_unique(struct device *dev, uuid_t *uuid)
 {
@@ -336,6 +339,8 @@ static int scan_free(struct nd_region *nd_region,
  * adjust_resource() the allocation to @n, but if @n is larger than the
  * allocation delete it and find the 'new' last allocation in the label
  * set.
+ *
+ * Returns: %0 on success on -errno on error
  */
 static int shrink_dpa_allocation(struct nd_region *nd_region,
 		struct nd_label_id *label_id, resource_size_t n)
@@ -661,6 +666,8 @@ void release_free_pmem(struct nvdimm_bus *nvdimm_bus,
  * allocations from the start of an interleave set and end at the first
  * BLK allocation or the end of the interleave set, whichever comes
  * first.
+ *
+ * Returns: %0 on success on -errno on error
  */
 static int grow_dpa_allocation(struct nd_region *nd_region,
 		struct nd_label_id *label_id, resource_size_t n)
@@ -950,6 +957,8 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
  * @dev: namespace type for generating label_id
  * @new_uuid: incoming uuid
  * @old_uuid: reference to the uuid storage location in the namespace object
+ *
+ * Returns: %0 on success on -errno on error
  */
 static int namespace_update_uuid(struct nd_region *nd_region,
 				 struct device *dev, uuid_t *new_uuid,
@@ -1338,7 +1347,7 @@ static ssize_t force_raw_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
 	bool force_raw;
-	int rc = strtobool(buf, &force_raw);
+	int rc = kstrtobool(buf, &force_raw);
 
 	if (rc)
 		return rc;
@@ -1603,9 +1612,6 @@ static int select_pmem_id(struct nd_region *nd_region, const uuid_t *pmem_id)
 {
 	int i;
 
-	if (!pmem_id)
-		return -ENODEV;
-
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
@@ -1655,8 +1661,10 @@ static int select_pmem_id(struct nd_region *nd_region, const uuid_t *pmem_id)
 /**
  * create_namespace_pmem - validate interleave set labelling, retrieve label0
  * @nd_region: region with mappings to validate
- * @nspm: target namespace to create
+ * @nd_mapping: container of dpa-resource-root + labels
  * @nd_label: target pmem namespace label to evaluate
+ *
+ * Returns: the created &struct device on success or ERR_PTR(-errno) on error
  */
 static struct device *create_namespace_pmem(struct nd_region *nd_region,
 					    struct nd_mapping *nd_mapping,
@@ -1779,9 +1787,6 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	case -EINVAL:
 		dev_dbg(&nd_region->dev, "invalid label(s)\n");
 		break;
-	case -ENODEV:
-		dev_dbg(&nd_region->dev, "label not found\n");
-		break;
 	default:
 		dev_dbg(&nd_region->dev, "unexpected err: %d\n", rc);
 		break;
@@ -1809,7 +1814,7 @@ static struct device *nd_namespace_pmem_create(struct nd_region *nd_region)
 	res->name = dev_name(&nd_region->dev);
 	res->flags = IORESOURCE_MEM;
 
-	nspm->id = ida_simple_get(&nd_region->ns_ida, 0, 0, GFP_KERNEL);
+	nspm->id = ida_alloc(&nd_region->ns_ida, GFP_KERNEL);
 	if (nspm->id < 0) {
 		kfree(nspm);
 		return NULL;
@@ -1926,11 +1931,15 @@ static int cmp_dpa(const void *a, const void *b)
 static struct device **scan_labels(struct nd_region *nd_region)
 {
 	int i, count = 0;
-	struct device *dev, **devs = NULL;
+	struct device *dev, **devs;
 	struct nd_label_ent *label_ent, *e;
 	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	resource_size_t map_end = nd_mapping->start + nd_mapping->size - 1;
+
+	devs = kcalloc(2, sizeof(dev), GFP_KERNEL);
+	if (!devs)
+		return NULL;
 
 	/* "safe" because create_namespace_pmem() might list_move() label_ent */
 	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
@@ -1950,12 +1959,14 @@ static struct device **scan_labels(struct nd_region *nd_region)
 			goto err;
 		if (i < count)
 			continue;
-		__devs = kcalloc(count + 2, sizeof(dev), GFP_KERNEL);
-		if (!__devs)
-			goto err;
-		memcpy(__devs, devs, sizeof(dev) * count);
-		kfree(devs);
-		devs = __devs;
+		if (count) {
+			__devs = kcalloc(count + 2, sizeof(dev), GFP_KERNEL);
+			if (!__devs)
+				goto err;
+			memcpy(__devs, devs, sizeof(dev) * count);
+			kfree(devs);
+			devs = __devs;
+		}
 
 		dev = create_namespace_pmem(nd_region, nd_mapping, nd_label);
 		if (IS_ERR(dev)) {
@@ -1963,9 +1974,6 @@ static struct device **scan_labels(struct nd_region *nd_region)
 			case -EAGAIN:
 				/* skip invalid labels */
 				continue;
-			case -ENODEV:
-				/* fallthrough to seed creation */
-				break;
 			default:
 				goto err;
 			}
@@ -1982,11 +1990,6 @@ static struct device **scan_labels(struct nd_region *nd_region)
 
 		/* Publish a zero-sized namespace for userspace to configure. */
 		nd_mapping_free_labels(nd_mapping);
-
-		devs = kcalloc(2, sizeof(dev), GFP_KERNEL);
-		if (!devs)
-			goto err;
-
 		nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
 		if (!nspm)
 			goto err;
@@ -2025,11 +2028,10 @@ static struct device **scan_labels(struct nd_region *nd_region)
 	return devs;
 
  err:
-	if (devs) {
-		for (i = 0; devs[i]; i++)
-			namespace_pmem_release(devs[i]);
-		kfree(devs);
-	}
+	for (i = 0; devs[i]; i++)
+		namespace_pmem_release(devs[i]);
+	kfree(devs);
+
 	return NULL;
 }
 
@@ -2187,8 +2189,7 @@ int nd_region_register_namespaces(struct nd_region *nd_region, int *err)
 			struct nd_namespace_pmem *nspm;
 
 			nspm = to_nd_namespace_pmem(dev);
-			id = ida_simple_get(&nd_region->ns_ida, 0, 0,
-					    GFP_KERNEL);
+			id = ida_alloc(&nd_region->ns_ida, GFP_KERNEL);
 			nspm->id = id;
 		} else
 			id = i;

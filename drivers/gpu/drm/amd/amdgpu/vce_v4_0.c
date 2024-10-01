@@ -486,11 +486,6 @@ static int vce_v4_0_sw_init(void *handle)
 			return r;
 	}
 
-
-	r = amdgpu_vce_entity_init(adev);
-	if (r)
-		return r;
-
 	r = amdgpu_virt_alloc_mm_table(adev);
 	if (r)
 		return r;
@@ -1107,7 +1102,7 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.get_rptr = vce_v4_0_ring_get_rptr,
 	.get_wptr = vce_v4_0_ring_get_wptr,
 	.set_wptr = vce_v4_0_ring_set_wptr,
-	.parse_cs = amdgpu_vce_ring_parse_cs_vm,
+	.patch_cs_in_place = amdgpu_vce_ring_parse_cs_vm,
 	.emit_frame_size =
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 4 +

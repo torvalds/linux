@@ -57,6 +57,8 @@
 #define   HISI_I2C_FS_SPK_LEN_CNT	GENMASK(7, 0)
 #define HISI_I2C_HS_SPK_LEN		0x003c
 #define   HISI_I2C_HS_SPK_LEN_CNT	GENMASK(7, 0)
+#define HISI_I2C_TX_INT_CLR		0x0040
+#define   HISI_I2C_TX_AEMPTY_INT		BIT(0)
 #define HISI_I2C_INT_MSTAT		0x0044
 #define HISI_I2C_INT_CLR		0x0048
 #define HISI_I2C_INT_MASK		0x004C
@@ -124,6 +126,11 @@ static void hisi_i2c_clear_int(struct hisi_i2c_controller *ctlr, u32 mask)
 	writel_relaxed(mask, ctlr->iobase + HISI_I2C_INT_CLR);
 }
 
+static void hisi_i2c_clear_tx_int(struct hisi_i2c_controller *ctlr, u32 mask)
+{
+	writel_relaxed(mask, ctlr->iobase + HISI_I2C_TX_INT_CLR);
+}
+
 static void hisi_i2c_handle_errors(struct hisi_i2c_controller *ctlr)
 {
 	u32 int_err = ctlr->xfer_err, reg;
@@ -168,6 +175,7 @@ static int hisi_i2c_start_xfer(struct hisi_i2c_controller *ctlr)
 	writel(reg, ctlr->iobase + HISI_I2C_FIFO_CTRL);
 
 	hisi_i2c_clear_int(ctlr, HISI_I2C_INT_ALL);
+	hisi_i2c_clear_tx_int(ctlr, HISI_I2C_TX_AEMPTY_INT);
 	hisi_i2c_enable_int(ctlr, HISI_I2C_INT_ALL);
 
 	return 0;
@@ -189,8 +197,8 @@ static void hisi_i2c_reset_xfer(struct hisi_i2c_controller *ctlr)
  * wait for the transfer done. The major transfer process is performed
  * in the IRQ handler.
  */
-static int hisi_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-				int num)
+static int hisi_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
+			 int num)
 {
 	struct hisi_i2c_controller *ctlr = i2c_get_adapdata(adap);
 	DECLARE_COMPLETION_ONSTACK(done);
@@ -228,8 +236,8 @@ static u32 hisi_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm hisi_i2c_algo = {
-	.master_xfer	= hisi_i2c_master_xfer,
-	.functionality	= hisi_i2c_functionality,
+	.xfer = hisi_i2c_xfer,
+	.functionality = hisi_i2c_functionality,
 };
 
 static int hisi_i2c_read_rx_fifo(struct hisi_i2c_controller *ctlr)
@@ -266,7 +274,7 @@ static int hisi_i2c_read_rx_fifo(struct hisi_i2c_controller *ctlr)
 
 static void hisi_i2c_xfer_msg(struct hisi_i2c_controller *ctlr)
 {
-	int max_write = HISI_I2C_TX_FIFO_DEPTH;
+	int max_write = HISI_I2C_TX_FIFO_DEPTH - HISI_I2C_TX_F_AE_THRESH;
 	bool need_restart = false, last_msg;
 	struct i2c_msg *cur_msg;
 	u32 cmd, fifo_state;
@@ -323,12 +331,22 @@ static void hisi_i2c_xfer_msg(struct hisi_i2c_controller *ctlr)
 	 */
 	if (ctlr->msg_tx_idx == ctlr->msg_num)
 		hisi_i2c_disable_int(ctlr, HISI_I2C_INT_TX_EMPTY);
+
+	hisi_i2c_clear_tx_int(ctlr, HISI_I2C_TX_AEMPTY_INT);
 }
 
 static irqreturn_t hisi_i2c_irq(int irq, void *context)
 {
 	struct hisi_i2c_controller *ctlr = context;
 	u32 int_stat;
+
+	/*
+	 * Don't handle the interrupt if cltr->completion is NULL. We may
+	 * reach here because the interrupt is spurious or the transfer is
+	 * started by another port (e.g. firmware) rather than us.
+	 */
+	if (!ctlr->completion)
+		return IRQ_NONE;
 
 	int_stat = readl(ctlr->iobase + HISI_I2C_INT_MSTAT);
 	hisi_i2c_clear_int(ctlr, int_stat);
@@ -355,6 +373,7 @@ out:
 	if (int_stat & HISI_I2C_INT_TRANS_CPLT) {
 		hisi_i2c_disable_int(ctlr, HISI_I2C_INT_ALL);
 		hisi_i2c_clear_int(ctlr, HISI_I2C_INT_ALL);
+		hisi_i2c_clear_tx_int(ctlr, HISI_I2C_TX_AEMPTY_INT);
 		complete(ctlr->completion);
 	}
 
@@ -462,18 +481,14 @@ static int hisi_i2c_probe(struct platform_device *pdev)
 	hisi_i2c_disable_int(ctlr, HISI_I2C_INT_ALL);
 
 	ret = devm_request_irq(dev, ctlr->irq, hisi_i2c_irq, 0, "hisi-i2c", ctlr);
-	if (ret) {
-		dev_err(dev, "failed to request irq handler, ret = %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to request irq handler\n");
 
 	ctlr->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
 	if (IS_ERR_OR_NULL(ctlr->clk)) {
 		ret = device_property_read_u64(dev, "clk_rate", &clk_rate_hz);
-		if (ret) {
-			dev_err(dev, "failed to get clock frequency, ret = %d\n", ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to get clock frequency\n");
 	} else {
 		clk_rate_hz = clk_get_rate(ctlr->clk);
 	}

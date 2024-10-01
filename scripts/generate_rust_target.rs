@@ -20,12 +20,28 @@ enum Value {
     Boolean(bool),
     Number(i32),
     String(String),
+    Array(Vec<Value>),
     Object(Object),
 }
 
 type Object = Vec<(String, Value)>;
 
-/// Minimal "almost JSON" generator (e.g. no `null`s, no arrays, no escaping),
+fn comma_sep<T>(
+    seq: &[T],
+    formatter: &mut Formatter<'_>,
+    f: impl Fn(&mut Formatter<'_>, &T) -> Result,
+) -> Result {
+    if let [ref rest @ .., ref last] = seq[..] {
+        for v in rest {
+            f(formatter, v)?;
+            formatter.write_str(",")?;
+        }
+        f(formatter, last)?;
+    }
+    Ok(())
+}
+
+/// Minimal "almost JSON" generator (e.g. no `null`s, no escaping),
 /// enough for this purpose.
 impl Display for Value {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> Result {
@@ -33,17 +49,55 @@ impl Display for Value {
             Value::Boolean(boolean) => write!(formatter, "{}", boolean),
             Value::Number(number) => write!(formatter, "{}", number),
             Value::String(string) => write!(formatter, "\"{}\"", string),
+            Value::Array(values) => {
+                formatter.write_str("[")?;
+                comma_sep(&values[..], formatter, |formatter, v| v.fmt(formatter))?;
+                formatter.write_str("]")
+            }
             Value::Object(object) => {
                 formatter.write_str("{")?;
-                if let [ref rest @ .., ref last] = object[..] {
-                    for (key, value) in rest {
-                        write!(formatter, "\"{}\": {},", key, value)?;
-                    }
-                    write!(formatter, "\"{}\": {}", last.0, last.1)?;
-                }
+                comma_sep(&object[..], formatter, |formatter, v| {
+                    write!(formatter, "\"{}\": {}", v.0, v.1)
+                })?;
                 formatter.write_str("}")
             }
         }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+}
+
+impl From<i32> for Value {
+    fn from(value: i32) -> Self {
+        Self::Number(value)
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<Object> for Value {
+    fn from(object: Object) -> Self {
+        Self::Object(object)
+    }
+}
+
+impl<T: Into<Value>, const N: usize> From<[T; N]> for Value {
+    fn from(i: [T; N]) -> Self {
+        Self::Array(i.into_iter().map(|v| v.into()).collect())
     }
 }
 
@@ -53,39 +107,9 @@ impl TargetSpec {
     fn new() -> TargetSpec {
         TargetSpec(Vec::new())
     }
-}
 
-trait Push<T> {
-    fn push(&mut self, key: &str, value: T);
-}
-
-impl Push<bool> for TargetSpec {
-    fn push(&mut self, key: &str, value: bool) {
-        self.0.push((key.to_string(), Value::Boolean(value)));
-    }
-}
-
-impl Push<i32> for TargetSpec {
-    fn push(&mut self, key: &str, value: i32) {
-        self.0.push((key.to_string(), Value::Number(value)));
-    }
-}
-
-impl Push<String> for TargetSpec {
-    fn push(&mut self, key: &str, value: String) {
-        self.0.push((key.to_string(), Value::String(value)));
-    }
-}
-
-impl Push<&str> for TargetSpec {
-    fn push(&mut self, key: &str, value: &str) {
-        self.push(key, value.to_string());
-    }
-}
-
-impl Push<Object> for TargetSpec {
-    fn push(&mut self, key: &str, value: Object) {
-        self.0.push((key.to_string(), Value::Object(value)));
+    fn push(&mut self, key: &str, value: impl Into<Value>) {
+        self.0.push((key.to_string(), value.into()));
     }
 }
 
@@ -148,19 +172,62 @@ fn main() {
     let mut ts = TargetSpec::new();
 
     // `llvm-target`s are taken from `scripts/Makefile.clang`.
-    if cfg.has("X86_64") {
+    if cfg.has("ARM64") {
+        panic!("arm64 uses the builtin rustc aarch64-unknown-none target");
+    } else if cfg.has("RISCV") {
+        if cfg.has("64BIT") {
+            panic!("64-bit RISC-V uses the builtin rustc riscv64-unknown-none-elf target");
+        } else {
+            panic!("32-bit RISC-V is an unsupported architecture");
+        }
+    } else if cfg.has("X86_64") {
         ts.push("arch", "x86_64");
         ts.push(
             "data-layout",
-            "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
+            "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
         );
-        let mut features = "-3dnow,-3dnowa,-mmx,+soft-float".to_string();
-        if cfg.has("RETPOLINE") {
+        let mut features = "-mmx,+soft-float".to_string();
+        if cfg.has("MITIGATION_RETPOLINE") {
+            // The kernel uses `-mretpoline-external-thunk` (for Clang), which Clang maps to the
+            // target feature of the same name plus the other two target features in
+            // `clang/lib/Driver/ToolChains/Arch/X86.cpp`. These should be eventually enabled via
+            // `-Ctarget-feature` when `rustc` starts recognizing them (or via a new dedicated
+            // flag); see https://github.com/rust-lang/rust/issues/116852.
             features += ",+retpoline-external-thunk";
+            features += ",+retpoline-indirect-branches";
+            features += ",+retpoline-indirect-calls";
+        }
+        if cfg.has("MITIGATION_SLS") {
+            // The kernel uses `-mharden-sls=all`, which Clang maps to both these target features in
+            // `clang/lib/Driver/ToolChains/Arch/X86.cpp`. These should be eventually enabled via
+            // `-Ctarget-feature` when `rustc` starts recognizing them (or via a new dedicated
+            // flag); see https://github.com/rust-lang/rust/issues/116851.
+            features += ",+harden-sls-ijmp";
+            features += ",+harden-sls-ret";
         }
         ts.push("features", features);
         ts.push("llvm-target", "x86_64-linux-gnu");
+        ts.push("supported-sanitizers", ["kcfi", "kernel-address"]);
         ts.push("target-pointer-width", "64");
+    } else if cfg.has("X86_32") {
+        // This only works on UML, as i386 otherwise needs regparm support in rustc
+        if !cfg.has("UML") {
+            panic!("32-bit x86 only works under UML");
+        }
+        ts.push("arch", "x86");
+        ts.push(
+            "data-layout",
+            "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128",
+        );
+        let mut features = "-mmx,+soft-float".to_string();
+        if cfg.has("MITIGATION_RETPOLINE") {
+            features += ",+retpoline-external-thunk";
+        }
+        ts.push("features", features);
+        ts.push("llvm-target", "i386-unknown-linux-gnu");
+        ts.push("target-pointer-width", "32");
+    } else if cfg.has("LOONGARCH") {
+        panic!("loongarch uses the builtin rustc loongarch64-unknown-none-softfloat target");
     } else {
         panic!("Unsupported architecture");
     }

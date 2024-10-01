@@ -163,7 +163,6 @@ static const struct file_operations debug_file_ops = {
 	.write	 = debug_input,
 	.open	 = debug_open,
 	.release = debug_close,
-	.llseek  = no_llseek,
 };
 
 static struct dentry *debug_debugfs_root_entry;
@@ -954,7 +953,7 @@ static int debug_active = 1;
  * always allow read, allow write only if debug_stoppable is set or
  * if debug_active is already off
  */
-static int s390dbf_procactive(struct ctl_table *table, int write,
+static int s390dbf_procactive(const struct ctl_table *table, int write,
 			      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!write || debug_stoppable || !debug_active)
@@ -978,7 +977,6 @@ static struct ctl_table s390dbf_table[] = {
 		.mode		= S_IRUGO | S_IWUSR,
 		.proc_handler	= s390dbf_procactive,
 	},
-	{ }
 };
 
 static struct ctl_table_header *s390dbf_sysctl_header;

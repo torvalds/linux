@@ -82,8 +82,9 @@ static struct platform_driver gen_pci_driver = {
 		.of_match_table = gen_pci_of_match,
 	},
 	.probe = pci_host_common_probe,
-	.remove = pci_host_common_remove,
+	.remove_new = pci_host_common_remove,
 };
 module_platform_driver(gen_pci_driver);
 
+MODULE_DESCRIPTION("Generic PCI host controller driver");
 MODULE_LICENSE("GPL v2");

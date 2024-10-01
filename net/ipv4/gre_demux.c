@@ -73,7 +73,7 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	if (unlikely(greh->flags & (GRE_VERSION | GRE_ROUTING)))
 		return -EINVAL;
 
-	tpi->flags = gre_flags_to_tnl_flags(greh->flags);
+	gre_flags_to_tnl_flags(tpi->flags, greh->flags);
 	hdr_len = gre_calc_hlen(tpi->flags);
 
 	if (!pskb_may_pull(skb, nhs + hdr_len))
@@ -217,5 +217,5 @@ module_init(gre_init);
 module_exit(gre_exit);
 
 MODULE_DESCRIPTION("GRE over IPv4 demultiplexer driver");
-MODULE_AUTHOR("D. Kozlov (xeb@mail.ru)");
+MODULE_AUTHOR("D. Kozlov <xeb@mail.ru>");
 MODULE_LICENSE("GPL");

@@ -347,6 +347,137 @@ static void __init test_prefixed_patching(void)
 	check(!memcmp(iptr, expected, sizeof(expected)));
 }
 
+static void __init test_multi_instruction_patching(void)
+{
+	u32 code[32];
+	void *buf;
+	u32 *addr32;
+	u64 *addr64;
+	ppc_inst_t inst64 = ppc_inst_prefix(OP_PREFIX << 26 | 3UL << 24, PPC_RAW_TRAP());
+	u32 inst32 = PPC_RAW_NOP();
+
+	buf = vzalloc(PAGE_SIZE * 8);
+	check(buf);
+	if (!buf)
+		return;
+
+	/* Test single page 32-bit repeated instruction */
+	addr32 = buf + PAGE_SIZE;
+	check(!patch_instructions(addr32 + 1, &inst32, 12, true));
+
+	check(addr32[0] == 0);
+	check(addr32[1] == inst32);
+	check(addr32[2] == inst32);
+	check(addr32[3] == inst32);
+	check(addr32[4] == 0);
+
+	/* Test single page 64-bit repeated instruction */
+	if (IS_ENABLED(CONFIG_PPC64)) {
+		check(ppc_inst_prefixed(inst64));
+
+		addr64 = buf + PAGE_SIZE * 2;
+		ppc_inst_write(code, inst64);
+		check(!patch_instructions((u32 *)(addr64 + 1), code, 24, true));
+
+		check(addr64[0] == 0);
+		check(ppc_inst_equal(ppc_inst_read((u32 *)&addr64[1]), inst64));
+		check(ppc_inst_equal(ppc_inst_read((u32 *)&addr64[2]), inst64));
+		check(ppc_inst_equal(ppc_inst_read((u32 *)&addr64[3]), inst64));
+		check(addr64[4] == 0);
+	}
+
+	/* Test single page memcpy */
+	addr32 = buf + PAGE_SIZE * 3;
+
+	for (int i = 0; i < ARRAY_SIZE(code); i++)
+		code[i] = i + 1;
+
+	check(!patch_instructions(addr32 + 1, code, sizeof(code), false));
+
+	check(addr32[0] == 0);
+	check(!memcmp(&addr32[1], code, sizeof(code)));
+	check(addr32[ARRAY_SIZE(code) + 1] == 0);
+
+	/* Test multipage 32-bit repeated instruction */
+	addr32 = buf + PAGE_SIZE * 4 - 8;
+	check(!patch_instructions(addr32 + 1, &inst32, 12, true));
+
+	check(addr32[0] == 0);
+	check(addr32[1] == inst32);
+	check(addr32[2] == inst32);
+	check(addr32[3] == inst32);
+	check(addr32[4] == 0);
+
+	/* Test multipage 64-bit repeated instruction */
+	if (IS_ENABLED(CONFIG_PPC64)) {
+		check(ppc_inst_prefixed(inst64));
+
+		addr64 = buf + PAGE_SIZE * 5 - 8;
+		ppc_inst_write(code, inst64);
+		check(!patch_instructions((u32 *)(addr64 + 1), code, 24, true));
+
+		check(addr64[0] == 0);
+		check(ppc_inst_equal(ppc_inst_read((u32 *)&addr64[1]), inst64));
+		check(ppc_inst_equal(ppc_inst_read((u32 *)&addr64[2]), inst64));
+		check(ppc_inst_equal(ppc_inst_read((u32 *)&addr64[3]), inst64));
+		check(addr64[4] == 0);
+	}
+
+	/* Test multipage memcpy */
+	addr32 = buf + PAGE_SIZE * 6 - 12;
+
+	for (int i = 0; i < ARRAY_SIZE(code); i++)
+		code[i] = i + 1;
+
+	check(!patch_instructions(addr32 + 1, code, sizeof(code), false));
+
+	check(addr32[0] == 0);
+	check(!memcmp(&addr32[1], code, sizeof(code)));
+	check(addr32[ARRAY_SIZE(code) + 1] == 0);
+
+	vfree(buf);
+}
+
+static void __init test_data_patching(void)
+{
+	void *buf;
+	u32 *addr32;
+
+	buf = vzalloc(PAGE_SIZE);
+	check(buf);
+	if (!buf)
+		return;
+
+	addr32 = buf + 128;
+
+	addr32[1] = 0xA0A1A2A3;
+	addr32[2] = 0xB0B1B2B3;
+
+	check(!patch_uint(&addr32[1], 0xC0C1C2C3));
+
+	check(addr32[0] == 0);
+	check(addr32[1] == 0xC0C1C2C3);
+	check(addr32[2] == 0xB0B1B2B3);
+	check(addr32[3] == 0);
+
+	/* Unaligned patch_ulong() should fail */
+	if (IS_ENABLED(CONFIG_PPC64))
+		check(patch_ulong(&addr32[1], 0xD0D1D2D3) == -EINVAL);
+
+	check(!patch_ulong(&addr32[2], 0xD0D1D2D3));
+
+	check(addr32[0] == 0);
+	check(addr32[1] == 0xC0C1C2C3);
+	check(*(unsigned long *)(&addr32[2]) == 0xD0D1D2D3);
+
+	if (!IS_ENABLED(CONFIG_PPC64))
+		check(addr32[3] == 0);
+
+	check(addr32[4] == 0);
+
+	vfree(buf);
+}
+
 static int __init test_code_patching(void)
 {
 	pr_info("Running code patching self-tests ...\n");
@@ -356,6 +487,8 @@ static int __init test_code_patching(void)
 	test_create_function_call();
 	test_translate_branch();
 	test_prefixed_patching();
+	test_multi_instruction_patching();
+	test_data_patching();
 
 	return 0;
 }

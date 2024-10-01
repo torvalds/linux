@@ -157,6 +157,8 @@ static int dw9714_probe(struct i2c_client *client)
 		return rval;
 	}
 
+	usleep_range(1000, 2000);
+
 	v4l2_i2c_subdev_init(&dw9714_dev->sd, client, &dw9714_ops);
 	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 				V4L2_SUBDEV_FL_HAS_EVENTS;
@@ -277,8 +279,8 @@ static int  __maybe_unused dw9714_vcm_resume(struct device *dev)
 }
 
 static const struct i2c_device_id dw9714_id_table[] = {
-	{ DW9714_NAME, 0 },
-	{ { 0 } }
+	{ DW9714_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dw9714_id_table);
 
@@ -308,8 +310,8 @@ module_i2c_driver(dw9714_i2c_driver);
 
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
 MODULE_AUTHOR("Jian Xu Zheng");
-MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
-MODULE_AUTHOR("Jouni Ukkonen <jouni.ukkonen@intel.com>");
-MODULE_AUTHOR("Tommi Franttila <tommi.franttila@intel.com>");
+MODULE_AUTHOR("Yuning Pu");
+MODULE_AUTHOR("Jouni Ukkonen");
+MODULE_AUTHOR("Tommi Franttila");
 MODULE_DESCRIPTION("DW9714 VCM driver");
 MODULE_LICENSE("GPL v2");

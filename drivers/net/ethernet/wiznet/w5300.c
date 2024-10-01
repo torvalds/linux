@@ -539,8 +539,7 @@ static int w5300_hw_probe(struct platform_device *pdev)
 		eth_hw_addr_random(ndev);
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, mem);
+	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
@@ -627,7 +626,7 @@ err_register:
 	return err;
 }
 
-static int w5300_remove(struct platform_device *pdev)
+static void w5300_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct w5300_priv *priv = netdev_priv(ndev);
@@ -639,7 +638,6 @@ static int w5300_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	free_netdev(ndev);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -683,7 +681,7 @@ static struct platform_driver w5300_driver = {
 		.pm	= &w5300_pm_ops,
 	},
 	.probe		= w5300_probe,
-	.remove		= w5300_remove,
+	.remove_new	= w5300_remove,
 };
 
 module_platform_driver(w5300_driver);

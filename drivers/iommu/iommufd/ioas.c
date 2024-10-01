@@ -3,8 +3,8 @@
  * Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES
  */
 #include <linux/interval_tree.h>
-#include <linux/iommufd.h>
 #include <linux/iommu.h>
+#include <linux/iommufd.h>
 #include <uapi/linux/iommufd.h>
 
 #include "io_pagetable.h"
@@ -105,7 +105,7 @@ int iommufd_ioas_iova_ranges(struct iommufd_ucmd *ucmd)
 		rc = -EMSGSIZE;
 out_put:
 	up_read(&ioas->iopt.iova_rwsem);
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
 	return rc;
 }
 
@@ -175,7 +175,7 @@ out_free:
 		interval_tree_remove(node, &allowed_iova);
 		kfree(container_of(node, struct iopt_allowed, node));
 	}
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
 	return rc;
 }
 
@@ -213,6 +213,10 @@ int iommufd_ioas_map(struct iommufd_ucmd *ucmd)
 	if (cmd->iova >= ULONG_MAX || cmd->length >= ULONG_MAX)
 		return -EOVERFLOW;
 
+	if (!(cmd->flags &
+	      (IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE)))
+		return -EINVAL;
+
 	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
@@ -228,7 +232,7 @@ int iommufd_ioas_map(struct iommufd_ucmd *ucmd)
 	cmd->iova = iova;
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 out_put:
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
 	return rc;
 }
 
@@ -253,12 +257,16 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd)
 	    cmd->dst_iova >= ULONG_MAX)
 		return -EOVERFLOW;
 
+	if (!(cmd->flags &
+	      (IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE)))
+		return -EINVAL;
+
 	src_ioas = iommufd_get_ioas(ucmd->ictx, cmd->src_ioas_id);
 	if (IS_ERR(src_ioas))
 		return PTR_ERR(src_ioas);
 	rc = iopt_get_pages(&src_ioas->iopt, cmd->src_iova, cmd->length,
 			    &pages_list);
-	iommufd_put_object(&src_ioas->obj);
+	iommufd_put_object(ucmd->ictx, &src_ioas->obj);
 	if (rc)
 		return rc;
 
@@ -279,7 +287,7 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd)
 	cmd->dst_iova = iova;
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 out_put_dst:
-	iommufd_put_object(&dst_ioas->obj);
+	iommufd_put_object(ucmd->ictx, &dst_ioas->obj);
 out_pages:
 	iopt_free_pages_list(&pages_list);
 	return rc;
@@ -315,7 +323,7 @@ int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd)
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 
 out_put:
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
 	return rc;
 }
 
@@ -393,6 +401,6 @@ int iommufd_ioas_option(struct iommufd_ucmd *ucmd)
 		rc = -EOPNOTSUPP;
 	}
 
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
 	return rc;
 }

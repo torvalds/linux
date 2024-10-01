@@ -125,7 +125,6 @@ struct mt7615_sta {
 
 	struct mt7615_vif *vif;
 
-	struct list_head poll_list;
 	u32 airtime_ac[8];
 
 	struct ieee80211_tx_rate rates[4];
@@ -261,9 +260,6 @@ struct mt7615_dev {
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;
 	u32 reset_state;
-
-	struct list_head sta_poll_list;
-	spinlock_t sta_poll_lock;
 
 	struct {
 		u8 n_pulses;
@@ -403,7 +399,6 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *rates);
 void mt7615_pm_wake_work(struct work_struct *work);
 void mt7615_pm_power_save_work(struct work_struct *work);
-int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 		       const struct ieee80211_tx_queue_params *params);
@@ -461,7 +456,7 @@ void mt7615_roc_work(struct work_struct *work);
 void mt7615_roc_timer(struct timer_list *timer);
 void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband);
-int mt7615_set_channel(struct mt7615_phy *phy);
+int mt7615_set_channel(struct mt76_phy *mphy);
 void mt7615_init_work(struct mt7615_dev *dev);
 
 int mt7615_mcu_restart(struct mt76_dev *dev);

@@ -25,7 +25,7 @@
 	 * This is a very bad place to be.  Our cache error
 	 * detection has triggered.  If we have write-back data
 	 * in the cache, we may not be able to recover.	 As a
-	 * first-order desperate measure, turn off KSEG0 cacheing.
+	 * first-order desperate measure, turn off KSEG0 caching.
 	 */
 	mfc0	k0,CP0_CONFIG
 	li	k1,~CONF_CM_CMASK

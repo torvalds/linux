@@ -232,8 +232,8 @@ static int csi2dc_get_fmt(struct v4l2_subdev *csi2dc_sd,
 	struct v4l2_mbus_framefmt *v4l2_try_fmt;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		v4l2_try_fmt = v4l2_subdev_get_try_format(csi2dc_sd, sd_state,
-							  format->pad);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    format->pad);
 		format->format = *v4l2_try_fmt;
 
 		return 0;
@@ -281,13 +281,12 @@ static int csi2dc_set_fmt(struct v4l2_subdev *csi2dc_sd,
 	req_fmt->format.field = V4L2_FIELD_NONE;
 
 	if (req_fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		v4l2_try_fmt = v4l2_subdev_get_try_format(csi2dc_sd, sd_state,
-							  req_fmt->pad);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    req_fmt->pad);
 		*v4l2_try_fmt = req_fmt->format;
 		/* Trying on the sink pad makes the source pad change too */
-		v4l2_try_fmt = v4l2_subdev_get_try_format(csi2dc_sd,
-							  sd_state,
-							  CSI2DC_PAD_SOURCE);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    CSI2DC_PAD_SOURCE);
 		*v4l2_try_fmt = req_fmt->format;
 
 		/* if we are just trying, we are done */
@@ -436,11 +435,11 @@ static int csi2dc_s_stream(struct v4l2_subdev *csi2dc_sd, int enable)
 	return ret;
 }
 
-static int csi2dc_init_cfg(struct v4l2_subdev *csi2dc_sd,
-			   struct v4l2_subdev_state *sd_state)
+static int csi2dc_init_state(struct v4l2_subdev *csi2dc_sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *v4l2_try_fmt =
-		v4l2_subdev_get_try_format(csi2dc_sd, sd_state, 0);
+		v4l2_subdev_state_get_format(sd_state, 0);
 
 	v4l2_try_fmt->height = 480;
 	v4l2_try_fmt->width = 640;
@@ -462,7 +461,6 @@ static const struct v4l2_subdev_pad_ops csi2dc_pad_ops = {
 	.enum_mbus_code = csi2dc_enum_mbus_code,
 	.set_fmt = csi2dc_set_fmt,
 	.get_fmt = csi2dc_get_fmt,
-	.init_cfg = csi2dc_init_cfg,
 };
 
 static const struct v4l2_subdev_video_ops csi2dc_video_ops = {
@@ -474,9 +472,13 @@ static const struct v4l2_subdev_ops csi2dc_subdev_ops = {
 	.video = &csi2dc_video_ops,
 };
 
+static const struct v4l2_subdev_internal_ops csi2dc_internal_ops = {
+	.init_state = csi2dc_init_state,
+};
+
 static int csi2dc_async_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asd)
 {
 	struct csi2dc_device *csi2dc = container_of(notifier,
 						struct csi2dc_device, notifier);
@@ -520,14 +522,14 @@ static const struct v4l2_async_notifier_operations csi2dc_async_ops = {
 static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 				   struct fwnode_handle *input_fwnode)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	int ret = 0;
 
-	v4l2_async_nf_init(&csi2dc->notifier);
+	v4l2_async_subdev_nf_init(&csi2dc->notifier, &csi2dc->csi2dc_sd);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi2dc->notifier,
 					      input_fwnode,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	fwnode_handle_put(input_fwnode);
 
@@ -542,8 +544,7 @@ static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 
 	csi2dc->notifier.ops = &csi2dc_async_ops;
 
-	ret = v4l2_async_subdev_nf_register(&csi2dc->csi2dc_sd,
-					    &csi2dc->notifier);
+	ret = v4l2_async_nf_register(&csi2dc->notifier);
 	if (ret) {
 		dev_err(csi2dc->dev, "fail to register async notifier: %d\n",
 			ret);
@@ -679,6 +680,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 	}
 
 	v4l2_subdev_init(&csi2dc->csi2dc_sd, &csi2dc_subdev_ops);
+	csi2dc->csi2dc_sd.internal_ops = &csi2dc_internal_ops;
 
 	csi2dc->csi2dc_sd.owner = THIS_MODULE;
 	csi2dc->csi2dc_sd.dev = dev;

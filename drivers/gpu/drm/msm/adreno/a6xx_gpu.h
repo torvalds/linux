@@ -12,6 +12,20 @@
 
 extern bool hang_debug;
 
+/**
+ * struct a6xx_info - a6xx specific information from device table
+ *
+ * @hwcg: hw clock gating register sequence
+ * @protect: CP_PROTECT settings
+ */
+struct a6xx_info {
+	const struct adreno_reglist *hwcg;
+	const struct adreno_protect *protect;
+	u32 gmu_chipid;
+	u32 gmu_cgc_mode;
+	u32 prim_fifo_threshold;
+};
+
 struct a6xx_gpu {
 	struct adreno_gpu base;
 
@@ -39,8 +53,8 @@ struct a6xx_gpu {
 
 /*
  * Given a register and a count, return a value to program into
- * REG_CP_PROTECT_REG(n) - this will block both reads and writes for _len
- * registers starting at _reg.
+ * REG_CP_PROTECT_REG(n) - this will block both reads and writes for
+ * _len + 1 registers starting at _reg.
  */
 #define A6XX_PROTECT_NORDWR(_reg, _len) \
 	((1 << 31) | \
@@ -60,6 +74,21 @@ static inline bool a6xx_has_gbif(struct adreno_gpu *gpu)
 		return false;
 
 	return true;
+}
+
+static inline void a6xx_llc_rmw(struct a6xx_gpu *a6xx_gpu, u32 reg, u32 mask, u32 or)
+{
+	return msm_rmw(a6xx_gpu->llc_mmio + (reg << 2), mask, or);
+}
+
+static inline u32 a6xx_llc_read(struct a6xx_gpu *a6xx_gpu, u32 reg)
+{
+	return readl(a6xx_gpu->llc_mmio + (reg << 2));
+}
+
+static inline void a6xx_llc_write(struct a6xx_gpu *a6xx_gpu, u32 reg, u32 value)
+{
+	writel(value, a6xx_gpu->llc_mmio + (reg << 2));
 }
 
 #define shadowptr(_a6xx_gpu, _ring) ((_a6xx_gpu)->shadow_iova + \

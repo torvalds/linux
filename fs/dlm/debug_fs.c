@@ -18,6 +18,7 @@
 #include "dlm_internal.h"
 #include "midcomms.h"
 #include "lock.h"
+#include "ast.h"
 
 #define DLM_DEBUG_BUF_LEN 4096
 static char debug_buf[DLM_DEBUG_BUF_LEN];
@@ -246,7 +247,7 @@ static void print_format3_lock(struct seq_file *s, struct dlm_lkb *lkb,
 		   lkb->lkb_status,
 		   lkb->lkb_grmode,
 		   lkb->lkb_rqmode,
-		   lkb->lkb_last_bast_mode,
+		   lkb->lkb_last_bast_cb_mode,
 		   rsb_lookup,
 		   lkb->lkb_wait_type,
 		   lkb->lkb_lvbseq,
@@ -365,12 +366,10 @@ static void print_format4(struct dlm_rsb *r, struct seq_file *s)
 	unlock_rsb(r);
 }
 
-struct rsbtbl_iter {
-	struct dlm_rsb *rsb;
-	unsigned bucket;
-	int format;
-	int header;
-};
+static const struct seq_operations format1_seq_ops;
+static const struct seq_operations format2_seq_ops;
+static const struct seq_operations format3_seq_ops;
+static const struct seq_operations format4_seq_ops;
 
 /*
  * If the buffer is full, seq_printf can be called again, but it
@@ -381,197 +380,61 @@ struct rsbtbl_iter {
 
 static int table_seq_show(struct seq_file *seq, void *iter_ptr)
 {
-	struct rsbtbl_iter *ri = iter_ptr;
+	struct dlm_rsb *rsb = list_entry(iter_ptr, struct dlm_rsb, res_slow_list);
 
-	switch (ri->format) {
-	case 1:
-		print_format1(ri->rsb, seq);
-		break;
-	case 2:
-		if (ri->header) {
-			seq_puts(seq, "id nodeid remid pid xid exflags flags sts grmode rqmode time_ms r_nodeid r_len r_name\n");
-			ri->header = 0;
-		}
-		print_format2(ri->rsb, seq);
-		break;
-	case 3:
-		if (ri->header) {
-			seq_puts(seq, "version rsb 1.1 lvb 1.1 lkb 1.1\n");
-			ri->header = 0;
-		}
-		print_format3(ri->rsb, seq);
-		break;
-	case 4:
-		if (ri->header) {
-			seq_puts(seq, "version 4 rsb 2\n");
-			ri->header = 0;
-		}
-		print_format4(ri->rsb, seq);
-		break;
-	}
+	if (seq->op == &format1_seq_ops)
+		print_format1(rsb, seq);
+	else if (seq->op == &format2_seq_ops)
+		print_format2(rsb, seq);
+	else if (seq->op == &format3_seq_ops)
+		print_format3(rsb, seq);
+	else if (seq->op == &format4_seq_ops)
+		print_format4(rsb, seq);
 
 	return 0;
 }
 
-static const struct seq_operations format1_seq_ops;
-static const struct seq_operations format2_seq_ops;
-static const struct seq_operations format3_seq_ops;
-static const struct seq_operations format4_seq_ops;
-
 static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct rb_root *tree;
-	struct rb_node *node;
 	struct dlm_ls *ls = seq->private;
-	struct rsbtbl_iter *ri;
-	struct dlm_rsb *r;
-	loff_t n = *pos;
-	unsigned bucket, entry;
-	int toss = (seq->op == &format4_seq_ops);
+	struct list_head *list;
 
-	bucket = n >> 32;
-	entry = n & ((1LL << 32) - 1);
+	if (!*pos) {
+		if (seq->op == &format2_seq_ops)
+			seq_puts(seq, "id nodeid remid pid xid exflags flags sts grmode rqmode time_ms r_nodeid r_len r_name\n");
+		else if (seq->op == &format3_seq_ops)
+			seq_puts(seq, "rsb ptr nodeid first_lkid flags !root_list_empty !recover_list_empty recover_locks_count len\n");
+		else if (seq->op == &format4_seq_ops)
+			seq_puts(seq, "rsb ptr nodeid master_nodeid dir_nodeid our_nodeid toss_time flags len str|hex name\n");
+	}
 
-	if (bucket >= ls->ls_rsbtbl_size)
-		return NULL;
-
-	ri = kzalloc(sizeof(*ri), GFP_NOFS);
-	if (!ri)
-		return NULL;
-	if (n == 0)
-		ri->header = 1;
-	if (seq->op == &format1_seq_ops)
-		ri->format = 1;
-	if (seq->op == &format2_seq_ops)
-		ri->format = 2;
-	if (seq->op == &format3_seq_ops)
-		ri->format = 3;
 	if (seq->op == &format4_seq_ops)
-		ri->format = 4;
+		list = &ls->ls_slow_inactive;
+	else
+		list = &ls->ls_slow_active;
 
-	tree = toss ? &ls->ls_rsbtbl[bucket].toss : &ls->ls_rsbtbl[bucket].keep;
-
-	spin_lock(&ls->ls_rsbtbl[bucket].lock);
-	if (!RB_EMPTY_ROOT(tree)) {
-		for (node = rb_first(tree); node; node = rb_next(node)) {
-			r = rb_entry(node, struct dlm_rsb, res_hashnode);
-			if (!entry--) {
-				dlm_hold_rsb(r);
-				ri->rsb = r;
-				ri->bucket = bucket;
-				spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-				return ri;
-			}
-		}
-	}
-	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-
-	/*
-	 * move to the first rsb in the next non-empty bucket
-	 */
-
-	/* zero the entry */
-	n &= ~((1LL << 32) - 1);
-
-	while (1) {
-		bucket++;
-		n += 1LL << 32;
-
-		if (bucket >= ls->ls_rsbtbl_size) {
-			kfree(ri);
-			return NULL;
-		}
-		tree = toss ? &ls->ls_rsbtbl[bucket].toss : &ls->ls_rsbtbl[bucket].keep;
-
-		spin_lock(&ls->ls_rsbtbl[bucket].lock);
-		if (!RB_EMPTY_ROOT(tree)) {
-			node = rb_first(tree);
-			r = rb_entry(node, struct dlm_rsb, res_hashnode);
-			dlm_hold_rsb(r);
-			ri->rsb = r;
-			ri->bucket = bucket;
-			spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-			*pos = n;
-			return ri;
-		}
-		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-	}
+	read_lock_bh(&ls->ls_rsbtbl_lock);
+	return seq_list_start(list, *pos);
 }
 
 static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 {
 	struct dlm_ls *ls = seq->private;
-	struct rsbtbl_iter *ri = iter_ptr;
-	struct rb_root *tree;
-	struct rb_node *next;
-	struct dlm_rsb *r, *rp;
-	loff_t n = *pos;
-	unsigned bucket;
-	int toss = (seq->op == &format4_seq_ops);
+	struct list_head *list;
 
-	bucket = n >> 32;
+	if (seq->op == &format4_seq_ops)
+		list = &ls->ls_slow_inactive;
+	else
+		list = &ls->ls_slow_active;
 
-	/*
-	 * move to the next rsb in the same bucket
-	 */
-
-	spin_lock(&ls->ls_rsbtbl[bucket].lock);
-	rp = ri->rsb;
-	next = rb_next(&rp->res_hashnode);
-
-	if (next) {
-		r = rb_entry(next, struct dlm_rsb, res_hashnode);
-		dlm_hold_rsb(r);
-		ri->rsb = r;
-		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-		dlm_put_rsb(rp);
-		++*pos;
-		return ri;
-	}
-	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-	dlm_put_rsb(rp);
-
-	/*
-	 * move to the first rsb in the next non-empty bucket
-	 */
-
-	/* zero the entry */
-	n &= ~((1LL << 32) - 1);
-
-	while (1) {
-		bucket++;
-		n += 1LL << 32;
-
-		if (bucket >= ls->ls_rsbtbl_size) {
-			kfree(ri);
-			++*pos;
-			return NULL;
-		}
-		tree = toss ? &ls->ls_rsbtbl[bucket].toss : &ls->ls_rsbtbl[bucket].keep;
-
-		spin_lock(&ls->ls_rsbtbl[bucket].lock);
-		if (!RB_EMPTY_ROOT(tree)) {
-			next = rb_first(tree);
-			r = rb_entry(next, struct dlm_rsb, res_hashnode);
-			dlm_hold_rsb(r);
-			ri->rsb = r;
-			ri->bucket = bucket;
-			spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-			*pos = n;
-			return ri;
-		}
-		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-	}
+	return seq_list_next(iter_ptr, list, pos);
 }
 
 static void table_seq_stop(struct seq_file *seq, void *iter_ptr)
 {
-	struct rsbtbl_iter *ri = iter_ptr;
+	struct dlm_ls *ls = seq->private;
 
-	if (ri) {
-		dlm_put_rsb(ri->rsb);
-		kfree(ri);
-	}
+	read_unlock_bh(&ls->ls_rsbtbl_lock);
 }
 
 static const struct seq_operations format1_seq_ops = {
@@ -736,7 +599,13 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 	size_t len = DLM_DEBUG_BUF_LEN, pos = 0, ret, rv;
 
 	mutex_lock(&debug_buf_lock);
-	mutex_lock(&ls->ls_waiters_mutex);
+	ret = dlm_lock_recovery_try(ls);
+	if (!ret) {
+		rv = -EAGAIN;
+		goto out;
+	}
+
+	spin_lock_bh(&ls->ls_waiters_lock);
 	memset(debug_buf, 0, sizeof(debug_buf));
 
 	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
@@ -747,9 +616,11 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 			break;
 		pos += ret;
 	}
-	mutex_unlock(&ls->ls_waiters_mutex);
+	spin_unlock_bh(&ls->ls_waiters_lock);
+	dlm_unlock_recovery(ls);
 
 	rv = simple_read_from_buffer(userbuf, count, ppos, debug_buf, pos);
+out:
 	mutex_unlock(&debug_buf_lock);
 	return rv;
 }
@@ -771,7 +642,12 @@ static ssize_t waiters_write(struct file *file, const char __user *user_buf,
 	if (n != 3)
 		return -EINVAL;
 
+	error = dlm_lock_recovery_try(ls);
+	if (!error)
+		return -EAGAIN;
+
 	error = dlm_debug_add_lkb_to_waiters(ls, lkb_id, mstype, to_nodeid);
+	dlm_unlock_recovery(ls);
 	if (error)
 		return error;
 
@@ -793,6 +669,7 @@ void dlm_delete_debug_file(struct dlm_ls *ls)
 	debugfs_remove(ls->ls_debug_locks_dentry);
 	debugfs_remove(ls->ls_debug_all_dentry);
 	debugfs_remove(ls->ls_debug_toss_dentry);
+	debugfs_remove(ls->ls_debug_queued_asts_dentry);
 }
 
 static int dlm_state_show(struct seq_file *file, void *offset)
@@ -856,7 +733,6 @@ out:
 static const struct file_operations dlm_rawmsg_fops = {
 	.open	= simple_open,
 	.write	= dlm_rawmsg_write,
-	.llseek	= no_llseek,
 };
 
 void *dlm_create_debug_comms_file(int nodeid, void *data)
@@ -885,7 +761,8 @@ void dlm_delete_debug_comms_file(void *ctx)
 
 void dlm_create_debug_file(struct dlm_ls *ls)
 {
-	char name[DLM_LOCKSPACE_LEN + 8];
+	/* Reserve enough space for the longest file name */
+	char name[DLM_LOCKSPACE_LEN + sizeof("_queued_asts")];
 
 	/* format 1 */
 
@@ -897,8 +774,7 @@ void dlm_create_debug_file(struct dlm_ls *ls)
 
 	/* format 2 */
 
-	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_locks", ls->ls_name);
+	snprintf(name, sizeof(name), "%s_locks", ls->ls_name);
 
 	ls->ls_debug_locks_dentry = debugfs_create_file(name,
 							0644,
@@ -908,8 +784,7 @@ void dlm_create_debug_file(struct dlm_ls *ls)
 
 	/* format 3 */
 
-	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_all", ls->ls_name);
+	snprintf(name, sizeof(name), "%s_all", ls->ls_name);
 
 	ls->ls_debug_all_dentry = debugfs_create_file(name,
 						      S_IFREG | S_IRUGO,
@@ -919,8 +794,7 @@ void dlm_create_debug_file(struct dlm_ls *ls)
 
 	/* format 4 */
 
-	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_toss", ls->ls_name);
+	snprintf(name, sizeof(name), "%s_toss", ls->ls_name);
 
 	ls->ls_debug_toss_dentry = debugfs_create_file(name,
 						       S_IFREG | S_IRUGO,
@@ -928,8 +802,7 @@ void dlm_create_debug_file(struct dlm_ls *ls)
 						       ls,
 						       &format4_fops);
 
-	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_waiters", ls->ls_name);
+	snprintf(name, sizeof(name), "%s_waiters", ls->ls_name);
 
 	ls->ls_debug_waiters_dentry = debugfs_create_file(name,
 							  0644,

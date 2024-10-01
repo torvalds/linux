@@ -8,7 +8,7 @@ title: Qualcomm Global Clock & Reset Controller Common Properties
 
 maintainers:
   - Stephen Boyd <sboyd@kernel.org>
-  - Taniya Das <tdas@codeaurora.org>
+  - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
   Common bindings for Qualcomm global clock control module providing the
@@ -35,7 +35,6 @@ required:
   - reg
   - '#clock-cells'
   - '#reset-cells'
-  - '#power-domain-cells'
 
 additionalProperties: true
 

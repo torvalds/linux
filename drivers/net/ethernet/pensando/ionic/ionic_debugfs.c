@@ -113,8 +113,8 @@ static const struct debugfs_reg32 intr_ctrl_regs[] = {
 void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 {
 	struct dentry *qcq_dentry, *q_dentry, *cq_dentry;
-	struct dentry *intr_dentry, *stats_dentry;
 	struct ionic_dev *idev = &lif->ionic->idev;
+	struct dentry *intr_dentry, *stats_dentry;
 	struct debugfs_regset32 *intr_ctrl_regset;
 	struct ionic_intr_info *intr = &qcq->intr;
 	struct debugfs_blob_wrapper *desc_blob;
@@ -123,7 +123,7 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	struct ionic_cq *cq = &qcq->cq;
 
 	qcq_dentry = debugfs_create_dir(q->name, lif->dentry);
-	if (IS_ERR_OR_NULL(qcq_dentry))
+	if (IS_ERR(qcq_dentry))
 		return;
 	qcq->dentry = qcq_dentry;
 
@@ -220,7 +220,7 @@ static int netdev_show(struct seq_file *seq, void *v)
 {
 	struct net_device *netdev = seq->private;
 
-	seq_printf(seq, "%s\n", netdev->name);
+	seq_printf(seq, "%s\n", netdev_name(netdev));
 
 	return 0;
 }
@@ -287,6 +287,9 @@ void ionic_debugfs_add_lif(struct ionic_lif *lif)
 
 void ionic_debugfs_del_lif(struct ionic_lif *lif)
 {
+	if (!lif->dentry)
+		return;
+
 	debugfs_remove_recursive(lif->dentry);
 	lif->dentry = NULL;
 }

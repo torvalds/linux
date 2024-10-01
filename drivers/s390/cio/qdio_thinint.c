@@ -99,7 +99,7 @@ static inline u32 clear_shared_ind(void)
 static void tiqdio_thinint_handler(struct airq_struct *airq,
 				   struct tpi_info *tpi_info)
 {
-	u64 irq_time = S390_lowcore.int_clock;
+	u64 irq_time = get_lowcore()->int_clock;
 	u32 si_used = clear_shared_ind();
 	struct qdio_irq *irq;
 
@@ -137,15 +137,15 @@ static struct airq_struct tiqdio_airq = {
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 {
 	struct chsc_scssc_area *scssc = (void *)irq_ptr->chsc_page;
-	u64 summary_indicator_addr, subchannel_indicator_addr;
+	dma64_t summary_indicator_addr, subchannel_indicator_addr;
 	int rc;
 
 	if (reset) {
 		summary_indicator_addr = 0;
 		subchannel_indicator_addr = 0;
 	} else {
-		summary_indicator_addr = virt_to_phys(tiqdio_airq.lsi_ptr);
-		subchannel_indicator_addr = virt_to_phys(irq_ptr->dsci);
+		summary_indicator_addr = virt_to_dma64(tiqdio_airq.lsi_ptr);
+		subchannel_indicator_addr = virt_to_dma64(irq_ptr->dsci);
 	}
 
 	rc = chsc_sadc(irq_ptr->schid, scssc, summary_indicator_addr,

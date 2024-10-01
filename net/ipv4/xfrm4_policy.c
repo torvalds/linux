@@ -69,7 +69,7 @@ static int xfrm4_get_saddr(struct net *net, int oif,
 static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 			  const struct flowi *fl)
 {
-	struct rtable *rt = (struct rtable *)xdst->route;
+	struct rtable *rt = dst_rtable(xdst->route);
 	const struct flowi4 *fl4 = &fl->u.ip4;
 
 	xdst->u.rt.rt_iif = fl4->flowi4_iif;
@@ -124,22 +124,13 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 	xfrm_dst_destroy(xdst);
 }
 
-static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			     int unregister)
-{
-	if (!unregister)
-		return;
-
-	xfrm_dst_ifdown(dst, dev);
-}
-
 static struct dst_ops xfrm4_dst_ops_template = {
 	.family =		AF_INET,
 	.update_pmtu =		xfrm4_update_pmtu,
 	.redirect =		xfrm4_redirect,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm4_dst_destroy,
-	.ifdown =		xfrm4_dst_ifdown,
+	.ifdown =		xfrm_dst_ifdown,
 	.local_out =		__ip_local_out,
 	.gc_thresh =		32768,
 };
@@ -161,7 +152,6 @@ static struct ctl_table xfrm4_policy_table[] = {
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
 	},
-	{ }
 };
 
 static __net_init int xfrm4_net_sysctl_init(struct net *net)
@@ -178,7 +168,8 @@ static __net_init int xfrm4_net_sysctl_init(struct net *net)
 		table[0].data = &net->xfrm.xfrm4_dst_ops.gc_thresh;
 	}
 
-	hdr = register_net_sysctl(net, "net/ipv4", table);
+	hdr = register_net_sysctl_sz(net, "net/ipv4", table,
+				     ARRAY_SIZE(xfrm4_policy_table));
 	if (!hdr)
 		goto err_reg;
 
@@ -194,7 +185,7 @@ err_alloc:
 
 static __net_exit void xfrm4_net_sysctl_exit(struct net *net)
 {
-	struct ctl_table *table;
+	const struct ctl_table *table;
 
 	if (!net->ipv4.xfrm4_hdr)
 		return;

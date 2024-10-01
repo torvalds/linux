@@ -41,10 +41,15 @@ static int regmap_raw_ram_gather_write(void *context,
 		return -EINVAL;
 
 	r = decode_reg(data->reg_endian, reg);
-	memcpy(&our_buf[r], val, val_len);
+	if (data->noinc_reg && data->noinc_reg(data, r)) {
+		memcpy(&our_buf[r], val + val_len - 2, 2);
+		data->written[r] = true;
+	} else {
+		memcpy(&our_buf[r], val, val_len);
 
-	for (i = 0; i < val_len / 2; i++)
-		data->written[r + i] = true;
+		for (i = 0; i < val_len / 2; i++)
+			data->written[r + i] = true;
+	}
 	
 	return 0;
 }
@@ -70,10 +75,16 @@ static int regmap_raw_ram_read(void *context,
 		return -EINVAL;
 
 	r = decode_reg(data->reg_endian, reg);
-	memcpy(val, &our_buf[r], val_len);
+	if (data->noinc_reg && data->noinc_reg(data, r)) {
+		for (i = 0; i < val_len; i += 2)
+			memcpy(val + i, &our_buf[r], 2);
+		data->read[r] = true;
+	} else {
+		memcpy(val, &our_buf[r], val_len);
 
-	for (i = 0; i < val_len / 2; i++)
-		data->read[r + i] = true;
+		for (i = 0; i < val_len / 2; i++)
+			data->read[r + i] = true;
+	}
 
 	return 0;
 }
@@ -96,7 +107,8 @@ static const struct regmap_bus regmap_raw_ram = {
 	.free_context = regmap_raw_ram_free_context,
 };
 
-struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
+struct regmap *__regmap_init_raw_ram(struct device *dev,
+				     const struct regmap_config *config,
 				     struct regmap_ram_data *data,
 				     struct lock_class_key *lock_key,
 				     const char *lock_name)
@@ -111,23 +123,24 @@ struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
 		return ERR_PTR(-EINVAL);
 	}
 
-	data->read = kcalloc(sizeof(bool), config->max_register + 1,
+	data->read = kcalloc(config->max_register + 1, sizeof(bool),
 			     GFP_KERNEL);
 	if (!data->read)
 		return ERR_PTR(-ENOMEM);
 
-	data->written = kcalloc(sizeof(bool), config->max_register + 1,
+	data->written = kcalloc(config->max_register + 1, sizeof(bool),
 				GFP_KERNEL);
 	if (!data->written)
 		return ERR_PTR(-ENOMEM);
 
 	data->reg_endian = config->reg_format_endian;
 
-	map = __regmap_init(NULL, &regmap_raw_ram, data, config,
+	map = __regmap_init(dev, &regmap_raw_ram, data, config,
 			    lock_key, lock_name);
 
 	return map;
 }
 EXPORT_SYMBOL_GPL(__regmap_init_raw_ram);
 
+MODULE_DESCRIPTION("Register map access API - Memory region with raw access");
 MODULE_LICENSE("GPL v2");

@@ -422,7 +422,7 @@ struct nd_region {
 	struct nd_interleave_set *nd_set;
 	struct nd_percpu_lane __percpu *lane;
 	int (*flush)(struct nd_region *nd_region, struct bio *bio);
-	struct nd_mapping mapping[];
+	struct nd_mapping mapping[] __counted_by(ndr_mappings);
 };
 
 static inline bool nsl_validate_nlabel(struct nd_region *nd_region,
@@ -489,7 +489,6 @@ enum nd_async_mode {
 	ND_ASYNC,
 };
 
-int nd_integrity_init(struct gendisk *disk, unsigned long meta_size);
 void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);

@@ -6,11 +6,11 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Alphascale asm9260 Watchdog timer
 
-allOf:
-  - $ref: watchdog.yaml#
-
 maintainers:
   - Oleksij Rempel <linux@rempel-privat.de>
+
+allOf:
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:

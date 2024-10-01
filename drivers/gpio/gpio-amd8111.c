@@ -195,8 +195,10 @@ static int __init amd_gpio_init(void)
 
 found:
 	err = pci_read_config_dword(pdev, 0x58, &gp.pmbase);
-	if (err)
+	if (err) {
+		err = pcibios_err_to_errno(err);
 		goto out;
+	}
 	err = -EIO;
 	gp.pmbase &= 0x0000FF00;
 	if (gp.pmbase == 0)

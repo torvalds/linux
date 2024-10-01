@@ -98,7 +98,7 @@ VDSO_AFLAGS += -D__ASSEMBLY__
 # From arm vDSO Makefile
 VDSO_LDFLAGS += -Bsymbolic --no-undefined -soname=linux-vdso.so.1
 VDSO_LDFLAGS += -z max-page-size=4096 -z common-page-size=4096
-VDSO_LDFLAGS += -shared --hash-style=sysv --build-id=sha1
+VDSO_LDFLAGS += -shared --build-id=sha1
 VDSO_LDFLAGS += --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
 
 
@@ -118,7 +118,7 @@ endif
 VDSO_CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os
 
 # Build rules
-targets := $(c-obj-vdso) $(c-obj-vdso-gettimeofday) $(asm-obj-vdso) vdso.so vdso.so.dbg vdso.so.raw
+targets := $(c-obj-vdso) $(c-obj-vdso-gettimeofday) $(asm-obj-vdso) vdso.so vdso32.so.dbg vdso.so.raw
 c-obj-vdso := $(addprefix $(obj)/, $(c-obj-vdso))
 c-obj-vdso-gettimeofday := $(addprefix $(obj)/, $(c-obj-vdso-gettimeofday))
 asm-obj-vdso := $(addprefix $(obj)/, $(asm-obj-vdso))
@@ -127,19 +127,16 @@ obj-vdso := $(c-obj-vdso) $(c-obj-vdso-gettimeofday) $(asm-obj-vdso)
 targets += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
-include/generated/vdso32-offsets.h: $(obj)/vdso.so.dbg FORCE
-	$(call if_changed,vdsosym)
-
 # Strip rule for vdso.so
 $(obj)/vdso.so: OBJCOPYFLAGS := -S
-$(obj)/vdso.so: $(obj)/vdso.so.dbg FORCE
+$(obj)/vdso.so: $(obj)/vdso32.so.dbg FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/vdso.so.dbg: $(obj)/vdso.so.raw $(obj)/$(munge) FORCE
+$(obj)/vdso32.so.dbg: $(obj)/vdso.so.raw $(obj)/$(munge) FORCE
 	$(call if_changed,vdsomunge)
 
 # Link rule for the .so file, .lds has to be first
-$(obj)/vdso.so.raw: $(src)/vdso.lds $(obj-vdso) FORCE
+$(obj)/vdso.so.raw: $(obj)/vdso.lds $(obj-vdso) FORCE
 	$(call if_changed,vdsold_and_vdso_check)
 
 # Compilation rules for the vDSO sources
@@ -166,19 +163,3 @@ quiet_cmd_vdsoas = AS32    $@
 
 quiet_cmd_vdsomunge = MUNGE   $@
       cmd_vdsomunge = $(obj)/$(munge) $< $@
-
-# Generate vDSO offsets using helper script (borrowed from the 64-bit vDSO)
-gen-vdsosym := $(srctree)/$(src)/../vdso/gen_vdso_offsets.sh
-quiet_cmd_vdsosym = VDSOSYM $@
-# The AArch64 nm should be able to read an AArch32 binary
-      cmd_vdsosym = $(NM) $< | $(gen-vdsosym) | LC_ALL=C sort > $@
-
-# Install commands for the unstripped file
-quiet_cmd_vdso_install = INSTALL32 $@
-      cmd_vdso_install = cp $(obj)/$@.dbg $(MODLIB)/vdso/vdso32.so
-
-vdso.so: $(obj)/vdso.so.dbg
-	@mkdir -p $(MODLIB)/vdso
-	$(call cmd,vdso_install)
-
-vdso_install: vdso.so

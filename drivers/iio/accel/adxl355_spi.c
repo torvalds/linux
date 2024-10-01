@@ -28,13 +28,9 @@ static int adxl355_spi_probe(struct spi_device *spi)
 	const struct adxl355_chip_info *chip_data;
 	struct regmap *regmap;
 
-	chip_data = device_get_match_data(&spi->dev);
-	if (!chip_data) {
-		chip_data = (void *)spi_get_device_id(spi)->driver_data;
-
-		if (!chip_data)
-			return -EINVAL;
-	}
+	chip_data = spi_get_device_match_data(spi);
+	if (!chip_data)
+		return -EINVAL;
 
 	regmap = devm_regmap_init_spi(spi, &adxl355_spi_regmap_config);
 	if (IS_ERR(regmap)) {

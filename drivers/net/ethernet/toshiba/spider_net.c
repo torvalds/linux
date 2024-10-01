@@ -2277,10 +2277,11 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM;
 	if (SPIDER_NET_RX_CSUM_DEFAULT)
 		netdev->features |= NETIF_F_RXCSUM;
-	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_LLTX;
+	netdev->features |= NETIF_F_IP_CSUM;
 	/* some time: NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 	 *		NETIF_F_HW_VLAN_CTAG_FILTER
 	 */
+	netdev->lltx = true;
 
 	/* MTU range: 64 - 2294 */
 	netdev->min_mtu = SPIDER_NET_MIN_MTU;
@@ -2332,7 +2333,7 @@ spider_net_alloc_card(void)
 	struct spider_net_card *card;
 
 	netdev = alloc_etherdev(struct_size(card, darray,
-					    tx_descriptors + rx_descriptors));
+					    size_add(tx_descriptors, rx_descriptors)));
 	if (!netdev)
 		return NULL;
 

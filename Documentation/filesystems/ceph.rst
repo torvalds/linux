@@ -57,12 +57,25 @@ a snapshot on any subdirectory (and its nested contents) in the
 system.  Snapshot creation and deletion are as simple as 'mkdir
 .snap/foo' and 'rmdir .snap/foo'.
 
-Ceph also provides some recursive accounting on directories for nested
-files and bytes.  That is, a 'getfattr -d foo' on any directory in the
-system will reveal the total number of nested regular files and
-subdirectories, and a summation of all nested file sizes.  This makes
-the identification of large disk space consumers relatively quick, as
-no 'du' or similar recursive scan of the file system is required.
+Snapshot names have two limitations:
+
+* They can not start with an underscore ('_'), as these names are reserved
+  for internal usage by the MDS.
+* They can not exceed 240 characters in size.  This is because the MDS makes
+  use of long snapshot names internally, which follow the format:
+  `_<SNAPSHOT-NAME>_<INODE-NUMBER>`.  Since filenames in general can't have
+  more than 255 characters, and `<node-id>` takes 13 characters, the long
+  snapshot names can take as much as 255 - 1 - 1 - 13 = 240.
+
+Ceph also provides some recursive accounting on directories for nested files
+and bytes.  You can run the commands::
+
+ getfattr -n ceph.dir.rfiles /some/dir
+ getfattr -n ceph.dir.rbytes /some/dir
+
+to get the total number of nested files and their combined size, respectively.
+This makes the identification of large disk space consumers relatively quick,
+as no 'du' or similar recursive scan of the file system is required.
 
 Finally, Ceph also allows quotas to be set on any directory in the system.
 The quota can restrict the number of bytes or the number of files stored

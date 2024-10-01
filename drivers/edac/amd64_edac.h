@@ -256,15 +256,11 @@
 #define UMCCH_ADDR_MASK			0x20
 #define UMCCH_ADDR_MASK_SEC		0x28
 #define UMCCH_ADDR_MASK_SEC_DDR5	0x30
-#define UMCCH_ADDR_CFG			0x30
-#define UMCCH_ADDR_CFG_DDR5		0x40
 #define UMCCH_DIMM_CFG			0x80
 #define UMCCH_DIMM_CFG_DDR5		0x90
 #define UMCCH_UMC_CFG			0x100
 #define UMCCH_SDP_CTRL			0x104
 #define UMCCH_ECC_CTRL			0x14C
-#define UMCCH_ECC_BAD_SYMBOL		0xD90
-#define UMCCH_UMC_CAP			0xDF0
 #define UMCCH_UMC_CAP_HI		0xDF4
 
 /* UMC CH bitfields */
@@ -345,7 +341,6 @@ struct amd64_pvt {
 	u32 dchr1;		/* DRAM Configuration High DCT1 reg */
 	u32 nbcap;		/* North Bridge Capabilities */
 	u32 nbcfg;		/* F10 North Bridge Configuration */
-	u32 ext_nbcfg;		/* Extended F10 North Bridge Configuration */
 	u32 dhar;		/* DRAM Hoist reg */
 	u32 dbam0;		/* DRAM Base Address Mapping reg for DCT0 */
 	u32 dbam1;		/* DRAM Base Address Mapping reg for DCT1 */
@@ -362,6 +357,7 @@ struct amd64_pvt {
 	u32 dct_sel_lo;		/* DRAM Controller Select Low */
 	u32 dct_sel_hi;		/* DRAM Controller Select High */
 	u32 online_spare;	/* On-Line spare Reg */
+	u32 gpu_umc_base;	/* Base address used for channel selection on GPUs */
 
 	/* x4, x8, or x16 syndromes in use */
 	u8 ecc_sym_sz;

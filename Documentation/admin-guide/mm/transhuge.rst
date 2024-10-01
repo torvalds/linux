@@ -45,10 +45,25 @@ components:
    the two is using hugepages just because of the fact the TLB miss is
    going to run faster.
 
+Modern kernels support "multi-size THP" (mTHP), which introduces the
+ability to allocate memory in blocks that are bigger than a base page
+but smaller than traditional PMD-size (as described above), in
+increments of a power-of-2 number of pages. mTHP can back anonymous
+memory (for example 16K, 32K, 64K, etc). These THPs continue to be
+PTE-mapped, but in many cases can still provide similar benefits to
+those outlined above: Page faults are significantly reduced (by a
+factor of e.g. 4, 8, 16, etc), but latency spikes are much less
+prominent because the size of each page isn't as huge as the PMD-sized
+variant and there is less memory to clear in each page fault. Some
+architectures also employ TLB compression mechanisms to squeeze more
+entries in when a set of PTEs are virtually and physically contiguous
+and approporiately aligned. In this case, TLB misses will occur less
+often.
+
 THP can be enabled system wide or restricted to certain tasks or even
 memory ranges inside task's address space. Unless THP is completely
 disabled, there is ``khugepaged`` daemon that scans memory and
-collapses sequences of basic pages into huge pages.
+collapses sequences of basic pages into PMD-sized huge pages.
 
 The THP behaviour is controlled via :ref:`sysfs <thp_sysfs>`
 interface and using madvise(2) and prctl(2) system calls.
@@ -95,11 +110,39 @@ Global THP controls
 Transparent Hugepage Support for anonymous memory can be entirely disabled
 (mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
 regions (to avoid the risk of consuming more memory resources) or enabled
-system wide. This can be achieved with one of::
+system wide. This can be achieved per-supported-THP-size with one of::
+
+	echo always >/sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/enabled
+	echo madvise >/sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/enabled
+	echo never >/sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/enabled
+
+where <size> is the hugepage size being addressed, the available sizes
+for which vary by system.
+
+For example::
+
+	echo always >/sys/kernel/mm/transparent_hugepage/hugepages-2048kB/enabled
+
+Alternatively it is possible to specify that a given hugepage size
+will inherit the top-level "enabled" value::
+
+	echo inherit >/sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/enabled
+
+For example::
+
+	echo inherit >/sys/kernel/mm/transparent_hugepage/hugepages-2048kB/enabled
+
+The top-level setting (for use with "inherit") can be set by issuing
+one of the following commands::
 
 	echo always >/sys/kernel/mm/transparent_hugepage/enabled
 	echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
 	echo never >/sys/kernel/mm/transparent_hugepage/enabled
+
+By default, PMD-sized hugepages have enabled="inherit" and all other
+hugepage sizes have enabled="never". If enabling multiple hugepage
+sizes, the kernel will select the most appropriate enabled size for a
+given allocation.
 
 It's also possible to limit defrag efforts in the VM to generate
 anonymous hugepages in case they're not immediately free to madvise
@@ -146,24 +189,42 @@ madvise
 never
 	should be self-explanatory.
 
-By default kernel tries to use huge zero page on read page fault to
-anonymous mapping. It's possible to disable huge zero page by writing 0
-or enable it back by writing 1::
+By default kernel tries to use huge, PMD-mappable zero page on read
+page fault to anonymous mapping. It's possible to disable huge zero
+page by writing 0 or enable it back by writing 1::
 
 	echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 	echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 
-Some userspace (such as a test program, or an optimized memory allocation
-library) may want to know the size (in bytes) of a transparent hugepage::
+Some userspace (such as a test program, or an optimized memory
+allocation library) may want to know the size (in bytes) of a
+PMD-mappable transparent hugepage::
 
 	cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
 
-khugepaged will be automatically started when
-transparent_hugepage/enabled is set to "always" or "madvise, and it'll
-be automatically shutdown if it's set to "never".
+All THPs at fault and collapse time will be added to _deferred_list,
+and will therefore be split under memory presure if they are considered
+"underused". A THP is underused if the number of zero-filled pages in
+the THP is above max_ptes_none (see below). It is possible to disable
+this behaviour by writing 0 to shrink_underused, and enable it by writing
+1 to it::
+
+	echo 0 > /sys/kernel/mm/transparent_hugepage/shrink_underused
+	echo 1 > /sys/kernel/mm/transparent_hugepage/shrink_underused
+
+khugepaged will be automatically started when PMD-sized THP is enabled
+(either of the per-size anon control or the top-level control are set
+to "always" or "madvise"), and it'll be automatically shutdown when
+PMD-sized THP is disabled (when both the per-size anon control and the
+top-level control are "never")
 
 Khugepaged controls
 -------------------
+
+.. note::
+   khugepaged currently only searches for opportunities to collapse to
+   PMD-sized THP and no attempt is made to collapse to other THP
+   sizes.
 
 khugepaged runs usually at low frequency so while one may not want to
 invoke defrag algorithms synchronously during the page faults, it
@@ -226,19 +287,44 @@ collapsed, resulting fewer pages being collapsed into
 THPs, and lower memory access performance.
 
 ``max_ptes_shared`` specifies how many pages can be shared across multiple
-processes. Exceeding the number would block the collapse::
+processes. khugepaged might treat pages of THPs as shared if any page of
+that THP is shared. Exceeding the number would block the collapse::
 
 	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_shared
 
 A higher value may increase memory footprint for some workloads.
 
-Boot parameter
-==============
+Boot parameters
+===============
 
-You can change the sysfs boot time defaults of Transparent Hugepage
-Support by passing the parameter ``transparent_hugepage=always`` or
-``transparent_hugepage=madvise`` or ``transparent_hugepage=never``
-to the kernel command line.
+You can change the sysfs boot time default for the top-level "enabled"
+control by passing the parameter ``transparent_hugepage=always`` or
+``transparent_hugepage=madvise`` or ``transparent_hugepage=never`` to the
+kernel command line.
+
+Alternatively, each supported anonymous THP size can be controlled by
+passing ``thp_anon=<size>,<size>[KMG]:<state>;<size>-<size>[KMG]:<state>``,
+where ``<size>`` is the THP size (must be a power of 2 of PAGE_SIZE and
+supported anonymous THP)  and ``<state>`` is one of ``always``, ``madvise``,
+``never`` or ``inherit``.
+
+For example, the following will set 16K, 32K, 64K THP to ``always``,
+set 128K, 512K to ``inherit``, set 256K to ``madvise`` and 1M, 2M
+to ``never``::
+
+	thp_anon=16K-64K:always;128K,512K:inherit;256K:madvise;1M-2M:never
+
+``thp_anon=`` may be specified multiple times to configure all THP sizes as
+required. If ``thp_anon=`` is specified at least once, any anon THP sizes
+not explicitly configured on the command line are implicitly set to
+``never``.
+
+``transparent_hugepage`` setting only affects the global toggle. If
+``thp_anon`` is not specified, PMD_ORDER THP will default to ``inherit``.
+However, if a valid ``thp_anon`` setting is provided by the user, the
+PMD_ORDER THP policy will be overridden. If the policy for PMD_ORDER
+is not defined within a valid ``thp_anon``, its policy will default to
+``never``.
 
 Hugepages in tmpfs/shmem
 ========================
@@ -279,22 +365,50 @@ deny
 force
     Force the huge option on for all - very useful for testing;
 
+Shmem can also use "multi-size THP" (mTHP) by adding a new sysfs knob to
+control mTHP allocation:
+'/sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/shmem_enabled',
+and its value for each mTHP is essentially consistent with the global
+setting.  An 'inherit' option is added to ensure compatibility with these
+global settings.  Conversely, the options 'force' and 'deny' are dropped,
+which are rather testing artifacts from the old ages.
+
+always
+    Attempt to allocate <size> huge pages every time we need a new page;
+
+inherit
+    Inherit the top-level "shmem_enabled" value. By default, PMD-sized hugepages
+    have enabled="inherit" and all other hugepage sizes have enabled="never";
+
+never
+    Do not allocate <size> huge pages;
+
+within_size
+    Only allocate <size> huge page if it will be fully within i_size.
+    Also respect fadvise()/madvise() hints;
+
+advise
+    Only allocate <size> huge pages if requested with fadvise()/madvise();
+
 Need of application restart
 ===========================
 
-The transparent_hugepage/enabled values and tmpfs mount option only affect
-future behavior. So to make them effective you need to restart any
-application that could have been using hugepages. This also applies to the
-regions registered in khugepaged.
+The transparent_hugepage/enabled and
+transparent_hugepage/hugepages-<size>kB/enabled values and tmpfs mount
+option only affect future behavior. So to make them effective you need
+to restart any application that could have been using hugepages. This
+also applies to the regions registered in khugepaged.
 
 Monitoring usage
 ================
 
-The number of anonymous transparent huge pages currently used by the
+The number of PMD-sized anonymous transparent huge pages currently used by the
 system is available by reading the AnonHugePages field in ``/proc/meminfo``.
-To identify what applications are using anonymous transparent huge pages,
-it is necessary to read ``/proc/PID/smaps`` and count the AnonHugePages fields
-for each mapping.
+To identify what applications are using PMD-sized anonymous transparent huge
+pages, it is necessary to read ``/proc/PID/smaps`` and count the AnonHugePages
+fields for each mapping. (Note that AnonHugePages only applies to traditional
+PMD-sized THP for historical reasons and should have been called
+AnonHugePmdMapped).
 
 The number of file transparent huge pages mapped to userspace is available
 by reading ShmemPmdMapped and ShmemHugePages fields in ``/proc/meminfo``.
@@ -310,7 +424,7 @@ monitor how successfully the system is providing huge pages for use.
 
 thp_fault_alloc
 	is incremented every time a huge page is successfully
-	allocated to handle a page fault.
+	allocated and charged to handle a page fault.
 
 thp_collapse_alloc
 	is incremented by khugepaged when it has found
@@ -318,7 +432,7 @@ thp_collapse_alloc
 	successfully allocated a new huge page to store the data.
 
 thp_fault_fallback
-	is incremented if a page fault fails to allocate
+	is incremented if a page fault fails to allocate or charge
 	a huge page and instead falls back to using small pages.
 
 thp_fault_fallback_charge
@@ -332,20 +446,23 @@ thp_collapse_alloc_failed
 	the allocation.
 
 thp_file_alloc
-	is incremented every time a file huge page is successfully
-	allocated.
+	is incremented every time a shmem huge page is successfully
+	allocated (Note that despite being named after "file", the counter
+	measures only shmem).
 
 thp_file_fallback
-	is incremented if a file huge page is attempted to be allocated
-	but fails and instead falls back to using small pages.
+	is incremented if a shmem huge page is attempted to be allocated
+	but fails and instead falls back to using small pages. (Note that
+	despite being named after "file", the counter measures only shmem).
 
 thp_file_fallback_charge
-	is incremented if a file huge page cannot be charged and instead
+	is incremented if a shmem huge page cannot be charged and instead
 	falls back to using small pages even though the allocation was
-	successful.
+	successful. (Note that despite being named after "file", the
+	counter measures only shmem).
 
 thp_file_mapped
-	is incremented every time a file huge page is mapped into
+	is incremented every time a file or shmem huge page is mapped into
 	user address space.
 
 thp_split_page
@@ -363,6 +480,12 @@ thp_deferred_split_page
 	queue. This happens when a huge page is partially unmapped and
 	splitting it would free up some memory. Pages on split queue are
 	going to be split under memory pressure.
+
+thp_underused_split_page
+	is incremented when a huge page on the split queue was split
+	because it was underused. A THP is underused if the number of
+	zero pages in the THP is above a certain threshold
+	(/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none).
 
 thp_split_pmd
 	is incremented every time a PMD split into table of PTEs.
@@ -387,6 +510,74 @@ thp_swpout_fallback
 	is incremented if a huge page has to be split before swapout.
 	Usually because failed to allocate some continuous swap space
 	for the huge page.
+
+In /sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/stats, There are
+also individual counters for each huge page size, which can be utilized to
+monitor the system's effectiveness in providing huge pages for usage. Each
+counter has its own corresponding file.
+
+anon_fault_alloc
+	is incremented every time a huge page is successfully
+	allocated and charged to handle a page fault.
+
+anon_fault_fallback
+	is incremented if a page fault fails to allocate or charge
+	a huge page and instead falls back to using huge pages with
+	lower orders or small pages.
+
+anon_fault_fallback_charge
+	is incremented if a page fault fails to charge a huge page and
+	instead falls back to using huge pages with lower orders or
+	small pages even though the allocation was successful.
+
+swpout
+	is incremented every time a huge page is swapped out in one
+	piece without splitting.
+
+swpout_fallback
+	is incremented if a huge page has to be split before swapout.
+	Usually because failed to allocate some continuous swap space
+	for the huge page.
+
+shmem_alloc
+	is incremented every time a shmem huge page is successfully
+	allocated.
+
+shmem_fallback
+	is incremented if a shmem huge page is attempted to be allocated
+	but fails and instead falls back to using small pages.
+
+shmem_fallback_charge
+	is incremented if a shmem huge page cannot be charged and instead
+	falls back to using small pages even though the allocation was
+	successful.
+
+split
+	is incremented every time a huge page is successfully split into
+	smaller orders. This can happen for a variety of reasons but a
+	common reason is that a huge page is old and is being reclaimed.
+
+split_failed
+	is incremented if kernel fails to split huge
+	page. This can happen if the page was pinned by somebody.
+
+split_deferred
+        is incremented when a huge page is put onto split queue.
+        This happens when a huge page is partially unmapped and splitting
+        it would free up some memory. Pages on split queue are going to
+        be split under memory pressure, if splitting is possible.
+
+nr_anon
+       the number of anonymous THP we have in the whole system. These THPs
+       might be currently entirely mapped or have partially unmapped/unused
+       subpages.
+
+nr_anon_partially_mapped
+       the number of anonymous THP which are likely partially mapped, possibly
+       wasting memory, and have been queued for deferred memory reclamation.
+       Note that in corner some cases (e.g., failed migration), we might detect
+       an anonymous THP as "partially mapped" and count it here, even though it
+       is not actually partially mapped anymore.
 
 As the system ages, allocating huge pages may be expensive as the
 system uses memory compaction to copy data around memory to free a
@@ -413,7 +604,7 @@ for huge pages.
 Optimizing the applications
 ===========================
 
-To be guaranteed that the kernel will map a 2M page immediately in any
+To be guaranteed that the kernel will map a THP immediately in any
 memory region, the mmap region has to be hugepage naturally
 aligned. posix_memalign() can provide that guarantee.
 

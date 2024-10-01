@@ -402,7 +402,7 @@ static int test_wait_timeout(void *arg)
 
 	if (dma_fence_wait_timeout(wt.f, false, 2) == -ETIME) {
 		if (timer_pending(&wt.timer)) {
-			pr_notice("Timer did not fire within the jiffie!\n");
+			pr_notice("Timer did not fire within the jiffy!\n");
 			err = 0; /* not our fault! */
 		} else {
 			pr_err("Wait reported incomplete after timeout\n");
@@ -540,6 +540,12 @@ static int race_signal_callback(void *arg)
 			t[i].before = pass;
 			t[i].task = kthread_run(thread_signal_callback, &t[i],
 						"dma-fence:%d", i);
+			if (IS_ERR(t[i].task)) {
+				ret = PTR_ERR(t[i].task);
+				while (--i >= 0)
+					kthread_stop_put(t[i].task);
+				return ret;
+			}
 			get_task_struct(t[i].task);
 		}
 
@@ -548,11 +554,9 @@ static int race_signal_callback(void *arg)
 		for (i = 0; i < ARRAY_SIZE(t); i++) {
 			int err;
 
-			err = kthread_stop(t[i].task);
+			err = kthread_stop_put(t[i].task);
 			if (err && !ret)
 				ret = err;
-
-			put_task_struct(t[i].task);
 		}
 	}
 

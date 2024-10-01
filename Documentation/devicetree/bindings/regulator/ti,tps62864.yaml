@@ -24,7 +24,7 @@ properties:
     type: object
 
     properties:
-      "SW":
+      SW:
         type: object
         $ref: regulator.yaml#
         unevaluatedProperties: false

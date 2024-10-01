@@ -19,13 +19,13 @@ struct linux_binprm {
 #ifdef CONFIG_MMU
 	struct vm_area_struct *vma;
 	unsigned long vma_pages;
+	unsigned long argmin; /* rlimit marker for copy_strings() */
 #else
 # define MAX_ARG_PAGES	32
 	struct page *page[MAX_ARG_PAGES];
 #endif
 	struct mm_struct *mm;
 	unsigned long p; /* current top of mem */
-	unsigned long argmin; /* rlimit marker for copy_strings() */
 	unsigned int
 		/* Should an execfd be passed to userspace? */
 		have_execfd:1,
@@ -89,6 +89,16 @@ struct linux_binfmt {
 	unsigned long min_coredump;	/* minimal dump size */
 #endif
 } __randomize_layout;
+
+#if IS_ENABLED(CONFIG_BINFMT_MISC)
+struct binfmt_misc {
+	struct list_head entries;
+	rwlock_t entries_lock;
+	bool enabled;
+} __randomize_layout;
+
+extern struct binfmt_misc init_binfmt_misc;
+#endif
 
 extern void __register_binfmt(struct linux_binfmt *fmt, int insert);
 

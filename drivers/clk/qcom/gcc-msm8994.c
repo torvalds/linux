@@ -9,7 +9,6 @@
 #include <linux/ctype.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -113,7 +112,7 @@ static const struct clk_parent_data gcc_xo_gpll0_gpll4[] = {
 	{ .hw = &gpll4.clkr.hw },
 };
 
-static struct freq_tbl ftbl_ufs_axi_clk_src[] = {
+static const struct freq_tbl ftbl_ufs_axi_clk_src[] = {
 	F(50000000, P_GPLL0, 12, 0, 0),
 	F(100000000, P_GPLL0, 6, 0, 0),
 	F(150000000, P_GPLL0, 4, 0, 0),
@@ -137,7 +136,7 @@ static struct clk_rcg2 ufs_axi_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_usb30_master_clk_src[] = {
+static const struct freq_tbl ftbl_usb30_master_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(125000000, P_GPLL0, 1, 5, 24),
 	{ }
@@ -157,7 +156,7 @@ static struct clk_rcg2 usb30_master_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp_i2c_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp_i2c_apps_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(50000000, P_GPLL0, 12, 0, 0),
 	{ }
@@ -176,7 +175,7 @@ static struct clk_rcg2 blsp1_qup1_i2c_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp1_qup1_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp1_qup1_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -189,7 +188,7 @@ static struct freq_tbl ftbl_blsp1_qup1_spi_apps_clk_src[] = {
 	{ }
 };
 
-static struct freq_tbl ftbl_blsp1_qup_spi_apps_clk_src_8992[] = {
+static const struct freq_tbl ftbl_blsp1_qup_spi_apps_clk_src_8992[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -227,7 +226,7 @@ static struct clk_rcg2 blsp1_qup2_i2c_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp1_qup2_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp1_qup2_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -267,7 +266,7 @@ static struct clk_rcg2 blsp1_qup3_i2c_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp1_qup3_4_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp1_qup3_4_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -334,7 +333,7 @@ static struct clk_rcg2 blsp1_qup5_i2c_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp1_qup5_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp1_qup5_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -374,7 +373,7 @@ static struct clk_rcg2 blsp1_qup6_i2c_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp1_qup6_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp1_qup6_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -401,7 +400,7 @@ static struct clk_rcg2 blsp1_qup6_spi_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp_uart_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp_uart_apps_clk_src[] = {
 	F(3686400, P_GPLL0, 1, 96, 15625),
 	F(7372800, P_GPLL0, 1, 192, 15625),
 	F(14745600, P_GPLL0, 1, 384, 15625),
@@ -517,7 +516,7 @@ static struct clk_rcg2 blsp2_qup1_i2c_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp2_qup1_2_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp2_qup1_2_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -571,7 +570,7 @@ static struct clk_rcg2 blsp2_qup2_spi_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp2_qup3_4_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp2_qup3_4_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -679,7 +678,7 @@ static struct clk_rcg2 blsp2_qup6_i2c_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_blsp2_qup6_spi_apps_clk_src[] = {
+static const struct freq_tbl ftbl_blsp2_qup6_spi_apps_clk_src[] = {
 	F(960000, P_XO, 10, 1, 2),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
@@ -790,7 +789,7 @@ static struct clk_rcg2 blsp2_uart6_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_gp1_clk_src[] = {
+static const struct freq_tbl ftbl_gp1_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(100000000, P_GPLL0, 6, 0, 0),
 	F(200000000, P_GPLL0, 3, 0, 0),
@@ -811,7 +810,7 @@ static struct clk_rcg2 gp1_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_gp2_clk_src[] = {
+static const struct freq_tbl ftbl_gp2_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(100000000, P_GPLL0, 6, 0, 0),
 	F(200000000, P_GPLL0, 3, 0, 0),
@@ -832,7 +831,7 @@ static struct clk_rcg2 gp2_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_gp3_clk_src[] = {
+static const struct freq_tbl ftbl_gp3_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(100000000, P_GPLL0, 6, 0, 0),
 	F(200000000, P_GPLL0, 3, 0, 0),
@@ -853,7 +852,7 @@ static struct clk_rcg2 gp3_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_pcie_0_aux_clk_src[] = {
+static const struct freq_tbl ftbl_pcie_0_aux_clk_src[] = {
 	F(1011000, P_XO, 1, 1, 19),
 	{ }
 };
@@ -873,7 +872,7 @@ static struct clk_rcg2 pcie_0_aux_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_pcie_pipe_clk_src[] = {
+static const struct freq_tbl ftbl_pcie_pipe_clk_src[] = {
 	F(125000000, P_XO, 1, 0, 0),
 	{ }
 };
@@ -892,7 +891,7 @@ static struct clk_rcg2 pcie_0_pipe_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_pcie_1_aux_clk_src[] = {
+static const struct freq_tbl ftbl_pcie_1_aux_clk_src[] = {
 	F(1011000, P_XO, 1, 1, 19),
 	{ }
 };
@@ -926,7 +925,7 @@ static struct clk_rcg2 pcie_1_pipe_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_pdm2_clk_src[] = {
+static const struct freq_tbl ftbl_pdm2_clk_src[] = {
 	F(60000000, P_GPLL0, 10, 0, 0),
 	{ }
 };
@@ -944,7 +943,7 @@ static struct clk_rcg2 pdm2_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_sdcc1_apps_clk_src[] = {
+static const struct freq_tbl ftbl_sdcc1_apps_clk_src[] = {
 	F(144000, P_XO, 16, 3, 25),
 	F(400000, P_XO, 12, 1, 4),
 	F(20000000, P_GPLL0, 15, 1, 2),
@@ -956,7 +955,7 @@ static struct freq_tbl ftbl_sdcc1_apps_clk_src[] = {
 	{ }
 };
 
-static struct freq_tbl ftbl_sdcc1_apps_clk_src_8992[] = {
+static const struct freq_tbl ftbl_sdcc1_apps_clk_src_8992[] = {
 	F(144000, P_XO, 16, 3, 25),
 	F(400000, P_XO, 12, 1, 4),
 	F(20000000, P_GPLL0, 15, 1, 2),
@@ -982,7 +981,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_sdcc2_4_apps_clk_src[] = {
+static const struct freq_tbl ftbl_sdcc2_4_apps_clk_src[] = {
 	F(144000, P_XO, 16, 3, 25),
 	F(400000, P_XO, 12, 1, 4),
 	F(20000000, P_GPLL0, 15, 1, 2),
@@ -1035,7 +1034,7 @@ static struct clk_rcg2 sdcc4_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_tsif_ref_clk_src[] = {
+static const struct freq_tbl ftbl_tsif_ref_clk_src[] = {
 	F(105500, P_XO, 1, 1, 182),
 	{ }
 };
@@ -1055,7 +1054,7 @@ static struct clk_rcg2 tsif_ref_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_usb30_mock_utmi_clk_src[] = {
+static const struct freq_tbl ftbl_usb30_mock_utmi_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(60000000, P_GPLL0, 10, 0, 0),
 	{ }
@@ -1074,7 +1073,7 @@ static struct clk_rcg2 usb30_mock_utmi_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_usb3_phy_aux_clk_src[] = {
+static const struct freq_tbl ftbl_usb3_phy_aux_clk_src[] = {
 	F(1200000, P_XO, 16, 0, 0),
 	{ }
 };
@@ -1093,7 +1092,7 @@ static struct clk_rcg2 usb3_phy_aux_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_usb_hs_system_clk_src[] = {
+static const struct freq_tbl ftbl_usb_hs_system_clk_src[] = {
 	F(75000000, P_GPLL0, 8, 0, 0),
 	{ }
 };

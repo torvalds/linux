@@ -2513,50 +2513,34 @@ out:
 }
 EXPORT_SYMBOL_GPL(sdhci_get_cd_nogpio);
 
-static int sdhci_check_ro(struct sdhci_host *host)
-{
-	unsigned long flags;
-	int is_readonly;
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->flags & SDHCI_DEVICE_DEAD)
-		is_readonly = 0;
-	else if (host->ops->get_ro)
-		is_readonly = host->ops->get_ro(host);
-	else if (mmc_can_gpio_ro(host->mmc))
-		is_readonly = mmc_gpio_get_ro(host->mmc);
-	else
-		is_readonly = !(sdhci_readl(host, SDHCI_PRESENT_STATE)
-				& SDHCI_WRITE_PROTECT);
-
-	spin_unlock_irqrestore(&host->lock, flags);
-
-	/* This quirk needs to be replaced by a callback-function later */
-	return host->quirks & SDHCI_QUIRK_INVERTED_WRITE_PROTECT ?
-		!is_readonly : is_readonly;
-}
-
-#define SAMPLE_COUNT	5
-
-static int sdhci_get_ro(struct mmc_host *mmc)
+int sdhci_get_ro(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
-	int i, ro_count;
+	bool allow_invert = false;
+	int is_readonly;
 
-	if (!(host->quirks & SDHCI_QUIRK_UNSTABLE_RO_DETECT))
-		return sdhci_check_ro(host);
-
-	ro_count = 0;
-	for (i = 0; i < SAMPLE_COUNT; i++) {
-		if (sdhci_check_ro(host)) {
-			if (++ro_count > SAMPLE_COUNT / 2)
-				return 1;
-		}
-		msleep(30);
+	if (host->flags & SDHCI_DEVICE_DEAD) {
+		is_readonly = 0;
+	} else if (host->ops->get_ro) {
+		is_readonly = host->ops->get_ro(host);
+	} else if (mmc_can_gpio_ro(mmc)) {
+		is_readonly = mmc_gpio_get_ro(mmc);
+		/* Do not invert twice */
+		allow_invert = !(mmc->caps2 & MMC_CAP2_RO_ACTIVE_HIGH);
+	} else {
+		is_readonly = !(sdhci_readl(host, SDHCI_PRESENT_STATE)
+				& SDHCI_WRITE_PROTECT);
+		allow_invert = true;
 	}
-	return 0;
+
+	if (is_readonly >= 0 &&
+	    allow_invert &&
+	    (host->quirks & SDHCI_QUIRK_INVERTED_WRITE_PROTECT))
+		is_readonly = !is_readonly;
+
+	return is_readonly;
 }
+EXPORT_SYMBOL_GPL(sdhci_get_ro);
 
 static void sdhci_hw_reset(struct mmc_host *mmc)
 {
@@ -2841,7 +2825,7 @@ void sdhci_send_tuning(struct sdhci_host *host, u32 opcode)
 }
 EXPORT_SYMBOL_GPL(sdhci_send_tuning);
 
-static int __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
+int __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 {
 	int i;
 
@@ -2879,6 +2863,7 @@ static int __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 	sdhci_reset_tuning(host);
 	return -EAGAIN;
 }
+EXPORT_SYMBOL_GPL(__sdhci_execute_tuning);
 
 int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
@@ -3438,12 +3423,18 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		host->data->error = -EILSEQ;
 		if (!mmc_op_tuning(SDHCI_GET_CMD(sdhci_readw(host, SDHCI_COMMAND))))
 			sdhci_err_stats_inc(host, DAT_CRC);
-	} else if ((intmask & SDHCI_INT_DATA_CRC) &&
+	} else if ((intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_TUNING_ERROR)) &&
 		SDHCI_GET_CMD(sdhci_readw(host, SDHCI_COMMAND))
 			!= MMC_BUS_TEST_R) {
 		host->data->error = -EILSEQ;
 		if (!mmc_op_tuning(SDHCI_GET_CMD(sdhci_readw(host, SDHCI_COMMAND))))
 			sdhci_err_stats_inc(host, DAT_CRC);
+		if (intmask & SDHCI_INT_TUNING_ERROR) {
+			u16 ctrl2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+
+			ctrl2 &= ~SDHCI_CTRL_TUNED_CLK;
+			sdhci_writew(host, ctrl2, SDHCI_HOST_CONTROL2);
+		}
 	} else if (intmask & SDHCI_INT_ADMA_ERROR) {
 		pr_err("%s: ADMA error: 0x%08x\n", mmc_hostname(host->mmc),
 		       intmask);
@@ -3978,7 +3969,7 @@ bool sdhci_cqe_irq(struct sdhci_host *host, u32 intmask, int *cmd_error,
 	} else
 		*cmd_error = 0;
 
-	if (intmask & (SDHCI_INT_DATA_END_BIT | SDHCI_INT_DATA_CRC)) {
+	if (intmask & (SDHCI_INT_DATA_END_BIT | SDHCI_INT_DATA_CRC | SDHCI_INT_TUNING_ERROR)) {
 		*data_error = -EILSEQ;
 		if (!mmc_op_tuning(SDHCI_GET_CMD(sdhci_readw(host, SDHCI_COMMAND))))
 			sdhci_err_stats_inc(host, DAT_CRC);
@@ -4717,6 +4708,21 @@ int sdhci_setup_host(struct sdhci_host *host)
 		if (host->quirks & SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC) {
 			host->max_adma = 65532; /* 32-bit alignment */
 			mmc->max_seg_size = 65535;
+			/*
+			 * sdhci_adma_table_pre() expects to define 1 DMA
+			 * descriptor per segment, so the maximum segment size
+			 * is set accordingly. SDHCI allows up to 64KiB per DMA
+			 * descriptor (16-bit field), but some controllers do
+			 * not support "zero means 65536" reducing the maximum
+			 * for them to 65535. That is a problem if PAGE_SIZE is
+			 * 64KiB because the block layer does not support
+			 * max_seg_size < PAGE_SIZE, however
+			 * sdhci_adma_table_pre() has a workaround to handle
+			 * that case, and split the descriptor. Refer also
+			 * comment in sdhci_adma_table_pre().
+			 */
+			if (mmc->max_seg_size < PAGE_SIZE)
+				mmc->max_seg_size = PAGE_SIZE;
 		} else {
 			mmc->max_seg_size = 65536;
 		}

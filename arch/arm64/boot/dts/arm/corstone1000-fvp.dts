@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or MIT
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright (c) 2022, Arm Limited. All rights reserved.
  * Copyright (c) 2022, Linaro Limited. All rights reserved.
@@ -21,7 +21,7 @@
 		reg-io-width = <2>;
 	};
 
-	vmmc_v3_3d: fixed_v3_3d {
+	vmmc_v3_3d: regulator-vmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc_supply";
 		regulator-min-microvolt = <3300000>;

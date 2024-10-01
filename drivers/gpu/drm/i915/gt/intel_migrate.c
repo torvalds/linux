@@ -35,9 +35,9 @@ static bool engine_supports_migration(struct intel_engine_cs *engine)
 	return true;
 }
 
-static void xehpsdv_toggle_pdes(struct i915_address_space *vm,
-				struct i915_page_table *pt,
-				void *data)
+static void xehp_toggle_pdes(struct i915_address_space *vm,
+			     struct i915_page_table *pt,
+			     void *data)
 {
 	struct insert_pte_data *d = data;
 
@@ -52,9 +52,9 @@ static void xehpsdv_toggle_pdes(struct i915_address_space *vm,
 	d->offset += SZ_2M;
 }
 
-static void xehpsdv_insert_pte(struct i915_address_space *vm,
-			       struct i915_page_table *pt,
-			       void *data)
+static void xehp_insert_pte(struct i915_address_space *vm,
+			    struct i915_page_table *pt,
+			    void *data)
 {
 	struct insert_pte_data *d = data;
 
@@ -120,7 +120,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 	 * 512 entry layout using 4K GTT pages. The other two windows just map
 	 * lmem pages and must use the new compact 32 entry layout using 64K GTT
 	 * pages, which ensures we can address any lmem object that the user
-	 * throws at us. We then also use the xehpsdv_toggle_pdes as a way of
+	 * throws at us. We then also use the xehp_toggle_pdes as a way of
 	 * just toggling the PDE bit(GEN12_PDE_64K) for us, to enable the
 	 * compact layout for each of these page-tables, that fall within the
 	 * [CHUNK_SIZE, 3 * CHUNK_SIZE) range.
@@ -209,12 +209,12 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 		/* Now allow the GPU to rewrite the PTE via its own ppGTT */
 		if (HAS_64K_PAGES(gt->i915)) {
 			vm->vm.foreach(&vm->vm, base, d.offset - base,
-				       xehpsdv_insert_pte, &d);
+				       xehp_insert_pte, &d);
 			d.offset = base + CHUNK_SZ;
 			vm->vm.foreach(&vm->vm,
 				       d.offset,
 				       2 * CHUNK_SZ,
-				       xehpsdv_toggle_pdes, &d);
+				       xehp_toggle_pdes, &d);
 		} else {
 			vm->vm.foreach(&vm->vm, base, d.offset - base,
 				       insert_pte, &d);
@@ -366,7 +366,7 @@ static int emit_pte(struct i915_request *rq,
 		    u64 offset,
 		    int length)
 {
-	bool has_64K_pages = HAS_64K_PAGES(rq->engine->i915);
+	bool has_64K_pages = HAS_64K_PAGES(rq->i915);
 	const u64 encode = rq->context->vm->pte_encode(0, pat_index,
 						       is_lmem ? PTE_LM : 0);
 	struct intel_ring *ring = rq->ring;
@@ -375,7 +375,7 @@ static int emit_pte(struct i915_request *rq,
 	u32 page_size;
 	u32 *hdr, *cs;
 
-	GEM_BUG_ON(GRAPHICS_VER(rq->engine->i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(rq->i915) < 8);
 
 	page_size = I915_GTT_PAGE_SIZE;
 	dword_length = 0x400;
@@ -531,7 +531,7 @@ static int emit_copy_ccs(struct i915_request *rq,
 			 u32 dst_offset, u8 dst_access,
 			 u32 src_offset, u8 src_access, int size)
 {
-	struct drm_i915_private *i915 = rq->engine->i915;
+	struct drm_i915_private *i915 = rq->i915;
 	int mocs = rq->engine->gt->mocs.uc_index << 1;
 	u32 num_ccs_blks;
 	u32 *cs;
@@ -581,7 +581,7 @@ static int emit_copy_ccs(struct i915_request *rq,
 static int emit_copy(struct i915_request *rq,
 		     u32 dst_offset, u32 src_offset, int size)
 {
-	const int ver = GRAPHICS_VER(rq->engine->i915);
+	const int ver = GRAPHICS_VER(rq->i915);
 	u32 instance = rq->engine->instance;
 	u32 *cs;
 
@@ -917,7 +917,7 @@ out_ce:
 static int emit_clear(struct i915_request *rq, u32 offset, int size,
 		      u32 value, bool is_lmem)
 {
-	struct drm_i915_private *i915 = rq->engine->i915;
+	struct drm_i915_private *i915 = rq->i915;
 	int mocs = rq->engine->gt->mocs.uc_index << 1;
 	const int ver = GRAPHICS_VER(i915);
 	int ring_sz;
@@ -925,7 +925,7 @@ static int emit_clear(struct i915_request *rq, u32 offset, int size,
 
 	GEM_BUG_ON(size >> PAGE_SHIFT > S16_MAX);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 		ring_sz = XY_FAST_COLOR_BLT_DW;
 	else if (ver >= 8)
 		ring_sz = 8;
@@ -936,7 +936,7 @@ static int emit_clear(struct i915_request *rq, u32 offset, int size,
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		*cs++ = XY_FAST_COLOR_BLT_CMD | XY_FAST_COLOR_BLT_DEPTH_32 |
 			(XY_FAST_COLOR_BLT_DW - 2);
 		*cs++ = FIELD_PREP(XY_FAST_COLOR_BLT_MOCS_MASK, mocs) |

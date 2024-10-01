@@ -12,10 +12,23 @@
 #include <linux/ioctl.h>
 
 #define USER_EVENTS_SYSTEM "user_events"
+#define USER_EVENTS_MULTI_SYSTEM "user_events_multi"
 #define USER_EVENTS_PREFIX "u:"
 
 /* Create dynamic location entry within a 32-bit value */
 #define DYN_LOC(offset, size) ((size) << 16 | (offset))
+
+/* List of supported registration flags */
+enum user_reg_flag {
+	/* Event will not delete upon last reference closing */
+	USER_EVENT_REG_PERSIST		= 1U << 0,
+
+	/* Event will be allowed to have multiple formats */
+	USER_EVENT_REG_MULTI_FORMAT	= 1U << 1,
+
+	/* This value or above is currently non-ABI */
+	USER_EVENT_REG_MAX		= 1U << 2,
+};
 
 /*
  * Describes an event registration and stores the results of the registration.
@@ -33,7 +46,7 @@ struct user_reg {
 	/* Input: Enable size in bytes at address */
 	__u8	enable_size;
 
-	/* Input: Flags for future use, set to 0 */
+	/* Input: Flags to use, if any */
 	__u16	flags;
 
 	/* Input: Address to update when enabled */

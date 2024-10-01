@@ -271,13 +271,10 @@ struct vcap_operations {
 
 /* VCAP API Client control interface */
 struct vcap_control {
-	struct vcap_operations *ops;  /* client supplied operations */
+	const struct vcap_operations *ops;  /* client supplied operations */
 	const struct vcap_info *vcaps; /* client supplied vcap models */
 	const struct vcap_statistics *stats; /* client supplied vcap stats */
 	struct list_head list; /* list of vcap instances */
 };
-
-/* Set client control interface on the API */
-int vcap_api_set_client(struct vcap_control *vctrl);
 
 #endif /* __VCAP_API__ */

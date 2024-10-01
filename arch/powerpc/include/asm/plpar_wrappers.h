@@ -6,24 +6,16 @@
 
 #include <linux/string.h>
 #include <linux/irqflags.h>
+#include <linux/delay.h>
 
 #include <asm/hvcall.h>
 #include <asm/paca.h>
+#include <asm/lppaca.h>
 #include <asm/page.h>
 
 static inline long poll_pending(void)
 {
 	return plpar_hcall_norets(H_POLL_PENDING);
-}
-
-static inline u8 get_cede_latency_hint(void)
-{
-	return get_lppaca()->cede_latency_hint;
-}
-
-static inline void set_cede_latency_hint(u8 latency_hint)
-{
-	get_lppaca()->cede_latency_hint = latency_hint;
 }
 
 static inline long cede_processor(void)
@@ -33,24 +25,6 @@ static inline long cede_processor(void)
 	 * means we must not trace H_CEDE.
 	 */
 	return plpar_hcall_norets_notrace(H_CEDE);
-}
-
-static inline long extended_cede_processor(unsigned long latency_hint)
-{
-	long rc;
-	u8 old_latency_hint = get_cede_latency_hint();
-
-	set_cede_latency_hint(latency_hint);
-
-	rc = cede_processor();
-
-	/* Ensure that H_CEDE returns with IRQs on */
-	if (WARN_ON(IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && !(mfmsr() & MSR_EE)))
-		__hard_irq_enable();
-
-	set_cede_latency_hint(old_latency_hint);
-
-	return rc;
 }
 
 static inline long vpa_call(unsigned long flags, unsigned long cpu,
@@ -342,6 +316,212 @@ static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
 	return rc;
 }
 
+static inline long plpar_guest_create(unsigned long flags, unsigned long *guest_id)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	unsigned long token;
+	long rc;
+
+	token = -1UL;
+	do {
+		rc = plpar_hcall(H_GUEST_CREATE, retbuf, flags, token);
+		if (rc == H_SUCCESS)
+			*guest_id = retbuf[0];
+
+		if (rc == H_BUSY) {
+			token = retbuf[0];
+			cond_resched();
+		}
+
+		if (H_IS_LONG_BUSY(rc)) {
+			token = retbuf[0];
+			msleep(get_longbusy_msecs(rc));
+			rc = H_BUSY;
+		}
+
+	} while (rc == H_BUSY);
+
+	return rc;
+}
+
+static inline long plpar_guest_create_vcpu(unsigned long flags,
+					   unsigned long guest_id,
+					   unsigned long vcpu_id)
+{
+	long rc;
+
+	do {
+		rc = plpar_hcall_norets(H_GUEST_CREATE_VCPU, 0, guest_id, vcpu_id);
+
+		if (rc == H_BUSY)
+			cond_resched();
+
+		if (H_IS_LONG_BUSY(rc)) {
+			msleep(get_longbusy_msecs(rc));
+			rc = H_BUSY;
+		}
+
+	} while (rc == H_BUSY);
+
+	return rc;
+}
+
+static inline long plpar_guest_set_state(unsigned long flags,
+					 unsigned long guest_id,
+					 unsigned long vcpu_id,
+					 unsigned long data_buffer,
+					 unsigned long data_size,
+					 unsigned long *failed_index)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	while (true) {
+		rc = plpar_hcall(H_GUEST_SET_STATE, retbuf, flags, guest_id,
+				 vcpu_id, data_buffer, data_size);
+
+		if (rc == H_BUSY) {
+			cpu_relax();
+			continue;
+		}
+
+		if (H_IS_LONG_BUSY(rc)) {
+			mdelay(get_longbusy_msecs(rc));
+			continue;
+		}
+
+		if (rc == H_INVALID_ELEMENT_ID)
+			*failed_index = retbuf[0];
+		else if (rc == H_INVALID_ELEMENT_SIZE)
+			*failed_index = retbuf[0];
+		else if (rc == H_INVALID_ELEMENT_VALUE)
+			*failed_index = retbuf[0];
+
+		break;
+	}
+
+	return rc;
+}
+
+static inline long plpar_guest_get_state(unsigned long flags,
+					 unsigned long guest_id,
+					 unsigned long vcpu_id,
+					 unsigned long data_buffer,
+					 unsigned long data_size,
+					 unsigned long *failed_index)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	while (true) {
+		rc = plpar_hcall(H_GUEST_GET_STATE, retbuf, flags, guest_id,
+				 vcpu_id, data_buffer, data_size);
+
+		if (rc == H_BUSY) {
+			cpu_relax();
+			continue;
+		}
+
+		if (H_IS_LONG_BUSY(rc)) {
+			mdelay(get_longbusy_msecs(rc));
+			continue;
+		}
+
+		if (rc == H_INVALID_ELEMENT_ID)
+			*failed_index = retbuf[0];
+		else if (rc == H_INVALID_ELEMENT_SIZE)
+			*failed_index = retbuf[0];
+		else if (rc == H_INVALID_ELEMENT_VALUE)
+			*failed_index = retbuf[0];
+
+		break;
+	}
+
+	return rc;
+}
+
+static inline long plpar_guest_run_vcpu(unsigned long flags, unsigned long guest_id,
+					unsigned long vcpu_id, int *trap,
+					unsigned long *failed_index)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	rc = plpar_hcall(H_GUEST_RUN_VCPU, retbuf, flags, guest_id, vcpu_id);
+	if (rc == H_SUCCESS)
+		*trap = retbuf[0];
+	else if (rc == H_INVALID_ELEMENT_ID)
+		*failed_index = retbuf[0];
+	else if (rc == H_INVALID_ELEMENT_SIZE)
+		*failed_index = retbuf[0];
+	else if (rc == H_INVALID_ELEMENT_VALUE)
+		*failed_index = retbuf[0];
+
+	return rc;
+}
+
+static inline long plpar_guest_delete(unsigned long flags, u64 guest_id)
+{
+	long rc;
+
+	do {
+		rc = plpar_hcall_norets(H_GUEST_DELETE, flags, guest_id);
+		if (rc == H_BUSY)
+			cond_resched();
+
+		if (H_IS_LONG_BUSY(rc)) {
+			msleep(get_longbusy_msecs(rc));
+			rc = H_BUSY;
+		}
+
+	} while (rc == H_BUSY);
+
+	return rc;
+}
+
+static inline long plpar_guest_set_capabilities(unsigned long flags,
+						unsigned long capabilities)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	do {
+		rc = plpar_hcall(H_GUEST_SET_CAPABILITIES, retbuf, flags, capabilities);
+		if (rc == H_BUSY)
+			cond_resched();
+
+		if (H_IS_LONG_BUSY(rc)) {
+			msleep(get_longbusy_msecs(rc));
+			rc = H_BUSY;
+		}
+	} while (rc == H_BUSY);
+
+	return rc;
+}
+
+static inline long plpar_guest_get_capabilities(unsigned long flags,
+						unsigned long *capabilities)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	do {
+		rc = plpar_hcall(H_GUEST_GET_CAPABILITIES, retbuf, flags);
+		if (rc == H_BUSY)
+			cond_resched();
+
+		if (H_IS_LONG_BUSY(rc)) {
+			msleep(get_longbusy_msecs(rc));
+			rc = H_BUSY;
+		}
+	} while (rc == H_BUSY);
+
+	if (rc == H_SUCCESS)
+		*capabilities = retbuf[0];
+
+	return rc;
+}
+
 /*
  * Wrapper to H_RPT_INVALIDATE hcall that handles return values appropriately
  *
@@ -354,7 +534,7 @@ static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
  * error recovery of killing the process/guest will be eventually
  * needed.
  */
-static inline long pseries_rpt_invalidate(u32 pid, u64 target, u64 type,
+static inline long pseries_rpt_invalidate(u64 pid, u64 target, u64 type,
 					  u64 page_sizes, u64 start, u64 end)
 {
 	long rc;
@@ -400,8 +580,64 @@ static inline long plpar_pte_read_4(unsigned long flags, unsigned long ptex,
 	return 0;
 }
 
-static inline long pseries_rpt_invalidate(u32 pid, u64 target, u64 type,
+static inline long pseries_rpt_invalidate(u64 pid, u64 target, u64 type,
 					  u64 page_sizes, u64 start, u64 end)
+{
+	return 0;
+}
+
+static inline long plpar_guest_create_vcpu(unsigned long flags,
+					   unsigned long guest_id,
+					   unsigned long vcpu_id)
+{
+	return 0;
+}
+
+static inline long plpar_guest_get_state(unsigned long flags,
+					 unsigned long guest_id,
+					 unsigned long vcpu_id,
+					 unsigned long data_buffer,
+					 unsigned long data_size,
+					 unsigned long *failed_index)
+{
+	return 0;
+}
+
+static inline long plpar_guest_set_state(unsigned long flags,
+					 unsigned long guest_id,
+					 unsigned long vcpu_id,
+					 unsigned long data_buffer,
+					 unsigned long data_size,
+					 unsigned long *failed_index)
+{
+	return 0;
+}
+
+static inline long plpar_guest_run_vcpu(unsigned long flags, unsigned long guest_id,
+					unsigned long vcpu_id, int *trap,
+					unsigned long *failed_index)
+{
+	return 0;
+}
+
+static inline long plpar_guest_create(unsigned long flags, unsigned long *guest_id)
+{
+	return 0;
+}
+
+static inline long plpar_guest_delete(unsigned long flags, u64 guest_id)
+{
+	return 0;
+}
+
+static inline long plpar_guest_get_capabilities(unsigned long flags,
+						unsigned long *capabilities)
+{
+	return 0;
+}
+
+static inline long plpar_guest_set_capabilities(unsigned long flags,
+						unsigned long capabilities)
 {
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Second generation of pinmux driver for Amlogic Meson-AXG SoC.
  *
@@ -6,8 +7,6 @@
  *
  * Copyright (c) 2017 Amlogic, Inc. All rights reserved.
  * Author: Xingyu Chen <xingyu.chen@amlogic.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ or MIT)
  */
 
 /*
@@ -28,10 +27,10 @@
 
 static int meson_axg_pmx_get_bank(struct meson_pinctrl *pc,
 			unsigned int pin,
-			struct meson_pmx_bank **bank)
+			const struct meson_pmx_bank **bank)
 {
 	int i;
-	struct meson_axg_pmx_data *pmx = pc->data->pmx_data;
+	const struct meson_axg_pmx_data *pmx = pc->data->pmx_data;
 
 	for (i = 0; i < pmx->num_pmx_banks; i++)
 		if (pin >= pmx->pmx_banks[i].first &&
@@ -43,7 +42,7 @@ static int meson_axg_pmx_get_bank(struct meson_pinctrl *pc,
 	return -EINVAL;
 }
 
-static int meson_pmx_calc_reg_and_offset(struct meson_pmx_bank *bank,
+static int meson_pmx_calc_reg_and_offset(const struct meson_pmx_bank *bank,
 			unsigned int pin, unsigned int *reg,
 			unsigned int *offset)
 {
@@ -60,10 +59,10 @@ static int meson_pmx_calc_reg_and_offset(struct meson_pmx_bank *bank,
 static int meson_axg_pmx_update_function(struct meson_pinctrl *pc,
 			unsigned int pin, unsigned int func)
 {
+	const struct meson_pmx_bank *bank;
 	int ret;
 	int reg;
 	int offset;
-	struct meson_pmx_bank *bank;
 
 	ret = meson_axg_pmx_get_bank(pc, pin, &bank);
 	if (ret)
@@ -83,8 +82,8 @@ static int meson_axg_pmx_set_mux(struct pinctrl_dev *pcdev,
 	int i;
 	int ret;
 	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
-	struct meson_pmx_func *func = &pc->data->funcs[func_num];
-	struct meson_pmx_group *group = &pc->data->groups[group_num];
+	const struct meson_pmx_func *func = &pc->data->funcs[func_num];
+	const struct meson_pmx_group *group = &pc->data->groups[group_num];
 	struct meson_pmx_axg_data *pmx_data =
 		(struct meson_pmx_axg_data *)group->data;
 
@@ -118,4 +117,5 @@ const struct pinmux_ops meson_axg_pmx_ops = {
 };
 EXPORT_SYMBOL_GPL(meson_axg_pmx_ops);
 
+MODULE_DESCRIPTION("Amlogic Meson AXG second generation pinmux driver");
 MODULE_LICENSE("Dual BSD/GPL");

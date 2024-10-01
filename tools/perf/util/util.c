@@ -325,9 +325,15 @@ int perf_event_paranoid(void)
 
 bool perf_event_paranoid_check(int max_level)
 {
-	return perf_cap__capable(CAP_SYS_ADMIN) ||
-			perf_cap__capable(CAP_PERFMON) ||
-			perf_event_paranoid() <= max_level;
+	bool used_root;
+
+	if (perf_cap__capable(CAP_SYS_ADMIN, &used_root))
+		return true;
+
+	if (!used_root && perf_cap__capable(CAP_PERFMON, &used_root))
+		return true;
+
+	return perf_event_paranoid() <= max_level;
 }
 
 static int
@@ -550,5 +556,24 @@ int sched_getcpu(void)
 	errno = ENOSYS;
 #endif
 	return -1;
+}
+#endif
+
+#ifndef HAVE_SCANDIRAT_SUPPORT
+int scandirat(int dirfd, const char *dirp,
+	      struct dirent ***namelist,
+	      int (*filter)(const struct dirent *),
+	      int (*compar)(const struct dirent **, const struct dirent **))
+{
+	char path[PATH_MAX];
+	int err, fd = openat(dirfd, dirp, O_PATH);
+
+	if (fd < 0)
+		return fd;
+
+	snprintf(path, sizeof(path), "/proc/%d/fd/%d", getpid(), fd);
+	err = scandir(path, namelist, filter, compar);
+	close(fd);
+	return err;
 }
 #endif

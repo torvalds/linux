@@ -11,6 +11,7 @@ maintainers:
 
 allOf:
   - $ref: nvmem.yaml#
+  - $ref: nvmem-deprecated-cells.yaml#
 
 properties:
   compatible:
@@ -26,6 +27,9 @@ properties:
   secure-monitor:
     description: phandle to the secure-monitor node
     $ref: /schemas/types.yaml#/definitions/phandle
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible

@@ -19,61 +19,60 @@ static int uncore_instance_count;
 static DEFINE_IDA(intel_uncore_ida);
 
 /* callbacks for actual HW read/write */
-static int (*uncore_read)(struct uncore_data *data, unsigned int *min, unsigned int *max);
-static int (*uncore_write)(struct uncore_data *data, unsigned int input, unsigned int min_max);
-static int (*uncore_read_freq)(struct uncore_data *data, unsigned int *freq);
+static int (*uncore_read)(struct uncore_data *data, unsigned int *value, enum uncore_index index);
+static int (*uncore_write)(struct uncore_data *data, unsigned int input, enum uncore_index index);
 
-static ssize_t show_domain_id(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_domain_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	struct uncore_data *data = container_of(attr, struct uncore_data, domain_id_dev_attr);
+	struct uncore_data *data = container_of(attr, struct uncore_data, domain_id_kobj_attr);
 
 	return sprintf(buf, "%u\n", data->domain_id);
 }
 
-static ssize_t show_fabric_cluster_id(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_fabric_cluster_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	struct uncore_data *data = container_of(attr, struct uncore_data, fabric_cluster_id_dev_attr);
+	struct uncore_data *data = container_of(attr, struct uncore_data, fabric_cluster_id_kobj_attr);
 
 	return sprintf(buf, "%u\n", data->cluster_id);
 }
 
-static ssize_t show_package_id(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_package_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	struct uncore_data *data = container_of(attr, struct uncore_data, package_id_dev_attr);
+	struct uncore_data *data = container_of(attr, struct uncore_data, package_id_kobj_attr);
 
 	return sprintf(buf, "%u\n", data->package_id);
 }
 
-static ssize_t show_min_max_freq_khz(struct uncore_data *data,
-				      char *buf, int min_max)
+static ssize_t show_attr(struct uncore_data *data, char *buf, enum uncore_index index)
 {
-	unsigned int min, max;
+	unsigned int value;
 	int ret;
 
 	mutex_lock(&uncore_lock);
-	ret = uncore_read(data, &min, &max);
+	ret = uncore_read(data, &value, index);
 	mutex_unlock(&uncore_lock);
 	if (ret)
 		return ret;
 
-	if (min_max)
-		return sprintf(buf, "%u\n", max);
-
-	return sprintf(buf, "%u\n", min);
+	return sprintf(buf, "%u\n", value);
 }
 
-static ssize_t store_min_max_freq_khz(struct uncore_data *data,
-				      const char *buf, ssize_t count,
-				      int min_max)
+static ssize_t store_attr(struct uncore_data *data, const char *buf, ssize_t count,
+			  enum uncore_index index)
 {
-	unsigned int input;
+	unsigned int input = 0;
 	int ret;
 
-	if (kstrtouint(buf, 10, &input))
-		return -EINVAL;
+	if (index == UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE) {
+		if (kstrtobool(buf, (bool *)&input))
+			return -EINVAL;
+	} else {
+		if (kstrtouint(buf, 10, &input))
+			return -EINVAL;
+	}
 
 	mutex_lock(&uncore_lock);
-	ret = uncore_write(data, input, min_max);
+	ret = uncore_write(data, input, index);
 	mutex_unlock(&uncore_lock);
 
 	if (ret)
@@ -82,63 +81,51 @@ static ssize_t store_min_max_freq_khz(struct uncore_data *data,
 	return count;
 }
 
-static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
-{
-	unsigned int freq;
-	int ret;
-
-	mutex_lock(&uncore_lock);
-	ret = uncore_read_freq(data, &freq);
-	mutex_unlock(&uncore_lock);
-	if (ret)
-		return ret;
-
-	return sprintf(buf, "%u\n", freq);
-}
-
-#define store_uncore_min_max(name, min_max)				\
-	static ssize_t store_##name(struct device *dev,		\
-				     struct device_attribute *attr,	\
+#define store_uncore_attr(name, index)					\
+	static ssize_t store_##name(struct kobject *kobj,		\
+				     struct kobj_attribute *attr,	\
 				     const char *buf, size_t count)	\
 	{								\
-		struct uncore_data *data = container_of(attr, struct uncore_data, name##_dev_attr);\
+		struct uncore_data *data = container_of(attr, struct uncore_data, name##_kobj_attr);\
 									\
-		return store_min_max_freq_khz(data, buf, count,	\
-					      min_max);		\
+		return store_attr(data, buf, count, index);		\
 	}
 
-#define show_uncore_min_max(name, min_max)				\
-	static ssize_t show_##name(struct device *dev,		\
-				    struct device_attribute *attr, char *buf)\
+#define show_uncore_attr(name, index)					\
+	static ssize_t show_##name(struct kobject *kobj,		\
+				    struct kobj_attribute *attr, char *buf)\
 	{                                                               \
-		struct uncore_data *data = container_of(attr, struct uncore_data, name##_dev_attr);\
+		struct uncore_data *data = container_of(attr, struct uncore_data, name##_kobj_attr);\
 									\
-		return show_min_max_freq_khz(data, buf, min_max);	\
+		return show_attr(data, buf, index);			\
 	}
 
-#define show_uncore_perf_status(name)					\
-	static ssize_t show_##name(struct device *dev,		\
-				   struct device_attribute *attr, char *buf)\
-	{                                                               \
-		struct uncore_data *data = container_of(attr, struct uncore_data, name##_dev_attr);\
-									\
-		return show_perf_status_freq_khz(data, buf); \
-	}
+store_uncore_attr(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+store_uncore_attr(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
-store_uncore_min_max(min_freq_khz, 0);
-store_uncore_min_max(max_freq_khz, 1);
+show_uncore_attr(min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+show_uncore_attr(max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
-show_uncore_min_max(min_freq_khz, 0);
-show_uncore_min_max(max_freq_khz, 1);
+show_uncore_attr(current_freq_khz, UNCORE_INDEX_CURRENT_FREQ);
 
-show_uncore_perf_status(current_freq_khz);
+store_uncore_attr(elc_low_threshold_percent, UNCORE_INDEX_EFF_LAT_CTRL_LOW_THRESHOLD);
+store_uncore_attr(elc_high_threshold_percent, UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD);
+store_uncore_attr(elc_high_threshold_enable,
+		  UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE);
+store_uncore_attr(elc_floor_freq_khz, UNCORE_INDEX_EFF_LAT_CTRL_FREQ);
+
+show_uncore_attr(elc_low_threshold_percent, UNCORE_INDEX_EFF_LAT_CTRL_LOW_THRESHOLD);
+show_uncore_attr(elc_high_threshold_percent, UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD);
+show_uncore_attr(elc_high_threshold_enable,
+		 UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE);
+show_uncore_attr(elc_floor_freq_khz, UNCORE_INDEX_EFF_LAT_CTRL_FREQ);
 
 #define show_uncore_data(member_name)					\
-	static ssize_t show_##member_name(struct device *dev,	\
-					   struct device_attribute *attr, char *buf)\
+	static ssize_t show_##member_name(struct kobject *kobj,	\
+					   struct kobj_attribute *attr, char *buf)\
 	{                                                               \
 		struct uncore_data *data = container_of(attr, struct uncore_data,\
-							  member_name##_dev_attr);\
+							  member_name##_kobj_attr);\
 									\
 		return sysfs_emit(buf, "%u\n",				\
 				 data->member_name);			\
@@ -149,34 +136,35 @@ show_uncore_data(initial_max_freq_khz);
 
 #define init_attribute_rw(_name)					\
 	do {								\
-		sysfs_attr_init(&data->_name##_dev_attr.attr);	\
-		data->_name##_dev_attr.show = show_##_name;		\
-		data->_name##_dev_attr.store = store_##_name;		\
-		data->_name##_dev_attr.attr.name = #_name;		\
-		data->_name##_dev_attr.attr.mode = 0644;		\
+		sysfs_attr_init(&data->_name##_kobj_attr.attr);	\
+		data->_name##_kobj_attr.show = show_##_name;		\
+		data->_name##_kobj_attr.store = store_##_name;		\
+		data->_name##_kobj_attr.attr.name = #_name;		\
+		data->_name##_kobj_attr.attr.mode = 0644;		\
 	} while (0)
 
 #define init_attribute_ro(_name)					\
 	do {								\
-		sysfs_attr_init(&data->_name##_dev_attr.attr);	\
-		data->_name##_dev_attr.show = show_##_name;		\
-		data->_name##_dev_attr.store = NULL;			\
-		data->_name##_dev_attr.attr.name = #_name;		\
-		data->_name##_dev_attr.attr.mode = 0444;		\
+		sysfs_attr_init(&data->_name##_kobj_attr.attr);	\
+		data->_name##_kobj_attr.show = show_##_name;		\
+		data->_name##_kobj_attr.store = NULL;			\
+		data->_name##_kobj_attr.attr.name = #_name;		\
+		data->_name##_kobj_attr.attr.mode = 0444;		\
 	} while (0)
 
 #define init_attribute_root_ro(_name)					\
 	do {								\
-		sysfs_attr_init(&data->_name##_dev_attr.attr);	\
-		data->_name##_dev_attr.show = show_##_name;		\
-		data->_name##_dev_attr.store = NULL;			\
-		data->_name##_dev_attr.attr.name = #_name;		\
-		data->_name##_dev_attr.attr.mode = 0400;		\
+		sysfs_attr_init(&data->_name##_kobj_attr.attr);	\
+		data->_name##_kobj_attr.show = show_##_name;		\
+		data->_name##_kobj_attr.store = NULL;			\
+		data->_name##_kobj_attr.attr.name = #_name;		\
+		data->_name##_kobj_attr.attr.mode = 0400;		\
 	} while (0)
 
 static int create_attr_group(struct uncore_data *data, char *name)
 {
 	int ret, index = 0;
+	unsigned int val;
 
 	init_attribute_rw(max_freq_khz);
 	init_attribute_rw(min_freq_khz);
@@ -186,18 +174,36 @@ static int create_attr_group(struct uncore_data *data, char *name)
 
 	if (data->domain_id != UNCORE_DOMAIN_ID_INVALID) {
 		init_attribute_root_ro(domain_id);
-		data->uncore_attrs[index++] = &data->domain_id_dev_attr.attr;
+		data->uncore_attrs[index++] = &data->domain_id_kobj_attr.attr;
 		init_attribute_root_ro(fabric_cluster_id);
-		data->uncore_attrs[index++] = &data->fabric_cluster_id_dev_attr.attr;
+		data->uncore_attrs[index++] = &data->fabric_cluster_id_kobj_attr.attr;
 		init_attribute_root_ro(package_id);
-		data->uncore_attrs[index++] = &data->package_id_dev_attr.attr;
+		data->uncore_attrs[index++] = &data->package_id_kobj_attr.attr;
 	}
 
-	data->uncore_attrs[index++] = &data->max_freq_khz_dev_attr.attr;
-	data->uncore_attrs[index++] = &data->min_freq_khz_dev_attr.attr;
-	data->uncore_attrs[index++] = &data->initial_min_freq_khz_dev_attr.attr;
-	data->uncore_attrs[index++] = &data->initial_max_freq_khz_dev_attr.attr;
-	data->uncore_attrs[index++] = &data->current_freq_khz_dev_attr.attr;
+	data->uncore_attrs[index++] = &data->max_freq_khz_kobj_attr.attr;
+	data->uncore_attrs[index++] = &data->min_freq_khz_kobj_attr.attr;
+	data->uncore_attrs[index++] = &data->initial_min_freq_khz_kobj_attr.attr;
+	data->uncore_attrs[index++] = &data->initial_max_freq_khz_kobj_attr.attr;
+
+	ret = uncore_read(data, &val, UNCORE_INDEX_CURRENT_FREQ);
+	if (!ret)
+		data->uncore_attrs[index++] = &data->current_freq_khz_kobj_attr.attr;
+
+	ret = uncore_read(data, &val, UNCORE_INDEX_EFF_LAT_CTRL_LOW_THRESHOLD);
+	if (!ret) {
+		init_attribute_rw(elc_low_threshold_percent);
+		init_attribute_rw(elc_high_threshold_percent);
+		init_attribute_rw(elc_high_threshold_enable);
+		init_attribute_rw(elc_floor_freq_khz);
+
+		data->uncore_attrs[index++] = &data->elc_low_threshold_percent_kobj_attr.attr;
+		data->uncore_attrs[index++] = &data->elc_high_threshold_percent_kobj_attr.attr;
+		data->uncore_attrs[index++] =
+			&data->elc_high_threshold_enable_kobj_attr.attr;
+		data->uncore_attrs[index++] = &data->elc_floor_freq_khz_kobj_attr.attr;
+	}
+
 	data->uncore_attrs[index] = NULL;
 
 	data->uncore_attr_group.name = name;
@@ -234,7 +240,8 @@ int uncore_freq_add_entry(struct uncore_data *data, int cpu)
 		sprintf(data->name, "package_%02d_die_%02d", data->package_id, data->die_id);
 	}
 
-	uncore_read(data, &data->initial_min_freq_khz, &data->initial_max_freq_khz);
+	uncore_read(data, &data->initial_min_freq_khz, UNCORE_INDEX_MIN_FREQ);
+	uncore_read(data, &data->initial_max_freq_khz, UNCORE_INDEX_MAX_FREQ);
 
 	ret = create_attr_group(data, data->name);
 	if (ret) {
@@ -265,15 +272,15 @@ void uncore_freq_remove_die_entry(struct uncore_data *data)
 }
 EXPORT_SYMBOL_NS_GPL(uncore_freq_remove_die_entry, INTEL_UNCORE_FREQUENCY);
 
-int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *min, unsigned int *max),
-			     int (*write_control_freq)(struct uncore_data *data, unsigned int input, unsigned int set_max),
-			     int (*read_freq)(struct uncore_data *data, unsigned int *freq))
+int uncore_freq_common_init(int (*read)(struct uncore_data *data, unsigned int *value,
+					enum uncore_index index),
+			    int (*write)(struct uncore_data *data, unsigned int input,
+					 enum uncore_index index))
 {
 	mutex_lock(&uncore_lock);
 
-	uncore_read = read_control_freq;
-	uncore_write = write_control_freq;
-	uncore_read_freq = read_freq;
+	uncore_read = read;
+	uncore_write = write;
 
 	if (!uncore_root_kobj) {
 		struct device *dev_root = bus_get_dev_root(&cpu_subsys);

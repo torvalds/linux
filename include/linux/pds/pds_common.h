@@ -4,6 +4,8 @@
 #ifndef _PDS_COMMON_H_
 #define _PDS_COMMON_H_
 
+#include <linux/notifier.h>
+
 #define PDS_CORE_DRV_NAME			"pds_core"
 
 /* the device's internal addressing uses up to 52 bits */
@@ -34,16 +36,19 @@ enum pds_core_vif_types {
 
 #define PDS_DEV_TYPE_CORE_STR	"Core"
 #define PDS_DEV_TYPE_VDPA_STR	"vDPA"
-#define PDS_DEV_TYPE_VFIO_STR	"VFio"
+#define PDS_DEV_TYPE_VFIO_STR	"vfio"
 #define PDS_DEV_TYPE_ETH_STR	"Eth"
 #define PDS_DEV_TYPE_RDMA_STR	"RDMA"
 #define PDS_DEV_TYPE_LM_STR	"LM"
 
 #define PDS_VDPA_DEV_NAME	PDS_CORE_DRV_NAME "." PDS_DEV_TYPE_VDPA_STR
+#define PDS_VFIO_LM_DEV_NAME	PDS_CORE_DRV_NAME "." PDS_DEV_TYPE_LM_STR "." PDS_DEV_TYPE_VFIO_STR
+
+struct pdsc;
 
 int pdsc_register_notify(struct notifier_block *nb);
 void pdsc_unregister_notify(struct notifier_block *nb);
 void *pdsc_get_pf_struct(struct pci_dev *vf_pdev);
-int pds_client_register(struct pci_dev *pf_pdev, char *devname);
-int pds_client_unregister(struct pci_dev *pf_pdev, u16 client_id);
+int pds_client_register(struct pdsc *pf, char *devname);
+int pds_client_unregister(struct pdsc *pf, u16 client_id);
 #endif /* _PDS_COMMON_H_ */

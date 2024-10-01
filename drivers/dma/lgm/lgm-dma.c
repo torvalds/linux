@@ -107,7 +107,7 @@
  * If header mode is set in DMA descriptor,
  *   If bit 30 is disabled, HDR_LEN must be configured according to channel
  *     requirement.
- *   If bit 30 is enabled(checksum with heade mode), HDR_LEN has no need to
+ *   If bit 30 is enabled(checksum with header mode), HDR_LEN has no need to
  *     be configured. It will enable check sum for switch
  * If header mode is not set in DMA descriptor,
  *   This register setting doesn't matter
@@ -1732,9 +1732,4 @@ static struct platform_driver intel_ldma_driver = {
  * registered DMA channels and DMA capabilities to clients before their
  * initialization.
  */
-static int __init intel_ldma_init(void)
-{
-	return platform_driver_register(&intel_ldma_driver);
-}
-
-device_initcall(intel_ldma_init);
+builtin_platform_driver(intel_ldma_driver);

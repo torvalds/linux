@@ -112,7 +112,6 @@ struct ccsr_pci {
 
 };
 
-extern int fsl_add_bridge(struct platform_device *pdev, int is_primary);
 extern void fsl_pcibios_fixup_bus(struct pci_bus *bus);
 extern void fsl_pcibios_fixup_phb(struct pci_controller *phb);
 extern int mpc83xx_add_bridge(struct device_node *dev);

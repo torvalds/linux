@@ -4,8 +4,6 @@
  *
  * Tests for the IA32_XSS MSR.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <sys/ioctl.h>
 
 #include "test_util.h"
@@ -29,7 +27,7 @@ int main(int argc, char *argv[])
 
 	xss_val = vcpu_get_msr(vcpu, MSR_IA32_XSS);
 	TEST_ASSERT(xss_val == 0,
-		    "MSR_IA32_XSS should be initialized to zero\n");
+		    "MSR_IA32_XSS should be initialized to zero");
 
 	vcpu_set_msr(vcpu, MSR_IA32_XSS, xss_val);
 

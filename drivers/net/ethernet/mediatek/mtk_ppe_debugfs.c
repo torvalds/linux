@@ -3,6 +3,9 @@
 
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
+
+#include <net/ipv6.h>
+
 #include "mtk_eth_soc.h"
 
 struct mtk_flow_addr_info
@@ -47,16 +50,14 @@ static const char *mtk_foe_pkt_type_str(int type)
 static void
 mtk_print_addr(struct seq_file *m, u32 *addr, bool ipv6)
 {
-	__be32 n_addr[4];
-	int i;
+	__be32 n_addr[IPV6_ADDR_WORDS];
 
 	if (!ipv6) {
 		seq_printf(m, "%pI4h", addr);
 		return;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(n_addr); i++)
-		n_addr[i] = htonl(addr[i]);
+	ipv6_addr_cpu_to_be32(n_addr, addr);
 	seq_printf(m, "%pI6", n_addr);
 }
 
@@ -98,7 +99,7 @@ mtk_ppe_debugfs_foe_show(struct seq_file *m, void *private, bool bind)
 
 		acct = mtk_foe_entry_get_mib(ppe, i, NULL);
 
-		type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
+		type = mtk_get_ib1_pkt_type(ppe->eth, entry->ib1);
 		seq_printf(m, "%05x %s %7s", i,
 			   mtk_foe_entry_state_str(state),
 			   mtk_foe_pkt_type_str(type));

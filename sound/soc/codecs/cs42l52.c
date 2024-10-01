@@ -1084,7 +1084,7 @@ static const struct regmap_config cs42l52_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs42l52_reg_defaults),
 	.readable_reg = cs42l52_readable_register,
 	.volatile_reg = cs42l52_volatile_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
@@ -1215,7 +1215,7 @@ MODULE_DEVICE_TABLE(of, cs42l52_of_match);
 
 
 static const struct i2c_device_id cs42l52_id[] = {
-	{ "cs42l52", 0 },
+	{ "cs42l52" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs42l52_id);

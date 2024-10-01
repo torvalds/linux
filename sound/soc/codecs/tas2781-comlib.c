@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// tas2781-lib.c -- TAS2781 Common functions for HDA and ASoC Audio drivers
+// TAS2563/TAS2781 Common functions for HDA and ASoC Audio drivers
 //
-// Copyright 2023 Texas Instruments, Inc.
+// Copyright 2023 - 2024 Texas Instruments, Inc.
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 
@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -39,7 +38,7 @@ static const struct regmap_range_cfg tasdevice_ranges[] = {
 static const struct regmap_config tasdevice_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 	.ranges = tasdevice_ranges,
 	.num_ranges = ARRAY_SIZE(tasdevice_ranges),
 	.max_register = 256 * 128,
@@ -57,16 +56,17 @@ static int tasdevice_change_chn_book(struct tasdevice_priv *tas_priv,
 
 		if (client->addr != tasdev->dev_addr) {
 			client->addr = tasdev->dev_addr;
-			if (tasdev->cur_book == book) {
-				ret = regmap_write(map,
-					TASDEVICE_PAGE_SELECT, 0);
-				if (ret < 0) {
-					dev_err(tas_priv->dev, "%s, E=%d\n",
-						__func__, ret);
-					goto out;
-				}
+			/* All tas2781s share the same regmap, clear the page
+			 * inside regmap once switching to another tas2781.
+			 * Register 0 at any pages and any books inside tas2781
+			 * is the same one for page-switching.
+			 */
+			ret = regmap_write(map, TASDEVICE_PAGE_SELECT, 0);
+			if (ret < 0) {
+				dev_err(tas_priv->dev, "%s, E=%d channel:%d\n",
+					__func__, ret, chn);
+				goto out;
 			}
-			goto out;
 		}
 
 		if (tasdev->cur_book != book) {
@@ -87,6 +87,32 @@ static int tasdevice_change_chn_book(struct tasdevice_priv *tas_priv,
 out:
 	return ret;
 }
+
+int tasdev_chn_switch(struct tasdevice_priv *tas_priv,
+	unsigned short chn)
+{
+	struct i2c_client *client = (struct i2c_client *)tas_priv->client;
+	struct tasdevice *tasdev = &tas_priv->tasdevice[chn];
+	struct regmap *map = tas_priv->regmap;
+	int ret;
+
+	if (client->addr != tasdev->dev_addr) {
+		client->addr = tasdev->dev_addr;
+		/* All devices share the same regmap, clear the page
+		 * inside regmap once switching to another device.
+		 * Register 0 at any pages and any books inside tas2781
+		 * is the same one for page-switching.
+		 */
+		ret = regmap_write(map, TASDEVICE_PAGE_SELECT, 0);
+		if (ret < 0) {
+			dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
+			return ret;
+		}
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tasdev_chn_switch);
 
 int tasdevice_dev_read(struct tasdevice_priv *tas_priv,
 	unsigned short chn, unsigned int reg, unsigned int *val)
@@ -242,7 +268,7 @@ struct tasdevice_priv *tasdevice_kzalloc(struct i2c_client *i2c)
 }
 EXPORT_SYMBOL_GPL(tasdevice_kzalloc);
 
-void tas2781_reset(struct tasdevice_priv *tas_dev)
+void tasdevice_reset(struct tasdevice_priv *tas_dev)
 {
 	int ret, i;
 
@@ -253,8 +279,8 @@ void tas2781_reset(struct tasdevice_priv *tas_dev)
 	} else {
 		for (i = 0; i < tas_dev->ndev; i++) {
 			ret = tasdevice_dev_write(tas_dev, i,
-				TAS2781_REG_SWRESET,
-				TAS2781_REG_SWRESET_RESET);
+				TASDEVICE_REG_SWRESET,
+				TASDEVICE_REG_SWRESET_RESET);
 			if (ret < 0)
 				dev_err(tas_dev->dev,
 					"dev %d swreset fail, %d\n",
@@ -263,9 +289,10 @@ void tas2781_reset(struct tasdevice_priv *tas_dev)
 	}
 	usleep_range(1000, 1050);
 }
-EXPORT_SYMBOL_GPL(tas2781_reset);
+EXPORT_SYMBOL_GPL(tasdevice_reset);
 
 int tascodec_init(struct tasdevice_priv *tas_priv, void *codec,
+	struct module *module,
 	void (*cont)(const struct firmware *fw, void *context))
 {
 	int ret = 0;
@@ -275,11 +302,16 @@ int tascodec_init(struct tasdevice_priv *tas_priv, void *codec,
 	 */
 	mutex_lock(&tas_priv->codec_lock);
 
-	scnprintf(tas_priv->rca_binaryname, 64, "%sRCA%d.bin",
-		tas_priv->dev_name, tas_priv->ndev);
+	if (tas_priv->name_prefix)
+		scnprintf(tas_priv->rca_binaryname, 64, "%s-%sRCA%d.bin",
+			tas_priv->name_prefix, tas_priv->dev_name,
+			tas_priv->ndev);
+	else
+		scnprintf(tas_priv->rca_binaryname, 64, "%sRCA%d.bin",
+			tas_priv->dev_name, tas_priv->ndev);
 	crc8_populate_msb(tas_priv->crc8_lkp_tbl, TASDEVICE_CRC8_POLYNOMIAL);
 	tas_priv->codec = codec;
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	ret = request_firmware_nowait(module, FW_ACTION_UEVENT,
 		tas_priv->rca_binaryname, tas_priv->dev, GFP_KERNEL, tas_priv,
 		cont);
 	if (ret)
@@ -314,8 +346,6 @@ int tasdevice_init(struct tasdevice_priv *tas_priv)
 		tas_priv->tasdevice[i].cur_prog = -1;
 		tas_priv->tasdevice[i].cur_conf = -1;
 	}
-
-	dev_set_drvdata(tas_priv->dev, tas_priv);
 
 	mutex_init(&tas_priv->codec_lock);
 
@@ -406,12 +436,24 @@ EXPORT_SYMBOL_GPL(tasdevice_dsp_remove);
 
 void tasdevice_remove(struct tasdevice_priv *tas_priv)
 {
-	if (gpio_is_valid(tas_priv->irq_info.irq_gpio))
-		gpio_free(tas_priv->irq_info.irq_gpio);
-	kfree(tas_priv->acpi_subsystem_id);
 	mutex_destroy(&tas_priv->codec_lock);
 }
 EXPORT_SYMBOL_GPL(tasdevice_remove);
+
+int tasdevice_save_calibration(struct tasdevice_priv *tas_priv)
+{
+	if (tas_priv->save_calibration)
+		return tas_priv->save_calibration(tas_priv);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(tasdevice_save_calibration);
+
+void tasdevice_apply_calibration(struct tasdevice_priv *tas_priv)
+{
+	if (tas_priv->apply_calibration && tas_priv->cali_data.total_sz)
+		tas_priv->apply_calibration(tas_priv);
+}
+EXPORT_SYMBOL_GPL(tasdevice_apply_calibration);
 
 static int tasdevice_clamp(int val, int max, unsigned int invert)
 {

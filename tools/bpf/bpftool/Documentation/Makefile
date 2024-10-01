@@ -31,9 +31,9 @@ see_also = $(subst " ",, \
 	"\n" \
 	"SEE ALSO\n" \
 	"========\n" \
-	"\t**bpf**\ (2),\n" \
-	"\t**bpf-helpers**\\ (7)" \
-	$(foreach page,$(call list_pages,$(1)),",\n\t**$(page)**\\ (8)") \
+	"**bpf**\ (2),\n" \
+	"**bpf-helpers**\\ (7)" \
+	$(foreach page,$(call list_pages,$(1)),",\n**$(page)**\\ (8)") \
 	"\n")
 
 $(OUTPUT)%.8: %.rst

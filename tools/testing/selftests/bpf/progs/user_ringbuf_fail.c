@@ -184,7 +184,7 @@ invalid_drain_callback_return(struct bpf_dynptr *dynptr, void *context)
  * not be able to write to that pointer.
  */
 SEC("?raw_tp")
-__failure __msg("At callback return the register R0 has value")
+__failure __msg("At callback return the register R0 has ")
 int user_ringbuf_callback_invalid_return(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, invalid_drain_callback_return, NULL, 0);
@@ -219,5 +219,27 @@ __failure __msg("Dynptr has to be an uninitialized dynptr")
 int user_ringbuf_callback_reinit_dynptr_ringbuf(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, try_reinit_dynptr_ringbuf, NULL, 0);
+	return 0;
+}
+
+__noinline long global_call_bpf_dynptr_data(struct bpf_dynptr *dynptr)
+{
+	bpf_dynptr_data(dynptr, 0xA, 0xA);
+	return 0;
+}
+
+static long callback_adjust_bpf_dynptr_reg_off(struct bpf_dynptr *dynptr,
+					       void *ctx)
+{
+	global_call_bpf_dynptr_data(dynptr += 1024);
+	return 0;
+}
+
+SEC("?raw_tp")
+__failure __msg("dereference of modified dynptr_ptr ptr R1 off=16384 disallowed")
+int user_ringbuf_callback_const_ptr_to_dynptr_reg_off(void *ctx)
+{
+	bpf_user_ringbuf_drain(&user_ringbuf,
+			       callback_adjust_bpf_dynptr_reg_off, NULL, 0);
 	return 0;
 }

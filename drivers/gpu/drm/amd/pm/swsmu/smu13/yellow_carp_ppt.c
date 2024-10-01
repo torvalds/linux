@@ -363,9 +363,9 @@ static int yellow_carp_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->GfxActivity / 100;
 		break;
 	case METRICS_AVERAGE_VCNACTIVITY:
-		*value = metrics->UvdActivity;
+		*value = metrics->UvdActivity / 100;
 		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
+	case METRICS_CURR_SOCKETPOWER:
 		*value = (metrics->CurrentSocketPower << 8) / 1000;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
@@ -423,9 +423,15 @@ static int yellow_carp_read_sensor(struct smu_context *smu,
 								(uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_VCN_LOAD:
 		ret = yellow_carp_get_smu_metrics_data(smu,
-								METRICS_AVERAGE_SOCKETPOWER,
+							METRICS_AVERAGE_VCNACTIVITY,
+							(uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		ret = yellow_carp_get_smu_metrics_data(smu,
+								METRICS_CURR_SOCKETPOWER,
 								(uint32_t *)data);
 		*size = 4;
 		break;
@@ -479,6 +485,7 @@ static int yellow_carp_read_sensor(struct smu_context *smu,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -770,7 +777,7 @@ static int yellow_carp_get_dpm_level_count(struct smu_context *smu,
 		*count = clk_table->NumDfPstatesEnabled;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -860,31 +867,9 @@ static int yellow_carp_get_dpm_ultimate_freq(struct smu_context *smu,
 	int ret = 0;
 
 	if (!yellow_carp_clk_dpm_is_enabled(smu, clk_type)) {
-		switch (clk_type) {
-		case SMU_MCLK:
-		case SMU_UCLK:
-			clock_limit = smu->smu_table.boot_values.uclk;
-			break;
-		case SMU_FCLK:
-			clock_limit = smu->smu_table.boot_values.fclk;
-			break;
-		case SMU_GFXCLK:
-		case SMU_SCLK:
-			clock_limit = smu->smu_table.boot_values.gfxclk;
-			break;
-		case SMU_SOCCLK:
-			clock_limit = smu->smu_table.boot_values.socclk;
-			break;
-		case SMU_VCLK:
-			clock_limit = smu->smu_table.boot_values.vclk;
-			break;
-		case SMU_DCLK:
-			clock_limit = smu->smu_table.boot_values.dclk;
-			break;
-		default:
-			clock_limit = 0;
-			break;
-		}
+		ret = smu_v13_0_get_boot_freq_by_index(smu, clk_type, &clock_limit);
+		if (ret)
+			return ret;
 
 		/* clock in Mhz unit */
 		if (min)
@@ -1023,24 +1008,24 @@ static uint32_t yellow_carp_get_umd_pstate_clk_default(struct smu_context *smu,
 	switch (clk_type) {
 	case SMU_GFXCLK:
 	case SMU_SCLK:
-		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 8))
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 8))
 			clk_limit = SMU_13_0_8_UMD_PSTATE_GFXCLK;
-		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 1) ||
-			(adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 3))
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 1) ||
+			(amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 3))
 			clk_limit = SMU_13_0_1_UMD_PSTATE_GFXCLK;
 		break;
 	case SMU_SOCCLK:
-		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 8))
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 8))
 			clk_limit = SMU_13_0_8_UMD_PSTATE_SOCCLK;
-		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 1) ||
-			(adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 3))
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 1) ||
+			(amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 3))
 			clk_limit = SMU_13_0_1_UMD_PSTATE_SOCCLK;
 		break;
 	case SMU_FCLK:
-		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 8))
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 8))
 			clk_limit = SMU_13_0_8_UMD_PSTATE_FCLK;
-		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 1) ||
-			(adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 3))
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 1) ||
+			(amdgpu_ip_version(adev, MP1_HWIP, 0)) == IP_VERSION(13, 0, 3))
 			clk_limit = SMU_13_0_1_UMD_PSTATE_FCLK;
 		break;
 	default:

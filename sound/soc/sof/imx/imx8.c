@@ -41,13 +41,6 @@
 #define MBOX_OFFSET	0x800000
 #define MBOX_SIZE	0x1000
 
-/* DSP clocks */
-static struct clk_bulk_data imx8_dsp_clks[] = {
-	{ .id = "ipg" },
-	{ .id = "ocram" },
-	{ .id = "core" },
-};
-
 struct imx8_priv {
 	struct device *dev;
 	struct snd_sof_dev *sdev;
@@ -64,7 +57,8 @@ struct imx8_priv {
 	struct device **pd_dev;
 	struct device_link **link;
 
-	struct imx_clocks *clks;
+	struct clk_bulk_data *clks;
+	int clk_num;
 };
 
 static int imx8_get_mailbox_offset(struct snd_sof_dev *sdev)
@@ -196,10 +190,6 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clks = devm_kzalloc(&pdev->dev, sizeof(*priv->clks), GFP_KERNEL);
-	if (!priv->clks)
-		return -ENOMEM;
-
 	sdev->num_cores = 1;
 	sdev->pdata->hw_pdata = priv;
 	priv->dev = sdev->dev;
@@ -313,17 +303,18 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;
 
-	/* init clocks info */
-	priv->clks->dsp_clks = imx8_dsp_clks;
-	priv->clks->num_dsp_clks = ARRAY_SIZE(imx8_dsp_clks);
-
-	ret = imx8_parse_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = devm_clk_bulk_get_all(sdev->dev, &priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to fetch clocks: %d\n", ret);
 		goto exit_pdev_unregister;
+	}
+	priv->clk_num = ret;
 
-	ret = imx8_enable_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = clk_bulk_prepare_enable(priv->clk_num, priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to enable clocks: %d\n", ret);
 		goto exit_pdev_unregister;
+	}
 
 	return 0;
 
@@ -338,20 +329,18 @@ exit_unroll_pm:
 	return ret;
 }
 
-static int imx8_remove(struct snd_sof_dev *sdev)
+static void imx8_remove(struct snd_sof_dev *sdev)
 {
 	struct imx8_priv *priv = sdev->pdata->hw_pdata;
 	int i;
 
-	imx8_disable_clocks(sdev, priv->clks);
+	clk_bulk_disable_unprepare(priv->clk_num, priv->clks);
 	platform_device_unregister(priv->ipc_dev);
 
 	for (i = 0; i < priv->num_domains; i++) {
 		device_link_del(priv->link[i]);
 		dev_pm_domain_detach(priv->pd_dev[i], false);
 	}
-
-	return 0;
 }
 
 /* on i.MX8 there is 1 to 1 match between type and BAR idx */
@@ -375,7 +364,7 @@ static void imx8_suspend(struct snd_sof_dev *sdev)
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
 		imx_dsp_free_channel(priv->dsp_ipc, i);
 
-	imx8_disable_clocks(sdev, priv->clks);
+	clk_bulk_disable_unprepare(priv->clk_num, priv->clks);
 }
 
 static int imx8_resume(struct snd_sof_dev *sdev)
@@ -384,9 +373,11 @@ static int imx8_resume(struct snd_sof_dev *sdev)
 	int ret;
 	int i;
 
-	ret = imx8_enable_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = clk_bulk_prepare_enable(priv->clk_num, priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to enable clocks: %d\n", ret);
 		return ret;
+	}
 
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
 		imx_dsp_request_channel(priv->dsp_ipc, i);
@@ -487,7 +478,7 @@ static int imx8_dsp_set_power_state(struct snd_sof_dev *sdev,
 }
 
 /* i.MX8 ops */
-static struct snd_sof_dsp_ops sof_imx8_ops = {
+static const struct snd_sof_dsp_ops sof_imx8_ops = {
 	/* probe and remove */
 	.probe		= imx8_probe,
 	.remove		= imx8_remove,
@@ -548,7 +539,7 @@ static struct snd_sof_dsp_ops sof_imx8_ops = {
 };
 
 /* i.MX8X ops */
-static struct snd_sof_dsp_ops sof_imx8x_ops = {
+static const struct snd_sof_dsp_ops sof_imx8x_ops = {
 	/* probe and remove */
 	.probe		= imx8_probe,
 	.remove		= imx8_remove,
@@ -605,36 +596,53 @@ static struct snd_sof_dsp_ops sof_imx8x_ops = {
 			SNDRV_PCM_INFO_MMAP_VALID |
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH |
 			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP
 };
 
+static struct snd_sof_of_mach sof_imx8_machs[] = {
+	{
+		.compatible = "fsl,imx8qxp-mek",
+		.sof_tplg_filename = "sof-imx8-wm8960.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{
+		.compatible = "fsl,imx8qm-mek",
+		.sof_tplg_filename = "sof-imx8-wm8960.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{}
+};
+
 static struct sof_dev_desc sof_of_imx8qxp_desc = {
-	.ipc_supported_mask	= BIT(SOF_IPC),
-	.ipc_default		= SOF_IPC,
+	.of_machines	= sof_imx8_machs,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "imx/sof",
+		[SOF_IPC_TYPE_3] = "imx/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "imx/sof-tplg",
+		[SOF_IPC_TYPE_3] = "imx/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-imx8x.ri",
+		[SOF_IPC_TYPE_3] = "sof-imx8x.ri",
 	},
 	.nocodec_tplg_filename = "sof-imx8-nocodec.tplg",
 	.ops = &sof_imx8x_ops,
 };
 
 static struct sof_dev_desc sof_of_imx8qm_desc = {
-	.ipc_supported_mask	= BIT(SOF_IPC),
-	.ipc_default		= SOF_IPC,
+	.of_machines	= sof_imx8_machs,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "imx/sof",
+		[SOF_IPC_TYPE_3] = "imx/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "imx/sof-tplg",
+		[SOF_IPC_TYPE_3] = "imx/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-imx8.ri",
+		[SOF_IPC_TYPE_3] = "sof-imx8.ri",
 	},
 	.nocodec_tplg_filename = "sof-imx8-nocodec.tplg",
 	.ops = &sof_imx8_ops,
@@ -659,5 +667,6 @@ static struct platform_driver snd_sof_of_imx8_driver = {
 };
 module_platform_driver(snd_sof_of_imx8_driver);
 
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for IMX8 platforms");
+MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);

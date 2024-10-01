@@ -9,8 +9,6 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/time64.h>
 #include <media/videobuf2-v4l2.h>
@@ -501,6 +499,7 @@ struct windsor_pic_info {
 	u32 proc_dacc_rng_wr_cnt;
 	s32 tv_s;
 	u32 tv_ns;
+	u32 average_qp;
 };
 
 u32 vpu_windsor_get_data_size(void)
@@ -736,6 +735,7 @@ static void vpu_windsor_unpack_pic_info(struct vpu_rpc_event *pkt, void *data)
 	info->wptr = get_ptr(windsor->str_buff_wptr);
 	info->crc = windsor->frame_crc;
 	info->timestamp = timespec64_to_ns(&ts);
+	info->average_qp = windsor->average_qp;
 }
 
 static void vpu_windsor_unpack_mem_req(struct vpu_rpc_event *pkt, void *data)

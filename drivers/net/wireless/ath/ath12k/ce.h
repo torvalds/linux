@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_CE_H
@@ -119,7 +119,7 @@ struct ath12k_ce_ring {
 	/* Host address space */
 	void *base_addr_owner_space_unaligned;
 	/* CE address space */
-	u32 base_addr_ce_space_unaligned;
+	dma_addr_t base_addr_ce_space_unaligned;
 
 	/* Actual start of descriptors.
 	 * Aligned to descriptor-size boundary.
@@ -129,7 +129,7 @@ struct ath12k_ce_ring {
 	void *base_addr_owner_space;
 
 	/* CE address space */
-	u32 base_addr_ce_space;
+	dma_addr_t base_addr_ce_space;
 
 	/* HAL ring id */
 	u32 hal_ring_id;
@@ -176,9 +176,6 @@ int ath12k_ce_alloc_pipes(struct ath12k_base *ab);
 void ath12k_ce_free_pipes(struct ath12k_base *ab);
 int ath12k_ce_get_attr_flags(struct ath12k_base *ab, int ce_id);
 void ath12k_ce_poll_send_completed(struct ath12k_base *ab, u8 pipe_id);
-int ath12k_ce_map_service_to_pipe(struct ath12k_base *ab, u16 service_id,
-				  u8 *ul_pipe, u8 *dl_pipe);
-int ath12k_ce_attr_attach(struct ath12k_base *ab);
 void ath12k_ce_get_shadow_config(struct ath12k_base *ab,
 				 u32 **shadow_cfg, u32 *shadow_cfg_len);
 #endif

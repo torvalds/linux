@@ -37,8 +37,7 @@ int rtw_enter_ips(struct rtw_dev *rtwdev)
 	return 0;
 }
 
-static void rtw_restore_port_cfg_iter(void *data, u8 *mac,
-				      struct ieee80211_vif *vif)
+static void rtw_restore_port_cfg_iter(void *data, struct ieee80211_vif *vif)
 {
 	struct rtw_dev *rtwdev = data;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
@@ -105,6 +104,7 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 		 */
 		WARN(1, "firmware failed to ack driver for %s Deep Power mode\n",
 		     enter ? "entering" : "leaving");
+		rtw_fw_dump_dbg_info(rtwdev);
 	}
 }
 EXPORT_SYMBOL(rtw_power_mode_change);
@@ -165,6 +165,7 @@ static void rtw_fw_leave_lps_check(struct rtw_dev *rtwdev)
 	if (ret) {
 		rtw_write32_clr(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN);
 		rtw_warn(rtwdev, "firmware failed to leave lps state\n");
+		rtw_fw_dump_dbg_info(rtwdev);
 	}
 }
 
@@ -320,8 +321,7 @@ static void __rtw_vif_recalc_lps(struct rtw_vif_recalc_lps_iter_data *data,
 	data->found_vif = vif;
 }
 
-static void rtw_vif_recalc_lps_iter(void *data, u8 *mac,
-				    struct ieee80211_vif *vif)
+static void rtw_vif_recalc_lps_iter(void *data, struct ieee80211_vif *vif)
 {
 	__rtw_vif_recalc_lps(data, vif);
 }

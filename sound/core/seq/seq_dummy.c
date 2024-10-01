@@ -58,6 +58,12 @@ MODULE_PARM_DESC(ports, "number of ports to be created");
 module_param(duplex, bool, 0444);
 MODULE_PARM_DESC(duplex, "create DUPLEX ports");
 
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+static int ump;
+module_param(ump, int, 0444);
+MODULE_PARM_DESC(ump, "UMP conversion (0: no convert, 1: MIDI 1.0, 2: MIDI 2.0)");
+#endif
+
 struct snd_seq_dummy_port {
 	int client;
 	int port;
@@ -152,7 +158,9 @@ static int __init
 register_client(void)
 {
 	struct snd_seq_dummy_port *rec1, *rec2;
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
 	struct snd_seq_client *client;
+#endif
 	int i;
 
 	if (ports < 1) {
@@ -166,12 +174,24 @@ register_client(void)
 	if (my_client < 0)
 		return my_client;
 
-	/* don't convert events but just pass-through */
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
 	client = snd_seq_kernel_client_get(my_client);
 	if (!client)
 		return -EINVAL;
-	client->filter = SNDRV_SEQ_FILTER_NO_CONVERT;
+	switch (ump) {
+	case 1:
+		client->midi_version = SNDRV_SEQ_CLIENT_UMP_MIDI_1_0;
+		break;
+	case 2:
+		client->midi_version = SNDRV_SEQ_CLIENT_UMP_MIDI_2_0;
+		break;
+	default:
+		/* don't convert events but just pass-through */
+		client->filter = SNDRV_SEQ_FILTER_NO_CONVERT;
+		break;
+	}
 	snd_seq_kernel_client_put(client);
+#endif
 
 	/* create ports */
 	for (i = 0; i < ports; i++) {

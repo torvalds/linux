@@ -34,7 +34,6 @@
 
 struct max30208_data {
 	struct i2c_client *client;
-	struct iio_dev *indio_dev;
 	struct mutex lock; /* Lock to prevent concurrent reads of temperature readings */
 };
 

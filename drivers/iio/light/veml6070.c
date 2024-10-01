@@ -189,7 +189,7 @@ static void veml6070_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id veml6070_id[] = {
-	{ "veml6070", 0 },
+	{ "veml6070" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, veml6070_id);

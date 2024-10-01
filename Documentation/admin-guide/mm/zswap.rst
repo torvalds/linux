@@ -49,7 +49,7 @@ compressed pool.
 Design
 ======
 
-Zswap receives pages for compression through the Frontswap API and is able to
+Zswap receives pages for compression from the swap subsystem and is able to
 evict pages from its own compressed pool on an LRU basis and write them back to
 the backing swap device in the case that the compressed pool is full.
 
@@ -70,19 +70,19 @@ means the compression ratio will always be 2:1 or worse (because of half-full
 zbud pages).  The zsmalloc type zpool has a more complex compressed page
 storage method, and it can achieve greater storage densities.
 
-When a swap page is passed from frontswap to zswap, zswap maintains a mapping
+When a swap page is passed from swapout to zswap, zswap maintains a mapping
 of the swap entry, a combination of the swap type and swap offset, to the zpool
 handle that references that compressed swap page.  This mapping is achieved
 with a red-black tree per swap type.  The swap offset is the search key for the
 tree nodes.
 
-During a page fault on a PTE that is a swap entry, frontswap calls the zswap
-load function to decompress the page into the page allocated by the page fault
-handler.
+During a page fault on a PTE that is a swap entry, the swapin code calls the
+zswap load function to decompress the page into the page allocated by the page
+fault handler.
 
 Once there are no PTEs referencing a swap page stored in zswap (i.e. the count
-in the swap_map goes to 0) the swap code calls the zswap invalidate function,
-via frontswap, to free the compressed entry.
+in the swap_map goes to 0) the swap code calls the zswap invalidate function
+to free the compressed entry.
 
 Zswap seeks to be simple in its policies.  Sysfs attributes allow for one user
 controlled policy:
@@ -111,35 +111,6 @@ checked if it is a same-value filled page before compressing it. If true, the
 compressed length of the page is set to zero and the pattern or same-filled
 value is stored.
 
-Same-value filled pages identification feature is enabled by default and can be
-disabled at boot time by setting the ``same_filled_pages_enabled`` attribute
-to 0, e.g. ``zswap.same_filled_pages_enabled=0``. It can also be enabled and
-disabled at runtime using the sysfs ``same_filled_pages_enabled``
-attribute, e.g.::
-
-	echo 1 > /sys/module/zswap/parameters/same_filled_pages_enabled
-
-When zswap same-filled page identification is disabled at runtime, it will stop
-checking for the same-value filled pages during store operation.
-In other words, every page will be then considered non-same-value filled.
-However, the existing pages which are marked as same-value filled pages remain
-stored unchanged in zswap until they are either loaded or invalidated.
-
-In some circumstances it might be advantageous to make use of just the zswap
-ability to efficiently store same-filled pages without enabling the whole
-compressed page storage.
-In this case the handling of non-same-value pages by zswap (enabled by default)
-can be disabled by setting the ``non_same_filled_pages_enabled`` attribute
-to 0, e.g. ``zswap.non_same_filled_pages_enabled=0``.
-It can also be enabled and disabled at runtime using the sysfs
-``non_same_filled_pages_enabled`` attribute, e.g.::
-
-	echo 1 > /sys/module/zswap/parameters/non_same_filled_pages_enabled
-
-Disabling both ``zswap.same_filled_pages_enabled`` and
-``zswap.non_same_filled_pages_enabled`` effectively disables accepting any new
-pages by zswap.
-
 To prevent zswap from shrinking pool when zswap is full and there's a high
 pressure on swap (this will result in flipping pages in and out zswap pool
 without any real benefit but with a performance drop for the system), a
@@ -152,6 +123,26 @@ attribute, e. g.::
 	echo 80 > /sys/module/zswap/parameters/accept_threshold_percent
 
 Setting this parameter to 100 will disable the hysteresis.
+
+Some users cannot tolerate the swapping that comes with zswap store failures
+and zswap writebacks. Swapping can be disabled entirely (without disabling
+zswap itself) on a cgroup-basis as follows::
+
+	echo 0 > /sys/fs/cgroup/<cgroup-name>/memory.zswap.writeback
+
+Note that if the store failures are recurring (for e.g if the pages are
+incompressible), users can observe reclaim inefficiency after disabling
+writeback (because the same pages might be rejected again and again).
+
+When there is a sizable amount of cold memory residing in the zswap pool, it
+can be advantageous to proactively write these cold pages to swap and reclaim
+the memory for other use cases. By default, the zswap shrinker is disabled.
+User can enable it as follows::
+
+  echo Y > /sys/module/zswap/parameters/shrinker_enabled
+
+This can be enabled at the boot time if ``CONFIG_ZSWAP_SHRINKER_DEFAULT_ON`` is
+selected.
 
 A debugfs interface is provided for various statistic about pool size, number
 of pages stored, same-value filled pages and various counters for the reasons

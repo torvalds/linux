@@ -59,7 +59,7 @@ struct GUID {
 struct cpu_str {
 	u8 len;
 	u8 unused;
-	u16 name[10];
+	u16 name[];
 };
 
 struct le_str {
@@ -81,9 +81,6 @@ typedef u32 CLST;
 #define SPARSE_LCN     ((CLST)-1)
 #define RESIDENT_LCN   ((CLST)-2)
 #define COMPRESSED_LCN ((CLST)-3)
-
-#define COMPRESSION_UNIT     4
-#define COMPRESS_MAX_CLUSTER 0x1000
 
 enum RECORD_NUM {
 	MFT_REC_MFT		= 0,
@@ -523,11 +520,9 @@ struct ATTR_LIST_ENTRY {
 	__le64 vcn;		// 0x08: Starting VCN of this attribute.
 	struct MFT_REF ref;	// 0x10: MFT record number with attribute.
 	__le16 id;		// 0x18: struct ATTRIB ID.
-	__le16 name[3];		// 0x1A: Just to align. To get real name can use bNameOffset.
+	__le16 name[];		// 0x1A: To get real name use name_off.
 
 }; // sizeof(0x20)
-
-static_assert(sizeof(struct ATTR_LIST_ENTRY) == 0x20);
 
 static inline u32 le_size(u8 name_len)
 {
@@ -698,14 +693,15 @@ static inline bool de_has_vcn_ex(const struct NTFS_DE *e)
 	      offsetof(struct ATTR_FILE_NAME, name) + \
 	      NTFS_NAME_LEN * sizeof(short), 8)
 
+#define NTFS_INDEX_HDR_HAS_SUBNODES cpu_to_le32(1)
+
 struct INDEX_HDR {
 	__le32 de_off;	// 0x00: The offset from the start of this structure
 			// to the first NTFS_DE.
 	__le32 used;	// 0x04: The size of this structure plus all
 			// entries (quad-word aligned).
 	__le32 total;	// 0x08: The allocated size of for this structure plus all entries.
-	u8 flags;	// 0x0C: 0x00 = Small directory, 0x01 = Large directory.
-	u8 res[3];
+	__le32 flags;	// 0x0C: 0x00 = Small directory, 0x01 = Large directory.
 
 	//
 	// de_off + used <= total
@@ -753,7 +749,7 @@ static inline struct NTFS_DE *hdr_next_de(const struct INDEX_HDR *hdr,
 
 static inline bool hdr_has_subnode(const struct INDEX_HDR *hdr)
 {
-	return hdr->flags & 1;
+	return hdr->flags & NTFS_INDEX_HDR_HAS_SUBNODES;
 }
 
 struct INDEX_BUFFER {
@@ -773,7 +769,7 @@ static inline bool ib_is_empty(const struct INDEX_BUFFER *ib)
 
 static inline bool ib_is_leaf(const struct INDEX_BUFFER *ib)
 {
-	return !(ib->ihdr.flags & 1);
+	return !(ib->ihdr.flags & NTFS_INDEX_HDR_HAS_SUBNODES);
 }
 
 /* Index root structure ( 0x90 ). */
@@ -847,7 +843,7 @@ struct OBJECT_ID {
 	// Birth Volume Id is the Object Id of the Volume on.
 	// which the Object Id was allocated. It never changes.
 	struct GUID BirthVolumeId; //0x10:
-	
+
 	// Birth Object Id is the first Object Id that was
 	// ever assigned to this MFT Record. I.e. If the Object Id
 	// is changed for some reason, this field will reflect the
@@ -1003,9 +999,6 @@ struct REPARSE_POINT {
 };
 
 static_assert(sizeof(struct REPARSE_POINT) == 0x18);
-
-/* Maximum allowed size of the reparse data. */
-#define MAXIMUM_REPARSE_DATA_BUFFER_SIZE	(16 * 1024)
 
 /*
  * The value of the following constant needs to satisfy the following

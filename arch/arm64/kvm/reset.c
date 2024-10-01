@@ -32,6 +32,7 @@
 
 /* Maximum phys_shift supported for any VM on this host */
 static u32 __ro_after_init kvm_ipa_limit;
+unsigned int __ro_after_init kvm_host_sve_max_vl;
 
 /*
  * ARMv8 Reset Values
@@ -51,6 +52,8 @@ int __init kvm_arm_init_sve(void)
 {
 	if (system_supports_sve()) {
 		kvm_sve_max_vl = sve_max_virtualisable_vl();
+		kvm_host_sve_max_vl = sve_max_vl();
+		kvm_nvhe_sym(kvm_host_sve_max_vl) = kvm_host_sve_max_vl;
 
 		/*
 		 * The get_sve_reg()/set_sve_reg() ioctl interface will need
@@ -73,11 +76,8 @@ int __init kvm_arm_init_sve(void)
 	return 0;
 }
 
-static int kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
 {
-	if (!system_supports_sve())
-		return -EINVAL;
-
 	vcpu->arch.sve_max_vl = kvm_sve_max_vl;
 
 	/*
@@ -86,8 +86,6 @@ static int kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
 	 * kvm_arm_vcpu_finalize(), which freezes the configuration.
 	 */
 	vcpu_set_flag(vcpu, GUEST_HAS_SVE);
-
-	return 0;
 }
 
 /*
@@ -156,7 +154,6 @@ void kvm_arm_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	void *sve_state = vcpu->arch.sve_state;
 
-	kvm_vcpu_unshare_task_fp(vcpu);
 	kvm_unshare_hyp(vcpu, vcpu + 1);
 	if (sve_state)
 		kvm_unshare_hyp(sve_state, sve_state + vcpu_sve_state_size(vcpu));
@@ -170,20 +167,9 @@ static void kvm_vcpu_reset_sve(struct kvm_vcpu *vcpu)
 		memset(vcpu->arch.sve_state, 0, vcpu_sve_state_size(vcpu));
 }
 
-static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * For now make sure that both address/generic pointer authentication
-	 * features are requested by the userspace together and the system
-	 * supports these capabilities.
-	 */
-	if (!test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
-	    !test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features) ||
-	    !system_has_full_ptr_auth())
-		return -EINVAL;
-
 	vcpu_set_flag(vcpu, GUEST_HAS_PTRAUTH);
-	return 0;
 }
 
 /**
@@ -204,10 +190,9 @@ static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
  * disable preemption around the vcpu reset as we would otherwise race with
  * preempt notifiers which also call put/load.
  */
-int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
+void kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_reset_state reset_state;
-	int ret;
 	bool loaded;
 	u32 pstate;
 
@@ -224,46 +209,23 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	if (loaded)
 		kvm_arch_vcpu_put(vcpu);
 
-	/* Disallow NV+SVE for the time being */
-	if (vcpu_has_nv(vcpu) && vcpu_has_feature(vcpu, KVM_ARM_VCPU_SVE)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!kvm_arm_vcpu_sve_finalized(vcpu)) {
-		if (test_bit(KVM_ARM_VCPU_SVE, vcpu->arch.features)) {
-			ret = kvm_vcpu_enable_sve(vcpu);
-			if (ret)
-				goto out;
-		}
+		if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_SVE))
+			kvm_vcpu_enable_sve(vcpu);
 	} else {
 		kvm_vcpu_reset_sve(vcpu);
 	}
 
-	if (test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
-	    test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features)) {
-		if (kvm_vcpu_enable_ptrauth(vcpu)) {
-			ret = -EINVAL;
-			goto out;
-		}
-	}
+	if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_ADDRESS) ||
+	    vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_GENERIC))
+		kvm_vcpu_enable_ptrauth(vcpu);
 
-	switch (vcpu->arch.target) {
-	default:
-		if (vcpu_el1_is_32bit(vcpu)) {
-			pstate = VCPU_RESET_PSTATE_SVC;
-		} else if (vcpu_has_nv(vcpu)) {
-			pstate = VCPU_RESET_PSTATE_EL2;
-		} else {
-			pstate = VCPU_RESET_PSTATE_EL1;
-		}
-
-		if (kvm_vcpu_has_pmu(vcpu) && !kvm_arm_support_pmu_v3()) {
-			ret = -EINVAL;
-			goto out;
-		}
-		break;
-	}
+	if (vcpu_el1_is_32bit(vcpu))
+		pstate = VCPU_RESET_PSTATE_SVC;
+	else if (vcpu_has_nv(vcpu))
+		pstate = VCPU_RESET_PSTATE_EL2;
+	else
+		pstate = VCPU_RESET_PSTATE_EL1;
 
 	/* Reset core registers */
 	memset(vcpu_gp_regs(vcpu), 0, sizeof(*vcpu_gp_regs(vcpu)));
@@ -299,12 +261,17 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	}
 
 	/* Reset timer */
-	ret = kvm_timer_vcpu_reset(vcpu);
-out:
+	kvm_timer_vcpu_reset(vcpu);
+
 	if (loaded)
 		kvm_arch_vcpu_load(vcpu, smp_processor_id());
 	preempt_enable();
-	return ret;
+}
+
+u32 kvm_get_pa_bits(struct kvm *kvm)
+{
+	/* Fixed limit until we can configure ID_AA64MMFR0.PARange */
+	return kvm_ipa_limit;
 }
 
 u32 get_kvm_ipa_limit(void)
@@ -321,12 +288,11 @@ int __init kvm_set_ipa_limit(void)
 	parange = cpuid_feature_extract_unsigned_field(mmfr0,
 				ID_AA64MMFR0_EL1_PARANGE_SHIFT);
 	/*
-	 * IPA size beyond 48 bits could not be supported
-	 * on either 4K or 16K page size. Hence let's cap
-	 * it to 48 bits, in case it's reported as larger
-	 * on the system.
+	 * IPA size beyond 48 bits for 4K and 16K page size is only supported
+	 * when LPA2 is available. So if we have LPA2, enable it, else cap to 48
+	 * bits, in case it's reported as larger on the system.
 	 */
-	if (PAGE_SIZE != SZ_64K)
+	if (!kvm_lpa2_is_enabled() && PAGE_SIZE != SZ_64K)
 		parange = min(parange, (unsigned int)ID_AA64MMFR0_EL1_PARANGE_48);
 
 	/*

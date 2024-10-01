@@ -96,7 +96,7 @@ bool mlx5e_is_ktls_rx(struct mlx5_core_dev *mdev)
 {
 	u8 max_sq_wqebbs = mlx5e_get_max_sq_wqebbs(mdev);
 
-	if (is_kdump_kernel() || !MLX5_CAP_GEN(mdev, tls_rx))
+	if (is_kdump_kernel() || !MLX5_CAP_GEN(mdev, tls_rx) || mlx5_get_sd(mdev))
 		return false;
 
 	/* Check the possibility to post the required ICOSQ WQEs. */
@@ -188,7 +188,6 @@ static void mlx5e_tls_debugfs_init(struct mlx5e_tls *tls,
 
 int mlx5e_ktls_init(struct mlx5e_priv *priv)
 {
-	struct mlx5_crypto_dek_pool *dek_pool;
 	struct mlx5e_tls *tls;
 
 	if (!mlx5e_is_ktls_device(priv->mdev))
@@ -199,12 +198,6 @@ int mlx5e_ktls_init(struct mlx5e_priv *priv)
 		return -ENOMEM;
 	tls->mdev = priv->mdev;
 
-	dek_pool = mlx5_crypto_dek_pool_create(priv->mdev, MLX5_ACCEL_OBJ_TLS_KEY);
-	if (IS_ERR(dek_pool)) {
-		kfree(tls);
-		return PTR_ERR(dek_pool);
-	}
-	tls->dek_pool = dek_pool;
 	priv->tls = tls;
 
 	mlx5e_tls_debugfs_init(tls, priv->dfs_root);
@@ -222,7 +215,6 @@ void mlx5e_ktls_cleanup(struct mlx5e_priv *priv)
 	debugfs_remove_recursive(tls->debugfs.dfs);
 	tls->debugfs.dfs = NULL;
 
-	mlx5_crypto_dek_pool_destroy(tls->dek_pool);
 	kfree(priv->tls);
 	priv->tls = NULL;
 }

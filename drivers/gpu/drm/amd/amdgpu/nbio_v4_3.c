@@ -338,7 +338,7 @@ const struct nbio_hdp_flush_reg nbio_v4_3_hdp_flush_reg = {
 
 static void nbio_v4_3_init_registers(struct amdgpu_device *adev)
 {
-	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(4, 3, 0)) {
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(4, 3, 0)) {
 		uint32_t data;
 
 		data = RREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF2_STRAP2);
@@ -389,8 +389,8 @@ static void nbio_v4_3_program_aspm(struct amdgpu_device *adev)
 #ifdef CONFIG_PCIEASPM
 	uint32_t def, data;
 
-	if (!(adev->ip_versions[PCIE_HWIP][0] == IP_VERSION(7, 4, 0)) &&
-	      !(adev->ip_versions[PCIE_HWIP][0] == IP_VERSION(7, 6, 0)))
+	if (!(amdgpu_ip_version(adev, PCIE_HWIP, 0) == IP_VERSION(7, 4, 0)) &&
+	    !(amdgpu_ip_version(adev, PCIE_HWIP, 0) == IP_VERSION(7, 6, 0)))
 		return;
 
 	def = data = RREG32_SOC15(NBIO, 0, regPCIE_LC_CNTL);
@@ -472,6 +472,20 @@ static void nbio_v4_3_program_aspm(struct amdgpu_device *adev)
 #endif
 }
 
+#define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
+
+static void nbio_v4_3_set_reg_remap(struct amdgpu_device *adev)
+{
+	if (!amdgpu_sriov_vf(adev) && (PAGE_SIZE <= 4096)) {
+		adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
+		adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
+	} else {
+		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
+			regBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+		adev->rmmio_remap.bus_addr = 0;
+	}
+}
+
 const struct amdgpu_nbio_funcs nbio_v4_3_funcs = {
 	.get_hdp_flush_req_offset = nbio_v4_3_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v4_3_get_hdp_flush_done_offset,
@@ -494,6 +508,7 @@ const struct amdgpu_nbio_funcs nbio_v4_3_funcs = {
 	.remap_hdp_registers = nbio_v4_3_remap_hdp_registers,
 	.get_rom_offset = nbio_v4_3_get_rom_offset,
 	.program_aspm = nbio_v4_3_program_aspm,
+	.set_reg_remap = nbio_v4_3_set_reg_remap,
 };
 
 
@@ -538,6 +553,7 @@ const struct amdgpu_nbio_funcs nbio_v4_3_sriov_funcs = {
 	.init_registers = nbio_v4_3_init_registers,
 	.remap_hdp_registers = nbio_v4_3_remap_hdp_registers,
 	.get_rom_offset = nbio_v4_3_get_rom_offset,
+	.set_reg_remap = nbio_v4_3_set_reg_remap,
 };
 
 static int nbio_v4_3_set_ras_err_event_athub_irq_state(struct amdgpu_device *adev,

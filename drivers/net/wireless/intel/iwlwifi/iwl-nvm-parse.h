@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2015, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2015, 2018-2024 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_nvm_parse_h__
 #define __iwl_nvm_parse_h__
 
 #include <net/cfg80211.h>
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "mei/iwl-mei.h"
 
 /**
@@ -21,7 +21,7 @@ enum iwl_nvm_sbands_flags {
 	IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ	= BIT(1),
 };
 
-/**
+/*
  * iwl_parse_nvm_data - parse NVM data and return values
  *
  * This function parses all NVM values we need and then
@@ -38,7 +38,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		   u8 tx_chains, u8 rx_chains);
 
 /**
- * iwl_parse_mcc_info - parse MCC (mobile country code) info coming from FW
+ * iwl_parse_nvm_mcc_info - parse MCC (mobile country code) info coming from FW
  *
  * This function parses the regulatory channel data received as a
  * MCC_UPDATE_CMD command. It returns a newly allocation regulatory domain,
@@ -73,21 +73,28 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 void iwl_nvm_fixups(u32 hw_id, unsigned int section, u8 *data,
 		    unsigned int len);
 
-/**
+/*
  * iwl_get_nvm - retrieve NVM data from firmware
  *
  * Allocates a new iwl_nvm_data structure, fills it with
  * NVM data, and returns it to caller.
  */
 struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
-				 const struct iwl_fw *fw);
+				 const struct iwl_fw *fw,
+				 u8 set_tx_ant, u8 set_rx_ant);
 
-/**
+/*
  * iwl_parse_mei_nvm_data - parse the mei_nvm_data and get an iwl_nvm_data
  */
 struct iwl_nvm_data *
 iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		       const struct iwl_mei_nvm *mei_nvm,
-		       const struct iwl_fw *fw);
+		       const struct iwl_fw *fw, u8 set_tx_ant, u8 set_rx_ant);
+
+/*
+ * iwl_reinit_cab - to be called when the tx_chains or rx_chains are modified
+ */
+void iwl_reinit_cab(struct iwl_trans *trans, struct iwl_nvm_data *data,
+		    u8 tx_chains, u8 rx_chains, const struct iwl_fw *fw);
 
 #endif /* __iwl_nvm_parse_h__ */

@@ -114,7 +114,7 @@ static void adv748x_afe_fill_format(struct adv748x_afe *afe,
 {
 	memset(fmt, 0, sizeof(*fmt));
 
-	fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	fmt->field = V4L2_FIELD_ALTERNATE;
 
@@ -337,7 +337,7 @@ static int adv748x_afe_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index != 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	code->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 	return 0;
 }
@@ -354,8 +354,8 @@ static int adv748x_afe_get_format(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (sdformat->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mbusformat = v4l2_subdev_get_try_format(sd, sd_state,
-							sdformat->pad);
+		mbusformat = v4l2_subdev_state_get_format(sd_state,
+							  sdformat->pad);
 		sdformat->format = *mbusformat;
 	} else {
 		adv748x_afe_fill_format(afe, &sdformat->format);
@@ -378,7 +378,7 @@ static int adv748x_afe_set_format(struct v4l2_subdev *sd,
 	if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return adv748x_afe_get_format(sd, sd_state, sdformat);
 
-	mbusformat = v4l2_subdev_get_try_format(sd, sd_state, sdformat->pad);
+	mbusformat = v4l2_subdev_state_get_format(sd_state, sdformat->pad);
 	*mbusformat = sdformat->format;
 
 	return 0;

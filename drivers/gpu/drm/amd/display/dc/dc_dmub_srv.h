@@ -35,6 +35,7 @@ struct pipe_ctx;
 struct dc_crtc_timing_adjust;
 struct dc_crtc_timing;
 struct dc_state;
+struct dc_surface_update;
 
 struct dc_reg_helper_state {
 	bool gather_in_progress;
@@ -50,18 +51,31 @@ struct dc_dmub_srv {
 
 	struct dc_context *ctx;
 	void *dm;
+
+	int32_t idle_exit_counter;
+	union dmub_shared_state_ips_driver_signals driver_signals;
+	bool idle_allowed;
+	bool needs_idle_wake;
 };
 
 void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv);
 
 bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv);
 
+bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
+		unsigned int count,
+		union dmub_rb_cmd *cmd_list);
+
+bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
+		enum dm_dmub_wait_type wait_type,
+		union dmub_rb_cmd *cmd_list);
+
 bool dc_dmub_srv_cmd_run(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
 
 bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int count, union dmub_rb_cmd *cmd_list, enum dm_dmub_wait_type wait_type);
 
 bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
-				    unsigned int stream_mask);
+				   unsigned int stream_mask);
 
 bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv);
 
@@ -87,4 +101,112 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv);
 
 void dc_send_update_cursor_info_to_dmu(struct pipe_ctx *pCtx, uint8_t pipe_idx);
 bool dc_dmub_check_min_version(struct dmub_srv *srv);
+
+void dc_dmub_srv_enable_dpia_trace(const struct dc *dc);
+void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, const struct dc_plane_address *addr, uint8_t subvp_index);
+
+bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait);
+
+void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_idle);
+
+/**
+ * dc_dmub_srv_set_power_state() - Sets the power state for DMUB service.
+ *
+ * Controls whether messaging the DMCUB or interfacing with it via HW register
+ * interaction is permittable.
+ *
+ * @dc_dmub_srv - The DC DMUB service pointer
+ * @power_state - the DC power state
+ */
+void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state power_state);
+
+/**
+ * dc_dmub_srv_notify_fw_dc_power_state() - Notifies firmware of the DC power state.
+ *
+ * Differs from dc_dmub_srv_set_power_state in that it needs to access HW in order
+ * to message DMCUB of the state transition. Should come after the D0 exit and
+ * before D3 set power state.
+ *
+ * @dc_dmub_srv - The DC DMUB service pointer
+ * @power_state - the DC power state
+ */
+void dc_dmub_srv_notify_fw_dc_power_state(struct dc_dmub_srv *dc_dmub_srv,
+					  enum dc_acpi_cm_power_state power_state);
+
+/**
+ * @dc_dmub_srv_should_detect() - Checks if link detection is required.
+ *
+ * While in idle power states we may need driver to manually redetect in
+ * the case of a missing hotplug. Should be called from a polling timer.
+ *
+ * Return: true if redetection is required.
+ */
+bool dc_dmub_srv_should_detect(struct dc_dmub_srv *dc_dmub_srv);
+
+/**
+ * dc_wake_and_execute_dmub_cmd() - Wrapper for DMUB command execution.
+ *
+ * Refer to dc_wake_and_execute_dmub_cmd_list() for usage and limitations,
+ * This function is a convenience wrapper for a single command execution.
+ *
+ * @ctx: DC context
+ * @cmd: The command to send/receive
+ * @wait_type: The wait behavior for the execution
+ *
+ * Return: true on command submission success, false otherwise
+ */
+bool dc_wake_and_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd,
+				  enum dm_dmub_wait_type wait_type);
+
+/**
+ * dc_wake_and_execute_dmub_cmd_list() - Wrapper for DMUB command list execution.
+ *
+ * If the DMCUB hardware was asleep then it wakes the DMUB before
+ * executing the command and attempts to re-enter if the command
+ * submission was successful.
+ *
+ * This should be the preferred command submission interface provided
+ * the DC lock is acquired.
+ *
+ * Entry/exit out of idle power optimizations would need to be
+ * manually performed otherwise through dc_allow_idle_optimizations().
+ *
+ * @ctx: DC context
+ * @count: Number of commands to send/receive
+ * @cmd: Array of commands to send
+ * @wait_type: The wait behavior for the execution
+ *
+ * Return: true on command submission success, false otherwise
+ */
+bool dc_wake_and_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count,
+				       union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
+
+/**
+ * dc_wake_and_execute_gpint()
+ *
+ * @ctx: DC context
+ * @command_code: The command ID to send to DMCUB
+ * @param: The parameter to message DMCUB
+ * @response: Optional response out value - may be NULL.
+ * @wait_type: The wait behavior for the execution
+ */
+bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_command command_code,
+			       uint16_t param, uint32_t *response, enum dm_dmub_wait_type wait_type);
+
+void dc_dmub_srv_fams2_update_config(struct dc *dc,
+		struct dc_state *context,
+		bool enable);
+void dc_dmub_srv_fams2_drr_update(struct dc *dc,
+		uint32_t tg_inst,
+		uint32_t vtotal_min,
+		uint32_t vtotal_max,
+		uint32_t vtotal_mid,
+		uint32_t vtotal_mid_frame_num,
+		bool program_manual_trigger);
+void dc_dmub_srv_fams2_passthrough_flip(
+		struct dc *dc,
+		struct dc_state *state,
+		struct dc_stream_state *stream,
+		struct dc_surface_update *srf_updates,
+		int surface_count);
 #endif /* _DMUB_DC_SRV_H_ */

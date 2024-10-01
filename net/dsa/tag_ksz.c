@@ -87,7 +87,7 @@ static struct sk_buff *ksz_common_rcv(struct sk_buff *skb,
 				      struct net_device *dev,
 				      unsigned int port, unsigned int len)
 {
-	skb->dev = dsa_master_find_slave(dev, 0, port);
+	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev)
 		return NULL;
 
@@ -111,15 +111,16 @@ static struct sk_buff *ksz_common_rcv(struct sk_buff *skb,
  * DA(6bytes)|SA(6bytes)|....|Data(nbytes)|tag0(1byte)|FCS(4bytes)
  * ---------------------------------------------------------------------------
  * tag0 : zero-based value represents port
- *	  (eg, 0x00=port1, 0x02=port3, 0x06=port7)
+ *	  (eg, 0x0=port1, 0x2=port3, 0x3=port4)
  */
 
+#define KSZ8795_TAIL_TAG_EG_PORT_M	GENMASK(1, 0)
 #define KSZ8795_TAIL_TAG_OVERRIDE	BIT(6)
 #define KSZ8795_TAIL_TAG_LOOKUP		BIT(7)
 
 static struct sk_buff *ksz8795_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct ethhdr *hdr;
 	u8 *tag;
 
@@ -141,7 +142,8 @@ static struct sk_buff *ksz8795_rcv(struct sk_buff *skb, struct net_device *dev)
 {
 	u8 *tag = skb_tail_pointer(skb) - KSZ_EGRESS_TAG_LEN;
 
-	return ksz_common_rcv(skb, dev, tag[0] & 7, KSZ_EGRESS_TAG_LEN);
+	return ksz_common_rcv(skb, dev, tag[0] & KSZ8795_TAIL_TAG_EG_PORT_M,
+			      KSZ_EGRESS_TAG_LEN);
 }
 
 static const struct dsa_device_ops ksz8795_netdev_ops = {
@@ -176,8 +178,9 @@ MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ8795, KSZ8795_NAME);
 
 #define KSZ9477_INGRESS_TAG_LEN		2
 #define KSZ9477_PTP_TAG_LEN		4
-#define KSZ9477_PTP_TAG_INDICATION	0x80
+#define KSZ9477_PTP_TAG_INDICATION	BIT(7)
 
+#define KSZ9477_TAIL_TAG_EG_PORT_M	GENMASK(2, 0)
 #define KSZ9477_TAIL_TAG_PRIO		GENMASK(8, 7)
 #define KSZ9477_TAIL_TAG_OVERRIDE	BIT(9)
 #define KSZ9477_TAIL_TAG_LOOKUP		BIT(10)
@@ -256,7 +259,7 @@ static struct sk_buff *ksz_defer_xmit(struct dsa_port *dp, struct sk_buff *skb)
 		return NULL;
 
 	kthread_init_work(&xmit_work->work, xmit_work_fn);
-	/* Increase refcount so the kfree_skb in dsa_slave_xmit
+	/* Increase refcount so the kfree_skb in dsa_user_xmit
 	 * won't really free the packet.
 	 */
 	xmit_work->dp = dp;
@@ -272,7 +275,7 @@ static struct sk_buff *ksz9477_xmit(struct sk_buff *skb,
 {
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 prio = netdev_txq_to_tc(dev, queue_mapping);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct ethhdr *hdr;
 	__be16 *tag;
 	u16 val;
@@ -293,6 +296,14 @@ static struct sk_buff *ksz9477_xmit(struct sk_buff *skb,
 	if (is_link_local_ether_addr(hdr->h_dest))
 		val |= KSZ9477_TAIL_TAG_OVERRIDE;
 
+	if (dev->features & NETIF_F_HW_HSR_DUP) {
+		struct net_device *hsr_dev = dp->hsr_dev;
+		struct dsa_port *other_dp;
+
+		dsa_hsr_foreach_port(other_dp, dp->ds, hsr_dev)
+			val |= BIT(other_dp->index);
+	}
+
 	*tag = cpu_to_be16(val);
 
 	return ksz_defer_xmit(dp, skb);
@@ -302,7 +313,7 @@ static struct sk_buff *ksz9477_rcv(struct sk_buff *skb, struct net_device *dev)
 {
 	/* Tag decoding */
 	u8 *tag = skb_tail_pointer(skb) - KSZ_EGRESS_TAG_LEN;
-	unsigned int port = tag[0] & 7;
+	unsigned int port = tag[0] & KSZ9477_TAIL_TAG_EG_PORT_M;
 	unsigned int len = KSZ_EGRESS_TAG_LEN;
 
 	/* Extra 4-bytes PTP timestamp */
@@ -336,7 +347,7 @@ static struct sk_buff *ksz9893_xmit(struct sk_buff *skb,
 {
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 prio = netdev_txq_to_tc(dev, queue_mapping);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct ethhdr *hdr;
 	u8 *tag;
 
@@ -402,7 +413,7 @@ static struct sk_buff *lan937x_xmit(struct sk_buff *skb,
 {
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 prio = netdev_txq_to_tc(dev, queue_mapping);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	const struct ethhdr *hdr = eth_hdr(skb);
 	__be16 *tag;
 	u16 val;
@@ -451,4 +462,5 @@ static struct dsa_tag_driver *dsa_tag_driver_array[] = {
 
 module_dsa_tag_drivers(dsa_tag_driver_array);
 
+MODULE_DESCRIPTION("DSA tag driver for Microchip 8795/937x/9477/9893 families of switches");
 MODULE_LICENSE("GPL");

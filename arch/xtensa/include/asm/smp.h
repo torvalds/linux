@@ -23,6 +23,7 @@ struct cpumask;
 void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 void arch_send_call_function_single_ipi(int cpu);
 
+void secondary_start_kernel(void);
 void smp_init_cpus(void);
 void secondary_init_irq(void);
 void ipi_init(void);

@@ -267,7 +267,6 @@ static void sdma_v3_0_free_microcode(struct amdgpu_device *adev)
 static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
-	char fw_name[30];
 	int err = 0, i;
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
@@ -305,10 +304,11 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		if (i == 0)
-			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma.bin", chip_name);
+			err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw,
+						   "amdgpu/%s_sdma.bin", chip_name);
 		else
-			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma1.bin", chip_name);
-		err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw, fw_name);
+			err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw,
+						   "amdgpu/%s_sdma1.bin", chip_name);
 		if (err)
 			goto out;
 		hdr = (const struct sdma_firmware_header_v1_0 *)adev->sdma.instance[i].fw->data;
@@ -327,7 +327,8 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 	}
 out:
 	if (err) {
-		pr_err("sdma_v3_0: Failed to load firmware \"%s\"\n", fw_name);
+		pr_err("sdma_v3_0: Failed to load firmware \"%s_sdma%s.bin\"\n",
+		       chip_name, i == 0 ? "" : "1");
 		for (i = 0; i < adev->sdma.num_instances; i++)
 			amdgpu_ucode_release(&adev->sdma.instance[i].fw);
 	}
@@ -512,8 +513,6 @@ static void sdma_v3_0_gfx_stop(struct amdgpu_device *adev)
 {
 	u32 rb_cntl, ib_cntl;
 	int i;
-
-	amdgpu_sdma_unset_buffer_funcs_helper(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i]);
@@ -711,7 +710,7 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		       upper_32_bits(wptr_gpu_addr));
 		wptr_poll_cntl = RREG32(mmSDMA0_GFX_RB_WPTR_POLL_CNTL + sdma_offsets[i]);
 		if (ring->use_pollmem) {
-			/*wptr polling is not enogh fast, directly clean the wptr register */
+			/*wptr polling is not enough fast, directly clean the wptr register */
 			WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], 0);
 			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
 						       SDMA0_GFX_RB_WPTR_POLL_CNTL,
@@ -746,9 +745,6 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			return r;
-
-		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
 
 	return 0;
@@ -1087,6 +1083,7 @@ static void sdma_v3_0_ring_emit_wreg(struct amdgpu_ring *ring,
 static int sdma_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
 
 	switch (adev->asic_type) {
 	case CHIP_STONEY:
@@ -1096,6 +1093,10 @@ static int sdma_v3_0_early_init(void *handle)
 		adev->sdma.num_instances = SDMA_MAX_INSTANCE;
 		break;
 	}
+
+	r = sdma_v3_0_init_microcode(adev);
+	if (r)
+		return r;
 
 	sdma_v3_0_set_ring_funcs(adev);
 	sdma_v3_0_set_buffer_funcs(adev);
@@ -1128,12 +1129,6 @@ static int sdma_v3_0_sw_init(void *handle)
 			      &adev->sdma.illegal_inst_irq);
 	if (r)
 		return r;
-
-	r = sdma_v3_0_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
-		return r;
-	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
@@ -1559,6 +1554,8 @@ static const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.set_clockgating_state = sdma_v3_0_set_clockgating_state,
 	.set_powergating_state = sdma_v3_0_set_powergating_state,
 	.get_clockgating_state = sdma_v3_0_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {
@@ -1622,7 +1619,7 @@ static void sdma_v3_0_set_irq_funcs(struct amdgpu_device *adev)
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
- * @tmz: unused
+ * @copy_flags: unused
  *
  * Copy GPU buffers using the DMA engine (VI).
  * Used by the amdgpu ttm implementation to move pages if
@@ -1632,7 +1629,7 @@ static void sdma_v3_0_emit_copy_buffer(struct amdgpu_ib *ib,
 				       uint64_t src_offset,
 				       uint64_t dst_offset,
 				       uint32_t byte_count,
-				       bool tmz)
+				       uint32_t copy_flags)
 {
 	ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_COPY) |
 		SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR);

@@ -82,7 +82,7 @@ KernelVersion:	2.6.12
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the current physical link state of the interface.
-		Posssible values are:
+		Possible values are:
 
 		== =====================
 		0  physical link is down

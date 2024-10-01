@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/tpm/ibm,vtpm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: IBM Virtual Trusted Platform Module (vTPM)
+
+maintainers:
+  - Nayna Jain <nayna@linux.ibm.com>
+
+description: |
+  Virtual TPM is used on IBM POWER7+ and POWER8 systems running POWERVM.
+  It is supported through the adjunct partition with firmware release 740
+  or higher.  With vTPM support, each lpar is able to have its own vTPM
+  without the physical TPM hardware.  The TPM functionality is provided by
+  communicating with the vTPM adjunct partition through Hypervisor calls
+  (Hcalls) and Command/Response Queue (CRQ) commands.
+
+properties:
+  compatible:
+    enum:
+      - IBM,vtpm
+      - IBM,vtpm20
+
+  device_type:
+    description:
+      type of virtual device
+    enum:
+      - IBM,vtpm
+      - IBM,vtpm20
+
+  reg:
+    maxItems: 1
+
+  ibm,#dma-address-cells:
+    description:
+      number of cells that are used to encode the physical address field of
+      dma-window properties
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  ibm,#dma-size-cells:
+    description:
+      number of cells that are used to encode the size field of
+      dma-window properties
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  ibm,my-dma-window:
+    description:
+      DMA window associated with this virtual I/O Adapter
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 5
+    maxItems: 5
+
+  ibm,my-drc-index:
+    description:
+      integer index for the connector between the device and its parent;
+      present only if Dynamic Reconfiguration (DR) Connector is enabled
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ibm,loc-code:
+    description:
+      unique and persistent location code associated with this virtual
+      I/O Adapter
+    $ref: /schemas/types.yaml#/definitions/string
+
+required:
+  - compatible
+  - device_type
+  - reg
+  - interrupts
+  - ibm,#dma-address-cells
+  - ibm,#dma-size-cells
+  - ibm,my-dma-window
+  - ibm,my-drc-index
+  - ibm,loc-code
+  - linux,sml-base
+  - linux,sml-size
+
+allOf:
+  - $ref: tpm-common.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        tpm@30000003 {
+            compatible = "IBM,vtpm";
+            device_type = "IBM,vtpm";
+            reg = <0x30000003>;
+            interrupts = <0xa0003 0x0>;
+            ibm,#dma-address-cells = <0x2>;
+            ibm,#dma-size-cells = <0x2>;
+            ibm,my-dma-window = <0x10000003 0x0 0x0 0x0 0x10000000>;
+            ibm,my-drc-index = <0x30000003>;
+            ibm,loc-code = "U8286.41A.10082DV-V3-C3";
+            linux,sml-base = <0xc60e 0x0>;
+            linux,sml-size = <0xbce10200>;
+        };
+    };

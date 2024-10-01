@@ -31,6 +31,7 @@
 #include <linux/prefetch.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <net/ip.h>
 
@@ -89,7 +90,7 @@ static struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 static int ehea_probe_adapter(struct platform_device *dev);
 
-static int ehea_remove(struct platform_device *dev);
+static void ehea_remove(struct platform_device *dev);
 
 static const struct of_device_id ehea_module_device_table[] = {
 	{
@@ -120,7 +121,7 @@ static struct platform_driver ehea_driver = {
 		.of_match_table = ehea_device_table,
 	},
 	.probe = ehea_probe_adapter,
-	.remove = ehea_remove,
+	.remove_new = ehea_remove,
 };
 
 void ehea_dump(void *adr, int len, char *msg)
@@ -899,7 +900,7 @@ static int ehea_poll(struct napi_struct *napi, int budget)
 		if (!cqe && !cqe_skb)
 			return rx;
 
-		if (!napi_reschedule(napi))
+		if (!napi_schedule(napi))
 			return rx;
 
 		cqe_skb = ehea_proc_cqes(pr, EHEA_POLL_MAX_CQES);
@@ -3062,14 +3063,13 @@ static void ehea_shutdown_single_port(struct ehea_port *port)
 static int ehea_setup_ports(struct ehea_adapter *adapter)
 {
 	struct device_node *lhea_dn;
-	struct device_node *eth_dn = NULL;
+	struct device_node *eth_dn;
 
 	const u32 *dn_log_port_id;
 	int i = 0;
 
 	lhea_dn = adapter->ofdev->dev.of_node;
-	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
-
+	for_each_child_of_node(lhea_dn, eth_dn) {
 		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
 						 NULL);
 		if (!dn_log_port_id) {
@@ -3101,12 +3101,11 @@ static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
 					   u32 logical_port_id)
 {
 	struct device_node *lhea_dn;
-	struct device_node *eth_dn = NULL;
+	struct device_node *eth_dn;
 	const u32 *dn_log_port_id;
 
 	lhea_dn = adapter->ofdev->dev.of_node;
-	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
-
+	for_each_child_of_node(lhea_dn, eth_dn) {
 		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
 						 NULL);
 		if (dn_log_port_id)
@@ -3470,7 +3469,7 @@ out:
 	return ret;
 }
 
-static int ehea_remove(struct platform_device *dev)
+static void ehea_remove(struct platform_device *dev)
 {
 	struct ehea_adapter *adapter = platform_get_drvdata(dev);
 	int i;
@@ -3491,8 +3490,6 @@ static int ehea_remove(struct platform_device *dev)
 	list_del(&adapter->list);
 
 	ehea_update_firmware_handles();
-
-	return 0;
 }
 
 static int check_module_parm(void)

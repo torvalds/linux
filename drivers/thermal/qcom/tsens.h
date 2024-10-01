@@ -585,7 +585,7 @@ struct tsens_priv {
 	struct dentry			*debug_root;
 	struct dentry			*debug;
 
-	struct tsens_sensor		sensor[];
+	struct tsens_sensor		sensor[] __counted_by(num_sensors);
 };
 
 /**
@@ -634,6 +634,11 @@ void compute_intercept_slope(struct tsens_priv *priv, u32 *pt1, u32 *pt2, u32 mo
 int init_common(struct tsens_priv *priv);
 int get_temp_tsens_valid(const struct tsens_sensor *s, int *temp);
 int get_temp_common(const struct tsens_sensor *s, int *temp);
+#ifdef CONFIG_SUSPEND
+int tsens_resume_common(struct tsens_priv *priv);
+#else
+#define tsens_resume_common            NULL
+#endif
 
 /* TSENS target */
 extern struct tsens_plat_data data_8960;

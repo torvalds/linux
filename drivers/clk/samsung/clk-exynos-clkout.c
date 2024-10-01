@@ -17,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 
+#define DRV_NAME			"exynos-clkout"
+
 #define EXYNOS_CLKOUT_NR_CLKS		1
 #define EXYNOS_CLKOUT_PARENTS		32
 
@@ -75,7 +77,6 @@ static const struct of_device_id exynos_clkout_ids[] = {
 		.data = &exynos_clkout_exynos5,
 	}, { }
 };
-MODULE_DEVICE_TABLE(of, exynos_clkout_ids);
 
 /*
  * Device will be instantiated as child of PMU device without its own
@@ -91,6 +92,11 @@ static int exynos_clkout_match_parent_dev(struct device *dev, u32 *mux_mask)
 		return -EINVAL;
 	}
 
+	/*
+	 * 'exynos_clkout_ids' arrays is not the ids array matched by
+	 * the dev->parent driver, so of_device_get_match_data() or
+	 * device_get_match_data() cannot be used here.
+	 */
 	match = of_match_device(exynos_clkout_ids, dev->parent);
 	if (!match) {
 		dev_err(dev, "cannot match parent device\n");
@@ -231,16 +237,16 @@ static SIMPLE_DEV_PM_OPS(exynos_clkout_pm_ops, exynos_clkout_suspend,
 
 static struct platform_driver exynos_clkout_driver = {
 	.driver = {
-		.name = "exynos-clkout",
-		.of_match_table = exynos_clkout_ids,
+		.name = DRV_NAME,
 		.pm = &exynos_clkout_pm_ops,
 	},
 	.probe = exynos_clkout_probe,
-	.remove_new = exynos_clkout_remove,
+	.remove = exynos_clkout_remove,
 };
 module_platform_driver(exynos_clkout_driver);
 
 MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_AUTHOR("Tomasz Figa <tomasz.figa@gmail.com>");
 MODULE_DESCRIPTION("Samsung Exynos clock output driver");
+MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_LICENSE("GPL");

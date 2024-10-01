@@ -56,6 +56,14 @@ enum dentist_dispclk_change_mode {
 	DISPCLK_CHANGE_MODE_RAMPING,
 };
 
+struct dp_dto_params {
+	int otg_inst;
+	enum signal_type signal;
+	enum streamclk_source clk_src;
+	uint64_t pixclk_hz;
+	uint64_t refclk_hz;
+};
+
 enum pixel_rate_div {
    PIXEL_RATE_DIV_BY_1 = 0,
    PIXEL_RATE_DIV_BY_2 = 1,
@@ -98,6 +106,10 @@ struct dccg_funcs {
 	void (*otg_drop_pixel)(struct dccg *dccg,
 			uint32_t otg_inst);
 	void (*dccg_init)(struct dccg *dccg);
+	void (*set_dpstreamclk_root_clock_gating)(
+			struct dccg *dccg,
+			int dp_hpo_inst,
+			bool enable);
 
 	void (*set_dpstreamclk)(
 			struct dccg *dccg,
@@ -123,11 +135,21 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			int hpo_le_inst);
 
+	void (*set_symclk32_le_root_clock_gating)(
+			struct dccg *dccg,
+			int hpo_le_inst,
+			bool enable);
+
 	void (*set_physymclk)(
 			struct dccg *dccg,
 			int phy_inst,
 			enum physymclk_clock_source clk_src,
 			bool force_enable);
+
+	void (*set_physymclk_root_clock_gating)(
+			struct dccg *dccg,
+			int phy_inst,
+			bool enable);
 
 	void (*set_dtbclk_dto)(
 			struct dccg *dccg,
@@ -154,6 +176,11 @@ struct dccg_funcs {
 			enum pixel_rate_div k1,
 			enum pixel_rate_div k2);
 
+	void (*get_pixel_rate_div)(struct dccg *dccg,
+			uint32_t otg_inst,
+			uint32_t *div_factor1,
+			uint32_t *div_factor2);
+
 	void (*set_valid_pixel_rate)(
 			struct dccg *dccg,
 			int ref_dtbclk_khz,
@@ -167,6 +194,26 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			unsigned int dpp_inst,
 			bool clock_on);
+
+	void (*enable_symclk_se)(
+			struct dccg *dccg,
+			uint32_t stream_enc_inst,
+			uint32_t link_enc_inst);
+
+	void (*disable_symclk_se)(
+			struct dccg *dccg,
+			uint32_t stream_enc_inst,
+			uint32_t link_enc_inst);
+	void (*set_dp_dto)(
+			struct dccg *dccg,
+			const struct dp_dto_params *params);
+	void (*set_dtbclk_p_src)(
+			struct dccg *dccg,
+			enum streamclk_source src,
+			uint32_t otg_inst);
+	void (*set_dto_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
+	void (*set_ref_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
+	void (*dccg_root_gate_disable_control)(struct dccg *dccg, uint32_t pipe_idx, uint32_t disable_clock_gating);
 };
 
 #endif //__DAL_DCCG_H__

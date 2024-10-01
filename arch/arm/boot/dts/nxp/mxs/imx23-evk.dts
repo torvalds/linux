@@ -52,7 +52,7 @@
 	};
 
 	apb@80000000 {
-		apbh@80000000 {
+		apbh-bus@80000000 {
 			nand-controller@8000c000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&gpmi_pins_a &gpmi_pins_fixup>;
@@ -99,7 +99,7 @@
 			};
 		};
 
-		apbx@80040000 {
+		apbx-bus@80040000 {
 			lradc@80050000 {
 				status = "okay";
 				fsl,lradc-touchscreen-wires = <4>;
@@ -137,7 +137,7 @@
 
 	backlight_display: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 2 5000000>;
+		pwms = <&pwm 2 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 	};

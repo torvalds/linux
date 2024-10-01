@@ -15,7 +15,7 @@ static void regulator_fixed_release(struct device *dev)
 {
 	struct fixed_regulator_data *data = container_of(dev,
 			struct fixed_regulator_data, pdev.dev);
-	kfree(data->cfg.supply_name);
+	kfree_const(data->cfg.supply_name);
 	kfree(data);
 }
 
@@ -26,6 +26,8 @@ static void regulator_fixed_release(struct device *dev)
  * @supplies: consumers for this regulator
  * @num_supplies: number of consumers
  * @uv: voltage in microvolts
+ *
+ * Return: Pointer to registered platform device, or %NULL if memory allocation fails.
  */
 struct platform_device *regulator_register_always_on(int id, const char *name,
 	struct regulator_consumer_supply *supplies, int num_supplies, int uv)
@@ -36,7 +38,7 @@ struct platform_device *regulator_register_always_on(int id, const char *name,
 	if (!data)
 		return NULL;
 
-	data->cfg.supply_name = kstrdup(name, GFP_KERNEL);
+	data->cfg.supply_name = kstrdup_const(name, GFP_KERNEL);
 	if (!data->cfg.supply_name) {
 		kfree(data);
 		return NULL;

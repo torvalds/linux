@@ -137,17 +137,13 @@ static int ti_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		ret = ti_adc_read_measurement(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
-
-		if (ret)
-			return ret;
-
-		return IIO_VAL_INT;
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+			ret = ti_adc_read_measurement(data, chan, val);
+			if (ret)
+				return ret;
+			return IIO_VAL_INT;
+		}
+		unreachable();
 	case IIO_CHAN_INFO_SCALE:
 		ret = regulator_get_voltage(data->ref);
 		if (ret < 0)
@@ -230,14 +226,14 @@ static int ti_adc_probe(struct spi_device *spi)
 static const struct of_device_id ti_adc_dt_ids[] = {
 	{ .compatible = "ti,adc141s626", },
 	{ .compatible = "ti,adc161s626", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ti_adc_dt_ids);
 
 static const struct spi_device_id ti_adc_id[] = {
-	{"adc141s626", TI_ADC141S626},
-	{"adc161s626", TI_ADC161S626},
-	{},
+	{ "adc141s626", TI_ADC141S626 },
+	{ "adc161s626", TI_ADC161S626 },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ti_adc_id);
 

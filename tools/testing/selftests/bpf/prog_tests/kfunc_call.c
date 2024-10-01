@@ -68,6 +68,7 @@ static struct kfunc_test_params kfunc_tests[] = {
 	TC_FAIL(kfunc_call_test_get_mem_fail_oob, 0, "min value is outside of the allowed memory range"),
 	TC_FAIL(kfunc_call_test_get_mem_fail_not_const, 0, "is not a const"),
 	TC_FAIL(kfunc_call_test_mem_acquire_fail, 0, "acquire kernel function does not return PTR_TO_BTF_ID"),
+	TC_FAIL(kfunc_call_test_pointer_arg_type_mismatch, 0, "arg#0 expected pointer to ctx, but got scalar"),
 
 	/* success cases */
 	TC_TEST(kfunc_call_test1, 12),
@@ -78,6 +79,7 @@ static struct kfunc_test_params kfunc_tests[] = {
 	SYSCALL_TEST(kfunc_syscall_test, 0),
 	SYSCALL_NULL_CTX_TEST(kfunc_syscall_test_null, 0),
 	TC_TEST(kfunc_call_test_static_unused_arg, 0),
+	TC_TEST(kfunc_call_ctx, 0),
 };
 
 struct syscall_test_args {
@@ -173,8 +175,8 @@ static void verify_fail(struct kfunc_test_params *param)
 	case tc_test:
 		topts.data_in = &pkt_v4;
 		topts.data_size_in = sizeof(pkt_v4);
-		break;
 		topts.repeat = 1;
+		break;
 	}
 
 	skel = kfunc_call_fail__open_opts(&opts);

@@ -358,7 +358,7 @@ fcloop_h2t_ls_req(struct nvme_fc_local_port *localport,
 	if (!rport->targetport) {
 		tls_req->status = -ECONNREFUSED;
 		spin_lock(&rport->lock);
-		list_add_tail(&rport->ls_list, &tls_req->ls_list);
+		list_add_tail(&tls_req->ls_list, &rport->ls_list);
 		spin_unlock(&rport->lock);
 		queue_work(nvmet_wq, &rport->ls_work);
 		return ret;
@@ -391,7 +391,7 @@ fcloop_h2t_xmt_ls_rsp(struct nvmet_fc_target_port *targetport,
 	if (remoteport) {
 		rport = remoteport->private;
 		spin_lock(&rport->lock);
-		list_add_tail(&rport->ls_list, &tls_req->ls_list);
+		list_add_tail(&tls_req->ls_list, &rport->ls_list);
 		spin_unlock(&rport->lock);
 		queue_work(nvmet_wq, &rport->ls_work);
 	}
@@ -446,7 +446,7 @@ fcloop_t2h_ls_req(struct nvmet_fc_target_port *targetport, void *hosthandle,
 	if (!tport->remoteport) {
 		tls_req->status = -ECONNREFUSED;
 		spin_lock(&tport->lock);
-		list_add_tail(&tport->ls_list, &tls_req->ls_list);
+		list_add_tail(&tls_req->ls_list, &tport->ls_list);
 		spin_unlock(&tport->lock);
 		queue_work(nvmet_wq, &tport->ls_work);
 		return ret;
@@ -490,6 +490,16 @@ static void
 fcloop_t2h_host_release(void *hosthandle)
 {
 	/* host handle ignored for now */
+}
+
+static int
+fcloop_t2h_host_traddr(void *hosthandle, u64 *wwnn, u64 *wwpn)
+{
+	struct fcloop_rport *rport = hosthandle;
+
+	*wwnn = rport->lport->localport->node_name;
+	*wwpn = rport->lport->localport->port_name;
+	return 0;
 }
 
 /*
@@ -995,11 +1005,6 @@ fcloop_nport_free(struct kref *ref)
 {
 	struct fcloop_nport *nport =
 		container_of(ref, struct fcloop_nport, ref);
-	unsigned long flags;
-
-	spin_lock_irqsave(&fcloop_lock, flags);
-	list_del(&nport->nport_list);
-	spin_unlock_irqrestore(&fcloop_lock, flags);
 
 	kfree(nport);
 }
@@ -1079,6 +1084,7 @@ static struct nvmet_fc_target_template tgttemplate = {
 	.ls_req			= fcloop_t2h_ls_req,
 	.ls_abort		= fcloop_t2h_ls_abort,
 	.host_release		= fcloop_t2h_host_release,
+	.host_traddr		= fcloop_t2h_host_traddr,
 	.max_hw_queues		= FCLOOP_HW_QUEUES,
 	.max_sgl_segments	= FCLOOP_SGL_SEGS,
 	.max_dif_sgl_segments	= FCLOOP_SGL_SEGS,
@@ -1357,6 +1363,8 @@ __unlink_remote_port(struct fcloop_nport *nport)
 		nport->tport->remoteport = NULL;
 	nport->rport = NULL;
 
+	list_del(&nport->nport_list);
+
 	return rport;
 }
 
@@ -1559,7 +1567,9 @@ static const struct attribute_group *fcloop_dev_attr_groups[] = {
 	NULL,
 };
 
-static struct class *fcloop_class;
+static const struct class fcloop_class = {
+	.name = "fcloop",
+};
 static struct device *fcloop_device;
 
 
@@ -1567,15 +1577,14 @@ static int __init fcloop_init(void)
 {
 	int ret;
 
-	fcloop_class = class_create("fcloop");
-	if (IS_ERR(fcloop_class)) {
+	ret = class_register(&fcloop_class);
+	if (ret) {
 		pr_err("couldn't register class fcloop\n");
-		ret = PTR_ERR(fcloop_class);
 		return ret;
 	}
 
 	fcloop_device = device_create_with_groups(
-				fcloop_class, NULL, MKDEV(0, 0), NULL,
+				&fcloop_class, NULL, MKDEV(0, 0), NULL,
 				fcloop_dev_attr_groups, "ctl");
 	if (IS_ERR(fcloop_device)) {
 		pr_err("couldn't create ctl device!\n");
@@ -1588,7 +1597,7 @@ static int __init fcloop_init(void)
 	return 0;
 
 out_destroy_class:
-	class_destroy(fcloop_class);
+	class_unregister(&fcloop_class);
 	return ret;
 }
 
@@ -1646,11 +1655,12 @@ static void __exit fcloop_exit(void)
 
 	put_device(fcloop_device);
 
-	device_destroy(fcloop_class, MKDEV(0, 0));
-	class_destroy(fcloop_class);
+	device_destroy(&fcloop_class, MKDEV(0, 0));
+	class_unregister(&fcloop_class);
 }
 
 module_init(fcloop_init);
 module_exit(fcloop_exit);
 
+MODULE_DESCRIPTION("NVMe target FC loop transport driver");
 MODULE_LICENSE("GPL v2");

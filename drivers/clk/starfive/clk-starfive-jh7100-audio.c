@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include <dt-bindings/clock/starfive-jh7100-audio.h>
@@ -80,7 +79,7 @@ static const struct jh71x0_clk_data jh7100_audclk_data[] = {
 	JH71X0_GDIV(JH7100_AUDCLK_USB_LPM, "usb_lpm", CLK_IGNORE_UNUSED, 4, JH7100_AUDCLK_USB_APB),
 	JH71X0_GDIV(JH7100_AUDCLK_USB_STB, "usb_stb", CLK_IGNORE_UNUSED, 3, JH7100_AUDCLK_USB_APB),
 	JH71X0__DIV(JH7100_AUDCLK_APB_EN, "apb_en", 8, JH7100_AUDCLK_DOM7AHB_BUS),
-	JH71X0__MUX(JH7100_AUDCLK_VAD_MEM, "vad_mem", 2,
+	JH71X0__MUX(JH7100_AUDCLK_VAD_MEM, "vad_mem", 0, 2,
 		    JH7100_AUDCLK_VAD_INTMEM,
 		    JH7100_AUDCLK_AUDIO_12288),
 };

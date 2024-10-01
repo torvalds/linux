@@ -1,0 +1,224 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: nfsd
+protocol: genetlink
+uapi-header: linux/nfsd_netlink.h
+
+doc: NFSD configuration over generic netlink.
+
+attribute-sets:
+  -
+    name: rpc-status
+    attributes:
+      -
+        name: xid
+        type: u32
+        byte-order: big-endian
+      -
+        name: flags
+        type: u32
+      -
+        name: prog
+        type: u32
+      -
+        name: version
+        type: u8
+      -
+        name: proc
+        type: u32
+      -
+        name: service_time
+        type: s64
+      -
+        name: pad
+        type: pad
+      -
+        name: saddr4
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: daddr4
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: saddr6
+        type: binary
+        display-hint: ipv6
+      -
+        name: daddr6
+        type: binary
+        display-hint: ipv6
+      -
+        name: sport
+        type: u16
+        byte-order: big-endian
+      -
+        name: dport
+        type: u16
+        byte-order: big-endian
+      -
+        name: compound-ops
+        type: u32
+        multi-attr: true
+  -
+    name: server
+    attributes:
+      -
+        name: threads
+        type: u32
+        multi-attr: true
+      -
+        name: gracetime
+        type: u32
+      -
+        name: leasetime
+        type: u32
+      -
+        name: scope
+        type: string
+  -
+    name: version
+    attributes:
+      -
+        name: major
+        type: u32
+      -
+        name: minor
+        type: u32
+      -
+        name: enabled
+        type: flag
+  -
+    name: server-proto
+    attributes:
+      -
+        name: version
+        type: nest
+        nested-attributes: version
+        multi-attr: true
+  -
+    name: sock
+    attributes:
+      -
+        name: addr
+        type: binary
+      -
+        name: transport-name
+        type: string
+  -
+    name: server-sock
+    attributes:
+      -
+        name: addr
+        type: nest
+        nested-attributes: sock
+        multi-attr: true
+  -
+    name: pool-mode
+    attributes:
+      -
+        name: mode
+        type: string
+      -
+        name: npools
+        type: u32
+
+operations:
+  list:
+    -
+      name: rpc-status-get
+      doc: dump pending nfsd rpc
+      attribute-set: rpc-status
+      dump:
+        reply:
+          attributes:
+            - xid
+            - flags
+            - prog
+            - version
+            - proc
+            - service_time
+            - saddr4
+            - daddr4
+            - saddr6
+            - daddr6
+            - sport
+            - dport
+            - compound-ops
+    -
+      name: threads-set
+      doc: set the number of running threads
+      attribute-set: server
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - threads
+            - gracetime
+            - leasetime
+            - scope
+    -
+      name: threads-get
+      doc: get the number of running threads
+      attribute-set: server
+      do:
+        reply:
+          attributes:
+            - threads
+            - gracetime
+            - leasetime
+            - scope
+    -
+      name: version-set
+      doc: set nfs enabled versions
+      attribute-set: server-proto
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - version
+    -
+      name: version-get
+      doc: get nfs enabled versions
+      attribute-set: server-proto
+      do:
+        reply:
+          attributes:
+            - version
+    -
+      name: listener-set
+      doc: set nfs running sockets
+      attribute-set: server-sock
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - addr
+    -
+      name: listener-get
+      doc: get nfs running listeners
+      attribute-set: server-sock
+      do:
+        reply:
+          attributes:
+            - addr
+    -
+      name: pool-mode-set
+      doc: set the current server pool-mode
+      attribute-set: pool-mode
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - mode
+    -
+      name: pool-mode-get
+      doc: get info about server pool-mode
+      attribute-set: pool-mode
+      do:
+        reply:
+          attributes:
+            - mode
+            - npools

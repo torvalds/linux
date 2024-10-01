@@ -10,7 +10,10 @@
 #ifndef _LINUX_PROPERTY_H_
 #define _LINUX_PROPERTY_H_
 
+#include <linux/args.h>
+#include <linux/array_size.h>
 #include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/fwnode.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -24,12 +27,6 @@ enum dev_prop_type {
 	DEV_PROP_U64,
 	DEV_PROP_STRING,
 	DEV_PROP_REF,
-};
-
-enum dev_dma_attr {
-	DEV_DMA_NOT_SUPPORTED,
-	DEV_DMA_NON_COHERENT,
-	DEV_DMA_COHERENT,
 };
 
 const struct fwnode_handle *__dev_fwnode_const(const struct device *dev);
@@ -79,10 +76,36 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 
 bool fwnode_device_is_available(const struct fwnode_handle *fwnode);
 
+static inline bool fwnode_device_is_big_endian(const struct fwnode_handle *fwnode)
+{
+	if (fwnode_property_present(fwnode, "big-endian"))
+		return true;
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
+	    fwnode_property_present(fwnode, "native-endian"))
+		return true;
+	return false;
+}
+
 static inline
 bool fwnode_device_is_compatible(const struct fwnode_handle *fwnode, const char *compat)
 {
 	return fwnode_property_match_string(fwnode, "compatible", compat) >= 0;
+}
+
+/**
+ * device_is_big_endian - check if a device has BE registers
+ * @dev: Pointer to the struct device
+ *
+ * Returns: true if the device has a "big-endian" property, or if the kernel
+ * was compiled for BE *and* the device has a "native-endian" property.
+ * Returns false otherwise.
+ *
+ * Callers would nominally use ioread32be/iowrite32be if
+ * device_is_big_endian() == true, or readl/writel otherwise.
+ */
+static inline bool device_is_big_endian(const struct device *dev)
+{
+	return fwnode_device_is_big_endian(dev_fwnode(dev));
 }
 
 /**
@@ -97,6 +120,18 @@ static inline bool device_is_compatible(const struct device *dev, const char *co
 	return fwnode_device_is_compatible(dev_fwnode(dev), compat);
 }
 
+int fwnode_property_match_property_string(const struct fwnode_handle *fwnode,
+					  const char *propname,
+					  const char * const *array, size_t n);
+
+static inline
+int device_property_match_property_string(const struct device *dev,
+					  const char *propname,
+					  const char * const *array, size_t n)
+{
+	return fwnode_property_match_property_string(dev_fwnode(dev), propname, array, n);
+}
+
 int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
 				       const char *prop, const char *nargs_prop,
 				       unsigned int nargs, unsigned int index,
@@ -108,6 +143,7 @@ struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
 
 const char *fwnode_get_name(const struct fwnode_handle *fwnode);
 const char *fwnode_get_name_prefix(const struct fwnode_handle *fwnode);
+bool fwnode_name_eq(const struct fwnode_handle *fwnode, const char *name);
 
 struct fwnode_handle *fwnode_get_parent(const struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode);
@@ -116,11 +152,9 @@ struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode);
 	for (parent = fwnode_get_parent(fwnode); parent;	\
 	     parent = fwnode_get_next_parent(parent))
 
-struct device *fwnode_get_next_parent_dev(const struct fwnode_handle *fwnode);
 unsigned int fwnode_count_parents(const struct fwnode_handle *fwn);
 struct fwnode_handle *fwnode_get_nth_parent(struct fwnode_handle *fwn,
 					    unsigned int depth);
-bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor, const struct fwnode_handle *child);
 struct fwnode_handle *fwnode_get_next_child_node(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
 struct fwnode_handle *fwnode_get_next_available_child_node(
@@ -141,13 +175,32 @@ struct fwnode_handle *device_get_next_child_node(const struct device *dev,
 	for (child = device_get_next_child_node(dev, NULL); child;	\
 	     child = device_get_next_child_node(dev, child))
 
+#define device_for_each_child_node_scoped(dev, child)			\
+	for (struct fwnode_handle *child __free(fwnode_handle) =	\
+		device_get_next_child_node(dev, NULL);			\
+	     child; child = device_get_next_child_node(dev, child))
+
 struct fwnode_handle *fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
 						  const char *childname);
 struct fwnode_handle *device_get_named_child_node(const struct device *dev,
 						  const char *childname);
 
 struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode);
-void fwnode_handle_put(struct fwnode_handle *fwnode);
+
+/**
+ * fwnode_handle_put - Drop reference to a device node
+ * @fwnode: Pointer to the device node to drop the reference to.
+ *
+ * This has to be used when terminating device_for_each_child_node() iteration
+ * with break or return to prevent stale device node references from being left
+ * behind.
+ */
+static inline void fwnode_handle_put(struct fwnode_handle *fwnode)
+{
+	fwnode_call_void_op(fwnode, put);
+}
+
+DEFINE_FREE(fwnode_handle, struct fwnode_handle *, fwnode_handle_put(_T))
 
 int fwnode_irq_get(const struct fwnode_handle *fwnode, unsigned int index);
 int fwnode_irq_get_byname(const struct fwnode_handle *fwnode, const char *name);
@@ -288,7 +341,7 @@ struct software_node_ref_args {
 #define SOFTWARE_NODE_REFERENCE(_ref_, ...)			\
 (const struct software_node_ref_args) {				\
 	.node = _ref_,						\
-	.nargs = ARRAY_SIZE(((u64[]){ 0, ##__VA_ARGS__ })) - 1,	\
+	.nargs = COUNT_ARGS(__VA_ARGS__),			\
 	.args = { __VA_ARGS__ },				\
 }
 
@@ -487,6 +540,13 @@ struct software_node {
 	const struct software_node *parent;
 	const struct property_entry *properties;
 };
+
+#define SOFTWARE_NODE(_name_, _properties_, _parent_)	\
+	(struct software_node) {			\
+		.name = _name_,				\
+		.properties = _properties_,		\
+		.parent = _parent_,			\
+	}
 
 bool is_software_node(const struct fwnode_handle *fwnode);
 const struct software_node *

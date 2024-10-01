@@ -2,7 +2,7 @@
 /*
  * linux/can/isotp.h
  *
- * Definitions for isotp CAN sockets (ISO 15765-2:2016)
+ * Definitions for ISO 15765-2 CAN transport protocol sockets
  *
  * Copyright (c) 2020 Volkswagen Group Electronic Research
  * All rights reserved.
@@ -137,6 +137,7 @@ struct can_isotp_ll_options {
 #define CAN_ISOTP_WAIT_TX_DONE	0x0400	/* wait for tx completion */
 #define CAN_ISOTP_SF_BROADCAST	0x0800	/* 1-to-N functional addressing */
 #define CAN_ISOTP_CF_BROADCAST	0x1000	/* 1-to-N transmission w/o FC */
+#define CAN_ISOTP_DYN_FC_PARMS	0x2000	/* dynamic FC parameters BS/STmin */
 
 /* protocol machine default values */
 

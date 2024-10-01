@@ -408,7 +408,7 @@ void plfxlc_usb_init(struct plfxlc_usb *usb, struct ieee80211_hw *hw,
 
 void plfxlc_usb_release(struct plfxlc_usb *usb)
 {
-	plfxlc_op_stop(plfxlc_usb_to_hw(usb));
+	plfxlc_op_stop(plfxlc_usb_to_hw(usb), false);
 	plfxlc_usb_disable_tx(usb);
 	plfxlc_usb_disable_rx(usb);
 	usb_set_intfdata(usb->intf, NULL);
@@ -493,9 +493,12 @@ int plfxlc_usb_wreq_async(struct plfxlc_usb *usb, const u8 *buffer,
 			  void *context)
 {
 	struct usb_device *udev = interface_to_usbdev(usb->ez_usb);
-	struct urb *urb = usb_alloc_urb(0, GFP_ATOMIC);
+	struct urb *urb;
 	int r;
 
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb)
+		return -ENOMEM;
 	usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, EP_DATA_OUT),
 			  (void *)buffer, buffer_len, complete_fn, context);
 
@@ -758,7 +761,7 @@ static void plfxlc_usb_resume(struct plfxlc_usb *usb)
 
 static void plfxlc_usb_stop(struct plfxlc_usb *usb)
 {
-	plfxlc_op_stop(plfxlc_usb_to_hw(usb));
+	plfxlc_op_stop(plfxlc_usb_to_hw(usb), false);
 	plfxlc_usb_disable_tx(usb);
 	plfxlc_usb_disable_rx(usb);
 

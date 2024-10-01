@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <linux/of.h>
 #include <asm/unaligned.h>
 
@@ -55,7 +54,9 @@ static u8 WIFI_OFDMRATES[] = {
 
 int rtw_get_bit_value_from_ieee_value(u8 val)
 {
-	unsigned char dot11_rate_table[] = {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108, 0}; /*  last element must be zero!! */
+	static const unsigned char dot11_rate_table[] = {
+		2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108, 0
+	}; /*  last element must be zero!! */
 	int i = 0;
 
 	while (dot11_rate_table[i] != 0) {
@@ -1035,8 +1036,8 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
 	struct ieee80211_ht_cap *pht_cap = NULL;
-	unsigned int		len;
-	unsigned char 	*p;
+	unsigned int len;
+	unsigned char *p;
 	__le16 le_cap;
 
 	memcpy((u8 *)&le_cap, rtw_get_capability_from_ie(pnetwork->network.ies), 2);

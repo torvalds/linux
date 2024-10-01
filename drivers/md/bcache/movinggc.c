@@ -35,16 +35,16 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 
 /* Moving GC - IO loop */
 
-static void moving_io_destructor(struct closure *cl)
+static CLOSURE_CALLBACK(moving_io_destructor)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 
 	kfree(io);
 }
 
-static void write_moving_finish(struct closure *cl)
+static CLOSURE_CALLBACK(write_moving_finish)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
 
 	bio_free_pages(bio);
@@ -89,9 +89,9 @@ static void moving_init(struct moving_io *io)
 	bch_bio_map(bio, NULL);
 }
 
-static void write_moving(struct closure *cl)
+static CLOSURE_CALLBACK(write_moving)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct data_insert_op *op = &io->op;
 
 	if (!op->status) {
@@ -113,9 +113,9 @@ static void write_moving(struct closure *cl)
 	continue_at(cl, write_moving_finish, op->wq);
 }
 
-static void read_moving_submit(struct closure *cl)
+static CLOSURE_CALLBACK(read_moving_submit)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
 
 	bch_submit_bbio(bio, io->op.c, &io->w->key, 0);
@@ -182,16 +182,27 @@ err:		if (!IS_ERR_OR_NULL(w->private))
 	closure_sync(&cl);
 }
 
-static bool bucket_cmp(struct bucket *l, struct bucket *r)
+static bool new_bucket_cmp(const void *l, const void *r, void __always_unused *args)
 {
-	return GC_SECTORS_USED(l) < GC_SECTORS_USED(r);
+	struct bucket **_l = (struct bucket **)l;
+	struct bucket **_r = (struct bucket **)r;
+
+	return GC_SECTORS_USED(*_l) >= GC_SECTORS_USED(*_r);
+}
+
+static void new_bucket_swap(void *l, void *r, void __always_unused *args)
+{
+	struct bucket **_l = l;
+	struct bucket **_r = r;
+
+	swap(*_l, *_r);
 }
 
 static unsigned int bucket_heap_top(struct cache *ca)
 {
 	struct bucket *b;
 
-	return (b = heap_peek(&ca->heap)) ? GC_SECTORS_USED(b) : 0;
+	return (b = min_heap_peek(&ca->heap)[0]) ? GC_SECTORS_USED(b) : 0;
 }
 
 void bch_moving_gc(struct cache_set *c)
@@ -199,6 +210,10 @@ void bch_moving_gc(struct cache_set *c)
 	struct cache *ca = c->cache;
 	struct bucket *b;
 	unsigned long sectors_to_move, reserve_sectors;
+	const struct min_heap_callbacks callbacks = {
+		.less = new_bucket_cmp,
+		.swp = new_bucket_swap,
+	};
 
 	if (!c->copy_gc_enabled)
 		return;
@@ -209,7 +224,7 @@ void bch_moving_gc(struct cache_set *c)
 	reserve_sectors = ca->sb.bucket_size *
 			     fifo_used(&ca->free[RESERVE_MOVINGGC]);
 
-	ca->heap.used = 0;
+	ca->heap.nr = 0;
 
 	for_each_bucket(b, ca) {
 		if (GC_MARK(b) == GC_MARK_METADATA ||
@@ -218,25 +233,31 @@ void bch_moving_gc(struct cache_set *c)
 		    atomic_read(&b->pin))
 			continue;
 
-		if (!heap_full(&ca->heap)) {
+		if (!min_heap_full(&ca->heap)) {
 			sectors_to_move += GC_SECTORS_USED(b);
-			heap_add(&ca->heap, b, bucket_cmp);
-		} else if (bucket_cmp(b, heap_peek(&ca->heap))) {
+			min_heap_push(&ca->heap, &b, &callbacks, NULL);
+		} else if (!new_bucket_cmp(&b, min_heap_peek(&ca->heap), ca)) {
 			sectors_to_move -= bucket_heap_top(ca);
 			sectors_to_move += GC_SECTORS_USED(b);
 
 			ca->heap.data[0] = b;
-			heap_sift(&ca->heap, 0, bucket_cmp);
+			min_heap_sift_down(&ca->heap, 0, &callbacks, NULL);
 		}
 	}
 
 	while (sectors_to_move > reserve_sectors) {
-		heap_pop(&ca->heap, b, bucket_cmp);
+		if (ca->heap.nr) {
+			b = min_heap_peek(&ca->heap)[0];
+			min_heap_pop(&ca->heap, &callbacks, NULL);
+		}
 		sectors_to_move -= GC_SECTORS_USED(b);
 	}
 
-	while (heap_pop(&ca->heap, b, bucket_cmp))
+	while (ca->heap.nr) {
+		b = min_heap_peek(&ca->heap)[0];
+		min_heap_pop(&ca->heap, &callbacks, NULL);
 		SET_GC_MOVE(b, 1);
+	}
 
 	mutex_unlock(&c->bucket_lock);
 

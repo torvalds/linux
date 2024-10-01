@@ -5,8 +5,6 @@
  * Copyright (C) 2022, Red Hat, Inc.
  *
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <asm/barrier.h>
 #include <pthread.h>
 #include <inttypes.h>
@@ -590,6 +588,8 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	int stage = 1, r, i;
 
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_TLBFLUSH));
+
 	vm = vm_create_with_one_vcpu(&vcpu[0], sender_guest_code);
 
 	/* Test data page */
@@ -656,7 +656,7 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu[0], &uc)) {
 		case UCALL_SYNC:
 			TEST_ASSERT(uc.args[1] == stage,
-				    "Unexpected stage: %ld (%d expected)\n",
+				    "Unexpected stage: %ld (%d expected)",
 				    uc.args[1], stage);
 			break;
 		case UCALL_ABORT:

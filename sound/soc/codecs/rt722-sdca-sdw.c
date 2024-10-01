@@ -68,6 +68,7 @@ static bool rt722_sdca_mbq_readable_register(struct device *dev, unsigned int re
 	case 0x200007f:
 	case 0x2000082 ... 0x200008e:
 	case 0x2000090 ... 0x2000094:
+	case 0x3110000:
 	case 0x5300000 ... 0x5300002:
 	case 0x5400002:
 	case 0x5600000 ... 0x5600007:
@@ -125,6 +126,7 @@ static bool rt722_sdca_mbq_volatile_register(struct device *dev, unsigned int re
 	case 0x2000067:
 	case 0x2000084:
 	case 0x2000086:
+	case 0x3110000:
 		return true;
 	default:
 		return false;
@@ -175,7 +177,7 @@ static int rt722_sdca_update_status(struct sdw_slave *slave,
 		 * This also could sync with the cache value as the rt722_sdca_jack_init set.
 		 */
 			sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK1,
-				SDW_SCP_SDCA_INTMASK_SDCA_0 | SDW_SCP_SDCA_INTMASK_SDCA_6);
+				SDW_SCP_SDCA_INTMASK_SDCA_6);
 			sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK2,
 				SDW_SCP_SDCA_INTMASK_SDCA_8);
 		}
@@ -255,6 +257,9 @@ static int rt722_sdca_read_prop(struct sdw_slave *slave)
 
 	/* wake-up event */
 	prop->wake_capable = 1;
+
+	/* Three data lanes are supported by rt722-sdca codec */
+	prop->lane_control_support = true;
 
 	return 0;
 }
@@ -347,7 +352,7 @@ static int rt722_sdca_interrupt_callback(struct sdw_slave *slave,
 
 	if (status->sdca_cascade && !rt722->disable_irq)
 		mod_delayed_work(system_power_efficient_wq,
-			&rt722->jack_detect_work, msecs_to_jiffies(30));
+			&rt722->jack_detect_work, msecs_to_jiffies(280));
 
 	mutex_unlock(&rt722->disable_irq_lock);
 
@@ -359,7 +364,7 @@ io_error:
 	return ret;
 }
 
-static struct sdw_slave_ops rt722_sdca_slave_ops = {
+static const struct sdw_slave_ops rt722_sdca_slave_ops = {
 	.read_prop = rt722_sdca_read_prop,
 	.interrupt_callback = rt722_sdca_interrupt_callback,
 	.update_status = rt722_sdca_update_status,
@@ -463,8 +468,16 @@ static int __maybe_unused rt722_sdca_dev_resume(struct device *dev)
 	if (!rt722->first_hw_init)
 		return 0;
 
-	if (!slave->unattach_request)
+	if (!slave->unattach_request) {
+		mutex_lock(&rt722->disable_irq_lock);
+		if (rt722->disable_irq == true) {
+			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_6);
+			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
+			rt722->disable_irq = false;
+		}
+		mutex_unlock(&rt722->disable_irq_lock);
 		goto regmap_sync;
+	}
 
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT722_PROBE_TIMEOUT));
@@ -492,7 +505,6 @@ static const struct dev_pm_ops rt722_sdca_pm = {
 static struct sdw_driver rt722_sdca_sdw_driver = {
 	.driver = {
 		.name = "rt722-sdca",
-		.owner = THIS_MODULE,
 		.pm = &rt722_sdca_pm,
 	},
 	.probe = rt722_sdca_sdw_probe,

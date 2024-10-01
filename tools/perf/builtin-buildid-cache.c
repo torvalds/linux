@@ -277,14 +277,16 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 	char filename[PATH_MAX];
 	struct build_id bid;
 
-	if (dso__build_id_filename(dso, filename, sizeof(filename), false) &&
-	    filename__read_build_id(filename, &bid) == -1) {
+	if (!dso__build_id_filename(dso, filename, sizeof(filename), false))
+		return true;
+
+	if (filename__read_build_id(filename, &bid) == -1) {
 		if (errno == ENOENT)
 			return false;
 
 		pr_warning("Problems with %s file, consider removing it from the cache\n",
 			   filename);
-	} else if (memcmp(dso->bid.data, bid.data, bid.size)) {
+	} else if (memcmp(dso__bid(dso)->data, bid.data, bid.size)) {
 		pr_warning("Problems with %s file, consider removing it from the cache\n",
 			   filename);
 	}

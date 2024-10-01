@@ -71,7 +71,7 @@ static void nfhd_submit_bio(struct bio *bio)
 		len = bvec.bv_len;
 		len >>= 9;
 		nfhd_read_write(dev->id, 0, dir, sec >> shift, len >> shift,
-				page_to_phys(bvec.bv_page) + bvec.bv_offset);
+				bvec_phys(&bvec));
 		sec += len;
 	}
 	bio_endio(bio);
@@ -96,6 +96,10 @@ static const struct block_device_operations nfhd_ops = {
 
 static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 {
+	struct queue_limits lim = {
+		.logical_block_size	= bsize,
+		.features		= BLK_FEAT_ROTATIONAL,
+	};
 	struct nfhd_device *dev;
 	int dev_id = id - NFHD_DEV_OFFSET;
 	int err = -ENOMEM;
@@ -117,9 +121,11 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 	dev->bsize = bsize;
 	dev->bshift = ffs(bsize) - 10;
 
-	dev->disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!dev->disk)
+	dev->disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
+	if (IS_ERR(dev->disk)) {
+		err = PTR_ERR(dev->disk);
 		goto free_dev;
+	}
 
 	dev->disk->major = major_num;
 	dev->disk->first_minor = dev_id * 16;
@@ -128,7 +134,6 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 	dev->disk->private_data = dev;
 	sprintf(dev->disk->disk_name, "nfhd%u", dev_id);
 	set_capacity(dev->disk, (sector_t)blocks * (bsize / 512));
-	blk_queue_logical_block_size(dev->disk->queue, bsize);
 	err = add_disk(dev->disk);
 	if (err)
 		goto out_cleanup_disk;
@@ -189,4 +194,5 @@ static void __exit nfhd_exit(void)
 module_init(nfhd_init);
 module_exit(nfhd_exit);
 
+MODULE_DESCRIPTION("Atari NatFeat block device driver");
 MODULE_LICENSE("GPL");

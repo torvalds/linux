@@ -9,13 +9,14 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
 #include <linux/pci-ep-cfs.h>
 
-static struct class *pci_epc_class;
+static const struct class pci_epc_class = {
+	.name = "pci_epc",
+};
 
 static void devm_pci_epc_release(struct device *dev, void *res)
 {
@@ -39,7 +40,7 @@ static int devm_pci_epc_match(struct device *dev, void *res, void *match_data)
  */
 void pci_epc_put(struct pci_epc *epc)
 {
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	module_put(epc->ops->owner);
@@ -61,7 +62,7 @@ struct pci_epc *pci_epc_get(const char *epc_name)
 	struct device *dev;
 	struct class_dev_iter iter;
 
-	class_dev_iter_init(&iter, pci_epc_class, NULL, NULL);
+	class_dev_iter_init(&iter, &pci_epc_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		if (strcmp(epc_name, dev_name(dev)))
 			continue;
@@ -88,7 +89,7 @@ EXPORT_SYMBOL_GPL(pci_epc_get);
  * @epc_features: pci_epc_features structure that holds the reserved bar bitmap
  *
  * Invoke to get the first unreserved BAR that can be used by the endpoint
- * function. For any incorrect value in reserved_bar return '0'.
+ * function.
  */
 enum pci_barno
 pci_epc_get_first_free_bar(const struct pci_epc_features *epc_features)
@@ -103,32 +104,27 @@ EXPORT_SYMBOL_GPL(pci_epc_get_first_free_bar);
  * @bar: the starting BAR number from where unreserved BAR should be searched
  *
  * Invoke to get the next unreserved BAR starting from @bar that can be used
- * for endpoint function. For any incorrect value in reserved_bar return '0'.
+ * for endpoint function.
  */
 enum pci_barno pci_epc_get_next_free_bar(const struct pci_epc_features
 					 *epc_features, enum pci_barno bar)
 {
-	unsigned long free_bar;
+	int i;
 
 	if (!epc_features)
 		return BAR_0;
 
 	/* If 'bar - 1' is a 64-bit BAR, move to the next BAR */
-	if ((epc_features->bar_fixed_64bit << 1) & 1 << bar)
+	if (bar > 0 && epc_features->bar[bar - 1].only_64bit)
 		bar++;
 
-	/* Find if the reserved BAR is also a 64-bit BAR */
-	free_bar = epc_features->reserved_bar & epc_features->bar_fixed_64bit;
+	for (i = bar; i < PCI_STD_NUM_BARS; i++) {
+		/* If the BAR is not reserved, return it. */
+		if (epc_features->bar[i].type != BAR_RESERVED)
+			return i;
+	}
 
-	/* Set the adjacent bit if the reserved BAR is also a 64-bit BAR */
-	free_bar <<= 1;
-	free_bar |= epc_features->reserved_bar;
-
-	free_bar = find_next_zero_bit(&free_bar, 6, bar);
-	if (free_bar > 5)
-		return NO_BAR;
-
-	return free_bar;
+	return NO_BAR;
 }
 EXPORT_SYMBOL_GPL(pci_epc_get_next_free_bar);
 
@@ -212,13 +208,13 @@ EXPORT_SYMBOL_GPL(pci_epc_start);
  * @epc: the EPC device which has to interrupt the host
  * @func_no: the physical endpoint function number in the EPC device
  * @vfunc_no: the virtual endpoint function number in the physical function
- * @type: specify the type of interrupt; legacy, MSI or MSI-X
+ * @type: specify the type of interrupt; INTX, MSI or MSI-X
  * @interrupt_num: the MSI or MSI-X interrupt number with range (1-N)
  *
- * Invoke to raise an legacy, MSI or MSI-X interrupt
+ * Invoke to raise an INTX, MSI or MSI-X interrupt
  */
 int pci_epc_raise_irq(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-		      enum pci_epc_irq_type type, u16 interrupt_num)
+		      unsigned int type, u16 interrupt_num)
 {
 	int ret;
 
@@ -661,7 +657,7 @@ void pci_epc_remove_epf(struct pci_epc *epc, struct pci_epf *epf,
 	struct list_head *list;
 	u32 func_no = 0;
 
-	if (!epc || IS_ERR(epc) || !epf)
+	if (IS_ERR_OR_NULL(epc) || !epf)
 		return;
 
 	if (type == PRIMARY_INTERFACE) {
@@ -692,7 +688,7 @@ void pci_epc_linkup(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -718,7 +714,7 @@ void pci_epc_linkdown(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -733,9 +729,9 @@ void pci_epc_linkdown(struct pci_epc *epc)
 EXPORT_SYMBOL_GPL(pci_epc_linkdown);
 
 /**
- * pci_epc_init_notify() - Notify the EPF device that EPC device's core
- *			   initialization is completed.
- * @epc: the EPC device whose core initialization is completed
+ * pci_epc_init_notify() - Notify the EPF device that EPC device initialization
+ *                         is completed.
+ * @epc: the EPC device whose initialization is completed
  *
  * Invoke to Notify the EPF device that the EPC device's initialization
  * is completed.
@@ -744,45 +740,93 @@ void pci_epc_init_notify(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
 	list_for_each_entry(epf, &epc->pci_epf, list) {
 		mutex_lock(&epf->lock);
-		if (epf->event_ops && epf->event_ops->core_init)
-			epf->event_ops->core_init(epf);
+		if (epf->event_ops && epf->event_ops->epc_init)
+			epf->event_ops->epc_init(epf);
 		mutex_unlock(&epf->lock);
 	}
+	epc->init_complete = true;
 	mutex_unlock(&epc->list_lock);
 }
 EXPORT_SYMBOL_GPL(pci_epc_init_notify);
 
 /**
- * pci_epc_bme_notify() - Notify the EPF device that the EPC device has received
- *			  the BME event from the Root complex
- * @epc: the EPC device that received the BME event
+ * pci_epc_notify_pending_init() - Notify the pending EPC device initialization
+ *                                 complete to the EPF device
+ * @epc: the EPC device whose initialization is pending to be notified
+ * @epf: the EPF device to be notified
  *
- * Invoke to Notify the EPF device that the EPC device has received the Bus
- * Master Enable (BME) event from the Root complex
+ * Invoke to notify the pending EPC device initialization complete to the EPF
+ * device. This is used to deliver the notification if the EPC initialization
+ * got completed before the EPF driver bind.
  */
-void pci_epc_bme_notify(struct pci_epc *epc)
+void pci_epc_notify_pending_init(struct pci_epc *epc, struct pci_epf *epf)
+{
+	if (epc->init_complete) {
+		mutex_lock(&epf->lock);
+		if (epf->event_ops && epf->event_ops->epc_init)
+			epf->event_ops->epc_init(epf);
+		mutex_unlock(&epf->lock);
+	}
+}
+EXPORT_SYMBOL_GPL(pci_epc_notify_pending_init);
+
+/**
+ * pci_epc_deinit_notify() - Notify the EPF device about EPC deinitialization
+ * @epc: the EPC device whose deinitialization is completed
+ *
+ * Invoke to notify the EPF device that the EPC deinitialization is completed.
+ */
+void pci_epc_deinit_notify(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
 	list_for_each_entry(epf, &epc->pci_epf, list) {
 		mutex_lock(&epf->lock);
-		if (epf->event_ops && epf->event_ops->bme)
-			epf->event_ops->bme(epf);
+		if (epf->event_ops && epf->event_ops->epc_deinit)
+			epf->event_ops->epc_deinit(epf);
+		mutex_unlock(&epf->lock);
+	}
+	epc->init_complete = false;
+	mutex_unlock(&epc->list_lock);
+}
+EXPORT_SYMBOL_GPL(pci_epc_deinit_notify);
+
+/**
+ * pci_epc_bus_master_enable_notify() - Notify the EPF device that the EPC
+ *					device has received the Bus Master
+ *					Enable event from the Root complex
+ * @epc: the EPC device that received the Bus Master Enable event
+ *
+ * Notify the EPF device that the EPC device has generated the Bus Master Enable
+ * event due to host setting the Bus Master Enable bit in the Command register.
+ */
+void pci_epc_bus_master_enable_notify(struct pci_epc *epc)
+{
+	struct pci_epf *epf;
+
+	if (IS_ERR_OR_NULL(epc))
+		return;
+
+	mutex_lock(&epc->list_lock);
+	list_for_each_entry(epf, &epc->pci_epf, list) {
+		mutex_lock(&epf->lock);
+		if (epf->event_ops && epf->event_ops->bus_master_enable)
+			epf->event_ops->bus_master_enable(epf);
 		mutex_unlock(&epf->lock);
 	}
 	mutex_unlock(&epc->list_lock);
 }
-EXPORT_SYMBOL_GPL(pci_epc_bme_notify);
+EXPORT_SYMBOL_GPL(pci_epc_bus_master_enable_notify);
 
 /**
  * pci_epc_destroy() - destroy the EPC device
@@ -794,6 +838,10 @@ void pci_epc_destroy(struct pci_epc *epc)
 {
 	pci_ep_cfs_remove_epc_group(epc->group);
 	device_unregister(&epc->dev);
+
+#ifdef CONFIG_PCI_DOMAINS_GENERIC
+	pci_bus_release_domain_nr(&epc->dev, epc->domain_nr);
+#endif
 }
 EXPORT_SYMBOL_GPL(pci_epc_destroy);
 
@@ -851,10 +899,20 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 	INIT_LIST_HEAD(&epc->pci_epf);
 
 	device_initialize(&epc->dev);
-	epc->dev.class = pci_epc_class;
+	epc->dev.class = &pci_epc_class;
 	epc->dev.parent = dev;
 	epc->dev.release = pci_epc_release;
 	epc->ops = ops;
+
+#ifdef CONFIG_PCI_DOMAINS_GENERIC
+	epc->domain_nr = pci_bus_find_domain_nr(NULL, dev);
+#else
+	/*
+	 * TODO: If the architecture doesn't support generic PCI
+	 * domains, then a custom implementation has to be used.
+	 */
+	WARN_ONCE(1, "This architecture doesn't support generic PCI domains\n");
+#endif
 
 	ret = dev_set_name(&epc->dev, "%s", dev_name(dev));
 	if (ret)
@@ -870,7 +928,6 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 
 put_dev:
 	put_device(&epc->dev);
-	kfree(epc);
 
 err_ret:
 	return ERR_PTR(ret);
@@ -912,20 +969,13 @@ EXPORT_SYMBOL_GPL(__devm_pci_epc_create);
 
 static int __init pci_epc_init(void)
 {
-	pci_epc_class = class_create("pci_epc");
-	if (IS_ERR(pci_epc_class)) {
-		pr_err("failed to create pci epc class --> %ld\n",
-		       PTR_ERR(pci_epc_class));
-		return PTR_ERR(pci_epc_class);
-	}
-
-	return 0;
+	return class_register(&pci_epc_class);
 }
 module_init(pci_epc_init);
 
 static void __exit pci_epc_exit(void)
 {
-	class_destroy(pci_epc_class);
+	class_unregister(&pci_epc_class);
 }
 module_exit(pci_epc_exit);
 

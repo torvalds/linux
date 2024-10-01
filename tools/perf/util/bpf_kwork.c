@@ -147,12 +147,12 @@ static bool valid_kwork_class_type(enum kwork_class_type type)
 
 static int setup_filters(struct perf_kwork *kwork)
 {
-	u8 val = 1;
-	int i, nr_cpus, key, fd;
-	struct perf_cpu_map *map;
-
 	if (kwork->cpu_list != NULL) {
-		fd = bpf_map__fd(skel->maps.perf_kwork_cpu_filter);
+		int idx, nr_cpus;
+		struct perf_cpu_map *map;
+		struct perf_cpu cpu;
+		int fd = bpf_map__fd(skel->maps.perf_kwork_cpu_filter);
+
 		if (fd < 0) {
 			pr_debug("Invalid cpu filter fd\n");
 			return -1;
@@ -165,8 +165,8 @@ static int setup_filters(struct perf_kwork *kwork)
 		}
 
 		nr_cpus = libbpf_num_possible_cpus();
-		for (i = 0; i < perf_cpu_map__nr(map); i++) {
-			struct perf_cpu cpu = perf_cpu_map__cpu(map, i);
+		perf_cpu_map__for_each_cpu(cpu, idx, map) {
+			u8 val = 1;
 
 			if (cpu.cpu >= nr_cpus) {
 				perf_cpu_map__put(map);
@@ -176,11 +176,11 @@ static int setup_filters(struct perf_kwork *kwork)
 			bpf_map_update_elem(fd, &cpu.cpu, &val, BPF_ANY);
 		}
 		perf_cpu_map__put(map);
-
-		skel->bss->has_cpu_filter = 1;
 	}
 
 	if (kwork->profile_name != NULL) {
+		int key, fd;
+
 		if (strlen(kwork->profile_name) >= MAX_KWORKNAME) {
 			pr_err("Requested name filter %s too large, limit to %d\n",
 			       kwork->profile_name, MAX_KWORKNAME - 1);
@@ -195,8 +195,6 @@ static int setup_filters(struct perf_kwork *kwork)
 
 		key = 0;
 		bpf_map_update_elem(fd, &key, kwork->profile_name, BPF_ANY);
-
-		skel->bss->has_name_filter = 1;
 	}
 
 	return 0;
@@ -236,6 +234,11 @@ int perf_kwork__trace_prepare_bpf(struct perf_kwork *kwork)
 		if (class_bpf->load_prepare != NULL)
 			class_bpf->load_prepare(kwork);
 	}
+
+	if (kwork->cpu_list != NULL)
+		skel->rodata->has_cpu_filter = 1;
+	if (kwork->profile_name != NULL)
+		skel->rodata->has_name_filter = 1;
 
 	if (kwork_trace_bpf__load(skel)) {
 		pr_debug("Failed to load kwork trace skeleton\n");

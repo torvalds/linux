@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/mutex.h>
 #include <linux/smp.h>
 
 #define DHRY_VAX	1757
@@ -84,4 +83,5 @@ static int __init dhry_init(void)
 module_init(dhry_init);
 
 MODULE_AUTHOR("Geert Uytterhoeven <geert+renesas@glider.be>");
+MODULE_DESCRIPTION("Dhrystone benchmark test module");
 MODULE_LICENSE("GPL");

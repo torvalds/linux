@@ -14,8 +14,6 @@
 
 /* Ugly macros make the code more pretty. */
 
-#define GET_END_PTR(st,p,sz)		 ((st *)((char *)(p)+((sz)-sizeof(st))))
-#define AFFS_GET_HASHENTRY(data,hashkey) be32_to_cpu(((struct dir_front *)data)->hashtable[hashkey])
 #define AFFS_BLOCK(sb, bh, blk)		(AFFS_HEAD(bh)->table[AFFS_SB(sb)->s_hashsize-1-(blk)])
 
 #define AFFS_HEAD(bh)		((struct affs_head *)(bh)->b_data)
@@ -105,6 +103,7 @@ struct affs_sb_info {
 	int work_queued;		/* non-zero delayed work is queued */
 	struct delayed_work sb_work;	/* superblock flush delayed work */
 	spinlock_t work_lock;		/* protects sb_work and work_queued */
+	struct rcu_head rcu;
 };
 
 #define AFFS_MOUNT_SF_INTL		0x0001 /* International filesystem. */

@@ -9,6 +9,7 @@
  * Copyright (C) 2011 Advanced Micro Devices,
  */
 
+#include <linux/bitfield.h>
 #include <linux/export.h>
 #include <linux/pci-ats.h>
 #include <linux/pci.h>
@@ -45,6 +46,39 @@ bool pci_ats_supported(struct pci_dev *dev)
 	return (dev->untrusted == 0);
 }
 EXPORT_SYMBOL_GPL(pci_ats_supported);
+
+/**
+ * pci_prepare_ats - Setup the PS for ATS
+ * @dev: the PCI device
+ * @ps: the IOMMU page shift
+ *
+ * This must be done by the IOMMU driver on the PF before any VFs are created to
+ * ensure that the VF can have ATS enabled.
+ *
+ * Returns 0 on success, or negative on failure.
+ */
+int pci_prepare_ats(struct pci_dev *dev, int ps)
+{
+	u16 ctrl;
+
+	if (!pci_ats_supported(dev))
+		return -EINVAL;
+
+	if (WARN_ON(dev->ats_enabled))
+		return -EBUSY;
+
+	if (ps < PCI_ATS_MIN_STU)
+		return -EINVAL;
+
+	if (dev->is_virtfn)
+		return 0;
+
+	dev->ats_stu = ps;
+	ctrl = PCI_ATS_CTRL_STU(dev->ats_stu - PCI_ATS_MIN_STU);
+	pci_write_config_word(dev, dev->ats_cap + PCI_ATS_CTRL, ctrl);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_prepare_ats);
 
 /**
  * pci_enable_ats - enable the ATS capability
@@ -454,8 +488,8 @@ void pci_restore_pasid_state(struct pci_dev *pdev)
  * pci_pasid_features - Check which PASID features are supported
  * @pdev: PCI device structure
  *
- * Returns a negative value when no PASI capability is present.
- * Otherwise is returns a bitmask with supported features. Current
+ * Return a negative value when no PASID capability is present.
+ * Otherwise return a bitmask with supported features. Current
  * features reported are:
  * PCI_PASID_CAP_EXEC - Execute permission supported
  * PCI_PASID_CAP_PRIV - Privileged mode supported
@@ -480,8 +514,6 @@ int pci_pasid_features(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL_GPL(pci_pasid_features);
 
-#define PASID_NUMBER_SHIFT	8
-#define PASID_NUMBER_MASK	(0x1f << PASID_NUMBER_SHIFT)
 /**
  * pci_max_pasids - Get maximum number of PASIDs supported by device
  * @pdev: PCI device structure
@@ -503,9 +535,7 @@ int pci_max_pasids(struct pci_dev *pdev)
 
 	pci_read_config_word(pdev, pasid + PCI_PASID_CAP, &supported);
 
-	supported = (supported & PASID_NUMBER_MASK) >> PASID_NUMBER_SHIFT;
-
-	return (1 << supported);
+	return (1 << FIELD_GET(PCI_PASID_CAP_WIDTH, supported));
 }
 EXPORT_SYMBOL_GPL(pci_max_pasids);
 #endif /* CONFIG_PCI_PASID */

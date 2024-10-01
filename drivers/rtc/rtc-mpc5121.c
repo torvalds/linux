@@ -11,10 +11,8 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
@@ -405,5 +403,6 @@ static struct platform_driver mpc5121_rtc_driver = {
 
 module_platform_driver(mpc5121_rtc_driver);
 
+MODULE_DESCRIPTION("Freescale MPC5121 built-in RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Rigby <jcrigby@gmail.com>");

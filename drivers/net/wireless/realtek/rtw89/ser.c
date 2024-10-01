@@ -308,9 +308,13 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)data;
-	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_vif *target_rtwvif = (struct rtw89_vif *)data;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+
+	if (rtwvif != target_rtwvif)
+		return;
 
 	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE || sta->tdls)
 		rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta->addr_cam);
@@ -361,6 +365,9 @@ static int hal_enable_dma(struct rtw89_ser *ser)
 	ret = rtwdev->hci.ops->mac_lv1_rcvy(rtwdev, RTW89_LV1_RCVY_STEP_2);
 	if (!ret)
 		clear_bit(RTW89_SER_HAL_STOP_DMA, ser->flags);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_SER,
+			    "lv1 rcvy fail to start dma: %d\n", ret);
 
 	return ret;
 }
@@ -376,6 +383,9 @@ static int hal_stop_dma(struct rtw89_ser *ser)
 	ret = rtwdev->hci.ops->mac_lv1_rcvy(rtwdev, RTW89_LV1_RCVY_STEP_1);
 	if (!ret)
 		set_bit(RTW89_SER_HAL_STOP_DMA, ser->flags);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_SER,
+			    "lv1 rcvy fail to stop dma: %d\n", ret);
 
 	return ret;
 }
@@ -529,6 +539,9 @@ static void ser_do_hci_st_hdl(struct rtw89_ser *ser, u8 evt)
 static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 			     u8 sel, u32 start_addr, u32 len)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
 	u32 *ptr = (u32 *)buf;
 	u32 base_addr, start_page, residue;
 	u32 cnt = 0;
@@ -536,14 +549,14 @@ static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = rtw89_mac_mem_base_addrs[sel];
+	base_addr = mac->mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	while (cnt < len) {
-		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, base_addr);
+		rtw89_write32(rtwdev, filter_model_addr, base_addr);
 
-		for (i = R_AX_INDIR_ACCESS_ENTRY + residue;
-		     i < R_AX_INDIR_ACCESS_ENTRY + MAC_MEM_DUMP_PAGE_SIZE;
+		for (i = indir_access_addr + residue;
+		     i < indir_access_addr + MAC_MEM_DUMP_PAGE_SIZE;
 		     i += 4, ptr++) {
 			*ptr = rtw89_read32(rtwdev, i);
 			cnt += 4;
@@ -581,11 +594,22 @@ struct __fw_backtrace_info {
 static_assert(RTW89_FW_BACKTRACE_INFO_SIZE ==
 	      sizeof(struct __fw_backtrace_info));
 
+static u32 convert_addr_from_wcpu(u32 wcpu_addr)
+{
+	if (wcpu_addr < 0x30000000)
+		return wcpu_addr;
+
+	return wcpu_addr & GENMASK(28, 0);
+}
+
 static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 				       const struct __fw_backtrace_entry *ent)
 {
 	struct __fw_backtrace_info *ptr = (struct __fw_backtrace_info *)buf;
-	u32 fwbt_addr = ent->wcpu_addr & RTW89_WCPU_BASE_MASK;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
+	u32 fwbt_addr = convert_addr_from_wcpu(ent->wcpu_addr);
 	u32 fwbt_size = ent->size;
 	u32 fwbt_key = ent->key;
 	u32 i;
@@ -610,10 +634,10 @@ static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_SER, "dump fw backtrace start\n");
-	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, fwbt_addr);
+	rtw89_write32(rtwdev, filter_model_addr, fwbt_addr);
 
-	for (i = R_AX_INDIR_ACCESS_ENTRY;
-	     i < R_AX_INDIR_ACCESS_ENTRY + fwbt_size;
+	for (i = indir_access_addr;
+	     i < indir_access_addr + fwbt_size;
 	     i += RTW89_FW_BACKTRACE_INFO_SIZE, ptr++) {
 		*ptr = (struct __fw_backtrace_info){
 			.ra = rtw89_read32(rtwdev, i),

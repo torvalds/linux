@@ -232,6 +232,7 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_buf *buf,
 	if (len < min_rsp_body_length + TPM_HEADER_SIZE)
 		return -EFAULT;
 
+	buf->length = len;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_transmit_cmd);
@@ -342,31 +343,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_extend);
 
-/**
- * tpm_send - send a TPM command
- * @chip:	a &struct tpm_chip instance, %NULL for the default chip
- * @cmd:	a TPM command buffer
- * @buflen:	the length of the TPM command buffer
- *
- * Return: same as with tpm_transmit_cmd()
- */
-int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen)
-{
-	struct tpm_buf buf;
-	int rc;
-
-	chip = tpm_find_get_ops(chip);
-	if (!chip)
-		return -ENODEV;
-
-	buf.data = cmd;
-	rc = tpm_transmit_cmd(chip, &buf, 0, "attempting to a send a command");
-
-	tpm_put_ops(chip);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(tpm_send);
-
 int tpm_auto_startup(struct tpm_chip *chip)
 {
 	int rc;
@@ -476,18 +452,15 @@ static int __init tpm_init(void)
 {
 	int rc;
 
-	tpm_class = class_create("tpm");
-	if (IS_ERR(tpm_class)) {
+	rc = class_register(&tpm_class);
+	if (rc) {
 		pr_err("couldn't create tpm class\n");
-		return PTR_ERR(tpm_class);
+		return rc;
 	}
 
-	tpm_class->shutdown_pre = tpm_class_shutdown;
-
-	tpmrm_class = class_create("tpmrm");
-	if (IS_ERR(tpmrm_class)) {
+	rc = class_register(&tpmrm_class);
+	if (rc) {
 		pr_err("couldn't create tpmrm class\n");
-		rc = PTR_ERR(tpmrm_class);
 		goto out_destroy_tpm_class;
 	}
 
@@ -508,9 +481,9 @@ static int __init tpm_init(void)
 out_unreg_chrdev:
 	unregister_chrdev_region(tpm_devt, 2 * TPM_NUM_DEVICES);
 out_destroy_tpmrm_class:
-	class_destroy(tpmrm_class);
+	class_unregister(&tpmrm_class);
 out_destroy_tpm_class:
-	class_destroy(tpm_class);
+	class_unregister(&tpm_class);
 
 	return rc;
 }
@@ -518,8 +491,8 @@ out_destroy_tpm_class:
 static void __exit tpm_exit(void)
 {
 	idr_destroy(&dev_nums_idr);
-	class_destroy(tpm_class);
-	class_destroy(tpmrm_class);
+	class_unregister(&tpm_class);
+	class_unregister(&tpmrm_class);
 	unregister_chrdev_region(tpm_devt, 2*TPM_NUM_DEVICES);
 	tpm_dev_common_exit();
 }
@@ -527,7 +500,7 @@ static void __exit tpm_exit(void)
 subsys_initcall(tpm_init);
 module_exit(tpm_exit);
 
-MODULE_AUTHOR("Leendert van Doorn (leendert@watson.ibm.com)");
+MODULE_AUTHOR("Leendert van Doorn <leendert@watson.ibm.com>");
 MODULE_DESCRIPTION("TPM Driver");
 MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

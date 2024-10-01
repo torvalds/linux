@@ -599,8 +599,6 @@ __rate:
 			(runtime->rate != res)) {
 		snd_pcm_stream_lock_irqsave(ak4113->substream, _flags);
 		if (snd_pcm_running(ak4113->substream)) {
-			/*printk(KERN_DEBUG "rate changed (%i <- %i)\n",
-			 * runtime->rate, res); */
 			snd_pcm_stop(ak4113->substream,
 					SNDRV_PCM_STATE_DRAINING);
 			wake_up(&runtime->sleep);

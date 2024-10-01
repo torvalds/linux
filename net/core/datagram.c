@@ -50,7 +50,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
-#include <linux/uio.h>
+#include <linux/iov_iter.h>
 #include <linux/indirect_call_wrapper.h>
 
 #include <net/protocol.h>
@@ -61,6 +61,7 @@
 #include <net/tcp_states.h>
 #include <trace/events/skb.h>
 #include <net/busy_poll.h>
+#include <crypto/hash.h>
 
 /*
  *	Is a socket 'connection oriented' ?
@@ -323,25 +324,6 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(skb_free_datagram);
 
-void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
-{
-	bool slow;
-
-	if (!skb_unref(skb)) {
-		sk_peek_offset_bwd(sk, len);
-		return;
-	}
-
-	slow = lock_sock_fast(sk);
-	sk_peek_offset_bwd(sk, len);
-	skb_orphan(skb);
-	unlock_sock_fast(sk, slow);
-
-	/* skb is now orphaned, can be freed outside of locked section */
-	__kfree_skb(skb);
-}
-EXPORT_SYMBOL(__skb_free_datagram_locked);
-
 int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
 			struct sk_buff *skb, unsigned int flags,
 			void (*destructor)(struct sock *sk,
@@ -425,6 +407,9 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 			return 0;
 	}
 
+	if (!skb_frags_readable(skb))
+		goto short_copy;
+
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
@@ -434,15 +419,23 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 
 		end = start + skb_frag_size(frag);
 		if ((copy = end - offset) > 0) {
-			struct page *page = skb_frag_page(frag);
-			u8 *vaddr = kmap(page);
+			u32 p_off, p_len, copied;
+			struct page *p;
+			u8 *vaddr;
 
 			if (copy > len)
 				copy = len;
-			n = INDIRECT_CALL_1(cb, simple_copy_to_iter,
-					vaddr + skb_frag_off(frag) + offset - start,
-					copy, data, to);
-			kunmap(page);
+
+			n = 0;
+			skb_frag_foreach_page(frag,
+					      skb_frag_off(frag) + offset - start,
+					      copy, p, p_off, p_len, copied) {
+				vaddr = kmap_local_page(p);
+				n += INDIRECT_CALL_1(cb, simple_copy_to_iter,
+					vaddr + p_off, p_len, data, to);
+				kunmap_local(vaddr);
+			}
+
 			offset += n;
 			if (n != copy)
 				goto short_copy;
@@ -487,6 +480,24 @@ short_copy:
 		goto fault;
 
 	return 0;
+}
+
+static size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
+				    struct iov_iter *i)
+{
+#ifdef CONFIG_CRYPTO_HASH
+	struct ahash_request *hash = hashp;
+	struct scatterlist sg;
+	size_t copied;
+
+	copied = copy_to_iter(addr, bytes, i);
+	sg_init_one(&sg, addr, copied);
+	ahash_request_set_crypt(hash, &sg, NULL, copied);
+	crypto_ahash_update(hash);
+	return copied;
+#else
+	return 0;
+#endif
 }
 
 /**
@@ -610,16 +621,13 @@ fault:
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
-int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
-			    struct sk_buff *skb, struct iov_iter *from,
-			    size_t length)
+int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
+				struct iov_iter *from, size_t length)
 {
-	int frag;
+	int frag = skb_shinfo(skb)->nr_frags;
 
-	if (msg && msg->msg_ubuf && msg->sg_from_iter)
-		return msg->sg_from_iter(sk, skb, from, length);
-
-	frag = skb_shinfo(skb)->nr_frags;
+	if (!skb_frags_readable(skb))
+		return -EFAULT;
 
 	while (length && iov_iter_count(from)) {
 		struct page *head, *last_head = NULL;
@@ -627,7 +635,6 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 		int refs, order, n = 0;
 		size_t start;
 		ssize_t copied;
-		unsigned long truesize;
 
 		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
@@ -639,17 +646,9 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 
 		length -= copied;
 
-		truesize = PAGE_ALIGN(copied + start);
 		skb->data_len += copied;
 		skb->len += copied;
-		skb->truesize += truesize;
-		if (sk && sk->sk_type == SOCK_STREAM) {
-			sk_wmem_queued_add(sk, truesize);
-			if (!skb_zcopy_pure(skb))
-				sk_mem_charge(sk, truesize);
-		} else {
-			refcount_add(truesize, &skb->sk->sk_wmem_alloc);
-		}
+		skb->truesize += PAGE_ALIGN(copied + start);
 
 		head = compound_head(pages[n]);
 		order = compound_order(head);
@@ -692,6 +691,30 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 	}
 	return 0;
 }
+
+int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
+			    struct sk_buff *skb, struct iov_iter *from,
+			    size_t length)
+{
+	unsigned long orig_size = skb->truesize;
+	unsigned long truesize;
+	int ret;
+
+	if (msg && msg->msg_ubuf && msg->sg_from_iter)
+		ret = msg->sg_from_iter(skb, from, length);
+	else
+		ret = zerocopy_fill_skb_from_iter(skb, from, length);
+
+	truesize = skb->truesize - orig_size;
+	if (sk && sk->sk_type == SOCK_STREAM) {
+		sk_wmem_queued_add(sk, truesize);
+		if (!skb_zcopy_pure(skb))
+			sk_mem_charge(sk, truesize);
+	} else {
+		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
+	}
+	return ret;
+}
 EXPORT_SYMBOL(__zerocopy_sg_from_iter);
 
 /**
@@ -715,6 +738,60 @@ int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 	return __zerocopy_sg_from_iter(NULL, NULL, skb, from, ~0U);
 }
 EXPORT_SYMBOL(zerocopy_sg_from_iter);
+
+static __always_inline
+size_t copy_to_user_iter_csum(void __user *iter_to, size_t progress,
+			      size_t len, void *from, void *priv2)
+{
+	__wsum next, *csum = priv2;
+
+	next = csum_and_copy_to_user(from + progress, iter_to, len);
+	*csum = csum_block_add(*csum, next, progress);
+	return next ? 0 : len;
+}
+
+static __always_inline
+size_t memcpy_to_iter_csum(void *iter_to, size_t progress,
+			   size_t len, void *from, void *priv2)
+{
+	__wsum *csum = priv2;
+	__wsum next = csum_partial_copy_nocheck(from + progress, iter_to, len);
+
+	*csum = csum_block_add(*csum, next, progress);
+	return 0;
+}
+
+struct csum_state {
+	__wsum csum;
+	size_t off;
+};
+
+static size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
+				    struct iov_iter *i)
+{
+	struct csum_state *csstate = _csstate;
+	__wsum sum;
+
+	if (WARN_ON_ONCE(i->data_source))
+		return 0;
+	if (unlikely(iov_iter_is_discard(i))) {
+		// can't use csum_memcpy() for that one - data is not copied
+		csstate->csum = csum_block_add(csstate->csum,
+					       csum_partial(addr, bytes, 0),
+					       csstate->off);
+		csstate->off += bytes;
+		return bytes;
+	}
+
+	sum = csum_shift(csstate->csum, csstate->off);
+
+	bytes = iterate_and_advance2(i, bytes, (void *)addr, &sum,
+				     copy_to_user_iter_csum,
+				     memcpy_to_iter_csum);
+	csstate->csum = csum_shift(sum, csstate->off);
+	csstate->off += bytes;
+	return bytes;
+}
 
 /**
  *	skb_copy_and_csum_datagram - Copy datagram to an iovec iterator

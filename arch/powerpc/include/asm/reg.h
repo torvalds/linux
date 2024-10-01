@@ -18,7 +18,7 @@
 #include <asm/feature-fixups.h>
 
 /* Pickup Book E specific registers. */
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 #include <asm/reg_booke.h>
 #endif
 
@@ -233,13 +233,9 @@
 
 /* Special Purpose Registers (SPRNs)*/
 
-#ifdef CONFIG_40x
-#define SPRN_PID	0x3B1	/* Process ID */
-#else
 #define SPRN_PID	0x030	/* Process ID */
 #ifdef CONFIG_BOOKE
 #define SPRN_PID0	SPRN_PID/* Process ID Register 0 */
-#endif
 #endif
 
 #define SPRN_CTR	0x009	/* Count Register */
@@ -527,7 +523,7 @@
 #define SPRN_TSCR	0x399	/* Thread Switch Control Register */
 
 #define SPRN_DEC	0x016		/* Decrement Register */
-#define SPRN_PIT	0x3DB		/* Programmable Interval Timer (40x/BOOKE) */
+#define SPRN_PIT	0x3DB		/* Programmable Interval Timer (BOOKE) */
 
 #define SPRN_DER	0x095		/* Debug Enable Register */
 #define DER_RSTE	0x40000000	/* Reset Interrupt */
@@ -615,8 +611,10 @@
 #define HID1_ABE	(1<<10)		/* 7450 Address Broadcast Enable */
 #define HID1_PS		(1<<16)		/* 750FX PLL selection */
 #endif
-#define SPRN_HID2	0x3F8		/* Hardware Implementation Register 2 */
+#define SPRN_HID2_750FX	0x3F8		/* IBM 750FX HID2 Register */
 #define SPRN_HID2_GEKKO	0x398		/* Gekko HID2 Register */
+#define SPRN_HID2_G2_LE	0x3F3		/* G2_LE HID2 Register */
+#define  HID2_G2_LE_HBE	(1<<18)		/* High BAT Enable (G2_LE) */
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define SPRN_IABR2	0x3FA		/* 83xx */
 #define SPRN_IBCR	0x135		/* 83xx Insn Breakpoint Control Reg */
@@ -1114,15 +1112,6 @@
  *	- SPRG2 indicator that we are in RTAS
  *	- SPRG4 (603 only) pseudo TLB LRU data
  *
- * 32-bit 40x:
- *	- SPRG0 scratch for exception vectors
- *	- SPRG1 scratch for exception vectors
- *	- SPRG2 scratch for exception vectors
- *	- SPRG4 scratch for exception vectors (not 403)
- *	- SPRG5 scratch for exception vectors (not 403)
- *	- SPRG6 scratch for exception vectors (not 403)
- *	- SPRG7 scratch for exception vectors (not 403)
- *
  * 32-bit 440 and FSL BookE:
  *	- SPRG0 scratch for exception vectors
  *	- SPRG1 scratch for exception vectors (*)
@@ -1212,16 +1201,6 @@
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
 #define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
 #define SPRN_SPRG_603_LRU	SPRN_SPRG4
-#endif
-
-#ifdef CONFIG_40x
-#define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
-#define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
-#define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
-#define SPRN_SPRG_SCRATCH3	SPRN_SPRG4
-#define SPRN_SPRG_SCRATCH4	SPRN_SPRG5
-#define SPRN_SPRG_SCRATCH5	SPRN_SPRG6
-#define SPRN_SPRG_SCRATCH6	SPRN_SPRG7
 #endif
 
 #ifdef CONFIG_BOOKE
@@ -1361,8 +1340,10 @@
 #define PVR_POWER8E	0x004B
 #define PVR_POWER8NVL	0x004C
 #define PVR_POWER8	0x004D
+#define PVR_HX_C2000	0x0066
 #define PVR_POWER9	0x004E
 #define PVR_POWER10	0x0080
+#define PVR_POWER11	0x0082
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
 
@@ -1374,6 +1355,7 @@
 #define PVR_ARCH_207	0x0f000004
 #define PVR_ARCH_300	0x0f000005
 #define PVR_ARCH_31	0x0f000006
+#define PVR_ARCH_31_P11	0x0f000007
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__
@@ -1414,11 +1396,9 @@ static inline void mtmsr_isync(unsigned long val)
 #define mfspr(rn)	({unsigned long rval; \
 			asm volatile("mfspr %0," __stringify(rn) \
 				: "=r" (rval)); rval;})
-#ifndef mtspr
 #define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
-#endif
 #define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",2" : : : "memory")
 
 static inline void wrtee(unsigned long val)

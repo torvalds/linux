@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 
@@ -346,7 +345,7 @@ max31730_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max31730_ids[] = {
-	{ "max31730", 0, },
+	{ "max31730" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max31730_ids);

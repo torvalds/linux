@@ -10,11 +10,13 @@
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/switchdev.h>
+#include <net/xdp.h>
 
+#include <fdma_api.h>
 #include <vcap_api.h>
 #include <vcap_api_client.h>
 
@@ -75,15 +77,6 @@
 
 #define FDMA_RX_DCB_MAX_DBS		1
 #define FDMA_TX_DCB_MAX_DBS		1
-#define FDMA_DCB_INFO_DATAL(x)		((x) & GENMASK(15, 0))
-
-#define FDMA_DCB_STATUS_BLOCKL(x)	((x) & GENMASK(15, 0))
-#define FDMA_DCB_STATUS_SOF		BIT(16)
-#define FDMA_DCB_STATUS_EOF		BIT(17)
-#define FDMA_DCB_STATUS_INTR		BIT(18)
-#define FDMA_DCB_STATUS_DONE		BIT(19)
-#define FDMA_DCB_STATUS_BLOCKO(x)	(((x) << 20) & GENMASK(31, 20))
-#define FDMA_DCB_INVALID_DATA		0x1
 
 #define FDMA_XTR_CHANNEL		6
 #define FDMA_INJ_CHANNEL		0
@@ -198,48 +191,13 @@ enum vcap_is1_port_sel_rt {
 
 struct lan966x_port;
 
-struct lan966x_db {
-	u64 dataptr;
-	u64 status;
-};
-
-struct lan966x_rx_dcb {
-	u64 nextptr;
-	u64 info;
-	struct lan966x_db db[FDMA_RX_DCB_MAX_DBS];
-};
-
-struct lan966x_tx_dcb {
-	u64 nextptr;
-	u64 info;
-	struct lan966x_db db[FDMA_TX_DCB_MAX_DBS];
-};
-
 struct lan966x_rx {
 	struct lan966x *lan966x;
 
-	/* Pointer to the array of hardware dcbs. */
-	struct lan966x_rx_dcb *dcbs;
-
-	/* Pointer to the last address in the dcbs. */
-	struct lan966x_rx_dcb *last_entry;
+	struct fdma fdma;
 
 	/* For each DB, there is a page */
 	struct page *page[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
-
-	/* Represents the db_index, it can have a value between 0 and
-	 * FDMA_RX_DCB_MAX_DBS, once it reaches the value of FDMA_RX_DCB_MAX_DBS
-	 * it means that the DCB can be reused.
-	 */
-	int db_index;
-
-	/* Represents the index in the dcbs. It has a value between 0 and
-	 * FDMA_DCB_MAX
-	 */
-	int dcb_index;
-
-	/* Represents the dma address to the dcbs array */
-	dma_addr_t dma;
 
 	/* Represents the page order that is used to allocate the pages for the
 	 * RX buffers. This value is calculated based on max MTU of the devices.
@@ -250,8 +208,6 @@ struct lan966x_rx {
 	 * includes the IFH + VLAN tags + frame + skb_shared_info
 	 */
 	u32 max_mtu;
-
-	u8 channel_id;
 
 	struct page_pool *page_pool;
 };
@@ -274,17 +230,10 @@ struct lan966x_tx_dcb_buf {
 struct lan966x_tx {
 	struct lan966x *lan966x;
 
-	/* Pointer to the dcb list */
-	struct lan966x_tx_dcb *dcbs;
-	u16 last_in_use;
-
-	/* Represents the DMA address to the first entry of the dcb entries. */
-	dma_addr_t dma;
+	struct fdma fdma;
 
 	/* Array of dcbs that are given to the HW */
 	struct lan966x_tx_dcb_buf *dcbs_buf;
-
-	u8 channel_id;
 
 	bool activated;
 };
@@ -298,7 +247,7 @@ struct lan966x_phc {
 	struct ptp_clock *clock;
 	struct ptp_clock_info info;
 	struct ptp_pin_desc pins[LAN966X_PHC_PINS_NUM];
-	struct hwtstamp_config hwtstamp_config;
+	struct kernel_hwtstamp_config hwtstamp_config;
 	struct lan966x *lan966x;
 	u8 index;
 };
@@ -325,7 +274,7 @@ struct lan966x {
 
 	u8 base_mac[ETH_ALEN];
 
-	spinlock_t tx_lock; /* lock for frame transmition */
+	spinlock_t tx_lock; /* lock for frame transmission */
 
 	struct net_device *bridge;
 	u16 bridge_mask;
@@ -578,8 +527,11 @@ void lan966x_mdb_restore_entries(struct lan966x *lan966x);
 
 int lan966x_ptp_init(struct lan966x *lan966x);
 void lan966x_ptp_deinit(struct lan966x *lan966x);
-int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr);
-int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr);
+int lan966x_ptp_hwtstamp_set(struct lan966x_port *port,
+			     struct kernel_hwtstamp_config *cfg,
+			     struct netlink_ext_ack *extack);
+void lan966x_ptp_hwtstamp_get(struct lan966x_port *port,
+			      struct kernel_hwtstamp_config *cfg);
 void lan966x_ptp_rxtstamp(struct lan966x *lan966x, struct sk_buff *skb,
 			  u64 src_port, u64 timestamp);
 int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
@@ -590,7 +542,8 @@ irqreturn_t lan966x_ptp_irq_handler(int irq, void *args);
 irqreturn_t lan966x_ptp_ext_irq_handler(int irq, void *args);
 u32 lan966x_ptp_get_period_ps(void);
 int lan966x_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
-int lan966x_ptp_setup_traps(struct lan966x_port *port, struct ifreq *ifr);
+int lan966x_ptp_setup_traps(struct lan966x_port *port,
+			    struct kernel_hwtstamp_config *cfg);
 int lan966x_ptp_del_traps(struct lan966x_port *port);
 
 int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev);

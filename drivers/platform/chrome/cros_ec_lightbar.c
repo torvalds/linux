@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <linux/kobject.h>
 #include <linux/kstrtox.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -560,7 +561,7 @@ static int cros_ec_lightbar_probe(struct platform_device *pd)
 	return ret;
 }
 
-static int cros_ec_lightbar_remove(struct platform_device *pd)
+static void cros_ec_lightbar_remove(struct platform_device *pd)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
 
@@ -569,8 +570,6 @@ static int cros_ec_lightbar_remove(struct platform_device *pd)
 
 	/* Let the EC take over the lightbar again. */
 	lb_manual_suspend_ctrl(ec_dev, 0);
-
-	return 0;
 }
 
 static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
@@ -596,6 +595,12 @@ static int __maybe_unused cros_ec_lightbar_suspend(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cros_ec_lightbar_pm_ops,
 			 cros_ec_lightbar_suspend, cros_ec_lightbar_resume);
 
+static const struct platform_device_id cros_ec_lightbar_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_lightbar_id);
+
 static struct platform_driver cros_ec_lightbar_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -603,11 +608,11 @@ static struct platform_driver cros_ec_lightbar_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = cros_ec_lightbar_probe,
-	.remove = cros_ec_lightbar_remove,
+	.remove_new = cros_ec_lightbar_remove,
+	.id_table = cros_ec_lightbar_id,
 };
 
 module_platform_driver(cros_ec_lightbar_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Expose the Chromebook Pixel's lightbar to userspace");
-MODULE_ALIAS("platform:" DRV_NAME);

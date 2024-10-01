@@ -6,8 +6,10 @@
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include <dt-bindings/clock/qcom,sc8280xp-lpasscc.h>
@@ -21,7 +23,7 @@ static const struct qcom_reset_map lpass_audiocc_sc8280xp_resets[] = {
 	[LPASS_AUDIO_SWR_WSA2_CGCR] =  { 0xd8, 1 },
 };
 
-static struct regmap_config lpass_audiocc_sc8280xp_regmap_config = {
+static const struct regmap_config lpass_audiocc_sc8280xp_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -39,7 +41,7 @@ static const struct qcom_reset_map lpasscc_sc8280xp_resets[] = {
 	[LPASS_AUDIO_SWR_TX_CGCR] = { 0xc010, 1 },
 };
 
-static struct regmap_config lpasscc_sc8280xp_regmap_config = {
+static const struct regmap_config lpasscc_sc8280xp_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,

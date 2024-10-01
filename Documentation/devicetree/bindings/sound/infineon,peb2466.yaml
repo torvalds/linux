@@ -51,7 +51,7 @@ properties:
     maxItems: 1
 
   firmware-name:
-    $ref: /schemas/types.yaml#/definitions/string
+    maxItems: 1
     description:
       Filters coefficients file to load. If this property is omitted, internal
       filters are disabled.

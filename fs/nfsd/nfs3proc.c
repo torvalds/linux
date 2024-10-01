@@ -28,6 +28,29 @@ static int	nfs3_ftypes[] = {
 	S_IFIFO,		/* NF3FIFO */
 };
 
+static __be32 nfsd3_map_status(__be32 status)
+{
+	switch (status) {
+	case nfs_ok:
+		break;
+	case nfserr_nofilehandle:
+		status = nfserr_badhandle;
+		break;
+	case nfserr_wrongsec:
+	case nfserr_file_open:
+		status = nfserr_acces;
+		break;
+	case nfserr_symlink_not_dir:
+		status = nfserr_notdir;
+		break;
+	case nfserr_symlink:
+	case nfserr_wrong_type:
+		status = nfserr_inval;
+		break;
+	}
+	return status;
+}
+
 /*
  * NULL call.
  */
@@ -57,6 +80,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp)
 
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -71,13 +95,16 @@ nfsd3_proc_setattr(struct svc_rqst *rqstp)
 	struct nfsd_attrs attrs = {
 		.na_iattr	= &argp->attrs,
 	};
+	const struct timespec64 *guardtime = NULL;
 
 	dprintk("nfsd: SETATTR(3)  %s\n",
 				SVCFH_fmt(&argp->fh));
 
 	fh_copy(&resp->fh, &argp->fh);
-	resp->status = nfsd_setattr(rqstp, &resp->fh, &attrs,
-				    argp->check_guard, argp->guardtime);
+	if (argp->check_guard)
+		guardtime = &argp->guardtime;
+	resp->status = nfsd_setattr(rqstp, &resp->fh, &attrs, guardtime);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -101,6 +128,7 @@ nfsd3_proc_lookup(struct svc_rqst *rqstp)
 	resp->status = nfsd_lookup(rqstp, &resp->dirfh,
 				   argp->name, argp->len,
 				   &resp->fh);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -120,6 +148,7 @@ nfsd3_proc_access(struct svc_rqst *rqstp)
 	fh_copy(&resp->fh, &argp->fh);
 	resp->access = argp->access;
 	resp->status = nfsd_access(rqstp, &resp->fh, &resp->access, NULL);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -140,6 +169,7 @@ nfsd3_proc_readlink(struct svc_rqst *rqstp)
 	resp->pages = rqstp->rq_next_page++;
 	resp->status = nfsd_readlink(rqstp, &resp->fh,
 				     page_address(*resp->pages), &resp->len);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -171,11 +201,13 @@ nfsd3_proc_read(struct svc_rqst *rqstp)
 	 * + 1 (xdr opaque byte count) = 26
 	 */
 	resp->count = argp->count;
-	svc_reserve_auth(rqstp, ((1 + NFS3_POST_OP_ATTR_WORDS + 3)<<2) + resp->count +4);
+	svc_reserve_auth(rqstp, ((1 + NFS3_POST_OP_ATTR_WORDS + 3) << 2) +
+			 resp->count + 4);
 
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_read(rqstp, &resp->fh, argp->offset,
 				 &resp->count, &resp->eof);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -194,7 +226,7 @@ nfsd3_proc_write(struct svc_rqst *rqstp)
 				SVCFH_fmt(&argp->fh),
 				argp->len,
 				(unsigned long long) argp->offset,
-				argp->stable? " stable" : "");
+				argp->stable ? " stable" : "");
 
 	resp->status = nfserr_fbig;
 	if (argp->offset > (u64)OFFSET_MAX ||
@@ -209,6 +241,7 @@ nfsd3_proc_write(struct svc_rqst *rqstp)
 				  rqstp->rq_vec, nvecs, &cnt,
 				  resp->committed, resp->verf);
 	resp->count = cnt;
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -294,8 +327,8 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			status = nfserr_exist;
 			break;
 		case NFS3_CREATE_EXCLUSIVE:
-			if (d_inode(child)->i_mtime.tv_sec == v_mtime &&
-			    d_inode(child)->i_atime.tv_sec == v_atime &&
+			if (inode_get_mtime_sec(d_inode(child)) == v_mtime &&
+			    inode_get_atime_sec(d_inode(child)) == v_atime &&
 			    d_inode(child)->i_size == 0) {
 				break;
 			}
@@ -307,7 +340,9 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (!IS_POSIXACL(inode))
 		iap->ia_mode &= ~current_umask();
 
-	fh_fill_pre_attrs(fhp);
+	status = fh_fill_pre_attrs(fhp);
+	if (status != nfs_ok)
+		goto out;
 	host_err = vfs_create(&nop_mnt_idmap, inode, child, iap->ia_mode, true);
 	if (host_err < 0) {
 		status = nfserrno(host_err);
@@ -354,6 +389,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp)
 	newfhp = fh_init(&resp->fh, NFS3_FHSIZE);
 
 	resp->status = nfsd3_create_file(rqstp, dirfhp, newfhp, argp);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -379,6 +415,7 @@ nfsd3_proc_mkdir(struct svc_rqst *rqstp)
 	fh_init(&resp->fh, NFS3_FHSIZE);
 	resp->status = nfsd_create(rqstp, &resp->dirfh, argp->name, argp->len,
 				   &attrs, S_IFDIR, 0, &resp->fh);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -419,6 +456,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
 				    argp->flen, argp->tname, &attrs, &resp->fh);
 	kfree(argp->tname);
 out:
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -460,6 +498,7 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 	resp->status = nfsd_create(rqstp, &resp->dirfh, argp->name, argp->len,
 				   &attrs, type, rdev, &resp->fh);
 out:
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -481,6 +520,7 @@ nfsd3_proc_remove(struct svc_rqst *rqstp)
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_unlink(rqstp, &resp->fh, -S_IFDIR,
 				   argp->name, argp->len);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -501,6 +541,7 @@ nfsd3_proc_rmdir(struct svc_rqst *rqstp)
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_unlink(rqstp, &resp->fh, S_IFDIR,
 				   argp->name, argp->len);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -523,6 +564,7 @@ nfsd3_proc_rename(struct svc_rqst *rqstp)
 	fh_copy(&resp->tfh, &argp->tfh);
 	resp->status = nfsd_rename(rqstp, &resp->ffh, argp->fname, argp->flen,
 				   &resp->tfh, argp->tname, argp->tlen);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -543,6 +585,7 @@ nfsd3_proc_link(struct svc_rqst *rqstp)
 	fh_copy(&resp->tfh, &argp->tfh);
 	resp->status = nfsd_link(rqstp, &resp->tfh, argp->tname, argp->tlen,
 				 &resp->fh);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -595,6 +638,7 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp)
 	/* Recycle only pages that were part of the reply */
 	rqstp->rq_next_page = resp->xdr.page_ptr + 1;
 
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -639,6 +683,7 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 	rqstp->rq_next_page = resp->xdr.page_ptr + 1;
 
 out:
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -656,6 +701,7 @@ nfsd3_proc_fsstat(struct svc_rqst *rqstp)
 
 	resp->status = nfsd_statfs(rqstp, &argp->fh, &resp->stats, 0);
 	fh_put(&argp->fh);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -699,6 +745,7 @@ nfsd3_proc_fsinfo(struct svc_rqst *rqstp)
 	}
 
 	fh_put(&argp->fh);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -741,6 +788,7 @@ nfsd3_proc_pathconf(struct svc_rqst *rqstp)
 	}
 
 	fh_put(&argp->fh);
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 
@@ -768,6 +816,7 @@ nfsd3_proc_commit(struct svc_rqst *rqstp)
 				   argp->count, resp->verf);
 	nfsd_file_put(nf);
 out:
+	resp->status = nfsd3_map_status(resp->status);
 	return rpc_success;
 }
 

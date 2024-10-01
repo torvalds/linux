@@ -38,6 +38,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/notifier.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_umem.h>
@@ -644,6 +645,7 @@ struct mlx4_ib_dev {
 	spinlock_t		reset_flow_resource_lock;
 	struct list_head		qp_list;
 	struct mlx4_ib_diag_counters diag_counters[MLX4_DIAG_COUNTERS_TYPES];
+	struct notifier_block	mlx_nb;
 };
 
 struct ib_event_work {
@@ -765,7 +767,7 @@ int mlx4_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		      struct ib_udata *udata);
+		      struct uverbs_attr_bundle *attrs);
 int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int mlx4_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int mlx4_ib_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);

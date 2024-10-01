@@ -13,6 +13,8 @@
 #include <nd-core.h>
 #include <linux/printk.h>
 #include <linux/seq_buf.h>
+#include <linux/papr_scm.h>
+#include <uapi/linux/papr_pdsm.h>
 
 #include "../watermark.h"
 #include "nfit_test.h"
@@ -38,7 +40,11 @@ enum {
 
 static DEFINE_SPINLOCK(ndtest_lock);
 static struct ndtest_priv *instances[NUM_INSTANCES];
-static struct class *ndtest_dimm_class;
+
+static const struct class ndtest_dimm_class = {
+	.name = "nfit_test_dimm",
+};
+
 static struct gen_pool *ndtest_pool;
 
 static struct ndtest_dimm dimm_group1[] = {
@@ -737,7 +743,7 @@ static int ndtest_dimm_register(struct ndtest_priv *priv,
 		return -ENXIO;
 	}
 
-	dimm->dev = device_create_with_groups(ndtest_dimm_class,
+	dimm->dev = device_create_with_groups(&ndtest_dimm_class,
 					     &priv->pdev.dev,
 					     0, dimm, dimm_attribute_groups,
 					     "test_dimm%d", id);
@@ -826,12 +832,11 @@ static int ndtest_bus_register(struct ndtest_priv *p)
 	return 0;
 }
 
-static int ndtest_remove(struct platform_device *pdev)
+static void ndtest_remove(struct platform_device *pdev)
 {
 	struct ndtest_priv *p = to_ndtest_priv(&pdev->dev);
 
 	nvdimm_bus_unregister(p->bus);
-	return 0;
 }
 
 static int ndtest_probe(struct platform_device *pdev)
@@ -878,7 +883,7 @@ static const struct platform_device_id ndtest_id[] = {
 
 static struct platform_driver ndtest_driver = {
 	.probe = ndtest_probe,
-	.remove = ndtest_remove,
+	.remove_new = ndtest_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},
@@ -906,8 +911,7 @@ static void cleanup_devices(void)
 		gen_pool_destroy(ndtest_pool);
 
 
-	if (ndtest_dimm_class)
-		class_destroy(ndtest_dimm_class);
+	class_unregister(&ndtest_dimm_class);
 }
 
 static __init int ndtest_init(void)
@@ -921,11 +925,9 @@ static __init int ndtest_init(void)
 
 	nfit_test_setup(ndtest_resource_lookup, NULL);
 
-	ndtest_dimm_class = class_create("nfit_test_dimm");
-	if (IS_ERR(ndtest_dimm_class)) {
-		rc = PTR_ERR(ndtest_dimm_class);
+	rc = class_register(&ndtest_dimm_class);
+	if (rc)
 		goto err_register;
-	}
 
 	ndtest_pool = gen_pool_create(ilog2(SZ_4M), NUMA_NO_NODE);
 	if (!ndtest_pool) {
@@ -985,5 +987,6 @@ static __exit void ndtest_exit(void)
 
 module_init(ndtest_init);
 module_exit(ndtest_exit);
+MODULE_DESCRIPTION("Test non-NFIT devices");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("IBM Corporation");

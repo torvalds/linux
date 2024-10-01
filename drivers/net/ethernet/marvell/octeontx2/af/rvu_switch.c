@@ -158,6 +158,7 @@ void rvu_switch_enable(struct rvu *rvu)
 	struct npc_mcam_alloc_entry_req alloc_req = { 0 };
 	struct npc_mcam_alloc_entry_rsp alloc_rsp = { 0 };
 	struct npc_delete_flow_req uninstall_req = { 0 };
+	struct npc_delete_flow_rsp uninstall_rsp = { 0 };
 	struct npc_mcam_free_entry_req free_req = { 0 };
 	struct rvu_switch *rswitch = &rvu->rswitch;
 	struct msg_rsp rsp;
@@ -197,7 +198,7 @@ void rvu_switch_enable(struct rvu *rvu)
 uninstall_rules:
 	uninstall_req.start = rswitch->start_entry;
 	uninstall_req.end =  rswitch->start_entry + rswitch->used_entries - 1;
-	rvu_mbox_handler_npc_delete_flow(rvu, &uninstall_req, &rsp);
+	rvu_mbox_handler_npc_delete_flow(rvu, &uninstall_req, &uninstall_rsp);
 	kfree(rswitch->entry2pcifunc);
 free_entries:
 	free_req.all = 1;
@@ -209,6 +210,7 @@ exit:
 void rvu_switch_disable(struct rvu *rvu)
 {
 	struct npc_delete_flow_req uninstall_req = { 0 };
+	struct npc_delete_flow_rsp uninstall_rsp = { 0 };
 	struct npc_mcam_free_entry_req free_req = { 0 };
 	struct rvu_switch *rswitch = &rvu->rswitch;
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -250,7 +252,7 @@ void rvu_switch_disable(struct rvu *rvu)
 	uninstall_req.start = rswitch->start_entry;
 	uninstall_req.end =  rswitch->start_entry + rswitch->used_entries - 1;
 	free_req.all = 1;
-	rvu_mbox_handler_npc_delete_flow(rvu, &uninstall_req, &rsp);
+	rvu_mbox_handler_npc_delete_flow(rvu, &uninstall_req, &uninstall_rsp);
 	rvu_mbox_handler_npc_mcam_free_entry(rvu, &free_req, &rsp);
 	rswitch->used_entries = 0;
 	kfree(rswitch->entry2pcifunc);

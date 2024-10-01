@@ -306,7 +306,7 @@ struct srp_fr_pool {
 	int			max_page_list_len;
 	spinlock_t		lock;
 	struct list_head	free_list;
-	struct srp_fr_desc	desc[];
+	struct srp_fr_desc	desc[] __counted_by(size);
 };
 
 /**

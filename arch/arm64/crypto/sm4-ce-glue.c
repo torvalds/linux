@@ -37,10 +37,6 @@ asmlinkage void sm4_ce_cbc_cts_enc(const u32 *rkey, u8 *dst, const u8 *src,
 				   u8 *iv, unsigned int nbytes);
 asmlinkage void sm4_ce_cbc_cts_dec(const u32 *rkey, u8 *dst, const u8 *src,
 				   u8 *iv, unsigned int nbytes);
-asmlinkage void sm4_ce_cfb_enc(const u32 *rkey, u8 *dst, const u8 *src,
-			       u8 *iv, unsigned int nblks);
-asmlinkage void sm4_ce_cfb_dec(const u32 *rkey, u8 *dst, const u8 *src,
-			       u8 *iv, unsigned int nblks);
 asmlinkage void sm4_ce_ctr_enc(const u32 *rkey, u8 *dst, const u8 *src,
 			       u8 *iv, unsigned int nblks);
 asmlinkage void sm4_ce_xts_enc(const u32 *rkey1, u8 *dst, const u8 *src,
@@ -56,7 +52,6 @@ asmlinkage void sm4_ce_mac_update(const u32 *rkey_enc, u8 *digest,
 EXPORT_SYMBOL(sm4_ce_expand_key);
 EXPORT_SYMBOL(sm4_ce_crypt_block);
 EXPORT_SYMBOL(sm4_ce_cbc_enc);
-EXPORT_SYMBOL(sm4_ce_cfb_enc);
 
 struct sm4_xts_ctx {
 	struct sm4_ctx key1;
@@ -280,90 +275,6 @@ static int sm4_cbc_cts_decrypt(struct skcipher_request *req)
 	return sm4_cbc_cts_crypt(req, false);
 }
 
-static int sm4_cfb_encrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes) > 0) {
-		const u8 *src = walk.src.virt.addr;
-		u8 *dst = walk.dst.virt.addr;
-		unsigned int nblks;
-
-		kernel_neon_begin();
-
-		nblks = BYTES2BLKS(nbytes);
-		if (nblks) {
-			sm4_ce_cfb_enc(ctx->rkey_enc, dst, src, walk.iv, nblks);
-			dst += nblks * SM4_BLOCK_SIZE;
-			src += nblks * SM4_BLOCK_SIZE;
-			nbytes -= nblks * SM4_BLOCK_SIZE;
-		}
-
-		/* tail */
-		if (walk.nbytes == walk.total && nbytes > 0) {
-			u8 keystream[SM4_BLOCK_SIZE];
-
-			sm4_ce_crypt_block(ctx->rkey_enc, keystream, walk.iv);
-			crypto_xor_cpy(dst, src, keystream, nbytes);
-			nbytes = 0;
-		}
-
-		kernel_neon_end();
-
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
-}
-
-static int sm4_cfb_decrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes) > 0) {
-		const u8 *src = walk.src.virt.addr;
-		u8 *dst = walk.dst.virt.addr;
-		unsigned int nblks;
-
-		kernel_neon_begin();
-
-		nblks = BYTES2BLKS(nbytes);
-		if (nblks) {
-			sm4_ce_cfb_dec(ctx->rkey_enc, dst, src, walk.iv, nblks);
-			dst += nblks * SM4_BLOCK_SIZE;
-			src += nblks * SM4_BLOCK_SIZE;
-			nbytes -= nblks * SM4_BLOCK_SIZE;
-		}
-
-		/* tail */
-		if (walk.nbytes == walk.total && nbytes > 0) {
-			u8 keystream[SM4_BLOCK_SIZE];
-
-			sm4_ce_crypt_block(ctx->rkey_enc, keystream, walk.iv);
-			crypto_xor_cpy(dst, src, keystream, nbytes);
-			nbytes = 0;
-		}
-
-		kernel_neon_end();
-
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
-}
-
 static int sm4_ctr_crypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -542,22 +453,6 @@ static struct skcipher_alg sm4_algs[] = {
 		.setkey		= sm4_setkey,
 		.encrypt	= sm4_cbc_encrypt,
 		.decrypt	= sm4_cbc_decrypt,
-	}, {
-		.base = {
-			.cra_name		= "cfb(sm4)",
-			.cra_driver_name	= "cfb-sm4-ce",
-			.cra_priority		= 400,
-			.cra_blocksize		= 1,
-			.cra_ctxsize		= sizeof(struct sm4_ctx),
-			.cra_module		= THIS_MODULE,
-		},
-		.min_keysize	= SM4_KEY_SIZE,
-		.max_keysize	= SM4_KEY_SIZE,
-		.ivsize		= SM4_BLOCK_SIZE,
-		.chunksize	= SM4_BLOCK_SIZE,
-		.setkey		= sm4_setkey,
-		.encrypt	= sm4_cfb_encrypt,
-		.decrypt	= sm4_cfb_decrypt,
 	}, {
 		.base = {
 			.cra_name		= "ctr(sm4)",
@@ -869,12 +764,11 @@ static void __exit sm4_exit(void)
 module_cpu_feature_match(SM4, sm4_init);
 module_exit(sm4_exit);
 
-MODULE_DESCRIPTION("SM4 ECB/CBC/CFB/CTR/XTS using ARMv8 Crypto Extensions");
+MODULE_DESCRIPTION("SM4 ECB/CBC/CTR/XTS using ARMv8 Crypto Extensions");
 MODULE_ALIAS_CRYPTO("sm4-ce");
 MODULE_ALIAS_CRYPTO("sm4");
 MODULE_ALIAS_CRYPTO("ecb(sm4)");
 MODULE_ALIAS_CRYPTO("cbc(sm4)");
-MODULE_ALIAS_CRYPTO("cfb(sm4)");
 MODULE_ALIAS_CRYPTO("ctr(sm4)");
 MODULE_ALIAS_CRYPTO("cts(cbc(sm4))");
 MODULE_ALIAS_CRYPTO("xts(sm4)");

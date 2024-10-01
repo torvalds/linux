@@ -539,9 +539,8 @@ static int adux1020_write_event_config(struct iio_dev *indio_dev,
 		 * Trigger proximity interrupt when the intensity is above
 		 * or below threshold
 		 */
-		ret = regmap_update_bits(data->regmap, ADUX1020_REG_PROX_TYPE,
-					 ADUX1020_PROX_TYPE,
-					 ADUX1020_PROX_TYPE);
+		ret = regmap_set_bits(data->regmap, ADUX1020_REG_PROX_TYPE,
+				      ADUX1020_PROX_TYPE);
 		if (ret < 0)
 			goto fail;
 
@@ -748,8 +747,8 @@ static int adux1020_chip_init(struct adux1020_data *data)
 
 	dev_dbg(&client->dev, "Detected ADUX1020 with chip id: 0x%04x\n", val);
 
-	ret = regmap_update_bits(data->regmap, ADUX1020_REG_SW_RESET,
-				 ADUX1020_SW_RESET, ADUX1020_SW_RESET);
+	ret = regmap_set_bits(data->regmap, ADUX1020_REG_SW_RESET,
+			      ADUX1020_SW_RESET);
 	if (ret < 0)
 		return ret;
 
@@ -764,8 +763,8 @@ static int adux1020_chip_init(struct adux1020_data *data)
 		return ret;
 
 	/* Use LED_IREF for proximity mode */
-	ret = regmap_update_bits(data->regmap, ADUX1020_REG_LED_CURRENT,
-				 ADUX1020_LED_PIREF_EN, 0);
+	ret = regmap_clear_bits(data->regmap, ADUX1020_REG_LED_CURRENT,
+				ADUX1020_LED_PIREF_EN);
 	if (ret < 0)
 		return ret;
 
@@ -821,7 +820,7 @@ static int adux1020_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adux1020_id[] = {
-	{ "adux1020", 0 },
+	{ "adux1020" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, adux1020_id);

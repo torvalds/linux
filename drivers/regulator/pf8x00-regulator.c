@@ -142,7 +142,7 @@ static const struct regmap_config pf8x00_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = PF8X00_PAGE_SELECT,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* VLDOx output: 1.5V to 5.0V */
@@ -596,10 +596,10 @@ static const struct of_device_id pf8x00_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, pf8x00_dt_ids);
 
 static const struct i2c_device_id pf8x00_i2c_id[] = {
-	{ "pf8100", 0 },
-	{ "pf8121a", 0 },
-	{ "pf8200", 0 },
-	{},
+	{ "pf8100" },
+	{ "pf8121a" },
+	{ "pf8200" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, pf8x00_i2c_id);
 

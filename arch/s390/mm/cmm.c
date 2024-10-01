@@ -90,16 +90,17 @@ static long cmm_alloc_pages(long nr, long *counter,
 			} else
 				free_page((unsigned long) npa);
 		}
-		diag10_range(virt_to_pfn(addr), 1);
+		diag10_range(virt_to_pfn((void *)addr), 1);
 		pa->pages[pa->index++] = addr;
 		(*counter)++;
 		spin_unlock(&cmm_lock);
 		nr--;
+		cond_resched();
 	}
 	return nr;
 }
 
-static long cmm_free_pages(long nr, long *counter, struct cmm_page_array **list)
+static long __cmm_free_pages(long nr, long *counter, struct cmm_page_array **list)
 {
 	struct cmm_page_array *pa;
 	unsigned long addr;
@@ -121,6 +122,21 @@ static long cmm_free_pages(long nr, long *counter, struct cmm_page_array **list)
 	}
 	spin_unlock(&cmm_lock);
 	return nr;
+}
+
+static long cmm_free_pages(long nr, long *counter, struct cmm_page_array **list)
+{
+	long inc = 0;
+
+	while (nr) {
+		inc = min(256L, nr);
+		nr -= inc;
+		inc = __cmm_free_pages(inc, counter, list);
+		if (inc)
+			break;
+		cond_resched();
+	}
+	return nr + inc;
 }
 
 static int cmm_oom_notify(struct notifier_block *self,
@@ -243,7 +259,7 @@ static int cmm_skip_blanks(char *cp, char **endp)
 	return str != cp;
 }
 
-static int cmm_pages_handler(struct ctl_table *ctl, int write,
+static int cmm_pages_handler(const struct ctl_table *ctl, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	long nr = cmm_get_pages();
@@ -262,7 +278,7 @@ static int cmm_pages_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
+static int cmm_timed_pages_handler(const struct ctl_table *ctl, int write,
 				   void *buffer, size_t *lenp,
 				   loff_t *ppos)
 {
@@ -282,7 +298,7 @@ static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static int cmm_timeout_handler(struct ctl_table *ctl, int write,
+static int cmm_timeout_handler(const struct ctl_table *ctl, int write,
 			       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[64], *p;
@@ -332,7 +348,6 @@ static struct ctl_table cmm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= cmm_timeout_handler,
 	},
-	{ }
 };
 
 #ifdef CONFIG_CMM_IUCV
@@ -428,4 +443,5 @@ static void __exit cmm_exit(void)
 }
 module_exit(cmm_exit);
 
+MODULE_DESCRIPTION("Cooperative memory management interface");
 MODULE_LICENSE("GPL");

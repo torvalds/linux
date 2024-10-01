@@ -11,7 +11,7 @@
 #include <linux/const.h>
 #include <asm/types.h>
 
-#define _PAGE_SHIFT	12
+#define _PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define _PAGE_SIZE	(_AC(1, UL) << _PAGE_SHIFT)
 #define _PAGE_MASK	(~(_PAGE_SIZE - 1))
 
@@ -162,9 +162,9 @@ static inline int page_reset_referenced(unsigned long addr)
 #define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
 
 struct page;
+struct folio;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);
-void arch_set_page_dat(struct page *page, int order);
 
 static inline int devmem_is_allowed(unsigned long pfn)
 {
@@ -174,31 +174,98 @@ static inline int devmem_is_allowed(unsigned long pfn)
 #define HAVE_ARCH_FREE_PAGE
 #define HAVE_ARCH_ALLOC_PAGE
 
-#if IS_ENABLED(CONFIG_PGSTE)
-int arch_make_page_accessible(struct page *page);
-#define HAVE_ARCH_MAKE_PAGE_ACCESSIBLE
-#endif
+int arch_make_folio_accessible(struct folio *folio);
+#define HAVE_ARCH_MAKE_FOLIO_ACCESSIBLE
 
-#define __PAGE_OFFSET		0x0UL
-#define PAGE_OFFSET		0x0UL
+struct vm_layout {
+	unsigned long kaslr_offset;
+	unsigned long kaslr_offset_phys;
+	unsigned long identity_base;
+	unsigned long identity_size;
+};
 
-#define __pa(x)			((unsigned long)(x))
+extern struct vm_layout vm_layout;
+
+#define __kaslr_offset		vm_layout.kaslr_offset
+#define __kaslr_offset_phys	vm_layout.kaslr_offset_phys
+#define __identity_base		vm_layout.identity_base
+#define ident_map_size		vm_layout.identity_size
+
+static inline unsigned long kaslr_offset(void)
+{
+	return __kaslr_offset;
+}
+
+extern int __kaslr_enabled;
+static inline int kaslr_enabled(void)
+{
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE))
+		return __kaslr_enabled;
+	return 0;
+}
+
+#define __PAGE_OFFSET		__identity_base
+#define PAGE_OFFSET		__PAGE_OFFSET
+
+#ifdef __DECOMPRESSOR
+
+#define __pa_nodebug(x)		((unsigned long)(x))
+#define __pa(x)			__pa_nodebug(x)
+#define __pa32(x)		__pa(x)
 #define __va(x)			((void *)(unsigned long)(x))
+
+#else /* __DECOMPRESSOR */
+
+static inline unsigned long __pa_nodebug(unsigned long x)
+{
+	if (x < __kaslr_offset)
+		return x - __identity_base;
+	return x - __kaslr_offset + __kaslr_offset_phys;
+}
+
+#ifdef CONFIG_DEBUG_VIRTUAL
+
+unsigned long __phys_addr(unsigned long x, bool is_31bit);
+
+#else /* CONFIG_DEBUG_VIRTUAL */
+
+static inline unsigned long __phys_addr(unsigned long x, bool is_31bit)
+{
+	return __pa_nodebug(x);
+}
+
+#endif /* CONFIG_DEBUG_VIRTUAL */
+
+#define __pa(x)			__phys_addr((unsigned long)(x), false)
+#define __pa32(x)		__phys_addr((unsigned long)(x), true)
+#define __va(x)			((void *)((unsigned long)(x) + __identity_base))
+
+#endif /* __DECOMPRESSOR */
 
 #define phys_to_pfn(phys)	((phys) >> PAGE_SHIFT)
 #define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
 
 #define phys_to_page(phys)	pfn_to_page(phys_to_pfn(phys))
+#define phys_to_folio(phys)	page_folio(phys_to_page(phys))
 #define page_to_phys(page)	pfn_to_phys(page_to_pfn(page))
+#define folio_to_phys(page)	pfn_to_phys(folio_pfn(folio))
 
-#define pfn_to_virt(pfn)	__va(pfn_to_phys(pfn))
-#define virt_to_pfn(kaddr)	(phys_to_pfn(__pa(kaddr)))
+static inline void *pfn_to_virt(unsigned long pfn)
+{
+	return __va(pfn_to_phys(pfn));
+}
+
+static inline unsigned long virt_to_pfn(const void *kaddr)
+{
+	return phys_to_pfn(__pa(kaddr));
+}
+
 #define pfn_to_kaddr(pfn)	pfn_to_virt(pfn)
 
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
 
-#define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
+#define virt_addr_valid(kaddr)	pfn_valid(phys_to_pfn(__pa_nodebug((unsigned long)(kaddr))))
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 
@@ -206,5 +273,13 @@ int arch_make_page_accessible(struct page *page);
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+
+#define AMODE31_SIZE		(3 * PAGE_SIZE)
+
+#define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
+#define __NO_KASLR_START_KERNEL	CONFIG_KERNEL_IMAGE_BASE
+#define __NO_KASLR_END_KERNEL	(__NO_KASLR_START_KERNEL + KERNEL_IMAGE_SIZE)
+
+#define TEXT_OFFSET		0x100000
 
 #endif /* _S390_PAGE_H */

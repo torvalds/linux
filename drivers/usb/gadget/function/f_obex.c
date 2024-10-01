@@ -365,9 +365,8 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	if (status)
 		goto fail;
 
-	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d: %s speed IN/%s OUT/%s\n",
+	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d: IN/%s OUT/%s\n",
 		obex->port_num,
-		gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
 		obex->port.in->name, obex->port.out->name);
 
 	return 0;
@@ -488,4 +487,5 @@ static struct usb_function *obex_alloc(struct usb_function_instance *fi)
 
 DECLARE_USB_FUNCTION_INIT(obex, obex_alloc_inst, obex_alloc);
 MODULE_AUTHOR("Felipe Balbi");
+MODULE_DESCRIPTION("USB CDC OBEX function driver");
 MODULE_LICENSE("GPL");

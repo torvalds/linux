@@ -162,6 +162,7 @@ static void vduse_domain_bounce(struct vduse_iova_domain *domain,
 				enum dma_data_direction dir)
 {
 	struct vduse_bounce_map *map;
+	struct page *page;
 	unsigned int offset;
 	void *addr;
 	size_t sz;
@@ -178,7 +179,10 @@ static void vduse_domain_bounce(struct vduse_iova_domain *domain,
 			    map->orig_phys == INVALID_PHYS_ADDR))
 			return;
 
-		addr = kmap_local_page(map->bounce_page);
+		page = domain->user_bounce_pages ?
+		       map->user_bounce_page : map->bounce_page;
+
+		addr = kmap_local_page(page);
 		do_bounce(map->orig_phys + offset, addr + offset, sz, dir);
 		kunmap_local(addr);
 		size -= sz;
@@ -270,9 +274,8 @@ int vduse_domain_add_user_bounce_pages(struct vduse_iova_domain *domain,
 				memcpy_to_page(pages[i], 0,
 					       page_address(map->bounce_page),
 					       PAGE_SIZE);
-			__free_page(map->bounce_page);
 		}
-		map->bounce_page = pages[i];
+		map->user_bounce_page = pages[i];
 		get_page(pages[i]);
 	}
 	domain->user_bounce_pages = true;
@@ -297,17 +300,17 @@ void vduse_domain_remove_user_bounce_pages(struct vduse_iova_domain *domain)
 		struct page *page = NULL;
 
 		map = &domain->bounce_maps[i];
-		if (WARN_ON(!map->bounce_page))
+		if (WARN_ON(!map->user_bounce_page))
 			continue;
 
 		/* Copy user page to kernel page if it's in use */
 		if (map->orig_phys != INVALID_PHYS_ADDR) {
-			page = alloc_page(GFP_ATOMIC | __GFP_NOFAIL);
+			page = map->bounce_page;
 			memcpy_from_page(page_address(page),
-					 map->bounce_page, 0, PAGE_SIZE);
+					 map->user_bounce_page, 0, PAGE_SIZE);
 		}
-		put_page(map->bounce_page);
-		map->bounce_page = page;
+		put_page(map->user_bounce_page);
+		map->user_bounce_page = NULL;
 	}
 	domain->user_bounce_pages = false;
 out:
@@ -373,6 +376,26 @@ static void vduse_domain_free_iova(struct iova_domain *iovad,
 	free_iova_fast(iovad, iova >> shift, iova_len);
 }
 
+void vduse_domain_sync_single_for_device(struct vduse_iova_domain *domain,
+				      dma_addr_t dma_addr, size_t size,
+				      enum dma_data_direction dir)
+{
+	read_lock(&domain->bounce_lock);
+	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
+		vduse_domain_bounce(domain, dma_addr, size, DMA_TO_DEVICE);
+	read_unlock(&domain->bounce_lock);
+}
+
+void vduse_domain_sync_single_for_cpu(struct vduse_iova_domain *domain,
+				      dma_addr_t dma_addr, size_t size,
+				      enum dma_data_direction dir)
+{
+	read_lock(&domain->bounce_lock);
+	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
+		vduse_domain_bounce(domain, dma_addr, size, DMA_FROM_DEVICE);
+	read_unlock(&domain->bounce_lock);
+}
+
 dma_addr_t vduse_domain_map_page(struct vduse_iova_domain *domain,
 				 struct page *page, unsigned long offset,
 				 size_t size, enum dma_data_direction dir,
@@ -393,7 +416,8 @@ dma_addr_t vduse_domain_map_page(struct vduse_iova_domain *domain,
 	if (vduse_domain_map_bounce_page(domain, (u64)iova, (u64)size, pa))
 		goto err_unlock;
 
-	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
+	    (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
 		vduse_domain_bounce(domain, iova, size, DMA_TO_DEVICE);
 
 	read_unlock(&domain->bounce_lock);
@@ -411,9 +435,9 @@ void vduse_domain_unmap_page(struct vduse_iova_domain *domain,
 			     enum dma_data_direction dir, unsigned long attrs)
 {
 	struct iova_domain *iovad = &domain->stream_iovad;
-
 	read_lock(&domain->bounce_lock);
-	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
+	    (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
 		vduse_domain_bounce(domain, dma_addr, size, DMA_FROM_DEVICE);
 
 	vduse_domain_unmap_bounce_page(domain, (u64)dma_addr, (u64)size);

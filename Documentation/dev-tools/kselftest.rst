@@ -112,7 +112,7 @@ You can specify multiple tests to skip::
 You can also specify a restricted list of tests to run together with a
 dedicated skiplist::
 
-  $  make TARGETS="bpf breakpoints size timers" SKIP_TARGETS=bpf kselftest
+  $  make TARGETS="breakpoints size timers" SKIP_TARGETS=size kselftest
 
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
@@ -165,7 +165,7 @@ To see the list of available tests, the `-l` option can be used::
 The `-c` option can be used to run all the tests from a test collection, or
 the `-t` option for specific single tests. Either can be used multiple times::
 
-   $ ./run_kselftest.sh -c bpf -c seccomp -t timers:posix_timers -t timer:nanosleep
+   $ ./run_kselftest.sh -c size -c seccomp -t timers:posix_timers -t timer:nanosleep
 
 For other features see the script usage output, seen with the `-h` option.
 
@@ -183,7 +183,7 @@ expected time it takes to run a test. If you have control over the systems
 which will run the tests you can configure a test runner on those systems to
 use a greater or lower timeout on the command line as with the `-o` or
 the `--override-timeout` argument. For example to use 165 seconds instead
-one would use:
+one would use::
 
    $ ./run_kselftest.sh --override-timeout 165
 
@@ -210,7 +210,7 @@ option is supported, such as::
 tests by using variables specified in `Running a subset of selftests`_
 section::
 
-    $ make -C tools/testing/selftests gen_tar TARGETS="bpf" FORMAT=.xz
+    $ make -C tools/testing/selftests gen_tar TARGETS="size" FORMAT=.xz
 
 .. _tar's auto-compress: https://www.gnu.org/software/tar/manual/html_node/gzip.html#auto_002dcompress
 
@@ -227,6 +227,13 @@ In general, the rules for selftests are
 
  * Don't cause the top-level "make run_tests" to fail if your feature is
    unconfigured.
+
+ * The output of tests must conform to the TAP standard to ensure high
+   testing quality and to capture failures/errors with specific details.
+   The kselftest.h and kselftest_harness.h headers provide wrappers for
+   outputting test results. These wrappers should be used for pass,
+   fail, exit, and skip messages. CI systems can easily parse TAP output
+   messages to detect test results.
 
 Contributing new tests (details)
 ================================
@@ -245,6 +252,10 @@ Contributing new tests (details)
    TEST_PROGS, TEST_GEN_PROGS mean it is the executable tested by
    default.
 
+   TEST_GEN_MODS_DIR should be used by tests that require modules to be built
+   before the test starts. The variable will contain the name of the directory
+   containing the modules.
+
    TEST_CUSTOM_PROGS should be used by tests that require custom build
    rules and prevent common build rule use.
 
@@ -255,8 +266,20 @@ Contributing new tests (details)
 
    TEST_PROGS_EXTENDED, TEST_GEN_PROGS_EXTENDED mean it is the
    executable which is not tested by default.
+
    TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
    test.
+
+   TEST_INCLUDES is similar to TEST_FILES, it lists files which should be
+   included when exporting or installing the tests, with the following
+   differences:
+
+    * symlinks to files in other directories are preserved
+    * the part of paths below tools/testing/selftests/ is preserved when
+      copying the files to the output directory
+
+   TEST_INCLUDES is meant to list dependencies located in other directories of
+   the selftests hierarchy.
 
  * First use the headers inside the kernel source and/or git repo, and then the
    system headers.  Headers for the kernel release as opposed to headers

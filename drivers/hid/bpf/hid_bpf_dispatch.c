@@ -3,7 +3,7 @@
 /*
  *  HID-BPF support for Linux
  *
- *  Copyright (c) 2022 Benjamin Tissoires
+ *  Copyright (c) 2022-2024 Benjamin Tissoires
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -17,47 +17,25 @@
 #include <linux/kfifo.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
-#include <linux/workqueue.h>
 #include "hid_bpf_dispatch.h"
-#include "entrypoints/entrypoints.lskel.h"
 
-struct hid_bpf_ops *hid_bpf_ops;
-EXPORT_SYMBOL(hid_bpf_ops);
-
-/**
- * hid_bpf_device_event - Called whenever an event is coming in from the device
- *
- * @ctx: The HID-BPF context
- *
- * @return %0 on success and keep processing; a positive value to change the
- * incoming size buffer; a negative error code to interrupt the processing
- * of this event
- *
- * Declare an %fmod_ret tracing bpf program to this function and attach this
- * program through hid_bpf_attach_prog() to have this helper called for
- * any incoming event from the device itself.
- *
- * The function is called while on IRQ context, so we can not sleep.
- */
-/* never used by the kernel but declared so we can load and attach a tracepoint */
-__weak noinline int hid_bpf_device_event(struct hid_bpf_ctx *ctx)
-{
-	return 0;
-}
+struct hid_ops *hid_ops;
+EXPORT_SYMBOL(hid_ops);
 
 u8 *
 dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type, u8 *data,
-			      u32 *size, int interrupt)
+			      u32 *size, int interrupt, u64 source, bool from_bpf)
 {
 	struct hid_bpf_ctx_kern ctx_kern = {
 		.ctx = {
 			.hid = hdev,
-			.report_type = type,
 			.allocated_size = hdev->bpf.allocated_data,
 			.size = *size,
 		},
 		.data = hdev->bpf.device_data,
+		.from_bpf = from_bpf,
 	};
+	struct hid_bpf_ops *e;
 	int ret;
 
 	if (type >= HID_REPORT_TYPES)
@@ -70,10 +48,22 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	memset(ctx_kern.data, 0, hdev->bpf.allocated_data);
 	memcpy(ctx_kern.data, data, *size);
 
-	ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_DEVICE_EVENT, &ctx_kern);
-	if (ret < 0)
-		return ERR_PTR(ret);
+	rcu_read_lock();
+	list_for_each_entry_rcu(e, &hdev->bpf.prog_list, list) {
+		if (e->hid_device_event) {
+			ret = e->hid_device_event(&ctx_kern.ctx, type, source);
+			if (ret < 0) {
+				rcu_read_unlock();
+				return ERR_PTR(ret);
+			}
 
+			if (ret)
+				ctx_kern.ctx.size = ret;
+		}
+	}
+	rcu_read_unlock();
+
+	ret = ctx_kern.ctx.size;
 	if (ret) {
 		if (ret > ctx_kern.ctx.allocated_size)
 			return ERR_PTR(-EINVAL);
@@ -85,27 +75,80 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 }
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_device_event);
 
-/**
- * hid_bpf_rdesc_fixup - Called when the probe function parses the report
- * descriptor of the HID device
- *
- * @ctx: The HID-BPF context
- *
- * @return 0 on success and keep processing; a positive value to change the
- * incoming size buffer; a negative error code to interrupt the processing
- * of this event
- *
- * Declare an %fmod_ret tracing bpf program to this function and attach this
- * program through hid_bpf_attach_prog() to have this helper called before any
- * parsing of the report descriptor by HID.
- */
-/* never used by the kernel but declared so we can load and attach a tracepoint */
-__weak noinline int hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx)
+int dispatch_hid_bpf_raw_requests(struct hid_device *hdev,
+				  unsigned char reportnum, u8 *buf,
+				  u32 size, enum hid_report_type rtype,
+				  enum hid_class_request reqtype,
+				  u64 source, bool from_bpf)
 {
-	return 0;
-}
+	struct hid_bpf_ctx_kern ctx_kern = {
+		.ctx = {
+			.hid = hdev,
+			.allocated_size = size,
+			.size = size,
+		},
+		.data = buf,
+		.from_bpf = from_bpf,
+	};
+	struct hid_bpf_ops *e;
+	int ret, idx;
 
-u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
+	if (rtype >= HID_REPORT_TYPES)
+		return -EINVAL;
+
+	idx = srcu_read_lock(&hdev->bpf.srcu);
+	list_for_each_entry_srcu(e, &hdev->bpf.prog_list, list,
+				 srcu_read_lock_held(&hdev->bpf.srcu)) {
+		if (!e->hid_hw_request)
+			continue;
+
+		ret = e->hid_hw_request(&ctx_kern.ctx, reportnum, rtype, reqtype, source);
+		if (ret)
+			goto out;
+	}
+	ret = 0;
+
+out:
+	srcu_read_unlock(&hdev->bpf.srcu, idx);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dispatch_hid_bpf_raw_requests);
+
+int dispatch_hid_bpf_output_report(struct hid_device *hdev,
+				   __u8 *buf, u32 size, u64 source,
+				   bool from_bpf)
+{
+	struct hid_bpf_ctx_kern ctx_kern = {
+		.ctx = {
+			.hid = hdev,
+			.allocated_size = size,
+			.size = size,
+		},
+		.data = buf,
+		.from_bpf = from_bpf,
+	};
+	struct hid_bpf_ops *e;
+	int ret, idx;
+
+	idx = srcu_read_lock(&hdev->bpf.srcu);
+	list_for_each_entry_srcu(e, &hdev->bpf.prog_list, list,
+				 srcu_read_lock_held(&hdev->bpf.srcu)) {
+		if (!e->hid_hw_output_report)
+			continue;
+
+		ret = e->hid_hw_output_report(&ctx_kern.ctx, source);
+		if (ret)
+			goto out;
+	}
+	ret = 0;
+
+out:
+	srcu_read_unlock(&hdev->bpf.srcu, idx);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dispatch_hid_bpf_output_report);
+
+u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, const u8 *rdesc, unsigned int *size)
 {
 	int ret;
 	struct hid_bpf_ctx_kern ctx_kern = {
@@ -116,13 +159,16 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 		},
 	};
 
+	if (!hdev->bpf.rdesc_ops)
+		goto ignore_bpf;
+
 	ctx_kern.data = kzalloc(ctx_kern.ctx.allocated_size, GFP_KERNEL);
 	if (!ctx_kern.data)
 		goto ignore_bpf;
 
 	memcpy(ctx_kern.data, rdesc, min_t(unsigned int, *size, HID_MAX_DESCRIPTOR_SIZE));
 
-	ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_RDESC_FIXUP, &ctx_kern);
+	ret = hdev->bpf.rdesc_ops->hid_rdesc_fixup(&ctx_kern.ctx);
 	if (ret < 0)
 		goto ignore_bpf;
 
@@ -133,9 +179,7 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 		*size = ret;
 	}
 
-	rdesc = krealloc(ctx_kern.data, *size, GFP_KERNEL);
-
-	return rdesc;
+	return krealloc(ctx_kern.data, *size, GFP_KERNEL);
 
  ignore_bpf:
 	kfree(ctx_kern.data);
@@ -143,49 +187,30 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 }
 EXPORT_SYMBOL_GPL(call_hid_bpf_rdesc_fixup);
 
-/**
- * hid_bpf_get_data - Get the kernel memory pointer associated with the context @ctx
- *
- * @ctx: The HID-BPF context
- * @offset: The offset within the memory
- * @rdwr_buf_size: the const size of the buffer
- *
- * @returns %NULL on error, an %__u8 memory pointer on success
- */
-noinline __u8 *
-hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr_buf_size)
-{
-	struct hid_bpf_ctx_kern *ctx_kern;
-
-	if (!ctx)
-		return NULL;
-
-	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
-
-	if (rdwr_buf_size + offset > ctx->allocated_size)
-		return NULL;
-
-	return ctx_kern->data + offset;
-}
-
-/*
- * The following set contains all functions we agree BPF programs
- * can use.
- */
-BTF_SET8_START(hid_bpf_kfunc_ids)
-BTF_ID_FLAGS(func, hid_bpf_get_data, KF_RET_NULL)
-BTF_SET8_END(hid_bpf_kfunc_ids)
-
-static const struct btf_kfunc_id_set hid_bpf_kfunc_set = {
-	.owner = THIS_MODULE,
-	.set   = &hid_bpf_kfunc_ids,
-};
-
 static int device_match_id(struct device *dev, const void *id)
 {
 	struct hid_device *hdev = to_hid_device(dev);
 
 	return hdev->id == *(int *)id;
+}
+
+struct hid_device *hid_get_device(unsigned int hid_id)
+{
+	struct device *dev;
+
+	if (!hid_ops)
+		return ERR_PTR(-EINVAL);
+
+	dev = bus_find_device(hid_ops->bus_type, NULL, &hid_id, device_match_id);
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	return to_hid_device(dev);
+}
+
+void hid_put_device(struct hid_device *hid)
+{
+	put_device(&hid->dev);
 }
 
 static int __hid_bpf_allocate_data(struct hid_device *hdev, u8 **data, u32 *size)
@@ -224,7 +249,7 @@ static int __hid_bpf_allocate_data(struct hid_device *hdev, u8 **data, u32 *size
 	return 0;
 }
 
-static int hid_bpf_allocate_event_data(struct hid_device *hdev)
+int hid_bpf_allocate_event_data(struct hid_device *hdev)
 {
 	/* hdev->bpf.device_data is already allocated, abort */
 	if (hdev->bpf.device_data)
@@ -241,62 +266,32 @@ int hid_bpf_reconnect(struct hid_device *hdev)
 	return 0;
 }
 
+/* Disables missing prototype warnings */
+__bpf_kfunc_start_defs();
+
 /**
- * hid_bpf_attach_prog - Attach the given @prog_fd to the given HID device
+ * hid_bpf_get_data - Get the kernel memory pointer associated with the context @ctx
  *
- * @hid_id: the system unique identifier of the HID device
- * @prog_fd: an fd in the user process representing the program to attach
- * @flags: any logical OR combination of &enum hid_bpf_attach_flags
+ * @ctx: The HID-BPF context
+ * @offset: The offset within the memory
+ * @rdwr_buf_size: the const size of the buffer
  *
- * @returns an fd of a bpf_link object on success (> %0), an error code otherwise.
- * Closing this fd will detach the program from the HID device (unless the bpf_link
- * is pinned to the BPF file system).
+ * @returns %NULL on error, an %__u8 memory pointer on success
  */
-/* called from syscall */
-noinline int
-hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
+__bpf_kfunc __u8 *
+hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr_buf_size)
 {
-	struct hid_device *hdev;
-	struct device *dev;
-	int fd, err, prog_type = hid_bpf_get_prog_attach_type(prog_fd);
+	struct hid_bpf_ctx_kern *ctx_kern;
 
-	if (!hid_bpf_ops)
-		return -EINVAL;
+	if (!ctx)
+		return NULL;
 
-	if (prog_type < 0)
-		return prog_type;
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
 
-	if (prog_type >= HID_BPF_PROG_TYPE_MAX)
-		return -EINVAL;
+	if (rdwr_buf_size + offset > ctx->allocated_size)
+		return NULL;
 
-	if ((flags & ~HID_BPF_FLAG_MASK))
-		return -EINVAL;
-
-	dev = bus_find_device(hid_bpf_ops->bus_type, NULL, &hid_id, device_match_id);
-	if (!dev)
-		return -EINVAL;
-
-	hdev = to_hid_device(dev);
-
-	if (prog_type == HID_BPF_PROG_TYPE_DEVICE_EVENT) {
-		err = hid_bpf_allocate_event_data(hdev);
-		if (err)
-			return err;
-	}
-
-	fd = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, flags);
-	if (fd < 0)
-		return fd;
-
-	if (prog_type == HID_BPF_PROG_TYPE_RDESC_FIXUP) {
-		err = hid_bpf_reconnect(hdev);
-		if (err) {
-			close_fd(fd);
-			return err;
-		}
-	}
-
-	return fd;
+	return ctx_kern->data + offset;
 }
 
 /**
@@ -306,25 +301,21 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
  *
  * @returns A pointer to &struct hid_bpf_ctx on success, %NULL on error.
  */
-noinline struct hid_bpf_ctx *
+__bpf_kfunc struct hid_bpf_ctx *
 hid_bpf_allocate_context(unsigned int hid_id)
 {
 	struct hid_device *hdev;
 	struct hid_bpf_ctx_kern *ctx_kern = NULL;
-	struct device *dev;
 
-	if (!hid_bpf_ops)
+	hdev = hid_get_device(hid_id);
+	if (IS_ERR(hdev))
 		return NULL;
-
-	dev = bus_find_device(hid_bpf_ops->bus_type, NULL, &hid_id, device_match_id);
-	if (!dev)
-		return NULL;
-
-	hdev = to_hid_device(dev);
 
 	ctx_kern = kzalloc(sizeof(*ctx_kern), GFP_KERNEL);
-	if (!ctx_kern)
+	if (!ctx_kern) {
+		hid_put_device(hdev);
 		return NULL;
+	}
 
 	ctx_kern->ctx.hid = hdev;
 
@@ -337,14 +328,59 @@ hid_bpf_allocate_context(unsigned int hid_id)
  * @ctx: the HID-BPF context to release
  *
  */
-noinline void
+__bpf_kfunc void
 hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
+	struct hid_device *hid;
 
 	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	hid = (struct hid_device *)ctx_kern->ctx.hid; /* ignore const */
 
 	kfree(ctx_kern);
+
+	/* get_device() is called by bus_find_device() */
+	hid_put_device(hid);
+}
+
+static int
+__hid_bpf_hw_check_params(struct hid_bpf_ctx *ctx, __u8 *buf, size_t *buf__sz,
+			  enum hid_report_type rtype)
+{
+	struct hid_report_enum *report_enum;
+	struct hid_report *report;
+	struct hid_device *hdev;
+	u32 report_len;
+
+	/* check arguments */
+	if (!ctx || !hid_ops || !buf)
+		return -EINVAL;
+
+	switch (rtype) {
+	case HID_INPUT_REPORT:
+	case HID_OUTPUT_REPORT:
+	case HID_FEATURE_REPORT:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (*buf__sz < 1)
+		return -EINVAL;
+
+	hdev = (struct hid_device *)ctx->hid; /* discard const */
+
+	report_enum = hdev->report_enum + rtype;
+	report = hid_ops->hid_get_report(report_enum, buf);
+	if (!report)
+		return -EINVAL;
+
+	report_len = hid_report_len(report);
+
+	if (*buf__sz > report_len)
+		*buf__sz = report_len;
+
+	return 0;
 }
 
 /**
@@ -358,29 +394,25 @@ hid_bpf_release_context(struct hid_bpf_ctx *ctx)
  *
  * @returns %0 on success, a negative error code otherwise.
  */
-noinline int
+__bpf_kfunc int
 hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 		   enum hid_report_type rtype, enum hid_class_request reqtype)
 {
+	struct hid_bpf_ctx_kern *ctx_kern;
 	struct hid_device *hdev;
-	struct hid_report *report;
-	struct hid_report_enum *report_enum;
+	size_t size = buf__sz;
 	u8 *dma_data;
-	u32 report_len;
 	int ret;
 
-	/* check arguments */
-	if (!ctx || !hid_bpf_ops || !buf)
-		return -EINVAL;
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
 
-	switch (rtype) {
-	case HID_INPUT_REPORT:
-	case HID_OUTPUT_REPORT:
-	case HID_FEATURE_REPORT:
-		break;
-	default:
-		return -EINVAL;
-	}
+	if (ctx_kern->from_bpf)
+		return -EDEADLOCK;
+
+	/* check arguments */
+	ret = __hid_bpf_hw_check_params(ctx, buf, &size, rtype);
+	if (ret)
+		return ret;
 
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
@@ -394,31 +426,20 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 		return -EINVAL;
 	}
 
-	if (buf__sz < 1)
-		return -EINVAL;
-
 	hdev = (struct hid_device *)ctx->hid; /* discard const */
 
-	report_enum = hdev->report_enum + rtype;
-	report = hid_bpf_ops->hid_get_report(report_enum, buf);
-	if (!report)
-		return -EINVAL;
-
-	report_len = hid_report_len(report);
-
-	if (buf__sz > report_len)
-		buf__sz = report_len;
-
-	dma_data = kmemdup(buf, buf__sz, GFP_KERNEL);
+	dma_data = kmemdup(buf, size, GFP_KERNEL);
 	if (!dma_data)
 		return -ENOMEM;
 
-	ret = hid_bpf_ops->hid_hw_raw_request(hdev,
+	ret = hid_ops->hid_hw_raw_request(hdev,
 					      dma_data[0],
 					      dma_data,
-					      buf__sz,
+					      size,
 					      rtype,
-					      reqtype);
+					      reqtype,
+					      (u64)(long)ctx,
+					      true); /* prevent infinite recursions */
 
 	if (ret > 0)
 		memcpy(buf, dma_data, ret);
@@ -427,25 +448,147 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 	return ret;
 }
 
-/* our HID-BPF entrypoints */
-BTF_SET8_START(hid_bpf_fmodret_ids)
-BTF_ID_FLAGS(func, hid_bpf_device_event)
-BTF_ID_FLAGS(func, hid_bpf_rdesc_fixup)
-BTF_ID_FLAGS(func, __hid_bpf_tail_call)
-BTF_SET8_END(hid_bpf_fmodret_ids)
+/**
+ * hid_bpf_hw_output_report - Send an output report to a HID device
+ *
+ * @ctx: the HID-BPF context previously allocated in hid_bpf_allocate_context()
+ * @buf: a %PTR_TO_MEM buffer
+ * @buf__sz: the size of the data to transfer
+ *
+ * Returns the number of bytes transferred on success, a negative error code otherwise.
+ */
+__bpf_kfunc int
+hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz)
+{
+	struct hid_bpf_ctx_kern *ctx_kern;
+	struct hid_device *hdev;
+	size_t size = buf__sz;
+	u8 *dma_data;
+	int ret;
 
-static const struct btf_kfunc_id_set hid_bpf_fmodret_set = {
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	if (ctx_kern->from_bpf)
+		return -EDEADLOCK;
+
+	/* check arguments */
+	ret = __hid_bpf_hw_check_params(ctx, buf, &size, HID_OUTPUT_REPORT);
+	if (ret)
+		return ret;
+
+	hdev = (struct hid_device *)ctx->hid; /* discard const */
+
+	dma_data = kmemdup(buf, size, GFP_KERNEL);
+	if (!dma_data)
+		return -ENOMEM;
+
+	ret = hid_ops->hid_hw_output_report(hdev, dma_data, size, (u64)(long)ctx, true);
+
+	kfree(dma_data);
+	return ret;
+}
+
+static int
+__hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf,
+		       size_t size, bool lock_already_taken)
+{
+	struct hid_bpf_ctx_kern *ctx_kern;
+	int ret;
+
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	if (ctx_kern->from_bpf)
+		return -EDEADLOCK;
+
+	/* check arguments */
+	ret = __hid_bpf_hw_check_params(ctx, buf, &size, type);
+	if (ret)
+		return ret;
+
+	return hid_ops->hid_input_report(ctx->hid, type, buf, size, 0, (u64)(long)ctx, true,
+					 lock_already_taken);
+}
+
+/**
+ * hid_bpf_try_input_report - Inject a HID report in the kernel from a HID device
+ *
+ * @ctx: the HID-BPF context previously allocated in hid_bpf_allocate_context()
+ * @type: the type of the report (%HID_INPUT_REPORT, %HID_FEATURE_REPORT, %HID_OUTPUT_REPORT)
+ * @buf: a %PTR_TO_MEM buffer
+ * @buf__sz: the size of the data to transfer
+ *
+ * Returns %0 on success, a negative error code otherwise. This function will immediately
+ * fail if the device is not available, thus can be safely used in IRQ context.
+ */
+__bpf_kfunc int
+hid_bpf_try_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf,
+			 const size_t buf__sz)
+{
+	struct hid_bpf_ctx_kern *ctx_kern;
+	bool from_hid_event_hook;
+
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	from_hid_event_hook = ctx_kern->data && ctx_kern->data == ctx->hid->bpf.device_data;
+
+	return __hid_bpf_input_report(ctx, type, buf, buf__sz, from_hid_event_hook);
+}
+
+/**
+ * hid_bpf_input_report - Inject a HID report in the kernel from a HID device
+ *
+ * @ctx: the HID-BPF context previously allocated in hid_bpf_allocate_context()
+ * @type: the type of the report (%HID_INPUT_REPORT, %HID_FEATURE_REPORT, %HID_OUTPUT_REPORT)
+ * @buf: a %PTR_TO_MEM buffer
+ * @buf__sz: the size of the data to transfer
+ *
+ * Returns %0 on success, a negative error code otherwise. This function will wait for the
+ * device to be available before injecting the event, thus needs to be called in sleepable
+ * context.
+ */
+__bpf_kfunc int
+hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf,
+		     const size_t buf__sz)
+{
+	int ret;
+
+	ret = down_interruptible(&ctx->hid->driver_input_lock);
+	if (ret)
+		return ret;
+
+	/* check arguments */
+	ret = __hid_bpf_input_report(ctx, type, buf, buf__sz, true /* lock_already_taken */);
+
+	up(&ctx->hid->driver_input_lock);
+
+	return ret;
+}
+__bpf_kfunc_end_defs();
+
+/*
+ * The following set contains all functions we agree BPF programs
+ * can use.
+ */
+BTF_KFUNCS_START(hid_bpf_kfunc_ids)
+BTF_ID_FLAGS(func, hid_bpf_get_data, KF_RET_NULL)
+BTF_ID_FLAGS(func, hid_bpf_allocate_context, KF_ACQUIRE | KF_RET_NULL | KF_SLEEPABLE)
+BTF_ID_FLAGS(func, hid_bpf_release_context, KF_RELEASE | KF_SLEEPABLE)
+BTF_ID_FLAGS(func, hid_bpf_hw_request, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, hid_bpf_hw_output_report, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, hid_bpf_input_report, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, hid_bpf_try_input_report)
+BTF_KFUNCS_END(hid_bpf_kfunc_ids)
+
+static const struct btf_kfunc_id_set hid_bpf_kfunc_set = {
 	.owner = THIS_MODULE,
-	.set   = &hid_bpf_fmodret_ids,
+	.set   = &hid_bpf_kfunc_ids,
 };
 
 /* for syscall HID-BPF */
-BTF_SET8_START(hid_bpf_syscall_kfunc_ids)
-BTF_ID_FLAGS(func, hid_bpf_attach_prog)
+BTF_KFUNCS_START(hid_bpf_syscall_kfunc_ids)
 BTF_ID_FLAGS(func, hid_bpf_allocate_context, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, hid_bpf_release_context, KF_RELEASE)
 BTF_ID_FLAGS(func, hid_bpf_hw_request)
-BTF_SET8_END(hid_bpf_syscall_kfunc_ids)
+BTF_ID_FLAGS(func, hid_bpf_hw_output_report)
+BTF_ID_FLAGS(func, hid_bpf_input_report)
+BTF_KFUNCS_END(hid_bpf_syscall_kfunc_ids)
 
 static const struct btf_kfunc_id_set hid_bpf_syscall_kfunc_set = {
 	.owner = THIS_MODULE,
@@ -454,14 +597,20 @@ static const struct btf_kfunc_id_set hid_bpf_syscall_kfunc_set = {
 
 int hid_bpf_connect_device(struct hid_device *hdev)
 {
-	struct hid_bpf_prog_list *prog_list;
+	bool need_to_allocate = false;
+	struct hid_bpf_ops *e;
 
 	rcu_read_lock();
-	prog_list = rcu_dereference(hdev->bpf.progs[HID_BPF_PROG_TYPE_DEVICE_EVENT]);
+	list_for_each_entry_rcu(e, &hdev->bpf.prog_list, list) {
+		if (e->hid_device_event) {
+			need_to_allocate = true;
+			break;
+		}
+	}
 	rcu_read_unlock();
 
 	/* only allocate BPF data if there are programs attached */
-	if (!prog_list)
+	if (!need_to_allocate)
 		return 0;
 
 	return hid_bpf_allocate_event_data(hdev);
@@ -484,13 +633,18 @@ void hid_bpf_destroy_device(struct hid_device *hdev)
 	/* mark the device as destroyed in bpf so we don't reattach it */
 	hdev->bpf.destroyed = true;
 
-	__hid_bpf_destroy_device(hdev);
+	__hid_bpf_ops_destroy_device(hdev);
+
+	synchronize_srcu(&hdev->bpf.srcu);
+	cleanup_srcu_struct(&hdev->bpf.srcu);
 }
 EXPORT_SYMBOL_GPL(hid_bpf_destroy_device);
 
-void hid_bpf_device_init(struct hid_device *hdev)
+int hid_bpf_device_init(struct hid_device *hdev)
 {
-	spin_lock_init(&hdev->bpf.progs_lock);
+	INIT_LIST_HEAD(&hdev->bpf.prog_list);
+	mutex_init(&hdev->bpf.prog_list_lock);
+	return init_srcu_struct(&hdev->bpf.srcu);
 }
 EXPORT_SYMBOL_GPL(hid_bpf_device_init);
 
@@ -501,30 +655,15 @@ static int __init hid_bpf_init(void)
 	/* Note: if we exit with an error any time here, we would entirely break HID, which
 	 * is probably not something we want. So we log an error and return success.
 	 *
-	 * This is not a big deal: the syscall allowing to attach a BPF program to a HID device
-	 * will not be available, so nobody will be able to use the functionality.
+	 * This is not a big deal: nobody will be able to use the functionality.
 	 */
 
-	err = register_btf_fmodret_id_set(&hid_bpf_fmodret_set);
-	if (err) {
-		pr_warn("error while registering fmodret entrypoints: %d", err);
-		return 0;
-	}
-
-	err = hid_bpf_preload_skel();
-	if (err) {
-		pr_warn("error while preloading HID BPF dispatcher: %d", err);
-		return 0;
-	}
-
-	/* register tracing kfuncs after we are sure we can load our preloaded bpf program */
-	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &hid_bpf_kfunc_set);
+	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &hid_bpf_kfunc_set);
 	if (err) {
 		pr_warn("error while setting HID BPF tracing kfuncs: %d", err);
 		return 0;
 	}
 
-	/* register syscalls after we are sure we can load our preloaded bpf program */
 	err = register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &hid_bpf_syscall_kfunc_set);
 	if (err) {
 		pr_warn("error while setting HID BPF syscall kfuncs: %d", err);
@@ -534,15 +673,6 @@ static int __init hid_bpf_init(void)
 	return 0;
 }
 
-static void __exit hid_bpf_exit(void)
-{
-	/* HID depends on us, so if we hit that code, we are guaranteed that hid
-	 * has been removed and thus we do not need to clear the HID devices
-	 */
-	hid_bpf_free_links_and_skel();
-}
-
 late_initcall(hid_bpf_init);
-module_exit(hid_bpf_exit);
 MODULE_AUTHOR("Benjamin Tissoires");
 MODULE_LICENSE("GPL");

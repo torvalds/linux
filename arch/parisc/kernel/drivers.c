@@ -97,7 +97,7 @@ static int for_each_padev(int (*fn)(struct device *, void *), void * data)
  * @driver: the PA-RISC driver to try
  * @dev: the PA-RISC device to try
  */
-static int match_device(struct parisc_driver *driver, struct parisc_device *dev)
+static int match_device(const struct parisc_driver *driver, struct parisc_device *dev)
 {
 	const struct parisc_device_id *ids;
 
@@ -548,7 +548,7 @@ alloc_pa_dev(unsigned long hpa, struct hardware_path *mod_path)
 	return dev;
 }
 
-static int parisc_generic_match(struct device *dev, struct device_driver *drv)
+static int parisc_generic_match(struct device *dev, const struct device_driver *drv)
 {
 	return match_device(to_parisc_driver(drv), to_parisc_device(dev));
 }
@@ -618,7 +618,7 @@ static struct attribute *parisc_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(parisc_device);
 
-struct bus_type parisc_bus_type = {
+const struct bus_type parisc_bus_type = {
 	.name = "parisc",
 	.match = parisc_generic_match,
 	.uevent = parisc_uevent,
@@ -742,7 +742,7 @@ parse_tree_node(struct device *parent, int index, struct hardware_path *modpath)
 	};
 
 	if (device_for_each_child(parent, &recurse_data, descend_children))
-		{ /* nothing */ };
+		{ /* nothing */ }
 
 	return d.dev;
 }
@@ -925,10 +925,10 @@ static __init void qemu_header(void)
 	pr_info("#define PARISC_MODEL \"%s\"\n\n",
 			boot_cpu_data.pdc.sys_model_name);
 
-	pr_info("#define PARISC_PDC_MODEL 0x%lx, 0x%lx, 0x%lx, "
-		"0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx\n\n",
 	#define p ((unsigned long *)&boot_cpu_data.pdc.model)
-		p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
+	pr_info("#define PARISC_PDC_MODEL 0x%lx, 0x%lx, 0x%lx, "
+		"0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx\n\n",
+		p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9]);
 	#undef p
 
 	pr_info("#define PARISC_PDC_VERSION 0x%04lx\n\n",
@@ -1003,6 +1003,9 @@ static __init int qemu_print_iodc_data(struct device *lin_dev, void *data)
 	}
 
 	pr_info("\n");
+
+	/* Prevent hung task messages when printing on serial console */
+	cond_resched();
 
 	pr_info("#define HPA_%08lx_DESCRIPTION \"%s\"\n",
 		hpa, parisc_hardware_description(&dev->id));

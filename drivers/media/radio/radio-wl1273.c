@@ -1020,7 +1020,7 @@ static int wl1273_fm_set_rds(struct wl1273_device *radio, unsigned int new_mode)
 	}
 
 	if (!r)
-		radio->rds_on = (new_mode == WL1273_RDS_ON) ? true : false;
+		radio->rds_on = new_mode == WL1273_RDS_ON;
 
 	return r;
 }

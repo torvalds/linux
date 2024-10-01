@@ -30,10 +30,10 @@ static const struct slim_device_id *slim_match(const struct slim_device_id *id,
 	return NULL;
 }
 
-static int slim_device_match(struct device *dev, struct device_driver *drv)
+static int slim_device_match(struct device *dev, const struct device_driver *drv)
 {
 	struct slim_device *sbdev = to_slim_device(dev);
-	struct slim_driver *sbdrv = to_slim_driver(drv);
+	const struct slim_driver *sbdrv = to_slim_driver(drv);
 
 	/* Attempt an OF style match first */
 	if (of_driver_match_device(dev, drv))
@@ -100,7 +100,7 @@ static int slim_device_uevent(const struct device *dev, struct kobj_uevent_env *
 	return add_uevent_var(env, "MODALIAS=slim:%s", dev_name(&sbdev->dev));
 }
 
-struct bus_type slimbus_bus = {
+const struct bus_type slimbus_bus = {
 	.name		= "slimbus",
 	.match		= slim_device_match,
 	.probe		= slim_device_probe,
@@ -436,8 +436,8 @@ static int slim_device_alloc_laddr(struct slim_device *sbdev,
 		if (ret < 0)
 			goto err;
 	} else if (report_present) {
-		ret = ida_simple_get(&ctrl->laddr_ida,
-				     0, SLIM_LA_MANAGER - 1, GFP_KERNEL);
+		ret = ida_alloc_max(&ctrl->laddr_ida,
+				    SLIM_LA_MANAGER - 1, GFP_KERNEL);
 		if (ret < 0)
 			goto err;
 

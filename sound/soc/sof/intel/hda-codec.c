@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Keyon Jie <yang.jie@linux.intel.com>
 //
@@ -54,8 +54,16 @@ static int request_codec_module(struct hda_codec *codec)
 
 static int hda_codec_load_module(struct hda_codec *codec)
 {
-	int ret = request_codec_module(codec);
+	int ret;
 
+	ret = snd_hdac_device_register(&codec->core);
+	if (ret) {
+		dev_err(&codec->core.dev, "failed to register hdac device\n");
+		put_device(&codec->core.dev);
+		return ret;
+	}
+
+	ret = request_codec_module(codec);
 	if (ret <= 0) {
 		codec->probe_id = HDA_CODEC_ID_GENERIC;
 		ret = request_codec_module(codec);
@@ -71,18 +79,27 @@ void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hda_codec *codec;
 	unsigned int mask = 0;
+	unsigned int val = 0;
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT) &&
 	    sof_debug_check_flag(SOF_DBG_FORCE_NOCODEC))
 		return;
 
 	if (enable) {
-		list_for_each_codec(codec, hbus)
+		list_for_each_codec(codec, hbus) {
+			/* only set WAKEEN when needed for HDaudio codecs */
+			mask |= BIT(codec->core.addr);
 			if (codec->jacktbl.used)
-				mask |= BIT(codec->core.addr);
+				val |= BIT(codec->core.addr);
+		}
+	} else {
+		list_for_each_codec(codec, hbus) {
+			/* reset WAKEEN only HDaudio codecs */
+			mask |= BIT(codec->core.addr);
+		}
 	}
 
-	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, mask);
+	snd_hdac_chip_updatew(bus, WAKEEN, mask & STATESTS_INT_MASK, val);
 }
 EXPORT_SYMBOL_NS_GPL(hda_codec_jack_wake_enable, SND_SOC_SOF_HDA_AUDIO_CODEC);
 
@@ -116,7 +133,6 @@ EXPORT_SYMBOL_NS_GPL(hda_codec_jack_check, SND_SOC_SOF_HDA_AUDIO_CODEC);
 static struct hda_codec *hda_codec_device_init(struct hdac_bus *bus, int addr, int type)
 {
 	struct hda_codec *codec;
-	int ret;
 
 	codec = snd_hda_codec_device_init(to_hda_bus(bus), addr, "ehdaudio%dD%d", bus->idx, addr);
 	if (IS_ERR(codec)) {
@@ -125,13 +141,6 @@ static struct hda_codec *hda_codec_device_init(struct hdac_bus *bus, int addr, i
 	}
 
 	codec->core.type = type;
-
-	ret = snd_hdac_device_register(&codec->core);
-	if (ret) {
-		dev_err(bus->dev, "failed to register hdac device\n");
-		put_device(&codec->core.dev);
-		return ERR_PTR(ret);
-	}
 
 	return codec;
 }
@@ -169,6 +178,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 		return ret;
 
 	hda_priv->codec = codec;
+	hda_priv->dev_index = address;
 	dev_set_drvdata(&codec->core.dev, hda_priv);
 
 	if ((resp & 0xFFFF0000) == IDISP_VID_INTEL) {
@@ -447,3 +457,4 @@ EXPORT_SYMBOL_NS_GPL(hda_codec_i915_exit, SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
 #endif
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for HDaudio codecs");

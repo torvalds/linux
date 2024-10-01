@@ -48,14 +48,16 @@ asmlinkage long __arm64_sys_ni_syscall(const struct pt_regs *__unused)
  */
 #define __arm64_sys_personality		__arm64_sys_arm64_personality
 
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)  __SYSCALL(nr, native)
+
 #undef __SYSCALL
 #define __SYSCALL(nr, sym)	asmlinkage long __arm64_##sym(const struct pt_regs *);
-#include <asm/unistd.h>
+#include <asm/syscall_table_64.h>
 
 #undef __SYSCALL
 #define __SYSCALL(nr, sym)	[nr] = __arm64_##sym,
 
 const syscall_fn_t sys_call_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls - 1] = __arm64_sys_ni_syscall,
-#include <asm/unistd.h>
+#include <asm/syscall_table_64.h>
 };

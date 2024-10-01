@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/time.h>
@@ -51,7 +50,7 @@
 
 /*
  * 26 possible I2C status codes, but codes applicable only
- * to master are listed here and used in this driver
+ * to controller mode are listed here and used in this driver
  */
 enum {
 	M_BUS_ERROR		= 0x00,
@@ -158,7 +157,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		break;
 
 	case MR_ADDR_R_ACK:
-		/* Receive first byte from slave */
+		/* Receive first byte from target */
 		if (i2c->msg->len == 1) {
 			/* Last byte, return NACK */
 			writel(LPC24XX_AA, i2c->base + LPC24XX_I2CONCLR);
@@ -197,7 +196,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		}
 
 		/*
-		 * One pre-last data input, send NACK to tell the slave that
+		 * One pre-last data input, send NACK to tell the target that
 		 * this is going to be the last data byte to be transferred.
 		 */
 		if (i2c->msg_idx >= i2c->msg->len - 2) {
@@ -339,8 +338,8 @@ static u32 i2c_lpc2k_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm i2c_lpc2k_algorithm = {
-	.master_xfer	= i2c_lpc2k_xfer,
-	.functionality	= i2c_lpc2k_functionality,
+	.xfer = i2c_lpc2k_xfer,
+	.functionality = i2c_lpc2k_functionality,
 };
 
 static int i2c_lpc2k_probe(struct platform_device *pdev)
@@ -431,7 +430,6 @@ static void i2c_lpc2k_remove(struct platform_device *dev)
 	i2c_del_adapter(&i2c->adap);
 }
 
-#ifdef CONFIG_PM
 static int i2c_lpc2k_suspend(struct device *dev)
 {
 	struct lpc2k_i2c *i2c = dev_get_drvdata(dev);
@@ -456,11 +454,6 @@ static const struct dev_pm_ops i2c_lpc2k_dev_pm_ops = {
 	.resume_noirq = i2c_lpc2k_resume,
 };
 
-#define I2C_LPC2K_DEV_PM_OPS (&i2c_lpc2k_dev_pm_ops)
-#else
-#define I2C_LPC2K_DEV_PM_OPS NULL
-#endif
-
 static const struct of_device_id lpc2k_i2c_match[] = {
 	{ .compatible = "nxp,lpc1788-i2c" },
 	{},
@@ -472,7 +465,7 @@ static struct platform_driver i2c_lpc2k_driver = {
 	.remove_new = i2c_lpc2k_remove,
 	.driver	= {
 		.name		= "lpc2k-i2c",
-		.pm		= I2C_LPC2K_DEV_PM_OPS,
+		.pm		= pm_sleep_ptr(&i2c_lpc2k_dev_pm_ops),
 		.of_match_table	= lpc2k_i2c_match,
 	},
 };

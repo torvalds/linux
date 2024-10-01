@@ -56,8 +56,6 @@ config HUAWEI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
-	select LEDS_TRIGGERS
-	select LEDS_TRIGGER_AUDIO
 	select NEW_LEDS
 	help
 	  This driver provides support for Huawei WMI hotkeys, battery charge
@@ -135,6 +133,18 @@ config YOGABOOK
 	  To compile this driver as a module, choose M here: the module will
 	  be called lenovo-yogabook.
 
+config YT2_1380
+	tristate "Lenovo Yoga Tablet 2 1380 fast charge driver"
+	depends on SERIAL_DEV_BUS
+	depends on EXTCON
+	depends on ACPI
+	help
+	  Say Y here to enable support for the custom fast charging protocol
+	  found on the Lenovo Yoga Tablet 2 1380F / 1380L models.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called lenovo-yogabook.
+
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
 	depends on ACPI && THERMAL
@@ -177,10 +187,12 @@ config ACER_WMI
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_WMI
-	select ACPI_VIDEO
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on HWMON
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
+	select ACPI_PLATFORM_PROFILE
 	help
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
 	  wireless radio and bluetooth control, and on some laptops,
@@ -263,11 +275,10 @@ config ASUS_WMI
 	depends on RFKILL || RFKILL = n
 	depends on HOTPLUG_PCI
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on SERIO_I8042 || SERIO_I8042 = n
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
-	select LEDS_TRIGGERS
-	select LEDS_TRIGGER_AUDIO
 	select ACPI_PLATFORM_PROFILE
 	help
 	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs or new
@@ -279,7 +290,6 @@ config ASUS_WMI
 config ASUS_NB_WMI
 	tristate "Asus Notebook WMI Driver"
 	depends on ASUS_WMI
-	depends on SERIO_I8042 || SERIO_I8042 = n
 	help
 	  This is a driver for newer Asus notebooks. It adds extra features
 	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
@@ -372,6 +382,7 @@ config FUJITSU_LAPTOP
 	depends on ACPI
 	depends on INPUT
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_BATTERY
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
@@ -466,6 +477,7 @@ config LENOVO_YMC
 	tristate "Lenovo Yoga Tablet Mode Control"
 	depends on ACPI_WMI
 	depends on INPUT
+	depends on IDEAPAD_LAPTOP
 	select INPUT_SPARSEKMAP
 	help
 	  This driver maps the Tablet Mode Control switch to SW_TABLET_MODE input
@@ -505,8 +517,7 @@ config THINKPAD_ACPI
 	select NVRAM
 	select NEW_LEDS
 	select LEDS_CLASS
-	select LEDS_TRIGGERS
-	select LEDS_TRIGGER_AUDIO
+	select INPUT_SPARSEKMAP
 	help
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -645,6 +656,30 @@ config THINKPAD_LMI
 
 source "drivers/platform/x86/intel/Kconfig"
 
+config ACPI_QUICKSTART
+	tristate "ACPI Quickstart button driver"
+	depends on ACPI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  This driver adds support for ACPI quickstart button (PNP0C32) devices.
+	  The button emits a manufacturer-specific key value when pressed, so
+	  userspace has to map this value to a standard key code.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called quickstart.
+
+config MEEGOPAD_ANX7428
+	tristate "MeeGoPad ANX7428 Type-C Switch"
+	depends on ACPI && GPIOLIB && I2C
+	help
+	  Some MeeGoPad top-set boxes have an ANX7428 Type-C Switch for
+	  USB3.1 Gen 1 and DisplayPort over Type-C alternate mode support.
+
+	  This driver takes care of powering on the ANX7428 on supported
+	  MeeGoPad top-set boxes. After this the ANX7428 takes care of Type-C
+	  connector orientation and PD alternate mode switching autonomously.
+
 config MSI_EC
 	tristate "MSI EC Extras"
 	depends on ACPI
@@ -687,6 +722,17 @@ config MSI_WMI
 
 	 To compile this driver as a module, choose M here: the module will
 	 be called msi-wmi.
+
+config MSI_WMI_PLATFORM
+	tristate "MSI WMI Platform features"
+	depends on ACPI_WMI
+	depends on HWMON
+	help
+	  Say Y here if you want to have support for WMI-based platform features
+	  like fan sensor access on MSI machines.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called msi-wmi-platform.
 
 config XO15_EBOOK
 	tristate "OLPC XO-1.5 ebook switch"
@@ -954,7 +1000,8 @@ config TOPSTAR_LAPTOP
 
 config SERIAL_MULTI_INSTANTIATE
 	tristate "Serial bus multi instantiate pseudo device driver"
-	depends on I2C && SPI && ACPI
+	depends on ACPI
+	depends on (I2C && !SPI) || (!I2C && SPI) || (I2C && SPI)
 	help
 	  Some ACPI-based systems list multiple devices in a single ACPI
 	  firmware-node. This driver will instantiate separate clients
@@ -965,7 +1012,7 @@ config SERIAL_MULTI_INSTANTIATE
 
 config MLX_PLATFORM
 	tristate "Mellanox Technologies platform support"
-	depends on I2C
+	depends on ACPI && I2C && PCI
 	select REGMAP
 	help
 	  This option enables system support for the Mellanox Technologies
@@ -987,6 +1034,29 @@ config TOUCHSCREEN_DMI
 	  into the tablet model specific version of the driver shipped with the
 	  the OS-image for the device. This option supplies the missing info.
 	  Enable this for x86 tablets with Silead or Chipone touchscreens.
+
+config INSPUR_PLATFORM_PROFILE
+	tristate "Inspur WMI platform profile driver"
+	depends on ACPI_WMI
+	select ACPI_PLATFORM_PROFILE
+	help
+	This will allow users to determine and control the platform modes
+	between low-power, balanced and performance modes.
+
+	To compile this driver as a module, choose M here: the module
+	will be called inspur-platform-profile.
+
+config LENOVO_WMI_CAMERA
+	tristate "Lenovo WMI Camera Button driver"
+	depends on ACPI_WMI
+	depends on INPUT
+	help
+	  This driver provides support for Lenovo camera button. The Camera
+	  button is a GPIO device. This driver receives ACPI notifications when
+	  the camera button is switched on/off.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called lenovo-wmi-camera.
 
 source "drivers/platform/x86/x86-android-tablets/Kconfig"
 
@@ -1074,17 +1144,22 @@ config INTEL_SCU_IPC_UTIL
 	  low level access for debug work and updating the firmware. Say
 	  N unless you will be doing this on an Intel MID platform.
 
-config SIEMENS_SIMATIC_IPC
-	tristate "Siemens Simatic IPC Class driver"
-	depends on PCI
-	help
-	  This Simatic IPC class driver is the central of several drivers. It
-	  is mainly used for system identification, after which drivers in other
-	  classes will take care of driving specifics of those machines.
-	  i.e. LEDs and watchdog.
+source "drivers/platform/x86/siemens/Kconfig"
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called simatic-ipc.
+config SILICOM_PLATFORM
+	tristate "Silicom Edge Networking device support"
+	depends on HWMON
+	depends on GPIOLIB
+	depends on LEDS_CLASS_MULTICOLOR
+	help
+	  This option enables support for the LEDs/GPIO/etc downstream of the
+	  embedded controller on Silicom "Cordoba" hardware and derivatives.
+
+	  This platform driver provides support for various functions via
+	  the Linux LED framework, GPIO framework, Hardware Monitoring (HWMON)
+	  and device attributes.
+
+	  If you have a Silicom network appliance, say Y or M here.
 
 config WINMATE_FM07_KEYS
 	tristate "Winmate FM07/FM07P front-panel keys driver"
@@ -1094,10 +1169,25 @@ config WINMATE_FM07_KEYS
 	  buttons below the display. This module adds an input device
 	  that delivers key events when these buttons are pressed.
 
+config SEL3350_PLATFORM
+	tristate "SEL-3350 LEDs and power supplies"
+	depends on ACPI
+	depends on GPIOLIB
+	depends on PINCTRL_BROXTON
+	select POWER_SUPPLY
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_GPIO
+	help
+	  Support for LEDs and power supplies on SEL-3350 computers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sel3350-platform.
+
 endif # X86_PLATFORM_DEVICES
 
 config P2SB
-	bool "Primary to Sideband (P2SB) bridge access support"
+	bool
 	depends on PCI && X86
 	help
 	  The Primary to Sideband (P2SB) bridge is an interface to some

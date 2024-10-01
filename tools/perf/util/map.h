@@ -16,23 +16,26 @@ struct dso;
 struct maps;
 struct machine;
 
+enum mapping_type {
+	/* map__map_ip/map__unmap_ip are given as offsets in the DSO. */
+	MAPPING_TYPE__DSO,
+	/* map__map_ip/map__unmap_ip are just the given ip value. */
+	MAPPING_TYPE__IDENTITY,
+};
+
 DECLARE_RC_STRUCT(map) {
 	u64			start;
 	u64			end;
-	bool			erange_warned:1;
-	bool			priv:1;
-	u32			prot;
 	u64			pgoff;
 	u64			reloc;
-
-	/* ip -> dso rip */
-	u64			(*map_ip)(const struct map *, u64);
-	/* dso rip -> ip */
-	u64			(*unmap_ip)(const struct map *, u64);
-
 	struct dso		*dso;
 	refcount_t		refcnt;
+	u32			prot;
 	u32			flags;
+	enum mapping_type	mapping_type:8;
+	bool			erange_warned;
+	bool			priv;
+	bool			hit;
 };
 
 struct kmap;
@@ -41,36 +44,9 @@ struct kmap *__map__kmap(struct map *map);
 struct kmap *map__kmap(struct map *map);
 struct maps *map__kmaps(struct map *map);
 
-/* ip -> dso rip */
-u64 map__dso_map_ip(const struct map *map, u64 ip);
-/* dso rip -> ip */
-u64 map__dso_unmap_ip(const struct map *map, u64 ip);
-/* Returns ip */
-u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip);
-
 static inline struct dso *map__dso(const struct map *map)
 {
 	return RC_CHK_ACCESS(map)->dso;
-}
-
-static inline u64 map__map_ip(const struct map *map, u64 ip)
-{
-	return RC_CHK_ACCESS(map)->map_ip(map, ip);
-}
-
-static inline u64 map__unmap_ip(const struct map *map, u64 ip)
-{
-	return RC_CHK_ACCESS(map)->unmap_ip(map, ip);
-}
-
-static inline void *map__map_ip_ptr(struct map *map)
-{
-	return RC_CHK_ACCESS(map)->map_ip;
-}
-
-static inline void* map__unmap_ip_ptr(struct map *map)
-{
-	return RC_CHK_ACCESS(map)->unmap_ip;
 }
 
 static inline u64 map__start(const struct map *map)
@@ -108,6 +84,11 @@ static inline bool map__priv(const struct map *map)
 	return RC_CHK_ACCESS(map)->priv;
 }
 
+static inline bool map__hit(const struct map *map)
+{
+	return RC_CHK_ACCESS(map)->hit;
+}
+
 static inline refcount_t *map__refcnt(struct map *map)
 {
 	return &RC_CHK_ACCESS(map)->refcnt;
@@ -123,11 +104,42 @@ static inline size_t map__size(const struct map *map)
 	return map__end(map) - map__start(map);
 }
 
+/* ip -> dso rip */
+static inline u64 map__dso_map_ip(const struct map *map, u64 ip)
+{
+	return ip - map__start(map) + map__pgoff(map);
+}
+
+/* dso rip -> ip */
+static inline u64 map__dso_unmap_ip(const struct map *map, u64 rip)
+{
+	return rip + map__start(map) - map__pgoff(map);
+}
+
+static inline u64 map__map_ip(const struct map *map, u64 ip_or_rip)
+{
+	if ((RC_CHK_ACCESS(map)->mapping_type) == MAPPING_TYPE__DSO)
+		return map__dso_map_ip(map, ip_or_rip);
+	else
+		return ip_or_rip;
+}
+
+static inline u64 map__unmap_ip(const struct map *map, u64 ip_or_rip)
+{
+	if ((RC_CHK_ACCESS(map)->mapping_type) == MAPPING_TYPE__DSO)
+		return map__dso_unmap_ip(map, ip_or_rip);
+	else
+		return ip_or_rip;
+}
+
 /* rip/ip <-> addr suitable for passing to `objdump --start-address=` */
 u64 map__rip_2objdump(struct map *map, u64 rip);
 
 /* objdump address -> memory address */
 u64 map__objdump_2mem(struct map *map, u64 ip);
+
+/* objdump address -> rip */
+u64 map__objdump_2rip(struct map *map, u64 ip);
 
 struct symbol;
 struct thread;
@@ -159,9 +171,6 @@ struct thread;
 
 #define map__for_each_symbol_by_name(map, sym_name, pos, idx)	\
 	__map__for_each_symbol_by_name(map, sym_name, (pos), idx)
-
-void map__init(struct map *map,
-	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 
 struct dso_id;
 struct build_id;
@@ -279,14 +288,19 @@ static inline void map__set_reloc(struct map *map, u64 reloc)
 	RC_CHK_ACCESS(map)->reloc = reloc;
 }
 
-static inline void map__set_priv(struct map *map, int priv)
+static inline void map__set_priv(struct map *map)
 {
-	RC_CHK_ACCESS(map)->priv = priv;
+	RC_CHK_ACCESS(map)->priv = true;
 }
 
-static inline void map__set_erange_warned(struct map *map, bool erange_warned)
+static inline void map__set_hit(struct map *map)
 {
-	RC_CHK_ACCESS(map)->erange_warned = erange_warned;
+	RC_CHK_ACCESS(map)->hit = true;
+}
+
+static inline void map__set_erange_warned(struct map *map)
+{
+	RC_CHK_ACCESS(map)->erange_warned = true;
 }
 
 static inline void map__set_dso(struct map *map, struct dso *dso)
@@ -294,13 +308,13 @@ static inline void map__set_dso(struct map *map, struct dso *dso)
 	RC_CHK_ACCESS(map)->dso = dso;
 }
 
-static inline void map__set_map_ip(struct map *map, u64 (*map_ip)(const struct map *map, u64 ip))
+static inline void map__set_mapping_type(struct map *map, enum mapping_type type)
 {
-	RC_CHK_ACCESS(map)->map_ip = map_ip;
+	RC_CHK_ACCESS(map)->mapping_type = type;
 }
 
-static inline void map__set_unmap_ip(struct map *map, u64 (*unmap_ip)(const struct map *map, u64 rip))
+static inline enum mapping_type map__mapping_type(struct map *map)
 {
-	RC_CHK_ACCESS(map)->unmap_ip = unmap_ip;
+	return RC_CHK_ACCESS(map)->mapping_type;
 }
 #endif /* __PERF_MAP_H */

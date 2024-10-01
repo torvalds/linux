@@ -83,6 +83,9 @@ enum ttm_bo_type {
  * @resource: structure describing current placement.
  * @ttm: TTM structure holding system pages.
  * @deleted: True if the object is only a zombie and already deleted.
+ * @bulk_move: The bulk move object.
+ * @priority: Priority for LRU, BOs with lower priority are evicted first.
+ * @pin_count: Pin count.
  *
  * Base class for TTM buffer object, that deals with data placement and CPU
  * mappings. GPU mappings are really up to the driver, but for simpler GPUs
@@ -128,12 +131,13 @@ struct ttm_buffer_object {
 	struct work_struct delayed_delete;
 
 	/**
-	 * Special members that are protected by the reserve lock
-	 * and the bo::lock when written to. Can be read with
-	 * either of these locks held.
+	 * @sg: external source of pages and DMA addresses, protected by the
+	 * reservation lock.
 	 */
 	struct sg_table *sg;
 };
+
+#define TTM_BO_MAP_IOMEM_MASK 0x80
 
 /**
  * struct ttm_bo_kmap_obj
@@ -141,13 +145,13 @@ struct ttm_buffer_object {
  * @virtual: The current kernel virtual address.
  * @page: The page when kmap'ing a single page.
  * @bo_kmap_type: Type of bo_kmap.
+ * @bo: The TTM BO.
  *
  * Object describing a kernel mapping. Since a TTM bo may be located
  * in various memory types with various caching policies, the
  * mapping can either be an ioremap, a vmap, a kmap or part of a
  * premapped region.
  */
-#define TTM_BO_MAP_IOMEM_MASK 0x80
 struct ttm_bo_kmap_obj {
 	void *virtual;
 	struct page *page;
@@ -171,6 +175,7 @@ struct ttm_bo_kmap_obj {
  * @force_alloc: Don't check the memory account during suspend or CPU page
  * faults. Should only be used by TTM internally.
  * @resv: Reservation object to allow reserved evictions with.
+ * @bytes_moved: Statistics on how many bytes have been moved.
  *
  * Context for TTM operations like changing buffer placement or general memory
  * allocation.
@@ -184,6 +189,41 @@ struct ttm_operation_ctx {
 	struct dma_resv *resv;
 	uint64_t bytes_moved;
 };
+
+struct ttm_lru_walk;
+
+/** struct ttm_lru_walk_ops - Operations for a LRU walk. */
+struct ttm_lru_walk_ops {
+	/**
+	 * process_bo - Process this bo.
+	 * @walk: struct ttm_lru_walk describing the walk.
+	 * @bo: A locked and referenced buffer object.
+	 *
+	 * Return: Negative error code on error, User-defined positive value
+	 * (typically, but not always, size of the processed bo) on success.
+	 * On success, the returned values are summed by the walk and the
+	 * walk exits when its target is met.
+	 * 0 also indicates success, -EBUSY means this bo was skipped.
+	 */
+	s64 (*process_bo)(struct ttm_lru_walk *walk, struct ttm_buffer_object *bo);
+};
+
+/**
+ * struct ttm_lru_walk - Structure describing a LRU walk.
+ */
+struct ttm_lru_walk {
+	/** @ops: Pointer to the ops structure. */
+	const struct ttm_lru_walk_ops *ops;
+	/** @ctx: Pointer to the struct ttm_operation_ctx. */
+	struct ttm_operation_ctx *ctx;
+	/** @ticket: The struct ww_acquire_ctx if any. */
+	struct ww_acquire_ctx *ticket;
+	/** @trylock_only: Only use trylock for locking. */
+	bool trylock_only;
+};
+
+s64 ttm_lru_walk_for_evict(struct ttm_lru_walk *walk, struct ttm_device *bdev,
+			   struct ttm_resource_manager *man, s64 target);
 
 /**
  * ttm_bo_get - reference a struct ttm_buffer_object
@@ -264,7 +304,7 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * ttm_bo_reserve_slowpath:
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
- * @sequence: Set (@bo)->sequence to this value after lock
+ * @ticket: Ticket used to acquire the ww_mutex.
  *
  * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
  * from all our other reservations. Because there are no other reservations
@@ -303,7 +343,7 @@ static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
 }
 
 /**
- * ttm_bo_move_null = assign memory for a buffer object.
+ * ttm_bo_move_null - assign memory for a buffer object.
  * @bo: The bo to assign the memory to
  * @new_mem: The memory to be assigned.
  *
@@ -355,8 +395,6 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 void ttm_bo_put(struct ttm_buffer_object *bo);
 void ttm_bo_set_bulk_move(struct ttm_buffer_object *bo,
 			  struct ttm_lru_bulk_move *bulk);
-int ttm_bo_lock_delayed_workqueue(struct ttm_device *bdev);
-void ttm_bo_unlock_delayed_workqueue(struct ttm_device *bdev, int resched);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
 int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_buffer_object *bo,
@@ -375,15 +413,14 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map);
 int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map);
 void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct iosys_map *map);
 int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo);
-int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
-		   gfp_t gfp_flags);
+s64 ttm_bo_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
+		   struct ttm_resource_manager *man, gfp_t gfp_flags,
+		   s64 target);
 void ttm_bo_pin(struct ttm_buffer_object *bo);
 void ttm_bo_unpin(struct ttm_buffer_object *bo);
-int ttm_mem_evict_first(struct ttm_device *bdev,
-			struct ttm_resource_manager *man,
-			const struct ttm_place *place,
-			struct ttm_operation_ctx *ctx,
-			struct ww_acquire_ctx *ticket);
+int ttm_bo_evict_first(struct ttm_device *bdev,
+		       struct ttm_resource_manager *man,
+		       struct ttm_operation_ctx *ctx);
 vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 			     struct vm_fault *vmf);
 vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,

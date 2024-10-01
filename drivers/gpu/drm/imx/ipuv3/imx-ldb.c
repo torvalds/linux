@@ -12,8 +12,10 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
 
@@ -70,7 +72,7 @@ struct imx_ldb_channel {
 	struct device_node *child;
 	struct i2c_adapter *ddc;
 	int chno;
-	void *edid;
+	const struct drm_edid *drm_edid;
 	struct drm_display_mode mode;
 	int mode_valid;
 	u32 bus_format;
@@ -140,14 +142,14 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 	if (num_modes > 0)
 		return num_modes;
 
-	if (!imx_ldb_ch->edid && imx_ldb_ch->ddc)
-		imx_ldb_ch->edid = drm_get_edid(connector, imx_ldb_ch->ddc);
-
-	if (imx_ldb_ch->edid) {
-		drm_connector_update_edid_property(connector,
-							imx_ldb_ch->edid);
-		num_modes = drm_add_edid_modes(connector, imx_ldb_ch->edid);
+	if (!imx_ldb_ch->drm_edid && imx_ldb_ch->ddc) {
+		imx_ldb_ch->drm_edid = drm_edid_read_ddc(connector,
+							 imx_ldb_ch->ddc);
+		drm_edid_connector_update(connector, imx_ldb_ch->drm_edid);
 	}
+
+	if (imx_ldb_ch->drm_edid)
+		num_modes = drm_edid_connector_add_modes(connector);
 
 	if (imx_ldb_ch->mode_valid) {
 		struct drm_display_mode *mode;
@@ -551,7 +553,6 @@ static int imx_ldb_panel_ddc(struct device *dev,
 		struct imx_ldb_channel *channel, struct device_node *child)
 {
 	struct device_node *ddc_node;
-	const u8 *edidp;
 	int ret;
 
 	ddc_node = of_parse_phandle(child, "ddc-i2c-bus", 0);
@@ -565,6 +566,7 @@ static int imx_ldb_panel_ddc(struct device *dev,
 	}
 
 	if (!channel->ddc) {
+		const void *edidp;
 		int edid_len;
 
 		/* if no DDC available, fallback to hardcoded EDID */
@@ -572,8 +574,8 @@ static int imx_ldb_panel_ddc(struct device *dev,
 
 		edidp = of_get_property(child, "edid", &edid_len);
 		if (edidp) {
-			channel->edid = kmemdup(edidp, edid_len, GFP_KERNEL);
-			if (!channel->edid)
+			channel->drm_edid = drm_edid_alloc(edidp, edid_len);
+			if (!channel->drm_edid)
 				return -ENOMEM;
 		} else if (!channel->panel) {
 			/* fallback to display-timings node */
@@ -617,7 +619,6 @@ static int imx_ldb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	const struct of_device_id *of_id = of_match_device(imx_ldb_dt_ids, dev);
 	struct device_node *child;
 	struct imx_ldb *imx_ldb;
 	int dual;
@@ -638,9 +639,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 	regmap_write(imx_ldb->regmap, IOMUXC_GPR2, 0);
 
 	imx_ldb->dev = dev;
-
-	if (of_id)
-		imx_ldb->lvds_mux = of_id->data;
+	imx_ldb->lvds_mux = device_get_match_data(dev);
 
 	dual = of_property_read_bool(np, "fsl,dual-channel");
 	if (dual)
@@ -656,7 +655,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 	for (i = 0; i < 4; i++) {
 		char clkname[16];
 
-		sprintf(clkname, "di%d_sel", i);
+		snprintf(clkname, sizeof(clkname), "di%d_sel", i);
 		imx_ldb->clk_sel[i] = devm_clk_get(imx_ldb->dev, clkname);
 		if (IS_ERR(imx_ldb->clk_sel[i])) {
 			ret = PTR_ERR(imx_ldb->clk_sel[i]);
@@ -737,7 +736,7 @@ free_child:
 	return ret;
 }
 
-static int imx_ldb_remove(struct platform_device *pdev)
+static void imx_ldb_remove(struct platform_device *pdev)
 {
 	struct imx_ldb *imx_ldb = platform_get_drvdata(pdev);
 	int i;
@@ -745,17 +744,16 @@ static int imx_ldb_remove(struct platform_device *pdev)
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
 
-		kfree(channel->edid);
+		drm_edid_free(channel->drm_edid);
 		i2c_put_adapter(channel->ddc);
 	}
 
 	component_del(&pdev->dev, &imx_ldb_ops);
-	return 0;
 }
 
 static struct platform_driver imx_ldb_driver = {
 	.probe		= imx_ldb_probe,
-	.remove		= imx_ldb_remove,
+	.remove_new	= imx_ldb_remove,
 	.driver		= {
 		.of_match_table = imx_ldb_dt_ids,
 		.name	= DRIVER_NAME,

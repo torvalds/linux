@@ -1028,6 +1028,7 @@ static struct fb_ops nvidia_fb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_open        = nvidiafb_open,
 	.fb_release     = nvidiafb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var   = nvidiafb_check_var,
 	.fb_set_par     = nvidiafb_set_par,
 	.fb_setcolreg   = nvidiafb_setcolreg,
@@ -1038,6 +1039,7 @@ static struct fb_ops nvidia_fb_ops = {
 	.fb_imageblit   = nvidiafb_imageblit,
 	.fb_cursor      = nvidiafb_cursor,
 	.fb_sync        = nvidiafb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int nvidiafb_suspend_late(struct device *dev, pm_message_t mesg)
@@ -1111,8 +1113,8 @@ static int nvidia_set_fbinfo(struct fb_info *info)
 	int lpitch;
 
 	NVTRACE_ENTER();
-	info->flags = FBINFO_DEFAULT
-	    | FBINFO_HWACCEL_IMAGEBLIT
+	info->flags =
+	      FBINFO_HWACCEL_IMAGEBLIT
 	    | FBINFO_HWACCEL_FILLRECT
 	    | FBINFO_HWACCEL_COPYAREA
 	    | FBINFO_HWACCEL_YPAN;
@@ -1400,13 +1402,13 @@ static int nvidiafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pd, info);
 
-	if (backlight)
-		nvidia_bl_init(par);
-
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR PFX "error registering nVidia framebuffer\n");
 		goto err_out_iounmap_fb;
 	}
+
+	if (backlight)
+		nvidia_bl_init(par);
 
 	printk(KERN_INFO PFX
 	       "PCI nVidia %s framebuffer (%dMB @ 0x%lX)\n",
@@ -1439,9 +1441,9 @@ static void nvidiafb_remove(struct pci_dev *pd)
 
 	NVTRACE_ENTER();
 
+	nvidia_bl_exit(par);
 	unregister_framebuffer(info);
 
-	nvidia_bl_exit(par);
 	arch_phys_wc_del(par->wc_cookie);
 	iounmap(info->screen_base);
 	fb_destroy_modedb(info->monspecs.modedb);

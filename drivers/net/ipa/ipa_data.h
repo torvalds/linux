@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2023 Linaro Ltd.
+ * Copyright (C) 2019-2024 Linaro Ltd.
  */
 #ifndef _IPA_DATA_H_
 #define _IPA_DATA_H_
 
 #include <linux/types.h>
 
-#include "ipa_version.h"
 #include "ipa_endpoint.h"
 #include "ipa_mem.h"
+#include "ipa_version.h"
 
 /**
  * DOC: IPA/GSI Configuration Data
@@ -250,5 +250,6 @@ extern const struct ipa_data ipa_data_v4_7;
 extern const struct ipa_data ipa_data_v4_9;
 extern const struct ipa_data ipa_data_v4_11;
 extern const struct ipa_data ipa_data_v5_0;
+extern const struct ipa_data ipa_data_v5_5;
 
 #endif /* _IPA_DATA_H_ */

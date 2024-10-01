@@ -7,10 +7,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -130,8 +127,6 @@ enum cci_models {
 
 static void pmu_write_counters(struct cci_pmu *cci_pmu,
 				 unsigned long *mask);
-static ssize_t __maybe_unused cci_pmu_format_show(struct device *dev,
-			struct device_attribute *attr, char *buf);
 static ssize_t __maybe_unused cci_pmu_event_show(struct device *dev,
 			struct device_attribute *attr, char *buf);
 
@@ -141,7 +136,7 @@ static ssize_t __maybe_unused cci_pmu_event_show(struct device *dev,
 	})[0].attr.attr
 
 #define CCI_FORMAT_EXT_ATTR_ENTRY(_name, _config) \
-	CCI_EXT_ATTR_ENTRY(_name, cci_pmu_format_show, (char *)_config)
+	CCI_EXT_ATTR_ENTRY(_name, device_show_string, _config)
 #define CCI_EVENT_EXT_ATTR_ENTRY(_name, _config) \
 	CCI_EXT_ATTR_ENTRY(_name, cci_pmu_event_show, (unsigned long)_config)
 
@@ -689,14 +684,6 @@ static void __cci_pmu_disable(struct cci_pmu *cci_pmu)
 	/* Disable all the PMU counters. */
 	val = readl_relaxed(cci_pmu->ctrl_base + CCI_PMCR) & ~CCI_PMCR_CEN;
 	writel(val, cci_pmu->ctrl_base + CCI_PMCR);
-}
-
-static ssize_t cci_pmu_format_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr = container_of(attr,
-				struct dev_ext_attribute, attr);
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
 }
 
 static ssize_t cci_pmu_event_show(struct device *dev,
@@ -1412,6 +1399,7 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 
 	cci_pmu->pmu = (struct pmu) {
 		.module		= THIS_MODULE,
+		.parent		= &pdev->dev,
 		.name		= cci_pmu->model->name,
 		.task_ctx_nr	= perf_invalid_context,
 		.pmu_enable	= cci_pmu_enable,
@@ -1700,16 +1688,14 @@ error_pmu_init:
 	return ret;
 }
 
-static int cci_pmu_remove(struct platform_device *pdev)
+static void cci_pmu_remove(struct platform_device *pdev)
 {
 	if (!g_cci_pmu)
-		return 0;
+		return;
 
 	cpuhp_remove_state(CPUHP_AP_PERF_ARM_CCI_ONLINE);
 	perf_pmu_unregister(&g_cci_pmu->pmu);
 	g_cci_pmu = NULL;
-
-	return 0;
 }
 
 static struct platform_driver cci_pmu_driver = {
@@ -1719,7 +1705,7 @@ static struct platform_driver cci_pmu_driver = {
 		   .suppress_bind_attrs = true,
 		  },
 	.probe = cci_pmu_probe,
-	.remove = cci_pmu_remove,
+	.remove_new = cci_pmu_remove,
 };
 
 module_platform_driver(cci_pmu_driver);

@@ -12,9 +12,11 @@ maintainers:
 properties:
   compatible:
     enum:
+      - google,gs101-dwusb3
       - samsung,exynos5250-dwusb3
       - samsung,exynos5433-dwusb3
       - samsung,exynos7-dwusb3
+      - samsung,exynos850-dwusb3
 
   '#address-cells':
     const: 1
@@ -58,6 +60,23 @@ allOf:
       properties:
         compatible:
           contains:
+            const: google,gs101-dwusb3
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: bus_early
+            - const: susp_clk
+            - const: link_aclk
+            - const: link_pclk
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: samsung,exynos5250-dwusb3
     then:
       properties:
@@ -72,7 +91,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos54333-dwusb3
+            const: samsung,exynos5433-dwusb3
     then:
       properties:
         clocks:
@@ -82,8 +101,8 @@ allOf:
           items:
             - const: aclk
             - const: susp_clk
-            - const: pipe_pclk
             - const: phyclk
+            - const: pipe_pclk
 
   - if:
       properties:
@@ -100,6 +119,21 @@ allOf:
             - const: usbdrd30
             - const: usbdrd30_susp_clk
             - const: usbdrd30_axius_clk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos850-dwusb3
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: bus_early
+            - const: ref
 
 additionalProperties: false
 

@@ -49,7 +49,7 @@
 /* configurable via /proc/sys/fs/inotify/ */
 static int inotify_max_queued_events __read_mostly;
 
-struct kmem_cache *inotify_inode_mark_cachep __read_mostly;
+struct kmem_cache *inotify_inode_mark_cachep __ro_after_init;
 
 #ifdef CONFIG_SYSCTL
 
@@ -85,7 +85,6 @@ static struct ctl_table inotify_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO
 	},
-	{ }
 };
 
 static void __init inotify_sysctls_init(void)
@@ -545,7 +544,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	int create = (arg & IN_MASK_CREATE);
 	int ret;
 
-	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
+	fsn_mark = fsnotify_find_inode_mark(inode, group);
 	if (!fsn_mark)
 		return -ENOENT;
 	else if (create) {
@@ -754,7 +753,7 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 		return -EINVAL;
 
 	f = fdget(fd);
-	if (unlikely(!f.file))
+	if (unlikely(!fd_file(f)))
 		return -EBADF;
 
 	/* IN_MASK_ADD and IN_MASK_CREATE don't make sense together */
@@ -764,7 +763,7 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 	}
 
 	/* verify that this is indeed an inotify instance */
-	if (unlikely(f.file->f_op != &inotify_fops)) {
+	if (unlikely(fd_file(f)->f_op != &inotify_fops)) {
 		ret = -EINVAL;
 		goto fput_and_out;
 	}
@@ -781,7 +780,7 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 
 	/* inode held in place by reference to path; group by fget on fd */
 	inode = path.dentry->d_inode;
-	group = f.file->private_data;
+	group = fd_file(f)->private_data;
 
 	/* create/update an inode mark */
 	ret = inotify_update_watch(group, inode, mask);
@@ -799,14 +798,14 @@ SYSCALL_DEFINE2(inotify_rm_watch, int, fd, __s32, wd)
 	int ret = -EINVAL;
 
 	f = fdget(fd);
-	if (unlikely(!f.file))
+	if (unlikely(!fd_file(f)))
 		return -EBADF;
 
 	/* verify that this is indeed an inotify instance */
-	if (unlikely(f.file->f_op != &inotify_fops))
+	if (unlikely(fd_file(f)->f_op != &inotify_fops))
 		goto out;
 
-	group = f.file->private_data;
+	group = fd_file(f)->private_data;
 
 	i_mark = inotify_idr_find(group, wd);
 	if (unlikely(!i_mark))

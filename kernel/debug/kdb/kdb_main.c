@@ -155,16 +155,6 @@ static char *__env[31] = {
 
 static const int __nenv = ARRAY_SIZE(__env);
 
-struct task_struct *kdb_curr_task(int cpu)
-{
-	struct task_struct *p = curr_task(cpu);
-#ifdef	_TIF_MCA_INIT
-	if ((task_thread_info(p)->flags & _TIF_MCA_INIT) && KDB_TSK(cpu))
-		p = krp->p;
-#endif
-	return p;
-}
-
 /*
  * Update the permissions flags (kdb_cmd_enabled) to match the
  * current lockdown state.
@@ -272,11 +262,10 @@ char *kdbgetenv(const char *match)
  * kdballocenv - This function is used to allocate bytes for
  *	environment entries.
  * Parameters:
- *	match	A character string representing a numeric value
- * Outputs:
- *	*value  the unsigned long representation of the env variable 'match'
+ *	bytes	The number of bytes to allocate in the static buffer.
  * Returns:
- *	Zero on success, a kdb diagnostic on failure.
+ *	A pointer to the allocated space in the buffer on success.
+ *	NULL if bytes > size available in the envbuffer.
  * Remarks:
  *	We use a static environment buffer (envbuffer) to hold the values
  *	of dynamically generated environment variables (see kdb_set).  Buffer
@@ -1229,7 +1218,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 	char *cmdbuf;
 	int diag;
 	struct task_struct *kdb_current =
-		kdb_curr_task(raw_smp_processor_id());
+		curr_task(raw_smp_processor_id());
 
 	KDB_DEBUG_STATE("kdb_local 1", reason);
 
@@ -1349,8 +1338,6 @@ do_full_getstr:
 		/* PROMPT can only be set if we have MEM_READ permission. */
 		snprintf(kdb_prompt_str, CMD_BUFLEN, kdbgetenv("PROMPT"),
 			 raw_smp_processor_id());
-		if (defcmd_in_progress)
-			strncat(kdb_prompt_str, "[defcmd]", CMD_BUFLEN);
 
 		/*
 		 * Fetch command from keyboard
@@ -2281,7 +2268,7 @@ void kdb_ps_suppressed(void)
 	unsigned long cpu;
 	const struct task_struct *p, *g;
 	for_each_online_cpu(cpu) {
-		p = kdb_curr_task(cpu);
+		p = curr_task(cpu);
 		if (kdb_task_state(p, "-"))
 			++idle;
 	}
@@ -2317,7 +2304,7 @@ void kdb_ps1(const struct task_struct *p)
 		   kdb_task_has_cpu(p), kdb_process_cpu(p),
 		   kdb_task_state_char(p),
 		   (void *)(&p->thread),
-		   p == kdb_curr_task(raw_smp_processor_id()) ? '*' : ' ',
+		   p == curr_task(raw_smp_processor_id()) ? '*' : ' ',
 		   p->comm);
 	if (kdb_task_has_cpu(p)) {
 		if (!KDB_TSK(cpu)) {
@@ -2353,7 +2340,7 @@ static int kdb_ps(int argc, const char **argv)
 	for_each_online_cpu(cpu) {
 		if (KDB_FLAG(CMD_INTERRUPT))
 			return 0;
-		p = kdb_curr_task(cpu);
+		p = curr_task(cpu);
 		if (kdb_task_state(p, mask))
 			kdb_ps1(p);
 	}
@@ -2520,7 +2507,7 @@ static int kdb_summary(int argc, const char **argv)
 	if (val.uptime > (24*60*60)) {
 		int days = val.uptime / (24*60*60);
 		val.uptime %= (24*60*60);
-		kdb_printf("%d day%s ", days, days == 1 ? "" : "s");
+		kdb_printf("%d day%s ", days, str_plural(days));
 	}
 	kdb_printf("%02ld:%02ld\n", val.uptime/(60*60), (val.uptime/60)%60);
 

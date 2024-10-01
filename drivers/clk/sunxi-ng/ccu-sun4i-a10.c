@@ -8,7 +8,7 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include "ccu_common.h"
@@ -1481,6 +1481,7 @@ static const struct of_device_id sun4i_a10_ccu_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun4i_a10_ccu_ids);
 
 static struct platform_driver sun4i_a10_ccu_driver = {
 	.probe	= sun4i_a10_ccu_probe,
@@ -1493,4 +1494,5 @@ static struct platform_driver sun4i_a10_ccu_driver = {
 module_platform_driver(sun4i_a10_ccu_driver);
 
 MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_DESCRIPTION("Support for the Allwinner A10/A20 CCU");
 MODULE_LICENSE("GPL");

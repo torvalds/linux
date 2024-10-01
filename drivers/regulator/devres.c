@@ -145,6 +145,65 @@ struct regulator *devm_regulator_get_optional(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_regulator_get_optional);
 
+/**
+ * devm_regulator_get_enable_read_voltage - Resource managed regulator get and
+ *                                          enable that returns the voltage
+ * @dev: device to supply
+ * @id:  supply name or regulator ID.
+ *
+ * Get and enable regulator for duration of the device life-time.
+ * regulator_disable() and regulator_put() are automatically called on driver
+ * detach. See regulator_get_optional(), regulator_enable(), and
+ * regulator_get_voltage() for more information.
+ *
+ * This is a convenience function for supplies that provide a reference voltage
+ * where the consumer driver just needs to know the voltage and keep the
+ * regulator enabled.
+ *
+ * In cases where the supply is not strictly required, callers can check for
+ * -ENODEV error and handle it accordingly.
+ *
+ * Returns: voltage in microvolts on success, or an negative error number on failure.
+ */
+int devm_regulator_get_enable_read_voltage(struct device *dev, const char *id)
+{
+	struct regulator *r;
+	int ret;
+
+	/*
+	 * Since we need a real voltage, we use devm_regulator_get_optional()
+	 * rather than getting a dummy regulator with devm_regulator_get() and
+	 * then letting regulator_get_voltage() fail with -EINVAL. This way, the
+	 * caller can handle the -ENODEV negative error number if needed instead
+	 * of the ambiguous -EINVAL.
+	 */
+	r = devm_regulator_get_optional(dev, id);
+	if (IS_ERR(r))
+		return PTR_ERR(r);
+
+	ret = regulator_enable(r);
+	if (ret)
+		goto err_regulator_put;
+
+	ret = devm_add_action_or_reset(dev, regulator_action_disable, r);
+	if (ret)
+		goto err_regulator_put;
+
+	ret = regulator_get_voltage(r);
+	if (ret < 0)
+		goto err_release_action;
+
+	return ret;
+
+err_release_action:
+	devm_release_action(dev, regulator_action_disable, r);
+err_regulator_put:
+	devm_regulator_put(r);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_get_enable_read_voltage);
+
 static int devm_regulator_match(struct device *dev, void *res, void *data)
 {
 	struct regulator **r = res;
@@ -217,7 +276,7 @@ static int _devm_regulator_bulk_get(struct device *dev, int num_consumers,
  * @num_consumers: number of consumers to register
  * @consumers:     configuration of consumers; clients are stored here.
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, a negative error number on failure.
  *
  * This helper function allows drivers to get several regulator
  * consumers in one operation with management, the regulators will
@@ -240,7 +299,7 @@ EXPORT_SYMBOL_GPL(devm_regulator_bulk_get);
  * @num_consumers: number of consumers to register
  * @consumers:     configuration of consumers; clients are stored here.
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, a negative error number on failure.
  *
  * This helper function allows drivers to exclusively get several
  * regulator consumers in one operation with management, the regulators
@@ -267,7 +326,7 @@ EXPORT_SYMBOL_GPL(devm_regulator_bulk_get_exclusive);
  * This is a convenience function to allow bulk regulator configuration
  * to be stored "static const" in files.
  *
- * Return: 0 on success, an errno on failure.
+ * Return: 0 on success, a negative error number on failure.
  */
 int devm_regulator_bulk_get_const(struct device *dev, int num_consumers,
 				  const struct regulator_bulk_data *in_consumers,
@@ -334,7 +393,7 @@ static void devm_regulator_bulk_disable(void *res)
  * @num_consumers: number of consumers to register
  * @id:            list of supply names or regulator IDs
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, a negative error number on failure.
  *
  * This helper function allows drivers to get several regulator
  * consumers in one operation with management, the regulators will
@@ -515,7 +574,7 @@ static void devm_regulator_unregister_supply_alias(struct device *dev,
  *             lookup the supply
  * @num_id:    number of aliases to register
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, a negative error number on failure.
  *
  * This helper function allows drivers to register several supply
  * aliases in one operation, the aliases will be automatically
@@ -667,7 +726,7 @@ static void regulator_irq_helper_drop(void *res)
  *			IRQ.
  * @rdev_amount:	Amount of regulators associated with this IRQ.
  *
- * Return: handle to irq_helper or an ERR_PTR() encoded error code.
+ * Return: handle to irq_helper or an ERR_PTR() encoded negative error number.
  */
 void *devm_regulator_irq_helper(struct device *dev,
 				const struct regulator_irq_desc *d, int irq,

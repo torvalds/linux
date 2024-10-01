@@ -228,11 +228,6 @@ struct miphy28lp_dev {
 	int nphys;
 };
 
-struct miphy_initval {
-	u16 reg;
-	u16 val;
-};
-
 enum miphy_sata_gen { SATA_GEN1, SATA_GEN2, SATA_GEN3 };
 
 static char *PHY_TYPE_name[] = { "sata-up", "pcie-up", "", "usb3-up" };
@@ -1074,7 +1069,7 @@ static int miphy28lp_get_addr(struct miphy28lp_phy *miphy_phy)
 }
 
 static struct phy *miphy28lp_xlate(struct device *dev,
-				   struct of_phandle_args *args)
+				   const struct of_phandle_args *args)
 {
 	struct miphy28lp_dev *miphy_dev = dev_get_drvdata(dev);
 	struct miphy28lp_phy *miphy_phy = NULL;

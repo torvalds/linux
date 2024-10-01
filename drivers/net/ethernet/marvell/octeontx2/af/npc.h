@@ -63,8 +63,13 @@ enum npc_kpu_lb_ltype {
 	NPC_LT_LB_CUSTOM1 = 0xF,
 };
 
+/* Don't modify ltypes up to IP6_EXT, otherwise length and checksum of IP
+ * headers may not be checked correctly. IPv4 ltypes and IPv6 ltypes must
+ * differ only at bit 0 so mask 0xE can be used to detect extended headers.
+ */
 enum npc_kpu_lc_ltype {
-	NPC_LT_LC_IP = 1,
+	NPC_LT_LC_PTP = 1,
+	NPC_LT_LC_IP,
 	NPC_LT_LC_IP_OPT,
 	NPC_LT_LC_IP6,
 	NPC_LT_LC_IP6_EXT,
@@ -72,7 +77,6 @@ enum npc_kpu_lc_ltype {
 	NPC_LT_LC_RARP,
 	NPC_LT_LC_MPLS,
 	NPC_LT_LC_NSH,
-	NPC_LT_LC_PTP,
 	NPC_LT_LC_FCOE,
 	NPC_LT_LC_NGIO,
 	NPC_LT_LC_CUSTOM0 = 0xE,
@@ -85,8 +89,7 @@ enum npc_kpu_lc_ltype {
 enum npc_kpu_ld_ltype {
 	NPC_LT_LD_TCP = 1,
 	NPC_LT_LD_UDP,
-	NPC_LT_LD_ICMP,
-	NPC_LT_LD_SCTP,
+	NPC_LT_LD_SCTP = 4,
 	NPC_LT_LD_ICMP6,
 	NPC_LT_LD_CUSTOM0,
 	NPC_LT_LD_CUSTOM1,
@@ -97,6 +100,7 @@ enum npc_kpu_ld_ltype {
 	NPC_LT_LD_NSH,
 	NPC_LT_LD_TU_MPLS_IN_NSH,
 	NPC_LT_LD_TU_MPLS_IN_IP,
+	NPC_LT_LD_ICMP,
 };
 
 enum npc_kpu_le_ltype {
@@ -140,14 +144,14 @@ enum npc_kpu_lg_ltype {
 enum npc_kpu_lh_ltype {
 	NPC_LT_LH_TU_TCP = 1,
 	NPC_LT_LH_TU_UDP,
-	NPC_LT_LH_TU_ICMP,
-	NPC_LT_LH_TU_SCTP,
+	NPC_LT_LH_TU_SCTP = 4,
 	NPC_LT_LH_TU_ICMP6,
+	NPC_LT_LH_CUSTOM0,
+	NPC_LT_LH_CUSTOM1,
 	NPC_LT_LH_TU_IGMP = 8,
 	NPC_LT_LH_TU_ESP,
 	NPC_LT_LH_TU_AH,
-	NPC_LT_LH_CUSTOM0 = 0xE,
-	NPC_LT_LH_CUSTOM1 = 0xF,
+	NPC_LT_LH_TU_ICMP = 0xF,
 };
 
 /* NPC port kind defines how the incoming or outgoing packets
@@ -155,10 +159,11 @@ enum npc_kpu_lh_ltype {
  * Software assigns pkind for each incoming port such as CGX
  * Ethernet interfaces, LBK interfaces, etc.
  */
-#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_CUSTOM_PRE_L2_PKIND
+#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_CPT_HDR_PTP_PKIND
 
 enum npc_pkind_type {
 	NPC_RX_LBK_PKIND = 0ULL,
+	NPC_RX_CPT_HDR_PTP_PKIND = 54ULL,
 	NPC_RX_CUSTOM_PRE_L2_PKIND = 55ULL,
 	NPC_RX_VLAN_EXDSA_PKIND = 56ULL,
 	NPC_RX_CHLEN24B_PKIND = 57ULL,
@@ -184,6 +189,7 @@ enum key_fields {
 	NPC_VLAN_ETYPE_CTAG, /* 0x8100 */
 	NPC_VLAN_ETYPE_STAG, /* 0x88A8 */
 	NPC_OUTER_VID,
+	NPC_INNER_VID,
 	NPC_TOS,
 	NPC_IPFRAG_IPV4,
 	NPC_SIP_IPV4,
@@ -204,6 +210,18 @@ enum key_fields {
 	NPC_DPORT_UDP,
 	NPC_SPORT_SCTP,
 	NPC_DPORT_SCTP,
+	NPC_IPSEC_SPI,
+	NPC_MPLS1_LBTCBOS,
+	NPC_MPLS1_TTL,
+	NPC_MPLS2_LBTCBOS,
+	NPC_MPLS2_TTL,
+	NPC_MPLS3_LBTCBOS,
+	NPC_MPLS3_TTL,
+	NPC_MPLS4_LBTCBOS,
+	NPC_MPLS4_TTL,
+	NPC_TYPE_ICMP,
+	NPC_CODE_ICMP,
+	NPC_TCP_FLAGS,
 	NPC_HEADER_FIELDS_MAX,
 	NPC_CHAN = NPC_HEADER_FIELDS_MAX, /* Valid when Rx */
 	NPC_PF_FUNC, /* Valid when Tx */
@@ -229,6 +247,8 @@ enum key_fields {
 	NPC_VLAN_TAG1,
 	/* outer vlan tci for double tagged frame */
 	NPC_VLAN_TAG2,
+	/* inner vlan tci for double tagged frame */
+	NPC_VLAN_TAG3,
 	/* other header fields programmed to extract but not of our interest */
 	NPC_UNKNOWN,
 	NPC_KEY_FIELDS_MAX,
@@ -516,7 +536,7 @@ struct npc_lt_def {
 	u8	ltype_mask;
 	u8	ltype_match;
 	u8	lid;
-};
+} __packed;
 
 struct npc_lt_def_ipsec {
 	u8	ltype_mask;
@@ -524,7 +544,7 @@ struct npc_lt_def_ipsec {
 	u8	lid;
 	u8	spi_offset;
 	u8	spi_nz;
-};
+} __packed;
 
 struct npc_lt_def_apad {
 	u8	ltype_mask;

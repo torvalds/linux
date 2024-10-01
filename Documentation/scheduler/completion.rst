@@ -51,7 +51,7 @@ which has only two fields::
 
 	struct completion {
 		unsigned int done;
-		wait_queue_head_t wait;
+		struct swait_queue_head wait;
 	};
 
 This provides the ->wait waitqueue to place tasks on for waiting (if any), and
@@ -157,7 +157,7 @@ A typical usage scenario is::
 
 	/* run non-dependent code */		/* do setup */
 
-	wait_for_completion(&setup_done);	complete(setup_done);
+	wait_for_completion(&setup_done);	complete(&setup_done);
 
 This is not implying any particular order between wait_for_completion() and
 the call to complete() - if the call to complete() happened before the call

@@ -264,7 +264,6 @@
 				regulator-always-on;
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1350000>;
-				regulator-init-microvolt = <900000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 
@@ -278,7 +277,6 @@
 				regulator-name = "vdd_gpu_npu";
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1350000>;
-				regulator-init-microvolt = <900000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 
@@ -676,6 +674,7 @@
 };
 
 &uart1 {
+	dma-names = "tx", "rx";
 	pinctrl-0 = <&uart1m0_ctsn>, <&uart1m0_rtsn>, <&uart1m0_xfer>;
 	pinctrl-names = "default";
 	uart-has-rtscts;

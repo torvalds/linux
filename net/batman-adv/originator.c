@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
+#include <linux/if_vlan.h>
 #include <linux/jiffies.h>
 #include <linux/kref.h>
 #include <linux/list.h>
@@ -132,6 +133,29 @@ batadv_orig_node_vlan_get(struct batadv_orig_node *orig_node,
 }
 
 /**
+ * batadv_vlan_id_valid() - check if vlan id is in valid batman-adv encoding
+ * @vid: the VLAN identifier
+ *
+ * Return: true when either no vlan is set or if VLAN is in correct range,
+ *  false otherwise
+ */
+static bool batadv_vlan_id_valid(unsigned short vid)
+{
+	unsigned short non_vlan = vid & ~(BATADV_VLAN_HAS_TAG | VLAN_VID_MASK);
+
+	if (vid == 0)
+		return true;
+
+	if (!(vid & BATADV_VLAN_HAS_TAG))
+		return false;
+
+	if (non_vlan)
+		return false;
+
+	return true;
+}
+
+/**
  * batadv_orig_node_vlan_new() - search and possibly create an orig_node_vlan
  *  object
  * @orig_node: the originator serving the VLAN
@@ -148,6 +172,9 @@ batadv_orig_node_vlan_new(struct batadv_orig_node *orig_node,
 			  unsigned short vid)
 {
 	struct batadv_orig_node_vlan *vlan;
+
+	if (!batadv_vlan_id_valid(vid))
+		return NULL;
 
 	spin_lock_bh(&orig_node->vlan_list_lock);
 
@@ -309,6 +336,33 @@ batadv_orig_router_get(struct batadv_orig_node *orig_node,
 
 	rcu_read_unlock();
 	return router;
+}
+
+/**
+ * batadv_orig_to_router() - get next hop neighbor to an orig address
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_addr: the originator MAC address to search the best next hop router for
+ * @if_outgoing: the interface where the payload packet has been received or
+ *  the OGM should be sent to
+ *
+ * Return: A neighbor node which is the best router towards the given originator
+ * address.
+ */
+struct batadv_neigh_node *
+batadv_orig_to_router(struct batadv_priv *bat_priv, u8 *orig_addr,
+		      struct batadv_hard_iface *if_outgoing)
+{
+	struct batadv_neigh_node *neigh_node;
+	struct batadv_orig_node *orig_node;
+
+	orig_node = batadv_orig_hash_find(bat_priv, orig_addr);
+	if (!orig_node)
+		return NULL;
+
+	neigh_node = batadv_find_router(bat_priv, orig_node, if_outgoing);
+	batadv_orig_node_put(orig_node);
+
+	return neigh_node;
 }
 
 /**
@@ -942,6 +996,7 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	orig_node->mcast_flags = BATADV_MCAST_WANT_NO_RTR4;
 	orig_node->mcast_flags |= BATADV_MCAST_WANT_NO_RTR6;
+	orig_node->mcast_flags |= BATADV_MCAST_HAVE_MC_PTYPE_CAPA;
 	INIT_HLIST_NODE(&orig_node->mcast_want_all_unsnoopables_node);
 	INIT_HLIST_NODE(&orig_node->mcast_want_all_ipv4_node);
 	INIT_HLIST_NODE(&orig_node->mcast_want_all_ipv6_node);
@@ -1238,6 +1293,8 @@ void batadv_purge_orig_ref(struct batadv_priv *bat_priv)
 	/* for all origins... */
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
+		if (hlist_empty(head))
+			continue;
 		list_lock = &hash->list_locks[i];
 
 		spin_lock_bh(list_lock);

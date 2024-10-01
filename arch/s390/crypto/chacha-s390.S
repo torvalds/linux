@@ -8,7 +8,7 @@
 
 #include <linux/linkage.h>
 #include <asm/nospec-insn.h>
-#include <asm/vx-insn.h>
+#include <asm/fpu-insn.h>
 
 #define SP	%r15
 #define FRAME	(16 * 8 + 4 * 8)

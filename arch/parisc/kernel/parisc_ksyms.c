@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
+#include <linux/libgcc.h>
 
 #include <linux/string.h>
 EXPORT_SYMBOL(memset);
@@ -21,6 +22,8 @@ EXPORT_SYMBOL(memset);
 #include <linux/atomic.h>
 EXPORT_SYMBOL(__xchg8);
 EXPORT_SYMBOL(__xchg32);
+EXPORT_SYMBOL(__cmpxchg_u8);
+EXPORT_SYMBOL(__cmpxchg_u16);
 EXPORT_SYMBOL(__cmpxchg_u32);
 EXPORT_SYMBOL(__cmpxchg_u64);
 #ifdef CONFIG_SMP
@@ -91,12 +94,6 @@ EXPORT_SYMBOL($$divI_10);
 EXPORT_SYMBOL($$divI_12);
 EXPORT_SYMBOL($$divI_14);
 EXPORT_SYMBOL($$divI_15);
-
-extern void __ashrdi3(void);
-extern void __ashldi3(void);
-extern void __lshrdi3(void);
-extern void __muldi3(void);
-extern void __ucmpdi2(void);
 
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__ashldi3);

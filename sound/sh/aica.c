@@ -75,8 +75,7 @@ static void spu_write_wait(void)
 		/* To ensure hardware failure doesn't wedge kernel */
 		time_count++;
 		if (time_count > 0x10000) {
-			snd_printk
-			    ("WARNING: G2 FIFO appears to be blocked.\n");
+			pr_warn("WARNING: G2 FIFO appears to be blocked.\n");
 			break;
 		}
 	}
@@ -278,7 +277,8 @@ static void run_spu_dma(struct work_struct *work)
 		dreamcastcard->clicks++;
 		if (unlikely(dreamcastcard->clicks >= AICA_PERIOD_NUMBER))
 			dreamcastcard->clicks %= AICA_PERIOD_NUMBER;
-		mod_timer(&dreamcastcard->timer, jiffies + 1);
+		if (snd_pcm_running(dreamcastcard->substream))
+			mod_timer(&dreamcastcard->timer, jiffies + 1);
 	}
 }
 
@@ -290,6 +290,8 @@ static void aica_period_elapsed(struct timer_list *t)
 	/*timer function - so cannot sleep */
 	int play_period;
 	struct snd_pcm_runtime *runtime;
+	if (!snd_pcm_running(substream))
+		return;
 	runtime = substream->runtime;
 	dreamcastcard = substream->pcm->private_data;
 	/* Have we played out an additional period? */
@@ -350,12 +352,19 @@ static int snd_aicapcm_pcm_open(struct snd_pcm_substream
 	return 0;
 }
 
+static int snd_aicapcm_pcm_sync_stop(struct snd_pcm_substream *substream)
+{
+	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
+
+	del_timer_sync(&dreamcastcard->timer);
+	cancel_work_sync(&dreamcastcard->spu_dma_work);
+	return 0;
+}
+
 static int snd_aicapcm_pcm_close(struct snd_pcm_substream
 				 *substream)
 {
 	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
-	flush_work(&(dreamcastcard->spu_dma_work));
-	del_timer(&dreamcastcard->timer);
 	dreamcastcard->substream = NULL;
 	kfree(dreamcastcard->channel);
 	spu_disable();
@@ -401,6 +410,7 @@ static const struct snd_pcm_ops snd_aicapcm_playback_ops = {
 	.prepare = snd_aicapcm_pcm_prepare,
 	.trigger = snd_aicapcm_pcm_trigger,
 	.pointer = snd_aicapcm_pcm_pointer,
+	.sync_stop = snd_aicapcm_pcm_sync_stop,
 };
 
 /* TO DO: set up to handle more than one pcm instance */
@@ -580,8 +590,8 @@ static int snd_aica_probe(struct platform_device *devptr)
 	if (unlikely(err < 0))
 		goto freedreamcast;
 	platform_set_drvdata(devptr, dreamcastcard);
-	snd_printk
-	    ("ALSA Driver for Yamaha AICA Super Intelligent Sound Processor\n");
+	dev_info(&devptr->dev,
+		 "ALSA Driver for Yamaha AICA Super Intelligent Sound Processor\n");
 	return 0;
       freedreamcast:
 	snd_card_free(dreamcastcard->card);

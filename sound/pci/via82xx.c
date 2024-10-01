@@ -347,13 +347,11 @@ struct via82xx {
 
 	unsigned char old_legacy;
 	unsigned char old_legacy_cfg;
-#ifdef CONFIG_PM_SLEEP
 	unsigned char legacy_saved;
 	unsigned char legacy_cfg_saved;
 	unsigned char spdif_ctrl_saved;
 	unsigned char capture_src_saved[2];
 	unsigned int mpu_port_saved;
-#endif
 
 	unsigned char playback_volume[4][2]; /* for VIA8233/C/8235; default = 0 */
 	unsigned char playback_volume_c[2]; /* for VIA8233/C/8235; default = 0 */
@@ -1984,11 +1982,7 @@ static int snd_via8233_init_misc(struct via82xx *chip)
 		/* when no h/w PCM volume control is found, use DXS volume control
 		 * as the PCM vol control
 		 */
-		struct snd_ctl_elem_id sid;
-		memset(&sid, 0, sizeof(sid));
-		strcpy(sid.name, "PCM Playback Volume");
-		sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		if (! snd_ctl_find_id(chip->card, &sid)) {
+		if (!snd_ctl_find_id_mixer(chip->card, "PCM Playback Volume")) {
 			dev_info(chip->card->dev,
 				 "Using DXS as PCM Playback\n");
 			err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_via8233_pcmdxs_volume_control, chip));
@@ -2035,9 +2029,7 @@ static int snd_via686_init_misc(struct via82xx *chip)
 		if (mpu_port >= 0x200) {	/* force MIDI */
 			mpu_port &= 0xfffc;
 			pci_write_config_dword(chip->pci, 0x18, mpu_port | 0x01);
-#ifdef CONFIG_PM_SLEEP
 			chip->mpu_port_saved = mpu_port;
-#endif
 		} else {
 			mpu_port = pci_resource_start(chip->pci, 2);
 		}
@@ -2089,10 +2081,8 @@ static int snd_via686_init_misc(struct via82xx *chip)
 
 	snd_via686_create_gameport(chip, &legacy);
 
-#ifdef CONFIG_PM_SLEEP
 	chip->legacy_saved = legacy;
 	chip->legacy_cfg_saved = legacy_cfg;
-#endif
 
 	return 0;
 }
@@ -2238,7 +2228,6 @@ static int snd_via82xx_chip_init(struct via82xx *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -2291,11 +2280,7 @@ static int snd_via82xx_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(snd_via82xx_pm, snd_via82xx_suspend, snd_via82xx_resume);
-#define SND_VIA82XX_PM_OPS	&snd_via82xx_pm
-#else
-#define SND_VIA82XX_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(snd_via82xx_pm, snd_via82xx_suspend, snd_via82xx_resume);
 
 static void snd_via82xx_free(struct snd_card *card)
 {
@@ -2580,7 +2565,7 @@ static struct pci_driver via82xx_driver = {
 	.id_table = snd_via82xx_ids,
 	.probe = snd_via82xx_probe,
 	.driver = {
-		.pm = SND_VIA82XX_PM_OPS,
+		.pm = &snd_via82xx_pm,
 	},
 };
 

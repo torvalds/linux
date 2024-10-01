@@ -14,6 +14,13 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts =
+			<GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	chipcommon-a-bus@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x00001000>;
@@ -272,14 +279,32 @@
 
 		gmac0: ethernet@24000 {
 			reg = <0x24000 0x800>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		gmac1: ethernet@25000 {
 			reg = <0x25000 0x800>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		gmac2: ethernet@26000 {
 			reg = <0x26000 0x800>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		gmac3: ethernet@27000 {
@@ -300,6 +325,29 @@
 		reg = <0x18003000 0x8>;
 		#size-cells = <0>;
 		#address-cells = <1>;
+	};
+
+	mdio-mux@18003000 {
+		compatible = "mdio-mux-mmioreg", "mdio-mux";
+		mdio-parent-bus = <&mdio>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x18003000 0x4>;
+		mux-mask = <0x200>;
+
+		mdio@0 {
+			reg = <0x0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			usb3_phy: usb3-phy@10 {
+				compatible = "brcm,ns-ax-usb3-phy";
+				reg = <0x10>;
+				usb3-dmp-syscon = <&usb3_dmp>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
 	};
 
 	rng: rng@18004000 {
@@ -440,6 +488,10 @@
 		#size-cells = <0>;
 
 		brcm,nand-has-wp;
+	};
+
+	usb3_dmp: syscon@18105000 {
+		reg = <0x18105000 0x1000>;
 	};
 
 	thermal-zones {

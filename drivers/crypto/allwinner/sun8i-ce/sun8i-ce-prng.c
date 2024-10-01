@@ -132,10 +132,10 @@ int sun8i_ce_prng_generate(struct crypto_rng *tfm, const u8 *src,
 	cet->t_sym_ctl = cpu_to_le32(sym);
 	cet->t_asym_ctl = 0;
 
-	cet->t_key = cpu_to_le32(dma_iv);
-	cet->t_iv = cpu_to_le32(dma_iv);
+	cet->t_key = desc_addr_val_le32(ce, dma_iv);
+	cet->t_iv = desc_addr_val_le32(ce, dma_iv);
 
-	cet->t_dst[0].addr = cpu_to_le32(dma_dst);
+	cet->t_dst[0].addr = desc_addr_val_le32(ce, dma_dst);
 	cet->t_dst[0].len = cpu_to_le32(todo / 4);
 	ce->chanlist[flow].timeout = 2000;
 

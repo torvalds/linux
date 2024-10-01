@@ -38,11 +38,6 @@ enum intel_region_id {
 	INTEL_REGION_UNKNOWN, /* Should be last */
 };
 
-#define REGION_SMEM     BIT(INTEL_REGION_SMEM)
-#define REGION_LMEM     BIT(INTEL_REGION_LMEM_0)
-#define REGION_STOLEN_SMEM   BIT(INTEL_REGION_STOLEN_SMEM)
-#define REGION_STOLEN_LMEM   BIT(INTEL_REGION_STOLEN_LMEM)
-
 #define I915_ALLOC_CONTIGUOUS     BIT(0)
 
 #define for_each_memory_region(mr, i915, id) \
@@ -50,8 +45,6 @@ enum intel_region_id {
 		for_each_if((mr) = (i915)->mm.regions[id])
 
 struct intel_memory_region_ops {
-	unsigned int flags;
-
 	int (*init)(struct intel_memory_region *mem);
 	int (*release)(struct intel_memory_region *mem);
 
@@ -71,8 +64,7 @@ struct intel_memory_region {
 	struct io_mapping iomap;
 	struct resource region;
 
-	resource_size_t io_start;
-	resource_size_t io_size;
+	struct resource io;
 	resource_size_t min_page_size;
 	resource_size_t total;
 
@@ -80,6 +72,7 @@ struct intel_memory_region {
 	u16 instance;
 	enum intel_region_id id;
 	char name[16];
+	char uabi_name[16];
 	bool private; /* not for userspace */
 
 	struct {

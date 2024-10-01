@@ -221,16 +221,21 @@ mlx5_ct_fs_smfs_destroy(struct mlx5_ct_fs *fs)
 }
 
 static inline bool
-mlx5_tc_ct_valid_used_dissector_keys(const u32 used_keys)
+mlx5_tc_ct_valid_used_dissector_keys(const u64 used_keys)
 {
-#define DISS_BIT(name) BIT(FLOW_DISSECTOR_KEY_ ## name)
-	const u32 basic_keys = DISS_BIT(BASIC) | DISS_BIT(CONTROL) | DISS_BIT(META);
-	const u32 ipv4_tcp = basic_keys | DISS_BIT(IPV4_ADDRS) | DISS_BIT(PORTS) | DISS_BIT(TCP);
-	const u32 ipv6_tcp = basic_keys | DISS_BIT(IPV6_ADDRS) | DISS_BIT(PORTS) | DISS_BIT(TCP);
-	const u32 ipv4_udp = basic_keys | DISS_BIT(IPV4_ADDRS) | DISS_BIT(PORTS);
-	const u32 ipv6_udp = basic_keys | DISS_BIT(IPV6_ADDRS) | DISS_BIT(PORTS);
-	const u32 ipv4_gre = basic_keys | DISS_BIT(IPV4_ADDRS);
-	const u32 ipv6_gre = basic_keys | DISS_BIT(IPV6_ADDRS);
+#define DISS_BIT(name) BIT_ULL(FLOW_DISSECTOR_KEY_ ## name)
+	const u64 basic_keys = DISS_BIT(BASIC) | DISS_BIT(CONTROL) |
+				DISS_BIT(META);
+	const u64 ipv4_tcp = basic_keys | DISS_BIT(IPV4_ADDRS) |
+				DISS_BIT(PORTS) | DISS_BIT(TCP);
+	const u64 ipv6_tcp = basic_keys | DISS_BIT(IPV6_ADDRS) |
+				DISS_BIT(PORTS) | DISS_BIT(TCP);
+	const u64 ipv4_udp = basic_keys | DISS_BIT(IPV4_ADDRS) |
+				DISS_BIT(PORTS);
+	const u64 ipv6_udp = basic_keys | DISS_BIT(IPV6_ADDRS) |
+				 DISS_BIT(PORTS);
+	const u64 ipv4_gre = basic_keys | DISS_BIT(IPV4_ADDRS);
+	const u64 ipv6_gre = basic_keys | DISS_BIT(IPV6_ADDRS);
 
 	return (used_keys == ipv4_tcp || used_keys == ipv4_udp || used_keys == ipv6_tcp ||
 		used_keys == ipv6_udp || used_keys == ipv4_gre || used_keys == ipv6_gre);
@@ -247,7 +252,7 @@ mlx5_ct_fs_smfs_ct_validate_flow_rule(struct mlx5_ct_fs *fs, struct flow_rule *f
 	struct flow_match_tcp tcp;
 
 	if (!mlx5_tc_ct_valid_used_dissector_keys(flow_rule->match.dissector->used_keys)) {
-		ct_dbg("rule uses unexpected dissectors (0x%08x)",
+		ct_dbg("rule uses unexpected dissectors (0x%016llx)",
 		       flow_rule->match.dissector->used_keys);
 		return false;
 	}
@@ -363,9 +368,35 @@ mlx5_ct_fs_smfs_ct_rule_del(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_ru
 	kfree(smfs_rule);
 }
 
+static int mlx5_ct_fs_smfs_ct_rule_update(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_rule,
+					  struct mlx5_flow_spec *spec, struct mlx5_flow_attr *attr)
+{
+	struct mlx5_ct_fs_smfs_rule *smfs_rule = container_of(fs_rule,
+							      struct mlx5_ct_fs_smfs_rule,
+							      fs_rule);
+	struct mlx5_ct_fs_smfs *fs_smfs = mlx5_ct_fs_priv(fs);
+	struct mlx5dr_action *actions[3];  /* We only need to create 3 actions, see below. */
+	struct mlx5dr_rule *rule;
+
+	actions[0] = smfs_rule->count_action;
+	actions[1] = attr->modify_hdr->action.dr_action;
+	actions[2] = fs_smfs->fwd_action;
+
+	rule = mlx5_smfs_rule_create(smfs_rule->smfs_matcher->dr_matcher, spec,
+				     ARRAY_SIZE(actions), actions, spec->flow_context.flow_source);
+	if (!rule)
+		return -EINVAL;
+
+	mlx5_smfs_rule_destroy(smfs_rule->rule);
+	smfs_rule->rule = rule;
+
+	return 0;
+}
+
 static struct mlx5_ct_fs_ops fs_smfs_ops = {
 	.ct_rule_add = mlx5_ct_fs_smfs_ct_rule_add,
 	.ct_rule_del = mlx5_ct_fs_smfs_ct_rule_del,
+	.ct_rule_update = mlx5_ct_fs_smfs_ct_rule_update,
 
 	.init = mlx5_ct_fs_smfs_init,
 	.destroy = mlx5_ct_fs_smfs_destroy,

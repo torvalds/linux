@@ -83,7 +83,7 @@ EXPORT_SYMBOL(sdw_compute_slave_ports);
 
 static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 				     struct sdw_group_params *params,
-				     int port_bo, int hstop)
+				     int *port_bo, int hstop)
 {
 	struct sdw_transport_data t_data = {0};
 	struct sdw_port_runtime *p_rt;
@@ -108,7 +108,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 
 		sdw_fill_xport_params(&p_rt->transport_params, p_rt->num,
 				      false, SDW_BLK_GRP_CNT_1, sample_int,
-				      port_bo, port_bo >> 8, hstart, hstop,
+				      *port_bo, (*port_bo) >> 8, hstart, hstop,
 				      SDW_BLK_PKG_PER_PORT, 0x0);
 
 		sdw_fill_port_params(&p_rt->port_params,
@@ -120,15 +120,15 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 		if (!(p_rt == list_first_entry(&m_rt->port_list,
 					       struct sdw_port_runtime,
 					       port_node))) {
-			port_bo += bps * ch;
+			(*port_bo) += bps * ch;
 			continue;
 		}
 
 		t_data.hstart = hstart;
 		t_data.hstop = hstop;
-		t_data.block_offset = port_bo;
+		t_data.block_offset = *port_bo;
 		t_data.sub_block_offset = 0;
-		port_bo += bps * ch;
+		(*port_bo) += bps * ch;
 	}
 
 	sdw_compute_slave_ports(m_rt, &t_data);
@@ -146,9 +146,7 @@ static void _sdw_compute_port_params(struct sdw_bus *bus,
 		port_bo = 1;
 
 		list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
-			sdw_compute_master_ports(m_rt, &params[i], port_bo, hstop);
-
-			port_bo += m_rt->ch_count * m_rt->stream->params.bps;
+			sdw_compute_master_ports(m_rt, &params[i], &port_bo, hstop);
 		}
 
 		hstop = hstop - params[i].hwidth;
@@ -333,7 +331,7 @@ static int sdw_select_row_col(struct sdw_bus *bus, int clk_freq)
  */
 static int sdw_compute_bus_params(struct sdw_bus *bus)
 {
-	unsigned int max_dr_freq, curr_dr_freq = 0;
+	unsigned int curr_dr_freq = 0;
 	struct sdw_master_prop *mstr_prop = &bus->prop;
 	int i, clk_values, ret;
 	bool is_gear = false;
@@ -351,14 +349,12 @@ static int sdw_compute_bus_params(struct sdw_bus *bus)
 		clk_buf = NULL;
 	}
 
-	max_dr_freq = mstr_prop->max_clk_freq * SDW_DOUBLE_RATE_FACTOR;
-
 	for (i = 0; i < clk_values; i++) {
 		if (!clk_buf)
-			curr_dr_freq = max_dr_freq;
+			curr_dr_freq = bus->params.max_dr_freq;
 		else
 			curr_dr_freq = (is_gear) ?
-				(max_dr_freq >>  clk_buf[i]) :
+				(bus->params.max_dr_freq >>  clk_buf[i]) :
 				clk_buf[i] * SDW_DOUBLE_RATE_FACTOR;
 
 		if (curr_dr_freq <= bus->params.bandwidth)

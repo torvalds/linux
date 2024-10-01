@@ -42,7 +42,7 @@ static void public_key_describe(const struct key *asymmetric_key,
 void public_key_free(struct public_key *key)
 {
 	if (key) {
-		kfree(key->key);
+		kfree_sensitive(key->key);
 		kfree(key->params);
 		kfree(key);
 	}
@@ -81,14 +81,13 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 * RSA signatures usually use EMSA-PKCS1-1_5 [RFC3447 sec 8.2].
 		 */
 		if (strcmp(encoding, "pkcs1") == 0) {
+			*sig = op == kernel_pkey_sign ||
+			       op == kernel_pkey_verify;
 			if (!hash_algo) {
-				*sig = false;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s)",
 					     pkey->pkey_algo);
 			} else {
-				*sig = op == kernel_pkey_sign ||
-				       op == kernel_pkey_verify;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
@@ -120,14 +119,10 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		    strcmp(hash_algo, "sha224") != 0 &&
 		    strcmp(hash_algo, "sha256") != 0 &&
 		    strcmp(hash_algo, "sha384") != 0 &&
-		    strcmp(hash_algo, "sha512") != 0)
-			return -EINVAL;
-	} else if (strcmp(pkey->pkey_algo, "sm2") == 0) {
-		if (strcmp(encoding, "raw") != 0)
-			return -EINVAL;
-		if (!hash_algo)
-			return -EINVAL;
-		if (strcmp(hash_algo, "sm3") != 0)
+		    strcmp(hash_algo, "sha512") != 0 &&
+		    strcmp(hash_algo, "sha3-256") != 0 &&
+		    strcmp(hash_algo, "sha3-384") != 0 &&
+		    strcmp(hash_algo, "sha3-512") != 0)
 			return -EINVAL;
 	} else if (strcmp(pkey->pkey_algo, "ecrdsa") == 0) {
 		if (strcmp(encoding, "raw") != 0)
@@ -232,6 +227,7 @@ static int software_key_query(const struct kernel_pkey_params *params,
 	info->key_size = len * 8;
 
 	if (strncmp(pkey->pkey_algo, "ecdsa", 5) == 0) {
+		int slen = len;
 		/*
 		 * ECDSA key sizes are much smaller than RSA, and thus could
 		 * operate on (hashed) inputs that are larger than key size.
@@ -245,8 +241,19 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		 * Verify takes ECDSA-Sig (described in RFC 5480) as input,
 		 * which is actually 2 'key_size'-bit integers encoded in
 		 * ASN.1.  Account for the ASN.1 encoding overhead here.
+		 *
+		 * NIST P192/256/384 may prepend a '0' to a coordinate to
+		 * indicate a positive integer. NIST P521 never needs it.
 		 */
-		info->max_sig_size = 2 * (len + 3) + 2;
+		if (strcmp(pkey->pkey_algo, "ecdsa-nist-p521") != 0)
+			slen += 1;
+		/* Length of encoding the x & y coordinates */
+		slen = 2 * (slen + 2);
+		/*
+		 * If coordinate encoding takes at least 128 bytes then an
+		 * additional byte for length encoding is needed.
+		 */
+		info->max_sig_size = 1 + (slen >= 128) + 1 + slen;
 	} else {
 		info->max_data_size = len;
 		info->max_sig_size = len;
@@ -263,7 +270,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -369,7 +376,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -441,7 +448,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 				sig->digest, sig->digest_size);
 
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 error_free_tfm:
 	crypto_free_sig(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);

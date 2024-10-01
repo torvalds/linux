@@ -113,6 +113,11 @@ same_cpu_crypt
     The default is to use an unbound workqueue so that encryption work
     is automatically balanced between available CPUs.
 
+high_priority
+    Set dm-crypt workqueues and the writer thread to high priority. This
+    improves throughput and latency of dm-crypt while degrading general
+    responsiveness of the system.
+
 submit_from_crypt_cpus
     Disable offloading writes to a separate thread after encryption.
     There are some situations where offloading write bios from the
@@ -154,6 +159,27 @@ iv_large_sectors
    sector will be 8 (without flag) and 1 if iv_large_sectors is present.
    The <iv_offset> must be multiple of <sector_size> (in 512 bytes units)
    if this flag is specified.
+
+integrity_key_size:<bytes>
+   Use an integrity key of <bytes> size instead of using an integrity key size
+   of the digest size of the used HMAC algorithm.
+
+
+Module parameters::
+   max_read_size
+      Maximum size of read requests. When a request larger than this size
+      is received, dm-crypt will split the request. The splitting improves
+      concurrency (the split requests could be encrypted in parallel by multiple
+      cores), but it also causes overhead. The user should tune this parameters to
+      fit the actual workload.
+
+   max_write_size
+      Maximum size of write requests. When a request larger than this size
+      is received, dm-crypt will split the request. The splitting improves
+      concurrency (the split requests could be encrypted in parallel by multiple
+      cores), but it also causes overhead. The user should tune this parameters to
+      fit the actual workload.
+
 
 Example scripts
 ===============

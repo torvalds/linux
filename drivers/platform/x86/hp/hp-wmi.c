@@ -24,20 +24,29 @@
 #include <linux/platform_profile.h>
 #include <linux/hwmon.h>
 #include <linux/acpi.h>
+#include <linux/mutex.h>
+#include <linux/cleanup.h>
+#include <linux/power_supply.h>
 #include <linux/rfkill.h>
 #include <linux/string.h>
 #include <linux/dmi.h>
 
 MODULE_AUTHOR("Matthew Garrett <mjg59@srcf.ucam.org>");
-MODULE_DESCRIPTION("HP laptop WMI hotkeys driver");
+MODULE_DESCRIPTION("HP laptop WMI driver");
 MODULE_LICENSE("GPL");
 
 MODULE_ALIAS("wmi:95F24279-4D7B-4334-9387-ACCDC67EF61C");
-MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
+MODULE_ALIAS("wmi:5FB7F034-2C63-45E9-BE91-3D44E2C707E4");
 
 #define HPWMI_EVENT_GUID "95F24279-4D7B-4334-9387-ACCDC67EF61C"
-#define HPWMI_BIOS_GUID "5FB7F034-2C63-45e9-BE91-3D44E2C707E4"
+#define HPWMI_BIOS_GUID "5FB7F034-2C63-45E9-BE91-3D44E2C707E4"
+
+#define HP_OMEN_EC_THERMAL_PROFILE_FLAGS_OFFSET 0x62
+#define HP_OMEN_EC_THERMAL_PROFILE_TIMER_OFFSET 0x63
 #define HP_OMEN_EC_THERMAL_PROFILE_OFFSET 0x95
+
+#define ACPI_AC_CLASS "ac_adapter"
+
 #define zero_if_sup(tmp) (zero_insize_support?0:sizeof(tmp)) // use when zero insize is required
 
 /* DMI board names of devices that should use the omen specific path for
@@ -55,15 +64,23 @@ static const char * const omen_thermal_profile_boards[] = {
 	"874A", "8603", "8604", "8748", "886B", "886C", "878A", "878B", "878C",
 	"88C8", "88CB", "8786", "8787", "8788", "88D1", "88D2", "88F4", "88FD",
 	"88F5", "88F6", "88F7", "88FE", "88FF", "8900", "8901", "8902", "8912",
-	"8917", "8918", "8949", "894A", "89EB"
+	"8917", "8918", "8949", "894A", "89EB", "8BAD", "8A42"
 };
 
 /* DMI Board names of Omen laptops that are specifically set to be thermal
  * profile version 0 by the Omen Command Center app, regardless of what
  * the get system design information WMI call returns
  */
-static const char *const omen_thermal_profile_force_v0_boards[] = {
+static const char * const omen_thermal_profile_force_v0_boards[] = {
 	"8607", "8746", "8747", "8749", "874A", "8748"
+};
+
+/* DMI board names of Omen laptops that have a thermal profile timer which will
+ * cause the embedded controller to set the thermal profile back to
+ * "balanced" when reaching zero.
+ */
+static const char * const omen_timed_thermal_profile_boards[] = {
+	"8BAD", "8A42"
 };
 
 /* DMI Board names of Victus laptops */
@@ -182,6 +199,12 @@ enum hp_thermal_profile_omen_v1 {
 	HP_OMEN_V1_THERMAL_PROFILE_COOL		= 0x50,
 };
 
+enum hp_thermal_profile_omen_flags {
+	HP_OMEN_EC_FLAGS_TURBO		= 0x04,
+	HP_OMEN_EC_FLAGS_NOTIMER	= 0x02,
+	HP_OMEN_EC_FLAGS_JUSTSET	= 0x01,
+};
+
 enum hp_thermal_profile_victus {
 	HP_VICTUS_THERMAL_PROFILE_DEFAULT		= 0x00,
 	HP_VICTUS_THERMAL_PROFILE_PERFORMANCE		= 0x01,
@@ -241,10 +264,18 @@ static const struct key_entry hp_wmi_keymap[] = {
 	{ KE_END, 0 }
 };
 
+/*
+ * Mutex for the active_platform_profile variable,
+ * see omen_powersource_event.
+ */
+static DEFINE_MUTEX(active_platform_profile_lock);
+
 static struct input_dev *hp_wmi_input_dev;
 static struct input_dev *camera_shutter_input_dev;
 static struct platform_device *hp_wmi_platform_dev;
 static struct platform_profile_handler platform_profile_handler;
+static struct notifier_block platform_power_source_nb;
+static enum platform_profile_option active_platform_profile;
 static bool platform_profile_support;
 static bool zero_insize_support;
 
@@ -449,7 +480,11 @@ static int hp_wmi_get_tablet_mode(void)
 
 static int omen_thermal_profile_set(int mode)
 {
-	char buffer[2] = {0, mode};
+	/* The Omen Control Center actively sets the first byte of the buffer to
+	 * 255, so let's mimic this behaviour to be as close as possible to
+	 * the original software.
+	 */
+	char buffer[2] = {-1, mode};
 	int ret;
 
 	ret = hp_wmi_perform_query(HPWMI_SET_PERFORMANCE_MODE, HPWMI_GM,
@@ -659,7 +694,7 @@ static ssize_t display_show(struct device *dev, struct device_attribute *attr,
 
 	if (value < 0)
 		return value;
-	return sprintf(buf, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t hddtemp_show(struct device *dev, struct device_attribute *attr,
@@ -669,7 +704,7 @@ static ssize_t hddtemp_show(struct device *dev, struct device_attribute *attr,
 
 	if (value < 0)
 		return value;
-	return sprintf(buf, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t als_show(struct device *dev, struct device_attribute *attr,
@@ -679,7 +714,7 @@ static ssize_t als_show(struct device *dev, struct device_attribute *attr,
 
 	if (value < 0)
 		return value;
-	return sprintf(buf, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
@@ -689,7 +724,7 @@ static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
 
 	if (value < 0)
 		return value;
-	return sprintf(buf, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t tablet_show(struct device *dev, struct device_attribute *attr,
@@ -699,7 +734,7 @@ static ssize_t tablet_show(struct device *dev, struct device_attribute *attr,
 
 	if (value < 0)
 		return value;
-	return sprintf(buf, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t postcode_show(struct device *dev, struct device_attribute *attr,
@@ -710,7 +745,7 @@ static ssize_t postcode_show(struct device *dev, struct device_attribute *attr,
 
 	if (value < 0)
 		return value;
-	return sprintf(buf, "0x%x\n", value);
+	return sysfs_emit(buf, "0x%x\n", value);
 }
 
 static ssize_t als_store(struct device *dev, struct device_attribute *attr,
@@ -799,28 +834,16 @@ static struct attribute *hp_wmi_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hp_wmi);
 
-static void hp_wmi_notify(u32 value, void *context)
+static void hp_wmi_notify(union acpi_object *obj, void *context)
 {
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	u32 event_id, event_data;
-	union acpi_object *obj;
-	acpi_status status;
 	u32 *location;
 	int key_code;
-
-	status = wmi_get_event_data(value, &response);
-	if (status != AE_OK) {
-		pr_info("bad event status 0x%x\n", status);
-		return;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 
 	if (!obj)
 		return;
 	if (obj->type != ACPI_TYPE_BUFFER) {
 		pr_info("Unknown response received %d\n", obj->type);
-		kfree(obj);
 		return;
 	}
 
@@ -837,10 +860,8 @@ static void hp_wmi_notify(u32 value, void *context)
 		event_data = *(location + 2);
 	} else {
 		pr_info("Unknown buffer length %d\n", obj->buffer.length);
-		kfree(obj);
 		return;
 	}
-	kfree(obj);
 
 	switch (event_id) {
 	case HPWMI_DOCK_EVENT:
@@ -1172,8 +1193,7 @@ fail:
 	return err;
 }
 
-static int platform_profile_omen_get(struct platform_profile_handler *pprof,
-				     enum platform_profile_option *profile)
+static int platform_profile_omen_get_ec(enum platform_profile_option *profile)
 {
 	int tp;
 
@@ -1201,10 +1221,53 @@ static int platform_profile_omen_get(struct platform_profile_handler *pprof,
 	return 0;
 }
 
-static int platform_profile_omen_set(struct platform_profile_handler *pprof,
-				     enum platform_profile_option profile)
+static int platform_profile_omen_get(struct platform_profile_handler *pprof,
+				     enum platform_profile_option *profile)
+{
+	/*
+	 * We directly return the stored platform profile, as the embedded
+	 * controller will not accept switching to the performance option when
+	 * the conditions are not met (e.g. the laptop is not plugged in).
+	 *
+	 * If we directly return what the EC reports, the platform profile will
+	 * immediately "switch back" to normal mode, which is against the
+	 * expected behaviour from a userspace point of view, as described in
+	 * the Platform Profile Section page of the kernel documentation.
+	 *
+	 * See also omen_powersource_event.
+	 */
+	guard(mutex)(&active_platform_profile_lock);
+	*profile = active_platform_profile;
+
+	return 0;
+}
+
+static bool has_omen_thermal_profile_ec_timer(void)
+{
+	const char *board_name = dmi_get_system_info(DMI_BOARD_NAME);
+
+	if (!board_name)
+		return false;
+
+	return match_string(omen_timed_thermal_profile_boards,
+			    ARRAY_SIZE(omen_timed_thermal_profile_boards),
+			    board_name) >= 0;
+}
+
+inline int omen_thermal_profile_ec_flags_set(enum hp_thermal_profile_omen_flags flags)
+{
+	return ec_write(HP_OMEN_EC_THERMAL_PROFILE_FLAGS_OFFSET, flags);
+}
+
+inline int omen_thermal_profile_ec_timer_set(u8 value)
+{
+	return ec_write(HP_OMEN_EC_THERMAL_PROFILE_TIMER_OFFSET, value);
+}
+
+static int platform_profile_omen_set_ec(enum platform_profile_option profile)
 {
 	int err, tp, tp_version;
+	enum hp_thermal_profile_omen_flags flags = 0;
 
 	tp_version = omen_get_thermal_policy_version();
 
@@ -1237,6 +1300,36 @@ static int platform_profile_omen_set(struct platform_profile_handler *pprof,
 	err = omen_thermal_profile_set(tp);
 	if (err < 0)
 		return err;
+
+	if (has_omen_thermal_profile_ec_timer()) {
+		err = omen_thermal_profile_ec_timer_set(0);
+		if (err < 0)
+			return err;
+
+		if (profile == PLATFORM_PROFILE_PERFORMANCE)
+			flags = HP_OMEN_EC_FLAGS_NOTIMER |
+				HP_OMEN_EC_FLAGS_TURBO;
+
+		err = omen_thermal_profile_ec_flags_set(flags);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static int platform_profile_omen_set(struct platform_profile_handler *pprof,
+				     enum platform_profile_option profile)
+{
+	int err;
+
+	guard(mutex)(&active_platform_profile_lock);
+
+	err = platform_profile_omen_set_ec(profile);
+	if (err < 0)
+		return err;
+
+	active_platform_profile = profile;
 
 	return 0;
 }
@@ -1322,8 +1415,7 @@ static bool is_victus_thermal_profile(void)
 			    board_name) >= 0;
 }
 
-static int platform_profile_victus_get(struct platform_profile_handler *pprof,
-				     enum platform_profile_option *profile)
+static int platform_profile_victus_get_ec(enum platform_profile_option *profile)
 {
 	int tp;
 
@@ -1348,8 +1440,14 @@ static int platform_profile_victus_get(struct platform_profile_handler *pprof,
 	return 0;
 }
 
-static int platform_profile_victus_set(struct platform_profile_handler *pprof,
-				     enum platform_profile_option profile)
+static int platform_profile_victus_get(struct platform_profile_handler *pprof,
+				       enum platform_profile_option *profile)
+{
+	/* Same behaviour as platform_profile_omen_get */
+	return platform_profile_omen_get(pprof, profile);
+}
+
+static int platform_profile_victus_set_ec(enum platform_profile_option profile)
 {
 	int err, tp;
 
@@ -1374,21 +1472,113 @@ static int platform_profile_victus_set(struct platform_profile_handler *pprof,
 	return 0;
 }
 
+static int platform_profile_victus_set(struct platform_profile_handler *pprof,
+				       enum platform_profile_option profile)
+{
+	int err;
+
+	guard(mutex)(&active_platform_profile_lock);
+
+	err = platform_profile_victus_set_ec(profile);
+	if (err < 0)
+		return err;
+
+	active_platform_profile = profile;
+
+	return 0;
+}
+
+static int omen_powersource_event(struct notifier_block *nb,
+				  unsigned long value,
+				  void *data)
+{
+	struct acpi_bus_event *event_entry = data;
+	enum platform_profile_option actual_profile;
+	int err;
+
+	if (strcmp(event_entry->device_class, ACPI_AC_CLASS) != 0)
+		return NOTIFY_DONE;
+
+	pr_debug("Received power source device event\n");
+
+	guard(mutex)(&active_platform_profile_lock);
+
+	/*
+	 * This handler can only be called on Omen and Victus models, so
+	 * there's no need to call is_victus_thermal_profile() here.
+	 */
+	if (is_omen_thermal_profile())
+		err = platform_profile_omen_get_ec(&actual_profile);
+	else
+		err = platform_profile_victus_get_ec(&actual_profile);
+
+	if (err < 0) {
+		/*
+		 * Although we failed to get the current platform profile, we
+		 * still want the other event consumers to process it.
+		 */
+		pr_warn("Failed to read current platform profile (%d)\n", err);
+		return NOTIFY_DONE;
+	}
+
+	/*
+	 * If we're back on AC and that the user-chosen power profile is
+	 * different from what the EC reports, we restore the user-chosen
+	 * one.
+	 */
+	if (power_supply_is_system_supplied() <= 0 ||
+	    active_platform_profile == actual_profile) {
+		pr_debug("Platform profile update skipped, conditions unmet\n");
+		return NOTIFY_DONE;
+	}
+
+	if (is_omen_thermal_profile())
+		err = platform_profile_omen_set_ec(active_platform_profile);
+	else
+		err = platform_profile_victus_set_ec(active_platform_profile);
+
+	if (err < 0) {
+		pr_warn("Failed to restore platform profile (%d)\n", err);
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static int omen_register_powersource_event_handler(void)
+{
+	int err;
+
+	platform_power_source_nb.notifier_call = omen_powersource_event;
+	err = register_acpi_notifier(&platform_power_source_nb);
+
+	if (err < 0) {
+		pr_warn("Failed to install ACPI power source notify handler\n");
+		return err;
+	}
+
+	return 0;
+}
+
+static inline void omen_unregister_powersource_event_handler(void)
+{
+	unregister_acpi_notifier(&platform_power_source_nb);
+}
+
 static int thermal_profile_setup(void)
 {
 	int err, tp;
 
 	if (is_omen_thermal_profile()) {
-		tp = omen_thermal_profile_get();
-		if (tp < 0)
-			return tp;
+		err = platform_profile_omen_get_ec(&active_platform_profile);
+		if (err < 0)
+			return err;
 
 		/*
 		 * call thermal profile write command to ensure that the
 		 * firmware correctly sets the OEM variables
 		 */
-
-		err = omen_thermal_profile_set(tp);
+		err = platform_profile_omen_set_ec(active_platform_profile);
 		if (err < 0)
 			return err;
 
@@ -1397,15 +1587,15 @@ static int thermal_profile_setup(void)
 
 		set_bit(PLATFORM_PROFILE_COOL, platform_profile_handler.choices);
 	} else if (is_victus_thermal_profile()) {
-		tp = omen_thermal_profile_get();
-		if (tp < 0)
-			return tp;
+		err = platform_profile_victus_get_ec(&active_platform_profile);
+		if (err < 0)
+			return err;
 
 		/*
 		 * call thermal profile write command to ensure that the
 		 * firmware correctly sets the OEM variables
 		 */
-		err = omen_thermal_profile_set(tp);
+		err = platform_profile_victus_set_ec(active_platform_profile);
 		if (err < 0)
 			return err;
 
@@ -1478,7 +1668,7 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	return 0;
 }
 
-static int __exit hp_wmi_bios_remove(struct platform_device *device)
+static void __exit hp_wmi_bios_remove(struct platform_device *device)
 {
 	int i;
 
@@ -1502,8 +1692,6 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 
 	if (platform_profile_support)
 		platform_profile_remove();
-
-	return 0;
 }
 
 static int hp_wmi_resume_handler(struct device *device)
@@ -1548,13 +1736,19 @@ static const struct dev_pm_ops hp_wmi_pm_ops = {
 	.restore  = hp_wmi_resume_handler,
 };
 
-static struct platform_driver hp_wmi_driver = {
+/*
+ * hp_wmi_bios_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver hp_wmi_driver __refdata = {
 	.driver = {
 		.name = "hp-wmi",
 		.pm = &hp_wmi_pm_ops,
 		.dev_groups = hp_wmi_groups,
 	},
-	.remove = __exit_p(hp_wmi_bios_remove),
+	.remove_new = __exit_p(hp_wmi_bios_remove),
 };
 
 static umode_t hp_wmi_hwmon_is_visible(const void *data,
@@ -1695,6 +1889,12 @@ static int __init hp_wmi_init(void)
 			goto err_unregister_device;
 	}
 
+	if (is_omen_thermal_profile() || is_victus_thermal_profile()) {
+		err = omen_register_powersource_event_handler();
+		if (err)
+			goto err_unregister_device;
+	}
+
 	return 0;
 
 err_unregister_device:
@@ -1709,6 +1909,9 @@ module_init(hp_wmi_init);
 
 static void __exit hp_wmi_exit(void)
 {
+	if (is_omen_thermal_profile() || is_victus_thermal_profile())
+		omen_unregister_powersource_event_handler();
+
 	if (wmi_has_guid(HPWMI_EVENT_GUID))
 		hp_wmi_input_destroy();
 

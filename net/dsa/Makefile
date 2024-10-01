@@ -8,16 +8,16 @@ endif
 # the core
 obj-$(CONFIG_NET_DSA) += dsa_core.o
 dsa_core-y += \
+	conduit.o \
 	devlink.o \
 	dsa.o \
-	master.o \
 	netlink.o \
 	port.o \
-	slave.o \
 	switch.o \
 	tag.o \
 	tag_8021q.o \
-	trace.o
+	trace.o \
+	user.o
 
 # tagging formats
 obj-$(CONFIG_NET_DSA_TAG_AR9331) += tag_ar9331.o
@@ -37,6 +37,7 @@ obj-$(CONFIG_NET_DSA_TAG_RTL8_4) += tag_rtl8_4.o
 obj-$(CONFIG_NET_DSA_TAG_RZN1_A5PSW) += tag_rzn1_a5psw.o
 obj-$(CONFIG_NET_DSA_TAG_SJA1105) += tag_sja1105.o
 obj-$(CONFIG_NET_DSA_TAG_TRAILER) += tag_trailer.o
+obj-$(CONFIG_NET_DSA_TAG_VSC73XX_8021Q) += tag_vsc73xx_8021q.o
 obj-$(CONFIG_NET_DSA_TAG_XRS700X) += tag_xrs700x.o
 
 # for tracing framework to find trace.h

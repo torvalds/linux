@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2020 Intel Corporation.
  * Copyright(c) 2021 Cornelis Networks.
@@ -251,7 +251,7 @@ struct flag_table {
 /*
  * CCE Error flags.
  */
-static struct flag_table cce_err_status_flags[] = {
+static const struct flag_table cce_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY0("CceCsrParityErr",
 		CCE_ERR_STATUS_CCE_CSR_PARITY_ERR_SMASK),
 /* 1*/	FLAG_ENTRY0("CceCsrReadBadAddrErr",
@@ -341,7 +341,7 @@ static struct flag_table cce_err_status_flags[] = {
  * Misc Error flags
  */
 #define MES(text) MISC_ERR_STATUS_MISC_##text##_ERR_SMASK
-static struct flag_table misc_err_status_flags[] = {
+static const struct flag_table misc_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY0("CSR_PARITY", MES(CSR_PARITY)),
 /* 1*/	FLAG_ENTRY0("CSR_READ_BAD_ADDR", MES(CSR_READ_BAD_ADDR)),
 /* 2*/	FLAG_ENTRY0("CSR_WRITE_BAD_ADDR", MES(CSR_WRITE_BAD_ADDR)),
@@ -360,7 +360,7 @@ static struct flag_table misc_err_status_flags[] = {
 /*
  * TXE PIO Error flags and consequences
  */
-static struct flag_table pio_err_status_flags[] = {
+static const struct flag_table pio_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY("PioWriteBadCtxt",
 	SEC_WRITE_DROPPED,
 	SEND_PIO_ERR_STATUS_PIO_WRITE_BAD_CTXT_ERR_SMASK),
@@ -502,7 +502,7 @@ static struct flag_table pio_err_status_flags[] = {
 /*
  * TXE SDMA Error flags
  */
-static struct flag_table sdma_err_status_flags[] = {
+static const struct flag_table sdma_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY0("SDmaRpyTagErr",
 		SEND_DMA_ERR_STATUS_SDMA_RPY_TAG_ERR_SMASK),
 /* 1*/	FLAG_ENTRY0("SDmaCsrParityErr",
@@ -530,7 +530,7 @@ static struct flag_table sdma_err_status_flags[] = {
  * TXE Egress Error flags
  */
 #define SEES(text) SEND_EGRESS_ERR_STATUS_##text##_ERR_SMASK
-static struct flag_table egress_err_status_flags[] = {
+static const struct flag_table egress_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY0("TxPktIntegrityMemCorErr", SEES(TX_PKT_INTEGRITY_MEM_COR)),
 /* 1*/	FLAG_ENTRY0("TxPktIntegrityMemUncErr", SEES(TX_PKT_INTEGRITY_MEM_UNC)),
 /* 2 reserved */
@@ -631,7 +631,7 @@ static struct flag_table egress_err_status_flags[] = {
  * TXE Egress Error Info flags
  */
 #define SEEI(text) SEND_EGRESS_ERR_INFO_##text##_ERR_SMASK
-static struct flag_table egress_err_info_flags[] = {
+static const struct flag_table egress_err_info_flags[] = {
 /* 0*/	FLAG_ENTRY0("Reserved", 0ull),
 /* 1*/	FLAG_ENTRY0("VLErr", SEEI(VL)),
 /* 2*/	FLAG_ENTRY0("JobKeyErr", SEEI(JOB_KEY)),
@@ -680,7 +680,7 @@ static struct flag_table egress_err_info_flags[] = {
  * TXE Send error flags
  */
 #define SES(name) SEND_ERR_STATUS_SEND_##name##_ERR_SMASK
-static struct flag_table send_err_status_flags[] = {
+static const struct flag_table send_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY0("SendCsrParityErr", SES(CSR_PARITY)),
 /* 1*/	FLAG_ENTRY0("SendCsrReadBadAddrErr", SES(CSR_READ_BAD_ADDR)),
 /* 2*/	FLAG_ENTRY0("SendCsrWriteBadAddrErr", SES(CSR_WRITE_BAD_ADDR))
@@ -689,7 +689,7 @@ static struct flag_table send_err_status_flags[] = {
 /*
  * TXE Send Context Error flags and consequences
  */
-static struct flag_table sc_err_status_flags[] = {
+static const struct flag_table sc_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY("InconsistentSop",
 		SEC_PACKET_DROPPED | SEC_SC_HALTED,
 		SEND_CTXT_ERR_STATUS_PIO_INCONSISTENT_SOP_ERR_SMASK),
@@ -712,7 +712,7 @@ static struct flag_table sc_err_status_flags[] = {
  * RXE Receive Error flags
  */
 #define RXES(name) RCV_ERR_STATUS_RX_##name##_ERR_SMASK
-static struct flag_table rxe_err_status_flags[] = {
+static const struct flag_table rxe_err_status_flags[] = {
 /* 0*/	FLAG_ENTRY0("RxDmaCsrCorErr", RXES(DMA_CSR_COR)),
 /* 1*/	FLAG_ENTRY0("RxDcIntfParityErr", RXES(DC_INTF_PARITY)),
 /* 2*/	FLAG_ENTRY0("RxRcvHdrUncErr", RXES(RCV_HDR_UNC)),
@@ -847,7 +847,7 @@ static struct flag_table rxe_err_status_flags[] = {
  * DCC Error Flags
  */
 #define DCCE(name) DCC_ERR_FLG_##name##_SMASK
-static struct flag_table dcc_err_flags[] = {
+static const struct flag_table dcc_err_flags[] = {
 	FLAG_ENTRY0("bad_l2_err", DCCE(BAD_L2_ERR)),
 	FLAG_ENTRY0("bad_sc_err", DCCE(BAD_SC_ERR)),
 	FLAG_ENTRY0("bad_mid_tail_err", DCCE(BAD_MID_TAIL_ERR)),
@@ -900,7 +900,7 @@ static struct flag_table dcc_err_flags[] = {
  * LCB error flags
  */
 #define LCBE(name) DC_LCB_ERR_FLG_##name##_SMASK
-static struct flag_table lcb_err_flags[] = {
+static const struct flag_table lcb_err_flags[] = {
 /* 0*/	FLAG_ENTRY0("CSR_PARITY_ERR", LCBE(CSR_PARITY_ERR)),
 /* 1*/	FLAG_ENTRY0("INVALID_CSR_ADDR", LCBE(INVALID_CSR_ADDR)),
 /* 2*/	FLAG_ENTRY0("RST_FOR_FAILED_DESKEW", LCBE(RST_FOR_FAILED_DESKEW)),
@@ -943,7 +943,7 @@ static struct flag_table lcb_err_flags[] = {
  * DC8051 Error Flags
  */
 #define D8E(name) DC_DC8051_ERR_FLG_##name##_SMASK
-static struct flag_table dc8051_err_flags[] = {
+static const struct flag_table dc8051_err_flags[] = {
 	FLAG_ENTRY0("SET_BY_8051", D8E(SET_BY_8051)),
 	FLAG_ENTRY0("LOST_8051_HEART_BEAT", D8E(LOST_8051_HEART_BEAT)),
 	FLAG_ENTRY0("CRAM_MBE", D8E(CRAM_MBE)),
@@ -962,7 +962,7 @@ static struct flag_table dc8051_err_flags[] = {
  *
  * Flags in DC8051_DBG_ERR_INFO_SET_BY_8051.ERROR field.
  */
-static struct flag_table dc8051_info_err_flags[] = {
+static const struct flag_table dc8051_info_err_flags[] = {
 	FLAG_ENTRY0("Spico ROM check failed",  SPICO_ROM_FAILED),
 	FLAG_ENTRY0("Unknown frame received",  UNKNOWN_FRAME),
 	FLAG_ENTRY0("Target BER not met",      TARGET_BER_NOT_MET),
@@ -986,7 +986,7 @@ static struct flag_table dc8051_info_err_flags[] = {
  *
  * Flags in DC8051_DBG_ERR_INFO_SET_BY_8051.HOST_MSG field.
  */
-static struct flag_table dc8051_info_host_msg_flags[] = {
+static const struct flag_table dc8051_info_host_msg_flags[] = {
 	FLAG_ENTRY0("Host request done", 0x0001),
 	FLAG_ENTRY0("BC PWR_MGM message", 0x0002),
 	FLAG_ENTRY0("BC SMA message", 0x0004),
@@ -1461,7 +1461,8 @@ static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
 		ret = write_lcb_csr(dd, csr, data);
 
 	if (ret) {
-		dd_dev_err(dd, "Could not acquire LCB for counter 0x%x", csr);
+		if (!(dd->flags & HFI1_SHUTDOWN))
+			dd_dev_err(dd, "Could not acquire LCB for counter 0x%x", csr);
 		return 0;
 	}
 
@@ -5274,7 +5275,7 @@ done:
  * the buffer.  End in '*' if the buffer is too short.
  */
 static char *flag_string(char *buf, int buf_len, u64 flags,
-			 struct flag_table *table, int table_size)
+			 const struct flag_table *table, int table_size)
 {
 	char extra[32];
 	char *p = buf;
@@ -5333,7 +5334,7 @@ static const char * const cce_misc_names[] = {
 static char *is_misc_err_name(char *buf, size_t bsize, unsigned int source)
 {
 	if (source < ARRAY_SIZE(cce_misc_names))
-		strncpy(buf, cce_misc_names[source], bsize);
+		strscpy_pad(buf, cce_misc_names[source], bsize);
 	else
 		snprintf(buf, bsize, "Reserved%u",
 			 source + IS_GENERAL_ERR_START);
@@ -5373,7 +5374,7 @@ static const char * const various_names[] = {
 static char *is_various_name(char *buf, size_t bsize, unsigned int source)
 {
 	if (source < ARRAY_SIZE(various_names))
-		strncpy(buf, various_names[source], bsize);
+		strscpy_pad(buf, various_names[source], bsize);
 	else
 		snprintf(buf, bsize, "Reserved%u", source + IS_VARIOUS_START);
 	return buf;
@@ -6160,7 +6161,7 @@ static int request_host_lcb_access(struct hfi1_devdata *dd)
 	ret = do_8051_command(dd, HCMD_MISC,
 			      (u64)HCMD_MISC_REQUEST_LCB_ACCESS <<
 			      LOAD_DATA_FIELD_ID_SHIFT, NULL);
-	if (ret != HCMD_SUCCESS) {
+	if (ret != HCMD_SUCCESS && !(dd->flags & HFI1_SHUTDOWN)) {
 		dd_dev_err(dd, "%s: command failed with error %d\n",
 			   __func__, ret);
 	}
@@ -6241,7 +6242,8 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 	if (dd->lcb_access_count == 0) {
 		ret = request_host_lcb_access(dd);
 		if (ret) {
-			dd_dev_err(dd,
+			if (!(dd->flags & HFI1_SHUTDOWN))
+				dd_dev_err(dd,
 				   "%s: unable to acquire LCB access, err %d\n",
 				   __func__, ret);
 			goto done;
@@ -12307,6 +12309,7 @@ static void free_cntrs(struct hfi1_devdata *dd)
 
 	if (dd->synth_stats_timer.function)
 		del_timer_sync(&dd->synth_stats_timer);
+	cancel_work_sync(&dd->update_cntr_work);
 	ppd = (struct hfi1_pportdata *)(dd + 1);
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
 		kfree(ppd->cntrs);
@@ -13182,15 +13185,16 @@ static void read_mod_write(struct hfi1_devdata *dd, u16 src, u64 bits,
 {
 	u64 reg;
 	u16 idx = src / BITS_PER_REGISTER;
+	unsigned long flags;
 
-	spin_lock(&dd->irq_src_lock);
+	spin_lock_irqsave(&dd->irq_src_lock, flags);
 	reg = read_csr(dd, CCE_INT_MASK + (8 * idx));
 	if (set)
 		reg |= bits;
 	else
 		reg &= ~bits;
 	write_csr(dd, CCE_INT_MASK + (8 * idx), reg);
-	spin_unlock(&dd->irq_src_lock);
+	spin_unlock_irqrestore(&dd->irq_src_lock, flags);
 }
 
 /**

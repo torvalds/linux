@@ -27,7 +27,7 @@ the tracepoint site).
 
 You can put tracepoints at important locations in the code. They are
 lightweight hooks that can pass an arbitrary number of parameters,
-which prototypes are described in a tracepoint declaration placed in a
+whose prototypes are described in a tracepoint declaration placed in a
 header file.
 
 They can be used for tracing and performance accounting.

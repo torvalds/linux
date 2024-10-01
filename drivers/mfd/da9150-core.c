@@ -169,7 +169,7 @@ static const struct regmap_config da9150_regmap_config = {
 	.num_ranges = ARRAY_SIZE(da9150_range_cfg),
 	.max_register = DA9150_TBAT_RES_B,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = da9150_volatile_reg,
 };

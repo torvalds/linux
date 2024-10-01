@@ -21,6 +21,7 @@
 #define IRQ_RESOURCE_NONE	0
 #define IRQ_RESOURCE_GPIO	1
 #define IRQ_RESOURCE_APIC	2
+#define IRQ_RESOURCE_AUTO   3
 
 enum smi_bus_type {
 	SMI_I2C,
@@ -52,6 +53,18 @@ static int smi_get_irq(struct platform_device *pdev, struct acpi_device *adev,
 	int ret;
 
 	switch (inst->flags & IRQ_RESOURCE_TYPE) {
+	case IRQ_RESOURCE_AUTO:
+		ret = acpi_dev_gpio_irq_get(adev, inst->irq_idx);
+		if (ret > 0) {
+			dev_dbg(&pdev->dev, "Using gpio irq\n");
+			break;
+		}
+		ret = platform_get_irq(pdev, inst->irq_idx);
+		if (ret > 0) {
+			dev_dbg(&pdev->dev, "Using platform irq\n");
+			break;
+		}
+		break;
 	case IRQ_RESOURCE_GPIO:
 		ret = acpi_dev_gpio_irq_get(adev, inst->irq_idx);
 		break;
@@ -70,11 +83,15 @@ static int smi_get_irq(struct platform_device *pdev, struct acpi_device *adev,
 
 static void smi_devs_unregister(struct smi *smi)
 {
+#if IS_REACHABLE(CONFIG_I2C)
 	while (smi->i2c_num--)
 		i2c_unregister_device(smi->i2c_devs[smi->i2c_num]);
+#endif
 
-	while (smi->spi_num--)
-		spi_unregister_device(smi->spi_devs[smi->spi_num]);
+	if (IS_REACHABLE(CONFIG_SPI)) {
+		while (smi->spi_num--)
+			spi_unregister_device(smi->spi_devs[smi->spi_num]);
+	}
 }
 
 /**
@@ -118,7 +135,7 @@ static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 
 		ctlr = spi_dev->controller;
 
-		strscpy(spi_dev->modalias, inst_array[i].type, sizeof(spi_dev->modalias));
+		strscpy(spi_dev->modalias, inst_array[i].type);
 
 		ret = smi_get_irq(pdev, adev, &inst_array[i]);
 		if (ret < 0) {
@@ -192,7 +209,7 @@ static int smi_i2c_probe(struct platform_device *pdev, struct smi *smi,
 
 	for (i = 0; i < count && inst_array[i].type; i++) {
 		memset(&board_info, 0, sizeof(board_info));
-		strscpy(board_info.type, inst_array[i].type, I2C_NAME_SIZE);
+		strscpy(board_info.type, inst_array[i].type);
 		snprintf(name, sizeof(name), "%s-%s.%d", dev_name(dev), inst_array[i].type, i);
 		board_info.dev_name = name;
 
@@ -245,9 +262,15 @@ static int smi_probe(struct platform_device *pdev)
 
 	switch (node->bus_type) {
 	case SMI_I2C:
-		return smi_i2c_probe(pdev, smi, node->instances);
+		if (IS_REACHABLE(CONFIG_I2C))
+			return smi_i2c_probe(pdev, smi, node->instances);
+
+		return -ENODEV;
 	case SMI_SPI:
-		return smi_spi_probe(pdev, smi, node->instances);
+		if (IS_REACHABLE(CONFIG_SPI))
+			return smi_spi_probe(pdev, smi, node->instances);
+
+		return -ENODEV;
 	case SMI_AUTO_DETECT:
 		/*
 		 * For backwards-compatibility with the existing nodes I2C
@@ -257,10 +280,16 @@ static int smi_probe(struct platform_device *pdev)
 		 * SpiSerialBus nodes that were previously ignored, and this
 		 * preserves that behavior.
 		 */
-		ret = smi_i2c_probe(pdev, smi, node->instances);
-		if (ret != -ENOENT)
-			return ret;
-		return smi_spi_probe(pdev, smi, node->instances);
+		if (IS_REACHABLE(CONFIG_I2C)) {
+			ret = smi_i2c_probe(pdev, smi, node->instances);
+			if (ret != -ENOENT)
+				return ret;
+		}
+
+		if (IS_REACHABLE(CONFIG_SPI))
+			return smi_spi_probe(pdev, smi, node->instances);
+
+		return -ENODEV;
 	default:
 		return -EINVAL;
 	}
@@ -307,10 +336,49 @@ static const struct smi_node int3515_data = {
 
 static const struct smi_node cs35l41_hda = {
 	.instances = {
-		{ "cs35l41-hda", IRQ_RESOURCE_GPIO, 0 },
-		{ "cs35l41-hda", IRQ_RESOURCE_GPIO, 0 },
-		{ "cs35l41-hda", IRQ_RESOURCE_GPIO, 0 },
-		{ "cs35l41-hda", IRQ_RESOURCE_GPIO, 0 },
+		{ "cs35l41-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l41-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l41-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l41-hda", IRQ_RESOURCE_AUTO, 0 },
+		{}
+	},
+	.bus_type = SMI_AUTO_DETECT,
+};
+
+static const struct smi_node cs35l54_hda = {
+	.instances = {
+		{ "cs35l54-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l54-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l54-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l54-hda", IRQ_RESOURCE_AUTO, 0 },
+		/* a 5th entry is an alias address, not a real device */
+		{ "cs35l54-hda_dummy_dev" },
+		{}
+	},
+	.bus_type = SMI_AUTO_DETECT,
+};
+
+static const struct smi_node cs35l56_hda = {
+	.instances = {
+		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l56-hda", IRQ_RESOURCE_AUTO, 0 },
+		/* a 5th entry is an alias address, not a real device */
+		{ "cs35l56-hda_dummy_dev" },
+		{}
+	},
+	.bus_type = SMI_AUTO_DETECT,
+};
+
+static const struct smi_node cs35l57_hda = {
+	.instances = {
+		{ "cs35l57-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l57-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l57-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "cs35l57-hda", IRQ_RESOURCE_AUTO, 0 },
+		/* a 5th entry is an alias address, not a real device */
+		{ "cs35l57-hda_dummy_dev" },
 		{}
 	},
 	.bus_type = SMI_AUTO_DETECT,
@@ -324,6 +392,9 @@ static const struct acpi_device_id smi_acpi_ids[] = {
 	{ "BSG1160", (unsigned long)&bsg1160_data },
 	{ "BSG2150", (unsigned long)&bsg2150_data },
 	{ "CSC3551", (unsigned long)&cs35l41_hda },
+	{ "CSC3554", (unsigned long)&cs35l54_hda },
+	{ "CSC3556", (unsigned long)&cs35l56_hda },
+	{ "CSC3557", (unsigned long)&cs35l57_hda },
 	{ "INT3515", (unsigned long)&int3515_data },
 	/* Non-conforming _HID for Cirrus Logic already released */
 	{ "CLSA0100", (unsigned long)&cs35l41_hda },

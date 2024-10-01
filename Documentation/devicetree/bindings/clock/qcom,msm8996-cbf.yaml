@@ -15,7 +15,9 @@ description: >
 
 properties:
   compatible:
-    const: qcom,msm8996-cbf
+    enum:
+      - qcom,msm8996-cbf
+      - qcom,msm8996pro-cbf
 
   reg:
     maxItems: 1

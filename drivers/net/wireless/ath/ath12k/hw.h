@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HW_H
 #define ATH12K_HW_H
 
 #include <linux/mhi.h>
+#include <linux/uuid.h>
 
 #include "wmi.h"
 #include "hal.h"
@@ -17,19 +18,30 @@
 /* Num VDEVS per radio */
 #define TARGET_NUM_VDEVS	(16 + 1)
 
-#define TARGET_NUM_PEERS_PDEV	(512 + TARGET_NUM_VDEVS)
+#define TARGET_NUM_PEERS_PDEV_SINGLE	(TARGET_NUM_STATIONS_SINGLE + \
+					 TARGET_NUM_VDEVS)
+#define TARGET_NUM_PEERS_PDEV_DBS	(TARGET_NUM_STATIONS_DBS + \
+					 TARGET_NUM_VDEVS)
+#define TARGET_NUM_PEERS_PDEV_DBS_SBS	(TARGET_NUM_STATIONS_DBS_SBS + \
+					 TARGET_NUM_VDEVS)
 
 /* Num of peers for Single Radio mode */
-#define TARGET_NUM_PEERS_SINGLE		(TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_SINGLE		(TARGET_NUM_PEERS_PDEV_SINGLE)
 
 /* Num of peers for DBS */
-#define TARGET_NUM_PEERS_DBS		(2 * TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_DBS		(2 * TARGET_NUM_PEERS_PDEV_DBS)
 
 /* Num of peers for DBS_SBS */
-#define TARGET_NUM_PEERS_DBS_SBS	(3 * TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_DBS_SBS	(3 * TARGET_NUM_PEERS_PDEV_DBS_SBS)
 
-/* Max num of stations (per radio) */
-#define TARGET_NUM_STATIONS	512
+/* Max num of stations for Single Radio mode */
+#define TARGET_NUM_STATIONS_SINGLE	512
+
+/* Max num of stations for DBS */
+#define TARGET_NUM_STATIONS_DBS		128
+
+/* Max num of stations for DBS_SBS */
+#define TARGET_NUM_STATIONS_DBS_SBS	128
 
 #define TARGET_NUM_PEERS(x)	TARGET_NUM_PEERS_##x
 #define TARGET_NUM_PEER_KEYS	2
@@ -66,7 +78,9 @@
 #define TARGET_NUM_WDS_ENTRIES		32
 #define TARGET_DMA_BURST_SIZE		1
 #define TARGET_RX_BATCHMODE		1
+#define TARGET_EMA_MAX_PROFILE_PERIOD	8
 
+#define ATH12K_HW_DEFAULT_QUEUE		0
 #define ATH12K_HW_MAX_QUEUES		4
 #define ATH12K_QUEUE_LEN		4096
 
@@ -81,6 +95,8 @@
 #define ATH12K_AMSS_FILE		"amss.bin"
 #define ATH12K_M3_FILE			"m3.bin"
 #define ATH12K_REGDB_FILE_NAME		"regdb.bin"
+
+#define ATH12K_PCIE_MAX_PAYLOAD_SIZE	128
 
 enum ath12k_hw_rate_cck {
 	ATH12K_HW_RATE_CCK_LP_11M = 0,
@@ -159,7 +175,7 @@ struct ath12k_hw_params {
 	const struct ath12k_hw_hal_params *hal_params;
 
 	bool rxdma1_enable:1;
-	int num_rxmda_per_pdev;
+	int num_rxdma_per_pdev;
 	int num_rxdma_dst_ring;
 	bool rx_mac_buf_ring:1;
 	bool vdev_start_delay:1;
@@ -173,8 +189,8 @@ struct ath12k_hw_params {
 	bool tcl_ring_retry:1;
 	bool reoq_lut_support:1;
 	bool supports_shadow_regs:1;
+	bool supports_aspm:1;
 
-	u32 hal_desc_sz;
 	u32 num_tcl_banks;
 	u32 max_tx_ring;
 
@@ -186,6 +202,24 @@ struct ath12k_hw_params {
 	const struct hal_ops *hal_ops;
 
 	u64 qmi_cnss_feature_bitmap;
+
+	u32 rfkill_pin;
+	u32 rfkill_cfg;
+	u32 rfkill_on_level;
+
+	u32 rddm_size;
+
+	u8 def_num_link;
+	u16 max_mlo_peer;
+
+	u32 otp_board_id_register;
+
+	bool supports_sta_ps;
+
+	const guid_t *acpi_guid;
+	bool supports_dynamic_smps_6ghz;
+
+	u32 iova_mask;
 };
 
 struct ath12k_hw_ops {
@@ -236,10 +270,16 @@ enum ath12k_bd_ie_board_type {
 	ATH12K_BD_IE_BOARD_DATA = 1,
 };
 
+enum ath12k_bd_ie_regdb_type {
+	ATH12K_BD_IE_REGDB_NAME = 0,
+	ATH12K_BD_IE_REGDB_DATA = 1,
+};
+
 enum ath12k_bd_ie_type {
 	/* contains sub IEs of enum ath12k_bd_ie_board_type */
 	ATH12K_BD_IE_BOARD = 0,
-	ATH12K_BD_IE_BOARD_EXT = 1,
+	/* contains sub IEs of enum ath12k_bd_ie_regdb_type */
+	ATH12K_BD_IE_REGDB = 1,
 };
 
 struct ath12k_hw_regs {
@@ -308,6 +348,18 @@ struct ath12k_hw_regs {
 
 	u32 hal_reo_status_ring_base;
 };
+
+static inline const char *ath12k_bd_ie_type_str(enum ath12k_bd_ie_type type)
+{
+	switch (type) {
+	case ATH12K_BD_IE_BOARD:
+		return "board data";
+	case ATH12K_BD_IE_REGDB:
+		return "regdb data";
+	}
+
+	return "unknown";
+}
 
 int ath12k_hw_init(struct ath12k_base *ab);
 

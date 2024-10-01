@@ -147,6 +147,7 @@ __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 	case IB_RATE_50_GBPS:  return  20;
 	case IB_RATE_400_GBPS: return 160;
 	case IB_RATE_600_GBPS: return 240;
+	case IB_RATE_800_GBPS: return 320;
 	default:	       return  -1;
 	}
 }
@@ -176,6 +177,7 @@ __attribute_const__ enum ib_rate mult_to_ib_rate(int mult)
 	case 20:  return IB_RATE_50_GBPS;
 	case 160: return IB_RATE_400_GBPS;
 	case 240: return IB_RATE_600_GBPS;
+	case 320: return IB_RATE_800_GBPS;
 	default:  return IB_RATE_PORT_CURRENT;
 	}
 }
@@ -205,6 +207,7 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 	case IB_RATE_50_GBPS:  return 53125;
 	case IB_RATE_400_GBPS: return 425000;
 	case IB_RATE_600_GBPS: return 637500;
+	case IB_RATE_800_GBPS: return 850000;
 	default:	       return -1;
 	}
 }
@@ -366,7 +369,7 @@ void rdma_copy_ah_attr(struct rdma_ah_attr *dest,
 EXPORT_SYMBOL(rdma_copy_ah_attr);
 
 /**
- * rdma_replace_ah_attr - Replace valid ah_attr with new new one.
+ * rdma_replace_ah_attr - Replace valid ah_attr with new one.
  * @old:        Pointer to existing ah_attr which needs to be replaced.
  *              old is assumed to be valid or zero'd
  * @new:        Pointer to the new ah_attr.
@@ -744,7 +747,7 @@ EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
 
 /* Resolve destination mac address and hop limit for unicast destination
  * GID entry, considering the source GID entry as well.
- * ah_attribute must have have valid port_num, sgid_index.
+ * ah_attribute must have valid port_num, sgid_index.
  */
 static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 				       struct rdma_ah_attr *ah_attr)
@@ -1098,6 +1101,16 @@ EXPORT_SYMBOL(ib_destroy_srq_user);
 
 /* Queue pairs */
 
+static void __ib_qp_event_handler(struct ib_event *event, void *context)
+{
+	struct ib_qp *qp = event->element.qp;
+
+	if (event->event == IB_EVENT_QP_LAST_WQE_REACHED)
+		complete(&qp->srq_completion);
+	if (qp->registered_event_handler)
+		qp->registered_event_handler(event, qp->qp_context);
+}
+
 static void __ib_shared_qp_event_handler(struct ib_event *event, void *context)
 {
 	struct ib_qp *qp = context;
@@ -1218,13 +1231,15 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 	qp->qp_type = attr->qp_type;
 	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
 	qp->srq = attr->srq;
-	qp->event_handler = attr->event_handler;
+	qp->event_handler = __ib_qp_event_handler;
+	qp->registered_event_handler = attr->event_handler;
 	qp->port = attr->port_num;
 	qp->qp_context = attr->qp_context;
 
 	spin_lock_init(&qp->mr_lock);
 	INIT_LIST_HEAD(&qp->rdma_mrs);
 	INIT_LIST_HEAD(&qp->sig_mrs);
+	init_completion(&qp->srq_completion);
 
 	qp->send_cq = attr->send_cq;
 	qp->recv_cq = attr->recv_cq;
@@ -1880,12 +1895,95 @@ int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
 }
 EXPORT_SYMBOL(ib_modify_qp_with_udata);
 
+static void ib_get_width_and_speed(u32 netdev_speed, u32 lanes,
+				   u16 *speed, u8 *width)
+{
+	if (!lanes) {
+		if (netdev_speed <= SPEED_1000) {
+			*width = IB_WIDTH_1X;
+			*speed = IB_SPEED_SDR;
+		} else if (netdev_speed <= SPEED_10000) {
+			*width = IB_WIDTH_1X;
+			*speed = IB_SPEED_FDR10;
+		} else if (netdev_speed <= SPEED_20000) {
+			*width = IB_WIDTH_4X;
+			*speed = IB_SPEED_DDR;
+		} else if (netdev_speed <= SPEED_25000) {
+			*width = IB_WIDTH_1X;
+			*speed = IB_SPEED_EDR;
+		} else if (netdev_speed <= SPEED_40000) {
+			*width = IB_WIDTH_4X;
+			*speed = IB_SPEED_FDR10;
+		} else if (netdev_speed <= SPEED_50000) {
+			*width = IB_WIDTH_2X;
+			*speed = IB_SPEED_EDR;
+		} else if (netdev_speed <= SPEED_100000) {
+			*width = IB_WIDTH_4X;
+			*speed = IB_SPEED_EDR;
+		} else if (netdev_speed <= SPEED_200000) {
+			*width = IB_WIDTH_4X;
+			*speed = IB_SPEED_HDR;
+		} else {
+			*width = IB_WIDTH_4X;
+			*speed = IB_SPEED_NDR;
+		}
+
+		return;
+	}
+
+	switch (lanes) {
+	case 1:
+		*width = IB_WIDTH_1X;
+		break;
+	case 2:
+		*width = IB_WIDTH_2X;
+		break;
+	case 4:
+		*width = IB_WIDTH_4X;
+		break;
+	case 8:
+		*width = IB_WIDTH_8X;
+		break;
+	case 12:
+		*width = IB_WIDTH_12X;
+		break;
+	default:
+		*width = IB_WIDTH_1X;
+	}
+
+	switch (netdev_speed / lanes) {
+	case SPEED_2500:
+		*speed = IB_SPEED_SDR;
+		break;
+	case SPEED_5000:
+		*speed = IB_SPEED_DDR;
+		break;
+	case SPEED_10000:
+		*speed = IB_SPEED_FDR10;
+		break;
+	case SPEED_14000:
+		*speed = IB_SPEED_FDR;
+		break;
+	case SPEED_25000:
+		*speed = IB_SPEED_EDR;
+		break;
+	case SPEED_50000:
+		*speed = IB_SPEED_HDR;
+		break;
+	case SPEED_100000:
+		*speed = IB_SPEED_NDR;
+		break;
+	default:
+		*speed = IB_SPEED_SDR;
+	}
+}
+
 int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width)
 {
 	int rc;
 	u32 netdev_speed;
 	struct net_device *netdev;
-	struct ethtool_link_ksettings lksettings;
+	struct ethtool_link_ksettings lksettings = {};
 
 	if (rdma_port_get_link_layer(dev, port_num) != IB_LINK_LAYER_ETHERNET)
 		return -EINVAL;
@@ -1904,29 +2002,13 @@ int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width)
 		netdev_speed = lksettings.base.speed;
 	} else {
 		netdev_speed = SPEED_1000;
-		pr_warn("%s speed is unknown, defaulting to %u\n", netdev->name,
-			netdev_speed);
+		if (rc)
+			pr_warn("%s speed is unknown, defaulting to %u\n",
+				netdev->name, netdev_speed);
 	}
 
-	if (netdev_speed <= SPEED_1000) {
-		*width = IB_WIDTH_1X;
-		*speed = IB_SPEED_SDR;
-	} else if (netdev_speed <= SPEED_10000) {
-		*width = IB_WIDTH_1X;
-		*speed = IB_SPEED_FDR10;
-	} else if (netdev_speed <= SPEED_20000) {
-		*width = IB_WIDTH_4X;
-		*speed = IB_SPEED_DDR;
-	} else if (netdev_speed <= SPEED_25000) {
-		*width = IB_WIDTH_1X;
-		*speed = IB_SPEED_EDR;
-	} else if (netdev_speed <= SPEED_40000) {
-		*width = IB_WIDTH_4X;
-		*speed = IB_SPEED_FDR10;
-	} else {
-		*width = IB_WIDTH_4X;
-		*speed = IB_SPEED_EDR;
-	}
+	ib_get_width_and_speed(netdev_speed, lksettings.lanes,
+			       speed, width);
 
 	return 0;
 }
@@ -2814,6 +2896,72 @@ static void __ib_drain_rq(struct ib_qp *qp)
 		wait_for_completion(&rdrain.done);
 }
 
+/*
+ * __ib_drain_srq() - Block until Last WQE Reached event arrives, or timeout
+ *                    expires.
+ * @qp:               queue pair associated with SRQ to drain
+ *
+ * Quoting 10.3.1 Queue Pair and EE Context States:
+ *
+ * Note, for QPs that are associated with an SRQ, the Consumer should take the
+ * QP through the Error State before invoking a Destroy QP or a Modify QP to the
+ * Reset State.  The Consumer may invoke the Destroy QP without first performing
+ * a Modify QP to the Error State and waiting for the Affiliated Asynchronous
+ * Last WQE Reached Event. However, if the Consumer does not wait for the
+ * Affiliated Asynchronous Last WQE Reached Event, then WQE and Data Segment
+ * leakage may occur. Therefore, it is good programming practice to tear down a
+ * QP that is associated with an SRQ by using the following process:
+ *
+ * - Put the QP in the Error State
+ * - Wait for the Affiliated Asynchronous Last WQE Reached Event;
+ * - either:
+ *       drain the CQ by invoking the Poll CQ verb and either wait for CQ
+ *       to be empty or the number of Poll CQ operations has exceeded
+ *       CQ capacity size;
+ * - or
+ *       post another WR that completes on the same CQ and wait for this
+ *       WR to return as a WC;
+ * - and then invoke a Destroy QP or Reset QP.
+ *
+ * We use the first option.
+ */
+static void __ib_drain_srq(struct ib_qp *qp)
+{
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct ib_cq *cq;
+	int n, polled = 0;
+	int ret;
+
+	if (!qp->srq) {
+		WARN_ONCE(1, "QP 0x%p is not associated with SRQ\n", qp);
+		return;
+	}
+
+	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain shared recv queue: %d\n", ret);
+		return;
+	}
+
+	if (ib_srq_has_cq(qp->srq->srq_type)) {
+		cq = qp->srq->ext.cq;
+	} else if (qp->recv_cq) {
+		cq = qp->recv_cq;
+	} else {
+		WARN_ONCE(1, "QP 0x%p has no CQ associated with SRQ\n", qp);
+		return;
+	}
+
+	if (wait_for_completion_timeout(&qp->srq_completion, 60 * HZ) > 0) {
+		while (polled != cq->cqe) {
+			n = ib_process_cq_direct(cq, cq->cqe - polled);
+			if (!n)
+				return;
+			polled += n;
+		}
+	}
+}
+
 /**
  * ib_drain_sq() - Block until all SQ CQEs have been consumed by the
  *		   application.
@@ -2892,6 +3040,8 @@ void ib_drain_qp(struct ib_qp *qp)
 	ib_drain_sq(qp);
 	if (!qp->srq)
 		ib_drain_rq(qp);
+	else
+		__ib_drain_srq(qp);
 }
 EXPORT_SYMBOL(ib_drain_qp);
 

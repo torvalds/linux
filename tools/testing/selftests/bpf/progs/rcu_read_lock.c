@@ -319,3 +319,123 @@ int cross_rcu_region(void *ctx)
 	bpf_rcu_read_unlock();
 	return 0;
 }
+
+__noinline
+static int static_subprog(void *ctx)
+{
+	volatile int ret = 0;
+
+	if (bpf_get_prandom_u32())
+		return ret + 42;
+	return ret + bpf_get_prandom_u32();
+}
+
+__noinline
+int global_subprog(u64 a)
+{
+	volatile int ret = a;
+
+	return ret + static_subprog(NULL);
+}
+
+__noinline
+static int static_subprog_lock(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	if (bpf_get_prandom_u32())
+		return ret + 42;
+	return ret + bpf_get_prandom_u32();
+}
+
+__noinline
+int global_subprog_lock(u64 a)
+{
+	volatile int ret = a;
+
+	return ret + static_subprog_lock(NULL);
+}
+
+__noinline
+static int static_subprog_unlock(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_unlock();
+	if (bpf_get_prandom_u32())
+		return ret + 42;
+	return ret + bpf_get_prandom_u32();
+}
+
+__noinline
+int global_subprog_unlock(u64 a)
+{
+	volatile int ret = a;
+
+	return ret + static_subprog_unlock(NULL);
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_subprog(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	if (bpf_get_prandom_u32())
+		ret += static_subprog(ctx);
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_global_subprog(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	if (bpf_get_prandom_u32())
+		ret += global_subprog(ret);
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_subprog_lock(void *ctx)
+{
+	volatile int ret = 0;
+
+	ret += static_subprog_lock(ctx);
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_global_subprog_lock(void *ctx)
+{
+	volatile int ret = 0;
+
+	ret += global_subprog_lock(ret);
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_subprog_unlock(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	ret += static_subprog_unlock(ctx);
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_global_subprog_unlock(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	ret += global_subprog_unlock(ret);
+	return 0;
+}

@@ -440,6 +440,9 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	{{"_DOS", METHOD_1ARGS(ACPI_TYPE_INTEGER),
 	  METHOD_NO_RETURN_VALUE}},
 
+	{{"_DSC", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
+
 	{{"_DSD", METHOD_0ARGS,	/* ACPI 6.0 */
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Pkgs) each: 1 Buf, 1 Pkg */
 	PACKAGE_INFO(ACPI_PTYPE2_UUID_PAIR, ACPI_RTYPE_BUFFER, 1,
@@ -447,7 +450,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 
 	{{"_DSM",
 	  METHOD_4ARGS(ACPI_TYPE_BUFFER, ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER,
-		       ACPI_TYPE_PACKAGE),
+		       ACPI_TYPE_ANY) | ARG_COUNT_IS_MINIMUM,
 	  METHOD_RETURNS(ACPI_RTYPE_ALL)}},	/* Must return a value, but it can be of any type */
 
 	{{"_DSS", METHOD_1ARGS(ACPI_TYPE_INTEGER),

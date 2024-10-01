@@ -17,7 +17,7 @@ static int pdiag_put_info(const struct packet_sock *po, struct sk_buff *nlskb)
 	pinfo.pdi_index = po->ifindex;
 	pinfo.pdi_version = po->tp_version;
 	pinfo.pdi_reserve = po->tp_reserve;
-	pinfo.pdi_copy_thresh = po->copy_thresh;
+	pinfo.pdi_copy_thresh = READ_ONCE(po->copy_thresh);
 	pinfo.pdi_tstamp = READ_ONCE(po->tp_tstamp);
 
 	pinfo.pdi_flags = 0;
@@ -245,6 +245,7 @@ static int packet_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 }
 
 static const struct sock_diag_handler packet_diag_handler = {
+	.owner = THIS_MODULE,
 	.family = AF_PACKET,
 	.dump = packet_diag_handler_dump,
 };
@@ -262,4 +263,5 @@ static void __exit packet_diag_exit(void)
 module_init(packet_diag_init);
 module_exit(packet_diag_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("PACKET socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 17 /* AF_PACKET */);

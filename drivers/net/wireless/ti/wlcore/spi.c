@@ -554,7 +554,7 @@ static void wl1271_remove(struct spi_device *spi)
 static struct spi_driver wl1271_spi_driver = {
 	.driver = {
 		.name		= "wl1271_spi",
-		.of_match_table = of_match_ptr(wlcore_spi_of_match_table),
+		.of_match_table = wlcore_spi_of_match_table,
 	},
 
 	.probe		= wl1271_probe,
@@ -562,6 +562,7 @@ static struct spi_driver wl1271_spi_driver = {
 };
 
 module_spi_driver(wl1271_spi_driver);
+MODULE_DESCRIPTION("TI WLAN SPI helpers");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

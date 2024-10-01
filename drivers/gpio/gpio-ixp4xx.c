@@ -6,6 +6,7 @@
 // based on previous work and know-how from:
 // Deepak Saxena <dsaxena@plexity.net>
 
+#include <linux/bitops.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -13,7 +14,7 @@
 #include <linux/irqchip.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
-#include <linux/bitops.h>
+#include <linux/property.h>
 
 #define IXP4XX_REG_GPOUT	0x00
 #define IXP4XX_REG_GPOE		0x04
@@ -38,19 +39,29 @@
 #define IXP4XX_GPIO_STYLE_MASK		GENMASK(2, 0)
 #define IXP4XX_GPIO_STYLE_SIZE		3
 
+/*
+ * Clock output control register defines.
+ */
+#define IXP4XX_GPCLK_CLK0DC_SHIFT	0
+#define IXP4XX_GPCLK_CLK0TC_SHIFT	4
+#define IXP4XX_GPCLK_CLK0_MASK		GENMASK(7, 0)
+#define IXP4XX_GPCLK_MUX14		BIT(8)
+#define IXP4XX_GPCLK_CLK1DC_SHIFT	16
+#define IXP4XX_GPCLK_CLK1TC_SHIFT	20
+#define IXP4XX_GPCLK_CLK1_MASK		GENMASK(23, 16)
+#define IXP4XX_GPCLK_MUX15		BIT(24)
+
 /**
  * struct ixp4xx_gpio - IXP4 GPIO state container
  * @dev: containing device for this instance
- * @fwnode: the fwnode for this GPIO chip
  * @gc: gpiochip for this instance
  * @base: remapped I/O-memory base
  * @irq_edge: Each bit represents an IRQ: 1: edge-triggered,
  * 0: level triggered
  */
 struct ixp4xx_gpio {
-	struct device *dev;
-	struct fwnode_handle *fwnode;
 	struct gpio_chip gc;
+	struct device *dev;
 	void __iomem *base;
 	unsigned long long irq_edge;
 };
@@ -202,6 +213,8 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	struct ixp4xx_gpio *g;
 	struct gpio_irq_chip *girq;
 	struct device_node *irq_parent;
+	bool clk_14, clk_15;
+	u32 val;
 	int ret;
 
 	g = devm_kzalloc(dev, sizeof(*g), GFP_KERNEL);
@@ -223,7 +236,19 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "no IRQ parent domain\n");
 		return -ENODEV;
 	}
-	g->fwnode = of_node_to_fwnode(np);
+
+	/*
+	 * If either clock output is enabled explicitly in the device tree
+	 * we take full control of the clock by masking off all bits for
+	 * the clock control and selectively enabling them. Otherwise
+	 * we leave the hardware default settings.
+	 *
+	 * Enable clock outputs with default timings of requested clock.
+	 * If you need control over TC and DC, add these to the device
+	 * tree bindings and use them here.
+	 */
+	clk_14 = of_property_read_bool(np, "intel,ixp4xx-gpio14-clkout");
+	clk_15 = of_property_read_bool(np, "intel,ixp4xx-gpio15-clkout");
 
 	/*
 	 * Make sure GPIO 14 and 15 are NOT used as clocks but GPIO on
@@ -231,7 +256,29 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	 */
 	if (of_machine_is_compatible("dlink,dsm-g600-a") ||
 	    of_machine_is_compatible("iom,nas-100d"))
-		__raw_writel(0x0, g->base + IXP4XX_REG_GPCLK);
+		val = 0;
+	else {
+		val = __raw_readl(g->base + IXP4XX_REG_GPCLK);
+
+		if (clk_14 || clk_15) {
+			val &= ~(IXP4XX_GPCLK_MUX14 | IXP4XX_GPCLK_MUX15);
+			val &= ~IXP4XX_GPCLK_CLK0_MASK;
+			val &= ~IXP4XX_GPCLK_CLK1_MASK;
+			if (clk_14) {
+				/* IXP4XX_GPCLK_CLK0DC implicit low */
+				val |= (1 << IXP4XX_GPCLK_CLK0TC_SHIFT);
+				val |= IXP4XX_GPCLK_MUX14;
+			}
+
+			if (clk_15) {
+				/* IXP4XX_GPCLK_CLK1DC implicit low */
+				val |= (1 << IXP4XX_GPCLK_CLK1TC_SHIFT);
+				val |= IXP4XX_GPCLK_MUX15;
+			}
+		}
+	}
+
+	__raw_writel(val, g->base + IXP4XX_REG_GPCLK);
 
 	/*
 	 * This is a very special big-endian ARM issue: when the IXP4xx is
@@ -273,7 +320,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 
 	girq = &g->gc.irq;
 	gpio_irq_chip_set_chip(girq, &ixp4xx_gpio_irqchip);
-	girq->fwnode = g->fwnode;
+	girq->fwnode = dev_fwnode(dev);
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = ixp4xx_gpio_child_to_parent_hwirq;
 	girq->handler = handle_bad_irq;
@@ -302,7 +349,7 @@ static const struct of_device_id ixp4xx_gpio_of_match[] = {
 static struct platform_driver ixp4xx_gpio_driver = {
 	.driver = {
 		.name		= "ixp4xx-gpio",
-		.of_match_table = of_match_ptr(ixp4xx_gpio_of_match),
+		.of_match_table = ixp4xx_gpio_of_match,
 	},
 	.probe = ixp4xx_gpio_probe,
 };

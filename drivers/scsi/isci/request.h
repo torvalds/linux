@@ -300,7 +300,7 @@ sci_task_request_construct(struct isci_host *ihost,
 			    struct isci_remote_device *idev,
 			    u16 io_tag,
 			    struct isci_request *ireq);
-enum sci_status sci_task_request_construct_ssp(struct isci_request *ireq);
+void sci_task_request_construct_ssp(struct isci_request *ireq);
 void sci_smp_request_copy_response(struct isci_request *ireq);
 
 static inline int isci_task_is_ncq_recovery(struct sas_task *task)

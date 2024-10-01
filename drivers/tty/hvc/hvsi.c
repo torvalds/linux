@@ -904,14 +904,13 @@ static unsigned int hvsi_chars_in_buffer(struct tty_struct *tty)
 	return hp->n_outbuf;
 }
 
-static int hvsi_write(struct tty_struct *tty,
-		     const unsigned char *buf, int count)
+static ssize_t hvsi_write(struct tty_struct *tty, const u8 *source,
+			  size_t count)
 {
 	struct hvsi_struct *hp = tty->driver_data;
-	const char *source = buf;
 	unsigned long flags;
-	int total = 0;
-	int origcount = count;
+	size_t total = 0;
+	size_t origcount = count;
 
 	spin_lock_irqsave(&hp->lock, flags);
 
@@ -929,7 +928,7 @@ static int hvsi_write(struct tty_struct *tty,
 	 * will see there is no room in outbuf and return.
 	 */
 	while ((count > 0) && (hvsi_write_room(tty) > 0)) {
-		int chunksize = min_t(int, count, hvsi_write_room(tty));
+		size_t chunksize = min_t(size_t, count, hvsi_write_room(tty));
 
 		BUG_ON(hp->n_outbuf < 0);
 		memcpy(hp->outbuf + hp->n_outbuf, source, chunksize);
@@ -953,8 +952,8 @@ out:
 	spin_unlock_irqrestore(&hp->lock, flags);
 
 	if (total != origcount)
-		pr_debug("%s: wanted %i, only wrote %i\n", __func__, origcount,
-			total);
+		pr_debug("%s: wanted %zu, only wrote %zu\n", __func__,
+			 origcount, total);
 
 	return total;
 }

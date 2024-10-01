@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __UAPI_IVPU_DRM_H__
@@ -21,6 +21,10 @@ extern "C" {
 #define DRM_IVPU_BO_INFO		  0x03
 #define DRM_IVPU_SUBMIT			  0x05
 #define DRM_IVPU_BO_WAIT		  0x06
+#define DRM_IVPU_METRIC_STREAMER_START	  0x07
+#define DRM_IVPU_METRIC_STREAMER_STOP	  0x08
+#define DRM_IVPU_METRIC_STREAMER_GET_DATA 0x09
+#define DRM_IVPU_METRIC_STREAMER_GET_INFO 0x0a
 
 #define DRM_IOCTL_IVPU_GET_PARAM                                               \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_GET_PARAM, struct drm_ivpu_param)
@@ -40,6 +44,22 @@ extern "C" {
 #define DRM_IOCTL_IVPU_BO_WAIT                                                 \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_BO_WAIT, struct drm_ivpu_bo_wait)
 
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_START                                   \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_START,            \
+		 struct drm_ivpu_metric_streamer_start)
+
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_STOP                                    \
+	DRM_IOW(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_STOP,              \
+		struct drm_ivpu_metric_streamer_stop)
+
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_GET_DATA                                \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_GET_DATA,         \
+		 struct drm_ivpu_metric_streamer_get_data)
+
+#define DRM_IOCTL_IVPU_METRIC_STREAMER_GET_INFO                                \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_METRIC_STREAMER_GET_INFO,         \
+		 struct drm_ivpu_metric_streamer_get_data)
+
 /**
  * DOC: contexts
  *
@@ -53,20 +73,43 @@ extern "C" {
 #define DRM_IVPU_PARAM_CORE_CLOCK_RATE	    3
 #define DRM_IVPU_PARAM_NUM_CONTEXTS	    4
 #define DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS 5
-#define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6
+#define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6 /* Deprecated */
 #define DRM_IVPU_PARAM_CONTEXT_ID	    7
 #define DRM_IVPU_PARAM_FW_API_VERSION	    8
 #define DRM_IVPU_PARAM_ENGINE_HEARTBEAT	    9
 #define DRM_IVPU_PARAM_UNIQUE_INFERENCE_ID  10
 #define DRM_IVPU_PARAM_TILE_CONFIG	    11
 #define DRM_IVPU_PARAM_SKU		    12
+#define DRM_IVPU_PARAM_CAPABILITIES	    13
 
 #define DRM_IVPU_PLATFORM_TYPE_SILICON	    0
 
+/* Deprecated, use DRM_IVPU_JOB_PRIORITY */
 #define DRM_IVPU_CONTEXT_PRIORITY_IDLE	    0
 #define DRM_IVPU_CONTEXT_PRIORITY_NORMAL    1
 #define DRM_IVPU_CONTEXT_PRIORITY_FOCUS	    2
 #define DRM_IVPU_CONTEXT_PRIORITY_REALTIME  3
+
+#define DRM_IVPU_JOB_PRIORITY_DEFAULT  0
+#define DRM_IVPU_JOB_PRIORITY_IDLE     1
+#define DRM_IVPU_JOB_PRIORITY_NORMAL   2
+#define DRM_IVPU_JOB_PRIORITY_FOCUS    3
+#define DRM_IVPU_JOB_PRIORITY_REALTIME 4
+
+/**
+ * DRM_IVPU_CAP_METRIC_STREAMER
+ *
+ * Metric streamer support. Provides sampling of various hardware performance
+ * metrics like DMA bandwidth and cache miss/hits. Can be used for profiling.
+ */
+#define DRM_IVPU_CAP_METRIC_STREAMER	1
+/**
+ * DRM_IVPU_CAP_DMA_MEMORY_RANGE
+ *
+ * Driver has capability to allocate separate memory range
+ * accessible by hardware DMA.
+ */
+#define DRM_IVPU_CAP_DMA_MEMORY_RANGE	2
 
 /**
  * struct drm_ivpu_param - Get/Set VPU parameters
@@ -96,10 +139,6 @@ struct drm_ivpu_param {
 	 * %DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS:
 	 * Lowest VPU virtual address available in the current context (read-only)
 	 *
-	 * %DRM_IVPU_PARAM_CONTEXT_PRIORITY:
-	 * Value of current context scheduling priority (read-write).
-	 * See DRM_IVPU_CONTEXT_PRIORITY_* for possible values.
-	 *
 	 * %DRM_IVPU_PARAM_CONTEXT_ID:
 	 * Current context ID, always greater than 0 (read-only)
 	 *
@@ -119,6 +158,8 @@ struct drm_ivpu_param {
 	 * %DRM_IVPU_PARAM_SKU:
 	 * VPU SKU ID (read-only)
 	 *
+	 * %DRM_IVPU_PARAM_CAPABILITIES:
+	 * Supported capabilities (read-only)
 	 */
 	__u32 param;
 
@@ -129,8 +170,10 @@ struct drm_ivpu_param {
 	__u64 value;
 };
 
-#define DRM_IVPU_BO_HIGH_MEM   0x00000001
+#define DRM_IVPU_BO_SHAVE_MEM  0x00000001
+#define DRM_IVPU_BO_HIGH_MEM   DRM_IVPU_BO_SHAVE_MEM
 #define DRM_IVPU_BO_MAPPABLE   0x00000002
+#define DRM_IVPU_BO_DMA_MEM    0x00000004
 
 #define DRM_IVPU_BO_CACHED     0x00000000
 #define DRM_IVPU_BO_UNCACHED   0x00010000
@@ -140,6 +183,7 @@ struct drm_ivpu_param {
 #define DRM_IVPU_BO_FLAGS \
 	(DRM_IVPU_BO_HIGH_MEM | \
 	 DRM_IVPU_BO_MAPPABLE | \
+	 DRM_IVPU_BO_DMA_MEM | \
 	 DRM_IVPU_BO_CACHE_MASK)
 
 /**
@@ -175,7 +219,7 @@ struct drm_ivpu_bo_create {
 	 *
 	 * %DRM_IVPU_BO_UNCACHED:
 	 *
-	 * Allocated BO will not be cached on host side nor snooped on the VPU side.
+	 * Not supported. Use DRM_IVPU_BO_WC instead.
 	 *
 	 * %DRM_IVPU_BO_WC:
 	 *
@@ -265,10 +309,23 @@ struct drm_ivpu_submit {
 	 * to be executed. The offset has to be 8-byte aligned.
 	 */
 	__u32 commands_offset;
+
+	/**
+	 * @priority:
+	 *
+	 * Priority to be set for related job command queue, can be one of the following:
+	 * %DRM_IVPU_JOB_PRIORITY_DEFAULT
+	 * %DRM_IVPU_JOB_PRIORITY_IDLE
+	 * %DRM_IVPU_JOB_PRIORITY_NORMAL
+	 * %DRM_IVPU_JOB_PRIORITY_FOCUS
+	 * %DRM_IVPU_JOB_PRIORITY_REALTIME
+	 */
+	__u32 priority;
 };
 
 /* drm_ivpu_bo_wait job status codes */
 #define DRM_IVPU_JOB_STATUS_SUCCESS 0
+#define DRM_IVPU_JOB_STATUS_ABORTED 256
 
 /**
  * struct drm_ivpu_bo_wait - Wait for BO to become inactive
@@ -297,6 +354,53 @@ struct drm_ivpu_bo_wait {
 
 	/** @pad: Padding - must be zero */
 	__u32 pad;
+};
+
+/**
+ * struct drm_ivpu_metric_streamer_start - Start collecting metric data
+ */
+struct drm_ivpu_metric_streamer_start {
+	/** @metric_group_mask: Indicates metric streamer instance */
+	__u64 metric_group_mask;
+	/** @sampling_period_ns: Sampling period in nanoseconds */
+	__u64 sampling_period_ns;
+	/**
+	 * @read_period_samples:
+	 *
+	 * Number of samples after which user space will try to read the data.
+	 * Reading the data after significantly longer period may cause data loss.
+	 */
+	__u32 read_period_samples;
+	/** @sample_size: Returned size of a single sample in bytes */
+	__u32 sample_size;
+	/** @max_data_size: Returned max @data_size from %DRM_IOCTL_IVPU_METRIC_STREAMER_GET_DATA */
+	__u32 max_data_size;
+};
+
+/**
+ * struct drm_ivpu_metric_streamer_get_data - Copy collected metric data
+ */
+struct drm_ivpu_metric_streamer_get_data {
+	/** @metric_group_mask: Indicates metric streamer instance */
+	__u64 metric_group_mask;
+	/** @buffer_ptr: A pointer to a destination for the copied data */
+	__u64 buffer_ptr;
+	/** @buffer_size: Size of the destination buffer */
+	__u64 buffer_size;
+	/**
+	 * @data_size: Returned size of copied metric data
+	 *
+	 * If the @buffer_size is zero, returns the amount of data ready to be copied.
+	 */
+	__u64 data_size;
+};
+
+/**
+ * struct drm_ivpu_metric_streamer_stop - Stop collecting metric data
+ */
+struct drm_ivpu_metric_streamer_stop {
+	/** @metric_group_mask: Indicates metric streamer instance */
+	__u64 metric_group_mask;
 };
 
 #if defined(__cplusplus)

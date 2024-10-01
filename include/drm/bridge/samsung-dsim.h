@@ -11,9 +11,11 @@
 #include <linux/regulator/consumer.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_of.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
 
+struct platform_device;
 struct samsung_dsim;
 
 #define DSIM_STATE_ENABLED		BIT(0)
@@ -53,6 +55,7 @@ struct samsung_dsim_driver_data {
 	unsigned int plltmr_reg;
 	unsigned int has_freqband:1;
 	unsigned int has_clklane_stop:1;
+	unsigned int has_broken_fifoctrl_emptyhdr:1;
 	unsigned int num_clks;
 	unsigned int min_freq;
 	unsigned int max_freq;
@@ -60,6 +63,8 @@ struct samsung_dsim_driver_data {
 	unsigned int num_bits_resol;
 	unsigned int pll_p_offset;
 	const unsigned int *reg_values;
+	unsigned int pll_fin_min;
+	unsigned int pll_fin_max;
 	u16 m_min;
 	u16 m_max;
 };
@@ -87,6 +92,7 @@ struct samsung_dsim {
 	void __iomem *reg_base;
 	struct phy *phy;
 	struct clk **clks;
+	struct clk *pll_clk;
 	struct regulator_bulk_data supplies[2];
 	int irq;
 	struct gpio_desc *te_gpio;
@@ -115,7 +121,7 @@ struct samsung_dsim {
 };
 
 extern int samsung_dsim_probe(struct platform_device *pdev);
-extern int samsung_dsim_remove(struct platform_device *pdev);
+extern void samsung_dsim_remove(struct platform_device *pdev);
 extern const struct dev_pm_ops samsung_dsim_pm_ops;
 
 #endif /* __SAMSUNG_DSIM__ */

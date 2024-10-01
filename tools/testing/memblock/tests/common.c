@@ -40,13 +40,13 @@ void reset_memblock_regions(void)
 {
 	memset(memblock.memory.regions, 0,
 	       memblock.memory.cnt * sizeof(struct memblock_region));
-	memblock.memory.cnt	= 1;
+	memblock.memory.cnt     = 0;
 	memblock.memory.max	= INIT_MEMBLOCK_REGIONS;
 	memblock.memory.total_size = 0;
 
 	memset(memblock.reserved.regions, 0,
 	       memblock.reserved.cnt * sizeof(struct memblock_region));
-	memblock.reserved.cnt	= 1;
+	memblock.reserved.cnt   = 0;
 	memblock.reserved.max	= INIT_MEMBLOCK_RESERVED_REGIONS;
 	memblock.reserved.total_size = 0;
 }
@@ -61,7 +61,7 @@ void reset_memblock_attributes(void)
 
 static inline void fill_memblock(void)
 {
-	memset(memory_block.base, 1, MEM_SIZE);
+	memset(memory_block.base, 1, PHYS_MEM_SIZE);
 }
 
 void setup_memblock(void)
@@ -103,7 +103,7 @@ void setup_numa_memblock(const unsigned int node_fracs[])
 
 void dummy_physical_memory_init(void)
 {
-	memory_block.base = malloc(MEM_SIZE);
+	memory_block.base = malloc(PHYS_MEM_SIZE);
 	assert(memory_block.base);
 	fill_memblock();
 }

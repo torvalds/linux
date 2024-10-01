@@ -380,11 +380,6 @@ struct skb_data {		/* skb->cb is one of these */
 	int num_of_packet;
 };
 
-struct usb_context {
-	struct usb_ctrlrequest req;
-	struct lan78xx_net *dev;
-};
-
 #define EVENT_TX_HALT			0
 #define EVENT_RX_HALT			1
 #define EVENT_RX_MEMORY			2
@@ -1501,7 +1496,9 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		lan78xx_rx_urb_submit_all(dev);
 
+		local_bh_disable();
 		napi_schedule(&dev->napi);
+		local_bh_enable();
 	}
 
 	return 0;
@@ -1673,7 +1670,7 @@ static int lan78xx_set_wol(struct net_device *netdev,
 	return ret;
 }
 
-static int lan78xx_get_eee(struct net_device *net, struct ethtool_eee *edata)
+static int lan78xx_get_eee(struct net_device *net, struct ethtool_keee *edata)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
@@ -1690,17 +1687,10 @@ static int lan78xx_get_eee(struct net_device *net, struct ethtool_eee *edata)
 
 	ret = lan78xx_read_reg(dev, MAC_CR, &buf);
 	if (buf & MAC_CR_EEE_EN_) {
-		edata->eee_enabled = true;
-		edata->eee_active = !!(edata->advertised &
-				       edata->lp_advertised);
-		edata->tx_lpi_enabled = true;
 		/* EEE_TX_LPI_REQ_DLY & tx_lpi_timer are same uSec unit */
 		ret = lan78xx_read_reg(dev, EEE_TX_LPI_REQ_DLY, &buf);
 		edata->tx_lpi_timer = buf;
 	} else {
-		edata->eee_enabled = false;
-		edata->eee_active = false;
-		edata->tx_lpi_enabled = false;
 		edata->tx_lpi_timer = 0;
 	}
 
@@ -1711,7 +1701,7 @@ exit:
 	return ret;
 }
 
-static int lan78xx_set_eee(struct net_device *net, struct ethtool_eee *edata)
+static int lan78xx_set_eee(struct net_device *net, struct ethtool_keee *edata)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	int ret;
@@ -1721,24 +1711,16 @@ static int lan78xx_set_eee(struct net_device *net, struct ethtool_eee *edata)
 	if (ret < 0)
 		return ret;
 
-	if (edata->eee_enabled) {
-		ret = lan78xx_read_reg(dev, MAC_CR, &buf);
-		buf |= MAC_CR_EEE_EN_;
-		ret = lan78xx_write_reg(dev, MAC_CR, buf);
+	ret = phy_ethtool_set_eee(net->phydev, edata);
+	if (ret < 0)
+		goto out;
 
-		phy_ethtool_set_eee(net->phydev, edata);
-
-		buf = (u32)edata->tx_lpi_timer;
-		ret = lan78xx_write_reg(dev, EEE_TX_LPI_REQ_DLY, buf);
-	} else {
-		ret = lan78xx_read_reg(dev, MAC_CR, &buf);
-		buf &= ~MAC_CR_EEE_EN_;
-		ret = lan78xx_write_reg(dev, MAC_CR, buf);
-	}
-
+	buf = (u32)edata->tx_lpi_timer;
+	ret = lan78xx_write_reg(dev, EEE_TX_LPI_REQ_DLY, buf);
+out:
 	usb_autopm_put_interface(dev->intf);
 
-	return 0;
+	return ret;
 }
 
 static u32 lan78xx_get_link(struct net_device *net)
@@ -1758,7 +1740,7 @@ static void lan78xx_get_drvinfo(struct net_device *net,
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 
-	strncpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRIVER_NAME, sizeof(info->driver));
 	usb_make_path(dev->udev, info->bus_info, sizeof(info->bus_info));
 }
 
@@ -2114,7 +2096,20 @@ static void lan78xx_remove_mdio(struct lan78xx_net *dev)
 
 static void lan78xx_link_status_change(struct net_device *net)
 {
+	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
+	u32 data;
+	int ret;
+
+	ret = lan78xx_read_reg(dev, MAC_CR, &data);
+	if (ret < 0)
+		return;
+
+	if (phydev->enable_tx_lpi)
+		data |=  MAC_CR_EEE_EN_;
+	else
+		data &= ~MAC_CR_EEE_EN_;
+	lan78xx_write_reg(dev, MAC_CR, data);
 
 	phy_print_status(phydev);
 }
@@ -2408,6 +2403,8 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	mii_adv_to_linkmode_adv_t(fc, mii_adv);
 	linkmode_or(phydev->advertising, fc, phydev->advertising);
 
+	phy_support_eee(phydev);
+
 	if (phydev->mdio.dev.of_node) {
 		u32 reg;
 		int len;
@@ -2526,7 +2523,7 @@ static int lan78xx_change_mtu(struct net_device *netdev, int new_mtu)
 
 	ret = lan78xx_set_rx_max_frame_length(dev, max_frame_len);
 	if (!ret)
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 
 	usb_autopm_put_interface(dev->intf);
 
@@ -2944,6 +2941,8 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 		return ret;
 
 	buf |= HW_CFG_MEF_;
+	buf |= HW_CFG_CLK125_EN_;
+	buf |= HW_CFG_REFCLK25_EN_;
 
 	ret = lan78xx_write_reg(dev, HW_CFG, buf);
 	if (ret < 0)
@@ -3032,10 +3031,14 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 		return ret;
 
 	/* LAN7801 only has RGMII mode */
-	if (dev->chipid == ID_REV_CHIP_ID_7801_)
+	if (dev->chipid == ID_REV_CHIP_ID_7801_) {
 		buf &= ~MAC_CR_GMII_EN_;
+		/* Enable Auto Duplex and Auto speed */
+		buf |= MAC_CR_AUTO_DUPLEX_ | MAC_CR_AUTO_SPEED_;
+	}
 
-	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
+	if (dev->chipid == ID_REV_CHIP_ID_7800_ ||
+	    dev->chipid == ID_REV_CHIP_ID_7850_) {
 		ret = lan78xx_read_raw_eeprom(dev, 0, 1, &sig);
 		if (!ret && sig != EEPROM_INDICATOR) {
 			/* Implies there is no external eeprom. Set mac speed */
@@ -3134,7 +3137,8 @@ static int lan78xx_open(struct net_device *net)
 done:
 	mutex_unlock(&dev->dev_mutex);
 
-	usb_autopm_put_interface(dev->intf);
+	if (ret < 0)
+		usb_autopm_put_interface(dev->intf);
 
 	return ret;
 }
@@ -4224,8 +4228,6 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
-	set_bit(EVENT_DEV_DISCONNECT, &dev->flags);
-
 	netif_napi_del(&dev->napi);
 
 	udev = interface_to_usbdev(intf);
@@ -4233,6 +4235,8 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 
 	unregister_netdev(net);
 
+	timer_shutdown_sync(&dev->stat_monitor);
+	set_bit(EVENT_DEV_DISCONNECT, &dev->flags);
 	cancel_delayed_work_sync(&dev->wq);
 
 	phydev = net->phydev;
@@ -4246,9 +4250,6 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 		fixed_phy_unregister(phydev);
 
 	usb_scuttle_anchored_urbs(&dev->deferred);
-
-	if (timer_pending(&dev->stat_monitor))
-		del_timer_sync(&dev->stat_monitor);
 
 	lan78xx_unbind(dev, intf);
 

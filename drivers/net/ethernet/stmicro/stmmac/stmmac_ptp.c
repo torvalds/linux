@@ -68,43 +68,43 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	nsec = reminder;
 
 	/* If EST is enabled, disabled it before adjust ptp time. */
-	if (priv->plat->est && priv->plat->est->enable) {
+	if (priv->est && priv->est->enable) {
 		est_rst = true;
-		mutex_lock(&priv->plat->est->lock);
-		priv->plat->est->enable = false;
-		stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+		mutex_lock(&priv->est_lock);
+		priv->est->enable = false;
+		stmmac_est_configure(priv, priv, priv->est,
 				     priv->plat->clk_ptp_rate);
-		mutex_unlock(&priv->plat->est->lock);
+		mutex_unlock(&priv->est_lock);
 	}
 
 	write_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj, xmac);
 	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
-	/* Caculate new basetime and re-configured EST after PTP time adjust. */
+	/* Calculate new basetime and re-configured EST after PTP time adjust. */
 	if (est_rst) {
 		struct timespec64 current_time, time;
 		ktime_t current_time_ns, basetime;
 		u64 cycle_time;
 
-		mutex_lock(&priv->plat->est->lock);
+		mutex_lock(&priv->est_lock);
 		priv->ptp_clock_ops.gettime64(&priv->ptp_clock_ops, &current_time);
 		current_time_ns = timespec64_to_ktime(current_time);
-		time.tv_nsec = priv->plat->est->btr_reserve[0];
-		time.tv_sec = priv->plat->est->btr_reserve[1];
+		time.tv_nsec = priv->est->btr_reserve[0];
+		time.tv_sec = priv->est->btr_reserve[1];
 		basetime = timespec64_to_ktime(time);
-		cycle_time = (u64)priv->plat->est->ctr[1] * NSEC_PER_SEC +
-			     priv->plat->est->ctr[0];
+		cycle_time = (u64)priv->est->ctr[1] * NSEC_PER_SEC +
+			     priv->est->ctr[0];
 		time = stmmac_calc_tas_basetime(basetime,
 						current_time_ns,
 						cycle_time);
 
-		priv->plat->est->btr[0] = (u32)time.tv_nsec;
-		priv->plat->est->btr[1] = (u32)time.tv_sec;
-		priv->plat->est->enable = true;
-		ret = stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+		priv->est->btr[0] = (u32)time.tv_nsec;
+		priv->est->btr[1] = (u32)time.tv_sec;
+		priv->est->enable = true;
+		ret = stmmac_est_configure(priv, priv, priv->est,
 					   priv->plat->clk_ptp_rate);
-		mutex_unlock(&priv->plat->est->lock);
+		mutex_unlock(&priv->est_lock);
 		if (ret)
 			netdev_err(priv->dev, "failed to configure EST\n");
 	}
@@ -191,23 +191,33 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 					     priv->systime_flags);
 		write_unlock_irqrestore(&priv->ptp_lock, flags);
 		break;
-	case PTP_CLK_REQ_EXTTS:
-		priv->plat->ext_snapshot_en = on;
+	case PTP_CLK_REQ_EXTTS: {
+		u8 channel;
+
 		mutex_lock(&priv->aux_ts_lock);
 		acr_value = readl(ptpaddr + PTP_ACR);
+		channel = ilog2(FIELD_GET(PTP_ACR_MASK, acr_value));
 		acr_value &= ~PTP_ACR_MASK;
+
 		if (on) {
+			if (FIELD_GET(PTP_ACR_MASK, acr_value)) {
+				netdev_err(priv->dev,
+					   "Cannot enable auxiliary snapshot %d as auxiliary snapshot %d is already enabled",
+					rq->extts.index, channel);
+				mutex_unlock(&priv->aux_ts_lock);
+				return -EBUSY;
+			}
+
+			priv->plat->flags |= STMMAC_FLAG_EXT_SNAPSHOT_EN;
+
 			/* Enable External snapshot trigger */
-			acr_value |= priv->plat->ext_snapshot_num;
+			acr_value |= PTP_ACR_ATSEN(rq->extts.index);
 			acr_value |= PTP_ACR_ATSFC;
-			netdev_dbg(priv->dev, "Auxiliary Snapshot %d enabled.\n",
-				   priv->plat->ext_snapshot_num >>
-				   PTP_ACR_ATSEN_SHIFT);
 		} else {
-			netdev_dbg(priv->dev, "Auxiliary Snapshot %d disabled.\n",
-				   priv->plat->ext_snapshot_num >>
-				   PTP_ACR_ATSEN_SHIFT);
+			priv->plat->flags &= ~STMMAC_FLAG_EXT_SNAPSHOT_EN;
 		}
+		netdev_dbg(priv->dev, "Auxiliary Snapshot %d %s.\n",
+			   rq->extts.index, on ? "enabled" : "disabled");
 		writel(acr_value, ptpaddr + PTP_ACR);
 		mutex_unlock(&priv->aux_ts_lock);
 		/* wait for auxts fifo clear to finish */
@@ -215,6 +225,7 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 					 !(acr_value & PTP_ACR_ATSFC),
 					 10, 10000);
 		break;
+	}
 
 	default:
 		break;

@@ -14,6 +14,7 @@
 #include <linux/io.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -23,14 +24,16 @@
 
 static int hibmc_connector_get_modes(struct drm_connector *connector)
 {
-	int count;
-	void *edid;
 	struct hibmc_connector *hibmc_connector = to_hibmc_connector(connector);
+	const struct drm_edid *drm_edid;
+	int count;
 
-	edid = drm_get_edid(connector, &hibmc_connector->adapter);
-	if (edid) {
-		drm_connector_update_edid_property(connector, edid);
-		count = drm_add_edid_modes(connector, edid);
+	drm_edid = drm_edid_read_ddc(connector, &hibmc_connector->adapter);
+
+	drm_edid_connector_update(connector, drm_edid);
+
+	if (drm_edid) {
+		count = drm_edid_connector_add_modes(connector);
 		if (count)
 			goto out;
 	}
@@ -41,7 +44,8 @@ static int hibmc_connector_get_modes(struct drm_connector *connector)
 	drm_set_preferred_mode(connector, 1024, 768);
 
 out:
-	kfree(edid);
+	drm_edid_free(drm_edid);
+
 	return count;
 }
 

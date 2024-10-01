@@ -405,11 +405,11 @@ static int radeon_atif_handler(struct radeon_device *rdev,
 	if (req.pending & ATIF_DGPU_DISPLAY_EVENT) {
 		if ((rdev->flags & RADEON_IS_PX) &&
 		    radeon_atpx_dgpu_req_power_for_displays()) {
-			pm_runtime_get_sync(rdev->ddev->dev);
+			pm_runtime_get_sync(rdev_to_drm(rdev)->dev);
 			/* Just fire off a uevent and let userspace tell us what to do */
-			drm_helper_hpd_irq_event(rdev->ddev);
-			pm_runtime_mark_last_busy(rdev->ddev->dev);
-			pm_runtime_put_autosuspend(rdev->ddev->dev);
+			drm_helper_hpd_irq_event(rdev_to_drm(rdev));
+			pm_runtime_mark_last_busy(rdev_to_drm(rdev)->dev);
+			pm_runtime_put_autosuspend(rdev_to_drm(rdev)->dev);
 		}
 	}
 	/* TODO: check other events */
@@ -618,7 +618,7 @@ int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
 
 	atcs_input.size = sizeof(struct atcs_pref_req_input);
 	/* client id (bit 2-0: func num, 7-3: dev num, 15-8: bus num) */
-	atcs_input.client_id = rdev->pdev->devfn | (rdev->pdev->bus->number << 8);
+	atcs_input.client_id = pci_dev_id(rdev->pdev);
 	atcs_input.valid_flags_mask = ATCS_VALID_FLAGS_MASK;
 	atcs_input.flags = ATCS_WAIT_FOR_COMPLETION;
 	if (advertise)
@@ -736,7 +736,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		struct radeon_encoder *target = NULL;
 
 		/* Find the encoder controlling the brightness */
-		list_for_each_entry(tmp, &rdev->ddev->mode_config.encoder_list,
+		list_for_each_entry(tmp, &rdev_to_drm(rdev)->mode_config.encoder_list,
 				head) {
 			struct radeon_encoder *enc = to_radeon_encoder(tmp);
 

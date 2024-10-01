@@ -18,8 +18,6 @@
 #include <asm/uv/uv_hub.h>
 #if defined CONFIG_X86_64
 #include <asm/uv/bios.h>
-#elif defined CONFIG_IA64_SGI_UV
-#include <asm/sn/sn_sal.h>
 #endif
 #include "../sgi-gru/grukservices.h"
 #include "xp.h"
@@ -99,17 +97,6 @@ xp_expand_memprotect_uv(unsigned long phys_addr, unsigned long size)
 			"UV_MEMPROT_ALLOW_RW) failed, ret=%d\n", ret);
 		return xpBiosError;
 	}
-
-#elif defined CONFIG_IA64_SGI_UV
-	u64 nasid_array;
-
-	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_1,
-				   &nasid_array);
-	if (ret != 0) {
-		dev_err(xp, "sn_change_memprotect(,, "
-			"SN_MEMPROT_ACCESS_CLASS_1,) failed ret=%d\n", ret);
-		return xpSalError;
-	}
 #else
 	#error not a supported configuration
 #endif
@@ -128,17 +115,6 @@ xp_restrict_memprotect_uv(unsigned long phys_addr, unsigned long size)
 		dev_err(xp, "uv_bios_change_memprotect(,, "
 			"UV_MEMPROT_RESTRICT_ACCESS) failed, ret=%d\n", ret);
 		return xpBiosError;
-	}
-
-#elif defined CONFIG_IA64_SGI_UV
-	u64 nasid_array;
-
-	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_0,
-				   &nasid_array);
-	if (ret != 0) {
-		dev_err(xp, "sn_change_memprotect(,, "
-			"SN_MEMPROT_ACCESS_CLASS_0,) failed ret=%d\n", ret);
-		return xpSalError;
 	}
 #else
 	#error not a supported configuration

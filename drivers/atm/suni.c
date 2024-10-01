@@ -387,4 +387,5 @@ int suni_init(struct atm_dev *dev)
 
 EXPORT_SYMBOL(suni_init);
 
+MODULE_DESCRIPTION("S/UNI PHY driver");
 MODULE_LICENSE("GPL");

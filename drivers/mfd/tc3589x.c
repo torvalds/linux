@@ -312,8 +312,6 @@ static int tc3589x_device_init(struct tc3589x *tc3589x)
 }
 
 static const struct of_device_id tc3589x_match[] = {
-	/* Legacy compatible string */
-	{ .compatible = "tc3589x", .data = (void *) TC3589X_UNKNOWN },
 	{ .compatible = "toshiba,tc35890", .data = (void *) TC3589X_TC35890 },
 	{ .compatible = "toshiba,tc35892", .data = (void *) TC3589X_TC35892 },
 	{ .compatible = "toshiba,tc35893", .data = (void *) TC3589X_TC35893 },
@@ -340,7 +338,7 @@ tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 	of_id = of_match_device(tc3589x_match, dev);
 	if (!of_id)
 		return ERR_PTR(-ENODEV);
-	*version = (enum tc3589x_version) of_id->data;
+	*version = (uintptr_t) of_id->data;
 
 	for_each_child_of_node(np, child) {
 		if (of_device_is_compatible(child, "toshiba,tc3589x-gpio"))
@@ -483,7 +481,7 @@ static struct i2c_driver tc3589x_driver = {
 	.driver = {
 		.name	= "tc3589x",
 		.pm	= pm_sleep_ptr(&tc3589x_dev_pm_ops),
-		.of_match_table = of_match_ptr(tc3589x_match),
+		.of_match_table = tc3589x_match,
 	},
 	.probe		= tc3589x_probe,
 	.remove		= tc3589x_remove,

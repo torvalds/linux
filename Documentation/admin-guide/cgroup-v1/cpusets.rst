@@ -179,7 +179,7 @@ files describing that cpuset:
  - cpuset.mem_hardwall flag:  is memory allocation hardwalled
  - cpuset.memory_pressure: measure of how much paging pressure in cpuset
  - cpuset.memory_spread_page flag: if set, spread page cache evenly on allowed nodes
- - cpuset.memory_spread_slab flag: if set, spread slab cache evenly on allowed nodes
+ - cpuset.memory_spread_slab flag: OBSOLETE. Doesn't have any function.
  - cpuset.sched_load_balance flag: if set, load balance within CPUs on that cpuset
  - cpuset.sched_relax_domain_level: the searching range when migrating tasks
 
@@ -568,7 +568,7 @@ on the next tick.  For some applications in special situation, waiting
 
 The 'cpuset.sched_relax_domain_level' file allows you to request changing
 this searching range as you like.  This file takes int value which
-indicates size of searching range in levels ideally as follows,
+indicates size of searching range in levels approximately as follows,
 otherwise initial value -1 that indicates the cpuset has no request.
 
 ====== ===========================================================
@@ -580,6 +580,11 @@ otherwise initial value -1 that indicates the cpuset has no request.
    4   search nodes in a chunk of node [on NUMA system]
    5   search system wide [on NUMA system]
 ====== ===========================================================
+
+Not all levels can be present and values can change depending on the
+system architecture and kernel configuration. Check
+/sys/kernel/debug/sched/domains/cpu*/domain*/ for system-specific
+details.
 
 The system default is architecture dependent.  The system default
 can be changed using the relax_domain_level= boot parameter.

@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright (C) 2003 - 2014, 2018 - 2022 Intel Corporation
+ * Copyright (C) 2003 - 2014, 2018 - 2024 Intel Corporation
  *****************************************************************************/
 
 #ifndef __rs_h__
@@ -122,13 +122,8 @@ enum {
 
 #define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(63)
-/*
- * FIXME - various places in firmware API still use u8,
- * e.g. LQ command and SCD config command.
- * This should be 256 instead.
- */
-#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF	(255)
-#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_MAX	(255)
+#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF	(64)
+#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_MAX	(64)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MIN	(0)
 
 #define LQ_SIZE		2	/* 2 mode tables:  "Active" and "Search" */
@@ -203,18 +198,13 @@ struct rs_rate {
 /**
  * struct iwl_lq_sta_rs_fw - rate and related statistics for RS in FW
  * @last_rate_n_flags: last rate reported by FW
- * @max_agg_bufsize: the maximal size of the AGG buffer for this station
- * @sta_id: the id of the station
-#ifdef CONFIG_MAC80211_DEBUGFS
- * @dbg_fixed_rate: for debug, use fixed rate if not 0
- * @dbg_agg_frame_count_lim: for debug, max number of frames in A-MPDU
-#endif
- * @chains: bitmask of chains reported in %chain_signal
- * @chain_signal: per chain signal strength
- * @last_rssi: last rssi reported
- * @drv: pointer back to the driver data
+ * @pers: persistent fields
+ * @pers.sta_id: the id of the station
+ * @pers.chains: bitmask of chains reported in %chain_signal
+ * @pers.chain_signal: per chain signal strength
+ * @pers.last_rssi: last rssi reported
+ * @pers.drv: pointer back to the driver data
  */
-
 struct iwl_lq_sta_rs_fw {
 	/* last tx rate_n_flags */
 	u32 last_rate_n_flags;
@@ -223,7 +213,14 @@ struct iwl_lq_sta_rs_fw {
 	struct lq_sta_pers_rs_fw {
 		u32 sta_id;
 #ifdef CONFIG_MAC80211_DEBUGFS
+		/**
+		 * @pers.dbg_fixed_rate: for debug, use fixed rate if not 0
+		 */
 		u32 dbg_fixed_rate;
+		/**
+		 * @pers.dbg_agg_frame_count_lim: for debug, max number of
+		 *	frames in A-MPDU
+		 */
 		u16 dbg_agg_frame_count_lim;
 #endif
 		u8 chains;
@@ -233,7 +230,7 @@ struct iwl_lq_sta_rs_fw {
 	} pers;
 };
 
-/**
+/*
  * struct iwl_rate_scale_data -- tx success history for one rate
  */
 struct iwl_rate_scale_data {
@@ -275,7 +272,7 @@ struct rs_rate_stats {
 	u64 total;
 };
 
-/**
+/*
  * struct iwl_scale_tbl_info -- tx params and success history for all rates
  *
  * There are two of these in struct iwl_lq_sta,
@@ -296,7 +293,7 @@ enum {
 	RS_STATE_STAY_IN_COLUMN,
 };
 
-/**
+/*
  * struct iwl_lq_sta -- driver's rate scaling private structure
  *
  * Pointer to this gets passed back and forth between driver and mac80211.
@@ -406,7 +403,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  int tid, struct ieee80211_tx_info *info, bool ndp);
 
 /**
- * iwl_rate_control_register - Register the rate control algorithm callbacks
+ * iwl_mvm_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
  * or reason to place it as a stand alone module.  The driver can call
@@ -418,7 +415,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 int iwl_mvm_rate_control_register(void);
 
 /**
- * iwl_rate_control_unregister - Unregister the rate control callbacks
+ * iwl_mvm_rate_control_unregister - Unregister the rate control callbacks
  *
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.

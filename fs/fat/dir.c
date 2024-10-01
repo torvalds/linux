@@ -269,6 +269,18 @@ enum { PARSE_INVALID = 1, PARSE_NOT_LONGNAME, PARSE_EOF, };
 /**
  * fat_parse_long - Parse extended directory entry.
  *
+ * @dir: Pointer to the inode that represents the directory.
+ * @pos: On input, contains the starting position to read from.
+ *       On output, updated with the new position.
+ * @bh: Pointer to the buffer head that may be used for reading directory
+ *	 entries. May be updated.
+ * @de: On input, points to the current directory entry.
+ *      On output, points to the next directory entry.
+ * @unicode: Pointer to a buffer where the parsed Unicode long filename will be
+ *	      stored.
+ * @nr_slots: Pointer to a variable that will store the number of longname
+ *	       slots found.
+ *
  * This function returns zero on success, negative value on error, or one of
  * the following:
  *

@@ -99,15 +99,33 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 	{
 		/* Lenovo Yoga Book X91F / X91L */
 		.matches = {
-			/* Non exact match to match F + L versions */
+			/* Inexact match to match F + L versions */
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
 		},
 		.driver_data = (void *)&lenovo_yogabook_x91_info,
 	},
 	{
 		/*
-		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
-		 * Lenovo Yoga Tablet 2 use the same mainboard)
+		 * Lenovo Yoga Tablet 2 Pro 1380F/L (13")
+		 * This has more or less the same BIOS as the 830F/L or 1050F/L
+		 * (8" and 10") below, but unlike the 8"/10" models which share
+		 * the same mainboard this model has a different mainboard.
+		 * This match for the 13" model MUST come before the 8" + 10"
+		 * match since that one will also match the 13" model!
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
+			DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
+			/* Full match so as to NOT match the 830/1050 BIOS */
+			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21.X64.0005.R00.1504101516"),
+		},
+		.driver_data = (void *)&lenovo_yoga_tab2_1380_info,
+	},
+	{
+		/*
+		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L
+		 * The 8" and 10" Lenovo Yoga Tablet 2 use the same mainboard.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
@@ -122,7 +140,6 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
 		},
 		.driver_data = (void *)&lenovo_yt3_info,
@@ -146,7 +163,7 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&nextbook_ares8_info,
 	},
 	{
-		/* Nextbook Ares 8A (CHT version)*/
+		/* Nextbook Ares 8A (CHT version) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CherryTrail"),

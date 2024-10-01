@@ -52,7 +52,7 @@ nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 
 	switch (args->v0.type) {
 	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
-		return nvkm_uevent_add(uevent, &runl->fifo->nonstall.event, 0,
+		return nvkm_uevent_add(uevent, &runl->fifo->nonstall.event, runl->id,
 				       NVKM_FIFO_NONSTALL_EVENT, NULL);
 	case NVIF_CHAN_EVENT_V0_KILLED:
 		return nvkm_uevent_add(uevent, &runl->chid->event, chan->id,
@@ -316,6 +316,15 @@ nvkm_uchan = {
 	.sclass = nvkm_uchan_sclass,
 	.uevent = nvkm_uchan_uevent,
 };
+
+struct nvkm_chan *
+nvkm_uchan_chan(struct nvkm_object *object)
+{
+	if (WARN_ON(object->func != &nvkm_uchan))
+		return NULL;
+
+	return nvkm_uchan(object)->chan;
+}
 
 int
 nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm_oclass *oclass,

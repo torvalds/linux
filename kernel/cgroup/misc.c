@@ -14,7 +14,7 @@
 #include <linux/misc_cgroup.h>
 
 #define MAX_STR "max"
-#define MAX_NUM ULONG_MAX
+#define MAX_NUM U64_MAX
 
 /* Miscellaneous res name, keep it in sync with enum misc_res_type */
 static const char *const misc_res_name[] = {
@@ -37,7 +37,7 @@ static struct misc_cg root_cg;
  * more than the actual capacity. We are using Limits resource distribution
  * model of cgroup for miscellaneous controller.
  */
-static unsigned long misc_res_capacity[MISC_CG_RES_TYPES];
+static u64 misc_res_capacity[MISC_CG_RES_TYPES];
 
 /**
  * parent_misc() - Get the parent of the passed misc cgroup.
@@ -74,10 +74,10 @@ static inline bool valid_type(enum misc_res_type type)
  * Context: Any context.
  * Return: Current total usage of the resource.
  */
-unsigned long misc_cg_res_total_usage(enum misc_res_type type)
+u64 misc_cg_res_total_usage(enum misc_res_type type)
 {
 	if (valid_type(type))
-		return atomic_long_read(&root_cg.res[type].usage);
+		return atomic64_read(&root_cg.res[type].usage);
 
 	return 0;
 }
@@ -95,7 +95,7 @@ EXPORT_SYMBOL_GPL(misc_cg_res_total_usage);
  * * %0 - Successfully registered the capacity.
  * * %-EINVAL - If @type is invalid.
  */
-int misc_cg_set_capacity(enum misc_res_type type, unsigned long capacity)
+int misc_cg_set_capacity(enum misc_res_type type, u64 capacity)
 {
 	if (!valid_type(type))
 		return -EINVAL;
@@ -114,11 +114,35 @@ EXPORT_SYMBOL_GPL(misc_cg_set_capacity);
  * Context: Any context.
  */
 static void misc_cg_cancel_charge(enum misc_res_type type, struct misc_cg *cg,
-				  unsigned long amount)
+				  u64 amount)
 {
-	WARN_ONCE(atomic_long_add_negative(-amount, &cg->res[type].usage),
+	WARN_ONCE(atomic64_add_negative(-amount, &cg->res[type].usage),
 		  "misc cgroup resource %s became less than 0",
 		  misc_res_name[type]);
+}
+
+static void misc_cg_update_watermark(struct misc_res *res, u64 new_usage)
+{
+	u64 old;
+
+	while (true) {
+		old = atomic64_read(&res->watermark);
+		if (new_usage <= old)
+			break;
+		if (atomic64_cmpxchg(&res->watermark, old, new_usage) == old)
+			break;
+	}
+}
+
+static void misc_cg_event(enum misc_res_type type, struct misc_cg *cg)
+{
+	atomic64_inc(&cg->res[type].events_local);
+	cgroup_file_notify(&cg->events_local_file);
+
+	for (; parent_misc(cg); cg = parent_misc(cg)) {
+		atomic64_inc(&cg->res[type].events);
+		cgroup_file_notify(&cg->events_file);
+	}
 }
 
 /**
@@ -137,13 +161,12 @@ static void misc_cg_cancel_charge(enum misc_res_type type, struct misc_cg *cg,
  * * -EBUSY - If max limit will be crossed or total usage will be more than the
  *	      capacity.
  */
-int misc_cg_try_charge(enum misc_res_type type, struct misc_cg *cg,
-		       unsigned long amount)
+int misc_cg_try_charge(enum misc_res_type type, struct misc_cg *cg, u64 amount)
 {
 	struct misc_cg *i, *j;
 	int ret;
 	struct misc_res *res;
-	int new_usage;
+	u64 new_usage;
 
 	if (!(valid_type(type) && cg && READ_ONCE(misc_res_capacity[type])))
 		return -EINVAL;
@@ -154,20 +177,18 @@ int misc_cg_try_charge(enum misc_res_type type, struct misc_cg *cg,
 	for (i = cg; i; i = parent_misc(i)) {
 		res = &i->res[type];
 
-		new_usage = atomic_long_add_return(amount, &res->usage);
+		new_usage = atomic64_add_return(amount, &res->usage);
 		if (new_usage > READ_ONCE(res->max) ||
 		    new_usage > READ_ONCE(misc_res_capacity[type])) {
 			ret = -EBUSY;
 			goto err_charge;
 		}
+		misc_cg_update_watermark(res, new_usage);
 	}
 	return 0;
 
 err_charge:
-	for (j = i; j; j = parent_misc(j)) {
-		atomic_long_inc(&j->res[type].events);
-		cgroup_file_notify(&j->events_file);
-	}
+	misc_cg_event(type, i);
 
 	for (j = cg; j != i; j = parent_misc(j))
 		misc_cg_cancel_charge(type, j, amount);
@@ -184,8 +205,7 @@ EXPORT_SYMBOL_GPL(misc_cg_try_charge);
  *
  * Context: Any context.
  */
-void misc_cg_uncharge(enum misc_res_type type, struct misc_cg *cg,
-		      unsigned long amount)
+void misc_cg_uncharge(enum misc_res_type type, struct misc_cg *cg, u64 amount)
 {
 	struct misc_cg *i;
 
@@ -209,7 +229,7 @@ static int misc_cg_max_show(struct seq_file *sf, void *v)
 {
 	int i;
 	struct misc_cg *cg = css_misc(seq_css(sf));
-	unsigned long max;
+	u64 max;
 
 	for (i = 0; i < MISC_CG_RES_TYPES; i++) {
 		if (READ_ONCE(misc_res_capacity[i])) {
@@ -217,7 +237,7 @@ static int misc_cg_max_show(struct seq_file *sf, void *v)
 			if (max == MAX_NUM)
 				seq_printf(sf, "%s max\n", misc_res_name[i]);
 			else
-				seq_printf(sf, "%s %lu\n", misc_res_name[i],
+				seq_printf(sf, "%s %llu\n", misc_res_name[i],
 					   max);
 		}
 	}
@@ -241,13 +261,13 @@ static int misc_cg_max_show(struct seq_file *sf, void *v)
  * Return:
  * * >= 0 - Number of bytes processed in the input.
  * * -EINVAL - If buf is not valid.
- * * -ERANGE - If number is bigger than the unsigned long capacity.
+ * * -ERANGE - If number is bigger than the u64 capacity.
  */
 static ssize_t misc_cg_max_write(struct kernfs_open_file *of, char *buf,
 				 size_t nbytes, loff_t off)
 {
 	struct misc_cg *cg;
-	unsigned long max;
+	u64 max;
 	int ret = 0, i;
 	enum misc_res_type type = MISC_CG_RES_TYPES;
 	char *token;
@@ -271,7 +291,7 @@ static ssize_t misc_cg_max_write(struct kernfs_open_file *of, char *buf,
 	if (!strcmp(MAX_STR, buf)) {
 		max = MAX_NUM;
 	} else {
-		ret = kstrtoul(buf, 0, &max);
+		ret = kstrtou64(buf, 0, &max);
 		if (ret)
 			return ret;
 	}
@@ -297,13 +317,36 @@ static ssize_t misc_cg_max_write(struct kernfs_open_file *of, char *buf,
 static int misc_cg_current_show(struct seq_file *sf, void *v)
 {
 	int i;
-	unsigned long usage;
+	u64 usage;
 	struct misc_cg *cg = css_misc(seq_css(sf));
 
 	for (i = 0; i < MISC_CG_RES_TYPES; i++) {
-		usage = atomic_long_read(&cg->res[i].usage);
+		usage = atomic64_read(&cg->res[i].usage);
 		if (READ_ONCE(misc_res_capacity[i]) || usage)
-			seq_printf(sf, "%s %lu\n", misc_res_name[i], usage);
+			seq_printf(sf, "%s %llu\n", misc_res_name[i], usage);
+	}
+
+	return 0;
+}
+
+/**
+ * misc_cg_peak_show() - Show the peak usage of the misc cgroup.
+ * @sf: Interface file
+ * @v: Arguments passed
+ *
+ * Context: Any context.
+ * Return: 0 to denote successful print.
+ */
+static int misc_cg_peak_show(struct seq_file *sf, void *v)
+{
+	int i;
+	u64 watermark;
+	struct misc_cg *cg = css_misc(seq_css(sf));
+
+	for (i = 0; i < MISC_CG_RES_TYPES; i++) {
+		watermark = atomic64_read(&cg->res[i].watermark);
+		if (READ_ONCE(misc_res_capacity[i]) || watermark)
+			seq_printf(sf, "%s %llu\n", misc_res_name[i], watermark);
 	}
 
 	return 0;
@@ -322,28 +365,42 @@ static int misc_cg_current_show(struct seq_file *sf, void *v)
 static int misc_cg_capacity_show(struct seq_file *sf, void *v)
 {
 	int i;
-	unsigned long cap;
+	u64 cap;
 
 	for (i = 0; i < MISC_CG_RES_TYPES; i++) {
 		cap = READ_ONCE(misc_res_capacity[i]);
 		if (cap)
-			seq_printf(sf, "%s %lu\n", misc_res_name[i], cap);
+			seq_printf(sf, "%s %llu\n", misc_res_name[i], cap);
 	}
 
 	return 0;
 }
 
-static int misc_events_show(struct seq_file *sf, void *v)
+static int __misc_events_show(struct seq_file *sf, bool local)
 {
 	struct misc_cg *cg = css_misc(seq_css(sf));
-	unsigned long events, i;
+	u64 events;
+	int i;
 
 	for (i = 0; i < MISC_CG_RES_TYPES; i++) {
-		events = atomic_long_read(&cg->res[i].events);
+		if (local)
+			events = atomic64_read(&cg->res[i].events_local);
+		else
+			events = atomic64_read(&cg->res[i].events);
 		if (READ_ONCE(misc_res_capacity[i]) || events)
-			seq_printf(sf, "%s.max %lu\n", misc_res_name[i], events);
+			seq_printf(sf, "%s.max %llu\n", misc_res_name[i], events);
 	}
 	return 0;
+}
+
+static int misc_events_show(struct seq_file *sf, void *v)
+{
+	return __misc_events_show(sf, false);
+}
+
+static int misc_events_local_show(struct seq_file *sf, void *v)
+{
+	return __misc_events_show(sf, true);
 }
 
 /* Misc cgroup interface files */
@@ -359,6 +416,10 @@ static struct cftype misc_cg_files[] = {
 		.seq_show = misc_cg_current_show,
 	},
 	{
+		.name = "peak",
+		.seq_show = misc_cg_peak_show,
+	},
+	{
 		.name = "capacity",
 		.seq_show = misc_cg_capacity_show,
 		.flags = CFTYPE_ONLY_ON_ROOT,
@@ -368,6 +429,12 @@ static struct cftype misc_cg_files[] = {
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.file_offset = offsetof(struct misc_cg, events_file),
 		.seq_show = misc_events_show,
+	},
+	{
+		.name = "events.local",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.file_offset = offsetof(struct misc_cg, events_local_file),
+		.seq_show = misc_events_local_show,
 	},
 	{}
 };
@@ -397,7 +464,7 @@ misc_cg_alloc(struct cgroup_subsys_state *parent_css)
 
 	for (i = 0; i < MISC_CG_RES_TYPES; i++) {
 		WRITE_ONCE(cg->res[i].max, MAX_NUM);
-		atomic_long_set(&cg->res[i].usage, 0);
+		atomic64_set(&cg->res[i].usage, 0);
 	}
 
 	return &cg->css;

@@ -49,9 +49,9 @@ static const struct dmi_system_id sof_wm8804_quirk_table[] = {
 static int sof_wm8804_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *codec = codec_dai->component;
 	const int sysclk = 27000000; /* This is fixed on this board */
 	int samplerate;
@@ -148,7 +148,7 @@ static int sof_wm8804_hw_params(struct snd_pcm_substream *substream,
 }
 
 /* machine stream operations */
-static struct snd_soc_ops sof_wm8804_ops = {
+static const struct snd_soc_ops sof_wm8804_ops = {
 	.hw_params = sof_wm8804_hw_params,
 };
 
@@ -270,7 +270,11 @@ static int sof_wm8804_probe(struct platform_device *pdev)
 		snprintf(codec_name, sizeof(codec_name),
 			 "%s%s", "i2c-", acpi_dev_name(adev));
 		dailink[dai_index].codecs->name = codec_name;
+	} else {
+		dev_err(&pdev->dev, "Error cannot find '%s' dev\n", mach->id);
+		return -ENOENT;
 	}
+
 	acpi_dev_put(adev);
 
 	snd_soc_card_set_drvdata(card, ctx);
@@ -290,7 +294,7 @@ static struct platform_driver sof_wm8804_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = sof_wm8804_probe,
-	.remove_new = sof_wm8804_remove,
+	.remove = sof_wm8804_remove,
 };
 module_platform_driver(sof_wm8804_driver);
 

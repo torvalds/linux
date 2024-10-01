@@ -209,6 +209,7 @@ static struct tcf_proto_ops cls_cgroup_ops __read_mostly = {
 	.dump		=	cls_cgroup_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_CLS("cgroup");
 
 static int __init init_cgroup_cls(void)
 {
@@ -222,4 +223,5 @@ static void __exit exit_cgroup_cls(void)
 
 module_init(init_cgroup_cls);
 module_exit(exit_cgroup_cls);
+MODULE_DESCRIPTION("TC cgroup classifier");
 MODULE_LICENSE("GPL");

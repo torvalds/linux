@@ -100,10 +100,16 @@ struct rapl_package;
 
 #define RAPL_DOMAIN_NAME_LENGTH 16
 
+union rapl_reg {
+	void __iomem *mmio;
+	u32 msr;
+	u64 val;
+};
+
 struct rapl_domain {
 	char name[RAPL_DOMAIN_NAME_LENGTH];
 	enum rapl_domain_type id;
-	u64 regs[RAPL_DOMAIN_REG_MAX];
+	union rapl_reg regs[RAPL_DOMAIN_REG_MAX];
 	struct powercap_zone power_zone;
 	struct rapl_domain_data rdd;
 	struct rapl_power_limit rpl[NR_POWER_LIMITS];
@@ -116,7 +122,7 @@ struct rapl_domain {
 };
 
 struct reg_action {
-	u64 reg;
+	union rapl_reg reg;
 	u64 mask;
 	u64 value;
 	int err;
@@ -143,14 +149,34 @@ struct rapl_if_priv {
 	enum rapl_if_type type;
 	struct powercap_control_type *control_type;
 	enum cpuhp_state pcap_rapl_online;
-	u64 reg_unit;
-	u64 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
+	union rapl_reg reg_unit;
+	union rapl_reg regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
 	int limits[RAPL_DOMAIN_MAX];
 	int (*read_raw)(int id, struct reg_action *ra);
 	int (*write_raw)(int id, struct reg_action *ra);
 	void *defaults;
 	void *rpi;
 };
+
+#ifdef CONFIG_PERF_EVENTS
+/**
+ * struct rapl_package_pmu_data: Per package data for PMU support
+ * @scale:		Scale of 2^-32 Joules for each energy counter increase.
+ * @lock:		Lock to protect n_active and active_list.
+ * @n_active:		Number of active events.
+ * @active_list:	List of active events.
+ * @timer_interval:	Maximum timer expiration time before counter overflow.
+ * @hrtimer:		Periodically update the counter to prevent overflow.
+ */
+struct rapl_package_pmu_data {
+	u64 scale[RAPL_DOMAIN_MAX];
+	raw_spinlock_t lock;
+	int n_active;
+	struct list_head active_list;
+	ktime_t timer_interval;
+	struct hrtimer hrtimer;
+};
+#endif
 
 /* maximum rapl package domain name: package-%d-die-%d */
 #define PACKAGE_DOMAIN_NAME_LENGTH 30
@@ -170,10 +196,28 @@ struct rapl_package {
 	struct cpumask cpumask;
 	char name[PACKAGE_DOMAIN_NAME_LENGTH];
 	struct rapl_if_priv *priv;
+#ifdef CONFIG_PERF_EVENTS
+	bool has_pmu;
+	struct rapl_package_pmu_data pmu_data;
+#endif
 };
+
+struct rapl_package *rapl_find_package_domain_cpuslocked(int id, struct rapl_if_priv *priv,
+						       bool id_is_cpu);
+struct rapl_package *rapl_add_package_cpuslocked(int id, struct rapl_if_priv *priv,
+						 bool id_is_cpu);
+void rapl_remove_package_cpuslocked(struct rapl_package *rp);
 
 struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 void rapl_remove_package(struct rapl_package *rp);
+
+#ifdef CONFIG_PERF_EVENTS
+int rapl_package_add_pmu(struct rapl_package *rp);
+void rapl_package_remove_pmu(struct rapl_package *rp);
+#else
+static inline int rapl_package_add_pmu(struct rapl_package *rp) { return 0; }
+static inline void rapl_package_remove_pmu(struct rapl_package *rp) { }
+#endif
 
 #endif /* __INTEL_RAPL_H__ */

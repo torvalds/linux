@@ -1051,7 +1051,7 @@ fc_rscn_build(struct fchs_s *fchs, struct fc_rscn_pl_s *rscn,
 	rscn->event[0].format = FC_RSCN_FORMAT_PORTID;
 	rscn->event[0].portid = s_id;
 
-	return sizeof(struct fc_rscn_pl_s);
+	return struct_size(rscn, event, 1);
 }
 
 u16

@@ -7,6 +7,7 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -17,7 +18,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -599,7 +599,7 @@ static const struct regmap_config wm8737_regmap = {
 
 	.reg_defaults = wm8737_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8737_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8737_volatile,
 };
@@ -639,7 +639,7 @@ static int wm8737_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8737_i2c_id[] = {
-	{ "wm8737", 0 },
+	{ "wm8737" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8737_i2c_id);

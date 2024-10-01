@@ -12,6 +12,7 @@
 #
 # routing in h0 to hN is done with nexthop objects.
 
+source lib.sh
 PAUSE_ON_FAIL=no
 VERBOSE=0
 
@@ -72,12 +73,6 @@ create_ns()
 {
 	local ns=${1}
 
-	ip netns del ${ns} 2>/dev/null
-
-	ip netns add ${ns}
-	ip -netns ${ns} addr add 127.0.0.1/8 dev lo
-	ip -netns ${ns} link set lo up
-
 	ip netns exec ${ns} sysctl -q -w net.ipv6.conf.all.keep_addr_on_down=1
 	case ${ns} in
 	h*)
@@ -97,7 +92,13 @@ setup()
 
 	#set -e
 
-	for ns in h0 r1 h1 h2 h3
+	setup_ns h0 r1 h1 h2 h3
+	h[0]=$h0
+	h[1]=$h1
+	h[2]=$h2
+	h[3]=$h3
+	r[1]=$r1
+	for ns in ${h[0]} ${r[1]} ${h[1]} ${h[2]} ${h[3]}
 	do
 		create_ns ${ns}
 	done
@@ -108,35 +109,35 @@ setup()
 
 	for i in 0 1 2 3
 	do
-		ip -netns h${i} li add eth0 type veth peer name r1h${i}
-		ip -netns h${i} li set eth0 up
-		ip -netns h${i} li set r1h${i} netns r1 name eth${i} up
+		ip -netns ${h[$i]} li add eth0 type veth peer name r1h${i}
+		ip -netns ${h[$i]} li set eth0 up
+		ip -netns ${h[$i]} li set r1h${i} netns ${r[1]} name eth${i} up
 
-		ip -netns h${i}    addr add dev eth0 172.16.10${i}.1/24
-		ip -netns h${i} -6 addr add dev eth0 2001:db8:10${i}::1/64
-		ip -netns r1    addr add dev eth${i} 172.16.10${i}.254/24
-		ip -netns r1 -6 addr add dev eth${i} 2001:db8:10${i}::64/64
+		ip -netns ${h[$i]}    addr add dev eth0 172.16.10${i}.1/24
+		ip -netns ${h[$i]} -6 addr add dev eth0 2001:db8:10${i}::1/64
+		ip -netns ${r[1]}    addr add dev eth${i} 172.16.10${i}.254/24
+		ip -netns ${r[1]} -6 addr add dev eth${i} 2001:db8:10${i}::64/64
 	done
 
-	ip -netns h0 nexthop add id 4 via 172.16.100.254 dev eth0
-	ip -netns h0 nexthop add id 6 via 2001:db8:100::64 dev eth0
+	ip -netns ${h[0]} nexthop add id 4 via 172.16.100.254 dev eth0
+	ip -netns ${h[0]} nexthop add id 6 via 2001:db8:100::64 dev eth0
 
-	# routing from h0 to h1-h3 and back
+	# routing from ${h[0]} to h1-h3 and back
 	for i in 1 2 3
 	do
-		ip -netns h0    ro add 172.16.10${i}.0/24 nhid 4
-		ip -netns h${i} ro add 172.16.100.0/24 via 172.16.10${i}.254
+		ip -netns ${h[0]}    ro add 172.16.10${i}.0/24 nhid 4
+		ip -netns ${h[$i]} ro add 172.16.100.0/24 via 172.16.10${i}.254
 
-		ip -netns h0    -6 ro add 2001:db8:10${i}::/64 nhid 6
-		ip -netns h${i} -6 ro add 2001:db8:100::/64 via 2001:db8:10${i}::64
+		ip -netns ${h[0]}    -6 ro add 2001:db8:10${i}::/64 nhid 6
+		ip -netns ${h[$i]} -6 ro add 2001:db8:100::/64 via 2001:db8:10${i}::64
 	done
 
 	if [ "$VERBOSE" = "1" ]; then
 		echo
 		echo "host 1 config"
-		ip -netns h0 li sh
-		ip -netns h0 ro sh
-		ip -netns h0 -6 ro sh
+		ip -netns ${h[0]} li sh
+		ip -netns ${h[0]} ro sh
+		ip -netns ${h[0]} -6 ro sh
 	fi
 
 	#set +e
@@ -144,10 +145,7 @@ setup()
 
 cleanup()
 {
-	for n in h0 r1 h1 h2 h3
-	do
-		ip netns del ${n} 2>/dev/null
-	done
+	cleanup_all_ns
 }
 
 change_mtu()
@@ -156,7 +154,7 @@ change_mtu()
 	local mtu=$2
 
 	run_cmd ip -netns h${hostid} li set eth0 mtu ${mtu}
-	run_cmd ip -netns r1 li set eth${hostid} mtu ${mtu}
+	run_cmd ip -netns ${r1} li set eth${hostid} mtu ${mtu}
 }
 
 ################################################################################
@@ -168,23 +166,23 @@ validate_v4_exception()
 	local mtu=$2
 	local ping_sz=$3
 	local dst="172.16.10${i}.1"
-	local h0=172.16.100.1
-	local r1=172.16.100.254
+	local h0_ip=172.16.100.1
+	local r1_ip=172.16.100.254
 	local rc
 
 	if [ ${ping_sz} != "0" ]; then
-		run_cmd ip netns exec h0 ping -s ${ping_sz} -c5 -w5 ${dst}
+		run_cmd ip netns exec ${h0} ping -s ${ping_sz} -c5 -w5 ${dst}
 	fi
 
 	if [ "$VERBOSE" = "1" ]; then
 		echo "Route get"
-		ip -netns h0 ro get ${dst}
+		ip -netns ${h0} ro get ${dst}
 		echo "Searching for:"
 		echo "    cache .* mtu ${mtu}"
 		echo
 	fi
 
-	ip -netns h0 ro get ${dst} | \
+	ip -netns ${h0} ro get ${dst} | \
 	grep -q "cache .* mtu ${mtu}"
 	rc=$?
 
@@ -197,24 +195,24 @@ validate_v6_exception()
 	local mtu=$2
 	local ping_sz=$3
 	local dst="2001:db8:10${i}::1"
-	local h0=2001:db8:100::1
-	local r1=2001:db8:100::64
+	local h0_ip=2001:db8:100::1
+	local r1_ip=2001:db8:100::64
 	local rc
 
 	if [ ${ping_sz} != "0" ]; then
-		run_cmd ip netns exec h0 ${ping6} -s ${ping_sz} -c5 -w5 ${dst}
+		run_cmd ip netns exec ${h0} ${ping6} -s ${ping_sz} -c5 -w5 ${dst}
 	fi
 
 	if [ "$VERBOSE" = "1" ]; then
 		echo "Route get"
-		ip -netns h0 -6 ro get ${dst}
+		ip -netns ${h0} -6 ro get ${dst}
 		echo "Searching for:"
-		echo "    ${dst} from :: via ${r1} dev eth0 src ${h0} .* mtu ${mtu}"
+		echo "    ${dst}.* via ${r1_ip} dev eth0 src ${h0_ip} .* mtu ${mtu}"
 		echo
 	fi
 
-	ip -netns h0 -6 ro get ${dst} | \
-	grep -q "${dst} from :: via ${r1} dev eth0 src ${h0} .* mtu ${mtu}"
+	ip -netns ${h0} -6 ro get ${dst} | \
+	grep -q "${dst}.* via ${r1_ip} dev eth0 src ${h0_ip} .* mtu ${mtu}"
 	rc=$?
 
 	log_test $rc 0 "IPv6: host 0 to host ${i}, mtu ${mtu}"
@@ -242,11 +240,11 @@ for i in 1 2 3
 do
 	# generate a cached route per-cpu
 	for c in ${cpus}; do
-		run_cmd taskset -c ${c} ip netns exec h0 ping -c1 -w1 172.16.10${i}.1
-		[ $? -ne 0 ] && printf "\nERROR: ping to h${i} failed\n" && ret=1
+		run_cmd taskset -c ${c} ip netns exec ${h0} ping -c1 -w1 172.16.10${i}.1
+		[ $? -ne 0 ] && printf "\nERROR: ping to ${h[$i]} failed\n" && ret=1
 
-		run_cmd taskset -c ${c} ip netns exec h0 ${ping6} -c1 -w1 2001:db8:10${i}::1
-		[ $? -ne 0 ] && printf "\nERROR: ping6 to h${i} failed\n" && ret=1
+		run_cmd taskset -c ${c} ip netns exec ${h0} ${ping6} -c1 -w1 2001:db8:10${i}::1
+		[ $? -ne 0 ] && printf "\nERROR: ping6 to ${h[$i]} failed\n" && ret=1
 
 		[ $ret -ne 0 ] && break
 	done
@@ -282,11 +280,11 @@ if [ $ret -eq 0 ]; then
 	validate_v6_exception 3 1400 0
 
 	# targeted deletes to trigger cleanup paths in kernel
-	ip -netns h0 ro del 172.16.102.0/24 nhid 4
-	ip -netns h0 -6 ro del 2001:db8:102::/64 nhid 6
+	ip -netns ${h0} ro del 172.16.102.0/24 nhid 4
+	ip -netns ${h0} -6 ro del 2001:db8:102::/64 nhid 6
 
-	ip -netns h0 nexthop del id 4
-	ip -netns h0 nexthop del id 6
+	ip -netns ${h0} nexthop del id 4
+	ip -netns ${h0} nexthop del id 6
 fi
 
 cleanup

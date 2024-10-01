@@ -24,14 +24,38 @@ struct rsa_mpi_key {
 	MPI qinv;
 };
 
+static int rsa_check_payload(MPI x, MPI n)
+{
+	MPI n1;
+
+	if (mpi_cmp_ui(x, 1) <= 0)
+		return -EINVAL;
+
+	n1 = mpi_alloc(0);
+	if (!n1)
+		return -ENOMEM;
+
+	if (mpi_sub_ui(n1, n, 1) || mpi_cmp(x, n1) >= 0) {
+		mpi_free(n1);
+		return -EINVAL;
+	}
+
+	mpi_free(n1);
+	return 0;
+}
+
 /*
  * RSAEP function [RFC3447 sec 5.1.1]
  * c = m^e mod n;
  */
 static int _rsa_enc(const struct rsa_mpi_key *key, MPI c, MPI m)
 {
-	/* (1) Validate 0 <= m < n */
-	if (mpi_cmp_ui(m, 0) < 0 || mpi_cmp(m, key->n) >= 0)
+	/*
+	 * Even though (1) in RFC3447 only requires 0 <= m <= n - 1, we are
+	 * slightly more conservative and require 1 < m < n - 1. This is in line
+	 * with SP 800-56Br2, Section 7.1.1.
+	 */
+	if (rsa_check_payload(m, key->n))
 		return -EINVAL;
 
 	/* (2) c = m^e mod n */
@@ -50,8 +74,12 @@ static int _rsa_dec_crt(const struct rsa_mpi_key *key, MPI m_or_m1_or_h, MPI c)
 	MPI m2, m12_or_qh;
 	int ret = -ENOMEM;
 
-	/* (1) Validate 0 <= c < n */
-	if (mpi_cmp_ui(c, 0) < 0 || mpi_cmp(c, key->n) >= 0)
+	/*
+	 * Even though (1) in RFC3447 only requires 0 <= c <= n - 1, we are
+	 * slightly more conservative and require 1 < c < n - 1. This is in line
+	 * with SP 800-56Br2, Section 7.1.2.
+	 */
+	if (rsa_check_payload(c, key->n))
 		return -EINVAL;
 
 	m2 = mpi_alloc(0);
@@ -70,14 +98,13 @@ static int _rsa_dec_crt(const struct rsa_mpi_key *key, MPI m_or_m1_or_h, MPI c)
 		goto err_free_mpi;
 
 	/* (2iii) h = (m_1 - m_2) * qInv mod p */
-	mpi_sub(m12_or_qh, m_or_m1_or_h, m2);
-	mpi_mulm(m_or_m1_or_h, m12_or_qh, key->qinv, key->p);
+	ret = mpi_sub(m12_or_qh, m_or_m1_or_h, m2) ?:
+	      mpi_mulm(m_or_m1_or_h, m12_or_qh, key->qinv, key->p);
 
 	/* (2iv) m = m_2 + q * h */
-	mpi_mul(m12_or_qh, key->q, m_or_m1_or_h);
-	mpi_addm(m_or_m1_or_h, m2, m12_or_qh, key->n);
-
-	ret = 0;
+	ret = ret ?:
+	      mpi_mul(m12_or_qh, key->q, m_or_m1_or_h) ?:
+	      mpi_addm(m_or_m1_or_h, m2, m12_or_qh, key->n);
 
 err_free_mpi:
 	mpi_free(m12_or_qh);
@@ -208,6 +235,7 @@ static int rsa_check_key_length(unsigned int len)
 static int rsa_check_exponent_fips(MPI e)
 {
 	MPI e_max = NULL;
+	int err;
 
 	/* check if odd */
 	if (!mpi_test_bit(e, 0)) {
@@ -220,7 +248,14 @@ static int rsa_check_exponent_fips(MPI e)
 	}
 
 	e_max = mpi_alloc(0);
-	mpi_set_bit(e_max, 256);
+	if (!e_max)
+		return -ENOMEM;
+
+	err = mpi_set_bit(e_max, 256);
+	if (err) {
+		mpi_free(e_max);
+		return err;
+	}
 
 	if (mpi_cmp(e, e_max) >= 0) {
 		mpi_free(e_max);

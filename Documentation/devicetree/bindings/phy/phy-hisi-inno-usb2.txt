@@ -14,7 +14,7 @@ Required properties:
 - #size-cells: Must be 0.
 
 The INNO USB2 PHY device should be a child node of peripheral controller that
-contains the PHY configuration register, and each device suppports up to 2 PHY
+contains the PHY configuration register, and each device supports up to 2 PHY
 ports which are represented as child nodes of INNO USB2 PHY device.
 
 Required properties for PHY port node:

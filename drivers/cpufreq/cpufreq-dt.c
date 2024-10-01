@@ -68,36 +68,22 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
  */
 static const char *find_supply_name(struct device *dev)
 {
-	struct device_node *np;
-	struct property *pp;
+	struct device_node *np __free(device_node) = of_node_get(dev->of_node);
 	int cpu = dev->id;
-	const char *name = NULL;
-
-	np = of_node_get(dev->of_node);
 
 	/* This must be valid for sure */
 	if (WARN_ON(!np))
 		return NULL;
 
 	/* Try "cpu0" for older DTs */
-	if (!cpu) {
-		pp = of_find_property(np, "cpu0-supply", NULL);
-		if (pp) {
-			name = "cpu0";
-			goto node_put;
-		}
-	}
+	if (!cpu && of_property_present(np, "cpu0-supply"))
+		return "cpu0";
 
-	pp = of_find_property(np, "cpu-supply", NULL);
-	if (pp) {
-		name = "cpu";
-		goto node_put;
-	}
+	if (of_property_present(np, "cpu-supply"))
+		return "cpu";
 
 	dev_dbg(dev, "no regulator for cpu%d\n", cpu);
-node_put:
-	of_node_put(np);
-	return name;
+	return NULL;
 }
 
 static int cpufreq_init(struct cpufreq_policy *policy)
@@ -166,10 +152,9 @@ static int cpufreq_offline(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int cpufreq_exit(struct cpufreq_policy *policy)
+static void cpufreq_exit(struct cpufreq_policy *policy)
 {
 	clk_put(policy->clk);
-	return 0;
 }
 
 static struct cpufreq_driver dt_cpufreq_driver = {
@@ -208,7 +193,7 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 	if (!priv)
 		return -ENOMEM;
 
-	if (!alloc_cpumask_var(&priv->cpus, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&priv->cpus, GFP_KERNEL))
 		return -ENOMEM;
 
 	cpumask_set_cpu(cpu, priv->cpus);
@@ -349,11 +334,10 @@ err:
 	return ret;
 }
 
-static int dt_cpufreq_remove(struct platform_device *pdev)
+static void dt_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&dt_cpufreq_driver);
 	dt_cpufreq_release();
-	return 0;
 }
 
 static struct platform_driver dt_cpufreq_platdrv = {
@@ -361,7 +345,7 @@ static struct platform_driver dt_cpufreq_platdrv = {
 		.name	= "cpufreq-dt",
 	},
 	.probe		= dt_cpufreq_probe,
-	.remove		= dt_cpufreq_remove,
+	.remove_new	= dt_cpufreq_remove,
 };
 module_platform_driver(dt_cpufreq_platdrv);
 

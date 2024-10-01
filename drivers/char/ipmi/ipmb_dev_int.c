@@ -350,8 +350,8 @@ static void ipmb_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ipmb_id[] = {
-	{ "ipmb-dev", 0 },
-	{},
+	{ "ipmb-dev" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ipmb_id);
 
@@ -366,7 +366,7 @@ static struct i2c_driver ipmb_driver = {
 		.name = "ipmb-dev",
 		.acpi_match_table = ACPI_PTR(acpi_ipmb_id),
 	},
-	.probe_new = ipmb_probe,
+	.probe = ipmb_probe,
 	.remove = ipmb_remove,
 	.id_table = ipmb_id,
 };

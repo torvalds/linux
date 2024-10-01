@@ -34,6 +34,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x0>;
 		};
 
@@ -41,6 +42,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x1>;
 		};
 
@@ -48,6 +50,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x2>;
 		};
 
@@ -55,12 +58,38 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x3>;
+		};
+
+		l2_shared: cache {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
+	firmware {
+		svc {
+			compatible = "intel,stratix10-svc";
+			method = "smc";
+			memory-region = <&service_reserved>;
+
+			fpga_mgr: fpga-mgr {
+				compatible = "intel,stratix10-soc-fpga-mgr";
+			};
+		};
+	};
+
+	fpga-region {
+		compatible = "fpga-region";
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		fpga-mgr = <&fpga_mgr>;
+	};
+
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <0 170 4>,
 			     <0 171 4>,
 			     <0 172 4>,
@@ -125,20 +154,13 @@
 		};
 	};
 
-	soc {
+	soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		device_type = "soc";
 		interrupt-parent = <&intc>;
 		ranges = <0 0 0 0xffffffff>;
-
-		base_fpga_region {
-			#address-cells = <0x2>;
-			#size-cells = <0x2>;
-			compatible = "fpga-region";
-			fpga-mgr = <&fpga_mgr>;
-		};
 
 		clkmgr: clock-controller@ffd10000 {
 			compatible = "intel,stratix10-clkmgr";
@@ -153,7 +175,7 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC0_RESET>, <&rst EMAC0_OCP_RESET>;
-			reset-names = "stmmaceth", "stmmaceth-ocp";
+			reset-names = "stmmaceth", "ahb";
 			clocks = <&clkmgr STRATIX10_EMAC0_CLK>, <&clkmgr STRATIX10_EMAC_PTP_CLK>;
 			clock-names = "stmmaceth", "ptp_ref";
 			tx-fifo-depth = <16384>;
@@ -171,7 +193,7 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC1_RESET>, <&rst EMAC1_OCP_RESET>;
-			reset-names = "stmmaceth", "stmmaceth-ocp";
+			reset-names = "stmmaceth", "ahb";
 			clocks = <&clkmgr STRATIX10_EMAC1_CLK>, <&clkmgr STRATIX10_EMAC_PTP_CLK>;
 			clock-names = "stmmaceth", "ptp_ref";
 			tx-fifo-depth = <16384>;
@@ -189,7 +211,7 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC2_RESET>, <&rst EMAC2_OCP_RESET>;
-			reset-names = "stmmaceth", "stmmaceth-ocp";
+			reset-names = "stmmaceth", "ahb";
 			clocks = <&clkmgr STRATIX10_EMAC2_CLK>, <&clkmgr STRATIX10_EMAC_PTP_CLK>;
 			clock-names = "stmmaceth", "ptp_ref";
 			tx-fifo-depth = <16384>;
@@ -331,6 +353,9 @@
 		ocram: sram@ffe00000 {
 			compatible = "mmio-sram";
 			reg = <0xffe00000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xffe00000 0x100000>;
 		};
 
 		pdma: dma-controller@ffda0000 {
@@ -484,12 +509,6 @@
 			status = "disabled";
 		};
 
-		usbphy0: usbphy@0 {
-			#phy-cells = <0>;
-			compatible = "usb-nop-xceiv";
-			status = "okay";
-		};
-
 		usb0: usb@ffb00000 {
 			compatible = "snps,dwc2";
 			reg = <0xffb00000 0x40000>;
@@ -513,6 +532,7 @@
 			resets = <&rst USB1_RESET>, <&rst USB1_OCP_RESET>;
 			reset-names = "dwc2", "dwc2-ecc";
 			clocks = <&clkmgr STRATIX10_USB_CLK>;
+			clock-names = "otg";
 			iommus = <&smmu 7>;
 			status = "disabled";
 		};
@@ -623,17 +643,10 @@
 
 			status = "disabled";
 		};
+	};
 
-		firmware {
-			svc {
-				compatible = "intel,stratix10-svc";
-				method = "smc";
-				memory-region = <&service_reserved>;
-
-				fpga_mgr: fpga-mgr {
-					compatible = "intel,stratix10-soc-fpga-mgr";
-				};
-			};
-		};
+	usbphy0: usbphy0 {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 	};
 };

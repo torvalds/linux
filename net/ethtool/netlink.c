@@ -2,8 +2,10 @@
 
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/phy_link_topology.h>
 #include <linux/pm_runtime.h>
 #include "netlink.h"
+#include "module_fw.h"
 
 static struct genl_family ethtool_genl_family;
 
@@ -29,6 +31,53 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
 							  ETHTOOL_FLAGS_STATS),
 };
+
+const struct nla_policy ethnl_header_policy_phy[] = {
+	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
+					    .len = ALTIFNAMSIZ - 1 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_BASIC),
+	[ETHTOOL_A_HEADER_PHY_INDEX]		= NLA_POLICY_MIN(NLA_U32, 1),
+};
+
+const struct nla_policy ethnl_header_policy_phy_stats[] = {
+	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
+					    .len = ALTIFNAMSIZ - 1 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_STATS),
+	[ETHTOOL_A_HEADER_PHY_INDEX]		= NLA_POLICY_MIN(NLA_U32, 1),
+};
+
+int ethnl_sock_priv_set(struct sk_buff *skb, struct net_device *dev, u32 portid,
+			enum ethnl_sock_type type)
+{
+	struct ethnl_sock_priv *sk_priv;
+
+	sk_priv = genl_sk_priv_get(&ethtool_genl_family, NETLINK_CB(skb).sk);
+	if (IS_ERR(sk_priv))
+		return PTR_ERR(sk_priv);
+
+	sk_priv->dev = dev;
+	sk_priv->portid = portid;
+	sk_priv->type = type;
+
+	return 0;
+}
+
+static void ethnl_sock_priv_destroy(void *priv)
+{
+	struct ethnl_sock_priv *sk_priv = priv;
+
+	switch (sk_priv->type) {
+	case ETHTOOL_SOCK_TYPE_MODULE_FW_FLASH:
+		ethnl_module_fw_flash_sock_destroy(sk_priv);
+		break;
+	default:
+		break;
+	}
+}
 
 int ethnl_ops_begin(struct net_device *dev)
 {
@@ -89,7 +138,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 			       const struct nlattr *header, struct net *net,
 			       struct netlink_ext_ack *extack, bool require_dev)
 {
-	struct nlattr *tb[ARRAY_SIZE(ethnl_header_policy)];
+	struct nlattr *tb[ARRAY_SIZE(ethnl_header_policy_phy)];
 	const struct nlattr *devname_attr;
 	struct net_device *dev = NULL;
 	u32 flags = 0;
@@ -104,7 +153,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	/* No validation here, command policy should have a nested policy set
 	 * for the header, therefore validation should have already been done.
 	 */
-	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy) - 1, header,
+	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy_phy) - 1, header,
 			       NULL, extack);
 	if (ret < 0)
 		return ret;
@@ -145,9 +194,43 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		return -EINVAL;
 	}
 
+	if (tb[ETHTOOL_A_HEADER_PHY_INDEX]) {
+		if (dev) {
+			req_info->phy_index = nla_get_u32(tb[ETHTOOL_A_HEADER_PHY_INDEX]);
+		} else {
+			NL_SET_ERR_MSG_ATTR(extack, header,
+					    "phy_index set without a netdev");
+			return -EINVAL;
+		}
+	}
+
 	req_info->dev = dev;
 	req_info->flags = flags;
 	return 0;
+}
+
+struct phy_device *ethnl_req_get_phydev(const struct ethnl_req_info *req_info,
+					const struct nlattr *header,
+					struct netlink_ext_ack *extack)
+{
+	struct phy_device *phydev;
+
+	ASSERT_RTNL();
+
+	if (!req_info->dev)
+		return NULL;
+
+	if (!req_info->phy_index)
+		return req_info->dev->phydev;
+
+	phydev = phy_link_topo_get_phy(req_info->dev, req_info->phy_index);
+	if (!phydev) {
+		NL_SET_ERR_MSG_ATTR(extack, header,
+				    "no phy matching phyindex");
+		return ERR_PTR(-ENODEV);
+	}
+
+	return phydev;
 }
 
 /**
@@ -239,6 +322,11 @@ void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd)
 			   cmd);
 }
 
+void *ethnl_unicast_put(struct sk_buff *skb, u32 portid, u32 seq, u8 cmd)
+{
+	return genlmsg_put(skb, portid, seq, &ethtool_genl_family, 0, cmd);
+}
+
 int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
 {
 	return genlmsg_multicast_netns(&ethtool_genl_family, dev_net(dev), skb,
@@ -252,8 +340,7 @@ int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
  * @ops:        request ops of currently processed message type
  * @req_info:   parsed request header of processed request
  * @reply_data: data needed to compose the reply
- * @pos_hash:   saved iteration position - hashbucket
- * @pos_idx:    saved iteration position - index
+ * @pos_ifindex: saved iteration position - ifindex
  *
  * These parameters are kept in struct netlink_callback as context preserved
  * between iterations. They are initialized by ethnl_default_start() and used
@@ -263,8 +350,7 @@ struct ethnl_dump_ctx {
 	const struct ethnl_request_ops	*ops;
 	struct ethnl_req_info		*req_info;
 	struct ethnl_reply_data		*reply_data;
-	int				pos_hash;
-	int				pos_idx;
+	unsigned long			pos_ifindex;
 };
 
 static const struct ethnl_request_ops *
@@ -318,10 +404,8 @@ static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
 /**
  * ethnl_default_parse() - Parse request message
  * @req_info:    pointer to structure to put data into
- * @tb:		 parsed attributes
- * @net:         request netns
+ * @info:	 genl_info from the request
  * @request_ops: struct request_ops for request type
- * @extack:      netlink extack for error reporting
  * @require_dev: fail if no device identified in header
  *
  * Parse universal request header and call request specific ->parse_request()
@@ -330,19 +414,21 @@ static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
  * Return: 0 on success or negative error code
  */
 static int ethnl_default_parse(struct ethnl_req_info *req_info,
-			       struct nlattr **tb, struct net *net,
+			       const struct genl_info *info,
 			       const struct ethnl_request_ops *request_ops,
-			       struct netlink_ext_ack *extack, bool require_dev)
+			       bool require_dev)
 {
+	struct nlattr **tb = info->attrs;
 	int ret;
 
 	ret = ethnl_parse_header_dev_get(req_info, tb[request_ops->hdr_attr],
-					 net, extack, require_dev);
+					 genl_info_net(info), info->extack,
+					 require_dev);
 	if (ret < 0)
 		return ret;
 
 	if (request_ops->parse_request) {
-		ret = request_ops->parse_request(req_info, tb, extack);
+		ret = request_ops->parse_request(req_info, tb, info->extack);
 		if (ret < 0)
 			return ret;
 	}
@@ -395,8 +481,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 	}
 
-	ret = ethnl_default_parse(req_info, info->attrs, genl_info_net(info),
-				  ops, info->extack, !ops->allow_nodev_do);
+	ret = ethnl_default_parse(req_info, info, ops, !ops->allow_nodev_do);
 	if (ret < 0)
 		goto err_dev;
 	ethnl_init_reply_data(reply_data, ops, req_info->dev);
@@ -447,12 +532,12 @@ err_dev:
 
 static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 				  const struct ethnl_dump_ctx *ctx,
-				  struct netlink_callback *cb)
+				  const struct genl_info *info)
 {
 	void *ehdr;
 	int ret;
 
-	ehdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+	ehdr = genlmsg_put(skb, info->snd_portid, info->snd_seq,
 			   &ethtool_genl_family, NLM_F_MULTI,
 			   ctx->ops->reply_cmd);
 	if (!ehdr)
@@ -460,7 +545,7 @@ static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 
 	ethnl_init_reply_data(ctx->reply_data, ctx->ops, dev);
 	rtnl_lock();
-	ret = ctx->ops->prepare_data(ctx->req_info, ctx->reply_data, NULL);
+	ret = ctx->ops->prepare_data(ctx->req_info, ctx->reply_data, info);
 	rtnl_unlock();
 	if (ret < 0)
 		goto out;
@@ -480,64 +565,33 @@ out:
 	return ret;
 }
 
-/* Default ->dumpit() handler for GET requests. Device iteration copied from
- * rtnl_dump_ifinfo(); we have to be more careful about device hashtable
- * persistence as we cannot guarantee to hold RTNL lock through the whole
- * function as rtnetnlink does.
- */
+/* Default ->dumpit() handler for GET requests. */
 static int ethnl_default_dumpit(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
 	struct ethnl_dump_ctx *ctx = ethnl_dump_context(cb);
 	struct net *net = sock_net(skb->sk);
-	int s_idx = ctx->pos_idx;
-	int h, idx = 0;
+	struct net_device *dev;
 	int ret = 0;
 
-	rtnl_lock();
-	for (h = ctx->pos_hash; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		struct hlist_head *head;
-		struct net_device *dev;
-		unsigned int seq;
+	rcu_read_lock();
+	for_each_netdev_dump(net, dev, ctx->pos_ifindex) {
+		dev_hold(dev);
+		rcu_read_unlock();
 
-		head = &net->dev_index_head[h];
+		ret = ethnl_default_dump_one(skb, dev, ctx, genl_info_dump(cb));
 
-restart_chain:
-		seq = net->dev_base_seq;
-		cb->seq = seq;
-		idx = 0;
-		hlist_for_each_entry(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			dev_hold(dev);
-			rtnl_unlock();
+		rcu_read_lock();
+		dev_put(dev);
 
-			ret = ethnl_default_dump_one(skb, dev, ctx, cb);
-			dev_put(dev);
-			if (ret < 0) {
-				if (ret == -EOPNOTSUPP)
-					goto lock_and_cont;
-				if (likely(skb->len))
-					ret = skb->len;
-				goto out;
-			}
-lock_and_cont:
-			rtnl_lock();
-			if (net->dev_base_seq != seq) {
-				s_idx = idx + 1;
-				goto restart_chain;
-			}
-cont:
-			idx++;
+		if (ret < 0 && ret != -EOPNOTSUPP) {
+			if (likely(skb->len))
+				ret = skb->len;
+			break;
 		}
-
+		ret = 0;
 	}
-	rtnl_unlock();
-
-out:
-	ctx->pos_hash = h;
-	ctx->pos_idx = idx;
-	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -568,8 +622,7 @@ static int ethnl_default_start(struct netlink_callback *cb)
 		goto free_req_info;
 	}
 
-	ret = ethnl_default_parse(req_info, info->attrs, sock_net(cb->skb->sk),
-				  ops, cb->extack, false);
+	ret = ethnl_default_parse(req_info, &info->info, ops, false);
 	if (req_info->dev) {
 		/* We ignore device specification in dump requests but as the
 		 * same parser as for non-dump (doit) requests is used, it
@@ -584,8 +637,7 @@ static int ethnl_default_start(struct netlink_callback *cb)
 	ctx->ops = ops;
 	ctx->req_info = req_info;
 	ctx->reply_data = reply_data;
-	ctx->pos_hash = 0;
-	ctx->pos_idx = 0;
+	ctx->pos_ifindex = 0;
 
 	return 0;
 
@@ -680,10 +732,13 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	struct ethnl_reply_data *reply_data;
 	const struct ethnl_request_ops *ops;
 	struct ethnl_req_info *req_info;
+	struct genl_info info;
 	struct sk_buff *skb;
 	void *reply_payload;
 	int reply_len;
 	int ret;
+
+	genl_info_init_ntf(&info, &ethtool_genl_family, cmd);
 
 	if (WARN_ONCE(cmd > ETHTOOL_MSG_KERNEL_MAX ||
 		      !ethnl_default_notify_ops[cmd],
@@ -703,7 +758,7 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	req_info->flags |= ETHTOOL_FLAG_COMPACT_BITSETS;
 
 	ethnl_init_reply_data(reply_data, ops, dev);
-	ret = ops->prepare_data(req_info, reply_data, NULL);
+	ret = ops->prepare_data(req_info, reply_data, &info);
 	if (ret < 0)
 		goto err_cleanup;
 	ret = ops->reply_size(req_info, reply_data);
@@ -793,10 +848,22 @@ static void ethnl_notify_features(struct netdev_notifier_info *info)
 static int ethnl_netdev_event(struct notifier_block *this, unsigned long event,
 			      void *ptr)
 {
+	struct netdev_notifier_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *dev;
+
+	dev = netdev_notifier_info_to_dev(info);
+	extack = netdev_notifier_info_to_extack(info);
+
 	switch (event) {
 	case NETDEV_FEAT_CHANGE:
 		ethnl_notify_features(ptr);
 		break;
+	case NETDEV_PRE_UP:
+		if (dev->ethtool->module_fw_flash_in_progress) {
+			NL_SET_ERR_MSG(extack, "Can't set port up while flashing module firmware");
+			return NOTIFY_BAD;
+		}
 	}
 
 	return NOTIFY_DONE;
@@ -1114,6 +1181,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 	{
 		.cmd	= ETHTOOL_MSG_RSS_GET,
 		.doit	= ethnl_default_doit,
+		.start	= ethnl_rss_dump_start,
+		.dumpit	= ethnl_rss_dumpit,
 		.policy = ethnl_rss_get_policy,
 		.maxattr = ARRAY_SIZE(ethnl_rss_get_policy) - 1,
 	},
@@ -1158,6 +1227,22 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.policy = ethnl_mm_set_policy,
 		.maxattr = ARRAY_SIZE(ethnl_mm_set_policy) - 1,
 	},
+	{
+		.cmd	= ETHTOOL_MSG_MODULE_FW_FLASH_ACT,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_act_module_fw_flash,
+		.policy	= ethnl_module_fw_flash_act_policy,
+		.maxattr = ARRAY_SIZE(ethnl_module_fw_flash_act_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_PHY_GET,
+		.doit	= ethnl_phy_doit,
+		.start	= ethnl_phy_start,
+		.dumpit	= ethnl_phy_dumpit,
+		.done	= ethnl_phy_done,
+		.policy = ethnl_phy_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_phy_get_policy) - 1,
+	},
 };
 
 static const struct genl_multicast_group ethtool_nl_mcgrps[] = {
@@ -1174,6 +1259,8 @@ static struct genl_family ethtool_genl_family __ro_after_init = {
 	.resv_start_op	= ETHTOOL_MSG_MODULE_GET + 1,
 	.mcgrps		= ethtool_nl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(ethtool_nl_mcgrps),
+	.sock_priv_size		= sizeof(struct ethnl_sock_priv),
+	.sock_priv_destroy	= ethnl_sock_priv_destroy,
 };
 
 /* module setup */

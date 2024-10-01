@@ -247,8 +247,8 @@ static int axp288_adc_initialize(struct axp288_adc_info *info)
 		return ret;
 
 	/* Turn on the ADC for all channels except TS, leave TS as is */
-	return regmap_update_bits(info->regmap, AXP20X_ADC_EN1,
-				  AXP288_ADC_EN_MASK, AXP288_ADC_EN_MASK);
+	return regmap_set_bits(info->regmap, AXP20X_ADC_EN1,
+			       AXP288_ADC_EN_MASK);
 }
 
 static const struct iio_info axp288_adc_iio_info = {
@@ -299,7 +299,7 @@ static int axp288_adc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id axp288_adc_id_table[] = {
 	{ .name = "axp288_adc" },
-	{},
+	{ }
 };
 
 static struct platform_driver axp288_adc_driver = {

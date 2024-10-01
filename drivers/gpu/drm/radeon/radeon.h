@@ -132,7 +132,6 @@ extern int radeon_cik_support;
 /* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE			16
 #define RADEON_DEBUGFS_MAX_COMPONENTS		32
-#define RADEONFB_CONN_LIMIT			4
 #define RADEON_BIOS_NUM_SCRATCH			8
 
 /* internal ring indices */
@@ -1355,14 +1354,12 @@ struct radeon_dpm_thermal {
 	bool               high_to_low;
 };
 
-enum radeon_clk_action
-{
+enum radeon_clk_action {
 	RADEON_SCLK_UP = 1,
 	RADEON_SCLK_DOWN
 };
 
-struct radeon_blacklist_clocks
-{
+struct radeon_blacklist_clocks {
 	u32 sclk;
 	u32 mclk;
 	enum radeon_clk_action action;
@@ -2215,10 +2212,6 @@ int radeon_gem_pin_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int radeon_gem_unpin_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
-int radeon_gem_pwrite_ioctl(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv);
-int radeon_gem_pread_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
 int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
@@ -2304,7 +2297,7 @@ typedef void (*radeon_wreg_t)(struct radeon_device*, uint32_t, uint32_t);
 
 struct radeon_device {
 	struct device			*dev;
-	struct drm_device		*ddev;
+	struct drm_device		ddev;
 	struct pci_dev			*pdev;
 #ifdef __alpha__
 	struct pci_controller		*hose;
@@ -2482,6 +2475,11 @@ void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 
 u32 cik_mm_rdoorbell(struct radeon_device *rdev, u32 index);
 void cik_mm_wdoorbell(struct radeon_device *rdev, u32 index, u32 v);
+
+static inline struct drm_device *rdev_to_drm(struct radeon_device *rdev)
+{
+	return &rdev->ddev;
+}
 
 /*
  * Cast helper

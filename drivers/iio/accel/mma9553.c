@@ -1234,8 +1234,8 @@ static const struct acpi_device_id mma9553_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, mma9553_acpi_match);
 
 static const struct i2c_device_id mma9553_id[] = {
-	{"mma9553", 0},
-	{},
+	{ "mma9553" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, mma9553_id);
@@ -1243,9 +1243,9 @@ MODULE_DEVICE_TABLE(i2c, mma9553_id);
 static struct i2c_driver mma9553_driver = {
 	.driver = {
 		   .name = MMA9553_DRV_NAME,
-		   .acpi_match_table = ACPI_PTR(mma9553_acpi_match),
+		   .acpi_match_table = mma9553_acpi_match,
 		   .pm = pm_ptr(&mma9553_pm_ops),
-		   },
+	},
 	.probe = mma9553_probe,
 	.remove = mma9553_remove,
 	.id_table = mma9553_id,

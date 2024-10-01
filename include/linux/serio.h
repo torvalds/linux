@@ -15,7 +15,7 @@
 #include <linux/mod_devicetable.h>
 #include <uapi/linux/serio.h>
 
-extern struct bus_type serio_bus;
+extern const struct bus_type serio_bus;
 
 struct serio {
 	void *port_data;
@@ -80,7 +80,7 @@ struct serio_driver {
 
 	struct device_driver driver;
 };
-#define to_serio_driver(d)	container_of(d, struct serio_driver, driver)
+#define to_serio_driver(d)	container_of_const(d, struct serio_driver, driver)
 
 int serio_open(struct serio *serio, struct serio_driver *drv);
 void serio_close(struct serio *serio);

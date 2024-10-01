@@ -5,12 +5,19 @@
  */
 
 #include <linux/bcd.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/errno.h>
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinmux.h>
+#include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
@@ -39,6 +46,12 @@
 #define STM32_RTC_CR_FMT		BIT(6)
 #define STM32_RTC_CR_ALRAE		BIT(8)
 #define STM32_RTC_CR_ALRAIE		BIT(12)
+#define STM32_RTC_CR_OSEL		GENMASK(22, 21)
+#define STM32_RTC_CR_OSEL_ALARM_A	FIELD_PREP(STM32_RTC_CR_OSEL, 0x01)
+#define STM32_RTC_CR_COE		BIT(23)
+#define STM32_RTC_CR_TAMPOE		BIT(26)
+#define STM32_RTC_CR_TAMPALRM_TYPE	BIT(30)
+#define STM32_RTC_CR_OUT2EN		BIT(31)
 
 /* STM32_RTC_ISR/STM32_RTC_ICSR bit fields */
 #define STM32_RTC_ISR_ALRAWF		BIT(0)
@@ -75,11 +88,29 @@
 /* STM32_RTC_SR/_SCR bit fields */
 #define STM32_RTC_SR_ALRA		BIT(0)
 
+/* STM32_RTC_CFGR bit fields */
+#define STM32_RTC_CFGR_OUT2_RMP		BIT(0)
+#define STM32_RTC_CFGR_LSCOEN		GENMASK(2, 1)
+#define STM32_RTC_CFGR_LSCOEN_OUT1	1
+#define STM32_RTC_CFGR_LSCOEN_OUT2_RMP	2
+
 /* STM32_RTC_VERR bit fields */
 #define STM32_RTC_VERR_MINREV_SHIFT	0
 #define STM32_RTC_VERR_MINREV		GENMASK(3, 0)
 #define STM32_RTC_VERR_MAJREV_SHIFT	4
 #define STM32_RTC_VERR_MAJREV		GENMASK(7, 4)
+
+/* STM32_RTC_SECCFGR bit fields */
+#define STM32_RTC_SECCFGR		0x20
+#define STM32_RTC_SECCFGR_ALRA_SEC	BIT(0)
+#define STM32_RTC_SECCFGR_INIT_SEC	BIT(14)
+#define STM32_RTC_SECCFGR_SEC		BIT(15)
+
+/* STM32_RTC_RXCIDCFGR bit fields */
+#define STM32_RTC_RXCIDCFGR(x)		(0x80 + 0x4 * (x))
+#define STM32_RTC_RXCIDCFGR_CFEN	BIT(0)
+#define STM32_RTC_RXCIDCFGR_CID		GENMASK(6, 4)
+#define STM32_RTC_RXCIDCFGR_CID1	1
 
 /* STM32_RTC_WPR key constants */
 #define RTC_WPR_1ST_KEY			0xCA
@@ -88,6 +119,17 @@
 
 /* Max STM32 RTC register offset is 0x3FC */
 #define UNDEF_REG			0xFFFF
+
+/* STM32 RTC driver time helpers */
+#define SEC_PER_DAY		(24 * 60 * 60)
+
+/* STM32 RTC pinctrl helpers */
+#define STM32_RTC_PINMUX(_name, _action, ...) { \
+	.name = (_name), \
+	.action = (_action), \
+	.groups = ((const char *[]){ __VA_ARGS__ }), \
+	.num_groups = ARRAY_SIZE(((const char *[]){ __VA_ARGS__ })), \
+}
 
 struct stm32_rtc;
 
@@ -101,6 +143,7 @@ struct stm32_rtc_registers {
 	u16 wpr;
 	u16 sr;
 	u16 scr;
+	u16 cfgr;
 	u16 verr;
 };
 
@@ -114,6 +157,10 @@ struct stm32_rtc_data {
 	void (*clear_events)(struct stm32_rtc *rtc, unsigned int flags);
 	bool has_pclk;
 	bool need_dbp;
+	bool need_accuracy;
+	bool rif_protected;
+	bool has_lsco;
+	bool has_alarm_out;
 };
 
 struct stm32_rtc {
@@ -126,7 +173,16 @@ struct stm32_rtc {
 	struct clk *rtc_ck;
 	const struct stm32_rtc_data *data;
 	int irq_alarm;
+	struct clk *clk_lsco;
 };
+
+struct stm32_rtc_rif_resource {
+	unsigned int num;
+	u32 bit;
+};
+
+static const struct stm32_rtc_rif_resource STM32_RTC_RES_ALRA = {0, STM32_RTC_SECCFGR_ALRA_SEC};
+static const struct stm32_rtc_rif_resource STM32_RTC_RES_INIT = {5, STM32_RTC_SECCFGR_INIT_SEC};
 
 static void stm32_rtc_wpr_unlock(struct stm32_rtc *rtc)
 {
@@ -143,6 +199,209 @@ static void stm32_rtc_wpr_lock(struct stm32_rtc *rtc)
 	writel_relaxed(RTC_WPR_WRONG_KEY, rtc->base + regs->wpr);
 }
 
+enum stm32_rtc_pin_name {
+	NONE,
+	OUT1,
+	OUT2,
+	OUT2_RMP
+};
+
+static const struct pinctrl_pin_desc stm32_rtc_pinctrl_pins[] = {
+	PINCTRL_PIN(OUT1, "out1"),
+	PINCTRL_PIN(OUT2, "out2"),
+	PINCTRL_PIN(OUT2_RMP, "out2_rmp"),
+};
+
+static int stm32_rtc_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
+{
+	return ARRAY_SIZE(stm32_rtc_pinctrl_pins);
+}
+
+static const char *stm32_rtc_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
+						    unsigned int selector)
+{
+	return stm32_rtc_pinctrl_pins[selector].name;
+}
+
+static int stm32_rtc_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
+					    unsigned int selector,
+					    const unsigned int **pins,
+					    unsigned int *num_pins)
+{
+	*pins = &stm32_rtc_pinctrl_pins[selector].number;
+	*num_pins = 1;
+	return 0;
+}
+
+static const struct pinctrl_ops stm32_rtc_pinctrl_ops = {
+	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_free_map		= pinconf_generic_dt_free_map,
+	.get_groups_count	= stm32_rtc_pinctrl_get_groups_count,
+	.get_group_name		= stm32_rtc_pinctrl_get_group_name,
+	.get_group_pins		= stm32_rtc_pinctrl_get_group_pins,
+};
+
+struct stm32_rtc_pinmux_func {
+	const char *name;
+	const char * const *groups;
+	const unsigned int num_groups;
+	int (*action)(struct pinctrl_dev *pctl_dev, unsigned int pin);
+};
+
+static int stm32_rtc_pinmux_action_alarm(struct pinctrl_dev *pctldev, unsigned int pin)
+{
+	struct stm32_rtc *rtc = pinctrl_dev_get_drvdata(pctldev);
+	struct stm32_rtc_registers regs = rtc->data->regs;
+	unsigned int cr = readl_relaxed(rtc->base + regs.cr);
+	unsigned int cfgr = readl_relaxed(rtc->base + regs.cfgr);
+
+	if (!rtc->data->has_alarm_out)
+		return -EPERM;
+
+	cr &= ~STM32_RTC_CR_OSEL;
+	cr |= STM32_RTC_CR_OSEL_ALARM_A;
+	cr &= ~STM32_RTC_CR_TAMPOE;
+	cr &= ~STM32_RTC_CR_COE;
+	cr &= ~STM32_RTC_CR_TAMPALRM_TYPE;
+
+	switch (pin) {
+	case OUT1:
+		cr &= ~STM32_RTC_CR_OUT2EN;
+		cfgr &= ~STM32_RTC_CFGR_OUT2_RMP;
+		break;
+	case OUT2:
+		cr |= STM32_RTC_CR_OUT2EN;
+		cfgr &= ~STM32_RTC_CFGR_OUT2_RMP;
+		break;
+	case OUT2_RMP:
+		cr |= STM32_RTC_CR_OUT2EN;
+		cfgr |= STM32_RTC_CFGR_OUT2_RMP;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	stm32_rtc_wpr_unlock(rtc);
+	writel_relaxed(cr, rtc->base + regs.cr);
+	writel_relaxed(cfgr, rtc->base + regs.cfgr);
+	stm32_rtc_wpr_lock(rtc);
+
+	return 0;
+}
+
+static int stm32_rtc_pinmux_lsco_available(struct pinctrl_dev *pctldev, unsigned int pin)
+{
+	struct stm32_rtc *rtc = pinctrl_dev_get_drvdata(pctldev);
+	struct stm32_rtc_registers regs = rtc->data->regs;
+	unsigned int cr = readl_relaxed(rtc->base + regs.cr);
+	unsigned int cfgr = readl_relaxed(rtc->base + regs.cfgr);
+	unsigned int calib = STM32_RTC_CR_COE;
+	unsigned int tampalrm = STM32_RTC_CR_TAMPOE | STM32_RTC_CR_OSEL;
+
+	switch (pin) {
+	case OUT1:
+		if ((!(cr & STM32_RTC_CR_OUT2EN) &&
+		     ((cr & calib) || cr & tampalrm)) ||
+		     ((cr & calib) && (cr & tampalrm)))
+			return -EBUSY;
+		break;
+	case OUT2_RMP:
+		if ((cr & STM32_RTC_CR_OUT2EN) &&
+		    (cfgr & STM32_RTC_CFGR_OUT2_RMP) &&
+		    ((cr & calib) || (cr & tampalrm)))
+			return -EBUSY;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (clk_get_rate(rtc->rtc_ck) != 32768)
+		return -ERANGE;
+
+	return 0;
+}
+
+static int stm32_rtc_pinmux_action_lsco(struct pinctrl_dev *pctldev, unsigned int pin)
+{
+	struct stm32_rtc *rtc = pinctrl_dev_get_drvdata(pctldev);
+	struct stm32_rtc_registers regs = rtc->data->regs;
+	struct device *dev = rtc->rtc_dev->dev.parent;
+	u8 lscoen;
+	int ret;
+
+	if (!rtc->data->has_lsco)
+		return -EPERM;
+
+	ret = stm32_rtc_pinmux_lsco_available(pctldev, pin);
+	if (ret)
+		return ret;
+
+	lscoen = (pin == OUT1) ? STM32_RTC_CFGR_LSCOEN_OUT1 : STM32_RTC_CFGR_LSCOEN_OUT2_RMP;
+
+	rtc->clk_lsco = clk_register_gate(dev, "rtc_lsco", __clk_get_name(rtc->rtc_ck),
+					  CLK_IGNORE_UNUSED | CLK_IS_CRITICAL,
+					  rtc->base + regs.cfgr, lscoen, 0, NULL);
+	if (IS_ERR(rtc->clk_lsco))
+		return PTR_ERR(rtc->clk_lsco);
+
+	of_clk_add_provider(dev->of_node, of_clk_src_simple_get, rtc->clk_lsco);
+
+	return 0;
+}
+
+static const struct stm32_rtc_pinmux_func stm32_rtc_pinmux_functions[] = {
+	STM32_RTC_PINMUX("lsco", &stm32_rtc_pinmux_action_lsco, "out1", "out2_rmp"),
+	STM32_RTC_PINMUX("alarm-a", &stm32_rtc_pinmux_action_alarm, "out1", "out2", "out2_rmp"),
+};
+
+static int stm32_rtc_pinmux_get_functions_count(struct pinctrl_dev *pctldev)
+{
+	return ARRAY_SIZE(stm32_rtc_pinmux_functions);
+}
+
+static const char *stm32_rtc_pinmux_get_fname(struct pinctrl_dev *pctldev, unsigned int selector)
+{
+	return stm32_rtc_pinmux_functions[selector].name;
+}
+
+static int stm32_rtc_pinmux_get_groups(struct pinctrl_dev *pctldev, unsigned int selector,
+				       const char * const **groups, unsigned int * const num_groups)
+{
+	*groups = stm32_rtc_pinmux_functions[selector].groups;
+	*num_groups = stm32_rtc_pinmux_functions[selector].num_groups;
+	return 0;
+}
+
+static int stm32_rtc_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
+				    unsigned int group)
+{
+	struct stm32_rtc_pinmux_func selected_func = stm32_rtc_pinmux_functions[selector];
+	struct pinctrl_pin_desc pin = stm32_rtc_pinctrl_pins[group];
+
+	/* Call action */
+	if (selected_func.action)
+		return selected_func.action(pctldev, pin.number);
+
+	return -EINVAL;
+}
+
+static const struct pinmux_ops stm32_rtc_pinmux_ops = {
+	.get_functions_count	= stm32_rtc_pinmux_get_functions_count,
+	.get_function_name	= stm32_rtc_pinmux_get_fname,
+	.get_function_groups	= stm32_rtc_pinmux_get_groups,
+	.set_mux		= stm32_rtc_pinmux_set_mux,
+	.strict			= true,
+};
+
+static struct pinctrl_desc stm32_rtc_pdesc = {
+	.name = DRIVER_NAME,
+	.pins = stm32_rtc_pinctrl_pins,
+	.npins = ARRAY_SIZE(stm32_rtc_pinctrl_pins),
+	.owner = THIS_MODULE,
+	.pctlops = &stm32_rtc_pinctrl_ops,
+	.pmxops = &stm32_rtc_pinmux_ops,
+};
+
 static int stm32_rtc_enter_init_mode(struct stm32_rtc *rtc)
 {
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
@@ -158,10 +417,9 @@ static int stm32_rtc_enter_init_mode(struct stm32_rtc *rtc)
 		 * slowest rtc_ck frequency may be 32kHz and highest should be
 		 * 1MHz, we poll every 10 us with a timeout of 100ms.
 		 */
-		return readl_relaxed_poll_timeout_atomic(
-					rtc->base + regs->isr,
-					isr, (isr & STM32_RTC_ISR_INITF),
-					10, 100000);
+		return readl_relaxed_poll_timeout_atomic(rtc->base + regs->isr, isr,
+							 (isr & STM32_RTC_ISR_INITF),
+							 10, 100000);
 	}
 
 	return 0;
@@ -425,40 +683,42 @@ static int stm32_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int stm32_rtc_valid_alrm(struct stm32_rtc *rtc, struct rtc_time *tm)
+static int stm32_rtc_valid_alrm(struct device *dev, struct rtc_time *tm)
 {
-	const struct stm32_rtc_registers *regs = &rtc->data->regs;
-	int cur_day, cur_mon, cur_year, cur_hour, cur_min, cur_sec;
-	unsigned int dr = readl_relaxed(rtc->base + regs->dr);
-	unsigned int tr = readl_relaxed(rtc->base + regs->tr);
-
-	cur_day = (dr & STM32_RTC_DR_DATE) >> STM32_RTC_DR_DATE_SHIFT;
-	cur_mon = (dr & STM32_RTC_DR_MONTH) >> STM32_RTC_DR_MONTH_SHIFT;
-	cur_year = (dr & STM32_RTC_DR_YEAR) >> STM32_RTC_DR_YEAR_SHIFT;
-	cur_sec = (tr & STM32_RTC_TR_SEC) >> STM32_RTC_TR_SEC_SHIFT;
-	cur_min = (tr & STM32_RTC_TR_MIN) >> STM32_RTC_TR_MIN_SHIFT;
-	cur_hour = (tr & STM32_RTC_TR_HOUR) >> STM32_RTC_TR_HOUR_SHIFT;
+	static struct rtc_time now;
+	time64_t max_alarm_time64;
+	int max_day_forward;
+	int next_month;
+	int next_year;
 
 	/*
 	 * Assuming current date is M-D-Y H:M:S.
 	 * RTC alarm can't be set on a specific month and year.
 	 * So the valid alarm range is:
 	 *	M-D-Y H:M:S < alarm <= (M+1)-D-Y H:M:S
-	 * with a specific case for December...
 	 */
-	if ((((tm->tm_year > cur_year) &&
-	      (tm->tm_mon == 0x1) && (cur_mon == 0x12)) ||
-	     ((tm->tm_year == cur_year) &&
-	      (tm->tm_mon <= cur_mon + 1))) &&
-	    ((tm->tm_mday > cur_day) ||
-	     ((tm->tm_mday == cur_day) &&
-	     ((tm->tm_hour > cur_hour) ||
-	      ((tm->tm_hour == cur_hour) && (tm->tm_min > cur_min)) ||
-	      ((tm->tm_hour == cur_hour) && (tm->tm_min == cur_min) &&
-	       (tm->tm_sec >= cur_sec))))))
-		return 0;
+	stm32_rtc_read_time(dev, &now);
 
-	return -EINVAL;
+	/*
+	 * Find the next month and the year of the next month.
+	 * Note: tm_mon and next_month are from 0 to 11
+	 */
+	next_month = now.tm_mon + 1;
+	if (next_month == 12) {
+		next_month = 0;
+		next_year = now.tm_year + 1;
+	} else {
+		next_year = now.tm_year;
+	}
+
+	/* Find the maximum limit of alarm in days. */
+	max_day_forward = rtc_month_days(now.tm_mon, now.tm_year)
+			 - now.tm_mday
+			 + min(rtc_month_days(next_month, next_year), now.tm_mday);
+
+	/* Convert to timestamp and compare the alarm time and its upper limit */
+	max_alarm_time64 = rtc_tm_to_time64(&now) + max_day_forward * SEC_PER_DAY;
+	return rtc_tm_to_time64(tm) <= max_alarm_time64 ? 0 : -EINVAL;
 }
 
 static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -469,16 +729,16 @@ static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned int cr, isr, alrmar;
 	int ret = 0;
 
-	tm2bcd(tm);
-
 	/*
 	 * RTC alarm can't be set on a specific date, unless this date is
 	 * up to the same day of month next month.
 	 */
-	if (stm32_rtc_valid_alrm(rtc, tm) < 0) {
+	if (stm32_rtc_valid_alrm(dev, tm) < 0) {
 		dev_err(dev, "Alarm can be set only on upcoming month.\n");
 		return -EINVAL;
 	}
+
+	tm2bcd(tm);
 
 	alrmar = 0;
 	/* tm_year and tm_mon are not used because not supported by RTC */
@@ -545,6 +805,10 @@ static void stm32_rtc_clear_events(struct stm32_rtc *rtc,
 static const struct stm32_rtc_data stm32_rtc_data = {
 	.has_pclk = false,
 	.need_dbp = true,
+	.need_accuracy = false,
+	.rif_protected = false,
+	.has_lsco = false,
+	.has_alarm_out = false,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -555,6 +819,7 @@ static const struct stm32_rtc_data stm32_rtc_data = {
 		.wpr = 0x24,
 		.sr = 0x0C, /* set to ISR offset to ease alarm management */
 		.scr = UNDEF_REG,
+		.cfgr = UNDEF_REG,
 		.verr = UNDEF_REG,
 	},
 	.events = {
@@ -566,6 +831,10 @@ static const struct stm32_rtc_data stm32_rtc_data = {
 static const struct stm32_rtc_data stm32h7_rtc_data = {
 	.has_pclk = true,
 	.need_dbp = true,
+	.need_accuracy = false,
+	.rif_protected = false,
+	.has_lsco = false,
+	.has_alarm_out = false,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -576,6 +845,7 @@ static const struct stm32_rtc_data stm32h7_rtc_data = {
 		.wpr = 0x24,
 		.sr = 0x0C, /* set to ISR offset to ease alarm management */
 		.scr = UNDEF_REG,
+		.cfgr = UNDEF_REG,
 		.verr = UNDEF_REG,
 	},
 	.events = {
@@ -596,6 +866,10 @@ static void stm32mp1_rtc_clear_events(struct stm32_rtc *rtc,
 static const struct stm32_rtc_data stm32mp1_data = {
 	.has_pclk = true,
 	.need_dbp = false,
+	.need_accuracy = true,
+	.rif_protected = false,
+	.has_lsco = true,
+	.has_alarm_out = true,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -606,6 +880,33 @@ static const struct stm32_rtc_data stm32mp1_data = {
 		.wpr = 0x24,
 		.sr = 0x50,
 		.scr = 0x5C,
+		.cfgr = 0x60,
+		.verr = 0x3F4,
+	},
+	.events = {
+		.alra = STM32_RTC_SR_ALRA,
+	},
+	.clear_events = stm32mp1_rtc_clear_events,
+};
+
+static const struct stm32_rtc_data stm32mp25_data = {
+	.has_pclk = true,
+	.need_dbp = false,
+	.need_accuracy = true,
+	.rif_protected = true,
+	.has_lsco = true,
+	.has_alarm_out = true,
+	.regs = {
+		.tr = 0x00,
+		.dr = 0x04,
+		.cr = 0x18,
+		.isr = 0x0C, /* named RTC_ICSR on stm32mp25 */
+		.prer = 0x10,
+		.alrmar = 0x40,
+		.wpr = 0x24,
+		.sr = 0x50,
+		.scr = 0x5C,
+		.cfgr = 0x60,
 		.verr = 0x3F4,
 	},
 	.events = {
@@ -618,9 +919,53 @@ static const struct of_device_id stm32_rtc_of_match[] = {
 	{ .compatible = "st,stm32-rtc", .data = &stm32_rtc_data },
 	{ .compatible = "st,stm32h7-rtc", .data = &stm32h7_rtc_data },
 	{ .compatible = "st,stm32mp1-rtc", .data = &stm32mp1_data },
+	{ .compatible = "st,stm32mp25-rtc", .data = &stm32mp25_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, stm32_rtc_of_match);
+
+static void stm32_rtc_clean_outs(struct stm32_rtc *rtc)
+{
+	struct stm32_rtc_registers regs = rtc->data->regs;
+	unsigned int cr = readl_relaxed(rtc->base + regs.cr);
+
+	cr &= ~STM32_RTC_CR_OSEL;
+	cr &= ~STM32_RTC_CR_TAMPOE;
+	cr &= ~STM32_RTC_CR_COE;
+	cr &= ~STM32_RTC_CR_TAMPALRM_TYPE;
+	cr &= ~STM32_RTC_CR_OUT2EN;
+
+	stm32_rtc_wpr_unlock(rtc);
+	writel_relaxed(cr, rtc->base + regs.cr);
+	stm32_rtc_wpr_lock(rtc);
+
+	if (regs.cfgr != UNDEF_REG) {
+		unsigned int cfgr = readl_relaxed(rtc->base + regs.cfgr);
+
+		cfgr &= ~STM32_RTC_CFGR_LSCOEN;
+		cfgr &= ~STM32_RTC_CFGR_OUT2_RMP;
+		writel_relaxed(cfgr, rtc->base + regs.cfgr);
+	}
+}
+
+static int stm32_rtc_check_rif(struct stm32_rtc *stm32_rtc,
+			       struct stm32_rtc_rif_resource res)
+{
+	u32 rxcidcfgr = readl_relaxed(stm32_rtc->base + STM32_RTC_RXCIDCFGR(res.num));
+	u32 seccfgr;
+
+	/* Check if RTC available for our CID */
+	if ((rxcidcfgr & STM32_RTC_RXCIDCFGR_CFEN) &&
+	    (FIELD_GET(STM32_RTC_RXCIDCFGR_CID, rxcidcfgr) != STM32_RTC_RXCIDCFGR_CID1))
+		return -EACCES;
+
+	/* Check if RTC available for non secure world */
+	seccfgr = readl_relaxed(stm32_rtc->base + STM32_RTC_SECCFGR);
+	if ((seccfgr & STM32_RTC_SECCFGR_SEC) | (seccfgr & res.bit))
+		return -EACCES;
+
+	return 0;
+}
 
 static int stm32_rtc_init(struct platform_device *pdev,
 			  struct stm32_rtc *rtc)
@@ -628,7 +973,7 @@ static int stm32_rtc_init(struct platform_device *pdev,
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
 	unsigned int prer, pred_a, pred_s, pred_a_max, pred_s_max, cr;
 	unsigned int rate;
-	int ret = 0;
+	int ret;
 
 	rate = clk_get_rate(rtc->rtc_ck);
 
@@ -636,18 +981,32 @@ static int stm32_rtc_init(struct platform_device *pdev,
 	pred_a_max = STM32_RTC_PRER_PRED_A >> STM32_RTC_PRER_PRED_A_SHIFT;
 	pred_s_max = STM32_RTC_PRER_PRED_S >> STM32_RTC_PRER_PRED_S_SHIFT;
 
-	for (pred_a = pred_a_max; pred_a + 1 > 0; pred_a--) {
-		pred_s = (rate / (pred_a + 1)) - 1;
+	if (rate > (pred_a_max + 1) * (pred_s_max + 1)) {
+		dev_err(&pdev->dev, "rtc_ck rate is too high: %dHz\n", rate);
+		return -EINVAL;
+	}
 
-		if (((pred_s + 1) * (pred_a + 1)) == rate)
-			break;
+	if (rtc->data->need_accuracy) {
+		for (pred_a = 0; pred_a <= pred_a_max; pred_a++) {
+			pred_s = (rate / (pred_a + 1)) - 1;
+
+			if (pred_s <= pred_s_max && ((pred_s + 1) * (pred_a + 1)) == rate)
+				break;
+		}
+	} else {
+		for (pred_a = pred_a_max; pred_a + 1 > 0; pred_a--) {
+			pred_s = (rate / (pred_a + 1)) - 1;
+
+			if (((pred_s + 1) * (pred_a + 1)) == rate)
+				break;
+		}
 	}
 
 	/*
 	 * Can't find a 1Hz, so give priority to RTC power consumption
 	 * by choosing the higher possible value for prediv_a
 	 */
-	if ((pred_s > pred_s_max) || (pred_a > pred_a_max)) {
+	if (pred_s > pred_s_max || pred_a > pred_a_max) {
 		pred_a = pred_a_max;
 		pred_s = (rate / (pred_a + 1)) - 1;
 
@@ -655,6 +1014,20 @@ static int stm32_rtc_init(struct platform_device *pdev,
 			 (rate < ((pred_a + 1) * (pred_s + 1))) ?
 			 "fast" : "slow");
 	}
+
+	cr = readl_relaxed(rtc->base + regs->cr);
+
+	prer = readl_relaxed(rtc->base + regs->prer);
+	prer &= STM32_RTC_PRER_PRED_S | STM32_RTC_PRER_PRED_A;
+
+	pred_s = (pred_s << STM32_RTC_PRER_PRED_S_SHIFT) &
+		 STM32_RTC_PRER_PRED_S;
+	pred_a = (pred_a << STM32_RTC_PRER_PRED_A_SHIFT) &
+		 STM32_RTC_PRER_PRED_A;
+
+	/* quit if there is nothing to initialize */
+	if ((cr & STM32_RTC_CR_FMT) == 0 && prer == (pred_s | pred_a))
+		return 0;
 
 	stm32_rtc_wpr_unlock(rtc);
 
@@ -665,13 +1038,10 @@ static int stm32_rtc_init(struct platform_device *pdev,
 		goto end;
 	}
 
-	prer = (pred_s << STM32_RTC_PRER_PRED_S_SHIFT) & STM32_RTC_PRER_PRED_S;
-	writel_relaxed(prer, rtc->base + regs->prer);
-	prer |= (pred_a << STM32_RTC_PRER_PRED_A_SHIFT) & STM32_RTC_PRER_PRED_A;
-	writel_relaxed(prer, rtc->base + regs->prer);
+	writel_relaxed(pred_s, rtc->base + regs->prer);
+	writel_relaxed(pred_a | pred_s, rtc->base + regs->prer);
 
 	/* Force 24h time format */
-	cr = readl_relaxed(rtc->base + regs->cr);
 	cr &= ~STM32_RTC_CR_FMT;
 	writel_relaxed(cr, rtc->base + regs->cr);
 
@@ -688,6 +1058,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 {
 	struct stm32_rtc *rtc;
 	const struct stm32_rtc_registers *regs;
+	struct pinctrl_dev *pctl;
 	int ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
@@ -730,16 +1101,13 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, NULL);
 	} else {
 		rtc->pclk = devm_clk_get(&pdev->dev, "pclk");
-		if (IS_ERR(rtc->pclk)) {
-			dev_err(&pdev->dev, "no pclk clock");
-			return PTR_ERR(rtc->pclk);
-		}
+		if (IS_ERR(rtc->pclk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rtc->pclk), "no pclk clock");
+
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, "rtc_ck");
 	}
-	if (IS_ERR(rtc->rtc_ck)) {
-		dev_err(&pdev->dev, "no rtc_ck clock");
-		return PTR_ERR(rtc->rtc_ck);
-	}
+	if (IS_ERR(rtc->rtc_ck))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->rtc_ck), "no rtc_ck clock");
 
 	if (rtc->data->has_pclk) {
 		ret = clk_prepare_enable(rtc->pclk);
@@ -754,6 +1122,16 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 	if (rtc->data->need_dbp)
 		regmap_update_bits(rtc->dbp, rtc->dbp_reg,
 				   rtc->dbp_mask, rtc->dbp_mask);
+
+	if (rtc->data->rif_protected) {
+		ret = stm32_rtc_check_rif(rtc, STM32_RTC_RES_INIT);
+		if (!ret)
+			ret = stm32_rtc_check_rif(rtc, STM32_RTC_RES_ALRA);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to probe RTC due to RIF configuration\n");
+			goto err;
+		}
+	}
 
 	/*
 	 * After a system reset, RTC_ISR.INITS flag can be read to check if
@@ -802,6 +1180,16 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	stm32_rtc_clean_outs(rtc);
+
+	ret = devm_pinctrl_register_and_init(&pdev->dev, &stm32_rtc_pdesc, rtc, &pctl);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "pinctrl register failed");
+
+	ret = pinctrl_enable(pctl);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "pinctrl enable failed");
+
 	/*
 	 * If INITS flag is reset (calendar year field set to 0x00), calendar
 	 * must be initialized
@@ -840,6 +1228,9 @@ static void stm32_rtc_remove(struct platform_device *pdev)
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
 	unsigned int cr;
 
+	if (!IS_ERR_OR_NULL(rtc->clk_lsco))
+		clk_unregister_gate(rtc->clk_lsco);
+
 	/* Disable interrupts */
 	stm32_rtc_wpr_unlock(rtc);
 	cr = readl_relaxed(rtc->base + regs->cr);
@@ -859,7 +1250,6 @@ static void stm32_rtc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, false);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int stm32_rtc_suspend(struct device *dev)
 {
 	struct stm32_rtc *rtc = dev_get_drvdata(dev);
@@ -890,10 +1280,10 @@ static int stm32_rtc_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(stm32_rtc_pm_ops,
-			 stm32_rtc_suspend, stm32_rtc_resume);
+static const struct dev_pm_ops stm32_rtc_pm_ops = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(stm32_rtc_suspend, stm32_rtc_resume)
+};
 
 static struct platform_driver stm32_rtc_driver = {
 	.probe		= stm32_rtc_probe,

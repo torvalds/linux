@@ -53,6 +53,7 @@ properties:
 additionalProperties:
   anyOf:
     - type: object
+      additionalProperties: false
       allOf:
         - $ref: pincfg-node.yaml#
         - $ref: pinmux-node.yaml#
@@ -63,7 +64,6 @@ additionalProperties:
         Client device subnodes use below standard properties.
 
       properties:
-        phandle: true
         pinmux:
           description:
             Values are constructed from GPIO port number, pin number, and
@@ -87,9 +87,6 @@ additionalProperties:
         line-name: true
 
     - type: object
-      properties:
-        phandle: true
-
       additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 

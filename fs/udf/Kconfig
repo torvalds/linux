@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config UDF_FS
 	tristate "UDF file system support"
+	select BUFFER_HEAD
 	select CRC_ITU_T
 	select NLS
 	select LEGACY_DIRECT_IO

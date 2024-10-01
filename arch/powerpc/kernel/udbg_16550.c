@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <asm/udbg.h>
 #include <asm/io.h>
-#include <asm/reg_a2.h>
 #include <asm/early_ioremap.h>
 
 extern u8 real_readb(volatile u8 __iomem  *addr);
@@ -274,29 +273,6 @@ void __init udbg_init_44x_as1(void)
 }
 
 #endif /* CONFIG_PPC_EARLY_DEBUG_44x */
-
-#ifdef CONFIG_PPC_EARLY_DEBUG_40x
-
-static u8 udbg_uart_in_40x(unsigned int reg)
-{
-	return real_readb((void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
-			  + reg);
-}
-
-static void udbg_uart_out_40x(unsigned int reg, u8 val)
-{
-	real_writeb(val, (void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
-		    + reg);
-}
-
-void __init udbg_init_40x_realmode(void)
-{
-	udbg_uart_in = udbg_uart_in_40x;
-	udbg_uart_out = udbg_uart_out_40x;
-	udbg_use_uart();
-}
-
-#endif /* CONFIG_PPC_EARLY_DEBUG_40x */
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_16550
 

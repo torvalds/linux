@@ -47,7 +47,7 @@ void dmub_hw_lock_mgr_cmd(struct dc_dmub_srv *dmub_srv,
 	if (!lock)
 		cmd.lock_hw.lock_hw_data.should_release = 1;
 
-	dm_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dmub_hw_lock_mgr_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
@@ -65,5 +65,9 @@ bool should_use_dmub_lock(struct dc_link *link)
 {
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
 		return true;
+
+	if (link->replay_settings.replay_feature_enabled)
+		return true;
+
 	return false;
 }

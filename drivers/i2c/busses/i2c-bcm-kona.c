@@ -85,7 +85,7 @@
 #define STD_EXT_CLK_FREQ		13000000UL
 #define HS_EXT_CLK_FREQ			104000000UL
 
-#define MASTERCODE			0x08 /* Mastercodes are 0000_1xxxb */
+#define CONTROLLER_CODE			0x08 /* Controller codes are 0000_1xxxb */
 
 #define I2C_TIMEOUT			100 /* msecs */
 
@@ -544,8 +544,8 @@ static int bcm_kona_i2c_switch_to_hs(struct bcm_kona_i2c_dev *dev)
 {
 	int rc;
 
-	/* Send mastercode at standard speed */
-	rc = bcm_kona_i2c_write_byte(dev, MASTERCODE, 1);
+	/* Send controller code at standard speed */
+	rc = bcm_kona_i2c_write_byte(dev, CONTROLLER_CODE, 1);
 	if (rc < 0) {
 		pr_err("High speed handshake failed\n");
 		return rc;
@@ -587,7 +587,6 @@ static int bcm_kona_i2c_switch_to_std(struct bcm_kona_i2c_dev *dev)
 	return rc;
 }
 
-/* Master transfer function */
 static int bcm_kona_i2c_xfer(struct i2c_adapter *adapter,
 			     struct i2c_msg msgs[], int num)
 {
@@ -637,7 +636,7 @@ static int bcm_kona_i2c_xfer(struct i2c_adapter *adapter,
 			}
 		}
 
-		/* Send slave address */
+		/* Send target address */
 		if (!(pmsg->flags & I2C_M_NOSTART)) {
 			rc = bcm_kona_i2c_do_addr(dev, pmsg);
 			if (rc < 0) {
@@ -697,7 +696,7 @@ static uint32_t bcm_kona_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm bcm_algo = {
-	.master_xfer = bcm_kona_i2c_xfer,
+	.xfer = bcm_kona_i2c_xfer,
 	.functionality = bcm_kona_i2c_functionality,
 };
 
@@ -722,7 +721,7 @@ static int bcm_kona_i2c_assign_bus_speed(struct bcm_kona_i2c_dev *dev)
 		dev->std_cfg = &std_cfg_table[BCM_SPD_1MHZ];
 		break;
 	case I2C_MAX_HIGH_SPEED_MODE_FREQ:
-		/* Send mastercode at 100k */
+		/* Send controller code at 100k */
 		dev->std_cfg = &std_cfg_table[BCM_SPD_100K];
 		dev->hs_cfg = &hs_cfg_table[BCM_SPD_3P4MHZ];
 		break;

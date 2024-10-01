@@ -57,7 +57,7 @@ DECLARE_EVENT_CLASS(dpaa_eth_fd,
 		__entry->fd_offset = qm_fd_get_offset(fd);
 		__entry->fd_length = qm_fd_get_length(fd);
 		__entry->fd_status = fd->status;
-		__assign_str(name, netdev->name);
+		__assign_str(name);
 	),
 
 	/* This is what gets printed when the trace event is triggered */

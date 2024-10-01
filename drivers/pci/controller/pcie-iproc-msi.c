@@ -525,7 +525,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	if (!of_device_is_compatible(node, "brcm,iproc-msi"))
 		return -ENODEV;
 
-	if (!of_find_property(node, "msi-controller", NULL))
+	if (!of_property_read_bool(node, "msi-controller"))
 		return -ENODEV;
 
 	if (pcie->msi)
@@ -585,8 +585,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 		return -EINVAL;
 	}
 
-	if (of_find_property(node, "brcm,pcie-msi-inten", NULL))
-		msi->has_inten_reg = true;
+	msi->has_inten_reg = of_property_read_bool(node, "brcm,pcie-msi-inten");
 
 	msi->nr_msi_vecs = msi->nr_irqs * EQ_LEN;
 	msi->bitmap = devm_bitmap_zalloc(pcie->dev, msi->nr_msi_vecs,

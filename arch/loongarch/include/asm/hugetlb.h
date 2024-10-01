@@ -34,7 +34,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 					    unsigned long addr, pte_t *ptep)
 {
 	pte_t clear;
-	pte_t pte = *ptep;
+	pte_t pte = ptep_get(ptep);
 
 	pte_val(clear) = (unsigned long)invalid_pte_table;
 	set_pte_at(mm, addr, ptep, clear);
@@ -65,7 +65,7 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 					     pte_t *ptep, pte_t pte,
 					     int dirty)
 {
-	int changed = !pte_same(*ptep, pte);
+	int changed = !pte_same(ptep_get(ptep), pte);
 
 	if (changed) {
 		set_pte_at(vma->vm_mm, addr, ptep, pte);

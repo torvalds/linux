@@ -3471,8 +3471,7 @@ try_intx:
 				    pci_irq_vector(dd->pcidev, msixnum),
 				    ret);
 			qib_7322_free_irq(dd);
-			pci_alloc_irq_vectors(dd->pcidev, 1, 1,
-					      PCI_IRQ_LEGACY);
+			pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_INTX);
 			goto try_intx;
 		}
 		dd->cspec->msix_entries[msixnum].arg = arg;
@@ -5143,7 +5142,7 @@ static int qib_7322_intr_fallback(struct qib_devdata *dd)
 	qib_devinfo(dd->pcidev,
 		"MSIx interrupt not detected, trying INTx interrupts\n");
 	qib_7322_free_irq(dd);
-	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_LEGACY) < 0)
+	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_INTX) < 0)
 		qib_dev_err(dd, "Failed to enable INTx\n");
 	qib_setup_7322_interrupt(dd, 0);
 	return 1;
@@ -6127,7 +6126,7 @@ static int setup_txselect(const char *str, const struct kernel_param *kp)
 			TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ + TXDDS_MFG_SZ);
 		return -EINVAL;
 	}
-	strncpy(txselect_list, str, ARRAY_SIZE(txselect_list) - 1);
+	strscpy(txselect_list, str, sizeof(txselect_list));
 
 	xa_for_each(&qib_dev_table, index, dd)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)

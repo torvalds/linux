@@ -8,7 +8,6 @@
 #include <linux/firmware/imx/sci.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
@@ -112,8 +111,7 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 			if (ret == -ENODEV)
 				continue;
 
-			dev_err(&pdev->dev, "failed to register thermal zone\n");
-			return ret;
+			return dev_err_probe(&pdev->dev, ret, "failed to register thermal zone\n");
 		}
 
 		devm_thermal_add_hwmon_sysfs(&pdev->dev, sensor->tzd);

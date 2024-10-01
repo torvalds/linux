@@ -31,10 +31,11 @@ struct counter_device_allochelper {
 	struct counter_device counter;
 
 	/*
-	 * This is cache line aligned to ensure private data behaves like if it
-	 * were kmalloced separately.
+	 * This ensures private data behaves like if it were kmalloced
+	 * separately. Also ensures the minimum alignment for safe DMA
+	 * operations (which may or may not mean cache alignment).
 	 */
-	unsigned long privdata[] ____cacheline_aligned;
+	unsigned long privdata[] __aligned(ARCH_DMA_MINALIGN);
 };
 
 static void counter_device_release(struct device *dev)
@@ -48,12 +49,12 @@ static void counter_device_release(struct device *dev)
 	kfree(container_of(counter, struct counter_device_allochelper, counter));
 }
 
-static struct device_type counter_device_type = {
+static const struct device_type counter_device_type = {
 	.name = "counter_device",
 	.release = counter_device_release,
 };
 
-static struct bus_type counter_bus_type = {
+static const struct bus_type counter_bus_type = {
 	.name = "counter",
 	.dev_name = "counter",
 };

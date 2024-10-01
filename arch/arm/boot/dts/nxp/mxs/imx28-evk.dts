@@ -117,7 +117,7 @@
 
 	backlight_display: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 2 5000000>;
+		pwms = <&pwm 2 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 	};
@@ -198,7 +198,7 @@
 		clocks = <&saif0>;
 	};
 
-	at24@51 {
+	eeprom@51 {
 		compatible = "atmel,24c32";
 		pagesize = <32>;
 		reg = <0x51>;

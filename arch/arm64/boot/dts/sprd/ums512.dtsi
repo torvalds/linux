@@ -96,7 +96,7 @@
 
 		CPU6: cpu@600 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a55";
+			compatible = "arm,cortex-a75";
 			reg = <0x0 0x600>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD>;
@@ -104,7 +104,7 @@
 
 		CPU7: cpu@700 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a55";
+			compatible = "arm,cortex-a75";
 			reg = <0x0 0x700>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD>;
@@ -113,7 +113,7 @@
 
 	idle-states {
 		entry-method = "psci";
-		CORE_PD: core-pd {
+		CORE_PD: cpu-pd {
 			compatible = "arm,idle-state";
 			entry-latency-us = <4000>;
 			exit-latency-us = <4000>;
@@ -136,16 +136,22 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>; /* Hipervisor PPI */
 	};
 
-	pmu {
-		compatible = "arm,armv8-pmuv3";
+	pmu-a55 {
+		compatible = "arm,cortex-a55-pmu";
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU0>, <&CPU1>, <&CPU2>, <&CPU3>, <&CPU4>, <&CPU5>;
+	};
+
+	pmu-a75 {
+		compatible = "arm,cortex-a75-pmu";
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU6>, <&CPU7>;
 	};
 
 	soc: soc {
@@ -291,6 +297,7 @@
 			pll2: clock-controller@0 {
 				compatible = "sprd,ums512-gc-pll";
 				reg = <0x0 0x100>;
+				clocks = <&ext_26m>;
 				clock-names = "ext-26m";
 				#clock-cells = <1>;
 			};
@@ -682,8 +689,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f040000 0 0x1000>;
 			cpu = <&CPU0>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -699,8 +706,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f140000 0 0x1000>;
 			cpu = <&CPU1>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -716,8 +723,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f240000 0 0x1000>;
 			cpu = <&CPU2>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -733,8 +740,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f340000 0 0x1000>;
 			cpu = <&CPU3>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -750,8 +757,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f440000 0 0x1000>;
 			cpu = <&CPU4>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -767,8 +774,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f540000 0 0x1000>;
 			cpu = <&CPU5>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -784,8 +791,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f640000 0 0x1000>;
 			cpu = <&CPU6>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -801,8 +808,8 @@
 			compatible = "arm,coresight-etm4x", "arm,primecell";
 			reg = <0 0x3f740000 0 0x1000>;
 			cpu = <&CPU7>;
-			clocks = <&ext_26m>, <&aon_clk CLK_CSSYS>, <&pll2 CLK_TWPLL_512M>;
-			clock-names = "apb_pclk", "clk_cs", "cs_src";
+			clocks = <&ext_26m>;
+			clock-names = "apb_pclk";
 
 			out-ports {
 				port {
@@ -842,9 +849,9 @@
 				compatible = "sprd,sdhci-r11";
 				reg = <0x1100000 0x1000>;
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "sdio", "enable";
 				clocks = <&ap_clk CLK_SDIO0_2X>,
 					 <&apapb_gate CLK_SDIO0_EB>;
+				clock-names = "sdio", "enable";
 				assigned-clocks = <&ap_clk CLK_SDIO0_2X>;
 				assigned-clock-parents = <&pll1 CLK_RPLL>;
 				status = "disabled";
@@ -854,9 +861,9 @@
 				compatible = "sprd,sdhci-r11";
 				reg = <0x1400000 0x1000>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "sdio", "enable";
 				clocks = <&ap_clk CLK_EMMC_2X>,
 					 <&apapb_gate CLK_EMMC_EB>;
+				clock-names = "sdio", "enable";
 				assigned-clocks = <&ap_clk CLK_EMMC_2X>;
 				assigned-clock-parents = <&pll1 CLK_RPLL>;
 				status = "disabled";

@@ -20,6 +20,24 @@
 #include <asm/processor.h>
 #include <asm/sclp.h>
 
+static inline void kvm_s390_fpu_store(struct kvm_run *run)
+{
+	fpu_stfpc(&run->s.regs.fpc);
+	if (cpu_has_vx())
+		save_vx_regs((__vector128 *)&run->s.regs.vrs);
+	else
+		save_fp_regs((freg_t *)&run->s.regs.fprs);
+}
+
+static inline void kvm_s390_fpu_load(struct kvm_run *run)
+{
+	fpu_lfpc_safe(&run->s.regs.fpc);
+	if (cpu_has_vx())
+		load_vx_regs((__vector128 *)&run->s.regs.vrs);
+	else
+		load_fp_regs((freg_t *)&run->s.regs.fprs);
+}
+
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & ECB_TE))
 #define TDB_FORMAT1		1
@@ -118,6 +136,21 @@ static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu, u8 *ar)
 		*ar = base2;
 
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+}
+
+static inline u64 kvm_s390_get_base_disp_siy(struct kvm_vcpu *vcpu, u8 *ar)
+{
+	u32 base1 = vcpu->arch.sie_block->ipb >> 28;
+	s64 disp1;
+
+	/* The displacement is a 20bit _SIGNED_ value */
+	disp1 = sign_extend64(((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16) +
+			      ((vcpu->arch.sie_block->ipb & 0xff00) << 4), 19);
+
+	if (ar)
+		*ar = base1;
+
+	return (base1 ? vcpu->run->s.regs.gprs[base1] : 0) + disp1;
 }
 
 static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
@@ -234,7 +267,12 @@ static inline unsigned long kvm_s390_get_gfn_end(struct kvm_memslots *slots)
 
 static inline u32 kvm_s390_get_gisa_desc(struct kvm *kvm)
 {
-	u32 gd = virt_to_phys(kvm->arch.gisa_int.origin);
+	u32 gd;
+
+	if (!kvm->arch.gisa_int.origin)
+		return 0;
+
+	gd = virt_to_phys(kvm->arch.gisa_int.origin);
 
 	if (gd && sclp.has_gisaf)
 		gd |= GISA_FORMAT1;
@@ -268,18 +306,6 @@ static inline u64 kvm_s390_pv_get_handle(struct kvm *kvm)
 static inline u64 kvm_s390_pv_cpu_get_handle(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.pv.handle;
-}
-
-static inline bool kvm_s390_pv_is_protected(struct kvm *kvm)
-{
-	lockdep_assert_held(&kvm->lock);
-	return !!kvm_s390_pv_get_handle(kvm);
-}
-
-static inline bool kvm_s390_pv_cpu_is_protected(struct kvm_vcpu *vcpu)
-{
-	lockdep_assert_held(&vcpu->mutex);
-	return !!kvm_s390_pv_cpu_get_handle(vcpu);
 }
 
 /* implemented in interrupt.c */

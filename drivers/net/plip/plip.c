@@ -1358,7 +1358,6 @@ static struct parport_driver plip_driver = {
 	.probe		= plip_probe,
 	.match_port	= plip_attach,
 	.detach		= plip_detach,
-	.devmodel	= true,
 };
 
 static void __exit plip_cleanup_module (void)
@@ -1437,4 +1436,5 @@ static int __init plip_init (void)
 
 module_init(plip_init);
 module_exit(plip_cleanup_module);
+MODULE_DESCRIPTION("PLIP (parallel port) network module");
 MODULE_LICENSE("GPL");

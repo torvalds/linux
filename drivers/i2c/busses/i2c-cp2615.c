@@ -60,11 +60,11 @@ enum cp2615_i2c_status {
 	CP2615_CFG_LOCKED = -6,
 	/* read_len or write_len out of range */
 	CP2615_INVALID_PARAM = -4,
-	/* I2C slave did not ACK in time */
+	/* I2C target did not ACK in time */
 	CP2615_TIMEOUT,
 	/* I2C bus busy */
 	CP2615_BUS_BUSY,
-	/* I2C bus error (ie. device NAK'd the request) */
+	/* I2C bus error (ie. target NAK'd the request) */
 	CP2615_BUS_ERROR,
 	CP2615_SUCCESS
 };
@@ -85,7 +85,7 @@ static int cp2615_init_iop_msg(struct cp2615_iop_msg *ret, enum cp2615_iop_msg_t
 	if (!ret)
 		return -EINVAL;
 
-	ret->preamble = 0x2A2A;
+	ret->preamble = htons(0x2A2AU);
 	ret->length = htons(data_len + 6);
 	ret->msg = htons(msg);
 	if (data && data_len)
@@ -211,7 +211,7 @@ out:
 }
 
 static int
-cp2615_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+cp2615_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	struct usb_interface *usbif = adap->algo_data;
 	int i = 0, ret = 0;
@@ -250,8 +250,8 @@ cp2615_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm cp2615_i2c_algo = {
-	.master_xfer	= cp2615_i2c_master_xfer,
-	.functionality	= cp2615_i2c_func,
+	.xfer = cp2615_i2c_xfer,
+	.functionality = cp2615_i2c_func,
 };
 
 /*
@@ -298,7 +298,7 @@ cp2615_i2c_probe(struct usb_interface *usbif, const struct usb_device_id *id)
 	if (!adap)
 		return -ENOMEM;
 
-	strncpy(adap->name, usbdev->serial, sizeof(adap->name) - 1);
+	strscpy(adap->name, usbdev->serial, sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = &usbif->dev;
 	adap->dev.of_node = usbif->dev.of_node;

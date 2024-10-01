@@ -41,7 +41,7 @@
  *	MSR_CORE_C1_RES: CORE C1 Residency Counter
  *			 perf code: 0x00
  *			 Available model: SLM,AMT,GLM,CNL,ICX,TNT,ADL,RPL
- *					  MTL
+ *					  MTL,SRF,GRR,ARL,LNL
  *			 Scope: Core (each processor core has a MSR)
  *	MSR_CORE_C3_RESIDENCY: CORE C3 Residency Counter
  *			       perf code: 0x01
@@ -52,51 +52,56 @@
  *			       perf code: 0x02
  *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,
  *						SKL,KNL,GLM,CNL,KBL,CML,ICL,ICX,
- *						TGL,TNT,RKL,ADL,RPL,SPR,MTL
+ *						TGL,TNT,RKL,ADL,RPL,SPR,MTL,SRF,
+ *						GRR,ARL,LNL
  *			       Scope: Core
  *	MSR_CORE_C7_RESIDENCY: CORE C7 Residency Counter
  *			       perf code: 0x03
  *			       Available model: SNB,IVB,HSW,BDW,SKL,CNL,KBL,CML,
- *						ICL,TGL,RKL,ADL,RPL,MTL
+ *						ICL,TGL,RKL,ADL,RPL,MTL,ARL,LNL
  *			       Scope: Core
  *	MSR_PKG_C2_RESIDENCY:  Package C2 Residency Counter.
  *			       perf code: 0x00
  *			       Available model: SNB,IVB,HSW,BDW,SKL,KNL,GLM,CNL,
  *						KBL,CML,ICL,ICX,TGL,TNT,RKL,ADL,
- *						RPL,SPR,MTL
+ *						RPL,SPR,MTL,ARL,LNL,SRF
  *			       Scope: Package (physical package)
  *	MSR_PKG_C3_RESIDENCY:  Package C3 Residency Counter.
  *			       perf code: 0x01
  *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,KNL,
  *						GLM,CNL,KBL,CML,ICL,TGL,TNT,RKL,
- *						ADL,RPL,MTL
+ *						ADL,RPL,MTL,ARL,LNL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C6_RESIDENCY:  Package C6 Residency Counter.
  *			       perf code: 0x02
  *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,
  *						SKL,KNL,GLM,CNL,KBL,CML,ICL,ICX,
- *						TGL,TNT,RKL,ADL,RPL,SPR,MTL
+ *						TGL,TNT,RKL,ADL,RPL,SPR,MTL,SRF,
+ *						ARL,LNL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C7_RESIDENCY:  Package C7 Residency Counter.
  *			       perf code: 0x03
  *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,CNL,
- *						KBL,CML,ICL,TGL,RKL,ADL,RPL,MTL
+ *						KBL,CML,ICL,TGL,RKL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C8_RESIDENCY:  Package C8 Residency Counter.
  *			       perf code: 0x04
  *			       Available model: HSW ULT,KBL,CNL,CML,ICL,TGL,RKL,
- *						ADL,RPL,MTL
+ *						ADL,RPL,MTL,ARL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C9_RESIDENCY:  Package C9 Residency Counter.
  *			       perf code: 0x05
- *			       Available model: HSW ULT,KBL,CNL,CML,ICL,TGL,RKL,
- *						ADL,RPL,MTL
+ *			       Available model: HSW ULT,KBL,CNL,CML,ICL,TGL,RKL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C10_RESIDENCY: Package C10 Residency Counter.
  *			       perf code: 0x06
  *			       Available model: HSW ULT,KBL,GLM,CNL,CML,ICL,TGL,
- *						TNT,RKL,ADL,RPL,MTL
+ *						TNT,RKL,ADL,RPL,MTL,ARL,LNL
  *			       Scope: Package (physical package)
+ *	MSR_MODULE_C6_RES_MS:  Module C6 Residency Counter.
+ *			       perf code: 0x00
+ *			       Available model: SRF,GRR
+ *			       Scope: A cluster of cores shared L2 cache
  *
  */
 
@@ -109,6 +114,7 @@
 #include "../perf_event.h"
 #include "../probe.h"
 
+MODULE_DESCRIPTION("Support for Intel cstate performance events");
 MODULE_LICENSE("GPL");
 
 #define DEFINE_CSTATE_FORMAT_ATTR(_var, _name, _format)		\
@@ -122,26 +128,17 @@ static ssize_t __cstate_##_var##_show(struct device *dev,	\
 static struct device_attribute format_attr_##_var =		\
 	__ATTR(_name, 0444, __cstate_##_var##_show, NULL)
 
-static ssize_t cstate_get_attr_cpumask(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf);
-
 /* Model -> events mapping */
 struct cstate_model {
 	unsigned long		core_events;
 	unsigned long		pkg_events;
+	unsigned long		module_events;
 	unsigned long		quirks;
 };
 
 /* Quirk flags */
 #define SLM_PKG_C6_USE_C7_MSR	(1UL << 0)
 #define KNL_CORE_C6_MSR		(1UL << 1)
-
-struct perf_cstate_msr {
-	u64	msr;
-	struct	perf_pmu_events_attr *attr;
-};
-
 
 /* cstate_core PMU */
 static struct pmu cstate_core_pmu;
@@ -189,38 +186,25 @@ static struct attribute *attrs_empty[] = {
  * "events" group (with empty attrs) before updating
  * it with detected events.
  */
-static struct attribute_group core_events_attr_group = {
+static struct attribute_group cstate_events_attr_group = {
 	.name = "events",
 	.attrs = attrs_empty,
 };
 
-DEFINE_CSTATE_FORMAT_ATTR(core_event, event, "config:0-63");
-static struct attribute *core_format_attrs[] = {
-	&format_attr_core_event.attr,
+DEFINE_CSTATE_FORMAT_ATTR(cstate_event, event, "config:0-63");
+static struct attribute *cstate_format_attrs[] = {
+	&format_attr_cstate_event.attr,
 	NULL,
 };
 
-static struct attribute_group core_format_attr_group = {
+static struct attribute_group cstate_format_attr_group = {
 	.name = "format",
-	.attrs = core_format_attrs,
+	.attrs = cstate_format_attrs,
 };
 
-static cpumask_t cstate_core_cpu_mask;
-static DEVICE_ATTR(cpumask, S_IRUGO, cstate_get_attr_cpumask, NULL);
-
-static struct attribute *cstate_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL,
-};
-
-static struct attribute_group cpumask_attr_group = {
-	.attrs = cstate_cpumask_attrs,
-};
-
-static const struct attribute_group *core_attr_groups[] = {
-	&core_events_attr_group,
-	&core_format_attr_group,
-	&cpumask_attr_group,
+static const struct attribute_group *cstate_attr_groups[] = {
+	&cstate_events_attr_group,
+	&cstate_format_attr_group,
 	NULL,
 };
 
@@ -268,48 +252,29 @@ static struct perf_msr pkg_msr[] = {
 	[PERF_CSTATE_PKG_C10_RES] = { MSR_PKG_C10_RESIDENCY,	&group_cstate_pkg_c10,	test_msr },
 };
 
-static struct attribute_group pkg_events_attr_group = {
-	.name = "events",
-	.attrs = attrs_empty,
+/* cstate_module PMU */
+static struct pmu cstate_module_pmu;
+static bool has_cstate_module;
+
+enum perf_cstate_module_events {
+	PERF_CSTATE_MODULE_C6_RES = 0,
+
+	PERF_CSTATE_MODULE_EVENT_MAX,
 };
 
-DEFINE_CSTATE_FORMAT_ATTR(pkg_event, event, "config:0-63");
-static struct attribute *pkg_format_attrs[] = {
-	&format_attr_pkg_event.attr,
-	NULL,
+PMU_EVENT_ATTR_STRING(c6-residency, attr_cstate_module_c6, "event=0x00");
+
+static unsigned long module_msr_mask;
+
+PMU_EVENT_GROUP(events, cstate_module_c6);
+
+static struct perf_msr module_msr[] = {
+	[PERF_CSTATE_MODULE_C6_RES]  = { MSR_MODULE_C6_RES_MS,	&group_cstate_module_c6,	test_msr },
 };
-static struct attribute_group pkg_format_attr_group = {
-	.name = "format",
-	.attrs = pkg_format_attrs,
-};
-
-static cpumask_t cstate_pkg_cpu_mask;
-
-static const struct attribute_group *pkg_attr_groups[] = {
-	&pkg_events_attr_group,
-	&pkg_format_attr_group,
-	&cpumask_attr_group,
-	NULL,
-};
-
-static ssize_t cstate_get_attr_cpumask(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
-{
-	struct pmu *pmu = dev_get_drvdata(dev);
-
-	if (pmu == &cstate_core_pmu)
-		return cpumap_print_to_pagebuf(true, buf, &cstate_core_cpu_mask);
-	else if (pmu == &cstate_pkg_pmu)
-		return cpumap_print_to_pagebuf(true, buf, &cstate_pkg_cpu_mask);
-	else
-		return 0;
-}
 
 static int cstate_pmu_event_init(struct perf_event *event)
 {
 	u64 cfg = event->attr.config;
-	int cpu;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
@@ -328,8 +293,6 @@ static int cstate_pmu_event_init(struct perf_event *event)
 		if (!(core_msr_mask & (1 << cfg)))
 			return -EINVAL;
 		event->hw.event_base = core_msr[cfg].msr;
-		cpu = cpumask_any_and(&cstate_core_cpu_mask,
-				      topology_sibling_cpumask(event->cpu));
 	} else if (event->pmu == &cstate_pkg_pmu) {
 		if (cfg >= PERF_CSTATE_PKG_EVENT_MAX)
 			return -EINVAL;
@@ -337,16 +300,17 @@ static int cstate_pmu_event_init(struct perf_event *event)
 		if (!(pkg_msr_mask & (1 << cfg)))
 			return -EINVAL;
 		event->hw.event_base = pkg_msr[cfg].msr;
-		cpu = cpumask_any_and(&cstate_pkg_cpu_mask,
-				      topology_die_cpumask(event->cpu));
+	} else if (event->pmu == &cstate_module_pmu) {
+		if (cfg >= PERF_CSTATE_MODULE_EVENT_MAX)
+			return -EINVAL;
+		cfg = array_index_nospec((unsigned long)cfg, PERF_CSTATE_MODULE_EVENT_MAX);
+		if (!(module_msr_mask & (1 << cfg)))
+			return -EINVAL;
+		event->hw.event_base = module_msr[cfg].msr;
 	} else {
 		return -ENOENT;
 	}
 
-	if (cpu >= nr_cpu_ids)
-		return -ENODEV;
-
-	event->cpu = cpu;
 	event->hw.config = cfg;
 	event->hw.idx = -1;
 	return 0;
@@ -365,13 +329,11 @@ static void cstate_pmu_event_update(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	u64 prev_raw_count, new_raw_count;
 
-again:
 	prev_raw_count = local64_read(&hwc->prev_count);
-	new_raw_count = cstate_pmu_read_counter(event);
-
-	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
-			    new_raw_count) != prev_raw_count)
-		goto again;
+	do {
+		new_raw_count = cstate_pmu_read_counter(event);
+	} while (!local64_try_cmpxchg(&hwc->prev_count,
+				      &prev_raw_count, new_raw_count));
 
 	local64_add(new_raw_count - prev_raw_count, &event->count);
 }
@@ -399,64 +361,6 @@ static int cstate_pmu_event_add(struct perf_event *event, int mode)
 	return 0;
 }
 
-/*
- * Check if exiting cpu is the designated reader. If so migrate the
- * events when there is a valid target available
- */
-static int cstate_cpu_exit(unsigned int cpu)
-{
-	unsigned int target;
-
-	if (has_cstate_core &&
-	    cpumask_test_and_clear_cpu(cpu, &cstate_core_cpu_mask)) {
-
-		target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
-		/* Migrate events if there is a valid target */
-		if (target < nr_cpu_ids) {
-			cpumask_set_cpu(target, &cstate_core_cpu_mask);
-			perf_pmu_migrate_context(&cstate_core_pmu, cpu, target);
-		}
-	}
-
-	if (has_cstate_pkg &&
-	    cpumask_test_and_clear_cpu(cpu, &cstate_pkg_cpu_mask)) {
-
-		target = cpumask_any_but(topology_die_cpumask(cpu), cpu);
-		/* Migrate events if there is a valid target */
-		if (target < nr_cpu_ids) {
-			cpumask_set_cpu(target, &cstate_pkg_cpu_mask);
-			perf_pmu_migrate_context(&cstate_pkg_pmu, cpu, target);
-		}
-	}
-	return 0;
-}
-
-static int cstate_cpu_init(unsigned int cpu)
-{
-	unsigned int target;
-
-	/*
-	 * If this is the first online thread of that core, set it in
-	 * the core cpu mask as the designated reader.
-	 */
-	target = cpumask_any_and(&cstate_core_cpu_mask,
-				 topology_sibling_cpumask(cpu));
-
-	if (has_cstate_core && target >= nr_cpu_ids)
-		cpumask_set_cpu(cpu, &cstate_core_cpu_mask);
-
-	/*
-	 * If this is the first online thread of that package, set it
-	 * in the package cpu mask as the designated reader.
-	 */
-	target = cpumask_any_and(&cstate_pkg_cpu_mask,
-				 topology_die_cpumask(cpu));
-	if (has_cstate_pkg && target >= nr_cpu_ids)
-		cpumask_set_cpu(cpu, &cstate_pkg_cpu_mask);
-
-	return 0;
-}
-
 static const struct attribute_group *core_attr_update[] = {
 	&group_cstate_core_c1,
 	&group_cstate_core_c3,
@@ -476,8 +380,13 @@ static const struct attribute_group *pkg_attr_update[] = {
 	NULL,
 };
 
+static const struct attribute_group *module_attr_update[] = {
+	&group_cstate_module_c6,
+	NULL
+};
+
 static struct pmu cstate_core_pmu = {
-	.attr_groups	= core_attr_groups,
+	.attr_groups	= cstate_attr_groups,
 	.attr_update	= core_attr_update,
 	.name		= "cstate_core",
 	.task_ctx_nr	= perf_invalid_context,
@@ -488,11 +397,12 @@ static struct pmu cstate_core_pmu = {
 	.stop		= cstate_pmu_event_stop,
 	.read		= cstate_pmu_event_update,
 	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT | PERF_PMU_CAP_NO_EXCLUDE,
+	.scope		= PERF_PMU_SCOPE_CORE,
 	.module		= THIS_MODULE,
 };
 
 static struct pmu cstate_pkg_pmu = {
-	.attr_groups	= pkg_attr_groups,
+	.attr_groups	= cstate_attr_groups,
 	.attr_update	= pkg_attr_update,
 	.name		= "cstate_pkg",
 	.task_ctx_nr	= perf_invalid_context,
@@ -503,6 +413,23 @@ static struct pmu cstate_pkg_pmu = {
 	.stop		= cstate_pmu_event_stop,
 	.read		= cstate_pmu_event_update,
 	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT | PERF_PMU_CAP_NO_EXCLUDE,
+	.scope		= PERF_PMU_SCOPE_PKG,
+	.module		= THIS_MODULE,
+};
+
+static struct pmu cstate_module_pmu = {
+	.attr_groups	= cstate_attr_groups,
+	.attr_update	= module_attr_update,
+	.name		= "cstate_module",
+	.task_ctx_nr	= perf_invalid_context,
+	.event_init	= cstate_pmu_event_init,
+	.add		= cstate_pmu_event_add,
+	.del		= cstate_pmu_event_del,
+	.start		= cstate_pmu_event_start,
+	.stop		= cstate_pmu_event_stop,
+	.read		= cstate_pmu_event_update,
+	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT | PERF_PMU_CAP_NO_EXCLUDE,
+	.scope		= PERF_PMU_SCOPE_CLUSTER,
 	.module		= THIS_MODULE,
 };
 
@@ -584,9 +511,18 @@ static const struct cstate_model adl_cstates __initconst = {
 	.pkg_events		= BIT(PERF_CSTATE_PKG_C2_RES) |
 				  BIT(PERF_CSTATE_PKG_C3_RES) |
 				  BIT(PERF_CSTATE_PKG_C6_RES) |
-				  BIT(PERF_CSTATE_PKG_C7_RES) |
 				  BIT(PERF_CSTATE_PKG_C8_RES) |
-				  BIT(PERF_CSTATE_PKG_C9_RES) |
+				  BIT(PERF_CSTATE_PKG_C10_RES),
+};
+
+static const struct cstate_model lnl_cstates __initconst = {
+	.core_events		= BIT(PERF_CSTATE_CORE_C1_RES) |
+				  BIT(PERF_CSTATE_CORE_C6_RES) |
+				  BIT(PERF_CSTATE_CORE_C7_RES),
+
+	.pkg_events		= BIT(PERF_CSTATE_PKG_C2_RES) |
+				  BIT(PERF_CSTATE_PKG_C3_RES) |
+				  BIT(PERF_CSTATE_PKG_C6_RES) |
 				  BIT(PERF_CSTATE_PKG_C10_RES),
 };
 
@@ -620,78 +556,101 @@ static const struct cstate_model glm_cstates __initconst = {
 				  BIT(PERF_CSTATE_PKG_C10_RES),
 };
 
+static const struct cstate_model grr_cstates __initconst = {
+	.core_events		= BIT(PERF_CSTATE_CORE_C1_RES) |
+				  BIT(PERF_CSTATE_CORE_C6_RES),
+
+	.module_events		= BIT(PERF_CSTATE_MODULE_C6_RES),
+};
+
+static const struct cstate_model srf_cstates __initconst = {
+	.core_events		= BIT(PERF_CSTATE_CORE_C1_RES) |
+				  BIT(PERF_CSTATE_CORE_C6_RES),
+
+	.pkg_events		= BIT(PERF_CSTATE_PKG_C2_RES) |
+				  BIT(PERF_CSTATE_PKG_C6_RES),
+
+	.module_events		= BIT(PERF_CSTATE_MODULE_C6_RES),
+};
+
 
 static const struct x86_cpu_id intel_cstates_match[] __initconst = {
-	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM,		&nhm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_EP,		&nhm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_EX,		&nhm_cstates),
+	X86_MATCH_VFM(INTEL_NEHALEM,		&nhm_cstates),
+	X86_MATCH_VFM(INTEL_NEHALEM_EP,		&nhm_cstates),
+	X86_MATCH_VFM(INTEL_NEHALEM_EX,		&nhm_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE,		&nhm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE_EP,		&nhm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE_EX,		&nhm_cstates),
+	X86_MATCH_VFM(INTEL_WESTMERE,		&nhm_cstates),
+	X86_MATCH_VFM(INTEL_WESTMERE_EP,	&nhm_cstates),
+	X86_MATCH_VFM(INTEL_WESTMERE_EX,	&nhm_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE_X,	&snb_cstates),
+	X86_MATCH_VFM(INTEL_SANDYBRIDGE,	&snb_cstates),
+	X86_MATCH_VFM(INTEL_SANDYBRIDGE_X,	&snb_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE_X,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_IVYBRIDGE,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_IVYBRIDGE_X,	&snb_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_X,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_G,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_HASWELL,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_HASWELL_X,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_HASWELL_G,		&snb_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_L,		&hswult_cstates),
+	X86_MATCH_VFM(INTEL_HASWELL_L,		&hswult_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT,	&slm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_D,	&slm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT,	&slm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT,	&slm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_D,	&slm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_AIRMONT,	&slm_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_D,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_G,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_BROADWELL,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_BROADWELL_D,	&snb_cstates),
+	X86_MATCH_VFM(INTEL_BROADWELL_G,	&snb_cstates),
+	X86_MATCH_VFM(INTEL_BROADWELL_X,	&snb_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_L,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE,		&snb_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_SKYLAKE_L,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_SKYLAKE,		&snb_cstates),
+	X86_MATCH_VFM(INTEL_SKYLAKE_X,		&snb_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		&hswult_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		&hswult_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		&hswult_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		&hswult_cstates),
+	X86_MATCH_VFM(INTEL_KABYLAKE_L,		&hswult_cstates),
+	X86_MATCH_VFM(INTEL_KABYLAKE,		&hswult_cstates),
+	X86_MATCH_VFM(INTEL_COMETLAKE_L,	&hswult_cstates),
+	X86_MATCH_VFM(INTEL_COMETLAKE,		&hswult_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L,	&cnl_cstates),
+	X86_MATCH_VFM(INTEL_CANNONLAKE_L,	&cnl_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,	&knl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,	&knl_cstates),
+	X86_MATCH_VFM(INTEL_XEON_PHI_KNL,	&knl_cstates),
+	X86_MATCH_VFM(INTEL_XEON_PHI_KNM,	&knl_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&glm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_D,	&glm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_PLUS,	&glm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&glm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT,	&glm_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_L,	&glm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT,	&glm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_D,	&glm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_PLUS,	&glm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT_D,	&glm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT,	&glm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT_L,	&glm_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X,	&srf_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	&grr_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L,		&icl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE,		&icl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&icx_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		&icx_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&icx_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(EMERALDRAPIDS_X,	&icx_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(GRANITERAPIDS_X,	&icx_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(GRANITERAPIDS_D,	&icx_cstates),
+	X86_MATCH_VFM(INTEL_ICELAKE_L,		&icl_cstates),
+	X86_MATCH_VFM(INTEL_ICELAKE,		&icl_cstates),
+	X86_MATCH_VFM(INTEL_ICELAKE_X,		&icx_cstates),
+	X86_MATCH_VFM(INTEL_ICELAKE_D,		&icx_cstates),
+	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,	&icx_cstates),
+	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,	&icx_cstates),
+	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,	&icx_cstates),
+	X86_MATCH_VFM(INTEL_GRANITERAPIDS_D,	&icx_cstates),
 
-	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE_L,		&icl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE,		&icl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&icl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&adl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&adl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N,		&adl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE,		&adl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P,	&adl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S,	&adl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE,		&adl_cstates),
-	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE_L,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_TIGERLAKE_L,	&icl_cstates),
+	X86_MATCH_VFM(INTEL_TIGERLAKE,		&icl_cstates),
+	X86_MATCH_VFM(INTEL_ROCKETLAKE,		&icl_cstates),
+	X86_MATCH_VFM(INTEL_ALDERLAKE,		&adl_cstates),
+	X86_MATCH_VFM(INTEL_ALDERLAKE_L,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE,		&adl_cstates),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_S,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_METEORLAKE,		&adl_cstates),
+	X86_MATCH_VFM(INTEL_METEORLAKE_L,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_ARROWLAKE,		&adl_cstates),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_H,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_U,	&adl_cstates),
+	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	&lnl_cstates),
 	{ },
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_cstates_match);
@@ -713,32 +672,31 @@ static int __init cstate_probe(const struct cstate_model *cm)
 	pkg_msr_mask = perf_msr_probe(pkg_msr, PERF_CSTATE_PKG_EVENT_MAX,
 				      true, (void *) &cm->pkg_events);
 
+	module_msr_mask = perf_msr_probe(module_msr, PERF_CSTATE_MODULE_EVENT_MAX,
+				      true, (void *) &cm->module_events);
+
 	has_cstate_core = !!core_msr_mask;
 	has_cstate_pkg  = !!pkg_msr_mask;
+	has_cstate_module  = !!module_msr_mask;
 
-	return (has_cstate_core || has_cstate_pkg) ? 0 : -ENODEV;
+	return (has_cstate_core || has_cstate_pkg || has_cstate_module) ? 0 : -ENODEV;
 }
 
 static inline void cstate_cleanup(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
-
 	if (has_cstate_core)
 		perf_pmu_unregister(&cstate_core_pmu);
 
 	if (has_cstate_pkg)
 		perf_pmu_unregister(&cstate_pkg_pmu);
+
+	if (has_cstate_module)
+		perf_pmu_unregister(&cstate_module_pmu);
 }
 
 static int __init cstate_init(void)
 {
 	int err;
-
-	cpuhp_setup_state(CPUHP_AP_PERF_X86_CSTATE_STARTING,
-			  "perf/x86/cstate:starting", cstate_cpu_init, NULL);
-	cpuhp_setup_state(CPUHP_AP_PERF_X86_CSTATE_ONLINE,
-			  "perf/x86/cstate:online", NULL, cstate_cpu_exit);
 
 	if (has_cstate_core) {
 		err = perf_pmu_register(&cstate_core_pmu, cstate_core_pmu.name, -1);
@@ -751,7 +709,9 @@ static int __init cstate_init(void)
 	}
 
 	if (has_cstate_pkg) {
-		if (topology_max_die_per_package() > 1) {
+		if (topology_max_dies_per_package() > 1) {
+			/* CLX-AP is multi-die and the cstate is die-scope */
+			cstate_pkg_pmu.scope = PERF_PMU_SCOPE_DIE;
 			err = perf_pmu_register(&cstate_pkg_pmu,
 						"cstate_die", -1);
 		} else {
@@ -761,6 +721,16 @@ static int __init cstate_init(void)
 		if (err) {
 			has_cstate_pkg = false;
 			pr_info("Failed to register cstate pkg pmu\n");
+			cstate_cleanup();
+			return err;
+		}
+	}
+
+	if (has_cstate_module) {
+		err = perf_pmu_register(&cstate_module_pmu, cstate_module_pmu.name, -1);
+		if (err) {
+			has_cstate_module = false;
+			pr_info("Failed to register cstate cluster pmu\n");
 			cstate_cleanup();
 			return err;
 		}

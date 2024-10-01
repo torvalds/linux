@@ -152,6 +152,7 @@
 				label = "cpu";
 				ethernet = <&macb0>;
 				phy-mode = "rgmii-txid";
+				tx-internal-delay-ps = <2000>;
 
 				fixed-link {
 					speed = <1000>;
@@ -159,6 +160,18 @@
 				};
 			};
 		};
+	};
+};
+
+&tcb0 {
+	timer0: timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>;
+	};
+
+	timer1: timer@1 {
+		compatible = "atmel,tcb-timer";
+		reg = <1>;
 	};
 };
 

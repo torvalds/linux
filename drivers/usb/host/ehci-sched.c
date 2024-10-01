@@ -490,13 +490,14 @@ static int tt_no_collision(
 static void enable_periodic(struct ehci_hcd *ehci)
 {
 	if (ehci->periodic_count++)
-		return;
+		goto out;
 
 	/* Stop waiting to turn off the periodic schedule */
 	ehci->enabled_hrtimer_events &= ~BIT(EHCI_HRTIMER_DISABLE_PERIODIC);
 
 	/* Don't start the schedule until PSS is 0 */
 	ehci_poll_PSS(ehci);
+out:
 	turn_on_io_watchdog(ehci);
 }
 

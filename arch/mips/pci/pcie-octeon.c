@@ -230,10 +230,16 @@ static inline uint64_t __cvmx_pcie_build_config_addr(int pcie_port, int bus,
 {
 	union cvmx_pcie_address pcie_addr;
 	union cvmx_pciercx_cfg006 pciercx_cfg006;
+	union cvmx_pciercx_cfg032 pciercx_cfg032;
 
 	pciercx_cfg006.u32 =
 	    cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG006(pcie_port));
 	if ((bus <= pciercx_cfg006.s.pbnum) && (dev != 0))
+		return 0;
+
+	pciercx_cfg032.u32 =
+		cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
+	if ((pciercx_cfg032.s.dlla == 0) || (pciercx_cfg032.s.lt == 1))
 		return 0;
 
 	pcie_addr.u64 = 0;
@@ -1037,7 +1043,7 @@ retry:
 			in_fif_p_count = dbg_data.s.data & 0xff;
 		} while (in_fif_p_count != ((old_in_fif_p_count+1) & 0xff));
 
-		/* Update in_fif_p_count for it's offset with respect to out_p_count */
+		/* Update in_fif_p_count for its offset with respect to out_p_count */
 		in_fif_p_count = (in_fif_p_count + in_p_offset) & 0xff;
 
 		/* Read the OUT_P_COUNT from the debug select */

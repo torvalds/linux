@@ -213,8 +213,8 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int error;
 
-	drvdata = kzalloc(sizeof(struct sun4i_ps2data), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
 		error = -ENOMEM;
 		goto err_free_mem;
@@ -297,7 +297,7 @@ err_free_mem:
 	return error;
 }
 
-static int sun4i_ps2_remove(struct platform_device *pdev)
+static void sun4i_ps2_remove(struct platform_device *pdev)
 {
 	struct sun4i_ps2data *drvdata = platform_get_drvdata(pdev);
 
@@ -311,8 +311,6 @@ static int sun4i_ps2_remove(struct platform_device *pdev)
 	iounmap(drvdata->reg_base);
 
 	kfree(drvdata);
-
-	return 0;
 }
 
 static const struct of_device_id sun4i_ps2_match[] = {
@@ -324,7 +322,7 @@ MODULE_DEVICE_TABLE(of, sun4i_ps2_match);
 
 static struct platform_driver sun4i_ps2_driver = {
 	.probe		= sun4i_ps2_probe,
-	.remove		= sun4i_ps2_remove,
+	.remove_new	= sun4i_ps2_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = sun4i_ps2_match,

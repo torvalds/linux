@@ -158,6 +158,7 @@ static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
 	const struct sdma_firmware_header_v2_0 *hdr_v2;
+	const struct sdma_firmware_header_v3_0 *hdr_v3;
 
 	header = (const struct common_firmware_header *)
 		sdma_inst->fw->data;
@@ -173,6 +174,11 @@ static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 		hdr_v2 = (const struct sdma_firmware_header_v2_0 *)sdma_inst->fw->data;
 		sdma_inst->fw_version = le32_to_cpu(hdr_v2->header.ucode_version);
 		sdma_inst->feature_version = le32_to_cpu(hdr_v2->ucode_feature_version);
+		break;
+	case 3:
+		hdr_v3 = (const struct sdma_firmware_header_v3_0 *)sdma_inst->fw->data;
+		sdma_inst->fw_version = le32_to_cpu(hdr_v3->header.ucode_version);
+		sdma_inst->feature_version = le32_to_cpu(hdr_v3->ucode_feature_version);
 		break;
 	default:
 		return -EINVAL;
@@ -206,16 +212,17 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	const struct common_firmware_header *header = NULL;
 	int err, i;
 	const struct sdma_firmware_header_v2_0 *sdma_hdr;
+	const struct sdma_firmware_header_v3_0 *sdma_hv3;
 	uint16_t version_major;
 	char ucode_prefix[30];
-	char fw_name[40];
 
 	amdgpu_ucode_ip_version_decode(adev, SDMA0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 	if (instance == 0)
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
+		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   "amdgpu/%s.bin", ucode_prefix);
 	else
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s%d.bin", ucode_prefix, instance);
-	err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw, fw_name);
+		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   "amdgpu/%s%d.bin", ucode_prefix, instance);
 	if (err)
 		goto out;
 
@@ -239,9 +246,6 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 			       sizeof(struct amdgpu_sdma_instance));
 	}
 
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
 	DRM_DEBUG("psp_load == '%s'\n",
 		  adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
 
@@ -254,8 +258,12 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 				else {
 					/* Use a single copy per SDMA firmware type. PSP uses the same instance for all
 					 * groups of SDMAs */
-					if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 2) &&
-					    adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
+					if ((amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
+						IP_VERSION(4, 4, 2) ||
+					     amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
+						IP_VERSION(4, 4, 5)) &&
+					    adev->firmware.load_type ==
+						AMDGPU_FW_LOAD_PSP &&
 					    adev->sdma.num_inst_per_aid == i) {
 						break;
 					}
@@ -281,6 +289,15 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 			adev->firmware.fw_size +=
 				ALIGN(le32_to_cpu(sdma_hdr->ctl_ucode_size_bytes), PAGE_SIZE);
 			break;
+		case 3:
+			sdma_hv3 = (const struct sdma_firmware_header_v3_0 *)
+				adev->sdma.instance[0].fw->data;
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA_RS64];
+			info->ucode_id = AMDGPU_UCODE_ID_SDMA_RS64;
+			info->fw = adev->sdma.instance[0].fw;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(sdma_hv3->ucode_size_bytes), PAGE_SIZE);
+			break;
 		default:
 			err = -EINVAL;
 		}
@@ -290,27 +307,6 @@ out:
 	if (err)
 		amdgpu_sdma_destroy_inst_ctx(adev, duplicate);
 	return err;
-}
-
-void amdgpu_sdma_unset_buffer_funcs_helper(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *sdma;
-	int i;
-
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (adev->sdma.has_page_queue) {
-			sdma = &adev->sdma.instance[i].page;
-			if (adev->mman.buffer_funcs_ring == sdma) {
-				amdgpu_ttm_set_buffer_funcs_status(adev, false);
-				break;
-			}
-		}
-		sdma = &adev->sdma.instance[i].ring;
-		if (adev->mman.buffer_funcs_ring == sdma) {
-			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-			break;
-		}
-	}
 }
 
 int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)

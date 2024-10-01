@@ -175,7 +175,7 @@ static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec,
 		}
 	}
 
-	dev_err(nvec->dev, "could not allocate %s buffer\n",
+	dev_err(nvec->dev, "Could not allocate %s buffer\n",
 		(category == NVEC_MSG_TX) ? "TX" : "RX");
 
 	return NULL;
@@ -300,7 +300,9 @@ int nvec_write_sync(struct nvec_chip *nvec,
 {
 	mutex_lock(&nvec->sync_write_mutex);
 
-	*msg = NULL;
+	if (msg)
+		*msg = NULL;
+
 	nvec->sync_write_pending = (data[1] << 8) + data[0];
 
 	if (nvec_write_async(nvec, data, size) < 0) {
@@ -313,14 +315,17 @@ int nvec_write_sync(struct nvec_chip *nvec,
 	if (!(wait_for_completion_timeout(&nvec->sync_write,
 					  msecs_to_jiffies(2000)))) {
 		dev_warn(nvec->dev,
-			 "timeout waiting for sync write to complete\n");
+			 "Timeout waiting for sync write to complete\n");
 		mutex_unlock(&nvec->sync_write_mutex);
 		return -ETIMEDOUT;
 	}
 
 	dev_dbg(nvec->dev, "nvec_sync_write: pong!\n");
 
-	*msg = nvec->last_sync_msg;
+	if (msg)
+		*msg = nvec->last_sync_msg;
+	else
+		nvec_msg_free(nvec, nvec->last_sync_msg);
 
 	mutex_unlock(&nvec->sync_write_mutex);
 
@@ -387,7 +392,7 @@ static void nvec_request_master(struct work_struct *work)
 								msecs_to_jiffies(5000));
 
 		if (err == 0) {
-			dev_warn(nvec->dev, "timeout waiting for ec transfer\n");
+			dev_warn(nvec->dev, "Timeout waiting for ec transfer\n");
 			nvec_gpio_set_value(nvec, 1);
 			msg->pos = 0;
 		}
@@ -449,7 +454,7 @@ static void nvec_dispatch(struct work_struct *work)
 
 		if (nvec->sync_write_pending ==
 		      (msg->data[2] << 8) + msg->data[0]) {
-			dev_dbg(nvec->dev, "sync write completed!\n");
+			dev_dbg(nvec->dev, "Sync write completed!\n");
 			nvec->sync_write_pending = 0;
 			nvec->last_sync_msg = msg;
 			complete(&nvec->sync_write);
@@ -472,7 +477,7 @@ static void nvec_tx_completed(struct nvec_chip *nvec)
 {
 	/* We got an END_TRANS, let's skip this, maybe there's an event */
 	if (nvec->tx->pos != nvec->tx->size) {
-		dev_err(nvec->dev, "premature END_TRANS, resending\n");
+		dev_err(nvec->dev, "Premature END_TRANS, resending\n");
 		nvec->tx->pos = 0;
 		nvec_gpio_set_value(nvec, 0);
 	} else {
@@ -566,6 +571,22 @@ static void nvec_tx_set(struct nvec_chip *nvec)
 }
 
 /**
+ * tegra_i2c_writel - safely write to an I2C client controller register
+ * @val: value to be written
+ * @reg: register to write to
+ *
+ * A write to an I2C controller register needs to be read back to make sure
+ * that the value has arrived.
+ */
+static void tegra_i2c_writel(u32 val, void *reg)
+{
+	writel_relaxed(val, reg);
+
+	/* read back register to make sure that register writes completed */
+	readl_relaxed(reg);
+}
+
+/**
  * nvec_interrupt - Interrupt handler
  * @irq: The IRQ
  * @dev: The nvec device
@@ -587,7 +608,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 
 	/* Filter out some errors */
 	if ((status & irq_mask) == 0 && (status & ~irq_mask) != 0) {
-		dev_err(nvec->dev, "unexpected irq mask %lx\n", status);
+		dev_err(nvec->dev, "Unexpected irq mask %lx\n", status);
 		return IRQ_HANDLED;
 	}
 	if ((status & I2C_SL_IRQ) == 0) {
@@ -599,7 +620,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 	if ((status & RNW) == 0) {
 		received = readl(nvec->base + I2C_SL_RCVD);
 		if (status & RCVD)
-			writel(0, nvec->base + I2C_SL_RCVD);
+			tegra_i2c_writel(0, nvec->base + I2C_SL_RCVD);
 	}
 
 	if (status == (I2C_SL_IRQ | RCVD))
@@ -610,7 +631,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		if (status != (I2C_SL_IRQ | RCVD))
 			nvec_invalid_flags(nvec, status, false);
 		break;
-	case 1:		/* command byte */
+	case 1:		/* Command byte */
 		if (status != I2C_SL_IRQ) {
 			nvec_invalid_flags(nvec, status, true);
 		} else {
@@ -691,7 +712,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 
 	/* Send data if requested, but not on end of transmission */
 	if ((status & (RNW | END_TRANS)) == RNW)
-		writel(to_send, nvec->base + I2C_SL_RCVD);
+		tegra_i2c_writel(to_send, nvec->base + I2C_SL_RCVD);
 
 	/* If we have send the first byte */
 	if (status == (I2C_SL_IRQ | RNW | RCVD))
@@ -708,14 +729,6 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		status & RCVD ? " RCVD" : "",
 		status & RNW ? " RNW" : "");
 
-	/*
-	 * TODO: A correct fix needs to be found for this.
-	 *
-	 * We experience less incomplete messages with this delay than without
-	 * it, but we don't know why. Help is appreciated.
-	 */
-	udelay(100);
-
 	return IRQ_HANDLED;
 }
 
@@ -731,15 +744,15 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 
 	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
 	    (0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
-	writel(val, nvec->base + I2C_CNFG);
+	tegra_i2c_writel(val, nvec->base + I2C_CNFG);
 
 	clk_set_rate(nvec->i2c_clk, 8 * 80000);
 
-	writel(I2C_SL_NEWSL, nvec->base + I2C_SL_CNFG);
-	writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
+	tegra_i2c_writel(I2C_SL_NEWSL, nvec->base + I2C_SL_CNFG);
+	tegra_i2c_writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
 
-	writel(nvec->i2c_addr >> 1, nvec->base + I2C_SL_ADDR1);
-	writel(0, nvec->base + I2C_SL_ADDR2);
+	tegra_i2c_writel(nvec->i2c_addr >> 1, nvec->base + I2C_SL_ADDR1);
+	tegra_i2c_writel(0, nvec->base + I2C_SL_ADDR2);
 
 	enable_irq(nvec->irq);
 }
@@ -748,7 +761,7 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
 {
 	disable_irq(nvec->irq);
-	writel(I2C_SL_NEWSL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
+	tegra_i2c_writel(I2C_SL_NEWSL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
 	clk_disable_unprepare(nvec->i2c_clk);
 }
 #endif
@@ -832,13 +845,12 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return PTR_ERR(nvec->gpiod);
 	}
 
-	err = devm_request_irq(dev, nvec->irq, nvec_interrupt, 0,
+	err = devm_request_irq(dev, nvec->irq, nvec_interrupt, IRQF_NO_AUTOEN,
 			       "nvec", nvec);
 	if (err) {
 		dev_err(dev, "couldn't request irq\n");
 		return -ENODEV;
 	}
-	disable_irq(nvec->irq);
 
 	tegra_init_i2c_slave(nvec);
 

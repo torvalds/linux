@@ -17,7 +17,7 @@ mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 		fs_counters.o fs_ft_pool.o rl.o lag/debugfs.o lag/lag.o dev.o events.o wq.o lib/gid.o \
 		lib/devcom.o lib/pci_vsc.o lib/dm.o lib/fs_ttc.o diag/fs_tracepoint.o \
 		diag/fw_tracer.o diag/crdump.o devlink.o diag/rsc_dump.o diag/reporter_vnic.o \
-		fw_reset.o qos.o lib/tout.o lib/aso.o
+		fw_reset.o qos.o lib/tout.o lib/aso.o wc.o
 
 #
 # Netdev basic
@@ -29,7 +29,7 @@ mlx5_core-$(CONFIG_MLX5_CORE_EN) += en/rqt.o en/tir.o en/rss.o en/rx_res.o \
 		en/reporter_tx.o en/reporter_rx.o en/params.o en/xsk/pool.o \
 		en/xsk/setup.o en/xsk/rx.o en/xsk/tx.o en/devlink.o en/ptp.o \
 		en/qos.o en/htb.o en/trap.o en/fs_tt_redirect.o en/selq.o \
-		lib/crypto.o
+		lib/crypto.o lib/sd.o
 
 #
 # Netdev extra
@@ -69,16 +69,20 @@ mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
 #
 mlx5_core-$(CONFIG_MLX5_ESWITCH)   += eswitch.o eswitch_offloads.o eswitch_offloads_termtbl.o \
 				      ecpf.o rdma.o esw/legacy.o \
-				      esw/devlink_port.o esw/vporttbl.o esw/qos.o
+				      esw/devlink_port.o esw/vporttbl.o esw/qos.o esw/ipsec.o
 
 mlx5_core-$(CONFIG_MLX5_ESWITCH)   += esw/acl/helper.o \
 				      esw/acl/egress_lgcy.o esw/acl/egress_ofld.o \
 				      esw/acl/ingress_lgcy.o esw/acl/ingress_ofld.o
 
+ifneq ($(CONFIG_MLX5_EN_IPSEC),)
+	mlx5_core-$(CONFIG_MLX5_ESWITCH)   += esw/ipsec_fs.o
+endif
+
 mlx5_core-$(CONFIG_MLX5_BRIDGE)    += esw/bridge.o esw/bridge_mcast.o esw/bridge_debugfs.o \
 				      en/rep/bridge.o
 
-mlx5_core-$(CONFIG_THERMAL)        += thermal.o
+mlx5_core-$(CONFIG_HWMON)          += hwmon.o
 mlx5_core-$(CONFIG_MLX5_MPFS)      += lib/mpfs.o
 mlx5_core-$(CONFIG_VXLAN)          += lib/vxlan.o
 mlx5_core-$(CONFIG_PTP_1588_CLOCK) += lib/clock.o
@@ -94,7 +98,7 @@ mlx5_core-$(CONFIG_MLX5_CORE_IPOIB) += ipoib/ipoib.o ipoib/ethtool.o ipoib/ipoib
 #
 mlx5_core-$(CONFIG_MLX5_FPGA) += fpga/cmd.o fpga/core.o fpga/conn.o fpga/sdk.o
 
-mlx5_core-$(CONFIG_MLX5_EN_MACSEC) += en_accel/macsec.o en_accel/macsec_fs.o \
+mlx5_core-$(CONFIG_MLX5_MACSEC) += en_accel/macsec.o lib/macsec_fs.o \
 				      en_accel/macsec_stats.o
 
 mlx5_core-$(CONFIG_MLX5_EN_IPSEC) += en_accel/ipsec.o en_accel/ipsec_rxtx.o \
@@ -115,6 +119,27 @@ mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/dr_domain.o steering/dr_table.o
 					steering/dr_action.o steering/fs_dr.o \
 					steering/dr_definer.o steering/dr_ptrn.o \
 					steering/dr_arg.o steering/dr_dbg.o lib/smfs.o
+
+#
+# HW Steering
+#
+mlx5_core-$(CONFIG_MLX5_HW_STEERING) += steering/hws/mlx5hws_cmd.o \
+					steering/hws/mlx5hws_context.o \
+					steering/hws/mlx5hws_pat_arg.o \
+					steering/hws/mlx5hws_buddy.o \
+					steering/hws/mlx5hws_pool.o \
+					steering/hws/mlx5hws_table.o \
+					steering/hws/mlx5hws_action.o \
+					steering/hws/mlx5hws_rule.o \
+					steering/hws/mlx5hws_matcher.o \
+					steering/hws/mlx5hws_send.o \
+					steering/hws/mlx5hws_definer.o \
+					steering/hws/mlx5hws_bwc.o \
+					steering/hws/mlx5hws_debug.o \
+					steering/hws/mlx5hws_vport.o \
+					steering/hws/mlx5hws_bwc_complex.o
+
+
 #
 # SF device
 #
@@ -124,3 +149,6 @@ mlx5_core-$(CONFIG_MLX5_SF) += sf/vhca_event.o sf/dev/dev.o sf/dev/driver.o irq_
 # SF manager
 #
 mlx5_core-$(CONFIG_MLX5_SF_MANAGER) += sf/cmd.o sf/hw_table.o sf/devlink.o
+
+obj-$(CONFIG_MLX5_DPLL) += mlx5_dpll.o
+mlx5_dpll-y :=	dpll.o

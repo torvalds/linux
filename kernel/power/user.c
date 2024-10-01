@@ -317,7 +317,9 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case SNAPSHOT_ATOMIC_RESTORE:
-		snapshot_write_finalize(&data->handle);
+		error = snapshot_write_finalize(&data->handle);
+		if (error)
+			break;
 		if (data->mode != O_WRONLY || !data->frozen ||
 		    !snapshot_image_loaded(&data->handle)) {
 			error = -EPERM;
@@ -445,7 +447,6 @@ static const struct file_operations snapshot_fops = {
 	.release = snapshot_release,
 	.read = snapshot_read,
 	.write = snapshot_write,
-	.llseek = no_llseek,
 	.unlocked_ioctl = snapshot_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = snapshot_compat_ioctl,

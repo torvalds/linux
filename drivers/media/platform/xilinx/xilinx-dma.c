@@ -348,8 +348,8 @@ static void xvip_dma_buffer_queue(struct vb2_buffer *vb)
 	}
 
 	dma->xt.frame_size = 1;
-	dma->sgl[0].size = dma->format.width * dma->fmtinfo->bpp;
-	dma->sgl[0].icg = dma->format.bytesperline - dma->sgl[0].size;
+	dma->sgl.size = dma->format.width * dma->fmtinfo->bpp;
+	dma->sgl.icg = dma->format.bytesperline - dma->sgl.size;
 	dma->xt.numf = dma->format.height;
 
 	desc = dmaengine_prep_interleaved_dma(dma->dma, &dma->xt, flags);
@@ -708,9 +708,8 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	snprintf(name, sizeof(name), "port%u", port);
 	dma->dma = dma_request_chan(dma->xdev->dev, name);
 	if (IS_ERR(dma->dma)) {
-		ret = PTR_ERR(dma->dma);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dma->xdev->dev, "no VDMA channel found\n");
+		ret = dev_err_probe(dma->xdev->dev, PTR_ERR(dma->dma),
+				    "no VDMA channel found\n");
 		goto error;
 	}
 

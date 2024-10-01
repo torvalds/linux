@@ -198,7 +198,7 @@ __irq_startup_managed(struct irq_desc *desc, const struct cpumask *aff,
 
 	irqd_clr_managed_shutdown(d);
 
-	if (cpumask_any_and(aff, cpu_online_mask) >= nr_cpu_ids) {
+	if (!cpumask_intersects(aff, cpu_online_mask)) {
 		/*
 		 * Catch code which fiddles with enable_irq() on a managed
 		 * and potentially shutdown IRQ. Chained interrupt
@@ -473,11 +473,12 @@ void handle_nested_irq(unsigned int irq)
 	action = desc->action;
 	if (unlikely(!action || irqd_irq_disabled(&desc->irq_data))) {
 		desc->istate |= IRQS_PENDING;
-		goto out_unlock;
+		raw_spin_unlock_irq(&desc->lock);
+		return;
 	}
 
 	kstat_incr_irqs_this_cpu(desc);
-	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
+	atomic_inc(&desc->threads_active);
 	raw_spin_unlock_irq(&desc->lock);
 
 	action_ret = IRQ_NONE;
@@ -487,11 +488,7 @@ void handle_nested_irq(unsigned int irq)
 	if (!irq_settings_no_debug(desc))
 		note_interrupt(desc, action_ret);
 
-	raw_spin_lock_irq(&desc->lock);
-	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
-
-out_unlock:
-	raw_spin_unlock_irq(&desc->lock);
+	wake_threads_waitq(desc);
 }
 EXPORT_SYMBOL_GPL(handle_nested_irq);
 

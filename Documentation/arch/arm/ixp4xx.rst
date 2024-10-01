@@ -78,9 +78,9 @@ IXP4xx provides two methods of accessing PCI memory space:
 1) A direct mapped window from 0x48000000 to 0x4bffffff (64MB).
    To access PCI via this space, we simply ioremap() the BAR
    into the kernel and we can use the standard read[bwl]/write[bwl]
-   macros. This is the preffered method due to speed but it
+   macros. This is the preferred method due to speed but it
    limits the system to just 64MB of PCI memory. This can be
-   problamatic if using video cards and other memory-heavy devices.
+   problematic if using video cards and other memory-heavy devices.
 
 2) If > 64MB of memory space is required, the IXP4xx can be
    configured to use indirect registers to access PCI This allows

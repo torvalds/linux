@@ -400,7 +400,13 @@ enum muxout_select_mode {
 	ADF4377_MUXOUT_HIGH = 0x8,
 };
 
+struct adf4377_chip_info {
+	const char *name;
+	bool has_gpio_enclk2;
+};
+
 struct adf4377_state {
+	const struct adf4377_chip_info	*chip_info;
 	struct spi_device	*spi;
 	struct regmap		*regmap;
 	struct clk		*clkin;
@@ -870,7 +876,6 @@ static const struct iio_chan_spec adf4377_channels[] = {
 static int adf4377_properties_parse(struct adf4377_state *st)
 {
 	struct spi_device *spi = st->spi;
-	const char *str;
 	int ret;
 
 	st->clkin = devm_clk_get_enabled(&spi->dev, "ref_in");
@@ -890,22 +895,21 @@ static int adf4377_properties_parse(struct adf4377_state *st)
 		return dev_err_probe(&spi->dev, PTR_ERR(st->gpio_enclk1),
 				     "failed to get the CE GPIO\n");
 
-	st->gpio_enclk2 = devm_gpiod_get_optional(&st->spi->dev, "clk2-enable",
-						  GPIOD_OUT_LOW);
-	if (IS_ERR(st->gpio_enclk2))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->gpio_enclk2),
-				     "failed to get the CE GPIO\n");
-
-	ret = device_property_read_string(&spi->dev, "adi,muxout-select", &str);
-	if (ret) {
-		st->muxout_select = ADF4377_MUXOUT_HIGH_Z;
-	} else {
-		ret = match_string(adf4377_muxout_modes, ARRAY_SIZE(adf4377_muxout_modes), str);
-		if (ret < 0)
-			return ret;
-
-		st->muxout_select = ret;
+	if (st->chip_info->has_gpio_enclk2) {
+		st->gpio_enclk2 = devm_gpiod_get_optional(&st->spi->dev, "clk2-enable",
+							  GPIOD_OUT_LOW);
+		if (IS_ERR(st->gpio_enclk2))
+			return dev_err_probe(&spi->dev, PTR_ERR(st->gpio_enclk2),
+					"failed to get the CE GPIO\n");
 	}
+
+	ret = device_property_match_property_string(&spi->dev, "adi,muxout-select",
+						    adf4377_muxout_modes,
+						    ARRAY_SIZE(adf4377_muxout_modes));
+	if (ret >= 0)
+		st->muxout_select = ret;
+	else
+		st->muxout_select = ADF4377_MUXOUT_HIGH_Z;
 
 	return 0;
 }
@@ -924,6 +928,16 @@ static int adf4377_freq_change(struct notifier_block *nb, unsigned long action, 
 
 	return NOTIFY_OK;
 }
+
+static const struct adf4377_chip_info adf4377_chip_info = {
+	.name = "adf4377",
+	.has_gpio_enclk2 = true,
+};
+
+static const struct adf4377_chip_info adf4378_chip_info = {
+	.name = "adf4378",
+	.has_gpio_enclk2 = false,
+};
 
 static int adf4377_probe(struct spi_device *spi)
 {
@@ -949,6 +963,7 @@ static int adf4377_probe(struct spi_device *spi)
 
 	st->regmap = regmap;
 	st->spi = spi;
+	st->chip_info = spi_get_device_match_data(spi);
 	mutex_init(&st->lock);
 
 	ret = adf4377_properties_parse(st);
@@ -968,13 +983,15 @@ static int adf4377_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id adf4377_id[] = {
-	{ "adf4377", 0 },
+	{ "adf4377", (kernel_ulong_t)&adf4377_chip_info },
+	{ "adf4378", (kernel_ulong_t)&adf4378_chip_info },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, adf4377_id);
 
 static const struct of_device_id adf4377_of_match[] = {
-	{ .compatible = "adi,adf4377" },
+	{ .compatible = "adi,adf4377", .data = &adf4377_chip_info },
+	{ .compatible = "adi,adf4378", .data = &adf4378_chip_info },
 	{}
 };
 MODULE_DEVICE_TABLE(of, adf4377_of_match);

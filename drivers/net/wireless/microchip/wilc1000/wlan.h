@@ -56,7 +56,6 @@
 #define WILC_HOST_RX_CTRL		(WILC_PERIPH_REG_BASE + 0x80)
 #define WILC_HOST_RX_EXTRA_SIZE		(WILC_PERIPH_REG_BASE + 0x84)
 #define WILC_HOST_TX_CTRL_1		(WILC_PERIPH_REG_BASE + 0x88)
-#define WILC_MISC			(WILC_PERIPH_REG_BASE + 0x428)
 #define WILC_INTR_REG_BASE		(WILC_PERIPH_REG_BASE + 0xa00)
 #define WILC_INTR_ENABLE		WILC_INTR_REG_BASE
 #define WILC_INTR2_ENABLE		(WILC_INTR_REG_BASE + 4)
@@ -155,6 +154,12 @@
 #define WILC_FW_HOST_COMM		0x13c0
 #define WILC_GP_REG_0			0x149c
 #define WILC_GP_REG_1			0x14a0
+
+#define GLOBAL_MODE_CONTROL		0x1614
+#define PWR_SEQ_MISC_CTRL		0x3008
+
+#define WILC_GLOBAL_MODE_ENABLE_WIFI	BIT(0)
+#define WILC_PWR_SEQ_ENABLE_WIFI_SLEEP	BIT(28)
 
 #define WILC_HAVE_SDIO_IRQ_GPIO		BIT(0)
 #define WILC_HAVE_USE_PMU		BIT(1)
@@ -403,6 +408,11 @@ struct wilc_cfg_rsp {
 
 struct wilc_vif;
 
+static inline bool is_wilc1000(u32 id)
+{
+	return (id & (~WILC_CHIP_REV_FIELD)) == WILC_1000_BASE_ID;
+}
+
 int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 				u32 buffer_size);
 int wilc_wlan_start(struct wilc *wilc);
@@ -434,4 +444,5 @@ int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count);
 int wilc_wlan_init(struct net_device *dev);
 u32 wilc_get_chipid(struct wilc *wilc, bool update);
+int wilc_load_mac_from_nv(struct wilc *wilc);
 #endif

@@ -844,7 +844,7 @@ static int t1_change_mtu(struct net_device *dev, int new_mtu)
 		return -EOPNOTSUPP;
 	if ((ret = mac->ops->set_mtu(mac, new_mtu)))
 		return ret;
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -1034,7 +1034,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
 			NETIF_F_RXCSUM;
 		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM |
-			NETIF_F_RXCSUM | NETIF_F_LLTX | NETIF_F_HIGHDMA;
+			NETIF_F_RXCSUM | NETIF_F_HIGHDMA;
+		netdev->lltx = true;
 
 		if (vlan_tso_capable(adapter)) {
 			netdev->features |=

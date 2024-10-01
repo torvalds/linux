@@ -38,14 +38,16 @@ int mpfs_blocking_transaction(struct mpfs_sys_controller *mpfs_client, struct mp
 
 struct mpfs_sys_controller *mpfs_sys_controller_get(struct device *dev);
 
+struct mtd_info *mpfs_sys_controller_get_flash(struct mpfs_sys_controller *mpfs_client);
+
 #endif /* if IS_ENABLED(CONFIG_POLARFIRE_SOC_SYS_CTRL) */
 
 #if IS_ENABLED(CONFIG_MCHP_CLK_MPFS)
-
-u32 mpfs_reset_read(struct device *dev);
-
-void mpfs_reset_write(struct device *dev, u32 val);
-
+#if IS_ENABLED(CONFIG_RESET_POLARFIRE_SOC)
+int mpfs_reset_controller_register(struct device *clk_dev, void __iomem *base);
+#else
+static inline int mpfs_reset_controller_register(struct device *clk_dev, void __iomem *base) { return 0; }
+#endif /* if IS_ENABLED(CONFIG_RESET_POLARFIRE_SOC) */
 #endif /* if IS_ENABLED(CONFIG_MCHP_CLK_MPFS) */
 
 #endif /* __SOC_MPFS_H__ */

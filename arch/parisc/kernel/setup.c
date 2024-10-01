@@ -31,7 +31,6 @@
 #include <asm/sections.h>
 #include <asm/pdc.h>
 #include <asm/led.h>
-#include <asm/machdep.h>	/* for pa7300lc_init() proto */
 #include <asm/pdc_chassis.h>
 #include <asm/io.h>
 #include <asm/setup.h>
@@ -39,11 +38,6 @@
 #include <asm/smp.h>
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
-
-/* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
-struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
-struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
-struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
 
 static void __init setup_cmdline(char **cmdline_p)
 {
@@ -98,8 +92,6 @@ static void __init dma_ops_init(void)
 			"the PA-RISC 1.1 or 2.0 architecture specification.\n");
 
 	case pcxl2:
-		pa7300lc_init();
-		break;
 	default:
 		break;
 	}
@@ -108,9 +100,6 @@ static void __init dma_ops_init(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifdef CONFIG_64BIT
-	extern int parisc_narrow_firmware;
-#endif
 	unwind_init();
 
 	init_per_cpu(smp_processor_id());	/* Set Modes & Enable FP */
@@ -151,11 +140,6 @@ void __init setup_arch(char **cmdline_p)
 	parisc_cache_init();
 	paging_init();
 
-#ifdef CONFIG_CHASSIS_LCD_LED
-	/* initialize the LCD/LED after boot_cpu_data is available ! */
-	led_init();		/* LCD/LED initialization */
-#endif
-
 #ifdef CONFIG_PA11
 	dma_ops_init();
 #endif
@@ -195,48 +179,6 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo
 };
-
-static void __init parisc_proc_mkdir(void)
-{
-	/*
-	** Can't call proc_mkdir() until after proc_root_init() has been
-	** called by start_kernel(). In other words, this code can't
-	** live in arch/.../setup.c because start_parisc() calls
-	** start_kernel().
-	*/
-	switch (boot_cpu_data.cpu_type) {
-	case pcxl:
-	case pcxl2:
-		if (NULL == proc_gsc_root)
-		{
-			proc_gsc_root = proc_mkdir("bus/gsc", NULL);
-		}
-		break;
-        case pcxt_:
-        case pcxu:
-        case pcxu_:
-        case pcxw:
-        case pcxw_:
-        case pcxw2:
-                if (NULL == proc_runway_root)
-                {
-                        proc_runway_root = proc_mkdir("bus/runway", NULL);
-                }
-                break;
-	case mako:
-	case mako2:
-                if (NULL == proc_mckinley_root)
-                {
-                        proc_mckinley_root = proc_mkdir("bus/mckinley", NULL);
-                }
-                break;
-	default:
-		/* FIXME: this was added to prevent the compiler 
-		 * complaining about missing pcx, pcxs and pcxt
-		 * I'm assuming they have neither gsc nor runway */
-		break;
-	}
-}
 
 static struct resource central_bus = {
 	.name	= "Central Bus",
@@ -294,7 +236,6 @@ static int __init parisc_init(void)
 {
 	u32 osid = (OS_ID_LINUX << 16);
 
-	parisc_proc_mkdir();
 	parisc_init_resources();
 	do_device_inventory();                  /* probe for hardware */
 
@@ -329,47 +270,6 @@ static int __init parisc_init(void)
 
 	apply_alternatives_all();
 	parisc_setup_cache_timing();
-
-	/* These are in a non-obvious order, will fix when we have an iotree */
-#if defined(CONFIG_IOSAPIC)
-	iosapic_init();
-#endif
-#if defined(CONFIG_IOMMU_SBA)
-	sba_init();
-#endif
-#if defined(CONFIG_PCI_LBA)
-	lba_init();
-#endif
-
-	/* CCIO before any potential subdevices */
-#if defined(CONFIG_IOMMU_CCIO)
-	ccio_init();
-#endif
-
-	/*
-	 * Need to register Asp & Wax before the EISA adapters for the IRQ
-	 * regions.  EISA must come before PCI to be sure it gets IRQ region
-	 * 0.
-	 */
-#if defined(CONFIG_GSC_LASI) || defined(CONFIG_GSC_WAX)
-	gsc_init();
-#endif
-#ifdef CONFIG_EISA
-	parisc_eisa_init();
-#endif
-
-#if defined(CONFIG_HPPB)
-	hppb_init();
-#endif
-
-#if defined(CONFIG_GSC_DINO)
-	dino_init();
-#endif
-
-#ifdef CONFIG_CHASSIS_LCD_LED
-	register_led_regions();	/* register LED port info in procfs */
-#endif
-
 	return 0;
 }
 arch_initcall(parisc_init);

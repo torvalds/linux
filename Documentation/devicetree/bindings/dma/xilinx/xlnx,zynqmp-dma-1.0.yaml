@@ -13,6 +13,8 @@ description: |
 
 maintainers:
   - Michael Tretter <m.tretter@pengutronix.de>
+  - Harini Katakam <harini.katakam@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 
 allOf:
   - $ref: ../dma-controller.yaml#
@@ -22,7 +24,9 @@ properties:
     const: 1
 
   compatible:
-    const: xlnx,zynqmp-dma-1.0
+    enum:
+      - amd,versal2-dma-1.0
+      - xlnx,zynqmp-dma-1.0
 
   reg:
     description: memory map for gdma/adma module access
@@ -65,6 +69,7 @@ required:
   - interrupts
   - clocks
   - clock-names
+  - xlnx,bus-width
 
 additionalProperties: false
 

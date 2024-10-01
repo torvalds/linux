@@ -10,14 +10,15 @@
 #include <numa.h>
 #include <numaif.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <time.h>
 
-#define TWOMEG (2<<20)
-#define RUNTIME (60)
-
-#define ALIGN(x, a) (((x) + (a - 1)) & (~((a) - 1)))
+#define TWOMEG		(2<<20)
+#define RUNTIME		(20)
+#define MAX_RETRIES	100
+#define ALIGN(x, a)	(((x) + (a - 1)) & (~((a) - 1)))
 
 FIXTURE(migration)
 {
@@ -64,6 +65,7 @@ int migrate(uint64_t *ptr, int n1, int n2)
 	int ret, tmp;
 	int status = 0;
 	struct timespec ts1, ts2;
+	int failures = 0;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts1))
 		return -1;
@@ -78,13 +80,17 @@ int migrate(uint64_t *ptr, int n1, int n2)
 		ret = move_pages(0, 1, (void **) &ptr, &n2, &status,
 				MPOL_MF_MOVE_ALL);
 		if (ret) {
-			if (ret > 0)
+			if (ret > 0) {
+				/* Migration is best effort; try again */
+				if (++failures < MAX_RETRIES)
+					continue;
 				printf("Didn't migrate %d pages\n", ret);
+			}
 			else
 				perror("Couldn't migrate pages");
 			return -2;
 		}
-
+		failures = 0;
 		tmp = n2;
 		n2 = n1;
 		n1 = tmp;
@@ -155,10 +161,15 @@ TEST_F_TIMEOUT(migration, shared_anon, 2*RUNTIME)
 	memset(ptr, 0xde, TWOMEG);
 	for (i = 0; i < self->nthreads - 1; i++) {
 		pid = fork();
-		if (!pid)
+		if (!pid) {
+			prctl(PR_SET_PDEATHSIG, SIGHUP);
+			/* Parent may have died before prctl so check now. */
+			if (getppid() == 1)
+				kill(getpid(), SIGHUP);
 			access_mem(ptr);
-		else
+		} else {
 			self->pids[i] = pid;
+		}
 	}
 
 	ASSERT_EQ(migrate(ptr, self->n1, self->n2), 0);

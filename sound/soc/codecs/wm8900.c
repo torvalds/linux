@@ -1223,7 +1223,7 @@ static const struct regmap_config wm8900_regmap = {
 
 	.reg_defaults = wm8900_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8900_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8900_volatile_register,
 };
@@ -1286,7 +1286,7 @@ static void wm8900_i2c_remove(struct i2c_client *client)
 {}
 
 static const struct i2c_device_id wm8900_i2c_id[] = {
-	{ "wm8900", 0 },
+	{ "wm8900" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8900_i2c_id);

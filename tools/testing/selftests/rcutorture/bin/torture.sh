@@ -19,10 +19,10 @@ PATH=${RCUTORTURE}/bin:$PATH; export PATH
 
 TORTURE_ALLOTED_CPUS="`identify_qemu_vcpus`"
 MAKE_ALLOTED_CPUS=$((TORTURE_ALLOTED_CPUS*2))
-HALF_ALLOTED_CPUS=$((TORTURE_ALLOTED_CPUS/2))
-if test "$HALF_ALLOTED_CPUS" -lt 1
+SCALE_ALLOTED_CPUS=$((TORTURE_ALLOTED_CPUS/2))
+if test "$SCALE_ALLOTED_CPUS" -lt 1
 then
-	HALF_ALLOTED_CPUS=1
+	SCALE_ALLOTED_CPUS=1
 fi
 VERBOSE_BATCH_CPUS=$((TORTURE_ALLOTED_CPUS/16))
 if test "$VERBOSE_BATCH_CPUS" -lt 2
@@ -55,6 +55,8 @@ do_kasan=yes
 do_kcsan=no
 do_clocksourcewd=yes
 do_rt=yes
+do_rcutasksflavors=yes
+do_srcu_lockdep=yes
 
 # doyesno - Helper function for yes/no arguments
 function doyesno () {
@@ -73,19 +75,22 @@ usage () {
 	echo "       --configs-locktorture \"config-file list w/ repeat factor (10*LOCK01)\""
 	echo "       --configs-scftorture \"config-file list w/ repeat factor (2*CFLIST)\""
 	echo "       --do-all"
-	echo "       --do-allmodconfig / --do-no-allmodconfig"
-	echo "       --do-clocksourcewd / --do-no-clocksourcewd"
-	echo "       --do-kasan / --do-no-kasan"
-	echo "       --do-kcsan / --do-no-kcsan"
-	echo "       --do-kvfree / --do-no-kvfree"
-	echo "       --do-locktorture / --do-no-locktorture"
+	echo "       --do-allmodconfig / --do-no-allmodconfig / --no-allmodconfig"
+	echo "       --do-clocksourcewd / --do-no-clocksourcewd / --no-clocksourcewd"
+	echo "       --do-kasan / --do-no-kasan / --no-kasan"
+	echo "       --do-kcsan / --do-no-kcsan / --no-kcsan"
+	echo "       --do-kvfree / --do-no-kvfree / --no-kvfree"
+	echo "       --do-locktorture / --do-no-locktorture / --no-locktorture"
 	echo "       --do-none"
-	echo "       --do-rcuscale / --do-no-rcuscale"
-	echo "       --do-rcutorture / --do-no-rcutorture"
-	echo "       --do-refscale / --do-no-refscale"
-	echo "       --do-rt / --do-no-rt"
-	echo "       --do-scftorture / --do-no-scftorture"
+	echo "       --do-rcuscale / --do-no-rcuscale / --no-rcuscale"
+	echo "       --do-rcutasksflavors / --do-no-rcutasksflavors / --no-rcutasksflavors"
+	echo "       --do-rcutorture / --do-no-rcutorture / --no-rcutorture"
+	echo "       --do-refscale / --do-no-refscale / --no-refscale"
+	echo "       --do-rt / --do-no-rt / --no-rt"
+	echo "       --do-scftorture / --do-no-scftorture / --no-scftorture"
+	echo "       --do-srcu-lockdep / --do-no-srcu-lockdep / --no-srcu-lockdep"
 	echo "       --duration [ <minutes> | <hours>h | <days>d ]"
+	echo "       --guest-cpu-limit N"
 	echo "       --kcsan-kmake-arg kernel-make-arguments"
 	exit 1
 }
@@ -115,6 +120,7 @@ do
 		;;
 	--do-all|--doall)
 		do_allmodconfig=yes
+		do_rcutasksflavor=yes
 		do_rcutorture=yes
 		do_locktorture=yes
 		do_scftorture=yes
@@ -125,27 +131,29 @@ do
 		do_kasan=yes
 		do_kcsan=yes
 		do_clocksourcewd=yes
+		do_srcu_lockdep=yes
 		;;
-	--do-allmodconfig|--do-no-allmodconfig)
+	--do-allmodconfig|--do-no-allmodconfig|--no-allmodconfig)
 		do_allmodconfig=`doyesno "$1" --do-allmodconfig`
 		;;
-	--do-clocksourcewd|--do-no-clocksourcewd)
+	--do-clocksourcewd|--do-no-clocksourcewd|--no-clocksourcewd)
 		do_clocksourcewd=`doyesno "$1" --do-clocksourcewd`
 		;;
-	--do-kasan|--do-no-kasan)
+	--do-kasan|--do-no-kasan|--no-kasan)
 		do_kasan=`doyesno "$1" --do-kasan`
 		;;
-	--do-kcsan|--do-no-kcsan)
+	--do-kcsan|--do-no-kcsan|--no-kcsan)
 		do_kcsan=`doyesno "$1" --do-kcsan`
 		;;
-	--do-kvfree|--do-no-kvfree)
+	--do-kvfree|--do-no-kvfree|--no-kvfree)
 		do_kvfree=`doyesno "$1" --do-kvfree`
 		;;
-	--do-locktorture|--do-no-locktorture)
+	--do-locktorture|--do-no-locktorture|--no-locktorture)
 		do_locktorture=`doyesno "$1" --do-locktorture`
 		;;
 	--do-none|--donone)
 		do_allmodconfig=no
+		do_rcutasksflavors=no
 		do_rcutorture=no
 		do_locktorture=no
 		do_scftorture=no
@@ -156,21 +164,28 @@ do
 		do_kasan=no
 		do_kcsan=no
 		do_clocksourcewd=no
+		do_srcu_lockdep=no
 		;;
-	--do-rcuscale|--do-no-rcuscale)
+	--do-rcuscale|--do-no-rcuscale|--no-rcuscale)
 		do_rcuscale=`doyesno "$1" --do-rcuscale`
 		;;
-	--do-rcutorture|--do-no-rcutorture)
+	--do-rcutasksflavors|--do-no-rcutasksflavors|--no-rcutasksflavors)
+		do_rcutasksflavors=`doyesno "$1" --do-rcutasksflavors`
+		;;
+	--do-rcutorture|--do-no-rcutorture|--no-rcutorture)
 		do_rcutorture=`doyesno "$1" --do-rcutorture`
 		;;
-	--do-refscale|--do-no-refscale)
+	--do-refscale|--do-no-refscale|--no-refscale)
 		do_refscale=`doyesno "$1" --do-refscale`
 		;;
-	--do-rt|--do-no-rt)
+	--do-rt|--do-no-rt|--no-rt)
 		do_rt=`doyesno "$1" --do-rt`
 		;;
-	--do-scftorture|--do-no-scftorture)
+	--do-scftorture|--do-no-scftorture|--no-scftorture)
 		do_scftorture=`doyesno "$1" --do-scftorture`
+		;;
+	--do-srcu-lockdep|--do-no-srcu-lockdep|--no-srcu-lockdep)
+		do_srcu_lockdep=`doyesno "$1" --do-srcu-lockdep`
 		;;
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9][0-9]*\(m\|h\|d\|\)$' '^error'
@@ -187,6 +202,21 @@ do
 		fi
 		ts=`echo $2 | sed -e 's/[smhd]$//'`
 		duration_base=$(($ts*mult))
+		shift
+		;;
+	--guest-cpu-limit|--guest-cpu-lim)
+		checkarg --guest-cpu-limit "(number)" "$#" "$2" '^[0-9]*$' '^--'
+		if (("$2" <= "$TORTURE_ALLOTED_CPUS" / 2))
+		then
+			SCALE_ALLOTED_CPUS="$2"
+			VERBOSE_BATCH_CPUS="$((SCALE_ALLOTED_CPUS/8))"
+			if (("$VERBOSE_BATCH_CPUS" < 2))
+			then
+				VERBOSE_BATCH_CPUS=0
+			fi
+		else
+			echo "Ignoring value of $2 for --guest-cpu-limit which is greater than (("$TORTURE_ALLOTED_CPUS" / 2))."
+		fi
 		shift
 		;;
 	--kcsan-kmake-arg|--kcsan-kmake-args)
@@ -361,6 +391,40 @@ then
 	fi
 fi
 
+# Test building RCU Tasks flavors in isolation, both SMP and !SMP
+if test "$do_rcutasksflavors" = "yes"
+then
+	echo " --- rcutasksflavors:" Start `date` | tee -a $T/log
+	rtfdir="tools/testing/selftests/rcutorture/res/$ds/results-rcutasksflavors"
+	mkdir -p "$rtfdir"
+	cat > $T/rcutasksflavors << __EOF__
+#CHECK#CONFIG_TASKS_RCU=n
+#CHECK#CONFIG_TASKS_RUDE_RCU=n
+#CHECK#CONFIG_TASKS_TRACE_RCU=n
+__EOF__
+	for flavor in CONFIG_TASKS_RCU CONFIG_TASKS_RUDE_RCU CONFIG_TASKS_TRACE_RCU
+	do
+		forceflavor="`echo $flavor | sed -e 's/^CONFIG/CONFIG_FORCE/'`"
+		deselectedflavors="`grep -v $flavor $T/rcutasksflavors | tr '\012' ' ' | tr -s ' ' | sed -e 's/ *$//'`"
+		echo " --- Running RCU Tasks Trace flavor $flavor `date`" >> $rtfdir/log
+		tools/testing/selftests/rcutorture/bin/kvm.sh --datestamp "$ds/results-rcutasksflavors/$flavor" --buildonly --configs "TINY01 TREE04" --kconfig "CONFIG_RCU_EXPERT=y CONFIG_RCU_SCALE_TEST=y CONFIG_KPROBES=n CONFIG_RCU_TRACE=n CONFIG_TRACING=n CONFIG_BLK_DEV_IO_TRACE=n CONFIG_UPROBE_EVENTS=n $forceflavor=y $deselectedflavors" --trust-make > $T/$flavor.out 2>&1
+		retcode=$?
+		if test "$retcode" -ne 0
+		then
+			break
+		fi
+	done
+	if test "$retcode" -eq 0
+	then
+		echo "rcutasksflavors($retcode)" $rtfdir >> $T/successes
+		echo Success >> $rtfdir/log
+	else
+		echo "rcutasksflavors($retcode)" $rtfdir >> $T/failures
+		echo " --- rcutasksflavors Test summary:" >> $rtfdir/log
+		echo " --- Summary: Exit code $retcode from $flavor, see Make.out" >> $rtfdir/log
+	fi
+fi
+
 # --torture rcu
 if test "$do_rcutorture" = "yes"
 then
@@ -376,8 +440,10 @@ fi
 
 if test "$do_scftorture" = "yes"
 then
-	torture_bootargs="scftorture.nthreads=$HALF_ALLOTED_CPUS torture.disable_onoff_at_boot csdlock_debug=1"
-	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --configs "$configs_scftorture" --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory 2G --trust-make
+	# Scale memory based on the number of CPUs.
+	scfmem=$((3+SCALE_ALLOTED_CPUS/16))
+	torture_bootargs="scftorture.nthreads=$SCALE_ALLOTED_CPUS torture.disable_onoff_at_boot csdlock_debug=1"
+	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --configs "$configs_scftorture" --kconfig "CONFIG_NR_CPUS=$SCALE_ALLOTED_CPUS" --memory ${scfmem}G --trust-make
 fi
 
 if test "$do_rt" = "yes"
@@ -389,6 +455,23 @@ then
 	# With all post-boot grace periods forced to expedited.
 	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_expedited=1"
 	torture_set "rcurttorture-exp" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE03" --trust-make
+fi
+
+if test "$do_srcu_lockdep" = "yes"
+then
+	echo " --- do-srcu-lockdep:" Start `date` | tee -a $T/log
+	tools/testing/selftests/rcutorture/bin/srcu_lockdep.sh --datestamp "$ds/results-srcu-lockdep" > $T/srcu_lockdep.sh.out 2>&1
+	retcode=$?
+	cp $T/srcu_lockdep.sh.out "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+	if test "$retcode" -eq 0
+	then
+		echo "srcu_lockdep($retcode)" "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep" >> $T/successes
+		echo Success >> "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+	else
+		echo "srcu_lockdep($retcode)" "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep" >> $T/failures
+		echo " --- srcu_lockdep Test Summary:" >> "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+		echo " --- Summary: Exit code $retcode from srcu_lockdep.sh, see ds/results-srcu-lockdep" >> "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+	fi
 fi
 
 if test "$do_refscale" = yes
@@ -404,8 +487,8 @@ for prim in $primlist
 do
 	if test -n "$firsttime"
 	then
-		torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=$HALF_ALLOTED_CPUS refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot"
-		torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --bootargs "verbose_batched=$VERBOSE_BATCH_CPUS torture.verbose_sleep_frequency=8 torture.verbose_sleep_duration=$VERBOSE_BATCH_CPUS" --trust-make
+		torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=$SCALE_ALLOTED_CPUS refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot"
+		torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$SCALE_ALLOTED_CPUS" --bootargs "refscale.verbose_batched=$VERBOSE_BATCH_CPUS torture.verbose_sleep_frequency=8 torture.verbose_sleep_duration=$VERBOSE_BATCH_CPUS" --trust-make
 		mv $T/last-resdir-nodebug $T/first-resdir-nodebug || :
 		if test -f "$T/last-resdir-kasan"
 		then
@@ -453,8 +536,8 @@ for prim in $primlist
 do
 	if test -n "$firsttime"
 	then
-		torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=$HALF_ALLOTED_CPUS rcuscale.holdoff=20 torture.disable_onoff_at_boot"
-		torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
+		torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=$SCALE_ALLOTED_CPUS rcuscale.holdoff=20 torture.disable_onoff_at_boot"
+		torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$SCALE_ALLOTED_CPUS" --trust-make
 		mv $T/last-resdir-nodebug $T/first-resdir-nodebug || :
 		if test -f "$T/last-resdir-kasan"
 		then
@@ -492,7 +575,7 @@ do_kcsan="$do_kcsan_save"
 if test "$do_kvfree" = "yes"
 then
 	torture_bootargs="rcuscale.kfree_rcu_test=1 rcuscale.kfree_nthreads=16 rcuscale.holdoff=20 rcuscale.kfree_loops=10000 torture.disable_onoff_at_boot"
-	torture_set "rcuscale-kvfree" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 10 --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory 2G --trust-make
+	torture_set "rcuscale-kvfree" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration $duration_rcutorture --kconfig "CONFIG_NR_CPUS=$SCALE_ALLOTED_CPUS" --memory 2G --trust-make
 fi
 
 if test "$do_clocksourcewd" = "yes"
@@ -500,7 +583,7 @@ then
 	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 tsc=watchdog"
 	torture_set "clocksourcewd-1" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 45s --configs TREE03 --kconfig "CONFIG_TEST_CLOCKSOURCE_WATCHDOG=y" --trust-make
 
-	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 clocksource.max_cswd_read_retries=1 tsc=watchdog"
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 tsc=watchdog"
 	torture_set "clocksourcewd-2" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 45s --configs TREE03 --kconfig "CONFIG_TEST_CLOCKSOURCE_WATCHDOG=y" --trust-make
 
 	# In case our work is already done...
@@ -541,11 +624,23 @@ then
 fi
 echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
+tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
+find "$tdir" -name 'ConfigFragment.diags' -print > $T/configerrors
+find "$tdir" -name 'Make.out.diags' -print > $T/builderrors
+if test -s "$T/configerrors"
+then
+	echo "  Scenarios with .config errors: `wc -l "$T/configerrors" | awk '{ print $1 }'`"
+	nonkcsanbug="yes"
+fi
+if test -s "$T/builderrors"
+then
+	echo "  Scenarios with build errors: `wc -l "$T/builderrors" | awk '{ print $1 }'`"
+	nonkcsanbug="yes"
+fi
 if test -z "$nonkcsanbug" && test -s "$T/failuresum"
 then
 	echo "  All bugs were KCSAN failures."
 fi
-tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
 if test -n "$tdir" && test $compress_concurrency -gt 0
 then
 	# KASAN vmlinux files can approach 1GB in size, so compress them.

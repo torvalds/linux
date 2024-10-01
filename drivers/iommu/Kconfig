@@ -7,6 +7,10 @@ config IOMMU_IOVA
 config IOMMU_API
 	bool
 
+config IOMMUFD_DRIVER
+	bool
+	default n
+
 menuconfig IOMMU_SUPPORT
 	bool "IOMMU Hardware Support"
 	depends on MMU
@@ -91,7 +95,7 @@ config IOMMU_DEBUGFS
 choice
 	prompt "IOMMU default domain type"
 	depends on IOMMU_API
-	default IOMMU_DEFAULT_DMA_LAZY if X86 || IA64
+	default IOMMU_DEFAULT_DMA_LAZY if X86 || S390
 	default IOMMU_DEFAULT_DMA_STRICT
 	help
 	  Choose the type of IOMMU domain used to manage DMA API usage by
@@ -146,8 +150,8 @@ config OF_IOMMU
 
 # IOMMU-agnostic DMA-mapping layer
 config IOMMU_DMA
-	def_bool ARM64 || IA64 || X86
-	select DMA_OPS
+	def_bool ARM64 || X86 || S390
+	select DMA_OPS_HELPERS
 	select IOMMU_API
 	select IOMMU_IOVA
 	select IRQ_MSI_IOMMU
@@ -156,6 +160,10 @@ config IOMMU_DMA
 
 # Shared Virtual Addressing
 config IOMMU_SVA
+	select IOMMU_MM_DATA
+	bool
+
+config IOMMU_IOPF
 	bool
 
 config FSL_PAMU
@@ -174,7 +182,7 @@ config FSL_PAMU
 config MSM_IOMMU
 	bool "MSM IOMMU Support"
 	depends on ARM
-	depends on ARCH_MSM8X60 || ARCH_MSM8960 || COMPILE_TEST
+	depends on ARCH_QCOM || COMPILE_TEST
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_ARMV7S
 	help
@@ -191,7 +199,7 @@ source "drivers/iommu/iommufd/Kconfig"
 config IRQ_REMAP
 	bool "Support for Interrupt Remapping"
 	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI
-	select DMAR_TABLE
+	select DMAR_TABLE if INTEL_IOMMU
 	help
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
@@ -235,17 +243,6 @@ config SUN50I_IOMMU
 	select IOMMU_API
 	help
 	  Support for the IOMMU introduced in the Allwinner H6 SoCs.
-
-config TEGRA_IOMMU_GART
-	bool "Tegra GART IOMMU Support"
-	depends on ARCH_TEGRA_2x_SOC
-	depends on TEGRA_MC
-	select IOMMU_API
-	help
-	  Enables support for remapping discontiguous physical memory
-	  shared with the operating system into contiguous I/O virtual
-	  space through the GART (Graphics Address Relocation Table)
-	  hardware included on Tegra SoCs.
 
 config TEGRA_IOMMU_SMMU
 	bool "NVIDIA Tegra SMMU Support"
@@ -379,13 +376,17 @@ config ARM_SMMU_QCOM
 
 config ARM_SMMU_QCOM_DEBUG
 	bool "ARM SMMU QCOM implementation defined debug support"
-	depends on ARM_SMMU_QCOM
+	depends on ARM_SMMU_QCOM=y
 	help
 	  Support for implementation specific debug features in ARM SMMU
-	  hardware found in QTI platforms.
+	  hardware found in QTI platforms. This include support for
+	  the Translation Buffer Units (TBU) that can be used to obtain
+	  additional information when debugging memory management issues
+	  like context faults.
 
-	  Say Y here to enable debug for issues such as TLB sync timeouts
-	  which requires implementation defined register dumps.
+	  Say Y here to enable debug for issues such as context faults
+	  or TLB sync timeouts which requires implementation defined
+	  register dumps.
 
 config ARM_SMMU_V3
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
@@ -393,6 +394,7 @@ config ARM_SMMU_V3
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select GENERIC_MSI_IRQ
+	select IOMMUFD_DRIVER if IOMMUFD
 	help
 	  Support for implementations of the ARM System MMU architecture
 	  version 3 providing translation support to a PCIe root complex.
@@ -400,10 +402,11 @@ config ARM_SMMU_V3
 	  Say Y here if your system includes an IOMMU device implementing
 	  the ARM SMMUv3 architecture.
 
+if ARM_SMMU_V3
 config ARM_SMMU_V3_SVA
 	bool "Shared Virtual Addressing support for the ARM SMMUv3"
-	depends on ARM_SMMU_V3
 	select IOMMU_SVA
+	select IOMMU_IOPF
 	select MMU_NOTIFIER
 	help
 	  Support for sharing process address spaces with devices using the
@@ -411,6 +414,28 @@ config ARM_SMMU_V3_SVA
 
 	  Say Y here if your system supports SVA extensions such as PCIe PASID
 	  and PRI.
+
+config ARM_SMMU_V3_KUNIT_TEST
+	tristate "KUnit tests for arm-smmu-v3 driver"  if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on ARM_SMMU_V3_SVA
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to unit-test arm-smmu-v3 driver functions.
+
+	  If unsure, say N.
+
+config TEGRA241_CMDQV
+	bool "NVIDIA Tegra241 CMDQ-V extension support for ARM SMMUv3"
+	depends on ACPI
+	help
+	  Support for NVIDIA CMDQ-Virtualization extension for ARM SMMUv3. The
+	  CMDQ-V extension is similar to v3.3 ECMDQ for multi command queues
+	  support, except with virtualization capabilities.
+
+	  Say Y here if your system is NVIDIA Tegra241 (Grace) or it has the same
+	  CMDQ-V extension.
+endif
 
 config S390_IOMMU
 	def_bool y if S390 && PCI

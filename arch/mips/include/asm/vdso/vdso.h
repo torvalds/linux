@@ -32,7 +32,7 @@ static inline unsigned long get_vdso_base(void)
 #else
 	/*
 	 * Get the base load address of the VDSO. We have to avoid generating
-	 * relocations and references to the GOT because ld.so does not peform
+	 * relocations and references to the GOT because ld.so does not perform
 	 * relocations on the VDSO. We use the current offset from the VDSO base
 	 * and perform a PC-relative branch which gives the absolute address in
 	 * ra, and take the difference. The assembler chokes on

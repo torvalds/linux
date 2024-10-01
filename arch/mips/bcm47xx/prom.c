@@ -32,9 +32,11 @@
 #include <linux/ssb/ssb_driver_chipcommon.h>
 #include <linux/ssb/ssb_regs.h>
 #include <linux/smp.h>
+#include <asm/bmips.h>
 #include <asm/bootinfo.h>
 #include <bcm47xx.h>
 #include <bcm47xx_board.h>
+#include "bcm47xx_private.h"
 
 static char bcm47xx_system_type[20] = "Broadcom BCM47XX";
 
@@ -109,6 +111,8 @@ static __init void prom_init_mem(void)
 
 void __init prom_init(void)
 {
+	/* Cache CBR addr before CPU/DMA setup */
+	bmips_cbr_addr = BMIPS_GET_CBR();
 	prom_init_mem();
 	setup_8250_early_printk_port(CKSEG1ADDR(BCM47XX_SERIAL_ADDR), 0, 0);
 }
@@ -116,14 +120,14 @@ void __init prom_init(void)
 #if defined(CONFIG_BCM47XX_BCMA) && defined(CONFIG_HIGHMEM)
 
 #define EXTVBASE	0xc0000000
-#define ENTRYLO(x)	((pte_val(pfn_pte((x) >> _PFN_SHIFT, PAGE_KERNEL_UNCACHED)) >> 6) | 1)
+#define ENTRYLO(x)	((pte_val(pfn_pte((x) >> PFN_PTE_SHIFT, PAGE_KERNEL_UNCACHED)) >> 6) | 1)
 
 #include <asm/tlbflush.h>
 
 /* Stripped version of tlb_init, with the call to build_tlb_refill_handler
  * dropped. Calling it at this stage causes a hang.
  */
-void early_tlb_init(void)
+static void early_tlb_init(void)
 {
 	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);

@@ -9,7 +9,9 @@
 #ifndef RENESAS_SDHI_H
 #define RENESAS_SDHI_H
 
+#include <linux/dmaengine.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 #include "tmio_mmc.h"
 
 struct renesas_sdhi_scc {
@@ -63,10 +65,10 @@ struct renesas_sdhi_of_data_with_quirks {
 struct renesas_sdhi_dma {
 	unsigned long end_flags;
 	enum dma_slave_buswidth dma_buswidth;
-	bool (*filter)(struct dma_chan *chan, void *arg);
+	dma_filter_fn filter;
 	void (*enable)(struct tmio_mmc_host *host, bool enable);
 	struct completion dma_dataend;
-	struct tasklet_struct dma_complete;
+	struct work_struct dma_complete;
 };
 
 struct renesas_sdhi {
@@ -92,6 +94,7 @@ struct renesas_sdhi {
 	unsigned int tap_set;
 
 	struct reset_control *rstc;
+	struct tmio_mmc_host *host;
 };
 
 #define host_to_priv(host) \
@@ -101,5 +104,5 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		       const struct tmio_mmc_dma_ops *dma_ops,
 		       const struct renesas_sdhi_of_data *of_data,
 		       const struct renesas_sdhi_quirks *quirks);
-int renesas_sdhi_remove(struct platform_device *pdev);
+void renesas_sdhi_remove(struct platform_device *pdev);
 #endif

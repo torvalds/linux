@@ -717,7 +717,7 @@ static struct platform_driver meson_ao_cec_driver = {
 	.remove_new = meson_ao_cec_remove,
 	.driver  = {
 		.name = "meson-ao-cec",
-		.of_match_table = of_match_ptr(meson_ao_cec_of_match),
+		.of_match_table = meson_ao_cec_of_match,
 	},
 };
 

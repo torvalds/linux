@@ -19,7 +19,6 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/gpio/driver.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1117,7 +1116,6 @@ static const struct regmap_config sx150x_regmap_config = {
 
 static int sx150x_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	static const u32 i2c_funcs = I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WRITE_WORD_DATA;
 	struct device *dev = &client->dev;
@@ -1136,11 +1134,7 @@ static int sx150x_probe(struct i2c_client *client)
 	pctl->dev = dev;
 	pctl->client = client;
 
-	if (dev->of_node)
-		pctl->data = of_device_get_match_data(dev);
-	else
-		pctl->data = (struct sx150x_device_data *)id->driver_data;
-
+	pctl->data = i2c_get_match_data(client);
 	if (!pctl->data)
 		return -EINVAL;
 

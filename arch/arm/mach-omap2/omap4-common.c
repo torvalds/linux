@@ -12,10 +12,9 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
-#include <linux/platform_device.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/export.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/of_address.h>

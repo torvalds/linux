@@ -49,12 +49,13 @@
 #include <trace/events/block.h>
 #include <linux/fscrypt.h>
 #include <linux/fsverity.h>
+#include <linux/sched/isolation.h>
 
 #include "internal.h"
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
 static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
-			  struct writeback_control *wbc);
+			  enum rw_hint hint, struct writeback_control *wbc);
 
 #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
 
@@ -179,17 +180,17 @@ EXPORT_SYMBOL(end_buffer_write_sync);
  * Various filesystems appear to want __find_get_block to be non-blocking.
  * But it's the page lock which protects the buffers.  To get around this,
  * we get exclusion from try_to_free_buffers with the blockdev mapping's
- * private_lock.
+ * i_private_lock.
  *
- * Hack idea: for the blockdev mapping, private_lock contention
+ * Hack idea: for the blockdev mapping, i_private_lock contention
  * may be quite high.  This code could TryLock the page, and if that
- * succeeds, there is no need to take private_lock.
+ * succeeds, there is no need to take i_private_lock.
  */
 static struct buffer_head *
 __find_get_block_slow(struct block_device *bdev, sector_t block)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct address_space *bd_mapping = bdev->bd_mapping;
+	const int blkbits = bd_mapping->host->i_blkbits;
 	struct buffer_head *ret = NULL;
 	pgoff_t index;
 	struct buffer_head *bh;
@@ -198,12 +199,12 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	int all_mapped = 1;
 	static DEFINE_RATELIMIT_STATE(last_warned, HZ, 1);
 
-	index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	index = ((loff_t)block << blkbits) / PAGE_SIZE;
 	folio = __filemap_get_folio(bd_mapping, index, FGP_ACCESSED, 0);
 	if (IS_ERR(folio))
 		goto out;
 
-	spin_lock(&bd_mapping->private_lock);
+	spin_lock(&bd_mapping->i_private_lock);
 	head = folio_buffers(folio);
 	if (!head)
 		goto out_unlock;
@@ -232,10 +233,10 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 		       (unsigned long long)block,
 		       (unsigned long long)bh->b_blocknr,
 		       bh->b_state, bh->b_size, bdev,
-		       1 << bd_inode->i_blkbits);
+		       1 << blkbits);
 	}
 out_unlock:
-	spin_unlock(&bd_mapping->private_lock);
+	spin_unlock(&bd_mapping->i_private_lock);
 	folio_put(folio);
 out:
 	return ret;
@@ -257,7 +258,6 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	} else {
 		clear_buffer_uptodate(bh);
 		buffer_io_error(bh, ", async page read");
-		folio_set_error(folio);
 	}
 
 	/*
@@ -281,13 +281,7 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	} while (tmp != bh);
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
 
-	/*
-	 * If all of the buffers are uptodate then we can set the page
-	 * uptodate.
-	 */
-	if (folio_uptodate)
-		folio_mark_uptodate(folio);
-	folio_unlock(folio);
+	folio_end_read(folio, folio_uptodate);
 	return;
 
 still_busy:
@@ -377,10 +371,10 @@ static void end_buffer_async_read_io(struct buffer_head *bh, int uptodate)
 }
 
 /*
- * Completion handler for block_write_full_page() - pages which are unlocked
- * during I/O, and which have PageWriteback cleared upon I/O completion.
+ * Completion handler for block_write_full_folio() - folios which are unlocked
+ * during I/O, and which have the writeback flag cleared upon I/O completion.
  */
-void end_buffer_async_write(struct buffer_head *bh, int uptodate)
+static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 {
 	unsigned long flags;
 	struct buffer_head *first;
@@ -396,7 +390,6 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 		buffer_io_error(bh, ", lost async page write");
 		mark_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
-		folio_set_error(folio);
 	}
 
 	first = folio_buffers(folio);
@@ -420,7 +413,6 @@ still_busy:
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
 	return;
 }
-EXPORT_SYMBOL(end_buffer_async_write);
 
 /*
  * If a page's buffers are under async readin (end_buffer_async_read
@@ -470,27 +462,27 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  * a successful fsync().  For example, ext2 indirect blocks need to be
  * written back and waited upon before fsync() returns.
  *
- * The functions mark_buffer_inode_dirty(), fsync_inode_buffers(),
+ * The functions mark_buffer_dirty_inode(), fsync_inode_buffers(),
  * inode_has_buffers() and invalidate_inode_buffers() are provided for the
- * management of a list of dependent buffers at ->i_mapping->private_list.
+ * management of a list of dependent buffers at ->i_mapping->i_private_list.
  *
  * Locking is a little subtle: try_to_free_buffers() will remove buffers
  * from their controlling inode's queue when they are being freed.  But
  * try_to_free_buffers() will be operating against the *blockdev* mapping
  * at the time, not against the S_ISREG file which depends on those buffers.
- * So the locking for private_list is via the private_lock in the address_space
+ * So the locking for i_private_list is via the i_private_lock in the address_space
  * which backs the buffers.  Which is different from the address_space 
  * against which the buffers are listed.  So for a particular address_space,
- * mapping->private_lock does *not* protect mapping->private_list!  In fact,
- * mapping->private_list will always be protected by the backing blockdev's
- * ->private_lock.
+ * mapping->i_private_lock does *not* protect mapping->i_private_list!  In fact,
+ * mapping->i_private_list will always be protected by the backing blockdev's
+ * ->i_private_lock.
  *
  * Which introduces a requirement: all buffers on an address_space's
- * ->private_list must be from the same address_space: the blockdev's.
+ * ->i_private_list must be from the same address_space: the blockdev's.
  *
- * address_spaces which do not place buffers at ->private_list via these
- * utility functions are free to use private_lock and private_list for
- * whatever they want.  The only requirement is that list_empty(private_list)
+ * address_spaces which do not place buffers at ->i_private_list via these
+ * utility functions are free to use i_private_lock and i_private_list for
+ * whatever they want.  The only requirement is that list_empty(i_private_list)
  * be true at clear_inode() time.
  *
  * FIXME: clear_inode should not call invalidate_inode_buffers().  The
@@ -513,7 +505,7 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  */
 
 /*
- * The buffer's backing address_space's private_lock must be held
+ * The buffer's backing address_space's i_private_lock must be held
  */
 static void __remove_assoc_queue(struct buffer_head *bh)
 {
@@ -524,7 +516,7 @@ static void __remove_assoc_queue(struct buffer_head *bh)
 
 int inode_has_buffers(struct inode *inode)
 {
-	return !list_empty(&inode->i_data.private_list);
+	return !list_empty(&inode->i_data.i_private_list);
 }
 
 /*
@@ -562,17 +554,11 @@ repeat:
 	return err;
 }
 
-void emergency_thaw_bdev(struct super_block *sb)
-{
-	while (sb->s_bdev && !thaw_bdev(sb->s_bdev))
-		printk(KERN_WARNING "Emergency Thaw on %pg\n", sb->s_bdev);
-}
-
 /**
  * sync_mapping_buffers - write out & wait upon a mapping's "associated" buffers
  * @mapping: the mapping which wants those buffers written
  *
- * Starts I/O against the buffers at mapping->private_list, and waits upon
+ * Starts I/O against the buffers at mapping->i_private_list, and waits upon
  * that I/O.
  *
  * Basically, this is a convenience function for fsync().
@@ -581,13 +567,13 @@ void emergency_thaw_bdev(struct super_block *sb)
  */
 int sync_mapping_buffers(struct address_space *mapping)
 {
-	struct address_space *buffer_mapping = mapping->private_data;
+	struct address_space *buffer_mapping = mapping->i_private_data;
 
-	if (buffer_mapping == NULL || list_empty(&mapping->private_list))
+	if (buffer_mapping == NULL || list_empty(&mapping->i_private_list))
 		return 0;
 
-	return fsync_buffers_list(&buffer_mapping->private_lock,
-					&mapping->private_list);
+	return fsync_buffers_list(&buffer_mapping->i_private_lock,
+					&mapping->i_private_list);
 }
 EXPORT_SYMBOL(sync_mapping_buffers);
 
@@ -684,52 +670,59 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 	struct address_space *buffer_mapping = bh->b_folio->mapping;
 
 	mark_buffer_dirty(bh);
-	if (!mapping->private_data) {
-		mapping->private_data = buffer_mapping;
+	if (!mapping->i_private_data) {
+		mapping->i_private_data = buffer_mapping;
 	} else {
-		BUG_ON(mapping->private_data != buffer_mapping);
+		BUG_ON(mapping->i_private_data != buffer_mapping);
 	}
 	if (!bh->b_assoc_map) {
-		spin_lock(&buffer_mapping->private_lock);
+		spin_lock(&buffer_mapping->i_private_lock);
 		list_move_tail(&bh->b_assoc_buffers,
-				&mapping->private_list);
+				&mapping->i_private_list);
 		bh->b_assoc_map = mapping;
-		spin_unlock(&buffer_mapping->private_lock);
+		spin_unlock(&buffer_mapping->i_private_lock);
 	}
 }
 EXPORT_SYMBOL(mark_buffer_dirty_inode);
 
-/*
- * Add a page to the dirty page list.
+/**
+ * block_dirty_folio - Mark a folio as dirty.
+ * @mapping: The address space containing this folio.
+ * @folio: The folio to mark dirty.
  *
- * It is a sad fact of life that this function is called from several places
- * deeply under spinlocking.  It may not sleep.
+ * Filesystems which use buffer_heads can use this function as their
+ * ->dirty_folio implementation.  Some filesystems need to do a little
+ * work before calling this function.  Filesystems which do not use
+ * buffer_heads should call filemap_dirty_folio() instead.
  *
- * If the page has buffers, the uptodate buffers are set dirty, to preserve
- * dirty-state coherency between the page and the buffers.  It the page does
- * not have buffers then when they are later attached they will all be set
- * dirty.
+ * If the folio has buffers, the uptodate buffers are set dirty, to
+ * preserve dirty-state coherency between the folio and the buffers.
+ * Buffers added to a dirty folio are created dirty.
  *
- * The buffers are dirtied before the page is dirtied.  There's a small race
- * window in which a writepage caller may see the page cleanness but not the
- * buffer dirtiness.  That's fine.  If this code were to set the page dirty
- * before the buffers, a concurrent writepage caller could clear the page dirty
- * bit, see a bunch of clean buffers and we'd end up with dirty buffers/clean
- * page on the dirty page list.
+ * The buffers are dirtied before the folio is dirtied.  There's a small
+ * race window in which writeback may see the folio cleanness but not the
+ * buffer dirtiness.  That's fine.  If this code were to set the folio
+ * dirty before the buffers, writeback could clear the folio dirty flag,
+ * see a bunch of clean buffers and we'd end up with dirty buffers/clean
+ * folio on the dirty folio list.
  *
- * We use private_lock to lock against try_to_free_buffers while using the
- * page's buffer list.  Also use this to protect against clean buffers being
- * added to the page after it was set dirty.
+ * We use i_private_lock to lock against try_to_free_buffers() while
+ * using the folio's buffer list.  This also prevents clean buffers
+ * being added to the folio after it was set dirty.
  *
- * FIXME: may need to call ->reservepage here as well.  That's rather up to the
- * address_space though.
+ * Context: May only be called from process context.  Does not sleep.
+ * Caller must ensure that @folio cannot be truncated during this call,
+ * typically by holding the folio lock or having a page in the folio
+ * mapped and holding the page table lock.
+ *
+ * Return: True if the folio was dirtied; false if it was already dirtied.
  */
 bool block_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
 	struct buffer_head *head;
 	bool newly_dirty;
 
-	spin_lock(&mapping->private_lock);
+	spin_lock(&mapping->i_private_lock);
 	head = folio_buffers(folio);
 	if (head) {
 		struct buffer_head *bh = head;
@@ -745,7 +738,7 @@ bool block_dirty_folio(struct address_space *mapping, struct folio *folio)
 	 */
 	folio_memcg_lock(folio);
 	newly_dirty = !folio_test_set_dirty(folio);
-	spin_unlock(&mapping->private_lock);
+	spin_unlock(&mapping->i_private_lock);
 
 	if (newly_dirty)
 		__folio_mark_dirty(folio, mapping, 1);
@@ -781,12 +774,11 @@ EXPORT_SYMBOL(block_dirty_folio);
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 {
 	struct buffer_head *bh;
-	struct list_head tmp;
 	struct address_space *mapping;
 	int err = 0, err2;
 	struct blk_plug plug;
+	LIST_HEAD(tmp);
 
-	INIT_LIST_HEAD(&tmp);
 	blk_start_plug(&plug);
 
 	spin_lock(lock);
@@ -838,7 +830,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 		smp_mb();
 		if (buffer_dirty(bh)) {
 			list_add(&bh->b_assoc_buffers,
-				 &mapping->private_list);
+				 &mapping->i_private_list);
 			bh->b_assoc_map = mapping;
 		}
 		spin_unlock(lock);
@@ -862,7 +854,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
  * probably unmounting the fs, but that doesn't mean we have already
  * done a sync().  Just drop the buffers from the inode list.
  *
- * NOTE: we take the inode's blockdev's mapping's private_lock.  Which
+ * NOTE: we take the inode's blockdev's mapping's i_private_lock.  Which
  * assumes that all the buffers are against the blockdev.  Not true
  * for reiserfs.
  */
@@ -870,13 +862,13 @@ void invalidate_inode_buffers(struct inode *inode)
 {
 	if (inode_has_buffers(inode)) {
 		struct address_space *mapping = &inode->i_data;
-		struct list_head *list = &mapping->private_list;
-		struct address_space *buffer_mapping = mapping->private_data;
+		struct list_head *list = &mapping->i_private_list;
+		struct address_space *buffer_mapping = mapping->i_private_data;
 
-		spin_lock(&buffer_mapping->private_lock);
+		spin_lock(&buffer_mapping->i_private_lock);
 		while (!list_empty(list))
 			__remove_assoc_queue(BH_ENTRY(list->next));
-		spin_unlock(&buffer_mapping->private_lock);
+		spin_unlock(&buffer_mapping->i_private_lock);
 	}
 }
 EXPORT_SYMBOL(invalidate_inode_buffers);
@@ -893,10 +885,10 @@ int remove_inode_buffers(struct inode *inode)
 
 	if (inode_has_buffers(inode)) {
 		struct address_space *mapping = &inode->i_data;
-		struct list_head *list = &mapping->private_list;
-		struct address_space *buffer_mapping = mapping->private_data;
+		struct list_head *list = &mapping->i_private_list;
+		struct address_space *buffer_mapping = mapping->i_private_data;
 
-		spin_lock(&buffer_mapping->private_lock);
+		spin_lock(&buffer_mapping->i_private_lock);
 		while (!list_empty(list)) {
 			struct buffer_head *bh = BH_ENTRY(list->next);
 			if (buffer_dirty(bh)) {
@@ -905,7 +897,7 @@ int remove_inode_buffers(struct inode *inode)
 			}
 			__remove_assoc_queue(bh);
 		}
-		spin_unlock(&buffer_mapping->private_lock);
+		spin_unlock(&buffer_mapping->i_private_lock);
 	}
 	return ret;
 }
@@ -920,15 +912,11 @@ int remove_inode_buffers(struct inode *inode)
  * which may not fail from ordinary buffer allocations.
  */
 struct buffer_head *folio_alloc_buffers(struct folio *folio, unsigned long size,
-					bool retry)
+					gfp_t gfp)
 {
 	struct buffer_head *bh, *head;
-	gfp_t gfp = GFP_NOFS | __GFP_ACCOUNT;
 	long offset;
 	struct mem_cgroup *memcg, *old_memcg;
-
-	if (retry)
-		gfp |= __GFP_NOFAIL;
 
 	/* The folio lock pins the memcg */
 	memcg = folio_memcg(folio);
@@ -969,10 +957,11 @@ no_grow:
 }
 EXPORT_SYMBOL_GPL(folio_alloc_buffers);
 
-struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
-				       bool retry)
+struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size)
 {
-	return folio_alloc_buffers(page_folio(page), size, retry);
+	gfp_t gfp = GFP_NOFS | __GFP_ACCOUNT;
+
+	return folio_alloc_buffers(page_folio(page), size, gfp);
 }
 EXPORT_SYMBOL_GPL(alloc_page_buffers);
 
@@ -1006,11 +995,12 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
  * Initialise the state of a blockdev folio's buffers.
  */ 
 static sector_t folio_init_buffers(struct folio *folio,
-		struct block_device *bdev, sector_t block, int size)
+		struct block_device *bdev, unsigned size)
 {
 	struct buffer_head *head = folio_buffers(folio);
 	struct buffer_head *bh = head;
 	bool uptodate = folio_test_uptodate(folio);
+	sector_t block = div_u64(folio_pos(folio), size);
 	sector_t end_block = blkdev_max_block(bdev, size);
 
 	do {
@@ -1035,92 +1025,88 @@ static sector_t folio_init_buffers(struct folio *folio,
 }
 
 /*
- * Create the page-cache page that contains the requested block.
+ * Create the page-cache folio that contains the requested block.
  *
  * This is used purely for blockdev mappings.
+ *
+ * Returns false if we have a failure which cannot be cured by retrying
+ * without sleeping.  Returns true if we succeeded, or the caller should retry.
  */
-static int
-grow_dev_page(struct block_device *bdev, sector_t block,
-	      pgoff_t index, int size, int sizebits, gfp_t gfp)
+static bool grow_dev_folio(struct block_device *bdev, sector_t block,
+		pgoff_t index, unsigned size, gfp_t gfp)
 {
-	struct inode *inode = bdev->bd_inode;
+	struct address_space *mapping = bdev->bd_mapping;
 	struct folio *folio;
 	struct buffer_head *bh;
-	sector_t end_block;
-	int ret = 0;
-	gfp_t gfp_mask;
+	sector_t end_block = 0;
 
-	gfp_mask = mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS) | gfp;
-
-	/*
-	 * XXX: __getblk_slow() can not really deal with failure and
-	 * will endlessly loop on improvised global reclaim.  Prefer
-	 * looping in the allocator rather than here, at least that
-	 * code knows what it's doing.
-	 */
-	gfp_mask |= __GFP_NOFAIL;
-
-	folio = __filemap_get_folio(inode->i_mapping, index,
-			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp_mask);
+	folio = __filemap_get_folio(mapping, index,
+			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
+	if (IS_ERR(folio))
+		return false;
 
 	bh = folio_buffers(folio);
 	if (bh) {
 		if (bh->b_size == size) {
-			end_block = folio_init_buffers(folio, bdev,
-					(sector_t)index << sizebits, size);
-			goto done;
+			end_block = folio_init_buffers(folio, bdev, size);
+			goto unlock;
 		}
-		if (!try_to_free_buffers(folio))
-			goto failed;
+
+		/*
+		 * Retrying may succeed; for example the folio may finish
+		 * writeback, or buffers may be cleaned.  This should not
+		 * happen very often; maybe we have old buffers attached to
+		 * this blockdev's page cache and we're trying to change
+		 * the block size?
+		 */
+		if (!try_to_free_buffers(folio)) {
+			end_block = ~0ULL;
+			goto unlock;
+		}
 	}
 
-	bh = folio_alloc_buffers(folio, size, true);
+	bh = folio_alloc_buffers(folio, size, gfp | __GFP_ACCOUNT);
+	if (!bh)
+		goto unlock;
 
 	/*
 	 * Link the folio to the buffers and initialise them.  Take the
 	 * lock to be atomic wrt __find_get_block(), which does not
 	 * run under the folio lock.
 	 */
-	spin_lock(&inode->i_mapping->private_lock);
+	spin_lock(&mapping->i_private_lock);
 	link_dev_buffers(folio, bh);
-	end_block = folio_init_buffers(folio, bdev,
-			(sector_t)index << sizebits, size);
-	spin_unlock(&inode->i_mapping->private_lock);
-done:
-	ret = (block < end_block) ? 1 : -ENXIO;
-failed:
+	end_block = folio_init_buffers(folio, bdev, size);
+	spin_unlock(&mapping->i_private_lock);
+unlock:
 	folio_unlock(folio);
 	folio_put(folio);
-	return ret;
+	return block < end_block;
 }
 
 /*
- * Create buffers for the specified block device block's page.  If
- * that page was dirty, the buffers are set dirty also.
+ * Create buffers for the specified block device block's folio.  If
+ * that folio was dirty, the buffers are set dirty also.  Returns false
+ * if we've hit a permanent error.
  */
-static int
-grow_buffers(struct block_device *bdev, sector_t block, int size, gfp_t gfp)
+static bool grow_buffers(struct block_device *bdev, sector_t block,
+		unsigned size, gfp_t gfp)
 {
-	pgoff_t index;
-	int sizebits;
-
-	sizebits = PAGE_SHIFT - __ffs(size);
-	index = block >> sizebits;
+	loff_t pos;
 
 	/*
-	 * Check for a block which wants to lie outside our maximum possible
-	 * pagecache index.  (this comparison is done using sector_t types).
+	 * Check for a block which lies outside our maximum possible
+	 * pagecache index.
 	 */
-	if (unlikely(index != block >> sizebits)) {
-		printk(KERN_ERR "%s: requested out-of-range block %llu for "
-			"device %pg\n",
+	if (check_mul_overflow(block, (sector_t)size, &pos) || pos > MAX_LFS_FILESIZE) {
+		printk(KERN_ERR "%s: requested out-of-range block %llu for device %pg\n",
 			__func__, (unsigned long long)block,
 			bdev);
-		return -EIO;
+		return false;
 	}
 
-	/* Create a page with the proper size buffers.. */
-	return grow_dev_page(bdev, block, index, size, sizebits, gfp);
+	/* Create a folio with the proper size buffers */
+	return grow_dev_folio(bdev, block, pos / PAGE_SIZE, size, gfp);
 }
 
 static struct buffer_head *
@@ -1141,14 +1127,12 @@ __getblk_slow(struct block_device *bdev, sector_t block,
 
 	for (;;) {
 		struct buffer_head *bh;
-		int ret;
 
 		bh = __find_get_block(bdev, block, size);
 		if (bh)
 			return bh;
 
-		ret = grow_buffers(bdev, block, size, gfp);
-		if (ret < 0)
+		if (!grow_buffers(bdev, block, size, gfp))
 			return NULL;
 	}
 }
@@ -1185,7 +1169,7 @@ __getblk_slow(struct block_device *bdev, sector_t block,
  * and then attach the address_space's inode to its superblock's dirty
  * inode list.
  *
- * mark_buffer_dirty() is atomic.  It takes bh->b_folio->mapping->private_lock,
+ * mark_buffer_dirty() is atomic.  It takes bh->b_folio->mapping->i_private_lock,
  * i_pages lock and mapping->host->i_lock.
  */
 void mark_buffer_dirty(struct buffer_head *bh)
@@ -1225,42 +1209,39 @@ EXPORT_SYMBOL(mark_buffer_dirty);
 
 void mark_buffer_write_io_error(struct buffer_head *bh)
 {
-	struct super_block *sb;
-
 	set_buffer_write_io_error(bh);
 	/* FIXME: do we need to set this in both places? */
 	if (bh->b_folio && bh->b_folio->mapping)
 		mapping_set_error(bh->b_folio->mapping, -EIO);
-	if (bh->b_assoc_map)
+	if (bh->b_assoc_map) {
 		mapping_set_error(bh->b_assoc_map, -EIO);
-	rcu_read_lock();
-	sb = READ_ONCE(bh->b_bdev->bd_super);
-	if (sb)
-		errseq_set(&sb->s_wb_err, -EIO);
-	rcu_read_unlock();
+		errseq_set(&bh->b_assoc_map->host->i_sb->s_wb_err, -EIO);
+	}
 }
 EXPORT_SYMBOL(mark_buffer_write_io_error);
 
-/*
- * Decrement a buffer_head's reference count.  If all buffers against a page
- * have zero reference count, are clean and unlocked, and if the page is clean
- * and unlocked then try_to_free_buffers() may strip the buffers from the page
- * in preparation for freeing it (sometimes, rarely, buffers are removed from
- * a page but it ends up not being freed, and buffers may later be reattached).
+/**
+ * __brelse - Release a buffer.
+ * @bh: The buffer to release.
+ *
+ * This variant of brelse() can be called if @bh is guaranteed to not be NULL.
  */
-void __brelse(struct buffer_head * buf)
+void __brelse(struct buffer_head *bh)
 {
-	if (atomic_read(&buf->b_count)) {
-		put_bh(buf);
+	if (atomic_read(&bh->b_count)) {
+		put_bh(bh);
 		return;
 	}
 	WARN(1, KERN_ERR "VFS: brelse: Trying to free free buffer\n");
 }
 EXPORT_SYMBOL(__brelse);
 
-/*
- * bforget() is like brelse(), except it discards any
- * potentially dirty data.
+/**
+ * __bforget - Discard any dirty data in a buffer.
+ * @bh: The buffer to forget.
+ *
+ * This variant of bforget() can be called if @bh is guaranteed to not
+ * be NULL.
  */
 void __bforget(struct buffer_head *bh)
 {
@@ -1268,10 +1249,10 @@ void __bforget(struct buffer_head *bh)
 	if (bh->b_assoc_map) {
 		struct address_space *buffer_mapping = bh->b_folio->mapping;
 
-		spin_lock(&buffer_mapping->private_lock);
+		spin_lock(&buffer_mapping->i_private_lock);
 		list_del_init(&bh->b_assoc_buffers);
 		bh->b_assoc_map = NULL;
-		spin_unlock(&buffer_mapping->private_lock);
+		spin_unlock(&buffer_mapping->i_private_lock);
 	}
 	__brelse(bh);
 }
@@ -1352,7 +1333,7 @@ static void bh_lru_install(struct buffer_head *bh)
 	 * failing page migration.
 	 * Skip putting upcoming bh into bh_lru until migration is done.
 	 */
-	if (lru_cache_disabled()) {
+	if (lru_cache_disabled() || cpu_is_isolated(smp_processor_id())) {
 		bh_lru_unlock();
 		return;
 	}
@@ -1382,6 +1363,10 @@ lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size)
 
 	check_irqs_on();
 	bh_lru_lock();
+	if (cpu_is_isolated(smp_processor_id())) {
+		bh_lru_unlock();
+		return NULL;
+	}
 	for (i = 0; i < BH_LRU_SIZE; i++) {
 		struct buffer_head *bh = __this_cpu_read(bh_lrus.bhs[i]);
 
@@ -1426,33 +1411,41 @@ __find_get_block(struct block_device *bdev, sector_t block, unsigned size)
 }
 EXPORT_SYMBOL(__find_get_block);
 
-/*
- * __getblk_gfp() will locate (and, if necessary, create) the buffer_head
- * which corresponds to the passed block_device, block and size. The
- * returned buffer has its reference count incremented.
+/**
+ * bdev_getblk - Get a buffer_head in a block device's buffer cache.
+ * @bdev: The block device.
+ * @block: The block number.
+ * @size: The size of buffer_heads for this @bdev.
+ * @gfp: The memory allocation flags to use.
  *
- * __getblk_gfp() will lock up the machine if grow_dev_page's
- * try_to_free_buffers() attempt is failing.  FIXME, perhaps?
+ * The returned buffer head has its reference count incremented, but is
+ * not locked.  The caller should call brelse() when it has finished
+ * with the buffer.  The buffer may not be uptodate.  If needed, the
+ * caller can bring it uptodate either by reading it or overwriting it.
+ *
+ * Return: The buffer head, or NULL if memory could not be allocated.
  */
-struct buffer_head *
-__getblk_gfp(struct block_device *bdev, sector_t block,
-	     unsigned size, gfp_t gfp)
+struct buffer_head *bdev_getblk(struct block_device *bdev, sector_t block,
+		unsigned size, gfp_t gfp)
 {
 	struct buffer_head *bh = __find_get_block(bdev, block, size);
 
-	might_sleep();
-	if (bh == NULL)
-		bh = __getblk_slow(bdev, block, size, gfp);
-	return bh;
+	might_alloc(gfp);
+	if (bh)
+		return bh;
+
+	return __getblk_slow(bdev, block, size, gfp);
 }
-EXPORT_SYMBOL(__getblk_gfp);
+EXPORT_SYMBOL(bdev_getblk);
 
 /*
  * Do async read-ahead on a buffer..
  */
 void __breadahead(struct block_device *bdev, sector_t block, unsigned size)
 {
-	struct buffer_head *bh = __getblk(bdev, block, size);
+	struct buffer_head *bh = bdev_getblk(bdev, block, size,
+			GFP_NOWAIT | __GFP_MOVABLE);
+
 	if (likely(bh)) {
 		bh_readahead(bh, REQ_RAHEAD);
 		brelse(bh);
@@ -1461,22 +1454,41 @@ void __breadahead(struct block_device *bdev, sector_t block, unsigned size)
 EXPORT_SYMBOL(__breadahead);
 
 /**
- *  __bread_gfp() - reads a specified block and returns the bh
- *  @bdev: the block_device to read from
- *  @block: number of block
- *  @size: size (in bytes) to read
- *  @gfp: page allocation flag
+ * __bread_gfp() - Read a block.
+ * @bdev: The block device to read from.
+ * @block: Block number in units of block size.
+ * @size: The block size of this device in bytes.
+ * @gfp: Not page allocation flags; see below.
  *
- *  Reads a specified block, and returns buffer head that contains it.
- *  The page cache can be allocated from non-movable area
- *  not to prevent page migration if you set gfp to zero.
- *  It returns NULL if the block was unreadable.
+ * You are not expected to call this function.  You should use one of
+ * sb_bread(), sb_bread_unmovable() or __bread().
+ *
+ * Read a specified block, and return the buffer head that refers to it.
+ * If @gfp is 0, the memory will be allocated using the block device's
+ * default GFP flags.  If @gfp is __GFP_MOVABLE, the memory may be
+ * allocated from a movable area.  Do not pass in a complete set of
+ * GFP flags.
+ *
+ * The returned buffer head has its refcount increased.  The caller should
+ * call brelse() when it has finished with the buffer.
+ *
+ * Context: May sleep waiting for I/O.
+ * Return: NULL if the block was unreadable.
  */
-struct buffer_head *
-__bread_gfp(struct block_device *bdev, sector_t block,
-		   unsigned size, gfp_t gfp)
+struct buffer_head *__bread_gfp(struct block_device *bdev, sector_t block,
+		unsigned size, gfp_t gfp)
 {
-	struct buffer_head *bh = __getblk_gfp(bdev, block, size, gfp);
+	struct buffer_head *bh;
+
+	gfp |= mapping_gfp_constraint(bdev->bd_mapping, ~__GFP_FS);
+
+	/*
+	 * Prefer looping in the allocator rather than here, at least that
+	 * code knows what it's doing.
+	 */
+	gfp |= __GFP_NOFAIL;
+
+	bh = bdev_getblk(bdev, block, size, gfp);
 
 	if (likely(bh) && !buffer_uptodate(bh))
 		bh = __bread_slow(bh);
@@ -1538,21 +1550,6 @@ void invalidate_bh_lrus_cpu(void)
 	__invalidate_bh_lrus(b);
 	bh_lru_unlock();
 }
-
-void set_bh_page(struct buffer_head *bh,
-		struct page *page, unsigned long offset)
-{
-	bh->b_page = page;
-	BUG_ON(offset >= PAGE_SIZE);
-	if (PageHighMem(page))
-		/*
-		 * This catches illegal uses and preserves the offset:
-		 */
-		bh->b_data = (char *)(0 + offset);
-	else
-		bh->b_data = page_address(page) + offset;
-}
-EXPORT_SYMBOL(set_bh_page);
 
 void folio_set_bh(struct buffer_head *bh, struct folio *folio,
 		  unsigned long offset)
@@ -1658,15 +1655,16 @@ EXPORT_SYMBOL(block_invalidate_folio);
 
 /*
  * We attach and possibly dirty the buffers atomically wrt
- * block_dirty_folio() via private_lock.  try_to_free_buffers
+ * block_dirty_folio() via i_private_lock.  try_to_free_buffers
  * is already excluded via the folio lock.
  */
-void folio_create_empty_buffers(struct folio *folio, unsigned long blocksize,
-				unsigned long b_state)
+struct buffer_head *create_empty_buffers(struct folio *folio,
+		unsigned long blocksize, unsigned long b_state)
 {
 	struct buffer_head *bh, *head, *tail;
+	gfp_t gfp = GFP_NOFS | __GFP_ACCOUNT | __GFP_NOFAIL;
 
-	head = folio_alloc_buffers(folio, blocksize, true);
+	head = folio_alloc_buffers(folio, blocksize, gfp);
 	bh = head;
 	do {
 		bh->b_state |= b_state;
@@ -1675,7 +1673,7 @@ void folio_create_empty_buffers(struct folio *folio, unsigned long blocksize,
 	} while (bh);
 	tail->b_this_page = head;
 
-	spin_lock(&folio->mapping->private_lock);
+	spin_lock(&folio->mapping->i_private_lock);
 	if (folio_test_uptodate(folio) || folio_test_dirty(folio)) {
 		bh = head;
 		do {
@@ -1687,14 +1685,9 @@ void folio_create_empty_buffers(struct folio *folio, unsigned long blocksize,
 		} while (bh != head);
 	}
 	folio_attach_private(folio, head);
-	spin_unlock(&folio->mapping->private_lock);
-}
-EXPORT_SYMBOL(folio_create_empty_buffers);
+	spin_unlock(&folio->mapping->i_private_lock);
 
-void create_empty_buffers(struct page *page,
-			unsigned long blocksize, unsigned long b_state)
-{
-	folio_create_empty_buffers(page_folio(page), blocksize, b_state);
+	return head;
 }
 EXPORT_SYMBOL(create_empty_buffers);
 
@@ -1720,16 +1713,16 @@ EXPORT_SYMBOL(create_empty_buffers);
  */
 void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct address_space *bd_mapping = bdev->bd_mapping;
+	const int blkbits = bd_mapping->host->i_blkbits;
 	struct folio_batch fbatch;
-	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	pgoff_t index = ((loff_t)block << blkbits) / PAGE_SIZE;
 	pgoff_t end;
 	int i, count;
 	struct buffer_head *bh;
 	struct buffer_head *head;
 
-	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	end = ((loff_t)(block + len - 1) << blkbits) / PAGE_SIZE;
 	folio_batch_init(&fbatch);
 	while (filemap_get_folios(bd_mapping, &index, end, &fbatch)) {
 		count = folio_batch_count(&fbatch);
@@ -1739,7 +1732,7 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 			if (!folio_buffers(folio))
 				continue;
 			/*
-			 * We use folio lock instead of bd_mapping->private_lock
+			 * We use folio lock instead of bd_mapping->i_private_lock
 			 * to pin buffers here since we can afford to sleep and
 			 * it scales better than a global spinlock lock.
 			 */
@@ -1772,30 +1765,19 @@ unlock_page:
 }
 EXPORT_SYMBOL(clean_bdev_aliases);
 
-/*
- * Size is a power-of-two in the range 512..PAGE_SIZE,
- * and the case we care about most is PAGE_SIZE.
- *
- * So this *could* possibly be written with those
- * constraints in mind (relevant mostly if some
- * architecture has a slow bit-scan instruction)
- */
-static inline int block_size_bits(unsigned int blocksize)
-{
-	return ilog2(blocksize);
-}
-
 static struct buffer_head *folio_create_buffers(struct folio *folio,
 						struct inode *inode,
 						unsigned int b_state)
 {
+	struct buffer_head *bh;
+
 	BUG_ON(!folio_test_locked(folio));
 
-	if (!folio_buffers(folio))
-		folio_create_empty_buffers(folio,
-					   1 << READ_ONCE(inode->i_blkbits),
-					   b_state);
-	return folio_buffers(folio);
+	bh = folio_buffers(folio);
+	if (!bh)
+		bh = create_empty_buffers(folio,
+				1 << READ_ONCE(inode->i_blkbits), b_state);
+	return bh;
 }
 
 /*
@@ -1812,30 +1794,29 @@ static struct buffer_head *folio_create_buffers(struct folio *folio,
  */
 
 /*
- * While block_write_full_page is writing back the dirty buffers under
+ * While block_write_full_folio is writing back the dirty buffers under
  * the page lock, whoever dirtied the buffers may decide to clean them
  * again at any time.  We handle that by only looking at the buffer
  * state inside lock_buffer().
  *
- * If block_write_full_page() is called for regular writeback
+ * If block_write_full_folio() is called for regular writeback
  * (wbc->sync_mode == WB_SYNC_NONE) then it will redirty a page which has a
  * locked buffer.   This only can happen if someone has written the buffer
  * directly, with submit_bh().  At the address_space level PageWriteback
  * prevents this contention from occurring.
  *
- * If block_write_full_page() is called with wbc->sync_mode ==
+ * If block_write_full_folio() is called with wbc->sync_mode ==
  * WB_SYNC_ALL, the writes are posted using REQ_SYNC; this
  * causes the writes to be flagged as synchronous writes.
  */
 int __block_write_full_folio(struct inode *inode, struct folio *folio,
-			get_block_t *get_block, struct writeback_control *wbc,
-			bh_end_io_t *handler)
+			get_block_t *get_block, struct writeback_control *wbc)
 {
 	int err;
 	sector_t block;
 	sector_t last_block;
 	struct buffer_head *bh, *head;
-	unsigned int blocksize, bbits;
+	size_t blocksize;
 	int nr_underway = 0;
 	blk_opf_t write_flags = wbc_to_write_flags(wbc);
 
@@ -1854,10 +1835,9 @@ int __block_write_full_folio(struct inode *inode, struct folio *folio,
 
 	bh = head;
 	blocksize = bh->b_size;
-	bbits = block_size_bits(blocksize);
 
-	block = (sector_t)folio->index << (PAGE_SHIFT - bbits);
-	last_block = (i_size_read(inode) - 1) >> bbits;
+	block = div_u64(folio_pos(folio), blocksize);
+	last_block = div_u64(i_size_read(inode) - 1, blocksize);
 
 	/*
 	 * Get all the dirty buffers mapped to disk addresses and
@@ -1871,7 +1851,7 @@ int __block_write_full_folio(struct inode *inode, struct folio *folio,
 			 * truncate in progress.
 			 */
 			/*
-			 * The buffer was zeroed by block_write_full_page()
+			 * The buffer was zeroed by block_write_full_folio()
 			 */
 			clear_buffer_dirty(bh);
 			set_buffer_uptodate(bh);
@@ -1909,7 +1889,8 @@ int __block_write_full_folio(struct inode *inode, struct folio *folio,
 			continue;
 		}
 		if (test_clear_buffer_dirty(bh)) {
-			mark_buffer_async_write_endio(bh, handler);
+			mark_buffer_async_write_endio(bh,
+				end_buffer_async_write);
 		} else {
 			unlock_buffer(bh);
 		}
@@ -1925,7 +1906,8 @@ int __block_write_full_folio(struct inode *inode, struct folio *folio,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh_wbc(REQ_OP_WRITE | write_flags, bh, wbc);
+			submit_bh_wbc(REQ_OP_WRITE | write_flags, bh,
+				      inode->i_write_hint, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1962,7 +1944,8 @@ recover:
 		if (buffer_mapped(bh) && buffer_dirty(bh) &&
 		    !buffer_delay(bh)) {
 			lock_buffer(bh);
-			mark_buffer_async_write_endio(bh, handler);
+			mark_buffer_async_write_endio(bh,
+				end_buffer_async_write);
 		} else {
 			/*
 			 * The buffer may have been set dirty during
@@ -1971,7 +1954,6 @@ recover:
 			clear_buffer_dirty(bh);
 		}
 	} while ((bh = bh->b_this_page) != head);
-	folio_set_error(folio);
 	BUG_ON(folio_test_writeback(folio));
 	mapping_set_error(folio->mapping, err);
 	folio_start_writeback(folio);
@@ -1979,7 +1961,8 @@ recover:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh_wbc(REQ_OP_WRITE | write_flags, bh, wbc);
+			submit_bh_wbc(REQ_OP_WRITE | write_flags, bh,
+				      inode->i_write_hint, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -2032,11 +2015,11 @@ void folio_zero_new_buffers(struct folio *folio, size_t from, size_t to)
 }
 EXPORT_SYMBOL(folio_zero_new_buffers);
 
-static void
+static int
 iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		const struct iomap *iomap)
 {
-	loff_t offset = block << inode->i_blkbits;
+	loff_t offset = (loff_t)block << inode->i_blkbits;
 
 	bh->b_bdev = iomap->bdev;
 
@@ -2046,7 +2029,8 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 	 * current block, then do not map the buffer and let the caller
 	 * handle it.
 	 */
-	BUG_ON(offset >= iomap->offset + iomap->length);
+	if (offset >= iomap->offset + iomap->length)
+		return -EIO;
 
 	switch (iomap->type) {
 	case IOMAP_HOLE:
@@ -2058,7 +2042,7 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		if (!buffer_uptodate(bh) ||
 		    (offset >= i_size_read(inode)))
 			set_buffer_new(bh);
-		break;
+		return 0;
 	case IOMAP_DELALLOC:
 		if (!buffer_uptodate(bh) ||
 		    (offset >= i_size_read(inode)))
@@ -2066,7 +2050,7 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		set_buffer_uptodate(bh);
 		set_buffer_mapped(bh);
 		set_buffer_delay(bh);
-		break;
+		return 0;
 	case IOMAP_UNWRITTEN:
 		/*
 		 * For unwritten regions, we always need to ensure that regions
@@ -2078,39 +2062,48 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		fallthrough;
 	case IOMAP_MAPPED:
 		if ((iomap->flags & IOMAP_F_NEW) ||
-		    offset >= i_size_read(inode))
+		    offset >= i_size_read(inode)) {
+			/*
+			 * This can happen if truncating the block device races
+			 * with the check in the caller as i_size updates on
+			 * block devices aren't synchronized by i_rwsem for
+			 * block devices.
+			 */
+			if (S_ISBLK(inode->i_mode))
+				return -EIO;
 			set_buffer_new(bh);
+		}
 		bh->b_blocknr = (iomap->addr + offset - iomap->offset) >>
 				inode->i_blkbits;
 		set_buffer_mapped(bh);
-		break;
+		return 0;
+	default:
+		WARN_ON_ONCE(1);
+		return -EIO;
 	}
 }
 
 int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 		get_block_t *get_block, const struct iomap *iomap)
 {
-	unsigned from = pos & (PAGE_SIZE - 1);
-	unsigned to = from + len;
+	size_t from = offset_in_folio(folio, pos);
+	size_t to = from + len;
 	struct inode *inode = folio->mapping->host;
-	unsigned block_start, block_end;
+	size_t block_start, block_end;
 	sector_t block;
 	int err = 0;
-	unsigned blocksize, bbits;
+	size_t blocksize;
 	struct buffer_head *bh, *head, *wait[2], **wait_bh=wait;
 
 	BUG_ON(!folio_test_locked(folio));
-	BUG_ON(from > PAGE_SIZE);
-	BUG_ON(to > PAGE_SIZE);
+	BUG_ON(to > folio_size(folio));
 	BUG_ON(from > to);
 
 	head = folio_create_buffers(folio, inode, 0);
 	blocksize = head->b_size;
-	bbits = block_size_bits(blocksize);
+	block = div_u64(folio_pos(folio), blocksize);
 
-	block = (sector_t)folio->index << (PAGE_SHIFT - bbits);
-
-	for(bh = head, block_start = 0; bh != head || !block_start;
+	for (bh = head, block_start = 0; bh != head || !block_start;
 	    block++, block_start=block_end, bh = bh->b_this_page) {
 		block_end = block_start + blocksize;
 		if (block_end <= from || block_start >= to) {
@@ -2124,13 +2117,12 @@ int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 			clear_buffer_new(bh);
 		if (!buffer_mapped(bh)) {
 			WARN_ON(bh->b_size != blocksize);
-			if (get_block) {
+			if (get_block)
 				err = get_block(inode, block, bh, 1);
-				if (err)
-					break;
-			} else {
-				iomap_to_bh(inode, block, bh, iomap);
-			}
+			else
+				err = iomap_to_bh(inode, block, bh, iomap);
+			if (err)
+				break;
 
 			if (buffer_new(bh)) {
 				clean_bdev_bh_alias(bh);
@@ -2172,16 +2164,14 @@ int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 	return err;
 }
 
-int __block_write_begin(struct page *page, loff_t pos, unsigned len,
+int __block_write_begin(struct folio *folio, loff_t pos, unsigned len,
 		get_block_t *get_block)
 {
-	return __block_write_begin_int(page_folio(page), pos, len, get_block,
-				       NULL);
+	return __block_write_begin_int(folio, pos, len, get_block, NULL);
 }
 EXPORT_SYMBOL(__block_write_begin);
 
-static int __block_commit_write(struct inode *inode, struct folio *folio,
-		size_t from, size_t to)
+static void __block_commit_write(struct folio *folio, size_t from, size_t to)
 {
 	size_t block_start, block_end;
 	bool partial = false;
@@ -2189,6 +2179,8 @@ static int __block_commit_write(struct inode *inode, struct folio *folio,
 	struct buffer_head *bh, *head;
 
 	bh = head = folio_buffers(folio);
+	if (!bh)
+		return;
 	blocksize = bh->b_size;
 
 	block_start = 0;
@@ -2216,7 +2208,6 @@ static int __block_commit_write(struct inode *inode, struct folio *folio,
 	 */
 	if (!partial)
 		folio_mark_uptodate(folio);
-	return 0;
 }
 
 /*
@@ -2226,34 +2217,33 @@ static int __block_commit_write(struct inode *inode, struct folio *folio,
  * The filesystem needs to handle block truncation upon failure.
  */
 int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
-		struct page **pagep, get_block_t *get_block)
+		struct folio **foliop, get_block_t *get_block)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
-	struct page *page;
+	struct folio *folio;
 	int status;
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	status = __block_write_begin(page, pos, len, get_block);
+	status = __block_write_begin_int(folio, pos, len, get_block, NULL);
 	if (unlikely(status)) {
-		unlock_page(page);
-		put_page(page);
-		page = NULL;
+		folio_unlock(folio);
+		folio_put(folio);
+		folio = NULL;
 	}
 
-	*pagep = page;
+	*foliop = folio;
 	return status;
 }
 EXPORT_SYMBOL(block_write_begin);
 
 int block_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
-	struct inode *inode = mapping->host;
 	size_t start = pos - folio_pos(folio);
 
 	if (unlikely(copied < len)) {
@@ -2277,7 +2267,7 @@ int block_write_end(struct file *file, struct address_space *mapping,
 	flush_dcache_folio(folio);
 
 	/* This could be a short (even 0-length) commit */
-	__block_commit_write(inode, folio, start, start + copied);
+	__block_commit_write(folio, start, start + copied);
 
 	return copied;
 }
@@ -2285,19 +2275,19 @@ EXPORT_SYMBOL(block_write_end);
 
 int generic_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	loff_t old_size = inode->i_size;
 	bool i_size_changed = false;
 
-	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+	copied = block_write_end(file, mapping, pos, len, copied, folio, fsdata);
 
 	/*
 	 * No need to use i_size_read() here, the i_size cannot change under us
 	 * because we hold i_rwsem.
 	 *
-	 * But it's important to update i_size while still holding page lock:
+	 * But it's important to update i_size while still holding folio lock:
 	 * page writeout could otherwise come in and zero beyond i_size.
 	 */
 	if (pos + copied > inode->i_size) {
@@ -2305,8 +2295,8 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 		i_size_changed = true;
 	}
 
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	if (old_size < pos)
 		pagecache_isize_extended(inode, old_size, pos);
@@ -2377,7 +2367,7 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 	struct inode *inode = folio->mapping->host;
 	sector_t iblock, lblock;
 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
-	unsigned int blocksize, bbits;
+	size_t blocksize;
 	int nr, i;
 	int fully_mapped = 1;
 	bool page_error = false;
@@ -2391,10 +2381,9 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 
 	head = folio_create_buffers(folio, inode, 0);
 	blocksize = head->b_size;
-	bbits = block_size_bits(blocksize);
 
-	iblock = (sector_t)folio->index << (PAGE_SHIFT - bbits);
-	lblock = (limit+blocksize-1) >> bbits;
+	iblock = div_u64(folio_pos(folio), blocksize);
+	lblock = div_u64(limit + blocksize - 1, blocksize);
 	bh = head;
 	nr = 0;
 	i = 0;
@@ -2410,10 +2399,8 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 			if (iblock < lblock) {
 				WARN_ON(bh->b_size != blocksize);
 				err = get_block(inode, iblock, bh, 0);
-				if (err) {
-					folio_set_error(folio);
+				if (err)
 					page_error = true;
-				}
 			}
 			if (!buffer_mapped(bh)) {
 				folio_zero_range(folio, i * blocksize,
@@ -2437,12 +2424,10 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 
 	if (!nr) {
 		/*
-		 * All buffers are uptodate - we can set the folio uptodate
-		 * as well. But not if get_block() returned an error.
+		 * All buffers are uptodate or get_block() returned an
+		 * error when trying to map them - we can finish the read.
 		 */
-		if (!page_error)
-			folio_mark_uptodate(folio);
-		folio_unlock(folio);
+		folio_end_read(folio, !page_error);
 		return 0;
 	}
 
@@ -2477,7 +2462,7 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 {
 	struct address_space *mapping = inode->i_mapping;
 	const struct address_space_operations *aops = mapping->a_ops;
-	struct page *page;
+	struct folio *folio;
 	void *fsdata = NULL;
 	int err;
 
@@ -2485,11 +2470,11 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 	if (err)
 		goto out;
 
-	err = aops->write_begin(NULL, mapping, size, 0, &page, &fsdata);
+	err = aops->write_begin(NULL, mapping, size, 0, &folio, &fsdata);
 	if (err)
 		goto out;
 
-	err = aops->write_end(NULL, mapping, size, 0, 0, page, fsdata);
+	err = aops->write_end(NULL, mapping, size, 0, 0, folio, fsdata);
 	BUG_ON(err > 0);
 
 out:
@@ -2503,7 +2488,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	const struct address_space_operations *aops = mapping->a_ops;
 	unsigned int blocksize = i_blocksize(inode);
-	struct page *page;
+	struct folio *folio;
 	void *fsdata = NULL;
 	pgoff_t index, curidx;
 	loff_t curpos;
@@ -2522,12 +2507,12 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		len = PAGE_SIZE - zerofrom;
 
 		err = aops->write_begin(file, mapping, curpos, len,
-					    &page, &fsdata);
+					    &folio, &fsdata);
 		if (err)
 			goto out;
-		zero_user(page, zerofrom, len);
+		folio_zero_range(folio, offset_in_folio(folio, curpos), len);
 		err = aops->write_end(file, mapping, curpos, len, len,
-						page, fsdata);
+						folio, fsdata);
 		if (err < 0)
 			goto out;
 		BUG_ON(err != len);
@@ -2555,12 +2540,12 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		len = offset - zerofrom;
 
 		err = aops->write_begin(file, mapping, curpos, len,
-					    &page, &fsdata);
+					    &folio, &fsdata);
 		if (err)
 			goto out;
-		zero_user(page, zerofrom, len);
+		folio_zero_range(folio, offset_in_folio(folio, curpos), len);
 		err = aops->write_end(file, mapping, curpos, len, len,
-						page, fsdata);
+						folio, fsdata);
 		if (err < 0)
 			goto out;
 		BUG_ON(err != len);
@@ -2576,7 +2561,7 @@ out:
  */
 int cont_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata,
+			struct folio **foliop, void **fsdata,
 			get_block_t *get_block, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
@@ -2594,16 +2579,14 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 		(*bytes)++;
 	}
 
-	return block_write_begin(mapping, pos, len, pagep, get_block);
+	return block_write_begin(mapping, pos, len, foliop, get_block);
 }
 EXPORT_SYMBOL(cont_write_begin);
 
-int block_commit_write(struct page *page, unsigned from, unsigned to)
+void block_commit_write(struct page *page, unsigned from, unsigned to)
 {
 	struct folio *folio = page_folio(page);
-	struct inode *inode = folio->mapping->host;
-	__block_commit_write(inode, folio, from, to);
-	return 0;
+	__block_commit_write(folio, from, to);
 }
 EXPORT_SYMBOL(block_commit_write);
 
@@ -2649,11 +2632,11 @@ int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 		end = size - folio_pos(folio);
 
 	ret = __block_write_begin_int(folio, 0, end, get_block, NULL);
-	if (!ret)
-		ret = __block_commit_write(inode, folio, 0, end);
-
-	if (unlikely(ret < 0))
+	if (unlikely(ret))
 		goto out_unlock;
+
+	__block_commit_write(folio, 0, end);
+
 	folio_mark_dirty(folio);
 	folio_wait_stable(folio);
 	return 0;
@@ -2683,17 +2666,15 @@ int block_truncate_page(struct address_space *mapping,
 		return 0;
 
 	length = blocksize - length;
-	iblock = (sector_t)index << (PAGE_SHIFT - inode->i_blkbits);
-	
+	iblock = ((loff_t)index * PAGE_SIZE) >> inode->i_blkbits;
+
 	folio = filemap_grab_folio(mapping, index);
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
 	bh = folio_buffers(folio);
-	if (!bh) {
-		folio_create_empty_buffers(folio, blocksize, 0);
-		bh = folio_buffers(folio);
-	}
+	if (!bh)
+		bh = create_empty_buffers(folio, blocksize, 0);
 
 	/* Find the buffer that contains "offset" */
 	offset = offset_in_folio(folio, from);
@@ -2739,17 +2720,15 @@ EXPORT_SYMBOL(block_truncate_page);
 /*
  * The generic ->writepage function for buffer-backed address_spaces
  */
-int block_write_full_page(struct page *page, get_block_t *get_block,
-			struct writeback_control *wbc)
+int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
+		void *get_block)
 {
-	struct folio *folio = page_folio(page);
 	struct inode * const inode = folio->mapping->host;
 	loff_t i_size = i_size_read(inode);
 
 	/* Is the folio fully inside i_size? */
 	if (folio_pos(folio) + folio_size(folio) <= i_size)
-		return __block_write_full_folio(inode, folio, get_block, wbc,
-					       end_buffer_async_write);
+		return __block_write_full_folio(inode, folio, get_block, wbc);
 
 	/* Is the folio fully outside i_size? (truncate in progress) */
 	if (folio_pos(folio) >= i_size) {
@@ -2766,10 +2745,8 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 	 */
 	folio_zero_segment(folio, offset_in_folio(folio, i_size),
 			folio_size(folio));
-	return __block_write_full_folio(inode, folio, get_block, wbc,
-			end_buffer_async_write);
+	return __block_write_full_folio(inode, folio, get_block, wbc);
 }
-EXPORT_SYMBOL(block_write_full_page);
 
 sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 			    get_block_t *get_block)
@@ -2796,6 +2773,7 @@ static void end_bio_bh_io_sync(struct bio *bio)
 }
 
 static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
+			  enum rw_hint write_hint,
 			  struct writeback_control *wbc)
 {
 	const enum req_op op = opf & REQ_OP_MASK;
@@ -2823,6 +2801,7 @@ static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
 	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
 
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+	bio->bi_write_hint = write_hint;
 
 	__bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
 
@@ -2842,7 +2821,7 @@ static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
 
 void submit_bh(blk_opf_t opf, struct buffer_head *bh)
 {
-	submit_bh_wbc(opf, bh, NULL);
+	submit_bh_wbc(opf, bh, WRITE_LIFE_NOT_SET, NULL);
 }
 EXPORT_SYMBOL(submit_bh);
 
@@ -2897,26 +2876,6 @@ int sync_dirty_buffer(struct buffer_head *bh)
 }
 EXPORT_SYMBOL(sync_dirty_buffer);
 
-/*
- * try_to_free_buffers() checks if all the buffers on this particular folio
- * are unused, and releases them if so.
- *
- * Exclusion against try_to_free_buffers may be obtained by either
- * locking the folio or by holding its mapping's private_lock.
- *
- * If the folio is dirty but all the buffers are clean then we need to
- * be sure to mark the folio clean as well.  This is because the folio
- * may be against a block device, and a later reattachment of buffers
- * to a dirty folio will set *all* buffers dirty.  Which would corrupt
- * filesystem data on the same device.
- *
- * The same applies to regular filesystem folios: if all the buffers are
- * clean then we set the folio clean and proceed.  To do that, we require
- * total exclusion from block_dirty_folio().  That is obtained with
- * private_lock.
- *
- * try_to_free_buffers() is non-blocking.
- */
 static inline int buffer_busy(struct buffer_head *bh)
 {
 	return atomic_read(&bh->b_count) |
@@ -2950,6 +2909,30 @@ failed:
 	return false;
 }
 
+/**
+ * try_to_free_buffers - Release buffers attached to this folio.
+ * @folio: The folio.
+ *
+ * If any buffers are in use (dirty, under writeback, elevated refcount),
+ * no buffers will be freed.
+ *
+ * If the folio is dirty but all the buffers are clean then we need to
+ * be sure to mark the folio clean as well.  This is because the folio
+ * may be against a block device, and a later reattachment of buffers
+ * to a dirty folio will set *all* buffers dirty.  Which would corrupt
+ * filesystem data on the same device.
+ *
+ * The same applies to regular filesystem folios: if all the buffers are
+ * clean then we set the folio clean and proceed.  To do that, we require
+ * total exclusion from block_dirty_folio().  That is obtained with
+ * i_private_lock.
+ *
+ * Exclusion against try_to_free_buffers may be obtained by either
+ * locking the folio or by holding its mapping's i_private_lock.
+ *
+ * Context: Process context.  @folio must be locked.  Will not sleep.
+ * Return: true if all buffers attached to this folio were freed.
+ */
 bool try_to_free_buffers(struct folio *folio)
 {
 	struct address_space * const mapping = folio->mapping;
@@ -2965,7 +2948,7 @@ bool try_to_free_buffers(struct folio *folio)
 		goto out;
 	}
 
-	spin_lock(&mapping->private_lock);
+	spin_lock(&mapping->i_private_lock);
 	ret = drop_buffers(folio, &buffers_to_free);
 
 	/*
@@ -2978,13 +2961,13 @@ bool try_to_free_buffers(struct folio *folio)
 	 * the folio's buffers clean.  We discover that here and clean
 	 * the folio also.
 	 *
-	 * private_lock must be held over this entire operation in order
+	 * i_private_lock must be held over this entire operation in order
 	 * to synchronise against block_dirty_folio and prevent the
 	 * dirty bit from being lost.
 	 */
 	if (ret)
 		folio_cancel_dirty(folio);
-	spin_unlock(&mapping->private_lock);
+	spin_unlock(&mapping->i_private_lock);
 out:
 	if (buffers_to_free) {
 		struct buffer_head *bh = buffers_to_free;
@@ -3002,13 +2985,13 @@ EXPORT_SYMBOL(try_to_free_buffers);
 /*
  * Buffer-head allocation
  */
-static struct kmem_cache *bh_cachep __read_mostly;
+static struct kmem_cache *bh_cachep __ro_after_init;
 
 /*
  * Once the number of bh's in the machine exceeds this level, we start
  * stripping them in writeback.
  */
-static unsigned long max_buffer_heads;
+static unsigned long max_buffer_heads __ro_after_init;
 
 int buffer_heads_over_limit;
 
@@ -3161,12 +3144,8 @@ void __init buffer_init(void)
 	unsigned long nrpages;
 	int ret;
 
-	bh_cachep = kmem_cache_create("buffer_head",
-			sizeof(struct buffer_head), 0,
-				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
-				SLAB_MEM_SPREAD),
-				NULL);
-
+	bh_cachep = KMEM_CACHE(buffer_head,
+				SLAB_RECLAIM_ACCOUNT|SLAB_PANIC);
 	/*
 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
 	 */

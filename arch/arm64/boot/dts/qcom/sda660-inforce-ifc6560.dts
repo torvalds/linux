@@ -43,7 +43,7 @@
 	 */
 	extcon_usb: extcon-usb {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&tlmm 58 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&tlmm 58 GPIO_ACTIVE_HIGH>;
 	};
 
 	hdmi-out {
@@ -95,6 +95,18 @@
 		regulator-max-microvolt = <5000000>;
 
 		vin-supply = <&vph_pwr>;
+	};
+
+	/*
+	 * this is also used for APC1 CPU power, touching it resets the board
+	 */
+	vreg_l10a_1p8: vreg-l10a-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_l10a_1p8";
+		regulator-min-microvolt = <1804000>;
+		regulator-max-microvolt = <1896000>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 };
 
@@ -220,6 +232,7 @@
 	status = "okay";
 
 	vdd-supply = <&vreg_l1b_0p925>;
+	vdda-pll-supply = <&vreg_l10a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l7b_3p125>;
 };
 
@@ -227,6 +240,7 @@
 	status = "okay";
 
 	vdd-supply = <&vreg_l1b_0p925>;
+	vdda-pll-supply = <&vreg_l10a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l7b_3p125>;
 };
 
@@ -460,4 +474,10 @@
 &usb3_dwc3 {
 	dr_mode = "peripheral";
 	extcon = <&extcon_usb>;
+};
+
+&usb3_qmpphy {
+	vdda-phy-supply = <&vreg_l1b_0p925>;
+	vdda-pll-supply = <&vreg_l10a_1p8>;
+	status = "okay";
 };

@@ -1,7 +1,7 @@
 .. include:: ../disclaimer-sp.rst
 
 :Original: :ref:`Documentation/process/coding-style.rst <submittingpatches>`
-:Translator: Carlos Bilbao <carlos.bilbao@amd.com>
+:Translator: Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
 
 .. _sp_codingstyle:
 
@@ -604,9 +604,9 @@ Normalmente la solución para esto es dividirlo en dos etiquetas de error
 
 .. code-block:: c
 
-	 err_free_bar:
+	err_free_bar:
 		kfree(foo->bar);
-	 err_free_foo:
+	err_free_foo:
 		kfree(foo);
 		return ret;
 
@@ -698,7 +698,7 @@ sanos. Para hacer esto último, puede pegar lo siguiente en su archivo
           (c-offsets-alist . (
                   (arglist-close         . c-lineup-arglist-tabs-only)
                   (arglist-cont-nonempty .
-		      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+                      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
                   (arglist-intro         . +)
                   (brace-list-intro      . +)
                   (c                     . c-lineup-C-comments)
@@ -754,7 +754,7 @@ código automáticamente, y revisar archivos completos para detectar errores
 de estilo del código, errores tipográficos y posibles mejoras. También es
 útil para ordenar ``#includes``, para alinear variables/macros, para
 redistribuir texto y otras tareas similares. Vea el archivo
-:ref:`Documentation/process/clang-format.rst <clangformat>` para más
+:ref:`Documentation/dev-tools/clang-format.rst <clangformat>` para más
 detalles.
 
 10) Archivos de configuración de Kconfig

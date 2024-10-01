@@ -21,7 +21,7 @@
 #include <linux/errno.h>
 #include <linux/rational.h>
 #include <linux/i2c.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_data/si5351.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -206,7 +206,7 @@ static bool si5351_regmap_is_writeable(struct device *dev, unsigned int reg)
 static const struct regmap_config si5351_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 187,
 	.writeable_reg = si5351_regmap_is_writeable,
 	.volatile_reg = si5351_regmap_is_volatile,
@@ -506,6 +506,8 @@ static int si5351_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct si5351_hw_data *hwdata =
 		container_of(hw, struct si5351_hw_data, hw);
+	struct si5351_platform_data *pdata =
+		hwdata->drvdata->client->dev.platform_data;
 	u8 reg = (hwdata->num == 0) ? SI5351_PLLA_PARAMETERS :
 		SI5351_PLLB_PARAMETERS;
 
@@ -518,9 +520,10 @@ static int si5351_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		(hwdata->params.p2 == 0) ? SI5351_CLK_INTEGER_MODE : 0);
 
 	/* Do a pll soft reset on the affected pll */
-	si5351_reg_write(hwdata->drvdata, SI5351_PLL_RESET,
-			 hwdata->num == 0 ? SI5351_PLL_RESET_A :
-					    SI5351_PLL_RESET_B);
+	if (pdata->pll_reset[hwdata->num])
+		si5351_reg_write(hwdata->drvdata, SI5351_PLL_RESET,
+				 hwdata->num == 0 ? SI5351_PLL_RESET_A :
+						    SI5351_PLL_RESET_B);
 
 	dev_dbg(&hwdata->drvdata->client->dev,
 		"%s - %s: p1 = %lu, p2 = %lu, p3 = %lu, parent_rate = %lu, rate = %lu\n",
@@ -1172,8 +1175,8 @@ static int si5351_dt_parse(struct i2c_client *client,
 {
 	struct device_node *child, *np = client->dev.of_node;
 	struct si5351_platform_data *pdata;
-	struct property *prop;
-	const __be32 *p;
+	u32 array[4];
+	int sz, i;
 	int num = 0;
 	u32 val;
 
@@ -1188,17 +1191,21 @@ static int si5351_dt_parse(struct i2c_client *client,
 	 * property silabs,pll-source : <num src>, [<..>]
 	 * allow to selectively set pll source
 	 */
-	of_property_for_each_u32(np, "silabs,pll-source", prop, p, num) {
+	sz = of_property_read_variable_u32_array(np, "silabs,pll-source", array, 2, 4);
+	sz = (sz == -EINVAL) ? 0 : sz; /* Missing property is OK */
+	if (sz < 0)
+		return dev_err_probe(&client->dev, sz, "invalid pll-source\n");
+	if (sz % 2)
+		return dev_err_probe(&client->dev, -EINVAL,
+				     "missing pll-source for pll %d\n", array[sz - 1]);
+
+	for (i = 0; i < sz; i += 2) {
+		num = array[i];
+		val = array[i + 1];
+
 		if (num >= 2) {
 			dev_err(&client->dev,
 				"invalid pll %d on pll-source prop\n", num);
-			return -EINVAL;
-		}
-
-		p = of_prop_next_u32(prop, p, &val);
-		if (!p) {
-			dev_err(&client->dev,
-				"missing pll-source for pll %d\n", num);
 			return -EINVAL;
 		}
 
@@ -1218,6 +1225,49 @@ static int si5351_dt_parse(struct i2c_client *client,
 		default:
 			dev_err(&client->dev,
 				 "invalid parent %d for pll %d\n", val, num);
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Parse PLL reset mode. For compatibility with older device trees, the
+	 * default is to always reset a PLL after setting its rate.
+	 */
+	pdata->pll_reset[0] = true;
+	pdata->pll_reset[1] = true;
+
+	sz = of_property_read_variable_u32_array(np, "silabs,pll-reset-mode", array, 2, 4);
+	sz = (sz == -EINVAL) ? 0 : sz; /* Missing property is OK */
+	if (sz < 0)
+		return dev_err_probe(&client->dev, sz, "invalid pll-reset-mode\n");
+	if (sz % 2)
+		return dev_err_probe(&client->dev, -EINVAL,
+				     "missing pll-reset-mode for pll %d\n", array[sz - 1]);
+
+	for (i = 0; i < sz; i += 2) {
+		num = array[i];
+		val = array[i + 1];
+
+		if (num >= 2) {
+			dev_err(&client->dev,
+				"invalid pll %d on pll-reset-mode prop\n", num);
+			return -EINVAL;
+		}
+
+
+		switch (val) {
+		case 0:
+			/* Reset PLL whenever its rate is adjusted */
+			pdata->pll_reset[num] = true;
+			break;
+		case 1:
+			/* Don't reset PLL whenever its rate is adjusted */
+			pdata->pll_reset[num] = false;
+			break;
+		default:
+			dev_err(&client->dev,
+				"invalid pll-reset-mode %d for pll %d\n", val,
+				num);
 			return -EINVAL;
 		}
 	}
@@ -1385,8 +1435,7 @@ MODULE_DEVICE_TABLE(i2c, si5351_i2c_ids);
 
 static int si5351_i2c_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_match_id(si5351_i2c_ids, client);
-	enum si5351_variant variant = (enum si5351_variant)id->driver_data;
+	enum si5351_variant variant;
 	struct si5351_platform_data *pdata;
 	struct si5351_driver_data *drvdata;
 	struct clk_init_data init;
@@ -1394,6 +1443,7 @@ static int si5351_i2c_probe(struct i2c_client *client)
 	u8 num_parents, num_clocks;
 	int ret, n;
 
+	variant = (enum si5351_variant)(uintptr_t)i2c_get_match_data(client);
 	ret = si5351_dt_parse(client, variant);
 	if (ret)
 		return ret;

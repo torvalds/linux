@@ -29,6 +29,7 @@
 #include <nvhw/class/cl507a.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 
 bool
 curs507a_space(struct nv50_wndw *wndw)
@@ -99,6 +100,7 @@ curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 {
 	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
 	struct nv50_head *head = nv50_head(asyw->state.crtc);
+	struct drm_framebuffer *fb = asyw->state.fb;
 	int ret;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
@@ -124,11 +126,30 @@ curs507a_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		return -EINVAL;
 	}
 
-	ret = head->func->curs_layout(head, asyw, asyh);
-	if (ret)
-		return ret;
+	if (asyw->image.pitch[0] != asyw->image.w * fb->format->cpp[0]) {
+		NV_ATOMIC(drm,
+			  "%s: invalid cursor image pitch: image must be packed (pitch = %d, width = %d)\n",
+			  wndw->plane.name, asyw->image.pitch[0], asyw->image.w);
+		return -EINVAL;
+	}
 
-	return head->func->curs_format(head, asyw, asyh);
+	ret = head->func->curs_layout(head, asyw, asyh);
+	if (ret) {
+		NV_ATOMIC(drm,
+			  "%s: invalid cursor image size: unsupported size %dx%d\n",
+			  wndw->plane.name, asyw->image.w, asyw->image.h);
+		return ret;
+	}
+
+	ret = head->func->curs_format(head, asyw, asyh);
+	if (ret) {
+		NV_ATOMIC(drm,
+			  "%s: invalid cursor image format 0x%X\n",
+			  wndw->plane.name, fb->format->format);
+		return ret;
+	}
+
+	return 0;
 }
 
 static const u32

@@ -334,17 +334,7 @@ struct link {
 	 */
 	struct delayed_work watchdog_work;
 	unsigned int watchdog_interval;
-	bool watchdog_disabled;
-
-	/*
-	 * Work structure for scheduling periodic AGC adjustments.
-	 */
-	struct delayed_work agc_work;
-
-	/*
-	 * Work structure for scheduling periodic VCO calibration.
-	 */
-	struct delayed_work vco_work;
+	unsigned int watchdog;
 };
 
 enum rt2x00_delayed_flags {
@@ -926,6 +916,9 @@ struct rt2x00_dev {
 	 */
 	u16 beacon_int;
 
+	/* Rx/Tx DMA busy watchdog counter */
+	u16 rxdma_busy, txdma_busy;
+
 	/**
 	 * Timestamp of last received beacon
 	 */
@@ -1263,6 +1256,12 @@ rt2x00_has_cap_external_lna_bg(struct rt2x00_dev *rt2x00dev)
 }
 
 static inline bool
+rt2x00_has_cap_external_pa(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_PA_TX0);
+}
+
+static inline bool
 rt2x00_has_cap_double_antenna(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_DOUBLE_ANTENNA);
@@ -1451,7 +1450,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 		  struct ieee80211_tx_control *control,
 		  struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
-void rt2x00mac_stop(struct ieee80211_hw *hw);
+void rt2x00mac_stop(struct ieee80211_hw *hw, bool suspend);
 void rt2x00mac_reconfig_complete(struct ieee80211_hw *hw,
 				 enum ieee80211_reconfig_type reconfig_type);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,

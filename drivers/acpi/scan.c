@@ -73,8 +73,7 @@ void acpi_unlock_hp_context(void)
 
 void acpi_initialize_hp_context(struct acpi_device *adev,
 				struct acpi_hotplug_context *hp,
-				int (*notify)(struct acpi_device *, u32),
-				void (*uevent)(struct acpi_device *, u32))
+				acpi_hp_notify notify, acpi_hp_uevent uevent)
 {
 	acpi_lock_hp_context();
 	hp->notify = notify;
@@ -244,11 +243,85 @@ static int acpi_scan_try_to_offline(struct acpi_device *device)
 	return 0;
 }
 
+#define ACPI_SCAN_CHECK_FLAG_STATUS	BIT(0)
+#define ACPI_SCAN_CHECK_FLAG_EJECT	BIT(1)
+
+static int acpi_scan_check_and_detach(struct acpi_device *adev, void *p)
+{
+	struct acpi_scan_handler *handler = adev->handler;
+	uintptr_t flags = (uintptr_t)p;
+
+	acpi_dev_for_each_child_reverse(adev, acpi_scan_check_and_detach, p);
+
+	if (flags & ACPI_SCAN_CHECK_FLAG_STATUS) {
+		acpi_bus_get_status(adev);
+		/*
+		 * Skip devices that are still there and take the enabled
+		 * flag into account.
+		 */
+		if (acpi_device_is_enabled(adev))
+			return 0;
+
+		/* Skip device that have not been enumerated. */
+		if (!acpi_device_enumerated(adev)) {
+			dev_dbg(&adev->dev, "Still not enumerated\n");
+			return 0;
+		}
+	}
+
+	adev->flags.match_driver = false;
+	if (handler) {
+		if (handler->detach)
+			handler->detach(adev);
+	} else {
+		device_release_driver(&adev->dev);
+	}
+	/*
+	 * Most likely, the device is going away, so put it into D3cold before
+	 * that.
+	 */
+	acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
+	adev->flags.initialized = false;
+
+	/* For eject this is deferred to acpi_bus_post_eject() */
+	if (!(flags & ACPI_SCAN_CHECK_FLAG_EJECT)) {
+		adev->handler = NULL;
+		acpi_device_clear_enumerated(adev);
+	}
+	return 0;
+}
+
+static int acpi_bus_post_eject(struct acpi_device *adev, void *not_used)
+{
+	struct acpi_scan_handler *handler = adev->handler;
+
+	acpi_dev_for_each_child_reverse(adev, acpi_bus_post_eject, NULL);
+
+	if (handler) {
+		if (handler->post_eject)
+			handler->post_eject(adev);
+
+		adev->handler = NULL;
+	}
+
+	acpi_device_clear_enumerated(adev);
+
+	return 0;
+}
+
+static void acpi_scan_check_subtree(struct acpi_device *adev)
+{
+	uintptr_t flags = ACPI_SCAN_CHECK_FLAG_STATUS;
+
+	acpi_scan_check_and_detach(adev, (void *)flags);
+}
+
 static int acpi_scan_hot_remove(struct acpi_device *device)
 {
 	acpi_handle handle = device->handle;
 	unsigned long long sta;
 	acpi_status status;
+	uintptr_t flags = ACPI_SCAN_CHECK_FLAG_EJECT;
 
 	if (device->handler && device->handler->hotplug.demand_offline) {
 		if (!acpi_scan_is_offline(device, true))
@@ -261,7 +334,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 
 	acpi_handle_debug(handle, "Ejecting\n");
 
-	acpi_bus_trim(device);
+	acpi_scan_check_and_detach(device, (void *)flags);
 
 	acpi_evaluate_lck(handle, 0);
 	/*
@@ -284,80 +357,69 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	} else if (sta & ACPI_STA_DEVICE_ENABLED) {
 		acpi_handle_warn(handle,
 			"Eject incomplete - status 0x%llx\n", sta);
+	} else {
+		acpi_bus_post_eject(device, NULL);
 	}
 
 	return 0;
 }
 
-static int acpi_scan_device_not_present(struct acpi_device *adev)
+static int acpi_scan_rescan_bus(struct acpi_device *adev)
 {
-	if (!acpi_device_enumerated(adev)) {
-		dev_warn(&adev->dev, "Still not present\n");
-		return -EALREADY;
-	}
-	acpi_bus_trim(adev);
-	return 0;
+	struct acpi_scan_handler *handler = adev->handler;
+	int ret;
+
+	if (handler && handler->hotplug.scan_dependent)
+		ret = handler->hotplug.scan_dependent(adev);
+	else
+		ret = acpi_bus_scan(adev->handle);
+
+	if (ret)
+		dev_info(&adev->dev, "Namespace scan failure\n");
+
+	return ret;
 }
 
 static int acpi_scan_device_check(struct acpi_device *adev)
 {
-	int error;
+	struct acpi_device *parent;
 
-	acpi_bus_get_status(adev);
-	if (adev->status.present || adev->status.functional) {
-		/*
-		 * This function is only called for device objects for which
-		 * matching scan handlers exist.  The only situation in which
-		 * the scan handler is not attached to this device object yet
-		 * is when the device has just appeared (either it wasn't
-		 * present at all before or it was removed and then added
-		 * again).
-		 */
-		if (adev->handler) {
-			dev_warn(&adev->dev, "Already enumerated\n");
-			return -EALREADY;
-		}
-		error = acpi_bus_scan(adev->handle);
-		if (error) {
-			dev_warn(&adev->dev, "Namespace scan failure\n");
-			return error;
-		}
-		if (!adev->handler) {
-			dev_warn(&adev->dev, "Enumeration failure\n");
-			error = -ENODEV;
-		}
-	} else {
-		error = acpi_scan_device_not_present(adev);
-	}
-	return error;
-}
+	acpi_scan_check_subtree(adev);
 
-static int acpi_scan_bus_check(struct acpi_device *adev, void *not_used)
-{
-	struct acpi_scan_handler *handler = adev->handler;
-	int error;
+	if (!acpi_device_is_present(adev))
+		return 0;
 
-	acpi_bus_get_status(adev);
-	if (!(adev->status.present || adev->status.functional)) {
-		acpi_scan_device_not_present(adev);
+	/*
+	 * This function is only called for device objects for which matching
+	 * scan handlers exist.  The only situation in which the scan handler
+	 * is not attached to this device object yet is when the device has
+	 * just appeared (either it wasn't present at all before or it was
+	 * removed and then added again).
+	 */
+	if (adev->handler) {
+		dev_dbg(&adev->dev, "Already enumerated\n");
 		return 0;
 	}
-	if (handler && handler->hotplug.scan_dependent)
-		return handler->hotplug.scan_dependent(adev);
 
-	error = acpi_bus_scan(adev->handle);
-	if (error) {
-		dev_warn(&adev->dev, "Namespace scan failure\n");
-		return error;
-	}
-	return acpi_dev_for_each_child(adev, acpi_scan_bus_check, NULL);
+	parent = acpi_dev_parent(adev);
+	if (!parent)
+		parent = adev;
+
+	return acpi_scan_rescan_bus(parent);
+}
+
+static int acpi_scan_bus_check(struct acpi_device *adev)
+{
+	acpi_scan_check_subtree(adev);
+
+	return acpi_scan_rescan_bus(adev);
 }
 
 static int acpi_generic_hotplug_event(struct acpi_device *adev, u32 type)
 {
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		return acpi_scan_bus_check(adev, NULL);
+		return acpi_scan_bus_check(adev);
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		return acpi_scan_device_check(adev);
 	case ACPI_NOTIFY_EJECT_REQUEST:
@@ -394,7 +456,7 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 	} else if (adev->flags.hotplug_notify) {
 		error = acpi_generic_hotplug_event(adev, src);
 	} else {
-		int (*notify)(struct acpi_device *, u32);
+		acpi_hp_notify notify;
 
 		acpi_lock_hp_context();
 		notify = adev->hp ? adev->hp->notify : NULL;
@@ -733,10 +795,7 @@ int acpi_device_add(struct acpi_device *device)
 		goto err;
 	}
 
-	result = acpi_device_setup_files(device);
-	if (result)
-		pr_err("Error creating sysfs interface for device %s\n",
-		       dev_name(&device->dev));
+	acpi_device_setup_files(device);
 
 	return 0;
 
@@ -795,6 +854,13 @@ static const char * const acpi_ignore_dep_ids[] = {
 /* List of HIDs for which we honor deps of matching ACPI devs, when checking _DEP lists. */
 static const char * const acpi_honor_dep_ids[] = {
 	"INT3472", /* Camera sensor PMIC / clk and regulator info */
+	"INTC1059", /* IVSC (TGL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC1095", /* IVSC (ADL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC100A", /* IVSC (RPL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC10CF", /* IVSC (MTL) driver must be loaded to allow i2c access to camera sensors */
+	"RSCV0001", /* RISC-V PLIC */
+	"RSCV0002", /* RISC-V APLIC */
+	"PNP0C0F",  /* PCI Link Device */
 	NULL
 };
 
@@ -1260,10 +1326,10 @@ const char *acpi_device_hid(struct acpi_device *device)
 {
 	struct acpi_hardware_id *hid;
 
-	if (list_empty(&device->pnp.ids))
+	hid = list_first_entry_or_null(&device->pnp.ids, struct acpi_hardware_id, list);
+	if (!hid)
 		return dummy_hid;
 
-	hid = list_first_entry(&device->pnp.ids, struct acpi_hardware_id, list);
 	return hid->id;
 }
 EXPORT_SYMBOL(acpi_device_hid);
@@ -1529,7 +1595,6 @@ int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map)
 			r->cpu_start = rentry->res->start;
 			r->dma_start = rentry->res->start - rentry->offset;
 			r->size = resource_size(rentry->res);
-			r->offset = rentry->offset;
 			r++;
 		}
 	}
@@ -1541,72 +1606,55 @@ int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map)
 
 #ifdef CONFIG_IOMMU_API
 int acpi_iommu_fwspec_init(struct device *dev, u32 id,
-			   struct fwnode_handle *fwnode,
-			   const struct iommu_ops *ops)
+			   struct fwnode_handle *fwnode)
 {
-	int ret = iommu_fwspec_init(dev, fwnode, ops);
+	int ret;
 
-	if (!ret)
-		ret = iommu_fwspec_add_ids(dev, &id, 1);
+	ret = iommu_fwspec_init(dev, fwnode);
+	if (ret)
+		return ret;
 
-	return ret;
+	return iommu_fwspec_add_ids(dev, &id, 1);
 }
 
-static inline const struct iommu_ops *acpi_iommu_fwspec_ops(struct device *dev)
-{
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-
-	return fwspec ? fwspec->ops : NULL;
-}
-
-static const struct iommu_ops *acpi_iommu_configure_id(struct device *dev,
-						       const u32 *id_in)
+static int acpi_iommu_configure_id(struct device *dev, const u32 *id_in)
 {
 	int err;
-	const struct iommu_ops *ops;
 
-	/*
-	 * If we already translated the fwspec there is nothing left to do,
-	 * return the iommu_ops.
-	 */
-	ops = acpi_iommu_fwspec_ops(dev);
-	if (ops)
-		return ops;
+	/* Serialise to make dev->iommu stable under our potential fwspec */
+	mutex_lock(&iommu_probe_device_lock);
+	/* If we already translated the fwspec there is nothing left to do */
+	if (dev_iommu_fwspec_get(dev)) {
+		mutex_unlock(&iommu_probe_device_lock);
+		return 0;
+	}
 
 	err = iort_iommu_configure_id(dev, id_in);
 	if (err && err != -EPROBE_DEFER)
 		err = viot_iommu_configure(dev);
+	mutex_unlock(&iommu_probe_device_lock);
 
 	/*
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * iommu_probe_device() call for dev, replay it to get things in order.
 	 */
-	if (!err && dev->bus && !device_iommu_mapped(dev))
+	if (!err && dev->bus)
 		err = iommu_probe_device(dev);
 
-	/* Ignore all other errors apart from EPROBE_DEFER */
-	if (err == -EPROBE_DEFER) {
-		return ERR_PTR(err);
-	} else if (err) {
-		dev_dbg(dev, "Adding to IOMMU failed: %d\n", err);
-		return NULL;
-	}
-	return acpi_iommu_fwspec_ops(dev);
+	return err;
 }
 
 #else /* !CONFIG_IOMMU_API */
 
 int acpi_iommu_fwspec_init(struct device *dev, u32 id,
-			   struct fwnode_handle *fwnode,
-			   const struct iommu_ops *ops)
+			   struct fwnode_handle *fwnode)
 {
 	return -ENODEV;
 }
 
-static const struct iommu_ops *acpi_iommu_configure_id(struct device *dev,
-						       const u32 *id_in)
+static int acpi_iommu_configure_id(struct device *dev, const u32 *id_in)
 {
-	return NULL;
+	return -ENODEV;
 }
 
 #endif /* !CONFIG_IOMMU_API */
@@ -1620,7 +1668,7 @@ static const struct iommu_ops *acpi_iommu_configure_id(struct device *dev,
 int acpi_dma_configure_id(struct device *dev, enum dev_dma_attr attr,
 			  const u32 *input_id)
 {
-	const struct iommu_ops *iommu;
+	int ret;
 
 	if (attr == DEV_DMA_NOT_SUPPORTED) {
 		set_dma_ops(dev, &dma_dummy_ops);
@@ -1629,12 +1677,14 @@ int acpi_dma_configure_id(struct device *dev, enum dev_dma_attr attr,
 
 	acpi_arch_dma_setup(dev);
 
-	iommu = acpi_iommu_configure_id(dev, input_id);
-	if (PTR_ERR(iommu) == -EPROBE_DEFER)
+	/* Ignore all other errors apart from EPROBE_DEFER */
+	ret = acpi_iommu_configure_id(dev, input_id);
+	if (ret == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
+	if (ret)
+		dev_dbg(dev, "Adding to IOMMU failed: %d\n", ret);
 
-	arch_setup_dma_ops(dev, 0, U64_MAX,
-				iommu, attr == DEV_DMA_COHERENT);
+	arch_setup_dma_ops(dev, attr == DEV_DMA_COHERENT);
 
 	return 0;
 }
@@ -1714,6 +1764,9 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 		{"BSG1160", },
 		{"BSG2150", },
 		{"CSC3551", },
+		{"CSC3554", },
+		{"CSC3556", },
+		{"CSC3557", },
 		{"INT33FE", },
 		{"INT3515", },
 		/* Non-conforming _HID for Cirrus Logic already released */
@@ -1723,6 +1776,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	 * Some ACPI devs contain SerialBus resources even though they are not
 	 * attached to a serial bus at all.
 	 */
+		{ACPI_VIDEO_HID, },
 		{"MSHW0028", },
 	/*
 	 * HIDs of device with an UartSerialBusV2 resource for which userspace
@@ -1768,6 +1822,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->dev.parent = parent ? &parent->dev : NULL;
 	device->dev.release = release;
 	device->dev.bus = &acpi_bus_type;
+	device->dev.groups = acpi_groups;
 	fwnode_init(&device->fwnode, &acpi_device_fwnode_ops);
 	acpi_set_device_status(device, ACPI_STA_DEFAULT);
 	acpi_device_get_busid(device);
@@ -1793,7 +1848,8 @@ static void acpi_scan_dep_init(struct acpi_device *adev)
 			if (dep->honor_dep)
 				adev->flags.honor_deps = 1;
 
-			adev->dep_unmet++;
+			if (!dep->met)
+				adev->dep_unmet++;
 		}
 	}
 }
@@ -1909,6 +1965,11 @@ bool acpi_device_is_present(const struct acpi_device *adev)
 	return adev->status.present || adev->status.functional;
 }
 
+bool acpi_device_is_enabled(const struct acpi_device *adev)
+{
+	return adev->status.enabled;
+}
+
 static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
 				       const char *idstr,
 				       const struct acpi_device_id **matchid)
@@ -1953,6 +2014,49 @@ void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val)
 	mutex_unlock(&acpi_scan_lock);
 }
 
+int acpi_scan_add_dep(acpi_handle handle, struct acpi_handle_list *dep_devices)
+{
+	u32 count;
+	int i;
+
+	for (count = 0, i = 0; i < dep_devices->count; i++) {
+		struct acpi_device_info *info;
+		struct acpi_dep_data *dep;
+		bool skip, honor_dep;
+		acpi_status status;
+
+		status = acpi_get_object_info(dep_devices->handles[i], &info);
+		if (ACPI_FAILURE(status)) {
+			acpi_handle_debug(handle, "Error reading _DEP device info\n");
+			continue;
+		}
+
+		skip = acpi_info_matches_ids(info, acpi_ignore_dep_ids);
+		honor_dep = acpi_info_matches_ids(info, acpi_honor_dep_ids);
+		kfree(info);
+
+		if (skip)
+			continue;
+
+		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+		if (!dep)
+			continue;
+
+		count++;
+
+		dep->supplier = dep_devices->handles[i];
+		dep->consumer = handle;
+		dep->honor_dep = honor_dep;
+
+		mutex_lock(&acpi_dep_list_lock);
+		list_add_tail(&dep->node, &acpi_dep_list);
+		mutex_unlock(&acpi_dep_list_lock);
+	}
+
+	acpi_handle_list_free(dep_devices);
+	return count;
+}
+
 static void acpi_scan_init_hotplug(struct acpi_device *adev)
 {
 	struct acpi_hardware_id *hwid;
@@ -1972,12 +2076,21 @@ static void acpi_scan_init_hotplug(struct acpi_device *adev)
 	}
 }
 
-static u32 acpi_scan_check_dep(acpi_handle handle, bool check_dep)
+u32 __weak arch_acpi_add_auto_dep(acpi_handle handle) { return 0; }
+
+static u32 acpi_scan_check_dep(acpi_handle handle)
 {
 	struct acpi_handle_list dep_devices;
-	acpi_status status;
-	u32 count;
-	int i;
+	u32 count = 0;
+
+	/*
+	 * Some architectures like RISC-V need to add dependencies for
+	 * all devices which use GSI to the interrupt controller so that
+	 * interrupt controller is probed before any of those devices.
+	 * Instead of mandating _DEP on all the devices, detect the
+	 * dependency and add automatically.
+	 */
+	count += arch_acpi_add_auto_dep(handle);
 
 	/*
 	 * Check for _HID here to avoid deferring the enumeration of:
@@ -1985,53 +2098,25 @@ static u32 acpi_scan_check_dep(acpi_handle handle, bool check_dep)
 	 * 2. ACPI nodes describing USB ports.
 	 * Still, checking for _HID catches more then just these cases ...
 	 */
-	if (!check_dep || !acpi_has_method(handle, "_DEP") ||
-	    !acpi_has_method(handle, "_HID"))
-		return 0;
+	if (!acpi_has_method(handle, "_DEP") || !acpi_has_method(handle, "_HID"))
+		return count;
 
-	status = acpi_evaluate_reference(handle, "_DEP", NULL, &dep_devices);
-	if (ACPI_FAILURE(status)) {
+	if (!acpi_evaluate_reference(handle, "_DEP", NULL, &dep_devices)) {
 		acpi_handle_debug(handle, "Failed to evaluate _DEP.\n");
-		return 0;
+		return count;
 	}
 
-	for (count = 0, i = 0; i < dep_devices.count; i++) {
-		struct acpi_device_info *info;
-		struct acpi_dep_data *dep;
-		bool skip, honor_dep;
-
-		status = acpi_get_object_info(dep_devices.handles[i], &info);
-		if (ACPI_FAILURE(status)) {
-			acpi_handle_debug(handle, "Error reading _DEP device info\n");
-			continue;
-		}
-
-		skip = acpi_info_matches_ids(info, acpi_ignore_dep_ids);
-		honor_dep = acpi_info_matches_ids(info, acpi_honor_dep_ids);
-		kfree(info);
-
-		if (skip)
-			continue;
-
-		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
-		if (!dep)
-			continue;
-
-		count++;
-
-		dep->supplier = dep_devices.handles[i];
-		dep->consumer = handle;
-		dep->honor_dep = honor_dep;
-
-		mutex_lock(&acpi_dep_list_lock);
-		list_add_tail(&dep->node , &acpi_dep_list);
-		mutex_unlock(&acpi_dep_list_lock);
-	}
-
+	count += acpi_scan_add_dep(handle, &dep_devices);
 	return count;
 }
 
-static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
+static acpi_status acpi_scan_check_crs_csi2_cb(acpi_handle handle, u32 a, void *b, void **c)
+{
+	acpi_mipi_check_crs_csi2(handle);
+	return AE_OK;
+}
+
+static acpi_status acpi_bus_check_add(acpi_handle handle, bool first_pass,
 				      struct acpi_device **adev_p)
 {
 	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
@@ -2049,9 +2134,25 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 		if (acpi_device_should_be_hidden(handle))
 			return AE_OK;
 
-		/* Bail out if there are dependencies. */
-		if (acpi_scan_check_dep(handle, check_dep) > 0)
-			return AE_CTRL_DEPTH;
+		if (first_pass) {
+			acpi_mipi_check_crs_csi2(handle);
+
+			/* Bail out if there are dependencies. */
+			if (acpi_scan_check_dep(handle) > 0) {
+				/*
+				 * The entire CSI-2 connection graph needs to be
+				 * extracted before any drivers or scan handlers
+				 * are bound to struct device objects, so scan
+				 * _CRS CSI-2 resource descriptors for all
+				 * devices below the current handle.
+				 */
+				acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+						    ACPI_UINT32_MAX,
+						    acpi_scan_check_crs_csi2_cb,
+						    NULL, NULL, NULL);
+				return AE_CTRL_DEPTH;
+			}
+		}
 
 		fallthrough;
 	case ACPI_TYPE_ANY:	/* for ACPI_ROOT_OBJECT */
@@ -2074,10 +2175,10 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 	}
 
 	/*
-	 * If check_dep is true at this point, the device has no dependencies,
+	 * If first_pass is true at this point, the device has no dependencies,
 	 * or the creation of the device object would have been postponed above.
 	 */
-	acpi_add_single_object(&device, handle, type, !check_dep);
+	acpi_add_single_object(&device, handle, type, !first_pass);
 	if (!device)
 		return AE_CTRL_DEPTH;
 
@@ -2191,6 +2292,8 @@ static int acpi_bus_attach(struct acpi_device *device, void *first_pass)
 	}
 	if (device->handler)
 		goto ok;
+
+	acpi_ec_register_opregions(device);
 
 	if (!device->flags.initialized) {
 		device->flags.power_manageable =
@@ -2421,6 +2524,13 @@ static void acpi_scan_postponed_branch(acpi_handle handle)
 
 	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 			    acpi_bus_check_add_2, NULL, NULL, (void **)&adev);
+
+	/*
+	 * Populate the ACPI _CRS CSI-2 software nodes for the ACPI devices that
+	 * have been added above.
+	 */
+	acpi_mipi_init_crs_csi2_swnodes();
+
 	acpi_bus_attach(adev, NULL);
 }
 
@@ -2489,41 +2599,25 @@ int acpi_bus_scan(acpi_handle handle)
 	if (!device)
 		return -ENODEV;
 
+	/*
+	 * Set up ACPI _CRS CSI-2 software nodes using information extracted
+	 * from the _CRS CSI-2 resource descriptors during the ACPI namespace
+	 * walk above and MIPI DisCo for Imaging device properties.
+	 */
+	acpi_mipi_scan_crs_csi2();
+	acpi_mipi_init_crs_csi2_swnodes();
+
 	acpi_bus_attach(device, (void *)true);
 
 	/* Pass 2: Enumerate all of the remaining devices. */
 
 	acpi_scan_postponed();
 
+	acpi_mipi_crs_csi2_cleanup();
+
 	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_scan);
-
-static int acpi_bus_trim_one(struct acpi_device *adev, void *not_used)
-{
-	struct acpi_scan_handler *handler = adev->handler;
-
-	acpi_dev_for_each_child_reverse(adev, acpi_bus_trim_one, NULL);
-
-	adev->flags.match_driver = false;
-	if (handler) {
-		if (handler->detach)
-			handler->detach(adev);
-
-		adev->handler = NULL;
-	} else {
-		device_release_driver(&adev->dev);
-	}
-	/*
-	 * Most likely, the device is going away, so put it into D3cold before
-	 * that.
-	 */
-	acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
-	adev->flags.initialized = false;
-	acpi_device_clear_enumerated(adev);
-
-	return 0;
-}
 
 /**
  * acpi_bus_trim - Detach scan handlers and drivers from ACPI device objects.
@@ -2533,7 +2627,9 @@ static int acpi_bus_trim_one(struct acpi_device *adev, void *not_used)
  */
 void acpi_bus_trim(struct acpi_device *adev)
 {
-	acpi_bus_trim_one(adev, NULL);
+	uintptr_t flags = 0;
+
+	acpi_scan_check_and_detach(adev, (void *)flags);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 
@@ -2615,7 +2711,6 @@ void __init acpi_scan_init(void)
 	acpi_watchdog_init();
 	acpi_pnp_init();
 	acpi_int340x_thermal_init();
-	acpi_amba_init();
 	acpi_init_lpit();
 
 	acpi_scan_add_handler(&generic_device_handler);
@@ -2682,6 +2777,8 @@ static int __init acpi_match_madt(union acpi_subtable_headers *header,
 	return 0;
 }
 
+void __weak arch_sort_irqchip_probe(struct acpi_probe_entry *ap_head, int nr) { }
+
 int __init __acpi_probe_device_table(struct acpi_probe_entry *ap_head, int nr)
 {
 	int count = 0;
@@ -2690,6 +2787,7 @@ int __init __acpi_probe_device_table(struct acpi_probe_entry *ap_head, int nr)
 		return 0;
 
 	mutex_lock(&acpi_probe_mutex);
+	arch_sort_irqchip_probe(ap_head, nr);
 	for (ape = ap_head; nr; ape++, nr--) {
 		if (ACPI_COMPARE_NAMESEG(ACPI_SIG_MADT, ape->id)) {
 			acpi_probe_count = 0;

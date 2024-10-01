@@ -135,7 +135,7 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 	struct sprd_compr_stream *stream = runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct device *dev = component->dev;
-	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	struct sprd_pcm_dma_params *dma_params = data->dma_params;
 	struct sprd_compr_dma *dma = &stream->dma[channel];
 	struct dma_slave_config config = { };
@@ -160,7 +160,7 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 		return -ENODEV;
 	}
 
-	sgt = sg = devm_kcalloc(dev, sg_num, sizeof(*sg), GFP_KERNEL);
+	sgt = sg = kcalloc(sg_num, sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
 		ret = -ENOMEM;
 		goto sg_err;
@@ -250,12 +250,12 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 		dma->desc->callback_param = cstream;
 	}
 
-	devm_kfree(dev, sg);
+	kfree(sg);
 
 	return 0;
 
 config_err:
-	devm_kfree(dev, sg);
+	kfree(sg);
 sg_err:
 	dma_release_channel(dma->chan);
 	return ret;
@@ -318,7 +318,7 @@ static int sprd_platform_compr_open(struct snd_soc_component *component,
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct device *dev = component->dev;
-	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct sprd_compr_data *data = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	struct sprd_compr_stream *stream;
 	struct sprd_compr_callback cb;
 	int stream_id = cstream->direction, ret;

@@ -595,7 +595,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 static struct usb_request *
 mv_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct mv_req *req = NULL;
+	struct mv_req *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
 	if (!req)
@@ -1451,7 +1451,7 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 
 	req = udc->status_req;
 
-	/* fill in the reqest structure */
+	/* fill in the request structure */
 	if (empty == false) {
 		*((u16 *) req->req.buf) = cpu_to_le16(status);
 		req->req.length = 2;

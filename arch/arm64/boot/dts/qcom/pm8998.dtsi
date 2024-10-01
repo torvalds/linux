@@ -11,7 +11,6 @@
 	thermal-zones {
 		pm8998-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&pm8998_temp>;
 
@@ -86,7 +85,7 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
-			adc-chan@6 {
+			channel@6 {
 				reg = <ADC5_DIE_TEMP>;
 				label = "die_temp";
 			};

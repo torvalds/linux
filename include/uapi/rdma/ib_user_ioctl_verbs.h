@@ -220,7 +220,8 @@ enum ib_uverbs_advise_mr_flag {
 struct ib_uverbs_query_port_resp_ex {
 	struct ib_uverbs_query_port_resp legacy_resp;
 	__u16 port_cap_flags2;
-	__u8  reserved[6];
+	__u8  reserved[2];
+	__u32 active_speed_ex;
 };
 
 struct ib_uverbs_qp_cap {

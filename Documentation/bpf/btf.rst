@@ -272,10 +272,8 @@ In this case, if the base type is an int type, it must be a regular int type:
   * ``BTF_INT_OFFSET()`` must be 0.
   * ``BTF_INT_BITS()`` must be equal to ``{1,2,4,8,16} * 8``.
 
-The following kernel patch introduced ``kind_flag`` and explained why both
-modes exist:
-
-  https://github.com/torvalds/linux/commit/9d5f9f701b1891466fb3dbb1806ad97716f95cc3#diff-fa650a64fdd3968396883d2fe8215ff3
+Commit 9d5f9f701b18 introduced ``kind_flag`` and explains why both modes
+exist.
 
 2.2.6 BTF_KIND_ENUM
 ~~~~~~~~~~~~~~~~~~~
@@ -370,7 +368,7 @@ No additional type data follow ``btf_type``.
   * ``info.kind_flag``: 0
   * ``info.kind``: BTF_KIND_FUNC
   * ``info.vlen``: linkage information (BTF_FUNC_STATIC, BTF_FUNC_GLOBAL
-                   or BTF_FUNC_EXTERN)
+                   or BTF_FUNC_EXTERN - see :ref:`BTF_Function_Linkage_Constants`)
   * ``type``: a BTF_KIND_FUNC_PROTO type
 
 No additional type data follow ``btf_type``.
@@ -426,9 +424,8 @@ following data::
         __u32   linkage;
     };
 
-``struct btf_var`` encoding:
-  * ``linkage``: currently only static variable 0, or globally allocated
-                 variable in ELF sections 1
+``btf_var.linkage`` may take the values: BTF_VAR_STATIC, BTF_VAR_GLOBAL_ALLOCATED or BTF_VAR_GLOBAL_EXTERN -
+see :ref:`BTF_Var_Linkage_Constants`.
 
 Not all type of global variables are supported by LLVM at this point.
 The following is currently available:
@@ -550,6 +547,38 @@ The ``btf_enum64`` encoding:
 
 If the original enum value is signed and the size is less than 8,
 that value will be sign extended into 8 bytes.
+
+2.3 Constant Values
+-------------------
+
+.. _BTF_Function_Linkage_Constants:
+
+2.3.1 Function Linkage Constant Values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. table:: Function Linkage Values and Meanings
+
+  ===================  =====  ===========
+  kind                 value  description
+  ===================  =====  ===========
+  ``BTF_FUNC_STATIC``  0x0    definition of subprogram not visible outside containing compilation unit
+  ``BTF_FUNC_GLOBAL``  0x1    definition of subprogram visible outside containing compilation unit
+  ``BTF_FUNC_EXTERN``  0x2    declaration of a subprogram whose definition is outside the containing compilation unit
+  ===================  =====  ===========
+
+
+.. _BTF_Var_Linkage_Constants:
+
+2.3.2 Variable Linkage Constant Values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. table:: Variable Linkage Values and Meanings
+
+  ============================  =====  ===========
+  kind                          value  description
+  ============================  =====  ===========
+  ``BTF_VAR_STATIC``            0x0    definition of global variable not visible outside containing compilation unit
+  ``BTF_VAR_GLOBAL_ALLOCATED``  0x1    definition of global variable visible outside containing compilation unit
+  ``BTF_VAR_GLOBAL_EXTERN``     0x2    declaration of global variable whose definition is outside the containing compilation unit
+  ============================  =====  ===========
 
 3. BTF Kernel API
 =================
@@ -726,8 +755,8 @@ same as the one describe in :ref:`BTF_Type_String`.
 4.2 .BTF.ext section
 --------------------
 
-The .BTF.ext section encodes func_info and line_info which needs loader
-manipulation before loading into the kernel.
+The .BTF.ext section encodes func_info, line_info and CO-RE relocations
+which needs loader manipulation before loading into the kernel.
 
 The specification for .BTF.ext section is defined at ``tools/lib/bpf/btf.h``
 and ``tools/lib/bpf/btf.c``.
@@ -745,15 +774,20 @@ The current header of .BTF.ext section::
         __u32   func_info_len;
         __u32   line_info_off;
         __u32   line_info_len;
+
+        /* optional part of .BTF.ext header */
+        __u32   core_relo_off;
+        __u32   core_relo_len;
     };
 
 It is very similar to .BTF section. Instead of type/string section, it
-contains func_info and line_info section. See :ref:`BPF_Prog_Load` for details
-about func_info and line_info record format.
+contains func_info, line_info and core_relo sub-sections.
+See :ref:`BPF_Prog_Load` for details about func_info and line_info
+record format.
 
 The func_info is organized as below.::
 
-     func_info_rec_size
+     func_info_rec_size              /* __u32 value */
      btf_ext_info_sec for section #1 /* func_info for section #1 */
      btf_ext_info_sec for section #2 /* func_info for section #2 */
      ...
@@ -773,7 +807,7 @@ Here, num_info must be greater than 0.
 
 The line_info is organized as below.::
 
-     line_info_rec_size
+     line_info_rec_size              /* __u32 value */
      btf_ext_info_sec for section #1 /* line_info for section #1 */
      btf_ext_info_sec for section #2 /* line_info for section #2 */
      ...
@@ -786,6 +820,20 @@ The interpretation of ``bpf_func_info->insn_off`` and
 kernel API, the ``insn_off`` is the instruction offset in the unit of ``struct
 bpf_insn``. For ELF API, the ``insn_off`` is the byte offset from the
 beginning of section (``btf_ext_info_sec->sec_name_off``).
+
+The core_relo is organized as below.::
+
+     core_relo_rec_size              /* __u32 value */
+     btf_ext_info_sec for section #1 /* core_relo for section #1 */
+     btf_ext_info_sec for section #2 /* core_relo for section #2 */
+
+``core_relo_rec_size`` specifies the size of ``bpf_core_relo``
+structure when .BTF.ext is generated. All ``bpf_core_relo`` structures
+within a single ``btf_ext_info_sec`` describe relocations applied to
+section named by ``btf_ext_info_sec->sec_name_off``.
+
+See :ref:`Documentation/bpf/llvm_reloc.rst <btf-co-re-relocations>`
+for more information on CO-RE relocations.
 
 4.2 .BTF_ids section
 --------------------
@@ -990,7 +1038,7 @@ format.::
     } g2;
     int main() { return 0; }
     int test() { return 0; }
-    -bash-4.4$ clang -c -g -O2 -target bpf t2.c
+    -bash-4.4$ clang -c -g -O2 --target=bpf t2.c
     -bash-4.4$ readelf -S t2.o
       ......
       [ 8] .BTF              PROGBITS         0000000000000000  00000247
@@ -1000,7 +1048,7 @@ format.::
       [10] .rel.BTF.ext      REL              0000000000000000  000007e0
            0000000000000040  0000000000000010          16     9     8
       ......
-    -bash-4.4$ clang -S -g -O2 -target bpf t2.c
+    -bash-4.4$ clang -S -g -O2 --target=bpf t2.c
     -bash-4.4$ cat t2.s
       ......
             .section        .BTF,"",@progbits

@@ -133,7 +133,7 @@ struct da9063_regulator_info {
 	.suspend_vsel_reg = DA9063_REG_V##regl_name##_B, \
 	.mode = BFIELD(DA9063_REG_##regl_name##_CFG, DA9063_BUCK_MODE_MASK)
 
-/* Defines asignment of regulators info table to chip model */
+/* Defines assignment of regulators info table to chip model */
 struct da9063_dev_model {
 	const struct da9063_regulator_info	*regulator_info;
 	unsigned int				n_regulators;
@@ -158,7 +158,7 @@ struct da9063_regulator {
 struct da9063_regulators {
 	unsigned int				n_regulators;
 	/* Array size to be defined during init. Keep at end. */
-	struct da9063_regulator			regulator[];
+	struct da9063_regulator			regulator[] __counted_by(n_regulators);
 };
 
 /* BUCK modes for DA9063 */
@@ -715,7 +715,7 @@ static const struct da9063_regulator_info da9063_regulator_info[] = {
 };
 
 /* Link chip model with regulators info table */
-static struct da9063_dev_model regulators_models[] = {
+static const struct da9063_dev_model regulators_models[] = {
 	{
 		.regulator_info = da9063_regulator_info,
 		.n_regulators = ARRAY_SIZE(da9063_regulator_info),
@@ -1028,9 +1028,12 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 			config.of_node = da9063_reg_matches[id].of_node;
 		config.regmap = da9063->regmap;
 
-		ret = da9063_check_xvp_constraints(&config);
-		if (ret)
-			return ret;
+		/* Checking constraints requires init_data from DT. */
+		if (config.init_data) {
+			ret = da9063_check_xvp_constraints(&config);
+			if (ret)
+				return ret;
+		}
 
 		regl->rdev = devm_regulator_register(&pdev->dev, &regl->desc,
 						     &config);

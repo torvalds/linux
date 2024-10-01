@@ -59,6 +59,9 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		bman_res->flags |= DRM_BUDDY_TOPDOWN_ALLOCATION;
 
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS)
+		bman_res->flags |= DRM_BUDDY_CONTIGUOUS_ALLOCATION;
+
 	if (place->fpfn || lpfn != man->size)
 		bman_res->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
@@ -71,18 +74,6 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 
 	GEM_BUG_ON(min_page_size < mm->chunk_size);
 	GEM_BUG_ON(!IS_ALIGNED(size, min_page_size));
-
-	if (place->fpfn + PFN_UP(bman_res->base.size) != place->lpfn &&
-	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
-		unsigned long pages;
-
-		size = roundup_pow_of_two(size);
-		min_page_size = size;
-
-		pages = size >> ilog2(mm->chunk_size);
-		if (pages > lpfn)
-			lpfn = pages;
-	}
 
 	if (size > lpfn << PAGE_SHIFT) {
 		err = -E2BIG;
@@ -106,14 +97,6 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 				     bman_res->flags);
 	if (unlikely(err))
 		goto err_free_blocks;
-
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
-		u64 original_size = (u64)bman_res->base.size;
-
-		drm_buddy_block_trim(mm,
-				     original_size,
-				     &bman_res->blocks);
-	}
 
 	if (lpfn <= bman->visible_size) {
 		bman_res->used_visible_size = PFN_UP(bman_res->base.size);
@@ -143,7 +126,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	return 0;
 
 err_free_blocks:
-	drm_buddy_free_list(mm, &bman_res->blocks);
+	drm_buddy_free_list(mm, &bman_res->blocks, 0);
 	mutex_unlock(&bman->lock);
 err_free_res:
 	ttm_resource_fini(man, &bman_res->base);
@@ -158,7 +141,7 @@ static void i915_ttm_buddy_man_free(struct ttm_resource_manager *man,
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
 
 	mutex_lock(&bman->lock);
-	drm_buddy_free_list(&bman->mm, &bman_res->blocks);
+	drm_buddy_free_list(&bman->mm, &bman_res->blocks, 0);
 	bman->visible_avail += bman_res->used_visible_size;
 	mutex_unlock(&bman->lock);
 
@@ -362,7 +345,7 @@ int i915_ttm_buddy_man_fini(struct ttm_device *bdev, unsigned int type)
 	ttm_set_driver_manager(bdev, type, NULL);
 
 	mutex_lock(&bman->lock);
-	drm_buddy_free_list(mm, &bman->reserved);
+	drm_buddy_free_list(mm, &bman->reserved, 0);
 	drm_buddy_fini(mm);
 	bman->visible_avail += bman->visible_reserved;
 	WARN_ON_ONCE(bman->visible_avail != bman->visible_size);

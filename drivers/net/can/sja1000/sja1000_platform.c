@@ -17,7 +17,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include "sja1000.h"
 
@@ -330,7 +329,7 @@ static void sp_remove(struct platform_device *pdev)
 
 static struct platform_driver sp_driver = {
 	.probe = sp_probe,
-	.remove_new = sp_remove,
+	.remove = sp_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sp_of_table,

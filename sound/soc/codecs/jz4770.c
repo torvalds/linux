@@ -872,7 +872,7 @@ static const u8 jz4770_codec_reg_defaults[] = {
 	0x07, 0x44, 0x1F, 0x00
 };
 
-static struct regmap_config jz4770_codec_regmap_config = {
+static const struct regmap_config jz4770_codec_regmap_config = {
 	.reg_bits = 7,
 	.val_bits = 8,
 

@@ -9,6 +9,8 @@ obj-$(CONFIG_ARM_MHU)	+= arm_mhu.o arm_mhu_db.o
 
 obj-$(CONFIG_ARM_MHU_V2)	+= arm_mhuv2.o
 
+obj-$(CONFIG_ARM_MHU_V3)	+= arm_mhuv3.o
+
 obj-$(CONFIG_IMX_MBOX)	+= imx-mailbox.o
 
 obj-$(CONFIG_ARMADA_37XX_RWTM_MBOX)	+= armada-37xx-rwtm-mailbox.o
@@ -59,6 +61,6 @@ obj-$(CONFIG_SUN6I_MSGBOX)	+= sun6i-msgbox.o
 
 obj-$(CONFIG_SPRD_MBOX)		+= sprd-mailbox.o
 
-obj-$(CONFIG_QCOM_IPCC)		+= qcom-ipcc.o
+obj-$(CONFIG_QCOM_CPUCP_MBOX)	+= qcom-cpucp-mbox.o
 
-obj-$(CONFIG_APPLE_MAILBOX)	+= apple-mailbox.o
+obj-$(CONFIG_QCOM_IPCC)		+= qcom-ipcc.o

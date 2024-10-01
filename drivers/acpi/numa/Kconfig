@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config ACPI_NUMA
-	bool "NUMA support"
-	depends on NUMA
-	depends on (X86 || IA64 || ARM64 || LOONGARCH)
-	default y if IA64 || ARM64
+	def_bool NUMA && !X86
 
 config ACPI_HMAT
 	bool "ACPI Heterogeneous Memory Attribute Table Support"

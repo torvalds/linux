@@ -26,6 +26,8 @@
 #include <linux/component.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_eld.h>
+#include <drm/drm_edid.h>
 #include "dce6_afmt.h"
 #include "evergreen_hdmi.h"
 #include "radeon.h"
@@ -35,15 +37,14 @@
 
 void dce6_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
-struct r600_audio_pin* r600_audio_get_pin(struct radeon_device *rdev);
-struct r600_audio_pin* dce6_audio_get_pin(struct radeon_device *rdev);
+struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev);
+struct r600_audio_pin *dce6_audio_get_pin(struct radeon_device *rdev);
 static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
 static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
 
-static const u32 pin_offsets[7] =
-{
+static const u32 pin_offsets[7] = {
 	(0x5e00 - 0x5e00),
 	(0x5e18 - 0x5e00),
 	(0x5e30 - 0x5e00),
@@ -195,7 +196,7 @@ static void radeon_audio_enable(struct radeon_device *rdev,
 		return;
 
 	if (rdev->mode_info.mode_config_initialized) {
-		list_for_each_entry(encoder, &rdev->ddev->mode_config.encoder_list, head) {
+		list_for_each_entry(encoder, &rdev_to_drm(rdev)->mode_config.encoder_list, head) {
 			if (radeon_encoder_is_digital(encoder)) {
 				radeon_encoder = to_radeon_encoder(encoder);
 				dig = radeon_encoder->enc_priv;
@@ -302,6 +303,7 @@ void radeon_audio_endpoint_wreg(struct radeon_device *rdev, u32 offset,
 static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct cea_sad *sads;
 	int sad_count;
@@ -309,7 +311,7 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 	if (!connector)
 		return;
 
-	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
+	sad_count = drm_edid_to_sad(radeon_connector->edid, &sads);
 	if (sad_count < 0)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
 	if (sad_count <= 0)
@@ -325,6 +327,7 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 static void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	u8 *sadb = NULL;
 	int sad_count;
@@ -332,8 +335,7 @@ static void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 	if (!connector)
 		return;
 
-	sad_count = drm_edid_to_speaker_allocation(radeon_connector_edid(connector),
-						   &sadb);
+	sad_count = drm_edid_to_speaker_allocation(radeon_connector->edid, &sadb);
 	if (sad_count < 0) {
 		DRM_DEBUG("Couldn't read Speaker Allocation Data Block: %d\n",
 			  sad_count);
@@ -359,7 +361,7 @@ static void radeon_audio_write_latency_fields(struct drm_encoder *encoder,
 		radeon_encoder->audio->write_latency_fields(encoder, connector, mode);
 }
 
-struct r600_audio_pin* radeon_audio_get_pin(struct drm_encoder *encoder)
+struct r600_audio_pin *radeon_audio_get_pin(struct drm_encoder *encoder)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -408,7 +410,7 @@ void radeon_audio_detect(struct drm_connector *connector,
 			radeon_encoder->audio = rdev->audio.hdmi_funcs;
 		}
 
-		if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+		if (connector->display_info.has_audio) {
 			if (!dig->pin)
 				dig->pin = radeon_audio_get_pin(encoder);
 			radeon_audio_enable(rdev, dig->pin, 0xf);
@@ -526,7 +528,7 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 		*N, *CTS, freq);
 }
 
-static const struct radeon_hdmi_acr* radeon_audio_acr(unsigned int clock)
+static const struct radeon_hdmi_acr *radeon_audio_acr(unsigned int clock)
 {
 	static struct radeon_hdmi_acr res;
 	u8 i;
@@ -645,7 +647,7 @@ static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 	if (!connector)
 		return;
 
-	if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+	if (connector->display_info.has_audio) {
 		radeon_audio_set_mute(encoder, true);
 
 		radeon_audio_write_speaker_allocation(encoder);
@@ -685,7 +687,7 @@ static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 	if (!connector)
 		return;
 
-	if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+	if (connector->display_info.has_audio) {
 		radeon_audio_write_speaker_allocation(encoder);
 		radeon_audio_write_sad_regs(encoder);
 		radeon_audio_write_latency_fields(encoder, mode);
@@ -758,7 +760,7 @@ static int radeon_audio_component_get_eld(struct device *kdev, int port,
 	if (!rdev->audio.enabled || !rdev->mode_info.mode_config_initialized)
 		return 0;
 
-	list_for_each_entry(encoder, &rdev->ddev->mode_config.encoder_list, head) {
+	list_for_each_entry(encoder, &rdev_to_drm(rdev)->mode_config.encoder_list, head) {
 		if (!radeon_encoder_is_digital(encoder))
 			continue;
 		radeon_encoder = to_radeon_encoder(encoder);

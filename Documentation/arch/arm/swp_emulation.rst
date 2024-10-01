@@ -1,7 +1,7 @@
 Software emulation of deprecated SWP instruction (CONFIG_SWP_EMULATE)
 ---------------------------------------------------------------------
 
-ARMv6 architecture deprecates use of the SWP/SWPB instructions, and recommeds
+ARMv6 architecture deprecates use of the SWP/SWPB instructions, and recommends
 moving to the load-locked/store-conditional instructions LDREX and STREX.
 
 ARMv7 multiprocessing extensions introduce the ability to disable these

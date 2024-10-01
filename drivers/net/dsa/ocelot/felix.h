@@ -32,7 +32,6 @@ struct felix_info {
 	const u32			*port_modes;
 	int				num_mact_rows;
 	int				num_ports;
-	int				num_tx_queues;
 	struct vcap_props		*vcap;
 	u16				vcap_pol_base;
 	u16				vcap_pol_max;
@@ -64,6 +63,7 @@ struct felix_info {
 				      const struct phylink_link_state *state);
 	int	(*configure_serdes)(struct ocelot *ocelot, int port,
 				    struct device_node *portnp);
+	int	(*request_irq)(struct ocelot *ocelot);
 };
 
 /* Methods for initializing the hardware resources specific to a tagging
@@ -77,12 +77,10 @@ struct felix_tag_proto_ops {
 	int (*setup)(struct dsa_switch *ds);
 	void (*teardown)(struct dsa_switch *ds);
 	unsigned long (*get_host_fwd_mask)(struct dsa_switch *ds);
-	int (*change_master)(struct dsa_switch *ds, int port,
-			     struct net_device *master,
-			     struct netlink_ext_ack *extack);
+	int (*change_conduit)(struct dsa_switch *ds, int port,
+			      struct net_device *conduit,
+			      struct netlink_ext_ack *extack);
 };
-
-extern const struct dsa_switch_ops felix_switch_ops;
 
 /* DSA glue / front-end for struct ocelot */
 struct felix {
@@ -99,6 +97,11 @@ struct felix {
 	unsigned long			host_flood_mc_mask;
 };
 
+int felix_register_switch(struct device *dev, resource_size_t switch_base,
+			  int num_flooding_pgids, bool ptp,
+			  bool mm_supported,
+			  enum dsa_tag_protocol init_tag_proto,
+			  const struct felix_info *info);
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port);
 int felix_netdev_to_port(struct net_device *dev);
 

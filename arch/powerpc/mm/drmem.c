@@ -67,7 +67,7 @@ static int drmem_update_dt_v1(struct device_node *memory,
 	struct property *new_prop;
 	struct of_drconf_cell_v1 *dr_cell;
 	struct drmem_lmb *lmb;
-	u32 *p;
+	__be32 *p;
 
 	new_prop = clone_property(prop, prop->length);
 	if (!new_prop)
@@ -393,17 +393,17 @@ static const __be32 *of_get_usable_memory(struct device_node *dn)
 int walk_drmem_lmbs(struct device_node *dn, void *data,
 		    int (*func)(struct drmem_lmb *, const __be32 **, void *))
 {
+	struct device_node *root = of_find_node_by_path("/");
 	const __be32 *prop, *usm;
 	int ret = -ENODEV;
 
-	if (!of_root)
+	if (!root)
 		return ret;
 
 	/* Get the address & size cells */
-	of_node_get(of_root);
-	n_root_addr_cells = of_n_addr_cells(of_root);
-	n_root_size_cells = of_n_size_cells(of_root);
-	of_node_put(of_root);
+	n_root_addr_cells = of_n_addr_cells(root);
+	n_root_size_cells = of_n_size_cells(root);
+	of_node_put(root);
 
 	if (init_drmem_lmb_size(dn))
 		return ret;
@@ -491,10 +491,8 @@ static int __init drmem_init(void)
 	const __be32 *prop;
 
 	dn = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (!dn) {
-		pr_info("No dynamic reconfiguration memory found\n");
+	if (!dn)
 		return 0;
-	}
 
 	if (init_drmem_lmb_size(dn)) {
 		of_node_put(dn);

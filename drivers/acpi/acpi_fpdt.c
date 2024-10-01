@@ -194,12 +194,19 @@ static int fpdt_process_subtable(u64 address, u32 subtable_type)
 		record_header = (void *)subtable_header + offset;
 		offset += record_header->length;
 
+		if (!record_header->length) {
+			pr_err(FW_BUG "Zero-length record found in FPTD.\n");
+			result = -EINVAL;
+			goto err;
+		}
+
 		switch (record_header->type) {
 		case RECORD_S3_RESUME:
 			if (subtable_type != SUBTABLE_S3PT) {
 				pr_err(FW_BUG "Invalid record %d for subtable %s\n",
 				     record_header->type, signature);
-				return -EINVAL;
+				result = -EINVAL;
+				goto err;
 			}
 			if (record_resume) {
 				pr_err("Duplicate resume performance record found.\n");
@@ -208,7 +215,7 @@ static int fpdt_process_subtable(u64 address, u32 subtable_type)
 			record_resume = (struct resume_performance_record *)record_header;
 			result = sysfs_create_group(fpdt_kobj, &resume_attr_group);
 			if (result)
-				return result;
+				goto err;
 			break;
 		case RECORD_S3_SUSPEND:
 			if (subtable_type != SUBTABLE_S3PT) {
@@ -223,13 +230,14 @@ static int fpdt_process_subtable(u64 address, u32 subtable_type)
 			record_suspend = (struct suspend_performance_record *)record_header;
 			result = sysfs_create_group(fpdt_kobj, &suspend_attr_group);
 			if (result)
-				return result;
+				goto err;
 			break;
 		case RECORD_BOOT:
 			if (subtable_type != SUBTABLE_FBPT) {
 				pr_err(FW_BUG "Invalid %d for subtable %s\n",
 				     record_header->type, signature);
-				return -EINVAL;
+				result = -EINVAL;
+				goto err;
 			}
 			if (record_boot) {
 				pr_err("Duplicate boot performance record found.\n");
@@ -238,7 +246,7 @@ static int fpdt_process_subtable(u64 address, u32 subtable_type)
 			record_boot = (struct boot_performance_record *)record_header;
 			result = sysfs_create_group(fpdt_kobj, &boot_attr_group);
 			if (result)
-				return result;
+				goto err;
 			break;
 
 		default:
@@ -247,6 +255,18 @@ static int fpdt_process_subtable(u64 address, u32 subtable_type)
 		}
 	}
 	return 0;
+
+err:
+	if (record_boot)
+		sysfs_remove_group(fpdt_kobj, &boot_attr_group);
+
+	if (record_suspend)
+		sysfs_remove_group(fpdt_kobj, &suspend_attr_group);
+
+	if (record_resume)
+		sysfs_remove_group(fpdt_kobj, &resume_attr_group);
+
+	return result;
 }
 
 static int __init acpi_init_fpdt(void)
@@ -255,6 +275,7 @@ static int __init acpi_init_fpdt(void)
 	struct acpi_table_header *header;
 	struct fpdt_subtable_entry *subtable;
 	u32 offset = sizeof(*header);
+	int result;
 
 	status = acpi_get_table(ACPI_SIG_FPDT, 0, &header);
 
@@ -263,8 +284,8 @@ static int __init acpi_init_fpdt(void)
 
 	fpdt_kobj = kobject_create_and_add("fpdt", acpi_kobj);
 	if (!fpdt_kobj) {
-		acpi_put_table(header);
-		return -ENOMEM;
+		result = -ENOMEM;
+		goto err_nomem;
 	}
 
 	while (offset < header->length) {
@@ -272,8 +293,10 @@ static int __init acpi_init_fpdt(void)
 		switch (subtable->type) {
 		case SUBTABLE_FBPT:
 		case SUBTABLE_S3PT:
-			fpdt_process_subtable(subtable->address,
+			result = fpdt_process_subtable(subtable->address,
 					      subtable->type);
+			if (result)
+				goto err_subtable;
 			break;
 		default:
 			/* Other types are reserved in ACPI 6.4 spec. */
@@ -282,6 +305,12 @@ static int __init acpi_init_fpdt(void)
 		offset += sizeof(*subtable);
 	}
 	return 0;
+err_subtable:
+	kobject_put(fpdt_kobj);
+
+err_nomem:
+	acpi_put_table(header);
+	return result;
 }
 
 fs_initcall(acpi_init_fpdt);

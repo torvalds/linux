@@ -26,15 +26,13 @@
 #include "ni_dpm.h"
 #include "sislands_smc.h"
 
-enum si_cac_config_reg_type
-{
+enum si_cac_config_reg_type {
 	SISLANDS_CACCONFIG_MMR = 0,
 	SISLANDS_CACCONFIG_CGIND,
 	SISLANDS_CACCONFIG_MAX
 };
 
-struct si_cac_config_reg
-{
+struct si_cac_config_reg {
 	u32 offset;
 	u32 mask;
 	u32 shift;
@@ -42,8 +40,7 @@ struct si_cac_config_reg
 	enum si_cac_config_reg_type type;
 };
 
-struct si_powertune_data
-{
+struct si_powertune_data {
 	u32 cac_window;
 	u32 l2_lta_window_size_default;
 	u8 lts_truncate_default;
@@ -56,8 +53,7 @@ struct si_powertune_data
 	bool enable_powertune_by_default;
 };
 
-struct si_dyn_powertune_data
-{
+struct si_dyn_powertune_data {
 	u32 cac_leakage;
 	s32 leakage_minimum_temperature;
 	u32 wintime;
@@ -68,8 +64,7 @@ struct si_dyn_powertune_data
 	bool disable_uvd_powertune;
 };
 
-struct si_dte_data
-{
+struct si_dte_data {
 	u32 tau[SMC_SISLANDS_DTE_MAX_FILTER_STAGES];
 	u32 r[SMC_SISLANDS_DTE_MAX_FILTER_STAGES];
 	u32 k;
@@ -122,8 +117,7 @@ struct si_mc_reg_table {
 #define SISLANDS_MCREGISTERTABLE_ULV_SLOT                   2
 #define SISLANDS_MCREGISTERTABLE_FIRST_DRIVERSTATE_SLOT     3
 
-struct si_leakage_voltage_entry
-{
+struct si_leakage_voltage_entry {
 	u16 voltage;
 	u16 leakage_index;
 };
@@ -131,8 +125,7 @@ struct si_leakage_voltage_entry
 #define SISLANDS_LEAKAGE_INDEX0     0xff01
 #define SISLANDS_MAX_LEAKAGE_COUNT  4
 
-struct si_leakage_voltage
-{
+struct si_leakage_voltage {
 	u16 count;
 	struct si_leakage_voltage_entry entries[SISLANDS_MAX_LEAKAGE_COUNT];
 };

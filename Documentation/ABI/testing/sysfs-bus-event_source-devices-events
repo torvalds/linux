@@ -37,6 +37,12 @@ Description:	Per-pmu performance monitoring events specific to the running syste
 		performance monitoring event supported by the <pmu>. The name
 		of the file is the name of the event.
 
+		As performance monitoring event names are case
+		insensitive in the perf tool, the perf tool only looks
+		for lower or upper case event names in sysfs to avoid
+		scanning the directory. It is therefore required the
+		name of the event here is either lower or upper case.
+
 		File contents:
 
 			<term>[=<value>][,<term>[=<value>]]...
@@ -47,7 +53,7 @@ Description:	Per-pmu performance monitoring events specific to the running syste
 		If a <term> is specified alone (without an assigned value), it
 		is implied that 0x1 is assigned to that <term>.
 
-		Examples (each of these lines would be in a seperate file):
+		Examples (each of these lines would be in a separate file):
 
 			event=0x2abc
 			event=0x423,inv,cmask=0x3
@@ -83,7 +89,7 @@ Description:	Perf event scaling factors
 
 		A string representing a floating point value expressed in
 		scientific notation to be multiplied by the event count
-		recieved from the kernel to match the unit specified in the
+		received from the kernel to match the unit specified in the
 		<event>.unit file.
 
 		Example:

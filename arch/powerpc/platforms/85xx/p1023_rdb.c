@@ -15,9 +15,8 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/fsl_devices.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
-#include <linux/of_device.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>

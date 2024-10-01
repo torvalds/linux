@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HAL_H
@@ -767,15 +767,15 @@ struct hal_srng_config {
 };
 
 /**
- * enum hal_rx_buf_return_buf_manager
+ * enum hal_rx_buf_return_buf_manager - manager for returned rx buffers
  *
  * @HAL_RX_BUF_RBM_WBM_IDLE_BUF_LIST: Buffer returned to WBM idle buffer list
- * @HAL_RX_BUF_RBM_WBM_CHIP0_IDLE_DESC_LIST: Descriptor returned to WBM idle
- *	descriptor list, where the chip 0 WBM is chosen in case of a multi-chip config
- * @HAL_RX_BUF_RBM_WBM_CHIP1_IDLE_DESC_LIST: Descriptor returned to WBM idle
- *	descriptor list, where the chip 1 WBM is chosen in case of a multi-chip config
- * @HAL_RX_BUF_RBM_WBM_CHIP2_IDLE_DESC_LIST: Descriptor returned to WBM idle
- *	descriptor list, where the chip 2 WBM is chosen in case of a multi-chip config
+ * @HAL_RX_BUF_RBM_WBM_DEV0_IDLE_DESC_LIST: Descriptor returned to WBM idle
+ *	descriptor list, where the device 0 WBM is chosen in case of a multi-device config
+ * @HAL_RX_BUF_RBM_WBM_DEV1_IDLE_DESC_LIST: Descriptor returned to WBM idle
+ *	descriptor list, where the device 1 WBM is chosen in case of a multi-device config
+ * @HAL_RX_BUF_RBM_WBM_DEV2_IDLE_DESC_LIST: Descriptor returned to WBM idle
+ *	descriptor list, where the device 2 WBM is chosen in case of a multi-device config
  * @HAL_RX_BUF_RBM_FW_BM: Buffer returned to FW
  * @HAL_RX_BUF_RBM_SW0_BM: For ring 0 -- returned to host
  * @HAL_RX_BUF_RBM_SW1_BM: For ring 1 -- returned to host
@@ -788,9 +788,9 @@ struct hal_srng_config {
 
 enum hal_rx_buf_return_buf_manager {
 	HAL_RX_BUF_RBM_WBM_IDLE_BUF_LIST,
-	HAL_RX_BUF_RBM_WBM_CHIP0_IDLE_DESC_LIST,
-	HAL_RX_BUF_RBM_WBM_CHIP1_IDLE_DESC_LIST,
-	HAL_RX_BUF_RBM_WBM_CHIP2_IDLE_DESC_LIST,
+	HAL_RX_BUF_RBM_WBM_DEV0_IDLE_DESC_LIST,
+	HAL_RX_BUF_RBM_WBM_DEV1_IDLE_DESC_LIST,
+	HAL_RX_BUF_RBM_WBM_DEV2_IDLE_DESC_LIST,
 	HAL_RX_BUF_RBM_FW_BM,
 	HAL_RX_BUF_RBM_SW0_BM,
 	HAL_RX_BUF_RBM_SW1_BM,
@@ -1023,6 +1023,8 @@ struct ath12k_hal {
 	/* shadow register configuration */
 	u32 shadow_reg_addr[HAL_SHADOW_NUM_REGS];
 	int num_shadow_reg_configured;
+
+	u32 hal_desc_sz;
 };
 
 /* Maps WBM ring number and Return Buffer Manager Id per TCL ring */
@@ -1031,7 +1033,7 @@ struct ath12k_hal_tcl_to_wbm_rbm_map  {
 	u8 rbm_id;
 };
 
-struct hal_ops {
+struct hal_rx_ops {
 	bool (*rx_desc_get_first_msdu)(struct hal_rx_desc *desc);
 	bool (*rx_desc_get_last_msdu)(struct hal_rx_desc *desc);
 	u8 (*rx_desc_get_l3_pad_bytes)(struct hal_rx_desc *desc);
@@ -1070,17 +1072,29 @@ struct hal_ops {
 	void (*rx_desc_get_crypto_header)(struct hal_rx_desc *desc,
 					  u8 *crypto_hdr,
 					  enum hal_encrypt_type enctype);
-	int (*create_srng_config)(struct ath12k_base *ab);
 	bool (*dp_rx_h_msdu_done)(struct hal_rx_desc *desc);
 	bool (*dp_rx_h_l4_cksum_fail)(struct hal_rx_desc *desc);
 	bool (*dp_rx_h_ip_cksum_fail)(struct hal_rx_desc *desc);
 	bool (*dp_rx_h_is_decrypted)(struct hal_rx_desc *desc);
 	u32 (*dp_rx_h_mpdu_err)(struct hal_rx_desc *desc);
+	u32 (*rx_desc_get_desc_size)(void);
+	u8 (*rx_desc_get_msdu_src_link_id)(struct hal_rx_desc *desc);
+};
+
+struct hal_ops {
+	int (*create_srng_config)(struct ath12k_base *ab);
+	u16 (*rxdma_ring_wmask_rx_mpdu_start)(void);
+	u32 (*rxdma_ring_wmask_rx_msdu_end)(void);
+	const struct hal_rx_ops *(*get_hal_rx_compact_ops)(void);
 	const struct ath12k_hal_tcl_to_wbm_rbm_map *tcl_to_wbm_rbm_map;
 };
 
 extern const struct hal_ops hal_qcn9274_ops;
 extern const struct hal_ops hal_wcn7850_ops;
+
+extern const struct hal_rx_ops hal_rx_qcn9274_ops;
+extern const struct hal_rx_ops hal_rx_qcn9274_compact_ops;
+extern const struct hal_rx_ops hal_rx_wcn7850_ops;
 
 u32 ath12k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
 void ath12k_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
@@ -1099,7 +1113,8 @@ dma_addr_t ath12k_hal_srng_get_tp_addr(struct ath12k_base *ab,
 dma_addr_t ath12k_hal_srng_get_hp_addr(struct ath12k_base *ab,
 				       struct hal_srng *srng);
 void ath12k_hal_set_link_desc_addr(struct hal_wbm_link_desc *desc, u32 cookie,
-				   dma_addr_t paddr);
+				   dma_addr_t paddr,
+				   enum hal_rx_buf_return_buf_manager rbm);
 u32 ath12k_hal_ce_get_desc_size(enum hal_ce_desc type);
 void ath12k_hal_ce_src_set_desc(struct hal_ce_srng_src_desc *desc, dma_addr_t paddr,
 				u32 len, u32 id, u8 byte_swap_data);

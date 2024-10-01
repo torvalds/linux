@@ -11,6 +11,7 @@
 #include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -243,8 +244,8 @@ static const struct mvebu_comphy_conf mvebu_comphy_cp110_modes[] = {
 	GEN_CONF(4, 1, PHY_MODE_USB_HOST_SS, COMPHY_FW_MODE_USB3H),
 	GEN_CONF(4, 1, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
 	ETH_CONF(4, 1, PHY_INTERFACE_MODE_SGMII, 0x1, COMPHY_FW_MODE_SGMII),
-	ETH_CONF(4, 1, PHY_INTERFACE_MODE_2500BASEX, -1, COMPHY_FW_MODE_2500BASEX),
-	ETH_CONF(4, 1, PHY_INTERFACE_MODE_5GBASER, -1, COMPHY_FW_MODE_XFI),
+	ETH_CONF(4, 1, PHY_INTERFACE_MODE_2500BASEX, 0x1, COMPHY_FW_MODE_2500BASEX),
+	ETH_CONF(4, 1, PHY_INTERFACE_MODE_5GBASER, 0x1, COMPHY_FW_MODE_XFI),
 	ETH_CONF(4, 1, PHY_INTERFACE_MODE_10GBASER, -1, COMPHY_FW_MODE_XFI),
 	/* lane 5 */
 	ETH_CONF(5, 1, PHY_INTERFACE_MODE_RXAUI, 0x2, COMPHY_FW_MODE_RXAUI),
@@ -916,7 +917,7 @@ static const struct phy_ops mvebu_comphy_ops = {
 };
 
 static struct phy *mvebu_comphy_xlate(struct device *dev,
-				      struct of_phandle_args *args)
+				      const struct of_phandle_args *args)
 {
 	struct mvebu_comphy_lane *lane;
 	struct phy *phy;
@@ -1011,8 +1012,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 						"marvell,system-controller");
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

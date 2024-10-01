@@ -6,7 +6,11 @@
 #ifndef _LINUX_NVME_RDMA_H
 #define _LINUX_NVME_RDMA_H
 
-#define NVME_RDMA_MAX_QUEUE_SIZE	128
+#define NVME_RDMA_IP_PORT		4420
+
+#define NVME_RDMA_MAX_QUEUE_SIZE 256
+#define NVME_RDMA_MAX_METADATA_QUEUE_SIZE 128
+#define NVME_RDMA_DEFAULT_QUEUE_SIZE 128
 
 enum nvme_rdma_cm_fmt {
 	NVME_RDMA_CM_FMT_1_0 = 0x0,
@@ -21,6 +25,7 @@ enum nvme_rdma_cm_status {
 	NVME_RDMA_CM_NO_RSC		= 0x06,
 	NVME_RDMA_CM_INVALID_IRD	= 0x07,
 	NVME_RDMA_CM_INVALID_ORD	= 0x08,
+	NVME_RDMA_CM_INVALID_CNTLID	= 0x09,
 };
 
 static inline const char *nvme_rdma_cm_msg(enum nvme_rdma_cm_status status)
@@ -42,6 +47,8 @@ static inline const char *nvme_rdma_cm_msg(enum nvme_rdma_cm_status status)
 		return "invalid IRD";
 	case NVME_RDMA_CM_INVALID_ORD:
 		return "Invalid ORD";
+	case NVME_RDMA_CM_INVALID_CNTLID:
+		return "invalid controller ID";
 	default:
 		return "unrecognized reason";
 	}
@@ -60,7 +67,8 @@ struct nvme_rdma_cm_req {
 	__le16		qid;
 	__le16		hrqsize;
 	__le16		hsqsize;
-	u8		rsvd[24];
+	__le16		cntlid;
+	u8		rsvd[22];
 };
 
 /**

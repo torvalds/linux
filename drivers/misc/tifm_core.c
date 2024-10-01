@@ -38,11 +38,11 @@ static int tifm_dev_match(struct tifm_dev *sock, struct tifm_device_id *id)
 	return 0;
 }
 
-static int tifm_bus_match(struct device *dev, struct device_driver *drv)
+static int tifm_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
-	struct tifm_driver *fm_drv = container_of(drv, struct tifm_driver,
-						  driver);
+	const struct tifm_driver *fm_drv = container_of_const(drv, struct tifm_driver,
+							      driver);
 	struct tifm_device_id *ids = fm_drv->id_table;
 
 	if (ids) {
@@ -148,7 +148,7 @@ static struct attribute *tifm_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(tifm_dev);
 
-static struct bus_type tifm_bus_type = {
+static const struct bus_type tifm_bus_type = {
 	.name      = "tifm",
 	.dev_groups = tifm_dev_groups,
 	.match     = tifm_bus_match,
@@ -166,7 +166,7 @@ static void tifm_free(struct device *dev)
 	kfree(fm);
 }
 
-static struct class tifm_adapter_class = {
+static const struct class tifm_adapter_class = {
 	.name    = "tifm_adapter",
 	.dev_release = tifm_free
 };

@@ -21,6 +21,10 @@ properties:
           - enum:
               - microchip,sama7g5-trng
           - const: atmel,at91sam9g45-trng
+      - items:
+          - enum:
+              - microchip,sam9x7-trng
+          - const: microchip,sam9x60-trng
 
   clocks:
     maxItems: 1

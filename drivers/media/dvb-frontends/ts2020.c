@@ -525,7 +525,7 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 
 	return fe;
 }
-EXPORT_SYMBOL(ts2020_attach);
+EXPORT_SYMBOL_GPL(ts2020_attach);
 
 /*
  * We implement own regmap locking due to legacy DVB attach which uses frontend
@@ -710,8 +710,8 @@ static void ts2020_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ts2020_id_table[] = {
-	{"ts2020", 0},
-	{"ts2022", 0},
+	{ "ts2020" },
+	{ "ts2022" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ts2020_id_table);

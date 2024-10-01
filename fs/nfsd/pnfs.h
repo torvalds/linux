@@ -27,17 +27,18 @@ struct nfsd4_layout_ops {
 			struct nfs4_client *clp,
 			struct nfsd4_getdeviceinfo *gdevp);
 	__be32 (*encode_getdeviceinfo)(struct xdr_stream *xdr,
-			struct nfsd4_getdeviceinfo *gdevp);
+			const struct nfsd4_getdeviceinfo *gdevp);
 
 	__be32 (*proc_layoutget)(struct inode *, const struct svc_fh *fhp,
 			struct nfsd4_layoutget *lgp);
-	__be32 (*encode_layoutget)(struct xdr_stream *,
-			struct nfsd4_layoutget *lgp);
+	__be32 (*encode_layoutget)(struct xdr_stream *xdr,
+			const struct nfsd4_layoutget *lgp);
 
 	__be32 (*proc_layoutcommit)(struct inode *inode,
 			struct nfsd4_layoutcommit *lcp);
 
-	void (*fence_client)(struct nfs4_layout_stateid *ls);
+	void (*fence_client)(struct nfs4_layout_stateid *ls,
+			     struct nfsd_file *file);
 };
 
 extern const struct nfsd4_layout_ops *nfsd4_layout_ops[];
@@ -72,11 +73,13 @@ void nfsd4_setup_layout_type(struct svc_export *exp);
 void nfsd4_return_all_client_layouts(struct nfs4_client *);
 void nfsd4_return_all_file_layouts(struct nfs4_client *clp,
 		struct nfs4_file *fp);
+void nfsd4_close_layout(struct nfs4_layout_stateid *ls);
 int nfsd4_init_pnfs(void);
 void nfsd4_exit_pnfs(void);
 #else
 struct nfs4_client;
 struct nfs4_file;
+struct nfs4_layout_stateid;
 
 static inline void nfsd4_setup_layout_type(struct svc_export *exp)
 {
@@ -87,6 +90,9 @@ static inline void nfsd4_return_all_client_layouts(struct nfs4_client *clp)
 }
 static inline void nfsd4_return_all_file_layouts(struct nfs4_client *clp,
 		struct nfs4_file *fp)
+{
+}
+static inline void nfsd4_close_layout(struct nfs4_layout_stateid *ls)
 {
 }
 static inline void nfsd4_exit_pnfs(void)

@@ -69,7 +69,7 @@ struct apple_rtkit;
  * Initializes the internal state required to handle RTKit. This
  * should usually be called within _probe.
  *
- * @dev:         Pointer to the device node this coprocessor is assocated with
+ * @dev:         Pointer to the device node this coprocessor is associated with
  * @cookie:      opaque cookie passed to all functions defined in rtkit_ops
  * @mbox_name:   mailbox name used to communicate with the co-processor
  * @mbox_idx:    mailbox index to be used if mbox_name is NULL
@@ -83,7 +83,7 @@ struct apple_rtkit *devm_apple_rtkit_init(struct device *dev, void *cookie,
  * Non-devm version of devm_apple_rtkit_init. Must be freed with
  * apple_rtkit_free.
  *
- * @dev:         Pointer to the device node this coprocessor is assocated with
+ * @dev:         Pointer to the device node this coprocessor is associated with
  * @cookie:      opaque cookie passed to all functions defined in rtkit_ops
  * @mbox_name:   mailbox name used to communicate with the co-processor
  * @mbox_idx:    mailbox index to be used if mbox_name is NULL
@@ -159,24 +159,6 @@ int apple_rtkit_start_ep(struct apple_rtkit *rtk, u8 endpoint);
  */
 int apple_rtkit_send_message(struct apple_rtkit *rtk, u8 ep, u64 message,
 			     struct completion *completion, bool atomic);
-
-/*
- * Send a message to the given endpoint and wait until it has been submitted
- * to the hardware FIFO.
- * Will return zero on success and a negative error code on failure
- * (e.g. -ETIME when the message couldn't be written within the given
- * timeout)
- *
- * @rtk:            RTKit reference
- * @ep:             target endpoint
- * @message:        message to be sent
- * @timeout:        timeout in milliseconds to allow the message transmission
- *                  to be completed
- * @atomic:         if set to true this function can be called from atomic
- *                  context.
- */
-int apple_rtkit_send_message_wait(struct apple_rtkit *rtk, u8 ep, u64 message,
-				  unsigned long timeout, bool atomic);
 
 /*
  * Process incoming messages in atomic context.

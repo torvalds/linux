@@ -154,14 +154,6 @@ static struct hv_util_service util_vss = {
 	.util_deinit = hv_vss_deinit,
 };
 
-static struct hv_util_service util_fcopy = {
-	.util_cb = hv_fcopy_onchannelcallback,
-	.util_init = hv_fcopy_init,
-	.util_pre_suspend = hv_fcopy_pre_suspend,
-	.util_pre_resume = hv_fcopy_pre_resume,
-	.util_deinit = hv_fcopy_deinit,
-};
-
 static void perform_shutdown(struct work_struct *dummy)
 {
 	orderly_poweroff(true);
@@ -296,6 +288,11 @@ static struct {
 	spinlock_t			lock;
 } host_ts;
 
+static bool timesync_implicit;
+
+module_param(timesync_implicit, bool, 0644);
+MODULE_PARM_DESC(timesync_implicit, "If set treat SAMPLE as SYNC when clock is behind");
+
 static inline u64 reftime_to_ns(u64 reftime)
 {
 	return (reftime - WLTIMEDELTA) * 100;
@@ -345,6 +342,29 @@ static void hv_set_host_time(struct work_struct *work)
 }
 
 /*
+ * Due to a bug on Hyper-V hosts, the sync flag may not always be sent on resume.
+ * Force a sync if the guest is behind.
+ */
+static inline bool hv_implicit_sync(u64 host_time)
+{
+	struct timespec64 new_ts;
+	struct timespec64 threshold_ts;
+
+	new_ts = ns_to_timespec64(reftime_to_ns(host_time));
+	ktime_get_real_ts64(&threshold_ts);
+
+	threshold_ts.tv_sec += 5;
+
+	/*
+	 * If guest behind the host by 5 or more seconds.
+	 */
+	if (timespec64_compare(&new_ts, &threshold_ts) >= 0)
+		return true;
+
+	return false;
+}
+
+/*
  * Synchronize time with host after reboot, restore, etc.
  *
  * ICTIMESYNCFLAG_SYNC flag bit indicates reboot, restore events of the VM.
@@ -384,7 +404,8 @@ static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
 	spin_unlock_irqrestore(&host_ts.lock, flags);
 
 	/* Schedule work to do do_settimeofday64() */
-	if (adj_flags & ICTIMESYNCFLAG_SYNC)
+	if ((adj_flags & ICTIMESYNCFLAG_SYNC) ||
+	    (timesync_implicit && hv_implicit_sync(host_ts.host_time)))
 		schedule_work(&adj_time_work);
 }
 
@@ -670,10 +691,6 @@ static const struct hv_vmbus_device_id id_table[] = {
 	/* VSS GUID */
 	{ HV_VSS_GUID,
 	  .driver_data = (unsigned long)&util_vss
-	},
-	/* File copy GUID */
-	{ HV_FCOPY_GUID,
-	  .driver_data = (unsigned long)&util_fcopy
 	},
 	{ },
 };

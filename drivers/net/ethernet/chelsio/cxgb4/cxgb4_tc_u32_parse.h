@@ -242,7 +242,7 @@ struct cxgb4_next_header {
 	 * field's value to jump to next header such as IHL field
 	 * in IPv4 header.
 	 */
-	struct tc_u32_sel sel;
+	struct tc_u32_sel_hdr sel;
 	struct tc_u32_key key;
 	/* location of jump to make */
 	const struct cxgb4_match_field *jump;
@@ -331,6 +331,6 @@ struct cxgb4_link {
 
 struct cxgb4_tc_u32_table {
 	unsigned int size;          /* number of entries in table */
-	struct cxgb4_link table[]; /* Jump table */
+	struct cxgb4_link table[] __counted_by(size); /* Jump table */
 };
 #endif /* __CXGB4_TC_U32_PARSE_H */

@@ -8,7 +8,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include "common.h"
@@ -109,4 +109,5 @@ int sprd_clk_probe(struct device *dev, struct clk_hw_onecell_data *clkhw)
 }
 EXPORT_SYMBOL_GPL(sprd_clk_probe);
 
+MODULE_DESCRIPTION("Spreadtrum clock infrastructure");
 MODULE_LICENSE("GPL v2");

@@ -565,8 +565,7 @@ static void rio_hw_init(struct net_device *dev)
 	 * too. However, it doesn't work on IP1000A so we use 16-bit access.
 	 */
 	for (i = 0; i < 3; i++)
-		dw16(StationAddr0 + 2 * i,
-		     cpu_to_le16(((const u16 *)dev->dev_addr)[i]));
+		dw16(StationAddr0 + 2 * i, get_unaligned_le16(&dev->dev_addr[2 * i]));
 
 	set_multicast (dev);
 	if (np->coalesce) {
@@ -1843,7 +1842,7 @@ static int rio_resume(struct device *device)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rio_pm_ops, rio_suspend, rio_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(rio_pm_ops, rio_suspend, rio_resume);
 #define RIO_PM_OPS    (&rio_pm_ops)
 
 #else

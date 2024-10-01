@@ -17,7 +17,6 @@ struct machine_info {
 };
 
 struct vmlinux_info {
-	unsigned long default_lma;
 	unsigned long entry;
 	unsigned long image_size;	/* does not include .bss */
 	unsigned long bss_size;		/* uncompressed image .bss size */
@@ -25,13 +24,14 @@ struct vmlinux_info {
 	unsigned long bootdata_size;
 	unsigned long bootdata_preserved_off;
 	unsigned long bootdata_preserved_size;
-	unsigned long dynsym_start;
-	unsigned long rela_dyn_start;
-	unsigned long rela_dyn_end;
+	unsigned long got_start;
+	unsigned long got_end;
 	unsigned long amode31_size;
 	unsigned long init_mm_off;
 	unsigned long swapper_pg_dir_off;
 	unsigned long invalid_pg_dir_off;
+	unsigned long alt_instructions;
+	unsigned long alt_instructions_end;
 #ifdef CONFIG_KASAN
 	unsigned long kasan_early_shadow_page_off;
 	unsigned long kasan_early_shadow_pte_off;
@@ -69,10 +69,11 @@ void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);
-void setup_vmem(unsigned long asce_limit);
-void __printf(1, 2) decompressor_printk(const char *fmt, ...);
+void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit);
+void __printf(1, 2) boot_printk(const char *fmt, ...);
 void print_stacktrace(unsigned long sp);
 void error(char *m);
+int get_random(unsigned long limit, unsigned long *value);
 
 extern struct machine_info machine;
 
@@ -83,15 +84,22 @@ extern unsigned long vmalloc_size;
 extern int vmalloc_size_set;
 extern char __boot_data_start[], __boot_data_end[];
 extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
+extern char __vmlinux_relocs_64_start[], __vmlinux_relocs_64_end[];
 extern char _decompressor_syms_start[], _decompressor_syms_end[];
 extern char _stack_start[], _stack_end[];
 extern char _end[], _decompressor_end[];
 extern unsigned char _compressed_start[];
 extern unsigned char _compressed_end[];
 extern struct vmlinux_info _vmlinux_info;
+
 #define vmlinux _vmlinux_info
 
+#define __lowcore_pa(x)		((unsigned long)(x) % sizeof(struct lowcore))
 #define __abs_lowcore_pa(x)	(((unsigned long)(x) - __abs_lowcore) % sizeof(struct lowcore))
+#define __kernel_va(x)		((void *)((unsigned long)(x) - __kaslr_offset_phys + __kaslr_offset))
+#define __kernel_pa(x)		((unsigned long)(x) - __kaslr_offset + __kaslr_offset_phys)
+#define __identity_va(x)	((void *)((unsigned long)(x) + __identity_base))
+#define __identity_pa(x)	((unsigned long)(x) - __identity_base)
 
 static inline bool intersects(unsigned long addr0, unsigned long size0,
 			      unsigned long addr1, unsigned long size1)

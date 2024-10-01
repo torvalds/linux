@@ -7,6 +7,7 @@
 #ifndef _NOLIBC_STRING_H
 #define _NOLIBC_STRING_H
 
+#include "arch.h"
 #include "std.h"
 
 static void *malloc(size_t len);
@@ -27,28 +28,7 @@ int memcmp(const void *s1, const void *s2, size_t n)
 	return c1;
 }
 
-static __attribute__((unused))
-void *_nolibc_memcpy_up(void *dst, const void *src, size_t len)
-{
-	size_t pos = 0;
-
-	while (pos < len) {
-		((char *)dst)[pos] = ((const char *)src)[pos];
-		pos++;
-	}
-	return dst;
-}
-
-static __attribute__((unused))
-void *_nolibc_memcpy_down(void *dst, const void *src, size_t len)
-{
-	while (len) {
-		len--;
-		((char *)dst)[len] = ((const char *)src)[len];
-	}
-	return dst;
-}
-
+#ifndef NOLIBC_ARCH_HAS_MEMMOVE
 /* might be ignored by the compiler without -ffreestanding, then found as
  * missing.
  */
@@ -72,14 +52,24 @@ void *memmove(void *dst, const void *src, size_t len)
 	}
 	return dst;
 }
+#endif /* #ifndef NOLIBC_ARCH_HAS_MEMMOVE */
 
+#ifndef NOLIBC_ARCH_HAS_MEMCPY
 /* must be exported, as it's used by libgcc on ARM */
 __attribute__((weak,unused,section(".text.nolibc_memcpy")))
 void *memcpy(void *dst, const void *src, size_t len)
 {
-	return _nolibc_memcpy_up(dst, src, len);
-}
+	size_t pos = 0;
 
+	while (pos < len) {
+		((char *)dst)[pos] = ((const char *)src)[pos];
+		pos++;
+	}
+	return dst;
+}
+#endif /* #ifndef NOLIBC_ARCH_HAS_MEMCPY */
+
+#ifndef NOLIBC_ARCH_HAS_MEMSET
 /* might be ignored by the compiler without -ffreestanding, then found as
  * missing.
  */
@@ -95,6 +85,7 @@ void *memset(void *dst, int b, size_t len)
 	}
 	return dst;
 }
+#endif /* #ifndef NOLIBC_ARCH_HAS_MEMSET */
 
 static __attribute__((unused))
 char *strchr(const char *s, int c)
@@ -133,7 +124,7 @@ char *strcpy(char *dst, const char *src)
  * thus itself, hence the asm() statement below that's meant to disable this
  * confusing practice.
  */
-static __attribute__((unused))
+__attribute__((weak,unused,section(".text.nolibc_strlen")))
 size_t strlen(const char *str)
 {
 	size_t len;
@@ -197,21 +188,25 @@ char *strndup(const char *str, size_t maxlen)
 static __attribute__((unused))
 size_t strlcat(char *dst, const char *src, size_t size)
 {
-	size_t len;
-	char c;
+	size_t len = strnlen(dst, size);
 
-	for (len = 0; dst[len];	len++)
-		;
-
-	for (;;) {
-		c = *src;
-		if (len < size)
-			dst[len] = c;
-		if (!c)
+	/*
+	 * We want len < size-1. But as size is unsigned and can wrap
+	 * around, we use len + 1 instead.
+	 */
+	while (len + 1 < size) {
+		dst[len] = *src;
+		if (*src == '\0')
 			break;
 		len++;
 		src++;
 	}
+
+	if (len < size)
+		dst[len] = '\0';
+
+	while (*src++)
+		len++;
 
 	return len;
 }
@@ -220,16 +215,18 @@ static __attribute__((unused))
 size_t strlcpy(char *dst, const char *src, size_t size)
 {
 	size_t len;
-	char c;
 
-	for (len = 0;;) {
-		c = src[len];
-		if (len < size)
-			dst[len] = c;
-		if (!c)
-			break;
-		len++;
+	for (len = 0; len < size; len++) {
+		dst[len] = src[len];
+		if (!dst[len])
+			return len;
 	}
+	if (size)
+		dst[size-1] = '\0';
+
+	while (src[len])
+		len++;
+
 	return len;
 }
 

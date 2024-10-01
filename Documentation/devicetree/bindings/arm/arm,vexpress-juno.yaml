@@ -143,7 +143,7 @@ patternProperties:
       "simple-bus". If the compatible is placed in the "motherboard-bus" node,
       it is stricter and always has two compatibles.
     type: object
-    $ref: '/schemas/simple-bus.yaml'
+    $ref: /schemas/simple-bus.yaml
     unevaluatedProperties: false
 
     properties:

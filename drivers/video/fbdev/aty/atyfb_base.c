@@ -301,6 +301,7 @@ static struct fb_ops atyfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= atyfb_open,
 	.fb_release	= atyfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= atyfb_check_var,
 	.fb_set_par	= atyfb_set_par,
 	.fb_setcolreg	= atyfb_setcolreg,
@@ -315,6 +316,8 @@ static struct fb_ops atyfb_ops = {
 	.fb_imageblit	= atyfb_imageblit,
 #ifdef __sparc__
 	.fb_mmap	= atyfb_mmap,
+#else
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 #endif
 	.fb_sync	= atyfb_sync,
 };
@@ -2255,7 +2258,7 @@ static void aty_bl_init(struct atyfb_par *par)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
-	bd = backlight_device_register(name, info->dev, par, &aty_bl_data,
+	bd = backlight_device_register(name, info->device, par, &aty_bl_data,
 				       &props);
 	if (IS_ERR(bd)) {
 		info->bl_dev = NULL;
@@ -2637,8 +2640,7 @@ static int aty_init(struct fb_info *info)
 
 	info->fbops = &atyfb_ops;
 	info->pseudo_palette = par->pseudo_palette;
-	info->flags = FBINFO_DEFAULT           |
-		      FBINFO_HWACCEL_IMAGEBLIT |
+	info->flags = FBINFO_HWACCEL_IMAGEBLIT |
 		      FBINFO_HWACCEL_FILLRECT  |
 		      FBINFO_HWACCEL_COPYAREA  |
 		      FBINFO_HWACCEL_YPAN      |
@@ -2654,11 +2656,6 @@ static int aty_init(struct fb_info *info)
 			   USE_F32KHZ | TRISTATE_MEM_EN, par);
 	} else
 #endif
-	if (M64_HAS(MOBIL_BUS) && backlight) {
-#ifdef CONFIG_FB_ATY_BACKLIGHT
-		aty_bl_init(par);
-#endif
-	}
 
 	memset(&var, 0, sizeof(var));
 #ifdef CONFIG_PPC
@@ -2749,6 +2746,12 @@ static int aty_init(struct fb_info *info)
 	if (ret < 0) {
 		fb_dealloc_cmap(&info->cmap);
 		goto aty_init_exit;
+	}
+
+	if (M64_HAS(MOBIL_BUS) && backlight) {
+#ifdef CONFIG_FB_ATY_BACKLIGHT
+		aty_bl_init(par);
+#endif
 	}
 
 	fb_list = info;
@@ -3440,11 +3443,15 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 	}
 
 	info->fix.mmio_start = raddr;
+#if defined(__i386__) || defined(__ia64__)
 	/*
 	 * By using strong UC we force the MTRR to never have an
 	 * effect on the MMIO region on both non-PAT and PAT systems.
 	 */
 	par->ati_regbase = ioremap_uc(info->fix.mmio_start, 0x1000);
+#else
+	par->ati_regbase = ioremap(info->fix.mmio_start, 0x1000);
+#endif
 	if (par->ati_regbase == NULL)
 		return -ENOMEM;
 
@@ -3716,12 +3723,13 @@ static void atyfb_remove(struct fb_info *info)
 	aty_set_crtc(par, &par->saved_crtc);
 	par->pll_ops->set_pll(info, &par->saved_pll);
 
-	unregister_framebuffer(info);
-
 #ifdef CONFIG_FB_ATY_BACKLIGHT
 	if (M64_HAS(MOBIL_BUS))
 		aty_bl_exit(info->bl_dev);
 #endif
+
+	unregister_framebuffer(info);
+
 	arch_phys_wc_del(par->wc_cookie);
 
 #ifndef __sparc__

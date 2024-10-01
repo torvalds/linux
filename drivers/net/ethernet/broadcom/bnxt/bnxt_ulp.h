@@ -15,8 +15,10 @@
 
 #define BNXT_MIN_ROCE_CP_RINGS	2
 #define BNXT_MIN_ROCE_STAT_CTXS	1
-#define BNXT_MAX_ROCE_MSIX	9
-#define BNXT_MAX_VF_ROCE_MSIX	2
+
+#define BNXT_MAX_ROCE_MSIX_VF		2
+#define BNXT_MAX_ROCE_MSIX_NPAR_PF	5
+#define BNXT_MAX_ROCE_MSIX		64
 
 struct hwrm_async_event_cmpl;
 struct bnxt;
@@ -46,7 +48,6 @@ struct bnxt_ulp {
 	unsigned long	*async_events_bmap;
 	u16		max_async_event_id;
 	u16		msix_requested;
-	u16		msix_base;
 	atomic_t	ref_count;
 };
 
@@ -73,6 +74,10 @@ struct bnxt_en_dev {
 							 * bytes mapped as non-
 							 * cacheable.
 							 */
+	int				l2_db_offset;	/* Doorbell offset in
+							 * bytes within
+							 * l2_db_size_nc.
+							 */
 	u16				chip_num;
 	u16				hw_ring_stats_size;
 	u16				pf_port_id;
@@ -81,18 +86,29 @@ struct bnxt_en_dev {
 							 * mode only. Will be
 							 * updated in resume.
 							 */
+	void __iomem                    *bar0;
+
+	u16				ulp_num_msix_vec;
+	u16				ulp_num_ctxs;
+
+					/* serialize ulp operations */
+	struct mutex			en_dev_lock;
 };
 
 static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev)
 {
-	if (edev && edev->ulp_tbl)
+	if (edev && rcu_access_pointer(edev->ulp_tbl->ulp_ops))
 		return true;
 	return false;
 }
 
 int bnxt_get_ulp_msix_num(struct bnxt *bp);
-int bnxt_get_ulp_msix_base(struct bnxt *bp);
+int bnxt_get_ulp_msix_num_in_use(struct bnxt *bp);
+void bnxt_set_ulp_msix_num(struct bnxt *bp, int num);
 int bnxt_get_ulp_stat_ctxs(struct bnxt *bp);
+void bnxt_set_ulp_stat_ctxs(struct bnxt *bp, int num_ctxs);
+int bnxt_get_ulp_stat_ctxs_in_use(struct bnxt *bp);
+void bnxt_set_dflt_ulp_stat_ctxs(struct bnxt *bp);
 void bnxt_ulp_stop(struct bnxt *bp);
 void bnxt_ulp_start(struct bnxt *bp, int err);
 void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs);
@@ -100,6 +116,8 @@ void bnxt_ulp_irq_stop(struct bnxt *bp);
 void bnxt_ulp_irq_restart(struct bnxt *bp, int err);
 void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl);
 void bnxt_rdma_aux_device_uninit(struct bnxt *bp);
+void bnxt_rdma_aux_device_del(struct bnxt *bp);
+void bnxt_rdma_aux_device_add(struct bnxt *bp);
 void bnxt_rdma_aux_device_init(struct bnxt *bp);
 int bnxt_register_dev(struct bnxt_en_dev *edev, struct bnxt_ulp_ops *ulp_ops,
 		      void *handle);

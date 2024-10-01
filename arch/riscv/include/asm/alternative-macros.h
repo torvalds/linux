@@ -146,7 +146,7 @@
  * vendor_id: The CPU vendor ID.
  * patch_id: The patch ID (erratum ID or cpufeature ID).
  * CONFIG_k: The Kconfig of this patch ID. When Kconfig is disabled, the old
- *	     content will alwyas be executed.
+ *	     content will always be executed.
  */
 #define ALTERNATIVE(old_content, new_content, vendor_id, patch_id, CONFIG_k) \
 	_ALTERNATIVE_CFG(old_content, new_content, vendor_id, patch_id, CONFIG_k)

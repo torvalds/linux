@@ -25,105 +25,91 @@
 #ifndef _INTEL_OPREGION_H_
 #define _INTEL_OPREGION_H_
 
-#include <linux/workqueue.h>
 #include <linux/pci.h>
+#include <linux/types.h>
 
-struct drm_i915_private;
 struct intel_connector;
+struct intel_display;
 struct intel_encoder;
-
-struct opregion_header;
-struct opregion_acpi;
-struct opregion_swsci;
-struct opregion_asle;
-struct opregion_asle_ext;
-
-struct intel_opregion {
-	struct opregion_header *header;
-	struct opregion_acpi *acpi;
-	struct opregion_swsci *swsci;
-	u32 swsci_gbda_sub_functions;
-	u32 swsci_sbcb_sub_functions;
-	struct opregion_asle *asle;
-	struct opregion_asle_ext *asle_ext;
-	void *rvda;
-	void *vbt_firmware;
-	const void *vbt;
-	u32 vbt_size;
-	u32 *lid_state;
-	struct work_struct asle_work;
-	struct notifier_block acpi_notifier;
-};
-
-#define OPREGION_SIZE            (8 * 1024)
 
 #ifdef CONFIG_ACPI
 
-int intel_opregion_setup(struct drm_i915_private *dev_priv);
-void intel_opregion_cleanup(struct drm_i915_private *i915);
+int intel_opregion_setup(struct intel_display *display);
+void intel_opregion_cleanup(struct intel_display *display);
 
-void intel_opregion_register(struct drm_i915_private *dev_priv);
-void intel_opregion_unregister(struct drm_i915_private *dev_priv);
+void intel_opregion_register(struct intel_display *display);
+void intel_opregion_unregister(struct intel_display *display);
 
-void intel_opregion_resume(struct drm_i915_private *dev_priv);
-void intel_opregion_suspend(struct drm_i915_private *dev_priv,
+void intel_opregion_resume(struct intel_display *display);
+void intel_opregion_suspend(struct intel_display *display,
 			    pci_power_t state);
 
-void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
-int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
+bool intel_opregion_asle_present(struct intel_display *display);
+void intel_opregion_asle_intr(struct intel_display *display);
+int intel_opregion_notify_encoder(struct intel_encoder *encoder,
 				  bool enable);
-int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
+int intel_opregion_notify_adapter(struct intel_display *display,
 				  pci_power_t state);
-int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
+int intel_opregion_get_panel_type(struct intel_display *display);
 const struct drm_edid *intel_opregion_get_edid(struct intel_connector *connector);
 
-bool intel_opregion_headless_sku(struct drm_i915_private *i915);
+bool intel_opregion_vbt_present(struct intel_display *display);
+const void *intel_opregion_get_vbt(struct intel_display *display, size_t *size);
+
+bool intel_opregion_headless_sku(struct intel_display *display);
+
+void intel_opregion_debugfs_register(struct intel_display *display);
 
 #else /* CONFIG_ACPI*/
 
-static inline int intel_opregion_setup(struct drm_i915_private *dev_priv)
+static inline int intel_opregion_setup(struct intel_display *display)
 {
 	return 0;
 }
 
-static inline void intel_opregion_cleanup(struct drm_i915_private *i915)
+static inline void intel_opregion_cleanup(struct intel_display *display)
 {
 }
 
-static inline void intel_opregion_register(struct drm_i915_private *dev_priv)
+static inline void intel_opregion_register(struct intel_display *display)
 {
 }
 
-static inline void intel_opregion_unregister(struct drm_i915_private *dev_priv)
+static inline void intel_opregion_unregister(struct intel_display *display)
 {
 }
 
-static inline void intel_opregion_resume(struct drm_i915_private *dev_priv)
+static inline void intel_opregion_resume(struct intel_display *display)
 {
 }
 
-static inline void intel_opregion_suspend(struct drm_i915_private *dev_priv,
+static inline void intel_opregion_suspend(struct intel_display *display,
 					  pci_power_t state)
 {
 }
 
-static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
+static inline bool intel_opregion_asle_present(struct intel_display *display)
+{
+	return false;
+}
+
+static inline void intel_opregion_asle_intr(struct intel_display *display)
 {
 }
 
 static inline int
-intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
+intel_opregion_notify_encoder(struct intel_encoder *encoder, bool enable)
 {
 	return 0;
 }
 
 static inline int
-intel_opregion_notify_adapter(struct drm_i915_private *dev, pci_power_t state)
+intel_opregion_notify_adapter(struct intel_display *display, pci_power_t state)
 {
 	return 0;
 }
 
-static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
+static inline int intel_opregion_get_panel_type(struct intel_display *display)
 {
 	return -ENODEV;
 }
@@ -134,9 +120,24 @@ intel_opregion_get_edid(struct intel_connector *connector)
 	return NULL;
 }
 
-static inline bool intel_opregion_headless_sku(struct drm_i915_private *i915)
+static inline bool intel_opregion_vbt_present(struct intel_display *display)
 {
 	return false;
+}
+
+static inline const void *
+intel_opregion_get_vbt(struct intel_display *display, size_t *size)
+{
+	return NULL;
+}
+
+static inline bool intel_opregion_headless_sku(struct intel_display *display)
+{
+	return false;
+}
+
+static inline void intel_opregion_debugfs_register(struct intel_display *display)
+{
 }
 
 #endif /* CONFIG_ACPI */

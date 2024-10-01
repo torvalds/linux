@@ -190,10 +190,18 @@
 #define AGGRE2_SNOC_NORTH_AXI					181
 #define SSC_XO							182
 #define SSC_CNOC_AHBS_CLK					183
+#define GCC_MMSS_GPLL0_DIV_CLK					184
+#define GCC_GPU_GPLL0_DIV_CLK					185
+#define GCC_GPU_GPLL0_CLK					186
+#define HLOS1_VOTE_LPASS_CORE_SMMU_CLK				187
+#define HLOS1_VOTE_LPASS_ADSP_SMMU_CLK				188
+#define GCC_MSS_Q6_BIMC_AXI_CLK					189
 
 #define PCIE_0_GDSC						0
 #define UFS_GDSC						1
 #define USB_30_GDSC						2
+#define LPASS_ADSP_GDSC						3
+#define LPASS_CORE_GDSC						4
 
 #define GCC_BLSP1_QUP1_BCR					0
 #define GCC_BLSP1_QUP2_BCR					1

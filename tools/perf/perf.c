@@ -18,7 +18,7 @@
 #include <subcmd/run-command.h>
 #include "util/parse-events.h"
 #include <subcmd/parse-options.h>
-#include "util/bpf-loader.h"
+#include <subcmd/help.h>
 #include "util/debug.h"
 #include "util/event.h"
 #include "util/util.h" // usage()
@@ -40,6 +40,7 @@
 #include <linux/zalloc.h>
 
 static int use_pager = -1;
+static FILE *debug_fp = NULL;
 
 struct cmd_struct {
 	const char *cmd;
@@ -51,6 +52,7 @@ static struct cmd_struct commands[] = {
 	{ "archive",	NULL,	0 },
 	{ "buildid-cache", cmd_buildid_cache, 0 },
 	{ "buildid-list", cmd_buildid_list, 0 },
+	{ "check",	cmd_check,	0 },
 	{ "config",	cmd_config,	0 },
 	{ "c2c",	cmd_c2c,	0 },
 	{ "diff",	cmd_diff,	0 },
@@ -163,6 +165,19 @@ static void commit_pager_choice(void)
 	}
 }
 
+static int set_debug_file(const char *path)
+{
+	debug_fp = fopen(path, "w");
+	if (!debug_fp) {
+		fprintf(stderr, "Open debug file '%s' failed: %s\n",
+			path, strerror(errno));
+		return -1;
+	}
+
+	debug_set_file(debug_fp);
+	return 0;
+}
+
 struct option options[] = {
 	OPT_ARGUMENT("help", "help"),
 	OPT_ARGUMENT("version", "version"),
@@ -175,6 +190,7 @@ struct option options[] = {
 	OPT_ARGUMENT("list-cmds", "list-cmds"),
 	OPT_ARGUMENT("list-opts", "list-opts"),
 	OPT_ARGUMENT("debug", "debug"),
+	OPT_ARGUMENT("debug-file", "debug-file"),
 	OPT_END()
 };
 
@@ -288,6 +304,18 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 
 			(*argv)++;
 			(*argc)--;
+		} else if (!strcmp(cmd, "--debug-file")) {
+			if (*argc < 2) {
+				fprintf(stderr, "No path given for --debug-file.\n");
+				usage(perf_usage_string);
+			}
+
+			if (set_debug_file((*argv)[1]))
+				usage(perf_usage_string);
+
+			(*argv)++;
+			(*argc)--;
+
 		} else {
 			fprintf(stderr, "Unknown option: %s\n", cmd);
 			usage(perf_usage_string);
@@ -324,7 +352,6 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	perf_config__exit();
 	exit_browser(status);
 	perf_env__exit(&perf_env);
-	bpf__clear();
 
 	if (status)
 		return status & 0xff;
@@ -433,7 +460,7 @@ static int libperf_print(enum libperf_print_level level,
 
 int main(int argc, const char **argv)
 {
-	int err;
+	int err, done_help = 0;
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
 
@@ -532,22 +559,35 @@ int main(int argc, const char **argv)
 	pthread__block_sigwinch();
 
 	while (1) {
-		static int done_help;
-
 		run_argv(&argc, &argv);
 
 		if (errno != ENOENT)
 			break;
 
 		if (!done_help) {
-			cmd = argv[0] = help_unknown_cmd(cmd);
+			struct cmdnames main_cmds = {};
+
+			for (unsigned int i = 0; i < ARRAY_SIZE(commands); i++) {
+				add_cmdname(&main_cmds,
+					    commands[i].cmd,
+					    strlen(commands[i].cmd));
+			}
+			cmd = argv[0] = help_unknown_cmd(cmd, &main_cmds);
+			clean_cmdnames(&main_cmds);
 			done_help = 1;
+			if (!cmd)
+				break;
 		} else
 			break;
 	}
 
-	fprintf(stderr, "Failed to run command '%s': %s\n",
-		cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
+	if (cmd) {
+		fprintf(stderr, "Failed to run command '%s': %s\n",
+			cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
+	}
 out:
+	if (debug_fp)
+		fclose(debug_fp);
+
 	return 1;
 }

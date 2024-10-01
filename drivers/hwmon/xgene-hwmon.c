@@ -57,12 +57,6 @@
 	(MSG_TYPE_SET(MSG_TYPE_PWRMGMT) | \
 	MSG_SUBTYPE_SET(hndl) | TPC_CMD_SET(cmd) | type)
 
-/* PCC defines */
-#define PCC_SIGNATURE_MASK		0x50424300
-#define PCCC_GENERATE_DB_INT		BIT(15)
-#define PCCS_CMD_COMPLETE		BIT(0)
-#define PCCS_SCI_DOORBEL		BIT(1)
-#define PCCS_PLATFORM_NOTIFICATION	BIT(3)
 /*
  * Arbitrary retries in case the remote processor is slow to respond
  * to PCC commands
@@ -142,15 +136,15 @@ static int xgene_hwmon_pcc_rd(struct xgene_hwmon_dev *ctx, u32 *msg)
 
 	/* Write signature for subspace */
 	WRITE_ONCE(generic_comm_base->signature,
-		   cpu_to_le32(PCC_SIGNATURE_MASK | ctx->mbox_idx));
+		   cpu_to_le32(PCC_SIGNATURE | ctx->mbox_idx));
 
 	/* Write to the shared command region */
 	WRITE_ONCE(generic_comm_base->command,
-		   cpu_to_le16(MSG_TYPE(msg[0]) | PCCC_GENERATE_DB_INT));
+		   cpu_to_le16(MSG_TYPE(msg[0]) | PCC_CMD_GENERATE_DB_INTR));
 
 	/* Flip CMD COMPLETE bit */
 	val = le16_to_cpu(READ_ONCE(generic_comm_base->status));
-	val &= ~PCCS_CMD_COMPLETE;
+	val &= ~PCC_STATUS_CMD_COMPLETE;
 	WRITE_ONCE(generic_comm_base->status, cpu_to_le16(val));
 
 	/* Copy the message to the PCC comm space */
@@ -544,7 +538,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	msg = generic_comm_base + 1;
 	/* Check if platform sends interrupt */
 	if (!xgene_word_tst_and_clr(&generic_comm_base->status,
-				    PCCS_SCI_DOORBEL))
+				    PCC_STATUS_SCI_DOORBELL))
 		return;
 
 	/*
@@ -566,7 +560,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	      TPC_CMD(((u32 *)msg)[0]) == TPC_ALARM))) {
 		/* Check if platform completes command */
 		if (xgene_word_tst_and_clr(&generic_comm_base->status,
-					   PCCS_CMD_COMPLETE)) {
+					   PCC_STATUS_CMD_COMPLETE)) {
 			ctx->sync_msg.msg = ((u32 *)msg)[0];
 			ctx->sync_msg.param1 = ((u32 *)msg)[1];
 			ctx->sync_msg.param2 = ((u32 *)msg)[2];
@@ -757,7 +751,7 @@ out_mbox_free:
 	return rc;
 }
 
-static int xgene_hwmon_remove(struct platform_device *pdev)
+static void xgene_hwmon_remove(struct platform_device *pdev)
 {
 	struct xgene_hwmon_dev *ctx = platform_get_drvdata(pdev);
 
@@ -768,8 +762,6 @@ static int xgene_hwmon_remove(struct platform_device *pdev)
 		mbox_free_channel(ctx->mbox_chan);
 	else
 		pcc_mbox_free_channel(ctx->pcc_chan);
-
-	return 0;
 }
 
 static const struct of_device_id xgene_hwmon_of_match[] = {
@@ -780,7 +772,7 @@ MODULE_DEVICE_TABLE(of, xgene_hwmon_of_match);
 
 static struct platform_driver xgene_hwmon_driver = {
 	.probe = xgene_hwmon_probe,
-	.remove = xgene_hwmon_remove,
+	.remove_new = xgene_hwmon_remove,
 	.driver = {
 		.name = "xgene-slimpro-hwmon",
 		.of_match_table = xgene_hwmon_of_match,

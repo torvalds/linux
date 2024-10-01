@@ -1639,7 +1639,7 @@ static int pasemi_mac_change_mtu(struct net_device *dev, int new_mtu)
 	reg |= PAS_MAC_CFG_MACCFG_MAXF(new_mtu + ETH_HLEN + 4);
 	write_mac_reg(mac, PAS_MAC_CFG_MACCFG, reg);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	/* MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 	mac->bufsz = new_mtu + ETH_HLEN + ETH_FCS_LEN + LOCAL_SKB_ALIGN + 128;
 
@@ -1699,8 +1699,9 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netif_napi_add(dev, &mac->napi, pasemi_mac_poll);
 
-	dev->features = NETIF_F_IP_CSUM | NETIF_F_LLTX | NETIF_F_SG |
-			NETIF_F_HIGHDMA | NETIF_F_GSO;
+	dev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_HIGHDMA |
+			NETIF_F_GSO;
+	dev->lltx = true;
 
 	mac->dma_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa007, NULL);
 	if (!mac->dma_pdev) {

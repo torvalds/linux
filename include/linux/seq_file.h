@@ -7,7 +7,6 @@
 #include <linux/string_helpers.h>
 #include <linux/bug.h>
 #include <linux/mutex.h>
-#include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/fs.h>
 #include <linux/cred.h>
@@ -118,7 +117,18 @@ void seq_vprintf(struct seq_file *m, const char *fmt, va_list args);
 __printf(2, 3)
 void seq_printf(struct seq_file *m, const char *fmt, ...);
 void seq_putc(struct seq_file *m, char c);
-void seq_puts(struct seq_file *m, const char *s);
+void __seq_puts(struct seq_file *m, const char *s);
+
+static __always_inline void seq_puts(struct seq_file *m, const char *s)
+{
+	if (!__builtin_constant_p(*s))
+		__seq_puts(m, s);
+	else if (s[0] && !s[1])
+		seq_putc(m, s[0]);
+	else
+		seq_write(m, s, __builtin_strlen(s));
+}
+
 void seq_put_decimal_ull_width(struct seq_file *m, const char *delimiter,
 			       unsigned long long num, unsigned int width);
 void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
@@ -207,6 +217,21 @@ static const struct file_operations __name ## _fops = {			\
 	.release	= single_release,				\
 }
 
+#define DEFINE_SHOW_STORE_ATTRIBUTE(__name)				\
+static int __name ## _open(struct inode *inode, struct file *file)	\
+{									\
+	return single_open(file, __name ## _show, inode->i_private);	\
+}									\
+									\
+static const struct file_operations __name ## _fops = {			\
+	.owner		= THIS_MODULE,					\
+	.open		= __name ## _open,				\
+	.read		= seq_read,					\
+	.write		= __name ## _write,				\
+	.llseek		= seq_lseek,					\
+	.release	= single_release,				\
+}
+
 #define DEFINE_PROC_SHOW_ATTRIBUTE(__name)				\
 static int __name ## _open(struct inode *inode, struct file *file)	\
 {									\
@@ -249,18 +274,19 @@ static inline void seq_show_option(struct seq_file *m, const char *name,
 
 /**
  * seq_show_option_n - display mount options with appropriate escapes
- *		       where @value must be a specific length.
+ *		       where @value must be a specific length (i.e.
+ *		       not NUL-terminated).
  * @m: the seq_file handle
  * @name: the mount option name
  * @value: the mount option name's value, cannot be NULL
- * @length: the length of @value to display
+ * @length: the exact length of @value to display, must be constant expression
  *
  * This is a macro since this uses "length" to define the size of the
  * stack buffer.
  */
 #define seq_show_option_n(m, name, value, length) {	\
 	char val_buf[length + 1];			\
-	strncpy(val_buf, value, length);		\
+	memcpy(val_buf, value, length);			\
 	val_buf[length] = '\0';				\
 	seq_show_option(m, name, val_buf);		\
 }

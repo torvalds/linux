@@ -11,8 +11,8 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/media-bus-format.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -305,4 +305,5 @@ module_spi_driver(a030jtn01_driver);
 
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
 MODULE_AUTHOR("Christophe Branchereau <cbranchereau@gmail.com>");
+MODULE_DESCRIPTION("AU Optronics A030JTN01.0 TFT LCD panel driver");
 MODULE_LICENSE("GPL");

@@ -115,7 +115,7 @@ struct daio_mgr {
 };
 
 /* Constructor and destructor of daio resource manager */
-int daio_mgr_create(struct hw *hw, struct daio_mgr **rdaio_mgr);
-int daio_mgr_destroy(struct daio_mgr *daio_mgr);
+int daio_mgr_create(struct hw *hw, void **ptr);
+int daio_mgr_destroy(void *ptr);
 
 #endif /* CTDAIO_H */

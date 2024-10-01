@@ -42,7 +42,7 @@ KASAN有三种模式:
 体系架构
 ~~~~~~~~
 
-在x86_64、arm、arm64、powerpc、riscv、s390和xtensa上支持通用KASAN，
+在x86_64、arm、arm64、powerpc、riscv、s390、xtensa和loongarch上支持通用KASAN，
 而基于标签的KASAN模式只在arm64上支持。
 
 编译器
@@ -137,7 +137,7 @@ KASAN受到通用 ``panic_on_warn`` 命令行参数的影响。当它被启用�
 典型的KASAN报告如下所示::
 
     ==================================================================
-    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
+    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [kasan_test]
     Write of size 1 at addr ffff8801f44ec37b by task insmod/2760
 
     CPU: 1 PID: 2760 Comm: insmod Not tainted 4.19.0-rc3+ #698
@@ -147,8 +147,8 @@ KASAN受到通用 ``panic_on_warn`` 命令行参数的影响。当它被启用�
      print_address_description+0x73/0x280
      kasan_report+0x144/0x187
      __asan_report_store1_noabort+0x17/0x20
-     kmalloc_oob_right+0xa8/0xbc [test_kasan]
-     kmalloc_tests_init+0x16/0x700 [test_kasan]
+     kmalloc_oob_right+0xa8/0xbc [kasan_test]
+     kmalloc_tests_init+0x16/0x700 [kasan_test]
      do_one_initcall+0xa5/0x3ae
      do_init_module+0x1b6/0x547
      load_module+0x75df/0x8070
@@ -168,8 +168,8 @@ KASAN受到通用 ``panic_on_warn`` 命令行参数的影响。当它被启用�
      save_stack+0x43/0xd0
      kasan_kmalloc+0xa7/0xd0
      kmem_cache_alloc_trace+0xe1/0x1b0
-     kmalloc_oob_right+0x56/0xbc [test_kasan]
-     kmalloc_tests_init+0x16/0x700 [test_kasan]
+     kmalloc_oob_right+0x56/0xbc [kasan_test]
+     kmalloc_tests_init+0x16/0x700 [kasan_test]
      do_one_initcall+0xa5/0x3ae
      do_init_module+0x1b6/0x547
      load_module+0x75df/0x8070
@@ -234,6 +234,24 @@ slab对象的描述以及关于访问的内存页的信息。
 
 通用KASAN还报告两个辅助调用堆栈跟踪。这些堆栈跟踪指向代码中与对象交互但不直接
 出现在错误访问堆栈跟踪中的位置。目前，这包括 call_rcu() 和排队的工作队列。
+
+CONFIG_KASAN_EXTRA_INFO
+~~~~~~~~~~~~~~~~~~~~~~~
+
+启用 CONFIG_KASAN_EXTRA_INFO 选项允许 KASAN 记录和报告更多信息。目前支持的
+额外信息包括分配和释放时的 CPU 编号和时间戳。更多的信息可以帮助找到内核错误的原因，
+并将错误与其他系统事件关联起来，但代价是用额外的内存来记录更多信息（有关更多
+开销的细节，请参见 CONFIG_KASAN_EXTRA_INFO 选项的帮助文本）。
+
+以下为 CONFIG_KASAN_EXTRA_INFO 开启后的报告（仅显示不同部分）::
+
+    ==================================================================
+    ...
+    Allocated by task 134 on cpu 5 at 229.133855s:
+    ...
+    Freed by task 136 on cpu 3 at 230.199335s:
+    ...
+    ==================================================================
 
 实施细则
 --------
@@ -421,15 +439,15 @@ KASAN连接到vmap基础架构以懒清理未使用的影子内存。
 
 当由于 ``kmalloc`` 失败而导致测试失败时::
 
-        # kmalloc_large_oob_right: ASSERTION FAILED at lib/test_kasan.c:163
+        # kmalloc_large_oob_right: ASSERTION FAILED at mm/kasan/kasan_test.c:245
         Expected ptr is not null, but is
-        not ok 4 - kmalloc_large_oob_right
+        not ok 5 - kmalloc_large_oob_right
 
 当由于缺少KASAN报告而导致测试失败时::
 
-        # kmalloc_double_kzfree: EXPECTATION FAILED at lib/test_kasan.c:974
+        # kmalloc_double_kzfree: EXPECTATION FAILED at mm/kasan/kasan_test.c:709
         KASAN failure expected in "kfree_sensitive(ptr)", but none occurred
-        not ok 44 - kmalloc_double_kzfree
+        not ok 28 - kmalloc_double_kzfree
 
 
 最后打印所有KASAN测试的累积状态。成功::
@@ -445,7 +463,7 @@ KASAN连接到vmap基础架构以懒清理未使用的影子内存。
 1. 可加载模块
 
    启用 ``CONFIG_KUNIT`` 后，KASAN-KUnit测试可以构建为可加载模块，并通过使用
-   ``insmod`` 或 ``modprobe`` 加载 ``test_kasan.ko`` 来运行。
+   ``insmod`` 或 ``modprobe`` 加载 ``kasan_test.ko`` 来运行。
 
 2. 内置
 

@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/export.h>
-#include <linux/screen_info.h>
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
@@ -43,6 +42,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
+#include <asm/mips-cps.h>
 #include <asm/prom.h>
 #include <asm/fw/fw.h>
 
@@ -53,10 +53,6 @@ char __section(".appended_dtb") __appended_dtb[0x100000];
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(cpu_data);
-
-#ifdef CONFIG_VT
-struct screen_info screen_info;
-#endif
 
 /*
  * Setup information
@@ -151,7 +147,7 @@ static unsigned long __init init_initrd(void)
 	/*
 	 * Board specific code or command line parser should have
 	 * already set up initrd_start and initrd_end. In these cases
-	 * perfom sanity checks and use them if all looks good.
+	 * perform sanity checks and use them if all looks good.
 	 */
 	if (!initrd_start || initrd_end <= initrd_start)
 		goto disable;
@@ -326,11 +322,11 @@ static void __init bootmem_init(void)
 		panic("Incorrect memory mapping !!!");
 
 	if (max_pfn > PFN_DOWN(HIGHMEM_START)) {
+		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 #ifdef CONFIG_HIGHMEM
-		highstart_pfn = PFN_DOWN(HIGHMEM_START);
+		highstart_pfn = max_low_pfn;
 		highend_pfn = max_pfn;
 #else
-		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 		max_pfn = max_low_pfn;
 #endif
 	}
@@ -446,8 +442,6 @@ static void __init mips_reserve_vmcore(void)
 #endif
 }
 
-#ifdef CONFIG_KEXEC
-
 /* 64M alignment for crash kernel regions */
 #define CRASH_ALIGN	SZ_64M
 #define CRASH_ADDR_MAX	SZ_512M
@@ -458,9 +452,13 @@ static void __init mips_parse_crashkernel(void)
 	unsigned long long crash_size, crash_base;
 	int ret;
 
+	if (!IS_ENABLED(CONFIG_CRASH_RESERVE))
+		return;
+
 	total_mem = memblock_phys_mem_size();
 	ret = parse_crashkernel(boot_command_line, total_mem,
-				&crash_size, &crash_base);
+				&crash_size, &crash_base,
+				NULL, NULL);
 	if (ret != 0 || crash_size <= 0)
 		return;
 
@@ -492,6 +490,9 @@ static void __init request_crashkernel(struct resource *res)
 {
 	int ret;
 
+	if (!IS_ENABLED(CONFIG_CRASH_RESERVE))
+		return;
+
 	if (crashk_res.start == crashk_res.end)
 		return;
 
@@ -501,15 +502,6 @@ static void __init request_crashkernel(struct resource *res)
 			(unsigned long)(resource_size(&crashk_res) >> 20),
 			(unsigned long)(crashk_res.start  >> 20));
 }
-#else /* !defined(CONFIG_KEXEC)		*/
-static void __init mips_parse_crashkernel(void)
-{
-}
-
-static void __init request_crashkernel(struct resource *res)
-{
-}
-#endif /* !defined(CONFIG_KEXEC)  */
 
 static void __init check_kernel_sections_mem(void)
 {
@@ -791,12 +783,6 @@ void __init setup_arch(char **cmdline_p)
 	cpu_report();
 	if (IS_ENABLED(CONFIG_CPU_R4X00_BUGS64))
 		check_bugs64_early();
-
-#if defined(CONFIG_VT)
-#if defined(CONFIG_VGA_CONSOLE)
-	conswitchp = &vga_con;
-#endif
-#endif
 
 	arch_mem_init(cmdline_p);
 	dmi_setup();

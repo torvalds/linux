@@ -15,7 +15,23 @@
 #include <linux/err.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+#include <libelf.h>
 #include "relo_core.h"
+
+/* Android's libc doesn't support AT_EACCESS in faccessat() implementation
+ * ([0]), and just returns -EINVAL even if file exists and is accessible.
+ * See [1] for issues caused by this.
+ *
+ * So just redefine it to 0 on Android.
+ *
+ * [0] https://android.googlesource.com/platform/bionic/+/refs/heads/android13-release/libc/bionic/faccessat.cpp#50
+ * [1] https://github.com/libbpf/libbpf-bootstrap/issues/250#issuecomment-1911324250
+ */
+#ifdef __ANDROID__
+#undef AT_EACCESS
+#define AT_EACCESS 0
+#endif
 
 /* make sure libbpf doesn't use kernel-only integer typedefs */
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
@@ -218,6 +234,9 @@ struct btf_type;
 struct btf_type *btf_type_by_id(const struct btf *btf, __u32 type_id);
 const char *btf_kind_str(const struct btf_type *t);
 const struct btf_type *skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
+const struct btf_header *btf_header(const struct btf *btf);
+void btf_set_base_btf(struct btf *btf, const struct btf *base_btf);
+int btf_relocate(struct btf *btf, const struct btf *base_btf, __u32 **id_map);
 
 static inline enum btf_func_linkage btf_func_linkage(const struct btf_type *t)
 {
@@ -354,18 +373,41 @@ enum kern_feature_id {
 	FEAT_BTF_ENUM64,
 	/* Kernel uses syscall wrapper (CONFIG_ARCH_HAS_SYSCALL_WRAPPER) */
 	FEAT_SYSCALL_WRAPPER,
+	/* BPF multi-uprobe link support */
+	FEAT_UPROBE_MULTI_LINK,
+	/* Kernel supports arg:ctx tag (__arg_ctx) for global subprogs natively */
+	FEAT_ARG_CTX_TAG,
+	/* Kernel supports '?' at the front of datasec names */
+	FEAT_BTF_QMARK_DATASEC,
 	__FEAT_CNT,
 };
 
-int probe_memcg_account(void);
+enum kern_feature_result {
+	FEAT_UNKNOWN = 0,
+	FEAT_SUPPORTED = 1,
+	FEAT_MISSING = 2,
+};
+
+struct kern_feature_cache {
+	enum kern_feature_result res[__FEAT_CNT];
+	int token_fd;
+};
+
+bool feat_supported(struct kern_feature_cache *cache, enum kern_feature_id feat_id);
 bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id);
+
+int probe_kern_syscall_wrapper(int token_fd);
+int probe_memcg_account(int token_fd);
 int bump_rlimit_memlock(void);
 
 int parse_cpu_mask_str(const char *s, bool **mask, int *mask_sz);
 int parse_cpu_mask_file(const char *fcpu, bool **mask, int *mask_sz);
 int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
-			 const char *str_sec, size_t str_len);
-int btf_load_into_kernel(struct btf *btf, char *log_buf, size_t log_sz, __u32 log_level);
+			 const char *str_sec, size_t str_len,
+			 int token_fd);
+int btf_load_into_kernel(struct btf *btf,
+			 char *log_buf, size_t log_sz, __u32 log_level,
+			 int token_fd);
 
 struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf);
 void btf_get_kernel_prefix_kind(enum bpf_attach_type attach_type,
@@ -469,20 +511,37 @@ struct bpf_line_info_min {
 	__u32	line_col;
 };
 
+enum btf_field_iter_kind {
+	BTF_FIELD_ITER_IDS,
+	BTF_FIELD_ITER_STRS,
+};
+
+struct btf_field_desc {
+	/* once-per-type offsets */
+	int t_off_cnt, t_offs[2];
+	/* member struct size, or zero, if no members */
+	int m_sz;
+	/* repeated per-member offsets */
+	int m_off_cnt, m_offs[1];
+};
+
+struct btf_field_iter {
+	struct btf_field_desc desc;
+	void *p;
+	int m_idx;
+	int off_idx;
+	int vlen;
+};
+
+int btf_field_iter_init(struct btf_field_iter *it, struct btf_type *t, enum btf_field_iter_kind iter_kind);
+__u32 *btf_field_iter_next(struct btf_field_iter *it);
 
 typedef int (*type_id_visit_fn)(__u32 *type_id, void *ctx);
 typedef int (*str_off_visit_fn)(__u32 *str_off, void *ctx);
-int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ctx);
-int btf_type_visit_str_offs(struct btf_type *t, str_off_visit_fn visit, void *ctx);
 int btf_ext_visit_type_ids(struct btf_ext *btf_ext, type_id_visit_fn visit, void *ctx);
 int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void *ctx);
 __s32 btf__find_by_name_kind_own(const struct btf *btf, const char *type_name,
 				 __u32 kind);
-
-typedef int (*kallsyms_cb_t)(unsigned long long sym_addr, char sym_type,
-			     const char *sym_name, void *ctx);
-
-int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *arg);
 
 /* handle direct returned errors */
 static inline int libbpf_err(int ret)
@@ -529,6 +588,17 @@ static inline bool is_ldimm64_insn(struct bpf_insn *insn)
 	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
 }
 
+/* Unconditionally dup FD, ensuring it doesn't use [0, 2] range.
+ * Original FD is not closed or altered in any other way.
+ * Preserves original FD value, if it's invalid (negative).
+ */
+static inline int dup_good_fd(int fd)
+{
+	if (fd < 0)
+		return fd;
+	return fcntl(fd, F_DUPFD_CLOEXEC, 3);
+}
+
 /* if fd is stdin, stdout, or stderr, dup to a fd greater than 2
  * Takes ownership of the fd passed in, and closes it if calling
  * fcntl(fd, F_DUPFD_CLOEXEC, 3).
@@ -540,7 +610,7 @@ static inline int ensure_good_fd(int fd)
 	if (fd < 0)
 		return fd;
 	if (fd < 3) {
-		fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+		fd = dup_good_fd(fd);
 		saved_errno = errno;
 		close(old_fd);
 		errno = saved_errno;
@@ -550,6 +620,25 @@ static inline int ensure_good_fd(int fd)
 		}
 	}
 	return fd;
+}
+
+static inline int sys_dup3(int oldfd, int newfd, int flags)
+{
+	return syscall(__NR_dup3, oldfd, newfd, flags);
+}
+
+/* Point *fixed_fd* to the same file that *tmp_fd* points to.
+ * Regardless of success, *tmp_fd* is closed.
+ * Whatever *fixed_fd* pointed to is closed silently.
+ */
+static inline int reuse_fd(int fixed_fd, int tmp_fd)
+{
+	int err;
+
+	err = sys_dup3(tmp_fd, fixed_fd, O_CLOEXEC);
+	err = err < 0 ? -errno : 0;
+	close(tmp_fd); /* clean up temporary FD */
+	return err;
 }
 
 /* The following two functions are exposed to bpftool */
@@ -576,5 +665,26 @@ static inline bool is_pow_of_2(size_t x)
 
 #define PROG_LOAD_ATTEMPTS 5
 int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size, int attempts);
+
+bool glob_match(const char *str, const char *pat);
+
+long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name);
+long elf_find_func_offset_from_file(const char *binary_path, const char *name);
+
+struct elf_fd {
+	Elf *elf;
+	int fd;
+};
+
+int elf_open(const char *binary_path, struct elf_fd *elf_fd);
+void elf_close(struct elf_fd *elf_fd);
+
+int elf_resolve_syms_offsets(const char *binary_path, int cnt,
+			     const char **syms, unsigned long **poffsets,
+			     int st_type);
+int elf_resolve_pattern_offsets(const char *binary_path, const char *pattern,
+				 unsigned long **poffsets, size_t *pcnt);
+
+int probe_fd(int fd);
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

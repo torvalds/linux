@@ -159,7 +159,7 @@ struct thread_struct {
 	unsigned long	sr0;
 #endif
 #endif /* CONFIG_PPC32 */
-#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+#if defined(CONFIG_BOOKE) && defined(CONFIG_PPC_KUAP)
 	unsigned long	pid;	/* value written in PID reg. at interrupt exit */
 #endif
 	/* Debug Registers */
@@ -172,11 +172,6 @@ struct thread_struct {
 	unsigned int	align_ctl;	/* alignment handling control */
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	struct perf_event *ptrace_bps[HBP_NUM_MAX];
-	/*
-	 * Helps identify source of single-step exception and subsequent
-	 * hw-breakpoint enablement
-	 */
-	struct perf_event *last_hit_ubp[HBP_NUM_MAX];
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 	struct arch_hw_breakpoint hw_brk[HBP_NUM_MAX]; /* hardware breakpoint info */
 	unsigned long	trap_nr;	/* last trap # on this thread */
@@ -265,7 +260,8 @@ struct thread_struct {
 	unsigned long   sier2;
 	unsigned long   sier3;
 	unsigned long	hashkeyr;
-
+	unsigned long	dexcr;
+	unsigned long	dexcr_onexec;	/* Reset value to load on exec */
 #endif
 };
 
@@ -338,6 +334,16 @@ extern int set_endian(struct task_struct *tsk, unsigned int val);
 extern int get_unalign_ctl(struct task_struct *tsk, unsigned long adr);
 extern int set_unalign_ctl(struct task_struct *tsk, unsigned int val);
 
+#ifdef CONFIG_PPC_BOOK3S_64
+
+#define PPC_GET_DEXCR_ASPECT(tsk, asp) get_dexcr_prctl((tsk), (asp))
+#define PPC_SET_DEXCR_ASPECT(tsk, asp, val) set_dexcr_prctl((tsk), (asp), (val))
+
+int get_dexcr_prctl(struct task_struct *tsk, unsigned long asp);
+int set_dexcr_prctl(struct task_struct *tsk, unsigned long asp, unsigned long val);
+
+#endif
+
 extern void load_fp_state(struct thread_fp_state *fp);
 extern void store_fp_state(struct thread_fp_state *fp);
 extern void load_vr_state(struct thread_vr_state *vr);
@@ -393,7 +399,6 @@ int validate_sp_size(unsigned long sp, struct task_struct *p,
  */
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW
-#define ARCH_HAS_SPINLOCK_PREFETCH
 
 static inline void prefetch(const void *x)
 {
@@ -410,8 +415,6 @@ static inline void prefetchw(const void *x)
 
 	__asm__ __volatile__ ("dcbtst 0,%0" : : "r" (x));
 }
-
-#define spin_lock_prefetch(x)	prefetchw(x)
 
 /* asm stubs */
 extern unsigned long isa300_idle_stop_noloss(unsigned long psscr_val);

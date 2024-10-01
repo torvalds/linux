@@ -93,6 +93,7 @@ struct regmap {
 #endif
 
 	unsigned int max_register;
+	bool max_register_is_set;
 	bool (*writeable_reg)(struct device *dev, unsigned int reg);
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
@@ -318,26 +319,29 @@ struct regmap_ram_data {
 	bool *read;
 	bool *written;
 	enum regmap_endian reg_endian;
+	bool (*noinc_reg)(struct regmap_ram_data *data, unsigned int reg);
 };
 
 /*
  * Create a test register map with data stored in RAM, not intended
  * for practical use.
  */
-struct regmap *__regmap_init_ram(const struct regmap_config *config,
+struct regmap *__regmap_init_ram(struct device *dev,
+				 const struct regmap_config *config,
 				 struct regmap_ram_data *data,
 				 struct lock_class_key *lock_key,
 				 const char *lock_name);
 
-#define regmap_init_ram(config, data)					\
-	__regmap_lockdep_wrapper(__regmap_init_ram, #config, config, data)
+#define regmap_init_ram(dev, config, data)					\
+	__regmap_lockdep_wrapper(__regmap_init_ram, #dev, dev, config, data)
 
-struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
+struct regmap *__regmap_init_raw_ram(struct device *dev,
+				     const struct regmap_config *config,
 				     struct regmap_ram_data *data,
 				     struct lock_class_key *lock_key,
 				     const char *lock_name);
 
-#define regmap_init_raw_ram(config, data)				\
-	__regmap_lockdep_wrapper(__regmap_init_raw_ram, #config, config, data)
+#define regmap_init_raw_ram(dev, config, data)				\
+	__regmap_lockdep_wrapper(__regmap_init_raw_ram, #dev, dev, config, data)
 
 #endif

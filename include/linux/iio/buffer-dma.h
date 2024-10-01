@@ -7,6 +7,7 @@
 #ifndef __INDUSTRIALIO_DMA_BUFFER_H__
 #define __INDUSTRIALIO_DMA_BUFFER_H__
 
+#include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/spinlock.h>
@@ -16,17 +17,18 @@
 struct iio_dma_buffer_queue;
 struct iio_dma_buffer_ops;
 struct device;
+struct dma_buf_attachment;
+struct dma_fence;
+struct sg_table;
 
 /**
  * enum iio_block_state - State of a struct iio_dma_buffer_block
- * @IIO_BLOCK_STATE_DEQUEUED: Block is not queued
  * @IIO_BLOCK_STATE_QUEUED: Block is on the incoming queue
  * @IIO_BLOCK_STATE_ACTIVE: Block is currently being processed by the DMA
  * @IIO_BLOCK_STATE_DONE: Block is on the outgoing queue
  * @IIO_BLOCK_STATE_DEAD: Block has been marked as to be freed
  */
 enum iio_block_state {
-	IIO_BLOCK_STATE_DEQUEUED,
 	IIO_BLOCK_STATE_QUEUED,
 	IIO_BLOCK_STATE_ACTIVE,
 	IIO_BLOCK_STATE_DONE,
@@ -43,6 +45,10 @@ enum iio_block_state {
  * @queue: Parent DMA buffer queue
  * @kref: kref used to manage the lifetime of block
  * @state: Current state of the block
+ * @cyclic: True if this is a cyclic buffer
+ * @fileio: True if this buffer is used for fileio mode
+ * @sg_table: DMA table for the transfer when transferring a DMABUF
+ * @fence: DMA fence to be signaled when a DMABUF transfer is complete
  */
 struct iio_dma_buffer_block {
 	/* May only be accessed by the owner of the block */
@@ -65,6 +71,12 @@ struct iio_dma_buffer_block {
 	 * queue->list_lock if the block is not owned by the core.
 	 */
 	enum iio_block_state state;
+
+	bool cyclic;
+	bool fileio;
+
+	struct sg_table *sg_table;
+	struct dma_fence *fence;
 };
 
 /**
@@ -73,12 +85,17 @@ struct iio_dma_buffer_block {
  * @active_block: Block being used in read()
  * @pos: Read offset in the active block
  * @block_size: Size of each block
+ * @next_dequeue: index of next block that will be dequeued
+ * @enabled: Whether the buffer is operating in fileio mode
  */
 struct iio_dma_buffer_queue_fileio {
 	struct iio_dma_buffer_block *blocks[2];
 	struct iio_dma_buffer_block *active_block;
 	size_t pos;
 	size_t block_size;
+
+	unsigned int next_dequeue;
+	bool enabled;
 };
 
 /**
@@ -93,8 +110,8 @@ struct iio_dma_buffer_queue_fileio {
  *   list and typically also a list of active blocks in the part that handles
  *   the DMA controller
  * @incoming: List of buffers on the incoming queue
- * @outgoing: List of buffers on the outgoing queue
  * @active: Whether the buffer is currently active
+ * @num_dmabufs: Total number of DMABUFs attached to this queue
  * @fileio: FileIO state
  */
 struct iio_dma_buffer_queue {
@@ -105,9 +122,9 @@ struct iio_dma_buffer_queue {
 	struct mutex lock;
 	spinlock_t list_lock;
 	struct list_head incoming;
-	struct list_head outgoing;
 
 	bool active;
+	atomic_t num_dmabufs;
 
 	struct iio_dma_buffer_queue_fileio fileio;
 };
@@ -133,7 +150,9 @@ int iio_dma_buffer_disable(struct iio_buffer *buffer,
 	struct iio_dev *indio_dev);
 int iio_dma_buffer_read(struct iio_buffer *buffer, size_t n,
 	char __user *user_buffer);
-size_t iio_dma_buffer_data_available(struct iio_buffer *buffer);
+int iio_dma_buffer_write(struct iio_buffer *buffer, size_t n,
+			 const char __user *user_buffer);
+size_t iio_dma_buffer_usage(struct iio_buffer *buffer);
 int iio_dma_buffer_set_bytes_per_datum(struct iio_buffer *buffer, size_t bpd);
 int iio_dma_buffer_set_length(struct iio_buffer *buffer, unsigned int length);
 int iio_dma_buffer_request_update(struct iio_buffer *buffer);
@@ -142,5 +161,18 @@ int iio_dma_buffer_init(struct iio_dma_buffer_queue *queue,
 	struct device *dma_dev, const struct iio_dma_buffer_ops *ops);
 void iio_dma_buffer_exit(struct iio_dma_buffer_queue *queue);
 void iio_dma_buffer_release(struct iio_dma_buffer_queue *queue);
+
+struct iio_dma_buffer_block *
+iio_dma_buffer_attach_dmabuf(struct iio_buffer *buffer,
+			     struct dma_buf_attachment *attach);
+void iio_dma_buffer_detach_dmabuf(struct iio_buffer *buffer,
+				  struct iio_dma_buffer_block *block);
+int iio_dma_buffer_enqueue_dmabuf(struct iio_buffer *buffer,
+				  struct iio_dma_buffer_block *block,
+				  struct dma_fence *fence,
+				  struct sg_table *sgt,
+				  size_t size, bool cyclic);
+void iio_dma_buffer_lock_queue(struct iio_buffer *buffer);
+void iio_dma_buffer_unlock_queue(struct iio_buffer *buffer);
 
 #endif

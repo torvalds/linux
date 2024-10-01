@@ -116,7 +116,7 @@ static void vcc_write_space(struct sock *sk)
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible(&wq->wait);
 
-		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
+		sk_wake_async_rcu(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 
 	rcu_read_unlock();
@@ -890,6 +890,7 @@ subsys_initcall(atm_init);
 
 module_exit(atm_exit);
 
+MODULE_DESCRIPTION("Asynchronous Transfer Mode (ATM) networking core");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_ATMPVC);
 MODULE_ALIAS_NETPROTO(PF_ATMSVC);

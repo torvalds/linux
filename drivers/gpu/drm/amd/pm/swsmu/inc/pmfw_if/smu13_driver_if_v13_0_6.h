@@ -65,6 +65,94 @@ typedef enum {
 #define CMDCONFIG_RESTART_MASK        (1 << CMDCONFIG_RESTART_BIT)
 #define CMDCONFIG_READWRITE_MASK      (1 << CMDCONFIG_READWRITE_BIT)
 
+typedef enum {
+  // MMHUB
+  CODE_DAGB0,
+  CODE_EA0 = 5,
+  CODE_UTCL2_ROUTER = 10,
+  CODE_VML2,
+  CODE_VML2_WALKER,
+  CODE_MMCANE,
+
+  // VCN
+  // VCN VCPU
+  CODE_VIDD,
+  CODE_VIDV,
+  // VCN JPEG
+  CODE_JPEG0S,
+  CODE_JPEG0D,
+  CODE_JPEG1S,
+  CODE_JPEG1D,
+  CODE_JPEG2S,
+  CODE_JPEG2D,
+  CODE_JPEG3S,
+  CODE_JPEG3D,
+  CODE_JPEG4S,
+  CODE_JPEG4D,
+  CODE_JPEG5S,
+  CODE_JPEG5D,
+  CODE_JPEG6S,
+  CODE_JPEG6D,
+  CODE_JPEG7S,
+  CODE_JPEG7D,
+  // VCN MMSCH
+  CODE_MMSCHD,
+
+  // SDMA
+  CODE_SDMA0,
+  CODE_SDMA1,
+  CODE_SDMA2,
+  CODE_SDMA3,
+
+  // SOC
+  CODE_HDP,
+  CODE_ATHUB,
+  CODE_IH,
+  CODE_XHUB_POISON,
+  CODE_SMN_SLVERR = 40,
+  CODE_WDT,
+
+  CODE_UNKNOWN = 42,
+  CODE_COUNT,
+} ERR_CODE_e;
+
+typedef enum {
+  // SH POISON FED
+  SH_FED_CODE,
+  // GCEA Pin UE_ERR regs
+  GCEA_CODE,
+  SQ_CODE,
+  LDS_CODE,
+  GDS_CODE,
+  SP0_CODE,
+  SP1_CODE,
+  TCC_CODE,
+  TCA_CODE,
+  TCX_CODE,
+  CPC_CODE,
+  CPF_CODE,
+  CPG_CODE,
+  SPI_CODE,
+  RLC_CODE,
+  // GCEA Pin, UE_EDC regs
+  SQC_CODE,
+  TA_CODE,
+  TD_CODE,
+  TCP_CODE,
+  TCI_CODE,
+  // GC Router
+  GC_ROUTER_CODE,
+  VML2_CODE,
+  VML2_WALKER_CODE,
+  ATCL2_CODE,
+  GC_CANE_CODE,
+
+  // SOC error codes 40-42 are common with ERR_CODE_e
+  MP5_CODE_SMN_SLVERR = 40,
+  MP5_CODE_UNKNOWN = 42,
+} GC_ERROR_CODE_e;
+
+
 typedef struct {
   uint8_t ReadWriteData;  //Return data for read. Data to send for write
   uint8_t CmdConfig; //Includes whether associated command should have a stop or restart command, and is a read or write
@@ -131,6 +219,9 @@ typedef struct {
 #define THROTTLER_THERMAL_SOCKET_BIT    2//AID, XCD, CCD throttling
 #define THROTTLER_THERMAL_VR_BIT        3//VRHOT
 #define THROTTLER_THERMAL_HBM_BIT       4
+
+#define ClearMcaOnRead_UE_FLAG_MASK              0x1
+#define ClearMcaOnRead_CE_POLL_MASK              0x2
 
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu

@@ -333,19 +333,15 @@ static const u32 isc_sama5d2_gamma_table[][GAMMA_ENTRIES] = {
 static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 {
 	struct device_node *np = dev->of_node;
-	struct device_node *epn = NULL;
+	struct device_node *epn;
 	struct isc_subdev_entity *subdev_entity;
 	unsigned int flags;
-	int ret;
+	int ret = -EINVAL;
 
 	INIT_LIST_HEAD(&isc->subdev_entities);
 
-	while (1) {
+	for_each_endpoint_of_node(np, epn) {
 		struct v4l2_fwnode_endpoint v4l2_epn = { .bus_type = 0 };
-
-		epn = of_graph_get_next_endpoint(np, epn);
-		if (!epn)
-			return 0;
 
 		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(epn),
 						 &v4l2_epn);
@@ -503,15 +499,15 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	}
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
-		struct v4l2_async_subdev *asd;
+		struct v4l2_async_connection *asd;
 		struct fwnode_handle *fwnode =
 			of_fwnode_handle(subdev_entity->epn);
 
-		v4l2_async_nf_init(&subdev_entity->notifier);
+		v4l2_async_nf_init(&subdev_entity->notifier, &isc->v4l2_dev);
 
 		asd = v4l2_async_nf_add_fwnode_remote(&subdev_entity->notifier,
 						      fwnode,
-						      struct v4l2_async_subdev);
+						      struct v4l2_async_connection);
 
 		of_node_put(subdev_entity->epn);
 		subdev_entity->epn = NULL;
@@ -523,8 +519,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 
 		subdev_entity->notifier.ops = &atmel_isc_async_ops;
 
-		ret = v4l2_async_nf_register(&isc->v4l2_dev,
-					     &subdev_entity->notifier);
+		ret = v4l2_async_nf_register(&subdev_entity->notifier);
 		if (ret) {
 			dev_err(dev, "fail to register async notifier\n");
 			goto cleanup_subdev;

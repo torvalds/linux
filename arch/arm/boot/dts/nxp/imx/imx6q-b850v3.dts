@@ -227,7 +227,6 @@
 
 		#address-cells = <3>;
 		#size-cells = <2>;
-		#interrupt-cells = <1>;
 
 		bridge@2,1 {
 			compatible = "pci10b5,8605";
@@ -235,7 +234,6 @@
 
 			#address-cells = <3>;
 			#size-cells = <2>;
-			#interrupt-cells = <1>;
 
 			/* Intel Corporation I210 Gigabit Network Connection */
 			ethernet@3,0 {
@@ -250,7 +248,6 @@
 
 			#address-cells = <3>;
 			#size-cells = <2>;
-			#interrupt-cells = <1>;
 
 			/* Intel Corporation I210 Gigabit Network Connection */
 			switch_nic: ethernet@4,0 {

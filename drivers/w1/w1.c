@@ -167,7 +167,7 @@ static struct w1_family w1_default_family = {
 
 static int w1_uevent(const struct device *dev, struct kobj_uevent_env *env);
 
-static struct bus_type w1_bus_type = {
+static const struct bus_type w1_bus_type = {
 	.name = "w1",
 	.uevent = w1_uevent,
 };
@@ -504,7 +504,7 @@ static ssize_t w1_master_attribute_store_remove(struct device *dev,
 		if (result == 0)
 			result = count;
 	} else {
-		dev_info(dev, "Device %02x-%012llx doesn't exists\n", rn.family,
+		dev_info(dev, "Device %02x-%012llx doesn't exist\n", rn.family,
 			(unsigned long long)rn.id);
 		result = -EINVAL;
 	}

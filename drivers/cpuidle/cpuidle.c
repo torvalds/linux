@@ -228,16 +228,13 @@ noinstr int cpuidle_enter_state(struct cpuidle_device *dev,
 	if (broadcast && tick_broadcast_enter()) {
 		index = find_deepest_state(drv, dev, target_state->exit_latency_ns,
 					   CPUIDLE_FLAG_TIMER_STOP, false);
-		if (index < 0) {
-			default_idle_call();
-			return -EBUSY;
-		}
+
 		target_state = &drv->states[index];
 		broadcast = false;
 	}
 
 	if (target_state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
-		leave_mm(dev->cpu);
+		leave_mm();
 
 	/* Take note of the planned idle state. */
 	sched_idle_set_state(target_state);

@@ -26,12 +26,6 @@ const struct file_operations minix_dir_operations = {
 	.fsync		= generic_file_fsync,
 };
 
-static inline void dir_put_page(struct page *page)
-{
-	kunmap(page);
-	put_page(page);
-}
-
 /*
  * Return the offset into page `page_nr' of the last valid
  * byte in that page, plus one.
@@ -46,18 +40,18 @@ minix_last_byte(struct inode *inode, unsigned long page_nr)
 	return last_byte;
 }
 
-static void dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
+static void dir_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *dir = mapping->host;
 
-	block_write_end(NULL, mapping, pos, len, len, page, NULL);
+	block_write_end(NULL, mapping, pos, len, len, folio, NULL);
 
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
 		mark_inode_dirty(dir);
 	}
-	unlock_page(page);
+	folio_unlock(folio);
 }
 
 static int minix_handle_dirsync(struct inode *dir)
@@ -70,13 +64,15 @@ static int minix_handle_dirsync(struct inode *dir)
 	return err;
 }
 
-static struct page * dir_get_page(struct inode *dir, unsigned long n)
+static void *dir_get_folio(struct inode *dir, unsigned long n,
+		struct folio **foliop)
 {
-	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (!IS_ERR(page))
-		kmap(page);
-	return page;
+	struct folio *folio = read_mapping_folio(dir->i_mapping, n, NULL);
+
+	if (IS_ERR(folio))
+		return ERR_CAST(folio);
+	*foliop = folio;
+	return kmap_local_folio(folio, 0);
 }
 
 static inline void *minix_next_entry(void *de, struct minix_sb_info *sbi)
@@ -104,11 +100,11 @@ static int minix_readdir(struct file *file, struct dir_context *ctx)
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *p, *kaddr, *limit;
-		struct page *page = dir_get_page(inode, n);
+		struct folio *folio;
 
-		if (IS_ERR(page))
+		kaddr = dir_get_folio(inode, n, &folio);
+		if (IS_ERR(kaddr))
 			continue;
-		kaddr = (char *)page_address(page);
 		p = kaddr+offset;
 		limit = kaddr + minix_last_byte(inode, n) - chunk_size;
 		for ( ; p <= limit; p = minix_next_entry(p, sbi)) {
@@ -127,13 +123,13 @@ static int minix_readdir(struct file *file, struct dir_context *ctx)
 				unsigned l = strnlen(name, sbi->s_namelen);
 				if (!dir_emit(ctx, name, l,
 					      inumber, DT_UNKNOWN)) {
-					dir_put_page(page);
+					folio_release_kmap(folio, p);
 					return 0;
 				}
 			}
 			ctx->pos += chunk_size;
 		}
-		dir_put_page(page);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 0;
 }
@@ -149,12 +145,13 @@ static inline int namecompare(int len, int maxlen,
 /*
  *	minix_find_entry()
  *
- * finds an entry in the specified directory with the wanted name. It
- * returns the cache buffer in which the entry was found, and the entry
- * itself (as a parameter - res_dir). It does NOT read the inode of the
+ * finds an entry in the specified directory with the wanted name.
+ * It does NOT read the inode of the
  * entry - you'll have to do that yourself if you want to.
+ * 
+ * On Success folio_release_kmap() should be called on *foliop.
  */
-minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
+minix_dirent *minix_find_entry(struct dentry *dentry, struct folio **foliop)
 {
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
@@ -163,21 +160,18 @@ minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
 	struct minix_sb_info * sbi = minix_sb(sb);
 	unsigned long n;
 	unsigned long npages = dir_pages(dir);
-	struct page *page = NULL;
 	char *p;
 
 	char *namx;
 	__u32 inumber;
-	*res_page = NULL;
 
 	for (n = 0; n < npages; n++) {
 		char *kaddr, *limit;
 
-		page = dir_get_page(dir, n);
-		if (IS_ERR(page))
+		kaddr = dir_get_folio(dir, n, foliop);
+		if (IS_ERR(kaddr))
 			continue;
 
-		kaddr = (char*)page_address(page);
 		limit = kaddr + minix_last_byte(dir, n) - sbi->s_dirsize;
 		for (p = kaddr; p <= limit; p = minix_next_entry(p, sbi)) {
 			if (sbi->s_version == MINIX_V3) {
@@ -194,12 +188,11 @@ minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
 			if (namecompare(namelen, sbi->s_namelen, name, namx))
 				goto found;
 		}
-		dir_put_page(page);
+		folio_release_kmap(*foliop, kaddr);
 	}
 	return NULL;
 
 found:
-	*res_page = page;
 	return (minix_dirent *)p;
 }
 
@@ -210,7 +203,7 @@ int minix_add_link(struct dentry *dentry, struct inode *inode)
 	int namelen = dentry->d_name.len;
 	struct super_block * sb = dir->i_sb;
 	struct minix_sb_info * sbi = minix_sb(sb);
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	unsigned long npages = dir_pages(dir);
 	unsigned long n;
 	char *kaddr, *p;
@@ -229,12 +222,10 @@ int minix_add_link(struct dentry *dentry, struct inode *inode)
 	for (n = 0; n <= npages; n++) {
 		char *limit, *dir_end;
 
-		page = dir_get_page(dir, n);
-		err = PTR_ERR(page);
-		if (IS_ERR(page))
-			goto out;
-		lock_page(page);
-		kaddr = (char*)page_address(page);
+		kaddr = dir_get_folio(dir, n, &folio);
+		if (IS_ERR(kaddr))
+			return PTR_ERR(kaddr);
+		folio_lock(folio);
 		dir_end = kaddr + minix_last_byte(dir, n);
 		limit = kaddr + PAGE_SIZE - sbi->s_dirsize;
 		for (p = kaddr; p <= limit; p = minix_next_entry(p, sbi)) {
@@ -261,15 +252,15 @@ int minix_add_link(struct dentry *dentry, struct inode *inode)
 			if (namecompare(namelen, sbi->s_namelen, name, namx))
 				goto out_unlock;
 		}
-		unlock_page(page);
-		dir_put_page(page);
+		folio_unlock(folio);
+		folio_release_kmap(folio, kaddr);
 	}
 	BUG();
 	return -EINVAL;
 
 got_it:
-	pos = page_offset(page) + p - (char *)page_address(page);
-	err = minix_prepare_chunk(page, pos, sbi->s_dirsize);
+	pos = folio_pos(folio) + offset_in_folio(folio, p);
+	err = minix_prepare_chunk(folio, pos, sbi->s_dirsize);
 	if (err)
 		goto out_unlock;
 	memcpy (namx, name, namelen);
@@ -280,61 +271,59 @@ got_it:
 		memset (namx + namelen, 0, sbi->s_dirsize - namelen - 2);
 		de->inode = inode->i_ino;
 	}
-	dir_commit_chunk(page, pos, sbi->s_dirsize);
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	dir_commit_chunk(folio, pos, sbi->s_dirsize);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	err = minix_handle_dirsync(dir);
 out_put:
-	dir_put_page(page);
-out:
+	folio_release_kmap(folio, kaddr);
 	return err;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	goto out_put;
 }
 
-int minix_delete_entry(struct minix_dir_entry *de, struct page *page)
+int minix_delete_entry(struct minix_dir_entry *de, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	char *kaddr = page_address(page);
-	loff_t pos = page_offset(page) + (char*)de - kaddr;
+	struct inode *inode = folio->mapping->host;
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
 	unsigned len = sbi->s_dirsize;
 	int err;
 
-	lock_page(page);
-	err = minix_prepare_chunk(page, pos, len);
+	folio_lock(folio);
+	err = minix_prepare_chunk(folio, pos, len);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	if (sbi->s_version == MINIX_V3)
 		((minix3_dirent *)de)->inode = 0;
 	else
 		de->inode = 0;
-	dir_commit_chunk(page, pos, len);
-	inode->i_ctime = inode->i_mtime = current_time(inode);
+	dir_commit_chunk(folio, pos, len);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return minix_handle_dirsync(inode);
 }
 
 int minix_make_empty(struct inode *inode, struct inode *dir)
 {
-	struct page *page = grab_cache_page(inode->i_mapping, 0);
+	struct folio *folio = filemap_grab_folio(inode->i_mapping, 0);
 	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
 	char *kaddr;
 	int err;
 
-	if (!page)
-		return -ENOMEM;
-	err = minix_prepare_chunk(page, 0, 2 * sbi->s_dirsize);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	err = minix_prepare_chunk(folio, 0, 2 * sbi->s_dirsize);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto fail;
 	}
 
-	kaddr = kmap_atomic(page);
-	memset(kaddr, 0, PAGE_SIZE);
+	kaddr = kmap_local_folio(folio, 0);
+	memset(kaddr, 0, folio_size(folio));
 
 	if (sbi->s_version == MINIX_V3) {
 		minix3_dirent *de3 = (minix3_dirent *)kaddr;
@@ -353,12 +342,12 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 		de->inode = dir->i_ino;
 		strcpy(de->name, "..");
 	}
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 
-	dir_commit_chunk(page, 0, 2 * sbi->s_dirsize);
+	dir_commit_chunk(folio, 0, 2 * sbi->s_dirsize);
 	err = minix_handle_dirsync(inode);
 fail:
-	put_page(page);
+	folio_put(folio);
 	return err;
 }
 
@@ -367,20 +356,19 @@ fail:
  */
 int minix_empty_dir(struct inode * inode)
 {
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	unsigned long i, npages = dir_pages(inode);
 	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
-	char *name;
+	char *name, *kaddr;
 	__u32 inumber;
 
 	for (i = 0; i < npages; i++) {
-		char *p, *kaddr, *limit;
+		char *p, *limit;
 
-		page = dir_get_page(inode, i);
-		if (IS_ERR(page))
+		kaddr = dir_get_folio(inode, i, &folio);
+		if (IS_ERR(kaddr))
 			continue;
 
-		kaddr = (char *)page_address(page);
 		limit = kaddr + minix_last_byte(inode, i) - sbi->s_dirsize;
 		for (p = kaddr; p <= limit; p = minix_next_entry(p, sbi)) {
 			if (sbi->s_version == MINIX_V3) {
@@ -406,70 +394,65 @@ int minix_empty_dir(struct inode * inode)
 					goto not_empty;
 			}
 		}
-		dir_put_page(page);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 1;
 
 not_empty:
-	dir_put_page(page);
+	folio_release_kmap(folio, kaddr);
 	return 0;
 }
 
 /* Releases the page */
-int minix_set_link(struct minix_dir_entry *de, struct page *page,
+int minix_set_link(struct minix_dir_entry *de, struct folio *folio,
 		struct inode *inode)
 {
-	struct inode *dir = page->mapping->host;
+	struct inode *dir = folio->mapping->host;
 	struct minix_sb_info *sbi = minix_sb(dir->i_sb);
-	loff_t pos = page_offset(page) +
-			(char *)de-(char*)page_address(page);
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	int err;
 
-	lock_page(page);
-	err = minix_prepare_chunk(page, pos, sbi->s_dirsize);
+	folio_lock(folio);
+	err = minix_prepare_chunk(folio, pos, sbi->s_dirsize);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	if (sbi->s_version == MINIX_V3)
 		((minix3_dirent *)de)->inode = inode->i_ino;
 	else
 		de->inode = inode->i_ino;
-	dir_commit_chunk(page, pos, sbi->s_dirsize);
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	dir_commit_chunk(folio, pos, sbi->s_dirsize);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return minix_handle_dirsync(dir);
 }
 
-struct minix_dir_entry * minix_dotdot (struct inode *dir, struct page **p)
+struct minix_dir_entry *minix_dotdot(struct inode *dir, struct folio **foliop)
 {
-	struct page *page = dir_get_page(dir, 0);
 	struct minix_sb_info *sbi = minix_sb(dir->i_sb);
-	struct minix_dir_entry *de = NULL;
+	struct minix_dir_entry *de = dir_get_folio(dir, 0, foliop);
 
-	if (!IS_ERR(page)) {
-		de = minix_next_entry(page_address(page), sbi);
-		*p = page;
-	}
-	return de;
+	if (!IS_ERR(de))
+		return minix_next_entry(de, sbi);
+	return NULL;
 }
 
 ino_t minix_inode_by_name(struct dentry *dentry)
 {
-	struct page *page;
-	struct minix_dir_entry *de = minix_find_entry(dentry, &page);
+	struct folio *folio;
+	struct minix_dir_entry *de = minix_find_entry(dentry, &folio);
 	ino_t res = 0;
 
 	if (de) {
-		struct address_space *mapping = page->mapping;
-		struct inode *inode = mapping->host;
+		struct inode *inode = folio->mapping->host;
 		struct minix_sb_info *sbi = minix_sb(inode->i_sb);
 
 		if (sbi->s_version == MINIX_V3)
 			res = ((minix3_dirent *) de)->inode;
 		else
 			res = de->inode;
-		dir_put_page(page);
+		folio_release_kmap(folio, de);
 	}
 	return res;
 }

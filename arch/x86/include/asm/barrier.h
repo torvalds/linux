@@ -33,20 +33,16 @@
  * Returns:
  *     0 - (index < size)
  */
-static inline unsigned long array_index_mask_nospec(unsigned long index,
-		unsigned long size)
-{
-	unsigned long mask;
-
-	asm volatile ("cmp %1,%2; sbb %0,%0;"
-			:"=r" (mask)
-			:"g"(size),"r" (index)
-			:"cc");
-	return mask;
-}
-
-/* Override the default implementation from linux/nospec.h. */
-#define array_index_mask_nospec array_index_mask_nospec
+#define array_index_mask_nospec(idx,sz) ({	\
+	typeof((idx)+(sz)) __idx = (idx);	\
+	typeof(__idx) __sz = (sz);		\
+	unsigned long __mask;			\
+	asm volatile ("cmp %1,%2; sbb %0,%0"	\
+			:"=r" (__mask)		\
+			:ASM_INPUT_G (__sz),	\
+			 "r" (__idx)		\
+			:"cc");			\
+	__mask; })
 
 /* Prevent speculative execution past this barrier. */
 #define barrier_nospec() alternative("", "lfence", X86_FEATURE_LFENCE_RDTSC)
@@ -79,24 +75,9 @@ do {									\
 #define __smp_mb__before_atomic()	do { } while (0)
 #define __smp_mb__after_atomic()	do { } while (0)
 
-#include <asm-generic/barrier.h>
+/* Writing to CR3 provides a full memory barrier in switch_mm(). */
+#define smp_mb__after_switch_mm()	do { } while (0)
 
-/*
- * Make previous memory operations globally visible before
- * a WRMSR.
- *
- * MFENCE makes writes visible, but only affects load/store
- * instructions.  WRMSR is unfortunately not a load/store
- * instruction and is unaffected by MFENCE.  The LFENCE ensures
- * that the WRMSR is not reordered.
- *
- * Most WRMSRs are full serializing instructions themselves and
- * do not require this barrier.  This is only required for the
- * IA32_TSC_DEADLINE and X2APIC MSRs.
- */
-static inline void weak_wrmsr_fence(void)
-{
-	asm volatile("mfence; lfence" : : : "memory");
-}
+#include <asm-generic/barrier.h>
 
 #endif /* _ASM_X86_BARRIER_H */

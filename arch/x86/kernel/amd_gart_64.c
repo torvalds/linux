@@ -676,7 +676,7 @@ static const struct dma_map_ops gart_dma_ops = {
 	.get_sgtable			= dma_common_get_sgtable,
 	.dma_supported			= dma_direct_supported,
 	.get_required_mask		= dma_direct_get_required_mask,
-	.alloc_pages			= dma_direct_alloc_pages,
+	.alloc_pages_op			= dma_direct_alloc_pages,
 	.free_pages			= dma_direct_free_pages,
 };
 
@@ -776,7 +776,7 @@ int __init gart_iommu_init(void)
 				iommu_size >> PAGE_SHIFT);
 	/*
 	 * Tricky. The GART table remaps the physical memory range,
-	 * so the CPU wont notice potential aliases and if the memory
+	 * so the CPU won't notice potential aliases and if the memory
 	 * is remapped to UC later on, we might surprise the PCI devices
 	 * with a stray writeout of a cacheline. So play it sure and
 	 * do an explicit, full-scale wbinvd() _after_ having marked all

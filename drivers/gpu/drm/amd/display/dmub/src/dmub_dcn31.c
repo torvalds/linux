@@ -187,7 +187,8 @@ void dmub_dcn31_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
 			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6)
+			      const struct dmub_window *cw6,
+			      const struct dmub_window *region6)
 {
 	union dmub_addr offset;
 
@@ -352,6 +353,14 @@ union dmub_fw_boot_status dmub_dcn31_get_fw_boot_status(struct dmub_srv *dmub)
 	return status;
 }
 
+union dmub_fw_boot_options dmub_dcn31_get_fw_boot_option(struct dmub_srv *dmub)
+{
+	union dmub_fw_boot_options option;
+
+	option.all = REG_READ(DMCUB_SCRATCH14);
+	return option;
+}
+
 void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)
 {
 	union dmub_fw_boot_options boot_options = {0};
@@ -440,6 +449,10 @@ void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	diag_data->inbox0_wptr = REG_READ(DMCUB_INBOX0_WPTR);
 	diag_data->inbox0_size = REG_READ(DMCUB_INBOX0_SIZE);
 
+	diag_data->outbox1_rptr = REG_READ(DMCUB_OUTBOX1_RPTR);
+	diag_data->outbox1_wptr = REG_READ(DMCUB_OUTBOX1_WPTR);
+	diag_data->outbox1_size = REG_READ(DMCUB_OUTBOX1_SIZE);
+
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_dmub_enabled);
 	diag_data->is_dmcub_enabled = is_dmub_enabled;
 
@@ -457,6 +470,7 @@ void dmub_dcn31_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
 	diag_data->is_cw6_enabled = is_cw6_enabled;
+	diag_data->timeout_info = dmub->debug;
 }
 
 bool dmub_dcn31_should_detect(struct dmub_srv *dmub)

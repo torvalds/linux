@@ -265,12 +265,16 @@ config PCIE_DW_PLAT_EP
 	  order to enable device-specific features PCI_DW_PLAT_EP must be
 	  selected.
 
+config PCIE_QCOM_COMMON
+	bool
+
 config PCIE_QCOM
 	bool "Qualcomm PCIe controller (host mode)"
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	select CRC8
+	select PCIE_QCOM_COMMON
 	help
 	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
 	  PCIe controller uses the DesignWare core plus Qualcomm-specific
@@ -281,21 +285,61 @@ config PCIE_QCOM_EP
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	depends on PCI_ENDPOINT
 	select PCIE_DW_EP
+	select PCIE_QCOM_COMMON
 	help
 	  Say Y here to enable support for the PCIe controllers on Qualcomm SoCs
 	  to work in endpoint mode. The PCIe controller uses the DesignWare core
 	  plus Qualcomm-specific hardware wrappers.
 
-config PCIE_ROCKCHIP_DW_HOST
-	bool "Rockchip DesignWare PCIe controller"
-	select PCIE_DW
+config PCIE_RCAR_GEN4
+	tristate
+
+config PCIE_RCAR_GEN4_HOST
+	tristate "Renesas R-Car Gen4 PCIe controller (host mode)"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PCI_MSI
 	select PCIE_DW_HOST
+	select PCIE_RCAR_GEN4
+	help
+	  Say Y here if you want PCIe controller (host mode) on R-Car Gen4 SoCs.
+	  To compile this driver as a module, choose M here: the module will be
+	  called pcie-rcar-gen4.ko. This uses the DesignWare core.
+
+config PCIE_RCAR_GEN4_EP
+	tristate "Renesas R-Car Gen4 PCIe controller (endpoint mode)"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCIE_RCAR_GEN4
+	help
+	  Say Y here if you want PCIe controller (endpoint mode) on R-Car Gen4
+	  SoCs. To compile this driver as a module, choose M here: the module
+	  will be called pcie-rcar-gen4.ko. This uses the DesignWare core.
+
+config PCIE_ROCKCHIP_DW
+	bool
+
+config PCIE_ROCKCHIP_DW_HOST
+	bool "Rockchip DesignWare PCIe controller (host mode)"
 	depends on PCI_MSI
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on OF
+	select PCIE_DW_HOST
+	select PCIE_ROCKCHIP_DW
 	help
 	  Enables support for the DesignWare PCIe controller in the
-	  Rockchip SoC except RK3399.
+	  Rockchip SoC (except RK3399) to work in host mode.
+
+config PCIE_ROCKCHIP_DW_EP
+	bool "Rockchip DesignWare PCIe controller (endpoint mode)"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on OF
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCIE_ROCKCHIP_DW
+	help
+	  Enables support for the DesignWare PCIe controller in the
+	  Rockchip SoC (except RK3399) to work in endpoint mode.
 
 config PCI_EXYNOS
 	tristate "Samsung Exynos PCIe controller"
@@ -311,7 +355,7 @@ config PCI_EXYNOS
 config PCIE_FU740
 	bool "SiFive FU740 PCIe controller"
 	depends on PCI_MSI
-	depends on SOC_SIFIVE || COMPILE_TEST
+	depends on ARCH_SIFIVE || COMPILE_TEST
 	select PCIE_DW_HOST
 	help
 	  Say Y here if you want PCIe controller support for the SiFive

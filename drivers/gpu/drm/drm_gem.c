@@ -164,6 +164,9 @@ void drm_gem_private_object_init(struct drm_device *dev,
 	if (!obj->resv)
 		obj->resv = &obj->_resv;
 
+	if (drm_core_check_feature(dev, DRIVER_GEM_GPUVA))
+		drm_gem_gpuva_init(obj);
+
 	drm_vma_node_reset(&obj->vma_node);
 	INIT_LIST_HEAD(&obj->lru_node);
 }
@@ -537,7 +540,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 	struct page **pages;
 	struct folio *folio;
 	struct folio_batch fbatch;
-	int i, j, npages;
+	long i, j, npages;
 
 	if (WARN_ON(!obj->filp))
 		return ERR_PTR(-EINVAL);
@@ -561,11 +564,13 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 
 	i = 0;
 	while (i < npages) {
+		long nr;
 		folio = shmem_read_folio_gfp(mapping, i,
 				mapping_gfp_mask(mapping));
 		if (IS_ERR(folio))
 			goto fail;
-		for (j = 0; j < folio_nr_pages(folio); j++, i++)
+		nr = min(npages - i, folio_nr_pages(folio));
+		for (j = 0; j < nr; j++, i++)
 			pages[i] = folio_file_page(folio, i);
 
 		/* Make sure shmem keeps __GFP_DMA32 allocated pages in the
@@ -684,7 +689,6 @@ static int objects_lookup(struct drm_file *filp, u32 *handle, int count,
  * For a single handle lookup, use drm_gem_object_lookup().
  *
  * Returns:
- *
  * @objs filled in with GEM object pointers. Returned GEM objects need to be
  * released with drm_gem_object_put(). -ENOENT is returned on a lookup
  * failure. 0 is returned on success.
@@ -732,12 +736,11 @@ EXPORT_SYMBOL(drm_gem_objects_lookup);
  * @filp: DRM file private date
  * @handle: userspace handle
  *
- * Returns:
+ * If looking up an array of handles, use drm_gem_objects_lookup().
  *
+ * Returns:
  * A reference to the object named by the handle if such exists on @filp, NULL
  * otherwise.
- *
- * If looking up an array of handles, use drm_gem_objects_lookup().
  */
 struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *filp, u32 handle)
@@ -758,7 +761,6 @@ EXPORT_SYMBOL(drm_gem_object_lookup);
  * @timeout: timeout value in jiffies or zero to return immediately
  *
  * Returns:
- *
  * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or
  * greater than 0 on success.
  */
@@ -1156,18 +1158,36 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 		obj->funcs->print_info(p, indent, obj);
 }
 
-int drm_gem_pin(struct drm_gem_object *obj)
+int drm_gem_pin_locked(struct drm_gem_object *obj)
 {
 	if (obj->funcs->pin)
 		return obj->funcs->pin(obj);
-	else
-		return 0;
+
+	return 0;
+}
+
+void drm_gem_unpin_locked(struct drm_gem_object *obj)
+{
+	if (obj->funcs->unpin)
+		obj->funcs->unpin(obj);
+}
+
+int drm_gem_pin(struct drm_gem_object *obj)
+{
+	int ret;
+
+	dma_resv_lock(obj->resv, NULL);
+	ret = drm_gem_pin_locked(obj);
+	dma_resv_unlock(obj->resv);
+
+	return ret;
 }
 
 void drm_gem_unpin(struct drm_gem_object *obj)
 {
-	if (obj->funcs->unpin)
-		obj->funcs->unpin(obj);
+	dma_resv_lock(obj->resv, NULL);
+	drm_gem_unpin_locked(obj);
+	dma_resv_unlock(obj->resv);
 }
 
 int drm_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map)
@@ -1203,6 +1223,18 @@ void drm_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 	iosys_map_clear(map);
 }
 EXPORT_SYMBOL(drm_gem_vunmap);
+
+void drm_gem_lock(struct drm_gem_object *obj)
+{
+	dma_resv_lock(obj->resv, NULL);
+}
+EXPORT_SYMBOL(drm_gem_lock);
+
+void drm_gem_unlock(struct drm_gem_object *obj)
+{
+	dma_resv_unlock(obj->resv);
+}
+EXPORT_SYMBOL(drm_gem_unlock);
 
 int drm_gem_vmap_unlocked(struct drm_gem_object *obj, struct iosys_map *map)
 {

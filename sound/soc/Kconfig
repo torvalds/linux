@@ -38,6 +38,17 @@ config SND_SOC_TOPOLOGY
 	bool
 	select SND_DYNAMIC_MINORS
 
+config SND_SOC_TOPOLOGY_BUILD
+	bool "Build topology core"
+	select SND_SOC_TOPOLOGY
+	depends on KUNIT
+	help
+	  This option exists to facilitate running the KUnit tests for
+	  the topology core, KUnit is frequently tested in virtual
+	  environments with minimal drivers enabled but the topology
+	  core is usually selected by drivers.  There is little reason
+	  to enable it if not doing a KUnit build.
+
 config SND_SOC_TOPOLOGY_KUNIT_TEST
 	tristate "KUnit tests for SoC topology"
 	depends on KUNIT
@@ -54,6 +65,14 @@ config SND_SOC_TOPOLOGY_KUNIT_TEST
 	  well with userspace. When running tests one may want to disable
 	  userspace applications such as pulseaudio, to prevent unnecessary
 	  problems.
+
+config SND_SOC_CARD_KUNIT_TEST
+	tristate "KUnit tests for SoC card"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  If you want to perform tests on ALSA SoC card functions say Y here.
+	  If unsure, say N.
 
 config SND_SOC_UTILS_KUNIT_TEST
 	tristate "KUnit tests for SoC utils"
@@ -106,6 +125,8 @@ source "sound/soc/xtensa/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
+
+source "sound/soc/sdw_utils/Kconfig"
 
 # generic frame-work
 source "sound/soc/generic/Kconfig"

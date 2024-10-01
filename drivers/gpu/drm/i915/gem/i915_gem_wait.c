@@ -186,7 +186,7 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {
 	/* nsecs_to_jiffies64() does not guard against overflow */
-	if (NSEC_PER_SEC % HZ &&
+	if ((NSEC_PER_SEC % HZ) != 0 &&
 	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
 		return MAX_JIFFY_OFFSET;
 
@@ -266,7 +266,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (ret == -ETIME && !nsecs_to_jiffies(args->timeout_ns))
 			args->timeout_ns = 0;
 
-		/* Asked to wait beyond the jiffie/scheduler precision? */
+		/* Asked to wait beyond the jiffy/scheduler precision? */
 		if (ret == -ETIME && args->timeout_ns)
 			ret = -EAGAIN;
 	}

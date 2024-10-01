@@ -75,7 +75,7 @@ void fw_csr_iterator_init(struct fw_csr_iterator *ci, const u32 *p);
 int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value);
 int fw_csr_string(const u32 *directory, int key, char *buf, size_t size);
 
-extern struct bus_type fw_bus_type;
+extern const struct bus_type fw_bus_type;
 
 struct fw_card_driver;
 struct fw_node;
@@ -134,6 +134,8 @@ struct fw_card {
 	__be32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
 
 	__be32 maint_utility_register;
+
+	struct workqueue_struct *isoc_wq;
 };
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)
@@ -462,7 +464,7 @@ struct fw_iso_packet {
 				/* rx: Sync bit, wait for matching sy	*/
 	u32 tag:2;		/* tx: Tag in packet header		*/
 	u32 sy:4;		/* tx: Sy in packet header		*/
-	u32 header_length:8;	/* Length of immediate header		*/
+	u32 header_length:8;	/* Size of immediate header		*/
 	u32 header[];		/* tx: Top of 1394 isoch. data_block	*/
 };
 
@@ -509,6 +511,7 @@ union fw_iso_callback {
 
 struct fw_iso_context {
 	struct fw_card *card;
+	struct work_struct work;
 	int type;
 	int channel;
 	int speed;
@@ -528,6 +531,25 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 unsigned long payload);
 void fw_iso_context_queue_flush(struct fw_iso_context *ctx);
 int fw_iso_context_flush_completions(struct fw_iso_context *ctx);
+
+/**
+ * fw_iso_context_schedule_flush_completions() - schedule work item to process isochronous context.
+ * @ctx: the isochronous context
+ *
+ * Schedule a work item on workqueue to process the isochronous context. The registered callback
+ * function is called by the worker when a queued packet buffer with the interrupt flag is
+ * completed, either after transmission in the IT context or after being filled in the IR context.
+ * The callback function is also called when the header buffer in the context becomes full, If it
+ * is required to process the context in the current context, fw_iso_context_flush_completions() is
+ * available instead.
+ *
+ * Context: Any context.
+ */
+static inline void fw_iso_context_schedule_flush_completions(struct fw_iso_context *ctx)
+{
+	queue_work(ctx->card->isoc_wq, &ctx->work);
+}
+
 int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags);
 int fw_iso_context_stop(struct fw_iso_context *ctx);

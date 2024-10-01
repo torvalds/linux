@@ -313,7 +313,7 @@ https://lwn.net/Articles/576263/
 
 * TcpExtTCPOrigDataSent
 
-This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
+This counter is explained by kernel commit f19c29e3e391, I pasted the
 explanation below::
 
   TCPOrigDataSent: number of outgoing packets with original data (excluding
@@ -323,7 +323,7 @@ explanation below::
 
 * TCPSynRetrans
 
-This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
+This counter is explained by kernel commit f19c29e3e391, I pasted the
 explanation below::
 
   TCPSynRetrans: number of SYN and SYN/ACK retransmits to break down
@@ -331,13 +331,11 @@ explanation below::
 
 * TCPFastOpenActiveFail
 
-This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
+This counter is explained by kernel commit f19c29e3e391, I pasted the
 explanation below::
 
   TCPFastOpenActiveFail: Fast Open attempts (SYN/data) failed because
   the remote does not accept it or the attempts timed out.
-
-.. _kernel commit f19c29e3e391: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=f19c29e3e391a66a273e9afebaf01917245148cd
 
 * TcpExtListenOverflows and TcpExtListenDrops
 
@@ -698,11 +696,9 @@ number of the SACK block. For more details, please refer the comment
 of the function tcp_is_sackblock_valid in the kernel source code. A
 SACK option could have up to 4 blocks, they are checked
 individually. E.g., if 3 blocks of a SACk is invalid, the
-corresponding counter would be updated 3 times. The comment of the
-`Add counters for discarded SACK blocks`_ patch has additional
-explanation:
-
-.. _Add counters for discarded SACK blocks: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=18f02545a9a16c9a89778b91a162ad16d510bb32
+corresponding counter would be updated 3 times. The comment of commit
+18f02545a9a1 ("[TCP] MIB: Add counters for discarded SACK blocks")
+has additional explanation:
 
 * TcpExtTCPSACKDiscard
 

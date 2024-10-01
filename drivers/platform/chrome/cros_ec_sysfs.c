@@ -8,6 +8,7 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/kobject.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -340,25 +341,29 @@ static int cros_ec_sysfs_probe(struct platform_device *pd)
 	return ret;
 }
 
-static int cros_ec_sysfs_remove(struct platform_device *pd)
+static void cros_ec_sysfs_remove(struct platform_device *pd)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
 
 	sysfs_remove_group(&ec_dev->class_dev.kobj, &cros_ec_attr_group);
-
-	return 0;
 }
+
+static const struct platform_device_id cros_ec_sysfs_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_sysfs_id);
 
 static struct platform_driver cros_ec_sysfs_driver = {
 	.driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_sysfs_probe,
-	.remove = cros_ec_sysfs_remove,
+	.remove_new = cros_ec_sysfs_remove,
+	.id_table = cros_ec_sysfs_id,
 };
 
 module_platform_driver(cros_ec_sysfs_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Expose the ChromeOS EC through sysfs");
-MODULE_ALIAS("platform:" DRV_NAME);

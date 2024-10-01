@@ -22,6 +22,36 @@
  ** Event classes
  **/
 
+DECLARE_EVENT_CLASS(rpcrdma_simple_cid_class,
+	TP_PROTO(
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+	),
+
+	TP_printk("cq.id=%d cid=%d",
+		__entry->cq_id, __entry->completion_id
+	)
+);
+
+#define DEFINE_SIMPLE_CID_EVENT(name)					\
+		DEFINE_EVENT(rpcrdma_simple_cid_class, name,		\
+				TP_PROTO(				\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(cid)				\
+		)
+
 DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 	TP_PROTO(
 		const struct ib_wc *wc,
@@ -56,37 +86,6 @@ DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 
 #define DEFINE_COMPLETION_EVENT(name)					\
 		DEFINE_EVENT(rpcrdma_completion_class, name,		\
-				TP_PROTO(				\
-					const struct ib_wc *wc,		\
-					const struct rpc_rdma_cid *cid	\
-				),					\
-				TP_ARGS(wc, cid))
-
-DECLARE_EVENT_CLASS(rpcrdma_send_completion_class,
-	TP_PROTO(
-		const struct ib_wc *wc,
-		const struct rpc_rdma_cid *cid
-	),
-
-	TP_ARGS(wc, cid),
-
-	TP_STRUCT__entry(
-		__field(u32, cq_id)
-		__field(int, completion_id)
-	),
-
-	TP_fast_assign(
-		__entry->cq_id = cid->ci_queue_id;
-		__entry->completion_id = cid->ci_completion_id;
-	),
-
-	TP_printk("cq.id=%u cid=%d",
-		__entry->cq_id, __entry->completion_id
-	)
-);
-
-#define DEFINE_SEND_COMPLETION_EVENT(name)				\
-		DEFINE_EVENT(rpcrdma_send_completion_class, name,	\
 				TP_PROTO(				\
 					const struct ib_wc *wc,		\
 					const struct rpc_rdma_cid *cid	\
@@ -305,8 +304,8 @@ DECLARE_EVENT_CLASS(xprtrdma_reply_class,
 		__entry->xid = be32_to_cpu(rep->rr_xid);
 		__entry->version = be32_to_cpu(rep->rr_vers);
 		__entry->proc = be32_to_cpu(rep->rr_proc);
-		__assign_str(addr, rpcrdma_addrstr(rep->rr_rxprt));
-		__assign_str(port, rpcrdma_portstr(rep->rr_rxprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s xid=0x%08x version=%u proc=%u",
@@ -336,8 +335,8 @@ DECLARE_EVENT_CLASS(xprtrdma_rxprt,
 	),
 
 	TP_fast_assign(
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s",
@@ -370,8 +369,8 @@ DECLARE_EVENT_CLASS(xprtrdma_connect_class,
 	TP_fast_assign(
 		__entry->rc = rc;
 		__entry->connect_status = r_xprt->rx_ep->re_connect_status;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s rc=%d connection status=%d",
@@ -609,8 +608,8 @@ DECLARE_EVENT_CLASS(xprtrdma_callback_class,
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s xid=0x%08x",
@@ -670,6 +669,29 @@ TRACE_EVENT(xprtrdma_inline_thresh,
 DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
 
+TRACE_EVENT(xprtrdma_device_removal,
+	TP_PROTO(
+		const struct rdma_cm_id *id
+	),
+
+	TP_ARGS(id),
+
+	TP_STRUCT__entry(
+		__string(name, id->device->name)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+		memcpy(__entry->addr, &id->route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
+	),
+
+	TP_printk("device %s to be removed, disconnecting %pISpc\n",
+		__get_str(name), __entry->addr
+	)
+);
+
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
 
 TRACE_EVENT(xprtrdma_op_connect,
@@ -688,8 +710,8 @@ TRACE_EVENT(xprtrdma_op_connect,
 
 	TP_fast_assign(
 		__entry->delay = delay;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s delay=%lu",
@@ -717,8 +739,8 @@ TRACE_EVENT(xprtrdma_op_set_cto,
 	TP_fast_assign(
 		__entry->connect = connect;
 		__entry->reconnect = reconnect;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s connect=%lu reconnect=%lu",
@@ -747,8 +769,8 @@ TRACE_EVENT(xprtrdma_createmrs,
 
 	TP_fast_assign(
 		__entry->count = count;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s created %u MRs",
@@ -776,8 +798,8 @@ TRACE_EVENT(xprtrdma_nomrs_err,
 
 		__entry->task_id = rqst->rq_task->tk_pid;
 		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER " peer=[%s]:%s",
@@ -978,27 +1000,7 @@ TRACE_EVENT(xprtrdma_post_send_err,
 	)
 );
 
-TRACE_EVENT(xprtrdma_post_recv,
-	TP_PROTO(
-		const struct rpcrdma_rep *rep
-	),
-
-	TP_ARGS(rep),
-
-	TP_STRUCT__entry(
-		__field(u32, cq_id)
-		__field(int, completion_id)
-	),
-
-	TP_fast_assign(
-		__entry->cq_id = rep->rr_cid.ci_queue_id;
-		__entry->completion_id = rep->rr_cid.ci_completion_id;
-	),
-
-	TP_printk("cq.id=%d cid=%d",
-		__entry->cq_id, __entry->completion_id
-	)
-);
+DEFINE_SIMPLE_CID_EVENT(xprtrdma_post_recv);
 
 TRACE_EVENT(xprtrdma_post_recvs,
 	TP_PROTO(
@@ -1022,8 +1024,8 @@ TRACE_EVENT(xprtrdma_post_recvs,
 		__entry->cq_id = ep->re_attr.recv_cq->res.id;
 		__entry->count = count;
 		__entry->posted = ep->re_receive_count;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s cq.id=%d %u new recvs, %d active",
@@ -1052,8 +1054,8 @@ TRACE_EVENT(xprtrdma_post_recvs_err,
 
 		__entry->cq_id = ep->re_attr.recv_cq->res.id;
 		__entry->status = status;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s cq.id=%d rc=%d",
@@ -1466,8 +1468,8 @@ TRACE_EVENT(xprtrdma_cb_setup,
 
 	TP_fast_assign(
 		__entry->reqs = reqs;
-		__assign_str(addr, rpcrdma_addrstr(r_xprt));
-		__assign_str(port, rpcrdma_portstr(r_xprt));
+		__assign_str(addr);
+		__assign_str(port);
 	),
 
 	TP_printk("peer=[%s]:%s %u reqs",
@@ -1497,7 +1499,7 @@ DECLARE_EVENT_CLASS(svcrdma_accept_class,
 
 	TP_fast_assign(
 		__entry->status = status;
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s status=%ld",
@@ -1667,7 +1669,7 @@ TRACE_EVENT(svcrdma_encode_wseg,
 		__entry->offset = offset;
 	),
 
-	TP_printk("cq_id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->segno, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
@@ -1703,7 +1705,7 @@ TRACE_EVENT(svcrdma_decode_rseg,
 		__entry->offset = segment->rs_offset;
 	),
 
-	TP_printk("cq_id=%u cid=%d segno=%u position=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d segno=%u position=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->segno, __entry->position, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
@@ -1740,7 +1742,7 @@ TRACE_EVENT(svcrdma_decode_wseg,
 		__entry->offset = segment->rs_offset;
 	),
 
-	TP_printk("cq_id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->segno, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
@@ -1783,29 +1785,29 @@ DEFINE_ERROR_EVENT(chunk);
 
 DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid,
 		u64 dma_addr,
 		u32 length
 	),
 
-	TP_ARGS(rdma, dma_addr, length),
+	TP_ARGS(cid, dma_addr, length),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(u64, dma_addr)
 		__field(u32, length)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->dma_addr = dma_addr;
 		__entry->length = length;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s dma_addr=%llu length=%u",
-		__get_str(addr), __get_str(device),
+	TP_printk("cq.id=%u cid=%d dma_addr=%llu length=%u",
+		__entry->cq_id, __entry->completion_id,
 		__entry->dma_addr, __entry->length
 	)
 );
@@ -1813,11 +1815,12 @@ DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 #define DEFINE_SVC_DMA_EVENT(name)					\
 		DEFINE_EVENT(svcrdma_dma_map_class, svcrdma_##name,	\
 				TP_PROTO(				\
-					const struct svcxprt_rdma *rdma,\
+					const struct rpc_rdma_cid *cid, \
 					u64 dma_addr,			\
 					u32 length			\
 				),					\
-				TP_ARGS(rdma, dma_addr, length))
+				TP_ARGS(cid, dma_addr, length)		\
+		)
 
 DEFINE_SVC_DMA_EVENT(dma_map_page);
 DEFINE_SVC_DMA_EVENT(dma_map_err);
@@ -1826,33 +1829,37 @@ DEFINE_SVC_DMA_EVENT(dma_unmap_page);
 TRACE_EVENT(svcrdma_dma_map_rw_err,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
+		u64 offset,
+		u32 handle,
 		unsigned int nents,
 		int status
 	),
 
-	TP_ARGS(rdma, nents, status),
+	TP_ARGS(rdma, offset, handle, nents, status),
 
 	TP_STRUCT__entry(
-		__field(int, status)
+		__field(u32, cq_id)
+		__field(u32, handle)
+		__field(u64, offset)
 		__field(unsigned int, nents)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+		__field(int, status)
 	),
 
 	TP_fast_assign(
-		__entry->status = status;
+		__entry->cq_id = rdma->sc_sq_cq->res.id;
+		__entry->handle = handle;
+		__entry->offset = offset;
 		__entry->nents = nents;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+		__entry->status = status;
 	),
 
-	TP_printk("addr=%s device=%s nents=%u status=%d",
-		__get_str(addr), __get_str(device), __entry->nents,
-		__entry->status
+	TP_printk("cq.id=%u 0x%016llx:0x%08x nents=%u status=%d",
+		__entry->cq_id, (unsigned long long)__entry->offset,
+		__entry->handle, __entry->nents, __entry->status
 	)
 );
 
-TRACE_EVENT(svcrdma_no_rwctx_err,
+TRACE_EVENT(svcrdma_rwctx_empty,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
 		unsigned int num_sges
@@ -1861,79 +1868,75 @@ TRACE_EVENT(svcrdma_no_rwctx_err,
 	TP_ARGS(rdma, num_sges),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
 		__field(unsigned int, num_sges)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = rdma->sc_sq_cq->res.id;
 		__entry->num_sges = num_sges;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s num_sges=%d",
-		__get_str(addr), __get_str(device), __entry->num_sges
+	TP_printk("cq.id=%u num_sges=%d",
+		__entry->cq_id, __entry->num_sges
 	)
 );
 
 TRACE_EVENT(svcrdma_page_overrun_err,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma,
-		const struct svc_rqst *rqst,
+		const struct rpc_rdma_cid *cid,
 		unsigned int pageno
 	),
 
-	TP_ARGS(rdma, rqst, pageno),
+	TP_ARGS(cid, pageno),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(unsigned int, pageno)
-		__field(u32, xid)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->pageno = pageno;
-		__entry->xid = __be32_to_cpu(rqst->rq_xid);
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s xid=0x%08x pageno=%u", __get_str(addr),
-		__get_str(device), __entry->xid, __entry->pageno
+	TP_printk("cq.id=%u cid=%d pageno=%u",
+		__entry->cq_id, __entry->completion_id,
+		__entry->pageno
 	)
 );
 
 TRACE_EVENT(svcrdma_small_wrch_err,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid,
 		unsigned int remaining,
 		unsigned int seg_no,
 		unsigned int num_segs
 	),
 
-	TP_ARGS(rdma, remaining, seg_no, num_segs),
+	TP_ARGS(cid, remaining, seg_no, num_segs),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(unsigned int, remaining)
 		__field(unsigned int, seg_no)
 		__field(unsigned int, num_segs)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->remaining = remaining;
 		__entry->seg_no = seg_no;
 		__entry->num_segs = num_segs;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s remaining=%u seg_no=%u num_segs=%u",
-		__get_str(addr), __get_str(device), __entry->remaining,
-		__entry->seg_no, __entry->num_segs
+	TP_printk("cq.id=%u cid=%d remaining=%u seg_no=%u num_segs=%u",
+		__entry->cq_id, __entry->completion_id,
+		__entry->remaining, __entry->seg_no, __entry->num_segs
 	)
 );
 
@@ -1959,7 +1962,7 @@ TRACE_EVENT(svcrdma_send_pullup,
 		__entry->msglen = msglen;
 	),
 
-	TP_printk("cq_id=%u cid=%d hdr=%u msg=%u (total %u)",
+	TP_printk("cq.id=%u cid=%d hdr=%u msg=%u (total %u)",
 		__entry->cq_id, __entry->completion_id,
 		__entry->hdrlen, __entry->msglen,
 		__entry->hdrlen + __entry->msglen)
@@ -1982,7 +1985,7 @@ TRACE_EVENT(svcrdma_send_err,
 	TP_fast_assign(
 		__entry->status = status;
 		__entry->xid = __be32_to_cpu(rqst->rq_xid);
-		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s xid=0x%08x status=%d", __get_str(addr),
@@ -2014,37 +2017,17 @@ TRACE_EVENT(svcrdma_post_send,
 					wr->ex.invalidate_rkey : 0;
 	),
 
-	TP_printk("cq_id=%u cid=%d num_sge=%u inv_rkey=0x%08x",
+	TP_printk("cq.id=%u cid=%d num_sge=%u inv_rkey=0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->num_sge, __entry->inv_rkey
 	)
 );
 
-DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_send);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_send);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_err);
 
-TRACE_EVENT(svcrdma_post_recv,
-	TP_PROTO(
-		const struct svc_rdma_recv_ctxt *ctxt
-	),
-
-	TP_ARGS(ctxt),
-
-	TP_STRUCT__entry(
-		__field(u32, cq_id)
-		__field(int, completion_id)
-	),
-
-	TP_fast_assign(
-		__entry->cq_id = ctxt->rc_cid.ci_queue_id;
-		__entry->completion_id = ctxt->rc_cid.ci_completion_id;
-	),
-
-	TP_printk("cq.id=%d cid=%d",
-		__entry->cq_id, __entry->completion_id
-	)
-);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_post_recv);
 
 DEFINE_RECEIVE_SUCCESS_EVENT(svcrdma_wc_recv);
 DEFINE_RECEIVE_FLUSH_EVENT(svcrdma_wc_recv_flush);
@@ -2065,7 +2048,7 @@ TRACE_EVENT(svcrdma_rq_post_err,
 
 	TP_fast_assign(
 		__entry->status = status;
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s status=%d",
@@ -2152,10 +2135,15 @@ TRACE_EVENT(svcrdma_wc_read,
 
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_err);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_read_finished);
 
-DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_write);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_write);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_err);
+
+DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_reply);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_reply_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_reply_err);
 
 TRACE_EVENT(svcrdma_qp_error,
 	TP_PROTO(
@@ -2173,7 +2161,7 @@ TRACE_EVENT(svcrdma_qp_error,
 
 	TP_fast_assign(
 		__entry->event = event->event;
-		__assign_str(device, event->device->name);
+		__assign_str(device);
 		snprintf(__entry->addr, sizeof(__entry->addr) - 1,
 			 "%pISpc", sap);
 	),
@@ -2184,67 +2172,169 @@ TRACE_EVENT(svcrdma_qp_error,
 	)
 );
 
-DECLARE_EVENT_CLASS(svcrdma_sendqueue_event,
+TRACE_EVENT(svcrdma_device_removal,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma
+		const struct rdma_cm_id *id
 	),
 
-	TP_ARGS(rdma),
+	TP_ARGS(id),
 
 	TP_STRUCT__entry(
-		__field(int, avail)
-		__field(int, depth)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+		__string(name, id->device->name)
+		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
 	),
 
 	TP_fast_assign(
-		__entry->avail = atomic_read(&rdma->sc_sq_avail);
-		__entry->depth = rdma->sc_sq_depth;
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+		__assign_str(name);
+		memcpy(__entry->addr, &id->route.addr.dst_addr,
+		       sizeof(struct sockaddr_in6));
 	),
 
-	TP_printk("addr=%s sc_sq_avail=%d/%d",
-		__get_str(addr), __entry->avail, __entry->depth
+	TP_printk("device %s to be removed, disconnecting %pISpc\n",
+		__get_str(name), __entry->addr
+	)
+);
+
+DECLARE_EVENT_CLASS(svcrdma_sendqueue_class,
+	TP_PROTO(
+		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(rdma, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(int, avail)
+		__field(int, depth)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->avail = atomic_read(&rdma->sc_sq_avail);
+		__entry->depth = rdma->sc_sq_depth;
+	),
+
+	TP_printk("cq.id=%u cid=%d sc_sq_avail=%d/%d",
+		__entry->cq_id, __entry->completion_id,
+		__entry->avail, __entry->depth
 	)
 );
 
 #define DEFINE_SQ_EVENT(name)						\
-		DEFINE_EVENT(svcrdma_sendqueue_event, svcrdma_sq_##name,\
-				TP_PROTO(				\
-					const struct svcxprt_rdma *rdma \
-				),					\
-				TP_ARGS(rdma))
+		DEFINE_EVENT(svcrdma_sendqueue_class, name,		\
+			TP_PROTO(					\
+				const struct svcxprt_rdma *rdma,	\
+				const struct rpc_rdma_cid *cid		\
+			),						\
+			TP_ARGS(rdma, cid)				\
+		)
 
-DEFINE_SQ_EVENT(full);
-DEFINE_SQ_EVENT(retry);
+DEFINE_SQ_EVENT(svcrdma_sq_full);
+DEFINE_SQ_EVENT(svcrdma_sq_retry);
 
 TRACE_EVENT(svcrdma_sq_post_err,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid,
 		int status
 	),
 
-	TP_ARGS(rdma, status),
+	TP_ARGS(rdma, cid, status),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(int, avail)
 		__field(int, depth)
 		__field(int, status)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->avail = atomic_read(&rdma->sc_sq_avail);
 		__entry->depth = rdma->sc_sq_depth;
 		__entry->status = status;
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s sc_sq_avail=%d/%d status=%d",
-		__get_str(addr), __entry->avail, __entry->depth,
-		__entry->status
+	TP_printk("cq.id=%u cid=%d sc_sq_avail=%d/%d status=%d",
+		__entry->cq_id, __entry->completion_id,
+		__entry->avail, __entry->depth, __entry->status
 	)
 );
+
+DECLARE_EVENT_CLASS(rpcrdma_client_device_class,
+	TP_PROTO(
+		const struct ib_device *device
+	),
+
+	TP_ARGS(device),
+
+	TP_STRUCT__entry(
+		__string(name, device->name)
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+	),
+
+	TP_printk("device=%s",
+		__get_str(name)
+	)
+);
+
+#define DEFINE_CLIENT_DEVICE_EVENT(name)				\
+	DEFINE_EVENT(rpcrdma_client_device_class, name,			\
+		TP_PROTO(						\
+			const struct ib_device *device			\
+		),							\
+		TP_ARGS(device)						\
+	)
+
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_completion);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_add_one);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_remove_one);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_wait_on);
+DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_remove_one_done);
+
+DECLARE_EVENT_CLASS(rpcrdma_client_register_class,
+	TP_PROTO(
+		const struct ib_device *device,
+		const struct rpcrdma_notification *rn
+	),
+
+	TP_ARGS(device, rn),
+
+	TP_STRUCT__entry(
+		__string(name, device->name)
+		__field(void *, callback)
+		__field(u32, index)
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+		__entry->callback = rn->rn_done;
+		__entry->index = rn->rn_index;
+	),
+
+	TP_printk("device=%s index=%u done callback=%pS\n",
+		__get_str(name), __entry->index, __entry->callback
+	)
+);
+
+#define DEFINE_CLIENT_REGISTER_EVENT(name)				\
+	DEFINE_EVENT(rpcrdma_client_register_class, name,		\
+	TP_PROTO(							\
+		const struct ib_device *device,				\
+		const struct rpcrdma_notification *rn			\
+	),								\
+	TP_ARGS(device, rn))
+
+DEFINE_CLIENT_REGISTER_EVENT(rpcrdma_client_register);
+DEFINE_CLIENT_REGISTER_EVENT(rpcrdma_client_unregister);
 
 #endif /* _TRACE_RPCRDMA_H */
 

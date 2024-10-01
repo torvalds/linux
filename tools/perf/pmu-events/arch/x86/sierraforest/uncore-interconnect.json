@@ -1,0 +1,1495 @@
+[
+    {
+        "BriefDescription": "Clockticks of the mesh to memory (B2CMI)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_B2CMI_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of time D2C was not honoured by egress due to directory state constraints",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x17",
+        "EventName": "UNC_B2CMI_DIRECT2CORE_NOT_TAKEN_DIRSTATE",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of times B2CMI egress did D2C (direct to core)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x16",
+        "EventName": "UNC_B2CMI_DIRECT2CORE_TAKEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of times D2C wasn't honoured even though the incoming request had d2c set for non cisgress txn",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x18",
+        "EventName": "UNC_B2CMI_DIRECT2CORE_TXN_OVERRIDE",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of d2k wasn't done due to credit constraints",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_B2CMI_DIRECT2UPI_NOT_TAKEN_CREDITS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Direct to UPI Transactions - Ignored due to lack of credits : All : Counts the number of d2k wasn't done due to credit constraints",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_B2CMI_DIRECT2UPI_NOT_TAKEN_CREDITS.EGRESS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of time D2K was not honoured by egress due to directory state constraints",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1A",
+        "EventName": "UNC_B2CMI_DIRECT2UPI_NOT_TAKEN_DIRSTATE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Cycles when Direct2UPI was Disabled : Egress Ignored D2U : Counts the number of time D2K was not honoured by egress due to directory state constraints",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1A",
+        "EventName": "UNC_B2CMI_DIRECT2UPI_NOT_TAKEN_DIRSTATE.EGRESS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of times egress did D2K (Direct to KTI)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x19",
+        "EventName": "UNC_B2CMI_DIRECT2UPI_TAKEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of times D2K wasn't honoured even though the incoming request had d2k set for non cisgress txn",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_B2CMI_DIRECT2UPI_TXN_OVERRIDE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit Clean",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.CLEAN",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x38",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit : On NonDirty Line in A State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.CLEAN_A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit : On NonDirty Line in I State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.CLEAN_I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit : On NonDirty Line in S State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.CLEAN_S",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit Dirty (modified)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.DIRTY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit : On Dirty Line in A State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.DIRTY_A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit : On Dirty Line in I State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.DIRTY_I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Hit : On Dirty Line in S State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_B2CMI_DIRECTORY_HIT.DIRTY_S",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of 1lm or 2lm hit read data returns to egress with any directory to non persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_B2CMI_DIRECTORY_LOOKUP.ANY",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of 1lm or 2lm hit read data returns to egress with directory A to non persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_B2CMI_DIRECTORY_LOOKUP.STATE_A",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of 1lm or 2lm hit read data returns to egress with directory I to non persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_B2CMI_DIRECTORY_LOOKUP.STATE_I",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of 1lm or 2lm hit read data returns to egress with directory S to non persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_B2CMI_DIRECTORY_LOOKUP.STATE_S",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of 1lm or 2lm hit read  data returns to egress with directory S to non persistent memory",
+        "UMask": "0x4",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss Clean",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.CLEAN",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x38",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss : On NonDirty Line in A State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.CLEAN_A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss : On NonDirty Line in I State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.CLEAN_I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss : On NonDirty Line in S State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.CLEAN_S",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss Dirty (modified)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.DIRTY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss : On Dirty Line in A State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.DIRTY_A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss : On Dirty Line in I State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.DIRTY_I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory Miss : On Dirty Line in S State",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_B2CMI_DIRECTORY_MISS.DIRTY_S",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Any A2I Transition",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.A2I",
+        "PerPkg": "1",
+        "UMask": "0x320",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Any A2S Transition",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.A2S",
+        "PerPkg": "1",
+        "UMask": "0x340",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts cisgress directory updates",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.ANY",
+        "PerPkg": "1",
+        "UMask": "0x301",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts any 1lm or 2lm hit data return that would result in directory update to non persistent memory (DRAM)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.HIT_ANY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x101",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update in near memory to the A state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.HIT_X2A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x114",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update in near memory to the I state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.HIT_X2I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x128",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update in near memory to the S state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.HIT_X2S",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x142",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Any I2A Transition",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.I2A",
+        "PerPkg": "1",
+        "UMask": "0x304",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Any I2S Transition",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.I2S",
+        "PerPkg": "1",
+        "UMask": "0x302",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update in far memory to the A state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.MISS_X2A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x214",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update in far memory to the I state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.MISS_X2I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x228",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update in far memory to the S state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.MISS_X2S",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x242",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Any S2A Transition",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.S2A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x310",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Any S2I Transition",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.S2I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x308",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update to the A state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.X2A",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x314",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update to the I state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.X2I",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x328",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Directory update to the S state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_B2CMI_DIRECTORY_UPDATE.X2S",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x342",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts any read",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_B2CMI_IMC_READS.ALL",
+        "PerPkg": "1",
+        "UMask": "0x104",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts normal reads issue to CMI",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_B2CMI_IMC_READS.NORMAL",
+        "PerPkg": "1",
+        "UMask": "0x101",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Count reads to NM region",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_B2CMI_IMC_READS.TO_DDR_AS_CACHE",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x110",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts reads to 1lm non persistent memory regions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_B2CMI_IMC_READS.TO_DDR_AS_MEM",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x108",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "All Writes - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.ALL",
+        "PerPkg": "1",
+        "UMask": "0x110",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Full Non-ISOCH - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.FULL",
+        "PerPkg": "1",
+        "UMask": "0x101",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Non-Inclusive - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.NI",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Non-Inclusive Miss - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.NI_MISS",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Partial Non-ISOCH - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.PARTIAL",
+        "PerPkg": "1",
+        "UMask": "0x102",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "DDR, acting as Cache - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.TO_DDR_AS_CACHE",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x140",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "DDR - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.TO_DDR_AS_MEM",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x120",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Inserts : UPI - Ch 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UNC_B2CMI_PREFCAM_INSERTS.CH0_UPI",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Inserts : XPT - Ch 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UNC_B2CMI_PREFCAM_INSERTS.CH0_XPT",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Inserts : UPI - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UNC_B2CMI_PREFCAM_INSERTS.UPI_ALLCH",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Inserts : XPT -All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UNC_B2CMI_PREFCAM_INSERTS.XPT_ALLCH",
+        "PerPkg": "1",
+        "PublicDescription": "Prefetch CAM Inserts : XPT - All Channels",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Occupancy : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x54",
+        "EventName": "UNC_B2CMI_PREFCAM_OCCUPANCY.CH0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm reads and WRNI which were a hit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_B2CMI_TAG_HIT.ALL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xf",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm reads which were a hit clean",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_B2CMI_TAG_HIT.RD_CLEAN",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm reads which were a hit dirty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_B2CMI_TAG_HIT.RD_DIRTY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm WRNI which were a hit clean",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_B2CMI_TAG_HIT.WR_CLEAN",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm WRNI which were a hit dirty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_B2CMI_TAG_HIT.WR_DIRTY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm second way read miss for a WrNI",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.CLEAN",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm second way read miss for a WrNI",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.DIRTY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xa",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm second way read miss for a Rd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.RD_2WAY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm reads which were a miss and the cache line is unmodified",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.RD_CLEAN",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm reads which were a miss and the cache line is modified",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.RD_DIRTY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm second way read miss for a WrNI",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.WR_2WAY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm WRNI which were a miss and the cache line is unmodified",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.WR_CLEAN",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the 2lm WRNI which were a miss and the cache line is modified",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4B",
+        "EventName": "UNC_B2CMI_TAG_MISS.WR_DIRTY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Tracker Inserts : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "UNC_B2CMI_TRACKER_INSERTS.CH0",
+        "PerPkg": "1",
+        "UMask": "0x104",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Tracker Occupancy : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x33",
+        "EventName": "UNC_B2CMI_TRACKER_OCCUPANCY.CH0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Write Tracker Inserts : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x40",
+        "EventName": "UNC_B2CMI_WR_TRACKER_INSERTS.CH0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "UNC_B2HOT_CLOCKTICKS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_B2HOT_CLOCKTICKS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2HOT"
+    },
+    {
+        "BriefDescription": "Number of uclks in domain",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_B2UPI_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "B2UPI"
+    },
+    {
+        "BriefDescription": "Total Write Cache Occupancy : Mem",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x0F",
+        "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.MEM",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "IRP Clockticks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_I_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound read requests received by the IRP and inserted into the FAF queue",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x18",
+        "EventName": "UNC_I_FAF_INSERTS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "FAF occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x19",
+        "EventName": "UNC_I_FAF_OCCUPANCY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1 : Lost Forward : Snoop pulled away ownership before a write was committed",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_I_MISC1.LOST_FWD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound write (fast path) requests to coherent memory, received by the IRP resulting in write ownership requests issued by IRP to the mesh.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_I_TRANSACTIONS.WR_PREF",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "MDF Clockticks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_MDF_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "MDF"
+    },
+    {
+        "BriefDescription": "Number of UPI LL clock cycles while the event is enabled",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_UPI_CLOCKTICKS",
+        "PerPkg": "1",
+        "PublicDescription": "Number of kfclks",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Cycles in L1 : Number of UPI qfclk cycles spent in L1 power mode.  L1 is a mode that totally shuts down a UPI link.  Use edge detect to count the number of instances when the UPI link entered L1.  Link power states are per link and per direction, so for example the Tx direction could be in one state while Rx was in another. Because L1 totally shuts down the link, it takes a good amount of time to exit this mode.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_UPI_L1_POWER_CYCLES",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Non-Coherent Bypass",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCB",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xe",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Non-Coherent Bypass, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCB_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10e",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Non-Coherent Standard",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCS",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xf",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Non-Coherent Standard, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCS_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10f",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Request",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.REQ",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Request, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.REQ_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x108",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Response - Conflict",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.RSPCNFLT",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1aa",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Response - Invalid",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.RSPI",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x12a",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Response - Data",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.RSP_DATA",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xc",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Response - Data, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.RSP_DATA_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10c",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Response - No Data",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.RSP_NODATA",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xa",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Response - No Data, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.RSP_NODATA_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10a",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Snoop",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.SNP",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Snoop, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.SNP_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x109",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Writeback",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.WB",
+        "PerPkg": "1",
+        "UMask": "0xd",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Receive path of a UPI Port : Writeback, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x05",
+        "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.WB_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10d",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : All Data : Shows legal flit time (hides impact of L0p and L0c).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.ALL_DATA",
+        "PerPkg": "1",
+        "UMask": "0xf",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Null FLITs received from any slot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.ALL_NULL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Valid Flits Received : Null FLITs received from any slot",
+        "UMask": "0x27",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : Data : Shows legal flit time (hides impact of L0p and L0c). : Count Data Flits (which consume all slots), but how much to count is based on Slot0-2 mask, so count can be 0-3 depending on which slots are enabled for counting..",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.DATA",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : Idle : Shows legal flit time (hides impact of L0p and L0c).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.IDLE",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x47",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : LLCRD Not Empty : Shows legal flit time (hides impact of L0p and L0c). : Enables counting of LLCRD (with non-zero payload). This only applies to slot 2 since LLCRD is only allowed in slot 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.LLCRD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : LLCTRL : Shows legal flit time (hides impact of L0p and L0c). : Equivalent to an idle packet.  Enables counting of slot 0 LLCTRL messages.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.LLCTRL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : All Non Data : Shows legal flit time (hides impact of L0p and L0c).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.NON_DATA",
+        "PerPkg": "1",
+        "UMask": "0x97",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : Slot NULL or LLCRD Empty : Shows legal flit time (hides impact of L0p and L0c). : LLCRD with all zeros is treated as NULL. Slot 1 is not treated as NULL if slot 0 is a dual slot. This can apply to slot 0,1, or 2.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.NULL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : Protocol Header : Shows legal flit time (hides impact of L0p and L0c). : Enables count of protocol headers in slot 0,1,2 (depending on slot uMask bits)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.PROTHDR",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : Slot 0 : Shows legal flit time (hides impact of L0p and L0c). : Count Slot 0 - Other mask bits determine types of headers to count.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.SLOT0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : Slot 1 : Shows legal flit time (hides impact of L0p and L0c). : Count Slot 1 - Other mask bits determine types of headers to count.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.SLOT1",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Received : Slot 2 : Shows legal flit time (hides impact of L0p and L0c). : Count Slot 2 - Other mask bits determine types of headers to count.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "UNC_UPI_RxL_FLITS.SLOT2",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "RxQ Flit Buffer Allocations : Slot 0 : Number of allocations into the UPI Rx Flit Buffer.  Generally, when data is transmitted across UPI, it will bypass the RxQ and pass directly to the ring interface.  If things back up getting transmitted onto the ring, however, it may need to allocate into this buffer, thus increasing the latency.  This event can be used in conjunction with the Flit Buffer Occupancy event in order to calculate the average flit buffer lifetime.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x30",
+        "EventName": "UNC_UPI_RxL_INSERTS.SLOT0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "RxQ Flit Buffer Allocations : Slot 1 : Number of allocations into the UPI Rx Flit Buffer.  Generally, when data is transmitted across UPI, it will bypass the RxQ and pass directly to the ring interface.  If things back up getting transmitted onto the ring, however, it may need to allocate into this buffer, thus increasing the latency.  This event can be used in conjunction with the Flit Buffer Occupancy event in order to calculate the average flit buffer lifetime.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x30",
+        "EventName": "UNC_UPI_RxL_INSERTS.SLOT1",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "RxQ Flit Buffer Allocations : Slot 2 : Number of allocations into the UPI Rx Flit Buffer.  Generally, when data is transmitted across UPI, it will bypass the RxQ and pass directly to the ring interface.  If things back up getting transmitted onto the ring, however, it may need to allocate into this buffer, thus increasing the latency.  This event can be used in conjunction with the Flit Buffer Occupancy event in order to calculate the average flit buffer lifetime.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x30",
+        "EventName": "UNC_UPI_RxL_INSERTS.SLOT2",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - All Packets : Slot 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "UNC_UPI_RxL_OCCUPANCY.SLOT0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - All Packets : Slot 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "UNC_UPI_RxL_OCCUPANCY.SLOT1",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - All Packets : Slot 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "UNC_UPI_RxL_OCCUPANCY.SLOT2",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Bypass",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCB",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xe",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Bypass, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCB_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10e",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Standard",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCS",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xf",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Standard, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCS_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10f",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Request",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.REQ",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Request, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.REQ_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x108",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Response - Conflict",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.RSPCNFLT",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1aa",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Response - Invalid",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.RSPI",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x12a",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Response - Data",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.RSP_DATA",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xc",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Response - Data, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.RSP_DATA_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10c",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Response - No Data",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.RSP_NODATA",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xa",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Response - No Data, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.RSP_NODATA_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10a",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Snoop",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.SNP",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Snoop, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.SNP_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x109",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Writeback",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.WB",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0xd",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Matches on Transmit path of a UPI Port : Writeback, Match Opcode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x04",
+        "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.WB_OPC",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10d",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : All Data : Counts number of data flits across this UPI link.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.ALL_DATA",
+        "PerPkg": "1",
+        "UMask": "0xf",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "All Null Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.ALL_NULL",
+        "PerPkg": "1",
+        "PublicDescription": "Valid Flits Sent : Idle",
+        "UMask": "0x27",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : Data : Shows legal flit time (hides impact of L0p and L0c). : Count Data Flits (which consume all slots), but how much to count is based on Slot0-2 mask, so count can be 0-3 depending on which slots are enabled for counting..",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.DATA",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : Idle : Shows legal flit time (hides impact of L0p and L0c).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.IDLE",
+        "PerPkg": "1",
+        "UMask": "0x47",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : LLCRD Not Empty : Shows legal flit time (hides impact of L0p and L0c). : Enables counting of LLCRD (with non-zero payload). This only applies to slot 2 since LLCRD is only allowed in slot 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.LLCRD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : LLCTRL : Shows legal flit time (hides impact of L0p and L0c). : Equivalent to an idle packet.  Enables counting of slot 0 LLCTRL messages.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.LLCTRL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : All Non Data : Shows legal flit time (hides impact of L0p and L0c).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.NON_DATA",
+        "PerPkg": "1",
+        "PublicDescription": "Valid Flits Sent : Null FLITs transmitted to any slot",
+        "UMask": "0x97",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : Slot NULL or LLCRD Empty : Shows legal flit time (hides impact of L0p and L0c). : LLCRD with all zeros is treated as NULL. Slot 1 is not treated as NULL if slot 0 is a dual slot. This can apply to slot 0,1, or 2.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.NULL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : Protocol Header : Shows legal flit time (hides impact of L0p and L0c). : Enables count of protocol headers in slot 0,1,2 (depending on slot uMask bits)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.PROTHDR",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : Slot 0 : Shows legal flit time (hides impact of L0p and L0c). : Count Slot 0 - Other mask bits determine types of headers to count.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.SLOT0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : Slot 1 : Shows legal flit time (hides impact of L0p and L0c). : Count Slot 1 - Other mask bits determine types of headers to count.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.SLOT1",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Valid Flits Sent : Slot 2 : Shows legal flit time (hides impact of L0p and L0c). : Count Slot 2 - Other mask bits determine types of headers to count.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x02",
+        "EventName": "UNC_UPI_TxL_FLITS.SLOT2",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Tx Flit Buffer Allocations : Number of allocations into the UPI Tx Flit Buffer.  Generally, when data is transmitted across UPI, it will bypass the TxQ and pass directly to the link.  However, the TxQ will be used with L0p and when LLR occurs, increasing latency to transfer out to the link.  This event can be used in conjunction with the Flit Buffer Occupancy event in order to calculate the average flit buffer lifetime.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x40",
+        "EventName": "UNC_UPI_TxL_INSERTS",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "Unit": "UPI"
+    },
+    {
+        "BriefDescription": "Tx Flit Buffer Occupancy : Accumulates the number of flits in the TxQ.  Generally, when data is transmitted across UPI, it will bypass the TxQ and pass directly to the link.  However, the TxQ will be used with L0p and when LLR occurs, increasing latency to transfer out to the link. This can be used with the cycles not empty event to track average occupancy, or the allocations event to track average lifetime in the TxQ.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x42",
+        "EventName": "UNC_UPI_TxL_OCCUPANCY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "Unit": "UPI"
+    }
+]

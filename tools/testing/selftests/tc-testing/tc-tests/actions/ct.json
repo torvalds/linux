@@ -6,6 +6,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -30,6 +33,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -54,6 +60,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -78,6 +87,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -102,6 +114,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -126,6 +141,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -150,6 +168,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -174,6 +195,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -198,6 +222,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -222,6 +249,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -246,6 +276,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -270,6 +303,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -294,6 +330,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -318,6 +357,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -342,6 +384,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -366,6 +411,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -390,6 +438,9 @@
             "actions",
             "ct"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action ct",
@@ -415,6 +466,9 @@
             "ct",
 	    "scapy"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
 	"plugins": {
 		"requires": [
 			"nsPlugin",

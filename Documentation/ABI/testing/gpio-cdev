@@ -6,8 +6,9 @@ Description:
 		The character device files /dev/gpiochip* are the interface
 		between GPIO chips and userspace.
 
-		The ioctl(2)-based ABI is defined and documented in
-		[include/uapi]<linux/gpio.h>.
+		The ioctl(2)-based ABI is defined in
+		[include/uapi]<linux/gpio.h> and documented in
+		Documentation/userspace-api/gpio/chardev.rst.
 
 		The following file operations are supported:
 
@@ -17,8 +18,8 @@ Description:
 		ioctl(2)
 		  Initiate various actions.
 
-		  See the inline documentation in [include/uapi]<linux/gpio.h>
-		  for descriptions of all ioctls.
+		  See Documentation/userspace-api/gpio/chardev.rst
+		  for a description of all ioctls.
 
 		close(2)
 		  Stops and free up the I/O contexts that was associated

@@ -693,13 +693,14 @@ static void _qed_fcoe_get_pstats(struct qed_hwfn *p_hwfn,
 }
 
 static int qed_fcoe_get_stats(struct qed_hwfn *p_hwfn,
-			      struct qed_fcoe_stats *p_stats)
+			      struct qed_fcoe_stats *p_stats,
+			      bool is_atomic)
 {
 	struct qed_ptt *p_ptt;
 
 	memset(p_stats, 0, sizeof(*p_stats));
 
-	p_ptt = qed_ptt_acquire(p_hwfn);
+	p_ptt = qed_ptt_acquire_context(p_hwfn, is_atomic);
 
 	if (!p_ptt) {
 		DP_ERR(p_hwfn, "Failed to acquire ptt\n");
@@ -973,19 +974,27 @@ static int qed_fcoe_destroy_conn(struct qed_dev *cdev,
 					QED_SPQ_MODE_EBLOCK, NULL);
 }
 
+static int qed_fcoe_stats_context(struct qed_dev *cdev,
+				  struct qed_fcoe_stats *stats,
+				  bool is_atomic)
+{
+	return qed_fcoe_get_stats(QED_AFFIN_HWFN(cdev), stats, is_atomic);
+}
+
 static int qed_fcoe_stats(struct qed_dev *cdev, struct qed_fcoe_stats *stats)
 {
-	return qed_fcoe_get_stats(QED_AFFIN_HWFN(cdev), stats);
+	return qed_fcoe_stats_context(cdev, stats, false);
 }
 
 void qed_get_protocol_stats_fcoe(struct qed_dev *cdev,
-				 struct qed_mcp_fcoe_stats *stats)
+				 struct qed_mcp_fcoe_stats *stats,
+				 bool is_atomic)
 {
 	struct qed_fcoe_stats proto_stats;
 
 	/* Retrieve FW statistics */
 	memset(&proto_stats, 0, sizeof(proto_stats));
-	if (qed_fcoe_stats(cdev, &proto_stats)) {
+	if (qed_fcoe_stats_context(cdev, &proto_stats, is_atomic)) {
 		DP_VERBOSE(cdev, QED_MSG_STORAGE,
 			   "Failed to collect FCoE statistics\n");
 		return;

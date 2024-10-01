@@ -38,18 +38,6 @@ struct kyrofb_info {
 	int wc_cookie;
 };
 
-extern int kyro_dev_init(void);
-extern void kyro_dev_reset(void);
-
-extern unsigned char *kyro_dev_physical_fb_ptr(void);
-extern unsigned char *kyro_dev_virtual_fb_ptr(void);
-extern void *kyro_dev_physical_regs_ptr(void);
-extern void *kyro_dev_virtual_regs_ptr(void);
-extern unsigned int kyro_dev_fb_size(void);
-extern unsigned int kyro_dev_regs_size(void);
-
-extern u32 kyro_dev_overlay_offset(void);
-
 /*
  * benedict.gaster@superh.com
  * Added the follow IOCTLS for the creation of overlay services...

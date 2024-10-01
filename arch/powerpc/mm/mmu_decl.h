@@ -20,9 +20,9 @@
 #include <asm/trace.h>
 
 /*
- * On 40x and 8xx, we directly inline tlbia and tlbivax
+ * On 8xx, we directly inline tlbia
  */
-#if defined(CONFIG_40x) || defined(CONFIG_PPC_8xx)
+#ifdef CONFIG_PPC_8xx
 static inline void _tlbil_all(void)
 {
 	asm volatile ("sync; tlbia; isync" : : : "memory");
@@ -35,7 +35,7 @@ static inline void _tlbil_pid(unsigned int pid)
 }
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
 
-#else /* CONFIG_40x || CONFIG_PPC_8xx */
+#else /* CONFIG_PPC_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
 #ifdef CONFIG_PPC_BOOK3E_64
@@ -43,7 +43,7 @@ extern void _tlbil_pid_noind(unsigned int pid);
 #else
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
 #endif
-#endif /* !(CONFIG_40x || CONFIG_PPC_8xx) */
+#endif /* !CONFIG_PPC_8xx */
 
 /*
  * On 8xx, we directly inline tlbie, on others, it's extern
@@ -110,6 +110,7 @@ extern void MMU_init_hw(void);
 void MMU_init_hw_patch(void);
 unsigned long mmu_mapin_ram(unsigned long base, unsigned long top);
 #endif
+void mmu_init_secondary(int cpu);
 
 #ifdef CONFIG_PPC_E500
 extern unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx,
@@ -159,24 +160,25 @@ static inline unsigned long p_block_mapped(phys_addr_t pa) { return 0; }
 #endif
 
 #if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC_E500)
-void mmu_mark_initmem_nx(void);
-void mmu_mark_rodata_ro(void);
+int mmu_mark_initmem_nx(void);
+int mmu_mark_rodata_ro(void);
 #else
-static inline void mmu_mark_initmem_nx(void) { }
-static inline void mmu_mark_rodata_ro(void) { }
+static inline int mmu_mark_initmem_nx(void) { return 0; }
+static inline int mmu_mark_rodata_ro(void) { return 0; }
 #endif
 
 #ifdef CONFIG_PPC_8xx
 void __init mmu_mapin_immr(void);
 #endif
 
-#ifdef CONFIG_DEBUG_WX
-void ptdump_check_wx(void);
-#else
-static inline void ptdump_check_wx(void) { }
-#endif
-
 static inline bool debug_pagealloc_enabled_or_kfence(void)
 {
 	return IS_ENABLED(CONFIG_KFENCE) || debug_pagealloc_enabled();
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int create_section_mapping(unsigned long start, unsigned long end,
+			   int nid, pgprot_t prot);
+#endif
+
+int hash__kernel_map_pages(struct page *page, int numpages, int enable);

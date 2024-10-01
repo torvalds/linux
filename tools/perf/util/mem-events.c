@@ -8,60 +8,140 @@
 #include <unistd.h>
 #include <api/fs/fs.h>
 #include <linux/kernel.h>
+#include "cpumap.h"
 #include "map_symbol.h"
 #include "mem-events.h"
+#include "mem-info.h"
 #include "debug.h"
+#include "evsel.h"
 #include "symbol.h"
 #include "pmu.h"
 #include "pmus.h"
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
-#define E(t, n, s) { .tag = t, .name = n, .sysfs_name = s }
+#define E(t, n, s, l, a) { .tag = t, .name = n, .event_name = s, .ldlat = l, .aux_event = a }
 
-static struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
-	E("ldlat-loads",	"cpu/mem-loads,ldlat=%u/P",	"cpu/events/mem-loads"),
-	E("ldlat-stores",	"cpu/mem-stores/P",		"cpu/events/mem-stores"),
-	E(NULL,			NULL,				NULL),
+struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
+	E("ldlat-loads",	"%s/mem-loads,ldlat=%u/P",	"mem-loads",	true,	0),
+	E("ldlat-stores",	"%s/mem-stores/P",		"mem-stores",	false,	0),
+	E(NULL,			NULL,				NULL,		false,	0),
 };
 #undef E
 
-static char mem_loads_name[100];
-static bool mem_loads_name__init;
+bool perf_mem_record[PERF_MEM_EVENTS__MAX] = { 0 };
 
-struct perf_mem_event * __weak perf_mem_events__ptr(int i)
+static char mem_loads_name[100];
+static char mem_stores_name[100];
+
+struct perf_mem_event *perf_pmu__mem_events_ptr(struct perf_pmu *pmu, int i)
 {
-	if (i >= PERF_MEM_EVENTS__MAX)
+	if (i >= PERF_MEM_EVENTS__MAX || !pmu)
 		return NULL;
 
-	return &perf_mem_events[i];
+	return &pmu->mem_events[i];
 }
 
-char * __weak perf_mem_events__name(int i, char *pmu_name  __maybe_unused)
+static struct perf_pmu *perf_pmus__scan_mem(struct perf_pmu *pmu)
 {
-	struct perf_mem_event *e = perf_mem_events__ptr(i);
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+		if (pmu->mem_events)
+			return pmu;
+	}
+	return NULL;
+}
 
-	if (!e)
+struct perf_pmu *perf_mem_events_find_pmu(void)
+{
+	/*
+	 * The current perf mem doesn't support per-PMU configuration.
+	 * The exact same configuration is applied to all the
+	 * mem_events supported PMUs.
+	 * Return the first mem_events supported PMU.
+	 *
+	 * Notes: The only case which may support multiple mem_events
+	 * supported PMUs is Intel hybrid. The exact same mem_events
+	 * is shared among the PMUs. Only configure the first PMU
+	 * is good enough as well.
+	 */
+	return perf_pmus__scan_mem(NULL);
+}
+
+/**
+ * perf_pmu__mem_events_num_mem_pmus - Get the number of mem PMUs since the given pmu
+ * @pmu: Start pmu. If it's NULL, search the entire PMU list.
+ */
+int perf_pmu__mem_events_num_mem_pmus(struct perf_pmu *pmu)
+{
+	int num = 0;
+
+	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL)
+		num++;
+
+	return num;
+}
+
+static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
+{
+	struct perf_mem_event *e;
+
+	if (i >= PERF_MEM_EVENTS__MAX || !pmu)
 		return NULL;
 
-	if (i == PERF_MEM_EVENTS__LOAD) {
-		if (!mem_loads_name__init) {
-			mem_loads_name__init = true;
-			scnprintf(mem_loads_name, sizeof(mem_loads_name),
-				  e->name, perf_mem_events__loads_ldlat);
+	e = &pmu->mem_events[i];
+	if (!e || !e->name)
+		return NULL;
+
+	if (i == PERF_MEM_EVENTS__LOAD || i == PERF_MEM_EVENTS__LOAD_STORE) {
+		if (e->ldlat) {
+			if (!e->aux_event) {
+				/* ARM and Most of Intel */
+				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+					  e->name, pmu->name,
+					  perf_mem_events__loads_ldlat);
+			} else {
+				/* Intel with mem-loads-aux event */
+				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+					  e->name, pmu->name, pmu->name,
+					  perf_mem_events__loads_ldlat);
+			}
+		} else {
+			if (!e->aux_event) {
+				/* AMD and POWER */
+				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+					  e->name, pmu->name);
+			} else
+				return NULL;
 		}
+
 		return mem_loads_name;
 	}
 
-	return (char *)e->name;
+	if (i == PERF_MEM_EVENTS__STORE) {
+		scnprintf(mem_stores_name, sizeof(mem_stores_name),
+			  e->name, pmu->name);
+		return mem_stores_name;
+	}
+
+	return NULL;
 }
 
-__weak bool is_mem_loads_aux_event(struct evsel *leader __maybe_unused)
+bool is_mem_loads_aux_event(struct evsel *leader)
 {
-	return false;
+	struct perf_pmu *pmu = leader->pmu;
+	struct perf_mem_event *e;
+
+	if (!pmu || !pmu->mem_events)
+		return false;
+
+	e = &pmu->mem_events[PERF_MEM_EVENTS__LOAD];
+	if (!e->aux_event)
+		return false;
+
+	return leader->core.attr.config == e->aux_event;
 }
 
-int perf_mem_events__parse(const char *str)
+int perf_pmu__mem_events_parse(struct perf_pmu *pmu, const char *str)
 {
 	char *tok, *saveptr = NULL;
 	bool found = false;
@@ -79,13 +159,13 @@ int perf_mem_events__parse(const char *str)
 
 	while (tok) {
 		for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-			struct perf_mem_event *e = perf_mem_events__ptr(j);
+			struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 			if (!e->tag)
 				continue;
 
 			if (strstr(e->tag, tok))
-				e->record = found = true;
+				perf_mem_record[j] = found = true;
 		}
 
 		tok = strtok_r(NULL, ",", &saveptr);
@@ -100,16 +180,21 @@ int perf_mem_events__parse(const char *str)
 	return -1;
 }
 
-static bool perf_mem_event__supported(const char *mnt, char *sysfs_name)
+static bool perf_pmu__mem_events_supported(const char *mnt, struct perf_pmu *pmu,
+				      struct perf_mem_event *e)
 {
 	char path[PATH_MAX];
 	struct stat st;
 
-	scnprintf(path, PATH_MAX, "%s/devices/%s", mnt, sysfs_name);
+	if (!e->event_name)
+		return true;
+
+	scnprintf(path, PATH_MAX, "%s/devices/%s/events/%s", mnt, pmu->name, e->event_name);
+
 	return !stat(path, &st);
 }
 
-int perf_mem_events__init(void)
+static int __perf_pmu__mem_events_init(struct perf_pmu *pmu)
 {
 	const char *mnt = sysfs__mount();
 	bool found = false;
@@ -119,9 +204,7 @@ int perf_mem_events__init(void)
 		return -ENOENT;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		struct perf_mem_event *e = perf_mem_events__ptr(j);
-		char sysfs_name[100];
-		struct perf_pmu *pmu = NULL;
+		struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 		/*
 		 * If the event entry isn't valid, skip initialization
@@ -130,16 +213,7 @@ int perf_mem_events__init(void)
 		if (!e->tag)
 			continue;
 
-		/*
-		 * Scan all PMUs not just core ones, since perf mem/c2c on
-		 * platforms like AMD uses IBS OP PMU which is independent
-		 * of core PMU.
-		 */
-		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-			scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name, pmu->name);
-			e->supported |= perf_mem_event__supported(mnt, sysfs_name);
-		}
-
+		e->supported |= perf_pmu__mem_events_supported(mnt, pmu, e);
 		if (e->supported)
 			found = true;
 	}
@@ -147,84 +221,83 @@ int perf_mem_events__init(void)
 	return found ? 0 : -ENOENT;
 }
 
-void perf_mem_events__list(void)
+int perf_pmu__mem_events_init(void)
+{
+	struct perf_pmu *pmu = NULL;
+
+	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
+		if (__perf_pmu__mem_events_init(pmu))
+			return -ENOENT;
+	}
+
+	return 0;
+}
+
+void perf_pmu__mem_events_list(struct perf_pmu *pmu)
 {
 	int j;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		struct perf_mem_event *e = perf_mem_events__ptr(j);
+		struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 		fprintf(stderr, "%-*s%-*s%s",
 			e->tag ? 13 : 0,
 			e->tag ? : "",
 			e->tag && verbose > 0 ? 25 : 0,
-			e->tag && verbose > 0 ? perf_mem_events__name(j, NULL) : "",
+			e->tag && verbose > 0 ? perf_pmu__mem_events_name(j, pmu) : "",
 			e->supported ? ": available\n" : "");
 	}
 }
 
-static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
-						    int idx)
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 {
 	const char *mnt = sysfs__mount();
-	char sysfs_name[100];
 	struct perf_pmu *pmu = NULL;
-
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name,
-			  pmu->name);
-		if (!perf_mem_event__supported(mnt, sysfs_name)) {
-			pr_err("failed: event '%s' not supported\n",
-			       perf_mem_events__name(idx, pmu->name));
-		}
-	}
-}
-
-int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
-				 char **rec_tmp, int *tmp_nr)
-{
-	int i = *argv_nr, k = 0;
 	struct perf_mem_event *e;
-	struct perf_pmu *pmu;
-	char *s;
+	int i = *argv_nr;
+	const char *s;
+	char *copy;
+	struct perf_cpu_map *cpu_map = NULL;
 
-	for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		e = perf_mem_events__ptr(j);
-		if (!e->record)
-			continue;
+	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
+		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+			e = perf_pmu__mem_events_ptr(pmu, j);
 
-		if (perf_pmus__num_mem_pmus() == 1) {
+			if (!perf_mem_record[j])
+				continue;
+
 			if (!e->supported) {
 				pr_err("failed: event '%s' not supported\n",
-				       perf_mem_events__name(j, NULL));
+					perf_pmu__mem_events_name(j, pmu));
 				return -1;
 			}
+
+			s = perf_pmu__mem_events_name(j, pmu);
+			if (!s || !perf_pmu__mem_events_supported(mnt, pmu, e))
+				continue;
+
+			copy = strdup(s);
+			if (!copy)
+				return -1;
 
 			rec_argv[i++] = "-e";
-			rec_argv[i++] = perf_mem_events__name(j, NULL);
-		} else {
-			if (!e->supported) {
-				perf_mem_events__print_unsupport_hybrid(e, j);
-				return -1;
-			}
+			rec_argv[i++] = copy;
 
-			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-				rec_argv[i++] = "-e";
-				s = perf_mem_events__name(j, pmu->name);
-				if (s) {
-					s = strdup(s);
-					if (!s)
-						return -1;
-
-					rec_argv[i++] = s;
-					rec_tmp[k++] = s;
-				}
-			}
+			cpu_map = perf_cpu_map__merge(cpu_map, pmu->cpus);
 		}
+	}
+
+	if (cpu_map) {
+		if (!perf_cpu_map__equal(cpu_map, cpu_map__online())) {
+			char buf[200];
+
+			cpu_map__snprint(cpu_map, buf, sizeof(buf));
+			pr_warning("Memory events are enabled on a subset of CPUs: %s\n", buf);
+		}
+		perf_cpu_map__put(cpu_map);
 	}
 
 	*argv_nr = i;
-	*tmp_nr = k;
 	return 0;
 }
 
@@ -238,7 +311,7 @@ static const char * const tlb_access[] = {
 	"Fault",
 };
 
-int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__tlb_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	size_t l = 0, i;
 	u64 m = PERF_MEM_TLB_NA;
@@ -248,7 +321,7 @@ int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	out[0] = '\0';
 
 	if (mem_info)
-		m = mem_info->data_src.mem_dtlb;
+		m = mem_info__const_data_src(mem_info)->mem_dtlb;
 
 	hit = m & PERF_MEM_TLB_HIT;
 	miss = m & PERF_MEM_TLB_MISS;
@@ -316,13 +389,13 @@ static const char * const mem_hops[] = {
 	"board",
 };
 
-static int perf_mem__op_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+static int perf_mem__op_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	u64 op = PERF_MEM_LOCK_NA;
 	int l;
 
 	if (mem_info)
-		op = mem_info->data_src.mem_op;
+		op = mem_info__const_data_src(mem_info)->mem_op;
 
 	if (op & PERF_MEM_OP_NA)
 		l = scnprintf(out, sz, "N/A");
@@ -340,7 +413,7 @@ static int perf_mem__op_scnprintf(char *out, size_t sz, struct mem_info *mem_inf
 	return l;
 }
 
-int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__lvl_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	union perf_mem_data_src data_src;
 	int printed = 0;
@@ -355,7 +428,7 @@ int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	if (!mem_info)
 		goto na;
 
-	data_src = mem_info->data_src;
+	data_src = *mem_info__const_data_src(mem_info);
 
 	if (data_src.mem_lvl & PERF_MEM_LVL_HIT)
 		memcpy(hit_miss, "hit", 3);
@@ -422,7 +495,7 @@ static const char * const snoopx_access[] = {
 	"Peer",
 };
 
-int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__snp_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	size_t i, l = 0;
 	u64 m = PERF_MEM_SNOOP_NA;
@@ -431,7 +504,7 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	out[0] = '\0';
 
 	if (mem_info)
-		m = mem_info->data_src.mem_snoop;
+		m = mem_info__const_data_src(mem_info)->mem_snoop;
 
 	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
 		if (!(m & 0x1))
@@ -445,7 +518,7 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 
 	m = 0;
 	if (mem_info)
-		m = mem_info->data_src.mem_snoopx;
+		m = mem_info__const_data_src(mem_info)->mem_snoopx;
 
 	for (i = 0; m && i < ARRAY_SIZE(snoopx_access); i++, m >>= 1) {
 		if (!(m & 0x1))
@@ -464,13 +537,13 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
-int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__lck_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	u64 mask = PERF_MEM_LOCK_NA;
 	int l;
 
 	if (mem_info)
-		mask = mem_info->data_src.mem_lock;
+		mask = mem_info__const_data_src(mem_info)->mem_lock;
 
 	if (mask & PERF_MEM_LOCK_NA)
 		l = scnprintf(out, sz, "N/A");
@@ -482,7 +555,7 @@ int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
-int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__blk_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	size_t l = 0;
 	u64 mask = PERF_MEM_BLK_NA;
@@ -491,7 +564,7 @@ int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	out[0] = '\0';
 
 	if (mem_info)
-		mask = mem_info->data_src.mem_blk;
+		mask = mem_info__const_data_src(mem_info)->mem_blk;
 
 	if (!mask || (mask & PERF_MEM_BLK_NA)) {
 		l += scnprintf(out + l, sz - l, " N/A");
@@ -505,7 +578,7 @@ int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
-int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_script__meminfo_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	int i = 0;
 
@@ -527,8 +600,8 @@ int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_in
 
 int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 {
-	union perf_mem_data_src *data_src = &mi->data_src;
-	u64 daddr  = mi->daddr.addr;
+	union perf_mem_data_src *data_src = mem_info__data_src(mi);
+	u64 daddr  = mem_info__daddr(mi)->addr;
 	u64 op     = data_src->mem_op;
 	u64 lvl    = data_src->mem_lvl;
 	u64 snoop  = data_src->mem_snoop;
@@ -655,7 +728,7 @@ do {				\
 		return -1;
 	}
 
-	if (!mi->daddr.ms.map || !mi->iaddr.ms.map) {
+	if (!mem_info__daddr(mi)->ms.map || !mem_info__iaddr(mi)->ms.map) {
 		stats->nomap++;
 		return -1;
 	}

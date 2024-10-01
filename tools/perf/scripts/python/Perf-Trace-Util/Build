@@ -1,3 +1,4 @@
-perf-y += Context.o
+perf-util-y += Context.o
 
-CFLAGS_Context.o += $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-nested-externs
+# -Wno-declaration-after-statement: The python headers have mixed code with declarations (decls after asserts, for instance)
+CFLAGS_Context.o += $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-nested-externs -Wno-declaration-after-statement

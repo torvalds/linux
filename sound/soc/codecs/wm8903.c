@@ -1902,7 +1902,7 @@ static const struct regmap_config wm8903_regmap = {
 	.volatile_reg = wm8903_volatile_register,
 	.readable_reg = wm8903_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8903_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8903_reg_defaults),
 };
@@ -2199,7 +2199,7 @@ static const struct of_device_id wm8903_of_match[] = {
 MODULE_DEVICE_TABLE(of, wm8903_of_match);
 
 static const struct i2c_device_id wm8903_i2c_id[] = {
-	{ "wm8903", 0 },
+	{ "wm8903" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8903_i2c_id);

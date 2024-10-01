@@ -45,16 +45,16 @@
  * last_iova + 1 can overflow. An iopt_pages index will always be much less than
  * ULONG_MAX so last_index + 1 cannot overflow.
  */
+#include <linux/highmem.h>
+#include <linux/iommu.h>
+#include <linux/iommufd.h>
+#include <linux/kthread.h>
 #include <linux/overflow.h>
 #include <linux/slab.h>
-#include <linux/iommu.h>
 #include <linux/sched/mm.h>
-#include <linux/highmem.h>
-#include <linux/kthread.h>
-#include <linux/iommufd.h>
 
-#include "io_pagetable.h"
 #include "double_span.h"
+#include "io_pagetable.h"
 
 #ifndef CONFIG_IOMMUFD_TEST
 #define TEMP_MEMORY_LIMIT 65536
@@ -297,7 +297,7 @@ static void batch_clear_carry(struct pfn_batch *batch, unsigned int keep_pfns)
 	batch->pfns[0] = batch->pfns[batch->end - 1] +
 			 (batch->npfns[batch->end - 1] - keep_pfns);
 	batch->npfns[0] = keep_pfns;
-	batch->end = 0;
+	batch->end = 1;
 }
 
 static void batch_skip_carry(struct pfn_batch *batch, unsigned int skip_pfns)
@@ -809,13 +809,14 @@ static int incr_user_locked_vm(struct iopt_pages *pages, unsigned long npages)
 
 	lock_limit = task_rlimit(pages->source_task, RLIMIT_MEMLOCK) >>
 		     PAGE_SHIFT;
+
+	cur_pages = atomic_long_read(&pages->source_user->locked_vm);
 	do {
-		cur_pages = atomic_long_read(&pages->source_user->locked_vm);
 		new_pages = cur_pages + npages;
 		if (new_pages > lock_limit)
 			return -ENOMEM;
-	} while (atomic_long_cmpxchg(&pages->source_user->locked_vm, cur_pages,
-				     new_pages) != cur_pages);
+	} while (!atomic_long_try_cmpxchg(&pages->source_user->locked_vm,
+					  &cur_pages, new_pages));
 	return 0;
 }
 
@@ -1507,6 +1508,8 @@ void iopt_area_unfill_domains(struct iopt_area *area, struct iopt_pages *pages)
 				area, domain, iopt_area_index(area),
 				iopt_area_last_index(area));
 
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(RB_EMPTY_NODE(&area->pages_node.rb));
 	interval_tree_remove(&area->pages_node, &pages->domains_itree);
 	iopt_area_unfill_domain(area, pages, area->storage_domain);
 	area->storage_domain = NULL;

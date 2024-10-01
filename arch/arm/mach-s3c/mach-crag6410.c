@@ -39,8 +39,6 @@
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/gpio.h>
 
-#include <sound/wm1250-ev1.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
@@ -713,13 +711,16 @@ static struct wm831x_pdata glenfarclas_pmic_pdata = {
 	.disable_touch = true,
 };
 
-static struct wm1250_ev1_pdata wm1250_ev1_pdata = {
-	.gpios = {
-		[WM1250_EV1_GPIO_CLK_ENA] = S3C64XX_GPN(12),
-		[WM1250_EV1_GPIO_CLK_SEL0] = S3C64XX_GPL(12),
-		[WM1250_EV1_GPIO_CLK_SEL1] = S3C64XX_GPL(13),
-		[WM1250_EV1_GPIO_OSR] = S3C64XX_GPL(14),
-		[WM1250_EV1_GPIO_MASTER] = S3C64XX_GPL(8),
+static struct gpiod_lookup_table crag_wm1250_ev1_gpiod_table = {
+	/* The WM1250-EV1 is device 0027 on I2C bus 1 */
+	.dev_id = "1-0027",
+	.table = {
+		GPIO_LOOKUP("GPION", 12, "clk-ena", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOL", 12, "clk-sel0", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOL", 13, "clk-sel1", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOL", 14, "osr", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOL", 8, "master", GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -733,9 +734,7 @@ static struct i2c_board_info i2c_devs1[] = {
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x24) },
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x25) },
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x26) },
-
-	{ I2C_BOARD_INFO("wm1250-ev1", 0x27),
-	  .platform_data = &wm1250_ev1_pdata },
+	{ I2C_BOARD_INFO("wm1250-ev1", 0x27), },
 };
 
 static struct s3c2410_platform_i2c i2c1_pdata = {
@@ -862,6 +861,7 @@ static void __init crag6410_machine_init(void)
 
 	gpiod_add_lookup_table(&crag_pmic_gpiod_table);
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
+	gpiod_add_lookup_table(&crag_wm1250_ev1_gpiod_table);
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
 
 	samsung_keypad_set_platdata(&crag6410_keypad_data);

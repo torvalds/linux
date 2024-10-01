@@ -6,9 +6,6 @@
 #include "mpfs.dtsi"
 #include "mpfs-sev-kit-fabric.dtsi"
 
-/* Clock frequency (in Hz) of the rtcclk */
-#define MTIMER_FREQ		1000000
-
 / {
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -26,10 +23,6 @@
 
 	chosen {
 		stdout-path = "serial1:115200n8";
-	};
-
-	cpus {
-		timebase-frequency = <MTIMER_FREQ>;
 	};
 
 	reserved-memory {

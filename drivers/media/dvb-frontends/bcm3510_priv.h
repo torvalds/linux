@@ -12,11 +12,11 @@
 #define PACKED __attribute__((packed))
 
 #undef err
-#define err(format, arg...)  printk(KERN_ERR     "bcm3510: " format "\n" , ## arg)
+#define err(format, arg...)  printk(KERN_ERR     "bcm3510: " format "\n", ## arg)
 #undef info
-#define info(format, arg...) printk(KERN_INFO    "bcm3510: " format "\n" , ## arg)
+#define info(format, arg...) printk(KERN_INFO    "bcm3510: " format "\n", ## arg)
 #undef warn
-#define warn(format, arg...) printk(KERN_WARNING "bcm3510: " format "\n" , ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "bcm3510: " format "\n", ## arg)
 
 
 #define PANASONIC_FIRST_IF_BASE_IN_KHz  1407500

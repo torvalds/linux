@@ -61,7 +61,7 @@ TRACE_EVENT(extlog_mem_event,
 		else
 			__entry->pa_mask_lsb = ~0;
 		__entry->fru_id = *fru_id;
-		__assign_str(fru_text, fru_text);
+		__assign_str(fru_text);
 		cper_mem_err_pack(mem, &__entry->data);
 	),
 
@@ -131,8 +131,8 @@ TRACE_EVENT(mc_event,
 
 	TP_fast_assign(
 		__entry->error_type		= err_type;
-		__assign_str(msg, error_msg);
-		__assign_str(label, label);
+		__assign_str(msg);
+		__assign_str(label);
 		__entry->error_count		= error_count;
 		__entry->mc_index		= mc_index;
 		__entry->top_layer		= top_layer;
@@ -141,7 +141,7 @@ TRACE_EVENT(mc_event,
 		__entry->address		= address;
 		__entry->grain_bits		= grain_bits;
 		__entry->syndrome		= syndrome;
-		__assign_str(driver_detail, driver_detail);
+		__assign_str(driver_detail);
 	),
 
 	TP_printk("%d %s error%s:%s%s on %s (mc:%d location:%d:%d:%d address:0x%08lx grain:%d syndrome:0x%08lx%s%s)",
@@ -239,7 +239,7 @@ TRACE_EVENT(non_standard_event,
 	TP_fast_assign(
 		memcpy(__entry->sec_type, sec_type, UUID_SIZE);
 		memcpy(__entry->fru_id, fru_id, UUID_SIZE);
-		__assign_str(fru_text, fru_text);
+		__assign_str(fru_text);
 		__entry->sev = sev;
 		__entry->len = len;
 		memcpy(__get_dynamic_array(buf), err, len);
@@ -300,7 +300,7 @@ TRACE_EVENT(aer_event,
 		 const u32 status,
 		 const u8 severity,
 		 const u8 tlp_header_valid,
-		 struct aer_header_log_regs *tlp),
+		 struct pcie_tlp_log *tlp),
 
 	TP_ARGS(dev_name, status, severity, tlp_header_valid, tlp),
 
@@ -313,15 +313,15 @@ TRACE_EVENT(aer_event,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__assign_str(dev_name);
 		__entry->status		= status;
 		__entry->severity	= severity;
 		__entry->tlp_header_valid = tlp_header_valid;
 		if (tlp_header_valid) {
-			__entry->tlp_header[0] = tlp->dw0;
-			__entry->tlp_header[1] = tlp->dw1;
-			__entry->tlp_header[2] = tlp->dw2;
-			__entry->tlp_header[3] = tlp->dw3;
+			__entry->tlp_header[0] = tlp->dw[0];
+			__entry->tlp_header[1] = tlp->dw[1];
+			__entry->tlp_header[2] = tlp->dw[2];
+			__entry->tlp_header[3] = tlp->dw[3];
 		}
 	),
 
@@ -356,10 +356,9 @@ TRACE_EVENT(aer_event,
 #define MF_PAGE_TYPE		\
 	EM ( MF_MSG_KERNEL, "reserved kernel page" )			\
 	EM ( MF_MSG_KERNEL_HIGH_ORDER, "high-order kernel page" )	\
-	EM ( MF_MSG_SLAB, "kernel slab page" )				\
-	EM ( MF_MSG_DIFFERENT_COMPOUND, "different compound page after locking" ) \
 	EM ( MF_MSG_HUGE, "huge page" )					\
 	EM ( MF_MSG_FREE_HUGE, "free huge page" )			\
+	EM ( MF_MSG_GET_HWPOISON, "get hwpoison page" )			\
 	EM ( MF_MSG_UNMAP_FAILED, "unmapping failed page" )		\
 	EM ( MF_MSG_DIRTY_SWAPCACHE, "dirty swapcache page" )		\
 	EM ( MF_MSG_CLEAN_SWAPCACHE, "clean swapcache page" )		\
@@ -373,6 +372,7 @@ TRACE_EVENT(aer_event,
 	EM ( MF_MSG_BUDDY, "free buddy page" )				\
 	EM ( MF_MSG_DAX, "dax page" )					\
 	EM ( MF_MSG_UNSPLIT_THP, "unsplit thp" )			\
+	EM ( MF_MSG_ALREADY_POISONED, "already poisoned" )		\
 	EMe ( MF_MSG_UNKNOWN, "unknown page" )
 
 /*

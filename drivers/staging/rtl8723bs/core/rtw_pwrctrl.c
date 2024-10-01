@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <hal_data.h>
 #include <linux/jiffies.h>
 
@@ -285,14 +284,12 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	if (rpwm & PS_ACK) {
 		unsigned long start_time;
 		u8 cpwm_now;
-		u8 poll_cnt = 0;
 
 		start_time = jiffies;
 
 		/*  polling cpwm */
 		do {
 			mdelay(1);
-			poll_cnt++;
 			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
 			if ((cpwm_orig ^ cpwm_now) & 0x80) {
 				pwrpriv->cpwm = PS_STATE_S4;
@@ -452,7 +449,7 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 	if (hal_btcoex_IsBtControlLps(padapter))
 		return;
 
-	/* Skip lps enter request if number of assocated adapters is not 1 */
+	/* Skip lps enter request if number of associated adapters is not 1 */
 	if (check_fwstate(&(dvobj->padapters->mlmepriv), WIFI_ASOC_STATE))
 		n_assoc_iface++;
 	if (n_assoc_iface != 1)

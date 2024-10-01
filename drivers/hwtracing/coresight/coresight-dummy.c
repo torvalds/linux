@@ -21,8 +21,12 @@ DEFINE_CORESIGHT_DEVLIST(source_devs, "dummy_source");
 DEFINE_CORESIGHT_DEVLIST(sink_devs, "dummy_sink");
 
 static int dummy_source_enable(struct coresight_device *csdev,
-			       struct perf_event *event, enum cs_mode mode)
+			       struct perf_event *event, enum cs_mode mode,
+			       __maybe_unused struct coresight_trace_id_map *id_map)
 {
+	if (!coresight_take_mode(csdev, mode))
+		return -EBUSY;
+
 	dev_dbg(csdev->dev.parent, "Dummy source enabled\n");
 
 	return 0;
@@ -31,6 +35,7 @@ static int dummy_source_enable(struct coresight_device *csdev,
 static void dummy_source_disable(struct coresight_device *csdev,
 				 struct perf_event *event)
 {
+	coresight_set_mode(csdev, CS_MODE_DISABLED);
 	dev_dbg(csdev->dev.parent, "Dummy source disabled\n");
 }
 
@@ -122,14 +127,13 @@ static int dummy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dummy_remove(struct platform_device *pdev)
+static void dummy_remove(struct platform_device *pdev)
 {
 	struct dummy_drvdata *drvdata = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
 	pm_runtime_disable(dev);
 	coresight_unregister(drvdata->csdev);
-	return 0;
 }
 
 static const struct of_device_id dummy_match[] = {
@@ -140,24 +144,14 @@ static const struct of_device_id dummy_match[] = {
 
 static struct platform_driver dummy_driver = {
 	.probe	= dummy_probe,
-	.remove	= dummy_remove,
+	.remove_new = dummy_remove,
 	.driver	= {
 		.name   = "coresight-dummy",
 		.of_match_table = dummy_match,
 	},
 };
 
-static int __init dummy_init(void)
-{
-	return platform_driver_register(&dummy_driver);
-}
-module_init(dummy_init);
-
-static void __exit dummy_exit(void)
-{
-	platform_driver_unregister(&dummy_driver);
-}
-module_exit(dummy_exit);
+module_platform_driver(dummy_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CoreSight dummy driver");

@@ -100,7 +100,7 @@ static void block_threads(pthread_t *w, struct perf_cpu_map *cpu)
 	cpu_set_t *cpuset;
 	unsigned int i;
 	size_t size;
-	int nrcpus = perf_cpu_map__nr(cpu);
+	int nrcpus = cpu__max_cpu().cpu;
 	threads_starting = params.nthreads;
 
 	cpuset = CPU_ALLOC(nrcpus);
@@ -149,7 +149,7 @@ int bench_futex_wake(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	cpu = perf_cpu_map__new(NULL);
+	cpu = perf_cpu_map__new_online_cpus();
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 

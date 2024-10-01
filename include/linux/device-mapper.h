@@ -165,6 +165,7 @@ void dm_error(const char *message);
 
 struct dm_dev {
 	struct block_device *bdev;
+	struct file *bdev_file;
 	struct dax_device *dax_dev;
 	blk_mode_t mode;
 	char name[16];
@@ -177,6 +178,11 @@ struct dm_dev {
 int dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 		  struct dm_dev **result);
 void dm_put_device(struct dm_target *ti, struct dm_dev *d);
+
+/*
+ * Helper function for getting devices
+ */
+int dm_devt_from_path(const char *path, dev_t *dev_p);
 
 /*
  * Information about a target type
@@ -357,22 +363,17 @@ struct dm_target {
 	bool discards_supported:1;
 
 	/*
+	 * Automatically set by dm-core if this target supports
+	 * REQ_OP_ZONE_RESET_ALL. Otherwise, this operation will be emulated
+	 * using REQ_OP_ZONE_RESET. Target drivers must not set this manually.
+	 */
+	bool zone_reset_all_supported:1;
+
+	/*
 	 * Set if this target requires that discards be split on
 	 * 'max_discard_sectors' boundaries.
 	 */
 	bool max_discard_granularity:1;
-
-	/*
-	 * Set if this target requires that secure_erases be split on
-	 * 'max_secure_erase_sectors' boundaries.
-	 */
-	bool max_secure_erase_granularity:1;
-
-	/*
-	 * Set if this target requires that write_zeroes be split on
-	 * 'max_write_zeroes_sectors' boundaries.
-	 */
-	bool max_write_zeroes_granularity:1;
 
 	/*
 	 * Set if we need to limit the number of in-flight bios when swapping.
@@ -396,6 +397,27 @@ struct dm_target {
 	 * bio_set_dev(). NOTE: ideally a target should _not_ need this.
 	 */
 	bool needs_bio_set_dev:1;
+
+	/*
+	 * Set if the target supports flush optimization. If all the targets in
+	 * a table have flush_bypasses_map set, the dm core will not send
+	 * flushes to the targets via a ->map method. It will iterate over
+	 * dm_table->devices and send flushes to the devices directly. This
+	 * optimization reduces the number of flushes being sent when multiple
+	 * targets in a table use the same underlying device.
+	 *
+	 * This optimization may be enabled on targets that just pass the
+	 * flushes to the underlying devices without performing any other
+	 * actions on the flush request. Currently, dm-linear and dm-stripe
+	 * support it.
+	 */
+	bool flush_bypasses_map:1;
+
+	/*
+	 * Set if the target calls bio_integrity_alloc on bios received
+	 * in the map method.
+	 */
+	bool mempool_needs_integrity:1;
 };
 
 void *dm_per_bio_data(struct bio *bio, size_t data_size);
@@ -502,7 +524,6 @@ int dm_post_suspending(struct dm_target *ti);
 int dm_noflush_suspending(struct dm_target *ti);
 void dm_accept_partial_bio(struct bio *bio, unsigned int n_sectors);
 void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone);
-union map_info *dm_get_rq_mapinfo(struct request *rq);
 
 #ifdef CONFIG_BLK_DEV_ZONED
 struct dm_report_zones_args {

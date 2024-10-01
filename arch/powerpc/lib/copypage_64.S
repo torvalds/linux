@@ -2,11 +2,11 @@
 /*
  * Copyright (C) 2008 Mark Nelson, IBM Corp.
  */
+#include <linux/export.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 
 _GLOBAL_TOC(copy_page)

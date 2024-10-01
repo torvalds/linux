@@ -155,15 +155,15 @@ static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *i915,
 	const struct gmbus_pin *pins;
 	size_t size;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_DG2) {
+	if (INTEL_PCH_TYPE(i915) >= PCH_MTL) {
+		pins = gmbus_pins_mtp;
+		size = ARRAY_SIZE(gmbus_pins_mtp);
+	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG2) {
 		pins = gmbus_pins_dg2;
 		size = ARRAY_SIZE(gmbus_pins_dg2);
 	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
 		pins = gmbus_pins_dg1;
 		size = ARRAY_SIZE(gmbus_pins_dg1);
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_MTP) {
-		pins = gmbus_pins_mtp;
-		size = ARRAY_SIZE(gmbus_pins_mtp);
 	} else if (INTEL_PCH_TYPE(i915) >= PCH_ICP) {
 		pins = gmbus_pins_icp;
 		size = ARRAY_SIZE(gmbus_pins_icp);
@@ -411,7 +411,7 @@ gmbus_wait_idle(struct drm_i915_private *i915)
 	add_wait_queue(&i915->display.gmbus.wait_queue, &wait);
 	intel_de_write_fw(i915, GMBUS4(i915), irq_enable);
 
-	ret = intel_de_wait_for_register_fw(i915, GMBUS2(i915), GMBUS_ACTIVE, 0, 10);
+	ret = intel_de_wait_fw(i915, GMBUS2(i915), GMBUS_ACTIVE, 0, 10);
 
 	intel_de_write_fw(i915, GMBUS4(i915), 0);
 	remove_wait_queue(&i915->display.gmbus.wait_queue, &wait);
@@ -478,7 +478,7 @@ gmbus_xfer_read_chunk(struct drm_i915_private *i915,
 /*
  * HW spec says that 512Bytes in Burst read need special treatment.
  * But it doesn't talk about other multiple of 256Bytes. And couldn't locate
- * an I2C slave, which supports such a lengthy burst read too for experiments.
+ * an I2C target, which supports such a lengthy burst read too for experiments.
  *
  * So until things get clarified on HW support, to avoid the burst read length
  * in fold of 256Bytes except 512, max burst read length is fixed at 767Bytes.
@@ -701,7 +701,7 @@ clear_err:
 
 	/* Toggle the Software Clear Interrupt bit. This has the effect
 	 * of resetting the GMBUS controller and so clearing the
-	 * BUS_ERROR raised by the slave's NAK.
+	 * BUS_ERROR raised by the target's NAK.
 	 */
 	intel_de_write_fw(i915, GMBUS1(i915), GMBUS_SW_CLR_INT);
 	intel_de_write_fw(i915, GMBUS1(i915), 0);
@@ -778,7 +778,7 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct drm_i915_private *i915 = bus->i915;
 	u8 cmd = DRM_HDCP_DDC_AKSV;
-	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
+	u8 buf[DRM_HDCP_KSV_LEN] = {};
 	struct i2c_msg msgs[] = {
 		{
 			.addr = DRM_HDCP_DDC_ADDR,
@@ -896,7 +896,6 @@ int intel_gmbus_setup(struct drm_i915_private *i915)
 		}
 
 		bus->adapter.owner = THIS_MODULE;
-		bus->adapter.class = I2C_CLASS_DDC;
 		snprintf(bus->adapter.name,
 			 sizeof(bus->adapter.name),
 			 "i915 gmbus %s", gmbus_pin->name);

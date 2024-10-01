@@ -14,7 +14,7 @@ description:
   There is one ACC register region per CPU within the KPSS remapped region as
   well as an alias register region that remaps accesses to the ACC associated
   with the CPU accessing the region. ACC v1 is currently used as a
-  clock-controller for enabling the cpu and hanling the aux clocks.
+  clock-controller for enabling the cpu and handling the aux clocks.
 
 properties:
   compatible:

@@ -111,7 +111,7 @@ static inline unsigned long mon_mca_end(struct mon_msg *monmsg)
 
 static inline u8 mon_mca_type(struct mon_msg *monmsg, u8 index)
 {
-	return *((u8 *) mon_mca_start(monmsg) + monmsg->mca_offset + index);
+	return *((u8 *)__va(mon_mca_start(monmsg)) + monmsg->mca_offset + index);
 }
 
 static inline u32 mon_mca_size(struct mon_msg *monmsg)
@@ -121,12 +121,12 @@ static inline u32 mon_mca_size(struct mon_msg *monmsg)
 
 static inline u32 mon_rec_start(struct mon_msg *monmsg)
 {
-	return *((u32 *) (mon_mca_start(monmsg) + monmsg->mca_offset + 4));
+	return *((u32 *)(__va(mon_mca_start(monmsg)) + monmsg->mca_offset + 4));
 }
 
 static inline u32 mon_rec_end(struct mon_msg *monmsg)
 {
-	return *((u32 *) (mon_mca_start(monmsg) + monmsg->mca_offset + 8));
+	return *((u32 *)(__va(mon_mca_start(monmsg)) + monmsg->mca_offset + 8));
 }
 
 static int mon_check_mca(struct mon_msg *monmsg)
@@ -392,8 +392,7 @@ static ssize_t mon_read(struct file *filp, char __user *data,
 	mce_start = mon_mca_start(monmsg) + monmsg->mca_offset;
 	if ((monmsg->pos >= mce_start) && (monmsg->pos < mce_start + 12)) {
 		count = min(count, (size_t) mce_start + 12 - monmsg->pos);
-		ret = copy_to_user(data, (void *) (unsigned long) monmsg->pos,
-				   count);
+		ret = copy_to_user(data, __va(monmsg->pos), count);
 		if (ret)
 			return -EFAULT;
 		monmsg->pos += count;
@@ -406,8 +405,7 @@ static ssize_t mon_read(struct file *filp, char __user *data,
 	if (monmsg->pos <= mon_rec_end(monmsg)) {
 		count = min(count, (size_t) mon_rec_end(monmsg) - monmsg->pos
 					    + 1);
-		ret = copy_to_user(data, (void *) (unsigned long) monmsg->pos,
-				   count);
+		ret = copy_to_user(data, __va(monmsg->pos), count);
 		if (ret)
 			return -EFAULT;
 		monmsg->pos += count;

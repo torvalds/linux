@@ -201,6 +201,16 @@ static inline void arch___clear_bit_unlock(unsigned long nr,
 	arch___clear_bit(nr, ptr);
 }
 
+static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *ptr)
+{
+	unsigned long old;
+
+	old = __atomic64_xor_barrier(mask, (long *)ptr);
+	return old & BIT(7);
+}
+#define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
+
 #include <asm-generic/bitops/instrumented-atomic.h>
 #include <asm-generic/bitops/instrumented-non-atomic.h>
 #include <asm-generic/bitops/instrumented-lock.h>
@@ -369,8 +379,9 @@ static inline int fls(unsigned int word)
 	return fls64(word);
 }
 
+#include <asm/arch_hweight.h>
+#include <asm-generic/bitops/const_hweight.h>
 #include <asm-generic/bitops/ffz.h>
-#include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>

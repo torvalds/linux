@@ -27,12 +27,12 @@
 #include "core_types.h"
 #include "resource.h"
 #include "custom_float.h"
-#include "dcn10_hw_sequencer.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dcn10/dcn10_hwseq.h"
+#include "dce110/dce110_hwseq.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
 #include "dmcu.h"
-#include "dcn10_optc.h"
+#include "dcn10/dcn10_optc.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
 #include "timing_generator.h"
@@ -40,8 +40,8 @@
 #include "ipp.h"
 #include "mpc.h"
 #include "reg_helper.h"
-#include "dcn10_hubp.h"
-#include "dcn10_hubbub.h"
+#include "dcn10/dcn10_hubp.h"
+#include "dcn10/dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
 #include "clk_mgr.h"
 
@@ -392,7 +392,7 @@ static unsigned int dcn10_get_mpcc_states(struct dc *dc, char *pBuf, unsigned in
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;
 
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);

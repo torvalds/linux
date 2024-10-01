@@ -9,9 +9,6 @@
 
 static int run_test(int cgroup_fd, int server_fd, bool classid)
 {
-	struct network_helper_opts opts = {
-		.must_fail = true,
-	};
 	struct connect4_dropper *skel;
 	int fd, err = 0;
 
@@ -32,11 +29,16 @@ static int run_test(int cgroup_fd, int server_fd, bool classid)
 		goto out;
 	}
 
-	fd = connect_to_fd_opts(server_fd, &opts);
-	if (fd < 0)
+	errno = 0;
+	fd = connect_to_fd_opts(server_fd, NULL);
+	if (fd >= 0) {
+		log_err("Unexpected success to connect to server");
 		err = -1;
-	else
 		close(fd);
+	} else if (errno != EPERM) {
+		log_err("Unexpected errno from connect to server");
+		err = -1;
+	}
 out:
 	connect4_dropper__destroy(skel);
 	return err;
@@ -71,7 +73,7 @@ void test_cgroup_v1v2(void)
 	}
 	ASSERT_OK(run_test(cgroup_fd, server_fd, false), "cgroup-v2-only");
 	setup_classid_environment();
-	set_classid(42);
+	set_classid();
 	ASSERT_OK(run_test(cgroup_fd, server_fd, true), "cgroup-v1v2");
 	cleanup_classid_environment();
 	close(server_fd);

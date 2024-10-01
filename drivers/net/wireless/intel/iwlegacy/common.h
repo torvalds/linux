@@ -553,7 +553,7 @@ struct il_device_cmd {
 		u8 val8;
 		u16 val16;
 		u32 val32;
-		struct il_tx_cmd tx;
+		struct il_tx_cmd_hdr tx;
 		u8 payload[DEF_CMD_PAYLOAD_SIZE];
 	} __packed cmd;
 } __packed;

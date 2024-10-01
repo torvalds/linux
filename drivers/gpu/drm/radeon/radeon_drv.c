@@ -113,59 +113,32 @@
 #define KMS_DRIVER_MAJOR	2
 #define KMS_DRIVER_MINOR	50
 #define KMS_DRIVER_PATCHLEVEL	0
-int radeon_suspend_kms(struct drm_device *dev, bool suspend,
-		       bool fbcon, bool freeze);
-int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
-extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int crtc,
-				      unsigned int flags, int *vpos, int *hpos,
-				      ktime_t *stime, ktime_t *etime,
-				      const struct drm_display_mode *mode);
-extern bool radeon_is_px(struct drm_device *dev);
-int radeon_mode_dumb_mmap(struct drm_file *filp,
-			  struct drm_device *dev,
-			  uint32_t handle, uint64_t *offset_p);
-int radeon_mode_dumb_create(struct drm_file *file_priv,
-			    struct drm_device *dev,
-			    struct drm_mode_create_dumb *args);
-
-/* atpx handler */
-#if defined(CONFIG_VGA_SWITCHEROO)
-void radeon_register_atpx_handler(void);
-void radeon_unregister_atpx_handler(void);
-bool radeon_has_atpx_dgpu_power_cntl(void);
-bool radeon_is_atpx_hybrid(void);
-#else
-static inline void radeon_register_atpx_handler(void) {}
-static inline void radeon_unregister_atpx_handler(void) {}
-static inline bool radeon_has_atpx_dgpu_power_cntl(void) { return false; }
-static inline bool radeon_is_atpx_hybrid(void) { return false; }
-#endif
 
 int radeon_no_wb;
 int radeon_modeset = -1;
 int radeon_dynclks = -1;
-int radeon_r4xx_atom = 0;
+int radeon_r4xx_atom;
 int radeon_agpmode = -1;
-int radeon_vram_limit = 0;
+int radeon_vram_limit;
 int radeon_gart_size = -1; /* auto */
-int radeon_benchmarking = 0;
-int radeon_testing = 0;
-int radeon_connector_table = 0;
+int radeon_benchmarking;
+int radeon_testing;
+int radeon_connector_table;
 int radeon_tv = 1;
 int radeon_audio = -1;
-int radeon_disp_priority = 0;
-int radeon_hw_i2c = 0;
+int radeon_disp_priority;
+int radeon_hw_i2c;
 int radeon_pcie_gen2 = -1;
 int radeon_msi = -1;
 int radeon_lockup_timeout = 10000;
-int radeon_fastfb = 0;
+int radeon_fastfb;
 int radeon_dpm = -1;
 int radeon_aspm = -1;
 int radeon_runtime_pm = -1;
-int radeon_hard_reset = 0;
+int radeon_hard_reset;
 int radeon_vm_size = 8;
 int radeon_vm_block_size = -1;
-int radeon_deep_color = 0;
+int radeon_deep_color;
 int radeon_use_pflipirq = 2;
 int radeon_bapm = -1;
 int radeon_backlight = -1;
@@ -286,7 +259,8 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	unsigned long flags = 0;
-	struct drm_device *dev;
+	struct drm_device *ddev;
+	struct radeon_device *rdev;
 	int ret;
 
 	if (!ent)
@@ -327,28 +301,37 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&kms_driver, &pdev->dev);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	rdev = devm_drm_dev_alloc(&pdev->dev, &kms_driver, typeof(*rdev), ddev);
+	if (IS_ERR(rdev))
+		return PTR_ERR(rdev);
+
+	rdev->dev = &pdev->dev;
+	rdev->pdev = pdev;
+	ddev = rdev_to_drm(rdev);
+	ddev->dev_private = rdev;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto err_free;
 
-	pci_set_drvdata(pdev, dev);
+	pci_set_drvdata(pdev, ddev);
 
-	ret = drm_dev_register(dev, ent->driver_data);
+	ret = radeon_driver_load_kms(ddev, flags);
 	if (ret)
 		goto err_agp;
 
-	radeon_fbdev_setup(dev->dev_private);
+	ret = drm_dev_register(ddev, flags);
+	if (ret)
+		goto err_agp;
+
+	radeon_fbdev_setup(ddev->dev_private);
 
 	return 0;
 
 err_agp:
 	pci_disable_device(pdev);
 err_free:
-	drm_dev_put(dev);
+	drm_dev_put(ddev);
 	return ret;
 }
 
@@ -384,6 +367,7 @@ radeon_pci_shutdown(struct pci_dev *pdev)
 static int radeon_pmops_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
 	return radeon_suspend_kms(drm_dev, true, true, false);
 }
 
@@ -404,12 +388,14 @@ static int radeon_pmops_resume(struct device *dev)
 static int radeon_pmops_freeze(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
 	return radeon_suspend_kms(drm_dev, false, true, true);
 }
 
 static int radeon_pmops_thaw(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
 	return radeon_resume_kms(drm_dev, false, true);
 }
 
@@ -494,6 +480,7 @@ long radeon_drm_ioctl(struct file *filp,
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev;
 	long ret;
+
 	dev = file_priv->minor->dev;
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0) {
@@ -543,6 +530,7 @@ static const struct file_operations radeon_driver_kms_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = radeon_kms_compat_ioctl,
 #endif
+	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
 
 static const struct drm_ioctl_desc radeon_ioctls_kms[] = {
@@ -578,8 +566,6 @@ static const struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_CREATE, radeon_gem_create_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_MMAP, radeon_gem_mmap_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_SET_DOMAIN, radeon_gem_set_domain_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_PREAD, radeon_gem_pread_ioctl, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(RADEON_GEM_PWRITE, radeon_gem_pwrite_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_WAIT_IDLE, radeon_gem_wait_idle_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_CS, radeon_cs_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_INFO, radeon_info_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
@@ -594,7 +580,6 @@ static const struct drm_ioctl_desc radeon_ioctls_kms[] = {
 static const struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_GEM | DRIVER_RENDER | DRIVER_MODESET,
-	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,
 	.unload = radeon_driver_unload_kms,
@@ -604,10 +589,7 @@ static const struct drm_driver kms_driver = {
 	.dumb_map_offset = radeon_mode_dumb_mmap,
 	.fops = &radeon_driver_kms_fops,
 
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = radeon_gem_prime_import_sg_table,
-	.gem_prime_mmap = drm_gem_prime_mmap,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

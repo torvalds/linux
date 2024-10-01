@@ -93,7 +93,6 @@ config ARCH_BCM_MOBILE
 	select ARM_ERRATA_775420
 	select ARM_GIC
 	select GPIO_BCM_KONA
-	select TICK_ONESHOT
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
 	select ARCH_BCM_MOBILE_SMP if SMP
@@ -186,6 +185,7 @@ config ARCH_BRCMSTB
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_AMBA
 	select ARM_GIC
+	select ARM_GIC_V3
 	select ARM_ERRATA_798181 if SMP
 	select HAVE_ARM_ARCH_TIMER
 	select ZONE_DMA if ARM_LPAE

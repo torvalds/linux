@@ -470,6 +470,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 	int bit, chunk;
 	struct ocfs2_recovery_chunk *rchunk, *next;
 	qsize_t spacechange, inodechange;
+	unsigned int memalloc;
 
 	trace_ocfs2_recover_local_quota_file((unsigned long)lqinode->i_ino, type);
 
@@ -521,6 +522,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				goto out_drop_lock;
 			}
 			down_write(&sb_dqopt(sb)->dqio_sem);
+			memalloc = memalloc_nofs_save();
 			spin_lock(&dquot->dq_dqb_lock);
 			/* Add usage from quota entry into quota changes
 			 * of our node. Auxiliary variables are important
@@ -553,6 +555,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			unlock_buffer(qbh);
 			ocfs2_journal_dirty(handle, qbh);
 out_commit:
+			memalloc_nofs_restore(memalloc);
 			up_write(&sb_dqopt(sb)->dqio_sem);
 			ocfs2_commit_trans(OCFS2_SB(sb), handle);
 out_drop_lock:
@@ -689,7 +692,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	int status;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_quota_recovery *rec;
-	int locked = 0;
+	int locked = 0, global_read = 0;
 
 	info->dqi_max_spc_limit = 0x7fffffffffffffffLL;
 	info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
@@ -697,6 +700,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	if (!oinfo) {
 		mlog(ML_ERROR, "failed to allocate memory for ocfs2 quota"
 			       " info.");
+		status = -ENOMEM;
 		goto out_err;
 	}
 	info->dqi_priv = oinfo;
@@ -709,6 +713,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	status = ocfs2_global_read_info(sb, type);
 	if (status < 0)
 		goto out_err;
+	global_read = 1;
 
 	status = ocfs2_inode_lock(lqinode, &oinfo->dqi_lqi_bh, 1);
 	if (status < 0) {
@@ -779,10 +784,12 @@ out_err:
 		if (locked)
 			ocfs2_inode_unlock(lqinode, 1);
 		ocfs2_release_local_quota_bitmaps(&oinfo->dqi_chunk);
+		if (global_read)
+			cancel_delayed_work_sync(&oinfo->dqi_sync_work);
 		kfree(oinfo);
 	}
 	brelse(bh);
-	return -1;
+	return status;
 }
 
 /* Write local info to quota file */
@@ -1240,6 +1247,10 @@ int ocfs2_create_local_dquot(struct dquot *dquot)
 				     &od->dq_local_phys_blk,
 				     &pcount,
 				     NULL);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out;
+	}
 
 	/* Initialize dquot structure on disk */
 	status = ocfs2_local_write_dquot(dquot);

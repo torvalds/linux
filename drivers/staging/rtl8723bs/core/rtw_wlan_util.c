@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <hal_com_h2c.h>
 
 static unsigned char ARTHEROS_OUI1[] = {0x00, 0x03, 0x7f};
@@ -333,7 +332,7 @@ inline unsigned long rtw_get_on_cur_ch_time(struct adapter *adapter)
 		return 0;
 }
 
-void SelectChannel(struct adapter *padapter, unsigned char channel)
+void r8723bs_select_channel(struct adapter *padapter, unsigned char channel)
 {
 	if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->setch_mutex)))
 		return;
@@ -1779,10 +1778,9 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 {
 	int i;
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
 
-	if (!memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
+	if (is_broadcast_ether_addr(psta->hwaddr))
 		return;
 
 	if (!memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN)) {
@@ -1807,10 +1805,9 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 
 void rtw_release_macid(struct adapter *padapter, struct sta_info *psta)
 {
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
 
-	if (!memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
+	if (is_broadcast_ether_addr(psta->hwaddr))
 		return;
 
 	if (!memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN))

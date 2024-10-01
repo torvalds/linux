@@ -10,7 +10,6 @@
 #include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #define SUN6I_APB0_GATES_MAX_SIZE	32

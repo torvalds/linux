@@ -24,9 +24,6 @@ static void rtl92c_init_aspm_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	/*close ASPM for AMD defaultly */
-	rtlpci->const_amdpci_aspm = 0;
-
 	/*
 	 * ASPM PS mode.
 	 * 0 - Disable ASPM,
@@ -34,7 +31,7 @@ static void rtl92c_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 2 - Enable ASPM with Clock Req,
 	 * 3 - Alwyas Enable ASPM with Clock Req,
 	 * 4 - Always Enable ASPM without Clock Req.
-	 * set defult to RTL8192CE:3 RTL8192E:2
+	 * set default to RTL8192CE:3 RTL8192E:2
 	 * */
 	rtlpci->const_pci_aspm = 3;
 

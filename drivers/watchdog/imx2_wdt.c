@@ -26,8 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
@@ -375,12 +374,12 @@ static void imx2_wdt_shutdown(struct platform_device *pdev)
 		 */
 		imx2_wdt_set_timeout(wdog, IMX2_WDT_MAX_TIME);
 		imx2_wdt_ping(wdog);
-		dev_crit(&pdev->dev, "Device shutdown: Expect reboot!\n");
+		dev_crit(&pdev->dev, "Device shutdown.\n");
 	}
 }
 
 /* Disable watchdog if it is active or non-active but still running */
-static int __maybe_unused imx2_wdt_suspend(struct device *dev)
+static int imx2_wdt_suspend(struct device *dev)
 {
 	struct watchdog_device *wdog = dev_get_drvdata(dev);
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
@@ -405,7 +404,7 @@ static int __maybe_unused imx2_wdt_suspend(struct device *dev)
 }
 
 /* Enable watchdog and configure it if necessary */
-static int __maybe_unused imx2_wdt_resume(struct device *dev)
+static int imx2_wdt_resume(struct device *dev)
 {
 	struct watchdog_device *wdog = dev_get_drvdata(dev);
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
@@ -436,8 +435,8 @@ static int __maybe_unused imx2_wdt_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(imx2_wdt_pm_ops, imx2_wdt_suspend,
-			 imx2_wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(imx2_wdt_pm_ops, imx2_wdt_suspend,
+				imx2_wdt_resume);
 
 static struct imx2_wdt_data imx_wdt = {
 	.wdw_supported = true,
@@ -477,7 +476,7 @@ static struct platform_driver imx2_wdt_driver = {
 	.shutdown	= imx2_wdt_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.pm     = &imx2_wdt_pm_ops,
+		.pm     = pm_sleep_ptr(&imx2_wdt_pm_ops),
 		.of_match_table = imx2_wdt_dt_ids,
 	},
 };

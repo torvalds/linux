@@ -139,28 +139,13 @@ struct hci_rh_data {
 
 struct hci_rings_data {
 	unsigned int total;
-	struct hci_rh_data headers[];
+	struct hci_rh_data headers[] __counted_by(total);
 };
 
 struct hci_dma_dev_ibi_data {
 	struct i3c_generic_ibi_pool *pool;
 	unsigned int max_len;
 };
-
-static inline u32 lo32(dma_addr_t physaddr)
-{
-	return physaddr;
-}
-
-static inline u32 hi32(dma_addr_t physaddr)
-{
-	/* trickery to avoid compiler warnings on 32-bit build targets */
-	if (sizeof(dma_addr_t) > 4) {
-		u64 hi = physaddr;
-		return hi >> 32;
-	}
-	return 0;
-}
 
 static void hci_dma_cleanup(struct i3c_hci *hci)
 {
@@ -229,6 +214,9 @@ static int hci_dma_init(struct i3c_hci *hci)
 	hci->io_data = rings;
 	rings->total = nr_rings;
 
+	regval = FIELD_PREP(MAX_HEADER_COUNT, rings->total);
+	rhs_reg_write(CONTROL, regval);
+
 	for (i = 0; i < rings->total; i++) {
 		u32 offset = rhs_reg_read(RHn_OFFSET(i));
 
@@ -262,10 +250,10 @@ static int hci_dma_init(struct i3c_hci *hci)
 		if (!rh->xfer || !rh->resp || !rh->src_xfers)
 			goto err_out;
 
-		rh_reg_write(CMD_RING_BASE_LO, lo32(rh->xfer_dma));
-		rh_reg_write(CMD_RING_BASE_HI, hi32(rh->xfer_dma));
-		rh_reg_write(RESP_RING_BASE_LO, lo32(rh->resp_dma));
-		rh_reg_write(RESP_RING_BASE_HI, hi32(rh->resp_dma));
+		rh_reg_write(CMD_RING_BASE_LO, lower_32_bits(rh->xfer_dma));
+		rh_reg_write(CMD_RING_BASE_HI, upper_32_bits(rh->xfer_dma));
+		rh_reg_write(RESP_RING_BASE_LO, lower_32_bits(rh->resp_dma));
+		rh_reg_write(RESP_RING_BASE_HI, upper_32_bits(rh->resp_dma));
 
 		regval = FIELD_PREP(CR_RING_SIZE, rh->xfer_entries);
 		rh_reg_write(CR_SETUP, regval);
@@ -291,7 +279,17 @@ static int hci_dma_init(struct i3c_hci *hci)
 
 		rh->ibi_chunk_sz = dma_get_cache_alignment();
 		rh->ibi_chunk_sz *= IBI_CHUNK_CACHELINES;
-		BUG_ON(rh->ibi_chunk_sz > 256);
+		/*
+		 * Round IBI data chunk size to number of bytes supported by
+		 * the HW. Chunk size can be 2^n number of DWORDs which is the
+		 * same as 2^(n+2) bytes, where n is 0..6.
+		 */
+		rh->ibi_chunk_sz = umax(4, rh->ibi_chunk_sz);
+		rh->ibi_chunk_sz = roundup_pow_of_two(rh->ibi_chunk_sz);
+		if (rh->ibi_chunk_sz > 256) {
+			ret = -EINVAL;
+			goto err_out;
+		}
 
 		ibi_status_ring_sz = rh->ibi_status_sz * rh->ibi_status_entries;
 		ibi_data_ring_sz = rh->ibi_chunk_sz * rh->ibi_chunks_total;
@@ -312,6 +310,11 @@ static int hci_dma_init(struct i3c_hci *hci)
 			goto err_out;
 		}
 
+		rh_reg_write(IBI_STATUS_RING_BASE_LO, lower_32_bits(rh->ibi_status_dma));
+		rh_reg_write(IBI_STATUS_RING_BASE_HI, upper_32_bits(rh->ibi_status_dma));
+		rh_reg_write(IBI_DATA_RING_BASE_LO, lower_32_bits(rh->ibi_data_dma));
+		rh_reg_write(IBI_DATA_RING_BASE_HI, upper_32_bits(rh->ibi_data_dma));
+
 		regval = FIELD_PREP(IBI_STATUS_RING_SIZE,
 				    rh->ibi_status_entries) |
 			 FIELD_PREP(IBI_DATA_CHUNK_SIZE,
@@ -325,11 +328,10 @@ static int hci_dma_init(struct i3c_hci *hci)
 		rh_reg_write(INTR_SIGNAL_ENABLE, regval);
 
 ring_ready:
-		rh_reg_write(RING_CONTROL, RING_CTRL_ENABLE);
+		rh_reg_write(RING_CONTROL, RING_CTRL_ENABLE |
+					   RING_CTRL_RUN_STOP);
 	}
 
-	regval = FIELD_PREP(MAX_HEADER_COUNT, rings->total);
-	rhs_reg_write(CONTROL, regval);
 	return 0;
 
 err_out:
@@ -345,6 +347,8 @@ static void hci_dma_unmap_xfer(struct i3c_hci *hci,
 
 	for (i = 0; i < n; i++) {
 		xfer = xfer_list + i;
+		if (!xfer->data)
+			continue;
 		dma_unmap_single(&hci->master.dev,
 				 xfer->data_dma, xfer->data_len,
 				 xfer->rnw ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
@@ -358,6 +362,7 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 	struct hci_rh_data *rh;
 	unsigned int i, ring, enqueue_ptr;
 	u32 op1_val, op2_val;
+	void *buf;
 
 	/* For now we only use ring 0 */
 	ring = 0;
@@ -386,9 +391,10 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 
 		/* 2nd and 3rd words of Data Buffer Descriptor Structure */
 		if (xfer->data) {
+			buf = xfer->bounce_buf ? xfer->bounce_buf : xfer->data;
 			xfer->data_dma =
 				dma_map_single(&hci->master.dev,
-					       xfer->data,
+					       buf,
 					       xfer->data_len,
 					       xfer->rnw ?
 						  DMA_FROM_DEVICE :
@@ -398,8 +404,8 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 				hci_dma_unmap_xfer(hci, xfer_list, i);
 				return -ENOMEM;
 			}
-			*ring_data++ = lo32(xfer->data_dma);
-			*ring_data++ = hi32(xfer->data_dma);
+			*ring_data++ = lower_32_bits(xfer->data_dma);
+			*ring_data++ = upper_32_bits(xfer->data_dma);
 		} else {
 			*ring_data++ = 0;
 			*ring_data++ = 0;
@@ -450,10 +456,9 @@ static bool hci_dma_dequeue_xfer(struct i3c_hci *hci,
 		/*
 		 * We're deep in it if ever this condition is ever met.
 		 * Hardware might still be writing to memory, etc.
-		 * Better suspend the world than risking silent corruption.
 		 */
 		dev_crit(&hci->master.dev, "unable to abort the ring\n");
-		BUG();
+		WARN_ON(1);
 	}
 
 	for (i = 0; i < n; i++) {
@@ -734,7 +739,7 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci, unsigned int mask)
 	unsigned int i;
 	bool handled = false;
 
-	for (i = 0; mask && i < 8; i++) {
+	for (i = 0; mask && i < rings->total; i++) {
 		struct hci_rh_data *rh;
 		u32 status;
 
@@ -756,9 +761,11 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci, unsigned int mask)
 		if (status & INTR_RING_OP)
 			complete(&rh->op_done);
 
-		if (status & INTR_TRANSFER_ABORT)
+		if (status & INTR_TRANSFER_ABORT) {
 			dev_notice_ratelimited(&hci->master.dev,
 				"ring %d: Transfer Aborted\n", i);
+			mipi_i3c_hci_resume(hci);
+		}
 		if (status & INTR_WARN_INS_STOP_MODE)
 			dev_warn_ratelimited(&hci->master.dev,
 				"ring %d: Inserted Stop on Mode Change\n", i);

@@ -34,7 +34,7 @@ static struct platform_device bcm63xx_wdt_device = {
 	},
 };
 
-int __init bcm63xx_wdt_register(void)
+static int __init bcm63xx_wdt_register(void)
 {
 	wdt_resources[0].start = bcm63xx_regset_address(RSET_WDT);
 	wdt_resources[0].end = wdt_resources[0].start;

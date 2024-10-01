@@ -1041,7 +1041,8 @@ static long ctrl_cdev_ioctl(struct file *file, unsigned int cmd,
 		 */
 		mutex_lock(&ubi_devices_mutex);
 		err = ubi_attach_mtd_dev(mtd, req.ubi_num, req.vid_hdr_offset,
-					 req.max_beb_per1024, !!req.disable_fm);
+					 req.max_beb_per1024, !!req.disable_fm,
+					 !!req.need_resv_pool);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0)
 			put_mtd_device(mtd);
@@ -1094,7 +1095,6 @@ const struct file_operations ubi_vol_cdev_operations = {
 /* UBI character device operations */
 const struct file_operations ubi_cdev_operations = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
 	.unlocked_ioctl = ubi_cdev_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 };
@@ -1104,5 +1104,4 @@ const struct file_operations ubi_ctrl_cdev_operations = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = ctrl_cdev_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
-	.llseek		= no_llseek,
 };

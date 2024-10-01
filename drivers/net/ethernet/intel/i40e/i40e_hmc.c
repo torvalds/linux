@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include "i40e.h"
-#include "i40e_osdep.h"
-#include "i40e_register.h"
-#include "i40e_status.h"
 #include "i40e_alloc.h"
+#include "i40e_debug.h"
 #include "i40e_hmc.h"
 #include "i40e_type.h"
 
@@ -23,37 +20,33 @@ int i40e_add_sd_table_entry(struct i40e_hw *hw,
 			    enum i40e_sd_entry_type type,
 			    u64 direct_mode_sz)
 {
-	enum i40e_memory_type mem_type __attribute__((unused));
 	struct i40e_hmc_sd_entry *sd_entry;
 	bool dma_mem_alloc_done = false;
-	int ret_code = I40E_SUCCESS;
 	struct i40e_dma_mem mem;
+	int ret_code = 0;
 	u64 alloc_len;
 
 	if (NULL == hmc_info->sd_table.sd_entry) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_add_sd_table_entry: bad sd_entry\n");
 		goto exit;
 	}
 
 	if (sd_index >= hmc_info->sd_table.sd_cnt) {
-		ret_code = I40E_ERR_INVALID_SD_INDEX;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_add_sd_table_entry: bad sd_index\n");
 		goto exit;
 	}
 
 	sd_entry = &hmc_info->sd_table.sd_entry[sd_index];
 	if (!sd_entry->valid) {
-		if (I40E_SD_TYPE_PAGED == type) {
-			mem_type = i40e_mem_pd;
+		if (type == I40E_SD_TYPE_PAGED)
 			alloc_len = I40E_HMC_PAGED_BP_SIZE;
-		} else {
-			mem_type = i40e_mem_bp_jumbo;
+		else
 			alloc_len = direct_mode_sz;
-		}
 
 		/* allocate a 4K pd page or 2M backing page */
-		ret_code = i40e_allocate_dma_mem(hw, &mem, mem_type, alloc_len,
+		ret_code = i40e_allocate_dma_mem(hw, &mem, alloc_len,
 						 I40E_HMC_PD_BP_BUF_ALIGNMENT);
 		if (ret_code)
 			goto exit;
@@ -121,7 +114,7 @@ int i40e_add_pd_table_entry(struct i40e_hw *hw,
 	u64 *pd_addr;
 
 	if (pd_index / I40E_HMC_PD_CNT_IN_SD >= hmc_info->sd_table.sd_cnt) {
-		ret_code = I40E_ERR_INVALID_PAGE_DESC_INDEX;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_add_pd_table_entry: bad pd_index\n");
 		goto exit;
 	}
@@ -141,7 +134,7 @@ int i40e_add_pd_table_entry(struct i40e_hw *hw,
 			page = rsrc_pg;
 		} else {
 			/* allocate a 4K backing page */
-			ret_code = i40e_allocate_dma_mem(hw, page, i40e_mem_bp,
+			ret_code = i40e_allocate_dma_mem(hw, page,
 						I40E_HMC_PAGED_BP_SIZE,
 						I40E_HMC_PD_BP_BUF_ALIGNMENT);
 			if (ret_code)
@@ -200,13 +193,13 @@ int i40e_remove_pd_bp(struct i40e_hw *hw,
 	sd_idx = idx / I40E_HMC_PD_CNT_IN_SD;
 	rel_pd_idx = idx % I40E_HMC_PD_CNT_IN_SD;
 	if (sd_idx >= hmc_info->sd_table.sd_cnt) {
-		ret_code = I40E_ERR_INVALID_PAGE_DESC_INDEX;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_remove_pd_bp: bad idx\n");
 		goto exit;
 	}
 	sd_entry = &hmc_info->sd_table.sd_entry[sd_idx];
 	if (I40E_SD_TYPE_PAGED != sd_entry->entry_type) {
-		ret_code = I40E_ERR_INVALID_SD_TYPE;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_remove_pd_bp: wrong sd_entry type\n");
 		goto exit;
 	}
@@ -251,7 +244,7 @@ int i40e_prep_remove_sd_bp(struct i40e_hmc_info *hmc_info,
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
 	I40E_DEC_BP_REFCNT(&sd_entry->u.bp);
 	if (sd_entry->u.bp.ref_cnt) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto exit;
 	}
 	I40E_DEC_SD_REFCNT(&hmc_info->sd_table);
@@ -276,7 +269,7 @@ int i40e_remove_sd_bp_new(struct i40e_hw *hw,
 	struct i40e_hmc_sd_entry *sd_entry;
 
 	if (!is_pf)
-		return I40E_NOT_SUPPORTED;
+		return -EOPNOTSUPP;
 
 	/* get the entry and decrease its ref counter */
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
@@ -299,7 +292,7 @@ int i40e_prep_remove_pd_page(struct i40e_hmc_info *hmc_info,
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
 
 	if (sd_entry->u.pd_table.ref_cnt) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto exit;
 	}
 
@@ -325,7 +318,7 @@ int i40e_remove_pd_page_new(struct i40e_hw *hw,
 	struct i40e_hmc_sd_entry *sd_entry;
 
 	if (!is_pf)
-		return I40E_NOT_SUPPORTED;
+		return -EOPNOTSUPP;
 
 	sd_entry = &hmc_info->sd_table.sd_entry[idx];
 	I40E_CLEAR_PF_SD_ENTRY(hw, idx, I40E_SD_TYPE_PAGED);

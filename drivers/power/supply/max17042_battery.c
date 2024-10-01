@@ -36,7 +36,7 @@
 #define STATUS_BR_BIT          (1 << 15)
 
 /* Interrupt mask bits */
-#define CONFIG_ALRT_BIT_ENBL	(1 << 2)
+#define CFG_ALRT_BIT_ENBL	(1 << 2)
 
 #define VFSOC0_LOCK		0x0000
 #define VFSOC0_UNLOCK		0x0080
@@ -853,7 +853,10 @@ static void max17042_set_soc_threshold(struct max17042_chip *chip, u16 off)
 	/* program interrupt thresholds such that we should
 	 * get interrupt for every 'off' perc change in the soc
 	 */
-	regmap_read(map, MAX17042_RepSOC, &soc);
+	if (chip->pdata->enable_current_sense)
+		regmap_read(map, MAX17042_RepSOC, &soc);
+	else
+		regmap_read(map, MAX17042_VFSOC, &soc);
 	soc >>= 8;
 	soc_tr = (soc + off) << 8;
 	if (off < soc)
@@ -1116,8 +1119,8 @@ static int max17042_probe(struct i2c_client *client)
 						chip);
 		if (!ret) {
 			regmap_update_bits(chip->regmap, MAX17042_CONFIG,
-					CONFIG_ALRT_BIT_ENBL,
-					CONFIG_ALRT_BIT_ENBL);
+					CFG_ALRT_BIT_ENBL,
+					CFG_ALRT_BIT_ENBL);
 			max17042_set_soc_threshold(chip, 1);
 		} else {
 			client->irq = 0;

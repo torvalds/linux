@@ -92,10 +92,6 @@ struct msm_kms_funcs {
 	 * Format handling:
 	 */
 
-	/* get msm_format w/ optional format modifiers from drm_mode_fb_cmd2 */
-	const struct msm_format *(*get_format)(struct msm_kms *kms,
-					const uint32_t format,
-					const uint64_t modifiers);
 	/* do format checking on format modified through fb_cmd2 modifiers */
 	int (*check_modified_format)(const struct msm_kms *kms,
 			const struct msm_format *msm_fmt,
@@ -105,10 +101,6 @@ struct msm_kms_funcs {
 	/* misc: */
 	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,
 			struct drm_encoder *encoder);
-	int (*set_split_display)(struct msm_kms *kms,
-			struct drm_encoder *encoder,
-			struct drm_encoder *slave_encoder,
-			bool is_cmd_mode);
 	/* cleanup: */
 	void (*destroy)(struct msm_kms *kms);
 
@@ -194,5 +186,8 @@ static inline void msm_kms_destroy(struct msm_kms *kms)
 #define for_each_crtc_mask_reverse(dev, crtc, crtc_mask) \
 	drm_for_each_crtc_reverse(crtc, dev) \
 		for_each_if (drm_crtc_mask(crtc) & (crtc_mask))
+
+int msm_drm_kms_init(struct device *dev, const struct drm_driver *drv);
+void msm_drm_kms_uninit(struct device *dev);
 
 #endif /* __MSM_KMS_H__ */

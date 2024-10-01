@@ -271,7 +271,6 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 			dprintk(DBGLVL_FW, "%s() Loader 1 has loaded.\n",
 				__func__);
 			first_timeout = SAA_DEVICE_TIMEOUT;
-			second_timeout = 60 * SAA_DEVICE_TIMEOUT;
 			second_timeout = 100;
 
 			err_flags = saa7164_readl(SAA_SECONDSTAGEERROR_FLAGS);

@@ -67,6 +67,8 @@ enum net_attach_type {
 	NET_ATTACH_TYPE_XDP_GENERIC,
 	NET_ATTACH_TYPE_XDP_DRIVER,
 	NET_ATTACH_TYPE_XDP_OFFLOAD,
+	NET_ATTACH_TYPE_TCX_INGRESS,
+	NET_ATTACH_TYPE_TCX_EGRESS,
 };
 
 static const char * const attach_type_strings[] = {
@@ -74,6 +76,15 @@ static const char * const attach_type_strings[] = {
 	[NET_ATTACH_TYPE_XDP_GENERIC]	= "xdpgeneric",
 	[NET_ATTACH_TYPE_XDP_DRIVER]	= "xdpdrv",
 	[NET_ATTACH_TYPE_XDP_OFFLOAD]	= "xdpoffload",
+	[NET_ATTACH_TYPE_TCX_INGRESS]	= "tcx_ingress",
+	[NET_ATTACH_TYPE_TCX_EGRESS]	= "tcx_egress",
+};
+
+static const char * const attach_loc_strings[] = {
+	[BPF_TCX_INGRESS]		= "tcx/ingress",
+	[BPF_TCX_EGRESS]		= "tcx/egress",
+	[BPF_NETKIT_PRIMARY]		= "netkit/primary",
+	[BPF_NETKIT_PEER]		= "netkit/peer",
 };
 
 const size_t net_attach_type_size = ARRAY_SIZE(attach_type_strings);
@@ -422,8 +433,92 @@ static int dump_filter_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 			      filter_info->devname, filter_info->ifindex);
 }
 
-static int show_dev_tc_bpf(int sock, unsigned int nl_pid,
-			   struct ip_devname_ifindex *dev)
+static int __show_dev_tc_bpf_name(__u32 id, char *name, size_t len)
+{
+	struct bpf_prog_info info = {};
+	__u32 ilen = sizeof(info);
+	int fd, ret;
+
+	fd = bpf_prog_get_fd_by_id(id);
+	if (fd < 0)
+		return fd;
+	ret = bpf_obj_get_info_by_fd(fd, &info, &ilen);
+	if (ret < 0)
+		goto out;
+	ret = -ENOENT;
+	if (info.name[0]) {
+		get_prog_full_name(&info, fd, name, len);
+		ret = 0;
+	}
+out:
+	close(fd);
+	return ret;
+}
+
+static void __show_dev_tc_bpf(const struct ip_devname_ifindex *dev,
+			      const enum bpf_attach_type loc)
+{
+	__u32 prog_flags[64] = {}, link_flags[64] = {}, i, j;
+	__u32 prog_ids[64] = {}, link_ids[64] = {};
+	LIBBPF_OPTS(bpf_prog_query_opts, optq);
+	char prog_name[MAX_PROG_FULL_NAME];
+	int ret;
+
+	optq.prog_ids = prog_ids;
+	optq.prog_attach_flags = prog_flags;
+	optq.link_ids = link_ids;
+	optq.link_attach_flags = link_flags;
+	optq.count = ARRAY_SIZE(prog_ids);
+
+	ret = bpf_prog_query_opts(dev->ifindex, loc, &optq);
+	if (ret)
+		return;
+	for (i = 0; i < optq.count; i++) {
+		NET_START_OBJECT;
+		NET_DUMP_STR("devname", "%s", dev->devname);
+		NET_DUMP_UINT("ifindex", "(%u)", dev->ifindex);
+		NET_DUMP_STR("kind", " %s", attach_loc_strings[loc]);
+		ret = __show_dev_tc_bpf_name(prog_ids[i], prog_name,
+					     sizeof(prog_name));
+		if (!ret)
+			NET_DUMP_STR("name", " %s", prog_name);
+		NET_DUMP_UINT("prog_id", " prog_id %u ", prog_ids[i]);
+		if (prog_flags[i] || json_output) {
+			NET_START_ARRAY("prog_flags", "%s ");
+			for (j = 0; prog_flags[i] && j < 32; j++) {
+				if (!(prog_flags[i] & (1U << j)))
+					continue;
+				NET_DUMP_UINT_ONLY(1U << j);
+			}
+			NET_END_ARRAY("");
+		}
+		if (link_ids[i] || json_output) {
+			NET_DUMP_UINT("link_id", "link_id %u ", link_ids[i]);
+			if (link_flags[i] || json_output) {
+				NET_START_ARRAY("link_flags", "%s ");
+				for (j = 0; link_flags[i] && j < 32; j++) {
+					if (!(link_flags[i] & (1U << j)))
+						continue;
+					NET_DUMP_UINT_ONLY(1U << j);
+				}
+				NET_END_ARRAY("");
+			}
+		}
+		NET_END_OBJECT_FINAL;
+	}
+}
+
+static void show_dev_tc_bpf(struct ip_devname_ifindex *dev)
+{
+	__show_dev_tc_bpf(dev, BPF_TCX_INGRESS);
+	__show_dev_tc_bpf(dev, BPF_TCX_EGRESS);
+
+	__show_dev_tc_bpf(dev, BPF_NETKIT_PRIMARY);
+	__show_dev_tc_bpf(dev, BPF_NETKIT_PEER);
+}
+
+static int show_dev_tc_bpf_classic(int sock, unsigned int nl_pid,
+				   struct ip_devname_ifindex *dev)
 {
 	struct bpf_filter_t filter_info;
 	struct bpf_tcinfo_t tcinfo;
@@ -556,6 +651,32 @@ static int do_attach_detach_xdp(int progfd, enum net_attach_type attach_type,
 	return bpf_xdp_attach(ifindex, progfd, flags, NULL);
 }
 
+static int get_tcx_type(enum net_attach_type attach_type)
+{
+	switch (attach_type) {
+	case NET_ATTACH_TYPE_TCX_INGRESS:
+		return BPF_TCX_INGRESS;
+	case NET_ATTACH_TYPE_TCX_EGRESS:
+		return BPF_TCX_EGRESS;
+	default:
+		return -1;
+	}
+}
+
+static int do_attach_tcx(int progfd, enum net_attach_type attach_type, int ifindex)
+{
+	int type = get_tcx_type(attach_type);
+
+	return bpf_prog_attach(progfd, ifindex, type, 0);
+}
+
+static int do_detach_tcx(int targetfd, enum net_attach_type attach_type)
+{
+	int type = get_tcx_type(attach_type);
+
+	return bpf_prog_detach(targetfd, type);
+}
+
 static int do_attach(int argc, char **argv)
 {
 	enum net_attach_type attach_type;
@@ -593,10 +714,23 @@ static int do_attach(int argc, char **argv)
 		}
 	}
 
+	switch (attach_type) {
 	/* attach xdp prog */
-	if (is_prefix("xdp", attach_type_strings[attach_type]))
-		err = do_attach_detach_xdp(progfd, attach_type, ifindex,
-					   overwrite);
+	case NET_ATTACH_TYPE_XDP:
+	case NET_ATTACH_TYPE_XDP_GENERIC:
+	case NET_ATTACH_TYPE_XDP_DRIVER:
+	case NET_ATTACH_TYPE_XDP_OFFLOAD:
+		err = do_attach_detach_xdp(progfd, attach_type, ifindex, overwrite);
+		break;
+	/* attach tcx prog */
+	case NET_ATTACH_TYPE_TCX_INGRESS:
+	case NET_ATTACH_TYPE_TCX_EGRESS:
+		err = do_attach_tcx(progfd, attach_type, ifindex);
+		break;
+	default:
+		break;
+	}
+
 	if (err) {
 		p_err("interface %s attach failed: %s",
 		      attach_type_strings[attach_type], strerror(-err));
@@ -630,10 +764,23 @@ static int do_detach(int argc, char **argv)
 	if (ifindex < 1)
 		return -EINVAL;
 
+	switch (attach_type) {
 	/* detach xdp prog */
-	progfd = -1;
-	if (is_prefix("xdp", attach_type_strings[attach_type]))
+	case NET_ATTACH_TYPE_XDP:
+	case NET_ATTACH_TYPE_XDP_GENERIC:
+	case NET_ATTACH_TYPE_XDP_DRIVER:
+	case NET_ATTACH_TYPE_XDP_OFFLOAD:
+		progfd = -1;
 		err = do_attach_detach_xdp(progfd, attach_type, ifindex, NULL);
+		break;
+	/* detach tcx prog */
+	case NET_ATTACH_TYPE_TCX_INGRESS:
+	case NET_ATTACH_TYPE_TCX_EGRESS:
+		err = do_detach_tcx(ifindex, attach_type);
+		break;
+	default:
+		break;
+	}
 
 	if (err < 0) {
 		p_err("interface %s detach failed: %s",
@@ -733,6 +880,9 @@ static void show_link_netfilter(void)
 		nf_link_count++;
 	}
 
+	if (!nf_link_info)
+		return;
+
 	qsort(nf_link_info, nf_link_count, sizeof(*nf_link_info), netfilter_link_compar);
 
 	for (id = 0; id < nf_link_count; id++) {
@@ -790,8 +940,9 @@ static int do_show(int argc, char **argv)
 	if (!ret) {
 		NET_START_ARRAY("tc", "%s:\n");
 		for (i = 0; i < dev_array.used_len; i++) {
-			ret = show_dev_tc_bpf(sock, nl_pid,
-					      &dev_array.devices[i]);
+			show_dev_tc_bpf(&dev_array.devices[i]);
+			ret = show_dev_tc_bpf_classic(sock, nl_pid,
+						      &dev_array.devices[i]);
 			if (ret)
 				break;
 		}
@@ -836,10 +987,12 @@ static int do_help(int argc, char **argv)
 		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_PROGRAM "\n"
-		"       ATTACH_TYPE := { xdp | xdpgeneric | xdpdrv | xdpoffload }\n"
+		"       ATTACH_TYPE := { xdp | xdpgeneric | xdpdrv | xdpoffload | tcx_ingress\n"
+		"                        | tcx_egress }\n"
 		"       " HELP_SPEC_OPTIONS " }\n"
 		"\n"
-		"Note: Only xdp and tc attachments are supported now.\n"
+		"Note: Only xdp, tcx, tc, netkit, flow_dissector and netfilter attachments\n"
+		"      are currently supported.\n"
 		"      For progs attached to cgroups, use \"bpftool cgroup\"\n"
 		"      to dump program attachments. For program types\n"
 		"      sk_{filter,skb,msg,reuseport} and lwt/seg6, please\n"

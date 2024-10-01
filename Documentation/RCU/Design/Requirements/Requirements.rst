@@ -1955,12 +1955,12 @@ if offline CPUs block an RCU grace period for too long.
 
 An offline CPU's quiescent state will be reported either:
 
-1.  As the CPU goes offline using RCU's hotplug notifier (rcu_report_dead()).
+1.  As the CPU goes offline using RCU's hotplug notifier (rcutree_report_cpu_dead()).
 2.  When grace period initialization (rcu_gp_init()) detects a
     race either with CPU offlining or with a task unblocking on a leaf
     ``rcu_node`` structure whose CPUs are all offline.
 
-The CPU-online path (rcu_cpu_starting()) should never need to report
+The CPU-online path (rcutree_report_cpu_starting()) should never need to report
 a quiescent state for an offline CPU.  However, as a debugging measure,
 it does emit a warning if a quiescent state was not already reported
 for that CPU.
@@ -2357,6 +2357,7 @@ section.
 #. `Sched Flavor (Historical)`_
 #. `Sleepable RCU`_
 #. `Tasks RCU`_
+#. `Tasks Trace RCU`_
 
 Bottom-Half Flavor (Historical)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2610,6 +2611,16 @@ critical sections that are delimited by voluntary context switches, that
 is, calls to schedule(), cond_resched(), and
 synchronize_rcu_tasks(). In addition, transitions to and from
 userspace execution also delimit tasks-RCU read-side critical sections.
+Idle tasks are ignored by Tasks RCU, and Tasks Rude RCU may be used to
+interact with them.
+
+Note well that involuntary context switches are *not* Tasks-RCU quiescent
+states.  After all, in preemptible kernels, a task executing code in a
+trampoline might be preempted.  In this case, the Tasks-RCU grace period
+clearly cannot end until that task resumes and its execution leaves that
+trampoline.  This means, among other things, that cond_resched() does
+not provide a Tasks RCU quiescent state.  (Instead, use rcu_softirq_qs()
+from softirq or rcu_tasks_classic_qs() otherwise.)
 
 The tasks-RCU API is quite compact, consisting only of
 call_rcu_tasks(), synchronize_rcu_tasks(), and
@@ -2632,9 +2643,13 @@ moniker.  And this operation is considered to be quite rude by real-time
 workloads that don't want their ``nohz_full`` CPUs receiving IPIs and
 by battery-powered systems that don't want their idle CPUs to be awakened.
 
+Once kernel entry/exit and deep-idle functions have been properly tagged
+``noinstr``, Tasks RCU can start paying attention to idle tasks (except
+those that are idle from RCU's perspective) and then Tasks Rude RCU can
+be removed from the kernel.
+
 The tasks-rude-RCU API is also reader-marking-free and thus quite compact,
-consisting of call_rcu_tasks_rude(), synchronize_rcu_tasks_rude(),
-and rcu_barrier_tasks_rude().
+consisting solely of synchronize_rcu_tasks_rude().
 
 Tasks Trace RCU
 ~~~~~~~~~~~~~~~

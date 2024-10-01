@@ -233,8 +233,6 @@ int netcp_register_rxhook(struct netcp_intf *netcp_priv, int order,
 			  netcp_hook_rtn *hook_rtn, void *hook_data);
 int netcp_unregister_rxhook(struct netcp_intf *netcp_priv, int order,
 			    netcp_hook_rtn *hook_rtn, void *hook_data);
-void *netcp_device_find_module(struct netcp_device *netcp_device,
-			       const char *name);
 
 /* SGMII functions */
 int netcp_sgmii_reset(void __iomem *sgmii_ofs, int port);

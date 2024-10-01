@@ -7,7 +7,6 @@
  * host to inject a specific intid via a GUEST_SYNC call, and then checks that
  * it received it.
  */
-
 #include <asm/kvm.h>
 #include <asm/kvm_para.h>
 #include <sys/eventfd.h>
@@ -19,9 +18,6 @@
 #include "gic.h"
 #include "gic_v3.h"
 #include "vgic.h"
-
-#define GICD_BASE_GPA		0x08000000ULL
-#define GICR_BASE_GPA		0x080A0000ULL
 
 /*
  * Stores the user specified args; it's passed to the guest and to every test
@@ -49,9 +45,6 @@ struct test_args {
 #define CPU_PRIO_MASK		(LOWEST_PRIO << KVM_PRIO_SHIFT)	/* 0xf8 */
 #define IRQ_DEFAULT_PRIO	(LOWEST_PRIO - 1)
 #define IRQ_DEFAULT_PRIO_REG	(IRQ_DEFAULT_PRIO << KVM_PRIO_SHIFT) /* 0xf0 */
-
-static void *dist = (void *)GICD_BASE_GPA;
-static void *redist = (void *)GICR_BASE_GPA;
 
 /*
  * The kvm_inject_* utilities are used by the guest to ask the host to inject
@@ -153,7 +146,7 @@ static void reset_stats(void)
 
 static uint64_t gic_read_ap1r0(void)
 {
-	uint64_t reg = read_sysreg_s(SYS_ICV_AP1R0_EL1);
+	uint64_t reg = read_sysreg_s(SYS_ICC_AP1R0_EL1);
 
 	dsb(sy);
 	return reg;
@@ -161,7 +154,7 @@ static uint64_t gic_read_ap1r0(void)
 
 static void gic_write_ap1r0(uint64_t val)
 {
-	write_sysreg_s(val, SYS_ICV_AP1R0_EL1);
+	write_sysreg_s(val, SYS_ICC_AP1R0_EL1);
 	isb();
 }
 
@@ -276,13 +269,12 @@ static void guest_inject(struct test_args *args,
 	KVM_INJECT_MULTI(cmd, first_intid, num);
 
 	while (irq_handled < num) {
-		asm volatile("wfi\n"
-			     "msr daifclr, #2\n"
-			     /* handle IRQ */
-			     "msr daifset, #2\n"
-			     : : : "memory");
+		wfi();
+		local_irq_enable();
+		isb(); /* handle IRQ */
+		local_irq_disable();
 	}
-	asm volatile("msr daifclr, #2" : : : "memory");
+	local_irq_enable();
 
 	GUEST_ASSERT_EQ(irq_handled, num);
 	for (i = first_intid; i < num + first_intid; i++)
@@ -479,7 +471,7 @@ static void guest_code(struct test_args *args)
 	bool level_sensitive = args->level_sensitive;
 	struct kvm_inject_desc *f, *inject_fns;
 
-	gic_init(GIC_V3, 1, dist, redist);
+	gic_init(GIC_V3, 1);
 
 	for (i = 0; i < nr_irqs; i++)
 		gic_irq_enable(i);
@@ -765,8 +757,7 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 	memcpy(addr_gva2hva(vm, args_gva), &args, sizeof(args));
 	vcpu_args_set(vcpu, 1, args_gva);
 
-	gic_fd = vgic_v3_setup(vm, 1, nr_irqs,
-			GICD_BASE_GPA, GICR_BASE_GPA);
+	gic_fd = vgic_v3_setup(vm, 1, nr_irqs);
 	__TEST_REQUIRE(gic_fd >= 0, "Failed to create vgic-v3, skipping");
 
 	vm_install_exception_handler(vm, VECTOR_IRQ_CURRENT,
@@ -781,7 +772,7 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 			run_guest_cmd(vcpu, gic_fd, &inject_args, &args);
 			break;
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;

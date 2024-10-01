@@ -251,6 +251,7 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		case PSR_AA32_MODE_SVC:
 		case PSR_AA32_MODE_ABT:
 		case PSR_AA32_MODE_UND:
+		case PSR_AA32_MODE_SYS:
 			if (!vcpu_el1_is_32bit(vcpu))
 				return -EINVAL;
 			break;
@@ -276,7 +277,7 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	if (*vcpu_cpsr(vcpu) & PSR_MODE32_BIT) {
 		int i, nr_reg;
 
-		switch (*vcpu_cpsr(vcpu)) {
+		switch (*vcpu_cpsr(vcpu) & PSR_AA32_MODE_MASK) {
 		/*
 		 * Either we are dealing with user mode, and only the
 		 * first 15 registers (+ PC) must be narrowed to 32bit.
@@ -711,6 +712,7 @@ static int copy_sve_reg_indices(const struct kvm_vcpu *vcpu,
 
 /**
  * kvm_arm_num_regs - how many registers do we present via KVM_GET_ONE_REG
+ * @vcpu: the vCPU pointer
  *
  * This is for all registers.
  */
@@ -729,6 +731,8 @@ unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu)
 
 /**
  * kvm_arm_copy_reg_indices - get indices of all registers.
+ * @vcpu: the vCPU pointer
+ * @uindices: register list to copy
  *
  * We do core registers right here, then we append system regs.
  */
@@ -815,7 +819,7 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 			      struct kvm_vcpu_events *events)
 {
 	events->exception.serror_pending = !!(vcpu->arch.hcr_el2 & HCR_VSE);
-	events->exception.serror_has_esr = cpus_have_const_cap(ARM64_HAS_RAS_EXTN);
+	events->exception.serror_has_esr = cpus_have_final_cap(ARM64_HAS_RAS_EXTN);
 
 	if (events->exception.serror_pending && events->exception.serror_has_esr)
 		events->exception.serror_esr = vcpu_get_vsesr(vcpu);
@@ -837,7 +841,7 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 	bool ext_dabt_pending = events->exception.ext_dabt_pending;
 
 	if (serror_pending && has_esr) {
-		if (!cpus_have_const_cap(ARM64_HAS_RAS_EXTN))
+		if (!cpus_have_final_cap(ARM64_HAS_RAS_EXTN))
 			return -EINVAL;
 
 		if (!((events->exception.serror_esr) & ~ESR_ELx_ISS_MASK))
@@ -874,7 +878,7 @@ u32 __attribute_const__ kvm_target_cpu(void)
 		break;
 	case ARM_CPU_IMP_APM:
 		switch (part_number) {
-		case APM_CPU_PART_POTENZA:
+		case APM_CPU_PART_XGENE:
 			return KVM_ARM_TARGET_XGENE_POTENZA;
 		}
 		break;
@@ -882,21 +886,6 @@ u32 __attribute_const__ kvm_target_cpu(void)
 
 	/* Return a default generic target */
 	return KVM_ARM_TARGET_GENERIC_V8;
-}
-
-void kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
-{
-	u32 target = kvm_target_cpu();
-
-	memset(init, 0, sizeof(*init));
-
-	/*
-	 * For now, we don't return any features.
-	 * In future, we might use features to return target
-	 * specific features available for the preferred
-	 * target type.
-	 */
-	init->target = (__u32)target;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
@@ -917,8 +906,8 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 
 /**
  * kvm_arch_vcpu_ioctl_set_guest_debug - set up guest debugging
- * @kvm:	pointer to the KVM struct
- * @kvm_guest_debug: the ioctl data buffer
+ * @vcpu: the vCPU pointer
+ * @dbg: the ioctl data buffer
  *
  * This sets up and enables the VM for guest debugging. Userspace
  * passes in a control flag to enable different debug types and
@@ -1056,6 +1045,11 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 
 	mutex_lock(&kvm->slots_lock);
 
+	if (write && atomic_read(&kvm->nr_memslots_dirty_logging)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	while (length > 0) {
 		kvm_pfn_t pfn = gfn_to_pfn_prot(kvm, gfn, write, NULL);
 		void *maddr;
@@ -1070,6 +1064,7 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 		page = pfn_to_online_page(pfn);
 		if (!page) {
 			/* Reject ZONE_DEVICE memory */
+			kvm_release_pfn_clean(pfn);
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1087,7 +1082,7 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 		} else {
 			/*
 			 * Only locking to serialise with a concurrent
-			 * set_pte_at() in the VMM but still overriding the
+			 * __set_ptes() in the VMM but still overriding the
 			 * tags, hence ignoring the return value.
 			 */
 			try_page_mte_tagging(page);

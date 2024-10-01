@@ -70,34 +70,26 @@
 
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-names = "default";
+	regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA0 power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+	};
 
-		regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "SATA0 power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
-		};
-		regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "SATA1 power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
-		};
+	regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA1 power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
 	};
 
 	gpio-fan {

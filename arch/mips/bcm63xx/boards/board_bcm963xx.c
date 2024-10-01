@@ -42,7 +42,7 @@ static struct board_info __initdata board_cvg834g = {
 	.expected_cpu_id = 0x3368,
 
 	.ephy_reset_gpio = 36,
-	.ephy_reset_gpio_flags = GPIOF_INIT_HIGH,
+	.ephy_reset_gpio_flags = GPIOF_OUT_INIT_HIGH,
 	.has_pci = 1,
 	.has_uart0 = 1,
 	.has_uart1 = 1,
@@ -702,7 +702,7 @@ static struct ssb_sprom bcm63xx_sprom = {
 	.boardflags_hi		= 0x0000,
 };
 
-int bcm63xx_get_fallback_sprom(struct ssb_bus *bus, struct ssb_sprom *out)
+static int bcm63xx_get_fallback_sprom(struct ssb_bus *bus, struct ssb_sprom *out)
 {
 	if (bus->bustype == SSB_BUSTYPE_PCI) {
 		memcpy(out, &bcm63xx_sprom, sizeof(struct ssb_sprom));

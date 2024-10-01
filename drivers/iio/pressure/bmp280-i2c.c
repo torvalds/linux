@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 #include <linux/regmap.h>
 
 #include "bmp280.h"
 
 static int bmp280_i2c_probe(struct i2c_client *client)
 {
-	struct regmap *regmap;
-	const struct bmp280_chip_info *chip_info;
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
+	const struct bmp280_chip_info *chip_info;
+	struct regmap *regmap;
 
-	chip_info = device_get_match_data(&client->dev);
-	if (!chip_info)
-		chip_info = (const struct bmp280_chip_info *) id->driver_data;
+	chip_info = i2c_get_match_data(client);
 
 	regmap = devm_regmap_init_i2c(client, chip_info->regmap_config);
 	if (IS_ERR(regmap)) {

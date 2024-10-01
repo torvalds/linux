@@ -14,9 +14,11 @@
 
 #include <linux/types.h>
 
+#define SNP_REPORT_USER_DATA_SIZE 64
+
 struct snp_report_req {
 	/* user data that should be included in the report */
-	__u8 user_data[64];
+	__u8 user_data[SNP_REPORT_USER_DATA_SIZE];
 
 	/* The vmpl level to be included in the report */
 	__u32 vmpl;
@@ -87,6 +89,9 @@ struct snp_ext_report_req {
 #define SNP_GUEST_FW_ERR_MASK		GENMASK_ULL(31, 0)
 #define SNP_GUEST_VMM_ERR_SHIFT		32
 #define SNP_GUEST_VMM_ERR(x)		(((u64)x) << SNP_GUEST_VMM_ERR_SHIFT)
+#define SNP_GUEST_FW_ERR(x)		((x) & SNP_GUEST_FW_ERR_MASK)
+#define SNP_GUEST_ERR(vmm_err, fw_err)	(SNP_GUEST_VMM_ERR(vmm_err) | \
+					 SNP_GUEST_FW_ERR(fw_err))
 
 #define SNP_GUEST_VMM_ERR_INVALID_LEN	1
 #define SNP_GUEST_VMM_ERR_BUSY		2

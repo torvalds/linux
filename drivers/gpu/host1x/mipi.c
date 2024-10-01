@@ -501,7 +501,6 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct tegra_mipi *mipi;
-	int err;
 
 	match = of_match_node(tegra_mipi_of_match, pdev->dev.of_node);
 	if (!match)
@@ -520,26 +519,13 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 
 	mutex_init(&mipi->lock);
 
-	mipi->clk = devm_clk_get(&pdev->dev, NULL);
+	mipi->clk = devm_clk_get_prepared(&pdev->dev, NULL);
 	if (IS_ERR(mipi->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return PTR_ERR(mipi->clk);
 	}
 
-	err = clk_prepare(mipi->clk);
-	if (err < 0)
-		return err;
-
 	platform_set_drvdata(pdev, mipi);
-
-	return 0;
-}
-
-static int tegra_mipi_remove(struct platform_device *pdev)
-{
-	struct tegra_mipi *mipi = platform_get_drvdata(pdev);
-
-	clk_unprepare(mipi->clk);
 
 	return 0;
 }
@@ -550,5 +536,4 @@ struct platform_driver tegra_mipi_driver = {
 		.of_match_table = tegra_mipi_of_match,
 	},
 	.probe = tegra_mipi_probe,
-	.remove = tegra_mipi_remove,
 };

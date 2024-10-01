@@ -328,12 +328,12 @@ static int vega20_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static void vega20_init_dpm_defaults(struct pp_hwmgr *hwmgr)
+static int vega20_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
 	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t top32, bottom32;
-	int i;
+	int i, ret;
 
 	data->smu_features[GNLD_DPM_PREFETCHER].smu_feature_id =
 			FEATURE_DPM_PREFETCHER_BIT;
@@ -404,10 +404,17 @@ static void vega20_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	}
 
 	/* Get the SN to turn into a Unique ID */
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32, &top32);
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32, &bottom32);
+	ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32, &top32);
+	if (ret)
+		return ret;
+
+	ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32, &bottom32);
+	if (ret)
+		return ret;
 
 	adev->unique_id = ((uint64_t)bottom32 << 32) | top32;
+
+	return 0;
 }
 
 static int vega20_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
@@ -427,6 +434,7 @@ static int vega20_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data;
 	struct amdgpu_device *adev = hwmgr->adev;
+	int result;
 
 	data = kzalloc(sizeof(struct vega20_hwmgr), GFP_KERNEL);
 	if (data == NULL)
@@ -452,8 +460,11 @@ static int vega20_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	vega20_set_features_platform_caps(hwmgr);
 
-	vega20_init_dpm_defaults(hwmgr);
-
+	result = vega20_init_dpm_defaults(hwmgr);
+	if (result) {
+		pr_err("%s failed\n", __func__);
+		return result;
+	}
 	/* Parse pptable data read from VBIOS */
 	vega20_set_private_data_based_on_pptable(hwmgr);
 
@@ -1402,7 +1413,7 @@ static int vega20_od8_set_settings(
 			"Failed to export over drive table!",
 			return ret);
 
-	switch(index) {
+	switch (index) {
 	case OD8_SETTING_GFXCLK_FMIN:
 		od_table.GfxclkFmin = (uint16_t)value;
 		break;
@@ -2129,7 +2140,7 @@ static int vega20_get_metrics_table(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
+static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr, int idx,
 		uint32_t *query)
 {
 	int ret = 0;
@@ -2140,10 +2151,17 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 		return ret;
 
 	/* For the 40.46 release, they changed the value name */
-	if (hwmgr->smu_version == 0x282e00)
-		*query = metrics_table.AverageSocketPower << 8;
-	else
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
+		if (hwmgr->smu_version == 0x282e00)
+			*query = metrics_table.AverageSocketPower << 8;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		*query = metrics_table.CurrSocketPower << 8;
+		break;
+	}
 
 	return ret;
 }
@@ -2253,9 +2271,10 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		*size = 16;
-		ret = vega20_get_gpu_power(hwmgr, (uint32_t *)value);
+		ret = vega20_get_gpu_power(hwmgr, idx, (uint32_t *)value);
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_TEL_PLANE0) &
@@ -2360,7 +2379,7 @@ static int vega20_notify_smc_display_config_after_ps_adjustment(
 		dpm_table->dpm_state.hard_min_level = min_clocks.memoryClock / 100;
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetHardMinByFreq,
-				(PPCLK_UCLK << 16 ) | dpm_table->dpm_state.hard_min_level,
+				(PPCLK_UCLK << 16) | dpm_table->dpm_state.hard_min_level,
 				NULL)),
 				"[SetHardMinFreq] Set hard min uclk failed!",
 				return ret);
@@ -3579,7 +3598,7 @@ static int vega20_set_uclk_to_highest_dpm_level(struct pp_hwmgr *hwmgr,
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetHardMinByFreq,
-				(PPCLK_UCLK << 16 ) | dpm_table->dpm_state.hard_min_level,
+				(PPCLK_UCLK << 16) | dpm_table->dpm_state.hard_min_level,
 				NULL)),
 				"[SetUclkToHightestDpmLevel] Set hard min uclk failed!",
 				return ret);
@@ -3605,7 +3624,7 @@ static int vega20_set_fclk_to_highest_dpm_level(struct pp_hwmgr *hwmgr)
 		dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSoftMinByFreq,
-				(PPCLK_FCLK << 16 ) | dpm_table->dpm_state.soft_min_level,
+				(PPCLK_FCLK << 16) | dpm_table->dpm_state.soft_min_level,
 				NULL)),
 				"[SetFclkToHightestDpmLevel] Set soft min fclk failed!",
 				return ret);
@@ -3727,8 +3746,8 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	uint32_t i, latency;
 
 	disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
-                           !hwmgr->display_config->multi_monitor_in_sync) ||
-                            vblank_too_short;
+				!hwmgr->display_config->multi_monitor_in_sync) ||
+				vblank_too_short;
 	latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
 
 	/* gfxclk */
@@ -4083,9 +4102,11 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 		struct vega20_hwmgr *data =
 			(struct vega20_hwmgr *)(hwmgr->backend);
-		if (size == 0 && !data->is_custom_profile_set)
+
+		if (size != 10 && size != 0)
 			return -EINVAL;
-		if (size < 10 && size != 0)
+
+		if (size == 0 && !data->is_custom_profile_set)
 			return -EINVAL;
 
 		result = vega20_get_activity_monitor_coeff(hwmgr,
@@ -4147,6 +4168,8 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 			activity_monitor.Fclk_PD_Data_error_coeff = input[8];
 			activity_monitor.Fclk_PD_Data_error_rate_coeff = input[9];
 			break;
+		default:
+			return -EINVAL;
 		}
 
 		result = vega20_set_activity_monitor_coeff(hwmgr,
@@ -4414,7 +4437,7 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	.notify_cac_buffer_info = vega20_notify_cac_buffer_info,
 	.enable_mgpu_fan_boost = vega20_enable_mgpu_fan_boost,
 	/* BACO related */
-	.get_asic_baco_capability = vega20_baco_get_capability,
+	.get_bamaco_support = vega20_get_bamaco_support,
 	.get_asic_baco_state = vega20_baco_get_state,
 	.set_asic_baco_state = vega20_baco_set_state,
 	.set_mp1_state = vega20_set_mp1_state,

@@ -5,10 +5,11 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/process/index.rst <process_index>`
-:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+:Original: Documentation/process/index.rst
 
-.. _cn_process_index:
+:翻译:
+
+ Alex Shi <alex.shi@linux.alibaba.com>
 
 ========================
 与Linux 内核社区一起工作
@@ -23,17 +24,36 @@
 .. toctree::
    :maxdepth: 1
 
+   license-rules
    howto
    code-of-conduct
    code-of-conduct-interpretation
+   development-process
    submitting-patches
    programming-language
    coding-style
-   development-process
+   maintainer-pgp-guide
    email-clients
-   license-rules
    kernel-enforcement-statement
    kernel-driver-statement
+
+TODOLIST:
+
+* handling-regressions
+* maintainer-handbooks
+
+安全方面, 请阅读:
+
+.. toctree::
+   :maxdepth: 1
+
+   embargoed-hardware-issues
+   cve
+   security-bugs
+
+TODOLIST:
+
+* handling-regressions
 
 其它大多数开发人员感兴趣的社区指南：
 
@@ -41,11 +61,20 @@
 .. toctree::
    :maxdepth: 1
 
-   submit-checklist
    stable-api-nonsense
-   stable-kernel-rules
    management-style
-   embargoed-hardware-issues
+   stable-kernel-rules
+   submit-checklist
+   researcher-guidelines
+
+TODOLIST:
+
+* changes
+* kernel-docs
+* deprecated
+* maintainers
+* contribution-maturity-model
+
 
 这些是一些总体性技术指南，由于不大好分类而放在这里：
 
@@ -54,6 +83,16 @@
 
    magic-number
    volatile-considered-harmful
+   ../arch/riscv/patch-acceptance
+   ../core-api/unaligned-memory-access
+
+TODOLIST:
+
+* applying-patches
+* backporting
+* adding-syscalls
+* botching-up-ioctls
+* clang-format
 
 .. only::  subproject and html
 

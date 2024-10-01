@@ -15,6 +15,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
+#include "xfs_inode.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 
@@ -165,8 +166,7 @@ xchk_superblock(
 		xchk_block_set_corrupt(sc, bp);
 
 	/* Check sb_versionnum bits that are set at mkfs time. */
-	vernum_mask = cpu_to_be16(~XFS_SB_VERSION_OKBITS |
-				  XFS_SB_VERSION_NUMBITS |
+	vernum_mask = cpu_to_be16(XFS_SB_VERSION_NUMBITS |
 				  XFS_SB_VERSION_ALIGNBIT |
 				  XFS_SB_VERSION_DALIGNBIT |
 				  XFS_SB_VERSION_SHAREDBIT |
@@ -556,28 +556,28 @@ xchk_agf(
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	/* Check the AGF btree roots and levels */
-	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_BNO]);
+	agbno = be32_to_cpu(agf->agf_bno_root);
 	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
-	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_CNT]);
+	agbno = be32_to_cpu(agf->agf_cnt_root);
 	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
-	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
+	level = be32_to_cpu(agf->agf_bno_level);
 	if (level <= 0 || level > mp->m_alloc_maxlevels)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
-	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
+	level = be32_to_cpu(agf->agf_cnt_level);
 	if (level <= 0 || level > mp->m_alloc_maxlevels)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	if (xfs_has_rmapbt(mp)) {
-		agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_RMAP]);
+		agbno = be32_to_cpu(agf->agf_rmap_root);
 		if (!xfs_verify_agbno(pag, agbno))
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
-		level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
+		level = be32_to_cpu(agf->agf_rmap_level);
 		if (level <= 0 || level > mp->m_rmap_maxlevels)
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	}
@@ -865,6 +865,43 @@ xchk_agi_xref(
 	/* scrub teardown will take care of sc->sa for us */
 }
 
+/*
+ * Check the unlinked buckets for links to bad inodes.  We hold the AGI, so
+ * there cannot be any threads updating unlinked list pointers in this AG.
+ */
+STATIC void
+xchk_iunlink(
+	struct xfs_scrub	*sc,
+	struct xfs_agi		*agi)
+{
+	unsigned int		i;
+	struct xfs_inode	*ip;
+
+	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++) {
+		xfs_agino_t	agino = be32_to_cpu(agi->agi_unlinked[i]);
+
+		while (agino != NULLAGINO) {
+			if (agino % XFS_AGI_UNLINKED_BUCKETS != i) {
+				xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+				return;
+			}
+
+			ip = xfs_iunlink_lookup(sc->sa.pag, agino);
+			if (!ip) {
+				xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+				return;
+			}
+
+			if (!xfs_inode_on_unlinked_list(ip)) {
+				xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+				return;
+			}
+
+			agino = ip->i_next_unlinked;
+		}
+	}
+}
+
 /* Scrub the AGI. */
 int
 xchk_agi(
@@ -948,6 +985,8 @@ xchk_agi(
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 	if (pag->pagi_freecount != be32_to_cpu(agi->agi_freecount))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+
+	xchk_iunlink(sc, agi);
 
 	xchk_agi_xref(sc);
 out:

@@ -358,6 +358,7 @@ int __meminit vmemmap_populate_hugepages(unsigned long start, unsigned long end,
 	return 0;
 }
 
+#ifndef vmemmap_populate_compound_pages
 /*
  * For compound pages bigger than section size (e.g. x86 1G compound
  * pages with 2M subsection size) fill the rest of sections as tail
@@ -446,6 +447,8 @@ static int __meminit vmemmap_populate_compound_pages(unsigned long start_pfn,
 	return 0;
 }
 
+#endif
+
 struct page * __meminit __populate_section_memmap(unsigned long pfn,
 		unsigned long nr_pages, int nid, struct vmem_altmap *altmap,
 		struct dev_pagemap *pgmap)
@@ -465,6 +468,11 @@ struct page * __meminit __populate_section_memmap(unsigned long pfn,
 
 	if (r < 0)
 		return NULL;
+
+	if (system_state == SYSTEM_BOOTING)
+		memmap_boot_pages_add(DIV_ROUND_UP(end - start, PAGE_SIZE));
+	else
+		memmap_pages_add(DIV_ROUND_UP(end - start, PAGE_SIZE));
 
 	return pfn_to_page(pfn);
 }

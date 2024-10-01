@@ -28,7 +28,7 @@ Introduction
   high performance safe distributed caching (leases/oplocks), optional packet
   signing, large files, Unicode support and other internationalization
   improvements. Since both Samba server and this filesystem client support the
-  CIFS Unix extensions, and the Linux client also suppors SMB3 POSIX extensions,
+  CIFS Unix extensions, and the Linux client also supports SMB3 POSIX extensions,
   the combination can provide a reasonable alternative to other network and
   cluster file systems for fileserving in some Linux to Linux environments,
   not just in Linux to Windows (or Linux to Mac) environments.

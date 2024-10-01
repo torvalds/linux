@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/remoteproc.h>
 #include <linux/remoteproc/st_slim_rproc.h>
@@ -260,16 +259,14 @@ struct st_slim_rproc *st_slim_rproc_alloc(struct platform_device *pdev,
 		slim_rproc->mem[i].size = resource_size(res);
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "slimcore");
-	slim_rproc->slimcore = devm_ioremap_resource(dev, res);
+	slim_rproc->slimcore = devm_platform_ioremap_resource_byname(pdev, "slimcore");
 	if (IS_ERR(slim_rproc->slimcore)) {
 		dev_err(&pdev->dev, "failed to ioremap slimcore IO\n");
 		err = PTR_ERR(slim_rproc->slimcore);
 		goto err;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "peripherals");
-	slim_rproc->peri = devm_ioremap_resource(dev, res);
+	slim_rproc->peri = devm_platform_ioremap_resource_byname(pdev, "peripherals");
 	if (IS_ERR(slim_rproc->peri)) {
 		dev_err(&pdev->dev, "failed to ioremap peripherals IO\n");
 		err = PTR_ERR(slim_rproc->peri);

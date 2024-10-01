@@ -7,18 +7,10 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Amlogic SoC based Platforms
 
 maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+  - Martin Blumenstingl <martin.blumenstingl@googlemail.com>
+  - Jerome Brunet <jbrunet@baylibre.com>
   - Kevin Hilman <khilman@baylibre.com>
-
-description: |+
-  Work in progress statement:
-
-  Device tree files and bindings applying to Amlogic SoCs and boards are
-  considered "unstable". Any Amlogic device tree binding may change at
-  any time. Be sure to use a device tree binary and a kernel image
-  generated from the same source tree.
-
-  Please refer to Documentation/devicetree/bindings/ABI.rst for a definition of a
-  stable binding/ABI.
 
 properties:
   $nodename:
@@ -99,6 +91,7 @@ properties:
               - libretech,aml-s905x-cc
               - libretech,aml-s905x-cc-v2
               - nexbox,a95x
+              - osmc,vero4k
           - const: amlogic,s905x
           - const: amlogic,meson-gxl
 
@@ -114,6 +107,13 @@ properties:
               - videostrong,gxl-kii-pro
           - const: amlogic,s905d
           - const: amlogic,meson-gxl
+
+      - description: Boards with the Amlogic Meson GXLX S905L SoC
+        items:
+          - enum:
+              - amlogic,p271
+          - const: amlogic,s905l
+          - const: amlogic,meson-gxlx
 
       - description: Boards with the Amlogic Meson GXM S912 SoC
         items:
@@ -146,6 +146,7 @@ properties:
           - enum:
               - amediatech,x96-max
               - amlogic,u200
+              - freebox,fbx8am
               - radxa,zero
               - seirobotics,sei510
           - const: amlogic,g12a
@@ -155,6 +156,7 @@ properties:
           - enum:
               - bananapi,bpi-m2s
               - khadas,vim3
+              - libretech,aml-a311d-cc
               - radxa,zero2
           - const: amlogic,a311d
           - const: amlogic,g12b
@@ -163,6 +165,7 @@ properties:
         items:
           - enum:
               - bananapi,bpi-cm4io
+              - mntre,reform2-cm4
           - const: bananapi,bpi-cm4
           - const: amlogic,a311d
           - const: amlogic,g12b
@@ -174,6 +177,8 @@ properties:
               - azw,gtking
               - azw,gtking-pro
               - bananapi,bpi-m2s
+              - dream,dreambox-one
+              - dream,dreambox-two
               - hardkernel,odroid-go-ultra
               - hardkernel,odroid-n2
               - hardkernel,odroid-n2l
@@ -196,6 +201,7 @@ properties:
               - hardkernel,odroid-hc4
               - haochuangyi,h96-max
               - khadas,vim3l
+              - libretech,aml-s905d3-cc
               - seirobotics,sei610
           - const: amlogic,sm1
 
@@ -203,7 +209,20 @@ properties:
         items:
           - enum:
               - amlogic,ad401
+              - amlogic,ad402
           - const: amlogic,a1
+
+      - description: Boards with the Amlogic A4 A113L2 SoC
+        items:
+          - enum:
+              - amlogic,ba400
+          - const: amlogic,a4
+
+      - description: Boards with the Amlogic A5 A113X2 SoC
+        items:
+          - enum:
+              - amlogic,av400
+          - const: amlogic,a5
 
       - description: Boards with the Amlogic C3 C302X/C308L SoC
         items:
@@ -217,6 +236,14 @@ properties:
           - enum:
               - amlogic,aq222
           - const: amlogic,s4
+
+      - description: Boards with the Amlogic T7 A311D2 SoC
+        items:
+          - enum:
+              - amlogic,an400
+              - khadas,vim4
+          - const: amlogic,a311d2
+          - const: amlogic,t7
 
 additionalProperties: true
 

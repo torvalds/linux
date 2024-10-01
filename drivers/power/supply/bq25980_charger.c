@@ -1223,7 +1223,7 @@ static int bq25980_probe(struct i2c_client *client)
 
 	mutex_init(&bq->lock);
 
-	strncpy(bq->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bq->model_name, id->name, sizeof(bq->model_name));
 	bq->chip_info = &bq25980_chip_info_tbl[id->driver_data];
 
 	bq->regmap = devm_regmap_init_i2c(client,

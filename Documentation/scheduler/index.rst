@@ -7,10 +7,12 @@ Scheduler
 
 
     completion
+    membarrier
     sched-arch
     sched-bwc
     sched-deadline
     sched-design-CFS
+    sched-eevdf
     sched-domains
     sched-capacity
     sched-energy
@@ -19,6 +21,7 @@ Scheduler
     sched-nice-design
     sched-rt-group
     sched-stats
+    sched-ext
     sched-debug
 
     text_files

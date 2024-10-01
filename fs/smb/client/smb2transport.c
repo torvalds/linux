@@ -23,11 +23,10 @@
 #include "cifsproto.h"
 #include "smb2proto.h"
 #include "cifs_debug.h"
-#include "smb2status.h"
+#include "../common/smb2status.h"
 #include "smb2glob.h"
 
-static int
-smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
+int smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
 	struct cifs_secmech *p = &server->secmech;
 	int rc;
@@ -46,33 +45,6 @@ err:
 	return rc;
 }
 
-int
-smb311_crypto_shash_allocate(struct TCP_Server_Info *server)
-{
-	struct cifs_secmech *p = &server->secmech;
-	int rc = 0;
-
-	rc = cifs_alloc_hash("hmac(sha256)", &p->hmacsha256);
-	if (rc)
-		return rc;
-
-	rc = cifs_alloc_hash("cmac(aes)", &p->aes_cmac);
-	if (rc)
-		goto err;
-
-	rc = cifs_alloc_hash("sha512", &p->sha512);
-	if (rc)
-		goto err;
-
-	return 0;
-
-err:
-	cifs_free_hash(&p->aes_cmac);
-	cifs_free_hash(&p->hmacsha256);
-	return rc;
-}
-
-
 static
 int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 {
@@ -86,7 +58,7 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 	spin_lock(&cifs_tcp_ses_lock);
 
 	/* If server is a channel, select the primary channel */
-	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		if (ses->Suid == ses_id)
@@ -149,7 +121,7 @@ smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
 	struct cifs_ses *ses;
 
 	/* If server is a channel, select the primary channel */
-	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		if (ses->Suid != ses_id)
@@ -160,7 +132,7 @@ smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
 			spin_unlock(&ses->ses_lock);
 			continue;
 		}
-		++ses->ses_count;
+		cifs_smb_ses_inc_refcount(ses);
 		spin_unlock(&ses->ses_lock);
 		return ses;
 	}
@@ -189,6 +161,8 @@ smb2_find_smb_sess_tcon_unlocked(struct cifs_ses *ses, __u32  tid)
 		if (tcon->tid != tid)
 			continue;
 		++tcon->tc_count;
+		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+				    netfs_trace_tcon_ref_get_find_sess_tcon);
 		return tcon;
 	}
 
@@ -214,8 +188,8 @@ smb2_find_smb_tcon(struct TCP_Server_Info *server, __u64 ses_id, __u32  tid)
 	}
 	tcon = smb2_find_smb_sess_tcon_unlocked(ses, tid);
 	if (!tcon) {
-		cifs_put_smb_ses(ses);
 		spin_unlock(&cifs_tcp_ses_lock);
+		cifs_put_smb_ses(ses);
 		return NULL;
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -240,7 +214,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 
 	ses = smb2_find_smb_ses(server, le64_to_cpu(shdr->SessionId));
 	if (unlikely(!ses)) {
-		cifs_server_dbg(VFS, "%s: Could not find session\n", __func__);
+		cifs_server_dbg(FYI, "%s: Could not find session\n", __func__);
 		return -ENOENT;
 	}
 
@@ -413,7 +387,13 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		      ses->ses_status == SES_GOOD);
 
 	chan_index = cifs_ses_get_chan_index(ses, server);
-	/* TODO: introduce ref counting for channels when the can be freed */
+	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&ses->ses_lock);
+
+		return -EINVAL;
+	}
+
 	spin_unlock(&ses->chan_lock);
 	spin_unlock(&ses->ses_lock);
 
@@ -452,6 +432,8 @@ generate_smb3signingkey(struct cifs_ses *ses,
 				  ptriplet->encryption.context,
 				  ses->smb3encryptionkey,
 				  SMB3_ENC_DEC_KEY_SIZE);
+		if (rc)
+			return rc;
 		rc = generate_key(ses, ptriplet->decryption.label,
 				  ptriplet->decryption.context,
 				  ses->smb3decryptionkey,
@@ -459,9 +441,6 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		if (rc)
 			return rc;
 	}
-
-	if (rc)
-		return rc;
 
 #ifdef CONFIG_CIFS_DEBUG_DUMP_KEYS
 	cifs_dbg(VFS, "%s: dumping generated AES session keys\n", __func__);
@@ -654,7 +633,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&server->srv_lock);
 	if (!is_binding && !server->session_estab) {
-		strncpy(shdr->Signature, "BSRSPYL", 8);
+		strscpy(shdr->Signature, "BSRSPYL");
 		return 0;
 	}
 

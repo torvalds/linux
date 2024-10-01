@@ -100,6 +100,7 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 	st->nents = 0;
 	for (i = 0; i < page_count; i++) {
 		struct folio *folio;
+		unsigned long nr_pages;
 		const unsigned int shrink[] = {
 			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND,
 			0,
@@ -150,6 +151,8 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			}
 		} while (1);
 
+		nr_pages = min_t(unsigned long,
+				folio_nr_pages(folio), page_count - i);
 		if (!i ||
 		    sg->length >= max_segment ||
 		    folio_pfn(folio) != next_pfn) {
@@ -157,13 +160,13 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 				sg = sg_next(sg);
 
 			st->nents++;
-			sg_set_folio(sg, folio, folio_size(folio), 0);
+			sg_set_folio(sg, folio, nr_pages * PAGE_SIZE, 0);
 		} else {
 			/* XXX: could overflow? */
-			sg->length += folio_size(folio);
+			sg->length += nr_pages * PAGE_SIZE;
 		}
-		next_pfn = folio_pfn(folio) + folio_nr_pages(folio);
-		i += folio_nr_pages(folio) - 1;
+		next_pfn = folio_pfn(folio) + nr_pages;
+		i += nr_pages - 1;
 
 		/* Check that the i965g/gm workaround works. */
 		GEM_BUG_ON(gfp & __GFP_DMA32 && next_pfn >= 0x00100000UL);
@@ -421,7 +424,8 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	struct address_space *mapping = obj->base.filp->f_mapping;
 	const struct address_space_operations *aops = mapping->a_ops;
 	char __user *user_data = u64_to_user_ptr(arg->data_ptr);
-	u64 remain, offset;
+	u64 remain;
+	loff_t pos;
 	unsigned int pg;
 
 	/* Caller already validated user args */
@@ -454,12 +458,12 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	 */
 
 	remain = arg->size;
-	offset = arg->offset;
-	pg = offset_in_page(offset);
+	pos = arg->offset;
+	pg = offset_in_page(pos);
 
 	do {
 		unsigned int len, unwritten;
-		struct page *page;
+		struct folio *folio;
 		void *data, *vaddr;
 		int err;
 		char __maybe_unused c;
@@ -477,19 +481,19 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 		if (err)
 			return err;
 
-		err = aops->write_begin(obj->base.filp, mapping, offset, len,
-					&page, &data);
+		err = aops->write_begin(obj->base.filp, mapping, pos, len,
+					&folio, &data);
 		if (err < 0)
 			return err;
 
-		vaddr = kmap_atomic(page);
-		unwritten = __copy_from_user_inatomic(vaddr + pg,
-						      user_data,
-						      len);
-		kunmap_atomic(vaddr);
+		vaddr = kmap_local_folio(folio, offset_in_folio(folio, pos));
+		pagefault_disable();
+		unwritten = __copy_from_user_inatomic(vaddr, user_data, len);
+		pagefault_enable();
+		kunmap_local(vaddr);
 
-		err = aops->write_end(obj->base.filp, mapping, offset, len,
-				      len - unwritten, page, data);
+		err = aops->write_end(obj->base.filp, mapping, pos, len,
+				      len - unwritten, folio, data);
 		if (err < 0)
 			return err;
 
@@ -499,7 +503,7 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 
 		remain -= len;
 		user_data += len;
-		offset += len;
+		pos += len;
 		pg = 0;
 	} while (remain);
 
@@ -649,17 +653,17 @@ i915_gem_object_create_shmem(struct drm_i915_private *i915,
 
 /* Allocate a new GEM object and fill it with the supplied data */
 struct drm_i915_gem_object *
-i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
+i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
 				       const void *data, resource_size_t size)
 {
 	struct drm_i915_gem_object *obj;
 	struct file *file;
 	const struct address_space_operations *aops;
-	resource_size_t offset;
+	loff_t pos;
 	int err;
 
-	GEM_WARN_ON(IS_DGFX(dev_priv));
-	obj = i915_gem_object_create_shmem(dev_priv, round_up(size, PAGE_SIZE));
+	GEM_WARN_ON(IS_DGFX(i915));
+	obj = i915_gem_object_create_shmem(i915, round_up(size, PAGE_SIZE));
 	if (IS_ERR(obj))
 		return obj;
 
@@ -667,29 +671,27 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 
 	file = obj->base.filp;
 	aops = file->f_mapping->a_ops;
-	offset = 0;
+	pos = 0;
 	do {
 		unsigned int len = min_t(typeof(size), size, PAGE_SIZE);
-		struct page *page;
-		void *pgdata, *vaddr;
+		struct folio *folio;
+		void *fsdata;
 
-		err = aops->write_begin(file, file->f_mapping, offset, len,
-					&page, &pgdata);
+		err = aops->write_begin(file, file->f_mapping, pos, len,
+					&folio, &fsdata);
 		if (err < 0)
 			goto fail;
 
-		vaddr = kmap(page);
-		memcpy(vaddr, data, len);
-		kunmap(page);
+		memcpy_to_folio(folio, offset_in_folio(folio, pos), data, len);
 
-		err = aops->write_end(file, file->f_mapping, offset, len, len,
-				      page, pgdata);
+		err = aops->write_end(file, file->f_mapping, pos, len, len,
+				      folio, fsdata);
 		if (err < 0)
 			goto fail;
 
 		size -= len;
 		data += len;
-		offset += len;
+		pos += len;
 	} while (size);
 
 	return obj;

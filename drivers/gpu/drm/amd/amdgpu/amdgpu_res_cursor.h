@@ -90,6 +90,7 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 		cur->node = block;
 		break;
 	case TTM_PL_TT:
+	case AMDGPU_PL_DOORBELL:
 		node = to_ttm_range_mgr_node(res)->mm_nodes;
 		while (start >= node->size << PAGE_SHIFT)
 			start -= node++->size << PAGE_SHIFT;
@@ -111,7 +112,6 @@ fallback:
 	cur->remaining = size;
 	cur->node = NULL;
 	WARN_ON(res && start + size > res->size);
-	return;
 }
 
 /**
@@ -152,6 +152,7 @@ static inline void amdgpu_res_next(struct amdgpu_res_cursor *cur, uint64_t size)
 		cur->size = min(amdgpu_vram_mgr_block_size(block), cur->remaining);
 		break;
 	case TTM_PL_TT:
+	case AMDGPU_PL_DOORBELL:
 		node = cur->node;
 
 		cur->node = ++node;
@@ -161,6 +162,31 @@ static inline void amdgpu_res_next(struct amdgpu_res_cursor *cur, uint64_t size)
 	default:
 		return;
 	}
+}
+
+/**
+ * amdgpu_res_cleared - check if blocks are cleared
+ *
+ * @cur: the cursor to extract the block
+ *
+ * Check if the @cur block is cleared
+ */
+static inline bool amdgpu_res_cleared(struct amdgpu_res_cursor *cur)
+{
+	struct drm_buddy_block *block;
+
+	switch (cur->mem_type) {
+	case TTM_PL_VRAM:
+		block = cur->node;
+
+		if (!amdgpu_vram_mgr_is_cleared(block))
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
 }
 
 #endif

@@ -36,7 +36,9 @@ In-detail description of the named TTY structures is in separate documents:
    tty_struct
    tty_ldisc
    tty_buffer
+   tty_ioctl
    tty_internals
+   console
 
 Writing TTY Driver
 ==================

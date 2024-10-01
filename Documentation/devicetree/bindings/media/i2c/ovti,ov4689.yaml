@@ -52,10 +52,6 @@ properties:
     description:
       GPIO connected to the reset pin (active low)
 
-  orientation: true
-
-  rotation: true
-
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false
@@ -95,7 +91,7 @@ required:
   - dvdd-supply
   - port
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -3,9 +3,8 @@
 
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi-mem.h>
@@ -362,7 +361,7 @@ static int wpcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	wpcm_fiu_stall_host(fiu, false);
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int wpcm_fiu_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -379,7 +378,7 @@ static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	int cs = spi_get_chipselect(desc->mem->spi, 0);
 
 	if (desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/*
 	 * Unfortunately, FIU only supports a 16 MiB direct mapping window (per
@@ -388,11 +387,11 @@ static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	 * flashes that are bigger than 16 MiB.
 	 */
 	if (desc->info.offset + desc->info.length > MAX_MEMORY_SIZE_PER_CS)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	/* Don't read past the memory window */
 	if (cs * MAX_MEMORY_SIZE_PER_CS + desc->info.offset + desc->info.length > fiu->memory_size)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	return 0;
 }
@@ -442,19 +441,17 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 	struct wpcm_fiu_spi *fiu;
 	struct resource *res;
 
-	ctrl = devm_spi_alloc_master(dev, sizeof(*fiu));
+	ctrl = devm_spi_alloc_host(dev, sizeof(*fiu));
 	if (!ctrl)
 		return -ENOMEM;
 
 	fiu = spi_controller_get_devdata(ctrl);
 	fiu->dev = dev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "control");
-	fiu->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(fiu->regs)) {
-		dev_err(dev, "Failed to map registers\n");
-		return PTR_ERR(fiu->regs);
-	}
+	fiu->regs = devm_platform_ioremap_resource_byname(pdev, "control");
+	if (IS_ERR(fiu->regs))
+		return dev_err_probe(dev, PTR_ERR(fiu->regs),
+				     "Failed to map registers\n");
 
 	fiu->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(fiu->clk))
@@ -463,10 +460,9 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "memory");
 	fiu->memory = devm_ioremap_resource(dev, res);
 	fiu->memory_size = min_t(size_t, resource_size(res), MAX_MEMORY_SIZE_TOTAL);
-	if (IS_ERR(fiu->memory)) {
-		dev_err(dev, "Failed to map flash memory window\n");
-		return PTR_ERR(fiu->memory);
-	}
+	if (IS_ERR(fiu->memory))
+		return dev_err_probe(dev, PTR_ERR(fiu->memory),
+			       "Failed to map flash memory window\n");
 
 	fiu->shm_regmap = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "nuvoton,shm");
 

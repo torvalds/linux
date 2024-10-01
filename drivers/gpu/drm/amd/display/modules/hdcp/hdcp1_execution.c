@@ -63,6 +63,7 @@ static inline enum mod_hdcp_status check_hdcp_capable_dp(struct mod_hdcp *hdcp)
 static inline enum mod_hdcp_status check_r0p_available_dp(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
+
 	if (is_dp_hdcp(hdcp)) {
 		status = (hdcp->auth.msg.hdcp1.bstatus &
 				DP_BSTATUS_R0_PRIME_READY) ?
@@ -131,9 +132,8 @@ static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 static inline enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 {
 	/* Avoid device count == 0 to do authentication */
-	if (0 == get_device_count(hdcp)) {
+	if (get_device_count(hdcp) == 0)
 		return MOD_HDCP_STATUS_HDCP1_DEVICE_COUNT_MISMATCH_FAILURE;
-	}
 
 	/* Some MST display may choose to report the internal panel as an HDCP RX.
 	 * To update this condition with 1(because the immediate repeater's internal
@@ -432,18 +432,18 @@ static enum mod_hdcp_status authenticated_dp(struct mod_hdcp *hdcp,
 		goto out;
 	}
 
-	if (status == MOD_HDCP_STATUS_SUCCESS)
-		mod_hdcp_execute_and_set(mod_hdcp_read_bstatus,
-				&input->bstatus_read, &status,
-				hdcp, "bstatus_read");
-	if (status == MOD_HDCP_STATUS_SUCCESS)
-		mod_hdcp_execute_and_set(check_link_integrity_dp,
-				&input->link_integrity_check, &status,
-				hdcp, "link_integrity_check");
-	if (status == MOD_HDCP_STATUS_SUCCESS)
-		mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
-				&input->reauth_request_check, &status,
-				hdcp, "reauth_request_check");
+	mod_hdcp_execute_and_set(mod_hdcp_read_bstatus,
+			&input->bstatus_read, &status,
+			hdcp, "bstatus_read");
+
+	mod_hdcp_execute_and_set(check_link_integrity_dp,
+			&input->link_integrity_check, &status,
+			hdcp, "link_integrity_check");
+
+	mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
+			&input->reauth_request_check, &status,
+			hdcp, "reauth_request_check");
+
 out:
 	return status;
 }

@@ -205,10 +205,17 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	/*
 	 * success
 	 */
-	if ((iov_iter_rw(iter) == WRITE &&
-	     (!map_data || !map_data->null_mapped)) ||
-	    (map_data && map_data->from_user)) {
+	if (iov_iter_rw(iter) == WRITE &&
+	     (!map_data || !map_data->null_mapped)) {
 		ret = bio_copy_from_iter(bio, iter);
+		if (ret)
+			goto cleanup;
+	} else if (map_data && map_data->from_user) {
+		struct iov_iter iter2 = *iter;
+
+		/* This is the copy-in part of SG_DXFER_TO_FROM_DEV. */
+		iter2.data_source = ITER_SOURCE;
+		ret = bio_copy_from_iter(bio, &iter2);
 		if (ret)
 			goto cleanup;
 	} else {
@@ -315,12 +322,11 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 					n = bytes;
 
 				if (!bio_add_hw_page(rq->q, bio, page, n, offs,
-						     max_sectors, &same_page)) {
-					if (same_page)
-						bio_release_page(bio, page);
+						     max_sectors, &same_page))
 					break;
-				}
 
+				if (same_page)
+					bio_release_page(bio, page);
 				bytes -= n;
 				offs = 0;
 			}
@@ -628,7 +634,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 			const struct iov_iter *iter, gfp_t gfp_mask)
 {
 	bool copy = false, map_bvec = false;
-	unsigned long align = q->dma_pad_mask | queue_dma_alignment(q);
+	unsigned long align = blk_lim_dma_alignment_and_pad(&q->limits);
 	struct bio *bio = NULL;
 	struct iov_iter i;
 	int ret = -EINVAL;
@@ -750,6 +756,9 @@ int blk_rq_unmap_user(struct bio *bio)
 		} else {
 			bio_release_pages(bio, bio_data_dir(bio) == READ);
 		}
+
+		if (bio_integrity(bio))
+			bio_integrity_unmap_user(bio);
 
 		next_bio = bio;
 		bio = bio->bi_next;

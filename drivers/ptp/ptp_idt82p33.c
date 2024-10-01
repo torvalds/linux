@@ -1171,10 +1171,10 @@ static void idt82p33_caps_init(u32 index, struct ptp_clock_info *caps,
 	caps->owner = THIS_MODULE;
 	caps->max_adj = DCO_MAX_PPB;
 	caps->n_per_out = MAX_PER_OUT;
-	caps->n_ext_ts = MAX_PHC_PLL,
-	caps->n_pins = max_pins,
-	caps->adjphase = idt82p33_adjwritephase,
-	caps->getmaxphase = idt82p33_getmaxphase,
+	caps->n_ext_ts = MAX_PHC_PLL;
+	caps->n_pins = max_pins;
+	caps->adjphase = idt82p33_adjwritephase;
+	caps->getmaxphase = idt82p33_getmaxphase;
 	caps->adjfine = idt82p33_adjfine;
 	caps->adjtime = idt82p33_adjtime;
 	caps->gettime64 = idt82p33_gettime;
@@ -1447,15 +1447,13 @@ static int idt82p33_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int idt82p33_remove(struct platform_device *pdev)
+static void idt82p33_remove(struct platform_device *pdev)
 {
 	struct idt82p33 *idt82p33 = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&idt82p33->extts_work);
 
 	idt82p33_ptp_clock_unregister_all(idt82p33);
-
-	return 0;
 }
 
 static struct platform_driver idt82p33_driver = {
@@ -1463,7 +1461,7 @@ static struct platform_driver idt82p33_driver = {
 		.name = "82p33x1x-phc",
 	},
 	.probe = idt82p33_probe,
-	.remove	= idt82p33_remove,
+	.remove_new = idt82p33_remove,
 };
 
 module_platform_driver(idt82p33_driver);

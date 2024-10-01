@@ -24,6 +24,7 @@
     unsafe_op_in_unsafe_fn
 )]
 
+#[allow(dead_code)]
 mod bindings_raw {
     // Use glob import here to expose all helpers.
     // Symbols defined within the module will take precedence to the glob import.
@@ -48,6 +49,3 @@ mod bindings_helper {
 }
 
 pub use bindings_raw::*;
-
-pub const GFP_KERNEL: gfp_t = BINDINGS_GFP_KERNEL;
-pub const __GFP_ZERO: gfp_t = BINDINGS___GFP_ZERO;

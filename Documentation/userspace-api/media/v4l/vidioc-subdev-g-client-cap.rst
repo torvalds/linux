@@ -61,6 +61,21 @@ been accepted. A common case for the kernel not accepting a capability is that
 the kernel is older than the headers the userspace uses, and thus the capability
 is unknown to the kernel.
 
+.. tabularcolumns:: |p{1.5cm}|p{2.9cm}|p{12.9cm}|
+
+.. c:type:: v4l2_subdev_client_capability
+
+.. flat-table:: struct v4l2_subdev_client_capability
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 4 20
+
+    * - __u64
+      - ``capabilities``
+      - Sub-device client capabilities of the opened device.
+
+.. tabularcolumns:: |p{6.8cm}|p{2.4cm}|p{8.1cm}|
+
 .. flat-table:: Client Capabilities
     :header-rows:  1
 
@@ -71,6 +86,11 @@ is unknown to the kernel.
         of 'stream' fields (referring to the stream number) with various
         ioctls. If this is not set (which is the default), the 'stream' fields
         will be forced to 0 by the kernel.
+    * - ``V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH``
+      - The client is aware of the :c:type:`v4l2_subdev_frame_interval`
+        ``which`` field. If this is not set (which is the default), the
+        ``which`` field is forced to ``V4L2_SUBDEV_FORMAT_ACTIVE`` by the
+        kernel.
 
 Return Value
 ============

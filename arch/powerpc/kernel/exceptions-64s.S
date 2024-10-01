@@ -893,7 +893,7 @@ __start_interrupts:
  *
  * Call convention:
  *
- * syscall register convention is in Documentation/powerpc/syscall64-abi.rst
+ * syscall register convention is in Documentation/arch/powerpc/syscall64-abi.rst
  */
 EXC_VIRT_BEGIN(system_call_vectored, 0x3000, 0x1000)
 	/* SCV 0 */
@@ -1952,8 +1952,8 @@ EXC_VIRT_NONE(0x4b00, 0x100)
  * Call convention:
  *
  * syscall and hypercalls register conventions are documented in
- * Documentation/powerpc/syscall64-abi.rst and
- * Documentation/powerpc/papr_hcalls.rst respectively.
+ * Documentation/arch/powerpc/syscall64-abi.rst and
+ * Documentation/arch/powerpc/papr_hcalls.rst respectively.
  *
  * The intersection of volatile registers that don't contain possible
  * inputs is: cr0, xer, ctr. We may use these as scratch regs upon entry
@@ -1989,13 +1989,6 @@ INT_DEFINE_END(system_call)
 	INTERRUPT_TO_KERNEL
 #endif
 
-#ifdef CONFIG_PPC_FAST_ENDIAN_SWITCH
-BEGIN_FTR_SECTION
-	cmpdi	r0,0x1ebe
-	beq-	1f
-END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
-#endif
-
 	/* We reach here with PACA in r13, r13 in r9. */
 	mfspr	r11,SPRN_SRR0
 	mfspr	r12,SPRN_SRR1
@@ -2015,16 +2008,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	b	system_call_common
 #endif
 	.endif
-
-#ifdef CONFIG_PPC_FAST_ENDIAN_SWITCH
-	/* Fast LE/BE switch system call */
-1:	mfspr	r12,SPRN_SRR1
-	xori	r12,r12,MSR_LE
-	mtspr	SPRN_SRR1,r12
-	mr	r13,r9
-	RFI_TO_USER	/* return to userspace */
-	b	.	/* prevent speculative execution */
-#endif
 .endm
 
 EXC_REAL_BEGIN(system_call, 0xc00, 0x100)

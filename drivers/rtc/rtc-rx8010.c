@@ -50,7 +50,7 @@
 #define RX8010_ALARM_AE		BIT(7)
 
 static const struct i2c_device_id rx8010_id[] = {
-	{ "rx8010", 0 },
+	{ "rx8010" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx8010_id);

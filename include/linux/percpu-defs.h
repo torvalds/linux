@@ -475,6 +475,12 @@ do {									\
 	raw_cpu_cmpxchg(pcp, oval, nval);				\
 })
 
+#define __this_cpu_try_cmpxchg(pcp, ovalp, nval)			\
+({									\
+	__this_cpu_preempt_check("try_cmpxchg");			\
+	raw_cpu_try_cmpxchg(pcp, ovalp, nval);				\
+})
+
 #define __this_cpu_sub(pcp, val)	__this_cpu_add(pcp, -(typeof(pcp))(val))
 #define __this_cpu_inc(pcp)		__this_cpu_add(pcp, 1)
 #define __this_cpu_dec(pcp)		__this_cpu_sub(pcp, 1)

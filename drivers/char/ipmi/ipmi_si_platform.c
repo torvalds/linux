@@ -11,10 +11,11 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/acpi.h>
 #include "ipmi_si.h"
 #include "ipmi_dmi.h"
@@ -224,7 +225,6 @@ MODULE_DEVICE_TABLE(of, of_ipmi_match);
 
 static int of_ipmi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct si_sm_io io;
 	struct resource resource;
 	const __be32 *regsize, *regspacing, *regshift;
@@ -236,10 +236,6 @@ static int of_ipmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	dev_info(&pdev->dev, "probing via device tree\n");
-
-	match = of_match_device(of_ipmi_match, &pdev->dev);
-	if (!match)
-		return -ENODEV;
 
 	if (!of_device_is_available(np))
 		return -EINVAL;
@@ -269,7 +265,7 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	}
 
 	memset(&io, 0, sizeof(io));
-	io.si_type	= (enum si_type) match->data;
+	io.si_type	= (enum si_type)device_get_match_data(&pdev->dev);
 	io.addr_source	= SI_DEVICETREE;
 	io.irq_setup	= ipmi_std_irq_setup;
 
@@ -381,7 +377,7 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	dev_info(dev, "%pR regsize %d spacing %d irq %d\n",
 		 res, io.regsize, io.regspacing, io.irq);
 
-	request_module("acpi_ipmi");
+	request_module_nowait("acpi_ipmi");
 
 	return ipmi_si_add_smi(&io);
 }
@@ -409,11 +405,9 @@ static int ipmi_probe(struct platform_device *pdev)
 	return platform_ipmi_probe(pdev);
 }
 
-static int ipmi_remove(struct platform_device *pdev)
+static void ipmi_remove(struct platform_device *pdev)
 {
 	ipmi_si_remove_by_dev(&pdev->dev);
-
-	return 0;
 }
 
 static int pdev_match_name(struct device *dev, const void *data)
@@ -451,7 +445,7 @@ struct platform_driver ipmi_platform_driver = {
 		.acpi_match_table = ACPI_PTR(acpi_ipmi_match),
 	},
 	.probe		= ipmi_probe,
-	.remove		= ipmi_remove,
+	.remove_new	= ipmi_remove,
 	.id_table       = si_plat_ids
 };
 

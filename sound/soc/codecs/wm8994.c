@@ -262,7 +262,7 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 	else
 		clk = "AIF1CLK";
 
-	return strcmp(source->name, clk) == 0;
+	return snd_soc_dapm_widget_name_cmp(source, clk) == 0;
 }
 
 static const char *sidetone_hpf_text[] = {
@@ -2210,7 +2210,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	int reg_offset, ret;
 	struct fll_div fll;
 	u16 reg, clk1, aif_reg, aif_src;
-	unsigned long timeout;
+	unsigned long time_left;
 	bool was_enabled;
 	struct clk *mclk;
 
@@ -2403,9 +2403,9 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 				    WM8994_FLL1_FRAC, reg);
 
 		if (wm8994->fll_locked_irq) {
-			timeout = wait_for_completion_timeout(&wm8994->fll_locked[id],
-							      msecs_to_jiffies(10));
-			if (timeout == 0)
+			time_left = wait_for_completion_timeout(&wm8994->fll_locked[id],
+								msecs_to_jiffies(10));
+			if (time_left == 0)
 				dev_warn(component->dev,
 					 "Timed out waiting for FLL lock\n");
 		} else {
@@ -3215,6 +3215,7 @@ static const struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 };
 
 static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
+	.probe		= wm8994_aif2_probe,
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
@@ -3269,7 +3270,6 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 			.formats = WM8994_FORMATS,
 			.sig_bits = 24,
 		},
-		.probe = wm8994_aif2_probe,
 		.ops = &wm8994_aif2_dai_ops,
 	},
 	{
@@ -4699,7 +4699,7 @@ static struct platform_driver wm8994_codec_driver = {
 		.pm = &wm8994_pm_ops,
 	},
 	.probe = wm8994_probe,
-	.remove_new = wm8994_remove,
+	.remove = wm8994_remove,
 };
 
 module_platform_driver(wm8994_codec_driver);

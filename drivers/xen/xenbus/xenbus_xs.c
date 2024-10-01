@@ -427,12 +427,12 @@ char **xenbus_directory(struct xenbus_transaction t,
 
 	path = join(dir, node);
 	if (IS_ERR(path))
-		return (char **)path;
+		return ERR_CAST(path);
 
 	strings = xs_single(t, XS_DIRECTORY, path, &len);
 	kfree(path);
 	if (IS_ERR(strings))
-		return (char **)strings;
+		return ERR_CAST(strings);
 
 	return split(strings, len, num);
 }
@@ -465,7 +465,7 @@ void *xenbus_read(struct xenbus_transaction t,
 
 	path = join(dir, node);
 	if (IS_ERR(path))
-		return (void *)path;
+		return ERR_CAST(path);
 
 	ret = xs_single(t, XS_READ, path, len);
 	kfree(path);
@@ -840,8 +840,8 @@ void xs_suspend(void)
 {
 	xs_suspend_enter();
 
-	down_write(&xs_watch_rwsem);
 	mutex_lock(&xs_response_mutex);
+	down_write(&xs_watch_rwsem);
 }
 
 void xs_resume(void)
@@ -866,8 +866,8 @@ void xs_resume(void)
 
 void xs_suspend_cancel(void)
 {
-	mutex_unlock(&xs_response_mutex);
 	up_write(&xs_watch_rwsem);
+	mutex_unlock(&xs_response_mutex);
 
 	xs_suspend_exit();
 }

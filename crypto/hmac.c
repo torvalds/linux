@@ -24,19 +24,9 @@
 
 struct hmac_ctx {
 	struct crypto_shash *hash;
+	/* Contains 'u8 ipad[statesize];', then 'u8 opad[statesize];' */
+	u8 pads[];
 };
-
-static inline void *align_ptr(void *p, unsigned int align)
-{
-	return (void *)ALIGN((unsigned long)p, align);
-}
-
-static inline struct hmac_ctx *hmac_ctx(struct crypto_shash *tfm)
-{
-	return align_ptr(crypto_shash_ctx_aligned(tfm) +
-			 crypto_shash_statesize(tfm) * 2,
-			 crypto_tfm_ctx_alignment());
-}
 
 static int hmac_setkey(struct crypto_shash *parent,
 		       const u8 *inkey, unsigned int keylen)
@@ -44,11 +34,10 @@ static int hmac_setkey(struct crypto_shash *parent,
 	int bs = crypto_shash_blocksize(parent);
 	int ds = crypto_shash_digestsize(parent);
 	int ss = crypto_shash_statesize(parent);
-	char *ipad = crypto_shash_ctx_aligned(parent);
-	char *opad = ipad + ss;
-	struct hmac_ctx *ctx = align_ptr(opad + ss,
-					 crypto_tfm_ctx_alignment());
-	struct crypto_shash *hash = ctx->hash;
+	struct hmac_ctx *tctx = crypto_shash_ctx(parent);
+	struct crypto_shash *hash = tctx->hash;
+	u8 *ipad = &tctx->pads[0];
+	u8 *opad = &tctx->pads[ss];
 	SHASH_DESC_ON_STACK(shash, hash);
 	unsigned int i;
 
@@ -94,16 +83,18 @@ static int hmac_export(struct shash_desc *pdesc, void *out)
 static int hmac_import(struct shash_desc *pdesc, const void *in)
 {
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
-	struct hmac_ctx *ctx = hmac_ctx(pdesc->tfm);
+	const struct hmac_ctx *tctx = crypto_shash_ctx(pdesc->tfm);
 
-	desc->tfm = ctx->hash;
+	desc->tfm = tctx->hash;
 
 	return crypto_shash_import(desc, in);
 }
 
 static int hmac_init(struct shash_desc *pdesc)
 {
-	return hmac_import(pdesc, crypto_shash_ctx_aligned(pdesc->tfm));
+	const struct hmac_ctx *tctx = crypto_shash_ctx(pdesc->tfm);
+
+	return hmac_import(pdesc, &tctx->pads[0]);
 }
 
 static int hmac_update(struct shash_desc *pdesc,
@@ -119,7 +110,8 @@ static int hmac_final(struct shash_desc *pdesc, u8 *out)
 	struct crypto_shash *parent = pdesc->tfm;
 	int ds = crypto_shash_digestsize(parent);
 	int ss = crypto_shash_statesize(parent);
-	char *opad = crypto_shash_ctx_aligned(parent) + ss;
+	const struct hmac_ctx *tctx = crypto_shash_ctx(parent);
+	const u8 *opad = &tctx->pads[ss];
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
 
 	return crypto_shash_final(desc, out) ?:
@@ -134,7 +126,8 @@ static int hmac_finup(struct shash_desc *pdesc, const u8 *data,
 	struct crypto_shash *parent = pdesc->tfm;
 	int ds = crypto_shash_digestsize(parent);
 	int ss = crypto_shash_statesize(parent);
-	char *opad = crypto_shash_ctx_aligned(parent) + ss;
+	const struct hmac_ctx *tctx = crypto_shash_ctx(parent);
+	const u8 *opad = &tctx->pads[ss];
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
 
 	return crypto_shash_finup(desc, data, nbytes, out) ?:
@@ -147,7 +140,7 @@ static int hmac_init_tfm(struct crypto_shash *parent)
 	struct crypto_shash *hash;
 	struct shash_instance *inst = shash_alg_instance(parent);
 	struct crypto_shash_spawn *spawn = shash_instance_ctx(inst);
-	struct hmac_ctx *ctx = hmac_ctx(parent);
+	struct hmac_ctx *tctx = crypto_shash_ctx(parent);
 
 	hash = crypto_spawn_shash(spawn);
 	if (IS_ERR(hash))
@@ -156,14 +149,14 @@ static int hmac_init_tfm(struct crypto_shash *parent)
 	parent->descsize = sizeof(struct shash_desc) +
 			   crypto_shash_descsize(hash);
 
-	ctx->hash = hash;
+	tctx->hash = hash;
 	return 0;
 }
 
 static int hmac_clone_tfm(struct crypto_shash *dst, struct crypto_shash *src)
 {
-	struct hmac_ctx *sctx = hmac_ctx(src);
-	struct hmac_ctx *dctx = hmac_ctx(dst);
+	struct hmac_ctx *sctx = crypto_shash_ctx(src);
+	struct hmac_ctx *dctx = crypto_shash_ctx(dst);
 	struct crypto_shash *hash;
 
 	hash = crypto_clone_shash(sctx->hash);
@@ -176,9 +169,9 @@ static int hmac_clone_tfm(struct crypto_shash *dst, struct crypto_shash *src)
 
 static void hmac_exit_tfm(struct crypto_shash *parent)
 {
-	struct hmac_ctx *ctx = hmac_ctx(parent);
+	struct hmac_ctx *tctx = crypto_shash_ctx(parent);
 
-	crypto_free_shash(ctx->hash);
+	crypto_free_shash(tctx->hash);
 }
 
 static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
@@ -225,15 +218,10 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
-	inst->alg.base.cra_alignmask = alg->cra_alignmask;
+	inst->alg.base.cra_ctxsize = sizeof(struct hmac_ctx) + (ss * 2);
 
-	ss = ALIGN(ss, alg->cra_alignmask + 1);
 	inst->alg.digestsize = ds;
 	inst->alg.statesize = ss;
-
-	inst->alg.base.cra_ctxsize = sizeof(struct hmac_ctx) +
-				     ALIGN(ss * 2, crypto_tfm_ctx_alignment());
-
 	inst->alg.init = hmac_init;
 	inst->alg.update = hmac_update;
 	inst->alg.final = hmac_final;

@@ -23,19 +23,19 @@
 enum sensor_access { access_direct, access_asuswmi };
 
 static const char * const nct6775_sio_names[] __initconst = {
-	"NCT6106D",
-	"NCT6116D",
-	"NCT6775F",
-	"NCT6776D/F",
-	"NCT6779D",
-	"NCT6791D",
-	"NCT6792D",
-	"NCT6793D",
-	"NCT6795D",
-	"NCT6796D",
-	"NCT6797D",
-	"NCT6798D",
-	"NCT6799D",
+	[nct6106] = "NCT6106D",
+	[nct6116] = "NCT6116D",
+	[nct6775] = "NCT6775F",
+	[nct6776] = "NCT6776D/F",
+	[nct6779] = "NCT6779D",
+	[nct6791] = "NCT6791D",
+	[nct6792] = "NCT6792D",
+	[nct6793] = "NCT6793D",
+	[nct6795] = "NCT6795D",
+	[nct6796] = "NCT6796D",
+	[nct6797] = "NCT6797D",
+	[nct6798] = "NCT6798D",
+	[nct6799] = "NCT6796D-S/NCT6799D-R",
 };
 
 static unsigned short force_id;
@@ -586,7 +586,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 		int creb;
 		int cred;
 
-		cre6 = sio_data->sio_inb(sio_data, 0xe0);
+		cre6 = sio_data->sio_inb(sio_data, 0xe6);
 
 		sio_data->sio_select(sio_data, NCT6775_LD_12);
 		cre0 = sio_data->sio_inb(sio_data, 0xe0);
@@ -1269,6 +1269,7 @@ static const char * const asus_msi_boards[] = {
 	"EX-B760M-V5 D4",
 	"EX-H510M-V3",
 	"EX-H610M-V3 D4",
+	"G15CF",
 	"PRIME A620M-A",
 	"PRIME B560-PLUS",
 	"PRIME B560-PLUS AC-HES",
@@ -1465,10 +1466,8 @@ static const char * const asus_msi_boards[] = {
 static int nct6775_asuswmi_device_match(struct device *dev, void *data)
 {
 	struct acpi_device *adev = to_acpi_device(dev);
-	const char *uid = acpi_device_uid(adev);
-	const char *hid = acpi_device_hid(adev);
 
-	if (hid && !strcmp(hid, ASUSWMI_DEVICE_HID) && uid && !strcmp(uid, data)) {
+	if (acpi_dev_hid_uid_match(adev, ASUSWMI_DEVICE_HID, data)) {
 		asus_acpi_dev = adev;
 		return 1;
 	}

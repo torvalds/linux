@@ -21,6 +21,7 @@
  *          Alex Deucher <alexdeucher@gmail.com>
  */
 
+#include <linux/debugfs.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
 #include <linux/pci.h>
@@ -281,7 +282,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	if (rdev->irq.installed) {
 		i = 0;
-		drm_for_each_crtc(crtc, rdev->ddev) {
+		drm_for_each_crtc(crtc, rdev_to_drm(rdev)) {
 			if (rdev->pm.active_crtcs & (1 << i)) {
 				/* This can fail if a modeset is in progress */
 				if (drm_crtc_vblank_get(crtc) == 0)
@@ -298,7 +299,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	if (rdev->irq.installed) {
 		i = 0;
-		drm_for_each_crtc(crtc, rdev->ddev) {
+		drm_for_each_crtc(crtc, rdev_to_drm(rdev)) {
 			if (rdev->pm.req_vblank & (1 << i)) {
 				rdev->pm.req_vblank &= ~(1 << i);
 				drm_crtc_vblank_put(crtc);
@@ -587,7 +588,7 @@ static ssize_t radeon_hwmon_set_pwm1_enable(struct device *dev,
 	int err;
 	int value;
 
-	if(!rdev->asic->dpm.fan_ctrl_set_mode)
+	if (!rdev->asic->dpm.fan_ctrl_set_mode)
 		return -EINVAL;
 
 	err = kstrtoint(buf, 10, &value);
@@ -670,7 +671,7 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 				      char *buf)
 {
 	struct radeon_device *rdev = dev_get_drvdata(dev);
-	struct drm_device *ddev = rdev->ddev;
+	struct drm_device *ddev = rdev_to_drm(rdev);
 	int temp;
 
 	/* Can't get temperature when the card is off */
@@ -714,7 +715,7 @@ static ssize_t radeon_hwmon_show_sclk(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
 	struct radeon_device *rdev = dev_get_drvdata(dev);
-	struct drm_device *ddev = rdev->ddev;
+	struct drm_device *ddev = rdev_to_drm(rdev);
 	u32 sclk = 0;
 
 	/* Can't get clock frequency when the card is off */
@@ -739,7 +740,7 @@ static ssize_t radeon_hwmon_show_vddc(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
 	struct radeon_device *rdev = dev_get_drvdata(dev);
-	struct drm_device *ddev = rdev->ddev;
+	struct drm_device *ddev = rdev_to_drm(rdev);
 	u16 vddc = 0;
 
 	/* Can't get vddc when the card is off */
@@ -789,7 +790,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* Skip vddc attribute if get_current_vddc is not implemented */
-	if(attr == &sensor_dev_attr_in0_input.dev_attr.attr &&
+	if (attr == &sensor_dev_attr_in0_input.dev_attr.attr &&
 		!rdev->asic->dpm.get_current_vddc)
 		return 0;
 
@@ -1691,7 +1692,7 @@ void radeon_pm_fini(struct radeon_device *rdev)
 
 static void radeon_pm_compute_clocks_old(struct radeon_device *rdev)
 {
-	struct drm_device *ddev = rdev->ddev;
+	struct drm_device *ddev = rdev_to_drm(rdev);
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
 
@@ -1764,7 +1765,7 @@ static void radeon_pm_compute_clocks_old(struct radeon_device *rdev)
 
 static void radeon_pm_compute_clocks_dpm(struct radeon_device *rdev)
 {
-	struct drm_device *ddev = rdev->ddev;
+	struct drm_device *ddev = rdev_to_drm(rdev);
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
 	struct radeon_connector *radeon_connector;
@@ -1825,7 +1826,7 @@ static bool radeon_pm_in_vbl(struct radeon_device *rdev)
 	 */
 	for (crtc = 0; (crtc < rdev->num_crtc) && in_vbl; crtc++) {
 		if (rdev->pm.active_crtcs & (1 << crtc)) {
-			vbl_status = radeon_get_crtc_scanoutpos(rdev->ddev,
+			vbl_status = radeon_get_crtc_scanoutpos(rdev_to_drm(rdev),
 								crtc,
 								USE_REAL_VBLANKSTART,
 								&vpos, &hpos, NULL, NULL,
@@ -1917,7 +1918,7 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 static int radeon_debugfs_pm_info_show(struct seq_file *m, void *unused)
 {
 	struct radeon_device *rdev = m->private;
-	struct drm_device *ddev = rdev->ddev;
+	struct drm_device *ddev = rdev_to_drm(rdev);
 
 	if  ((rdev->flags & RADEON_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON)) {
@@ -1954,7 +1955,7 @@ DEFINE_SHOW_ATTRIBUTE(radeon_debugfs_pm_info);
 static void radeon_debugfs_pm_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct dentry *root = rdev->ddev->primary->debugfs_root;
+	struct dentry *root = rdev_to_drm(rdev)->primary->debugfs_root;
 
 	debugfs_create_file("radeon_pm_info", 0444, root, rdev,
 			    &radeon_debugfs_pm_info_fops);

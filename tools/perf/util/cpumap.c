@@ -180,8 +180,6 @@ struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr)
 		cpus->nr = nr;
 		for (i = 0; i < nr; i++)
 			cpus->map[i] = aggr_cpu_id__empty();
-
-		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -222,6 +220,8 @@ static int aggr_cpu_id__cmp(const void *a_pointer, const void *b_pointer)
 		return a->socket - b->socket;
 	else if (a->die != b->die)
 		return a->die - b->die;
+	else if (a->cluster != b->cluster)
+		return a->cluster - b->cluster;
 	else if (a->cache_lvl != b->cache_lvl)
 		return a->cache_lvl - b->cache_lvl;
 	else if (a->cache != b->cache)
@@ -309,6 +309,30 @@ struct aggr_cpu_id aggr_cpu_id__die(struct perf_cpu cpu, void *data)
 	return id;
 }
 
+int cpu__get_cluster_id(struct perf_cpu cpu)
+{
+	int value, ret = cpu__get_topology_int(cpu.cpu, "cluster_id", &value);
+
+	return ret ?: value;
+}
+
+struct aggr_cpu_id aggr_cpu_id__cluster(struct perf_cpu cpu, void *data)
+{
+	int cluster = cpu__get_cluster_id(cpu);
+	struct aggr_cpu_id id;
+
+	/* There is no cluster_id on legacy system. */
+	if (cluster == -1)
+		cluster = 0;
+
+	id = aggr_cpu_id__die(cpu, data);
+	if (aggr_cpu_id__is_empty(&id))
+		return id;
+
+	id.cluster = cluster;
+	return id;
+}
+
 int cpu__get_core_id(struct perf_cpu cpu)
 {
 	int value, ret = cpu__get_topology_int(cpu.cpu, "core_id", &value);
@@ -320,8 +344,8 @@ struct aggr_cpu_id aggr_cpu_id__core(struct perf_cpu cpu, void *data)
 	struct aggr_cpu_id id;
 	int core = cpu__get_core_id(cpu);
 
-	/* aggr_cpu_id__die returns a struct with socket and die set. */
-	id = aggr_cpu_id__die(cpu, data);
+	/* aggr_cpu_id__die returns a struct with socket die, and cluster set. */
+	id = aggr_cpu_id__cluster(cpu, data);
 	if (aggr_cpu_id__is_empty(&id))
 		return id;
 
@@ -629,10 +653,10 @@ static char hex_char(unsigned char val)
 
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 {
-	int i, cpu;
+	int idx;
 	char *ptr = buf;
 	unsigned char *bitmap;
-	struct perf_cpu last_cpu = perf_cpu_map__cpu(map, perf_cpu_map__nr(map) - 1);
+	struct perf_cpu c, last_cpu = perf_cpu_map__max(map);
 
 	if (buf == NULL)
 		return 0;
@@ -643,12 +667,10 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 		return 0;
 	}
 
-	for (i = 0; i < perf_cpu_map__nr(map); i++) {
-		cpu = perf_cpu_map__cpu(map, i).cpu;
-		bitmap[cpu / 8] |= 1 << (cpu % 8);
-	}
+	perf_cpu_map__for_each_cpu(c, idx, map)
+		bitmap[c.cpu / 8] |= 1 << (c.cpu % 8);
 
-	for (cpu = last_cpu.cpu / 4 * 4; cpu >= 0; cpu -= 4) {
+	for (int cpu = last_cpu.cpu / 4 * 4; cpu >= 0; cpu -= 4) {
 		unsigned char bits = bitmap[cpu / 8];
 
 		if (cpu % 8)
@@ -672,7 +694,7 @@ struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 	static struct perf_cpu_map *online;
 
 	if (!online)
-		online = perf_cpu_map__new(NULL); /* from /sys/devices/system/cpu/online */
+		online = perf_cpu_map__new_online_cpus(); /* from /sys/devices/system/cpu/online */
 
 	return online;
 }
@@ -683,6 +705,7 @@ bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b
 		a->node == b->node &&
 		a->socket == b->socket &&
 		a->die == b->die &&
+		a->cluster == b->cluster &&
 		a->cache_lvl == b->cache_lvl &&
 		a->cache == b->cache &&
 		a->core == b->core &&
@@ -695,6 +718,7 @@ bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a)
 		a->node == -1 &&
 		a->socket == -1 &&
 		a->die == -1 &&
+		a->cluster == -1 &&
 		a->cache_lvl == -1 &&
 		a->cache == -1 &&
 		a->core == -1 &&
@@ -708,6 +732,7 @@ struct aggr_cpu_id aggr_cpu_id__empty(void)
 		.node = -1,
 		.socket = -1,
 		.die = -1,
+		.cluster = -1,
 		.cache_lvl = -1,
 		.cache = -1,
 		.core = -1,

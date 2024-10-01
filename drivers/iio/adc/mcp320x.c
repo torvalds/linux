@@ -371,6 +371,11 @@ static const struct mcp320x_chip_info mcp320x_chip_infos[] = {
 	},
 };
 
+static void mcp320x_regulator_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int mcp320x_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -388,7 +393,6 @@ static int mcp320x_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp320x_info;
-	spi_set_drvdata(spi, indio_dev);
 
 	device_index = spi_get_device_id(spi)->driver_data;
 	chip_info = &mcp320x_chip_infos[device_index];
@@ -445,40 +449,16 @@ static int mcp320x_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
+	ret = devm_add_action_or_reset(&spi->dev, mcp320x_regulator_disable, adc->reg);
+	if (ret < 0)
+		return ret;
+
 	mutex_init(&adc->lock);
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto reg_disable;
-
-	return 0;
-
-reg_disable:
-	regulator_disable(adc->reg);
-
-	return ret;
-}
-
-static void mcp320x_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct mcp320x *adc = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	regulator_disable(adc->reg);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct of_device_id mcp320x_dt_ids[] = {
-	/* NOTE: The use of compatibles with no vendor prefix is deprecated. */
-	{ .compatible = "mcp3001" },
-	{ .compatible = "mcp3002" },
-	{ .compatible = "mcp3004" },
-	{ .compatible = "mcp3008" },
-	{ .compatible = "mcp3201" },
-	{ .compatible = "mcp3202" },
-	{ .compatible = "mcp3204" },
-	{ .compatible = "mcp3208" },
-	{ .compatible = "mcp3301" },
 	{ .compatible = "microchip,mcp3001" },
 	{ .compatible = "microchip,mcp3002" },
 	{ .compatible = "microchip,mcp3004" },
@@ -520,7 +500,6 @@ static struct spi_driver mcp320x_driver = {
 		.of_match_table = mcp320x_dt_ids,
 	},
 	.probe = mcp320x_probe,
-	.remove = mcp320x_remove,
 	.id_table = mcp320x_id,
 };
 module_spi_driver(mcp320x_driver);

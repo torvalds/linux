@@ -7,17 +7,20 @@
  *
  */
 
+#include <crypto/engine.h>
+#include "jh7110-cryp.h"
 #include <linux/clk.h>
-#include <linux/delay.h>
+#include <linux/completion.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-
-#include "jh7110-cryp.h"
+#include <linux/spinlock.h>
 
 #define DRIVER_NAME             "jh7110-crypto"
 
@@ -51,6 +54,13 @@ struct starfive_cryp_dev *starfive_cryp_find_dev(struct starfive_cryp_ctx *ctx)
 	return cryp;
 }
 
+static u16 side_chan;
+module_param(side_chan, ushort, 0);
+MODULE_PARM_DESC(side_chan, "Enable side channel mitigation for AES module.\n"
+			    "Enabling this feature will reduce speed performance.\n"
+			    " 0 - Disabled\n"
+			    " other - Enabled");
+
 static int starfive_dma_init(struct starfive_cryp_dev *cryp)
 {
 	dma_cap_mask_t mask;
@@ -79,34 +89,10 @@ static void starfive_dma_cleanup(struct starfive_cryp_dev *cryp)
 	dma_release_channel(cryp->rx);
 }
 
-static irqreturn_t starfive_cryp_irq(int irq, void *priv)
-{
-	u32 status;
-	struct starfive_cryp_dev *cryp = (struct starfive_cryp_dev *)priv;
-
-	status = readl(cryp->base + STARFIVE_IE_FLAG_OFFSET);
-	if (status & STARFIVE_IE_FLAG_HASH_DONE) {
-		status = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
-		status |= STARFIVE_IE_MASK_HASH_DONE;
-		writel(status, cryp->base + STARFIVE_IE_MASK_OFFSET);
-		tasklet_schedule(&cryp->hash_done);
-	}
-
-	if (status & STARFIVE_IE_FLAG_PKA_DONE) {
-		status = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
-		status |= STARFIVE_IE_MASK_PKA_DONE;
-		writel(status, cryp->base + STARFIVE_IE_MASK_OFFSET);
-		complete(&cryp->pka_done);
-	}
-
-	return IRQ_HANDLED;
-}
-
 static int starfive_cryp_probe(struct platform_device *pdev)
 {
 	struct starfive_cryp_dev *cryp;
 	struct resource *res;
-	int irq;
 	int ret;
 
 	cryp = devm_kzalloc(&pdev->dev, sizeof(*cryp), GFP_KERNEL);
@@ -121,10 +107,9 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(cryp->base),
 				     "Error remapping memory for platform device\n");
 
-	tasklet_init(&cryp->hash_done, starfive_hash_done_task, (unsigned long)cryp);
-
 	cryp->phys_base = res->start;
 	cryp->dma_maxburst = 32;
+	cryp->side_chan = side_chan;
 
 	cryp->hclk = devm_clk_get(&pdev->dev, "hclk");
 	if (IS_ERR(cryp->hclk))
@@ -141,18 +126,6 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(cryp->rst),
 				     "Error getting hardware reset line\n");
 
-	init_completion(&cryp->pka_done);
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_irq(&pdev->dev, irq, starfive_cryp_irq, 0, pdev->name,
-			       (void *)cryp);
-	if (ret)
-		return dev_err_probe(&pdev->dev, irq,
-				     "Failed to register interrupt handler\n");
-
 	clk_prepare_enable(cryp->hclk);
 	clk_prepare_enable(cryp->ahb);
 	reset_control_deassert(cryp->rst);
@@ -162,12 +135,8 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	spin_unlock(&dev_list.lock);
 
 	ret = starfive_dma_init(cryp);
-	if (ret) {
-		if (ret == -EPROBE_DEFER)
-			goto err_probe_defer;
-		else
-			goto err_dma_init;
-	}
+	if (ret)
+		goto err_dma_init;
 
 	/* Initialize crypto engine */
 	cryp->engine = crypto_engine_alloc_init(&pdev->dev, 1);
@@ -179,6 +148,10 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	ret = crypto_engine_start(cryp->engine);
 	if (ret)
 		goto err_engine_start;
+
+	ret = starfive_aes_register_algs();
+	if (ret)
+		goto err_algs_aes;
 
 	ret = starfive_hash_register_algs();
 	if (ret)
@@ -193,6 +166,8 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 err_algs_rsa:
 	starfive_hash_unregister_algs();
 err_algs_hash:
+	starfive_aes_unregister_algs();
+err_algs_aes:
 	crypto_engine_stop(cryp->engine);
 err_engine_start:
 	crypto_engine_exit(cryp->engine);
@@ -207,19 +182,16 @@ err_dma_init:
 	clk_disable_unprepare(cryp->ahb);
 	reset_control_assert(cryp->rst);
 
-	tasklet_kill(&cryp->hash_done);
-err_probe_defer:
 	return ret;
 }
 
-static int starfive_cryp_remove(struct platform_device *pdev)
+static void starfive_cryp_remove(struct platform_device *pdev)
 {
 	struct starfive_cryp_dev *cryp = platform_get_drvdata(pdev);
 
+	starfive_aes_unregister_algs();
 	starfive_hash_unregister_algs();
 	starfive_rsa_unregister_algs();
-
-	tasklet_kill(&cryp->hash_done);
 
 	crypto_engine_stop(cryp->engine);
 	crypto_engine_exit(cryp->engine);
@@ -233,8 +205,6 @@ static int starfive_cryp_remove(struct platform_device *pdev)
 	clk_disable_unprepare(cryp->hclk);
 	clk_disable_unprepare(cryp->ahb);
 	reset_control_assert(cryp->rst);
-
-	return 0;
 }
 
 static const struct of_device_id starfive_dt_ids[] __maybe_unused = {
@@ -245,7 +215,7 @@ MODULE_DEVICE_TABLE(of, starfive_dt_ids);
 
 static struct platform_driver starfive_cryp_driver = {
 	.probe  = starfive_cryp_probe,
-	.remove = starfive_cryp_remove,
+	.remove_new = starfive_cryp_remove,
 	.driver = {
 		.name           = DRIVER_NAME,
 		.of_match_table = starfive_dt_ids,

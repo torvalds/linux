@@ -3,9 +3,6 @@
 # Makefile for the linux kernel.
 #
 
-ifdef CONFIG_PPC64
-CFLAGS_prom_init.o	+= $(NO_MINIMAL_TOC)
-endif
 ifdef CONFIG_PPC32
 CFLAGS_prom_init.o      += -fPIC
 CFLAGS_btext.o		+= -fPIC
@@ -55,7 +52,6 @@ CFLAGS_btext.o += -DDISABLE_BRANCH_PROFILING
 endif
 
 KCSAN_SANITIZE_early_32.o := n
-KCSAN_SANITIZE_early_64.o := n
 KCSAN_SANITIZE_cputable.o := n
 KCSAN_SANITIZE_btext.o := n
 KCSAN_SANITIZE_paca.o := n
@@ -88,6 +84,7 @@ obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= hw_breakpoint.o
 obj-$(CONFIG_PPC_DAWR)		+= dawr.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= cpu_setup_ppc970.o cpu_setup_pa6t.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= cpu_setup_power.o
+obj-$(CONFIG_PPC_BOOK3S_64)	+= dexcr.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= mce.o mce_power.o
 obj-$(CONFIG_PPC_BOOK3E_64)	+= exceptions-64e.o idle_64e.o
 obj-$(CONFIG_PPC_BARRIER_NOSPEC) += security.o
@@ -126,7 +123,6 @@ obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
 obj-$(CONFIG_PPC64)		+= head_64.o
 obj-$(CONFIG_PPC_BOOK3S_32)	+= head_book3s_32.o
-obj-$(CONFIG_40x)		+= head_40x.o
 obj-$(CONFIG_44x)		+= head_44x.o
 obj-$(CONFIG_PPC_8xx)		+= head_8xx.o
 obj-$(CONFIG_PPC_85xx)		+= head_85xx.o
@@ -143,6 +139,7 @@ obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_OPTPROBES)		+= optprobes.o optprobes_head.o
 obj-$(CONFIG_KPROBES_ON_FTRACE)	+= kprobes-ftrace.o
 obj-$(CONFIG_UPROBES)		+= uprobes.o
+obj-$(CONFIG_RETHOOK)           += rethook.o
 obj-$(CONFIG_PPC_UDBG_16550)	+= legacy_serial.o udbg_16550.o
 obj-$(CONFIG_SWIOTLB)		+= dma-swiotlb.o
 obj-$(CONFIG_ARCH_HAS_DMA_SET_MASK) += dma-mask.o
@@ -191,9 +188,6 @@ GCOV_PROFILE_kprobes-ftrace.o := n
 KCOV_INSTRUMENT_kprobes-ftrace.o := n
 KCSAN_SANITIZE_kprobes-ftrace.o := n
 UBSAN_SANITIZE_kprobes-ftrace.o := n
-GCOV_PROFILE_syscall_64.o := n
-KCOV_INSTRUMENT_syscall_64.o := n
-UBSAN_SANITIZE_syscall_64.o := n
 UBSAN_SANITIZE_vdso.o := n
 
 # Necessary for booting with kcov enabled on book3e machines

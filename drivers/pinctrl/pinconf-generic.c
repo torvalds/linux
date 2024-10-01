@@ -10,17 +10,19 @@
 
 #define pr_fmt(fmt) "generic pinconfig core: " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/slab.h>
+#include <linux/array_size.h>
 #include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/device.h>
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/of.h>
+#include <linux/slab.h>
+#include <linux/seq_file.h>
+
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
+
 #include "core.h"
 #include "pinconf.h"
 #include "pinctrl-utils.h"
@@ -42,6 +44,7 @@ static const struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_INPUT_DEBOUNCE, "input debounce", "usec", true),
 	PCONFDUMP(PIN_CONFIG_INPUT_ENABLE, "input enabled", NULL, false),
 	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT, "input schmitt trigger", NULL, false),
+	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_UV, "input schmitt threshold", "uV", true),
 	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_ENABLE, "input schmitt enabled", NULL, false),
 	PCONFDUMP(PIN_CONFIG_MODE_LOW_POWER, "pin low power", "mode", true),
 	PCONFDUMP(PIN_CONFIG_OUTPUT_ENABLE, "output enabled", NULL, false),
@@ -55,7 +58,7 @@ static const struct pin_config_item conf_items[] = {
 
 static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
 				     struct seq_file *s, const char *gname,
-				     unsigned pin,
+				     unsigned int pin,
 				     const struct pin_config_item *items,
 				     int nitems, int *print_sep)
 {
@@ -86,7 +89,7 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
 		seq_puts(s, items[i].display);
 		/* Print unit if available */
 		if (items[i].has_arg) {
-			seq_printf(s, " (%u",
+			seq_printf(s, " (0x%x",
 				   pinconf_to_config_argument(config));
 			if (items[i].format)
 				seq_printf(s, " %s)", items[i].format);
@@ -108,7 +111,7 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
  * to be specified the other can be NULL/0.
  */
 void pinconf_generic_dump_pins(struct pinctrl_dev *pctldev, struct seq_file *s,
-			       const char *gname, unsigned pin)
+			       const char *gname, unsigned int pin)
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 	int print_sep = 0;
@@ -175,6 +178,7 @@ static const struct pinconf_generic_params dt_params[] = {
 	{ "input-schmitt", PIN_CONFIG_INPUT_SCHMITT, 0 },
 	{ "input-schmitt-disable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 0 },
 	{ "input-schmitt-enable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 1 },
+	{ "input-schmitt-microvolts", PIN_CONFIG_INPUT_SCHMITT_UV, 0 },
 	{ "low-power-disable", PIN_CONFIG_MODE_LOW_POWER, 0 },
 	{ "low-power-enable", PIN_CONFIG_MODE_LOW_POWER, 1 },
 	{ "output-disable", PIN_CONFIG_OUTPUT_ENABLE, 0 },
@@ -293,15 +297,15 @@ EXPORT_SYMBOL_GPL(pinconf_generic_parse_dt_config);
 
 int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np, struct pinctrl_map **map,
-		unsigned *reserved_maps, unsigned *num_maps,
+		unsigned int *reserved_maps, unsigned int *num_maps,
 		enum pinctrl_map_type type)
 {
 	int ret;
 	const char *function;
 	struct device *dev = pctldev->dev;
 	unsigned long *configs = NULL;
-	unsigned num_configs = 0;
-	unsigned reserve, strings_count;
+	unsigned int num_configs = 0;
+	unsigned int reserve, strings_count;
 	struct property *prop;
 	const char *group;
 	const char *subnode_target_type = "pins";
@@ -377,10 +381,9 @@ EXPORT_SYMBOL_GPL(pinconf_generic_dt_subnode_to_map);
 
 int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np_config, struct pinctrl_map **map,
-		unsigned *num_maps, enum pinctrl_map_type type)
+		unsigned int *num_maps, enum pinctrl_map_type type)
 {
-	unsigned reserved_maps;
-	struct device_node *np;
+	unsigned int reserved_maps;
 	int ret;
 
 	reserved_maps = 0;
@@ -392,13 +395,11 @@ int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0)
 		goto exit;
 
-	for_each_available_child_of_node(np_config, np) {
+	for_each_available_child_of_node_scoped(np_config, np) {
 		ret = pinconf_generic_dt_subnode_to_map(pctldev, np, map,
 					&reserved_maps, num_maps, type);
-		if (ret < 0) {
-			of_node_put(np);
+		if (ret < 0)
 			goto exit;
-		}
 	}
 	return 0;
 
@@ -410,7 +411,7 @@ EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);
 
 void pinconf_generic_dt_free_map(struct pinctrl_dev *pctldev,
 				 struct pinctrl_map *map,
-				 unsigned num_maps)
+				 unsigned int num_maps)
 {
 	pinctrl_utils_free_map(pctldev, map, num_maps);
 }

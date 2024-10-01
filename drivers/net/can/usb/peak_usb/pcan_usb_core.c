@@ -214,19 +214,6 @@ void peak_usb_get_ts_time(struct peak_time_ref *time_ref, u32 ts, ktime_t *time)
 	}
 }
 
-/*
- * post received skb after having set any hw timestamp
- */
-int peak_usb_netif_rx(struct sk_buff *skb,
-		      struct peak_time_ref *time_ref, u32 ts_low)
-{
-	struct skb_shared_hwtstamps *hwts = skb_hwtstamps(skb);
-
-	peak_usb_get_ts_time(time_ref, ts_low, &hwts->hwtstamp);
-
-	return netif_rx(skb);
-}
-
 /* post received skb with native 64-bit hw timestamp */
 int peak_usb_netif_rx_64(struct sk_buff *skb, u32 ts_low, u32 ts_high)
 {
@@ -910,15 +897,12 @@ int peak_usb_set_eeprom(struct net_device *netdev,
 	return 0;
 }
 
-int pcan_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+int pcan_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |
-		SOF_TIMESTAMPING_RX_SOFTWARE |
-		SOF_TIMESTAMPING_SOFTWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
 		SOF_TIMESTAMPING_RAW_HARDWARE;
-	info->phc_index = -1;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF);
 	info->rx_filters = BIT(HWTSTAMP_FILTER_ALL);
 
@@ -1156,7 +1140,7 @@ static void __exit peak_usb_exit(void)
 	int err;
 
 	/* last chance do send any synchronous commands here */
-	err = driver_for_each_device(&peak_usb_driver.drvwrap.driver, NULL,
+	err = driver_for_each_device(&peak_usb_driver.driver, NULL,
 				     NULL, peak_usb_do_device_exit);
 	if (err)
 		pr_err("%s: failed to stop all can devices (err %d)\n",

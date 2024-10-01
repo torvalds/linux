@@ -138,6 +138,10 @@ times, but it's highly important.  If we can actually eliminate warnings
 from the documentation build, then we can start expecting developers to
 avoid adding new ones.
 
+In addition to warnings from the regular documentation build, you can also
+run ``make refcheckdocs`` to find references to nonexistent documentation
+files.
+
 Languishing kerneldoc comments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

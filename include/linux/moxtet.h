@@ -35,8 +35,6 @@ enum turris_mox_module_id {
 
 #define MOXTET_NIRQS	16
 
-extern struct bus_type moxtet_type;
-
 struct moxtet {
 	struct device			*dev;
 	struct mutex			lock;
@@ -63,13 +61,8 @@ struct moxtet_driver {
 	struct device_driver		driver;
 };
 
-static inline struct moxtet_driver *
-to_moxtet_driver(struct device_driver *drv)
-{
-	if (!drv)
-		return NULL;
-	return container_of(drv, struct moxtet_driver, driver);
-}
+#define to_moxtet_driver(__drv)	\
+	( __drv ? container_of_const(__drv, struct moxtet_driver, driver) : NULL )
 
 extern int __moxtet_register_driver(struct module *owner,
 				    struct moxtet_driver *mdrv);

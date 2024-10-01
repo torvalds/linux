@@ -36,6 +36,7 @@
 struct dc_dp_mst_stream_allocation_table;
 struct aux_payload;
 enum aux_return_code_type;
+enum set_config_status;
 
 /*
  * Allocate memory accessible by the GPU
@@ -103,10 +104,16 @@ enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 /*
  * Sends ALLOCATE_PAYLOAD message.
  */
-bool dm_helpers_dp_mst_send_payload_allocation(
+void dm_helpers_dp_mst_send_payload_allocation(
 		struct dc_context *ctx,
-		const struct dc_stream_state *stream,
-		bool enable);
+		const struct dc_stream_state *stream);
+
+/*
+ * Update mst manager relevant variables
+ */
+void dm_helpers_dp_mst_update_mst_mgr_for_deallocation(
+		struct dc_context *ctx,
+		const struct dc_stream_state *stream);
 
 bool dm_helpers_dp_mst_start_top_mgr(
 		struct dc_context *ctx,
@@ -194,7 +201,7 @@ int dm_helper_dmub_aux_transfer_sync(
 		const struct dc_link *link,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result);
-enum set_config_status;
+
 int dm_helpers_dmub_set_config_sync(struct dc_context *ctx,
 		const struct dc_link *link,
 		struct set_config_cmd_payload *payload,
@@ -202,5 +209,8 @@ int dm_helpers_dmub_set_config_sync(struct dc_context *ctx,
 enum adaptive_sync_type dm_get_adaptive_sync_support_type(struct dc_link *link);
 
 enum dc_edid_status dm_helpers_get_sbios_edid(struct dc_link *link, struct dc_edid *edid);
+
+bool dm_helpers_is_fullscreen(struct dc_context *ctx, struct dc_stream_state *stream);
+bool dm_helpers_is_hdr_on(struct dc_context *ctx, struct dc_stream_state *stream);
 
 #endif /* __DM_HELPERS__ */

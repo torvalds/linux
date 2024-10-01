@@ -10,6 +10,13 @@
 
 char _license[] SEC("license") = "GPL";
 
+struct {
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, u64);
+} sk_storage_map SEC(".maps");
+
 /* Prototype for all of the program trace events below:
  *
  * TRACE_EVENT(task_newtask,
@@ -24,10 +31,11 @@ int BPF_PROG(test_invalid_nested_user_cpus, struct task_struct *task, u64 clone_
 	return 0;
 }
 
-SEC("tp_btf/task_newtask")
-__failure __msg("R1 must have zero offset when passed to release func or trusted arg to kfunc")
-int BPF_PROG(test_invalid_nested_offset, struct task_struct *task, u64 clone_flags)
+/* Although R2 is of type sk_buff but sock_common is expected, we will hit untrusted ptr first. */
+SEC("tp_btf/tcp_probe")
+__failure __msg("R2 type=untrusted_ptr_ expected=ptr_, trusted_ptr_, rcu_ptr_")
+int BPF_PROG(test_invalid_skb_field, struct sock *sk, struct sk_buff *skb)
 {
-	bpf_cpumask_first_zero(&task->cpus_mask);
+	bpf_sk_storage_get(&sk_storage_map, skb->next, 0, 0);
 	return 0;
 }

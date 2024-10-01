@@ -10,7 +10,6 @@
 #include <xen/interface/xenpmu.h>
 
 #include "xen-ops.h"
-#include "pmu.h"
 
 /* x86_pmu.handle_irq definition */
 #include "../events/perf_event.h"

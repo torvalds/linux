@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  arch/m68k/mvme16x/config.c
  *
@@ -8,10 +9,6 @@
  *  linux/amiga/config.c
  *
  *  Copyright (C) 1993 Hamish Macdonald
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file README.legal in the main directory of this archive
- * for more details.
  */
 
 #include <linux/types.h>
@@ -37,6 +34,8 @@
 #include <asm/machdep.h>
 #include <asm/mvme16xhw.h>
 #include <asm/config.h>
+
+#include "mvme16x.h"
 
 extern t_bdid mvme_bdid;
 
@@ -208,7 +207,6 @@ static void __init mvme16x_init_IRQ (void)
 void mvme16x_cons_write(struct console *co, const char *str, unsigned count)
 {
 	volatile unsigned char *base_addr = (u_char *)CD2401_ADDR;
-	volatile u_char sink;
 	u_char ier;
 	int port;
 	u_char do_lf = 0;
@@ -229,7 +227,7 @@ void mvme16x_cons_write(struct console *co, const char *str, unsigned count)
 		if (in_8(PCCSCCTICR) & 0x20)
 		{
 			/* We have a Tx int. Acknowledge it */
-			sink = in_8(PCCTPIACKR);
+			in_8(PCCTPIACKR);
 			if ((base_addr[CyLICR] >> 2) == port) {
 				if (i == count) {
 					/* Last char of string is now output */

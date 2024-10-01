@@ -52,14 +52,10 @@ bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
 	if (get_capacity(bd_disk) & (bdev_zone_sectors(ns->bdev) - 1))
 		return false;
 	/*
-	 * ZNS does not define a conventional zone type. If the underlying
-	 * device has a bitmap set indicating the existence of conventional
-	 * zones, reject the device. Otherwise, use report zones to detect if
-	 * the device has conventional zones.
+	 * ZNS does not define a conventional zone type. Use report zones
+	 * to detect if the device has conventional zones and reject it if
+	 * it does.
 	 */
-	if (ns->bdev->bd_disk->conv_zones_bitmap)
-		return false;
-
 	ret = blkdev_report_zones(ns->bdev, 0, bdev_nr_zones(ns->bdev),
 				  validate_conv_zones_cb, NULL);
 	if (ret < 0)
@@ -104,7 +100,7 @@ void nvmet_execute_identify_ns_zns(struct nvmet_req *req)
 
 	if (le32_to_cpu(req->cmd->identify.nsid) == NVME_NSID_ALL) {
 		req->error_loc = offsetof(struct nvme_identify, nsid);
-		status = NVME_SC_INVALID_NS | NVME_SC_DNR;
+		status = NVME_SC_INVALID_NS | NVME_STATUS_DNR;
 		goto out;
 	}
 
@@ -125,7 +121,7 @@ void nvmet_execute_identify_ns_zns(struct nvmet_req *req)
 	}
 
 	if (!bdev_is_zoned(req->ns->bdev)) {
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		req->error_loc = offsetof(struct nvme_identify, nsid);
 		goto out;
 	}
@@ -162,17 +158,17 @@ static u16 nvmet_bdev_validate_zone_mgmt_recv(struct nvmet_req *req)
 
 	if (sect >= get_capacity(req->ns->bdev->bd_disk)) {
 		req->error_loc = offsetof(struct nvme_zone_mgmt_recv_cmd, slba);
-		return NVME_SC_LBA_RANGE | NVME_SC_DNR;
+		return NVME_SC_LBA_RANGE | NVME_STATUS_DNR;
 	}
 
 	if (out_bufsize < sizeof(struct nvme_zone_report)) {
 		req->error_loc = offsetof(struct nvme_zone_mgmt_recv_cmd, numd);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	if (req->cmd->zmr.zra != NVME_ZRA_ZONE_REPORT) {
 		req->error_loc = offsetof(struct nvme_zone_mgmt_recv_cmd, zra);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	switch (req->cmd->zmr.pr) {
@@ -181,7 +177,7 @@ static u16 nvmet_bdev_validate_zone_mgmt_recv(struct nvmet_req *req)
 		break;
 	default:
 		req->error_loc = offsetof(struct nvme_zone_mgmt_recv_cmd, pr);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	switch (req->cmd->zmr.zrasf) {
@@ -197,7 +193,7 @@ static u16 nvmet_bdev_validate_zone_mgmt_recv(struct nvmet_req *req)
 	default:
 		req->error_loc =
 			offsetof(struct nvme_zone_mgmt_recv_cmd, zrasf);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	return NVME_SC_SUCCESS;
@@ -345,7 +341,7 @@ static u16 blkdev_zone_mgmt_errno_to_nvme_status(int ret)
 		return NVME_SC_SUCCESS;
 	case -EINVAL:
 	case -EIO:
-		return NVME_SC_ZONE_INVALID_TRANSITION | NVME_SC_DNR;
+		return NVME_SC_ZONE_INVALID_TRANSITION | NVME_STATUS_DNR;
 	default:
 		return NVME_SC_INTERNAL;
 	}
@@ -456,8 +452,7 @@ static u16 nvmet_bdev_execute_zmgmt_send_all(struct nvmet_req *req)
 	switch (zsa_req_op(req->cmd->zms.zsa)) {
 	case REQ_OP_ZONE_RESET:
 		ret = blkdev_zone_mgmt(req->ns->bdev, REQ_OP_ZONE_RESET, 0,
-				       get_capacity(req->ns->bdev->bd_disk),
-				       GFP_KERNEL);
+				       get_capacity(req->ns->bdev->bd_disk));
 		if (ret < 0)
 			return blkdev_zone_mgmt_errno_to_nvme_status(ret);
 		break;
@@ -468,7 +463,7 @@ static u16 nvmet_bdev_execute_zmgmt_send_all(struct nvmet_req *req)
 	default:
 		/* this is needed to quiet compiler warning */
 		req->error_loc = offsetof(struct nvme_zone_mgmt_send_cmd, zsa);
-		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
 
 	return NVME_SC_SUCCESS;
@@ -486,7 +481,7 @@ static void nvmet_bdev_zmgmt_send_work(struct work_struct *w)
 
 	if (op == REQ_OP_LAST) {
 		req->error_loc = offsetof(struct nvme_zone_mgmt_send_cmd, zsa);
-		status = NVME_SC_ZONE_INVALID_TRANSITION | NVME_SC_DNR;
+		status = NVME_SC_ZONE_INVALID_TRANSITION | NVME_STATUS_DNR;
 		goto out;
 	}
 
@@ -498,17 +493,17 @@ static void nvmet_bdev_zmgmt_send_work(struct work_struct *w)
 
 	if (sect >= get_capacity(bdev->bd_disk)) {
 		req->error_loc = offsetof(struct nvme_zone_mgmt_send_cmd, slba);
-		status = NVME_SC_LBA_RANGE | NVME_SC_DNR;
+		status = NVME_SC_LBA_RANGE | NVME_STATUS_DNR;
 		goto out;
 	}
 
 	if (sect & (zone_sectors - 1)) {
 		req->error_loc = offsetof(struct nvme_zone_mgmt_send_cmd, slba);
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto out;
 	}
 
-	ret = blkdev_zone_mgmt(bdev, op, sect, zone_sectors, GFP_KERNEL);
+	ret = blkdev_zone_mgmt(bdev, op, sect, zone_sectors);
 	if (ret < 0)
 		status = blkdev_zone_mgmt_errno_to_nvme_status(ret);
 
@@ -556,13 +551,13 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 
 	if (sect >= get_capacity(req->ns->bdev->bd_disk)) {
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
-		status = NVME_SC_LBA_RANGE | NVME_SC_DNR;
+		status = NVME_SC_LBA_RANGE | NVME_STATUS_DNR;
 		goto out;
 	}
 
 	if (sect & (bdev_zone_sectors(req->ns->bdev) - 1)) {
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto out;
 	}
 
@@ -595,7 +590,7 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 	}
 
 	if (total_len != nvmet_rw_data_len(req)) {
-		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+		status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
 		goto out_put_bio;
 	}
 

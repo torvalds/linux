@@ -14,12 +14,12 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include "dwmac100.h"
 #include "dwmac_dma.h"
 
 static void dwmac100_dma_init(void __iomem *ioaddr,
-			      struct stmmac_dma_cfg *dma_cfg, int atds)
+			      struct stmmac_dma_cfg *dma_cfg)
 {
 	/* Enable Application Access by writing to DMA CSR0 */
 	writel(DMA_BUS_MODE_DEFAULT | (dma_cfg->pbl << DMA_BUS_MODE_PBL_SHIFT),
@@ -82,29 +82,24 @@ static void dwmac100_dump_dma_regs(struct stmmac_priv *priv,
 }
 
 /* DMA controller has two counters to track the number of the missed frames. */
-static void dwmac100_dma_diagnostic_fr(struct net_device_stats *stats,
-				       struct stmmac_extra_stats *x,
+static void dwmac100_dma_diagnostic_fr(struct stmmac_extra_stats *x,
 				       void __iomem *ioaddr)
 {
 	u32 csr8 = readl(ioaddr + DMA_MISSED_FRAME_CTR);
 
 	if (unlikely(csr8)) {
 		if (csr8 & DMA_MISSED_FRAME_OVE) {
-			stats->rx_over_errors += 0x800;
 			x->rx_overflow_cntr += 0x800;
 		} else {
 			unsigned int ove_cntr;
 			ove_cntr = ((csr8 & DMA_MISSED_FRAME_OVE_CNTR) >> 17);
-			stats->rx_over_errors += ove_cntr;
 			x->rx_overflow_cntr += ove_cntr;
 		}
 
 		if (csr8 & DMA_MISSED_FRAME_OVE_M) {
-			stats->rx_missed_errors += 0xffff;
 			x->rx_missed_cntr += 0xffff;
 		} else {
 			unsigned int miss_f = (csr8 & DMA_MISSED_FRAME_M_CNTR);
-			stats->rx_missed_errors += miss_f;
 			x->rx_missed_cntr += miss_f;
 		}
 	}

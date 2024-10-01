@@ -66,12 +66,12 @@ qed_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 		return err;
 	}
 
-	err = devlink_fmsg_binary_pair_put(fmsg, "dump_data",
-					   p_dbg_data_buf, dbg_data_buf_size);
+	devlink_fmsg_binary_pair_put(fmsg, "dump_data", p_dbg_data_buf,
+				     dbg_data_buf_size);
 
 	vfree(p_dbg_data_buf);
 
-	return err;
+	return 0;
 }
 
 static int
@@ -132,7 +132,8 @@ static int qed_dl_param_get(struct devlink *dl, u32 id,
 }
 
 static int qed_dl_param_set(struct devlink *dl, u32 id,
-			    struct devlink_param_gset_ctx *ctx)
+			    struct devlink_param_gset_ctx *ctx,
+			    struct netlink_ext_ack *extack)
 {
 	struct qed_devlink *qed_dl = devlink_priv(dl);
 	struct qed_dev *cdev;

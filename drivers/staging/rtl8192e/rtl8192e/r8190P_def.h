@@ -8,10 +8,9 @@
 #define R8190P_DEF_H
 
 #include <linux/types.h>
+#include "r8192E_phy.h"
 
 #define		MAX_SILENT_RESET_RX_SLOT_NUM	10
-
-#define RX_MPDU_QUEUE				0
 
 enum rtl819x_loopback {
 	RTL819X_NO_LOOPBACK = 0,
@@ -90,9 +89,7 @@ enum version_8190_loopback {
 	VERSION_8190_BE
 };
 
-#define IC_VersionCut_C	0x2
 #define IC_VersionCut_D	0x3
-#define IC_VersionCut_E	0x4
 
 enum rf_optype {
 	RF_OP_By_SW_3wire = 0,
@@ -140,15 +137,8 @@ struct tx_fwinfo_8190pci {
 	u32			PacketID:13;
 };
 
-struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
-	u8			reserved:4;
-	u8			rxsc:2;
-	u8			sgi_en:1;
-	u8			ex_intf_flag:1;
-};
-
 struct phy_sts_ofdm_819xpci {
-	u8	trsw_gain_X[4];
+	u8	trsw_gain_X[RF90_PATH_MAX];
 	u8	pwdb_all;
 	u8	cfosho_X[4];
 	u8	cfotail_X[4];
@@ -237,7 +227,7 @@ struct rx_desc {
 	u16			Length:14;
 	u16			CRC32:1;
 	u16			ICV:1;
-	u8			RxDrvInfoSize;
+	u8			rx_drv_info_size;
 	u8			Shift:2;
 	u8			PHYStatus:1;
 	u8			SWDec:1;

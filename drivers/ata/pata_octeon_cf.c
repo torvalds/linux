@@ -789,7 +789,6 @@ static unsigned int octeon_cf_qc_issue(struct ata_queued_cmd *qc)
 static struct ata_port_operations octeon_cf_ops = {
 	.inherits		= &ata_sff_port_ops,
 	.check_atapi_dma	= octeon_cf_check_atapi_dma,
-	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= octeon_cf_qc_issue,
 	.sff_dev_select		= octeon_cf_dev_select,
 	.sff_irq_on		= octeon_cf_ata_port_noaction,
@@ -815,8 +814,8 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	irq_handler_t irq_handler = NULL;
 	void __iomem *base;
 	struct octeon_cf_port *cf_port;
-	int rv = -ENOMEM;
 	u32 bus_width;
+	int rv;
 
 	node = pdev->dev.of_node;
 	if (node == NULL)
@@ -893,12 +892,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	cs0 = devm_ioremap(&pdev->dev, res_cs0->start,
 				   resource_size(res_cs0));
 	if (!cs0)
-		return rv;
+		return -ENOMEM;
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return rv;
+		return -ENOMEM;
 
 	ap = host->ports[0];
 	ap->private_data = cf_port;

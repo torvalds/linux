@@ -9,6 +9,7 @@
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 #include <net/net_namespace.h>
 #include <net/tc_act/tc_vlan.h>
 
@@ -55,7 +56,7 @@ struct mlxsw_sp_acl_ruleset {
 	struct rhash_head ht_node; /* Member of acl HT */
 	struct mlxsw_sp_acl_ruleset_ht_key ht_key;
 	struct rhashtable rule_ht;
-	unsigned int ref_count;
+	refcount_t ref_count;
 	unsigned int min_prio;
 	unsigned int max_prio;
 	unsigned long priv[];
@@ -99,7 +100,7 @@ static bool
 mlxsw_sp_acl_ruleset_is_singular(const struct mlxsw_sp_acl_ruleset *ruleset)
 {
 	/* We hold a reference on ruleset ourselves */
-	return ruleset->ref_count == 2;
+	return refcount_read(&ruleset->ref_count) == 2;
 }
 
 int mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
@@ -176,7 +177,7 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	ruleset = kzalloc(alloc_size, GFP_KERNEL);
 	if (!ruleset)
 		return ERR_PTR(-ENOMEM);
-	ruleset->ref_count = 1;
+	refcount_set(&ruleset->ref_count, 1);
 	ruleset->ht_key.block = block;
 	ruleset->ht_key.chain_index = chain_index;
 	ruleset->ht_key.ops = ops;
@@ -222,13 +223,13 @@ static void mlxsw_sp_acl_ruleset_destroy(struct mlxsw_sp *mlxsw_sp,
 
 static void mlxsw_sp_acl_ruleset_ref_inc(struct mlxsw_sp_acl_ruleset *ruleset)
 {
-	ruleset->ref_count++;
+	refcount_inc(&ruleset->ref_count);
 }
 
 static void mlxsw_sp_acl_ruleset_ref_dec(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_ruleset *ruleset)
 {
-	if (--ruleset->ref_count)
+	if (!refcount_dec_and_test(&ruleset->ref_count))
 		return;
 	mlxsw_sp_acl_ruleset_destroy(mlxsw_sp, ruleset);
 }
@@ -339,10 +340,17 @@ err_afa_block_create:
 	return ERR_PTR(err);
 }
 
-void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp_acl_rule_info *rulei)
+void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule_info *rulei)
 {
 	if (rulei->action_created)
 		mlxsw_afa_block_destroy(rulei->act_block);
+	if (rulei->src_port_range_reg_valid)
+		mlxsw_sp_port_range_reg_put(mlxsw_sp,
+					    rulei->src_port_range_reg_index);
+	if (rulei->dst_port_range_reg_valid)
+		mlxsw_sp_port_range_reg_put(mlxsw_sp,
+					    rulei->dst_port_range_reg_index);
 	kfree(rulei);
 }
 
@@ -768,6 +776,15 @@ int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_afa_block_append_fid_set(rulei->act_block, fid, extack);
 }
 
+int mlxsw_sp_acl_rulei_act_ignore(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  bool disable_learning, bool disable_security)
+{
+	return mlxsw_afa_block_append_ignore(rulei->act_block,
+					     disable_learning,
+					     disable_security);
+}
+
 int mlxsw_sp_acl_rulei_act_sample(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_rule_info *rulei,
 				  struct mlxsw_sp_flow_block *block,
@@ -834,7 +851,7 @@ void mlxsw_sp_acl_rule_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
 
-	mlxsw_sp_acl_rulei_destroy(rule->rulei);
+	mlxsw_sp_acl_rulei_destroy(mlxsw_sp, rule->rulei);
 	kfree(rule);
 	mlxsw_sp_acl_ruleset_ref_dec(mlxsw_sp, ruleset);
 }
@@ -1007,7 +1024,7 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
 	if (rulei->counter_valid) {
 		err = mlxsw_sp_flow_counter_get(mlxsw_sp, rulei->counter_index,
-						&current_packets,
+						false, &current_packets,
 						&current_bytes);
 		if (err)
 			return err;

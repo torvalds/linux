@@ -158,10 +158,13 @@ static struct damos *damon_lru_sort_new_scheme(
 			pattern,
 			/* (de)prioritize on LRU-lists */
 			action,
+			/* for each aggregation interval */
+			0,
 			/* under the quota. */
 			&quota,
 			/* (De)activate this according to the watermarks. */
-			&damon_lru_sort_wmarks);
+			&damon_lru_sort_wmarks,
+			NUMA_NO_NODE);
 }
 
 /* Create a DAMON-based operation scheme for hot memory regions */
@@ -185,32 +188,46 @@ static struct damos *damon_lru_sort_new_cold_scheme(unsigned int cold_thres)
 
 static int damon_lru_sort_apply_parameters(void)
 {
-	struct damos *scheme;
+	struct damon_ctx *param_ctx;
+	struct damon_target *param_target;
+	struct damos *hot_scheme, *cold_scheme;
 	unsigned int hot_thres, cold_thres;
-	int err = 0;
+	int err;
 
-	err = damon_set_attrs(ctx, &damon_lru_sort_mon_attrs);
+	err = damon_modules_new_paddr_ctx_target(&param_ctx, &param_target);
 	if (err)
 		return err;
 
-	/* aggr_interval / sample_interval is the maximum nr_accesses */
-	hot_thres = damon_lru_sort_mon_attrs.aggr_interval /
-		damon_lru_sort_mon_attrs.sample_interval *
+	err = damon_set_attrs(ctx, &damon_lru_sort_mon_attrs);
+	if (err)
+		goto out;
+
+	err = -ENOMEM;
+	hot_thres = damon_max_nr_accesses(&damon_lru_sort_mon_attrs) *
 		hot_thres_access_freq / 1000;
-	scheme = damon_lru_sort_new_hot_scheme(hot_thres);
-	if (!scheme)
-		return -ENOMEM;
-	damon_set_schemes(ctx, &scheme, 1);
+	hot_scheme = damon_lru_sort_new_hot_scheme(hot_thres);
+	if (!hot_scheme)
+		goto out;
 
 	cold_thres = cold_min_age / damon_lru_sort_mon_attrs.aggr_interval;
-	scheme = damon_lru_sort_new_cold_scheme(cold_thres);
-	if (!scheme)
-		return -ENOMEM;
-	damon_add_scheme(ctx, scheme);
+	cold_scheme = damon_lru_sort_new_cold_scheme(cold_thres);
+	if (!cold_scheme) {
+		damon_destroy_scheme(hot_scheme);
+		goto out;
+	}
 
-	return damon_set_region_biggest_system_ram_default(target,
+	damon_set_schemes(param_ctx, &hot_scheme, 1);
+	damon_add_scheme(param_ctx, cold_scheme);
+
+	err = damon_set_region_biggest_system_ram_default(param_target,
 					&monitor_region_start,
 					&monitor_region_end);
+	if (err)
+		goto out;
+	err = damon_commit_ctx(ctx, param_ctx);
+out:
+	damon_destroy_ctx(param_ctx);
+	return err;
 }
 
 static int damon_lru_sort_turn(bool on)

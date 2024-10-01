@@ -9,6 +9,8 @@
 #ifndef _LINUX_KMSAN_TYPES_H
 #define _LINUX_KMSAN_TYPES_H
 
+#include <linux/types.h>
+
 /* These constants are defined in the MSan LLVM instrumentation pass. */
 #define KMSAN_RETVAL_SIZE 800
 #define KMSAN_PARAM_SIZE 800
@@ -29,7 +31,7 @@ struct kmsan_context_state {
 struct kmsan_ctx {
 	struct kmsan_context_state cstate;
 	int kmsan_in_runtime;
-	bool allow_reporting;
+	unsigned int depth;
 };
 
 #endif /* _LINUX_KMSAN_TYPES_H */

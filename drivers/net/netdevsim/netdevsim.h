@@ -19,10 +19,12 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/ptp_mock.h>
 #include <linux/u64_stats_sync.h>
 #include <net/devlink.h>
 #include <net/udp_tunnel.h>
 #include <net/xdp.h>
+#include <net/macsec.h>
 
 #define DRV_NAME	"netdevsim"
 
@@ -52,6 +54,25 @@ struct nsim_ipsec {
 	u32 ok;
 };
 
+#define NSIM_MACSEC_MAX_SECY_COUNT 3
+#define NSIM_MACSEC_MAX_RXSC_COUNT 1
+struct nsim_rxsc {
+	sci_t sci;
+	bool used;
+};
+
+struct nsim_secy {
+	sci_t sci;
+	struct nsim_rxsc nsim_rxsc[NSIM_MACSEC_MAX_RXSC_COUNT];
+	u8 nsim_rxsc_count;
+	bool used;
+};
+
+struct nsim_macsec {
+	struct nsim_secy nsim_secy[NSIM_MACSEC_MAX_SECY_COUNT];
+	u8 nsim_secy_count;
+};
+
 struct nsim_ethtool_pauseparam {
 	bool rx;
 	bool tx;
@@ -69,13 +90,22 @@ struct nsim_ethtool {
 	struct ethtool_fecparam fec;
 };
 
+struct nsim_rq {
+	struct napi_struct napi;
+	struct sk_buff_head skb_queue;
+	struct page_pool *page_pool;
+};
+
 struct netdevsim {
 	struct net_device *netdev;
 	struct nsim_dev *nsim_dev;
 	struct nsim_dev_port *nsim_dev_port;
+	struct mock_phc *phc;
+	struct nsim_rq *rq;
 
 	u64 tx_packets;
 	u64 tx_bytes;
+	u64 tx_dropped;
 	struct u64_stats_sync syncp;
 
 	struct nsim_bus_dev *nsim_bus_dev;
@@ -93,6 +123,7 @@ struct netdevsim {
 
 	bool bpf_map_accept;
 	struct nsim_ipsec ipsec;
+	struct nsim_macsec macsec;
 	struct {
 		u32 inject_error;
 		u32 sleep;
@@ -101,12 +132,17 @@ struct netdevsim {
 		struct debugfs_u32_array dfs_ports[2];
 	} udp_ports;
 
+	struct page *page;
+	struct dentry *pp_dfs;
+
 	struct nsim_ethtool ethtool;
+	struct netdevsim __rcu *peer;
 };
 
 struct netdevsim *
 nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port);
 void nsim_destroy(struct netdevsim *ns);
+bool netdev_is_nsim(struct net_device *dev);
 
 void nsim_ethtool_init(struct netdevsim *ns);
 
@@ -363,6 +399,19 @@ static inline void nsim_ipsec_teardown(struct netdevsim *ns)
 static inline bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 {
 	return true;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_MACSEC)
+void nsim_macsec_init(struct netdevsim *ns);
+void nsim_macsec_teardown(struct netdevsim *ns);
+#else
+static inline void nsim_macsec_init(struct netdevsim *ns)
+{
+}
+
+static inline void nsim_macsec_teardown(struct netdevsim *ns)
+{
 }
 #endif
 

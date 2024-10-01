@@ -9,7 +9,6 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_file.h>
 
-#include "dp_parser.h"
 #include "dp_catalog.h"
 #include "dp_aux.h"
 #include "dp_ctrl.h"
@@ -19,15 +18,9 @@
 #define DEBUG_NAME "msm_dp"
 
 struct dp_debug_private {
-	struct dentry *root;
-
 	struct dp_link *link;
 	struct dp_panel *panel;
 	struct drm_connector *connector;
-	struct device *dev;
-	struct drm_device *drm_dev;
-
-	struct dp_debug dp_debug;
 };
 
 static int dp_debug_show(struct seq_file *seq, void *p)
@@ -105,7 +98,7 @@ static int dp_test_data_show(struct seq_file *m, void *data)
 		seq_printf(m, "vdisplay: %d\n",
 				debug->link->test_video.test_v_height);
 		seq_printf(m, "bpc: %u\n",
-				dp_link_bit_depth_to_bpc(bpc));
+				dp_link_bit_depth_to_bpp(bpc) / 3);
 	} else {
 		seq_puts(m, "0");
 	}
@@ -204,95 +197,41 @@ static const struct file_operations test_active_fops = {
 	.write = dp_test_active_write
 };
 
-static void dp_debug_init(struct dp_debug *dp_debug, struct drm_minor *minor)
-{
-	char path[64];
-	struct dp_debug_private *debug = container_of(dp_debug,
-			struct dp_debug_private, dp_debug);
-
-	snprintf(path, sizeof(path), "msm_dp-%s", debug->connector->name);
-
-	debug->root = debugfs_create_dir(path, minor->debugfs_root);
-
-	debugfs_create_file("dp_debug", 0444, debug->root,
-			debug, &dp_debug_fops);
-
-	debugfs_create_file("msm_dp_test_active", 0444,
-			debug->root,
-			debug, &test_active_fops);
-
-	debugfs_create_file("msm_dp_test_data", 0444,
-			debug->root,
-			debug, &dp_test_data_fops);
-
-	debugfs_create_file("msm_dp_test_type", 0444,
-			debug->root,
-			debug, &dp_test_type_fops);
-}
-
-struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
-		struct dp_link *link,
-		struct drm_connector *connector, struct drm_minor *minor)
+int dp_debug_init(struct device *dev, struct dp_panel *panel,
+		  struct dp_link *link,
+		  struct drm_connector *connector,
+		  struct dentry *root, bool is_edp)
 {
 	struct dp_debug_private *debug;
-	struct dp_debug *dp_debug;
-	int rc;
 
 	if (!dev || !panel || !link) {
 		DRM_ERROR("invalid input\n");
-		rc = -EINVAL;
-		goto error;
+		return -EINVAL;
 	}
 
 	debug = devm_kzalloc(dev, sizeof(*debug), GFP_KERNEL);
-	if (!debug) {
-		rc = -ENOMEM;
-		goto error;
-	}
+	if (!debug)
+		return -ENOMEM;
 
-	debug->dp_debug.debug_en = false;
 	debug->link = link;
 	debug->panel = panel;
-	debug->dev = dev;
-	debug->drm_dev = minor->dev;
-	debug->connector = connector;
 
-	dp_debug = &debug->dp_debug;
-	dp_debug->vdisplay = 0;
-	dp_debug->hdisplay = 0;
-	dp_debug->vrefresh = 0;
+	debugfs_create_file("dp_debug", 0444, root,
+			debug, &dp_debug_fops);
 
-	dp_debug_init(dp_debug, minor);
+	if (!is_edp) {
+		debugfs_create_file("msm_dp_test_active", 0444,
+				    root,
+				    debug, &test_active_fops);
 
-	return dp_debug;
- error:
-	return ERR_PTR(rc);
-}
+		debugfs_create_file("msm_dp_test_data", 0444,
+				    root,
+				    debug, &dp_test_data_fops);
 
-static int dp_debug_deinit(struct dp_debug *dp_debug)
-{
-	struct dp_debug_private *debug;
-
-	if (!dp_debug)
-		return -EINVAL;
-
-	debug = container_of(dp_debug, struct dp_debug_private, dp_debug);
-
-	debugfs_remove_recursive(debug->root);
+		debugfs_create_file("msm_dp_test_type", 0444,
+				    root,
+				    debug, &dp_test_type_fops);
+	}
 
 	return 0;
-}
-
-void dp_debug_put(struct dp_debug *dp_debug)
-{
-	struct dp_debug_private *debug;
-
-	if (!dp_debug)
-		return;
-
-	debug = container_of(dp_debug, struct dp_debug_private, dp_debug);
-
-	dp_debug_deinit(dp_debug);
-
-	devm_kfree(debug->dev, debug);
 }

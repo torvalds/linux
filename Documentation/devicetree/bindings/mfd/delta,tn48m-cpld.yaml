@@ -42,10 +42,10 @@ required:
 
 patternProperties:
   "^gpio(@[0-9a-f]+)?$":
-    $ref: ../gpio/delta,tn48m-gpio.yaml
+    $ref: /schemas/gpio/delta,tn48m-gpio.yaml
 
   "^reset-controller?$":
-    $ref: ../reset/delta,tn48m-reset.yaml
+    $ref: /schemas/reset/delta,tn48m-reset.yaml
 
 additionalProperties: false
 

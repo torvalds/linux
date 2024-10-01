@@ -390,11 +390,7 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev);
 int ps3_system_bus_driver_register(struct ps3_system_bus_driver *drv);
 void ps3_system_bus_driver_unregister(struct ps3_system_bus_driver *drv);
 
-static inline struct ps3_system_bus_driver *ps3_drv_to_system_bus_drv(
-	struct device_driver *_drv)
-{
-	return container_of(_drv, struct ps3_system_bus_driver, core);
-}
+#define ps3_drv_to_system_bus_drv(_drv) container_of_const(_drv, struct ps3_system_bus_driver, core)
 static inline struct ps3_system_bus_device *ps3_dev_to_system_bus_dev(
 	const struct device *_dev)
 {
@@ -513,5 +509,11 @@ u32 ps3_get_hw_thread_id(int cpu);
 u64 ps3_get_spe_id(void *arg);
 
 void ps3_early_mm_init(void);
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_PS3GELIC
+void udbg_shutdown_ps3gelic(void);
+#else
+static inline void udbg_shutdown_ps3gelic(void) {}
+#endif
 
 #endif

@@ -7,7 +7,7 @@ Traducción al español
 
 	\kerneldocCJKoff
 
-:maintainer: Carlos Bilbao <carlos.bilbao@amd.com>
+:maintainer: Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
 
 .. _sp_disclaimer:
 
@@ -76,6 +76,6 @@ Traducciones al español
 .. toctree::
    :maxdepth: 1
 
-   howto
    process/index
    wrappers/memory-barriers
+   scheduler/index

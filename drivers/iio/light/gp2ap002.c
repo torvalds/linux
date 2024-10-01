@@ -420,7 +420,7 @@ static int gp2ap002_regmap_i2c_write(void *context, unsigned int reg,
 	return i2c_smbus_write_byte_data(i2c, reg, val);
 }
 
-static struct regmap_bus gp2ap002_regmap_bus = {
+static const struct regmap_bus gp2ap002_regmap_bus = {
 	.reg_read = gp2ap002_regmap_i2c_read,
 	.reg_write = gp2ap002_regmap_i2c_write,
 };
@@ -692,8 +692,8 @@ static DEFINE_RUNTIME_DEV_PM_OPS(gp2ap002_dev_pm_ops, gp2ap002_runtime_suspend,
 				 gp2ap002_runtime_resume, NULL);
 
 static const struct i2c_device_id gp2ap002_id_table[] = {
-	{ "gp2ap002", 0 },
-	{ },
+	{ "gp2ap002" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, gp2ap002_id_table);
 

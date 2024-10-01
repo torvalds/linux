@@ -38,6 +38,9 @@ struct vdso_data *arch_get_vdso_data(void *vvar_page)
 }
 #undef EMIT_VVAR
 
+DEFINE_VVAR(struct vdso_data, _vdso_data);
+DEFINE_VVAR_SINGLE(struct vdso_rng_data, _vdso_rng_data);
+
 unsigned int vclocks_used __read_mostly;
 
 #if defined(CONFIG_X86_64)
@@ -274,59 +277,6 @@ up_fail:
 	return ret;
 }
 
-#ifdef CONFIG_X86_64
-/*
- * Put the vdso above the (randomized) stack with another randomized
- * offset.  This way there is no hole in the middle of address space.
- * To save memory make sure it is still in the same PTE as the stack
- * top.  This doesn't give that many random bits.
- *
- * Note that this algorithm is imperfect: the distribution of the vdso
- * start address within a PMD is biased toward the end.
- *
- * Only used for the 64-bit and x32 vdsos.
- */
-static unsigned long vdso_addr(unsigned long start, unsigned len)
-{
-	unsigned long addr, end;
-	unsigned offset;
-
-	/*
-	 * Round up the start address.  It can start out unaligned as a result
-	 * of stack start randomization.
-	 */
-	start = PAGE_ALIGN(start);
-
-	/* Round the lowest possible end address up to a PMD boundary. */
-	end = (start + len + PMD_SIZE - 1) & PMD_MASK;
-	if (end >= TASK_SIZE_MAX)
-		end = TASK_SIZE_MAX;
-	end -= len;
-
-	if (end > start) {
-		offset = get_random_u32_below(((end - start) >> PAGE_SHIFT) + 1);
-		addr = start + (offset << PAGE_SHIFT);
-	} else {
-		addr = start;
-	}
-
-	/*
-	 * Forcibly align the final address in case we have a hardware
-	 * issue that requires alignment for performance reasons.
-	 */
-	addr = align_vdso_addr(addr);
-
-	return addr;
-}
-
-static int map_vdso_randomized(const struct vdso_image *image)
-{
-	unsigned long addr = vdso_addr(current->mm->start_stack, image->size-image->sym_vvar_start);
-
-	return map_vdso(image, addr);
-}
-#endif
-
 int map_vdso_once(const struct vdso_image *image, unsigned long addr)
 {
 	struct mm_struct *mm = current->mm;
@@ -369,7 +319,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!vdso64_enabled)
 		return 0;
 
-	return map_vdso_randomized(&vdso_image_64);
+	return map_vdso(&vdso_image_64, 0);
 }
 
 #ifdef CONFIG_COMPAT
@@ -380,7 +330,7 @@ int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (x32) {
 		if (!vdso64_enabled)
 			return 0;
-		return map_vdso_randomized(&vdso_image_x32);
+		return map_vdso(&vdso_image_x32, 0);
 	}
 #endif
 #ifdef CONFIG_IA32_EMULATION

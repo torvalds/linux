@@ -12,7 +12,7 @@
 #include <linux/mem_encrypt.h>
 #include <linux/swiotlb.h>
 
-extern unsigned int zone_dma_bits;
+extern u64 zone_dma_limit;
 
 /*
  * Record the mapping of CPU physical to DMA addresses for a given region.
@@ -21,7 +21,6 @@ struct bus_dma_region {
 	phys_addr_t	cpu_start;
 	dma_addr_t	dma_start;
 	u64		size;
-	u64		offset;
 };
 
 static inline dma_addr_t translate_phys_to_dma(struct device *dev,
@@ -29,9 +28,12 @@ static inline dma_addr_t translate_phys_to_dma(struct device *dev,
 {
 	const struct bus_dma_region *m;
 
-	for (m = dev->dma_range_map; m->size; m++)
-		if (paddr >= m->cpu_start && paddr - m->cpu_start < m->size)
-			return (dma_addr_t)paddr - m->offset;
+	for (m = dev->dma_range_map; m->size; m++) {
+		u64 offset = paddr - m->cpu_start;
+
+		if (paddr >= m->cpu_start && offset < m->size)
+			return m->dma_start + offset;
+	}
 
 	/* make sure dma_capable fails when no translation is available */
 	return DMA_MAPPING_ERROR;
@@ -42,11 +44,32 @@ static inline phys_addr_t translate_dma_to_phys(struct device *dev,
 {
 	const struct bus_dma_region *m;
 
-	for (m = dev->dma_range_map; m->size; m++)
-		if (dma_addr >= m->dma_start && dma_addr - m->dma_start < m->size)
-			return (phys_addr_t)dma_addr + m->offset;
+	for (m = dev->dma_range_map; m->size; m++) {
+		u64 offset = dma_addr - m->dma_start;
+
+		if (dma_addr >= m->dma_start && offset < m->size)
+			return m->cpu_start + offset;
+	}
 
 	return (phys_addr_t)-1;
+}
+
+static inline dma_addr_t dma_range_map_min(const struct bus_dma_region *map)
+{
+	dma_addr_t ret = (dma_addr_t)U64_MAX;
+
+	for (; map->size; map++)
+		ret = min(ret, map->dma_start);
+	return ret;
+}
+
+static inline dma_addr_t dma_range_map_max(const struct bus_dma_region *map)
+{
+	dma_addr_t ret = 0;
+
+	for (; map->size; map++)
+		ret = max(ret, map->dma_start + map->size - 1);
+	return ret;
 }
 
 #ifdef CONFIG_ARCH_HAS_PHYS_TO_DMA

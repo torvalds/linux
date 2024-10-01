@@ -409,8 +409,8 @@ static void __init alchemy_setup_macs(int ctype)
 	if (alchemy_get_macs(ctype) < 1)
 		return;
 
-	macres = kmemdup(au1xxx_eth0_resources[ctype],
-			 sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
+	macres = kmemdup_array(au1xxx_eth0_resources[ctype], MAC_RES_COUNT,
+			       sizeof(*macres), GFP_KERNEL);
 	if (!macres) {
 		printk(KERN_INFO "Alchemy: no memory for MAC0 resources\n");
 		return;
@@ -430,8 +430,8 @@ static void __init alchemy_setup_macs(int ctype)
 	if (alchemy_get_macs(ctype) < 2)
 		return;
 
-	macres = kmemdup(au1xxx_eth1_resources[ctype],
-			 sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
+	macres = kmemdup_array(au1xxx_eth1_resources[ctype], MAC_RES_COUNT,
+			       sizeof(*macres), GFP_KERNEL);
 	if (!macres) {
 		printk(KERN_INFO "Alchemy: no memory for MAC1 resources\n");
 		return;

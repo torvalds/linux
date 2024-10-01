@@ -23,15 +23,15 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	int expected)
 
 {
+	struct folio *folio = page_folio(target_page);
 	struct inode *inode = target_page->mapping->host;
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
-
-	int file_end = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+	loff_t file_end = (i_size_read(inode) - 1) >> PAGE_SHIFT;
 	int mask = (1 << (msblk->block_log - PAGE_SHIFT)) - 1;
-	int start_index = target_page->index & ~mask;
-	int end_index = start_index | mask;
+	loff_t start_index = folio->index & ~mask;
+	loff_t end_index = start_index | mask;
 	int i, n, pages, bytes, res = -ENOMEM;
-	struct page **page;
+	struct page **page, *last_page;
 	struct squashfs_page_actor *actor;
 	void *pageaddr;
 
@@ -46,7 +46,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 
 	/* Try to grab all the pages covered by the Squashfs block */
 	for (i = 0, n = start_index; n <= end_index; n++) {
-		page[i] = (n == target_page->index) ? target_page :
+		page[i] = (n == folio->index) ? target_page :
 			grab_cache_page_nowait(target_page->mapping, n);
 
 		if (page[i] == NULL)
@@ -67,27 +67,28 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	 * Create a "page actor" which will kmap and kunmap the
 	 * page cache pages appropriately within the decompressor
 	 */
-	actor = squashfs_page_actor_init_special(msblk, page, pages, expected);
+	actor = squashfs_page_actor_init_special(msblk, page, pages, expected,
+						start_index << PAGE_SHIFT);
 	if (actor == NULL)
 		goto out;
 
 	/* Decompress directly into the page cache buffers */
 	res = squashfs_read_data(inode->i_sb, block, bsize, NULL, actor);
 
-	squashfs_page_actor_free(actor);
+	last_page = squashfs_page_actor_free(actor);
 
 	if (res < 0)
 		goto mark_errored;
 
-	if (res != expected) {
+	if (res != expected || IS_ERR(last_page)) {
 		res = -EIO;
 		goto mark_errored;
 	}
 
 	/* Last page (if present) may have trailing bytes not filled */
 	bytes = res % PAGE_SIZE;
-	if (page[pages - 1]->index == end_index && bytes) {
-		pageaddr = kmap_local_page(page[pages - 1]);
+	if (end_index == file_end && last_page && bytes) {
+		pageaddr = kmap_local_page(last_page);
 		memset(pageaddr + bytes, 0, PAGE_SIZE - bytes);
 		kunmap_local(pageaddr);
 	}
@@ -106,14 +107,13 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	return 0;
 
 mark_errored:
-	/* Decompression failed, mark pages as errored.  Target_page is
+	/* Decompression failed.  Target_page is
 	 * dealt with by the caller
 	 */
 	for (i = 0; i < pages; i++) {
 		if (page[i] == NULL || page[i] == target_page)
 			continue;
 		flush_dcache_page(page[i]);
-		SetPageError(page[i]);
 		unlock_page(page[i]);
 		put_page(page[i]);
 	}

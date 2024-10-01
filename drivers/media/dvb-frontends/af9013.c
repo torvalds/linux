@@ -1480,7 +1480,7 @@ static int af9013_probe(struct i2c_client *client)
 		goto err_regmap_exit;
 	}
 	state->muxc->priv = state;
-	ret = i2c_mux_add_adapter(state->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(state->muxc, 0, 0);
 	if (ret)
 		goto err_regmap_exit;
 
@@ -1553,7 +1553,7 @@ static void af9013_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id af9013_id_table[] = {
-	{"af9013", 0},
+	{ "af9013" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, af9013_id_table);

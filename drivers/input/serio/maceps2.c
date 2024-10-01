@@ -117,7 +117,7 @@ static struct serio *maceps2_allocate_port(int idx)
 {
 	struct serio *serio;
 
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (serio) {
 		serio->id.type		= SERIO_8042;
 		serio->write		= maceps2_write;
@@ -148,12 +148,10 @@ static int maceps2_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int maceps2_remove(struct platform_device *dev)
+static void maceps2_remove(struct platform_device *dev)
 {
 	serio_unregister_port(maceps2_port[0]);
 	serio_unregister_port(maceps2_port[1]);
-
-	return 0;
 }
 
 static struct platform_driver maceps2_driver = {
@@ -161,7 +159,7 @@ static struct platform_driver maceps2_driver = {
 		.name	= "maceps2",
 	},
 	.probe		= maceps2_probe,
-	.remove		= maceps2_remove,
+	.remove_new	= maceps2_remove,
 };
 
 static int __init maceps2_init(void)

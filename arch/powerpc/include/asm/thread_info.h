@@ -14,7 +14,7 @@
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_KASAN
+#if defined(CONFIG_KASAN) && CONFIG_THREAD_SHIFT < 15
 #define MIN_THREAD_SHIFT	(CONFIG_THREAD_SHIFT + 1)
 #else
 #define MIN_THREAD_SHIFT	CONFIG_THREAD_SHIFT
@@ -183,12 +183,8 @@ static inline bool test_thread_local_flags(unsigned int flags)
 #define clear_tsk_compat_task(tsk) do { } while (0)
 #endif
 
-#ifdef CONFIG_PPC64
-#ifdef CONFIG_CPU_BIG_ENDIAN
+#if defined(CONFIG_PPC64)
 #define is_elf2_task() (test_thread_flag(TIF_ELF2ABI))
-#else
-#define is_elf2_task() (1)
-#endif
 #else
 #define is_elf2_task() (0)
 #endif
@@ -229,6 +225,10 @@ static inline int arch_within_stack_frames(const void * const stack,
 
 	return BAD_STACK;
 }
+
+#ifdef CONFIG_PPC32
+extern void *emergency_ctx[];
+#endif
 
 #endif	/* !__ASSEMBLY__ */
 

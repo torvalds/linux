@@ -118,7 +118,7 @@ MODULE_DEVICE_TABLE(of, aspeed_rtc_match);
 static struct platform_driver aspeed_rtc_driver = {
 	.driver = {
 		.name = "aspeed-rtc",
-		.of_match_table = of_match_ptr(aspeed_rtc_match),
+		.of_match_table = aspeed_rtc_match,
 	},
 };
 

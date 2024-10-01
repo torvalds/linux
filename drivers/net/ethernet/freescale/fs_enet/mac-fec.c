@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Freescale Ethernet controllers
  *
@@ -6,10 +7,6 @@
  *
  * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/module.h>
@@ -26,13 +23,11 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
-#include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/gfp.h>
 
@@ -225,7 +220,8 @@ static void set_multicast_list(struct net_device *dev)
 		set_promiscuous_mode(dev);
 }
 
-static void restart(struct net_device *dev)
+static void restart(struct net_device *dev, phy_interface_t interface,
+		    int speed, int duplex)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	struct fec __iomem *fecp = fep->fec.fecp;
@@ -307,13 +303,13 @@ static void restart(struct net_device *dev)
 	 * Only set MII/RMII mode - do not touch maximum frame length
 	 * configured before.
 	 */
-	FS(fecp, r_cntrl, fpi->use_rmii ?
-			FEC_RCNTRL_RMII_MODE : FEC_RCNTRL_MII_MODE);
+	FS(fecp, r_cntrl, interface == PHY_INTERFACE_MODE_RMII ?
+			  FEC_RCNTRL_RMII_MODE : FEC_RCNTRL_MII_MODE);
 #endif
 	/*
 	 * adjust to duplex mode
 	 */
-	if (dev->phydev->duplex) {
+	if (duplex == DUPLEX_FULL) {
 		FC(fecp, r_cntrl, FEC_RCNTRL_DRT);
 		FS(fecp, x_cntrl, FEC_TCNTRL_FDEN);	/* FD enable */
 	} else {
@@ -340,11 +336,7 @@ static void restart(struct net_device *dev)
 static void stop(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
 	struct fec __iomem *fecp = fep->fec.fecp;
-
-	struct fec_info *feci = dev->phydev->mdio.bus->priv;
-
 	int i;
 
 	if ((FR(fecp, ecntrl) & FEC_ECNTRL_ETHER_EN) == 0)
@@ -364,16 +356,6 @@ static void stop(struct net_device *dev)
 	FC(fecp, ecntrl, FEC_ECNTRL_ETHER_EN);
 
 	fs_cleanup_bds(dev);
-
-	/* shut down FEC1? that's where the mii bus is */
-	if (fpi->has_phy) {
-		FS(fecp, r_cntrl, fpi->use_rmii ?
-				FEC_RCNTRL_RMII_MODE :
-				FEC_RCNTRL_MII_MODE);	/* MII/RMII enable */
-		FS(fecp, ecntrl, FEC_ECNTRL_PINMUX | FEC_ECNTRL_ETHER_EN);
-		FW(fecp, ievent, FEC_ENET_MII);
-		FW(fecp, mii_speed, feci->mii_speed);
-	}
 }
 
 static void napi_clear_event_fs(struct net_device *dev)

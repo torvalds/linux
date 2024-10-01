@@ -473,8 +473,8 @@ enum {
  */
 
 struct disk_info {
-	struct md_rdev	__rcu *rdev;
-	struct md_rdev  __rcu *replacement;
+	struct md_rdev	*rdev;
+	struct md_rdev	*replacement;
 	struct page	*extra_page; /* extra page to use in prexor */
 };
 
@@ -668,9 +668,9 @@ struct r5conf {
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_quiescent;
 	wait_queue_head_t	wait_for_stripe;
-	wait_queue_head_t	wait_for_overlap;
+	wait_queue_head_t	wait_for_reshape;
 	unsigned long		cache_state;
-	struct shrinker		shrinker;
+	struct shrinker		*shrinker;
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;

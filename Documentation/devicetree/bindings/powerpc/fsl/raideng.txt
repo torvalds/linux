@@ -60,7 +60,7 @@ Optional property:
 - fsl,liodn:	Specifies the LIODN to be used for Job Ring. This
 		property is normally set by firmware. Value
 		is of 12-bits which is the LIODN number for this JR.
-		This property is used by the IOMMU (PAMU) to distinquish
+		This property is used by the IOMMU (PAMU) to distinguish
 		transactions from this JR and than be able to do address
 		translation & protection accordingly.
 

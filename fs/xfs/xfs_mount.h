@@ -60,6 +60,7 @@ struct xfs_error_cfg {
  * Per-cpu deferred inode inactivation GC lists.
  */
 struct xfs_inodegc {
+	struct xfs_mount	*mp;
 	struct llist_head	list;
 	struct delayed_work	work;
 	int			error;
@@ -67,9 +68,7 @@ struct xfs_inodegc {
 	/* approximate count of inodes in the list */
 	unsigned int		items;
 	unsigned int		shrinker_hits;
-#if defined(DEBUG) || defined(XFS_WARN)
 	unsigned int		cpu;
-#endif
 };
 
 /*
@@ -95,17 +94,16 @@ typedef struct xfs_mount {
 	struct xfs_inode	*m_rsumip;	/* pointer to summary inode */
 	struct xfs_inode	*m_rootip;	/* pointer to root directory */
 	struct xfs_quotainfo	*m_quotainfo;	/* disk quota information */
-	xfs_buftarg_t		*m_ddev_targp;	/* saves taking the address */
-	xfs_buftarg_t		*m_logdev_targp;/* ptr to log device */
-	xfs_buftarg_t		*m_rtdev_targp;	/* ptr to rt device */
-	struct list_head	m_mount_list;	/* global mount list */
+	struct xfs_buftarg	*m_ddev_targp;	/* data device */
+	struct xfs_buftarg	*m_logdev_targp;/* log device */
+	struct xfs_buftarg	*m_rtdev_targp;	/* rt device */
 	void __percpu		*m_inodegc;	/* percpu inodegc structures */
 
 	/*
 	 * Optional cache of rt summary level per bitmap block with the
-	 * invariant that m_rsum_cache[bbno] <= the minimum i for which
-	 * rsum[i][bbno] != 0. Reads and writes are serialized by the rsumip
-	 * inode lock.
+	 * invariant that m_rsum_cache[bbno] > the maximum i for which
+	 * rsum[i][bbno] != 0, or 0 if rsum[i][bbno] == 0 for all i.
+	 * Reads and writes are serialized by the rsumip inode lock.
 	 */
 	uint8_t			*m_rsum_cache;
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
@@ -121,6 +119,7 @@ typedef struct xfs_mount {
 	uint8_t			m_blkbb_log;	/* blocklog - BBSHIFT */
 	uint8_t			m_agno_log;	/* log #ag's */
 	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
+	int8_t			m_rtxblklog;	/* log2 of rextsize, if possible */
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */
@@ -148,12 +147,13 @@ typedef struct xfs_mount {
 	int			m_logbufs;	/* number of log buffers */
 	int			m_logbsize;	/* size of each log buffer */
 	uint			m_rsumlevels;	/* rt summary levels */
-	uint			m_rsumsize;	/* size of rt summary, bytes */
+	xfs_filblks_t		m_rsumblocks;	/* size of rt summary, FSBs */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_qflags;	/* quota status flags */
 	uint64_t		m_features;	/* active filesystem features */
 	uint64_t		m_low_space[XFS_LOWSP_MAX];
 	uint64_t		m_low_rtexts[XFS_LOWSP_MAX];
+	uint64_t		m_rtxblkmask;	/* rt extent block mask */
 	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
 	struct xfs_trans_resv	m_resv;		/* precomputed res values */
 						/* low free space thresholds */
@@ -195,6 +195,12 @@ typedef struct xfs_mount {
 	 * extents or anything related to the rt device.
 	 */
 	struct percpu_counter	m_delalloc_blks;
+
+	/*
+	 * RT version of the above.
+	 */
+	struct percpu_counter	m_delalloc_rtextents;
+
 	/*
 	 * Global count of allocation btree blocks in use across all AGs. Only
 	 * used when perag reservation is enabled. Helps prevent block
@@ -202,22 +208,25 @@ typedef struct xfs_mount {
 	 */
 	atomic64_t		m_allocbt_blks;
 
-	struct radix_tree_root	m_perag_tree;	/* per-ag accounting info */
-	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
+	struct xarray		m_perags;	/* per-ag accounting info */
 	uint64_t		m_resblks;	/* total reserved blocks */
 	uint64_t		m_resblks_avail;/* available reserved blocks */
 	uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
+	struct dentry		*m_debugfs;	/* debugfs parent */
 	struct xfs_kobj		m_kobj;
 	struct xfs_kobj		m_error_kobj;
 	struct xfs_kobj		m_error_meta_kobj;
 	struct xfs_error_cfg	m_error_cfg[XFS_ERR_CLASS_MAX][XFS_ERR_ERRNO_MAX];
 	struct xstats		m_stats;	/* per-fs stats */
+#ifdef CONFIG_XFS_ONLINE_SCRUB_STATS
+	struct xchk_stats	*m_scrub_stats;
+#endif
 	xfs_agnumber_t		m_agfrotor;	/* last ag where space found */
 	atomic_t		m_agirotor;	/* last ag dir inode alloced */
 
 	/* Memory shrinker to throttle and reprioritize inodegc */
-	struct shrinker		m_inodegc_shrinker;
+	struct shrinker		*m_inodegc_shrinker;
 	/*
 	 * Workqueue item so that we can coalesce multiple inode flush attempts
 	 * into a single flush.
@@ -245,6 +254,12 @@ typedef struct xfs_mount {
 	unsigned int		*m_errortag;
 	struct xfs_kobj		m_errortag_kobj;
 #endif
+
+	/* cpus that have inodes queued for inactivation */
+	struct cpumask		m_inodegc_cpumask;
+
+	/* Hook to feed dirent updates to an active online repair. */
+	struct xfs_hooks	m_dir_update_hooks;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)
@@ -282,6 +297,7 @@ typedef struct xfs_mount {
 #define XFS_FEAT_BIGTIME	(1ULL << 24)	/* large timestamps */
 #define XFS_FEAT_NEEDSREPAIR	(1ULL << 25)	/* needs xfs_repair */
 #define XFS_FEAT_NREXT64	(1ULL << 26)	/* large extent counters */
+#define XFS_FEAT_EXCHANGE_RANGE	(1ULL << 27)	/* exchange range */
 
 /* Mount features */
 #define XFS_FEAT_NOATTR2	(1ULL << 48)	/* disable attr2 creation */
@@ -321,19 +337,10 @@ static inline void xfs_add_ ## name (struct xfs_mount *mp) \
 __XFS_ADD_FEAT(attr, ATTR)
 __XFS_HAS_FEAT(nlink, NLINK)
 __XFS_ADD_FEAT(quota, QUOTA)
-__XFS_HAS_FEAT(align, ALIGN)
 __XFS_HAS_FEAT(dalign, DALIGN)
-__XFS_HAS_FEAT(logv2, LOGV2)
 __XFS_HAS_FEAT(sector, SECTOR)
-__XFS_HAS_FEAT(extflg, EXTFLG)
 __XFS_HAS_FEAT(asciici, ASCIICI)
-__XFS_HAS_FEAT(lazysbcount, LAZYSBCOUNT)
-__XFS_ADD_FEAT(attr2, ATTR2)
 __XFS_HAS_FEAT(parent, PARENT)
-__XFS_ADD_FEAT(projid32, PROJID32)
-__XFS_HAS_FEAT(crc, CRC)
-__XFS_HAS_FEAT(v3inodes, V3INODES)
-__XFS_HAS_FEAT(pquotino, PQUOTINO)
 __XFS_HAS_FEAT(ftype, FTYPE)
 __XFS_HAS_FEAT(finobt, FINOBT)
 __XFS_HAS_FEAT(rmapbt, RMAPBT)
@@ -345,6 +352,38 @@ __XFS_HAS_FEAT(inobtcounts, INOBTCNT)
 __XFS_HAS_FEAT(bigtime, BIGTIME)
 __XFS_HAS_FEAT(needsrepair, NEEDSREPAIR)
 __XFS_HAS_FEAT(large_extent_counts, NREXT64)
+__XFS_HAS_FEAT(exchange_range, EXCHANGE_RANGE)
+
+/*
+ * Some features are always on for v5 file systems, allow the compiler to
+ * eliminiate dead code when building without v4 support.
+ */
+#define __XFS_HAS_V4_FEAT(name, NAME) \
+static inline bool xfs_has_ ## name (struct xfs_mount *mp) \
+{ \
+	return !IS_ENABLED(CONFIG_XFS_SUPPORT_V4) || \
+		(mp->m_features & XFS_FEAT_ ## NAME); \
+}
+
+#define __XFS_ADD_V4_FEAT(name, NAME) \
+	__XFS_HAS_V4_FEAT(name, NAME); \
+static inline void xfs_add_ ## name (struct xfs_mount *mp) \
+{ \
+	if (IS_ENABLED(CONFIG_XFS_SUPPORT_V4)) { \
+		mp->m_features |= XFS_FEAT_ ## NAME; \
+		xfs_sb_version_add ## name(&mp->m_sb); \
+	} \
+}
+
+__XFS_HAS_V4_FEAT(align, ALIGN)
+__XFS_HAS_V4_FEAT(logv2, LOGV2)
+__XFS_HAS_V4_FEAT(extflg, EXTFLG)
+__XFS_HAS_V4_FEAT(lazysbcount, LAZYSBCOUNT)
+__XFS_ADD_V4_FEAT(attr2, ATTR2)
+__XFS_ADD_V4_FEAT(projid32, PROJID32)
+__XFS_HAS_V4_FEAT(v3inodes, V3INODES)
+__XFS_HAS_V4_FEAT(crc, CRC)
+__XFS_HAS_V4_FEAT(pquotino, PQUOTINO)
 
 /*
  * Mount features
@@ -400,6 +439,12 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
 #define XFS_OPSTATE_WARNED_SHRINK	8
 /* Kernel has logged a warning about logged xattr updates being used. */
 #define XFS_OPSTATE_WARNED_LARP		9
+/* Mount time quotacheck is running */
+#define XFS_OPSTATE_QUOTACHECK_RUNNING	10
+/* Do we want to clear log incompat flags? */
+#define XFS_OPSTATE_UNSET_LOG_INCOMPAT	11
+/* Filesystem can use logged extended attributes */
+#define XFS_OPSTATE_USE_LARP		12
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
@@ -422,6 +467,13 @@ __XFS_IS_OPSTATE(inode32, INODE32)
 __XFS_IS_OPSTATE(readonly, READONLY)
 __XFS_IS_OPSTATE(inodegc_enabled, INODEGC_ENABLED)
 __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
+#ifdef CONFIG_XFS_QUOTA
+__XFS_IS_OPSTATE(quotacheck_running, QUOTACHECK_RUNNING)
+#else
+# define xfs_is_quotacheck_running(mp)	(false)
+#endif
+__XFS_IS_OPSTATE(done_with_log_incompat, UNSET_LOG_INCOMPAT)
+__XFS_IS_OPSTATE(using_logged_xattrs, USE_LARP)
 
 static inline bool
 xfs_should_warn(struct xfs_mount *mp, long nr)
@@ -439,7 +491,10 @@ xfs_should_warn(struct xfs_mount *mp, long nr)
 	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }, \
 	{ (1UL << XFS_OPSTATE_WARNED_SCRUB),		"wscrub" }, \
 	{ (1UL << XFS_OPSTATE_WARNED_SHRINK),		"wshrink" }, \
-	{ (1UL << XFS_OPSTATE_WARNED_LARP),		"wlarp" }
+	{ (1UL << XFS_OPSTATE_WARNED_LARP),		"wlarp" }, \
+	{ (1UL << XFS_OPSTATE_QUOTACHECK_RUNNING),	"quotacheck" }, \
+	{ (1UL << XFS_OPSTATE_UNSET_LOG_INCOMPAT),	"unset_log_incompat" }, \
+	{ (1UL << XFS_OPSTATE_USE_LARP),		"logged_xattrs" }
 
 /*
  * Max and min values for mount-option defined I/O
@@ -487,9 +542,6 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
 
-int xfs_buf_hash_init(struct xfs_perag *pag);
-void xfs_buf_hash_destroy(struct xfs_perag *pag);
-
 extern void	xfs_uuid_table_free(void);
 extern uint64_t xfs_default_resblks(xfs_mount_t *mp);
 extern int	xfs_mountfs(xfs_mount_t *mp);
@@ -519,19 +571,30 @@ xfs_fdblocks_unavailable(
 	return mp->m_alloc_set_aside + atomic64_read(&mp->m_allocbt_blks);
 }
 
-int xfs_mod_freecounter(struct xfs_mount *mp, struct percpu_counter *counter,
-		int64_t delta, bool rsvd);
+int xfs_dec_freecounter(struct xfs_mount *mp, struct percpu_counter *counter,
+		uint64_t delta, bool rsvd);
+void xfs_add_freecounter(struct xfs_mount *mp, struct percpu_counter *counter,
+		uint64_t delta);
 
-static inline int
-xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta, bool reserved)
+static inline int xfs_dec_fdblocks(struct xfs_mount *mp, uint64_t delta,
+		bool reserved)
 {
-	return xfs_mod_freecounter(mp, &mp->m_fdblocks, delta, reserved);
+	return xfs_dec_freecounter(mp, &mp->m_fdblocks, delta, reserved);
 }
 
-static inline int
-xfs_mod_frextents(struct xfs_mount *mp, int64_t delta)
+static inline void xfs_add_fdblocks(struct xfs_mount *mp, uint64_t delta)
 {
-	return xfs_mod_freecounter(mp, &mp->m_frextents, delta, false);
+	xfs_add_freecounter(mp, &mp->m_fdblocks, delta);
+}
+
+static inline int xfs_dec_frextents(struct xfs_mount *mp, uint64_t delta)
+{
+	return xfs_dec_freecounter(mp, &mp->m_frextents, delta, false);
+}
+
+static inline void xfs_add_frextents(struct xfs_mount *mp, uint64_t delta)
+{
+	xfs_add_freecounter(mp, &mp->m_frextents, delta);
 }
 
 extern int	xfs_readsb(xfs_mount_t *, int);
@@ -551,6 +614,7 @@ struct xfs_error_cfg * xfs_error_get_cfg(struct xfs_mount *mp,
 void xfs_force_summary_recalc(struct xfs_mount *mp);
 int xfs_add_incompat_log_feature(struct xfs_mount *mp, uint32_t feature);
 bool xfs_clear_incompat_log_features(struct xfs_mount *mp);
-void xfs_mod_delalloc(struct xfs_mount *mp, int64_t delta);
+void xfs_mod_delalloc(struct xfs_inode *ip, int64_t data_delta,
+		int64_t ind_delta);
 
 #endif	/* __XFS_MOUNT_H__ */

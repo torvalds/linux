@@ -8,6 +8,7 @@
 #define _LINUX_INTEGRITY_H
 
 #include <linux/fs.h>
+#include <linux/iversion.h>
 
 enum integrity_status {
 	INTEGRITY_PASS = 0,
@@ -19,40 +20,46 @@ enum integrity_status {
 	INTEGRITY_UNKNOWN,
 };
 
-/* List of EVM protected security xattrs */
 #ifdef CONFIG_INTEGRITY
-extern struct integrity_iint_cache *integrity_inode_get(struct inode *inode);
-extern void integrity_inode_free(struct inode *inode);
 extern void __init integrity_load_keys(void);
 
 #else
-static inline struct integrity_iint_cache *
-				integrity_inode_get(struct inode *inode)
-{
-	return NULL;
-}
-
-static inline void integrity_inode_free(struct inode *inode)
-{
-	return;
-}
-
 static inline void integrity_load_keys(void)
 {
 }
 #endif /* CONFIG_INTEGRITY */
 
-#ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
+/* An inode's attributes for detection of changes */
+struct integrity_inode_attributes {
+	u64 version;		/* track inode changes */
+	unsigned long ino;
+	dev_t dev;
+};
 
-extern int integrity_kernel_module_request(char *kmod_name);
-
-#else
-
-static inline int integrity_kernel_module_request(char *kmod_name)
+/*
+ * On stacked filesystems the i_version alone is not enough to detect file data
+ * or metadata change. Additional metadata is required.
+ */
+static inline void
+integrity_inode_attrs_store(struct integrity_inode_attributes *attrs,
+			    u64 i_version, const struct inode *inode)
 {
-	return 0;
+	attrs->version = i_version;
+	attrs->dev = inode->i_sb->s_dev;
+	attrs->ino = inode->i_ino;
 }
 
-#endif /* CONFIG_INTEGRITY_ASYMMETRIC_KEYS */
+/*
+ * On stacked filesystems detect whether the inode or its content has changed.
+ */
+static inline bool
+integrity_inode_attrs_changed(const struct integrity_inode_attributes *attrs,
+			      const struct inode *inode)
+{
+	return (inode->i_sb->s_dev != attrs->dev ||
+		inode->i_ino != attrs->ino ||
+		!inode_eq_iversion(inode, attrs->version));
+}
+
 
 #endif /* _LINUX_INTEGRITY_H */

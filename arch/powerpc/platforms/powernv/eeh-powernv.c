@@ -99,7 +99,6 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 
 static const struct file_operations pnv_eeh_ei_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
 	.write	= pnv_eeh_ei_write,
 };
 
@@ -855,13 +854,12 @@ static int pnv_eeh_bridge_reset(struct pci_dev *pdev, int option)
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
 	struct device_node *dn = pci_device_to_OF_node(pdev);
-	uint64_t id = PCI_SLOT_ID(phb->opal_id,
-				  (pdev->bus->number << 8) | pdev->devfn);
+	uint64_t id = PCI_SLOT_ID(phb->opal_id, pci_dev_id(pdev));
 	uint8_t scope;
 	int64_t rc;
 
 	/* Hot reset to the bus if firmware cannot handle */
-	if (!dn || !of_get_property(dn, "ibm,reset-by-firmware", NULL))
+	if (!dn || !of_property_present(dn, "ibm,reset-by-firmware"))
 		return __pnv_eeh_bridge_reset(pdev, option);
 
 	pr_debug("%s: FW reset PCI bus %04x:%02x with option %d\n",

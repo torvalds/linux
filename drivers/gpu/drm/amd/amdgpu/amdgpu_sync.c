@@ -191,7 +191,8 @@ static bool amdgpu_sync_test_fence(struct amdgpu_device *adev,
 
 	/* Never sync to VM updates either. */
 	if (fence_owner == AMDGPU_FENCE_OWNER_VM &&
-	    owner != AMDGPU_FENCE_OWNER_UNDEFINED)
+	    owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
+	    owner != AMDGPU_FENCE_OWNER_KFD)
 		return false;
 
 	/* Ignore fences depending on the sync mode */
@@ -257,6 +258,36 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		}
 	}
 	return 0;
+}
+
+/**
+ * amdgpu_sync_kfd - sync to KFD fences
+ *
+ * @sync: sync object to add KFD fences to
+ * @resv: reservation object with KFD fences
+ *
+ * Extract all KFD fences and add them to the sync object.
+ */
+int amdgpu_sync_kfd(struct amdgpu_sync *sync, struct dma_resv *resv)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *f;
+	int r = 0;
+
+	dma_resv_iter_begin(&cursor, resv, DMA_RESV_USAGE_BOOKKEEP);
+	dma_resv_for_each_fence_unlocked(&cursor, f) {
+		void *fence_owner = amdgpu_sync_get_owner(f);
+
+		if (fence_owner != AMDGPU_FENCE_OWNER_KFD)
+			continue;
+
+		r = amdgpu_sync_fence(sync, f);
+		if (r)
+			break;
+	}
+	dma_resv_iter_end(&cursor);
+
+	return r;
 }
 
 /* Free the entry back to the slab */
@@ -440,9 +471,7 @@ void amdgpu_sync_free(struct amdgpu_sync *sync)
  */
 int amdgpu_sync_init(void)
 {
-	amdgpu_sync_slab = kmem_cache_create(
-		"amdgpu_sync", sizeof(struct amdgpu_sync_entry), 0,
-		SLAB_HWCACHE_ALIGN, NULL);
+	amdgpu_sync_slab = KMEM_CACHE(amdgpu_sync_entry, SLAB_HWCACHE_ALIGN);
 	if (!amdgpu_sync_slab)
 		return -ENOMEM;
 

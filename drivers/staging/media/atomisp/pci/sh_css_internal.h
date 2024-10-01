@@ -16,15 +16,15 @@
 #ifndef _SH_CSS_INTERNAL_H_
 #define _SH_CSS_INTERNAL_H_
 
+#include <linux/build_bug.h>
+#include <linux/stdarg.h>
+
 #include <system_global.h>
 #include <math_support.h>
 #include <type_support.h>
 #include <platform_support.h>
-#include <linux/stdarg.h>
 
-#if !defined(ISP2401)
 #include "input_formatter.h"
-#endif
 #include "input_system.h"
 
 #include "ia_css_types.h"
@@ -86,30 +86,7 @@
 #define SH_CSS_MAX_IF_CONFIGS	3 /* Must match with IA_CSS_NR_OF_CONFIGS (not defined yet).*/
 #define SH_CSS_IF_CONFIG_NOT_NEEDED	0xFF
 
-/*
- * SH_CSS_MAX_SP_THREADS:
- *	 sp threads visible to host with connected communication queues
- *	 these threads are capable of running an image pipe
- * SH_CSS_MAX_SP_INTERNAL_THREADS:
- *	 internal sp service threads, no communication queues to host
- *	 these threads can't be used as image pipe
- */
-
-#if !defined(ISP2401)
-#define SH_CSS_SP_INTERNAL_METADATA_THREAD	1
-#else
-#define SH_CSS_SP_INTERNAL_METADATA_THREAD	0
-#endif
-
-#define SH_CSS_SP_INTERNAL_SERVICE_THREAD		1
-
 #define SH_CSS_MAX_SP_THREADS		5
-
-#define SH_CSS_MAX_SP_INTERNAL_THREADS	(\
-	 SH_CSS_SP_INTERNAL_SERVICE_THREAD +\
-	 SH_CSS_SP_INTERNAL_METADATA_THREAD)
-
-#define SH_CSS_MAX_PIPELINES	SH_CSS_MAX_SP_THREADS
 
 /**
  * The C99 standard does not specify the exact object representation of structs;
@@ -129,7 +106,6 @@
  */
 #define CALC_ALIGNMENT_MEMBER(x, y)	(CEIL_MUL(x, y) - x)
 #define SIZE_OF_HRT_VADDRESS		sizeof(hive_uint32)
-#define SIZE_OF_IA_CSS_PTR		sizeof(uint32_t)
 
 /* Number of SP's */
 #define NUM_OF_SPS 1
@@ -226,6 +202,8 @@ struct sh_css_ddr_address_map {
 	(SIZE_OF_HRT_VADDRESS +							\
 	(SH_CSS_MAX_STAGES * IA_CSS_NUM_MEMORIES * SIZE_OF_HRT_VADDRESS) +	\
 	(16 * SIZE_OF_HRT_VADDRESS))
+
+static_assert(sizeof(struct sh_css_ddr_address_map) == SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT);
 
 /* xmem address map allocation per pipeline */
 struct sh_css_ddr_address_map_size {
@@ -357,18 +335,23 @@ struct sh_css_sp_debug_command {
 	u32 dma_sw_reg;
 };
 
-#if !defined(ISP2401)
 /* SP input formatter configuration.*/
 struct sh_css_sp_input_formatter_set {
 	u32				stream_format;
 	input_formatter_cfg_t	config_a;
 	input_formatter_cfg_t	config_b;
 };
-#endif
 
 #define IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT (3)
 
-/* SP configuration information */
+/*
+ * SP configuration information
+ *
+ * This struct is part of the atomisp firmware ABI and is directly copied
+ * to ISP DRAM by sh_css_store_sp_group_to_ddr()
+ *
+ * Do NOT change this struct's layout or remove seemingly unused fields!
+ */
 struct sh_css_sp_config {
 	u8			no_isp_sync; /* Signal host immediately after start */
 	u8			enable_raw_pool_locking; /** Enable Raw Buffer Locking for HALv3 Support */
@@ -377,7 +360,11 @@ struct sh_css_sp_config {
 	     frames are locked when their EOF event is successfully sent to the
 	     host (true) or when they are passed to the preview/video pipe
 	     (false). */
-#if !defined(ISP2401)
+
+	 /*
+	  * Note the fields below are only used on the ISP2400 not on the ISP2401,
+	  * sh_css_store_sp_group_to_ddr() skip copying these when run on the ISP2401.
+	  */
 	struct {
 		u8					a_changed;
 		u8					b_changed;
@@ -385,16 +372,15 @@ struct sh_css_sp_config {
 		struct sh_css_sp_input_formatter_set
 			set[SH_CSS_MAX_IF_CONFIGS]; /* CSI-2 port is used as index. */
 	} input_formatter;
-#endif
-#if !defined(ISP2401)
+
 	sync_generator_cfg_t	sync_gen;
 	tpg_cfg_t		tpg;
 	prbs_cfg_t		prbs;
 	input_system_cfg_t	input_circuit;
 	u8			input_circuit_cfg_changed;
-	u32		mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
-#endif
-	u8                 enable_isys_event_queue;
+	u32			mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
+	/* These last 2 fields are used on both the ISP2400 and the ISP2401 */
+	u8			enable_isys_event_queue;
 	u8			disable_cont_vf;
 };
 
@@ -409,7 +395,6 @@ enum sh_css_stage_type {
 #define SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS_MASK \
 	((SH_CSS_PIPE_CONFIG_SAMPLE_PARAMS << SH_CSS_MAX_SP_THREADS) - 1)
 
-#if defined(ISP2401)
 struct sh_css_sp_pipeline_terminal {
 	union {
 		/* Input System 2401 */
@@ -442,7 +427,6 @@ struct sh_css_sp_pipeline_io_status {
 	u32	running[N_INPUT_SYSTEM_CSI_PORT];	/** configured streams */
 };
 
-#endif
 enum sh_css_port_dir {
 	SH_CSS_PORT_INPUT  = 0,
 	SH_CSS_PORT_OUTPUT  = 1
@@ -540,7 +524,7 @@ struct sh_css_sp_pipeline {
  * of the associated pipe. Dynamic means that the data address can
  * change with every (frame) iteration of the associated pipe
  *
- * s3a and dis are now also dynamic but (stil) handled separately
+ * s3a and dis are now also dynamic but (still) handled separately
  */
 #define SH_CSS_NUM_DYNAMIC_FRAME_IDS (3)
 
@@ -628,7 +612,7 @@ struct sh_css_sp_stage {
 
 /*
  * Time: 2012-07-19, 17:40.
- * Note: Add a new data memeber "debug" in "sh_css_sp_group". This
+ * Note: Add a new data member "debug" in "sh_css_sp_group". This
  * data member is used to pass the debugging command from the
  * Host to the SP.
  *
@@ -641,10 +625,8 @@ struct sh_css_sp_stage {
 struct sh_css_sp_group {
 	struct sh_css_sp_config		config;
 	struct sh_css_sp_pipeline	pipe[SH_CSS_MAX_SP_THREADS];
-#if defined(ISP2401)
 	struct sh_css_sp_pipeline_io	pipe_io[SH_CSS_MAX_SP_THREADS];
 	struct sh_css_sp_pipeline_io_status	pipe_io_status;
-#endif
 	struct sh_css_sp_debug_command	debug;
 };
 
@@ -739,6 +721,8 @@ struct sh_css_hmm_buffer {
 	SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT +			\
 	CALC_ALIGNMENT_MEMBER(SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT, 8))
 
+static_assert(sizeof(struct sh_css_hmm_buffer) == SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT);
+
 enum sh_css_queue_type {
 	sh_css_invalid_queue_type = -1,
 	sh_css_host2sp_buffer_queue,
@@ -757,6 +741,8 @@ struct sh_css_event_irq_mask {
 
 #define SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT				\
 	(2 * sizeof(uint16_t))
+
+static_assert(sizeof(struct sh_css_event_irq_mask) == SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT);
 
 struct host_sp_communication {
 	/*
@@ -794,6 +780,8 @@ struct host_sp_communication {
 	(N_CSI_PORTS * NUM_MIPI_FRAMES_PER_STREAM * SIZE_OF_HRT_VADDRESS * 2) +			\
 	((3 + N_CSI_PORTS) * sizeof(uint32_t)) +						\
 	(NR_OF_PIPELINES * SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT))
+
+static_assert(sizeof(struct host_sp_communication) == SIZE_OF_HOST_SP_COMMUNICATION_STRUCT);
 
 struct host_sp_queues {
 	/*
@@ -865,6 +853,8 @@ struct host_sp_queues {
 #define SIZE_OF_HOST_SP_QUEUES_STRUCT		\
 	(SIZE_OF_QUEUES_ELEMS + SIZE_OF_QUEUES_DESC)
 
+static_assert(sizeof(struct host_sp_queues) == SIZE_OF_HOST_SP_QUEUES_STRUCT);
+
 extern int  __printf(1, 0) (*sh_css_printf)(const char *fmt, va_list args);
 
 static inline void  __printf(1, 2) sh_css_print(const char *fmt, ...)
@@ -922,13 +912,11 @@ sh_css_frame_info_set_width(struct ia_css_frame_info *info,
 			    unsigned int width,
 			    unsigned int aligned);
 
-#if !defined(ISP2401)
 
 unsigned int
 sh_css_get_mipi_sizes_for_check(const unsigned int port,
 				const unsigned int idx);
 
-#endif
 
 ia_css_ptr
 sh_css_store_sp_group_to_ddr(void);
@@ -971,11 +959,9 @@ sh_css_continuous_is_enabled(uint8_t pipe_num);
 struct ia_css_pipe *
 find_pipe_by_num(uint32_t pipe_num);
 
-#ifdef ISP2401
 void
 ia_css_get_crop_offsets(
     struct ia_css_pipe *pipe,
     struct ia_css_frame_info *in_frame);
-#endif
 
 #endif /* _SH_CSS_INTERNAL_H_ */

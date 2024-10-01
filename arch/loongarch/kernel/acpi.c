@@ -9,6 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/efi-bgrt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/memblock.h>
@@ -29,11 +30,9 @@ int disabled_cpus;
 
 u64 acpi_saved_sp;
 
-#define MAX_CORE_PIC 256
-
 #define PREFIX			"ACPI: "
 
-struct acpi_madt_core_pic acpi_core_pic[NR_CPUS];
+struct acpi_madt_core_pic acpi_core_pic[MAX_CORE_PIC];
 
 void __init __iomem * __acpi_map_table(unsigned long phys, unsigned long size)
 {
@@ -59,15 +58,22 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 		return ioremap_cache(phys, size);
 }
 
+static int cpu_enumerated = 0;
+
 #ifdef CONFIG_SMP
 static int set_processor_mask(u32 id, u32 flags)
 {
-
+	int nr_cpus;
 	int cpu, cpuid = id;
 
-	if (num_processors >= nr_cpu_ids) {
-		pr_warn(PREFIX "nr_cpus/possible_cpus limit of %i reached."
-			" processor 0x%x ignored.\n", nr_cpu_ids, cpuid);
+	if (!cpu_enumerated)
+		nr_cpus = NR_CPUS;
+	else
+		nr_cpus = nr_cpu_ids;
+
+	if (num_processors >= nr_cpus) {
+		pr_warn(PREFIX "nr_cpus limit of %i reached."
+			" processor 0x%x ignored.\n", nr_cpus, cpuid);
 
 		return -ENODEV;
 
@@ -75,11 +81,13 @@ static int set_processor_mask(u32 id, u32 flags)
 	if (cpuid == loongson_sysconf.boot_cpu_id)
 		cpu = 0;
 	else
-		cpu = cpumask_next_zero(-1, cpu_present_mask);
+		cpu = find_first_zero_bit(cpumask_bits(cpu_present_mask), NR_CPUS);
+
+	if (!cpu_enumerated)
+		set_cpu_possible(cpu, true);
 
 	if (flags & ACPI_MADT_ENABLED) {
 		num_processors++;
-		set_cpu_possible(cpu, true);
 		set_cpu_present(cpu, true);
 		__cpu_number_map[cpuid] = cpu;
 		__cpu_logical_map[cpu] = cpuid;
@@ -119,7 +127,7 @@ acpi_parse_eio_master(union acpi_subtable_headers *header, const unsigned long e
 		return -EINVAL;
 
 	core = eiointc->node * CORES_PER_EIO_NODE;
-	set_bit(core, &(loongson_sysconf.cores_io_master));
+	set_bit(core, loongson_sysconf.cores_io_master);
 
 	return 0;
 }
@@ -140,6 +148,7 @@ static void __init acpi_process_madt(void)
 	acpi_table_parse_madt(ACPI_MADT_TYPE_EIO_PIC,
 			acpi_parse_eio_master, MAX_IO_PICS);
 
+	cpu_enumerated = 1;
 	loongson_sysconf.nr_cpus = num_processors;
 }
 
@@ -203,6 +212,9 @@ void __init acpi_boot_table_init(void)
 
 	/* Do not enable ACPI SPCR console by default */
 	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
+
+	if (IS_ENABLED(CONFIG_ACPI_BGRT))
+		acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 
 	return;
 
@@ -281,7 +293,6 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	pr_info("SRAT: PXM %u -> CPU 0x%02x -> Node %u\n", pxm, pa->apic_id, node);
 }
 
-void __init acpi_numa_arch_fixup(void) {}
 #endif
 
 void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)

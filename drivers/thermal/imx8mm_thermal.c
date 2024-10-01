@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
@@ -79,7 +78,7 @@
 struct thermal_soc_data {
 	u32 num_sensors;
 	u32 version;
-	int (*get_temp)(void *, int *);
+	int (*get_temp)(void *data, int *temp);
 };
 
 struct tmu_sensor {
@@ -179,10 +178,8 @@ static int imx8mm_tmu_probe_set_calib_v1(struct platform_device *pdev,
 	int ret;
 
 	ret = nvmem_cell_read_u32(&pdev->dev, "calib", &ana0);
-	if (ret) {
-		dev_warn(dev, "Failed to read OCOTP nvmem cell (%d).\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to read OCOTP nvmem cell\n");
 
 	writel(FIELD_PREP(TASR_BUF_VREF_MASK,
 			  FIELD_GET(ANA0_BUF_VREF_MASK, ana0)) |
@@ -366,7 +363,7 @@ disable_clk:
 	return ret;
 }
 
-static int imx8mm_tmu_remove(struct platform_device *pdev)
+static void imx8mm_tmu_remove(struct platform_device *pdev)
 {
 	struct imx8mm_tmu *tmu = platform_get_drvdata(pdev);
 
@@ -375,8 +372,6 @@ static int imx8mm_tmu_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(tmu->clk);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static struct thermal_soc_data imx8mm_tmu_data = {
@@ -404,7 +399,7 @@ static struct platform_driver imx8mm_tmu = {
 		.of_match_table = imx8mm_tmu_table,
 	},
 	.probe = imx8mm_tmu_probe,
-	.remove = imx8mm_tmu_remove,
+	.remove_new = imx8mm_tmu_remove,
 };
 module_platform_driver(imx8mm_tmu);
 

@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  *
  * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
  */
@@ -52,9 +52,21 @@ enum sof_dsp_power_states {
 
 /* Definitions for multiple IPCs */
 enum sof_ipc_type {
-	SOF_IPC,
-	SOF_INTEL_IPC4,
+	SOF_IPC_TYPE_3,
+	SOF_IPC_TYPE_4,
 	SOF_IPC_TYPE_COUNT
+};
+
+struct sof_loadable_file_profile {
+	enum sof_ipc_type ipc_type;
+
+	const char *fw_path;
+	const char *fw_path_postfix;
+	const char *fw_name;
+	const char *fw_lib_path;
+	const char *fw_lib_path_postfix;
+	const char *tplg_path;
+	const char *tplg_name;
 };
 
 /*
@@ -63,6 +75,14 @@ enum sof_ipc_type {
 struct snd_sof_pdata {
 	const char *name;
 	const char *platform;
+
+	/*
+	 * PCI SSID. As PCI does not define 0 as invalid, the subsystem_id_set
+	 * flag indicates that a value has been written to these members.
+	 */
+	unsigned short subsystem_vendor;
+	unsigned short subsystem_device;
+	bool subsystem_id_set;
 
 	struct device *dev;
 
@@ -77,6 +97,9 @@ struct snd_sof_pdata {
 
 	/* descriptor */
 	const struct sof_dev_desc *desc;
+
+	/* platform's preferred IPC type and path overrides */
+	struct sof_loadable_file_profile ipc_file_profile_base;
 
 	/* firmware and topology filenames */
 	const char *fw_filename_prefix;
@@ -143,12 +166,13 @@ struct sof_dev_desc {
 	/* default firmware name */
 	const char *default_fw_filename[SOF_IPC_TYPE_COUNT];
 
-	struct snd_sof_dsp_ops *ops;
+	const struct snd_sof_dsp_ops *ops;
 	int (*ops_init)(struct snd_sof_dev *sdev);
 	void (*ops_free)(struct snd_sof_dev *sdev);
 };
 
 int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd);
 int sof_dai_get_bclk(struct snd_soc_pcm_runtime *rtd);
+int sof_dai_get_tdm_slots(struct snd_soc_pcm_runtime *rtd);
 
 #endif

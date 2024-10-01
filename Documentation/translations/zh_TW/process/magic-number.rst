@@ -4,7 +4,7 @@
 
 .. include:: ../disclaimer-zh_TW.rst
 
-:Original: :ref:`Documentation/process/magic-number.rst <magicnumbers>`
+:Original: :ref:`Documentation/staging/magic-number.rst <magicnumbers>`
 
 如果想評論或更新本文的內容，請直接發信到LKML。如果你使用英文交流有困難的話，也可
 以向中文版維護者求助。如果本翻譯更新不及時或者翻譯存在問題，請聯繫中文版維護者::
@@ -12,7 +12,7 @@
         中文版維護者： 賈威威 Jia Wei Wei <harryxiyou@gmail.com>
         中文版翻譯者： 賈威威 Jia Wei Wei <harryxiyou@gmail.com>
         中文版校譯者： 賈威威 Jia Wei Wei <harryxiyou@gmail.com>
-                      胡皓文 Hu Haowen <src.res@email.cn>
+                      胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 Linux 魔術數
 ============

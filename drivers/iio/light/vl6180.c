@@ -20,7 +20,6 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
-#include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/util_macros.h>
 
@@ -528,7 +527,7 @@ static const struct of_device_id vl6180_of_match[] = {
 MODULE_DEVICE_TABLE(of, vl6180_of_match);
 
 static const struct i2c_device_id vl6180_id[] = {
-	{ "vl6180", 0 },
+	{ "vl6180" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vl6180_id);

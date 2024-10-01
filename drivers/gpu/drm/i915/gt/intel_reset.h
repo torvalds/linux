@@ -54,7 +54,8 @@ int intel_gt_terminally_wedged(struct intel_gt *gt);
 void intel_gt_set_wedged_on_init(struct intel_gt *gt);
 void intel_gt_set_wedged_on_fini(struct intel_gt *gt);
 
-int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask);
+int intel_gt_reset_engine(struct intel_engine_cs *engine);
+int intel_gt_reset_all_engines(struct intel_gt *gt);
 
 int intel_reset_guc(struct intel_gt *gt);
 
@@ -77,5 +78,7 @@ void __intel_fini_wedge(struct intel_wedge_me *w);
 
 bool intel_has_gpu_reset(const struct intel_gt *gt);
 bool intel_has_reset_engine(const struct intel_gt *gt);
+
+bool intel_engine_reset_needs_wa_22011802037(struct intel_gt *gt);
 
 #endif /* I915_RESET_H */

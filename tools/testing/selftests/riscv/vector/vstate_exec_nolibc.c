@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <sys/prctl.h>
+
+#include <linux/wait.h>
 
 #define THIS_PROGRAM "./vstate_exec_nolibc"
 

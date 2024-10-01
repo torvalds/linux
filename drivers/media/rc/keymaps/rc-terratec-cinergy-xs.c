@@ -86,3 +86,4 @@ module_exit(exit_rc_map_terratec_cinergy_xs)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Terratec Cinergy Hybrid T USB XS remote controller keytable");

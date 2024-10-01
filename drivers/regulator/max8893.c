@@ -125,7 +125,7 @@ static const struct regmap_config max8893_regmap = {
 	.val_bits = 8,
 };
 
-static int max8893_probe_new(struct i2c_client *i2c)
+static int max8893_probe(struct i2c_client *i2c)
 {
 	int id, ret;
 	struct regulator_config config = {.dev = &i2c->dev};
@@ -162,13 +162,13 @@ MODULE_DEVICE_TABLE(of, max8893_dt_match);
 #endif
 
 static const struct i2c_device_id max8893_ids[] = {
-	{ "max8893", 0 },
-	{ },
+	{ "max8893" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8893_ids);
 
 static struct i2c_driver max8893_driver = {
-	.probe		= max8893_probe_new,
+	.probe		= max8893_probe,
 	.driver		= {
 		.name	= "max8893",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

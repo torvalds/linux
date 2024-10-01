@@ -68,7 +68,6 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 }
 
 static const struct v4l2_subdev_pad_ops lif_pad_ops = {
-	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lif_enum_mbus_code,
 	.enum_frame_size = lif_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
@@ -84,6 +83,7 @@ static const struct v4l2_subdev_ops lif_ops = {
  */
 
 static void lif_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -94,8 +94,7 @@ static void lif_configure_stream(struct vsp1_entity *entity,
 	unsigned int obth;
 	unsigned int lbth;
 
-	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
-					    LIF_PAD_SOURCE);
+	format = v4l2_subdev_state_get_format(state, LIF_PAD_SOURCE);
 
 	switch (entity->vsp1->version & VI6_IP_VERSION_MODEL_MASK) {
 	case VI6_IP_VERSION_MODEL_VSPD_GEN2:

@@ -215,11 +215,11 @@ static void destroy_tty_buffer_list(struct list_head *list)
  * If the IUCV path has been severed, then -EPIPE is returned to cause a
  * hang up (that is issued by the HVC layer).
  */
-static int hvc_iucv_write(struct hvc_iucv_private *priv,
-			  char *buf, int count, int *has_more_data)
+static ssize_t hvc_iucv_write(struct hvc_iucv_private *priv,
+			      u8 *buf, size_t count, int *has_more_data)
 {
 	struct iucv_tty_buffer *rb;
-	int written;
+	ssize_t written;
 	int rc;
 
 	/* immediately return if there is no IUCV connection */
@@ -312,10 +312,10 @@ out_written:
  *		the routine locks the struct hvc_iucv_private->lock to call
  *		helper functions.
  */
-static int hvc_iucv_get_chars(uint32_t vtermno, char *buf, int count)
+static ssize_t hvc_iucv_get_chars(uint32_t vtermno, u8 *buf, size_t count)
 {
 	struct hvc_iucv_private *priv = hvc_iucv_get_private(vtermno);
-	int written;
+	ssize_t written;
 	int has_more_data;
 
 	if (count <= 0)
@@ -352,8 +352,8 @@ static int hvc_iucv_get_chars(uint32_t vtermno, char *buf, int count)
  * If an existing IUCV communicaton path has been severed, -EPIPE is returned
  * (that can be passed to HVC layer to cause a tty hangup).
  */
-static int hvc_iucv_queue(struct hvc_iucv_private *priv, const char *buf,
-			  int count)
+static ssize_t hvc_iucv_queue(struct hvc_iucv_private *priv, const u8 *buf,
+			      size_t count)
 {
 	size_t len;
 
@@ -455,12 +455,12 @@ static void hvc_iucv_sndbuf_work(struct work_struct *work)
  * Locking:	The method gets called under an irqsave() spinlock; and
  *		locks struct hvc_iucv_private->lock.
  */
-static int hvc_iucv_put_chars(uint32_t vtermno, const char *buf, int count)
+static ssize_t hvc_iucv_put_chars(uint32_t vtermno, const u8 *buf, size_t count)
 {
 	struct hvc_iucv_private *priv = hvc_iucv_get_private(vtermno);
 	int queued;
 
-	if (count <= 0)
+	if (!count)
 		return 0;
 
 	if (!priv)
@@ -1035,7 +1035,6 @@ static const struct attribute_group *hvc_iucv_dev_attr_groups[] = {
 	NULL,
 };
 
-
 /**
  * hvc_iucv_alloc() - Allocates a new struct hvc_iucv_private instance
  * @id:			hvc_iucv_table index
@@ -1086,18 +1085,12 @@ static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 	memcpy(priv->srv_name, name, 8);
 	ASCEBC(priv->srv_name, 8);
 
-	/* create and setup device */
-	priv->dev = kzalloc(sizeof(*priv->dev), GFP_KERNEL);
+	priv->dev = iucv_alloc_device(hvc_iucv_dev_attr_groups, NULL,
+				      priv, "hvc_iucv%d", id);
 	if (!priv->dev) {
 		rc = -ENOMEM;
 		goto out_error_dev;
 	}
-	dev_set_name(priv->dev, "hvc_iucv%d", id);
-	dev_set_drvdata(priv->dev, priv);
-	priv->dev->bus = &iucv_bus;
-	priv->dev->parent = iucv_root;
-	priv->dev->groups = hvc_iucv_dev_attr_groups;
-	priv->dev->release = (void (*)(struct device *)) kfree;
 	rc = device_register(priv->dev);
 	if (rc) {
 		put_device(priv->dev);

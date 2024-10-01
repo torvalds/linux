@@ -1,16 +1,28 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Only give sleepers 50% of their service deficit. This allows
- * them to run sooner, but does not allow tons of sleepers to
- * rip the spread apart.
- */
-SCHED_FEAT(GENTLE_FAIR_SLEEPERS, true)
 
 /*
- * Place new tasks ahead so that they do not starve already running
- * tasks
+ * Using the avg_vruntime, do the right thing and preserve lag across
+ * sleep+wake cycles. EEVDF placement strategy #1, #2 if disabled.
  */
-SCHED_FEAT(START_DEBIT, true)
+SCHED_FEAT(PLACE_LAG, true)
+/*
+ * Give new tasks half a slice to ease into the competition.
+ */
+SCHED_FEAT(PLACE_DEADLINE_INITIAL, true)
+/*
+ * Preserve relative virtual deadline on 'migration'.
+ */
+SCHED_FEAT(PLACE_REL_DEADLINE, true)
+/*
+ * Inhibit (wakeup) preemption until the current task has either matched the
+ * 0-lag point or until is has exhausted it's slice.
+ */
+SCHED_FEAT(RUN_TO_PARITY, true)
+/*
+ * Allow wakeup of tasks with a shorter slice to cancel RESPECT_SLICE for
+ * current.
+ */
+SCHED_FEAT(PREEMPT_SHORT, true)
 
 /*
  * Prefer to schedule the task we woke last (assuming it failed
@@ -20,17 +32,22 @@ SCHED_FEAT(START_DEBIT, true)
 SCHED_FEAT(NEXT_BUDDY, false)
 
 /*
- * Prefer to schedule the task that ran last (when we did
- * wake-preempt) as that likely will touch the same data, increases
- * cache locality.
- */
-SCHED_FEAT(LAST_BUDDY, true)
-
-/*
  * Consider buddies to be cache hot, decreases the likeliness of a
  * cache buddy being migrated away, increases cache locality.
  */
 SCHED_FEAT(CACHE_HOT_BUDDY, true)
+
+/*
+ * Delay dequeueing tasks until they get selected or woken.
+ *
+ * By delaying the dequeue for non-eligible tasks, they remain in the
+ * competition and can burn off their negative lag. When they get selected
+ * they'll have positive lag by definition.
+ *
+ * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
+ */
+SCHED_FEAT(DELAY_DEQUEUE, true)
+SCHED_FEAT(DELAY_ZERO, true)
 
 /*
  * Allow wakeup-time preemption of the current task:
@@ -60,7 +77,6 @@ SCHED_FEAT(TTWU_QUEUE, true)
 /*
  * When doing wakeups, attempt to limit superfluous scans of the LLC domain.
  */
-SCHED_FEAT(SIS_PROP, false)
 SCHED_FEAT(SIS_UTIL, true)
 
 /*
@@ -95,9 +111,5 @@ SCHED_FEAT(WA_BIAS, true)
  * UtilEstimation. Use estimated CPU utilization.
  */
 SCHED_FEAT(UTIL_EST, true)
-SCHED_FEAT(UTIL_EST_FASTUP, true)
 
 SCHED_FEAT(LATENCY_WARN, false)
-
-SCHED_FEAT(ALT_PERIOD, true)
-SCHED_FEAT(BASE_SLICE, true)

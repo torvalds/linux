@@ -40,13 +40,6 @@
 #define MBOX_OFFSET		0x800000
 #define MBOX_SIZE		0x1000
 
-static struct clk_bulk_data imx8ulp_dsp_clks[] = {
-	{ .id = "core" },
-	{ .id = "ipg" },
-	{ .id = "ocram" },
-	{ .id = "mu" },
-};
-
 struct imx8ulp_priv {
 	struct device *dev;
 	struct snd_sof_dev *sdev;
@@ -56,7 +49,8 @@ struct imx8ulp_priv {
 	struct platform_device *ipc_dev;
 
 	struct regmap *regmap;
-	struct imx_clocks *clks;
+	struct clk_bulk_data *clks;
+	int clk_num;
 };
 
 static void imx8ulp_sim_lpav_start(struct imx8ulp_priv *priv)
@@ -175,10 +169,6 @@ static int imx8ulp_probe(struct snd_sof_dev *sdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clks = devm_kzalloc(&pdev->dev, sizeof(*priv->clks), GFP_KERNEL);
-	if (!priv->clks)
-		return -ENOMEM;
-
 	sdev->num_cores = 1;
 	sdev->pdata->hw_pdata = priv;
 	priv->dev = sdev->dev;
@@ -259,16 +249,18 @@ static int imx8ulp_probe(struct snd_sof_dev *sdev)
 		goto exit_pdev_unregister;
 	}
 
-	priv->clks->dsp_clks = imx8ulp_dsp_clks;
-	priv->clks->num_dsp_clks = ARRAY_SIZE(imx8ulp_dsp_clks);
-
-	ret = imx8_parse_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = devm_clk_bulk_get_all(sdev->dev, &priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to fetch clocks: %d\n", ret);
 		goto exit_pdev_unregister;
+	}
+	priv->clk_num = ret;
 
-	ret = imx8_enable_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = clk_bulk_prepare_enable(priv->clk_num, priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to enable clocks: %d\n", ret);
 		goto exit_pdev_unregister;
+	}
 
 	return 0;
 
@@ -278,14 +270,12 @@ exit_pdev_unregister:
 	return ret;
 }
 
-static int imx8ulp_remove(struct snd_sof_dev *sdev)
+static void imx8ulp_remove(struct snd_sof_dev *sdev)
 {
 	struct imx8ulp_priv *priv = sdev->pdata->hw_pdata;
 
-	imx8_disable_clocks(sdev, priv->clks);
+	clk_bulk_disable_unprepare(priv->clk_num, priv->clks);
 	platform_device_unregister(priv->ipc_dev);
-
-	return 0;
 }
 
 /* on i.MX8 there is 1 to 1 match between type and BAR idx */
@@ -305,7 +295,7 @@ static int imx8ulp_suspend(struct snd_sof_dev *sdev)
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
 		imx_dsp_free_channel(priv->dsp_ipc, i);
 
-	imx8_disable_clocks(sdev, priv->clks);
+	clk_bulk_disable_unprepare(priv->clk_num, priv->clks);
 
 	return 0;
 }
@@ -313,9 +303,13 @@ static int imx8ulp_suspend(struct snd_sof_dev *sdev)
 static int imx8ulp_resume(struct snd_sof_dev *sdev)
 {
 	struct imx8ulp_priv *priv = (struct imx8ulp_priv *)sdev->pdata->hw_pdata;
-	int i;
+	int i, ret;
 
-	imx8_enable_clocks(sdev, priv->clks);
+	ret = clk_bulk_prepare_enable(priv->clk_num, priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to enable clocks: %d\n", ret);
+		return ret;
+	}
 
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
 		imx_dsp_request_channel(priv->dsp_ipc, i);
@@ -414,7 +408,7 @@ static int imx8ulp_dsp_set_power_state(struct snd_sof_dev *sdev,
 }
 
 /* i.MX8 ops */
-static struct snd_sof_dsp_ops sof_imx8ulp_ops = {
+static const struct snd_sof_dsp_ops sof_imx8ulp_ops = {
 	/* probe and remove */
 	.probe		= imx8ulp_probe,
 	.remove		= imx8ulp_remove,
@@ -465,6 +459,7 @@ static struct snd_sof_dsp_ops sof_imx8ulp_ops = {
 			SNDRV_PCM_INFO_MMAP_VALID |
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH |
 			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 
 	/* PM */
@@ -477,17 +472,27 @@ static struct snd_sof_dsp_ops sof_imx8ulp_ops = {
 	.set_power_state	= imx8ulp_dsp_set_power_state,
 };
 
+static struct snd_sof_of_mach sof_imx8ulp_machs[] = {
+	{
+		.compatible = "fsl,imx8ulp-evk",
+		.sof_tplg_filename = "sof-imx8ulp-btsco.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{}
+};
+
 static struct sof_dev_desc sof_of_imx8ulp_desc = {
-	.ipc_supported_mask     = BIT(SOF_IPC),
-	.ipc_default            = SOF_IPC,
+	.of_machines = sof_imx8ulp_machs,
+	.ipc_supported_mask     = BIT(SOF_IPC_TYPE_3),
+	.ipc_default            = SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "imx/sof",
+		[SOF_IPC_TYPE_3] = "imx/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "imx/sof-tplg",
+		[SOF_IPC_TYPE_3] = "imx/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-imx8ulp.ri",
+		[SOF_IPC_TYPE_3] = "sof-imx8ulp.ri",
 	},
 	.nocodec_tplg_filename = "sof-imx8ulp-nocodec.tplg",
 	.ops = &sof_imx8ulp_ops,
@@ -511,5 +516,6 @@ static struct platform_driver snd_sof_of_imx8ulp_driver = {
 };
 module_platform_driver(snd_sof_of_imx8ulp_driver);
 
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for IMX8ULP platforms");
+MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);

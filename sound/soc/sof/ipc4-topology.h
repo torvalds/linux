@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2022 Intel Corporation
  */
 
 #ifndef __INCLUDE_SOUND_SOF_IPC4_TOPOLOGY_H__
@@ -45,6 +45,7 @@
 #define SOF_IPC4_NODE_INDEX_MASK	0xFF
 #define SOF_IPC4_NODE_INDEX(x)	((x) & SOF_IPC4_NODE_INDEX_MASK)
 #define SOF_IPC4_NODE_TYPE(x)  ((x) << 8)
+#define SOF_IPC4_GET_NODE_TYPE(node_id) ((node_id) >> 8)
 
 /* Node ID for SSP type DAI copiers */
 #define SOF_IPC4_NODE_INDEX_INTEL_SSP(x) (((x) & 0xf) << 4)
@@ -144,11 +145,11 @@ struct sof_ipc4_pipeline {
 /**
  * struct sof_ipc4_multi_pipeline_data - multi pipeline trigger IPC data
  * @count: Number of pipelines to be triggered
- * @pipeline_ids: Flexible array of IDs of the pipelines to be triggered
+ * @pipeline_instance_ids: Flexible array of IDs of the pipelines to be triggered
  */
 struct ipc4_pipeline_set_state_data {
 	u32 count;
-	DECLARE_FLEX_ARRAY(u32, pipeline_ids);
+	DECLARE_FLEX_ARRAY(u32, pipeline_instance_ids);
 } __packed;
 
 /**
@@ -313,13 +314,13 @@ struct sof_ipc4_copier {
 	struct sof_ipc4_gtw_attributes *gtw_attr;
 	u32 dai_type;
 	int dai_index;
-	struct sof_ipc4_dma_config_tlv dma_config_tlv;
+	struct sof_ipc4_dma_config_tlv dma_config_tlv[SOF_IPC4_DMA_DEVICE_MAX_COUNT];
 };
 
 /**
  * struct sof_ipc4_ctrl_value_chan: generic channel mapped value data
  * @channel: Channel ID
- * @value: gain value
+ * @value: Value associated with @channel
  */
 struct sof_ipc4_ctrl_value_chan {
 	u32 channel;
@@ -343,8 +344,25 @@ struct sof_ipc4_control_data {
 	};
 };
 
+#define SOF_IPC4_SWITCH_CONTROL_PARAM_ID	200
+#define SOF_IPC4_ENUM_CONTROL_PARAM_ID		201
+
 /**
- * struct sof_ipc4_gain_data - IPC gain blob
+ * struct sof_ipc4_control_msg_payload - IPC payload for kcontrol parameters
+ * @id: unique id of the control
+ * @num_elems: Number of elements in the chanv array
+ * @reserved: reserved for future use, must be set to 0
+ * @chanv: channel ID and value array
+ */
+struct sof_ipc4_control_msg_payload {
+	uint16_t id;
+	uint16_t num_elems;
+	uint32_t reserved[4];
+	DECLARE_FLEX_ARRAY(struct sof_ipc4_ctrl_value_chan, chanv);
+} __packed;
+
+/**
+ * struct sof_ipc4_gain_params - IPC gain parameters
  * @channels: Channels
  * @init_val: Initial value
  * @curve_type: Curve type
@@ -352,24 +370,32 @@ struct sof_ipc4_control_data {
  * @curve_duration_l: Curve duration low part
  * @curve_duration_h: Curve duration high part
  */
-struct sof_ipc4_gain_data {
+struct sof_ipc4_gain_params {
 	uint32_t channels;
 	uint32_t init_val;
 	uint32_t curve_type;
 	uint32_t reserved;
 	uint32_t curve_duration_l;
 	uint32_t curve_duration_h;
-} __aligned(8);
+} __packed __aligned(4);
+
+/**
+ * struct sof_ipc4_gain_data - IPC gain init blob
+ * @base_config: IPC base config data
+ * @params: Initial parameters for the gain module
+ */
+struct sof_ipc4_gain_data {
+	struct sof_ipc4_base_module_cfg base_config;
+	struct sof_ipc4_gain_params params;
+} __packed __aligned(4);
 
 /**
  * struct sof_ipc4_gain - gain config data
- * @base_config: IPC base config data
  * @data: IPC gain blob
  * @available_fmt: Available audio format
  * @msg: message structure for gain
  */
 struct sof_ipc4_gain {
-	struct sof_ipc4_base_module_cfg base_config;
 	struct sof_ipc4_gain_data data;
 	struct sof_ipc4_available_audio_format available_fmt;
 	struct sof_ipc4_msg msg;
@@ -387,16 +413,24 @@ struct sof_ipc4_mixer {
 	struct sof_ipc4_msg msg;
 };
 
-/**
- * struct sof_ipc4_src SRC config data
+/*
+ * struct sof_ipc4_src_data - IPC data for SRC
  * @base_config: IPC base config data
  * @sink_rate: Output rate for sink module
+ */
+struct sof_ipc4_src_data {
+	struct sof_ipc4_base_module_cfg base_config;
+	uint32_t sink_rate;
+} __packed __aligned(4);
+
+/**
+ * struct sof_ipc4_src - SRC config data
+ * @data: IPC base config data
  * @available_fmt: Available audio format
  * @msg: IPC4 message struct containing header and data info
  */
 struct sof_ipc4_src {
-	struct sof_ipc4_base_module_cfg base_config;
-	uint32_t sink_rate;
+	struct sof_ipc4_src_data data;
 	struct sof_ipc4_available_audio_format available_fmt;
 	struct sof_ipc4_msg msg;
 };
@@ -442,4 +476,7 @@ struct sof_ipc4_process {
 	u32 init_config;
 };
 
+bool sof_ipc4_copier_is_single_bitdepth(struct snd_sof_dev *sdev,
+					struct sof_ipc4_pin_format *pin_fmts,
+					u32 pin_fmts_size);
 #endif

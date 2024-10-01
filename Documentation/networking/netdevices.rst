@@ -252,17 +252,17 @@ ndo_eth_ioctl:
 	Context: process
 
 ndo_get_stats:
-	Synchronization: rtnl_lock() semaphore, dev_base_lock rwlock, or RCU.
-	Context: atomic (can't sleep under rwlock or RCU)
+	Synchronization: rtnl_lock() semaphore, or RCU.
+	Context: atomic (can't sleep under RCU)
 
 ndo_start_xmit:
 	Synchronization: __netif_tx_lock spinlock.
 
-	When the driver sets NETIF_F_LLTX in dev->features this will be
+	When the driver sets dev->lltx this will be
 	called without holding netif_tx_lock. In this case the driver
 	has to lock by itself when needed.
 	The locking there should also properly protect against
-	set_rx_mode. WARNING: use of NETIF_F_LLTX is deprecated.
+	set_rx_mode. WARNING: use of dev->lltx is deprecated.
 	Don't use it for new drivers.
 
 	Context: Process with BHs disabled or BH (timer),

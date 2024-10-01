@@ -536,7 +536,7 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *config,
 
 	return pdata.get_dvb_frontend(client);
 }
-EXPORT_SYMBOL(cxd2820r_attach);
+EXPORT_SYMBOL_GPL(cxd2820r_attach);
 
 static struct dvb_frontend *cxd2820r_get_dvb_frontend(struct i2c_client *client)
 {
@@ -723,7 +723,7 @@ static void cxd2820r_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cxd2820r_id_table[] = {
-	{"cxd2820r", 0},
+	{ "cxd2820r" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cxd2820r_id_table);

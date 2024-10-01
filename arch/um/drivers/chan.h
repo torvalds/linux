@@ -22,7 +22,8 @@ struct chan {
 	unsigned int output:1;
 	unsigned int opened:1;
 	unsigned int enabled:1;
-	int fd;
+	int fd_in;
+	int fd_out; /* only different to fd_in if blocking output is needed */
 	const struct chan_ops *ops;
 	void *data;
 };
@@ -30,7 +31,7 @@ struct chan {
 extern void chan_interrupt(struct line *line, int irq);
 extern int parse_chan_pair(char *str, struct line *line, int device,
 			   const struct chan_opts *opts, char **error_out);
-extern int write_chan(struct chan *chan, const char *buf, int len,
+extern int write_chan(struct chan *chan, const u8 *buf, size_t len,
 			     int write_irq);
 extern int console_write_chan(struct chan *chan, const char *buf, 
 			      int len);

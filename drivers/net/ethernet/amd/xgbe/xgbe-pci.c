@@ -139,7 +139,7 @@ static int xgbe_config_multi_msi(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 
-	pdata->isr_as_tasklet = 1;
+	pdata->isr_as_bh_work = 1;
 	pdata->irq_count = ret;
 
 	pdata->dev_irq = pci_irq_vector(pdata->pcidev, 0);
@@ -170,13 +170,13 @@ static int xgbe_config_irqs(struct xgbe_prv_data *pdata)
 		goto out;
 
 	ret = pci_alloc_irq_vectors(pdata->pcidev, 1, 1,
-				    PCI_IRQ_LEGACY | PCI_IRQ_MSI);
+				    PCI_IRQ_INTX | PCI_IRQ_MSI);
 	if (ret < 0) {
 		dev_info(pdata->dev, "single IRQ enablement failed\n");
 		return ret;
 	}
 
-	pdata->isr_as_tasklet = pdata->pcidev->msi_enabled ? 1 : 0;
+	pdata->isr_as_bh_work = pdata->pcidev->msi_enabled ? 1 : 0;
 	pdata->irq_count = 1;
 	pdata->channel_irq_count = 1;
 

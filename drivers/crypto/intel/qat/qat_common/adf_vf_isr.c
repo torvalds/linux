@@ -13,6 +13,7 @@
 #include "adf_cfg.h"
 #include "adf_cfg_strings.h"
 #include "adf_cfg_common.h"
+#include "adf_pfvf_vf_msg.h"
 #include "adf_transport_access_macros.h"
 #include "adf_transport_internal.h"
 
@@ -71,10 +72,11 @@ static void adf_dev_stop_async(struct work_struct *work)
 	struct adf_accel_dev *accel_dev = stop_data->accel_dev;
 
 	adf_dev_restarting_notify(accel_dev);
-	adf_dev_down(accel_dev, false);
+	adf_dev_down(accel_dev);
 
 	/* Re-enable PF2VF interrupts */
 	adf_enable_pf2vf_interrupts(accel_dev);
+	adf_vf2pf_notify_restart_complete(accel_dev);
 	kfree(stop_data);
 }
 
@@ -292,8 +294,6 @@ EXPORT_SYMBOL_GPL(adf_flush_vf_wq);
 
 /**
  * adf_init_vf_wq() - Init workqueue for VF
- *
- * Function init workqueue 'adf_vf_stop_wq' for VF.
  *
  * Return: 0 on success, error code otherwise.
  */

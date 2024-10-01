@@ -91,7 +91,8 @@ static int iblock_configure_device(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 	struct request_queue *q;
-	struct block_device *bd = NULL;
+	struct file *bdev_file;
+	struct block_device *bd;
 	struct blk_integrity *bi;
 	blk_mode_t mode = BLK_OPEN_READ;
 	unsigned int max_write_zeroes_sectors;
@@ -116,12 +117,14 @@ static int iblock_configure_device(struct se_device *dev)
 	else
 		dev->dev_flags |= DF_READ_ONLY;
 
-	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev, NULL);
-	if (IS_ERR(bd)) {
-		ret = PTR_ERR(bd);
+	bdev_file = bdev_file_open_by_path(ib_dev->ibd_udev_path, mode, ib_dev,
+					NULL);
+	if (IS_ERR(bdev_file)) {
+		ret = PTR_ERR(bdev_file);
 		goto out_free_bioset;
 	}
-	ib_dev->ibd_bd = bd;
+	ib_dev->ibd_bdev_file = bdev_file;
+	ib_dev->ibd_bd = bd = file_bdev(bdev_file);
 
 	q = bdev_get_queue(bd);
 
@@ -145,39 +148,42 @@ static int iblock_configure_device(struct se_device *dev)
 		dev->dev_attrib.is_nonrot = 1;
 
 	bi = bdev_get_integrity(bd);
-	if (bi) {
-		struct bio_set *bs = &ib_dev->ibd_bio_set;
+	if (!bi)
+		return 0;
 
-		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-IP") ||
-		    !strcmp(bi->profile->name, "T10-DIF-TYPE1-IP")) {
-			pr_err("IBLOCK export of blk_integrity: %s not"
-			       " supported\n", bi->profile->name);
-			ret = -ENOSYS;
-			goto out_blkdev_put;
-		}
-
-		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-CRC")) {
-			dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE3_PROT;
-		} else if (!strcmp(bi->profile->name, "T10-DIF-TYPE1-CRC")) {
+	switch (bi->csum_type) {
+	case BLK_INTEGRITY_CSUM_IP:
+		pr_err("IBLOCK export of blk_integrity: %s not supported\n",
+			blk_integrity_profile_name(bi));
+		ret = -ENOSYS;
+		goto out_blkdev_put;
+	case BLK_INTEGRITY_CSUM_CRC:
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
 			dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE1_PROT;
-		}
-
-		if (dev->dev_attrib.pi_prot_type) {
-			if (bioset_integrity_create(bs, IBLOCK_BIO_POOL_SIZE) < 0) {
-				pr_err("Unable to allocate bioset for PI\n");
-				ret = -ENOMEM;
-				goto out_blkdev_put;
-			}
-			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
-				 &bs->bio_integrity_pool);
-		}
-		dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
+		else
+			dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE3_PROT;
+		break;
+	default:
+		break;
 	}
 
+	if (dev->dev_attrib.pi_prot_type) {
+		struct bio_set *bs = &ib_dev->ibd_bio_set;
+
+		if (bioset_integrity_create(bs, IBLOCK_BIO_POOL_SIZE) < 0) {
+			pr_err("Unable to allocate bioset for PI\n");
+			ret = -ENOMEM;
+			goto out_blkdev_put;
+		}
+		pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
+			 &bs->bio_integrity_pool);
+	}
+
+	dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
 	return 0;
 
 out_blkdev_put:
-	blkdev_put(ib_dev->ibd_bd, ib_dev);
+	fput(ib_dev->ibd_bdev_file);
 out_free_bioset:
 	bioset_exit(&ib_dev->ibd_bio_set);
 out:
@@ -202,8 +208,8 @@ static void iblock_destroy_device(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
-	if (ib_dev->ibd_bd != NULL)
-		blkdev_put(ib_dev->ibd_bd, ib_dev);
+	if (ib_dev->ibd_bdev_file)
+		fput(ib_dev->ibd_bdev_file);
 	bioset_exit(&ib_dev->ibd_bio_set);
 }
 
@@ -689,7 +695,6 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 		return PTR_ERR(bip);
 	}
 
-	bip->bip_iter.bi_size = bio_integrity_bytes(bi, bio_sectors(bio));
 	/* virtual start sector must be in integrity interval units */
 	bip_set_seed(bip, bio->bi_iter.bi_sector >>
 				  (bi->interval_exp - SECTOR_SHIFT));
@@ -697,7 +702,7 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 	pr_debug("IBLOCK BIP Size: %u Sector: %llu\n", bip->bip_iter.bi_size,
 		 (unsigned long long)bip->bip_iter.bi_sector);
 
-	resid = bip->bip_iter.bi_size;
+	resid = bio_integrity_bytes(bi, bio_sectors(bio));
 	while (resid > 0 && sg_miter_next(miter)) {
 
 		len = min_t(size_t, miter->length, resid);
@@ -740,11 +745,16 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	if (data_direction == DMA_TO_DEVICE) {
 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+
+		/*
+		 * Set bits to indicate WRITE_ODIRECT so we are not throttled
+		 * by WBT.
+		 */
+		opf = REQ_OP_WRITE | REQ_SYNC | REQ_IDLE;
 		/*
 		 * Force writethrough using REQ_FUA if a volatile write cache
 		 * is not enabled, or if initiator set the Force Unit Access bit.
 		 */
-		opf = REQ_OP_WRITE;
 		miter_dir = SG_MITER_TO_SG;
 		if (bdev_fua(ib_dev->ibd_bd)) {
 			if (cmd->se_cmd_flags & SCF_FUA)

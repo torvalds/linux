@@ -6,7 +6,6 @@
  ******************************************************************************/
 #include <linux/crc32.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <crypto/aes.h>
 
 static const char * const _security_type_str[] = {
@@ -486,7 +485,7 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	if (pattrib->encrypt == _TKIP_) {
 
 		{
-			if (IS_MCAST(pattrib->ra))
+			if (is_multicast_ether_addr(pattrib->ra))
 				prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 			else
 				prwskey = pattrib->dot118021x_UncstKey.skey;
@@ -554,7 +553,7 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 	if (prxattrib->encrypt == _TKIP_) {
 		stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
 		if (stainfo) {
-			if (IS_MCAST(prxattrib->ra)) {
+			if (is_multicast_ether_addr(prxattrib->ra)) {
 				static unsigned long start;
 				static u32 no_gkey_bc_cnt;
 				static u32 no_gkey_mc_cnt;
@@ -1051,7 +1050,7 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _AES_) {
-		if (IS_MCAST(pattrib->ra))
+		if (is_multicast_ether_addr(pattrib->ra))
 			prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 		else
 			prwskey = pattrib->dot118021x_UncstKey.skey;
@@ -1305,7 +1304,7 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 	if (prxattrib->encrypt == _AES_) {
 		stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
 		if (stainfo) {
-			if (IS_MCAST(prxattrib->ra)) {
+			if (is_multicast_ether_addr(prxattrib->ra)) {
 				static unsigned long start;
 				static u32 no_gkey_bc_cnt;
 				static u32 no_gkey_mc_cnt;

@@ -43,7 +43,7 @@ static const struct regmap_config adau7118_regmap_config = {
 	.val_bits = 8,
 	.reg_defaults = adau7118_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adau7118_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = ADAU7118_REG_RESET,
 	.volatile_reg = adau7118_volatile,
 };
@@ -68,7 +68,7 @@ static const struct of_device_id adau7118_of_match[] = {
 MODULE_DEVICE_TABLE(of, adau7118_of_match);
 
 static const struct i2c_device_id adau7118_id[] = {
-	{"adau7118", 0},
+	{"adau7118"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, adau7118_id);

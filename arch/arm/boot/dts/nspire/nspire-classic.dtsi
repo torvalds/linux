@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/arch/arm/boot/nspire-classic.dts
- *
  *  Copyright (C) 2013 Daniel Tang <tangrs@tangrs.id.au>
  */
 
@@ -57,7 +55,7 @@
 };
 
 / {
-	memory {
+	memory@10000000 {
 		device_type = "memory";
 		reg = <0x10000000 0x2000000>; /* 32 MB */
 	};

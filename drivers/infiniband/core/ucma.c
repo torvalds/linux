@@ -71,7 +71,6 @@ static struct ctl_table ucma_ctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ }
 };
 
 struct ucma_file {
@@ -1625,13 +1624,13 @@ static ssize_t ucma_migrate_id(struct ucma_file *new_file,
 
 	/* Get current fd to protect against it being closed */
 	f = fdget(cmd.fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -ENOENT;
-	if (f.file->f_op != &ucma_fops) {
+	if (fd_file(f)->f_op != &ucma_fops) {
 		ret = -EINVAL;
 		goto file_put;
 	}
-	cur_file = f.file->private_data;
+	cur_file = fd_file(f)->private_data;
 
 	/* Validate current fd and prevent destruction of id. */
 	ctx = ucma_get_ctx(cur_file, cmd.id);
@@ -1818,7 +1817,6 @@ static const struct file_operations ucma_fops = {
 	.release = ucma_close,
 	.write	 = ucma_write,
 	.poll    = ucma_poll,
-	.llseek	 = no_llseek,
 };
 
 static struct miscdevice ucma_misc = {

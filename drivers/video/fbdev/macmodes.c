@@ -411,4 +411,5 @@ int mac_find_mode(struct fb_var_screeninfo *var, struct fb_info *info,
 }
 EXPORT_SYMBOL(mac_find_mode);
 
+MODULE_DESCRIPTION("MacOS video mode library");
 MODULE_LICENSE("GPL");

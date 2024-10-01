@@ -1000,6 +1000,13 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		/* to light up the LOCK led */
+		ret = m88ds3103_update_bits(dev, 0x11, 0x80, 0x00);
+		if (ret)
+			goto err;
+	}
+
 	dev->delivery_system = c->delivery_system;
 
 	return 0;
@@ -1695,7 +1702,7 @@ struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
 	*tuner_i2c_adapter = pdata.get_i2c_adapter(client);
 	return pdata.get_dvb_frontend(client);
 }
-EXPORT_SYMBOL(m88ds3103_attach);
+EXPORT_SYMBOL_GPL(m88ds3103_attach);
 
 static const struct dvb_frontend_ops m88ds3103_ops = {
 	.delsys = {SYS_DVBS, SYS_DVBS2},
@@ -1866,7 +1873,7 @@ static int m88ds3103_probe(struct i2c_client *client)
 		goto err_kfree;
 	}
 	dev->muxc->priv = dev;
-	ret = i2c_mux_add_adapter(dev->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(dev->muxc, 0, 0);
 	if (ret)
 		goto err_kfree;
 
@@ -1894,7 +1901,7 @@ static int m88ds3103_probe(struct i2c_client *client)
 		/* get frontend address */
 		ret = regmap_read(dev->regmap, 0x29, &utmp);
 		if (ret)
-			goto err_kfree;
+			goto err_del_adapters;
 		dev->dt_addr = ((utmp & 0x80) == 0) ? 0x42 >> 1 : 0x40 >> 1;
 		dev_dbg(&client->dev, "dt addr is 0x%02x\n", dev->dt_addr);
 
@@ -1902,11 +1909,14 @@ static int m88ds3103_probe(struct i2c_client *client)
 						      dev->dt_addr);
 		if (IS_ERR(dev->dt_client)) {
 			ret = PTR_ERR(dev->dt_client);
-			goto err_kfree;
+			goto err_del_adapters;
 		}
 	}
 
 	return 0;
+
+err_del_adapters:
+	i2c_mux_del_adapters(dev->muxc);
 err_kfree:
 	kfree(dev);
 err:
@@ -1920,8 +1930,7 @@ static void m88ds3103_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	if (dev->dt_client)
-		i2c_unregister_device(dev->dt_client);
+	i2c_unregister_device(dev->dt_client);
 
 	i2c_mux_del_adapters(dev->muxc);
 

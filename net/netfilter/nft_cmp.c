@@ -83,7 +83,7 @@ static int nft_cmp_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (err < 0)
 		return err;
 
-	err = nft_parse_register_load(tb[NFTA_CMP_SREG], &priv->sreg, desc.len);
+	err = nft_parse_register_load(ctx, tb[NFTA_CMP_SREG], &priv->sreg, desc.len);
 	if (err < 0)
 		return err;
 
@@ -162,7 +162,7 @@ static int __nft_cmp_offload(struct nft_offload_ctx *ctx,
 	memcpy(key + reg->offset, data, reg->len);
 	memcpy(mask + reg->offset, datamask, reg->len);
 
-	flow->match.dissector.used_keys |= BIT(reg->key);
+	flow->match.dissector.used_keys |= BIT_ULL(reg->key);
 	flow->match.dissector.offset[reg->key] = reg->base_offset;
 
 	if (reg->key == FLOW_DISSECTOR_KEY_META &&
@@ -222,7 +222,7 @@ static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_parse_register_load(tb[NFTA_CMP_SREG], &priv->sreg, desc.len);
+	err = nft_parse_register_load(ctx, tb[NFTA_CMP_SREG], &priv->sreg, desc.len);
 	if (err < 0)
 		return err;
 
@@ -323,7 +323,7 @@ static int nft_cmp16_fast_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_parse_register_load(tb[NFTA_CMP_SREG], &priv->sreg, desc.len);
+	err = nft_parse_register_load(ctx, tb[NFTA_CMP_SREG], &priv->sreg, desc.len);
 	if (err < 0)
 		return err;
 

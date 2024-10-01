@@ -421,7 +421,7 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	if (blob->type != SUR40_TOUCH)
 		return;
 
-	slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
+	slotnum = input_mt_get_slot_by_key(input, le16_to_cpu(blob->blob_id));
 	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
 		return;
 
@@ -672,7 +672,7 @@ static int sur40_probe(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* Allocate memory for our device state and initialize it. */
-	sur40 = kzalloc(sizeof(struct sur40_state), GFP_KERNEL);
+	sur40 = kzalloc(sizeof(*sur40), GFP_KERNEL);
 	if (!sur40)
 		return -ENOMEM;
 
@@ -847,9 +847,10 @@ static int sur40_queue_setup(struct vb2_queue *q,
 		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(q);
+	unsigned int q_num_bufs = vb2_get_num_buffers(q);
 
-	if (q->num_buffers + *nbuffers < 3)
-		*nbuffers = 3 - q->num_buffers;
+	if (q_num_bufs + *nbuffers < 3)
+		*nbuffers = 3 - q_num_bufs;
 
 	if (*nplanes)
 		return sizes[0] < sur40->pix_fmt.sizeimage ? -EINVAL : 0;
@@ -1123,7 +1124,7 @@ static const struct vb2_queue sur40_queue = {
 	.ops = &sur40_queue_ops,
 	.mem_ops = &vb2_dma_sg_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
-	.min_buffers_needed = 3,
+	.min_queued_buffers = 3,
 };
 
 static const struct v4l2_file_operations sur40_video_fops = {

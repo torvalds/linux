@@ -50,13 +50,12 @@
 #define S35390A_INT2_MODE_PMIN		(BIT(3) | BIT(2)) /* INT2FE | INT2ME */
 
 static const struct i2c_device_id s35390a_id[] = {
-	{ "s35390a", 0 },
+	{ "s35390a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, s35390a_id);
 
 static const __maybe_unused struct of_device_id s35390a_of_match[] = {
-	{ .compatible = "s35390a" },
 	{ .compatible = "sii,s35390a" },
 	{ }
 };

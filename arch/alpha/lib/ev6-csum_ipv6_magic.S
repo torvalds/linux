@@ -53,7 +53,7 @@
  * may cause additional delay in rare cases (load-load replay traps).
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 	.globl csum_ipv6_magic
 	.align 4
 	.ent csum_ipv6_magic

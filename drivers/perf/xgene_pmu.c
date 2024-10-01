@@ -16,11 +16,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_fdt.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -164,18 +162,9 @@ enum xgene_pmu_dev_type {
 /*
  * sysfs format attributes
  */
-static ssize_t xgene_pmu_format_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-	return sysfs_emit(buf, "%s\n", (char *) eattr->var);
-}
-
 #define XGENE_PMU_FORMAT_ATTR(_name, _config)		\
 	(&((struct dev_ext_attribute[]) {		\
-		{ .attr = __ATTR(_name, S_IRUGO, xgene_pmu_format_show, NULL), \
+		{ .attr = __ATTR(_name, S_IRUGO, device_show_string, NULL), \
 		  .var = (void *) _config, }		\
 	})[0].attr.attr)
 
@@ -1104,6 +1093,7 @@ static int xgene_init_perf(struct xgene_pmu_dev *pmu_dev, char *name)
 
 	/* Perf driver registration */
 	pmu_dev->pmu = (struct pmu) {
+		.parent		= pmu_dev->parent->dev,
 		.attr_groups	= pmu_dev->attr_groups,
 		.task_ctx_nr	= perf_invalid_context,
 		.pmu_enable	= xgene_perf_pmu_enable,
@@ -1731,6 +1721,12 @@ static const struct xgene_pmu_data xgene_pmu_v2_data = {
 	.id   = PCP_PMU_V2,
 };
 
+#ifdef CONFIG_ACPI
+static const struct xgene_pmu_data xgene_pmu_v3_data = {
+	.id   = PCP_PMU_V3,
+};
+#endif
+
 static const struct xgene_pmu_ops xgene_pmu_ops = {
 	.mask_int = xgene_pmu_mask_int,
 	.unmask_int = xgene_pmu_unmask_int,
@@ -1773,9 +1769,9 @@ static const struct of_device_id xgene_pmu_of_match[] = {
 MODULE_DEVICE_TABLE(of, xgene_pmu_of_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgene_pmu_acpi_match[] = {
-	{"APMC0D5B", PCP_PMU_V1},
-	{"APMC0D5C", PCP_PMU_V2},
-	{"APMC0D83", PCP_PMU_V3},
+	{"APMC0D5B", (kernel_ulong_t)&xgene_pmu_data},
+	{"APMC0D5C", (kernel_ulong_t)&xgene_pmu_v2_data},
+	{"APMC0D83", (kernel_ulong_t)&xgene_pmu_v3_data},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, xgene_pmu_acpi_match);
@@ -1831,9 +1827,7 @@ static int xgene_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 static int xgene_pmu_probe(struct platform_device *pdev)
 {
 	const struct xgene_pmu_data *dev_data;
-	const struct of_device_id *of_id;
 	struct xgene_pmu *xgene_pmu;
-	struct resource *res;
 	int irq, rc;
 	int version;
 
@@ -1851,24 +1845,10 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	xgene_pmu->dev = &pdev->dev;
 	platform_set_drvdata(pdev, xgene_pmu);
 
-	version = -EINVAL;
-	of_id = of_match_device(xgene_pmu_of_match, &pdev->dev);
-	if (of_id) {
-		dev_data = (const struct xgene_pmu_data *) of_id->data;
-		version = dev_data->id;
-	}
-
-#ifdef CONFIG_ACPI
-	if (ACPI_COMPANION(&pdev->dev)) {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(xgene_pmu_acpi_match, &pdev->dev);
-		if (acpi_id)
-			version = (int) acpi_id->driver_data;
-	}
-#endif
-	if (version < 0)
+	dev_data = device_get_match_data(&pdev->dev);
+	if (!dev_data)
 		return -ENODEV;
+	version = dev_data->id;
 
 	if (version == PCP_PMU_V3)
 		xgene_pmu->ops = &xgene_pmu_v3_ops;
@@ -1883,8 +1863,7 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	xgene_pmu->version = version;
 	dev_info(&pdev->dev, "X-Gene PMU version %d\n", xgene_pmu->version);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xgene_pmu->pcppmu_csr = devm_ioremap_resource(&pdev->dev, res);
+	xgene_pmu->pcppmu_csr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xgene_pmu->pcppmu_csr)) {
 		dev_err(&pdev->dev, "ioremap failed for PCP PMU resource\n");
 		return PTR_ERR(xgene_pmu->pcppmu_csr);
@@ -1950,7 +1929,7 @@ xgene_pmu_dev_cleanup(struct xgene_pmu *xgene_pmu, struct list_head *pmus)
 	}
 }
 
-static int xgene_pmu_remove(struct platform_device *pdev)
+static void xgene_pmu_remove(struct platform_device *pdev)
 {
 	struct xgene_pmu *xgene_pmu = dev_get_drvdata(&pdev->dev);
 
@@ -1960,13 +1939,11 @@ static int xgene_pmu_remove(struct platform_device *pdev)
 	xgene_pmu_dev_cleanup(xgene_pmu, &xgene_pmu->mcpmus);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
 				    &xgene_pmu->node);
-
-	return 0;
 }
 
 static struct platform_driver xgene_pmu_driver = {
 	.probe = xgene_pmu_probe,
-	.remove = xgene_pmu_remove,
+	.remove_new = xgene_pmu_remove,
 	.driver = {
 		.name		= "xgene-pmu",
 		.of_match_table = xgene_pmu_of_match,

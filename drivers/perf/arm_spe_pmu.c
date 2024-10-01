@@ -25,8 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/perf/arm_pmu.h>
 #include <linux/platform_device.h>
@@ -42,7 +41,7 @@
 
 /*
  * Cache if the event is allowed to trace Context information.
- * This allows us to perform the check, i.e, perfmon_capable(),
+ * This allows us to perform the check, i.e, perf_allow_kernel(),
  * in the context of the event owner, once, during the event_init().
  */
 #define SPE_PMU_HW_FLAGS_CX			0x00001
@@ -51,7 +50,7 @@ static_assert((PERF_EVENT_FLAG_ARCH & SPE_PMU_HW_FLAGS_CX) == SPE_PMU_HW_FLAGS_C
 
 static void set_spe_event_has_cx(struct perf_event *event)
 {
-	if (IS_ENABLED(CONFIG_PID_IN_CONTEXTIDR) && perfmon_capable())
+	if (IS_ENABLED(CONFIG_PID_IN_CONTEXTIDR) && !perf_allow_kernel(&event->attr))
 		event->hw.flags |= SPE_PMU_HW_FLAGS_CX;
 }
 
@@ -206,28 +205,6 @@ static const struct attribute_group arm_spe_pmu_cap_group = {
 #define ATTR_CFG_FLD_inv_event_filter_CFG	config3	/* PMSNEVFR_EL1 */
 #define ATTR_CFG_FLD_inv_event_filter_LO	0
 #define ATTR_CFG_FLD_inv_event_filter_HI	63
-
-/* Why does everything I do descend into this? */
-#define __GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
-	(lo) == (hi) ? #cfg ":" #lo "\n" : #cfg ":" #lo "-" #hi
-
-#define _GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
-	__GEN_PMU_FORMAT_ATTR(cfg, lo, hi)
-
-#define GEN_PMU_FORMAT_ATTR(name)					\
-	PMU_FORMAT_ATTR(name,						\
-	_GEN_PMU_FORMAT_ATTR(ATTR_CFG_FLD_##name##_CFG,			\
-			     ATTR_CFG_FLD_##name##_LO,			\
-			     ATTR_CFG_FLD_##name##_HI))
-
-#define _ATTR_CFG_GET_FLD(attr, cfg, lo, hi)				\
-	((((attr)->cfg) >> lo) & GENMASK(hi - lo, 0))
-
-#define ATTR_CFG_GET_FLD(attr, name)					\
-	_ATTR_CFG_GET_FLD(attr,						\
-			  ATTR_CFG_FLD_##name##_CFG,			\
-			  ATTR_CFG_FLD_##name##_LO,			\
-			  ATTR_CFG_FLD_##name##_HI)
 
 GEN_PMU_FORMAT_ATTR(ts_enable);
 GEN_PMU_FORMAT_ATTR(pa_enable);
@@ -768,9 +745,8 @@ static int arm_spe_pmu_event_init(struct perf_event *event)
 
 	set_spe_event_has_cx(event);
 	reg = arm_spe_event_to_pmscr(event);
-	if (!perfmon_capable() &&
-	    (reg & (PMSCR_EL1_PA | PMSCR_EL1_PCT)))
-		return -EACCES;
+	if (reg & (PMSCR_EL1_PA | PMSCR_EL1_PCT))
+		return perf_allow_kernel(&event->attr);
 
 	return 0;
 }
@@ -955,6 +931,7 @@ static int arm_spe_pmu_perf_init(struct arm_spe_pmu *spe_pmu)
 
 	spe_pmu->pmu = (struct pmu) {
 		.module = THIS_MODULE,
+		.parent		= &spe_pmu->pdev->dev,
 		.capabilities	= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_ITRACE,
 		.attr_groups	= arm_spe_pmu_attr_groups,
 		/*
@@ -1286,14 +1263,13 @@ out_free_handle:
 	return ret;
 }
 
-static int arm_spe_pmu_device_remove(struct platform_device *pdev)
+static void arm_spe_pmu_device_remove(struct platform_device *pdev)
 {
 	struct arm_spe_pmu *spe_pmu = platform_get_drvdata(pdev);
 
 	arm_spe_pmu_perf_destroy(spe_pmu);
 	arm_spe_pmu_dev_teardown(spe_pmu);
 	free_percpu(spe_pmu->handle);
-	return 0;
 }
 
 static struct platform_driver arm_spe_pmu_driver = {
@@ -1304,7 +1280,7 @@ static struct platform_driver arm_spe_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= arm_spe_pmu_device_probe,
-	.remove	= arm_spe_pmu_device_remove,
+	.remove_new = arm_spe_pmu_device_remove,
 };
 
 static int __init arm_spe_pmu_init(void)

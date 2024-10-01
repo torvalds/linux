@@ -13,7 +13,8 @@
 #include <linux/bitops.h>
 #include <linux/dma-map-ops.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/io-unit.h>

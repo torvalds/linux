@@ -58,6 +58,7 @@ enum x86_regset_64 {
 	REGSET64_FP,
 	REGSET64_IOPERM,
 	REGSET64_XSTATE,
+	REGSET64_SSP,
 };
 
 #define REGSET_GENERAL \
@@ -1267,6 +1268,17 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 		.active		= ioperm_active,
 		.regset_get	= ioperm_get
 	},
+#ifdef CONFIG_X86_USER_SHADOW_STACK
+	[REGSET64_SSP] = {
+		.core_note_type	= NT_X86_SHSTK,
+		.n		= 1,
+		.size		= sizeof(u64),
+		.align		= sizeof(u64),
+		.active		= ssp_active,
+		.regset_get	= ssp_get,
+		.set		= ssp_set
+	},
+#endif
 };
 
 static const struct user_regset_view user_x86_64_view = {

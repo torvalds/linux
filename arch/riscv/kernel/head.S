@@ -11,14 +11,14 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/csr.h>
-#include <asm/cpu_ops_sbi.h>
 #include <asm/hwcap.h>
 #include <asm/image.h>
+#include <asm/scs.h>
 #include <asm/xip_fixup.h>
 #include "efi-header.S"
 
 __HEAD
-ENTRY(_start)
+SYM_CODE_START(_start)
 	/*
 	 * Image header expected by Linux boot-loaders. The image header data
 	 * structure is described in asm/image.h.
@@ -88,6 +88,7 @@ relocate_enable_mmu:
 	/* Compute satp for kernel page tables, but don't load it yet */
 	srl a2, a0, PAGE_SHIFT
 	la a1, satp_mode
+	XIP_FIXUP_OFFSET a1
 	REG_L a1, 0(a1)
 	or a2, a2, a1
 
@@ -110,10 +111,7 @@ relocate_enable_mmu:
 	csrw CSR_TVEC, a0
 
 	/* Reload the global pointer */
-.option push
-.option norelax
-	la gp, __global_pointer$
-.option pop
+	load_global_pointer
 
 	/*
 	 * Switch to kernel page tables.  A full fence is necessary in order to
@@ -134,10 +132,7 @@ secondary_start_sbi:
 	csrw CSR_IP, zero
 
 	/* Load the global pointer */
-	.option push
-	.option norelax
-		la gp, __global_pointer$
-	.option pop
+	load_global_pointer
 
 	/*
 	 * Disable FPU & VECTOR to detect illegal usage of
@@ -168,12 +163,24 @@ secondary_start_sbi:
 	XIP_FIXUP_OFFSET a0
 	call relocate_enable_mmu
 #endif
-	call setup_trap_vector
-	tail smp_callin
+	call .Lsetup_trap_vector
+	scs_load_current
+	call smp_callin
 #endif /* CONFIG_SMP */
 
 .align 2
-setup_trap_vector:
+.Lsecondary_park:
+	/*
+	 * Park this hart if we:
+	 *  - have too many harts on CONFIG_RISCV_BOOT_SPINWAIT
+	 *  - receive an early trap, before setup_trap_vector finished
+	 *  - fail in smp_callin(), as a successful one wouldn't return
+	 */
+	wfi
+	j .Lsecondary_park
+
+.align 2
+.Lsetup_trap_vector:
 	/* Set trap vector to exception handler */
 	la a0, handle_exception
 	csrw CSR_TVEC, a0
@@ -185,15 +192,9 @@ setup_trap_vector:
 	csrw CSR_SCRATCH, zero
 	ret
 
-.align 2
-.Lsecondary_park:
-	/* We lack SMP support or have too many harts, so park this hart */
-	wfi
-	j .Lsecondary_park
+SYM_CODE_END(_start)
 
-END(_start)
-
-ENTRY(_start_kernel)
+SYM_CODE_START(_start_kernel)
 	/* Mask all interrupts */
 	csrw CSR_IE, zero
 	csrw CSR_IP, zero
@@ -210,7 +211,7 @@ ENTRY(_start_kernel)
 	 * not implement PMPs, so we set up a quick trap handler to just skip
 	 * touching the PMPs on any trap.
 	 */
-	la a0, pmp_done
+	la a0, .Lpmp_done
 	csrw CSR_TVEC, a0
 
 	li a0, -1
@@ -218,7 +219,7 @@ ENTRY(_start_kernel)
 	li a0, (PMP_A_NAPOT | PMP_R | PMP_W | PMP_X)
 	csrw CSR_PMPCFG0, a0
 .align 2
-pmp_done:
+.Lpmp_done:
 
 	/*
 	 * The hartid in a0 is expected later on, and we have no firmware
@@ -228,10 +229,7 @@ pmp_done:
 #endif /* CONFIG_RISCV_M_MODE */
 
 	/* Load the global pointer */
-.option push
-.option norelax
-	la gp, __global_pointer$
-.option pop
+	load_global_pointer
 
 	/*
 	 * Disable FPU & VECTOR to detect illegal usage of
@@ -272,27 +270,25 @@ pmp_done:
 	la sp, _end + THREAD_SIZE
 	XIP_FIXUP_OFFSET sp
 	mv s0, a0
+	mv s1, a1
 	call __copy_data
 
-	/* Restore a0 copy */
+	/* Restore a0 & a1 copy */
 	mv a0, s0
+	mv a1, s1
 #endif
 
 #ifndef CONFIG_XIP_KERNEL
 	/* Clear BSS for flat non-ELF images */
 	la a3, __bss_start
 	la a4, __bss_stop
-	ble a4, a3, clear_bss_done
-clear_bss:
+	ble a4, a3, .Lclear_bss_done
+.Lclear_bss:
 	REG_S zero, (a3)
 	add a3, a3, RISCV_SZPTR
-	blt a3, a4, clear_bss
-clear_bss_done:
+	blt a3, a4, .Lclear_bss
+.Lclear_bss_done:
 #endif
-	/* Save hart ID and DTB physical address */
-	mv s0, a0
-	mv s1, a1
-
 	la a2, boot_cpu_hartid
 	XIP_FIXUP_OFFSET a2
 	REG_S a0, (a2)
@@ -302,12 +298,16 @@ clear_bss_done:
 	la sp, init_thread_union + THREAD_SIZE
 	XIP_FIXUP_OFFSET sp
 	addi sp, sp, -PT_SIZE_ON_STACK
+	scs_load_init_stack
 #ifdef CONFIG_BUILTIN_DTB
 	la a0, __dtb_start
 	XIP_FIXUP_OFFSET a0
 #else
-	mv a0, s1
+	mv a0, a1
 #endif /* CONFIG_BUILTIN_DTB */
+	/* Set trap vector to spin forever to help debug */
+	la a3, .Lsecondary_park
+	csrw CSR_TVEC, a3
 	call setup_vm
 #ifdef CONFIG_MMU
 	la a0, early_pg_dir
@@ -315,11 +315,12 @@ clear_bss_done:
 	call relocate_enable_mmu
 #endif /* CONFIG_MMU */
 
-	call setup_trap_vector
+	call .Lsetup_trap_vector
 	/* Restore C environment */
 	la tp, init_task
 	la sp, init_thread_union + THREAD_SIZE
 	addi sp, sp, -PT_SIZE_ON_STACK
+	scs_load_current
 
 #ifdef CONFIG_KASAN
 	call kasan_early_init
@@ -357,10 +358,10 @@ clear_bss_done:
 	tail .Lsecondary_start_common
 #endif /* CONFIG_RISCV_BOOT_SPINWAIT */
 
-END(_start_kernel)
+SYM_CODE_END(_start_kernel)
 
 #ifdef CONFIG_RISCV_M_MODE
-ENTRY(reset_regs)
+SYM_CODE_START_LOCAL(reset_regs)
 	li	sp, 0
 	li	gp, 0
 	li	tp, 0
@@ -458,5 +459,5 @@ ENTRY(reset_regs)
 .Lreset_regs_done_vector:
 #endif /* CONFIG_RISCV_ISA_V */
 	ret
-END(reset_regs)
+SYM_CODE_END(reset_regs)
 #endif /* CONFIG_RISCV_M_MODE */

@@ -51,9 +51,6 @@ void iio_unregister_sw_device_type(struct iio_sw_device_type *dt);
 struct iio_sw_device *iio_sw_device_create(const char *, const char *);
 void iio_sw_device_destroy(struct iio_sw_device *);
 
-int iio_sw_device_type_configfs_register(struct iio_sw_device_type *dt);
-void iio_sw_device_type_configfs_unregister(struct iio_sw_device_type *dt);
-
 static inline
 void iio_swd_group_init_type_name(struct iio_sw_device *d,
 				  const char *name,

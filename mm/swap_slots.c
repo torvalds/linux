@@ -264,7 +264,7 @@ static int refill_swap_slots_cache(struct swap_slots_cache *cache)
 	cache->cur = 0;
 	if (swap_slot_cache_active)
 		cache->nr = get_swap_pages(SWAP_SLOTS_CACHE_SIZE,
-					   cache->slots, 1);
+					   cache->slots, 0);
 
 	return cache->nr;
 }
@@ -272,6 +272,9 @@ static int refill_swap_slots_cache(struct swap_slots_cache *cache)
 void free_swap_slot(swp_entry_t entry)
 {
 	struct swap_slots_cache *cache;
+
+	/* Large folio swap slot is not covered. */
+	zswap_invalidate(entry);
 
 	cache = raw_cpu_ptr(&swp_slots);
 	if (likely(use_swap_slot_cache && cache->slots_ret)) {
@@ -307,8 +310,8 @@ swp_entry_t folio_alloc_swap(struct folio *folio)
 	entry.val = 0;
 
 	if (folio_test_large(folio)) {
-		if (IS_ENABLED(CONFIG_THP_SWAP) && arch_thp_swp_supported())
-			get_swap_pages(1, &entry, folio_nr_pages(folio));
+		if (IS_ENABLED(CONFIG_THP_SWAP))
+			get_swap_pages(1, &entry, folio_order(folio));
 		goto out;
 	}
 
@@ -340,7 +343,7 @@ repeat:
 			goto out;
 	}
 
-	get_swap_pages(1, &entry, 1);
+	get_swap_pages(1, &entry, 0);
 out:
 	if (mem_cgroup_try_charge_swap(folio, entry)) {
 		put_swap_folio(folio, entry);

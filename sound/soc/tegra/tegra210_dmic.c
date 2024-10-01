@@ -7,8 +7,8 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/math64.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -559,7 +559,7 @@ static struct platform_driver tegra210_dmic_driver = {
 		.pm = &tegra210_dmic_pm_ops,
 	},
 	.probe = tegra210_dmic_probe,
-	.remove_new = tegra210_dmic_remove,
+	.remove = tegra210_dmic_remove,
 };
 module_platform_driver(tegra210_dmic_driver)
 

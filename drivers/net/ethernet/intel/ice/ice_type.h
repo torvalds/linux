@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2018, Intel Corporation. */
+/* Copyright (c) 2018-2023, Intel Corporation. */
 
 #ifndef _ICE_TYPE_H_
 #define _ICE_TYPE_H_
@@ -17,6 +17,7 @@
 #include "ice_protocol_type.h"
 #include "ice_sbq_cmd.h"
 #include "ice_vlan_mode.h"
+#include "ice_fwlog.h"
 
 static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
@@ -60,6 +61,7 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 				 ICE_DBG_AQ_DESC	| \
 				 ICE_DBG_AQ_DESC_BUF	| \
 				 ICE_DBG_AQ_CMD)
+#define ICE_DBG_PARSER		BIT_ULL(28)
 
 #define ICE_DBG_USER		BIT_ULL(31)
 
@@ -68,6 +70,14 @@ enum ice_aq_res_ids {
 	ICE_SPD_RES_ID,
 	ICE_CHANGE_LOCK_RES_ID,
 	ICE_GLOBAL_CFG_LOCK_RES_ID
+};
+
+enum ice_fec_stats_types {
+	ICE_FEC_CORR_LOW,
+	ICE_FEC_CORR_HIGH,
+	ICE_FEC_UNCORR_LOW,
+	ICE_FEC_UNCORR_HIGH,
+	ICE_FEC_MAX
 };
 
 /* FW update timeout definitions are in milliseconds */
@@ -129,7 +139,9 @@ enum ice_set_fc_aq_failures {
 enum ice_mac_type {
 	ICE_MAC_UNKNOWN = 0,
 	ICE_MAC_E810,
+	ICE_MAC_E830,
 	ICE_MAC_GENERIC,
+	ICE_MAC_GENERIC_3K_E825,
 };
 
 /* Media Types */
@@ -147,7 +159,7 @@ enum ice_vsi_type {
 	ICE_VSI_CTRL = 3,	/* equates to ICE_VSI_PF with 1 queue pair */
 	ICE_VSI_CHNL = 4,
 	ICE_VSI_LB = 6,
-	ICE_VSI_SWITCHDEV_CTRL = 7,
+	ICE_VSI_SF = 9,
 };
 
 struct ice_link_status {
@@ -201,6 +213,7 @@ struct ice_phy_info {
 enum ice_fltr_ptype {
 	/* NONE - used for undef/error */
 	ICE_FLTR_PTYPE_NONF_NONE = 0,
+	ICE_FLTR_PTYPE_NONF_ETH,
 	ICE_FLTR_PTYPE_NONF_IPV4_UDP,
 	ICE_FLTR_PTYPE_NONF_IPV4_TCP,
 	ICE_FLTR_PTYPE_NONF_IPV4_SCTP,
@@ -245,6 +258,7 @@ struct ice_fd_hw_prof {
 	int cnt;
 	u64 entry_h[ICE_MAX_FDIR_VSI_PER_FILTER][ICE_FD_HW_SEG_MAX];
 	u16 vsi_h[ICE_MAX_FDIR_VSI_PER_FILTER];
+	u64 prof_id[ICE_FD_HW_SEG_MAX];
 };
 
 /* Common HW capabilities for SW use */
@@ -277,6 +291,8 @@ struct ice_hw_common_caps {
 	u8 dcb;
 	u8 ieee_1588;
 	u8 rdma;
+	u8 roce_lag;
+	u8 sriov_lag;
 
 	bool nvm_update_pending_nvm;
 	bool nvm_update_pending_orom;
@@ -290,6 +306,7 @@ struct ice_hw_common_caps {
 	bool pcie_reset_avoidance;
 	/* Post update reset restriction */
 	bool reset_restrict_support;
+	bool tx_sched_topo_comp_mode_en;
 };
 
 /* IEEE 1588 TIME_SYNC specific info */
@@ -315,12 +332,14 @@ enum ice_time_ref_freq {
 	ICE_TIME_REF_FREQ_156_250	= 4,
 	ICE_TIME_REF_FREQ_245_760	= 5,
 
-	NUM_ICE_TIME_REF_FREQ
+	NUM_ICE_TIME_REF_FREQ,
+
+	ICE_TIME_REF_FREQ_INVALID	= -1,
 };
 
 /* Clock source specification */
 enum ice_clk_src {
-	ICE_CLK_SRC_TCX0	= 0, /* Temperature compensated oscillator  */
+	ICE_CLK_SRC_TCXO	= 0, /* Temperature compensated oscillator */
 	ICE_CLK_SRC_TIME_REF	= 1, /* Use TIME_REF reference clock */
 
 	NUM_ICE_CLK_SRC
@@ -348,6 +367,7 @@ struct ice_ts_func_info {
 #define ICE_TS_TMR0_ENA_M		BIT(25)
 #define ICE_TS_TMR1_ENA_M		BIT(26)
 #define ICE_TS_LL_TX_TS_READ_M		BIT(28)
+#define ICE_TS_LL_TX_TS_INT_READ_M	BIT(29)
 
 struct ice_ts_dev_info {
 	/* Device specific info */
@@ -361,6 +381,16 @@ struct ice_ts_dev_info {
 	u8 tmr0_ena;
 	u8 tmr1_ena;
 	u8 ts_ll_read;
+	u8 ts_ll_int_read;
+};
+
+#define ICE_NAC_TOPO_PRIMARY_M	BIT(0)
+#define ICE_NAC_TOPO_DUAL_M	BIT(1)
+#define ICE_NAC_TOPO_ID_M	GENMASK(0xF, 0)
+
+struct ice_nac_topology {
+	u32 mode;
+	u8 id;
 };
 
 /* Function specific capabilities */
@@ -374,6 +404,8 @@ struct ice_hw_func_caps {
 	struct ice_ts_func_info ts_func_info;
 };
 
+#define ICE_SENSOR_SUPPORT_E810_INT_TEMP_BIT	0
+
 /* Device wide capabilities */
 struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
@@ -382,6 +414,12 @@ struct ice_hw_dev_caps {
 	u32 num_flow_director_fltr;	/* Number of FD filters available */
 	struct ice_ts_dev_info ts_dev_info;
 	u32 num_funcs;
+	struct ice_nac_topology nac_topo;
+	/* bitmap of supported sensors
+	 * bit 0 - internal temperature sensor
+	 * bit 31:1 - Reserved
+	 */
+	u32 supported_sensors;
 };
 
 /* MAC info */
@@ -466,6 +504,8 @@ struct ice_bank_info {
 	u32 orom_size;				/* Size of OROM bank */
 	u32 netlist_ptr;			/* Pointer to 1st Netlist bank */
 	u32 netlist_size;			/* Size of Netlist bank */
+	u32 active_css_hdr_len;			/* Active CSS header length */
+	u32 inactive_css_hdr_len;		/* Inactive CSS header length */
 	enum ice_flash_bank nvm_bank;		/* Active NVM bank */
 	enum ice_flash_bank orom_bank;		/* Active OROM bank */
 	enum ice_flash_bank netlist_bank;	/* Active Netlist bank */
@@ -700,6 +740,7 @@ struct ice_port_info {
 	u16 sw_id;			/* Initial switch ID belongs to port */
 	u16 pf_vf_num;
 	u8 port_state;
+	u8 local_fwd_mode;
 #define ICE_SCHED_PORT_STATE_INIT	0x0
 #define ICE_SCHED_PORT_STATE_READY	0x1
 	u8 lport;
@@ -723,26 +764,10 @@ struct ice_switch_info {
 	struct ice_sw_recipe *recp_list;
 	u16 prof_res_bm_init;
 	u16 max_used_prof_index;
+	u16 rule_cnt;
+	u8 recp_cnt;
 
 	DECLARE_BITMAP(prof_res_bm[ICE_MAX_NUM_PROFILES], ICE_MAX_FV_WORDS);
-};
-
-/* FW logging configuration */
-struct ice_fw_log_evnt {
-	u8 cfg : 4;	/* New event enables to configure */
-	u8 cur : 4;	/* Current/active event enables */
-};
-
-struct ice_fw_log_cfg {
-	u8 cq_en : 1;    /* FW logging is enabled via the control queue */
-	u8 uart_en : 1;  /* FW logging is enabled via UART for all PFs */
-	u8 actv_evnts;   /* Cumulation of currently enabled log events */
-
-#define ICE_FW_LOG_EVNT_INFO	(ICE_AQC_FW_LOG_INFO_EN >> ICE_AQC_FW_LOG_EN_S)
-#define ICE_FW_LOG_EVNT_INIT	(ICE_AQC_FW_LOG_INIT_EN >> ICE_AQC_FW_LOG_EN_S)
-#define ICE_FW_LOG_EVNT_FLOW	(ICE_AQC_FW_LOG_FLOW_EN >> ICE_AQC_FW_LOG_EN_S)
-#define ICE_FW_LOG_EVNT_ERR	(ICE_AQC_FW_LOG_ERR_EN >> ICE_AQC_FW_LOG_EN_S)
-	struct ice_fw_log_evnt evnts[ICE_AQC_FW_LOG_ID_MAX];
 };
 
 /* Enum defining the different states of the mailbox snapshot in the
@@ -820,6 +845,45 @@ struct ice_mbx_data {
 	u16 async_watermark_val;
 };
 
+#define ICE_PORTS_PER_QUAD	4
+#define ICE_GET_QUAD_NUM(port) ((port) / ICE_PORTS_PER_QUAD)
+
+struct ice_eth56g_params {
+	u8 num_phys;
+	u8 phy_addr[2];
+	bool onestep_ena;
+	bool sfd_ena;
+	u32 peer_delay;
+};
+
+union ice_phy_params {
+	struct ice_eth56g_params eth56g;
+};
+
+/* PHY model */
+enum ice_phy_model {
+	ICE_PHY_UNSUP = -1,
+	ICE_PHY_E810 = 1,
+	ICE_PHY_E82X,
+	ICE_PHY_ETH56G,
+};
+
+/* Global Link Topology */
+enum ice_global_link_topo {
+	ICE_LINK_TOPO_UP_TO_2_LINKS,
+	ICE_LINK_TOPO_UP_TO_4_LINKS,
+	ICE_LINK_TOPO_UP_TO_8_LINKS,
+	ICE_LINK_TOPO_RESERVED,
+};
+
+struct ice_ptp_hw {
+	enum ice_phy_model phy_model;
+	union ice_phy_params phy;
+	u8 num_lports;
+	u8 ports_per_phy;
+	bool is_2x50g_muxed_topo;
+};
+
 /* Port hardware description */
 struct ice_hw {
 	u8 __iomem *hw_addr;
@@ -843,6 +907,8 @@ struct ice_hw {
 	u8 pf_id;		/* device profile info */
 
 	u16 max_burst_size;	/* driver sets this value */
+
+	u8 recp_reuse:1;	/* indicates whether FW supports recipe reuse */
 
 	/* Tx Scheduler values */
 	u8 num_tx_sched_layers;
@@ -878,7 +944,9 @@ struct ice_hw {
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
-	struct ice_fw_log_cfg fw_log;
+	struct ice_fwlog_cfg fwlog_cfg;
+	bool fwlog_supported; /* does hardware support FW logging? */
+	struct ice_fwlog_ring fwlog_ring;
 
 /* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
  * register. Used for determining the ITR/INTRL granularity during
@@ -899,17 +967,14 @@ struct ice_hw {
 	/* INTRL granularity in 1 us */
 	u8 intrl_gran;
 
-#define ICE_PHY_PER_NAC		1
-#define ICE_MAX_QUAD		2
-#define ICE_NUM_QUAD_TYPE	2
-#define ICE_PORTS_PER_QUAD	4
-#define ICE_PHY_0_LAST_QUAD	1
-#define ICE_PORTS_PER_PHY	8
-#define ICE_NUM_EXTERNAL_PORTS		ICE_PORTS_PER_PHY
+	struct ice_ptp_hw ptp;
 
 	/* Active package version (currently active) */
 	struct ice_pkg_ver active_pkg_ver;
+	u32 pkg_seg_id;
+	u32 pkg_sign_type;
 	u32 active_track_id;
+	u8 pkg_has_signing_seg:1;
 	u8 active_pkg_name[ICE_PKG_NAME_SIZE];
 	u8 active_pkg_in_nvm;
 
@@ -963,6 +1028,7 @@ struct ice_hw {
 	DECLARE_BITMAP(hw_ptype, ICE_FLOW_PTYPE_MAX);
 	u8 dvm_ena;
 	u16 io_expander_handle;
+	u8 cgu_part_number;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */
@@ -994,7 +1060,6 @@ struct ice_hw_port_stats {
 	u64 error_bytes;		/* errbc */
 	u64 mac_local_faults;		/* mlfc */
 	u64 mac_remote_faults;		/* mrfc */
-	u64 rx_len_errors;		/* rlec */
 	u64 link_xon_rx;		/* lxonrxc */
 	u64 link_xoff_rx;		/* lxoffrxc */
 	u64 link_xon_tx;		/* lxontxc */
@@ -1033,14 +1098,16 @@ enum ice_sw_fwd_act_type {
 	ICE_FWD_TO_Q,
 	ICE_FWD_TO_QGRP,
 	ICE_DROP_PACKET,
+	ICE_MIRROR_PACKET,
+	ICE_NOP,
 	ICE_INVAL_ACT
 };
 
 struct ice_aq_get_set_rss_lut_params {
-	u16 vsi_handle;		/* software VSI handle */
-	u16 lut_size;		/* size of the LUT buffer */
-	u8 lut_type;		/* type of the LUT (i.e. VSI, PF, Global) */
 	u8 *lut;		/* input RSS LUT for set and output RSS LUT for get */
+	enum ice_lut_size lut_size; /* size of the LUT buffer */
+	enum ice_lut_type lut_type; /* type of the LUT (i.e. VSI, PF, Global) */
+	u16 vsi_handle;		/* software VSI handle */
 	u8 global_lut_id;	/* only valid when lut_type is global */
 };
 
@@ -1062,7 +1129,7 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_OROM_VER_BUILD_SHIFT	8
 #define ICE_OROM_VER_BUILD_MASK		(0xffff << ICE_OROM_VER_BUILD_SHIFT)
 #define ICE_OROM_VER_SHIFT		24
-#define ICE_OROM_VER_MASK		(0xff << ICE_OROM_VER_SHIFT)
+#define ICE_OROM_VER_MASK		(0xffU << ICE_OROM_VER_SHIFT)
 #define ICE_SR_PFA_PTR			0x40
 #define ICE_SR_1ST_NVM_BANK_PTR		0x42
 #define ICE_SR_NVM_BANK_SIZE		0x43
@@ -1073,17 +1140,13 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 
 /* CSS Header words */
+#define ICE_NVM_CSS_HDR_LEN_L			0x02
+#define ICE_NVM_CSS_HDR_LEN_H			0x03
 #define ICE_NVM_CSS_SREV_L			0x14
 #define ICE_NVM_CSS_SREV_H			0x15
 
-/* Length of CSS header section in words */
-#define ICE_CSS_HEADER_LENGTH			330
-
-/* Offset of Shadow RAM copy in the NVM bank area. */
-#define ICE_NVM_SR_COPY_WORD_OFFSET		roundup(ICE_CSS_HEADER_LENGTH, 32)
-
-/* Size in bytes of Option ROM trailer */
-#define ICE_NVM_OROM_TRAILER_LENGTH		(2 * ICE_CSS_HEADER_LENGTH)
+/* Length of Authentication header section in words */
+#define ICE_NVM_AUTH_HEADER_LEN			0x08
 
 /* The Link Topology Netlist section is stored as a series of words. It is
  * stored in the NVM as a TLV, with the first two words containing the type
@@ -1141,9 +1204,6 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_LINK_OVERRIDE_PATCH		2
 
 #define ICE_SR_WORDS_IN_1KB		512
-
-/* Hash redirection LUT for VSI - maximum array size */
-#define ICE_VSIQF_HLUT_ARRAY_SIZE	((VSIQF_HLUT_MAX_INDEX + 1) * 4)
 
 /* AQ API version for LLDP_FILTER_CONTROL */
 #define ICE_FW_API_LLDP_FLTR_MAJ	1

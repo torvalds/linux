@@ -26,10 +26,15 @@ properties:
       - ti,ina226
       - ti,ina230
       - ti,ina231
+      - ti,ina237
       - ti,ina238
+      - ti,ina260
 
   reg:
     maxItems: 1
+
+  "#io-channel-cells":
+    const: 1
 
   shunt-resistor:
     description:
@@ -61,11 +66,22 @@ properties:
     description: phandle to the regulator that provides the VS supply typically
       in range from 2.7 V to 5.5 V.
 
+  ti,alert-polarity-active-high:
+    description: Alert pin is asserted based on the value of Alert polarity Bit
+      of Mask/Enable register. Default value is Normal (0 which maps to
+      active-low open collector). The other value is Inverted
+      (1 which maps to active-high open collector). Specify this property to set
+      the alert polarity to active-high.
+    $ref: /schemas/types.yaml#/definitions/flag
+
 required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: hwmon-common.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -76,7 +92,10 @@ examples:
         power-sensor@44 {
             compatible = "ti,ina220";
             reg = <0x44>;
+            #io-channel-cells = <1>;
+            label = "vdd_3v0";
             shunt-resistor = <1000>;
             vs-supply = <&vdd_3v0>;
+            ti,alert-polarity-active-high;
         };
     };

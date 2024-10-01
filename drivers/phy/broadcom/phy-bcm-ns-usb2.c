@@ -162,4 +162,5 @@ static struct platform_driver bcm_ns_usb2_driver = {
 };
 module_platform_driver(bcm_ns_usb2_driver);
 
+MODULE_DESCRIPTION("Broadcom Northstar USB 2.0 PHY Driver");
 MODULE_LICENSE("GPL v2");

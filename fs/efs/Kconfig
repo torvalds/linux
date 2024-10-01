@@ -2,6 +2,7 @@
 config EFS_FS
 	tristate "EFS file system support (read only)"
 	depends on BLOCK
+	select BUFFER_HEAD
 	help
 	  EFS is an older file system used for non-ISO9660 CD-ROMs and hard
 	  disk partitions by SGI's IRIX operating system (IRIX 6.0 and newer

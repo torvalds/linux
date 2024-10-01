@@ -26,6 +26,8 @@ static const struct soc_device_attribute k3_soc_devices[] = {
 	{ .family = "AM62X", .data = &am62_ep_map },
 	{ .family = "AM62AX", .data = &am62a_ep_map },
 	{ .family = "J784S4", .data = &j784s4_ep_map },
+	{ .family = "AM62PX", .data = &am62p_ep_map },
+	{ .family = "J722S", .data = &am62p_ep_map },
 	{ /* sentinel */ }
 };
 
@@ -104,4 +106,5 @@ int psil_set_new_ep_config(struct device *dev, const char *name,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(psil_set_new_ep_config);
+MODULE_DESCRIPTION("K3 PSI-L endpoint configuration");
 MODULE_LICENSE("GPL v2");

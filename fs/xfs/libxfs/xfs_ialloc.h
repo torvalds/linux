@@ -33,11 +33,13 @@ xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o)
 	return xfs_buf_offset(b, o << (mp)->m_sb.sb_inodelog);
 }
 
+struct xfs_icreate_args;
+
 /*
  * Allocate an inode on disk.  Mode is used to tell whether the new inode will
  * need space, and whether it is a directory.
  */
-int xfs_dialloc(struct xfs_trans **tpp, xfs_ino_t parent, umode_t mode,
+int xfs_dialloc(struct xfs_trans **tpp, const struct xfs_icreate_args *args,
 		xfs_ino_t *new_ino);
 
 int xfs_difree(struct xfs_trans *tp, struct xfs_perag *pag,
@@ -63,10 +65,11 @@ xfs_ialloc_log_agi(
 	struct xfs_buf	*bp,		/* allocation group header buffer */
 	uint32_t	fields);	/* bitmask of fields to log */
 
-int xfs_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
+int xfs_read_agi(struct xfs_perag *pag, struct xfs_trans *tp, xfs_buf_flags_t flags,
 		struct xfs_buf **agibpp);
 int xfs_ialloc_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
-		struct xfs_buf **agibpp);
+		int flags, struct xfs_buf **agibpp);
+#define	XFS_IALLOC_FLAG_TRYLOCK	(1U << 0)  /* use trylock for buffer locking */
 
 /*
  * Lookup a record by ino in the btree given by cur.
@@ -79,6 +82,7 @@ int xfs_inobt_lookup(struct xfs_btree_cur *cur, xfs_agino_t ino,
  */
 int xfs_inobt_get_rec(struct xfs_btree_cur *cur,
 		xfs_inobt_rec_incore_t *rec, int *stat);
+uint8_t xfs_inobt_rec_freecount(const struct xfs_inobt_rec_incore *irec);
 
 /*
  * Inode chunk initialisation routine
@@ -93,7 +97,7 @@ union xfs_btree_rec;
 void xfs_inobt_btrec_to_irec(struct xfs_mount *mp,
 		const union xfs_btree_rec *rec,
 		struct xfs_inobt_rec_incore *irec);
-xfs_failaddr_t xfs_inobt_check_irec(struct xfs_btree_cur *cur,
+xfs_failaddr_t xfs_inobt_check_irec(struct xfs_perag *pag,
 		const struct xfs_inobt_rec_incore *irec);
 int xfs_ialloc_has_inodes_at_extent(struct xfs_btree_cur *cur,
 		xfs_agblock_t bno, xfs_extlen_t len,

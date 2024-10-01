@@ -32,6 +32,7 @@ FEATURE_TESTS_BASIC :=                  \
         backtrace                       \
         dwarf                           \
         dwarf_getlocations              \
+        dwarf_getcfi                    \
         eventfd                         \
         fortify-source                  \
         get_current_dir_name            \
@@ -86,6 +87,7 @@ FEATURE_TESTS_EXTRA :=                  \
          gtk2-infobar                   \
          hello                          \
          libbabeltrace                  \
+         libcapstone                    \
          libbfd-liberty                 \
          libbfd-liberty-z               \
          libopencsd                     \
@@ -98,7 +100,6 @@ FEATURE_TESTS_EXTRA :=                  \
          libunwind-debug-frame-aarch64  \
          cxx                            \
          llvm                           \
-         llvm-version                   \
          clang                          \
          libbpf                         \
          libbpf-btf__load_from_kernel_by_id \
@@ -133,6 +134,8 @@ FEATURE_DISPLAY ?=              \
          libcrypto              \
          libunwind              \
          libdw-dwarf-unwind     \
+         libcapstone            \
+         llvm-perf              \
          zlib                   \
          lzma                   \
          get_cpuid              \
@@ -145,6 +148,24 @@ FEATURE_DISPLAY ?=              \
 # result instead of each member result.
 #
 FEATURE_GROUP_MEMBERS-libbfd = libbfd-liberty libbfd-liberty-z
+
+#
+# Declare list of feature dependency packages that provide pkg-config files.
+#
+FEATURE_PKG_CONFIG ?=           \
+         libtraceevent          \
+         libtracefs
+
+feature_pkg_config = $(eval $(feature_pkg_config_code))
+define feature_pkg_config_code
+  FEATURE_CHECK_CFLAGS-$(1) := $(shell $(PKG_CONFIG) --cflags $(1) 2>/dev/null)
+  FEATURE_CHECK_LDFLAGS-$(1) := $(shell $(PKG_CONFIG) --libs $(1) 2>/dev/null)
+endef
+
+# Set FEATURE_CHECK_(C|LD)FLAGS-$(package) for packages using pkg-config.
+ifneq ($(PKG_CONFIG),)
+  $(foreach package,$(FEATURE_PKG_CONFIG),$(call feature_pkg_config,$(package)))
+endif
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not

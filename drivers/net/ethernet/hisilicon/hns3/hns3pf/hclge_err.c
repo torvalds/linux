@@ -1198,6 +1198,425 @@ static const struct hclge_hw_error hclge_rocee_qmm_ovf_err_int[] = {
 	}
 };
 
+static const struct hclge_mod_reg_info hclge_ssu_reg_0_info[] = {
+	{
+		.reg_name = "SSU_BP_STATUS_0~5",
+		.reg_offset_group = { 5, 6, 7, 8, 9, 10},
+		.group_size = 6
+	}, {
+		.reg_name = "LO_PRI_UNICAST_CUR_CNT",
+		.reg_offset_group = {54},
+		.group_size = 1
+	}, {
+		.reg_name = "HI/LO_PRI_MULTICAST_CUR_CNT",
+		.reg_offset_group = {55, 56},
+		.group_size = 2
+	}, {
+		.reg_name = "SSU_MB_RD_RLT_DROP_CNT",
+		.reg_offset_group = {29},
+		.group_size = 1
+	}, {
+		.reg_name = "SSU_PPP_MAC_KEY_NUM",
+		.reg_offset_group = {31, 30},
+		.group_size = 2
+	}, {
+		.reg_name = "SSU_PPP_HOST_KEY_NUM",
+		.reg_offset_group = {33, 32},
+		.group_size = 2
+	}, {
+		.reg_name = "PPP_SSU_MAC/HOST_RLT_NUM",
+		.reg_offset_group = {35, 34, 37, 36},
+		.group_size = 4
+	}, {
+		.reg_name = "FULL/PART_DROP_NUM",
+		.reg_offset_group = {18, 19},
+		.group_size = 2
+	}, {
+		.reg_name = "PPP_KEY/RLT_DROP_NUM",
+		.reg_offset_group = {20, 21},
+		.group_size = 2
+	}, {
+		.reg_name = "NIC/ROC_L2_ERR_DROP_PKT_CNT",
+		.reg_offset_group = {48, 49},
+		.group_size = 2
+	}, {
+		.reg_name = "NIC/ROC_L2_ERR_DROP_PKT_CNT_RX",
+		.reg_offset_group = {50, 51},
+		.group_size = 2
+	},
+};
+
+static const struct hclge_mod_reg_info hclge_ssu_reg_1_info[] = {
+	{
+		.reg_name = "RX_PACKET_IN/OUT_CNT",
+		.reg_offset_group = {13, 12, 15, 14},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_IN/OUT_CNT",
+		.reg_offset_group = {17, 16, 19, 18},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC0_IN/OUT_CNT",
+		.reg_offset_group = {25, 24, 41, 40},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC1_IN/OUT_CNT",
+		.reg_offset_group = {27, 26, 43, 42},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC2_IN/OUT_CNT",
+		.reg_offset_group = {29, 28, 45, 44},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC3_IN/OUT_CNT",
+		.reg_offset_group = {31, 30, 47, 46},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC4_IN/OUT_CNT",
+		.reg_offset_group = {33, 32, 49, 48},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC5_IN/OUT_CNT",
+		.reg_offset_group = {35, 34, 51, 50},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC6_IN/OUT_CNT",
+		.reg_offset_group = {37, 36, 53, 52},
+		.group_size = 4
+	}, {
+		.reg_name = "RX_PACKET_TC7_IN/OUT_CNT",
+		.reg_offset_group = {39, 38, 55, 54},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC0_IN/OUT_CNT",
+		.reg_offset_group = {57, 56, 73, 72},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC1_IN/OUT_CNT",
+		.reg_offset_group = {59, 58, 75, 74},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC2_IN/OUT_CNT",
+		.reg_offset_group = {61, 60, 77, 76},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC3_IN/OUT_CNT",
+		.reg_offset_group = {63, 62, 79, 78},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC4_IN/OUT_CNT",
+		.reg_offset_group = {65, 64, 81, 80},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC5_IN/OUT_CNT",
+		.reg_offset_group = {67, 66, 83, 82},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC6_IN/OUT_CNT",
+		.reg_offset_group = {69, 68, 85, 84},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PACKET_TC7_IN/OUT_CNT",
+		.reg_offset_group = {71, 70, 87, 86},
+		.group_size = 4
+	}, {
+		.reg_name = "PACKET_TC0~3_CURR_BUFFER_CNT",
+		.reg_offset_group = {1, 2, 3, 4},
+		.group_size = 4
+	}, {
+		.reg_name = "PACKET_TC4~7_CURR_BUFFER_CNT",
+		.reg_offset_group = {5, 6, 7, 8},
+		.group_size = 4
+	}, {
+		.reg_name = "ROC_RX_PACKET_IN_CNT",
+		.reg_offset_group = {21, 20},
+		.group_size = 2
+	}, {
+		.reg_name = "ROC_TX_PACKET_OUT_CNT",
+		.reg_offset_group = {23, 22},
+		.group_size = 2
+	}
+};
+
+static const struct hclge_mod_reg_info hclge_rpu_reg_0_info[] = {
+	{
+		.reg_name = "RPU_FSM_DFX_ST0/ST1_TNL",
+		.has_suffix = true,
+		.reg_offset_group = {1, 2},
+		.group_size = 2
+	}, {
+		.reg_name = "RPU_RX_PKT_DROP_CNT_TNL",
+		.has_suffix = true,
+		.reg_offset_group = {3},
+		.group_size = 1
+	}
+};
+
+static const struct hclge_mod_reg_info hclge_rpu_reg_1_info[] = {
+	{
+		.reg_name = "FIFO_DFX_ST0_1_2_4",
+		.reg_offset_group = {1, 2, 3, 5},
+		.group_size = 4
+	}
+};
+
+static const struct hclge_mod_reg_info hclge_igu_egu_reg_info[] = {
+	{
+		.reg_name = "IGU_RX_ERR_PKT",
+		.reg_offset_group = {1},
+		.group_size = 1
+	}, {
+		.reg_name = "IGU_RX_OUT_ALL_PKT",
+		.reg_offset_group = {29, 28},
+		.group_size = 2
+	}, {
+		.reg_name = "EGU_TX_OUT_ALL_PKT",
+		.reg_offset_group = {39, 38},
+		.group_size = 2
+	}, {
+		.reg_name = "EGU_TX_ERR_PKT",
+		.reg_offset_group = {5},
+		.group_size = 1
+	}
+};
+
+static const struct hclge_mod_reg_info hclge_gen_reg_info_tnl[] = {
+	{
+		.reg_name = "SSU2RPU_TNL_WR_PKT_CNT_TNL",
+		.has_suffix = true,
+		.reg_offset_group = {1},
+		.group_size = 1
+	}, {
+		.reg_name = "RPU2HST_TNL_WR_PKT_CNT_TNL",
+		.has_suffix = true,
+		.reg_offset_group = {12},
+		.group_size = 1
+	}
+};
+
+static const struct hclge_mod_reg_info hclge_gen_reg_info[] = {
+	{
+		.reg_name = "SSU_OVERSIZE_DROP_CNT",
+		.reg_offset_group = {12},
+		.group_size = 1
+	}, {
+		.reg_name = "ROCE_RX_BYPASS_5NS_DROP_NUM",
+		.reg_offset_group = {13},
+		.group_size = 1
+	}, {
+		.reg_name = "RX_PKT_IN/OUT_ERR_CNT",
+		.reg_offset_group = {15, 14, 19, 18},
+		.group_size = 4
+	}, {
+		.reg_name = "TX_PKT_IN/OUT_ERR_CNT",
+		.reg_offset_group = {17, 16, 21, 20},
+		.group_size = 4
+	}, {
+		.reg_name = "ETS_TC_READY",
+		.reg_offset_group = {22},
+		.group_size = 1
+	}, {
+		.reg_name = "MIB_TX/RX_BAD_PKTS",
+		.reg_offset_group = {19, 18, 29, 28},
+		.group_size = 4
+	}, {
+		.reg_name = "MIB_TX/RX_GOOD_PKTS",
+		.reg_offset_group = {21, 20, 31, 30},
+		.group_size = 4
+	}, {
+		.reg_name = "MIB_TX/RX_TOTAL_PKTS",
+		.reg_offset_group = {23, 22, 33, 32},
+		.group_size = 4
+	}, {
+		.reg_name = "MIB_TX/RX_PAUSE_PKTS",
+		.reg_offset_group = {25, 24, 35, 34},
+		.group_size = 4
+	}, {
+		.reg_name = "MIB_TX_ERR_ALL_PKTS",
+		.reg_offset_group = {27, 26},
+		.group_size = 2
+	}, {
+		.reg_name = "MIB_RX_FCS_ERR_PKTS",
+		.reg_offset_group = {37, 36},
+		.group_size = 2
+	}, {
+		.reg_name = "IGU_EGU_AUTO_GATE_EN",
+		.reg_offset_group = {42},
+		.group_size = 1
+	}, {
+		.reg_name = "IGU_EGU_INT_SRC",
+		.reg_offset_group = {43},
+		.group_size = 1
+	}, {
+		.reg_name = "EGU_READY_NUM_CFG",
+		.reg_offset_group = {44},
+		.group_size = 1
+	}, {
+		.reg_name = "IGU_EGU_TNL_DFX",
+		.reg_offset_group = {45},
+		.group_size = 1
+	}, {
+		.reg_name = "TX_TNL_NOTE_PKT",
+		.reg_offset_group = {46},
+		.group_size = 1
+	}
+};
+
+static const struct hclge_mod_reg_common_msg hclge_ssu_reg_common_msg[] = {
+	{
+		.cmd = HCLGE_OPC_DFX_SSU_REG_0,
+		.result_regs = hclge_ssu_reg_0_info,
+		.bd_num = HCLGE_BD_NUM_SSU_REG_0,
+		.result_regs_size = ARRAY_SIZE(hclge_ssu_reg_0_info)
+	}, {
+		.cmd = HCLGE_OPC_DFX_SSU_REG_1,
+		.result_regs = hclge_ssu_reg_1_info,
+		.bd_num = HCLGE_BD_NUM_SSU_REG_1,
+		.result_regs_size = ARRAY_SIZE(hclge_ssu_reg_1_info)
+	}, {
+		.cmd = HCLGE_OPC_DFX_RPU_REG_0,
+		.result_regs = hclge_rpu_reg_0_info,
+		.bd_num = HCLGE_BD_NUM_RPU_REG_0,
+		.result_regs_size = ARRAY_SIZE(hclge_rpu_reg_0_info),
+		.need_para = true
+	}, {
+		.cmd = HCLGE_OPC_DFX_RPU_REG_1,
+		.result_regs = hclge_rpu_reg_1_info,
+		.bd_num = HCLGE_BD_NUM_RPU_REG_1,
+		.result_regs_size = ARRAY_SIZE(hclge_rpu_reg_1_info)
+	}, {
+		.cmd = HCLGE_OPC_DFX_IGU_EGU_REG,
+		.result_regs = hclge_igu_egu_reg_info,
+		.bd_num = HCLGE_BD_NUM_IGU_EGU_REG,
+		.result_regs_size = ARRAY_SIZE(hclge_igu_egu_reg_info)
+	}, {
+		.cmd = HCLGE_OPC_DFX_GEN_REG,
+		.result_regs = hclge_gen_reg_info_tnl,
+		.bd_num = HCLGE_BD_NUM_GEN_REG,
+		.result_regs_size = ARRAY_SIZE(hclge_gen_reg_info_tnl),
+		.need_para = true
+	}, {
+		.cmd = HCLGE_OPC_DFX_GEN_REG,
+		.result_regs = hclge_gen_reg_info,
+		.bd_num = HCLGE_BD_NUM_GEN_REG,
+		.result_regs_size = ARRAY_SIZE(hclge_gen_reg_info)
+	}
+};
+
+static int
+hclge_print_mod_reg_info(struct device *dev, struct hclge_desc *desc,
+			 const struct hclge_mod_reg_info *reg_info, int size)
+{
+	int i, j, pos, actual_len;
+	u8 offset, bd_idx, index;
+	char *buf;
+
+	buf = kzalloc(HCLGE_MOD_REG_INFO_LEN_MAX, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; i < size; i++) {
+		actual_len = strlen(reg_info[i].reg_name) +
+			     HCLGE_MOD_REG_EXTRA_LEN +
+			     HCLGE_MOD_REG_VALUE_LEN * reg_info[i].group_size;
+		if (actual_len > HCLGE_MOD_REG_INFO_LEN_MAX) {
+			dev_info(dev, "length of reg(%s) is invalid, len=%d\n",
+				 reg_info[i].reg_name, actual_len);
+			continue;
+		}
+
+		pos = scnprintf(buf, HCLGE_MOD_REG_INFO_LEN_MAX, "%s",
+				reg_info[i].reg_name);
+		if (reg_info[i].has_suffix)
+			pos += scnprintf(buf + pos,
+					 HCLGE_MOD_REG_INFO_LEN_MAX - pos, "%u",
+					 le32_to_cpu(desc->data[0]));
+		pos += scnprintf(buf + pos,
+				 HCLGE_MOD_REG_INFO_LEN_MAX - pos,
+				 ":");
+		for (j = 0; j < reg_info[i].group_size; j++) {
+			offset = reg_info[i].reg_offset_group[j];
+			index = offset % HCLGE_DESC_DATA_LEN;
+			bd_idx = offset / HCLGE_DESC_DATA_LEN;
+			pos += scnprintf(buf + pos,
+					 HCLGE_MOD_REG_INFO_LEN_MAX - pos,
+					 " %08x",
+					 le32_to_cpu(desc[bd_idx].data[index]));
+		}
+		dev_info(dev, "%s\n", buf);
+	}
+
+	kfree(buf);
+	return 0;
+}
+
+static bool hclge_err_mod_check_support_cmd(enum hclge_opcode_type opcode,
+					    struct hclge_dev *hdev)
+{
+	if (opcode == HCLGE_OPC_DFX_GEN_REG &&
+	    !hnae3_ae_dev_gen_reg_dfx_supported(hdev))
+		return false;
+	return true;
+}
+
+/* For each common msg, send cmdq to IMP and print result reg info.
+ * If there is a parameter, loop it and request.
+ */
+static void
+hclge_query_reg_info(struct hclge_dev *hdev,
+		     struct hclge_mod_reg_common_msg *msg, u32 loop_time,
+		     u32 *loop_para)
+{
+	int desc_len, i, ret;
+
+	desc_len = msg->bd_num * sizeof(struct hclge_desc);
+	msg->desc = kzalloc(desc_len, GFP_KERNEL);
+	if (!msg->desc) {
+		dev_err(&hdev->pdev->dev, "failed to query reg info, ret=%d",
+			-ENOMEM);
+		return;
+	}
+
+	for (i = 0; i < loop_time; i++) {
+		ret = hclge_dbg_cmd_send(hdev, msg->desc, *loop_para,
+					 msg->bd_num, msg->cmd);
+		loop_para++;
+		if (ret)
+			continue;
+		ret = hclge_print_mod_reg_info(&hdev->pdev->dev, msg->desc,
+					       msg->result_regs,
+					       msg->result_regs_size);
+		if (ret)
+			dev_err(&hdev->pdev->dev, "failed to print mod reg info, ret=%d\n",
+				ret);
+	}
+
+	kfree(msg->desc);
+}
+
+static void hclge_query_reg_info_of_ssu(struct hclge_dev *hdev)
+{
+	u32 loop_para[HCLGE_MOD_MSG_PARA_ARRAY_MAX_SIZE] = {0};
+	struct hclge_mod_reg_common_msg msg;
+	u8 i, j, num, loop_time;
+
+	num = ARRAY_SIZE(hclge_ssu_reg_common_msg);
+	for (i = 0; i < num; i++) {
+		msg = hclge_ssu_reg_common_msg[i];
+		if (!hclge_err_mod_check_support_cmd(msg.cmd, hdev))
+			continue;
+		loop_time = 1;
+		loop_para[0] = 0;
+		if (msg.need_para) {
+			loop_time = min(hdev->ae_dev->dev_specs.tnl_num,
+					HCLGE_MOD_MSG_PARA_ARRAY_MAX_SIZE);
+			for (j = 0; j < loop_time; j++)
+				loop_para[j] = j + 1;
+		}
+		hclge_query_reg_info(hdev, &msg, loop_time, loop_para);
+	}
+}
+
 static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 	{
 		.module_id = MODULE_NONE,
@@ -1210,7 +1629,8 @@ static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 		.msg = "MODULE_GE"
 	}, {
 		.module_id = MODULE_IGU_EGU,
-		.msg = "MODULE_IGU_EGU"
+		.msg = "MODULE_IGU_EGU",
+		.query_reg_info = hclge_query_reg_info_of_ssu
 	}, {
 		.module_id = MODULE_LGE,
 		.msg = "MODULE_LGE"
@@ -1231,7 +1651,8 @@ static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 		.msg = "MODULE_RTC"
 	}, {
 		.module_id = MODULE_SSU,
-		.msg = "MODULE_SSU"
+		.msg = "MODULE_SSU",
+		.query_reg_info = hclge_query_reg_info_of_ssu
 	}, {
 		.module_id = MODULE_TM,
 		.msg = "MODULE_TM"
@@ -1301,10 +1722,12 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 		.msg = "tqp_int_ecc_error"
 	}, {
 		.type_id = PF_ABNORMAL_INT_ERROR,
-		.msg = "pf_abnormal_int_error"
+		.msg = "pf_abnormal_int_error",
+		.cause_by_vf = true
 	}, {
 		.type_id = MPF_ABNORMAL_INT_ERROR,
-		.msg = "mpf_abnormal_int_error"
+		.msg = "mpf_abnormal_int_error",
+		.cause_by_vf = true
 	}, {
 		.type_id = COMMON_ERROR,
 		.msg = "common_error"
@@ -2759,8 +3182,8 @@ void hclge_handle_occurred_error(struct hclge_dev *hdev)
 		hclge_handle_error_info_log(ae_dev);
 }
 
-static void
-hclge_handle_error_type_reg_log(struct device *dev,
+static bool
+hclge_handle_error_type_reg_log(struct hclge_dev *hdev,
 				struct hclge_mod_err_info *mod_info,
 				struct hclge_type_reg_err_info *type_reg_info)
 {
@@ -2768,8 +3191,10 @@ hclge_handle_error_type_reg_log(struct device *dev,
 #define HCLGE_ERR_TYPE_IS_RAS_OFFSET 7
 
 	u8 mod_id, total_module, type_id, total_type, i, is_ras;
+	struct device *dev = &hdev->pdev->dev;
 	u8 index_module = MODULE_NONE;
 	u8 index_type = NONE_ERROR;
+	bool cause_by_vf = false;
 
 	mod_id = mod_info->mod_id;
 	type_id = type_reg_info->type_id & HCLGE_ERR_TYPE_MASK;
@@ -2788,6 +3213,7 @@ hclge_handle_error_type_reg_log(struct device *dev,
 	for (i = 0; i < total_type; i++) {
 		if (type_id == hclge_hw_type_id_st[i].type_id) {
 			index_type = i;
+			cause_by_vf = hclge_hw_type_id_st[i].cause_by_vf;
 			break;
 		}
 	}
@@ -2805,6 +3231,11 @@ hclge_handle_error_type_reg_log(struct device *dev,
 	dev_err(dev, "reg_value:\n");
 	for (i = 0; i < type_reg_info->reg_num; i++)
 		dev_err(dev, "0x%08x\n", type_reg_info->hclge_reg[i]);
+
+	if (hclge_hw_module_id_st[index_module].query_reg_info)
+		hclge_hw_module_id_st[index_module].query_reg_info(hdev);
+
+	return cause_by_vf;
 }
 
 static void hclge_handle_error_module_log(struct hnae3_ae_dev *ae_dev,
@@ -2815,6 +3246,7 @@ static void hclge_handle_error_module_log(struct hnae3_ae_dev *ae_dev,
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_mod_err_info *mod_info;
 	struct hclge_sum_err_info *sum_info;
+	bool cause_by_vf = false;
 	u8 mod_num, err_num, i;
 	u32 offset = 0;
 
@@ -2843,12 +3275,16 @@ static void hclge_handle_error_module_log(struct hnae3_ae_dev *ae_dev,
 
 			type_reg_info = (struct hclge_type_reg_err_info *)
 					    &buf[offset++];
-			hclge_handle_error_type_reg_log(dev, mod_info,
-							type_reg_info);
+			if (hclge_handle_error_type_reg_log(hdev, mod_info,
+							    type_reg_info))
+				cause_by_vf = true;
 
 			offset += type_reg_info->reg_num;
 		}
 	}
+
+	if (hnae3_ae_dev_vf_fault_supported(hdev->ae_dev) && cause_by_vf)
+		set_bit(HNAE3_VF_EXP_RESET, &ae_dev->hw_err_reset_req);
 }
 
 static int hclge_query_all_err_bd_num(struct hclge_dev *hdev, u32 *bd_num)
@@ -2939,4 +3375,99 @@ err_desc:
 	kfree(desc);
 out:
 	return ret;
+}
+
+static bool hclge_reset_vf_in_bitmap(struct hclge_dev *hdev,
+				     unsigned long *bitmap)
+{
+	struct hclge_vport *vport;
+	bool exist_set = false;
+	int func_id;
+	int ret;
+
+	func_id = find_first_bit(bitmap, HCLGE_VPORT_NUM);
+	if (func_id == PF_VPORT_ID)
+		return false;
+
+	while (func_id != HCLGE_VPORT_NUM) {
+		vport = hclge_get_vf_vport(hdev,
+					   func_id - HCLGE_VF_VPORT_START_NUM);
+		if (!vport) {
+			dev_err(&hdev->pdev->dev, "invalid func id(%d)\n",
+				func_id);
+			return false;
+		}
+
+		dev_info(&hdev->pdev->dev, "do function %d recovery.", func_id);
+
+		ret = hclge_reset_tqp(&vport->nic);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to reset tqp, ret = %d.", ret);
+			return false;
+		}
+
+		ret = hclge_inform_vf_reset(vport, HNAE3_VF_FUNC_RESET);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to reset func %d, ret = %d.",
+				func_id, ret);
+			return false;
+		}
+
+		exist_set = true;
+		clear_bit(func_id, bitmap);
+		func_id = find_first_bit(bitmap, HCLGE_VPORT_NUM);
+	}
+
+	return exist_set;
+}
+
+static void hclge_get_vf_fault_bitmap(struct hclge_desc *desc,
+				      unsigned long *bitmap)
+{
+#define HCLGE_FIR_FAULT_BYTES	24
+#define HCLGE_SEC_FAULT_BYTES	8
+
+	u8 *buff;
+
+	BUILD_BUG_ON(HCLGE_FIR_FAULT_BYTES + HCLGE_SEC_FAULT_BYTES !=
+		     BITS_TO_BYTES(HCLGE_VPORT_NUM));
+
+	memcpy(bitmap, desc[0].data, HCLGE_FIR_FAULT_BYTES);
+	buff = (u8 *)bitmap + HCLGE_FIR_FAULT_BYTES;
+	memcpy(buff, desc[1].data, HCLGE_SEC_FAULT_BYTES);
+}
+
+int hclge_handle_vf_queue_err_ras(struct hclge_dev *hdev)
+{
+	unsigned long vf_fault_bitmap[BITS_TO_LONGS(HCLGE_VPORT_NUM)];
+	struct hclge_desc desc[2];
+	bool cause_by_vf = false;
+	int ret;
+
+	if (!test_and_clear_bit(HNAE3_VF_EXP_RESET,
+				&hdev->ae_dev->hw_err_reset_req) ||
+	    !hnae3_ae_dev_vf_fault_supported(hdev->ae_dev))
+		return 0;
+
+	hclge_comm_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_GET_QUEUE_ERR_VF,
+					true);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+	hclge_comm_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_GET_QUEUE_ERR_VF,
+					true);
+
+	ret = hclge_comm_cmd_send(&hdev->hw.hw, desc, 2);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get vf bitmap, ret = %d.\n", ret);
+		return ret;
+	}
+	hclge_get_vf_fault_bitmap(desc, vf_fault_bitmap);
+
+	cause_by_vf = hclge_reset_vf_in_bitmap(hdev, vf_fault_bitmap);
+	if (cause_by_vf)
+		hdev->ae_dev->hw_err_reset_req = 0;
+
+	return 0;
 }

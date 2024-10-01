@@ -13,11 +13,9 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 #include <linux/regmap.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
 #include <sound/core.h>
@@ -2208,7 +2206,7 @@ MODULE_DEVICE_TABLE(acpi, rt1011_acpi_match);
 #endif
 
 static const struct i2c_device_id rt1011_i2c_id[] = {
-	{ "rt1011", 0 },
+	{ "rt1011" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt1011_i2c_id);

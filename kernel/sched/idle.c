@@ -81,6 +81,25 @@ void __weak arch_cpu_idle(void)
 	cpu_idle_force_poll = 1;
 }
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST_IDLE
+DEFINE_STATIC_KEY_FALSE(arch_needs_tick_broadcast);
+
+static inline void cond_tick_broadcast_enter(void)
+{
+	if (static_branch_unlikely(&arch_needs_tick_broadcast))
+		tick_broadcast_enter();
+}
+
+static inline void cond_tick_broadcast_exit(void)
+{
+	if (static_branch_unlikely(&arch_needs_tick_broadcast))
+		tick_broadcast_exit();
+}
+#else
+static inline void cond_tick_broadcast_enter(void) { }
+static inline void cond_tick_broadcast_exit(void) { }
+#endif
+
 /**
  * default_idle_call - Default CPU idle routine.
  *
@@ -90,6 +109,7 @@ void __cpuidle default_idle_call(void)
 {
 	instrumentation_begin();
 	if (!current_clr_polling_and_test()) {
+		cond_tick_broadcast_enter();
 		trace_cpu_idle(1, smp_processor_id());
 		stop_critical_timings();
 
@@ -99,6 +119,7 @@ void __cpuidle default_idle_call(void)
 
 		start_critical_timings();
 		trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
+		cond_tick_broadcast_exit();
 	}
 	local_irq_enable();
 	instrumentation_end();
@@ -151,18 +172,12 @@ static void cpuidle_idle_call(void)
 
 	/*
 	 * Check if the idle task must be rescheduled. If it is the
-	 * case, exit the function after re-enabling the local irq.
+	 * case, exit the function after re-enabling the local IRQ.
 	 */
 	if (need_resched()) {
 		local_irq_enable();
 		return;
 	}
-
-	/*
-	 * The RCU framework needs to be told that we are entering an idle
-	 * section, so no more rcu read side critical sections and one more
-	 * step to the grace period
-	 */
 
 	if (cpuidle_not_available(drv, dev)) {
 		tick_nohz_idle_stop_tick();
@@ -223,7 +238,7 @@ exit_idle:
 	__current_set_polling();
 
 	/*
-	 * It is up to the idle functions to reenable local interrupts
+	 * It is up to the idle functions to re-enable local interrupts
 	 */
 	if (WARN_ON_ONCE(irqs_disabled()))
 		local_irq_enable();
@@ -258,10 +273,39 @@ static void do_idle(void)
 	while (!need_resched()) {
 		rmb();
 
+		/*
+		 * Interrupts shouldn't be re-enabled from that point on until
+		 * the CPU sleeping instruction is reached. Otherwise an interrupt
+		 * may fire and queue a timer that would be ignored until the CPU
+		 * wakes from the sleeping instruction. And testing need_resched()
+		 * doesn't tell about pending needed timer reprogram.
+		 *
+		 * Several cases to consider:
+		 *
+		 * - SLEEP-UNTIL-PENDING-INTERRUPT based instructions such as
+		 *   "wfi" or "mwait" are fine because they can be entered with
+		 *   interrupt disabled.
+		 *
+		 * - sti;mwait() couple is fine because the interrupts are
+		 *   re-enabled only upon the execution of mwait, leaving no gap
+		 *   in-between.
+		 *
+		 * - ROLLBACK based idle handlers with the sleeping instruction
+		 *   called with interrupts enabled are NOT fine. In this scheme
+		 *   when the interrupt detects it has interrupted an idle handler,
+		 *   it rolls back to its beginning which performs the
+		 *   need_resched() check before re-executing the sleeping
+		 *   instruction. This can leak a pending needed timer reprogram.
+		 *   If such a scheme is really mandatory due to the lack of an
+		 *   appropriate CPU sleeping instruction, then a FAST-FORWARD
+		 *   must instead be applied: when the interrupt detects it has
+		 *   interrupted an idle handler, it must resume to the end of
+		 *   this idle handler so that the generic idle loop is iterated
+		 *   again to reprogram the tick.
+		 */
 		local_irq_disable();
 
 		if (cpu_is_offline(cpu)) {
-			tick_nohz_idle_stop_tick();
 			cpuhp_report_idle_dead();
 			arch_cpu_idle_dead();
 		}
@@ -270,7 +314,7 @@ static void do_idle(void)
 		rcu_nocb_flush_deferred_wakeup();
 
 		/*
-		 * In poll mode we reenable interrupts and spin. Also if we
+		 * In poll mode we re-enable interrupts and spin. Also if we
 		 * detected in the wakeup from idle path that the tick
 		 * broadcast device expired for us, we don't want to go deep
 		 * idle as we know that the IPI is going to arrive right away.
@@ -373,6 +417,7 @@ EXPORT_SYMBOL_GPL(play_idle_precise);
 
 void cpu_startup_entry(enum cpuhp_state state)
 {
+	current->flags |= PF_IDLE;
 	arch_cpu_idle_prepare();
 	cpuhp_online_idle(state);
 	while (1)
@@ -400,48 +445,42 @@ balance_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 /*
  * Idle tasks are unconditionally rescheduled:
  */
-static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int flags)
+static void wakeup_preempt_idle(struct rq *rq, struct task_struct *p, int flags)
 {
 	resched_curr(rq);
 }
 
-static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
+static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct task_struct *next)
 {
+	dl_server_update_idle_time(rq, prev);
+	scx_update_idle(rq, false);
 }
 
 static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
 {
 	update_idle_core(rq);
+	scx_update_idle(rq, true);
 	schedstat_inc(rq->sched_goidle);
+	next->se.exec_start = rq_clock_task(rq);
 }
 
-#ifdef CONFIG_SMP
-static struct task_struct *pick_task_idle(struct rq *rq)
+struct task_struct *pick_task_idle(struct rq *rq)
 {
 	return rq->idle;
-}
-#endif
-
-struct task_struct *pick_next_task_idle(struct rq *rq)
-{
-	struct task_struct *next = rq->idle;
-
-	set_next_task_idle(rq, next, true);
-
-	return next;
 }
 
 /*
  * It is not legal to sleep in the idle task - print a warning
  * message if some code attempts to do it:
  */
-static void
+static bool
 dequeue_task_idle(struct rq *rq, struct task_struct *p, int flags)
 {
 	raw_spin_rq_unlock_irq(rq);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
 	dump_stack();
 	raw_spin_rq_lock_irq(rq);
+	return true;
 }
 
 /*
@@ -481,15 +520,14 @@ DEFINE_SCHED_CLASS(idle) = {
 	/* dequeue is not valid, we print a debug message there: */
 	.dequeue_task		= dequeue_task_idle,
 
-	.check_preempt_curr	= check_preempt_curr_idle,
+	.wakeup_preempt		= wakeup_preempt_idle,
 
-	.pick_next_task		= pick_next_task_idle,
+	.pick_task		= pick_task_idle,
 	.put_prev_task		= put_prev_task_idle,
 	.set_next_task          = set_next_task_idle,
 
 #ifdef CONFIG_SMP
 	.balance		= balance_idle,
-	.pick_task		= pick_task_idle,
 	.select_task_rq		= select_task_rq_idle,
 	.set_cpus_allowed	= set_cpus_allowed_common,
 #endif

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/rtnetlink.h>
 #include "core.h"
@@ -28,11 +28,11 @@ static const struct ieee80211_regdomain ath12k_world_regd = {
 	}
 };
 
-static bool ath12k_regdom_changes(struct ath12k *ar, char *alpha2)
+static bool ath12k_regdom_changes(struct ieee80211_hw *hw, char *alpha2)
 {
 	const struct ieee80211_regdomain *regd;
 
-	regd = rcu_dereference_rtnl(ar->hw->wiphy->regd);
+	regd = rcu_dereference_rtnl(hw->wiphy->regd);
 	/* This can happen during wiphy registration where the previous
 	 * user request is received before we update the regd received
 	 * from firmware.
@@ -48,8 +48,9 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath12k_wmi_init_country_arg arg;
-	struct ath12k *ar = hw->priv;
-	int ret;
+	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
+	struct ath12k *ar = ath12k_ah_to_ar(ah, 0);
+	int ret, i;
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_REG,
 		   "Regulatory Notification received for %s\n", wiphy_name(wiphy));
@@ -71,7 +72,7 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 		return;
 	}
 
-	if (!ath12k_regdom_changes(ar, request->alpha2)) {
+	if (!ath12k_regdom_changes(hw, request->alpha2)) {
 		ath12k_dbg(ar->ab, ATH12K_DBG_REG, "Country is already set\n");
 		return;
 	}
@@ -84,10 +85,16 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	memcpy(&arg.cc_info.alpha2, request->alpha2, 2);
 	arg.cc_info.alpha2[2] = 0;
 
-	ret = ath12k_wmi_send_init_country_cmd(ar, &arg);
-	if (ret)
-		ath12k_warn(ar->ab,
-			    "INIT Country code set to fw failed : %d\n", ret);
+	/* Allow fresh updates to wiphy regd */
+	ah->regd_updated = false;
+
+	/* Send the reg change request to all the radios */
+	for_each_ar(ah, ar, i) {
+		ret = ath12k_wmi_send_init_country_cmd(ar, &arg);
+		if (ret)
+			ath12k_warn(ar->ab,
+				    "INIT Country code set to fw failed : %d\n", ret);
+	}
 }
 
 int ath12k_reg_update_chan_list(struct ath12k *ar)
@@ -95,7 +102,7 @@ int ath12k_reg_update_chan_list(struct ath12k *ar)
 	struct ieee80211_supported_band **bands;
 	struct ath12k_wmi_scan_chan_list_arg *arg;
 	struct ieee80211_channel *channel;
-	struct ieee80211_hw *hw = ar->hw;
+	struct ieee80211_hw *hw = ath12k_ar_to_hw(ar);
 	struct ath12k_wmi_channel_arg *ch;
 	enum nl80211_band band;
 	int num_channels = 0;
@@ -103,7 +110,7 @@ int ath12k_reg_update_chan_list(struct ath12k *ar)
 
 	bands = hw->wiphy->bands;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
-		if (!bands[band])
+		if (!(ar->mac.sbands[band].channels && bands[band]))
 			continue;
 
 		for (i = 0; i < bands[band]->n_channels; i++) {
@@ -129,7 +136,7 @@ int ath12k_reg_update_chan_list(struct ath12k *ar)
 	ch = arg->channel;
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
-		if (!bands[band])
+		if (!(ar->mac.sbands[band].channels && bands[band]))
 			continue;
 
 		for (i = 0; i < bands[band]->n_channels; i++) {
@@ -199,11 +206,34 @@ static void ath12k_copy_regd(struct ieee80211_regdomain *regd_orig,
 
 int ath12k_regd_update(struct ath12k *ar, bool init)
 {
+	struct ath12k_hw *ah = ath12k_ar_to_ah(ar);
+	struct ieee80211_hw *hw = ah->hw;
 	struct ieee80211_regdomain *regd, *regd_copy = NULL;
 	int ret, regd_len, pdev_id;
 	struct ath12k_base *ab;
+	int i;
 
 	ab = ar->ab;
+
+	/* If one of the radios within ah has already updated the regd for
+	 * the wiphy, then avoid setting regd again
+	 */
+	if (ah->regd_updated)
+		return 0;
+
+	/* firmware provides reg rules which are similar for 2 GHz and 5 GHz
+	 * pdev but 6 GHz pdev has superset of all rules including rules for
+	 * all bands, we prefer 6 GHz pdev's rules to be used for setup of
+	 * the wiphy regd.
+	 * If 6 GHz pdev was part of the ath12k_hw, wait for the 6 GHz pdev,
+	 * else pick the first pdev which calls this function and use its
+	 * regd to update global hw regd.
+	 * The regd_updated flag set at the end will not allow any further
+	 * updates.
+	 */
+	if (ah->use_6ghz_regd && !ar->supports_6ghz)
+		return 0;
+
 	pdev_id = ar->pdev_idx;
 
 	spin_lock_bh(&ab->base_lock);
@@ -246,9 +276,9 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 	}
 
 	rtnl_lock();
-	wiphy_lock(ar->hw->wiphy);
-	ret = regulatory_set_wiphy_regd_sync(ar->hw->wiphy, regd_copy);
-	wiphy_unlock(ar->hw->wiphy);
+	wiphy_lock(hw->wiphy);
+	ret = regulatory_set_wiphy_regd_sync(hw->wiphy, regd_copy);
+	wiphy_unlock(hw->wiphy);
 	rtnl_unlock();
 
 	kfree(regd_copy);
@@ -256,12 +286,20 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 	if (ret)
 		goto err;
 
-	if (ar->state == ATH12K_STATE_ON) {
+	if (ah->state != ATH12K_HW_STATE_ON)
+		goto skip;
+
+	ah->regd_updated = true;
+	/* Apply the new regd to all the radios, this is expected to be received only once
+	 * since we check for ah->regd_updated and allow here only once.
+	 */
+	for_each_ar(ah, ar, i) {
+		ab = ar->ab;
 		ret = ath12k_reg_update_chan_list(ar);
 		if (ret)
 			goto err;
 	}
-
+skip:
 	return 0;
 err:
 	ath12k_warn(ab, "failed to perform regd update : %d\n", ret);
@@ -310,6 +348,19 @@ static u32 ath12k_map_fw_reg_flags(u16 reg_flags)
 
 	if (reg_flags & REGULATORY_CHAN_NO_160MHZ)
 		flags |= NL80211_RRF_NO_160MHZ;
+
+	return flags;
+}
+
+static u32 ath12k_map_fw_phy_flags(u32 phy_flags)
+{
+	u32 flags = 0;
+
+	if (phy_flags & ATH12K_REG_PHY_BITMAP_NO11AX)
+		flags |= NL80211_RRF_NO_HE;
+
+	if (phy_flags & ATH12K_REG_PHY_BITMAP_NO11BE)
+		flags |= NL80211_RRF_NO_EHT;
 
 	return flags;
 }
@@ -638,6 +689,7 @@ ath12k_reg_build_regd(struct ath12k_base *ab,
 		}
 
 		flags |= ath12k_map_fw_reg_flags(reg_rule->flags);
+		flags |= ath12k_map_fw_phy_flags(reg_info->phybitmap);
 
 		ath12k_reg_update_rule(tmp_regd->reg_rules + i,
 				       reg_rule->start_freq,
@@ -715,10 +767,10 @@ void ath12k_regd_update_work(struct work_struct *work)
 	}
 }
 
-void ath12k_reg_init(struct ath12k *ar)
+void ath12k_reg_init(struct ieee80211_hw *hw)
 {
-	ar->hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
-	ar->hw->wiphy->reg_notifier = ath12k_reg_notifier;
+	hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
+	hw->wiphy->reg_notifier = ath12k_reg_notifier;
 }
 
 void ath12k_reg_free(struct ath12k_base *ab)

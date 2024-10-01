@@ -21,7 +21,7 @@
 #include "cifs_unicode.h"
 #include "fscache.h"
 #include "smb2proto.h"
-#include "smb2status.h"
+#include "../common/smb2status.h"
 
 static struct smb2_symlink_err_rsp *symlink_data(const struct kvec *iov)
 {
@@ -196,9 +196,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct cifsLockInfo *li, *tmp;
 	__u64 length = 1 + flock->fl_end - flock->fl_start;
-	struct list_head tmp_llist;
-
-	INIT_LIST_HEAD(&tmp_llist);
+	LIST_HEAD(tmp_llist);
 
 	/*
 	 * Accessing maxBuf is racy with cifs_reconnect - need to store value
@@ -228,7 +226,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 			 * flock and OFD lock are associated with an open
 			 * file description, not the process.
 			 */
-			if (!(flock->fl_flags & (FL_FLOCK | FL_OFDLCK)))
+			if (!(flock->c.flc_flags & (FL_FLOCK | FL_OFDLCK)))
 				continue;
 		if (cinode->can_cache_brlcks) {
 			/*

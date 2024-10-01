@@ -131,7 +131,7 @@ static void mxc_rnga_cleanup(struct hwrng *rng)
 	__raw_writel(ctrl & ~RNGA_CONTROL_GO, mxc_rng->mem + RNGA_CONTROL);
 }
 
-static int __init mxc_rnga_probe(struct platform_device *pdev)
+static int mxc_rnga_probe(struct platform_device *pdev)
 {
 	int err;
 	struct mxc_rng *mxc_rng;
@@ -147,44 +147,32 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	mxc_rng->rng.data_present = mxc_rnga_data_present;
 	mxc_rng->rng.data_read = mxc_rnga_data_read;
 
-	mxc_rng->clk = devm_clk_get(&pdev->dev, NULL);
+	mxc_rng->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(mxc_rng->clk)) {
 		dev_err(&pdev->dev, "Could not get rng_clk!\n");
 		return PTR_ERR(mxc_rng->clk);
 	}
 
-	err = clk_prepare_enable(mxc_rng->clk);
-	if (err)
-		return err;
-
 	mxc_rng->mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mxc_rng->mem)) {
 		err = PTR_ERR(mxc_rng->mem);
-		goto err_ioremap;
+		return err;
 	}
 
 	err = hwrng_register(&mxc_rng->rng);
 	if (err) {
 		dev_err(&pdev->dev, "MXC RNGA registering failed (%d)\n", err);
-		goto err_ioremap;
+		return err;
 	}
 
 	return 0;
-
-err_ioremap:
-	clk_disable_unprepare(mxc_rng->clk);
-	return err;
 }
 
-static int __exit mxc_rnga_remove(struct platform_device *pdev)
+static void mxc_rnga_remove(struct platform_device *pdev)
 {
 	struct mxc_rng *mxc_rng = platform_get_drvdata(pdev);
 
 	hwrng_unregister(&mxc_rng->rng);
-
-	clk_disable_unprepare(mxc_rng->clk);
-
-	return 0;
 }
 
 static const struct of_device_id mxc_rnga_of_match[] = {
@@ -199,10 +187,11 @@ static struct platform_driver mxc_rnga_driver = {
 		.name = "mxc_rnga",
 		.of_match_table = mxc_rnga_of_match,
 	},
-	.remove = __exit_p(mxc_rnga_remove),
+	.probe = mxc_rnga_probe,
+	.remove_new = mxc_rnga_remove,
 };
 
-module_platform_driver_probe(mxc_rnga_driver, mxc_rnga_probe);
+module_platform_driver(mxc_rnga_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("H/W RNGA driver for i.MX");

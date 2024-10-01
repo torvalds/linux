@@ -62,11 +62,6 @@ MODULE_LICENSE("GPL v2");
 **********************************************************************
 */
 
-struct i2c_reg_value {
-	unsigned char reg;
-	unsigned char value;
-};
-
 struct adv7511_state_edid {
 	/* total number of blocks */
 	u32 blocks;
@@ -995,14 +990,17 @@ static int adv7511_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int adv7511_s_dv_timings(struct v4l2_subdev *sd,
-			       struct v4l2_dv_timings *timings)
+static int adv7511_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_dv_timings *timings)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 	struct v4l2_bt_timings *bt = &timings->bt;
 	u32 fps;
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	/* quick sanity check */
 	if (!v4l2_valid_dv_timings(timings, &adv7511_timings_cap, NULL, NULL))
@@ -1042,12 +1040,15 @@ static int adv7511_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7511_g_dv_timings(struct v4l2_subdev *sd,
+static int adv7511_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	if (!timings)
 		return -EINVAL;
@@ -1078,8 +1079,6 @@ static int adv7511_dv_timings_cap(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops adv7511_video_ops = {
 	.s_stream = adv7511_s_stream,
-	.s_dv_timings = adv7511_s_dv_timings,
-	.g_dv_timings = adv7511_g_dv_timings,
 };
 
 /* ------------------------------ AUDIO OPS ------------------------------ */
@@ -1238,7 +1237,7 @@ static int adv7511_get_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		format->format.code = fmt->code;
 		format->format.colorspace = fmt->colorspace;
 		format->format.ycbcr_enc = fmt->ycbcr_enc;
@@ -1293,7 +1292,7 @@ static int adv7511_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		fmt->code = format->format.code;
 		fmt->colorspace = format->format.colorspace;
 		fmt->ycbcr_enc = format->format.ycbcr_enc;
@@ -1403,6 +1402,8 @@ static const struct v4l2_subdev_pad_ops adv7511_pad_ops = {
 	.enum_mbus_code = adv7511_enum_mbus_code,
 	.get_fmt = adv7511_get_fmt,
 	.set_fmt = adv7511_set_fmt,
+	.s_dv_timings = adv7511_s_dv_timings,
+	.g_dv_timings = adv7511_g_dv_timings,
 	.enum_dv_timings = adv7511_enum_dv_timings,
 	.dv_timings_cap = adv7511_dv_timings_cap,
 };
@@ -1948,7 +1949,7 @@ static void adv7511_remove(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static const struct i2c_device_id adv7511_id[] = {
-	{ "adv7511-v4l2", 0 },
+	{ "adv7511-v4l2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adv7511_id);

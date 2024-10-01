@@ -12,7 +12,7 @@
 #include <linux/pfn.h>
 #include <linux/const.h>
 
-#define PAGE_SHIFT	(12)
+#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 
@@ -33,11 +33,11 @@
 #define PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
 #endif
 /*
- * By default, CONFIG_PAGE_OFFSET value corresponds to SV48 address space so
- * define the PAGE_OFFSET value for SV39.
+ * By default, CONFIG_PAGE_OFFSET value corresponds to SV57 address space so
+ * define the PAGE_OFFSET value for SV48 and SV39.
  */
 #define PAGE_OFFSET_L4		_AC(0xffffaf8000000000, UL)
-#define PAGE_OFFSET_L3		_AC(0xffffffd800000000, UL)
+#define PAGE_OFFSET_L3		_AC(0xffffffd600000000, UL)
 #else
 #define PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)
 #endif /* CONFIG_64BIT */
@@ -89,7 +89,7 @@ typedef struct page *pgtable_t;
 #define PTE_FMT "%08lx"
 #endif
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && defined(CONFIG_MMU)
 /*
  * We override this value as its generic definition uses __pa too early in
  * the boot process (before kernel_map.va_pa_offset is set).
@@ -106,16 +106,19 @@ typedef struct page *pgtable_t;
 struct kernel_mapping {
 	unsigned long page_offset;
 	unsigned long virt_addr;
+	unsigned long virt_offset;
 	uintptr_t phys_addr;
 	uintptr_t size;
 	/* Offset between linear mapping virtual address and kernel load address */
 	unsigned long va_pa_offset;
 	/* Offset between kernel mapping virtual address and kernel load address */
-	unsigned long va_kernel_pa_offset;
-	unsigned long va_kernel_xip_pa_offset;
 #ifdef CONFIG_XIP_KERNEL
+	unsigned long va_kernel_xip_text_pa_offset;
+	unsigned long va_kernel_xip_data_pa_offset;
 	uintptr_t xiprom;
 	uintptr_t xiprom_sz;
+#else
+	unsigned long va_kernel_pa_offset;
 #endif
 };
 
@@ -133,12 +136,18 @@ extern phys_addr_t phys_ram_base;
 #else
 void *linear_mapping_pa_to_va(unsigned long x);
 #endif
+
+#ifdef CONFIG_XIP_KERNEL
 #define kernel_mapping_pa_to_va(y)	({					\
 	unsigned long _y = (unsigned long)(y);					\
-	(IS_ENABLED(CONFIG_XIP_KERNEL) && _y < phys_ram_base) ?			\
-		(void *)(_y + kernel_map.va_kernel_xip_pa_offset) :		\
-		(void *)(_y + kernel_map.va_kernel_pa_offset + XIP_OFFSET);	\
+	(_y < phys_ram_base) ?							\
+		(void *)(_y + kernel_map.va_kernel_xip_text_pa_offset) :	\
+		(void *)(_y + kernel_map.va_kernel_xip_data_pa_offset);		\
 	})
+#else
+#define kernel_mapping_pa_to_va(y) ((void *)((unsigned long)(y) + kernel_map.va_kernel_pa_offset))
+#endif
+
 #define __pa_to_va_nodebug(x)		linear_mapping_pa_to_va(x)
 
 #ifndef CONFIG_DEBUG_VIRTUAL
@@ -146,12 +155,17 @@ void *linear_mapping_pa_to_va(unsigned long x);
 #else
 phys_addr_t linear_mapping_va_to_pa(unsigned long x);
 #endif
+
+#ifdef CONFIG_XIP_KERNEL
 #define kernel_mapping_va_to_pa(y) ({						\
 	unsigned long _y = (unsigned long)(y);					\
-	(IS_ENABLED(CONFIG_XIP_KERNEL) && _y < kernel_map.virt_addr + XIP_OFFSET) ? \
-		(_y - kernel_map.va_kernel_xip_pa_offset) :			\
-		(_y - kernel_map.va_kernel_pa_offset - XIP_OFFSET);		\
+	(_y < kernel_map.virt_addr + kernel_map.xiprom_sz) ?			\
+		(_y - kernel_map.va_kernel_xip_text_pa_offset) :		\
+		(_y - kernel_map.va_kernel_xip_data_pa_offset);			\
 	})
+#else
+#define kernel_mapping_va_to_pa(y) ((unsigned long)(y) - kernel_map.va_kernel_pa_offset)
+#endif
 
 #define __va_to_pa_nodebug(x)	({						\
 	unsigned long _x = x;							\
@@ -184,6 +198,13 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define phys_to_page(paddr)	(pfn_to_page(phys_to_pfn(paddr)))
 
 #define sym_to_pfn(x)           __phys_to_pfn(__pa_symbol(x))
+
+unsigned long kaslr_offset(void);
+
+static __always_inline void *pfn_to_kaddr(unsigned long pfn)
+{
+	return __va(pfn << PAGE_SHIFT);
+}
 
 #endif /* __ASSEMBLY__ */
 

@@ -172,14 +172,14 @@
 				status = "disabled";
 
 				uart4: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <13 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(8))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(9))>;
@@ -202,7 +202,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(8))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(9))>;
@@ -215,12 +215,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <13 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 13>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(8))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(9))>;
@@ -240,7 +242,7 @@
 				status = "disabled";
 
 				uart5: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 					interrupts = <14 IRQ_TYPE_LEVEL_HIGH 7>;
@@ -248,7 +250,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(10))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(11))>;
@@ -271,7 +273,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(10))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(11))>;
@@ -284,12 +286,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <14 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 14>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(10))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(11))>;
@@ -370,14 +374,14 @@
 				status = "disabled";
 
 				uart11: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <32 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(22))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(23))>;
@@ -394,12 +398,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <32 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 32>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(22))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(23))>;
@@ -419,14 +425,14 @@
 				status = "disabled";
 
 				uart12: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <33 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(24))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(25))>;
@@ -443,12 +449,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <33 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 33>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(24))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(25))>;
@@ -576,14 +584,14 @@
 				status = "disabled";
 
 				uart6: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <9 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(12))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(13))>;
@@ -600,12 +608,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <9 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 9>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(12))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(13))>;
@@ -625,14 +635,14 @@
 				status = "disabled";
 
 				uart7: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <10 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(14))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(15))>;
@@ -649,12 +659,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <10 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 10>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(14))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(15))>;
@@ -674,14 +686,14 @@
 				status = "disabled";
 
 				uart8: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <11 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(16))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(17))>;
@@ -698,12 +710,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <11 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 11>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(16))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(17))>;
@@ -723,14 +737,14 @@
 				status = "disabled";
 
 				uart0: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <5 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(0))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(1))>;
@@ -753,7 +767,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(0))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(1))>;
@@ -766,12 +780,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <5 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 5>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(0))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(1))>;
@@ -791,14 +807,14 @@
 				status = "disabled";
 
 				uart1: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <6 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(2))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(3))>;
@@ -821,7 +837,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(2))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(3))>;
@@ -834,12 +850,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <6 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 6>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(2))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(3))>;
@@ -859,14 +877,14 @@
 				status = "disabled";
 
 				uart2: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <7 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(4))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(5))>;
@@ -889,7 +907,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(4))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(5))>;
@@ -902,12 +920,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <7 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(4))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(5))>;
@@ -927,14 +947,14 @@
 				status = "disabled";
 
 				uart3: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <8 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(6))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(7))>;
@@ -957,7 +977,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(6))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(7))>;
@@ -970,12 +990,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <8 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 8>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(6))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(7))>;
@@ -1050,14 +1072,14 @@
 				status = "disabled";
 
 				uart9: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <15 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(18))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(19))>;
@@ -1074,12 +1096,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <15 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 15>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(18))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(19))>;
@@ -1099,14 +1123,14 @@
 				status = "disabled";
 
 				uart10: serial@200 {
-					compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+					compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <16 IRQ_TYPE_LEVEL_HIGH 7>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(20))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(21))>;
@@ -1123,12 +1147,14 @@
 					compatible = "microchip,sam9x60-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <16 IRQ_TYPE_LEVEL_HIGH 7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 					clocks = <&pmc PMC_TYPE_PERIPHERAL 16>;
 					dmas = <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(20))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(21))>;
@@ -1223,7 +1249,7 @@
 			pinctrl: pinctrl@fffff400 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "microchip,sam9x60-pinctrl", "atmel,at91sam9x5-pinctrl", "atmel,at91rm9200-pinctrl", "simple-bus";
+				compatible = "microchip,sam9x60-pinctrl", "simple-mfd";
 				ranges = <0xfffff400 0xfffff400 0x800>;
 
 				/* mux-mask corresponding to sam9x60 SoC in TFBGA228L package */
@@ -1236,7 +1262,7 @@
 						 >;
 
 				pioA: gpio@fffff400 {
-					compatible = "microchip,sam9x60-gpio", "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
+					compatible = "microchip,sam9x60-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
 					interrupts = <2 IRQ_TYPE_LEVEL_HIGH 1>;
 					#gpio-cells = <2>;
@@ -1247,7 +1273,7 @@
 				};
 
 				pioB: gpio@fffff600 {
-					compatible = "microchip,sam9x60-gpio", "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
+					compatible = "microchip,sam9x60-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffff600 0x200>;
 					interrupts = <3 IRQ_TYPE_LEVEL_HIGH 1>;
 					#gpio-cells = <2>;
@@ -1259,7 +1285,7 @@
 				};
 
 				pioC: gpio@fffff800 {
-					compatible = "microchip,sam9x60-gpio", "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
+					compatible = "microchip,sam9x60-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffff800 0x200>;
 					interrupts = <4 IRQ_TYPE_LEVEL_HIGH 1>;
 					#gpio-cells = <2>;
@@ -1270,7 +1296,7 @@
 				};
 
 				pioD: gpio@fffffa00 {
-					compatible = "microchip,sam9x60-gpio", "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
+					compatible = "microchip,sam9x60-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffffa00 0x200>;
 					interrupts = <44 IRQ_TYPE_LEVEL_HIGH 1>;
 					#gpio-cells = <2>;
@@ -1312,7 +1338,7 @@
 				compatible = "microchip,sam9x60-rtt", "atmel,at91sam9260-rtt";
 				reg = <0xfffffe20 0x20>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
-				clocks = <&clk32k 0>;
+				clocks = <&clk32k 1>;
 			};
 
 			pit: timer@fffffe40 {
@@ -1338,7 +1364,7 @@
 				compatible = "microchip,sam9x60-rtc", "atmel,at91sam9x5-rtc";
 				reg = <0xfffffea8 0x100>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
-				clocks = <&clk32k 0>;
+				clocks = <&clk32k 1>;
 			};
 
 			watchdog: watchdog@ffffff80 {

@@ -32,7 +32,6 @@ int mmc_send_adtc_data(struct mmc_card *card, struct mmc_host *host, u32 opcode,
 		       u32 args, void *buf, unsigned len);
 int mmc_send_csd(struct mmc_card *card, u32 *csd);
 int __mmc_send_status(struct mmc_card *card, u32 *status, unsigned int retries);
-int mmc_send_status(struct mmc_card *card, u32 *status);
 int mmc_send_cid(struct mmc_host *host, u32 *cid);
 int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp);
 int mmc_spi_set_crc(struct mmc_host *host, int use_crc);
@@ -56,6 +55,20 @@ void mmc_run_bkops(struct mmc_card *card);
 int mmc_cmdq_enable(struct mmc_card *card);
 int mmc_cmdq_disable(struct mmc_card *card);
 int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms);
+
+static inline u32 unstuff_bits(const u32 *resp, int start, int size)
+{
+	const int __size = size;
+	const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1;
+	const int __off = 3 - (start / 32);
+	const int __shft = start & 31;
+	u32 __res = resp[__off] >> __shft;
+
+	if (__size + __shft > 32)
+		__res |= resp[__off - 1] << ((32 - __shft) % 32);
+
+	return __res & __mask;
+}
 
 #endif
 

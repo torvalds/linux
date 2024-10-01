@@ -17,10 +17,6 @@
 #ifndef REG_AIC_H
 #define REG_AIC_H
 
-#define AR_SM_BASE                              0xa200
-#define AR_SM1_BASE                             0xb200
-#define AR_AGC_BASE                             0x9e00
-
 #define AR_PHY_AIC_CTRL_0_B0                    (AR_SM_BASE + 0x4b0)
 #define AR_PHY_AIC_CTRL_1_B0                    (AR_SM_BASE + 0x4b4)
 #define AR_PHY_AIC_CTRL_2_B0                    (AR_SM_BASE + 0x4b8)

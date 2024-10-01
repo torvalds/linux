@@ -14,7 +14,6 @@
 #include <linux/io.h>
 #include <linux/iio/iio.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/iio/machine.h>
 #include <linux/iio/driver.h>
 #include <linux/iopoll.h>
@@ -565,13 +564,11 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 			  struct tiadc_device *adc_dev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct property *prop;
-	const __be32 *cur;
 	int channels = 0;
 	u32 val;
 	int i;
 
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+	of_property_for_each_u32(node, "ti,adc-channels", val) {
 		adc_dev->channel_line[channels] = val;
 
 		/* Set Default values for optional DT parameters */
@@ -671,8 +668,10 @@ static int tiadc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	err = tiadc_request_dma(pdev, adc_dev);
-	if (err && err == -EPROBE_DEFER)
+	if (err && err != -ENODEV) {
+		dev_err_probe(&pdev->dev, err, "DMA request failed\n");
 		goto err_dma;
+	}
 
 	return 0;
 
@@ -682,7 +681,7 @@ err_dma:
 	return err;
 }
 
-static int tiadc_remove(struct platform_device *pdev)
+static void tiadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
@@ -698,8 +697,6 @@ static int tiadc_remove(struct platform_device *pdev)
 
 	step_en = get_adc_step_mask(adc_dev);
 	am335x_tsc_se_clr(adc_dev->mfd_tscadc, step_en);
-
-	return 0;
 }
 
 static int tiadc_suspend(struct device *dev)
@@ -748,7 +745,7 @@ static struct platform_driver tiadc_driver = {
 		.of_match_table = ti_adc_dt_ids,
 	},
 	.probe	= tiadc_probe,
-	.remove	= tiadc_remove,
+	.remove_new = tiadc_remove,
 };
 module_platform_driver(tiadc_driver);
 

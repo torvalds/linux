@@ -91,7 +91,7 @@ struct mt6360_priv {
 	unsigned int fled_torch_used;
 	unsigned int leds_active;
 	unsigned int leds_count;
-	struct mt6360_led leds[];
+	struct mt6360_led leds[] __counted_by(leds_count);
 };
 
 static int mt6360_mc_brightness_set(struct led_classdev *lcdev,
@@ -241,9 +241,19 @@ static int mt6360_strobe_set(struct led_classdev_flash *fl_cdev, bool state)
 	u32 enable_mask = MT6360_STROBEN_MASK | MT6360_FLCSEN_MASK(led->led_no);
 	u32 val = state ? MT6360_FLCSEN_MASK(led->led_no) : 0;
 	u32 prev = priv->fled_strobe_used, curr;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&priv->lock);
+
+	/*
+	 * If the state of the upcoming change is the same as the current LED
+	 * device state, then skip the subsequent code to avoid conflict
+	 * with the flow of turning on LED torch mode in V4L2.
+	 */
+	if (state == !!(BIT(led->led_no) & prev)) {
+		dev_info(lcdev->dev, "No change in strobe state [0x%x]\n", prev);
+		goto unlock;
+	}
 
 	/*
 	 * Only one set of flash control logic, use the flag to avoid torch is
@@ -633,14 +643,17 @@ static int mt6360_init_isnk_properties(struct mt6360_led *led,
 
 			ret = fwnode_property_read_u32(child, "reg", &reg);
 			if (ret || reg > MT6360_LED_ISNK3 ||
-			    priv->leds_active & BIT(reg))
+			    priv->leds_active & BIT(reg)) {
+				fwnode_handle_put(child);
 				return -EINVAL;
+			}
 
 			ret = fwnode_property_read_u32(child, "color", &color);
 			if (ret) {
 				dev_err(priv->dev,
 					"led %d, no color specified\n",
 					led->led_no);
+				fwnode_handle_put(child);
 				return ret;
 			}
 
@@ -855,12 +868,11 @@ out_flash_release:
 	return ret;
 }
 
-static int mt6360_led_remove(struct platform_device *pdev)
+static void mt6360_led_remove(struct platform_device *pdev)
 {
 	struct mt6360_priv *priv = platform_get_drvdata(pdev);
 
 	mt6360_v4l2_flash_release(priv);
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused mt6360_led_of_id[] = {
@@ -875,7 +887,7 @@ static struct platform_driver mt6360_led_driver = {
 		.of_match_table = mt6360_led_of_id,
 	},
 	.probe = mt6360_led_probe,
-	.remove = mt6360_led_remove,
+	.remove_new = mt6360_led_remove,
 };
 module_platform_driver(mt6360_led_driver);
 

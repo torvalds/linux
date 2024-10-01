@@ -18,6 +18,7 @@
 #include "xfs_bmap.h"
 #include "xfs_trans.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 
 /*
  * Directory file type support functions
@@ -51,7 +52,7 @@ xfs_dir2_sf_getdents(
 	struct xfs_mount	*mp = dp->i_mount;
 	xfs_dir2_dataptr_t	off;		/* current entry's offset */
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
-	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
+	struct xfs_dir2_sf_hdr	*sfp = dp->i_df.if_data;
 	xfs_dir2_dataptr_t	dot_offset;
 	xfs_dir2_dataptr_t	dotdot_offset;
 	xfs_ino_t		ino;
@@ -59,9 +60,7 @@ xfs_dir2_sf_getdents(
 
 	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
-	ASSERT(dp->i_df.if_u1.if_data != NULL);
-
-	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
+	ASSERT(sfp != NULL);
 
 	/*
 	 * If the block number in the offset is out of range, we're done.
@@ -119,8 +118,10 @@ xfs_dir2_sf_getdents(
 		ctx->pos = off & 0x7fffffff;
 		if (XFS_IS_CORRUPT(dp->i_mount,
 				   !xfs_dir2_namecheck(sfep->name,
-						       sfep->namelen)))
+						       sfep->namelen))) {
+			xfs_dirattr_mark_sick(dp, XFS_DATA_FORK);
 			return -EFSCORRUPTED;
+		}
 		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen, ino,
 			    xfs_dir3_get_dtype(mp, filetype)))
 			return 0;
@@ -156,7 +157,7 @@ xfs_dir2_block_getdents(
 	if (xfs_dir2_dataptr_to_db(geo, ctx->pos) > geo->datablk)
 		return 0;
 
-	error = xfs_dir3_block_read(args->trans, dp, &bp);
+	error = xfs_dir3_block_read(args->trans, dp, args->owner, &bp);
 	if (error)
 		return error;
 
@@ -212,6 +213,7 @@ xfs_dir2_block_getdents(
 		if (XFS_IS_CORRUPT(dp->i_mount,
 				   !xfs_dir2_namecheck(dep->name,
 						       dep->namelen))) {
+			xfs_dirattr_mark_sick(dp, XFS_DATA_FORK);
 			error = -EFSCORRUPTED;
 			goto out_rele;
 		}
@@ -280,7 +282,8 @@ xfs_dir2_leaf_readbuf(
 	new_off = xfs_dir2_da_to_byte(geo, map.br_startoff);
 	if (new_off > *cur_off)
 		*cur_off = new_off;
-	error = xfs_dir3_data_read(args->trans, dp, map.br_startoff, 0, &bp);
+	error = xfs_dir3_data_read(args->trans, dp, args->owner,
+			map.br_startoff, 0, &bp);
 	if (error)
 		goto out;
 
@@ -466,6 +469,7 @@ xfs_dir2_leaf_getdents(
 		if (XFS_IS_CORRUPT(dp->i_mount,
 				   !xfs_dir2_namecheck(dep->name,
 						       dep->namelen))) {
+			xfs_dirattr_mark_sick(dp, XFS_DATA_FORK);
 			error = -EFSCORRUPTED;
 			break;
 		}
@@ -512,38 +516,40 @@ xfs_readdir(
 {
 	struct xfs_da_args	args = { NULL };
 	unsigned int		lock_mode;
-	bool			isblock;
 	int			error;
 
 	trace_xfs_readdir(dp);
 
 	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
+	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
+		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(xfs_isilocked(dp, XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL);
 	XFS_STATS_INC(dp->i_mount, xs_dir_getdents);
 
 	args.dp = dp;
 	args.geo = dp->i_mount->m_dir_geo;
 	args.trans = tp;
+	args.owner = dp->i_ino;
 
 	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_dir2_sf_getdents(&args, ctx);
 
 	lock_mode = xfs_ilock_data_map_shared(dp);
-	error = xfs_dir2_isblock(&args, &isblock);
-	if (error)
-		goto out_unlock;
-
-	if (isblock) {
+	switch (xfs_dir2_format(&args, &error)) {
+	case XFS_DIR2_FMT_BLOCK:
 		error = xfs_dir2_block_getdents(&args, ctx, &lock_mode);
-		goto out_unlock;
+		break;
+	case XFS_DIR2_FMT_LEAF:
+	case XFS_DIR2_FMT_NODE:
+		error = xfs_dir2_leaf_getdents(&args, ctx, bufsize, &lock_mode);
+		break;
+	default:
+		break;
 	}
 
-	error = xfs_dir2_leaf_getdents(&args, ctx, bufsize, &lock_mode);
-
-out_unlock:
 	if (lock_mode)
 		xfs_iunlock(dp, lock_mode);
 	return error;

@@ -5,6 +5,7 @@
  *   AD8366 Dual-Digital Variable Gain Amplifier (VGA)
  *   ADA4961 BiCMOS RF Digital Gain Amplifier (DGA)
  *   ADL5240 Digitally controlled variable gain amplifier (VGA)
+ *   HMC792A 0.25 dB LSB GaAs MMIC 6-Bit Digital Attenuator
  *   HMC1119 0.25 dB LSB, 7-Bit, Silicon Digital Attenuator
  *
  * Copyright 2012-2019 Analog Devices Inc.
@@ -28,6 +29,7 @@ enum ad8366_type {
 	ID_AD8366,
 	ID_ADA4961,
 	ID_ADL5240,
+	ID_HMC792,
 	ID_HMC1119,
 };
 
@@ -64,6 +66,10 @@ static struct ad8366_info ad8366_infos[] = {
 		.gain_min = -11500,
 		.gain_max = 20000,
 	},
+	[ID_HMC792] = {
+		.gain_min = -15750,
+		.gain_max = 0,
+	},
 	[ID_HMC1119] = {
 		.gain_min = -31750,
 		.gain_max = 0,
@@ -90,6 +96,7 @@ static int ad8366_write(struct iio_dev *indio_dev,
 	case ID_ADL5240:
 		st->data[0] = (ch_a & 0x3F);
 		break;
+	case ID_HMC792:
 	case ID_HMC1119:
 		st->data[0] = ch_a;
 		break;
@@ -126,6 +133,9 @@ static int ad8366_read_raw(struct iio_dev *indio_dev,
 			break;
 		case ID_ADL5240:
 			gain = 20000 - 31500 + code * 500;
+			break;
+		case ID_HMC792:
+			gain = -1 * code * 500;
 			break;
 		case ID_HMC1119:
 			gain = -1 * code * 250;
@@ -175,6 +185,9 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 		break;
 	case ID_ADL5240:
 		code = ((gain - 500 - 20000) / 500) & 0x3F;
+		break;
+	case ID_HMC792:
+		code = (abs(gain) / 500) & 0x3F;
 		break;
 	case ID_HMC1119:
 		code = (abs(gain) / 250) & 0x7F;
@@ -261,6 +274,7 @@ static int ad8366_probe(struct spi_device *spi)
 		break;
 	case ID_ADA4961:
 	case ID_ADL5240:
+	case ID_HMC792:
 	case ID_HMC1119:
 		st->reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset", GPIOD_OUT_HIGH);
 		if (IS_ERR(st->reset_gpio)) {
@@ -314,6 +328,7 @@ static const struct spi_device_id ad8366_id[] = {
 	{"ad8366",  ID_AD8366},
 	{"ada4961", ID_ADA4961},
 	{"adl5240", ID_ADL5240},
+	{"hmc792a", ID_HMC792},
 	{"hmc1119", ID_HMC1119},
 	{}
 };

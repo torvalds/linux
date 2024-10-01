@@ -3,12 +3,11 @@
 // Copyright 2012 Freescale Semiconductor, Inc.
 // Copyright 2012 Linaro Ltd.
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/i2c.h>
-#include <linux/of_gpio.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
 
@@ -23,12 +22,11 @@ struct imx_es8328_data {
 	struct snd_soc_card card;
 	char codec_dai_name[DAI_NAME_SIZE];
 	char platform_name[DAI_NAME_SIZE];
-	int jack_gpio;
+	struct gpio_desc *jack_gpiod;
 };
 
 static struct snd_soc_jack_gpio headset_jack_gpios[] = {
 	{
-		.gpio = -1,
 		.name = "headset-gpio",
 		.report = SND_JACK_HEADSET,
 		.invert = 0,
@@ -37,6 +35,16 @@ static struct snd_soc_jack_gpio headset_jack_gpios[] = {
 };
 
 static struct snd_soc_jack headset_jack;
+static struct snd_soc_jack_pin headset_jack_pins[] = {
+	{
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE,
+	},
+	{
+		.pin = "Mic Jack",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
 
 static int imx_es8328_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -44,15 +52,17 @@ static int imx_es8328_dai_init(struct snd_soc_pcm_runtime *rtd)
 					struct imx_es8328_data, card);
 	int ret = 0;
 
-	/* Headphone jack detection */
-	if (gpio_is_valid(data->jack_gpio)) {
-		ret = snd_soc_card_jack_new(rtd->card, "Headphone",
-					    SND_JACK_HEADPHONE | SND_JACK_BTN_0,
-					    &headset_jack);
+	if (data->jack_gpiod) {
+		/* Headphone jack detection */
+		ret = snd_soc_card_jack_new_pins(rtd->card, "Headphone",
+						 SND_JACK_HEADSET | SND_JACK_BTN_0,
+						 &headset_jack,
+						 headset_jack_pins,
+						 ARRAY_SIZE(headset_jack_pins));
 		if (ret)
 			return ret;
 
-		headset_jack_gpios[0].gpio = data->jack_gpio;
+		headset_jack_gpios[0].desc = data->jack_gpiod;
 		ret = snd_soc_jack_add_gpios(&headset_jack,
 					     ARRAY_SIZE(headset_jack_gpios),
 					     headset_jack_gpios);
@@ -66,6 +76,11 @@ static const struct snd_soc_dapm_widget imx_es8328_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("audio-amp", 1, 0),
+};
+
+static const struct snd_kcontrol_new imx_es8328_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 };
 
 static int imx_es8328_probe(struct platform_device *pdev)
@@ -157,7 +172,11 @@ static int imx_es8328_probe(struct platform_device *pdev)
 
 	data->dev = dev;
 
-	data->jack_gpio = of_get_named_gpio(pdev->dev.of_node, "jack-gpio", 0);
+	data->jack_gpiod = devm_gpiod_get_optional(dev, "jack", GPIOD_IN);
+	if (IS_ERR(data->jack_gpiod)) {
+		ret = PTR_ERR(data->jack_gpiod);
+		goto put_device;
+	}
 
 	/*
 	 * CPU == Platform
@@ -183,6 +202,8 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	data->card.dev = dev;
 	data->card.dapm_widgets = imx_es8328_dapm_widgets;
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_es8328_dapm_widgets);
+	data->card.controls = imx_es8328_controls;
+	data->card.num_controls = ARRAY_SIZE(imx_es8328_controls);
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret) {
 		dev_err(dev, "Unable to parse card name\n");

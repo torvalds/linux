@@ -127,5 +127,6 @@ static struct usb_driver isight_firmware_driver = {
 
 module_usb_driver(isight_firmware_driver);
 
+MODULE_DESCRIPTION("iSight firmware loading support");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");

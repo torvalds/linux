@@ -10,8 +10,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -293,7 +292,7 @@ static struct platform_driver exynos_audss_clk_driver = {
 		.pm = &exynos_audss_clk_pm_ops,
 	},
 	.probe = exynos_audss_clk_probe,
-	.remove_new = exynos_audss_clk_remove,
+	.remove = exynos_audss_clk_remove,
 };
 
 module_platform_driver(exynos_audss_clk_driver);

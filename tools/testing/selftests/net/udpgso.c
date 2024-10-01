@@ -34,7 +34,7 @@
 #endif
 
 #ifndef UDP_MAX_SEGMENTS
-#define UDP_MAX_SEGMENTS	(1 << 6UL)
+#define UDP_MAX_SEGMENTS	(1 << 7UL)
 #endif
 
 #define CONST_MTU_TEST	1500
@@ -53,10 +53,10 @@ static bool		cfg_do_ipv6;
 static bool		cfg_do_connected;
 static bool		cfg_do_connectionless;
 static bool		cfg_do_msgmore;
+static bool		cfg_do_recv = true;
 static bool		cfg_do_setsockopt;
 static int		cfg_specific_test_id = -1;
 
-static const char	cfg_ifname[] = "lo";
 static unsigned short	cfg_port = 9000;
 
 static char buf[ETH_MAX_MTU];
@@ -67,10 +67,18 @@ struct testcase {
 	int gso_len;		/* mss after applying gso */
 	int r_num_mss;		/* recv(): number of calls of full mss */
 	int r_len_last;		/* recv(): size of last non-mss dgram, if any */
+	bool v6_ext_hdr;	/* send() dgrams with IPv6 extension headers */
 };
 
-const struct in6_addr addr6 = IN6ADDR_LOOPBACK_INIT;
-const struct in_addr addr4 = { .s_addr = __constant_htonl(INADDR_LOOPBACK + 2) };
+const struct in6_addr addr6 = {
+	{ { 0xfd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } }, /* fd00::1 */
+};
+
+const struct in_addr addr4 = {
+	__constant_htonl(0x0a000001), /* 10.0.0.1 */
+};
+
+static const char ipv6_hopopts_pad1[8] = { 0 };
 
 struct testcase testcases_v4[] = {
 	{
@@ -251,6 +259,13 @@ struct testcase testcases_v6[] = {
 		.r_num_mss = 2,
 	},
 	{
+		/* send 2 1B segments with extension headers */
+		.tlen = 2,
+		.gso_len = 1,
+		.r_num_mss = 2,
+		.v6_ext_hdr = true,
+	},
+	{
 		/* send 2B + 2B + 1B segments */
 		.tlen = 5,
 		.gso_len = 2,
@@ -273,48 +288,6 @@ struct testcase testcases_v6[] = {
 		/* EOL */
 	}
 };
-
-static unsigned int get_device_mtu(int fd, const char *ifname)
-{
-	struct ifreq ifr;
-
-	memset(&ifr, 0, sizeof(ifr));
-
-	strcpy(ifr.ifr_name, ifname);
-
-	if (ioctl(fd, SIOCGIFMTU, &ifr))
-		error(1, errno, "ioctl get mtu");
-
-	return ifr.ifr_mtu;
-}
-
-static void __set_device_mtu(int fd, const char *ifname, unsigned int mtu)
-{
-	struct ifreq ifr;
-
-	memset(&ifr, 0, sizeof(ifr));
-
-	ifr.ifr_mtu = mtu;
-	strcpy(ifr.ifr_name, ifname);
-
-	if (ioctl(fd, SIOCSIFMTU, &ifr))
-		error(1, errno, "ioctl set mtu");
-}
-
-static void set_device_mtu(int fd, int mtu)
-{
-	int val;
-
-	val = get_device_mtu(fd, cfg_ifname);
-	fprintf(stderr, "device mtu (orig): %u\n", val);
-
-	__set_device_mtu(fd, cfg_ifname, mtu);
-	val = get_device_mtu(fd, cfg_ifname);
-	if (val != mtu)
-		error(1, 0, "unable to set device mtu to %u\n", val);
-
-	fprintf(stderr, "device mtu (test): %u\n", val);
-}
 
 static void set_pmtu_discover(int fd, bool is_ipv4)
 {
@@ -352,81 +325,6 @@ static unsigned int get_path_mtu(int fd, bool is_ipv4)
 
 	fprintf(stderr, "path mtu (read):  %u\n", mtu);
 	return mtu;
-}
-
-/* very wordy version of system("ip route add dev lo mtu 1500 127.0.0.3/32") */
-static void set_route_mtu(int mtu, bool is_ipv4)
-{
-	struct sockaddr_nl nladdr = { .nl_family = AF_NETLINK };
-	struct nlmsghdr *nh;
-	struct rtattr *rta;
-	struct rtmsg *rt;
-	char data[NLMSG_ALIGN(sizeof(*nh)) +
-		  NLMSG_ALIGN(sizeof(*rt)) +
-		  NLMSG_ALIGN(RTA_LENGTH(sizeof(addr6))) +
-		  NLMSG_ALIGN(RTA_LENGTH(sizeof(int))) +
-		  NLMSG_ALIGN(RTA_LENGTH(0) + RTA_LENGTH(sizeof(int)))];
-	int fd, ret, alen, off = 0;
-
-	alen = is_ipv4 ? sizeof(addr4) : sizeof(addr6);
-
-	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
-	if (fd == -1)
-		error(1, errno, "socket netlink");
-
-	memset(data, 0, sizeof(data));
-
-	nh = (void *)data;
-	nh->nlmsg_type = RTM_NEWROUTE;
-	nh->nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE;
-	off += NLMSG_ALIGN(sizeof(*nh));
-
-	rt = (void *)(data + off);
-	rt->rtm_family = is_ipv4 ? AF_INET : AF_INET6;
-	rt->rtm_table = RT_TABLE_MAIN;
-	rt->rtm_dst_len = alen << 3;
-	rt->rtm_protocol = RTPROT_BOOT;
-	rt->rtm_scope = RT_SCOPE_UNIVERSE;
-	rt->rtm_type = RTN_UNICAST;
-	off += NLMSG_ALIGN(sizeof(*rt));
-
-	rta = (void *)(data + off);
-	rta->rta_type = RTA_DST;
-	rta->rta_len = RTA_LENGTH(alen);
-	if (is_ipv4)
-		memcpy(RTA_DATA(rta), &addr4, alen);
-	else
-		memcpy(RTA_DATA(rta), &addr6, alen);
-	off += NLMSG_ALIGN(rta->rta_len);
-
-	rta = (void *)(data + off);
-	rta->rta_type = RTA_OIF;
-	rta->rta_len = RTA_LENGTH(sizeof(int));
-	*((int *)(RTA_DATA(rta))) = 1; //if_nametoindex("lo");
-	off += NLMSG_ALIGN(rta->rta_len);
-
-	/* MTU is a subtype in a metrics type */
-	rta = (void *)(data + off);
-	rta->rta_type = RTA_METRICS;
-	rta->rta_len = RTA_LENGTH(0) + RTA_LENGTH(sizeof(int));
-	off += NLMSG_ALIGN(rta->rta_len);
-
-	/* now fill MTU subtype. Note that it fits within above rta_len */
-	rta = (void *)(((char *) rta) + RTA_LENGTH(0));
-	rta->rta_type = RTAX_MTU;
-	rta->rta_len = RTA_LENGTH(sizeof(int));
-	*((int *)(RTA_DATA(rta))) = mtu;
-
-	nh->nlmsg_len = off;
-
-	ret = sendto(fd, data, off, 0, (void *)&nladdr, sizeof(nladdr));
-	if (ret != off)
-		error(1, errno, "send netlink: %uB != %uB\n", ret, off);
-
-	if (close(fd))
-		error(1, errno, "close netlink");
-
-	fprintf(stderr, "route mtu (test): %u\n", mtu);
 }
 
 static bool __send_one(int fd, struct msghdr *msg, int flags)
@@ -508,10 +406,17 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 	int i, ret, val, mss;
 	bool sent;
 
-	fprintf(stderr, "ipv%d tx:%d gso:%d %s\n",
+	fprintf(stderr, "ipv%d tx:%d gso:%d %s%s\n",
 			addr->sa_family == AF_INET ? 4 : 6,
 			test->tlen, test->gso_len,
+			test->v6_ext_hdr ? "ext-hdr " : "",
 			test->tfail ? "(fail)" : "");
+
+	if (test->v6_ext_hdr) {
+		if (setsockopt(fdt, IPPROTO_IPV6, IPV6_HOPOPTS,
+			       ipv6_hopopts_pad1, sizeof(ipv6_hopopts_pad1)))
+			error(1, errno, "setsockopt ipv6 hopopts");
+	}
 
 	val = test->gso_len;
 	if (cfg_do_setsockopt) {
@@ -524,7 +429,16 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 		error(1, 0, "send succeeded while expecting failure");
 	if (!sent && !test->tfail)
 		error(1, 0, "send failed while expecting success");
+
+	if (test->v6_ext_hdr) {
+		if (setsockopt(fdt, IPPROTO_IPV6, IPV6_HOPOPTS, NULL, 0))
+			error(1, errno, "setsockopt ipv6 hopopts clear");
+	}
+
 	if (!sent)
+		return;
+
+	if (!cfg_do_recv)
 		return;
 
 	if (test->gso_len)
@@ -577,8 +491,10 @@ static void run_test(struct sockaddr *addr, socklen_t alen)
 	if (fdr == -1)
 		error(1, errno, "socket r");
 
-	if (bind(fdr, addr, alen))
-		error(1, errno, "bind");
+	if (cfg_do_recv) {
+		if (bind(fdr, addr, alen))
+			error(1, errno, "bind");
+	}
 
 	/* Have tests fail quickly instead of hang */
 	if (setsockopt(fdr, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
@@ -591,15 +507,10 @@ static void run_test(struct sockaddr *addr, socklen_t alen)
 	/* Do not fragment these datagrams: only succeed if GSO works */
 	set_pmtu_discover(fdt, addr->sa_family == AF_INET);
 
-	if (cfg_do_connectionless) {
-		set_device_mtu(fdt, CONST_MTU_TEST);
+	if (cfg_do_connectionless)
 		run_all(fdt, fdr, addr, alen);
-	}
 
 	if (cfg_do_connected) {
-		set_device_mtu(fdt, CONST_MTU_TEST + 100);
-		set_route_mtu(CONST_MTU_TEST, addr->sa_family == AF_INET);
-
 		if (connect(fdt, addr, alen))
 			error(1, errno, "connect");
 
@@ -642,7 +553,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "46cCmst:")) != -1) {
+	while ((c = getopt(argc, argv, "46cCmRst:")) != -1) {
 		switch (c) {
 		case '4':
 			cfg_do_ipv4 = true;
@@ -658,6 +569,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'm':
 			cfg_do_msgmore = true;
+			break;
+		case 'R':
+			cfg_do_recv = false;
 			break;
 		case 's':
 			cfg_do_setsockopt = true;

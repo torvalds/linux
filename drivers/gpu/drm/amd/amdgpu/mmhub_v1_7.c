@@ -274,7 +274,7 @@ static void mmhub_v1_7_setup_vmid_config(struct amdgpu_device *adev)
 		block_size -= 9;
 
 	for (i = 0; i <= 14; i++) {
-		tmp = RREG32_SOC15_OFFSET(MMHUB, 0, regVM_CONTEXT1_CNTL, i);
+		tmp = RREG32_SOC15_OFFSET(MMHUB, 0, regVM_CONTEXT1_CNTL, i * hub->ctx_distance);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH,
 				    num_level);
@@ -544,7 +544,7 @@ static int mmhub_v1_7_set_clockgating(struct amdgpu_device *adev,
 
 static void mmhub_v1_7_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
-	int data, data1;
+	u32 data, data1;
 
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;

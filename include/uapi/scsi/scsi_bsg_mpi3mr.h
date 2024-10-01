@@ -296,6 +296,7 @@ struct mpi3mr_hdb_entry {
  * multiple hdb entries.
  *
  * @num_hdb_types: Number of host diag buffer types supported
+ * @element_trigger_format: Element trigger format
  * @rsvd1: Reserved
  * @rsvd2: Reserved
  * @rsvd3: Reserved
@@ -303,7 +304,7 @@ struct mpi3mr_hdb_entry {
  */
 struct mpi3mr_bsg_in_hdb_status {
 	__u8	num_hdb_types;
-	__u8	rsvd1;
+	__u8    element_trigger_format;
 	__u16	rsvd2;
 	__u32	rsvd3;
 	struct mpi3mr_hdb_entry entry[1];
@@ -382,7 +383,7 @@ struct mpi3mr_bsg_in_reply_buf {
 	__u8	mpi_reply_type;
 	__u8	rsvd1;
 	__u16	rsvd2;
-	__u8	reply_buf[1];
+	__u8	reply_buf[];
 };
 
 /**
@@ -401,7 +402,7 @@ struct mpi3mr_buf_entry {
 	__u32	buf_len;
 };
 /**
- * struct mpi3mr_bsg_buf_entry_list - list of user buffer
+ * struct mpi3mr_buf_entry_list - list of user buffer
  * descriptor for MPI Passthrough requests.
  *
  * @num_of_entries: Number of buffer descriptors
@@ -424,6 +425,7 @@ struct mpi3mr_buf_entry_list {
  * @mrioc_id: Controller ID
  * @rsvd1: Reserved
  * @timeout: MPI request timeout
+ * @rsvd2: Reserved
  * @buf_entry_list: Buffer descriptor list
  */
 struct mpi3mr_bsg_mptcmd {
@@ -441,8 +443,9 @@ struct mpi3mr_bsg_mptcmd {
  * @cmd_type: represents drvrcmd or mptcmd
  * @rsvd1: Reserved
  * @rsvd2: Reserved
- * @drvrcmd: driver request structure
- * @mptcmd: mpt request structure
+ * @rsvd3: Reserved
+ * @cmd.drvrcmd: driver request structure
+ * @cmd.mptcmd: mpt request structure
  */
 struct mpi3mr_bsg_packet {
 	__u8	cmd_type;
@@ -491,6 +494,8 @@ struct mpi3_nvme_encapsulated_error_reply {
 #define MPI3MR_NVME_DATA_FORMAT_PRP	0
 #define MPI3MR_NVME_DATA_FORMAT_SGL1	1
 #define MPI3MR_NVME_DATA_FORMAT_SGL2	2
+#define MPI3MR_NVMESGL_DATA_SEGMENT	0x00
+#define MPI3MR_NVMESGL_LAST_SEGMENT	0x03
 
 /* MPI3: task management related definitions */
 struct mpi3_scsi_task_mgmt_request {

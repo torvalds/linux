@@ -52,8 +52,12 @@ properties:
               - renesas,vin-r8a77980 # R-Car V3H
               - renesas,vin-r8a77990 # R-Car E3
               - renesas,vin-r8a77995 # R-Car D3
+      - items:
+          - enum:
               - renesas,vin-r8a779a0 # R-Car V3U
               - renesas,vin-r8a779g0 # R-Car V4H
+              - renesas,vin-r8a779h0 # R-Car V4M
+          - const: renesas,rcar-gen4-vin # Generic R-Car Gen4
 
   reg:
     maxItems: 1
@@ -95,7 +99,7 @@ properties:
               synchronization is selected.
             default: 1
 
-          field-active-even: true
+          field-even-active: true
 
           bus-width: true
 
@@ -144,7 +148,7 @@ properties:
                   synchronization is selected.
                 default: 1
 
-              field-active-even: true
+              field-even-active: true
 
               bus-width: true
 

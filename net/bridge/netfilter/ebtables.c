@@ -1111,6 +1111,8 @@ static int do_replace(struct net *net, sockptr_t arg, unsigned int len)
 	struct ebt_table_info *newinfo;
 	struct ebt_replace tmp;
 
+	if (len < sizeof(tmp))
+		return -EINVAL;
 	if (copy_from_sockptr(&tmp, arg, sizeof(tmp)) != 0)
 		return -EFAULT;
 
@@ -1254,7 +1256,7 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 		goto free_unlock;
 	}
 
-	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
+	ops = kmemdup_array(template_ops, num_ops, sizeof(*ops), GFP_KERNEL);
 	if (!ops) {
 		ret = -ENOMEM;
 		if (newinfo->nentries)
@@ -1423,6 +1425,8 @@ static int update_counters(struct net *net, sockptr_t arg, unsigned int len)
 {
 	struct ebt_replace hlp;
 
+	if (len < sizeof(hlp))
+		return -EINVAL;
 	if (copy_from_sockptr(&hlp, arg, sizeof(hlp)))
 		return -EFAULT;
 
@@ -2115,8 +2119,7 @@ static int size_entry_mwt(const struct ebt_entry *entry, const unsigned char *ba
 		return ret;
 
 	offsets[0] = sizeof(struct ebt_entry); /* matches come first */
-	memcpy(&offsets[1], &entry->watchers_offset,
-			sizeof(offsets) - sizeof(offsets[0]));
+	memcpy(&offsets[1], &entry->offsets, sizeof(entry->offsets));
 
 	if (state->buf_kern_start) {
 		buf_start = state->buf_kern_start + state->buf_kern_offset;
@@ -2353,6 +2356,8 @@ static int compat_update_counters(struct net *net, sockptr_t arg,
 {
 	struct compat_ebt_replace hlp;
 
+	if (len < sizeof(hlp))
+		return -EINVAL;
 	if (copy_from_sockptr(&hlp, arg, sizeof(hlp)))
 		return -EFAULT;
 
@@ -2596,3 +2601,4 @@ EXPORT_SYMBOL(ebt_do_table);
 module_init(ebtables_init);
 module_exit(ebtables_fini);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ebtables legacy core");

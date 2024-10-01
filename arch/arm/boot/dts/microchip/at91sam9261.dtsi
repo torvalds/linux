@@ -205,7 +205,7 @@
 				status = "disabled";
 			};
 
-			usart2: serial@fffb8000{
+			usart2: serial@fffb8000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffb8000 0x200>;
 				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
@@ -317,7 +317,7 @@
 			pinctrl@fffff400 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
+				compatible = "atmel,at91rm9200-pinctrl", "simple-mfd";
 				ranges = <0xfffff400 0xfffff400 0x600>;
 
 				atmel,mux-mask =

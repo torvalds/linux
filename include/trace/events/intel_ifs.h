@@ -10,28 +10,55 @@
 
 TRACE_EVENT(ifs_status,
 
-	TP_PROTO(int cpu, union ifs_scan activate, union ifs_status status),
+	TP_PROTO(int batch, int start, int stop, u64 status),
 
-	TP_ARGS(cpu, activate, status),
+	TP_ARGS(batch, start, stop, status),
 
 	TP_STRUCT__entry(
+		__field(	int,	batch	)
 		__field(	u64,	status	)
-		__field(	int,	cpu	)
-		__field(	u8,	start	)
-		__field(	u8,	stop	)
+		__field(	u16,	start	)
+		__field(	u16,	stop	)
 	),
 
 	TP_fast_assign(
-		__entry->cpu	= cpu;
-		__entry->start	= activate.start;
-		__entry->stop	= activate.stop;
-		__entry->status	= status.data;
+		__entry->batch	= batch;
+		__entry->start	= start;
+		__entry->stop	= stop;
+		__entry->status	= status;
 	),
 
-	TP_printk("cpu: %d, start: %.2x, stop: %.2x, status: %llx",
-		__entry->cpu,
+	TP_printk("batch: 0x%.2x, start: 0x%.4x, stop: 0x%.4x, status: 0x%.16llx",
+		__entry->batch,
 		__entry->start,
 		__entry->stop,
+		__entry->status)
+);
+
+TRACE_EVENT(ifs_sbaf,
+
+	TP_PROTO(int batch, union ifs_sbaf activate, union ifs_sbaf_status status),
+
+	TP_ARGS(batch, activate, status),
+
+	TP_STRUCT__entry(
+		__field(	u64,	status	)
+		__field(	int,	batch	)
+		__field(	u16,	bundle	)
+		__field(	u16,	pgm	)
+	),
+
+	TP_fast_assign(
+		__entry->status	= status.data;
+		__entry->batch	= batch;
+		__entry->bundle	= activate.bundle_idx;
+		__entry->pgm	= activate.pgm_idx;
+	),
+
+	TP_printk("batch: 0x%.2x, bundle_idx: 0x%.4x, pgm_idx: 0x%.4x, status: 0x%.16llx",
+		__entry->batch,
+		__entry->bundle,
+		__entry->pgm,
 		__entry->status)
 );
 

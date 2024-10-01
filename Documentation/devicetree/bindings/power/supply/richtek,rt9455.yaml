@@ -79,10 +79,10 @@ examples:
         interrupt-parent = <&gpio1>;
         interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 
-        richtek,output-charge-current	    = <500000>;
-        richtek,end-of-charge-percentage    = <10>;
-        richtek,battery-regulation-voltage  = <4200000>;
-        richtek,boost-output-voltage	    = <5050000>;
+        richtek,output-charge-current = <500000>;
+        richtek,end-of-charge-percentage = <10>;
+        richtek,battery-regulation-voltage = <4200000>;
+        richtek,boost-output-voltage = <5050000>;
 
         richtek,min-input-voltage-regulation = <4500000>;
         richtek,avg-input-current-regulation = <500000>;

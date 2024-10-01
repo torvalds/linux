@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/nxp,sc16is7xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP SC16IS7xx Advanced Universal Asynchronous Receiver-Transmitter (UART)
+
+maintainers:
+  - Hugo Villeneuve <hvilleneuve@dimonoff.com>
+
+properties:
+  compatible:
+    enum:
+      - nxp,sc16is740
+      - nxp,sc16is741
+      - nxp,sc16is750
+      - nxp,sc16is752
+      - nxp,sc16is760
+      - nxp,sc16is762
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  clock-frequency:
+    description:
+      When there is no clock provider visible to the platform, this
+      is the source crystal or external clock frequency for the IC in Hz.
+    minimum: 1
+    maximum: 80000000
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+
+  gpio-line-names:
+    minItems: 1
+    maxItems: 8
+
+  irda-mode-ports:
+    description: |
+      An array that lists the indices of the port that should operate in IrDA
+      mode:
+      0: port A
+      1: port B
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 2
+    items:
+      minimum: 0
+      maximum: 1
+
+  nxp,modem-control-line-ports:
+    description: |
+      An array that lists the indices of the port that should have shared GPIO
+      lines configured as modem control lines:
+      0: port A
+      1: port B
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 2
+    items:
+      minimum: 0
+      maximum: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - $ref: /schemas/serial/serial.yaml#
+  - $ref: /schemas/serial/rs485.yaml#
+
+oneOf:
+  - required:
+      - clocks
+  - required:
+      - clock-frequency
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        serial@51 {
+            compatible = "nxp,sc16is750";
+            reg = <0x51>;
+            clocks = <&clk20m>;
+            interrupt-parent = <&gpio3>;
+            interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+            gpio-controller;
+            #gpio-cells = <2>;
+        };
+
+        serial@53 {
+            compatible = "nxp,sc16is752";
+            reg = <0x53>;
+            clocks = <&clk20m>;
+            interrupt-parent = <&gpio3>;
+            interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+            nxp,modem-control-line-ports = <1>; /* Port 1 as modem control lines */
+            gpio-controller; /* Port 0 as GPIOs */
+            #gpio-cells = <2>;
+        };
+
+        serial@54 {
+            compatible = "nxp,sc16is752";
+            reg = <0x54>;
+            clocks = <&clk20m>;
+            reset-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+            interrupt-parent = <&gpio3>;
+            interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+            nxp,modem-control-line-ports = <0 1>; /* Ports 0 and 1 as modem control lines */
+        };
+    };

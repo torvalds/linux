@@ -128,7 +128,7 @@ struct ad799x_state {
 	struct regulator		*vref;
 	/* lock to protect against multiple access to the device */
 	struct mutex			lock;
-	unsigned			id;
+	unsigned int			id;
 	u16				config;
 
 	u8				*rx_buf;
@@ -237,7 +237,8 @@ static int ad799x_update_scan_mode(struct iio_dev *indio_dev,
 	if (!st->rx_buf)
 		return -ENOMEM;
 
-	st->transfer_size = bitmap_weight(scan_mask, indio_dev->masklength) * 2;
+	st->transfer_size = bitmap_weight(scan_mask,
+					  iio_get_masklength(indio_dev)) * 2;
 
 	switch (st->id) {
 	case ad7992:
@@ -253,7 +254,7 @@ static int ad799x_update_scan_mode(struct iio_dev *indio_dev,
 	}
 }
 
-static int ad799x_scan_direct(struct ad799x_state *st, unsigned ch)
+static int ad799x_scan_direct(struct ad799x_state *st, unsigned int ch)
 {
 	u8 cmd;
 
@@ -335,6 +336,7 @@ static ssize_t ad799x_read_frequency(struct device *dev,
 	struct ad799x_state *st = iio_priv(indio_dev);
 
 	int ret = i2c_smbus_read_byte_data(st->client, AD7998_CYCLE_TMR_REG);
+
 	if (ret < 0)
 		return ret;
 
@@ -523,7 +525,7 @@ done:
 	return IRQ_HANDLED;
 }
 
-static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_SAMP_FREQ(0644,
 			      ad799x_read_frequency,
 			      ad799x_write_frequency);
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("15625 7812 3906 1953 976 488 244 0");

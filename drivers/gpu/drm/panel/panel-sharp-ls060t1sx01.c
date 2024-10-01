@@ -24,7 +24,6 @@ struct sharp_ls060 {
 	struct regulator *avdd_supply;
 	struct regulator *avee_supply;
 	struct gpio_desc *reset_gpio;
-	bool prepared;
 };
 
 static inline struct sharp_ls060 *to_sharp_ls060(struct drm_panel *panel)
@@ -101,9 +100,6 @@ static int sharp_ls060_prepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_enable(ctx->vddi_supply);
 	if (ret < 0)
 		return ret;
@@ -134,8 +130,6 @@ static int sharp_ls060_prepare(struct drm_panel *panel)
 		goto err_on;
 	}
 
-	ctx->prepared = true;
-
 	return 0;
 
 err_on:
@@ -163,9 +157,6 @@ static int sharp_ls060_unprepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = sharp_ls060_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
@@ -181,7 +172,6 @@ static int sharp_ls060_unprepare(struct drm_panel *panel)
 
 	regulator_disable(ctx->vddi_supply);
 
-	ctx->prepared = false;
 	return 0;
 }
 

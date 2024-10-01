@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/pci.h>
 #include <linux/platform_data/simplefb.h>
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
@@ -37,6 +38,8 @@
 static struct platform_device *pd;
 static DEFINE_MUTEX(disable_lock);
 static bool disabled;
+
+static struct device *sysfb_parent_dev(const struct screen_info *si);
 
 static bool sysfb_unregister(void)
 {
@@ -51,6 +54,7 @@ static bool sysfb_unregister(void)
 
 /**
  * sysfb_disable() - disable the Generic System Framebuffers support
+ * @dev:	the device to check if non-NULL
  *
  * This disables the registration of system framebuffer devices that match the
  * generic drivers that make use of the system framebuffer set up by firmware.
@@ -60,22 +64,70 @@ static bool sysfb_unregister(void)
  * Context: The function can sleep. A @disable_lock mutex is acquired to serialize
  *          against sysfb_init(), that registers a system framebuffer device.
  */
-void sysfb_disable(void)
+void sysfb_disable(struct device *dev)
 {
+	struct screen_info *si = &screen_info;
+
 	mutex_lock(&disable_lock);
-	sysfb_unregister();
-	disabled = true;
+	if (!dev || dev == sysfb_parent_dev(si)) {
+		sysfb_unregister();
+		disabled = true;
+	}
 	mutex_unlock(&disable_lock);
 }
 EXPORT_SYMBOL_GPL(sysfb_disable);
 
+#if defined(CONFIG_PCI)
+static bool sysfb_pci_dev_is_enabled(struct pci_dev *pdev)
+{
+	/*
+	 * TODO: Try to integrate this code into the PCI subsystem
+	 */
+	int ret;
+	u16 command;
+
+	ret = pci_read_config_word(pdev, PCI_COMMAND, &command);
+	if (ret != PCIBIOS_SUCCESSFUL)
+		return false;
+	if (!(command & PCI_COMMAND_MEMORY))
+		return false;
+	return true;
+}
+#else
+static bool sysfb_pci_dev_is_enabled(struct pci_dev *pdev)
+{
+	return false;
+}
+#endif
+
+static struct device *sysfb_parent_dev(const struct screen_info *si)
+{
+	struct pci_dev *pdev;
+
+	pdev = screen_info_pci_dev(si);
+	if (IS_ERR(pdev)) {
+		return ERR_CAST(pdev);
+	} else if (pdev) {
+		if (!sysfb_pci_dev_is_enabled(pdev)) {
+			pci_dev_put(pdev);
+			return ERR_PTR(-ENODEV);
+		}
+		return &pdev->dev;
+	}
+
+	return NULL;
+}
+
 static __init int sysfb_init(void)
 {
 	struct screen_info *si = &screen_info;
+	struct device *parent;
 	struct simplefb_platform_data mode;
 	const char *name;
 	bool compatible;
 	int ret = 0;
+
+	screen_info_apply_fixups();
 
 	mutex_lock(&disable_lock);
 	if (disabled)
@@ -83,12 +135,18 @@ static __init int sysfb_init(void)
 
 	sysfb_apply_efi_quirks();
 
+	parent = sysfb_parent_dev(si);
+	if (IS_ERR(parent)) {
+		ret = PTR_ERR(parent);
+		goto unlock_mutex;
+	}
+
 	/* try to create a simple-framebuffer device */
 	compatible = sysfb_parse_mode(si, &mode);
 	if (compatible) {
-		pd = sysfb_create_simplefb(si, &mode);
+		pd = sysfb_create_simplefb(si, &mode, parent);
 		if (!IS_ERR(pd))
-			goto unlock_mutex;
+			goto put_device;
 	}
 
 	/* if the FB is incompatible, create a legacy framebuffer device */
@@ -106,8 +164,10 @@ static __init int sysfb_init(void)
 	pd = platform_device_alloc(name, 0);
 	if (!pd) {
 		ret = -ENOMEM;
-		goto unlock_mutex;
+		goto put_device;
 	}
+
+	pd->dev.parent = parent;
 
 	sysfb_set_efifb_fwnode(pd);
 
@@ -119,13 +179,15 @@ static __init int sysfb_init(void)
 	if (ret)
 		goto err;
 
-	goto unlock_mutex;
+	goto put_device;
 err:
 	platform_device_put(pd);
+put_device:
+	put_device(parent);
 unlock_mutex:
 	mutex_unlock(&disable_lock);
 	return ret;
 }
 
 /* must execute after PCI subsystem for EFI quirks */
-subsys_initcall_sync(sysfb_init);
+device_initcall(sysfb_init);

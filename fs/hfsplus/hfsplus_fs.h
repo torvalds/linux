@@ -190,6 +190,7 @@ struct hfsplus_sb_info {
 	int work_queued;               /* non-zero delayed work is queued */
 	struct delayed_work sync_work; /* FS sync delayed work */
 	spinlock_t work_lock;          /* protects sync_work and work_queued */
+	struct rcu_head rcu;
 };
 
 #define HFSPLUS_SB_WRITEBACKUP	0
@@ -471,7 +472,7 @@ extern const struct address_space_operations hfsplus_btree_aops;
 extern const struct dentry_operations hfsplus_dentry_operations;
 
 int hfsplus_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct page **pagep, void **fsdata);
+		loff_t pos, unsigned len, struct folio **foliop, void **fsdata);
 struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
 				umode_t mode);
 void hfsplus_delete_inode(struct inode *inode);
@@ -550,6 +551,27 @@ static inline time64_t __hfsp_mt2ut(__be32 mt)
 static inline __be32 __hfsp_ut2mt(time64_t ut)
 {
 	return cpu_to_be32(lower_32_bits(ut) + HFSPLUS_UTC_OFFSET);
+}
+
+static inline enum hfsplus_btree_mutex_classes
+hfsplus_btree_lock_class(struct hfs_btree *tree)
+{
+	enum hfsplus_btree_mutex_classes class;
+
+	switch (tree->cnid) {
+	case HFSPLUS_CAT_CNID:
+		class = CATALOG_BTREE_MUTEX;
+		break;
+	case HFSPLUS_EXT_CNID:
+		class = EXTENTS_BTREE_MUTEX;
+		break;
+	case HFSPLUS_ATTR_CNID:
+		class = ATTR_BTREE_MUTEX;
+		break;
+	default:
+		BUG();
+	}
+	return class;
 }
 
 /* compatibility */

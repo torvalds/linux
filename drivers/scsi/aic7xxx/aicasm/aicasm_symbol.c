@@ -52,6 +52,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <ctype.h>
 
 #include "aicasm_symbol.h"
 #include "aicasm.h"

@@ -86,7 +86,7 @@ static int uif_get_selection(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_uif *uif = to_uif(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 
@@ -95,9 +95,8 @@ static int uif_get_selection(struct v4l2_subdev *subdev,
 
 	mutex_lock(&uif->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&uif->entity, sd_state,
-					    sel->which);
-	if (!config) {
+	state = vsp1_entity_get_state(&uif->entity, sd_state, sel->which);
+	if (!state) {
 		ret = -EINVAL;
 		goto done;
 	}
@@ -105,8 +104,7 @@ static int uif_get_selection(struct v4l2_subdev *subdev,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		format = vsp1_entity_get_pad_format(&uif->entity, config,
-						    UIF_PAD_SINK);
+		format = v4l2_subdev_state_get_format(state, UIF_PAD_SINK);
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = format->width;
@@ -114,8 +112,7 @@ static int uif_get_selection(struct v4l2_subdev *subdev,
 		break;
 
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *vsp1_entity_get_pad_selection(&uif->entity, config,
-							sel->pad, sel->target);
+		sel->r = *v4l2_subdev_state_get_crop(state, sel->pad);
 		break;
 
 	default:
@@ -133,7 +130,7 @@ static int uif_set_selection(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_uif *uif = to_uif(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *selection;
 	int ret = 0;
@@ -144,15 +141,14 @@ static int uif_set_selection(struct v4l2_subdev *subdev,
 
 	mutex_lock(&uif->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&uif->entity, sd_state,
-					    sel->which);
-	if (!config) {
+	state = vsp1_entity_get_state(&uif->entity, sd_state, sel->which);
+	if (!state) {
 		ret = -EINVAL;
 		goto done;
 	}
 
 	/* The crop rectangle must be inside the input frame. */
-	format = vsp1_entity_get_pad_format(&uif->entity, config, UIF_PAD_SINK);
+	format = v4l2_subdev_state_get_format(state, UIF_PAD_SINK);
 
 	sel->r.left = clamp_t(unsigned int, sel->r.left, 0, format->width - 1);
 	sel->r.top = clamp_t(unsigned int, sel->r.top, 0, format->height - 1);
@@ -162,8 +158,7 @@ static int uif_set_selection(struct v4l2_subdev *subdev,
 				format->height - sel->r.top);
 
 	/* Store the crop rectangle. */
-	selection = vsp1_entity_get_pad_selection(&uif->entity, config,
-						  sel->pad, V4L2_SEL_TGT_CROP);
+	selection = v4l2_subdev_state_get_crop(state, sel->pad);
 	*selection = sel->r;
 
 done:
@@ -176,7 +171,6 @@ done:
  */
 
 static const struct v4l2_subdev_pad_ops uif_pad_ops = {
-	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = uif_enum_mbus_code,
 	.enum_frame_size = uif_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
@@ -194,6 +188,7 @@ static const struct v4l2_subdev_ops uif_ops = {
  */
 
 static void uif_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -206,8 +201,7 @@ static void uif_configure_stream(struct vsp1_entity *entity,
 	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMPMR,
 		       VI6_UIF_DISCOM_DOCMPMR_SEL(9));
 
-	crop = vsp1_entity_get_pad_selection(entity, entity->config,
-					     UIF_PAD_SINK, V4L2_SEL_TGT_CROP);
+	crop = v4l2_subdev_state_get_crop(state, UIF_PAD_SINK);
 
 	left = crop->left;
 	width = crop->width;

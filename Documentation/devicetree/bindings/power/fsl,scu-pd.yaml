@@ -20,6 +20,7 @@ properties:
   compatible:
     items:
       - enum:
+          - fsl,imx8dl-scu-pd
           - fsl,imx8qm-scu-pd
           - fsl,imx8qxp-scu-pd
       - const: fsl,scu-pd

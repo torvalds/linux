@@ -20,7 +20,7 @@ properties:
     maxItems: 1
 
 patternProperties:
-  "^.*_(clk|rst)$":
+  "^.*-(clk|rst)$":
     type: object
     unevaluatedProperties: false
 
@@ -33,6 +33,9 @@ patternProperties:
           - allwinner,sun6i-a31-ar100-clk
           - allwinner,sun6i-a31-clock-reset
           - fixed-factor-clock
+
+    required:
+      - compatible
 
     allOf:
       - if:
@@ -55,24 +58,16 @@ patternProperties:
             "#clock-cells":
               const: 0
 
-            # Already checked in the main schema
-            compatible: true
-
             clocks:
               maxItems: 2
 
             clock-output-names:
               maxItems: 1
 
-            phandle: true
-
           required:
             - "#clock-cells"
-            - compatible
             - clocks
             - clock-output-names
-
-          additionalProperties: false
 
       - if:
           properties:
@@ -85,24 +80,16 @@ patternProperties:
             "#clock-cells":
               const: 0
 
-            # Already checked in the main schema
-            compatible: true
-
             clocks:
               maxItems: 1
 
             clock-output-names:
               maxItems: 1
 
-            phandle: true
-
           required:
             - "#clock-cells"
-            - compatible
             - clocks
             - clock-output-names
-
-          additionalProperties: false
 
       - if:
           properties:
@@ -119,9 +106,6 @@ patternProperties:
                 offset of the bit controlling this particular gate in
                 the register.
 
-            # Already checked in the main schema
-            compatible: true
-
             clocks:
               maxItems: 1
 
@@ -129,15 +113,10 @@ patternProperties:
               minItems: 1
               maxItems: 32
 
-            phandle: true
-
           required:
             - "#clock-cells"
-            - compatible
             - clocks
             - clock-output-names
-
-          additionalProperties: false
 
       - if:
           properties:
@@ -150,9 +129,6 @@ patternProperties:
             "#clock-cells":
               const: 0
 
-            # Already checked in the main schema
-            compatible: true
-
             clocks:
               maxItems: 4
               description: >
@@ -162,15 +138,10 @@ patternProperties:
             clock-output-names:
               maxItems: 1
 
-            phandle: true
-
           required:
             - "#clock-cells"
-            - compatible
             - clocks
             - clock-output-names
-
-          additionalProperties: false
 
       - if:
           properties:
@@ -183,16 +154,8 @@ patternProperties:
             "#reset-cells":
               const: 1
 
-            # Already checked in the main schema
-            compatible: true
-
-            phandle: true
-
           required:
             - "#reset-cells"
-            - compatible
-
-          additionalProperties: false
 
 required:
   - compatible
@@ -208,7 +171,7 @@ examples:
         compatible = "allwinner,sun6i-a31-prcm";
         reg = <0x01f01400 0x200>;
 
-        ar100: ar100_clk {
+        ar100: ar100-clk {
             compatible = "allwinner,sun6i-a31-ar100-clk";
             #clock-cells = <0>;
             clocks = <&rtc 0>, <&osc24M>,
@@ -217,7 +180,7 @@ examples:
             clock-output-names = "ar100";
         };
 
-        ahb0: ahb0_clk {
+        ahb0: ahb0-clk {
             compatible = "fixed-factor-clock";
             #clock-cells = <0>;
             clock-div = <1>;
@@ -226,14 +189,14 @@ examples:
             clock-output-names = "ahb0";
         };
 
-        apb0: apb0_clk {
+        apb0: apb0-clk {
             compatible = "allwinner,sun6i-a31-apb0-clk";
             #clock-cells = <0>;
             clocks = <&ahb0>;
             clock-output-names = "apb0";
         };
 
-        apb0_gates: apb0_gates_clk {
+        apb0_gates: apb0-gates-clk {
             compatible = "allwinner,sun6i-a31-apb0-gates-clk";
             #clock-cells = <1>;
             clocks = <&apb0>;
@@ -243,14 +206,14 @@ examples:
                                  "apb0_i2c";
         };
 
-        ir_clk: ir_clk {
+        ir_clk: ir-clk {
             #clock-cells = <0>;
             compatible = "allwinner,sun4i-a10-mod0-clk";
             clocks = <&rtc 0>, <&osc24M>;
             clock-output-names = "ir";
         };
 
-        apb0_rst: apb0_rst {
+        apb0_rst: apb0-rst {
             compatible = "allwinner,sun6i-a31-clock-reset";
             #reset-cells = <1>;
         };

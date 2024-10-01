@@ -10,9 +10,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/of_irq.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -386,13 +386,9 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 						   struct iio_mount_matrix *orientation)
 {
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	char *name, *alt_name, *label, *str;
-	union acpi_object *obj, *elements;
-	acpi_status status;
-	int i, j, val[3];
+	acpi_handle handle = ACPI_HANDLE(dev);
+	char *name, *alt_name, *label;
 
 	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0) {
 		alt_name = "ROMK";
@@ -402,52 +398,16 @@ static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 		label = "accel-display";
 	}
 
-	if (acpi_has_method(adev->handle, "ROTM")) {
+	if (acpi_has_method(handle, "ROTM")) {
 		name = "ROTM";
-	} else if (acpi_has_method(adev->handle, alt_name)) {
+	} else if (acpi_has_method(handle, alt_name)) {
 		name = alt_name;
 		indio_dev->label = label;
 	} else {
 		return false;
 	}
 
-	status = acpi_evaluate_object(adev->handle, name, NULL, &buffer);
-	if (ACPI_FAILURE(status)) {
-		dev_warn(dev, "Failed to get ACPI mount matrix: %d\n", status);
-		return false;
-	}
-
-	obj = buffer.pointer;
-	if (obj->type != ACPI_TYPE_PACKAGE || obj->package.count != 3)
-		goto unknown_format;
-
-	elements = obj->package.elements;
-	for (i = 0; i < 3; i++) {
-		if (elements[i].type != ACPI_TYPE_STRING)
-			goto unknown_format;
-
-		str = elements[i].string.pointer;
-		if (sscanf(str, "%d %d %d", &val[0], &val[1], &val[2]) != 3)
-			goto unknown_format;
-
-		for (j = 0; j < 3; j++) {
-			switch (val[j]) {
-			case -1: str = "-1"; break;
-			case 0:  str = "0";  break;
-			case 1:  str = "1";  break;
-			default: goto unknown_format;
-			}
-			orientation->rotation[i * 3 + j] = str;
-		}
-	}
-
-	kfree(buffer.pointer);
-	return true;
-
-unknown_format:
-	dev_warn(dev, "Unknown ACPI mount matrix format, ignoring\n");
-	kfree(buffer.pointer);
-	return false;
+	return iio_read_acpi_mount_matrix(dev, orientation, name);
 }
 
 static bool bmc150_apply_dual250e_acpi_orientation(struct device *dev,
@@ -554,7 +514,7 @@ static void bmc150_accel_interrupts_setup(struct iio_dev *indio_dev,
 	 */
 	irq_info = bmc150_accel_interrupts_int1;
 	if (data->type == BOSCH_BMC156 ||
-	    irq == of_irq_get_byname(dev->of_node, "INT2"))
+	    irq == fwnode_irq_get_byname(dev_fwnode(dev), "INT2"))
 		irq_info = bmc150_accel_interrupts_int2;
 
 	for (i = 0; i < BMC150_ACCEL_INTERRUPTS; i++)
@@ -1047,8 +1007,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 		int j, bit;
 
 		j = 0;
-		for_each_set_bit(bit, indio_dev->active_scan_mask,
-				 indio_dev->masklength)
+		iio_for_each_active_channel(indio_dev, bit)
 			memcpy(&data->scan.channels[j++], &buffer[i * 3 + bit],
 			       sizeof(data->scan.channels[0]));
 

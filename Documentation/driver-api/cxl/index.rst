@@ -8,5 +8,8 @@ Compute Express Link
    :maxdepth: 1
 
    memory-devices
+   access-coordinates
+
+   maturity-map
 
 .. only::  subproject and html

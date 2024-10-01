@@ -92,4 +92,6 @@ int main()
 		printf("[FAIL]\t!SA_SIGINFO handler was not called\n");
 		nerrs++;
 	}
+
+	return nerrs;
 }

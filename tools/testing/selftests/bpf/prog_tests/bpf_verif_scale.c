@@ -35,7 +35,7 @@ static int check_load(const char *file, enum bpf_prog_type type)
 	}
 
 	bpf_program__set_type(prog, type);
-	bpf_program__set_flags(prog, BPF_F_TEST_RND_HI32);
+	bpf_program__set_flags(prog, testing_prog_flags());
 	bpf_program__set_log_level(prog, 4 | extra_prog_load_log_flags);
 
 	err = bpf_object__load(obj);
@@ -44,12 +44,6 @@ err_out:
 	bpf_object__close(obj);
 	return err;
 }
-
-struct scale_test_def {
-	const char *file;
-	enum bpf_prog_type attach_type;
-	bool fails;
-};
 
 static void scale_test(const char *file,
 		       enum bpf_prog_type attach_type,

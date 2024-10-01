@@ -22,6 +22,10 @@
 #include <asm/hwctrset.h>
 #include <asm/debug.h>
 
+/* Perf PMU definitions for the counter facility */
+#define PERF_CPUM_CF_MAX_CTR		0xffffUL  /* Max ctr for ECCTR */
+#define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
+
 enum cpumf_ctr_set {
 	CPUMF_CTR_SET_BASIC   = 0,    /* Basic Counter Set */
 	CPUMF_CTR_SET_USER    = 1,    /* Problem-State Counter Set */
@@ -428,7 +432,7 @@ static void cpum_cf_make_setsize(enum cpumf_ctr_set ctrset)
 	case CPUMF_CTR_SET_CRYPTO:
 		if (cpumf_ctr_info.csvn >= 1 && cpumf_ctr_info.csvn <= 5)
 			ctrset_size = 16;
-		else if (cpumf_ctr_info.csvn == 6 || cpumf_ctr_info.csvn == 7)
+		else if (cpumf_ctr_info.csvn >= 6)
 			ctrset_size = 20;
 		break;
 	case CPUMF_CTR_SET_EXT:
@@ -556,25 +560,31 @@ static int cfdiag_diffctr(struct cpu_cf_events *cpuhw, unsigned long auth)
 	struct cf_trailer_entry *trailer_start, *trailer_stop;
 	struct cf_ctrset_entry *ctrstart, *ctrstop;
 	size_t offset = 0;
+	int i;
 
-	auth &= (1 << CPUMF_LCCTL_ENABLE_SHIFT) - 1;
-	do {
+	for (i = CPUMF_CTR_SET_BASIC; i < CPUMF_CTR_SET_MAX; ++i) {
 		ctrstart = (struct cf_ctrset_entry *)(cpuhw->start + offset);
 		ctrstop = (struct cf_ctrset_entry *)(cpuhw->stop + offset);
+
+		/* Counter set not authorized */
+		if (!(auth & cpumf_ctr_ctl[i]))
+			continue;
+		/* Counter set size zero was not saved */
+		if (!cpum_cf_read_setsize(i))
+			continue;
 
 		if (memcmp(ctrstop, ctrstart, sizeof(*ctrstop))) {
 			pr_err_once("cpum_cf_diag counter set compare error "
 				    "in set %i\n", ctrstart->set);
 			return 0;
 		}
-		auth &= ~cpumf_ctr_ctl[ctrstart->set];
 		if (ctrstart->def == CF_DIAG_CTRSET_DEF) {
 			cfdiag_diffctrset((u64 *)(ctrstart + 1),
 					  (u64 *)(ctrstop + 1), ctrstart->ctr);
 			offset += ctrstart->ctr * sizeof(u64) +
 							sizeof(*ctrstart);
 		}
-	} while (ctrstart->def && auth);
+	}
 
 	/* Save time_stamp from start of event in stop's trailer */
 	trailer_start = (struct cf_trailer_entry *)(cpuhw->start + offset);
@@ -1193,7 +1203,7 @@ static int __init cpumf_pmu_init(void)
 	 * Clear bit 15 of cr0 to unauthorize problem-state to
 	 * extract measurement counters
 	 */
-	ctl_clear_bit(0, 48);
+	system_ctl_clear_bit(0, CR0_CPUMF_EXTRACTION_AUTH_BIT);
 
 	/* register handler for measurement-alert interruptions */
 	rc = register_external_irq(EXT_IRQ_MEASURE_ALERT,
@@ -1688,7 +1698,6 @@ static const struct file_operations cfset_fops = {
 	.release = cfset_release,
 	.unlocked_ioctl	= cfset_ioctl,
 	.compat_ioctl = cfset_ioctl,
-	.llseek = no_llseek
 };
 
 static struct miscdevice cfset_dev = {

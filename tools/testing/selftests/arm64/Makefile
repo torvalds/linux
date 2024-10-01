@@ -19,6 +19,8 @@ CFLAGS += -I$(top_srcdir)/tools/testing/selftests/
 
 CFLAGS += $(KHDR_INCLUDES)
 
+CFLAGS += -I$(top_srcdir)/tools/include
+
 export CFLAGS
 export top_srcdir
 
@@ -42,7 +44,7 @@ run_tests: all
 	done
 
 # Avoid any output on non arm64 on emit_tests
-emit_tests: all
+emit_tests:
 	@for DIR in $(ARM64_SUBTARGETS); do				\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;			\
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;		\

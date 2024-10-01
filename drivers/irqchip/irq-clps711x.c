@@ -69,7 +69,7 @@ static struct {
 	struct irq_domain_ops	ops;
 } *clps711x_intc;
 
-static asmlinkage void __exception_irq_entry clps711x_irqh(struct pt_regs *regs)
+static void __exception_irq_entry clps711x_irqh(struct pt_regs *regs)
 {
 	u32 irqstat;
 

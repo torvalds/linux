@@ -19,7 +19,7 @@ int ncsi_send_netlink_timeout(struct ncsi_request *nr,
 int ncsi_send_netlink_err(struct net_device *dev,
 			  u32 snd_seq,
 			  u32 snd_portid,
-			  struct nlmsghdr *nlhdr,
+			  const struct nlmsghdr *nlhdr,
 			  int err);
 
 #endif /* __NCSI_NETLINK_H__ */

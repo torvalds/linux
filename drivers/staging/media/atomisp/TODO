@@ -1,49 +1,15 @@
-Required firmware
-=================
-
-The atomisp driver requires the following firmware:
-
-- for BYT: /lib/firmware/shisp_2400b0_v21.bin
-
-  With a version of "irci_stable_candrpv_0415_20150423_1753" to check
-  the version run: "strings shisp_2400b0_v21.bin | head -n1", sha256sum:
-
-  3847b95fb9f1f8352c595ba7394d55b33176751372baae17f89aa483ec02a21b  shisp_2400b0_v21.bin
-
-  The shisp_2400b0_v21.bin file with this version can be found on
-  the Android factory images of various X86 Android tablets such as
-  e.g. the Chuwi Hi8 Pro.
-
-- for CHT: /lib/firmware/shisp_2401a0_v21.bin
-
-  With a version of "irci_stable_candrpv_0415_20150521_0458", sha256sum:
-
-  e89359f4e4934c410c83d525e283f34c5fcce9cb5caa75ad8a32d66d3842d95c  shisp_2401a0_v21.bin
-
-  This can be found here:
-  https://github.com/intel-aero/meta-intel-aero-base/blob/master/recipes-kernel/linux/linux-yocto/shisp_2401a0_v21.bin
-
-
 TODO
 ====
 
 1. Items which MUST be fixed before the driver can be moved out of staging:
-
-* The atomisp ov2680 and ov5693 sensor drivers bind to the same hw-ids as
-  the standard ov2680 and ov5693 drivers under drivers/media/i2c, which
-  conflicts. Drop the atomisp private ov2680 and ov5693 drivers:
-  * Port various ov2680 improvements from atomisp_ov2680.c to regular ov2680.c
-    and switch to regular ov2680 driver
-  * Make atomisp work with the regular ov5693 driver and drop atomisp_ov5693
-
-* Fix atomisp causing the whole machine to hang in its probe() error-exit
-  path taken in the firmware missing case
 
 * Remove/disable private IOCTLs
 
 * Remove/disable custom v4l2-ctrls
 
 * Remove custom sysfs files created by atomisp_drvfs.c
+
+* Remove unnecessary/unwanted module parameters
 
 * Remove abuse of priv field in various v4l2 userspace API structs
 
@@ -60,9 +26,6 @@ TODO
 
 2. Items which SHOULD also be fixed eventually:
 
-* Remove VIDEO_ATOMISP_ISP2401, making the driver to auto-detect the
-  register address differences between ISP2400 and ISP2401
-
 * The driver is intended to drive the PCI exposed versions of the device.
   It will not detect those devices enumerated via ACPI as a field of the
   i915 GPU driver (only a problem on BYT).
@@ -73,9 +36,6 @@ TODO
 * Ensure that the driver will pass v4l2-compliance tests
 
 * Fix not all v4l2 apps working, e.g. cheese does not work
-
-* Get manufacturer's authorization to redistribute the binaries for
-  the firmware files
 
 * The atomisp code still has a lot of cruft which needs cleaning up
 

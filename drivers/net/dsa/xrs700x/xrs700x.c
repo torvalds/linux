@@ -7,7 +7,7 @@
 #include <net/dsa.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/netdev_features.h>
 #include <linux/if_hsr.h>
 #include "xrs700x.h"
@@ -466,13 +466,25 @@ static void xrs700x_phylink_get_caps(struct dsa_switch *ds, int port,
 	}
 }
 
-static void xrs700x_mac_link_up(struct dsa_switch *ds, int port,
-				unsigned int mode, phy_interface_t interface,
+static void xrs700x_mac_config(struct phylink_config *config, unsigned int mode,
+			       const struct phylink_link_state *state)
+{
+}
+
+static void xrs700x_mac_link_down(struct phylink_config *config,
+				  unsigned int mode, phy_interface_t interface)
+{
+}
+
+static void xrs700x_mac_link_up(struct phylink_config *config,
 				struct phy_device *phydev,
+				unsigned int mode, phy_interface_t interface,
 				int speed, int duplex,
 				bool tx_pause, bool rx_pause)
 {
-	struct xrs700x *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct xrs700x *priv = dp->ds->priv;
+	int port = dp->index;
 	unsigned int val;
 
 	switch (speed) {
@@ -548,12 +560,13 @@ static void xrs700x_bridge_leave(struct dsa_switch *ds, int port,
 }
 
 static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
-			    struct net_device *hsr)
+			    struct net_device *hsr,
+			    struct netlink_ext_ack *extack)
 {
 	unsigned int val = XRS_HSR_CFG_HSR_PRP;
 	struct dsa_port *partner = NULL, *dp;
 	struct xrs700x *priv = ds->priv;
-	struct net_device *slave;
+	struct net_device *user;
 	int ret, i, hsr_pair[2];
 	enum hsr_version ver;
 	bool fwd = false;
@@ -562,16 +575,21 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	if (ret)
 		return ret;
 
-	/* Only ports 1 and 2 can be HSR/PRP redundant ports. */
-	if (port != 1 && port != 2)
+	if (port != 1 && port != 2) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only ports 1 and 2 can offload HSR/PRP");
 		return -EOPNOTSUPP;
+	}
 
-	if (ver == HSR_V1)
+	if (ver == HSR_V1) {
 		val |= XRS_HSR_CFG_HSR;
-	else if (ver == PRP_V1)
+	} else if (ver == PRP_V1) {
 		val |= XRS_HSR_CFG_PRP;
-	else
+	} else {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only HSR v1 and PRP v1 can be offloaded");
 		return -EOPNOTSUPP;
+	}
 
 	dsa_hsr_foreach_port(dp, ds, hsr) {
 		if (dp->index != port) {
@@ -632,8 +650,8 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	hsr_pair[0] = port;
 	hsr_pair[1] = partner->index;
 	for (i = 0; i < ARRAY_SIZE(hsr_pair); i++) {
-		slave = dsa_to_port(ds, hsr_pair[i])->slave;
-		slave->features |= XRS7000X_SUPPORTED_HSR_FEATURES;
+		user = dsa_to_port(ds, hsr_pair[i])->user;
+		user->features |= XRS7000X_SUPPORTED_HSR_FEATURES;
 	}
 
 	return 0;
@@ -644,7 +662,7 @@ static int xrs700x_hsr_leave(struct dsa_switch *ds, int port,
 {
 	struct dsa_port *partner = NULL, *dp;
 	struct xrs700x *priv = ds->priv;
-	struct net_device *slave;
+	struct net_device *user;
 	int i, hsr_pair[2];
 	unsigned int val;
 
@@ -686,12 +704,18 @@ static int xrs700x_hsr_leave(struct dsa_switch *ds, int port,
 	hsr_pair[0] = port;
 	hsr_pair[1] = partner->index;
 	for (i = 0; i < ARRAY_SIZE(hsr_pair); i++) {
-		slave = dsa_to_port(ds, hsr_pair[i])->slave;
-		slave->features &= ~XRS7000X_SUPPORTED_HSR_FEATURES;
+		user = dsa_to_port(ds, hsr_pair[i])->user;
+		user->features &= ~XRS7000X_SUPPORTED_HSR_FEATURES;
 	}
 
 	return 0;
 }
+
+static const struct phylink_mac_ops xrs700x_phylink_mac_ops = {
+	.mac_config		= xrs700x_mac_config,
+	.mac_link_down		= xrs700x_mac_link_down,
+	.mac_link_up		= xrs700x_mac_link_up,
+};
 
 static const struct dsa_switch_ops xrs700x_ops = {
 	.get_tag_protocol	= xrs700x_get_tag_protocol,
@@ -699,7 +723,6 @@ static const struct dsa_switch_ops xrs700x_ops = {
 	.teardown		= xrs700x_teardown,
 	.port_stp_state_set	= xrs700x_port_stp_state_set,
 	.phylink_get_caps	= xrs700x_phylink_get_caps,
-	.phylink_mac_link_up	= xrs700x_mac_link_up,
 	.get_strings		= xrs700x_get_strings,
 	.get_sset_count		= xrs700x_get_sset_count,
 	.get_ethtool_stats	= xrs700x_get_ethtool_stats,
@@ -757,6 +780,7 @@ struct xrs700x *xrs700x_switch_alloc(struct device *base, void *devpriv)
 	INIT_DELAYED_WORK(&priv->mib_work, xrs700x_mib_work);
 
 	ds->ops = &xrs700x_ops;
+	ds->phylink_mac_ops = &xrs700x_phylink_mac_ops;
 	ds->priv = priv;
 	priv->dev = base;
 

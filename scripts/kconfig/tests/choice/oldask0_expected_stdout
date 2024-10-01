@@ -1,10 +1,4 @@
-Enable loadable module support (MODULES) [Y/n/?] (NEW) 
 boolean choice
   1. choice 0 (BOOL_CHOICE0) (NEW)
 > 2. choice 1 (BOOL_CHOICE1) (NEW)
 choice[1-2?]: 
-optional boolean choice [N/y/?] (NEW) 
-tristate choice [M/y/?] (NEW) 
-  choice 0 (TRI_CHOICE0) [N/m/?] (NEW) 
-  choice 1 (TRI_CHOICE1) [N/m/?] (NEW) 
-optional tristate choice [N/m/y/?] (NEW) 

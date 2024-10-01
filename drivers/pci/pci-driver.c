@@ -193,7 +193,7 @@ static ssize_t new_id_store(struct device_driver *driver, const char *buf,
 	u32 vendor, device, subvendor = PCI_ANY_ID,
 		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
 	unsigned long driver_data = 0;
-	int fields = 0;
+	int fields;
 	int retval = 0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lx",
@@ -260,7 +260,7 @@ static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
 	struct pci_driver *pdrv = to_pci_driver(driver);
 	u32 vendor, device, subvendor = PCI_ANY_ID,
 		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
-	int fields = 0;
+	int fields;
 	size_t retval = -ENODEV;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x",
@@ -419,15 +419,6 @@ static int __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 	return error;
 }
 
-int __weak pcibios_alloc_irq(struct pci_dev *dev)
-{
-	return 0;
-}
-
-void __weak pcibios_free_irq(struct pci_dev *dev)
-{
-}
-
 #ifdef CONFIG_PCI_IOV
 static inline bool pci_device_can_probe(struct pci_dev *pdev)
 {
@@ -473,6 +464,13 @@ static void pci_device_remove(struct device *dev)
 
 	if (drv->remove) {
 		pm_runtime_get_sync(dev);
+		/*
+		 * If the driver provides a .runtime_idle() callback and it has
+		 * started to run already, it may continue to run in parallel
+		 * with the code below, so wait until all of the runtime PM
+		 * activity has completed.
+		 */
+		pm_runtime_barrier(dev);
 		drv->remove(pci_dev);
 		pm_runtime_put_noidle(dev);
 	}
@@ -572,7 +570,19 @@ static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
 
 static void pci_pm_bridge_power_up_actions(struct pci_dev *pci_dev)
 {
-	pci_bridge_wait_for_secondary_bus(pci_dev, "resume");
+	int ret;
+
+	ret = pci_bridge_wait_for_secondary_bus(pci_dev, "resume");
+	if (ret) {
+		/*
+		 * The downstream link failed to come up, so mark the
+		 * devices below as disconnected to make sure we don't
+		 * attempt to resume them.
+		 */
+		pci_walk_bus(pci_dev->subordinate, pci_dev_set_disconnected,
+			     NULL);
+		return;
+	}
 
 	/*
 	 * When powering on a bridge from D3cold, the whole hierarchy may be
@@ -1370,10 +1380,7 @@ static int pci_pm_runtime_idle(struct device *dev)
 	if (!pci_dev->driver)
 		return 0;
 
-	if (!pm)
-		return -ENOSYS;
-
-	if (pm->runtime_idle)
+	if (pm && pm->runtime_idle)
 		return pm->runtime_idle(dev);
 
 	return 0;
@@ -1474,14 +1481,15 @@ static struct pci_driver pci_compat_driver = {
  */
 struct pci_driver *pci_dev_driver(const struct pci_dev *dev)
 {
+	int i;
+
 	if (dev->driver)
 		return dev->driver;
-	else {
-		int i;
-		for (i = 0; i <= PCI_ROM_RESOURCE; i++)
-			if (dev->resource[i].flags & IORESOURCE_BUSY)
-				return &pci_compat_driver;
-	}
+
+	for (i = 0; i <= PCI_ROM_RESOURCE; i++)
+		if (dev->resource[i].flags & IORESOURCE_BUSY)
+			return &pci_compat_driver;
+
 	return NULL;
 }
 EXPORT_SYMBOL(pci_dev_driver);
@@ -1495,7 +1503,7 @@ EXPORT_SYMBOL(pci_dev_driver);
  * system is in its list of supported devices. Returns the matching
  * pci_device_id structure or %NULL if there is no match.
  */
-static int pci_bus_match(struct device *dev, struct device_driver *drv)
+static int pci_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct pci_driver *pci_drv;
@@ -1504,7 +1512,7 @@ static int pci_bus_match(struct device *dev, struct device_driver *drv)
 	if (!pci_dev->match_driver)
 		return 0;
 
-	pci_drv = to_pci_driver(drv);
+	pci_drv = (struct pci_driver *)to_pci_driver(drv);
 	found_id = pci_match_device(pci_drv, pci_dev);
 	if (found_id)
 		return 1;
@@ -1662,7 +1670,7 @@ static void pci_dma_cleanup(struct device *dev)
 		iommu_device_unuse_default_domain(dev);
 }
 
-struct bus_type pci_bus_type = {
+const struct bus_type pci_bus_type = {
 	.name		= "pci",
 	.match		= pci_bus_match,
 	.uevent		= pci_uevent,
@@ -1680,10 +1688,10 @@ struct bus_type pci_bus_type = {
 EXPORT_SYMBOL(pci_bus_type);
 
 #ifdef CONFIG_PCIEPORTBUS
-static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
+static int pcie_port_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
+	const struct pcie_port_service_driver *driver;
 
 	if (drv->bus != &pcie_port_bus_type || dev->bus != &pcie_port_bus_type)
 		return 0;
@@ -1701,11 +1709,10 @@ static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-struct bus_type pcie_port_bus_type = {
+const struct bus_type pcie_port_bus_type = {
 	.name		= "pci_express",
 	.match		= pcie_port_bus_match,
 };
-EXPORT_SYMBOL_GPL(pcie_port_bus_type);
 #endif
 
 static int __init pci_driver_init(void)

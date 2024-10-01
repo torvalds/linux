@@ -4,7 +4,9 @@
 #define FIRMWARE_MT7622		"mediatek/mt7622pr2h.bin"
 #define FIRMWARE_MT7663		"mediatek/mt7663pr2h.bin"
 #define FIRMWARE_MT7668		"mediatek/mt7668pr2h.bin"
+#define FIRMWARE_MT7922		"mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin"
 #define FIRMWARE_MT7961		"mediatek/BT_RAM_CODE_MT7961_1_2_hdr.bin"
+#define FIRMWARE_MT7925		"mediatek/mt7925/BT_RAM_CODE_MT7925_1_1_hdr.bin"
 
 #define HCI_EV_WMT 0xe4
 #define HCI_WMT_MAX_EVENT_SIZE		64
@@ -20,6 +22,26 @@
 
 #define MT7921_DLSTATUS 0x7c053c10
 #define BT_DL_STATE BIT(1)
+
+#define MTK_COREDUMP_SIZE		(1024 * 1000)
+#define MTK_COREDUMP_END		"coredump end"
+#define MTK_COREDUMP_END_LEN		(sizeof(MTK_COREDUMP_END))
+#define MTK_COREDUMP_NUM		255
+
+/* UHW CR mapping */
+#define MTK_BT_MISC		0x70002510
+#define MTK_BT_SUBSYS_RST	0x70002610
+#define MTK_UDMA_INT_STA_BT	0x74000024
+#define MTK_UDMA_INT_STA_BT1	0x74000308
+#define MTK_BT_WDT_STATUS	0x740003A0
+#define MTK_EP_RST_OPT		0x74011890
+#define MTK_EP_RST_IN_OUT_OPT	0x00010001
+#define MTK_BT_RST_DONE		0x00000100
+#define MTK_BT_RESET_REG_CONNV3	0x70028610
+#define MTK_BT_READ_DEV_ID	0x70010200
+
+/* MediaTek ISO Interface */
+#define MTK_ISO_IFNUM		2
 
 enum {
 	BTMTK_WMT_PATCH_DWNLD = 0x1,
@@ -119,6 +141,44 @@ struct btmtk_hci_wmt_params {
 	u32 *status;
 };
 
+enum {
+	BTMTK_TX_WAIT_VND_EVT,
+	BTMTK_FIRMWARE_LOADED,
+	BTMTK_HW_RESET_ACTIVE,
+	BTMTK_ISOPKT_OVER_INTR,
+	BTMTK_ISOPKT_RUNNING,
+};
+
+typedef int (*btmtk_reset_sync_func_t)(struct hci_dev *, void *);
+
+struct btmtk_coredump_info {
+	const char *driver_name;
+	u32 fw_version;
+	u16 cnt;
+	int state;
+};
+
+struct btmtk_data {
+	const char *drv_name;
+	unsigned long flags;
+	u32 dev_id;
+	btmtk_reset_sync_func_t reset_sync;
+	struct btmtk_coredump_info cd_info;
+
+	struct usb_device *udev;
+	struct usb_interface *intf;
+	struct usb_anchor *ctrl_anchor;
+	struct sk_buff *evt_skb;
+	struct usb_endpoint_descriptor *isopkt_tx_ep;
+	struct usb_endpoint_descriptor *isopkt_rx_ep;
+	struct usb_interface *isopkt_intf;
+	struct usb_anchor isopkt_anchor;
+	struct sk_buff *isopkt_skb;
+
+	/* spinlock for ISO data transmission */
+	spinlock_t isorxlock;
+};
+
 typedef int (*wmt_cmd_sync_func_t)(struct hci_dev *,
 				   struct btmtk_hci_wmt_params *);
 
@@ -131,6 +191,31 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 
 int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
 			 wmt_cmd_sync_func_t wmt_cmd_sync);
+
+void btmtk_reset_sync(struct hci_dev *hdev);
+
+int btmtk_register_coredump(struct hci_dev *hdev, const char *name,
+			    u32 fw_version);
+
+int btmtk_process_coredump(struct hci_dev *hdev, struct sk_buff *skb);
+
+void btmtk_fw_get_filename(char *buf, size_t size, u32 dev_id, u32 fw_ver,
+			   u32 fw_flavor);
+
+int btmtk_usb_subsys_reset(struct hci_dev *hdev, u32 dev_id);
+
+int btmtk_usb_recv_acl(struct hci_dev *hdev, struct sk_buff *skb);
+
+struct urb *alloc_mtk_intr_urb(struct hci_dev *hdev, struct sk_buff *skb,
+			       usb_complete_t tx_complete);
+
+int btmtk_usb_resume(struct hci_dev *hdev);
+
+int btmtk_usb_suspend(struct hci_dev *hdev);
+
+int btmtk_usb_setup(struct hci_dev *hdev);
+
+int btmtk_usb_shutdown(struct hci_dev *hdev);
 #else
 
 static inline int btmtk_set_bdaddr(struct hci_dev *hdev,
@@ -139,16 +224,74 @@ static inline int btmtk_set_bdaddr(struct hci_dev *hdev,
 	return -EOPNOTSUPP;
 }
 
-static int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
-				     wmt_cmd_sync_func_t wmt_cmd_sync)
+static inline int btmtk_setup_firmware_79xx(struct hci_dev *hdev,
+					    const char *fwname,
+					    wmt_cmd_sync_func_t wmt_cmd_sync)
 {
 	return -EOPNOTSUPP;
 }
 
-static int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
-				wmt_cmd_sync_func_t wmt_cmd_sync)
+static inline int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
+				       wmt_cmd_sync_func_t wmt_cmd_sync)
 {
 	return -EOPNOTSUPP;
 }
 
+static inline void btmtk_reset_sync(struct hci_dev *hdev)
+{
+}
+
+static inline int btmtk_register_coredump(struct hci_dev *hdev,
+					  const char *name, u32 fw_version)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btmtk_process_coredump(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void btmtk_fw_get_filename(char *buf, size_t size, u32 dev_id,
+					 u32 fw_ver, u32 fw_flavor)
+{
+}
+
+static inline int btmtk_usb_subsys_reset(struct hci_dev *hdev, u32 dev_id)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btmtk_usb_recv_acl(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline struct urb *alloc_mtk_intr_urb(struct hci_dev *hdev,
+					     struct sk_buff *skb,
+					     usb_complete_t tx_complete)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int btmtk_usb_resume(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btmtk_usb_suspend(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btmtk_usb_setup(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btmtk_usb_shutdown(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
 #endif

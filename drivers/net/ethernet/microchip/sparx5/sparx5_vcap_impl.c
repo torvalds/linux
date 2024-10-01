@@ -1507,7 +1507,7 @@ static void sparx5_vcap_move(struct net_device *ndev, struct vcap_admin *admin,
 	}
 }
 
-static struct vcap_operations sparx5_vcap_ops = {
+static const struct vcap_operations sparx5_vcap_ops = {
 	.validate_keyset = sparx5_vcap_validate_keyset,
 	.add_default_fields = sparx5_vcap_add_default_fields,
 	.cache_erase = sparx5_vcap_cache_erase,

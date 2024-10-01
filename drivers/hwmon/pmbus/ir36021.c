@@ -51,7 +51,7 @@ static int ir36021_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ir36021_id[] = {
-	{ "ir36021", 0 },
+	{ "ir36021" },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, ir36021_id);
@@ -63,7 +63,6 @@ static const struct of_device_id __maybe_unused ir36021_of_id[] = {
 MODULE_DEVICE_TABLE(of, ir36021_of_id);
 
 static struct i2c_driver ir36021_driver = {
-	.class = I2C_CLASS_HWMON,
 	.driver = {
 		.name = "ir36021",
 		.of_match_table = of_match_ptr(ir36021_of_id),

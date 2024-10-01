@@ -1107,8 +1107,6 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
 		qp->bf.bfreg = &dev->fp_bfreg;
-	else if (qp->flags & MLX5_IB_QP_CREATE_WC_TEST)
-		qp->bf.bfreg = &dev->wc_bfreg;
 	else
 		qp->bf.bfreg = &dev->bfreg;
 
@@ -2959,14 +2957,6 @@ static void process_create_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
 		return;
 	}
 
-	if (flag == MLX5_IB_QP_CREATE_WC_TEST) {
-		/*
-		 * Special case, if condition didn't meet, it won't be error,
-		 * just different in-kernel flow.
-		 */
-		*flags &= ~MLX5_IB_QP_CREATE_WC_TEST;
-		return;
-	}
 	mlx5_ib_dbg(dev, "Verbs create QP flag 0x%X is not supported\n", flag);
 }
 
@@ -3027,8 +3017,6 @@ static int process_create_flags(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			    IB_QP_CREATE_PCI_WRITE_END_PADDING,
 			    MLX5_CAP_GEN(mdev, end_pad), qp);
 
-	process_create_flag(dev, &create_flags, MLX5_IB_QP_CREATE_WC_TEST,
-			    qp_type != MLX5_IB_QPT_REG_UMR, qp);
 	process_create_flag(dev, &create_flags, MLX5_IB_QP_CREATE_SQPN_QP1,
 			    true, qp);
 
@@ -3097,7 +3085,6 @@ static int create_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	switch (qp->type) {
 	case MLX5_IB_QPT_DCT:
 		err = create_dct(dev, pd, qp, params);
-		rdma_restrack_no_track(&qp->ibqp.res);
 		break;
 	case MLX5_IB_QPT_DCI:
 		err = create_dci(dev, pd, qp, params);
@@ -3109,9 +3096,9 @@ static int create_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		err = mlx5_ib_create_gsi(pd, qp, params->attr);
 		break;
 	case MLX5_IB_QPT_HW_GSI:
-	case MLX5_IB_QPT_REG_UMR:
 		rdma_restrack_no_track(&qp->ibqp.res);
 		fallthrough;
+	case MLX5_IB_QPT_REG_UMR:
 	default:
 		if (params->udata)
 			err = create_user_qp(dev, pd, qp, params);
@@ -3246,6 +3233,10 @@ int mlx5_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attr,
 	struct ib_pd *pd = ibqp->pd;
 	enum ib_qp_type type;
 	int err;
+
+	err = mlx5_ib_dev_res_srq_init(dev);
+	if (err)
+		return err;
 
 	err = check_qp_type(dev, attr, &type);
 	if (err)
@@ -3436,7 +3427,7 @@ static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 	if (rate == IB_RATE_PORT_CURRENT)
 		return 0;
 
-	if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_600_GBPS)
+	if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_800_GBPS)
 		return -EINVAL;
 
 	stat_rate_support = MLX5_CAP_GEN(dev->mdev, stat_rate_support);
@@ -4045,6 +4036,30 @@ static unsigned int get_tx_affinity(struct ib_qp *qp,
 	return tx_affinity;
 }
 
+static int __mlx5_ib_qp_set_raw_qp_counter(struct mlx5_ib_qp *qp, u32 set_id,
+					   struct mlx5_core_dev *mdev)
+{
+	struct mlx5_ib_raw_packet_qp *raw_packet_qp = &qp->raw_packet_qp;
+	struct mlx5_ib_rq *rq = &raw_packet_qp->rq;
+	u32 in[MLX5_ST_SZ_DW(modify_rq_in)] = {};
+	void *rqc;
+
+	if (!qp->rq.wqe_cnt)
+		return 0;
+
+	MLX5_SET(modify_rq_in, in, rq_state, rq->state);
+	MLX5_SET(modify_rq_in, in, uid, to_mpd(qp->ibqp.pd)->uid);
+
+	rqc = MLX5_ADDR_OF(modify_rq_in, in, ctx);
+	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RDY);
+
+	MLX5_SET64(modify_rq_in, in, modify_bitmask,
+		   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_RQ_COUNTER_SET_ID);
+	MLX5_SET(rqc, rqc, counter_set_id, set_id);
+
+	return mlx5_core_modify_rq(mdev, rq->base.mqp.qpn, in);
+}
+
 static int __mlx5_ib_qp_set_counter(struct ib_qp *qp,
 				    struct rdma_counter *counter)
 {
@@ -4059,6 +4074,9 @@ static int __mlx5_ib_qp_set_counter(struct ib_qp *qp,
 		set_id = counter->id;
 	else
 		set_id = mlx5_ib_get_counters_id(dev, mqp->port - 1);
+
+	if (mqp->type == IB_QPT_RAW_PACKET)
+		return __mlx5_ib_qp_set_raw_qp_counter(mqp, set_id, dev->mdev);
 
 	base = &mqp->trans_qp.base;
 	MLX5_SET(rts2rts_qp_in, in, opcode, MLX5_CMD_OP_RTS2RTS_QP);
@@ -4199,7 +4217,12 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	/* todo implement counter_index functionality */
 
-	if (is_sqp(qp->type))
+	if (dev->ib_dev.type == RDMA_DEVICE_TYPE_SMI && is_qp0(qp->type)) {
+		MLX5_SET(ads, pri_path, vhca_port_num,
+			 smi_to_native_portnum(dev, qp->port));
+		if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR)
+			MLX5_SET(ads, pri_path, plane_index, qp->port);
+	} else if (is_sqp(qp->type))
 		MLX5_SET(ads, pri_path, vhca_port_num, qp->port);
 
 	if (attr_mask & IB_QP_PORT)
@@ -4581,10 +4604,6 @@ static bool mlx5_ib_modify_qp_allowed(struct mlx5_ib_dev *dev,
 		return true;
 
 	if (qp->type == IB_QPT_RAW_PACKET || qp->type == MLX5_IB_QPT_REG_UMR)
-		return true;
-
-	/* Internal QP used for wc testing, with NOPs in wq */
-	if (qp->flags & MLX5_IB_QP_CREATE_WC_TEST)
 		return true;
 
 	return false;

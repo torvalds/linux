@@ -15,7 +15,10 @@
 #include <linux/export.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <linux/sysfs.h>
+#include <asm/stacktrace.h>
 #include <asm/irq.h>
 #include <asm/cpu_mf.h>
 #include <asm/lowcore.h>
@@ -210,6 +213,12 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 		if (!addr || perf_callchain_store(entry, addr))
 			return;
 	}
+}
+
+void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
+			 struct pt_regs *regs)
+{
+	arch_stack_walk_user_common(NULL, NULL, entry, regs, true);
 }
 
 /* Perf definitions for PMU event attributes in sysfs */

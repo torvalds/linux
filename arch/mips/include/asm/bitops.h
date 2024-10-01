@@ -73,7 +73,8 @@ int __mips_test_and_clear_bit(unsigned long nr,
 			      volatile unsigned long *addr);
 int __mips_test_and_change_bit(unsigned long nr,
 			       volatile unsigned long *addr);
-
+bool __mips_xor_is_negative_byte(unsigned long mask,
+		volatile unsigned long *addr);
 
 /*
  * set_bit - Atomically set a bit in memory
@@ -272,6 +273,28 @@ static inline int test_and_change_bit(unsigned long nr,
 				     "xor\t%1, %0, %3",
 				     "ir"(BIT(bit)));
 		res = (orig & BIT(bit)) != 0;
+	}
+
+	smp_llsc_mb();
+
+	return res;
+}
+
+static inline bool xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *p)
+{
+	unsigned long orig;
+	bool res;
+
+	smp_mb__before_atomic();
+
+	if (!kernel_uses_llsc) {
+		res = __mips_xor_is_negative_byte(mask, p);
+	} else {
+		orig = __test_bit_op(*p, "%0",
+				     "xor\t%1, %0, %3",
+				     "ir"(mask));
+		res = (orig & BIT(7)) != 0;
 	}
 
 	smp_llsc_mb();

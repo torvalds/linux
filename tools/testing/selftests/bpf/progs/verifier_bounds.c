@@ -886,6 +886,69 @@ l1_%=:	r0 = 0;						\
 }
 
 SEC("socket")
+__description("bounds check for non const xor src dst")
+__success __log_level(2)
+__msg("5: (af) r0 ^= r6                      ; R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=431,var_off=(0x0; 0x1af))")
+__naked void non_const_xor_src_dst(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];                    \
+	r6 = r0;					\
+	call %[bpf_get_prandom_u32];                    \
+	r6 &= 0xaf;					\
+	r0 &= 0x1a0;					\
+	r0 ^= r6;					\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	__imm_addr(map_hash_8b),
+	__imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("bounds check for non const or src dst")
+__success __log_level(2)
+__msg("5: (4f) r0 |= r6                      ; R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=431,var_off=(0x0; 0x1af))")
+__naked void non_const_or_src_dst(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];                    \
+	r6 = r0;					\
+	call %[bpf_get_prandom_u32];                    \
+	r6 &= 0xaf;					\
+	r0 &= 0x1a0;					\
+	r0 |= r6;					\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	__imm_addr(map_hash_8b),
+	__imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("bounds check for non const mul regs")
+__success __log_level(2)
+__msg("5: (2f) r0 *= r6                      ; R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=3825,var_off=(0x0; 0xfff))")
+__naked void non_const_mul_regs(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];                    \
+	r6 = r0;					\
+	call %[bpf_get_prandom_u32];                    \
+	r6 &= 0xff;					\
+	r0 &= 0x0f;					\
+	r0 *= r6;					\
+	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	__imm_addr(map_hash_8b),
+	__imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
 __description("bounds checks after 32-bit truncation. test 1")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0)
@@ -965,6 +1028,7 @@ l0_%=:	r0 = 0;						\
 SEC("xdp")
 __description("bound check with JMP_JSLT for crossing 64-bit signed boundary")
 __success __retval(0)
+__flag(!BPF_F_TEST_REG_INVARIANTS) /* known invariants violation */
 __naked void crossing_64_bit_signed_boundary_2(void)
 {
 	asm volatile ("					\
@@ -1046,6 +1110,7 @@ l0_%=:	r0 = 0;						\
 SEC("xdp")
 __description("bound check with JMP32_JSLT for crossing 32-bit signed boundary")
 __success __retval(0)
+__flag(!BPF_F_TEST_REG_INVARIANTS) /* known invariants violation */
 __naked void crossing_32_bit_signed_boundary_2(void)
 {
 	asm volatile ("					\
@@ -1070,6 +1135,68 @@ l0_%=:	r0 = 0;						\
 "	:
 	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
 	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("bounds check with JMP_NE for reg edge")
+__success __retval(0)
+__naked void reg_not_equal_const(void)
+{
+	asm volatile ("					\
+	r6 = r1;					\
+	r1 = 0;						\
+	*(u64*)(r10 - 8) = r1;				\
+	call %[bpf_get_prandom_u32];			\
+	r4 = r0;					\
+	r4 &= 7;					\
+	if r4 != 0 goto l0_%=;				\
+	r0 = 0;						\
+	exit;						\
+l0_%=:	r1 = r6;					\
+	r2 = 0;						\
+	r3 = r10;					\
+	r3 += -8;					\
+	r5 = 0;						\
+	/* The 4th argument of bpf_skb_store_bytes is defined as \
+	 * ARG_CONST_SIZE, so 0 is not allowed. The 'r4 != 0' \
+	 * is providing us this exclusion of zero from initial \
+	 * [0, 7] range.				\
+	 */						\
+	call %[bpf_skb_store_bytes];			\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("bounds check with JMP_EQ for reg edge")
+__success __retval(0)
+__naked void reg_equal_const(void)
+{
+	asm volatile ("					\
+	r6 = r1;					\
+	r1 = 0;						\
+	*(u64*)(r10 - 8) = r1;				\
+	call %[bpf_get_prandom_u32];			\
+	r4 = r0;					\
+	r4 &= 7;					\
+	if r4 == 0 goto l0_%=;				\
+	r1 = r6;					\
+	r2 = 0;						\
+	r3 = r10;					\
+	r3 += -8;					\
+	r5 = 0;						\
+	/* Just the same as what we do in reg_not_equal_const() */ \
+	call %[bpf_skb_store_bytes];			\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
 	: __clobber_all);
 }
 

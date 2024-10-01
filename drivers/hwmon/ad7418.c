@@ -16,7 +16,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 
@@ -230,8 +230,6 @@ static void ad7418_init_client(struct i2c_client *client)
 	}
 }
 
-static const struct i2c_device_id ad7418_id[];
-
 static int ad7418_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -252,10 +250,7 @@ static int ad7418_probe(struct i2c_client *client)
 
 	mutex_init(&data->lock);
 	data->client = client;
-	if (dev->of_node)
-		data->type = (enum chips)of_device_get_match_data(dev);
-	else
-		data->type = i2c_match_id(ad7418_id, client)->driver_data;
+	data->type = (uintptr_t)i2c_get_match_data(client);
 
 	switch (data->type) {
 	case ad7416:

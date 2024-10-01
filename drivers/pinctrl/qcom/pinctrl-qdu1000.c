@@ -1248,7 +1248,7 @@ static struct platform_driver qdu1000_tlmm_driver = {
 		.of_match_table = qdu1000_tlmm_of_match,
 	},
 	.probe = qdu1000_tlmm_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init qdu1000_tlmm_init(void)

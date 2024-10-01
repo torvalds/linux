@@ -226,7 +226,6 @@ albacore_init_arch(void)
 	if (memtop > pci_mem) {
 #ifdef CONFIG_BLK_DEV_INITRD
 		extern unsigned long initrd_start, initrd_end;
-		extern void *move_initrd(unsigned long);
 
 		/* Move the initrd out of the way. */
 		if (initrd_end && __pa(initrd_end) > pci_mem) {

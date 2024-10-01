@@ -109,7 +109,9 @@ static inline int __ti_thermal_get_temp(struct thermal_zone_device *tz, int *tem
 	return ret;
 }
 
-static int __ti_thermal_get_trend(struct thermal_zone_device *tz, int trip, enum thermal_trend *trend)
+static int __ti_thermal_get_trend(struct thermal_zone_device *tz,
+				  const struct thermal_trip *trip,
+				  enum thermal_trend *trend)
 {
 	struct ti_thermal_data *data = thermal_zone_device_priv(tz);
 	struct ti_bandgap *bgp;

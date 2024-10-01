@@ -45,6 +45,7 @@ enum imx_pll14xx_type {
 enum imx_pllv4_type {
 	IMX_PLLV4_IMX7ULP,
 	IMX_PLLV4_IMX8ULP,
+	IMX_PLLV4_IMX8ULP_1GHZ,
 };
 
 enum imx_pfdv2_type {
@@ -440,6 +441,10 @@ struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 #define imx8m_clk_hw_composite_bus(name, parent_names, reg)	\
 	_imx8m_clk_hw_composite(name, parent_names, reg, \
 			IMX_COMPOSITE_BUS, IMX_COMPOSITE_CLK_FLAGS_DEFAULT)
+
+#define imx8m_clk_hw_composite_bus_flags(name, parent_names, reg, flags) \
+	_imx8m_clk_hw_composite(name, parent_names, reg, \
+			IMX_COMPOSITE_BUS, IMX_COMPOSITE_CLK_FLAGS_DEFAULT | flags)
 
 #define imx8m_clk_hw_composite_bus_critical(name, parent_names, reg)	\
 	_imx8m_clk_hw_composite(name, parent_names, reg, \

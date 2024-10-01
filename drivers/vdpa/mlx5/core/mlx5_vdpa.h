@@ -31,11 +31,13 @@ struct mlx5_vdpa_mr {
 	struct list_head head;
 	unsigned long num_directs;
 	unsigned long num_klms;
-	bool initialized;
 
-	/* serialize mkey creation and destruction */
-	struct mutex mkey_mtx;
+	struct vhost_iotlb *iotlb;
+
 	bool user_mr;
+
+	refcount_t refcount;
+	struct list_head mr_list;
 };
 
 struct mlx5_vdpa_resources {
@@ -73,17 +75,36 @@ struct mlx5_vdpa_wq_ent {
 enum {
 	MLX5_VDPA_DATAVQ_GROUP,
 	MLX5_VDPA_CVQ_GROUP,
+	MLX5_VDPA_DATAVQ_DESC_GROUP,
 	MLX5_VDPA_NUMVQ_GROUPS
 };
 
 enum {
-	MLX5_VDPA_NUM_AS = MLX5_VDPA_NUMVQ_GROUPS
+	MLX5_VDPA_NUM_AS = 2
+};
+
+struct mlx5_vdpa_mr_resources {
+	struct mlx5_vdpa_mr *mr[MLX5_VDPA_NUM_AS];
+	unsigned int group2asid[MLX5_VDPA_NUMVQ_GROUPS];
+
+	/* Pre-deletion mr list */
+	struct list_head mr_list_head;
+
+	/* Deferred mr list */
+	struct list_head mr_gc_list_head;
+	struct workqueue_struct *wq_gc;
+	struct delayed_work gc_dwork_ent;
+
+	struct mutex lock;
+
+	atomic_t shutdown;
 };
 
 struct mlx5_vdpa_dev {
 	struct vdpa_device vdev;
 	struct mlx5_core_dev *mdev;
 	struct mlx5_vdpa_resources res;
+	struct mlx5_vdpa_mr_resources mres;
 
 	u64 mlx_features;
 	u64 actual_features;
@@ -92,16 +113,25 @@ struct mlx5_vdpa_dev {
 	u16 max_idx;
 	u32 generation;
 
-	struct mlx5_vdpa_mr mr;
 	struct mlx5_control_vq cvq;
 	struct workqueue_struct *wq;
-	unsigned int group2asid[MLX5_VDPA_NUMVQ_GROUPS];
 	bool suspended;
+
+	struct mlx5_async_ctx async_ctx;
 };
 
-int mlx5_vdpa_alloc_pd(struct mlx5_vdpa_dev *dev, u32 *pdn, u16 uid);
-int mlx5_vdpa_dealloc_pd(struct mlx5_vdpa_dev *dev, u32 pdn, u16 uid);
-int mlx5_vdpa_get_null_mkey(struct mlx5_vdpa_dev *dev, u32 *null_mkey);
+struct mlx5_vdpa_async_cmd {
+	int err;
+	struct mlx5_async_work cb_work;
+	struct completion cmd_done;
+
+	void *in;
+	size_t inlen;
+
+	void *out;
+	size_t outlen;
+};
+
 int mlx5_vdpa_create_tis(struct mlx5_vdpa_dev *mvdev, void *in, u32 *tisn);
 void mlx5_vdpa_destroy_tis(struct mlx5_vdpa_dev *mvdev, u32 tisn);
 int mlx5_vdpa_create_rqt(struct mlx5_vdpa_dev *mvdev, void *in, int inlen, u32 *rqtn);
@@ -116,11 +146,31 @@ void mlx5_vdpa_free_resources(struct mlx5_vdpa_dev *mvdev);
 int mlx5_vdpa_create_mkey(struct mlx5_vdpa_dev *mvdev, u32 *mkey, u32 *in,
 			  int inlen);
 int mlx5_vdpa_destroy_mkey(struct mlx5_vdpa_dev *mvdev, u32 mkey);
-int mlx5_vdpa_handle_set_map(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
-			     bool *change_map, unsigned int asid);
-int mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
-			unsigned int asid);
-void mlx5_vdpa_destroy_mr(struct mlx5_vdpa_dev *mvdev);
+struct mlx5_vdpa_mr *mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
+					 struct vhost_iotlb *iotlb);
+int mlx5_vdpa_init_mr_resources(struct mlx5_vdpa_dev *mvdev);
+void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev);
+void mlx5_vdpa_clean_mrs(struct mlx5_vdpa_dev *mvdev);
+void mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
+		      struct mlx5_vdpa_mr *mr);
+void mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
+		      struct mlx5_vdpa_mr *mr);
+void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
+			 struct mlx5_vdpa_mr *mr,
+			 unsigned int asid);
+int mlx5_vdpa_update_cvq_iotlb(struct mlx5_vdpa_dev *mvdev,
+				struct vhost_iotlb *iotlb,
+				unsigned int asid);
+int mlx5_vdpa_create_dma_mr(struct mlx5_vdpa_dev *mvdev);
+int mlx5_vdpa_reset_mr(struct mlx5_vdpa_dev *mvdev, unsigned int asid);
+int mlx5_vdpa_exec_async_cmds(struct mlx5_vdpa_dev *mvdev,
+			      struct mlx5_vdpa_async_cmd *cmds,
+			      int num_cmds);
+
+#define mlx5_vdpa_err(__dev, format, ...)                                                          \
+	dev_err((__dev)->mdev->device, "%s:%d:(pid %d) error: " format, __func__, __LINE__,        \
+		 current->pid, ##__VA_ARGS__)
+
 
 #define mlx5_vdpa_warn(__dev, format, ...)                                                         \
 	dev_warn((__dev)->mdev->device, "%s:%d:(pid %d) warning: " format, __func__, __LINE__,     \

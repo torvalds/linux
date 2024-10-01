@@ -67,7 +67,7 @@
 		};
 
 		display-timings {
-			VGA {
+			timing-vga {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -83,7 +83,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ETV570 {
+			timing-etc570 {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -99,7 +99,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ET0350 {
+			timing-et0350 {
 				clock-frequency = <6413760>;
 				hactive = <320>;
 				vactive = <240>;
@@ -115,7 +115,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ET0430 {
+			timing-et0430 {
 				clock-frequency = <9009000>;
 				hactive = <480>;
 				vactive = <272>;
@@ -131,7 +131,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ET0500 {
+			timing-et0500 {
 				clock-frequency = <33264000>;
 				hactive = <800>;
 				vactive = <480>;
@@ -147,7 +147,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ET0700 { /* same as ET0500 */
+			timing-et0700 { /* same as ET0500 */
 				clock-frequency = <33264000>;
 				hactive = <800>;
 				vactive = <480>;
@@ -163,7 +163,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ETQ570 {
+			timing-etq570 {
 				clock-frequency = <6596040>;
 				hactive = <320>;
 				vactive = <240>;

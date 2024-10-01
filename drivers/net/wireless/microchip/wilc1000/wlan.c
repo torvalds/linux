@@ -12,11 +12,6 @@
 
 #define WAKE_UP_TRIAL_RETRY		10000
 
-static inline bool is_wilc1000(u32 id)
-{
-	return (id & (~WILC_CHIP_REV_FIELD)) == WILC_1000_BASE_ID;
-}
-
 static inline void acquire_bus(struct wilc *wilc, enum bus_acquire acquire)
 {
 	mutex_lock(&wilc->hif_cs);
@@ -683,17 +678,17 @@ EXPORT_SYMBOL_GPL(chip_wakeup);
 
 void host_wakeup_notify(struct wilc *wilc)
 {
-	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 	wilc->hif_func->hif_write_reg(wilc, WILC_CORTUS_INTERRUPT_2, 1);
-	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
 }
 EXPORT_SYMBOL_GPL(host_wakeup_notify);
 
 void host_sleep_notify(struct wilc *wilc)
 {
-	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 	wilc->hif_func->hif_write_reg(wilc, WILC_CORTUS_INTERRUPT_1, 1);
-	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
 }
 EXPORT_SYMBOL_GPL(host_sleep_notify);
 
@@ -730,7 +725,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	mutex_lock(&wilc->txq_add_to_head_cs);
 
 	srcu_idx = srcu_read_lock(&wilc->srcu);
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list)
+	wilc_for_each_vif(wilc, vif)
 		wilc_wlan_txq_filter_dup_tcp_ack(vif->ndev);
 	srcu_read_unlock(&wilc->srcu, srcu_idx);
 
@@ -1198,6 +1193,24 @@ int wilc_wlan_stop(struct wilc *wilc, struct wilc_vif *vif)
 
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 
+	ret = wilc->hif_func->hif_read_reg(wilc, GLOBAL_MODE_CONTROL, &reg);
+	if (ret)
+		goto release;
+
+	reg &= ~WILC_GLOBAL_MODE_ENABLE_WIFI;
+	ret = wilc->hif_func->hif_write_reg(wilc, GLOBAL_MODE_CONTROL, reg);
+	if (ret)
+		goto release;
+
+	ret = wilc->hif_func->hif_read_reg(wilc, PWR_SEQ_MISC_CTRL, &reg);
+	if (ret)
+		goto release;
+
+	reg &= ~WILC_PWR_SEQ_ENABLE_WIFI_SLEEP;
+	ret = wilc->hif_func->hif_write_reg(wilc, PWR_SEQ_MISC_CTRL, reg);
+	if (ret)
+		goto release;
+
 	ret = wilc->hif_func->hif_read_reg(wilc, WILC_GP_REG_0, &reg);
 	if (ret) {
 		netdev_err(vif->ndev, "Error while reading reg\n");
@@ -1206,19 +1219,6 @@ int wilc_wlan_stop(struct wilc *wilc, struct wilc_vif *vif)
 
 	ret = wilc->hif_func->hif_write_reg(wilc, WILC_GP_REG_0,
 					(reg | WILC_ABORT_REQ_BIT));
-	if (ret) {
-		netdev_err(vif->ndev, "Error while writing reg\n");
-		goto release;
-	}
-
-	ret = wilc->hif_func->hif_read_reg(wilc, WILC_FW_HOST_COMM, &reg);
-	if (ret) {
-		netdev_err(vif->ndev, "Error while reading reg\n");
-		goto release;
-	}
-	reg = BIT(0);
-
-	ret = wilc->hif_func->hif_write_reg(wilc, WILC_FW_HOST_COMM, reg);
 	if (ret) {
 		netdev_err(vif->ndev, "Error while writing reg\n");
 		goto release;
@@ -1410,7 +1410,7 @@ static int init_chip(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
 
-	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 
 	chipid = wilc_get_chipid(wilc, true);
 
@@ -1440,7 +1440,7 @@ static int init_chip(struct net_device *dev)
 	}
 
 release:
-	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
 
 	return ret;
 }
@@ -1473,6 +1473,55 @@ u32 wilc_get_chipid(struct wilc *wilc, bool update)
 	return wilc->chipid;
 }
 
+int wilc_load_mac_from_nv(struct wilc *wl)
+{
+	int ret = -EINVAL;
+	unsigned int i;
+
+	acquire_bus(wl, WILC_BUS_ACQUIRE_AND_WAKEUP);
+
+	for (i = 0; i < WILC_NVMEM_MAX_NUM_BANK; i++) {
+		int bank_offset = get_bank_offset_from_bank_index(i);
+		u32 reg1, reg2;
+		u8 invalid;
+		u8 used;
+
+		ret = wl->hif_func->hif_read_reg(wl,
+						 WILC_NVMEM_BANK_BASE + bank_offset,
+						 &reg1);
+		if (ret) {
+			pr_err("Can not read address %d lower part", i);
+			break;
+		}
+		ret = wl->hif_func->hif_read_reg(wl,
+						 WILC_NVMEM_BANK_BASE + bank_offset + 4,
+						 &reg2);
+		if (ret) {
+			pr_err("Can not read address %d upper part", i);
+			break;
+		}
+
+		used = FIELD_GET(WILC_NVMEM_IS_BANK_USED, reg1);
+		invalid = FIELD_GET(WILC_NVMEM_IS_BANK_INVALID, reg1);
+		if (!used || invalid)
+			continue;
+
+		wl->nv_mac_address[0] = FIELD_GET(GENMASK(23, 16), reg1);
+		wl->nv_mac_address[1] = FIELD_GET(GENMASK(15, 8), reg1);
+		wl->nv_mac_address[2] = FIELD_GET(GENMASK(7, 0), reg1);
+		wl->nv_mac_address[3] = FIELD_GET(GENMASK(31, 24), reg2);
+		wl->nv_mac_address[4] = FIELD_GET(GENMASK(23, 16), reg2);
+		wl->nv_mac_address[5] = FIELD_GET(GENMASK(15, 8), reg2);
+
+		ret = 0;
+		break;
+	}
+
+	release_bus(wl, WILC_BUS_RELEASE_ALLOW_SLEEP);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wilc_load_mac_from_nv);
+
 int wilc_wlan_init(struct net_device *dev)
 {
 	int ret = 0;
@@ -1492,7 +1541,7 @@ int wilc_wlan_init(struct net_device *dev)
 	}
 
 	if (!wilc->vmm_table)
-		wilc->vmm_table = kzalloc(WILC_VMM_TBL_SIZE, GFP_KERNEL);
+		wilc->vmm_table = kcalloc(WILC_VMM_TBL_SIZE, sizeof(u32), GFP_KERNEL);
 
 	if (!wilc->vmm_table) {
 		ret = -ENOBUFS;

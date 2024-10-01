@@ -24,7 +24,9 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	chosen { };
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 
 	aliases {
 		serial0 = &v2m_serial0;
@@ -243,6 +245,7 @@
 		iommu-map = <0x0 &smmu 0x0 0x10000>;
 
 		dma-coherent;
+		ats-supported;
 	};
 
 	smmu: iommu@2b400000 {

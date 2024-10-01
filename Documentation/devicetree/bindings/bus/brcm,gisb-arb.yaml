@@ -18,6 +18,7 @@ properties:
           - const: brcm,gisb-arb
       - items:
           - enum:
+              - brcm,bcm74165-gisb-arb  # for V7 new style 16nm chips
               - brcm,bcm7278-gisb-arb  # for V7 28nm chips
               - brcm,bcm7435-gisb-arb  # for newer 40nm chips
               - brcm,bcm7400-gisb-arb  # for older 40nm chips and all 65nm chips
@@ -43,7 +44,7 @@ properties:
   brcm,gisb-arb-master-names:
     $ref: /schemas/types.yaml#/definitions/string-array
     description: >
-      String list of the litteral name of the GISB masters. Should match the
+      String list of the literal name of the GISB masters. Should match the
       number of bits set in brcm,gisb-master-mask and the order in which they
       appear from MSB to LSB.
 

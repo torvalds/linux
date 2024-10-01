@@ -12,7 +12,7 @@
 #include "tb.h"
 
 static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
-				    void **return_value)
+				    void **ret)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct fwnode_handle *fwnode;
@@ -32,40 +32,20 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 		goto out_put;
 
 	/*
-	 * Try to find physical device walking upwards to the hierarcy.
-	 * We need to do this because the xHCI driver might not yet be
-	 * bound so the USB3 SuperSpeed ports are not yet created.
+	 * Ignore USB3 ports here as USB core will set up device links between
+	 * tunneled USB3 devices and NHI host during USB device creation.
+	 * USB3 ports might not even have a physical device yet if xHCI driver
+	 * isn't bound yet.
 	 */
-	do {
-		dev = acpi_get_first_physical_node(adev);
-		if (dev)
-			break;
-
-		adev = acpi_dev_parent(adev);
-	} while (adev);
-
-	/*
-	 * Check that the device is PCIe. This is because USB3
-	 * SuperSpeed ports have this property and they are not power
-	 * managed with the xHCI and the SuperSpeed hub so we create the
-	 * link from xHCI instead.
-	 */
-	while (dev && !dev_is_pci(dev))
-		dev = dev->parent;
-
-	if (!dev)
+	dev = acpi_get_first_physical_node(adev);
+	if (!dev || !dev_is_pci(dev))
 		goto out_put;
 
-	/*
-	 * Check that this actually matches the type of device we
-	 * expect. It should either be xHCI or PCIe root/downstream
-	 * port.
-	 */
+	/* Check that this matches a PCIe root/downstream port. */
 	pdev = to_pci_dev(dev);
-	if (pdev->class == PCI_CLASS_SERIAL_USB_XHCI ||
-	    (pci_is_pcie(pdev) &&
-		(pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT ||
-		 pci_pcie_type(pdev) == PCI_EXP_TYPE_DOWNSTREAM))) {
+	if (pci_is_pcie(pdev) &&
+	    (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT ||
+	     pci_pcie_type(pdev) == PCI_EXP_TYPE_DOWNSTREAM)) {
 		const struct device_link *link;
 
 		/*
@@ -84,6 +64,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 		if (link) {
 			dev_dbg(&nhi->pdev->dev, "created link from %s\n",
 				dev_name(&pdev->dev));
+			*(bool *)ret = true;
 		} else {
 			dev_warn(&nhi->pdev->dev, "device link creation from %s failed\n",
 				 dev_name(&pdev->dev));
@@ -104,22 +85,29 @@ out_put:
  * Goes over ACPI namespace finding tunneled ports that reference to
  * @nhi ACPI node. For each reference a device link is added. The link
  * is automatically removed by the driver core.
+ *
+ * Returns %true if at least one link was created.
  */
-void tb_acpi_add_links(struct tb_nhi *nhi)
+bool tb_acpi_add_links(struct tb_nhi *nhi)
 {
 	acpi_status status;
+	bool ret = false;
 
 	if (!has_acpi_companion(&nhi->pdev->dev))
-		return;
+		return false;
 
 	/*
 	 * Find all devices that have usb4-host-controller interface
 	 * property that references to this NHI.
 	 */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, 32,
-				     tb_acpi_add_link, NULL, nhi, NULL);
-	if (ACPI_FAILURE(status))
+				     tb_acpi_add_link, NULL, nhi, (void **)&ret);
+	if (ACPI_FAILURE(status)) {
 		dev_warn(&nhi->pdev->dev, "failed to enumerate tunneled ports\n");
+		return false;
+	}
+
+	return ret;
 }
 
 /**

@@ -17,7 +17,7 @@
 #include <asm/irq_regs.h>
 #include <linux/seq_file.h>
 
-extern void sun3_leds (unsigned char);
+#include "sun3.h"
 
 void sun3_disable_interrupts(void)
 {
@@ -29,11 +29,11 @@ void sun3_enable_interrupts(void)
 	sun3_enable_irq(0);
 }
 
-static int led_pattern[8] = {
-       ~(0x80), ~(0x01),
-       ~(0x40), ~(0x02),
-       ~(0x20), ~(0x04),
-       ~(0x10), ~(0x08)
+static unsigned char led_pattern[8] = {
+	(u8)~(0x80), (u8)~(0x01),
+	(u8)~(0x40), (u8)~(0x02),
+	(u8)~(0x20), (u8)~(0x04),
+	(u8)~(0x10), (u8)~(0x08)
 };
 
 volatile unsigned char* sun3_intreg;

@@ -209,10 +209,9 @@ static ssize_t status_store(struct device *device,
 		ret = -EINVAL;
 
 	if (old_force != connector->force || !connector->force) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force updated from %d to %d or reprobing\n",
-			      connector->base.id,
-			      connector->name,
-			      old_force, connector->force);
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] force updated from %d to %d or reprobing\n",
+			    connector->base.id, connector->name,
+			    old_force, connector->force);
 
 		connector->funcs->fill_modes(connector,
 					     dev->mode_config.max_width,
@@ -267,29 +266,9 @@ static ssize_t edid_show(struct file *filp, struct kobject *kobj,
 {
 	struct device *connector_dev = kobj_to_dev(kobj);
 	struct drm_connector *connector = to_drm_connector(connector_dev);
-	unsigned char *edid;
-	size_t size;
-	ssize_t ret = 0;
+	ssize_t ret;
 
-	mutex_lock(&connector->dev->mode_config.mutex);
-	if (!connector->edid_blob_ptr)
-		goto unlock;
-
-	edid = connector->edid_blob_ptr->data;
-	size = connector->edid_blob_ptr->length;
-	if (!edid)
-		goto unlock;
-
-	if (off >= size)
-		goto unlock;
-
-	if (off + count > size)
-		count = size - off;
-	memcpy(buf, edid + off, count);
-
-	ret = count;
-unlock:
-	mutex_unlock(&connector->dev->mode_config.mutex);
+	ret = drm_edid_connector_property_show(connector, buf, off, count);
 
 	return ret;
 }
@@ -383,8 +362,8 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	if (r)
 		goto err_free;
 
-	DRM_DEBUG("adding \"%s\" to sysfs\n",
-		  connector->name);
+	drm_dbg_kms(dev, "[CONNECTOR:%d:%s] adding connector to sysfs\n",
+		    connector->base.id, connector->name);
 
 	r = device_add(kdev);
 	if (r) {
@@ -400,10 +379,6 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 			drm_err(dev, "failed to add component to create link to typec connector\n");
 	}
 
-	if (connector->ddc)
-		return sysfs_create_link(&connector->kdev->kobj,
-				 &connector->ddc->dev.kobj, "ddc");
-
 	return 0;
 
 err_free:
@@ -411,19 +386,32 @@ err_free:
 	return r;
 }
 
+int drm_sysfs_connector_add_late(struct drm_connector *connector)
+{
+	if (connector->ddc)
+		return sysfs_create_link(&connector->kdev->kobj,
+					 &connector->ddc->dev.kobj, "ddc");
+
+	return 0;
+}
+
+void drm_sysfs_connector_remove_early(struct drm_connector *connector)
+{
+	if (connector->ddc)
+		sysfs_remove_link(&connector->kdev->kobj, "ddc");
+}
+
 void drm_sysfs_connector_remove(struct drm_connector *connector)
 {
 	if (!connector->kdev)
 		return;
 
-	if (connector->ddc)
-		sysfs_remove_link(&connector->kdev->kobj, "ddc");
-
 	if (dev_fwnode(connector->kdev))
 		component_del(connector->kdev, &typec_connector_ops);
 
-	DRM_DEBUG("removing \"%s\" from sysfs\n",
-		  connector->name);
+	drm_dbg_kms(connector->dev,
+		    "[CONNECTOR:%d:%s] removing connector from sysfs\n",
+		    connector->base.id, connector->name);
 
 	device_unregister(connector->kdev);
 	connector->kdev = NULL;
@@ -434,7 +422,7 @@ void drm_sysfs_lease_event(struct drm_device *dev)
 	char *event_string = "LEASE=1";
 	char *envp[] = { event_string, NULL };
 
-	DRM_DEBUG("generating lease event\n");
+	drm_dbg_lease(dev, "generating lease event\n");
 
 	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
@@ -455,7 +443,7 @@ void drm_sysfs_hotplug_event(struct drm_device *dev)
 	char *event_string = "HOTPLUG=1";
 	char *envp[] = { event_string, NULL };
 
-	DRM_DEBUG("generating hotplug event\n");
+	drm_dbg_kms(dev, "generating hotplug event\n");
 
 	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
@@ -487,17 +475,17 @@ void drm_sysfs_connector_hotplug_event(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_sysfs_connector_hotplug_event);
 
 /**
- * drm_sysfs_connector_status_event - generate a DRM uevent for connector
- * property status change
- * @connector: connector on which property status changed
- * @property: connector property whose status changed.
+ * drm_sysfs_connector_property_event - generate a DRM uevent for connector
+ * property change
+ * @connector: connector on which property changed
+ * @property: connector property which has changed.
  *
- * Send a uevent for the DRM device specified by @dev.  Currently we
+ * Send a uevent for the specified DRM connector and property.  Currently we
  * set HOTPLUG=1 and connector id along with the attached property id
- * related to the status change.
+ * related to the change.
  */
-void drm_sysfs_connector_status_event(struct drm_connector *connector,
-				      struct drm_property *property)
+void drm_sysfs_connector_property_event(struct drm_connector *connector,
+					struct drm_property *property)
 {
 	struct drm_device *dev = connector->dev;
 	char hotplug_str[] = "HOTPLUG=1", conn_id[21], prop_id[21];
@@ -511,11 +499,14 @@ void drm_sysfs_connector_status_event(struct drm_connector *connector,
 	snprintf(prop_id, ARRAY_SIZE(prop_id),
 		 "PROPERTY=%u", property->base.id);
 
-	DRM_DEBUG("generating connector status event\n");
+	drm_dbg_kms(connector->dev,
+		    "[CONNECTOR:%d:%s] generating connector property event for [PROP:%d:%s]\n",
+		    connector->base.id, connector->name,
+		    property->base.id, property->name);
 
 	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
-EXPORT_SYMBOL(drm_sysfs_connector_status_event);
+EXPORT_SYMBOL(drm_sysfs_connector_property_event);
 
 struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 {

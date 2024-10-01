@@ -178,75 +178,17 @@
 		method = "hvc";
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
+	rpm: remoteproc {
+		compatible = "qcom,msm8994-rpm-proc", "qcom,rpm-proc";
 
-		dfps_data_mem: dfps_data_mem@3400000 {
-			reg = <0 0x03400000 0 0x1000>;
-			no-map;
-		};
-
-		cont_splash_mem: memory@3401000 {
-			reg = <0 0x03401000 0 0x2200000>;
-			no-map;
-		};
-
-		smem_mem: smem_region@6a00000 {
-			reg = <0 0x06a00000 0 0x200000>;
-			no-map;
-		};
-
-		mpss_mem: memory@7000000 {
-			reg = <0 0x07000000 0 0x5a00000>;
-			no-map;
-		};
-
-		peripheral_region: memory@ca00000 {
-			reg = <0 0x0ca00000 0 0x1f00000>;
-			no-map;
-		};
-
-		rmtfs_mem: memory@c6400000 {
-			compatible = "qcom,rmtfs-mem";
-			reg = <0 0xc6400000 0 0x180000>;
-			no-map;
-
-			qcom,client-id = <1>;
-		};
-
-		mba_mem: memory@c6700000 {
-			reg = <0 0xc6700000 0 0x100000>;
-			no-map;
-		};
-
-		audio_mem: memory@c7000000 {
-			reg = <0 0xc7000000 0 0x800000>;
-			no-map;
-		};
-
-		adsp_mem: memory@c9400000 {
-			reg = <0 0xc9400000 0 0x3f00000>;
-			no-map;
-		};
-
-		reserved@6c00000 {
-			reg = <0 0x06c00000 0 0x400000>;
-			no-map;
-		};
-	};
-
-	smd {
-		compatible = "qcom,smd";
-		rpm {
+		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-			qcom,ipc = <&apcs 8 0>;
+			mboxes = <&apcs 0>;
 			qcom,smd-edge = <15>;
 			qcom,remote-pid = <6>;
 
 			rpm_requests: rpm-requests {
-				compatible = "qcom,rpm-msm8994";
+				compatible = "qcom,rpm-msm8994", "qcom,smd-rpm";
 				qcom,smd-channels = "rpm_requests";
 
 				rpmcc: clock-controller {
@@ -286,6 +228,65 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dfps_data_mem: dfps-data@3400000 {
+			reg = <0 0x03400000 0 0x1000>;
+			no-map;
+		};
+
+		cont_splash_mem: memory@3401000 {
+			reg = <0 0x03401000 0 0x2200000>;
+			no-map;
+		};
+
+		smem_mem: smem@6a00000 {
+			reg = <0 0x06a00000 0 0x200000>;
+			no-map;
+		};
+
+		mpss_mem: memory@7000000 {
+			reg = <0 0x07000000 0 0x5a00000>;
+			no-map;
+		};
+
+		peripheral_region: memory@ca00000 {
+			reg = <0 0x0ca00000 0 0x1f00000>;
+			no-map;
+		};
+
+		rmtfs_mem: memory@c6400000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0 0xc6400000 0 0x180000>;
+			no-map;
+
+			qcom,client-id = <1>;
+		};
+
+		mba_mem: memory@c6700000 {
+			reg = <0 0xc6700000 0 0x100000>;
+			no-map;
+		};
+
+		audio_mem: memory@c7000000 {
+			reg = <0 0xc7000000 0 0x800000>;
+			no-map;
+		};
+
+		adsp_mem: memory@c9400000 {
+			reg = <0 0xc9400000 0 0x3f00000>;
+			no-map;
+		};
+
+		res_hyp_mem: reserved@6c00000 {
+			reg = <0 0x06c00000 0 0x400000>;
+			no-map;
+		};
+	};
+
 	smem {
 		compatible = "qcom,smem";
 		memory-region = <&smem_mem>;
@@ -299,7 +300,7 @@
 
 		interrupts = <GIC_SPI 158 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 8 10>;
+		mboxes = <&apcs 10>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <2>;
@@ -324,7 +325,7 @@
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 8 14>;
+		mboxes = <&apcs 14>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <1>;
@@ -455,7 +456,7 @@
 			usb@f9200000 {
 				compatible = "snps,dwc3";
 				reg = <0xf9200000 0xcc00>;
-				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_enblslpm_quirk;
 				maximum-speed = "high-speed";
@@ -1092,10 +1093,10 @@
 
 	timer: timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 2 0xff08>,
-			     <GIC_PPI 3 0xff08>,
-			     <GIC_PPI 4 0xff08>,
-			     <GIC_PPI 1 0xff08>;
+		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
 	vph_pwr: vph-pwr-regulator {

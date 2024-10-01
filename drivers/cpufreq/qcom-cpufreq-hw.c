@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/interconnect.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -28,7 +29,7 @@
 
 #define GT_IRQ_STATUS			BIT(2)
 
-#define MAX_FREQ_DOMAINS		3
+#define MAX_FREQ_DOMAINS		4
 
 struct qcom_cpufreq_soc_data {
 	u32 reg_enable;
@@ -347,8 +348,8 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 
 	throttled_freq = freq_hz / HZ_PER_KHZ;
 
-	/* Update thermal pressure (the boost frequencies are accepted) */
-	arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
+	/* Update HW pressure (the boost frequencies are accepted) */
+	arch_update_hw_pressure(policy->related_cpus, throttled_freq);
 
 	/*
 	 * In the unlikely case policy is unregistered do not enable
@@ -573,7 +574,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	return qcom_cpufreq_hw_lmh_init(policy, index);
 }
 
-static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
+static void qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev = get_cpu_device(policy->cpu);
 	struct qcom_cpufreq_data *data = policy->driver_data;
@@ -583,8 +584,6 @@ static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 	qcom_cpufreq_hw_lmh_exit(data);
 	kfree(policy->freq_table);
 	kfree(data);
-
-	return 0;
 }
 
 static void qcom_cpufreq_ready(struct cpufreq_policy *policy)
@@ -730,16 +729,14 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int qcom_cpufreq_hw_driver_remove(struct platform_device *pdev)
+static void qcom_cpufreq_hw_driver_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&cpufreq_qcom_hw_driver);
-
-	return 0;
 }
 
 static struct platform_driver qcom_cpufreq_hw_driver = {
 	.probe = qcom_cpufreq_hw_driver_probe,
-	.remove = qcom_cpufreq_hw_driver_remove,
+	.remove_new = qcom_cpufreq_hw_driver_remove,
 	.driver = {
 		.name = "qcom-cpufreq-hw",
 		.of_match_table = qcom_cpufreq_hw_match,

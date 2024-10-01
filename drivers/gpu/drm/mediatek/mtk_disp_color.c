@@ -6,14 +6,13 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_crtc.h"
+#include "mtk_ddp_comp.h"
 #include "mtk_disp_drv.h"
-#include "mtk_drm_crtc.h"
-#include "mtk_drm_ddp_comp.h"
 #include "mtk_drm_drv.h"
 
 #define DISP_COLOR_CFG_MAIN			0x0400
@@ -105,17 +104,15 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get color clk\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk),
+				     "failed to get color clk\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(priv->regs)) {
-		dev_err(dev, "failed to ioremap color\n");
-		return PTR_ERR(priv->regs);
-	}
+	if (IS_ERR(priv->regs))
+		return dev_err_probe(dev, PTR_ERR(priv->regs),
+				     "failed to ioremap color\n");
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	ret = cmdq_dev_get_client_reg(dev, &priv->cmdq_reg, 0);
 	if (ret)
@@ -127,16 +124,14 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 
 	ret = component_add(dev, &mtk_disp_color_component_ops);
 	if (ret)
-		dev_err(dev, "Failed to add component: %d\n", ret);
-
-	return ret;
-}
-
-static int mtk_disp_color_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &mtk_disp_color_component_ops);
+		return dev_err_probe(dev, ret, "Failed to add component\n");
 
 	return 0;
+}
+
+static void mtk_disp_color_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &mtk_disp_color_component_ops);
 }
 
 static const struct mtk_disp_color_data mt2701_color_driver_data = {
@@ -164,10 +159,9 @@ MODULE_DEVICE_TABLE(of, mtk_disp_color_driver_dt_match);
 
 struct platform_driver mtk_disp_color_driver = {
 	.probe		= mtk_disp_color_probe,
-	.remove		= mtk_disp_color_remove,
+	.remove_new	= mtk_disp_color_remove,
 	.driver		= {
 		.name	= "mediatek-disp-color",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_disp_color_driver_dt_match,
 	},
 };

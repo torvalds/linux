@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
+#include <asm-generic/unaligned.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/moduleparam.h>
 #include <linux/module.h>
@@ -10,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/aer.h>
 #include <linux/io.h>
+#include <cxl/mailbox.h>
 #include "cxlmem.h"
 #include "cxlpci.h"
 #include "cxl.h"
@@ -85,25 +87,28 @@ static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 			    status & CXLMDEV_DEV_FATAL ? " fatal" : "",        \
 			    status & CXLMDEV_FW_HALT ? " firmware-halt" : "")
 
+/*
+ * Threaded irq dev_id's must be globally unique.  cxl_dev_id provides a unique
+ * wrapper object for each irq within the same cxlds.
+ */
 struct cxl_dev_id {
 	struct cxl_dev_state *cxlds;
 };
 
 static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
-			   irq_handler_t handler, irq_handler_t thread_fn)
+			   irq_handler_t thread_fn)
 {
 	struct device *dev = cxlds->dev;
 	struct cxl_dev_id *dev_id;
 
-	/* dev_id must be globally unique and must contain the cxlds */
 	dev_id = devm_kzalloc(dev, sizeof(*dev_id), GFP_KERNEL);
 	if (!dev_id)
 		return -ENOMEM;
 	dev_id->cxlds = cxlds;
 
-	return devm_request_threaded_irq(dev, irq, handler, thread_fn,
-					 IRQF_SHARED | IRQF_ONESHOT,
-					 NULL, dev_id);
+	return devm_request_threaded_irq(dev, irq, NULL, thread_fn,
+					 IRQF_SHARED | IRQF_ONESHOT, NULL,
+					 dev_id);
 }
 
 static bool cxl_mbox_background_complete(struct cxl_dev_state *cxlds)
@@ -120,6 +125,7 @@ static irqreturn_t cxl_pci_mbox_irq(int irq, void *id)
 	u16 opcode;
 	struct cxl_dev_id *dev_id = id;
 	struct cxl_dev_state *cxlds = dev_id->cxlds;
+	struct cxl_mailbox *cxl_mbox = &cxlds->cxl_mbox;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
 	if (!cxl_mbox_background_complete(cxlds))
@@ -128,13 +134,13 @@ static irqreturn_t cxl_pci_mbox_irq(int irq, void *id)
 	reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
 	opcode = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_OPCODE_MASK, reg);
 	if (opcode == CXL_MBOX_OP_SANITIZE) {
+		mutex_lock(&cxl_mbox->mbox_mutex);
 		if (mds->security.sanitize_node)
-			sysfs_notify_dirent(mds->security.sanitize_node);
-
-		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
+			mod_delayed_work(system_wq, &mds->security.poll_dwork, 0);
+		mutex_unlock(&cxl_mbox->mbox_mutex);
 	} else {
 		/* short-circuit the wait in __cxl_pci_mbox_send_cmd() */
-		rcuwait_wake_up(&mds->mbox_wait);
+		rcuwait_wake_up(&cxl_mbox->mbox_wait);
 	}
 
 	return IRQ_HANDLED;
@@ -148,29 +154,28 @@ static void cxl_mbox_sanitize_work(struct work_struct *work)
 	struct cxl_memdev_state *mds =
 		container_of(work, typeof(*mds), security.poll_dwork.work);
 	struct cxl_dev_state *cxlds = &mds->cxlds;
+	struct cxl_mailbox *cxl_mbox = &cxlds->cxl_mbox;
 
-	mutex_lock(&mds->mbox_mutex);
+	mutex_lock(&cxl_mbox->mbox_mutex);
 	if (cxl_mbox_background_complete(cxlds)) {
 		mds->security.poll_tmo_secs = 0;
-		put_device(cxlds->dev);
-
 		if (mds->security.sanitize_node)
 			sysfs_notify_dirent(mds->security.sanitize_node);
+		mds->security.sanitize_active = false;
 
 		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
 	} else {
 		int timeout = mds->security.poll_tmo_secs + 10;
 
 		mds->security.poll_tmo_secs = min(15 * 60, timeout);
-		queue_delayed_work(system_wq, &mds->security.poll_dwork,
-				   timeout * HZ);
+		schedule_delayed_work(&mds->security.poll_dwork, timeout * HZ);
 	}
-	mutex_unlock(&mds->mbox_mutex);
+	mutex_unlock(&cxl_mbox->mbox_mutex);
 }
 
 /**
  * __cxl_pci_mbox_send_cmd() - Execute a mailbox command
- * @mds: The memory device driver data
+ * @cxl_mbox: CXL mailbox context
  * @mbox_cmd: Command to send to the memory device.
  *
  * Context: Any context. Expects mbox_mutex to be held.
@@ -190,17 +195,18 @@ static void cxl_mbox_sanitize_work(struct work_struct *work)
  * not need to coordinate with each other. The driver only uses the primary
  * mailbox.
  */
-static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
+static int __cxl_pci_mbox_send_cmd(struct cxl_mailbox *cxl_mbox,
 				   struct cxl_mbox_cmd *mbox_cmd)
 {
-	struct cxl_dev_state *cxlds = &mds->cxlds;
+	struct cxl_dev_state *cxlds = mbox_to_cxlds(cxl_mbox);
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 	void __iomem *payload = cxlds->regs.mbox + CXLDEV_MBOX_PAYLOAD_OFFSET;
 	struct device *dev = cxlds->dev;
 	u64 cmd_reg, status_reg;
 	size_t out_len;
 	int rc;
 
-	lockdep_assert_held(&mds->mbox_mutex);
+	lockdep_assert_held(&cxl_mbox->mbox_mutex);
 
 	/*
 	 * Here are the steps from 8.2.8.4 of the CXL 2.0 spec.
@@ -295,18 +301,15 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 		 * and allow userspace to poll(2) for completion.
 		 */
 		if (mbox_cmd->opcode == CXL_MBOX_OP_SANITIZE) {
-			if (mds->security.poll) {
-				/* hold the device throughout */
-				get_device(cxlds->dev);
+			if (mds->security.sanitize_active)
+				return -EBUSY;
 
-				/* give first timeout a second */
-				timeout = 1;
-				mds->security.poll_tmo_secs = timeout;
-				queue_delayed_work(system_wq,
-						   &mds->security.poll_dwork,
-						   timeout * HZ);
-			}
-
+			/* give first timeout a second */
+			timeout = 1;
+			mds->security.poll_tmo_secs = timeout;
+			mds->security.sanitize_active = true;
+			schedule_delayed_work(&mds->security.poll_dwork,
+					      timeout * HZ);
 			dev_dbg(dev, "Sanitization operation started\n");
 			goto success;
 		}
@@ -316,10 +319,10 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 
 		timeout = mbox_cmd->poll_interval_ms;
 		for (i = 0; i < mbox_cmd->poll_count; i++) {
-			if (rcuwait_wait_event_timeout(&mds->mbox_wait,
-				       cxl_mbox_background_complete(cxlds),
-				       TASK_UNINTERRUPTIBLE,
-				       msecs_to_jiffies(timeout)) > 0)
+			if (rcuwait_wait_event_timeout(&cxl_mbox->mbox_wait,
+						       cxl_mbox_background_complete(cxlds),
+						       TASK_UNINTERRUPTIBLE,
+						       msecs_to_jiffies(timeout)) > 0)
 				break;
 		}
 
@@ -361,7 +364,7 @@ success:
 		 */
 		size_t n;
 
-		n = min3(mbox_cmd->size_out, mds->payload_size, out_len);
+		n = min3(mbox_cmd->size_out, cxl_mbox->payload_size, out_len);
 		memcpy_fromio(mbox_cmd->payload_out, payload, n);
 		mbox_cmd->size_out = n;
 	} else {
@@ -371,25 +374,28 @@ success:
 	return 0;
 }
 
-static int cxl_pci_mbox_send(struct cxl_memdev_state *mds,
+static int cxl_pci_mbox_send(struct cxl_mailbox *cxl_mbox,
 			     struct cxl_mbox_cmd *cmd)
 {
 	int rc;
 
-	mutex_lock_io(&mds->mbox_mutex);
-	rc = __cxl_pci_mbox_send_cmd(mds, cmd);
-	mutex_unlock(&mds->mbox_mutex);
+	mutex_lock_io(&cxl_mbox->mbox_mutex);
+	rc = __cxl_pci_mbox_send_cmd(cxl_mbox, cmd);
+	mutex_unlock(&cxl_mbox->mbox_mutex);
 
 	return rc;
 }
 
-static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds)
+static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds, bool irq_avail)
 {
 	struct cxl_dev_state *cxlds = &mds->cxlds;
+	struct cxl_mailbox *cxl_mbox = &cxlds->cxl_mbox;
 	const int cap = readl(cxlds->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
 	struct device *dev = cxlds->dev;
 	unsigned long timeout;
+	int irq, msgnum;
 	u64 md_status;
+	u32 ctrl;
 
 	timeout = jiffies + mbox_ready_timeout * HZ;
 	do {
@@ -416,8 +422,8 @@ static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds)
 		return -ETIMEDOUT;
 	}
 
-	mds->mbox_send = cxl_pci_mbox_send;
-	mds->payload_size =
+	cxl_mbox->mbox_send = cxl_pci_mbox_send;
+	cxl_mbox->payload_size =
 		1 << FIELD_GET(CXLDEV_MBOX_CAP_PAYLOAD_SIZE_MASK, cap);
 
 	/*
@@ -427,43 +433,35 @@ static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds)
 	 * there's no point in going forward. If the size is too large, there's
 	 * no harm is soft limiting it.
 	 */
-	mds->payload_size = min_t(size_t, mds->payload_size, SZ_1M);
-	if (mds->payload_size < 256) {
+	cxl_mbox->payload_size = min_t(size_t, cxl_mbox->payload_size, SZ_1M);
+	if (cxl_mbox->payload_size < 256) {
 		dev_err(dev, "Mailbox is too small (%zub)",
-			mds->payload_size);
+			cxl_mbox->payload_size);
 		return -ENXIO;
 	}
 
-	dev_dbg(dev, "Mailbox payload sized %zu", mds->payload_size);
+	dev_dbg(dev, "Mailbox payload sized %zu", cxl_mbox->payload_size);
 
-	rcuwait_init(&mds->mbox_wait);
-
-	if (cap & CXLDEV_MBOX_CAP_BG_CMD_IRQ) {
-		u32 ctrl;
-		int irq, msgnum;
-		struct pci_dev *pdev = to_pci_dev(cxlds->dev);
-
-		msgnum = FIELD_GET(CXLDEV_MBOX_CAP_IRQ_MSGNUM_MASK, cap);
-		irq = pci_irq_vector(pdev, msgnum);
-		if (irq < 0)
-			goto mbox_poll;
-
-		if (cxl_request_irq(cxlds, irq, cxl_pci_mbox_irq, NULL))
-			goto mbox_poll;
-
-		/* enable background command mbox irq support */
-		ctrl = readl(cxlds->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
-		ctrl |= CXLDEV_MBOX_CTRL_BG_CMD_IRQ;
-		writel(ctrl, cxlds->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
-
-		return 0;
-	}
-
-mbox_poll:
-	mds->security.poll = true;
 	INIT_DELAYED_WORK(&mds->security.poll_dwork, cxl_mbox_sanitize_work);
 
-	dev_dbg(cxlds->dev, "Mailbox interrupts are unsupported");
+	/* background command interrupts are optional */
+	if (!(cap & CXLDEV_MBOX_CAP_BG_CMD_IRQ) || !irq_avail)
+		return 0;
+
+	msgnum = FIELD_GET(CXLDEV_MBOX_CAP_IRQ_MSGNUM_MASK, cap);
+	irq = pci_irq_vector(to_pci_dev(cxlds->dev), msgnum);
+	if (irq < 0)
+		return 0;
+
+	if (cxl_request_irq(cxlds, irq, cxl_pci_mbox_irq))
+		return 0;
+
+	dev_dbg(cxlds->dev, "Mailbox interrupts enabled\n");
+	/* enable background command mbox irq support */
+	ctrl = readl(cxlds->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
+	ctrl |= CXLDEV_MBOX_CTRL_BG_CMD_IRQ;
+	writel(ctrl, cxlds->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
+
 	return 0;
 }
 
@@ -479,23 +477,20 @@ static bool is_cxl_restricted(struct pci_dev *pdev)
 static int cxl_rcrb_get_comp_regs(struct pci_dev *pdev,
 				  struct cxl_register_map *map)
 {
-	struct cxl_port *port;
 	struct cxl_dport *dport;
 	resource_size_t component_reg_phys;
 
 	*map = (struct cxl_register_map) {
-		.dev = &pdev->dev,
+		.host = &pdev->dev,
 		.resource = CXL_RESOURCE_NONE,
 	};
 
-	port = cxl_pci_find_port(pdev, &dport);
+	struct cxl_port *port __free(put_cxl_port) =
+		cxl_pci_find_port(pdev, &dport);
 	if (!port)
 		return -EPROBE_DEFER;
 
 	component_reg_phys = cxl_rcd_component_reg_phys(&pdev->dev, dport);
-
-	put_device(&port->dev);
-
 	if (component_reg_phys == CXL_RESOURCE_NONE)
 		return -ENXIO;
 
@@ -529,7 +524,6 @@ static int cxl_pci_setup_regs(struct pci_dev *pdev, enum cxl_regloc_type type,
 
 static int cxl_pci_ras_unmask(struct pci_dev *pdev)
 {
-	struct pci_host_bridge *host_bridge = pci_find_host_bridge(pdev->bus);
 	struct cxl_dev_state *cxlds = pci_get_drvdata(pdev);
 	void __iomem *addr;
 	u32 orig_val, val, mask;
@@ -541,9 +535,9 @@ static int cxl_pci_ras_unmask(struct pci_dev *pdev)
 		return 0;
 	}
 
-	/* BIOS has CXL error control */
-	if (!host_bridge->native_cxl_error)
-		return -ENXIO;
+	/* BIOS has PCIe AER error control */
+	if (!pcie_aer_is_native(pdev))
+		return 0;
 
 	rc = pcie_capability_read_word(pdev, PCI_EXP_DEVCTL, &cap);
 	if (rc)
@@ -585,9 +579,10 @@ static void free_event_buf(void *buf)
  */
 static int cxl_mem_alloc_event_buf(struct cxl_memdev_state *mds)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_get_event_payload *buf;
 
-	buf = kvmalloc(mds->payload_size, GFP_KERNEL);
+	buf = kvmalloc(cxl_mbox->payload_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 	mds->event.buf = buf;
@@ -595,7 +590,7 @@ static int cxl_mem_alloc_event_buf(struct cxl_memdev_state *mds)
 	return devm_add_action_or_reset(mds->cxlds.dev, free_event_buf, buf);
 }
 
-static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
+static bool cxl_alloc_irq_vectors(struct pci_dev *pdev)
 {
 	int nvecs;
 
@@ -612,9 +607,9 @@ static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
 				      PCI_IRQ_MSIX | PCI_IRQ_MSI);
 	if (nvecs < 1) {
 		dev_dbg(&pdev->dev, "Failed to alloc irq vectors: %d\n", nvecs);
-		return -ENXIO;
+		return false;
 	}
-	return 0;
+	return true;
 }
 
 static irqreturn_t cxl_event_thread(int irq, void *id)
@@ -654,12 +649,13 @@ static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
 	if (irq < 0)
 		return irq;
 
-	return cxl_request_irq(cxlds, irq, NULL, cxl_event_thread);
+	return cxl_request_irq(cxlds, irq, cxl_event_thread);
 }
 
 static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
 				    struct cxl_event_interrupt_policy *policy)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_cmd mbox_cmd = {
 		.opcode = CXL_MBOX_OP_GET_EVT_INT_POLICY,
 		.payload_out = policy,
@@ -667,7 +663,7 @@ static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
 	};
 	int rc;
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc < 0)
 		dev_err(mds->cxlds.dev,
 			"Failed to get event interrupt policy : %d", rc);
@@ -678,6 +674,7 @@ static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
 static int cxl_event_config_msgnums(struct cxl_memdev_state *mds,
 				    struct cxl_event_interrupt_policy *policy)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
 
@@ -694,7 +691,7 @@ static int cxl_event_config_msgnums(struct cxl_memdev_state *mds,
 		.size_in = sizeof(*policy),
 	};
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc < 0) {
 		dev_err(mds->cxlds.dev, "Failed to set event interrupt policy : %d",
 			rc);
@@ -750,7 +747,7 @@ static bool cxl_event_int_is_fw(u8 setting)
 }
 
 static int cxl_event_config(struct pci_host_bridge *host_bridge,
-			    struct cxl_memdev_state *mds)
+			    struct cxl_memdev_state *mds, bool irq_avail)
 {
 	struct cxl_event_interrupt_policy policy;
 	int rc;
@@ -761,6 +758,11 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 	 */
 	if (!host_bridge->native_cxl_error)
 		return 0;
+
+	if (!irq_avail) {
+		dev_info(mds->cxlds.dev, "No interrupt support, disable event processing.\n");
+		return 0;
+	}
 
 	rc = cxl_mem_alloc_event_buf(mds);
 	if (rc)
@@ -788,6 +790,23 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 	return 0;
 }
 
+static int cxl_pci_type3_init_mailbox(struct cxl_dev_state *cxlds)
+{
+	int rc;
+
+	/*
+	 * Fail the init if there's no mailbox. For a type3 this is out of spec.
+	 */
+	if (!cxlds->reg_map.device_map.mbox.valid)
+		return -ENODEV;
+
+	rc = cxl_mailbox_init(&cxlds->cxl_mbox, cxlds->dev);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
 static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct pci_host_bridge *host_bridge = pci_find_host_bridge(pdev->bus);
@@ -796,6 +815,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
 	int i, rc, pmu_count;
+	bool irq_avail;
 
 	/*
 	 * Double check the anonymous union trickery in struct cxl_regs
@@ -818,7 +838,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	cxlds->rcd = is_cxl_restricted(pdev);
 	cxlds->serial = pci_get_dsn(pdev);
 	cxlds->cxl_dvsec = pci_find_dvsec_capability(
-		pdev, PCI_DVSEC_VENDOR_ID_CXL, CXL_DVSEC_PCIE_DEVICE);
+		pdev, PCI_VENDOR_ID_CXL, CXL_DVSEC_PCIE_DEVICE);
 	if (!cxlds->cxl_dvsec)
 		dev_warn(&pdev->dev,
 			 "Device DVSEC not present, skip CXL.mem init\n");
@@ -835,19 +855,21 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * If the component registers can't be found, the cxl_pci driver may
 	 * still be useful for management functions so don't return an error.
 	 */
-	cxlds->component_reg_phys = CXL_RESOURCE_NONE;
-	rc = cxl_pci_setup_regs(pdev, CXL_REGLOC_RBI_COMPONENT, &map);
+	rc = cxl_pci_setup_regs(pdev, CXL_REGLOC_RBI_COMPONENT,
+				&cxlds->reg_map);
 	if (rc)
 		dev_warn(&pdev->dev, "No component registers (%d)\n", rc);
-	else if (!map.component_map.ras.valid)
+	else if (!cxlds->reg_map.component_map.ras.valid)
 		dev_dbg(&pdev->dev, "RAS registers not found\n");
 
-	cxlds->component_reg_phys = map.resource;
-
-	rc = cxl_map_component_regs(&map, &cxlds->regs.component,
+	rc = cxl_map_component_regs(&cxlds->reg_map, &cxlds->regs.component,
 				    BIT(CXL_CM_CAP_CAP_ID_RAS));
 	if (rc)
 		dev_dbg(&pdev->dev, "Failed to map RAS capability.\n");
+
+	rc = cxl_pci_type3_init_mailbox(cxlds);
+	if (rc)
+		return rc;
 
 	rc = cxl_await_media_ready(cxlds);
 	if (rc == 0)
@@ -855,11 +877,9 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		dev_warn(&pdev->dev, "Media not active (%d)\n", rc);
 
-	rc = cxl_alloc_irq_vectors(pdev);
-	if (rc)
-		return rc;
+	irq_avail = cxl_alloc_irq_vectors(pdev);
 
-	rc = cxl_pci_setup_mailbox(mds);
+	rc = cxl_pci_setup_mailbox(mds, irq_avail);
 	if (rc)
 		return rc;
 
@@ -883,11 +903,15 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	cxlmd = devm_cxl_add_memdev(cxlds);
+	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	rc = cxl_memdev_setup_fw_upload(mds);
+	rc = devm_cxl_setup_fw_upload(&pdev->dev, mds);
+	if (rc)
+		return rc;
+
+	rc = devm_cxl_sanitize_setup_notifier(&pdev->dev, cxlmd);
 	if (rc)
 		return rc;
 
@@ -901,7 +925,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			break;
 		}
 
-		rc = cxl_map_pmu_regs(pdev, &pmu_regs, &map);
+		rc = cxl_map_pmu_regs(&map, &pmu_regs);
 		if (rc) {
 			dev_dbg(&pdev->dev, "Could not map PMU regs\n");
 			break;
@@ -914,7 +938,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
-	rc = cxl_event_config(host_bridge, mds);
+	rc = cxl_event_config(host_bridge, mds, irq_avail);
 	if (rc)
 		return rc;
 
@@ -958,11 +982,33 @@ static void cxl_error_resume(struct pci_dev *pdev)
 		 dev->driver ? "successful" : "failed");
 }
 
+static void cxl_reset_done(struct pci_dev *pdev)
+{
+	struct cxl_dev_state *cxlds = pci_get_drvdata(pdev);
+	struct cxl_memdev *cxlmd = cxlds->cxlmd;
+	struct device *dev = &pdev->dev;
+
+	/*
+	 * FLR does not expect to touch the HDM decoders and related
+	 * registers.  SBR, however, will wipe all device configurations.
+	 * Issue a warning if there was an active decoder before the reset
+	 * that no longer exists.
+	 */
+	guard(device)(&cxlmd->dev);
+	if (cxlmd->endpoint &&
+	    cxl_endpoint_decoder_reset_detected(cxlmd->endpoint)) {
+		dev_crit(dev, "SBR happened without memory regions removal.\n");
+		dev_crit(dev, "System may be unstable if regions hosted system memory.\n");
+		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+	}
+}
+
 static const struct pci_error_handlers cxl_error_handlers = {
 	.error_detected	= cxl_error_detected,
 	.slot_reset	= cxl_slot_reset,
 	.resume		= cxl_error_resume,
 	.cor_error_detected	= cxl_cor_error_detected,
+	.reset_done	= cxl_reset_done,
 };
 
 static struct pci_driver cxl_pci_driver = {
@@ -975,6 +1021,76 @@ static struct pci_driver cxl_pci_driver = {
 	},
 };
 
+#define CXL_EVENT_HDR_FLAGS_REC_SEVERITY GENMASK(1, 0)
+static void cxl_handle_cper_event(enum cxl_event_type ev_type,
+				  struct cxl_cper_event_rec *rec)
+{
+	struct cper_cxl_event_devid *device_id = &rec->hdr.device_id;
+	struct pci_dev *pdev __free(pci_dev_put) = NULL;
+	enum cxl_event_log_type log_type;
+	struct cxl_dev_state *cxlds;
+	unsigned int devfn;
+	u32 hdr_flags;
+
+	pr_debug("CPER event %d for device %u:%u:%u.%u\n", ev_type,
+		 device_id->segment_num, device_id->bus_num,
+		 device_id->device_num, device_id->func_num);
+
+	devfn = PCI_DEVFN(device_id->device_num, device_id->func_num);
+	pdev = pci_get_domain_bus_and_slot(device_id->segment_num,
+					   device_id->bus_num, devfn);
+	if (!pdev)
+		return;
+
+	guard(device)(&pdev->dev);
+	if (pdev->driver != &cxl_pci_driver)
+		return;
+
+	cxlds = pci_get_drvdata(pdev);
+	if (!cxlds)
+		return;
+
+	/* Fabricate a log type */
+	hdr_flags = get_unaligned_le24(rec->event.generic.hdr.flags);
+	log_type = FIELD_GET(CXL_EVENT_HDR_FLAGS_REC_SEVERITY, hdr_flags);
+
+	cxl_event_trace_record(cxlds->cxlmd, log_type, ev_type,
+			       &uuid_null, &rec->event);
+}
+
+static void cxl_cper_work_fn(struct work_struct *work)
+{
+	struct cxl_cper_work_data wd;
+
+	while (cxl_cper_kfifo_get(&wd))
+		cxl_handle_cper_event(wd.event_type, &wd.rec);
+}
+static DECLARE_WORK(cxl_cper_work, cxl_cper_work_fn);
+
+static int __init cxl_pci_driver_init(void)
+{
+	int rc;
+
+	rc = pci_register_driver(&cxl_pci_driver);
+	if (rc)
+		return rc;
+
+	rc = cxl_cper_register_work(&cxl_cper_work);
+	if (rc)
+		pci_unregister_driver(&cxl_pci_driver);
+
+	return rc;
+}
+
+static void __exit cxl_pci_driver_exit(void)
+{
+	cxl_cper_unregister_work(&cxl_cper_work);
+	cancel_work_sync(&cxl_cper_work);
+	pci_unregister_driver(&cxl_pci_driver);
+}
+
+module_init(cxl_pci_driver_init);
+module_exit(cxl_pci_driver_exit);
+MODULE_DESCRIPTION("CXL: PCI manageability");
 MODULE_LICENSE("GPL v2");
-module_pci_driver(cxl_pci_driver);
 MODULE_IMPORT_NS(CXL);

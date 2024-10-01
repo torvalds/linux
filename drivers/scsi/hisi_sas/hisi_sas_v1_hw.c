@@ -960,7 +960,7 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
 	struct sas_tmf_task *tmf = slot->tmf;
 	int has_data = 0, priority = !!tmf;
-	u8 *buf_cmd, fburst = 0;
+	u8 *buf_cmd;
 	u32 dw1, dw2;
 
 	/* create header */
@@ -1018,16 +1018,11 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 
 	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot) +
 		sizeof(struct ssp_frame_hdr);
-	if (task->ssp_task.enable_first_burst) {
-		fburst = (1 << 7);
-		dw2 |= 1 << CMD_HDR_FIRST_BURST_OFF;
-	}
 	hdr->dw2 = cpu_to_le32(dw2);
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 	if (!tmf) {
-		buf_cmd[9] = fburst | task->ssp_task.task_attr |
-				(task->ssp_task.task_prio << 3);
+		buf_cmd[9] = task->ssp_task.task_attr;
 		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
 				task->ssp_task.cmd->cmd_len);
 	} else {
@@ -1740,28 +1735,12 @@ static struct attribute *host_v1_hw_attrs[] = {
 ATTRIBUTE_GROUPS(host_v1_hw);
 
 static const struct scsi_host_template sht_v1_hw = {
-	.name			= DRV_NAME,
-	.proc_name		= DRV_NAME,
-	.module			= THIS_MODULE,
-	.queuecommand		= sas_queuecommand,
-	.dma_need_drain		= ata_scsi_dma_need_drain,
-	.target_alloc		= sas_target_alloc,
-	.slave_configure	= hisi_sas_slave_configure,
+	LIBSAS_SHT_BASE_NO_SLAVE_INIT
+	.device_configure	= hisi_sas_device_configure,
 	.scan_finished		= hisi_sas_scan_finished,
 	.scan_start		= hisi_sas_scan_start,
-	.change_queue_depth	= sas_change_queue_depth,
-	.bios_param		= sas_bios_param,
-	.this_id		= -1,
 	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
-	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
-	.eh_device_reset_handler = sas_eh_device_reset_handler,
-	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.slave_alloc		= hisi_sas_slave_alloc,
-	.target_destroy		= sas_target_destroy,
-	.ioctl			= sas_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl		= sas_ioctl,
-#endif
 	.shost_groups		= host_v1_hw_groups,
 	.host_reset             = hisi_sas_host_reset,
 };

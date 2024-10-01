@@ -4,9 +4,6 @@
  *
  * Copyright (C) 2018, Red Hat, Inc.
  */
-
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -23,6 +20,7 @@
 #include "test_util.h"
 #include "guest_modes.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 #define DIRTY_MEM_BITS 30 /* 1G */
 #define PAGE_SHIFT_4K  12
@@ -76,7 +74,6 @@
 static uint64_t host_page_size;
 static uint64_t guest_page_size;
 static uint64_t guest_num_pages;
-static uint64_t random_array[TEST_PAGES_PER_LOOP];
 static uint64_t iteration;
 
 /*
@@ -109,19 +106,19 @@ static void guest_code(void)
 	 */
 	for (i = 0; i < guest_num_pages; i++) {
 		addr = guest_test_virt_mem + i * guest_page_size;
-		*(uint64_t *)addr = READ_ONCE(iteration);
+		vcpu_arch_put_guest(*(uint64_t *)addr, READ_ONCE(iteration));
 	}
 
 	while (true) {
 		for (i = 0; i < TEST_PAGES_PER_LOOP; i++) {
 			addr = guest_test_virt_mem;
-			addr += (READ_ONCE(random_array[i]) % guest_num_pages)
+			addr += (guest_random_u64(&guest_rng) % guest_num_pages)
 				* guest_page_size;
 			addr = align_down(addr, host_page_size);
-			*(uint64_t *)addr = READ_ONCE(iteration);
+
+			vcpu_arch_put_guest(*(uint64_t *)addr, READ_ONCE(iteration));
 		}
 
-		/* Tell the host that we need more random numbers */
 		GUEST_SYNC(1);
 	}
 }
@@ -262,7 +259,7 @@ static void default_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 		    "vcpu run failed: errno=%d", err);
 
 	TEST_ASSERT(get_ucall(vcpu, NULL) == UCALL_SYNC,
-		    "Invalid guest sync status: exit_reason=%s\n",
+		    "Invalid guest sync status: exit_reason=%s",
 		    exit_reason_str(run->exit_reason));
 
 	vcpu_handle_sync_stop();
@@ -376,7 +373,10 @@ static void dirty_ring_collect_dirty_pages(struct kvm_vcpu *vcpu, int slot,
 
 	cleared = kvm_vm_reset_dirty_ring(vcpu->vm);
 
-	/* Cleared pages should be the same as collected */
+	/*
+	 * Cleared pages should be the same as collected, as KVM is supposed to
+	 * clear only the entries that have been harvested.
+	 */
 	TEST_ASSERT(cleared == count, "Reset dirty pages (%u) mismatch "
 		    "with collected (%u)", cleared, count);
 
@@ -410,15 +410,9 @@ static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 		pr_info("vcpu continues now.\n");
 	} else {
 		TEST_ASSERT(false, "Invalid guest sync status: "
-			    "exit_reason=%s\n",
+			    "exit_reason=%s",
 			    exit_reason_str(run->exit_reason));
 	}
-}
-
-static void dirty_ring_before_vcpu_join(void)
-{
-	/* Kick another round of vcpu just to make sure it will quit */
-	sem_post(&sem_vcpu_cont);
 }
 
 struct log_mode {
@@ -433,7 +427,6 @@ struct log_mode {
 				     uint32_t *ring_buf_idx);
 	/* Hook to call when after each vcpu run */
 	void (*after_vcpu_run)(struct kvm_vcpu *vcpu, int ret, int err);
-	void (*before_vcpu_join) (void);
 } log_modes[LOG_MODE_NUM] = {
 	{
 		.name = "dirty-log",
@@ -452,7 +445,6 @@ struct log_mode {
 		.supported = dirty_ring_supported,
 		.create_vm_done = dirty_ring_create_vm_done,
 		.collect_dirty_pages = dirty_ring_collect_dirty_pages,
-		.before_vcpu_join = dirty_ring_before_vcpu_join,
 		.after_vcpu_run = dirty_ring_after_vcpu_run,
 	},
 };
@@ -513,28 +505,10 @@ static void log_mode_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 		mode->after_vcpu_run(vcpu, ret, err);
 }
 
-static void log_mode_before_vcpu_join(void)
-{
-	struct log_mode *mode = &log_modes[host_log_mode];
-
-	if (mode->before_vcpu_join)
-		mode->before_vcpu_join();
-}
-
-static void generate_random_array(uint64_t *guest_array, uint64_t size)
-{
-	uint64_t i;
-
-	for (i = 0; i < size; i++)
-		guest_array[i] = random();
-}
-
 static void *vcpu_worker(void *data)
 {
 	int ret;
 	struct kvm_vcpu *vcpu = data;
-	struct kvm_vm *vm = vcpu->vm;
-	uint64_t *guest_array;
 	uint64_t pages_count = 0;
 	struct kvm_signal_mask *sigmask = alloca(offsetof(struct kvm_signal_mask, sigset)
 						 + sizeof(sigset_t));
@@ -553,11 +527,8 @@ static void *vcpu_worker(void *data)
 	sigemptyset(sigset);
 	sigaddset(sigset, SIG_IPI);
 
-	guest_array = addr_gva2hva(vm, (vm_vaddr_t)random_array);
-
 	while (!READ_ONCE(host_quit)) {
 		/* Clear any existing kick signals */
-		generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
 		pages_count += TEST_PAGES_PER_LOOP;
 		/* Let the guest dirty the random pages */
 		ret = __vcpu_run(vcpu);
@@ -699,7 +670,7 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, struct kvm_vcpu **vcpu,
 
 	pr_info("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
-	vm = __vm_create(mode, 1, extra_mem_pages);
+	vm = __vm_create(VM_SHAPE(mode), 1, extra_mem_pages);
 
 	log_mode_create_vm_done(vm);
 	*vcpu = vm_vcpu_add(vm, 0, guest_code);
@@ -719,6 +690,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct kvm_vm *vm;
 	unsigned long *bmap;
 	uint32_t ring_buf_idx = 0;
+	int sem_val;
 
 	if (!log_mode_supported()) {
 		print_skip("Log mode '%s' not supported",
@@ -788,11 +760,21 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	/* Start the iterations */
 	iteration = 1;
 	sync_global_to_guest(vm, iteration);
-	host_quit = false;
+	WRITE_ONCE(host_quit, false);
 	host_dirty_count = 0;
 	host_clear_count = 0;
 	host_track_next_count = 0;
 	WRITE_ONCE(dirty_ring_vcpu_ring_full, false);
+
+	/*
+	 * Ensure the previous iteration didn't leave a dangling semaphore, i.e.
+	 * that the main task and vCPU worker were synchronized and completed
+	 * verification of all iterations.
+	 */
+	sem_getvalue(&sem_vcpu_stop, &sem_val);
+	TEST_ASSERT_EQ(sem_val, 0);
+	sem_getvalue(&sem_vcpu_cont, &sem_val);
+	TEST_ASSERT_EQ(sem_val, 0);
 
 	pthread_create(&vcpu_thread, NULL, vcpu_worker, vcpu);
 
@@ -819,15 +801,21 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		assert(host_log_mode == LOG_MODE_DIRTY_RING ||
 		       atomic_read(&vcpu_sync_stop_requested) == false);
 		vm_dirty_log_verify(mode, bmap);
-		sem_post(&sem_vcpu_cont);
 
-		iteration++;
+		/*
+		 * Set host_quit before sem_vcpu_cont in the final iteration to
+		 * ensure that the vCPU worker doesn't resume the guest.  As
+		 * above, the dirty ring test may stop and wait even when not
+		 * explicitly request to do so, i.e. would hang waiting for a
+		 * "continue" if it's allowed to resume the guest.
+		 */
+		if (++iteration == p->iterations)
+			WRITE_ONCE(host_quit, true);
+
+		sem_post(&sem_vcpu_cont);
 		sync_global_to_guest(vm, iteration);
 	}
 
-	/* Tell the vcpu thread to quit */
-	host_quit = true;
-	log_mode_before_vcpu_join();
 	pthread_join(vcpu_thread, NULL);
 
 	pr_info("Total bits checked: dirty (%"PRIu64"), clear (%"PRIu64"), "

@@ -442,10 +442,28 @@ static int ad74413r_set_channel_function(struct ad74413r_state *st,
 	int ret;
 
 	ret = regmap_update_bits(st->regmap,
+				 AD74413R_REG_CH_FUNC_SETUP_X(channel),
+				 AD74413R_CH_FUNC_SETUP_MASK,
+				 CH_FUNC_HIGH_IMPEDANCE);
+	if (ret)
+		return ret;
+
+	/* Set DAC code to 0 prior to changing channel function */
+	ret = ad74413r_set_channel_dac_code(st, channel, 0);
+	if (ret)
+		return ret;
+
+	/* Delay required before transition to new desired mode */
+	usleep_range(130, 150);
+
+	ret = regmap_update_bits(st->regmap,
 				  AD74413R_REG_CH_FUNC_SETUP_X(channel),
 				  AD74413R_CH_FUNC_SETUP_MASK, func);
 	if (ret)
 		return ret;
+
+	/* Delay required before updating the new DAC code */
+	usleep_range(150, 170);
 
 	if (func == CH_FUNC_CURRENT_INPUT_LOOP_POWER)
 		ret = regmap_set_bits(st->regmap,
@@ -705,8 +723,8 @@ static int ad74413r_get_input_current_scale(struct ad74413r_state *st,
 	return IIO_VAL_FRACTIONAL;
 }
 
-static int ad74413_get_input_current_offset(struct ad74413r_state *st,
-					    unsigned int channel, int *val)
+static int ad74413r_get_input_current_offset(struct ad74413r_state *st,
+					     unsigned int channel, int *val)
 {
 	unsigned int range;
 	int voltage_range;
@@ -991,7 +1009,7 @@ static int ad74413r_read_raw(struct iio_dev *indio_dev,
 			return ad74413r_get_input_voltage_offset(st,
 				chan->channel, val);
 		case IIO_CURRENT:
-			return ad74413_get_input_current_offset(st,
+			return ad74413r_get_input_current_offset(st,
 				chan->channel, val);
 		default:
 			return -EINVAL;
@@ -1237,21 +1255,15 @@ static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
 static int ad74413r_parse_channel_configs(struct iio_dev *indio_dev)
 {
 	struct ad74413r_state *st = iio_priv(indio_dev);
-	struct fwnode_handle *channel_node = NULL;
 	int ret;
 
-	fwnode_for_each_available_child_node(dev_fwnode(st->dev), channel_node) {
+	device_for_each_child_node_scoped(st->dev, channel_node) {
 		ret = ad74413r_parse_channel_config(indio_dev, channel_node);
 		if (ret)
-			goto put_channel_node;
+			return ret;
 	}
 
 	return 0;
-
-put_channel_node:
-	fwnode_handle_put(channel_node);
-
-	return ret;
 }
 
 static int ad74413r_setup_channels(struct iio_dev *indio_dev)
@@ -1353,16 +1365,9 @@ static int ad74413r_probe(struct spi_device *spi)
 
 	st->spi = spi;
 	st->dev = &spi->dev;
-	st->chip_info = device_get_match_data(&spi->dev);
-	if (!st->chip_info) {
-		const struct spi_device_id *id = spi_get_device_id(spi);
-
-		if (id)
-			st->chip_info =
-				(struct ad74413r_chip_info *)id->driver_data;
-		if (!st->chip_info)
-			return -EINVAL;
-	}
+	st->chip_info = spi_get_device_match_data(spi);
+	if (!st->chip_info)
+		return -EINVAL;
 
 	mutex_init(&st->lock);
 	init_completion(&st->adc_data_completion);

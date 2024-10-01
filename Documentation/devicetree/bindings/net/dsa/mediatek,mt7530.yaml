@@ -22,16 +22,16 @@ description: |
 
   The MT7988 SoC comes with a built-in switch similar to MT7531 as well as four
   Gigabit Ethernet PHYs. The switch registers are directly mapped into the SoC's
-  memory map rather than using MDIO. The switch got an internally connected 10G
+  memory map rather than using MDIO. The switch has an internally connected 10G
   CPU port and 4 user ports connected to the built-in Gigabit Ethernet PHYs.
 
-  MT7530 in MT7620AN, MT7620DA, MT7620DAN and MT7620NN SoCs has got 10/100 PHYs
+  The MT7530 in MT7620AN, MT7620DA, MT7620DAN and MT7620NN SoCs has 10/100 PHYs
   and the switch registers are directly mapped into SoC's memory map rather than
   using MDIO. The DSA driver currently doesn't support MT7620 variants.
 
   There is only the standalone version of MT7531.
 
-  Port 5 on MT7530 has got various ways of configuration:
+  Port 5 on MT7530 supports various configurations:
 
     - Port 5 can be used as a CPU port.
 
@@ -60,7 +60,7 @@ description: |
 
       Check out example 6.
 
-    - Port 5 can be wired to an external phy. Port 5 becomes a DSA slave.
+    - Port 5 can be wired to an external phy. Port 5 becomes a DSA user port.
 
       For the multi-chip module MT7530, the external phy must be wired TX to TX
       to gmac1 of the SoC for this to work. Ubiquiti EdgeRouter X SFP is wired
@@ -91,6 +91,10 @@ properties:
       - description:
           Built-in switch of the MT7988 SoC
         const: mediatek,mt7988-switch
+
+      - description:
+          Built-in switch of the Airoha EN7581 SoC
+        const: airoha,en7581-switch
 
   reg:
     maxItems: 1
@@ -154,10 +158,12 @@ properties:
 patternProperties:
   "^(ethernet-)?ports$":
     type: object
+    additionalProperties: true
 
     patternProperties:
-      "^(ethernet-)?port@[0-9]+$":
+      "^(ethernet-)?port@[0-6]$":
         type: object
+        additionalProperties: true
 
         properties:
           reg:
@@ -184,7 +190,7 @@ $defs:
     patternProperties:
       "^(ethernet-)?ports$":
         patternProperties:
-          "^(ethernet-)?port@[0-9]+$":
+          "^(ethernet-)?port@[0-6]$":
             if:
               required: [ ethernet ]
             then:
@@ -210,7 +216,7 @@ $defs:
     patternProperties:
       "^(ethernet-)?ports$":
         patternProperties:
-          "^(ethernet-)?port@[0-9]+$":
+          "^(ethernet-)?port@[0-6]$":
             if:
               required: [ ethernet ]
             then:
@@ -282,7 +288,9 @@ allOf:
   - if:
       properties:
         compatible:
-          const: mediatek,mt7988-switch
+          enum:
+            - mediatek,mt7988-switch
+            - airoha,en7581-switch
     then:
       $ref: "#/$defs/mt7530-dsa-port"
       properties:

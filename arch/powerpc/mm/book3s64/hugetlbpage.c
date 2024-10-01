@@ -53,6 +53,16 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		/* If PTE permissions don't match, take page fault */
 		if (unlikely(!check_pte_access(access, old_pte)))
 			return 1;
+		/*
+		 * If hash-4k, hugepages use seeral contiguous PxD entries
+		 * so bail out and let mm make the page young or dirty
+		 */
+		if (IS_ENABLED(CONFIG_PPC_4K_PAGES)) {
+			if (!(old_pte & _PAGE_ACCESSED))
+				return 1;
+			if ((access & _PAGE_WRITE) && !(old_pte & _PAGE_DIRTY))
+				return 1;
+		}
 
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
@@ -143,11 +153,14 @@ pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
 void huge_ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 				  pte_t *ptep, pte_t old_pte, pte_t pte)
 {
+	unsigned long psize;
 
 	if (radix_enabled())
 		return radix__huge_ptep_modify_prot_commit(vma, addr, ptep,
 							   old_pte, pte);
-	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+
+	psize = huge_page_size(hstate_vma(vma));
+	set_huge_pte_at(vma->vm_mm, addr, ptep, pte, psize);
 }
 
 void __init hugetlbpage_init_defaultsize(void)

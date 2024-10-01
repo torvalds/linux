@@ -22,7 +22,6 @@
 #include <linux/of.h>
 #include "leds.h"
 
-static struct class *leds_class;
 static DEFINE_MUTEX(leds_lookup_lock);
 static LIST_HEAD(leds_lookup_list);
 
@@ -234,6 +233,12 @@ static struct led_classdev *led_module_get(struct device *led_dev)
 	return led_cdev;
 }
 
+static const struct class leds_class = {
+	.name = "leds",
+	.dev_groups = led_groups,
+	.pm = &leds_class_dev_pm_ops,
+};
+
 /**
  * of_led_get() - request a LED device via the LED framework
  * @np: device node to get the LED device from
@@ -251,9 +256,8 @@ struct led_classdev *of_led_get(struct device_node *np, int index)
 	if (!led_node)
 		return ERR_PTR(-ENOENT);
 
-	led_dev = class_find_device_by_of_node(leds_class, led_node);
+	led_dev = class_find_device_by_of_node(&leds_class, led_node);
 	of_node_put(led_node);
-	put_device(led_dev);
 
 	return led_module_get(led_dev);
 }
@@ -346,7 +350,7 @@ struct led_classdev *led_get(struct device *dev, char *con_id)
 	if (!provider)
 		return ERR_PTR(-ENOENT);
 
-	led_dev = class_find_device_by_name(leds_class, provider);
+	led_dev = class_find_device_by_name(&leds_class, provider);
 	kfree_const(provider);
 
 	return led_module_get(led_dev);
@@ -402,6 +406,31 @@ void led_remove_lookup(struct led_lookup_data *led_lookup)
 }
 EXPORT_SYMBOL_GPL(led_remove_lookup);
 
+/**
+ * devm_of_led_get_optional - Resource-managed request of an optional LED device
+ * @dev:	LED consumer
+ * @index:	index of the LED to obtain in the consumer
+ *
+ * The device node of the device is parsed to find the requested LED device.
+ * The LED device returned from this function is automatically released
+ * on driver detach.
+ *
+ * @return a pointer to a LED device, ERR_PTR(errno) on failure and NULL if the
+ * led was not found.
+ */
+struct led_classdev *__must_check devm_of_led_get_optional(struct device *dev,
+							int index)
+{
+	struct led_classdev *led;
+
+	led = devm_of_led_get(dev, index);
+	if (IS_ERR(led) && PTR_ERR(led) == -ENOENT)
+		return NULL;
+
+	return led;
+}
+EXPORT_SYMBOL_GPL(devm_of_led_get_optional);
+
 static int led_classdev_next_name(const char *init_name, char *name,
 				  size_t len)
 {
@@ -412,7 +441,7 @@ static int led_classdev_next_name(const char *init_name, char *name,
 	strscpy(name, init_name, len);
 
 	while ((ret < len) &&
-	       (dev = class_find_device_by_name(leds_class, name))) {
+	       (dev = class_find_device_by_name(&leds_class, name))) {
 		put_device(dev);
 		ret = snprintf(name, len, "%s_%u", init_name, ++i);
 	}
@@ -457,6 +486,14 @@ int led_classdev_register_ext(struct device *parent,
 			if (fwnode_property_present(init_data->fwnode,
 						    "retain-state-shutdown"))
 				led_cdev->flags |= LED_RETAIN_AT_SHUTDOWN;
+
+			fwnode_property_read_u32(init_data->fwnode,
+				"max-brightness",
+				&led_cdev->max_brightness);
+
+			if (fwnode_property_present(init_data->fwnode, "color"))
+				fwnode_property_read_u32(init_data->fwnode, "color",
+							 &led_cdev->color);
 		}
 	} else {
 		proposed_name = led_cdev->name;
@@ -465,21 +502,25 @@ int led_classdev_register_ext(struct device *parent,
 	ret = led_classdev_next_name(proposed_name, final_name, sizeof(final_name));
 	if (ret < 0)
 		return ret;
+	else if (ret && led_cdev->flags & LED_REJECT_NAME_CONFLICT)
+		return -EEXIST;
+	else if (ret)
+		dev_warn(parent, "Led %s renamed to %s due to name collision\n",
+			 proposed_name, final_name);
+
+	if (led_cdev->color >= LED_COLOR_ID_MAX)
+		dev_warn(parent, "LED %s color identifier out of range\n", final_name);
 
 	mutex_init(&led_cdev->led_access);
 	mutex_lock(&led_cdev->led_access);
-	led_cdev->dev = device_create_with_groups(leds_class, parent, 0,
-				led_cdev, led_cdev->groups, "%s", final_name);
+	led_cdev->dev = device_create_with_groups(&leds_class, parent, 0,
+						  led_cdev, led_cdev->groups, "%s", final_name);
 	if (IS_ERR(led_cdev->dev)) {
 		mutex_unlock(&led_cdev->led_access);
 		return PTR_ERR(led_cdev->dev);
 	}
 	if (init_data && init_data->fwnode)
 		device_set_node(led_cdev->dev, init_data->fwnode);
-
-	if (ret)
-		dev_warn(parent, "Led %s renamed to %s due to name collision",
-				proposed_name, dev_name(led_cdev->dev));
 
 	if (led_cdev->flags & LED_BRIGHT_HW_CHANGED) {
 		ret = led_add_brightness_hw_changed(led_cdev);
@@ -626,17 +667,12 @@ EXPORT_SYMBOL_GPL(devm_led_classdev_unregister);
 
 static int __init leds_init(void)
 {
-	leds_class = class_create("leds");
-	if (IS_ERR(leds_class))
-		return PTR_ERR(leds_class);
-	leds_class->pm = &leds_class_dev_pm_ops;
-	leds_class->dev_groups = led_groups;
-	return 0;
+	return class_register(&leds_class);
 }
 
 static void __exit leds_exit(void)
 {
-	class_destroy(leds_class);
+	class_unregister(&leds_class);
 }
 
 subsys_initcall(leds_init);

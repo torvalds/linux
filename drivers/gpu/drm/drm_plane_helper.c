@@ -40,8 +40,8 @@
 /**
  * DOC: overview
  *
- * This helper library has two parts. The first part has support to implement
- * primary plane support on top of the normal CRTC configuration interface.
+ * This helper library contains helpers to implement primary plane support on
+ * top of the normal CRTC configuration interface.
  * Since the legacy &drm_mode_config_funcs.set_config interface ties the primary
  * plane together with the CRTC state this does not allow userspace to disable
  * the primary plane itself. The default primary plane only expose XRBG8888 and
@@ -50,14 +50,6 @@
  * Drivers are highly recommended to implement proper support for primary
  * planes, and newly merged drivers must not rely upon these transitional
  * helpers.
- *
- * The second part also implements transitional helpers which allow drivers to
- * gradually switch to the atomic helper infrastructure for plane updates. Once
- * that switch is complete drivers shouldn't use these any longer, instead using
- * the proper legacy implementations for update and disable plane hooks provided
- * by the atomic helpers.
- *
- * Again drivers are strongly urged to switch to the new interfaces.
  *
  * The plane helpers share the function table structures with other helpers,
  * specifically also the atomic helpers. See &struct drm_plane_helper_funcs for
@@ -287,35 +279,3 @@ void drm_plane_helper_destroy(struct drm_plane *plane)
 	kfree(plane);
 }
 EXPORT_SYMBOL(drm_plane_helper_destroy);
-
-/**
- * drm_plane_helper_atomic_check() - Helper to check plane atomic-state
- * @plane: plane to check
- * @state: atomic state object
- *
- * Provides a default plane-state check handler for planes whose atomic-state
- * scale and positioning are not expected to change since the plane is always
- * a fullscreen scanout buffer.
- *
- * This is often the case for the primary plane of simple framebuffers. See
- * also drm_crtc_helper_atomic_check() for the respective CRTC-state check
- * helper function.
- *
- * RETURNS:
- * Zero on success, or an errno code otherwise.
- */
-int drm_plane_helper_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state)
-{
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
-	struct drm_crtc *new_crtc = new_plane_state->crtc;
-	struct drm_crtc_state *new_crtc_state = NULL;
-
-	if (new_crtc)
-		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
-
-	return drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
-						   false, false);
-}
-EXPORT_SYMBOL(drm_plane_helper_atomic_check);

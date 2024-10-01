@@ -122,4 +122,5 @@ static struct hid_driver mwctrl_driver = {
 };
 module_hid_driver(mwctrl_driver);
 
+MODULE_DESCRIPTION("Vibration support for Mega World controllers");
 MODULE_LICENSE("GPL");

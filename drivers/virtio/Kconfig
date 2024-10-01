@@ -60,6 +60,11 @@ config VIRTIO_PCI
 
 	  If unsure, say M.
 
+config VIRTIO_PCI_ADMIN_LEGACY
+	bool
+	depends on VIRTIO_PCI && (X86 || COMPILE_TEST)
+	default y
+
 config VIRTIO_PCI_LEGACY
 	bool "Support for legacy virtio draft 0.9.X and older devices"
 	default y
@@ -117,7 +122,7 @@ config VIRTIO_BALLOON
 
 config VIRTIO_MEM
 	tristate "Virtio mem driver"
-	depends on X86_64 || ARM64
+	depends on X86_64 || ARM64 || RISCV
 	depends on VIRTIO
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
@@ -172,5 +177,15 @@ config VIRTIO_DMA_SHARED_BUFFER
 	help
 	 This option adds a flavor of dma buffers that are backed by
 	 virtio resources.
+
+config VIRTIO_DEBUG
+	bool "Debug facilities"
+	depends on VIRTIO
+	help
+	  Enable this to expose debug facilities over debugfs.
+	  This allows to debug features, to see what features the device
+	  advertises and to set filter for features used by driver.
+
+	  If unsure, say N.
 
 endif # VIRTIO_MENU

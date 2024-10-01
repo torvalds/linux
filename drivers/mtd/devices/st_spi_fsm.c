@@ -2016,7 +2016,6 @@ static int stfsm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct flash_info *info;
-	struct resource *res;
 	struct stfsm *fsm;
 	int ret;
 
@@ -2033,18 +2032,9 @@ static int stfsm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fsm);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Resource not found\n");
-		return -ENODEV;
-	}
-
-	fsm->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(fsm->base)) {
-		dev_err(&pdev->dev,
-			"Failed to reserve memory region %pR\n", res);
+	fsm->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(fsm->base))
 		return PTR_ERR(fsm->base);
-	}
 
 	fsm->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(fsm->clk)) {
@@ -2107,13 +2097,11 @@ static int stfsm_probe(struct platform_device *pdev)
 	return mtd_device_register(&fsm->mtd, NULL, 0);
 }
 
-static int stfsm_remove(struct platform_device *pdev)
+static void stfsm_remove(struct platform_device *pdev)
 {
 	struct stfsm *fsm = platform_get_drvdata(pdev);
 
 	WARN_ON(mtd_device_unregister(&fsm->mtd));
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2144,7 +2132,7 @@ MODULE_DEVICE_TABLE(of, stfsm_match);
 
 static struct platform_driver stfsm_driver = {
 	.probe		= stfsm_probe,
-	.remove		= stfsm_remove,
+	.remove_new	= stfsm_remove,
 	.driver		= {
 		.name	= "st-spi-fsm",
 		.of_match_table = stfsm_match,

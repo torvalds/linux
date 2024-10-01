@@ -30,10 +30,23 @@ void *pci_traverse_device_nodes(struct device_node *start,
 				void *data);
 extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 
+#if defined(CONFIG_IOMMU_API) && (defined(CONFIG_PPC_PSERIES) || \
+				  defined(CONFIG_PPC_POWERNV))
+extern void ppc_iommu_register_device(struct pci_controller *phb);
+extern void ppc_iommu_unregister_device(struct pci_controller *phb);
+#else
+static inline void ppc_iommu_register_device(struct pci_controller *phb) { }
+static inline void ppc_iommu_unregister_device(struct pci_controller *phb) { }
+#endif
+
+
 /* From rtas_pci.h */
 extern void init_pci_config_tokens (void);
 extern unsigned long get_phb_buid (struct device_node *);
 extern int rtas_setup_phb(struct pci_controller *phb);
+
+int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val);
+int rtas_pci_dn_write_config(struct pci_dn *pdn, int where, int size, u32 val);
 
 #ifdef CONFIG_EEH
 
@@ -44,8 +57,6 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity);
 int eeh_pci_enable(struct eeh_pe *pe, int function);
 int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed);
 void eeh_save_bars(struct eeh_dev *edev);
-int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
-int rtas_read_config(struct pci_dn *, int where, int size, u32 *val);
 void eeh_pe_state_mark(struct eeh_pe *pe, int state);
 void eeh_pe_mark_isolated(struct eeh_pe *pe);
 void eeh_pe_state_clear(struct eeh_pe *pe, int state, bool include_passed);

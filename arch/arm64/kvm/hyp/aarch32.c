@@ -50,9 +50,23 @@ bool kvm_condition_valid32(const struct kvm_vcpu *vcpu)
 	u32 cpsr_cond;
 	int cond;
 
-	/* Top two bits non-zero?  Unconditional. */
-	if (kvm_vcpu_get_esr(vcpu) >> 30)
+	/*
+	 * These are the exception classes that could fire with a
+	 * conditional instruction.
+	 */
+	switch (kvm_vcpu_trap_get_class(vcpu)) {
+	case ESR_ELx_EC_CP15_32:
+	case ESR_ELx_EC_CP15_64:
+	case ESR_ELx_EC_CP14_MR:
+	case ESR_ELx_EC_CP14_LS:
+	case ESR_ELx_EC_FP_ASIMD:
+	case ESR_ELx_EC_CP10_ID:
+	case ESR_ELx_EC_CP14_64:
+	case ESR_ELx_EC_SVC32:
+		break;
+	default:
 		return true;
+	}
 
 	/* Is condition field valid? */
 	cond = kvm_vcpu_get_condition(vcpu);
@@ -84,7 +98,7 @@ bool kvm_condition_valid32(const struct kvm_vcpu *vcpu)
 }
 
 /**
- * adjust_itstate - adjust ITSTATE when emulating instructions in IT-block
+ * kvm_adjust_itstate - adjust ITSTATE when emulating instructions in IT-block
  * @vcpu:	The VCPU pointer
  *
  * When exceptions occur while instructions are executed in Thumb IF-THEN
@@ -120,7 +134,7 @@ static void kvm_adjust_itstate(struct kvm_vcpu *vcpu)
 }
 
 /**
- * kvm_skip_instr - skip a trapped instruction and proceed to the next
+ * kvm_skip_instr32 - skip a trapped instruction and proceed to the next
  * @vcpu: The vcpu pointer
  */
 void kvm_skip_instr32(struct kvm_vcpu *vcpu)

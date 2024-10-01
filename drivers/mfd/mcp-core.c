@@ -20,7 +20,7 @@
 #define to_mcp(d)		container_of(d, struct mcp, attached_device)
 #define to_mcp_driver(d)	container_of(d, struct mcp_driver, drv)
 
-static int mcp_bus_match(struct device *dev, struct device_driver *drv)
+static int mcp_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	return 1;
 }
@@ -41,7 +41,7 @@ static void mcp_bus_remove(struct device *dev)
 	drv->remove(mcp);
 }
 
-static struct bus_type mcp_bus_type = {
+static const struct bus_type mcp_bus_type = {
 	.name		= "mcp",
 	.match		= mcp_bus_match,
 	.probe		= mcp_bus_probe,

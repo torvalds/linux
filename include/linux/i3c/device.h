@@ -54,6 +54,7 @@ enum i3c_hdr_mode {
  * struct i3c_priv_xfer - I3C SDR private transfer
  * @rnw: encodes the transfer direction. true for a read, false for a write
  * @len: transfer length in bytes of the transfer
+ * @actual_len: actual length in bytes are transferred by the controller
  * @data: input/output buffer
  * @data.in: input buffer. Must point to a DMA-able buffer
  * @data.out: output buffer. Must point to a DMA-able buffer
@@ -62,6 +63,7 @@ enum i3c_hdr_mode {
 struct i3c_priv_xfer {
 	u8 rnw;
 	u16 len;
+	u16 actual_len;
 	union {
 		void *in;
 		const void *out;
@@ -96,7 +98,7 @@ enum i3c_dcr {
 
 /**
  * struct i3c_device_info - I3C device information
- * @pid: Provisional ID
+ * @pid: Provisioned ID
  * @bcr: Bus Characteristic Register
  * @dcr: Device Characteristic Register
  * @static_addr: static/I2C address
@@ -181,10 +183,7 @@ struct i3c_driver {
 	const struct i3c_device_id *id_table;
 };
 
-static inline struct i3c_driver *drv_to_i3cdrv(struct device_driver *drv)
-{
-	return container_of(drv, struct i3c_driver, driver);
-}
+#define drv_to_i3cdrv(__drv)	container_of_const(__drv, struct i3c_driver, driver)
 
 struct device *i3cdev_to_dev(struct i3c_device *i3cdev);
 

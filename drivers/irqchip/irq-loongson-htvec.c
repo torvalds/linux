@@ -15,8 +15,9 @@
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/syscore_ops.h>
+
+#include "irq-loongson.h"
 
 /* Registers */
 #define HTVEC_EN_OFF		0x20

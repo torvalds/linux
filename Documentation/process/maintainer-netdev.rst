@@ -25,9 +25,8 @@ drivers/net (i.e. hardware specific drivers) in the Linux source tree.
 Note that some subsystems (e.g. wireless drivers) which have a high
 volume of traffic have their own specific mailing lists and trees.
 
-The netdev list is managed (like many other Linux mailing lists) through
-VGER (http://vger.kernel.org/) with archives available at
-https://lore.kernel.org/netdev/
+Like many other Linux mailing lists, the netdev list is hosted at
+kernel.org with archives available at https://lore.kernel.org/netdev/.
 
 Aside from subsystems like those mentioned above, all network-related
 Linux development (i.e. RFC, review, comments, etc.) takes place on
@@ -98,7 +97,7 @@ If you aren't subscribed to netdev and/or are simply unsure if
 repository link above for any new networking-related commits.  You may
 also check the following website for the current status:
 
-  https://patchwork.hopto.org/net-next.html
+  https://netdev.bots.linux.dev/net-next.html
 
 The ``net`` tree continues to collect fixes for the vX.Y content, and is
 fed back to Linus at regular (~weekly) intervals.  Meaning that the
@@ -120,7 +119,37 @@ queue for netdev:
   https://patchwork.kernel.org/project/netdevbpf/list/
 
 The "State" field will tell you exactly where things are at with your
-patch. Patches are indexed by the ``Message-ID`` header of the emails
+patch:
+
+================== =============================================================
+Patch state        Description
+================== =============================================================
+New, Under review  pending review, patch is in the maintainer’s queue for
+                   review; the two states are used interchangeably (depending on
+                   the exact co-maintainer handling patchwork at the time)
+Accepted           patch was applied to the appropriate networking tree, this is
+                   usually set automatically by the pw-bot
+Needs ACK          waiting for an ack from an area expert or testing
+Changes requested  patch has not passed the review, new revision is expected
+                   with appropriate code and commit message changes
+Rejected           patch has been rejected and new revision is not expected
+Not applicable     patch is expected to be applied outside of the networking
+                   subsystem
+Awaiting upstream  patch should be reviewed and handled by appropriate
+                   sub-maintainer, who will send it on to the networking trees;
+                   patches set to ``Awaiting upstream`` in netdev's patchwork
+                   will usually remain in this state, whether the sub-maintainer
+                   requested changes, accepted or rejected the patch
+Deferred           patch needs to be reposted later, usually due to dependency
+                   or because it was posted for a closed tree
+Superseded         new version of the patch was posted, usually set by the
+                   pw-bot
+RFC                not to be applied, usually not in maintainer’s review queue,
+                   pw-bot can automatically set patches to this state based
+                   on subject tags
+================== =============================================================
+
+Patches are indexed by the ``Message-ID`` header of the emails
 which carried them so if you have trouble finding your patch append
 the value of ``Message-ID`` to the URL above.
 
@@ -155,7 +184,7 @@ must match the MAINTAINERS entry) and a handful of senior reviewers.
 
 Bot records its activity here:
 
-  https://patchwork.hopto.org/pw-bot.html
+  https://netdev.bots.linux.dev/pw-bot.html
 
 Review timelines
 ~~~~~~~~~~~~~~~~
@@ -163,9 +192,25 @@ Review timelines
 Generally speaking, the patches get triaged quickly (in less than
 48h). But be patient, if your patch is active in patchwork (i.e. it's
 listed on the project's patch list) the chances it was missed are close to zero.
-Asking the maintainer for status updates on your
-patch is a good way to ensure your patch is ignored or pushed to the
-bottom of the priority list.
+
+The high volume of development on netdev makes reviewers move on
+from discussions relatively quickly. New comments and replies
+are very unlikely to arrive after a week of silence. If a patch
+is no longer active in patchwork and the thread went idle for more
+than a week - clarify the next steps and/or post the next version.
+
+For RFC postings specifically, if nobody responded in a week - reviewers
+either missed the posting or have no strong opinions. If the code is ready,
+repost as a PATCH.
+
+Emails saying just "ping" or "bump" are considered rude. If you can't figure
+out the status of the patch from patchwork or where the discussion has
+landed - describe your best guess and ask if it's correct. For example::
+
+  I don't understand what the next steps are. Person X seems to be unhappy
+  with A, should I do B and repost the patches?
+
+.. _Changes requested:
 
 Changes requested
 ~~~~~~~~~~~~~~~~~
@@ -181,7 +226,7 @@ preferably including links to previous postings, for example::
   The amount of mooing will depend on packet rate so should match
   the diurnal cycle quite well.
 
-  Signed-of-by: Joe Defarmer <joe@barn.org>
+  Signed-off-by: Joe Defarmer <joe@barn.org>
   ---
   v3:
     - add a note about time-of-day mooing fluctuation to the commit message
@@ -310,23 +355,6 @@ just do it. As a result, a sequence of smaller series gets merged quicker and
 with better review coverage. Re-posting large series also increases the mailing
 list traffic.
 
-Multi-line comments
-~~~~~~~~~~~~~~~~~~~
-
-Comment style convention is slightly different for networking and most of
-the tree.  Instead of this::
-
-  /*
-   * foobar blah blah blah
-   * another line of text
-   */
-
-it is requested that you make it look like this::
-
-  /* foobar blah blah blah
-   * another line of text
-   */
-
 Local variable ordering ("reverse xmas tree", "RCS")
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -347,6 +375,22 @@ When working in existing code which uses nonstandard formatting make
 your code follow the most recent guidelines, so that eventually all code
 in the domain of netdev is in the preferred format.
 
+Using device-managed and cleanup.h constructs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Netdev remains skeptical about promises of all "auto-cleanup" APIs,
+including even ``devm_`` helpers, historically. They are not the preferred
+style of implementation, merely an acceptable one.
+
+Use of ``guard()`` is discouraged within any function longer than 20 lines,
+``scoped_guard()`` is considered more readable. Using normal lock/unlock is
+still (weakly) preferred.
+
+Low level cleanup constructs (such as ``__free()``) can be used when building
+APIs and helpers, especially scoped iterators. However, direct use of
+``__free()`` within networking core and drivers is discouraged.
+Similar guidance applies to declaring variables mid-function.
+
 Resending after review
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -358,6 +402,10 @@ to recall all the context.
 Make sure you address all the feedback in your new posting. Do not post a new
 version of the code if the discussion about the previous version is still
 ongoing, unless directly instructed by a reviewer.
+
+The new version of patches should be posted as a separate thread,
+not as a reply to the previous posting. Change log should include a link
+to the previous posting (see :ref:`Changes requested`).
 
 Testing
 -------
@@ -381,7 +429,7 @@ patchwork checks
 Checks in patchwork are mostly simple wrappers around existing kernel
 scripts, the sources are available at:
 
-https://github.com/kuba-moo/nipa/tree/master/tests
+https://github.com/linux-netdev/nipa/tree/master/tests
 
 **Do not** post your patches just to run them through the checks.
 You must ensure that your patches are ready by testing them locally
@@ -404,6 +452,21 @@ in a way which would break what would normally be considered uAPI.
 ``netdevsim`` is reserved for use by upstream tests only, so any
 new ``netdevsim`` features must be accompanied by selftests under
 ``tools/testing/selftests/``.
+
+Reviewer guidance
+-----------------
+
+Reviewing other people's patches on the list is highly encouraged,
+regardless of the level of expertise. For general guidance and
+helpful tips please see :ref:`development_advancedtopics_reviews`.
+
+It's safe to assume that netdev maintainers know the community and the level
+of expertise of the reviewers. The reviewers should not be concerned about
+their comments impeding or derailing the patch flow.
+
+Less experienced reviewers are highly encouraged to do more in-depth
+review of submissions and not focus exclusively on trivial or subjective
+matters like code formatting, tags etc.
 
 Testimonials / feedback
 -----------------------

@@ -134,6 +134,11 @@
 /* 0x14b - 0x152 Holdover */
 
 /* 0x153 - 0x15f PLL1 Configuration */
+#define LMK04832_REG_PLL1_LD		0x15f
+#define LMK04832_BIT_PLL1_LD_MUX		GENMASK(7, 3)
+#define LMK04832_VAL_PLL1_LD_MUX_SPI_RDBK		0x07
+#define LMK04832_BIT_PLL1_LD_TYPE		GENMASK(2, 0)
+#define LMK04832_VAL_PLL1_LD_TYPE_OUT_PP		0x03
 
 /* 0x160 - 0x16e PLL2 Configuration */
 #define LMK04832_REG_PLL2_R_MSB		0x160
@@ -206,6 +211,7 @@ enum lmk04832_rdbk_type {
 	RDBK_CLKIN_SEL0,
 	RDBK_CLKIN_SEL1,
 	RDBK_RESET,
+	RDBK_PLL1_LD,
 };
 
 struct lmk_dclk {
@@ -1297,6 +1303,7 @@ static int lmk04832_register_clkout(struct lmk04832 *lmk, const int num)
 		sprintf(dclk_name, "lmk-dclk%02d_%02d", num, num + 1);
 		init.name = dclk_name;
 		parent_names[0] = clk_hw_get_name(&lmk->vco);
+		init.parent_names = parent_names;
 		init.ops = &lmk04832_dclk_ops;
 		init.flags = CLK_SET_RATE_PARENT;
 		init.num_parents = 1;
@@ -1345,6 +1352,10 @@ static int lmk04832_set_spi_rdbk(const struct lmk04832 *lmk, const int rdbk_pin)
 {
 	int reg;
 	int ret;
+	int val = FIELD_PREP(LMK04832_BIT_CLKIN_SEL_MUX,
+			     LMK04832_VAL_CLKIN_SEL_MUX_SPI_RDBK) |
+		  FIELD_PREP(LMK04832_BIT_CLKIN_SEL_TYPE,
+			     LMK04832_VAL_CLKIN_SEL_TYPE_OUT);
 
 	dev_info(lmk->dev, "setting up 4-wire mode\n");
 	ret = regmap_write(lmk->regmap, LMK04832_REG_RST3W,
@@ -1362,15 +1373,18 @@ static int lmk04832_set_spi_rdbk(const struct lmk04832 *lmk, const int rdbk_pin)
 	case RDBK_RESET:
 		reg = LMK04832_REG_CLKIN_RST;
 		break;
+	case RDBK_PLL1_LD:
+		reg = LMK04832_REG_PLL1_LD;
+		val = FIELD_PREP(LMK04832_BIT_PLL1_LD_MUX,
+				 LMK04832_VAL_PLL1_LD_MUX_SPI_RDBK) |
+		      FIELD_PREP(LMK04832_BIT_PLL1_LD_TYPE,
+				 LMK04832_VAL_PLL1_LD_TYPE_OUT_PP);
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	return regmap_write(lmk->regmap, reg,
-			    FIELD_PREP(LMK04832_BIT_CLKIN_SEL_MUX,
-				       LMK04832_VAL_CLKIN_SEL_MUX_SPI_RDBK) |
-			    FIELD_PREP(LMK04832_BIT_CLKIN_SEL_TYPE,
-				       LMK04832_VAL_CLKIN_SEL_TYPE_OUT));
+	return regmap_write(lmk->regmap, reg, val);
 }
 
 static int lmk04832_probe(struct spi_device *spi)
@@ -1391,15 +1405,11 @@ static int lmk04832_probe(struct spi_device *spi)
 
 	lmk->dev = &spi->dev;
 
-	lmk->oscin = devm_clk_get(lmk->dev, "oscin");
+	lmk->oscin = devm_clk_get_enabled(lmk->dev, "oscin");
 	if (IS_ERR(lmk->oscin)) {
 		dev_err(lmk->dev, "failed to get oscin clock\n");
 		return PTR_ERR(lmk->oscin);
 	}
-
-	ret = clk_prepare_enable(lmk->oscin);
-	if (ret)
-		return ret;
 
 	lmk->reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset",
 						  GPIOD_OUT_LOW);
@@ -1408,14 +1418,14 @@ static int lmk04832_probe(struct spi_device *spi)
 				 sizeof(struct lmk_dclk), GFP_KERNEL);
 	if (!lmk->dclk) {
 		ret = -ENOMEM;
-		goto err_disable_oscin;
+		return ret;
 	}
 
 	lmk->clkout = devm_kcalloc(lmk->dev, info->num_channels,
 				   sizeof(*lmk->clkout), GFP_KERNEL);
 	if (!lmk->clkout) {
 		ret = -ENOMEM;
-		goto err_disable_oscin;
+		return ret;
 	}
 
 	lmk->clk_data = devm_kzalloc(lmk->dev, struct_size(lmk->clk_data, hws,
@@ -1423,7 +1433,7 @@ static int lmk04832_probe(struct spi_device *spi)
 				     GFP_KERNEL);
 	if (!lmk->clk_data) {
 		ret = -ENOMEM;
-		goto err_disable_oscin;
+		return ret;
 	}
 
 	device_property_read_u32(lmk->dev, "ti,vco-hz", &lmk->vco_rate);
@@ -1451,7 +1461,7 @@ static int lmk04832_probe(struct spi_device *spi)
 			dev_err(lmk->dev, "missing reg property in child: %s\n",
 				child->full_name);
 			of_node_put(child);
-			goto err_disable_oscin;
+			return ret;
 		}
 
 		of_property_read_u32(child, "ti,clkout-fmt",
@@ -1472,7 +1482,7 @@ static int lmk04832_probe(struct spi_device *spi)
 
 			__func__, PTR_ERR(lmk->regmap));
 		ret = PTR_ERR(lmk->regmap);
-		goto err_disable_oscin;
+		return ret;
 	}
 
 	regmap_write(lmk->regmap, LMK04832_REG_RST3W, LMK04832_BIT_RESET);
@@ -1482,7 +1492,7 @@ static int lmk04832_probe(struct spi_device *spi)
 					 &rdbk_pin);
 		ret = lmk04832_set_spi_rdbk(lmk, rdbk_pin);
 		if (ret)
-			goto err_disable_oscin;
+			return ret;
 	}
 
 	regmap_bulk_read(lmk->regmap, LMK04832_REG_ID_PROD_MSB, &tmp, 3);
@@ -1490,13 +1500,13 @@ static int lmk04832_probe(struct spi_device *spi)
 		dev_err(lmk->dev, "unsupported device type: pid 0x%04x, maskrev 0x%02x\n",
 			tmp[0] << 8 | tmp[1], tmp[2]);
 		ret = -EINVAL;
-		goto err_disable_oscin;
+		return ret;
 	}
 
 	ret = lmk04832_register_vco(lmk);
 	if (ret) {
 		dev_err(lmk->dev, "failed to init device clock path\n");
-		goto err_disable_oscin;
+		return ret;
 	}
 
 	if (lmk->vco_rate) {
@@ -1504,21 +1514,21 @@ static int lmk04832_probe(struct spi_device *spi)
 		ret = clk_set_rate(lmk->vco.clk, lmk->vco_rate);
 		if (ret) {
 			dev_err(lmk->dev, "failed to set VCO rate\n");
-			goto err_disable_vco;
+			return ret;
 		}
 	}
 
 	ret = lmk04832_register_sclk(lmk);
 	if (ret) {
 		dev_err(lmk->dev, "failed to init SYNC/SYSREF clock path\n");
-		goto err_disable_vco;
+		return ret;
 	}
 
 	for (i = 0; i < info->num_channels; i++) {
 		ret = lmk04832_register_clkout(lmk, i);
 		if (ret) {
 			dev_err(lmk->dev, "failed to register clk %d\n", i);
-			goto err_disable_vco;
+			return ret;
 		}
 	}
 
@@ -1527,27 +1537,12 @@ static int lmk04832_probe(struct spi_device *spi)
 					  lmk->clk_data);
 	if (ret) {
 		dev_err(lmk->dev, "failed to add provider (%d)\n", ret);
-		goto err_disable_vco;
+		return ret;
 	}
 
 	spi_set_drvdata(spi, lmk);
 
 	return 0;
-
-err_disable_vco:
-	clk_disable_unprepare(lmk->vco.clk);
-
-err_disable_oscin:
-	clk_disable_unprepare(lmk->oscin);
-
-	return ret;
-}
-
-static void lmk04832_remove(struct spi_device *spi)
-{
-	struct lmk04832 *lmk = spi_get_drvdata(spi);
-
-	clk_disable_unprepare(lmk->oscin);
 }
 
 static const struct spi_device_id lmk04832_id[] = {
@@ -1568,7 +1563,6 @@ static struct spi_driver lmk04832_driver = {
 		.of_match_table = lmk04832_of_id,
 	},
 	.probe		= lmk04832_probe,
-	.remove		= lmk04832_remove,
 	.id_table	= lmk04832_id,
 };
 module_spi_driver(lmk04832_driver);

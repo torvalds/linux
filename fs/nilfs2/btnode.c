@@ -51,12 +51,21 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 
 	bh = nilfs_grab_buffer(inode, btnc, blocknr, BIT(BH_NILFS_Node));
 	if (unlikely(!bh))
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (unlikely(buffer_mapped(bh) || buffer_uptodate(bh) ||
 		     buffer_dirty(bh))) {
-		brelse(bh);
-		BUG();
+		/*
+		 * The block buffer at the specified new address was already
+		 * in use.  This can happen if it is a virtual block number
+		 * and has been reallocated due to corruption of the bitmap
+		 * used to manage its allocation state (if not, the buffer
+		 * clearing of an abandoned b-tree node is missing somewhere).
+		 */
+		nilfs_error(inode->i_sb,
+			    "state inconsistency probably due to duplicate use of b-tree node block address %llu (ino=%lu)",
+			    (unsigned long long)blocknr, inode->i_ino);
+		goto failed;
 	}
 	memset(bh->b_data, 0, i_blocksize(inode));
 	bh->b_bdev = inode->i_sb->s_bdev;
@@ -64,9 +73,15 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 	set_buffer_mapped(bh);
 	set_buffer_uptodate(bh);
 
-	unlock_page(bh->b_page);
-	put_page(bh->b_page);
+	folio_unlock(bh->b_folio);
+	folio_put(bh->b_folio);
 	return bh;
+
+failed:
+	folio_unlock(bh->b_folio);
+	folio_put(bh->b_folio);
+	brelse(bh);
+	return ERR_PTR(-EIO);
 }
 
 int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
@@ -75,7 +90,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 {
 	struct buffer_head *bh;
 	struct inode *inode = btnc->host;
-	struct page *page;
+	struct folio *folio;
 	int err;
 
 	bh = nilfs_grab_buffer(inode, btnc, blocknr, BIT(BH_NILFS_Node));
@@ -83,7 +98,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 		return -ENOMEM;
 
 	err = -EEXIST; /* internal code */
-	page = bh->b_page;
+	folio = bh->b_folio;
 
 	if (buffer_uptodate(bh) || buffer_dirty(bh))
 		goto found;
@@ -130,8 +145,8 @@ found:
 	*pbh = bh;
 
 out_locked:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	return err;
 }
 
@@ -145,30 +160,51 @@ out_locked:
 void nilfs_btnode_delete(struct buffer_head *bh)
 {
 	struct address_space *mapping;
-	struct page *page = bh->b_page;
-	pgoff_t index = page_index(page);
+	struct folio *folio = bh->b_folio;
+	pgoff_t index = folio->index;
 	int still_dirty;
 
-	get_page(page);
-	lock_page(page);
-	wait_on_page_writeback(page);
+	folio_get(folio);
+	folio_lock(folio);
+	folio_wait_writeback(folio);
 
 	nilfs_forget_buffer(bh);
-	still_dirty = PageDirty(page);
-	mapping = page->mapping;
-	unlock_page(page);
-	put_page(page);
+	still_dirty = folio_test_dirty(folio);
+	mapping = folio->mapping;
+	folio_unlock(folio);
+	folio_put(folio);
 
 	if (!still_dirty && mapping)
 		invalidate_inode_pages2_range(mapping, index, index);
 }
 
 /**
- * nilfs_btnode_prepare_change_key
- *  prepare to move contents of the block for old key to one of new key.
- *  the old buffer will not be removed, but might be reused for new buffer.
- *  it might return -ENOMEM because of memory allocation errors,
- *  and might return -EIO because of disk read errors.
+ * nilfs_btnode_prepare_change_key - prepare to change the search key of a
+ *                                   b-tree node block
+ * @btnc: page cache in which the b-tree node block is buffered
+ * @ctxt: structure for exchanging context information for key change
+ *
+ * nilfs_btnode_prepare_change_key() prepares to move the contents of the
+ * b-tree node block of the old key given in the "oldkey" member of @ctxt to
+ * the position of the new key given in the "newkey" member of @ctxt in the
+ * page cache @btnc.  Here, the key of the block is an index in units of
+ * blocks, and if the page and block sizes match, it matches the page index
+ * in the page cache.
+ *
+ * If the page size and block size match, this function attempts to move the
+ * entire folio, and in preparation for this, inserts the original folio into
+ * the new index of the cache.  If this insertion fails or if the page size
+ * and block size are different, it falls back to a copy preparation using
+ * nilfs_btnode_create_block(), inserts a new block at the position
+ * corresponding to "newkey", and stores the buffer head pointer in the
+ * "newbh" member of @ctxt.
+ *
+ * Note that the current implementation does not support folio sizes larger
+ * than the page size.
+ *
+ * Return: 0 on success, or the following negative error code on failure.
+ * * %-EIO	- I/O error (metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
  */
 int nilfs_btnode_prepare_change_key(struct address_space *btnc,
 				    struct nilfs_btnode_chkey_ctxt *ctxt)
@@ -185,23 +221,23 @@ int nilfs_btnode_prepare_change_key(struct address_space *btnc,
 	ctxt->newbh = NULL;
 
 	if (inode->i_blkbits == PAGE_SHIFT) {
-		struct page *opage = obh->b_page;
-		lock_page(opage);
+		struct folio *ofolio = obh->b_folio;
+		folio_lock(ofolio);
 retry:
 		/* BUG_ON(oldkey != obh->b_folio->index); */
-		if (unlikely(oldkey != opage->index))
-			NILFS_PAGE_BUG(opage,
+		if (unlikely(oldkey != ofolio->index))
+			NILFS_FOLIO_BUG(ofolio,
 				       "invalid oldkey %lld (newkey=%lld)",
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);
 
 		xa_lock_irq(&btnc->i_pages);
-		err = __xa_insert(&btnc->i_pages, newkey, opage, GFP_NOFS);
+		err = __xa_insert(&btnc->i_pages, newkey, ofolio, GFP_NOFS);
 		xa_unlock_irq(&btnc->i_pages);
 		/*
-		 * Note: page->index will not change to newkey until
+		 * Note: folio->index will not change to newkey until
 		 * nilfs_btnode_commit_change_key() will be called.
-		 * To protect the page in intermediate state, the page lock
+		 * To protect the folio in intermediate state, the folio lock
 		 * is held.
 		 */
 		if (!err)
@@ -213,40 +249,53 @@ retry:
 		if (!err)
 			goto retry;
 		/* fallback to copy mode */
-		unlock_page(opage);
+		folio_unlock(ofolio);
 	}
 
 	nbh = nilfs_btnode_create_block(btnc, newkey);
-	if (!nbh)
-		return -ENOMEM;
+	if (IS_ERR(nbh))
+		return PTR_ERR(nbh);
 
 	BUG_ON(nbh == obh);
 	ctxt->newbh = nbh;
 	return 0;
 
  failed_unlock:
-	unlock_page(obh->b_page);
+	folio_unlock(obh->b_folio);
 	return err;
 }
 
 /**
- * nilfs_btnode_commit_change_key
- *  commit the change_key operation prepared by prepare_change_key().
+ * nilfs_btnode_commit_change_key - commit the change of the search key of
+ *                                  a b-tree node block
+ * @btnc: page cache in which the b-tree node block is buffered
+ * @ctxt: structure for exchanging context information for key change
+ *
+ * nilfs_btnode_commit_change_key() executes the key change based on the
+ * context @ctxt prepared by nilfs_btnode_prepare_change_key().  If no valid
+ * block buffer is prepared in "newbh" of @ctxt (i.e., a full folio move),
+ * this function removes the folio from the old index and completes the move.
+ * Otherwise, it copies the block data and inherited flag states of "oldbh"
+ * to "newbh" and clears the "oldbh" from the cache.  In either case, the
+ * relocated buffer is marked as dirty.
+ *
+ * As with nilfs_btnode_prepare_change_key(), the current implementation does
+ * not support folio sizes larger than the page size.
  */
 void nilfs_btnode_commit_change_key(struct address_space *btnc,
 				    struct nilfs_btnode_chkey_ctxt *ctxt)
 {
 	struct buffer_head *obh = ctxt->bh, *nbh = ctxt->newbh;
 	__u64 oldkey = ctxt->oldkey, newkey = ctxt->newkey;
-	struct page *opage;
+	struct folio *ofolio;
 
 	if (oldkey == newkey)
 		return;
 
 	if (nbh == NULL) {	/* blocksize == pagesize */
-		opage = obh->b_page;
-		if (unlikely(oldkey != opage->index))
-			NILFS_PAGE_BUG(opage,
+		ofolio = obh->b_folio;
+		if (unlikely(oldkey != ofolio->index))
+			NILFS_FOLIO_BUG(ofolio,
 				       "invalid oldkey %lld (newkey=%lld)",
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);
@@ -257,8 +306,8 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 		__xa_set_mark(&btnc->i_pages, newkey, PAGECACHE_TAG_DIRTY);
 		xa_unlock_irq(&btnc->i_pages);
 
-		opage->index = obh->b_blocknr = newkey;
-		unlock_page(opage);
+		ofolio->index = obh->b_blocknr = newkey;
+		folio_unlock(ofolio);
 	} else {
 		nilfs_copy_buffer(nbh, obh);
 		mark_buffer_dirty(nbh);
@@ -270,8 +319,19 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 }
 
 /**
- * nilfs_btnode_abort_change_key
- *  abort the change_key operation prepared by prepare_change_key().
+ * nilfs_btnode_abort_change_key - abort the change of the search key of a
+ *                                 b-tree node block
+ * @btnc: page cache in which the b-tree node block is buffered
+ * @ctxt: structure for exchanging context information for key change
+ *
+ * nilfs_btnode_abort_change_key() cancels the key change associated with the
+ * context @ctxt prepared via nilfs_btnode_prepare_change_key() and performs
+ * any necessary cleanup.  If no valid block buffer is prepared in "newbh" of
+ * @ctxt, this function removes the folio from the destination index and aborts
+ * the move.  Otherwise, it clears "newbh" from the cache.
+ *
+ * As with nilfs_btnode_prepare_change_key(), the current implementation does
+ * not support folio sizes larger than the page size.
  */
 void nilfs_btnode_abort_change_key(struct address_space *btnc,
 				   struct nilfs_btnode_chkey_ctxt *ctxt)
@@ -284,7 +344,7 @@ void nilfs_btnode_abort_change_key(struct address_space *btnc,
 
 	if (nbh == NULL) {	/* blocksize == pagesize */
 		xa_erase_irq(&btnc->i_pages, newkey);
-		unlock_page(ctxt->bh->b_page);
+		folio_unlock(ctxt->bh->b_folio);
 	} else {
 		/*
 		 * When canceling a buffer that a prepare operation has

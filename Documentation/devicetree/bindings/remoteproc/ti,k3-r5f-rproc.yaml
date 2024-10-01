@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/remoteproc/ti,k3-r5f-rproc.yaml#
@@ -102,7 +102,7 @@ patternProperties:
       caches. Each of the TCMs can be enabled or disabled independently and
       either of them can be configured to appear at that R5F's address 0x0.
 
-      The cores do not use an MMU, but has a Region Address Translater
+      The cores do not use an MMU, but has a Region Address Translator
       (RAT) module that is accessible only from the R5Fs for providing
       translations between 32-bit CPU addresses into larger system bus
       addresses. Cache and memory access settings are provided through a

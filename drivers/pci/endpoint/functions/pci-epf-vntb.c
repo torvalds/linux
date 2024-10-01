@@ -422,7 +422,7 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb)
 								epf->func_no,
 								epf->vfunc_no);
 	barno = ntb->epf_ntb_bar[BAR_CONFIG];
-	size = epc_features->bar_fixed_size[barno];
+	size = epc_features->bar[barno].fixed_size;
 	align = epc_features->align;
 
 	if ((!IS_ALIGNED(size, align)))
@@ -446,7 +446,7 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb)
 	else if (size < ctrl_size + spad_size)
 		return -EINVAL;
 
-	base = pci_epf_alloc_space(epf, size, barno, align, 0);
+	base = pci_epf_alloc_space(epf, size, barno, epc_features, 0);
 	if (!base) {
 		dev_err(dev, "Config/Status/SPAD alloc region fail\n");
 		return -ENOMEM;
@@ -527,7 +527,6 @@ static int epf_ntb_configure_interrupt(struct epf_ntb *ntb)
 static int epf_ntb_db_bar_init(struct epf_ntb *ntb)
 {
 	const struct pci_epc_features *epc_features;
-	u32 align;
 	struct device *dev = &ntb->epf->dev;
 	int ret;
 	struct pci_epf_bar *epf_bar;
@@ -538,19 +537,9 @@ static int epf_ntb_db_bar_init(struct epf_ntb *ntb)
 	epc_features = pci_epc_get_features(ntb->epf->epc,
 					    ntb->epf->func_no,
 					    ntb->epf->vfunc_no);
-	align = epc_features->align;
-
-	if (size < 128)
-		size = 128;
-
-	if (align)
-		size = ALIGN(size, align);
-	else
-		size = roundup_pow_of_two(size);
-
 	barno = ntb->epf_ntb_bar[BAR_DB];
 
-	mw_addr = pci_epf_alloc_space(ntb->epf, size, barno, align, 0);
+	mw_addr = pci_epf_alloc_space(ntb->epf, size, barno, epc_features, 0);
 	if (!mw_addr) {
 		dev_err(dev, "Failed to allocate OB address\n");
 		return -ENOMEM;
@@ -810,8 +799,9 @@ err_config_interrupt:
  */
 static void epf_ntb_epc_cleanup(struct epf_ntb *ntb)
 {
-	epf_ntb_db_bar_clear(ntb);
 	epf_ntb_mw_bar_clear(ntb, ntb->num_mws);
+	epf_ntb_db_bar_clear(ntb);
+	epf_ntb_config_sspad_bar_clear(ntb);
 }
 
 #define EPF_NTB_R(_name)						\
@@ -986,22 +976,22 @@ static struct config_group *epf_ntb_add_cfs(struct pci_epf *epf,
 /*==== virtual PCI bus driver, which only load virtual NTB PCI driver ====*/
 
 static u32 pci_space[] = {
-	0xffffffff,	/*DeviceID, Vendor ID*/
-	0,		/*Status, Command*/
-	0xffffffff,	/*Class code, subclass, prog if, revision id*/
-	0x40,		/*bist, header type, latency Timer, cache line size*/
-	0,		/*BAR 0*/
-	0,		/*BAR 1*/
-	0,		/*BAR 2*/
-	0,		/*BAR 3*/
-	0,		/*BAR 4*/
-	0,		/*BAR 5*/
-	0,		/*Cardbus cis point*/
-	0,		/*Subsystem ID Subystem vendor id*/
-	0,		/*ROM Base Address*/
-	0,		/*Reserved, Cap. Point*/
-	0,		/*Reserved,*/
-	0,		/*Max Lat, Min Gnt, interrupt pin, interrupt line*/
+	0xffffffff,	/* Device ID, Vendor ID */
+	0,		/* Status, Command */
+	0xffffffff,	/* Base Class, Subclass, Prog Intf, Revision ID */
+	0x40,		/* BIST, Header Type, Latency Timer, Cache Line Size */
+	0,		/* BAR 0 */
+	0,		/* BAR 1 */
+	0,		/* BAR 2 */
+	0,		/* BAR 3 */
+	0,		/* BAR 4 */
+	0,		/* BAR 5 */
+	0,		/* Cardbus CIS Pointer */
+	0,		/* Subsystem ID, Subsystem Vendor ID */
+	0,		/* ROM Base Address */
+	0,		/* Reserved, Capabilities Pointer */
+	0,		/* Reserved */
+	0,		/* Max_Lat, Min_Gnt, Interrupt Pin, Interrupt Line */
 };
 
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
@@ -1029,8 +1019,10 @@ static int vpci_scan_bus(void *sysdata)
 	struct epf_ntb *ndev = sysdata;
 
 	vpci_bus = pci_scan_bus(ndev->vbus_number, &vpci_ops, sysdata);
-	if (vpci_bus)
-		pr_err("create pci bus\n");
+	if (!vpci_bus) {
+		pr_err("create pci bus failed\n");
+		return -EINVAL;
+	}
 
 	pci_bus_add_devices(vpci_bus);
 
@@ -1172,11 +1164,8 @@ static int vntb_epf_peer_db_set(struct ntb_dev *ndev, u64 db_bits)
 	func_no = ntb->epf->func_no;
 	vfunc_no = ntb->epf->vfunc_no;
 
-	ret = pci_epc_raise_irq(ntb->epf->epc,
-				func_no,
-				vfunc_no,
-				PCI_EPC_IRQ_MSI,
-				interrupt_num + 1);
+	ret = pci_epc_raise_irq(ntb->epf->epc, func_no, vfunc_no,
+				PCI_IRQ_MSI, interrupt_num + 1);
 	if (ret)
 		dev_err(&ntb->ntb.dev, "Failed to raise IRQ\n");
 
@@ -1272,21 +1261,17 @@ static int pci_vntb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret) {
 		dev_err(dev, "Cannot set DMA mask\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	ret = ntb_register_device(&ndev->ntb);
 	if (ret) {
 		dev_err(dev, "Failed to register NTB device\n");
-		goto err_register_dev;
+		return ret;
 	}
 
 	dev_dbg(dev, "PCI Virtual NTB driver loaded\n");
 	return 0;
-
-err_register_dev:
-	put_device(&ndev->ntb.dev);
-	return -EINVAL;
 }
 
 static struct pci_device_id pci_vntb_table[] = {
@@ -1353,13 +1338,19 @@ static int epf_ntb_bind(struct pci_epf *epf)
 	ret = pci_register_driver(&vntb_pci_driver);
 	if (ret) {
 		dev_err(dev, "failure register vntb pci driver\n");
-		goto err_bar_alloc;
+		goto err_epc_cleanup;
 	}
 
-	vpci_scan_bus(ntb);
+	ret = vpci_scan_bus(ntb);
+	if (ret)
+		goto err_unregister;
 
 	return 0;
 
+err_unregister:
+	pci_unregister_driver(&vntb_pci_driver);
+err_epc_cleanup:
+	epf_ntb_epc_cleanup(ntb);
 err_bar_alloc:
 	epf_ntb_config_spad_bar_free(ntb);
 
@@ -1387,7 +1378,7 @@ static void epf_ntb_unbind(struct pci_epf *epf)
 }
 
 // EPF driver probe
-static struct pci_epf_ops epf_ntb_ops = {
+static const struct pci_epf_ops epf_ntb_ops = {
 	.bind   = epf_ntb_bind,
 	.unbind = epf_ntb_unbind,
 	.add_cfs = epf_ntb_add_cfs,

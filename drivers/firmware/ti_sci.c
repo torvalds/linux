@@ -16,7 +16,10 @@
 #include <linux/kernel.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/soc/ti/ti-msgmgr.h>
@@ -84,7 +87,6 @@ struct ti_sci_desc {
  * struct ti_sci_info - Structure representing a TI SCI instance
  * @dev:	Device pointer
  * @desc:	SoC description for this instance
- * @nb:	Reboot Notifier block
  * @d:		Debugfs file entry
  * @debug_region: Memory region where the debug message are available
  * @debug_region_size: Debug region size
@@ -97,11 +99,9 @@ struct ti_sci_desc {
  * @node:	list head
  * @host_id:	Host ID
  * @users:	Number of users of this instance
- * @is_suspending: Flag set to indicate in suspend path.
  */
 struct ti_sci_info {
 	struct device *dev;
-	struct notifier_block nb;
 	const struct ti_sci_desc *desc;
 	struct dentry *d;
 	void __iomem *debug_region;
@@ -116,12 +116,10 @@ struct ti_sci_info {
 	u8 host_id;
 	/* protected by ti_sci_list_mutex */
 	int users;
-	bool is_suspending;
 };
 
 #define cl_to_ti_sci_info(c)	container_of(c, struct ti_sci_info, cl)
 #define handle_to_ti_sci_info(h) container_of(h, struct ti_sci_info, handle)
-#define reboot_to_ti_sci_info(n) container_of(n, struct ti_sci_info, nb)
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -163,7 +161,7 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	char debug_name[50] = "ti_sci_debug@";
+	char debug_name[50];
 
 	/* Debug region is optional */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -180,10 +178,10 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 	/* Setup NULL termination */
 	info->debug_buffer[info->debug_region_size] = 0;
 
-	info->d = debugfs_create_file(strncat(debug_name, dev_name(dev),
-					      sizeof(debug_name) -
-					      sizeof("ti_sci_debug@")),
-				      0444, NULL, info, &ti_sci_debug_fops);
+	snprintf(debug_name, sizeof(debug_name), "ti_sci_debug@%s",
+		 dev_name(dev));
+	info->d = debugfs_create_file(debug_name, 0444, NULL, info,
+				      &ti_sci_debug_fops);
 	if (IS_ERR(info->d))
 		return PTR_ERR(info->d);
 
@@ -192,19 +190,6 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 	return 0;
 }
 
-/**
- * ti_sci_debugfs_destroy() - clean up log debug file
- * @pdev:	platform device pointer
- * @info:	Pointer to SCI entity information
- */
-static void ti_sci_debugfs_destroy(struct platform_device *pdev,
-				   struct ti_sci_info *info)
-{
-	if (IS_ERR(info->debug_region))
-		return;
-
-	debugfs_remove(info->d);
-}
 #else /* CONFIG_DEBUG_FS */
 static inline int ti_sci_debugfs_create(struct platform_device *dev,
 					struct ti_sci_info *info)
@@ -418,14 +403,14 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 
 	ret = 0;
 
-	if (!info->is_suspending) {
+	if (system_state <= SYSTEM_RUNNING) {
 		/* And we wait for the response. */
 		timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
 		if (!wait_for_completion_timeout(&xfer->done, timeout))
 			ret = -ETIMEDOUT;
 	} else {
 		/*
-		 * If we are suspending, we cannot use wait_for_completion_timeout
+		 * If we are !running, we cannot use wait_for_completion_timeout
 		 * during noirq phase, so we must manually poll the completion.
 		 */
 		ret = read_poll_timeout_atomic(try_wait_for_completion, done_state,
@@ -487,7 +472,7 @@ static int ti_sci_cmd_get_revision(struct ti_sci_info *info)
 	ver->abi_major = rev_info->abi_major;
 	ver->abi_minor = rev_info->abi_minor;
 	ver->firmware_revision = rev_info->firmware_revision;
-	strncpy(ver->firmware_description, rev_info->firmware_description,
+	strscpy(ver->firmware_description, rev_info->firmware_description,
 		sizeof(ver->firmware_description));
 
 fail:
@@ -1978,8 +1963,6 @@ static int ti_sci_free_irq(const struct ti_sci_handle *handle, u32 valid_params,
  * @src_index:		IRQ source index within the source device
  * @dst_id:		Device ID of the IRQ destination
  * @dst_host_irq:	IRQ number of the destination device
- * @vint_irq:		Boolean specifying if this interrupt belongs to
- *			Interrupt Aggregator.
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
@@ -2026,8 +2009,6 @@ static int ti_sci_cmd_set_event_map(const struct ti_sci_handle *handle,
  * @src_index:		IRQ source index within the source device
  * @dst_id:		Device ID of the IRQ destination
  * @dst_host_irq:	IRQ number of the destination device
- * @vint_irq:		Boolean specifying if this interrupt belongs to
- *			Interrupt Aggregator.
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
@@ -2620,6 +2601,7 @@ fail:
  *				    configuration flags
  * @handle:		Pointer to TI SCI handle
  * @proc_id:		Processor ID this request is for
+ * @bootvector:		Processor Boot vector (start address)
  * @config_flags_set:	Configuration flags to be set
  * @config_flags_clear:	Configuration flags to be cleared.
  *
@@ -2736,9 +2718,13 @@ fail:
 }
 
 /**
- * ti_sci_cmd_get_boot_status() - Command to get the processor boot status
+ * ti_sci_cmd_proc_get_status() - Command to get the processor boot status
  * @handle:	Pointer to TI SCI handle
  * @proc_id:	Processor ID this request is for
+ * @bv:		Processor Boot vector (start address)
+ * @cfg_flags:	Processor specific configuration flags
+ * @ctrl_flags:	Processor specific control flags
+ * @sts_flags:	Processor specific status flags
  *
  * Return: 0 if all went well, else returns appropriate error value.
  */
@@ -2887,7 +2873,6 @@ static void ti_sci_setup_ops(struct ti_sci_info *info)
 const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 {
 	struct device_node *ti_sci_np;
-	struct list_head *p;
 	struct ti_sci_handle *handle = NULL;
 	struct ti_sci_info *info;
 
@@ -2902,8 +2887,7 @@ const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 	}
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
+	list_for_each_entry(info, &ti_sci_list, node) {
 		if (ti_sci_np == info->dev->of_node) {
 			handle = &info->handle;
 			info->users++;
@@ -3013,7 +2997,6 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 	struct ti_sci_handle *handle = NULL;
 	struct device_node *ti_sci_np;
 	struct ti_sci_info *info;
-	struct list_head *p;
 
 	if (!np) {
 		pr_err("I need a device pointer\n");
@@ -3025,8 +3008,7 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
+	list_for_each_entry(info, &ti_sci_list, node) {
 		if (ti_sci_np == info->dev->of_node) {
 			handle = &info->handle;
 			info->users++;
@@ -3256,7 +3238,7 @@ EXPORT_SYMBOL_GPL(devm_ti_sci_get_of_resource);
  * @handle:	TISCI handle
  * @dev:	Device pointer to which the resource is assigned
  * @dev_id:	TISCI device id to which the resource is assigned
- * @suub_type:	TISCI resource subytpe representing the resource.
+ * @sub_type:	TISCI resource subytpe representing the resource.
  *
  * Return: Pointer to ti_sci_resource if all went well else appropriate
  *	   error pointer.
@@ -3269,10 +3251,9 @@ devm_ti_sci_get_resource(const struct ti_sci_handle *handle, struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_ti_sci_get_resource);
 
-static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
-				void *cmd)
+static int tisci_reboot_handler(struct sys_off_data *data)
 {
-	struct ti_sci_info *info = reboot_to_ti_sci_info(nb);
+	struct ti_sci_info *info = data->cb_data;
 	const struct ti_sci_handle *handle = &info->handle;
 
 	ti_sci_cmd_core_reboot(handle);
@@ -3280,35 +3261,6 @@ static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
 	/* call fail OR pass, we should not be here in the first place */
 	return NOTIFY_BAD;
 }
-
-static void ti_sci_set_is_suspending(struct ti_sci_info *info, bool is_suspending)
-{
-	info->is_suspending = is_suspending;
-}
-
-static int ti_sci_suspend(struct device *dev)
-{
-	struct ti_sci_info *info = dev_get_drvdata(dev);
-	/*
-	 * We must switch operation to polled mode now as drivers and the genpd
-	 * layer may make late TI SCI calls to change clock and device states
-	 * from the noirq phase of suspend.
-	 */
-	ti_sci_set_is_suspending(info, true);
-
-	return 0;
-}
-
-static int ti_sci_resume(struct device *dev)
-{
-	struct ti_sci_info *info = dev_get_drvdata(dev);
-
-	ti_sci_set_is_suspending(info, false);
-
-	return 0;
-}
-
-static DEFINE_SIMPLE_DEV_PM_OPS(ti_sci_pm_ops, ti_sci_suspend, ti_sci_resume);
 
 /* Description for K2G */
 static const struct ti_sci_desc ti_sci_pmmc_k2g_desc = {
@@ -3340,7 +3292,6 @@ MODULE_DEVICE_TABLE(of, ti_sci_of_match);
 static int ti_sci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	const struct ti_sci_desc *desc;
 	struct ti_sci_xfer *xfer;
 	struct ti_sci_info *info = NULL;
@@ -3348,15 +3299,9 @@ static int ti_sci_probe(struct platform_device *pdev)
 	struct mbox_client *cl;
 	int ret = -EINVAL;
 	int i;
-	int reboot = 0;
 	u32 h_id;
 
-	of_id = of_match_device(ti_sci_of_match, dev);
-	if (!of_id) {
-		dev_err(dev, "OF data missing\n");
-		return -EINVAL;
-	}
-	desc = of_id->data;
+	desc = device_get_match_data(dev);
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -3377,8 +3322,6 @@ static int ti_sci_probe(struct platform_device *pdev)
 		}
 	}
 
-	reboot = of_property_read_bool(dev->of_node,
-				       "ti,system-reboot-controller");
 	INIT_LIST_HEAD(&info->node);
 	minfo = &info->minfo;
 
@@ -3449,15 +3392,10 @@ static int ti_sci_probe(struct platform_device *pdev)
 
 	ti_sci_setup_ops(info);
 
-	if (reboot) {
-		info->nb.notifier_call = tisci_reboot_handler;
-		info->nb.priority = 128;
-
-		ret = register_restart_handler(&info->nb);
-		if (ret) {
-			dev_err(dev, "reboot registration fail(%d)\n", ret);
-			goto out;
-		}
+	ret = devm_register_restart_handler(dev, tisci_reboot_handler, info);
+	if (ret) {
+		dev_err(dev, "reboot registration fail(%d)\n", ret);
+		goto out;
 	}
 
 	dev_info(dev, "ABI: %d.%d (firmware rev 0x%04x '%s')\n",
@@ -3479,44 +3417,12 @@ out:
 	return ret;
 }
 
-static int ti_sci_remove(struct platform_device *pdev)
-{
-	struct ti_sci_info *info;
-	struct device *dev = &pdev->dev;
-	int ret = 0;
-
-	of_platform_depopulate(dev);
-
-	info = platform_get_drvdata(pdev);
-
-	if (info->nb.notifier_call)
-		unregister_restart_handler(&info->nb);
-
-	mutex_lock(&ti_sci_list_mutex);
-	if (info->users)
-		ret = -EBUSY;
-	else
-		list_del(&info->node);
-	mutex_unlock(&ti_sci_list_mutex);
-
-	if (!ret) {
-		ti_sci_debugfs_destroy(pdev, info);
-
-		/* Safe to free channels since no more users */
-		mbox_free_channel(info->chan_tx);
-		mbox_free_channel(info->chan_rx);
-	}
-
-	return ret;
-}
-
 static struct platform_driver ti_sci_driver = {
 	.probe = ti_sci_probe,
-	.remove = ti_sci_remove,
 	.driver = {
 		   .name = "ti-sci",
 		   .of_match_table = of_match_ptr(ti_sci_of_match),
-		   .pm = &ti_sci_pm_ops,
+		   .suppress_bind_attrs = true,
 	},
 };
 module_platform_driver(ti_sci_driver);

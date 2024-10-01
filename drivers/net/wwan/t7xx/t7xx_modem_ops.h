@@ -66,14 +66,22 @@ struct t7xx_modem {
 	struct cldma_ctrl		*md_ctrl[CLDMA_NUM];
 	struct t7xx_pci_dev		*t7xx_dev;
 	struct t7xx_sys_info		core_md;
+	struct t7xx_sys_info		core_ap;
 	bool				md_init_finish;
 	bool				rgu_irq_asserted;
 	struct workqueue_struct		*handshake_wq;
 	struct work_struct		handshake_work;
+	struct work_struct		ap_handshake_work;
 	struct t7xx_fsm_ctl		*fsm_ctl;
 	struct port_proxy		*port_prox;
 	unsigned int			exp_id;
 	spinlock_t			exp_lock; /* Protects exception events */
+};
+
+enum reset_type {
+	FLDR,
+	PLDR,
+	FASTBOOT,
 };
 
 void t7xx_md_exception_handshake(struct t7xx_modem *md);
@@ -82,7 +90,7 @@ int t7xx_md_reset(struct t7xx_pci_dev *t7xx_dev);
 int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev);
 void t7xx_md_exit(struct t7xx_pci_dev *t7xx_dev);
 void t7xx_clear_rgu_irq(struct t7xx_pci_dev *t7xx_dev);
-int t7xx_acpi_fldr_func(struct t7xx_pci_dev *t7xx_dev);
+int t7xx_reset_device(struct t7xx_pci_dev *t7xx_dev, enum reset_type type);
 int t7xx_pci_mhccif_isr(struct t7xx_pci_dev *t7xx_dev);
 
 #endif	/* __T7XX_MODEM_OPS_H__ */

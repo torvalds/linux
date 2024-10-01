@@ -129,57 +129,6 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 				KFD_DEBUG_CP_BAD_OP_ECODE_MASK)		\
 				>> KFD_DEBUG_CP_BAD_OP_ECODE_SHIFT)
 
-static void event_interrupt_poison_consumption(struct kfd_node *dev,
-				uint16_t pasid, uint16_t client_id)
-{
-	int old_poison, ret = -EINVAL;
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
-
-	if (!p)
-		return;
-
-	/* all queues of a process will be unmapped in one time */
-	old_poison = atomic_cmpxchg(&p->poison, 0, 1);
-	kfd_unref_process(p);
-	if (old_poison)
-		return;
-
-	switch (client_id) {
-	case SOC15_IH_CLIENTID_SE0SH:
-	case SOC15_IH_CLIENTID_SE1SH:
-	case SOC15_IH_CLIENTID_SE2SH:
-	case SOC15_IH_CLIENTID_SE3SH:
-	case SOC15_IH_CLIENTID_UTCL2:
-		ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
-		break;
-	case SOC15_IH_CLIENTID_SDMA0:
-	case SOC15_IH_CLIENTID_SDMA1:
-	case SOC15_IH_CLIENTID_SDMA2:
-	case SOC15_IH_CLIENTID_SDMA3:
-	case SOC15_IH_CLIENTID_SDMA4:
-		break;
-	default:
-		break;
-	}
-
-	kfd_signal_poison_consumed_event(dev, pasid);
-
-	/* resetting queue passes, do page retirement without gpu reset
-	 * resetting queue fails, fallback to gpu reset solution
-	 */
-	if (!ret) {
-		dev_warn(dev->adev->dev,
-			"RAS poison consumption, unmap queue flow succeeded: client id %d\n",
-			client_id);
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, false);
-	} else {
-		dev_warn(dev->adev->dev,
-			"RAS poison consumption, fall back to gpu reset flow: client id %d\n",
-			client_id);
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
-	}
-}
-
 static bool event_interrupt_isr_v10(struct kfd_node *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
@@ -268,7 +217,7 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 						SQ_INTERRUPT_WORD_WAVE_CTXID1, ENCODING);
 			switch (encoding) {
 			case SQ_INTERRUPT_WORD_ENCODING_AUTO:
-				pr_debug(
+				pr_debug_ratelimited(
 					"sq_intr: auto, se %d, ttrace %d, wlt %d, ttrac_buf0_full %d, ttrac_buf1_full %d, ttrace_utc_err %d\n",
 					REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_AUTO_CTXID1,
 							SE_ID),
@@ -284,7 +233,7 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 							THREAD_TRACE_UTC_ERROR));
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_INST:
-				pr_debug("sq_intr: inst, se %d, data 0x%x, sa %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
+				pr_debug_ratelimited("sq_intr: inst, se %d, data 0x%x, sa %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
 					REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1,
 							SE_ID),
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0,
@@ -310,7 +259,7 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
 				sq_intr_err_type = REG_GET_FIELD(context_id0, KFD_CTXID0,
 								ERR_TYPE);
-				pr_warn("sq_intr: error, se %d, data 0x%x, sa %d, priv %d, wave_id %d, simd_id %d, wgp_id %d, err_type %d\n",
+				pr_warn_ratelimited("sq_intr: error, se %d, data 0x%x, sa %d, priv %d, wave_id %d, simd_id %d, wgp_id %d, err_type %d\n",
 					REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1,
 							SE_ID),
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0,
@@ -326,17 +275,13 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 					REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1,
 							WGP_ID),
 					sq_intr_err_type);
-				if (sq_intr_err_type != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
-					sq_intr_err_type != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					event_interrupt_poison_consumption(dev, pasid, source_id);
-					return;
-				}
 				break;
 			default:
 				break;
 			}
 			kfd_signal_event_interrupt(pasid, context_id0 & 0x7fffff, 23);
-		} else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE) {
+		} else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE &&
+			   KFD_DBG_EC_TYPE_IS_PACKET(KFD_DEBUG_CP_BAD_OP_ECODE(context_id0))) {
 			kfd_set_dbg_ev_from_interrupt(dev, pasid,
 				KFD_DEBUG_DOORBELL_ID(context_id0),
 				KFD_EC_MASK(KFD_DEBUG_CP_BAD_OP_ECODE(context_id0)),
@@ -355,9 +300,6 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 		   client_id == SOC15_IH_CLIENTID_SDMA7) {
 		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
-		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
-			event_interrupt_poison_consumption(dev, pasid, source_id);
-			return;
 		}
 	} else if (client_id == SOC15_IH_CLIENTID_VMC ||
 		   client_id == SOC15_IH_CLIENTID_VMC1 ||
@@ -365,12 +307,6 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 		struct kfd_vm_fault_info info = {0};
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
 		struct kfd_hsa_memory_exception_data exception_data;
-
-		if (client_id == SOC15_IH_CLIENTID_UTCL2 &&
-				amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev)) {
-			event_interrupt_poison_consumption(dev, pasid, client_id);
-			return;
-		}
 
 		info.vmid = vmid;
 		info.mc_id = client_id;

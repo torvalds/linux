@@ -28,6 +28,7 @@ properties:
       - nxp,pca9450a
       - nxp,pca9450b
       - nxp,pca9450c
+      - nxp,pca9451a
 
   reg:
     maxItems: 1
@@ -95,7 +96,6 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
   - regulators
 
 additionalProperties: false

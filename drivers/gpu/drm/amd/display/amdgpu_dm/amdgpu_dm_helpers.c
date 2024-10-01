@@ -31,6 +31,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 
 #include "dm_services.h"
 #include "amdgpu.h"
@@ -63,20 +64,29 @@ static void apply_edid_quirks(struct edid *edid, struct dc_edid_caps *edid_caps)
 		DRM_DEBUG_DRIVER("Disabling FAMS on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.disable_fams = true;
 		break;
+	/* Workaround for some monitors that do not clear DPCD 0x317 if FreeSync is unsupported */
+	case drm_edid_encode_panel_id('A', 'U', 'O', 0xA7AB):
+	case drm_edid_encode_panel_id('A', 'U', 'O', 0xE69B):
+	case drm_edid_encode_panel_id('B', 'O', 'E', 0x092A):
+	case drm_edid_encode_panel_id('L', 'G', 'D', 0x06D1):
+	case drm_edid_encode_panel_id('M', 'S', 'F', 0x1003):
+		DRM_DEBUG_DRIVER("Clearing DPCD 0x317 on monitor with panel id %X\n", panel_id);
+		edid_caps->panel_patch.remove_sink_ext_caps = true;
+		break;
 	default:
 		return;
 	}
 }
 
-/* dm_helpers_parse_edid_caps
+/**
+ * dm_helpers_parse_edid_caps() - Parse edid caps
  *
- * Parse edid caps
- *
+ * @link: current detected link
  * @edid:	[in] pointer to edid
- *  edid_caps:	[in] pointer to edid caps
- * @return
- *	void
- * */
+ * @edid_caps:	[in] pointer to edid caps
+ *
+ * Return: void
+ */
 enum dc_edid_status dm_helpers_parse_edid_caps(
 		struct dc_link *link,
 		const struct dc_edid *edid,
@@ -113,11 +123,13 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 
 	edid_caps->edid_hdmi = connector->display_info.is_hdmi;
 
+	apply_edid_quirks(edid_buf, edid_caps);
+
 	sad_count = drm_edid_to_sad((struct edid *) edid->raw_edid, &sads);
 	if (sad_count <= 0)
 		return result;
 
-	edid_caps->audio_mode_count = sad_count < DC_MAX_AUDIO_DESC_COUNT ? sad_count : DC_MAX_AUDIO_DESC_COUNT;
+	edid_caps->audio_mode_count = min(sad_count, DC_MAX_AUDIO_DESC_COUNT);
 	for (i = 0; i < edid_caps->audio_mode_count; ++i) {
 		struct cea_sad *sad = &sads[i];
 
@@ -138,8 +150,6 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 		edid_caps->speaker_flags = sadb[0];
 	else
 		edid_caps->speaker_flags = DEFAULT_SPEAKER_LOCATION;
-
-	apply_edid_quirks(edid_buf, edid_caps);
 
 	kfree(sads);
 	kfree(sadb);
@@ -204,37 +214,35 @@ void dm_helpers_dp_update_branch_info(
 {}
 
 static void dm_helpers_construct_old_payload(
-			struct dc_link *link,
-			int pbn_per_slot,
+			struct drm_dp_mst_topology_mgr *mgr,
+			struct drm_dp_mst_topology_state *mst_state,
 			struct drm_dp_mst_atomic_payload *new_payload,
 			struct drm_dp_mst_atomic_payload *old_payload)
 {
-	struct link_mst_stream_allocation_table current_link_table =
-									link->mst_stream_alloc_table;
-	struct link_mst_stream_allocation *dc_alloc;
-	int i;
+	struct drm_dp_mst_atomic_payload *pos;
+	int pbn_per_slot = dfixed_trunc(mst_state->pbn_div);
+	u8 next_payload_vc_start = mgr->next_start_slot;
+	u8 payload_vc_start = new_payload->vc_start_slot;
+	u8 allocated_time_slots;
 
 	*old_payload = *new_payload;
 
 	/* Set correct time_slots/PBN of old payload.
 	 * other fields (delete & dsc_enabled) in
 	 * struct drm_dp_mst_atomic_payload are don't care fields
-	 * while calling drm_dp_remove_payload()
+	 * while calling drm_dp_remove_payload_part2()
 	 */
-	for (i = 0; i < current_link_table.stream_count; i++) {
-		dc_alloc =
-			&current_link_table.stream_allocations[i];
-
-		if (dc_alloc->vcp_id == new_payload->vcpi) {
-			old_payload->time_slots = dc_alloc->slot_count;
-			old_payload->pbn = dc_alloc->slot_count * pbn_per_slot;
-			break;
-		}
+	list_for_each_entry(pos, &mst_state->payloads, next) {
+		if (pos != new_payload &&
+		    pos->vc_start_slot > payload_vc_start &&
+		    pos->vc_start_slot < next_payload_vc_start)
+			next_payload_vc_start = pos->vc_start_slot;
 	}
 
-	/* make sure there is an old payload*/
-	ASSERT(i != current_link_table.stream_count);
+	allocated_time_slots = next_payload_vc_start - payload_vc_start;
 
+	old_payload->time_slots = allocated_time_slots;
+	old_payload->pbn = allocated_time_slots * pbn_per_slot;
 }
 
 /*
@@ -255,34 +263,35 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	/* Accessing the connector state is required for vcpi_slots allocation
 	 * and directly relies on behaviour in commit check
 	 * that blocks before commit guaranteeing that the state
-	 * is not gonna be swapped while still in use in commit tail */
+	 * is not gonna be swapped while still in use in commit tail
+	 */
 
 	if (!aconnector || !aconnector->mst_root)
 		return false;
 
 	mst_mgr = &aconnector->mst_root->mst_mgr;
 	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
-
-	/* It's OK for this to fail */
 	new_payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
 
 	if (enable) {
 		target_payload = new_payload;
 
+		/* It's OK for this to fail */
 		drm_dp_add_payload_part1(mst_mgr, mst_state, new_payload);
 	} else {
 		/* construct old payload by VCPI*/
-		dm_helpers_construct_old_payload(stream->link, mst_state->pbn_div,
-						new_payload, &old_payload);
+		dm_helpers_construct_old_payload(mst_mgr, mst_state,
+						 new_payload, &old_payload);
 		target_payload = &old_payload;
 
-		drm_dp_remove_payload(mst_mgr, mst_state, &old_payload, new_payload);
+		drm_dp_remove_payload_part1(mst_mgr, mst_state, new_payload);
 	}
 
 	/* mst_mgr->->payloads are VC payload notify MST branch using DPCD or
 	 * AUX message. The sequence is slot 1-63 allocated sequence for each
 	 * stream. AMD ASIC stream slot allocation should follow the same
-	 * sequence. copy DRM MST allocation to dc */
+	 * sequence. copy DRM MST allocation to dc
+	 */
 	fill_dc_mst_payload_table_from_drm(stream->link, enable, target_payload, proposed_table);
 
 	return true;
@@ -334,15 +343,14 @@ enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 	return ACT_SUCCESS;
 }
 
-bool dm_helpers_dp_mst_send_payload_allocation(
+void dm_helpers_dp_mst_send_payload_allocation(
 		struct dc_context *ctx,
-		const struct dc_stream_state *stream,
-		bool enable)
+		const struct dc_stream_state *stream)
 {
 	struct amdgpu_dm_connector *aconnector;
 	struct drm_dp_mst_topology_state *mst_state;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
-	struct drm_dp_mst_atomic_payload *payload;
+	struct drm_dp_mst_atomic_payload *new_payload;
 	enum mst_progress_status set_flag = MST_ALLOCATE_NEW_PAYLOAD;
 	enum mst_progress_status clr_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
 	int ret = 0;
@@ -350,20 +358,13 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
 	if (!aconnector || !aconnector->mst_root)
-		return false;
+		return;
 
 	mst_mgr = &aconnector->mst_root->mst_mgr;
 	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
+	new_payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
 
-	payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
-
-	if (!enable) {
-		set_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
-		clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
-	}
-
-	if (enable)
-		ret = drm_dp_add_payload_part2(mst_mgr, mst_state->base.state, payload);
+	ret = drm_dp_add_payload_part2(mst_mgr, new_payload);
 
 	if (ret) {
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
@@ -374,9 +375,35 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			clr_flag, false);
 	}
-
-	return true;
 }
+
+void dm_helpers_dp_mst_update_mst_mgr_for_deallocation(
+		struct dc_context *ctx,
+		const struct dc_stream_state *stream)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_mst_topology_mgr *mst_mgr;
+	struct drm_dp_mst_atomic_payload *new_payload, old_payload;
+	enum mst_progress_status set_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
+	enum mst_progress_status clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
+
+	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+
+	if (!aconnector || !aconnector->mst_root)
+		return;
+
+	mst_mgr = &aconnector->mst_root->mst_mgr;
+	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
+	new_payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
+	dm_helpers_construct_old_payload(mst_mgr, mst_state,
+					 new_payload, &old_payload);
+
+	drm_dp_remove_payload_part2(mst_mgr, mst_state, &old_payload, new_payload);
+
+	amdgpu_dm_set_mst_status(&aconnector->mst_status, set_flag, true);
+	amdgpu_dm_set_mst_status(&aconnector->mst_status, clr_flag, false);
+ }
 
 void dm_dtn_log_begin(struct dc_context *ctx,
 	struct dc_log_buffer_ctx *log_ctx)
@@ -426,7 +453,7 @@ void dm_dtn_log_append_v(struct dc_context *ctx,
 	total = log_ctx->pos + n + 1;
 
 	if (total > log_ctx->size) {
-		char *buf = (char *)kvcalloc(total, sizeof(char), GFP_KERNEL);
+		char *buf = kvcalloc(total, sizeof(char), GFP_KERNEL);
 
 		if (buf) {
 			memcpy(buf, log_ctx->buf, log_ctx->pos);
@@ -532,10 +559,8 @@ bool dm_helpers_dp_read_dpcd(
 
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
-	if (!aconnector) {
-		DC_LOG_DC("Failed to find connector for link!\n");
+	if (!aconnector)
 		return false;
-	}
 
 	return drm_dp_dpcd_read(&aconnector->dm_dp_aux.aux, address, data,
 				size) == size;
@@ -550,10 +575,8 @@ bool dm_helpers_dp_write_dpcd(
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
-	if (!aconnector) {
-		DRM_ERROR("Failed to find connector for link!");
+	if (!aconnector)
 		return false;
-	}
 
 	return drm_dp_dpcd_write(&aconnector->dm_dp_aux.aux,
 			address, (uint8_t *)data, size) > 0;
@@ -633,7 +656,7 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_COMMAND, &rc_cmd, sizeof(rc_cmd));
 
 	if (ret < 0) {
-		DRM_ERROR("	execute_synaptics_rc_command - write cmd ..., err = %d\n", ret);
+		DRM_ERROR("%s: write cmd ..., err = %d\n",  __func__, ret);
 		return false;
 	}
 
@@ -655,7 +678,7 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		drm_dp_dpcd_read(aux, SYNAPTICS_RC_DATA, data, length);
 	}
 
-	DC_LOG_DC("	execute_synaptics_rc_command - success = %d\n", success);
+	drm_dbg_dp(aux->drm_dev, "success = %d\n", success);
 
 	return success;
 }
@@ -664,7 +687,7 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 {
 	unsigned char data[16] = {0};
 
-	DC_LOG_DC("Start apply_synaptics_fifo_reset_wa\n");
+	drm_dbg_dp(aux->drm_dev, "Start\n");
 
 	// Step 2
 	data[0] = 'P';
@@ -722,7 +745,7 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 	if (!execute_synaptics_rc_command(aux, true, 0x02, 0, 0, NULL))
 		return;
 
-	DC_LOG_DC("Done apply_synaptics_fifo_reset_wa\n");
+	drm_dbg_dp(aux->drm_dev, "Done\n");
 }
 
 /* MST Dock */
@@ -735,7 +758,8 @@ static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 {
 	uint8_t ret = 0;
 
-	DC_LOG_DC("Configure DSC to non-virtual dpcd synaptics\n");
+	drm_dbg_dp(aux->drm_dev,
+		   "MST_DSC Configure DSC to non-virtual dpcd synaptics\n");
 
 	if (enable) {
 		/* When DSC is enabled on previous boot and reboot with the hub,
@@ -748,7 +772,7 @@ static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 			apply_synaptics_fifo_reset_wa(aux);
 
 		ret = drm_dp_dpcd_write(aux, DP_DSC_ENABLE, &enable, 1);
-		DRM_INFO("Send DSC enable to synaptics\n");
+		DRM_INFO("MST_DSC Send DSC enable to synaptics\n");
 
 	} else {
 		/* Synaptics hub not support virtual dpcd,
@@ -757,7 +781,7 @@ static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 		 */
 		if (!stream->link->link_status.link_active) {
 			ret = drm_dp_dpcd_write(aux, DP_DSC_ENABLE, &enable, 1);
-			DRM_INFO("Send DSC disable to synaptics\n");
+			DRM_INFO("MST_DSC Send DSC disable to synaptics\n");
 		}
 	}
 
@@ -773,18 +797,15 @@ bool dm_helpers_dp_write_dsc_enable(
 	static const uint8_t DSC_DECODING = 0x01;
 	static const uint8_t DSC_PASSTHROUGH = 0x02;
 
-	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector =
+		(struct amdgpu_dm_connector *)stream->dm_stream_context;
+	struct drm_device *dev = aconnector->base.dev;
 	struct drm_dp_mst_port *port;
 	uint8_t enable_dsc = enable ? DSC_DECODING : DSC_DISABLE;
 	uint8_t enable_passthrough = enable ? DSC_PASSTHROUGH : DSC_DISABLE;
 	uint8_t ret = 0;
 
-	if (!stream)
-		return false;
-
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
-
 		if (!aconnector->dsc_aux)
 			return false;
 
@@ -801,30 +822,34 @@ bool dm_helpers_dp_write_dsc_enable(
 				ret = drm_dp_dpcd_write(port->passthrough_aux,
 							DP_DSC_ENABLE,
 							&enable_passthrough, 1);
-				DC_LOG_DC("Sent DSC pass-through enable to virtual dpcd port, ret = %u\n",
-					  ret);
+				drm_dbg_dp(dev,
+					   "MST_DSC Sent DSC pass-through enable to virtual dpcd port, ret = %u\n",
+					   ret);
 			}
 
 			ret = drm_dp_dpcd_write(aconnector->dsc_aux,
 						DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Sent DSC decoding enable to %s port, ret = %u\n",
-				  (port->passthrough_aux) ? "remote RX" :
-				  "virtual dpcd",
-				  ret);
+			drm_dbg_dp(dev,
+				   "MST_DSC Sent DSC decoding enable to %s port, ret = %u\n",
+				   (port->passthrough_aux) ? "remote RX" :
+				   "virtual dpcd",
+				   ret);
 		} else {
 			ret = drm_dp_dpcd_write(aconnector->dsc_aux,
 						DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Sent DSC decoding disable to %s port, ret = %u\n",
-				  (port->passthrough_aux) ? "remote RX" :
-				  "virtual dpcd",
-				  ret);
+			drm_dbg_dp(dev,
+				   "MST_DSC Sent DSC decoding disable to %s port, ret = %u\n",
+				   (port->passthrough_aux) ? "remote RX" :
+				   "virtual dpcd",
+				   ret);
 
 			if (port->passthrough_aux) {
 				ret = drm_dp_dpcd_write(port->passthrough_aux,
 							DP_DSC_ENABLE,
 							&enable_passthrough, 1);
-				DC_LOG_DC("Sent DSC pass-through disable to virtual dpcd port, ret = %u\n",
-					  ret);
+				drm_dbg_dp(dev,
+					   "MST_DSC Sent DSC pass-through disable to virtual dpcd port, ret = %u\n",
+					   ret);
 			}
 		}
 	}
@@ -832,10 +857,14 @@ bool dm_helpers_dp_write_dsc_enable(
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT || stream->signal == SIGNAL_TYPE_EDP) {
 		if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_NONE) {
 			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Send DSC %s to SST RX\n", enable_dsc ? "enable" : "disable");
+			drm_dbg_dp(dev,
+				   "SST_DSC Send DSC %s to SST RX\n",
+				   enable_dsc ? "enable" : "disable");
 		} else if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER) {
 			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Send DSC %s to DP-HDMI PCON\n", enable_dsc ? "enable" : "disable");
+			drm_dbg_dp(dev,
+				   "SST_DSC Send DSC %s to DP-HDMI PCON\n",
+				   enable_dsc ? "enable" : "disable");
 		}
 	}
 
@@ -948,6 +977,11 @@ int dm_helper_dmub_aux_transfer_sync(
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result)
 {
+	if (!link->hpd_status) {
+		*operation_result = AUX_RET_ERROR_HPD_DISCON;
+		return -1;
+	}
+
 	return amdgpu_dm_process_dmub_aux_transfer_sync(ctx, link->link_index, payload,
 			operation_result);
 }
@@ -995,9 +1029,8 @@ void dm_helpers_override_panel_settings(
 	struct dc_panel_config *panel_config)
 {
 	// Feature DSC
-	if (amdgpu_dc_debug_mask & DC_DISABLE_DSC) {
+	if (amdgpu_dc_debug_mask & DC_DISABLE_DSC)
 		panel_config->dsc.disable_dsc_edp = true;
-	}
 }
 
 void *dm_helpers_allocate_gpu_mem(
@@ -1007,30 +1040,8 @@ void *dm_helpers_allocate_gpu_mem(
 		long long *addr)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct dal_allocation *da;
-	u32 domain = (type == DC_MEM_ALLOC_TYPE_GART) ?
-		AMDGPU_GEM_DOMAIN_GTT : AMDGPU_GEM_DOMAIN_VRAM;
-	int ret;
 
-	da = kzalloc(sizeof(struct dal_allocation), GFP_KERNEL);
-	if (!da)
-		return NULL;
-
-	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
-				      domain, &da->bo,
-				      &da->gpu_addr, &da->cpu_ptr);
-
-	*addr = da->gpu_addr;
-
-	if (ret) {
-		kfree(da);
-		return NULL;
-	}
-
-	/* add da to list in dm */
-	list_add(&da->list, &adev->dm.da_list);
-
-	return da->cpu_ptr;
+	return dm_allocate_gpu_mem(adev, type, size, addr);
 }
 
 void dm_helpers_free_gpu_mem(
@@ -1105,6 +1116,7 @@ bool dm_helpers_dp_handle_test_pattern_request(
 	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
 	struct pipe_ctx *pipe_ctx = NULL;
 	struct amdgpu_dm_connector *aconnector = link->priv;
+	struct drm_device *dev = aconnector->base.dev;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -1182,12 +1194,12 @@ bool dm_helpers_dp_handle_test_pattern_request(
 		&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth)
 		|| (requestPixelEncoding != PIXEL_ENCODING_UNDEFINED
 		&& pipe_ctx->stream->timing.pixel_encoding != requestPixelEncoding)) {
-		DC_LOG_DEBUG("%s: original bpc %d pix encoding %d, changing to %d  %d\n",
-				__func__,
-				pipe_ctx->stream->timing.display_color_depth,
-				pipe_ctx->stream->timing.pixel_encoding,
-				requestColorDepth,
-				requestPixelEncoding);
+		drm_dbg(dev,
+			"original bpc %d pix encoding %d, changing to %d  %d\n",
+			pipe_ctx->stream->timing.display_color_depth,
+			pipe_ctx->stream->timing.pixel_encoding,
+			requestColorDepth,
+			requestPixelEncoding);
 		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
 		pipe_ctx->stream->timing.pixel_encoding = requestPixelEncoding;
 
@@ -1198,9 +1210,12 @@ bool dm_helpers_dp_handle_test_pattern_request(
 		if (aconnector->timing_requested)
 			*aconnector->timing_requested = pipe_ctx->stream->timing;
 		else
-			DC_LOG_ERROR("%s: timing storage failed\n", __func__);
+			drm_err(dev, "timing storage failed\n");
 
 	}
+
+	pipe_ctx->stream->test_pattern.type = test_pattern;
+	pipe_ctx->stream->test_pattern.color_space = test_pattern_color_space;
 
 	dc_link_dp_set_test_pattern(
 		(struct dc_link *) link,
@@ -1220,7 +1235,13 @@ void dm_set_phyd32clk(struct dc_context *ctx, int freq_khz)
 
 void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable)
 {
-	/* TODO: add periodic detection implementation */
+	struct amdgpu_device *adev = ctx->driver_context;
+
+	if (adev->dm.idle_workqueue) {
+		adev->dm.idle_workqueue->enable = enable;
+		if (enable && !adev->dm.idle_workqueue->running && amdgpu_dm_is_headless(adev))
+			schedule_work(&adev->dm.idle_workqueue->work);
+	}
 }
 
 void dm_helpers_dp_mst_update_branch_bandwidth(
@@ -1264,4 +1285,16 @@ enum adaptive_sync_type dm_get_adaptive_sync_support_type(struct dc_link *link)
 	}
 
 	return as_type;
+}
+
+bool dm_helpers_is_fullscreen(struct dc_context *ctx, struct dc_stream_state *stream)
+{
+	// TODO
+	return false;
+}
+
+bool dm_helpers_is_hdr_on(struct dc_context *ctx, struct dc_stream_state *stream)
+{
+	// TODO
+	return false;
 }

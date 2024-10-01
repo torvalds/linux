@@ -193,14 +193,14 @@
        // I2C EXPANDER
        status = "okay";
 
-       i2c-switch@71 {
+       i2c-mux@71 {
                compatible = "nxp,pca9544";
                #address-cells = <1>;
                #size-cells = <0>;
                reg = <0x71>;
        };
 
-       i2c-switch@73 {
+       i2c-mux@73 {
                compatible = "nxp,pca9544";
                #address-cells = <1>;
                #size-cells = <0>;
@@ -212,7 +212,7 @@
        // I2C EXPANDER
        status = "okay";
 
-       i2c-switch@70 {
+       i2c-mux@70 {
                compatible = "nxp,pca9544";
                #address-cells = <1>;
                #size-cells = <0>;

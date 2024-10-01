@@ -46,7 +46,7 @@ static int hdac_codec_match(struct hdac_device *dev, struct hdac_driver *drv)
 		return 0;
 }
 
-static int hda_bus_match(struct device *dev, struct device_driver *drv)
+static int hda_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct hdac_device *hdev = dev_to_hdac_dev(dev);
 	struct hdac_driver *hdrv = drv_to_hdac_driver(drv);
@@ -76,7 +76,7 @@ static int hda_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct bus_type snd_hda_bus_type = {
+const struct bus_type snd_hda_bus_type = {
 	.name = "hdaudio",
 	.match = hda_bus_match,
 	.uevent = hda_uevent,

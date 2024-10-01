@@ -135,6 +135,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_data);
  * @parent: The parent directory in which to create.
  * @ops: The seq_file ops with which to read the file.
  * @write: The write method with which to 'modify' the file.
+ * @state_size: The size of the per-file private state to allocate.
  * @data: Data for retrieval by pde_data().
  *
  * Create a network namespaced proc file in the @parent directory with the
@@ -308,7 +309,7 @@ static int proc_tgid_net_getattr(struct mnt_idmap *idmap,
 
 	net = get_proc_task_net(inode);
 
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 
 	if (net != NULL) {
 		stat->nlink = net->proc_net->nlink;
@@ -321,6 +322,7 @@ static int proc_tgid_net_getattr(struct mnt_idmap *idmap,
 const struct inode_operations proc_net_inode_operations = {
 	.lookup		= proc_tgid_net_lookup,
 	.getattr	= proc_tgid_net_getattr,
+	.setattr        = proc_setattr,
 };
 
 static int proc_tgid_net_readdir(struct file *file, struct dir_context *ctx)

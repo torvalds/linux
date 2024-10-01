@@ -30,7 +30,7 @@
 static struct kmem_cache *nsproxy_cachep;
 
 struct nsproxy init_nsproxy = {
-	.count			= ATOMIC_INIT(1),
+	.count			= REFCOUNT_INIT(1),
 	.uts_ns			= &init_uts_ns,
 #if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
 	.ipc_ns			= &init_ipc_ns,
@@ -55,7 +55,7 @@ static inline struct nsproxy *create_nsproxy(void)
 
 	nsproxy = kmem_cache_alloc(nsproxy_cachep, GFP_KERNEL);
 	if (nsproxy)
-		atomic_set(&nsproxy->count, 1);
+		refcount_set(&nsproxy->count, 1);
 	return nsproxy;
 }
 
@@ -550,15 +550,15 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 	struct nsset nsset = {};
 	int err = 0;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	if (proc_ns_file(f.file)) {
-		ns = get_proc_ns(file_inode(f.file));
+	if (proc_ns_file(fd_file(f))) {
+		ns = get_proc_ns(file_inode(fd_file(f)));
 		if (flags && (ns->ops->type != flags))
 			err = -EINVAL;
 		flags = ns->ops->type;
-	} else if (!IS_ERR(pidfd_pid(f.file))) {
+	} else if (!IS_ERR(pidfd_pid(fd_file(f)))) {
 		err = check_setns_flags(flags);
 	} else {
 		err = -EINVAL;
@@ -570,10 +570,10 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 	if (err)
 		goto out;
 
-	if (proc_ns_file(f.file))
+	if (proc_ns_file(fd_file(f)))
 		err = validate_ns(&nsset, ns);
 	else
-		err = validate_nsset(&nsset, f.file->private_data);
+		err = validate_nsset(&nsset, pidfd_pid(fd_file(f)));
 	if (!err) {
 		commit_nsset(&nsset);
 		perf_event_namespaces(current);

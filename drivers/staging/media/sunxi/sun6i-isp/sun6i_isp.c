@@ -10,7 +10,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -387,8 +386,7 @@ static int sun6i_isp_resources_setup(struct sun6i_isp_device *isp_dev,
 
 	irq = platform_get_irq(platform_dev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to get interrupt\n");
-		ret = -ENXIO;
+		ret = irq;
 		goto error_clock_rate_exclusive;
 	}
 
@@ -541,7 +539,7 @@ static struct platform_driver sun6i_isp_platform_driver = {
 	.remove_new = sun6i_isp_remove,
 	.driver	= {
 		.name		= SUN6I_ISP_NAME,
-		.of_match_table	= of_match_ptr(sun6i_isp_of_match),
+		.of_match_table	= sun6i_isp_of_match,
 		.pm		= &sun6i_isp_pm_ops,
 	},
 };

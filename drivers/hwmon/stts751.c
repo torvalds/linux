@@ -72,12 +72,12 @@ static const int stts751_intervals[] = {
 };
 
 static const struct i2c_device_id stts751_id[] = {
-	{ "stts751", 0 },
+	{ "stts751" },
 	{ }
 };
 
 static const struct of_device_id __maybe_unused stts751_of_match[] = {
-	{ .compatible = "stts751" },
+	{ .compatible = "st,stts751" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, stts751_of_match);
@@ -91,7 +91,6 @@ struct stts751_priv {
 	int event_max, event_min;
 	int therm;
 	int hyst;
-	bool smbus_timeout;
 	int temp;
 	unsigned long last_update, last_alert_update;
 	u8 config;

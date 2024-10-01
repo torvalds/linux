@@ -66,7 +66,8 @@ extern struct blocking_notifier_head crypto_chain;
 
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask);
 
-#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+#if !IS_BUILTIN(CONFIG_CRYPTO_ALGAPI) || \
+    IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
 static inline bool crypto_boot_test_finished(void)
 {
 	return true;
@@ -84,7 +85,9 @@ static inline void set_crypto_boot_test_finished(void)
 {
 	static_branch_enable(&__crypto_boot_test_finished);
 }
-#endif /* !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */
+#endif /* !IS_BUILTIN(CONFIG_CRYPTO_ALGAPI) ||
+	* IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+	*/
 
 #ifdef CONFIG_PROC_FS
 void __init crypto_init_proc(void);
@@ -110,8 +113,7 @@ struct crypto_alg *crypto_mod_get(struct crypto_alg *alg);
 struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask);
 
 struct crypto_larval *crypto_larval_alloc(const char *name, u32 type, u32 mask);
-void crypto_larval_kill(struct crypto_alg *alg);
-void crypto_wait_for_test(struct crypto_larval *larval);
+void crypto_schedule_test(struct crypto_larval *larval);
 void crypto_alg_tested(const char *name, int err);
 
 void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,

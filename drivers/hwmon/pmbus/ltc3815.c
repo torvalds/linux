@@ -143,7 +143,7 @@ static int ltc3815_write_word_data(struct i2c_client *client, int page,
 }
 
 static const struct i2c_device_id ltc3815_id[] = {
-	{"ltc3815", 0},
+	{"ltc3815"},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc3815_id);

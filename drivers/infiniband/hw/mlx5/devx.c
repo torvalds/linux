@@ -1002,7 +1002,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(
 		return PTR_ERR(c);
 	dev = to_mdev(c->ibucontext.device);
 
-	err = mlx5_vector2eqn(dev->mdev, user_vector, &dev_eqn);
+	err = mlx5_comp_eqn_get(dev->mdev, user_vector, &dev_eqn);
 	if (err < 0)
 		return err;
 
@@ -2498,7 +2498,7 @@ static void dispatch_event_fd(struct list_head *fd_list,
 
 	list_for_each_entry_rcu(item, fd_list, xa_list) {
 		if (item->eventfd)
-			eventfd_signal(item->eventfd, 1);
+			eventfd_signal(item->eventfd);
 		else
 			deliver_event(item, data);
 	}
@@ -2673,7 +2673,6 @@ static const struct file_operations devx_async_cmd_event_fops = {
 	.read	 = devx_async_cmd_event_read,
 	.poll    = devx_async_cmd_event_poll,
 	.release = uverbs_uobject_fd_release,
-	.llseek	 = no_llseek,
 };
 
 static ssize_t devx_async_event_read(struct file *filp, char __user *buf,
@@ -2788,7 +2787,6 @@ static const struct file_operations devx_async_event_fops = {
 	.read	 = devx_async_event_read,
 	.poll    = devx_async_event_poll,
 	.release = uverbs_uobject_fd_release,
-	.llseek	 = no_llseek,
 };
 
 static void devx_async_cmd_event_destroy_uobj(struct ib_uobject *uobj,
@@ -2949,7 +2947,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_DEVX_OBJ_MODIFY,
 	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_OBJ_MODIFY_HANDLE,
 			UVERBS_IDR_ANY_OBJECT,
-			UVERBS_ACCESS_WRITE,
+			UVERBS_ACCESS_READ,
 			UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(
 		MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN,

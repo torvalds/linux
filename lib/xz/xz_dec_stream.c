@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: 0BSD
+
 /*
  * .xz Stream decoder
  *
  * Author: Lasse Collin <lasse.collin@tukaani.org>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 #include "xz_private.h"
@@ -747,7 +746,7 @@ static enum xz_ret dec_main(struct xz_dec *s, struct xz_buf *b)
  * actually succeeds (that's the price to pay of using the output buffer as
  * the workspace).
  */
-XZ_EXTERN enum xz_ret xz_dec_run(struct xz_dec *s, struct xz_buf *b)
+enum xz_ret xz_dec_run(struct xz_dec *s, struct xz_buf *b)
 {
 	size_t in_start;
 	size_t out_start;
@@ -783,7 +782,7 @@ XZ_EXTERN enum xz_ret xz_dec_run(struct xz_dec *s, struct xz_buf *b)
 	return ret;
 }
 
-XZ_EXTERN struct xz_dec *xz_dec_init(enum xz_mode mode, uint32_t dict_max)
+struct xz_dec *xz_dec_init(enum xz_mode mode, uint32_t dict_max)
 {
 	struct xz_dec *s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (s == NULL)
@@ -813,7 +812,7 @@ error_bcj:
 	return NULL;
 }
 
-XZ_EXTERN void xz_dec_reset(struct xz_dec *s)
+void xz_dec_reset(struct xz_dec *s)
 {
 	s->sequence = SEQ_STREAM_HEADER;
 	s->allow_buf_error = false;
@@ -825,7 +824,7 @@ XZ_EXTERN void xz_dec_reset(struct xz_dec *s)
 	s->temp.size = STREAM_HEADER_SIZE;
 }
 
-XZ_EXTERN void xz_dec_end(struct xz_dec *s)
+void xz_dec_end(struct xz_dec *s)
 {
 	if (s != NULL) {
 		xz_dec_lzma2_end(s->lzma2);

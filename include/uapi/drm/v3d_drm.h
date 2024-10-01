@@ -41,6 +41,8 @@ extern "C" {
 #define DRM_V3D_PERFMON_CREATE                    0x08
 #define DRM_V3D_PERFMON_DESTROY                   0x09
 #define DRM_V3D_PERFMON_GET_VALUES                0x0a
+#define DRM_V3D_SUBMIT_CPU                        0x0b
+#define DRM_V3D_PERFMON_GET_COUNTER               0x0c
 
 #define DRM_IOCTL_V3D_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CL, struct drm_v3d_submit_cl)
 #define DRM_IOCTL_V3D_WAIT_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_WAIT_BO, struct drm_v3d_wait_bo)
@@ -56,6 +58,9 @@ extern "C" {
 						   struct drm_v3d_perfmon_destroy)
 #define DRM_IOCTL_V3D_PERFMON_GET_VALUES  DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_GET_VALUES, \
 						   struct drm_v3d_perfmon_get_values)
+#define DRM_IOCTL_V3D_SUBMIT_CPU          DRM_IOW(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CPU, struct drm_v3d_submit_cpu)
+#define DRM_IOCTL_V3D_PERFMON_GET_COUNTER DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_GET_COUNTER, \
+						   struct drm_v3d_perfmon_get_counter)
 
 #define DRM_V3D_SUBMIT_CL_FLUSH_CACHE             0x01
 #define DRM_V3D_SUBMIT_EXTENSION		  0x02
@@ -69,7 +74,13 @@ extern "C" {
 struct drm_v3d_extension {
 	__u64 next;
 	__u32 id;
-#define DRM_V3D_EXT_ID_MULTI_SYNC		0x01
+#define DRM_V3D_EXT_ID_MULTI_SYNC			0x01
+#define DRM_V3D_EXT_ID_CPU_INDIRECT_CSD		0x02
+#define DRM_V3D_EXT_ID_CPU_TIMESTAMP_QUERY		0x03
+#define DRM_V3D_EXT_ID_CPU_RESET_TIMESTAMP_QUERY	0x04
+#define DRM_V3D_EXT_ID_CPU_COPY_TIMESTAMP_QUERY	0x05
+#define DRM_V3D_EXT_ID_CPU_RESET_PERFORMANCE_QUERY	0x06
+#define DRM_V3D_EXT_ID_CPU_COPY_PERFORMANCE_QUERY	0x07
 	__u32 flags; /* mbz */
 };
 
@@ -93,6 +104,7 @@ enum v3d_queue {
 	V3D_TFU,
 	V3D_CSD,
 	V3D_CACHE_CLEAN,
+	V3D_CPU,
 };
 
 /**
@@ -276,6 +288,8 @@ enum drm_v3d_param {
 	DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH,
 	DRM_V3D_PARAM_SUPPORTS_PERFMON,
 	DRM_V3D_PARAM_SUPPORTS_MULTISYNC_EXT,
+	DRM_V3D_PARAM_SUPPORTS_CPU_QUEUE,
+	DRM_V3D_PARAM_MAX_PERF_COUNTERS,
 };
 
 struct drm_v3d_get_param {
@@ -319,6 +333,11 @@ struct drm_v3d_submit_tfu {
 
 	/* Pointer to an array of ioctl extensions*/
 	__u64 extensions;
+
+	struct {
+		__u32 ioc;
+		__u32 pad;
+	} v71;
 };
 
 /* Submits a compute shader for dispatch.  This job will block on any
@@ -356,6 +375,244 @@ struct drm_v3d_submit_csd {
 	__u32 pad;
 };
 
+/**
+ * struct drm_v3d_indirect_csd - ioctl extension for the CPU job to create an
+ * indirect CSD
+ *
+ * When an extension of DRM_V3D_EXT_ID_CPU_INDIRECT_CSD id is defined, it
+ * points to this extension to define a indirect CSD submission. It creates a
+ * CPU job linked to a CSD job. The CPU job waits for the indirect CSD
+ * dependencies and, once they are signaled, it updates the CSD job config
+ * before allowing the CSD job execution.
+ */
+struct drm_v3d_indirect_csd {
+	struct drm_v3d_extension base;
+
+	/* Indirect CSD */
+	struct drm_v3d_submit_csd submit;
+
+	/* Handle of the indirect BO, that should be also attached to the
+	 * indirect CSD.
+	 */
+	__u32 indirect;
+
+	/* Offset within the BO where the workgroup counts are stored */
+	__u32 offset;
+
+	/* Workgroups size */
+	__u32 wg_size;
+
+	/* Indices of the uniforms with the workgroup dispatch counts
+	 * in the uniform stream. If the uniform rewrite is not needed,
+	 * the offset must be 0xffffffff.
+	 */
+	__u32 wg_uniform_offsets[3];
+};
+
+/**
+ * struct drm_v3d_timestamp_query - ioctl extension for the CPU job to calculate
+ * a timestamp query
+ *
+ * When an extension DRM_V3D_EXT_ID_TIMESTAMP_QUERY is defined, it points to
+ * this extension to define a timestamp query submission. This CPU job will
+ * calculate the timestamp query and update the query value within the
+ * timestamp BO. Moreover, it will signal the timestamp syncobj to indicate
+ * query availability.
+ */
+struct drm_v3d_timestamp_query {
+	struct drm_v3d_extension base;
+
+	/* Array of queries' offsets within the timestamp BO for their value */
+	__u64 offsets;
+
+	/* Array of timestamp's syncobjs to indicate its availability */
+	__u64 syncs;
+
+	/* Number of queries */
+	__u32 count;
+
+	/* mbz */
+	__u32 pad;
+};
+
+/**
+ * struct drm_v3d_reset_timestamp_query - ioctl extension for the CPU job to
+ * reset timestamp queries
+ *
+ * When an extension DRM_V3D_EXT_ID_CPU_RESET_TIMESTAMP_QUERY is defined, it
+ * points to this extension to define a reset timestamp submission. This CPU
+ * job will reset the timestamp queries based on value offset of the first
+ * query. Moreover, it will reset the timestamp syncobj to reset query
+ * availability.
+ */
+struct drm_v3d_reset_timestamp_query {
+	struct drm_v3d_extension base;
+
+	/* Array of timestamp's syncobjs to indicate its availability */
+	__u64 syncs;
+
+	/* Offset of the first query within the timestamp BO for its value */
+	__u32 offset;
+
+	/* Number of queries */
+	__u32 count;
+};
+
+/**
+ * struct drm_v3d_copy_timestamp_query - ioctl extension for the CPU job to copy
+ * query results to a buffer
+ *
+ * When an extension DRM_V3D_EXT_ID_CPU_COPY_TIMESTAMP_QUERY is defined, it
+ * points to this extension to define a copy timestamp query submission. This
+ * CPU job will copy the timestamp queries results to a BO with the offset
+ * and stride defined in the extension.
+ */
+struct drm_v3d_copy_timestamp_query {
+	struct drm_v3d_extension base;
+
+	/* Define if should write to buffer using 64 or 32 bits */
+	__u8 do_64bit;
+
+	/* Define if it can write to buffer even if the query is not available */
+	__u8 do_partial;
+
+	/* Define if it should write availability bit to buffer */
+	__u8 availability_bit;
+
+	/* mbz */
+	__u8 pad;
+
+	/* Offset of the buffer in the BO */
+	__u32 offset;
+
+	/* Stride of the buffer in the BO */
+	__u32 stride;
+
+	/* Number of queries */
+	__u32 count;
+
+	/* Array of queries' offsets within the timestamp BO for their value */
+	__u64 offsets;
+
+	/* Array of timestamp's syncobjs to indicate its availability */
+	__u64 syncs;
+};
+
+/**
+ * struct drm_v3d_reset_performance_query - ioctl extension for the CPU job to
+ * reset performance queries
+ *
+ * When an extension DRM_V3D_EXT_ID_CPU_RESET_PERFORMANCE_QUERY is defined, it
+ * points to this extension to define a reset performance submission. This CPU
+ * job will reset the performance queries by resetting the values of the
+ * performance monitors. Moreover, it will reset the syncobj to reset query
+ * availability.
+ */
+struct drm_v3d_reset_performance_query {
+	struct drm_v3d_extension base;
+
+	/* Array of performance queries's syncobjs to indicate its availability */
+	__u64 syncs;
+
+	/* Number of queries */
+	__u32 count;
+
+	/* Number of performance monitors */
+	__u32 nperfmons;
+
+	/* Array of u64 user-pointers that point to an array of kperfmon_ids */
+	__u64 kperfmon_ids;
+};
+
+/**
+ * struct drm_v3d_copy_performance_query - ioctl extension for the CPU job to copy
+ * performance query results to a buffer
+ *
+ * When an extension DRM_V3D_EXT_ID_CPU_COPY_PERFORMANCE_QUERY is defined, it
+ * points to this extension to define a copy performance query submission. This
+ * CPU job will copy the performance queries results to a BO with the offset
+ * and stride defined in the extension.
+ */
+struct drm_v3d_copy_performance_query {
+	struct drm_v3d_extension base;
+
+	/* Define if should write to buffer using 64 or 32 bits */
+	__u8 do_64bit;
+
+	/* Define if it can write to buffer even if the query is not available */
+	__u8 do_partial;
+
+	/* Define if it should write availability bit to buffer */
+	__u8 availability_bit;
+
+	/* mbz */
+	__u8 pad;
+
+	/* Offset of the buffer in the BO */
+	__u32 offset;
+
+	/* Stride of the buffer in the BO */
+	__u32 stride;
+
+	/* Number of performance monitors */
+	__u32 nperfmons;
+
+	/* Number of performance counters related to this query pool */
+	__u32 ncounters;
+
+	/* Number of queries */
+	__u32 count;
+
+	/* Array of performance queries's syncobjs to indicate its availability */
+	__u64 syncs;
+
+	/* Array of u64 user-pointers that point to an array of kperfmon_ids */
+	__u64 kperfmon_ids;
+};
+
+struct drm_v3d_submit_cpu {
+	/* Pointer to a u32 array of the BOs that are referenced by the job.
+	 *
+	 * For DRM_V3D_EXT_ID_CPU_INDIRECT_CSD, it must contain only one BO,
+	 * that contains the workgroup counts.
+	 *
+	 * For DRM_V3D_EXT_ID_TIMESTAMP_QUERY, it must contain only one BO,
+	 * that will contain the timestamp.
+	 *
+	 * For DRM_V3D_EXT_ID_CPU_RESET_TIMESTAMP_QUERY, it must contain only
+	 * one BO, that contains the timestamp.
+	 *
+	 * For DRM_V3D_EXT_ID_CPU_COPY_TIMESTAMP_QUERY, it must contain two
+	 * BOs. The first is the BO where the timestamp queries will be written
+	 * to. The second is the BO that contains the timestamp.
+	 *
+	 * For DRM_V3D_EXT_ID_CPU_RESET_PERFORMANCE_QUERY, it must contain no
+	 * BOs.
+	 *
+	 * For DRM_V3D_EXT_ID_CPU_COPY_PERFORMANCE_QUERY, it must contain one
+	 * BO, where the performance queries will be written.
+	 */
+	__u64 bo_handles;
+
+	/* Number of BO handles passed in (size is that times 4). */
+	__u32 bo_handle_count;
+
+	__u32 flags;
+
+	/* Pointer to an array of ioctl extensions*/
+	__u64 extensions;
+};
+
+/* The performance counters index represented by this enum are deprecated and
+ * must no longer be used. These counters are only valid for V3D 4.2.
+ *
+ * In order to check for performance counter information,
+ * use DRM_IOCTL_V3D_PERFMON_GET_COUNTER.
+ *
+ * Don't use V3D_PERFCNT_NUM to retrieve the maximum number of performance
+ * counters. You should use DRM_IOCTL_V3D_GET_PARAM with the following
+ * parameter: DRM_V3D_PARAM_MAX_PERF_COUNTERS.
+ */
 enum {
 	V3D_PERFCNT_FEP_VALID_PRIMTS_NO_PIXELS,
 	V3D_PERFCNT_FEP_VALID_PRIMS,
@@ -472,6 +729,40 @@ struct drm_v3d_perfmon_get_values {
 	__u32 id;
 	__u32 pad;
 	__u64 values_ptr;
+};
+
+#define DRM_V3D_PERFCNT_MAX_NAME 64
+#define DRM_V3D_PERFCNT_MAX_CATEGORY 32
+#define DRM_V3D_PERFCNT_MAX_DESCRIPTION 256
+
+/**
+ * struct drm_v3d_perfmon_get_counter - ioctl to get the description of a
+ * performance counter
+ *
+ * As userspace needs to retrieve information about the performance counters
+ * available, this IOCTL allows users to get information about a performance
+ * counter (name, category and description).
+ */
+struct drm_v3d_perfmon_get_counter {
+	/*
+	 * Counter ID
+	 *
+	 * Must be smaller than the maximum number of performance counters, which
+	 * can be retrieve through DRM_V3D_PARAM_MAX_PERF_COUNTERS.
+	 */
+	__u8 counter;
+
+	/* Name of the counter */
+	__u8 name[DRM_V3D_PERFCNT_MAX_NAME];
+
+	/* Category of the counter */
+	__u8 category[DRM_V3D_PERFCNT_MAX_CATEGORY];
+
+	/* Description of the counter */
+	__u8 description[DRM_V3D_PERFCNT_MAX_DESCRIPTION];
+
+	/* mbz */
+	__u8 reserved[7];
 };
 
 #if defined(__cplusplus)

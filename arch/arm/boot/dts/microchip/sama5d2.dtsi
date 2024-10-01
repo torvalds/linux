@@ -382,9 +382,9 @@
 			macb0: ethernet@f8008000 {
 				compatible = "atmel,sama5d2-gem";
 				reg = <0xf8008000 0x1000>;
-				interrupts = <5  IRQ_TYPE_LEVEL_HIGH 3		/* Queue 0 */
-					      66 IRQ_TYPE_LEVEL_HIGH 3          /* Queue 1 */
-					      67 IRQ_TYPE_LEVEL_HIGH 3>;        /* Queue 2 */
+				interrupts = <5  IRQ_TYPE_LEVEL_HIGH 3>,	/* Queue 0 */
+					     <66 IRQ_TYPE_LEVEL_HIGH 3>,	/* Queue 1 */
+					     <67 IRQ_TYPE_LEVEL_HIGH 3>;        /* Queue 2 */
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 5>, <&pmc PMC_TYPE_PERIPHERAL 5>;
 				clock-names = "hclk", "pclk";
 				status = "disabled";

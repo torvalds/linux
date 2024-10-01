@@ -72,11 +72,11 @@ static int ad714x_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ad714x_id[] = {
-	{ "ad7142_captouch", 0 },
-	{ "ad7143_captouch", 0 },
-	{ "ad7147_captouch", 0 },
-	{ "ad7147a_captouch", 0 },
-	{ "ad7148_captouch", 0 },
+	{ "ad7142_captouch" },
+	{ "ad7143_captouch" },
+	{ "ad7147_captouch" },
+	{ "ad7147a_captouch" },
+	{ "ad7148_captouch" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad714x_id);

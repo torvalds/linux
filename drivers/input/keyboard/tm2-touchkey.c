@@ -19,7 +19,6 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
 
@@ -327,8 +326,8 @@ static DEFINE_SIMPLE_DEV_PM_OPS(tm2_touchkey_pm_ops,
 				tm2_touchkey_suspend, tm2_touchkey_resume);
 
 static const struct i2c_device_id tm2_touchkey_id_table[] = {
-	{ TM2_TOUCHKEY_DEV_NAME, 0 },
-	{ },
+	{ TM2_TOUCHKEY_DEV_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tm2_touchkey_id_table);
 

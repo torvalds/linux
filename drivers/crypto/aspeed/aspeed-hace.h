@@ -2,25 +2,14 @@
 #ifndef __ASPEED_HACE_H__
 #define __ASPEED_HACE_H__
 
-#include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/fips.h>
-#include <linux/dma-mapping.h>
 #include <crypto/aes.h>
-#include <crypto/des.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/internal/aead.h>
-#include <crypto/internal/akcipher.h>
-#include <crypto/internal/des.h>
-#include <crypto/internal/hash.h>
-#include <crypto/internal/kpp.h>
-#include <crypto/internal/skcipher.h>
-#include <crypto/algapi.h>
 #include <crypto/engine.h>
-#include <crypto/hmac.h>
-#include <crypto/sha1.h>
+#include <crypto/hash.h>
 #include <crypto/sha2.h>
+#include <linux/bits.h>
+#include <linux/compiler_attributes.h>
+#include <linux/interrupt.h>
+#include <linux/types.h>
 
 /*****************************
  *                           *
@@ -144,6 +133,7 @@
 					 HACE_CMD_OFB | HACE_CMD_CTR)
 
 struct aspeed_hace_dev;
+struct scatterlist;
 
 typedef int (*aspeed_hace_fn_t)(struct aspeed_hace_dev *);
 
@@ -178,8 +168,6 @@ struct aspeed_sha_hmac_ctx {
 };
 
 struct aspeed_sham_ctx {
-	struct crypto_engine_ctx	enginectx;
-
 	struct aspeed_hace_dev		*hace_dev;
 	unsigned long			flags;	/* hmac flag */
 
@@ -235,8 +223,6 @@ struct aspeed_engine_crypto {
 };
 
 struct aspeed_cipher_ctx {
-	struct crypto_engine_ctx	enginectx;
-
 	struct aspeed_hace_dev		*hace_dev;
 	int				key_len;
 	u8				key[AES_MAX_KEYLENGTH];
@@ -275,8 +261,8 @@ struct aspeed_hace_alg {
 	const char			*alg_base;
 
 	union {
-		struct skcipher_alg	skcipher;
-		struct ahash_alg	ahash;
+		struct skcipher_engine_alg skcipher;
+		struct ahash_engine_alg ahash;
 	} alg;
 };
 

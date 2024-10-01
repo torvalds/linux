@@ -68,6 +68,7 @@
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
 	.errstr = "kptr access cannot have variable offset",
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map_kptr: bpf_kptr_xchg non-const var_off",
@@ -121,6 +122,7 @@
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
 	.errstr = "kptr access misaligned expected=0 off=7",
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map_kptr: reject var_off != 0",
@@ -151,7 +153,7 @@
 	.result = REJECT,
 	.errstr = "variable untrusted_ptr_ access var_off=(0x0; 0x7) disallowed",
 },
-/* Tests for unreferened PTR_TO_BTF_ID */
+/* Tests for unreferenced PTR_TO_BTF_ID */
 {
 	"map_kptr: unref: reject btf_struct_ids_match == false",
 	.insns = {

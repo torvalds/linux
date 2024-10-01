@@ -22,4 +22,11 @@ struct addr_map_symbol {
 	u64	      phys_addr;
 	u64	      data_page_size;
 };
+
+void map_symbol__exit(struct map_symbol *ms);
+void addr_map_symbol__exit(struct addr_map_symbol *ams);
+
+void map_symbol__copy(struct map_symbol *dst, struct map_symbol *src);
+void addr_map_symbol__copy(struct addr_map_symbol *dst, struct addr_map_symbol *src);
+
 #endif // __PERF_MAP_SYMBOL

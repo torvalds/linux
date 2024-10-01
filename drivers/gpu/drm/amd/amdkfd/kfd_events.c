@@ -31,7 +31,7 @@
 #include <linux/memory.h>
 #include "kfd_priv.h"
 #include "kfd_events.h"
-#include "kfd_iommu.h"
+#include "kfd_device_queue_manager.h"
 #include <linux/device.h>
 
 /*
@@ -881,6 +881,10 @@ static int copy_signaled_event_data(uint32_t num_events,
 				dst = &data[i].memory_exception_data;
 				src = &event->memory_exception_data;
 				size = sizeof(struct kfd_hsa_memory_exception_data);
+			} else if (event->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+				dst = &data[i].memory_exception_data;
+				src = &event->hw_exception_data;
+				size = sizeof(struct kfd_hsa_hw_exception_data);
 			} else if (event->type == KFD_EVENT_TYPE_SIGNAL &&
 				waiter->event_age_enabled) {
 				dst = &data[i].signal_event_data.last_event_age;
@@ -1146,87 +1150,6 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 	rcu_read_unlock();
 }
 
-#ifdef KFD_SUPPORT_IOMMU_V2
-void kfd_signal_iommu_event(struct kfd_node *dev, u32 pasid,
-		unsigned long address, bool is_write_requested,
-		bool is_execute_requested)
-{
-	struct kfd_hsa_memory_exception_data memory_exception_data;
-	struct vm_area_struct *vma;
-	int user_gpu_id;
-
-	/*
-	 * Because we are called from arbitrary context (workqueue) as opposed
-	 * to process context, kfd_process could attempt to exit while we are
-	 * running so the lookup function increments the process ref count.
-	 */
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
-	struct mm_struct *mm;
-
-	if (!p)
-		return; /* Presumably process exited. */
-
-	/* Take a safe reference to the mm_struct, which may otherwise
-	 * disappear even while the kfd_process is still referenced.
-	 */
-	mm = get_task_mm(p->lead_thread);
-	if (!mm) {
-		kfd_unref_process(p);
-		return; /* Process is exiting */
-	}
-
-	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
-	if (unlikely(user_gpu_id == -EINVAL)) {
-		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
-		return;
-	}
-	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
-
-	mmap_read_lock(mm);
-	vma = find_vma(mm, address);
-
-	memory_exception_data.gpu_id = user_gpu_id;
-	memory_exception_data.va = address;
-	/* Set failure reason */
-	memory_exception_data.failure.NotPresent = 1;
-	memory_exception_data.failure.NoExecute = 0;
-	memory_exception_data.failure.ReadOnly = 0;
-	if (vma && address >= vma->vm_start) {
-		memory_exception_data.failure.NotPresent = 0;
-
-		if (is_write_requested && !(vma->vm_flags & VM_WRITE))
-			memory_exception_data.failure.ReadOnly = 1;
-		else
-			memory_exception_data.failure.ReadOnly = 0;
-
-		if (is_execute_requested && !(vma->vm_flags & VM_EXEC))
-			memory_exception_data.failure.NoExecute = 1;
-		else
-			memory_exception_data.failure.NoExecute = 0;
-	}
-
-	mmap_read_unlock(mm);
-	mmput(mm);
-
-	pr_debug("notpresent %d, noexecute %d, readonly %d\n",
-			memory_exception_data.failure.NotPresent,
-			memory_exception_data.failure.NoExecute,
-			memory_exception_data.failure.ReadOnly);
-
-	/* Workaround on Raven to not kill the process when memory is freed
-	 * before IOMMU is able to finish processing all the excessive PPRs
-	 */
-
-	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 1, 0) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 2, 2) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 3, 0))
-		lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
-				&memory_exception_data);
-
-	kfd_unref_process(p);
-}
-#endif /* KFD_SUPPORT_IOMMU_V2 */
-
 void kfd_signal_hw_exception_event(u32 pasid)
 {
 	/*
@@ -1322,10 +1245,31 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 	idx = srcu_read_lock(&kfd_processes_srcu);
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		int user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
+		struct kfd_process_device *pdd = kfd_get_process_device_data(dev, p);
 
 		if (unlikely(user_gpu_id == -EINVAL)) {
 			WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
 			continue;
+		}
+
+		if (unlikely(!pdd)) {
+			WARN_ONCE(1, "Could not get device data from pasid:0x%x\n", p->pasid);
+			continue;
+		}
+
+		if (dev->dqm->detect_hang_count && !pdd->has_reset_queue)
+			continue;
+
+		if (dev->dqm->detect_hang_count) {
+			struct amdgpu_task_info *ti;
+
+			ti = amdgpu_vm_get_task_info_pasid(dev->adev, p->pasid);
+			if (ti) {
+				dev_err(dev->adev->dev,
+					"Queues reset on process %s tid %d thread %s pid %d\n",
+					ti->process_name, ti->tgid, ti->task_name, ti->pid);
+				amdgpu_vm_put_task_info(ti);
+			}
 		}
 
 		rcu_read_lock();
@@ -1363,8 +1307,10 @@ void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 	uint32_t id = KFD_FIRST_NONSIGNAL_EVENT_ID;
 	int user_gpu_id;
 
-	if (!p)
+	if (!p) {
+		dev_warn(dev->adev->dev, "Not find process with pasid:%d\n", pasid);
 		return; /* Presumably process exited. */
+	}
 
 	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
 	if (unlikely(user_gpu_id == -EINVAL)) {
@@ -1400,6 +1346,8 @@ void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 		}
 	}
 
+	dev_warn(dev->adev->dev, "Send SIGBUS to process %s(pasid:%d)\n",
+		p->lead_thread->comm, pasid);
 	rcu_read_unlock();
 
 	/* user application will handle SIGBUS signal */

@@ -260,9 +260,11 @@ filesystem.  The following members are defined:
 		void (*evict_inode) (struct inode *);
 		void (*put_super) (struct super_block *);
 		int (*sync_fs)(struct super_block *sb, int wait);
-		int (*freeze_super) (struct super_block *);
+		int (*freeze_super) (struct super_block *sb,
+					enum freeze_holder who);
 		int (*freeze_fs) (struct super_block *);
-		int (*thaw_super) (struct super_block *);
+		int (*thaw_super) (struct super_block *sb,
+					enum freeze_wholder who);
 		int (*unfreeze_fs) (struct super_block *);
 		int (*statfs) (struct dentry *, struct kstatfs *);
 		int (*remount_fs) (struct super_block *, int *, char *);
@@ -435,7 +437,7 @@ field.  This is a pointer to a "struct inode_operations" which describes
 the methods that can be performed on individual inodes.
 
 
-struct xattr_handlers
+struct xattr_handler
 ---------------------
 
 On filesystems that support extended attributes (xattrs), the s_xattr
@@ -515,6 +517,7 @@ As of kernel 2.6.22, the following members are defined:
 		int (*fileattr_set)(struct mnt_idmap *idmap,
 				    struct dentry *dentry, struct fileattr *fa);
 		int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
+	        struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 	};
 
 Again, all methods are called without any locks being held, unless
@@ -675,7 +678,10 @@ otherwise noted.
 	called on ioctl(FS_IOC_SETFLAGS) and ioctl(FS_IOC_FSSETXATTR) to
 	change miscellaneous file flags and attributes.  Callers hold
 	i_rwsem exclusive.  If unset, then fall back to f_op->ioctl().
-
+``get_offset_ctx``
+	called to get the offset context for a directory inode. A
+        filesystem must define this operation to use
+        simple_offset_dir_operations.
 
 The Address Space Object
 ========================
@@ -761,7 +767,7 @@ is an error during writeback, they expect that error to be reported when
 a file sync request is made.  After an error has been reported on one
 request, subsequent requests on the same file descriptor should return
 0, unless further writeback errors have occurred since the previous file
-syncronization.
+synchronization.
 
 Ideally, the kernel would report errors only on file descriptions on
 which writes were done that subsequently failed to be written back.  The
@@ -804,7 +810,7 @@ cache in your filesystem.  The following members are defined:
 				struct page **pagep, void **fsdata);
 		int (*write_end)(struct file *, struct address_space *mapping,
 				 loff_t pos, unsigned len, unsigned copied,
-				 struct page *page, void *fsdata);
+				 struct folio *folio, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
 		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 		bool (*release_folio)(struct folio *, gfp_t);
@@ -817,7 +823,7 @@ cache in your filesystem.  The following members are defined:
 		bool (*is_partially_uptodate) (struct folio *, size_t from,
 					       size_t count);
 		void (*is_dirty_writeback)(struct folio *, bool *, bool *);
-		int (*error_remove_page) (struct mapping *mapping, struct page *page);
+		int (*error_remove_folio)(struct mapping *mapping, struct folio *);
 		int (*swap_activate)(struct swap_info_struct *sis, struct file *f, sector_t *span)
 		int (*swap_deactivate)(struct file *);
 		int (*swap_rw)(struct kiocb *iocb, struct iov_iter *iter);
@@ -907,8 +913,7 @@ cache in your filesystem.  The following members are defined:
 	stop attempting I/O, it can simply return.  The caller will
 	remove the remaining pages from the address space, unlock them
 	and decrement the page refcount.  Set PageUptodate if the I/O
-	completes successfully.  Setting PageError on any page will be
-	ignored; simply unlock the page if an I/O error occurs.
+	completes successfully.
 
 ``write_begin``
 	Called by the generic buffered write code to ask the filesystem
@@ -920,12 +925,12 @@ cache in your filesystem.  The following members are defined:
 	(if they haven't been read already) so that the updated blocks
 	can be written out properly.
 
-	The filesystem must return the locked pagecache page for the
-	specified offset, in ``*pagep``, for the caller to write into.
+	The filesystem must return the locked pagecache folio for the
+	specified offset, in ``*foliop``, for the caller to write into.
 
 	It must be able to cope with short writes (where the length
 	passed to write_begin is greater than the number of bytes copied
-	into the page).
+	into the folio).
 
 	A void * may be returned in fsdata, which then gets passed into
 	write_end.
@@ -938,8 +943,8 @@ cache in your filesystem.  The following members are defined:
 	called.  len is the original len passed to write_begin, and
 	copied is the amount that was able to be copied.
 
-	The filesystem must take care of unlocking the page and
-	releasing it refcount, and updating i_size.
+	The filesystem must take care of unlocking the folio,
+	decrementing its refcount, and updating i_size.
 
 	Returns < 0 on failure, otherwise the number of bytes (<=
 	'copied') that were able to be copied into pagecache.
@@ -1028,8 +1033,8 @@ cache in your filesystem.  The following members are defined:
 	VM if a folio should be treated as dirty or writeback for the
 	purposes of stalling.
 
-``error_remove_page``
-	normally set to generic_error_remove_page if truncation is ok
+``error_remove_folio``
+	normally set to generic_error_remove_folio if truncation is ok
 	for this address space.  Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
 	unless you have them locked or reference counts increased.
@@ -1074,7 +1079,6 @@ This describes how the VFS can manipulate an open file.  As of kernel
 		ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 		ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 		int (*iopoll)(struct kiocb *kiocb, bool spin);
-		int (*iterate) (struct file *, struct dir_context *);
 		int (*iterate_shared) (struct file *, struct dir_context *);
 		__poll_t (*poll) (struct file *, struct poll_table_struct *);
 		long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
@@ -1126,12 +1130,8 @@ otherwise noted.
 ``iopoll``
 	called when aio wants to poll for completions on HIPRI iocbs
 
-``iterate``
-	called when the VFS needs to read the directory contents
-
 ``iterate_shared``
-	called when the VFS needs to read the directory contents when
-	filesystem supports concurrent dir iterators
+	called when the VFS needs to read the directory contents
 
 ``poll``
 	called by the VFS when a process wants to check if there is
@@ -1263,7 +1263,7 @@ defined:
 		char *(*d_dname)(struct dentry *, char *, int);
 		struct vfsmount *(*d_automount)(struct path *);
 		int (*d_manage)(const struct path *, bool);
-		struct dentry *(*d_real)(struct dentry *, const struct inode *);
+		struct dentry *(*d_real)(struct dentry *, enum d_real_type type);
 	};
 
 ``d_revalidate``
@@ -1418,16 +1418,14 @@ defined:
 	the dentry being transited from.
 
 ``d_real``
-	overlay/union type filesystems implement this method to return
-	one of the underlying dentries hidden by the overlay.  It is
-	used in two different modes:
+	overlay/union type filesystems implement this method to return one
+	of the underlying dentries of a regular file hidden by the overlay.
 
-	Called from file_dentry() it returns the real dentry matching
-	the inode argument.  The real dentry may be from a lower layer
-	already copied up, but still referenced from the file.  This
-	mode is selected with a non-NULL inode argument.
+	The 'type' argument takes the values D_REAL_DATA or D_REAL_METADATA
+	for returning the real underlying dentry that refers to the inode
+	hosting the file's data or metadata respectively.
 
-	With NULL inode the topmost real underlying dentry is returned.
+	For non-regular files, the 'dentry' argument is returned.
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries.  Child dentries are basically like files in a

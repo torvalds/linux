@@ -100,7 +100,7 @@ static const struct regmap_config wm8400_regmap_config = {
 
 	.volatile_reg = wm8400_volatile,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /**
@@ -135,7 +135,7 @@ static int wm8400_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8400_i2c_id[] = {
-       { "wm8400", 0 },
+       { "wm8400" },
        { }
 };
 

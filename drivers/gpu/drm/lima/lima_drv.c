@@ -2,7 +2,8 @@
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
@@ -276,10 +277,7 @@ static const struct drm_driver lima_drm_driver = {
 	.patchlevel         = 0,
 
 	.gem_create_object  = lima_gem_create_object,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.gem_prime_mmap = drm_gem_prime_mmap,
 };
 
 struct lima_block_reader {
@@ -373,6 +371,7 @@ static int lima_pdev_probe(struct platform_device *pdev)
 {
 	struct lima_device *ldev;
 	struct drm_device *ddev;
+	const struct lima_compatible *comp;
 	int err;
 
 	err = lima_sched_slab_init();
@@ -386,7 +385,13 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	}
 
 	ldev->dev = &pdev->dev;
-	ldev->id = (enum lima_gpu_id)of_device_get_match_data(&pdev->dev);
+	comp = of_device_get_match_data(&pdev->dev);
+	if (!comp) {
+		err = -ENODEV;
+		goto err_out0;
+	}
+
+	ldev->id = comp->id;
 
 	platform_set_drvdata(pdev, ldev);
 
@@ -441,7 +446,7 @@ err_out0:
 	return err;
 }
 
-static int lima_pdev_remove(struct platform_device *pdev)
+static void lima_pdev_remove(struct platform_device *pdev)
 {
 	struct lima_device *ldev = platform_get_drvdata(pdev);
 	struct drm_device *ddev = ldev->ddev;
@@ -459,12 +464,19 @@ static int lima_pdev_remove(struct platform_device *pdev)
 
 	drm_dev_put(ddev);
 	lima_sched_slab_fini();
-	return 0;
 }
 
+static const struct lima_compatible lima_mali400_data = {
+	.id = lima_gpu_mali400,
+};
+
+static const struct lima_compatible lima_mali450_data = {
+	.id = lima_gpu_mali450,
+};
+
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "arm,mali-400", .data = (void *)lima_gpu_mali400 },
-	{ .compatible = "arm,mali-450", .data = (void *)lima_gpu_mali450 },
+	{ .compatible = "arm,mali-400", .data = &lima_mali400_data },
+	{ .compatible = "arm,mali-450", .data = &lima_mali450_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
@@ -476,7 +488,7 @@ static const struct dev_pm_ops lima_pm_ops = {
 
 static struct platform_driver lima_platform_driver = {
 	.probe      = lima_pdev_probe,
-	.remove     = lima_pdev_remove,
+	.remove_new = lima_pdev_remove,
 	.driver     = {
 		.name   = "lima",
 		.pm	= &lima_pm_ops,
@@ -489,3 +501,4 @@ module_platform_driver(lima_platform_driver);
 MODULE_AUTHOR("Lima Project Developers");
 MODULE_DESCRIPTION("Lima DRM Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_SOFTDEP("pre: governor_simpleondemand");

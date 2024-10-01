@@ -27,8 +27,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/jiffies.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/iio/iio.h>
@@ -600,7 +600,7 @@ static int mlx90614_probe(struct i2c_client *client)
 	data->client = client;
 	mutex_init(&data->lock);
 	data->wakeup_gpio = mlx90614_probe_wakeup(client);
-	data->chip_info = device_get_match_data(&client->dev);
+	data->chip_info = i2c_get_match_data(client);
 
 	mlx90614_wakeup(data);
 

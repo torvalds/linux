@@ -408,7 +408,7 @@ static inline int __vlan_insert_tag(struct sk_buff *skb,
  * @mac_len: MAC header length including outer vlan headers
  *
  * Inserts the VLAN tag into @skb as part of the payload at offset mac_len
- * Returns a VLAN tagged skb. If a new skb is created, @skb is freed.
+ * Returns a VLAN tagged skb. This might change skb->head.
  *
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
@@ -437,7 +437,7 @@ static inline struct sk_buff *vlan_insert_inner_tag(struct sk_buff *skb,
  * @vlan_tci: VLAN TCI to insert
  *
  * Inserts the VLAN tag into @skb as part of the payload
- * Returns a VLAN tagged skb. If a new skb is created, @skb is freed.
+ * Returns a VLAN tagged skb. This might change skb->head.
  *
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
@@ -457,7 +457,7 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
  * @vlan_tci: VLAN TCI to insert
  *
  * Inserts the VLAN tag into @skb as part of the payload
- * Returns a VLAN tagged skb. If a new skb is created, @skb is freed.
+ * Returns a VLAN tagged skb. This might change skb->head.
  *
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
@@ -540,7 +540,7 @@ static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 	struct vlan_ethhdr *veth = skb_vlan_eth_hdr(skb);
 
 	if (!eth_type_vlan(veth->h_vlan_proto))
-		return -EINVAL;
+		return -ENODATA;
 
 	*vlan_tci = ntohs(veth->h_vlan_TCI);
 	return 0;
@@ -561,7 +561,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 		return 0;
 	} else {
 		*vlan_tci = 0;
-		return -EINVAL;
+		return -ENODATA;
 	}
 }
 

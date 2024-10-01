@@ -185,7 +185,6 @@ static ssize_t cpu5wdt_write(struct file *file, const char __user *buf,
 
 static const struct file_operations cpu5wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.unlocked_ioctl	= cpu5wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= cpu5wdt_open,
@@ -252,7 +251,7 @@ static void cpu5wdt_exit(void)
 	if (cpu5wdt_device.queue) {
 		cpu5wdt_device.queue = 0;
 		wait_for_completion(&cpu5wdt_device.stop);
-		del_timer(&cpu5wdt_device.timer);
+		timer_shutdown_sync(&cpu5wdt_device.timer);
 	}
 
 	misc_deregister(&cpu5wdt_misc);

@@ -70,7 +70,7 @@
 			clock-frequency = <0>;
 		};
 
-		adc_op_clk: adc_op_clk{
+		adc_op_clk: adc_op_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <300000>;
@@ -190,7 +190,7 @@
 			pinctrl@fffff200 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
+				compatible = "atmel,at91rm9200-pinctrl", "simple-mfd";
 				ranges = <0xfffff200 0xfffff200 0xa00>;
 
 				atmel,mux-mask = <

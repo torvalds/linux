@@ -99,7 +99,6 @@ static int ali1563_transaction(struct i2c_adapter *a, int size)
 		return 0;
 
 	if (!timeout) {
-		dev_err(&a->dev, "Timeout - Trying to KILL transaction!\n");
 		/* Issue 'kill' to host controller */
 		outb_p(HST_CNTL2_KILL, SMB_HST_CNTL2);
 		data = inb_p(SMB_HST_STS);
@@ -390,7 +389,7 @@ static const struct i2c_algorithm ali1563_algorithm = {
 
 static struct i2c_adapter ali1563_adapter = {
 	.owner	= THIS_MODULE,
-	.class	= I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class	= I2C_CLASS_HWMON,
 	.algo	= &ali1563_algorithm,
 };
 
@@ -439,4 +438,5 @@ static struct pci_driver ali1563_pci_driver = {
 
 module_pci_driver(ali1563_pci_driver);
 
+MODULE_DESCRIPTION("i2c driver for the ALi 1563 Southbridge");
 MODULE_LICENSE("GPL");

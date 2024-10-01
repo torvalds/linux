@@ -24,6 +24,8 @@ struct tcf_walker {
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 void unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
+#define NET_CLS_ALIAS_PREFIX "net-cls-"
+#define MODULE_ALIAS_NET_CLS(kind)	MODULE_ALIAS(NET_CLS_ALIAS_PREFIX kind)
 
 struct tcf_block_ext_info {
 	enum flow_block_binder_type binder_type;
@@ -71,6 +73,15 @@ static inline bool tcf_block_non_null_shared(struct tcf_block *block)
 {
 	return block && block->index;
 }
+
+#ifdef CONFIG_NET_CLS_ACT
+DECLARE_STATIC_KEY_FALSE(tcf_bypass_check_needed_key);
+
+static inline bool tcf_block_bypass_sw(struct tcf_block *block)
+{
+	return block && block->bypass_wanted;
+}
+#endif
 
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
@@ -136,19 +147,6 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
 	return NULL;
-}
-
-static inline
-int tc_setup_cb_block_register(struct tcf_block *block, flow_setup_cb_t *cb,
-			       void *cb_priv)
-{
-	return 0;
-}
-
-static inline
-void tc_setup_cb_block_unregister(struct tcf_block *block, flow_setup_cb_t *cb,
-				  void *cb_priv)
-{
 }
 
 static inline int tcf_classify(struct sk_buff *skb,
@@ -493,7 +491,7 @@ int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
 			struct tcf_pkt_info *);
 
 /**
- * tcf_em_tree_match - evaulate an ematch tree
+ * tcf_em_tree_match - evaluate an ematch tree
  *
  * @skb: socket buffer of the packet in question
  * @tree: ematch tree to be used for evaluation
@@ -866,6 +864,7 @@ struct tc_htb_qopt_offload {
 	u32 parent_classid;
 	u16 classid;
 	u16 qid;
+	u32 quantum;
 	u64 rate;
 	u64 ceil;
 	u8 prio;

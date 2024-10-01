@@ -46,11 +46,12 @@ static void afs_done_one_vl_probe(struct afs_vlserver *server, bool wake_up)
  */
 void afs_vlserver_probe_result(struct afs_call *call)
 {
-	struct afs_addr_list *alist = call->alist;
+	struct afs_addr_list *alist = call->vl_probe;
 	struct afs_vlserver *server = call->vlserver;
+	struct afs_address *addr = &alist->addrs[call->probe_index];
 	unsigned int server_index = call->server_index;
 	unsigned int rtt_us = 0;
-	unsigned int index = call->addr_ix;
+	unsigned int index = call->probe_index;
 	bool have_result = false;
 	int ret = call->error;
 
@@ -89,7 +90,7 @@ void afs_vlserver_probe_result(struct afs_call *call)
 	case -ETIME:
 	default:
 		clear_bit(index, &alist->responded);
-		set_bit(index, &alist->failed);
+		set_bit(index, &alist->probe_failed);
 		if (!(server->probe.flags & AFS_VLSERVER_PROBE_RESPONDED) &&
 		    (server->probe.error == 0 ||
 		     server->probe.error == -ETIMEDOUT ||
@@ -101,21 +102,21 @@ void afs_vlserver_probe_result(struct afs_call *call)
 
 responded:
 	set_bit(index, &alist->responded);
-	clear_bit(index, &alist->failed);
+	clear_bit(index, &alist->probe_failed);
 
 	if (call->service_id == YFS_VL_SERVICE) {
 		server->probe.flags |= AFS_VLSERVER_PROBE_IS_YFS;
 		set_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
-		alist->addrs[index].srx_service = call->service_id;
+		server->service_id = call->service_id;
 	} else {
 		server->probe.flags |= AFS_VLSERVER_PROBE_NOT_YFS;
 		if (!(server->probe.flags & AFS_VLSERVER_PROBE_IS_YFS)) {
 			clear_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
-			alist->addrs[index].srx_service = call->service_id;
+			server->service_id = call->service_id;
 		}
 	}
 
-	rxrpc_kernel_get_srtt(call->net->socket, call->rxcall, &rtt_us);
+	rtt_us = rxrpc_kernel_get_srtt(addr->peer);
 	if (rtt_us < server->probe.rtt) {
 		server->probe.rtt = rtt_us;
 		server->rtt = rtt_us;
@@ -130,8 +131,10 @@ responded:
 out:
 	spin_unlock(&server->probe_lock);
 
-	_debug("probe [%u][%u] %pISpc rtt=%u ret=%d",
-	       server_index, index, &alist->addrs[index].transport, rtt_us, ret);
+	trace_afs_vl_probe(server, false, alist, index, call->error, call->abort_code, rtt_us);
+	_debug("probe [%u][%u] %pISpc rtt=%d ret=%d",
+	       server_index, index, rxrpc_kernel_remote_addr(addr->peer),
+	       rtt_us, ret);
 
 	afs_done_one_vl_probe(server, have_result);
 }
@@ -146,35 +149,52 @@ static bool afs_do_probe_vlserver(struct afs_net *net,
 				  unsigned int server_index,
 				  struct afs_error *_e)
 {
-	struct afs_addr_cursor ac = {
-		.index = 0,
-	};
+	struct afs_addr_list *alist;
 	struct afs_call *call;
+	unsigned long unprobed;
+	unsigned int index, i;
 	bool in_progress = false;
+	int best_prio;
 
 	_enter("%s", server->name);
 
 	read_lock(&server->lock);
-	ac.alist = rcu_dereference_protected(server->addresses,
-					     lockdep_is_held(&server->lock));
+	alist = rcu_dereference_protected(server->addresses,
+					  lockdep_is_held(&server->lock));
+	afs_get_addrlist(alist, afs_alist_trace_get_vlprobe);
 	read_unlock(&server->lock);
 
-	atomic_set(&server->probe_outstanding, ac.alist->nr_addrs);
+	atomic_set(&server->probe_outstanding, alist->nr_addrs);
 	memset(&server->probe, 0, sizeof(server->probe));
 	server->probe.rtt = UINT_MAX;
 
-	for (ac.index = 0; ac.index < ac.alist->nr_addrs; ac.index++) {
-		call = afs_vl_get_capabilities(net, &ac, key, server,
+	unprobed = (1UL << alist->nr_addrs) - 1;
+	while (unprobed) {
+		best_prio = -1;
+		index = 0;
+		for (i = 0; i < alist->nr_addrs; i++) {
+			if (test_bit(i, &unprobed) &&
+			    alist->addrs[i].prio > best_prio) {
+				index = i;
+				best_prio = alist->addrs[i].prio;
+			}
+		}
+		__clear_bit(index, &unprobed);
+
+		trace_afs_vl_probe(server, true, alist, index, 0, 0, 0);
+		call = afs_vl_get_capabilities(net, alist, index, key, server,
 					       server_index);
 		if (!IS_ERR(call)) {
+			afs_prioritise_error(_e, call->error, call->abort_code);
 			afs_put_call(call);
 			in_progress = true;
 		} else {
-			afs_prioritise_error(_e, PTR_ERR(call), ac.abort_code);
+			afs_prioritise_error(_e, PTR_ERR(call), 0);
 			afs_done_one_vl_probe(server, false);
 		}
 	}
 
+	afs_put_addrlist(alist, afs_alist_trace_put_vlprobe);
 	return in_progress;
 }
 
@@ -185,12 +205,10 @@ int afs_send_vl_probes(struct afs_net *net, struct key *key,
 		       struct afs_vlserver_list *vllist)
 {
 	struct afs_vlserver *server;
-	struct afs_error e;
+	struct afs_error e = {};
 	bool in_progress = false;
 	int i;
 
-	e.error = 0;
-	e.responded = false;
 	for (i = 0; i < vllist->nr_servers; i++) {
 		server = vllist->servers[i].server;
 		if (test_bit(AFS_VLSERVER_FL_PROBED, &server->flags))

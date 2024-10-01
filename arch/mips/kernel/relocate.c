@@ -380,7 +380,7 @@ void *__init relocate_kernel(void)
 		}
 #endif /* CONFIG_USE_OF */
 
-		/* Copy the kernel to it's new location */
+		/* Copy the kernel to its new location */
 		memcpy(loc_new, &_text, kernel_length);
 
 		/* Perform relocations on the new kernel */

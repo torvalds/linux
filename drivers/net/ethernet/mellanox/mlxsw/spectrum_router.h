@@ -156,10 +156,10 @@ int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 				struct mlxsw_sp_nexthop *nh, bool force,
 				char *ratr_pl);
-void mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nexthop *nh);
-void mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_nexthop *nh);
+void mlxsw_sp_nexthop_counter_disable(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_nexthop *nh);
 
 static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 				      const union mlxsw_sp_l3addr *addr2)
@@ -171,8 +171,19 @@ int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
 struct net_device *
 mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev);
+int mlxsw_sp_router_bridge_vlan_add(struct mlxsw_sp *mlxsw_sp,
+				    struct net_device *dev,
+				    u16 new_vid, bool is_pvid,
+				    struct netlink_ext_ack *extack);
 int mlxsw_sp_router_port_join_lag(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct net_device *lag_dev,
 				  struct netlink_ext_ack *extack);
+void mlxsw_sp_router_port_leave_lag(struct mlxsw_sp_port *mlxsw_sp_port,
+				    struct net_device *lag_dev);
+int mlxsw_sp_netdevice_enslavement_replay(struct mlxsw_sp *mlxsw_sp,
+					  struct net_device *upper_dev,
+					  struct netlink_ext_ack *extack);
+void mlxsw_sp_netdevice_deslavement_replay(struct mlxsw_sp *mlxsw_sp,
+					   struct net_device *dev);
 
 #endif /* _MLXSW_ROUTER_H_*/

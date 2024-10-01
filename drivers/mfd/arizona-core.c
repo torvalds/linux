@@ -15,7 +15,6 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -1430,4 +1429,5 @@ int arizona_dev_exit(struct arizona *arizona)
 }
 EXPORT_SYMBOL_GPL(arizona_dev_exit);
 
+MODULE_DESCRIPTION("Wolfson Arizona core driver");
 MODULE_LICENSE("GPL v2");

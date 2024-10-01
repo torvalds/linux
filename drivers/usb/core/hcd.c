@@ -156,27 +156,6 @@ static const u8 usb3_rh_dev_descriptor[18] = {
 	0x01        /*  __u8  bNumConfigurations; */
 };
 
-/* usb 2.5 (wireless USB 1.0) root hub device descriptor */
-static const u8 usb25_rh_dev_descriptor[18] = {
-	0x12,       /*  __u8  bLength; */
-	USB_DT_DEVICE, /* __u8 bDescriptorType; Device */
-	0x50, 0x02, /*  __le16 bcdUSB; v2.5 */
-
-	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
-	0x00,	    /*  __u8  bDeviceSubClass; */
-	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
-	0xFF,       /*  __u8  bMaxPacketSize0; always 0xFF (WUSB Spec 7.4.1). */
-
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
-	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
-	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
-
-	0x03,       /*  __u8  iManufacturer; */
-	0x02,       /*  __u8  iProduct; */
-	0x01,       /*  __u8  iSerialNumber; */
-	0x01        /*  __u8  bNumConfigurations; */
-};
-
 /* usb 2.0 root hub device descriptor */
 static const u8 usb2_rh_dev_descriptor[18] = {
 	0x12,       /*  __u8  bLength; */
@@ -368,7 +347,7 @@ static const u8 ss_rh_config_descriptor[] = {
 };
 
 /* authorized_default behaviour:
- * -1 is authorized for all devices except wireless (old behaviour)
+ * -1 is authorized for all devices (leftover from wireless USB)
  * 0 is unauthorized for all devices
  * 1 is authorized for all devices
  * 2 is authorized for internal devices
@@ -378,12 +357,10 @@ static const u8 ss_rh_config_descriptor[] = {
 #define USB_AUTHORIZE_ALL	1
 #define USB_AUTHORIZE_INTERNAL	2
 
-static int authorized_default = USB_AUTHORIZE_WIRED;
+static int authorized_default = CONFIG_USB_DEFAULT_AUTHORIZATION_MODE;
 module_param(authorized_default, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(authorized_default,
-		"Default USB device authorization: 0 is not authorized, 1 is "
-		"authorized, 2 is authorized for internal devices, -1 is "
-		"authorized except for wireless USB (default, old behaviour)");
+		"Default USB device authorization: 0 is not authorized, 1 is authorized (default), 2 is authorized for internal devices, -1 is authorized (same as 1)");
 /*-------------------------------------------------------------------------*/
 
 /**
@@ -578,9 +555,6 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			case HCD_USB3:
 				bufp = usb3_rh_dev_descriptor;
 				break;
-			case HCD_USB25:
-				bufp = usb25_rh_dev_descriptor;
-				break;
 			case HCD_USB2:
 				bufp = usb2_rh_dev_descriptor;
 				break;
@@ -602,7 +576,6 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 				bufp = ss_rh_config_descriptor;
 				len = sizeof ss_rh_config_descriptor;
 				break;
-			case HCD_USB25:
 			case HCD_USB2:
 				bufp = hs_rh_config_descriptor;
 				len = sizeof hs_rh_config_descriptor;
@@ -893,7 +866,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
  */
 static void usb_bus_init (struct usb_bus *bus)
 {
-	memset (&bus->devmap, 0, sizeof(struct usb_devmap));
+	memset(&bus->devmap, 0, sizeof(bus->devmap));
 
 	bus->devnum_next = 1;
 
@@ -983,24 +956,28 @@ static int register_root_hub(struct usb_hcd *hcd)
 {
 	struct device *parent_dev = hcd->self.controller;
 	struct usb_device *usb_dev = hcd->self.root_hub;
+	struct usb_device_descriptor *descr;
 	const int devnum = 1;
 	int retval;
 
 	usb_dev->devnum = devnum;
 	usb_dev->bus->devnum_next = devnum + 1;
-	set_bit (devnum, usb_dev->bus->devmap.devicemap);
+	set_bit(devnum, usb_dev->bus->devmap);
 	usb_set_device_state(usb_dev, USB_STATE_ADDRESS);
 
 	mutex_lock(&usb_bus_idr_lock);
 
 	usb_dev->ep0.desc.wMaxPacketSize = cpu_to_le16(64);
-	retval = usb_get_device_descriptor(usb_dev, USB_DT_DEVICE_SIZE);
-	if (retval != sizeof usb_dev->descriptor) {
+	descr = usb_get_device_descriptor(usb_dev);
+	if (IS_ERR(descr)) {
+		retval = PTR_ERR(descr);
 		mutex_unlock(&usb_bus_idr_lock);
 		dev_dbg (parent_dev, "can't read %s device descriptor %d\n",
 				dev_name(&usb_dev->dev), retval);
-		return (retval < 0) ? retval : -EMSGSIZE;
+		return retval;
 	}
+	usb_dev->descriptor = *descr;
+	kfree(descr);
 
 	if (le16_to_cpu(usb_dev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(usb_dev);
@@ -1646,6 +1623,7 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 	struct usb_hcd *hcd = bus_to_hcd(urb->dev->bus);
 	struct usb_anchor *anchor = urb->anchor;
 	int status = urb->unlinked;
+	unsigned long flags;
 
 	urb->hcpriv = NULL;
 	if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
@@ -1663,13 +1641,14 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 	/* pass ownership to the completion handler */
 	urb->status = status;
 	/*
-	 * This function can be called in task context inside another remote
-	 * coverage collection section, but kcov doesn't support that kind of
-	 * recursion yet. Only collect coverage in softirq context for now.
+	 * Only collect coverage in the softirq context and disable interrupts
+	 * to avoid scenarios with nested remote coverage collection sections
+	 * that KCOV does not support.
+	 * See the comment next to kcov_remote_start_usb_softirq() for details.
 	 */
-	kcov_remote_start_usb_softirq((u64)urb->dev->bus->busnum);
+	flags = kcov_remote_start_usb_softirq((u64)urb->dev->bus->busnum);
 	urb->complete(urb);
-	kcov_remote_stop_softirq();
+	kcov_remote_stop_softirq(flags);
 
 	usb_anchor_resume_wakeups(anchor);
 	atomic_dec(&urb->use_count);
@@ -1685,9 +1664,10 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 	usb_put_urb(urb);
 }
 
-static void usb_giveback_urb_bh(struct tasklet_struct *t)
+static void usb_giveback_urb_bh(struct work_struct *work)
 {
-	struct giveback_urb_bh *bh = from_tasklet(bh, t, bh);
+	struct giveback_urb_bh *bh =
+		container_of(work, struct giveback_urb_bh, bh);
 	struct list_head local_list;
 
 	spin_lock_irq(&bh->lock);
@@ -1712,9 +1692,9 @@ static void usb_giveback_urb_bh(struct tasklet_struct *t)
 	spin_lock_irq(&bh->lock);
 	if (!list_empty(&bh->head)) {
 		if (bh->high_prio)
-			tasklet_hi_schedule(&bh->bh);
+			queue_work(system_bh_highpri_wq, &bh->bh);
 		else
-			tasklet_schedule(&bh->bh);
+			queue_work(system_bh_wq, &bh->bh);
 	}
 	bh->running = false;
 	spin_unlock_irq(&bh->lock);
@@ -1727,7 +1707,7 @@ static void usb_giveback_urb_bh(struct tasklet_struct *t)
  * @status: completion status code for the URB.
  *
  * Context: atomic. The completion callback is invoked in caller's context.
- * For HCDs with HCD_BH flag set, the completion callback is invoked in tasklet
+ * For HCDs with HCD_BH flag set, the completion callback is invoked in BH
  * context (except for URBs submitted to the root hub which always complete in
  * caller's context).
  *
@@ -1746,7 +1726,7 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct giveback_urb_bh *bh;
 	bool running;
 
-	/* pass status to tasklet via unlinked */
+	/* pass status to BH via unlinked */
 	if (likely(!urb->unlinked))
 		urb->unlinked = status;
 
@@ -1768,9 +1748,9 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (running)
 		;
 	else if (bh->high_prio)
-		tasklet_hi_schedule(&bh->bh);
+		queue_work(system_bh_highpri_wq, &bh->bh);
 	else
-		tasklet_schedule(&bh->bh);
+		queue_work(system_bh_wq, &bh->bh);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_giveback_urb);
 
@@ -2561,7 +2541,7 @@ static void init_giveback_urb_bh(struct giveback_urb_bh *bh)
 
 	spin_lock_init(&bh->lock);
 	INIT_LIST_HEAD(&bh->head);
-	tasklet_setup(&bh->bh, usb_giveback_urb_bh);
+	INIT_WORK(&bh->bh, usb_giveback_urb_bh);
 }
 
 struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
@@ -2815,10 +2795,16 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	struct usb_device *rhdev;
 	struct usb_hcd *shared_hcd;
 
-	if (!hcd->skip_phy_initialization && usb_hcd_is_primary_hcd(hcd)) {
-		hcd->phy_roothub = usb_phy_roothub_alloc(hcd->self.sysdev);
-		if (IS_ERR(hcd->phy_roothub))
-			return PTR_ERR(hcd->phy_roothub);
+	if (!hcd->skip_phy_initialization) {
+		if (usb_hcd_is_primary_hcd(hcd)) {
+			hcd->phy_roothub = usb_phy_roothub_alloc(hcd->self.sysdev);
+			if (IS_ERR(hcd->phy_roothub))
+				return PTR_ERR(hcd->phy_roothub);
+		} else {
+			hcd->phy_roothub = usb_phy_roothub_alloc_usb3_phy(hcd->self.sysdev);
+			if (IS_ERR(hcd->phy_roothub))
+				return PTR_ERR(hcd->phy_roothub);
+		}
 
 		retval = usb_phy_roothub_init(hcd->phy_roothub);
 		if (retval)
@@ -2844,18 +2830,14 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		hcd->dev_policy = USB_DEVICE_AUTHORIZE_NONE;
 		break;
 
-	case USB_AUTHORIZE_ALL:
-		hcd->dev_policy = USB_DEVICE_AUTHORIZE_ALL;
-		break;
-
 	case USB_AUTHORIZE_INTERNAL:
 		hcd->dev_policy = USB_DEVICE_AUTHORIZE_INTERNAL;
 		break;
 
+	case USB_AUTHORIZE_ALL:
 	case USB_AUTHORIZE_WIRED:
 	default:
-		hcd->dev_policy = hcd->wireless ?
-			USB_DEVICE_AUTHORIZE_NONE : USB_DEVICE_AUTHORIZE_ALL;
+		hcd->dev_policy = USB_DEVICE_AUTHORIZE_ALL;
 		break;
 	}
 
@@ -2898,9 +2880,6 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		break;
 	case HCD_USB2:
 		rhdev->speed = USB_SPEED_HIGH;
-		break;
-	case HCD_USB25:
-		rhdev->speed = USB_SPEED_WIRELESS;
 		break;
 	case HCD_USB3:
 		rhdev->speed = USB_SPEED_SUPER;
@@ -2954,7 +2933,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 			&& device_can_wakeup(&hcd->self.root_hub->dev))
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
 
-	/* initialize tasklets */
+	/* initialize BHs */
 	init_giveback_urb_bh(&hcd->high_prio_bh);
 	hcd->high_prio_bh.high_prio = true;
 	init_giveback_urb_bh(&hcd->low_prio_bh);
@@ -3064,7 +3043,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	mutex_unlock(&usb_bus_idr_lock);
 
 	/*
-	 * tasklet_kill() isn't needed here because:
+	 * flush_work() isn't needed here because:
 	 * - driver's disconnect() called from usb_disconnect() should
 	 *   make sure its URBs are completed during the disconnect()
 	 *   callback

@@ -6,6 +6,7 @@
  * Copyright (C) Tom Long Nguyen (tom.l.nguyen@intel.com)
  * Copyright (C) 2016 Christoph Hellwig.
  */
+#include <linux/bitfield.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/irq.h>
@@ -85,9 +86,11 @@ static int pcim_setup_msi_release(struct pci_dev *dev)
 		return 0;
 
 	ret = devm_add_action(&dev->dev, pcim_msi_release, dev);
-	if (!ret)
-		dev->is_msi_managed = true;
-	return ret;
+	if (ret)
+		return ret;
+
+	dev->is_msi_managed = true;
+	return 0;
 }
 
 /*
@@ -98,9 +101,10 @@ static int pci_setup_msi_context(struct pci_dev *dev)
 {
 	int ret = msi_setup_device_data(&dev->dev);
 
-	if (!ret)
-		ret = pcim_setup_msi_release(dev);
-	return ret;
+	if (ret)
+		return ret;
+
+	return pcim_setup_msi_release(dev);
 }
 
 /*
@@ -188,7 +192,7 @@ static inline void pci_write_msg_msi(struct pci_dev *dev, struct msi_desc *desc,
 
 	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &msgctl);
 	msgctl &= ~PCI_MSI_FLAGS_QSIZE;
-	msgctl |= desc->pci.msi_attrib.multiple << 4;
+	msgctl |= FIELD_PREP(PCI_MSI_FLAGS_QSIZE, desc->pci.msi_attrib.multiple);
 	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, msgctl);
 
 	pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_LO, msg->address_lo);
@@ -299,7 +303,7 @@ static int msi_setup_msi_desc(struct pci_dev *dev, int nvec,
 	desc.pci.msi_attrib.is_64	= !!(control & PCI_MSI_FLAGS_64BIT);
 	desc.pci.msi_attrib.can_mask	= !!(control & PCI_MSI_FLAGS_MASKBIT);
 	desc.pci.msi_attrib.default_irq	= dev->irq;
-	desc.pci.msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
+	desc.pci.msi_attrib.multi_cap	= FIELD_GET(PCI_MSI_FLAGS_QMASK, control);
 	desc.pci.msi_attrib.multiple	= ilog2(__roundup_pow_of_two(nvec));
 	desc.affinity			= masks;
 
@@ -348,7 +352,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 			       struct irq_affinity *affd)
 {
 	struct irq_affinity_desc *masks = NULL;
-	struct msi_desc *entry;
+	struct msi_desc *entry, desc;
 	int ret;
 
 	/* Reject multi-MSI early on irq domain enabled architectures */
@@ -373,6 +377,12 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	/* All MSIs are unmasked by default; mask them all */
 	entry = msi_first_desc(&dev->dev, MSI_DESC_ALL);
 	pci_msi_mask(entry, msi_multi_mask(entry));
+	/*
+	 * Copy the MSI descriptor for the error path because
+	 * pci_msi_setup_msi_irqs() will free it for the hierarchical
+	 * interrupt domain case.
+	 */
+	memcpy(&desc, entry, sizeof(desc));
 
 	/* Configure MSI capability structure */
 	ret = pci_msi_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSI);
@@ -392,7 +402,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	goto unlock;
 
 err:
-	pci_msi_unmask(entry, msi_multi_mask(entry));
+	pci_msi_unmask(&desc, msi_multi_mask(&desc));
 	pci_free_msi_irqs(dev);
 fail:
 	dev->msi_enabled = 0;
@@ -478,7 +488,7 @@ int pci_msi_vec_count(struct pci_dev *dev)
 		return -EINVAL;
 
 	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &msgctl);
-	ret = 1 << ((msgctl & PCI_MSI_FLAGS_QMASK) >> 1);
+	ret = 1 << FIELD_GET(PCI_MSI_FLAGS_QMASK, msgctl);
 
 	return ret;
 }
@@ -511,7 +521,8 @@ void __pci_restore_msi_state(struct pci_dev *dev)
 	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
 	pci_msi_update_mask(entry, 0, 0);
 	control &= ~PCI_MSI_FLAGS_QSIZE;
-	control |= (entry->pci.msi_attrib.multiple << 4) | PCI_MSI_FLAGS_ENABLE;
+	control |= PCI_MSI_FLAGS_ENABLE |
+		   FIELD_PREP(PCI_MSI_FLAGS_QSIZE, entry->pci.msi_attrib.multiple);
 	pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, control);
 }
 

@@ -181,8 +181,7 @@ static irqreturn_t isl29125_trigger_handler(int irq, void *p)
 	struct isl29125_data *data = iio_priv(indio_dev);
 	int i, j = 0;
 
-	for_each_set_bit(i, indio_dev->active_scan_mask,
-		indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, i) {
 		int ret = i2c_smbus_read_word_data(data->client,
 			isl29125_regs[i].data);
 		if (ret < 0)
@@ -327,7 +326,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(isl29125_pm_ops, isl29125_suspend,
 				isl29125_resume);
 
 static const struct i2c_device_id isl29125_id[] = {
-	{ "isl29125", 0 },
+	{ "isl29125" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl29125_id);

@@ -5,6 +5,7 @@
 #define __HCLGE_ERR_H
 
 #include "hclge_main.h"
+#include "hclge_debugfs.h"
 #include "hnae3.h"
 
 #define HCLGE_MPF_RAS_INT_MIN_BD_NUM	10
@@ -115,6 +116,18 @@
 #define HCLGE_REG_NUM_MAX			256
 #define HCLGE_DESC_NO_DATA_LEN			8
 
+#define HCLGE_BD_NUM_SSU_REG_0		10
+#define HCLGE_BD_NUM_SSU_REG_1		15
+#define HCLGE_BD_NUM_RPU_REG_0		1
+#define HCLGE_BD_NUM_RPU_REG_1		2
+#define HCLGE_BD_NUM_IGU_EGU_REG	9
+#define HCLGE_BD_NUM_GEN_REG		8
+#define HCLGE_MOD_REG_INFO_LEN_MAX	256
+#define HCLGE_MOD_REG_EXTRA_LEN		11
+#define HCLGE_MOD_REG_VALUE_LEN		9
+#define HCLGE_MOD_REG_GROUP_MAX_SIZE	6
+#define HCLGE_MOD_MSG_PARA_ARRAY_MAX_SIZE	8
+
 enum hclge_err_int_type {
 	HCLGE_ERR_INT_MSIX = 0,
 	HCLGE_ERR_INT_RAS_CE = 1,
@@ -191,11 +204,13 @@ struct hclge_hw_error {
 struct hclge_hw_module_id {
 	enum hclge_mod_name_list module_id;
 	const char *msg;
+	void (*query_reg_info)(struct hclge_dev *hdev);
 };
 
 struct hclge_hw_type_id {
 	enum hclge_err_type_list type_id;
 	const char *msg;
+	bool cause_by_vf; /* indicate the error may from vf exception */
 };
 
 struct hclge_sum_err_info {
@@ -217,6 +232,28 @@ struct hclge_type_reg_err_info {
 	u32 hclge_reg[HCLGE_REG_NUM_MAX];
 };
 
+struct hclge_mod_reg_info {
+	const char *reg_name;
+	bool has_suffix; /* add suffix for register name */
+	/* the positions of reg values in hclge_desc.data */
+	u8 reg_offset_group[HCLGE_MOD_REG_GROUP_MAX_SIZE];
+	u8 group_size;
+};
+
+/* This structure defines cmdq used to query the hardware module debug
+ * regisgers.
+ */
+struct hclge_mod_reg_common_msg {
+	enum hclge_opcode_type cmd;
+	struct hclge_desc *desc;
+	u8 bd_num; /* the bd number of hclge_desc used */
+	bool need_para; /* whether this cmdq needs to add para */
+
+	/* the regs need to print */
+	const struct hclge_mod_reg_info *result_regs;
+	u16 result_regs_size;
+};
+
 int hclge_config_mac_tnl_int(struct hclge_dev *hdev, bool en);
 int hclge_config_nic_hw_error(struct hclge_dev *hdev, bool state);
 int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en);
@@ -228,4 +265,5 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests);
 int hclge_handle_error_info_log(struct hnae3_ae_dev *ae_dev);
 int hclge_handle_mac_tnl(struct hclge_dev *hdev);
+int hclge_handle_vf_queue_err_ras(struct hclge_dev *hdev);
 #endif

@@ -27,7 +27,9 @@ static dev_t lirc_base_dev;
 static DEFINE_IDA(lirc_ida);
 
 /* Only used for sysfs but defined to void otherwise */
-static struct class *lirc_class;
+static const struct class lirc_class = {
+	.name = "lirc",
+};
 
 /**
  * lirc_raw_event() - Send raw IR data to lirc to be relayed to userspace
@@ -276,7 +278,11 @@ static ssize_t lirc_transmit(struct file *file, const char __user *buf,
 		if (ret < 0)
 			goto out_kfree_raw;
 
-		count = ret;
+		/* drop trailing space */
+		if (!(ret % 2))
+			count = ret - 1;
+		else
+			count = ret;
 
 		txbuf = kmalloc_array(count, sizeof(unsigned int), GFP_KERNEL);
 		if (!txbuf) {
@@ -700,7 +706,6 @@ static const struct file_operations lirc_fops = {
 	.poll		= lirc_poll,
 	.open		= lirc_open,
 	.release	= lirc_close,
-	.llseek		= no_llseek,
 };
 
 static void lirc_release_device(struct device *ld)
@@ -720,7 +725,7 @@ int lirc_register(struct rc_dev *dev)
 		return minor;
 
 	device_initialize(&dev->lirc_dev);
-	dev->lirc_dev.class = lirc_class;
+	dev->lirc_dev.class = &lirc_class;
 	dev->lirc_dev.parent = &dev->dev;
 	dev->lirc_dev.release = lirc_release_device;
 	dev->lirc_dev.devt = MKDEV(MAJOR(lirc_base_dev), minor);
@@ -785,15 +790,13 @@ int __init lirc_dev_init(void)
 {
 	int retval;
 
-	lirc_class = class_create("lirc");
-	if (IS_ERR(lirc_class)) {
-		pr_err("class_create failed\n");
-		return PTR_ERR(lirc_class);
-	}
+	retval = class_register(&lirc_class);
+	if (retval)
+		return retval;
 
 	retval = alloc_chrdev_region(&lirc_base_dev, 0, RC_DEV_MAX, "lirc");
 	if (retval) {
-		class_destroy(lirc_class);
+		class_unregister(&lirc_class);
 		pr_err("alloc_chrdev_region failed\n");
 		return retval;
 	}
@@ -806,25 +809,30 @@ int __init lirc_dev_init(void)
 
 void __exit lirc_dev_exit(void)
 {
-	class_destroy(lirc_class);
+	class_unregister(&lirc_class);
 	unregister_chrdev_region(lirc_base_dev, RC_DEV_MAX);
 }
 
-struct rc_dev *rc_dev_get_from_fd(int fd)
+struct rc_dev *rc_dev_get_from_fd(int fd, bool write)
 {
 	struct fd f = fdget(fd);
 	struct lirc_fh *fh;
 	struct rc_dev *dev;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
 
-	if (f.file->f_op != &lirc_fops) {
+	if (fd_file(f)->f_op != &lirc_fops) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	fh = f.file->private_data;
+	if (write && !(fd_file(f)->f_mode & FMODE_WRITE)) {
+		fdput(f);
+		return ERR_PTR(-EPERM);
+	}
+
+	fh = fd_file(f)->private_data;
 	dev = fh->rc;
 
 	get_device(&dev->dev);

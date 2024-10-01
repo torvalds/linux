@@ -17,6 +17,7 @@
 
 #include <linux/cred.h>
 #include <linux/key.h>
+#include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/verification.h>
 
@@ -24,7 +25,7 @@
  * /proc/sys/fs/verity/require_signatures
  * If 1, all verity files must have a valid builtin signature.
  */
-static int fsverity_require_signatures;
+int fsverity_require_signatures;
 
 /*
  * Keyring that contains the trusted X.509 certificates.
@@ -41,7 +42,11 @@ static struct key *fsverity_keyring;
  * @sig_size: size of signature in bytes, or 0 if no signature
  *
  * If the file includes a signature of its fs-verity file digest, verify it
- * against the certificates in the fs-verity keyring.
+ * against the certificates in the fs-verity keyring. Note that signatures
+ * are verified regardless of the state of the 'fsverity_require_signatures'
+ * variable and the LSM subsystem relies on this behavior to help enforce
+ * file integrity policies. Please discuss changes with the LSM list
+ * (thank you!).
  *
  * Return: 0 on success (signature valid or not required); -errno on failure
  */
@@ -60,6 +65,22 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 			return -EPERM;
 		}
 		return 0;
+	}
+
+	if (fsverity_keyring->keys.nr_leaves_on_tree == 0) {
+		/*
+		 * The ".fs-verity" keyring is empty, due to builtin signatures
+		 * being supported by the kernel but not actually being used.
+		 * In this case, verify_pkcs7_signature() would always return an
+		 * error, usually ENOKEY.  It could also be EBADMSG if the
+		 * PKCS#7 is malformed, but that isn't very important to
+		 * distinguish.  So, just skip to ENOKEY to avoid the attack
+		 * surface of the PKCS#7 parser, which would otherwise be
+		 * reachable by any task able to execute FS_IOC_ENABLE_VERITY.
+		 */
+		fsverity_err(inode,
+			     "fs-verity keyring is empty, rejecting signed file!");
+		return -ENOKEY;
 	}
 
 	d = kzalloc(sizeof(*d) + hash_alg->digest_size, GFP_KERNEL);
@@ -90,62 +111,28 @@ int fsverity_verify_signature(const struct fsverity_info *vi,
 		return err;
 	}
 
-	return 0;
-}
+	err = security_inode_setintegrity(inode,
+					  LSM_INT_FSVERITY_BUILTINSIG_VALID,
+					  signature,
+					  sig_size);
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table_header *fsverity_sysctl_header;
-
-static struct ctl_table fsverity_sysctl_table[] = {
-	{
-		.procname       = "require_signatures",
-		.data           = &fsverity_require_signatures,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
-		.extra1         = SYSCTL_ZERO,
-		.extra2         = SYSCTL_ONE,
-	},
-	{ }
-};
-
-static int __init fsverity_sysctl_init(void)
-{
-	fsverity_sysctl_header = register_sysctl("fs/verity", fsverity_sysctl_table);
-	if (!fsverity_sysctl_header) {
-		pr_err("sysctl registration failed!\n");
-		return -ENOMEM;
+	if (err) {
+		fsverity_err(inode, "Error %d exposing file signature to LSMs",
+			     err);
+		return err;
 	}
+
 	return 0;
 }
-#else /* !CONFIG_SYSCTL */
-static inline int __init fsverity_sysctl_init(void)
-{
-	return 0;
-}
-#endif /* !CONFIG_SYSCTL */
 
-int __init fsverity_init_signature(void)
+void __init fsverity_init_signature(void)
 {
-	struct key *ring;
-	int err;
-
-	ring = keyring_alloc(".fs-verity", KUIDT_INIT(0), KGIDT_INIT(0),
-			     current_cred(), KEY_POS_SEARCH |
+	fsverity_keyring =
+		keyring_alloc(".fs-verity", KUIDT_INIT(0), KGIDT_INIT(0),
+			      current_cred(), KEY_POS_SEARCH |
 				KEY_USR_VIEW | KEY_USR_READ | KEY_USR_WRITE |
 				KEY_USR_SEARCH | KEY_USR_SETATTR,
-			     KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
-	if (IS_ERR(ring))
-		return PTR_ERR(ring);
-
-	err = fsverity_sysctl_init();
-	if (err)
-		goto err_put_ring;
-
-	fsverity_keyring = ring;
-	return 0;
-
-err_put_ring:
-	key_put(ring);
-	return err;
+			      KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+	if (IS_ERR(fsverity_keyring))
+		panic("failed to allocate \".fs-verity\" keyring");
 }

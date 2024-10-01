@@ -6,6 +6,8 @@
 #ifndef	__XFS_LOG_PRIV_H__
 #define __XFS_LOG_PRIV_H__
 
+#include "xfs_extent_busy.h"	/* for struct xfs_busy_extents */
+
 struct xfs_buf;
 struct xlog;
 struct xlog_ticket;
@@ -223,14 +225,19 @@ struct xfs_cil_ctx {
 	struct xlog_in_core	*commit_iclog;
 	struct xlog_ticket	*ticket;	/* chkpt ticket */
 	atomic_t		space_used;	/* aggregate size of regions */
-	struct list_head	busy_extents;	/* busy extents in chkpt */
+	struct xfs_busy_extents	busy_extents;
 	struct list_head	log_items;	/* log items in chkpt */
 	struct list_head	lv_chain;	/* logvecs being pushed */
 	struct list_head	iclog_entry;
 	struct list_head	committing;	/* ctx committing list */
-	struct work_struct	discard_endio_work;
 	struct work_struct	push_work;
 	atomic_t		order_id;
+
+	/*
+	 * CPUs that could have added items to the percpu CIL data.  Access is
+	 * coordinated with xc_ctx_lock.
+	 */
+	struct cpumask		cil_pcpmask;
 };
 
 /*
@@ -278,9 +285,6 @@ struct xfs_cil {
 	wait_queue_head_t	xc_push_wait;	/* background push throttle */
 
 	void __percpu		*xc_pcp;	/* percpu CIL structures */
-#ifdef CONFIG_HOTPLUG_CPU
-	struct list_head	xc_pcp_list;
-#endif
 } ____cacheline_aligned_in_smp;
 
 /* xc_flags bit values */
@@ -403,6 +407,7 @@ struct xlog {
 	long			l_opstate;	/* operational state */
 	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
 	struct list_head	*l_buf_cancel_table;
+	struct list_head	r_dfops;	/* recovered log intent items */
 	int			l_iclog_hsize;  /* size of iclog header */
 	int			l_iclog_heads;  /* # of iclog header sectors */
 	uint			l_sectBBsize;   /* sector size in BBs (2^n) */
@@ -426,18 +431,16 @@ struct xlog {
 	int			l_prev_block;   /* previous logical log block */
 
 	/*
-	 * l_last_sync_lsn and l_tail_lsn are atomics so they can be set and
-	 * read without needing to hold specific locks. To avoid operations
-	 * contending with other hot objects, place each of them on a separate
-	 * cacheline.
+	 * l_tail_lsn is atomic so it can be set and read without needing to
+	 * hold specific locks. To avoid operations contending with other hot
+	 * objects, it on a separate cacheline.
 	 */
-	/* lsn of last LR on disk */
-	atomic64_t		l_last_sync_lsn ____cacheline_aligned_in_smp;
 	/* lsn of 1st LR with unflushed * buffers */
 	atomic64_t		l_tail_lsn ____cacheline_aligned_in_smp;
 
 	struct xlog_grant_head	l_reserve_head;
 	struct xlog_grant_head	l_write_head;
+	uint64_t		l_tail_space;
 
 	struct xfs_kobj		l_kobj;
 
@@ -445,9 +448,6 @@ struct xlog {
 	xfs_lsn_t		l_recovery_lsn;
 
 	uint32_t		l_iclog_roundoff;/* padding roundoff */
-
-	/* Users of log incompat features should take a read lock. */
-	struct rw_semaphore	l_incompat_users;
 };
 
 /*
@@ -544,36 +544,6 @@ xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
 }
 
 /*
- * When we crack the grant head, we sample it first so that the value will not
- * change while we are cracking it into the component values. This means we
- * will always get consistent component values to work from.
- */
-static inline void
-xlog_crack_grant_head_val(int64_t val, int *cycle, int *space)
-{
-	*cycle = val >> 32;
-	*space = val & 0xffffffff;
-}
-
-static inline void
-xlog_crack_grant_head(atomic64_t *head, int *cycle, int *space)
-{
-	xlog_crack_grant_head_val(atomic64_read(head), cycle, space);
-}
-
-static inline int64_t
-xlog_assign_grant_head_val(int cycle, int space)
-{
-	return ((int64_t)cycle << 32) | space;
-}
-
-static inline void
-xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
-{
-	atomic64_set(head, xlog_assign_grant_head_val(cycle, space));
-}
-
-/*
  * Committed Item List interfaces
  */
 int	xlog_cil_init(struct xlog *log);
@@ -618,7 +588,29 @@ xlog_wait(
 	remove_wait_queue(wq, &wait);
 }
 
-int xlog_wait_on_iclog(struct xlog_in_core *iclog);
+int xlog_wait_on_iclog(struct xlog_in_core *iclog)
+		__releases(iclog->ic_log->l_icloglock);
+
+/* Calculate the distance between two LSNs in bytes */
+static inline uint64_t
+xlog_lsn_sub(
+	struct xlog	*log,
+	xfs_lsn_t	high,
+	xfs_lsn_t	low)
+{
+	uint32_t	hi_cycle = CYCLE_LSN(high);
+	uint32_t	hi_block = BLOCK_LSN(high);
+	uint32_t	lo_cycle = CYCLE_LSN(low);
+	uint32_t	lo_block = BLOCK_LSN(low);
+
+	if (hi_cycle == lo_cycle)
+		return BBTOB(hi_block - lo_block);
+	ASSERT((hi_cycle == lo_cycle + 1) || xlog_is_shutdown(log));
+	return (uint64_t)log->l_logsize - BBTOB(lo_block - hi_block);
+}
+
+void xlog_grant_return_space(struct xlog *log, xfs_lsn_t old_head,
+		xfs_lsn_t new_head);
 
 /*
  * The LSN is valid so long as it is behind the current LSN. If it isn't, this
@@ -678,7 +670,7 @@ xlog_valid_lsn(
  * flags to control the kmalloc() behaviour within kvmalloc(). Hence kmalloc()
  * will do direct reclaim and compaction in the slow path, both of which are
  * horrendously expensive. We just want kmalloc to fail fast and fall back to
- * vmalloc if it can't get somethign straight away from the free lists or
+ * vmalloc if it can't get something straight away from the free lists or
  * buddy allocator. Hence we have to open code kvmalloc outselves here.
  *
  * This assumes that the caller uses memalloc_nofs_save task context here, so
@@ -704,10 +696,5 @@ xlog_kvmalloc(
 
 	return p;
 }
-
-/*
- * CIL CPU dead notifier
- */
-void xlog_cil_pcp_dead(struct xlog *log, unsigned int cpu);
 
 #endif	/* __XFS_LOG_PRIV_H__ */

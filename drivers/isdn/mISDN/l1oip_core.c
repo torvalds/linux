@@ -245,6 +245,7 @@ static int debug;
 static int ulaw;
 
 MODULE_AUTHOR("Andreas Eversberg");
+MODULE_DESCRIPTION("mISDN driver for tunneling layer 1 over IP");
 MODULE_LICENSE("GPL");
 module_param_array(type, uint, NULL, S_IRUGO | S_IWUSR);
 module_param_array(codec, uint, NULL, S_IRUGO | S_IWUSR);

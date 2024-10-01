@@ -56,7 +56,7 @@
 					reg = <0>;
 
 					pmic_glink_con0_hs: endpoint {
-						remote-endpoint = <&usb_0_role_switch>;
+						remote-endpoint = <&usb_0_dwc3_hs>;
 					};
 				};
 
@@ -91,7 +91,7 @@
 					reg = <0>;
 
 					pmic_glink_con1_hs: endpoint {
-						remote-endpoint = <&usb_1_role_switch>;
+						remote-endpoint = <&usb_1_dwc3_hs>;
 					};
 				};
 
@@ -133,7 +133,7 @@
 	vreg_edp_bl: regulator-edp-bl {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VBL9";
+		regulator-name = "VREG_EDP_BL";
 		regulator-min-microvolt = <3600000>;
 		regulator-max-microvolt = <3600000>;
 
@@ -149,7 +149,7 @@
 	vreg_nvme: regulator-nvme {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC3_SSD";
+		regulator-name = "VREG_NVME_3P3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
@@ -163,11 +163,11 @@
 	vreg_misc_3p3: regulator-misc-3p3 {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC3B";
+		regulator-name = "VREG_MISC_3P3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&pmc8280_1_gpios 1 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmc8280_1_gpios 2 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -180,7 +180,7 @@
 	vreg_wlan: regulator-wlan {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC_WLAN_3R9";
+		regulator-name = "VPH_PWR_WLAN";
 		regulator-min-microvolt = <3900000>;
 		regulator-max-microvolt = <3900000>;
 
@@ -196,7 +196,7 @@
 	vreg_wwan: regulator-wwan {
 		compatible = "regulator-fixed";
 
-		regulator-name = "VCC3B_WAN";
+		regulator-name = "SDX_VPH_PWR";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
@@ -234,7 +234,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb0_sbu_mux: endpoint {
@@ -254,7 +253,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb1_sbu_mux: endpoint {
@@ -460,6 +458,8 @@
 };
 
 &mdss0_dp3_phy {
+	compatible = "qcom,sc8280xp-edp-phy";
+
 	vdda-phy-supply = <&vreg_l6b>;
 	vdda-pll-supply = <&vreg_l3b>;
 
@@ -563,6 +563,8 @@
 };
 
 &pcie4 {
+	max-link-speed = <2>;
+
 	perst-gpios = <&tlmm 141 GPIO_ACTIVE_LOW>;
 	wake-gpios = <&tlmm 139 GPIO_ACTIVE_LOW>;
 
@@ -673,6 +675,10 @@
 	dr_mode = "host";
 };
 
+&usb_0_dwc3_hs {
+	remote-endpoint = <&pmic_glink_con0_hs>;
+};
+
 &usb_0_hsphy {
 	vdda-pll-supply = <&vreg_l9d>;
 	vdda18-supply = <&vreg_l1c>;
@@ -698,16 +704,16 @@
 	remote-endpoint = <&pmic_glink_con0_ss>;
 };
 
-&usb_0_role_switch {
-	remote-endpoint = <&pmic_glink_con0_hs>;
-};
-
 &usb_1 {
 	status = "okay";
 };
 
 &usb_1_dwc3 {
 	dr_mode = "host";
+};
+
+&usb_1_dwc3_hs {
+	remote-endpoint = <&pmic_glink_con1_hs>;
 };
 
 &usb_1_hsphy {
@@ -735,10 +741,6 @@
 	remote-endpoint = <&pmic_glink_con1_ss>;
 };
 
-&usb_1_role_switch {
-	remote-endpoint = <&pmic_glink_con1_hs>;
-};
-
 &xo_board_clk {
 	clock-frequency = <38400000>;
 };
@@ -757,7 +759,7 @@
 	};
 
 	misc_3p3_reg_en: misc-3p3-reg-en-state {
-		pins = "gpio1";
+		pins = "gpio2";
 		function = "normal";
 	};
 };
@@ -846,15 +848,15 @@
 			pins = "gpio143";
 			function = "gpio";
 			drive-strength = <2>;
-			bias-pull-down;
+			bias-disable;
 		};
 
 		wake-n-pins {
-		       pins = "gpio145";
-		       function = "gpio";
-		       drive-strength = <2>;
-		       bias-pull-up;
-	       };
+			pins = "gpio145";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 	};
 
 	pcie3a_default: pcie3a-default-state {
@@ -869,7 +871,7 @@
 			pins = "gpio151";
 			function = "gpio";
 			drive-strength = <2>;
-			bias-pull-down;
+			bias-disable;
 		};
 
 		wake-n-pins {
@@ -892,7 +894,7 @@
 			pins = "gpio141";
 			function = "gpio";
 			drive-strength = <2>;
-			bias-pull-down;
+			bias-disable;
 		};
 
 		wake-n-pins {
@@ -975,8 +977,7 @@
 		reset-n-pins {
 			pins = "gpio99";
 			function = "gpio";
-			output-high;
-			drive-strength = <16>;
+			bias-disable;
 		};
 	};
 

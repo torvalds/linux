@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -68,7 +68,6 @@ static ssize_t fw_regs_read(struct file *file, char __user *to, size_t count, lo
 static const struct file_operations fw_regs_fops = {
 	.open = simple_open,
 	.read = fw_regs_read,
-	.llseek = no_llseek,
 };
 
 static ssize_t debug_window_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
@@ -93,7 +92,6 @@ static ssize_t debug_window_read(struct file *file, char __user *to, size_t coun
 static const struct file_operations debug_window_fops = {
 	.open = simple_open,
 	.read = debug_window_read,
-	.llseek = no_llseek,
 };
 
 static ssize_t probe_points_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
@@ -170,7 +168,6 @@ static const struct file_operations probe_points_fops = {
 	.open = simple_open,
 	.read = probe_points_read,
 	.write = probe_points_write,
-	.llseek = no_llseek,
 };
 
 static ssize_t probe_points_disconnect_write(struct file *file, const char __user *from,
@@ -236,6 +233,9 @@ static int strace_open(struct inode *inode, struct file *file)
 	struct avs_dev *adev = inode->i_private;
 	int ret;
 
+	if (!try_module_get(adev->dev->driver->owner))
+		return -ENODEV;
+
 	if (kfifo_initialized(&adev->trace_fifo))
 		return -EBUSY;
 
@@ -270,6 +270,7 @@ static int strace_release(struct inode *inode, struct file *file)
 
 	spin_unlock_irqrestore(&adev->trace_lock, flags);
 
+	module_put(adev->dev->driver->owner);
 	return 0;
 }
 

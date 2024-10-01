@@ -76,7 +76,7 @@ struct dw_spi_mscc {
  */
 static void dw_spi_mscc_set_cs(struct spi_device *spi, bool enable)
 {
-	struct dw_spi *dws = spi_master_get_devdata(spi->master);
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
 	struct dw_spi_mscc *dwsmscc = dwsmmio->priv;
 	u32 cs = spi_get_chipselect(spi, 0);
@@ -149,7 +149,7 @@ static int dw_spi_mscc_jaguar2_init(struct platform_device *pdev,
  */
 static void dw_spi_sparx5_set_cs(struct spi_device *spi, bool enable)
 {
-	struct dw_spi *dws = spi_master_get_devdata(spi->master);
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
 	struct dw_spi_mscc *dwsmscc = dwsmmio->priv;
 	u8 cs = spi_get_chipselect(spi, 0);
@@ -277,7 +277,7 @@ static void dw_spi_elba_override_cs(struct regmap *syscon, int cs, int enable)
 
 static void dw_spi_elba_set_cs(struct spi_device *spi, bool enable)
 {
-	struct dw_spi *dws = spi_master_get_devdata(spi->master);
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
 	struct regmap *syscon = dwsmmio->priv;
 	u8 cs;
@@ -320,7 +320,11 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	struct resource *mem;
 	struct dw_spi *dws;
 	int ret;
-	int num_cs;
+
+	if (device_property_read_bool(&pdev->dev, "spi-slave")) {
+		dev_warn(&pdev->dev, "spi-slave is not yet supported\n");
+		return -ENODEV;
+	}
 
 	dwsmmio = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_mmio),
 			GFP_KERNEL);
@@ -340,48 +344,38 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	if (dws->irq < 0)
 		return dws->irq; /* -ENXIO */
 
-	dwsmmio->clk = devm_clk_get(&pdev->dev, NULL);
+	dwsmmio->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(dwsmmio->clk))
 		return PTR_ERR(dwsmmio->clk);
-	ret = clk_prepare_enable(dwsmmio->clk);
-	if (ret)
-		return ret;
 
 	/* Optional clock needed to access the registers */
-	dwsmmio->pclk = devm_clk_get_optional(&pdev->dev, "pclk");
-	if (IS_ERR(dwsmmio->pclk)) {
-		ret = PTR_ERR(dwsmmio->pclk);
-		goto out_clk;
-	}
-	ret = clk_prepare_enable(dwsmmio->pclk);
-	if (ret)
-		goto out_clk;
+	dwsmmio->pclk = devm_clk_get_optional_enabled(&pdev->dev, "pclk");
+	if (IS_ERR(dwsmmio->pclk))
+		return PTR_ERR(dwsmmio->pclk);
 
 	/* find an optional reset controller */
 	dwsmmio->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, "spi");
-	if (IS_ERR(dwsmmio->rstc)) {
-		ret = PTR_ERR(dwsmmio->rstc);
-		goto out_clk;
-	}
+	if (IS_ERR(dwsmmio->rstc))
+		return PTR_ERR(dwsmmio->rstc);
+
 	reset_control_deassert(dwsmmio->rstc);
 
 	dws->bus_num = pdev->id;
 
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
 
-	device_property_read_u32(&pdev->dev, "reg-io-width", &dws->reg_io_width);
+	if (device_property_read_u32(&pdev->dev, "reg-io-width",
+				     &dws->reg_io_width))
+		dws->reg_io_width = 4;
 
-	num_cs = 4;
-
-	device_property_read_u32(&pdev->dev, "num-cs", &num_cs);
-
-	dws->num_cs = num_cs;
+	/* Rely on the auto-detection if no property specified */
+	device_property_read_u32(&pdev->dev, "num-cs", &dws->num_cs);
 
 	init_func = device_get_match_data(&pdev->dev);
 	if (init_func) {
 		ret = init_func(pdev, dwsmmio);
 		if (ret)
-			goto out;
+			goto out_reset;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -395,9 +389,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 out:
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(dwsmmio->pclk);
-out_clk:
-	clk_disable_unprepare(dwsmmio->clk);
+out_reset:
 	reset_control_assert(dwsmmio->rstc);
 
 	return ret;
@@ -409,8 +401,6 @@ static void dw_spi_mmio_remove(struct platform_device *pdev)
 
 	dw_spi_remove_host(&dwsmmio->dws);
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(dwsmmio->pclk);
-	clk_disable_unprepare(dwsmmio->clk);
 	reset_control_assert(dwsmmio->rstc);
 }
 
@@ -422,7 +412,6 @@ static const struct of_device_id dw_spi_mmio_of_match[] = {
 	{ .compatible = "renesas,rzn1-spi", .data = dw_spi_pssi_init},
 	{ .compatible = "snps,dwc-ssi-1.01a", .data = dw_spi_hssi_init},
 	{ .compatible = "intel,keembay-ssi", .data = dw_spi_intel_init},
-	{ .compatible = "intel,thunderbay-ssi", .data = dw_spi_intel_init},
 	{
 		.compatible = "intel,mountevans-imc-ssi",
 		.data = dw_spi_mountevans_imc_init,

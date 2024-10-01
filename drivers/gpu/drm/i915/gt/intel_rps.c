@@ -5,7 +5,7 @@
 
 #include <linux/string_helpers.h>
 
-#include <drm/i915_drm.h>
+#include <drm/intel/i915_drm.h>
 
 #include "display/intel_display.h"
 #include "display/intel_display_irq.h"
@@ -16,7 +16,9 @@
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_irq.h"
+#include "intel_gt_pm.h"
 #include "intel_gt_pm_irq.h"
+#include "intel_gt_print.h"
 #include "intel_gt_regs.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
@@ -50,7 +52,7 @@ static struct intel_guc_slpc *rps_to_slpc(struct intel_rps *rps)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
 
-	return &gt->uc.guc.slpc;
+	return &gt_to_guc(gt)->slpc;
 }
 
 static bool rps_uses_slpc(struct intel_rps *rps)
@@ -263,10 +265,10 @@ static const struct cparams {
 	u16 c;
 } cparams[] = {
 	{ 1, 1333, 301, 28664 },
-	{ 1, 1066, 294, 24460 },
+	{ 1, 1067, 294, 24460 },
 	{ 1, 800, 294, 25192 },
 	{ 0, 1333, 276, 27605 },
-	{ 0, 1066, 276, 27605 },
+	{ 0, 1067, 276, 27605 },
 	{ 0, 800, 231, 23784 },
 };
 
@@ -278,15 +280,16 @@ static void gen5_rps_init(struct intel_rps *rps)
 	u32 rgvmodectl;
 	int c_m, i;
 
-	if (i915->fsb_freq <= 3200)
+	if (i915->fsb_freq <= 3200000)
 		c_m = 0;
-	else if (i915->fsb_freq <= 4800)
+	else if (i915->fsb_freq <= 4800000)
 		c_m = 1;
 	else
 		c_m = 2;
 
 	for (i = 0; i < ARRAY_SIZE(cparams); i++) {
-		if (cparams[i].i == c_m && cparams[i].t == i915->mem_freq) {
+		if (cparams[i].i == c_m &&
+		    cparams[i].t == DIV_ROUND_CLOSEST(i915->mem_freq, 1000)) {
 			rps->ips.m = cparams[i].m;
 			rps->ips.c = cparams[i].c;
 			break;
@@ -672,16 +675,12 @@ static void rps_set_power(struct intel_rps *rps, int new_power)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
 	struct intel_uncore *uncore = gt->uncore;
-	u32 threshold_up = 0, threshold_down = 0; /* in % */
 	u32 ei_up = 0, ei_down = 0;
 
 	lockdep_assert_held(&rps->power.mutex);
 
 	if (new_power == rps->power.mode)
 		return;
-
-	threshold_up = 95;
-	threshold_down = 85;
 
 	/* Note the units here are not exactly 1us, but 1280ns. */
 	switch (new_power) {
@@ -709,17 +708,22 @@ static void rps_set_power(struct intel_rps *rps, int new_power)
 
 	GT_TRACE(gt,
 		 "changing power mode [%d], up %d%% @ %dus, down %d%% @ %dus\n",
-		 new_power, threshold_up, ei_up, threshold_down, ei_down);
+		 new_power,
+		 rps->power.up_threshold, ei_up,
+		 rps->power.down_threshold, ei_down);
 
 	set(uncore, GEN6_RP_UP_EI,
 	    intel_gt_ns_to_pm_interval(gt, ei_up * 1000));
 	set(uncore, GEN6_RP_UP_THRESHOLD,
-	    intel_gt_ns_to_pm_interval(gt, ei_up * threshold_up * 10));
+	    intel_gt_ns_to_pm_interval(gt,
+				       ei_up * rps->power.up_threshold * 10));
 
 	set(uncore, GEN6_RP_DOWN_EI,
 	    intel_gt_ns_to_pm_interval(gt, ei_down * 1000));
 	set(uncore, GEN6_RP_DOWN_THRESHOLD,
-	    intel_gt_ns_to_pm_interval(gt, ei_down * threshold_down * 10));
+	    intel_gt_ns_to_pm_interval(gt,
+				       ei_down *
+				       rps->power.down_threshold * 10));
 
 	set(uncore, GEN6_RP_CONTROL,
 	    (GRAPHICS_VER(gt->i915) > 9 ? 0 : GEN6_RP_MEDIA_TURBO) |
@@ -731,8 +735,6 @@ static void rps_set_power(struct intel_rps *rps, int new_power)
 
 skip_hw_write:
 	rps->power.mode = new_power;
-	rps->power.up_threshold = threshold_up;
-	rps->power.down_threshold = threshold_down;
 }
 
 static void gen6_rps_set_thresholds(struct intel_rps *rps, u8 val)
@@ -1012,6 +1014,10 @@ void intel_rps_boost(struct i915_request *rq)
 	if (i915_request_signaled(rq) || i915_request_has_waitboost(rq))
 		return;
 
+	/* Waitboost is not needed for contexts marked with a Freq hint */
+	if (test_bit(CONTEXT_LOW_LATENCY, &rq->context->flags))
+		return;
+
 	/* Serializes with i915_request_retire() */
 	if (!test_and_set_bit(I915_FENCE_FLAG_BOOST, &rq->fence.flags)) {
 		struct intel_rps *rps = &READ_ONCE(rq->engine)->gt->rps;
@@ -1085,11 +1091,7 @@ static u32 intel_rps_read_state_cap(struct intel_rps *rps)
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 
-	if (IS_PONTEVECCHIO(i915))
-		return intel_uncore_read(uncore, PVC_RP_STATE_CAP);
-	else if (IS_XEHPSDV(i915))
-		return intel_uncore_read(uncore, XEHPSDV_RP_STATE_CAP);
-	else if (IS_GEN9_LP(i915))
+	if (IS_GEN9_LP(i915))
 		return intel_uncore_read(uncore, BXT_RP_STATE_CAP);
 	else
 		return intel_uncore_read(uncore, GEN6_RP_STATE_CAP);
@@ -1160,7 +1162,7 @@ void gen6_rps_get_freq_caps(struct intel_rps *rps, struct intel_rps_freq_caps *c
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 
-	if (IS_METEORLAKE(i915))
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
 		return mtl_get_freq_caps(rps, caps);
 	else
 		return __gen6_rps_get_freq_caps(rps, caps);
@@ -1559,10 +1561,12 @@ void intel_rps_enable(struct intel_rps *rps)
 		return;
 
 	GT_TRACE(rps_to_gt(rps),
-		 "min:%x, max:%x, freq:[%d, %d]\n",
+		 "min:%x, max:%x, freq:[%d, %d], thresholds:[%u, %u]\n",
 		 rps->min_freq, rps->max_freq,
 		 intel_gpu_freq(rps, rps->min_freq),
-		 intel_gpu_freq(rps, rps->max_freq));
+		 intel_gpu_freq(rps, rps->max_freq),
+		 rps->power.up_threshold,
+		 rps->power.down_threshold);
 
 	GEM_BUG_ON(rps->max_freq < rps->min_freq);
 	GEM_BUG_ON(rps->idle_freq > rps->max_freq);
@@ -2014,6 +2018,12 @@ void intel_rps_init(struct intel_rps *rps)
 			rps->max_freq = params & 0xff;
 		}
 	}
+
+	/* Set default thresholds in % */
+	rps->power.up_threshold = 95;
+	rps_to_gt(rps)->defaults.rps_up_threshold = rps->power.up_threshold;
+	rps->power.down_threshold = 85;
+	rps_to_gt(rps)->defaults.rps_down_threshold = rps->power.down_threshold;
 
 	/* Finally allow us to boost to max by default */
 	rps->boost_freq = rps->max_freq;
@@ -2567,6 +2577,58 @@ int intel_rps_set_min_frequency(struct intel_rps *rps, u32 val)
 		return intel_guc_slpc_set_min_freq(slpc, val);
 	else
 		return set_min_freq(rps, val);
+}
+
+u8 intel_rps_get_up_threshold(struct intel_rps *rps)
+{
+	return rps->power.up_threshold;
+}
+
+static int rps_set_threshold(struct intel_rps *rps, u8 *threshold, u8 val)
+{
+	int ret;
+
+	if (val > 100)
+		return -EINVAL;
+
+	ret = mutex_lock_interruptible(&rps->lock);
+	if (ret)
+		return ret;
+
+	if (*threshold == val)
+		goto out_unlock;
+
+	*threshold = val;
+
+	/* Force reset. */
+	rps->last_freq = -1;
+	mutex_lock(&rps->power.mutex);
+	rps->power.mode = -1;
+	mutex_unlock(&rps->power.mutex);
+
+	intel_rps_set(rps, clamp(rps->cur_freq,
+				 rps->min_freq_softlimit,
+				 rps->max_freq_softlimit));
+
+out_unlock:
+	mutex_unlock(&rps->lock);
+
+	return ret;
+}
+
+int intel_rps_set_up_threshold(struct intel_rps *rps, u8 threshold)
+{
+	return rps_set_threshold(rps, &rps->power.up_threshold, threshold);
+}
+
+u8 intel_rps_get_down_threshold(struct intel_rps *rps)
+{
+	return rps->power.down_threshold;
+}
+
+int intel_rps_set_down_threshold(struct intel_rps *rps, u8 threshold)
+{
+	return rps_set_threshold(rps, &rps->power.down_threshold, threshold);
 }
 
 static void intel_rps_set_manual(struct intel_rps *rps, bool enable)

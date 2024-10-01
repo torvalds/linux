@@ -22,7 +22,7 @@
 
 #include "hid-ids.h"
 
-static __u8 *ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x01) {
@@ -51,4 +51,5 @@ static struct hid_driver ortek_driver = {
 };
 module_hid_driver(ortek_driver);
 
+MODULE_DESCRIPTION("HID driver for Ortek PKB-1700/WKB-2000/Skycable wireless keyboard and mouse trackpad");
 MODULE_LICENSE("GPL");

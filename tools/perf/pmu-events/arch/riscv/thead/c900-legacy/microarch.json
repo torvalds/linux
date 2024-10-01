@@ -1,0 +1,80 @@
+[
+  {
+    "EventName": "LSU_SPEC_FAIL",
+    "EventCode": "0x0000000a",
+    "BriefDescription": "LSU speculation fail"
+  },
+  {
+    "EventName": "IDU_RF_PIPE_FAIL",
+    "EventCode": "0x00000014",
+    "BriefDescription": "Instruction decode unit launch pipeline failed in RF state"
+  },
+  {
+    "EventName": "IDU_RF_REG_FAIL",
+    "EventCode": "0x00000015",
+    "BriefDescription": "Instruction decode unit launch register file fail in RF state"
+  },
+  {
+    "EventName": "IDU_RF_INSTRUCTION",
+    "EventCode": "0x00000016",
+    "BriefDescription": "retired instruction count of Instruction decode unit in RF (Register File) stage"
+  },
+  {
+    "EventName": "LSU_4K_STALL",
+    "EventCode": "0x00000017",
+    "BriefDescription": "LSU stall times for long distance data access (Over 4K)",
+    "PublicDescription": "This stall occurs when translate virtual address with page offset over 4k"
+  },
+  {
+    "EventName": "LSU_OTHER_STALL",
+    "EventCode": "0x00000018",
+    "BriefDescription": "LSU stall times for other reasons (except the 4k stall)"
+  },
+  {
+    "EventName": "LSU_SQ_OTHER_DIS",
+    "EventCode": "0x00000019",
+    "BriefDescription": "LSU store queue discard others"
+  },
+  {
+    "EventName": "LSU_SQ_DATA_DISCARD",
+    "EventCode": "0x0000001a",
+    "BriefDescription": "LSU store queue discard data (uops)"
+  },
+  {
+    "EventName": "BRANCH_DIRECTION_MISPREDICTION",
+    "EventCode": "0x0000001b",
+    "BriefDescription": "Branch misprediction in BTB"
+  },
+  {
+    "EventName": "BRANCH_DIRECTION_PREDICTION",
+    "EventCode": "0x0000001c",
+    "BriefDescription": "All branch prediction in BTB",
+    "PublicDescription": "This event including both successful prediction and failed prediction in BTB"
+  },
+  {
+    "EventName": "INTERRUPT_ACK_COUNT",
+    "EventCode": "0x00000023",
+    "BriefDescription": "acknowledged interrupt count"
+  },
+  {
+    "EventName": "INTERRUPT_OFF_CYCLE",
+    "EventCode": "0x00000024",
+    "BriefDescription": "PLIC arbitration time when the interrupt is not responded",
+    "PublicDescription": "The arbitration time is recorded while meeting any of the following:\n- CPU is M-mode and MIE == 0\n- CPU is S-mode and delegation and SIE == 0\n"
+  },
+  {
+    "EventName": "IFU_STALLED_CYCLE",
+    "EventCode": "0x00000027",
+    "BriefDescription": "Number of stall cycles of the instruction fetch unit (IFU)."
+  },
+  {
+    "EventName": "IDU_STALLED_CYCLE",
+    "EventCode": "0x00000028",
+    "BriefDescription": "hpcp_backend_stall Number of stall cycles of the instruction decoding unit (IDU) and next-level pipeline unit."
+  },
+  {
+    "EventName": "SYNC_STALL",
+    "EventCode": "0x00000029",
+    "BriefDescription": "Sync instruction stall cycle fence/fence.i/sync/sfence"
+  }
+]

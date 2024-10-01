@@ -27,6 +27,7 @@ static const struct mlx5_ib_counter basic_q_cnts[] = {
 	INIT_Q_COUNTER(rx_write_requests),
 	INIT_Q_COUNTER(rx_read_requests),
 	INIT_Q_COUNTER(rx_atomic_requests),
+	INIT_Q_COUNTER(rx_dct_connect),
 	INIT_Q_COUNTER(out_of_buffer),
 };
 
@@ -46,6 +47,7 @@ static const struct mlx5_ib_counter vport_basic_q_cnts[] = {
 	INIT_VPORT_Q_COUNTER(rx_write_requests),
 	INIT_VPORT_Q_COUNTER(rx_read_requests),
 	INIT_VPORT_Q_COUNTER(rx_atomic_requests),
+	INIT_VPORT_Q_COUNTER(rx_dct_connect),
 	INIT_VPORT_Q_COUNTER(out_of_buffer),
 };
 
@@ -81,6 +83,8 @@ static const struct mlx5_ib_counter extended_err_cnts[] = {
 	INIT_Q_COUNTER(resp_remote_access_errors),
 	INIT_Q_COUNTER(resp_cqe_flush_error),
 	INIT_Q_COUNTER(req_cqe_flush_error),
+	INIT_Q_COUNTER(req_transport_retries_exceeded),
+	INIT_Q_COUNTER(req_rnr_retries_exceeded),
 };
 
 static const struct mlx5_ib_counter roce_accl_cnts[] = {
@@ -100,6 +104,8 @@ static const struct mlx5_ib_counter vport_extended_err_cnts[] = {
 	INIT_VPORT_Q_COUNTER(resp_remote_access_errors),
 	INIT_VPORT_Q_COUNTER(resp_cqe_flush_error),
 	INIT_VPORT_Q_COUNTER(req_cqe_flush_error),
+	INIT_VPORT_Q_COUNTER(req_transport_retries_exceeded),
+	INIT_VPORT_Q_COUNTER(req_rnr_retries_exceeded),
 };
 
 static const struct mlx5_ib_counter vport_roce_accl_cnts[] = {

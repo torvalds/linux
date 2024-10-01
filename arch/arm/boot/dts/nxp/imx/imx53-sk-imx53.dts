@@ -60,6 +60,16 @@
 	status = "okay";
 };
 
+&cpu0 {
+	/* CPU rated to 800 MHz, not the default 1.2GHz. */
+	operating-points = <
+		/* kHz   uV */
+		166666  850000
+		400000  900000
+		800000  1050000
+	>;
+};
+
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;

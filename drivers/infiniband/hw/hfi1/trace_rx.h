@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright(c) 2015 - 2018 Intel Corporation.
  */
@@ -90,7 +90,7 @@ TRACE_EVENT(hfi1_mmu_invalidate,
 	    TP_fast_assign(
 			__entry->ctxt = ctxt;
 			__entry->subctxt = subctxt;
-			__assign_str(type, type);
+			__assign_str(type);
 			__entry->start = start;
 			__entry->end = end;
 	    ),

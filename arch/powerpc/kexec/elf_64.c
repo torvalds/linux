@@ -23,6 +23,7 @@
 #include <linux/of_fdt.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <asm/kexec_ranges.h>
 
 static void *elf64_load(struct kimage *image, char *kernel_buf,
 			unsigned long kernel_len, char *initrd,
@@ -36,6 +37,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	const void *slave_code;
 	struct elfhdr ehdr;
 	char *modified_cmdline = NULL;
+	struct crash_mem *rmem = NULL;
 	struct kexec_elf_info elf_info;
 	struct kexec_buf kbuf = { .image = image, .buf_min = 0,
 				  .buf_max = ppc64_rma_size };
@@ -47,7 +49,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (image->type == KEXEC_TYPE_CRASH) {
+	if (IS_ENABLED(CONFIG_CRASH_DUMP) && image->type == KEXEC_TYPE_CRASH) {
 		/* min & max buffer values for kdump case */
 		kbuf.buf_min = pbuf.buf_min = crashk_res.start;
 		kbuf.buf_max = pbuf.buf_max =
@@ -59,7 +61,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	if (ret)
 		goto out;
 
-	pr_debug("Loaded the kernel at 0x%lx\n", kernel_load_addr);
+	kexec_dprintk("Loaded the kernel at 0x%lx\n", kernel_load_addr);
 
 	ret = kexec_load_purgatory(image, &pbuf);
 	if (ret) {
@@ -67,10 +69,10 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 		goto out;
 	}
 
-	pr_debug("Loaded purgatory at 0x%lx\n", pbuf.mem);
+	kexec_dprintk("Loaded purgatory at 0x%lx\n", pbuf.mem);
 
 	/* Load additional segments needed for panic kernel */
-	if (image->type == KEXEC_TYPE_CRASH) {
+	if (IS_ENABLED(CONFIG_CRASH_DUMP) && image->type == KEXEC_TYPE_CRASH) {
 		ret = load_crashdump_segments_ppc64(image, &kbuf);
 		if (ret) {
 			pr_err("Failed to load kdump kernel segments\n");
@@ -99,24 +101,28 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 			goto out;
 		initrd_load_addr = kbuf.mem;
 
-		pr_debug("Loaded initrd at 0x%lx\n", initrd_load_addr);
+		kexec_dprintk("Loaded initrd at 0x%lx\n", initrd_load_addr);
 	}
+
+	ret = get_reserved_memory_ranges(&rmem);
+	if (ret)
+		goto out;
 
 	fdt = of_kexec_alloc_and_setup_fdt(image, initrd_load_addr,
 					   initrd_len, cmdline,
-					   kexec_extra_fdt_size_ppc64(image));
+					   kexec_extra_fdt_size_ppc64(image, rmem));
 	if (!fdt) {
 		pr_err("Error setting up the new device tree.\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	ret = setup_new_fdt_ppc64(image, fdt, initrd_load_addr,
-				  initrd_len, cmdline);
+	ret = setup_new_fdt_ppc64(image, fdt, rmem);
 	if (ret)
 		goto out_free_fdt;
 
-	fdt_pack(fdt);
+	if (!IS_ENABLED(CONFIG_CRASH_HOTPLUG) || image->type != KEXEC_TYPE_CRASH)
+		fdt_pack(fdt);
 
 	kbuf.buffer = fdt;
 	kbuf.bufsz = kbuf.memsz = fdt_totalsize(fdt);
@@ -132,7 +138,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 
 	fdt_load_addr = kbuf.mem;
 
-	pr_debug("Loaded device tree at 0x%lx\n", fdt_load_addr);
+	kexec_dprintk("Loaded device tree at 0x%lx\n", fdt_load_addr);
 
 	slave_code = elf_info.buffer + elf_info.proghdrs[0].p_offset;
 	ret = setup_purgatory_ppc64(image, slave_code, fdt, kernel_load_addr,
@@ -145,6 +151,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 out_free_fdt:
 	kvfree(fdt);
 out:
+	kfree(rmem);
 	kfree(modified_cmdline);
 	kexec_free_elf_info(&elf_info);
 

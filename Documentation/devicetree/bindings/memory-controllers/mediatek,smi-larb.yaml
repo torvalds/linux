@@ -67,7 +67,7 @@ properties:
     minimum: 0
     maximum: 31
     description: the hardware id of this larb. It's only required when this
-      hardward id is not consecutive from its M4U point of view.
+      hardware id is not consecutive from its M4U point of view.
 
 required:
   - compatible

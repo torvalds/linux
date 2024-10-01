@@ -64,7 +64,7 @@ static int mv88e6xxx_ptp_read(struct mv88e6xxx_chip *chip, int addr,
 #define TX_TSTAMP_TIMEOUT	msecs_to_jiffies(40)
 
 int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
-			  struct ethtool_ts_info *info)
+			  struct kernel_ethtool_ts_info *info)
 {
 	const struct mv88e6xxx_ptp_ops *ptp_ops;
 	struct mv88e6xxx_chip *chip;

@@ -71,19 +71,8 @@ static const char *sticon_startup(void)
     return "STI console";
 }
 
-static void sticon_putc(struct vc_data *conp, int c, int ypos, int xpos)
-{
-    if (vga_is_gfx || console_blanked)
-	    return;
-
-    if (conp->vc_mode != KD_TEXT)
-    	    return;
-
-    sti_putc(sticon_sti, c, ypos, xpos, font_data[conp->vc_num]);
-}
-
-static void sticon_putcs(struct vc_data *conp, const unsigned short *s,
-			 int count, int ypos, int xpos)
+static void sticon_putcs(struct vc_data *conp, const u16 *s, unsigned int count,
+			 unsigned int ypos, unsigned int xpos)
 {
     if (vga_is_gfx || console_blanked)
 	    return;
@@ -97,7 +86,7 @@ static void sticon_putcs(struct vc_data *conp, const unsigned short *s,
     }
 }
 
-static void sticon_cursor(struct vc_data *conp, int mode)
+static void sticon_cursor(struct vc_data *conp, bool enable)
 {
     unsigned short car1;
 
@@ -106,23 +95,20 @@ static void sticon_cursor(struct vc_data *conp, int mode)
 	return;
 
     car1 = conp->vc_screenbuf[conp->state.x + conp->state.y * conp->vc_cols];
-    switch (mode) {
-    case CM_ERASE:
+    if (!enable) {
 	sti_putc(sticon_sti, car1, conp->state.y, conp->state.x,
 		 font_data[conp->vc_num]);
-	break;
-    case CM_MOVE:
-    case CM_DRAW:
-	switch (CUR_SIZE(conp->vc_cursor_type)) {
-	case CUR_UNDERLINE:
-	case CUR_LOWER_THIRD:
-	case CUR_LOWER_HALF:
-	case CUR_TWO_THIRDS:
-	case CUR_BLOCK:
-	    sti_putc(sticon_sti, (car1 & 255) + (0 << 8) + (7 << 11),
-		     conp->state.y, conp->state.x, font_data[conp->vc_num]);
-	    break;
-	}
+	return;
+    }
+
+    switch (CUR_SIZE(conp->vc_cursor_type)) {
+    case CUR_UNDERLINE:
+    case CUR_LOWER_THIRD:
+    case CUR_LOWER_HALF:
+    case CUR_TWO_THIRDS:
+    case CUR_BLOCK:
+	sti_putc(sticon_sti, (car1 & 255) + (0 << 8) + (7 << 11),
+		 conp->state.y, conp->state.x, font_data[conp->vc_num]);
 	break;
     }
 }
@@ -135,7 +121,7 @@ static bool sticon_scroll(struct vc_data *conp, unsigned int t,
     if (vga_is_gfx)
         return false;
 
-    sticon_cursor(conp, CM_ERASE);
+    sticon_cursor(conp, false);
 
     switch (dir) {
     case SM_UP:
@@ -156,7 +142,7 @@ static bool sticon_scroll(struct vc_data *conp, unsigned int t,
     return false;
 }
 
-static int sticon_set_def_font(int unit, struct console_font *op)
+static void sticon_set_def_font(int unit)
 {
 	if (font_data[unit] != STI_DEF_FONT) {
 		if (--FNTREFCOUNT(font_data[unit]) == 0) {
@@ -165,11 +151,9 @@ static int sticon_set_def_font(int unit, struct console_font *op)
 		}
 		font_data[unit] = STI_DEF_FONT;
 	}
-
-	return 0;
 }
 
-static int sticon_set_font(struct vc_data *vc, struct console_font *op,
+static int sticon_set_font(struct vc_data *vc, const struct console_font *op,
 			   unsigned int vpitch)
 {
 	struct sti_struct *sti = sticon_sti;
@@ -246,7 +230,7 @@ static int sticon_set_font(struct vc_data *vc, struct console_font *op,
 		  vc->vc_video_erase_char, font_data[vc->vc_num]);
 
 	/* delete old font in case it is a user font */
-	sticon_set_def_font(unit, NULL);
+	sticon_set_def_font(unit);
 
 	FNTREFCOUNT(cooked_font)++;
 	font_data[unit] = cooked_font;
@@ -262,18 +246,21 @@ static int sticon_set_font(struct vc_data *vc, struct console_font *op,
 	return 0;
 }
 
-static int sticon_font_default(struct vc_data *vc, struct console_font *op, char *name)
+static int sticon_font_default(struct vc_data *vc, struct console_font *op,
+			       const char *name)
 {
-	return sticon_set_def_font(vc->vc_num, op);
+	sticon_set_def_font(vc->vc_num);
+
+	return 0;
 }
 
-static int sticon_font_set(struct vc_data *vc, struct console_font *font,
+static int sticon_font_set(struct vc_data *vc, const struct console_font *font,
 			   unsigned int vpitch, unsigned int flags)
 {
 	return sticon_set_font(vc, font, vpitch);
 }
 
-static void sticon_init(struct vc_data *c, int init)
+static void sticon_init(struct vc_data *c, bool init)
 {
     struct sti_struct *sti = sticon_sti;
     int vc_cols, vc_rows;
@@ -297,36 +284,35 @@ static void sticon_deinit(struct vc_data *c)
 
     /* free memory used by user font */
     for (i = 0; i < MAX_NR_CONSOLES; i++)
-	sticon_set_def_font(i, NULL);
+	sticon_set_def_font(i);
 }
 
-static void sticon_clear(struct vc_data *conp, int sy, int sx, int height,
-			 int width)
+static void sticon_clear(struct vc_data *conp, unsigned int sy, unsigned int sx,
+			 unsigned int width)
 {
-    if (!height || !width)
-	return;
-
-    sti_clear(sticon_sti, sy, sx, height, width,
+    sti_clear(sticon_sti, sy, sx, 1, width,
 	      conp->vc_video_erase_char, font_data[conp->vc_num]);
 }
 
-static int sticon_switch(struct vc_data *conp)
+static bool sticon_switch(struct vc_data *conp)
 {
-    return 1;	/* needs refreshing */
+    return true;	/* needs refreshing */
 }
 
-static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
+static bool sticon_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			 bool mode_switch)
 {
-    if (blank == 0) {
+    if (blank == VESA_NO_BLANKING) {
 	if (mode_switch)
 	    vga_is_gfx = 0;
-	return 1;
+	return true;
     }
     sti_clear(sticon_sti, 0, 0, c->vc_rows, c->vc_cols, BLANK,
 	      font_data[c->vc_num]);
     if (mode_switch)
 	vga_is_gfx = 1;
-    return 1;
+
+    return true;
 }
 
 static u8 sticon_build_attr(struct vc_data *conp, u8 color,
@@ -365,7 +351,6 @@ static const struct consw sti_con = {
 	.con_init		= sticon_init,
 	.con_deinit		= sticon_deinit,
 	.con_clear		= sticon_clear,
-	.con_putc		= sticon_putc,
 	.con_putcs		= sticon_putcs,
 	.con_cursor		= sticon_cursor,
 	.con_scroll		= sticon_scroll,
@@ -406,4 +391,5 @@ static int __init sticonsole_init(void)
 }
 
 module_init(sticonsole_init);
+MODULE_DESCRIPTION("HP STI console driver");
 MODULE_LICENSE("GPL");

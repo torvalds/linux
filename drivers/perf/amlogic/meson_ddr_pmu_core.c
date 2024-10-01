@@ -9,8 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
@@ -494,6 +492,7 @@ int meson_ddr_pmu_create(struct platform_device *pdev)
 	*pmu = (struct ddr_pmu) {
 		.pmu = {
 			.module		= THIS_MODULE,
+			.parent		= &pdev->dev,
 			.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 			.task_ctx_nr	= perf_invalid_context,
 			.attr_groups	= attr_groups,

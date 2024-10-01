@@ -9,11 +9,11 @@
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/firmware/xlnx-zynqmp.h>
-#include <linux/of_device.h>
 
 #define ZYNQMP_NR_RESETS (ZYNQMP_PM_RESET_END - ZYNQMP_PM_RESET_START)
 #define ZYNQMP_RESET_ID ZYNQMP_PM_RESET_START
 #define VERSAL_NR_RESETS	95
+#define VERSAL_NET_NR_RESETS	176
 
 struct zynqmp_reset_soc_data {
 	u32 reset_id;
@@ -88,6 +88,11 @@ static const struct zynqmp_reset_soc_data versal_reset_data = {
 	.num_resets = VERSAL_NR_RESETS,
 };
 
+static const struct zynqmp_reset_soc_data versal_net_reset_data = {
+	.reset_id = 0,
+	.num_resets = VERSAL_NET_NR_RESETS,
+};
+
 static const struct reset_control_ops zynqmp_reset_ops = {
 	.reset = zynqmp_reset_reset,
 	.assert = zynqmp_reset_assert,
@@ -107,8 +112,6 @@ static int zynqmp_reset_probe(struct platform_device *pdev)
 	if (!priv->data)
 		return -EINVAL;
 
-	platform_set_drvdata(pdev, priv);
-
 	priv->rcdev.ops = &zynqmp_reset_ops;
 	priv->rcdev.owner = THIS_MODULE;
 	priv->rcdev.of_node = pdev->dev.of_node;
@@ -122,6 +125,7 @@ static int zynqmp_reset_probe(struct platform_device *pdev)
 static const struct of_device_id zynqmp_reset_dt_ids[] = {
 	{ .compatible = "xlnx,zynqmp-reset", .data = &zynqmp_reset_data, },
 	{ .compatible = "xlnx,versal-reset", .data = &versal_reset_data, },
+	{ .compatible = "xlnx,versal-net-reset", .data = &versal_net_reset_data, },
 	{ /* sentinel */ },
 };
 

@@ -13,7 +13,7 @@
 #include <linux/ipack.h>
 
 #define to_ipack_dev(device) container_of(device, struct ipack_device, dev)
-#define to_ipack_driver(drv) container_of(drv, struct ipack_driver, driver)
+#define to_ipack_driver(drv) container_of_const(drv, struct ipack_driver, driver)
 
 static DEFINE_IDA(ipack_ida);
 
@@ -49,10 +49,10 @@ ipack_match_id(const struct ipack_device_id *ids, struct ipack_device *idev)
 	return NULL;
 }
 
-static int ipack_bus_match(struct device *dev, struct device_driver *drv)
+static int ipack_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct ipack_device *idev = to_ipack_dev(dev);
-	struct ipack_driver *idrv = to_ipack_driver(drv);
+	const struct ipack_driver *idrv = to_ipack_driver(drv);
 	const struct ipack_device_id *found_id;
 
 	found_id = ipack_match_id(idrv->id_table, idev);
@@ -187,7 +187,7 @@ static struct attribute *ipack_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ipack);
 
-static struct bus_type ipack_bus_type = {
+static const struct bus_type ipack_bus_type = {
 	.name      = "ipack",
 	.probe     = ipack_bus_probe,
 	.match     = ipack_bus_match,
@@ -207,7 +207,7 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 	if (!bus)
 		return NULL;
 
-	bus_nr = ida_simple_get(&ipack_ida, 0, 0, GFP_KERNEL);
+	bus_nr = ida_alloc(&ipack_ida, GFP_KERNEL);
 	if (bus_nr < 0) {
 		kfree(bus);
 		return NULL;
@@ -237,7 +237,7 @@ int ipack_bus_unregister(struct ipack_bus_device *bus)
 {
 	bus_for_each_dev(&ipack_bus_type, NULL, bus,
 		ipack_unregister_bus_member);
-	ida_simple_remove(&ipack_ida, bus->bus_nr);
+	ida_free(&ipack_ida, bus->bus_nr);
 	kfree(bus);
 	return 0;
 }

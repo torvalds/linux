@@ -1,0 +1,81 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+set -eu
+
+destdir=${1}
+
+is_enabled() {
+	grep -q "^$1=y" include/config/auto.conf
+}
+
+find_in_scripts() {
+	find scripts \
+		\( -name atomic -o -name dtc -o -name kconfig -o -name package \) -prune -o \
+		! -name unifdef -a ! -name mk_elfconfig -a \( -type f -o -type l \) -print
+}
+
+mkdir -p "${destdir}"
+
+(
+	cd "${srctree}"
+	echo Makefile
+	find "arch/${SRCARCH}" -maxdepth 1 -name 'Makefile*'
+	find "arch/${SRCARCH}" -name generated -prune -o -name include -type d -print
+	find "arch/${SRCARCH}" -name Kbuild.platforms -o -name Platform
+	find include \( -name config -o -name generated \) -prune -o \( -type f -o -type l \) -print
+	find_in_scripts
+) | tar -c -f - -C "${srctree}" -T - | tar -xf - -C "${destdir}"
+
+{
+	if is_enabled CONFIG_OBJTOOL; then
+		echo tools/objtool/objtool
+	fi
+
+	echo Module.symvers
+	echo "arch/${SRCARCH}/include/generated"
+	echo include/config/auto.conf
+	echo include/config/kernel.release
+	echo include/generated
+	find_in_scripts
+
+	if is_enabled CONFIG_GCC_PLUGINS; then
+		find scripts/gcc-plugins -name '*.so'
+	fi
+} | tar -c -f - -T - | tar -xf - -C "${destdir}"
+
+# When ${CC} and ${HOSTCC} differ, we are likely cross-compiling. Rebuild host
+# programs using ${CC}. This assumes CC=${CROSS_COMPILE}gcc, which is usually
+# the case for package building. It does not cross-compile when CC=clang.
+#
+# This caters to host programs that participate in Kbuild. objtool and
+# resolve_btfids are out of scope.
+if [ "${CC}" != "${HOSTCC}" ] && is_enabled CONFIG_CC_CAN_LINK; then
+	echo "Rebuilding host programs with ${CC}..."
+
+	cat <<-'EOF' >  "${destdir}/Kbuild"
+	subdir-y := scripts
+	EOF
+
+	# HOSTCXX is not overridden. The C++ compiler is used to build:
+	# - scripts/kconfig/qconf, which is unneeded for external module builds
+	# - GCC plugins, which will not work on the installed system even after
+	#   being rebuilt.
+	#
+	# Use the single-target build to avoid the modpost invocation, which
+	# would overwrite Module.symvers.
+	"${MAKE}" HOSTCC="${CC}" KBUILD_EXTMOD="${destdir}" scripts/
+
+	cat <<-'EOF' >  "${destdir}/scripts/Kbuild"
+	subdir-y := basic
+	hostprogs-always-y := mod/modpost
+	mod/modpost-objs := $(addprefix mod/, modpost.o file2alias.o sumversion.o symsearch.o)
+	EOF
+
+	# Run once again to rebuild scripts/basic/ and scripts/mod/modpost.
+	"${MAKE}" HOSTCC="${CC}" KBUILD_EXTMOD="${destdir}" scripts/
+
+	rm -f "${destdir}/Kbuild" "${destdir}/scripts/Kbuild"
+fi
+
+find "${destdir}" \( -name '.*.cmd' -o -name '*.o' \) -delete

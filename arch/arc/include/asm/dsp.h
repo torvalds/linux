@@ -12,7 +12,7 @@
 /*
  * DSP-related saved registers - need to be saved only when you are
  * scheduled out.
- * structure fields name must correspond to aux register defenitions for
+ * structure fields name must correspond to aux register definitions for
  * automatic offset calculation in DSP_AUX_SAVE_RESTORE macros
  */
 struct dsp_callee_regs {

@@ -124,6 +124,17 @@ struct hv_per_cpu_context {
 	void *synic_event_page;
 
 	/*
+	 * The page is only used in hv_post_message() for a TDX VM (with the
+	 * paravisor) to post a messages to Hyper-V: when such a VM calls
+	 * HVCALL_POST_MESSAGE, it can't use the hyperv_pcpu_input_arg (which
+	 * is encrypted in such a VM) as the hypercall input page, because
+	 * the input page for HVCALL_POST_MESSAGE must be decrypted in such a
+	 * VM, so post_msg_page (which is decrypted in hv_synic_alloc()) is
+	 * introduced for this purpose. See hyperv_init() for more comments.
+	 */
+	void *post_msg_page;
+
+	/*
 	 * Starting with win8, we can take channel interrupts on any CPU;
 	 * we will manage the tasklet that handles events messages on a per CPU
 	 * basis.
@@ -369,12 +380,6 @@ void hv_vss_deinit(void);
 int hv_vss_pre_suspend(void);
 int hv_vss_pre_resume(void);
 void hv_vss_onchannelcallback(void *context);
-
-int hv_fcopy_init(struct hv_util_service *srv);
-void hv_fcopy_deinit(void);
-int hv_fcopy_pre_suspend(void);
-int hv_fcopy_pre_resume(void);
-void hv_fcopy_onchannelcallback(void *context);
 void vmbus_initiate_unload(bool crash);
 
 static inline void hv_poll_channel(struct vmbus_channel *channel,
@@ -404,6 +409,11 @@ extern const struct vmbus_device vmbus_devs[];
 static inline bool hv_is_perf_channel(struct vmbus_channel *channel)
 {
 	return vmbus_devs[channel->device_id].perf_device;
+}
+
+static inline size_t hv_dev_ring_size(struct vmbus_channel *channel)
+{
+	return vmbus_devs[channel->device_id].pref_ring_size;
 }
 
 static inline bool hv_is_allocated_cpu(unsigned int cpu)

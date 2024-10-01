@@ -167,6 +167,15 @@ config BATTERY_LEGO_EV3
 	help
 	  Say Y here to enable support for the LEGO MINDSTORMS EV3 battery.
 
+config BATTERY_LENOVO_YOGA_C630
+	tristate "Lenovo Yoga C630 battery"
+	depends on EC_LENOVO_YOGA_C630
+	help
+	  This driver enables battery support on the Lenovo Yoga C630 laptop.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called lenovo_yoga_c630_battery.
+
 config BATTERY_PMU
 	tristate "Apple PMU battery"
 	depends on PPC32 && ADB_PMU
@@ -374,7 +383,7 @@ config AXP288_FUEL_GAUGE
 
 config BATTERY_MAX17040
 	tristate "Maxim MAX17040/17041/17043 family Fuel Gauge"
-	depends on I2C
+	depends on I2C && IIO
 	select REGMAP_I2C
 	help
 	  Driver supports Maxim fuel-gauge systems for lithium-ion (Li+)
@@ -401,6 +410,18 @@ config BATTERY_MAX17042
 	  max17055, max77693, max77849.
 
 	  Driver can be build as a module (max17042_battery).
+
+config BATTERY_MAX1720X
+	tristate "Maxim MAX17201/MAX17205 Fuel Gauge"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  MAX1720x is a family of fuel-gauge systems for lithium-ion (Li+)
+	  batteries in handheld and portable equipment. MAX17201 are
+	  configured to operate with a single lithium cell, the MAX17205
+	  can operate with multiple cells.
+
+	  Say Y to include support for the MAX17201/MAX17205 Fuel Gauges.
 
 config BATTERY_MAX1721X
 	tristate "MAX17211/MAX17215 standalone gas-gauge"
@@ -629,6 +650,29 @@ config CHARGER_QCOM_SMBB
 	  documentation for more detail.  The base name for this driver is
 	  'pm8941_charger'.
 
+config BATTERY_PM8916_BMS_VM
+	tristate "Qualcomm PM8916 BMS-VM support"
+	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	help
+	  Say Y to add support for Voltage Mode BMS block found in some
+	  Qualcomm PMICs such as PM8916. This hardware block provides
+	  battery voltage monitoring for the system.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called pm8916_bms_vm.
+
+config CHARGER_PM8916_LBC
+	tristate "Qualcomm PM8916 Linear Battery Charger support"
+	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	depends on EXTCON || !EXTCON
+	help
+	  Say Y here to add support for Linear Battery Charger block
+	  found in some Qualcomm PMICs such as PM8916. This hardware
+	  blokc provides simple CC/CV battery charger.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called pm8916_lbc.
+
 config CHARGER_BQ2415X
 	tristate "TI BQ2415x battery charger driver"
 	depends on I2C
@@ -769,6 +813,7 @@ config BATTERY_RT5033
 config CHARGER_RT5033
 	tristate "RT5033 battery charger support"
 	depends on MFD_RT5033
+	depends on EXTCON || !EXTCON
 	help
 	  This adds support for battery charger in Richtek RT5033 PMIC.
 	  The device supports pre-charge mode, fast charge mode and
@@ -835,6 +880,18 @@ config CHARGER_CROS_PCHG
 	  This driver gets various information about the devices connected to
 	  the peripheral charge ports from the EC and converts that into
 	  power_supply properties.
+
+config CHARGER_CROS_CONTROL
+	tristate "ChromeOS EC based charge control"
+	depends on MFD_CROS_EC_DEV
+	depends on ACPI_BATTERY
+	default MFD_CROS_EC_DEV
+	help
+	  Say Y here to enable ChromeOS EC based battery charge control.
+	  This driver can manage charge thresholds and behaviour.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cros_charge-control.
 
 config CHARGER_SC2731
 	tristate "Spreadtrum SC2731 charger driver"
@@ -950,5 +1007,15 @@ config CHARGER_QCOM_SMB2
 	  Say Y here to enable the Qualcomm PMIC Charger driver. This
 	  adds support for the SMB2 switch mode battery charger found
 	  in PMI8998 and related PMICs.
+
+config FUEL_GAUGE_MM8013
+	tristate "Mitsumi MM8013 fuel gauge driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable the Mitsumi MM8013 fuel gauge driver.
+	  It enables the monitoring of many battery parameters, including
+	  the state of charge, temperature, cycle count, actual and design
+	  capacity, etc.
 
 endif # POWER_SUPPLY

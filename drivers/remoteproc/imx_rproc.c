@@ -13,11 +13,12 @@
 #include <linux/mailbox_client.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
 #include <linux/workqueue.h>
@@ -39,6 +40,12 @@
 					 | IMX7D_SW_M4C_RST)
 #define IMX7D_M4_STOP			(IMX7D_ENABLE_M4 | IMX7D_SW_M4C_RST | \
 					 IMX7D_SW_M4C_NON_SCLR_RST)
+
+#define IMX8M_M7_STOP			(IMX7D_ENABLE_M4 | IMX7D_SW_M4C_RST)
+#define IMX8M_M7_POLL			IMX7D_ENABLE_M4
+
+#define IMX8M_GPR22			0x58
+#define IMX8M_GPR22_CM7_CPUWAIT		BIT(0)
 
 /* Address: 0x020D8000 */
 #define IMX6SX_SRC_SCR			0x00
@@ -84,13 +91,13 @@ struct imx_rproc_mem {
 #define ATT_CORE_MASK   0xffff
 #define ATT_CORE(I)     BIT((I))
 
-static int imx_rproc_xtr_mbox_init(struct rproc *rproc);
+static int imx_rproc_xtr_mbox_init(struct rproc *rproc, bool tx_block);
 static void imx_rproc_free_mbox(struct rproc *rproc);
-static int imx_rproc_detach_pd(struct rproc *rproc);
 
 struct imx_rproc {
 	struct device			*dev;
 	struct regmap			*regmap;
+	struct regmap			*gpr;
 	struct rproc			*rproc;
 	const struct imx_rproc_dcfg	*dcfg;
 	struct imx_rproc_mem		mem[IMX_RPROC_MEM_MAX];
@@ -106,29 +113,23 @@ struct imx_rproc {
 	u32				rproc_pt;	/* partition id */
 	u32				rsrc_id;	/* resource id */
 	u32				entry;		/* cpu start address */
-	int                             num_pd;
 	u32				core_index;
-	struct device                   **pd_dev;
-	struct device_link              **pd_dev_link;
+	struct dev_pm_domain_list	*pd_list;
 };
 
 static const struct imx_rproc_att imx_rproc_att_imx93[] = {
 	/* dev addr , sys addr  , size	    , flags */
 	/* TCM CODE NON-SECURE */
-	{ 0x0FFC0000, 0x201C0000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x0FFE0000, 0x201E0000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x0FFC0000, 0x201C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* TCM CODE SECURE */
-	{ 0x1FFC0000, 0x201C0000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x1FFE0000, 0x201E0000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x1FFC0000, 0x201C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* TCM SYS NON-SECURE*/
-	{ 0x20000000, 0x20200000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x20020000, 0x20220000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x20000000, 0x20200000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* TCM SYS SECURE*/
-	{ 0x30000000, 0x20200000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x30020000, 0x20220000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x30000000, 0x20200000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* DDR */
 	{ 0x80000000, 0x80000000, 0x10000000, 0 },
@@ -206,11 +207,9 @@ static const struct imx_rproc_att imx_rproc_att_imx8mq[] = {
 	/* QSPI Code - alias */
 	{ 0x08000000, 0x08000000, 0x08000000, 0 },
 	/* DDR (Code) - alias */
-	{ 0x10000000, 0x80000000, 0x0FFE0000, 0 },
-	/* TCML */
-	{ 0x1FFE0000, 0x007E0000, 0x00020000, ATT_OWN  | ATT_IOMEM},
-	/* TCMU */
-	{ 0x20000000, 0x00800000, 0x00020000, ATT_OWN  | ATT_IOMEM},
+	{ 0x10000000, 0x40000000, 0x0FFE0000, 0 },
+	/* TCML/U */
+	{ 0x1FFE0000, 0x007E0000, 0x00040000, ATT_OWN  | ATT_IOMEM},
 	/* OCRAM_S */
 	{ 0x20180000, 0x00180000, 0x00008000, ATT_OWN },
 	/* OCRAM */
@@ -285,6 +284,18 @@ static const struct imx_rproc_att imx_rproc_att_imx6sx[] = {
 	{ 0x80000000, 0x80000000, 0x60000000, 0 },
 };
 
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn_mmio = {
+	.src_reg	= IMX7D_SRC_SCR,
+	.src_mask	= IMX7D_M4_RST_MASK,
+	.src_start	= IMX7D_M4_START,
+	.src_stop	= IMX8M_M7_STOP,
+	.gpr_reg	= IMX8M_GPR22,
+	.gpr_wait	= IMX8M_GPR22_CM7_CPUWAIT,
+	.att		= imx_rproc_att_imx8mn,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
+	.method		= IMX_RPROC_MMIO,
+};
+
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn = {
 	.att		= imx_rproc_att_imx8mn,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
@@ -323,6 +334,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx7ulp = {
 	.att		= imx_rproc_att_imx7ulp,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7ulp),
 	.method		= IMX_RPROC_NONE,
+	.flags		= IMX_RPROC_NEED_SYSTEM_OFF,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx7d = {
@@ -359,14 +371,20 @@ static int imx_rproc_start(struct rproc *rproc)
 	struct arm_smccc_res res;
 	int ret;
 
-	ret = imx_rproc_xtr_mbox_init(rproc);
+	ret = imx_rproc_xtr_mbox_init(rproc, true);
 	if (ret)
 		return ret;
 
 	switch (dcfg->method) {
 	case IMX_RPROC_MMIO:
-		ret = regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask,
-					 dcfg->src_start);
+		if (priv->gpr) {
+			ret = regmap_clear_bits(priv->gpr, dcfg->gpr_reg,
+						dcfg->gpr_wait);
+		} else {
+			ret = regmap_update_bits(priv->regmap, dcfg->src_reg,
+						 dcfg->src_mask,
+						 dcfg->src_start);
+		}
 		break;
 	case IMX_RPROC_SMC:
 		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, 0, 0, 0, 0, 0, 0, &res);
@@ -395,6 +413,16 @@ static int imx_rproc_stop(struct rproc *rproc)
 
 	switch (dcfg->method) {
 	case IMX_RPROC_MMIO:
+		if (priv->gpr) {
+			ret = regmap_set_bits(priv->gpr, dcfg->gpr_reg,
+					      dcfg->gpr_wait);
+			if (ret) {
+				dev_err(priv->dev,
+					"Failed to quiescence M4 platform!\n");
+				return ret;
+			}
+		}
+
 		ret = regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask,
 					 dcfg->src_stop);
 		break;
@@ -603,7 +631,7 @@ static void imx_rproc_kick(struct rproc *rproc, int vqid)
 
 static int imx_rproc_attach(struct rproc *rproc)
 {
-	return imx_rproc_xtr_mbox_init(rproc);
+	return imx_rproc_xtr_mbox_init(rproc, true);
 }
 
 static int imx_rproc_detach(struct rproc *rproc)
@@ -634,6 +662,17 @@ static struct resource_table *imx_rproc_get_loaded_rsc_table(struct rproc *rproc
 	return (struct resource_table *)priv->rsc_table;
 }
 
+static struct resource_table *
+imx_rproc_elf_find_loaded_rsc_table(struct rproc *rproc, const struct firmware *fw)
+{
+	struct imx_rproc *priv = rproc->priv;
+
+	if (priv->rsc_table)
+		return (struct resource_table *)priv->rsc_table;
+
+	return rproc_elf_find_loaded_rsc_table(rproc, fw);
+}
+
 static const struct rproc_ops imx_rproc_ops = {
 	.prepare	= imx_rproc_prepare,
 	.attach		= imx_rproc_attach,
@@ -644,7 +683,7 @@ static const struct rproc_ops imx_rproc_ops = {
 	.da_to_va       = imx_rproc_da_to_va,
 	.load		= rproc_elf_load_segments,
 	.parse_fw	= imx_rproc_parse_fw,
-	.find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table,
+	.find_loaded_rsc_table = imx_rproc_elf_find_loaded_rsc_table,
 	.get_loaded_rsc_table = imx_rproc_get_loaded_rsc_table,
 	.sanity_check	= rproc_elf_sanity_check,
 	.get_boot_addr	= rproc_elf_get_boot_addr,
@@ -694,33 +733,48 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 		struct resource res;
 
 		node = of_parse_phandle(np, "memory-region", a);
+		if (!node)
+			continue;
 		/* Not map vdevbuffer, vdevring region */
 		if (!strncmp(node->name, "vdev", strlen("vdev"))) {
 			of_node_put(node);
 			continue;
 		}
 		err = of_address_to_resource(node, 0, &res);
-		of_node_put(node);
 		if (err) {
 			dev_err(dev, "unable to resolve memory region\n");
+			of_node_put(node);
 			return err;
 		}
 
-		if (b >= IMX_RPROC_MEM_MAX)
+		if (b >= IMX_RPROC_MEM_MAX) {
+			of_node_put(node);
 			break;
+		}
 
 		/* Not use resource version, because we might share region */
 		priv->mem[b].cpu_addr = devm_ioremap_wc(&pdev->dev, res.start, resource_size(&res));
 		if (!priv->mem[b].cpu_addr) {
 			dev_err(dev, "failed to remap %pr\n", &res);
+			of_node_put(node);
 			return -ENOMEM;
 		}
 		priv->mem[b].sys_addr = res.start;
 		priv->mem[b].size = resource_size(&res);
 		if (!strcmp(node->name, "rsc-table"))
 			priv->rsc_table = priv->mem[b].cpu_addr;
+		of_node_put(node);
 		b++;
 	}
+
+	return 0;
+}
+
+static int imx_rproc_notified_idr_cb(int id, void *ptr, void *data)
+{
+	struct rproc *rproc = data;
+
+	rproc_vq_interrupt(rproc, id);
 
 	return 0;
 }
@@ -729,9 +783,9 @@ static void imx_rproc_vq_work(struct work_struct *work)
 {
 	struct imx_rproc *priv = container_of(work, struct imx_rproc,
 					      rproc_work);
+	struct rproc *rproc = priv->rproc;
 
-	rproc_vq_interrupt(priv->rproc, 0);
-	rproc_vq_interrupt(priv->rproc, 1);
+	idr_for_each(&rproc->notifyids, imx_rproc_notified_idr_cb, rproc);
 }
 
 static void imx_rproc_rx_callback(struct mbox_client *cl, void *msg)
@@ -742,7 +796,7 @@ static void imx_rproc_rx_callback(struct mbox_client *cl, void *msg)
 	queue_work(priv->workqueue, &priv->rproc_work);
 }
 
-static int imx_rproc_xtr_mbox_init(struct rproc *rproc)
+static int imx_rproc_xtr_mbox_init(struct rproc *rproc, bool tx_block)
 {
 	struct imx_rproc *priv = rproc->priv;
 	struct device *dev = priv->dev;
@@ -760,12 +814,12 @@ static int imx_rproc_xtr_mbox_init(struct rproc *rproc)
 	if (priv->tx_ch && priv->rx_ch)
 		return 0;
 
-	if (!of_get_property(dev->of_node, "mbox-names", NULL))
+	if (!of_property_present(dev->of_node, "mbox-names"))
 		return 0;
 
 	cl = &priv->cl;
 	cl->dev = dev;
-	cl->tx_block = true;
+	cl->tx_block = tx_block;
 	cl->tx_tout = 100;
 	cl->knows_txdone = false;
 	cl->rx_callback = imx_rproc_rx_callback;
@@ -809,7 +863,7 @@ static void imx_rproc_put_scu(struct rproc *rproc)
 		return;
 
 	if (imx_sc_rm_is_resource_owned(priv->ipc_handle, priv->rsrc_id)) {
-		imx_rproc_detach_pd(rproc);
+		dev_pm_domain_detach_list(priv->pd_list);
 		return;
 	}
 
@@ -836,72 +890,20 @@ static int imx_rproc_partition_notify(struct notifier_block *nb,
 static int imx_rproc_attach_pd(struct imx_rproc *priv)
 {
 	struct device *dev = priv->dev;
-	int ret, i;
+	int ret;
+	struct dev_pm_domain_attach_data pd_data = {
+		.pd_flags = PD_FLAG_DEV_LINK_ON,
+	};
 
 	/*
 	 * If there is only one power-domain entry, the platform driver framework
 	 * will handle it, no need handle it in this driver.
 	 */
-	priv->num_pd = of_count_phandle_with_args(dev->of_node, "power-domains",
-						  "#power-domain-cells");
-	if (priv->num_pd <= 1)
+	if (dev->pm_domain)
 		return 0;
 
-	priv->pd_dev = devm_kmalloc_array(dev, priv->num_pd, sizeof(*priv->pd_dev), GFP_KERNEL);
-	if (!priv->pd_dev)
-		return -ENOMEM;
-
-	priv->pd_dev_link = devm_kmalloc_array(dev, priv->num_pd, sizeof(*priv->pd_dev_link),
-					       GFP_KERNEL);
-
-	if (!priv->pd_dev_link)
-		return -ENOMEM;
-
-	for (i = 0; i < priv->num_pd; i++) {
-		priv->pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
-		if (IS_ERR(priv->pd_dev[i])) {
-			ret = PTR_ERR(priv->pd_dev[i]);
-			goto detach_pd;
-		}
-
-		priv->pd_dev_link[i] = device_link_add(dev, priv->pd_dev[i], DL_FLAG_STATELESS |
-						       DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE);
-		if (!priv->pd_dev_link[i]) {
-			dev_pm_domain_detach(priv->pd_dev[i], false);
-			ret = -EINVAL;
-			goto detach_pd;
-		}
-	}
-
-	return 0;
-
-detach_pd:
-	while (--i >= 0) {
-		device_link_del(priv->pd_dev_link[i]);
-		dev_pm_domain_detach(priv->pd_dev[i], false);
-	}
-
-	return ret;
-}
-
-static int imx_rproc_detach_pd(struct rproc *rproc)
-{
-	struct imx_rproc *priv = rproc->priv;
-	int i;
-
-	/*
-	 * If there is only one power-domain entry, the platform driver framework
-	 * will handle it, no need handle it in this driver.
-	 */
-	if (priv->num_pd <= 1)
-		return 0;
-
-	for (i = 0; i < priv->num_pd; i++) {
-		device_link_del(priv->pd_dev_link[i]);
-		dev_pm_domain_detach(priv->pd_dev[i], false);
-	}
-
-	return 0;
+	ret = dev_pm_domain_attach_list(dev, &pd_data, &priv->pd_list);
+	return ret < 0 ? ret : 0;
 }
 
 static int imx_rproc_detect_mode(struct imx_rproc *priv)
@@ -983,6 +985,10 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		break;
 	}
 
+	priv->gpr = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,iomuxc-gpr");
+	if (IS_ERR(priv->gpr))
+		priv->gpr = NULL;
+
 	regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to find syscon\n");
@@ -991,6 +997,19 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 
 	priv->regmap = regmap;
 	regmap_attach_dev(dev, regmap, &config);
+
+	if (priv->gpr) {
+		ret = regmap_read(priv->gpr, dcfg->gpr_reg, &val);
+		if (val & dcfg->gpr_wait) {
+			/*
+			 * After cold boot, the CM indicates its in wait
+			 * state, but not fully powered off. Power it off
+			 * fully so firmware can be loaded into it.
+			 */
+			imx_rproc_stop(priv->rproc);
+			return 0;
+		}
+	}
 
 	ret = regmap_read(regmap, dcfg->src_reg, &val);
 	if (ret) {
@@ -1033,6 +1052,22 @@ static int imx_rproc_clk_enable(struct imx_rproc *priv)
 	return 0;
 }
 
+static int imx_rproc_sys_off_handler(struct sys_off_data *data)
+{
+	struct rproc *rproc = data->cb_data;
+	int ret;
+
+	imx_rproc_free_mbox(rproc);
+
+	ret = imx_rproc_xtr_mbox_init(rproc, false);
+	if (ret) {
+		dev_err(&rproc->dev, "Failed to request non-blocking mbox\n");
+		return NOTIFY_BAD;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int imx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1043,16 +1078,14 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	int ret;
 
 	/* set some other name then imx */
-	rproc = rproc_alloc(dev, "imx-rproc", &imx_rproc_ops,
-			    NULL, sizeof(*priv));
+	rproc = devm_rproc_alloc(dev, "imx-rproc", &imx_rproc_ops,
+				 NULL, sizeof(*priv));
 	if (!rproc)
 		return -ENOMEM;
 
 	dcfg = of_device_get_match_data(dev);
-	if (!dcfg) {
-		ret = -EINVAL;
-		goto err_put_rproc;
-	}
+	if (!dcfg)
+		return -EINVAL;
 
 	priv = rproc->priv;
 	priv->rproc = rproc;
@@ -1063,11 +1096,12 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	priv->workqueue = create_workqueue(dev_name(dev));
 	if (!priv->workqueue) {
 		dev_err(dev, "cannot create workqueue\n");
-		ret = -ENOMEM;
-		goto err_put_rproc;
+		return -ENOMEM;
 	}
 
-	ret = imx_rproc_xtr_mbox_init(rproc);
+	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
+
+	ret = imx_rproc_xtr_mbox_init(rproc, true);
 	if (ret)
 		goto err_put_wkq;
 
@@ -1085,10 +1119,32 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put_scu;
 
-	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
-
 	if (rproc->state != RPROC_DETACHED)
 		rproc->auto_boot = of_property_read_bool(np, "fsl,auto-boot");
+
+	if (dcfg->flags & IMX_RPROC_NEED_SYSTEM_OFF) {
+		/*
+		 * setup mailbox to non-blocking mode in
+		 * [SYS_OFF_MODE_POWER_OFF_PREPARE, SYS_OFF_MODE_RESTART_PREPARE]
+		 * phase before invoking [SYS_OFF_MODE_POWER_OFF, SYS_OFF_MODE_RESTART]
+		 * atomic chain, see kernel/reboot.c.
+		 */
+		ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_POWER_OFF_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    imx_rproc_sys_off_handler, rproc);
+		if (ret) {
+			dev_err(dev, "register power off handler failure\n");
+			goto err_put_clk;
+		}
+
+		ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_RESTART_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    imx_rproc_sys_off_handler, rproc);
+		if (ret) {
+			dev_err(dev, "register restart handler failure\n");
+			goto err_put_clk;
+		}
+	}
 
 	ret = rproc_add(rproc);
 	if (ret) {
@@ -1106,8 +1162,6 @@ err_put_mbox:
 	imx_rproc_free_mbox(rproc);
 err_put_wkq:
 	destroy_workqueue(priv->workqueue);
-err_put_rproc:
-	rproc_free(rproc);
 
 	return ret;
 }
@@ -1122,7 +1176,6 @@ static void imx_rproc_remove(struct platform_device *pdev)
 	imx_rproc_put_scu(rproc);
 	imx_rproc_free_mbox(rproc);
 	destroy_workqueue(priv->workqueue);
-	rproc_free(rproc);
 }
 
 static const struct of_device_id imx_rproc_of_match[] = {
@@ -1133,6 +1186,8 @@ static const struct of_device_id imx_rproc_of_match[] = {
 	{ .compatible = "fsl,imx8mm-cm4", .data = &imx_rproc_cfg_imx8mq },
 	{ .compatible = "fsl,imx8mn-cm7", .data = &imx_rproc_cfg_imx8mn },
 	{ .compatible = "fsl,imx8mp-cm7", .data = &imx_rproc_cfg_imx8mn },
+	{ .compatible = "fsl,imx8mn-cm7-mmio", .data = &imx_rproc_cfg_imx8mn_mmio },
+	{ .compatible = "fsl,imx8mp-cm7-mmio", .data = &imx_rproc_cfg_imx8mn_mmio },
 	{ .compatible = "fsl,imx8qxp-cm4", .data = &imx_rproc_cfg_imx8qxp },
 	{ .compatible = "fsl,imx8qm-cm4", .data = &imx_rproc_cfg_imx8qm },
 	{ .compatible = "fsl,imx8ulp-cm33", .data = &imx_rproc_cfg_imx8ulp },

@@ -352,6 +352,20 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	/*
+	 * The ASUS ROG M16 from 2023 has many events which wake it from s2idle
+	 * resulting in excessive battery drain and risk of laptop overheating,
+	 * these events can be caused by the MMC or  y AniMe display if installed.
+	 * The match is valid for all of the GU604V<x> range.
+	 */
+	{
+	.callback = init_default_s3,
+	.ident = "ASUS ROG Zephyrus M16 (2023)",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "ROG Zephyrus M16 GU604V"),
+		},
+	},
+	/*
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=189431
 	 * Lenovo G50-45 is a platform later than 2012, but needs nvs memory
 	 * saving during S3.
@@ -383,18 +397,6 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "20GGA00L00"),
-		},
-	},
-	/*
-	 * ASUS B1400CEAE hangs on resume from suspend (see
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=215742).
-	 */
-	{
-	.callback = init_default_s3,
-	.ident = "ASUS B1400CEAE",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "ASUS EXPERTBOOK B1400CEAE"),
 		},
 	},
 	{},
@@ -514,6 +516,7 @@ static void acpi_pm_finish(void)
 
 /**
  * acpi_pm_start - Start system PM transition.
+ * @acpi_state: The target ACPI power state to transition to.
  */
 static void acpi_pm_start(u32 acpi_state)
 {
@@ -552,8 +555,9 @@ static u32 acpi_suspend_states[] = {
 };
 
 /**
- *	acpi_suspend_begin - Set the target system sleep state to the state
- *		associated with given @pm_state, if supported.
+ * acpi_suspend_begin - Set the target system sleep state to the state
+ *	associated with given @pm_state, if supported.
+ * @pm_state: The target system power management state.
  */
 static int acpi_suspend_begin(suspend_state_t pm_state)
 {
@@ -683,10 +687,11 @@ static const struct platform_suspend_ops acpi_suspend_ops = {
 };
 
 /**
- *	acpi_suspend_begin_old - Set the target system sleep state to the
- *		state associated with given @pm_state, if supported, and
- *		execute the _PTS control method.  This function is used if the
- *		pre-ACPI 2.0 suspend ordering has been requested.
+ * acpi_suspend_begin_old - Set the target system sleep state to the
+ *	state associated with given @pm_state, if supported, and
+ *	execute the _PTS control method.  This function is used if the
+ *	pre-ACPI 2.0 suspend ordering has been requested.
+ * @pm_state: The target suspend state for the system.
  */
 static int acpi_suspend_begin_old(suspend_state_t pm_state)
 {
@@ -979,10 +984,11 @@ static const struct platform_hibernation_ops acpi_hibernation_ops = {
 };
 
 /**
- *	acpi_hibernation_begin_old - Set the target system sleep state to
- *		ACPI_STATE_S4 and execute the _PTS control method.  This
- *		function is used if the pre-ACPI 2.0 suspend ordering has been
- *		requested.
+ * acpi_hibernation_begin_old - Set the target system sleep state to
+ *	ACPI_STATE_S4 and execute the _PTS control method.  This
+ *	function is used if the pre-ACPI 2.0 suspend ordering has been
+ *	requested.
+ * @stage: The power management event message.
  */
 static int acpi_hibernation_begin_old(pm_message_t stage)
 {

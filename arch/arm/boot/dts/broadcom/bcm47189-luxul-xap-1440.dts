@@ -26,7 +26,6 @@
 		led-wlan {
 			label = "bcm53xx:blue:wlan";
 			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		led-system {
@@ -45,4 +44,23 @@
 			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&gmac0 {
+	phy-mode = "rgmii";
+	phy-handle = <&bcm54210e>;
+
+	/delete-node/ fixed-link;
+
+	mdio {
+		/delete-node/ switch@1e;
+
+		bcm54210e: ethernet-phy@0 {
+			reg = <0>;
+		};
+	};
+};
+
+&gmac1 {
+	status = "disabled";
 };

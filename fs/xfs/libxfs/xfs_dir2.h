@@ -22,6 +22,29 @@ struct xfs_dir3_icfree_hdr;
 struct xfs_dir3_icleaf_hdr;
 
 extern const struct xfs_name	xfs_name_dotdot;
+extern const struct xfs_name	xfs_name_dot;
+
+static inline bool
+xfs_dir2_samename(
+	const struct xfs_name	*n1,
+	const struct xfs_name	*n2)
+{
+	if (n1 == n2)
+		return true;
+	if (n1->len != n2->len)
+		return false;
+	return !memcmp(n1->name, n2->name, n1->len);
+}
+
+enum xfs_dir2_fmt {
+	XFS_DIR2_FMT_SF,
+	XFS_DIR2_FMT_BLOCK,
+	XFS_DIR2_FMT_LEAF,
+	XFS_DIR2_FMT_NODE,
+	XFS_DIR2_FMT_ERROR,
+};
+
+enum xfs_dir2_fmt xfs_dir2_format(struct xfs_da_args *args, int *error);
 
 /*
  * Convert inode mode to directory entry filetype
@@ -45,13 +68,18 @@ extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_inode *dp,
 				const struct xfs_name *name, xfs_ino_t *inum,
 				struct xfs_name *ci_name);
 extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name, xfs_ino_t ino,
+				const struct xfs_name *name, xfs_ino_t ino,
 				xfs_extlen_t tot);
 extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
 				const struct xfs_name *name, xfs_ino_t inum,
 				xfs_extlen_t tot);
 extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name);
+				const struct xfs_name *name);
+
+int xfs_dir_lookup_args(struct xfs_da_args *args);
+int xfs_dir_createname_args(struct xfs_da_args *args);
+int xfs_dir_removename_args(struct xfs_da_args *args);
+int xfs_dir_replace_args(struct xfs_da_args *args);
 
 /*
  * Direct call from the bmap code, bypassing the generic directory layer.
@@ -61,8 +89,6 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 /*
  * Interface routines used by userspace utilities
  */
-extern int xfs_dir2_isblock(struct xfs_da_args *args, bool *isblock);
-extern int xfs_dir2_isleaf(struct xfs_da_args *args, bool *isleaf);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
@@ -87,6 +113,10 @@ extern struct xfs_dir2_data_free *xfs_dir2_data_freefind(
 		struct xfs_dir2_data_unused *dup);
 
 extern int xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
+
+xfs_failaddr_t xfs_dir3_leaf_header_check(struct xfs_buf *bp, xfs_ino_t owner);
+xfs_failaddr_t xfs_dir3_data_header_check(struct xfs_buf *bp, xfs_ino_t owner);
+xfs_failaddr_t xfs_dir3_block_header_check(struct xfs_buf *bp, xfs_ino_t owner);
 
 extern const struct xfs_buf_ops xfs_dir3_block_buf_ops;
 extern const struct xfs_buf_ops xfs_dir3_leafn_buf_ops;
@@ -278,5 +308,52 @@ static inline unsigned char xfs_ascii_ci_xfrm(unsigned char c)
 		c -= 'A' - 'a';
 	return c;
 }
+
+struct xfs_dir_update_params {
+	const struct xfs_inode	*dp;
+	const struct xfs_inode	*ip;
+	const struct xfs_name	*name;
+	int			delta;
+};
+
+#ifdef CONFIG_XFS_LIVE_HOOKS
+void xfs_dir_update_hook(struct xfs_inode *dp, struct xfs_inode *ip,
+		int delta, const struct xfs_name *name);
+
+struct xfs_dir_hook {
+	struct xfs_hook		dirent_hook;
+};
+
+void xfs_dir_hook_disable(void);
+void xfs_dir_hook_enable(void);
+
+int xfs_dir_hook_add(struct xfs_mount *mp, struct xfs_dir_hook *hook);
+void xfs_dir_hook_del(struct xfs_mount *mp, struct xfs_dir_hook *hook);
+void xfs_dir_hook_setup(struct xfs_dir_hook *hook, notifier_fn_t mod_fn);
+#else
+# define xfs_dir_update_hook(dp, ip, delta, name)	((void)0)
+#endif /* CONFIG_XFS_LIVE_HOOKS */
+
+struct xfs_parent_args;
+
+struct xfs_dir_update {
+	struct xfs_inode	*dp;
+	const struct xfs_name	*name;
+	struct xfs_inode	*ip;
+	struct xfs_parent_args	*ppargs;
+};
+
+int xfs_dir_create_child(struct xfs_trans *tp, unsigned int resblks,
+		struct xfs_dir_update *du);
+int xfs_dir_add_child(struct xfs_trans *tp, unsigned int resblks,
+		struct xfs_dir_update *du);
+int xfs_dir_remove_child(struct xfs_trans *tp, unsigned int resblks,
+		struct xfs_dir_update *du);
+
+int xfs_dir_exchange_children(struct xfs_trans *tp, struct xfs_dir_update *du1,
+		struct xfs_dir_update *du2, unsigned int spaceres);
+int xfs_dir_rename_children(struct xfs_trans *tp, struct xfs_dir_update *du_src,
+		struct xfs_dir_update *du_tgt, unsigned int spaceres,
+		struct xfs_dir_update *du_wip);
 
 #endif	/* __XFS_DIR2_H__ */

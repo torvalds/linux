@@ -1,6 +1,8 @@
 fp-pidbench
+fp-ptrace
 fp-stress
 fpsimd-test
+kernel-test
 rdvl-sme
 rdvl-sve
 sve-probe-vls

@@ -19,7 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/tps65910.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 
 static const struct resource rtc_resources[] = {
 	{
@@ -197,7 +197,7 @@ static const struct regmap_irq tps65910_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip tps65911_irq_chip = {
+static const struct regmap_irq_chip tps65911_irq_chip = {
 	.name = "tps65910",
 	.irqs = tps65911_irqs,
 	.num_irqs = ARRAY_SIZE(tps65911_irqs),
@@ -208,7 +208,7 @@ static struct regmap_irq_chip tps65911_irq_chip = {
 	.ack_base = TPS65910_INT_STS,
 };
 
-static struct regmap_irq_chip tps65910_irq_chip = {
+static const struct regmap_irq_chip tps65910_irq_chip = {
 	.name = "tps65910",
 	.irqs = tps65910_irqs,
 	.num_irqs = ARRAY_SIZE(tps65910_irqs),
@@ -223,7 +223,7 @@ static int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		    struct tps65910_platform_data *pdata)
 {
 	int ret;
-	static struct regmap_irq_chip *tps6591x_irqs_chip;
+	static const struct regmap_irq_chip *tps6591x_irqs_chip;
 
 	if (!irq) {
 		dev_warn(tps65910->dev, "No interrupt support, no core IRQ\n");
@@ -281,7 +281,7 @@ static const struct regmap_config tps65910_regmap_config = {
 	.val_bits = 8,
 	.volatile_reg = is_volatile_reg,
 	.max_register = TPS65910_MAX_REGISTER - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int tps65910_ck32k_init(struct tps65910 *tps65910,
@@ -374,16 +374,9 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	struct device_node *np = client->dev.of_node;
 	struct tps65910_board *board_info;
 	unsigned int prop;
-	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_device(tps65910_of_match, &client->dev);
-	if (!match) {
-		dev_err(&client->dev, "Failed to find matching dt id\n");
-		return NULL;
-	}
-
-	*chip_id  = (unsigned long)match->data;
+	*chip_id  = (unsigned long)device_get_match_data(&client->dev);
 
 	board_info = devm_kzalloc(&client->dev, sizeof(*board_info),
 			GFP_KERNEL);

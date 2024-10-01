@@ -54,8 +54,6 @@ int drm_modeset_register_all(struct drm_device *dev)
 	if (ret)
 		goto err_connector;
 
-	drm_debugfs_late_register(dev);
-
 	return 0;
 
 err_connector:
@@ -374,6 +372,13 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.modifiers_property = prop;
 
+	prop = drm_property_create(dev,
+				   DRM_MODE_PROP_IMMUTABLE | DRM_MODE_PROP_BLOB,
+				   "SIZE_HINTS", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.size_hints_property = prop;
+
 	return 0;
 }
 
@@ -450,6 +455,8 @@ int drmm_mode_config_init(struct drm_device *dev)
 				       &modeset_ctx);
 		if (ret == -EDEADLK)
 			ret = drm_modeset_backoff(&modeset_ctx);
+
+		might_fault();
 
 		ww_acquire_init(&resv_ctx, &reservation_ww_class);
 		ret = dma_resv_lock(&resv, &resv_ctx);
@@ -546,7 +553,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		struct drm_printer p = drm_debug_printer("[leaked fb]");
+		struct drm_printer p = drm_dbg_printer(dev, DRM_UT_KMS, "[leaked fb]");
 
 		drm_printf(&p, "framebuffer[%u]:\n", fb->base.id);
 		drm_framebuffer_print_info(&p, 1, fb);

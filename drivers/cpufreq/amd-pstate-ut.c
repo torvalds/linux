@@ -26,9 +26,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/fs.h>
-#include <linux/amd-pstate.h>
 
 #include <acpi/cppc_acpi.h>
+
+#include "amd-pstate.h"
 
 /*
  * Abbreviations:
@@ -53,38 +54,22 @@ static void amd_pstate_ut_acpi_cpc_valid(u32 index);
 static void amd_pstate_ut_check_enabled(u32 index);
 static void amd_pstate_ut_check_perf(u32 index);
 static void amd_pstate_ut_check_freq(u32 index);
+static void amd_pstate_ut_check_driver(u32 index);
 
 static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_acpi_cpc_valid",   amd_pstate_ut_acpi_cpc_valid   },
 	{"amd_pstate_ut_check_enabled",    amd_pstate_ut_check_enabled    },
 	{"amd_pstate_ut_check_perf",       amd_pstate_ut_check_perf       },
-	{"amd_pstate_ut_check_freq",       amd_pstate_ut_check_freq       }
+	{"amd_pstate_ut_check_freq",       amd_pstate_ut_check_freq       },
+	{"amd_pstate_ut_check_driver",	   amd_pstate_ut_check_driver     }
 };
 
 static bool get_shared_mem(void)
 {
 	bool result = false;
-	char path[] = "/sys/module/amd_pstate/parameters/shared_mem";
-	char buf[5] = {0};
-	struct file *filp = NULL;
-	loff_t pos = 0;
-	ssize_t ret;
 
-	if (!boot_cpu_has(X86_FEATURE_CPPC)) {
-		filp = filp_open(path, O_RDONLY, 0);
-		if (IS_ERR(filp))
-			pr_err("%s unable to open %s file!\n", __func__, path);
-		else {
-			ret = kernel_read(filp, &buf, sizeof(buf), &pos);
-			if (ret < 0)
-				pr_err("%s read %s file fail ret=%ld!\n",
-					__func__, path, (long)ret);
-			filp_close(filp, NULL);
-		}
-
-		if ('Y' == *buf)
-			result = true;
-	}
+	if (!boot_cpu_has(X86_FEATURE_CPPC))
+		result = true;
 
 	return result;
 }
@@ -145,8 +130,6 @@ static void amd_pstate_ut_check_perf(u32 index)
 	struct cpufreq_policy *policy = NULL;
 	struct amd_cpudata *cpudata = NULL;
 
-	highest_perf = amd_get_highest_perf();
-
 	for_each_possible_cpu(cpu) {
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
@@ -158,9 +141,10 @@ static void amd_pstate_ut_check_perf(u32 index)
 			if (ret) {
 				amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
 				pr_err("%s cppc_get_perf_caps ret=%d error!\n", __func__, ret);
-				return;
+				goto skip_test;
 			}
 
+			highest_perf = cppc_perf.highest_perf;
 			nominal_perf = cppc_perf.nominal_perf;
 			lowest_nonlinear_perf = cppc_perf.lowest_nonlinear_perf;
 			lowest_perf = cppc_perf.lowest_perf;
@@ -169,25 +153,29 @@ static void amd_pstate_ut_check_perf(u32 index)
 			if (ret) {
 				amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
 				pr_err("%s read CPPC_CAP1 ret=%d error!\n", __func__, ret);
-				return;
+				goto skip_test;
 			}
 
+			highest_perf = AMD_CPPC_HIGHEST_PERF(cap1);
 			nominal_perf = AMD_CPPC_NOMINAL_PERF(cap1);
 			lowest_nonlinear_perf = AMD_CPPC_LOWNONLIN_PERF(cap1);
 			lowest_perf = AMD_CPPC_LOWEST_PERF(cap1);
 		}
 
-		if ((highest_perf != READ_ONCE(cpudata->highest_perf)) ||
-			(nominal_perf != READ_ONCE(cpudata->nominal_perf)) ||
+		if (highest_perf != READ_ONCE(cpudata->highest_perf) && !cpudata->hw_prefcore) {
+			pr_err("%s cpu%d highest=%d %d highest perf doesn't match\n",
+				__func__, cpu, highest_perf, cpudata->highest_perf);
+			goto skip_test;
+		}
+		if ((nominal_perf != READ_ONCE(cpudata->nominal_perf)) ||
 			(lowest_nonlinear_perf != READ_ONCE(cpudata->lowest_nonlinear_perf)) ||
 			(lowest_perf != READ_ONCE(cpudata->lowest_perf))) {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
-			pr_err("%s cpu%d highest=%d %d nominal=%d %d lowest_nonlinear=%d %d lowest=%d %d, they should be equal!\n",
-				__func__, cpu, highest_perf, cpudata->highest_perf,
-				nominal_perf, cpudata->nominal_perf,
+			pr_err("%s cpu%d nominal=%d %d lowest_nonlinear=%d %d lowest=%d %d, they should be equal!\n",
+				__func__, cpu, nominal_perf, cpudata->nominal_perf,
 				lowest_nonlinear_perf, cpudata->lowest_nonlinear_perf,
 				lowest_perf, cpudata->lowest_perf);
-			return;
+			goto skip_test;
 		}
 
 		if (!((highest_perf >= nominal_perf) &&
@@ -198,11 +186,15 @@ static void amd_pstate_ut_check_perf(u32 index)
 			pr_err("%s cpu%d highest=%d >= nominal=%d > lowest_nonlinear=%d > lowest=%d > 0, the formula is incorrect!\n",
 				__func__, cpu, highest_perf, nominal_perf,
 				lowest_nonlinear_perf, lowest_perf);
-			return;
+			goto skip_test;
 		}
+		cpufreq_cpu_put(policy);
 	}
 
 	amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_PASS;
+	return;
+skip_test:
+	cpufreq_cpu_put(policy);
 }
 
 /*
@@ -215,6 +207,7 @@ static void amd_pstate_ut_check_freq(u32 index)
 	int cpu = 0;
 	struct cpufreq_policy *policy = NULL;
 	struct amd_cpudata *cpudata = NULL;
+	u32 nominal_freq_khz;
 
 	for_each_possible_cpu(cpu) {
 		policy = cpufreq_cpu_get(cpu);
@@ -222,43 +215,85 @@ static void amd_pstate_ut_check_freq(u32 index)
 			break;
 		cpudata = policy->driver_data;
 
-		if (!((cpudata->max_freq >= cpudata->nominal_freq) &&
-			(cpudata->nominal_freq > cpudata->lowest_nonlinear_freq) &&
+		nominal_freq_khz = cpudata->nominal_freq*1000;
+		if (!((cpudata->max_freq >= nominal_freq_khz) &&
+			(nominal_freq_khz > cpudata->lowest_nonlinear_freq) &&
 			(cpudata->lowest_nonlinear_freq > cpudata->min_freq) &&
 			(cpudata->min_freq > 0))) {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
 			pr_err("%s cpu%d max=%d >= nominal=%d > lowest_nonlinear=%d > min=%d > 0, the formula is incorrect!\n",
-				__func__, cpu, cpudata->max_freq, cpudata->nominal_freq,
+				__func__, cpu, cpudata->max_freq, nominal_freq_khz,
 				cpudata->lowest_nonlinear_freq, cpudata->min_freq);
-			return;
+			goto skip_test;
 		}
 
 		if (cpudata->min_freq != policy->min) {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
 			pr_err("%s cpu%d cpudata_min_freq=%d policy_min=%d, they should be equal!\n",
 				__func__, cpu, cpudata->min_freq, policy->min);
-			return;
+			goto skip_test;
 		}
 
 		if (cpudata->boost_supported) {
 			if ((policy->max == cpudata->max_freq) ||
-					(policy->max == cpudata->nominal_freq))
+					(policy->max == nominal_freq_khz))
 				amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_PASS;
 			else {
 				amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
 				pr_err("%s cpu%d policy_max=%d should be equal cpu_max=%d or cpu_nominal=%d !\n",
 					__func__, cpu, policy->max, cpudata->max_freq,
-					cpudata->nominal_freq);
-				return;
+					nominal_freq_khz);
+				goto skip_test;
 			}
 		} else {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
 			pr_err("%s cpu%d must support boost!\n", __func__, cpu);
-			return;
+			goto skip_test;
 		}
+		cpufreq_cpu_put(policy);
 	}
 
 	amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_PASS;
+	return;
+skip_test:
+	cpufreq_cpu_put(policy);
+}
+
+static int amd_pstate_set_mode(enum amd_pstate_mode mode)
+{
+	const char *mode_str = amd_pstate_get_mode_string(mode);
+
+	pr_debug("->setting mode to %s\n", mode_str);
+
+	return amd_pstate_update_status(mode_str, strlen(mode_str));
+}
+
+static void amd_pstate_ut_check_driver(u32 index)
+{
+	enum amd_pstate_mode mode1, mode2 = AMD_PSTATE_DISABLE;
+	int ret;
+
+	for (mode1 = AMD_PSTATE_DISABLE; mode1 < AMD_PSTATE_MAX; mode1++) {
+		ret = amd_pstate_set_mode(mode1);
+		if (ret)
+			goto out;
+		for (mode2 = AMD_PSTATE_DISABLE; mode2 < AMD_PSTATE_MAX; mode2++) {
+			if (mode1 == mode2)
+				continue;
+			ret = amd_pstate_set_mode(mode2);
+			if (ret)
+				goto out;
+		}
+	}
+out:
+	if (ret)
+		pr_warn("%s: failed to update status for %s->%s: %d\n", __func__,
+			amd_pstate_get_mode_string(mode1),
+			amd_pstate_get_mode_string(mode2), ret);
+
+	amd_pstate_ut_cases[index].result = ret ?
+					    AMD_PSTATE_UT_RESULT_FAIL :
+					    AMD_PSTATE_UT_RESULT_PASS;
 }
 
 static int __init amd_pstate_ut_init(void)

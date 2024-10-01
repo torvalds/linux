@@ -31,6 +31,13 @@
 .Lskip_hcrx_\@:
 .endm
 
+/* Check if running in host at EL2 mode, i.e., (h)VHE. Jump to fail if not. */
+.macro __check_hvhe fail, tmp
+	mrs	\tmp, hcr_el2
+	and	\tmp, \tmp, #HCR_E2H
+	cbz	\tmp, \fail
+.endm
+
 /*
  * Allow Non-secure EL1 and EL0 to access physical timer and counter.
  * This is not necessary for VHE, since the host kernel runs in EL2,
@@ -43,9 +50,7 @@
  */
 .macro __init_el2_timers
 	mov	x0, #3				// Enable EL1 physical timers
-	mrs	x1, hcr_el2
-	and	x1, x1, #HCR_E2H
-	cbz	x1, .LnVHE_\@
+	__check_hvhe .LnVHE_\@, x1
 	lsl	x0, x0, #10
 .LnVHE_\@:
 	msr	cnthctl_el2, x0
@@ -54,13 +59,14 @@
 
 .macro __init_el2_debug
 	mrs	x1, id_aa64dfr0_el1
-	sbfx	x0, x1, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
-	cmp	x0, #1
-	b.lt	.Lskip_pmu_\@			// Skip if no PMU present
+	ubfx	x0, x1, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
+	cmp	x0, #ID_AA64DFR0_EL1_PMUVer_NI
+	ccmp	x0, #ID_AA64DFR0_EL1_PMUVer_IMP_DEF, #4, ne
+	b.eq	.Lskip_pmu_\@			// Skip if no PMU present or IMP_DEF
 	mrs	x0, pmcr_el0			// Disable debug access traps
 	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
 .Lskip_pmu_\@:
-	csel	x2, xzr, x0, lt			// all PMU counters from EL1
+	csel	x2, xzr, x0, eq			// all PMU counters from EL1
 
 	/* Statistical profiling */
 	ubfx	x0, x1, #ID_AA64DFR0_EL1_PMSVer_SHIFT, #4
@@ -139,15 +145,14 @@
 
 /* Coprocessor traps */
 .macro __init_el2_cptr
-	mrs	x1, hcr_el2
-	and	x1, x1, #HCR_E2H
-	cbz	x1, .LnVHE_\@
-	mov	x0, #(CPACR_EL1_FPEN_EL1EN | CPACR_EL1_FPEN_EL0EN)
-	b	.Lset_cptr_\@
+	__check_hvhe .LnVHE_\@, x1
+	mov	x0, #CPACR_ELx_FPEN
+	msr	cpacr_el1, x0
+	b	.Lskip_set_cptr_\@
 .LnVHE_\@:
 	mov	x0, #0x33ff
-.Lset_cptr_\@:
 	msr	cptr_el2, x0			// Disable copro. traps to EL2
+.Lskip_set_cptr_\@:
 .endm
 
 /* Disable any fine grained traps */
@@ -160,42 +165,53 @@
 	mrs	x1, id_aa64dfr0_el1
 	ubfx	x1, x1, #ID_AA64DFR0_EL1_PMSVer_SHIFT, #4
 	cmp	x1, #3
-	b.lt	.Lset_debug_fgt_\@
+	b.lt	.Lskip_spe_fgt_\@
 	/* Disable PMSNEVFR_EL1 read and write traps */
 	orr	x0, x0, #(1 << 62)
 
-.Lset_debug_fgt_\@:
+.Lskip_spe_fgt_\@:
 	msr_s	SYS_HDFGRTR_EL2, x0
 	msr_s	SYS_HDFGWTR_EL2, x0
 
 	mov	x0, xzr
 	mrs	x1, id_aa64pfr1_el1
 	ubfx	x1, x1, #ID_AA64PFR1_EL1_SME_SHIFT, #4
-	cbz	x1, .Lset_pie_fgt_\@
+	cbz	x1, .Lskip_debug_fgt_\@
 
 	/* Disable nVHE traps of TPIDR2 and SMPRI */
 	orr	x0, x0, #HFGxTR_EL2_nSMPRI_EL1_MASK
 	orr	x0, x0, #HFGxTR_EL2_nTPIDR2_EL0_MASK
 
-.Lset_pie_fgt_\@:
+.Lskip_debug_fgt_\@:
 	mrs_s	x1, SYS_ID_AA64MMFR3_EL1
 	ubfx	x1, x1, #ID_AA64MMFR3_EL1_S1PIE_SHIFT, #4
-	cbz	x1, .Lset_fgt_\@
+	cbz	x1, .Lskip_pie_fgt_\@
 
 	/* Disable trapping of PIR_EL1 / PIRE0_EL1 */
 	orr	x0, x0, #HFGxTR_EL2_nPIR_EL1
 	orr	x0, x0, #HFGxTR_EL2_nPIRE0_EL1
 
-.Lset_fgt_\@:
+.Lskip_pie_fgt_\@:
+	mrs_s	x1, SYS_ID_AA64MMFR3_EL1
+	ubfx	x1, x1, #ID_AA64MMFR3_EL1_S1POE_SHIFT, #4
+	cbz	x1, .Lskip_poe_fgt_\@
+
+	/* Disable trapping of POR_EL0 */
+	orr	x0, x0, #HFGxTR_EL2_nPOR_EL0
+
+.Lskip_poe_fgt_\@:
 	msr_s	SYS_HFGRTR_EL2, x0
 	msr_s	SYS_HFGWTR_EL2, x0
 	msr_s	SYS_HFGITR_EL2, xzr
 
 	mrs	x1, id_aa64pfr0_el1		// AMU traps UNDEF without AMU
 	ubfx	x1, x1, #ID_AA64PFR0_EL1_AMU_SHIFT, #4
-	cbz	x1, .Lskip_fgt_\@
+	cbz	x1, .Lskip_amu_fgt_\@
 
 	msr_s	SYS_HAFGRTR_EL2, xzr
+
+.Lskip_amu_fgt_\@:
+
 .Lskip_fgt_\@:
 .endm
 
@@ -268,19 +284,19 @@
 	check_override id_aa64pfr0, ID_AA64PFR0_EL1_SVE_SHIFT, .Linit_sve_\@, .Lskip_sve_\@, x1, x2
 
 .Linit_sve_\@:	/* SVE register access */
-	mrs	x0, cptr_el2			// Disable SVE traps
-	mrs	x1, hcr_el2
-	and	x1, x1, #HCR_E2H
-	cbz	x1, .Lcptr_nvhe_\@
+	__check_hvhe .Lcptr_nvhe_\@, x1
 
-	// VHE case
-	orr	x0, x0, #(CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN)
-	b	.Lset_cptr_\@
+	// (h)VHE case
+	mrs	x0, cpacr_el1			// Disable SVE traps
+	orr	x0, x0, #CPACR_ELx_ZEN
+	msr	cpacr_el1, x0
+	b	.Lskip_set_cptr_\@
 
 .Lcptr_nvhe_\@: // nVHE case
+	mrs	x0, cptr_el2			// Disable SVE traps
 	bic	x0, x0, #CPTR_EL2_TZ
-.Lset_cptr_\@:
 	msr	cptr_el2, x0
+.Lskip_set_cptr_\@:
 	isb
 	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
 	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
@@ -289,9 +305,19 @@
 	check_override id_aa64pfr1, ID_AA64PFR1_EL1_SME_SHIFT, .Linit_sme_\@, .Lskip_sme_\@, x1, x2
 
 .Linit_sme_\@:	/* SME register access and priority mapping */
+	__check_hvhe .Lcptr_nvhe_sme_\@, x1
+
+	// (h)VHE case
+	mrs	x0, cpacr_el1			// Disable SME traps
+	orr	x0, x0, #CPACR_ELx_SMEN
+	msr	cpacr_el1, x0
+	b	.Lskip_set_cptr_sme_\@
+
+.Lcptr_nvhe_sme_\@: // nVHE case
 	mrs	x0, cptr_el2			// Disable SME traps
 	bic	x0, x0, #CPTR_EL2_TSM
 	msr	cptr_el2, x0
+.Lskip_set_cptr_sme_\@:
 	isb
 
 	mrs	x1, sctlr_el2

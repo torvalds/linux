@@ -221,33 +221,36 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 	struct genevehdr *gnvh = geneve_hdr(skb);
 	struct metadata_dst *tun_dst = NULL;
 	unsigned int len;
-	int err = 0;
+	int nh, err = 0;
 	void *oiph;
 
 	if (ip_tunnel_collect_metadata() || gs->collect_md) {
-		__be16 flags;
+		IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 
-		flags = TUNNEL_KEY | (gnvh->oam ? TUNNEL_OAM : 0) |
-			(gnvh->critical ? TUNNEL_CRIT_OPT : 0);
+		__set_bit(IP_TUNNEL_KEY_BIT, flags);
+		__assign_bit(IP_TUNNEL_OAM_BIT, flags, gnvh->oam);
+		__assign_bit(IP_TUNNEL_CRIT_OPT_BIT, flags, gnvh->critical);
 
 		tun_dst = udp_tun_rx_dst(skb, geneve_get_sk_family(gs), flags,
 					 vni_to_tunnel_id(gnvh->vni),
 					 gnvh->opt_len * 4);
 		if (!tun_dst) {
-			geneve->dev->stats.rx_dropped++;
+			DEV_STATS_INC(geneve->dev, rx_dropped);
 			goto drop;
 		}
 		/* Update tunnel dst according to Geneve options. */
+		ip_tunnel_flags_zero(flags);
+		__set_bit(IP_TUNNEL_GENEVE_OPT_BIT, flags);
 		ip_tunnel_info_opts_set(&tun_dst->u.tun_info,
 					gnvh->options, gnvh->opt_len * 4,
-					TUNNEL_GENEVE_OPT);
+					flags);
 	} else {
 		/* Drop packets w/ critical options,
 		 * since we don't support any...
 		 */
 		if (gnvh->critical) {
-			geneve->dev->stats.rx_frame_errors++;
-			geneve->dev->stats.rx_errors++;
+			DEV_STATS_INC(geneve->dev, rx_frame_errors);
+			DEV_STATS_INC(geneve->dev, rx_errors);
 			goto drop;
 		}
 	}
@@ -263,7 +266,7 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		/* Ignore packet loops (and multicast echo) */
 		if (ether_addr_equal(eth_hdr(skb)->h_source,
 				     geneve->dev->dev_addr)) {
-			geneve->dev->stats.rx_errors++;
+			DEV_STATS_INC(geneve->dev, rx_errors);
 			goto drop;
 		}
 	} else {
@@ -272,8 +275,22 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		skb->pkt_type = PACKET_HOST;
 	}
 
-	oiph = skb_network_header(skb);
+	/* Save offset of outer header relative to skb->head,
+	 * because we are going to reset the network header to the inner header
+	 * and might change skb->head.
+	 */
+	nh = skb_network_header(skb) - skb->head;
+
 	skb_reset_network_header(skb);
+
+	if (!pskb_inet_may_pull(skb)) {
+		DEV_STATS_INC(geneve->dev, rx_length_errors);
+		DEV_STATS_INC(geneve->dev, rx_errors);
+		goto drop;
+	}
+
+	/* Get the outer header. */
+	oiph = skb->head + nh;
 
 	if (geneve_get_sk_family(gs) == AF_INET)
 		err = IP_ECN_decapsulate(oiph, skb);
@@ -296,8 +313,8 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 #endif
 		}
 		if (err > 1) {
-			++geneve->dev->stats.rx_frame_errors;
-			++geneve->dev->stats.rx_errors;
+			DEV_STATS_INC(geneve->dev, rx_frame_errors);
+			DEV_STATS_INC(geneve->dev, rx_errors);
 			goto drop;
 		}
 	}
@@ -319,22 +336,16 @@ static int geneve_init(struct net_device *dev)
 	struct geneve_dev *geneve = netdev_priv(dev);
 	int err;
 
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
 	err = gro_cells_init(&geneve->gro_cells, dev);
-	if (err) {
-		free_percpu(dev->tstats);
+	if (err)
 		return err;
-	}
 
 	err = dst_cache_init(&geneve->cfg.info.dst_cache, GFP_KERNEL);
 	if (err) {
-		free_percpu(dev->tstats);
 		gro_cells_destroy(&geneve->gro_cells);
 		return err;
 	}
+	netdev_lockdep_set_classes(dev);
 	return 0;
 }
 
@@ -344,7 +355,6 @@ static void geneve_uninit(struct net_device *dev)
 
 	dst_cache_destroy(&geneve->cfg.info.dst_cache);
 	gro_cells_destroy(&geneve->gro_cells);
-	free_percpu(dev->tstats);
 }
 
 /* Callback from net/ipv4/udp.c to receive packets */
@@ -377,14 +387,14 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (unlikely((!geneve->cfg.inner_proto_inherit &&
 		      inner_proto != htons(ETH_P_TEB)))) {
-		geneve->dev->stats.rx_dropped++;
+		DEV_STATS_INC(geneve->dev, rx_dropped);
 		goto drop;
 	}
 
 	opts_len = geneveh->opt_len * 4;
 	if (iptunnel_pull_header(skb, GENEVE_BASE_HLEN + opts_len, inner_proto,
 				 !net_eq(geneve->net, dev_net(geneve->dev)))) {
-		geneve->dev->stats.rx_dropped++;
+		DEV_STATS_INC(geneve->dev, rx_dropped);
 		goto drop;
 	}
 
@@ -507,7 +517,7 @@ static struct sk_buff *geneve_gro_receive(struct sock *sk,
 	gh_len = geneve_hlen(gh);
 
 	hlen = off_gnv + gh_len;
-	if (skb_gro_header_hard(skb, hlen)) {
+	if (!skb_gro_may_pull(skb, hlen)) {
 		gh = skb_gro_header_slow(skb, hlen, off_gnv);
 		if (unlikely(!gh))
 			goto out;
@@ -738,14 +748,15 @@ static void geneve_build_header(struct genevehdr *geneveh,
 {
 	geneveh->ver = GENEVE_VER;
 	geneveh->opt_len = info->options_len / 4;
-	geneveh->oam = !!(info->key.tun_flags & TUNNEL_OAM);
-	geneveh->critical = !!(info->key.tun_flags & TUNNEL_CRIT_OPT);
+	geneveh->oam = test_bit(IP_TUNNEL_OAM_BIT, info->key.tun_flags);
+	geneveh->critical = test_bit(IP_TUNNEL_CRIT_OPT_BIT,
+				     info->key.tun_flags);
 	geneveh->rsvd1 = 0;
 	tunnel_id_to_vni(info->key.tun_id, geneveh->vni);
 	geneveh->proto_type = inner_proto;
 	geneveh->rsvd2 = 0;
 
-	if (info->key.tun_flags & TUNNEL_GENEVE_OPT)
+	if (test_bit(IP_TUNNEL_GENEVE_OPT_BIT, info->key.tun_flags))
 		ip_tunnel_info_opts_get(geneveh->options, info);
 }
 
@@ -754,7 +765,7 @@ static int geneve_build_skb(struct dst_entry *dst, struct sk_buff *skb,
 			    bool xnet, int ip_hdr_len,
 			    bool inner_proto_inherit)
 {
-	bool udp_sum = !!(info->key.tun_flags & TUNNEL_CSUM);
+	bool udp_sum = test_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	struct genevehdr *gnvh;
 	__be16 inner_proto;
 	int min_headroom;
@@ -784,139 +795,53 @@ free_dst:
 	return err;
 }
 
-static struct rtable *geneve_get_v4_rt(struct sk_buff *skb,
-				       struct net_device *dev,
-				       struct geneve_sock *gs4,
-				       struct flowi4 *fl4,
-				       const struct ip_tunnel_info *info,
-				       __be16 dport, __be16 sport,
-				       __u8 *full_tos)
+static u8 geneve_get_dsfield(struct sk_buff *skb, struct net_device *dev,
+			     const struct ip_tunnel_info *info,
+			     bool *use_cache)
 {
-	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
 	struct geneve_dev *geneve = netdev_priv(dev);
-	struct dst_cache *dst_cache;
-	struct rtable *rt = NULL;
-	__u8 tos;
+	u8 dsfield;
 
-	if (!gs4)
-		return ERR_PTR(-EIO);
+	dsfield = info->key.tos;
+	if (dsfield == 1 && !geneve->cfg.collect_md) {
+		dsfield = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
+		*use_cache = false;
+	}
 
-	memset(fl4, 0, sizeof(*fl4));
-	fl4->flowi4_mark = skb->mark;
-	fl4->flowi4_proto = IPPROTO_UDP;
-	fl4->daddr = info->key.u.ipv4.dst;
-	fl4->saddr = info->key.u.ipv4.src;
-	fl4->fl4_dport = dport;
-	fl4->fl4_sport = sport;
-	fl4->flowi4_flags = info->key.flow_flags;
-
-	tos = info->key.tos;
-	if ((tos == 1) && !geneve->cfg.collect_md) {
-		tos = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
-		use_cache = false;
-	}
-	fl4->flowi4_tos = RT_TOS(tos);
-	if (full_tos)
-		*full_tos = tos;
-
-	dst_cache = (struct dst_cache *)&info->dst_cache;
-	if (use_cache) {
-		rt = dst_cache_get_ip4(dst_cache, &fl4->saddr);
-		if (rt)
-			return rt;
-	}
-	rt = ip_route_output_key(geneve->net, fl4);
-	if (IS_ERR(rt)) {
-		netdev_dbg(dev, "no route to %pI4\n", &fl4->daddr);
-		return ERR_PTR(-ENETUNREACH);
-	}
-	if (rt->dst.dev == dev) { /* is this necessary? */
-		netdev_dbg(dev, "circular route to %pI4\n", &fl4->daddr);
-		ip_rt_put(rt);
-		return ERR_PTR(-ELOOP);
-	}
-	if (use_cache)
-		dst_cache_set_ip4(dst_cache, &rt->dst, fl4->saddr);
-	return rt;
+	return dsfield;
 }
-
-#if IS_ENABLED(CONFIG_IPV6)
-static struct dst_entry *geneve_get_v6_dst(struct sk_buff *skb,
-					   struct net_device *dev,
-					   struct geneve_sock *gs6,
-					   struct flowi6 *fl6,
-					   const struct ip_tunnel_info *info,
-					   __be16 dport, __be16 sport)
-{
-	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
-	struct geneve_dev *geneve = netdev_priv(dev);
-	struct dst_entry *dst = NULL;
-	struct dst_cache *dst_cache;
-	__u8 prio;
-
-	if (!gs6)
-		return ERR_PTR(-EIO);
-
-	memset(fl6, 0, sizeof(*fl6));
-	fl6->flowi6_mark = skb->mark;
-	fl6->flowi6_proto = IPPROTO_UDP;
-	fl6->daddr = info->key.u.ipv6.dst;
-	fl6->saddr = info->key.u.ipv6.src;
-	fl6->fl6_dport = dport;
-	fl6->fl6_sport = sport;
-
-	prio = info->key.tos;
-	if ((prio == 1) && !geneve->cfg.collect_md) {
-		prio = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
-		use_cache = false;
-	}
-
-	fl6->flowlabel = ip6_make_flowinfo(prio, info->key.label);
-	dst_cache = (struct dst_cache *)&info->dst_cache;
-	if (use_cache) {
-		dst = dst_cache_get_ip6(dst_cache, &fl6->saddr);
-		if (dst)
-			return dst;
-	}
-	dst = ipv6_stub->ipv6_dst_lookup_flow(geneve->net, gs6->sock->sk, fl6,
-					      NULL);
-	if (IS_ERR(dst)) {
-		netdev_dbg(dev, "no route to %pI6\n", &fl6->daddr);
-		return ERR_PTR(-ENETUNREACH);
-	}
-	if (dst->dev == dev) { /* is this necessary? */
-		netdev_dbg(dev, "circular route to %pI6\n", &fl6->daddr);
-		dst_release(dst);
-		return ERR_PTR(-ELOOP);
-	}
-
-	if (use_cache)
-		dst_cache_set_ip6(dst_cache, dst, &fl6->saddr);
-	return dst;
-}
-#endif
 
 static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			   struct geneve_dev *geneve,
 			   const struct ip_tunnel_info *info)
 {
+	bool inner_proto_inherit = geneve->cfg.inner_proto_inherit;
 	bool xnet = !net_eq(geneve->net, dev_net(geneve->dev));
 	struct geneve_sock *gs4 = rcu_dereference(geneve->sock4);
 	const struct ip_tunnel_key *key = &info->key;
 	struct rtable *rt;
-	struct flowi4 fl4;
-	__u8 full_tos;
+	bool use_cache;
 	__u8 tos, ttl;
 	__be16 df = 0;
+	__be32 saddr;
 	__be16 sport;
 	int err;
 
-	if (!pskb_inet_may_pull(skb))
+	if (!skb_vlan_inet_prepare(skb, inner_proto_inherit))
 		return -EINVAL;
 
+	if (!gs4)
+		return -EIO;
+
+	use_cache = ip_tunnel_dst_cache_usable(skb, info);
+	tos = geneve_get_dsfield(skb, dev, info, &use_cache);
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
-	rt = geneve_get_v4_rt(skb, dev, gs4, &fl4, info,
-			      geneve->cfg.info.key.tp_dst, sport, &full_tos);
+
+	rt = udp_tunnel_dst_lookup(skb, dev, geneve->net, 0, &saddr,
+				   &info->key,
+				   sport, geneve->cfg.info.key.tp_dst, tos,
+				   use_cache ?
+				   (struct dst_cache *)&info->dst_cache : NULL);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
@@ -939,8 +864,8 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 				return -ENOMEM;
 			}
 
-			unclone->key.u.ipv4.dst = fl4.saddr;
-			unclone->key.u.ipv4.src = fl4.daddr;
+			unclone->key.u.ipv4.dst = saddr;
+			unclone->key.u.ipv4.src = info->key.u.ipv4.dst;
 		}
 
 		if (!pskb_may_pull(skb, ETH_HLEN)) {
@@ -954,13 +879,13 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		return -EMSGSIZE;
 	}
 
+	tos = ip_tunnel_ecn_encap(tos, ip_hdr(skb), skb);
 	if (geneve->cfg.collect_md) {
-		tos = ip_tunnel_ecn_encap(key->tos, ip_hdr(skb), skb);
 		ttl = key->ttl;
 
-		df = key->tun_flags & TUNNEL_DONT_FRAGMENT ? htons(IP_DF) : 0;
+		df = test_bit(IP_TUNNEL_DONT_FRAGMENT_BIT, key->tun_flags) ?
+		     htons(IP_DF) : 0;
 	} else {
-		tos = ip_tunnel_ecn_encap(full_tos, ip_hdr(skb), skb);
 		if (geneve->cfg.ttl_inherit)
 			ttl = ip_tunnel_get_ttl(ip_hdr(skb), skb);
 		else
@@ -984,14 +909,15 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	err = geneve_build_skb(&rt->dst, skb, info, xnet, sizeof(struct iphdr),
-			       geneve->cfg.inner_proto_inherit);
+			       inner_proto_inherit);
 	if (unlikely(err))
 		return err;
 
-	udp_tunnel_xmit_skb(rt, gs4->sock->sk, skb, fl4.saddr, fl4.daddr,
+	udp_tunnel_xmit_skb(rt, gs4->sock->sk, skb, saddr, info->key.u.ipv4.dst,
 			    tos, ttl, df, sport, geneve->cfg.info.key.tp_dst,
 			    !net_eq(geneve->net, dev_net(geneve->dev)),
-			    !(info->key.tun_flags & TUNNEL_CSUM));
+			    !test_bit(IP_TUNNEL_CSUM_BIT,
+				      info->key.tun_flags));
 	return 0;
 }
 
@@ -1000,21 +926,32 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			    struct geneve_dev *geneve,
 			    const struct ip_tunnel_info *info)
 {
+	bool inner_proto_inherit = geneve->cfg.inner_proto_inherit;
 	bool xnet = !net_eq(geneve->net, dev_net(geneve->dev));
 	struct geneve_sock *gs6 = rcu_dereference(geneve->sock6);
 	const struct ip_tunnel_key *key = &info->key;
 	struct dst_entry *dst = NULL;
-	struct flowi6 fl6;
+	struct in6_addr saddr;
+	bool use_cache;
 	__u8 prio, ttl;
 	__be16 sport;
 	int err;
 
-	if (!pskb_inet_may_pull(skb))
+	if (!skb_vlan_inet_prepare(skb, inner_proto_inherit))
 		return -EINVAL;
 
+	if (!gs6)
+		return -EIO;
+
+	use_cache = ip_tunnel_dst_cache_usable(skb, info);
+	prio = geneve_get_dsfield(skb, dev, info, &use_cache);
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
-	dst = geneve_get_v6_dst(skb, dev, gs6, &fl6, info,
-				geneve->cfg.info.key.tp_dst, sport);
+
+	dst = udp_tunnel6_dst_lookup(skb, dev, geneve->net, gs6->sock, 0,
+				     &saddr, key, sport,
+				     geneve->cfg.info.key.tp_dst, prio,
+				     use_cache ?
+				     (struct dst_cache *)&info->dst_cache : NULL);
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
 
@@ -1036,8 +973,8 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 				return -ENOMEM;
 			}
 
-			unclone->key.u.ipv6.dst = fl6.saddr;
-			unclone->key.u.ipv6.src = fl6.daddr;
+			unclone->key.u.ipv6.dst = saddr;
+			unclone->key.u.ipv6.src = info->key.u.ipv6.dst;
 		}
 
 		if (!pskb_may_pull(skb, ETH_HLEN)) {
@@ -1051,12 +988,10 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		return -EMSGSIZE;
 	}
 
+	prio = ip_tunnel_ecn_encap(prio, ip_hdr(skb), skb);
 	if (geneve->cfg.collect_md) {
-		prio = ip_tunnel_ecn_encap(key->tos, ip_hdr(skb), skb);
 		ttl = key->ttl;
 	} else {
-		prio = ip_tunnel_ecn_encap(ip6_tclass(fl6.flowlabel),
-					   ip_hdr(skb), skb);
 		if (geneve->cfg.ttl_inherit)
 			ttl = ip_tunnel_get_ttl(ip_hdr(skb), skb);
 		else
@@ -1064,14 +999,15 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		ttl = ttl ? : ip6_dst_hoplimit(dst);
 	}
 	err = geneve_build_skb(dst, skb, info, xnet, sizeof(struct ipv6hdr),
-			       geneve->cfg.inner_proto_inherit);
+			       inner_proto_inherit);
 	if (unlikely(err))
 		return err;
 
 	udp_tunnel6_xmit_skb(dst, gs6->sock->sk, skb, dev,
-			     &fl6.saddr, &fl6.daddr, prio, ttl,
+			     &saddr, &key->u.ipv6.dst, prio, ttl,
 			     info->key.label, sport, geneve->cfg.info.key.tp_dst,
-			     !(info->key.tun_flags & TUNNEL_CSUM));
+			     !test_bit(IP_TUNNEL_CSUM_BIT,
+				       info->key.tun_flags));
 	return 0;
 }
 #endif
@@ -1087,7 +1023,7 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(!info || !(info->mode & IP_TUNNEL_INFO_TX))) {
 			netdev_dbg(dev, "no tunnel metadata\n");
 			dev_kfree_skb(skb);
-			dev->stats.tx_dropped++;
+			DEV_STATS_INC(dev, tx_dropped);
 			return NETDEV_TX_OK;
 		}
 	} else {
@@ -1110,11 +1046,11 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 
 	if (err == -ELOOP)
-		dev->stats.collisions++;
+		DEV_STATS_INC(dev, collisions);
 	else if (err == -ENETUNREACH)
-		dev->stats.tx_carrier_errors++;
+		DEV_STATS_INC(dev, tx_carrier_errors);
 
-	dev->stats.tx_errors++;
+	DEV_STATS_INC(dev, tx_errors);
 	return NETDEV_TX_OK;
 }
 
@@ -1125,7 +1061,7 @@ static int geneve_change_mtu(struct net_device *dev, int new_mtu)
 	else if (new_mtu < dev->min_mtu)
 		new_mtu = dev->min_mtu;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -1137,35 +1073,54 @@ static int geneve_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 
 	if (ip_tunnel_info_af(info) == AF_INET) {
 		struct rtable *rt;
-		struct flowi4 fl4;
-
 		struct geneve_sock *gs4 = rcu_dereference(geneve->sock4);
+		bool use_cache;
+		__be32 saddr;
+		u8 tos;
+
+		if (!gs4)
+			return -EIO;
+
+		use_cache = ip_tunnel_dst_cache_usable(skb, info);
+		tos = geneve_get_dsfield(skb, dev, info, &use_cache);
 		sport = udp_flow_src_port(geneve->net, skb,
 					  1, USHRT_MAX, true);
 
-		rt = geneve_get_v4_rt(skb, dev, gs4, &fl4, info,
-				      geneve->cfg.info.key.tp_dst, sport, NULL);
+		rt = udp_tunnel_dst_lookup(skb, dev, geneve->net, 0, &saddr,
+					   &info->key,
+					   sport, geneve->cfg.info.key.tp_dst,
+					   tos,
+					   use_cache ? &info->dst_cache : NULL);
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
 
 		ip_rt_put(rt);
-		info->key.u.ipv4.src = fl4.saddr;
+		info->key.u.ipv4.src = saddr;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (ip_tunnel_info_af(info) == AF_INET6) {
 		struct dst_entry *dst;
-		struct flowi6 fl6;
-
 		struct geneve_sock *gs6 = rcu_dereference(geneve->sock6);
+		struct in6_addr saddr;
+		bool use_cache;
+		u8 prio;
+
+		if (!gs6)
+			return -EIO;
+
+		use_cache = ip_tunnel_dst_cache_usable(skb, info);
+		prio = geneve_get_dsfield(skb, dev, info, &use_cache);
 		sport = udp_flow_src_port(geneve->net, skb,
 					  1, USHRT_MAX, true);
 
-		dst = geneve_get_v6_dst(skb, dev, gs6, &fl6, info,
-					geneve->cfg.info.key.tp_dst, sport);
+		dst = udp_tunnel6_dst_lookup(skb, dev, geneve->net, gs6->sock, 0,
+					     &saddr, &info->key, sport,
+					     geneve->cfg.info.key.tp_dst, prio,
+					     use_cache ? &info->dst_cache : NULL);
 		if (IS_ERR(dst))
 			return PTR_ERR(dst);
 
 		dst_release(dst);
-		info->key.u.ipv6.src = fl6.saddr;
+		info->key.u.ipv6.src = saddr;
 #endif
 	} else {
 		return -EINVAL;
@@ -1182,7 +1137,6 @@ static const struct net_device_ops geneve_netdev_ops = {
 	.ndo_open		= geneve_open,
 	.ndo_stop		= geneve_stop,
 	.ndo_start_xmit		= geneve_xmit,
-	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_change_mtu		= geneve_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -1202,7 +1156,7 @@ static const struct ethtool_ops geneve_ethtool_ops = {
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */
-static struct device_type geneve_type = {
+static const struct device_type geneve_type = {
 	.name = "geneve",
 };
 
@@ -1240,7 +1194,6 @@ static void geneve_setup(struct net_device *dev)
 
 	SET_NETDEV_DEVTYPE(dev, &geneve_type);
 
-	dev->features    |= NETIF_F_LLTX;
 	dev->features    |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
 	dev->features    |= NETIF_F_RXCSUM;
 	dev->features    |= NETIF_F_GSO_SOFTWARE;
@@ -1249,6 +1202,7 @@ static void geneve_setup(struct net_device *dev)
 	dev->hw_features |= NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
 
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	/* MTU range: 68 - (something less than 65535) */
 	dev->min_mtu = ETH_MIN_MTU;
 	/* The max_mtu calculation does not take account of GENEVE
@@ -1260,6 +1214,7 @@ static void geneve_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
+	dev->lltx = true;
 	eth_hw_addr_random(dev);
 }
 
@@ -1351,7 +1306,8 @@ static struct geneve_dev *geneve_find_dev(struct geneve_net *gn,
 
 static bool is_tnl_info_zero(const struct ip_tunnel_info *info)
 {
-	return !(info->key.tun_id || info->key.tun_flags || info->key.tos ||
+	return !(info->key.tun_id || info->key.tos ||
+		 !ip_tunnel_flags_empty(info->key.tun_flags) ||
 		 info->key.ttl || info->key.label || info->key.tp_src ||
 		 memchr_inv(&info->key.u, 0, sizeof(info->key.u)));
 }
@@ -1489,7 +1445,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 					    "Remote IPv6 address cannot be Multicast");
 			return -EINVAL;
 		}
-		info->key.tun_flags |= TUNNEL_CSUM;
+		__set_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 		cfg->use_udp6_rx_checksums = true;
 #else
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_REMOTE6],
@@ -1564,7 +1520,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
-			info->key.tun_flags |= TUNNEL_CSUM;
+			__set_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	}
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]) {
@@ -1574,7 +1530,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]))
-			info->key.tun_flags &= ~TUNNEL_CSUM;
+			__clear_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 #else
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX],
 				    "IPv6 support not enabled in the kernel");
@@ -1807,7 +1763,8 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 				    info->key.u.ipv4.dst))
 			goto nla_put_failure;
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_CSUM,
-			       !!(info->key.tun_flags & TUNNEL_CSUM)))
+			       test_bit(IP_TUNNEL_CSUM_BIT,
+					info->key.tun_flags)))
 			goto nla_put_failure;
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1816,7 +1773,8 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 				     &info->key.u.ipv6.dst))
 			goto nla_put_failure;
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_TX,
-			       !(info->key.tun_flags & TUNNEL_CSUM)))
+			       !test_bit(IP_TUNNEL_CSUM_BIT,
+					 info->key.tun_flags)))
 			goto nla_put_failure;
 #endif
 	}
@@ -1961,29 +1919,26 @@ static void geneve_destroy_tunnels(struct net *net, struct list_head *head)
 	}
 }
 
-static void __net_exit geneve_exit_batch_net(struct list_head *net_list)
+static void __net_exit geneve_exit_batch_rtnl(struct list_head *net_list,
+					      struct list_head *dev_to_kill)
 {
 	struct net *net;
-	LIST_HEAD(list);
 
-	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list)
-		geneve_destroy_tunnels(net, &list);
+		geneve_destroy_tunnels(net, dev_to_kill);
+}
 
-	/* unregister the devices gathered above */
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
+static void __net_exit geneve_exit_net(struct net *net)
+{
+	const struct geneve_net *gn = net_generic(net, geneve_net_id);
 
-	list_for_each_entry(net, net_list, exit_list) {
-		const struct geneve_net *gn = net_generic(net, geneve_net_id);
-
-		WARN_ON_ONCE(!list_empty(&gn->sock_list));
-	}
+	WARN_ON_ONCE(!list_empty(&gn->sock_list));
 }
 
 static struct pernet_operations geneve_net_ops = {
 	.init = geneve_init_net,
-	.exit_batch = geneve_exit_batch_net,
+	.exit_batch_rtnl = geneve_exit_batch_rtnl,
+	.exit = geneve_exit_net,
 	.id   = &geneve_net_id,
 	.size = sizeof(struct geneve_net),
 };

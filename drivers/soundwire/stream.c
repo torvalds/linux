@@ -742,14 +742,15 @@ error_1:
  * sdw_ml_sync_bank_switch: Multilink register bank switch
  *
  * @bus: SDW bus instance
+ * @multi_link: whether this is a multi-link stream with hardware-based sync
  *
  * Caller function should free the buffers on error
  */
-static int sdw_ml_sync_bank_switch(struct sdw_bus *bus)
+static int sdw_ml_sync_bank_switch(struct sdw_bus *bus, bool multi_link)
 {
 	unsigned long time_left;
 
-	if (!bus->multi_link)
+	if (!multi_link)
 		return 0;
 
 	/* Wait for completion of transfer */
@@ -847,7 +848,7 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 			bus->bank_switch_timeout = DEFAULT_BANK_SWITCH_TIMEOUT;
 
 		/* Check if bank switch was successful */
-		ret = sdw_ml_sync_bank_switch(bus);
+		ret = sdw_ml_sync_bank_switch(bus, multi_link);
 		if (ret < 0) {
 			dev_err(bus->dev,
 				"multi link bank switch failed: %d\n", ret);
@@ -897,7 +898,7 @@ static struct sdw_port_runtime *sdw_port_alloc(struct list_head *port_list)
 }
 
 static int sdw_port_config(struct sdw_port_runtime *p_rt,
-			   struct sdw_port_config *port_config,
+			   const struct sdw_port_config *port_config,
 			   int port_index)
 {
 	p_rt->ch_mask = port_config[port_index].ch_mask;
@@ -970,7 +971,7 @@ static int sdw_slave_port_is_valid_range(struct device *dev, int num)
 
 static int sdw_slave_port_config(struct sdw_slave *slave,
 				 struct sdw_slave_runtime *s_rt,
-				 struct sdw_port_config *port_config)
+				 const struct sdw_port_config *port_config)
 {
 	struct sdw_port_runtime *p_rt;
 	int ret;
@@ -1026,7 +1027,7 @@ static int sdw_master_port_alloc(struct sdw_master_runtime *m_rt,
 }
 
 static int sdw_master_port_config(struct sdw_master_runtime *m_rt,
-				  struct sdw_port_config *port_config)
+				  const struct sdw_port_config *port_config)
 {
 	struct sdw_port_runtime *p_rt;
 	int ret;
@@ -1180,6 +1181,8 @@ static struct sdw_master_runtime
 	m_rt->bus = bus;
 	m_rt->stream = stream;
 
+	bus->stream_refcount++;
+
 	return m_rt;
 }
 
@@ -1216,6 +1219,7 @@ static void sdw_master_rt_free(struct sdw_master_runtime *m_rt,
 			       struct sdw_stream_runtime *stream)
 {
 	struct sdw_slave_runtime *s_rt, *_s_rt;
+	struct sdw_bus *bus = m_rt->bus;
 
 	list_for_each_entry_safe(s_rt, _s_rt, &m_rt->slave_rt_list, m_rt_node) {
 		sdw_slave_port_free(s_rt->slave, stream);
@@ -1225,6 +1229,8 @@ static void sdw_master_rt_free(struct sdw_master_runtime *m_rt,
 	list_del(&m_rt->stream_node);
 	list_del(&m_rt->bus_node);
 	kfree(m_rt);
+
+	bus->stream_refcount--;
 }
 
 /**
@@ -1717,7 +1723,7 @@ EXPORT_SYMBOL(sdw_deprepare_stream);
 static int set_stream(struct snd_pcm_substream *substream,
 		      struct sdw_stream_runtime *sdw_stream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int ret = 0;
 	int i;
@@ -1770,7 +1776,7 @@ EXPORT_SYMBOL(sdw_alloc_stream);
 int sdw_startup_stream(void *sdw_substream)
 {
 	struct snd_pcm_substream *substream = sdw_substream;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
 	char *name;
 	int ret;
@@ -1814,12 +1820,12 @@ EXPORT_SYMBOL(sdw_startup_stream);
 void sdw_shutdown_stream(void *sdw_substream)
 {
 	struct snd_pcm_substream *substream = sdw_substream;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
 	struct snd_soc_dai *dai;
 
 	/* Find stream from first CPU DAI */
-	dai = asoc_rtd_to_cpu(rtd, 0);
+	dai = snd_soc_rtd_to_cpu(rtd, 0);
 
 	sdw_stream = snd_soc_dai_get_stream(dai, substream->stream);
 
@@ -1861,7 +1867,7 @@ EXPORT_SYMBOL(sdw_release_stream);
  */
 int sdw_stream_add_master(struct sdw_bus *bus,
 			  struct sdw_stream_config *stream_config,
-			  struct sdw_port_config *port_config,
+			  const struct sdw_port_config *port_config,
 			  unsigned int num_ports,
 			  struct sdw_stream_runtime *stream)
 {
@@ -1981,7 +1987,7 @@ EXPORT_SYMBOL(sdw_stream_remove_master);
  */
 int sdw_stream_add_slave(struct sdw_slave *slave,
 			 struct sdw_stream_config *stream_config,
-			 struct sdw_port_config *port_config,
+			 const struct sdw_port_config *port_config,
 			 unsigned int num_ports,
 			 struct sdw_stream_runtime *stream)
 {

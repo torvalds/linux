@@ -9,6 +9,26 @@
 #include "intel_dsi.h"
 #include "intel_panel.h"
 
+void intel_dsi_wait_panel_power_cycle(struct intel_dsi *intel_dsi)
+{
+	ktime_t panel_power_on_time;
+	s64 panel_power_off_duration;
+
+	panel_power_on_time = ktime_get_boottime();
+	panel_power_off_duration = ktime_ms_delta(panel_power_on_time,
+						  intel_dsi->panel_power_off_time);
+
+	if (panel_power_off_duration < (s64)intel_dsi->panel_pwr_cycle_delay)
+		msleep(intel_dsi->panel_pwr_cycle_delay - panel_power_off_duration);
+}
+
+void intel_dsi_shutdown(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+
+	intel_dsi_wait_panel_power_cycle(intel_dsi);
+}
+
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi)
 {
 	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
@@ -44,13 +64,10 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_fixed_mode(intel_connector, mode);
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int max_dotclk = to_i915(connector->dev)->display.cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
 
 	status = intel_panel_mode_valid(intel_connector, mode);
 	if (status != MODE_OK)

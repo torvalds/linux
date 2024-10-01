@@ -462,7 +462,7 @@ static const struct acpi_device_id pa12203001_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, pa12203001_acpi_match);
 
 static const struct i2c_device_id pa12203001_id[] = {
-		{ "txcpa122", 0 },
+		{ "txcpa122" },
 		{}
 };
 
@@ -472,7 +472,7 @@ static struct i2c_driver pa12203001_driver = {
 	.driver = {
 		.name = PA12203001_DRIVER_NAME,
 		.pm = &pa12203001_pm_ops,
-		.acpi_match_table = ACPI_PTR(pa12203001_acpi_match),
+		.acpi_match_table = pa12203001_acpi_match,
 	},
 	.probe = pa12203001_probe,
 	.remove = pa12203001_remove,

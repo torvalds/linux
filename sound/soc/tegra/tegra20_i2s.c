@@ -310,6 +310,7 @@ static int tegra20_i2s_startup(struct snd_pcm_substream *substream,
 }
 
 static const struct snd_soc_dai_ops tegra20_i2s_dai_ops = {
+	.probe		= tegra20_i2s_probe,
 	.set_fmt	= tegra20_i2s_set_fmt,
 	.hw_params	= tegra20_i2s_hw_params,
 	.trigger	= tegra20_i2s_trigger,
@@ -317,7 +318,6 @@ static const struct snd_soc_dai_ops tegra20_i2s_dai_ops = {
 };
 
 static const struct snd_soc_dai_driver tegra20_i2s_dai_template = {
-	.probe = tegra20_i2s_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -500,7 +500,7 @@ static struct platform_driver tegra20_i2s_driver = {
 		.pm = &tegra20_i2s_pm_ops,
 	},
 	.probe = tegra20_i2s_platform_probe,
-	.remove_new = tegra20_i2s_platform_remove,
+	.remove = tegra20_i2s_platform_remove,
 };
 module_platform_driver(tegra20_i2s_driver);
 

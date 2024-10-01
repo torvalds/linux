@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HIF_H
@@ -10,17 +10,17 @@
 #include "core.h"
 
 struct ath12k_hif_ops {
-	u32 (*read32)(struct ath12k_base *sc, u32 address);
-	void (*write32)(struct ath12k_base *sc, u32 address, u32 data);
-	void (*irq_enable)(struct ath12k_base *sc);
-	void (*irq_disable)(struct ath12k_base *sc);
-	int (*start)(struct ath12k_base *sc);
-	void (*stop)(struct ath12k_base *sc);
-	int (*power_up)(struct ath12k_base *sc);
-	void (*power_down)(struct ath12k_base *sc);
+	u32 (*read32)(struct ath12k_base *ab, u32 address);
+	void (*write32)(struct ath12k_base *ab, u32 address, u32 data);
+	void (*irq_enable)(struct ath12k_base *ab);
+	void (*irq_disable)(struct ath12k_base *ab);
+	int (*start)(struct ath12k_base *ab);
+	void (*stop)(struct ath12k_base *ab);
+	int (*power_up)(struct ath12k_base *ab);
+	void (*power_down)(struct ath12k_base *ab, bool is_suspend);
 	int (*suspend)(struct ath12k_base *ab);
 	int (*resume)(struct ath12k_base *ab);
-	int (*map_service_to_pipe)(struct ath12k_base *sc, u16 service_id,
+	int (*map_service_to_pipe)(struct ath12k_base *ab, u16 service_id,
 				   u8 *ul_pipe, u8 *dl_pipe);
 	int (*get_user_msi_vector)(struct ath12k_base *ab, char *user_name,
 				   int *num_vectors, u32 *user_base_data,
@@ -30,6 +30,7 @@ struct ath12k_hif_ops {
 	void (*ce_irq_enable)(struct ath12k_base *ab);
 	void (*ce_irq_disable)(struct ath12k_base *ab);
 	void (*get_ce_msi_idx)(struct ath12k_base *ab, u32 ce_id, u32 *msi_idx);
+	int (*panic_handler)(struct ath12k_base *ab);
 };
 
 static inline int ath12k_hif_map_service_to_pipe(struct ath12k_base *ab, u16 service_id,
@@ -133,12 +134,26 @@ static inline void ath12k_hif_write32(struct ath12k_base *ab, u32 address,
 
 static inline int ath12k_hif_power_up(struct ath12k_base *ab)
 {
+	if (!ab->hif.ops->power_up)
+		return -EOPNOTSUPP;
+
 	return ab->hif.ops->power_up(ab);
 }
 
-static inline void ath12k_hif_power_down(struct ath12k_base *ab)
+static inline void ath12k_hif_power_down(struct ath12k_base *ab, bool is_suspend)
 {
-	ab->hif.ops->power_down(ab);
+	if (!ab->hif.ops->power_down)
+		return;
+
+	ab->hif.ops->power_down(ab, is_suspend);
+}
+
+static inline int ath12k_hif_panic_handler(struct ath12k_base *ab)
+{
+	if (!ab->hif.ops->panic_handler)
+		return NOTIFY_DONE;
+
+	return ab->hif.ops->panic_handler(ab);
 }
 
 #endif /* ATH12K_HIF_H */

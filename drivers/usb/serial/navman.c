@@ -95,7 +95,6 @@ static int navman_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 static struct usb_serial_driver navman_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"navman",
 	},
 	.id_table =		id_table,
@@ -112,4 +111,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 module_usb_serial_driver(serial_drivers, id_table);
 
+MODULE_DESCRIPTION("Navman USB Serial driver");
 MODULE_LICENSE("GPL v2");

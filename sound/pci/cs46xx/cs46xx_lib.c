@@ -2449,7 +2449,6 @@ static int cs46xx_detect_codec(struct snd_cs46xx *chip, int codec)
 int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 {
 	struct snd_card *card = chip->card;
-	struct snd_ctl_elem_id id;
 	int err;
 	unsigned int idx;
 	static const struct snd_ac97_bus_ops ops = {
@@ -2490,10 +2489,8 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 	}
 
 	/* get EAPD mixer switch (for voyetra hack) */
-	memset(&id, 0, sizeof(id));
-	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	strcpy(id.name, "External Amplifier");
-	chip->eapd_switch = snd_ctl_find_id(chip->card, &id);
+	chip->eapd_switch = snd_ctl_find_id_mixer(chip->card,
+						  "External Amplifier");
     
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	if (chip->nr_ac97_codecs == 1) {

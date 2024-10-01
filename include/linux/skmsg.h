@@ -58,10 +58,15 @@ struct sk_psock_progs {
 	struct bpf_prog			*stream_parser;
 	struct bpf_prog			*stream_verdict;
 	struct bpf_prog			*skb_verdict;
+	struct bpf_link			*msg_parser_link;
+	struct bpf_link			*stream_parser_link;
+	struct bpf_link			*stream_verdict_link;
+	struct bpf_link			*skb_verdict_link;
 };
 
 enum sk_psock_state_bits {
 	SK_PSOCK_TX_ENABLED,
+	SK_PSOCK_RX_STRP_ENABLED,
 };
 
 struct sk_psock_link {
@@ -99,12 +104,18 @@ struct sk_psock {
 	void (*saved_close)(struct sock *sk, long timeout);
 	void (*saved_write_space)(struct sock *sk);
 	void (*saved_data_ready)(struct sock *sk);
+	/* psock_update_sk_prot may be called with restore=false many times
+	 * so the handler must be safe for this case. It will be called
+	 * exactly once with restore=true when the psock is being destroyed
+	 * and psock refcnt is zero, but before an RCU grace period.
+	 */
 	int  (*psock_update_sk_prot)(struct sock *sk, struct sk_psock *psock,
 				     bool restore);
 	struct proto			*sk_proto;
 	struct mutex			work_mutex;
 	struct sk_psock_work_state	work_state;
 	struct delayed_work		work;
+	struct sock			*sk_pair;
 	struct rcu_work			rwork;
 };
 
@@ -403,11 +414,14 @@ void sk_psock_stop_verdict(struct sock *sk, struct sk_psock *psock);
 int sk_psock_msg_verdict(struct sock *sk, struct sk_psock *psock,
 			 struct sk_msg *msg);
 
-static inline struct sk_psock_link *sk_psock_init_link(void)
-{
-	return kzalloc(sizeof(struct sk_psock_link),
-		       GFP_ATOMIC | __GFP_NOWARN);
-}
+/*
+ * This specialized allocator has to be a macro for its allocations to be
+ * accounted separately (to have a separate alloc_tag). The typecast is
+ * intentional to enforce typesafety.
+ */
+#define sk_psock_init_link()	\
+		((struct sk_psock_link *)kzalloc(sizeof(struct sk_psock_link),	\
+						 GFP_ATOMIC | __GFP_NOWARN))
 
 static inline void sk_psock_free_link(struct sk_psock_link *link)
 {
@@ -454,10 +468,12 @@ static inline void sk_psock_put(struct sock *sk, struct sk_psock *psock)
 
 static inline void sk_psock_data_ready(struct sock *sk, struct sk_psock *psock)
 {
+	read_lock_bh(&sk->sk_callback_lock);
 	if (psock->saved_data_ready)
 		psock->saved_data_ready(sk);
 	else
 		sk->sk_data_ready(sk);
+	read_unlock_bh(&sk->sk_callback_lock);
 }
 
 static inline void psock_set_prog(struct bpf_prog **pprog,
@@ -496,12 +512,6 @@ static inline bool sk_psock_strp_enabled(struct sk_psock *psock)
 	if (!psock)
 		return false;
 	return !!psock->saved_data_ready;
-}
-
-static inline bool sk_is_udp(const struct sock *sk)
-{
-	return sk->sk_type == SOCK_DGRAM &&
-	       sk->sk_protocol == IPPROTO_UDP;
 }
 
 #if IS_ENABLED(CONFIG_NET_SOCK_MSG)

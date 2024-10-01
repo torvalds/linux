@@ -127,6 +127,7 @@ test_l2_miss_multicast_common()
 	local proto=$1; shift
 	local sip=$1; shift
 	local dip=$1; shift
+	local dmac=$1; shift
 	local mode=$1; shift
 	local name=$1; shift
 
@@ -142,7 +143,7 @@ test_l2_miss_multicast_common()
 	   action pass
 
 	# Before adding MDB entry.
-	$MZ $mode $h1 -t ip -A $sip -B $dip -c 1 -p 100 -q
+	$MZ $mode $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 1
 	check_err $? "Unregistered multicast filter was not hit before adding MDB entry"
@@ -153,7 +154,7 @@ test_l2_miss_multicast_common()
 	# Adding MDB entry.
 	bridge mdb replace dev br1 port $swp2 grp $dip permanent
 
-	$MZ $mode $h1 -t ip -A $sip -B $dip -c 1 -p 100 -q
+	$MZ $mode $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 1
 	check_err $? "Unregistered multicast filter was hit after adding MDB entry"
@@ -164,7 +165,7 @@ test_l2_miss_multicast_common()
 	# Deleting MDB entry.
 	bridge mdb del dev br1 port $swp2 grp $dip
 
-	$MZ $mode $h1 -t ip -A $sip -B $dip -c 1 -p 100 -q
+	$MZ $mode $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 2
 	check_err $? "Unregistered multicast filter was not hit after deleting MDB entry"
@@ -183,10 +184,11 @@ test_l2_miss_multicast_ipv4()
 	local proto="ipv4"
 	local sip=192.0.2.1
 	local dip=239.1.1.1
+	local dmac=01:00:5e:01:01:01
 	local mode="-4"
 	local name="IPv4"
 
-	test_l2_miss_multicast_common $proto $sip $dip $mode $name
+	test_l2_miss_multicast_common $proto $sip $dip $dmac $mode $name
 }
 
 test_l2_miss_multicast_ipv6()
@@ -194,10 +196,11 @@ test_l2_miss_multicast_ipv6()
 	local proto="ipv6"
 	local sip=2001:db8:1::1
 	local dip=ff0e::1
+	local dmac=33:33:00:00:00:01
 	local mode="-6"
 	local name="IPv6"
 
-	test_l2_miss_multicast_common $proto $sip $dip $mode $name
+	test_l2_miss_multicast_common $proto $sip $dip $dmac $mode $name
 }
 
 test_l2_miss_multicast()
@@ -206,14 +209,17 @@ test_l2_miss_multicast()
 	# both registered and unregistered multicast traffic.
 	bridge link set dev $swp2 mcast_router 2
 
+	# Set the Max Response Delay to 100 centiseconds (1 second) so that the
+	# bridge will start forwarding according to its MDB soon after a
+	# multicast querier is enabled.
+	ip link set dev br1 type bridge mcast_query_response_interval 100
+
 	# Forwarding according to MDB entries only takes place when the bridge
 	# detects that there is a valid querier in the network. Set the bridge
 	# as the querier and assign it a valid IPv6 link-local address to be
 	# used as the source address for MLD queries.
 	ip link set dev br1 type bridge mcast_querier 1
 	ip -6 address add fe80::1/64 nodad dev br1
-	# Wait the default Query Response Interval (10 seconds) for the bridge
-	# to determine that there are no other queriers in the network.
 	sleep 10
 
 	test_l2_miss_multicast_ipv4
@@ -221,6 +227,7 @@ test_l2_miss_multicast()
 
 	ip -6 address del fe80::1/64 dev br1
 	ip link set dev br1 type bridge mcast_querier 0
+	ip link set dev br1 type bridge mcast_query_response_interval 1000
 	bridge link set dev $swp2 mcast_router 1
 }
 

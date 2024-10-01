@@ -116,10 +116,6 @@ __poll_t snd_seq_oss_poll(struct seq_oss_devinfo *dp, struct file *file, poll_ta
 
 void snd_seq_oss_reset(struct seq_oss_devinfo *dp);
 
-/* */
-void snd_seq_oss_process_queue(struct seq_oss_devinfo *dp, abstime_t time);
-
-
 /* proc interface */
 void snd_seq_oss_system_info_read(struct snd_info_buffer *buf);
 void snd_seq_oss_midi_info_read(struct snd_info_buffer *buf);
@@ -163,6 +159,6 @@ snd_seq_oss_fill_addr(struct seq_oss_devinfo *dp, struct snd_seq_event *ev,
 
 
 /* misc. functions for proc interface */
-char *enabled_str(int bool);
+char *enabled_str(bool b);
 
 #endif /* __SEQ_OSS_DEVICE_H */

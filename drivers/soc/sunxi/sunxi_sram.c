@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -33,7 +33,6 @@ struct sunxi_sram_data {
 	u8			offset;
 	u8			width;
 	struct sunxi_sram_func	*func;
-	struct list_head	list;
 };
 
 struct sunxi_sram_desc {
@@ -103,7 +102,6 @@ static const struct of_device_id sunxi_sram_dt_ids[] = {
 };
 
 static struct device *sram_dev;
-static LIST_HEAD(claimed_sram);
 static DEFINE_SPINLOCK(sram_lock);
 static void __iomem *base;
 
@@ -287,6 +285,7 @@ EXPORT_SYMBOL(sunxi_sram_release);
 struct sunxi_sramc_variant {
 	int num_emac_clocks;
 	bool has_ldo_ctrl;
+	bool has_ths_offset;
 };
 
 static const struct sunxi_sramc_variant sun4i_a10_sramc_variant = {
@@ -308,8 +307,10 @@ static const struct sunxi_sramc_variant sun50i_a64_sramc_variant = {
 
 static const struct sunxi_sramc_variant sun50i_h616_sramc_variant = {
 	.num_emac_clocks = 2,
+	.has_ths_offset = true,
 };
 
+#define SUNXI_SRAM_THS_OFFSET_REG	0x0
 #define SUNXI_SRAM_EMAC_CLOCK_REG	0x30
 #define SUNXI_SYS_LDO_CTRL_REG		0x150
 
@@ -318,6 +319,8 @@ static bool sunxi_sram_regmap_accessible_reg(struct device *dev,
 {
 	const struct sunxi_sramc_variant *variant = dev_get_drvdata(dev);
 
+	if (reg == SUNXI_SRAM_THS_OFFSET_REG && variant->has_ths_offset)
+		return true;
 	if (reg >= SUNXI_SRAM_EMAC_CLOCK_REG &&
 	    reg <  SUNXI_SRAM_EMAC_CLOCK_REG + variant->num_emac_clocks * 4)
 		return true;
@@ -327,7 +330,21 @@ static bool sunxi_sram_regmap_accessible_reg(struct device *dev,
 	return false;
 }
 
-static struct regmap_config sunxi_sram_regmap_config = {
+static void sunxi_sram_lock(void *_lock)
+{
+	spinlock_t *lock = _lock;
+
+	spin_lock(lock);
+}
+
+static void sunxi_sram_unlock(void *_lock)
+{
+	spinlock_t *lock = _lock;
+
+	spin_unlock(lock);
+}
+
+static const struct regmap_config sunxi_sram_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,
@@ -336,6 +353,9 @@ static struct regmap_config sunxi_sram_regmap_config = {
 	/* other devices have no business accessing other registers */
 	.readable_reg	= sunxi_sram_regmap_accessible_reg,
 	.writeable_reg	= sunxi_sram_regmap_accessible_reg,
+	.lock		= sunxi_sram_lock,
+	.unlock		= sunxi_sram_unlock,
+	.lock_arg	= &sram_lock,
 };
 
 static int __init sunxi_sram_probe(struct platform_device *pdev)

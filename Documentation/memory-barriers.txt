@@ -88,7 +88,6 @@ CONTENTS
 
  (*) The effects of the cpu cache.
 
-     - Cache coherency.
      - Cache coherency vs DMA.
      - Cache coherency vs MMIO.
 
@@ -396,6 +395,11 @@ Memory barriers come in four basic varieties:
 
 
  (2) Address-dependency barriers (historical).
+     [!] This section is marked as HISTORICAL: it covers the long-obsolete
+     smp_read_barrier_depends() macro, the semantics of which are now
+     implicit in all marked accesses.  For more up-to-date information,
+     including how compiler transformations can sometimes break address
+     dependencies, see Documentation/RCU/rcu_dereference.rst.
 
      An address-dependency barrier is a weaker form of read barrier.  In the
      case where two loads are performed such that the second depends on the
@@ -556,6 +560,11 @@ There are certain things that the Linux kernel memory barriers do not guarantee:
 
 ADDRESS-DEPENDENCY BARRIERS (HISTORICAL)
 ----------------------------------------
+[!] This section is marked as HISTORICAL: it covers the long-obsolete
+smp_read_barrier_depends() macro, the semantics of which are now implicit
+in all marked accesses.  For more up-to-date information, including
+how compiler transformations can sometimes break address dependencies,
+see Documentation/RCU/rcu_dereference.rst.
 
 As of v4.15 of the Linux kernel, an smp_mb() was added to READ_ONCE() for
 DEC Alpha, which means that about the only people who need to pay attention
@@ -666,8 +675,6 @@ for example.  See rcu_assign_pointer() and rcu_dereference() in
 include/linux/rcupdate.h.  This permits the current target of an RCU'd
 pointer to be replaced with a new modified target, without the replacement
 target appearing to be incompletely initialised.
-
-See also the subsection on "Cache Coherency" for a more thorough example.
 
 
 CONTROL DEPENDENCIES

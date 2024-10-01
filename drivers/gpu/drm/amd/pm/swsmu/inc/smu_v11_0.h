@@ -64,11 +64,9 @@
 #define LINK_SPEED_MAX			3
 
 static const __maybe_unused uint16_t link_width[] = {0, 1, 2, 4, 8, 12, 16};
-static const __maybe_unused uint16_t link_speed[] = {25, 50, 80, 160};
 
 static const
-struct smu_temperature_range __maybe_unused smu11_thermal_policy[] =
-{
+struct smu_temperature_range __maybe_unused smu11_thermal_policy[] = {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
 	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
 };
@@ -96,8 +94,8 @@ struct smu_11_0_dpm_table {
 };
 
 struct smu_11_0_pcie_table {
-        uint8_t  pcie_gen[MAX_PCIE_CONF];
-        uint8_t  pcie_lane[MAX_PCIE_CONF];
+	uint8_t  pcie_gen[MAX_PCIE_CONF];
+	uint8_t  pcie_lane[MAX_PCIE_CONF];
 };
 
 struct smu_11_0_dpm_tables {
@@ -239,7 +237,7 @@ int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu);
 int smu_v11_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 		struct pp_smu_nv_clock_table *max_clocks);
 
-bool smu_v11_0_baco_is_support(struct smu_context *smu);
+int smu_v11_0_get_bamaco_support(struct smu_context *smu);
 
 enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu);
 

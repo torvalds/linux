@@ -7,8 +7,9 @@
 #include <linux/ctype.h>
 #include <linux/edac.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/of_platform.h>
 #include <linux/uaccess.h>
 
 #include "edac_module.h"
@@ -250,18 +251,17 @@ free:
 	return res;
 }
 
-static int highbank_mc_remove(struct platform_device *pdev)
+static void highbank_mc_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
-	return 0;
 }
 
 static struct platform_driver highbank_mc_edac_driver = {
 	.probe = highbank_mc_probe,
-	.remove = highbank_mc_remove,
+	.remove_new = highbank_mc_remove,
 	.driver = {
 		.name = "hb_mc_edac",
 		.of_match_table = hb_ddr_ctrl_of_match,

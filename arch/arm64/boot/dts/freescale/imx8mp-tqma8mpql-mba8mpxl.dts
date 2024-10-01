@@ -15,6 +15,7 @@
 / {
 	model = "TQ-Systems i.MX8MPlus TQMa8MPxL on MBa8MPxL";
 	compatible = "tq,imx8mp-tqma8mpql-mba8mpxl", "tq,imx8mp-tqma8mpql", "fsl,imx8mp";
+	chassis-type = "embedded";
 
 	chosen {
 		stdout-path = &uart4;
@@ -53,6 +54,21 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
+	};
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		label = "X29";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon0>;
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
 	};
 
 	fan0: pwm-fan {
@@ -119,6 +135,18 @@
 		};
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "X44";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	display: display {
 		/*
 		 * Display is not fixed, so compatible has to be added from
@@ -168,6 +196,13 @@
 		enable-active-high;
 	};
 
+	reg_vcc_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	reg_vcc_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
@@ -186,11 +221,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-
-		ocram: ocram@900000 {
-			no-map;
-			reg = <0 0x900000 0 0x70000>;
-		};
 
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
@@ -447,6 +477,28 @@
 			  "", "", "", "";
 };
 
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi>;
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
 &i2c2 {
 	clock-frequency = <384000>;
 	pinctrl-names = "default", "gpio";
@@ -464,7 +516,7 @@
 		clock-names = "mclk";
 		clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_SAI3_MCLK1>;
 		reset-gpios = <&gpio4 29 GPIO_ACTIVE_LOW>;
-		iov-supply = <&reg_vcc_3v3>;
+		iov-supply = <&reg_vcc_1v8>;
 		ldoin-supply = <&reg_vcc_3v3>;
 	};
 
@@ -505,6 +557,10 @@
 	pinctrl-1 = <&pinctrl_i2c6_gpio>;
 	scl-gpios = <&gpio2 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio2 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+};
+
+&lcdif3 {
 	status = "okay";
 };
 
@@ -602,7 +658,6 @@
 &usb3_1 {
 	fsl,disable-port-power-control;
 	fsl,permanently-attached;
-	dr_mode = "host";
 	status = "okay";
 };
 
@@ -626,13 +681,10 @@
 	role-switch-default-mode = "peripheral";
 	status = "okay";
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		type = "micro";
-		label = "X29";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbcon0>;
-		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 

@@ -5,10 +5,15 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/usb/of.h>
+#include <linux/pci_ids.h>
+#include <linux/pci.h>
 
 #include "core.h"
+
+#define PCI_PRODUCT_ID_HAPS_HSOTG	0xabc0
+#define PCI_DEVICE_ID_LOONGSON_DWC2	0x7a04
 
 static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 {
@@ -18,6 +23,7 @@ static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 	p->max_transfer_size = 65535;
 	p->max_packet_count = 511;
 	p->ahbcfg = 0x10;
+	p->no_clock_gating = true;
 }
 
 static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
@@ -53,6 +59,14 @@ static void dwc2_set_jz4775_params(struct dwc2_hsotg *hsotg)
 	p->phy_utmi_width = 16;
 	p->activate_ingenic_overcurrent_detection =
 		!device_property_read_bool(hsotg->dev, "disable-over-current");
+}
+
+static void dwc2_set_loongson_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->phy_utmi_width = 8;
+	p->power_down = DWC2_POWER_DOWN_PARAM_PARTIAL;
 }
 
 static void dwc2_set_x1600_params(struct dwc2_hsotg *hsotg)
@@ -117,9 +131,18 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 	p->lpm_clock_gating = false;
 	p->besl = false;
 	p->hird_threshold_en = false;
+	p->no_clock_gating = true;
 }
 
-static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
+static void dwc2_set_ltq_danube_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+}
+
+static void dwc2_set_ltq_ase_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
@@ -128,10 +151,19 @@ static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
 	p->host_rx_fifo_size = 288;
 	p->host_nperio_tx_fifo_size = 128;
 	p->host_perio_tx_fifo_size = 96;
-	p->max_transfer_size = 65535;
-	p->max_packet_count = 511;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
+}
+
+static void dwc2_set_ltq_xrx200_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+	p->host_rx_fifo_size = 288;
+	p->host_nperio_tx_fifo_size = 128;
+	p->host_perio_tx_fifo_size = 136;
 }
 
 static void dwc2_set_amlogic_params(struct dwc2_hsotg *hsotg)
@@ -185,6 +217,25 @@ static void dwc2_set_amcc_params(struct dwc2_hsotg *hsotg)
 	struct dwc2_core_params *p = &hsotg->params;
 
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 << GAHBCFG_HBSTLEN_SHIFT;
+}
+
+static void dwc2_set_cv1800_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+	p->host_dma = false;
+	p->g_dma = false;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
+	p->phy_utmi_width = 16;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 << GAHBCFG_HBSTLEN_SHIFT;
+	p->lpm = false;
+	p->lpm_clock_gating = false;
+	p->besl = false;
+	p->hird_threshold_en = false;
+	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
 }
 
 static void dwc2_set_stm32f4x9_fsotg_params(struct dwc2_hsotg *hsotg)
@@ -264,8 +315,11 @@ const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "ingenic,x1830-otg", .data = dwc2_set_x1600_params },
 	{ .compatible = "ingenic,x2000-otg", .data = dwc2_set_x2000_params },
 	{ .compatible = "rockchip,rk3066-usb", .data = dwc2_set_rk_params },
-	{ .compatible = "lantiq,arx100-usb", .data = dwc2_set_ltq_params },
-	{ .compatible = "lantiq,xrx200-usb", .data = dwc2_set_ltq_params },
+	{ .compatible = "lantiq,danube-usb", .data = &dwc2_set_ltq_danube_params },
+	{ .compatible = "lantiq,ase-usb", .data = &dwc2_set_ltq_ase_params },
+	{ .compatible = "lantiq,arx100-usb", .data = &dwc2_set_ltq_ase_params },
+	{ .compatible = "lantiq,xrx200-usb", .data = &dwc2_set_ltq_xrx200_params },
+	{ .compatible = "lantiq,xrx300-usb", .data = &dwc2_set_ltq_xrx200_params },
 	{ .compatible = "snps,dwc2" },
 	{ .compatible = "samsung,s3c6400-hsotg",
 	  .data = dwc2_set_s3c6400_params },
@@ -281,6 +335,8 @@ const struct of_device_id dwc2_of_match_table[] = {
 	  .data = dwc2_set_amlogic_a1_params },
 	{ .compatible = "amcc,dwc-otg", .data = dwc2_set_amcc_params },
 	{ .compatible = "apm,apm82181-dwc-otg", .data = dwc2_set_amcc_params },
+	{ .compatible = "sophgo,cv1800-usb",
+	  .data = dwc2_set_cv1800_params },
 	{ .compatible = "st,stm32f4x9-fsotg",
 	  .data = dwc2_set_stm32f4x9_fsotg_params },
 	{ .compatible = "st,stm32f4x9-hsotg" },
@@ -297,10 +353,28 @@ const struct of_device_id dwc2_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 
 const struct acpi_device_id dwc2_acpi_match[] = {
+	/* This ID refers to the same USB IP as of_device_id brcm,bcm2835-usb */
 	{ "BCM2848", (kernel_ulong_t)dwc2_set_bcm_params },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dwc2_acpi_match);
+
+const struct pci_device_id dwc2_pci_ids[] = {
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_STMICRO,
+			   PCI_DEVICE_ID_STMICRO_USB_OTG),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_LOONGSON, PCI_DEVICE_ID_LOONGSON_DWC2),
+		.driver_data = (unsigned long)dwc2_set_loongson_params,
+	},
+	{ /* end: all zeroes */ }
+};
+MODULE_DEVICE_TABLE(pci, dwc2_pci_ids);
+EXPORT_SYMBOL_GPL(dwc2_pci_ids);
 
 static void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg)
 {
@@ -444,6 +518,7 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	dwc2_set_param_lpm(hsotg);
 	p->phy_ulpi_ddr = false;
 	p->phy_ulpi_ext_vbus = false;
+	p->eusb2_disc = false;
 
 	p->enable_dynamic_fifo = hw->enable_dynamic_fifo;
 	p->en_multiple_tx_fifo = hw->en_multiple_tx_fifo;
@@ -706,6 +781,25 @@ static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 	}
 }
 
+static void dwc2_check_param_eusb2_disc(struct dwc2_hsotg *hsotg)
+{
+	u32 gsnpsid;
+
+	if (!hsotg->params.eusb2_disc)
+		return;
+	gsnpsid = dwc2_readl(hsotg, GSNPSID);
+	/*
+	 * eusb2_disc not supported by FS IOT devices.
+	 * For other cores, it supported starting from version 5.00a
+	 */
+	if ((gsnpsid & ~DWC2_CORE_REV_MASK) == DWC2_FS_IOT_ID ||
+	    (gsnpsid & DWC2_CORE_REV_MASK) <
+	    (DWC2_CORE_REV_5_00a & DWC2_CORE_REV_MASK)) {
+		hsotg->params.eusb2_disc = false;
+		return;
+	}
+}
+
 #define CHECK_RANGE(_param, _min, _max, _def) do {			\
 		if ((int)(hsotg->params._param) < (_min) ||		\
 		    (hsotg->params._param) > (_max)) {			\
@@ -734,6 +828,8 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	dwc2_check_param_speed(hsotg);
 	dwc2_check_param_phy_utmi_width(hsotg);
 	dwc2_check_param_power_down(hsotg);
+	dwc2_check_param_eusb2_disc(hsotg);
+
 	CHECK_BOOL(enable_dynamic_fifo, hw->enable_dynamic_fifo);
 	CHECK_BOOL(en_multiple_tx_fifo, hw->en_multiple_tx_fifo);
 	CHECK_BOOL(i2c_enable, hw->i2c_enable);
@@ -938,22 +1034,20 @@ typedef void (*set_params_cb)(struct dwc2_hsotg *data);
 
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
-	const struct of_device_id *match;
 	set_params_cb set_params;
 
 	dwc2_set_default_params(hsotg);
 	dwc2_get_device_properties(hsotg);
 
-	match = of_match_device(dwc2_of_match_table, hsotg->dev);
-	if (match && match->data) {
-		set_params = match->data;
+	set_params = device_get_match_data(hsotg->dev);
+	if (set_params) {
 		set_params(hsotg);
 	} else {
-		const struct acpi_device_id *amatch;
+		const struct pci_device_id *pmatch =
+			pci_match_id(dwc2_pci_ids, to_pci_dev(hsotg->dev->parent));
 
-		amatch = acpi_match_device(dwc2_acpi_match, hsotg->dev);
-		if (amatch && amatch->driver_data) {
-			set_params = (set_params_cb)amatch->driver_data;
+		if (pmatch && pmatch->driver_data) {
+			set_params = (set_params_cb)pmatch->driver_data;
 			set_params(hsotg);
 		}
 	}

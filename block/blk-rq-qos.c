@@ -263,14 +263,14 @@ void rq_qos_wait(struct rq_wait *rqw, void *private_data,
 	has_sleeper = !prepare_to_wait_exclusive(&rqw->wait, &data.wq,
 						 TASK_UNINTERRUPTIBLE);
 	do {
-		/* The memory barrier in set_task_state saves us here. */
+		/* The memory barrier in set_current_state saves us here. */
 		if (data.got_token)
 			break;
 		if (!has_sleeper && acquire_inflight_cb(rqw, private_data)) {
 			finish_wait(&rqw->wait, &data.wq);
 
 			/*
-			 * We raced with wbt_wake_function() getting a token,
+			 * We raced with rq_qos_wake_function() getting a token,
 			 * which means we now have two. Put our local token
 			 * and wake anyone else potentially waiting for one.
 			 */

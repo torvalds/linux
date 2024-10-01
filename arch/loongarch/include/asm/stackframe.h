@@ -13,6 +13,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/loongarch.h>
 #include <asm/thread_info.h>
+#include <asm/unwind_hints.h>
 
 /* Make the addition of cfi info a little easier. */
 	.macro cfi_rel_offset reg offset=0 docfi=0
@@ -37,11 +38,22 @@
 	cfi_restore \reg \offset \docfi
 	.endm
 
+	.macro SETUP_DMWINS temp
+	li.d	\temp, CSR_DMW0_INIT	# WUC, PLV0, 0x8000 xxxx xxxx xxxx
+	csrwr	\temp, LOONGARCH_CSR_DMWIN0
+	li.d	\temp, CSR_DMW1_INIT	# CAC, PLV0, 0x9000 xxxx xxxx xxxx
+	csrwr	\temp, LOONGARCH_CSR_DMWIN1
+	li.d	\temp, CSR_DMW2_INIT	# WUC, PLV0, 0xa000 xxxx xxxx xxxx
+	csrwr	\temp, LOONGARCH_CSR_DMWIN2
+	li.d	\temp, CSR_DMW3_INIT	# 0x0, unused
+	csrwr	\temp, LOONGARCH_CSR_DMWIN3
+	.endm
+
 /* Jump to the runtime virtual address. */
 	.macro JUMP_VIRT_ADDR temp1 temp2
 	li.d	\temp1, CACHE_BASE
 	pcaddi	\temp2, 0
-	or	\temp1, \temp1, \temp2
+	bstrins.d  \temp1, \temp2, (DMW_PABITS - 1), 0
 	jirl	zero, \temp1, 0xc
 	.endm
 
@@ -158,6 +170,11 @@
 	cfi_st  u0, PT_R21, \docfi
 	csrrd	u0, PERCPU_BASE_KS
 9:
+#ifdef CONFIG_KGDB
+	li.w	t0, CSR_CRMD_WE
+	csrxchg	t0, t0, LOONGARCH_CSR_CRMD
+#endif
+	UNWIND_HINT_REGS
 	.endm
 
 	.macro	SAVE_ALL docfi=0
@@ -215,6 +232,7 @@
 
 	.macro	RESTORE_SP_AND_RET docfi=0
 	cfi_ld	sp, PT_R3, \docfi
+	UNWIND_HINT_FUNC
 	ertn
 	.endm
 

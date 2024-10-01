@@ -7,7 +7,9 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Freescale i.MX7ULP Watchdog Timer (WDT) Controller
 
 maintainers:
-  - Anson Huang <Anson.Huang@nxp.com>
+  - Shawn Guo <shawnguo@kernel.org>
+  - Sascha Hauer <s.hauer@pengutronix.de>
+  - Fabio Estevam <festevam@gmail.com>
 
 allOf:
   - $ref: watchdog.yaml#
@@ -29,6 +31,11 @@ properties:
 
   clocks:
     maxItems: 1
+
+  fsl,ext-reset-output:
+    description:
+      When set, wdog can generate external reset from the wdog_any pin.
+    type: boolean
 
 required:
   - compatible

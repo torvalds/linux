@@ -23,9 +23,6 @@
 #include "intel.h"
 #include "intel_auxdevice.h"
 
-/* IDA min selected to avoid conflicts with HDaudio/iDISP SDI values */
-#define INTEL_DEV_NUM_IDA_MIN           4
-
 #define INTEL_MASTER_SUSPEND_DELAY_MS	3000
 
 /*
@@ -44,6 +41,40 @@ static int md_flags;
 module_param_named(sdw_md_flags, md_flags, int, 0444);
 MODULE_PARM_DESC(sdw_md_flags, "SoundWire Intel Master device flags (0x0 all off)");
 
+struct wake_capable_part {
+	const u16 mfg_id;
+	const u16 part_id;
+};
+
+static struct wake_capable_part wake_capable_list[] = {
+	{0x01fa, 0x4243},
+	{0x025d, 0x5682},
+	{0x025d, 0x700},
+	{0x025d, 0x711},
+	{0x025d, 0x1712},
+	{0x025d, 0x1713},
+	{0x025d, 0x1716},
+	{0x025d, 0x1717},
+	{0x025d, 0x712},
+	{0x025d, 0x713},
+	{0x025d, 0x714},
+	{0x025d, 0x715},
+	{0x025d, 0x716},
+	{0x025d, 0x717},
+	{0x025d, 0x722},
+};
+
+static bool is_wake_capable(struct sdw_slave *slave)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wake_capable_list); i++)
+		if (slave->id.part_id == wake_capable_list[i].part_id &&
+		    slave->id.mfg_id == wake_capable_list[i].mfg_id)
+			return true;
+	return false;
+}
+
 static int generic_pre_bank_switch(struct sdw_bus *bus)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
@@ -60,24 +91,39 @@ static int generic_post_bank_switch(struct sdw_bus *bus)
 	return sdw->link_res->hw_ops->post_bank_switch(sdw);
 }
 
-static void generic_new_peripheral_assigned(struct sdw_bus *bus, int dev_num)
+static void generic_new_peripheral_assigned(struct sdw_bus *bus,
+					    struct sdw_slave *slave,
+					    int dev_num)
 {
 	struct sdw_cdns *cdns = bus_to_cdns(bus);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	int dev_num_min;
+	int dev_num_max;
+	bool wake_capable = slave->prop.wake_capable || is_wake_capable(slave);
+
+	if (wake_capable) {
+		dev_num_min = SDW_INTEL_DEV_NUM_IDA_MIN;
+		dev_num_max = SDW_MAX_DEVICES;
+	} else {
+		dev_num_min = 1;
+		dev_num_max = SDW_INTEL_DEV_NUM_IDA_MIN - 1;
+	}
 
 	/* paranoia check, this should never happen */
-	if (dev_num < INTEL_DEV_NUM_IDA_MIN || dev_num > SDW_MAX_DEVICES)  {
-		dev_err(bus->dev, "%s: invalid dev_num %d\n", __func__, dev_num);
+	if (dev_num < dev_num_min || dev_num > dev_num_max)  {
+		dev_err(bus->dev, "%s: invalid dev_num %d, wake supported %d\n",
+			__func__, dev_num, slave->prop.wake_capable);
 		return;
 	}
 
-	if (sdw->link_res->hw_ops->program_sdi)
+	if (sdw->link_res->hw_ops->program_sdi && wake_capable)
 		sdw->link_res->hw_ops->program_sdi(sdw, dev_num);
 }
 
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
+	struct sdw_intel_prop *intel_prop;
 	struct fwnode_handle *link;
 	char name[32];
 	u32 quirk_mask;
@@ -109,18 +155,117 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 	prop->quirks = SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH |
 		SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY;
 
+	intel_prop = devm_kzalloc(bus->dev, sizeof(*intel_prop), GFP_KERNEL);
+	if (!intel_prop) {
+		fwnode_handle_put(link);
+		return -ENOMEM;
+	}
+
+	/* initialize with hardware defaults, in case the properties are not found */
+	intel_prop->clde = 0x0;
+	intel_prop->doaise2 = 0x0;
+	intel_prop->dodse2 = 0x0;
+	intel_prop->clds = 0x0;
+	intel_prop->clss = 0x0;
+	intel_prop->doaise = 0x1;
+	intel_prop->doais = 0x3;
+	intel_prop->dodse  = 0x0;
+	intel_prop->dods  = 0x1;
+
+	fwnode_property_read_u16(link,
+				 "intel-sdw-clde",
+				 &intel_prop->clde);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doaise2",
+				 &intel_prop->doaise2);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-dodse2",
+				 &intel_prop->dodse2);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-clds",
+				 &intel_prop->clds);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-clss",
+				 &intel_prop->clss);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doaise",
+				 &intel_prop->doaise);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doais",
+				 &intel_prop->doais);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-dodse",
+				 &intel_prop->dodse);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-dods",
+				 &intel_prop->dods);
+	bus->vendor_specific_prop = intel_prop;
+
+	dev_dbg(bus->dev, "doaise %#x doais %#x dodse %#x dods %#x\n",
+		intel_prop->doaise,
+		intel_prop->doais,
+		intel_prop->dodse,
+		intel_prop->dods);
+
+	fwnode_handle_put(link);
+
 	return 0;
 }
 
 static int intel_prop_read(struct sdw_bus *bus)
 {
+	struct sdw_master_prop *prop;
+
 	/* Initialize with default handler to read all DisCo properties */
 	sdw_master_read_prop(bus);
+
+	/*
+	 * Only one bus frequency is supported so far, filter
+	 * frequencies reported in the DSDT
+	 */
+	prop = &bus->prop;
+	if (prop->clk_freq && prop->num_clk_freq > 1) {
+		unsigned int default_bus_frequency;
+
+		default_bus_frequency =
+			prop->default_frame_rate *
+			prop->default_row *
+			prop->default_col /
+			SDW_DOUBLE_RATE_FACTOR;
+
+		prop->num_clk_freq = 1;
+		prop->clk_freq[0] = default_bus_frequency;
+		prop->max_clk_freq = default_bus_frequency;
+	}
 
 	/* read Intel-specific properties */
 	sdw_master_read_intel_prop(bus);
 
 	return 0;
+}
+
+static DEFINE_IDA(intel_peripheral_ida);
+
+static int intel_get_device_num_ida(struct sdw_bus *bus, struct sdw_slave *slave)
+{
+	int bit;
+
+	if (slave->prop.wake_capable || is_wake_capable(slave))
+		return ida_alloc_range(&intel_peripheral_ida,
+				       SDW_INTEL_DEV_NUM_IDA_MIN, SDW_MAX_DEVICES,
+				       GFP_KERNEL);
+
+	bit = find_first_zero_bit(slave->bus->assigned, SDW_MAX_DEVICES);
+	if (bit == SDW_MAX_DEVICES)
+		return -ENODEV;
+
+	return bit;
+}
+
+static void intel_put_device_num_ida(struct sdw_bus *bus, struct sdw_slave *slave)
+{
+	if (slave->prop.wake_capable || is_wake_capable(slave))
+		ida_free(&intel_peripheral_ida, slave->dev_num);
 }
 
 static struct sdw_master_ops sdw_intel_ops = {
@@ -132,6 +277,8 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.pre_bank_switch = generic_pre_bank_switch,
 	.post_bank_switch = generic_post_bank_switch,
 	.read_ping_status = cdns_read_ping_status,
+	.get_device_num =  intel_get_device_num_ida,
+	.put_device_num = intel_put_device_num_ida,
 	.new_peripheral_assigned = generic_new_peripheral_assigned,
 };
 
@@ -164,9 +311,25 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	cdns->instance = sdw->instance;
 	cdns->msg_count = 0;
 
+	/* single controller for all SoundWire links */
+	bus->controller_id = 0;
+
 	bus->link_id = auxdev->id;
-	bus->dev_num_ida_min = INTEL_DEV_NUM_IDA_MIN;
 	bus->clk_stop_timeout = 1;
+
+	/*
+	 * paranoia check: make sure ACPI-reported number of links is aligned with
+	 * hardware capabilities.
+	 */
+	ret = sdw_intel_get_link_count(sdw);
+	if (ret < 0) {
+		dev_err(dev, "%s: sdw_intel_get_link_count failed: %d\n", __func__, ret);
+		return ret;
+	}
+	if (ret <= sdw->instance) {
+		dev_err(dev, "%s: invalid link id %d, link count %d\n", __func__, auxdev->id, ret);
+		return -EINVAL;
+	}
 
 	sdw_cdns_probe(cdns);
 
@@ -248,13 +411,6 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 
 	sdw_intel_debugfs_init(sdw);
 
-	/* start bus */
-	ret = sdw_intel_start_bus(sdw);
-	if (ret) {
-		dev_err(dev, "bus start failed: %d\n", ret);
-		goto err_power_up;
-	}
-
 	/* Enable runtime PM */
 	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME)) {
 		pm_runtime_set_autosuspend_delay(dev,
@@ -264,6 +420,15 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
+
+		pm_runtime_resume(bus->dev);
+	}
+
+	/* start bus */
+	ret = sdw_intel_start_bus(sdw);
+	if (ret) {
+		dev_err(dev, "bus start failed: %d\n", ret);
+		goto err_pm_runtime;
 	}
 
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
@@ -293,12 +458,18 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	 * with a delay. A more complete solution would require the
 	 * definition of Master properties.
 	 */
-	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE))
+	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME_IDLE)) {
+		pm_runtime_mark_last_busy(bus->dev);
+		pm_runtime_mark_last_busy(dev);
 		pm_runtime_idle(dev);
+	}
 
 	sdw->startup_done = true;
 	return 0;
 
+err_pm_runtime:
+	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME))
+		pm_runtime_disable(dev);
 err_power_up:
 	sdw_intel_link_power_down(sdw);
 err_init:
@@ -318,6 +489,7 @@ static void intel_link_remove(struct auxiliary_device *auxdev)
 	 */
 	if (!bus->prop.hw_disabled) {
 		sdw_intel_debugfs_exit(sdw);
+		cancel_delayed_work_sync(&cdns->attach_dwork);
 		sdw_cdns_enable_interrupt(cdns, false);
 	}
 	sdw_bus_master_delete(bus);
@@ -360,7 +532,7 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
  * PM calls
  */
 
-static int intel_resume_child_device(struct device *dev, void *data)
+int intel_resume_child_device(struct device *dev, void *data)
 {
 	int ret;
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -374,9 +546,9 @@ static int intel_resume_child_device(struct device *dev, void *data)
 		return 0;
 	}
 
-	ret = pm_request_resume(dev);
+	ret = pm_runtime_resume(dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+		dev_err(dev, "%s: pm_runtime_resume failed: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -419,9 +591,9 @@ static int __maybe_unused intel_pm_prepare(struct device *dev)
 		 * first resume the device for this link. This will also by construction
 		 * resume the PCI parent device.
 		 */
-		ret = pm_request_resume(dev);
+		ret = pm_runtime_resume(dev);
 		if (ret < 0) {
-			dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+			dev_err(dev, "%s: pm_runtime_resume failed: %d\n", __func__, ret);
 			return 0;
 		}
 
@@ -541,8 +713,6 @@ static int __maybe_unused intel_resume(struct device *dev)
 		return 0;
 	}
 
-	link_flags = md_flags >> (bus->link_id * 8);
-
 	if (pm_runtime_suspended(dev)) {
 		dev_dbg(dev, "pm_runtime status was suspended, forcing active\n");
 
@@ -551,6 +721,8 @@ static int __maybe_unused intel_resume(struct device *dev)
 		pm_runtime_set_active(dev);
 		pm_runtime_mark_last_busy(dev);
 		pm_runtime_enable(dev);
+
+		pm_runtime_resume(bus->dev);
 
 		link_flags = md_flags >> (bus->link_id * 8);
 
@@ -587,6 +759,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 	 * counters and delay the pm_runtime suspend by several
 	 * seconds, by when all enumeration should be complete.
 	 */
+	pm_runtime_mark_last_busy(bus->dev);
 	pm_runtime_mark_last_busy(dev);
 
 	return 0;

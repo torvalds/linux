@@ -26,7 +26,7 @@ struct vc4_dummy_crtc *vc4_mock_pv(struct kunit *test,
 	struct vc4_crtc *vc4_crtc;
 	int ret;
 
-	dummy_crtc = kunit_kzalloc(test, sizeof(*dummy_crtc), GFP_KERNEL);
+	dummy_crtc = drmm_kzalloc(drm, sizeof(*dummy_crtc), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, dummy_crtc);
 
 	vc4_crtc = &dummy_crtc->crtc;

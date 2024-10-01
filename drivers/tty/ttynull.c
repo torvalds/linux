@@ -29,8 +29,8 @@ static void ttynull_hangup(struct tty_struct *tty)
 	tty_port_hangup(&ttynull_port);
 }
 
-static int ttynull_write(struct tty_struct *tty, const unsigned char *buf,
-			 int count)
+static ssize_t ttynull_write(struct tty_struct *tty, const u8 *buf,
+			     size_t count)
 {
 	return count;
 }
@@ -106,4 +106,5 @@ static void __exit ttynull_exit(void)
 module_init(ttynull_init);
 module_exit(ttynull_exit);
 
+MODULE_DESCRIPTION("NULL TTY driver");
 MODULE_LICENSE("GPL v2");

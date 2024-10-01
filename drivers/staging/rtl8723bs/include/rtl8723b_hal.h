@@ -17,7 +17,7 @@
 #include "rtl8723b_cmd.h"
 #include "rtw_mp.h"
 #include "hal_pwr_seq.h"
-#include "hal_phy_reg_8723b.h"
+#include "Hal8192CPhyReg.h"
 #include "hal_phy_cfg.h"
 
 /*  */
@@ -38,7 +38,7 @@ struct rt_firmware {
 
 /* This structure must be carefully byte-ordered. */
 struct rt_firmware_hdr {
-	/*  8-byte alinment required */
+	/*  8-byte alignment required */
 
 	/*  LONG WORD 0 ---- */
 	__le16 signature;  /* 92C0: test chip; 92C, 88C0: test chip;

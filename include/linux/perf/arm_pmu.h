@@ -17,10 +17,14 @@
 #ifdef CONFIG_ARM_PMU
 
 /*
- * The ARMv7 CPU PMU supports up to 32 event counters.
+ * The Armv7 and Armv8.8 or less CPU PMU supports up to 32 event counters.
+ * The Armv8.9/9.4 CPU PMU supports up to 33 event counters.
  */
+#ifdef CONFIG_ARM
 #define ARMPMU_MAX_HWEVENTS		32
-
+#else
+#define ARMPMU_MAX_HWEVENTS		33
+#endif
 /*
  * ARM PMU hw_event flags
  */
@@ -60,12 +64,6 @@ struct pmu_hw_events {
 	DECLARE_BITMAP(used_mask, ARMPMU_MAX_HWEVENTS);
 
 	/*
-	 * Hardware lock to serialize accesses to PMU registers. Needed for the
-	 * read/modify/write sequences.
-	 */
-	raw_spinlock_t		pmu_lock;
-
-	/*
 	 * When using percpu IRQs, we need a percpu dev_id. Place it here as we
 	 * already have to allocate this struct per cpu.
 	 */
@@ -102,7 +100,7 @@ struct arm_pmu {
 	void		(*stop)(struct arm_pmu *);
 	void		(*reset)(void *);
 	int		(*map_event)(struct perf_event *event);
-	int		num_events;
+	DECLARE_BITMAP(cntr_mask, ARMPMU_MAX_HWEVENTS);
 	bool		secure_access; /* 32-bit ARM only */
 #define ARMV8_PMUV3_MAX_COMMON_EVENTS		0x40
 	DECLARE_BITMAP(pmceid_bitmap, ARMV8_PMUV3_MAX_COMMON_EVENTS);
@@ -187,5 +185,28 @@ void armpmu_free_irq(int irq, int cpu);
 #endif /* CONFIG_ARM_PMU */
 
 #define ARMV8_SPE_PDEV_NAME "arm,spe-v1"
+#define ARMV8_TRBE_PDEV_NAME "arm,trbe"
+
+/* Why does everything I do descend into this? */
+#define __GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
+	(lo) == (hi) ? #cfg ":" #lo "\n" : #cfg ":" #lo "-" #hi
+
+#define _GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
+	__GEN_PMU_FORMAT_ATTR(cfg, lo, hi)
+
+#define GEN_PMU_FORMAT_ATTR(name)					\
+	PMU_FORMAT_ATTR(name,						\
+	_GEN_PMU_FORMAT_ATTR(ATTR_CFG_FLD_##name##_CFG,			\
+			     ATTR_CFG_FLD_##name##_LO,			\
+			     ATTR_CFG_FLD_##name##_HI))
+
+#define _ATTR_CFG_GET_FLD(attr, cfg, lo, hi)				\
+	((((attr)->cfg) >> lo) & GENMASK_ULL(hi - lo, 0))
+
+#define ATTR_CFG_GET_FLD(attr, name)					\
+	_ATTR_CFG_GET_FLD(attr,						\
+			  ATTR_CFG_FLD_##name##_CFG,			\
+			  ATTR_CFG_FLD_##name##_LO,			\
+			  ATTR_CFG_FLD_##name##_HI)
 
 #endif /* __ARM_PMU_H__ */

@@ -177,7 +177,7 @@ static const struct clk_ops clk_spmi_pmic_div_ops = {
 
 struct spmi_pmic_div_clk_cc {
 	int		nclks;
-	struct clkdiv	clks[];
+	struct clkdiv	clks[] __counted_by(nclks);
 };
 
 static struct clk_hw *

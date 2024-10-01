@@ -652,8 +652,8 @@ static int snd_mts64_ctl_create(struct snd_card *card,
 	for (i = 0; control[i]; ++i) {
 		err = snd_ctl_add(card, snd_ctl_new1(control[i], mts));
 		if (err < 0) {
-			snd_printd("Cannot create control: %s\n", 
-				   control[i]->name);
+			dev_dbg(card->dev, "Cannot create control: %s\n",
+				control[i]->name);
 			return err;
 		}
 	}
@@ -882,7 +882,6 @@ static struct parport_driver mts64_parport_driver = {
 	.probe		= snd_mts64_dev_probe,
 	.match_port	= snd_mts64_attach,
 	.detach		= snd_mts64_detach,
-	.devmodel	= true,
 };
 
 /*********************************************************************
@@ -927,7 +926,7 @@ static int snd_mts64_probe(struct platform_device *pdev)
 	err = snd_card_new(&pdev->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printd("Cannot create card\n");
+		dev_dbg(&pdev->dev, "Cannot create card\n");
 		return err;
 	}
 	strcpy(card->driver, DRIVER_NAME);
@@ -941,21 +940,21 @@ static int snd_mts64_probe(struct platform_device *pdev)
 					    &mts64_cb,	 /* callbacks */
 					    pdev->id);	 /* device number */
 	if (!pardev) {
-		snd_printd("Cannot register pardevice\n");
+		dev_dbg(card->dev, "Cannot register pardevice\n");
 		err = -EIO;
 		goto __err;
 	}
 
 	/* claim parport */
 	if (parport_claim(pardev)) {
-		snd_printd("Cannot claim parport 0x%lx\n", pardev->port->base);
+		dev_dbg(card->dev, "Cannot claim parport 0x%lx\n", pardev->port->base);
 		err = -EIO;
 		goto free_pardev;
 	}
 
 	err = snd_mts64_create(card, pardev, &mts);
 	if (err < 0) {
-		snd_printd("Cannot create main component\n");
+		dev_dbg(card->dev, "Cannot create main component\n");
 		goto release_pardev;
 	}
 	card->private_data = mts;
@@ -969,7 +968,7 @@ static int snd_mts64_probe(struct platform_device *pdev)
 	
 	err = snd_mts64_rawmidi_create(card);
 	if (err < 0) {
-		snd_printd("Creating Rawmidi component failed\n");
+		dev_dbg(card->dev, "Creating Rawmidi component failed\n");
 		goto __err;
 	}
 
@@ -983,11 +982,11 @@ static int snd_mts64_probe(struct platform_device *pdev)
 	/* At this point card will be usable */
 	err = snd_card_register(card);
 	if (err < 0) {
-		snd_printd("Cannot register card\n");
+		dev_dbg(card->dev, "Cannot register card\n");
 		goto __err;
 	}
 
-	snd_printk(KERN_INFO "ESI Miditerminal 4140 on 0x%lx\n", p->base);
+	dev_info(card->dev, "ESI Miditerminal 4140 on 0x%lx\n", p->base);
 	return 0;
 
 release_pardev:

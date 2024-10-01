@@ -6,14 +6,13 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_crtc.h"
+#include "mtk_ddp_comp.h"
 #include "mtk_disp_drv.h"
-#include "mtk_drm_crtc.h"
-#include "mtk_drm_ddp_comp.h"
 #include "mtk_drm_drv.h"
 
 #define DISP_CCORR_EN				0x0000
@@ -34,11 +33,6 @@ struct mtk_disp_ccorr_data {
 	u32 matrix_bits;
 };
 
-/**
- * struct mtk_disp_ccorr - DISP_CCORR driver structure
- * @ddp_comp - structure containing type enum and hardware resources
- * @crtc - associated crtc to report irq events to
- */
 struct mtk_disp_ccorr {
 	struct clk *clk;
 	void __iomem *regs;
@@ -159,7 +153,6 @@ static int mtk_disp_ccorr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_disp_ccorr *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -167,17 +160,14 @@ static int mtk_disp_ccorr_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get ccorr clk\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk),
+				     "failed to get ccorr clk\n");
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(priv->regs)) {
-		dev_err(dev, "failed to ioremap ccorr\n");
-		return PTR_ERR(priv->regs);
-	}
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(priv->regs))
+		return dev_err_probe(dev, PTR_ERR(priv->regs),
+				     "failed to ioremap ccorr\n");
 
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	ret = cmdq_dev_get_client_reg(dev, &priv->cmdq_reg, 0);
@@ -190,16 +180,14 @@ static int mtk_disp_ccorr_probe(struct platform_device *pdev)
 
 	ret = component_add(dev, &mtk_disp_ccorr_component_ops);
 	if (ret)
-		dev_err(dev, "Failed to add component: %d\n", ret);
-
-	return ret;
-}
-
-static int mtk_disp_ccorr_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &mtk_disp_ccorr_component_ops);
+		return dev_err_probe(dev, ret, "Failed to add component\n");
 
 	return 0;
+}
+
+static void mtk_disp_ccorr_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &mtk_disp_ccorr_component_ops);
 }
 
 static const struct mtk_disp_ccorr_data mt8183_ccorr_driver_data = {
@@ -221,10 +209,9 @@ MODULE_DEVICE_TABLE(of, mtk_disp_ccorr_driver_dt_match);
 
 struct platform_driver mtk_disp_ccorr_driver = {
 	.probe		= mtk_disp_ccorr_probe,
-	.remove		= mtk_disp_ccorr_remove,
+	.remove_new	= mtk_disp_ccorr_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ccorr",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_disp_ccorr_driver_dt_match,
 	},
 };

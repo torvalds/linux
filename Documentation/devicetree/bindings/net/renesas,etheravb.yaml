@@ -46,6 +46,7 @@ properties:
           - enum:
               - renesas,etheravb-r8a779a0     # R-Car V3U
               - renesas,etheravb-r8a779g0     # R-Car V4H
+              - renesas,etheravb-r8a779h0     # R-Car V4M
           - const: renesas,etheravb-rcar-gen4 # R-Car Gen4
 
       - items:
@@ -55,20 +56,33 @@ properties:
 
       - items:
           - enum:
-              - renesas,r9a07g043-gbeth # RZ/G2UL
+              - renesas,r9a07g043-gbeth # RZ/G2UL and RZ/Five
               - renesas,r9a07g044-gbeth # RZ/G2{L,LC}
               - renesas,r9a07g054-gbeth # RZ/V2L
+              - renesas,r9a08g045-gbeth # RZ/G3S
           - const: renesas,rzg2l-gbeth  # RZ/{G2L,G2UL,V2L} family
 
-  reg: true
+  reg:
+    minItems: 1
+    items:
+      - description: MAC register block
+      - description: Stream buffer
 
-  interrupts: true
+  interrupts:
+    minItems: 1
+    maxItems: 29
 
-  interrupt-names: true
+  interrupt-names:
+    minItems: 1
+    maxItems: 29
 
-  clocks: true
+  clocks:
+    minItems: 1
+    maxItems: 3
 
-  clock-names: true
+  clock-names:
+    minItems: 1
+    maxItems: 3
 
   iommus:
     maxItems: 1
@@ -86,10 +100,16 @@ properties:
   '#address-cells':
     description: Number of address cells for the MDIO bus.
     const: 1
+    deprecated: true
 
   '#size-cells':
     description: Number of size cells on the MDIO bus.
     const: 0
+    deprecated: true
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
 
   renesas,no-ether-link:
     type: boolean
@@ -108,10 +128,13 @@ properties:
   tx-internal-delay-ps:
     enum: [0, 2000]
 
+# In older bindings there where no mdio child-node to describe the MDIO bus
+# and the PHY. To not fail older bindings accept any node with an address. New
+# users should describe the PHY inside the mdio child-node.
 patternProperties:
-  "^ethernet-phy@[0-9a-f]$":
+  "@[0-9a-f]$":
     type: object
-    $ref: ethernet-phy.yaml#
+    deprecated: true
 
 required:
   - compatible
@@ -122,8 +145,6 @@ required:
   - resets
   - phy-mode
   - phy-handle
-  - '#address-cells'
-  - '#size-cells'
 
 allOf:
   - $ref: ethernet-controller.yaml#
@@ -141,14 +162,11 @@ allOf:
     then:
       properties:
         reg:
-          items:
-            - description: MAC register block
-            - description: Stream buffer
+          minItems: 2
     else:
       properties:
         reg:
-          items:
-            - description: MAC register block
+          maxItems: 1
 
   - if:
       properties:

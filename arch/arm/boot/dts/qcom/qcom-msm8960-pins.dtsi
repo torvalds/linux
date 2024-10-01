@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+&msmgpio {
+	i2c3_default_state: i2c3-default-state {
+		i2c3-pins {
+			pins = "gpio16", "gpio17";
+			function = "gsbi3";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
+	i2c3_sleep_state: i2c3-sleep-state {
+		i2c3-pins {
+			pins = "gpio16", "gpio17";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-bus-hold;
+		};
+	};
+};

@@ -1194,7 +1194,7 @@ struct jit_context {
 #define PROLOGUE_SIZE 35
 
 /*
- * Emit prologue code for BPF program and check it's size.
+ * Emit prologue code for BPF program and check its size.
  * bpf_tail_call helper will skip it while jumping into another program.
  */
 static void emit_prologue(u8 **pprog, u32 stack_depth)
@@ -1273,7 +1273,7 @@ static int emit_jmp_edx(u8 **pprog, u8 *ip)
 	u8 *prog = *pprog;
 	int cnt = 0;
 
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 	EMIT1_off32(0xE9, (u8 *)__x86_indirect_thunk_edx - (ip + 5));
 #else
 	EMIT2(0xFF, 0xE2);
@@ -2600,8 +2600,7 @@ out_image:
 	if (bpf_jit_enable > 1)
 		bpf_jit_dump(prog->len, proglen, pass + 1, image);
 
-	if (image) {
-		bpf_jit_binary_lock_ro(header);
+	if (image && !bpf_jit_binary_lock_ro(header)) {
 		prog->bpf_func = (void *)image;
 		prog->jited = 1;
 		prog->jited_len = proglen;

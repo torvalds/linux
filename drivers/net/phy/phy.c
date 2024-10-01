@@ -325,9 +325,13 @@ EXPORT_SYMBOL(phy_ethtool_ksettings_get);
 int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *mii_data = if_mii(ifr);
+	struct kernel_hwtstamp_config kernel_cfg;
+	struct netlink_ext_ack extack = {};
 	u16 val = mii_data->val_in;
 	bool change_autoneg = false;
+	struct hwtstamp_config cfg;
 	int prtad, devad;
+	int ret;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
@@ -338,14 +342,19 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		if (mdio_phy_id_is_c45(mii_data->phy_id)) {
 			prtad = mdio_phy_id_prtad(mii_data->phy_id);
 			devad = mdio_phy_id_devad(mii_data->phy_id);
-			mii_data->val_out = mdiobus_c45_read(
-				phydev->mdio.bus, prtad, devad,
-				mii_data->reg_num);
+			ret = mdiobus_c45_read(phydev->mdio.bus, prtad, devad,
+					       mii_data->reg_num);
+
 		} else {
-			mii_data->val_out = mdiobus_read(
-				phydev->mdio.bus, mii_data->phy_id,
-				mii_data->reg_num);
+			ret = mdiobus_read(phydev->mdio.bus, mii_data->phy_id,
+					   mii_data->reg_num);
 		}
+
+		if (ret < 0)
+			return ret;
+
+		mii_data->val_out = ret;
+
 		return 0;
 
 	case SIOCSMIIREG:
@@ -411,8 +420,21 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case SIOCSHWTSTAMP:
-		if (phydev->mii_ts && phydev->mii_ts->hwtstamp)
-			return phydev->mii_ts->hwtstamp(phydev->mii_ts, ifr);
+		if (phydev->mii_ts && phydev->mii_ts->hwtstamp) {
+			if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+				return -EFAULT;
+
+			hwtstamp_config_to_kernel(&kernel_cfg, &cfg);
+			ret = phydev->mii_ts->hwtstamp(phydev->mii_ts, &kernel_cfg, &extack);
+			if (ret)
+				return ret;
+
+			hwtstamp_config_from_kernel(&cfg, &kernel_cfg);
+			if (copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)))
+				return -EFAULT;
+
+			return 0;
+		}
 		fallthrough;
 
 	default:
@@ -454,6 +476,43 @@ int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_do_ioctl(dev, ifr, cmd);
 }
 EXPORT_SYMBOL(phy_do_ioctl_running);
+
+/**
+ * __phy_hwtstamp_get - Get hardware timestamping configuration from PHY
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ *
+ * Query the PHY device for its current hardware timestamping configuration.
+ */
+int __phy_hwtstamp_get(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	return -EOPNOTSUPP;
+}
+
+/**
+ * __phy_hwtstamp_set - Modify PHY hardware timestamping configuration
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ * @extack: netlink extended ack structure, for error reporting
+ */
+int __phy_hwtstamp_set(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	if (phydev->mii_ts && phydev->mii_ts->hwtstamp)
+		return phydev->mii_ts->hwtstamp(phydev->mii_ts, config, extack);
+
+	return -EOPNOTSUPP;
+}
 
 /**
  * phy_queue_state_machine - Trigger the state machine to run soon
@@ -929,9 +988,17 @@ static int phy_check_link_status(struct phy_device *phydev)
 	if (phydev->link && phydev->state != PHY_RUNNING) {
 		phy_check_downshift(phydev);
 		phydev->state = PHY_RUNNING;
+		err = genphy_c45_eee_is_active(phydev,
+					       NULL, NULL, NULL);
+		if (err <= 0)
+			phydev->enable_tx_lpi = false;
+		else
+			phydev->enable_tx_lpi = phydev->eee_cfg.tx_lpi_enabled;
+
 		phy_link_up(phydev);
 	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
 		phydev->state = PHY_NOLINK;
+		phydev->enable_tx_lpi = false;
 		phy_link_down(phydev);
 	}
 
@@ -947,7 +1014,7 @@ static int phy_check_link_status(struct phy_device *phydev)
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
  */
-static int _phy_start_aneg(struct phy_device *phydev)
+int _phy_start_aneg(struct phy_device *phydev)
 {
 	int err;
 
@@ -968,6 +1035,7 @@ static int _phy_start_aneg(struct phy_device *phydev)
 
 	return err;
 }
+EXPORT_SYMBOL(_phy_start_aneg);
 
 /**
  * phy_start_aneg - start auto-negotiation for this PHY device
@@ -1026,7 +1094,10 @@ int phy_ethtool_ksettings_set(struct phy_device *phydev,
 	if (autoneg != AUTONEG_ENABLE && autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 
-	if (autoneg == AUTONEG_ENABLE && linkmode_empty(advertising))
+	if (autoneg == AUTONEG_ENABLE &&
+	    (linkmode_empty(advertising) ||
+	     !linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				phydev->supported)))
 		return -EINVAL;
 
 	if (autoneg == AUTONEG_DISABLE &&
@@ -1184,9 +1255,11 @@ void phy_stop_machine(struct phy_device *phydev)
 
 static void phy_process_error(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->lock);
+	/* phydev->lock must be held for the state change to be safe */
+	if (!mutex_is_locked(&phydev->lock))
+		phydev_err(phydev, "PHY-device data unsafe context\n");
+
 	phydev->state = PHY_ERROR;
-	mutex_unlock(&phydev->lock);
 
 	phy_trigger_machine(phydev);
 }
@@ -1204,8 +1277,7 @@ static void phy_error_precise(struct phy_device *phydev,
  *
  * Moves the PHY to the ERROR state in response to a read
  * or write error, and tells the controller the link is down.
- * Must not be called from interrupt context, or while the
- * phydev->lock is held.
+ * Must be called with phydev->lock held.
  */
 void phy_error(struct phy_device *phydev)
 {
@@ -1234,7 +1306,6 @@ int phy_disable_interrupts(struct phy_device *phydev)
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
-	struct phy_driver *drv = phydev->drv;
 	irqreturn_t ret;
 
 	/* Wakeup interrupts may occur during a system sleep transition.
@@ -1246,7 +1317,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 		if (netdev) {
 			struct device *parent = netdev->dev.parent;
 
-			if (netdev->wol_enabled)
+			if (netdev->ethtool->wol_enabled)
 				pm_system_wakeup();
 			else if (device_may_wakeup(&netdev->dev))
 				pm_wakeup_dev_event(&netdev->dev, 0, true);
@@ -1260,7 +1331,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	}
 
 	mutex_lock(&phydev->lock);
-	ret = drv->handle_interrupt(phydev);
+	ret = phydev->drv->handle_interrupt(phydev);
 	mutex_unlock(&phydev->lock);
 
 	return ret;
@@ -1318,6 +1389,113 @@ void phy_free_interrupt(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_free_interrupt);
 
+enum phy_state_work {
+	PHY_STATE_WORK_NONE,
+	PHY_STATE_WORK_ANEG,
+	PHY_STATE_WORK_SUSPEND,
+};
+
+static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
+{
+	enum phy_state_work state_work = PHY_STATE_WORK_NONE;
+	struct net_device *dev = phydev->attached_dev;
+	enum phy_state old_state = phydev->state;
+	const void *func = NULL;
+	bool finished = false;
+	int err = 0;
+
+	switch (phydev->state) {
+	case PHY_DOWN:
+	case PHY_READY:
+		break;
+	case PHY_UP:
+		state_work = PHY_STATE_WORK_ANEG;
+		break;
+	case PHY_NOLINK:
+	case PHY_RUNNING:
+		err = phy_check_link_status(phydev);
+		func = &phy_check_link_status;
+		break;
+	case PHY_CABLETEST:
+		err = phydev->drv->cable_test_get_status(phydev, &finished);
+		if (err) {
+			phy_abort_cable_test(phydev);
+			netif_testing_off(dev);
+			state_work = PHY_STATE_WORK_ANEG;
+			phydev->state = PHY_UP;
+			break;
+		}
+
+		if (finished) {
+			ethnl_cable_test_finished(phydev);
+			netif_testing_off(dev);
+			state_work = PHY_STATE_WORK_ANEG;
+			phydev->state = PHY_UP;
+		}
+		break;
+	case PHY_HALTED:
+	case PHY_ERROR:
+		if (phydev->link) {
+			phydev->link = 0;
+			phy_link_down(phydev);
+		}
+		state_work = PHY_STATE_WORK_SUSPEND;
+		break;
+	}
+
+	if (state_work == PHY_STATE_WORK_ANEG) {
+		err = _phy_start_aneg(phydev);
+		func = &_phy_start_aneg;
+	}
+
+	if (err == -ENODEV)
+		return state_work;
+
+	if (err < 0)
+		phy_error_precise(phydev, func, err);
+
+	phy_process_state_change(phydev, old_state);
+
+	/* Only re-schedule a PHY state machine change if we are polling the
+	 * PHY, if PHY_MAC_INTERRUPT is set, then we will be moving
+	 * between states from phy_mac_interrupt().
+	 *
+	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the
+	 * state machine would be pointless and possibly error prone when
+	 * called from phy_disconnect() synchronously.
+	 */
+	if (phy_polling_mode(phydev) && phy_is_started(phydev))
+		phy_queue_state_machine(phydev, PHY_STATE_TIME);
+
+	return state_work;
+}
+
+/* unlocked part of the PHY state machine */
+static void _phy_state_machine_post_work(struct phy_device *phydev,
+					 enum phy_state_work state_work)
+{
+	if (state_work == PHY_STATE_WORK_SUSPEND)
+		phy_suspend(phydev);
+}
+
+/**
+ * phy_state_machine - Handle the state machine
+ * @work: work_struct that describes the work to be done
+ */
+void phy_state_machine(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct phy_device *phydev =
+			container_of(dwork, struct phy_device, state_queue);
+	enum phy_state_work state_work;
+
+	mutex_lock(&phydev->lock);
+	state_work = _phy_state_machine(phydev);
+	mutex_unlock(&phydev->lock);
+
+	_phy_state_machine_post_work(phydev, state_work);
+}
+
 /**
  * phy_stop - Bring down the PHY link, and stop checking the status
  * @phydev: target phy_device struct
@@ -1325,6 +1503,7 @@ EXPORT_SYMBOL(phy_free_interrupt);
 void phy_stop(struct phy_device *phydev)
 {
 	struct net_device *dev = phydev->attached_dev;
+	enum phy_state_work state_work;
 	enum phy_state old_state;
 
 	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN &&
@@ -1348,9 +1527,10 @@ void phy_stop(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 	phy_process_state_change(phydev, old_state);
 
+	state_work = _phy_state_machine(phydev);
 	mutex_unlock(&phydev->lock);
 
-	phy_state_machine(&phydev->state_queue.work);
+	_phy_state_machine_post_work(phydev, state_work);
 	phy_stop_machine(phydev);
 
 	/* Cannot call flush_scheduled_work() here as desired because
@@ -1393,97 +1573,6 @@ out:
 	mutex_unlock(&phydev->lock);
 }
 EXPORT_SYMBOL(phy_start);
-
-/**
- * phy_state_machine - Handle the state machine
- * @work: work_struct that describes the work to be done
- */
-void phy_state_machine(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct phy_device *phydev =
-			container_of(dwork, struct phy_device, state_queue);
-	struct net_device *dev = phydev->attached_dev;
-	bool needs_aneg = false, do_suspend = false;
-	enum phy_state old_state;
-	const void *func = NULL;
-	bool finished = false;
-	int err = 0;
-
-	mutex_lock(&phydev->lock);
-
-	old_state = phydev->state;
-
-	switch (phydev->state) {
-	case PHY_DOWN:
-	case PHY_READY:
-		break;
-	case PHY_UP:
-		needs_aneg = true;
-
-		break;
-	case PHY_NOLINK:
-	case PHY_RUNNING:
-		err = phy_check_link_status(phydev);
-		func = &phy_check_link_status;
-		break;
-	case PHY_CABLETEST:
-		err = phydev->drv->cable_test_get_status(phydev, &finished);
-		if (err) {
-			phy_abort_cable_test(phydev);
-			netif_testing_off(dev);
-			needs_aneg = true;
-			phydev->state = PHY_UP;
-			break;
-		}
-
-		if (finished) {
-			ethnl_cable_test_finished(phydev);
-			netif_testing_off(dev);
-			needs_aneg = true;
-			phydev->state = PHY_UP;
-		}
-		break;
-	case PHY_HALTED:
-	case PHY_ERROR:
-		if (phydev->link) {
-			phydev->link = 0;
-			phy_link_down(phydev);
-		}
-		do_suspend = true;
-		break;
-	}
-
-	mutex_unlock(&phydev->lock);
-
-	if (needs_aneg) {
-		err = phy_start_aneg(phydev);
-		func = &phy_start_aneg;
-	} else if (do_suspend) {
-		phy_suspend(phydev);
-	}
-
-	if (err == -ENODEV)
-		return;
-
-	if (err < 0)
-		phy_error_precise(phydev, func, err);
-
-	phy_process_state_change(phydev, old_state);
-
-	/* Only re-schedule a PHY state machine change if we are polling the
-	 * PHY, if PHY_MAC_INTERRUPT is set, then we will be moving
-	 * between states from phy_mac_interrupt().
-	 *
-	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the
-	 * state machine would be pointless and possibly error prone when
-	 * called from phy_disconnect() synchronously.
-	 */
-	mutex_lock(&phydev->lock);
-	if (phy_polling_mode(phydev) && phy_is_started(phydev))
-		phy_queue_state_machine(phydev, PHY_STATE_TIME);
-	mutex_unlock(&phydev->lock);
-}
 
 /**
  * phy_mac_interrupt - MAC says the link has changed
@@ -1558,12 +1647,12 @@ EXPORT_SYMBOL(phy_get_eee_err);
 /**
  * phy_ethtool_get_eee - get EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
- * Description: it reportes the Supported/Advertisement/LP Advertisement
- * capabilities.
+ * Description: reports the Supported/Advertisement/LP Advertisement
+ * capabilities, etc.
  */
-int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
+int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_keee *data)
 {
 	int ret;
 
@@ -1572,6 +1661,7 @@ int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
 
 	mutex_lock(&phydev->lock);
 	ret = genphy_c45_ethtool_get_eee(phydev, data);
+	eeecfg_to_eee(data, &phydev->eee_cfg);
 	mutex_unlock(&phydev->lock);
 
 	return ret;
@@ -1579,13 +1669,43 @@ int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
 EXPORT_SYMBOL(phy_ethtool_get_eee);
 
 /**
+ * phy_ethtool_set_eee_noneg - Adjusts MAC LPI configuration without PHY
+ *			       renegotiation
+ * @phydev: pointer to the target PHY device structure
+ * @data: pointer to the ethtool_keee structure containing the new EEE settings
+ *
+ * This function updates the Energy Efficient Ethernet (EEE) configuration
+ * for cases where only the MAC's Low Power Idle (LPI) configuration changes,
+ * without triggering PHY renegotiation. It ensures that the MAC is properly
+ * informed of the new LPI settings by cycling the link down and up, which
+ * is necessary for the MAC to adopt the new configuration. This adjustment
+ * is done only if there is a change in the tx_lpi_enabled or tx_lpi_timer
+ * configuration.
+ */
+static void phy_ethtool_set_eee_noneg(struct phy_device *phydev,
+				      struct ethtool_keee *data)
+{
+	if (phydev->eee_cfg.tx_lpi_enabled != data->tx_lpi_enabled ||
+	    phydev->eee_cfg.tx_lpi_timer != data->tx_lpi_timer) {
+		eee_to_eeecfg(&phydev->eee_cfg, data);
+		phydev->enable_tx_lpi = eeecfg_mac_can_tx_lpi(&phydev->eee_cfg);
+		if (phydev->link) {
+			phydev->link = false;
+			phy_link_down(phydev);
+			phydev->link = true;
+			phy_link_up(phydev);
+		}
+	}
+}
+
+/**
  * phy_ethtool_set_eee - set EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
  * Description: it is to program the Advertisement EEE register.
  */
-int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
+int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_keee *data)
 {
 	int ret;
 
@@ -1594,9 +1714,14 @@ int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 
 	mutex_lock(&phydev->lock);
 	ret = genphy_c45_ethtool_set_eee(phydev, data);
+	if (ret >= 0) {
+		if (ret == 0)
+			phy_ethtool_set_eee_noneg(phydev, data);
+		eee_to_eeecfg(&phydev->eee_cfg, data);
+	}
 	mutex_unlock(&phydev->lock);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL(phy_ethtool_set_eee);
 

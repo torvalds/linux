@@ -8,8 +8,8 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
@@ -41,7 +41,7 @@ static const struct linear_range tps6287x_voltage_ranges[] = {
 };
 
 static const unsigned int tps6287x_voltage_range_sel[] = {
-	0x0, 0x4, 0x8, 0xC
+	0x0, 0x1, 0x2, 0x3
 };
 
 static const unsigned int tps6287x_ramp_table[] = {
@@ -103,7 +103,7 @@ static const struct regulator_ops tps6287x_regulator_ops = {
 	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 };
 
-static struct regulator_desc tps6287x_reg = {
+static const struct regulator_desc tps6287x_reg = {
 	.name = "tps6287x",
 	.owner = THIS_MODULE,
 	.ops = &tps6287x_regulator_ops,
@@ -115,14 +115,15 @@ static struct regulator_desc tps6287x_reg = {
 	.vsel_mask = 0xFF,
 	.vsel_range_reg = TPS6287X_CTRL2,
 	.vsel_range_mask = TPS6287X_CTRL2_VRANGE,
+	.range_applied_by_vsel = true,
 	.ramp_reg = TPS6287X_CTRL1,
 	.ramp_mask = TPS6287X_CTRL1_VRAMP,
 	.ramp_delay_table = tps6287x_ramp_table,
 	.n_ramp_values = ARRAY_SIZE(tps6287x_ramp_table),
-	.n_voltages = 256,
+	.n_voltages = 256 * ARRAY_SIZE(tps6287x_voltage_ranges),
 	.linear_ranges = tps6287x_voltage_ranges,
 	.n_linear_ranges = ARRAY_SIZE(tps6287x_voltage_ranges),
-	.linear_range_selectors = tps6287x_voltage_range_sel,
+	.linear_range_selectors_bitfield = tps6287x_voltage_range_sel,
 };
 
 static int tps6287x_i2c_probe(struct i2c_client *i2c)
@@ -164,11 +165,11 @@ static const struct of_device_id tps6287x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, tps6287x_dt_ids);
 
 static const struct i2c_device_id tps6287x_i2c_id[] = {
-	{ "tps62870", 0 },
-	{ "tps62871", 0 },
-	{ "tps62872", 0 },
-	{ "tps62873", 0 },
-	{},
+	{ "tps62870" },
+	{ "tps62871" },
+	{ "tps62872" },
+	{ "tps62873" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, tps6287x_i2c_id);

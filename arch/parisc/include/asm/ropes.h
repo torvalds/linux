@@ -29,7 +29,7 @@
 struct ioc {
 	void __iomem	*ioc_hpa;	/* I/O MMU base address */
 	char		*res_map;	/* resource map, bit == pdir entry */
-	u64		*pdir_base;	/* physical base address */
+	__le64		*pdir_base;	/* physical base address */
 	unsigned long	ibase;		/* pdir IOV Space base - shared w/lba_pci */
 	unsigned long	imask;		/* pdir IOV Space mask - shared w/lba_pci */
 #ifdef ZX1_SUPPORT
@@ -86,6 +86,9 @@ struct sba_device {
 	struct ioc		ioc[MAX_IOC];
 };
 
+/* list of SBA's in system, see drivers/parisc/sba_iommu.c */
+extern struct sba_device *sba_list;
+
 #define ASTRO_RUNWAY_PORT	0x582
 #define IKE_MERCED_PORT		0x803
 #define REO_MERCED_PORT		0x804
@@ -110,7 +113,7 @@ static inline int IS_PLUTO(struct parisc_device *d) {
 
 #define SBA_PDIR_VALID_BIT	0x8000000000000000ULL
 
-#define SBA_AGPGART_COOKIE	0x0000badbadc0ffeeULL
+#define SBA_AGPGART_COOKIE	(__force __le64) 0x0000badbadc0ffeeULL
 
 #define SBA_FUNC_ID	0x0000	/* function id */
 #define SBA_FCLASS	0x0008	/* function class, bist, header, rev... */
@@ -252,7 +255,7 @@ static inline int agp_mode_mercury(void __iomem *hpa) {
 ** fixup_irq is to initialize PCI IRQ line support and
 ** virtualize pcidev->irq value. To be called by pci_fixup_bus().
 */
-extern void *iosapic_register(unsigned long hpa);
+extern void *iosapic_register(unsigned long hpa, void __iomem *vaddr);
 extern int iosapic_fixup_irq(void *obj, struct pci_dev *pcidev);
 
 #define LBA_FUNC_ID	0x0000	/* function id */

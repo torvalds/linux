@@ -11,7 +11,10 @@
 #include <strings.h>
 #include <stdlib.h>
 
+#include <list.h>
+#include <xalloc.h>
 #include "lkc.h"
+#include "mnconf-common.h"
 #include "nconf.h"
 #include <ctype.h>
 
@@ -216,11 +219,11 @@ search_help[] =
 "Symbol: FOO [ = m]\n"
 "Prompt: Foo bus is used to drive the bar HW\n"
 "Defined at drivers/pci/Kconfig:47\n"
-"Depends on: X86_LOCAL_APIC && X86_IO_APIC || IA64\n"
+"Depends on: X86_LOCAL_APIC && X86_IO_APIC\n"
 "Location:\n"
 "  -> Bus options (PCI, PCMCIA, EISA, ISA)\n"
 "    -> PCI support (PCI [ = y])\n"
-"      -> PCI access mode (<choice> [ = y])\n"
+"(1)   -> PCI access mode (<choice> [ = y])\n"
 "Selects: LIBCRC32\n"
 "Selected by: BAR\n"
 "-----------------------------------------------------------------\n"
@@ -231,9 +234,13 @@ search_help[] =
 "o  The 'Depends on:' line lists symbols that need to be defined for\n"
 "   this symbol to be visible and selectable in the menu.\n"
 "o  The 'Location:' lines tell, where in the menu structure this symbol\n"
-"   is located.  A location followed by a [ = y] indicates that this is\n"
-"   a selectable menu item, and the current value is displayed inside\n"
-"   brackets.\n"
+"   is located.\n"
+"     A location followed by a [ = y] indicates that this is\n"
+"     a selectable menu item, and the current value is displayed inside\n"
+"     brackets.\n"
+"     Press the key in the (#) prefix to jump directly to that\n"
+"     location. You will be returned to the current search results\n"
+"     after exiting this new menu.\n"
 "o  The 'Selects:' line tells, what symbol will be automatically selected\n"
 "   if this symbol is selected (y or m).\n"
 "o  The 'Selected by' line tells what symbol has selected this symbol.\n"
@@ -276,6 +283,7 @@ static const char *current_instructions = menu_instructions;
 static char *dialog_input_result;
 static int dialog_input_result_len;
 
+static void selected_conf(struct menu *menu, struct menu *active_menu);
 static void conf(struct menu *menu);
 static void conf_choice(struct menu *menu);
 static void conf_string(struct menu *menu);
@@ -692,7 +700,8 @@ static void search_conf(void)
 	struct gstr res;
 	struct gstr title;
 	char *dialog_input;
-	int dres;
+	int dres, vscroll = 0, hscroll = 0;
+	bool again;
 
 	title = str_new();
 	str_printf( &title, "Enter (sub)string or regexp to search for "
@@ -721,11 +730,28 @@ again:
 		dialog_input += strlen(CONFIG_);
 
 	sym_arr = sym_re_search(dialog_input);
-	res = get_relations_str(sym_arr, NULL);
+
+	do {
+		LIST_HEAD(head);
+		struct search_data data = {
+			.head = &head,
+			.target = NULL,
+		};
+		jump_key_char = 0;
+		res = get_relations_str(sym_arr, &head);
+		dres = show_scroll_win_ext(main_window,
+				"Search Results", str_get(&res),
+				&vscroll, &hscroll,
+				handle_search_keys, &data);
+		again = false;
+		if (dres >= '1' && dres <= '9') {
+			assert(data.target != NULL);
+			selected_conf(data.target->parent, data.target);
+			again = true;
+		}
+		str_free(&res);
+	} while (again);
 	free(sym_arr);
-	show_scroll_win(main_window,
-			"Search Results", str_get(&res));
-	str_free(&res);
 	str_free(&title);
 }
 
@@ -790,7 +816,7 @@ static void build_conf(struct menu *menu)
 
 	type = sym_get_type(sym);
 	if (sym_is_choice(sym)) {
-		struct symbol *def_sym = sym_get_choice_value(sym);
+		struct symbol *def_sym = sym_calc_choice(menu);
 		struct menu *def_menu = NULL;
 
 		child_count++;
@@ -800,46 +826,13 @@ static void build_conf(struct menu *menu)
 		}
 
 		val = sym_get_tristate_value(sym);
-		if (sym_is_changeable(sym)) {
-			switch (type) {
-			case S_BOOLEAN:
-				item_make(menu, 't', "[%c]",
-						val == no ? ' ' : '*');
-				break;
-			case S_TRISTATE:
-				switch (val) {
-				case yes:
-					ch = '*';
-					break;
-				case mod:
-					ch = 'M';
-					break;
-				default:
-					ch = ' ';
-					break;
-				}
-				item_make(menu, 't', "<%c>", ch);
-				break;
-			}
-		} else {
-			item_make(menu, def_menu ? 't' : ':', "   ");
-		}
+		item_make(menu, def_menu ? 't' : ':', "   ");
 
 		item_add_str("%*c%s", indent + 1,
 				' ', menu_get_prompt(menu));
-		if (val == yes) {
-			if (def_menu) {
-				item_add_str(" (%s)",
-					menu_get_prompt(def_menu));
-				item_add_str("  --->");
-				if (def_menu->list) {
-					indent += 2;
-					build_conf(def_menu);
-					indent -= 2;
-				}
-			}
-			return;
-		}
+		if (def_menu)
+			item_add_str(" (%s)  --->", menu_get_prompt(def_menu));
+		return;
 	} else {
 		if (menu == current_menu) {
 			item_make(menu, ':',
@@ -849,54 +842,46 @@ static void build_conf(struct menu *menu)
 		}
 		child_count++;
 		val = sym_get_tristate_value(sym);
-		if (sym_is_choice_value(sym) && val == yes) {
-			item_make(menu, ':', "   ");
-		} else {
-			switch (type) {
-			case S_BOOLEAN:
-				if (sym_is_changeable(sym))
-					item_make(menu, 't', "[%c]",
-						val == no ? ' ' : '*');
-				else
-					item_make(menu, 't', "-%c-",
-						val == no ? ' ' : '*');
+		switch (type) {
+		case S_BOOLEAN:
+			if (sym_is_changeable(sym))
+				item_make(menu, 't', "[%c]",
+					  val == no ? ' ' : '*');
+			else
+				item_make(menu, 't', "-%c-",
+					  val == no ? ' ' : '*');
+			break;
+		case S_TRISTATE:
+			switch (val) {
+			case yes:
+				ch = '*';
 				break;
-			case S_TRISTATE:
-				switch (val) {
-				case yes:
-					ch = '*';
-					break;
-				case mod:
-					ch = 'M';
-					break;
-				default:
-					ch = ' ';
-					break;
-				}
-				if (sym_is_changeable(sym)) {
-					if (sym->rev_dep.tri == mod)
-						item_make(menu,
-							't', "{%c}", ch);
-					else
-						item_make(menu,
-							't', "<%c>", ch);
-				} else
-					item_make(menu, 't', "-%c-", ch);
+			case mod:
+				ch = 'M';
 				break;
 			default:
-				tmp = 2 + strlen(sym_get_string_value(sym));
-				item_make(menu, 's', "    (%s)",
-						sym_get_string_value(sym));
-				tmp = indent - tmp + 4;
-				if (tmp < 0)
-					tmp = 0;
-				item_add_str("%*c%s%s", tmp, ' ',
-						menu_get_prompt(menu),
-						(sym_has_value(sym) ||
-						 !sym_is_changeable(sym)) ? "" :
-						" (NEW)");
-				goto conf_childs;
+				ch = ' ';
+				break;
 			}
+			if (sym_is_changeable(sym)) {
+				if (sym->rev_dep.tri == mod)
+					item_make(menu, 't', "{%c}", ch);
+				else
+					item_make(menu, 't', "<%c>", ch);
+			} else
+				item_make(menu, 't', "-%c-", ch);
+			break;
+		default:
+			tmp = 2 + strlen(sym_get_string_value(sym));
+			item_make(menu, 's', "    (%s)",
+				  sym_get_string_value(sym));
+			tmp = indent - tmp + 4;
+			if (tmp < 0)
+				tmp = 0;
+			item_add_str("%*c%s%s", tmp, ' ', menu_get_prompt(menu),
+				     (sym_has_value(sym) ||
+				      !sym_is_changeable(sym)) ? "" : " (NEW)");
+			goto conf_childs;
 		}
 		item_add_str("%*c%s%s", indent + 1, ' ',
 				menu_get_prompt(menu),
@@ -1063,9 +1048,14 @@ static int do_match(int key, struct match_state *state, int *ans)
 
 static void conf(struct menu *menu)
 {
+	selected_conf(menu, NULL);
+}
+
+static void selected_conf(struct menu *menu, struct menu *active_menu)
+{
 	struct menu *submenu = NULL;
 	struct symbol *sym;
-	int res;
+	int i, res;
 	int current_index = 0;
 	int last_top_row = 0;
 	struct match_state match_state = {
@@ -1080,6 +1070,19 @@ static void conf(struct menu *menu)
 		build_conf(menu);
 		if (!child_count)
 			break;
+
+		if (active_menu != NULL) {
+			for (i = 0; i < items_num; i++) {
+				struct mitem *mcur;
+
+				mcur = (struct mitem *) item_userptr(curses_menu_items[i]);
+				if ((struct menu *) mcur->usrptr == active_menu) {
+					current_index = i;
+					break;
+				}
+			}
+			active_menu = NULL;
+		}
 
 		show_menu(menu_get_prompt(menu), menu_instructions,
 			  current_index, &last_top_row);
@@ -1172,8 +1175,7 @@ static void conf(struct menu *menu)
 					conf(submenu);
 				break;
 			case 't':
-				if (sym_is_choice(sym) &&
-				    sym_get_tristate_value(sym) == yes)
+				if (sym_is_choice(sym))
 					conf_choice(submenu);
 				else if (submenu->prompt &&
 					 submenu->prompt->type == P_MENU)
@@ -1238,7 +1240,7 @@ static void conf_choice(struct menu *menu)
 		.pattern = "",
 	};
 
-	active = sym_get_choice_value(menu->sym);
+	active = sym_calc_choice(menu);
 	/* this is mostly duplicated from the conf() function. */
 	while (!global_exit) {
 		reset_menu();
@@ -1247,7 +1249,7 @@ static void conf_choice(struct menu *menu)
 			if (!show_all_items && !menu_is_visible(child))
 				continue;
 
-			if (child->sym == sym_get_choice_value(menu->sym))
+			if (child->sym == sym_calc_choice(menu))
 				item_make(child, ':', "<X> %s",
 						menu_get_prompt(child));
 			else if (child->sym)
@@ -1330,7 +1332,7 @@ static void conf_choice(struct menu *menu)
 		case ' ':
 		case  10:
 		case KEY_RIGHT:
-			sym_set_tristate_value(child->sym, yes);
+			choice_set_value(menu, child->sym);
 			return;
 		case 'h':
 		case '?':

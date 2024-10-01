@@ -8,11 +8,22 @@ This document describes the many additional quirks and properties
 required to describe older Generic Netlink families which form
 the ``genetlink-legacy`` protocol level.
 
-The spec is a work in progress, some of the quirks are just documented
-for future reference.
+Specification
+=============
 
-Specification (defined)
-=======================
+Globals
+-------
+
+Attributes listed directly at the root level of the spec file.
+
+version
+~~~~~~~
+
+Generic Netlink family version, default is 1.
+
+``version`` has historically been used to introduce family changes
+which may break backwards compatibility. Since compatibility breaking changes
+are generally not allowed ``version`` is very rarely used.
 
 Attribute type nests
 --------------------
@@ -35,10 +46,16 @@ For reference the ``multi-attr`` array may look like this::
 
 where ``ARRAY-ATTR`` is the array entry type.
 
-array-nest
-~~~~~~~~~~
+indexed-array
+~~~~~~~~~~~~~
 
-``array-nest`` creates the following structure::
+``indexed-array`` wraps the entire array in an extra attribute (hence
+limiting its size to 64kB). The ``ENTRY`` nests are special and have the
+index of the entry as their type instead of normal attribute type.
+
+A ``sub-type`` is needed to describe what type in the ``ENTRY``. A ``nest``
+``sub-type`` means there are nest arrays in the ``ENTRY``, with the structure
+looks like::
 
   [SOME-OTHER-ATTR]
   [ARRAY-ATTR]
@@ -49,9 +66,13 @@ array-nest
       [MEMBER1]
       [MEMBER2]
 
-It wraps the entire array in an extra attribute (hence limiting its size
-to 64kB). The ``ENTRY`` nests are special and have the index of the entry
-as their type instead of normal attribute type.
+Other ``sub-type`` like ``u32`` means there is only one member as described
+in ``sub-type`` in the ``ENTRY``. The structure looks like::
+
+  [SOME-OTHER-ATTR]
+  [ARRAY-ATTR]
+    [ENTRY u32]
+    [ENTRY u32]
 
 type-value
 ~~~~~~~~~~
@@ -156,16 +177,27 @@ it will be allocated 3 for the request (``a`` is the previous operation
 with a request section and the value of 2) and 8 for response (``c`` is
 the previous operation in the "from-kernel" direction).
 
-Other quirks (todo)
-===================
+Other quirks
+============
 
 Structures
 ----------
 
 Legacy families can define C structures both to be used as the contents of
 an attribute and as a fixed message header. Structures are defined in
-``definitions``  and referenced in operations or attributes. Note that
-structures defined in YAML are implicitly packed according to C
+``definitions``  and referenced in operations or attributes.
+
+members
+~~~~~~~
+
+ - ``name`` - The attribute name of the struct member
+ - ``type`` - One of the scalar types ``u8``, ``u16``, ``u32``, ``u64``, ``s8``,
+   ``s16``, ``s32``, ``s64``, ``string``, ``binary`` or ``bitfield32``.
+ - ``byte-order`` - ``big-endian`` or ``little-endian``
+ - ``doc``, ``enum``, ``enum-as-flags``, ``display-hint`` - Same as for
+   :ref:`attribute definitions <attribute_properties>`
+
+Note that structures defined in YAML are implicitly packed according to C
 conventions. For example, the following struct is 4 bytes, not 6 bytes:
 
 .. code-block:: c

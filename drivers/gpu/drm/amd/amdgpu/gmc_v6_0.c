@@ -98,9 +98,7 @@ static void gmc_v6_0_mc_resume(struct amdgpu_device *adev)
 static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
-	char fw_name[30];
 	int err;
-	bool is_58_fw = false;
 
 	DRM_DEBUG("\n");
 
@@ -120,22 +118,19 @@ static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_HAINAN:
 		chip_name = "hainan";
 		break;
-	default: BUG();
+	default:
+		BUG();
 	}
 
 	/* this memory configuration requires special firmware */
 	if (((RREG32(mmMC_SEQ_MISC0) & 0xff000000) >> 24) == 0x58)
-		is_58_fw = true;
+		chip_name = "si58";
 
-	if (is_58_fw)
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/si58_mc.bin");
-	else
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
-	err = amdgpu_ucode_request(adev, &adev->gmc.fw, fw_name);
+	err = amdgpu_ucode_request(adev, &adev->gmc.fw, "amdgpu/%s_mc.bin", chip_name);
 	if (err) {
 		dev_err(adev->dev,
-		       "si_mc: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		       "si_mc: Failed to load firmware \"%s_mc.bin\"\n",
+		       chip_name);
 		amdgpu_ucode_release(&adev->gmc.fw);
 	}
 	return err;
@@ -178,9 +173,8 @@ static int gmc_v6_0_mc_load_microcode(struct amdgpu_device *adev)
 			WREG32(mmMC_SEQ_IO_DEBUG_DATA, le32_to_cpup(new_io_mc_regs++));
 		}
 		/* load the MC ucode */
-		for (i = 0; i < ucode_size; i++) {
+		for (i = 0; i < ucode_size; i++)
 			WREG32(mmMC_SEQ_SUP_PGM, le32_to_cpup(new_fw_data++));
-		}
 
 		/* put the engine back into the active state */
 		WREG32(mmMC_SEQ_SUP_CNTL, 0x00000008);
@@ -208,10 +202,12 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 				       struct amdgpu_gmc *mc)
 {
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
+
 	base <<= 24;
 
+	amdgpu_gmc_set_agp_default(adev, mc);
 	amdgpu_gmc_vram_location(adev, mc, base);
-	amdgpu_gmc_gart_location(adev, mc);
+	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_BEST_FIT);
 }
 
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
@@ -228,9 +224,8 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	}
 	WREG32(mmHDP_REG_COHERENCY_FLUSH_CNTL, 0);
 
-	if (gmc_v6_0_wait_for_idle((void *)adev)) {
+	if (gmc_v6_0_wait_for_idle((void *)adev))
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
-	}
 
 	if (adev->mode_info.num_crtc) {
 		u32 tmp;
@@ -253,12 +248,11 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	WREG32(mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR,
 	       adev->mem_scratch.gpu_addr >> 12);
 	WREG32(mmMC_VM_AGP_BASE, 0);
-	WREG32(mmMC_VM_AGP_TOP, 0x0FFFFFFF);
-	WREG32(mmMC_VM_AGP_BOT, 0x0FFFFFFF);
+	WREG32(mmMC_VM_AGP_TOP, adev->gmc.agp_end >> 22);
+	WREG32(mmMC_VM_AGP_BOT, adev->gmc.agp_start >> 22);
 
-	if (gmc_v6_0_wait_for_idle((void *)adev)) {
+	if (gmc_v6_0_wait_for_idle((void *)adev))
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
-	}
 }
 
 static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
@@ -269,13 +263,13 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	int r;
 
 	tmp = RREG32(mmMC_ARB_RAMCFG);
-	if (tmp & (1 << 11)) {
+	if (tmp & (1 << 11))
 		chansize = 16;
-	} else if (tmp & MC_ARB_RAMCFG__CHANSIZE_MASK) {
+	else if (tmp & MC_ARB_RAMCFG__CHANSIZE_MASK)
 		chansize = 64;
-	} else {
+	else
 		chansize = 32;
-	}
+
 	tmp = RREG32(mmMC_SHARED_CHMAP);
 	switch ((tmp & MC_SHARED_CHMAP__NOOFCHAN_MASK) >> MC_SHARED_CHMAP__NOOFCHAN__SHIFT) {
 	case 0:
@@ -352,7 +346,7 @@ static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 }
 
 static uint64_t gmc_v6_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
-					    unsigned vmid, uint64_t pd_addr)
+					    unsigned int vmid, uint64_t pd_addr)
 {
 	uint32_t reg;
 
@@ -405,11 +399,11 @@ static void gmc_v6_0_set_fault_enable_default(struct amdgpu_device *adev,
 }
 
  /**
-   + * gmc_v8_0_set_prt - set PRT VM fault
-   + *
-   + * @adev: amdgpu_device pointer
-   + * @enable: enable/disable VM fault handling for PRT
-   +*/
+  * gmc_v8_0_set_prt() - set PRT VM fault
+  *
+  * @adev: amdgpu_device pointer
+  * @enable: enable/disable VM fault handling for PRT
+  */
 static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 {
 	u32 tmp;
@@ -435,9 +429,10 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 	WREG32(mmVM_PRT_CNTL, tmp);
 
 	if (enable) {
-		uint32_t low = AMDGPU_VA_RESERVED_SIZE >> AMDGPU_GPU_PAGE_SHIFT;
+		uint32_t low = AMDGPU_VA_RESERVED_BOTTOM >>
+			AMDGPU_GPU_PAGE_SHIFT;
 		uint32_t high = adev->vm_manager.max_pfn -
-			(AMDGPU_VA_RESERVED_SIZE >> AMDGPU_GPU_PAGE_SHIFT);
+			(AMDGPU_VA_RESERVED_TOP >> AMDGPU_GPU_PAGE_SHIFT);
 
 		WREG32(mmVM_PRT_APERTURE0_LOW_ADDR, low);
 		WREG32(mmVM_PRT_APERTURE1_LOW_ADDR, low);
@@ -547,7 +542,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 
 	gmc_v6_0_flush_gpu_tlb(adev, 0, 0, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
-		 (unsigned)(adev->gmc.gart_size >> 20),
+		 (unsigned int)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
 	return 0;
 }
@@ -787,15 +782,16 @@ static int gmc_v6_0_late_init(void *handle)
 		return 0;
 }
 
-static unsigned gmc_v6_0_get_vbios_fb_size(struct amdgpu_device *adev)
+static unsigned int gmc_v6_0_get_vbios_fb_size(struct amdgpu_device *adev)
 {
 	u32 d1vga_control = RREG32(mmD1VGA_CONTROL);
-	unsigned size;
+	unsigned int size;
 
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
 		size = AMDGPU_VBIOS_VGA_ALLOCATION;
 	} else {
 		u32 viewport = RREG32(mmVIEWPORT_SIZE);
+
 		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
 			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
 			4);
@@ -814,6 +810,7 @@ static int gmc_v6_0_sw_init(void *handle)
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 	} else {
 		u32 tmp = RREG32(mmMC_SEQ_MISC0);
+
 		tmp &= MC_SEQ_MISC0__MT__MASK;
 		adev->gmc.vram_type = gmc_v6_0_convert_vram_type(tmp);
 	}
@@ -913,8 +910,8 @@ static int gmc_v6_0_hw_init(void *handle)
 
 	if (amdgpu_emu_mode == 1)
 		return amdgpu_gmc_vram_checking(adev);
-	else
-		return r;
+
+	return 0;
 }
 
 static int gmc_v6_0_hw_fini(void *handle)
@@ -964,7 +961,7 @@ static bool gmc_v6_0_is_idle(void *handle)
 
 static int gmc_v6_0_wait_for_idle(void *handle)
 {
-	unsigned i;
+	unsigned int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -995,10 +992,8 @@ static int gmc_v6_0_soft_reset(void *handle)
 
 	if (srbm_soft_reset) {
 		gmc_v6_0_mc_stop(adev);
-		if (gmc_v6_0_wait_for_idle(adev)) {
+		if (gmc_v6_0_wait_for_idle(adev))
 			dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
-		}
-
 
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
@@ -1023,7 +1018,7 @@ static int gmc_v6_0_soft_reset(void *handle)
 
 static int gmc_v6_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 					     struct amdgpu_irq_src *src,
-					     unsigned type,
+					     unsigned int type,
 					     enum amdgpu_interrupt_state state)
 {
 	u32 tmp;
@@ -1114,6 +1109,8 @@ static const struct amd_ip_funcs gmc_v6_0_ip_funcs = {
 	.soft_reset = gmc_v6_0_soft_reset,
 	.set_clockgating_state = gmc_v6_0_set_clockgating_state,
 	.set_powergating_state = gmc_v6_0_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_gmc_funcs gmc_v6_0_gmc_funcs = {
@@ -1141,8 +1138,7 @@ static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.funcs = &gmc_v6_0_irq_funcs;
 }
 
-const struct amdgpu_ip_block_version gmc_v6_0_ip_block =
-{
+const struct amdgpu_ip_block_version gmc_v6_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 6,
 	.minor = 0,

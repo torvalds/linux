@@ -12,7 +12,6 @@
 void user_enable_single_step(struct task_struct *child)
 {
 	set_tsk_thread_flag(child, TIF_SINGLESTEP);
-	child->thread.singlestep_syscall = 0;
 
 #ifdef SUBARCH_SET_SINGLESTEPPING
 	SUBARCH_SET_SINGLESTEPPING(child, 1);
@@ -22,7 +21,6 @@ void user_enable_single_step(struct task_struct *child)
 void user_disable_single_step(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
-	child->thread.singlestep_syscall = 0;
 
 #ifdef SUBARCH_SET_SINGLESTEPPING
 	SUBARCH_SET_SINGLESTEPPING(child, 0);
@@ -36,9 +34,6 @@ void ptrace_disable(struct task_struct *child)
 {
 	user_disable_single_step(child);
 }
-
-extern int peek_user(struct task_struct * child, long addr, long data);
-extern int poke_user(struct task_struct * child, long addr, long data);
 
 long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)

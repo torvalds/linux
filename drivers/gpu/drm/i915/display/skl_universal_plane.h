@@ -12,6 +12,8 @@ struct drm_i915_private;
 struct intel_crtc;
 struct intel_initial_plane_config;
 struct intel_plane_state;
+struct skl_ddb_entry;
+struct skl_wm_level;
 
 enum pipe;
 enum plane_id;
@@ -22,6 +24,8 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 
 void skl_get_initial_plane_config(struct intel_crtc *crtc,
 				  struct intel_initial_plane_config *plane_config);
+bool skl_fixup_initial_plane_config(struct intel_crtc *crtc,
+				    const struct intel_initial_plane_config *plane_config);
 
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
 

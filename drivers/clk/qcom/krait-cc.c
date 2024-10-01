@@ -5,10 +5,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/slab.h>
@@ -347,22 +347,18 @@ MODULE_DEVICE_TABLE(of, krait_cc_match_table);
 static int krait_cc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *id;
 	unsigned long cur_rate, aux_rate;
 	int cpu;
 	struct clk_hw *mux, *l2_pri_mux;
 	struct clk *clk, **clks;
-
-	id = of_match_device(krait_cc_match_table, dev);
-	if (!id)
-		return -ENODEV;
+	bool unique_aux = !!device_get_match_data(dev);
 
 	/* Rate is 1 because 0 causes problems for __clk_mux_determine_rate */
 	clk = clk_register_fixed_rate(dev, "qsb", NULL, 0, 1);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	if (!id->data) {
+	if (!unique_aux) {
 		clk = clk_register_fixed_factor(dev, "acpu_aux",
 						"gpll0_vote", 0, 1, 2);
 		if (IS_ERR(clk))
@@ -375,13 +371,13 @@ static int krait_cc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for_each_possible_cpu(cpu) {
-		mux = krait_add_clks(dev, cpu, id->data);
+		mux = krait_add_clks(dev, cpu, unique_aux);
 		if (IS_ERR(mux))
 			return PTR_ERR(mux);
 		clks[cpu] = mux->clk;
 	}
 
-	l2_pri_mux = krait_add_clks(dev, -1, id->data);
+	l2_pri_mux = krait_add_clks(dev, -1, unique_aux);
 	if (IS_ERR(l2_pri_mux))
 		return PTR_ERR(l2_pri_mux);
 	clks[l2_mux] = l2_pri_mux->clk;

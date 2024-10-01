@@ -187,15 +187,14 @@ struct ext4_allocation_context {
 	struct ext4_free_extent ac_f_ex;
 
 	/*
-	 * goal len can change in CR1.5, so save the original len. This is
-	 * used while adjusting the PA window and for accounting.
+	 * goal len can change in CR_BEST_AVAIL_LEN, so save the original len.
+	 * This is used while adjusting the PA window and for accounting.
 	 */
 	ext4_grpblk_t	ac_orig_goal_len;
 
-	__u32 ac_groups_considered;
 	__u32 ac_flags;		/* allocation hints */
+	__u32 ac_groups_linear_remaining;
 	__u16 ac_groups_scanned;
-	__u16 ac_groups_linear_remaining;
 	__u16 ac_found;
 	__u16 ac_cX_found[EXT4_MB_NUM_CRS];
 	__u16 ac_tail;
@@ -205,8 +204,8 @@ struct ext4_allocation_context {
 	__u8 ac_2order;		/* if request is to allocate 2^N blocks and
 				 * N > 0, the field stores N, otherwise 0 */
 	__u8 ac_op;		/* operation, for history only */
-	struct page *ac_bitmap_page;
-	struct page *ac_buddy_page;
+	struct folio *ac_bitmap_folio;
+	struct folio *ac_buddy_folio;
 	struct ext4_prealloc_space *ac_pa;
 	struct ext4_locality_group *ac_lg;
 };
@@ -216,9 +215,9 @@ struct ext4_allocation_context {
 #define AC_STATUS_BREAK		3
 
 struct ext4_buddy {
-	struct page *bd_buddy_page;
+	struct folio *bd_buddy_folio;
 	void *bd_buddy;
-	struct page *bd_bitmap_page;
+	struct folio *bd_bitmap_folio;
 	void *bd_bitmap;
 	struct ext4_group_info *bd_info;
 	struct super_block *bd_sb;
@@ -231,6 +230,20 @@ static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 {
 	return ext4_group_first_block_no(sb, fex->fe_group) +
 		(fex->fe_start << EXT4_SB(sb)->s_cluster_bits);
+}
+
+static inline loff_t extent_logical_end(struct ext4_sb_info *sbi,
+					struct ext4_free_extent *fex)
+{
+	/* Use loff_t to avoid end exceeding ext4_lblk_t max. */
+	return (loff_t)fex->fe_logical + EXT4_C2B(sbi, fex->fe_len);
+}
+
+static inline loff_t pa_logical_end(struct ext4_sb_info *sbi,
+				    struct ext4_prealloc_space *pa)
+{
+	/* Use loff_t to avoid end exceeding ext4_lblk_t max. */
+	return (loff_t)pa->pa_lstart + EXT4_C2B(sbi, pa->pa_len);
 }
 
 typedef int (*ext4_mballoc_query_range_fn)(

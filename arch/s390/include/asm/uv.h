@@ -99,6 +99,8 @@ enum uv_cmds_inst {
 enum uv_feat_ind {
 	BIT_UV_FEAT_MISC = 0,
 	BIT_UV_FEAT_AIV = 1,
+	BIT_UV_FEAT_AP = 4,
+	BIT_UV_FEAT_AP_INTR = 5,
 };
 
 struct uv_cb_header {
@@ -159,7 +161,15 @@ struct uv_cb_cgc {
 	u64 guest_handle;
 	u64 conf_base_stor_origin;
 	u64 conf_virt_stor_origin;
-	u64 reserved30;
+	u8  reserved30[6];
+	union {
+		struct {
+			u16 : 14;
+			u16 ap_instr_intr : 1;
+			u16 ap_allow_instr : 1;
+		};
+		u16 raw;
+	} flags;
 	u64 guest_stor_origin;
 	u64 guest_stor_len;
 	u64 guest_sca;
@@ -397,7 +407,13 @@ struct uv_info {
 
 extern struct uv_info uv_info;
 
-#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
+static inline bool uv_has_feature(u8 feature_bit)
+{
+	if (feature_bit >= sizeof(uv_info.uv_feature_indications) * 8)
+		return false;
+	return test_bit_inv(feature_bit, &uv_info.uv_feature_indications);
+}
+
 extern int prot_virt_guest;
 
 static inline int is_prot_virt_guest(void)
@@ -425,7 +441,10 @@ static inline int share(unsigned long addr, u16 cmd)
 
 	if (!uv_call(0, (u64)&uvcb))
 		return 0;
-	return -EINVAL;
+	pr_err("%s UVC failed (rc: 0x%x, rrc: 0x%x), possible hypervisor bug.\n",
+	       uvcb.header.cmd == UVC_CMD_SET_SHARED_ACCESS ? "Share" : "Unshare",
+	       uvcb.header.rc, uvcb.header.rrc);
+	panic("System security cannot be guaranteed unless the system panics now.\n");
 }
 
 /*
@@ -449,13 +468,6 @@ static inline int uv_remove_shared(unsigned long addr)
 	return share(addr, UVC_CMD_REMOVE_SHARED_ACCESS);
 }
 
-#else
-#define is_prot_virt_guest() 0
-static inline int uv_set_shared(unsigned long addr) { return 0; }
-static inline int uv_remove_shared(unsigned long addr) { return 0; }
-#endif
-
-#if IS_ENABLED(CONFIG_KVM)
 extern int prot_virt_host;
 
 static inline int is_prot_virt_host(void)
@@ -463,32 +475,14 @@ static inline int is_prot_virt_host(void)
 	return prot_virt_host;
 }
 
+int uv_pin_shared(unsigned long paddr);
 int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb);
 int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr);
-int uv_destroy_owned_page(unsigned long paddr);
-int uv_convert_from_secure(unsigned long paddr);
-int uv_convert_owned_from_secure(unsigned long paddr);
+int uv_destroy_folio(struct folio *folio);
+int uv_destroy_pte(pte_t pte);
+int uv_convert_from_secure_pte(pte_t pte);
 int gmap_convert_to_secure(struct gmap *gmap, unsigned long gaddr);
 
 void setup_uv(void);
-#else
-#define is_prot_virt_host() 0
-static inline void setup_uv(void) {}
-
-static inline int uv_destroy_owned_page(unsigned long paddr)
-{
-	return 0;
-}
-
-static inline int uv_convert_from_secure(unsigned long paddr)
-{
-	return 0;
-}
-
-static inline int uv_convert_owned_from_secure(unsigned long paddr)
-{
-	return 0;
-}
-#endif
 
 #endif /* _ASM_S390_UV_H */

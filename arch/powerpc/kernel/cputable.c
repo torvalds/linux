@@ -20,9 +20,9 @@
 #include <asm/setup.h>
 #include <asm/cpu_setup.h>
 
-static struct cpu_spec the_cpu_spec __read_mostly;
+static struct cpu_spec the_cpu_spec __ro_after_init;
 
-struct cpu_spec* cur_cpu_spec __read_mostly = NULL;
+struct cpu_spec *cur_cpu_spec __ro_after_init = NULL;
 EXPORT_SYMBOL(cur_cpu_spec);
 
 /* The platform string corresponding to the real PVR */
@@ -74,6 +74,10 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 		 */
 		t->cpu_features |= old.cpu_features & CPU_FTR_PMAO_BUG;
 	}
+
+	/* Set kuap ON at startup, will be disabled later if cmdline has 'nosmap' */
+	if (IS_ENABLED(CONFIG_PPC_KUAP) && IS_ENABLED(CONFIG_PPC32))
+		t->mmu_features |= MMU_FTR_KUAP;
 
 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
 

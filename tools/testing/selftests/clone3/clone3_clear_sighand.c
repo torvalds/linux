@@ -16,10 +16,6 @@
 #include "../kselftest.h"
 #include "clone3_selftests.h"
 
-#ifndef CLONE_CLEAR_SIGHAND
-#define CLONE_CLEAR_SIGHAND 0x100000000ULL
-#endif
-
 static void nop_handler(int signo)
 {
 }
@@ -124,5 +120,5 @@ int main(int argc, char **argv)
 
 	test_clone3_clear_sighand();
 
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

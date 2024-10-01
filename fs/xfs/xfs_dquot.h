@@ -223,6 +223,7 @@ int		xfs_qm_dqget_uncached(struct xfs_mount *mp,
 void		xfs_qm_dqput(struct xfs_dquot *dqp);
 
 void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
+void		xfs_dqlockn(struct xfs_dqtrx *q);
 
 void		xfs_dquot_set_prealloc_limits(struct xfs_dquot *);
 
@@ -234,12 +235,10 @@ static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
 	return dqp;
 }
 
-typedef int (*xfs_qm_dqiterate_fn)(struct xfs_dquot *dq,
-		xfs_dqtype_t type, void *priv);
-int xfs_qm_dqiterate(struct xfs_mount *mp, xfs_dqtype_t type,
-		xfs_qm_dqiterate_fn iter_fn, void *priv);
-
 time64_t xfs_dquot_set_timeout(struct xfs_mount *mp, time64_t timeout);
 time64_t xfs_dquot_set_grace_period(time64_t grace);
+
+void xfs_qm_init_dquot_blk(struct xfs_trans *tp, xfs_dqid_t id, xfs_dqtype_t
+		type, struct xfs_buf *bp);
 
 #endif /* __XFS_DQUOT_H__ */

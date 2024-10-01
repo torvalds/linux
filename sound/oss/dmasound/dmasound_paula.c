@@ -720,20 +720,26 @@ static int __init amiga_audio_probe(struct platform_device *pdev)
 	return dmasound_init();
 }
 
-static int __exit amiga_audio_remove(struct platform_device *pdev)
+static void __exit amiga_audio_remove(struct platform_device *pdev)
 {
 	dmasound_deinit();
-	return 0;
 }
 
-static struct platform_driver amiga_audio_driver = {
-	.remove = __exit_p(amiga_audio_remove),
-	.driver   = {
+/*
+ * amiga_audio_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver amiga_audio_driver __refdata = {
+	.remove_new = __exit_p(amiga_audio_remove),
+	.driver = {
 		.name	= "amiga-audio",
 	},
 };
 
 module_platform_driver_probe(amiga_audio_driver, amiga_audio_probe);
 
+MODULE_DESCRIPTION("Amiga Paula DMA Sound Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:amiga-audio");

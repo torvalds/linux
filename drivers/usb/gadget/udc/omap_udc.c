@@ -56,7 +56,6 @@
 /* ISO too */
 #define	USE_ISO
 
-#define	DRIVER_DESC	"OMAP UDC driver"
 #define	DRIVER_VERSION	"4 October 2004"
 
 #define OMAP_DMA_USB_W2FC_TX0		29
@@ -110,7 +109,6 @@ MODULE_PARM_DESC(use_dma, "enable/disable DMA");
 
 
 static const char driver_name[] = "omap_udc";
-static const char driver_desc[] = DRIVER_DESC;
 
 /*-------------------------------------------------------------------------*/
 
@@ -2036,7 +2034,8 @@ static irqreturn_t omap_udc_iso_irq(int irq, void *_dev)
 
 static inline int machine_without_vbus_sense(void)
 {
-	return  machine_is_omap_osk() || machine_is_sx1();
+	return  machine_is_omap_osk() || machine_is_omap_palmte() ||
+		machine_is_sx1();
 }
 
 static int omap_udc_start(struct usb_gadget *g,
@@ -2298,13 +2297,11 @@ static int proc_udc_show(struct seq_file *s, void *_)
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	seq_printf(s, "%s, version: " DRIVER_VERSION
+	seq_printf(s, "OMAP UDC driver, version: " DRIVER_VERSION
 #ifdef	USE_ISO
 		" (iso)"
 #endif
-		"%s\n",
-		driver_desc,
-		use_dma ?  " (dma)" : "");
+		"%s\n", use_dma ?  " (dma)" : "");
 
 	tmp = omap_readw(UDC_REV) & 0xff;
 	seq_printf(s,
@@ -2993,6 +2990,6 @@ static struct platform_driver udc_driver = {
 
 module_platform_driver(udc_driver);
 
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_DESCRIPTION("OMAP UDC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:omap_udc");

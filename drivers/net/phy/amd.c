@@ -13,6 +13,7 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 
+#define PHY_ID_AC101L		0x00225520
 #define PHY_ID_AM79C874		0x0022561b
 
 #define MII_AM79C_IR		17	/* Interrupt Status/Control Register */
@@ -87,19 +88,31 @@ static irqreturn_t am79c_handle_interrupt(struct phy_device *phydev)
 	return IRQ_HANDLED;
 }
 
-static struct phy_driver am79c_driver[] = { {
-	.phy_id		= PHY_ID_AM79C874,
-	.name		= "AM79C874",
-	.phy_id_mask	= 0xfffffff0,
-	/* PHY_BASIC_FEATURES */
-	.config_init	= am79c_config_init,
-	.config_intr	= am79c_config_intr,
-	.handle_interrupt = am79c_handle_interrupt,
-} };
+static struct phy_driver am79c_drivers[] = {
+	{
+		.phy_id		= PHY_ID_AM79C874,
+		.name		= "AM79C874",
+		.phy_id_mask	= 0xfffffff0,
+		/* PHY_BASIC_FEATURES */
+		.config_init	= am79c_config_init,
+		.config_intr	= am79c_config_intr,
+		.handle_interrupt = am79c_handle_interrupt,
+	},
+	{
+		.phy_id		= PHY_ID_AC101L,
+		.name		= "AC101L",
+		.phy_id_mask	= 0xfffffff0,
+		/* PHY_BASIC_FEATURES */
+		.config_init	= am79c_config_init,
+		.config_intr	= am79c_config_intr,
+		.handle_interrupt = am79c_handle_interrupt,
+	},
+};
 
-module_phy_driver(am79c_driver);
+module_phy_driver(am79c_drivers);
 
 static struct mdio_device_id __maybe_unused amd_tbl[] = {
+	{ PHY_ID_AC101L, 0xfffffff0 },
 	{ PHY_ID_AM79C874, 0xfffffff0 },
 	{ }
 };

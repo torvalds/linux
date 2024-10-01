@@ -32,8 +32,7 @@ struct ext4_xattr_header {
 	__le32	h_refcount;	/* reference count */
 	__le32	h_blocks;	/* number of disk blocks used */
 	__le32	h_hash;		/* hash value of all attributes */
-	__le32	h_checksum;	/* crc32c(uuid+id+xattrblock) */
-				/* id = inum if refcount=1, blknum otherwise */
+	__le32	h_checksum;	/* crc32c(uuid+blknum+xattrblock) */
 	__u32	h_reserved[3];	/* zero right now */
 };
 
@@ -130,8 +129,8 @@ struct ext4_xattr_ibody_find {
 };
 
 struct ext4_xattr_inode_array {
-	unsigned int count;		/* # of used items in the array */
-	struct inode *inodes[];
+	unsigned int count;
+	struct inode *inodes[] __counted_by(count);
 };
 
 extern const struct xattr_handler ext4_xattr_user_handler;
@@ -193,7 +192,7 @@ extern int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			    struct ext4_inode *raw_inode, handle_t *handle);
 extern void ext4_evict_ea_inode(struct inode *inode);
 
-extern const struct xattr_handler *ext4_xattr_handlers[];
+extern const struct xattr_handler * const ext4_xattr_handlers[];
 
 extern int ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
 				 struct ext4_xattr_ibody_find *is);

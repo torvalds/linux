@@ -19,6 +19,9 @@
 
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_compiler.h"
+
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 
 static const int cfg_port = 8000;
 
@@ -81,7 +84,7 @@ static __always_inline void set_ipv4_csum(struct iphdr *iph)
 
 	iph->check = 0;
 
-#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (i = 0, csum = 0; i < sizeof(*iph) >> 1; i++)
 		csum += *iph16++;
 

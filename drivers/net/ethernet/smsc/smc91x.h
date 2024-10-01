@@ -114,25 +114,6 @@ static inline void _SMC_outw_align4(u16 val, void __iomem *ioaddr, int reg,
 			 (lp)->cfg.pxa_u16_align4)
 
 
-#elif	defined(CONFIG_SH_SH4202_MICRODEV)
-
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-
-#define SMC_inb(a, r)		inb((a) + (r) - 0xa0000000)
-#define SMC_inw(a, r)		inw((a) + (r) - 0xa0000000)
-#define SMC_inl(a, r)		inl((a) + (r) - 0xa0000000)
-#define SMC_outb(v, a, r)	outb(v, (a) + (r) - 0xa0000000)
-#define SMC_outw(lp, v, a, r)	outw(v, (a) + (r) - 0xa0000000)
-#define SMC_outl(v, a, r)	outl(v, (a) + (r) - 0xa0000000)
-#define SMC_insl(a, r, p, l)	insl((a) + (r) - 0xa0000000, p, l)
-#define SMC_outsl(a, r, p, l)	outsl((a) + (r) - 0xa0000000, p, l)
-#define SMC_insw(a, r, p, l)	insw((a) + (r) - 0xa0000000, p, l)
-#define SMC_outsw(a, r, p, l)	outsw((a) + (r) - 0xa0000000, p, l)
-
-#define SMC_IRQ_FLAGS		(0)
-
 #elif defined(CONFIG_ATARI)
 
 #define SMC_CAN_USE_8BIT        1
@@ -161,22 +142,22 @@ static inline void _SMC_outw_align4(u16 val, void __iomem *ioaddr, int reg,
 #define SMC_CAN_USE_32BIT	0
 #define SMC_NOWAIT		1
 
-static inline void mcf_insw(void *a, unsigned char *p, int l)
+static inline void mcf_insw(void __iomem *a, unsigned char *p, int l)
 {
 	u16 *wp = (u16 *) p;
 	while (l-- > 0)
 		*wp++ = readw(a);
 }
 
-static inline void mcf_outsw(void *a, unsigned char *p, int l)
+static inline void mcf_outsw(void __iomem *a, unsigned char *p, int l)
 {
 	u16 *wp = (u16 *) p;
 	while (l-- > 0)
 		writew(*wp++, a);
 }
 
-#define SMC_inw(a, r)		_swapw(readw((a) + (r)))
-#define SMC_outw(lp, v, a, r)	writew(_swapw(v), (a) + (r))
+#define SMC_inw(a, r)		ioread16be((a) + (r))
+#define SMC_outw(lp, v, a, r)	iowrite16be(v, (a) + (r))
 #define SMC_insw(a, r, p, l)	mcf_insw(a + r, p, l)
 #define SMC_outsw(a, r, p, l)	mcf_outsw(a + r, p, l)
 

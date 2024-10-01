@@ -247,12 +247,6 @@ static int __init net_olddevs_init(void)
 	for (num = 0; num < 8; ++num)
 		ethif_probe2(num);
 
-#ifdef CONFIG_COPS
-	cops_probe(0);
-	cops_probe(1);
-	cops_probe(2);
-#endif
-
 	return 0;
 }
 

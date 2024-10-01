@@ -558,7 +558,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 	struct si_info *sii = container_of(sih, struct si_info, pub);
 
 	/* allocate private info structure */
-	di = kzalloc(sizeof(struct dma_info), GFP_ATOMIC);
+	di = kzalloc(sizeof(*di), GFP_ATOMIC);
 	if (di == NULL)
 		return NULL;
 
@@ -584,8 +584,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 		      rxextheadroom, nrxpost, rxoffset, txregbase, rxregbase);
 
 	/* make a private copy of our callers name */
-	strncpy(di->name, name, MAXNAMEL);
-	di->name[MAXNAMEL - 1] = '\0';
+	strscpy(di->name, name, sizeof(di->name));
 
 	di->dmadev = core->dma_dev;
 

@@ -8,16 +8,16 @@
 /**
  * kernel_read_file() - read file contents into a kernel buffer
  *
- * @file	file to read from
- * @offset	where to start reading from (see below).
- * @buf		pointer to a "void *" buffer for reading into (if
+ * @file:	file to read from
+ * @offset:	where to start reading from (see below).
+ * @buf:	pointer to a "void *" buffer for reading into (if
  *		*@buf is NULL, a buffer will be allocated, and
  *		@buf_size will be ignored)
- * @buf_size	size of buf, if already allocated. If @buf not
+ * @buf_size:	size of buf, if already allocated. If @buf not
  *		allocated, this is the largest size to allocate.
- * @file_size	if non-NULL, the full size of @file will be
+ * @file_size:	if non-NULL, the full size of @file will be
  *		written here.
- * @id		the kernel_read_file_id identifying the type of
+ * @id:		the kernel_read_file_id identifying the type of
  *		file contents being read (for LSMs to examine)
  *
  * @offset must be 0 unless both @buf and @file_size are non-NULL
@@ -178,10 +178,10 @@ ssize_t kernel_read_file_from_fd(int fd, loff_t offset, void **buf,
 	struct fd f = fdget(fd);
 	ssize_t ret = -EBADF;
 
-	if (!f.file || !(f.file->f_mode & FMODE_READ))
+	if (!fd_file(f) || !(fd_file(f)->f_mode & FMODE_READ))
 		goto out;
 
-	ret = kernel_read_file(f.file, offset, buf, buf_size, file_size, id);
+	ret = kernel_read_file(fd_file(f), offset, buf, buf_size, file_size, id);
 out:
 	fdput(f);
 	return ret;

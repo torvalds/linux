@@ -16,6 +16,7 @@
 #include <linux/acpi.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -66,6 +67,8 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 static DEFINE_STATIC_KEY_FALSE(i2c_trace_msg_key);
 static bool is_registered;
+
+static struct dentry *i2c_debugfs_root;
 
 int i2c_transfer_trace_reg(void)
 {
@@ -133,10 +136,10 @@ const void *i2c_get_match_data(const struct i2c_client *client)
 }
 EXPORT_SYMBOL(i2c_get_match_data);
 
-static int i2c_device_match(struct device *dev, struct device_driver *drv)
+static int i2c_device_match(struct device *dev, const struct device_driver *drv)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
-	struct i2c_driver	*driver;
+	const struct i2c_driver	*driver;
 
 
 	/* Attempt an OF style match */
@@ -689,7 +692,7 @@ static struct attribute *i2c_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(i2c_dev);
 
-struct bus_type i2c_bus_type = {
+const struct bus_type i2c_bus_type = {
 	.name		= "i2c",
 	.match		= i2c_device_match,
 	.probe		= i2c_device_probe,
@@ -698,7 +701,7 @@ struct bus_type i2c_bus_type = {
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
-struct device_type i2c_client_type = {
+const struct device_type i2c_client_type = {
 	.groups		= i2c_dev_groups,
 	.uevent		= i2c_device_uevent,
 	.release	= i2c_client_dev_release,
@@ -912,6 +915,27 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
 	return 0;
 }
 
+/*
+ * Serialize device instantiation in case it can be instantiated explicitly
+ * and by auto-detection
+ */
+static int i2c_lock_addr(struct i2c_adapter *adap, unsigned short addr,
+			 unsigned short flags)
+{
+	if (!(flags & I2C_CLIENT_TEN) &&
+	    test_and_set_bit(addr, adap->addrs_in_instantiation))
+		return -EBUSY;
+
+	return 0;
+}
+
+static void i2c_unlock_addr(struct i2c_adapter *adap, unsigned short addr,
+			    unsigned short flags)
+{
+	if (!(flags & I2C_CLIENT_TEN))
+		clear_bit(addr, adap->addrs_in_instantiation);
+}
+
 /**
  * i2c_new_client_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -931,8 +955,9 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
 struct i2c_client *
 i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 {
-	struct i2c_client	*client;
-	int			status;
+	struct i2c_client *client;
+	bool need_put = false;
+	int status;
 
 	client = kzalloc(sizeof *client, GFP_KERNEL);
 	if (!client)
@@ -958,6 +983,10 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 		goto out_err_silent;
 	}
 
+	status = i2c_lock_addr(adap, client->addr, client->flags);
+	if (status)
+		goto out_err_silent;
+
 	/* Check for address business */
 	status = i2c_check_addr_busy(adap, i2c_encode_flags_to_addr(client));
 	if (status)
@@ -970,7 +999,6 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 	client->dev.fwnode = info->fwnode;
 
 	device_enable_async_suspend(&client->dev);
-	i2c_dev_set_name(adap, client, info);
 
 	if (info->swnode) {
 		status = device_add_software_node(&client->dev, info->swnode);
@@ -982,6 +1010,7 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 		}
 	}
 
+	i2c_dev_set_name(adap, client, info);
 	status = device_register(&client->dev);
 	if (status)
 		goto out_remove_swnode;
@@ -989,18 +1018,25 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
+	i2c_unlock_addr(adap, client->addr, client->flags);
+
 	return client;
 
 out_remove_swnode:
 	device_remove_software_node(&client->dev);
+	need_put = true;
 out_err_put_of_node:
 	of_node_put(info->of_node);
 out_err:
 	dev_err(&adap->dev,
 		"Failed to register i2c client %s at 0x%02x (%d)\n",
 		client->name, client->addr, status);
+	i2c_unlock_addr(adap, client->addr, client->flags);
 out_err_silent:
-	kfree(client);
+	if (need_put)
+		put_device(&client->dev);
+	else
+		kfree(client);
 	return ERR_PTR(status);
 }
 EXPORT_SYMBOL_GPL(i2c_new_client_device);
@@ -1058,8 +1094,9 @@ EXPORT_SYMBOL(i2c_find_device_by_fwnode);
 
 
 static const struct i2c_device_id dummy_id[] = {
-	{ "dummy", 0 },
-	{ },
+	{ "dummy", },
+	{ "smbus_host_notify", },
+	{ }
 };
 
 static int dummy_probe(struct i2c_client *client)
@@ -1189,9 +1226,11 @@ static void i2c_adapter_dev_release(struct device *dev)
 unsigned int i2c_adapter_depth(struct i2c_adapter *adapter)
 {
 	unsigned int depth = 0;
+	struct device *parent;
 
-	while ((adapter = i2c_parent_is_i2c_adapter(adapter)))
-		depth++;
+	for (parent = adapter->dev.parent; parent; parent = parent->parent)
+		if (parent->type == &i2c_adapter_type)
+			depth++;
 
 	WARN_ONCE(depth >= MAX_LOCKDEP_SUBCLASSES,
 		  "adapter depth exceeds lockdep subclass limit\n");
@@ -1333,7 +1372,7 @@ static struct attribute *i2c_adapter_attrs[] = {
 };
 ATTRIBUTE_GROUPS(i2c_adapter);
 
-struct device_type i2c_adapter_type = {
+const struct device_type i2c_adapter_type = {
 	.groups		= i2c_adapter_groups,
 	.release	= i2c_adapter_dev_release,
 };
@@ -1355,10 +1394,6 @@ struct i2c_adapter *i2c_verify_adapter(struct device *dev)
 			: NULL;
 }
 EXPORT_SYMBOL(i2c_verify_adapter);
-
-#ifdef CONFIG_I2C_COMPAT
-static struct class_compat *i2c_adapter_compat_class;
-#endif
 
 static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {
@@ -1458,6 +1493,8 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
 	if (!adap)
 		return -EINVAL;
 
+	dev_dbg(&adap->dev, "Detected HostNotify from address 0x%02x", addr);
+
 	irq = irq_find_mapping(adap->host_notify_domain, addr);
 	if (irq <= 0)
 		return -ENXIO;
@@ -1511,34 +1548,34 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	dev_set_name(&adap->dev, "i2c-%d", adap->nr);
 	adap->dev.bus = &i2c_bus_type;
 	adap->dev.type = &i2c_adapter_type;
-	res = device_register(&adap->dev);
+	device_initialize(&adap->dev);
+
+	/*
+	 * This adapter can be used as a parent immediately after device_add(),
+	 * setup runtime-pm (especially ignore-children) before hand.
+	 */
+	device_enable_async_suspend(&adap->dev);
+	pm_runtime_no_callbacks(&adap->dev);
+	pm_suspend_ignore_children(&adap->dev, true);
+	pm_runtime_enable(&adap->dev);
+
+	res = device_add(&adap->dev);
 	if (res) {
 		pr_err("adapter '%s': can't register device (%d)\n", adap->name, res);
 		goto out_list;
 	}
 
+	adap->debugfs = debugfs_create_dir(dev_name(&adap->dev), i2c_debugfs_root);
+
 	res = i2c_setup_smbus_alert(adap);
 	if (res)
 		goto out_reg;
-
-	device_enable_async_suspend(&adap->dev);
-	pm_runtime_no_callbacks(&adap->dev);
-	pm_suspend_ignore_children(&adap->dev, true);
-	pm_runtime_enable(&adap->dev);
 
 	res = i2c_init_recovery(adap);
 	if (res == -EPROBE_DEFER)
 		goto out_reg;
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
-
-#ifdef CONFIG_I2C_COMPAT
-	res = class_compat_create_link(i2c_adapter_compat_class, &adap->dev,
-				       adap->dev.parent);
-	if (res)
-		dev_warn(&adap->dev,
-			 "Failed to create compatibility class link\n");
-#endif
 
 	/* create pre-declared device nodes */
 	of_i2c_register_devices(adap);
@@ -1556,6 +1593,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	return 0;
 
 out_reg:
+	debugfs_remove_recursive(adap->debugfs);
 	init_completion(&adap->dev_released);
 	device_unregister(&adap->dev);
 	wait_for_completion(&adap->dev_released);
@@ -1745,17 +1783,14 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	device_for_each_child(&adap->dev, NULL, __unregister_client);
 	device_for_each_child(&adap->dev, NULL, __unregister_dummy);
 
-#ifdef CONFIG_I2C_COMPAT
-	class_compat_remove_link(i2c_adapter_compat_class, &adap->dev,
-				 adap->dev.parent);
-#endif
-
 	/* device name is gone after device_unregister */
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
 	pm_runtime_disable(&adap->dev);
 
 	i2c_host_notify_irq_teardown(adap);
+
+	debugfs_remove_recursive(adap->debugfs);
 
 	/* wait until all references to the device are gone
 	 *
@@ -2054,13 +2089,8 @@ static int __init i2c_init(void)
 
 	is_registered = true;
 
-#ifdef CONFIG_I2C_COMPAT
-	i2c_adapter_compat_class = class_compat_register("i2c-adapter");
-	if (!i2c_adapter_compat_class) {
-		retval = -ENOMEM;
-		goto bus_err;
-	}
-#endif
+	i2c_debugfs_root = debugfs_create_dir("i2c", NULL);
+
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
 		goto class_err;
@@ -2073,10 +2103,6 @@ static int __init i2c_init(void)
 	return 0;
 
 class_err:
-#ifdef CONFIG_I2C_COMPAT
-	class_compat_unregister(i2c_adapter_compat_class);
-bus_err:
-#endif
 	is_registered = false;
 	bus_unregister(&i2c_bus_type);
 	return retval;
@@ -2089,9 +2115,7 @@ static void __exit i2c_exit(void)
 	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
 		WARN_ON(of_reconfig_notifier_unregister(&i2c_of_notifier));
 	i2c_del_driver(&dummy_driver);
-#ifdef CONFIG_I2C_COMPAT
-	class_compat_unregister(i2c_adapter_compat_class);
-#endif
+	debugfs_remove_recursive(i2c_debugfs_root);
 	bus_unregister(&i2c_bus_type);
 	tracepoint_synchronize_unregister();
 }
@@ -2182,12 +2206,17 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
  * Returns negative errno, else the number of messages executed.
  *
  * Adapter lock must be held when calling this function. No debug logging
- * takes place. adap->algo->master_xfer existence isn't checked.
+ * takes place.
  */
 int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	unsigned long orig_jiffies;
 	int ret, try;
+
+	if (!adap->algo->master_xfer) {
+		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (WARN_ON(!msgs || num < 1))
 		return -EINVAL;
@@ -2254,11 +2283,6 @@ EXPORT_SYMBOL(__i2c_transfer);
 int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	int ret;
-
-	if (!adap->algo->master_xfer) {
-		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
-		return -EOPNOTSUPP;
-	}
 
 	/* REVISIT the fault reporting model here is weak:
 	 *

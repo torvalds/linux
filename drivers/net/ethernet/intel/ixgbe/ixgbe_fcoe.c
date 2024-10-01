@@ -670,8 +670,8 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 			int fcoe_i_h = fcoe->offset + ((i + fcreta_size) %
 							fcoe->indices);
 			fcoe_q_h = adapter->rx_ring[fcoe_i_h]->reg_idx;
-			fcoe_q_h = (fcoe_q_h << IXGBE_FCRETA_ENTRY_HIGH_SHIFT) &
-				   IXGBE_FCRETA_ENTRY_HIGH_MASK;
+			fcoe_q_h = FIELD_PREP(IXGBE_FCRETA_ENTRY_HIGH_MASK,
+					      fcoe_q_h);
 		}
 
 		fcoe_i = fcoe->offset + (i % fcoe->indices);
@@ -858,7 +858,7 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 
 	/* enable FCoE and notify stack */
 	adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-	netdev->features |= NETIF_F_FCOE_MTU;
+	netdev->fcoe_mtu = true;
 	netdev_features_change(netdev);
 
 	/* release existing queues and reallocate them */
@@ -898,7 +898,7 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 
 	/* disable FCoE and notify stack */
 	adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
-	netdev->features &= ~NETIF_F_FCOE_MTU;
+	netdev->fcoe_mtu = false;
 
 	netdev_features_change(netdev);
 

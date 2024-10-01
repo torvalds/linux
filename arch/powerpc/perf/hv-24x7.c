@@ -425,16 +425,6 @@ static char *memdup_to_str(char *maybe_str, int max_len, gfp_t gfp)
 	return kasprintf(gfp, "%.*s", max_len, maybe_str);
 }
 
-static ssize_t device_show_string(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *d;
-
-	d = container_of(attr, struct dev_ext_attribute, attr);
-
-	return sprintf(buf, "%s\n", (char *)d->var);
-}
-
 static ssize_t cpumask_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -1338,7 +1328,7 @@ static int get_count_from_result(struct perf_event *event,
 	for (i = count = 0, element_data = res->elements + data_offset;
 	     i < num_elements;
 	     i++, element_data += data_size + data_offset)
-		count += be64_to_cpu(*((u64 *) element_data));
+		count += be64_to_cpu(*((__be64 *)element_data));
 
 	*countp = count;
 
@@ -1418,7 +1408,7 @@ static int h_24x7_event_init(struct perf_event *event)
 	}
 
 	domain = event_get_domain(event);
-	if (domain >= HV_PERF_DOMAIN_MAX) {
+	if (domain  == 0 || domain >= HV_PERF_DOMAIN_MAX) {
 		pr_devel("invalid domain %d\n", domain);
 		return -EINVAL;
 	}

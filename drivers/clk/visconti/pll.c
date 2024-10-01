@@ -262,9 +262,9 @@ static struct clk_hw *visconti_register_pll(struct visconti_pll_provider *ctx,
 	for (len = 0; rate_table[len].rate != 0; )
 		len++;
 	pll->rate_count = len;
-	pll->rate_table = kmemdup(rate_table,
-				  pll->rate_count * sizeof(struct visconti_pll_rate_table),
-				  GFP_KERNEL);
+	pll->rate_table = kmemdup_array(rate_table,
+					pll->rate_count, sizeof(*pll->rate_table),
+					GFP_KERNEL);
 	WARN(!pll->rate_table, "%s: could not allocate rate table for %s\n", __func__, name);
 
 	init.ops = &visconti_pll_ops;
@@ -329,12 +329,12 @@ struct visconti_pll_provider * __init visconti_init_pll(struct device_node *np,
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < nr_plls; ++i)
-		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
-
 	ctx->node = np;
 	ctx->reg_base = base;
 	ctx->clk_data.num = nr_plls;
+
+	for (i = 0; i < nr_plls; ++i)
+		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
 
 	return ctx;
 }

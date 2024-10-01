@@ -26,16 +26,16 @@
  * @max_regions: maximum number of regions supported by hardware
  * @ob_region_map: bitmask of mapped outbound regions
  * @ob_addr: base addresses in the AXI bus where the outbound regions start
- * @irq_phys_addr: base address on the AXI bus where the MSI/legacy IRQ
+ * @irq_phys_addr: base address on the AXI bus where the MSI/INTX IRQ
  *		   dedicated outbound regions is mapped.
  * @irq_cpu_addr: base address in the CPU space where a write access triggers
- *		  the sending of a memory write (MSI) / normal message (legacy
+ *		  the sending of a memory write (MSI) / normal message (INTX
  *		  IRQ) TLP through the PCIe bus.
- * @irq_pci_addr: used to save the current mapping of the MSI/legacy IRQ
+ * @irq_pci_addr: used to save the current mapping of the MSI/INTX IRQ
  *		  dedicated outbound region.
  * @irq_pci_fn: the latest PCI function that has updated the mapping of
- *		the MSI/legacy IRQ dedicated outbound region.
- * @irq_pending: bitmask of asserted legacy IRQs.
+ *		the MSI/INTX IRQ dedicated outbound region.
+ * @irq_pending: bitmask of asserted INTX IRQs.
  */
 struct rockchip_pcie_ep {
 	struct rockchip_pcie	rockchip;
@@ -98,10 +98,8 @@ static int rockchip_pcie_ep_write_header(struct pci_epc *epc, u8 fn, u8 vfn,
 
 	/* All functions share the same vendor ID with function 0 */
 	if (fn == 0) {
-		u32 vid_regs = (hdr->vendorid & GENMASK(15, 0)) |
-			       (hdr->subsys_vendor_id & GENMASK(31, 16)) << 16;
-
-		rockchip_pcie_write(rockchip, vid_regs,
+		rockchip_pcie_write(rockchip,
+				    hdr->vendorid | hdr->subsys_vendor_id << 16,
 				    PCIE_CORE_CONFIG_VENDOR);
 	}
 
@@ -153,7 +151,7 @@ static int rockchip_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 		ctrl = ROCKCHIP_PCIE_CORE_BAR_CFG_CTRL_IO_32BITS;
 	} else {
 		bool is_prefetch = !!(flags & PCI_BASE_ADDRESS_MEM_PREFETCH);
-		bool is_64bits = sz > SZ_2G;
+		bool is_64bits = !!(flags & PCI_BASE_ADDRESS_MEM_TYPE_64);
 
 		if (is_64bits && (bar & 1))
 			return -EINVAL;
@@ -325,8 +323,8 @@ static void rockchip_pcie_ep_assert_intx(struct rockchip_pcie_ep *ep, u8 fn,
 	}
 }
 
-static int rockchip_pcie_ep_send_legacy_irq(struct rockchip_pcie_ep *ep, u8 fn,
-					    u8 intx)
+static int rockchip_pcie_ep_send_intx_irq(struct rockchip_pcie_ep *ep, u8 fn,
+					  u8 intx)
 {
 	u16 cmd;
 
@@ -407,15 +405,14 @@ static int rockchip_pcie_ep_send_msi_irq(struct rockchip_pcie_ep *ep, u8 fn,
 }
 
 static int rockchip_pcie_ep_raise_irq(struct pci_epc *epc, u8 fn, u8 vfn,
-				      enum pci_epc_irq_type type,
-				      u16 interrupt_num)
+				      unsigned int type, u16 interrupt_num)
 {
 	struct rockchip_pcie_ep *ep = epc_get_drvdata(epc);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		return rockchip_pcie_ep_send_legacy_irq(ep, fn, 0);
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_INTX:
+		return rockchip_pcie_ep_send_intx_irq(ep, fn, 0);
+	case PCI_IRQ_MSI:
 		return rockchip_pcie_ep_send_msi_irq(ep, fn, interrupt_num);
 	default:
 		return -EINVAL;
@@ -609,6 +606,8 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 
 	rockchip_pcie_write(rockchip, PCIE_CLIENT_CONF_ENABLE,
 			    PCIE_CLIENT_CONFIG);
+
+	pci_epc_init_notify(epc);
 
 	return 0;
 err_epc_mem_exit:

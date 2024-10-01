@@ -298,6 +298,7 @@ void i915_vma_revoke_fence(struct i915_vma *vma)
 		return;
 
 	GEM_BUG_ON(fence->vma != vma);
+	i915_active_wait(&fence->active);
 	GEM_BUG_ON(!i915_active_is_idle(&fence->active));
 	GEM_BUG_ON(atomic_read(&fence->pin_count));
 
@@ -417,7 +418,6 @@ out_unpin:
  * For an untiled surface, this removes any existing fence.
  *
  * Returns:
- *
  * 0 on success, negative error code on failure.
  */
 int i915_vma_pin_fence(struct i915_vma *vma)
@@ -818,7 +818,7 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 	if (obj->bit_17 == NULL) {
 		obj->bit_17 = bitmap_zalloc(page_count, GFP_KERNEL);
 		if (obj->bit_17 == NULL) {
-			drm_err(&to_i915(obj->base.dev)->drm,
+			drm_err(obj->base.dev,
 				"Failed to allocate memory for bit 17 record\n");
 			return;
 		}

@@ -46,20 +46,36 @@ struct ccu_mux {
 	struct ccu_common	common;
 };
 
+#define SUNXI_CCU_MUX_TABLE_WITH_GATE_FEAT(_struct, _name, _parents, _table,	\
+				     _reg, _shift, _width, _gate,		\
+				     _flags, _features)				\
+	struct ccu_mux _struct = {						\
+		.enable	= _gate,						\
+		.mux	= _SUNXI_CCU_MUX_TABLE(_shift, _width, _table),		\
+		.common	= {							\
+			.reg		= _reg,					\
+			.hw.init	= CLK_HW_INIT_PARENTS(_name,		\
+							      _parents,		\
+							      &ccu_mux_ops,	\
+							      _flags),		\
+			.features	= _features,				\
+		}								\
+	}
+
+#define SUNXI_CCU_MUX_TABLE_WITH_GATE_CLOSEST(_struct, _name, _parents,	\
+					      _table, _reg, _shift,	\
+					      _width, _gate, _flags)	\
+	SUNXI_CCU_MUX_TABLE_WITH_GATE_FEAT(_struct, _name, _parents,	\
+					   _table, _reg, _shift,	\
+					   _width, _gate, _flags,	\
+					   CCU_FEATURE_CLOSEST_RATE)
+
 #define SUNXI_CCU_MUX_TABLE_WITH_GATE(_struct, _name, _parents, _table,	\
 				     _reg, _shift, _width, _gate,	\
 				     _flags)				\
-	struct ccu_mux _struct = {					\
-		.enable	= _gate,					\
-		.mux	= _SUNXI_CCU_MUX_TABLE(_shift, _width, _table),	\
-		.common	= {						\
-			.reg		= _reg,				\
-			.hw.init	= CLK_HW_INIT_PARENTS(_name,	\
-							      _parents, \
-							      &ccu_mux_ops, \
-							      _flags),	\
-		}							\
-	}
+	SUNXI_CCU_MUX_TABLE_WITH_GATE_FEAT(_struct, _name, _parents,	\
+					   _table, _reg, _shift,	\
+					   _width, _gate, _flags, 0)
 
 #define SUNXI_CCU_MUX_WITH_GATE(_struct, _name, _parents, _reg,		\
 				_shift, _width, _gate, _flags)		\

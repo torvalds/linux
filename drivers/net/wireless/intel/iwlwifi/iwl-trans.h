@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -26,11 +26,9 @@
  * DOC: Transport layer - what is it ?
  *
  * The transport layer is the layer that deals with the HW directly. It provides
- * an abstraction of the underlying HW to the upper layer. The transport layer
- * doesn't provide any policy, algorithm or anything of this kind, but only
- * mechanisms to make the HW do something. It is not completely stateless but
- * close to it.
- * We will have an implementation for each different supported bus.
+ * the PCIe access to the underlying hardwarwe. The transport layer doesn't
+ * provide any policy, algorithm or anything of this kind, but only mechanisms
+ * to make the HW do something. It is not completely stateless but close to it.
  */
 
 /**
@@ -55,6 +53,10 @@
  *
  *	6) Eventually, the free function will be called.
  */
+
+/* default preset 0 (start from bit 16)*/
+#define IWL_FW_DBG_DOMAIN_POS	16
+#define IWL_FW_DBG_DOMAIN	BIT(IWL_FW_DBG_DOMAIN_POS)
 
 #define IWL_TRANS_FW_DBG_DOMAIN(trans)	IWL_FW_INI_DOMAIN_ALWAYS_ON
 
@@ -105,8 +107,8 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_ASYNC: Return right away and don't wait for the response
  * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
  *	the response. The caller needs to call iwl_free_resp when done.
- * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
- *	called after this command completes. Valid only with CMD_ASYNC.
+ * @CMD_SEND_IN_RFKILL: Send the command even if the NIC is in RF-kill.
+ * @CMD_BLOCK_TXQS: Block TXQs while the comment is executing.
  * @CMD_SEND_IN_D3: Allow the command to be sent in D3 mode, relevant to
  *	SUSPEND and RESUME commands. We are in D3 mode when we set
  *	trans->system_pm_mode to IWL_PLAT_PM_MODE_D3.
@@ -115,9 +117,10 @@ enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
-	CMD_WANT_ASYNC_CALLBACK	= BIT(3),
+	CMD_BLOCK_TXQS		= BIT(3),
 	CMD_SEND_IN_D3          = BIT(4),
 };
+#define CMD_MODE_BITS 5
 
 #define DEF_CMD_PAYLOAD_SIZE 320
 
@@ -127,6 +130,11 @@ enum CMD_MODE {
  * For allocation of the command and tx queues, this establishes the overall
  * size of the largest command we send to uCode, except for commands that
  * aren't fully copied and use other TFD space.
+ *
+ * @hdr: command header
+ * @payload: payload for the command
+ * @hdr_wide: wide command header
+ * @payload_wide: payload for the wide command
  */
 struct iwl_device_cmd {
 	union {
@@ -162,12 +170,6 @@ struct iwl_device_tx_cmd {
  * this is just the driver's idea, the hardware supports 20
  */
 #define IWL_MAX_CMD_TBS_PER_TFD	2
-
-/* We need 2 entries for the TX command and header, and another one might
- * be needed for potential data in the SKB's head. The remaining ones can
- * be used for frags.
- */
-#define IWL_TRANS_MAX_FRAGS(trans) ((trans)->txqs.tfd.max_tbs - 3)
 
 /**
  * enum iwl_hcmd_dataflag - flag for each one of the chunks of the command
@@ -274,10 +276,10 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 #define IWL_MGMT_TID		15
 #define IWL_FRAME_LIMIT	64
 #define IWL_MAX_RX_HW_QUEUES	16
-#define IWL_9000_MAX_RX_HW_QUEUES	6
+#define IWL_9000_MAX_RX_HW_QUEUES	1
 
 /**
- * enum iwl_wowlan_status - WoWLAN image/device status
+ * enum iwl_d3_status - WoWLAN image/device status
  * @IWL_D3_STATUS_ALIVE: firmware is still running after resume
  * @IWL_D3_STATUS_RESET: device was reset while suspended
  */
@@ -295,9 +297,6 @@ enum iwl_d3_status {
  * @STATUS_RFKILL_HW: the actual HW state of the RF-kill switch
  * @STATUS_RFKILL_OPMODE: RF-kill state reported to opmode
  * @STATUS_FW_ERROR: the fw is in error state
- * @STATUS_TRANS_GOING_IDLE: shutting down the trans, only special commands
- *	are sent
- * @STATUS_TRANS_IDLE: the trans is idle - general commands are not to be sent
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
  * @STATUS_SUPPRESS_CMD_ERROR_ONCE: suppress "FW error in SYNC CMD" once,
  *	e.g. for testing
@@ -310,8 +309,6 @@ enum iwl_trans_status {
 	STATUS_RFKILL_HW,
 	STATUS_RFKILL_OPMODE,
 	STATUS_FW_ERROR,
-	STATUS_TRANS_GOING_IDLE,
-	STATUS_TRANS_IDLE,
 	STATUS_TRANS_DEAD,
 	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 };
@@ -389,7 +386,6 @@ struct iwl_dump_sanitize_ops {
  * @cmd_queue: the index of the command queue.
  *	Must be set before start_fw.
  * @cmd_fifo: the fifo for host commands
- * @cmd_q_wdg_timeout: the timeout of the watchdog timer for the command queue.
  * @no_reclaim_cmds: Some devices erroneously don't set the
  *	SEQ_RX_FRAME bit on some notifications, this is the
  *	list of such notifications to filter. Max length is
@@ -415,7 +411,6 @@ struct iwl_trans_config {
 
 	u8 cmd_queue;
 	u8 cmd_fifo;
-	unsigned int cmd_q_wdg_timeout;
 	const u8 *no_reclaim_cmds;
 	unsigned int n_no_reclaim_cmds;
 
@@ -475,182 +470,6 @@ struct iwl_pnvm_image {
 	} chunks[IPC_DRAM_MAP_ENTRY_NUM_MAX];
 	u32 n_chunks;
 	u32 version;
-};
-
-/**
- * struct iwl_trans_ops - transport specific operations
- *
- * All the handlers MUST be implemented
- *
- * @start_hw: starts the HW. From that point on, the HW can send interrupts.
- *	May sleep.
- * @op_mode_leave: Turn off the HW RF kill indication if on
- *	May sleep
- * @start_fw: allocates and inits all the resources for the transport
- *	layer. Also kick a fw image.
- *	May sleep
- * @fw_alive: called when the fw sends alive notification. If the fw provides
- *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
- *	May sleep
- * @stop_device: stops the whole device (embedded CPU put to reset) and stops
- *	the HW. From that point on, the HW will be stopped but will still issue
- *	an interrupt if the HW RF kill switch is triggered.
- *	This callback must do the right thing and not crash even if %start_hw()
- *	was called but not &start_fw(). May sleep.
- * @d3_suspend: put the device into the correct mode for WoWLAN during
- *	suspend. This is optional, if not implemented WoWLAN will not be
- *	supported. This callback may sleep.
- * @d3_resume: resume the device after WoWLAN, enabling the opmode to
- *	talk to the WoWLAN image to get its status. This is optional, if not
- *	implemented WoWLAN will not be supported. This callback may sleep.
- * @send_cmd:send a host command. Must return -ERFKILL if RFkill is asserted.
- *	If RFkill is asserted in the middle of a SYNC host command, it must
- *	return -ERFKILL straight away.
- *	May sleep only if CMD_ASYNC is not set
- * @tx: send an skb. The transport relies on the op_mode to zero the
- *	the ieee80211_tx_info->driver_data. If the MPDU is an A-MSDU, all
- *	the CSUM will be taken care of (TCP CSUM and IP header in case of
- *	IPv4). If the MPDU is a single MSDU, the op_mode must compute the IP
- *	header if it is IPv4.
- *	Must be atomic
- * @reclaim: free packet until ssn. Returns a list of freed packets.
- *	Must be atomic
- * @txq_enable: setup a queue. To setup an AC queue, use the
- *	iwl_trans_ac_txq_enable wrapper. fw_alive must have been called before
- *	this one. The op_mode must not configure the HCMD queue. The scheduler
- *	configuration may be %NULL, in which case the hardware will not be
- *	configured. If true is returned, the operation mode needs to increment
- *	the sequence number of the packets routed to this queue because of a
- *	hardware scheduler bug. May sleep.
- * @txq_disable: de-configure a Tx queue to send AMPDUs
- *	Must be atomic
- * @txq_set_shared_mode: change Tx queue shared/unshared marking
- * @wait_tx_queues_empty: wait until tx queues are empty. May sleep.
- * @wait_txq_empty: wait until specific tx queue is empty. May sleep.
- * @freeze_txq_timer: prevents the timer of the queue from firing until the
- *	queue is set to awake. Must be atomic.
- * @block_txq_ptrs: stop updating the write pointers of the Tx queues. Note
- *	that the transport needs to refcount the calls since this function
- *	will be called several times with block = true, and then the queues
- *	need to be unblocked only after the same number of calls with
- *	block = false.
- * @write8: write a u8 to a register at offset ofs from the BAR
- * @write32: write a u32 to a register at offset ofs from the BAR
- * @read32: read a u32 register at offset ofs from the BAR
- * @read_prph: read a DWORD from a periphery register
- * @write_prph: write a DWORD to a periphery register
- * @read_mem: read device's SRAM in DWORD
- * @write_mem: write device's SRAM in DWORD. If %buf is %NULL, then the memory
- *	will be zeroed.
- * @read_config32: read a u32 value from the device's config space at
- *	the given offset.
- * @configure: configure parameters required by the transport layer from
- *	the op_mode. May be called several times before start_fw, can't be
- *	called after that.
- * @set_pmi: set the power pmi state
- * @grab_nic_access: wake the NIC to be able to access non-HBUS regs.
- *	Sleeping is not allowed between grab_nic_access and
- *	release_nic_access.
- * @release_nic_access: let the NIC go to sleep. The "flags" parameter
- *	must be the same one that was sent before to the grab_nic_access.
- * @set_bits_mask - set SRAM register according to value and mask.
- * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
- *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
- *	Note that the transport must fill in the proper file headers.
- * @debugfs_cleanup: used in the driver unload flow to make a proper cleanup
- *	of the trans debugfs
- * @load_pnvm: save the pnvm data in DRAM
- * @set_pnvm: set the pnvm data in the prph scratch buffer, inside the
- *	context info.
- * @load_reduce_power: copy reduce power table to the corresponding DRAM memory
- * @set_reduce_power: set reduce power table addresses in the sratch buffer
- * @interrupts: disable/enable interrupts to transport
- */
-struct iwl_trans_ops {
-
-	int (*start_hw)(struct iwl_trans *iwl_trans);
-	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
-	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
-			bool run_in_rfkill);
-	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
-	void (*stop_device)(struct iwl_trans *trans);
-
-	int (*d3_suspend)(struct iwl_trans *trans, bool test, bool reset);
-	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status,
-			 bool test, bool reset);
-
-	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
-
-	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
-		  struct iwl_device_tx_cmd *dev_cmd, int queue);
-	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
-			struct sk_buff_head *skbs);
-
-	void (*set_q_ptrs)(struct iwl_trans *trans, int queue, int ptr);
-
-	bool (*txq_enable)(struct iwl_trans *trans, int queue, u16 ssn,
-			   const struct iwl_trans_txq_scd_cfg *cfg,
-			   unsigned int queue_wdg_timeout);
-	void (*txq_disable)(struct iwl_trans *trans, int queue,
-			    bool configure_scd);
-	/* 22000 functions */
-	int (*txq_alloc)(struct iwl_trans *trans, u32 flags,
-			 u32 sta_mask, u8 tid,
-			 int size, unsigned int queue_wdg_timeout);
-	void (*txq_free)(struct iwl_trans *trans, int queue);
-	int (*rxq_dma_data)(struct iwl_trans *trans, int queue,
-			    struct iwl_trans_rxq_dma_data *data);
-
-	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
-				    bool shared);
-
-	int (*wait_tx_queues_empty)(struct iwl_trans *trans, u32 txq_bm);
-	int (*wait_txq_empty)(struct iwl_trans *trans, int queue);
-	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
-				 bool freeze);
-	void (*block_txq_ptrs)(struct iwl_trans *trans, bool block);
-
-	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
-	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
-	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
-	u32 (*read_prph)(struct iwl_trans *trans, u32 ofs);
-	void (*write_prph)(struct iwl_trans *trans, u32 ofs, u32 val);
-	int (*read_mem)(struct iwl_trans *trans, u32 addr,
-			void *buf, int dwords);
-	int (*write_mem)(struct iwl_trans *trans, u32 addr,
-			 const void *buf, int dwords);
-	int (*read_config32)(struct iwl_trans *trans, u32 ofs, u32 *val);
-	void (*configure)(struct iwl_trans *trans,
-			  const struct iwl_trans_config *trans_cfg);
-	void (*set_pmi)(struct iwl_trans *trans, bool state);
-	int (*sw_reset)(struct iwl_trans *trans, bool retake_ownership);
-	bool (*grab_nic_access)(struct iwl_trans *trans);
-	void (*release_nic_access)(struct iwl_trans *trans);
-	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
-			      u32 value);
-
-	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
-						 u32 dump_mask,
-						 const struct iwl_dump_sanitize_ops *sanitize_ops,
-						 void *sanitize_ctx);
-	void (*debugfs_cleanup)(struct iwl_trans *trans);
-	void (*sync_nmi)(struct iwl_trans *trans);
-	int (*load_pnvm)(struct iwl_trans *trans,
-			 const struct iwl_pnvm_image *pnvm_payloads,
-			 const struct iwl_ucode_capabilities *capa);
-	void (*set_pnvm)(struct iwl_trans *trans,
-			 const struct iwl_ucode_capabilities *capa);
-	int (*load_reduce_power)(struct iwl_trans *trans,
-				 const struct iwl_pnvm_image *payloads,
-				 const struct iwl_ucode_capabilities *capa);
-	void (*set_reduce_power)(struct iwl_trans *trans,
-				 const struct iwl_ucode_capabilities *capa);
-
-	void (*interrupts)(struct iwl_trans *trans, bool enable);
-	int (*imr_dma_data)(struct iwl_trans *trans,
-			    u32 dst_addr, u64 src_addr,
-			    u32 byte_cnt);
-
 };
 
 /**
@@ -734,6 +553,7 @@ struct iwl_dram_data {
 };
 
 /**
+ * struct iwl_dram_regions - DRAM regions container structure
  * @drams: array of several DRAM areas that contains the pnvm and power
  *	reduction table payloads.
  * @n_regions: number of DRAM regions that were allocated
@@ -776,7 +596,7 @@ struct iwl_self_init_dram {
  * @imr_size: imr dram size received from fw
  * @sram_addr: sram address from debug tlv
  * @sram_size: sram size from debug tlv
- * @imr2sram_remainbyte`: size remained after each dma transfer
+ * @imr2sram_remainbyte: size remained after each dma transfer
  * @imr_curr_addr: current dst address used during dma transfer
  * @imr_base_addr: imr address received from fw
  */
@@ -823,16 +643,21 @@ struct iwl_pc_data {
  * @fw_mon: DRAM buffer for firmware monitor
  * @hw_error: equals true if hw error interrupt was received from the FW
  * @ini_dest: debug monitor destination uses &enum iwl_fw_ini_buffer_location
+ * @unsupported_region_msk: unsupported regions out of active_regions
  * @active_regions: active regions
  * @debug_info_tlv_list: list of debug info TLVs
  * @time_point: array of debug time points
  * @periodic_trig_list: periodic triggers list
  * @domains_bitmap: bitmap of active domains other than &IWL_FW_INI_DOMAIN_ALWAYS_ON
  * @ucode_preset: preset based on ucode
+ * @restart_required: indicates debug restart is required
+ * @last_tp_resetfw: last handling of reset during debug timepoint
+ * @imr_data: IMR debug data allocation
  * @dump_file_name_ext: dump file name extension
  * @dump_file_name_ext_valid: dump file name extension if valid or not
  * @num_pc: number of program counter for cpu
  * @pc_data: details of the program counter
+ * @yoyo_bin_loaded: tells if a yoyo debug file has been loaded
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -862,8 +687,7 @@ struct iwl_trans_debug {
 	u64 unsupported_region_msk;
 	struct iwl_ucode_tlv *active_regions[IWL_FW_INI_MAX_REGION_ID];
 	struct list_head debug_info_tlv_list;
-	struct iwl_dbg_tlv_time_point_data
-		time_point[IWL_FW_INI_TIME_POINT_NUM];
+	struct iwl_dbg_tlv_time_point_data time_point[IWL_FW_INI_TIME_POINT_NUM];
 	struct list_head periodic_trig_list;
 
 	u32 domains_bitmap;
@@ -875,6 +699,7 @@ struct iwl_trans_debug {
 	bool dump_file_name_ext_valid;
 	u32 num_pc;
 	struct iwl_pc_data *pc_data;
+	bool yoyo_bin_loaded;
 };
 
 struct iwl_dma_ptr {
@@ -886,7 +711,9 @@ struct iwl_dma_ptr {
 struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
-	u32 flags;
+	u32 flags: CMD_MODE_BITS;
+	/* sg_offset is valid if it is non-zero */
+	u32 sg_offset: PAGE_SHIFT;
 	u32 tbs;
 };
 
@@ -916,7 +743,6 @@ struct iwl_pcie_first_tb_buf {
 
 /**
  * struct iwl_txq - Tx Queue for DMA
- * @q: generic Rx/Tx queue descriptor
  * @tfds: transmit frame descriptors (DMA memory)
  * @first_tb_bufs: start of command headers, including scratch buffers, for
  *	the writeback -- this is DMA memory and an array holding one buffer
@@ -924,6 +750,7 @@ struct iwl_pcie_first_tb_buf {
  * @first_tb_dma: DMA address for the first_tb_bufs start
  * @entries: transmit entries (driver state)
  * @lock: queue lock
+ * @reclaim_lock: reclaim lock
  * @stuck_timer: timer that fires if queue gets stuck
  * @trans: pointer back to transport (for timer)
  * @need_update: indicates need to update read/write index
@@ -931,6 +758,7 @@ struct iwl_pcie_first_tb_buf {
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
  * @frozen: tx stuck queue timer is frozen
  * @frozen_expiry_remainder: remember how long until the timer fires
+ * @block: queue is blocked
  * @bc_tbl: byte count table of the queue (relevant only for gen2 transport)
  * @write_ptr: 1-st empty entry (index) host_w
  * @read_ptr: last used entry (index) host_r
@@ -939,6 +767,8 @@ struct iwl_pcie_first_tb_buf {
  * @id: queue id
  * @low_mark: low watermark, resume queue if free space more than this
  * @high_mark: high watermark, stop queue if free space less than this
+ * @overflow_q: overflow queue for handling frames that didn't fit on HW queue
+ * @overflow_tx: need to transmit from overflow
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -963,6 +793,8 @@ struct iwl_txq {
 	struct iwl_pcie_txq_entry *entries;
 	/* lock for syncing changes on the queue */
 	spinlock_t lock;
+	/* lock to prevent concurrent reclaim */
+	spinlock_t reclaim_lock;
 	unsigned long frozen_expiry_remainder;
 	struct timer_list stuck_timer;
 	struct iwl_trans *trans;
@@ -986,68 +818,36 @@ struct iwl_txq {
 };
 
 /**
- * struct iwl_trans_txqs - transport tx queues data
- *
- * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
- * @page_offs: offset from skb->cb to mac header page pointer
- * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
- * @queue_used - bit mask of used queues
- * @queue_stopped - bit mask of stopped queues
- * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
- * @queue_alloc_cmd_ver: queue allocation command version
- */
-struct iwl_trans_txqs {
-	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
-	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
-	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
-	struct dma_pool *bc_pool;
-	size_t bc_tbl_size;
-	bool bc_table_dword;
-	u8 page_offs;
-	u8 dev_cmd_offs;
-	struct iwl_tso_hdr_page __percpu *tso_hdr_page;
-
-	struct {
-		u8 fifo;
-		u8 q_id;
-		unsigned int wdg_timeout;
-	} cmd;
-
-	struct {
-		u8 max_tbs;
-		u16 size;
-		u8 addr_size;
-	} tfd;
-
-	struct iwl_dma_ptr scd_bc_tbls;
-
-	u8 queue_alloc_cmd_ver;
-};
-
-/**
  * struct iwl_trans - transport common data
  *
- * @csme_own - true if we couldn't get ownership on the device
- * @ops - pointer to iwl_trans_ops
- * @op_mode - pointer to the op_mode
+ * @csme_own: true if we couldn't get ownership on the device
+ * @op_mode: pointer to the op_mode
  * @trans_cfg: the trans-specific configuration part
- * @cfg - pointer to the configuration
- * @drv - pointer to iwl_drv
+ * @cfg: pointer to the configuration
+ * @drv: pointer to iwl_drv
+ * @state: current device state
  * @status: a bit-mask of transport status flags
- * @dev - pointer to struct device * that represents the device
+ * @dev: pointer to struct device * that represents the device
  * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
  *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
- * @hw_rf_id a u32 with the device RF ID
- * @hw_crf_id a u32 with the device CRF ID
- * @hw_wfpm_id a u32 with the device wfpm ID
+ * @hw_rf_id: a u32 with the device RF ID
+ * @hw_cnv_id: a u32 with the device CNV ID
+ * @hw_crf_id: a u32 with the device CRF ID
+ * @hw_wfpm_id: a u32 with the device wfpm ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
+ * @sku_id: the SKU identifier (for PNVM matching)
+ * @pnvm_loaded: indicates PNVM was loaded
+ * @hw_rev: the revision data of the HW
  * @hw_rev_step: The mac step of the HW
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
+ * @reduce_power_loaded: indicates reduced power section was loaded
  * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
+ * @command_groups: pointer to command group name list array
+ * @command_groups_size: array size of @command_groups
  * @wide_cmd_header: true when ucode supports wide command header format
  * @wait_command_queue: wait queue for sync commands
  * @num_rx_queues: number of RX queues allocated by the transport;
@@ -1056,23 +856,31 @@ struct iwl_trans_txqs {
  * @iml: a pointer to the image loader itself
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @dev_cmd_pool_name: name for the TX command allocation pool
+ * @dbgfs_dir: iwlwifi debugfs base dir for this device
+ * @sync_cmd_lockdep_map: lockdep map for checking sync commands
  * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
  *	starting the firmware, used for tracing
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
  *	start of the 802.11 header in the @rx_mpdu_cmd
- * @dflt_pwr_limit: default power limit fetched from the platform (ACPI)
+ * @dbg: additional debug data, see &struct iwl_trans_debug
+ * @init_dram: FW initialization DMA data
  * @system_pm_mode: the system-wide power management mode in use.
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
- * @iwl_trans_txqs: transport tx queues data.
+ * @name: the device name
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
  *	only valid for discrete (not integrated) NICs
+ * @invalid_tx_cmd: invalid TX command buffer
+ * @reduced_cap_sku: reduced capability supported SKU
+ * @no_160: device not supporting 160 MHz
+ * @step_urm: STEP is in URM, no support for MCS>9 in 320 MHz
+ * @trans_specific: data for the specific transport this is allocated for/with
  */
 struct iwl_trans {
 	bool csme_own;
-	const struct iwl_trans_ops *ops;
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg_trans_params *trans_cfg;
 	const struct iwl_cfg *cfg;
@@ -1091,6 +899,8 @@ struct iwl_trans {
 	u32 hw_id;
 	char hw_id_str[52];
 	u32 sku_id[3];
+	bool reduced_cap_sku;
+	u8 no_160:1, step_urm:1;
 
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
@@ -1127,11 +937,12 @@ struct iwl_trans {
 	enum iwl_plat_pm_mode system_pm_mode;
 
 	const char *name;
-	struct iwl_trans_txqs txqs;
 	u32 mbx_addr_0_step;
 	u32 mbx_addr_1_step;
 
 	u8 pcie_link_speed;
+
+	struct iwl_dma_ptr invalid_tx_cmd;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1141,101 +952,29 @@ struct iwl_trans {
 const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id);
 int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans);
 
-static inline void iwl_trans_configure(struct iwl_trans *trans,
-				       const struct iwl_trans_config *trans_cfg)
-{
-	trans->op_mode = trans_cfg->op_mode;
+void iwl_trans_configure(struct iwl_trans *trans,
+			 const struct iwl_trans_config *trans_cfg);
 
-	trans->ops->configure(trans, trans_cfg);
-	WARN_ON(iwl_cmd_groups_verify_sorted(trans_cfg));
-}
+int iwl_trans_start_hw(struct iwl_trans *trans);
 
-static inline int iwl_trans_start_hw(struct iwl_trans *trans)
-{
-	might_sleep();
+void iwl_trans_op_mode_leave(struct iwl_trans *trans);
 
-	return trans->ops->start_hw(trans);
-}
+void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr);
 
-static inline void iwl_trans_op_mode_leave(struct iwl_trans *trans)
-{
-	might_sleep();
+int iwl_trans_start_fw(struct iwl_trans *trans, const struct fw_img *fw,
+		       bool run_in_rfkill);
 
-	if (trans->ops->op_mode_leave)
-		trans->ops->op_mode_leave(trans);
+void iwl_trans_stop_device(struct iwl_trans *trans);
 
-	trans->op_mode = NULL;
+int iwl_trans_d3_suspend(struct iwl_trans *trans, bool test, bool reset);
 
-	trans->state = IWL_TRANS_NO_FW;
-}
+int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
+			bool test, bool reset);
 
-static inline void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
-{
-	might_sleep();
-
-	trans->state = IWL_TRANS_FW_ALIVE;
-
-	trans->ops->fw_alive(trans, scd_addr);
-}
-
-static inline int iwl_trans_start_fw(struct iwl_trans *trans,
-				     const struct fw_img *fw,
-				     bool run_in_rfkill)
-{
-	int ret;
-
-	might_sleep();
-
-	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
-
-	clear_bit(STATUS_FW_ERROR, &trans->status);
-	ret = trans->ops->start_fw(trans, fw, run_in_rfkill);
-	if (ret == 0)
-		trans->state = IWL_TRANS_FW_STARTED;
-
-	return ret;
-}
-
-static inline void iwl_trans_stop_device(struct iwl_trans *trans)
-{
-	might_sleep();
-
-	trans->ops->stop_device(trans);
-
-	trans->state = IWL_TRANS_NO_FW;
-}
-
-static inline int iwl_trans_d3_suspend(struct iwl_trans *trans, bool test,
-				       bool reset)
-{
-	might_sleep();
-	if (!trans->ops->d3_suspend)
-		return -EOPNOTSUPP;
-
-	return trans->ops->d3_suspend(trans, test, reset);
-}
-
-static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
-				      enum iwl_d3_status *status,
-				      bool test, bool reset)
-{
-	might_sleep();
-	if (!trans->ops->d3_resume)
-		return -EOPNOTSUPP;
-
-	return trans->ops->d3_resume(trans, status, test, reset);
-}
-
-static inline struct iwl_trans_dump_data *
+struct iwl_trans_dump_data *
 iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,
 		    const struct iwl_dump_sanitize_ops *sanitize_ops,
-		    void *sanitize_ctx)
-{
-	if (!trans->ops->dump_data)
-		return NULL;
-	return trans->ops->dump_data(trans, dump_mask,
-				     sanitize_ops, sanitize_ctx);
-}
+		    void *sanitize_ctx);
 
 static inline struct iwl_device_tx_cmd *
 iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
@@ -1251,108 +990,31 @@ static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
 	kmem_cache_free(trans->dev_cmd_pool, dev_cmd);
 }
 
-static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-			       struct iwl_device_tx_cmd *dev_cmd, int queue)
-{
-	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
-		return -EIO;
+int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
+		 struct iwl_device_tx_cmd *dev_cmd, int queue);
 
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return -EIO;
-	}
+void iwl_trans_reclaim(struct iwl_trans *trans, int queue, int ssn,
+		       struct sk_buff_head *skbs, bool is_flush);
 
-	return trans->ops->tx(trans, skb, dev_cmd, queue);
-}
+void iwl_trans_set_q_ptrs(struct iwl_trans *trans, int queue, int ptr);
 
-static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
-				     int ssn, struct sk_buff_head *skbs)
-{
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return;
-	}
+void iwl_trans_txq_disable(struct iwl_trans *trans, int queue,
+			   bool configure_scd);
 
-	trans->ops->reclaim(trans, queue, ssn, skbs);
-}
+bool iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
+			      const struct iwl_trans_txq_scd_cfg *cfg,
+			      unsigned int queue_wdg_timeout);
 
-static inline void iwl_trans_set_q_ptrs(struct iwl_trans *trans, int queue,
-					int ptr)
-{
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return;
-	}
+int iwl_trans_get_rxq_dma_data(struct iwl_trans *trans, int queue,
+			       struct iwl_trans_rxq_dma_data *data);
 
-	trans->ops->set_q_ptrs(trans, queue, ptr);
-}
+void iwl_trans_txq_free(struct iwl_trans *trans, int queue);
 
-static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue,
-					 bool configure_scd)
-{
-	trans->ops->txq_disable(trans, queue, configure_scd);
-}
+int iwl_trans_txq_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
+			u8 tid, int size, unsigned int wdg_timeout);
 
-static inline bool
-iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
-			 const struct iwl_trans_txq_scd_cfg *cfg,
-			 unsigned int queue_wdg_timeout)
-{
-	might_sleep();
-
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return false;
-	}
-
-	return trans->ops->txq_enable(trans, queue, ssn,
-				      cfg, queue_wdg_timeout);
-}
-
-static inline int
-iwl_trans_get_rxq_dma_data(struct iwl_trans *trans, int queue,
-			   struct iwl_trans_rxq_dma_data *data)
-{
-	if (WARN_ON_ONCE(!trans->ops->rxq_dma_data))
-		return -ENOTSUPP;
-
-	return trans->ops->rxq_dma_data(trans, queue, data);
-}
-
-static inline void
-iwl_trans_txq_free(struct iwl_trans *trans, int queue)
-{
-	if (WARN_ON_ONCE(!trans->ops->txq_free))
-		return;
-
-	trans->ops->txq_free(trans, queue);
-}
-
-static inline int
-iwl_trans_txq_alloc(struct iwl_trans *trans,
-		    u32 flags, u32 sta_mask, u8 tid,
-		    int size, unsigned int wdg_timeout)
-{
-	might_sleep();
-
-	if (WARN_ON_ONCE(!trans->ops->txq_alloc))
-		return -ENOTSUPP;
-
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return -EIO;
-	}
-
-	return trans->ops->txq_alloc(trans, flags, sta_mask, tid,
-				     size, wdg_timeout);
-}
-
-static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
-						 int queue, bool shared_mode)
-{
-	if (trans->ops->txq_set_shared_mode)
-		trans->ops->txq_set_shared_mode(trans, queue, shared_mode);
-}
+void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
+				   int txq_id, bool shared_mode);
 
 static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
 					int fifo, int sta_id, int tid,
@@ -1385,90 +1047,32 @@ void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue, int fifo,
 	iwl_trans_txq_enable_cfg(trans, queue, 0, &cfg, queue_wdg_timeout);
 }
 
-static inline void iwl_trans_freeze_txq_timer(struct iwl_trans *trans,
-					      unsigned long txqs,
-					      bool freeze)
-{
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return;
-	}
+void iwl_trans_freeze_txq_timer(struct iwl_trans *trans,
+				unsigned long txqs, bool freeze);
 
-	if (trans->ops->freeze_txq_timer)
-		trans->ops->freeze_txq_timer(trans, txqs, freeze);
-}
+int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans, u32 txqs);
 
-static inline void iwl_trans_block_txq_ptrs(struct iwl_trans *trans,
-					    bool block)
-{
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return;
-	}
+int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue);
 
-	if (trans->ops->block_txq_ptrs)
-		trans->ops->block_txq_ptrs(trans, block);
-}
+void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val);
 
-static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,
-						 u32 txqs)
-{
-	if (WARN_ON_ONCE(!trans->ops->wait_tx_queues_empty))
-		return -ENOTSUPP;
+void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val);
 
-	/* No need to wait if the firmware is not alive */
-	if (trans->state != IWL_TRANS_FW_ALIVE) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return -EIO;
-	}
+u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs);
 
-	return trans->ops->wait_tx_queues_empty(trans, txqs);
-}
+u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs);
 
-static inline int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue)
-{
-	if (WARN_ON_ONCE(!trans->ops->wait_txq_empty))
-		return -ENOTSUPP;
+void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs, u32 val);
 
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return -EIO;
-	}
+int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
+		       void *buf, int dwords);
 
-	return trans->ops->wait_txq_empty(trans, queue);
-}
+int iwl_trans_read_config32(struct iwl_trans *trans, u32 ofs,
+			    u32 *val);
 
-static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
-{
-	trans->ops->write8(trans, ofs, val);
-}
-
-static inline void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
-{
-	trans->ops->write32(trans, ofs, val);
-}
-
-static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
-{
-	return trans->ops->read32(trans, ofs);
-}
-
-static inline u32 iwl_trans_read_prph(struct iwl_trans *trans, u32 ofs)
-{
-	return trans->ops->read_prph(trans, ofs);
-}
-
-static inline void iwl_trans_write_prph(struct iwl_trans *trans, u32 ofs,
-					u32 val)
-{
-	return trans->ops->write_prph(trans, ofs, val);
-}
-
-static inline int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
-				     void *buf, int dwords)
-{
-	return trans->ops->read_mem(trans, addr, buf, dwords);
-}
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_trans_debugfs_cleanup(struct iwl_trans *trans);
+#endif
 
 #define iwl_trans_read_mem_bytes(trans, addr, buf, bufsize)		      \
 	do {								      \
@@ -1477,30 +1081,21 @@ static inline int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 		iwl_trans_read_mem(trans, addr, buf, (bufsize) / sizeof(u32));\
 	} while (0)
 
-static inline int iwl_trans_write_imr_mem(struct iwl_trans *trans,
-					  u32 dst_addr, u64 src_addr,
-					  u32 byte_cnt)
-{
-	if (trans->ops->imr_dma_data)
-		return trans->ops->imr_dma_data(trans, dst_addr, src_addr, byte_cnt);
-	return 0;
-}
+int iwl_trans_write_imr_mem(struct iwl_trans *trans, u32 dst_addr,
+			    u64 src_addr, u32 byte_cnt);
 
 static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
 {
 	u32 value;
 
-	if (WARN_ON(iwl_trans_read_mem(trans, addr, &value, 1)))
+	if (iwl_trans_read_mem(trans, addr, &value, 1))
 		return 0xa5a5a5a5;
 
 	return value;
 }
 
-static inline int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
-				      const void *buf, int dwords)
-{
-	return trans->ops->write_mem(trans, addr, buf, dwords);
-}
+int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
+			const void *buf, int dwords);
 
 static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
 					u32 val)
@@ -1508,36 +1103,21 @@ static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
 	return iwl_trans_write_mem(trans, addr, &val, 1);
 }
 
-static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
-{
-	if (trans->ops->set_pmi)
-		trans->ops->set_pmi(trans, state);
-}
+void iwl_trans_set_pmi(struct iwl_trans *trans, bool state);
 
-static inline int iwl_trans_sw_reset(struct iwl_trans *trans,
-				     bool retake_ownership)
-{
-	if (trans->ops->sw_reset)
-		return trans->ops->sw_reset(trans, retake_ownership);
-	return 0;
-}
+int iwl_trans_sw_reset(struct iwl_trans *trans, bool retake_ownership);
 
-static inline void
-iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value)
-{
-	trans->ops->set_bits_mask(trans, reg, mask, value);
-}
+void iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg,
+			     u32 mask, u32 value);
+
+bool _iwl_trans_grab_nic_access(struct iwl_trans *trans);
 
 #define iwl_trans_grab_nic_access(trans)		\
 	__cond_lock(nic_access,				\
-		    likely((trans)->ops->grab_nic_access(trans)))
+		    likely(_iwl_trans_grab_nic_access(trans)))
 
-static inline void __releases(nic_access)
-iwl_trans_release_nic_access(struct iwl_trans *trans)
-{
-	trans->ops->release_nic_access(trans);
-	__release(nic_access);
-}
+void __releases(nic_access)
+iwl_trans_release_nic_access(struct iwl_trans *trans);
 
 static inline void iwl_trans_fw_error(struct iwl_trans *trans, bool sync)
 {
@@ -1546,8 +1126,8 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans, bool sync)
 
 	/* prevent double restarts due to the same erroneous FW */
 	if (!test_and_set_bit(STATUS_FW_ERROR, &trans->status)) {
-		iwl_op_mode_nic_error(trans->op_mode, sync);
 		trans->state = IWL_TRANS_NO_FW;
+		iwl_op_mode_nic_error(trans->op_mode, sync);
 	}
 }
 
@@ -1556,44 +1136,24 @@ static inline bool iwl_trans_fw_running(struct iwl_trans *trans)
 	return trans->state == IWL_TRANS_FW_ALIVE;
 }
 
-static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
-{
-	if (trans->ops->sync_nmi)
-		trans->ops->sync_nmi(trans);
-}
+void iwl_trans_sync_nmi(struct iwl_trans *trans);
 
 void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
 				  u32 sw_err_bit);
 
-static inline int iwl_trans_load_pnvm(struct iwl_trans *trans,
-				      const struct iwl_pnvm_image *pnvm_data,
-				      const struct iwl_ucode_capabilities *capa)
-{
-	return trans->ops->load_pnvm(trans, pnvm_data, capa);
-}
+int iwl_trans_load_pnvm(struct iwl_trans *trans,
+			const struct iwl_pnvm_image *pnvm_data,
+			const struct iwl_ucode_capabilities *capa);
 
-static inline void iwl_trans_set_pnvm(struct iwl_trans *trans,
-				      const struct iwl_ucode_capabilities *capa)
-{
-	if (trans->ops->set_pnvm)
-		trans->ops->set_pnvm(trans, capa);
-}
+void iwl_trans_set_pnvm(struct iwl_trans *trans,
+			const struct iwl_ucode_capabilities *capa);
 
-static inline int iwl_trans_load_reduce_power
-				(struct iwl_trans *trans,
-				 const struct iwl_pnvm_image *payloads,
-				 const struct iwl_ucode_capabilities *capa)
-{
-	return trans->ops->load_reduce_power(trans, payloads, capa);
-}
+int iwl_trans_load_reduce_power(struct iwl_trans *trans,
+				const struct iwl_pnvm_image *payloads,
+				const struct iwl_ucode_capabilities *capa);
 
-static inline void
-iwl_trans_set_reduce_power(struct iwl_trans *trans,
-			   const struct iwl_ucode_capabilities *capa)
-{
-	if (trans->ops->set_reduce_power)
-		trans->ops->set_reduce_power(trans, capa);
-}
+void iwl_trans_set_reduce_power(struct iwl_trans *trans,
+				const struct iwl_ucode_capabilities *capa);
 
 static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
 {
@@ -1601,18 +1161,13 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
 		trans->dbg.external_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED;
 }
 
-static inline void iwl_trans_interrupts(struct iwl_trans *trans, bool enable)
-{
-	if (trans->ops->interrupts)
-		trans->ops->interrupts(trans, enable);
-}
+void iwl_trans_interrupts(struct iwl_trans *trans, bool enable);
 
 /*****************************************************
  * transport helper functions
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 			  struct device *dev,
-			  const struct iwl_trans_ops *ops,
 			  const struct iwl_cfg_trans_params *cfg_trans);
 int iwl_trans_init(struct iwl_trans *trans);
 void iwl_trans_free(struct iwl_trans *trans);
@@ -1623,10 +1178,13 @@ static inline bool iwl_trans_is_hw_error_value(u32 val)
 }
 
 /*****************************************************
-* driver (transport) register/unregister functions
-******************************************************/
+ * PCIe handling
+ *****************************************************/
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
 void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan);
+
+int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
+			     struct iwl_host_cmd *cmd);
 
 #endif /* __iwl_trans_h__ */

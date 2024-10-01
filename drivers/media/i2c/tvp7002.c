@@ -546,12 +546,15 @@ static int tvp7002_write_inittab(struct v4l2_subdev *sd,
 	return error;
 }
 
-static int tvp7002_s_dv_timings(struct v4l2_subdev *sd,
-					struct v4l2_dv_timings *dv_timings)
+static int tvp7002_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_dv_timings *dv_timings)
 {
 	struct tvp7002 *device = to_tvp7002(sd);
 	const struct v4l2_bt_timings *bt = &dv_timings->bt;
 	int i;
+
+	if (pad != 0)
+		return -EINVAL;
 
 	if (dv_timings->type != V4L2_DV_BT_656_1120)
 		return -EINVAL;
@@ -566,10 +569,13 @@ static int tvp7002_s_dv_timings(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-static int tvp7002_g_dv_timings(struct v4l2_subdev *sd,
-					struct v4l2_dv_timings *dv_timings)
+static int tvp7002_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_dv_timings *dv_timings)
 {
 	struct tvp7002 *device = to_tvp7002(sd);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	*dv_timings = device->current_timings->timings;
 	return 0;
@@ -659,12 +665,16 @@ static int tvp7002_query_dv(struct v4l2_subdev *sd, int *index)
 	return 0;
 }
 
-static int tvp7002_query_dv_timings(struct v4l2_subdev *sd,
-					struct v4l2_dv_timings *timings)
+static int tvp7002_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				    struct v4l2_dv_timings *timings)
 {
 	int index;
-	int err = tvp7002_query_dv(sd, &index);
+	int err;
 
+	if (pad != 0)
+		return -EINVAL;
+
+	err = tvp7002_query_dv(sd, &index);
 	if (err)
 		return err;
 	*timings = tvp7002_timings[index].timings;
@@ -791,7 +801,7 @@ static const struct v4l2_ctrl_ops tvp7002_ctrl_ops = {
 /*
  * tvp7002_enum_mbus_code() - Enum supported digital video format on pad
  * @sd: pointer to standard V4L2 sub-device structure
- * @cfg: pad configuration
+ * @sd_state: V4L2 subdev state
  * @code: pointer to subdev enum mbus code struct
  *
  * Enumerate supported digital video formats for pad.
@@ -813,7 +823,7 @@ tvp7002_enum_mbus_code(struct v4l2_subdev *sd,
 /*
  * tvp7002_get_pad_format() - get video format on pad
  * @sd: pointer to standard V4L2 sub-device structure
- * @cfg: pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: pointer to subdev format struct
  *
  * get video format for pad.
@@ -837,7 +847,7 @@ tvp7002_get_pad_format(struct v4l2_subdev *sd,
 /*
  * tvp7002_set_pad_format() - set video format on pad
  * @sd: pointer to standard V4L2 sub-device structure
- * @cfg: pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: pointer to subdev format struct
  *
  * set video format for pad.
@@ -861,9 +871,6 @@ static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 
 /* Specific video subsystem operation handlers */
 static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
-	.g_dv_timings = tvp7002_g_dv_timings,
-	.s_dv_timings = tvp7002_s_dv_timings,
-	.query_dv_timings = tvp7002_query_dv_timings,
 	.s_stream = tvp7002_s_stream,
 };
 
@@ -872,6 +879,9 @@ static const struct v4l2_subdev_pad_ops tvp7002_pad_ops = {
 	.enum_mbus_code = tvp7002_enum_mbus_code,
 	.get_fmt = tvp7002_get_pad_format,
 	.set_fmt = tvp7002_set_pad_format,
+	.g_dv_timings = tvp7002_g_dv_timings,
+	.s_dv_timings = tvp7002_s_dv_timings,
+	.query_dv_timings = tvp7002_query_dv_timings,
 	.enum_dv_timings = tvp7002_enum_dv_timings,
 };
 
@@ -893,7 +903,7 @@ tvp7002_get_pdata(struct i2c_client *client)
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
 
-	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_endpoint_by_regs(client->dev.of_node, 0, -1);
 	if (!endpoint)
 		return NULL;
 
@@ -1001,7 +1011,7 @@ static int tvp7002_probe(struct i2c_client *c)
 
 	/* Set registers according to default video mode */
 	timings = device->current_timings->timings;
-	error = tvp7002_s_dv_timings(sd, &timings);
+	error = tvp7002_s_dv_timings(sd, 0, &timings);
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	device->pad.flags = MEDIA_PAD_FL_SOURCE;
@@ -1060,7 +1070,7 @@ static void tvp7002_remove(struct i2c_client *c)
 
 /* I2C Device ID table */
 static const struct i2c_device_id tvp7002_id[] = {
-	{ "tvp7002", 0 },
+	{ "tvp7002" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tvp7002_id);

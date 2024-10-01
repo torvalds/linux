@@ -13,7 +13,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
 #include <linux/phy/phy.h>
-#include <linux/of_platform.h>
 
 #include <linux/mfd/syscon.h>
 
@@ -161,7 +160,6 @@ static UNIVERSAL_DEV_PM_OPS(dm816x_usb_phy_pm_ops,
 			    dm816x_usb_phy_runtime_resume,
 			    NULL);
 
-#ifdef CONFIG_OF
 static const struct of_device_id dm816x_usb_phy_id_table[] = {
 	{
 		.compatible = "ti,dm8168-usb-phy",
@@ -169,7 +167,6 @@ static const struct of_device_id dm816x_usb_phy_id_table[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, dm816x_usb_phy_id_table);
-#endif
 
 static int dm816x_usb_phy_probe(struct platform_device *pdev)
 {
@@ -178,13 +175,7 @@ static int dm816x_usb_phy_probe(struct platform_device *pdev)
 	struct phy *generic_phy;
 	struct phy_provider *phy_provider;
 	struct usb_otg *otg;
-	const struct of_device_id *of_id;
 	int error;
-
-	of_id = of_match_device(of_match_ptr(dm816x_usb_phy_id_table),
-				&pdev->dev);
-	if (!of_id)
-		return -EINVAL;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
@@ -272,7 +263,7 @@ static struct platform_driver dm816x_usb_phy_driver = {
 	.driver		= {
 		.name	= "dm816x-usb-phy",
 		.pm	= &dm816x_usb_phy_pm_ops,
-		.of_match_table = of_match_ptr(dm816x_usb_phy_id_table),
+		.of_match_table = dm816x_usb_phy_id_table,
 	},
 };
 

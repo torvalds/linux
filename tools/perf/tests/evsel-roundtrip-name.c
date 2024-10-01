@@ -37,7 +37,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 					continue;
 				}
 				evlist__for_each_entry(evlist, evsel) {
-					if (strcmp(evsel__name(evsel), name)) {
+					if (!evsel__name_is(evsel, name)) {
 						pr_debug("%s != %s\n", evsel__name(evsel), name);
 						ret = TEST_FAIL;
 					}
@@ -71,7 +71,7 @@ static int perf_evsel__name_array_test(const char *const names[], int nr_names)
 			continue;
 		}
 		evlist__for_each_entry(evlist, evsel) {
-			if (strcmp(evsel__name(evsel), names[i])) {
+			if (!evsel__name_is(evsel, names[i])) {
 				pr_debug("%s != %s\n", evsel__name(evsel), names[i]);
 				ret = TEST_FAIL;
 			}

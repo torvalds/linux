@@ -24,6 +24,7 @@
 #include <linux/nodemask.h>	/* for node_online_map */
 #include <linux/pagemap.h>	/* for release_pages */
 #include <linux/compat.h>
+#include <linux/execmem.h>
 
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
@@ -32,6 +33,8 @@
 #include <asm/sections.h>
 #include <asm/msgbuf.h>
 #include <asm/sparsemem.h>
+#include <asm/asm-offsets.h>
+#include <asm/shmbuf.h>
 
 extern int  data_start;
 extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
@@ -456,7 +459,6 @@ void free_initmem(void)
 	unsigned long kernel_end  = (unsigned long)&_end;
 
 	/* Remap kernel text and data, but do not touch init section yet. */
-	kernel_set_to_readonly = true;
 	map_pages(init_end, __pa(init_end), kernel_end - init_end,
 		  PAGE_KERNEL, 0);
 
@@ -479,7 +481,7 @@ void free_initmem(void)
 	/* finally dump all the instructions which were cached, since the
 	 * pages are no-longer executable */
 	flush_icache_range(init_begin, init_end);
-	
+
 	free_initmem_default(POISON_FREE_INITMEM);
 
 	/* set up a new led state on systems shipped LED State panel */
@@ -490,11 +492,18 @@ void free_initmem(void)
 #ifdef CONFIG_STRICT_KERNEL_RWX
 void mark_rodata_ro(void)
 {
-	/* rodata memory was already mapped with KERNEL_RO access rights by
-           pagetable_init() and map_pages(). No need to do additional stuff here */
-	unsigned long roai_size = __end_ro_after_init - __start_ro_after_init;
+	unsigned long start = (unsigned long) &__start_rodata;
+	unsigned long end = (unsigned long) &__end_rodata;
 
-	pr_info("Write protected read-only-after-init data: %luk\n", roai_size >> 10);
+	pr_info("Write protecting the kernel read-only data: %luk\n",
+	       (end - start) >> 10);
+
+	kernel_set_to_readonly = true;
+	map_pages(start, __pa(start), end - start, PAGE_KERNEL, 0);
+
+	/* force the kernel to see the new page table entries */
+	flush_cache_all();
+	flush_tlb_all();
 }
 #endif
 
@@ -522,10 +531,6 @@ void mark_rodata_ro(void)
 
 void *parisc_vmalloc_start __ro_after_init;
 EXPORT_SYMBOL(parisc_vmalloc_start);
-
-#ifdef CONFIG_PA11
-unsigned long pcxl_dma_start __ro_after_init;
-#endif
 
 void __init mem_init(void)
 {
@@ -669,6 +674,39 @@ static void __init gateway_init(void)
 		  PAGE_SIZE, PAGE_GATEWAY, 1);
 }
 
+static void __init fixmap_init(void)
+{
+	unsigned long addr = FIXMAP_START;
+	unsigned long end = FIXMAP_START + FIXMAP_SIZE;
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
+	pmd_t *pmd;
+
+	BUILD_BUG_ON(FIXMAP_SIZE > PMD_SIZE);
+
+#if CONFIG_PGTABLE_LEVELS == 3
+	if (pud_none(*pud)) {
+		pmd = memblock_alloc(PAGE_SIZE << PMD_TABLE_ORDER,
+				     PAGE_SIZE << PMD_TABLE_ORDER);
+		if (!pmd)
+			panic("fixmap: pmd allocation failed.\n");
+		pud_populate(NULL, pud, pmd);
+	}
+#endif
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		pte_t *pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pte)
+			panic("fixmap: pte allocation failed.\n");
+
+		pmd_populate_kernel(&init_mm, pmd, pte);
+
+		addr += PAGE_SIZE;
+	} while (addr < end);
+}
+
 static void __init parisc_bootmem_free(void)
 {
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
@@ -683,11 +721,83 @@ void __init paging_init(void)
 	setup_bootmem();
 	pagetable_init();
 	gateway_init();
+	fixmap_init();
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
 
 	sparse_init();
 	parisc_bootmem_free();
+}
+
+static void alloc_btlb(unsigned long start, unsigned long end, int *slot,
+			unsigned long entry_info)
+{
+	const int slot_max = btlb_info.fixed_range_info.num_comb;
+	int min_num_pages = btlb_info.min_size;
+	unsigned long size;
+
+	/* map at minimum 4 pages */
+	if (min_num_pages < 4)
+		min_num_pages = 4;
+
+	size = HUGEPAGE_SIZE;
+	while (start < end && *slot < slot_max && size >= PAGE_SIZE) {
+		/* starting address must have same alignment as size! */
+		/* if correctly aligned and fits in double size, increase */
+		if (((start & (2 * size - 1)) == 0) &&
+		    (end - start) >= (2 * size)) {
+			size <<= 1;
+			continue;
+		}
+		/* if current size alignment is too big, try smaller size */
+		if ((start & (size - 1)) != 0) {
+			size >>= 1;
+			continue;
+		}
+		if ((end - start) >= size) {
+			if ((size >> PAGE_SHIFT) >= min_num_pages)
+				pdc_btlb_insert(start >> PAGE_SHIFT, __pa(start) >> PAGE_SHIFT,
+					size >> PAGE_SHIFT, entry_info, *slot);
+			(*slot)++;
+			start += size;
+			continue;
+		}
+		size /= 2;
+		continue;
+	}
+}
+
+void btlb_init_per_cpu(void)
+{
+	unsigned long s, t, e;
+	int slot;
+
+	/* BTLBs are not available on 64-bit CPUs */
+	if (IS_ENABLED(CONFIG_PA20))
+		return;
+	else if (pdc_btlb_info(&btlb_info) < 0) {
+		memset(&btlb_info, 0, sizeof btlb_info);
+	}
+
+	/* insert BLTLBs for code and data segments */
+	s = (uintptr_t) dereference_function_descriptor(&_stext);
+	e = (uintptr_t) dereference_function_descriptor(&_etext);
+	t = (uintptr_t) dereference_function_descriptor(&_sdata);
+	BUG_ON(t != e);
+
+	/* code segments */
+	slot = 0;
+	alloc_btlb(s, e, &slot, 0x13800000);
+
+	/* sanity check */
+	t = (uintptr_t) dereference_function_descriptor(&_edata);
+	e = (uintptr_t) dereference_function_descriptor(&__bss_start);
+	BUG_ON(t != e);
+
+	/* data segments */
+	s = (uintptr_t) dereference_function_descriptor(&_sdata);
+	e = (uintptr_t) dereference_function_descriptor(&__bss_stop);
+	alloc_btlb(s, e, &slot, 0x11800000);
 }
 
 #ifdef CONFIG_PA20
@@ -889,3 +999,23 @@ static const pgprot_t protection_map[16] = {
 	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_RWX
 };
 DECLARE_VM_GET_PAGE_PROT
+
+#ifdef CONFIG_EXECMEM
+static struct execmem_info execmem_info __ro_after_init;
+
+struct execmem_info __init *execmem_arch_setup(void)
+{
+	execmem_info = (struct execmem_info){
+		.ranges = {
+			[EXECMEM_DEFAULT] = {
+				.start	= VMALLOC_START,
+				.end	= VMALLOC_END,
+				.pgprot	= PAGE_KERNEL_RWX,
+				.alignment = 1,
+			},
+		},
+	};
+
+	return &execmem_info;
+}
+#endif /* CONFIG_EXECMEM */

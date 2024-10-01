@@ -34,8 +34,9 @@ static const struct regmap_access_table tps65086_volatile_table = {
 static const struct regmap_config tps65086_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &tps65086_volatile_table,
+	.max_register = TPS65086_OC_STATUS,
 };
 
 static const struct regmap_irq tps65086_irqs[] = {
@@ -44,7 +45,7 @@ static const struct regmap_irq tps65086_irqs[] = {
 	REGMAP_IRQ_REG(TPS65086_IRQ_FAULT, 0, TPS65086_IRQ_FAULT_MASK),
 };
 
-static struct regmap_irq_chip tps65086_irq_chip = {
+static const struct regmap_irq_chip tps65086_irq_chip = {
 	.name = "tps65086",
 	.status_base = TPS65086_IRQ,
 	.mask_base = TPS65086_IRQ_MASK,
@@ -81,16 +82,23 @@ static int tps65086_probe(struct i2c_client *client)
 		return PTR_ERR(tps->regmap);
 	}
 
-	ret = regmap_read(tps->regmap, TPS65086_DEVICEID, &version);
+	/* Store device ID to load regulator configuration that fit to IC variant */
+	ret = regmap_read(tps->regmap, TPS65086_DEVICEID1, &tps->chip_id);
 	if (ret) {
-		dev_err(tps->dev, "Failed to read revision register\n");
+		dev_err(tps->dev, "Failed to read revision register 1\n");
+		return ret;
+	}
+
+	ret = regmap_read(tps->regmap, TPS65086_DEVICEID2, &version);
+	if (ret) {
+		dev_err(tps->dev, "Failed to read revision register 2\n");
 		return ret;
 	}
 
 	dev_info(tps->dev, "Device: TPS65086%01lX, OTP: %c, Rev: %ld\n",
-		 (version & TPS65086_DEVICEID_PART_MASK),
-		 (char)((version & TPS65086_DEVICEID_OTP_MASK) >> 4) + 'A',
-		 (version & TPS65086_DEVICEID_REV_MASK) >> 6);
+		 (version & TPS65086_DEVICEID2_PART_MASK),
+		 (char)((version & TPS65086_DEVICEID2_OTP_MASK) >> 4) + 'A',
+		 (version & TPS65086_DEVICEID2_REV_MASK) >> 6);
 
 	if (tps->irq > 0) {
 		ret = regmap_add_irq_chip(tps->regmap, tps->irq, IRQF_ONESHOT, 0,
@@ -119,7 +127,7 @@ static void tps65086_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps65086_id_table[] = {
-	{ "tps65086", 0 },
+	{ "tps65086" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, tps65086_id_table);

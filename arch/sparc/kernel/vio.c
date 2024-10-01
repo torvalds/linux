@@ -54,10 +54,10 @@ static int vio_hotplug(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static int vio_bus_match(struct device *dev, struct device_driver *drv)
+static int vio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct vio_dev *vio_dev = to_vio_dev(dev);
-	struct vio_driver *vio_drv = to_vio_driver(drv);
+	const struct vio_driver *vio_drv = to_vio_driver(drv);
 	const struct vio_device_id *matches = vio_drv->id_table;
 
 	if (!matches)
@@ -149,7 +149,7 @@ static struct attribute *vio_dev_attrs[] = {
  };
 ATTRIBUTE_GROUPS(vio_dev);
 
-static struct bus_type vio_bus_type = {
+static const struct bus_type vio_bus_type = {
 	.name		= "vio",
 	.dev_groups	= vio_dev_groups,
 	.uevent         = vio_hotplug,

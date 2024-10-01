@@ -14,6 +14,9 @@
 #include <linux/list.h>
 #include <linux/bits.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
+#include <linux/psp.h>
+#include <linux/psp-platform-access.h>
 
 #include "sp-dev.h"
 
@@ -22,6 +25,29 @@
 extern struct psp_device *psp_master;
 
 typedef void (*psp_irq_handler_t)(int, void *, unsigned int);
+
+union psp_cap_register {
+	unsigned int raw;
+	struct {
+		unsigned int sev			:1,
+			     tee			:1,
+			     dbc_thru_ext		:1,
+			     rsvd1			:4,
+			     security_reporting		:1,
+			     fused_part			:1,
+			     rsvd2			:1,
+			     debug_lock_on		:1,
+			     rsvd3			:2,
+			     tsme_status		:1,
+			     rsvd4			:1,
+			     anti_rollback_status	:1,
+			     rpmc_production_enabled	:1,
+			     rpmc_spirom_available	:1,
+			     hsp_tpm_available		:1,
+			     rom_armor_enforced		:1,
+			     rsvd5			:12;
+	};
+};
 
 struct psp_device {
 	struct list_head entry;
@@ -33,6 +59,7 @@ struct psp_device {
 	struct sp_device *sp;
 
 	void __iomem *io_regs;
+	struct mutex mailbox_mutex;
 
 	psp_irq_handler_t sev_irq_handler;
 	void *sev_irq_data;
@@ -40,8 +67,9 @@ struct psp_device {
 	void *sev_data;
 	void *tee_data;
 	void *platform_access_data;
+	void *dbc_data;
 
-	unsigned int capability;
+	union psp_cap_register capability;
 };
 
 void psp_set_sev_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
@@ -50,24 +78,54 @@ void psp_clear_sev_irq_handler(struct psp_device *psp);
 
 struct psp_device *psp_get_master_device(void);
 
-#define PSP_CAPABILITY_SEV			BIT(0)
-#define PSP_CAPABILITY_TEE			BIT(1)
-#define PSP_CAPABILITY_PSP_SECURITY_REPORTING	BIT(7)
-
-#define PSP_CAPABILITY_PSP_SECURITY_OFFSET	8
-/*
- * The PSP doesn't directly store these bits in the capability register
- * but instead copies them from the results of query command.
- *
- * The offsets from the query command are below, and shifted when used.
+/**
+ * enum psp_cmd - PSP mailbox commands
+ * @PSP_CMD_TEE_RING_INIT:	Initialize TEE ring buffer
+ * @PSP_CMD_TEE_RING_DESTROY:	Destroy TEE ring buffer
+ * @PSP_CMD_TEE_EXTENDED_CMD:	Extended command
+ * @PSP_CMD_MAX:		Maximum command id
  */
-#define PSP_SECURITY_FUSED_PART			BIT(0)
-#define PSP_SECURITY_DEBUG_LOCK_ON		BIT(2)
-#define PSP_SECURITY_TSME_STATUS		BIT(5)
-#define PSP_SECURITY_ANTI_ROLLBACK_STATUS	BIT(7)
-#define PSP_SECURITY_RPMC_PRODUCTION_ENABLED	BIT(8)
-#define PSP_SECURITY_RPMC_SPIROM_AVAILABLE	BIT(9)
-#define PSP_SECURITY_HSP_TPM_AVAILABLE		BIT(10)
-#define PSP_SECURITY_ROM_ARMOR_ENFORCED		BIT(11)
+enum psp_cmd {
+	PSP_CMD_TEE_RING_INIT		= 1,
+	PSP_CMD_TEE_RING_DESTROY	= 2,
+	PSP_CMD_TEE_EXTENDED_CMD	= 14,
+	PSP_CMD_MAX			= 15,
+};
 
+int psp_mailbox_command(struct psp_device *psp, enum psp_cmd cmd, void *cmdbuff,
+			unsigned int timeout_msecs, unsigned int *cmdresp);
+
+/**
+ * struct psp_ext_req_buffer_hdr - Structure of the extended command header
+ * @payload_size: total payload size
+ * @sub_cmd_id: extended command ID
+ * @status: status of command execution (out)
+ */
+struct psp_ext_req_buffer_hdr {
+	u32 payload_size;
+	u32 sub_cmd_id;
+	u32 status;
+} __packed;
+
+struct psp_ext_request {
+	struct psp_ext_req_buffer_hdr header;
+	void *buf;
+} __packed;
+
+/**
+ * enum psp_sub_cmd - PSP mailbox sub commands
+ * @PSP_SUB_CMD_DBC_GET_NONCE:		Get nonce from DBC
+ * @PSP_SUB_CMD_DBC_SET_UID:		Set UID for DBC
+ * @PSP_SUB_CMD_DBC_GET_PARAMETER:	Get parameter from DBC
+ * @PSP_SUB_CMD_DBC_SET_PARAMETER:	Set parameter for DBC
+ */
+enum psp_sub_cmd {
+	PSP_SUB_CMD_DBC_GET_NONCE	= PSP_DYNAMIC_BOOST_GET_NONCE,
+	PSP_SUB_CMD_DBC_SET_UID		= PSP_DYNAMIC_BOOST_SET_UID,
+	PSP_SUB_CMD_DBC_GET_PARAMETER	= PSP_DYNAMIC_BOOST_GET_PARAMETER,
+	PSP_SUB_CMD_DBC_SET_PARAMETER	= PSP_DYNAMIC_BOOST_SET_PARAMETER,
+};
+
+int psp_extended_mailbox_cmd(struct psp_device *psp, unsigned int timeout_msecs,
+			     struct psp_ext_request *req);
 #endif /* __PSP_DEV_H */

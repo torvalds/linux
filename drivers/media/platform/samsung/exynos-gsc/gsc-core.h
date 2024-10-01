@@ -26,7 +26,6 @@
 
 #include "gsc-regs.h"
 
-#define CONFIG_VB2_GSC_DMA_CONTIG	1
 #define GSC_MODULE_NAME			"exynos-gsc"
 
 #define GSC_SHUTDOWN_TIMEOUT		((100*HZ)/1000)

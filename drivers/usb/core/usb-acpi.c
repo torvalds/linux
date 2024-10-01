@@ -142,12 +142,66 @@ int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
 }
 EXPORT_SYMBOL_GPL(usb_acpi_set_power_state);
 
-static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
-		struct acpi_pld_info *pld)
+/**
+ * usb_acpi_add_usb4_devlink - add device link to USB4 Host Interface for tunneled USB3 devices
+ *
+ * @udev: Tunneled USB3 device connected to a roothub.
+ *
+ * Adds a device link between a tunneled USB3 device and the USB4 Host Interface
+ * device to ensure correct runtime PM suspend and resume order. This function
+ * should only be called for tunneled USB3 devices.
+ * The USB4 Host Interface this tunneled device depends on is found from the roothub
+ * port ACPI device specific data _DSD entry.
+ *
+ * Return: negative error code on failure, 0 otherwise
+ */
+static int usb_acpi_add_usb4_devlink(struct usb_device *udev)
+{
+	const struct device_link *link;
+	struct usb_port *port_dev;
+	struct usb_hub *hub;
+
+	if (!udev->parent || udev->parent->parent)
+		return 0;
+
+	hub = usb_hub_to_struct_hub(udev->parent);
+	port_dev = hub->ports[udev->portnum - 1];
+
+	struct fwnode_handle *nhi_fwnode __free(fwnode_handle) =
+		fwnode_find_reference(dev_fwnode(&port_dev->dev), "usb4-host-interface", 0);
+
+	if (IS_ERR(nhi_fwnode))
+		return 0;
+
+	link = device_link_add(&port_dev->child->dev, nhi_fwnode->dev,
+			       DL_FLAG_AUTOREMOVE_CONSUMER |
+			       DL_FLAG_RPM_ACTIVE |
+			       DL_FLAG_PM_RUNTIME);
+	if (!link) {
+		dev_err(&port_dev->dev, "Failed to created device link from %s to %s\n",
+			dev_name(&port_dev->child->dev), dev_name(nhi_fwnode->dev));
+		return -EINVAL;
+	}
+
+	dev_dbg(&port_dev->dev, "Created device link from %s to %s\n",
+		dev_name(&port_dev->child->dev), dev_name(nhi_fwnode->dev));
+
+	return 0;
+}
+
+/*
+ * Private to usb-acpi, all the core needs to know is that
+ * port_dev->location is non-zero when it has been set by the firmware.
+ */
+#define USB_ACPI_LOCATION_VALID (1 << 31)
+
+static void
+usb_acpi_get_connect_type(struct usb_port *port_dev, acpi_handle *handle)
 {
 	enum usb_port_connect_type connect_type = USB_PORT_CONNECT_TYPE_UNKNOWN;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *upc = NULL;
+	struct acpi_pld_info *pld = NULL;
 	acpi_status status;
 
 	/*
@@ -158,6 +212,12 @@ static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 	 * a usb device is directly hard-wired to the port. If no visible and
 	 * no connectable, the port would be not used.
 	 */
+
+	status = acpi_get_physical_device_location(handle, &pld);
+	if (ACPI_SUCCESS(status) && pld)
+		port_dev->location = USB_ACPI_LOCATION_VALID |
+			pld->group_token << 8 | pld->group_position;
+
 	status = acpi_evaluate_object(handle, "_UPC", NULL, &buffer);
 	if (ACPI_FAILURE(status))
 		goto out;
@@ -166,24 +226,21 @@ static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 	if (!upc || (upc->type != ACPI_TYPE_PACKAGE) || upc->package.count != 4)
 		goto out;
 
+	/* UPC states port is connectable */
 	if (upc->package.elements[0].integer.value)
-		if (pld->user_visible)
+		if (!pld)
+			; /* keep connect_type as unknown */
+		else if (pld->user_visible)
 			connect_type = USB_PORT_CONNECT_TYPE_HOT_PLUG;
 		else
 			connect_type = USB_PORT_CONNECT_TYPE_HARD_WIRED;
-	else if (!pld->user_visible)
+	else
 		connect_type = USB_PORT_NOT_USED;
 out:
+	port_dev->connect_type = connect_type;
 	kfree(upc);
-	return connect_type;
+	ACPI_FREE(pld);
 }
-
-
-/*
- * Private to usb-acpi, all the core needs to know is that
- * port_dev->location is non-zero when it has been set by the firmware.
- */
-#define USB_ACPI_LOCATION_VALID (1 << 31)
 
 static struct acpi_device *
 usb_acpi_get_companion_for_port(struct usb_port *port_dev)
@@ -222,22 +279,12 @@ static struct acpi_device *
 usb_acpi_find_companion_for_port(struct usb_port *port_dev)
 {
 	struct acpi_device *adev;
-	struct acpi_pld_info *pld;
-	acpi_handle *handle;
-	acpi_status status;
 
 	adev = usb_acpi_get_companion_for_port(port_dev);
 	if (!adev)
 		return NULL;
 
-	handle = adev->handle;
-	status = acpi_get_physical_device_location(handle, &pld);
-	if (ACPI_SUCCESS(status) && pld) {
-		port_dev->location = USB_ACPI_LOCATION_VALID
-			| pld->group_token << 8 | pld->group_position;
-		port_dev->connect_type = usb_acpi_get_connect_type(handle, pld);
-		ACPI_FREE(pld);
-	}
+	usb_acpi_get_connect_type(port_dev, adev->handle);
 
 	return adev;
 }
@@ -261,6 +308,12 @@ usb_acpi_find_companion_for_device(struct usb_device *udev)
 	hub = usb_hub_to_struct_hub(udev->parent);
 	if (!hub)
 		return NULL;
+
+
+	/* Tunneled USB3 devices depend on USB4 Host Interface, set device link to it */
+	if (udev->speed >= USB_SPEED_SUPER &&
+	    udev->tunnel_mode != USB_LINK_NATIVE)
+		usb_acpi_add_usb4_devlink(udev);
 
 	/*
 	 * This is an embedded USB device connected to a port and such

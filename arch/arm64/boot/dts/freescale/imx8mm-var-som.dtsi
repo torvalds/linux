@@ -8,7 +8,6 @@
 
 / {
 	model = "Variscite VAR-SOM-MX8MM module";
-	compatible = "variscite,var-som-mx8mm", "fsl,imx8mm";
 
 	chosen {
 		stdout-path = &uart4;
@@ -142,7 +141,7 @@
 		rohm,reset-snvs-powered;
 
 		#clock-cells = <0>;
-		clocks = <&osc_32k 0>;
+		clocks = <&osc_32k>;
 		clock-output-names = "clk-32k-out";
 
 		regulators {

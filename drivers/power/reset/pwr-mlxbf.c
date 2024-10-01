@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only or BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
 /*
  *  Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES.
@@ -17,26 +17,26 @@
 #include <linux/types.h>
 
 struct pwr_mlxbf {
-	struct work_struct send_work;
+	struct work_struct reboot_work;
 	const char *hid;
 };
 
-static void pwr_mlxbf_send_work(struct work_struct *work)
+static void pwr_mlxbf_reboot_work(struct work_struct *work)
 {
-	acpi_bus_generate_netlink_event("button/power.*", "Power Button", 0x80, 1);
+	acpi_bus_generate_netlink_event("button/reboot.*", "Reboot Button", 0x80, 1);
 }
 
 static irqreturn_t pwr_mlxbf_irq(int irq, void *ptr)
 {
 	const char *rst_pwr_hid = "MLNXBF24";
-	const char *low_pwr_hid = "MLNXBF29";
+	const char *shutdown_hid = "MLNXBF29";
 	struct pwr_mlxbf *priv = ptr;
 
 	if (!strncmp(priv->hid, rst_pwr_hid, 8))
-		emergency_restart();
+		schedule_work(&priv->reboot_work);
 
-	if (!strncmp(priv->hid, low_pwr_hid, 8))
-		schedule_work(&priv->send_work);
+	if (!strncmp(priv->hid, shutdown_hid, 8))
+		orderly_poweroff(true);
 
 	return IRQ_HANDLED;
 }
@@ -64,7 +64,7 @@ static int pwr_mlxbf_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return dev_err_probe(dev, irq, "Error getting %s irq.\n", priv->hid);
 
-	err = devm_work_autocancel(dev, &priv->send_work, pwr_mlxbf_send_work);
+	err = devm_work_autocancel(dev, &priv->reboot_work, pwr_mlxbf_reboot_work);
 	if (err)
 		return err;
 

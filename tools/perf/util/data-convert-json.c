@@ -118,7 +118,7 @@ static void output_json_key_format(FILE *out, bool comma, int depth,
 	va_end(args);
 }
 
-static void output_sample_callchain_entry(struct perf_tool *tool,
+static void output_sample_callchain_entry(const struct perf_tool *tool,
 		u64 ip, struct addr_location *al)
 {
 	struct convert_json *c = container_of(tool, struct convert_json, tool);
@@ -134,7 +134,7 @@ static void output_sample_callchain_entry(struct perf_tool *tool,
 		output_json_key_string(out, false, 5, "symbol", al->sym->name);
 
 		if (dso) {
-			const char *dso_name = dso->short_name;
+			const char *dso_name = dso__short_name(dso);
 
 			if (dso_name && strlen(dso_name) > 0) {
 				fputc(',', out);
@@ -146,7 +146,7 @@ static void output_sample_callchain_entry(struct perf_tool *tool,
 	output_json_format(out, false, 4, "}");
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
 				struct evsel *evsel __maybe_unused,
@@ -284,7 +284,9 @@ static void output_headers(struct perf_session *session, struct convert_json *c)
 	output_json_key_string(out, true, 2, "os-release", header->env.os_release);
 	output_json_key_string(out, true, 2, "arch", header->env.arch);
 
-	output_json_key_string(out, true, 2, "cpu-desc", header->env.cpu_desc);
+	if (header->env.cpu_desc)
+		output_json_key_string(out, true, 2, "cpu-desc", header->env.cpu_desc);
+
 	output_json_key_string(out, true, 2, "cpuid", header->env.cpuid);
 	output_json_key_format(out, true, 2, "nrcpus-online", "%u", header->env.nr_cpus_online);
 	output_json_key_format(out, true, 2, "nrcpus-avail", "%u", header->env.nr_cpus_avail);
@@ -314,38 +316,35 @@ int bt_convert__perf2json(const char *input_name, const char *output_name,
 	struct perf_session *session;
 	int fd;
 	int ret = -1;
-
 	struct convert_json c = {
-		.tool = {
-			.sample         = process_sample_event,
-			.mmap           = perf_event__process_mmap,
-			.mmap2          = perf_event__process_mmap2,
-			.comm           = perf_event__process_comm,
-			.namespaces     = perf_event__process_namespaces,
-			.cgroup         = perf_event__process_cgroup,
-			.exit           = perf_event__process_exit,
-			.fork           = perf_event__process_fork,
-			.lost           = perf_event__process_lost,
-#ifdef HAVE_LIBTRACEEVENT
-			.tracing_data   = perf_event__process_tracing_data,
-#endif
-			.build_id       = perf_event__process_build_id,
-			.id_index       = perf_event__process_id_index,
-			.auxtrace_info  = perf_event__process_auxtrace_info,
-			.auxtrace       = perf_event__process_auxtrace,
-			.event_update   = perf_event__process_event_update,
-			.ordered_events = true,
-			.ordering_requires_timestamps = true,
-		},
 		.first = true,
 		.events_count = 0,
 	};
-
 	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
 		.path = input_name,
 		.force = opts->force,
 	};
+
+	perf_tool__init(&c.tool, /*ordered_events=*/true);
+	c.tool.sample         = process_sample_event;
+	c.tool.mmap           = perf_event__process_mmap;
+	c.tool.mmap2          = perf_event__process_mmap2;
+	c.tool.comm           = perf_event__process_comm;
+	c.tool.namespaces     = perf_event__process_namespaces;
+	c.tool.cgroup         = perf_event__process_cgroup;
+	c.tool.exit           = perf_event__process_exit;
+	c.tool.fork           = perf_event__process_fork;
+	c.tool.lost           = perf_event__process_lost;
+#ifdef HAVE_LIBTRACEEVENT
+	c.tool.tracing_data   = perf_event__process_tracing_data;
+#endif
+	c.tool.build_id       = perf_event__process_build_id;
+	c.tool.id_index       = perf_event__process_id_index;
+	c.tool.auxtrace_info  = perf_event__process_auxtrace_info;
+	c.tool.auxtrace       = perf_event__process_auxtrace;
+	c.tool.event_update   = perf_event__process_event_update;
+	c.tool.ordering_requires_timestamps = true;
 
 	if (opts->all) {
 		pr_err("--all is currently unsupported for JSON output.\n");

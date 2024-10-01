@@ -153,6 +153,14 @@ enum dc_irq_source {
 	DC_IRQ_SOURCE_DMCUB_OUTBOX,
 	DC_IRQ_SOURCE_DMCUB_OUTBOX0,
 	DC_IRQ_SOURCE_DMCUB_GENERAL_DATAOUT,
+
+	DC_IRQ_SOURCE_DPCX_TX_PHYA,
+	DC_IRQ_SOURCE_DPCX_TX_PHYB,
+	DC_IRQ_SOURCE_DPCX_TX_PHYC,
+	DC_IRQ_SOURCE_DPCX_TX_PHYD,
+	DC_IRQ_SOURCE_DPCX_TX_PHYE,
+	DC_IRQ_SOURCE_DPCX_TX_PHYF,
+
 	DAL_IRQ_SOURCES_NUMBER
 };
 
@@ -178,7 +186,7 @@ enum dc_interrupt_context {
 	INTERRUPT_CONTEXT_NUMBER
 };
 
-enum dc_interrupt_porlarity {
+enum dc_interrupt_polarity {
 	INTERRUPT_POLARITY_DEFAULT = 0,
 	INTERRUPT_POLARITY_LOW = INTERRUPT_POLARITY_DEFAULT,
 	INTERRUPT_POLARITY_HIGH,
@@ -199,12 +207,12 @@ struct dc_interrupt_params {
 	/* The polarity *change* which will trigger an interrupt.
 	 * If 'requested_polarity == INTERRUPT_POLARITY_BOTH', then
 	 * 'current_polarity' must be initialised. */
-	enum dc_interrupt_porlarity requested_polarity;
+	enum dc_interrupt_polarity requested_polarity;
 	/* If 'requested_polarity == INTERRUPT_POLARITY_BOTH',
 	 * 'current_polarity' should contain the current state, which means
 	 * the interrupt will be triggered when state changes from what is,
 	 * in 'current_polarity'. */
-	enum dc_interrupt_porlarity current_polarity;
+	enum dc_interrupt_polarity current_polarity;
 	enum dc_irq_source irq_source;
 	enum dc_interrupt_context int_context;
 };

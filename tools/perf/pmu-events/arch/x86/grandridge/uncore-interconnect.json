@@ -1,0 +1,205 @@
+[
+    {
+        "BriefDescription": "Clockticks of the mesh to memory (B2CMI)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_B2CMI_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of times B2CMI egress did D2C (direct to core)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x16",
+        "EventName": "UNC_B2CMI_DIRECT2CORE_TAKEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts the number of times D2C wasn't honoured even though the incoming request had d2c set for non cisgress txn",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x18",
+        "EventName": "UNC_B2CMI_DIRECT2CORE_TXN_OVERRIDE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts any read",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_B2CMI_IMC_READS.ALL",
+        "PerPkg": "1",
+        "UMask": "0x104",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts normal reads issue to CMI",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_B2CMI_IMC_READS.NORMAL",
+        "PerPkg": "1",
+        "UMask": "0x101",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Counts reads to 1lm non persistent memory regions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_B2CMI_IMC_READS.TO_DDR_AS_MEM",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x108",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "All Writes - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.ALL",
+        "PerPkg": "1",
+        "UMask": "0x110",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Full Non-ISOCH - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.FULL",
+        "PerPkg": "1",
+        "UMask": "0x101",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Partial Non-ISOCH - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.PARTIAL",
+        "PerPkg": "1",
+        "UMask": "0x102",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "DDR - All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_B2CMI_IMC_WRITES.TO_DDR_AS_MEM",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x120",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Inserts : XPT - Ch 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UNC_B2CMI_PREFCAM_INSERTS.CH0_XPT",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Inserts : XPT -All Channels",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UNC_B2CMI_PREFCAM_INSERTS.XPT_ALLCH",
+        "PerPkg": "1",
+        "PublicDescription": "Prefetch CAM Inserts : XPT - All Channels",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Prefetch CAM Occupancy : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x54",
+        "EventName": "UNC_B2CMI_PREFCAM_OCCUPANCY.CH0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Tracker Inserts : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "UNC_B2CMI_TRACKER_INSERTS.CH0",
+        "PerPkg": "1",
+        "UMask": "0x104",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Tracker Occupancy : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x33",
+        "EventName": "UNC_B2CMI_TRACKER_OCCUPANCY.CH0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Write Tracker Inserts : Channel 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x40",
+        "EventName": "UNC_B2CMI_WR_TRACKER_INSERTS.CH0",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "B2CMI"
+    },
+    {
+        "BriefDescription": "Total Write Cache Occupancy : Mem",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x0F",
+        "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.MEM",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "IRP Clockticks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x01",
+        "EventName": "UNC_I_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound read requests received by the IRP and inserted into the FAF queue",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x18",
+        "EventName": "UNC_I_FAF_INSERTS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "FAF occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x19",
+        "EventName": "UNC_I_FAF_OCCUPANCY",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1 : Lost Forward : Snoop pulled away ownership before a write was committed",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_I_MISC1.LOST_FWD",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound write (fast path) requests to coherent memory, received by the IRP resulting in write ownership requests issued by IRP to the mesh.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_I_TRANSACTIONS.WR_PREF",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    }
+]

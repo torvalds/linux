@@ -55,9 +55,9 @@ void __init j2_cache_init(void)
 	local_flush_cache_dup_mm = j2_flush_both;
 	local_flush_cache_page = j2_flush_both;
 	local_flush_cache_range = j2_flush_both;
-	local_flush_dcache_page = j2_flush_dcache;
+	local_flush_dcache_folio = j2_flush_dcache;
 	local_flush_icache_range = j2_flush_icache;
-	local_flush_icache_page = j2_flush_icache;
+	local_flush_icache_folio = j2_flush_icache;
 	local_flush_cache_sigtramp = j2_flush_icache;
 
 	pr_info("Initial J2 CCR is %.8x\n", __raw_readl(j2_ccr_base));

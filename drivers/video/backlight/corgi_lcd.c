@@ -11,6 +11,7 @@
  *	by Eric Miao <eric.miao@marvell.com>
  */
 
+#include <linux/backlight.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -379,7 +380,7 @@ static int corgi_lcd_get_power(struct lcd_device *ld)
 	return lcd->power;
 }
 
-static struct lcd_ops corgi_lcd_ops = {
+static const struct lcd_ops corgi_lcd_ops = {
 	.get_power	= corgi_lcd_get_power,
 	.set_power	= corgi_lcd_set_power,
 	.set_mode	= corgi_lcd_set_mode,
@@ -525,7 +526,7 @@ static int corgi_lcd_probe(struct spi_device *spi)
 		return PTR_ERR(lcd->bl_dev);
 
 	lcd->bl_dev->props.brightness = pdata->default_intensity;
-	lcd->bl_dev->props.power = FB_BLANK_UNBLANK;
+	lcd->bl_dev->props.power = BACKLIGHT_POWER_ON;
 
 	ret = setup_gpio_backlight(lcd, pdata);
 	if (ret)
@@ -546,7 +547,7 @@ static void corgi_lcd_remove(struct spi_device *spi)
 {
 	struct corgi_lcd *lcd = spi_get_drvdata(spi);
 
-	lcd->bl_dev->props.power = FB_BLANK_UNBLANK;
+	lcd->bl_dev->props.power = BACKLIGHT_POWER_ON;
 	lcd->bl_dev->props.brightness = 0;
 	backlight_update_status(lcd->bl_dev);
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);

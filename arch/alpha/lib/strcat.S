@@ -5,7 +5,7 @@
  *
  * Append a null-terminated string from SRC to DST.
  */
-#include <asm/export.h>
+#include <linux/export.h>
 
 	.text
 

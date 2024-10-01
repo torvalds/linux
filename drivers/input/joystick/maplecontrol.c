@@ -102,7 +102,7 @@ static int probe_maple_controller(struct device *dev)
 	struct input_dev *idev;
 	unsigned long data = be32_to_cpu(mdev->devinfo.function_data[0]);
 
-	pad = kzalloc(sizeof(struct dc_pad), GFP_KERNEL);
+	pad = kzalloc(sizeof(*pad), GFP_KERNEL);
 	idev = input_allocate_device();
 	if (!pad || !idev) {
 		error = -ENOMEM;

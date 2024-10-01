@@ -31,6 +31,7 @@
 #include <linux/percpu.h>
 #include <linux/cache.h>
 #include <linux/types.h>
+#include <asm/ctlreg.h>
 
 enum interruption_class {
 	IRQEXT_CLK,
@@ -46,6 +47,7 @@ enum interruption_class {
 	IRQEXT_CMS,
 	IRQEXT_CMC,
 	IRQEXT_FTP,
+	IRQEXT_WTI,
 	IRQIO_CIO,
 	IRQIO_DAS,
 	IRQIO_C15,
@@ -98,20 +100,21 @@ int unregister_external_irq(u16 code, ext_int_handler_t handler);
 enum irq_subclass {
 	IRQ_SUBCLASS_MEASUREMENT_ALERT = 5,
 	IRQ_SUBCLASS_SERVICE_SIGNAL = 9,
+	IRQ_SUBCLASS_WARNING_TRACK = 33,
 };
 
 #define CR0_IRQ_SUBCLASS_MASK					  \
-	((1UL << (63 - 30))  /* Warning Track */		| \
-	 (1UL << (63 - 48))  /* Malfunction Alert */		| \
-	 (1UL << (63 - 49))  /* Emergency Signal */		| \
-	 (1UL << (63 - 50))  /* External Call */		| \
-	 (1UL << (63 - 52))  /* Clock Comparator */		| \
-	 (1UL << (63 - 53))  /* CPU Timer */			| \
-	 (1UL << (63 - 54))  /* Service Signal */		| \
-	 (1UL << (63 - 57))  /* Interrupt Key */		| \
-	 (1UL << (63 - 58))  /* Measurement Alert */		| \
-	 (1UL << (63 - 59))  /* Timing Alert */			| \
-	 (1UL << (63 - 62))) /* IUCV */
+	(CR0_WARNING_TRACK					| \
+	 CR0_MALFUNCTION_ALERT_SUBMASK				| \
+	 CR0_EMERGENCY_SIGNAL_SUBMASK				| \
+	 CR0_EXTERNAL_CALL_SUBMASK				| \
+	 CR0_CLOCK_COMPARATOR_SUBMASK				| \
+	 CR0_CPU_TIMER_SUBMASK					| \
+	 CR0_SERVICE_SIGNAL_SUBMASK				| \
+	 CR0_INTERRUPT_KEY_SUBMASK				| \
+	 CR0_MEASUREMENT_ALERT_SUBMASK				| \
+	 CR0_ETR_SUBMASK					| \
+	 CR0_IUCV)
 
 void irq_subclass_register(enum irq_subclass subclass);
 void irq_subclass_unregister(enum irq_subclass subclass);

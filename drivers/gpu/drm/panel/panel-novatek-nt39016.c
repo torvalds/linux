@@ -12,7 +12,6 @@
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -357,4 +356,5 @@ module_spi_driver(nt39016_driver);
 
 MODULE_AUTHOR("Maarten ter Huurne <maarten@treewalker.org>");
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
+MODULE_DESCRIPTION("Novatek NT39016 TFT LCD panel driver");
 MODULE_LICENSE("GPL v2");

@@ -286,14 +286,15 @@
 		gpios = <&gpio1 0 GPIO_ACTIVE_HIGH
 			 &gpio1 1 GPIO_ACTIVE_HIGH
 			 &gpio1 2 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2200 1
-				       2500 2
-				       3000 4
-				       3300 3
-				       3700 5
-				       3800 6
-				       4200 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2200 1>,
+				<2500 2>,
+				<3000 4>,
+				<3300 3>,
+				<3700 5>,
+				<3800 6>,
+				<4200 7>;
 	};
 
 	gpio-fan-150-15-18 {
@@ -306,14 +307,15 @@
 			 &gpio0 16 GPIO_ACTIVE_HIGH
 			 &gpio0 17 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2200 1
-				       2500 2
-				       3000 4
-				       3300 3
-				       3700 5
-				       3800 6
-				       4200 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2200 1>,
+				<2500 2>,
+				<3000 4>,
+				<3300 3>,
+				<3700 5>,
+				<3800 6>,
+				<4200 7>;
 	};
 
 	gpio-fan-100-32-35 {
@@ -326,14 +328,15 @@
 			 &gpio1 1 GPIO_ACTIVE_HIGH
 			 &gpio1 2 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-fan-100-15-18 {
@@ -346,14 +349,15 @@
 			 &gpio0 16 GPIO_ACTIVE_HIGH
 			 &gpio0 17 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-fan-100-15-35-1 {
@@ -366,14 +370,15 @@
 			 &gpio0 16 GPIO_ACTIVE_HIGH
 			 &gpio0 17 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-fan-100-15-35-3 {
@@ -388,14 +393,15 @@
 		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH
 			       &gpio1 12 GPIO_ACTIVE_HIGH
 			       &gpio1 13 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-leds-alarm-12 {
@@ -404,7 +410,7 @@
 		pinctrl-0 = <&pmx_alarmled_12>;
 		pinctrl-names = "default";
 
-		hdd1-green {
+		led-hdd1-green {
 			label = "synology:alarm";
 			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 		};
@@ -418,42 +424,42 @@
 			     &pmx_hddled_26 &pmx_hddled_27>;
 		pinctrl-names = "default";
 
-		hdd1-green {
+		led-hdd1-green {
 			label = "synology:green:hdd1";
 			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd1-amber {
+		led-hdd1-amber {
 			label = "synology:amber:hdd1";
 			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-green {
+		led-hdd2-green {
 			label = "synology:green:hdd2";
 			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-amber {
+		led-hdd2-amber {
 			label = "synology:amber:hdd2";
 			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd3-green {
+		led-hdd3-green {
 			label = "synology:green:hdd3";
 			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd3-amber {
+		led-hdd3-amber {
 			label = "synology:amber:hdd3";
 			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd4-green {
+		led-hdd4-green {
 			label = "synology:green:hdd4";
 			gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd4-amber {
+		led-hdd4-amber {
 			label = "synology:amber:hdd4";
 			gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
 		};
@@ -465,12 +471,12 @@
 		pinctrl-0 = <&pmx_hddled_21 &pmx_hddled_23>;
 		pinctrl-names = "default";
 
-		hdd1-green {
+		led-hdd1-green {
 			label = "synology:green:hdd1";
 			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd1-amber {
+		led-hdd1-amber {
 			label = "synology:amber:hdd1";
 			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
 		};
@@ -482,22 +488,22 @@
 		pinctrl-0 = <&pmx_hddled_21 &pmx_hddled_23 &pmx_hddled_20 &pmx_hddled_22>;
 		pinctrl-names = "default";
 
-		hdd1-green {
+		led-hdd1-green {
 			label = "synology:green:hdd1";
 			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd1-amber {
+		led-hdd1-amber {
 			label = "synology:amber:hdd1";
 			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-green {
+		led-hdd2-green {
 			label = "synology:green:hdd2";
 			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-amber {
+		led-hdd2-amber {
 			label = "synology:amber:hdd2";
 			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
 		};
@@ -512,52 +518,52 @@
 			     &pmx_hddled_45>;
 		pinctrl-names = "default";
 
-		hdd1-green {
+		led-hdd1-green {
 			label = "synology:green:hdd1";
 			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd1-amber {
+		led-hdd1-amber {
 			label = "synology:amber:hdd1";
 			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-green {
+		led-hdd2-green {
 			label = "synology:green:hdd2";
 			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-amber {
+		led-hdd2-amber {
 			label = "synology:amber:hdd2";
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd3-green {
+		led-hdd3-green {
 			label = "synology:green:hdd3";
 			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd3-amber {
+		led-hdd3-amber {
 			label = "synology:amber:hdd3";
 			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd4-green {
+		led-hdd4-green {
 			label = "synology:green:hdd4";
 			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd4-amber {
+		led-hdd4-amber {
 			label = "synology:amber:hdd4";
 			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd5-green {
+		led-hdd5-green {
 			label = "synology:green:hdd5";
 			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd5-amber {
+		led-hdd5-amber {
 			label = "synology:amber:hdd5";
 			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
 		};
@@ -569,22 +575,22 @@
 		pinctrl-0 = <&pmx_hddled_38 &pmx_hddled_39 &pmx_hddled_36 &pmx_hddled_37>;
 		pinctrl-names = "default";
 
-		hdd1-green {
+		led-hdd1-green {
 			label = "synology:green:hdd1";
 			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd1-amber {
+		led-hdd1-amber {
 			label = "synology:amber:hdd1";
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-green {
+		led-hdd2-green {
 			label = "synology:green:hdd2";
 			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 
-		hdd2-amber {
+		led-hdd2-amber {
 			label = "synology:amber:hdd2";
 			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};

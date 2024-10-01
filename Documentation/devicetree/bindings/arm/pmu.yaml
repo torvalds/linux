@@ -49,13 +49,24 @@ properties:
           - arm,cortex-a77-pmu
           - arm,cortex-a78-pmu
           - arm,cortex-a510-pmu
+          - arm,cortex-a520-pmu
           - arm,cortex-a710-pmu
+          - arm,cortex-a715-pmu
+          - arm,cortex-a720-pmu
+          - arm,cortex-a725-pmu
           - arm,cortex-x1-pmu
           - arm,cortex-x2-pmu
+          - arm,cortex-x3-pmu
+          - arm,cortex-x4-pmu
+          - arm,cortex-x925-pmu
           - arm,neoverse-e1-pmu
           - arm,neoverse-n1-pmu
           - arm,neoverse-n2-pmu
+          - arm,neoverse-n3-pmu
           - arm,neoverse-v1-pmu
+          - arm,neoverse-v2-pmu
+          - arm,neoverse-v3-pmu
+          - arm,neoverse-v3ae-pmu
           - brcm,vulcan-pmu
           - cavium,thunder-pmu
           - nvidia,denver-pmu

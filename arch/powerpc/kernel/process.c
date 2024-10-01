@@ -72,8 +72,6 @@
 #define TM_DEBUG(x...) do { } while(0)
 #endif
 
-extern unsigned long _get_SP(void);
-
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 /*
  * Are we running in "Suspend disabled" mode? If so we have to block any
@@ -1185,6 +1183,9 @@ static inline void save_sprs(struct thread_struct *t)
 
 	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE))
 		t->hashkeyr = mfspr(SPRN_HASHKEYR);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		t->dexcr = mfspr(SPRN_DEXCR);
 #endif
 }
 
@@ -1198,11 +1199,11 @@ void kvmppc_save_user_regs(void)
 
 	usermsr = current->thread.regs->msr;
 
+	/* Caller has enabled FP/VEC/VSX/TM in MSR */
 	if (usermsr & MSR_FP)
-		save_fpu(current);
-
+		__giveup_fpu(current);
 	if (usermsr & MSR_VEC)
-		save_altivec(current);
+		__giveup_altivec(current);
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (usermsr & MSR_TM) {
@@ -1267,6 +1268,10 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE) &&
 	    old_thread->hashkeyr != new_thread->hashkeyr)
 		mtspr(SPRN_HASHKEYR, new_thread->hashkeyr);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31) &&
+	    old_thread->dexcr != new_thread->dexcr)
+		mtspr(SPRN_DEXCR, new_thread->dexcr);
 #endif
 
 }
@@ -1566,7 +1571,7 @@ static void __show_regs(struct pt_regs *regs)
 	if (trap == INTERRUPT_MACHINE_CHECK ||
 	    trap == INTERRUPT_DATA_STORAGE ||
 	    trap == INTERRUPT_ALIGNMENT) {
-		if (IS_ENABLED(CONFIG_4xx) || IS_ENABLED(CONFIG_BOOKE))
+		if (IS_ENABLED(CONFIG_BOOKE))
 			pr_cont("DEAR: "REG" ESR: "REG" ", regs->dear, regs->esr);
 		else
 			pr_cont("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
@@ -1634,6 +1639,13 @@ void arch_setup_new_exec(void)
 	current->thread.regs->amr  = default_amr;
 	current->thread.regs->iamr  = default_iamr;
 #endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		current->thread.dexcr = current->thread.dexcr_onexec;
+		mtspr(SPRN_DEXCR, current->thread.dexcr);
+	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 }
 
 #ifdef CONFIG_PPC64
@@ -1647,7 +1659,7 @@ void arch_setup_new_exec(void)
  * cases will happen:
  *
  * 1. The correct thread is running, the wrong thread is not
- * In this situation, the correct thread is woken and proceeds to pass it's
+ * In this situation, the correct thread is woken and proceeds to pass its
  * condition check.
  *
  * 2. Neither threads are running
@@ -1657,15 +1669,15 @@ void arch_setup_new_exec(void)
  * for the wrong thread, or they will execute the condition check immediately.
  *
  * 3. The wrong thread is running, the correct thread is not
- * The wrong thread will be woken, but will fail it's condition check and
+ * The wrong thread will be woken, but will fail its condition check and
  * re-execute wait. The correct thread, when scheduled, will execute either
- * it's condition check (which will pass), or wait, which returns immediately
- * when called the first time after the thread is scheduled, followed by it's
+ * its condition check (which will pass), or wait, which returns immediately
+ * when called the first time after the thread is scheduled, followed by its
  * condition check (which will pass).
  *
  * 4. Both threads are running
- * Both threads will be woken. The wrong thread will fail it's condition check
- * and execute another wait, while the correct thread will pass it's condition
+ * Both threads will be woken. The wrong thread will fail its condition check
+ * and execute another wait, while the correct thread will pass its condition
  * check.
  *
  * @t: the task to set the thread ID for
@@ -1861,7 +1873,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 #if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
 	p->thread.kuap = KUAP_NONE;
 #endif
-#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+#if defined(CONFIG_BOOKE) && defined(CONFIG_PPC_KUAP)
 	p->thread.pid = MMU_NO_CONTEXT;
 #endif
 
@@ -1878,6 +1890,9 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE))
 		p->thread.hashkeyr = current->thread.hashkeyr;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		p->thread.dexcr = mfspr(SPRN_DEXCR);
 #endif
 	return 0;
 }
@@ -2160,10 +2175,10 @@ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 	return 0;
 }
 
+#ifdef CONFIG_PPC64
 static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 					unsigned long nbytes)
 {
-#ifdef CONFIG_PPC64
 	unsigned long stack_page;
 	unsigned long cpu = task_cpu(p);
 
@@ -2191,10 +2206,26 @@ static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
 # endif
-#endif
 
 	return 0;
 }
+#else
+static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
+					unsigned long nbytes)
+{
+	unsigned long stack_page;
+	unsigned long cpu = task_cpu(p);
+
+	if (!IS_ENABLED(CONFIG_VMAP_STACK))
+		return 0;
+
+	stack_page = (unsigned long)emergency_ctx[cpu] - THREAD_SIZE;
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
+		return 1;
+
+	return 0;
+}
+#endif
 
 /*
  * validate the stack frame of a particular minimum size, used for when we are
@@ -2256,6 +2287,22 @@ unsigned long __get_wchan(struct task_struct *p)
 	put_task_stack(p);
 
 	return ret;
+}
+
+static bool empty_user_regs(struct pt_regs *regs, struct task_struct *tsk)
+{
+	unsigned long stack_page;
+
+	// A non-empty pt_regs should never have a zero MSR or TRAP value.
+	if (regs->msr || regs->trap)
+		return false;
+
+	// Check it sits at the very base of the stack
+	stack_page = (unsigned long)task_stack_page(tsk);
+	if ((unsigned long)(regs + 1) != stack_page + THREAD_SIZE)
+		return false;
+
+	return true;
 }
 
 static int kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
@@ -2322,9 +2369,13 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 			lr = regs->link;
 			printk("%s--- interrupt: %lx at %pS\n",
 			       loglvl, regs->trap, (void *)regs->nip);
-			__show_regs(regs);
-			printk("%s--- interrupt: %lx\n",
-			       loglvl, regs->trap);
+
+			// Detect the case of an empty pt_regs at the very base
+			// of the stack and suppress showing it in full.
+			if (!empty_user_regs(regs, tsk)) {
+				__show_regs(regs);
+				printk("%s--- interrupt: %lx\n", loglvl, regs->trap);
+			}
 
 			firstframe = 1;
 		}

@@ -43,6 +43,10 @@ Default is to monitor all CPUS.
 	encoding with the layout of the event control registers as described
 	by entries in /sys/bus/event_source/devices/cpu/format/*.
 
+--filter=<filter>::
+	Event filter.  This option should follow an event selector (-e). For
+	syntax see linkperf:perf-record[1].
+
 -E <entries>::
 --entries=<entries>::
 	Display this many functions.
@@ -79,8 +83,8 @@ Default is to monitor all CPUS.
 -m <pages>::
 --mmap-pages=<pages>::
 	Number of mmap data pages (must be a power of two) or size
-	specification with appended unit character - B/K/M/G. The
-	size is rounded up to have nearest pages power of two value.
+	specification in bytes with appended unit character - B/K/M/G.
+	The size is rounded up to the nearest power-of-two page value.
 
 -p <pid>::
 --pid=<pid>::
@@ -261,8 +265,38 @@ Default is to monitor all CPUS.
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.
 
+-H::
 --hierarchy::
-	Enable hierarchy output.
+	Enable hierarchical output.  In the hierarchy mode, each sort key groups
+	samples based on the criteria and then sub-divide it using the lower
+	level sort key.
+
+	For example, in normal output:
+
+	  perf report -s dso,sym
+	  #
+	  # Overhead  Shared Object      Symbol
+	  # ........  .................  ...........
+	      50.00%  [kernel.kallsyms]  [k] kfunc1
+	      20.00%  perf               [.] foo
+	      15.00%  [kernel.kallsyms]  [k] kfunc2
+	      10.00%  perf               [.] bar
+	       5.00%  libc.so            [.] libcall
+
+	In hierarchy output:
+
+	  perf report -s dso,sym --hierarchy
+	  #
+	  #   Overhead  Shared Object / Symbol
+	  # ..........  ......................
+	      65.00%    [kernel.kallsyms]
+	        50.00%    [k] kfunc1
+	        15.00%    [k] kfunc2
+	      30.00%    perf
+	        20.00%    [.] foo
+	        10.00%    [.] bar
+	       5.00%    libc.so
+	         5.00%    [.] libcall
 
 --overwrite::
 	Enable this to use just the most recent records, which helps in high core count

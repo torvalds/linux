@@ -199,10 +199,6 @@ tusb_dma_controller_create(struct musb *musb, void __iomem *base);
 extern void tusb_dma_controller_destroy(struct dma_controller *c);
 
 extern struct dma_controller *
-cppi_dma_controller_create(struct musb *musb, void __iomem *base);
-extern void cppi_dma_controller_destroy(struct dma_controller *c);
-
-extern struct dma_controller *
 cppi41_dma_controller_create(struct musb *musb, void __iomem *base);
 extern void cppi41_dma_controller_destroy(struct dma_controller *c);
 

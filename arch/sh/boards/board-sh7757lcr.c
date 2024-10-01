@@ -14,9 +14,9 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/io.h>
-#include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_data/sh_mmcif.h>
+#include <linux/platform_data/tmio.h>
 #include <linux/sh_eth.h>
 #include <linux/sh_intc.h>
 #include <linux/usb/renesas_usbhs.h>
@@ -569,7 +569,7 @@ static int __init sh7757lcr_devices_setup(void)
 arch_initcall(sh7757lcr_devices_setup);
 
 /* Initialize IRQ setting */
-void __init init_sh7757lcr_IRQ(void)
+static void __init init_sh7757lcr_IRQ(void)
 {
 	plat_irq_setup_pins(IRQ_MODE_IRQ7654);
 	plat_irq_setup_pins(IRQ_MODE_IRQ3210);

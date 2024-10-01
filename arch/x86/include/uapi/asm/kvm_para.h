@@ -92,7 +92,7 @@ struct kvm_clock_pairing {
 #define KVM_ASYNC_PF_DELIVERY_AS_INT		(1 << 3)
 
 /* MSR_KVM_ASYNC_PF_INT */
-#define KVM_ASYNC_PF_VEC_MASK			GENMASK(7, 0)
+#define KVM_ASYNC_PF_VEC_MASK			__GENMASK(7, 0)
 
 /* MSR_KVM_MIGRATION_CONTROL */
 #define KVM_MIGRATION_READY		(1 << 0)
@@ -142,7 +142,6 @@ struct kvm_vcpu_pv_apf_data {
 	__u32 token;
 
 	__u8 pad[56];
-	__u32 enabled;
 };
 
 #define KVM_PV_EOI_BIT 0

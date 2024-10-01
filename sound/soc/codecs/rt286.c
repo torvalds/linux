@@ -1075,8 +1075,8 @@ static const struct regmap_config rt286_regmap = {
 };
 
 static const struct i2c_device_id rt286_i2c_id[] = {
-	{"rt286", 0},
-	{"rt288", 0},
+	{"rt286"},
+	{"rt288"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt286_i2c_id);
@@ -1237,7 +1237,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c)
 			IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "rt286", rt286);
 		if (ret != 0) {
 			dev_err(&i2c->dev,
-				"Failed to reguest IRQ: %d\n", ret);
+				"Failed to request IRQ: %d\n", ret);
 			return ret;
 		}
 	}

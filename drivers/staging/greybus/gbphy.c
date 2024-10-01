@@ -46,7 +46,7 @@ static void gbphy_dev_release(struct device *dev)
 {
 	struct gbphy_device *gbphy_dev = to_gbphy_dev(dev);
 
-	ida_simple_remove(&gbphy_id, gbphy_dev->id);
+	ida_free(&gbphy_id, gbphy_dev->id);
 	kfree(gbphy_dev);
 }
 
@@ -117,7 +117,7 @@ gbphy_dev_match_id(struct gbphy_device *gbphy_dev,
 	return NULL;
 }
 
-static int gbphy_dev_match(struct device *dev, struct device_driver *drv)
+static int gbphy_dev_match(struct device *dev, const struct device_driver *drv)
 {
 	struct gbphy_driver *gbphy_drv = to_gbphy_driver(drv);
 	struct gbphy_device *gbphy_dev = to_gbphy_dev(dev);
@@ -182,7 +182,7 @@ static void gbphy_dev_remove(struct device *dev)
 	pm_runtime_dont_use_autosuspend(dev);
 }
 
-static struct bus_type gbphy_bus_type = {
+static const struct bus_type gbphy_bus_type = {
 	.name =		"gbphy",
 	.match =	gbphy_dev_match,
 	.probe =	gbphy_dev_probe,
@@ -225,13 +225,13 @@ static struct gbphy_device *gb_gbphy_create_dev(struct gb_bundle *bundle,
 	int retval;
 	int id;
 
-	id = ida_simple_get(&gbphy_id, 1, 0, GFP_KERNEL);
+	id = ida_alloc_min(&gbphy_id, 1, GFP_KERNEL);
 	if (id < 0)
 		return ERR_PTR(id);
 
 	gbphy_dev = kzalloc(sizeof(*gbphy_dev), GFP_KERNEL);
 	if (!gbphy_dev) {
-		ida_simple_remove(&gbphy_id, id);
+		ida_free(&gbphy_id, id);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -354,4 +354,5 @@ static void __exit gbphy_exit(void)
 }
 module_exit(gbphy_exit);
 
+MODULE_DESCRIPTION("Greybus Bridged-Phy Bus driver");
 MODULE_LICENSE("GPL v2");

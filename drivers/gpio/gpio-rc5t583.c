@@ -121,8 +121,6 @@ static int rc5t583_gpio_probe(struct platform_device *pdev)
 	if (pdata && pdata->gpio_base)
 		rc5t583_gpio->gpio_chip.base = pdata->gpio_base;
 
-	platform_set_drvdata(pdev, rc5t583_gpio);
-
 	return devm_gpiochip_add_data(&pdev->dev, &rc5t583_gpio->gpio_chip,
 				      rc5t583_gpio);
 }

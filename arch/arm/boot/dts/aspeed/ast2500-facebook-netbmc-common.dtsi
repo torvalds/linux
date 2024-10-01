@@ -4,6 +4,10 @@
 #include "aspeed-g5.dtsi"
 
 / {
+	aliases {
+		spi0 = &fmc;
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};

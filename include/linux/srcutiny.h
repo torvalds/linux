@@ -48,6 +48,10 @@ void srcu_drive_gp(struct work_struct *wp);
 #define DEFINE_STATIC_SRCU(name) \
 	static struct srcu_struct name = __SRCU_STRUCT_INIT(name, name, name)
 
+// Dummy structure for srcu_notifier_head.
+struct srcu_usage { };
+#define __SRCU_USAGE_INIT(name) { }
+
 void synchronize_srcu(struct srcu_struct *ssp);
 
 /*
@@ -60,8 +64,10 @@ static inline int __srcu_read_lock(struct srcu_struct *ssp)
 {
 	int idx;
 
+	preempt_disable();  // Needed for PREEMPT_AUTO
 	idx = ((READ_ONCE(ssp->srcu_idx) + 1) & 0x2) >> 1;
 	WRITE_ONCE(ssp->srcu_lock_nesting[idx], READ_ONCE(ssp->srcu_lock_nesting[idx]) + 1);
+	preempt_enable();
 	return idx;
 }
 

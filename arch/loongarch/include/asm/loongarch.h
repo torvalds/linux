@@ -12,49 +12,6 @@
 #ifndef __ASSEMBLY__
 #include <larchintrin.h>
 
-/*
- * parse_r var, r - Helper assembler macro for parsing register names.
- *
- * This converts the register name in $n form provided in \r to the
- * corresponding register number, which is assigned to the variable \var. It is
- * needed to allow explicit encoding of instructions in inline assembly where
- * registers are chosen by the compiler in $n form, allowing us to avoid using
- * fixed register numbers.
- *
- * It also allows newer instructions (not implemented by the assembler) to be
- * transparently implemented using assembler macros, instead of needing separate
- * cases depending on toolchain support.
- *
- * Simple usage example:
- * __asm__ __volatile__("parse_r addr, %0\n\t"
- *			"#invtlb op, 0, %0\n\t"
- *			".word ((0x6498000) | (addr << 10) | (0 << 5) | op)"
- *			: "=r" (status);
- */
-
-/* Match an individual register number and assign to \var */
-#define _IFC_REG(n)				\
-	".ifc	\\r, $r" #n "\n\t"		\
-	"\\var	= " #n "\n\t"			\
-	".endif\n\t"
-
-__asm__(".macro	parse_r var r\n\t"
-	"\\var	= -1\n\t"
-	_IFC_REG(0)  _IFC_REG(1)  _IFC_REG(2)  _IFC_REG(3)
-	_IFC_REG(4)  _IFC_REG(5)  _IFC_REG(6)  _IFC_REG(7)
-	_IFC_REG(8)  _IFC_REG(9)  _IFC_REG(10) _IFC_REG(11)
-	_IFC_REG(12) _IFC_REG(13) _IFC_REG(14) _IFC_REG(15)
-	_IFC_REG(16) _IFC_REG(17) _IFC_REG(18) _IFC_REG(19)
-	_IFC_REG(20) _IFC_REG(21) _IFC_REG(22) _IFC_REG(23)
-	_IFC_REG(24) _IFC_REG(25) _IFC_REG(26) _IFC_REG(27)
-	_IFC_REG(28) _IFC_REG(29) _IFC_REG(30) _IFC_REG(31)
-	".iflt	\\var\n\t"
-	".error	\"Unable to parse register name \\r\"\n\t"
-	".endif\n\t"
-	".endm");
-
-#undef _IFC_REG
-
 /* CPUCFG */
 #define read_cpucfg(reg) __cpucfg(reg)
 
@@ -105,6 +62,7 @@ __asm__(".macro	parse_r var r\n\t"
 #define LOONGARCH_CPUCFG1		0x1
 #define  CPUCFG1_ISGR32			BIT(0)
 #define  CPUCFG1_ISGR64			BIT(1)
+#define  CPUCFG1_ISA			GENMASK(1, 0)
 #define  CPUCFG1_PAGING			BIT(2)
 #define  CPUCFG1_IOCSR			BIT(3)
 #define  CPUCFG1_PABITS			GENMASK(11, 4)
@@ -162,6 +120,7 @@ __asm__(".macro	parse_r var r\n\t"
 #define  CPUCFG6_PMP			BIT(0)
 #define  CPUCFG6_PAMVER			GENMASK(3, 1)
 #define  CPUCFG6_PMNUM			GENMASK(7, 4)
+#define  CPUCFG6_PMNUM_SHIFT		4
 #define  CPUCFG6_PMBITS			GENMASK(13, 8)
 #define  CPUCFG6_UPM			BIT(14)
 
@@ -200,6 +159,11 @@ __asm__(".macro	parse_r var r\n\t"
 #define  CPUCFG48_NAP_EN		BIT(1)
 #define  CPUCFG48_VFPU_CG		BIT(2)
 #define  CPUCFG48_RAM_CG		BIT(3)
+
+/*
+ * CPUCFG index area: 0x40000000 -- 0x400000ff
+ * SW emulation for KVM hypervirsor, see arch/loongarch/include/uapi/asm/kvm_para.h
+ */
 
 #ifndef __ASSEMBLY__
 
@@ -269,6 +233,7 @@ __asm__(".macro	parse_r var r\n\t"
 #define LOONGARCH_CSR_ECFG		0x4	/* Exception config */
 #define  CSR_ECFG_VS_SHIFT		16
 #define  CSR_ECFG_VS_WIDTH		3
+#define  CSR_ECFG_VS_SHIFT_END		(CSR_ECFG_VS_SHIFT + CSR_ECFG_VS_WIDTH - 1)
 #define  CSR_ECFG_VS			(_ULCAST_(0x7) << CSR_ECFG_VS_SHIFT)
 #define  CSR_ECFG_IM_SHIFT		0
 #define  CSR_ECFG_IM_WIDTH		14
@@ -282,8 +247,8 @@ __asm__(".macro	parse_r var r\n\t"
 #define  CSR_ESTAT_EXC_WIDTH		6
 #define  CSR_ESTAT_EXC			(_ULCAST_(0x3f) << CSR_ESTAT_EXC_SHIFT)
 #define  CSR_ESTAT_IS_SHIFT		0
-#define  CSR_ESTAT_IS_WIDTH		14
-#define  CSR_ESTAT_IS			(_ULCAST_(0x3fff) << CSR_ESTAT_IS_SHIFT)
+#define  CSR_ESTAT_IS_WIDTH		15
+#define  CSR_ESTAT_IS			(_ULCAST_(0x7fff) << CSR_ESTAT_IS_SHIFT)
 
 #define LOONGARCH_CSR_ERA		0x6	/* ERA */
 
@@ -357,13 +322,14 @@ __asm__(".macro	parse_r var r\n\t"
 #define  CSR_TLBLO1_V			(_ULCAST_(0x1) << CSR_TLBLO1_V_SHIFT)
 
 #define LOONGARCH_CSR_GTLBC		0x15	/* Guest TLB control */
-#define  CSR_GTLBC_RID_SHIFT		16
-#define  CSR_GTLBC_RID_WIDTH		8
-#define  CSR_GTLBC_RID			(_ULCAST_(0xff) << CSR_GTLBC_RID_SHIFT)
+#define  CSR_GTLBC_TGID_SHIFT		16
+#define  CSR_GTLBC_TGID_WIDTH		8
+#define  CSR_GTLBC_TGID_SHIFT_END	(CSR_GTLBC_TGID_SHIFT + CSR_GTLBC_TGID_WIDTH - 1)
+#define  CSR_GTLBC_TGID			(_ULCAST_(0xff) << CSR_GTLBC_TGID_SHIFT)
 #define  CSR_GTLBC_TOTI_SHIFT		13
 #define  CSR_GTLBC_TOTI			(_ULCAST_(0x1) << CSR_GTLBC_TOTI_SHIFT)
-#define  CSR_GTLBC_USERID_SHIFT		12
-#define  CSR_GTLBC_USERID		(_ULCAST_(0x1) << CSR_GTLBC_USERID_SHIFT)
+#define  CSR_GTLBC_USETGID_SHIFT	12
+#define  CSR_GTLBC_USETGID		(_ULCAST_(0x1) << CSR_GTLBC_USETGID_SHIFT)
 #define  CSR_GTLBC_GMTLBSZ_SHIFT	0
 #define  CSR_GTLBC_GMTLBSZ_WIDTH	6
 #define  CSR_GTLBC_GMTLBSZ		(_ULCAST_(0x3f) << CSR_GTLBC_GMTLBSZ_SHIFT)
@@ -518,6 +484,7 @@ __asm__(".macro	parse_r var r\n\t"
 #define LOONGARCH_CSR_GSTAT		0x50	/* Guest status */
 #define  CSR_GSTAT_GID_SHIFT		16
 #define  CSR_GSTAT_GID_WIDTH		8
+#define  CSR_GSTAT_GID_SHIFT_END	(CSR_GSTAT_GID_SHIFT + CSR_GSTAT_GID_WIDTH - 1)
 #define  CSR_GSTAT_GID			(_ULCAST_(0xff) << CSR_GSTAT_GID_SHIFT)
 #define  CSR_GSTAT_GIDBIT_SHIFT		4
 #define  CSR_GSTAT_GIDBIT_WIDTH		6
@@ -568,6 +535,12 @@ __asm__(".macro	parse_r var r\n\t"
 #define  CSR_GCFG_MATC_GUEST		(_ULCAST_(0x0) << CSR_GCFG_MATC_SHITF)
 #define  CSR_GCFG_MATC_ROOT		(_ULCAST_(0x1) << CSR_GCFG_MATC_SHITF)
 #define  CSR_GCFG_MATC_NEST		(_ULCAST_(0x2) << CSR_GCFG_MATC_SHITF)
+#define  CSR_GCFG_MATP_NEST_SHIFT	2
+#define  CSR_GCFG_MATP_NEST		(_ULCAST_(0x1) << CSR_GCFG_MATP_NEST_SHIFT)
+#define  CSR_GCFG_MATP_ROOT_SHIFT	1
+#define  CSR_GCFG_MATP_ROOT		(_ULCAST_(0x1) << CSR_GCFG_MATP_ROOT_SHIFT)
+#define  CSR_GCFG_MATP_GUEST_SHIFT	0
+#define  CSR_GCFG_MATP_GUEST		(_ULCAST_(0x1) << CSR_GCFG_MATP_GUEST_SHIFT)
 
 #define LOONGARCH_CSR_GINTC		0x52	/* Guest interrupt control */
 #define  CSR_GINTC_HC_SHIFT		16
@@ -669,6 +642,13 @@ __asm__(".macro	parse_r var r\n\t"
 #define LOONGARCH_CSR_MERRSAVE		0x95	/* KSave for machine error exception */
 
 #define LOONGARCH_CSR_CTAG		0x98	/* TagLo + TagHi */
+
+#define LOONGARCH_CSR_ISR0		0xa0
+#define LOONGARCH_CSR_ISR1		0xa1
+#define LOONGARCH_CSR_ISR2		0xa2
+#define LOONGARCH_CSR_ISR3		0xa3
+
+#define LOONGARCH_CSR_IRR		0xa4
 
 #define LOONGARCH_CSR_PRID		0xc0
 
@@ -899,7 +879,7 @@ __asm__(".macro	parse_r var r\n\t"
 #define LOONGARCH_CSR_DMWIN2		0x182	/* 64 direct map win2: MEM */
 #define LOONGARCH_CSR_DMWIN3		0x183	/* 64 direct map win3: MEM */
 
-/* Direct Map window 0/1 */
+/* Direct Map window 0/1/2/3 */
 #define CSR_DMW0_PLV0		_CONST64_(1 << 0)
 #define CSR_DMW0_VSEG		_CONST64_(0x8000)
 #define CSR_DMW0_BASE		(CSR_DMW0_VSEG << DMW_PABITS)
@@ -910,6 +890,14 @@ __asm__(".macro	parse_r var r\n\t"
 #define CSR_DMW1_VSEG		_CONST64_(0x9000)
 #define CSR_DMW1_BASE		(CSR_DMW1_VSEG << DMW_PABITS)
 #define CSR_DMW1_INIT		(CSR_DMW1_BASE | CSR_DMW1_MAT | CSR_DMW1_PLV0)
+
+#define CSR_DMW2_PLV0		_CONST64_(1 << 0)
+#define CSR_DMW2_MAT		_CONST64_(2 << 4)
+#define CSR_DMW2_VSEG		_CONST64_(0xa000)
+#define CSR_DMW2_BASE		(CSR_DMW2_VSEG << DMW_PABITS)
+#define CSR_DMW2_INIT		(CSR_DMW2_BASE | CSR_DMW2_MAT | CSR_DMW2_PLV0)
+
+#define CSR_DMW3_INIT		0x0
 
 /* Performance Counter registers */
 #define LOONGARCH_CSR_PERFCTRL0		0x200	/* 32 perf event 0 config */
@@ -1024,7 +1012,7 @@ __asm__(".macro	parse_r var r\n\t"
 /*
  * CSR_ECFG IM
  */
-#define ECFG0_IM		0x00001fff
+#define ECFG0_IM		0x00005fff
 #define ECFGB_SIP0		0
 #define ECFGF_SIP0		(_ULCAST_(1) << ECFGB_SIP0)
 #define ECFGB_SIP1		1
@@ -1067,6 +1055,7 @@ __asm__(".macro	parse_r var r\n\t"
 #define  IOCSRF_EIODECODE		BIT_ULL(9)
 #define  IOCSRF_FLATMODE		BIT_ULL(10)
 #define  IOCSRF_VM			BIT_ULL(11)
+#define  IOCSRF_AVEC			BIT_ULL(15)
 
 #define LOONGARCH_IOCSR_VENDOR		0x10
 
@@ -1075,10 +1064,14 @@ __asm__(".macro	parse_r var r\n\t"
 #define LOONGARCH_IOCSR_NODECNT		0x408
 
 #define LOONGARCH_IOCSR_MISC_FUNC	0x420
+#define  IOCSR_MISC_FUNC_SOFT_INT	BIT_ULL(10)
 #define  IOCSR_MISC_FUNC_TIMER_RESET	BIT_ULL(21)
 #define  IOCSR_MISC_FUNC_EXT_IOI_EN	BIT_ULL(48)
+#define  IOCSR_MISC_FUNC_AVEC_EN	BIT_ULL(51)
 
 #define LOONGARCH_IOCSR_CPUTEMP		0x428
+
+#define LOONGARCH_IOCSR_SMCMBX		0x51c
 
 /* PerCore CSR, only accessible by local cores */
 #define LOONGARCH_IOCSR_IPI_STATUS	0x1000
@@ -1132,12 +1125,11 @@ __asm__(".macro	parse_r var r\n\t"
 
 static __always_inline u64 drdtime(void)
 {
-	int rID = 0;
 	u64 val = 0;
 
 	__asm__ __volatile__(
-		"rdtime.d %0, %1 \n\t"
-		: "=r"(val), "=r"(rID)
+		"rdtime.d %0, $zero\n\t"
+		: "=r"(val)
 		:
 		);
 	return val;
@@ -1398,9 +1390,10 @@ __BUILD_CSR_OP(tlbidx)
 #define INT_TI		11	/* Timer */
 #define INT_IPI		12
 #define INT_NMI		13
+#define INT_AVEC	14
 
 /* ExcCodes corresponding to interrupts */
-#define EXCCODE_INT_NUM		(INT_NMI + 1)
+#define EXCCODE_INT_NUM		(INT_AVEC + 1)
 #define EXCCODE_INT_START	64
 #define EXCCODE_INT_END		(EXCCODE_INT_START + EXCCODE_INT_NUM - 1)
 
@@ -1452,6 +1445,10 @@ __BUILD_CSR_OP(tlbidx)
 #define FPU_CSR_RZ	0x100	/* towards zero */
 #define FPU_CSR_RU	0x200	/* towards +Infinity */
 #define FPU_CSR_RD	0x300	/* towards -Infinity */
+
+/* Bit 6 of FPU Status Register specify the LBT TOP simulation mode */
+#define FPU_CSR_TM_SHIFT	0x6
+#define FPU_CSR_TM		(_ULCAST_(1) << FPU_CSR_TM_SHIFT)
 
 #define read_fcsr(source)	\
 ({	\

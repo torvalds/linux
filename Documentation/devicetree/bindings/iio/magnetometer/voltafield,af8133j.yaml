@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/magnetometer/voltafield,af8133j.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Voltafield AF8133J magnetometer sensor
+
+maintainers:
+  - Ondřej Jirman <megi@xff.cz>
+
+properties:
+  compatible:
+    const: voltafield,af8133j
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    description:
+      A signal for active low reset input of the sensor. (optional; if not
+      used, software reset over I2C will be used instead)
+
+  avdd-supply:
+    description:
+      A regulator that provides AVDD power (Working power, usually 3.3V) to
+      the sensor.
+
+  dvdd-supply:
+    description:
+      A regulator that provides DVDD power (Digital IO power, 1.8V - AVDD)
+      to the sensor.
+
+  mount-matrix:
+    description: An optional 3x3 mounting rotation matrix.
+
+required:
+  - compatible
+  - reg
+  - avdd-supply
+  - dvdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        magnetometer@1c {
+            compatible = "voltafield,af8133j";
+            reg = <0x1c>;
+            avdd-supply = <&reg_dldo1>;
+            dvdd-supply = <&reg_dldo1>;
+            reset-gpios = <&pio 1 1 GPIO_ACTIVE_LOW>;
+        };
+    };

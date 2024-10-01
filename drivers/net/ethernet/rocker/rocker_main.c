@@ -32,7 +32,6 @@
 #include <net/fib_rules.h>
 #include <net/fib_notifier.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
-#include <generated/utsrelease.h>
 
 #include "rocker_hw.h"
 #include "rocker.h"
@@ -1968,7 +1967,7 @@ static int rocker_port_change_mtu(struct net_device *dev, int new_mtu)
 		rocker_port_stop(dev);
 
 	netdev_info(dev, "MTU change from %d to %d\n", dev->mtu, new_mtu);
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	err = rocker_cmd_set_port_settings_mtu(rocker_port, new_mtu);
 	if (err)
@@ -2227,7 +2226,6 @@ static void rocker_port_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *drvinfo)
 {
 	strscpy(drvinfo->driver, rocker_driver_name, sizeof(drvinfo->driver));
-	strscpy(drvinfo->version, UTS_RELEASE, sizeof(drvinfo->version));
 }
 
 static struct rocker_port_stats {
@@ -2577,7 +2575,8 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	netif_napi_add(dev, &rocker_port->napi_rx, rocker_port_poll_rx);
 	rocker_carrier_init(rocker_port);
 
-	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_SG;
+	dev->features |= NETIF_F_SG;
+	dev->netns_local = true;
 
 	/* MTU range: 68 - 9000 */
 	dev->min_mtu = ROCKER_PORT_MIN_MTU;

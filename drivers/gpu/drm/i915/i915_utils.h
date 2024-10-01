@@ -40,17 +40,10 @@
 struct drm_i915_private;
 struct timer_list;
 
-#define FDO_BUG_URL "https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs"
+#define FDO_BUG_URL "https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html"
 
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
-
-void __printf(3, 4)
-__i915_printk(struct drm_i915_private *dev_priv, const char *level,
-	      const char *fmt, ...);
-
-#define i915_report_error(dev_priv, fmt, ...)				   \
-	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 
@@ -69,23 +62,12 @@ bool i915_error_injected(void);
 
 #define i915_inject_probe_failure(i915) i915_inject_probe_error((i915), -ENODEV)
 
-#define i915_probe_error(i915, fmt, ...)				   \
-	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
-		      fmt, ##__VA_ARGS__)
-
-#if defined(GCC_VERSION) && GCC_VERSION >= 70000
-#define add_overflows_t(T, A, B) \
-	__builtin_add_overflow_p((A), (B), (T)0)
-#else
-#define add_overflows_t(T, A, B) ({ \
-	typeof(A) a = (A); \
-	typeof(B) b = (B); \
-	(T)(a + b) < a; \
+#define i915_probe_error(i915, fmt, ...) ({ \
+	if (i915_error_injected()) \
+		drm_dbg(&(i915)->drm, fmt, ##__VA_ARGS__); \
+	else \
+		drm_err(&(i915)->drm, fmt, ##__VA_ARGS__); \
 })
-#endif
-
-#define add_overflows(A, B) \
-	add_overflows_t(typeof((A) + (B)), (A), (B))
 
 #define range_overflows(start, size, max) ({ \
 	typeof(start) start__ = (start); \
@@ -390,5 +372,7 @@ static inline bool i915_run_as_guest(void)
 }
 
 bool i915_vtd_active(struct drm_i915_private *i915);
+
+bool i915_direct_stolen_access(struct drm_i915_private *i915);
 
 #endif /* !__I915_UTILS_H */

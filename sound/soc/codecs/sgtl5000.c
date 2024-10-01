@@ -13,11 +13,11 @@
 #include <linux/i2c.h>
 #include <linux/clk.h>
 #include <linux/log2.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/tlv.h>
 #include <sound/pcm.h>
@@ -1809,7 +1809,7 @@ static void sgtl5000_i2c_shutdown(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sgtl5000_id[] = {
-	{"sgtl5000", 0},
+	{"sgtl5000"},
 	{},
 };
 

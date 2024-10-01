@@ -10,8 +10,10 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #define LUT_MAX_ENTRIES			32U
@@ -258,7 +260,7 @@ static int mtk_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int mtk_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
+static void mtk_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct mtk_cpufreq_data *data = policy->driver_data;
 	struct resource *res = data->res;
@@ -268,8 +270,6 @@ static int mtk_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 	writel_relaxed(0x0, data->reg_bases[REG_FREQ_ENABLE]);
 	iounmap(base);
 	release_mem_region(res->start, resource_size(res));
-
-	return 0;
 }
 
 static void mtk_cpufreq_register_em(struct cpufreq_policy *policy)
@@ -299,7 +299,23 @@ static struct cpufreq_driver cpufreq_mtk_hw_driver = {
 static int mtk_cpufreq_hw_driver_probe(struct platform_device *pdev)
 {
 	const void *data;
-	int ret;
+	int ret, cpu;
+	struct device *cpu_dev;
+	struct regulator *cpu_reg;
+
+	/* Make sure that all CPU supplies are available before proceeding. */
+	for_each_possible_cpu(cpu) {
+		cpu_dev = get_cpu_device(cpu);
+		if (!cpu_dev)
+			return dev_err_probe(&pdev->dev, -EPROBE_DEFER,
+					     "Failed to get cpu%d device\n", cpu);
+
+		cpu_reg = devm_regulator_get(cpu_dev, "cpu");
+		if (IS_ERR(cpu_reg))
+			return dev_err_probe(&pdev->dev, PTR_ERR(cpu_reg),
+					     "CPU%d regulator get failed\n", cpu);
+	}
+
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
@@ -315,11 +331,9 @@ static int mtk_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_cpufreq_hw_driver_remove(struct platform_device *pdev)
+static void mtk_cpufreq_hw_driver_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&cpufreq_mtk_hw_driver);
-
-	return 0;
 }
 
 static const struct of_device_id mtk_cpufreq_hw_match[] = {
@@ -330,7 +344,7 @@ MODULE_DEVICE_TABLE(of, mtk_cpufreq_hw_match);
 
 static struct platform_driver mtk_cpufreq_hw_driver = {
 	.probe = mtk_cpufreq_hw_driver_probe,
-	.remove = mtk_cpufreq_hw_driver_remove,
+	.remove_new = mtk_cpufreq_hw_driver_remove,
 	.driver = {
 		.name = "mtk-cpufreq-hw",
 		.of_match_table = mtk_cpufreq_hw_match,

@@ -6,11 +6,10 @@
  * Author: Sonny Rao <sonnyrao@us.ibm.com>
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/cdev.h>
@@ -343,5 +342,6 @@ static void __exit  bsr_exit(void)
 
 module_init(bsr_init);
 module_exit(bsr_exit);
+MODULE_DESCRIPTION("IBM POWER Barrier Synchronization Register Driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sonny Rao <sonnyrao@us.ibm.com>");

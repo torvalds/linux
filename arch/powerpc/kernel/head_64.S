@@ -40,7 +40,6 @@
 #include <asm/hw_irq.h>
 #include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/exception-64s.h>
@@ -375,8 +374,7 @@ _GLOBAL(generic_secondary_smp_init)
 	beq	20f
 
 	/* start the specified thread */
-	LOAD_REG_ADDR(r5, fsl_secondary_thread_init)
-	ld	r4, 0(r5)
+	LOAD_REG_ADDR(r5, DOTSYM(fsl_secondary_thread_init))
 	bl	book3e_start_thread
 
 	/* stop the current thread */
@@ -649,8 +647,9 @@ __after_prom_start:
  * Note: This process overwrites the OF exception vectors.
  */
 	LOAD_REG_IMMEDIATE(r3, PAGE_OFFSET)
-	mr.	r4,r26			/* In some cases the loader may  */
-	beq	9f			/* have already put us at zero */
+	mr	r4,r26			/* Load the virtual source address into r4 */
+	cmpld	r3,r4			/* Check if source == dest */
+	beq	9f			/* If so skip the copy  */
 	li	r6,0x100		/* Start offset, the first 0x100 */
 					/* bytes were copied earlier.	 */
 

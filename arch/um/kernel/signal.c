@@ -121,18 +121,6 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * This closes a way to execute a system call on the host.  If
-	 * you set a breakpoint on a system call instruction and singlestep
-	 * from it, the tracing thread used to PTRACE_SINGLESTEP the process
-	 * rather than PTRACE_SYSCALL it, allowing the system call to execute
-	 * on the host.  The tracing thread will check this flag and
-	 * PTRACE_SYSCALL if necessary.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		current->thread.singlestep_syscall =
-			is_syscall(PT_REGS_IP(&current->thread.regs));
-
-	/*
 	 * if there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */

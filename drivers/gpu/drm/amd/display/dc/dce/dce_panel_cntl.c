@@ -218,7 +218,7 @@ static void dce_driver_set_backlight(struct panel_cntl *panel_cntl,
 	 * contain integer component, lower 16 bits contain fractional component
 	 * of active duty cycle e.g. 0x21BDC0 = 0xEFF0 * 0x24
 	 */
-	active_duty_cycle = backlight_pwm_u16_16 * masked_pwm_period;
+	active_duty_cycle = backlight_pwm_u16_16 * (uint64_t)masked_pwm_period;
 
 	/* 1.3 Calculate 16 bit active duty cycle from integer and fractional
 	 * components shift by bitCount then mask 16 bits and add rounding bit
@@ -290,4 +290,5 @@ void dce_panel_cntl_construct(
 	dce_panel_cntl->base.funcs = &dce_link_panel_cntl_funcs;
 	dce_panel_cntl->base.ctx = init_data->ctx;
 	dce_panel_cntl->base.inst = init_data->inst;
+	dce_panel_cntl->base.pwrseq_inst = 0;
 }

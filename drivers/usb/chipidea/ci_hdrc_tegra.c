@@ -6,7 +6,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
@@ -292,14 +293,12 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	usb->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
 	if (IS_ERR(usb->phy))
 		return dev_err_probe(&pdev->dev, PTR_ERR(usb->phy),
-				     "failed to get PHY\n");
+				     "failed to get PHY");
 
 	usb->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(usb->clk)) {
-		err = PTR_ERR(usb->clk);
-		dev_err(&pdev->dev, "failed to get clock: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(usb->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(usb->clk),
+				     "failed to get clock");
 
 	err = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
 	if (err)
@@ -315,7 +314,7 @@ static int tegra_usb_probe(struct platform_device *pdev)
 
 	err = tegra_usb_reset_controller(&pdev->dev);
 	if (err) {
-		dev_err(&pdev->dev, "failed to reset controller: %d\n", err);
+		dev_err_probe(&pdev->dev, err, "failed to reset controller");
 		goto fail_power_off;
 	}
 
@@ -346,8 +345,8 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	usb->dev = ci_hdrc_add_device(&pdev->dev, pdev->resource,
 				      pdev->num_resources, &usb->data);
 	if (IS_ERR(usb->dev)) {
-		err = PTR_ERR(usb->dev);
-		dev_err(&pdev->dev, "failed to add HDRC device: %d\n", err);
+		err = dev_err_probe(&pdev->dev, PTR_ERR(usb->dev),
+				    "failed to add HDRC device");
 		goto phy_shutdown;
 	}
 
@@ -373,7 +372,7 @@ static void tegra_usb_remove(struct platform_device *pdev)
 	pm_runtime_force_suspend(&pdev->dev);
 }
 
-static int __maybe_unused tegra_usb_runtime_resume(struct device *dev)
+static int tegra_usb_runtime_resume(struct device *dev)
 {
 	struct tegra_usb *usb = dev_get_drvdata(dev);
 	int err;
@@ -387,7 +386,7 @@ static int __maybe_unused tegra_usb_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra_usb_runtime_suspend(struct device *dev)
+static int tegra_usb_runtime_suspend(struct device *dev)
 {
 	struct tegra_usb *usb = dev_get_drvdata(dev);
 
@@ -397,15 +396,14 @@ static int __maybe_unused tegra_usb_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_usb_pm = {
-	SET_RUNTIME_PM_OPS(tegra_usb_runtime_suspend, tegra_usb_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(tegra_usb_runtime_suspend, tegra_usb_runtime_resume, NULL)
 };
 
 static struct platform_driver tegra_usb_driver = {
 	.driver = {
 		.name = "tegra-usb",
 		.of_match_table = tegra_usb_of_match,
-		.pm = &tegra_usb_pm,
+		.pm = pm_ptr(&tegra_usb_pm),
 	},
 	.probe = tegra_usb_probe,
 	.remove_new = tegra_usb_remove,

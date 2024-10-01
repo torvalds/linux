@@ -45,21 +45,14 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_can: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "CAN_RST";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio4 15 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <20000>;
-			enable-active-high;
-		};
+	reg_can: regulator-can {
+		compatible = "regulator-fixed";
+		regulator-name = "CAN_RST";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 15 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <20000>;
+		enable-active-high;
 	};
 
 	sound {

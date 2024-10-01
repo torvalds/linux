@@ -20,8 +20,7 @@
 ==========
 1. 运行队列锁
 默认情况下，switch_to arch函数在调用时锁定了运行队列。这通常不是一个问题，除非
-switch_to可能需要获取运行队列锁。这通常是由于上下文切换中的唤醒操作造成的。见
-arch/ia64/include/asm/switch_to.h的例子。
+switch_to可能需要获取运行队列锁。这通常是由于上下文切换中的唤醒操作造成的。
 
 为了要求调度器在运行队列解锁的情况下调用switch_to，你必须在头文件
 中`#define __ARCH_WANT_UNLOCKED_CTXSW`(通常是定义switch_to的那个文件）。
@@ -67,8 +66,6 @@ arch/x86/kernel/process.c有轮询和睡眠空闲函数的例子。
 ===================
 
 我发现的可能的arch问题（并试图解决或没有解决）。:
-
-ia64 - safe_halt的调用与中断相比，是否很荒谬？ (它睡眠了吗) (参考 #4a)
 
 sparc - 在这一点上，IRQ是开着的（？），把local_irq_save改为_disable。
       - 待办事项: 需要第二个CPU来禁用抢占 (参考 #1)

@@ -436,9 +436,6 @@ extern key_ref_t keyring_search(key_ref_t keyring,
 				const char *description,
 				bool recurse);
 
-extern int keyring_add_key(struct key *keyring,
-			   struct key *key);
-
 extern int keyring_restrict(key_ref_t keyring, const char *type,
 			    const char *restriction);
 
@@ -515,6 +512,7 @@ extern void key_init(void);
 #define key_init()			do { } while(0)
 #define key_free_user_ns(ns)		do { } while(0)
 #define key_remove_domain(d)		do { } while(0)
+#define key_lookup(k)			NULL
 
 #endif /* CONFIG_KEYS */
 #endif /* __KERNEL__ */

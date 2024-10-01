@@ -26,6 +26,11 @@ Dynamic debug provides:
    - format string
    - class name (as known/declared by each module)
 
+NOTE: To actually get the debug-print output on the console, you may
+need to adjust the kernel ``loglevel=``, or use ``ignore_loglevel``.
+Read about these kernel parameters in
+Documentation/admin-guide/kernel-parameters.rst.
+
 Viewing Dynamic Debug Behaviour
 ===============================
 
@@ -216,13 +221,14 @@ The flags are::
   t    Include thread ID, or <intr>
   m    Include module name
   f    Include the function name
+  s    Include the source file name
   l    Include line number
 
 For ``print_hex_dump_debug()`` and ``print_hex_dump_bytes()``, only
 the ``p`` flag has meaning, other flags are ignored.
 
-Note the regexp ``^[-+=][flmpt_]+$`` matches a flags specification.
-To clear all flags at once, use ``=_`` or ``-flmpt``.
+Note the regexp ``^[-+=][fslmpt_]+$`` matches a flags specification.
+To clear all flags at once, use ``=_`` or ``-fslmpt``.
 
 
 Debug messages during Boot Process
@@ -258,7 +264,7 @@ Debug Messages at Module Initialization Time
 
 When ``modprobe foo`` is called, modprobe scans ``/proc/cmdline`` for
 ``foo.params``, strips ``foo.``, and passes them to the kernel along with
-params given in modprobe args or ``/etc/modprob.d/*.conf`` files,
+params given in modprobe args or ``/etc/modprobe.d/*.conf`` files,
 in the following order:
 
 1. parameters given via ``/etc/modprobe.d/*.conf``::
@@ -320,13 +326,13 @@ Examples
   :#> ddcmd 'format "nfsd: READ" +p'
 
   // enable messages in files of which the paths include string "usb"
-  :#> ddcmd 'file *usb* +p' > /proc/dynamic_debug/control
+  :#> ddcmd 'file *usb* +p'
 
   // enable all messages
-  :#> ddcmd '+p' > /proc/dynamic_debug/control
+  :#> ddcmd '+p'
 
   // add module, function to all enabled messages
-  :#> ddcmd '+mf' > /proc/dynamic_debug/control
+  :#> ddcmd '+mf'
 
   // boot-args example, with newlines and comments for readability
   Kernel command line: ...

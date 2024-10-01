@@ -48,6 +48,10 @@ properties:
   clock-names:
     maxItems: 3
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 required:
   - compatible
   - reg
@@ -63,12 +67,12 @@ patternProperties:
     additionalProperties: false
     description:
       Two subnodes corresponding to SAI sub-block instances A et B
-      can be defined. Subnode can be omitted for unsused sub-block.
+      can be defined. Subnode can be omitted for unused sub-block.
 
     properties:
       compatible:
         description: Compatible for SAI sub-block A or B.
-        pattern: "st,stm32-sai-sub-[ab]"
+        pattern: "^st,stm32-sai-sub-[ab]$"
 
       "#sound-dai-cells":
         const: 0

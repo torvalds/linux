@@ -103,7 +103,7 @@ again:
 			s->ax25_dev = NULL;
 			if (sk->sk_socket) {
 				netdev_put(ax25_dev->dev,
-					   &ax25_dev->dev_tracker);
+					   &s->dev_tracker);
 				ax25_dev_put(ax25_dev);
 			}
 			ax25_cb_del(s);
@@ -939,7 +939,7 @@ struct sock *ax25_make_new(struct sock *osk, struct ax25_dev *ax25_dev)
 	sock_init_data(NULL, sk);
 
 	sk->sk_type     = osk->sk_type;
-	sk->sk_priority = osk->sk_priority;
+	sk->sk_priority = READ_ONCE(osk->sk_priority);
 	sk->sk_protocol = osk->sk_protocol;
 	sk->sk_rcvbuf   = osk->sk_rcvbuf;
 	sk->sk_sndbuf   = osk->sk_sndbuf;
@@ -1373,13 +1373,15 @@ out_release:
 	return err;
 }
 
-static int ax25_accept(struct socket *sock, struct socket *newsock, int flags,
-		       bool kern)
+static int ax25_accept(struct socket *sock, struct socket *newsock,
+		       struct proto_accept_arg *arg)
 {
 	struct sk_buff *skb;
 	struct sock *newsk;
+	ax25_dev *ax25_dev;
 	DEFINE_WAIT(wait);
 	struct sock *sk;
+	ax25_cb *ax25;
 	int err = 0;
 
 	if (sock->state != SS_UNCONNECTED)
@@ -1409,7 +1411,7 @@ static int ax25_accept(struct socket *sock, struct socket *newsock, int flags,
 		if (skb)
 			break;
 
-		if (flags & O_NONBLOCK) {
+		if (arg->flags & O_NONBLOCK) {
 			err = -EWOULDBLOCK;
 			break;
 		}
@@ -1434,6 +1436,10 @@ static int ax25_accept(struct socket *sock, struct socket *newsock, int flags,
 	kfree_skb(skb);
 	sk_acceptq_removed(sk);
 	newsock->state = SS_CONNECTED;
+	ax25 = sk_to_ax25(newsk);
+	ax25_dev = ax25->ax25_dev;
+	netdev_hold(ax25_dev->dev, &ax25->dev_tracker, GFP_ATOMIC);
+	ax25_dev_hold(ax25_dev);
 
 out:
 	release_sock(sk);

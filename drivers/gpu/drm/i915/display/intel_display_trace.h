@@ -34,7 +34,7 @@ TRACE_EVENT(intel_pipe_enable,
 	    TP_fast_assign(
 			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 			   struct intel_crtc *it__;
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   for_each_intel_crtc(&dev_priv->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
@@ -63,7 +63,7 @@ TRACE_EVENT(intel_pipe_disable,
 	    TP_fast_assign(
 			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 			   struct intel_crtc *it__;
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   for_each_intel_crtc(&dev_priv->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
@@ -76,6 +76,29 @@ TRACE_EVENT(intel_pipe_disable,
 		      __entry->frame[PIPE_A], __entry->scanline[PIPE_A],
 		      __entry->frame[PIPE_B], __entry->scanline[PIPE_B],
 		      __entry->frame[PIPE_C], __entry->scanline[PIPE_C])
+);
+
+TRACE_EVENT(intel_crtc_flip_done,
+	    TP_PROTO(struct intel_crtc *crtc),
+	    TP_ARGS(crtc),
+
+	    TP_STRUCT__entry(
+			     __string(dev, __dev_name_kms(crtc))
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     ),
+
+	    TP_fast_assign(
+			   __assign_str(dev);
+			   __entry->pipe = crtc->pipe;
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   ),
+
+	    TP_printk("dev %s, pipe %c, frame=%u, scanline=%u",
+		      __get_str(dev), pipe_name(__entry->pipe),
+		      __entry->frame, __entry->scanline)
 );
 
 TRACE_EVENT(intel_pipe_crc,
@@ -91,7 +114,7 @@ TRACE_EVENT(intel_pipe_crc,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -119,7 +142,7 @@ TRACE_EVENT(intel_cpu_fifo_underrun,
 
 	    TP_fast_assign(
 			    struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -144,7 +167,7 @@ TRACE_EVENT(intel_pch_fifo_underrun,
 	    TP_fast_assign(
 			   enum pipe pipe = pch_transcoder;
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
-			   __assign_str(dev, __dev_name_i915(dev_priv));
+			   __assign_str(dev);
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -169,7 +192,7 @@ TRACE_EVENT(intel_memory_cxsr,
 
 	    TP_fast_assign(
 			   struct intel_crtc *crtc;
-			   __assign_str(dev, __dev_name_i915(dev_priv));
+			   __assign_str(dev);
 			   for_each_intel_crtc(&dev_priv->drm, crtc) {
 				   __entry->frame[crtc->pipe] = intel_crtc_get_vblank_counter(crtc);
 				   __entry->scanline[crtc->pipe] = intel_get_crtc_scanline(crtc);
@@ -209,7 +232,7 @@ TRACE_EVENT(g4x_wm,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -256,7 +279,7 @@ TRACE_EVENT(vlv_wm,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -293,7 +316,7 @@ TRACE_EVENT(vlv_fifo_size,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -306,6 +329,33 @@ TRACE_EVENT(vlv_fifo_size,
 		      __get_str(dev), pipe_name(__entry->pipe),
 		      __entry->frame, __entry->scanline,
 		      __entry->sprite0_start, __entry->sprite1_start, __entry->fifo_size)
+);
+
+TRACE_EVENT(intel_plane_async_flip,
+	    TP_PROTO(struct intel_plane *plane, struct intel_crtc *crtc, bool async_flip),
+	    TP_ARGS(plane, crtc, async_flip),
+
+	    TP_STRUCT__entry(
+			     __string(dev, __dev_name_kms(plane))
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __field(bool, async_flip)
+			     __string(name, plane->base.name)
+			     ),
+
+	    TP_fast_assign(
+			   __assign_str(dev);
+			   __assign_str(name);
+			   __entry->pipe = crtc->pipe;
+			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->async_flip = async_flip;
+			   ),
+
+	    TP_printk("dev %s, pipe %c, plane %s, frame=%u, scanline=%u, async_flip=%s",
+		      __get_str(dev), pipe_name(__entry->pipe), __get_str(name),
+		      __entry->frame, __entry->scanline, str_yes_no(__entry->async_flip))
 );
 
 TRACE_EVENT(intel_plane_update_noarm,
@@ -323,8 +373,8 @@ TRACE_EVENT(intel_plane_update_noarm,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+			   __assign_str(dev);
+			   __assign_str(name);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -354,8 +404,8 @@ TRACE_EVENT(intel_plane_update_arm,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+			   __assign_str(dev);
+			   __assign_str(name);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -383,8 +433,8 @@ TRACE_EVENT(intel_plane_disable_arm,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+			   __assign_str(dev);
+			   __assign_str(name);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -410,8 +460,8 @@ TRACE_EVENT(intel_fbc_activate,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
 									 plane->pipe);
-			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name)
+			   __assign_str(dev);
+			   __assign_str(name);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -437,8 +487,8 @@ TRACE_EVENT(intel_fbc_deactivate,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
 									 plane->pipe);
-			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name)
+			   __assign_str(dev);
+			   __assign_str(name);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -464,8 +514,8 @@ TRACE_EVENT(intel_fbc_nuke,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
 									 plane->pipe);
-			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name)
+			   __assign_str(dev);
+			   __assign_str(name);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -488,7 +538,7 @@ TRACE_EVENT(intel_crtc_vblank_work_start,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -511,7 +561,7 @@ TRACE_EVENT(intel_crtc_vblank_work_end,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -536,7 +586,7 @@ TRACE_EVENT(intel_pipe_update_start,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -564,7 +614,7 @@ TRACE_EVENT(intel_pipe_update_vblank_evaded,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = crtc->debug.start_vbl_count;
 			   __entry->scanline = crtc->debug.scanline_start;
@@ -590,7 +640,7 @@ TRACE_EVENT(intel_pipe_update_end,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_kms(crtc));
+			   __assign_str(dev);
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = frame;
 			   __entry->scanline = scanline_end;
@@ -613,7 +663,7 @@ TRACE_EVENT(intel_frontbuffer_invalidate,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_i915(i915));
+			   __assign_str(dev);
 			   __entry->frontbuffer_bits = frontbuffer_bits;
 			   __entry->origin = origin;
 			   ),
@@ -634,7 +684,7 @@ TRACE_EVENT(intel_frontbuffer_flush,
 			     ),
 
 	    TP_fast_assign(
-			   __assign_str(dev, __dev_name_i915(i915));
+			   __assign_str(dev);
 			   __entry->frontbuffer_bits = frontbuffer_bits;
 			   __entry->origin = origin;
 			   ),

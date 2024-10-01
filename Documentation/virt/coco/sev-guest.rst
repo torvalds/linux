@@ -67,6 +67,23 @@ counter (e.g. counter overflow), then -EIO will be returned.
                 };
         };
 
+The host ioctls are issued to a file descriptor of the /dev/sev device.
+The ioctl accepts the command ID/input structure documented below.
+
+::
+
+        struct sev_issue_cmd {
+                /* Command ID */
+                __u32 cmd;
+
+                /* Command request structure */
+                __u64 data;
+
+                /* Firmware error code on failure (see psp-sev.h) */
+                __u32 error;
+        };
+
+
 2.1 SNP_GET_REPORT
 ------------------
 
@@ -124,6 +141,60 @@ be updated with the expected value.
 
 See GHCB specification for further detail on how to parse the certificate blob.
 
+2.4 SNP_PLATFORM_STATUS
+-----------------------
+:Technology: sev-snp
+:Type: hypervisor ioctl cmd
+:Parameters (out): struct sev_user_data_snp_status
+:Returns (out): 0 on success, -negative on error
+
+The SNP_PLATFORM_STATUS command is used to query the SNP platform status. The
+status includes API major, minor version and more. See the SEV-SNP
+specification for further details.
+
+2.5 SNP_COMMIT
+--------------
+:Technology: sev-snp
+:Type: hypervisor ioctl cmd
+:Returns (out): 0 on success, -negative on error
+
+SNP_COMMIT is used to commit the currently installed firmware using the
+SEV-SNP firmware SNP_COMMIT command. This prevents roll-back to a previously
+committed firmware version. This will also update the reported TCB to match
+that of the currently installed firmware.
+
+2.6 SNP_SET_CONFIG
+------------------
+:Technology: sev-snp
+:Type: hypervisor ioctl cmd
+:Parameters (in): struct sev_user_data_snp_config
+:Returns (out): 0 on success, -negative on error
+
+SNP_SET_CONFIG is used to set the system-wide configuration such as
+reported TCB version in the attestation report. The command is similar
+to SNP_CONFIG command defined in the SEV-SNP spec. The current values of
+the firmware parameters affected by this command can be queried via
+SNP_PLATFORM_STATUS.
+
+2.7 SNP_VLEK_LOAD
+-----------------
+:Technology: sev-snp
+:Type: hypervisor ioctl cmd
+:Parameters (in): struct sev_user_data_snp_vlek_load
+:Returns (out): 0 on success, -negative on error
+
+When requesting an attestation report a guest is able to specify whether
+it wants SNP firmware to sign the report using either a Versioned Chip
+Endorsement Key (VCEK), which is derived from chip-unique secrets, or a
+Versioned Loaded Endorsement Key (VLEK) which is obtained from an AMD
+Key Derivation Service (KDS) and derived from seeds allocated to
+enrolled cloud service providers.
+
+In the case of VLEK keys, the SNP_VLEK_LOAD SNP command is used to load
+them into the system after obtaining them from the KDS, and corresponds
+closely to the SNP_VLEK_LOAD firmware command specified in the SEV-SNP
+spec.
+
 3. SEV-SNP CPUID Enforcement
 ============================
 
@@ -151,6 +222,17 @@ It is important to note that this last assurance is only useful if the kernel
 has taken care to make use of the SEV-SNP CPUID throughout all stages of boot.
 Otherwise, guest owner attestation provides no assurance that the kernel wasn't
 fed incorrect values at some point during boot.
+
+4. SEV Guest Driver Communication Key
+=====================================
+
+Communication between an SEV guest and the SEV firmware in the AMD Secure
+Processor (ASP, aka PSP) is protected by a VM Platform Communication Key
+(VMPCK). By default, the sev-guest driver uses the VMPCK associated with the
+VM Privilege Level (VMPL) at which the guest is running. Should this key be
+wiped by the sev-guest driver (see the driver for reasons why a VMPCK can be
+wiped), a different key can be used by reloading the sev-guest driver and
+specifying the desired key using the vmpck_id module parameter.
 
 
 Reference

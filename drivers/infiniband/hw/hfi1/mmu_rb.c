@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright(c) 2020 Cornelis Networks, Inc.
  * Copyright(c) 2016 - 2017 Intel Corporation.
@@ -40,7 +40,7 @@ static unsigned long mmu_node_last(struct mmu_rb_node *node)
 }
 
 int hfi1_mmu_rb_register(void *ops_arg,
-			 struct mmu_rb_ops *ops,
+			 const struct mmu_rb_ops *ops,
 			 struct workqueue_struct *wq,
 			 struct mmu_rb_handler **handler)
 {

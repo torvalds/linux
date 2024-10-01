@@ -320,18 +320,21 @@ static int alg_setkey_by_key_serial(struct alg_sock *ask, sockptr_t optval,
 
 	if (IS_ERR(ret)) {
 		up_read(&key->sem);
+		key_put(key);
 		return PTR_ERR(ret);
 	}
 
 	key_data = sock_kmalloc(&ask->sk, key_datalen, GFP_KERNEL);
 	if (!key_data) {
 		up_read(&key->sem);
+		key_put(key);
 		return -ENOMEM;
 	}
 
 	memcpy(key_data, ret, key_datalen);
 
 	up_read(&key->sem);
+	key_put(key);
 
 	err = type->setkey(ask->private, key_data, key_datalen);
 
@@ -404,7 +407,8 @@ unlock:
 	return err;
 }
 
-int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
+int af_alg_accept(struct sock *sk, struct socket *newsock,
+		  struct proto_accept_arg *arg)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	const struct af_alg_type *type;
@@ -419,7 +423,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
 	if (!type)
 		goto unlock;
 
-	sk2 = sk_alloc(sock_net(sk), PF_ALG, GFP_KERNEL, &alg_proto, kern);
+	sk2 = sk_alloc(sock_net(sk), PF_ALG, GFP_KERNEL, &alg_proto, arg->kern);
 	err = -ENOMEM;
 	if (!sk2)
 		goto unlock;
@@ -465,10 +469,10 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(af_alg_accept);
 
-static int alg_accept(struct socket *sock, struct socket *newsock, int flags,
-		      bool kern)
+static int alg_accept(struct socket *sock, struct socket *newsock,
+		      struct proto_accept_arg *arg)
 {
-	return af_alg_accept(sock->sk, newsock, kern);
+	return af_alg_accept(sock->sk, newsock, arg);
 }
 
 static const struct proto_ops alg_proto_ops = {
@@ -844,7 +848,7 @@ void af_alg_wmem_wakeup(struct sock *sk)
 		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN |
 							   EPOLLRDNORM |
 							   EPOLLRDBAND);
-	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+	sk_wake_async_rcu(sk, SOCK_WAKE_WAITD, POLL_IN);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(af_alg_wmem_wakeup);
@@ -911,7 +915,7 @@ static void af_alg_data_wakeup(struct sock *sk)
 		wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
 							   EPOLLRDNORM |
 							   EPOLLRDBAND);
-	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
+	sk_wake_async_rcu(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	rcu_read_unlock();
 }
 
@@ -1113,9 +1117,13 @@ EXPORT_SYMBOL_GPL(af_alg_sendmsg);
 void af_alg_free_resources(struct af_alg_async_req *areq)
 {
 	struct sock *sk = areq->sk;
+	struct af_alg_ctx *ctx;
 
 	af_alg_free_areq_sgls(areq);
 	sock_kfree_s(sk, areq, areq->areqlen);
+
+	ctx = alg_sk(sk)->private;
+	ctx->inflight = false;
 }
 EXPORT_SYMBOL_GPL(af_alg_free_resources);
 
@@ -1185,13 +1193,22 @@ EXPORT_SYMBOL_GPL(af_alg_poll);
 struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 					   unsigned int areqlen)
 {
-	struct af_alg_async_req *areq = sock_kmalloc(sk, areqlen, GFP_KERNEL);
+	struct af_alg_ctx *ctx = alg_sk(sk)->private;
+	struct af_alg_async_req *areq;
 
+	/* Only one AIO request can be in flight. */
+	if (ctx->inflight)
+		return ERR_PTR(-EBUSY);
+
+	areq = sock_kmalloc(sk, areqlen, GFP_KERNEL);
 	if (unlikely(!areq))
 		return ERR_PTR(-ENOMEM);
 
+	ctx->inflight = true;
+
 	areq->areqlen = areqlen;
 	areq->sk = sk;
+	areq->first_rsgl.sgl.sgt.sgl = areq->first_rsgl.sgl.sgl;
 	areq->last_rsgl = NULL;
 	INIT_LIST_HEAD(&areq->rsgl_list);
 	areq->tsgl = NULL;
@@ -1241,6 +1258,8 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 				return -ENOMEM;
 		}
 
+		rsgl->sgl.need_unpin =
+			iov_iter_extract_will_pin(&msg->msg_iter);
 		rsgl->sgl.sgt.sgl = rsgl->sgl.sgl;
 		rsgl->sgl.sgt.nents = 0;
 		rsgl->sgl.sgt.orig_nents = 0;
@@ -1255,8 +1274,6 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 		}
 
 		sg_mark_end(rsgl->sgl.sgt.sgl + rsgl->sgl.sgt.nents - 1);
-		rsgl->sgl.need_unpin =
-			iov_iter_extract_will_pin(&msg->msg_iter);
 
 		/* chain the new scatterlist with previous one */
 		if (areq->last_rsgl)
@@ -1300,5 +1317,6 @@ static void __exit af_alg_exit(void)
 
 module_init(af_alg_init);
 module_exit(af_alg_exit);
+MODULE_DESCRIPTION("Crypto userspace interface");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(AF_ALG);

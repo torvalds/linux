@@ -15,6 +15,7 @@
 #include "mdt.h"
 #include "alloc.h"
 #include "ifile.h"
+#include "cpfile.h"
 
 /**
  * struct nilfs_ifile_info - on-memory private data of ifile
@@ -55,13 +56,10 @@ int nilfs_ifile_create_inode(struct inode *ifile, ino_t *out_ino,
 	struct nilfs_palloc_req req;
 	int ret;
 
-	req.pr_entry_nr = 0;  /*
-			       * 0 says find free inode from beginning
-			       * of a group. dull code!!
-			       */
+	req.pr_entry_nr = NILFS_FIRST_INO(ifile->i_sb);
 	req.pr_entry_bh = NULL;
 
-	ret = nilfs_palloc_prepare_alloc_entry(ifile, &req);
+	ret = nilfs_palloc_prepare_alloc_entry(ifile, &req, false);
 	if (!ret) {
 		ret = nilfs_palloc_get_entry_block(ifile, req.pr_entry_nr, 1,
 						   &req.pr_entry_bh);
@@ -115,11 +113,11 @@ int nilfs_ifile_delete_inode(struct inode *ifile, ino_t ino)
 		return ret;
 	}
 
-	kaddr = kmap_atomic(req.pr_entry_bh->b_page);
+	kaddr = kmap_local_page(req.pr_entry_bh->b_page);
 	raw_inode = nilfs_palloc_block_get_entry(ifile, req.pr_entry_nr,
 						 req.pr_entry_bh, kaddr);
 	raw_inode->i_flags = 0;
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 
 	mark_buffer_dirty(req.pr_entry_bh);
 	brelse(req.pr_entry_bh);
@@ -173,14 +171,18 @@ int nilfs_ifile_count_free_inodes(struct inode *ifile,
  * nilfs_ifile_read - read or get ifile inode
  * @sb: super block instance
  * @root: root object
+ * @cno: number of checkpoint entry to read
  * @inode_size: size of an inode
- * @raw_inode: on-disk ifile inode
- * @inodep: buffer to store the inode
+ *
+ * Return: 0 on success, or the following negative error code on failure.
+ * * %-EINVAL	- Invalid checkpoint.
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-EIO	- I/O error (including metadata corruption).
  */
 int nilfs_ifile_read(struct super_block *sb, struct nilfs_root *root,
-		     size_t inode_size, struct nilfs_inode *raw_inode,
-		     struct inode **inodep)
+		     __u64 cno, size_t inode_size)
 {
+	struct the_nilfs *nilfs;
 	struct inode *ifile;
 	int err;
 
@@ -201,13 +203,13 @@ int nilfs_ifile_read(struct super_block *sb, struct nilfs_root *root,
 
 	nilfs_palloc_setup_cache(ifile, &NILFS_IFILE_I(ifile)->palloc_cache);
 
-	err = nilfs_read_inode_common(ifile, raw_inode);
+	nilfs = sb->s_fs_info;
+	err = nilfs_cpfile_read_checkpoint(nilfs->ns_cpfile, cno, root, ifile);
 	if (err)
 		goto failed;
 
 	unlock_new_inode(ifile);
  out:
-	*inodep = ifile;
 	return 0;
  failed:
 	iget_failed(ifile);

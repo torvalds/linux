@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1000,6 +1000,11 @@ void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
 
 static int iwl_pcie_rx_handle(struct iwl_trans *trans, int queue, int budget);
 
+static inline struct iwl_trans_pcie *iwl_netdev_to_trans_pcie(struct net_device *dev)
+{
+	return *(struct iwl_trans_pcie **)netdev_priv(dev);
+}
+
 static int iwl_pcie_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct iwl_rxq *rxq = container_of(napi, struct iwl_rxq, napi);
@@ -1007,7 +1012,7 @@ static int iwl_pcie_napi_poll(struct napi_struct *napi, int budget)
 	struct iwl_trans *trans;
 	int ret;
 
-	trans_pcie = container_of(napi->dev, struct iwl_trans_pcie, napi_dev);
+	trans_pcie = iwl_netdev_to_trans_pcie(napi->dev);
 	trans = trans_pcie->trans;
 
 	ret = iwl_pcie_rx_handle(trans, rxq->id, budget);
@@ -1034,7 +1039,7 @@ static int iwl_pcie_napi_poll_msix(struct napi_struct *napi, int budget)
 	struct iwl_trans *trans;
 	int ret;
 
-	trans_pcie = container_of(napi->dev, struct iwl_trans_pcie, napi_dev);
+	trans_pcie = iwl_netdev_to_trans_pcie(napi->dev);
 	trans = trans_pcie->trans;
 
 	ret = iwl_pcie_rx_handle(trans, rxq->id, budget);
@@ -1131,7 +1136,7 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 			if (trans_pcie->msix_enabled)
 				poll = iwl_pcie_napi_poll_msix;
 
-			netif_napi_add(&trans_pcie->napi_dev, &rxq->napi,
+			netif_napi_add(trans_pcie->napi_dev, &rxq->napi,
 				       poll);
 			napi_enable(&rxq->napi);
 		}
@@ -1296,7 +1301,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 				int i)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = trans->txqs.txq[trans->txqs.cmd.q_id];
+	struct iwl_txq *txq = trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id];
 	bool page_stolen = false;
 	int max_len = trans_pcie->rx_buf_bytes;
 	u32 offset = 0;
@@ -1351,8 +1356,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		if (len < sizeof(*pkt) || offset > max_len)
 			break;
 
-		trace_iwlwifi_dev_rx(trans->dev, trans, pkt, len);
-		trace_iwlwifi_dev_rx_data(trans->dev, trans, pkt, len);
+		maybe_trace_iwlwifi_dev_rx(trans, pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -1373,7 +1377,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			}
 		}
 
-		if (rxq->id == trans_pcie->def_rx_queue)
+		if (rxq->id == IWL_DEFAULT_RX_QUEUE)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
 				       &rxcb);
 		else
@@ -1385,7 +1389,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		 * if it is true then one of the handlers took the page.
 		 */
 
-		if (reclaim) {
+		if (reclaim && txq) {
 			u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 			int index = SEQ_TO_INDEX(sequence);
 			int cmd_index = iwl_txq_get_cmd_index(txq, index);
@@ -1510,7 +1514,7 @@ restart:
 	spin_lock(&rxq->lock);
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
-	r = le16_to_cpu(iwl_get_closed_rb_stts(trans, rxq)) & 0x0FFF;
+	r = iwl_get_closed_rb_stts(trans, rxq);
 	i = rxq->read;
 
 	/* W/A 9000 device step A0 wrap-around bug */
@@ -1660,9 +1664,7 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	IWL_DEBUG_ISR(trans, "[%d] Got interrupt\n", entry->entry);
 
 	local_bh_disable();
-	if (napi_schedule_prep(&rxq->napi))
-		__napi_schedule(&rxq->napi);
-	else
+	if (!napi_schedule(&rxq->napi))
 		iwl_pcie_clear_irq(trans, entry->entry);
 	local_bh_enable();
 
@@ -1676,6 +1678,7 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
  */
 static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
@@ -1692,9 +1695,9 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	}
 
 	for (i = 0; i < trans->trans_cfg->base_params->num_of_queues; i++) {
-		if (!trans->txqs.txq[i])
+		if (!trans_pcie->txqs.txq[i])
 			continue;
-		del_timer(&trans->txqs.txq[i]->stuck_timer);
+		del_timer(&trans_pcie->txqs.txq[i]->stuck_timer);
 	}
 
 	/* The STATUS_FW_ERROR bit is set in this function. This must happen
@@ -1785,7 +1788,7 @@ static u32 iwl_pcie_int_cause_ict(struct iwl_trans *trans)
 	return inta;
 }
 
-void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans)
+void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans, bool from_irq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
@@ -1809,7 +1812,7 @@ void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans)
 	isr_stats->rfkill++;
 
 	if (prev != report)
-		iwl_trans_pcie_rf_kill(trans, report);
+		iwl_trans_pcie_rf_kill(trans, report, from_irq);
 	mutex_unlock(&trans_pcie->mutex);
 
 	if (hw_rfkill) {
@@ -1949,7 +1952,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
-		iwl_pcie_handle_rfkill_irq(trans);
+		iwl_pcie_handle_rfkill_irq(trans, true);
 		handled |= CSR_INT_BIT_RF_KILL;
 	}
 
@@ -2291,6 +2294,12 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	else
 		sw_err = inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR;
 
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_TOP_FATAL_ERR) {
+		IWL_ERR(trans, "TOP Fatal error detected, inta_hw=0x%x.\n",
+			inta_hw);
+		/* TODO: PLDR flow required here for >= Bz */
+	}
+
 	/* Error detected by uCode */
 	if ((inta_fh & MSIX_FH_INT_CAUSES_FH_ERR) || sw_err) {
 		IWL_ERR(trans,
@@ -2366,7 +2375,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 
 	/* HW RF KILL switch toggled */
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL)
-		iwl_pcie_handle_rfkill_irq(trans);
+		iwl_pcie_handle_rfkill_irq(trans, true);
 
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_HW_ERR) {
 		IWL_ERR(trans,

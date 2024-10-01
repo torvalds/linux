@@ -76,7 +76,6 @@
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 		voltage-ranges = <3200 3400>;
-		pl022,hierarchy = <0>;
 		pl022,interface = <0>;
 		pl022,com-mode = <0x0>;
 		pl022,rx-level-trig = <0>;

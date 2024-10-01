@@ -19,9 +19,10 @@
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/libata.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 
 #include <asm/cacheflush.h>
@@ -619,7 +620,6 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.bmdma_start		= mpc52xx_bmdma_start,
 	.bmdma_stop		= mpc52xx_bmdma_stop,
 	.bmdma_status		= mpc52xx_bmdma_status,
-	.qc_prep		= ata_noop_qc_prep,
 };
 
 static int mpc52xx_ata_init_one(struct device *dev,
@@ -800,8 +800,7 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 	return rv;
 }
 
-static int
-mpc52xx_ata_remove(struct platform_device *op)
+static void mpc52xx_ata_remove(struct platform_device *op)
 {
 	struct ata_host *host = platform_get_drvdata(op);
 	struct mpc52xx_ata_priv *priv = host->private_data;
@@ -815,8 +814,6 @@ mpc52xx_ata_remove(struct platform_device *op)
 	irq_dispose_mapping(task_irq);
 	bcom_ata_release(priv->dmatsk);
 	irq_dispose_mapping(priv->ata_irq);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -857,7 +854,7 @@ static const struct of_device_id mpc52xx_ata_of_match[] = {
 
 static struct platform_driver mpc52xx_ata_of_platform_driver = {
 	.probe		= mpc52xx_ata_probe,
-	.remove		= mpc52xx_ata_remove,
+	.remove_new	= mpc52xx_ata_remove,
 #ifdef CONFIG_PM_SLEEP
 	.suspend	= mpc52xx_ata_suspend,
 	.resume		= mpc52xx_ata_resume,

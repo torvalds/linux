@@ -25,6 +25,8 @@
 #include <linux/completion.h>
 #include <linux/file.h>
 #include <linux/magic.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 
 /* This is the range of ioctl() numbers we claim as ours */
 #define AUTOFS_IOC_FIRST     AUTOFS_IOC_READY
@@ -60,6 +62,7 @@ struct autofs_info {
 	struct list_head expiring;
 
 	struct autofs_sb_info *sbi;
+	unsigned long exp_timeout;
 	unsigned long last_used;
 	int count;
 
@@ -79,6 +82,9 @@ struct autofs_info {
 					*/
 #define AUTOFS_INF_PENDING	(1<<2) /* dentry pending mount */
 
+#define AUTOFS_INF_EXPIRE_SET	(1<<3) /* per-dentry expire timeout set for
+					  this mount point.
+					*/
 struct autofs_wait_queue {
 	wait_queue_head_t queue;
 	struct autofs_wait_queue *next;
@@ -205,20 +211,34 @@ static inline void managed_dentry_clear_managed(struct dentry *dentry)
 
 /* Initializing function */
 
-int autofs_fill_super(struct super_block *, void *, int);
+extern const struct fs_parameter_spec autofs_param_specs[];
+int autofs_init_fs_context(struct fs_context *fc);
 struct autofs_info *autofs_new_ino(struct autofs_sb_info *);
 void autofs_clean_ino(struct autofs_info *);
 
-static inline int autofs_prepare_pipe(struct file *pipe)
+static inline int autofs_check_pipe(struct file *pipe)
 {
 	if (!(pipe->f_mode & FMODE_CAN_WRITE))
 		return -EINVAL;
 	if (!S_ISFIFO(file_inode(pipe)->i_mode))
 		return -EINVAL;
+	return 0;
+}
+
+static inline void autofs_set_packet_pipe_flags(struct file *pipe)
+{
 	/* We want a packet pipe */
 	pipe->f_flags |= O_DIRECT;
 	/* We don't expect -EAGAIN */
 	pipe->f_flags &= ~O_NONBLOCK;
+}
+
+static inline int autofs_prepare_pipe(struct file *pipe)
+{
+	int ret = autofs_check_pipe(pipe);
+	if (ret < 0)
+		return ret;
+	autofs_set_packet_pipe_flags(pipe);
 	return 0;
 }
 

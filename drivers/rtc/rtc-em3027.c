@@ -129,7 +129,7 @@ static int em3027_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id em3027_id[] = {
-	{ "em3027", 0 },
+	{ "em3027" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, em3027_id);

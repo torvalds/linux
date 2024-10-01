@@ -26,6 +26,7 @@ u64 *hclge_comm_tqps_get_stats(struct hnae3_handle *handle, u64 *data)
 
 	return buff;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_tqps_get_stats);
 
 int hclge_comm_tqps_get_sset_count(struct hnae3_handle *handle)
 {
@@ -33,6 +34,7 @@ int hclge_comm_tqps_get_sset_count(struct hnae3_handle *handle)
 
 	return kinfo->num_tqps * HCLGE_COMM_QUEUE_PAIR_SIZE;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_tqps_get_sset_count);
 
 u8 *hclge_comm_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 {
@@ -56,6 +58,7 @@ u8 *hclge_comm_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 
 	return buff;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_tqps_get_strings);
 
 int hclge_comm_tqps_update_stats(struct hnae3_handle *handle,
 				 struct hclge_comm_hw *hw)
@@ -85,7 +88,7 @@ int hclge_comm_tqps_update_stats(struct hnae3_handle *handle,
 		hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_TX_STATS,
 						true);
 
-		desc.data[0] = cpu_to_le32(tqp->index & 0x1ff);
+		desc.data[0] = cpu_to_le32(tqp->index);
 		ret = hclge_comm_cmd_send(hw, &desc, 1);
 		if (ret) {
 			dev_err(&hw->cmq.csq.pdev->dev,
@@ -99,6 +102,7 @@ int hclge_comm_tqps_update_stats(struct hnae3_handle *handle,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_tqps_update_stats);
 
 void hclge_comm_reset_tqp_stats(struct hnae3_handle *handle)
 {
@@ -113,3 +117,4 @@ void hclge_comm_reset_tqp_stats(struct hnae3_handle *handle)
 		memset(&tqp->tqp_stats, 0, sizeof(tqp->tqp_stats));
 	}
 }
+EXPORT_SYMBOL_GPL(hclge_comm_reset_tqp_stats);

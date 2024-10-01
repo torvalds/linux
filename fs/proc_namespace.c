@@ -61,7 +61,7 @@ static int show_sb_opts(struct seq_file *m, struct super_block *sb)
 	return security_sb_show_options(m, sb);
 }
 
-static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
+static void show_vfsmnt_opts(struct seq_file *m, struct vfsmount *mnt)
 {
 	static const struct proc_fs_opts mnt_opts[] = {
 		{ MNT_NOSUID, ",nosuid" },
@@ -124,7 +124,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	err = show_sb_opts(m, sb);
 	if (err)
 		goto out;
-	show_mnt_opts(m, mnt);
+	show_vfsmnt_opts(m, mnt);
 	if (sb->s_op->show_options)
 		err = sb->s_op->show_options(m, mnt_path.dentry);
 	seq_puts(m, " 0 0\n");
@@ -142,13 +142,9 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 
 	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
-	if (sb->s_op->show_path) {
-		err = sb->s_op->show_path(m, mnt->mnt_root);
-		if (err)
-			goto out;
-	} else {
-		seq_dentry(m, mnt->mnt_root, " \t\n\\");
-	}
+	err = show_path(m, mnt->mnt_root);
+	if (err)
+		goto out;
 	seq_putc(m, ' ');
 
 	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
@@ -157,7 +153,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 		goto out;
 
 	seq_puts(m, mnt->mnt_flags & MNT_READONLY ? " ro" : " rw");
-	show_mnt_opts(m, mnt);
+	show_vfsmnt_opts(m, mnt);
 
 	/* Tagged fields ("foo:X" or "bar") */
 	if (IS_MNT_SHARED(r))
@@ -283,8 +279,6 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 	p->ns = ns;
 	p->root = root;
 	p->show = show;
-	INIT_LIST_HEAD(&p->cursor.mnt_list);
-	p->cursor.mnt.mnt_flags = MNT_CURSOR;
 
 	return 0;
 
@@ -301,7 +295,6 @@ static int mounts_release(struct inode *inode, struct file *file)
 	struct seq_file *m = file->private_data;
 	struct proc_mounts *p = m->private;
 	path_put(&p->root);
-	mnt_cursor_del(p->ns, &p->cursor);
 	put_mnt_ns(p->ns);
 	return seq_release_private(inode, file);
 }

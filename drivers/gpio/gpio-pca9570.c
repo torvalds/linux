@@ -30,7 +30,7 @@ struct pca9570_chip_data {
 /**
  * struct pca9570 - GPIO driver data
  * @chip: GPIO controller chip
- * @p_data: GPIO controller platform data
+ * @chip_data: GPIO controller platform data
  * @lock: Protects write sequences
  * @out: Buffer for device register
  */

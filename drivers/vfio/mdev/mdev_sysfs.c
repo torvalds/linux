@@ -160,7 +160,7 @@ static void mdev_type_release(struct kobject *kobj)
 	put_device(type->parent->dev);
 }
 
-static struct kobj_type mdev_type_ktype = {
+static const struct kobj_type mdev_type_ktype = {
 	.sysfs_ops	= &mdev_type_sysfs_ops,
 	.release	= mdev_type_release,
 	.default_groups	= mdev_type_groups,
@@ -233,7 +233,8 @@ int parent_create_sysfs_files(struct mdev_parent *parent)
 out_err:
 	while (--i >= 0)
 		mdev_type_remove(parent->types[i]);
-	return 0;
+	kset_unregister(parent->mdev_types_kset);
+	return ret;
 }
 
 static ssize_t remove_store(struct device *dev, struct device_attribute *attr,

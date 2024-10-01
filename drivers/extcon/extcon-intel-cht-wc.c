@@ -461,14 +461,6 @@ static int cht_wc_extcon_psy_get_prop(struct power_supply *psy,
 	return 0;
 }
 
-static const enum power_supply_usb_type cht_wc_extcon_psy_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_SDP,
-	POWER_SUPPLY_USB_TYPE_CDP,
-	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_ACA,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-};
-
 static const enum power_supply_property cht_wc_extcon_psy_props[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_ONLINE,
@@ -477,8 +469,11 @@ static const enum power_supply_property cht_wc_extcon_psy_props[] = {
 static const struct power_supply_desc cht_wc_extcon_psy_desc = {
 	.name = "cht_wcove_pwrsrc",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = cht_wc_extcon_psy_usb_types,
-	.num_usb_types = ARRAY_SIZE(cht_wc_extcon_psy_usb_types),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_ACA) |
+		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
 	.properties = cht_wc_extcon_psy_props,
 	.num_properties = ARRAY_SIZE(cht_wc_extcon_psy_props),
 	.get_property = cht_wc_extcon_psy_get_prop,
@@ -617,13 +612,11 @@ disable_sw_control:
 	return ret;
 }
 
-static int cht_wc_extcon_remove(struct platform_device *pdev)
+static void cht_wc_extcon_remove(struct platform_device *pdev)
 {
 	struct cht_wc_extcon_data *ext = platform_get_drvdata(pdev);
 
 	cht_wc_extcon_sw_control(ext, false);
-
-	return 0;
 }
 
 static const struct platform_device_id cht_wc_extcon_table[] = {
@@ -634,7 +627,7 @@ MODULE_DEVICE_TABLE(platform, cht_wc_extcon_table);
 
 static struct platform_driver cht_wc_extcon_driver = {
 	.probe = cht_wc_extcon_probe,
-	.remove = cht_wc_extcon_remove,
+	.remove_new = cht_wc_extcon_remove,
 	.id_table = cht_wc_extcon_table,
 	.driver = {
 		.name = "cht_wcove_pwrsrc",

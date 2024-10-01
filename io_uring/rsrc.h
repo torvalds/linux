@@ -2,10 +2,6 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
-#include <net/af_unix.h>
-
-#include "alloc_cache.h"
-
 #define IO_NODE_ALLOC_CACHE_MAX 32
 
 #define IO_RSRC_TAG_TABLE_SHIFT	(PAGE_SHIFT - 3)
@@ -26,8 +22,6 @@ struct io_rsrc_put {
 	};
 };
 
-typedef void (rsrc_put_fn)(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
-
 struct io_rsrc_data {
 	struct io_ring_ctx		*ctx;
 
@@ -38,10 +32,7 @@ struct io_rsrc_data {
 };
 
 struct io_rsrc_node {
-	union {
-		struct io_cache_entry		cache;
-		struct io_ring_ctx		*ctx;
-	};
+	struct io_ring_ctx		*ctx;
 	int				refs;
 	bool				empty;
 	u16				type;
@@ -51,13 +42,22 @@ struct io_rsrc_node {
 
 struct io_mapped_ubuf {
 	u64		ubuf;
-	u64		ubuf_end;
+	unsigned int	len;
 	unsigned int	nr_bvecs;
+	unsigned int    folio_shift;
+	refcount_t	refs;
 	unsigned long	acct_pages;
-	struct bio_vec	bvec[];
+	struct bio_vec	bvec[] __counted_by(nr_bvecs);
 };
 
-void io_rsrc_put_tw(struct callback_head *cb);
+struct io_imu_folio_data {
+	/* Head folio can be partially included in the fixed buf */
+	unsigned int	nr_pages_head;
+	/* For non-head/tail folios, has to be fully included */
+	unsigned int	nr_pages_mid;
+	unsigned int	folio_shift;
+};
+
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
@@ -67,6 +67,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 			   struct io_mapped_ubuf *imu,
 			   u64 buf_addr, size_t len);
 
+int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg);
 void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx);
 int io_sqe_buffers_unregister(struct io_ring_ctx *ctx);
 int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
@@ -75,28 +76,6 @@ void __io_sqe_files_unregister(struct io_ring_ctx *ctx);
 int io_sqe_files_unregister(struct io_ring_ctx *ctx);
 int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			  unsigned nr_args, u64 __user *tags);
-
-int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file);
-
-#if defined(CONFIG_UNIX)
-static inline bool io_file_need_scm(struct file *filp)
-{
-	return !!unix_get_socket(filp);
-}
-#else
-static inline bool io_file_need_scm(struct file *filp)
-{
-	return false;
-}
-#endif
-
-static inline int io_scm_file_account(struct io_ring_ctx *ctx,
-				      struct file *file)
-{
-	if (likely(!io_file_need_scm(file)))
-		return 0;
-	return __io_scm_file_account(ctx, file);
-}
 
 int io_register_files_update(struct io_ring_ctx *ctx, void __user *arg,
 			     unsigned nr_args);
@@ -113,16 +92,18 @@ static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node
 		io_rsrc_node_ref_zero(node);
 }
 
-static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
-					  struct io_ring_ctx *ctx)
-{
-	io_put_rsrc_node(ctx, req->rsrc_node);
-}
-
 static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
 				       struct io_rsrc_node *node)
 {
 	node->refs++;
+}
+
+static inline void __io_req_set_rsrc_node(struct io_kiocb *req,
+					  struct io_ring_ctx *ctx)
+{
+	lockdep_assert_held(&ctx->uring_lock);
+	req->rsrc_node = ctx->rsrc_node;
+	io_charge_rsrc_node(ctx, ctx->rsrc_node);
 }
 
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,
@@ -131,11 +112,7 @@ static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 {
 	if (!req->rsrc_node) {
 		io_ring_submit_lock(ctx, issue_flags);
-
-		lockdep_assert_held(&ctx->uring_lock);
-
-		req->rsrc_node = ctx->rsrc_node;
-		io_charge_rsrc_node(ctx, ctx->rsrc_node);
+		__io_req_set_rsrc_node(req, ctx);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 }

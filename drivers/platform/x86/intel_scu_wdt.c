@@ -9,13 +9,13 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/intel-mid_wdt.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/intel-mid.h>
 #include <asm/io_apic.h>
 #include <asm/hw_irq.h>
+
+#include <linux/platform_data/x86/intel-mid_wdt.h>
 
 #define TANGIER_EXT_TIMER0_MSI 12
 
@@ -51,7 +51,7 @@ static struct intel_mid_wdt_pdata tangier_pdata = {
 };
 
 static const struct x86_cpu_id intel_mid_cpu_ids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_MID, &tangier_pdata),
+	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_MID, &tangier_pdata),
 	{}
 };
 

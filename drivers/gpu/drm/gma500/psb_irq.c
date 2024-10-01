@@ -327,6 +327,8 @@ int gma_irq_install(struct drm_device *dev)
 
 	gma_irq_postinstall(dev);
 
+	dev_priv->irq_enabled = true;
+
 	return 0;
 }
 
@@ -336,6 +338,9 @@ void gma_irq_uninstall(struct drm_device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long irqflags;
 	unsigned int i;
+
+	if (!dev_priv->irq_enabled)
+		return;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 

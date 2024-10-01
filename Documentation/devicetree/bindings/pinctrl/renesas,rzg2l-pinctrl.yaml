@@ -25,6 +25,8 @@ properties:
           - enum:
               - renesas,r9a07g043-pinctrl # RZ/G2UL{Type-1,Type-2} and RZ/Five
               - renesas,r9a07g044-pinctrl # RZ/G2{L,LC}
+              - renesas,r9a08g045-pinctrl # RZ/G3S
+              - renesas,r9a09g057-pinctrl # RZ/V2H(P)
 
       - items:
           - enum:
@@ -65,14 +67,19 @@ properties:
     maxItems: 1
 
   resets:
-    items:
-      - description: GPIO_RSTN signal
-      - description: GPIO_PORT_RESETN signal
-      - description: GPIO_SPARE_RESETN signal
+    oneOf:
+      - items:
+          - description: GPIO_RSTN signal
+          - description: GPIO_PORT_RESETN signal
+          - description: GPIO_SPARE_RESETN signal
+      - items:
+          - description: PFC main reset
+          - description: Reset for the control register related to WDTUDFCA and WDTUDFFCM pins
 
 additionalProperties:
   anyOf:
     - type: object
+      additionalProperties: false
       allOf:
         - $ref: pincfg-node.yaml#
         - $ref: pinmux-node.yaml#
@@ -83,7 +90,6 @@ additionalProperties:
         Client device subnodes use below standard properties.
 
       properties:
-        phandle: true
         pinmux:
           description:
             Values are constructed from GPIO port number, pin number, and
@@ -92,6 +98,10 @@ additionalProperties:
         pins: true
         drive-strength:
           enum: [ 2, 4, 8, 12 ]
+        drive-strength-microamp:
+          enum: [ 1900, 2200, 4000, 4400, 4500, 4700, 5200, 5300, 5700,
+                  5800, 6000, 6050, 6100, 6550, 6800, 7000, 8000, 9000,
+                  10000 ]
         output-impedance-ohms:
           enum: [ 33, 50, 66, 100 ]
         power-source:
@@ -100,20 +110,43 @@ additionalProperties:
         slew-rate: true
         gpio-hog: true
         gpios: true
+        input: true
         input-enable: true
+        output-enable: true
         output-high: true
         output-low: true
         line-name: true
+        bias-disable: true
+        bias-pull-down: true
+        bias-pull-up: true
+        renesas,output-impedance:
+          description:
+            Output impedance for pins on the RZ/V2H(P) SoC. The value provided by this
+            property corresponds to register bit values that can be set in the PFC_IOLH_mn
+            register, which adjusts the drive strength value and is pin-dependent.
+          $ref: /schemas/types.yaml#/definitions/uint32
+          enum: [0, 1, 2, 3]
 
     - type: object
-      properties:
-        phandle: true
-
       additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 
 allOf:
   - $ref: pinctrl.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g057-pinctrl
+    then:
+      properties:
+        resets:
+          maxItems: 2
+    else:
+      properties:
+        resets:
+          minItems: 3
 
 required:
   - compatible
@@ -168,17 +201,17 @@ examples:
                     sd1_mux {
                             pinmux = <RZG2L_PORT_PINMUX(19, 0, 1)>, /* CD */
                                      <RZG2L_PORT_PINMUX(19, 1, 1)>; /* WP */
-                            power-source  = <3300>;
+                            power-source = <3300>;
                     };
 
                     sd1_data {
                             pins = "SD1_DATA0", "SD1_DATA1", "SD1_DATA2", "SD1_DATA3";
-                            power-source  = <3300>;
+                            power-source = <3300>;
                     };
 
                     sd1_ctrl {
                             pins = "SD1_CLK", "SD1_CMD";
-                            power-source  = <3300>;
+                            power-source = <3300>;
                     };
             };
     };

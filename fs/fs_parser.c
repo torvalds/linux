@@ -83,8 +83,8 @@ static const struct fs_parameter_spec *fs_lookup_key(
 }
 
 /*
- * fs_parse - Parse a filesystem configuration parameter
- * @fc: The filesystem context to log errors through.
+ * __fs_parse - Parse a filesystem configuration parameter
+ * @log: The filesystem context to log errors through.
  * @desc: The parameter description to use.
  * @param: The parameter.
  * @result: Where to place the result of the parse
@@ -307,6 +307,40 @@ int fs_param_is_fd(struct p_log *log, const struct fs_parameter_spec *p,
 	return fs_param_bad_value(log, param);
 }
 EXPORT_SYMBOL(fs_param_is_fd);
+
+int fs_param_is_uid(struct p_log *log, const struct fs_parameter_spec *p,
+		    struct fs_parameter *param, struct fs_parse_result *result)
+{
+	kuid_t uid;
+
+	if (fs_param_is_u32(log, p, param, result) != 0)
+		return fs_param_bad_value(log, param);
+
+	uid = make_kuid(current_user_ns(), result->uint_32);
+	if (!uid_valid(uid))
+		return inval_plog(log, "Invalid uid '%s'", param->string);
+
+	result->uid = uid;
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_uid);
+
+int fs_param_is_gid(struct p_log *log, const struct fs_parameter_spec *p,
+		    struct fs_parameter *param, struct fs_parse_result *result)
+{
+	kgid_t gid;
+
+	if (fs_param_is_u32(log, p, param, result) != 0)
+		return fs_param_bad_value(log, param);
+
+	gid = make_kgid(current_user_ns(), result->uint_32);
+	if (!gid_valid(gid))
+		return inval_plog(log, "Invalid gid '%s'", param->string);
+
+	result->gid = gid;
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_gid);
 
 int fs_param_is_blockdev(struct p_log *log, const struct fs_parameter_spec *p,
 		  struct fs_parameter *param, struct fs_parse_result *result)

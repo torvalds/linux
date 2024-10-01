@@ -96,6 +96,7 @@ static const struct address_space_operations befs_symlink_aops = {
 };
 
 static const struct export_operations befs_export_operations = {
+	.encode_fh	= generic_encode_ino32_fh,
 	.fh_to_dentry	= befs_fh_to_dentry,
 	.fh_to_parent	= befs_fh_to_parent,
 	.get_parent	= befs_get_parent,
@@ -360,11 +361,11 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	 * for indexing purposes. (PFD, page 54)
 	 */
 
-	inode->i_mtime.tv_sec =
-	    fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16;
-	inode->i_mtime.tv_nsec = 0;   /* lower 16 bits are not a time */
-	inode->i_ctime = inode->i_mtime;
-	inode->i_atime = inode->i_mtime;
+	inode_set_mtime(inode,
+			fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16,
+			0);/* lower 16 bits are not a time */
+	inode_set_ctime_to_ts(inode, inode_get_mtime(inode));
+	inode_set_atime_to_ts(inode, inode_get_mtime(inode));
 
 	befs_ino->i_inode_num = fsrun_to_cpu(sb, raw_inode->inode_num);
 	befs_ino->i_parent = fsrun_to_cpu(sb, raw_inode->parent);
@@ -434,8 +435,7 @@ befs_init_inodecache(void)
 {
 	befs_inode_cachep = kmem_cache_create_usercopy("befs_inode_cache",
 				sizeof(struct befs_inode_info), 0,
-				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-					SLAB_ACCOUNT),
+				SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
 				offsetof(struct befs_inode_info,
 					i_data.symlink),
 				sizeof_field(struct befs_inode_info,
@@ -475,6 +475,7 @@ static int befs_symlink_read_folio(struct file *unused, struct folio *folio)
 	befs_data_stream *data = &befs_ino->i_data.ds;
 	befs_off_t len = data->size;
 	char *link = folio_address(folio);
+	int err = -EIO;
 
 	if (len == 0 || len > PAGE_SIZE) {
 		befs_error(sb, "Long symlink with illegal length");
@@ -487,13 +488,10 @@ static int befs_symlink_read_folio(struct file *unused, struct folio *folio)
 		goto fail;
 	}
 	link[len - 1] = '\0';
-	folio_mark_uptodate(folio);
-	folio_unlock(folio);
-	return 0;
+	err = 0;
 fail:
-	folio_set_error(folio);
-	folio_unlock(folio);
-	return -EIO;
+	folio_end_read(folio, err == 0);
+	return err;
 }
 
 /*
@@ -670,9 +668,6 @@ static struct dentry *befs_get_parent(struct dentry *child)
 
 	parent = befs_iget(child->d_sb,
 			   (unsigned long)befs_ino->i_parent.start);
-	if (IS_ERR(parent))
-		return ERR_CAST(parent);
-
 	return d_obtain_alias(parent);
 }
 

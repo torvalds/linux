@@ -1490,7 +1490,7 @@ int cn23xx_get_vf_stats(struct octeon_device *oct, int vfidx,
 	mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
 	mbox_cmd.recv_len = 0;
 	mbox_cmd.recv_status = 0;
-	mbox_cmd.fn = (octeon_mbox_callback_t)cn23xx_get_vf_stats_callback;
+	mbox_cmd.fn = cn23xx_get_vf_stats_callback;
 	ctx.stats = stats;
 	atomic_set(&ctx.status, 0);
 	mbox_cmd.fn_arg = (void *)&ctx;

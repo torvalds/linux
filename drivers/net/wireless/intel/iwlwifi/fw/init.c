@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2021, 2024 Intel Corporation
  */
 #include "iwl-drv.h"
 #include "runtime.h"
@@ -135,7 +135,9 @@ int iwl_configure_rxq(struct iwl_fw_runtime *fwrt)
 		struct iwl_trans_rxq_dma_data data;
 
 		cmd->data[i].q_num = i + 1;
-		iwl_trans_get_rxq_dma_data(fwrt->trans, i + 1, &data);
+		ret = iwl_trans_get_rxq_dma_data(fwrt->trans, i + 1, &data);
+		if (ret)
+			goto out;
 
 		cmd->data[i].fr_bd_cb = cpu_to_le64(data.fr_bd_cb);
 		cmd->data[i].urbd_stts_wrptr =
@@ -149,6 +151,7 @@ int iwl_configure_rxq(struct iwl_fw_runtime *fwrt)
 
 	ret = iwl_trans_send_cmd(fwrt->trans, &hcmd);
 
+out:
 	kfree(cmd);
 
 	if (ret)

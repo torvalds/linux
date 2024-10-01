@@ -11,23 +11,10 @@
 struct mmc_data;
 struct mmc_request;
 
-enum mmc_blk_status {
-	MMC_BLK_SUCCESS = 0,
-	MMC_BLK_PARTIAL,
-	MMC_BLK_CMD_ERR,
-	MMC_BLK_RETRY,
-	MMC_BLK_ABORT,
-	MMC_BLK_DATA_ERR,
-	MMC_BLK_ECC_ERR,
-	MMC_BLK_NOMEDIUM,
-	MMC_BLK_NEW_REQUEST,
-};
-
 struct mmc_command {
 	u32			opcode;
 	u32			arg;
 #define MMC_CMD23_ARG_REL_WR	(1 << 31)
-#define MMC_CMD23_ARG_PACKED	((0 << 31) | (1 << 30))
 #define MMC_CMD23_ARG_TAG_REQ	(1 << 29)
 	u32			resp[4];
 	unsigned int		flags;		/* expected response type */

@@ -787,6 +787,9 @@ static void swim_cleanup_floppy_disk(struct floppy_state *fs)
 
 static int swim_floppy_init(struct swim_priv *swd)
 {
+	struct queue_limits lim = {
+		.features		= BLK_FEAT_ROTATIONAL,
+	};
 	int err;
 	int drive;
 	struct swim __iomem *base = swd->base;
@@ -820,7 +823,7 @@ static int swim_floppy_init(struct swim_priv *swd)
 			goto exit_put_disks;
 
 		swd->unit[drive].disk =
-			blk_mq_alloc_disk(&swd->unit[drive].tag_set,
+			blk_mq_alloc_disk(&swd->unit[drive].tag_set, &lim,
 					  &swd->unit[drive]);
 		if (IS_ERR(swd->unit[drive].disk)) {
 			blk_mq_free_tag_set(&swd->unit[drive].tag_set);
@@ -916,7 +919,7 @@ out:
 	return ret;
 }
 
-static int swim_remove(struct platform_device *dev)
+static void swim_remove(struct platform_device *dev)
 {
 	struct swim_priv *swd = platform_get_drvdata(dev);
 	int drive;
@@ -937,13 +940,11 @@ static int swim_remove(struct platform_device *dev)
 		release_mem_region(res->start, resource_size(res));
 
 	kfree(swd);
-
-	return 0;
 }
 
 static struct platform_driver swim_driver = {
 	.probe  = swim_probe,
-	.remove = swim_remove,
+	.remove_new = swim_remove,
 	.driver   = {
 		.name	= CARDNAME,
 	},

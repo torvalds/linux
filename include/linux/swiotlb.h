@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/limits.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 struct device;
 struct page;
@@ -41,29 +42,10 @@ int swiotlb_init_late(size_t size, gfp_t gfp_mask,
 	int (*remap)(void *tlb, unsigned long nslabs));
 extern void __init swiotlb_update_mem_attributes(void);
 
-phys_addr_t swiotlb_tbl_map_single(struct device *hwdev, phys_addr_t phys,
-		size_t mapping_size, size_t alloc_size,
-		unsigned int alloc_aligned_mask, enum dma_data_direction dir,
-		unsigned long attrs);
-
-extern void swiotlb_tbl_unmap_single(struct device *hwdev,
-				     phys_addr_t tlb_addr,
-				     size_t mapping_size,
-				     enum dma_data_direction dir,
-				     unsigned long attrs);
-
-void swiotlb_sync_single_for_device(struct device *dev, phys_addr_t tlb_addr,
-		size_t size, enum dma_data_direction dir);
-void swiotlb_sync_single_for_cpu(struct device *dev, phys_addr_t tlb_addr,
-		size_t size, enum dma_data_direction dir);
-dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
-		size_t size, enum dma_data_direction dir, unsigned long attrs);
-
 #ifdef CONFIG_SWIOTLB
 
 /**
- * struct io_tlb_mem - IO TLB Memory Pool Descriptor
- *
+ * struct io_tlb_pool - IO TLB memory pool descriptor
  * @start:	The start address of the swiotlb memory pool. Used to do a quick
  *		range check to see if the memory was in fact allocated by this
  *		API.
@@ -73,50 +55,118 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @vaddr:	The vaddr of the swiotlb memory pool. The swiotlb memory pool
  *		may be remapped in the memory encrypted case and store virtual
  *		address for bounce buffer operation.
- * @nslabs:	The number of IO TLB blocks (in groups of 64) between @start and
- *		@end. For default swiotlb, this is command line adjustable via
- *		setup_io_tlb_npages.
- * @list:	The free list describing the number of free entries available
- *		from each index.
- * @orig_addr:	The original address corresponding to a mapped entry.
- * @alloc_size:	Size of the allocated buffer.
+ * @nslabs:	The number of IO TLB slots between @start and @end. For the
+ *		default swiotlb, this can be adjusted with a boot parameter,
+ *		see setup_io_tlb_npages().
+ * @late_alloc:	%true if allocated using the page allocator.
+ * @nareas:	Number of areas in the pool.
+ * @area_nslabs: Number of slots in each area.
+ * @areas:	Array of memory area descriptors.
+ * @slots:	Array of slot descriptors.
+ * @node:	Member of the IO TLB memory pool list.
+ * @rcu:	RCU head for swiotlb_dyn_free().
+ * @transient:  %true if transient memory pool.
+ */
+struct io_tlb_pool {
+	phys_addr_t start;
+	phys_addr_t end;
+	void *vaddr;
+	unsigned long nslabs;
+	bool late_alloc;
+	unsigned int nareas;
+	unsigned int area_nslabs;
+	struct io_tlb_area *areas;
+	struct io_tlb_slot *slots;
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+	struct list_head node;
+	struct rcu_head rcu;
+	bool transient;
+#endif
+};
+
+/**
+ * struct io_tlb_mem - Software IO TLB allocator
+ * @defpool:	Default (initial) IO TLB memory pool descriptor.
+ * @pool:	IO TLB memory pool descriptor (if not dynamic).
+ * @nslabs:	Total number of IO TLB slabs in all pools.
  * @debugfs:	The dentry to debugfs.
- * @late_alloc:	%true if allocated using the page allocator
  * @force_bounce: %true if swiotlb bouncing is forced
  * @for_alloc:  %true if the pool is used for memory allocation
- * @nareas:  The area number in the pool.
- * @area_nslabs: The slot number in the area.
+ * @can_grow:	%true if more pools can be allocated dynamically.
+ * @phys_limit:	Maximum allowed physical address.
+ * @lock:	Lock to synchronize changes to the list.
+ * @pools:	List of IO TLB memory pool descriptors (if dynamic).
+ * @dyn_alloc:	Dynamic IO TLB pool allocation work.
  * @total_used:	The total number of slots in the pool that are currently used
  *		across all areas. Used only for calculating used_hiwater in
  *		debugfs.
  * @used_hiwater: The high water mark for total_used.  Used only for reporting
  *		in debugfs.
+ * @transient_nslabs: The total number of slots in all transient pools that
+ *		are currently used across all areas.
  */
 struct io_tlb_mem {
-	phys_addr_t start;
-	phys_addr_t end;
-	void *vaddr;
+	struct io_tlb_pool defpool;
 	unsigned long nslabs;
 	struct dentry *debugfs;
-	bool late_alloc;
 	bool force_bounce;
 	bool for_alloc;
-	unsigned int nareas;
-	unsigned int area_nslabs;
-	struct io_tlb_area *areas;
-	struct io_tlb_slot *slots;
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+	bool can_grow;
+	u64 phys_limit;
+	spinlock_t lock;
+	struct list_head pools;
+	struct work_struct dyn_alloc;
+#endif
 #ifdef CONFIG_DEBUG_FS
 	atomic_long_t total_used;
 	atomic_long_t used_hiwater;
+	atomic_long_t transient_nslabs;
 #endif
 };
-extern struct io_tlb_mem io_tlb_default_mem;
 
-static inline bool is_swiotlb_buffer(struct device *dev, phys_addr_t paddr)
+struct io_tlb_pool *__swiotlb_find_pool(struct device *dev, phys_addr_t paddr);
+
+/**
+ * swiotlb_find_pool() - find swiotlb pool to which a physical address belongs
+ * @dev:        Device which has mapped the buffer.
+ * @paddr:      Physical address within the DMA buffer.
+ *
+ * Find the swiotlb pool that @paddr points into.
+ *
+ * Return:
+ * * pool address if @paddr points into a bounce buffer
+ * * NULL if @paddr does not point into a bounce buffer. As such, this function
+ *   can be used to determine if @paddr denotes a swiotlb bounce buffer.
+ */
+static inline struct io_tlb_pool *swiotlb_find_pool(struct device *dev,
+		phys_addr_t paddr)
 {
 	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
 
-	return mem && paddr >= mem->start && paddr < mem->end;
+	if (!mem)
+		return NULL;
+
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+	/*
+	 * All SWIOTLB buffer addresses must have been returned by
+	 * swiotlb_tbl_map_single() and passed to a device driver.
+	 * If a SWIOTLB address is checked on another CPU, then it was
+	 * presumably loaded by the device driver from an unspecified private
+	 * data structure. Make sure that this load is ordered before reading
+	 * dev->dma_uses_io_tlb here and mem->pools in __swiotlb_find_pool().
+	 *
+	 * This barrier pairs with smp_mb() in swiotlb_find_slots().
+	 */
+	smp_rmb();
+	if (READ_ONCE(dev->dma_uses_io_tlb))
+		return __swiotlb_find_pool(dev, paddr);
+#else
+	if (paddr >= mem->defpool.start && paddr < mem->defpool.end)
+		return &mem->defpool;
+#endif
+
+	return NULL;
 }
 
 static inline bool is_swiotlb_force_bounce(struct device *dev)
@@ -128,16 +178,26 @@ static inline bool is_swiotlb_force_bounce(struct device *dev)
 
 void swiotlb_init(bool addressing_limited, unsigned int flags);
 void __init swiotlb_exit(void);
+void swiotlb_dev_init(struct device *dev);
 size_t swiotlb_max_mapping_size(struct device *dev);
+bool is_swiotlb_allocated(void);
 bool is_swiotlb_active(struct device *dev);
 void __init swiotlb_adjust_size(unsigned long size);
+phys_addr_t default_swiotlb_base(void);
+phys_addr_t default_swiotlb_limit(void);
 #else
 static inline void swiotlb_init(bool addressing_limited, unsigned int flags)
 {
 }
-static inline bool is_swiotlb_buffer(struct device *dev, phys_addr_t paddr)
+
+static inline void swiotlb_dev_init(struct device *dev)
 {
-	return false;
+}
+
+static inline struct io_tlb_pool *swiotlb_find_pool(struct device *dev,
+		phys_addr_t paddr)
+{
+	return NULL;
 }
 static inline bool is_swiotlb_force_bounce(struct device *dev)
 {
@@ -151,6 +211,11 @@ static inline size_t swiotlb_max_mapping_size(struct device *dev)
 	return SIZE_MAX;
 }
 
+static inline bool is_swiotlb_allocated(void)
+{
+	return false;
+}
+
 static inline bool is_swiotlb_active(struct device *dev)
 {
 	return false;
@@ -159,7 +224,60 @@ static inline bool is_swiotlb_active(struct device *dev)
 static inline void swiotlb_adjust_size(unsigned long size)
 {
 }
+
+static inline phys_addr_t default_swiotlb_base(void)
+{
+	return 0;
+}
+
+static inline phys_addr_t default_swiotlb_limit(void)
+{
+	return 0;
+}
 #endif /* CONFIG_SWIOTLB */
+
+phys_addr_t swiotlb_tbl_map_single(struct device *hwdev, phys_addr_t phys,
+		size_t mapping_size, unsigned int alloc_aligned_mask,
+		enum dma_data_direction dir, unsigned long attrs);
+dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
+		size_t size, enum dma_data_direction dir, unsigned long attrs);
+
+void __swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
+		size_t mapping_size, enum dma_data_direction dir,
+		unsigned long attrs, struct io_tlb_pool *pool);
+static inline void swiotlb_tbl_unmap_single(struct device *dev,
+		phys_addr_t addr, size_t size, enum dma_data_direction dir,
+		unsigned long attrs)
+{
+	struct io_tlb_pool *pool = swiotlb_find_pool(dev, addr);
+
+	if (unlikely(pool))
+		__swiotlb_tbl_unmap_single(dev, addr, size, dir, attrs, pool);
+}
+
+void __swiotlb_sync_single_for_device(struct device *dev, phys_addr_t tlb_addr,
+		size_t size, enum dma_data_direction dir,
+		struct io_tlb_pool *pool);
+static inline void swiotlb_sync_single_for_device(struct device *dev,
+		phys_addr_t addr, size_t size, enum dma_data_direction dir)
+{
+	struct io_tlb_pool *pool = swiotlb_find_pool(dev, addr);
+
+	if (unlikely(pool))
+		__swiotlb_sync_single_for_device(dev, addr, size, dir, pool);
+}
+
+void __swiotlb_sync_single_for_cpu(struct device *dev, phys_addr_t tlb_addr,
+		size_t size, enum dma_data_direction dir,
+		struct io_tlb_pool *pool);
+static inline void swiotlb_sync_single_for_cpu(struct device *dev,
+		phys_addr_t addr, size_t size, enum dma_data_direction dir)
+{
+	struct io_tlb_pool *pool = swiotlb_find_pool(dev, addr);
+
+	if (unlikely(pool))
+		__swiotlb_sync_single_for_cpu(dev, addr, size, dir, pool);
+}
 
 extern void swiotlb_print_info(void);
 

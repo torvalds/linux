@@ -6,13 +6,7 @@
  */
 
 #include <linux/crypto.h>
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/dma-direct.h>
-#include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <crypto/akcipher.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/akcipher.h>
@@ -28,46 +22,34 @@
 #define STARFIVE_PKA_CAER_OFFSET	(STARFIVE_PKA_REGS_OFFSET + 0x108)
 #define STARFIVE_PKA_CANR_OFFSET	(STARFIVE_PKA_REGS_OFFSET + 0x208)
 
-// R^2 mod N and N0'
+/* R ^ 2 mod N and N0' */
 #define CRYPTO_CMD_PRE			0x0
-// A * R mod N   ==> A
+/* A * R mod N   ==> A */
 #define CRYPTO_CMD_ARN			0x5
-// A * E * R mod N ==> A
+/* A * E * R mod N ==> A */
 #define CRYPTO_CMD_AERN			0x6
-// A * A * R mod N ==> A
+/* A * A * R mod N ==> A */
 #define CRYPTO_CMD_AARN			0x7
 
-#define STARFIVE_RSA_MAX_KEYSZ		256
 #define STARFIVE_RSA_RESET		0x2
 
 static inline int starfive_pka_wait_done(struct starfive_cryp_ctx *ctx)
 {
 	struct starfive_cryp_dev *cryp = ctx->cryp;
+	u32 status;
 
-	return wait_for_completion_timeout(&cryp->pka_done,
-					   usecs_to_jiffies(100000));
-}
-
-static inline void starfive_pka_irq_mask_clear(struct starfive_cryp_ctx *ctx)
-{
-	struct starfive_cryp_dev *cryp = ctx->cryp;
-	u32 stat;
-
-	stat = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
-	stat &= ~STARFIVE_IE_MASK_PKA_DONE;
-	writel(stat, cryp->base + STARFIVE_IE_MASK_OFFSET);
-
-	reinit_completion(&cryp->pka_done);
+	return readl_relaxed_poll_timeout(cryp->base + STARFIVE_PKA_CASR_OFFSET, status,
+					  status & STARFIVE_PKA_DONE, 10, 100000);
 }
 
 static void starfive_rsa_free_key(struct starfive_rsa_key *key)
 {
-	if (key->d)
-		kfree_sensitive(key->d);
-	if (key->e)
-		kfree_sensitive(key->e);
-	if (key->n)
-		kfree_sensitive(key->n);
+	if (!key->key_sz)
+		return;
+
+	kfree_sensitive(key->d);
+	kfree_sensitive(key->e);
+	kfree_sensitive(key->n);
 	memset(key, 0, sizeof(*key));
 }
 
@@ -91,7 +73,7 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 {
 	struct starfive_cryp_dev *cryp = ctx->cryp;
 	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
-	int count = rctx->total / sizeof(u32) - 1;
+	int count = (ALIGN(rctx->total, 4) / 4) - 1;
 	int loop;
 	u32 temp;
 	u8 opsize;
@@ -114,10 +96,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.not_r2 = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 
 		for (loop = 0; loop <= opsize; loop++)
@@ -136,10 +117,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.start = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 	} else {
 		rctx->csr.pka.v = 0;
@@ -151,10 +131,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.pre_expf = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 
 		for (loop = 0; loop <= count; loop++)
@@ -172,10 +151,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.start = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 	}
 
@@ -226,11 +204,10 @@ static int starfive_rsa_cpu_start(struct starfive_cryp_ctx *ctx, u32 *result,
 		rctx->csr.pka.start = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
 		ret = -ETIMEDOUT;
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			goto rsa_err;
 
 		if (mlen) {
@@ -242,10 +219,9 @@ static int starfive_rsa_cpu_start(struct starfive_cryp_ctx *ctx, u32 *result,
 			rctx->csr.pka.start = 1;
 			rctx->csr.pka.ie = 1;
 
-			starfive_pka_irq_mask_clear(ctx);
 			writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-			if (!starfive_pka_wait_done(ctx))
+			if (starfive_pka_wait_done(ctx))
 				goto rsa_err;
 		}
 	}
@@ -274,12 +250,17 @@ static int starfive_rsa_enc_core(struct starfive_cryp_ctx *ctx, int enc)
 	struct starfive_cryp_dev *cryp = ctx->cryp;
 	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
 	struct starfive_rsa_key *key = &ctx->rsa_key;
-	int ret = 0;
+	int ret = 0, shift = 0;
 
 	writel(STARFIVE_RSA_RESET, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-	rctx->total = sg_copy_to_buffer(rctx->in_sg, rctx->nents,
-					rctx->rsa_data, rctx->total);
+	if (!IS_ALIGNED(rctx->total, sizeof(u32))) {
+		shift = sizeof(u32) - (rctx->total & 0x3);
+		memset(rctx->rsa_data, 0, shift);
+	}
+
+	rctx->total = sg_copy_to_buffer(rctx->in_sg, sg_nents(rctx->in_sg),
+					rctx->rsa_data + shift, rctx->total);
 
 	if (enc) {
 		key->bitlen = key->e_bitlen;
@@ -299,7 +280,6 @@ static int starfive_rsa_enc_core(struct starfive_cryp_ctx *ctx, int enc)
 
 err_rsa_crypt:
 	writel(STARFIVE_RSA_RESET, cryp->base + STARFIVE_PKA_CACR_OFFSET);
-	kfree(rctx->rsa_data);
 	return ret;
 }
 
@@ -329,7 +309,6 @@ static int starfive_rsa_enc(struct akcipher_request *req)
 	rctx->in_sg = req->src;
 	rctx->out_sg = req->dst;
 	rctx->total = req->src_len;
-	rctx->nents = sg_nents(rctx->in_sg);
 	ctx->rctx = rctx;
 
 	return starfive_rsa_enc_core(ctx, 1);
@@ -560,15 +539,13 @@ static int starfive_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct starfive_cryp_ctx *ctx = akcipher_tfm_ctx(tfm);
 
+	ctx->cryp = starfive_cryp_find_dev(ctx);
+	if (!ctx->cryp)
+		return -ENODEV;
+
 	ctx->akcipher_fbk = crypto_alloc_akcipher("rsa-generic", 0, 0);
 	if (IS_ERR(ctx->akcipher_fbk))
 		return PTR_ERR(ctx->akcipher_fbk);
-
-	ctx->cryp = starfive_cryp_find_dev(ctx);
-	if (!ctx->cryp) {
-		crypto_free_akcipher(ctx->akcipher_fbk);
-		return -ENODEV;
-	}
 
 	akcipher_set_reqsize(tfm, sizeof(struct starfive_cryp_request_ctx) +
 			     sizeof(struct crypto_akcipher) + 32);

@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/backlight.h>
-#include <linux/fb.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/slab.h>
@@ -1137,7 +1136,7 @@ static int eeepc_backlight_init(struct eeepc_laptop *eeepc)
 	}
 	eeepc->backlight_device = bd;
 	bd->props.brightness = read_brightness(bd);
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(bd);
 	return 0;
 }
@@ -1394,7 +1393,7 @@ static int eeepc_acpi_add(struct acpi_device *device)
 	 * and machine-specific scripts find the fixed name convenient.  But
 	 * It's also good for us to exclude multiple instances because both
 	 * our hwmon and our wlan rfkill subdevice use global ACPI objects
-	 * (the EC and the wlan PCI slot respectively).
+	 * (the EC and the PCI wlan slot respectively).
 	 */
 	result = eeepc_platform_init(eeepc);
 	if (result)
@@ -1463,7 +1462,6 @@ MODULE_DEVICE_TABLE(acpi, eeepc_device_ids);
 static struct acpi_driver eeepc_acpi_driver = {
 	.name = EEEPC_LAPTOP_NAME,
 	.class = EEEPC_ACPI_CLASS,
-	.owner = THIS_MODULE,
 	.ids = eeepc_device_ids,
 	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {

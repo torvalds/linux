@@ -49,6 +49,7 @@
 #include "mconsole.h"
 #include "harddog.h"
 
+MODULE_DESCRIPTION("UML hardware watchdog");
 MODULE_LICENSE("GPL");
 
 static DEFINE_MUTEX(harddog_mutex);
@@ -163,7 +164,6 @@ static const struct file_operations harddog_fops = {
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= harddog_open,
 	.release	= harddog_release,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice harddog_miscdev = {

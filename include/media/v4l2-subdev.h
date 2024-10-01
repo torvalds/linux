@@ -446,23 +446,20 @@ enum v4l2_subdev_pre_streamon_flags {
  * @s_stream: start (enabled == 1) or stop (enabled == 0) streaming on the
  *	sub-device. Failure on stop will remove any resources acquired in
  *	streaming start, while the error code is still returned by the driver.
- *	Also see call_s_stream wrapper in v4l2-subdev.c.
+ *	The caller shall track the subdev state, and shall not start or stop an
+ *	already started or stopped subdev. Also see call_s_stream wrapper in
+ *	v4l2-subdev.c.
+ *
+ *	New drivers should instead implement &v4l2_subdev_pad_ops.enable_streams
+ *	and &v4l2_subdev_pad_ops.disable_streams operations, and use
+ *	v4l2_subdev_s_stream_helper for the &v4l2_subdev_video_ops.s_stream
+ *	operation to support legacy users.
+ *
+ *	Drivers should also not call the .s_stream() subdev operation directly,
+ *	but use the v4l2_subdev_enable_streams() and
+ *	v4l2_subdev_disable_streams() helpers.
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
- *
- * @g_frame_interval: callback for VIDIOC_SUBDEV_G_FRAME_INTERVAL()
- *		      ioctl handler code.
- *
- * @s_frame_interval: callback for VIDIOC_SUBDEV_S_FRAME_INTERVAL()
- *		      ioctl handler code.
- *
- * @s_dv_timings: Set custom dv timings in the sub device. This is used
- *	when sub device is capable of setting detailed timing information
- *	in the hardware to generate/detect the video signal.
- *
- * @g_dv_timings: Get custom dv timings in the sub device.
- *
- * @query_dv_timings: callback for VIDIOC_QUERY_DV_TIMINGS() ioctl handler code.
  *
  * @s_rx_buffer: set a host allocated memory buffer for the subdev. The subdev
  *	can adjust @size to a lower value and must not write more data to the
@@ -494,16 +491,6 @@ struct v4l2_subdev_video_ops {
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*g_pixelaspect)(struct v4l2_subdev *sd, struct v4l2_fract *aspect);
-	int (*g_frame_interval)(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *interval);
-	int (*s_frame_interval)(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *interval);
-	int (*s_dv_timings)(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings);
-	int (*g_dv_timings)(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings);
-	int (*query_dv_timings)(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings);
 	int (*s_rx_buffer)(struct v4l2_subdev *sd, void *buf,
 			   unsigned int *size);
 	int (*pre_streamon)(struct v4l2_subdev *sd, u32 flags);
@@ -686,21 +673,16 @@ struct v4l2_subdev_ir_ops {
 /**
  * struct v4l2_subdev_pad_config - Used for storing subdev pad information.
  *
- * @try_fmt: &struct v4l2_mbus_framefmt
- * @try_crop: &struct v4l2_rect to be used for crop
- * @try_compose: &struct v4l2_rect to be used for compose
- *
- * This structure only needs to be passed to the pad op if the 'which' field
- * of the main argument is set to %V4L2_SUBDEV_FORMAT_TRY. For
- * %V4L2_SUBDEV_FORMAT_ACTIVE it is safe to pass %NULL.
- *
- * Note: This struct is also used in active state, and the 'try' prefix is
- * historical and to be removed.
+ * @format: &struct v4l2_mbus_framefmt
+ * @crop: &struct v4l2_rect to be used for crop
+ * @compose: &struct v4l2_rect to be used for compose
+ * @interval: frame interval
  */
 struct v4l2_subdev_pad_config {
-	struct v4l2_mbus_framefmt try_fmt;
-	struct v4l2_rect try_crop;
-	struct v4l2_rect try_compose;
+	struct v4l2_mbus_framefmt format;
+	struct v4l2_rect crop;
+	struct v4l2_rect compose;
+	struct v4l2_fract interval;
 };
 
 /**
@@ -708,10 +690,11 @@ struct v4l2_subdev_pad_config {
  *
  * @pad: pad number
  * @stream: stream number
- * @enabled: has the stream been enabled with v4l2_subdev_enable_stream()
+ * @enabled: has the stream been enabled with v4l2_subdev_enable_streams()
  * @fmt: &struct v4l2_mbus_framefmt
  * @crop: &struct v4l2_rect to be used for crop
  * @compose: &struct v4l2_rect to be used for compose
+ * @interval: frame interval
  *
  * This structure stores configuration for a stream.
  */
@@ -723,6 +706,7 @@ struct v4l2_subdev_stream_config {
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
 	struct v4l2_rect compose;
+	struct v4l2_fract interval;
 };
 
 /**
@@ -739,12 +723,14 @@ struct v4l2_subdev_stream_configs {
 /**
  * struct v4l2_subdev_krouting - subdev routing table
  *
+ * @len_routes: length of routes array, in routes
  * @num_routes: number of routes
  * @routes: &struct v4l2_subdev_route
  *
  * This structure contains the routing table for a subdev.
  */
 struct v4l2_subdev_krouting {
+	unsigned int len_routes;
 	unsigned int num_routes;
 	struct v4l2_subdev_route *routes;
 };
@@ -754,6 +740,7 @@ struct v4l2_subdev_krouting {
  *
  * @_lock: default for 'lock'
  * @lock: mutex for the state. May be replaced by the user.
+ * @sd: the sub-device which the state is related to
  * @pads: &struct v4l2_subdev_pad_config array
  * @routing: routing table for the subdev
  * @stream_configs: stream configurations (only for V4L2_SUBDEV_FL_STREAMS)
@@ -766,6 +753,7 @@ struct v4l2_subdev_state {
 	/* lock for the struct v4l2_subdev_state fields */
 	struct mutex _lock;
 	struct mutex *lock;
+	struct v4l2_subdev *sd;
 	struct v4l2_subdev_pad_config *pads;
 	struct v4l2_subdev_krouting routing;
 	struct v4l2_subdev_stream_configs stream_configs;
@@ -774,7 +762,6 @@ struct v4l2_subdev_state {
 /**
  * struct v4l2_subdev_pad_ops - v4l2-subdev pad level operations
  *
- * @init_cfg: initialize the pad config to default values
  * @enum_mbus_code: callback for VIDIOC_SUBDEV_ENUM_MBUS_CODE() ioctl handler
  *		    code.
  * @enum_frame_size: callback for VIDIOC_SUBDEV_ENUM_FRAME_SIZE() ioctl handler
@@ -791,9 +778,23 @@ struct v4l2_subdev_state {
  *
  * @set_selection: callback for VIDIOC_SUBDEV_S_SELECTION() ioctl handler code.
  *
+ * @get_frame_interval: callback for VIDIOC_SUBDEV_G_FRAME_INTERVAL()
+ *			ioctl handler code.
+ *
+ * @set_frame_interval: callback for VIDIOC_SUBDEV_S_FRAME_INTERVAL()
+ *			ioctl handler code.
+ *
  * @get_edid: callback for VIDIOC_SUBDEV_G_EDID() ioctl handler code.
  *
  * @set_edid: callback for VIDIOC_SUBDEV_S_EDID() ioctl handler code.
+ *
+ * @s_dv_timings: Set custom dv timings in the sub device. This is used
+ *	when sub device is capable of setting detailed timing information
+ *	in the hardware to generate/detect the video signal.
+ *
+ * @g_dv_timings: Get custom dv timings in the sub device.
+ *
+ * @query_dv_timings: callback for VIDIOC_QUERY_DV_TIMINGS() ioctl handler code.
  *
  * @dv_timings_cap: callback for VIDIOC_SUBDEV_DV_TIMINGS_CAP() ioctl handler
  *		    code.
@@ -822,8 +823,9 @@ struct v4l2_subdev_state {
  *		     operation shall fail if the pad index it has been called on
  *		     is not valid or in case of unrecoverable failures.
  *
- * @set_routing: enable or disable data connection routes described in the
- *		 subdevice routing table.
+ * @set_routing: Enable or disable data connection routes described in the
+ *		 subdevice routing table. Subdevs that implement this operation
+ *		 must set the V4L2_SUBDEV_FL_STREAMS flag.
  *
  * @enable_streams: Enable the streams defined in streams_mask on the given
  *	source pad. Subdevs that implement this operation must use the active
@@ -838,8 +840,6 @@ struct v4l2_subdev_state {
  *	directly, use v4l2_subdev_disable_streams() instead.
  */
 struct v4l2_subdev_pad_ops {
-	int (*init_cfg)(struct v4l2_subdev *sd,
-			struct v4l2_subdev_state *state);
 	int (*enum_mbus_code)(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_state *state,
 			      struct v4l2_subdev_mbus_code_enum *code);
@@ -861,8 +861,20 @@ struct v4l2_subdev_pad_ops {
 	int (*set_selection)(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *state,
 			     struct v4l2_subdev_selection *sel);
+	int (*get_frame_interval)(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  struct v4l2_subdev_frame_interval *interval);
+	int (*set_frame_interval)(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  struct v4l2_subdev_frame_interval *interval);
 	int (*get_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
 	int (*set_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
+	int (*s_dv_timings)(struct v4l2_subdev *sd, unsigned int pad,
+			    struct v4l2_dv_timings *timings);
+	int (*g_dv_timings)(struct v4l2_subdev *sd, unsigned int pad,
+			    struct v4l2_dv_timings *timings);
+	int (*query_dv_timings)(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_dv_timings *timings);
 	int (*dv_timings_cap)(struct v4l2_subdev *sd,
 			      struct v4l2_dv_timings_cap *cap);
 	int (*enum_dv_timings)(struct v4l2_subdev *sd,
@@ -916,6 +928,8 @@ struct v4l2_subdev_ops {
 /**
  * struct v4l2_subdev_internal_ops - V4L2 subdev internal ops
  *
+ * @init_state: initialize the subdev state to default values
+ *
  * @registered: called when this subdev is registered. When called the v4l2_dev
  *	field is set to the correct v4l2_device.
  *
@@ -941,14 +955,14 @@ struct v4l2_subdev_ops {
  *	these ops.
  */
 struct v4l2_subdev_internal_ops {
+	int (*init_state)(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_state *state);
 	int (*registered)(struct v4l2_subdev *sd);
 	void (*unregistered)(struct v4l2_subdev *sd);
 	int (*open)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
 	int (*close)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
 	void (*release)(struct v4l2_subdev *sd);
 };
-
-#define V4L2_SUBDEV_NAME_SIZE 32
 
 /* Set this flag if this subdev is a i2c device. */
 #define V4L2_SUBDEV_FL_IS_I2C			(1U << 0)
@@ -1020,12 +1034,14 @@ struct v4l2_subdev_platform_data {
  * @dev: pointer to the physical device, if any
  * @fwnode: The fwnode_handle of the subdev, usually the same as
  *	    either dev->of_node->fwnode or dev->fwnode (whichever is non-NULL).
- * @async_list: Links this subdev to a global subdev_list or @notifier->done
- *	list.
- * @asd: Pointer to respective &struct v4l2_async_subdev.
- * @notifier: Pointer to the managing notifier.
+ * @async_list: Links this subdev to a global subdev_list or
+ *		@notifier->done_list list.
+ * @async_subdev_endpoint_list: List entry in async_subdev_endpoint_entry of
+ *				&struct v4l2_async_subdev_endpoint.
  * @subdev_notifier: A sub-device notifier implicitly registered for the sub-
  *		     device using v4l2_async_register_subdev_sensor().
+ * @asc_list: Async connection list, of &struct
+ *	      v4l2_async_connection.subdev_entry.
  * @pdata: common part of subdevice platform data
  * @state_lock: A pointer to a lock used for all the subdev's states, set by the
  *		driver. This is	optional. If NULL, each state instance will get
@@ -1034,10 +1050,11 @@ struct v4l2_subdev_platform_data {
  * @active_state: Active state for the subdev (NULL for subdevs tracking the
  *		  state internally). Initialized by calling
  *		  v4l2_subdev_init_finalize().
- * @enabled_streams: Bitmask of enabled streams used by
- *		     v4l2_subdev_enable_streams() and
- *		     v4l2_subdev_disable_streams() helper functions for fallback
- *		     cases.
+ * @enabled_pads: Bitmask of enabled pads used by v4l2_subdev_enable_streams()
+ *		  and v4l2_subdev_disable_streams() helper functions for
+ *		  fallback cases.
+ * @s_stream_enabled: Tracks whether streaming has been enabled with s_stream.
+ *                    This is only for call_s_stream() internal use.
  *
  * Each instance of a subdev driver should create this struct, either
  * stand-alone or embedded in a larger struct.
@@ -1057,7 +1074,7 @@ struct v4l2_subdev {
 	const struct v4l2_subdev_ops *ops;
 	const struct v4l2_subdev_internal_ops *internal_ops;
 	struct v4l2_ctrl_handler *ctrl_handler;
-	char name[V4L2_SUBDEV_NAME_SIZE];
+	char name[52];
 	u32 grp_id;
 	void *dev_priv;
 	void *host_priv;
@@ -1065,9 +1082,9 @@ struct v4l2_subdev {
 	struct device *dev;
 	struct fwnode_handle *fwnode;
 	struct list_head async_list;
-	struct v4l2_async_subdev *asd;
-	struct v4l2_async_notifier *notifier;
+	struct list_head async_subdev_endpoint_list;
 	struct v4l2_async_notifier *subdev_notifier;
+	struct list_head asc_list;
 	struct v4l2_subdev_platform_data *pdata;
 	struct mutex *state_lock;
 
@@ -1085,7 +1102,8 @@ struct v4l2_subdev {
 	 * doesn't support it.
 	 */
 	struct v4l2_subdev_state *active_state;
-	u64 enabled_streams;
+	u64 enabled_pads;
+	bool s_stream_enabled;
 };
 
 
@@ -1138,83 +1156,6 @@ struct v4l2_subdev_fh {
  */
 #define to_v4l2_subdev_fh(fh)	\
 	container_of(fh, struct v4l2_subdev_fh, vfh)
-
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-
-/**
- * v4l2_subdev_get_pad_format - ancillary routine to call
- *	&struct v4l2_subdev_pad_config->try_fmt
- *
- * @sd: pointer to &struct v4l2_subdev
- * @state: pointer to &struct v4l2_subdev_state
- * @pad: index of the pad in the &struct v4l2_subdev_state->pads array
- */
-static inline struct v4l2_mbus_framefmt *
-v4l2_subdev_get_pad_format(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state,
-			   unsigned int pad)
-{
-	if (WARN_ON(!state))
-		return NULL;
-	if (WARN_ON(pad >= sd->entity.num_pads))
-		pad = 0;
-	return &state->pads[pad].try_fmt;
-}
-
-/**
- * v4l2_subdev_get_pad_crop - ancillary routine to call
- *	&struct v4l2_subdev_pad_config->try_crop
- *
- * @sd: pointer to &struct v4l2_subdev
- * @state: pointer to &struct v4l2_subdev_state.
- * @pad: index of the pad in the &struct v4l2_subdev_state->pads array.
- */
-static inline struct v4l2_rect *
-v4l2_subdev_get_pad_crop(struct v4l2_subdev *sd,
-			 struct v4l2_subdev_state *state,
-			 unsigned int pad)
-{
-	if (WARN_ON(!state))
-		return NULL;
-	if (WARN_ON(pad >= sd->entity.num_pads))
-		pad = 0;
-	return &state->pads[pad].try_crop;
-}
-
-/**
- * v4l2_subdev_get_pad_compose - ancillary routine to call
- *	&struct v4l2_subdev_pad_config->try_compose
- *
- * @sd: pointer to &struct v4l2_subdev
- * @state: pointer to &struct v4l2_subdev_state.
- * @pad: index of the pad in the &struct v4l2_subdev_state->pads array.
- */
-static inline struct v4l2_rect *
-v4l2_subdev_get_pad_compose(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *state,
-			    unsigned int pad)
-{
-	if (WARN_ON(!state))
-		return NULL;
-	if (WARN_ON(pad >= sd->entity.num_pads))
-		pad = 0;
-	return &state->pads[pad].try_compose;
-}
-
-/*
- * Temprary helpers until uses of v4l2_subdev_get_try_* functions have been
- * renamed
- */
-#define v4l2_subdev_get_try_format(sd, state, pad) \
-	v4l2_subdev_get_pad_format(sd, state, pad)
-
-#define v4l2_subdev_get_try_crop(sd, state, pad) \
-	v4l2_subdev_get_pad_crop(sd, state, pad)
-
-#define v4l2_subdev_get_try_compose(sd, state, pad) \
-	v4l2_subdev_get_pad_compose(sd, state, pad)
-
-#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
 
@@ -1309,6 +1250,12 @@ int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
  * calls v4l2_subdev_link_validate_default() to ensure that
  * width, height and the media bus pixel code are equal on both
  * source and sink of the link.
+ *
+ * The function can be used as a drop-in &media_entity_ops.link_validate
+ * implementation for v4l2_subdev instances. It supports all links between
+ * subdevs, as well as links between subdevs and video devices, provided that
+ * the video devices also implement their &media_entity_ops.link_validate
+ * operation.
  */
 int v4l2_subdev_link_validate(struct media_link *link);
 
@@ -1383,93 +1330,129 @@ int __v4l2_subdev_init_finalize(struct v4l2_subdev *sd, const char *name,
  * v4l2_subdev_cleanup() - Releases the resources allocated by the subdevice
  * @sd: The subdevice
  *
- * This function will release the resources allocated in
- * v4l2_subdev_init_finalize.
+ * Clean up a V4L2 async sub-device. Must be called for a sub-device as part of
+ * its release if resources have been associated with it using
+ * v4l2_async_subdev_endpoint_add() or v4l2_subdev_init_finalize().
  */
 void v4l2_subdev_cleanup(struct v4l2_subdev *sd);
 
-/**
- * v4l2_subdev_lock_state() - Locks the subdev state
- * @state: The subdevice state
- *
- * Locks the given subdev state.
- *
- * The state must be unlocked with v4l2_subdev_unlock_state() after use.
+/*
+ * A macro to generate the macro or function name for sub-devices state access
+ * wrapper macros below.
  */
-static inline void v4l2_subdev_lock_state(struct v4l2_subdev_state *state)
-{
-	mutex_lock(state->lock);
-}
+#define __v4l2_subdev_state_gen_call(NAME, _1, ARG, ...)	\
+	__v4l2_subdev_state_get_ ## NAME ## ARG
+
+/*
+ * A macro to constify the return value of the state accessors when the state
+ * parameter is const.
+ */
+#define __v4l2_subdev_state_constify_ret(state, value)				\
+	_Generic(state,								\
+		const struct v4l2_subdev_state *: (const typeof(*(value)) *)(value), \
+		struct v4l2_subdev_state *: (value)				\
+	)
 
 /**
- * v4l2_subdev_unlock_state() - Unlocks the subdev state
- * @state: The subdevice state
+ * v4l2_subdev_state_get_format() - Get pointer to a stream format
+ * @state: subdevice state
+ * @pad: pad id
+ * @...: stream id (optional argument)
  *
- * Unlocks the given subdev state.
+ * This returns a pointer to &struct v4l2_mbus_framefmt for the given pad +
+ * stream in the subdev state.
+ *
+ * For stream-unaware drivers the format for the corresponding pad is returned.
+ * If the pad does not exist, NULL is returned.
  */
-static inline void v4l2_subdev_unlock_state(struct v4l2_subdev_state *state)
-{
-	mutex_unlock(state->lock);
-}
+/*
+ * Wrap v4l2_subdev_state_get_format(), allowing the function to be called with
+ * two or three arguments. The purpose of the __v4l2_subdev_state_gen_call()
+ * macro is to come up with the name of the function or macro to call, using
+ * the last two arguments (_stream and _pad). The selected function or macro is
+ * then called using the arguments specified by the caller. The
+ * __v4l2_subdev_state_constify_ret() macro constifies the returned pointer
+ * when the state is const, allowing the state accessors to guarantee
+ * const-correctness in all cases.
+ *
+ * A similar arrangement is used for v4l2_subdev_state_crop(),
+ * v4l2_subdev_state_compose() and v4l2_subdev_state_get_interval() below.
+ */
+#define v4l2_subdev_state_get_format(state, pad, ...)				\
+	__v4l2_subdev_state_constify_ret(state,					\
+		__v4l2_subdev_state_gen_call(format, ##__VA_ARGS__, , _pad)	\
+			((struct v4l2_subdev_state *)state, pad, ##__VA_ARGS__))
+#define __v4l2_subdev_state_get_format_pad(state, pad)	\
+	__v4l2_subdev_state_get_format(state, pad, 0)
+struct v4l2_mbus_framefmt *
+__v4l2_subdev_state_get_format(struct v4l2_subdev_state *state,
+			       unsigned int pad, u32 stream);
 
 /**
- * v4l2_subdev_get_unlocked_active_state() - Checks that the active subdev state
- *					     is unlocked and returns it
- * @sd: The subdevice
+ * v4l2_subdev_state_get_crop() - Get pointer to a stream crop rectangle
+ * @state: subdevice state
+ * @pad: pad id
+ * @...: stream id (optional argument)
  *
- * Returns the active state for the subdevice, or NULL if the subdev does not
- * support active state. If the state is not NULL, calls
- * lockdep_assert_not_held() to issue a warning if the state is locked.
+ * This returns a pointer to crop rectangle for the given pad + stream in the
+ * subdev state.
  *
- * This function is to be used e.g. when getting the active state for the sole
- * purpose of passing it forward, without accessing the state fields.
+ * For stream-unaware drivers the crop rectangle for the corresponding pad is
+ * returned. If the pad does not exist, NULL is returned.
  */
-static inline struct v4l2_subdev_state *
-v4l2_subdev_get_unlocked_active_state(struct v4l2_subdev *sd)
-{
-	if (sd->active_state)
-		lockdep_assert_not_held(sd->active_state->lock);
-	return sd->active_state;
-}
+#define v4l2_subdev_state_get_crop(state, pad, ...)				\
+	__v4l2_subdev_state_constify_ret(state,					\
+		__v4l2_subdev_state_gen_call(crop, ##__VA_ARGS__, , _pad)	\
+			((struct v4l2_subdev_state *)state, pad, ##__VA_ARGS__))
+#define __v4l2_subdev_state_get_crop_pad(state, pad)	\
+	__v4l2_subdev_state_get_crop(state, pad, 0)
+struct v4l2_rect *
+__v4l2_subdev_state_get_crop(struct v4l2_subdev_state *state, unsigned int pad,
+			     u32 stream);
 
 /**
- * v4l2_subdev_get_locked_active_state() - Checks that the active subdev state
- *					   is locked and returns it
+ * v4l2_subdev_state_get_compose() - Get pointer to a stream compose rectangle
+ * @state: subdevice state
+ * @pad: pad id
+ * @...: stream id (optional argument)
  *
- * @sd: The subdevice
+ * This returns a pointer to compose rectangle for the given pad + stream in the
+ * subdev state.
  *
- * Returns the active state for the subdevice, or NULL if the subdev does not
- * support active state. If the state is not NULL, calls lockdep_assert_held()
- * to issue a warning if the state is not locked.
- *
- * This function is to be used when the caller knows that the active state is
- * already locked.
+ * For stream-unaware drivers the compose rectangle for the corresponding pad is
+ * returned. If the pad does not exist, NULL is returned.
  */
-static inline struct v4l2_subdev_state *
-v4l2_subdev_get_locked_active_state(struct v4l2_subdev *sd)
-{
-	if (sd->active_state)
-		lockdep_assert_held(sd->active_state->lock);
-	return sd->active_state;
-}
+#define v4l2_subdev_state_get_compose(state, pad, ...)				\
+	__v4l2_subdev_state_constify_ret(state,					\
+		__v4l2_subdev_state_gen_call(compose, ##__VA_ARGS__, , _pad)	\
+			((struct v4l2_subdev_state *)state, pad, ##__VA_ARGS__))
+#define __v4l2_subdev_state_get_compose_pad(state, pad)	\
+	__v4l2_subdev_state_get_compose(state, pad, 0)
+struct v4l2_rect *
+__v4l2_subdev_state_get_compose(struct v4l2_subdev_state *state,
+				unsigned int pad, u32 stream);
 
 /**
- * v4l2_subdev_lock_and_get_active_state() - Locks and returns the active subdev
- *					     state for the subdevice
- * @sd: The subdevice
+ * v4l2_subdev_state_get_interval() - Get pointer to a stream frame interval
+ * @state: subdevice state
+ * @pad: pad id
+ * @...: stream id (optional argument)
  *
- * Returns the locked active state for the subdevice, or NULL if the subdev
- * does not support active state.
+ * This returns a pointer to the frame interval for the given pad + stream in
+ * the subdev state.
  *
- * The state must be unlocked with v4l2_subdev_unlock_state() after use.
+ * For stream-unaware drivers the frame interval for the corresponding pad is
+ * returned. If the pad does not exist, NULL is returned.
  */
-static inline struct v4l2_subdev_state *
-v4l2_subdev_lock_and_get_active_state(struct v4l2_subdev *sd)
-{
-	if (sd->active_state)
-		v4l2_subdev_lock_state(sd->active_state);
-	return sd->active_state;
-}
+#define v4l2_subdev_state_get_interval(state, pad, ...)				\
+	__v4l2_subdev_state_constify_ret(state,					\
+		__v4l2_subdev_state_gen_call(interval, ##__VA_ARGS__, , _pad)	\
+			((struct v4l2_subdev_state *)state, pad, ##__VA_ARGS__))
+#define __v4l2_subdev_state_get_interval_pad(state, pad)	\
+	__v4l2_subdev_state_get_interval(state, pad, 0)
+struct v4l2_fract *
+__v4l2_subdev_state_get_interval(struct v4l2_subdev_state *state,
+				 unsigned int pad, u32 stream);
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 
@@ -1489,6 +1472,24 @@ v4l2_subdev_lock_and_get_active_state(struct v4l2_subdev *sd)
  */
 int v4l2_subdev_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_state *state,
 			struct v4l2_subdev_format *format);
+
+/**
+ * v4l2_subdev_get_frame_interval() - Fill frame interval based on state
+ * @sd: subdevice
+ * @state: subdevice state
+ * @fi: pointer to &struct v4l2_subdev_frame_interval
+ *
+ * Fill @fi->interval field based on the information in the @fi struct.
+ *
+ * This function can be used by the subdev drivers which support active state to
+ * implement v4l2_subdev_pad_ops.get_frame_interval if the subdev driver does
+ * not need to do anything special in their get_frame_interval op.
+ *
+ * Returns 0 on success, error value otherwise.
+ */
+int v4l2_subdev_get_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state,
+				   struct v4l2_subdev_frame_interval *fi);
 
 /**
  * v4l2_subdev_set_routing() - Set given routing to subdev state
@@ -1532,54 +1533,8 @@ __v4l2_subdev_next_active_route(const struct v4l2_subdev_krouting *routing,
  */
 int v4l2_subdev_set_routing_with_fmt(struct v4l2_subdev *sd,
 				     struct v4l2_subdev_state *state,
-				     struct v4l2_subdev_krouting *routing,
+				     const struct v4l2_subdev_krouting *routing,
 				     const struct v4l2_mbus_framefmt *fmt);
-
-/**
- * v4l2_subdev_state_get_stream_format() - Get pointer to a stream format
- * @state: subdevice state
- * @pad: pad id
- * @stream: stream id
- *
- * This returns a pointer to &struct v4l2_mbus_framefmt for the given pad +
- * stream in the subdev state.
- *
- * If the state does not contain the given pad + stream, NULL is returned.
- */
-struct v4l2_mbus_framefmt *
-v4l2_subdev_state_get_stream_format(struct v4l2_subdev_state *state,
-				    unsigned int pad, u32 stream);
-
-/**
- * v4l2_subdev_state_get_stream_crop() - Get pointer to a stream crop rectangle
- * @state: subdevice state
- * @pad: pad id
- * @stream: stream id
- *
- * This returns a pointer to crop rectangle for the given pad + stream in the
- * subdev state.
- *
- * If the state does not contain the given pad + stream, NULL is returned.
- */
-struct v4l2_rect *
-v4l2_subdev_state_get_stream_crop(struct v4l2_subdev_state *state,
-				  unsigned int pad, u32 stream);
-
-/**
- * v4l2_subdev_state_get_stream_compose() - Get pointer to a stream compose
- *					    rectangle
- * @state: subdevice state
- * @pad: pad id
- * @stream: stream id
- *
- * This returns a pointer to compose rectangle for the given pad + stream in the
- * subdev state.
- *
- * If the state does not contain the given pad + stream, NULL is returned.
- */
-struct v4l2_rect *
-v4l2_subdev_state_get_stream_compose(struct v4l2_subdev_state *state,
-				     unsigned int pad, u32 stream);
 
 /**
  * v4l2_subdev_routing_find_opposite_end() - Find the opposite stream
@@ -1783,6 +1738,129 @@ int v4l2_subdev_s_stream_helper(struct v4l2_subdev *sd, int enable);
 #endif /* CONFIG_MEDIA_CONTROLLER */
 
 /**
+ * v4l2_subdev_lock_state() - Locks the subdev state
+ * @state: The subdevice state
+ *
+ * Locks the given subdev state.
+ *
+ * The state must be unlocked with v4l2_subdev_unlock_state() after use.
+ */
+static inline void v4l2_subdev_lock_state(struct v4l2_subdev_state *state)
+{
+	mutex_lock(state->lock);
+}
+
+/**
+ * v4l2_subdev_unlock_state() - Unlocks the subdev state
+ * @state: The subdevice state
+ *
+ * Unlocks the given subdev state.
+ */
+static inline void v4l2_subdev_unlock_state(struct v4l2_subdev_state *state)
+{
+	mutex_unlock(state->lock);
+}
+
+/**
+ * v4l2_subdev_lock_states - Lock two sub-device states
+ * @state1: One subdevice state
+ * @state2: The other subdevice state
+ *
+ * Locks the state of two sub-devices.
+ *
+ * The states must be unlocked with v4l2_subdev_unlock_states() after use.
+ *
+ * This differs from calling v4l2_subdev_lock_state() on both states so that if
+ * the states share the same lock, the lock is acquired only once (so no
+ * deadlock occurs). The caller is responsible for ensuring the locks will
+ * always be acquired in the same order.
+ */
+static inline void v4l2_subdev_lock_states(struct v4l2_subdev_state *state1,
+					   struct v4l2_subdev_state *state2)
+{
+	mutex_lock(state1->lock);
+	if (state1->lock != state2->lock)
+		mutex_lock(state2->lock);
+}
+
+/**
+ * v4l2_subdev_unlock_states() - Unlock two sub-device states
+ * @state1: One subdevice state
+ * @state2: The other subdevice state
+ *
+ * Unlocks the state of two sub-devices.
+ *
+ * This differs from calling v4l2_subdev_unlock_state() on both states so that
+ * if the states share the same lock, the lock is released only once.
+ */
+static inline void v4l2_subdev_unlock_states(struct v4l2_subdev_state *state1,
+					     struct v4l2_subdev_state *state2)
+{
+	mutex_unlock(state1->lock);
+	if (state1->lock != state2->lock)
+		mutex_unlock(state2->lock);
+}
+
+/**
+ * v4l2_subdev_get_unlocked_active_state() - Checks that the active subdev state
+ *					     is unlocked and returns it
+ * @sd: The subdevice
+ *
+ * Returns the active state for the subdevice, or NULL if the subdev does not
+ * support active state. If the state is not NULL, calls
+ * lockdep_assert_not_held() to issue a warning if the state is locked.
+ *
+ * This function is to be used e.g. when getting the active state for the sole
+ * purpose of passing it forward, without accessing the state fields.
+ */
+static inline struct v4l2_subdev_state *
+v4l2_subdev_get_unlocked_active_state(struct v4l2_subdev *sd)
+{
+	if (sd->active_state)
+		lockdep_assert_not_held(sd->active_state->lock);
+	return sd->active_state;
+}
+
+/**
+ * v4l2_subdev_get_locked_active_state() - Checks that the active subdev state
+ *					   is locked and returns it
+ *
+ * @sd: The subdevice
+ *
+ * Returns the active state for the subdevice, or NULL if the subdev does not
+ * support active state. If the state is not NULL, calls lockdep_assert_held()
+ * to issue a warning if the state is not locked.
+ *
+ * This function is to be used when the caller knows that the active state is
+ * already locked.
+ */
+static inline struct v4l2_subdev_state *
+v4l2_subdev_get_locked_active_state(struct v4l2_subdev *sd)
+{
+	if (sd->active_state)
+		lockdep_assert_held(sd->active_state->lock);
+	return sd->active_state;
+}
+
+/**
+ * v4l2_subdev_lock_and_get_active_state() - Locks and returns the active subdev
+ *					     state for the subdevice
+ * @sd: The subdevice
+ *
+ * Returns the locked active state for the subdevice, or NULL if the subdev
+ * does not support active state.
+ *
+ * The state must be unlocked with v4l2_subdev_unlock_state() after use.
+ */
+static inline struct v4l2_subdev_state *
+v4l2_subdev_lock_and_get_active_state(struct v4l2_subdev *sd)
+{
+	if (sd->active_state)
+		v4l2_subdev_lock_state(sd->active_state);
+	return sd->active_state;
+}
+
+/**
  * v4l2_subdev_init - initializes the sub-device struct
  *
  * @sd: pointer to the &struct v4l2_subdev to be initialized
@@ -1910,5 +1988,18 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
  */
 void v4l2_subdev_notify_event(struct v4l2_subdev *sd,
 			      const struct v4l2_event *ev);
+
+/**
+ * v4l2_subdev_is_streaming() - Returns if the subdevice is streaming
+ * @sd: The subdevice
+ *
+ * v4l2_subdev_is_streaming() tells if the subdevice is currently streaming.
+ * "Streaming" here means whether .s_stream() or .enable_streams() has been
+ * successfully called, and the streaming has not yet been disabled.
+ *
+ * If the subdevice implements .enable_streams() this function must be called
+ * while holding the active state lock.
+ */
+bool v4l2_subdev_is_streaming(struct v4l2_subdev *sd);
 
 #endif /* _V4L2_SUBDEV_H */

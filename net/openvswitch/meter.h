@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/netlink.h>
 #include <linux/openvswitch.h>
-#include <linux/genetlink.h>
 #include <linux/skbuff.h>
 #include <linux/bits.h>
 
@@ -39,13 +38,13 @@ struct dp_meter {
 	u32 max_delta_t;
 	u64 used;
 	struct ovs_flow_stats stats;
-	struct dp_meter_band bands[];
+	struct dp_meter_band bands[] __counted_by(n_bands);
 };
 
 struct dp_meter_instance {
 	struct rcu_head rcu;
 	u32 n_meters;
-	struct dp_meter __rcu *dp_meters[];
+	struct dp_meter __rcu *dp_meters[] __counted_by(n_meters);
 };
 
 struct dp_meter_table {

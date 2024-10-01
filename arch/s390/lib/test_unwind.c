@@ -350,15 +350,15 @@ static noinline int unwindme_func3(struct unwindme *u)
 /* This function must appear in the backtrace. */
 static noinline int unwindme_func2(struct unwindme *u)
 {
-	unsigned long flags;
+	unsigned long flags, mflags;
 	int rc;
 
 	if (u->flags & UWM_SWITCH_STACK) {
 		local_irq_save(flags);
-		local_mcck_disable();
-		rc = call_on_stack(1, S390_lowcore.nodat_stack,
+		local_mcck_save(mflags);
+		rc = call_on_stack(1, get_lowcore()->nodat_stack,
 				   int, unwindme_func3, struct unwindme *, u);
-		local_mcck_enable();
+		local_mcck_restore(mflags);
 		local_irq_restore(flags);
 		return rc;
 	} else {
@@ -519,4 +519,5 @@ static struct kunit_suite test_unwind_suite = {
 
 kunit_test_suites(&test_unwind_suite);
 
+MODULE_DESCRIPTION("KUnit test for unwind_for_each_frame");
 MODULE_LICENSE("GPL");

@@ -2,12 +2,12 @@
 #ifndef _LINUX_SHM_H_
 #define _LINUX_SHM_H_
 
-#include <linux/list.h>
+#include <linux/types.h>
 #include <asm/page.h>
-#include <uapi/linux/shm.h>
 #include <asm/shmparam.h>
 
 struct file;
+struct task_struct;
 
 #ifdef CONFIG_SYSVIPC
 struct sysv_shm {
@@ -16,7 +16,6 @@ struct sysv_shm {
 
 long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr,
 	      unsigned long shmlba);
-bool is_file_shm_hugepages(struct file *file);
 void exit_shm(struct task_struct *task);
 #define shm_init_task(task) INIT_LIST_HEAD(&(task)->sysvshm.shm_clist)
 #else
@@ -29,10 +28,6 @@ static inline long do_shmat(int shmid, char __user *shmaddr,
 			    unsigned long shmlba)
 {
 	return -ENOSYS;
-}
-static inline bool is_file_shm_hugepages(struct file *file)
-{
-	return false;
 }
 static inline void exit_shm(struct task_struct *task)
 {

@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -1512,7 +1511,7 @@ static int da9055_i2c_probe(struct i2c_client *i2c)
  * and PMIC, which must be different to operate together.
  */
 static const struct i2c_device_id da9055_i2c_id[] = {
-	{ "da9055-codec", 0 },
+	{ "da9055-codec" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da9055_i2c_id);

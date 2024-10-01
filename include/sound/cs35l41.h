@@ -11,7 +11,6 @@
 #define __CS35L41_H
 
 #include <linux/regmap.h>
-#include <linux/completion.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
 
 #define CS35L41_FIRSTREG		0x00000000
@@ -555,6 +554,11 @@
 #define CS35L41_LRCLK_FRC_SHIFT		1
 
 #define CS35L41_AMP_GAIN_PCM_MASK	0x3E0
+#define CS35L41_AMP_GAIN_PCM_SHIFT	5
+#define CS35L41_AMP_GAIN_PDM_MASK	0x1F
+#define CS35L41_AMP_GAIN_PDM_SHIFT	0
+#define CS35L41_AMP_GAIN_PCM_MAX	20
+#define CS35L41_AMP_GAIN_PDM_MAX	20
 #define CS35L41_AMP_GAIN_ZC_MASK	0x0400
 #define CS35L41_AMP_GAIN_ZC_SHIFT	10
 
@@ -736,6 +740,7 @@
 #define CS35L41_REVID_B2		0xB2
 
 #define CS35L41_HALO_CORE_RESET		0x00000200
+#define CS35L41_SOFTWARE_RESET		0x5A000000
 
 #define CS35L41_FS1_WINDOW_MASK		0x000007FF
 #define CS35L41_FS2_WINDOW_MASK		0x00FFF800
@@ -816,6 +821,8 @@ struct cs35l41_otp_map_element_t {
 };
 
 enum cs35l41_cspl_mbox_status {
+	CSPL_MBOX_STS_ERROR = U32_MAX,
+	CSPL_MBOX_STS_ERROR2 = 0x00ffffff, // firmware not always sign-extending 24-bit value
 	CSPL_MBOX_STS_RUNNING = 0,
 	CSPL_MBOX_STS_PAUSED = 1,
 	CSPL_MBOX_STS_RDY_FOR_REINIT = 2,
@@ -829,6 +836,7 @@ enum cs35l41_cspl_mbox_cmd {
 	CSPL_MBOX_CMD_STOP_PRE_REINIT = 4,
 	CSPL_MBOX_CMD_HIBERNATE = 5,
 	CSPL_MBOX_CMD_OUT_OF_HIBERNATE = 6,
+	CSPL_MBOX_CMD_SPK_OUT_ENABLE = 7,
 	CSPL_MBOX_CMD_UNKNOWN_CMD = -1,
 	CSPL_MBOX_CMD_INVALID_SEQUENCE = -2,
 };
@@ -888,8 +896,8 @@ int cs35l41_test_key_lock(struct device *dev, struct regmap *regmap);
 int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap);
 int cs35l41_register_errata_patch(struct device *dev, struct regmap *reg, unsigned int reg_revid);
 int cs35l41_set_channels(struct device *dev, struct regmap *reg,
-			 unsigned int tx_num, unsigned int *tx_slot,
-			 unsigned int rx_num, unsigned int *rx_slot);
+			 unsigned int tx_num, const unsigned int *tx_slot,
+			 unsigned int rx_num, const unsigned int *rx_slot);
 int cs35l41_gpio_config(struct regmap *regmap, struct cs35l41_hw_cfg *hw_cfg);
 void cs35l41_configure_cs_dsp(struct device *dev, struct regmap *reg, struct cs_dsp *dsp);
 int cs35l41_set_cspl_mbox_cmd(struct device *dev, struct regmap *regmap,
@@ -901,7 +909,8 @@ int cs35l41_exit_hibernate(struct device *dev, struct regmap *regmap);
 int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 		       struct cs35l41_hw_cfg *hw_cfg);
 bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type);
-int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type, int enable,
-			  struct completion *pll_lock);
+int cs35l41_mdsync_up(struct regmap *regmap);
+int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l41_boost_type b_type,
+			  int enable, struct cs_dsp *dsp);
 
 #endif /* __CS35L41_H */

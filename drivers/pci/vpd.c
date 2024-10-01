@@ -275,8 +275,23 @@ static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
 			size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
+	struct pci_dev *vpd_dev = dev;
+	ssize_t ret;
 
-	return pci_read_vpd(dev, off, count, buf);
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
+		vpd_dev = pci_get_func0_dev(dev);
+		if (!vpd_dev)
+			return -ENODEV;
+	}
+
+	pci_config_pm_runtime_get(vpd_dev);
+	ret = pci_read_vpd(vpd_dev, off, count, buf);
+	pci_config_pm_runtime_put(vpd_dev);
+
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
+		pci_dev_put(vpd_dev);
+
+	return ret;
 }
 
 static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
@@ -284,8 +299,23 @@ static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
 			 size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
+	struct pci_dev *vpd_dev = dev;
+	ssize_t ret;
 
-	return pci_write_vpd(dev, off, count, buf);
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
+		vpd_dev = pci_get_func0_dev(dev);
+		if (!vpd_dev)
+			return -ENODEV;
+	}
+
+	pci_config_pm_runtime_get(vpd_dev);
+	ret = pci_write_vpd(vpd_dev, off, count, buf);
+	pci_config_pm_runtime_put(vpd_dev);
+
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
+		pci_dev_put(vpd_dev);
+
+	return ret;
 }
 static BIN_ATTR(vpd, 0600, vpd_read, vpd_write, 0);
 

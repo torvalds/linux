@@ -119,13 +119,38 @@ struct mqd_manager {
 #if defined(CONFIG_DEBUG_FS)
 	int	(*debugfs_show_mqd)(struct seq_file *m, void *data);
 #endif
-	uint32_t (*read_doorbell_id)(void *mqd);
+	bool (*check_preemption_failed)(struct mqd_manager *mm, void *mqd);
 	uint64_t (*mqd_stride)(struct mqd_manager *mm,
 				struct queue_properties *p);
 
 	struct mutex	mqd_mutex;
 	struct kfd_node	*dev;
 	uint32_t mqd_size;
+};
+
+struct mqd_user_context_save_area_header {
+	/* Byte offset from start of user context
+	 * save area to the last saved top (lowest
+	 * address) of control stack data. Must be
+	 * 4 byte aligned.
+	 */
+	uint32_t control_stack_offset;
+
+	/* Byte size of the last saved control stack
+	 * data. Must be 4 byte aligned.
+	 */
+	uint32_t control_stack_size;
+
+	/* Byte offset from start of user context save
+	 * area to the last saved base (lowest address)
+	 * of wave state data. Must be 4 byte aligned.
+	 */
+	uint32_t wave_state_offset;
+
+	/* Byte size of the last saved wave state data.
+	 * Must be 4 byte aligned.
+	 */
+	uint32_t wave_state_size;
 };
 
 struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev,
@@ -138,7 +163,7 @@ void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,
-		uint32_t *se_mask);
+		uint32_t *se_mask, uint32_t inst);
 
 int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
 		uint32_t pipe_id, uint32_t queue_id,
@@ -173,4 +198,6 @@ void kfd_get_hiq_xcc_mqd(struct kfd_node *dev,
 uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev);
 uint64_t kfd_mqd_stride(struct mqd_manager *mm,
 			struct queue_properties *q);
+bool kfd_check_hiq_mqd_doorbell_id(struct kfd_node *node, uint32_t doorbell_id,
+				   uint32_t inst);
 #endif /* KFD_MQD_MANAGER_H_ */

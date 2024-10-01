@@ -710,11 +710,13 @@
 
 	serial@70006040 {
 		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 	};
 
 	serial@70006300 {
 		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 	};
 
@@ -859,7 +861,6 @@
 			compatible = "st,stmpe811";
 			reg = <0x41>;
 			irq-gpio = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
-			interrupt-controller;
 			id = <0>;
 			blocks = <0x5>;
 			irq-trigger = <0x1>;

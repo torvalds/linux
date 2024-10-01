@@ -20,6 +20,7 @@ properties:
       - stericsson,ux500-hash
       - st,stm32f456-hash
       - st,stm32f756-hash
+      - st,stm32mp13-hash
 
   reg:
     maxItems: 1
@@ -49,6 +50,10 @@ properties:
 
   power-domains:
     maxItems: 1
+
+  access-controllers:
+    minItems: 1
+    maxItems: 2
 
 required:
   - compatible

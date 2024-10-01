@@ -406,7 +406,7 @@ free_sge_txq_uld(struct adapter *adap, struct sge_uld_txq_info *txq_info)
 	for (i = 0; i < nq; i++) {
 		struct sge_uld_txq *txq = &txq_info->uldtxq[i];
 
-		if (txq && txq->q.desc) {
+		if (txq->q.desc) {
 			tasklet_kill(&txq->qresume_tsk);
 			t4_ofld_eq_free(adap, adap->mbox, adap->pf, 0,
 					txq->q.cntxt_id);

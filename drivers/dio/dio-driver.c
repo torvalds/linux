@@ -110,10 +110,10 @@ void dio_unregister_driver(struct dio_driver *drv)
  *  and 0 if there is no match.
  */
 
-static int dio_bus_match(struct device *dev, struct device_driver *drv)
+static int dio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct dio_dev *d = to_dio_dev(dev);
-	struct dio_driver *dio_drv = to_dio_driver(drv);
+	const struct dio_driver *dio_drv = to_dio_driver(drv);
 	const struct dio_device_id *ids = dio_drv->id_table;
 
 	if (!ids)
@@ -123,7 +123,7 @@ static int dio_bus_match(struct device *dev, struct device_driver *drv)
 }
 
 
-struct bus_type dio_bus_type = {
+const struct bus_type dio_bus_type = {
 	.name	= "dio",
 	.match	= dio_bus_match,
 	.probe	= dio_device_probe,

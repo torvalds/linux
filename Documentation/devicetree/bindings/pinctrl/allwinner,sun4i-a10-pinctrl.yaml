@@ -97,7 +97,7 @@ patternProperties:
   # It's pretty scary, but the basic idea is that:
   #   - One node name can start with either s- or r- for PRCM nodes,
   #   - Then, the name itself can be any repetition of <string>- (to
-  #     accomodate with nodes like uart4-rts-cts-pins), where each
+  #     accommodate with nodes like uart4-rts-cts-pins), where each
   #     string can be either starting with 'p' but in a string longer
   #     than 3, or something that doesn't start with 'p',
   #   - Then, the bank name is optional and will be between pa and pg,

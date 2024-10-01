@@ -28,6 +28,7 @@ properties:
       - national,lp5523
       - ti,lp55231
       - ti,lp5562
+      - ti,lp5569
       - ti,lp8501
 
   reg:
@@ -106,7 +107,7 @@ patternProperties:
 
           max-cur:
             $ref: /schemas/types.yaml#/definitions/uint8
-            description: Maximun current at each LED channel.
+            description: Maximum current at each LED channel.
 
           reg:
             maximum: 8
@@ -129,7 +130,7 @@ patternProperties:
 
       max-cur:
         $ref: /schemas/types.yaml#/definitions/uint8
-        description: Maximun current at each LED channel.
+        description: Maximum current at each LED channel.
 
       reg:
         description: |
@@ -150,6 +151,16 @@ patternProperties:
       chan-name:
         $ref: /schemas/types.yaml#/definitions/string
         description: name of channel
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          const: ti,lp8501
+then:
+  properties:
+    pwr-sel: false
 
 required:
   - compatible

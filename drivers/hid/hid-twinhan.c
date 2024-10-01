@@ -131,4 +131,5 @@ static struct hid_driver twinhan_driver = {
 };
 module_hid_driver(twinhan_driver);
 
+MODULE_DESCRIPTION("HID driver for TwinHan IR remote control");
 MODULE_LICENSE("GPL");

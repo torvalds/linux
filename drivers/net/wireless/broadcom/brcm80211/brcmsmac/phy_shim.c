@@ -38,9 +38,9 @@ struct phy_shim_info {
 struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
 					  struct brcms_info *wl,
 					  struct brcms_c_info *wlc) {
-	struct phy_shim_info *physhim = NULL;
+	struct phy_shim_info *physhim;
 
-	physhim = kzalloc(sizeof(struct phy_shim_info), GFP_ATOMIC);
+	physhim = kzalloc(sizeof(*physhim), GFP_ATOMIC);
 	if (!physhim)
 		return NULL;
 
@@ -57,12 +57,11 @@ void wlc_phy_shim_detach(struct phy_shim_info *physhim)
 }
 
 struct wlapi_timer *wlapi_init_timer(struct phy_shim_info *physhim,
-				     void (*fn)(struct brcms_phy *pi),
+				     void (*fn)(void *pi),
 				     void *arg, const char *name)
 {
 	return (struct wlapi_timer *)
-			brcms_init_timer(physhim->wl, (void (*)(void *))fn,
-					 arg, name);
+			brcms_init_timer(physhim->wl, fn, arg, name);
 }
 
 void wlapi_free_timer(struct wlapi_timer *t)

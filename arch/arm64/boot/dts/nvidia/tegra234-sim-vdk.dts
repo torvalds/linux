@@ -8,7 +8,6 @@
 	compatible = "nvidia,tegra234-vdk", "nvidia,tegra234";
 
 	aliases {
-		mmc3 = "/bus@0/mmc@3460000";
 		serial0 = &uarta;
 	};
 
@@ -19,6 +18,8 @@
 
 	bus@0 {
 		serial@3100000 {
+			/delete-property/ dmas;
+			/delete-property/ dma-names;
 			status = "okay";
 		};
 

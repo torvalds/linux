@@ -474,8 +474,7 @@ static int ring_context_init_default_state(struct intel_context *ce,
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
-	shmem_read(ce->engine->default_state, 0,
-		   vaddr, ce->engine->context_size);
+	shmem_read(ce->default_state, 0, vaddr, ce->engine->context_size);
 
 	i915_gem_object_flush_map(obj);
 	__i915_gem_object_release_map(obj);
@@ -491,7 +490,7 @@ static int ring_context_pre_pin(struct intel_context *ce,
 	struct i915_address_space *vm;
 	int err = 0;
 
-	if (ce->engine->default_state &&
+	if (ce->default_state &&
 	    !test_bit(CONTEXT_VALID_BIT, &ce->flags)) {
 		err = ring_context_init_default_state(ce, ww);
 		if (err)
@@ -569,6 +568,9 @@ err_obj:
 static int ring_context_alloc(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = ce->engine;
+
+	if (!intel_context_has_own_state(ce))
+		ce->default_state = engine->default_state;
 
 	/* One ringbuffer to rule them all */
 	GEM_BUG_ON(!engine->legacy.ring);
@@ -805,7 +807,7 @@ static int mi_set_context(struct i915_request *rq,
 static int remap_l3_slice(struct i915_request *rq, int slice)
 {
 #define L3LOG_DW (GEN7_L3LOG_SIZE / sizeof(u32))
-	u32 *cs, *remap_info = rq->engine->i915->l3_parity.remap_info[slice];
+	u32 *cs, *remap_info = rq->i915->l3_parity.remap_info[slice];
 	int i;
 
 	if (!remap_info)

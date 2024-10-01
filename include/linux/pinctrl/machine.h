@@ -11,7 +11,7 @@
 #ifndef __LINUX_PINCTRL_MACHINE_H
 #define __LINUX_PINCTRL_MACHINE_H
 
-#include <linux/kernel.h>	/* ARRAY_SIZE() */
+#include <linux/array_size.h>
 
 #include <linux/pinctrl/pinctrl-state.h>
 
@@ -47,7 +47,7 @@ struct pinctrl_map_mux {
 struct pinctrl_map_configs {
 	const char *group_or_pin;
 	unsigned long *configs;
-	unsigned num_configs;
+	unsigned int num_configs;
 };
 
 /**
@@ -154,13 +154,13 @@ struct pinctrl_map;
 #ifdef CONFIG_PINCTRL
 
 extern int pinctrl_register_mappings(const struct pinctrl_map *map,
-				     unsigned num_maps);
+				     unsigned int num_maps);
 extern void pinctrl_unregister_mappings(const struct pinctrl_map *map);
 extern void pinctrl_provide_dummies(void);
 #else
 
 static inline int pinctrl_register_mappings(const struct pinctrl_map *map,
-					    unsigned num_maps)
+					    unsigned int num_maps)
 {
 	return 0;
 }

@@ -56,7 +56,7 @@ struct fsl_mc_driver {
 };
 
 #define to_fsl_mc_driver(_drv) \
-	container_of(_drv, struct fsl_mc_driver, driver)
+	container_of_const(_drv, struct fsl_mc_driver, driver)
 
 /**
  * enum fsl_mc_pool_type - Types of allocatable MC bus resources
@@ -436,7 +436,7 @@ void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
 struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 					  u16 if_id);
 
-extern struct bus_type fsl_mc_bus_type;
+extern const struct bus_type fsl_mc_bus_type;
 
 extern struct device_type fsl_mc_bus_dprc_type;
 extern struct device_type fsl_mc_bus_dpni_type;

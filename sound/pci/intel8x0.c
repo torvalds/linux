@@ -703,7 +703,6 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 	if (!(status & ICH_BCIS)) {
 		step = 0;
 	} else if (civ == ichdev->civ) {
-		// snd_printd("civ same %d\n", civ);
 		step = 1;
 		ichdev->civ++;
 		ichdev->civ &= ICH_REG_LVI_MASK;
@@ -711,8 +710,6 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 		step = civ - ichdev->civ;
 		if (step < 0)
 			step += ICH_REG_LVI_MASK + 1;
-		// if (step != 1)
-		//	snd_printd("step = %d, %d -> %d\n", step, ichdev->civ, civ);
 		ichdev->civ = civ;
 	}
 
@@ -2555,7 +2552,6 @@ static void snd_intel8x0_free(struct snd_card *card)
 		free_irq(chip->irq, chip);
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -2628,11 +2624,7 @@ static int intel8x0_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(intel8x0_pm, intel8x0_suspend, intel8x0_resume);
-#define INTEL8X0_PM_OPS	&intel8x0_pm
-#else
-#define INTEL8X0_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(intel8x0_pm, intel8x0_suspend, intel8x0_resume);
 
 #define INTEL8X0_TESTBUF_SIZE	32768	/* enough large for one shot */
 
@@ -3200,7 +3192,7 @@ static struct pci_driver intel8x0_driver = {
 	.id_table = snd_intel8x0_ids,
 	.probe = snd_intel8x0_probe,
 	.driver = {
-		.pm = INTEL8X0_PM_OPS,
+		.pm = &intel8x0_pm,
 	},
 };
 

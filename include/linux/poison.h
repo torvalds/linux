@@ -38,11 +38,8 @@
  * Magic nums for obj red zoning.
  * Placed in the first word before and the first word after an obj.
  */
-#define	RED_INACTIVE	0x09F911029D74E35BULL	/* when obj is inactive */
-#define	RED_ACTIVE	0xD84156C5635688C0ULL	/* when obj is active */
-
-#define SLUB_RED_INACTIVE	0xbb
-#define SLUB_RED_ACTIVE		0xcc
+#define SLUB_RED_INACTIVE	0xbb	/* when obj is inactive */
+#define SLUB_RED_ACTIVE		0xcc	/* when obj is active */
 
 /* ...and for poisoning */
 #define	POISON_INUSE	0x5a	/* for use-uninitialised poisoning */
@@ -51,12 +48,6 @@
 
 /********** arch/$ARCH/mm/init.c **********/
 #define POISON_FREE_INITMEM	0xcc
-
-/********** arch/ia64/hp/common/sba_iommu.c **********/
-/*
- * arch/ia64/hp/common/sba_iommu.c uses a 16-byte poison string with a
- * value of "SBAIOMMU POISON\0" for spill-over poisoning.
- */
 
 /********** fs/jbd/journal.c **********/
 #define JBD_POISON_FREE		0x5b
@@ -83,11 +74,16 @@
 
 /********** net/core/skbuff.c **********/
 #define SKB_LIST_POISON_NEXT	((void *)(0x800 + POISON_POINTER_DELTA))
+/********** net/ **********/
+#define NET_PTR_POISON		((void *)(0x801 + POISON_POINTER_DELTA))
 
 /********** kernel/bpf/ **********/
 #define BPF_PTR_POISON ((void *)(0xeB9FUL + POISON_POINTER_DELTA))
 
 /********** VFS **********/
 #define VFS_PTR_POISON ((void *)(0xF5 + POISON_POINTER_DELTA))
+
+/********** lib/stackdepot.c **********/
+#define STACK_DEPOT_POISON ((void *)(0xD390 + POISON_POINTER_DELTA))
 
 #endif

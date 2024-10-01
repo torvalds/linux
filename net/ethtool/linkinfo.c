@@ -23,7 +23,7 @@ const struct nla_policy ethnl_linkinfo_get_policy[] = {
 
 static int linkinfo_prepare_data(const struct ethnl_req_info *req_base,
 				 struct ethnl_reply_data *reply_base,
-				 struct genl_info *info)
+				 const struct genl_info *info)
 {
 	struct linkinfo_reply_data *data = LINKINFO_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;
@@ -35,7 +35,7 @@ static int linkinfo_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 	ret = __ethtool_get_link_ksettings(dev, &data->ksettings);
-	if (ret < 0 && info)
+	if (ret < 0)
 		GENL_SET_ERR_MSG(info, "failed to retrieve link settings");
 	ethnl_ops_complete(dev);
 

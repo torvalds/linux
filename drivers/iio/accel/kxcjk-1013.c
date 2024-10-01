@@ -173,6 +173,7 @@ enum kx_chipset {
 	KXCJ91008,
 	KXTJ21009,
 	KXTF9,
+	KX0221020,
 	KX0231025,
 	KX_MAX_CHIPS /* this must be last */
 };
@@ -422,6 +423,23 @@ static int kiox010a_dsm(struct device *dev, int fn_index)
 	ACPI_FREE(obj);
 	return 0;
 }
+
+static const struct acpi_device_id kx_acpi_match[] = {
+	{"KXCJ1013", KXCJK1013},
+	{"KXCJ1008", KXCJ91008},
+	{"KXCJ9000", KXCJ91008},
+	{"KIOX0008", KXCJ91008},
+	{"KIOX0009", KXTJ21009},
+	{"KIOX000A", KXCJ91008},
+	{"KIOX010A", KXCJ91008}, /* KXCJ91008 in the display of a yoga 2-in-1 */
+	{"KIOX020A", KXCJ91008}, /* KXCJ91008 in the base of a yoga 2-in-1 */
+	{"KXTJ1009", KXTJ21009},
+	{"KXJ2109",  KXTJ21009},
+	{"SMO8500",  KXCJ91008},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, kx_acpi_match);
+
 #endif
 
 static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
@@ -563,8 +581,8 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 		return ret;
 	}
 
-	/* On KX023, route all used interrupts to INT1 for now */
-	if (data->chipset == KX0231025 && data->client->irq > 0) {
+	/* On KX023 and KX022, route all used interrupts to INT1 for now */
+	if ((data->chipset == KX0231025 || data->chipset == KX0221020) && data->client->irq > 0) {
 		ret = i2c_smbus_write_byte_data(data->client, KX023_REG_INC4,
 						KX023_REG_INC4_DRDY1 |
 						KX023_REG_INC4_WUFI1);
@@ -1449,9 +1467,12 @@ static int kxcjk1013_probe(struct i2c_client *client)
 	} else {
 		data->active_high_intr = true; /* default polarity */
 
-		ret = iio_read_mount_matrix(&client->dev, &data->orientation);
-		if (ret)
-			return ret;
+		if (!iio_read_acpi_mount_matrix(&client->dev, &data->orientation, "ROTM")) {
+			ret = iio_read_mount_matrix(&client->dev, &data->orientation);
+			if (ret)
+				return ret;
+		}
+
 	}
 
 	ret = devm_regulator_bulk_get_enable(&client->dev,
@@ -1487,6 +1508,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 	case KXTF9:
 		data->regs = &kxtf9_regs;
 		break;
+	case KX0221020:
 	case KX0231025:
 		data->regs = &kx0231025_regs;
 		break;
@@ -1687,27 +1709,12 @@ static const struct dev_pm_ops kxcjk1013_pm_ops = {
 			   kxcjk1013_runtime_resume, NULL)
 };
 
-static const struct acpi_device_id kx_acpi_match[] = {
-	{"KXCJ1013", KXCJK1013},
-	{"KXCJ1008", KXCJ91008},
-	{"KXCJ9000", KXCJ91008},
-	{"KIOX0008", KXCJ91008},
-	{"KIOX0009", KXTJ21009},
-	{"KIOX000A", KXCJ91008},
-	{"KIOX010A", KXCJ91008}, /* KXCJ91008 in the display of a yoga 2-in-1 */
-	{"KIOX020A", KXCJ91008}, /* KXCJ91008 in the base of a yoga 2-in-1 */
-	{"KXTJ1009", KXTJ21009},
-	{"KXJ2109",  KXTJ21009},
-	{"SMO8500",  KXCJ91008},
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, kx_acpi_match);
-
 static const struct i2c_device_id kxcjk1013_id[] = {
 	{"kxcjk1013", KXCJK1013},
 	{"kxcj91008", KXCJ91008},
 	{"kxtj21009", KXTJ21009},
 	{"kxtf9",     KXTF9},
+	{"kx022-1020", KX0221020},
 	{"kx023-1025", KX0231025},
 	{"SMO8500",   KXCJ91008},
 	{}
@@ -1720,6 +1727,7 @@ static const struct of_device_id kxcjk1013_of_match[] = {
 	{ .compatible = "kionix,kxcj91008", },
 	{ .compatible = "kionix,kxtj21009", },
 	{ .compatible = "kionix,kxtf9", },
+	{ .compatible = "kionix,kx022-1020", },
 	{ .compatible = "kionix,kx023-1025", },
 	{ }
 };

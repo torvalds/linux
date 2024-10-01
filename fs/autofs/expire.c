@@ -73,12 +73,9 @@ done:
 /* p->d_lock held */
 static struct dentry *positive_after(struct dentry *p, struct dentry *child)
 {
-	if (child)
-		child = list_next_entry(child, d_child);
-	else
-		child = list_first_entry(&p->d_subdirs, struct dentry, d_child);
+	child = child ? d_next_sibling(child) : d_first_child(p);
 
-	list_for_each_entry_from(child, &p->d_subdirs, d_child) {
+	hlist_for_each_entry_from(child, d_sib) {
 		spin_lock_nested(&child->d_lock, DENTRY_D_LOCK_NESTED);
 		if (simple_positive(child)) {
 			dget_dlock(child);
@@ -432,8 +429,6 @@ static struct dentry *autofs_expire_indirect(struct super_block *sb,
 	if (!root)
 		return NULL;
 
-	timeout = sbi->exp_timeout;
-
 	dentry = NULL;
 	while ((dentry = get_next_positive_subdir(dentry, root))) {
 		spin_lock(&sbi->fs_lock);
@@ -443,6 +438,11 @@ static struct dentry *autofs_expire_indirect(struct super_block *sb,
 			continue;
 		}
 		spin_unlock(&sbi->fs_lock);
+
+		if (ino->flags & AUTOFS_INF_EXPIRE_SET)
+			timeout = ino->exp_timeout;
+		else
+			timeout = sbi->exp_timeout;
 
 		expired = should_expire(dentry, mnt, timeout, how);
 		if (!expired)

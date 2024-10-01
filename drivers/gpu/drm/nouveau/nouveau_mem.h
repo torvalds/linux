@@ -8,7 +8,7 @@ struct ttm_tt;
 
 struct nouveau_mem {
 	struct ttm_resource base;
-	struct nouveau_cli *cli;
+	struct nouveau_drm *drm;
 	u8 kind;
 	u8 comp;
 	struct nvif_mem mem;
@@ -21,7 +21,7 @@ nouveau_mem(struct ttm_resource *reg)
 	return container_of(reg, struct nouveau_mem, base);
 }
 
-int nouveau_mem_new(struct nouveau_cli *, u8 kind, u8 comp,
+int nouveau_mem_new(struct nouveau_drm *, u8 kind, u8 comp,
 		    struct ttm_resource **);
 void nouveau_mem_del(struct ttm_resource_manager *man,
 		     struct ttm_resource *);
@@ -35,4 +35,9 @@ int nouveau_mem_vram(struct ttm_resource *, bool contig, u8 page);
 int nouveau_mem_host(struct ttm_resource *, struct ttm_tt *);
 void nouveau_mem_fini(struct nouveau_mem *);
 int nouveau_mem_map(struct nouveau_mem *, struct nvif_vmm *, struct nvif_vma *);
+int
+nouveau_mem_map_fixed(struct nouveau_mem *mem,
+		      struct nvif_vmm *vmm,
+		      u8 kind, u64 addr,
+		      u64 offset, u64 range);
 #endif

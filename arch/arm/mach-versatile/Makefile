@@ -16,9 +16,6 @@ obj-$(CONFIG_ARCH_REALVIEW)		+= realview.o
 
 # vexpress
 obj-$(CONFIG_ARCH_VEXPRESS)		:= v2m.o
-obj-$(CONFIG_ARCH_VEXPRESS_DCSCB)	+= dcscb.o	dcscb_setup.o
-CFLAGS_dcscb.o				+= -march=armv7-a
-CFLAGS_REMOVE_dcscb.o			= -pg
 obj-$(CONFIG_ARCH_VEXPRESS_SPC)		+= spc.o
 CFLAGS_REMOVE_spc.o			= -pg
 obj-$(CONFIG_ARCH_VEXPRESS_TC2_PM)	+= tc2_pm.o

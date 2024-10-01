@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ or MIT) */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * Copyright (c) 2017 Baylibre SAS.
  * Author:  Jerome Brunet  <jbrunet@baylibre.com>
@@ -17,7 +17,7 @@ struct meson_pmx_bank {
 };
 
 struct meson_axg_pmx_data {
-	struct meson_pmx_bank *pmx_banks;
+	const struct meson_pmx_bank *pmx_banks;
 	unsigned int num_pmx_banks;
 };
 

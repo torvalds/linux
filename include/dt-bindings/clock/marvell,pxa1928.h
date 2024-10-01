@@ -36,7 +36,6 @@
 #define PXA1928_CLK_THSENS_CPU		0x26
 #define PXA1928_CLK_THSENS_VPU		0x27
 #define PXA1928_CLK_THSENS_GC		0x28
-#define PXA1928_APBC_NR_CLKS		0x30
 
 
 /* axi peripherals */
@@ -52,7 +51,5 @@
 #define PXA1928_CLK_SDH4		0x57
 #define PXA1928_CLK_GC3D		0x5d
 #define PXA1928_CLK_GC2D		0x5f
-
-#define PXA1928_APMU_NR_CLKS		0x60
 
 #endif

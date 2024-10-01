@@ -36,7 +36,6 @@
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
-#include <asm/tlbflush.h>
 #include <kern_util.h>
 #include "mconsole_kern.h"
 #include <init.h>
@@ -106,10 +105,7 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 #define DRIVER_NAME "uml-blkdev"
 
 static DEFINE_MUTEX(ubd_lock);
-static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might not be needed */
 
-static int ubd_open(struct gendisk *disk, blk_mode_t mode);
-static void ubd_release(struct gendisk *disk);
 static int ubd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -118,15 +114,10 @@ static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static const struct block_device_operations ubd_blops = {
         .owner		= THIS_MODULE,
-        .open		= ubd_open,
-        .release	= ubd_release,
         .ioctl		= ubd_ioctl,
         .compat_ioctl	= blkdev_compat_ptr_ioctl,
 	.getgeo		= ubd_getgeo,
 };
-
-/* Protected by ubd_lock */
-static struct gendisk *ubd_gendisk[MAX_DEV];
 
 #ifdef CONFIG_BLK_DEV_UBD_SYNC
 #define OPEN_FLAGS ((struct openflags) { .r = 1, .w = 1, .s = 1, .c = 0, \
@@ -155,7 +146,6 @@ struct ubd {
 	 * backing or the cow file. */
 	char *file;
 	char *serial;
-	int count;
 	int fd;
 	__u64 size;
 	struct openflags boot_openflags;
@@ -165,7 +155,7 @@ struct ubd {
 	unsigned no_trim:1;
 	struct cow cow;
 	struct platform_device pdev;
-	struct request_queue *queue;
+	struct gendisk *disk;
 	struct blk_mq_tag_set tag_set;
 	spinlock_t lock;
 };
@@ -181,7 +171,6 @@ struct ubd {
 #define DEFAULT_UBD { \
 	.file = 		NULL, \
 	.serial =		NULL, \
-	.count =		0, \
 	.fd =			-1, \
 	.size =			-1, \
 	.boot_openflags =	OPEN_FLAGS, \
@@ -456,43 +445,31 @@ static int bulk_req_safe_read(
 	return n;
 }
 
-/* Called without dev->lock held, and only in interrupt context. */
-static void ubd_handler(void)
+static void ubd_end_request(struct io_thread_req *io_req)
 {
-	int n;
-	int count;
-
-	while(1){
-		n = bulk_req_safe_read(
-			thread_fd,
-			irq_req_buffer,
-			&irq_remainder,
-			&irq_remainder_size,
-			UBD_REQ_BUFFER_SIZE
-		);
-		if (n < 0) {
-			if(n == -EAGAIN)
-				break;
-			printk(KERN_ERR "spurious interrupt in ubd_handler, "
-			       "err = %d\n", -n);
-			return;
-		}
-		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
-			struct io_thread_req *io_req = (*irq_req_buffer)[count];
-
-			if ((io_req->error == BLK_STS_NOTSUPP) && (req_op(io_req->req) == REQ_OP_DISCARD)) {
-				blk_queue_max_discard_sectors(io_req->req->q, 0);
-				blk_queue_max_write_zeroes_sectors(io_req->req->q, 0);
-			}
-			blk_mq_end_request(io_req->req, io_req->error);
-			kfree(io_req);
-		}
+	if (io_req->error == BLK_STS_NOTSUPP) {
+		if (req_op(io_req->req) == REQ_OP_DISCARD)
+			blk_queue_disable_discard(io_req->req->q);
+		else if (req_op(io_req->req) == REQ_OP_WRITE_ZEROES)
+			blk_queue_disable_write_zeroes(io_req->req->q);
 	}
+	blk_mq_end_request(io_req->req, io_req->error);
+	kfree(io_req);
 }
 
 static irqreturn_t ubd_intr(int irq, void *dev)
 {
-	ubd_handler();
+	int len, i;
+
+	while ((len = bulk_req_safe_read(thread_fd, irq_req_buffer,
+			&irq_remainder, &irq_remainder_size,
+			UBD_REQ_BUFFER_SIZE)) >= 0) {
+		for (i = 0; i < len / sizeof(struct io_thread_req *); i++)
+			ubd_end_request((*irq_req_buffer)[i]);
+	}
+
+	if (len < 0 && len != -EAGAIN)
+		pr_err("spurious interrupt in %s, err = %d\n", __func__, len);
 	return IRQ_HANDLED;
 }
 
@@ -774,15 +751,12 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	ubd_dev->fd = fd;
 
 	if(ubd_dev->cow.file != NULL){
-		blk_queue_max_hw_sectors(ubd_dev->queue, 8 * sizeof(long));
-
 		err = -ENOMEM;
 		ubd_dev->cow.bitmap = vmalloc(ubd_dev->cow.bitmap_len);
 		if(ubd_dev->cow.bitmap == NULL){
 			printk(KERN_ERR "Failed to vmalloc COW bitmap\n");
 			goto error;
 		}
-		flush_tlb_kernel_vm();
 
 		err = read_cow_bitmap(ubd_dev->fd, ubd_dev->cow.bitmap,
 				      ubd_dev->cow.bitmap_offset,
@@ -797,12 +771,6 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 		if(err < 0) goto error;
 		ubd_dev->cow.fd = err;
 	}
-	if (ubd_dev->no_trim == 0) {
-		ubd_dev->queue->limits.discard_granularity = SECTOR_SIZE;
-		blk_queue_max_discard_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
-		blk_queue_max_write_zeroes_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
-	}
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, ubd_dev->queue);
 	return 0;
  error:
 	os_close_file(ubd_dev->fd);
@@ -852,27 +820,6 @@ static const struct attribute_group *ubd_attr_groups[] = {
 	NULL,
 };
 
-static int ubd_disk_register(int major, u64 size, int unit,
-			     struct gendisk *disk)
-{
-	disk->major = major;
-	disk->first_minor = unit << UBD_SHIFT;
-	disk->minors = 1 << UBD_SHIFT;
-	disk->fops = &ubd_blops;
-	set_capacity(disk, size / 512);
-	sprintf(disk->disk_name, "ubd%c", 'a' + unit);
-
-	ubd_devs[unit].pdev.id   = unit;
-	ubd_devs[unit].pdev.name = DRIVER_NAME;
-	ubd_devs[unit].pdev.dev.release = ubd_device_release;
-	dev_set_drvdata(&ubd_devs[unit].pdev.dev, &ubd_devs[unit]);
-	platform_device_register(&ubd_devs[unit].pdev);
-
-	disk->private_data = &ubd_devs[unit];
-	disk->queue = ubd_devs[unit].queue;
-	return device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
-}
-
 #define ROUND_BLOCK(n) ((n + (SECTOR_SIZE - 1)) & (-SECTOR_SIZE))
 
 static const struct blk_mq_ops ubd_mq_ops = {
@@ -882,15 +829,34 @@ static const struct blk_mq_ops ubd_mq_ops = {
 static int ubd_add(int n, char **error_out)
 {
 	struct ubd *ubd_dev = &ubd_devs[n];
+	struct queue_limits lim = {
+		.max_segments		= MAX_SG,
+		.seg_boundary_mask	= PAGE_SIZE - 1,
+		.features		= BLK_FEAT_WRITE_CACHE,
+	};
 	struct gendisk *disk;
 	int err = 0;
 
 	if(ubd_dev->file == NULL)
 		goto out;
 
+	if (ubd_dev->cow.file)
+		lim.max_hw_sectors = 8 * sizeof(long);
+	if (!ubd_dev->no_trim) {
+		lim.max_hw_discard_sectors = UBD_MAX_REQUEST;
+		lim.max_write_zeroes_sectors = UBD_MAX_REQUEST;
+	}
+
 	err = ubd_file_size(ubd_dev, &ubd_dev->size);
 	if(err < 0){
 		*error_out = "Couldn't determine size of device's file";
+		goto out;
+	}
+
+	err = ubd_open_dev(ubd_dev);
+	if (err) {
+		pr_err("ubd%c: Can't open \"%s\": errno = %d\n",
+			'a' + n, ubd_dev->file, -err);
 		goto out;
 	}
 
@@ -905,29 +871,41 @@ static int ubd_add(int n, char **error_out)
 
 	err = blk_mq_alloc_tag_set(&ubd_dev->tag_set);
 	if (err)
-		goto out;
+		goto out_close;
 
-	disk = blk_mq_alloc_disk(&ubd_dev->tag_set, ubd_dev);
+	disk = blk_mq_alloc_disk(&ubd_dev->tag_set, &lim, ubd_dev);
 	if (IS_ERR(disk)) {
 		err = PTR_ERR(disk);
 		goto out_cleanup_tags;
 	}
-	ubd_dev->queue = disk->queue;
 
-	blk_queue_write_cache(ubd_dev->queue, true, false);
-	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
-	blk_queue_segment_boundary(ubd_dev->queue, PAGE_SIZE - 1);
-	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
+	disk->major = UBD_MAJOR;
+	disk->first_minor = n << UBD_SHIFT;
+	disk->minors = 1 << UBD_SHIFT;
+	disk->fops = &ubd_blops;
+	set_capacity(disk, ubd_dev->size / 512);
+	sprintf(disk->disk_name, "ubd%c", 'a' + n);
+	disk->private_data = ubd_dev;
+	set_disk_ro(disk, !ubd_dev->openflags.w);
+
+	ubd_dev->pdev.id = n;
+	ubd_dev->pdev.name = DRIVER_NAME;
+	ubd_dev->pdev.dev.release = ubd_device_release;
+	dev_set_drvdata(&ubd_dev->pdev.dev, ubd_dev);
+	platform_device_register(&ubd_dev->pdev);
+
+	err = device_add_disk(&ubd_dev->pdev.dev, disk, ubd_attr_groups);
 	if (err)
 		goto out_cleanup_disk;
 
-	ubd_gendisk[n] = disk;
 	return 0;
 
 out_cleanup_disk:
 	put_disk(disk);
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
+out_close:
+	ubd_close_dev(ubd_dev);
 out:
 	return err;
 }
@@ -1013,7 +991,6 @@ static int ubd_id(char **str, int *start_out, int *end_out)
 
 static int ubd_remove(int n, char **error_out)
 {
-	struct gendisk *disk = ubd_gendisk[n];
 	struct ubd *ubd_dev;
 	int err = -ENODEV;
 
@@ -1024,15 +1001,15 @@ static int ubd_remove(int n, char **error_out)
 	if(ubd_dev->file == NULL)
 		goto out;
 
-	/* you cannot remove a open disk */
-	err = -EBUSY;
-	if(ubd_dev->count > 0)
-		goto out;
+	if (ubd_dev->disk) {
+		/* you cannot remove a open disk */
+		err = -EBUSY;
+		if (disk_openers(ubd_dev->disk))
+			goto out;
 
-	ubd_gendisk[n] = NULL;
-	if(disk != NULL){
-		del_gendisk(disk);
-		put_disk(disk);
+		del_gendisk(ubd_dev->disk);
+		ubd_close_dev(ubd_dev);
+		put_disk(ubd_dev->disk);
 	}
 
 	err = 0;
@@ -1099,7 +1076,7 @@ static int __init ubd_init(void)
 
 	if (irq_req_buffer == NULL) {
 		printk(KERN_ERR "Failed to initialize ubd buffering\n");
-		return -1;
+		return -ENOMEM;
 	}
 	io_req_buffer = kmalloc_array(UBD_REQ_BUFFER_SIZE,
 				      sizeof(struct io_thread_req *),
@@ -1110,7 +1087,7 @@ static int __init ubd_init(void)
 
 	if (io_req_buffer == NULL) {
 		printk(KERN_ERR "Failed to initialize ubd buffering\n");
-		return -1;
+		return -ENOMEM;
 	}
 	platform_driver_register(&ubd_driver);
 	mutex_lock(&ubd_lock);
@@ -1153,37 +1130,6 @@ static int __init ubd_driver_init(void){
 }
 
 device_initcall(ubd_driver_init);
-
-static int ubd_open(struct gendisk *disk, blk_mode_t mode)
-{
-	struct ubd *ubd_dev = disk->private_data;
-	int err = 0;
-
-	mutex_lock(&ubd_mutex);
-	if(ubd_dev->count == 0){
-		err = ubd_open_dev(ubd_dev);
-		if(err){
-			printk(KERN_ERR "%s: Can't open \"%s\": errno = %d\n",
-			       disk->disk_name, ubd_dev->file, -err);
-			goto out;
-		}
-	}
-	ubd_dev->count++;
-	set_disk_ro(disk, !ubd_dev->openflags.w);
-out:
-	mutex_unlock(&ubd_mutex);
-	return err;
-}
-
-static void ubd_release(struct gendisk *disk)
-{
-	struct ubd *ubd_dev = disk->private_data;
-
-	mutex_lock(&ubd_mutex);
-	if(--ubd_dev->count == 0)
-		ubd_close_dev(ubd_dev);
-	mutex_unlock(&ubd_mutex);
-}
 
 static void cowify_bitmap(__u64 io_offset, int length, unsigned long *cow_mask,
 			  __u64 *cow_offset, unsigned long *bitmap,

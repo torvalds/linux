@@ -146,7 +146,7 @@ static const struct xattr_handler hfs_type_handler = {
 	.set = hfs_xattr_set,
 };
 
-const struct xattr_handler *hfs_xattr_handlers[] = {
+const struct xattr_handler * const hfs_xattr_handlers[] = {
 	&hfs_creator_handler,
 	&hfs_type_handler,
 	NULL

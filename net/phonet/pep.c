@@ -759,8 +759,8 @@ static void pep_sock_close(struct sock *sk, long timeout)
 	sock_put(sk);
 }
 
-static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
-				    bool kern)
+static struct sock *pep_sock_accept(struct sock *sk,
+				    struct proto_accept_arg *arg)
 {
 	struct pep_sock *pn = pep_sk(sk), *newpn;
 	struct sock *newsk = NULL;
@@ -772,8 +772,8 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 	u8 pipe_handle, enabled, n_sb;
 	u8 aligned = 0;
 
-	skb = skb_recv_datagram(sk, (flags & O_NONBLOCK) ? MSG_DONTWAIT : 0,
-				errp);
+	skb = skb_recv_datagram(sk, (arg->flags & O_NONBLOCK) ? MSG_DONTWAIT : 0,
+				&arg->err);
 	if (!skb)
 		return NULL;
 
@@ -836,7 +836,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 
 	/* Create a new to-be-accepted sock */
 	newsk = sk_alloc(sock_net(sk), PF_PHONET, GFP_KERNEL, sk->sk_prot,
-			 kern);
+			 arg->kern);
 	if (!newsk) {
 		pep_reject_conn(sk, skb, PN_PIPE_ERR_OVERLOAD, GFP_KERNEL);
 		err = -ENOBUFS;
@@ -878,7 +878,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 drop:
 	release_sock(sk);
 	kfree_skb(skb);
-	*errp = err;
+	arg->err = err;
 	return newsk;
 }
 
@@ -917,6 +917,37 @@ static int pep_sock_enable(struct sock *sk, struct sockaddr *addr, int len)
 	return 0;
 }
 
+static unsigned int pep_first_packet_length(struct sock *sk)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	struct sk_buff_head *q;
+	struct sk_buff *skb;
+	unsigned int len = 0;
+	bool found = false;
+
+	if (sock_flag(sk, SOCK_URGINLINE)) {
+		q = &pn->ctrlreq_queue;
+		spin_lock_bh(&q->lock);
+		skb = skb_peek(q);
+		if (skb) {
+			len = skb->len;
+			found = true;
+		}
+		spin_unlock_bh(&q->lock);
+	}
+
+	if (likely(!found)) {
+		q = &sk->sk_receive_queue;
+		spin_lock_bh(&q->lock);
+		skb = skb_peek(q);
+		if (skb)
+			len = skb->len;
+		spin_unlock_bh(&q->lock);
+	}
+
+	return len;
+}
+
 static int pep_ioctl(struct sock *sk, int cmd, int *karg)
 {
 	struct pep_sock *pn = pep_sk(sk);
@@ -929,15 +960,7 @@ static int pep_ioctl(struct sock *sk, int cmd, int *karg)
 			break;
 		}
 
-		lock_sock(sk);
-		if (sock_flag(sk, SOCK_URGINLINE) &&
-		    !skb_queue_empty(&pn->ctrlreq_queue))
-			*karg = skb_peek(&pn->ctrlreq_queue)->len;
-		else if (!skb_queue_empty(&sk->sk_receive_queue))
-			*karg = skb_peek(&sk->sk_receive_queue)->len;
-		else
-			*karg = 0;
-		release_sock(sk);
+		*karg = pep_first_packet_length(sk);
 		ret = 0;
 		break;
 

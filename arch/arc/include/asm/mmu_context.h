@@ -165,7 +165,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  * for retiring-mm. However destroy_context( ) still needs to do that because
  * between mm_release( ) = >deactive_mm( ) and
  * mmput => .. => __mmdrop( ) => destroy_context( )
- * there is a good chance that task gets sched-out/in, making it's ASID valid
+ * there is a good chance that task gets sched-out/in, making its ASID valid
  * again (this teased me for a whole day).
  */
 

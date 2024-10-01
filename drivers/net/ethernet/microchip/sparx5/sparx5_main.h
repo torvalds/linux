@@ -18,6 +18,9 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/hrtimer.h>
 #include <linux/debugfs.h>
+#include <net/flow_offload.h>
+
+#include <fdma_api.h>
 
 #include "sparx5_main_regs.h"
 
@@ -99,23 +102,6 @@ enum sparx5_vlan_port_type {
 
 struct sparx5;
 
-struct sparx5_db_hw {
-	u64 dataptr;
-	u64 status;
-};
-
-struct sparx5_rx_dcb_hw {
-	u64 nextptr;
-	u64 info;
-	struct sparx5_db_hw db[FDMA_RX_DCB_MAX_DBS];
-};
-
-struct sparx5_tx_dcb_hw {
-	u64 nextptr;
-	u64 info;
-	struct sparx5_db_hw db[FDMA_TX_DCB_MAX_DBS];
-};
-
 /* Frame DMA receive state:
  * For each DB, there is a SKB, and the skb data pointer is mapped in
  * the DB. Once a frame is received the skb is given to the upper layers
@@ -123,14 +109,10 @@ struct sparx5_tx_dcb_hw {
  * When the db_index reached FDMA_RX_DCB_MAX_DBS the DB is reused.
  */
 struct sparx5_rx {
-	struct sparx5_rx_dcb_hw *dcb_entries;
-	struct sparx5_rx_dcb_hw *last_entry;
+	struct fdma fdma;
 	struct sk_buff *skb[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
-	int db_index;
-	int dcb_index;
 	dma_addr_t dma;
 	struct napi_struct napi;
-	u32 channel_id;
 	struct net_device *ndev;
 	u64 packets;
 };
@@ -139,11 +121,7 @@ struct sparx5_rx {
  * DCBs are chained using the DCBs nextptr field.
  */
 struct sparx5_tx {
-	struct sparx5_tx_dcb_hw *curr_entry;
-	struct sparx5_tx_dcb_hw *first_entry;
-	struct list_head db_list;
-	dma_addr_t dma;
-	u32 channel_id;
+	struct fdma fdma;
 	u64 packets;
 	u64 dropped;
 };
@@ -173,6 +151,7 @@ struct sparx5_port {
 	struct phylink_config phylink_config;
 	struct phylink *phylink;
 	struct phylink_pcs phylink_pcs;
+	struct flow_stats mirror_stats;
 	u16 portno;
 	/* Ingress default VLAN (pvid) */
 	u16 pvid;
@@ -205,7 +184,7 @@ enum sparx5_core_clockfreq {
 struct sparx5_phc {
 	struct ptp_clock *clock;
 	struct ptp_clock_info info;
-	struct hwtstamp_config hwtstamp_config;
+	struct kernel_hwtstamp_config hwtstamp_config;
 	struct sparx5 *sparx5;
 	u8 index;
 };
@@ -225,6 +204,22 @@ struct sparx5_mdb_entry {
 	bool cpu_copy;
 	u16 vid;
 	u16 pgid_idx;
+};
+
+struct sparx5_mall_mirror_entry {
+	u32 idx;
+	struct sparx5_port *port;
+};
+
+struct sparx5_mall_entry {
+	struct list_head list;
+	struct sparx5_port *port;
+	unsigned long cookie;
+	enum flow_action_id type;
+	bool ingress;
+	union {
+		struct sparx5_mall_mirror_entry mirror;
+	};
 };
 
 #define SPARX5_PTP_TIMEOUT		msecs_to_jiffies(10)
@@ -280,6 +275,7 @@ struct sparx5 {
 	int xtr_irq;
 	/* Frame DMA */
 	int fdma_irq;
+	spinlock_t tx_lock; /* lock for frame transmission */
 	struct sparx5_rx rx;
 	struct sparx5_tx tx;
 	/* PTP */
@@ -294,6 +290,7 @@ struct sparx5 {
 	struct vcap_control *vcap_ctrl;
 	/* PGID allocation map */
 	u8 pgid_map[PGID_TABLE_SIZE];
+	struct list_head mall_entries;
 	/* Common root for debugfs */
 	struct dentry *debugfs_root;
 };
@@ -388,8 +385,11 @@ void sparx5_unregister_netdevs(struct sparx5 *sparx5);
 /* sparx5_ptp.c */
 int sparx5_ptp_init(struct sparx5 *sparx5);
 void sparx5_ptp_deinit(struct sparx5 *sparx5);
-int sparx5_ptp_hwtstamp_set(struct sparx5_port *port, struct ifreq *ifr);
-int sparx5_ptp_hwtstamp_get(struct sparx5_port *port, struct ifreq *ifr);
+int sparx5_ptp_hwtstamp_set(struct sparx5_port *port,
+			    struct kernel_hwtstamp_config *cfg,
+			    struct netlink_ext_ack *extack);
+void sparx5_ptp_hwtstamp_get(struct sparx5_port *port,
+			     struct kernel_hwtstamp_config *cfg);
 void sparx5_ptp_rxtstamp(struct sparx5 *sparx5, struct sk_buff *skb,
 			 u64 timestamp);
 int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
@@ -411,7 +411,6 @@ enum sparx5_pgid_type {
 };
 
 void sparx5_pgid_init(struct sparx5 *spx5);
-int sparx5_pgid_alloc_glag(struct sparx5 *spx5, u16 *idx);
 int sparx5_pgid_alloc_mcast(struct sparx5 *spx5, u16 *idx);
 int sparx5_pgid_free(struct sparx5 *spx5, u16 idx);
 
@@ -537,6 +536,12 @@ void sparx5_psfp_init(struct sparx5 *sparx5);
 /* sparx5_qos.c */
 void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,
 			  const ktime_t org_base_time, ktime_t *new_base_time);
+
+/* sparx5_mirror.c */
+int sparx5_mirror_add(struct sparx5_mall_entry *entry);
+void sparx5_mirror_del(struct sparx5_mall_entry *entry);
+void sparx5_mirror_stats(struct sparx5_mall_entry *entry,
+			 struct flow_stats *fstats);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)

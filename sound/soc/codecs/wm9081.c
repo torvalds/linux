@@ -1295,7 +1295,7 @@ static const struct regmap_config wm9081_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm9081_reg),
 	.volatile_reg = wm9081_volatile_register,
 	.readable_reg = wm9081_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int wm9081_i2c_probe(struct i2c_client *i2c)
@@ -1360,7 +1360,7 @@ static void wm9081_i2c_remove(struct i2c_client *client)
 {}
 
 static const struct i2c_device_id wm9081_i2c_id[] = {
-	{ "wm9081", 0 },
+	{ "wm9081" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm9081_i2c_id);

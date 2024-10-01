@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/iio/iio.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
+#include <linux/iio/iio.h>
 
 /* BMP580 specific registers */
 #define BMP580_REG_CMD			0x7E
@@ -192,8 +192,6 @@
 #define BMP380_PRESS_SKIPPED		0x800000
 
 /* BMP280 specific registers */
-#define BMP280_REG_HUMIDITY_LSB		0xFE
-#define BMP280_REG_HUMIDITY_MSB		0xFD
 #define BMP280_REG_TEMP_XLSB		0xFC
 #define BMP280_REG_TEMP_LSB		0xFB
 #define BMP280_REG_TEMP_MSB		0xFA
@@ -207,23 +205,12 @@
 #define BMP280_REG_CONFIG		0xF5
 #define BMP280_REG_CTRL_MEAS		0xF4
 #define BMP280_REG_STATUS		0xF3
-#define BMP280_REG_CTRL_HUMIDITY	0xF2
-
-/* Due to non linear mapping, and data sizes we can't do a bulk read */
-#define BMP280_REG_COMP_H1		0xA1
-#define BMP280_REG_COMP_H2		0xE1
-#define BMP280_REG_COMP_H3		0xE3
-#define BMP280_REG_COMP_H4		0xE4
-#define BMP280_REG_COMP_H5		0xE5
-#define BMP280_REG_COMP_H6		0xE7
 
 #define BMP280_REG_COMP_TEMP_START	0x88
 #define BMP280_COMP_TEMP_REG_COUNT	6
 
 #define BMP280_REG_COMP_PRESS_START	0x8E
 #define BMP280_COMP_PRESS_REG_COUNT	18
-
-#define BMP280_COMP_H5_MASK		GENMASK(15, 4)
 
 #define BMP280_CONTIGUOUS_CALIB_REGS	(BMP280_COMP_TEMP_REG_COUNT + \
 					 BMP280_COMP_PRESS_REG_COUNT)
@@ -234,14 +221,6 @@
 #define BMP280_FILTER_4X		2
 #define BMP280_FILTER_8X		3
 #define BMP280_FILTER_16X		4
-
-#define BMP280_OSRS_HUMIDITY_MASK	GENMASK(2, 0)
-#define BMP280_OSRS_HUMIDITY_SKIP	0
-#define BMP280_OSRS_HUMIDITY_1X		1
-#define BMP280_OSRS_HUMIDITY_2X		2
-#define BMP280_OSRS_HUMIDITY_4X		3
-#define BMP280_OSRS_HUMIDITY_8X		4
-#define BMP280_OSRS_HUMIDITY_16X	5
 
 #define BMP280_OSRS_TEMP_MASK		GENMASK(7, 5)
 #define BMP280_OSRS_TEMP_SKIP		0
@@ -263,6 +242,30 @@
 #define BMP280_MODE_SLEEP		0
 #define BMP280_MODE_FORCED		1
 #define BMP280_MODE_NORMAL		3
+
+/* BME280 specific registers */
+#define BME280_REG_HUMIDITY_LSB		0xFE
+#define BME280_REG_HUMIDITY_MSB		0xFD
+
+#define BME280_REG_CTRL_HUMIDITY	0xF2
+
+/* Due to non linear mapping, and data sizes we can't do a bulk read */
+#define BME280_REG_COMP_H1		0xA1
+#define BME280_REG_COMP_H2		0xE1
+#define BME280_REG_COMP_H3		0xE3
+#define BME280_REG_COMP_H4		0xE4
+#define BME280_REG_COMP_H5		0xE5
+#define BME280_REG_COMP_H6		0xE7
+
+#define BME280_COMP_H5_MASK		GENMASK(15, 4)
+
+#define BME280_OSRS_HUMIDITY_MASK	GENMASK(2, 0)
+#define BME280_OSRS_HUMIDITY_SKIP	0
+#define BME280_OSRS_HUMIDITY_1X		1
+#define BME280_OSRS_HUMIDITY_2X		2
+#define BME280_OSRS_HUMIDITY_4X		3
+#define BME280_OSRS_HUMIDITY_8X		4
+#define BME280_OSRS_HUMIDITY_16X	5
 
 /* BMP180 specific registers */
 #define BMP180_REG_OUT_XLSB		0xF8
@@ -292,6 +295,7 @@
 #define BMP580_CHIP_ID_ALT		0x51
 #define BMP180_CHIP_ID			0x55
 #define BMP280_CHIP_ID			0x58
+#define BMP390_CHIP_ID			0x60
 #define BME280_CHIP_ID			0x60
 #define BMP280_SOFT_RESET_VAL		0xB6
 
@@ -299,6 +303,16 @@
 #define BMP280_TEMP_SKIPPED		0x80000
 #define BMP280_PRESS_SKIPPED		0x80000
 #define BMP280_HUMIDITY_SKIPPED		0x8000
+
+/* Number of bytes for each value */
+#define BMP280_NUM_PRESS_BYTES		3
+#define BMP280_NUM_TEMP_BYTES		3
+#define BME280_NUM_HUMIDITY_BYTES	2
+#define BMP280_BURST_READ_BYTES		(BMP280_NUM_PRESS_BYTES + \
+					 BMP280_NUM_TEMP_BYTES)
+#define BME280_BURST_READ_BYTES		(BMP280_NUM_PRESS_BYTES + \
+					 BMP280_NUM_TEMP_BYTES + \
+					 BME280_NUM_HUMIDITY_BYTES)
 
 /* Core exported structs */
 
@@ -394,10 +408,10 @@ struct bmp280_data {
 	int sampling_freq;
 
 	/*
-	 * Carryover value from temperature conversion, used in pressure
-	 * calculation.
+	 * Data to push to userspace triggered buffer. Up to 3 channels and
+	 * s64 timestamp, aligned.
 	 */
-	s32 t_fine;
+	s32 sensor_data[6] __aligned(8);
 
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
@@ -405,12 +419,12 @@ struct bmp280_data {
 	 */
 	union {
 		/* Sensor data buffer */
-		u8 buf[3];
+		u8 buf[BME280_BURST_READ_BYTES];
 		/* Calibration data buffers */
 		__le16 bmp280_cal_buf[BMP280_CONTIGUOUS_CALIB_REGS / 2];
 		__be16 bmp180_cal_buf[BMP180_REG_CALIB_COUNT / 2];
 		u8 bmp380_cal_buf[BMP380_CALIB_REG_COUNT];
-		/* Miscellaneous, endianess-aware data buffers */
+		/* Miscellaneous, endianness-aware data buffers */
 		__le16 le16;
 		__be16 be16;
 	} __aligned(IIO_DMA_MINALIGN);
@@ -418,13 +432,16 @@ struct bmp280_data {
 
 struct bmp280_chip_info {
 	unsigned int id_reg;
-	const unsigned int chip_id;
+	const u8 *chip_id;
+	int num_chip_id;
 
 	const struct regmap_config *regmap_config;
+	bool spi_read_extra_byte;
 
 	const struct iio_chan_spec *channels;
 	int num_channels;
 	unsigned int start_up_time;
+	const unsigned long *avail_scan_masks;
 
 	const int *oversampling_temp_avail;
 	int num_oversampling_temp_avail;
@@ -446,12 +463,21 @@ struct bmp280_chip_info {
 	int num_sampling_freq_avail;
 	int sampling_freq_default;
 
-	int (*chip_config)(struct bmp280_data *);
-	int (*read_temp)(struct bmp280_data *, int *, int *);
-	int (*read_press)(struct bmp280_data *, int *, int *);
-	int (*read_humid)(struct bmp280_data *, int *, int *);
-	int (*read_calib)(struct bmp280_data *);
-	int (*preinit)(struct bmp280_data *);
+	const int *temp_coeffs;
+	const int temp_coeffs_type;
+	const int *press_coeffs;
+	const int press_coeffs_type;
+	const int *humid_coeffs;
+	const int humid_coeffs_type;
+
+	int (*chip_config)(struct bmp280_data *data);
+	int (*read_temp)(struct bmp280_data *data, s32 *adc_temp);
+	int (*read_press)(struct bmp280_data *data, u32 *adc_press);
+	int (*read_humid)(struct bmp280_data *data, u32 *adc_humidity);
+	int (*read_calib)(struct bmp280_data *data);
+	int (*preinit)(struct bmp280_data *data);
+
+	irqreturn_t (*trigger_handler)(int irq, void *p);
 };
 
 /* Chip infos for each variant */
@@ -464,13 +490,14 @@ extern const struct bmp280_chip_info bmp580_chip_info;
 /* Regmap configurations */
 extern const struct regmap_config bmp180_regmap_config;
 extern const struct regmap_config bmp280_regmap_config;
+extern const struct regmap_config bme280_regmap_config;
 extern const struct regmap_config bmp380_regmap_config;
 extern const struct regmap_config bmp580_regmap_config;
 
 /* Probe called from different transports */
 int bmp280_common_probe(struct device *dev,
 			struct regmap *regmap,
-			const struct bmp280_chip_info *,
+			const struct bmp280_chip_info *chip_info,
 			const char *name,
 			int irq);
 

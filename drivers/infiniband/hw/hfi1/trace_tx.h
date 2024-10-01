@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright(c) 2015 - 2017 Intel Corporation.
  */
@@ -740,8 +740,8 @@ TRACE_EVENT(hfi1_sdma_state,
 		__string(newstate, nstate)
 	    ),
 	    TP_fast_assign(DD_DEV_ASSIGN(sde->dd);
-		__assign_str(curstate, cstate);
-		__assign_str(newstate, nstate);
+		__assign_str(curstate);
+		__assign_str(newstate);
 	    ),
 	    TP_printk("[%s] current state %s new state %s",
 		      __get_str(dev),

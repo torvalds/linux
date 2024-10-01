@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or MIT
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 //
 // Device Tree Source for General Electric B1x5Pv2
 // patient monitor series
@@ -257,7 +257,7 @@
 		simple-audio-card,bitclock-master = <&dailink_master>;
 		simple-audio-card,frame-master = <&dailink_master>;
 		simple-audio-card,widgets = "Speaker", "Ext Spk";
-		simple-audio-card,audio-routing = "Ext Spk", "LINE";
+		simple-audio-card,routing = "Ext Spk", "LINE";
 
 		simple-audio-card,cpu {
 			sound-dai = <&ssi1>;

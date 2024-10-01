@@ -67,6 +67,28 @@ static int divide_memory_pool(void *virt, unsigned long size)
 	return 0;
 }
 
+static int pkvm_create_host_sve_mappings(void)
+{
+	void *start, *end;
+	int ret, i;
+
+	if (!system_supports_sve())
+		return 0;
+
+	for (i = 0; i < hyp_nr_cpus; i++) {
+		struct kvm_host_data *host_data = per_cpu_ptr(&kvm_host_data, i);
+		struct cpu_sve_state *sve_state = host_data->sve_state;
+
+		start = kern_hyp_va(sve_state);
+		end = start + PAGE_ALIGN(pkvm_host_sve_state_size());
+		ret = pkvm_create_mappings(start, end, PAGE_HYP);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 				 unsigned long *per_cpu_base,
 				 u32 hyp_va_bits)
@@ -113,7 +135,6 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 
 	for (i = 0; i < hyp_nr_cpus; i++) {
 		struct kvm_nvhe_init_params *params = per_cpu_ptr(&kvm_init_params, i);
-		unsigned long hyp_addr;
 
 		start = (void *)kern_hyp_va(per_cpu_base[i]);
 		end = start + PAGE_ALIGN(hyp_percpu_size);
@@ -121,34 +142,12 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 		if (ret)
 			return ret;
 
-		/*
-		 * Allocate a contiguous HYP private VA range for the stack
-		 * and guard page. The allocation is also aligned based on
-		 * the order of its size.
-		 */
-		ret = pkvm_alloc_private_va_range(PAGE_SIZE * 2, &hyp_addr);
+		ret = pkvm_create_stack(params->stack_pa, &params->stack_hyp_va);
 		if (ret)
 			return ret;
-
-		/*
-		 * Since the stack grows downwards, map the stack to the page
-		 * at the higher address and leave the lower guard page
-		 * unbacked.
-		 *
-		 * Any valid stack address now has the PAGE_SHIFT bit as 1
-		 * and addresses corresponding to the guard page have the
-		 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
-		 */
-		hyp_spin_lock(&pkvm_pgd_lock);
-		ret = kvm_pgtable_hyp_map(&pkvm_pgtable, hyp_addr + PAGE_SIZE,
-					PAGE_SIZE, params->stack_pa, PAGE_HYP);
-		hyp_spin_unlock(&pkvm_pgd_lock);
-		if (ret)
-			return ret;
-
-		/* Update stack_hyp_va to end of the stack's private VA range */
-		params->stack_hyp_va = hyp_addr + (2 * PAGE_SIZE);
 	}
+
+	pkvm_create_host_sve_mappings();
 
 	/*
 	 * Map the host sections RO in the hypervisor, but transfer the
@@ -206,7 +205,7 @@ static int fix_host_ownership_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	if (!kvm_pte_valid(ctx->old))
 		return 0;
 
-	if (ctx->level != (KVM_PGTABLE_MAX_LEVELS - 1))
+	if (ctx->level != KVM_PGTABLE_LAST_LEVEL)
 		return -EINVAL;
 
 	phys = kvm_pte_to_phys(ctx->old);
@@ -282,8 +281,7 @@ static int fix_hyp_pgtable_refcnt(void)
 
 void __noreturn __pkvm_init_finalise(void)
 {
-	struct kvm_host_data *host_data = this_cpu_ptr(&kvm_host_data);
-	struct kvm_cpu_context *host_ctxt = &host_data->host_ctxt;
+	struct kvm_cpu_context *host_ctxt = host_data_ptr(host_ctxt);
 	unsigned long nr_pages, reserved_pages, pfn;
 	int ret;
 
@@ -341,7 +339,7 @@ int __pkvm_init(phys_addr_t phys, unsigned long size, unsigned long nr_cpus,
 {
 	struct kvm_nvhe_init_params *params;
 	void *virt = hyp_phys_to_virt(phys);
-	void (*fn)(phys_addr_t params_pa, void *finalize_fn_va);
+	typeof(__pkvm_init_switch_pgd) *fn;
 	int ret;
 
 	BUG_ON(kvm_check_pvm_sysreg_table());
@@ -365,7 +363,7 @@ int __pkvm_init(phys_addr_t phys, unsigned long size, unsigned long nr_cpus,
 	/* Jump in the idmap page to switch to the new page-tables */
 	params = this_cpu_ptr(&kvm_init_params);
 	fn = (typeof(fn))__hyp_pa(__pkvm_init_switch_pgd);
-	fn(__hyp_pa(params), __pkvm_init_finalise);
+	fn(params->pgd_pa, params->stack_hyp_va, __pkvm_init_finalise);
 
 	unreachable();
 }

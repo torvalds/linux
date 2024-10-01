@@ -226,7 +226,10 @@ struct wmi_ops {
 			 const struct wmi_bb_timing_cfg_arg *arg);
 	struct sk_buff *(*gen_per_peer_per_tid_cfg)(struct ath10k *ar,
 						    const struct wmi_per_peer_per_tid_cfg_arg *arg);
+	struct sk_buff *(*gen_gpio_config)(struct ath10k *ar, u32 gpio_num,
+					   u32 input, u32 pull_type, u32 intr_mode);
 
+	struct sk_buff *(*gen_gpio_output)(struct ath10k *ar, u32 gpio_num, u32 set);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1120,6 +1123,35 @@ ath10k_wmi_force_fw_hang(struct ath10k *ar,
 		return PTR_ERR(skb);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->force_fw_hang_cmdid);
+}
+
+static inline int ath10k_wmi_gpio_config(struct ath10k *ar, u32 gpio_num,
+					 u32 input, u32 pull_type, u32 intr_mode)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_gpio_config)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_gpio_config(ar, gpio_num, input, pull_type, intr_mode);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->gpio_config_cmdid);
+}
+
+static inline int ath10k_wmi_gpio_output(struct ath10k *ar, u32 gpio_num, u32 set)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_gpio_config)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_gpio_output(ar, gpio_num, set);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->gpio_output_cmdid);
 }
 
 static inline int

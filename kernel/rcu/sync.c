@@ -24,22 +24,6 @@ void rcu_sync_init(struct rcu_sync *rsp)
 	init_waitqueue_head(&rsp->gp_wait);
 }
 
-/**
- * rcu_sync_enter_start - Force readers onto slow path for multiple updates
- * @rsp: Pointer to rcu_sync structure to use for synchronization
- *
- * Must be called after rcu_sync_init() and before first use.
- *
- * Ensures rcu_sync_is_idle() returns false and rcu_sync_{enter,exit}()
- * pairs turn into NO-OPs.
- */
-void rcu_sync_enter_start(struct rcu_sync *rsp)
-{
-	rsp->gp_count++;
-	rsp->gp_state = GP_PASSED;
-}
-
-
 static void rcu_sync_func(struct rcu_head *rhp);
 
 static void rcu_sync_call(struct rcu_sync *rsp)
@@ -168,9 +152,9 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 void rcu_sync_exit(struct rcu_sync *rsp)
 {
 	WARN_ON_ONCE(READ_ONCE(rsp->gp_state) == GP_IDLE);
-	WARN_ON_ONCE(READ_ONCE(rsp->gp_count) == 0);
 
 	spin_lock_irq(&rsp->rss_lock);
+	WARN_ON_ONCE(rsp->gp_count == 0);
 	if (!--rsp->gp_count) {
 		if (rsp->gp_state == GP_PASSED) {
 			WRITE_ONCE(rsp->gp_state, GP_EXIT);
@@ -190,10 +174,10 @@ void rcu_sync_dtor(struct rcu_sync *rsp)
 {
 	int gp_state;
 
-	WARN_ON_ONCE(READ_ONCE(rsp->gp_count));
 	WARN_ON_ONCE(READ_ONCE(rsp->gp_state) == GP_PASSED);
 
 	spin_lock_irq(&rsp->rss_lock);
+	WARN_ON_ONCE(rsp->gp_count);
 	if (rsp->gp_state == GP_REPLAY)
 		WRITE_ONCE(rsp->gp_state, GP_EXIT);
 	gp_state = rsp->gp_state;

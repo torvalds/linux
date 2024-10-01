@@ -488,7 +488,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
 
-	hu = kzalloc(sizeof(struct hci_uart), GFP_KERNEL);
+	hu = kzalloc(sizeof(*hu), GFP_KERNEL);
 	if (!hu) {
 		BT_ERR("Can't allocate control structure");
 		return -ENFILE;
@@ -506,6 +506,9 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	/* disable alignment support by default */
 	hu->alignment = 1;
 	hu->padding = 0;
+
+	/* Use serial port speed as oper_speed */
+	hu->oper_speed = tty->termios.c_ospeed;
 
 	INIT_WORK(&hu->init_ready, hci_uart_init_work);
 	INIT_WORK(&hu->write_work, hci_uart_write_work);
@@ -599,7 +602,7 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  * Return Value:    None
  */
 static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
-				 const char *flags, int count)
+				 const u8 *flags, size_t count)
 {
 	struct hci_uart *hu = tty->disc_data;
 
@@ -667,11 +670,6 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	if (!test_bit(HCI_UART_RESET_ON_INIT, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
-	if (test_bit(HCI_UART_CREATE_AMP, &hu->hdev_flags))
-		hdev->dev_type = HCI_AMP;
-	else
-		hdev->dev_type = HCI_PRIMARY;
-
 	/* Only call open() for the protocol after hdev is fully initialized as
 	 * open() (or a timer/workqueue it starts) may attempt to reference it.
 	 */
@@ -722,7 +720,6 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
 {
 	unsigned long valid_flags = BIT(HCI_UART_RAW_DEVICE) |
 				    BIT(HCI_UART_RESET_ON_INIT) |
-				    BIT(HCI_UART_CREATE_AMP) |
 				    BIT(HCI_UART_INIT_PENDING) |
 				    BIT(HCI_UART_EXT_CONFIG) |
 				    BIT(HCI_UART_VND_DETECT);
@@ -770,7 +767,8 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		break;
 
 	case HCIUARTGETPROTO:
-		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
+		if (test_bit(HCI_UART_PROTO_SET, &hu->flags) &&
+		    test_bit(HCI_UART_PROTO_READY, &hu->flags))
 			err = hu->proto->id;
 		else
 			err = -EUNATCH;
@@ -806,20 +804,14 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
  * We don't provide read/write/poll interface for user space.
  */
 static ssize_t hci_uart_tty_read(struct tty_struct *tty, struct file *file,
-				 unsigned char *buf, size_t nr,
-				 void **cookie, unsigned long offset)
+				 u8 *buf, size_t nr, void **cookie,
+				 unsigned long offset)
 {
 	return 0;
 }
 
 static ssize_t hci_uart_tty_write(struct tty_struct *tty, struct file *file,
-				  const unsigned char *data, size_t count)
-{
-	return 0;
-}
-
-static __poll_t hci_uart_tty_poll(struct tty_struct *tty,
-				      struct file *filp, poll_table *wait)
+				  const u8 *data, size_t count)
 {
 	return 0;
 }
@@ -834,7 +826,6 @@ static struct tty_ldisc_ops hci_uart_ldisc = {
 	.write		= hci_uart_tty_write,
 	.ioctl		= hci_uart_tty_ioctl,
 	.compat_ioctl	= hci_uart_tty_ioctl,
-	.poll		= hci_uart_tty_poll,
 	.receive_buf	= hci_uart_tty_receive,
 	.write_wakeup	= hci_uart_tty_wakeup,
 };
@@ -882,7 +873,9 @@ static int __init hci_uart_init(void)
 #ifdef CONFIG_BT_HCIUART_MRVL
 	mrvl_init();
 #endif
-
+#ifdef CONFIG_BT_HCIUART_AML
+	aml_init();
+#endif
 	return 0;
 }
 
@@ -918,7 +911,9 @@ static void __exit hci_uart_exit(void)
 #ifdef CONFIG_BT_HCIUART_MRVL
 	mrvl_deinit();
 #endif
-
+#ifdef CONFIG_BT_HCIUART_AML
+	aml_deinit();
+#endif
 	tty_unregister_ldisc(&hci_uart_ldisc);
 }
 

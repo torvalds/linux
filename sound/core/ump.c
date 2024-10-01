@@ -13,10 +13,10 @@
 #include <sound/ump.h>
 #include <sound/ump_convert.h>
 
-#define ump_err(ump, fmt, args...)	dev_err(&(ump)->core.dev, fmt, ##args)
-#define ump_warn(ump, fmt, args...)	dev_warn(&(ump)->core.dev, fmt, ##args)
-#define ump_info(ump, fmt, args...)	dev_info(&(ump)->core.dev, fmt, ##args)
-#define ump_dbg(ump, fmt, args...)	dev_dbg(&(ump)->core.dev, fmt, ##args)
+#define ump_err(ump, fmt, args...)	dev_err((ump)->core.dev, fmt, ##args)
+#define ump_warn(ump, fmt, args...)	dev_warn((ump)->core.dev, fmt, ##args)
+#define ump_info(ump, fmt, args...)	dev_info((ump)->core.dev, fmt, ##args)
+#define ump_dbg(ump, fmt, args...)	dev_dbg((ump)->core.dev, fmt, ##args)
 
 static int snd_ump_dev_register(struct snd_rawmidi *rmidi);
 static int snd_ump_dev_unregister(struct snd_rawmidi *rmidi);
@@ -489,11 +489,7 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 			    ump->info.manufacturer_id);
 		snd_iprintf(buffer, "Family ID: 0x%04x\n", ump->info.family_id);
 		snd_iprintf(buffer, "Model ID: 0x%04x\n", ump->info.model_id);
-		snd_iprintf(buffer, "SW Revision: 0x%02x%02x%02x%02x\n",
-			    ump->info.sw_revision[0],
-			    ump->info.sw_revision[1],
-			    ump->info.sw_revision[2],
-			    ump->info.sw_revision[3]);
+		snd_iprintf(buffer, "SW Revision: 0x%4phN\n", ump->info.sw_revision);
 	}
 	snd_iprintf(buffer, "Static Blocks: %s\n",
 		    (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS) ? "Yes" : "No");
@@ -523,6 +519,62 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "\n");
 	}
 }
+
+/* update dir_bits and active flag for all groups in the client */
+void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
+{
+	struct snd_ump_block *fb;
+	struct snd_ump_group *group;
+	int i;
+
+	for (i = 0; i < SNDRV_UMP_MAX_GROUPS; i++) {
+		group = &ump->groups[i];
+		*group->name = 0;
+		group->dir_bits = 0;
+		group->active = 0;
+		group->group = i;
+		group->valid = false;
+		group->is_midi1 = false;
+	}
+
+	list_for_each_entry(fb, &ump->block_list, list) {
+		if (fb->info.first_group + fb->info.num_groups > SNDRV_UMP_MAX_GROUPS)
+			break;
+		group = &ump->groups[fb->info.first_group];
+		for (i = 0; i < fb->info.num_groups; i++, group++) {
+			group->valid = true;
+			if (fb->info.active)
+				group->active = 1;
+			if (fb->info.flags & SNDRV_UMP_BLOCK_IS_MIDI1)
+				group->is_midi1 = true;
+			switch (fb->info.direction) {
+			case SNDRV_UMP_DIR_INPUT:
+				group->dir_bits |= (1 << SNDRV_RAWMIDI_STREAM_INPUT);
+				break;
+			case SNDRV_UMP_DIR_OUTPUT:
+				group->dir_bits |= (1 << SNDRV_RAWMIDI_STREAM_OUTPUT);
+				break;
+			case SNDRV_UMP_DIR_BIDIRECTION:
+				group->dir_bits |= (1 << SNDRV_RAWMIDI_STREAM_INPUT) |
+					(1 << SNDRV_RAWMIDI_STREAM_OUTPUT);
+				break;
+			}
+			if (!*fb->info.name)
+				continue;
+			if (!*group->name) {
+				/* store the first matching name */
+				strscpy(group->name, fb->info.name,
+					sizeof(group->name));
+			} else {
+				/* when overlapping, concat names */
+				strlcat(group->name, ", ", sizeof(group->name));
+				strlcat(group->name, fb->info.name,
+					sizeof(group->name));
+			}
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(snd_ump_update_group_attrs);
 
 /*
  * UMP endpoint and function block handling
@@ -602,6 +654,17 @@ static int ump_append_string(struct snd_ump_endpoint *ump, char *dest,
 		format == UMP_STREAM_MSG_FORMAT_END);
 }
 
+/* Choose the default protocol */
+static void choose_default_protocol(struct snd_ump_endpoint *ump)
+{
+	if (ump->info.protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK)
+		return;
+	if (ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2)
+		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI2;
+	else
+		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
+}
+
 /* handle EP info stream message; update the UMP attributes */
 static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
@@ -623,6 +686,10 @@ static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 
 	ump_dbg(ump, "EP info: version=%x, num_blocks=%x, proto_caps=%x\n",
 		ump->info.version, ump->info.num_blocks, ump->info.protocol_caps);
+
+	ump->info.protocol &= ump->info.protocol_caps;
+	choose_default_protocol(ump);
+
 	return 1; /* finished */
 }
 
@@ -639,14 +706,11 @@ static int ump_handle_device_info_msg(struct snd_ump_endpoint *ump,
 	ump->info.sw_revision[1] = (buf->device_info.sw_revision >> 16) & 0x7f;
 	ump->info.sw_revision[2] = (buf->device_info.sw_revision >> 8) & 0x7f;
 	ump->info.sw_revision[3] = buf->device_info.sw_revision & 0x7f;
-	ump_dbg(ump, "EP devinfo: manid=%08x, family=%04x, model=%04x, sw=%02x%02x%02x%02x\n",
+	ump_dbg(ump, "EP devinfo: manid=%08x, family=%04x, model=%04x, sw=%4phN\n",
 		ump->info.manufacturer_id,
 		ump->info.family_id,
 		ump->info.model_id,
-		ump->info.sw_revision[0],
-		ump->info.sw_revision[1],
-		ump->info.sw_revision[2],
-		ump->info.sw_revision[3]);
+		ump->info.sw_revision);
 	return 1; /* finished */
 }
 
@@ -685,8 +749,15 @@ static void seq_notify_protocol(struct snd_ump_endpoint *ump)
  */
 int snd_ump_switch_protocol(struct snd_ump_endpoint *ump, unsigned int protocol)
 {
+	unsigned int type;
+
 	protocol &= ump->info.protocol_caps;
 	if (protocol == ump->info.protocol)
+		return 0;
+
+	type = protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI_MASK;
+	if (type != SNDRV_UMP_EP_INFO_PROTO_MIDI1 &&
+	    type != SNDRV_UMP_EP_INFO_PROTO_MIDI2)
 		return 0;
 
 	ump->info.protocol = protocol;
@@ -726,6 +797,12 @@ static void fill_fb_info(struct snd_ump_endpoint *ump,
 		info->block_id, info->direction, info->active,
 		info->first_group, info->num_groups, info->midi_ci_version,
 		info->sysex8_streams, info->flags);
+
+	if ((info->flags & SNDRV_UMP_BLOCK_IS_MIDI1) && info->num_groups != 1) {
+		info->num_groups = 1;
+		ump_dbg(ump, "FB %d: corrected groups to 1 for MIDI1\n",
+			info->block_id);
+	}
 }
 
 /* check whether the FB info gets updated by the current message */
@@ -779,8 +856,10 @@ static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 
 	if (fb) {
 		fill_fb_info(ump, &fb->info, buf);
-		if (ump->parsed)
+		if (ump->parsed) {
+			snd_ump_update_group_attrs(ump);
 			seq_notify_fb_change(ump, fb);
+		}
 	}
 
 	return 1; /* finished */
@@ -799,11 +878,20 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 	if (!fb)
 		return -ENODEV;
 
+	if (ump->parsed &&
+	    (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS)) {
+		ump_dbg(ump, "Skipping static FB name update (blk#%d)\n",
+			fb->info.block_id);
+		return 0;
+	}
+
 	ret = ump_append_string(ump, fb->info.name, sizeof(fb->info.name),
 				buf->raw, 3);
 	/* notify the FB name update to sequencer, too */
-	if (ret > 0 && ump->parsed)
+	if (ret > 0 && ump->parsed) {
+		snd_ump_update_group_attrs(ump);
 		seq_notify_fb_change(ump, fb);
+	}
 	return ret;
 }
 
@@ -960,12 +1048,18 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 	if (err < 0)
 		ump_dbg(ump, "Unable to get UMP EP stream config\n");
 
+	/* If no protocol is set by some reason, assume the valid one */
+	choose_default_protocol(ump);
+
 	/* Query and create blocks from Function Blocks */
 	for (blk = 0; blk < ump->info.num_blocks; blk++) {
 		err = create_block_from_fb_info(ump, blk);
 		if (err < 0)
 			continue;
 	}
+
+	/* initialize group attributions */
+	snd_ump_update_group_attrs(ump);
 
  error:
 	ump->parsed = true;
@@ -984,14 +1078,12 @@ static int snd_ump_legacy_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_ump_endpoint *ump = substream->rmidi->private_data;
 	int dir = substream->stream;
-	int group = substream->number;
+	int group = ump->legacy_mapping[substream->number];
 	int err;
 
-	mutex_lock(&ump->open_mutex);
-	if (ump->legacy_substreams[dir][group]) {
-		err = -EBUSY;
-		goto unlock;
-	}
+	guard(mutex)(&ump->open_mutex);
+	if (ump->legacy_substreams[dir][group])
+		return -EBUSY;
 	if (dir == SNDRV_RAWMIDI_STREAM_OUTPUT) {
 		if (!ump->legacy_out_opens) {
 			err = snd_rawmidi_kernel_open(&ump->core, 0,
@@ -999,16 +1091,13 @@ static int snd_ump_legacy_open(struct snd_rawmidi_substream *substream)
 						      SNDRV_RAWMIDI_LFLG_APPEND,
 						      &ump->legacy_out_rfile);
 			if (err < 0)
-				goto unlock;
+				return err;
 		}
 		ump->legacy_out_opens++;
 		snd_ump_convert_reset(&ump->out_cvts[group]);
 	}
-	spin_lock_irq(&ump->legacy_locks[dir]);
+	guard(spinlock_irq)(&ump->legacy_locks[dir]);
 	ump->legacy_substreams[dir][group] = substream;
-	spin_unlock_irq(&ump->legacy_locks[dir]);
- unlock:
-	mutex_unlock(&ump->open_mutex);
 	return 0;
 }
 
@@ -1016,17 +1105,15 @@ static int snd_ump_legacy_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_ump_endpoint *ump = substream->rmidi->private_data;
 	int dir = substream->stream;
-	int group = substream->number;
+	int group = ump->legacy_mapping[substream->number];
 
-	mutex_lock(&ump->open_mutex);
-	spin_lock_irq(&ump->legacy_locks[dir]);
-	ump->legacy_substreams[dir][group] = NULL;
-	spin_unlock_irq(&ump->legacy_locks[dir]);
+	guard(mutex)(&ump->open_mutex);
+	scoped_guard(spinlock_irq, &ump->legacy_locks[dir])
+		ump->legacy_substreams[dir][group] = NULL;
 	if (dir == SNDRV_RAWMIDI_STREAM_OUTPUT) {
 		if (!--ump->legacy_out_opens)
 			snd_rawmidi_kernel_release(&ump->legacy_out_rfile);
 	}
-	mutex_unlock(&ump->open_mutex);
 	return 0;
 }
 
@@ -1076,22 +1163,26 @@ static int process_legacy_output(struct snd_ump_endpoint *ump,
 	struct snd_rawmidi_substream *substream;
 	struct ump_cvt_to_ump *ctx;
 	const int dir = SNDRV_RAWMIDI_STREAM_OUTPUT;
+	unsigned int protocol;
 	unsigned char c;
 	int group, size = 0;
-	unsigned long flags;
 
 	if (!ump->out_cvts || !ump->legacy_out_opens)
 		return 0;
 
-	spin_lock_irqsave(&ump->legacy_locks[dir], flags);
+	guard(spinlock_irqsave)(&ump->legacy_locks[dir]);
 	for (group = 0; group < SNDRV_UMP_MAX_GROUPS; group++) {
 		substream = ump->legacy_substreams[dir][group];
 		if (!substream)
 			continue;
 		ctx = &ump->out_cvts[group];
+		protocol = ump->info.protocol;
+		if ((protocol & SNDRV_UMP_EP_INFO_PROTO_MIDI2) &&
+		    ump->groups[group].is_midi1)
+			protocol = SNDRV_UMP_EP_INFO_PROTO_MIDI1;
 		while (!ctx->ump_bytes &&
 		       snd_rawmidi_transmit(substream, &c, 1) > 0)
-			snd_ump_convert_to_ump(ctx, group, ump->info.protocol, c);
+			snd_ump_convert_to_ump(ctx, group, protocol, c);
 		if (ctx->ump_bytes && ctx->ump_bytes <= count) {
 			size = ctx->ump_bytes;
 			memcpy(buffer, ctx->ump, size);
@@ -1099,7 +1190,6 @@ static int process_legacy_output(struct snd_ump_endpoint *ump,
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&ump->legacy_locks[dir], flags);
 	return size;
 }
 
@@ -1109,18 +1199,61 @@ static void process_legacy_input(struct snd_ump_endpoint *ump, const u32 *src,
 	struct snd_rawmidi_substream *substream;
 	unsigned char buf[16];
 	unsigned char group;
-	unsigned long flags;
 	const int dir = SNDRV_RAWMIDI_STREAM_INPUT;
 	int size;
 
 	size = snd_ump_convert_from_ump(src, buf, &group);
 	if (size <= 0)
 		return;
-	spin_lock_irqsave(&ump->legacy_locks[dir], flags);
+	guard(spinlock_irqsave)(&ump->legacy_locks[dir]);
 	substream = ump->legacy_substreams[dir][group];
 	if (substream)
 		snd_rawmidi_receive(substream, buf, size);
-	spin_unlock_irqrestore(&ump->legacy_locks[dir], flags);
+}
+
+/* Fill ump->legacy_mapping[] for groups to be used for legacy rawmidi */
+static int fill_legacy_mapping(struct snd_ump_endpoint *ump)
+{
+	struct snd_ump_block *fb;
+	unsigned int group_maps = 0;
+	int i, num;
+
+	if (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS) {
+		list_for_each_entry(fb, &ump->block_list, list) {
+			for (i = 0; i < fb->info.num_groups; i++)
+				group_maps |= 1U << (fb->info.first_group + i);
+		}
+		if (!group_maps)
+			ump_info(ump, "No UMP Group is found in FB\n");
+	}
+
+	/* use all groups for non-static case */
+	if (!group_maps)
+		group_maps = (1U << SNDRV_UMP_MAX_GROUPS) - 1;
+
+	num = 0;
+	for (i = 0; i < SNDRV_UMP_MAX_GROUPS; i++)
+		if (group_maps & (1U << i))
+			ump->legacy_mapping[num++] = i;
+
+	return num;
+}
+
+static void fill_substream_names(struct snd_ump_endpoint *ump,
+				 struct snd_rawmidi *rmidi, int dir)
+{
+	struct snd_rawmidi_substream *s;
+	const char *name;
+	int idx;
+
+	list_for_each_entry(s, &rmidi->streams[dir].substreams, list) {
+		idx = ump->legacy_mapping[s->number];
+		name = ump->groups[idx].name;
+		if (!*name)
+			name = ump->info.name;
+		snprintf(s->name, sizeof(s->name), "Group %d (%.16s)",
+			 idx + 1, name);
+	}
 }
 
 int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
@@ -1128,16 +1261,19 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 {
 	struct snd_rawmidi *rmidi;
 	bool input, output;
-	int err;
+	int err, num;
 
-	ump->out_cvts = kcalloc(16, sizeof(*ump->out_cvts), GFP_KERNEL);
+	ump->out_cvts = kcalloc(SNDRV_UMP_MAX_GROUPS,
+				sizeof(*ump->out_cvts), GFP_KERNEL);
 	if (!ump->out_cvts)
 		return -ENOMEM;
+
+	num = fill_legacy_mapping(ump);
 
 	input = ump->core.info_flags & SNDRV_RAWMIDI_INFO_INPUT;
 	output = ump->core.info_flags & SNDRV_RAWMIDI_INFO_OUTPUT;
 	err = snd_rawmidi_new(ump->core.card, id, device,
-			      output ? 16 : 0, input ? 16 : 0,
+			      output ? num : 0, input ? num : 0,
 			      &rmidi);
 	if (err < 0) {
 		kfree(ump->out_cvts);
@@ -1150,10 +1286,17 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	if (output)
 		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
 				    &snd_ump_legacy_output_ops);
+	snprintf(rmidi->name, sizeof(rmidi->name), "%.68s (MIDI 1.0)",
+		 ump->info.name);
 	rmidi->info_flags = ump->core.info_flags & ~SNDRV_RAWMIDI_INFO_UMP;
 	rmidi->ops = &snd_ump_legacy_ops;
 	rmidi->private_data = ump;
 	ump->legacy_rmidi = rmidi;
+	if (input)
+		fill_substream_names(ump, rmidi, SNDRV_RAWMIDI_STREAM_INPUT);
+	if (output)
+		fill_substream_names(ump, rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT);
+
 	ump_dbg(ump, "Created a legacy rawmidi #%d (%s)\n", device, id);
 	return 0;
 }

@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018-2021 Intel Corporation. All rights reserved.
+// Copyright(c) 2018-2021 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -27,23 +27,23 @@ static const struct sof_dev_desc bxt_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &apl_chip_info,
-	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3) | BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_IPC] = "intel/sof",
-		[SOF_INTEL_IPC4] = "intel/avs/apl",
+		[SOF_IPC_TYPE_3] = "intel/sof",
+		[SOF_IPC_TYPE_4] = "intel/avs/apl",
 	},
 	.default_lib_path = {
-		[SOF_INTEL_IPC4] = "intel/avs-lib/apl",
+		[SOF_IPC_TYPE_4] = "intel/avs-lib/apl",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "intel/sof-tplg",
-		[SOF_INTEL_IPC4] = "intel/avs-tplg",
+		[SOF_IPC_TYPE_3] = "intel/sof-tplg",
+		[SOF_IPC_TYPE_4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-apl.ri",
-		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+		[SOF_IPC_TYPE_3] = "sof-apl.ri",
+		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
 	.nocodec_tplg_filename = "sof-apl-nocodec.tplg",
 	.ops = &sof_apl_ops,
@@ -59,23 +59,23 @@ static const struct sof_dev_desc glk_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &apl_chip_info,
-	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3) | BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_IPC] = "intel/sof",
-		[SOF_INTEL_IPC4] = "intel/avs/glk",
+		[SOF_IPC_TYPE_3] = "intel/sof",
+		[SOF_IPC_TYPE_4] = "intel/avs/glk",
 	},
 	.default_lib_path = {
-		[SOF_INTEL_IPC4] = "intel/avs-lib/glk",
+		[SOF_IPC_TYPE_4] = "intel/avs-lib/glk",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "intel/sof-tplg",
-		[SOF_INTEL_IPC4] = "intel/avs-tplg",
+		[SOF_IPC_TYPE_3] = "intel/sof-tplg",
+		[SOF_IPC_TYPE_4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-glk.ri",
-		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+		[SOF_IPC_TYPE_3] = "sof-glk.ri",
+		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
 	.nocodec_tplg_filename = "sof-glk-nocodec.tplg",
 	.ops = &sof_apl_ops,
@@ -85,12 +85,8 @@ static const struct sof_dev_desc glk_desc = {
 
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
-	{ PCI_DEVICE(0x8086, 0x5a98), /* BXT-P (ApolloLake) */
-		.driver_data = (unsigned long)&bxt_desc},
-	{ PCI_DEVICE(0x8086, 0x1a98),/* BXT-T */
-		.driver_data = (unsigned long)&bxt_desc},
-	{ PCI_DEVICE(0x8086, 0x3198), /* GeminiLake */
-		.driver_data = (unsigned long)&glk_desc},
+	{ PCI_DEVICE_DATA(INTEL, HDA_APL, &bxt_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_GML, &glk_desc) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);
@@ -109,5 +105,7 @@ static struct pci_driver snd_sof_pci_intel_apl_driver = {
 module_pci_driver(snd_sof_pci_intel_apl_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for ApolloLake platforms");
+MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_GENERIC);
 MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_COMMON);
 MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);

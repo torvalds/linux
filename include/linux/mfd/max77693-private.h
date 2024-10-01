@@ -217,6 +217,10 @@ enum max77693_charger_battery_state {
 #define CHG_CNFG_01_CHGRSTRT_MASK	(0x3 << CHG_CNFG_01_CHGRSTRT_SHIFT)
 #define CHG_CNFG_01_PQEN_MAKS		BIT(CHG_CNFG_01_PQEN_SHIFT)
 
+/* MAX77693_CHG_REG_CHG_CNFG_02 register */
+#define CHG_CNFG_02_CC_SHIFT		0
+#define CHG_CNFG_02_CC_MASK		0x3F
+
 /* MAX77693_CHG_REG_CHG_CNFG_03 register */
 #define CHG_CNFG_03_TOITH_SHIFT		0
 #define CHG_CNFG_03_TOTIME_SHIFT	3
@@ -244,6 +248,7 @@ enum max77693_charger_battery_state {
 #define CHG_CNFG_12_VCHGINREG_MASK	(0x3 << CHG_CNFG_12_VCHGINREG_SHIFT)
 
 /* MAX77693 CHG_CNFG_09 Register */
+#define CHG_CNFG_09_CHGIN_ILIM_SHIFT	0
 #define CHG_CNFG_09_CHGIN_ILIM_MASK	0x7F
 
 /* MAX77693 CHG_CTRL Register */
@@ -405,7 +410,7 @@ enum max77693_haptic_reg {
 	MAX77693_HAPTIC_REG_END,
 };
 
-/* max77693-pmic LSCNFG configuraton register */
+/* max77693-pmic LSCNFG configuration register */
 #define MAX77693_PMIC_LOW_SYS_MASK      0x80
 #define MAX77693_PMIC_LOW_SYS_SHIFT     7
 

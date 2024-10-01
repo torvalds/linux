@@ -20,11 +20,26 @@ enum gve_adminq_opcodes {
 	GVE_ADMINQ_DESTROY_TX_QUEUE		= 0x7,
 	GVE_ADMINQ_DESTROY_RX_QUEUE		= 0x8,
 	GVE_ADMINQ_DECONFIGURE_DEVICE_RESOURCES	= 0x9,
+	GVE_ADMINQ_CONFIGURE_RSS		= 0xA,
 	GVE_ADMINQ_SET_DRIVER_PARAMETER		= 0xB,
 	GVE_ADMINQ_REPORT_STATS			= 0xC,
 	GVE_ADMINQ_REPORT_LINK_SPEED		= 0xD,
 	GVE_ADMINQ_GET_PTYPE_MAP		= 0xE,
 	GVE_ADMINQ_VERIFY_DRIVER_COMPATIBILITY	= 0xF,
+	GVE_ADMINQ_QUERY_FLOW_RULES		= 0x10,
+	GVE_ADMINQ_QUERY_RSS			= 0x12,
+
+	/* For commands that are larger than 56 bytes */
+	GVE_ADMINQ_EXTENDED_COMMAND		= 0xFF,
+};
+
+/* The normal adminq command is restricted to be 56 bytes at maximum. For the
+ * longer adminq command, it is wrapped by GVE_ADMINQ_EXTENDED_COMMAND with
+ * inner opcode of gve_adminq_extended_cmd_opcodes specified. The inner command
+ * is written in the dma memory allocated by GVE_ADMINQ_EXTENDED_COMMAND.
+ */
+enum gve_adminq_extended_cmd_opcodes {
+	GVE_ADMINQ_CONFIGURE_FLOW_RULE	= 0x101,
 };
 
 /* Admin queue status codes */
@@ -103,11 +118,18 @@ static_assert(sizeof(struct gve_device_option_gqi_qpl) == 4);
 
 struct gve_device_option_dqo_rda {
 	__be32 supported_features_mask;
-	__be16 tx_comp_ring_entries;
-	__be16 rx_buff_ring_entries;
+	__be32 reserved;
 };
 
 static_assert(sizeof(struct gve_device_option_dqo_rda) == 8);
+
+struct gve_device_option_dqo_qpl {
+	__be32 supported_features_mask;
+	__be16 tx_pages_per_qpl;
+	__be16 rx_pages_per_qpl;
+};
+
+static_assert(sizeof(struct gve_device_option_dqo_qpl) == 8);
 
 struct gve_device_option_jumbo_frames {
 	__be32 supported_features_mask;
@@ -116,6 +138,41 @@ struct gve_device_option_jumbo_frames {
 };
 
 static_assert(sizeof(struct gve_device_option_jumbo_frames) == 8);
+
+struct gve_device_option_buffer_sizes {
+	/* GVE_SUP_BUFFER_SIZES_MASK bit should be set */
+	__be32 supported_features_mask;
+	__be16 packet_buffer_size;
+	__be16 header_buffer_size;
+};
+
+static_assert(sizeof(struct gve_device_option_buffer_sizes) == 8);
+
+struct gve_device_option_modify_ring {
+	__be32 supported_featured_mask;
+	__be16 max_rx_ring_size;
+	__be16 max_tx_ring_size;
+	__be16 min_rx_ring_size;
+	__be16 min_tx_ring_size;
+};
+
+static_assert(sizeof(struct gve_device_option_modify_ring) == 12);
+
+struct gve_device_option_flow_steering {
+	__be32 supported_features_mask;
+	__be32 reserved;
+	__be32 max_flow_rules;
+};
+
+static_assert(sizeof(struct gve_device_option_flow_steering) == 12);
+
+struct gve_device_option_rss_config {
+	__be32 supported_features_mask;
+	__be16 hash_key_size;
+	__be16 hash_lut_size;
+};
+
+static_assert(sizeof(struct gve_device_option_rss_config) == 8);
 
 /* Terminology:
  *
@@ -126,23 +183,37 @@ static_assert(sizeof(struct gve_device_option_jumbo_frames) == 8);
  *       the device for read/write and data is copied from/to SKBs.
  */
 enum gve_dev_opt_id {
-	GVE_DEV_OPT_ID_GQI_RAW_ADDRESSING = 0x1,
-	GVE_DEV_OPT_ID_GQI_RDA = 0x2,
-	GVE_DEV_OPT_ID_GQI_QPL = 0x3,
-	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
-	GVE_DEV_OPT_ID_JUMBO_FRAMES = 0x8,
+	GVE_DEV_OPT_ID_GQI_RAW_ADDRESSING	= 0x1,
+	GVE_DEV_OPT_ID_GQI_RDA			= 0x2,
+	GVE_DEV_OPT_ID_GQI_QPL			= 0x3,
+	GVE_DEV_OPT_ID_DQO_RDA			= 0x4,
+	GVE_DEV_OPT_ID_MODIFY_RING		= 0x6,
+	GVE_DEV_OPT_ID_DQO_QPL			= 0x7,
+	GVE_DEV_OPT_ID_JUMBO_FRAMES		= 0x8,
+	GVE_DEV_OPT_ID_BUFFER_SIZES		= 0xa,
+	GVE_DEV_OPT_ID_FLOW_STEERING		= 0xb,
+	GVE_DEV_OPT_ID_RSS_CONFIG		= 0xe,
 };
 
 enum gve_dev_opt_req_feat_mask {
-	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RAW_ADDRESSING = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RAW_ADDRESSING	= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_FLOW_STEERING		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_RSS_CONFIG		= 0x0,
 };
 
 enum gve_sup_feature_mask {
-	GVE_SUP_JUMBO_FRAMES_MASK = 1 << 2,
+	GVE_SUP_MODIFY_RING_MASK	= 1 << 0,
+	GVE_SUP_JUMBO_FRAMES_MASK	= 1 << 2,
+	GVE_SUP_BUFFER_SIZES_MASK	= 1 << 4,
+	GVE_SUP_FLOW_STEERING_MASK	= 1 << 5,
+	GVE_SUP_RSS_CONFIG_MASK		= 1 << 7,
 };
 
 #define GVE_DEV_OPT_LEN_GQI_RAW_ADDRESSING 0x0
@@ -155,6 +226,8 @@ enum gve_driver_capbility {
 	gve_driver_capability_dqo_qpl = 2, /* reserved for future use */
 	gve_driver_capability_dqo_rda = 3,
 	gve_driver_capability_alt_miss_compl = 4,
+	gve_driver_capability_flexible_buffer_size = 5,
+	gve_driver_capability_flexible_rss_size = 6,
 };
 
 #define GVE_CAP1(a) BIT((int)a)
@@ -166,11 +239,21 @@ enum gve_driver_capbility {
 	(GVE_CAP1(gve_driver_capability_gqi_qpl) | \
 	 GVE_CAP1(gve_driver_capability_gqi_rda) | \
 	 GVE_CAP1(gve_driver_capability_dqo_rda) | \
-	 GVE_CAP1(gve_driver_capability_alt_miss_compl))
+	 GVE_CAP1(gve_driver_capability_alt_miss_compl) | \
+	 GVE_CAP1(gve_driver_capability_flexible_buffer_size) | \
+	 GVE_CAP1(gve_driver_capability_flexible_rss_size))
 
 #define GVE_DRIVER_CAPABILITY_FLAGS2 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS3 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS4 0x0
+
+struct gve_adminq_extended_command {
+	__be32 inner_opcode;
+	__be32 inner_length;
+	__be64 inner_command_addr;
+};
+
+static_assert(sizeof(struct gve_adminq_extended_command) == 16);
 
 struct gve_driver_info {
 	u8 os_type;	/* 0x01 = Linux */
@@ -209,9 +292,10 @@ struct gve_adminq_register_page_list {
 	__be32 page_list_id;
 	__be32 num_pages;
 	__be64 page_address_list_addr;
+	__be64 page_size;
 };
 
-static_assert(sizeof(struct gve_adminq_register_page_list) == 16);
+static_assert(sizeof(struct gve_adminq_register_page_list) == 24);
 
 struct gve_adminq_unregister_page_list {
 	__be32 page_list_id;
@@ -249,7 +333,9 @@ struct gve_adminq_create_rx_queue {
 	__be16 packet_buffer_size;
 	__be16 rx_buff_ring_size;
 	u8 enable_rsc;
-	u8 padding[5];
+	u8 padding1;
+	__be16 header_buffer_size;
+	u8 padding2[2];
 };
 
 static_assert(sizeof(struct gve_adminq_create_rx_queue) == 56);
@@ -373,6 +459,109 @@ struct gve_adminq_get_ptype_map {
 	__be64 ptype_map_addr;
 };
 
+/* Flow-steering related definitions */
+enum gve_adminq_flow_rule_cfg_opcode {
+	GVE_FLOW_RULE_CFG_ADD	= 0,
+	GVE_FLOW_RULE_CFG_DEL	= 1,
+	GVE_FLOW_RULE_CFG_RESET	= 2,
+};
+
+enum gve_adminq_flow_rule_query_opcode {
+	GVE_FLOW_RULE_QUERY_RULES	= 0,
+	GVE_FLOW_RULE_QUERY_IDS		= 1,
+	GVE_FLOW_RULE_QUERY_STATS	= 2,
+};
+
+enum gve_adminq_flow_type {
+	GVE_FLOW_TYPE_TCPV4,
+	GVE_FLOW_TYPE_UDPV4,
+	GVE_FLOW_TYPE_SCTPV4,
+	GVE_FLOW_TYPE_AHV4,
+	GVE_FLOW_TYPE_ESPV4,
+	GVE_FLOW_TYPE_TCPV6,
+	GVE_FLOW_TYPE_UDPV6,
+	GVE_FLOW_TYPE_SCTPV6,
+	GVE_FLOW_TYPE_AHV6,
+	GVE_FLOW_TYPE_ESPV6,
+};
+
+/* Flow-steering command */
+struct gve_adminq_flow_rule {
+	__be16 flow_type;
+	__be16 action; /* RX queue id */
+	struct gve_flow_spec key;
+	struct gve_flow_spec mask;
+};
+
+struct gve_adminq_configure_flow_rule {
+	__be16 opcode;
+	u8 padding[2];
+	struct gve_adminq_flow_rule rule;
+	__be32 location;
+};
+
+static_assert(sizeof(struct gve_adminq_configure_flow_rule) == 92);
+
+struct gve_query_flow_rules_descriptor {
+	__be32 num_flow_rules;
+	__be32 max_flow_rules;
+	__be32 num_queried_rules;
+	__be32 total_length;
+};
+
+struct gve_adminq_queried_flow_rule {
+	__be32 location;
+	struct gve_adminq_flow_rule flow_rule;
+};
+
+struct gve_adminq_query_flow_rules {
+	__be16 opcode;
+	u8 padding[2];
+	__be32 starting_rule_id;
+	__be64 available_length; /* The dma memory length that the driver allocated */
+	__be64 rule_descriptor_addr; /* The dma memory address */
+};
+
+static_assert(sizeof(struct gve_adminq_query_flow_rules) == 24);
+
+enum gve_rss_hash_type {
+	GVE_RSS_HASH_IPV4,
+	GVE_RSS_HASH_TCPV4,
+	GVE_RSS_HASH_IPV6,
+	GVE_RSS_HASH_IPV6_EX,
+	GVE_RSS_HASH_TCPV6,
+	GVE_RSS_HASH_TCPV6_EX,
+	GVE_RSS_HASH_UDPV4,
+	GVE_RSS_HASH_UDPV6,
+	GVE_RSS_HASH_UDPV6_EX,
+};
+
+struct gve_adminq_configure_rss {
+	__be16 hash_types;
+	u8 hash_alg;
+	u8 reserved;
+	__be16 hash_key_size;
+	__be16 hash_lut_size;
+	__be64 hash_key_addr;
+	__be64 hash_lut_addr;
+};
+
+static_assert(sizeof(struct gve_adminq_configure_rss) == 24);
+
+struct gve_query_rss_descriptor {
+	__be32 total_length;
+	__be16 hash_types;
+	u8 hash_alg;
+	u8 reserved;
+};
+
+struct gve_adminq_query_rss {
+	__be64 available_length;
+	__be64 rss_descriptor_addr;
+};
+
+static_assert(sizeof(struct gve_adminq_query_rss) == 16);
+
 union gve_adminq_command {
 	struct {
 		__be32 opcode;
@@ -393,6 +582,10 @@ union gve_adminq_command {
 			struct gve_adminq_get_ptype_map get_ptype_map;
 			struct gve_adminq_verify_driver_compatibility
 						verify_driver_compatibility;
+			struct gve_adminq_query_flow_rules query_flow_rules;
+			struct gve_adminq_configure_rss configure_rss;
+			struct gve_adminq_query_rss query_rss;
+			struct gve_adminq_extended_command extended_command;
 		};
 	};
 	u8 reserved[64];
@@ -412,7 +605,9 @@ int gve_adminq_configure_device_resources(struct gve_priv *priv,
 int gve_adminq_deconfigure_device_resources(struct gve_priv *priv);
 int gve_adminq_create_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues);
 int gve_adminq_destroy_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues);
+int gve_adminq_create_single_rx_queue(struct gve_priv *priv, u32 queue_index);
 int gve_adminq_create_rx_queues(struct gve_priv *priv, u32 num_queues);
+int gve_adminq_destroy_single_rx_queue(struct gve_priv *priv, u32 queue_index);
 int gve_adminq_destroy_rx_queues(struct gve_priv *priv, u32 queue_id);
 int gve_adminq_register_page_list(struct gve_priv *priv,
 				  struct gve_queue_page_list *qpl);
@@ -424,6 +619,12 @@ int gve_adminq_verify_driver_compatibility(struct gve_priv *priv,
 					   u64 driver_info_len,
 					   dma_addr_t driver_info_addr);
 int gve_adminq_report_link_speed(struct gve_priv *priv);
+int gve_adminq_add_flow_rule(struct gve_priv *priv, struct gve_adminq_flow_rule *rule, u32 loc);
+int gve_adminq_del_flow_rule(struct gve_priv *priv, u32 loc);
+int gve_adminq_reset_flow_rules(struct gve_priv *priv);
+int gve_adminq_query_flow_rules(struct gve_priv *priv, u16 query_opcode, u32 starting_loc);
+int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *rxfh);
+int gve_adminq_query_rss_config(struct gve_priv *priv, struct ethtool_rxfh_param *rxfh);
 
 struct gve_ptype_lut;
 int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,

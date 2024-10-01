@@ -422,7 +422,7 @@ static const struct plat_smp_ops octeon_smp_ops = {
 	.cpu_disable		= octeon_cpu_disable,
 	.cpu_die		= octeon_cpu_die,
 #endif
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
 #endif
 };
@@ -502,7 +502,7 @@ static const struct plat_smp_ops octeon_78xx_smp_ops = {
 	.cpu_disable		= octeon_cpu_disable,
 	.cpu_die		= octeon_cpu_die,
 #endif
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
 #endif
 };

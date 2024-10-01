@@ -35,7 +35,6 @@
  * @rows: Number of rows in the keypad
  * @cols: Number of columns in the keypad
  * @row_shift: log2 or number of rows, rounded up
- * @keymap_data: Matrix keymap data used to convert to keyscan values
  * @ghost_filter: true to enable the matrix key-ghosting filter
  * @valid_keys: bitmap of existing keys for each matrix column
  * @old_kb_state: bitmap of keys pressed last scan
@@ -50,7 +49,6 @@ struct cros_ec_keyb {
 	unsigned int rows;
 	unsigned int cols;
 	int row_shift;
-	const struct matrix_keymap_data *keymap_data;
 	bool ghost_filter;
 	uint8_t *valid_keys;
 	uint8_t *old_kb_state;
@@ -686,10 +684,11 @@ static umode_t cros_ec_keyb_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static const struct attribute_group cros_ec_keyb_attr_group = {
+static const struct attribute_group cros_ec_keyb_group = {
 	.is_visible = cros_ec_keyb_attr_is_visible,
 	.attrs = cros_ec_keyb_attrs,
 };
+__ATTRIBUTE_GROUPS(cros_ec_keyb);
 
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
@@ -730,12 +729,6 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = devm_device_add_group(dev, &cros_ec_keyb_attr_group);
-	if (err) {
-		dev_err(dev, "failed to create attributes: %d\n", err);
-		return err;
-	}
-
 	ckdev->notifier.notifier_call = cros_ec_keyb_work;
 	err = blocking_notifier_chain_register(&ckdev->ec->event_notifier,
 					       &ckdev->notifier);
@@ -748,14 +741,12 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cros_ec_keyb_remove(struct platform_device *pdev)
+static void cros_ec_keyb_remove(struct platform_device *pdev)
 {
 	struct cros_ec_keyb *ckdev = dev_get_drvdata(&pdev->dev);
 
 	blocking_notifier_chain_unregister(&ckdev->ec->event_notifier,
 					   &ckdev->notifier);
-
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -779,9 +770,10 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cros_ec_keyb_pm_ops, NULL, cros_ec_keyb_resume);
 
 static struct platform_driver cros_ec_keyb_driver = {
 	.probe = cros_ec_keyb_probe,
-	.remove = cros_ec_keyb_remove,
+	.remove_new = cros_ec_keyb_remove,
 	.driver = {
 		.name = "cros-ec-keyb",
+		.dev_groups = cros_ec_keyb_groups,
 		.of_match_table = of_match_ptr(cros_ec_keyb_of_match),
 		.acpi_match_table = ACPI_PTR(cros_ec_keyb_acpi_match),
 		.pm = pm_sleep_ptr(&cros_ec_keyb_pm_ops),

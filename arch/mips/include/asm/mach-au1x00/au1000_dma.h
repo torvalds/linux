@@ -124,7 +124,6 @@ extern int request_au1000_dma(int dev_id,
 extern void free_au1000_dma(unsigned int dmanr);
 extern int au1000_dma_read_proc(char *buf, char **start, off_t fpos,
 				int length, int *eof, void *data);
-extern void dump_au1000_dma_channel(unsigned int dmanr);
 extern spinlock_t au1000_dma_spin_lock;
 
 static inline struct dma_chan *get_dma_chan(unsigned int dmanr)
@@ -259,7 +258,7 @@ static inline void set_dma_mode(unsigned int dmanr, unsigned int mode)
 	if (!chan)
 		return;
 	/*
-	 * set_dma_mode is only allowed to change endianess, direction,
+	 * set_dma_mode is only allowed to change endianness, direction,
 	 * transfer size, device FIFO width, and coherency settings.
 	 * Make sure anything else is masked off.
 	 */

@@ -11,8 +11,7 @@ if VDPA
 
 config VDPA_SIM
 	tristate "vDPA device simulator core"
-	depends on RUNTIME_TESTING_MENU && HAS_DMA
-	select DMA_OPS
+	depends on RUNTIME_TESTING_MENU
 	select VHOST_RING
 	select IOMMU_IOVA
 	help
@@ -36,7 +35,12 @@ config VDPA_SIM_BLOCK
 config VDPA_USER
 	tristate "VDUSE (vDPA Device in Userspace) support"
 	depends on EVENTFD && MMU && HAS_DMA
-	select DMA_OPS
+	#
+	# This driver incorrectly tries to override the dma_ops.  It should
+	# never have done that, but for now keep it working on architectures
+	# that use dma ops
+	#
+	depends on ARCH_HAS_DMA_OPS
 	select VHOST_IOTLB
 	select IOMMU_IOVA
 	help
@@ -125,5 +129,16 @@ config PDS_VDPA
 	  vDPA network driver for AMD/Pensando's PDS Core devices.
 	  With this driver, the VirtIO dataplane can be
 	  offloaded to an AMD/Pensando DSC device.
+
+config OCTEONEP_VDPA
+	tristate "vDPA driver for Octeon DPU devices"
+	depends on m
+	depends on PCI_MSI
+	help
+	  This is a vDPA driver designed for Marvell's Octeon DPU devices.
+	  This driver enables the offloading of the VirtIO dataplane to an
+	  Octeon DPU device.
+	  Please note that this driver must be built as a module and it
+	  cannot be loaded until the Octeon emulation software is running.
 
 endif # VDPA

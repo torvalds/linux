@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/imx/fsl,imx-anatop.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ANATOP register
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+  - Sascha Hauer <s.hauer@pengutronix.de>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - fsl,imx6sl-anatop
+              - fsl,imx6sll-anatop
+              - fsl,imx6sx-anatop
+              - fsl,imx6ul-anatop
+              - fsl,imx7d-anatop
+          - const: fsl,imx6q-anatop
+          - const: syscon
+          - const: simple-mfd
+      - items:
+          - const: fsl,imx6q-anatop
+          - const: syscon
+          - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Temperature sensor event
+      - description: Brown-out event on either of the support regulators
+      - description: Brown-out event on either the core, gpu or soc regulators
+
+  tempmon:
+    type: object
+    unevaluatedProperties: false
+    $ref: /schemas/thermal/imx-thermal.yaml
+
+patternProperties:
+  "regulator-((1p1)|(2p5)|(3p0)|(vddcore)|(vddpu)|(vddsoc))$":
+    type: object
+    unevaluatedProperties: false
+    $ref: /schemas/regulator/anatop-regulator.yaml
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx6ul-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    anatop: anatop@20c8000 {
+        compatible = "fsl,imx6ul-anatop", "fsl,imx6q-anatop",
+                     "syscon", "simple-mfd";
+        reg = <0x020c8000 0x1000>;
+        interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+
+        reg_3p0: regulator-3p0 {
+            compatible = "fsl,anatop-regulator";
+            regulator-name = "vdd3p0";
+            regulator-min-microvolt = <2625000>;
+            regulator-max-microvolt = <3400000>;
+            anatop-reg-offset = <0x120>;
+            anatop-vol-bit-shift = <8>;
+            anatop-vol-bit-width = <5>;
+            anatop-min-bit-val = <0>;
+            anatop-min-voltage = <2625000>;
+            anatop-max-voltage = <3400000>;
+            anatop-enable-bit = <0>;
+        };
+
+        reg_arm: regulator-vddcore {
+            compatible = "fsl,anatop-regulator";
+            regulator-name = "cpu";
+            regulator-min-microvolt = <725000>;
+            regulator-max-microvolt = <1450000>;
+            regulator-always-on;
+            anatop-reg-offset = <0x140>;
+            anatop-vol-bit-shift = <0>;
+            anatop-vol-bit-width = <5>;
+            anatop-delay-reg-offset = <0x170>;
+            anatop-delay-bit-shift = <24>;
+            anatop-delay-bit-width = <2>;
+            anatop-min-bit-val = <1>;
+            anatop-min-voltage = <725000>;
+            anatop-max-voltage = <1450000>;
+        };
+
+        reg_soc: regulator-vddsoc {
+            compatible = "fsl,anatop-regulator";
+            regulator-name = "vddsoc";
+            regulator-min-microvolt = <725000>;
+            regulator-max-microvolt = <1450000>;
+            regulator-always-on;
+            anatop-reg-offset = <0x140>;
+            anatop-vol-bit-shift = <18>;
+            anatop-vol-bit-width = <5>;
+            anatop-delay-reg-offset = <0x170>;
+            anatop-delay-bit-shift = <28>;
+            anatop-delay-bit-width = <2>;
+            anatop-min-bit-val = <1>;
+            anatop-min-voltage = <725000>;
+            anatop-max-voltage = <1450000>;
+        };
+
+        tempmon: tempmon {
+            compatible = "fsl,imx6ul-tempmon", "fsl,imx6sx-tempmon";
+            interrupt-parent = <&gpc>;
+            interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+            fsl,tempmon = <&anatop>;
+            nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+            nvmem-cell-names = "calib", "temp_grade";
+            clocks = <&clks IMX6UL_CLK_PLL3_USB_OTG>;
+            #thermal-sensor-cells = <0>;
+        };
+    };

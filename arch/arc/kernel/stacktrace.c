@@ -29,6 +29,7 @@
 
 #include <asm/arcregs.h>
 #include <asm/unwind.h>
+#include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 
 /*-------------------------------------------------------------------------

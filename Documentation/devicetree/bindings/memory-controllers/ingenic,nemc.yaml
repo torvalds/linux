@@ -39,6 +39,8 @@ properties:
 patternProperties:
   ".*@[0-9]+$":
     type: object
+    $ref: mc-peripheral-props.yaml#
+    additionalProperties: true
 
 required:
   - compatible

@@ -14,6 +14,7 @@ typedef struct func_desc func_desc_t;
 
 extern char __head_end[];
 extern char __srwx_boundary[];
+extern char __exittext_begin[], __exittext_end[];
 
 /* Patch sites */
 extern s32 patch__call_flush_branch_caches1;
@@ -74,6 +75,8 @@ static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
 		(unsigned long)_stext < end;
 }
 
+#else
+static inline unsigned long kernel_toc_addr(void) { BUILD_BUG(); return -1UL; }
 #endif
 
 #endif /* __KERNEL__ */

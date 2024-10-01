@@ -242,10 +242,7 @@ struct sctp_sock {
 	int do_auto_asconf;
 };
 
-static inline struct sctp_sock *sctp_sk(const struct sock *sk)
-{
-       return (struct sctp_sock *)sk;
-}
+#define sctp_sk(ptr) container_of_const(ptr, struct sctp_sock, inet.sk)
 
 static inline struct sock *sctp_opt2sk(const struct sctp_sock *sp)
 {
@@ -524,7 +521,7 @@ struct sctp_datamsg {
 	refcount_t refcnt;
 	/* When is this message no longer interesting to the peer? */
 	unsigned long expires_at;
-	/* Did the messenge fail to send? */
+	/* Did the message fail to send? */
 	int send_error;
 	u8 send_failed:1,
 	   can_delay:1,	/* should this message be Nagle delayed */
@@ -795,7 +792,7 @@ struct sctp_transport {
 		 */
 		hb_sent:1,
 
-		/* Is the Path MTU update pending on this tranport */
+		/* Is the Path MTU update pending on this transport */
 		pmtu_pending:1,
 
 		dst_pending_confirm:1,	/* need to confirm neighbour */
@@ -1122,8 +1119,6 @@ void sctp_outq_free(struct sctp_outq*);
 void sctp_outq_tail(struct sctp_outq *, struct sctp_chunk *chunk, gfp_t);
 int sctp_outq_sack(struct sctp_outq *, struct sctp_chunk *);
 int sctp_outq_is_empty(const struct sctp_outq *);
-void sctp_outq_restart(struct sctp_outq *);
-
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		     enum sctp_retransmit_reason reason);
 void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
@@ -1228,7 +1223,7 @@ enum sctp_endpoint_type {
 };
 
 /*
- * A common base class to bridge the implmentation view of a
+ * A common base class to bridge the implementation view of a
  * socket (usually listening) endpoint versus an association's
  * local endpoint.
  * This common structure is useful for several purposes:
@@ -1358,7 +1353,7 @@ struct sctp_endpoint {
 	struct rcu_head rcu;
 };
 
-/* Recover the outter endpoint structure. */
+/* Recover the outer endpoint structure. */
 static inline struct sctp_endpoint *sctp_ep(struct sctp_ep_common *base)
 {
 	struct sctp_endpoint *ep;
@@ -1911,7 +1906,7 @@ struct sctp_association {
 	__u32 rwnd_over;
 
 	/* Keeps treack of rwnd pressure.  This happens when we have
-	 * a window, but not recevie buffer (i.e small packets).  This one
+	 * a window, but not receive buffer (i.e small packets).  This one
 	 * is releases slowly (1 PMTU at a time ).
 	 */
 	__u32 rwnd_press;
@@ -1999,7 +1994,7 @@ struct sctp_association {
 
 	/* ADDIP Section 5.2 Upon reception of an ASCONF Chunk.
 	 *
-	 * This is needed to implement itmes E1 - E4 of the updated
+	 * This is needed to implement items E1 - E4 of the updated
 	 * spec.  Here is the justification:
 	 *
 	 * Since the peer may bundle multiple ASCONF chunks toward us,
@@ -2010,7 +2005,7 @@ struct sctp_association {
 
 	/* These ASCONF chunks are waiting to be sent.
 	 *
-	 * These chunaks can't be pushed to outqueue until receiving
+	 * These chunks can't be pushed to outqueue until receiving
 	 * ASCONF_ACK for the previous ASCONF indicated by
 	 * addip_last_asconf, so as to guarantee that only one ASCONF
 	 * is in flight at any time.
@@ -2064,13 +2059,13 @@ struct sctp_association {
 	struct sctp_transport *new_transport;
 
 	/* SCTP AUTH: list of the endpoint shared keys.  These
-	 * keys are provided out of band by the user applicaton
+	 * keys are provided out of band by the user application
 	 * and can't change during the lifetime of the association
 	 */
 	struct list_head endpoint_shared_keys;
 
 	/* SCTP AUTH:
-	 * The current generated assocaition shared key (secret)
+	 * The current generated association shared key (secret)
 	 */
 	struct sctp_auth_bytes *asoc_shared_key;
 	struct sctp_shared_key *shkey;
@@ -2126,7 +2121,7 @@ enum {
 	SCTP_ASSOC_EYECATCHER = 0xa550c123,
 };
 
-/* Recover the outter association structure. */
+/* Recover the outer association structure. */
 static inline struct sctp_association *sctp_assoc(struct sctp_ep_common *base)
 {
 	struct sctp_association *asoc;

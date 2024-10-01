@@ -40,8 +40,6 @@ struct fwnode_handle;
  *		for the devices belonging to the class. Usually tied to
  *		device's namespace.
  * @pm:		The default device power management operations of this class.
- * @p:		The private data of the driver core, no one other than the
- *		driver core can touch this.
  *
  * A class is a higher-level view of a device that abstracts out low-level
  * implementation details. Drivers may see a SCSI disk or an ATA disk, but,
@@ -97,7 +95,7 @@ void class_dev_iter_exit(struct class_dev_iter *iter);
 int class_for_each_device(const struct class *class, const struct device *start, void *data,
 			  int (*fn)(struct device *dev, void *data));
 struct device *class_find_device(const struct class *class, const struct device *start,
-				 const void *data, int (*match)(struct device *, const void *));
+				 const void *data, device_match_t match);
 
 /**
  * class_find_device_by_name - device iterator for locating a particular device

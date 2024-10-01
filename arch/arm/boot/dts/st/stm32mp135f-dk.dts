@@ -9,6 +9,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include "stm32mp135.dtsi"
 #include "stm32mp13xf.dtsi"
 #include "stm32mp13-pinctrl.dtsi"
@@ -18,6 +19,7 @@
 	compatible = "st,stm32mp135f-dk", "st,stm32mp135";
 
 	aliases {
+		ethernet0 = &ethernet1;
 		serial0 = &uart4;
 		serial1 = &usart1;
 		serial2 = &uart8;
@@ -26,6 +28,20 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	clocks {
+		clk_ext_camera: clk-ext-camera {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		clk_mco1: clk-mco1 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
 	};
 
 	memory@c0000000 {
@@ -66,44 +82,52 @@
 		};
 	};
 
-	v3v3_sw: v3v3-sw {
-		compatible = "regulator-fixed";
-		regulator-name = "v3v3_sw";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
+	panel_backlight: panel-backlight {
+		compatible = "gpio-backlight";
+		gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>;
+		default-on;
+		status = "okay";
 	};
 
-	vdd_adc: vdd-adc {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_adc";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
+	panel_rgb: panel-rgb {
+		compatible = "rocktech,rk043fn48h";
+		enable-gpios = <&gpioi 7 GPIO_ACTIVE_HIGH>;
+		backlight = <&panel_backlight>;
+		power-supply = <&scmi_v3v3_sw>;
+		status = "okay";
 
-	vdd_sd: vdd-sd {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_sd";
-		regulator-min-microvolt = <2900000>;
-		regulator-max-microvolt = <2900000>;
-		regulator-always-on;
-	};
+		width-mm = <105>;
+		height-mm = <67>;
 
-	vdd_usb: vdd-usb {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_usb";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
+		panel-timing {
+			clock-frequency = <10000000>;
+			hactive = <480>;
+			hback-porch = <43>;
+			hfront-porch = <10>;
+			hsync-len = <1>;
+			hsync-active = <0>;
+			vactive = <272>;
+			vback-porch = <26>;
+			vfront-porch = <4>;
+			vsync-len = <10>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&ltdc_out_rgb>;
+			};
+		};
 	};
 };
 
 &adc_1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&adc1_usb_cc_pins_a>;
-	vdda-supply = <&vdd_adc>;
-	vref-supply = <&vdd_adc>;
+	vdda-supply = <&scmi_vdd_adc>;
+	vref-supply = <&scmi_vdd_adc>;
 	status = "okay";
 	adc1: adc@0 {
 		status = "okay";
@@ -120,6 +144,53 @@
 		channel@12 {
 			reg = <12>;
 			st,min-sample-time-ns = <5000>;
+		};
+	};
+};
+
+&crc1 {
+	status = "okay";
+};
+
+&cryp {
+	status = "okay";
+};
+
+&dcmipp {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&dcmipp_pins_a>;
+	pinctrl-1 = <&dcmipp_sleep_pins_a>;
+	status = "okay";
+
+	port {
+		dcmipp_0: endpoint {
+			remote-endpoint = <&mipid02_2>;
+			bus-width = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			pclk-sample = <0>;
+		};
+	};
+};
+
+&ethernet1 {
+	status = "okay";
+	pinctrl-0 = <&eth1_rmii_pins_a>;
+	pinctrl-1 = <&eth1_rmii_sleep_pins_a>;
+	pinctrl-names = "default", "sleep";
+	phy-mode = "rmii";
+	phy-handle = <&phy0_eth1>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+
+		phy0_eth1: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.c131";
+			reg = <0>;
+			reset-gpios = <&mcp23017 9 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 	};
 };
@@ -184,6 +255,76 @@
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
+
+	stmipi: csi2rx@14 {
+		compatible = "st,st-mipid02";
+		reg = <0x14>;
+		clocks = <&clk_mco1>;
+		clock-names = "xclk";
+		VDDE-supply = <&scmi_v1v8_periph>;
+		VDDIN-supply = <&scmi_v1v8_periph>;
+		reset-gpios = <&mcp23017 2 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+
+				mipid02_0: endpoint {
+					data-lanes = <1 2>;
+					lane-polarities = <0 0 0>;
+					remote-endpoint = <&gc2145_ep>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+
+				mipid02_2: endpoint {
+					bus-width = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					pclk-sample = <0>;
+					remote-endpoint = <&dcmipp_0>;
+				};
+			};
+		};
+	};
+
+	gc2145: camera@3c {
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&clk_ext_camera>;
+		iovdd-supply = <&scmi_v3v3_sw>;
+		avdd-supply = <&scmi_v3v3_sw>;
+		dvdd-supply = <&scmi_v3v3_sw>;
+		powerdown-gpios = <&mcp23017 3 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		reset-gpios = <&mcp23017 4 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		status = "okay";
+
+		port {
+			gc2145_ep: endpoint {
+				remote-endpoint = <&mipid02_0>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <120000000 192000000 240000000>;
+			};
+		};
+	};
+
+	goodix: goodix-ts@5d {
+		compatible = "goodix,gt911";
+		reg = <0x5d>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&goodix_pins_a>;
+		interrupt-parent = <&gpiof>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		AVDD28-supply = <&scmi_v3v3_sw>;
+		VDDIO-supply = <&scmi_v3v3_sw>;
+		touchscreen-size-x = <480>;
+		touchscreen-size-y = <272>;
+		status = "okay" ;
+	};
 };
 
 &iwdg2 {
@@ -191,8 +332,44 @@
 	status = "okay";
 };
 
+&ltdc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&ltdc_pins_a>;
+	pinctrl-1 = <&ltdc_sleep_pins_a>;
+	status = "okay";
+
+	port {
+		ltdc_out_rgb: endpoint {
+			remote-endpoint = <&panel_in_rgb>;
+		};
+	};
+};
+
 &rtc {
 	status = "okay";
+};
+
+&scmi_regu {
+	scmi_vdd_adc: regulator@10 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO1>;
+		regulator-name = "vdd_adc";
+	};
+	scmi_vdd_usb: regulator@13 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO4>;
+		regulator-name = "vdd_usb";
+	};
+	scmi_vdd_sd: regulator@14 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO5>;
+		regulator-name = "vdd_sd";
+	};
+	scmi_v1v8_periph: regulator@15 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO6>;
+		regulator-name = "v1v8_periph";
+	};
+	scmi_v3v3_sw: regulator@19 {
+		reg = <VOLTD_SCMI_STPMIC1_PWR_SW2>;
+		regulator-name = "v3v3_sw";
+	};
 };
 
 &sdmmc1 {
@@ -204,7 +381,7 @@
 	disable-wp;
 	st,neg-edge;
 	bus-width = <4>;
-	vmmc-supply = <&vdd_sd>;
+	vmmc-supply = <&scmi_vdd_sd>;
 	status = "okay";
 };
 
@@ -220,6 +397,7 @@
 	/delete-property/dma-names;
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 7 of the expansion connector (CN8.7) using TIM3_CH4 func */
 		pinctrl-0 = <&pwm3_pins_a>;
 		pinctrl-1 = <&pwm3_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -235,6 +413,7 @@
 	/delete-property/dma-names;
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 31 of the expansion connector (CN8.31) using TIM4_CH2 func */
 		pinctrl-0 = <&pwm4_pins_a>;
 		pinctrl-1 = <&pwm4_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -250,6 +429,7 @@
 	/delete-property/dma-names;
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 32 of the expansion connector (CN8.32) using TIM8_CH3 func */
 		pinctrl-0 = <&pwm8_pins_a>;
 		pinctrl-1 = <&pwm8_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -263,6 +443,7 @@
 &timers14 {
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 33 of the expansion connector (CN8.33) using TIM14_CH1 func */
 		pinctrl-0 = <&pwm14_pins_a>;
 		pinctrl-1 = <&pwm14_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -321,7 +502,7 @@
 	hub@1 {
 		compatible = "usb424,2514";
 		reg = <1>;
-		vdd-supply = <&v3v3_sw>;
+		vdd-supply = <&scmi_v3v3_sw>;
 	};
 };
 
@@ -342,7 +523,7 @@
 };
 
 &usbphyc_port0 {
-	phy-supply = <&vdd_usb>;
+	phy-supply = <&scmi_vdd_usb>;
 	st,current-boost-microamp = <1000>;
 	st,decrease-hs-slew-rate;
 	st,tune-hs-dc-level = <2>;
@@ -356,7 +537,7 @@
 };
 
 &usbphyc_port1 {
-	phy-supply = <&vdd_usb>;
+	phy-supply = <&scmi_vdd_usb>;
 	st,current-boost-microamp = <1000>;
 	st,decrease-hs-slew-rate;
 	st,tune-hs-dc-level = <2>;

@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  *
  * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
  */
@@ -132,16 +132,17 @@ struct snd_sof_pdata;
 
 /**
  * struct snd_sof_platform_stream_params - platform dependent stream parameters
- * @stream_tag:		Stream tag to use
- * @use_phy_addr:	Use the provided @phy_addr for configuration
  * @phy_addr:		Platform dependent address to be used, if  @use_phy_addr
  *			is true
+ * @stream_tag:		Stream tag to use
+ * @use_phy_addr:	Use the provided @phy_addr for configuration
  * @no_ipc_position:	Disable position update IPC from firmware
+ * @cont_update_posn:	Continuous position update.
  */
 struct snd_sof_platform_stream_params {
+	u32 phy_addr;
 	u16 stream_tag;
 	bool use_phy_address;
-	u32 phy_addr;
 	bool no_ipc_position;
 	bool cont_update_posn;
 };
@@ -157,6 +158,13 @@ struct sof_firmware {
 	u32 payload_offset;
 };
 
+enum sof_dai_access {
+	SOF_DAI_DSP_ACCESS,	/* access from DSP only */
+	SOF_DAI_HOST_ACCESS,	/* access from host only */
+
+	SOF_DAI_ACCESS_NUM
+};
+
 /*
  * SOF DSP HW abstraction operations.
  * Used to abstract DSP HW architecture and any IO busses between host CPU
@@ -165,8 +173,10 @@ struct sof_firmware {
 struct snd_sof_dsp_ops {
 
 	/* probe/remove/shutdown */
+	int (*probe_early)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*probe)(struct snd_sof_dev *sof_dev); /* mandatory */
-	int (*remove)(struct snd_sof_dev *sof_dev); /* optional */
+	void (*remove)(struct snd_sof_dev *sof_dev); /* optional */
+	void (*remove_late)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*shutdown)(struct snd_sof_dev *sof_dev); /* optional */
 
 	/* DSP core boot / reset */
@@ -253,13 +263,25 @@ struct snd_sof_dsp_ops {
 	int (*pcm_ack)(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream); /* optional */
 
 	/*
-	 * optional callback to retrieve the link DMA position for the substream
-	 * when the position is not reported in the shared SRAM windows but
-	 * instead from a host-accessible hardware counter.
+	 * optional callback to retrieve the number of frames left/arrived from/to
+	 * the DSP on the DAI side (link/codec/DMIC/etc).
+	 *
+	 * The callback is used when the firmware does not provide this information
+	 * via the shared SRAM window and it can be retrieved by host.
 	 */
-	u64 (*get_stream_position)(struct snd_sof_dev *sdev,
-				   struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream); /* optional */
+	u64 (*get_dai_frame_counter)(struct snd_sof_dev *sdev,
+				     struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream); /* optional */
+
+	/*
+	 * Optional callback to retrieve the number of bytes left/arrived from/to
+	 * the DSP on the host side (bytes between host ALSA buffer and DSP).
+	 *
+	 * The callback is needed for ALSA delay reporting.
+	 */
+	u64 (*get_host_byte_counter)(struct snd_sof_dev *sdev,
+				     struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream); /* optional */
 
 	/* host read DSP stream data */
 	int (*ipc_msg_data)(struct snd_sof_dev *sdev,
@@ -336,6 +358,8 @@ struct snd_sof_dsp_ops {
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
 
+	bool (*is_chain_dma_supported)(struct snd_sof_dev *sdev, u32 dai_type); /* optional */
+
 	/* ALSA HW info flags, will be stored in snd_pcm_runtime.hw.info */
 	u32 hw_info;
 
@@ -388,8 +412,8 @@ struct snd_sof_debugfs_map {
 
 /* mailbox descriptor, used for host <-> DSP IPC */
 struct snd_sof_mailbox {
-	u32 offset;
 	size_t size;
+	u32 offset;
 };
 
 /* IPC message descriptor for host <-> DSP IO */
@@ -401,11 +425,12 @@ struct snd_sof_ipc_msg {
 	size_t reply_size;
 	int reply_error;
 
-	/* notification, firmware initiated messages */
-	void *rx_data;
+	bool ipc_complete;
 
 	wait_queue_head_t waitq;
-	bool ipc_complete;
+
+	/* notification, firmware initiated messages */
+	void *rx_data;
 };
 
 /**
@@ -593,6 +618,7 @@ struct snd_sof_dev {
 	struct list_head dfsentry_list;
 	bool dbg_dump_printed;
 	bool ipc_dump_printed;
+	bool d3_prevented; /* runtime pm use count incremented to prevent context lost */
 
 	/* firmware loader */
 	struct sof_ipc_fw_ready fw_ready;
@@ -692,6 +718,13 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
  * Compress support
  */
 extern struct snd_compress_ops sof_compressed_ops;
+
+/*
+ * Firmware (firmware, libraries, topologies) file location
+ */
+int sof_create_ipc_file_profile(struct snd_sof_dev *sdev,
+				struct sof_loadable_file_profile *base_profile,
+				struct sof_loadable_file_profile *out_profile);
 
 /*
  * Firmware loading.
@@ -811,8 +844,6 @@ int sof_stream_pcm_open(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream);
 int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 			 struct snd_pcm_substream *substream);
-
-int sof_machine_check(struct snd_sof_dev *sdev);
 
 /* SOF client support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CLIENT)

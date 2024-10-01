@@ -197,7 +197,7 @@ out:
 	return err;
 }
 
-static void p54_stop(struct ieee80211_hw *dev)
+static void p54_stop(struct ieee80211_hw *dev, bool suspend)
 {
 	struct p54_common *priv = dev->priv;
 	int i;
@@ -704,6 +704,10 @@ static void p54_set_coverage_class(struct ieee80211_hw *dev,
 }
 
 static const struct ieee80211_ops p54_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx			= p54_tx_80211,
 	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= p54_start,

@@ -21,9 +21,11 @@ struct uid_gid_extent {
 };
 
 struct uid_gid_map { /* 64 bytes -- 1 cache line */
-	u32 nr_extents;
 	union {
-		struct uid_gid_extent extent[UID_GID_MAP_MAX_BASE_EXTENTS];
+		struct {
+			struct uid_gid_extent extent[UID_GID_MAP_MAX_BASE_EXTENTS];
+			u32 nr_extents;
+		};
 		struct {
 			struct uid_gid_extent *forward;
 			struct uid_gid_extent *reverse;
@@ -65,6 +67,10 @@ enum rlimit_type {
 	UCOUNT_RLIMIT_COUNTS,
 };
 
+#if IS_ENABLED(CONFIG_BINFMT_MISC)
+struct binfmt_misc;
+#endif
+
 struct user_namespace {
 	struct uid_gid_map	uid_map;
 	struct uid_gid_map	gid_map;
@@ -102,6 +108,10 @@ struct user_namespace {
 	struct ucounts		*ucounts;
 	long ucount_max[UCOUNT_COUNTS];
 	long rlimit_max[UCOUNT_RLIMIT_COUNTS];
+
+#if IS_ENABLED(CONFIG_BINFMT_MISC)
+	struct binfmt_misc *binfmt_misc;
+#endif
 } __randomize_layout;
 
 struct ucounts {

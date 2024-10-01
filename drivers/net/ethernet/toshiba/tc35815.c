@@ -667,8 +667,7 @@ static int tc_mii_init(struct net_device *dev)
 	lp->mii_bus->name = "tc35815_mii_bus";
 	lp->mii_bus->read = tc_mdio_read;
 	lp->mii_bus->write = tc_mdio_write;
-	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%x",
-		 (lp->pci_dev->bus->number << 8) | lp->pci_dev->devfn);
+	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%x", pci_dev_id(lp->pci_dev));
 	lp->mii_bus->priv = dev;
 	lp->mii_bus->parent = &lp->pci_dev->dev;
 	err = mdiobus_register(lp->mii_bus);
@@ -1435,14 +1434,10 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 	u32 dmactl = tc_readl(&tr->DMA_Ctl);
 
 	if (!(dmactl & DMA_IntMask)) {
-		/* disable interrupts */
-		tc_writel(dmactl | DMA_IntMask, &tr->DMA_Ctl);
-		if (napi_schedule_prep(&lp->napi))
+		if (napi_schedule_prep(&lp->napi)) {
+			/* disable interrupts */
+			tc_writel(dmactl | DMA_IntMask, &tr->DMA_Ctl);
 			__napi_schedule(&lp->napi);
-		else {
-			printk(KERN_ERR "%s: interrupt taken in poll\n",
-			       dev->name);
-			BUG();
 		}
 		(void)tc_readl(&tr->Int_Src);	/* flush */
 		return IRQ_HANDLED;

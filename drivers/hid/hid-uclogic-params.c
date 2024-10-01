@@ -681,7 +681,7 @@ void uclogic_params_cleanup(struct uclogic_params *params)
  *	-ENOMEM, if failed to allocate memory.
  */
 int uclogic_params_get_desc(const struct uclogic_params *params,
-				__u8 **pdesc,
+				const __u8 **pdesc,
 				unsigned int *psize)
 {
 	int rc = -ENOMEM;
@@ -769,7 +769,7 @@ static void uclogic_params_init_invalid(struct uclogic_params *params)
 static int uclogic_params_init_with_opt_desc(struct uclogic_params *params,
 					     struct hid_device *hdev,
 					     unsigned int orig_desc_size,
-					     __u8 *desc_ptr,
+					     const __u8 *desc_ptr,
 					     unsigned int desc_size)
 {
 	__u8 *desc_copy_ptr = NULL;
@@ -883,6 +883,9 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			"failed retrieving Huion firmware version: %d\n", rc);
 		goto cleanup;
 	}
+
+	/* The firmware is used in userspace as unique identifier */
+	strscpy(hdev->uniq, ver_ptr, sizeof(hdev->uniq));
 
 	/* If this is a transition firmware */
 	if (strcmp(ver_ptr, transition_ver) == 0) {

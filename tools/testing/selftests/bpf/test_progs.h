@@ -74,8 +74,9 @@ struct subtest_state {
 	int error_cnt;
 	bool skipped;
 	bool filtered;
+	bool should_tmon;
 
-	FILE *stdout;
+	FILE *stdout_saved;
 };
 
 struct test_state {
@@ -92,12 +93,15 @@ struct test_state {
 	size_t log_cnt;
 	char *log_buf;
 
-	FILE *stdout;
+	FILE *stdout_saved;
 };
+
+extern int env_verbosity;
 
 struct test_env {
 	struct test_selector test_selector;
 	struct test_selector subtest_selector;
+	struct test_selector tmon_selector;
 	bool verifier_stats;
 	bool debug;
 	enum verbosity verbosity;
@@ -111,8 +115,8 @@ struct test_env {
 	struct test_state *test_state; /* current running test state */
 	struct subtest_state *subtest_state; /* current running subtest state */
 
-	FILE *stdout;
-	FILE *stderr;
+	FILE *stdout_saved;
+	FILE *stderr_saved;
 	int nr_cpus;
 	FILE *json;
 
@@ -377,6 +381,15 @@ int test__join_cgroup(const char *path);
 	___ok;								\
 })
 
+#define ASSERT_OK_FD(fd, name) ({					\
+	static int duration = 0;					\
+	int ___fd = (fd);						\
+	bool ___ok = ___fd >= 0;					\
+	CHECK(!___ok, (name), "unexpected fd: %d (errno %d)\n",		\
+	      ___fd, errno);						\
+	___ok;								\
+})
+
 #define SYS(goto_label, fmt, ...)					\
 	({								\
 		char cmd[1024];						\
@@ -385,12 +398,20 @@ int test__join_cgroup(const char *path);
 			goto goto_label;				\
 	})
 
+#define ALL_TO_DEV_NULL " >/dev/null 2>&1"
+
 #define SYS_NOFAIL(fmt, ...)						\
 	({								\
 		char cmd[1024];						\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);		\
+		int n;							\
+		n = snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
+		if (n < sizeof(cmd) && sizeof(cmd) - n >= sizeof(ALL_TO_DEV_NULL)) \
+			strcat(cmd, ALL_TO_DEV_NULL);			\
 		system(cmd);						\
 	})
+
+int start_libbpf_log_capture(void);
+char *stop_libbpf_log_capture(void);
 
 static inline __u64 ptr_to_u64(const void *ptr)
 {
@@ -411,12 +432,18 @@ int write_sysctl(const char *sysctl, const char *value);
 int get_bpf_max_tramp_links_from(struct btf *btf);
 int get_bpf_max_tramp_links(void);
 
+struct netns_obj;
+struct netns_obj *netns_new(const char *name, bool open);
+void netns_free(struct netns_obj *netns);
+
 #ifdef __x86_64__
 #define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"
 #elif defined(__s390x__)
 #define SYS_NANOSLEEP_KPROBE_NAME "__s390x_sys_nanosleep"
 #elif defined(__aarch64__)
 #define SYS_NANOSLEEP_KPROBE_NAME "__arm64_sys_nanosleep"
+#elif defined(__riscv)
+#define SYS_NANOSLEEP_KPROBE_NAME "__riscv_sys_nanosleep"
 #else
 #define SYS_NANOSLEEP_KPROBE_NAME "sys_nanosleep"
 #endif
@@ -428,7 +455,6 @@ typedef int (*pre_execution_cb)(struct bpf_object *obj);
 struct test_loader {
 	char *log_buf;
 	size_t log_buf_sz;
-	size_t next_match_pos;
 	pre_execution_cb pre_execution_cb;
 
 	struct bpf_object *obj;

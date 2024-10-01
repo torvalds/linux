@@ -30,27 +30,15 @@ int efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md);
 int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md,
 				bool has_bti);
 
-#define arch_efi_call_virt_setup()					\
-({									\
-	efi_virtmap_load();						\
-	__efi_fpsimd_begin();						\
-	raw_spin_lock(&efi_rt_lock);					\
-})
-
 #undef arch_efi_call_virt
 #define arch_efi_call_virt(p, f, args...)				\
 	__efi_rt_asm_wrapper((p)->f, #f, args)
 
-#define arch_efi_call_virt_teardown()					\
-({									\
-	raw_spin_unlock(&efi_rt_lock);					\
-	__efi_fpsimd_end();						\
-	efi_virtmap_unload();						\
-})
-
-extern raw_spinlock_t efi_rt_lock;
 extern u64 *efi_rt_stack_top;
 efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
+
+void arch_efi_call_virt_setup(void);
+void arch_efi_call_virt_teardown(void);
 
 /*
  * efi_rt_stack_top[-1] contains the value the stack pointer had before
@@ -167,5 +155,7 @@ static inline void efi_capsule_flush_cache_range(void *addr, int size)
 }
 
 efi_status_t efi_handle_corrupted_x18(efi_status_t s, const char *f);
+
+void efi_icache_sync(unsigned long start, unsigned long end);
 
 #endif /* _ASM_EFI_H */

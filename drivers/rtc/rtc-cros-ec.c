@@ -5,6 +5,7 @@
 // Author: Stephen Barber <smbarber@chromium.org>
 
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -182,21 +183,15 @@ static int cros_ec_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	ret = cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM, alarm_offset);
 	if (ret < 0) {
-		if (ret == -EINVAL && alarm_offset >= SECS_PER_DAY) {
-			/*
-			 * RTC chips on some older Chromebooks can only handle
-			 * alarms up to 24h in the future. Try to set an alarm
-			 * below that limit to avoid suspend failures.
-			 */
-			ret = cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM,
-					      SECS_PER_DAY - 1);
-		}
-
-		if (ret < 0) {
-			dev_err(dev, "error setting alarm in %u seconds: %d\n",
-				alarm_offset, ret);
-			return ret;
-		}
+		dev_err(dev, "error setting alarm in %u seconds: %d\n",
+			alarm_offset, ret);
+		/*
+		 * The EC code returns -EINVAL if the alarm time is too
+		 * far in the future. Convert it to the expected error code.
+		 */
+		if (ret == -EINVAL)
+			ret = -ERANGE;
+		return ret;
 	}
 
 	return 0;
@@ -355,6 +350,20 @@ static int cros_ec_rtc_probe(struct platform_device *pdev)
 	cros_ec_rtc->rtc->ops = &cros_ec_rtc_ops;
 	cros_ec_rtc->rtc->range_max = U32_MAX;
 
+	/*
+	 * The RTC on some older Chromebooks can only handle alarms less than
+	 * 24 hours in the future. The only way to find out is to try to set an
+	 * alarm further in the future. If that fails, assume that the RTC
+	 * connected to the EC can only handle less than 24 hours of alarm
+	 * window.
+	 */
+	ret = cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM, SECS_PER_DAY * 2);
+	if (ret == -EINVAL)
+		cros_ec_rtc->rtc->alarm_offset_max = SECS_PER_DAY - 1;
+
+	(void)cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM,
+			      EC_RTC_ALARM_CLEAR);
+
 	ret = devm_rtc_register_device(cros_ec_rtc->rtc);
 	if (ret)
 		return ret;
@@ -384,6 +393,12 @@ static void cros_ec_rtc_remove(struct platform_device *pdev)
 		dev_err(dev, "failed to unregister notifier\n");
 }
 
+static const struct platform_device_id cros_ec_rtc_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_rtc_id);
+
 static struct platform_driver cros_ec_rtc_driver = {
 	.probe = cros_ec_rtc_probe,
 	.remove_new = cros_ec_rtc_remove,
@@ -391,6 +406,7 @@ static struct platform_driver cros_ec_rtc_driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_rtc_pm_ops,
 	},
+	.id_table = cros_ec_rtc_id,
 };
 
 module_platform_driver(cros_ec_rtc_driver);
@@ -398,4 +414,3 @@ module_platform_driver(cros_ec_rtc_driver);
 MODULE_DESCRIPTION("RTC driver for Chrome OS ECs");
 MODULE_AUTHOR("Stephen Barber <smbarber@chromium.org>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:" DRV_NAME);

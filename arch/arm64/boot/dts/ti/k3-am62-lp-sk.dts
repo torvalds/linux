@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * AM62x LP SK: https://www.ti.com/tool/SK-AM62-LP
  *
- * Copyright (C) 2021-2023 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2021-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 /dts-v1/;
@@ -166,7 +166,6 @@
 
 		interrupt-parent = <&gic500>;
 		interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
-		ti,power-button;
 
 		regulators {
 			buck1_reg: buck1 {
@@ -228,4 +227,8 @@
 
 &tlv320aic3106 {
 	DVDD-supply = <&buck2_reg>;
+};
+
+&gpmc0 {
+	ranges = <0 0 0x00 0x51000000 0x01000000>; /* CS0 space. Min partition = 16MB */
 };

@@ -9,11 +9,13 @@
 #include <linux/kbuild.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/ftrace.h>
 #include <linux/suspend.h>
 #include <asm/kvm_host.h>
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
 #include <asm/cpu_ops_sbi.h>
+#include <asm/stacktrace.h>
 #include <asm/suspend.h>
 
 void asm_offsets(void);
@@ -34,11 +36,22 @@ void asm_offsets(void)
 	OFFSET(TASK_THREAD_S9, task_struct, thread.s[9]);
 	OFFSET(TASK_THREAD_S10, task_struct, thread.s[10]);
 	OFFSET(TASK_THREAD_S11, task_struct, thread.s[11]);
+
+	OFFSET(TASK_TI_CPU, task_struct, thread_info.cpu);
 	OFFSET(TASK_TI_FLAGS, task_struct, thread_info.flags);
 	OFFSET(TASK_TI_PREEMPT_COUNT, task_struct, thread_info.preempt_count);
 	OFFSET(TASK_TI_KERNEL_SP, task_struct, thread_info.kernel_sp);
 	OFFSET(TASK_TI_USER_SP, task_struct, thread_info.user_sp);
+#ifdef CONFIG_SHADOW_CALL_STACK
+	OFFSET(TASK_TI_SCS_SP, task_struct, thread_info.scs_sp);
+#endif
+#ifdef CONFIG_64BIT
+	OFFSET(TASK_TI_A0, task_struct, thread_info.a0);
+	OFFSET(TASK_TI_A1, task_struct, thread_info.a1);
+	OFFSET(TASK_TI_A2, task_struct, thread_info.a2);
+#endif
 
+	OFFSET(TASK_TI_CPU_NUM, task_struct, thread_info.cpu);
 	OFFSET(TASK_THREAD_F0,  task_struct, thread.fstate.f[0]);
 	OFFSET(TASK_THREAD_F1,  task_struct, thread.fstate.f[1]);
 	OFFSET(TASK_THREAD_F2,  task_struct, thread.fstate.f[2]);
@@ -479,4 +492,25 @@ void asm_offsets(void)
 	OFFSET(KERNEL_MAP_VIRT_ADDR, kernel_mapping, virt_addr);
 	OFFSET(SBI_HART_BOOT_TASK_PTR_OFFSET, sbi_hart_boot_data, task_ptr);
 	OFFSET(SBI_HART_BOOT_STACK_PTR_OFFSET, sbi_hart_boot_data, stack_ptr);
+
+	DEFINE(STACKFRAME_SIZE_ON_STACK, ALIGN(sizeof(struct stackframe), STACK_ALIGN));
+	OFFSET(STACKFRAME_FP, stackframe, fp);
+	OFFSET(STACKFRAME_RA, stackframe, ra);
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+	DEFINE(FREGS_SIZE_ON_STACK, ALIGN(sizeof(struct ftrace_regs), STACK_ALIGN));
+	DEFINE(FREGS_EPC,	    offsetof(struct ftrace_regs, epc));
+	DEFINE(FREGS_RA,	    offsetof(struct ftrace_regs, ra));
+	DEFINE(FREGS_SP,	    offsetof(struct ftrace_regs, sp));
+	DEFINE(FREGS_S0,	    offsetof(struct ftrace_regs, s0));
+	DEFINE(FREGS_T1,	    offsetof(struct ftrace_regs, t1));
+	DEFINE(FREGS_A0,	    offsetof(struct ftrace_regs, a0));
+	DEFINE(FREGS_A1,	    offsetof(struct ftrace_regs, a1));
+	DEFINE(FREGS_A2,	    offsetof(struct ftrace_regs, a2));
+	DEFINE(FREGS_A3,	    offsetof(struct ftrace_regs, a3));
+	DEFINE(FREGS_A4,	    offsetof(struct ftrace_regs, a4));
+	DEFINE(FREGS_A5,	    offsetof(struct ftrace_regs, a5));
+	DEFINE(FREGS_A6,	    offsetof(struct ftrace_regs, a6));
+	DEFINE(FREGS_A7,	    offsetof(struct ftrace_regs, a7));
+#endif
 }

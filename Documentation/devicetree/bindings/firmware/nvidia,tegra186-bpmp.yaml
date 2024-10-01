@@ -57,8 +57,11 @@ description: |
   "#address-cells" or "#size-cells" property.
 
   The shared memory area for the IPC TX and RX between CPU and BPMP are
-  predefined and work on top of sysram, which is an SRAM inside the
-  chip. See ".../sram/sram.yaml" for the bindings.
+  predefined and work on top of either sysram, which is an SRAM inside the
+  chip, or in normal SDRAM.
+  See ".../sram/sram.yaml" for the bindings for the SRAM case.
+  See "../reserved-memory/nvidia,tegra264-bpmp-shmem.yaml" for bindings for
+  the SDRAM case.
 
 properties:
   compatible:
@@ -80,6 +83,11 @@ properties:
       that the IPC between CPU and BPMP is based on.
     minItems: 2
     maxItems: 2
+
+  memory-region:
+    description: phandle to reserved memory region used for IPC between
+      CPU-NS and BPMP.
+    maxItems: 1
 
   "#clock-cells":
     const: 1
@@ -115,10 +123,15 @@ properties:
 
 additionalProperties: false
 
+oneOf:
+  - required:
+      - memory-region
+  - required:
+      - shmem
+
 required:
   - compatible
   - mboxes
-  - shmem
   - "#clock-cells"
   - "#power-domain-cells"
   - "#reset-cells"
@@ -165,8 +178,7 @@ examples:
                         <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAW &emc>;
         interconnect-names = "read", "write", "dma-mem", "dma-write";
         iommus = <&smmu TEGRA186_SID_BPMP>;
-        mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
-                            TEGRA_HSP_DB_MASTER_BPMP>;
+        mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
         shmem = <&cpu_bpmp_tx>, <&cpu_bpmp_rx>;
         #clock-cells = <1>;
         #power-domain-cells = <1>;
@@ -183,4 +195,21 @@ examples:
             compatible = "nvidia,tegra186-bpmp-thermal";
             #thermal-sensor-cells = <1>;
         };
+    };
+
+  - |
+    #include <dt-bindings/mailbox/tegra186-hsp.h>
+
+    bpmp {
+        compatible = "nvidia,tegra186-bpmp";
+        interconnects = <&mc TEGRA186_MEMORY_CLIENT_BPMPR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPW &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAW &emc>;
+        interconnect-names = "read", "write", "dma-mem", "dma-write";
+        mboxes = <&hsp_top1 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
+        memory-region = <&dram_cpu_bpmp_mail>;
+        #clock-cells = <1>;
+        #power-domain-cells = <1>;
+        #reset-cells = <1>;
     };

@@ -87,7 +87,6 @@ static int dw_mci_hi3798cv200_execute_tuning(struct dw_mci_slot *slot,
 			goto tuning_out;
 
 		prev_err = err;
-		err = 0;
 	}
 
 tuning_out:
@@ -171,7 +170,7 @@ static int dw_mci_hi3798cv200_probe(struct platform_device *pdev)
 	return dw_mci_pltfm_register(pdev, &hi3798cv200_data);
 }
 
-static int dw_mci_hi3798cv200_remove(struct platform_device *pdev)
+static void dw_mci_hi3798cv200_remove(struct platform_device *pdev)
 {
 	struct dw_mci *host = platform_get_drvdata(pdev);
 	struct hi3798cv200_priv *priv = host->priv;
@@ -180,8 +179,6 @@ static int dw_mci_hi3798cv200_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->sample_clk);
 
 	dw_mci_pltfm_remove(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id dw_mci_hi3798cv200_match[] = {
@@ -192,7 +189,7 @@ static const struct of_device_id dw_mci_hi3798cv200_match[] = {
 MODULE_DEVICE_TABLE(of, dw_mci_hi3798cv200_match);
 static struct platform_driver dw_mci_hi3798cv200_driver = {
 	.probe = dw_mci_hi3798cv200_probe,
-	.remove = dw_mci_hi3798cv200_remove,
+	.remove_new = dw_mci_hi3798cv200_remove,
 	.driver = {
 		.name = "dwmmc_hi3798cv200",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
@@ -203,4 +200,3 @@ module_platform_driver(dw_mci_hi3798cv200_driver);
 
 MODULE_DESCRIPTION("HiSilicon Hi3798CV200 Specific DW-MSHC Driver Extension");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:dwmmc_hi3798cv200");

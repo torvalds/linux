@@ -12,10 +12,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
+#include "internals.h"
 
 #define REG_SSIDR	0x0
 #define REG_SSICR0	0x4
@@ -242,11 +243,10 @@ static int spi_ingenic_transfer_one(struct spi_controller *ctlr,
 {
 	struct ingenic_spi *priv = spi_controller_get_devdata(ctlr);
 	unsigned int bits = xfer->bits_per_word ?: spi->bits_per_word;
-	bool can_dma = ctlr->can_dma && ctlr->can_dma(ctlr, spi, xfer);
 
 	spi_ingenic_prepare_transfer(priv, spi, xfer);
 
-	if (ctlr->cur_msg_mapped && can_dma)
+	if (spi_xfer_is_dma_mapped(ctlr, spi, xfer))
 		return spi_ingenic_dma_tx(ctlr, xfer, bits);
 
 	if (bits > 16)
@@ -346,14 +346,17 @@ static bool spi_ingenic_can_dma(struct spi_controller *ctlr,
 static int spi_ingenic_request_dma(struct spi_controller *ctlr,
 				   struct device *dev)
 {
-	ctlr->dma_tx = dma_request_slave_channel(dev, "tx");
-	if (!ctlr->dma_tx)
-		return -ENODEV;
+	struct dma_chan *chan;
 
-	ctlr->dma_rx = dma_request_slave_channel(dev, "rx");
+	chan = dma_request_chan(dev, "tx");
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+	ctlr->dma_tx = chan;
 
-	if (!ctlr->dma_rx)
-		return -ENODEV;
+	chan = dma_request_chan(dev, "rx");
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+	ctlr->dma_rx = chan;
 
 	ctlr->can_dma = spi_ingenic_can_dma;
 
@@ -392,7 +395,7 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctlr = devm_spi_alloc_master(dev, sizeof(*priv));
+	ctlr = devm_spi_alloc_host(dev, sizeof(*priv));
 	if (!ctlr) {
 		dev_err(dev, "Unable to allocate SPI controller.\n");
 		return -ENOMEM;

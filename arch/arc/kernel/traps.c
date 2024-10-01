@@ -16,6 +16,7 @@
 #include <linux/ptrace.h>
 #include <linux/kprobes.h>
 #include <linux/kgdb.h>
+#include <asm/entry.h>
 #include <asm/setup.h>
 #include <asm/unaligned.h>
 #include <asm/kprobes.h>
@@ -88,7 +89,7 @@ int do_misaligned_access(unsigned long address, struct pt_regs *regs,
 
 /*
  * Entry point for miscll errors such as Nested Exceptions
- *  -Duplicate TLB entry is handled seperately though
+ *  -Duplicate TLB entry is handled separately though
  */
 void do_machine_check_fault(unsigned long address, struct pt_regs *regs)
 {
@@ -109,9 +110,7 @@ void do_machine_check_fault(unsigned long address, struct pt_regs *regs)
  */
 void do_non_swi_trap(unsigned long address, struct pt_regs *regs)
 {
-	unsigned int param = regs->ecr_param;
-
-	switch (param) {
+	switch (regs->ecr.param) {
 	case 1:
 		trap_is_brkpt(address, regs);
 		break;

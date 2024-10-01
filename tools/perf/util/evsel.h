@@ -98,6 +98,7 @@ struct evsel {
 		bool			bpf_counter;
 		bool			use_config_name;
 		bool			skippable;
+		bool			retire_lat;
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
 		struct list_head	config_terms;
@@ -148,6 +149,20 @@ struct evsel {
 	__u64			synth_sample_type;
 
 	/*
+	 * Store the branch counter related information.
+	 * br_cntr_idx: The idx of the branch counter event in the evlist
+	 * br_cntr_nr:  The number of the branch counter event in the group
+	 *	        (Only available for the leader event)
+	 * abbr_name:   The abbreviation name assigned to an event which is
+	 *		logged by the branch counter.
+	 *		The abbr name is from A to Z9. NA is applied if out
+	 *		of the range.
+	 */
+	int			br_cntr_idx;
+	int			br_cntr_nr;
+	char			abbr_name[3];
+
+	/*
 	 * bpf_counter_ops serves two use cases:
 	 *   1. perf-stat -b          counting events used byBPF programs
 	 *   2. perf-stat --use-bpf   use BPF programs to aggregate counts
@@ -170,6 +185,20 @@ struct evsel {
 
 	/* for missing_features */
 	struct perf_pmu		*pmu;
+
+	/* For tool events */
+	/* Beginning time subtracted when the counter is read. */
+	union {
+		/* duration_time is a single global time. */
+		__u64 start_time;
+		/*
+		 * user_time and system_time read an initial value potentially
+		 * per-CPU or per-pid.
+		 */
+		struct xyarray *start_times;
+	};
+	/* Is the tool's fd for /proc/pid/stat or /proc/stat. */
+	bool pid_stat;
 };
 
 struct perf_missing_features {
@@ -191,6 +220,7 @@ struct perf_missing_features {
 	bool code_page_size;
 	bool weight_struct;
 	bool read_lost;
+	bool branch_counters;
 };
 
 extern struct perf_missing_features perf_missing_features;
@@ -233,14 +263,14 @@ void free_config_terms(struct list_head *config_terms);
 
 
 #ifdef HAVE_LIBTRACEEVENT
-struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
+struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx, bool format);
 
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
 static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 {
-	return evsel__newtp_idx(sys, name, 0);
+	return evsel__newtp_idx(sys, name, 0, true);
 }
 #endif
 
@@ -295,6 +325,16 @@ static inline bool evsel__is_tool(const struct evsel *evsel)
 	return evsel->tool_event != PERF_TOOL_NONE;
 }
 
+static inline bool evsel__is_retire_lat(const struct evsel *evsel)
+{
+	return evsel->retire_lat;
+}
+
+static inline enum perf_tool_event evsel__tool_event(const struct evsel *evsel)
+{
+	return evsel->tool_event;
+}
+
 const char *evsel__group_name(struct evsel *evsel);
 int evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
 
@@ -330,9 +370,6 @@ int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
 bool evsel__detect_missing_features(struct evsel *evsel);
 
-enum rlimit_action { NO_CHANGE, SET_TO_MAX, INCREASED_MAX };
-bool evsel__increase_rlimit(enum rlimit_action *set_rlimit);
-
 bool evsel__precise_ip_fallback(struct evsel *evsel);
 
 struct perf_sample;
@@ -340,6 +377,8 @@ struct perf_sample;
 #ifdef HAVE_LIBTRACEEVENT
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name);
 u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name);
+u64 evsel__intval_common(struct evsel *evsel, struct perf_sample *sample, const char *name);
+char evsel__taskstate(struct evsel *evsel, struct perf_sample *sample, const char *name);
 
 static inline char *evsel__strval(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
@@ -352,6 +391,7 @@ struct tep_format_field;
 u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sample, bool needs_swap);
 
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name);
+struct tep_format_field *evsel__common_field(struct evsel *evsel, const char *name);
 
 static inline bool __evsel__match(const struct evsel *evsel, u32 type, u64 config)
 {
@@ -407,7 +447,7 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 				  u64 *timestamp);
 
-u16 evsel__id_hdr_size(struct evsel *evsel);
+u16 evsel__id_hdr_size(const struct evsel *evsel);
 
 static inline struct evsel *evsel__next(struct evsel *evsel)
 {
@@ -460,7 +500,8 @@ static inline bool evsel__is_clock(const struct evsel *evsel)
 	       evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
 }
 
-bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize);
+bool evsel__fallback(struct evsel *evsel, struct target *target, int err,
+		     char *msg, size_t msgsize);
 int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			 int err, char *msg, size_t size);
 

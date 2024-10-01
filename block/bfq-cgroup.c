@@ -127,7 +127,7 @@ static void bfqg_stats_update_group_wait_time(struct bfqg_stats *stats)
 	if (!bfqg_stats_waiting(stats))
 		return;
 
-	now = ktime_get_ns();
+	now = blk_time_get_ns();
 	if (now > stats->start_group_wait_time)
 		bfq_stat_add(&stats->group_wait_time,
 			      now - stats->start_group_wait_time);
@@ -144,7 +144,7 @@ static void bfqg_stats_set_start_group_wait_time(struct bfq_group *bfqg,
 		return;
 	if (bfqg == curr_bfqg)
 		return;
-	stats->start_group_wait_time = ktime_get_ns();
+	stats->start_group_wait_time = blk_time_get_ns();
 	bfqg_stats_mark_waiting(stats);
 }
 
@@ -156,7 +156,7 @@ static void bfqg_stats_end_empty_time(struct bfqg_stats *stats)
 	if (!bfqg_stats_empty(stats))
 		return;
 
-	now = ktime_get_ns();
+	now = blk_time_get_ns();
 	if (now > stats->start_empty_time)
 		bfq_stat_add(&stats->empty_time,
 			      now - stats->start_empty_time);
@@ -183,7 +183,7 @@ void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg)
 	if (bfqg_stats_empty(stats))
 		return;
 
-	stats->start_empty_time = ktime_get_ns();
+	stats->start_empty_time = blk_time_get_ns();
 	bfqg_stats_mark_empty(stats);
 }
 
@@ -192,7 +192,7 @@ void bfqg_stats_update_idle_time(struct bfq_group *bfqg)
 	struct bfqg_stats *stats = &bfqg->stats;
 
 	if (bfqg_stats_idling(stats)) {
-		u64 now = ktime_get_ns();
+		u64 now = blk_time_get_ns();
 
 		if (now > stats->start_idle_time)
 			bfq_stat_add(&stats->idle_time,
@@ -205,7 +205,7 @@ void bfqg_stats_set_start_idle_time(struct bfq_group *bfqg)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
 
-	stats->start_idle_time = ktime_get_ns();
+	stats->start_idle_time = blk_time_get_ns();
 	bfqg_stats_mark_idling(stats);
 }
 
@@ -242,7 +242,7 @@ void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
 				  u64 io_start_time_ns, blk_opf_t opf)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
-	u64 now = ktime_get_ns();
+	u64 now = blk_time_get_ns();
 
 	if (now > io_start_time_ns)
 		blkg_rwstat_add(&stats->service_time, opf,
@@ -679,12 +679,7 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		bfq_put_idle_entity(bfq_entity_service_tree(entity), entity);
 	bfqg_and_blkg_put(old_parent);
 
-	if (entity->parent &&
-	    entity->parent->last_bfqq_created == bfqq)
-		entity->parent->last_bfqq_created = NULL;
-	else if (bfqd->last_bfqq_created == bfqq)
-		bfqd->last_bfqq_created = NULL;
-
+	bfq_reassign_last_bfqq(bfqq, NULL);
 	entity->parent = bfqg->my_entity;
 	entity->sched_data = &bfqg->sched_data;
 	/* pin down bfqg and its associated blkg  */
@@ -741,7 +736,6 @@ static void bfq_sync_bfqq_move(struct bfq_data *bfqd,
 		 */
 		bfq_put_cooperator(sync_bfqq);
 		bic_set_bfqq(bic, NULL, true, act_idx);
-		bfq_release_process_ref(bfqd, sync_bfqq);
 	}
 }
 
@@ -797,57 +791,6 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	 */
 	bfq_link_bfqg(bfqd, bfqg);
 	__bfq_bic_change_cgroup(bfqd, bic, bfqg);
-	/*
-	 * Update blkg_path for bfq_log_* functions. We cache this
-	 * path, and update it here, for the following
-	 * reasons. Operations on blkg objects in blk-cgroup are
-	 * protected with the request_queue lock, and not with the
-	 * lock that protects the instances of this scheduler
-	 * (bfqd->lock). This exposes BFQ to the following sort of
-	 * race.
-	 *
-	 * The blkg_lookup performed in bfq_get_queue, protected
-	 * through rcu, may happen to return the address of a copy of
-	 * the original blkg. If this is the case, then the
-	 * bfqg_and_blkg_get performed in bfq_get_queue, to pin down
-	 * the blkg, is useless: it does not prevent blk-cgroup code
-	 * from destroying both the original blkg and all objects
-	 * directly or indirectly referred by the copy of the
-	 * blkg.
-	 *
-	 * On the bright side, destroy operations on a blkg invoke, as
-	 * a first step, hooks of the scheduler associated with the
-	 * blkg. And these hooks are executed with bfqd->lock held for
-	 * BFQ. As a consequence, for any blkg associated with the
-	 * request queue this instance of the scheduler is attached
-	 * to, we are guaranteed that such a blkg is not destroyed, and
-	 * that all the pointers it contains are consistent, while we
-	 * are holding bfqd->lock. A blkg_lookup performed with
-	 * bfqd->lock held then returns a fully consistent blkg, which
-	 * remains consistent until this lock is held.
-	 *
-	 * Thanks to the last fact, and to the fact that: (1) bfqg has
-	 * been obtained through a blkg_lookup in the above
-	 * assignment, and (2) bfqd->lock is being held, here we can
-	 * safely use the policy data for the involved blkg (i.e., the
-	 * field bfqg->pd) to get to the blkg associated with bfqg,
-	 * and then we can safely use any field of blkg. After we
-	 * release bfqd->lock, even just getting blkg through this
-	 * bfqg may cause dangling references to be traversed, as
-	 * bfqg->pd may not exist any more.
-	 *
-	 * In view of the above facts, here we cache, in the bfqg, any
-	 * blkg data we may need for this bic, and for its associated
-	 * bfq_queue. As of now, we need to cache only the path of the
-	 * blkg, which is used in the bfq_log_* functions.
-	 *
-	 * Finally, note that bfqg itself needs to be protected from
-	 * destruction on the blkg_free of the original blkg (which
-	 * invokes bfq_pd_free). We use an additional private
-	 * refcounter for bfqg, to let it disappear only after no
-	 * bfq_queue refers to it any longer.
-	 */
-	blkg_path(bfqg_to_blkg(bfqg), bfqg->blkg_path, sizeof(bfqg->blkg_path));
 	bic->blkcg_serial_nr = serial_nr;
 }
 

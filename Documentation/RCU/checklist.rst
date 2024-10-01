@@ -68,7 +68,8 @@ over a rather long period of time, but improvements are always welcome!
 	rcu_read_lock_sched(), or by the appropriate update-side lock.
 	Explicit disabling of preemption (preempt_disable(), for example)
 	can serve as rcu_read_lock_sched(), but is less readable and
-	prevents lockdep from detecting locking issues.
+	prevents lockdep from detecting locking issues.  Acquiring a
+	spinlock also enters an RCU read-side critical section.
 
 	Please note that you *cannot* rely on code known to be built
 	only in non-preemptible kernels.  Such code can and will break,
@@ -193,14 +194,13 @@ over a rather long period of time, but improvements are always welcome!
 		when publicizing a pointer to a structure that can
 		be traversed by an RCU read-side critical section.
 
-5.	If any of call_rcu(), call_srcu(), call_rcu_tasks(),
-	call_rcu_tasks_rude(), or call_rcu_tasks_trace() is used,
-	the callback function may be invoked from softirq context,
-	and in any case with bottom halves disabled.  In particular,
-	this callback function cannot block.  If you need the callback
-	to block, run that code in a workqueue handler scheduled from
-	the callback.  The queue_rcu_work() function does this for you
-	in the case of call_rcu().
+5.	If any of call_rcu(), call_srcu(), call_rcu_tasks(), or
+	call_rcu_tasks_trace() is used, the callback function may be
+	invoked from softirq context, and in any case with bottom halves
+	disabled.  In particular, this callback function cannot block.
+	If you need the callback to block, run that code in a workqueue
+	handler scheduled from the callback.  The queue_rcu_work()
+	function does this for you in the case of call_rcu().
 
 6.	Since synchronize_rcu() can block, it cannot be called
 	from any sort of irq context.  The same rule applies
@@ -241,15 +241,22 @@ over a rather long period of time, but improvements are always welcome!
 	srcu_struct.  The rules for the expedited RCU grace-period-wait
 	primitives are the same as for their non-expedited counterparts.
 
-	If the updater uses call_rcu_tasks() or synchronize_rcu_tasks(),
-	then the readers must refrain from executing voluntary
-	context switches, that is, from blocking.  If the updater uses
-	call_rcu_tasks_trace() or synchronize_rcu_tasks_trace(), then
-	the corresponding readers must use rcu_read_lock_trace() and
-	rcu_read_unlock_trace().  If an updater uses call_rcu_tasks_rude()
-	or synchronize_rcu_tasks_rude(), then the corresponding readers
-	must use anything that disables preemption, for example,
-	preempt_disable() and preempt_enable().
+	Similarly, it is necessary to correctly use the RCU Tasks flavors:
+
+	a.	If the updater uses synchronize_rcu_tasks() or
+		call_rcu_tasks(), then the readers must refrain from
+		executing voluntary context switches, that is, from
+		blocking.
+
+	b.	If the updater uses call_rcu_tasks_trace()
+		or synchronize_rcu_tasks_trace(), then the
+		corresponding readers must use rcu_read_lock_trace()
+		and rcu_read_unlock_trace().
+
+	c.	If an updater uses synchronize_rcu_tasks_rude(),
+		then the corresponding readers must use anything that
+		disables preemption, for example, preempt_disable()
+		and preempt_enable().
 
 	Mixing things up will result in confusion and broken kernels, and
 	has even resulted in an exploitable security issue.  Therefore,
@@ -318,11 +325,9 @@ over a rather long period of time, but improvements are always welcome!
 	d.	Periodically invoke rcu_barrier(), permitting a limited
 		number of updates per grace period.
 
-	The same cautions apply to call_srcu(), call_rcu_tasks(),
-	call_rcu_tasks_rude(), and call_rcu_tasks_trace().  This is
-	why there is an srcu_barrier(), rcu_barrier_tasks(),
-	rcu_barrier_tasks_rude(), and rcu_barrier_tasks_rude(),
-	respectively.
+	The same cautions apply to call_srcu(), call_rcu_tasks(), and
+	call_rcu_tasks_trace().  This is why there is an srcu_barrier(),
+	rcu_barrier_tasks(), and rcu_barrier_tasks_trace(), respectively.
 
 	Note that although these primitives do take action to avoid
 	memory exhaustion when any given CPU has too many callbacks,
@@ -376,15 +381,16 @@ over a rather long period of time, but improvements are always welcome!
 	to safely access and/or modify that data structure.
 
 	Do not assume that RCU callbacks will be executed on the same
-	CPU that executed the corresponding call_rcu() or call_srcu().
-	For example, if a given CPU goes offline while having an RCU
-	callback pending, then that RCU callback will execute on some
-	surviving CPU.	(If this was not the case, a self-spawning RCU
-	callback would prevent the victim CPU from ever going offline.)
-	Furthermore, CPUs designated by rcu_nocbs= might well *always*
-	have their RCU callbacks executed on some other CPUs, in fact,
-	for some  real-time workloads, this is the whole point of using
-	the rcu_nocbs= kernel boot parameter.
+	CPU that executed the corresponding call_rcu(), call_srcu(),
+	call_rcu_tasks(), or call_rcu_tasks_trace().  For example, if
+	a given CPU goes offline while having an RCU callback pending,
+	then that RCU callback will execute on some surviving CPU.
+	(If this was not the case, a self-spawning RCU callback would
+	prevent the victim CPU from ever going offline.)  Furthermore,
+	CPUs designated by rcu_nocbs= might well *always* have their
+	RCU callbacks executed on some other CPUs, in fact, for some
+	real-time workloads, this is the whole point of using the
+	rcu_nocbs= kernel boot parameter.
 
 	In addition, do not assume that callbacks queued in a given order
 	will be invoked in that order, even if they all are queued on the
@@ -437,7 +443,7 @@ over a rather long period of time, but improvements are always welcome!
 	real-time workloads than is synchronize_rcu_expedited().
 
 	It is also permissible to sleep in RCU Tasks Trace read-side
-	critical, which are delimited by rcu_read_lock_trace() and
+	critical section, which are delimited by rcu_read_lock_trace() and
 	rcu_read_unlock_trace().  However, this is a specialized flavor
 	of RCU, and you should not use it without first checking with
 	its current users.  In most cases, you should instead use SRCU.
@@ -483,6 +489,12 @@ over a rather long period of time, but improvements are always welcome!
 		since the last time that you passed that same object to
 		call_rcu() (or friends).
 
+	CONFIG_RCU_STRICT_GRACE_PERIOD:
+		combine with KASAN to check for pointers leaked out
+		of RCU read-side critical sections.  This Kconfig
+		option is tough on both performance and scalability,
+		and so is limited to four-CPU systems.
+
 	__rcu sparse checks:
 		tag the pointer to the RCU-protected data structure
 		with __rcu, and sparse will warn you if you access that
@@ -492,9 +504,9 @@ over a rather long period of time, but improvements are always welcome!
 	These debugging aids can help you find problems that are
 	otherwise extremely difficult to spot.
 
-17.	If you pass a callback function defined within a module to one of
-	call_rcu(), call_srcu(), call_rcu_tasks(), call_rcu_tasks_rude(),
-	or call_rcu_tasks_trace(), then it is necessary to wait for all
+17.	If you pass a callback function defined within a module
+	to one of call_rcu(), call_srcu(), call_rcu_tasks(), or
+	call_rcu_tasks_trace(), then it is necessary to wait for all
 	pending callbacks to be invoked before unloading that module.
 	Note that it is absolutely *not* sufficient to wait for a grace
 	period!  For example, synchronize_rcu() implementation is *not*
@@ -507,7 +519,6 @@ over a rather long period of time, but improvements are always welcome!
 	-	call_rcu() -> rcu_barrier()
 	-	call_srcu() -> srcu_barrier()
 	-	call_rcu_tasks() -> rcu_barrier_tasks()
-	-	call_rcu_tasks_rude() -> rcu_barrier_tasks_rude()
 	-	call_rcu_tasks_trace() -> rcu_barrier_tasks_trace()
 
 	However, these barrier functions are absolutely *not* guaranteed
@@ -524,7 +535,6 @@ over a rather long period of time, but improvements are always welcome!
 	-	Either synchronize_srcu() or synchronize_srcu_expedited(),
 		together with and srcu_barrier()
 	-	synchronize_rcu_tasks() and rcu_barrier_tasks()
-	-	synchronize_tasks_rude() and rcu_barrier_tasks_rude()
 	-	synchronize_tasks_trace() and rcu_barrier_tasks_trace()
 
 	If necessary, you can use something like workqueues to execute

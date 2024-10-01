@@ -33,7 +33,7 @@ extern int distribute_irqs;
 
 struct pt_regs;
 
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 /*
  * Per-cpu stacks for handling critical, debug and machine check
  * level interrupts.
@@ -55,7 +55,7 @@ int irq_choose_cpu(const struct cpumask *mask);
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_NMI_IPI)
 extern void arch_trigger_cpumask_backtrace(const cpumask_t *mask,
-					   bool exclude_self);
+					   int exclude_cpu);
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 #endif
 

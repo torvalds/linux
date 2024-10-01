@@ -273,6 +273,12 @@ void arm64_force_sig_fault(int signo, int code, unsigned long far,
 		force_sig_fault(signo, code, (void __user *)far);
 }
 
+void arm64_force_sig_fault_pkey(unsigned long far, const char *str, int pkey)
+{
+	arm64_show_signal(SIGSEGV, str);
+	force_sig_pkuerr((void __user *)far, pkey);
+}
+
 void arm64_force_sig_mceerr(int code, unsigned long far, short lsb,
 			    const char *str)
 {
@@ -516,53 +522,7 @@ void do_el1_fpac(struct pt_regs *regs, unsigned long esr)
 
 void do_el0_mops(struct pt_regs *regs, unsigned long esr)
 {
-	bool wrong_option = esr & ESR_ELx_MOPS_ISS_WRONG_OPTION;
-	bool option_a = esr & ESR_ELx_MOPS_ISS_OPTION_A;
-	int dstreg = ESR_ELx_MOPS_ISS_DESTREG(esr);
-	int srcreg = ESR_ELx_MOPS_ISS_SRCREG(esr);
-	int sizereg = ESR_ELx_MOPS_ISS_SIZEREG(esr);
-	unsigned long dst, src, size;
-
-	dst = pt_regs_read_reg(regs, dstreg);
-	src = pt_regs_read_reg(regs, srcreg);
-	size = pt_regs_read_reg(regs, sizereg);
-
-	/*
-	 * Put the registers back in the original format suitable for a
-	 * prologue instruction, using the generic return routine from the
-	 * Arm ARM (DDI 0487I.a) rules CNTMJ and MWFQH.
-	 */
-	if (esr & ESR_ELx_MOPS_ISS_MEM_INST) {
-		/* SET* instruction */
-		if (option_a ^ wrong_option) {
-			/* Format is from Option A; forward set */
-			pt_regs_write_reg(regs, dstreg, dst + size);
-			pt_regs_write_reg(regs, sizereg, -size);
-		}
-	} else {
-		/* CPY* instruction */
-		if (!(option_a ^ wrong_option)) {
-			/* Format is from Option B */
-			if (regs->pstate & PSR_N_BIT) {
-				/* Backward copy */
-				pt_regs_write_reg(regs, dstreg, dst - size);
-				pt_regs_write_reg(regs, srcreg, src - size);
-			}
-		} else {
-			/* Format is from Option A */
-			if (size & BIT(63)) {
-				/* Forward copy */
-				pt_regs_write_reg(regs, dstreg, dst + size);
-				pt_regs_write_reg(regs, srcreg, src + size);
-				pt_regs_write_reg(regs, sizereg, -size);
-			}
-		}
-	}
-
-	if (esr & ESR_ELx_MOPS_ISS_FROM_EPILOGUE)
-		regs->pc -= 8;
-	else
-		regs->pc -= 4;
+	arm64_mops_reset_regs(&regs->user_regs, esr);
 
 	/*
 	 * If single stepping then finish the step before executing the
@@ -631,7 +591,7 @@ static void ctr_read_handler(unsigned long esr, struct pt_regs *regs)
 	int rt = ESR_ELx_SYS64_ISS_RT(esr);
 	unsigned long val = arm64_ftr_reg_user_value(&arm64_ftr_reg_ctrel0);
 
-	if (cpus_have_const_cap(ARM64_WORKAROUND_1542419)) {
+	if (cpus_have_final_cap(ARM64_WORKAROUND_1542419)) {
 		/* Hide DIC so that we can trap the unnecessary maintenance...*/
 		val &= ~BIT(CTR_EL0_DIC_SHIFT);
 
@@ -647,18 +607,26 @@ static void ctr_read_handler(unsigned long esr, struct pt_regs *regs)
 
 static void cntvct_read_handler(unsigned long esr, struct pt_regs *regs)
 {
-	int rt = ESR_ELx_SYS64_ISS_RT(esr);
+	if (test_thread_flag(TIF_TSC_SIGSEGV)) {
+		force_sig(SIGSEGV);
+	} else {
+		int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_timer_read_counter());
-	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+		pt_regs_write_reg(regs, rt, arch_timer_read_counter());
+		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+	}
 }
 
 static void cntfrq_read_handler(unsigned long esr, struct pt_regs *regs)
 {
-	int rt = ESR_ELx_SYS64_ISS_RT(esr);
+	if (test_thread_flag(TIF_TSC_SIGSEGV)) {
+		force_sig(SIGSEGV);
+	} else {
+		int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_timer_get_rate());
-	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+		pt_regs_write_reg(regs, rt, arch_timer_get_rate());
+		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+	}
 }
 
 static void mrs_handler(unsigned long esr, struct pt_regs *regs)
@@ -1151,8 +1119,6 @@ static struct break_hook ubsan_break_hook = {
 };
 #endif
 
-#define esr_comment(esr) ((esr) & ESR_ELx_BRK64_ISS_COMMENT_MASK)
-
 /*
  * Initial handler for AArch64 BRK exceptions
  * This handler only used until debug_traps_init().
@@ -1161,15 +1127,15 @@ int __init early_brk64(unsigned long addr, unsigned long esr,
 		struct pt_regs *regs)
 {
 #ifdef CONFIG_CFI_CLANG
-	if ((esr_comment(esr) & ~CFI_BRK_IMM_MASK) == CFI_BRK_IMM_BASE)
+	if (esr_is_cfi_brk(esr))
 		return cfi_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
 #ifdef CONFIG_KASAN_SW_TAGS
-	if ((esr_comment(esr) & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
+	if ((esr_brk_comment(esr) & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
 		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
 #ifdef CONFIG_UBSAN_TRAP
-	if ((esr_comment(esr) & ~UBSAN_BRK_MASK) == UBSAN_BRK_IMM)
+	if ((esr_brk_comment(esr) & ~UBSAN_BRK_MASK) == UBSAN_BRK_IMM)
 		return ubsan_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
 	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;

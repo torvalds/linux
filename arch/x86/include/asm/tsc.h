@@ -5,8 +5,9 @@
 #ifndef _ASM_X86_TSC_H
 #define _ASM_X86_TSC_H
 
-#include <asm/processor.h>
 #include <asm/cpufeature.h>
+#include <asm/processor.h>
+#include <asm/msr.h>
 
 /*
  * Standard way to access the cycle counter.
@@ -26,9 +27,6 @@ static inline cycles_t get_cycles(void)
 	return rdtsc();
 }
 #define get_cycles get_cycles
-
-extern struct system_counterval_t convert_art_to_tsc(u64 art);
-extern struct system_counterval_t convert_art_ns_to_tsc(u64 art_ns);
 
 extern void tsc_early_init(void);
 extern void tsc_init(void);

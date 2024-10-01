@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/sys_soc.h>
 #include <linux/fsl/mc.h>
 
@@ -79,6 +80,7 @@ static void build_deinstantiation_desc(u32 *desc, int handle)
 	append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TYPE_HALT);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id imx8m_machine_match[] = {
 	{ .compatible = "fsl,imx8mm", },
 	{ .compatible = "fsl,imx8mn", },
@@ -87,6 +89,7 @@ static const struct of_device_id imx8m_machine_match[] = {
 	{ .compatible = "fsl,imx8ulp", },
 	{ }
 };
+#endif
 
 /*
  * run_descriptor_deco0 - runs a descriptor on DECO0, under direct control of
@@ -382,8 +385,8 @@ static void kick_trng(struct device *dev, int ent_delay)
 		val = ent_delay;
 		/* min. freq. count, equal to 1/4 of the entropy sample length */
 		wr_reg32(&r4tst->rtfrqmin, val >> 2);
-		/* max. freq. count, equal to 16 times the entropy sample length */
-		wr_reg32(&r4tst->rtfrqmax, val << 4);
+		/* disable maximum frequency count */
+		wr_reg32(&r4tst->rtfrqmax, RTFRQMAX_DISABLE);
 	}
 
 	wr_reg32(&r4tst->rtsdctl, (val << RTSDCTL_ENT_DLY_SHIFT) |
@@ -511,6 +514,7 @@ static const struct of_device_id caam_match[] = {
 MODULE_DEVICE_TABLE(of, caam_match);
 
 struct caam_imx_data {
+	bool page0_access;
 	const struct clk_bulk_data *clks;
 	int num_clks;
 };
@@ -523,6 +527,7 @@ static const struct clk_bulk_data caam_imx6_clks[] = {
 };
 
 static const struct caam_imx_data caam_imx6_data = {
+	.page0_access = true,
 	.clks = caam_imx6_clks,
 	.num_clks = ARRAY_SIZE(caam_imx6_clks),
 };
@@ -533,6 +538,7 @@ static const struct clk_bulk_data caam_imx7_clks[] = {
 };
 
 static const struct caam_imx_data caam_imx7_data = {
+	.page0_access = true,
 	.clks = caam_imx7_clks,
 	.num_clks = ARRAY_SIZE(caam_imx7_clks),
 };
@@ -544,6 +550,7 @@ static const struct clk_bulk_data caam_imx6ul_clks[] = {
 };
 
 static const struct caam_imx_data caam_imx6ul_data = {
+	.page0_access = true,
 	.clks = caam_imx6ul_clks,
 	.num_clks = ARRAY_SIZE(caam_imx6ul_clks),
 };
@@ -553,15 +560,19 @@ static const struct clk_bulk_data caam_vf610_clks[] = {
 };
 
 static const struct caam_imx_data caam_vf610_data = {
+	.page0_access = true,
 	.clks = caam_vf610_clks,
 	.num_clks = ARRAY_SIZE(caam_vf610_clks),
 };
+
+static const struct caam_imx_data caam_imx8ulp_data;
 
 static const struct soc_device_attribute caam_imx_soc_table[] = {
 	{ .soc_id = "i.MX6UL", .data = &caam_imx6ul_data },
 	{ .soc_id = "i.MX6*",  .data = &caam_imx6_data },
 	{ .soc_id = "i.MX7*",  .data = &caam_imx7_data },
 	{ .soc_id = "i.MX8M*", .data = &caam_imx7_data },
+	{ .soc_id = "i.MX8ULP", .data = &caam_imx8ulp_data },
 	{ .soc_id = "VF*",     .data = &caam_vf610_data },
 	{ .family = "Freescale i.MX" },
 	{ /* sentinel */ }
@@ -740,6 +751,109 @@ static int caam_ctrl_rng_init(struct device *dev)
 	return 0;
 }
 
+/* Indicate if the internal state of the CAAM is lost during PM */
+static int caam_off_during_pm(void)
+{
+	bool not_off_during_pm = of_machine_is_compatible("fsl,imx6q") ||
+				 of_machine_is_compatible("fsl,imx6qp") ||
+				 of_machine_is_compatible("fsl,imx6dl");
+
+	return not_off_during_pm ? 0 : 1;
+}
+
+static void caam_state_save(struct device *dev)
+{
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+	struct caam_ctl_state *state = &ctrlpriv->state;
+	struct caam_ctrl __iomem *ctrl = ctrlpriv->ctrl;
+	u32 deco_inst, jr_inst;
+	int i;
+
+	state->mcr = rd_reg32(&ctrl->mcr);
+	state->scfgr = rd_reg32(&ctrl->scfgr);
+
+	deco_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		     CHA_ID_MS_DECO_MASK) >> CHA_ID_MS_DECO_SHIFT;
+	for (i = 0; i < deco_inst; i++) {
+		state->deco_mid[i].liodn_ms =
+			rd_reg32(&ctrl->deco_mid[i].liodn_ms);
+		state->deco_mid[i].liodn_ls =
+			rd_reg32(&ctrl->deco_mid[i].liodn_ls);
+	}
+
+	jr_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		   CHA_ID_MS_JR_MASK) >> CHA_ID_MS_JR_SHIFT;
+	for (i = 0; i < jr_inst; i++) {
+		state->jr_mid[i].liodn_ms =
+			rd_reg32(&ctrl->jr_mid[i].liodn_ms);
+		state->jr_mid[i].liodn_ls =
+			rd_reg32(&ctrl->jr_mid[i].liodn_ls);
+	}
+}
+
+static void caam_state_restore(const struct device *dev)
+{
+	const struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+	const struct caam_ctl_state *state = &ctrlpriv->state;
+	struct caam_ctrl __iomem *ctrl = ctrlpriv->ctrl;
+	u32 deco_inst, jr_inst;
+	int i;
+
+	wr_reg32(&ctrl->mcr, state->mcr);
+	wr_reg32(&ctrl->scfgr, state->scfgr);
+
+	deco_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		     CHA_ID_MS_DECO_MASK) >> CHA_ID_MS_DECO_SHIFT;
+	for (i = 0; i < deco_inst; i++) {
+		wr_reg32(&ctrl->deco_mid[i].liodn_ms,
+			 state->deco_mid[i].liodn_ms);
+		wr_reg32(&ctrl->deco_mid[i].liodn_ls,
+			 state->deco_mid[i].liodn_ls);
+	}
+
+	jr_inst = (rd_reg32(&ctrl->perfmon.cha_num_ms) &
+		   CHA_ID_MS_JR_MASK) >> CHA_ID_MS_JR_SHIFT;
+	for (i = 0; i < jr_inst; i++) {
+		wr_reg32(&ctrl->jr_mid[i].liodn_ms,
+			 state->jr_mid[i].liodn_ms);
+		wr_reg32(&ctrl->jr_mid[i].liodn_ls,
+			 state->jr_mid[i].liodn_ls);
+	}
+
+	if (ctrlpriv->virt_en == 1)
+		clrsetbits_32(&ctrl->jrstart, 0, JRSTART_JR0_START |
+			      JRSTART_JR1_START | JRSTART_JR2_START |
+			      JRSTART_JR3_START);
+}
+
+static int caam_ctrl_suspend(struct device *dev)
+{
+	const struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+
+	if (ctrlpriv->caam_off_during_pm && !ctrlpriv->optee_en)
+		caam_state_save(dev);
+
+	return 0;
+}
+
+static int caam_ctrl_resume(struct device *dev)
+{
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (ctrlpriv->caam_off_during_pm && !ctrlpriv->optee_en) {
+		caam_state_restore(dev);
+
+		/* HW and rng will be reset so deinstantiation can be removed */
+		devm_remove_action(dev, devm_deinstantiate_rng, dev);
+		ret = caam_ctrl_rng_init(dev);
+	}
+
+	return ret;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(caam_ctrl_pm_ops, caam_ctrl_suspend, caam_ctrl_resume);
+
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
@@ -756,6 +870,7 @@ static int caam_probe(struct platform_device *pdev)
 	int pg_size;
 	int BLOCK_OFFSET = 0;
 	bool reg_access = true;
+	const struct caam_imx_data *imx_soc_data;
 
 	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(*ctrlpriv), GFP_KERNEL);
 	if (!ctrlpriv)
@@ -770,6 +885,8 @@ static int caam_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	caam_imx = (bool)imx_soc_match;
+
+	ctrlpriv->caam_off_during_pm = caam_imx && caam_off_during_pm();
 
 	if (imx_soc_match) {
 		/*
@@ -788,12 +905,20 @@ static int caam_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
+		imx_soc_data = imx_soc_match->data;
+		reg_access = reg_access && imx_soc_data->page0_access;
+		/*
+		 * CAAM clocks cannot be controlled from kernel.
+		 */
+		if (!imx_soc_data->num_clks)
+			goto iomap_ctrl;
+
 		ret = init_clocks(dev, imx_soc_match->data);
 		if (ret)
 			return ret;
 	}
 
-
+iomap_ctrl:
 	/* Get configuration properties from device tree */
 	/* First, get register page */
 	ctrl = devm_of_iomap(dev, nprop, 0, NULL);
@@ -1033,6 +1158,7 @@ static struct platform_driver caam_driver = {
 	.driver = {
 		.name = "caam",
 		.of_match_table = caam_match,
+		.pm = pm_ptr(&caam_ctrl_pm_ops),
 	},
 	.probe       = caam_probe,
 };

@@ -523,9 +523,9 @@ Linux 里这是提倡的做法，因为这样可以很简单的给读者提供�
 
 .. code-block:: c
 
-	 err_free_bar:
+	err_free_bar:
 		kfree(foo->bar);
-	 err_free_foo:
+	err_free_foo:
 		kfree(foo);
 		return ret;
 
@@ -654,7 +654,7 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 请注意，您还可以使用 ``clang-format`` 工具帮助您处理这些规则，快速自动重新格
 式化部分代码，并审阅整个文件以发现代码风格错误、打字错误和可能的改进。它还可
 以方便地排序 ``#include`` ，对齐变量/宏，重排文本和其他类似任务。
-详见 Documentation/process/clang-format.rst 。
+详见 Documentation/dev-tools/clang-format.rst 。
 
 
 10) Kconfig 配置文件

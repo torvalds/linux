@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB */
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2015 - 2020 Intel Corporation */
 #ifndef IRDMA_USER_H
 #define IRDMA_USER_H
@@ -85,6 +85,7 @@ enum irdma_device_caps_const {
 	IRDMA_Q2_BUF_SIZE =			256,
 	IRDMA_QP_CTX_SIZE =			256,
 	IRDMA_MAX_PDS =				262144,
+	IRDMA_MIN_WQ_SIZE_GEN2 =                8,
 };
 
 enum irdma_addressing_type {
@@ -215,7 +216,6 @@ struct irdma_post_sq_info {
 	bool local_fence:1;
 	bool inline_data:1;
 	bool imm_data_valid:1;
-	bool push_wqe:1;
 	bool report_rtt:1;
 	bool udp_hdr:1;
 	bool defer_flag:1;
@@ -247,7 +247,6 @@ struct irdma_cq_poll_info {
 	u8 op_type;
 	u8 q_type;
 	bool stag_invalid_set:1; /* or L_R_Key set */
-	bool push_dropped:1;
 	bool error:1;
 	bool solicited_event:1;
 	bool ipv4:1;
@@ -295,6 +294,12 @@ void irdma_uk_cq_init(struct irdma_cq_uk *cq,
 		      struct irdma_cq_uk_init_info *info);
 int irdma_uk_qp_init(struct irdma_qp_uk *qp,
 		     struct irdma_qp_uk_init_info *info);
+void irdma_uk_calc_shift_wq(struct irdma_qp_uk_init_info *ukinfo, u8 *sq_shift,
+			    u8 *rq_shift);
+int irdma_uk_calc_depth_shift_sq(struct irdma_qp_uk_init_info *ukinfo,
+				 u32 *sq_depth, u8 *sq_shift);
+int irdma_uk_calc_depth_shift_rq(struct irdma_qp_uk_init_info *ukinfo,
+				 u32 *rq_depth, u8 *rq_shift);
 struct irdma_sq_uk_wr_trk_info {
 	u64 wrid;
 	u32 wr_len;
@@ -314,8 +319,6 @@ struct irdma_qp_uk {
 	struct irdma_sq_uk_wr_trk_info *sq_wrtrk_array;
 	u64 *rq_wrid_array;
 	__le64 *shadow_area;
-	__le32 *push_db;
-	__le64 *push_wqe;
 	struct irdma_ring sq_ring;
 	struct irdma_ring rq_ring;
 	struct irdma_ring initial_ring;
@@ -335,8 +338,6 @@ struct irdma_qp_uk {
 	u8 rq_wqe_size;
 	u8 rq_wqe_size_multiplier;
 	bool deferred_flag:1;
-	bool push_mode:1; /* whether the last post wqe was pushed */
-	bool push_dropped:1;
 	bool first_sq_wq:1;
 	bool sq_flush_complete:1; /* Indicates flush was seen and SQ was empty after the flush */
 	bool rq_flush_complete:1; /* Indicates flush was seen and RQ was empty after the flush */
@@ -374,8 +375,12 @@ struct irdma_qp_uk_init_info {
 	u32 max_sq_frag_cnt;
 	u32 max_rq_frag_cnt;
 	u32 max_inline_data;
+	u32 sq_depth;
+	u32 rq_depth;
 	u8 first_sq_wq;
 	u8 type;
+	u8 sq_shift;
+	u8 rq_shift;
 	int abi_ver;
 	bool legacy_mode;
 };
@@ -404,7 +409,5 @@ int irdma_get_sqdepth(struct irdma_uk_attrs *uk_attrs, u32 sq_size, u8 shift,
 		      u32 *wqdepth);
 int irdma_get_rqdepth(struct irdma_uk_attrs *uk_attrs, u32 rq_size, u8 shift,
 		      u32 *wqdepth);
-void irdma_qp_push_wqe(struct irdma_qp_uk *qp, __le64 *wqe, u16 quanta,
-		       u32 wqe_idx, bool post_sq);
 void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx);
 #endif /* IRDMA_USER_H */

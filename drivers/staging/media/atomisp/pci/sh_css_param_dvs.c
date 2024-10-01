@@ -202,9 +202,6 @@ generate_dvs_6axis_table_from_config(struct ia_css_dvs_6axis_config
 void
 free_dvs_6axis_table(struct ia_css_dvs_6axis_config  **dvs_6axis_config)
 {
-	assert(dvs_6axis_config);
-	assert(*dvs_6axis_config);
-
 	if ((dvs_6axis_config) && (*dvs_6axis_config)) {
 		IA_CSS_ENTER_PRIVATE("dvs_6axis_config %p", (*dvs_6axis_config));
 		if ((*dvs_6axis_config)->xcoords_y) {

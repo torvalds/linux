@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <limits.h>
+#include "internal.h"
 
 void perf_cpu_map__set_nr(struct perf_cpu_map *map, int nr_cpus)
 {
@@ -17,9 +18,13 @@ void perf_cpu_map__set_nr(struct perf_cpu_map *map, int nr_cpus)
 
 struct perf_cpu_map *perf_cpu_map__alloc(int nr_cpus)
 {
-	RC_STRUCT(perf_cpu_map) *cpus = malloc(sizeof(*cpus) + sizeof(struct perf_cpu) * nr_cpus);
+	RC_STRUCT(perf_cpu_map) *cpus;
 	struct perf_cpu_map *result;
 
+	if (nr_cpus == 0)
+		return NULL;
+
+	cpus = malloc(sizeof(*cpus) + sizeof(struct perf_cpu) * nr_cpus);
 	if (ADD_RC_CHK(result, cpus)) {
 		cpus->nr = nr_cpus;
 		refcount_set(&cpus->refcnt, 1);
@@ -27,7 +32,7 @@ struct perf_cpu_map *perf_cpu_map__alloc(int nr_cpus)
 	return result;
 }
 
-struct perf_cpu_map *perf_cpu_map__dummy_new(void)
+struct perf_cpu_map *perf_cpu_map__new_any_cpu(void)
 {
 	struct perf_cpu_map *cpus = perf_cpu_map__alloc(1);
 
@@ -66,14 +71,20 @@ void perf_cpu_map__put(struct perf_cpu_map *map)
 	}
 }
 
-static struct perf_cpu_map *cpu_map__default_new(void)
+static struct perf_cpu_map *cpu_map__new_sysconf(void)
 {
 	struct perf_cpu_map *cpus;
-	int nr_cpus;
+	int nr_cpus, nr_cpus_conf;
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	if (nr_cpus < 0)
 		return NULL;
+
+	nr_cpus_conf = sysconf(_SC_NPROCESSORS_CONF);
+	if (nr_cpus != nr_cpus_conf) {
+		pr_warning("Number of online CPUs (%d) differs from the number configured (%d) the CPU map will only cover the first %d CPUs.",
+			nr_cpus, nr_cpus_conf, nr_cpus);
+	}
 
 	cpus = perf_cpu_map__alloc(nr_cpus);
 	if (cpus != NULL) {
@@ -86,9 +97,27 @@ static struct perf_cpu_map *cpu_map__default_new(void)
 	return cpus;
 }
 
-struct perf_cpu_map *perf_cpu_map__default_new(void)
+static struct perf_cpu_map *cpu_map__new_sysfs_online(void)
 {
-	return cpu_map__default_new();
+	struct perf_cpu_map *cpus = NULL;
+	FILE *onlnf;
+
+	onlnf = fopen("/sys/devices/system/cpu/online", "r");
+	if (onlnf) {
+		cpus = perf_cpu_map__read(onlnf);
+		fclose(onlnf);
+	}
+	return cpus;
+}
+
+struct perf_cpu_map *perf_cpu_map__new_online_cpus(void)
+{
+	struct perf_cpu_map *cpus = cpu_map__new_sysfs_online();
+
+	if (cpus)
+		return cpus;
+
+	return cpu_map__new_sysconf();
 }
 
 
@@ -180,24 +209,8 @@ struct perf_cpu_map *perf_cpu_map__read(FILE *file)
 
 	if (nr_cpus > 0)
 		cpus = cpu_map__trim_new(nr_cpus, tmp_cpus);
-	else
-		cpus = cpu_map__default_new();
 out_free_tmp:
 	free(tmp_cpus);
-	return cpus;
-}
-
-static struct perf_cpu_map *cpu_map__read_all_cpu_map(void)
-{
-	struct perf_cpu_map *cpus = NULL;
-	FILE *onlnf;
-
-	onlnf = fopen("/sys/devices/system/cpu/online", "r");
-	if (!onlnf)
-		return cpu_map__default_new();
-
-	cpus = perf_cpu_map__read(onlnf);
-	fclose(onlnf);
 	return cpus;
 }
 
@@ -211,7 +224,7 @@ struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list)
 	int max_entries = 0;
 
 	if (!cpu_list)
-		return cpu_map__read_all_cpu_map();
+		return perf_cpu_map__new_online_cpus();
 
 	/*
 	 * must handle the case of empty cpumap to cover
@@ -268,10 +281,12 @@ struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list)
 
 	if (nr_cpus > 0)
 		cpus = cpu_map__trim_new(nr_cpus, tmp_cpus);
-	else if (*cpu_list != '\0')
-		cpus = cpu_map__default_new();
-	else
-		cpus = perf_cpu_map__dummy_new();
+	else if (*cpu_list != '\0') {
+		pr_warning("Unexpected characters at end of cpu list ('%s'), using online CPUs.",
+			   cpu_list);
+		cpus = perf_cpu_map__new_online_cpus();
+	} else
+		cpus = perf_cpu_map__new_any_cpu();
 invalid:
 	free(tmp_cpus);
 out:
@@ -300,9 +315,22 @@ int perf_cpu_map__nr(const struct perf_cpu_map *cpus)
 	return cpus ? __perf_cpu_map__nr(cpus) : 1;
 }
 
-bool perf_cpu_map__empty(const struct perf_cpu_map *map)
+bool perf_cpu_map__has_any_cpu_or_is_empty(const struct perf_cpu_map *map)
 {
 	return map ? __perf_cpu_map__cpu(map, 0).cpu == -1 : true;
+}
+
+bool perf_cpu_map__is_any_cpu_or_is_empty(const struct perf_cpu_map *map)
+{
+	if (!map)
+		return true;
+
+	return __perf_cpu_map__nr(map) == 1 && __perf_cpu_map__cpu(map, 0).cpu == -1;
+}
+
+bool perf_cpu_map__is_empty(const struct perf_cpu_map *map)
+{
+	return map == NULL;
 }
 
 int perf_cpu_map__idx(const struct perf_cpu_map *cpus, struct perf_cpu cpu)
@@ -359,6 +387,20 @@ bool perf_cpu_map__equal(const struct perf_cpu_map *lhs, const struct perf_cpu_m
 bool perf_cpu_map__has_any_cpu(const struct perf_cpu_map *map)
 {
 	return map && __perf_cpu_map__cpu(map, 0).cpu == -1;
+}
+
+struct perf_cpu perf_cpu_map__min(const struct perf_cpu_map *map)
+{
+	struct perf_cpu cpu, result = {
+		.cpu = -1
+	};
+	int idx;
+
+	perf_cpu_map__for_each_cpu_skip_any(cpu, idx, map) {
+		result = cpu;
+		break;
+	}
+	return result;
 }
 
 struct perf_cpu perf_cpu_map__max(const struct perf_cpu_map *map)

@@ -47,4 +47,16 @@
 /* Default to taking the first of any alternative feature sections */
 test_feature = 1
 
+#define DCBT_SETUP_STREAMS(from, from_parms, to, to_parms, scratch)	\
+	lis	scratch,0x8000;	/* GO=1 */				\
+	clrldi	scratch,scratch,32;					\
+	/* setup read stream 0 */					\
+	dcbt	0,from,0b01000;		/* addr from */			\
+	dcbt	0,from_parms,0b01010;	/* length and depth from */	\
+	/* setup write stream 1 */					\
+	dcbtst	0,to,0b01000;		/* addr to */			\
+	dcbtst	0,to_parms,0b01010;	/* length and depth to */	\
+	eieio;								\
+	dcbt	0,scratch,0b01010;	/* all streams GO */
+
 #endif /* __SELFTESTS_POWERPC_PPC_ASM_H */

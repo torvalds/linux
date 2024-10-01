@@ -17,19 +17,16 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <linux/gpio.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/cs35l35.h>
-#include <linux/of_irq.h>
 #include <linux/completion.h>
 
 #include "cs35l35.h"
@@ -1089,7 +1086,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l35 = {
 	.endianness		= 1,
 };
 
-static struct regmap_config cs35l35_regmap = {
+static const struct regmap_config cs35l35_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -1642,7 +1639,7 @@ static const struct of_device_id cs35l35_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs35l35_of_match);
 
 static const struct i2c_device_id cs35l35_id[] = {
-	{"cs35l35", 0},
+	{"cs35l35"},
 	{}
 };
 

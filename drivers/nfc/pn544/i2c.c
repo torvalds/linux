@@ -44,7 +44,7 @@
 					 PN544_HCI_I2C_LLC_MAX_PAYLOAD)
 
 static const struct i2c_device_id pn544_hci_i2c_id_table[] = {
-	{"pn544", 0},
+	{ "pn544" },
 	{}
 };
 
@@ -125,8 +125,6 @@ struct pn544_i2c_fw_secure_blob {
 #define PN544_FW_CMD_RESULT_WRITE_FAILED 0x74
 #define PN544_FW_CMD_RESULT_COMMAND_REJECTED 0xE0
 #define PN544_FW_CMD_RESULT_CHUNK_ERROR 0xE6
-
-#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 
 #define PN544_FW_WRITE_BUFFER_MAX_LEN 0x9f7
 #define PN544_FW_I2C_MAX_PAYLOAD PN544_HCI_I2C_LLC_MAX_SIZE

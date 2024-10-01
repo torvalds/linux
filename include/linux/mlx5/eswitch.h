@@ -7,6 +7,7 @@
 #define _MLX5_ESWITCH_
 
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/vport.h>
 #include <net/devlink.h>
 
 #define MLX5_ESWITCH_MANAGER(mdev) MLX5_CAP_GEN(mdev, eswitch_manager)
@@ -144,6 +145,9 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
 	GENMASK(31 - ESW_TUN_ID_BITS - ESW_RESERVED_BITS, \
 		ESW_TUN_OPTS_OFFSET + 1)
 
+/* reuse tun_opts for the mapped ipsec obj id when tun_id is 0 (invalid) */
+#define ESW_IPSEC_RX_MAPPED_ID_MASK GENMASK(ESW_TUN_OPTS_BITS - 1, 0)
+
 u8 mlx5_eswitch_mode(const struct mlx5_core_dev *dev);
 u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev);
 struct mlx5_core_dev *mlx5_eswitch_get_core_dev(struct mlx5_eswitch *esw);
@@ -205,6 +209,13 @@ static inline bool is_mdev_legacy_mode(struct mlx5_core_dev *dev)
 static inline bool is_mdev_switchdev_mode(struct mlx5_core_dev *dev)
 {
 	return mlx5_eswitch_mode(dev) == MLX5_ESWITCH_OFFLOADS;
+}
+
+/* The returned number is valid only when the dev is eswitch manager. */
+static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
+{
+	return mlx5_core_is_ecpf_esw_manager(dev) ?
+		MLX5_VPORT_ECPF : MLX5_VPORT_PF;
 }
 
 #endif

@@ -72,8 +72,6 @@ properties:
           - const: snps,dw-apb-ssi
       - description: Intel Keem Bay SPI Controller
         const: intel,keembay-ssi
-      - description: Intel Thunder Bay SPI Controller
-        const: intel,thunderbay-ssi
       - description: Intel Mount Evans Integrated Management Complex SPI Controller
         const: intel,mountevans-imc-ssi
       - description: AMD Pensando Elba SoC SPI Controller
@@ -90,6 +88,10 @@ properties:
               - renesas,r9a06g032-spi # RZ/N1D
               - renesas,r9a06g033-spi # RZ/N1S
           - const: renesas,rzn1-spi   # RZ/N1
+      - description: T-HEAD TH1520 SoC SPI Controller
+        items:
+          - const: thead,th1520-spi
+          - const: snps,dw-apb-ssi
 
   reg:
     minItems: 1
@@ -160,6 +162,8 @@ properties:
 patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       reg:
         minimum: 0

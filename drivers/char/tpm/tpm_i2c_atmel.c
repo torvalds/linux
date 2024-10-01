@@ -186,7 +186,7 @@ static void i2c_atmel_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id i2c_atmel_id[] = {
-	{I2C_DRIVER_NAME, 0},
+	{ I2C_DRIVER_NAME },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, i2c_atmel_id);
@@ -203,7 +203,7 @@ static SIMPLE_DEV_PM_OPS(i2c_atmel_pm_ops, tpm_pm_suspend, tpm_pm_resume);
 
 static struct i2c_driver i2c_atmel_driver = {
 	.id_table = i2c_atmel_id,
-	.probe_new = i2c_atmel_probe,
+	.probe = i2c_atmel_probe,
 	.remove = i2c_atmel_remove,
 	.driver = {
 		.name = I2C_DRIVER_NAME,

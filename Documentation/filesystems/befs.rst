@@ -106,8 +106,8 @@ iocharset=xxx  Use xxx as the name of the NLS translation table.
 debug          The driver will output debugging information to the syslog.
 =============  ===========================================================
 
-How to Get Lastest Version
-==========================
+How to Get Latest Version
+=========================
 
 The latest version is currently available at:
 <http://befs-driver.sourceforge.net/>

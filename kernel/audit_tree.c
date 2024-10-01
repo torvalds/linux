@@ -34,7 +34,7 @@ struct audit_chunk {
 		struct list_head list;
 		struct audit_tree *owner;
 		unsigned index;		/* index; upper bit indicates 'will prune' */
-	} owners[];
+	} owners[] __counted_by(count);
 };
 
 struct audit_tree_mark {
@@ -87,8 +87,8 @@ static struct task_struct *prune_thread;
  * that makes a difference.  Some.
  */
 
-static struct fsnotify_group *audit_tree_group;
-static struct kmem_cache *audit_tree_mark_cachep __read_mostly;
+static struct fsnotify_group *audit_tree_group __ro_after_init;
+static struct kmem_cache *audit_tree_mark_cachep __ro_after_init;
 
 static struct audit_tree *alloc_tree(const char *s)
 {
@@ -463,7 +463,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	int n;
 
 	fsnotify_group_lock(audit_tree_group);
-	mark = fsnotify_find_mark(&inode->i_fsnotify_marks, audit_tree_group);
+	mark = fsnotify_find_inode_mark(inode, audit_tree_group);
 	if (!mark)
 		return create_chunk(inode, tree);
 

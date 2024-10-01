@@ -29,6 +29,9 @@
 
 #include "dc.h"
 
+int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
+					struct dc_cursor_position *position);
+
 void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 			  struct drm_plane_state *old_plane_state);
 
@@ -62,5 +65,5 @@ void amdgpu_dm_plane_fill_blending_from_plane_state(const struct drm_plane_state
 				    bool *per_pixel_alpha, bool *pre_multiplied_alpha,
 				    bool *global_alpha, int *global_alpha_value);
 
-bool is_video_format(uint32_t format);
+bool amdgpu_dm_plane_is_video_format(uint32_t format);
 #endif

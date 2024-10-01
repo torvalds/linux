@@ -271,7 +271,4 @@
 #define CLK_DOUT_PCLK_DREX0	798
 #define CLK_DOUT_PCLK_DREX1	799
 
-/* must be greater than maximal clock id */
-#define CLK_NR_CLKS		800
-
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_5420_H */

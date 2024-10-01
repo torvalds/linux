@@ -60,6 +60,13 @@ config LLD_VERSION
 	default $(ld-version) if LD_IS_LLD
 	default 0
 
+config RUSTC_VERSION
+	int
+	default $(shell,$(srctree)/scripts/rustc-version.sh $(RUSTC))
+	help
+	  It does not depend on `RUST` since that one may need to use the version
+	  in a `depends on`.
+
 config RUST_IS_AVAILABLE
 	def_bool $(success,$(srctree)/scripts/rust_is_available.sh)
 	help
@@ -81,8 +88,19 @@ config CC_CAN_LINK_STATIC
 	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag) -static) if 64BIT
 	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag) -static)
 
+# Fixed in GCC 14, 13.3, 12.4 and 11.5
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113921
+config GCC_ASM_GOTO_OUTPUT_BROKEN
+	bool
+	depends on CC_IS_GCC
+	default y if GCC_VERSION < 110500
+	default y if GCC_VERSION >= 120000 && GCC_VERSION < 120400
+	default y if GCC_VERSION >= 130000 && GCC_VERSION < 130300
+
 config CC_HAS_ASM_GOTO_OUTPUT
-	def_bool $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
+	def_bool y
+	depends on !GCC_ASM_GOTO_OUTPUT_BROKEN
+	depends on $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
 
 config CC_HAS_ASM_GOTO_TIED_OUTPUT
 	depends on CC_HAS_ASM_GOTO_OUTPUT
@@ -106,7 +124,7 @@ config CONSTRUCTORS
 	bool
 
 config IRQ_WORK
-	bool
+	def_bool y if SMP
 
 config BUILDTIME_TABLE_SORT
 	bool
@@ -299,8 +317,9 @@ config KERNEL_XZ
 	  BCJ filters which can improve compression ratio of executable
 	  code. The size of the kernel is about 30% smaller with XZ in
 	  comparison to gzip. On architectures for which there is a BCJ
-	  filter (i386, x86_64, ARM, IA-64, PowerPC, and SPARC), XZ
-	  will create a few percent smaller kernel than plain LZMA.
+	  filter (i386, x86_64, ARM, ARM64, RISC-V, big endian PowerPC,
+	  and SPARC), XZ will create a few percent smaller kernel than
+	  plain LZMA.
 
 	  The speed is about the same as with LZMA: The decompression
 	  speed of XZ is better than that of bzip2 but worse than gzip
@@ -538,24 +557,24 @@ config HAVE_SCHED_AVG_IRQ
 	depends on IRQ_TIME_ACCOUNTING || PARAVIRT_TIME_ACCOUNTING
 	depends on SMP
 
-config SCHED_THERMAL_PRESSURE
+config SCHED_HW_PRESSURE
 	bool
 	default y if ARM && ARM_CPU_TOPOLOGY
 	default y if ARM64
 	depends on SMP
 	depends on CPU_FREQ_THERMAL
 	help
-	  Select this option to enable thermal pressure accounting in the
-	  scheduler. Thermal pressure is the value conveyed to the scheduler
+	  Select this option to enable HW pressure accounting in the
+	  scheduler. HW pressure is the value conveyed to the scheduler
 	  that reflects the reduction in CPU compute capacity resulted from
-	  thermal throttling. Thermal throttling occurs when the performance of
-	  a CPU is capped due to high operating temperatures.
+	  HW throttling. HW throttling occurs when the performance of
+	  a CPU is capped due to high operating temperatures as an example.
 
 	  If selected, the scheduler will be able to balance tasks accordingly,
 	  i.e. put less load on throttled CPUs than on non/less throttled ones.
 
 	  This requires the architecture to implement
-	  arch_update_thermal_pressure() and arch_scale_thermal_pressure().
+	  arch_update_hw_pressure() and arch_scale_thermal_pressure().
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -629,6 +648,7 @@ config TASK_IO_ACCOUNTING
 
 config PSI
 	bool "Pressure stall information tracking"
+	select KERNFS
 	help
 	  Collect metrics that indicate how overcommitted the CPU, memory,
 	  and IO capacity are in the system.
@@ -733,8 +753,8 @@ config LOG_CPU_MAX_BUF_SHIFT
 	int "CPU kernel log buffer size contribution (13 => 8 KB, 17 => 128KB)"
 	depends on SMP
 	range 0 21
-	default 12 if !BASE_SMALL
 	default 0 if BASE_SMALL
+	default 12
 	depends on PRINTK
 	help
 	  This option allows to increase the default ring buffer size
@@ -866,14 +886,26 @@ config CC_IMPLICIT_FALLTHROUGH
 	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
 	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
 
-# Currently, disable gcc-11+ array-bounds globally.
+# Currently, disable gcc-10+ array-bounds globally.
 # It's still broken in gcc-13, so no upper bound yet.
-config GCC11_NO_ARRAY_BOUNDS
+config GCC10_NO_ARRAY_BOUNDS
 	def_bool y
 
 config CC_NO_ARRAY_BOUNDS
 	bool
-	default y if CC_IS_GCC && GCC_VERSION >= 110000 && GCC11_NO_ARRAY_BOUNDS
+	default y if CC_IS_GCC && GCC_VERSION >= 90000 && GCC10_NO_ARRAY_BOUNDS
+
+# Currently, disable -Wstringop-overflow for GCC globally.
+config GCC_NO_STRINGOP_OVERFLOW
+	def_bool y
+
+config CC_NO_STRINGOP_OVERFLOW
+	bool
+	default y if CC_IS_GCC && GCC_NO_STRINGOP_OVERFLOW
+
+config CC_STRINGOP_OVERFLOW
+	bool
+	default y if CC_IS_GCC && !CC_NO_STRINGOP_OVERFLOW
 
 #
 # For architectures that know their GCC __int128 support is sound
@@ -906,6 +938,9 @@ config NUMA_BALANCING_DEFAULT_ENABLED
 	help
 	  If set, automatic NUMA balancing will be enabled if running on a NUMA
 	  machine.
+
+config SLAB_OBJ_EXT
+	bool
 
 menuconfig CGROUPS
 	bool "Control Group support"
@@ -940,13 +975,26 @@ config MEMCG
 	bool "Memory controller"
 	select PAGE_COUNTER
 	select EVENTFD
+	select SLAB_OBJ_EXT
 	help
 	  Provides control over the memory footprint of tasks in a cgroup.
 
-config MEMCG_KMEM
-	bool
+config MEMCG_V1
+	bool "Legacy cgroup v1 memory controller"
 	depends on MEMCG
-	default y
+	default n
+	help
+	  Legacy cgroup v1 memory controller which has been deprecated by
+	  cgroup v2 implementation. The v1 is there for legacy applications
+	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  do not have any such application then you are completely fine leaving
+	  this option disabled.
+
+	  Please note that feature set of the legacy memory controller is likely
+	  going to shrink due to deprecation process. New deployments with v1
+	  controller are highly discouraged.
+
+	  Say N if unsure.
 
 config BLK_CGROUP
 	bool "IO controller"
@@ -984,9 +1032,13 @@ menuconfig CGROUP_SCHED
 	  tasks.
 
 if CGROUP_SCHED
+config GROUP_SCHED_WEIGHT
+	def_bool n
+
 config FAIR_GROUP_SCHED
 	bool "Group scheduling for SCHED_OTHER"
 	depends on CGROUP_SCHED
+	select GROUP_SCHED_WEIGHT
 	default CGROUP_SCHED
 
 config CFS_BANDWIDTH
@@ -1010,6 +1062,12 @@ config RT_GROUP_SCHED
 	  schedule realtime tasks for non-root users until you allocate
 	  realtime bandwidth for them.
 	  See Documentation/scheduler/sched-rt-group.rst for more information.
+
+config EXT_GROUP_SCHED
+	bool
+	depends on SCHED_CLASS_EXT && CGROUP_SCHED
+	select GROUP_SCHED_WEIGHT
+	default y
 
 endif #CGROUP_SCHED
 
@@ -1100,6 +1158,19 @@ config CPUSETS
 	  allow dynamically partitioning a system into sets of CPUs and
 	  Memory Nodes and assigning tasks to run only within those sets.
 	  This is primarily useful on large SMP or NUMA systems.
+
+	  Say N if unsure.
+
+config CPUSETS_V1
+	bool "Legacy cgroup v1 cpusets controller"
+	depends on CPUSETS
+	default n
+	help
+	  Legacy cgroup v1 cpusets controller which has been deprecated by
+	  cgroup v2 implementation. The v1 is there for legacy applications
+	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  do not have any such application then you are completely fine leaving
+	  this option disabled.
 
 	  Say N if unsure.
 
@@ -1444,11 +1515,6 @@ config SYSCTL_ARCH_UNALIGN_ALLOW
 config HAVE_PCSPKR_PLATFORM
 	bool
 
-# interpreter that classic socket filters depend on
-config BPF
-	bool
-	select CRYPTO_LIB_SHA1
-
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
 	# Unhide debug options, to make the on-by-default options visible
@@ -1482,7 +1548,7 @@ config MULTIUSER
 
 config SGETMASK_SYSCALL
 	bool "sgetmask/ssetmask syscalls support" if EXPERT
-	def_bool PARISC || M68K || PPC || MIPS || X86 || SPARC || MICROBLAZE || SUPERH
+	default PARISC || M68K || PPC || MIPS || X86 || SPARC || MICROBLAZE || SUPERH
 	help
 	  sys_sgetmask and sys_ssetmask are obsolete system calls
 	  no longer supported in libc but still enabled by default in some
@@ -1568,11 +1634,10 @@ config PCSPKR_PLATFORM
 	  This option allows to disable the internal PC-Speaker
 	  support, saving some memory.
 
-config BASE_FULL
-	default y
-	bool "Enable full-sized data structures for core" if EXPERT
+config BASE_SMALL
+	bool "Enable smaller-sized data structures for core" if EXPERT
 	help
-	  Disabling this option reduces the size of miscellaneous core
+	  Enabling this option reduces the size of miscellaneous core
 	  kernel data structures. This saves memory on small machines,
 	  but may reduce performance.
 
@@ -1653,6 +1718,19 @@ config IO_URING
 	  applications to submit and complete IO through submission and
 	  completion rings that are shared between the kernel and application.
 
+config GCOV_PROFILE_URING
+	bool "Enable GCOV profiling on the io_uring subsystem"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling on the io_uring subsystem, to facilitate
+	  code coverage testing.
+
+	  If unsure, say N.
+
+	  Note that this will have a negative impact on the performance of
+	  the io_uring subsystem, hence this should only be enabled for
+	  specific test purposes.
+
 config ADVISE_SYSCALLS
 	bool "Enable madvise/fadvise syscalls" if EXPERT
 	default y
@@ -1674,6 +1752,56 @@ config MEMBARRIER
 	  compiler barrier.
 
 	  If unsure, say Y.
+
+config KCMP
+	bool "Enable kcmp() system call" if EXPERT
+	help
+	  Enable the kernel resource comparison system call. It provides
+	  user-space with the ability to compare two processes to see if they
+	  share a common resource, such as a file descriptor or even virtual
+	  memory space.
+
+	  If unsure, say N.
+
+config RSEQ
+	bool "Enable rseq() system call" if EXPERT
+	default y
+	depends on HAVE_RSEQ
+	select MEMBARRIER
+	help
+	  Enable the restartable sequences system call. It provides a
+	  user-space cache for the current CPU number value, which
+	  speeds up getting the current CPU number from user-space,
+	  as well as an ABI to speed up user-space operations on
+	  per-CPU data.
+
+	  If unsure, say Y.
+
+config DEBUG_RSEQ
+	default n
+	bool "Enable debugging of rseq() system call" if EXPERT
+	depends on RSEQ && DEBUG_KERNEL
+	help
+	  Enable extra debugging checks for the rseq system call.
+
+	  If unsure, say N.
+
+config CACHESTAT_SYSCALL
+	bool "Enable cachestat() system call" if EXPERT
+	default y
+	help
+	  Enable the cachestat system call, which queries the page cache
+	  statistics of a file (number of cached pages, dirty pages,
+	  pages marked for writeback, (recently) evicted pages).
+
+	  If unsure say Y here.
+
+config PC104
+	bool "PC/104 support" if EXPERT
+	help
+	  Expose PC/104 form factor device drivers and options available for
+	  selection and configuration. Enable this option if your target
+	  machine has a PC/104 bus.
 
 config KALLSYMS
 	bool "Load all symbols for debugging/ksymoops" if EXPERT
@@ -1719,84 +1847,13 @@ config KALLSYMS_ABSOLUTE_PERCPU
 	depends on KALLSYMS
 	default X86_64 && SMP
 
-config KALLSYMS_BASE_RELATIVE
-	bool
-	depends on KALLSYMS
-	default !IA64
-	help
-	  Instead of emitting them as absolute values in the native word size,
-	  emit the symbol references in the kallsyms table as 32-bit entries,
-	  each containing a relative value in the range [base, base + U32_MAX]
-	  or, when KALLSYMS_ABSOLUTE_PERCPU is in effect, each containing either
-	  an absolute value in the range [0, S32_MAX] or a relative value in the
-	  range [base, base + S32_MAX], where base is the lowest relative symbol
-	  address encountered in the image.
-
-	  On 64-bit builds, this reduces the size of the address table by 50%,
-	  but more importantly, it results in entries whose values are build
-	  time constants, and no relocation pass is required at runtime to fix
-	  up the entries based on the runtime load address of the kernel.
-
 # end of the "standard kernel features (expert users)" menu
-
-# syscall, maps, verifier
 
 config ARCH_HAS_MEMBARRIER_CALLBACKS
 	bool
 
 config ARCH_HAS_MEMBARRIER_SYNC_CORE
 	bool
-
-config KCMP
-	bool "Enable kcmp() system call" if EXPERT
-	help
-	  Enable the kernel resource comparison system call. It provides
-	  user-space with the ability to compare two processes to see if they
-	  share a common resource, such as a file descriptor or even virtual
-	  memory space.
-
-	  If unsure, say N.
-
-config RSEQ
-	bool "Enable rseq() system call" if EXPERT
-	default y
-	depends on HAVE_RSEQ
-	select MEMBARRIER
-	help
-	  Enable the restartable sequences system call. It provides a
-	  user-space cache for the current CPU number value, which
-	  speeds up getting the current CPU number from user-space,
-	  as well as an ABI to speed up user-space operations on
-	  per-CPU data.
-
-	  If unsure, say Y.
-
-config CACHESTAT_SYSCALL
-	bool "Enable cachestat() system call" if EXPERT
-	default y
-	help
-	  Enable the cachestat system call, which queries the page cache
-	  statistics of a file (number of cached pages, dirty pages,
-	  pages marked for writeback, (recently) evicted pages).
-
-	  If unsure say Y here.
-
-config DEBUG_RSEQ
-	default n
-	bool "Enabled debugging of rseq() system call" if EXPERT
-	depends on RSEQ && DEBUG_KERNEL
-	help
-	  Enable extra debugging checks for the rseq system call.
-
-	  If unsure, say N.
-
-config EMBEDDED
-	bool "Embedded system"
-	select EXPERT
-	help
-	  This option should be enabled if compiling the kernel for
-	  an embedded system so certain expert options are available
-	  for configuration.
 
 config HAVE_PERF_EVENTS
 	bool
@@ -1811,13 +1868,6 @@ config PERF_USE_VMALLOC
 	bool
 	help
 	  See tools/perf/design.txt for details
-
-config PC104
-	bool "PC/104 support" if EXPERT
-	help
-	  Expose PC/104 form factor device drivers and options available for
-	  selection and configuration. Enable this option if your target
-	  machine has a PC/104 bus.
 
 menu "Kernel Performance Events And Counters"
 
@@ -1893,10 +1943,13 @@ config RUST
 	depends on HAVE_RUST
 	depends on RUST_IS_AVAILABLE
 	depends on !MODVERSIONS
-	depends on !GCC_PLUGINS
+	depends on !GCC_PLUGIN_RANDSTRUCT
 	depends on !RANDSTRUCT
 	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
-	select CONSTRUCTORS
+	depends on !CFI_CLANG || RUSTC_VERSION >= 107900 && $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
+	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
+	depends on !CALL_PADDING || RUSTC_VERSION >= 108000
+	depends on !KASAN_SW_TAGS
 	help
 	  Enables Rust support in the kernel.
 
@@ -1913,12 +1966,17 @@ config RUST
 config RUSTC_VERSION_TEXT
 	string
 	depends on RUST
-	default $(shell,command -v $(RUSTC) >/dev/null 2>&1 && $(RUSTC) --version || echo n)
+	default "$(RUSTC_VERSION_TEXT)"
+	help
+	  See `CC_VERSION_TEXT`.
 
 config BINDGEN_VERSION_TEXT
 	string
 	depends on RUST
-	default $(shell,command -v $(BINDGEN) >/dev/null 2>&1 && $(BINDGEN) --version || echo n)
+	# The dummy parameter `workaround-for-0.69.0` is required to support 0.69.0
+	# (https://github.com/rust-lang/rust-bindgen/pull/2678). It can be removed when
+	# the minimum version is upgraded past that (0.69.1 already fixed the issue).
+	default "$(shell,$(BINDGEN) --version workaround-for-0.69.0 2>/dev/null)"
 
 #
 # Place an empty function call at each tracepoint site. Can be
@@ -1927,6 +1985,8 @@ config BINDGEN_VERSION_TEXT
 config TRACEPOINTS
 	bool
 
+source "kernel/Kconfig.kexec"
+
 endmenu		# General setup
 
 source "arch/Kconfig"
@@ -1934,11 +1994,6 @@ source "arch/Kconfig"
 config RT_MUTEXES
 	bool
 	default y if PREEMPT_RT
-
-config BASE_SMALL
-	int
-	default 0 if BASE_FULL
-	default 1 if !BASE_FULL
 
 config MODULE_SIG_FORMAT
 	def_bool n
@@ -1975,6 +2030,9 @@ config ASN1
 source "kernel/Kconfig.locks"
 
 config ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	bool
+
+config ARCH_HAS_PREPARE_SYNC_CORE_CMD
 	bool
 
 config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE

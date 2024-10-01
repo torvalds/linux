@@ -182,12 +182,3 @@ void destroy_context(struct mm_struct *mm)
 	flush_tlb_mm(mm);
 
 }
-
-/* called once during VM initialization, from init.c */
-
-void __init tlb_init(void)
-{
-	/* Do nothing... */
-	/* invalidate the entire TLB */
-	/* flush_tlb_all(); */
-}

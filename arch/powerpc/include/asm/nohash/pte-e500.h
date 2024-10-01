@@ -19,20 +19,7 @@
 #define _PAGE_BAP_SX	0x000040
 #define _PAGE_BAP_UX	0x000080
 #define _PAGE_PSIZE_MSK	0x000f00
-#define _PAGE_PSIZE_4K	0x000200
-#define _PAGE_PSIZE_8K	0x000300
-#define _PAGE_PSIZE_16K	0x000400
-#define _PAGE_PSIZE_32K	0x000500
-#define _PAGE_PSIZE_64K	0x000600
-#define _PAGE_PSIZE_128K	0x000700
-#define _PAGE_PSIZE_256K	0x000800
-#define _PAGE_PSIZE_512K	0x000900
-#define _PAGE_PSIZE_1M	0x000a00
-#define _PAGE_PSIZE_2M	0x000b00
-#define _PAGE_PSIZE_4M	0x000c00
-#define _PAGE_PSIZE_8M	0x000d00
-#define _PAGE_PSIZE_16M	0x000e00
-#define _PAGE_PSIZE_32M	0x000f00
+#define _PAGE_TSIZE_4K	0x000100
 #define _PAGE_DIRTY	0x001000 /* C: page changed */
 #define _PAGE_SW0	0x002000
 #define _PAGE_U3	0x004000
@@ -46,20 +33,28 @@
 #define _PAGE_NO_CACHE	0x400000 /* I: cache inhibit */
 #define _PAGE_WRITETHRU	0x800000 /* W: cache write-through */
 
+#define _PAGE_PSIZE_SHIFT		7
+#define _PAGE_PSIZE_SHIFT_OFFSET	10
+
 /* "Higher level" linux bit combinations */
 #define _PAGE_EXEC		(_PAGE_BAP_SX | _PAGE_BAP_UX) /* .. and was cache cleaned */
-#define _PAGE_RW		(_PAGE_BAP_SW | _PAGE_BAP_UW) /* User write permission */
+#define _PAGE_READ		(_PAGE_BAP_SR | _PAGE_BAP_UR) /* User read permission */
+#define _PAGE_WRITE		(_PAGE_BAP_SW | _PAGE_BAP_UW) /* User write permission */
+
 #define _PAGE_KERNEL_RW		(_PAGE_BAP_SW | _PAGE_BAP_SR | _PAGE_DIRTY)
 #define _PAGE_KERNEL_RO		(_PAGE_BAP_SR)
 #define _PAGE_KERNEL_RWX	(_PAGE_BAP_SW | _PAGE_BAP_SR | _PAGE_DIRTY | _PAGE_BAP_SX)
 #define _PAGE_KERNEL_ROX	(_PAGE_BAP_SR | _PAGE_BAP_SX)
-#define _PAGE_USER		(_PAGE_BAP_UR | _PAGE_BAP_SR) /* Can be read */
-#define _PAGE_PRIVILEGED	(_PAGE_BAP_SR)
+
+#define _PAGE_NA	0
+#define _PAGE_NAX	_PAGE_BAP_UX
+#define _PAGE_RO	_PAGE_READ
+#define _PAGE_ROX	(_PAGE_READ | _PAGE_BAP_UX)
+#define _PAGE_RW	(_PAGE_READ | _PAGE_WRITE)
+#define _PAGE_RWX	(_PAGE_READ | _PAGE_WRITE | _PAGE_BAP_UX)
 
 #define _PAGE_SPECIAL	_PAGE_SW0
 
-/* Base page size */
-#define _PAGE_PSIZE	_PAGE_PSIZE_4K
 #define	PTE_RPN_SHIFT	(24)
 
 #define PTE_WIMGE_SHIFT (19)
@@ -82,45 +77,62 @@
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
-#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_PSIZE)
+#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_TSIZE_4K)
 #if defined(CONFIG_SMP)
 #define _PAGE_BASE	(_PAGE_BASE_NC | _PAGE_COHERENT)
 #else
 #define _PAGE_BASE	(_PAGE_BASE_NC)
 #endif
 
-/* Permission masks used to generate the __P and __S table */
-#define PAGE_NONE	__pgprot(_PAGE_BASE)
-#define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_BAP_UX)
-#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_BAP_UX)
-#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_BAP_UX)
+#include <asm/pgtable-masks.h>
 
 #ifndef __ASSEMBLY__
-static inline pte_t pte_mkprivileged(pte_t pte)
-{
-	return __pte((pte_val(pte) & ~_PAGE_USER) | _PAGE_PRIVILEGED);
-}
-
-#define pte_mkprivileged pte_mkprivileged
-
-static inline pte_t pte_mkuser(pte_t pte)
-{
-	return __pte((pte_val(pte) & ~_PAGE_PRIVILEGED) | _PAGE_USER);
-}
-
-#define pte_mkuser pte_mkuser
-
 static inline pte_t pte_mkexec(pte_t pte)
 {
-	if (pte_val(pte) & _PAGE_BAP_UR)
-		return __pte((pte_val(pte) & ~_PAGE_BAP_SX) | _PAGE_BAP_UX);
-	else
-		return __pte((pte_val(pte) & ~_PAGE_BAP_UX) | _PAGE_BAP_SX);
+	return __pte((pte_val(pte) & ~_PAGE_BAP_SX) | _PAGE_BAP_UX);
 }
 #define pte_mkexec pte_mkexec
+
+static inline unsigned long pte_huge_size(pte_t pte)
+{
+	pte_basic_t val = pte_val(pte);
+
+	return 1UL << (((val & _PAGE_PSIZE_MSK) >> _PAGE_PSIZE_SHIFT) + _PAGE_PSIZE_SHIFT_OFFSET);
+}
+#define pte_huge_size pte_huge_size
+
+static inline int pmd_leaf(pmd_t pmd)
+{
+	if (IS_ENABLED(CONFIG_PPC64))
+		return (long)pmd_val(pmd) > 0;
+	else
+		return pmd_val(pmd) & _PAGE_PSIZE_MSK;
+}
+#define pmd_leaf pmd_leaf
+
+static inline unsigned long pmd_leaf_size(pmd_t pmd)
+{
+	return pte_huge_size(__pte(pmd_val(pmd)));
+}
+#define pmd_leaf_size pmd_leaf_size
+
+#ifdef CONFIG_PPC64
+static inline int pud_leaf(pud_t pud)
+{
+	if (IS_ENABLED(CONFIG_PPC64))
+		return (long)pud_val(pud) > 0;
+	else
+		return pud_val(pud) & _PAGE_PSIZE_MSK;
+}
+#define pud_leaf pud_leaf
+
+static inline unsigned long pud_leaf_size(pud_t pud)
+{
+	return pte_huge_size(__pte(pud_val(pud)));
+}
+#define pud_leaf_size pud_leaf_size
+
+#endif
 
 #endif /* __ASSEMBLY__ */
 

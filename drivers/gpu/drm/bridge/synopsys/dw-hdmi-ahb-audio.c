@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/vmalloc.h>
 #include <drm/bridge/dw_hdmi.h>
 #include <drm/drm_edid.h>
 
@@ -388,15 +389,36 @@ static int dw_hdmi_close(struct snd_pcm_substream *substream)
 
 static int dw_hdmi_hw_free(struct snd_pcm_substream *substream)
 {
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	vfree(runtime->dma_area);
+	runtime->dma_area = NULL;
+	return 0;
 }
 
 static int dw_hdmi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	size_t size = params_buffer_bytes(params);
+
 	/* Allocate the PCM runtime buffer, which is exposed to userspace. */
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-						params_buffer_bytes(params));
+	if (runtime->dma_area) {
+		if (runtime->dma_bytes >= size)
+			return 0; /* already large enough */
+		vfree(runtime->dma_area);
+	}
+	runtime->dma_area = vzalloc(size);
+	if (!runtime->dma_area)
+		return -ENOMEM;
+	runtime->dma_bytes = size;
+	return 1;
+}
+
+static struct page *dw_hdmi_get_page(struct snd_pcm_substream *substream,
+				     unsigned long offset)
+{
+	return vmalloc_to_page(substream->runtime->dma_area + offset);
 }
 
 static int dw_hdmi_prepare(struct snd_pcm_substream *substream)
@@ -515,7 +537,7 @@ static const struct snd_pcm_ops snd_dw_hdmi_ops = {
 	.prepare = dw_hdmi_prepare,
 	.trigger = dw_hdmi_trigger,
 	.pointer = dw_hdmi_pointer,
-	.page = snd_pcm_lib_get_vmalloc_page,
+	.page = dw_hdmi_get_page,
 };
 
 static int snd_dw_hdmi_probe(struct platform_device *pdev)

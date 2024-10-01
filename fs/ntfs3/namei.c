@@ -107,28 +107,18 @@ static struct dentry *ntfs_lookup(struct inode *dir, struct dentry *dentry,
 static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct inode *inode;
-
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode, 0,
-				  NULL, 0, NULL);
-
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode, 0,
+				 NULL, 0, NULL);
 }
 
 /*
- * ntfs_mknod
- *
- * inode_operations::mknod
+ * ntfs_mknod - inode_operations::mknod
  */
 static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	struct inode *inode;
-
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev, NULL, 0,
-				  NULL);
-
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev, NULL, 0,
+				 NULL);
 }
 
 /*
@@ -156,8 +146,8 @@ static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
 	err = ntfs_link_inode(inode, de);
 
 	if (!err) {
-		dir->i_ctime = dir->i_mtime = inode->i_ctime =
-			current_time(dir);
+		inode_set_ctime_current(inode);
+		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 		mark_inode_dirty(inode);
 		mark_inode_dirty(dir);
 		d_instantiate(de, inode);
@@ -181,6 +171,9 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
 
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
+
 	ni_lock_dir(ni);
 
 	err = ntfs_unlink_inode(dir, dentry);
@@ -197,12 +190,12 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	u32 size = strlen(symname);
-	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
-				  symname, size, NULL);
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
 
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
+				 symname, size, NULL);
 }
 
 /*
@@ -211,12 +204,8 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 static int ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
-	struct inode *inode;
-
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode, 0,
-				  NULL, 0, NULL);
-
-	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	return ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode, 0,
+				 NULL, 0, NULL);
 }
 
 /*
@@ -226,6 +215,9 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
+
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
 
 	ni_lock_dir(ni);
 
@@ -263,6 +255,9 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	static_assert(SIZEOF_ATTRIBUTE_FILENAME_MAX + sizeof(struct NTFS_DE) <
 		      1024);
 	static_assert(PATH_MAX >= 4 * 1024);
+
+	if (unlikely(ntfs3_forced_shutdown(sb)))
+		return -EIO;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
@@ -324,14 +319,11 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 		/* Restore after failed rename failed too. */
 		_ntfs_bad_inode(inode);
 	} else if (!err) {
-		inode->i_ctime = dir->i_ctime = dir->i_mtime =
-			current_time(dir);
+		simple_rename_timestamp(dir, dentry, new_dir, new_dentry);
 		mark_inode_dirty(inode);
 		mark_inode_dirty(dir);
-		if (dir != new_dir) {
-			new_dir->i_mtime = new_dir->i_ctime = dir->i_ctime;
+		if (dir != new_dir)
 			mark_inode_dirty(new_dir);
-		}
 
 		if (IS_DIRSYNC(dir))
 			ntfs_sync_inode(dir);
@@ -346,95 +338,6 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	ni_unlock(dir_ni);
 out:
 	__putname(de);
-	return err;
-}
-
-/*
- * ntfs_atomic_open
- *
- * inode_operations::atomic_open
- */
-static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
-			    struct file *file, u32 flags, umode_t mode)
-{
-	int err;
-	struct inode *inode;
-	struct ntfs_fnd *fnd = NULL;
-	struct ntfs_inode *ni = ntfs_i(dir);
-	struct dentry *d = NULL;
-	struct cpu_str *uni = __getname();
-	bool locked = false;
-
-	if (!uni)
-		return -ENOMEM;
-
-	err = ntfs_nls_to_utf16(ni->mi.sbi, dentry->d_name.name,
-				dentry->d_name.len, uni, NTFS_NAME_LEN,
-				UTF16_HOST_ENDIAN);
-	if (err < 0)
-		goto out;
-
-#ifdef CONFIG_NTFS3_FS_POSIX_ACL
-	if (IS_POSIXACL(dir)) {
-		/* 
-		 * Load in cache current acl to avoid ni_lock(dir):
-		 * ntfs_create_inode -> ntfs_init_acl -> posix_acl_create ->
-		 * ntfs_get_acl -> ntfs_get_acl_ex -> ni_lock
-		 */
-		struct posix_acl *p = get_inode_acl(dir, ACL_TYPE_DEFAULT);
-
-		if (IS_ERR(p)) {
-			err = PTR_ERR(p);
-			goto out;
-		}
-		posix_acl_release(p);
-	}
-#endif
-
-	if (d_in_lookup(dentry)) {
-		ni_lock_dir(ni);
-		locked = true;
-		fnd = fnd_get();
-		if (!fnd) {
-			err = -ENOMEM;
-			goto out1;
-		}
-
-		d = d_splice_alias(dir_search_u(dir, uni, fnd), dentry);
-		if (IS_ERR(d)) {
-			err = PTR_ERR(d);
-			d = NULL;
-			goto out2;
-		}
-
-		if (d)
-			dentry = d;
-	}
-
-	if (!(flags & O_CREAT) || d_really_is_positive(dentry)) {
-		err = finish_no_open(file, d);
-		goto out2;
-	}
-
-	file->f_mode |= FMODE_CREATED;
-
-	/*
-	 * fnd contains tree's path to insert to.
-	 * If fnd is not NULL then dir is locked.
-	 */
-	inode = ntfs_create_inode(mnt_idmap(file->f_path.mnt), dir, dentry, uni,
-				  mode, 0, NULL, 0, fnd);
-	err = IS_ERR(inode) ? PTR_ERR(inode) :
-			      finish_open(file, dentry, ntfs_file_open);
-	dput(d);
-
-out2:
-	fnd_put(fnd);
-out1:
-	if (locked)
-		ni_unlock(ni);
-out:
-	__putname(uni);
 	return err;
 }
 
@@ -603,8 +506,9 @@ const struct inode_operations ntfs_dir_inode_operations = {
 	.setattr	= ntfs3_setattr,
 	.getattr	= ntfs_getattr,
 	.listxattr	= ntfs_listxattr,
-	.atomic_open	= ntfs_atomic_open,
 	.fiemap		= ntfs_fiemap,
+	.fileattr_get	= ntfs_fileattr_get,
+	.fileattr_set	= ntfs_fileattr_set,
 };
 
 const struct inode_operations ntfs_special_inode_operations = {

@@ -3,9 +3,11 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/drm_displayid.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
+
+#include "drm_crtc_internal.h"
+#include "drm_displayid_internal.h"
 
 static const struct displayid_header *
 displayid_get_header(const u8 *displayid, int length, int index)
@@ -31,9 +33,6 @@ validate_displayid(const u8 *displayid, int length, int idx)
 	if (IS_ERR(base))
 		return base;
 
-	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
-		      base->rev, base->bytes, base->prod_id, base->ext_count);
-
 	/* +1 for DispID checksum */
 	dispid_length = sizeof(*base) + base->bytes + 1;
 	if (dispid_length > length - idx)
@@ -53,9 +52,10 @@ static const u8 *drm_find_displayid_extension(const struct drm_edid *drm_edid,
 					      int *length, int *idx,
 					      int *ext_index)
 {
-	const u8 *displayid = drm_find_edid_extension(drm_edid, DISPLAYID_EXT, ext_index);
 	const struct displayid_header *base;
+	const u8 *displayid;
 
+	displayid = drm_edid_find_extension(drm_edid, DISPLAYID_EXT, ext_index);
 	if (!displayid)
 		return NULL;
 

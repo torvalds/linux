@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -2146,6 +2146,14 @@ struct sli4_sge {	/* SLI-4 */
 	uint32_t sge_len;
 };
 
+struct sli4_sge_le {
+	__le32 addr_hi;
+	__le32 addr_lo;
+
+	__le32 word2;
+	__le32 sge_len;
+};
+
 struct sli4_hybrid_sgl {
 	struct list_head list_node;
 	struct sli4_sge *dma_sgl;
@@ -4069,7 +4077,6 @@ struct lpfc_mcqe {
 #define LPFC_TRAILER_CODE_GRP5	0x5
 #define LPFC_TRAILER_CODE_FC	0x10
 #define LPFC_TRAILER_CODE_SLI	0x11
-#define LPFC_TRAILER_CODE_CMSTAT        0x13
 };
 
 struct lpfc_acqe_link {
@@ -4339,6 +4346,7 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE	0x10
 #define LPFC_SLI_EVENT_TYPE_CGN_SIGNAL		0x11
 #define LPFC_SLI_EVENT_TYPE_RD_SIGNAL           0x12
+#define LPFC_SLI_EVENT_TYPE_RESET_CM_STATS      0x13
 };
 
 /*
@@ -4839,6 +4847,7 @@ struct fcp_iwrite64_wqe {
 #define	cmd_buff_len_SHIFT  16
 #define	cmd_buff_len_MASK  0x00000ffff
 #define	cmd_buff_len_WORD  word3
+/* Note: payload_offset_len field depends on ASIC support */
 #define payload_offset_len_SHIFT 0
 #define payload_offset_len_MASK 0x0000ffff
 #define payload_offset_len_WORD word3
@@ -4855,6 +4864,7 @@ struct fcp_iread64_wqe {
 #define	cmd_buff_len_SHIFT  16
 #define	cmd_buff_len_MASK  0x00000ffff
 #define	cmd_buff_len_WORD  word3
+/* Note: payload_offset_len field depends on ASIC support */
 #define payload_offset_len_SHIFT 0
 #define payload_offset_len_MASK 0x0000ffff
 #define payload_offset_len_WORD word3
@@ -4871,6 +4881,7 @@ struct fcp_icmnd64_wqe {
 #define	cmd_buff_len_SHIFT  16
 #define	cmd_buff_len_MASK  0x00000ffff
 #define	cmd_buff_len_WORD  word3
+/* Note: payload_offset_len field depends on ASIC support */
 #define payload_offset_len_SHIFT 0
 #define payload_offset_len_MASK 0x0000ffff
 #define payload_offset_len_WORD word3

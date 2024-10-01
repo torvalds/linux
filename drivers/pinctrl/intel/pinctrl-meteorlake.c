@@ -9,6 +9,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
@@ -583,20 +584,19 @@ static const struct intel_pinctrl_soc_data mtls_soc_data = {
 };
 
 static const struct acpi_device_id mtl_pinctrl_acpi_match[] = {
+	{ "INTC105E", (kernel_ulong_t)&mtlp_soc_data },
 	{ "INTC1083", (kernel_ulong_t)&mtlp_soc_data },
 	{ "INTC1082", (kernel_ulong_t)&mtls_soc_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, mtl_pinctrl_acpi_match);
 
-static INTEL_PINCTRL_PM_OPS(mtl_pinctrl_pm_ops);
-
 static struct platform_driver mtl_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "meteorlake-pinctrl",
 		.acpi_match_table = mtl_pinctrl_acpi_match,
-		.pm = &mtl_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
 };
 module_platform_driver(mtl_pinctrl_driver);
@@ -604,3 +604,4 @@ module_platform_driver(mtl_pinctrl_driver);
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Meteor Lake PCH pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(PINCTRL_INTEL);

@@ -118,6 +118,19 @@ static inline bool dc_is_dvi_signal(enum signal_type signal)
 	}
 }
 
+static inline bool dc_is_tmds_signal(enum signal_type signal)
+{
+	switch (signal) {
+	case SIGNAL_TYPE_DVI_SINGLE_LINK:
+	case SIGNAL_TYPE_DVI_DUAL_LINK:
+	case SIGNAL_TYPE_HDMI_TYPE_A:
+		return true;
+	break;
+	default:
+		return false;
+	}
+}
+
 static inline bool dc_is_dvi_single_link_signal(enum signal_type signal)
 {
 	return (signal == SIGNAL_TYPE_DVI_SINGLE_LINK);
@@ -132,7 +145,6 @@ static inline bool dc_is_audio_capable_signal(enum signal_type signal)
 {
 	return (signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-		signal == SIGNAL_TYPE_VIRTUAL ||
 		dc_is_hdmi_signal(signal));
 }
 

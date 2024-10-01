@@ -11,7 +11,6 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <linux/mfd/da9055/core.h>
 
@@ -55,7 +54,7 @@ static void da9055_i2c_remove(struct i2c_client *i2c)
  * and CODEC, which must be different to operate together.
  */
 static const struct i2c_device_id da9055_i2c_id[] = {
-	{"da9055-pmic", 0},
+	{ "da9055-pmic" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, da9055_i2c_id);

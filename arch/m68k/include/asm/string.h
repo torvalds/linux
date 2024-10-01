@@ -41,6 +41,7 @@ static inline char *strncpy(char *dest, const char *src, size_t n)
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *, const void *, __kernel_size_t);
 
+extern int memcmp(const void *, const void *, __kernel_size_t);
 #define memcmp(d, s, n) __builtin_memcmp(d, s, n)
 
 #define __HAVE_ARCH_MEMSET

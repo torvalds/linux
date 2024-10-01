@@ -30,7 +30,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 
@@ -517,7 +517,7 @@ static void mxs_auart_tx_chars(struct mxs_auart_port *s);
 static void dma_tx_callback(void *param)
 {
 	struct mxs_auart_port *s = param;
-	struct circ_buf *xmit = &s->port.state->xmit;
+	struct tty_port *tport = &s->port.state->port;
 
 	dma_unmap_sg(s->dev, &s->tx_sgl, 1, DMA_TO_DEVICE);
 
@@ -526,7 +526,7 @@ static void dma_tx_callback(void *param)
 	smp_mb__after_atomic();
 
 	/* wake up the possible processes. */
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&s->port);
 
 	mxs_auart_tx_chars(s);
@@ -568,33 +568,22 @@ static int mxs_auart_dma_tx(struct mxs_auart_port *s, int size)
 
 static void mxs_auart_tx_chars(struct mxs_auart_port *s)
 {
-	struct circ_buf *xmit = &s->port.state->xmit;
+	struct tty_port *tport = &s->port.state->port;
 	bool pending;
 	u8 ch;
 
 	if (auart_dma_enabled(s)) {
 		u32 i = 0;
-		int size;
 		void *buffer = s->tx_dma_buf;
 
 		if (test_and_set_bit(MXS_AUART_DMA_TX_SYNC, &s->flags))
 			return;
 
-		while (!uart_circ_empty(xmit) && !uart_tx_stopped(&s->port)) {
-			size = min_t(u32, UART_XMIT_SIZE - i,
-				     CIRC_CNT_TO_END(xmit->head,
-						     xmit->tail,
-						     UART_XMIT_SIZE));
-			memcpy(buffer + i, xmit->buf + xmit->tail, size);
-			xmit->tail = (xmit->tail + size) & (UART_XMIT_SIZE - 1);
-
-			i += size;
-			if (i >= UART_XMIT_SIZE)
-				break;
-		}
-
 		if (uart_tx_stopped(&s->port))
 			mxs_auart_stop_tx(&s->port);
+		else
+			i = kfifo_out(&tport->xmit_fifo, buffer,
+					UART_XMIT_SIZE);
 
 		if (i) {
 			mxs_auart_dma_tx(s, i);
@@ -605,20 +594,22 @@ static void mxs_auart_tx_chars(struct mxs_auart_port *s)
 		return;
 	}
 
-	pending = uart_port_tx(&s->port, ch,
+	pending = uart_port_tx_flags(&s->port, ch, UART_TX_NOSTOP,
 		!(mxs_read(s, REG_STAT) & AUART_STAT_TXFF),
 		mxs_write(ch, s, REG_DATA));
 	if (pending)
 		mxs_set(AUART_INTR_TXIEN, s, REG_INTR);
 	else
 		mxs_clr(AUART_INTR_TXIEN, s, REG_INTR);
+
+	if (uart_tx_stopped(&s->port))
+               mxs_auart_stop_tx(&s->port);
 }
 
 static void mxs_auart_rx_char(struct mxs_auart_port *s)
 {
-	int flag;
 	u32 stat;
-	u8 c;
+	u8 c, flag;
 
 	c = mxs_read(s, REG_DATA);
 	stat = mxs_read(s, REG_STAT);
@@ -905,21 +896,27 @@ static void mxs_auart_dma_exit(struct mxs_auart_port *s)
 
 static int mxs_auart_dma_init(struct mxs_auart_port *s)
 {
+	struct dma_chan *chan;
+
 	if (auart_dma_enabled(s))
 		return 0;
 
 	/* init for RX */
-	s->rx_dma_chan = dma_request_slave_channel(s->dev, "rx");
-	if (!s->rx_dma_chan)
+	chan = dma_request_chan(s->dev, "rx");
+	if (IS_ERR(chan))
 		goto err_out;
+	s->rx_dma_chan = chan;
+
 	s->rx_dma_buf = kzalloc(UART_XMIT_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!s->rx_dma_buf)
 		goto err_out;
 
 	/* init for TX */
-	s->tx_dma_chan = dma_request_slave_channel(s->dev, "tx");
-	if (!s->tx_dma_chan)
+	chan = dma_request_chan(s->dev, "tx");
+	if (IS_ERR(chan))
 		goto err_out;
+	s->tx_dma_chan = chan;
+
 	s->tx_dma_buf = kzalloc(UART_XMIT_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!s->tx_dma_buf)
 		goto err_out;
@@ -1078,11 +1075,13 @@ static void mxs_auart_set_ldisc(struct uart_port *port,
 
 static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 {
-	u32 istat;
+	u32 istat, stat;
 	struct mxs_auart_port *s = context;
 	u32 mctrl_temp = s->mctrl_prev;
-	u32 stat = mxs_read(s, REG_STAT);
 
+	uart_port_lock(&s->port);
+
+	stat = mxs_read(s, REG_STAT);
 	istat = mxs_read(s, REG_INTR);
 
 	/* ack irq */
@@ -1117,6 +1116,8 @@ static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 		mxs_auart_tx_chars(s);
 		istat &= ~AUART_INTR_TXIS;
 	}
+
+	uart_port_unlock(&s->port);
 
 	return IRQ_HANDLED;
 }
@@ -1687,7 +1688,7 @@ out_disable_clks:
 	return ret;
 }
 
-static int mxs_auart_remove(struct platform_device *pdev)
+static void mxs_auart_remove(struct platform_device *pdev)
 {
 	struct mxs_auart_port *s = platform_get_drvdata(pdev);
 
@@ -1699,13 +1700,11 @@ static int mxs_auart_remove(struct platform_device *pdev)
 		clk_disable_unprepare(s->clk);
 		clk_disable_unprepare(s->clk_ahb);
 	}
-
-	return 0;
 }
 
 static struct platform_driver mxs_auart_driver = {
 	.probe = mxs_auart_probe,
-	.remove = mxs_auart_remove,
+	.remove_new = mxs_auart_remove,
 	.driver = {
 		.name = "mxs-auart",
 		.of_match_table = mxs_auart_dt_ids,

@@ -6,12 +6,12 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pid.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/utsname.h>
 #include <asm/current.h>
 #include <asm/ptrace.h>
-#include <asm/sysrq.h>
 
 void show_regs(struct pt_regs *regs)
 {

@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "../kselftest_harness.h"
+#include "user_events_selftests.h"
 
 const char *data_file = "/sys/kernel/tracing/user_events_data";
 const char *status_file = "/sys/kernel/tracing/user_events_status";
@@ -203,9 +204,12 @@ FIXTURE(user) {
 	int data_fd;
 	int enable_fd;
 	int check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
+
 	self->status_fd = open(status_file, O_RDONLY);
 	ASSERT_NE(-1, self->status_fd);
 
@@ -216,6 +220,8 @@ FIXTURE_SETUP(user) {
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
+
 	close(self->status_fd);
 	close(self->data_fd);
 
@@ -255,6 +261,12 @@ TEST_F(user, register_events) {
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
 	ASSERT_EQ(0, reg.write_index);
 
+	/* Register without separator spacing should still match */
+	reg.enable_bit = 29;
+	reg.name_args = (__u64)"__test_event u32 field1;u32 field2";
+	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
+	ASSERT_EQ(0, reg.write_index);
+
 	/* Multiple registers to same name but different args should fail */
 	reg.enable_bit = 29;
 	reg.name_args = (__u64)"__test_event u32 field1;";
@@ -281,6 +293,8 @@ TEST_F(user, register_events) {
 	/* Unregister */
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSUNREG, &unreg));
 	unreg.disable_bit = 30;
+	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSUNREG, &unreg));
+	unreg.disable_bit = 29;
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSUNREG, &unreg));
 
 	/* Delete should have been auto-done after close and unregister */

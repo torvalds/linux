@@ -189,7 +189,7 @@ struct intel_th_driver {
 };
 
 #define to_intel_th_driver(_d)					\
-	container_of((_d), struct intel_th_driver, driver)
+	container_of_const((_d), struct intel_th_driver, driver)
 
 #define to_intel_th_driver_or_null(_d)		\
 	((_d) ? to_intel_th_driver(_d) : NULL)

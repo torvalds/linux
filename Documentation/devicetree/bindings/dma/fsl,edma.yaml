@@ -21,33 +21,61 @@ properties:
       - enum:
           - fsl,vf610-edma
           - fsl,imx7ulp-edma
+          - fsl,imx8qm-edma
+          - fsl,imx8ulp-edma
+          - fsl,imx93-edma3
+          - fsl,imx93-edma4
+          - fsl,imx95-edma5
       - items:
           - const: fsl,ls1028a-edma
           - const: fsl,vf610-edma
 
   reg:
-    minItems: 2
+    minItems: 1
     maxItems: 3
 
   interrupts:
-    minItems: 2
-    maxItems: 17
+    minItems: 1
+    maxItems: 64
 
   interrupt-names:
-    minItems: 2
-    maxItems: 17
+    minItems: 1
+    maxItems: 64
 
   "#dma-cells":
-    const: 2
+    description: |
+      Specifies the number of cells needed to encode an DMA channel.
+
+      Encode for cells number 2:
+        cell 0: index of dma channel mux instance.
+        cell 1: peripheral dma request id.
+
+      Encode for cells number 3:
+        cell 0: peripheral dma request id.
+        cell 1: dma channel priority.
+        cell 2: bitmask, defined at include/dt-bindings/dma/fsl-edma.h
+    enum:
+      - 2
+      - 3
 
   dma-channels:
-    const: 32
+    minimum: 1
+    maximum: 64
 
   clocks:
-    maxItems: 2
+    minItems: 1
+    maxItems: 33
 
   clock-names:
-    maxItems: 2
+    minItems: 1
+    maxItems: 33
+
+  power-domains:
+    description:
+      The number of power domains matches the number of channels, arranged
+      in ascending order according to their associated DMA channels.
+    minItems: 1
+    maxItems: 64
 
   big-endian:
     description: |
@@ -60,7 +88,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - clocks
   - dma-channels
 
 allOf:
@@ -69,21 +96,53 @@ allOf:
       properties:
         compatible:
           contains:
+            enum:
+              - fsl,imx8qm-edma
+              - fsl,imx93-edma3
+              - fsl,imx93-edma4
+              - fsl,imx95-edma5
+    then:
+      properties:
+        "#dma-cells":
+          const: 3
+        # It is not necessary to write the interrupt name for each channel.
+        # instead, you can simply maintain the sequential IRQ numbers as
+        # defined for the DMA channels.
+        interrupt-names: false
+        clock-names:
+          items:
+            - const: dma
+        clocks:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: fsl,vf610-edma
     then:
       properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
         clock-names:
           items:
             - const: dmamux0
             - const: dmamux1
         interrupts:
+          minItems: 2
           maxItems: 2
         interrupt-names:
           items:
             - const: edma-tx
             - const: edma-err
         reg:
+          minItems: 2
           maxItems: 3
+        "#dma-cells":
+          const: 2
+        dma-channels:
+          const: 32
 
   - if:
       properties:
@@ -92,14 +151,75 @@ allOf:
             const: fsl,imx7ulp-edma
     then:
       properties:
+        clock:
+          minItems: 2
+          maxItems: 2
         clock-names:
           items:
             - const: dma
             - const: dmamux0
         interrupts:
+          minItems: 2
           maxItems: 17
         reg:
+          minItems: 2
           maxItems: 2
+        "#dma-cells":
+          const: 2
+        dma-channels:
+          const: 32
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8ulp-edma
+    then:
+      properties:
+        clocks:
+          minItems: 33
+        clock-names:
+          minItems: 33
+          items:
+            oneOf:
+              - const: dma
+              - pattern: "^ch(0[0-9]|[1-2][0-9]|3[01])$"
+
+        interrupt-names: false
+        interrupts:
+          minItems: 32
+        "#dma-cells":
+          const: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,vf610-edma
+              - fsl,imx7ulp-edma
+              - fsl,imx93-edma3
+              - fsl,imx93-edma4
+              - fsl,imx95-edma5
+              - fsl,imx8ulp-edma
+              - fsl,ls1028a-edma
+    then:
+      required:
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qm-adma
+              - fsl,imx8qm-edma
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains: false
 
 unevaluatedProperties: false
 
@@ -152,4 +272,31 @@ examples:
                    <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
        clock-names = "dma", "dmamux0";
        clocks = <&pcc2 IMX7ULP_CLK_DMA1>, <&pcc2 IMX7ULP_CLK_DMA_MUX1>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/firmware/imx/rsrc.h>
+
+    dma-controller@5a9f0000 {
+      compatible = "fsl,imx8qm-edma";
+      reg = <0x5a9f0000 0x90000>;
+      #dma-cells = <3>;
+      dma-channels = <8>;
+      interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH>;
+      power-domains = <&pd IMX_SC_R_DMA_3_CH0>,
+                      <&pd IMX_SC_R_DMA_3_CH1>,
+                      <&pd IMX_SC_R_DMA_3_CH2>,
+                      <&pd IMX_SC_R_DMA_3_CH3>,
+                      <&pd IMX_SC_R_DMA_3_CH4>,
+                      <&pd IMX_SC_R_DMA_3_CH5>,
+                      <&pd IMX_SC_R_DMA_3_CH6>,
+                      <&pd IMX_SC_R_DMA_3_CH7>;
     };

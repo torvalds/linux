@@ -193,7 +193,6 @@ always_cow_show(
 }
 XFS_SYSFS_ATTR_RW(always_cow);
 
-#ifdef DEBUG
 /*
  * Override how many threads the parallel work queue is allowed to create.
  * This has to be a debug-only global (instead of an errortag) because one of
@@ -229,6 +228,15 @@ pwork_threads_show(
 }
 XFS_SYSFS_ATTR_RW(pwork_threads);
 
+/*
+ * The "LARP" (Logged extended Attribute Recovery Persistence) debugging knob
+ * sets the XFS_DA_OP_LOGGED flag on all xfs_attr_set operations performed on
+ * V5 filesystems.  As a result, the intermediate progress of all setxattr and
+ * removexattr operations are tracked via the log and can be restarted during
+ * recovery.  This is useful for testing xattr recovery prior to merging of the
+ * parent pointer feature which requires it to maintain consistency, and may be
+ * enabled for userspace xattrs in the future.
+ */
 static ssize_t
 larp_store(
 	struct kobject	*kobject,
@@ -251,17 +259,68 @@ larp_show(
 	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.larp);
 }
 XFS_SYSFS_ATTR_RW(larp);
-#endif /* DEBUG */
+
+STATIC ssize_t
+bload_leaf_slack_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	xfs_globals.bload_leaf_slack = val;
+	return count;
+}
+
+STATIC ssize_t
+bload_leaf_slack_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.bload_leaf_slack);
+}
+XFS_SYSFS_ATTR_RW(bload_leaf_slack);
+
+STATIC ssize_t
+bload_node_slack_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	xfs_globals.bload_node_slack = val;
+	return count;
+}
+
+STATIC ssize_t
+bload_node_slack_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.bload_node_slack);
+}
+XFS_SYSFS_ATTR_RW(bload_node_slack);
 
 static struct attribute *xfs_dbg_attrs[] = {
 	ATTR_LIST(bug_on_assert),
 	ATTR_LIST(log_recovery_delay),
 	ATTR_LIST(mount_delay),
 	ATTR_LIST(always_cow),
-#ifdef DEBUG
 	ATTR_LIST(pwork_threads),
 	ATTR_LIST(larp),
-#endif
+	ATTR_LIST(bload_leaf_slack),
+	ATTR_LIST(bload_node_slack),
 	NULL,
 };
 ATTRIBUTE_GROUPS(xfs_dbg);
@@ -373,39 +432,30 @@ log_tail_lsn_show(
 XFS_SYSFS_ATTR_RO(log_tail_lsn);
 
 STATIC ssize_t
-reserve_grant_head_show(
+reserve_grant_head_bytes_show(
 	struct kobject	*kobject,
 	char		*buf)
-
 {
-	int cycle;
-	int bytes;
-	struct xlog *log = to_xlog(kobject);
-
-	xlog_crack_grant_head(&log->l_reserve_head.grant, &cycle, &bytes);
-	return sysfs_emit(buf, "%d:%d\n", cycle, bytes);
+	return sysfs_emit(buf, "%lld\n",
+			atomic64_read(&to_xlog(kobject)->l_reserve_head.grant));
 }
-XFS_SYSFS_ATTR_RO(reserve_grant_head);
+XFS_SYSFS_ATTR_RO(reserve_grant_head_bytes);
 
 STATIC ssize_t
-write_grant_head_show(
+write_grant_head_bytes_show(
 	struct kobject	*kobject,
 	char		*buf)
 {
-	int cycle;
-	int bytes;
-	struct xlog *log = to_xlog(kobject);
-
-	xlog_crack_grant_head(&log->l_write_head.grant, &cycle, &bytes);
-	return sysfs_emit(buf, "%d:%d\n", cycle, bytes);
+	return sysfs_emit(buf, "%lld\n",
+			atomic64_read(&to_xlog(kobject)->l_write_head.grant));
 }
-XFS_SYSFS_ATTR_RO(write_grant_head);
+XFS_SYSFS_ATTR_RO(write_grant_head_bytes);
 
 static struct attribute *xfs_log_attrs[] = {
 	ATTR_LIST(log_head_lsn),
 	ATTR_LIST(log_tail_lsn),
-	ATTR_LIST(reserve_grant_head),
-	ATTR_LIST(write_grant_head),
+	ATTR_LIST(reserve_grant_head_bytes),
+	ATTR_LIST(write_grant_head_bytes),
 	NULL,
 };
 ATTRIBUTE_GROUPS(xfs_log);

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/remoteproc/ti,k3-dsp-rproc.yaml#
@@ -24,9 +24,6 @@ description: |
   number of required or optional properties that enable the OS running on the
   host processor (Arm CorePac) to perform the device management of the remote
   processor and to communicate with the remote processor.
-
-allOf:
-  - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
 
 properties:
   compatible:
@@ -89,41 +86,57 @@ properties:
       should be defined as per the generic bindings in,
       Documentation/devicetree/bindings/sram/sram.yaml
 
-if:
-  properties:
-    compatible:
-      enum:
-        - ti,j721e-c66-dsp
-then:
-  properties:
-    reg:
-      items:
-        - description: Address and Size of the L2 SRAM internal memory region
-        - description: Address and Size of the L1 PRAM internal memory region
-        - description: Address and Size of the L1 DRAM internal memory region
-    reg-names:
-      items:
-        - const: l2sram
-        - const: l1pram
-        - const: l1dram
-else:
-  if:
-    properties:
-      compatible:
-        enum:
-          - ti,am62a-c7xv-dsp
-          - ti,j721e-c71-dsp
-          - ti,j721s2-c71-dsp
-  then:
-    properties:
-      reg:
-        items:
-          - description: Address and Size of the L2 SRAM internal memory region
-          - description: Address and Size of the L1 DRAM internal memory region
-      reg-names:
-        items:
-          - const: l2sram
-          - const: l1dram
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,j721e-c66-dsp
+    then:
+      properties:
+        reg:
+          items:
+            - description: Address and Size of the L2 SRAM internal memory region
+            - description: Address and Size of the L1 PRAM internal memory region
+            - description: Address and Size of the L1 DRAM internal memory region
+        reg-names:
+          items:
+            - const: l2sram
+            - const: l1pram
+            - const: l1dram
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,j721e-c71-dsp
+            - ti,j721s2-c71-dsp
+    then:
+      properties:
+        reg:
+          items:
+            - description: Address and Size of the L2 SRAM internal memory region
+            - description: Address and Size of the L1 DRAM internal memory region
+        reg-names:
+          items:
+            - const: l2sram
+            - const: l1dram
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,am62a-c7xv-dsp
+    then:
+      properties:
+        reg:
+          items:
+            - description: Address and Size of the L2 SRAM internal memory region
+        reg-names:
+          items:
+            - const: l2sram
+
+  - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
 
 required:
   - compatible

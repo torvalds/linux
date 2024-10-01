@@ -96,6 +96,7 @@ struct pixel_clk_params {
 /*> de-spread info, relevant only for on-the-fly tune-up pixel rate*/
 	enum dc_pixel_encoding pixel_encoding;
 	struct pixel_clk_flags flags;
+	uint32_t dio_se_pix_per_cycle;
 };
 
 /**

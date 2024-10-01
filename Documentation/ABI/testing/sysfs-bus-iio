@@ -243,7 +243,8 @@ Description:
 		less measurements. Units after application of scale and offset
 		are milli degrees Celsius.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_input
 KernelVersion:	2.6.38
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -278,6 +279,35 @@ Description:
 		Gravity in direction x, y or z (may be arbitrarily assigned
 		but should match other such assignments on device).
 		Units after application of scale and offset are m/s^2.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_z_raw
+KernelVersion:	6.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Angular displacement between two consecutive samples on x, y or
+		z (may be arbitrarily assigned but should match other such
+		assignments on device).
+		In order to compute the total angular displacement during a
+		desired period of time, the application should sum-up the delta
+		angle samples acquired during that time.
+		Units after application of scale and offset are radians.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltavelocity_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltavelocity_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltavelocity_z_raw
+KernelVersion:	6.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The linear velocity change between two consecutive samples on x,
+		y or z (may be arbitrarily assigned but should match other such
+		assignments on device).
+		In order to compute the total linear velocity change during a
+		desired period of time, the application should sum-up the delta
+		velocity samples acquired during that time.
+		Units after application of scale and offset are meters per
+		second.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_angl_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglY_raw
@@ -333,10 +363,21 @@ Description:
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_peak_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_peak_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_peak_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_peak_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_peak_raw
 KernelVersion:	2.6.36
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Highest value since some reset condition.  These
+		Highest value since some reset condition. These
+		attributes allow access to this and are otherwise
+		the direct equivalent of the <type>Y[_name]_raw attributes.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_trough_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_trough_raw
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lowest value since some reset condition. These
 		attributes allow access to this and are otherwise
 		the direct equivalent of the <type>Y[_name]_raw attributes.
 
@@ -461,6 +502,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltaangl_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_deltavelocity_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_angl_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_y_scale
@@ -480,13 +523,27 @@ Description:
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_i_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_q_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_capacitance_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibbias
-What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibbias
-What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistance_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_calibbias
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -498,6 +555,10 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_calibbias_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_calibbias_available
 KernelVersion:  5.8
 Contact:        linux-iio@vger.kernel.org
 Description:
@@ -506,31 +567,54 @@ Description:
 		- a small discrete set of values like "0 2 4 6 8"
 		- a range specified as "[min step max]"
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_capacitance_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_both_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_ir_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_calibscale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Hardware applied calibration scale factor (assumed to fix
 		production inaccuracies).  If shared across all channels,
 		<type>_calibscale is used.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminanceY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximityY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale_available
+KernelVersion:	4.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Available values of calibscale. Maybe expressed as either of:
+
+		- a small discrete set of values like "1 8 16"
+		- a range specified as "[min step max]"
+
+		If shared across all channels, <type>_calibscale_available is used.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender
@@ -587,7 +671,9 @@ KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If a discrete set of scale values is available, they
-		are listed in this attribute.
+		are listed in this attribute. Unlike illumination,
+		multiplying intensity by intensity_scale does not
+		yield value with any standardized unit.
 
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_hardwaregain
@@ -663,6 +749,7 @@ Description:
 		2.5kohm_to_gnd: connected to ground via a 2.5kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
+		42kohm_to_gnd: connected to ground via a 42kOhm resistor,
 		90kohm_to_gnd: connected to ground via a 90kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
 		125kohm_to_gnd: connected to ground via an 125kOhm resistor,
@@ -1332,6 +1419,12 @@ Description:
 What:		/sys/.../iio:deviceX/bufferY/in_accel_x_en
 What:		/sys/.../iio:deviceX/bufferY/in_accel_y_en
 What:		/sys/.../iio:deviceX/bufferY/in_accel_z_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_x_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_y_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_z_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltavelocity_x_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltavelocity_y_en
+What:		/sys/.../iio:deviceX/bufferY/in_deltavelocity_z_en
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_x_en
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_y_en
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_en
@@ -1362,6 +1455,8 @@ Description:
 		Scan element control for triggered data capture.
 
 What:		/sys/.../iio:deviceX/bufferY/in_accel_type
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_type
+What:		/sys/.../iio:deviceX/bufferY/in_deltavelocity_type
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_type
 What:		/sys/.../iio:deviceX/bufferY/in_magn_type
 What:		/sys/.../iio:deviceX/bufferY/in_incli_type
@@ -1416,6 +1511,12 @@ What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_x_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_y_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_z_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_x_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_y_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltaangl_z_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltavelocity_x_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltavelocity_y_index
+What:		/sys/.../iio:deviceX/bufferY/in_deltavelocity_z_index
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_x_index
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_y_index
 What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_index
@@ -1529,6 +1630,8 @@ What:		/sys/.../iio:deviceX/in_intensityY_raw
 What:		/sys/.../iio:deviceX/in_intensityY_ir_raw
 What:		/sys/.../iio:deviceX/in_intensityY_both_raw
 What:		/sys/.../iio:deviceX/in_intensityY_uv_raw
+What:		/sys/.../iio:deviceX/in_intensityY_uva_raw
+What:		/sys/.../iio:deviceX/in_intensityY_uvb_raw
 What:		/sys/.../iio:deviceX/in_intensityY_duv_raw
 KernelVersion:	3.4
 Contact:	linux-iio@vger.kernel.org
@@ -1537,8 +1640,9 @@ Description:
 		that measurements contain visible and infrared light
 		components or just infrared light, respectively. Modifier
 		uv indicates that measurements contain ultraviolet light
-		components. Modifier duv indicates that measurements
-		contain deep ultraviolet light components.
+		components. Modifiers uva, uvb and duv indicate that
+		measurements contain A, B or deep (C) ultraviolet light
+		components respectively.
 
 What:		/sys/.../iio:deviceX/in_uvindex_input
 KernelVersion:	4.6
@@ -2163,3 +2267,75 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		An example format is 16-bytes, 2-digits-per-byte, HEX-string
 		representing the sensor unique ID number.
+
+What:		/sys/.../events/in_proximity_thresh_either_runningperiod
+KernelVersion:	6.6
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A running period of time (in seconds) for which
+		in_proximity_thresh_either_runningcount amount of conditions
+		must occur before an event is generated. If direction is not
+		specified then this period applies to both directions.
+
+What:		/sys/.../events/in_proximity_thresh_either_runningcount
+KernelVersion:	6.6
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Number of conditions that must occur, during a running
+		period, before an event is generated.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_colortemp_raw
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Represents light color temperature, which measures light color
+		temperature in Kelvin.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_chromaticity_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_chromaticity_y_raw
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The x and y light color coordinate on the CIE 1931 chromaticity
+		diagram.
+
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_mag_either_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_mag_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_thresh_falling_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_thresh_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_anglvelY_mag_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_anglY_thresh_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_phaseY_mag_rising_label
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Optional symbolic label to a device channel event.
+		If a label is defined for this event add that to the event
+		specific attributes. This is useful for userspace to be able to
+		better identify an individual event.
+
+What:		/sys/.../events/in_accel_gesture_tap_wait_timeout
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Enable tap gesture confirmation with timeout.
+
+What:		/sys/.../events/in_accel_gesture_tap_wait_dur
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Timeout value in seconds for tap gesture confirmation.
+
+What:		/sys/.../events/in_accel_gesture_tap_wait_dur_available
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		List of available timeout value for tap gesture confirmation.
+
+What:		/sys/.../iio:deviceX/in_shunt_resistor
+What:		/sys/.../iio:deviceX/in_current_shunt_resistor
+What:		/sys/.../iio:deviceX/in_power_shunt_resistor
+KernelVersion:	6.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The value of current sense resistor in Ohms.

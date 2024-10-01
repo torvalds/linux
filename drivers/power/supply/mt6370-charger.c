@@ -324,7 +324,7 @@ static int mt6370_chg_toggle_cfo(struct mt6370_priv *priv)
 
 	if (fl_strobe) {
 		dev_err(priv->dev, "Flash led is still in strobe mode\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	/* cfo off */
@@ -624,13 +624,6 @@ static enum power_supply_property mt6370_chg_properties[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 };
 
-static enum power_supply_usb_type mt6370_chg_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-	POWER_SUPPLY_USB_TYPE_SDP,
-	POWER_SUPPLY_USB_TYPE_CDP,
-	POWER_SUPPLY_USB_TYPE_DCP,
-};
-
 static const struct power_supply_desc mt6370_chg_psy_desc = {
 	.name = "mt6370-charger",
 	.type = POWER_SUPPLY_TYPE_USB,
@@ -639,8 +632,10 @@ static const struct power_supply_desc mt6370_chg_psy_desc = {
 	.get_property = mt6370_chg_get_property,
 	.set_property = mt6370_chg_set_property,
 	.property_is_writeable = mt6370_chg_property_is_writeable,
-	.usb_types = mt6370_chg_usb_types,
-	.num_usb_types = ARRAY_SIZE(mt6370_chg_usb_types),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
 };
 
 static const struct regulator_ops mt6370_chg_otg_ops = {
@@ -849,9 +844,7 @@ static int mt6370_chg_init_irq(struct mt6370_priv *priv)
 		ret = platform_get_irq_byname(to_platform_device(priv->dev),
 					      mt6370_chg_irqs[i].name);
 		if (ret < 0)
-			return dev_err_probe(priv->dev, ret,
-					     "Failed to get irq %s\n",
-					     mt6370_chg_irqs[i].name);
+			return ret;
 
 		priv->irq_nums[i] = ret;
 		ret = devm_request_threaded_irq(priv->dev, ret, NULL,

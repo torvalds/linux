@@ -77,7 +77,7 @@ static void mt76x0u_cleanup(struct mt76x02_dev *dev)
 	mt76u_queues_deinit(&dev->mt76);
 }
 
-static void mt76x0u_stop(struct ieee80211_hw *hw)
+static void mt76x0u_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
@@ -118,6 +118,10 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 }
 
 static const struct ieee80211_ops mt76x0u_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = mt76x02_tx,
 	.start = mt76x0u_start,
 	.stop = mt76x0u_stop,
@@ -213,6 +217,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 		.drv_flags = MT_DRV_SW_RX_AIRTIME,
 		.survey_flags = SURVEY_INFO_TIME_TX,
 		.update_survey = mt76x02_update_channel,
+		.set_channel = mt76x0_set_channel,
 		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
 		.tx_complete_skb = mt76x02u_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
@@ -336,6 +341,7 @@ err:
 MODULE_DEVICE_TABLE(usb, mt76x0_device_table);
 MODULE_FIRMWARE(MT7610E_FIRMWARE);
 MODULE_FIRMWARE(MT7610U_FIRMWARE);
+MODULE_DESCRIPTION("MediaTek MT76x0U (USB) wireless driver");
 MODULE_LICENSE("GPL");
 
 static struct usb_driver mt76x0_driver = {

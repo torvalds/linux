@@ -18,7 +18,6 @@ struct airq_struct {
 	struct hlist_node list;		/* Handler queueing. */
 	void (*handler)(struct airq_struct *airq, struct tpi_info *tpi_info);
 	u8 *lsi_ptr;			/* Local-Summary-Indicator pointer */
-	u8 lsi_mask;			/* Local-Summary-Indicator mask */
 	u8 isc;				/* Interrupt-subclass */
 	u8 flags;
 };

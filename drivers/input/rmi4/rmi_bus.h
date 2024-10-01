@@ -87,7 +87,7 @@ struct rmi_function_handler {
 };
 
 #define to_rmi_function_handler(d) \
-		container_of(d, struct rmi_function_handler, driver)
+		container_of_const(d, struct rmi_function_handler, driver)
 
 int __must_check __rmi_register_function_handler(struct rmi_function_handler *,
 						 struct module *, const char *);
@@ -185,7 +185,7 @@ static inline int rmi_write_block(struct rmi_device *d, u16 addr,
 
 int rmi_for_each_dev(void *data, int (*func)(struct device *dev, void *data));
 
-extern struct bus_type rmi_bus_type;
+extern const struct bus_type rmi_bus_type;
 
 int rmi_of_property_read_u32(struct device *dev, u32 *result,
 				const char *prop, bool optional);

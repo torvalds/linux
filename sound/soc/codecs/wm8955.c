@@ -962,7 +962,7 @@ static const struct regmap_config wm8955_regmap = {
 	.volatile_reg = wm8955_volatile,
 	.writeable_reg = wm8955_writeable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8955_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8955_reg_defaults),
 };
@@ -994,7 +994,7 @@ static int wm8955_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8955_i2c_id[] = {
-	{ "wm8955", 0 },
+	{ "wm8955" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8955_i2c_id);

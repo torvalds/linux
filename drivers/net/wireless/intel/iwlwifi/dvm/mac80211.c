@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018 - 2019, 2022 Intel Corporation
+ * Copyright(C) 2018 - 2019, 2022 - 2024 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -145,8 +145,6 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].num_sec &&
-	    priv->trans->ops->d3_suspend &&
-	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
 		priv->wowlan_support.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					     WIPHY_WOWLAN_DISCONNECT |
@@ -302,7 +300,7 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void iwlagn_mac_stop(struct ieee80211_hw *hw)
+static void iwlagn_mac_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -730,8 +728,6 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!priv->trans->ops->txq_enable)
-			break;
 		if (!iwl_enable_tx_ampdu())
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
@@ -1001,7 +997,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	if (priv->lib->set_channel_switch(priv, ch_switch)) {
 		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
 		priv->switch_channel = 0;
-		ieee80211_chswitch_done(ctx->vif, false);
+		ieee80211_chswitch_done(ctx->vif, false, 0);
 	}
 
 out:
@@ -1024,7 +1020,7 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 		return;
 
 	if (ctx->vif)
-		ieee80211_chswitch_done(ctx->vif, is_success);
+		ieee80211_chswitch_done(ctx->vif, is_success, 0);
 }
 
 static void iwlagn_configure_filter(struct ieee80211_hw *hw,
@@ -1570,6 +1566,10 @@ static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 }
 
 const struct ieee80211_ops iwlagn_hw_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = iwlagn_mac_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = iwlagn_mac_start,

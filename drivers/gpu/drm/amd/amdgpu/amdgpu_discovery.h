@@ -24,10 +24,15 @@
 #ifndef __AMDGPU_DISCOVERY__
 #define __AMDGPU_DISCOVERY__
 
-#define DISCOVERY_TMR_SIZE      (8 << 10)
+#define DISCOVERY_TMR_SIZE      (10 << 10)
 #define DISCOVERY_TMR_OFFSET    (64 << 10)
 
 void amdgpu_discovery_fini(struct amdgpu_device *adev);
 int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev);
+
+int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
+				  uint32_t *nps_type,
+				  struct amdgpu_gmc_memrange **ranges,
+				  int *range_cnt);
 
 #endif /* __AMDGPU_DISCOVERY__ */

@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 #include <linux/i2c.h>
@@ -903,8 +903,8 @@ static void ltc4162l_alert(struct i2c_client *client,
 }
 
 static const struct i2c_device_id ltc4162l_i2c_id_table[] = {
-	{ "ltc4162-l", 0 },
-	{ },
+	{ "ltc4162-l" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc4162l_i2c_id_table);
 

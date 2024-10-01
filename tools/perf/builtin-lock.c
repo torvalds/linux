@@ -10,6 +10,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/target.h"
+#include "util/cgroup.h"
 #include "util/callchain.h"
 #include "util/lock-contention.h"
 #include "util/bpf_skel/lock_data.h"
@@ -60,6 +61,7 @@ static bool combine_locks;
 static bool show_thread_stats;
 static bool show_lock_addrs;
 static bool show_lock_owner;
+static bool show_lock_cgroups;
 static bool use_bpf;
 static unsigned long bpf_map_entries = MAX_ENTRIES;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
@@ -524,6 +526,7 @@ bool match_callstack_filter(struct machine *machine, u64 *callstack)
 	struct map *kmap;
 	struct symbol *sym;
 	u64 ip;
+	const char *arch = perf_env__arch(machine->env);
 
 	if (list_empty(&callstack_filters))
 		return true;
@@ -531,7 +534,21 @@ bool match_callstack_filter(struct machine *machine, u64 *callstack)
 	for (int i = 0; i < max_stack_depth; i++) {
 		struct callstack_filter *filter;
 
-		if (!callstack || !callstack[i])
+		/*
+		 * In powerpc, the callchain saved by kernel always includes
+		 * first three entries as the NIP (next instruction pointer),
+		 * LR (link register), and the contents of LR save area in the
+		 * second stack frame. In certain scenarios its possible to have
+		 * invalid kernel instruction addresses in either LR or the second
+		 * stack frame's LR. In that case, kernel will store that address as
+		 * zero.
+		 *
+		 * The below check will continue to look into callstack,
+		 * incase first or second callstack index entry has 0
+		 * address for powerpc.
+		 */
+		if (!callstack || (!callstack[i] && (strcmp(arch, "powerpc") ||
+						(i != 1 && i != 2))))
 			break;
 
 		ip = callstack[i];
@@ -619,6 +636,7 @@ static int get_key_by_aggr_mode_simple(u64 *key, u64 addr, u32 tid)
 		*key = tid;
 		break;
 	case LOCK_AGGR_CALLER:
+	case LOCK_AGGR_CGROUP:
 	default:
 		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
 		return -EINVAL;
@@ -1103,6 +1121,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 			if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
 				name = "Unknown";
 			break;
+		case LOCK_AGGR_CGROUP:
 		case LOCK_AGGR_TASK:
 		default:
 			break;
@@ -1458,20 +1477,16 @@ static void dump_map(void)
 		fprintf(lock_output, " %#llx: %s\n", (unsigned long long)st->addr, st->name);
 }
 
-static int dump_info(void)
+static void dump_info(void)
 {
-	int rc = 0;
-
 	if (info_threads)
 		dump_threads();
-	else if (info_map)
-		dump_map();
-	else {
-		rc = -1;
-		pr_err("Unknown type of information\n");
-	}
 
-	return rc;
+	if (info_map) {
+		if (info_threads)
+			fputc('\n', lock_output);
+		dump_map();
+	}
 }
 
 static const struct evsel_str_handler lock_tracepoints[] = {
@@ -1486,7 +1501,7 @@ static const struct evsel_str_handler contention_tracepoints[] = {
 	{ "lock:contention_end",   evsel__process_contention_end,   },
 };
 
-static int process_event_update(struct perf_tool *tool,
+static int process_event_update(const struct perf_tool *tool,
 				union perf_event *event,
 				struct evlist **pevlist)
 {
@@ -1505,7 +1520,7 @@ static int process_event_update(struct perf_tool *tool,
 typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
-static int process_sample_event(struct perf_tool *tool __maybe_unused,
+static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
@@ -1628,6 +1643,9 @@ static void lock_filter_finish(void)
 
 	zfree(&filters.syms);
 	filters.nr_syms = 0;
+
+	zfree(&filters.cgrps);
+	filters.nr_cgrps = 0;
 }
 
 static void sort_contention_result(void)
@@ -1652,6 +1670,9 @@ static void print_header_stdio(void)
 		break;
 	case LOCK_AGGR_ADDR:
 		fprintf(lock_output, "  %16s   %s\n\n", "address", "symbol");
+		break;
+	case LOCK_AGGR_CGROUP:
+		fprintf(lock_output, "  %s\n\n", "cgroup");
 		break;
 	default:
 		break;
@@ -1679,6 +1700,9 @@ static void print_header_csv(const char *sep)
 		break;
 	case LOCK_AGGR_ADDR:
 		fprintf(lock_output, "%s%s %s%s %s\n", "address", sep, "symbol", sep, "type");
+		break;
+	case LOCK_AGGR_CGROUP:
+		fprintf(lock_output, "%s\n", "cgroup");
 		break;
 	default:
 		break;
@@ -1719,6 +1743,9 @@ static void print_lock_stat_stdio(struct lock_contention *con, struct lock_stat 
 	case LOCK_AGGR_ADDR:
 		fprintf(lock_output, "  %016llx   %s (%s)\n", (unsigned long long)st->addr,
 			st->name, get_type_name(st->flags));
+		break;
+	case LOCK_AGGR_CGROUP:
+		fprintf(lock_output, "  %s\n", st->name);
 		break;
 	default:
 		break;
@@ -1769,6 +1796,9 @@ static void print_lock_stat_csv(struct lock_contention *con, struct lock_stat *s
 	case LOCK_AGGR_ADDR:
 		fprintf(lock_output, "%llx%s %s%s %s\n", (unsigned long long)st->addr, sep,
 			st->name, sep, get_type_name(st->flags));
+		break;
+	case LOCK_AGGR_CGROUP:
+		fprintf(lock_output, "%s\n",st->name);
 		break;
 	default:
 		break;
@@ -1903,22 +1933,21 @@ static bool force;
 static int __cmd_report(bool display_info)
 {
 	int err = -EINVAL;
-	struct perf_tool eops = {
-		.attr		 = perf_event__process_attr,
-		.event_update	 = process_event_update,
-		.sample		 = process_sample_event,
-		.comm		 = perf_event__process_comm,
-		.mmap		 = perf_event__process_mmap,
-		.namespaces	 = perf_event__process_namespaces,
-		.tracing_data	 = perf_event__process_tracing_data,
-		.ordered_events	 = true,
-	};
+	struct perf_tool eops;
 	struct perf_data data = {
 		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
 		.force = force,
 	};
 
+	perf_tool__init(&eops, /*ordered_events=*/true);
+	eops.attr		 = perf_event__process_attr;
+	eops.event_update	 = process_event_update;
+	eops.sample		 = process_sample_event;
+	eops.comm		 = perf_event__process_comm;
+	eops.mmap		 = perf_event__process_mmap;
+	eops.namespaces		 = perf_event__process_namespaces;
+	eops.tracing_data	 = perf_event__process_tracing_data;
 	session = perf_session__new(&data, &eops);
 	if (IS_ERR(session)) {
 		pr_err("Initializing perf session failed\n");
@@ -1958,7 +1987,7 @@ static int __cmd_report(bool display_info)
 
 	setup_pager();
 	if (display_info) /* used for info subcommand */
-		err = dump_info();
+		dump_info();
 	else {
 		combine_result();
 		sort_result();
@@ -1999,6 +2028,27 @@ static int check_lock_contention_options(const struct option *options,
 		return -1;
 	}
 
+	if (show_lock_cgroups && !use_bpf) {
+		pr_err("Cgroups are available only with BPF\n");
+		parse_options_usage(usage, options, "lock-cgroup", 0);
+		parse_options_usage(NULL, options, "use-bpf", 0);
+		return -1;
+	}
+
+	if (show_lock_cgroups && show_lock_addrs) {
+		pr_err("Cannot use cgroup and addr mode together\n");
+		parse_options_usage(usage, options, "lock-cgroup", 0);
+		parse_options_usage(NULL, options, "lock-addr", 0);
+		return -1;
+	}
+
+	if (show_lock_cgroups && show_thread_stats) {
+		pr_err("Cannot use cgroup and thread mode together\n");
+		parse_options_usage(usage, options, "lock-cgroup", 0);
+		parse_options_usage(NULL, options, "threads", 0);
+		return -1;
+	}
+
 	if (symbol_conf.field_sep) {
 		if (strstr(symbol_conf.field_sep, ":") || /* part of type flags */
 		    strstr(symbol_conf.field_sep, "+") || /* part of caller offset */
@@ -2018,15 +2068,7 @@ static int check_lock_contention_options(const struct option *options,
 static int __cmd_contention(int argc, const char **argv)
 {
 	int err = -EINVAL;
-	struct perf_tool eops = {
-		.attr		 = perf_event__process_attr,
-		.event_update	 = process_event_update,
-		.sample		 = process_sample_event,
-		.comm		 = perf_event__process_comm,
-		.mmap		 = perf_event__process_mmap,
-		.tracing_data	 = perf_event__process_tracing_data,
-		.ordered_events	 = true,
-	};
+	struct perf_tool eops;
 	struct perf_data data = {
 		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
@@ -2040,6 +2082,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.filters = &filters,
 		.save_callstack = needs_callstack(),
 		.owner = show_lock_owner,
+		.cgroups = RB_ROOT,
 	};
 
 	lockhash_table = calloc(LOCKHASH_SIZE, sizeof(*lockhash_table));
@@ -2048,17 +2091,27 @@ static int __cmd_contention(int argc, const char **argv)
 
 	con.result = &lockhash_table[0];
 
+	perf_tool__init(&eops, /*ordered_events=*/true);
+	eops.attr		 = perf_event__process_attr;
+	eops.event_update	 = process_event_update;
+	eops.sample		 = process_sample_event;
+	eops.comm		 = perf_event__process_comm;
+	eops.mmap		 = perf_event__process_mmap;
+	eops.tracing_data	 = perf_event__process_tracing_data;
+
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
 	if (IS_ERR(session)) {
 		pr_err("Initializing perf session failed\n");
 		err = PTR_ERR(session);
+		session = NULL;
 		goto out_delete;
 	}
 
 	con.machine = &session->machines.host;
 
 	con.aggr_mode = aggr_mode = show_thread_stats ? LOCK_AGGR_TASK :
-		show_lock_addrs ? LOCK_AGGR_ADDR : LOCK_AGGR_CALLER;
+		show_lock_addrs ? LOCK_AGGR_ADDR :
+		show_lock_cgroups ? LOCK_AGGR_CGROUP : LOCK_AGGR_CALLER;
 
 	if (con.aggr_mode == LOCK_AGGR_CALLER)
 		con.save_callstack = true;
@@ -2157,7 +2210,7 @@ static int __cmd_contention(int argc, const char **argv)
 out_delete:
 	lock_filter_finish();
 	evlist__delete(con.evlist);
-	lock_contention_finish();
+	lock_contention_finish(&con);
 	perf_session__delete(session);
 	zfree(&lockhash_table);
 	return err;
@@ -2217,21 +2270,13 @@ setup_args:
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
-		rec_argv[i] = strdup(record_args[i]);
+		rec_argv[i] = record_args[i];
 
 	for (j = 0; j < nr_tracepoints; j++) {
-		const char *ev_name;
-
-		if (has_lock_stat)
-			ev_name = strdup(lock_tracepoints[j].name);
-		else
-			ev_name = strdup(contention_tracepoints[j].name);
-
-		if (!ev_name)
-			return -ENOMEM;
-
 		rec_argv[i++] = "-e";
-		rec_argv[i++] = ev_name;
+		rec_argv[i++] = has_lock_stat
+			? lock_tracepoints[j].name
+			: contention_tracepoints[j].name;
 	}
 
 	for (j = 0; j < nr_callgraph_args; j++, i++)
@@ -2420,6 +2465,7 @@ static int parse_call_stack(const struct option *opt __maybe_unused, const char 
 		entry = malloc(sizeof(*entry) + strlen(tok) + 1);
 		if (entry == NULL) {
 			pr_err("Memory allocation failure\n");
+			free(s);
 			return -1;
 		}
 
@@ -2449,6 +2495,56 @@ static int parse_output(const struct option *opt __maybe_unused, const char *str
 	return 0;
 }
 
+static bool add_lock_cgroup(char *name)
+{
+	u64 *tmp;
+	struct cgroup *cgrp;
+
+	cgrp = cgroup__new(name, /*do_open=*/false);
+	if (cgrp == NULL) {
+		pr_err("Failed to create cgroup: %s\n", name);
+		return false;
+	}
+
+	if (read_cgroup_id(cgrp) < 0) {
+		pr_err("Failed to read cgroup id for %s\n", name);
+		cgroup__put(cgrp);
+		return false;
+	}
+
+	tmp = realloc(filters.cgrps, (filters.nr_cgrps + 1) * sizeof(*filters.cgrps));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp[filters.nr_cgrps++] = cgrp->id;
+	filters.cgrps = tmp;
+	cgroup__put(cgrp);
+	return true;
+}
+
+static int parse_cgroup_filter(const struct option *opt __maybe_unused, const char *str,
+			       int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		if (!add_lock_cgroup(tok)) {
+			ret = -1;
+			break;
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -2467,9 +2563,9 @@ int cmd_lock(int argc, const char **argv)
 
 	const struct option info_options[] = {
 	OPT_BOOLEAN('t', "threads", &info_threads,
-		    "dump thread list in perf.data"),
+		    "dump the thread list in perf.data"),
 	OPT_BOOLEAN('m', "map", &info_map,
-		    "map of lock instances (address:name table)"),
+		    "dump the map of lock instances (address:name table)"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -2506,7 +2602,7 @@ int cmd_lock(int argc, const char **argv)
 	OPT_CALLBACK('M', "map-nr-entries", &bpf_map_entries, "num",
 		     "Max number of BPF map entries", parse_map_entry),
 	OPT_CALLBACK(0, "max-stack", &max_stack_depth, "num",
-		     "Set the maximum stack depth when collecting lopck contention, "
+		     "Set the maximum stack depth when collecting lock contention, "
 		     "Default: " __stringify(CONTENTION_STACK_DEPTH), parse_max_stack),
 	OPT_INTEGER(0, "stack-skip", &stack_skip,
 		    "Set the number of stack depth to skip when finding a lock caller, "
@@ -2522,6 +2618,9 @@ int cmd_lock(int argc, const char **argv)
 	OPT_BOOLEAN('o', "lock-owner", &show_lock_owner, "show lock owners instead of waiters"),
 	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep, "separator",
 		   "print result in CSV format with custom separator"),
+	OPT_BOOLEAN(0, "lock-cgroup", &show_lock_cgroups, "show lock stats by cgroup"),
+	OPT_CALLBACK('G', "cgroup-filter", NULL, "CGROUPS",
+		     "Filter specific cgroups", parse_cgroup_filter),
 	OPT_PARENT(lock_options)
 	};
 
@@ -2580,6 +2679,13 @@ int cmd_lock(int argc, const char **argv)
 			if (argc)
 				usage_with_options(info_usage, info_options);
 		}
+
+		/* If neither threads nor map requested, display both */
+		if (!info_threads && !info_map) {
+			info_threads = true;
+			info_map = true;
+		}
+
 		/* recycling report_lock_ops */
 		trace_handler = &report_lock_ops;
 		rc = __cmd_report(true);
@@ -2605,6 +2711,9 @@ int cmd_lock(int argc, const char **argv)
 	} else {
 		usage_with_options(lock_usage, lock_options);
 	}
+
+	/* free usage string allocated by parse_options_subcommand */
+	free((void *)lock_usage[0]);
 
 	zfree(&lockhash_table);
 	return rc;

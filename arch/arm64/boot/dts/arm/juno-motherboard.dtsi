@@ -8,35 +8,35 @@
  */
 
 / {
-	mb_clk24mhz: clk24mhz {
+	mb_clk24mhz: clock-24000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
 		clock-output-names = "juno_mb:clk24mhz";
 	};
 
-	mb_clk25mhz: clk25mhz {
+	mb_clk25mhz: clock-25000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
 		clock-output-names = "juno_mb:clk25mhz";
 	};
 
-	v2m_refclk1mhz: refclk1mhz {
+	v2m_refclk1mhz: clock-1000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <1000000>;
 		clock-output-names = "juno_mb:refclk1mhz";
 	};
 
-	v2m_refclk32khz: refclk32khz {
+	v2m_refclk32khz: clock-32768 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
 		clock-output-names = "juno_mb:refclk32khz";
 	};
 
-	mb_fixed_3v3: mcc-sb-3v3 {
+	mb_fixed_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "MCC_SB_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -158,7 +158,8 @@
 				};
 
 				apbregs@10000 {
-					compatible = "syscon", "simple-mfd";
+					compatible = "arm,juno-fpga-apb-regs",
+						     "syscon", "simple-mfd";
 					reg = <0x010000 0x1000>;
 					ranges = <0x0 0x10000 0x1000>;
 					#address-cells = <1>;

@@ -255,24 +255,24 @@ static void i2sbus_wait_for_stop(struct i2sbus_dev *i2sdev,
 {
 	unsigned long flags;
 	DECLARE_COMPLETION_ONSTACK(done);
-	long timeout;
+	unsigned long time_left;
 
 	spin_lock_irqsave(&i2sdev->low_lock, flags);
 	if (pi->dbdma_ring.stopping) {
 		pi->stop_completion = &done;
 		spin_unlock_irqrestore(&i2sdev->low_lock, flags);
-		timeout = wait_for_completion_timeout(&done, HZ);
+		time_left = wait_for_completion_timeout(&done, HZ);
 		spin_lock_irqsave(&i2sdev->low_lock, flags);
 		pi->stop_completion = NULL;
-		if (timeout == 0) {
+		if (time_left == 0) {
 			/* timeout expired, stop dbdma forcefully */
 			printk(KERN_ERR "i2sbus_wait_for_stop: timed out\n");
 			/* make sure RUN, PAUSE and S0 bits are cleared */
 			out_le32(&pi->dbdma->control, (RUN | PAUSE | 1) << 16);
 			pi->dbdma_ring.stopping = 0;
-			timeout = 10;
+			time_left = 10;
 			while (in_le32(&pi->dbdma->status) & ACTIVE) {
-				if (--timeout <= 0)
+				if (--time_left <= 0)
 					break;
 				udelay(1);
 			}
@@ -972,7 +972,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				&i2sbus_playback_ops);
-		dev->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].dev.parent =
+		dev->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].dev->parent =
 			&dev->ofdev.dev;
 		i2sdev->out.created = 1;
 	}
@@ -989,7 +989,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&i2sbus_record_ops);
-		dev->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].dev.parent =
+		dev->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].dev->parent =
 			&dev->ofdev.dev;
 		i2sdev->in.created = 1;
 	}

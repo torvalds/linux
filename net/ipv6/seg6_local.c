@@ -109,15 +109,19 @@ struct bpf_lwt_prog {
 #define next_csid_chk_lcnode_fn_bits(flen)		\
 	next_csid_chk_lcblock_bits(flen)
 
+/* flag indicating that flavors are set up for a given End* behavior */
+#define SEG6_F_LOCAL_FLAVORS		SEG6_F_ATTR(SEG6_LOCAL_FLAVORS)
+
 #define SEG6_F_LOCAL_FLV_OP(flvname)	BIT(SEG6_LOCAL_FLV_OP_##flvname)
+#define SEG6_F_LOCAL_FLV_NEXT_CSID	SEG6_F_LOCAL_FLV_OP(NEXT_CSID)
 #define SEG6_F_LOCAL_FLV_PSP		SEG6_F_LOCAL_FLV_OP(PSP)
 
 /* Supported RFC8986 Flavor operations are reported in this bitmask */
 #define SEG6_LOCAL_FLV8986_SUPP_OPS	SEG6_F_LOCAL_FLV_PSP
 
-/* Supported Flavor operations are reported in this bitmask */
-#define SEG6_LOCAL_FLV_SUPP_OPS		(SEG6_F_LOCAL_FLV_OP(NEXT_CSID) | \
+#define SEG6_LOCAL_END_FLV_SUPP_OPS	(SEG6_F_LOCAL_FLV_NEXT_CSID | \
 					 SEG6_LOCAL_FLV8986_SUPP_OPS)
+#define SEG6_LOCAL_END_X_FLV_SUPP_OPS	SEG6_F_LOCAL_FLV_NEXT_CSID
 
 struct seg6_flavors_info {
 	/* Flavor operations */
@@ -411,9 +415,72 @@ static int end_next_csid_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	return input_action_end_finish(skb, slwt);
 }
 
+static int input_action_end_x_finish(struct sk_buff *skb,
+				     struct seg6_local_lwt *slwt)
+{
+	seg6_lookup_nexthop(skb, &slwt->nh6, 0);
+
+	return dst_input(skb);
+}
+
+static int input_action_end_x_core(struct sk_buff *skb,
+				   struct seg6_local_lwt *slwt)
+{
+	struct ipv6_sr_hdr *srh;
+
+	srh = get_and_validate_srh(skb);
+	if (!srh)
+		goto drop;
+
+	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+
+	return input_action_end_x_finish(skb, slwt);
+
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
+static int end_x_next_csid_core(struct sk_buff *skb,
+				struct seg6_local_lwt *slwt)
+{
+	const struct seg6_flavors_info *finfo = &slwt->flv_info;
+	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
+
+	if (seg6_next_csid_is_arg_zero(daddr, finfo))
+		return input_action_end_x_core(skb, slwt);
+
+	/* update DA */
+	seg6_next_csid_advance_arg(daddr, finfo);
+
+	return input_action_end_x_finish(skb, slwt);
+}
+
 static bool seg6_next_csid_enabled(__u32 fops)
 {
-	return fops & BIT(SEG6_LOCAL_FLV_OP_NEXT_CSID);
+	return fops & SEG6_F_LOCAL_FLV_NEXT_CSID;
+}
+
+/* Processing of SRv6 End, End.X, and End.T behaviors can be extended through
+ * the flavors framework. These behaviors must report the subset of (flavor)
+ * operations they currently implement. In this way, if a user specifies a
+ * flavor combination that is not supported by a given End* behavior, the
+ * kernel refuses to instantiate the tunnel reporting the error.
+ */
+static int seg6_flv_supp_ops_by_action(int action, __u32 *fops)
+{
+	switch (action) {
+	case SEG6_LOCAL_ACTION_END:
+		*fops = SEG6_LOCAL_END_FLV_SUPP_OPS;
+		break;
+	case SEG6_LOCAL_ACTION_END_X:
+		*fops = SEG6_LOCAL_END_X_FLV_SUPP_OPS;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 
 /* We describe the packet state in relation to the absence/presence of the SRH
@@ -746,21 +813,14 @@ static int input_action_end(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 /* regular endpoint, and forward to specified nexthop */
 static int input_action_end_x(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 {
-	struct ipv6_sr_hdr *srh;
+	const struct seg6_flavors_info *finfo = &slwt->flv_info;
+	__u32 fops = finfo->flv_ops;
 
-	srh = get_and_validate_srh(skb);
-	if (!srh)
-		goto drop;
+	/* check for the presence of NEXT-C-SID since it applies first */
+	if (seg6_next_csid_enabled(fops))
+		return end_x_next_csid_core(skb, slwt);
 
-	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
-
-	seg6_lookup_nexthop(skb, &slwt->nh6, 0);
-
-	return dst_input(skb);
-
-drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	return input_action_end_x_core(skb, slwt);
 }
 
 static int input_action_end_t(struct sk_buff *skb, struct seg6_local_lwt *slwt)
@@ -881,8 +941,8 @@ static int input_action_end_dx6(struct sk_buff *skb,
 
 	if (static_branch_unlikely(&nf_hooks_lwtunnel_enabled))
 		return NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING,
-			       dev_net(skb->dev), NULL, skb, NULL,
-			       skb_dst(skb)->dev, input_action_end_dx6_finish);
+			       dev_net(skb->dev), NULL, skb, skb->dev,
+			       NULL, input_action_end_dx6_finish);
 
 	return input_action_end_dx6_finish(dev_net(skb->dev), NULL, skb);
 drop:
@@ -931,8 +991,8 @@ static int input_action_end_dx4(struct sk_buff *skb,
 
 	if (static_branch_unlikely(&nf_hooks_lwtunnel_enabled))
 		return NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING,
-			       dev_net(skb->dev), NULL, skb, NULL,
-			       skb_dst(skb)->dev, input_action_end_dx4_finish);
+			       dev_net(skb->dev), NULL, skb, skb->dev,
+			       NULL, input_action_end_dx4_finish);
 
 	return input_action_end_dx4_finish(dev_net(skb->dev), NULL, skb);
 drop:
@@ -1320,7 +1380,9 @@ drop:
 	return err;
 }
 
-DEFINE_PER_CPU(struct seg6_bpf_srh_state, seg6_bpf_srh_states);
+DEFINE_PER_CPU(struct seg6_bpf_srh_state, seg6_bpf_srh_states) = {
+	.bh_lock	= INIT_LOCAL_LOCK(bh_lock),
+};
 
 bool seg6_bpf_has_valid_srh(struct sk_buff *skb)
 {
@@ -1328,6 +1390,7 @@ bool seg6_bpf_has_valid_srh(struct sk_buff *skb)
 		this_cpu_ptr(&seg6_bpf_srh_states);
 	struct ipv6_sr_hdr *srh = srh_state->srh;
 
+	lockdep_assert_held(&srh_state->bh_lock);
 	if (unlikely(srh == NULL))
 		return false;
 
@@ -1348,8 +1411,7 @@ bool seg6_bpf_has_valid_srh(struct sk_buff *skb)
 static int input_action_end_bpf(struct sk_buff *skb,
 				struct seg6_local_lwt *slwt)
 {
-	struct seg6_bpf_srh_state *srh_state =
-		this_cpu_ptr(&seg6_bpf_srh_states);
+	struct seg6_bpf_srh_state *srh_state;
 	struct ipv6_sr_hdr *srh;
 	int ret;
 
@@ -1360,10 +1422,14 @@ static int input_action_end_bpf(struct sk_buff *skb,
 	}
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	/* preempt_disable is needed to protect the per-CPU buffer srh_state,
-	 * which is also accessed by the bpf_lwt_seg6_* helpers
+	/* The access to the per-CPU buffer srh_state is protected by running
+	 * always in softirq context (with disabled BH). On PREEMPT_RT the
+	 * required locking is provided by the following local_lock_nested_bh()
+	 * statement. It is also accessed by the bpf_lwt_seg6_* helpers via
+	 * bpf_prog_run_save_cb().
 	 */
-	preempt_disable();
+	local_lock_nested_bh(&seg6_bpf_srh_states.bh_lock);
+	srh_state = this_cpu_ptr(&seg6_bpf_srh_states);
 	srh_state->srh = srh;
 	srh_state->hdrlen = srh->hdrlen << 3;
 	srh_state->valid = true;
@@ -1386,15 +1452,15 @@ static int input_action_end_bpf(struct sk_buff *skb,
 
 	if (srh_state->srh && !seg6_bpf_has_valid_srh(skb))
 		goto drop;
+	local_unlock_nested_bh(&seg6_bpf_srh_states.bh_lock);
 
-	preempt_enable();
 	if (ret != BPF_REDIRECT)
 		seg6_lookup_nexthop(skb, NULL, 0);
 
 	return dst_input(skb);
 
 drop:
-	preempt_enable();
+	local_unlock_nested_bh(&seg6_bpf_srh_states.bh_lock);
 	kfree_skb(skb);
 	return -EINVAL;
 }
@@ -1404,13 +1470,14 @@ static struct seg6_action_desc seg6_action_table[] = {
 		.action		= SEG6_LOCAL_ACTION_END,
 		.attrs		= 0,
 		.optattrs	= SEG6_F_LOCAL_COUNTERS |
-				  SEG6_F_ATTR(SEG6_LOCAL_FLAVORS),
+				  SEG6_F_LOCAL_FLAVORS,
 		.input		= input_action_end,
 	},
 	{
 		.action		= SEG6_LOCAL_ACTION_END_X,
 		.attrs		= SEG6_F_ATTR(SEG6_LOCAL_NH6),
-		.optattrs	= SEG6_F_LOCAL_COUNTERS,
+		.optattrs	= SEG6_F_LOCAL_COUNTERS |
+				  SEG6_F_LOCAL_FLAVORS,
 		.input		= input_action_end_x,
 	},
 	{
@@ -2070,7 +2137,8 @@ static int parse_nla_flavors(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 {
 	struct seg6_flavors_info *finfo = &slwt->flv_info;
 	struct nlattr *tb[SEG6_LOCAL_FLV_MAX + 1];
-	unsigned long fops;
+	int action = slwt->action;
+	__u32 fops, supp_fops;
 	int rc;
 
 	rc = nla_parse_nested_deprecated(tb, SEG6_LOCAL_FLV_MAX,
@@ -2086,7 +2154,8 @@ static int parse_nla_flavors(struct nlattr **attrs, struct seg6_local_lwt *slwt,
 		return -EINVAL;
 
 	fops = nla_get_u32(tb[SEG6_LOCAL_FLV_OPERATION]);
-	if (fops & ~SEG6_LOCAL_FLV_SUPP_OPS) {
+	rc = seg6_flv_supp_ops_by_action(action, &supp_fops);
+	if (rc < 0 || (fops & ~supp_fops)) {
 		NL_SET_ERR_MSG(extack, "Unsupported Flavor operation(s)");
 		return -EOPNOTSUPP;
 	}
@@ -2617,6 +2686,11 @@ int __init seg6_local_init(void)
 	 * exceeds the allowed value.
 	 */
 	BUILD_BUG_ON(SEG6_LOCAL_MAX + 1 > BITS_PER_TYPE(unsigned long));
+
+	/* Check whether the number of defined flavors exceeds the maximum
+	 * allowed value.
+	 */
+	BUILD_BUG_ON(SEG6_LOCAL_FLV_OP_MAX + 1 > BITS_PER_TYPE(__u32));
 
 	/* If the default NEXT-C-SID Locator-Block/Node Function lengths (in
 	 * bits) have been changed with invalid values, kernel build stops

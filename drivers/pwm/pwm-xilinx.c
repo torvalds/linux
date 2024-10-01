@@ -80,15 +80,10 @@ unsigned int xilinx_timer_get_period(struct xilinx_timer_priv *priv,
 #define TCSR_PWM_CLEAR (TCSR_MDT | TCSR_LOAD)
 #define TCSR_PWM_MASK (TCSR_PWM_SET | TCSR_PWM_CLEAR)
 
-struct xilinx_pwm_device {
-	struct pwm_chip chip;
-	struct xilinx_timer_priv priv;
-};
-
 static inline struct xilinx_timer_priv
 *xilinx_pwm_chip_to_priv(struct pwm_chip *chip)
 {
-	return &container_of(chip, struct xilinx_pwm_device, chip)->priv;
+	return pwmchip_get_drvdata(chip);
 }
 
 static bool xilinx_timer_pwm_enabled(u32 tcsr0, u32 tcsr1)
@@ -198,7 +193,6 @@ static int xilinx_pwm_get_state(struct pwm_chip *chip,
 static const struct pwm_ops xilinx_pwm_ops = {
 	.apply = xilinx_pwm_apply,
 	.get_state = xilinx_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const struct regmap_config xilinx_pwm_regmap_config = {
@@ -215,7 +209,7 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct xilinx_timer_priv *priv;
-	struct xilinx_pwm_device *xilinx_pwm;
+	struct pwm_chip *chip;
 	u32 pwm_cells, one_timer, width;
 	void __iomem *regs;
 
@@ -226,11 +220,10 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "could not read #pwm-cells\n");
 
-	xilinx_pwm = devm_kzalloc(dev, sizeof(*xilinx_pwm), GFP_KERNEL);
-	if (!xilinx_pwm)
-		return -ENOMEM;
-	platform_set_drvdata(pdev, xilinx_pwm);
-	priv = &xilinx_pwm->priv;
+	chip = devm_pwmchip_alloc(dev, 1, sizeof(*priv));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	priv = xilinx_pwm_chip_to_priv(chip);
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -269,36 +262,22 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	 * alas, such properties are not allowed to be used.
 	 */
 
-	priv->clk = devm_clk_get(dev, "s_axi_aclk");
+	priv->clk = devm_clk_get_enabled(dev, "s_axi_aclk");
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "Could not get clock\n");
 
-	ret = clk_prepare_enable(priv->clk);
+	ret = devm_clk_rate_exclusive_get(dev, priv->clk);
 	if (ret)
-		return dev_err_probe(dev, ret, "Clock enable failed\n");
-	clk_rate_exclusive_get(priv->clk);
+		return dev_err_probe(dev, ret,
+				     "Failed to lock clock rate\n");
 
-	xilinx_pwm->chip.dev = dev;
-	xilinx_pwm->chip.ops = &xilinx_pwm_ops;
-	xilinx_pwm->chip.npwm = 1;
-	ret = pwmchip_add(&xilinx_pwm->chip);
-	if (ret) {
-		clk_rate_exclusive_put(priv->clk);
-		clk_disable_unprepare(priv->clk);
+	chip->ops = &xilinx_pwm_ops;
+	ret = devm_pwmchip_add(dev, chip);
+	if (ret)
 		return dev_err_probe(dev, ret, "Could not register PWM chip\n");
-	}
 
 	return 0;
-}
-
-static void xilinx_pwm_remove(struct platform_device *pdev)
-{
-	struct xilinx_pwm_device *xilinx_pwm = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&xilinx_pwm->chip);
-	clk_rate_exclusive_put(xilinx_pwm->priv.clk);
-	clk_disable_unprepare(xilinx_pwm->priv.clk);
 }
 
 static const struct of_device_id xilinx_pwm_of_match[] = {
@@ -309,7 +288,6 @@ MODULE_DEVICE_TABLE(of, xilinx_pwm_of_match);
 
 static struct platform_driver xilinx_pwm_driver = {
 	.probe = xilinx_pwm_probe,
-	.remove_new = xilinx_pwm_remove,
 	.driver = {
 		.name = "xilinx-pwm",
 		.of_match_table = of_match_ptr(xilinx_pwm_of_match),

@@ -47,7 +47,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
 #include <linux/regmap.h>
@@ -57,13 +56,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
-
-/*
- * The driver only uses one single LUT entry, that is updated on
- * each call of exec_op(). Index 0 is preset at boot with a basic
- * read operation, so let's use the last entry (31).
- */
-#define	SEQID_LUT			31
 
 /* Registers used by the driver */
 #define FSPI_MCR0			0x00
@@ -264,9 +256,6 @@
 #define FSPI_TFDR			0x180
 
 #define FSPI_LUT_BASE			0x200
-#define FSPI_LUT_OFFSET			(SEQID_LUT * 4 * 4)
-#define FSPI_LUT_REG(idx) \
-	(FSPI_LUT_BASE + FSPI_LUT_OFFSET + (idx) * 4)
 
 /* register map end */
 
@@ -342,6 +331,7 @@ struct nxp_fspi_devtype_data {
 	unsigned int txfifo;
 	unsigned int ahb_buf_size;
 	unsigned int quirks;
+	unsigned int lut_num;
 	bool little_endian;
 };
 
@@ -350,6 +340,7 @@ static struct nxp_fspi_devtype_data lx2160a_data = {
 	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
 	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
 	.quirks = 0,
+	.lut_num = 32,
 	.little_endian = true,  /* little-endian    */
 };
 
@@ -358,6 +349,7 @@ static struct nxp_fspi_devtype_data imx8mm_data = {
 	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
 	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
 	.quirks = 0,
+	.lut_num = 32,
 	.little_endian = true,  /* little-endian    */
 };
 
@@ -366,6 +358,7 @@ static struct nxp_fspi_devtype_data imx8qxp_data = {
 	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
 	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
 	.quirks = 0,
+	.lut_num = 32,
 	.little_endian = true,  /* little-endian    */
 };
 
@@ -374,6 +367,16 @@ static struct nxp_fspi_devtype_data imx8dxl_data = {
 	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
 	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
 	.quirks = FSPI_QUIRK_USE_IP_ONLY,
+	.lut_num = 32,
+	.little_endian = true,  /* little-endian    */
+};
+
+static struct nxp_fspi_devtype_data imx8ulp_data = {
+	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = 0,
+	.lut_num = 16,
 	.little_endian = true,  /* little-endian    */
 };
 
@@ -452,7 +455,7 @@ static int nxp_fspi_check_buswidth(struct nxp_fspi *f, u8 width)
 static bool nxp_fspi_supports_op(struct spi_mem *mem,
 				 const struct spi_mem_op *op)
 {
-	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->master);
+	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->controller);
 	int ret;
 
 	ret = nxp_fspi_check_buswidth(f, op->cmd.buswidth);
@@ -521,7 +524,7 @@ static int fspi_readl_poll_tout(struct nxp_fspi *f, void __iomem *base,
 }
 
 /*
- * If the slave device content being changed by Write/Erase, need to
+ * If the target device content being changed by Write/Erase, need to
  * invalidate the AHB buffer. This can be achieved by doing the reset
  * of controller after setting MCR0[SWRESET] bit.
  */
@@ -545,6 +548,8 @@ static void nxp_fspi_prepare_lut(struct nxp_fspi *f,
 	void __iomem *base = f->iobase;
 	u32 lutval[4] = {};
 	int lutidx = 1, i;
+	u32 lut_offset = (f->devtype_data->lut_num - 1) * 4 * 4;
+	u32 target_lut_reg;
 
 	/* cmd */
 	lutval[0] |= LUT_DEF(0, LUT_CMD, LUT_PAD(op->cmd.buswidth),
@@ -589,10 +594,12 @@ static void nxp_fspi_prepare_lut(struct nxp_fspi *f,
 	fspi_writel(f, FSPI_LCKER_UNLOCK, f->iobase + FSPI_LCKCR);
 
 	/* fill LUT */
-	for (i = 0; i < ARRAY_SIZE(lutval); i++)
-		fspi_writel(f, lutval[i], base + FSPI_LUT_REG(i));
+	for (i = 0; i < ARRAY_SIZE(lutval); i++) {
+		target_lut_reg = FSPI_LUT_BASE + lut_offset + i * 4;
+		fspi_writel(f, lutval[i], base + target_lut_reg);
+	}
 
-	dev_dbg(f->dev, "CMD[%x] lutval[0:%x \t 1:%x \t 2:%x \t 3:%x], size: 0x%08x\n",
+	dev_dbg(f->dev, "CMD[%02x] lutval[0:%08x 1:%08x 2:%08x 3:%08x], size: 0x%08x\n",
 		op->cmd.opcode, lutval[0], lutval[1], lutval[2], lutval[3], op->data.nbytes);
 
 	/* lock LUT */
@@ -662,7 +669,7 @@ static void nxp_fspi_dll_calibration(struct nxp_fspi *f)
 
 /*
  * In FlexSPI controller, flash access is based on value of FSPI_FLSHXXCR0
- * register and start base address of the slave device.
+ * register and start base address of the target device.
  *
  *							    (Higher address)
  *				--------    <-- FLSHB2CR0
@@ -681,15 +688,15 @@ static void nxp_fspi_dll_calibration(struct nxp_fspi *f)
  *
  *
  * Start base address defines the starting address range for given CS and
- * FSPI_FLSHXXCR0 defines the size of the slave device connected at given CS.
+ * FSPI_FLSHXXCR0 defines the size of the target device connected at given CS.
  *
  * But, different targets are having different combinations of number of CS,
  * some targets only have single CS or two CS covering controller's full
  * memory mapped space area.
  * Thus, implementation is being done as independent of the size and number
- * of the connected slave device.
+ * of the connected target device.
  * Assign controller memory mapped space size as the size to the connected
- * slave device.
+ * target device.
  * Mark FLSHxxCR0 as zero initially and then assign value only to the selected
  * chip-select Flash configuration register.
  *
@@ -705,8 +712,8 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi)
 	uint64_t size_kb;
 
 	/*
-	 * Return, if previously selected slave device is same as current
-	 * requested slave device.
+	 * Return, if previously selected target device is same as current
+	 * requested target device.
 	 */
 	if (f->selected == spi_get_chipselect(spi, 0))
 		return;
@@ -723,7 +730,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi)
 	fspi_writel(f, size_kb, f->iobase + FSPI_FLSHA1CR0 +
 		    4 * spi_get_chipselect(spi, 0));
 
-	dev_dbg(f->dev, "Slave device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
+	dev_dbg(f->dev, "Target device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
 
 	nxp_fspi_clk_disable_unprep(f);
 
@@ -757,10 +764,9 @@ static int nxp_fspi_read_ahb(struct nxp_fspi *f, const struct spi_mem_op *op)
 			iounmap(f->ahb_addr);
 
 		f->memmap_start = start;
-		f->memmap_len = len > NXP_FSPI_MIN_IOMAP ?
-				len : NXP_FSPI_MIN_IOMAP;
+		f->memmap_len = max_t(u32, len, NXP_FSPI_MIN_IOMAP);
 
-		f->ahb_addr = ioremap_wc(f->memmap_phy + f->memmap_start,
+		f->ahb_addr = ioremap(f->memmap_phy + f->memmap_start,
 					 f->memmap_len);
 
 		if (!f->ahb_addr) {
@@ -806,14 +812,15 @@ static void nxp_fspi_fill_txfifo(struct nxp_fspi *f,
 	if (i < op->data.nbytes) {
 		u32 data = 0;
 		int j;
+		int remaining = op->data.nbytes - i;
 		/* Wait for TXFIFO empty */
 		ret = fspi_readl_poll_tout(f, f->iobase + FSPI_INTR,
 					   FSPI_INTR_IPTXWE, 0,
 					   POLL_TOUT, true);
 		WARN_ON(ret);
 
-		for (j = 0; j < ALIGN(op->data.nbytes - i, 4); j += 4) {
-			memcpy(&data, buf + i + j, 4);
+		for (j = 0; j < ALIGN(remaining, 4); j += 4) {
+			memcpy(&data, buf + i + j, min_t(int, 4, remaining - j));
 			fspi_writel(f, data, base + FSPI_TFDR + j);
 		}
 		fspi_writel(f, FSPI_INTR_IPTXWE, base + FSPI_INTR);
@@ -876,7 +883,7 @@ static int nxp_fspi_do_op(struct nxp_fspi *f, const struct spi_mem_op *op)
 	void __iomem *base = f->iobase;
 	int seqnum = 0;
 	int err = 0;
-	u32 reg;
+	u32 reg, seqid_lut;
 
 	reg = fspi_readl(f, base + FSPI_IPRXFCR);
 	/* invalid RXFIFO first */
@@ -892,8 +899,9 @@ static int nxp_fspi_do_op(struct nxp_fspi *f, const struct spi_mem_op *op)
 	 * the LUT at each exec_op() call. And also specify the DATA
 	 * length, since it's has not been specified in the LUT.
 	 */
+	seqid_lut = f->devtype_data->lut_num - 1;
 	fspi_writel(f, op->data.nbytes |
-		 (SEQID_LUT << FSPI_IPCR1_SEQID_SHIFT) |
+		 (seqid_lut << FSPI_IPCR1_SEQID_SHIFT) |
 		 (seqnum << FSPI_IPCR1_SEQNUM_SHIFT),
 		 base + FSPI_IPCR1);
 
@@ -913,7 +921,7 @@ static int nxp_fspi_do_op(struct nxp_fspi *f, const struct spi_mem_op *op)
 
 static int nxp_fspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->master);
+	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->controller);
 	int err = 0;
 
 	mutex_lock(&f->lock);
@@ -953,7 +961,7 @@ static int nxp_fspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 static int nxp_fspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->master);
+	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->controller);
 
 	if (op->data.dir == SPI_MEM_DATA_OUT) {
 		if (op->data.nbytes > f->devtype_data->txfifo)
@@ -1017,7 +1025,7 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 {
 	void __iomem *base = f->iobase;
 	int ret, i;
-	u32 reg;
+	u32 reg, seqid_lut;
 
 	/* disable and unprepare clock to avoid glitch pass to controller */
 	nxp_fspi_clk_disable_unprep(f);
@@ -1050,7 +1058,7 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	fspi_writel(f, FSPI_MCR0_MDIS, base + FSPI_MCR0);
 
 	/*
-	 * Config the DLL register to default value, enable the slave clock delay
+	 * Config the DLL register to default value, enable the target clock delay
 	 * line delay cell override mode, and use 1 fixed delay cell in DLL delay
 	 * chain, this is the suggested setting when clock rate < 100MHz.
 	 */
@@ -1063,7 +1071,7 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 		    base + FSPI_MCR0);
 
 	/*
-	 * Disable same device enable bit and configure all slave devices
+	 * Disable same device enable bit and configure all target devices
 	 * independently.
 	 */
 	reg = fspi_readl(f, f->iobase + FSPI_MCR2);
@@ -1085,11 +1093,24 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	fspi_writel(f, FSPI_AHBCR_PREF_EN | FSPI_AHBCR_RDADDROPT,
 		 base + FSPI_AHBCR);
 
+	/* Reset the FLSHxCR1 registers. */
+	reg = FSPI_FLSHXCR1_TCSH(0x3) | FSPI_FLSHXCR1_TCSS(0x3);
+	fspi_writel(f, reg, base + FSPI_FLSHA1CR1);
+	fspi_writel(f, reg, base + FSPI_FLSHA2CR1);
+	fspi_writel(f, reg, base + FSPI_FLSHB1CR1);
+	fspi_writel(f, reg, base + FSPI_FLSHB2CR1);
+
+	/*
+	 * The driver only uses one single LUT entry, that is updated on
+	 * each call of exec_op(). Index 0 is preset at boot with a basic
+	 * read operation, so let's use the last entry.
+	 */
+	seqid_lut = f->devtype_data->lut_num - 1;
 	/* AHB Read - Set lut sequence ID for all CS. */
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHA1CR2);
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHA2CR2);
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHB1CR2);
-	fspi_writel(f, SEQID_LUT, base + FSPI_FLSHB2CR2);
+	fspi_writel(f, seqid_lut, base + FSPI_FLSHA1CR2);
+	fspi_writel(f, seqid_lut, base + FSPI_FLSHA2CR2);
+	fspi_writel(f, seqid_lut, base + FSPI_FLSHB1CR2);
+	fspi_writel(f, seqid_lut, base + FSPI_FLSHB2CR2);
 
 	f->selected = -1;
 
@@ -1101,7 +1122,7 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 
 static const char *nxp_fspi_get_name(struct spi_mem *mem)
 {
-	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->master);
+	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->controller);
 	struct device *dev = &mem->spi->dev;
 	const char *name;
 
@@ -1138,7 +1159,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	int ret;
 	u32 reg;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(*f));
+	ctlr = spi_alloc_host(&pdev->dev, sizeof(*f));
 	if (!ctlr)
 		return -ENOMEM;
 
@@ -1157,12 +1178,10 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	/* find the resources - configuration register address space */
 	if (is_acpi_node(dev_fwnode(f->dev)))
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		f->iobase = devm_platform_ioremap_resource(pdev, 0);
 	else
-		res = platform_get_resource_byname(pdev,
-				IORESOURCE_MEM, "fspi_base");
+		f->iobase = devm_platform_ioremap_resource_byname(pdev, "fspi_base");
 
-	f->iobase = devm_ioremap_resource(dev, res);
 	if (IS_ERR(f->iobase)) {
 		ret = PTR_ERR(f->iobase);
 		goto err_put_ctrl;
@@ -1286,6 +1305,7 @@ static const struct of_device_id nxp_fspi_dt_ids[] = {
 	{ .compatible = "nxp,imx8mp-fspi", .data = (void *)&imx8mm_data, },
 	{ .compatible = "nxp,imx8qxp-fspi", .data = (void *)&imx8qxp_data, },
 	{ .compatible = "nxp,imx8dxl-fspi", .data = (void *)&imx8dxl_data, },
+	{ .compatible = "nxp,imx8ulp-fspi", .data = (void *)&imx8ulp_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, nxp_fspi_dt_ids);

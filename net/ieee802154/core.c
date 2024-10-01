@@ -198,6 +198,25 @@ void wpan_phy_free(struct wpan_phy *phy)
 }
 EXPORT_SYMBOL(wpan_phy_free);
 
+static void cfg802154_free_peer_structures(struct wpan_dev *wpan_dev)
+{
+	struct ieee802154_pan_device *child, *tmp;
+
+	mutex_lock(&wpan_dev->association_lock);
+
+	kfree(wpan_dev->parent);
+	wpan_dev->parent = NULL;
+
+	list_for_each_entry_safe(child, tmp, &wpan_dev->children, node) {
+		list_del(&child->node);
+		kfree(child);
+	}
+
+	wpan_dev->nchildren = 0;
+
+	mutex_unlock(&wpan_dev->association_lock);
+}
+
 int cfg802154_switch_netns(struct cfg802154_registered_device *rdev,
 			   struct net *net)
 {
@@ -207,11 +226,11 @@ int cfg802154_switch_netns(struct cfg802154_registered_device *rdev,
 	list_for_each_entry(wpan_dev, &rdev->wpan_dev_list, list) {
 		if (!wpan_dev->netdev)
 			continue;
-		wpan_dev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
+		wpan_dev->netdev->netns_local = false;
 		err = dev_change_net_namespace(wpan_dev->netdev, net, "wpan%d");
 		if (err)
 			break;
-		wpan_dev->netdev->features |= NETIF_F_NETNS_LOCAL;
+		wpan_dev->netdev->netns_local = true;
 	}
 
 	if (err) {
@@ -223,11 +242,11 @@ int cfg802154_switch_netns(struct cfg802154_registered_device *rdev,
 						     list) {
 			if (!wpan_dev->netdev)
 				continue;
-			wpan_dev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
+			wpan_dev->netdev->netns_local = false;
 			err = dev_change_net_namespace(wpan_dev->netdev, net,
 						       "wpan%d");
 			WARN_ON(err);
-			wpan_dev->netdev->features |= NETIF_F_NETNS_LOCAL;
+			wpan_dev->netdev->netns_local = true;
 		}
 
 		return err;
@@ -272,10 +291,13 @@ static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
 	switch (state) {
 		/* TODO NETDEV_DEVTYPE */
 	case NETDEV_REGISTER:
-		dev->features |= NETIF_F_NETNS_LOCAL;
+		dev->netns_local = true;
 		wpan_dev->identifier = ++rdev->wpan_dev_id;
 		list_add_rcu(&wpan_dev->list, &rdev->wpan_dev_list);
 		rdev->devlist_generation++;
+		mutex_init(&wpan_dev->association_lock);
+		INIT_LIST_HEAD(&wpan_dev->children);
+		wpan_dev->max_associations = SZ_16K;
 
 		wpan_dev->netdev = dev;
 		break;
@@ -291,6 +313,8 @@ static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
 		rdev->opencount++;
 		break;
 	case NETDEV_UNREGISTER:
+		cfg802154_free_peer_structures(wpan_dev);
+
 		/* It is possible to get NETDEV_UNREGISTER
 		 * multiple times. To detect that, check
 		 * that the interface is still on the list

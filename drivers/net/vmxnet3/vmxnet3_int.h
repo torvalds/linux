@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2022, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2024, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -56,6 +56,9 @@
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
 #include <linux/log2.h>
+#include <linux/bpf.h>
+#include <net/page_pool/helpers.h>
+#include <net/xdp.h>
 
 #include "vmxnet3_defs.h"
 
@@ -69,18 +72,20 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.7.0.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.9.0.0-k"
 
 /* Each byte of this 32-bit integer encodes a version number in
  * VMXNET3_DRIVER_VERSION_STRING.
  */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01070000
+#define VMXNET3_DRIVER_VERSION_NUM      0x01090000
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
 	#define VMXNET3_RSS
 #endif
 
+#define VMXNET3_REV_9		8	/* Vmxnet3 Rev. 9 */
+#define VMXNET3_REV_8		7	/* Vmxnet3 Rev. 8 */
 #define VMXNET3_REV_7		6	/* Vmxnet3 Rev. 7 */
 #define VMXNET3_REV_6		5	/* Vmxnet3 Rev. 6 */
 #define VMXNET3_REV_5		4	/* Vmxnet3 Rev. 5 */
@@ -188,19 +193,25 @@ struct vmxnet3_tx_data_ring {
 	dma_addr_t          basePA;
 };
 
-enum vmxnet3_buf_map_type {
-	VMXNET3_MAP_INVALID = 0,
-	VMXNET3_MAP_NONE,
-	VMXNET3_MAP_SINGLE,
-	VMXNET3_MAP_PAGE,
+struct vmxnet3_tx_ts_ring {
+	struct Vmxnet3_TxTSDesc *base;
+	dma_addr_t          basePA;
 };
+
+#define VMXNET3_MAP_NONE	0
+#define VMXNET3_MAP_SINGLE	BIT(0)
+#define VMXNET3_MAP_PAGE	BIT(1)
+#define VMXNET3_MAP_XDP		BIT(2)
 
 struct vmxnet3_tx_buf_info {
 	u32      map_type;
 	u16      len;
 	u16      sop_idx;
 	dma_addr_t  dma_addr;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	};
 };
 
 struct vmxnet3_tq_driver_stats {
@@ -217,6 +228,9 @@ struct vmxnet3_tq_driver_stats {
 	u64 linearized;         /* # of pkts linearized */
 	u64 copy_skb_header;    /* # of times we have to copy skb header */
 	u64 oversized_hdr;
+
+	u64 xdp_xmit;
+	u64 xdp_xmit_err;
 };
 
 struct vmxnet3_tx_ctx {
@@ -236,6 +250,7 @@ struct vmxnet3_tx_ctx {
 	u32 copy_size;       /* # of bytes copied into the data ring */
 	union Vmxnet3_GenericDesc *sop_txd;
 	union Vmxnet3_GenericDesc *eop_txd;
+	struct Vmxnet3_TxTSDesc *ts_txd;
 };
 
 struct vmxnet3_tx_queue {
@@ -245,6 +260,7 @@ struct vmxnet3_tx_queue {
 	struct vmxnet3_cmd_ring         tx_ring;
 	struct vmxnet3_tx_buf_info      *buf_info;
 	struct vmxnet3_tx_data_ring     data_ring;
+	struct vmxnet3_tx_ts_ring       ts_ring;
 	struct vmxnet3_comp_ring        comp_ring;
 	struct Vmxnet3_TxQueueCtrl      *shared;
 	struct vmxnet3_tq_driver_stats  stats;
@@ -253,12 +269,15 @@ struct vmxnet3_tx_queue {
 						    * stopped */
 	int				qid;
 	u16				txdata_desc_size;
-} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+	u16                             tx_ts_desc_size;
+	u16                             tsPktCount;
+} ____cacheline_aligned;
 
 enum vmxnet3_rx_buf_type {
 	VMXNET3_RX_BUF_NONE = 0,
 	VMXNET3_RX_BUF_SKB = 1,
-	VMXNET3_RX_BUF_PAGE = 2
+	VMXNET3_RX_BUF_PAGE = 2,
+	VMXNET3_RX_BUF_XDP = 3,
 };
 
 #define VMXNET3_RXD_COMP_PENDING        0
@@ -285,12 +304,23 @@ struct vmxnet3_rq_driver_stats {
 	u64 drop_err;
 	u64 drop_fcs;
 	u64 rx_buf_alloc_failure;
+
+	u64 xdp_packets;	/* Total packets processed by XDP. */
+	u64 xdp_tx;
+	u64 xdp_redirects;
+	u64 xdp_drops;
+	u64 xdp_aborted;
 };
 
 struct vmxnet3_rx_data_ring {
 	Vmxnet3_RxDataDesc *base;
 	dma_addr_t basePA;
 	u16 desc_size;
+};
+
+struct vmxnet3_rx_ts_ring {
+	struct Vmxnet3_RxTSDesc *base;
+	dma_addr_t basePA;
 };
 
 struct vmxnet3_rx_queue {
@@ -300,6 +330,7 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_cmd_ring   rx_ring[2];
 	struct vmxnet3_rx_data_ring data_ring;
 	struct vmxnet3_comp_ring  comp_ring;
+	struct vmxnet3_rx_ts_ring ts_ring;
 	struct vmxnet3_rx_ctx     rx_ctx;
 	u32 qid;            /* rqID in RCD for buffer from 1st ring */
 	u32 qid2;           /* rqID in RCD for buffer from 2nd ring */
@@ -307,7 +338,10 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_rx_buf_info     *buf_info[2];
 	struct Vmxnet3_RxQueueCtrl            *shared;
 	struct vmxnet3_rq_driver_stats  stats;
-} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+	struct page_pool *page_pool;
+	struct xdp_rxq_info xdp_rxq;
+	u16                             rx_ts_desc_size;
+} ____cacheline_aligned;
 
 #define VMXNET3_DEVICE_MAX_TX_QUEUES 32
 #define VMXNET3_DEVICE_MAX_RX_QUEUES 32   /* Keep this value as a power of 2 */
@@ -415,6 +449,12 @@ struct vmxnet3_adapter {
 	u16    tx_prod_offset;
 	u16    rx_prod_offset;
 	u16    rx_prod2_offset;
+	struct bpf_prog __rcu *xdp_bpf_prog;
+	struct Vmxnet3_LatencyConf *latencyConf;
+	/* Size of buffer in the ts ring */
+	u16     tx_ts_desc_size;
+	u16     rx_ts_desc_size;
+	u32     disabledOffloads;
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
@@ -446,6 +486,10 @@ struct vmxnet3_adapter {
 	(adapter->version >= VMXNET3_REV_6 + 1)
 #define VMXNET3_VERSION_GE_7(adapter) \
 	(adapter->version >= VMXNET3_REV_7 + 1)
+#define VMXNET3_VERSION_GE_8(adapter) \
+	(adapter->version >= VMXNET3_REV_8 + 1)
+#define VMXNET3_VERSION_GE_9(adapter) \
+	(adapter->version >= VMXNET3_REV_9 + 1)
 
 /* must be a multiple of VMXNET3_RING_SIZE_ALIGN */
 #define VMXNET3_DEF_TX_RING_SIZE    512
@@ -489,6 +533,12 @@ vmxnet3_tq_destroy_all(struct vmxnet3_adapter *adapter);
 
 void
 vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
+
+int
+vmxnet3_rq_create_all(struct vmxnet3_adapter *adapter);
+
+void
+vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter);
 
 netdev_features_t
 vmxnet3_fix_features(struct net_device *netdev, netdev_features_t features);

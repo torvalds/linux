@@ -85,6 +85,7 @@ struct user_evtchn {
 	struct per_user_data *user;
 	evtchn_port_t port;
 	bool enabled;
+	bool unbinding;
 };
 
 static void evtchn_free_ring(evtchn_port_t *ring)
@@ -163,6 +164,10 @@ static irqreturn_t evtchn_interrupt(int irq, void *data)
 	struct user_evtchn *evtchn = data;
 	struct per_user_data *u = evtchn->user;
 	unsigned int prod, cons;
+
+	/* Handler might be called when tearing down the IRQ. */
+	if (evtchn->unbinding)
+		return IRQ_HANDLED;
 
 	WARN(!evtchn->enabled,
 	     "Interrupt for port %u, but apparently not enabled; per-user %p\n",
@@ -366,10 +371,10 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	return 0;
 }
 
-static int evtchn_bind_to_user(struct per_user_data *u, evtchn_port_t port)
+static int evtchn_bind_to_user(struct per_user_data *u, evtchn_port_t port,
+			       bool is_static)
 {
 	struct user_evtchn *evtchn;
-	struct evtchn_close close;
 	int rc = 0;
 
 	/*
@@ -397,19 +402,19 @@ static int evtchn_bind_to_user(struct per_user_data *u, evtchn_port_t port)
 	if (rc < 0)
 		goto err;
 
-	rc = bind_evtchn_to_irqhandler_lateeoi(port, evtchn_interrupt, 0,
+	rc = bind_evtchn_to_irqhandler_lateeoi(port, evtchn_interrupt, IRQF_SHARED,
 					       u->name, evtchn);
 	if (rc < 0)
 		goto err;
 
-	rc = evtchn_make_refcounted(port);
+	rc = evtchn_make_refcounted(port, is_static);
 	return rc;
 
 err:
 	/* bind failed, should close the port now */
-	close.port = port;
-	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
-		BUG();
+	if (!is_static)
+		xen_evtchn_close(port);
+
 	del_evtchn(u, evtchn);
 	return rc;
 }
@@ -421,6 +426,7 @@ static void evtchn_unbind_from_user(struct per_user_data *u,
 
 	BUG_ON(irq < 0);
 
+	evtchn->unbinding = true;
 	unbind_from_irqhandler(irq, evtchn);
 
 	del_evtchn(u, evtchn);
@@ -456,7 +462,7 @@ static long evtchn_ioctl(struct file *file,
 		if (rc != 0)
 			break;
 
-		rc = evtchn_bind_to_user(u, bind_virq.port);
+		rc = evtchn_bind_to_user(u, bind_virq.port, false);
 		if (rc == 0)
 			rc = bind_virq.port;
 		break;
@@ -482,7 +488,7 @@ static long evtchn_ioctl(struct file *file,
 		if (rc != 0)
 			break;
 
-		rc = evtchn_bind_to_user(u, bind_interdomain.local_port);
+		rc = evtchn_bind_to_user(u, bind_interdomain.local_port, false);
 		if (rc == 0)
 			rc = bind_interdomain.local_port;
 		break;
@@ -507,7 +513,7 @@ static long evtchn_ioctl(struct file *file,
 		if (rc != 0)
 			break;
 
-		rc = evtchn_bind_to_user(u, alloc_unbound.port);
+		rc = evtchn_bind_to_user(u, alloc_unbound.port, false);
 		if (rc == 0)
 			rc = alloc_unbound.port;
 		break;
@@ -533,6 +539,23 @@ static long evtchn_ioctl(struct file *file,
 		disable_irq(irq_from_evtchn(unbind.port));
 		evtchn_unbind_from_user(u, evtchn);
 		rc = 0;
+		break;
+	}
+
+	case IOCTL_EVTCHN_BIND_STATIC: {
+		struct ioctl_evtchn_bind bind;
+		struct user_evtchn *evtchn;
+
+		rc = -EFAULT;
+		if (copy_from_user(&bind, uarg, sizeof(bind)))
+			break;
+
+		rc = -EISCONN;
+		evtchn = find_evtchn(u, bind.port);
+		if (evtchn)
+			break;
+
+		rc = evtchn_bind_to_user(u, bind.port, true);
 		break;
 	}
 
@@ -671,7 +694,6 @@ static const struct file_operations evtchn_fops = {
 	.fasync  = evtchn_fasync,
 	.open    = evtchn_open,
 	.release = evtchn_release,
-	.llseek	 = no_llseek,
 };
 
 static struct miscdevice evtchn_miscdev = {
@@ -706,4 +728,5 @@ static void __exit evtchn_cleanup(void)
 module_init(evtchn_init);
 module_exit(evtchn_cleanup);
 
+MODULE_DESCRIPTION("Xen /dev/xen/evtchn device driver");
 MODULE_LICENSE("GPL");

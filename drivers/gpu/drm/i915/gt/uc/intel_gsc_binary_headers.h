@@ -8,6 +8,74 @@
 
 #include <linux/types.h>
 
+struct intel_gsc_version {
+	u16 major;
+	u16 minor;
+	u16 hotfix;
+	u16 build;
+} __packed;
+
+struct intel_gsc_partition {
+	u32 offset;
+	u32 size;
+} __packed;
+
+struct intel_gsc_layout_pointers {
+	u8 rom_bypass_vector[16];
+
+	/* size of pointers layout not including ROM bypass vector */
+	u16 size;
+
+	/*
+	 * bit0: Backup copy of layout pointers exist
+	 * bits1-15: reserved
+	 */
+	u8 flags;
+
+	u8 reserved;
+
+	u32 crc32;
+
+	struct intel_gsc_partition datap;
+	struct intel_gsc_partition boot1;
+	struct intel_gsc_partition boot2;
+	struct intel_gsc_partition boot3;
+	struct intel_gsc_partition boot4;
+	struct intel_gsc_partition boot5;
+	struct intel_gsc_partition temp_pages;
+} __packed;
+
+/* Boot partition structures */
+struct intel_gsc_bpdt_header {
+	u32 signature;
+#define INTEL_GSC_BPDT_HEADER_SIGNATURE 0x000055AA
+
+	u16 descriptor_count; /* num of entries after the header */
+
+	u8 version;
+	u8 configuration;
+
+	u32 crc32;
+
+	u32 build_version;
+	struct intel_gsc_version tool_version;
+} __packed;
+
+struct intel_gsc_bpdt_entry {
+	/*
+	 * Bits 0-15: BPDT entry type
+	 * Bits 16-17: reserved
+	 * Bit 18: code sub-partition
+	 * Bits 19-31: reserved
+	 */
+	u32 type;
+#define INTEL_GSC_BPDT_ENTRY_TYPE_MASK GENMASK(15, 0)
+#define INTEL_GSC_BPDT_ENTRY_TYPE_GSC_RBE 0x1
+
+	u32 sub_partition_offset; /* from the base of the BPDT header */
+	u32 sub_partition_size;
+} __packed;
+
 /* Code partition directory (CPD) structures */
 struct intel_gsc_cpd_header_v2 {
 	u32 header_marker;
@@ -42,13 +110,6 @@ struct intel_gsc_cpd_entry {
 	u32 length;
 
 	u8 reserved[4];
-} __packed;
-
-struct intel_gsc_version {
-	u16 major;
-	u16 minor;
-	u16 hotfix;
-	u16 build;
 } __packed;
 
 struct intel_gsc_manifest_header {

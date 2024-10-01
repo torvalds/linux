@@ -9,6 +9,7 @@
  * I like traps on v9, :))))
  */
 
+#include <linux/cpu.h>
 #include <linux/extable.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/debug.h>
@@ -249,7 +250,7 @@ void sun4v_insn_access_exception_tl1(struct pt_regs *regs, unsigned long addr, u
 	sun4v_insn_access_exception(regs, addr, type_ctx);
 }
 
-bool is_no_fault_exception(struct pt_regs *regs)
+static bool is_no_fault_exception(struct pt_regs *regs)
 {
 	unsigned char asi;
 	u32 insn;
@@ -897,7 +898,7 @@ void __init cheetah_ecache_flush_init(void)
 
 	/* Now allocate error trap reporting scoreboard. */
 	sz = NR_CPUS * (2 * sizeof(struct cheetah_err_info));
-	for (order = 0; order <= MAX_ORDER; order++) {
+	for (order = 0; order < NR_PAGE_ORDERS; order++) {
 		if ((PAGE_SIZE << order) >= sz)
 			break;
 	}
@@ -2031,7 +2032,7 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
 /* Handle memory corruption detected error which is vectored in
  * through resumable error trap.
  */
-void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
+static void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
 {
 	if (notify_die(DIE_TRAP, "MCD error", regs, 0, 0x34,
 		       SIGSEGV) == NOTIFY_STOP)
@@ -2149,9 +2150,9 @@ static unsigned long sun4v_get_vaddr(struct pt_regs *regs)
 /* Attempt to handle non-resumable errors generated from userspace.
  * Returns true if the signal was handled, false otherwise.
  */
-bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
-				  struct sun4v_error_entry *ent) {
-
+static bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
+					      struct sun4v_error_entry *ent)
+{
 	unsigned int attrs = ent->err_attrs;
 
 	if (attrs & SUN4V_ERR_ATTRS_MEMORY) {

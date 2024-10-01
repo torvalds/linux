@@ -147,6 +147,20 @@ mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
 	}
 }
 
+static void mlx5e_tc_stats_matchall(struct mlx5e_priv *priv,
+				    struct tc_cls_matchall_offload *ma)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	u64 dbytes;
+	u64 dpkts;
+
+	dpkts = priv->stats.rep_stats.vport_rx_packets - rpriv->prev_vf_vport_stats.rx_packets;
+	dbytes = priv->stats.rep_stats.vport_rx_bytes - rpriv->prev_vf_vport_stats.rx_bytes;
+	mlx5e_stats_copy_rep_stats(&rpriv->prev_vf_vport_stats, &priv->stats.rep_stats);
+	flow_stats_update(&ma->stats, dbytes, dpkts, 0, jiffies,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+}
+
 static
 int mlx5e_rep_setup_tc_cls_matchall(struct mlx5e_priv *priv,
 				    struct tc_cls_matchall_offload *ma)
@@ -715,9 +729,20 @@ void mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 	uplink_priv = &uplink_rpriv->uplink_priv;
 	ct_priv = uplink_priv->ct_priv;
 
-	if (!mlx5_ipsec_is_rx_flow(cqe) &&
-	    !mlx5e_tc_update_skb(cqe, skb, mapping_ctx, reg_c0, ct_priv, zone_restore_id, tunnel_id,
-				 &tc_priv))
+#ifdef CONFIG_MLX5_EN_IPSEC
+	if (!(tunnel_id >> ESW_TUN_OPTS_BITS)) {
+		u32 mapped_id;
+		u32 metadata;
+
+		mapped_id = tunnel_id & ESW_IPSEC_RX_MAPPED_ID_MASK;
+		if (mapped_id &&
+		    !mlx5_esw_ipsec_rx_make_metadata(priv, mapped_id, &metadata))
+			mlx5e_ipsec_offload_handle_rx_skb(priv->netdev, skb, metadata);
+	}
+#endif
+
+	if (!mlx5e_tc_update_skb(cqe, skb, mapping_ctx, reg_c0, ct_priv,
+				 zone_restore_id, tunnel_id, &tc_priv))
 		goto free_skb;
 
 forward:

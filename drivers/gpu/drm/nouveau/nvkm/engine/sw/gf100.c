@@ -102,7 +102,7 @@ gf100_sw_chan = {
 };
 
 static int
-gf100_sw_chan_new(struct nvkm_sw *sw, struct nvkm_fifo_chan *fifoch,
+gf100_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifoch,
 		  const struct nvkm_oclass *oclass,
 		  struct nvkm_object **pobject)
 {

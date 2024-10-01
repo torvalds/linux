@@ -900,8 +900,9 @@ int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 }
 
 int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		   struct ib_udata *udata)
+		   struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct ib_device *ibdev = ibcq->device;
 	struct qedr_ucontext *ctx = rdma_udata_to_drv_context(
 		udata, struct qedr_ucontext, ibucontext);
@@ -1358,7 +1359,7 @@ static void qedr_set_common_qp_params(struct qedr_dev *dev,
 
 	qp->prev_wqe_size = 0;
 
-	qp->signaled = (attrs->sq_sig_type == IB_SIGNAL_ALL_WR) ? true : false;
+	qp->signaled = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	qp->dev = dev;
 	if (qedr_qp_has_sq(qp)) {
 		qedr_reset_qp_hwq_info(&qp->sq);
@@ -1879,8 +1880,17 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 		/* RQ - read access only (0) */
 		rc = qedr_init_user_queue(udata, dev, &qp->urq, ureq.rq_addr,
 					  ureq.rq_len, true, 0, alloc_and_init);
-		if (rc)
+		if (rc) {
+			ib_umem_release(qp->usq.umem);
+			qp->usq.umem = NULL;
+			if (rdma_protocol_roce(&dev->ibdev, 1)) {
+				qedr_free_pbl(dev, &qp->usq.pbl_info,
+					      qp->usq.pbl_tbl);
+			} else {
+				kfree(qp->usq.pbl_tbl);
+			}
 			return rc;
+		}
 	}
 
 	memset(&in_params, 0, sizeof(in_params));

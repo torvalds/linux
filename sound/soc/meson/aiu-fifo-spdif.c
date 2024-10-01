@@ -27,7 +27,7 @@
 
 #define AIU_FIFO_SPDIF_BLOCK			8
 
-static struct snd_pcm_hardware fifo_spdif_pcm = {
+static const struct snd_pcm_hardware fifo_spdif_pcm = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
@@ -155,6 +155,9 @@ static int fifo_spdif_hw_params(struct snd_pcm_substream *substream,
 }
 
 const struct snd_soc_dai_ops aiu_fifo_spdif_dai_ops = {
+	.pcm_new	= aiu_fifo_pcm_new,
+	.probe		= aiu_fifo_spdif_dai_probe,
+	.remove		= aiu_fifo_dai_remove,
 	.trigger	= fifo_spdif_trigger,
 	.prepare	= fifo_spdif_prepare,
 	.hw_params	= fifo_spdif_hw_params,

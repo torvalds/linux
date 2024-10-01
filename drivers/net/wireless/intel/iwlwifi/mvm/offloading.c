@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2021-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2021-2022, 2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -30,7 +30,8 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       bool disable_offloading,
 			       bool offload_ns,
-			       u32 cmd_flags)
+			       u32 cmd_flags,
+			       u8 sta_id)
 {
 	union {
 		struct iwl_proto_offload_cmd_v1 v1;
@@ -204,6 +205,9 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 
 	if (!disable_offloading)
 		common->enabled = cpu_to_le32(enabled);
+
+	if (ver >= 4)
+		cmd.v4.sta_id = cpu_to_le32(sta_id);
 
 	hcmd.len[0] = size;
 	return iwl_mvm_send_cmd(mvm, &hcmd);

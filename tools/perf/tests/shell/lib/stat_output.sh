@@ -1,3 +1,4 @@
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
 # Return true if perf_event_paranoid is > $1 and not running as root.
@@ -78,7 +79,7 @@ check_per_thread()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat --per-thread -a $2 true
+	perf stat --per-thread -p $$ $2 true
 	commachecker --per-thread
 	echo "[Success]"
 }
@@ -93,6 +94,18 @@ check_per_cache_instance()
 	fi
 	perf stat --per-cache -a $2 true
 	commachecker --per-cache
+	echo "[Success]"
+}
+
+check_per_cluster()
+{
+	echo -n "Checking $1 output: per cluster "
+	if ParanoidAndNotRoot 0
+	then
+		echo "[Skip] paranoid and not root"
+		return
+	fi
+	perf stat --per-cluster -a $2 true
 	echo "[Success]"
 }
 

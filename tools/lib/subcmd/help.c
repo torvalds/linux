@@ -52,11 +52,21 @@ void uniq(struct cmdnames *cmds)
 	if (!cmds->cnt)
 		return;
 
-	for (i = j = 1; i < cmds->cnt; i++)
-		if (strcmp(cmds->names[i]->name, cmds->names[i-1]->name))
-			cmds->names[j++] = cmds->names[i];
-
+	for (i = 1; i < cmds->cnt; i++) {
+		if (!strcmp(cmds->names[i]->name, cmds->names[i-1]->name))
+			zfree(&cmds->names[i - 1]);
+	}
+	for (i = 0, j = 0; i < cmds->cnt; i++) {
+		if (cmds->names[i]) {
+			if (i == j)
+				j++;
+			else
+				cmds->names[j++] = cmds->names[i];
+		}
+	}
 	cmds->cnt = j;
+	while (j < i)
+		cmds->names[j++] = NULL;
 }
 
 void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes)
@@ -68,8 +78,13 @@ void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes)
 	while (ci < cmds->cnt && ei < excludes->cnt) {
 		cmp = strcmp(cmds->names[ci]->name, excludes->names[ei]->name);
 		if (cmp < 0) {
-			zfree(&cmds->names[cj]);
-			cmds->names[cj++] = cmds->names[ci++];
+			if (ci == cj) {
+				ci++;
+				cj++;
+			} else {
+				zfree(&cmds->names[cj]);
+				cmds->names[cj++] = cmds->names[ci++];
+			}
 		} else if (cmp == 0) {
 			ci++;
 			ei++;
@@ -77,10 +92,11 @@ void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes)
 			ei++;
 		}
 	}
-
-	while (ci < cmds->cnt) {
-		zfree(&cmds->names[cj]);
-		cmds->names[cj++] = cmds->names[ci++];
+	if (ci != cj) {
+		while (ci < cmds->cnt) {
+			zfree(&cmds->names[cj]);
+			cmds->names[cj++] = cmds->names[ci++];
+		}
 	}
 	for (ci = cj; ci < cmds->cnt; ci++)
 		zfree(&cmds->names[ci]);

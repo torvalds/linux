@@ -17,20 +17,19 @@
 struct device_node;
 
 #ifdef CONFIG_MFD_SYSCON
-extern struct regmap *device_node_to_regmap(struct device_node *np);
-extern struct regmap *syscon_node_to_regmap(struct device_node *np);
-extern struct regmap *syscon_regmap_lookup_by_compatible(const char *s);
-extern struct regmap *syscon_regmap_lookup_by_phandle(
-					struct device_node *np,
-					const char *property);
-extern struct regmap *syscon_regmap_lookup_by_phandle_args(
-					struct device_node *np,
-					const char *property,
-					int arg_count,
-					unsigned int *out_args);
-extern struct regmap *syscon_regmap_lookup_by_phandle_optional(
-					struct device_node *np,
-					const char *property);
+struct regmap *device_node_to_regmap(struct device_node *np);
+struct regmap *syscon_node_to_regmap(struct device_node *np);
+struct regmap *syscon_regmap_lookup_by_compatible(const char *s);
+struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np,
+					       const char *property);
+struct regmap *syscon_regmap_lookup_by_phandle_args(struct device_node *np,
+						    const char *property,
+						    int arg_count,
+						    unsigned int *out_args);
+struct regmap *syscon_regmap_lookup_by_phandle_optional(struct device_node *np,
+							const char *property);
+int of_syscon_register_regmap(struct device_node *np,
+			      struct regmap *regmap);
 #else
 static inline struct regmap *device_node_to_regmap(struct device_node *np)
 {
@@ -68,6 +67,12 @@ static inline struct regmap *syscon_regmap_lookup_by_phandle_optional(
 					const char *property)
 {
 	return NULL;
+}
+
+static inline int of_syscon_register_regmap(struct device_node *np,
+					struct regmap *regmap)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif

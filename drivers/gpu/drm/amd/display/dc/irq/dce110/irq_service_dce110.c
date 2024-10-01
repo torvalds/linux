@@ -61,27 +61,27 @@ static bool hpd_ack(struct irq_service *irq_service,
 	return true;
 }
 
-static const struct irq_source_info_funcs hpd_irq_info_funcs = {
+static struct irq_source_info_funcs hpd_irq_info_funcs  = {
 	.set = NULL,
 	.ack = hpd_ack
 };
 
-static const struct irq_source_info_funcs hpd_rx_irq_info_funcs = {
+static struct irq_source_info_funcs hpd_rx_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
 
-static const struct irq_source_info_funcs pflip_irq_info_funcs = {
+static struct irq_source_info_funcs pflip_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
 
-static const struct irq_source_info_funcs vblank_irq_info_funcs = {
+static struct irq_source_info_funcs vblank_irq_info_funcs = {
 	.set = dce110_vblank_set,
 	.ack = NULL
 };
 
-static const struct irq_source_info_funcs vupdate_irq_info_funcs = {
+static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
@@ -211,8 +211,12 @@ bool dce110_vblank_set(struct irq_service *irq_service,
 						   info->ext_id);
 	uint8_t pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
 
-	struct timing_generator *tg =
-			dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
+	struct timing_generator *tg;
+
+	if (pipe_offset >= MAX_PIPES)
+		return false;
+
+	tg = dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
 
 	if (enable) {
 		if (!tg || !tg->funcs->arm_vert_intr(tg, 2)) {
@@ -225,7 +229,7 @@ bool dce110_vblank_set(struct irq_service *irq_service,
 	return true;
 }
 
-static const struct irq_source_info_funcs dummy_irq_info_funcs = {
+static struct irq_source_info_funcs dummy_irq_info_funcs = {
 	.set = dal_irq_service_dummy_set,
 	.ack = dal_irq_service_dummy_ack
 };

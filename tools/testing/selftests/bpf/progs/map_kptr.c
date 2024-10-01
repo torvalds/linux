@@ -110,10 +110,14 @@ DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_ARRAY_OF_MAPS, array_map, array_of_array_maps);
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_ARRAY_OF_MAPS, hash_map, array_of_hash_maps);
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_ARRAY_OF_MAPS, hash_malloc_map, array_of_hash_malloc_maps);
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_ARRAY_OF_MAPS, lru_hash_map, array_of_lru_hash_maps);
+DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_ARRAY_OF_MAPS, pcpu_array_map, array_of_pcpu_array_maps);
+DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_ARRAY_OF_MAPS, pcpu_hash_map, array_of_pcpu_hash_maps);
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, array_map, hash_of_array_maps);
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, hash_map, hash_of_hash_maps);
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, hash_malloc_map, hash_of_hash_malloc_maps);
 DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, lru_hash_map, hash_of_lru_hash_maps);
+DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, pcpu_array_map, hash_of_pcpu_array_maps);
+DEFINE_MAP_OF_MAP(BPF_MAP_TYPE_HASH_OF_MAPS, pcpu_hash_map, hash_of_pcpu_hash_maps);
 
 #define WRITE_ONCE(x, val) ((*(volatile typeof(x) *) &(x)) = (val))
 
@@ -204,6 +208,8 @@ int test_map_kptr(struct __sk_buff *ctx)
 	TEST(hash_map);
 	TEST(hash_malloc_map);
 	TEST(lru_hash_map);
+	TEST(pcpu_array_map);
+	TEST(pcpu_hash_map);
 
 #undef TEST
 	return 0;
@@ -281,10 +287,14 @@ int test_map_in_map_kptr(struct __sk_buff *ctx)
 	TEST(array_of_hash_maps);
 	TEST(array_of_hash_malloc_maps);
 	TEST(array_of_lru_hash_maps);
+	TEST(array_of_pcpu_array_maps);
+	TEST(array_of_pcpu_hash_maps);
 	TEST(hash_of_array_maps);
 	TEST(hash_of_hash_maps);
 	TEST(hash_of_hash_malloc_maps);
 	TEST(hash_of_lru_hash_maps);
+	TEST(hash_of_pcpu_array_maps);
+	TEST(hash_of_pcpu_hash_maps);
 
 #undef TEST
 	return 0;

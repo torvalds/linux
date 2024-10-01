@@ -9,8 +9,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <sound/soc.h>
 
@@ -125,7 +124,7 @@ MODULE_DEVICE_TABLE(of, pcm030_audio_match);
 
 static struct platform_driver pcm030_fabric_driver = {
 	.probe		= pcm030_fabric_probe,
-	.remove_new	= pcm030_fabric_remove,
+	.remove		= pcm030_fabric_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table    = pcm030_audio_match,

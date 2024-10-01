@@ -12,6 +12,13 @@
 	model = "Toradex Colibri iMX6DL/S Module";
 	compatible = "toradex,colibri_imx6dl", "fsl,imx6dl";
 
+	aliases {
+		mmc0 = &usdhc3; /* eMMC */
+		mmc1 = &usdhc1; /* MMC/SD Slot */
+		/delete-property/ mmc2;
+		/delete-property/ mmc3;
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		brightness-levels = <0 45 63 88 119 158 203 255>;
@@ -26,7 +33,7 @@
 
 	extcon_usbc_det: usbc-det {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>; /* SODIMM 137 / USBC_DET */
+		id-gpios = <&gpio7 12 GPIO_ACTIVE_HIGH>; /* SODIMM 137 / USBC_DET */
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbc_det>;
 	};
@@ -135,12 +142,21 @@
 		ssi-controller = <&ssi1>;
 	};
 
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_in: spdif-in {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+
 	/* Optional S/PDIF in on SODIMM 88 and out on SODIMM 90, 137 or 168 */
 	sound_spdif: sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
-		spdif-controller = <&spdif>;
-		spdif-in;
-		spdif-out;
+		audio-cpu = <&spdif>;
+		audio-codec = <&spdif_out>, <&spdif_in>;
 		model = "imx-spdif";
 		status = "disabled";
 	};
@@ -543,7 +559,6 @@
 		blocks = <0x5>;
 		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio6>;
-		interrupt-controller;
 		id = <0>;
 		irq-trigger = <0x1>;
 		pinctrl-names = "default";

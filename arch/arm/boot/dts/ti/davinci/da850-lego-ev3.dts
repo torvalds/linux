@@ -234,7 +234,7 @@
 &pmx_core {
 	status = "okay";
 
-	ev3_lcd_pins: pinmux_lcd {
+	ev3_lcd_pins: lcd-pins {
 		pinctrl-single,bits = <
 			/* SIMO, CLK */
 			0x14 0x00100100 0x00f00f00
@@ -391,7 +391,7 @@
 	pinctrl-names = "default";
 	cs-gpios = <&gpio 44 GPIO_ACTIVE_LOW>;
 
-	display@0{
+	display@0 {
 		compatible = "lego,ev3-lcd";
 		reg = <0>;
 		spi-max-frequency = <10000000>;

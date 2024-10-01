@@ -18,7 +18,7 @@ static int pwm_lpss_probe_pci(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	const struct pwm_lpss_boardinfo *info;
-	struct pwm_lpss_chip *lpwm;
+	struct pwm_chip *chip;
 	int err;
 
 	err = pcim_enable_device(pdev);
@@ -30,11 +30,9 @@ static int pwm_lpss_probe_pci(struct pci_dev *pdev,
 		return err;
 
 	info = (struct pwm_lpss_boardinfo *)id->driver_data;
-	lpwm = devm_pwm_lpss_probe(&pdev->dev, pcim_iomap_table(pdev)[0], info);
-	if (IS_ERR(lpwm))
-		return PTR_ERR(lpwm);
-
-	pci_set_drvdata(pdev, lpwm);
+	chip = devm_pwm_lpss_probe(&pdev->dev, pcim_iomap_table(pdev)[0], info);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -47,25 +45,6 @@ static void pwm_lpss_remove_pci(struct pci_dev *pdev)
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 }
-
-static int pwm_lpss_runtime_suspend_pci(struct device *dev)
-{
-	/*
-	 * The PCI core will handle transition to D3 automatically. We only
-	 * need to provide runtime PM hooks for that to happen.
-	 */
-	return 0;
-}
-
-static int pwm_lpss_runtime_resume_pci(struct device *dev)
-{
-	return 0;
-}
-
-static DEFINE_RUNTIME_DEV_PM_OPS(pwm_lpss_pci_pm,
-				 pwm_lpss_runtime_suspend_pci,
-				 pwm_lpss_runtime_resume_pci,
-				 NULL);
 
 static const struct pci_device_id pwm_lpss_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x0ac8), (unsigned long)&pwm_lpss_bxt_info},
@@ -86,9 +65,6 @@ static struct pci_driver pwm_lpss_driver_pci = {
 	.id_table = pwm_lpss_pci_ids,
 	.probe = pwm_lpss_probe_pci,
 	.remove = pwm_lpss_remove_pci,
-	.driver = {
-		.pm = pm_ptr(&pwm_lpss_pci_pm),
-	},
 };
 module_pci_driver(pwm_lpss_driver_pci);
 

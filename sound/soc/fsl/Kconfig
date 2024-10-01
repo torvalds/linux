@@ -103,6 +103,7 @@ config SND_SOC_FSL_XCVR
 	select REGMAP_MMIO
 	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
 	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_SOC_FSL_UTILS
 	help
 	  Say Y if you want to add Audio Transceiver (XCVR) support for NXP
 	  iMX CPUs. XCVR is a digital module that supports HDMI2.1 eARC,
@@ -121,6 +122,7 @@ config SND_SOC_FSL_UTILS
 config SND_SOC_FSL_RPMSG
 	tristate "NXP Audio Base On RPMSG support"
 	depends on COMMON_CLK
+	depends on OF && I2C
 	depends on RPMSG
 	depends on SND_IMX_SOC || SND_IMX_SOC = n
 	select SND_SOC_IMX_RPMSG if SND_IMX_SOC != n
@@ -128,6 +130,13 @@ config SND_SOC_FSL_RPMSG
 	  Say Y if you want to add rpmsg audio support for the Freescale CPUs.
 	  This option is only useful for out-of-tree drivers since
 	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_LPC3XXX
+	tristate "SoC Audio for NXP LPC32XX CPUs"
+	depends on ARCH_LPC32XX || COMPILE_TEST
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for the LPC3XXX I2S interface.
 
 config SND_SOC_IMX_PCM_DMA
 	tristate
@@ -182,19 +191,6 @@ config SND_SOC_POWERPC_QMC_AUDIO
 	  QMC.
 
 comment "SoC Audio support for Freescale PPC boards:"
-
-config SND_SOC_MPC8610_HPCD
-	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
-	# I2C is necessary for the CS4270 driver
-	depends on MPC8610_HPCD && I2C
-	select SND_SOC_FSL_SSI
-	select SND_SOC_FSL_UTILS
-	select SND_SOC_POWERPC_DMA
-	select SND_SOC_CS4270
-	select SND_SOC_CS4270_VD33_ERRATA
-	default y if MPC8610_HPCD
-	help
-	  Say Y if you want to enable audio on the Freescale MPC8610 HPCD.
 
 config SND_SOC_P1022_DS
 	tristate "ALSA SoC support for the Freescale P1022 DS board"
@@ -307,15 +303,6 @@ config SND_SOC_IMX_SGTL5000
 	  SND_SOC_FSL_ASOC_CARD and SND_SOC_SGTL5000 to use the newer
 	  driver.
 
-config SND_SOC_IMX_SPDIF
-	tristate "SoC Audio support for i.MX boards with S/PDIF"
-	select SND_SOC_IMX_PCM_DMA
-	select SND_SOC_FSL_SPDIF
-	help
-	  SoC Audio support for i.MX boards with S/PDIF
-	  Say Y if you want to add support for SoC audio on an i.MX board with
-	  a S/DPDIF.
-
 config SND_SOC_FSL_ASOC_CARD
 	tristate "Generic ASoC Sound Card with ASRC support"
 	depends on OF && I2C
@@ -327,6 +314,7 @@ config SND_SOC_FSL_ASOC_CARD
 	select SND_SOC_FSL_ESAI
 	select SND_SOC_FSL_SAI
 	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_SPDIF
 	select SND_SOC_TLV320AIC31XX
 	select SND_SOC_WM8994
 	select MFD_WM8994
@@ -360,6 +348,7 @@ config SND_SOC_IMX_HDMI
 config SND_SOC_IMX_RPMSG
 	tristate "SoC Audio support for i.MX boards with rpmsg"
 	depends on RPMSG
+	depends on OF && I2C
 	select SND_SOC_IMX_PCM_RPMSG
 	select SND_SOC_IMX_AUDIO_RPMSG
 	help

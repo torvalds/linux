@@ -6,7 +6,7 @@
  * Basic signal handling related data type definitions:
  */
 
-#include <linux/list.h>
+#include <linux/types.h>
 #include <uapi/linux/signal.h>
 
 typedef struct kernel_siginfo {

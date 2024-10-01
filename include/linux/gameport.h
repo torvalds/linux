@@ -58,12 +58,12 @@ struct gameport_driver {
 
 	bool ignore;
 };
-#define to_gameport_driver(d)	container_of(d, struct gameport_driver, driver)
+#define to_gameport_driver(d)	container_of_const(d, struct gameport_driver, driver)
 
 int gameport_open(struct gameport *gameport, struct gameport_driver *drv, int mode);
 void gameport_close(struct gameport *gameport);
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 
 void __gameport_register_port(struct gameport *gameport, struct module *owner);
 /* use a define to avoid include chaining to get THIS_MODULE */

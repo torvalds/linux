@@ -458,7 +458,7 @@ const struct regmap_config cs42xx8_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(cs42xx8_reg),
 	.volatile_reg = cs42xx8_volatile_register,
 	.writeable_reg = cs42xx8_writeable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(cs42xx8_regmap_config);
 

@@ -86,3 +86,4 @@ static void __exit ip_vs_lc_cleanup(void)
 module_init(ip_vs_lc_init);
 module_exit(ip_vs_lc_cleanup);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ipvs least connection scheduler");

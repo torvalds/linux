@@ -4,7 +4,7 @@
 
 extern time64_t pas_get_boot_time(void);
 extern void pas_pci_init(void);
-extern void pas_pci_irq_fixup(struct pci_dev *dev);
+struct pci_dev;
 extern void pas_pci_dma_dev_setup(struct pci_dev *dev);
 
 void __iomem *__init pasemi_pci_getcfgaddr(struct pci_dev *dev, int offset);

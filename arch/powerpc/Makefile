@@ -10,15 +10,26 @@
 # Rewritten by Cort Dougan and Paul Mackerras
 #
 
+ifdef cross_compiling
+  ifeq ($(CROSS_COMPILE),)
+    # Auto detect cross compiler prefix.
+    # Look for: (powerpc(64(le)?)?)(-unknown)?-linux(-gnu)?-
+    CC_ARCHES := powerpc powerpc64 powerpc64le
+    CC_SUFFIXES := linux linux-gnu unknown-linux-gnu
+    CROSS_COMPILE := $(call cc-cross-prefix, $(foreach a,$(CC_ARCHES), \
+                       $(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
+  endif
+endif
+
 HAS_BIARCH	:= $(call cc-option-yn, -m32)
 
 # Set default 32 bits cross compilers for vdso and boot wrapper
 CROSS32_COMPILE ?=
 
 # If we're on a ppc/ppc64/ppc64le machine use that defconfig, otherwise just use
-# ppc64_defconfig because we have nothing better to go on.
+# ppc64le_defconfig because we have nothing better to go on.
 uname := $(shell uname -m)
-KBUILD_DEFCONFIG := $(if $(filter ppc%,$(uname)),$(uname),ppc64)_defconfig
+KBUILD_DEFCONFIG := $(if $(filter ppc%,$(uname)),$(uname),ppc64le)_defconfig
 
 new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
 
@@ -103,7 +114,6 @@ LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 
 ifdef CONFIG_PPC64
 ifndef CONFIG_PPC_KERNEL_PCREL
-ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	# -mcmodel=medium breaks modules because it uses 32bit offsets from
 	# the TOC pointer to create pointers where possible. Pointers into the
 	# percpu data area are created by this method.
@@ -113,9 +123,6 @@ ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	# kernel percpu data space (starting with 0xc...). We need a full
 	# 64bit relocation for this to work, hence -mcmodel=large.
 	KBUILD_CFLAGS_MODULE += -mcmodel=large
-else
-	export NO_MINIMAL_TOC := -mno-minimal-toc
-endif
 endif
 endif
 
@@ -128,39 +135,45 @@ CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv1)
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcall-aixdesc)
 endif
 endif
-CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcmodel=medium,$(call cc-option,-mminimal-toc))
+CFLAGS-$(CONFIG_PPC64)	+= -mcmodel=medium
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mno-pointers-to-nested-functions)
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mlong-double-128)
 
 # Clang unconditionally reserves r2 on ppc32 and does not support the flag
-# https://bugs.llvm.org/show_bug.cgi?id=39555
+# https://llvm.org/pr39555
 CFLAGS-$(CONFIG_PPC32)	:= $(call cc-option, -ffixed-r2)
 
 # Clang doesn't support -mmultiple / -mno-multiple
-# https://bugs.llvm.org/show_bug.cgi?id=39556
+# https://llvm.org/pr39556
 CFLAGS-$(CONFIG_PPC32)	+= $(call cc-option, $(MULTIPLEWORD))
 
 CFLAGS-$(CONFIG_PPC32)	+= $(call cc-option,-mno-readonly-in-sdata)
 
+CC_FLAGS_FPU		:= $(call cc-option,-mhard-float)
+CC_FLAGS_NO_FPU		:= $(call cc-option,-msoft-float)
+
 ifdef CONFIG_FUNCTION_TRACER
+ifdef CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY
+KBUILD_CPPFLAGS	+= -DCC_USING_PATCHABLE_FUNCTION_ENTRY
+CC_FLAGS_FTRACE := -fpatchable-function-entry=2
+else
 CC_FLAGS_FTRACE := -pg
 ifdef CONFIG_MPROFILE_KERNEL
 CC_FLAGS_FTRACE += -mprofile-kernel
+endif
 endif
 endif
 
 CFLAGS-$(CONFIG_TARGET_CPU_BOOL) += -mcpu=$(CONFIG_TARGET_CPU)
 AFLAGS-$(CONFIG_TARGET_CPU_BOOL) += -mcpu=$(CONFIG_TARGET_CPU)
 
-CFLAGS-$(CONFIG_POWERPC64_CPU) += $(call cc-option,-mtune=power10,	\
-				  $(call cc-option,-mtune=power9,	\
-				  $(call cc-option,-mtune=power8)))
+CFLAGS-y += $(CONFIG_TUNE_CPU)
 
 asinstr := $(call as-instr,lis 9$(comma)foo@high,-DHAVE_AS_ATHIGH=1)
 
-KBUILD_CPPFLAGS	+= -I $(srctree)/arch/$(ARCH) $(asinstr)
+KBUILD_CPPFLAGS	+= -I $(srctree)/arch/powerpc $(asinstr)
 KBUILD_AFLAGS	+= $(AFLAGS-y)
-KBUILD_CFLAGS	+= $(call cc-option,-msoft-float)
+KBUILD_CFLAGS	+= $(CC_FLAGS_NO_FPU)
 KBUILD_CFLAGS	+= $(CFLAGS-y)
 CPP		= $(CC) -E $(KBUILD_CFLAGS)
 
@@ -205,18 +218,6 @@ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 # often slow when they are implemented at all
 KBUILD_CFLAGS		+= $(call cc-option,-mno-string)
 
-cpu-as-$(CONFIG_ALTIVEC)	+= $(call as-option,-Wa$(comma)-maltivec)
-
-# When using '-many -mpower4' gas will first try and find a matching power4
-# mnemonic and failing that it will allow any valid mnemonic that GAS knows
-# about. GCC will pass -many to GAS when assembling, clang does not.
-# LLVM IAS doesn't understand either flag: https://github.com/ClangBuiltLinux/linux/issues/675
-# but LLVM IAS only supports ISA >= 2.06 for Book3S 64 anyway...
-cpu-as-$(CONFIG_PPC_BOOK3S_64)	+= $(call as-option,-Wa$(comma)-mpower4) $(call as-option,-Wa$(comma)-many)
-
-KBUILD_AFLAGS += $(cpu-as-y)
-KBUILD_CFLAGS += $(cpu-as-y)
-
 KBUILD_AFLAGS += $(aflags-y)
 KBUILD_CFLAGS += $(cflags-y)
 
@@ -229,7 +230,7 @@ BOOT_TARGETS2 := zImage% dtbImage% treeImage.% cuImage.% simpleImage.% uImage.%
 
 PHONY += $(BOOT_TARGETS1) $(BOOT_TARGETS2)
 
-boot := arch/$(ARCH)/boot
+boot := arch/powerpc/boot
 
 $(BOOT_TARGETS1): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
@@ -300,6 +301,21 @@ ppc32_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/book3s_32.config \
 		-f $(srctree)/Makefile allmodconfig
 
+generated_configs += ppc44x_allmodconfig
+ppc44x_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/44x.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc8xx_allmodconfig
+ppc8xx_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/8xx.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc85xx_allmodconfig
+ppc85xx_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/85xx-32bit.config \
+		-f $(srctree)/Makefile allmodconfig
+
 generated_configs += ppc_defconfig
 ppc_defconfig:
 	$(call merge_into_defconfig,book3s_32.config,)
@@ -333,7 +349,7 @@ PHONY += $(generated_configs)
 
 define archhelp
   echo '* zImage          - Build default images selected by kernel config'
-  echo '  zImage.*        - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
+  echo '  zImage.*        - Compressed kernel image (arch/powerpc/boot/zImage.*)'
   echo '  uImage          - U-Boot native image format'
   echo '  cuImage.<dt>    - Backwards compatible U-Boot image for older'
   echo '                    versions which do not support device trees'
@@ -344,12 +360,12 @@ define archhelp
   echo '                    (your) ~/bin/$(INSTALLKERNEL) or'
   echo '                    (distribution) /sbin/$(INSTALLKERNEL) or'
   echo '                    install to $$(INSTALL_PATH) and run lilo'
-  echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
+  echo '  *_defconfig     - Select default config from arch/powerpc/configs'
   echo ''
   echo '  Targets with <dt> embed a device tree blob inside the image'
   echo '  These targets support board with firmware that does not'
   echo '  support passing a device tree directly.  Replace <dt> with the'
-  echo '  name of a dts file from the arch/$(ARCH)/boot/dts/ directory'
+  echo '  name of a dts file from the arch/powerpc/boot/dts/ directory'
   echo '  (minus the .dts extension).'
   echo
   $(foreach cfg,$(generated_configs),

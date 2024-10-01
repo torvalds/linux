@@ -686,6 +686,7 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param(seq, p, host_channels);
 	print_param(seq, p, phy_type);
 	print_param(seq, p, phy_utmi_width);
+	print_param(seq, p, eusb2_disc);
 	print_param(seq, p, phy_ulpi_ddr);
 	print_param(seq, p, phy_ulpi_ext_vbus);
 	print_param(seq, p, i2c_enable);
@@ -701,6 +702,7 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param(seq, p, uframe_sched);
 	print_param(seq, p, external_id_pin_ctl);
 	print_param(seq, p, power_down);
+	print_param(seq, p, no_clock_gating);
 	print_param(seq, p, lpm);
 	print_param(seq, p, lpm_clock_gating);
 	print_param(seq, p, besl);

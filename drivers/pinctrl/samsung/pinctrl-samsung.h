@@ -61,6 +61,25 @@ enum pincfg_type {
 #define PIN_CON_FUNC_INPUT		0x0
 #define PIN_CON_FUNC_OUTPUT		0x1
 
+/* Values for the pin PUD register */
+#define EXYNOS_PIN_PUD_PULL_DISABLE	0x0
+#define EXYNOS_PIN_PID_PULL_DOWN	0x1
+#define EXYNOS_PIN_PID_PULL_UP		0x3
+
+/*
+ * enum pud_index - Possible index values to access the pud_val array.
+ * @PUD_PULL_DISABLE: Index for the value of pud disable
+ * @PUD_PULL_DOWN: Index for the value of pull down enable
+ * @PUD_PULL_UP: Index for the value of pull up enable
+ * @PUD_MAX: Maximum value of the index
+ */
+enum pud_index {
+	PUD_PULL_DISABLE,
+	PUD_PULL_DOWN,
+	PUD_PULL_UP,
+	PUD_MAX,
+};
+
 /**
  * enum eint_type - possible external interrupt types.
  * @EINT_TYPE_NONE: bank does not support external interrupts
@@ -122,6 +141,9 @@ struct samsung_pin_bank_type {
  * @eint_type: type of the external interrupt supported by the bank.
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
+ * @eint_con_offset: ExynosAuto SoC-specific EINT control register offset of bank.
+ * @eint_mask_offset: ExynosAuto SoC-specific EINT mask register offset of bank.
+ * @eint_pend_offset: ExynosAuto SoC-specific EINT pend register offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
  */
 struct samsung_pin_bank_data {
@@ -133,6 +155,9 @@ struct samsung_pin_bank_data {
 	enum eint_type	eint_type;
 	u32		eint_mask;
 	u32		eint_offset;
+	u32		eint_con_offset;
+	u32		eint_mask_offset;
+	u32		eint_pend_offset;
 	const char	*name;
 };
 
@@ -147,7 +172,11 @@ struct samsung_pin_bank_data {
  * @eint_type: type of the external interrupt supported by the bank.
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
+ * @eint_con_offset: ExynosAuto SoC-specific EINT register or interrupt offset of bank.
+ * @eint_mask_offset: ExynosAuto SoC-specific EINT mask register offset of bank.
+ * @eint_pend_offset: ExynosAuto SoC-specific EINT pend register offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
+ * @id: id of the bank, propagated to the pin range.
  * @pin_base: starting pin number of the bank.
  * @soc_priv: per-bank private data for SoC-specific code.
  * @of_node: OF node of the bank.
@@ -169,7 +198,11 @@ struct samsung_pin_bank {
 	enum eint_type	eint_type;
 	u32		eint_mask;
 	u32		eint_offset;
+	u32		eint_con_offset;
+	u32		eint_mask_offset;
+	u32		eint_pend_offset;
 	const char	*name;
+	u32		id;
 
 	u32		pin_base;
 	void		*soc_priv;
@@ -247,6 +280,7 @@ struct samsung_pin_ctrl {
 
 	int		(*eint_gpio_init)(struct samsung_pinctrl_drv_data *);
 	int		(*eint_wkup_init)(struct samsung_pinctrl_drv_data *);
+	void		(*pud_value_init)(struct samsung_pinctrl_drv_data *drvdata);
 	void		(*suspend)(struct samsung_pinctrl_drv_data *);
 	void		(*resume)(struct samsung_pinctrl_drv_data *);
 };
@@ -260,6 +294,7 @@ struct samsung_pin_ctrl {
  *             through samsung_pinctrl_drv_data, not samsung_pin_bank).
  * @dev: device instance representing the controller.
  * @irq: interrpt number used by the controller to notify gpio interrupts.
+ * @pclk: optional bus clock if required for accessing registers
  * @ctrl: pin controller instance managed by the driver.
  * @pctl: pin controller descriptor registered with the pinctrl subsystem.
  * @pctl_dev: cookie representing pinctrl device instance.
@@ -267,7 +302,6 @@ struct samsung_pin_ctrl {
  * @nr_groups: number of such pin groups.
  * @pmx_functions: list of pin functions available to the driver.
  * @nr_function: number of such pin functions.
- * @pin_base: starting system wide pin number.
  * @nr_pins: number of pins supported by the controller.
  * @retention_ctrl: retention control runtime data.
  * @suspend: platform specific suspend callback, executed during pin controller
@@ -280,6 +314,7 @@ struct samsung_pinctrl_drv_data {
 	void __iomem			*virt_base;
 	struct device			*dev;
 	int				irq;
+	struct clk			*pclk;
 
 	struct pinctrl_desc		pctl;
 	struct pinctrl_dev		*pctl_dev;
@@ -291,8 +326,8 @@ struct samsung_pinctrl_drv_data {
 
 	struct samsung_pin_bank		*pin_banks;
 	unsigned int			nr_banks;
-	unsigned int			pin_base;
 	unsigned int			nr_pins;
+	unsigned int			pud_val[PUD_MAX];
 
 	struct samsung_retention_ctrl	*retention_ctrl;
 
@@ -350,7 +385,9 @@ extern const struct samsung_pinctrl_of_match_data exynos7_of_data;
 extern const struct samsung_pinctrl_of_match_data exynos7885_of_data;
 extern const struct samsung_pinctrl_of_match_data exynos850_of_data;
 extern const struct samsung_pinctrl_of_match_data exynosautov9_of_data;
+extern const struct samsung_pinctrl_of_match_data exynosautov920_of_data;
 extern const struct samsung_pinctrl_of_match_data fsd_of_data;
+extern const struct samsung_pinctrl_of_match_data gs101_of_data;
 extern const struct samsung_pinctrl_of_match_data s3c64xx_of_data;
 extern const struct samsung_pinctrl_of_match_data s3c2412_of_data;
 extern const struct samsung_pinctrl_of_match_data s3c2416_of_data;

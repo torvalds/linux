@@ -2199,7 +2199,7 @@ MODULE_DEVICE_TABLE(acpi, rt5651_acpi_match);
 #endif
 
 static const struct i2c_device_id rt5651_i2c_id[] = {
-	{ "rt5651", 0 },
+	{ "rt5651" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
@@ -2261,7 +2261,7 @@ static int rt5651_i2c_probe(struct i2c_client *i2c)
 			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			       | IRQF_ONESHOT | IRQF_NO_AUTOEN, "rt5651", rt5651);
 	if (ret) {
-		dev_warn(&i2c->dev, "Failed to reguest IRQ %d: %d\n",
+		dev_warn(&i2c->dev, "Failed to request IRQ %d: %d\n",
 			 rt5651->irq, ret);
 		rt5651->irq = -ENXIO;
 	}

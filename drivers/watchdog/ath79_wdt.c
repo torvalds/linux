@@ -231,7 +231,6 @@ static long ath79_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations ath79_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= ath79_wdt_write,
 	.unlocked_ioctl	= ath79_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -257,19 +256,13 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt_base))
 		return PTR_ERR(wdt_base);
 
-	wdt_clk = devm_clk_get(&pdev->dev, "wdt");
+	wdt_clk = devm_clk_get_enabled(&pdev->dev, "wdt");
 	if (IS_ERR(wdt_clk))
 		return PTR_ERR(wdt_clk);
 
-	err = clk_prepare_enable(wdt_clk);
-	if (err)
-		return err;
-
 	wdt_freq = clk_get_rate(wdt_clk);
-	if (!wdt_freq) {
-		err = -EINVAL;
-		goto err_clk_disable;
-	}
+	if (!wdt_freq)
+		return -EINVAL;
 
 	max_timeout = (0xfffffffful / wdt_freq);
 	if (timeout < 1 || timeout > max_timeout) {
@@ -286,20 +279,15 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev,
 			"unable to register misc device, err=%d\n", err);
-		goto err_clk_disable;
+		return err;
 	}
 
 	return 0;
-
-err_clk_disable:
-	clk_disable_unprepare(wdt_clk);
-	return err;
 }
 
 static void ath79_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ath79_wdt_miscdev);
-	clk_disable_unprepare(wdt_clk);
 }
 
 static void ath79_wdt_shutdown(struct platform_device *pdev)

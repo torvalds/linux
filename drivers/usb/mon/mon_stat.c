@@ -35,9 +35,9 @@ static int mon_stat_open(struct inode *inode, struct file *file)
 
 	mbus = inode->i_private;
 
-	sp->slen = snprintf(sp->str, STAT_BUF_SIZE,
-	    "nreaders %d events %u text_lost %u\n",
-	    mbus->nreaders, mbus->cnt_events, mbus->cnt_text_lost);
+	sp->slen = scnprintf(sp->str, STAT_BUF_SIZE,
+			     "nreaders %d events %u text_lost %u\n",
+			     mbus->nreaders, mbus->cnt_events, mbus->cnt_text_lost);
 
 	file->private_data = sp;
 	return 0;
@@ -62,7 +62,6 @@ static int mon_stat_release(struct inode *inode, struct file *file)
 const struct file_operations mon_fops_stat = {
 	.owner =	THIS_MODULE,
 	.open =		mon_stat_open,
-	.llseek =	no_llseek,
 	.read =		mon_stat_read,
 	/* .write =	mon_stat_write, */
 	/* .poll =		mon_stat_poll, */

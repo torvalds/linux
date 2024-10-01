@@ -304,7 +304,7 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 	sun3_udc_write(UDC_INT_ENABLE, UDC_CSR);
 #endif
 	
-       	return count;
+	return count;
 
 }
 
@@ -641,7 +641,7 @@ fail_alloc:
 	return error;
 }
 
-static int __exit sun3_scsi_remove(struct platform_device *pdev)
+static void __exit sun3_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
@@ -654,11 +654,10 @@ static int __exit sun3_scsi_remove(struct platform_device *pdev)
 	if (udc_regs)
 		dvma_free(udc_regs);
 	iounmap(ioaddr);
-	return 0;
 }
 
 static struct platform_driver sun3_scsi_driver = {
-	.remove = __exit_p(sun3_scsi_remove),
+	.remove_new = __exit_p(sun3_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},
@@ -667,4 +666,5 @@ static struct platform_driver sun3_scsi_driver = {
 module_platform_driver_probe(sun3_scsi_driver, sun3_scsi_probe);
 
 MODULE_ALIAS("platform:" DRV_MODULE_NAME);
+MODULE_DESCRIPTION("Sun3 NCR5380 SCSI controller driver");
 MODULE_LICENSE("GPL");

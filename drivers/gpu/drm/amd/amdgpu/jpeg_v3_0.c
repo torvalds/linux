@@ -52,7 +52,7 @@ static int jpeg_v3_0_early_init(void *handle)
 
 	u32 harvest;
 
-	switch (adev->ip_versions[UVD_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
 	case IP_VERSION(3, 1, 1):
 	case IP_VERSION(3, 1, 2):
 		break;
@@ -146,18 +146,11 @@ static int jpeg_v3_0_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
-	int r;
 
 	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 		(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
 
-	r = amdgpu_ring_test_helper(ring);
-	if (r)
-		return r;
-
-	DRM_INFO("JPEG decode initialized successfully.\n");
-
-	return 0;
+	return amdgpu_ring_test_helper(ring);
 }
 
 /**
@@ -479,7 +472,7 @@ static int jpeg_v3_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 
 	if (enable) {
 		if (!jpeg_v3_0_is_idle(handle))
@@ -557,6 +550,8 @@ static const struct amd_ip_funcs jpeg_v3_0_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = jpeg_v3_0_set_clockgating_state,
 	.set_powergating_state = jpeg_v3_0_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs jpeg_v3_0_dec_ring_vm_funcs = {
@@ -565,6 +560,7 @@ static const struct amdgpu_ring_funcs jpeg_v3_0_dec_ring_vm_funcs = {
 	.get_rptr = jpeg_v3_0_dec_ring_get_rptr,
 	.get_wptr = jpeg_v3_0_dec_ring_get_wptr,
 	.set_wptr = jpeg_v3_0_dec_ring_set_wptr,
+	.parse_cs = jpeg_v2_dec_ring_parse_cs,
 	.emit_frame_size =
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
@@ -591,7 +587,6 @@ static const struct amdgpu_ring_funcs jpeg_v3_0_dec_ring_vm_funcs = {
 static void jpeg_v3_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->jpeg.inst->ring_dec->funcs = &jpeg_v3_0_dec_ring_vm_funcs;
-	DRM_INFO("JPEG decode is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs jpeg_v3_0_irq_funcs = {

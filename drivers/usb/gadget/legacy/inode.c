@@ -31,6 +31,12 @@
 
 #include <linux/usb/gadgetfs.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/composite.h> /* for USB_GADGET_DELAYED_STATUS */
+
+/* Undef helpers from linux/usb/composite.h as gadgetfs redefines them */
+#undef DBG
+#undef ERROR
+#undef INFO
 
 
 /*
@@ -699,7 +705,6 @@ static const struct file_operations ep_io_operations = {
 
 	.open =		ep_open,
 	.release =	ep_release,
-	.llseek =	no_llseek,
 	.unlocked_ioctl = ep_ioctl,
 	.read_iter =	ep_read_iter,
 	.write_iter =	ep_write_iter,
@@ -1511,7 +1516,16 @@ delegate:
 			event->u.setup = *ctrl;
 			ep0_readable (dev);
 			spin_unlock (&dev->lock);
-			return 0;
+			/*
+			 * Return USB_GADGET_DELAYED_STATUS as a workaround to
+			 * stop some UDC drivers (e.g. dwc3) from automatically
+			 * proceeding with the status stage for 0-length
+			 * transfers.
+			 * Should be removed once all UDC drivers are fixed to
+			 * always delay the status stage until a response is
+			 * queued to EP0.
+			 */
+			return w_length == 0 ? USB_GADGET_DELAYED_STATUS : 0;
 		}
 	}
 
@@ -1924,7 +1938,6 @@ gadget_dev_open (struct inode *inode, struct file *fd)
 }
 
 static const struct file_operations ep0_operations = {
-	.llseek =	no_llseek,
 
 	.open =		gadget_dev_open,
 	.read =		ep0_read,
@@ -1969,8 +1982,7 @@ gadgetfs_make_inode (struct super_block *sb,
 		inode->i_mode = mode;
 		inode->i_uid = make_kuid(&init_user_ns, default_uid);
 		inode->i_gid = make_kgid(&init_user_ns, default_gid);
-		inode->i_atime = inode->i_mtime = inode->i_ctime
-				= current_time(inode);
+		simple_inode_init_ts(inode);
 		inode->i_private = data;
 		inode->i_fop = fops;
 	}

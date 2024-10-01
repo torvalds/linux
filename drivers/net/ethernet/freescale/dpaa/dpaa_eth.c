@@ -7,8 +7,8 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/io.h>
@@ -17,6 +17,7 @@
 #include <linux/icmp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/platform_device.h>
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/net.h>
@@ -228,7 +229,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->max_mtu = dpaa_get_max_mtu();
 
 	net_dev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				 NETIF_F_LLTX | NETIF_F_RXHASH);
+				 NETIF_F_RXHASH);
 
 	net_dev->hw_features |= NETIF_F_SG | NETIF_F_HIGHDMA;
 	/* The kernels enables GSO automatically, if we declare NETIF_F_SG.
@@ -238,6 +239,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->features |= NETIF_F_RXCSUM;
 
 	net_dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	net_dev->lltx = true;
 	/* we do not want shared skbs on TX */
 	net_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
@@ -370,6 +372,7 @@ static int dpaa_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 			 void *type_data)
 {
 	struct dpaa_priv *priv = netdev_priv(net_dev);
+	int num_txqs_per_tc = dpaa_num_txqs_per_tc();
 	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 num_tc;
 	int i;
@@ -397,12 +400,12 @@ static int dpaa_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	netdev_set_num_tc(net_dev, num_tc);
 
 	for (i = 0; i < num_tc; i++)
-		netdev_set_tc_queue(net_dev, i, DPAA_TC_TXQ_NUM,
-				    i * DPAA_TC_TXQ_NUM);
+		netdev_set_tc_queue(net_dev, i, num_txqs_per_tc,
+				    i * num_txqs_per_tc);
 
 out:
 	priv->num_tc = num_tc ? : 1;
-	netif_set_real_num_tx_queues(net_dev, priv->num_tc * DPAA_TC_TXQ_NUM);
+	netif_set_real_num_tx_queues(net_dev, priv->num_tc * num_txqs_per_tc);
 	return 0;
 }
 
@@ -648,7 +651,7 @@ static inline void dpaa_assign_wq(struct dpaa_fq *fq, int idx)
 		fq->wq = 6;
 		break;
 	case FQ_TYPE_TX:
-		switch (idx / DPAA_TC_TXQ_NUM) {
+		switch (idx / dpaa_num_txqs_per_tc()) {
 		case 0:
 			/* Low priority (best effort) */
 			fq->wq = 6;
@@ -666,8 +669,8 @@ static inline void dpaa_assign_wq(struct dpaa_fq *fq, int idx)
 			fq->wq = 0;
 			break;
 		default:
-			WARN(1, "Too many TX FQs: more than %d!\n",
-			     DPAA_ETH_TXQ_NUM);
+			WARN(1, "Too many TX FQs: more than %zu!\n",
+			     dpaa_max_num_txqs());
 		}
 		break;
 	default:
@@ -739,7 +742,8 @@ static int dpaa_alloc_all_fqs(struct device *dev, struct list_head *list,
 
 	port_fqs->rx_pcdq = &dpaa_fq[0];
 
-	if (!dpaa_fq_alloc(dev, 0, DPAA_ETH_TXQ_NUM, list, FQ_TYPE_TX_CONF_MQ))
+	if (!dpaa_fq_alloc(dev, 0, dpaa_max_num_txqs(), list,
+			   FQ_TYPE_TX_CONF_MQ))
 		goto fq_alloc_failed;
 
 	dpaa_fq = dpaa_fq_alloc(dev, 0, 1, list, FQ_TYPE_TX_ERROR);
@@ -754,7 +758,7 @@ static int dpaa_alloc_all_fqs(struct device *dev, struct list_head *list,
 
 	port_fqs->tx_defq = &dpaa_fq[0];
 
-	if (!dpaa_fq_alloc(dev, 0, DPAA_ETH_TXQ_NUM, list, FQ_TYPE_TX))
+	if (!dpaa_fq_alloc(dev, 0, dpaa_max_num_txqs(), list, FQ_TYPE_TX))
 		goto fq_alloc_failed;
 
 	return 0;
@@ -930,14 +934,18 @@ static inline void dpaa_setup_egress(const struct dpaa_priv *priv,
 	}
 }
 
-static void dpaa_fq_setup(struct dpaa_priv *priv,
-			  const struct dpaa_fq_cbs *fq_cbs,
-			  struct fman_port *tx_port)
+static int dpaa_fq_setup(struct dpaa_priv *priv,
+			 const struct dpaa_fq_cbs *fq_cbs,
+			 struct fman_port *tx_port)
 {
 	int egress_cnt = 0, conf_cnt = 0, num_portals = 0, portal_cnt = 0, cpu;
 	const cpumask_t *affine_cpus = qman_affine_cpus();
-	u16 channels[NR_CPUS];
 	struct dpaa_fq *fq;
+	u16 *channels;
+
+	channels = kcalloc(num_possible_cpus(), sizeof(u16), GFP_KERNEL);
+	if (!channels)
+		return -ENOMEM;
 
 	for_each_cpu_and(cpu, affine_cpus, cpu_online_mask)
 		channels[num_portals++] = qman_affine_channel(cpu);
@@ -964,11 +972,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 		case FQ_TYPE_TX:
 			dpaa_setup_egress(priv, fq, tx_port,
 					  &fq_cbs->egress_ern);
-			/* If we have more Tx queues than the number of cores,
-			 * just ignore the extra ones.
-			 */
-			if (egress_cnt < DPAA_ETH_TXQ_NUM)
-				priv->egress_fqs[egress_cnt++] = &fq->fq_base;
+			priv->egress_fqs[egress_cnt++] = &fq->fq_base;
 			break;
 		case FQ_TYPE_TX_CONF_MQ:
 			priv->conf_fqs[conf_cnt++] = &fq->fq_base;
@@ -986,16 +990,9 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 		}
 	}
 
-	 /* Make sure all CPUs receive a corresponding Tx queue. */
-	while (egress_cnt < DPAA_ETH_TXQ_NUM) {
-		list_for_each_entry(fq, &priv->dpaa_fq_list, list) {
-			if (fq->fq_type != FQ_TYPE_TX)
-				continue;
-			priv->egress_fqs[egress_cnt++] = &fq->fq_base;
-			if (egress_cnt == DPAA_ETH_TXQ_NUM)
-				break;
-		}
-	}
+	kfree(channels);
+
+	return 0;
 }
 
 static inline int dpaa_tx_fq_to_id(const struct dpaa_priv *priv,
@@ -1003,7 +1000,7 @@ static inline int dpaa_tx_fq_to_id(const struct dpaa_priv *priv,
 {
 	int i;
 
-	for (i = 0; i < DPAA_ETH_TXQ_NUM; i++)
+	for (i = 0; i < dpaa_max_num_txqs(); i++)
 		if (priv->egress_fqs[i] == tx_fq)
 			return i;
 
@@ -2276,12 +2273,12 @@ static netdev_tx_t
 dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
 	const int queue_mapping = skb_get_queue_mapping(skb);
-	bool nonlinear = skb_is_nonlinear(skb);
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa_percpu_priv *percpu_priv;
 	struct netdev_queue *txq;
 	struct dpaa_priv *priv;
 	struct qm_fd fd;
+	bool nonlinear;
 	int offset = 0;
 	int err = 0;
 
@@ -2291,6 +2288,13 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 
 	qm_fd_clear_fd(&fd);
 
+	/* Packet data is always read as 32-bit words, so zero out any part of
+	 * the skb which might be sent if we have to pad the packet
+	 */
+	if (__skb_put_padto(skb, ETH_ZLEN, false))
+		goto enomem;
+
+	nonlinear = skb_is_nonlinear(skb);
 	if (!nonlinear) {
 		/* We're going to store the skb backpointer at the beginning
 		 * of the data buffer, so we need a privately owned skb
@@ -2994,7 +2998,7 @@ static int dpaa_change_mtu(struct net_device *net_dev, int new_mtu)
 	if (priv->xdp_prog && !xdp_validate_mtu(priv, new_mtu))
 		return -EINVAL;
 
-	net_dev->mtu = new_mtu;
+	WRITE_ONCE(net_dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -3160,8 +3164,9 @@ static void dpaa_napi_del(struct net_device *net_dev)
 	for_each_possible_cpu(cpu) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, cpu);
 
-		netif_napi_del(&percpu_priv->np.napi);
+		__netif_napi_del(&percpu_priv->np.napi);
 	}
+	synchronize_net();
 }
 
 static inline void dpaa_bp_free_pf(const struct dpaa_bp *bp,
@@ -3323,7 +3328,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	/* Allocate this early, so we can store relevant information in
 	 * the private area
 	 */
-	net_dev = alloc_etherdev_mq(sizeof(*priv), DPAA_ETH_TXQ_NUM);
+	net_dev = alloc_etherdev_mq(sizeof(*priv), dpaa_max_num_txqs());
 	if (!net_dev) {
 		dev_err(dev, "alloc_etherdev_mq() failed\n");
 		return -ENOMEM;
@@ -3337,6 +3342,22 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	priv->net_dev = net_dev;
 
 	priv->msg_enable = netif_msg_init(debug, DPAA_MSG_DEFAULT);
+
+	priv->egress_fqs = devm_kcalloc(dev, dpaa_max_num_txqs(),
+					sizeof(*priv->egress_fqs),
+					GFP_KERNEL);
+	if (!priv->egress_fqs) {
+		err = -ENOMEM;
+		goto free_netdev;
+	}
+
+	priv->conf_fqs = devm_kcalloc(dev, dpaa_max_num_txqs(),
+				      sizeof(*priv->conf_fqs),
+				      GFP_KERNEL);
+	if (!priv->conf_fqs) {
+		err = -ENOMEM;
+		goto free_netdev;
+	}
 
 	mac_dev = dpaa_mac_dev_get(pdev);
 	if (IS_ERR(mac_dev)) {
@@ -3415,7 +3436,9 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	 */
 	dpaa_eth_add_channel(priv->channel, &pdev->dev);
 
-	dpaa_fq_setup(priv, &dpaa_fq_cbs, priv->mac_dev->port[TX]);
+	err = dpaa_fq_setup(priv, &dpaa_fq_cbs, priv->mac_dev->port[TX]);
+	if (err)
+		goto free_dpaa_bps;
 
 	/* Create a congestion group for this netdev, with
 	 * dynamically-allocated CGR ID.
@@ -3461,7 +3484,8 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	}
 
 	priv->num_tc = 1;
-	netif_set_real_num_tx_queues(net_dev, priv->num_tc * DPAA_TC_TXQ_NUM);
+	netif_set_real_num_tx_queues(net_dev,
+				     priv->num_tc * dpaa_num_txqs_per_tc());
 
 	/* Initialize NAPI */
 	err = dpaa_napi_add(net_dev);
@@ -3497,7 +3521,7 @@ free_netdev:
 	return err;
 }
 
-static int dpaa_remove(struct platform_device *pdev)
+static void dpaa_remove(struct platform_device *pdev)
 {
 	struct net_device *net_dev;
 	struct dpaa_priv *priv;
@@ -3516,6 +3540,9 @@ static int dpaa_remove(struct platform_device *pdev)
 	phylink_destroy(priv->mac_dev->phylink);
 
 	err = dpaa_fq_free(dev, &priv->dpaa_fq_list);
+	if (err)
+		dev_err(dev, "Failed to free FQs on remove (%pE)\n",
+			ERR_PTR(err));
 
 	qman_delete_cgr_safe(&priv->ingress_cgr);
 	qman_release_cgrid(priv->ingress_cgr.cgrid);
@@ -3527,8 +3554,6 @@ static int dpaa_remove(struct platform_device *pdev)
 	dpaa_bps_free(priv);
 
 	free_netdev(net_dev);
-
-	return err;
 }
 
 static const struct platform_device_id dpaa_devtype[] = {
@@ -3546,7 +3571,7 @@ static struct platform_driver dpaa_driver = {
 	},
 	.id_table = dpaa_devtype,
 	.probe = dpaa_eth_probe,
-	.remove = dpaa_remove
+	.remove_new = dpaa_remove
 };
 
 static int __init dpaa_load(void)

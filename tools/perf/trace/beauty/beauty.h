@@ -67,15 +67,14 @@ extern struct strarray strarray__socket_level;
 /**
  * augmented_arg: extra payload for syscall pointer arguments
  
- * If perf_sample->raw_size is more than what a syscall sys_enter_FOO puts,
- * then its the arguments contents, so that we can show more than just a
+ * If perf_sample->raw_size is more than what a syscall sys_enter_FOO puts, then
+ * its the arguments contents, so that we can show more than just a
  * pointer. This will be done initially with eBPF, the start of that is at the
- * tools/perf/examples/bpf/augmented_syscalls.c example for the openat, but
- * will eventually be done automagically caching the running kernel tracefs
- * events data into an eBPF C script, that then gets compiled and its .o file
- * cached for subsequent use. For char pointers like the ones for 'open' like
- * syscalls its easy, for the rest we should use DWARF or better, BTF, much
- * more compact.
+ * tools/perf/util/bpf_skel/augmented_syscalls.bpf.c that will eventually be
+ * done automagically caching the running kernel tracefs events data into an
+ * eBPF C script, that then gets compiled and its .o file cached for subsequent
+ * use. For char pointers like the ones for 'open' like syscalls its easy, for
+ * the rest we should use DWARF or better, BTF, much more compact.
  *
  * @size: 8 if all we need is an integer, otherwise all of the augmented arg.
  * @int_arg: will be used for integer like pointer contents, like 'accept's 'upeer_addrlen'
@@ -114,6 +113,7 @@ struct syscall_arg {
 	struct thread *thread;
 	struct trace  *trace;
 	void	      *parm;
+	char	      *type_name;
 	u16	      len;
 	u8	      idx;
 	u8	      mask;
@@ -229,14 +229,22 @@ size_t syscall_arg__scnprintf_renameat2_flags(char *bf, size_t size, struct sysc
 size_t syscall_arg__scnprintf_sockaddr(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SOCKADDR syscall_arg__scnprintf_sockaddr
 
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_SOCKADDR_FROM_USER(argname) \
+	  { .scnprintf	= SCA_SOCKADDR, \
+	    .from_user	= true, }
+
 size_t syscall_arg__scnprintf_socket_protocol(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SK_PROTO syscall_arg__scnprintf_socket_protocol
 
 size_t syscall_arg__scnprintf_socket_level(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SK_LEVEL syscall_arg__scnprintf_socket_level
 
-size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_arg *arg);
-#define SCA_STATX_FLAGS syscall_arg__scnprintf_statx_flags
+size_t syscall_arg__scnprintf_fs_at_flags(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_FS_AT_FLAGS syscall_arg__scnprintf_fs_at_flags
+
+size_t syscall_arg__scnprintf_faccessat2_flags(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_FACCESSAT2_FLAGS syscall_arg__scnprintf_faccessat2_flags
 
 size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STATX_MASK syscall_arg__scnprintf_statx_mask
@@ -247,11 +255,14 @@ size_t syscall_arg__scnprintf_sync_file_range_flags(char *bf, size_t size, struc
 size_t syscall_arg__scnprintf_timespec(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_TIMESPEC syscall_arg__scnprintf_timespec
 
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_TIMESPEC_FROM_USER(argname) \
+	  { .scnprintf	= SCA_TIMESPEC, \
+	    .from_user	= true, }
+
 size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix);
 
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 				    size_t (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg));
-
-const char *arch_syscalls__strerrno(const char *arch, int err);
 
 #endif /* _PERF_TRACE_BEAUTY_H */

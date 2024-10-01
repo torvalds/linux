@@ -15,6 +15,10 @@
 	model = "Kendryte K210 generic";
 	compatible = "canaan,kendryte-k210";
 
+	aliases {
+		serial0 = &uarths0;
+	};
+
 	chosen {
 		bootargs = "earlycon console=ttySIF0";
 		stdout-path = "serial0:115200n8";
@@ -24,7 +28,6 @@
 &fpioa {
 	pinctrl-0 = <&jtag_pins>;
 	pinctrl-names = "default";
-	status = "okay";
 
 	jtag_pins: jtag-pinmux {
 		pinmux = <K210_FPIOA(0, K210_PCF_JTAG_TCLK)>,

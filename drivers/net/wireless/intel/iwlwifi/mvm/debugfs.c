@@ -50,8 +50,18 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 					 size_t count, loff_t *ppos)
 {
 	int ret;
+	bool force;
 
-	if (!iwl_mvm_is_ctdp_supported(mvm))
+	if (!kstrtobool(buf, &force))
+		IWL_DEBUG_INFO(mvm,
+			       "force start is %d [0=disabled, 1=enabled]\n",
+			       force);
+
+	/* we allow skipping cap support check and force stop ctdp
+	 * statistics collection and with guerantee that it is
+	 * safe to use.
+	 */
+	if (!force && !iwl_mvm_is_ctdp_supported(mvm))
 		return -EOPNOTSUPP;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
@@ -60,6 +70,36 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_STOP, 0);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_start_ctdp_write(struct iwl_mvm *mvm,
+					  char *buf, size_t count,
+					  loff_t *ppos)
+{
+	int ret;
+	bool force;
+
+	if (!kstrtobool(buf, &force))
+		IWL_DEBUG_INFO(mvm,
+			       "force start is %d [0=disabled, 1=enabled]\n",
+			       force);
+
+	/* we allow skipping cap support check and force enable ctdp
+	 * for statistics collection and with guerantee that it is
+	 * safe to use.
+	 */
+	if (!force && !iwl_mvm_is_ctdp_supported(mvm))
+		return -EOPNOTSUPP;
+
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
+		return -EIO;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START, 0);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -106,37 +146,6 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 	ret =  iwl_mvm_flush_tx_path(mvm, flush_arg) ? : count;
-	mutex_unlock(&mvm->mutex);
-
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_mvm_sta *mvmsta;
-	int sta_id, drain, ret;
-
-	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
-		return -EIO;
-
-	if (sscanf(buf, "%d %d", &sta_id, &drain) != 2)
-		return -EINVAL;
-	if (sta_id < 0 || sta_id >= mvm->fw->ucode_capa.num_stations)
-		return -EINVAL;
-	if (drain < 0 || drain > 1)
-		return -EINVAL;
-
-	mutex_lock(&mvm->mutex);
-
-	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
-
-	if (!mvmsta)
-		ret = -ENOENT;
-	else
-		ret = iwl_mvm_drain_sta(mvm, mvmsta, drain) ? : count;
-
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -351,9 +360,7 @@ static ssize_t iwl_dbgfs_wifi_6e_enable_read(struct file *file,
 	char buf[12];
 	u32 value;
 
-	err = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
-				   DSM_FUNC_ENABLE_6E,
-				   &iwl_guid, &value);
+	err = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_6E, &value);
 	if (err)
 		return err;
 
@@ -530,193 +537,12 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
-static
-int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
-			   int pos, int bufsz)
-{
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
-
-	BT_MBOX_PRINT(0, LE_SLAVE_LAT, false);
-	BT_MBOX_PRINT(0, LE_PROF1, false);
-	BT_MBOX_PRINT(0, LE_PROF2, false);
-	BT_MBOX_PRINT(0, LE_PROF_OTHER, false);
-	BT_MBOX_PRINT(0, CHL_SEQ_N, false);
-	BT_MBOX_PRINT(0, INBAND_S, false);
-	BT_MBOX_PRINT(0, LE_MIN_RSSI, false);
-	BT_MBOX_PRINT(0, LE_SCAN, false);
-	BT_MBOX_PRINT(0, LE_ADV, false);
-	BT_MBOX_PRINT(0, LE_MAX_TX_POWER, false);
-	BT_MBOX_PRINT(0, OPEN_CON_1, true);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw1:\n");
-
-	BT_MBOX_PRINT(1, BR_MAX_TX_POWER, false);
-	BT_MBOX_PRINT(1, IP_SR, false);
-	BT_MBOX_PRINT(1, LE_MSTR, false);
-	BT_MBOX_PRINT(1, AGGR_TRFC_LD, false);
-	BT_MBOX_PRINT(1, MSG_TYPE, false);
-	BT_MBOX_PRINT(1, SSN, true);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw2:\n");
-
-	BT_MBOX_PRINT(2, SNIFF_ACT, false);
-	BT_MBOX_PRINT(2, PAG, false);
-	BT_MBOX_PRINT(2, INQUIRY, false);
-	BT_MBOX_PRINT(2, CONN, false);
-	BT_MBOX_PRINT(2, SNIFF_INTERVAL, false);
-	BT_MBOX_PRINT(2, DISC, false);
-	BT_MBOX_PRINT(2, SCO_TX_ACT, false);
-	BT_MBOX_PRINT(2, SCO_RX_ACT, false);
-	BT_MBOX_PRINT(2, ESCO_RE_TX, false);
-	BT_MBOX_PRINT(2, SCO_DURATION, true);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw3:\n");
-
-	BT_MBOX_PRINT(3, SCO_STATE, false);
-	BT_MBOX_PRINT(3, SNIFF_STATE, false);
-	BT_MBOX_PRINT(3, A2DP_STATE, false);
-	BT_MBOX_PRINT(3, A2DP_SRC, false);
-	BT_MBOX_PRINT(3, ACL_STATE, false);
-	BT_MBOX_PRINT(3, MSTR_STATE, false);
-	BT_MBOX_PRINT(3, OBX_STATE, false);
-	BT_MBOX_PRINT(3, OPEN_CON_2, false);
-	BT_MBOX_PRINT(3, TRAFFIC_LOAD, false);
-	BT_MBOX_PRINT(3, CHL_SEQN_LSB, false);
-	BT_MBOX_PRINT(3, INBAND_P, false);
-	BT_MBOX_PRINT(3, MSG_TYPE_2, false);
-	BT_MBOX_PRINT(3, SSN_2, false);
-	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
-
-	return pos;
-}
-
-static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
-				       size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
-	char *buf;
-	int ret, pos = 0, bufsz = sizeof(char) * 1024;
-
-	buf = kmalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	mutex_lock(&mvm->mutex);
-
-	pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "bt_ci_compliance = %d\n",
-			 notif->bt_ci_compliance);
-	pos += scnprintf(buf + pos, bufsz - pos, "primary_ch_lut = %d\n",
-			 le32_to_cpu(notif->primary_ch_lut));
-	pos += scnprintf(buf + pos, bufsz - pos, "secondary_ch_lut = %d\n",
-			 le32_to_cpu(notif->secondary_ch_lut));
-	pos += scnprintf(buf + pos,
-			 bufsz - pos, "bt_activity_grading = %d\n",
-			 le32_to_cpu(notif->bt_activity_grading));
-	pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
-			 notif->rrc_status & 0xF);
-	pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
-			 notif->ttc_status & 0xF);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "sync_sco = %d\n",
-			 IWL_MVM_BT_COEX_SYNC2SCO);
-	pos += scnprintf(buf + pos, bufsz - pos, "mplut = %d\n",
-			 IWL_MVM_BT_COEX_MPLUT);
-
-	mutex_unlock(&mvm->mutex);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-
-	return ret;
-}
-#undef BT_MBOX_PRINT
-
-static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
-	char buf[256];
-	int bufsz = sizeof(buf);
-	int pos = 0;
-
-	mutex_lock(&mvm->mutex);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Channel inhibition CMD\n");
-	pos += scnprintf(buf + pos, bufsz - pos,
-			 "\tPrimary Channel Bitmap 0x%016llx\n",
-			 le64_to_cpu(cmd->bt_primary_ci));
-	pos += scnprintf(buf + pos, bufsz - pos,
-			 "\tSecondary Channel Bitmap 0x%016llx\n",
-			 le64_to_cpu(cmd->bt_secondary_ci));
-
-	mutex_unlock(&mvm->mutex);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
-static ssize_t
-iwl_dbgfs_bt_tx_prio_write(struct iwl_mvm *mvm, char *buf,
-			   size_t count, loff_t *ppos)
-{
-	u32 bt_tx_prio;
-
-	if (sscanf(buf, "%u", &bt_tx_prio) != 1)
-		return -EINVAL;
-	if (bt_tx_prio > 4)
-		return -EINVAL;
-
-	mvm->bt_tx_prio = bt_tx_prio;
-
-	return count;
-}
-
-static ssize_t
-iwl_dbgfs_bt_force_ant_write(struct iwl_mvm *mvm, char *buf,
-			     size_t count, loff_t *ppos)
-{
-	static const char * const modes_str[BT_FORCE_ANT_MAX] = {
-		[BT_FORCE_ANT_DIS] = "dis",
-		[BT_FORCE_ANT_AUTO] = "auto",
-		[BT_FORCE_ANT_BT] = "bt",
-		[BT_FORCE_ANT_WIFI] = "wifi",
-	};
-	int ret, bt_force_ant_mode;
-
-	ret = match_string(modes_str, ARRAY_SIZE(modes_str), buf);
-	if (ret < 0)
-		return ret;
-
-	bt_force_ant_mode = ret;
-	ret = 0;
-	mutex_lock(&mvm->mutex);
-	if (mvm->bt_force_ant_mode == bt_force_ant_mode)
-		goto out;
-
-	mvm->bt_force_ant_mode = bt_force_ant_mode;
-	IWL_DEBUG_COEX(mvm, "Force mode: %s\n",
-		       modes_str[mvm->bt_force_ant_mode]);
-
-	if (iwl_mvm_firmware_running(mvm))
-		ret = iwl_mvm_send_bt_init_conf(mvm);
-	else
-		ret = 0;
-
-out:
-	mutex_unlock(&mvm->mutex);
-	return ret ?: count;
-}
-
 static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
 	char *buff, *pos, *endpos;
 	static const size_t bufsz = 1024;
-	char _fw_name_pre[FW_NAME_PRE_BUFSIZE];
 	int ret;
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
@@ -726,8 +552,8 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	pos = buff;
 	endpos = pos + bufsz;
 
-	pos += scnprintf(pos, endpos - pos, "FW prefix: %s\n",
-			 iwl_drv_get_fwname_pre(mvm->trans, _fw_name_pre));
+	pos += scnprintf(pos, endpos - pos, "FW id: %s\n",
+			 mvm->fwrt.fw->fw_version);
 	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
 			 mvm->fwrt.fw->human_readable);
 	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
@@ -837,14 +663,14 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			 le16_to_cpu(rsp->curr_mcc));
 
 	pos += scnprintf(pos, endpos - pos, "Block list entries:");
-	for (i = 0; i < APCI_WTAS_BLACK_LIST_MAX; i++)
+	for (i = 0; i < IWL_WTAS_BLACK_LIST_MAX; i++)
 		pos += scnprintf(pos, endpos - pos, " 0x%x",
 				 le16_to_cpu(rsp->block_list[i]));
 
 	pos += scnprintf(pos, endpos - pos, "\nOEM name: %s\n",
-			 dmi_get_system_info(DMI_SYS_VENDOR));
+			 dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
 	pos += scnprintf(pos, endpos - pos, "\tVendor In Approved List: %s\n",
-			 iwl_mvm_is_vendor_in_approved_list() ? "YES" : "NO");
+			 iwl_is_tas_approved() ? "YES" : "NO");
 	pos += scnprintf(pos, endpos - pos,
 			 "\tDo TAS Support Dual Radio?: %s\n",
 			 rsp->in_dual_radio ? "TRUE" : "FALSE");
@@ -965,6 +791,13 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 	char *buf;
 	int ret;
 	size_t bufsz;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(SYSTEM_GROUP,
+						   SYSTEM_STATISTICS_CMD),
+					   IWL_FW_CMD_VER_UNKNOWN);
+
+	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
+		return -EOPNOTSUPP;
 
 	if (iwl_mvm_has_new_rx_stats_api(mvm))
 		bufsz = ((sizeof(struct mvm_statistics_rx) /
@@ -1144,6 +977,101 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 }
 #undef PRINT_STAT_LE32
 
+static ssize_t iwl_dbgfs_fw_system_stats_read(struct file *file,
+					      char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	char *buff, *pos, *endpos;
+	int ret;
+	size_t bufsz;
+	int i;
+	struct iwl_mvm_vif *mvmvif;
+	struct ieee80211_vif *vif;
+	struct iwl_mvm *mvm = file->private_data;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(SYSTEM_GROUP,
+						   SYSTEM_STATISTICS_CMD),
+					   IWL_FW_CMD_VER_UNKNOWN);
+
+	/* in case of a wrong cmd version, allocate buffer only for error msg */
+	bufsz = (cmd_ver == 1) ? 4096 : 64;
+
+	buff = kzalloc(bufsz, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	pos = buff;
+	endpos = pos + bufsz;
+
+	if (cmd_ver != 1) {
+		pos += scnprintf(pos, endpos - pos,
+				 "System stats not supported:%d\n", cmd_ver);
+		goto send_out;
+	}
+
+	mutex_lock(&mvm->mutex);
+	if (iwl_mvm_firmware_running(mvm))
+		iwl_mvm_request_statistics(mvm, false);
+
+	for (i = 0; i < NUM_MAC_INDEX_DRIVER; i++) {
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, i, false);
+		if (!vif)
+			continue;
+
+		if (vif->type == NL80211_IFTYPE_STATION)
+			break;
+	}
+
+	if (i == NUM_MAC_INDEX_DRIVER || !vif) {
+		pos += scnprintf(pos, endpos - pos, "vif is NULL\n");
+		goto release_send_out;
+	}
+
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	if (!mvmvif) {
+		pos += scnprintf(pos, endpos - pos, "mvmvif is NULL\n");
+		goto release_send_out;
+	}
+
+	for_each_mvm_vif_valid_link(mvmvif, i) {
+		struct iwl_mvm_vif_link_info *link_info = mvmvif->link[i];
+
+		pos += scnprintf(pos, endpos - pos,
+				 "link_id %d", i);
+		pos += scnprintf(pos, endpos - pos,
+				 " num_beacons %d",
+				 link_info->beacon_stats.num_beacons);
+		pos += scnprintf(pos, endpos - pos,
+				 " accu_num_beacons %d",
+				 link_info->beacon_stats.accu_num_beacons);
+		pos += scnprintf(pos, endpos - pos,
+				 " avg_signal %d\n",
+				 link_info->beacon_stats.avg_signal);
+	}
+
+	pos += scnprintf(pos, endpos - pos,
+			 "radio_stats.rx_time %lld\n",
+			 mvm->radio_stats.rx_time);
+	pos += scnprintf(pos, endpos - pos,
+			 "radio_stats.tx_time %lld\n",
+			 mvm->radio_stats.tx_time);
+	pos += scnprintf(pos, endpos - pos,
+			 "accu_radio_stats.rx_time %lld\n",
+			 mvm->accu_radio_stats.rx_time);
+	pos += scnprintf(pos, endpos - pos,
+			 "accu_radio_stats.tx_time %lld\n",
+			 mvm->accu_radio_stats.tx_time);
+
+release_send_out:
+	mutex_unlock(&mvm->mutex);
+
+send_out:
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos - buff);
+	kfree(buff);
+
+	return ret;
+}
+
 static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 					  char __user *user_buf, size_t count,
 					  loff_t *ppos,
@@ -1255,6 +1183,8 @@ static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 {
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
+
+	IWL_ERR(mvm, "Triggering an NMI from debugfs\n");
 
 	if (count == 6 && !strcmp(buf, "nolog\n"))
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
@@ -1379,7 +1309,7 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 
 	/* supporting only MQ RX */
 	if (!mvm->trans->trans_cfg->mq_rx_supported)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	rxb._page = alloc_pages(GFP_ATOMIC, 0);
 	if (!rxb._page)
@@ -1477,6 +1407,15 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 					 &beacon_cmd.tim_size,
 					 beacon->data, beacon->len);
 
+		if (iwl_fw_lookup_cmd_ver(mvm->fw,
+					  BEACON_TEMPLATE_CMD, 0) >= 14) {
+			u32 offset = iwl_mvm_find_ie_offset(beacon->data,
+							    WLAN_EID_S1G_TWT,
+							    beacon->len);
+
+			beacon_cmd.btwt_offset = cpu_to_le32(offset);
+		}
+
 		iwl_mvm_mac_ctxt_send_beacon_cmd(mvm, beacon, &beacon_cmd,
 						 sizeof(beacon_cmd));
 	}
@@ -1568,6 +1507,20 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 
 	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
 			   (count - 1), NULL);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_fw_dbg_clear_write(struct iwl_mvm *mvm,
+					    char *buf, size_t count,
+					    loff_t *ppos)
+{
+	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&mvm->mutex);
+	iwl_fw_dbg_clear_monitor_buf(&mvm->fwrt);
+	mutex_unlock(&mvm->mutex);
 
 	return count;
 }
@@ -1673,7 +1626,7 @@ static ssize_t _iwl_dbgfs_link_sta_##name##_write(struct file *file,	\
 	char buf[buflen] = {};						\
 	size_t buf_size = min(count, sizeof(buf) -  1);			\
 									\
-	if (copy_from_user(buf, user_buf, sizeof(buf)))			\
+	if (copy_from_user(buf, user_buf, buf_size))			\
 		return -EFAULT;						\
 									\
 	return _iwl_dbgfs_link_sta_wrap_write(iwl_dbgfs_##name##_write,	\
@@ -1998,30 +1951,28 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 /* Device wide debugfs entries */
 MVM_DEBUGFS_READ_FILE_OPS(ctdp_budget);
 MVM_DEBUGFS_WRITE_FILE_OPS(stop_ctdp, 8);
+MVM_DEBUGFS_WRITE_FILE_OPS(start_ctdp, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(force_ctkill, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
-MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(send_echo_cmd, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram, 64);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
 MVM_DEBUGFS_READ_FILE_OPS(nic_temp);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_LINK_STA_FILE_OPS(rs_data);
-MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
-MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(drv_rx_stats);
+MVM_DEBUGFS_READ_FILE_OPS(fw_system_stats);
 MVM_DEBUGFS_READ_FILE_OPS(fw_ver);
 MVM_DEBUGFS_READ_FILE_OPS(phy_integration_ver);
 MVM_DEBUGFS_READ_FILE_OPS(tas_get_status);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
-MVM_DEBUGFS_WRITE_FILE_OPS(bt_tx_prio, 10);
-MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
+MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_clear, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(dbg_time_point, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
@@ -2204,28 +2155,26 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	spin_lock_init(&mvm->drv_stats_lock);
 
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(nic_temp, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(ctdp_budget, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(stop_ctdp, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(start_ctdp, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(force_ctkill, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(stations, mvm->debugfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(bt_notif, mvm->debugfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(bt_cmd, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(fw_system_stats, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(bt_tx_prio, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(bt_force_ant, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(fw_dbg_clear, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(dbg_time_point, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
@@ -2278,6 +2227,9 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 
 	debugfs_create_file("mem", 0600, mvm->debugfs_dir, mvm,
 			    &iwl_dbgfs_mem_ops);
+
+	debugfs_create_bool("rx_ts_ptp", 0600, mvm->debugfs_dir,
+			    &mvm->rx_ts_ptp);
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211

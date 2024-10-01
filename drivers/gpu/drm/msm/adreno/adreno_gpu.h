@@ -29,21 +29,43 @@ enum {
 	ADRENO_FW_MAX,
 };
 
+/**
+ * @enum adreno_family: identify generation and possibly sub-generation
+ *
+ * In some cases there are distinct sub-generations within a major revision
+ * so it helps to be able to group the GPU devices by generation and if
+ * necessary sub-generation.
+ */
+enum adreno_family {
+	ADRENO_2XX_GEN1,  /* a20x */
+	ADRENO_2XX_GEN2,  /* a22x */
+	ADRENO_3XX,
+	ADRENO_4XX,
+	ADRENO_5XX,
+	ADRENO_6XX_GEN1,  /* a630 family */
+	ADRENO_6XX_GEN2,  /* a640 family */
+	ADRENO_6XX_GEN3,  /* a650 family */
+	ADRENO_6XX_GEN4,  /* a660 family */
+	ADRENO_7XX_GEN1,  /* a730 family */
+	ADRENO_7XX_GEN2,  /* a740 family */
+	ADRENO_7XX_GEN3,  /* a750 family */
+};
+
 #define ADRENO_QUIRK_TWO_PASS_USE_WFI		BIT(0)
 #define ADRENO_QUIRK_FAULT_DETECT_MASK		BIT(1)
 #define ADRENO_QUIRK_LMLOADKILL_DISABLE		BIT(2)
+#define ADRENO_QUIRK_HAS_HW_APRIV		BIT(3)
+#define ADRENO_QUIRK_HAS_CACHED_COHERENT	BIT(4)
 
-struct adreno_rev {
-	uint8_t  core;
-	uint8_t  major;
-	uint8_t  minor;
-	uint8_t  patchid;
-};
-
-#define ANY_ID 0xff
-
-#define ADRENO_REV(core, major, minor, patchid) \
-	((struct adreno_rev){ core, major, minor, patchid })
+/* Helper for formating the chip_id in the way that userspace tools like
+ * crashdec expect.
+ */
+#define ADRENO_CHIPID_FMT "u.%u.%u.%u"
+#define ADRENO_CHIPID_ARGS(_c) \
+	(((_c) >> 24) & 0xff), \
+	(((_c) >> 16) & 0xff), \
+	(((_c) >> 8)  & 0xff), \
+	((_c) & 0xff)
 
 struct adreno_gpu_funcs {
 	struct msm_gpu_funcs base;
@@ -55,31 +77,89 @@ struct adreno_reglist {
 	u32 value;
 };
 
-extern const struct adreno_reglist a612_hwcg[], a615_hwcg[], a630_hwcg[], a640_hwcg[], a650_hwcg[];
-extern const struct adreno_reglist a660_hwcg[], a690_hwcg[];
+struct adreno_speedbin {
+	uint16_t fuse;
+	uint16_t speedbin;
+};
+
+struct a6xx_info;
 
 struct adreno_info {
-	struct adreno_rev rev;
+	const char *machine;
+	/**
+	 * @chipids: Table of matching chip-ids
+	 *
+	 * Terminated with 0 sentinal
+	 */
+	uint32_t *chip_ids;
+	enum adreno_family family;
 	uint32_t revn;
-	const char *name;
 	const char *fw[ADRENO_FW_MAX];
 	uint32_t gmem;
 	u64 quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
 	const char *zapfw;
 	u32 inactive_period;
-	const struct adreno_reglist *hwcg;
+	union {
+		const struct a6xx_info *a6xx;
+	};
 	u64 address_space_size;
+	/**
+	 * @speedbins: Optional table of fuse to speedbin mappings
+	 *
+	 * Consists of pairs of fuse, index mappings, terminated with
+	 * {SHRT_MAX, 0} sentinal.
+	 */
+	struct adreno_speedbin *speedbins;
 };
 
-const struct adreno_info *adreno_info(struct adreno_rev rev);
+#define ADRENO_CHIP_IDS(tbl...) (uint32_t[]) { tbl, 0 }
+
+struct adreno_gpulist {
+	const struct adreno_info *gpus;
+	unsigned gpus_count;
+};
+
+#define DECLARE_ADRENO_GPULIST(name)                  \
+const struct adreno_gpulist name ## _gpulist = {      \
+	name ## _gpus, ARRAY_SIZE(name ## _gpus)      \
+}
+
+/*
+ * Helper to build a speedbin table, ie. the table:
+ *      fuse | speedbin
+ *      -----+---------
+ *        0  |   0
+ *       169 |   1
+ *       174 |   2
+ *
+ * would be declared as:
+ *
+ *     .speedbins = ADRENO_SPEEDBINS(
+ *                      { 0,   0 },
+ *                      { 169, 1 },
+ *                      { 174, 2 },
+ *     ),
+ */
+#define ADRENO_SPEEDBINS(tbl...) (struct adreno_speedbin[]) { tbl {SHRT_MAX, 0} }
+
+struct adreno_protect {
+	const uint32_t *regs;
+	uint32_t count;
+	uint32_t count_max;
+};
+
+#define DECLARE_ADRENO_PROTECT(name, __count_max)	\
+static const struct adreno_protect name = {		\
+	.regs = name ## _regs,				\
+	.count = ARRAY_SIZE(name ## _regs),		\
+	.count_max = __count_max,			\
+};
 
 struct adreno_gpu {
 	struct msm_gpu base;
-	struct adreno_rev rev;
 	const struct adreno_info *info;
-	uint32_t gmem;  /* actual gmem size */
-	uint32_t revn;  /* numeric revision name */
+	uint32_t chip_id;
 	uint16_t speedbin;
 	const struct adreno_gpu_funcs *funcs;
 
@@ -110,6 +190,45 @@ struct adreno_gpu {
 	/* firmware: */
 	const struct firmware *fw[ADRENO_FW_MAX];
 
+	struct {
+		/**
+		 * @rgb565_predicator: Unknown, introduced with A650 family,
+		 * related to UBWC mode/ver 4
+		 */
+		u32 rgb565_predicator;
+		/** @uavflagprd_inv: Unknown, introduced with A650 family */
+		u32 uavflagprd_inv;
+		/** @min_acc_len: Whether the minimum access length is 64 bits */
+		u32 min_acc_len;
+		/**
+		 * @ubwc_swizzle: Whether to enable level 1, 2 & 3 bank swizzling.
+		 *
+		 * UBWC 1.0 always enables all three levels.
+		 * UBWC 2.0 removes level 1 bank swizzling, leaving levels 2 & 3.
+		 * UBWC 4.0 adds the optional ability to disable levels 2 & 3.
+		 *
+		 * This is a bitmask where BIT(0) enables level 1, BIT(1)
+		 * controls level 2, and BIT(2) enables level 3.
+		 */
+		u32 ubwc_swizzle;
+		/**
+		 * @highest_bank_bit: Highest Bank Bit
+		 *
+		 * The Highest Bank Bit value represents the bit of the highest
+		 * DDR bank.  This should ideally use DRAM type detection.
+		 */
+		u32 highest_bank_bit;
+		u32 amsbc;
+		/**
+		 * @macrotile_mode: Macrotile Mode
+		 *
+		 * Whether to use 4-channel macrotiling mode or the newer
+		 * 8-channel macrotiling mode introduced in UBWC 3.1. 0 is
+		 * 4-channel and 1 is 8-channel.
+		 */
+		u32 macrotile_mode;
+	} ubwc_config;
+
 	/*
 	 * Register offsets are different between some GPUs.
 	 * GPU specific offsets will be exported by GPU specific
@@ -117,6 +236,8 @@ struct adreno_gpu {
 	 */
 	const unsigned int *reg_offsets;
 	bool gmu_is_wrapper;
+
+	bool has_ray_tracing;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
@@ -128,7 +249,8 @@ struct adreno_ocmem {
 
 /* platform config data (ie. from DT, or pdata) */
 struct adreno_platform_config {
-	struct adreno_rev rev;
+	uint32_t chip_id;
+	const struct adreno_info *info;
 };
 
 #define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)
@@ -145,13 +267,21 @@ struct adreno_platform_config {
 	__ret;                                             \
 })
 
-bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2);
+static inline uint8_t adreno_patchid(const struct adreno_gpu *gpu)
+{
+	/* It is probably ok to assume legacy "adreno_rev" format
+	 * for all a6xx devices, but probably best to limit this
+	 * to older things.
+	 */
+	WARN_ON_ONCE(gpu->info->family >= ADRENO_6XX_GEN1);
+	return gpu->chip_id & 0xff;
+}
 
 static inline bool adreno_is_revn(const struct adreno_gpu *gpu, uint32_t revn)
 {
-	WARN_ON_ONCE(!gpu->revn);
-
-	return gpu->revn == revn;
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->revn == revn;
 }
 
 static inline bool adreno_has_gmu_wrapper(const struct adreno_gpu *gpu)
@@ -161,16 +291,16 @@ static inline bool adreno_has_gmu_wrapper(const struct adreno_gpu *gpu)
 
 static inline bool adreno_is_a2xx(const struct adreno_gpu *gpu)
 {
-	WARN_ON_ONCE(!gpu->revn);
-
-	return (gpu->revn < 300);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family <= ADRENO_2XX_GEN2;
 }
 
 static inline bool adreno_is_a20x(const struct adreno_gpu *gpu)
 {
-	WARN_ON_ONCE(!gpu->revn);
-
-	return (gpu->revn < 210);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_2XX_GEN1;
 }
 
 static inline bool adreno_is_a225(const struct adreno_gpu *gpu)
@@ -183,10 +313,21 @@ static inline bool adreno_is_a305(const struct adreno_gpu *gpu)
 	return adreno_is_revn(gpu, 305);
 }
 
+static inline bool adreno_is_a305b(const struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x03000512;
+}
+
 static inline bool adreno_is_a306(const struct adreno_gpu *gpu)
 {
 	/* yes, 307, because a305c is 306 */
 	return adreno_is_revn(gpu, 307);
+}
+
+static inline bool adreno_is_a306a(const struct adreno_gpu *gpu)
+{
+	/* a306a (marketing name is a308) */
+	return adreno_is_revn(gpu, 308);
 }
 
 static inline bool adreno_is_a320(const struct adreno_gpu *gpu)
@@ -201,7 +342,7 @@ static inline bool adreno_is_a330(const struct adreno_gpu *gpu)
 
 static inline bool adreno_is_a330v2(const struct adreno_gpu *gpu)
 {
-	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
+	return adreno_is_a330(gpu) && (adreno_patchid(gpu) > 0);
 }
 
 static inline int adreno_is_a405(const struct adreno_gpu *gpu)
@@ -217,6 +358,11 @@ static inline int adreno_is_a420(const struct adreno_gpu *gpu)
 static inline int adreno_is_a430(const struct adreno_gpu *gpu)
 {
 	return adreno_is_revn(gpu, 430);
+}
+
+static inline int adreno_is_a505(const struct adreno_gpu *gpu)
+{
+	return adreno_is_revn(gpu, 505);
 }
 
 static inline int adreno_is_a506(const struct adreno_gpu *gpu)
@@ -274,6 +420,11 @@ static inline int adreno_is_a619_holi(const struct adreno_gpu *gpu)
 	return adreno_is_a619(gpu) && adreno_has_gmu_wrapper(gpu);
 }
 
+static inline int adreno_is_a621(const struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x06020100;
+}
+
 static inline int adreno_is_a630(const struct adreno_gpu *gpu)
 {
 	return adreno_is_revn(gpu, 630);
@@ -291,8 +442,7 @@ static inline int adreno_is_a650(const struct adreno_gpu *gpu)
 
 static inline int adreno_is_7c3(const struct adreno_gpu *gpu)
 {
-	/* The order of args is important here to handle ANY_ID correctly */
-	return adreno_cmp_rev(ADRENO_REV(6, 3, 5, ANY_ID), gpu->rev);
+	return gpu->info->chip_ids[0] == 0x06030500;
 }
 
 static inline int adreno_is_a660(const struct adreno_gpu *gpu)
@@ -307,34 +457,93 @@ static inline int adreno_is_a680(const struct adreno_gpu *gpu)
 
 static inline int adreno_is_a690(const struct adreno_gpu *gpu)
 {
-	return adreno_is_revn(gpu, 690);
-};
+	return gpu->info->chip_ids[0] == 0x06090000;
+}
 
-/* check for a615, a616, a618, a619 or any derivatives */
+static inline int adreno_is_a702(const struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x07000200;
+}
+
+static inline int adreno_is_a610_family(const struct adreno_gpu *gpu)
+{
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+
+	/* TODO: A612 */
+	return adreno_is_a610(gpu) || adreno_is_a702(gpu);
+}
+
+/* TODO: 615/616 */
 static inline int adreno_is_a615_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_revn(gpu, 615) ||
-		adreno_is_revn(gpu, 616) ||
-		adreno_is_revn(gpu, 618) ||
-		adreno_is_revn(gpu, 619);
+	return adreno_is_a618(gpu) ||
+	       adreno_is_a619(gpu);
+}
+
+static inline int adreno_is_a630_family(const struct adreno_gpu *gpu)
+{
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_6XX_GEN1;
 }
 
 static inline int adreno_is_a660_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_a660(gpu) || adreno_is_a690(gpu) || adreno_is_7c3(gpu);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_6XX_GEN4;
 }
 
 /* check for a650, a660, or any derivatives */
 static inline int adreno_is_a650_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_revn(gpu, 650) ||
-		adreno_is_revn(gpu, 620) ||
-		adreno_is_a660_family(gpu);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_6XX_GEN3 ||
+	       gpu->info->family == ADRENO_6XX_GEN4;
 }
 
 static inline int adreno_is_a640_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_a640(gpu) || adreno_is_a680(gpu);
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_6XX_GEN2;
+}
+
+static inline int adreno_is_a730(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x07030001;
+}
+
+static inline int adreno_is_a740(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x43050a01;
+}
+
+static inline int adreno_is_a750(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x43051401;
+}
+
+static inline int adreno_is_x185(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x43050c01;
+}
+
+static inline int adreno_is_a740_family(struct adreno_gpu *gpu)
+{
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_7XX_GEN2 ||
+	       gpu->info->family == ADRENO_7XX_GEN3;
+}
+
+static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
+{
+	/* Update with non-fake (i.e. non-A702) Gen 7 GPUs */
+	return gpu->info->family == ADRENO_7XX_GEN1 ||
+	       adreno_is_a740_family(gpu);
 }
 
 u64 adreno_private_address_space_size(struct msm_gpu *gpu);

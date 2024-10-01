@@ -1,3 +1,5 @@
+arch/arm64/tools/gen-sysreg.awk
+arch/arm64/tools/sysreg
 tools/perf
 tools/arch
 tools/scripts

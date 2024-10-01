@@ -26,6 +26,7 @@ int pkvm_create_mappings_locked(void *from, void *to, enum kvm_pgtable_prot prot
 int __pkvm_create_private_mapping(phys_addr_t phys, size_t size,
 				  enum kvm_pgtable_prot prot,
 				  unsigned long *haddr);
+int pkvm_create_stack(phys_addr_t phys, unsigned long *haddr);
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr);
 
 #endif /* __KVM_HYP_MM_H */

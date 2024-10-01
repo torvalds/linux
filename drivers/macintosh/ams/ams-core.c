@@ -176,7 +176,7 @@ release_freefall:
 	return result;
 }
 
-int __init ams_init(void)
+static int __init ams_init(void)
 {
 	struct device_node *np;
 

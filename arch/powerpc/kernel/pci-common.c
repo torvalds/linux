@@ -125,7 +125,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
 
-	phb = zalloc_maybe_bootmem(sizeof(struct pci_controller), GFP_KERNEL);
+	phb = kzalloc(sizeof(struct pci_controller), GFP_KERNEL);
 	if (phb == NULL)
 		return NULL;
 
@@ -517,12 +517,11 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 }
 
 /*
- * This one is used by /dev/mem and fbdev who have no clue about the
+ * This one is used by /dev/mem and video who have no clue about the
  * PCI device, it tries to find the PCI device first and calls the
  * above routine
  */
-pgprot_t pci_phys_mem_access_prot(struct file *file,
-				  unsigned long pfn,
+pgprot_t pci_phys_mem_access_prot(unsigned long pfn,
 				  unsigned long size,
 				  pgprot_t prot)
 {

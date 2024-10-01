@@ -96,7 +96,7 @@ int jfs_fileattr_set(struct mnt_idmap *idmap,
 	jfs_inode->mode2 = flags;
 
 	jfs_set_inode_flags(inode);
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	mark_inode_dirty(inode);
 
 	return 0;

@@ -52,6 +52,15 @@ Descriptor Formats
 GVE supports two descriptor formats: GQI and DQO. These two formats have
 entirely different descriptors, which will be described below.
 
+Addressing Mode
+------------------
+GVE supports two addressing modes: QPL and RDA.
+QPL ("queue-page-list") mode communicates data through a set of
+pre-registered pages.
+
+For RDA ("raw DMA addressing") mode, the set of pages is dynamic.
+Therefore, the packet buffers can be anywhere in guest memory.
+
 Registers
 ---------
 All registers are MMIO.

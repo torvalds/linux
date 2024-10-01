@@ -158,10 +158,8 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 
 	ret = devm_regulator_bulk_get_exclusive(&pdev->dev, drvdata->num_supplies,
 						drvdata->supplies);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to get supplies: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to get supplies\n");
 
 	platform_set_drvdata(pdev, drvdata);
 
@@ -194,7 +192,7 @@ err_enable:
 	return ret;
 }
 
-static int regulator_userspace_consumer_remove(struct platform_device *pdev)
+static void regulator_userspace_consumer_remove(struct platform_device *pdev)
 {
 	struct userspace_consumer_data *data = platform_get_drvdata(pdev);
 
@@ -202,18 +200,17 @@ static int regulator_userspace_consumer_remove(struct platform_device *pdev)
 
 	if (data->enabled && !data->no_autoswitch)
 		regulator_bulk_disable(data->num_supplies, data->supplies);
-
-	return 0;
 }
 
 static const struct of_device_id regulator_userspace_consumer_of_match[] = {
 	{ .compatible = "regulator-output", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, regulator_userspace_consumer_of_match);
 
 static struct platform_driver regulator_userspace_consumer_driver = {
 	.probe		= regulator_userspace_consumer_probe,
-	.remove		= regulator_userspace_consumer_remove,
+	.remove_new	= regulator_userspace_consumer_remove,
 	.driver		= {
 		.name		= "reg-userspace-consumer",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

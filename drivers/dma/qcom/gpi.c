@@ -476,12 +476,6 @@ struct gpi_dev {
 	struct gpii *gpiis;
 };
 
-struct reg_info {
-	char *name;
-	u32 offset;
-	u32 val;
-};
-
 struct gchan {
 	struct virt_dma_chan vc;
 	u32 chid;
@@ -1197,7 +1191,6 @@ static int gpi_reset_chan(struct gchan *gchan, enum gpi_cmd gpi_cmd)
 {
 	struct gpii *gpii = gchan->gpii;
 	struct gpi_ring *ch_ring = &gchan->ch_ring;
-	unsigned long flags;
 	LIST_HEAD(list);
 	int ret;
 
@@ -1220,9 +1213,9 @@ static int gpi_reset_chan(struct gchan *gchan, enum gpi_cmd gpi_cmd)
 	gpi_mark_stale_events(gchan);
 
 	/* remove all async descriptors */
-	spin_lock_irqsave(&gchan->vc.lock, flags);
+	spin_lock(&gchan->vc.lock);
 	vchan_get_all_descriptors(&gchan->vc, &list);
-	spin_unlock_irqrestore(&gchan->vc.lock, flags);
+	spin_unlock(&gchan->vc.lock);
 	write_unlock_irq(&gpii->pm_lock);
 	vchan_dma_desc_free_list(&gchan->vc, &list);
 
@@ -1863,7 +1856,7 @@ static void gpi_issue_pending(struct dma_chan *chan)
 
 	read_lock_irqsave(&gpii->pm_lock, pm_lock_flags);
 
-	/* move all submitted discriptors to issued list */
+	/* move all submitted descriptors to issued list */
 	spin_lock_irqsave(&gchan->vc.lock, flags);
 	if (vchan_issue_pending(&gchan->vc))
 		vd = list_last_entry(&gchan->vc.desc_issued,
@@ -2160,8 +2153,7 @@ static int gpi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gpi_dev->dev = &pdev->dev;
-	gpi_dev->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gpi_dev->regs = devm_ioremap_resource(gpi_dev->dev, gpi_dev->res);
+	gpi_dev->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &gpi_dev->res);
 	if (IS_ERR(gpi_dev->regs))
 		return PTR_ERR(gpi_dev->regs);
 	gpi_dev->ee_base = gpi_dev->regs;

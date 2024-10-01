@@ -22,7 +22,7 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 						   *trans,
 						   struct btrfs_root *root,
 						   struct btrfs_path *path,
-						   struct btrfs_key *cpu_key,
+						   const struct btrfs_key *cpu_key,
 						   u32 data_size,
 						   const char *name,
 						   int name_len)
@@ -38,7 +38,7 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 		di = btrfs_match_dir_item_name(fs_info, path, name, name_len);
 		if (di)
 			return ERR_PTR(-EEXIST);
-		btrfs_extend_item(path, data_size);
+		btrfs_extend_item(trans, path, data_size);
 	} else if (ret < 0)
 		return ERR_PTR(ret);
 	WARN_ON(ret > 0);
@@ -93,7 +93,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 
 	write_extent_buffer(leaf, name, name_ptr, name_len);
 	write_extent_buffer(leaf, data, data_ptr, data_len);
-	btrfs_mark_buffer_dirty(path->nodes[0]);
+	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
 
 	return ret;
 }
@@ -108,7 +108,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
  */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  const struct fscrypt_str *name, struct btrfs_inode *dir,
-			  struct btrfs_key *location, u8 type, u64 index)
+			  const struct btrfs_key *location, u8 type, u64 index)
 {
 	int ret = 0;
 	int ret2 = 0;
@@ -153,7 +153,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 	name_ptr = (unsigned long)(dir_item + 1);
 
 	write_extent_buffer(leaf, name->name, name_ptr, name->len);
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 
 second_insert:
 	/* FIXME, use some real flag for selecting the extra index */
@@ -379,7 +379,7 @@ struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
  * for a specific name.
  */
 struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
-						 struct btrfs_path *path,
+						 const struct btrfs_path *path,
 						 const char *name, int name_len)
 {
 	struct btrfs_dir_item *dir_item;
@@ -417,7 +417,7 @@ struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
 int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct btrfs_path *path,
-			      struct btrfs_dir_item *di)
+			      const struct btrfs_dir_item *di)
 {
 
 	struct extent_buffer *leaf;
@@ -439,7 +439,7 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 		start = btrfs_item_ptr_offset(leaf, path->slots[0]);
 		memmove_extent_buffer(leaf, ptr, ptr + sub_item_len,
 			item_len - (ptr + sub_item_len - start));
-		btrfs_truncate_item(path, item_len - sub_item_len, 1);
+		btrfs_truncate_item(trans, path, item_len - sub_item_len, 1);
 	}
 	return ret;
 }

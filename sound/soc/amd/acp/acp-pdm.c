@@ -25,27 +25,17 @@
 
 #define DRV_NAME "acp-pdm"
 
-#define PDM_DMA_STAT		0x10
-#define PDM_DMA_INTR_MASK	0x10000
-#define PDM_DEC_64		0x2
-#define PDM_CLK_FREQ_MASK	0x07
-#define PDM_MISC_CTRL_MASK	0x10
-#define PDM_ENABLE		0x01
-#define PDM_DISABLE		0x00
-#define DMA_EN_MASK		0x02
-#define DELAY_US		5
-#define PDM_TIMEOUT		1000
-#define ACP_REGION2_OFFSET	0x02000000
-
 static int acp_dmic_prepare(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct acp_stream *stream = substream->runtime->private_data;
 	struct device *dev = dai->component->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip;
 	u32 physical_addr, size_dmic, period_bytes;
 	unsigned int dmic_ctrl;
 
+	chip = dev_get_platdata(dev);
 	/* Enable default DMIC clk */
 	writel(PDM_CLK_FREQ_MASK, adata->acp_base + ACP_WOV_CLK_CTRL);
 	dmic_ctrl = readl(adata->acp_base + ACP_WOV_MISC_CTRL);
@@ -57,7 +47,10 @@ static int acp_dmic_prepare(struct snd_pcm_substream *substream,
 	size_dmic = frames_to_bytes(substream->runtime,
 			substream->runtime->buffer_size);
 
-	physical_addr = stream->reg_offset + MEM_WINDOW_START;
+	if (chip->acp_rev >= ACP70_DEV)
+		physical_addr = ACP7x_DMIC_MEM_WINDOW_START;
+	else
+		physical_addr = stream->reg_offset + MEM_WINDOW_START;
 
 	/* Init DMIC Ring buffer */
 	writel(physical_addr, adata->acp_base + ACP_WOV_RX_RINGBUFADDR);
@@ -135,6 +128,7 @@ static int acp_dmic_hwparams(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	adata->ch_mask = ch_mask;
 	if (params_format(hwparams) != SNDRV_PCM_FORMAT_S32_LE) {
 		dev_err(dai->dev, "Invalid format:%d\n", params_format(hwparams));
 		return -EINVAL;
@@ -189,5 +183,6 @@ const struct snd_soc_dai_ops acp_dmic_dai_ops = {
 };
 EXPORT_SYMBOL_NS_GPL(acp_dmic_dai_ops, SND_SOC_ACP_COMMON);
 
+MODULE_DESCRIPTION("AMD ACP Audio PDM controller");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS(DRV_NAME);

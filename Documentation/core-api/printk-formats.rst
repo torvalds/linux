@@ -15,9 +15,10 @@ Integer types
 
 	If variable is of Type,		use printk format specifier:
 	------------------------------------------------------------
-		char			%d or %x
+		signed char		%d or %hhx
 		unsigned char		%u or %x
-		short int		%d or %x
+		char			%u or %x
+		short int		%d or %hx
 		unsigned short int	%u or %x
 		int			%d or %x
 		unsigned int		%u or %x
@@ -27,9 +28,9 @@ Integer types
 		unsigned long long	%llu or %llx
 		size_t			%zu or %zx
 		ssize_t			%zd or %zx
-		s8			%d or %x
+		s8			%d or %hhx
 		u8			%u or %x
-		s16			%d or %x
+		s16			%d or %hx
 		u16			%u or %x
 		s32			%d or %x
 		u32			%u or %x
@@ -575,13 +576,12 @@ The field width is passed by value, the bitmap is passed by reference.
 Helper macros cpumask_pr_args() and nodemask_pr_args() are available to ease
 printing cpumask and nodemask.
 
-Flags bitfields such as page flags, page_type, gfp_flags
+Flags bitfields such as page flags and gfp_flags
 --------------------------------------------------------
 
 ::
 
 	%pGp	0x17ffffc0002036(referenced|uptodate|lru|active|private|node=0|zone=2|lastcpupid=0x1fffff)
-	%pGt	0xffffff7f(buddy)
 	%pGg	GFP_USER|GFP_DMA32|GFP_NOWARN
 	%pGv	read|exec|mayread|maywrite|mayexec|denywrite
 
@@ -590,7 +590,6 @@ would construct the value. The type of flags is given by the third
 character. Currently supported are:
 
         - p - [p]age flags, expects value of type (``unsigned long *``)
-        - t - page [t]ype, expects value of type (``unsigned int *``)
         - v - [v]ma_flags, expects value of type (``unsigned long *``)
         - g - [g]fp_flags, expects value of type (``gfp_t *``)
 

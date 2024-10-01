@@ -28,6 +28,6 @@ PROPERTIES
 	Snoop ID Port Mapping registers, which are part of the CoreNet
 	Coherency fabric (CCF), provide a CoreNet Coherency Subdomain
 	ID/CoreNet Snoop ID to cpu mapping functions.  Certain bits from
-	these registers should be set if the coresponding CPU should be
+	these registers should be set if the corresponding CPU should be
 	snooped.  This property defines a bitmask which selects the bit
 	that should be set if this cpu should be snooped.

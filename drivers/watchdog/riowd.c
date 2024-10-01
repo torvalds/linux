@@ -14,7 +14,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -160,7 +160,6 @@ static ssize_t riowd_write(struct file *file, const char __user *buf,
 
 static const struct file_operations riowd_fops = {
 	.owner =		THIS_MODULE,
-	.llseek =		no_llseek,
 	.unlocked_ioctl =	riowd_ioctl,
 	.compat_ioctl	=	compat_ptr_ioctl,
 	.open =			riowd_open,

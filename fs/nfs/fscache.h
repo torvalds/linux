@@ -60,8 +60,6 @@ static inline void nfs_netfs_get(struct nfs_netfs_io_data *netfs)
 
 static inline void nfs_netfs_put(struct nfs_netfs_io_data *netfs)
 {
-	ssize_t final_len;
-
 	/* Only the last RPC completion should call netfs_subreq_terminated() */
 	if (!refcount_dec_and_test(&netfs->refcount))
 		return;
@@ -74,13 +72,14 @@ static inline void nfs_netfs_put(struct nfs_netfs_io_data *netfs)
 	 * Correct the final length here to be no larger than the netfs subrequest
 	 * length, and thus avoid netfs's "Subreq overread" warning message.
 	 */
-	final_len = min_t(s64, netfs->sreq->len, atomic64_read(&netfs->transferred));
-	netfs_subreq_terminated(netfs->sreq, netfs->error ?: final_len, false);
+	netfs->sreq->transferred = min_t(s64, netfs->sreq->len,
+					 atomic64_read(&netfs->transferred));
+	netfs_read_subreq_terminated(netfs->sreq, netfs->error, false);
 	kfree(netfs);
 }
 static inline void nfs_netfs_inode_init(struct nfs_inode *nfsi)
 {
-	netfs_inode_init(&nfsi->netfs, &nfs_netfs_ops);
+	netfs_inode_init(&nfsi->netfs, &nfs_netfs_ops, false);
 }
 extern void nfs_netfs_initiate_read(struct nfs_pgio_header *hdr);
 extern void nfs_netfs_read_completion(struct nfs_pgio_header *hdr);
@@ -101,10 +100,10 @@ extern int nfs_netfs_read_folio(struct file *file, struct folio *folio);
 
 static inline bool nfs_fscache_release_folio(struct folio *folio, gfp_t gfp)
 {
-	if (folio_test_fscache(folio)) {
+	if (folio_test_private_2(folio)) { /* [DEPRECATED] */
 		if (current_is_kswapd() || !(gfp & __GFP_FS))
 			return false;
-		folio_wait_fscache(folio);
+		folio_wait_private_2(folio);
 	}
 	fscache_note_page_release(netfs_i_cookie(netfs_inode(folio->mapping->host)));
 	return true;
@@ -114,10 +113,10 @@ static inline void nfs_fscache_update_auxdata(struct nfs_fscache_inode_auxdata *
 					      struct inode *inode)
 {
 	memset(auxdata, 0, sizeof(*auxdata));
-	auxdata->mtime_sec  = inode->i_mtime.tv_sec;
-	auxdata->mtime_nsec = inode->i_mtime.tv_nsec;
-	auxdata->ctime_sec  = inode->i_ctime.tv_sec;
-	auxdata->ctime_nsec = inode->i_ctime.tv_nsec;
+	auxdata->mtime_sec  = inode_get_mtime(inode).tv_sec;
+	auxdata->mtime_nsec = inode_get_mtime(inode).tv_nsec;
+	auxdata->ctime_sec  = inode_get_ctime(inode).tv_sec;
+	auxdata->ctime_nsec = inode_get_ctime(inode).tv_nsec;
 
 	if (NFS_SERVER(inode)->nfs_client->rpc_ops->version == 4)
 		auxdata->change_attr = inode_peek_iversion_raw(inode);

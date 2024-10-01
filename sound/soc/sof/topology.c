@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -289,13 +289,15 @@ static const struct sof_dai_types sof_dais[] = {
 	{"ALH", SOF_DAI_INTEL_ALH},
 	{"SAI", SOF_DAI_IMX_SAI},
 	{"ESAI", SOF_DAI_IMX_ESAI},
-	{"ACP", SOF_DAI_AMD_BT},
+	{"ACPBT", SOF_DAI_AMD_BT},
 	{"ACPSP", SOF_DAI_AMD_SP},
 	{"ACPDMIC", SOF_DAI_AMD_DMIC},
 	{"ACPHS", SOF_DAI_AMD_HS},
 	{"AFE", SOF_DAI_MEDIATEK_AFE},
 	{"ACPSP_VIRTUAL", SOF_DAI_AMD_SP_VIRTUAL},
 	{"ACPHS_VIRTUAL", SOF_DAI_AMD_HS_VIRTUAL},
+	{"MICFIL", SOF_DAI_IMX_MICFIL},
+	{"ACP_SDW", SOF_DAI_AMD_SDW},
 
 };
 
@@ -1117,10 +1119,11 @@ static void sof_disconnect_dai_widget(struct snd_soc_component *scomp,
 {
 	struct snd_soc_card *card = scomp->card;
 	struct snd_soc_pcm_runtime *rtd;
+	const char *sname = w->sname;
 	struct snd_soc_dai *cpu_dai;
 	int i, stream;
 
-	if (!w->sname)
+	if (!sname)
 		return;
 
 	if (w->id == snd_soc_dapm_dai_out)
@@ -1133,7 +1136,7 @@ static void sof_disconnect_dai_widget(struct snd_soc_component *scomp,
 	list_for_each_entry(rtd, &card->rtd_list, list) {
 		/* does stream match DAI link ? */
 		if (!rtd->dai_link->stream_name ||
-		    strcmp(w->sname, rtd->dai_link->stream_name))
+		    !strstr(rtd->dai_link->stream_name, sname))
 			continue;
 
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)
@@ -1346,7 +1349,7 @@ static int sof_parse_pin_binding(struct snd_sof_widget *swidget,
 
 	/* copy pin binding array to swidget only if it is defined in topology */
 	if (pin_binding[0]) {
-		pb = kmemdup(pin_binding, num_pins * sizeof(char *), GFP_KERNEL);
+		pb = kmemdup_array(pin_binding, num_pins, sizeof(char *), GFP_KERNEL);
 		if (!pb) {
 			ret = -ENOMEM;
 			goto err;
@@ -1365,6 +1368,20 @@ err:
 
 	return ret;
 }
+
+static int get_w_no_wname_in_long_name(void *elem, void *object, u32 offset)
+{
+	struct snd_soc_tplg_vendor_value_elem *velem = elem;
+	struct snd_soc_dapm_widget *w = object;
+
+	w->no_wname_in_kcontrol_name = !!le32_to_cpu(velem->value);
+	return 0;
+}
+
+static const struct sof_topology_token dapm_widget_tokens[] = {
+	{SOF_TKN_COMP_NO_WNAME_IN_KCONTROL_NAME, SND_SOC_TPLG_TUPLE_TYPE_BOOL,
+	 get_w_no_wname_in_long_name, 0}
+};
 
 /* external widget init - used for any driver specific init */
 static int sof_widget_ready(struct snd_soc_component *scomp, int index,
@@ -1395,6 +1412,14 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	ida_init(&swidget->output_queue_ida);
 	ida_init(&swidget->input_queue_ida);
+
+	ret = sof_parse_tokens(scomp, w, dapm_widget_tokens, ARRAY_SIZE(dapm_widget_tokens),
+			       priv->array, le32_to_cpu(priv->size));
+	if (ret < 0) {
+		dev_err(scomp->dev, "failed to parse dapm widget tokens for %s\n",
+			w->name);
+		goto widget_free;
+	}
 
 	ret = sof_parse_tokens(scomp, swidget, comp_pin_tokens,
 			       ARRAY_SIZE(comp_pin_tokens), priv->array,
@@ -1506,10 +1531,9 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	/* check token parsing reply */
 	if (ret < 0) {
 		dev_err(scomp->dev,
-			"error: failed to add widget id %d type %d name : %s stream %s\n",
-			tw->shift, swidget->id, tw->name,
-			strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
-				? tw->sname : "none");
+			"failed to add widget type %d name : %s stream %s\n",
+			swidget->id, tw->name, strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
+							? tw->sname : "none");
 		goto widget_free;
 	}
 
@@ -1713,8 +1737,10 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	/* perform pcm set op */
 	if (ipc_pcm_ops && ipc_pcm_ops->pcm_setup) {
 		ret = ipc_pcm_ops->pcm_setup(sdev, spcm);
-		if (ret < 0)
+		if (ret < 0) {
+			kfree(spcm);
 			return ret;
+		}
 	}
 
 	dai_drv->dobj.private = spcm;
@@ -1863,9 +1889,9 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		return -ENOMEM;
 
 	slink->num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
-	slink->hw_configs = kmemdup(cfg->hw_config,
-				    sizeof(*slink->hw_configs) * slink->num_hw_configs,
-				    GFP_KERNEL);
+	slink->hw_configs = kmemdup_array(cfg->hw_config,
+					  slink->num_hw_configs, sizeof(*slink->hw_configs),
+					  GFP_KERNEL);
 	if (!slink->hw_configs) {
 		kfree(slink);
 		return -ENOMEM;
@@ -1930,12 +1956,21 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		token_id = SOF_ACPDMIC_TOKENS;
 		num_tuples += token_list[SOF_ACPDMIC_TOKENS].count;
 		break;
+	case SOF_DAI_AMD_BT:
 	case SOF_DAI_AMD_SP:
 	case SOF_DAI_AMD_HS:
 	case SOF_DAI_AMD_SP_VIRTUAL:
 	case SOF_DAI_AMD_HS_VIRTUAL:
 		token_id = SOF_ACPI2S_TOKENS;
 		num_tuples += token_list[SOF_ACPI2S_TOKENS].count;
+		break;
+	case SOF_DAI_IMX_MICFIL:
+		token_id = SOF_MICFIL_TOKENS;
+		num_tuples += token_list[SOF_MICFIL_TOKENS].count;
+		break;
+	case SOF_DAI_AMD_SDW:
+		token_id = SOF_ACP_SDW_TOKENS;
+		num_tuples += token_list[SOF_ACP_SDW_TOKENS].count;
 		break;
 	default:
 		break;
@@ -2014,6 +2049,8 @@ static int sof_link_unload(struct snd_soc_component *scomp, struct snd_soc_dobj 
 
 	if (!slink)
 		return 0;
+
+	slink->link->platforms->name = NULL;
 
 	kfree(slink->tuples);
 	list_del(&slink->list);
@@ -2157,6 +2194,8 @@ static int sof_complete(struct snd_soc_component *scomp)
 		struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
 		struct snd_sof_widget *swidget;
 
+		pipe_widget->instance_id = -EINVAL;
+
 		/* Update the scheduler widget's IPC structure */
 		if (widget_ops && widget_ops[pipe_widget->id].ipc_setup) {
 			ret = widget_ops[pipe_widget->id].ipc_setup(pipe_widget);
@@ -2241,7 +2280,7 @@ static const struct snd_soc_tplg_bytes_ext_ops sof_bytes_ext_ops[] = {
 	{SOF_TPLG_KCTL_BYTES_VOLATILE_RO, snd_sof_bytes_ext_volatile_get},
 };
 
-static struct snd_soc_tplg_ops sof_tplg_ops = {
+static const struct snd_soc_tplg_ops sof_tplg_ops = {
 	/* external kcontrol init - used for any driver specific init */
 	.control_load	= sof_control_load,
 	.control_unload	= sof_control_unload,
@@ -2316,25 +2355,43 @@ static int sof_dspless_widget_ready(struct snd_soc_component *scomp, int index,
 				    struct snd_soc_tplg_dapm_widget *tw)
 {
 	if (WIDGET_IS_DAI(w->id)) {
+		static const struct sof_topology_token dai_tokens[] = {
+			{SOF_TKN_DAI_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_dai_type, 0}};
 		struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+		struct snd_soc_tplg_private *priv = &tw->priv;
 		struct snd_sof_widget *swidget;
-		struct snd_sof_dai dai;
+		struct snd_sof_dai *sdai;
 		int ret;
 
 		swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
 		if (!swidget)
 			return -ENOMEM;
 
-		memset(&dai, 0, sizeof(dai));
+		sdai = kzalloc(sizeof(*sdai), GFP_KERNEL);
+		if (!sdai) {
+			kfree(swidget);
+			return -ENOMEM;
+		}
 
-		ret = sof_connect_dai_widget(scomp, w, tw, &dai);
+		ret = sof_parse_tokens(scomp, &sdai->type, dai_tokens, ARRAY_SIZE(dai_tokens),
+				       priv->array, le32_to_cpu(priv->size));
+		if (ret < 0) {
+			dev_err(scomp->dev, "Failed to parse DAI tokens for %s\n", tw->name);
+			kfree(swidget);
+			kfree(sdai);
+			return ret;
+		}
+
+		ret = sof_connect_dai_widget(scomp, w, tw, sdai);
 		if (ret) {
 			kfree(swidget);
+			kfree(sdai);
 			return ret;
 		}
 
 		swidget->scomp = scomp;
 		swidget->widget = w;
+		swidget->private = sdai;
 		mutex_init(&swidget->setup_mutex);
 		w->dobj.private = swidget;
 		list_add(&swidget->list, &sdev->widget_list);
@@ -2358,6 +2415,7 @@ static int sof_dspless_widget_unload(struct snd_soc_component *scomp,
 
 		/* remove and free swidget object */
 		list_del(&swidget->list);
+		kfree(swidget->private);
 		kfree(swidget);
 	}
 
@@ -2377,7 +2435,7 @@ static int sof_dspless_link_load(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
-static struct snd_soc_tplg_ops sof_dspless_tplg_ops = {
+static const struct snd_soc_tplg_ops sof_dspless_tplg_ops = {
 	/* external widget init - used for any driver specific init */
 	.widget_ready	= sof_dspless_widget_ready,
 	.widget_unload	= sof_dspless_widget_unload,

@@ -2418,12 +2418,12 @@ resume_scanning:
 		return resume_error ? resume_error : error;
 
 	/* 12. Output data strings */
-	size = scnprintf(buf, PAGE_SIZE, "%d %d %d %d %d %d %d %d %d %d %d ",
+	size = sysfs_emit(buf, "%d %d %d %d %d %d %d %d %d %d %d ",
 		gidac_mutual_min, gidac_mutual_max, gidac_mutual_ave,
 		lidac_mutual_min, lidac_mutual_max, lidac_mutual_ave,
 		gidac_self_rx, gidac_self_tx,
 		lidac_self_min, lidac_self_max, lidac_self_ave);
-	size += scnprintf(buf + size, PAGE_SIZE - size,
+	size += sysfs_emit_at(buf, size,
 		"%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
 		raw_cap_mutual_min, raw_cap_mutual_max, raw_cap_mutual_ave,
 		raw_cap_self_min, raw_cap_self_max, raw_cap_self_ave,

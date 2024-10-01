@@ -2,7 +2,7 @@
 /*
  * Implementation of the kernel access vector cache (AVC).
  *
- * Authors:  Stephen Smalley, <sds@tycho.nsa.gov>
+ * Authors:  Stephen Smalley, <stephen.smalley.work@gmail.com>
  *	     James Morris <jmorris@redhat.com>
  *
  * Update:   KaiGai, Kohei <kaigai@ak.jp.nec.com>
@@ -122,7 +122,7 @@ static struct kmem_cache *avc_xperms_data_cachep __ro_after_init;
 static struct kmem_cache *avc_xperms_decision_cachep __ro_after_init;
 static struct kmem_cache *avc_xperms_cachep __ro_after_init;
 
-static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
+static inline u32 avc_hash(u32 ssid, u32 tsid, u16 tclass)
 {
 	return (ssid ^ (tsid<<2) ^ (tclass<<4)) & (AVC_CACHE_SLOTS - 1);
 }
@@ -134,18 +134,10 @@ static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
  */
 void __init avc_init(void)
 {
-	avc_node_cachep = kmem_cache_create("avc_node", sizeof(struct avc_node),
-					0, SLAB_PANIC, NULL);
-	avc_xperms_cachep = kmem_cache_create("avc_xperms_node",
-					sizeof(struct avc_xperms_node),
-					0, SLAB_PANIC, NULL);
-	avc_xperms_decision_cachep = kmem_cache_create(
-					"avc_xperms_decision_node",
-					sizeof(struct avc_xperms_decision_node),
-					0, SLAB_PANIC, NULL);
-	avc_xperms_data_cachep = kmem_cache_create("avc_xperms_data",
-					sizeof(struct extended_perms_data),
-					0, SLAB_PANIC, NULL);
+	avc_node_cachep = KMEM_CACHE(avc_node, SLAB_PANIC);
+	avc_xperms_cachep = KMEM_CACHE(avc_xperms_node, SLAB_PANIC);
+	avc_xperms_decision_cachep = KMEM_CACHE(avc_xperms_decision_node, SLAB_PANIC);
+	avc_xperms_data_cachep = KMEM_CACHE(extended_perms_data, SLAB_PANIC);
 }
 
 int avc_get_hash_stats(char *page)
@@ -330,12 +322,12 @@ static int avc_add_xperms_decision(struct avc_node *node,
 {
 	struct avc_xperms_decision_node *dest_xpd;
 
-	node->ae.xp_node->xp.len++;
 	dest_xpd = avc_xperms_decision_alloc(src->used);
 	if (!dest_xpd)
 		return -ENOMEM;
 	avc_copy_xperms_decision(&dest_xpd->xpd, src);
 	list_add(&dest_xpd->xpd_list, &node->ae.xp_node->xpd_head);
+	node->ae.xp_node->xp.len++;
 	return 0;
 }
 
@@ -396,7 +388,7 @@ static inline u32 avc_xperms_audit_required(u32 requested,
 		audited = denied & avd->auditdeny;
 		if (audited && xpd) {
 			if (avc_xperms_has_perm(xpd, perm, XPERMS_DONTAUDIT))
-				audited &= ~requested;
+				audited = 0;
 		}
 	} else if (result) {
 		audited = denied = requested;
@@ -404,7 +396,7 @@ static inline u32 avc_xperms_audit_required(u32 requested,
 		audited = requested & avd->auditallow;
 		if (audited && xpd) {
 			if (!avc_xperms_has_perm(xpd, perm, XPERMS_AUDITALLOW))
-				audited &= ~requested;
+				audited = 0;
 		}
 	}
 
@@ -523,7 +515,7 @@ static void avc_node_populate(struct avc_node *node, u32 ssid, u32 tsid, u16 tcl
 static inline struct avc_node *avc_search_node(u32 ssid, u32 tsid, u16 tclass)
 {
 	struct avc_node *node, *ret = NULL;
-	int hvalue;
+	u32 hvalue;
 	struct hlist_head *head;
 
 	hvalue = avc_hash(ssid, tsid, tclass);
@@ -566,7 +558,7 @@ static struct avc_node *avc_lookup(u32 ssid, u32 tsid, u16 tclass)
 	return NULL;
 }
 
-static int avc_latest_notif_update(int seqno, int is_insert)
+static int avc_latest_notif_update(u32 seqno, int is_insert)
 {
 	int ret = 0;
 	static DEFINE_SPINLOCK(notif_lock);
@@ -609,7 +601,7 @@ static void avc_insert(u32 ssid, u32 tsid, u16 tclass,
 		       struct av_decision *avd, struct avc_xperms_node *xp_node)
 {
 	struct avc_node *pos, *node = NULL;
-	int hvalue;
+	u32 hvalue;
 	unsigned long flag;
 	spinlock_t *lock;
 	struct hlist_head *head;
@@ -654,9 +646,9 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	struct selinux_audit_data *sad = ad->selinux_audit_data;
-	u32 av = sad->audited;
+	u32 av = sad->audited, perm;
 	const char *const *perms;
-	int i, perm;
+	u32 i;
 
 	audit_log_format(ab, "avc:  %s ", sad->denied ? "denied" : "granted");
 
@@ -833,7 +825,8 @@ static int avc_update_node(u32 event, u32 perms, u8 driver, u8 xperm, u32 ssid,
 			   struct extended_perms_decision *xpd,
 			   u32 flags)
 {
-	int hvalue, rc = 0;
+	u32 hvalue;
+	int rc = 0;
 	unsigned long flag;
 	struct avc_node *pos, *node, *orig = NULL;
 	struct hlist_head *head;
@@ -906,7 +899,11 @@ static int avc_update_node(u32 event, u32 perms, u8 driver, u8 xperm, u32 ssid,
 		node->ae.avd.auditdeny &= ~perms;
 		break;
 	case AVC_CALLBACK_ADD_XPERMS:
-		avc_add_xperms_decision(node, xpd);
+		rc = avc_add_xperms_decision(node, xpd);
+		if (rc) {
+			avc_node_kill(node);
+			goto out_unlock;
+		}
 		break;
 	}
 	avc_node_replace(node, orig);

@@ -141,6 +141,17 @@ out:
 	return ret;
 }
 
+static int scmi_protocol_table_register(const struct scmi_device_id *id_table)
+{
+	int ret = 0;
+	const struct scmi_device_id *entry;
+
+	for (entry = id_table; entry->name && ret == 0; entry++)
+		ret = scmi_protocol_device_request(entry);
+
+	return ret;
+}
+
 /**
  * scmi_protocol_device_unrequest  - Helper to unrequest a device
  *
@@ -186,8 +197,17 @@ static void scmi_protocol_device_unrequest(const struct scmi_device_id *id_table
 	mutex_unlock(&scmi_requested_devices_mtx);
 }
 
+static void
+scmi_protocol_table_unregister(const struct scmi_device_id *id_table)
+{
+	const struct scmi_device_id *entry;
+
+	for (entry = id_table; entry->name; entry++)
+		scmi_protocol_device_unrequest(entry);
+}
+
 static const struct scmi_device_id *
-scmi_dev_match_id(struct scmi_device *scmi_dev, struct scmi_driver *scmi_drv)
+scmi_dev_match_id(struct scmi_device *scmi_dev, const struct scmi_driver *scmi_drv)
 {
 	const struct scmi_device_id *id = scmi_drv->id_table;
 
@@ -205,9 +225,9 @@ scmi_dev_match_id(struct scmi_device *scmi_dev, struct scmi_driver *scmi_drv)
 	return NULL;
 }
 
-static int scmi_dev_match(struct device *dev, struct device_driver *drv)
+static int scmi_dev_match(struct device *dev, const struct device_driver *drv)
 {
-	struct scmi_driver *scmi_drv = to_scmi_driver(drv);
+	const struct scmi_driver *scmi_drv = to_scmi_driver(drv);
 	struct scmi_device *scmi_dev = to_scmi_dev(dev);
 	const struct scmi_device_id *id;
 
@@ -263,7 +283,7 @@ static void scmi_dev_remove(struct device *dev)
 		scmi_drv->remove(scmi_dev);
 }
 
-struct bus_type scmi_bus_type = {
+const struct bus_type scmi_bus_type = {
 	.name =	"scmi_protocol",
 	.match = scmi_dev_match,
 	.probe = scmi_dev_probe,
@@ -279,7 +299,7 @@ int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 	if (!driver->probe)
 		return -EINVAL;
 
-	retval = scmi_protocol_device_request(driver->id_table);
+	retval = scmi_protocol_table_register(driver->id_table);
 	if (retval)
 		return retval;
 
@@ -299,7 +319,7 @@ EXPORT_SYMBOL_GPL(scmi_driver_register);
 void scmi_driver_unregister(struct scmi_driver *driver)
 {
 	driver_unregister(&driver->driver);
-	scmi_protocol_device_unrequest(driver->id_table);
+	scmi_protocol_table_unregister(driver->id_table);
 }
 EXPORT_SYMBOL_GPL(scmi_driver_unregister);
 

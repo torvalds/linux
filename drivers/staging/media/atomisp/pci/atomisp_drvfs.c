@@ -27,31 +27,17 @@
 #include "hmm/hmm.h"
 #include "ia_css_debug.h"
 
+#define OPTION_BIN_LIST			BIT(0)
+#define OPTION_BIN_RUN			BIT(1)
+#define OPTION_VALID			(OPTION_BIN_LIST | OPTION_BIN_RUN)
+
 /*
- * _iunit_debug:
- * dbglvl: iunit css driver trace level
  * dbgopt: iunit debug option:
  *        bit 0: binary list
  *        bit 1: running binary
  *        bit 2: memory statistic
-*/
-struct _iunit_debug {
-	struct device_driver	*drv;
-	struct atomisp_device	*isp;
-	unsigned int		dbglvl;
-	unsigned int		dbgfun;
-	unsigned int		dbgopt;
-};
-
-#define OPTION_BIN_LIST			BIT(0)
-#define OPTION_BIN_RUN			BIT(1)
-#define OPTION_VALID			(OPTION_BIN_LIST \
-					| OPTION_BIN_RUN)
-
-static struct _iunit_debug iunit_debug = {
-	.dbglvl = 0,
-	.dbgopt = OPTION_BIN_LIST,
-};
+ */
+static unsigned int dbgopt = OPTION_BIN_LIST;
 
 static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
 				    unsigned int opt)
@@ -88,34 +74,44 @@ opt_err:
 	return ret;
 }
 
-static ssize_t iunit_dbglvl_show(struct device_driver *drv, char *buf)
+static ssize_t dbglvl_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	iunit_debug.dbglvl = dbg_level;
-	return sysfs_emit(buf, "dtrace level:%u\n", iunit_debug.dbglvl);
+	unsigned int dbglvl = ia_css_debug_get_dtrace_level();
+
+	return sysfs_emit(buf, "dtrace level:%u\n", dbglvl);
 }
 
-static ssize_t iunit_dbglvl_store(struct device_driver *drv, const char *buf,
-				  size_t size)
+static ssize_t dbglvl_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t size)
 {
-	if (kstrtouint(buf, 10, &iunit_debug.dbglvl)
-	    || iunit_debug.dbglvl < 1
-	    || iunit_debug.dbglvl > 9) {
+	unsigned int dbglvl;
+	int ret;
+
+	ret = kstrtouint(buf, 10, &dbglvl);
+	if (ret)
+		return ret;
+
+	if (dbglvl < 1 || dbglvl > 9)
 		return -ERANGE;
-	}
-	ia_css_debug_set_dtrace_level(iunit_debug.dbglvl);
 
+	ia_css_debug_set_dtrace_level(dbglvl);
 	return size;
 }
+static DEVICE_ATTR_RW(dbglvl);
 
-static ssize_t iunit_dbgfun_show(struct device_driver *drv, char *buf)
+static ssize_t dbgfun_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	iunit_debug.dbgfun = atomisp_get_css_dbgfunc();
-	return sysfs_emit(buf, "dbgfun opt:%u\n", iunit_debug.dbgfun);
+	unsigned int dbgfun = atomisp_get_css_dbgfunc();
+
+	return sysfs_emit(buf, "dbgfun opt:%u\n", dbgfun);
 }
 
-static ssize_t iunit_dbgfun_store(struct device_driver *drv, const char *buf,
-				  size_t size)
+static ssize_t dbgfun_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t size)
 {
+	struct atomisp_device *isp = dev_get_drvdata(dev);
 	unsigned int opt;
 	int ret;
 
@@ -123,23 +119,20 @@ static ssize_t iunit_dbgfun_store(struct device_driver *drv, const char *buf,
 	if (ret)
 		return ret;
 
-	ret = atomisp_set_css_dbgfunc(iunit_debug.isp, opt);
-	if (ret)
-		return ret;
+	return atomisp_set_css_dbgfunc(isp, opt);
+}
+static DEVICE_ATTR_RW(dbgfun);
 
-	iunit_debug.dbgfun = opt;
-
-	return size;
+static ssize_t dbgopt_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	return sysfs_emit(buf, "option:0x%x\n", dbgopt);
 }
 
-static ssize_t iunit_dbgopt_show(struct device_driver *drv, char *buf)
+static ssize_t dbgopt_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t size)
 {
-	return sysfs_emit(buf, "option:0x%x\n", iunit_debug.dbgopt);
-}
-
-static ssize_t iunit_dbgopt_store(struct device_driver *drv, const char *buf,
-				  size_t size)
-{
+	struct atomisp_device *isp = dev_get_drvdata(dev);
 	unsigned int opt;
 	int ret;
 
@@ -147,56 +140,27 @@ static ssize_t iunit_dbgopt_store(struct device_driver *drv, const char *buf,
 	if (ret)
 		return ret;
 
-	iunit_debug.dbgopt = opt;
-	ret = iunit_dump_dbgopt(iunit_debug.isp, iunit_debug.dbgopt);
+	dbgopt = opt;
+	ret = iunit_dump_dbgopt(isp, dbgopt);
 	if (ret)
 		return ret;
 
 	return size;
 }
+static DEVICE_ATTR_RW(dbgopt);
 
-static const struct driver_attribute iunit_drvfs_attrs[] = {
-	__ATTR(dbglvl, 0644, iunit_dbglvl_show, iunit_dbglvl_store),
-	__ATTR(dbgfun, 0644, iunit_dbgfun_show, iunit_dbgfun_store),
-	__ATTR(dbgopt, 0644, iunit_dbgopt_show, iunit_dbgopt_store),
+static struct attribute *dbg_attrs[] = {
+	&dev_attr_dbglvl.attr,
+	&dev_attr_dbgfun.attr,
+	&dev_attr_dbgopt.attr,
+	NULL
 };
 
-static int iunit_drvfs_create_files(struct device_driver *drv)
-{
-	int i, ret = 0;
+static const struct attribute_group dbg_attr_group = {
+	.attrs = dbg_attrs,
+};
 
-	for (i = 0; i < ARRAY_SIZE(iunit_drvfs_attrs); i++)
-		ret |= driver_create_file(drv, &iunit_drvfs_attrs[i]);
-
-	return ret;
-}
-
-static void iunit_drvfs_remove_files(struct device_driver *drv)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(iunit_drvfs_attrs); i++)
-		driver_remove_file(drv, &iunit_drvfs_attrs[i]);
-}
-
-int atomisp_drvfs_init(struct atomisp_device *isp)
-{
-	struct device_driver *drv = isp->dev->driver;
-	int ret;
-
-	iunit_debug.isp = isp;
-	iunit_debug.drv = drv;
-
-	ret = iunit_drvfs_create_files(iunit_debug.drv);
-	if (ret) {
-		dev_err(isp->dev, "drvfs_create_files error: %d\n", ret);
-		iunit_drvfs_remove_files(iunit_debug.drv);
-	}
-
-	return ret;
-}
-
-void atomisp_drvfs_exit(void)
-{
-	iunit_drvfs_remove_files(iunit_debug.drv);
-}
+const struct attribute_group *dbg_attr_groups[] = {
+	&dbg_attr_group,
+	NULL
+};

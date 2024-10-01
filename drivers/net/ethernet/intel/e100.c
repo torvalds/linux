@@ -161,7 +161,6 @@
 #define FIRMWARE_D102E		"e100/d102e_ucode.bin"
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(FIRMWARE_D101M);
 MODULE_FIRMWARE(FIRMWARE_D101S);
@@ -171,8 +170,8 @@ static int debug = 3;
 static int eeprom_bad_csum_allow = 0;
 static int use_io = 0;
 module_param(debug, int, 0);
-module_param(eeprom_bad_csum_allow, int, 0);
-module_param(use_io, int, 0);
+module_param(eeprom_bad_csum_allow, int, 0444);
+module_param(use_io, int, 0444);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 MODULE_PARM_DESC(eeprom_bad_csum_allow, "Allow bad eeprom checksums");
 MODULE_PARM_DESC(use_io, "Force use of i/o access mode");
@@ -2841,7 +2840,7 @@ static int e100_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->netdev_ops = &e100_netdev_ops;
 	netdev->ethtool_ops = &e100_ethtool_ops;
 	netdev->watchdog_timeo = E100_WATCHDOG_PERIOD;
-	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
+	strscpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
 	nic = netdev_priv(netdev);
 	netif_napi_add_weight(netdev, &nic->napi, e100_poll, E100_NAPI_WEIGHT);
@@ -3037,7 +3036,7 @@ static int __e100_power_off(struct pci_dev *pdev, bool wake)
 	return 0;
 }
 
-static int __maybe_unused e100_suspend(struct device *dev_d)
+static int e100_suspend(struct device *dev_d)
 {
 	bool wake;
 
@@ -3046,7 +3045,7 @@ static int __maybe_unused e100_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int __maybe_unused e100_resume(struct device *dev_d)
+static int e100_resume(struct device *dev_d)
 {
 	struct net_device *netdev = dev_get_drvdata(dev_d);
 	struct nic *nic = netdev_priv(netdev);
@@ -3163,7 +3162,7 @@ static const struct pci_error_handlers e100_err_handler = {
 	.resume = e100_io_resume,
 };
 
-static SIMPLE_DEV_PM_OPS(e100_pm_ops, e100_suspend, e100_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(e100_pm_ops, e100_suspend, e100_resume);
 
 static struct pci_driver e100_driver = {
 	.name =         DRV_NAME,
@@ -3172,7 +3171,7 @@ static struct pci_driver e100_driver = {
 	.remove =       e100_remove,
 
 	/* Power Management hooks */
-	.driver.pm =	&e100_pm_ops,
+	.driver.pm =	pm_sleep_ptr(&e100_pm_ops),
 
 	.shutdown =     e100_shutdown,
 	.err_handler = &e100_err_handler,

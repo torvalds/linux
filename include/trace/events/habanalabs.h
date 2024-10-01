@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2022-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -27,7 +27,7 @@ DECLARE_EVENT_CLASS(habanalabs_mmu_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->virt_addr = virt_addr;
 		__entry->phys_addr = phys_addr;
 		__entry->page_size = page_size;
@@ -64,7 +64,7 @@ DECLARE_EVENT_CLASS(habanalabs_dma_alloc_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->cpu_addr = cpu_addr;
 		__entry->dma_addr = dma_addr;
 		__entry->size = size;
@@ -87,6 +87,49 @@ DEFINE_EVENT(habanalabs_dma_alloc_template, habanalabs_dma_free,
 	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size, const char *caller),
 	TP_ARGS(dev, cpu_addr, dma_addr, size, caller));
 
+DECLARE_EVENT_CLASS(habanalabs_dma_map_template,
+	TP_PROTO(struct device *dev, u64 phys_addr, u64 dma_addr, size_t len,
+			enum dma_data_direction dir, const char *caller),
+
+	TP_ARGS(dev, phys_addr, dma_addr, len, dir, caller),
+
+	TP_STRUCT__entry(
+		__string(dname, dev_name(dev))
+		__field(u64, phys_addr)
+		__field(u64, dma_addr)
+		__field(u32, len)
+		__field(int, dir)
+		__field(const char *, caller)
+	),
+
+	TP_fast_assign(
+		__assign_str(dname);
+		__entry->phys_addr = phys_addr;
+		__entry->dma_addr = dma_addr;
+		__entry->len = len;
+		__entry->dir = dir;
+		__entry->caller = caller;
+	),
+
+	TP_printk("%s: phys_addr: %#llx, dma_addr: %#llx, len: %#x, dir: %d, caller: %s",
+		__get_str(dname),
+		__entry->phys_addr,
+		__entry->dma_addr,
+		__entry->len,
+		__entry->dir,
+		__entry->caller)
+);
+
+DEFINE_EVENT(habanalabs_dma_map_template, habanalabs_dma_map_page,
+	TP_PROTO(struct device *dev, u64 phys_addr, u64 dma_addr, size_t len,
+			enum dma_data_direction dir, const char *caller),
+	TP_ARGS(dev, phys_addr, dma_addr, len, dir, caller));
+
+DEFINE_EVENT(habanalabs_dma_map_template, habanalabs_dma_unmap_page,
+	TP_PROTO(struct device *dev, u64 phys_addr, u64 dma_addr, size_t len,
+			enum dma_data_direction dir, const char *caller),
+	TP_ARGS(dev, phys_addr, dma_addr, len, dir, caller));
+
 DECLARE_EVENT_CLASS(habanalabs_comms_template,
 	TP_PROTO(struct device *dev, char *op_str),
 
@@ -98,7 +141,7 @@ DECLARE_EVENT_CLASS(habanalabs_comms_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->op_str = op_str;
 	),
 
@@ -135,7 +178,7 @@ DECLARE_EVENT_CLASS(habanalabs_reg_access_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(dname, dev_name(dev));
+		__assign_str(dname);
 		__entry->addr = addr;
 		__entry->val = val;
 	),

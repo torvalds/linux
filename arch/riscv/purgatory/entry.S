@@ -7,15 +7,12 @@
  * Author: Li Zhengyu (lizhengyu3@huawei.com)
  *
  */
-
-.macro	size, sym:req
-	.size \sym, . - \sym
-.endm
+#include <asm/asm.h>
+#include <linux/linkage.h>
 
 .text
 
-.globl purgatory_start
-purgatory_start:
+SYM_CODE_START(purgatory_start)
 
 	lla	sp, .Lstack
 	mv	s0, a0	/* The hartid of the current hart */
@@ -28,8 +25,7 @@ purgatory_start:
 	mv	a1, s1
 	ld	a2, riscv_kernel_entry
 	jr	a2
-
-size purgatory_start
+SYM_CODE_END(purgatory_start)
 
 .align 4
 	.rept	256
@@ -39,9 +35,7 @@ size purgatory_start
 
 .data
 
-.globl riscv_kernel_entry
-riscv_kernel_entry:
-	.quad	0
-size riscv_kernel_entry
+.align LGREG
+SYM_DATA(riscv_kernel_entry, .quad 0)
 
 .end

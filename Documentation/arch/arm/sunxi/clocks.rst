@@ -5,7 +5,7 @@ Frequently asked questions about the sunxi clock system
 This document contains useful bits of information that people tend to ask
 about the sunxi clock system, as well as accompanying ASCII art when adequate.
 
-Q: Why is the main 24MHz oscillator gatable? Wouldn't that break the
+Q: Why is the main 24MHz oscillator gateable? Wouldn't that break the
    system?
 
 A: The 24MHz oscillator allows gating to save power. Indeed, if gated

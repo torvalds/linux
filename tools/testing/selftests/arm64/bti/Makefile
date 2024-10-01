@@ -2,8 +2,6 @@
 
 TEST_GEN_PROGS := btitest nobtitest
 
-PROGS := $(patsubst %,gen/%,$(TEST_GEN_PROGS))
-
 # These tests are built as freestanding binaries since otherwise BTI
 # support in ld.so is required which is not currently widespread; when
 # it is available it will still be useful to test this separately as the
@@ -18,44 +16,41 @@ CFLAGS_COMMON = -ffreestanding -Wall -Wextra $(CFLAGS)
 BTI_CC_COMMAND = $(CC) $(CFLAGS_BTI) $(CFLAGS_COMMON) -c -o $@ $<
 NOBTI_CC_COMMAND = $(CC) $(CFLAGS_NOBTI) $(CFLAGS_COMMON) -c -o $@ $<
 
-%-bti.o: %.c
+$(OUTPUT)/%-bti.o: %.c
 	$(BTI_CC_COMMAND)
 
-%-bti.o: %.S
+$(OUTPUT)/%-bti.o: %.S
 	$(BTI_CC_COMMAND)
 
-%-nobti.o: %.c
+$(OUTPUT)/%-nobti.o: %.c
 	$(NOBTI_CC_COMMAND)
 
-%-nobti.o: %.S
+$(OUTPUT)/%-nobti.o: %.S
 	$(NOBTI_CC_COMMAND)
 
 BTI_OBJS =                                      \
-	test-bti.o                           \
-	signal-bti.o                            \
-	start-bti.o                             \
-	syscall-bti.o                           \
-	system-bti.o                            \
-	teststubs-bti.o                         \
-	trampoline-bti.o
-gen/btitest: $(BTI_OBJS)
+	$(OUTPUT)/test-bti.o                    \
+	$(OUTPUT)/signal-bti.o                  \
+	$(OUTPUT)/start-bti.o                   \
+	$(OUTPUT)/syscall-bti.o                 \
+	$(OUTPUT)/system-bti.o                  \
+	$(OUTPUT)/teststubs-bti.o               \
+	$(OUTPUT)/trampoline-bti.o
+$(OUTPUT)/btitest: $(BTI_OBJS)
 	$(CC) $(CFLAGS_BTI) $(CFLAGS_COMMON) -nostdlib -static -o $@ $^
 
 NOBTI_OBJS =                                    \
-	test-nobti.o                         \
-	signal-nobti.o                          \
-	start-nobti.o                           \
-	syscall-nobti.o                         \
-	system-nobti.o                          \
-	teststubs-nobti.o                       \
-	trampoline-nobti.o
-gen/nobtitest: $(NOBTI_OBJS)
+	$(OUTPUT)/test-nobti.o                  \
+	$(OUTPUT)/signal-nobti.o                \
+	$(OUTPUT)/start-nobti.o                 \
+	$(OUTPUT)/syscall-nobti.o               \
+	$(OUTPUT)/system-nobti.o                \
+	$(OUTPUT)/teststubs-nobti.o             \
+	$(OUTPUT)/trampoline-nobti.o
+$(OUTPUT)/nobtitest: $(NOBTI_OBJS)
 	$(CC) $(CFLAGS_BTI) $(CFLAGS_COMMON) -nostdlib -static -o $@ $^
 
 # Including KSFT lib.mk here will also mangle the TEST_GEN_PROGS list
 # to account for any OUTPUT target-dirs optionally provided by
 # the toplevel makefile
 include ../../lib.mk
-
-$(TEST_GEN_PROGS): $(PROGS)
-	cp $(PROGS) $(OUTPUT)/

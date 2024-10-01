@@ -1897,7 +1897,7 @@ void dr_ste_v1_build_flex_parser_tnl_geneve_init(struct mlx5dr_ste_build *sb,
 
 static int dr_ste_v1_build_tnl_header_0_1_tag(struct mlx5dr_match_param *value,
 					      struct mlx5dr_ste_build *sb,
-					      uint8_t *tag)
+					      u8 *tag)
 {
 	struct mlx5dr_match_misc5 *misc5 = &value->misc5;
 
@@ -1984,16 +1984,17 @@ static int dr_ste_v1_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 	struct mlx5dr_domain *dmn = sb->dmn;
 	struct mlx5dr_domain *vport_dmn;
 	u8 *bit_mask = sb->bit_mask;
+	struct mlx5dr_domain *peer;
 
 	DR_STE_SET_TAG(src_gvmi_qp_v1, tag, source_qp, misc, source_sqn);
 
 	if (sb->vhca_id_valid) {
+		peer = xa_load(&dmn->peer_dmn_xa, id);
 		/* Find port GVMI based on the eswitch_owner_vhca_id */
 		if (id == dmn->info.caps.gvmi)
 			vport_dmn = dmn;
-		else if (id < MLX5_MAX_PORTS && dmn->peer_dmn[id] &&
-			 (id == dmn->peer_dmn[id]->info.caps.gvmi))
-			vport_dmn = dmn->peer_dmn[id];
+		else if (peer && (id == peer->info.caps.gvmi))
+			vport_dmn = peer;
 		else
 			return -EINVAL;
 
@@ -2128,7 +2129,7 @@ dr_ste_v1_build_flex_parser_tnl_geneve_tlv_opt_init(struct mlx5dr_ste_build *sb,
 static int
 dr_ste_v1_build_flex_parser_tnl_geneve_tlv_opt_exist_tag(struct mlx5dr_match_param *value,
 							 struct mlx5dr_ste_build *sb,
-							 uint8_t *tag)
+							 u8 *tag)
 {
 	u8 parser_id = sb->caps->flex_parser_id_geneve_tlv_option_0;
 	struct mlx5dr_match_misc *misc = &value->misc;

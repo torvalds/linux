@@ -17,8 +17,6 @@ extern int vpelimit;
 extern cpumask_t mt_fpu_cpumask;
 extern unsigned long mt_fpemul_threshold;
 
-extern void mips_mt_regdump(unsigned long previous_mvpcontrol_value);
-
 #ifdef CONFIG_MIPS_MT
 extern void mips_mt_set_cpuoptions(void);
 #else
@@ -26,6 +24,6 @@ static inline void mips_mt_set_cpuoptions(void) { }
 #endif
 
 struct class;
-extern struct class *mt_class;
+extern const struct class mt_class;
 
 #endif /* __ASM_MIPS_MT_H */

@@ -24,28 +24,28 @@ enum ht_extchnl_offset {
 };
 
 struct ht_capab_ele {
-	u8	AdvCoding:1;
-	u8	ChlWidth:1;
-	u8	MimoPwrSave:2;
-	u8	GreenField:1;
-	u8	ShortGI20Mhz:1;
-	u8	ShortGI40Mhz:1;
-	u8	TxSTBC:1;
-	u8	RxSTBC:2;
-	u8	DelayBA:1;
-	u8	MaxAMSDUSize:1;
-	u8	DssCCk:1;
+	u8	adv_coding:1;
+	u8	chl_width:1;
+	u8	mimo_pwr_save:2;
+	u8	green_field:1;
+	u8	short_gi_20mhz:1;
+	u8	short_gi_40mhz:1;
+	u8	tx_stbc:1;
+	u8	rx_stbc:2;
+	u8	delay_ba:1;
+	u8	max_amsdu_size:1;
+	u8	dss_cck:1;
 	u8	PSMP:1;
 	u8	Rsvd1:1;
-	u8	LSigTxopProtect:1;
+	u8	lsig_txop_protect:1;
 
-	u8	MaxRxAMPDUFactor:2;
-	u8	MPDUDensity:3;
+	u8	max_rx_ampdu_factor:2;
+	u8	mpdu_density:3;
 	u8	Rsvd2:3;
 
 	u8	MCS[16];
 
-	u16	ExtHTCapInfo;
+	u16	ext_ht_cap_info;
 
 	u8	TxBFCap[4];
 
@@ -62,7 +62,7 @@ struct ht_info_ele {
 	u8	PSMPAccessOnly:1;
 	u8	SrvIntGranularity:3;
 
-	u8	OptMode:2;
+	u8	opt_mode:2;
 	u8	NonGFDevPresent:1;
 	u8	Revd1:5;
 	u8	Revd2:8;
@@ -93,52 +93,33 @@ enum ht_aggre_mode {
 
 struct rt_hi_throughput {
 	u8 enable_ht;
-	u8 bCurrentHTSupport;
-	u8 bRegBW40MHz;
-	u8 bCurBW40MHz;
-	u8 bRegShortGI40MHz;
-	u8 bCurShortGI40MHz;
-	u8 bRegShortGI20MHz;
-	u8 bCurShortGI20MHz;
-	u8 bRegSuppCCK;
-	u8 bCurSuppCCK;
-	enum ht_spec_ver ePeerHTSpecVer;
-	struct ht_capab_ele SelfHTCap;
-	struct ht_info_ele SelfHTInfo;
-	u8 PeerHTCapBuf[32];
-	u8 PeerHTInfoBuf[32];
-	u8 bAMSDU_Support;
-	u16 nAMSDU_MaxSize;
-	u8 bCurrent_AMSDU_Support;
-	u16 nCurrent_AMSDU_MaxSize;
-	u8 bAMPDUEnable;
-	u8 bCurrentAMPDUEnable;
-	u8 AMPDU_Factor;
-	u8 CurrentAMPDUFactor;
-	u8 MPDU_Density;
+	u8 current_ht_support;
+	u8 cur_bw_40mhz;
+	u8 cur_short_gi_40mhz;
+	u8 cur_short_gi_20mhz;
+	enum ht_spec_ver peer_ht_spec_ver;
+	struct ht_capab_ele self_ht_cap;
+	u8 peer_ht_cap_buf[32];
+	u8 peer_ht_info_buf[32];
+	u8 ampdu_enable;
+	u8 current_ampdu_enable;
+	u8 ampdu_factor;
+	u8 current_ampdu_factor;
 	u8 current_mpdu_density;
-	enum ht_aggre_mode ForcedAMPDUMode;
 	u8 forced_ampdu_factor;
 	u8 forced_mpdu_density;
-	enum ht_aggre_mode ForcedAMSDUMode;
-	u8 forced_short_gi;
 	u8 current_op_mode;
-	u8 self_mimo_ps;
-	u8 peer_mimo_ps;
-	enum ht_extchnl_offset CurSTAExtChnlOffset;
+	enum ht_extchnl_offset cur_sta_ext_chnl_offset;
 	u8 cur_tx_bw40mhz;
 	u8 sw_bw_in_progress;
-	u8 reg_rt2rt_aggregation;
-	u8 RT2RT_HT_Mode;
 	u8 current_rt2rt_aggregation;
 	u8 current_rt2rt_long_slot_time;
 	u8 sz_rt2rt_agg_buf[10];
-	u8 reg_rx_reorder_enable;
 	u8 cur_rx_reorder_enable;
 	u8 rx_reorder_win_size;
 	u8 rx_reorder_pending_time;
 	u16 rx_reorder_drop_counter;
-	u8 IOTPeer;
+	u8 iot_peer;
 	u32 iot_action;
 	u8 iot_ra_func;
 } __packed;

@@ -19,7 +19,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -218,7 +217,7 @@ static bool vc5_regmap_is_writeable(struct device *dev, unsigned int reg)
 static const struct regmap_config vc5_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 0x76,
 	.writeable_reg = vc5_regmap_is_writeable,
 };
@@ -956,7 +955,7 @@ static int vc5_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, vc5);
 	vc5->client = client;
-	vc5->chip_info = device_get_match_data(&client->dev);
+	vc5->chip_info = i2c_get_match_data(client);
 
 	vc5->pin_xin = devm_clk_get(&client->dev, "xin");
 	if (PTR_ERR(vc5->pin_xin) == -EPROBE_DEFER)

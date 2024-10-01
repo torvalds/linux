@@ -140,8 +140,8 @@ static int ehci_brcm_probe(struct platform_device *pdev)
 		return err;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return irq ? irq : -EINVAL;
+	if (irq < 0)
+		return irq;
 
 	/* Hook the hub control routine to work around a bug */
 	ehci_brcm_hc_driver.hub_control = ehci_brcm_hub_control;
@@ -246,6 +246,7 @@ static const struct of_device_id brcm_ehci_of_match[] = {
 	{ .compatible = "brcm,bcm7445-ehci", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, brcm_ehci_of_match);
 
 static struct platform_driver ehci_brcm_driver = {
 	.probe		= ehci_brcm_probe,

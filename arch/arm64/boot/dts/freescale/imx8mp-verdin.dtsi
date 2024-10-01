@@ -45,6 +45,23 @@
 		status = "disabled";
 	};
 
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		id-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		label = "Type-C";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb_1_id>;
+		self-powered;
+		type = "micro";
+		vbus-supply = <&reg_usb1_vbus>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -58,6 +75,14 @@
 			linux,code = <KEY_WAKEUP>;
 			wakeup-source;
 		};
+	};
+
+	sound_hdmi: sound-hdmi {
+		compatible = "fsl,imx-audio-hdmi";
+		model = "audio-hdmi";
+		audio-cpu = <&aud2htx>;
+		hdmi-out;
+		status = "disabled";
 	};
 
 	/* Carrier Board Supplies */
@@ -97,6 +122,22 @@
 		regulator-name = "On-module +V3.3_ETH";
 		startup-delay-us = <200000>;
 		vin-supply = <&reg_vdd_3v3>;
+	};
+
+	/*
+	 * By default we enable CTRL_SLEEP_MOCI#, this is required to have
+	 * peripherals on the carrier board powered.
+	 * If more granularity or power saving is required this can be disabled
+	 * in the carrier board device tree files.
+	 */
+	reg_force_sleep_moci: regulator-force-sleep-moci {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
+		gpio = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "CTRL_SLEEP_MOCI#";
 	};
 
 	reg_usb1_vbus: regulator-usb1-vbus {
@@ -184,7 +225,6 @@
 &eqos {
 	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii-id";
-	phy-supply = <&reg_module_eth1phy>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eqos>;
 	snps,force_thresh_dma_mode;
@@ -209,7 +249,6 @@
 
 	mtl_rx_setup: rx-queues-config {
 		snps,rx-queues-to-use = <5>;
-		snps,rx-sched-sp;
 
 		queue0 {
 			snps,dcb-algorithm;
@@ -244,7 +283,6 @@
 
 	mtl_tx_setup: tx-queues-config {
 		snps,tx-queues-to-use = <5>;
-		snps,tx-sched-sp;
 
 		queue0 {
 			snps,dcb-algorithm;
@@ -423,16 +461,13 @@
 			  "SODIMM_256",
 			  "SODIMM_48",
 			  "SODIMM_44";
+};
 
-	ctrl-sleep-moci-hog {
-		gpio-hog;
-		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
-		gpios = <29 GPIO_ACTIVE_HIGH>;
-		line-name = "CTRL_SLEEP_MOCI#";
-		output-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
-	};
+/* Verdin HDMI_1 */
+&hdmi_tx {
+	ddc-i2c-bus = <&i2c5>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi>;
 };
 
 /* On-module I2C */
@@ -536,7 +571,7 @@
 				regulator-name = "On-module +V3.3_ADC (LDO4)";
 			};
 
-			LDO5 {
+			reg_vdd_sdio: LDO5 {
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <1800000>;
 				regulator-name = "On-module +V3.3_1.8_SD (LDO5)";
@@ -628,8 +663,7 @@
 
 /* Verdin I2C_2_DSI */
 &i2c2 {
-	/* Lower frequency to avoid DDC/EDID issues with certain displays/screens. */
-	clock-frequency = <10000>;
+	clock-frequency = <400000>;
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	pinctrl-1 = <&pinctrl_i2c2_gpio>;
@@ -647,8 +681,6 @@
 		status = "disabled";
 	};
 };
-
-/* TODO: Verdin I2C_3_HDMI */
 
 /* Verdin I2C_4_CSI */
 &i2c3 {
@@ -748,6 +780,16 @@
 	};
 };
 
+/* Verdin I2C_3_HDMI */
+&i2c5 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c5>;
+	pinctrl-1 = <&pinctrl_i2c5_gpio>;
+	scl-gpios = <&gpio3 26 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio3 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+};
+
 /* Verdin PCIE_1 */
 &pcie {
 	pinctrl-names = "default";
@@ -836,15 +878,10 @@
 	srp-disable;
 	usb-role-switch;
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		id-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
-		label = "Type-C";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb_1_id>;
-		self-powered;
-		type = "micro";
-		vbus-supply = <&reg_usb1_vbus>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 
@@ -874,6 +911,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_cd>;
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>, <&pinctrl_usdhc2_cd_sleep>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
+	vqmmc-supply = <&reg_vdd_sdio>;
 };
 
 /* On-module eMMC */
@@ -1091,12 +1129,10 @@
 			<MX8MP_IOMUXC_SAI1_RXFS__GPIO4_IO00		0x1c4>;	/* SODIMM 252 */
 	};
 
-	pinctrl_hdmi_hog: hdmihoggrp {
+	pinctrl_hdmi: hdmigrp {
 		fsl,pins =
-			<MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC	0x40000019>,	/* SODIMM 63 */
-			<MX8MP_IOMUXC_HDMI_DDC_SCL__HDMIMIX_HDMI_SCL	0x400001c3>,	/* SODIMM 59 */
-			<MX8MP_IOMUXC_HDMI_DDC_SDA__HDMIMIX_HDMI_SDA	0x400001c3>,	/* SODIMM 57 */
-			<MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD	0x40000019>;	/* SODIMM 61 */
+			<MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC	0x140>,	/* SODIMM 63 */
+			<MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD	0x180>;	/* SODIMM 61 */
 	};
 
 	/* On-module I2C */
@@ -1149,6 +1185,19 @@
 		fsl,pins =
 			<MX8MP_IOMUXC_I2C4_SCL__GPIO5_IO20		0x400001c6>,	/* SODIMM 14 */
 			<MX8MP_IOMUXC_I2C4_SDA__GPIO5_IO21		0x400001c6>;	/* SODIMM 12 */
+	};
+
+	/* Verdin I2C_3_HDMI */
+	pinctrl_i2c5: i2c5grp {
+		fsl,pins =
+			<MX8MP_IOMUXC_HDMI_DDC_SCL__I2C5_SCL		0x400001c6>,	/* SODIMM 59 */
+			<MX8MP_IOMUXC_HDMI_DDC_SDA__I2C5_SDA		0x400001c6>;	/* SODIMM 57 */
+	};
+
+	pinctrl_i2c5_gpio: i2c5gpiogrp {
+		fsl,pins =
+			<MX8MP_IOMUXC_HDMI_DDC_SCL__GPIO3_IO26		0x400001c6>,	/* SODIMM 59 */
+			<MX8MP_IOMUXC_HDMI_DDC_SDA__GPIO3_IO27		0x400001c6>;	/* SODIMM 57 */
 	};
 
 	/* Verdin I2S_2_BCLK (TOUCH_RESET#) */

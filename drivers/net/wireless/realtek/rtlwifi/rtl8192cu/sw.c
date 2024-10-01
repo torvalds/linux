@@ -40,7 +40,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.thermalvalue = 0;
 
 	/* for firmware buf */
-	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);
+	rtlpriv->rtlhal.pfirmware = kmalloc(0x4000, GFP_KERNEL);
 	if (!rtlpriv->rtlhal.pfirmware) {
 		pr_err("Can't alloc buffer for fw\n");
 		return 1;
@@ -53,15 +53,13 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	} else {
 		fw_name = "rtlwifi/rtl8192cufw_TMSC.bin";
 	}
-	/* provide name of alternative file */
-	rtlpriv->cfg->alt_fw_name = "rtlwifi/rtl8192cufw.bin";
 	pr_info("Loading firmware %s\n", fw_name);
 	rtlpriv->max_fw_size = 0x4000;
 	err = request_firmware_nowait(THIS_MODULE, 1,
 				      fw_name, rtlpriv->io.dev,
 				      GFP_KERNEL, hw, rtl_fw_cb);
 	if (err) {
-		vfree(rtlpriv->rtlhal.pfirmware);
+		kfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
 	return err;
@@ -72,7 +70,7 @@ static void rtl92cu_deinit_sw_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->rtlhal.pfirmware) {
-		vfree(rtlpriv->rtlhal.pfirmware);
+		kfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
 }
@@ -102,7 +100,6 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.set_hw_reg = rtl92cu_set_hw_reg,
 	.update_rate_tbl = rtl92cu_update_hal_rate_tbl,
 	.fill_tx_desc = rtl92cu_tx_fill_desc,
-	.fill_fake_txdesc = rtl92cu_fill_fake_txdesc,
 	.fill_tx_cmddesc = rtl92cu_tx_fill_cmddesc,
 	.query_rx_desc = rtl92cu_rx_query_desc,
 	.set_channel_access = rtl92cu_update_channel_access_setting,
@@ -146,7 +143,6 @@ MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 
 static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 	/* rx */
-	.in_ep_num = RTL92C_USB_BULK_IN_NUM,
 	.rx_urb_num = RTL92C_NUM_RX_URBS,
 	.rx_max_size = RTL92C_SIZE_MAX_RX_BUFFER,
 	.usb_rx_hdl = rtl8192cu_rx_hdl,
@@ -162,6 +158,7 @@ static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 
 static struct rtl_hal_cfg rtl92cu_hal_cfg = {
 	.name = "rtl92c_usb",
+	.alt_fw_name = "rtlwifi/rtl8192cufw.bin",
 	.ops = &rtl8192cu_hal_ops,
 	.mod_params = &rtl92cu_mod_params,
 	.usb_interface_cfg = &rtl92cu_interface_cfg,

@@ -41,6 +41,13 @@ allOf:
         - gpios
 
 properties:
+  $nodename:
+    anyOf:
+      - description: Preferred name is 'regulator-[0-9]v[0-9]'
+        pattern: '^regulator(-[0-9]+v[0-9]+|-[0-9a-z-]+)?$'
+      - description: Any name allowed
+        deprecated: true
+
   compatible:
     enum:
       - regulator-fixed
@@ -99,6 +106,13 @@ properties:
 
   vin-supply:
     description: Input supply phandle.
+
+  interrupts:
+    maxItems: 1
+    description:
+      Interrupt signaling a critical under-voltage event.
+
+  system-critical-regulator: true
 
 required:
   - compatible

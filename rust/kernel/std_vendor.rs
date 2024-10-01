@@ -136,7 +136,7 @@
 ///
 /// [`std::dbg`]: https://doc.rust-lang.org/std/macro.dbg.html
 /// [`eprintln`]: https://doc.rust-lang.org/std/macro.eprintln.html
-/// [`printk`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html
+/// [`printk`]: https://docs.kernel.org/core-api/printk-basics.html
 /// [`pr_info`]: crate::pr_info!
 /// [`pr_debug`]: crate::pr_debug!
 #[macro_export]
@@ -146,15 +146,16 @@ macro_rules! dbg {
     // `$val` expression could be a block (`{ .. }`), in which case the `pr_info!`
     // will be malformed.
     () => {
-        $crate::pr_info!("[{}:{}]\n", ::core::file!(), ::core::line!())
+        $crate::pr_info!("[{}:{}:{}]\n", ::core::file!(), ::core::line!(), ::core::column!())
     };
     ($val:expr $(,)?) => {
         // Use of `match` here is intentional because it affects the lifetimes
         // of temporaries - https://stackoverflow.com/a/48732525/1063961
         match $val {
             tmp => {
-                $crate::pr_info!("[{}:{}] {} = {:#?}\n",
-                    ::core::file!(), ::core::line!(), ::core::stringify!($val), &tmp);
+                $crate::pr_info!("[{}:{}:{}] {} = {:#?}\n",
+                    ::core::file!(), ::core::line!(), ::core::column!(),
+                    ::core::stringify!($val), &tmp);
                 tmp
             }
         }

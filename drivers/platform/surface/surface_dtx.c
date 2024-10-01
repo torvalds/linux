@@ -555,7 +555,6 @@ static const struct file_operations surface_dtx_fops = {
 	.fasync         = surface_dtx_fasync,
 	.unlocked_ioctl = surface_dtx_ioctl,
 	.compat_ioctl   = surface_dtx_ioctl,
-	.llseek         = no_llseek,
 };
 
 
@@ -1168,10 +1167,9 @@ static int surface_dtx_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int surface_dtx_platform_remove(struct platform_device *pdev)
+static void surface_dtx_platform_remove(struct platform_device *pdev)
 {
 	sdtx_device_destroy(platform_get_drvdata(pdev));
-	return 0;
 }
 
 static const struct acpi_device_id surface_dtx_acpi_match[] = {
@@ -1182,7 +1180,7 @@ MODULE_DEVICE_TABLE(acpi, surface_dtx_acpi_match);
 
 static struct platform_driver surface_dtx_platform_driver = {
 	.probe = surface_dtx_platform_probe,
-	.remove = surface_dtx_platform_remove,
+	.remove_new = surface_dtx_platform_remove,
 	.driver = {
 		.name = "surface_dtx_pltf",
 		.acpi_match_table = surface_dtx_acpi_match,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_JOB_H__
@@ -24,6 +24,8 @@ struct ivpu_file_priv;
  */
 struct ivpu_cmdq {
 	struct vpu_job_queue *jobq;
+	struct ivpu_bo *primary_preempt_buf;
+	struct ivpu_bo *secondary_preempt_buf;
 	struct ivpu_bo *mem;
 	u32 entry_count;
 	u32 db_id;
@@ -43,7 +45,6 @@ struct ivpu_cmdq {
 			  will update the job status
  */
 struct ivpu_job {
-	struct kref ref;
 	struct ivpu_device *vdev;
 	struct ivpu_file_priv *file_priv;
 	struct dma_fence *done_fence;
@@ -51,16 +52,18 @@ struct ivpu_job {
 	u32 job_id;
 	u32 engine_idx;
 	size_t bo_count;
-	struct ivpu_bo *bos[];
+	struct ivpu_bo *bos[] __counted_by(bo_count);
 };
 
 int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 
-void ivpu_cmdq_release_all(struct ivpu_file_priv *file_priv);
+void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv);
+
+void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv);
 void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev);
 
-int ivpu_job_done_thread_init(struct ivpu_device *vdev);
-void ivpu_job_done_thread_fini(struct ivpu_device *vdev);
+void ivpu_job_done_consumer_init(struct ivpu_device *vdev);
+void ivpu_job_done_consumer_fini(struct ivpu_device *vdev);
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev);
 

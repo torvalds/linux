@@ -53,9 +53,8 @@
 #include <linux/moduleparam.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/nospec-branch.h>
 #include <asm/mwait.h>
-#include <asm/msr.h>
+#include <asm/spec-ctrl.h>
 #include <asm/fpu/api.h>
 
 #define INTEL_IDLE_VERSION "0.5.1"
@@ -69,6 +68,7 @@ static int max_cstate = CPUIDLE_STATE_MAX - 1;
 static unsigned int disabled_states_mask __read_mostly;
 static unsigned int preferred_states_mask __read_mostly;
 static bool force_irq_on __read_mostly;
+static bool ibrs_off __read_mostly;
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 
@@ -121,6 +121,12 @@ static unsigned int mwait_substates __initdata;
 #define CPUIDLE_FLAG_INIT_XSTATE	BIT(17)
 
 /*
+ * Ignore the sub-state when matching mwait hints between the ACPI _CST and
+ * custom tables.
+ */
+#define CPUIDLE_FLAG_PARTIAL_HINT_MATCH	BIT(18)
+
+/*
  * MWAIT takes an 8-bit "hint" in EAX "suggesting"
  * the C-state (top nibble) and sub-state (bottom nibble)
  * 0x00 means "MWAIT(C1)", 0x10 means "MWAIT(C2)" etc.
@@ -131,11 +137,12 @@ static unsigned int mwait_substates __initdata;
 #define MWAIT2flg(eax) ((eax & 0xFF) << 24)
 
 static __always_inline int __intel_idle(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index)
+					struct cpuidle_driver *drv,
+					int index, bool irqoff)
 {
 	struct cpuidle_state *state = &drv->states[index];
 	unsigned long eax = flg2MWAIT(state->flags);
-	unsigned long ecx = 1; /* break on interrupt flag */
+	unsigned long ecx = 1*irqoff; /* break on interrupt flag */
 
 	mwait_idle_with_hints(eax, ecx);
 
@@ -159,19 +166,13 @@ static __always_inline int __intel_idle(struct cpuidle_device *dev,
 static __cpuidle int intel_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int index)
 {
-	return __intel_idle(dev, drv, index);
+	return __intel_idle(dev, drv, index, true);
 }
 
 static __cpuidle int intel_idle_irq(struct cpuidle_device *dev,
 				    struct cpuidle_driver *drv, int index)
 {
-	int ret;
-
-	raw_local_irq_enable();
-	ret = __intel_idle(dev, drv, index);
-	raw_local_irq_disable();
-
-	return ret;
+	return __intel_idle(dev, drv, index, false);
 }
 
 static __cpuidle int intel_idle_ibrs(struct cpuidle_device *dev,
@@ -182,12 +183,12 @@ static __cpuidle int intel_idle_ibrs(struct cpuidle_device *dev,
 	int ret;
 
 	if (smt_active)
-		native_wrmsrl(MSR_IA32_SPEC_CTRL, 0);
+		__update_spec_ctrl(0);
 
-	ret = __intel_idle(dev, drv, index);
+	ret = __intel_idle(dev, drv, index, true);
 
 	if (smt_active)
-		native_wrmsrl(MSR_IA32_SPEC_CTRL, spec_ctrl);
+		__update_spec_ctrl(spec_ctrl);
 
 	return ret;
 }
@@ -196,44 +197,7 @@ static __cpuidle int intel_idle_xstate(struct cpuidle_device *dev,
 				       struct cpuidle_driver *drv, int index)
 {
 	fpu_idle_fpregs();
-	return __intel_idle(dev, drv, index);
-}
-
-static __always_inline int __intel_idle_hlt(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index)
-{
-	raw_safe_halt();
-	raw_local_irq_disable();
-	return index;
-}
-
-/**
- * intel_idle_hlt - Ask the processor to enter the given idle state using hlt.
- * @dev: cpuidle device of the target CPU.
- * @drv: cpuidle driver (assumed to point to intel_idle_driver).
- * @index: Target idle state index.
- *
- * Use the HLT instruction to notify the processor that the CPU represented by
- * @dev is idle and it can try to enter the idle state corresponding to @index.
- *
- * Must be called under local_irq_disable().
- */
-static __cpuidle int intel_idle_hlt(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index)
-{
-	return __intel_idle_hlt(dev, drv, index);
-}
-
-static __cpuidle int intel_idle_hlt_irq_on(struct cpuidle_device *dev,
-                                   struct cpuidle_driver *drv, int index)
-{
-       int ret;
-
-       raw_local_irq_enable();
-       ret = __intel_idle_hlt(dev, drv, index);
-       raw_local_irq_disable();
-
-       return ret;
+	return __intel_idle(dev, drv, index, true);
 }
 
 /**
@@ -960,7 +924,36 @@ static struct cpuidle_state adl_l_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state adl_n_cstates[] __initdata = {
+static struct cpuidle_state mtl_l_cstates[] __initdata = {
+	{
+		.name = "C1E",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE,
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 140,
+		.target_residency = 420,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C10",
+		.desc = "MWAIT 0x60",
+		.flags = MWAIT2flg(0x60) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 310,
+		.target_residency = 930,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.enter = NULL }
+};
+
+static struct cpuidle_state gmt_cstates[] __initdata = {
 	{
 		.name = "C1",
 		.desc = "MWAIT 0x00",
@@ -1029,6 +1022,47 @@ static struct cpuidle_state spr_cstates[] __initdata = {
 					   CPUIDLE_FLAG_INIT_XSTATE,
 		.exit_latency = 290,
 		.target_residency = 800,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.enter = NULL }
+};
+
+static struct cpuidle_state gnr_cstates[] __initdata = {
+	{
+		.name = "C1",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C1E",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE,
+		.exit_latency = 4,
+		.target_residency = 4,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED |
+					   CPUIDLE_FLAG_INIT_XSTATE |
+					   CPUIDLE_FLAG_PARTIAL_HINT_MATCH,
+		.exit_latency = 170,
+		.target_residency = 650,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6P",
+		.desc = "MWAIT 0x21",
+		.flags = MWAIT2flg(0x21) | CPUIDLE_FLAG_TLB_FLUSHED |
+					   CPUIDLE_FLAG_INIT_XSTATE |
+					   CPUIDLE_FLAG_PARTIAL_HINT_MATCH,
+		.exit_latency = 210,
+		.target_residency = 1000,
 		.enter = &intel_idle,
 		.enter_s2idle = intel_idle_s2idle, },
 	{
@@ -1279,21 +1313,70 @@ static struct cpuidle_state snr_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state vmguest_cstates[] __initdata = {
+static struct cpuidle_state grr_cstates[] __initdata = {
 	{
 		.name = "C1",
-		.desc = "HLT",
-		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_IRQ_ENABLE,
-		.exit_latency = 5,
-		.target_residency = 10,
-		.enter = &intel_idle_hlt, },
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_ALWAYS_ENABLE,
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
 	{
-		.name = "C1L",
-		.desc = "Long HLT",
-		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TLB_FLUSHED,
-		.exit_latency = 5,
-		.target_residency = 200,
-		.enter = &intel_idle_hlt, },
+		.name = "C1E",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE,
+		.exit_latency = 2,
+		.target_residency = 10,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6S",
+		.desc = "MWAIT 0x22",
+		.flags = MWAIT2flg(0x22) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 140,
+		.target_residency = 500,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.enter = NULL }
+};
+
+static struct cpuidle_state srf_cstates[] __initdata = {
+	{
+		.name = "C1",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_ALWAYS_ENABLE,
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C1E",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE,
+		.exit_latency = 2,
+		.target_residency = 10,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6S",
+		.desc = "MWAIT 0x22",
+		.flags = MWAIT2flg(0x22) | CPUIDLE_FLAG_TLB_FLUSHED |
+					   CPUIDLE_FLAG_PARTIAL_HINT_MATCH,
+		.exit_latency = 270,
+		.target_residency = 700,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6SP",
+		.desc = "MWAIT 0x23",
+		.flags = MWAIT2flg(0x23) | CPUIDLE_FLAG_TLB_FLUSHED |
+					   CPUIDLE_FLAG_PARTIAL_HINT_MATCH,
+		.exit_latency = 310,
+		.target_residency = 900,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
 	{
 		.enter = NULL }
 };
@@ -1405,12 +1488,22 @@ static const struct idle_cpu idle_cpu_adl_l __initconst = {
 	.state_table = adl_l_cstates,
 };
 
-static const struct idle_cpu idle_cpu_adl_n __initconst = {
-	.state_table = adl_n_cstates,
+static const struct idle_cpu idle_cpu_mtl_l __initconst = {
+	.state_table = mtl_l_cstates,
+};
+
+static const struct idle_cpu idle_cpu_gmt __initconst = {
+	.state_table = gmt_cstates,
 };
 
 static const struct idle_cpu idle_cpu_spr __initconst = {
 	.state_table = spr_cstates,
+	.disable_promotion_to_c1e = true,
+	.use_acpi = true,
+};
+
+static const struct idle_cpu idle_cpu_gnr __initconst = {
+	.state_table = gnr_cstates,
 	.disable_promotion_to_c1e = true,
 	.use_acpi = true,
 };
@@ -1437,57 +1530,79 @@ static const struct idle_cpu idle_cpu_dnv __initconst = {
 	.use_acpi = true,
 };
 
+static const struct idle_cpu idle_cpu_tmt __initconst = {
+	.disable_promotion_to_c1e = true,
+};
+
 static const struct idle_cpu idle_cpu_snr __initconst = {
 	.state_table = snr_cstates,
 	.disable_promotion_to_c1e = true,
 	.use_acpi = true,
 };
 
+static const struct idle_cpu idle_cpu_grr __initconst = {
+	.state_table = grr_cstates,
+	.disable_promotion_to_c1e = true,
+	.use_acpi = true,
+};
+
+static const struct idle_cpu idle_cpu_srf __initconst = {
+	.state_table = srf_cstates,
+	.disable_promotion_to_c1e = true,
+	.use_acpi = true,
+};
+
 static const struct x86_cpu_id intel_idle_ids[] __initconst = {
-	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_EP,		&idle_cpu_nhx),
-	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM,		&idle_cpu_nehalem),
-	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_G,		&idle_cpu_nehalem),
-	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE,		&idle_cpu_nehalem),
-	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE_EP,		&idle_cpu_nhx),
-	X86_MATCH_INTEL_FAM6_MODEL(NEHALEM_EX,		&idle_cpu_nhx),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_BONNELL,	&idle_cpu_atom),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_BONNELL_MID,	&idle_cpu_lincroft),
-	X86_MATCH_INTEL_FAM6_MODEL(WESTMERE_EX,		&idle_cpu_nhx),
-	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE,		&idle_cpu_snb),
-	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE_X,	&idle_cpu_snx),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SALTWELL,	&idle_cpu_atom),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT,	&idle_cpu_byt),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_MID,	&idle_cpu_tangier),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT,	&idle_cpu_cht),
-	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE,		&idle_cpu_ivb),
-	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE_X,		&idle_cpu_ivt),
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL,		&idle_cpu_hsw),
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_X,		&idle_cpu_hsx),
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_L,		&idle_cpu_hsw),
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_G,		&idle_cpu_hsw),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_D,	&idle_cpu_avn),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL,		&idle_cpu_bdw),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_G,		&idle_cpu_bdw),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X,		&idle_cpu_bdx),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_D,		&idle_cpu_bdx),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_L,		&idle_cpu_skl),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE,		&idle_cpu_skl),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		&idle_cpu_skl),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		&idle_cpu_skl),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,		&idle_cpu_skx),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&idle_cpu_icx),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		&idle_cpu_icx),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&idle_cpu_adl),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&idle_cpu_adl_l),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N,		&idle_cpu_adl_n),
-	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&idle_cpu_spr),
-	X86_MATCH_INTEL_FAM6_MODEL(EMERALDRAPIDS_X,	&idle_cpu_spr),
-	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,	&idle_cpu_knl),
-	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,	&idle_cpu_knl),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&idle_cpu_bxt),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_PLUS,	&idle_cpu_bxt),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_D,	&idle_cpu_dnv),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&idle_cpu_snr),
+	X86_MATCH_VFM(INTEL_NEHALEM_EP,		&idle_cpu_nhx),
+	X86_MATCH_VFM(INTEL_NEHALEM,		&idle_cpu_nehalem),
+	X86_MATCH_VFM(INTEL_NEHALEM_G,		&idle_cpu_nehalem),
+	X86_MATCH_VFM(INTEL_WESTMERE,		&idle_cpu_nehalem),
+	X86_MATCH_VFM(INTEL_WESTMERE_EP,	&idle_cpu_nhx),
+	X86_MATCH_VFM(INTEL_NEHALEM_EX,		&idle_cpu_nhx),
+	X86_MATCH_VFM(INTEL_ATOM_BONNELL,	&idle_cpu_atom),
+	X86_MATCH_VFM(INTEL_ATOM_BONNELL_MID,	&idle_cpu_lincroft),
+	X86_MATCH_VFM(INTEL_WESTMERE_EX,	&idle_cpu_nhx),
+	X86_MATCH_VFM(INTEL_SANDYBRIDGE,	&idle_cpu_snb),
+	X86_MATCH_VFM(INTEL_SANDYBRIDGE_X,	&idle_cpu_snx),
+	X86_MATCH_VFM(INTEL_ATOM_SALTWELL,	&idle_cpu_atom),
+	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT,	&idle_cpu_byt),
+	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_MID, &idle_cpu_tangier),
+	X86_MATCH_VFM(INTEL_ATOM_AIRMONT,	&idle_cpu_cht),
+	X86_MATCH_VFM(INTEL_IVYBRIDGE,		&idle_cpu_ivb),
+	X86_MATCH_VFM(INTEL_IVYBRIDGE_X,	&idle_cpu_ivt),
+	X86_MATCH_VFM(INTEL_HASWELL,		&idle_cpu_hsw),
+	X86_MATCH_VFM(INTEL_HASWELL_X,		&idle_cpu_hsx),
+	X86_MATCH_VFM(INTEL_HASWELL_L,		&idle_cpu_hsw),
+	X86_MATCH_VFM(INTEL_HASWELL_G,		&idle_cpu_hsw),
+	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_D,	&idle_cpu_avn),
+	X86_MATCH_VFM(INTEL_BROADWELL,		&idle_cpu_bdw),
+	X86_MATCH_VFM(INTEL_BROADWELL_G,	&idle_cpu_bdw),
+	X86_MATCH_VFM(INTEL_BROADWELL_X,	&idle_cpu_bdx),
+	X86_MATCH_VFM(INTEL_BROADWELL_D,	&idle_cpu_bdx),
+	X86_MATCH_VFM(INTEL_SKYLAKE_L,		&idle_cpu_skl),
+	X86_MATCH_VFM(INTEL_SKYLAKE,		&idle_cpu_skl),
+	X86_MATCH_VFM(INTEL_KABYLAKE_L,		&idle_cpu_skl),
+	X86_MATCH_VFM(INTEL_KABYLAKE,		&idle_cpu_skl),
+	X86_MATCH_VFM(INTEL_SKYLAKE_X,		&idle_cpu_skx),
+	X86_MATCH_VFM(INTEL_ICELAKE_X,		&idle_cpu_icx),
+	X86_MATCH_VFM(INTEL_ICELAKE_D,		&idle_cpu_icx),
+	X86_MATCH_VFM(INTEL_ALDERLAKE,		&idle_cpu_adl),
+	X86_MATCH_VFM(INTEL_ALDERLAKE_L,	&idle_cpu_adl_l),
+	X86_MATCH_VFM(INTEL_METEORLAKE_L,	&idle_cpu_mtl_l),
+	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	&idle_cpu_gmt),
+	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,	&idle_cpu_spr),
+	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,	&idle_cpu_spr),
+	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,	&idle_cpu_gnr),
+	X86_MATCH_VFM(INTEL_XEON_PHI_KNL,	&idle_cpu_knl),
+	X86_MATCH_VFM(INTEL_XEON_PHI_KNM,	&idle_cpu_knl),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT,	&idle_cpu_bxt),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_PLUS,	&idle_cpu_bxt),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_D,	&idle_cpu_dnv),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT,       &idle_cpu_tmt),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT_L,     &idle_cpu_tmt),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT_D,	&idle_cpu_snr),
+	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	&idle_cpu_grr),
+	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X,	&idle_cpu_srf),
 	{}
 };
 
@@ -1639,7 +1754,7 @@ static void __init intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
 	}
 }
 
-static bool __init intel_idle_off_by_default(u32 mwait_hint)
+static bool __init intel_idle_off_by_default(unsigned int flags, u32 mwait_hint)
 {
 	int cstate, limit;
 
@@ -1656,7 +1771,15 @@ static bool __init intel_idle_off_by_default(u32 mwait_hint)
 	 * the interesting states are ACPI_CSTATE_FFH.
 	 */
 	for (cstate = 1; cstate < limit; cstate++) {
-		if (acpi_state_table.states[cstate].address == mwait_hint)
+		u32 acpi_hint = acpi_state_table.states[cstate].address;
+		u32 table_hint = mwait_hint;
+
+		if (flags & CPUIDLE_FLAG_PARTIAL_HINT_MATCH) {
+			acpi_hint &= ~MWAIT_SUBSTATE_MASK;
+			table_hint &= ~MWAIT_SUBSTATE_MASK;
+		}
+
+		if (acpi_hint == table_hint)
 			return false;
 	}
 	return true;
@@ -1666,7 +1789,10 @@ static bool __init intel_idle_off_by_default(u32 mwait_hint)
 
 static inline bool intel_idle_acpi_cst_extract(void) { return false; }
 static inline void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv) { }
-static inline bool intel_idle_off_by_default(u32 mwait_hint) { return false; }
+static inline bool intel_idle_off_by_default(unsigned int flags, u32 mwait_hint)
+{
+	return false;
+}
 #endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 
 /**
@@ -1881,7 +2007,8 @@ static void __init spr_idle_state_table_update(void)
 
 static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 {
-	unsigned int mwait_cstate = MWAIT_HINT2CSTATE(mwait_hint) + 1;
+	unsigned int mwait_cstate = (MWAIT_HINT2CSTATE(mwait_hint) + 1) &
+					MWAIT_CSTATE_MASK;
 	unsigned int num_substates = (mwait_substates >> mwait_cstate * 4) &
 					MWAIT_SUBSTATE_MASK;
 
@@ -1897,16 +2024,6 @@ static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 
 static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 {
-	if (state->enter == intel_idle_hlt) {
-		if (force_irq_on) {
-			pr_info("forced intel_idle_irq for state %d\n", cstate);
-			state->enter = intel_idle_hlt_irq_on;
-		}
-		return;
-	}
-	if (state->enter == intel_idle_hlt_irq_on)
-		return; /* no update scenarios */
-
 	if (state->flags & CPUIDLE_FLAG_INIT_XSTATE) {
 		/*
 		 * Combining with XSTATE with IBRS or IRQ_ENABLE flags
@@ -1919,11 +2036,13 @@ static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 	}
 
 	if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
-			   state->flags & CPUIDLE_FLAG_IBRS) {
+			((state->flags & CPUIDLE_FLAG_IBRS) || ibrs_off)) {
 		/*
 		 * IBRS mitigation requires that C-states are entered
 		 * with interrupts disabled.
 		 */
+		if (ibrs_off && (state->flags & CPUIDLE_FLAG_IRQ_ENABLE))
+			state->flags &= ~CPUIDLE_FLAG_IRQ_ENABLE;
 		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
 		state->enter = intel_idle_ibrs;
 		return;
@@ -1940,46 +2059,31 @@ static void state_update_enter_method(struct cpuidle_state *state, int cstate)
 	}
 }
 
-/*
- * For mwait based states, we want to verify the cpuid data to see if the state
- * is actually supported by this specific CPU.
- * For non-mwait based states, this check should be skipped.
- */
-static bool should_verify_mwait(struct cpuidle_state *state)
-{
-	if (state->enter == intel_idle_hlt)
-		return false;
-	if (state->enter == intel_idle_hlt_irq_on)
-		return false;
-
-	return true;
-}
-
 static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 {
 	int cstate;
 
-	switch (boot_cpu_data.x86_model) {
-	case INTEL_FAM6_IVYBRIDGE_X:
+	switch (boot_cpu_data.x86_vfm) {
+	case INTEL_IVYBRIDGE_X:
 		ivt_idle_state_table_update();
 		break;
-	case INTEL_FAM6_ATOM_GOLDMONT:
-	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
+	case INTEL_ATOM_GOLDMONT:
+	case INTEL_ATOM_GOLDMONT_PLUS:
 		bxt_idle_state_table_update();
 		break;
-	case INTEL_FAM6_SKYLAKE:
+	case INTEL_SKYLAKE:
 		sklh_idle_state_table_update();
 		break;
-	case INTEL_FAM6_SKYLAKE_X:
+	case INTEL_SKYLAKE_X:
 		skx_idle_state_table_update();
 		break;
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:
-	case INTEL_FAM6_EMERALDRAPIDS_X:
+	case INTEL_SAPPHIRERAPIDS_X:
+	case INTEL_EMERALDRAPIDS_X:
 		spr_idle_state_table_update();
 		break;
-	case INTEL_FAM6_ALDERLAKE:
-	case INTEL_FAM6_ALDERLAKE_L:
-	case INTEL_FAM6_ALDERLAKE_N:
+	case INTEL_ALDERLAKE:
+	case INTEL_ALDERLAKE_L:
+	case INTEL_ATOM_GRACEMONT:
 		adl_idle_state_table_update();
 		break;
 	}
@@ -2003,7 +2107,7 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		}
 
 		mwait_hint = flg2MWAIT(cpuidle_state_table[cstate].flags);
-		if (should_verify_mwait(&cpuidle_state_table[cstate]) && !intel_idle_verify_cstate(mwait_hint))
+		if (!intel_idle_verify_cstate(mwait_hint))
 			continue;
 
 		/* Structure copy. */
@@ -2015,7 +2119,7 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 
 		if ((disabled_states_mask & BIT(drv->state_count)) ||
 		    ((icpu->use_acpi || force_use_acpi) &&
-		     intel_idle_off_by_default(mwait_hint) &&
+		     intel_idle_off_by_default(state->flags, mwait_hint) &&
 		     !(state->flags & CPUIDLE_FLAG_ALWAYS_ENABLE)))
 			state->flags |= CPUIDLE_FLAG_OFF;
 
@@ -2044,7 +2148,7 @@ static void __init intel_idle_cpuidle_driver_init(struct cpuidle_driver *drv)
 
 	drv->state_count = 1;
 
-	if (icpu)
+	if (icpu && icpu->state_table)
 		intel_idle_init_cstates_icpu(drv);
 	else
 		intel_idle_init_cstates_acpi(drv);
@@ -2137,93 +2241,6 @@ static void __init intel_idle_cpuidle_devices_uninit(void)
 		cpuidle_unregister_device(per_cpu_ptr(intel_idle_cpuidle_devices, i));
 }
 
-/*
- * Match up the latency and break even point of the bare metal (cpu based)
- * states with the deepest VM available state.
- *
- * We only want to do this for the deepest state, the ones that has
- * the TLB_FLUSHED flag set on the .
- *
- * All our short idle states are dominated by vmexit/vmenter latencies,
- * not the underlying hardware latencies so we keep our values for these.
- */
-static void __init matchup_vm_state_with_baremetal(void)
-{
-	int cstate;
-
-	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
-		int matching_cstate;
-
-		if (intel_idle_max_cstate_reached(cstate))
-			break;
-
-		if (!cpuidle_state_table[cstate].enter)
-			break;
-
-		if (!(cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_TLB_FLUSHED))
-			continue;
-
-		for (matching_cstate = 0; matching_cstate < CPUIDLE_STATE_MAX; ++matching_cstate) {
-			if (!icpu->state_table[matching_cstate].enter)
-				break;
-			if (icpu->state_table[matching_cstate].exit_latency > cpuidle_state_table[cstate].exit_latency) {
-				cpuidle_state_table[cstate].exit_latency = icpu->state_table[matching_cstate].exit_latency;
-				cpuidle_state_table[cstate].target_residency = icpu->state_table[matching_cstate].target_residency;
-			}
-		}
-
-	}
-}
-
-
-static int __init intel_idle_vminit(const struct x86_cpu_id *id)
-{
-	int retval;
-
-	cpuidle_state_table = vmguest_cstates;
-
-	icpu = (const struct idle_cpu *)id->driver_data;
-
-	pr_debug("v" INTEL_IDLE_VERSION " model 0x%X\n",
-		 boot_cpu_data.x86_model);
-
-	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (!intel_idle_cpuidle_devices)
-		return -ENOMEM;
-
-	/*
-	 * We don't know exactly what the host will do when we go idle, but as a worst estimate
-	 * we can assume that the exit latency of the deepest host state will be hit for our
-	 * deep (long duration) guest idle state.
-	 * The same logic applies to the break even point for the long duration guest idle state.
-	 * So lets copy these two properties from the table we found for the host CPU type.
-	 */
-	matchup_vm_state_with_baremetal();
-
-	intel_idle_cpuidle_driver_init(&intel_idle_driver);
-
-	retval = cpuidle_register_driver(&intel_idle_driver);
-	if (retval) {
-		struct cpuidle_driver *drv = cpuidle_get_driver();
-		printk(KERN_DEBUG pr_fmt("intel_idle yielding to %s\n"),
-		       drv ? drv->name : "none");
-		goto init_driver_fail;
-	}
-
-	retval = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "idle/intel:online",
-				   intel_idle_cpu_online, NULL);
-	if (retval < 0)
-		goto hp_setup_fail;
-
-	return 0;
-hp_setup_fail:
-	intel_idle_cpuidle_devices_uninit();
-	cpuidle_unregister_driver(&intel_idle_driver);
-init_driver_fail:
-	free_percpu(intel_idle_cpuidle_devices);
-	return retval;
-}
-
 static int __init intel_idle_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -2242,8 +2259,6 @@ static int __init intel_idle_init(void)
 	id = x86_match_cpu(intel_idle_ids);
 	if (id) {
 		if (!boot_cpu_has(X86_FEATURE_MWAIT)) {
-			if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-				return intel_idle_vminit(id);
 			pr_debug("Please enable MWAIT in BIOS SETUP\n");
 			return -ENODEV;
 		}
@@ -2267,7 +2282,11 @@ static int __init intel_idle_init(void)
 
 	icpu = (const struct idle_cpu *)id->driver_data;
 	if (icpu) {
-		cpuidle_state_table = icpu->state_table;
+		if (icpu->state_table)
+			cpuidle_state_table = icpu->state_table;
+		else if (!intel_idle_acpi_cst_extract())
+			return -ENODEV;
+
 		auto_demotion_disable_flags = icpu->auto_demotion_disable_flags;
 		if (icpu->disable_promotion_to_c1e)
 			c1e_promotion = C1E_PROMOTION_DISABLE;
@@ -2346,3 +2365,9 @@ MODULE_PARM_DESC(preferred_cstates, "Mask of preferred idle states");
  * 'CPUIDLE_FLAG_INIT_XSTATE' and 'CPUIDLE_FLAG_IBRS' flags.
  */
 module_param(force_irq_on, bool, 0444);
+/*
+ * Force the disabling of IBRS when X86_FEATURE_KERNEL_IBRS is on and
+ * CPUIDLE_FLAG_IRQ_ENABLE isn't set.
+ */
+module_param(ibrs_off, bool, 0444);
+MODULE_PARM_DESC(ibrs_off, "Disable IBRS when idle");

@@ -23,7 +23,8 @@ config LEDS_AS3645A
 config LEDS_KTD2692
 	tristate "LED support for Kinetic KTD2692 flash LED controller"
 	depends on OF
-	depends on GPIOLIB || COMPILE_TEST
+	depends on GPIOLIB
+	select LEDS_EXPRESSWIRE
 	help
 	  This option enables support for Kinetic KTD2692 LED flash connected
 	  through ExpressWire interface.
@@ -51,8 +52,8 @@ config LEDS_MAX77693
 config LEDS_MT6360
 	tristate "LED Support for Mediatek MT6360 PMIC"
 	depends on LEDS_CLASS && OF
-	depends on LEDS_CLASS_FLASH || !LEDS_CLASS_FLASH
-	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	depends on LEDS_CLASS_FLASH
+	depends on LEDS_CLASS_MULTICOLOR
 	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
 	depends on MFD_MT6360
 	help
@@ -89,6 +90,8 @@ config LEDS_QCOM_FLASH
 	  the total LED current will be split symmetrically on each channel and
 	  they will be enabled/disabled at the same time.
 
+	  This driver can be built as a module, it will be called "leds-qcom-flash".
+
 config LEDS_RT4505
 	tristate "LED support for RT4505 flashlight controller"
 	depends on I2C && OF
@@ -117,5 +120,16 @@ config LEDS_SGM3140
 	help
 	  This option enables support for the SGM3140 500mA Buck/Boost Charge
 	  Pump LED Driver.
+
+config LEDS_SY7802
+	tristate "LED support for the Silergy SY7802"
+	depends on I2C && OF
+	depends on GPIOLIB
+	select REGMAP_I2C
+	help
+	  This option enables support for the SY7802 flash LED controller.
+	  SY7802 includes torch and flash functions with programmable current.
+
+	  This driver can be built as a module, it will be called "leds-sy7802".
 
 endif # LEDS_CLASS_FLASH

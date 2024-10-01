@@ -101,22 +101,6 @@ struct aead_request {
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
-/*
- * struct crypto_istat_aead - statistics for AEAD algorithm
- * @encrypt_cnt:	number of encrypt requests
- * @encrypt_tlen:	total data size handled by encrypt requests
- * @decrypt_cnt:	number of decrypt requests
- * @decrypt_tlen:	total data size handled by decrypt requests
- * @err_cnt:		number of error for AEAD requests
- */
-struct crypto_istat_aead {
-	atomic64_t encrypt_cnt;
-	atomic64_t encrypt_tlen;
-	atomic64_t decrypt_cnt;
-	atomic64_t decrypt_tlen;
-	atomic64_t err_cnt;
-};
-
 /**
  * struct aead_alg - AEAD cipher definition
  * @maxauthsize: Set the maximum authentication tag size supported by the
@@ -135,7 +119,6 @@ struct crypto_istat_aead {
  * @setkey: see struct skcipher_alg
  * @encrypt: see struct skcipher_alg
  * @decrypt: see struct skcipher_alg
- * @stat: statistics for AEAD algorithm
  * @ivsize: see struct skcipher_alg
  * @chunksize: see struct skcipher_alg
  * @init: Initialize the cryptographic transformation object. This function
@@ -161,10 +144,6 @@ struct aead_alg {
 	int (*decrypt)(struct aead_request *req);
 	int (*init)(struct crypto_aead *tfm);
 	void (*exit)(struct crypto_aead *tfm);
-
-#ifdef CONFIG_CRYPTO_STATS
-	struct crypto_istat_aead stat;
-#endif
 
 	unsigned int ivsize;
 	unsigned int maxauthsize;
@@ -216,6 +195,18 @@ static inline void crypto_free_aead(struct crypto_aead *tfm)
 {
 	crypto_destroy_tfm(tfm, crypto_aead_tfm(tfm));
 }
+
+/**
+ * crypto_has_aead() - Search for the availability of an aead.
+ * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
+ *	      aead
+ * @type: specifies the type of the aead
+ * @mask: specifies the mask for the aead
+ *
+ * Return: true when the aead is known to the kernel crypto API; false
+ *	   otherwise
+ */
+int crypto_has_aead(const char *alg_name, u32 type, u32 mask);
 
 static inline const char *crypto_aead_driver_name(struct crypto_aead *tfm)
 {

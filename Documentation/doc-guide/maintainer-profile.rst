@@ -27,6 +27,13 @@ documentation and ensure that no new errors or warnings have been
 introduced.  Generating HTML documents and looking at the result will help
 to avoid unsightly misunderstandings about how things will be rendered.
 
+All new documentation (including additions to existing documents) should
+ideally justify who the intended target audience is somewhere in the
+changelog; this way, we ensure that the documentation ends up in the correct
+place.  Some possible categories are: kernel developers (experts or
+beginners), userspace programmers, end users and/or system administrators,
+and distributors.
+
 Key cycle dates
 ---------------
 

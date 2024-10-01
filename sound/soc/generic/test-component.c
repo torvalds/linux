@@ -6,7 +6,7 @@
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
 #include <linux/slab.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
@@ -181,15 +181,7 @@ static int test_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct
 	return 0;
 }
 
-static int test_dai_bespoke_trigger(struct snd_pcm_substream *substream,
-				    int cmd, struct snd_soc_dai *dai)
-{
-	mile_stone(dai);
-
-	return 0;
-}
-
-static u64 test_dai_formats =
+static const u64 test_dai_formats =
 	/*
 	 * Select below from Sound Card, not auto
 	 *	SND_SOC_POSSIBLE_DAIFMT_BP_FP
@@ -228,7 +220,6 @@ static const struct snd_soc_dai_ops test_verbose_ops = {
 	.hw_params		= test_dai_hw_params,
 	.hw_free		= test_dai_hw_free,
 	.trigger		= test_dai_trigger,
-	.bespoke_trigger	= test_dai_bespoke_trigger,
 	.auto_selectable_formats	= &test_dai_formats,
 	.num_auto_selectable_formats	= 1,
 };
@@ -352,7 +343,7 @@ static const struct snd_pcm_hardware test_component_hardware = {
 static int test_component_open(struct snd_soc_component *component,
 			       struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	mile_stone(component);
 
@@ -646,7 +637,7 @@ static struct platform_driver test_driver = {
 		.of_match_table = test_of_match,
 	},
 	.probe  = test_driver_probe,
-	.remove_new = test_driver_remove,
+	.remove = test_driver_remove,
 };
 module_platform_driver(test_driver);
 

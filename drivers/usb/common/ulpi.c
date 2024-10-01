@@ -34,7 +34,7 @@ EXPORT_SYMBOL_GPL(ulpi_write);
 
 /* -------------------------------------------------------------------------- */
 
-static int ulpi_match(struct device *dev, struct device_driver *driver)
+static int ulpi_match(struct device *dev, const struct device_driver *driver)
 {
 	struct ulpi_driver *drv = to_ulpi_driver(driver);
 	struct ulpi *ulpi = to_ulpi_dev(dev);
@@ -301,7 +301,7 @@ static int ulpi_register(struct device *dev, struct ulpi *ulpi)
 		return ret;
 	}
 
-	root = debugfs_create_dir(dev_name(dev), ulpi_root);
+	root = debugfs_create_dir(dev_name(&ulpi->dev), ulpi_root);
 	debugfs_create_file("regs", 0444, root, ulpi, &ulpi_regs_fops);
 
 	dev_dbg(&ulpi->dev, "registered ULPI PHY: vendor %04x, product %04x\n",

@@ -23,7 +23,7 @@ Introduction
 
 The BPF map API has historically been the main way to expose data structures
 of various types for use within BPF programs. Some data structures fit naturally
-with the map API (HASH, ARRAY), others less so. Consequentially, programs
+with the map API (HASH, ARRAY), others less so. Consequently, programs
 interacting with the latter group of data structures can be hard to parse
 for kernel programmers without previous BPF experience.
 

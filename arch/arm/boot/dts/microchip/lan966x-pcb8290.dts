@@ -28,7 +28,7 @@
 &gpio {
 	miim_a_pins: mdio-pins {
 		/* MDC, MDIO */
-		pins =  "GPIO_28", "GPIO_29";
+		pins = "GPIO_28", "GPIO_29";
 		function = "miim_a";
 	};
 

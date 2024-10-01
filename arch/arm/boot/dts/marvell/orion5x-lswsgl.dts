@@ -74,22 +74,21 @@
 		compatible = "gpio-keys";
 		pinctrl-0 = <&pmx_buttons>;
 		pinctrl-names = "default";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		func {
+
+		key-func {
 			label = "Function Button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
 		};
 
-		power {
+		key-power {
 			label = "Power-on Switch";
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <KEY_RESERVED>; /* LSMINI_SW_POWER */
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
 		};
 
-		autopower {
+		key-autopower {
 			label = "Power-auto Switch";
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <KEY_ESC>; /* LSMINI_SW_AUTOPOWER */
@@ -103,24 +102,24 @@
 			     &pmx_led_power>;
 		pinctrl-names = "default";
 
-		alarm {
+		led-alarm {
 			label = "lswsgl:alarm:red";
-			gpio = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 		};
 
-		info {
+		led-info {
 			label = "lswsgl:info:amber";
-			gpio = <&gpio0 3 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
 		};
 
-		func {
+		led-func {
 			label = "lswsgl:func:blue:top";
-			gpio = <&gpio0 9 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 9 GPIO_ACTIVE_LOW>;
 		};
 
-		power {
+		led-power {
 			label = "lswsgl:power:blue:bottom";
-			gpio = <&gpio0 14 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 	};

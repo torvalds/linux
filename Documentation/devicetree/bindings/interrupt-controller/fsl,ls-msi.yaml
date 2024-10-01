@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/fsl,ls-msi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Layerscape SCFG PCIe MSI controller
+
+description: |
+  This interrupt controller hardware is a second level interrupt controller that
+  is hooked to a parent interrupt controller: e.g: ARM GIC for ARM-based
+  platforms. If interrupt-parent is not provided, the default parent interrupt
+  controller will be used.
+
+  Each PCIe node needs to have property msi-parent that points to
+  MSI controller node
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,ls1012a-msi
+      - fsl,ls1021a-msi
+      - fsl,ls1043a-msi
+      - fsl,ls1043a-v1.1-msi
+      - fsl,ls1046a-msi
+
+  reg:
+    maxItems: 1
+
+  '#msi-cells':
+    const: 1
+
+  interrupts:
+    items:
+      - description: Shared MSI interrupt group 0
+      - description: Shared MSI interrupt group 1
+      - description: Shared MSI interrupt group 2
+      - description: Shared MSI interrupt group 3
+    minItems: 1
+
+required:
+  - compatible
+  - reg
+  - msi-controller
+  - interrupts
+
+allOf:
+  - $ref: msi-controller.yaml
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,ls1046a-msi
+    then:
+      properties:
+        interrupts:
+          minItems: 4
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    interrupt-controller@1571000 {
+        compatible = "fsl,ls1043a-msi";
+        reg = <0x1571000 0x8>;
+        msi-controller;
+        #msi-cells = <1>;
+        interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+    };

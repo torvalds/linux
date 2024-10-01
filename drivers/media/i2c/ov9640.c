@@ -547,8 +547,6 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return ov9640_s_fmt(sd, mf);
 
-	sd_state->pads->try_fmt = *mf;
-
 	return 0;
 }
 
@@ -753,7 +751,7 @@ static void ov9640_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov9640_id[] = {
-	{ "ov9640", 0 },
+	{ "ov9640" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov9640_id);

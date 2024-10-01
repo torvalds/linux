@@ -35,7 +35,7 @@
  * and padding is also possible, the limits need to be generous.
  */
 #define PAES_MIN_KEYSIZE 16
-#define PAES_MAX_KEYSIZE 320
+#define PAES_MAX_KEYSIZE MAXEP11AESKEYBLOBSIZE
 
 static u8 *ctrblk;
 static DEFINE_MUTEX(ctrblk_lock);
@@ -103,7 +103,7 @@ static inline void _free_kb_keybuf(struct key_blob *kb)
 {
 	if (kb->key && kb->key != kb->keybuf
 	    && kb->keylen > sizeof(kb->keybuf)) {
-		kfree(kb->key);
+		kfree_sensitive(kb->key);
 		kb->key = NULL;
 	}
 }
@@ -125,17 +125,16 @@ struct s390_pxts_ctx {
 static inline int __paes_keyblob2pkey(struct key_blob *kb,
 				     struct pkey_protkey *pk)
 {
-	int i, ret;
+	int i, ret = -EIO;
 
-	/* try three times in case of failure */
-	for (i = 0; i < 3; i++) {
-		if (i > 0 && ret == -EAGAIN && in_task())
+	/* try three times in case of busy card */
+	for (i = 0; ret && i < 3; i++) {
+		if (ret == -EBUSY && in_task()) {
 			if (msleep_interruptible(1000))
 				return -EINTR;
-		ret = pkey_keyblob2pkey(kb->key, kb->keylen,
-					pk->protkey, &pk->len, &pk->type);
-		if (ret == 0)
-			break;
+		}
+		ret = pkey_key2protkey(kb->key, kb->keylen,
+				       pk->protkey, &pk->len, &pk->type);
 	}
 
 	return ret;
@@ -693,9 +692,11 @@ static int ctr_paes_crypt(struct skcipher_request *req)
 	 * final block may be < AES_BLOCK_SIZE, copy only nbytes
 	 */
 	if (nbytes) {
+		memset(buf, 0, AES_BLOCK_SIZE);
+		memcpy(buf, walk.src.virt.addr, nbytes);
 		while (1) {
 			if (cpacf_kmctr(ctx->fc, &param, buf,
-					walk.src.virt.addr, AES_BLOCK_SIZE,
+					buf, AES_BLOCK_SIZE,
 					walk.iv) == AES_BLOCK_SIZE)
 				break;
 			if (__paes_convert_key(ctx))
@@ -801,7 +802,10 @@ out_err:
 module_init(paes_s390_init);
 module_exit(paes_s390_fini);
 
-MODULE_ALIAS_CRYPTO("paes");
+MODULE_ALIAS_CRYPTO("ecb(paes)");
+MODULE_ALIAS_CRYPTO("cbc(paes)");
+MODULE_ALIAS_CRYPTO("ctr(paes)");
+MODULE_ALIAS_CRYPTO("xts(paes)");
 
 MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm with protected keys");
 MODULE_LICENSE("GPL");

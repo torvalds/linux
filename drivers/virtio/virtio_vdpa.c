@@ -100,7 +100,7 @@ static void virtio_vdpa_reset(struct virtio_device *vdev)
 {
 	struct vdpa_device *vdpa = vd_get_vdpa(vdev);
 
-	vdpa_reset(vdpa);
+	vdpa_reset(vdpa, 0);
 }
 
 static bool virtio_vdpa_notify(struct virtqueue *vq)
@@ -183,8 +183,11 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
+	if (ops->get_vq_size)
+		max_num = ops->get_vq_size(vdpa, index);
+	else
+		max_num = ops->get_vq_num_max(vdpa);
 
-	max_num = ops->get_vq_num_max(vdpa);
 	if (max_num == 0) {
 		err = -ENOENT;
 		goto error_new_virtqueue;
@@ -355,9 +358,7 @@ create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 
 static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				struct virtqueue *vqs[],
-				vq_callback_t *callbacks[],
-				const char * const names[],
-				const bool *ctx,
+				struct virtqueue_info vqs_info[],
 				struct irq_affinity *desc)
 {
 	struct virtio_vdpa_device *vd_dev = to_virtio_vdpa_device(vdev);
@@ -366,38 +367,46 @@ static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 	struct irq_affinity default_affd = { 0 };
 	struct cpumask *masks;
 	struct vdpa_callback cb;
+	bool has_affinity = desc && ops->set_vq_affinity;
 	int i, err, queue_idx = 0;
 
-	masks = create_affinity_masks(nvqs, desc ? desc : &default_affd);
-	if (!masks)
-		return -ENOMEM;
+	if (has_affinity) {
+		masks = create_affinity_masks(nvqs, desc ? desc : &default_affd);
+		if (!masks)
+			return -ENOMEM;
+	}
 
 	for (i = 0; i < nvqs; ++i) {
-		if (!names[i]) {
+		struct virtqueue_info *vqi = &vqs_info[i];
+
+		if (!vqi->name) {
 			vqs[i] = NULL;
 			continue;
 		}
 
-		vqs[i] = virtio_vdpa_setup_vq(vdev, queue_idx++,
-					      callbacks[i], names[i], ctx ?
-					      ctx[i] : false);
+		vqs[i] = virtio_vdpa_setup_vq(vdev, queue_idx++, vqi->callback,
+					      vqi->name, vqi->ctx);
 		if (IS_ERR(vqs[i])) {
 			err = PTR_ERR(vqs[i]);
 			goto err_setup_vq;
 		}
 
-		if (ops->set_vq_affinity)
+		if (has_affinity)
 			ops->set_vq_affinity(vdpa, i, &masks[i]);
 	}
 
 	cb.callback = virtio_vdpa_config_cb;
 	cb.private = vd_dev;
 	ops->set_config_cb(vdpa, &cb);
+	if (has_affinity)
+		kfree(masks);
 
 	return 0;
 
 err_setup_vq:
 	virtio_vdpa_del_vqs(vdev);
+	if (has_affinity)
+		kfree(masks);
 	return err;
 }
 

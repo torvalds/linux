@@ -89,11 +89,25 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 
 void fsnotify_sb_delete(struct super_block *sb)
 {
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(sb);
+
+	/* Were any marks ever added to any object on this sb? */
+	if (!sbinfo)
+		return;
+
 	fsnotify_unmount_inodes(sb);
 	fsnotify_clear_marks_by_sb(sb);
 	/* Wait for outstanding object references from connectors */
-	wait_var_event(&sb->s_fsnotify_connectors,
-		       !atomic_long_read(&sb->s_fsnotify_connectors));
+	wait_var_event(fsnotify_sb_watched_objects(sb),
+		       !atomic_long_read(fsnotify_sb_watched_objects(sb)));
+	WARN_ON(fsnotify_sb_has_priority_watchers(sb, FSNOTIFY_PRIO_CONTENT));
+	WARN_ON(fsnotify_sb_has_priority_watchers(sb,
+						  FSNOTIFY_PRIO_PRE_CONTENT));
+}
+
+void fsnotify_sb_free(struct super_block *sb)
+{
+	kfree(sb->s_fsnotify_info);
 }
 
 /*
@@ -103,16 +117,12 @@ void fsnotify_sb_delete(struct super_block *sb)
  * parent cares.  Thus when an event happens on a child it can quickly tell
  * if there is a need to find a parent and send the event to the parent.
  */
-void __fsnotify_update_child_dentry_flags(struct inode *inode)
+void fsnotify_set_children_dentry_flags(struct inode *inode)
 {
 	struct dentry *alias;
-	int watched;
 
 	if (!S_ISDIR(inode->i_mode))
 		return;
-
-	/* determine if the children should tell inode about their events */
-	watched = fsnotify_inode_watches_children(inode);
 
 	spin_lock(&inode->i_lock);
 	/* run all of the dentries associated with this inode.  Since this is a
@@ -124,15 +134,12 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 		 * d_flags to indicate parental interest (their parent is the
 		 * original inode) */
 		spin_lock(&alias->d_lock);
-		list_for_each_entry(child, &alias->d_subdirs, d_child) {
+		hlist_for_each_entry(child, &alias->d_children, d_sib) {
 			if (!child->d_inode)
 				continue;
 
 			spin_lock_nested(&child->d_lock, DENTRY_D_LOCK_NESTED);
-			if (watched)
-				child->d_flags |= DCACHE_FSNOTIFY_PARENT_WATCHED;
-			else
-				child->d_flags &= ~DCACHE_FSNOTIFY_PARENT_WATCHED;
+			child->d_flags |= DCACHE_FSNOTIFY_PARENT_WATCHED;
 			spin_unlock(&child->d_lock);
 		}
 		spin_unlock(&alias->d_lock);
@@ -140,8 +147,26 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 }
 
+/*
+ * Lazily clear false positive PARENT_WATCHED flag for child whose parent had
+ * stopped watching children.
+ */
+static void fsnotify_clear_child_dentry_flag(struct inode *pinode,
+					     struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	/*
+	 * d_lock is a sufficient barrier to prevent observing a non-watched
+	 * parent state from before the fsnotify_set_children_dentry_flags()
+	 * or fsnotify_update_flags() call that had set PARENT_WATCHED.
+	 */
+	if (!fsnotify_inode_watches_children(pinode))
+		dentry->d_flags &= ~DCACHE_FSNOTIFY_PARENT_WATCHED;
+	spin_unlock(&dentry->d_lock);
+}
+
 /* Are inode/sb/mount interested in parent and name info with this event? */
-static bool fsnotify_event_needs_parent(struct inode *inode, struct mount *mnt,
+static bool fsnotify_event_needs_parent(struct inode *inode, __u32 mnt_mask,
 					__u32 mask)
 {
 	__u32 marks_mask = 0;
@@ -160,11 +185,20 @@ static bool fsnotify_event_needs_parent(struct inode *inode, struct mount *mnt,
 	/* Did either inode/sb/mount subscribe for events with parent/name? */
 	marks_mask |= fsnotify_parent_needed_mask(inode->i_fsnotify_mask);
 	marks_mask |= fsnotify_parent_needed_mask(inode->i_sb->s_fsnotify_mask);
-	if (mnt)
-		marks_mask |= fsnotify_parent_needed_mask(mnt->mnt_fsnotify_mask);
+	marks_mask |= fsnotify_parent_needed_mask(mnt_mask);
 
 	/* Did they subscribe for this event with parent/name info? */
 	return mask & marks_mask;
+}
+
+/* Are there any inode/mount/sb objects that are interested in this event? */
+static inline bool fsnotify_object_watched(struct inode *inode, __u32 mnt_mask,
+					   __u32 mask)
+{
+	__u32 marks_mask = inode->i_fsnotify_mask | mnt_mask |
+			   inode->i_sb->s_fsnotify_mask;
+
+	return mask & marks_mask & ALL_FSNOTIFY_EVENTS;
 }
 
 /*
@@ -179,7 +213,7 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 		      int data_type)
 {
 	const struct path *path = fsnotify_data_path(data, data_type);
-	struct mount *mnt = path ? real_mount(path->mnt) : NULL;
+	__u32 mnt_mask = path ? real_mount(path->mnt)->mnt_fsnotify_mask : 0;
 	struct inode *inode = d_inode(dentry);
 	struct dentry *parent;
 	bool parent_watched = dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED;
@@ -190,16 +224,13 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 	struct qstr *file_name = NULL;
 	int ret = 0;
 
-	/*
-	 * Do inode/sb/mount care about parent and name info on non-dir?
-	 * Do they care about any event at all?
-	 */
-	if (!inode->i_fsnotify_marks && !inode->i_sb->s_fsnotify_marks &&
-	    (!mnt || !mnt->mnt_fsnotify_marks) && !parent_watched)
+	/* Optimize the likely case of nobody watching this path */
+	if (likely(!parent_watched &&
+		   !fsnotify_object_watched(inode, mnt_mask, mask)))
 		return 0;
 
 	parent = NULL;
-	parent_needed = fsnotify_event_needs_parent(inode, mnt, mask);
+	parent_needed = fsnotify_event_needs_parent(inode, mnt_mask, mask);
 	if (!parent_watched && !parent_needed)
 		goto notify;
 
@@ -208,7 +239,7 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 	p_inode = parent->d_inode;
 	p_mask = fsnotify_inode_watches_children(p_inode);
 	if (unlikely(parent_watched && !p_mask))
-		__fsnotify_update_child_dentry_flags(p_inode);
+		fsnotify_clear_child_dentry_flag(p_inode, dentry);
 
 	/*
 	 * Include parent/name in notification either if some notification
@@ -483,6 +514,7 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 {
 	const struct path *path = fsnotify_data_path(data, data_type);
 	struct super_block *sb = fsnotify_data_sb(data, data_type);
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(sb);
 	struct fsnotify_iter_info iter_info = {};
 	struct mount *mnt = NULL;
 	struct inode *inode2 = NULL;
@@ -519,7 +551,7 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 	 * SRCU because we have no references to any objects and do not
 	 * need SRCU to keep them "alive".
 	 */
-	if (!sb->s_fsnotify_marks &&
+	if ((!sbinfo || !sbinfo->sb_marks) &&
 	    (!mnt || !mnt->mnt_fsnotify_marks) &&
 	    (!inode || !inode->i_fsnotify_marks) &&
 	    (!inode2 || !inode2->i_fsnotify_marks))
@@ -546,8 +578,10 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 
 	iter_info.srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
 
-	iter_info.marks[FSNOTIFY_ITER_TYPE_SB] =
-		fsnotify_first_mark(&sb->s_fsnotify_marks);
+	if (sbinfo) {
+		iter_info.marks[FSNOTIFY_ITER_TYPE_SB] =
+			fsnotify_first_mark(&sbinfo->sb_marks);
+	}
 	if (mnt) {
 		iter_info.marks[FSNOTIFY_ITER_TYPE_VFSMOUNT] =
 			fsnotify_first_mark(&mnt->mnt_fsnotify_marks);

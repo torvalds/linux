@@ -15,9 +15,10 @@ const struct mt76_driver_ops mt7603_drv_ops = {
 	.rx_poll_complete = mt7603_rx_poll_complete,
 	.sta_ps = mt7603_sta_ps,
 	.sta_add = mt7603_sta_add,
-	.sta_assoc = mt7603_sta_assoc,
+	.sta_event = mt7603_sta_event,
 	.sta_remove = mt7603_sta_remove,
 	.update_survey = mt7603_update_channel,
+	.set_channel = mt7603_set_channel,
 };
 
 static void
@@ -183,6 +184,13 @@ mt7603_mac_init(struct mt7603_dev *dev)
 	mt76_wr(dev, MT_WF_RFCR1, 0);
 
 	mt76_set(dev, MT_TMAC_TCR, MT_TMAC_TCR_RX_RIFS_MODE);
+
+	if (is_mt7628(dev)) {
+		mt76_set(dev, MT_TMAC_TCR,
+			 MT_TMAC_TCR_TXOP_BURST_STOP | BIT(1) | BIT(0));
+		mt76_set(dev, MT_TXREQ, BIT(27));
+		mt76_set(dev, MT_AGG_TMP, GENMASK(4, 2));
+	}
 
 	mt7603_set_tmac_template(dev);
 
@@ -449,11 +457,13 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 	int target_power = eeprom[MT_EE_TX_POWER_0_START_2G + 2] & ~BIT(7);
 	u8 *rate_power = &eeprom[MT_EE_TX_POWER_CCK];
 	bool ext_pa = eeprom[MT_EE_NIC_CONF_0 + 1] & BIT(1);
+	u8 ext_pa_pwr;
 	int max_offset, cur_offset;
 	int i;
 
-	if (ext_pa && is_mt7603(dev))
-		target_power = eeprom[MT_EE_TX_POWER_TSSI_OFF] & ~BIT(7);
+	ext_pa_pwr = eeprom[MT_EE_TX_POWER_TSSI_OFF];
+	if (ext_pa && is_mt7603(dev) && ext_pa_pwr != 0 && ext_pa_pwr != 0xff)
+		target_power = ext_pa_pwr & ~BIT(7);
 
 	if (target_power & BIT(6))
 		target_power = -(target_power & GENMASK(5, 0));
@@ -500,8 +510,6 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	bus_ops->rmw = mt7603_rmw;
 	dev->mt76.bus = bus_ops;
 
-	INIT_LIST_HEAD(&dev->sta_poll_list);
-	spin_lock_init(&dev->sta_poll_lock);
 	spin_lock_init(&dev->ps_lock);
 
 	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7603_mac_work);
@@ -519,6 +527,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	hw->max_rates = 3;
 	hw->max_report_rates = 7;
 	hw->max_rate_tries = 11;
+	hw->max_tx_fragments = 1;
 
 	hw->radiotap_timestamp.units_pos =
 		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US;

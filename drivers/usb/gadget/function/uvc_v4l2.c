@@ -121,6 +121,9 @@ static struct uvcg_format *find_format_by_pix(struct uvc_device *uvc,
 	list_for_each_entry(format, &uvc->header->formats, entry) {
 		const struct uvc_format_desc *fmtdesc = to_uvc_format(format->fmt);
 
+		if (IS_ERR(fmtdesc))
+			continue;
+
 		if (fmtdesc->fcc == pixelformat) {
 			uformat = format->fmt;
 			break;
@@ -240,6 +243,7 @@ uvc_v4l2_try_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	struct uvc_video *video = &uvc->video;
 	struct uvcg_format *uformat;
 	struct uvcg_frame *uframe;
+	const struct uvc_format_desc *fmtdesc;
 	u8 *fcc;
 
 	if (fmt->type != video->queue.queue.type)
@@ -260,12 +264,29 @@ uvc_v4l2_try_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	if (!uframe)
 		return -EINVAL;
 
-	fmt->fmt.pix.width = uframe->frame.w_width;
-	fmt->fmt.pix.height = uframe->frame.w_height;
+	if (uformat->type == UVCG_UNCOMPRESSED) {
+		struct uvcg_uncompressed *u =
+			to_uvcg_uncompressed(&uformat->group.cg_item);
+		if (!u)
+			return 0;
+
+		v4l2_fill_pixfmt(&fmt->fmt.pix, fmt->fmt.pix.pixelformat,
+				 uframe->frame.w_width, uframe->frame.w_height);
+
+		if (fmt->fmt.pix.sizeimage != (uvc_v4l2_get_bytesperline(uformat, uframe) *
+						uframe->frame.w_height))
+			return -EINVAL;
+	} else {
+		fmt->fmt.pix.width = uframe->frame.w_width;
+		fmt->fmt.pix.height = uframe->frame.w_height;
+		fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(uformat, uframe);
+		fmt->fmt.pix.sizeimage = uvc_get_frame_size(uformat, uframe);
+		fmtdesc = to_uvc_format(uformat);
+		if (IS_ERR(fmtdesc))
+			return PTR_ERR(fmtdesc);
+		fmt->fmt.pix.pixelformat = fmtdesc->fcc;
+	}
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
-	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(uformat, uframe);
-	fmt->fmt.pix.sizeimage = uvc_get_frame_size(uformat, uframe);
-	fmt->fmt.pix.pixelformat = to_uvc_format(uformat)->fcc;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->fmt.pix.priv = 0;
 
@@ -375,6 +396,9 @@ uvc_v4l2_enum_format(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 		return -EINVAL;
 
 	fmtdesc = to_uvc_format(uformat);
+	if (IS_ERR(fmtdesc))
+		return PTR_ERR(fmtdesc);
+
 	f->pixelformat = fmtdesc->fcc;
 
 	return 0;
@@ -443,7 +467,7 @@ uvc_v4l2_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		return -EINVAL;
 
 	/* Enable UVC video. */
-	ret = uvcg_video_enable(video, 1);
+	ret = uvcg_video_enable(video);
 	if (ret < 0)
 		return ret;
 
@@ -451,7 +475,7 @@ uvc_v4l2_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * Complete the alternate setting selection setup phase now that
 	 * userspace is ready to provide video frames.
 	 */
-	uvc_function_setup_continue(uvc);
+	uvc_function_setup_continue(uvc, 0);
 	uvc->state = UVC_STATE_STREAMING;
 
 	return 0;
@@ -463,11 +487,18 @@ uvc_v4l2_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 	struct uvc_video *video = &uvc->video;
+	int ret = 0;
 
 	if (type != video->queue.queue.type)
 		return -EINVAL;
 
-	return uvcg_video_enable(video, 0);
+	ret = uvcg_video_disable(video);
+	if (ret < 0)
+		return ret;
+
+	uvc->state = UVC_STATE_CONNECTED;
+	uvc_function_setup_continue(uvc, 1);
+	return 0;
 }
 
 static int
@@ -500,7 +531,7 @@ uvc_v4l2_subscribe_event(struct v4l2_fh *fh,
 static void uvc_v4l2_disable(struct uvc_device *uvc)
 {
 	uvc_function_disconnect(uvc);
-	uvcg_video_enable(&uvc->video, 0);
+	uvcg_video_disable(&uvc->video);
 	uvcg_free_buffers(&uvc->video.queue);
 	uvc->func_connected = false;
 	wake_up_interruptible(&uvc->func_connected_queue);
@@ -647,4 +678,3 @@ const struct v4l2_file_operations uvc_v4l2_fops = {
 	.get_unmapped_area = uvcg_v4l2_get_unmapped_area,
 #endif
 };
-

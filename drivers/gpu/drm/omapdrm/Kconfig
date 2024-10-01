@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_OMAP
 	tristate "OMAP DRM"
+	depends on MMU
 	depends on DRM && OF
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || (COMPILE_TEST && PAGE_SIZE_LESS_THAN_64KB)
 	select DRM_KMS_HELPER
-	select FB_SYS_HELPERS if DRM_FBDEV_EMULATION
+	select DRM_DISPLAY_HELPER
+	select DRM_BRIDGE_CONNECTOR
+	select FB_DMAMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	select VIDEOMODE_HELPERS
 	select HDMI
 	default n

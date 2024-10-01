@@ -28,8 +28,6 @@
 #include <asm/xen/page.h>
 
 #include "xen-ops.h"
-#include "mmu.h"
-#include "smp.h"
 
 static unsigned long shared_info_pfn;
 
@@ -132,11 +130,11 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_xen_hvm_callback)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	if (xen_percpu_upcall)
-		ack_APIC_irq();
+		apic_eoi();
 
 	inc_irq_stat(irq_hv_callback_count);
 
-	xen_hvm_evtchn_do_upcall();
+	xen_evtchn_do_upcall();
 
 	set_irq_regs(old_regs);
 }
@@ -148,7 +146,9 @@ static void xen_hvm_shutdown(void)
 	if (kexec_in_progress)
 		xen_reboot(SHUTDOWN_soft_reset);
 }
+#endif
 
+#ifdef CONFIG_CRASH_DUMP
 static void xen_hvm_crash_shutdown(struct pt_regs *regs)
 {
 	native_machine_crash_shutdown(regs);
@@ -168,7 +168,7 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 	 */
 	xen_uninit_lock_cpu(cpu);
 
-	if (cpu_acpi_id(cpu) != U32_MAX)
+	if (cpu_acpi_id(cpu) != CPU_ACPIID_INVALID)
 		per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
 	else
 		per_cpu(xen_vcpu_id, cpu) = cpu;
@@ -236,6 +236,8 @@ static void __init xen_hvm_guest_init(void)
 
 #ifdef CONFIG_KEXEC_CORE
 	machine_ops.shutdown = xen_hvm_shutdown;
+#endif
+#ifdef CONFIG_CRASH_DUMP
 	machine_ops.crash_shutdown = xen_hvm_crash_shutdown;
 #endif
 }

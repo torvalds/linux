@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Memory accesses that missed the DTLB.",
+        "Counter": "0,1",
         "EventCode": "0x8",
         "EventName": "DATA_TLB_MISSES.DTLB_MISS",
         "SampleAfterValue": "200000",
@@ -8,6 +9,7 @@
     },
     {
         "BriefDescription": "DTLB misses due to load operations.",
+        "Counter": "0,1",
         "EventCode": "0x8",
         "EventName": "DATA_TLB_MISSES.DTLB_MISS_LD",
         "SampleAfterValue": "200000",
@@ -15,6 +17,7 @@
     },
     {
         "BriefDescription": "DTLB misses due to store operations.",
+        "Counter": "0,1",
         "EventCode": "0x8",
         "EventName": "DATA_TLB_MISSES.DTLB_MISS_ST",
         "SampleAfterValue": "200000",
@@ -22,6 +25,7 @@
     },
     {
         "BriefDescription": "L0 DTLB misses due to load operations.",
+        "Counter": "0,1",
         "EventCode": "0x8",
         "EventName": "DATA_TLB_MISSES.L0_DTLB_MISS_LD",
         "SampleAfterValue": "200000",
@@ -29,6 +33,7 @@
     },
     {
         "BriefDescription": "L0 DTLB misses due to store operations",
+        "Counter": "0,1",
         "EventCode": "0x8",
         "EventName": "DATA_TLB_MISSES.L0_DTLB_MISS_ST",
         "SampleAfterValue": "200000",
@@ -36,6 +41,7 @@
     },
     {
         "BriefDescription": "ITLB flushes.",
+        "Counter": "0,1",
         "EventCode": "0x82",
         "EventName": "ITLB.FLUSH",
         "SampleAfterValue": "200000",
@@ -43,6 +49,7 @@
     },
     {
         "BriefDescription": "ITLB hits.",
+        "Counter": "0,1",
         "EventCode": "0x82",
         "EventName": "ITLB.HIT",
         "SampleAfterValue": "200000",
@@ -50,6 +57,7 @@
     },
     {
         "BriefDescription": "ITLB misses.",
+        "Counter": "0,1",
         "EventCode": "0x82",
         "EventName": "ITLB.MISSES",
         "PEBS": "2",
@@ -58,6 +66,7 @@
     },
     {
         "BriefDescription": "Retired loads that miss the DTLB (precise event).",
+        "Counter": "0,1",
         "EventCode": "0xCB",
         "EventName": "MEM_LOAD_RETIRED.DTLB_MISS",
         "PEBS": "1",
@@ -66,6 +75,7 @@
     },
     {
         "BriefDescription": "Duration of page-walks in core cycles",
+        "Counter": "0,1",
         "EventCode": "0xC",
         "EventName": "PAGE_WALKS.CYCLES",
         "SampleAfterValue": "2000000",
@@ -73,6 +83,7 @@
     },
     {
         "BriefDescription": "Duration of D-side only page walks",
+        "Counter": "0,1",
         "EventCode": "0xC",
         "EventName": "PAGE_WALKS.D_SIDE_CYCLES",
         "SampleAfterValue": "2000000",
@@ -80,6 +91,7 @@
     },
     {
         "BriefDescription": "Number of D-side only page walks",
+        "Counter": "0,1",
         "EventCode": "0xC",
         "EventName": "PAGE_WALKS.D_SIDE_WALKS",
         "SampleAfterValue": "200000",
@@ -87,6 +99,7 @@
     },
     {
         "BriefDescription": "Duration of I-Side page walks",
+        "Counter": "0,1",
         "EventCode": "0xC",
         "EventName": "PAGE_WALKS.I_SIDE_CYCLES",
         "SampleAfterValue": "2000000",
@@ -94,6 +107,7 @@
     },
     {
         "BriefDescription": "Number of I-Side page walks",
+        "Counter": "0,1",
         "EventCode": "0xC",
         "EventName": "PAGE_WALKS.I_SIDE_WALKS",
         "SampleAfterValue": "200000",
@@ -101,6 +115,7 @@
     },
     {
         "BriefDescription": "Number of page-walks executed.",
+        "Counter": "0,1",
         "EventCode": "0xC",
         "EventName": "PAGE_WALKS.WALKS",
         "SampleAfterValue": "200000",

@@ -2,6 +2,8 @@
 #ifndef _TOOLS_LINUX_COMPILER_H_
 #define _TOOLS_LINUX_COMPILER_H_
 
+#ifndef __ASSEMBLY__
+
 #include <linux/compiler_types.h>
 
 #ifndef __compiletime_error
@@ -42,14 +44,42 @@
 # define __always_inline	inline __attribute__((always_inline))
 #endif
 
+#ifndef __always_unused
+#define __always_unused __attribute__((__unused__))
+#endif
+
+#ifndef __noreturn
+#define __noreturn __attribute__((__noreturn__))
+#endif
+
+#ifndef unreachable
+#define unreachable() __builtin_unreachable()
+#endif
+
 #ifndef noinline
 #define noinline
+#endif
+
+#ifndef __nocf_check
+#define __nocf_check __attribute__((nocf_check))
+#endif
+
+#ifndef __naked
+#define __naked __attribute__((__naked__))
 #endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type
 # define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 #endif
+
+/*
+ * This returns a constant expression while determining if an argument is
+ * a constant expression, most importantly without evaluating the argument.
+ * Glory to Martin Uecker <Martin.Uecker@med.uni-goettingen.de>
+ */
+#define __is_constexpr(x) \
+	(sizeof(int) == sizeof(*(8 ? ((void *)((long)(x) * 0l)) : (int *)8)))
 
 #ifdef __ANDROID__
 /*
@@ -96,10 +126,6 @@
 
 #ifndef unlikely
 # define unlikely(x)		__builtin_expect(!!(x), 0)
-#endif
-
-#ifndef __init
-# define __init
 #endif
 
 #include <linux/types.h>
@@ -189,5 +215,13 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 /* Indirect macros required for expanded argument pasting, eg. __LINE__. */
 #define ___PASTE(a, b) a##b
 #define __PASTE(a, b) ___PASTE(a, b)
+
+#ifndef OPTIMIZER_HIDE_VAR
+/* Make the optimizer believe the variable can be manipulated arbitrarily. */
+#define OPTIMIZER_HIDE_VAR(var)						\
+	__asm__ ("" : "=r" (var) : "0" (var))
+#endif
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _TOOLS_LINUX_COMPILER_H */

@@ -28,6 +28,9 @@ properties:
       - adi,ad9265
       - adi,ad9434
       - adi,ad9467
+      - adi,ad9643
+      - adi,ad9649
+      - adi,ad9652
 
   reg:
     maxItems: 1
@@ -42,6 +45,9 @@ properties:
   powerdown-gpios:
     description:
       Pin that controls the powerdown mode of the device.
+    maxItems: 1
+
+  io-backends:
     maxItems: 1
 
   reset-gpios:
@@ -68,6 +74,7 @@ examples:
             reg = <0>;
             clocks = <&adc_clk>;
             clock-names = "adc-clk";
+            io-backends = <&iio_backend>;
         };
     };
 ...

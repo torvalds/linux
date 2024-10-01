@@ -33,7 +33,21 @@
 
 /* There is only one I2C port on the TW2804 that feeds all four GO7007 VIPs
  * on the Adlink PCI-MPG24, so access is shared between all of them. */
-static DEFINE_MUTEX(adlink_mpg24_i2c_lock);
+static DEFINE_MUTEX(adlink_mpg24_i2c_mutex);
+
+static inline void adlink_mpg24_i2c_lock(struct go7007 *go)
+{
+	/* Bridge the I2C port on this GO7007 to the shared bus */
+	mutex_lock(&adlink_mpg24_i2c_mutex);
+	go7007_write_addr(go, 0x3c82, 0x0020);
+}
+
+static inline void adlink_mpg24_i2c_unlock(struct go7007 *go)
+{
+	/* Isolate the I2C port on this GO7007 from the shared bus */
+	go7007_write_addr(go, 0x3c82, 0x0000);
+	mutex_unlock(&adlink_mpg24_i2c_mutex);
+}
 
 static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 		u16 command, int flags, u8 *data)
@@ -56,11 +70,8 @@ static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 
 	mutex_lock(&go->hw_lock);
 
-	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24) {
-		/* Bridge the I2C port on this GO7007 to the shared bus */
-		mutex_lock(&adlink_mpg24_i2c_lock);
-		go7007_write_addr(go, 0x3c82, 0x0020);
-	}
+	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
+		adlink_mpg24_i2c_lock(go);
 
 	/* Wait for I2C adapter to be ready */
 	for (i = 0; i < 10; ++i) {
@@ -116,11 +127,8 @@ static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 	ret = 0;
 
 i2c_done:
-	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24) {
-		/* Isolate the I2C port on this GO7007 from the shared bus */
-		go7007_write_addr(go, 0x3c82, 0x0000);
-		mutex_unlock(&adlink_mpg24_i2c_lock);
-	}
+	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
+		adlink_mpg24_i2c_unlock(go);
 	mutex_unlock(&go->hw_lock);
 	return ret;
 }
@@ -164,8 +172,6 @@ static int go7007_i2c_master_xfer(struct i2c_adapter *adapter,
 			++i;
 		} else if (msgs[i].len == 3) {
 			if (msgs[i].flags & I2C_M_RD)
-				return -EIO;
-			if (msgs[i].len != 3)
 				return -EIO;
 			if (go7007_i2c_xfer(go, msgs[i].addr, 0,
 					(msgs[i].buf[0] << 8) | msgs[i].buf[1],

@@ -355,7 +355,7 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 {
 	struct shared_phy *sh;
 
-	sh = kzalloc(sizeof(struct shared_phy), GFP_ATOMIC);
+	sh = kzalloc(sizeof(*sh), GFP_ATOMIC);
 	if (sh == NULL)
 		return NULL;
 
@@ -383,8 +383,9 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 	return sh;
 }
 
-static void wlc_phy_timercb_phycal(struct brcms_phy *pi)
+static void wlc_phy_timercb_phycal(void *ptr)
 {
+	struct brcms_phy *pi = ptr;
 	uint delay = 5;
 
 	if (PHY_PERICAL_MPHASE_PENDING(pi)) {
@@ -441,7 +442,7 @@ wlc_phy_attach(struct shared_phy *sh, struct bcma_device *d11core,
 		return &pi->pubpi_ro;
 	}
 
-	pi = kzalloc(sizeof(struct brcms_phy), GFP_ATOMIC);
+	pi = kzalloc(sizeof(*pi), GFP_ATOMIC);
 	if (pi == NULL)
 		return NULL;
 	pi->wiphy = wiphy;
@@ -551,8 +552,7 @@ wlc_phy_attach(struct shared_phy *sh, struct bcma_device *d11core,
 		if (!pi->phycal_timer)
 			goto err;
 
-		if (!wlc_phy_attach_nphy(pi))
-			goto err;
+		wlc_phy_attach_nphy(pi);
 
 	} else if (ISLCNPHY(pi)) {
 		if (!wlc_phy_attach_lcnphy(pi))

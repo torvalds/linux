@@ -7,11 +7,13 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/dmi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
 #include "../dual_accel_detect.h"
@@ -24,6 +26,7 @@
 
 #define VGBS_TABLET_MODE_FLAGS (VGBS_TABLET_MODE_FLAG | VGBS_TABLET_MODE_FLAG_ALT)
 
+MODULE_DESCRIPTION("Intel Virtual Button driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AceLan Kao");
 
@@ -65,6 +68,7 @@ static const struct key_entry intel_vbtn_switchmap[] = {
 };
 
 struct intel_vbtn_priv {
+	struct mutex mutex; /* Avoid notify_handler() racing with itself */
 	struct input_dev *buttons_dev;
 	struct input_dev *switches_dev;
 	bool dual_accel;
@@ -73,10 +77,10 @@ struct intel_vbtn_priv {
 	bool wakeup_mode;
 };
 
-static void detect_tablet_mode(struct platform_device *device)
+static void detect_tablet_mode(struct device *dev)
 {
-	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
-	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
 	unsigned long long vgbs;
 	acpi_status status;
 	int m;
@@ -89,6 +93,8 @@ static void detect_tablet_mode(struct platform_device *device)
 	input_report_switch(priv->switches_dev, SW_TABLET_MODE, m);
 	m = (vgbs & VGBS_DOCK_MODE_FLAG) ? 1 : 0;
 	input_report_switch(priv->switches_dev, SW_DOCK, m);
+
+	input_sync(priv->switches_dev);
 }
 
 /*
@@ -134,8 +140,6 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	priv->switches_dev->id.bustype = BUS_HOST;
 
 	if (priv->has_switches) {
-		detect_tablet_mode(device);
-
 		ret = input_register_device(priv->switches_dev);
 		if (ret)
 			return ret;
@@ -154,9 +158,12 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	bool autorelease;
 	int ret;
 
+	guard(mutex)(&priv->mutex);
+
 	if ((ke = sparse_keymap_entry_from_scancode(priv->buttons_dev, event))) {
 		if (!priv->has_buttons) {
-			dev_warn(&device->dev, "Warning: received a button event on a device without buttons, please report this.\n");
+			dev_warn(&device->dev, "Warning: received 0x%02x button event on a device without buttons, please report this.\n",
+				 event);
 			return;
 		}
 		input_dev = priv->buttons_dev;
@@ -256,9 +263,6 @@ static const struct dmi_system_id dmi_switches_allow_list[] = {
 
 static bool intel_vbtn_has_switches(acpi_handle handle, bool dual_accel)
 {
-	unsigned long long vgbs;
-	acpi_status status;
-
 	/* See dual_accel_detect.h for more info */
 	if (dual_accel)
 		return false;
@@ -266,8 +270,7 @@ static bool intel_vbtn_has_switches(acpi_handle handle, bool dual_accel)
 	if (!dmi_check_system(dmi_switches_allow_list))
 		return false;
 
-	status = acpi_evaluate_integer(handle, "VGBS", NULL, &vgbs);
-	return ACPI_SUCCESS(status);
+	return acpi_has_method(handle, "VGBS");
 }
 
 static int intel_vbtn_probe(struct platform_device *device)
@@ -292,6 +295,10 @@ static int intel_vbtn_probe(struct platform_device *device)
 		return -ENOMEM;
 	dev_set_drvdata(&device->dev, priv);
 
+	err = devm_mutex_init(&device->dev, &priv->mutex);
+	if (err)
+		return err;
+
 	priv->dual_accel = dual_accel;
 	priv->has_buttons = has_buttons;
 	priv->has_switches = has_switches;
@@ -314,6 +321,9 @@ static int intel_vbtn_probe(struct platform_device *device)
 		if (ACPI_FAILURE(status))
 			dev_err(&device->dev, "Error VBDL failed with ACPI status %d\n", status);
 	}
+	// Check switches after buttons since VBDL may have side effects.
+	if (has_switches)
+		detect_tablet_mode(&device->dev);
 
 	device_init_wakeup(&device->dev, true);
 	/*
@@ -352,7 +362,13 @@ static void intel_vbtn_pm_complete(struct device *dev)
 
 static int intel_vbtn_pm_resume(struct device *dev)
 {
+	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
+
 	intel_vbtn_pm_complete(dev);
+
+	if (priv->has_switches)
+		detect_tablet_mode(dev);
+
 	return 0;
 }
 

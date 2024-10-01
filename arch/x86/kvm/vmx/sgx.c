@@ -37,6 +37,7 @@ static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 	if (!IS_ALIGNED(*gva, alignment)) {
 		fault = true;
 	} else if (likely(is_64_bit_mode(vcpu))) {
+		*gva = vmx_get_untagged_addr(vcpu, *gva, 0);
 		fault = is_noncanonical_address(*gva, vcpu);
 	} else {
 		*gva &= 0xffffffff;
@@ -273,7 +274,7 @@ static int handle_encls_ecreate(struct kvm_vcpu *vcpu)
 	 * simultaneously set SGX_ATTR_PROVISIONKEY to bypass the check to
 	 * enforce restriction of access to the PROVISIONKEY.
 	 */
-	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL_ACCOUNT);
+	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL);
 	if (!contents)
 		return -ENOMEM;
 

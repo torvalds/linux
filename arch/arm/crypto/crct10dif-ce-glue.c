@@ -84,5 +84,6 @@ module_init(crc_t10dif_mod_init);
 module_exit(crc_t10dif_mod_exit);
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
+MODULE_DESCRIPTION("Accelerated CRC-T10DIF using ARM NEON and Crypto Extensions");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("crct10dif");

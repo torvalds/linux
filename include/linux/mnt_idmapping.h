@@ -9,6 +9,7 @@ struct mnt_idmap;
 struct user_namespace;
 
 extern struct mnt_idmap nop_mnt_idmap;
+extern struct mnt_idmap invalid_mnt_idmap;
 extern struct user_namespace init_user_ns;
 
 typedef struct {
@@ -114,6 +115,9 @@ static inline bool vfsgid_eq_kgid(vfsgid_t vfsgid, kgid_t kgid)
 #define AS_KGIDT(val) (kgid_t){ __vfsgid_val(val) }
 
 int vfsgid_in_group_p(vfsgid_t vfsgid);
+
+struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
+void mnt_idmap_put(struct mnt_idmap *idmap);
 
 vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
 		     struct user_namespace *fs_userns, kuid_t kuid);
@@ -240,8 +244,5 @@ static inline kgid_t mapped_fsgid(struct mnt_idmap *idmap,
 {
 	return from_vfsgid(idmap, fs_userns, VFSGIDT_INIT(current_fsgid()));
 }
-
-bool check_fsmapping(const struct mnt_idmap *idmap,
-		     const struct super_block *sb);
 
 #endif /* _LINUX_MNT_IDMAPPING_H */

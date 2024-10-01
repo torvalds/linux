@@ -226,14 +226,9 @@ static void efx_ethtool_get_fec_stats(struct net_device *net_dev,
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
-				   struct ethtool_ts_info *ts_info)
+				   struct kernel_ethtool_ts_info *ts_info)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-
-	/* Software capabilities */
-	ts_info->so_timestamping = (SOF_TIMESTAMPING_RX_SOFTWARE |
-				    SOF_TIMESTAMPING_SOFTWARE);
-	ts_info->phc_index = -1;
 
 	efx_siena_ptp_get_ts_info(efx, ts_info);
 	return 0;
@@ -269,8 +264,6 @@ const struct ethtool_ops efx_siena_ethtool_ops = {
 	.get_rxfh_key_size	= efx_siena_ethtool_get_rxfh_key_size,
 	.get_rxfh		= efx_siena_ethtool_get_rxfh,
 	.set_rxfh		= efx_siena_ethtool_set_rxfh,
-	.get_rxfh_context	= efx_siena_ethtool_get_rxfh_context,
-	.set_rxfh_context	= efx_siena_ethtool_set_rxfh_context,
 	.get_ts_info		= efx_ethtool_get_ts_info,
 	.get_module_info	= efx_siena_ethtool_get_module_info,
 	.get_module_eeprom	= efx_siena_ethtool_get_module_eeprom,

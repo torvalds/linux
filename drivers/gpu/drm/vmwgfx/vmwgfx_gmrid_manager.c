@@ -64,8 +64,11 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 	ttm_resource_init(bo, place, *res);
 
 	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
-	if (id < 0)
+	if (id < 0) {
+		ttm_resource_fini(man, *res);
+		kfree(*res);
 		return id;
+	}
 
 	spin_lock(&gman->lock);
 
@@ -91,14 +94,14 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 			} else
 				new_max_pages = gman->max_gmr_pages * 2;
 			if (new_max_pages > gman->max_gmr_pages && new_max_pages >= gman->used_gmr_pages) {
-				DRM_WARN("vmwgfx: increasing guest mob limits to %u kB.\n",
+				DRM_WARN("vmwgfx: increasing guest mob limits to %u KiB.\n",
 					 ((new_max_pages) << (PAGE_SHIFT - 10)));
 
 				gman->max_gmr_pages = new_max_pages;
 			} else {
 				char buf[256];
 				snprintf(buf, sizeof(buf),
-					 "vmwgfx, error: guest graphics is out of memory (mob limit at: %ukB).\n",
+					 "vmwgfx, error: guest graphics is out of memory (mob limit at: %u KiB).\n",
 					 ((gman->max_gmr_pages) << (PAGE_SHIFT - 10)));
 				vmw_host_printf(buf);
 				DRM_WARN("%s", buf);

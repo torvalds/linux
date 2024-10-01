@@ -18,7 +18,6 @@ source "arch/powerpc/platforms/85xx/Kconfig"
 source "arch/powerpc/platforms/86xx/Kconfig"
 source "arch/powerpc/platforms/embedded6xx/Kconfig"
 source "arch/powerpc/platforms/44x/Kconfig"
-source "arch/powerpc/platforms/40x/Kconfig"
 source "arch/powerpc/platforms/amigaone/Kconfig"
 source "arch/powerpc/platforms/book3s/Kconfig"
 source "arch/powerpc/platforms/microwatt/Kconfig"
@@ -251,7 +250,7 @@ config QE_GPIO
 
 config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
-	depends on (FSL_SOC_BOOKE && PPC32) || 8260
+	depends on (FSL_SOC_BOOKE && PPC32) || PPC_82xx
 	select CPM
 	select HAVE_PCI
 	select GPIOLIB

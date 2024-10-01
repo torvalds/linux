@@ -93,10 +93,6 @@
 
 /* Quark DTS has 2 trip points: hot & catastrophic */
 #define QRK_MAX_DTS_TRIPS	2
-/* If DTS not locked, all trip points are configurable */
-#define QRK_DTS_WR_MASK_SET	0x3
-/* If DTS locked, all trip points are not configurable */
-#define QRK_DTS_WR_MASK_CLR	0
 
 #define DEFAULT_POLL_DELAY	2000
 
@@ -105,7 +101,6 @@ struct soc_sensor_entry {
 	u32 store_ptps;
 	u32 store_dts_enable;
 	struct thermal_zone_device *tzone;
-	struct thermal_trip trips[QRK_MAX_DTS_TRIPS];
 };
 
 static struct soc_sensor_entry *soc_dts;
@@ -200,7 +195,7 @@ static int get_trip_temp(int trip)
 }
 
 static int update_trip_temp(struct soc_sensor_entry *aux_entry,
-				int trip, int temp)
+				int trip_index, int temp)
 {
 	u32 out;
 	u32 temp_out;
@@ -235,9 +230,9 @@ static int update_trip_temp(struct soc_sensor_entry *aux_entry,
 	 */
 	temp_out = temp + QRK_DTS_TEMP_BASE;
 	out = (store_ptps & ~(QRK_DTS_MASK_TP_THRES <<
-		(trip * QRK_DTS_SHIFT_TP)));
+		(trip_index * QRK_DTS_SHIFT_TP)));
 	out |= (temp_out & QRK_DTS_MASK_TP_THRES) <<
-		(trip * QRK_DTS_SHIFT_TP);
+		(trip_index * QRK_DTS_SHIFT_TP);
 
 	ret = iosf_mbi_write(QRK_MBI_UNIT_RMU, MBI_REG_WRITE,
 			     QRK_DTS_REG_OFFSET_PTPS, out);
@@ -247,10 +242,26 @@ failed:
 	return ret;
 }
 
-static inline int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
-				int temp)
+static inline int sys_set_trip_temp(struct thermal_zone_device *tzd,
+				    const struct thermal_trip *trip,
+				    int temp)
 {
-	return update_trip_temp(thermal_zone_device_priv(tzd), trip, temp);
+	unsigned int trip_index;
+
+	switch (trip->type) {
+	case THERMAL_TRIP_HOT:
+		trip_index = QRK_DTS_ID_TP_HOT;
+		break;
+
+	case THERMAL_TRIP_CRITICAL:
+		trip_index = QRK_DTS_ID_TP_CRITICAL;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return update_trip_temp(thermal_zone_device_priv(tzd), trip_index, temp);
 }
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd,
@@ -293,7 +304,7 @@ static int sys_change_mode(struct thermal_zone_device *tzd,
 	return ret;
 }
 
-static struct thermal_zone_device_ops tzone_ops = {
+static const struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
 	.set_trip_temp = sys_set_trip_temp,
 	.change_mode = sys_change_mode,
@@ -320,10 +331,10 @@ static void free_soc_dts(struct soc_sensor_entry *aux_entry)
 
 static struct soc_sensor_entry *alloc_soc_dts(void)
 {
+	struct thermal_trip trips[QRK_MAX_DTS_TRIPS] = { 0 };
 	struct soc_sensor_entry *aux_entry;
 	int err;
 	u32 out;
-	int wr_mask;
 
 	aux_entry = kzalloc(sizeof(*aux_entry), GFP_KERNEL);
 	if (!aux_entry) {
@@ -337,13 +348,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 	if (err)
 		goto err_ret;
 
-	if (out & QRK_DTS_LOCK_BIT) {
-		aux_entry->locked = true;
-		wr_mask = QRK_DTS_WR_MASK_CLR;
-	} else {
-		aux_entry->locked = false;
-		wr_mask = QRK_DTS_WR_MASK_SET;
-	}
+	aux_entry->locked = !!(out & QRK_DTS_LOCK_BIT);
 
 	/* Store DTS default state if DTS registers are not locked */
 	if (!aux_entry->locked) {
@@ -360,19 +365,22 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 				    &aux_entry->store_ptps);
 		if (err)
 			goto err_ret;
+
+		trips[QRK_DTS_ID_TP_CRITICAL].flags |= THERMAL_TRIP_FLAG_RW_TEMP;
+		trips[QRK_DTS_ID_TP_HOT].flags |= THERMAL_TRIP_FLAG_RW_TEMP;
 	}
 
-	aux_entry->trips[QRK_DTS_ID_TP_CRITICAL].temperature = get_trip_temp(QRK_DTS_ID_TP_CRITICAL);
-	aux_entry->trips[QRK_DTS_ID_TP_CRITICAL].type = THERMAL_TRIP_CRITICAL;
+	trips[QRK_DTS_ID_TP_CRITICAL].temperature = get_trip_temp(QRK_DTS_ID_TP_CRITICAL);
+	trips[QRK_DTS_ID_TP_CRITICAL].type = THERMAL_TRIP_CRITICAL;
 
-	aux_entry->trips[QRK_DTS_ID_TP_HOT].temperature = get_trip_temp(QRK_DTS_ID_TP_HOT);
-	aux_entry->trips[QRK_DTS_ID_TP_HOT].type = THERMAL_TRIP_HOT;
+	trips[QRK_DTS_ID_TP_HOT].temperature = get_trip_temp(QRK_DTS_ID_TP_HOT);
+	trips[QRK_DTS_ID_TP_HOT].type = THERMAL_TRIP_HOT;
 
 	aux_entry->tzone = thermal_zone_device_register_with_trips("quark_dts",
-								   aux_entry->trips,
+								   trips,
 								   QRK_MAX_DTS_TRIPS,
-								   wr_mask,
-								   aux_entry, &tzone_ops,
+								   aux_entry,
+								   &tzone_ops,
 								   NULL, 0, polling_delay);
 	if (IS_ERR(aux_entry->tzone)) {
 		err = PTR_ERR(aux_entry->tzone);

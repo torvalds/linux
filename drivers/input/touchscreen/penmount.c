@@ -199,7 +199,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	int max_x, max_y;
 	int err;
 
-	pm = kzalloc(sizeof(struct pm), GFP_KERNEL);
+	pm = kzalloc(sizeof(*pm), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!pm || !input_dev) {
 		err = -ENOMEM;

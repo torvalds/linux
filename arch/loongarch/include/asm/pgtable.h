@@ -70,12 +70,9 @@ struct vm_area_struct;
  * for zero-mapped memory areas etc..
  */
 
-extern unsigned long empty_zero_page;
-extern unsigned long zero_page_mask;
+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
-#define ZERO_PAGE(vaddr) \
-	(virt_to_page((void *)(empty_zero_page + (((unsigned long)(vaddr)) & zero_page_mask))))
-#define __HAVE_COLOR_ZERO_PAGE
+#define ZERO_PAGE(vaddr)	virt_to_page(empty_zero_page)
 
 /*
  * TLB refill handlers may also map the vmalloc area into xkvrange.
@@ -85,13 +82,32 @@ extern unsigned long zero_page_mask;
 #define MODULES_VADDR	(vm_map_base + PCI_IOSIZE + (2 * PAGE_SIZE))
 #define MODULES_END	(MODULES_VADDR + SZ_256M)
 
+#ifdef CONFIG_KFENCE
+#define KFENCE_AREA_SIZE	(((CONFIG_KFENCE_NUM_OBJECTS + 1) * 2 + 2) * PAGE_SIZE)
+#else
+#define KFENCE_AREA_SIZE	0
+#endif
+
 #define VMALLOC_START	MODULES_END
+
+#ifndef CONFIG_KASAN
 #define VMALLOC_END	\
 	(vm_map_base +	\
-	 min(PTRS_PER_PGD * PTRS_PER_PUD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE, (1UL << cpu_vabits)) - PMD_SIZE - VMEMMAP_SIZE)
+	 min(PTRS_PER_PGD * PTRS_PER_PUD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE, (1UL << cpu_vabits)) - PMD_SIZE - VMEMMAP_SIZE - KFENCE_AREA_SIZE)
+#else
+#define VMALLOC_END	\
+	(vm_map_base +	\
+	 min(PTRS_PER_PGD * PTRS_PER_PUD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE, (1UL << cpu_vabits) / 2) - PMD_SIZE - VMEMMAP_SIZE - KFENCE_AREA_SIZE)
+#endif
 
 #define vmemmap		((struct page *)((VMALLOC_END + PMD_SIZE) & PMD_MASK))
 #define VMEMMAP_END	((unsigned long)vmemmap + VMEMMAP_SIZE - 1)
+
+#define KFENCE_AREA_START	(VMEMMAP_END + 1)
+#define KFENCE_AREA_END		(KFENCE_AREA_START + KFENCE_AREA_SIZE - 1)
+
+#define ptep_get(ptep) READ_ONCE(*(ptep))
+#define pmdp_get(pmdp) READ_ONCE(*(pmdp))
 
 #define pte_ERROR(e) \
 	pr_err("%s:%d: bad pte %016lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -134,11 +150,6 @@ static inline int p4d_present(p4d_t p4d)
 	return p4d_val(p4d) != (unsigned long)invalid_pud_table;
 }
 
-static inline void p4d_clear(p4d_t *p4dp)
-{
-	p4d_val(*p4dp) = (unsigned long)invalid_pud_table;
-}
-
 static inline pud_t *p4d_pgtable(p4d_t p4d)
 {
 	return (pud_t *)p4d_val(p4d);
@@ -146,7 +157,12 @@ static inline pud_t *p4d_pgtable(p4d_t p4d)
 
 static inline void set_p4d(p4d_t *p4d, p4d_t p4dval)
 {
-	*p4d = p4dval;
+	WRITE_ONCE(*p4d, p4dval);
+}
+
+static inline void p4d_clear(p4d_t *p4dp)
+{
+	set_p4d(p4dp, __p4d((unsigned long)invalid_pud_table));
 }
 
 #define p4d_phys(p4d)		PHYSADDR(p4d_val(p4d))
@@ -180,17 +196,20 @@ static inline int pud_present(pud_t pud)
 	return pud_val(pud) != (unsigned long)invalid_pmd_table;
 }
 
-static inline void pud_clear(pud_t *pudp)
-{
-	pud_val(*pudp) = ((unsigned long)invalid_pmd_table);
-}
-
 static inline pmd_t *pud_pgtable(pud_t pud)
 {
 	return (pmd_t *)pud_val(pud);
 }
 
-#define set_pud(pudptr, pudval) do { *(pudptr) = (pudval); } while (0)
+static inline void set_pud(pud_t *pud, pud_t pudval)
+{
+	WRITE_ONCE(*pud, pudval);
+}
+
+static inline void pud_clear(pud_t *pudp)
+{
+	set_pud(pudp, __pud((unsigned long)invalid_pmd_table));
+}
 
 #define pud_phys(pud)		PHYSADDR(pud_val(pud))
 #define pud_page(pud)		(pfn_to_page(pud_phys(pud) >> PAGE_SHIFT))
@@ -218,12 +237,15 @@ static inline int pmd_present(pmd_t pmd)
 	return pmd_val(pmd) != (unsigned long)invalid_pte_table;
 }
 
-static inline void pmd_clear(pmd_t *pmdp)
+static inline void set_pmd(pmd_t *pmd, pmd_t pmdval)
 {
-	pmd_val(*pmdp) = ((unsigned long)invalid_pte_table);
+	WRITE_ONCE(*pmd, pmdval);
 }
 
-#define set_pmd(pmdptr, pmdval) do { *(pmdptr) = (pmdval); } while (0)
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	set_pmd(pmdp, __pmd((unsigned long)invalid_pte_table));
+}
 
 #define pmd_phys(pmd)		PHYSADDR(pmd_val(pmd))
 
@@ -237,9 +259,9 @@ extern pmd_t mk_pmd(struct page *page, pgprot_t prot);
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp, pmd_t pmd);
 
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
-#define pte_pfn(x)		((unsigned long)(((x).pte & _PFN_MASK) >> _PFN_SHIFT))
-#define pfn_pte(pfn, prot)	__pte(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
-#define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
+#define pte_pfn(x)		((unsigned long)(((x).pte & _PFN_MASK) >> PFN_PTE_SHIFT))
+#define pfn_pte(pfn, prot)	__pte(((pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
+#define pfn_pmd(pfn, prot)	__pmd(((pfn) << PFN_PTE_SHIFT) | pgprot_val(prot))
 
 /*
  * Initialize a new pgd / pud / pmd table with invalid pointers.
@@ -301,52 +323,41 @@ extern void paging_init(void);
 
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
-	*ptep = pteval;
+	WRITE_ONCE(*ptep, pteval);
+
 	if (pte_val(pteval) & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
+		if (pte_none(ptep_get(buddy))) {
 #ifdef CONFIG_SMP
-		/*
-		 * For SMP, multiple CPUs can race, so we need to do
-		 * this atomically.
-		 */
-		unsigned long page_global = _PAGE_GLOBAL;
-		unsigned long tmp;
+			/*
+			 * For SMP, multiple CPUs can race, so we need
+			 * to do this atomically.
+			 */
+			__asm__ __volatile__(
+			__AMOR "$zero, %[global], %[buddy] \n"
+			: [buddy] "+ZB" (buddy->pte)
+			: [global] "r" (_PAGE_GLOBAL)
+			: "memory");
 
-		__asm__ __volatile__ (
-		"1:"	__LL	"%[tmp], %[buddy]		\n"
-		"	bnez	%[tmp], 2f			\n"
-		"	 or	%[tmp], %[tmp], %[global]	\n"
-			__SC	"%[tmp], %[buddy]		\n"
-		"	beqz	%[tmp], 1b			\n"
-		"	nop					\n"
-		"2:						\n"
-		__WEAK_LLSC_MB
-		: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
-		: [global] "r" (page_global));
+			DBAR(0b11000); /* o_wrw = 0b11000 */
 #else /* !CONFIG_SMP */
-		if (pte_none(*buddy))
-			pte_val(*buddy) = pte_val(*buddy) | _PAGE_GLOBAL;
+			WRITE_ONCE(*buddy, __pte(pte_val(ptep_get(buddy)) | _PAGE_GLOBAL));
 #endif /* CONFIG_SMP */
+		}
 	}
-}
-
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pteval)
-{
-	set_pte(ptep, pteval);
 }
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	/* Preserve global status for the pair */
-	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
-		set_pte_at(mm, addr, ptep, __pte(_PAGE_GLOBAL));
+	if (pte_val(ptep_get(ptep_buddy(ptep))) & _PAGE_GLOBAL)
+		set_pte(ptep, __pte(_PAGE_GLOBAL));
 	else
-		set_pte_at(mm, addr, ptep, __pte(0));
+		set_pte(ptep, __pte(0));
 }
 
 #define PGD_T_LOG2	(__builtin_ffs(sizeof(pgd_t)) - 1)
@@ -390,7 +401,7 @@ static inline pte_t pte_mkdirty(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite(pte_t pte)
+static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	if (pte_val(pte) & _PAGE_MODIFIED)
@@ -416,6 +427,9 @@ static inline pte_t pte_mkhuge(pte_t pte)
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
 static inline pte_t pte_mkspecial(pte_t pte)	{ pte_val(pte) |= _PAGE_SPECIAL; return pte; }
 #endif /* CONFIG_ARCH_HAS_PTE_SPECIAL */
+
+static inline int pte_devmap(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DEVMAP); }
+static inline pte_t pte_mkdevmap(pte_t pte)	{ pte_val(pte) |= _PAGE_DEVMAP; return pte; }
 
 #define pte_accessible pte_accessible
 static inline unsigned long pte_accessible(struct mm_struct *mm, pte_t a)
@@ -445,14 +459,23 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 extern void __update_tlb(struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep);
 
-static inline void update_mmu_cache(struct vm_area_struct *vma,
-			unsigned long address, pte_t *ptep)
+static inline void update_mmu_cache_range(struct vm_fault *vmf,
+		struct vm_area_struct *vma, unsigned long address,
+		pte_t *ptep, unsigned int nr)
 {
-	__update_tlb(vma, address, ptep);
+	for (;;) {
+		__update_tlb(vma, address, ptep);
+		if (--nr == 0)
+			break;
+		address += PAGE_SIZE;
+		ptep++;
+	}
 }
+#define update_mmu_cache(vma, addr, ptep) \
+	update_mmu_cache_range(NULL, vma, addr, ptep, 1)
 
-#define __HAVE_ARCH_UPDATE_MMU_TLB
-#define update_mmu_tlb	update_mmu_cache
+#define update_mmu_tlb_range(vma, addr, ptep, nr) \
+	update_mmu_cache_range(NULL, vma, addr, ptep, nr)
 
 static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 			unsigned long address, pmd_t *pmdp)
@@ -462,7 +485,7 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
-	return (pmd_val(pmd) & _PFN_MASK) >> _PFN_SHIFT;
+	return (pmd_val(pmd) & _PFN_MASK) >> PFN_PTE_SHIFT;
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -490,7 +513,7 @@ static inline int pmd_write(pmd_t pmd)
 	return !!(pmd_val(pmd) & _PAGE_WRITE);
 }
 
-static inline pmd_t pmd_mkwrite(pmd_t pmd)
+static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_WRITE;
 	if (pmd_val(pmd) & _PAGE_MODIFIED)
@@ -504,6 +527,7 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 	return pmd;
 }
 
+#define pmd_dirty pmd_dirty
 static inline int pmd_dirty(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & (_PAGE_DIRTY | _PAGE_MODIFIED));
@@ -541,6 +565,17 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 	return pmd;
 }
 
+static inline int pmd_devmap(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_DEVMAP);
+}
+
+static inline pmd_t pmd_mkdevmap(pmd_t pmd)
+{
+	pmd_val(pmd) |= _PAGE_DEVMAP;
+	return pmd;
+}
+
 static inline struct page *pmd_page(pmd_t pmd)
 {
 	if (pmd_trans_huge(pmd))
@@ -572,7 +607,7 @@ static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 					    unsigned long address, pmd_t *pmdp)
 {
-	pmd_t old = *pmdp;
+	pmd_t old = pmdp_get(pmdp);
 
 	pmd_clear(pmdp);
 
@@ -592,6 +627,14 @@ static inline long pmd_protnone(pmd_t pmd)
 	return (pmd_val(pmd) & _PAGE_PROTNONE);
 }
 #endif /* CONFIG_NUMA_BALANCING */
+
+#define pmd_leaf(pmd)		((pmd_val(pmd) & _PAGE_HUGE) != 0)
+#define pud_leaf(pud)		((pud_val(pud) & _PAGE_HUGE) != 0)
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define pud_devmap(pud)		(0)
+#define pgd_devmap(pgd)		(0)
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
  * We provide our own get_unmapped area to cope with the virtual aliasing

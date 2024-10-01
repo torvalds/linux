@@ -27,6 +27,7 @@
 #include "amdgpu_irq.h"
 #include "kgd_kfd_interface.h"
 #include "amdgpu_gfx.h"
+#include "amdgpu_doorbell.h"
 #include <linux/sched/mm.h>
 
 #define AMDGPU_MES_MAX_COMPUTE_PIPES        8
@@ -74,16 +75,16 @@ struct amdgpu_mes {
 
 	uint32_t			sched_version;
 	uint32_t			kiq_version;
+	bool                            enable_legacy_queue_map;
 
 	uint32_t                        total_max_queue;
-	uint32_t                        doorbell_id_offset;
 	uint32_t                        max_doorbell_slices;
 
 	uint64_t                        default_process_quantum;
 	uint64_t                        default_gang_quantum;
 
-	struct amdgpu_ring              ring;
-	spinlock_t                      ring_lock;
+	struct amdgpu_ring              ring[AMDGPU_MAX_MES_PIPES];
+	spinlock_t                      ring_lock[AMDGPU_MAX_MES_PIPES];
 
 	const struct firmware           *fw[AMDGPU_MAX_MES_PIPES];
 
@@ -112,12 +113,12 @@ struct amdgpu_mes {
 	uint32_t                        gfx_hqd_mask[AMDGPU_MES_MAX_GFX_PIPES];
 	uint32_t                        sdma_hqd_mask[AMDGPU_MES_MAX_SDMA_PIPES];
 	uint32_t                        aggregated_doorbells[AMDGPU_MES_PRIORITY_NUM_LEVELS];
-	uint32_t                        sch_ctx_offs;
-	uint64_t			sch_ctx_gpu_addr;
-	uint64_t			*sch_ctx_ptr;
-	uint32_t			query_status_fence_offs;
-	uint64_t			query_status_fence_gpu_addr;
-	uint64_t			*query_status_fence_ptr;
+	uint32_t                        sch_ctx_offs[AMDGPU_MAX_MES_PIPES];
+	uint64_t			sch_ctx_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	uint64_t			*sch_ctx_ptr[AMDGPU_MAX_MES_PIPES];
+	uint32_t			query_status_fence_offs[AMDGPU_MAX_MES_PIPES];
+	uint64_t			query_status_fence_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	uint64_t			*query_status_fence_ptr[AMDGPU_MAX_MES_PIPES];
 	uint32_t                        read_val_offs;
 	uint64_t			read_val_gpu_addr;
 	uint32_t			*read_val_ptr;
@@ -128,8 +129,25 @@ struct amdgpu_mes {
 	int                             (*kiq_hw_init)(struct amdgpu_device *adev);
 	int                             (*kiq_hw_fini)(struct amdgpu_device *adev);
 
+	/* MES doorbells */
+	uint32_t			db_start_dw_offset;
+	uint32_t			num_mes_dbs;
+	unsigned long			*doorbell_bitmap;
+
+	/* MES event log buffer */
+	uint32_t			event_log_size;
+	struct amdgpu_bo	*event_log_gpu_obj;
+	uint64_t			event_log_gpu_addr;
+	void				*event_log_cpu_addr;
+
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
+
+	/* mes resource_1 bo*/
+	struct amdgpu_bo    *resource_1;
+	uint64_t            resource_1_gpu_addr;
+	void                *resource_1_addr;
+
 };
 
 struct amdgpu_mes_process {
@@ -142,7 +160,6 @@ struct amdgpu_mes_process {
 	uint64_t 		process_quantum;
 	struct 			list_head gang_list;
 	uint32_t 		doorbell_index;
-	unsigned long 		*doorbell_bitmap;
 	struct mutex		doorbell_lock;
 };
 
@@ -224,11 +241,33 @@ struct mes_add_queue_input {
 	uint32_t	is_kfd_process;
 	uint32_t	is_aql_queue;
 	uint32_t	queue_size;
+	uint32_t	exclusively_scheduled;
 };
 
 struct mes_remove_queue_input {
 	uint32_t	doorbell_offset;
 	uint64_t	gang_context_addr;
+};
+
+struct mes_reset_queue_input {
+	uint32_t	doorbell_offset;
+	uint64_t	gang_context_addr;
+	bool		use_mmio;
+	uint32_t	queue_type;
+	uint32_t	me_id;
+	uint32_t	pipe_id;
+	uint32_t	queue_id;
+	uint32_t	xcc_id;
+	uint32_t	vmid;
+};
+
+struct mes_map_legacy_queue_input {
+	uint32_t                           queue_type;
+	uint32_t                           doorbell_offset;
+	uint32_t                           pipe_id;
+	uint32_t                           queue_id;
+	uint64_t                           mqd_addr;
+	uint64_t                           wptr_addr;
 };
 
 struct mes_unmap_legacy_queue_input {
@@ -251,6 +290,18 @@ struct mes_suspend_gang_input {
 struct mes_resume_gang_input {
 	bool		resume_all_gangs;
 	uint64_t	gang_context_addr;
+};
+
+struct mes_reset_legacy_queue_input {
+	uint32_t                           queue_type;
+	uint32_t                           doorbell_offset;
+	bool                               use_mmio;
+	uint32_t                           me_id;
+	uint32_t                           pipe_id;
+	uint32_t                           queue_id;
+	uint64_t                           mqd_addr;
+	uint64_t                           wptr_addr;
+	uint32_t                           vmid;
 };
 
 enum mes_misc_opcode {
@@ -286,9 +337,10 @@ struct mes_misc_op_input {
 			uint64_t process_context_addr;
 			union {
 				struct {
-					uint64_t single_memop : 1;
-					uint64_t single_alu_op : 1;
-					uint64_t reserved: 30;
+					uint32_t single_memop : 1;
+					uint32_t single_alu_op : 1;
+					uint32_t reserved: 29;
+					uint32_t process_ctx_flush: 1;
 				};
 				uint32_t u32all;
 			} flags;
@@ -306,6 +358,9 @@ struct amdgpu_mes_funcs {
 	int (*remove_hw_queue)(struct amdgpu_mes *mes,
 			       struct mes_remove_queue_input *input);
 
+	int (*map_legacy_queue)(struct amdgpu_mes *mes,
+				struct mes_map_legacy_queue_input *input);
+
 	int (*unmap_legacy_queue)(struct amdgpu_mes *mes,
 				  struct mes_unmap_legacy_queue_input *input);
 
@@ -317,6 +372,12 @@ struct amdgpu_mes_funcs {
 
 	int (*misc_op)(struct amdgpu_mes *mes,
 		       struct mes_misc_op_input *input);
+
+	int (*reset_legacy_queue)(struct amdgpu_mes *mes,
+				  struct mes_reset_legacy_queue_input *input);
+
+	int (*reset_hw_queue)(struct amdgpu_mes *mes,
+			      struct mes_reset_queue_input *input);
 };
 
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
@@ -344,11 +405,20 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 			    struct amdgpu_mes_queue_properties *qprops,
 			    int *queue_id);
 int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id);
+int amdgpu_mes_reset_hw_queue(struct amdgpu_device *adev, int queue_id);
+int amdgpu_mes_reset_hw_queue_mmio(struct amdgpu_device *adev, int queue_type,
+				   int me_id, int pipe_id, int queue_id, int vmid);
 
+int amdgpu_mes_map_legacy_queue(struct amdgpu_device *adev,
+				struct amdgpu_ring *ring);
 int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  enum amdgpu_unmap_queues_action action,
 				  u64 gpu_addr, u64 seq);
+int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
+				  struct amdgpu_ring *ring,
+				  unsigned int vmid,
+				  bool use_mmio);
 
 uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg);
 int amdgpu_mes_wreg(struct amdgpu_device *adev,
@@ -364,7 +434,8 @@ int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
 				const uint32_t *tcp_watch_cntl,
 				uint32_t flags,
 				bool trap_en);
-
+int amdgpu_mes_flush_shader_debugger(struct amdgpu_device *adev,
+				uint64_t process_context_addr);
 int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 			int queue_type, int idx,
 			struct amdgpu_mes_ctx_data *ctx_data,
@@ -386,14 +457,6 @@ int amdgpu_mes_ctx_unmap_meta_data(struct amdgpu_device *adev,
 
 int amdgpu_mes_self_test(struct amdgpu_device *adev);
 
-int amdgpu_mes_alloc_process_doorbells(struct amdgpu_device *adev,
-					unsigned int *doorbell_index);
-void amdgpu_mes_free_process_doorbells(struct amdgpu_device *adev,
-					unsigned int doorbell_index);
-unsigned int amdgpu_mes_get_doorbell_dw_offset_in_bar(
-					struct amdgpu_device *adev,
-					uint32_t doorbell_index,
-					unsigned int doorbell_id);
 int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
 
 /*
@@ -453,4 +516,6 @@ static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 	memalloc_noreclaim_restore(mes->saved_flags);
 	mutex_unlock(&mes->mutex_hidden);
 }
+
+bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev);
 #endif /* __AMDGPU_MES_H__ */

@@ -32,9 +32,14 @@ enum {
 	MT_LMAC_PSMP0,
 };
 
+enum {
+	MT_TXS_MPDU_FMT = 0,
+	MT_TXS_PPDU_FMT = 2,
+};
+
 #define MT_TX_FREE_MSDU_CNT		GENMASK(9, 0)
 #define MT_TX_FREE_WLAN_ID		GENMASK(23, 14)
-#define MT_TX_FREE_LATENCY		GENMASK(12, 0)
+#define MT_TX_FREE_COUNT		GENMASK(12, 0)
 /* 0: success, others: dropped */
 #define MT_TX_FREE_STATUS		GENMASK(14, 13)
 #define MT_TX_FREE_MSDU_ID		GENMASK(30, 16)
@@ -348,6 +353,13 @@ enum tx_mcu_port_q_idx {
 enum tx_port_idx {
 	MT_TX_PORT_IDX_LMAC,
 	MT_TX_PORT_IDX_MCU
+};
+
+enum tx_frag_idx {
+	MT_TX_FRAG_NONE,
+	MT_TX_FRAG_FIRST,
+	MT_TX_FRAG_MID,
+	MT_TX_FRAG_LAST
 };
 
 #endif /* __MT76_CONNAC2_MAC_H */

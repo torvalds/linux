@@ -27,8 +27,8 @@
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pgtable.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -933,7 +933,7 @@ static int qec_sbus_probe(struct platform_device *op)
 	return qec_ether_init(op);
 }
 
-static int qec_sbus_remove(struct platform_device *op)
+static void qec_sbus_remove(struct platform_device *op)
 {
 	struct sunqe *qp = platform_get_drvdata(op);
 	struct net_device *net_dev = qp->dev;
@@ -948,8 +948,6 @@ static int qec_sbus_remove(struct platform_device *op)
 			  qp->buffers, qp->buffers_dvma);
 
 	free_netdev(net_dev);
-
-	return 0;
 }
 
 static const struct of_device_id qec_sbus_match[] = {
@@ -967,7 +965,7 @@ static struct platform_driver qec_sbus_driver = {
 		.of_match_table = qec_sbus_match,
 	},
 	.probe		= qec_sbus_probe,
-	.remove		= qec_sbus_remove,
+	.remove_new	= qec_sbus_remove,
 };
 
 static int __init qec_init(void)

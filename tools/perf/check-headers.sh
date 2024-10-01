@@ -9,22 +9,15 @@ FILES=(
   "include/uapi/linux/const.h"
   "include/uapi/drm/drm.h"
   "include/uapi/drm/i915_drm.h"
+  "include/uapi/linux/bits.h"
   "include/uapi/linux/fadvise.h"
-  "include/uapi/linux/fcntl.h"
-  "include/uapi/linux/fs.h"
   "include/uapi/linux/fscrypt.h"
   "include/uapi/linux/kcmp.h"
   "include/uapi/linux/kvm.h"
   "include/uapi/linux/in.h"
-  "include/uapi/linux/mount.h"
-  "include/uapi/linux/openat2.h"
   "include/uapi/linux/perf_event.h"
-  "include/uapi/linux/prctl.h"
-  "include/uapi/linux/sched.h"
+  "include/uapi/linux/seccomp.h"
   "include/uapi/linux/stat.h"
-  "include/uapi/linux/usbdevice_fs.h"
-  "include/uapi/linux/vhost.h"
-  "include/uapi/sound/asound.h"
   "include/linux/bits.h"
   "include/vdso/bits.h"
   "include/linux/const.h"
@@ -37,9 +30,7 @@ FILES=(
   "arch/x86/include/asm/cpufeatures.h"
   "arch/x86/include/asm/inat_types.h"
   "arch/x86/include/asm/emulate_prefix.h"
-  "arch/x86/include/asm/irq_vectors.h"
   "arch/x86/include/asm/msr-index.h"
-  "arch/x86/include/uapi/asm/prctl.h"
   "arch/x86/lib/x86-opcode-map.txt"
   "arch/x86/tools/gen-insn-attr-x86.awk"
   "arch/arm/include/uapi/asm/perf_regs.h"
@@ -96,7 +87,18 @@ SYNC_CHECK_FILES=(
 
 declare -a BEAUTY_FILES
 BEAUTY_FILES=(
+  "arch/x86/include/asm/irq_vectors.h"
+  "arch/x86/include/uapi/asm/prctl.h"
   "include/linux/socket.h"
+  "include/uapi/linux/fcntl.h"
+  "include/uapi/linux/fs.h"
+  "include/uapi/linux/mount.h"
+  "include/uapi/linux/prctl.h"
+  "include/uapi/linux/sched.h"
+  "include/uapi/linux/stat.h"
+  "include/uapi/linux/usbdevice_fs.h"
+  "include/uapi/linux/vhost.h"
+  "include/uapi/sound/asound.h"
 )
 
 declare -a FAILURES
@@ -123,7 +125,7 @@ check () {
 
   shift
 
-  check_2 "tools/$file" "$file" $*
+  check_2 "tools/$file" "$file" "$@"
 }
 
 beauty_check () {
@@ -131,7 +133,7 @@ beauty_check () {
 
   shift
 
-  check_2 "tools/perf/trace/beauty/$file" "$file" $*
+  check_2 "tools/perf/trace/beauty/$file" "$file" "$@"
 }
 
 # Check if we have the kernel headers (tools/perf/../../include), else
@@ -161,6 +163,7 @@ check arch/x86/lib/memcpy_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/ex
 check arch/x86/lib/memset_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" -I"^SYM_FUNC_START\(_LOCAL\)*(memset_\(erms\|orig\))"'
 check arch/x86/include/asm/amd-ibs.h  '-I "^#include [<\"]\(asm/\)*msr-index.h"'
 check arch/arm64/include/asm/cputype.h '-I "^#include [<\"]\(asm/\)*sysreg.h"'
+check include/asm-generic/unaligned.h '-I "^#include <linux/unaligned/packed_struct.h>" -I "^#include <asm/byteorder.h>" -I "^#pragma GCC diagnostic"'
 check include/uapi/asm-generic/mman.h '-I "^#include <\(uapi/\)*asm-generic/mman-common\(-tools\)*.h>"'
 check include/uapi/linux/mman.h       '-I "^#include <\(uapi/\)*asm/mman.h>"'
 check include/linux/build_bug.h       '-I "^#\(ifndef\|endif\)\( \/\/\)* static_assert$"'
@@ -169,6 +172,7 @@ check lib/ctype.c		      '-I "^EXPORT_SYMBOL" -I "^#include <linux/export.h>" -B
 check lib/list_sort.c		      '-I "^#include <linux/bug.h>"'
 
 # diff non-symmetric files
+check_2 tools/perf/arch/x86/entry/syscalls/syscall_32.tbl arch/x86/entry/syscalls/syscall_32.tbl
 check_2 tools/perf/arch/x86/entry/syscalls/syscall_64.tbl arch/x86/entry/syscalls/syscall_64.tbl
 check_2 tools/perf/arch/powerpc/entry/syscalls/syscall.tbl arch/powerpc/kernel/syscalls/syscall.tbl
 check_2 tools/perf/arch/s390/entry/syscalls/syscall.tbl arch/s390/kernel/syscalls/syscall.tbl
@@ -183,7 +187,7 @@ done
 check_2 tools/perf/util/hashmap.h tools/lib/bpf/hashmap.h
 check_2 tools/perf/util/hashmap.c tools/lib/bpf/hashmap.c
 
-cd tools/perf
+cd tools/perf || exit
 
 if [ ${#FAILURES[@]} -gt 0 ]
 then

@@ -1262,7 +1262,7 @@ enum {
 
 struct bnx2x_fw_stats_req {
 	struct stats_query_header hdr;
-	struct stats_query_entry query[FP_SB_MAX_E1x+
+	struct stats_query_entry query[FP_SB_MAX_E2 +
 		BNX2X_FIRST_QUEUE_QUERY_IDX];
 };
 
@@ -1507,6 +1507,8 @@ struct bnx2x {
 	bool			cnic_enabled;
 	bool			cnic_loaded;
 	struct cnic_eth_dev	*(*cnic_probe)(struct net_device *);
+
+	bool                    nic_stopped;
 
 	/* Flag that indicates that we can start looking for FCoE L2 queue
 	 * completions in the default status block.

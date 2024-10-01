@@ -80,8 +80,8 @@ static void keywest_remove(struct i2c_client *client)
 
 
 static const struct i2c_device_id keywest_i2c_id[] = {
-	{ "MAC,tas3004", 0 },		/* instantiated by i2c-powermac */
-	{ "keywest", 0 },		/* instantiated by us if needed */
+	{ "MAC,tas3004" },	/* instantiated by i2c-powermac */
+	{ "keywest" },		/* instantiated by us if needed */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, keywest_i2c_id);
@@ -113,7 +113,8 @@ int snd_pmac_tumbler_post_init(void)
 
 	err = keywest_ctx->init_client(keywest_ctx);
 	if (err < 0) {
-		snd_printk(KERN_ERR "tumbler: %i :cannot initialize the MCS\n", err);
+		dev_err(&keywest_ctx->client->dev,
+			"tumbler: %i :cannot initialize the MCS\n", err);
 		return err;
 	}
 	return 0;
@@ -136,7 +137,7 @@ int snd_pmac_keywest_init(struct pmac_keywest *i2c)
 
 	err = i2c_add_driver(&keywest_driver);
 	if (err) {
-		snd_printk(KERN_ERR "cannot register keywest i2c driver\n");
+		dev_err(&i2c->client->dev, "cannot register keywest i2c driver\n");
 		i2c_put_adapter(adap);
 		return err;
 	}

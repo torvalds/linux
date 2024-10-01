@@ -3,6 +3,7 @@
 // Cadence PCIe endpoint controller driver.
 // Author: Cyrille Pitchen <cyrille.pitchen@free-electrons.com>
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -98,13 +99,10 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 		ctrl = CDNS_PCIE_LM_BAR_CFG_CTRL_IO_32BITS;
 	} else {
 		bool is_prefetch = !!(flags & PCI_BASE_ADDRESS_MEM_PREFETCH);
-		bool is_64bits = sz > SZ_2G;
+		bool is_64bits = !!(flags & PCI_BASE_ADDRESS_MEM_TYPE_64);
 
 		if (is_64bits && (bar & 1))
 			return -EINVAL;
-
-		if (is_64bits && !(flags & PCI_BASE_ADDRESS_MEM_TYPE_64))
-			epf_bar->flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
 
 		if (is_64bits && is_prefetch)
 			ctrl = CDNS_PCIE_LM_BAR_CFG_CTRL_PREFETCH_MEM_64BITS;
@@ -262,7 +260,7 @@ static int cdns_pcie_ep_get_msi(struct pci_epc *epc, u8 fn, u8 vfn)
 	 * Get the Multiple Message Enable bitfield from the Message Control
 	 * register.
 	 */
-	mme = (flags & PCI_MSI_FLAGS_QSIZE) >> 4;
+	mme = FIELD_GET(PCI_MSI_FLAGS_QSIZE, flags);
 
 	return mme;
 }
@@ -359,8 +357,8 @@ static void cdns_pcie_ep_assert_intx(struct cdns_pcie_ep *ep, u8 fn, u8 intx,
 	writel(0, ep->irq_cpu_addr + offset);
 }
 
-static int cdns_pcie_ep_send_legacy_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
-					u8 intx)
+static int cdns_pcie_ep_send_intx_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
+				      u8 intx)
 {
 	u16 cmd;
 
@@ -370,7 +368,7 @@ static int cdns_pcie_ep_send_legacy_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
 
 	cdns_pcie_ep_assert_intx(ep, fn, intx, true);
 	/*
-	 * The mdelay() value was taken from dra7xx_pcie_raise_legacy_irq()
+	 * The mdelay() value was taken from dra7xx_pcie_raise_intx_irq()
 	 */
 	mdelay(1);
 	cdns_pcie_ep_assert_intx(ep, fn, intx, false);
@@ -394,7 +392,7 @@ static int cdns_pcie_ep_send_msi_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
 		return -EINVAL;
 
 	/* Get the number of enabled MSIs */
-	mme = (flags & PCI_MSI_FLAGS_QSIZE) >> 4;
+	mme = FIELD_GET(PCI_MSI_FLAGS_QSIZE, flags);
 	msi_count = 1 << mme;
 	if (!interrupt_num || interrupt_num > msi_count)
 		return -EINVAL;
@@ -449,7 +447,7 @@ static int cdns_pcie_ep_map_msi_irq(struct pci_epc *epc, u8 fn, u8 vfn,
 		return -EINVAL;
 
 	/* Get the number of enabled MSIs */
-	mme = (flags & PCI_MSI_FLAGS_QSIZE) >> 4;
+	mme = FIELD_GET(PCI_MSI_FLAGS_QSIZE, flags);
 	msi_count = 1 << mme;
 	if (!interrupt_num || interrupt_num > msi_count)
 		return -EINVAL;
@@ -506,7 +504,7 @@ static int cdns_pcie_ep_send_msix_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
 
 	reg = cap + PCI_MSIX_TABLE;
 	tbl_offset = cdns_pcie_ep_fn_readl(pcie, fn, reg);
-	bir = tbl_offset & PCI_MSIX_TABLE_BIR;
+	bir = FIELD_GET(PCI_MSIX_TABLE_BIR, tbl_offset);
 	tbl_offset &= PCI_MSIX_TABLE_OFFSET;
 
 	msix_tbl = epf->epf_bar[bir]->addr + tbl_offset;
@@ -531,25 +529,24 @@ static int cdns_pcie_ep_send_msix_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
 }
 
 static int cdns_pcie_ep_raise_irq(struct pci_epc *epc, u8 fn, u8 vfn,
-				  enum pci_epc_irq_type type,
-				  u16 interrupt_num)
+				  unsigned int type, u16 interrupt_num)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
 	struct device *dev = pcie->dev;
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
+	case PCI_IRQ_INTX:
 		if (vfn > 0) {
-			dev_err(dev, "Cannot raise legacy interrupts for VF\n");
+			dev_err(dev, "Cannot raise INTX interrupts for VF\n");
 			return -EINVAL;
 		}
-		return cdns_pcie_ep_send_legacy_irq(ep, fn, vfn, 0);
+		return cdns_pcie_ep_send_intx_irq(ep, fn, vfn, 0);
 
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		return cdns_pcie_ep_send_msi_irq(ep, fn, vfn, interrupt_num);
 
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		return cdns_pcie_ep_send_msix_irq(ep, fn, vfn, interrupt_num);
 
 	default:
@@ -565,13 +562,25 @@ static int cdns_pcie_ep_start(struct pci_epc *epc)
 	struct cdns_pcie *pcie = &ep->pcie;
 	struct device *dev = pcie->dev;
 	int max_epfs = sizeof(epc->function_num_map) * 8;
-	int ret, value, epf;
+	int ret, epf, last_fn;
+	u32 reg, value;
 
 	/*
 	 * BIT(0) is hardwired to 1, hence function 0 is always enabled
 	 * and can't be disabled anyway.
 	 */
 	cdns_pcie_writel(pcie, CDNS_PCIE_LM_EP_FUNC_CFG, epc->function_num_map);
+
+	/*
+	 * Next function field in ARI_CAP_AND_CTR register for last function
+	 * should be 0.
+	 * Clearing Next Function Number field for the last function used.
+	 */
+	last_fn = find_last_bit(&epc->function_num_map, BITS_PER_LONG);
+	reg     = CDNS_PCIE_CORE_PF_I_ARI_CAP_AND_CTRL(last_fn);
+	value  = cdns_pcie_readl(pcie, reg);
+	value &= ~CDNS_PCIE_ARI_CAP_NFN_MASK;
+	cdns_pcie_writel(pcie, reg, value);
 
 	if (ep->quirk_disable_flr) {
 		for (epf = 0; epf < max_epfs; epf++) {
@@ -733,6 +742,8 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 		cdns_pcie_detect_quiet_min_delay_set(&ep->pcie);
 
 	spin_lock_init(&ep->lock);
+
+	pci_epc_init_notify(epc);
 
 	return 0;
 

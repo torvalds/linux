@@ -25,6 +25,12 @@ properties:
   reset-names:
     const: audiosys
 
+  memory-region:
+    maxItems: 1
+    description: |
+      Shared memory region for AFE memif.  A "shared-dma-pool".
+      See dtschema reserved-memory/shared-dma-pool.yaml for details.
+
   mediatek,topckgen:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of the mediatek topckgen controller
@@ -135,7 +141,7 @@ patternProperties:
     maxItems: 16
     description:
       This is a list of channel IDs which should be disabled.
-      By default, all data received from ETDM pins will be outputed to
+      By default, all data received from ETDM pins will be outputted to
       memory. etdm in supports disable_out in direct mode(w/o interconn),
       so user can disable the specified channels by the property.
     uniqueItems: true
@@ -176,6 +182,7 @@ examples:
         interrupts = <GIC_SPI 822 IRQ_TYPE_LEVEL_HIGH 0>;
         resets = <&watchdog 14>;
         reset-names = "audiosys";
+        memory-region = <&snd_dma_mem_reserved>;
         mediatek,topckgen = <&topckgen>;
         mediatek,infracfg = <&infracfg_ao>;
         power-domains = <&spm 13>; //MT8188_POWER_DOMAIN_AUDIO

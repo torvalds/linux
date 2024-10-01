@@ -178,7 +178,7 @@ Userspace monitor usage example
 Cgroup2 interface
 =================
 
-In a system with a CONFIG_CGROUP=y kernel and the cgroup2 filesystem
+In a system with a CONFIG_CGROUPS=y kernel and the cgroup2 filesystem
 mounted, pressure stall information is also tracked for tasks grouped
 into cgroups. Each subdirectory in the cgroupfs mountpoint contains
 cpu.pressure, memory.pressure, and io.pressure files; the format is

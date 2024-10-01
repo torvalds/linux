@@ -241,6 +241,7 @@ module_init(crc32_pmull_mod_init);
 module_exit(crc32_pmull_mod_exit);
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
+MODULE_DESCRIPTION("Accelerated CRC32(C) using ARM CRC, NEON and Crypto Extensions");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("crc32");
 MODULE_ALIAS_CRYPTO("crc32c");

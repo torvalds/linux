@@ -6,8 +6,7 @@
  */
 
 #include <dt-bindings/input/input.h>
-#include "rk3399.dtsi"
-#include "rk3399-op1-opp.dtsi"
+#include "rk3399-op1.dtsi"
 
 / {
 	aliases {
@@ -250,7 +249,7 @@
 		pinctrl-0 = <&sd_io_pwr_en &sd_pwr_1800_sel>;
 
 		enable-active-high;
-		enable-gpio = <&gpio2 2 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
 		gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
 		states = <1800000 0x1>,
 			 <3000000 0x0>;
@@ -450,7 +449,7 @@ ap_i2c_audio: &i2c8 {
 			dlg,btn-cfg = <50>;
 			dlg,mic-det-thr = <500>;
 			dlg,jack-ins-deb = <20>;
-			dlg,jack-det-rate = "32ms_64ms";
+			dlg,jack-det-rate = "32_64";
 			dlg,jack-rem-deb = <1>;
 
 			dlg,a-d-btn-thr = <0xa>;
@@ -489,6 +488,7 @@ ap_i2c_audio: &i2c8 {
 		#address-cells = <3>;
 		#size-cells = <2>;
 		ranges;
+		device_type = "pci";
 	};
 };
 

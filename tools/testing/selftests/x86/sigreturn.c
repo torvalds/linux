@@ -487,7 +487,7 @@ static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 	greg_t asm_ss = ctx->uc_mcontext.gregs[REG_CX];
 	if (asm_ss != sig_ss && sig == SIGTRAP) {
 		/* Sanity check failure. */
-		printf("[FAIL]\tSIGTRAP: ss = %hx, frame ss = %hx, ax = %llx\n",
+		printf("[FAIL]\tSIGTRAP: ss = %hx, frame ss = %x, ax = %llx\n",
 		       ss, *ssptr(ctx), (unsigned long long)asm_ss);
 		nerrs++;
 	}

@@ -13,13 +13,13 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
 #include <media/v4l2-fwnode.h>
 
 #include "vip.h"
+#include "video.h"
 
 static inline struct tegra_vip *host1x_client_to_vip(struct host1x_client *client)
 {
@@ -163,7 +163,7 @@ static int tegra_vip_channel_init(struct tegra_vip *vip)
 	subdev = &vip->chan.subdev;
 	v4l2_subdev_init(subdev, &tegra_vip_ops);
 	subdev->dev = vip->dev;
-	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s",
+	snprintf(subdev->name, sizeof(subdev->name), "%s",
 		 kbasename(vip->chan.of_node->full_name));
 
 	v4l2_set_subdevdata(subdev, &vip->chan);
@@ -254,15 +254,13 @@ static int tegra_vip_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_vip_remove(struct platform_device *pdev)
+static void tegra_vip_remove(struct platform_device *pdev)
 {
 	struct tegra_vip *vip = platform_get_drvdata(pdev);
 
 	host1x_client_unregister(&vip->client);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC)
@@ -283,5 +281,5 @@ struct platform_driver tegra_vip_driver = {
 		.of_match_table	= tegra_vip_of_id_table,
 	},
 	.probe			= tegra_vip_probe,
-	.remove			= tegra_vip_remove,
+	.remove_new		= tegra_vip_remove,
 };

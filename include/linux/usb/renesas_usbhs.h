@@ -5,16 +5,6 @@
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #ifndef RENESAS_USB_H
 #define RENESAS_USB_H
@@ -204,9 +194,4 @@ struct renesas_usbhs_platform_info {
 	struct renesas_usbhs_driver_param	driver_param;
 };
 
-/*
- * macro for platform
- */
-#define renesas_usbhs_get_info(pdev)\
-	((struct renesas_usbhs_platform_info *)(pdev)->dev.platform_data)
 #endif /* RENESAS_USB_H */

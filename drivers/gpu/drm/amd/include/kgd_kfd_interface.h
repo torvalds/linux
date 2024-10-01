@@ -31,11 +31,11 @@
 #include <linux/types.h>
 #include <linux/bitmap.h>
 #include <linux/dma-fence.h>
+#include "amdgpu_irq.h"
+#include "amdgpu_gfx.h"
 
 struct pci_dev;
 struct amdgpu_device;
-
-#define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
 struct kgd_mem;
@@ -57,20 +57,6 @@ struct kfd_vm_fault_info {
 	bool		prot_exec;
 };
 
-struct kfd_cu_info {
-	uint32_t num_shader_engines;
-	uint32_t num_shader_arrays_per_engine;
-	uint32_t num_cu_per_sh;
-	uint32_t cu_active_number;
-	uint32_t cu_ao_mask;
-	uint32_t simd_per_cu;
-	uint32_t max_waves_per_simd;
-	uint32_t wave_front_size;
-	uint32_t max_scratch_slots_per_cu;
-	uint32_t lds_size;
-	uint32_t cu_bitmap[4][4];
-};
-
 /* For getting GPU local memory information from KGD */
 struct kfd_local_mem_info {
 	uint64_t local_mem_size_private;
@@ -83,6 +69,11 @@ enum kgd_memory_pool {
 	KGD_POOL_SYSTEM_CACHEABLE = 1,
 	KGD_POOL_SYSTEM_WRITECOMBINE = 2,
 	KGD_POOL_FRAMEBUFFER = 3,
+};
+
+struct kfd_cu_occupancy {
+	u32 wave_cnt;
+	u32 doorbell_off;
 };
 
 /**
@@ -123,7 +114,7 @@ struct kgd2kfd_shared_resources {
 	uint32_t num_queue_per_pipe;
 
 	/* Bit n == 1 means Queue n is available for KFD */
-	DECLARE_BITMAP(cp_queue_bitmap, KGD_MAX_QUEUES);
+	DECLARE_BITMAP(cp_queue_bitmap, AMDGPU_MAX_QUEUES);
 
 	/* SDMA doorbell assignments (SOC15 and later chips only). Only
 	 * specific doorbells are routed to each SDMA engine. Others
@@ -315,21 +306,30 @@ struct kfd2kgd_calls {
 					uint32_t watch_address_mask,
 					uint32_t watch_id,
 					uint32_t watch_mode,
-					uint32_t debug_vmid);
+					uint32_t debug_vmid,
+					uint32_t inst);
 	uint32_t (*clear_address_watch)(struct amdgpu_device *adev,
 			uint32_t watch_id);
 	void (*get_iq_wait_times)(struct amdgpu_device *adev,
-			uint32_t *wait_times);
+			uint32_t *wait_times,
+			uint32_t inst);
 	void (*build_grace_period_packet_info)(struct amdgpu_device *adev,
 			uint32_t wait_times,
 			uint32_t grace_period,
 			uint32_t *reg_offset,
 			uint32_t *reg_data);
-	void (*get_cu_occupancy)(struct amdgpu_device *adev, int pasid,
-			int *wave_cnt, int *max_waves_per_cu, uint32_t inst);
+	void (*get_cu_occupancy)(struct amdgpu_device *adev,
+				 struct kfd_cu_occupancy *cu_occupancy,
+				 int *max_waves_per_cu, uint32_t inst);
 	void (*program_trap_handler_settings)(struct amdgpu_device *adev,
 			uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr,
 			uint32_t inst);
+	uint64_t (*hqd_get_pq_addr)(struct amdgpu_device *adev,
+				    uint32_t pipe_id, uint32_t queue_id,
+				    uint32_t inst);
+	uint64_t (*hqd_reset)(struct amdgpu_device *adev,
+			      uint32_t pipe_id, uint32_t queue_id,
+			      uint32_t inst, unsigned int utimeout);
 };
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */

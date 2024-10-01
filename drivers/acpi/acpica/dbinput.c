@@ -106,6 +106,7 @@ enum acpi_ex_debugger_commands {
 	CMD_THREADS,
 
 	CMD_TEST,
+	CMD_INTERRUPT,
 #endif
 };
 
@@ -185,6 +186,7 @@ static const struct acpi_db_command_info acpi_gbl_db_commands[] = {
 	{"THREADS", 3},
 
 	{"TEST", 1},
+	{"INTERRUPT", 1},
 #endif
 	{NULL, 0}
 };
@@ -318,6 +320,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  Gpes", "Display info on all GPE devices\n"},
 	{1, "  Sci", "Generate an SCI\n"},
 	{1, "  Sleep [SleepState]", "Simulate sleep/wake sequence(s) (0-5)\n"},
+	{1, "  Interrupt <GSIV>", "Simulate an interrupt\n"},
 #endif
 	{0, NULL, NULL}
 };
@@ -1062,6 +1065,11 @@ acpi_db_command_dispatch(char *input_buffer,
 	case CMD_EVENT:
 
 		acpi_os_printf("Event command not implemented\n");
+		break;
+
+	case CMD_INTERRUPT:
+
+		acpi_db_generate_interrupt(acpi_gbl_db_args[1]);
 		break;
 
 	case CMD_GPE:

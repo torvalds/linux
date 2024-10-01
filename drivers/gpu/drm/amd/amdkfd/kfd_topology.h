@@ -32,9 +32,12 @@
 #define KFD_TOPOLOGY_PUBLIC_NAME_SIZE 32
 
 #define HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9	6
+#define HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9_4_3 7
 #define HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX10	7
 #define HSA_DBG_WATCH_ADDR_MASK_HI_BIT  \
 			(29 << HSA_DBG_WATCH_ADDR_MASK_HI_BIT_SHIFT)
+#define HSA_DBG_WATCH_ADDR_MASK_HI_BIT_GFX9_4_3 \
+			(30 << HSA_DBG_WATCH_ADDR_MASK_HI_BIT_SHIFT)
 
 struct kfd_node_properties {
 	uint64_t hive_id;
@@ -71,6 +74,10 @@ struct kfd_node_properties {
 	uint32_t num_sdma_xgmi_engines;
 	uint32_t num_sdma_queues_per_engine;
 	uint32_t num_cp_queues;
+	uint32_t cwsr_size;
+	uint32_t ctl_stack_size;
+	uint32_t eop_buffer_size;
+	uint32_t debug_memory_size;
 	char name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 };
 
@@ -86,7 +93,7 @@ struct kfd_mem_properties {
 	struct attribute	attr;
 };
 
-#define CACHE_SIBLINGMAP_SIZE 64
+#define CACHE_SIBLINGMAP_SIZE 128
 
 struct kfd_cache_properties {
 	struct list_head	list;
@@ -118,6 +125,7 @@ struct kfd_iolink_properties {
 	uint32_t		min_bandwidth;
 	uint32_t		max_bandwidth;
 	uint32_t		rec_transfer_size;
+	uint32_t		rec_sdma_eng_id_mask;
 	uint32_t		flags;
 	struct kfd_node		*gpu;
 	struct kobject		*kobj;
@@ -151,7 +159,10 @@ struct kfd_topology_device {
 	struct attribute		attr_gpuid;
 	struct attribute		attr_name;
 	struct attribute		attr_props;
-	uint8_t				oem_id[CRAT_OEMID_LENGTH];
+	union {
+		uint8_t				oem_id[CRAT_OEMID_LENGTH];
+		uint64_t			oem_id64;
+	};
 	uint8_t				oem_table_id[CRAT_OEMTABLEID_LENGTH];
 	uint32_t			oem_revision;
 };

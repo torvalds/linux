@@ -559,3 +559,12 @@ void rvu_nix_block_cn10k_init(struct rvu *rvu, struct nix_hw *nix_hw)
 	cfg |= BIT_ULL(1) | BIT_ULL(2);
 	rvu_write64(rvu, blkaddr, NIX_AF_CFG, cfg);
 }
+
+void rvu_apr_block_cn10k_init(struct rvu *rvu)
+{
+	u64 reg;
+
+	reg = rvu_read64(rvu, BLKADDR_APR, APR_AF_LMT_CFG);
+	reg |=	FIELD_PREP(LMTST_THROTTLE_MASK, LMTST_WR_PEND_MAX);
+	rvu_write64(rvu, BLKADDR_APR, APR_AF_LMT_CFG, reg);
+}

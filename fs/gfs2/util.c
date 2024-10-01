@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/kthread.h>
 #include <linux/crc32.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/delay.h>
@@ -98,20 +99,20 @@ out_unlock:
  */
 int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp)
 {
+	int flags = LM_FLAG_NOEXP | GL_EXACT;
 	int error;
 
-	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
-				   LM_FLAG_NOEXP | GL_EXACT,
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, flags,
 				   &sdp->sd_freeze_gh);
-	if (error)
+	if (error && error != GLR_TRYFAILED)
 		fs_err(sdp, "can't lock the freeze glock: %d\n", error);
 	return error;
 }
 
-void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh)
+void gfs2_freeze_unlock(struct gfs2_sbd *sdp)
 {
-	if (gfs2_holder_initialized(freeze_gh))
-		gfs2_glock_dq_uninit(freeze_gh);
+	if (gfs2_holder_initialized(&sdp->sd_freeze_gh))
+		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 }
 
 static void signal_our_withdraw(struct gfs2_sbd *sdp)
@@ -150,7 +151,14 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	if (!sb_rdonly(sdp->sd_vfs)) {
 		bool locked = mutex_trylock(&sdp->sd_freeze_mutex);
 
-		gfs2_make_fs_ro(sdp);
+		wake_up(&sdp->sd_logd_waitq);
+		wake_up(&sdp->sd_quota_wait);
+
+		wait_event_timeout(sdp->sd_log_waitq,
+				   gfs2_log_is_empty(sdp),
+				   HZ * 5);
+
+		sdp->sd_vfs->s_flags |= SB_RDONLY;
 
 		if (locked)
 			mutex_unlock(&sdp->sd_freeze_mutex);
@@ -198,9 +206,9 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * on other nodes to be successful, otherwise we remain the owner of
 	 * the glock as far as dlm is concerned.
 	 */
-	if (i_gl->gl_ops->go_free) {
-		set_bit(GLF_FREEING, &i_gl->gl_flags);
-		wait_on_bit(&i_gl->gl_flags, GLF_FREEING, TASK_UNINTERRUPTIBLE);
+	if (i_gl->gl_ops->go_unlocked) {
+		set_bit(GLF_UNLOCKED, &i_gl->gl_flags);
+		wait_on_bit(&i_gl->gl_flags, GLF_UNLOCKED, TASK_UNINTERRUPTIBLE);
 	}
 
 	/*
@@ -247,7 +255,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		gfs2_glock_nq(&sdp->sd_live_gh);
 	}
 
-	gfs2_glock_queue_put(live_gl); /* drop extra reference we acquired */
+	gfs2_glock_put(live_gl); /* drop extra reference we acquired */
 	clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 
 	/*
@@ -315,19 +323,19 @@ int gfs2_withdraw(struct gfs2_sbd *sdp)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	const struct lm_lockops *lm = ls->ls_ops;
 
-	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW &&
-	    test_and_set_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
-		if (!test_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags))
-			return -1;
-
-		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_IN_PROG,
-			    TASK_UNINTERRUPTIBLE);
-		return -1;
-	}
-
-	set_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags);
-
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW) {
+		unsigned long old = READ_ONCE(sdp->sd_flags), new;
+
+		do {
+			if (old & BIT(SDF_WITHDRAWN)) {
+				wait_on_bit(&sdp->sd_flags,
+					    SDF_WITHDRAW_IN_PROG,
+					    TASK_UNINTERRUPTIBLE);
+				return -1;
+			}
+			new = old | BIT(SDF_WITHDRAWN) | BIT(SDF_WITHDRAW_IN_PROG);
+		} while (unlikely(!try_cmpxchg(&sdp->sd_flags, &old, new)));
+
 		fs_err(sdp, "about to withdraw this file system\n");
 		BUG_ON(sdp->sd_args.ar_debug);
 
@@ -342,7 +350,6 @@ int gfs2_withdraw(struct gfs2_sbd *sdp)
 			fs_err(sdp, "telling LM to unmount\n");
 			lm->lm_unmount(sdp);
 		}
-		set_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags);
 		fs_err(sdp, "File system withdrawn\n");
 		dump_stack();
 		clear_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags);
@@ -364,12 +371,12 @@ void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
 			    const char *function, char *file, unsigned int line,
 			    bool delayed)
 {
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return;
 
 	fs_err(sdp,
-	       "fatal: assertion \"%s\" failed\n"
-	       "   function = %s, file = %s, line = %u\n",
+	       "fatal: assertion \"%s\" failed - "
+	       "function = %s, file = %s, line = %u\n",
 	       assertion, function, file, line);
 
 	/*
@@ -399,7 +406,8 @@ void gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 		return;
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW)
-		fs_warn(sdp, "warning: assertion \"%s\" failed at function = %s, file = %s, line = %u\n",
+		fs_warn(sdp, "warning: assertion \"%s\" failed - "
+			"function = %s, file = %s, line = %u\n",
 			assertion, function, file, line);
 
 	if (sdp->sd_args.ar_debug)
@@ -408,10 +416,10 @@ void gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 		dump_stack();
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_PANIC)
-		panic("GFS2: fsid=%s: warning: assertion \"%s\" failed\n"
-		      "GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
+		panic("GFS2: fsid=%s: warning: assertion \"%s\" failed - "
+		      "function = %s, file = %s, line = %u\n",
 		      sdp->sd_fsname, assertion,
-		      sdp->sd_fsname, function, file, line);
+		      function, file, line);
 
 	sdp->sd_last_warning = jiffies;
 }
@@ -424,7 +432,8 @@ void gfs2_consist_i(struct gfs2_sbd *sdp, const char *function,
 		    char *file, unsigned int line)
 {
 	gfs2_lm(sdp,
-		"fatal: filesystem consistency error - function = %s, file = %s, line = %u\n",
+		"fatal: filesystem consistency error - "
+		"function = %s, file = %s, line = %u\n",
 		function, file, line);
 	gfs2_withdraw(sdp);
 }
@@ -439,9 +448,9 @@ void gfs2_consist_inode_i(struct gfs2_inode *ip,
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
 	gfs2_lm(sdp,
-		"fatal: filesystem consistency error\n"
-		"  inode = %llu %llu\n"
-		"  function = %s, file = %s, line = %u\n",
+		"fatal: filesystem consistency error - "
+		"inode = %llu %llu, "
+		"function = %s, file = %s, line = %u\n",
 		(unsigned long long)ip->i_no_formal_ino,
 		(unsigned long long)ip->i_no_addr,
 		function, file, line);
@@ -462,9 +471,9 @@ void gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
 	sprintf(fs_id_buf, "fsid=%s: ", sdp->sd_fsname);
 	gfs2_rgrp_dump(NULL, rgd, fs_id_buf);
 	gfs2_lm(sdp,
-		"fatal: filesystem consistency error\n"
-		"  RG = %llu\n"
-		"  function = %s, file = %s, line = %u\n",
+		"fatal: filesystem consistency error - "
+		"RG = %llu, "
+		"function = %s, file = %s, line = %u\n",
 		(unsigned long long)rgd->rd_addr,
 		function, file, line);
 	gfs2_dump_glock(NULL, rgd->rd_gl, 1);
@@ -478,16 +487,16 @@ void gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
  */
 
 int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *type, const char *function, char *file,
+		       const char *function, char *file,
 		       unsigned int line)
 {
 	int me;
 
 	gfs2_lm(sdp,
-		"fatal: invalid metadata block\n"
-		"  bh = %llu (%s)\n"
-		"  function = %s, file = %s, line = %u\n",
-		(unsigned long long)bh->b_blocknr, type,
+		"fatal: invalid metadata block - "
+		"bh = %llu (bad magic number), "
+		"function = %s, file = %s, line = %u\n",
+		(unsigned long long)bh->b_blocknr,
 		function, file, line);
 	me = gfs2_withdraw(sdp);
 	return (me) ? -1 : -2;
@@ -506,9 +515,9 @@ int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	int me;
 
 	gfs2_lm(sdp,
-		"fatal: invalid metadata block\n"
-		"  bh = %llu (type: exp=%u, found=%u)\n"
-		"  function = %s, file = %s, line = %u\n",
+		"fatal: invalid metadata block - "
+		"bh = %llu (type: exp=%u, found=%u), "
+		"function = %s, file = %s, line = %u\n",
 		(unsigned long long)bh->b_blocknr, type, t,
 		function, file, line);
 	me = gfs2_withdraw(sdp);
@@ -525,8 +534,8 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
 		    unsigned int line)
 {
 	gfs2_lm(sdp,
-		"fatal: I/O error\n"
-		"  function = %s, file = %s, line = %u\n",
+		"fatal: I/O error - "
+		"function = %s, file = %s, line = %u\n",
 		function, file, line);
 	return gfs2_withdraw(sdp);
 }
@@ -540,12 +549,12 @@ void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 			const char *function, char *file, unsigned int line,
 			bool withdraw)
 {
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return;
 
-	fs_err(sdp, "fatal: I/O error\n"
-	       "  block = %llu\n"
-	       "  function = %s, file = %s, line = %u\n",
+	fs_err(sdp, "fatal: I/O error - "
+	       "block = %llu, "
+	       "function = %s, file = %s, line = %u\n",
 	       (unsigned long long)bh->b_blocknr, function, file, line);
 	if (withdraw)
 		gfs2_withdraw(sdp);

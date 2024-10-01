@@ -8,10 +8,11 @@
 #define LINUX_CB710_MMC_H
 
 #include <linux/cb710.h>
+#include <linux/workqueue.h>
 
 /* per-MMC-reader structure */
 struct cb710_mmc_reader {
-	struct tasklet_struct finish_req_tasklet;
+	struct work_struct finish_req_bh_work;
 	struct mmc_request *mrq;
 	spinlock_t irq_lock;
 	unsigned char last_power_mode;

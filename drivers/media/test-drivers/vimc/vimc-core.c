@@ -81,7 +81,7 @@ struct vimc_pipeline_config {
  * Topology Configuration
  */
 
-static struct vimc_ent_config ent_config[] = {
+static const struct vimc_ent_config ent_config[] = {
 	[SENSOR_A] = {
 		.name = "Sensor A",
 		.type = &vimc_sensor_type

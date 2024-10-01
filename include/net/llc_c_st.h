@@ -44,8 +44,8 @@ struct llc_conn_state_trans {
 };
 
 struct llc_conn_state {
-	u8			    current_state;
-	struct llc_conn_state_trans **transitions;
+	u8				  current_state;
+	const struct llc_conn_state_trans **transitions;
 };
 
 extern struct llc_conn_state llc_conn_state_table[];

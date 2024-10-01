@@ -18,6 +18,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/atmel-st.h>
 #include <linux/miscdevice.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
@@ -26,8 +27,6 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/uaccess.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 
 #define WDT_DEFAULT_TIME	5	/* seconds */
 #define WDT_MAX_TIME		256	/* seconds */
@@ -211,7 +210,6 @@ static ssize_t at91_wdt_write(struct file *file, const char *data,
 
 static const struct file_operations at91wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.unlocked_ioctl	= at91_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= at91_wdt_open,

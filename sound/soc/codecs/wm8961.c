@@ -904,7 +904,7 @@ static const struct regmap_config wm8961_regmap = {
 
 	.reg_defaults = wm8961_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8961_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8961_volatile,
 	.readable_reg = wm8961_readable,
@@ -966,7 +966,7 @@ static int wm8961_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8961_i2c_id[] = {
-	{ "wm8961", 0 },
+	{ "wm8961" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8961_i2c_id);

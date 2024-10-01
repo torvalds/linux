@@ -61,7 +61,7 @@ bool is_pre_ct_flow(struct flow_cls_offload *flow)
 	struct flow_match_ct ct;
 	int i;
 
-	if (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT)) {
+	if (dissector->used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_CT)) {
 		flow_rule_match_ct(rule, &ct);
 		if (ct.key->ct_state)
 			return false;
@@ -94,7 +94,7 @@ bool is_post_ct_flow(struct flow_cls_offload *flow)
 	struct flow_match_ct ct;
 	int i;
 
-	if (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT)) {
+	if (dissector->used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_CT)) {
 		flow_rule_match_ct(rule, &ct);
 		if (ct.key->ct_state & TCA_FLOWER_KEY_CT_FLAGS_ESTABLISHED)
 			return true;
@@ -236,10 +236,11 @@ static bool nfp_ct_merge_check_cannot_skip(struct nfp_fl_ct_flow_entry *entry1,
 static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			      struct nfp_fl_ct_flow_entry *entry2)
 {
-	unsigned int ovlp_keys = entry1->rule->match.dissector->used_keys &
-				 entry2->rule->match.dissector->used_keys;
+	unsigned long long ovlp_keys;
 	bool out, is_v6 = false;
 	u8 ip_proto = 0;
+	ovlp_keys = entry1->rule->match.dissector->used_keys &
+			entry2->rule->match.dissector->used_keys;
 	/* Temporary buffer for mangling keys, 64 is enough to cover max
 	 * struct size of key in various fields that may be mangled.
 	 * Supported fields to mangle:
@@ -257,7 +258,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 	/* Check the overlapped fields one by one, the unmasked part
 	 * should not conflict with each other.
 	 */
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL)) {
 		struct flow_match_control match1, match2;
 
 		flow_rule_match_control(entry1->rule, &match1);
@@ -267,7 +268,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_BASIC)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match1, match2;
 
 		flow_rule_match_basic(entry1->rule, &match1);
@@ -289,7 +290,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 	 * will be do merge check when do nft and post ct merge,
 	 * so skip this ip merge check here.
 	 */
-	if ((ovlp_keys & BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS)) &&
+	if ((ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS)) &&
 	    nfp_ct_merge_check_cannot_skip(entry1, entry2)) {
 		struct flow_match_ipv4_addrs match1, match2;
 
@@ -311,7 +312,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 	 * will be do merge check when do nft and post ct merge,
 	 * so skip this ip merge check here.
 	 */
-	if ((ovlp_keys & BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS)) &&
+	if ((ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS)) &&
 	    nfp_ct_merge_check_cannot_skip(entry1, entry2)) {
 		struct flow_match_ipv6_addrs match1, match2;
 
@@ -333,7 +334,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 	 * will be do merge check when do nft and post ct merge,
 	 * so skip this tport merge check here.
 	 */
-	if ((ovlp_keys & BIT(FLOW_DISSECTOR_KEY_PORTS)) &&
+	if ((ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_PORTS)) &&
 	    nfp_ct_merge_check_cannot_skip(entry1, entry2)) {
 		enum flow_action_mangle_base htype = FLOW_ACT_MANGLE_UNSPEC;
 		struct flow_match_ports match1, match2;
@@ -355,7 +356,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match1, match2;
 
 		flow_rule_match_eth_addrs(entry1->rule, &match1);
@@ -371,7 +372,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_VLAN)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_VLAN)) {
 		struct flow_match_vlan match1, match2;
 
 		flow_rule_match_vlan(entry1->rule, &match1);
@@ -381,7 +382,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_MPLS)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_MPLS)) {
 		struct flow_match_mpls match1, match2;
 
 		flow_rule_match_mpls(entry1->rule, &match1);
@@ -391,7 +392,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_TCP)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_TCP)) {
 		struct flow_match_tcp match1, match2;
 
 		flow_rule_match_tcp(entry1->rule, &match1);
@@ -401,7 +402,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_IP)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_IP)) {
 		struct flow_match_ip match1, match2;
 
 		flow_rule_match_ip(entry1->rule, &match1);
@@ -413,7 +414,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID)) {
 		struct flow_match_enc_keyid match1, match2;
 
 		flow_rule_match_enc_keyid(entry1->rule, &match1);
@@ -423,7 +424,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
 		struct flow_match_ipv4_addrs match1, match2;
 
 		flow_rule_match_enc_ipv4_addrs(entry1->rule, &match1);
@@ -433,7 +434,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
 		struct flow_match_ipv6_addrs match1, match2;
 
 		flow_rule_match_enc_ipv6_addrs(entry1->rule, &match1);
@@ -443,7 +444,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
 		struct flow_match_control match1, match2;
 
 		flow_rule_match_enc_control(entry1->rule, &match1);
@@ -453,7 +454,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_IP)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IP)) {
 		struct flow_match_ip match1, match2;
 
 		flow_rule_match_enc_ip(entry1->rule, &match1);
@@ -463,7 +464,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 			goto check_failed;
 	}
 
-	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_ENC_OPTS)) {
+	if (ovlp_keys & BIT_ULL(FLOW_DISSECTOR_KEY_ENC_OPTS)) {
 		struct flow_match_enc_opts match1, match2;
 
 		flow_rule_match_enc_opts(entry1->rule, &match1);
@@ -589,7 +590,7 @@ static int nfp_ct_check_meta(struct nfp_fl_ct_flow_entry *post_ct_entry,
 	int i;
 
 	ct_met = get_flow_act(nft_entry->rule, FLOW_ACTION_CT_METADATA);
-	if (ct_met && (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT))) {
+	if (ct_met && (dissector->used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_CT))) {
 		u32 *act_lbl;
 
 		act_lbl = ct_met->ct_metadata.labels;
@@ -1423,10 +1424,30 @@ static void nfp_nft_ct_translate_mangle_action(struct flow_action_entry *mangle_
 		mangle_action->mangle.mask = (__force u32)cpu_to_be32(mangle_action->mangle.mask);
 		return;
 
+	/* Both struct tcphdr and struct udphdr start with
+	 *	__be16 source;
+	 *	__be16 dest;
+	 * so we can use the same code for both.
+	 */
 	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
 	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
-		mangle_action->mangle.val = (__force u16)cpu_to_be16(mangle_action->mangle.val);
-		mangle_action->mangle.mask = (__force u16)cpu_to_be16(mangle_action->mangle.mask);
+		if (mangle_action->mangle.offset == offsetof(struct tcphdr, source)) {
+			mangle_action->mangle.val =
+				(__force u32)cpu_to_be32(mangle_action->mangle.val << 16);
+			/* The mask of mangle action is inverse mask,
+			 * so clear the dest tp port with 0xFFFF to
+			 * instead of rotate-left operation.
+			 */
+			mangle_action->mangle.mask =
+				(__force u32)cpu_to_be32(mangle_action->mangle.mask << 16 | 0xFFFF);
+		}
+		if (mangle_action->mangle.offset == offsetof(struct tcphdr, dest)) {
+			mangle_action->mangle.offset = 0;
+			mangle_action->mangle.val =
+				(__force u32)cpu_to_be32(mangle_action->mangle.val);
+			mangle_action->mangle.mask =
+				(__force u32)cpu_to_be32(mangle_action->mangle.mask);
+		}
 		return;
 
 	default:
@@ -1863,10 +1884,30 @@ int nfp_fl_ct_handle_post_ct(struct nfp_flower_priv *priv,
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct nfp_fl_ct_flow_entry *ct_entry;
+	struct flow_action_entry *ct_goto;
 	struct nfp_fl_ct_zone_entry *zt;
+	struct flow_action_entry *act;
 	bool wildcarded = false;
 	struct flow_match_ct ct;
-	struct flow_action_entry *ct_goto;
+	int i;
+
+	flow_action_for_each(i, act, &rule->action) {
+		switch (act->id) {
+		case FLOW_ACTION_REDIRECT:
+		case FLOW_ACTION_REDIRECT_INGRESS:
+		case FLOW_ACTION_MIRRED:
+		case FLOW_ACTION_MIRRED_INGRESS:
+			if (act->dev->rtnl_link_ops &&
+			    !strcmp(act->dev->rtnl_link_ops->kind, "openvswitch")) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "unsupported offload: out port is openvswitch internal port");
+				return -EOPNOTSUPP;
+			}
+			break;
+		default:
+			break;
+		}
+	}
 
 	flow_rule_match_ct(rule, &ct);
 	if (!ct.mask->ct_zone) {
@@ -2130,8 +2171,6 @@ nfp_fl_ct_offload_nft_flow(struct nfp_fl_ct_zone_entry *zt, struct flow_cls_offl
 	struct nfp_fl_ct_flow_entry *ct_entry;
 	struct netlink_ext_ack *extack = NULL;
 
-	ASSERT_RTNL();
-
 	extack = flow->common.extack;
 	switch (flow->command) {
 	case FLOW_CLS_REPLACE:
@@ -2177,9 +2216,13 @@ int nfp_fl_ct_handle_nft_flow(enum tc_setup_type type, void *type_data, void *cb
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		rtnl_lock();
+		while (!mutex_trylock(&zt->priv->nfp_fl_lock)) {
+			if (!zt->nft) /* avoid deadlock */
+				return err;
+			msleep(20);
+		}
 		err = nfp_fl_ct_offload_nft_flow(zt, flow);
-		rtnl_unlock();
+		mutex_unlock(&zt->priv->nfp_fl_lock);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -2207,6 +2250,7 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 	struct nfp_fl_ct_flow_entry *ct_entry;
 	struct nfp_fl_ct_zone_entry *zt;
 	struct rhashtable *m_table;
+	struct nf_flowtable *nft;
 
 	if (!ct_map_ent)
 		return -ENOENT;
@@ -2225,8 +2269,12 @@ int nfp_fl_ct_del_flow(struct nfp_fl_ct_map_entry *ct_map_ent)
 		if (ct_map_ent->cookie > 0)
 			kfree(ct_map_ent);
 
-		if (!zt->pre_ct_count) {
-			zt->nft = NULL;
+		if (!zt->pre_ct_count && zt->nft) {
+			nft = zt->nft;
+			zt->nft = NULL; /* avoid deadlock */
+			nf_flow_table_offload_del_cb(nft,
+						     nfp_fl_ct_handle_nft_flow,
+						     zt);
 			nfp_fl_ct_clean_nft_entries(zt);
 		}
 		break;

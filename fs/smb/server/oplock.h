@@ -11,13 +11,6 @@
 
 #define OPLOCK_WAIT_TIME	(35 * HZ)
 
-/* SMB2 Oplock levels */
-#define SMB2_OPLOCK_LEVEL_NONE          0x00
-#define SMB2_OPLOCK_LEVEL_II            0x01
-#define SMB2_OPLOCK_LEVEL_EXCLUSIVE     0x08
-#define SMB2_OPLOCK_LEVEL_BATCH         0x09
-#define SMB2_OPLOCK_LEVEL_LEASE         0xFF
-
 /* Oplock states */
 #define OPLOCK_STATE_NONE	0x00
 #define OPLOCK_ACK_WAIT		0x01
@@ -34,7 +27,9 @@ struct lease_ctx_info {
 	__le32			flags;
 	__le64			duration;
 	__u8			parent_lease_key[SMB2_LEASE_KEY_SIZE];
+	__le16			epoch;
 	int			version;
+	bool			is_dir;
 };
 
 struct lease_table {
@@ -53,6 +48,7 @@ struct lease {
 	__u8			parent_lease_key[SMB2_LEASE_KEY_SIZE];
 	int			version;
 	unsigned short		epoch;
+	bool			is_dir;
 	struct lease_table	*l_lb;
 };
 
@@ -124,4 +120,12 @@ struct oplock_info *lookup_lease_in_table(struct ksmbd_conn *conn,
 int find_same_lease_key(struct ksmbd_session *sess, struct ksmbd_inode *ci,
 			struct lease_ctx_info *lctx);
 void destroy_lease_table(struct ksmbd_conn *conn);
+void smb_send_parent_lease_break_noti(struct ksmbd_file *fp,
+				      struct lease_ctx_info *lctx);
+void smb_lazy_parent_lease_break_close(struct ksmbd_file *fp);
+int smb2_check_durable_oplock(struct ksmbd_conn *conn,
+			      struct ksmbd_share_config *share,
+			      struct ksmbd_file *fp,
+			      struct lease_ctx_info *lctx,
+			      char *name);
 #endif /* __KSMBD_OPLOCK_H */

@@ -40,14 +40,6 @@ config I2C_BOARDINFO
 	bool
 	default y
 
-config I2C_COMPAT
-	bool "Enable compatibility bits for old user-space"
-	default y
-	help
-	  Say Y here if you intend to run lm-sensors 3.1.1 or older, or any
-	  other user-space package which expects i2c adapters to be class
-	  devices. If you don't know, say Y.
-
 config I2C_CHARDEV
 	tristate "I2C device interface"
 	help
@@ -70,6 +62,15 @@ config I2C_MUX
 	  will be called i2c-mux.
 
 source "drivers/i2c/muxes/Kconfig"
+
+config I2C_ATR
+	tristate "I2C Address Translator (ATR) support" if COMPILE_TEST
+	help
+	  Enable support for I2C Address Translator (ATR) chips.
+
+	  An ATR allows accessing multiple I2C busses from a single
+	  physical bus via address translation instead of bus selection as
+	  i2c-muxes do.
 
 config I2C_HELPER_AUTO
 	bool "Autoselect pertinent helper modules"
@@ -126,7 +127,7 @@ config I2C_SLAVE_EEPROM
 	  Documentation/i2c/slave-eeprom-backend.rst for further details.
 
 config I2C_SLAVE_TESTUNIT
-	tristate "I2C eeprom testunit driver"
+	tristate "I2C testunit driver"
 	help
 	  This backend can be used to trigger test cases for I2C bus masters
 	  which require a remote device with certain capabilities, e.g.

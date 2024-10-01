@@ -489,7 +489,7 @@ static int prestera_port_change_mtu(struct net_device *dev, int mtu)
 	if (err)
 		return err;
 
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 
 	return 0;
 }
@@ -633,7 +633,8 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 	if (err)
 		goto err_dl_port_register;
 
-	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_HW_TC;
+	dev->features |= NETIF_F_HW_TC;
+	dev->netns_local = true;
 	dev->netdev_ops = &prestera_netdev_ops;
 	dev->ethtool_ops = &prestera_ethtool_ops;
 	SET_NETDEV_DEV(dev, sw->dev->dev);
@@ -821,7 +822,7 @@ static void prestera_port_handle_event(struct prestera_switch *sw,
 
 		if (port->state_mac.oper) {
 			if (port->phy_link)
-				phylink_mac_change(port->phy_link, true);
+				phylink_pcs_change(&port->phylink_pcs, true);
 			else
 				netif_carrier_on(port->dev);
 
@@ -829,7 +830,7 @@ static void prestera_port_handle_event(struct prestera_switch *sw,
 				queue_delayed_work(prestera_wq, caching_dw, 0);
 		} else {
 			if (port->phy_link)
-				phylink_mac_change(port->phy_link, false);
+				phylink_pcs_change(&port->phylink_pcs, false);
 			else if (netif_running(port->dev) && netif_carrier_ok(port->dev))
 				netif_carrier_off(port->dev);
 

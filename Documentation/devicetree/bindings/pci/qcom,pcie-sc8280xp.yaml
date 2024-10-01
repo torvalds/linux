@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/qcom,pcie-sc8280xp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm SC8280XP PCI Express Root Complex
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+
+description:
+  Qualcomm SC8280XP SoC PCIe root complex controller is based on the Synopsys
+  DesignWare PCIe IP.
+
+properties:
+  compatible:
+    enum:
+      - qcom,pcie-sa8540p
+      - qcom,pcie-sc8280xp
+
+  reg:
+    minItems: 5
+    maxItems: 6
+
+  reg-names:
+    minItems: 5
+    items:
+      - const: parf # Qualcomm specific registers
+      - const: dbi # DesignWare PCIe registers
+      - const: elbi # External local bus interface registers
+      - const: atu # ATU address space
+      - const: config # PCIe configuration space
+      - const: mhi # MHI registers
+
+  clocks:
+    minItems: 8
+    maxItems: 9
+
+  clock-names:
+    minItems: 8
+    items:
+      - const: aux # Auxiliary clock
+      - const: cfg # Configuration clock
+      - const: bus_master # Master AXI clock
+      - const: bus_slave # Slave AXI clock
+      - const: slave_q2a # Slave Q2A clock
+      - const: ddrss_sf_tbu # PCIe SF TBU clock
+      - const: noc_aggr_4 # NoC aggregate 4 clock
+      - const: noc_aggr_south_sf # NoC aggregate South SF clock
+      - const: cnoc_qx # Configuration NoC QX clock
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: pci
+
+required:
+  - interconnects
+  - interconnect-names
+
+allOf:
+  - $ref: qcom,pcie-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pcie-sc8280xp
+    then:
+      properties:
+        interrupts:
+          minItems: 4
+          maxItems: 4
+        interrupt-names:
+          items:
+            - const: msi0
+            - const: msi1
+            - const: msi2
+            - const: msi3
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
+        interrupt-names:
+          items:
+            - const: msi
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-sc8280xp.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interconnect/qcom,sc8280xp.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pcie@1c20000 {
+            compatible = "qcom,pcie-sc8280xp";
+            reg = <0x0 0x01c20000 0x0 0x3000>,
+                  <0x0 0x3c000000 0x0 0xf1d>,
+                  <0x0 0x3c000f20 0x0 0xa8>,
+                  <0x0 0x3c001000 0x0 0x1000>,
+                  <0x0 0x3c100000 0x0 0x100000>,
+                  <0x0 0x01c23000 0x0 0x1000>;
+            reg-names = "parf", "dbi", "elbi", "atu", "config", "mhi";
+            ranges = <0x01000000 0x0 0x00000000 0x0 0x3c200000 0x0 0x100000>,
+                     <0x02000000 0x0 0x3c300000 0x0 0x3c300000 0x0 0x1d00000>;
+
+            bus-range = <0x00 0xff>;
+            device_type = "pci";
+            linux,pci-domain = <2>;
+            num-lanes = <4>;
+
+            #address-cells = <3>;
+            #size-cells = <2>;
+
+            assigned-clocks = <&gcc GCC_PCIE_2A_AUX_CLK>;
+            assigned-clock-rates = <19200000>;
+            clocks = <&gcc GCC_PCIE_2A_AUX_CLK>,
+                     <&gcc GCC_PCIE_2A_CFG_AHB_CLK>,
+                     <&gcc GCC_PCIE_2A_MSTR_AXI_CLK>,
+                     <&gcc GCC_PCIE_2A_SLV_AXI_CLK>,
+                     <&gcc GCC_PCIE_2A_SLV_Q2A_AXI_CLK>,
+                     <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+                     <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+                     <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+            clock-names = "aux",
+                          "cfg",
+                          "bus_master",
+                          "bus_slave",
+                          "slave_q2a",
+                          "ddrss_sf_tbu",
+                          "noc_aggr_4",
+                          "noc_aggr_south_sf";
+
+            dma-coherent;
+
+            interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 523 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 524 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 525 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "msi0", "msi1", "msi2", "msi3";
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 0x7>;
+            interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH>,
+                            <0 0 0 2 &intc 0 0 GIC_SPI 531 IRQ_TYPE_LEVEL_HIGH>,
+                            <0 0 0 3 &intc 0 0 GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>,
+                            <0 0 0 4 &intc 0 0 GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>;
+
+            interconnects = <&aggre2_noc MASTER_PCIE_2A 0 &mc_virt SLAVE_EBI1 0>,
+                            <&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_2A 0>;
+            interconnect-names = "pcie-mem", "cpu-pcie";
+
+            phys = <&pcie2a_phy>;
+            phy-names = "pciephy";
+
+            pinctrl-0 = <&pcie2a_default>;
+            pinctrl-names = "default";
+
+            power-domains = <&gcc PCIE_2A_GDSC>;
+
+            resets = <&gcc GCC_PCIE_2A_BCR>;
+            reset-names = "pci";
+
+            perst-gpios = <&tlmm 143 GPIO_ACTIVE_LOW>;
+            wake-gpios = <&tlmm 145 GPIO_ACTIVE_LOW>;
+            vddpe-3v3-supply = <&vreg_nvme>;
+        };
+    };

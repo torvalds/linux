@@ -434,19 +434,24 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 	"%s""bridge: secondary_status: 0x%04x, control: 0x%04x\n",
 	pfx, pcie->bridge.secondary_status, pcie->bridge.control);
 
-	/* Fatal errors call __ghes_panic() before AER handler prints this */
-	if ((pcie->validation_bits & CPER_PCIE_VALID_AER_INFO) &&
-	    (gdata->error_severity & CPER_SEV_FATAL)) {
+	/*
+	 * Print all valid AER info. Record may be from BERT (boot-time) or GHES (run-time).
+	 *
+	 * Fatal errors call __ghes_panic() before AER handler prints this.
+	 */
+	if (pcie->validation_bits & CPER_PCIE_VALID_AER_INFO) {
 		struct aer_capability_regs *aer;
 
 		aer = (struct aer_capability_regs *)pcie->aer_info;
+		printk("%saer_cor_status: 0x%08x, aer_cor_mask: 0x%08x\n",
+		       pfx, aer->cor_status, aer->cor_mask);
 		printk("%saer_uncor_status: 0x%08x, aer_uncor_mask: 0x%08x\n",
 		       pfx, aer->uncor_status, aer->uncor_mask);
 		printk("%saer_uncor_severity: 0x%08x\n",
 		       pfx, aer->uncor_severity);
 		printk("%sTLP Header: %08x %08x %08x %08x\n", pfx,
-		       aer->header_log.dw0, aer->header_log.dw1,
-		       aer->header_log.dw2, aer->header_log.dw3);
+		       aer->header_log.dw[0], aer->header_log.dw[1],
+		       aer->header_log.dw[2], aer->header_log.dw[3]);
 	}
 }
 
@@ -523,6 +528,17 @@ static void cper_print_tstamp(const char *pfx,
 	}
 }
 
+struct ignore_section {
+	guid_t guid;
+	const char *name;
+};
+
+static const struct ignore_section ignore_sections[] = {
+	{ .guid = CPER_SEC_CXL_GEN_MEDIA_GUID, .name = "CXL General Media Event" },
+	{ .guid = CPER_SEC_CXL_DRAM_GUID, .name = "CXL DRAM Event" },
+	{ .guid = CPER_SEC_CXL_MEM_MODULE_GUID, .name = "CXL Memory Module Event" },
+};
+
 static void
 cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata,
 			   int sec_no)
@@ -543,6 +559,14 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 		printk("%s""fru_text: %.20s\n", pfx, gdata->fru_text);
 
 	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
+
+	for (int i = 0; i < ARRAY_SIZE(ignore_sections); i++) {
+		if (guid_equal(sec_type, &ignore_sections[i].guid)) {
+			printk("%ssection_type: %s\n", newpfx, ignore_sections[i].name);
+			return;
+		}
+	}
+
 	if (guid_equal(sec_type, &CPER_SEC_PROC_GENERIC)) {
 		struct cper_sec_proc_generic *proc_err = acpi_hest_get_payload(gdata);
 

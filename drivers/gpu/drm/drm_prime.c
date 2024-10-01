@@ -51,15 +51,10 @@ MODULE_IMPORT_NS(DMA_BUF);
  * between applications, they can't be guessed like the globally unique GEM
  * names.
  *
- * Drivers that support the PRIME API implement the
- * &drm_driver.prime_handle_to_fd and &drm_driver.prime_fd_to_handle operations.
- * GEM based drivers must use drm_gem_prime_handle_to_fd() and
- * drm_gem_prime_fd_to_handle() to implement these. For GEM based drivers the
- * actual driver interfaces is provided through the &drm_gem_object_funcs.export
- * and &drm_driver.gem_prime_import hooks.
- *
- * &dma_buf_ops implementations for GEM drivers are all individually exported
- * for drivers which need to overwrite or reimplement some of them.
+ * Drivers that support the PRIME API implement the drm_gem_object_funcs.export
+ * and &drm_driver.gem_prime_import hooks. &dma_buf_ops implementations for
+ * drivers are all individually exported for drivers which need to overwrite
+ * or reimplement some of them.
  *
  * Reference Counting for GEM Drivers
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -372,11 +367,12 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_prime_handle *args = data;
 
-	if (!dev->driver->prime_fd_to_handle)
-		return -ENOSYS;
+	if (dev->driver->prime_fd_to_handle) {
+		return dev->driver->prime_fd_to_handle(dev, file_priv, args->fd,
+						       &args->handle);
+	}
 
-	return dev->driver->prime_fd_to_handle(dev, file_priv,
-			args->fd, &args->handle);
+	return drm_gem_prime_fd_to_handle(dev, file_priv, args->fd, &args->handle);
 }
 
 static struct dma_buf *export_and_register_object(struct drm_device *dev,
@@ -414,22 +410,30 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 }
 
 /**
- * drm_gem_prime_handle_to_fd - PRIME export function for GEM drivers
+ * drm_gem_prime_handle_to_dmabuf - PRIME export function for GEM drivers
  * @dev: dev to export the buffer from
  * @file_priv: drm file-private structure
  * @handle: buffer handle to export
  * @flags: flags like DRM_CLOEXEC
- * @prime_fd: pointer to storage for the fd id of the create dma-buf
  *
  * This is the PRIME export function which must be used mandatorily by GEM
  * drivers to ensure correct lifetime management of the underlying GEM object.
  * The actual exporting from GEM object to a dma-buf is done through the
  * &drm_gem_object_funcs.export callback.
+ *
+ * Unlike drm_gem_prime_handle_to_fd(), it returns the struct dma_buf it
+ * has created, without attaching it to any file descriptors.  The difference
+ * between those two is similar to that between anon_inode_getfile() and
+ * anon_inode_getfd(); insertion into descriptor table is something you
+ * can not revert if any cleanup is needed, so the descriptor-returning
+ * variants should only be used when you are past the last failure exit
+ * and the only thing left is passing the new file descriptor to userland.
+ * When all you need is the object itself or when you need to do something
+ * else that might fail, use that one instead.
  */
-int drm_gem_prime_handle_to_fd(struct drm_device *dev,
+struct dma_buf *drm_gem_prime_handle_to_dmabuf(struct drm_device *dev,
 			       struct drm_file *file_priv, uint32_t handle,
-			       uint32_t flags,
-			       int *prime_fd)
+			       uint32_t flags)
 {
 	struct drm_gem_object *obj;
 	int ret = 0;
@@ -438,14 +442,14 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	mutex_lock(&file_priv->prime.lock);
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj)  {
-		ret = -ENOENT;
+		dmabuf = ERR_PTR(-ENOENT);
 		goto out_unlock;
 	}
 
 	dmabuf = drm_prime_lookup_buf_by_handle(&file_priv->prime, handle);
 	if (dmabuf) {
 		get_dma_buf(dmabuf);
-		goto out_have_handle;
+		goto out;
 	}
 
 	mutex_lock(&dev->object_name_lock);
@@ -467,7 +471,6 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		/* normally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
 		 */
-		ret = PTR_ERR(dmabuf);
 		mutex_unlock(&dev->object_name_lock);
 		goto out;
 	}
@@ -482,34 +485,51 @@ out_have_obj:
 	ret = drm_prime_add_buf_handle(&file_priv->prime,
 				       dmabuf, handle);
 	mutex_unlock(&dev->object_name_lock);
-	if (ret)
-		goto fail_put_dmabuf;
-
-out_have_handle:
-	ret = dma_buf_fd(dmabuf, flags);
-	/*
-	 * We must _not_ remove the buffer from the handle cache since the newly
-	 * created dma buf is already linked in the global obj->dma_buf pointer,
-	 * and that is invariant as long as a userspace gem handle exists.
-	 * Closing the handle will clean out the cache anyway, so we don't leak.
-	 */
-	if (ret < 0) {
-		goto fail_put_dmabuf;
-	} else {
-		*prime_fd = ret;
-		ret = 0;
+	if (ret) {
+		dma_buf_put(dmabuf);
+		dmabuf = ERR_PTR(ret);
 	}
-
-	goto out;
-
-fail_put_dmabuf:
-	dma_buf_put(dmabuf);
 out:
 	drm_gem_object_put(obj);
 out_unlock:
 	mutex_unlock(&file_priv->prime.lock);
+	return dmabuf;
+}
+EXPORT_SYMBOL(drm_gem_prime_handle_to_dmabuf);
 
-	return ret;
+/**
+ * drm_gem_prime_handle_to_fd - PRIME export function for GEM drivers
+ * @dev: dev to export the buffer from
+ * @file_priv: drm file-private structure
+ * @handle: buffer handle to export
+ * @flags: flags like DRM_CLOEXEC
+ * @prime_fd: pointer to storage for the fd id of the create dma-buf
+ *
+ * This is the PRIME export function which must be used mandatorily by GEM
+ * drivers to ensure correct lifetime management of the underlying GEM object.
+ * The actual exporting from GEM object to a dma-buf is done through the
+ * &drm_gem_object_funcs.export callback.
+ */
+int drm_gem_prime_handle_to_fd(struct drm_device *dev,
+			       struct drm_file *file_priv, uint32_t handle,
+			       uint32_t flags,
+			       int *prime_fd)
+{
+	struct dma_buf *dmabuf;
+	int fd = get_unused_fd_flags(flags);
+
+	if (fd < 0)
+		return fd;
+
+	dmabuf = drm_gem_prime_handle_to_dmabuf(dev, file_priv, handle, flags);
+	if (IS_ERR(dmabuf)) {
+		put_unused_fd(fd);
+		return PTR_ERR(dmabuf);
+	}
+
+	fd_install(fd, dmabuf->file);
+	*prime_fd = fd;
+	return 0;
 }
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
 
@@ -518,15 +538,17 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_prime_handle *args = data;
 
-	if (!dev->driver->prime_handle_to_fd)
-		return -ENOSYS;
-
 	/* check flags are valid */
 	if (args->flags & ~(DRM_CLOEXEC | DRM_RDWR))
 		return -EINVAL;
 
-	return dev->driver->prime_handle_to_fd(dev, file_priv,
-			args->handle, args->flags, &args->fd);
+	if (dev->driver->prime_handle_to_fd) {
+		return dev->driver->prime_handle_to_fd(dev, file_priv,
+						       args->handle, args->flags,
+						       &args->fd);
+	}
+	return drm_gem_prime_handle_to_fd(dev, file_priv, args->handle,
+					  args->flags, &args->fd);
 }
 
 /**
@@ -584,7 +606,12 @@ int drm_gem_map_attach(struct dma_buf *dma_buf,
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 
-	if (!obj->funcs->get_sg_table)
+	/*
+	 * drm_gem_map_dma_buf() requires obj->get_sg_table(), but drivers
+	 * that implement their own ->map_dma_buf() do not.
+	 */
+	if (dma_buf->ops->map_dma_buf == drm_gem_map_dma_buf &&
+	    !obj->funcs->get_sg_table)
 		return -ENOSYS;
 
 	return drm_gem_pin(obj);
@@ -715,8 +742,6 @@ EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
  * the same codepath that is used for regular GEM buffer mapping on the DRM fd.
  * The fake GEM offset is added to vma->vm_pgoff and &drm_driver->fops->mmap is
  * called to set up the mapping.
- *
- * Drivers can use this as their &drm_driver.gem_prime_mmap callback.
  */
 int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
@@ -772,25 +797,15 @@ EXPORT_SYMBOL(drm_gem_prime_mmap);
  * @vma: virtual address range
  *
  * Provides memory mapping for the buffer. This can be used as the
- * &dma_buf_ops.mmap callback. It just forwards to &drm_driver.gem_prime_mmap,
- * which should be set to drm_gem_prime_mmap().
- *
- * FIXME: There's really no point to this wrapper, drivers which need anything
- * else but drm_gem_prime_mmap can roll their own &dma_buf_ops.mmap callback.
+ * &dma_buf_ops.mmap callback. It just forwards to drm_gem_prime_mmap().
  *
  * Returns 0 on success or a negative error code on failure.
  */
 int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
-	struct drm_device *dev = obj->dev;
 
-	dma_resv_assert_held(dma_buf->resv);
-
-	if (!dev->driver->gem_prime_mmap)
-		return -ENOSYS;
-
-	return dev->driver->gem_prime_mmap(obj, vma);
+	return drm_gem_prime_mmap(obj, vma);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_mmap);
 
@@ -834,7 +849,7 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 	if (max_segment == 0)
 		max_segment = UINT_MAX;
 	err = sg_alloc_table_from_pages_segment(sg, pages, nr_pages, 0,
-						nr_pages << PAGE_SHIFT,
+						(unsigned long)nr_pages << PAGE_SHIFT,
 						max_segment, GFP_KERNEL);
 	if (err) {
 		kfree(sg);

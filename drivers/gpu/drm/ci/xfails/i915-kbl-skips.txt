@@ -1,0 +1,39 @@
+# Suspend to RAM seems to be broken on this machine
+.*suspend.*
+
+# This is generating kernel oops with divide error
+kms_plane_scaling@invalid-parameters
+
+# Skip driver specific tests
+^amdgpu.*
+^msm.*
+nouveau_.*
+^panfrost.*
+^v3d.*
+^vc4.*
+^vmwgfx*
+
+# GEM tests takes ~1000 hours, so skip it
+gem_.*
+
+# Hangs the machine and timeout occurs
+i915_.*
+api_intel_bb.*
+
+# Kernel panic
+drm_fdinfo.*
+kms_.*
+prime_mmap_coherency.*
+perf.*
+drm_read.*
+api_intel_allocator.*
+sysfs_preempt_timeout.*
+dumb_buffer.*
+gen9_exec_parse.*
+debugfs_test.*
+core_hotunplug.*
+tools_test.*
+
+# GPU hang
+sysfs_timeslice_.*
+sysfs_heartbeat_.*

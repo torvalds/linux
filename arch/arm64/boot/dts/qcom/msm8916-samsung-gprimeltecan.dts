@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-fortuna-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy Grand Prime (SM-G530W)";
+	compatible = "samsung,gprimeltecan", "qcom,msm8916";
+	chassis-type = "handset";
+
+	reserved-memory {
+		/* Firmware for gprimeltecan needs more space */
+		/delete-node/ tz-apps@85a00000;
+
+		/* Additional memory used by Samsung firmware modifications */
+		tz-apps@85500000 {
+			reg = <0x0 0x85500000 0x0 0xb00000>;
+			no-map;
+		};
+	};
+};
+
+&battery {
+	charge-term-current-microamp = <200000>;
+	constant-charge-current-max-microamp = <1000000>;
+	constant-charge-voltage-max-microvolt = <4350000>;
+};
+
+&bosch_accel {
+	status = "okay";
+};
+
+&bosch_magn {
+	status = "okay";
+};
+
+&blsp_i2c6 {
+	/* pmic@34 is on i2c_nfc instead */
+	/delete-node/ pmic@34;
+
+	nfc@27 {
+		compatible = "samsung,s3fwrn5-i2c";
+		reg = <0x27>;
+
+		interrupts-extended = <&tlmm 21 IRQ_TYPE_EDGE_RISING>;
+
+		en-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+		wake-gpios = <&tlmm 49 GPIO_ACTIVE_HIGH>;
+
+		clocks = <&rpmcc RPM_SMD_BB_CLK2_PIN>;
+
+		pinctrl-0 = <&nfc_default>, <&nfc_clk_req>;
+		pinctrl-names = "default";
+	};
+};
+
+&i2c_nfc {
+	/* nfc@27 is on &blsp_i2c6 */
+
+	pmic@34 {
+		compatible = "richtek,rt5033";
+		reg = <0x34>;
+
+		interrupts-extended = <&tlmm 62 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&pmic_int_default>;
+		pinctrl-names = "default";
+
+		regulators {
+			rt5033_reg_safe_ldo: SAFE_LDO {
+				regulator-min-microvolt = <4900000>;
+				regulator-max-microvolt = <4900000>;
+				regulator-always-on;
+			};
+
+			/*
+			 * Needed for camera, but not used yet.
+			 * Define empty nodes to allow disabling the unused
+			 * regulators.
+			 */
+			LDO {};
+			BUCK {};
+		};
+
+		charger: charger {
+			compatible = "richtek,rt5033-charger";
+			monitored-battery = <&battery>;
+			richtek,usb-connector = <&usb_con>;
+		};
+	};
+};
+
+&mpss_mem {
+	/* Firmware for gprimeltecan needs more space */
+	reg = <0x0 0x86800000 0x0 0x5400000>;
+};

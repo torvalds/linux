@@ -26,16 +26,18 @@ static int buildid__map_cb(struct map *map, void *arg __maybe_unused)
 {
 	const struct dso *dso = map__dso(map);
 	char bid_buf[SBUILD_ID_SIZE];
+	const char *dso_long_name = dso__long_name(dso);
+	const char *dso_short_name = dso__short_name(dso);
 
 	memset(bid_buf, 0, sizeof(bid_buf));
-	if (dso->has_build_id)
-		build_id__sprintf(&dso->bid, bid_buf);
+	if (dso__has_build_id(dso))
+		build_id__sprintf(dso__bid_const(dso), bid_buf);
 	printf("%s %16" PRIx64 " %16" PRIx64, bid_buf, map__start(map), map__end(map));
-	if (dso->long_name != NULL) {
-		printf(" %s", dso->long_name);
-	} else if (dso->short_name != NULL) {
-		printf(" %s", dso->short_name);
-	}
+	if (dso_long_name != NULL)
+		printf(" %s", dso_long_name);
+	else if (dso_short_name != NULL)
+		printf(" %s", dso_short_name);
+
 	printf("\n");
 
 	return 0;
@@ -76,7 +78,7 @@ static int filename__fprintf_build_id(const char *name, FILE *fp)
 
 static bool dso__skip_buildid(struct dso *dso, int with_hits)
 {
-	return with_hits && !dso->hit;
+	return with_hits && !dso__hit(dso);
 }
 
 static int perf_session__list_build_ids(bool force, bool with_hits)
@@ -87,6 +89,7 @@ static int perf_session__list_build_ids(bool force, bool with_hits)
 		.mode  = PERF_DATA_MODE_READ,
 		.force = force,
 	};
+	struct perf_tool build_id__mark_dso_hit_ops;
 
 	symbol__elf_init();
 	/*
@@ -94,6 +97,15 @@ static int perf_session__list_build_ids(bool force, bool with_hits)
 	 */
 	if (filename__fprintf_build_id(input_name, stdout) > 0)
 		goto out;
+
+	perf_tool__init(&build_id__mark_dso_hit_ops, /*ordered_events=*/true);
+	build_id__mark_dso_hit_ops.sample	= build_id__mark_dso_hit;
+	build_id__mark_dso_hit_ops.mmap		= perf_event__process_mmap;
+	build_id__mark_dso_hit_ops.mmap2	= perf_event__process_mmap2;
+	build_id__mark_dso_hit_ops.fork		= perf_event__process_fork;
+	build_id__mark_dso_hit_ops.exit		= perf_event__exit_del_thread;
+	build_id__mark_dso_hit_ops.attr		= perf_event__process_attr;
+	build_id__mark_dso_hit_ops.build_id	= perf_event__process_build_id;
 
 	session = perf_session__new(&data, &build_id__mark_dso_hit_ops);
 	if (IS_ERR(session))

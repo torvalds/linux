@@ -252,6 +252,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc->ops = &tps6586x_rtc_ops;
 	rtc->rtc->range_max = (1ULL << 30) - 1; /* 30-bit seconds */
+	rtc->rtc->alarm_offset_max = ALM1_VALID_RANGE_IN_SEC;
 	rtc->rtc->start_secs = mktime64(2009, 1, 1, 0, 0, 0);
 	rtc->rtc->set_start_time = true;
 

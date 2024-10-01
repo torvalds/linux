@@ -43,19 +43,21 @@ static const struct drm_driver amdgpu_xcp_driver = {
 	.minor = 0,
 };
 
-static int pdev_num;
+static int8_t pdev_num;
 static struct xcp_device *xcp_dev[MAX_XCP_PLATFORM_DEVICE];
 
 int amdgpu_xcp_drm_dev_alloc(struct drm_device **ddev)
 {
 	struct platform_device *pdev;
 	struct xcp_device *pxcp_dev;
+	char dev_name[20];
 	int ret;
 
 	if (pdev_num >= MAX_XCP_PLATFORM_DEVICE)
 		return -ENODEV;
 
-	pdev = platform_device_register_simple("amdgpu_xcp", pdev_num, NULL, 0);
+	snprintf(dev_name, sizeof(dev_name), "amdgpu_xcp_%d", pdev_num);
+	pdev = platform_device_register_simple(dev_name, -1, NULL, 0);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
@@ -89,9 +91,10 @@ EXPORT_SYMBOL(amdgpu_xcp_drm_dev_alloc);
 void amdgpu_xcp_drv_release(void)
 {
 	for (--pdev_num; pdev_num >= 0; --pdev_num) {
-		devres_release_group(&xcp_dev[pdev_num]->pdev->dev, NULL);
-		platform_device_unregister(xcp_dev[pdev_num]->pdev);
-		xcp_dev[pdev_num]->pdev = NULL;
+		struct platform_device *pdev = xcp_dev[pdev_num]->pdev;
+
+		devres_release_group(&pdev->dev, NULL);
+		platform_device_unregister(pdev);
 		xcp_dev[pdev_num] = NULL;
 	}
 	pdev_num = 0;

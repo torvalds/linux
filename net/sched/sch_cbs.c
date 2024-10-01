@@ -57,6 +57,8 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <linux/units.h>
+
 #include <net/netevent.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
@@ -64,8 +66,6 @@
 
 static LIST_HEAD(cbs_list);
 static DEFINE_SPINLOCK(cbs_list_lock);
-
-#define BYTES_PER_KBIT (1000LL / 8)
 
 struct cbs_sched_data {
 	bool offload;
@@ -389,11 +389,11 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	/* Everything went OK, save the parameters used. */
-	q->hicredit = qopt->hicredit;
-	q->locredit = qopt->locredit;
-	q->idleslope = qopt->idleslope * BYTES_PER_KBIT;
-	q->sendslope = qopt->sendslope * BYTES_PER_KBIT;
-	q->offload = qopt->offload;
+	WRITE_ONCE(q->hicredit, qopt->hicredit);
+	WRITE_ONCE(q->locredit, qopt->locredit);
+	WRITE_ONCE(q->idleslope, qopt->idleslope * BYTES_PER_KBIT);
+	WRITE_ONCE(q->sendslope, qopt->sendslope * BYTES_PER_KBIT);
+	WRITE_ONCE(q->offload, qopt->offload);
 
 	return 0;
 }
@@ -459,11 +459,11 @@ static int cbs_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (!nest)
 		goto nla_put_failure;
 
-	opt.hicredit = q->hicredit;
-	opt.locredit = q->locredit;
-	opt.sendslope = div64_s64(q->sendslope, BYTES_PER_KBIT);
-	opt.idleslope = div64_s64(q->idleslope, BYTES_PER_KBIT);
-	opt.offload = q->offload;
+	opt.hicredit = READ_ONCE(q->hicredit);
+	opt.locredit = READ_ONCE(q->locredit);
+	opt.sendslope = div64_s64(READ_ONCE(q->sendslope), BYTES_PER_KBIT);
+	opt.idleslope = div64_s64(READ_ONCE(q->idleslope), BYTES_PER_KBIT);
+	opt.offload = READ_ONCE(q->offload);
 
 	if (nla_put(skb, TCA_CBS_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -546,6 +546,7 @@ static struct Qdisc_ops cbs_qdisc_ops __read_mostly = {
 	.dump		=	cbs_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("cbs");
 
 static struct notifier_block cbs_device_notifier = {
 	.notifier_call = cbs_dev_notifier,
@@ -574,3 +575,4 @@ static void __exit cbs_module_exit(void)
 module_init(cbs_module_init)
 module_exit(cbs_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Credit Based shaper");

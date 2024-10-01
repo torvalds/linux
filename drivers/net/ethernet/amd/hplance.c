@@ -234,4 +234,5 @@ static void __exit hplance_cleanup_module(void)
 module_init(hplance_init_module);
 module_exit(hplance_cleanup_module);
 
+MODULE_DESCRIPTION("HP300 on-board LANCE Ethernet driver");
 MODULE_LICENSE("GPL");

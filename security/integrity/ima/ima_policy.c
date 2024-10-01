@@ -49,7 +49,7 @@
 #define DONT_HASH	0x0200
 
 #define INVALID_PCR(a) (((a) < 0) || \
-	(a) >= (sizeof_field(struct integrity_iint_cache, measured_pcrs) * 8))
+	(a) >= (sizeof_field(struct ima_iint_cache, measured_pcrs) * 8))
 
 int ima_policy_flag;
 static int temp_ima_appraise;
@@ -68,7 +68,7 @@ enum policy_rule_list { IMA_DEFAULT_POLICY = 1, IMA_CUSTOM_POLICY };
 
 struct ima_rule_opt_list {
 	size_t count;
-	char *items[];
+	char *items[] __counted_by(count);
 };
 
 /*
@@ -342,6 +342,7 @@ static struct ima_rule_opt_list *ima_alloc_rule_opt_list(const substring_t *src)
 		kfree(src_copy);
 		return ERR_PTR(-ENOMEM);
 	}
+	opt_list->count = count;
 
 	/*
 	 * strsep() has already replaced all instances of '|' with '\0',
@@ -357,7 +358,6 @@ static struct ima_rule_opt_list *ima_alloc_rule_opt_list(const substring_t *src)
 		opt_list->items[i] = cur;
 		cur = strchr(cur, '\0') + 1;
 	}
-	opt_list->count = count;
 
 	return opt_list;
 }
@@ -401,7 +401,8 @@ static void ima_free_rule(struct ima_rule_entry *entry)
 	kfree(entry);
 }
 
-static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
+static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry,
+						gfp_t gfp)
 {
 	struct ima_rule_entry *nentry;
 	int i;
@@ -410,7 +411,7 @@ static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
 	 * Immutable elements are copied over as pointers and data; only
 	 * lsm rules can change
 	 */
-	nentry = kmemdup(entry, sizeof(*nentry), GFP_KERNEL);
+	nentry = kmemdup(entry, sizeof(*nentry), gfp);
 	if (!nentry)
 		return NULL;
 
@@ -425,7 +426,8 @@ static struct ima_rule_entry *ima_lsm_copy_rule(struct ima_rule_entry *entry)
 
 		ima_filter_rule_init(nentry->lsm[i].type, Audit_equal,
 				     nentry->lsm[i].args_p,
-				     &nentry->lsm[i].rule);
+				     &nentry->lsm[i].rule,
+				     gfp);
 		if (!nentry->lsm[i].rule)
 			pr_warn("rule for LSM \'%s\' is undefined\n",
 				nentry->lsm[i].args_p);
@@ -438,7 +440,7 @@ static int ima_lsm_update_rule(struct ima_rule_entry *entry)
 	int i;
 	struct ima_rule_entry *nentry;
 
-	nentry = ima_lsm_copy_rule(entry);
+	nentry = ima_lsm_copy_rule(entry, GFP_KERNEL);
 	if (!nentry)
 		return -ENOMEM;
 
@@ -664,7 +666,7 @@ retry:
 		}
 
 		if (rc == -ESTALE && !rule_reinitialized) {
-			lsm_rule = ima_lsm_copy_rule(rule);
+			lsm_rule = ima_lsm_copy_rule(rule, GFP_ATOMIC);
 			if (lsm_rule) {
 				rule_reinitialized = true;
 				goto retry;
@@ -1140,7 +1142,8 @@ static int ima_lsm_rule_init(struct ima_rule_entry *entry,
 	entry->lsm[lsm_rule].type = audit_type;
 	result = ima_filter_rule_init(entry->lsm[lsm_rule].type, Audit_equal,
 				      entry->lsm[lsm_rule].args_p,
-				      &entry->lsm[lsm_rule].rule);
+				      &entry->lsm[lsm_rule].rule,
+				      GFP_KERNEL);
 	if (!entry->lsm[lsm_rule].rule) {
 		pr_warn("rule for LSM \'%s\' is undefined\n",
 			entry->lsm[lsm_rule].args_p);
@@ -1280,7 +1283,7 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 				     IMA_FSNAME | IMA_GID | IMA_EGID |
 				     IMA_FGROUP | IMA_DIGSIG_REQUIRED |
 				     IMA_PERMIT_DIRECTIO | IMA_VALIDATE_ALGOS |
-				     IMA_VERITY_REQUIRED))
+				     IMA_CHECK_BLACKLIST | IMA_VERITY_REQUIRED))
 			return false;
 
 		break;
@@ -1355,7 +1358,7 @@ static bool ima_validate_rule(struct ima_rule_entry *entry)
 
 	/* Ensure that combinations of flags are compatible with each other */
 	if (entry->flags & IMA_CHECK_BLACKLIST &&
-	    !(entry->flags & IMA_MODSIG_ALLOWED))
+	    !(entry->flags & IMA_DIGSIG_REQUIRED))
 		return false;
 
 	/*
@@ -1803,11 +1806,11 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				if (entry->flags & IMA_VERITY_REQUIRED)
 					result = -EINVAL;
 				else
-					entry->flags |= IMA_DIGSIG_REQUIRED;
+					entry->flags |= IMA_DIGSIG_REQUIRED | IMA_CHECK_BLACKLIST;
 			} else if (strcmp(args[0].from, "sigv3") == 0) {
 				/* Only fsverity supports sigv3 for now */
 				if (entry->flags & IMA_VERITY_REQUIRED)
-					entry->flags |= IMA_DIGSIG_REQUIRED;
+					entry->flags |= IMA_DIGSIG_REQUIRED | IMA_CHECK_BLACKLIST;
 				else
 					result = -EINVAL;
 			} else if (IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG) &&
@@ -1816,18 +1819,13 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 					result = -EINVAL;
 				else
 					entry->flags |= IMA_DIGSIG_REQUIRED |
-						IMA_MODSIG_ALLOWED;
+						IMA_MODSIG_ALLOWED | IMA_CHECK_BLACKLIST;
 			} else {
 				result = -EINVAL;
 			}
 			break;
 		case Opt_appraise_flag:
 			ima_log_string(ab, "appraise_flag", args[0].from);
-			if (IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG) &&
-			    strstr(args[0].from, "blacklist"))
-				entry->flags |= IMA_CHECK_BLACKLIST;
-			else
-				result = -EINVAL;
 			break;
 		case Opt_appraise_algos:
 			ima_log_string(ab, "appraise_algos", args[0].from);
@@ -2271,8 +2269,6 @@ int ima_policy_show(struct seq_file *m, void *v)
 	}
 	if (entry->flags & IMA_VERITY_REQUIRED)
 		seq_puts(m, "digest_type=verity ");
-	if (entry->flags & IMA_CHECK_BLACKLIST)
-		seq_puts(m, "appraise_flag=check_blacklist ");
 	if (entry->flags & IMA_PERMIT_DIRECTIO)
 		seq_puts(m, "permit_directio ");
 	rcu_read_unlock();

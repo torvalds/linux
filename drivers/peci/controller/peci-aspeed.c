@@ -351,6 +351,7 @@ static int clk_aspeed_peci_set_rate(struct clk_hw *hw, unsigned long rate,
 	clk_aspeed_peci_find_div_values(this_rate, &msg_timing, &clk_div_exp);
 
 	val = readl(aspeed_peci->base + ASPEED_PECI_CTRL);
+	val &= ~ASPEED_PECI_CTRL_CLK_DIV_MASK;
 	val |= FIELD_PREP(ASPEED_PECI_CTRL_CLK_DIV_MASK, clk_div_exp);
 	writel(val, aspeed_peci->base + ASPEED_PECI_CTRL);
 
@@ -468,7 +469,7 @@ static void aspeed_peci_property_setup(struct aspeed_peci *priv)
 				      ASPEED_PECI_CMD_TIMEOUT_MS_DEFAULT, &priv->cmd_timeout_ms);
 }
 
-static struct peci_controller_ops aspeed_ops = {
+static const struct peci_controller_ops aspeed_ops = {
 	.xfer = aspeed_peci_xfer,
 };
 
