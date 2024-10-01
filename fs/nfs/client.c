@@ -87,9 +87,6 @@ static struct nfs_subversion *__find_nfs_version(unsigned int version)
 	read_lock(&nfs_version_lock);
 	nfs = nfs_version_mods[version];
 	read_unlock(&nfs_version_lock);
-
-	if (nfs == NULL)
-		return ERR_PTR(-EPROTONOSUPPORT);
 	return nfs;
 }
 
@@ -97,13 +94,15 @@ struct nfs_subversion *find_nfs_version(unsigned int version)
 {
 	struct nfs_subversion *nfs = __find_nfs_version(version);
 
-	if (IS_ERR(nfs)) {
-		request_module("nfsv%d", version);
+	if (!nfs && request_module("nfsv%d", version) == 0)
 		nfs = __find_nfs_version(version);
-	}
 
-	if (!IS_ERR(nfs) && !try_module_get(nfs->owner))
+	if (!nfs)
+		return ERR_PTR(-EPROTONOSUPPORT);
+
+	if (!try_module_get(nfs->owner))
 		return ERR_PTR(-EAGAIN);
+
 	return nfs;
 }
 
