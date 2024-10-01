@@ -266,20 +266,6 @@ __sched int bit_wait_timeout(struct wait_bit_key *word, int mode)
 }
 EXPORT_SYMBOL_GPL(bit_wait_timeout);
 
-__sched int bit_wait_io_timeout(struct wait_bit_key *word, int mode)
-{
-	unsigned long now = READ_ONCE(jiffies);
-
-	if (time_after_eq(now, word->timeout))
-		return -EAGAIN;
-	io_schedule_timeout(word->timeout - now);
-	if (signal_pending_state(mode, current))
-		return -EINTR;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(bit_wait_io_timeout);
-
 void __init wait_bit_init(void)
 {
 	int i;
