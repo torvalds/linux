@@ -546,6 +546,12 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
 	return false;
 }
 
+#if IS_ENABLED(CONFIG_SLUB_DEBUG) && IS_ENABLED(CONFIG_KUNIT)
+bool slab_in_kunit_test(void);
+#else
+static inline bool slab_in_kunit_test(void) { return false; }
+#endif
+
 #ifdef CONFIG_SLAB_OBJ_EXT
 
 /*

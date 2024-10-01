@@ -177,13 +177,13 @@ static void test_kfree_rcu(struct kunit *test)
 
 static void test_leak_destroy(struct kunit *test)
 {
-	struct kmem_cache *s = test_kmem_cache_create("TestSlub_kfree_rcu",
+	struct kmem_cache *s = test_kmem_cache_create("TestSlub_leak_destroy",
 							64, SLAB_NO_MERGE);
 	kmem_cache_alloc(s, GFP_KERNEL);
 
 	kmem_cache_destroy(s);
 
-	KUNIT_EXPECT_EQ(test, 1, slab_errors);
+	KUNIT_EXPECT_EQ(test, 2, slab_errors);
 }
 
 static int test_init(struct kunit *test)
