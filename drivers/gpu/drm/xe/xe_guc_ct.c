@@ -667,16 +667,12 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 		num_g2h = 1;
 
 		if (g2h_fence_needs_alloc(g2h_fence)) {
-			void *ptr;
-
 			g2h_fence->seqno = next_ct_seqno(ct, true);
-			ptr = xa_store(&ct->fence_lookup,
-				       g2h_fence->seqno,
-				       g2h_fence, GFP_ATOMIC);
-			if (IS_ERR(ptr)) {
-				ret = PTR_ERR(ptr);
+			ret = xa_err(xa_store(&ct->fence_lookup,
+					      g2h_fence->seqno, g2h_fence,
+					      GFP_ATOMIC));
+			if (ret)
 				goto out;
-			}
 		}
 
 		seqno = g2h_fence->seqno;
@@ -879,14 +875,11 @@ retry:
 retry_same_fence:
 	ret = guc_ct_send(ct, action, len, 0, 0, &g2h_fence);
 	if (unlikely(ret == -ENOMEM)) {
-		void *ptr;
-
 		/* Retry allocation /w GFP_KERNEL */
-		ptr = xa_store(&ct->fence_lookup,
-			       g2h_fence.seqno,
-			       &g2h_fence, GFP_KERNEL);
-		if (IS_ERR(ptr))
-			return PTR_ERR(ptr);
+		ret = xa_err(xa_store(&ct->fence_lookup, g2h_fence.seqno,
+				      &g2h_fence, GFP_KERNEL));
+		if (ret)
+			return ret;
 
 		goto retry_same_fence;
 	} else if (unlikely(ret)) {
