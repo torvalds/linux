@@ -218,7 +218,7 @@
 };
 
 &sdhc_2 {
-	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 133 GPIO_ACTIVE_HIGH>;
 };
 
 &sound_card {
