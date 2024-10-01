@@ -28,8 +28,8 @@ static bool inode_points_to_dirent(struct bch_inode_unpacked *inode,
 		inode->bi_dir_offset	== d.k->p.offset;
 }
 
-static bool dirent_points_to_inode_nowarn(struct bkey_s_c_dirent d,
-				   struct bch_inode_unpacked *inode)
+static int dirent_points_to_inode_nowarn(struct bkey_s_c_dirent d,
+					 struct bch_inode_unpacked *inode)
 {
 	if (d.v->d_type == DT_SUBVOL
 	    ? le32_to_cpu(d.v->d_child_subvol)	== inode->bi_subvol
