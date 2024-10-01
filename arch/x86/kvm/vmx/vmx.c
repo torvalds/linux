@@ -5215,6 +5215,12 @@ bool vmx_guest_inject_ac(struct kvm_vcpu *vcpu)
 	       (kvm_get_rflags(vcpu) & X86_EFLAGS_AC);
 }
 
+static bool is_xfd_nm_fault(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.guest_fpu.fpstate->xfd &&
+	       !kvm_is_cr0_bit_set(vcpu, X86_CR0_TS);
+}
+
 static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -5241,7 +5247,8 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 	 * point.
 	 */
 	if (is_nm_fault(intr_info)) {
-		kvm_queue_exception(vcpu, NM_VECTOR);
+		kvm_queue_exception_p(vcpu, NM_VECTOR,
+				      is_xfd_nm_fault(vcpu) ? vcpu->arch.guest_fpu.xfd_err : 0);
 		return 1;
 	}
 
@@ -6997,14 +7004,13 @@ static void handle_nm_fault_irqoff(struct kvm_vcpu *vcpu)
 	 *
 	 * Update the guest's XFD_ERR if and only if XFD is enabled, as the #NM
 	 * interception may have been caused by L1 interception.  Per the SDM,
-	 * XFD_ERR is not modified if CR0.TS=1.
+	 * XFD_ERR is not modified for non-XFD #NM, i.e. if CR0.TS=1.
 	 *
 	 * Note, XFD_ERR is updated _before_ the #NM interception check, i.e.
 	 * unlike CR2 and DR6, the value is not a payload that is attached to
 	 * the #NM exception.
 	 */
-	if (vcpu->arch.guest_fpu.fpstate->xfd &&
-	    !kvm_is_cr0_bit_set(vcpu, X86_CR0_TS))
+	if (is_xfd_nm_fault(vcpu))
 		rdmsrl(MSR_IA32_XFD_ERR, vcpu->arch.guest_fpu.xfd_err);
 }
 
