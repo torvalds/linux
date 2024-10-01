@@ -1,5 +1,4 @@
-
-# Linux Kernel Source Tree - Official Documentation
+# Linux Kernel Source Tree
 
 Welcome to the official **Linux Kernel Source Tree** repository. This repository contains the source code for the Linux kernel, which powers millions of devices across the world, from personal computers and servers to smartphones, embedded systems, and more. The Linux kernel is one of the most influential and widely-used open-source projects in history.
 
@@ -216,8 +215,3 @@ A: The kernel follows a regular release cycle, with new stable releases every 2-
 For general questions or further information, visit [https://www.kernel.org](https://www.kernel.org). You can also reach out to the community on the Linux Kernel Mailing List (LKML).
 
 Thank you for your interest in the Linux kernel!
-```
-
-This README is comprehensive, includes key information for developers, maintainers,
-
- and newcomers, and follows a clear structure. It provides instructions on building and contributing to the Linux kernel and includes details on community engagement, security practices, and more.
