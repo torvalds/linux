@@ -210,7 +210,6 @@ static const struct iio_chan_spec veml6030_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_LIGHT_BOTH,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-				BIT(IIO_CHAN_INFO_PROCESSED) |
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_SCALE),
 		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
@@ -548,11 +547,6 @@ static int veml6030_read_raw(struct iio_dev *indio_dev,
 			if (ret < 0) {
 				dev_err(dev, "can't read white data %d\n", ret);
 				return ret;
-			}
-			if (mask == IIO_CHAN_INFO_PROCESSED) {
-				*val = (reg * data->cur_resolution) / 10000;
-				*val2 = (reg * data->cur_resolution) % 10000;
-				return IIO_VAL_INT_PLUS_MICRO;
 			}
 			*val = reg;
 			return IIO_VAL_INT;
