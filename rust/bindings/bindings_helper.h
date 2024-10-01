@@ -15,6 +15,7 @@
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/mdio.h>
+#include <linux/miscdevice.h>
 #include <linux/phy.h>
 #include <linux/refcount.h>
 #include <linux/sched.h>
