@@ -858,36 +858,42 @@ out:
  */
 static int prepare_uptodate_page(struct inode *inode,
 				 struct page *page, u64 pos,
-				 bool force_uptodate)
+				 u64 len, bool force_uptodate)
 {
 	struct folio *folio = page_folio(page);
+	u64 clamp_start = max_t(u64, pos, folio_pos(folio));
+	u64 clamp_end = min_t(u64, pos + len, folio_pos(folio) + folio_size(folio));
 	int ret = 0;
 
-	if (((pos & (PAGE_SIZE - 1)) || force_uptodate) &&
-	    !PageUptodate(page)) {
-		ret = btrfs_read_folio(NULL, folio);
-		if (ret)
-			return ret;
-		lock_page(page);
-		if (!PageUptodate(page)) {
-			unlock_page(page);
-			return -EIO;
-		}
+	if (folio_test_uptodate(folio))
+		return 0;
 
-		/*
-		 * Since btrfs_read_folio() will unlock the folio before it
-		 * returns, there is a window where btrfs_release_folio() can be
-		 * called to release the page.  Here we check both inode
-		 * mapping and PagePrivate() to make sure the page was not
-		 * released.
-		 *
-		 * The private flag check is essential for subpage as we need
-		 * to store extra bitmap using folio private.
-		 */
-		if (page->mapping != inode->i_mapping || !folio_test_private(folio)) {
-			unlock_page(page);
-			return -EAGAIN;
-		}
+	if (!force_uptodate &&
+	    IS_ALIGNED(clamp_start, PAGE_SIZE) &&
+	    IS_ALIGNED(clamp_end, PAGE_SIZE))
+		return 0;
+
+	ret = btrfs_read_folio(NULL, folio);
+	if (ret)
+		return ret;
+	folio_lock(folio);
+	if (!folio_test_uptodate(folio)) {
+		folio_unlock(folio);
+		return -EIO;
+	}
+
+	/*
+	 * Since btrfs_read_folio() will unlock the folio before it returns,
+	 * there is a window where btrfs_release_folio() can be called to
+	 * release the page.  Here we check both inode mapping and page
+	 * private to make sure the page was not released.
+	 *
+	 * The private flag check is essential for subpage as we need to store
+	 * extra bitmap using folio private.
+	 */
+	if (page->mapping != inode->i_mapping || !folio_test_private(folio)) {
+		folio_unlock(folio);
+		return -EAGAIN;
 	}
 	return 0;
 }
@@ -949,12 +955,8 @@ again:
 			goto fail;
 		}
 
-		if (i == 0)
-			ret = prepare_uptodate_page(inode, pages[i], pos,
-						    force_uptodate);
-		if (!ret && i == num_pages - 1)
-			ret = prepare_uptodate_page(inode, pages[i],
-						    pos + write_bytes, false);
+		ret = prepare_uptodate_page(inode, pages[i], pos, write_bytes,
+					    force_uptodate);
 		if (ret) {
 			put_page(pages[i]);
 			if (!nowait && ret == -EAGAIN) {
