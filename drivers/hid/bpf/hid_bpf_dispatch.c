@@ -148,7 +148,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_output_report);
 
-u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, const u8 *rdesc, unsigned int *size)
+const u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, const u8 *rdesc, unsigned int *size)
 {
 	int ret;
 	struct hid_bpf_ctx_kern ctx_kern = {
@@ -183,7 +183,7 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, const u8 *rdesc, unsigned 
 
  ignore_bpf:
 	kfree(ctx_kern.data);
-	return kmemdup(rdesc, *size, GFP_KERNEL);
+	return rdesc;
 }
 EXPORT_SYMBOL_GPL(call_hid_bpf_rdesc_fixup);
 
@@ -260,8 +260,11 @@ int hid_bpf_allocate_event_data(struct hid_device *hdev)
 
 int hid_bpf_reconnect(struct hid_device *hdev)
 {
-	if (!test_and_set_bit(ffs(HID_STAT_REPROBED), &hdev->status))
+	if (!test_and_set_bit(ffs(HID_STAT_REPROBED), &hdev->status)) {
+		/* trigger call to call_hid_bpf_rdesc_fixup() during the next probe */
+		hdev->bpf_rsize = 0;
 		return device_reprobe(&hdev->dev);
+	}
 
 	return 0;
 }
