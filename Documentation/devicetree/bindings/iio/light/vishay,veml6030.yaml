@@ -41,9 +41,12 @@ properties:
       interrupt client node bindings.
     maxItems: 1
 
+  vdd-supply: true
+
 required:
   - compatible
   - reg
+  - vdd-supply
 
 additionalProperties: false
 
@@ -59,6 +62,7 @@ examples:
                 compatible = "vishay,veml6030";
                 reg = <0x10>;
                 interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+                vdd-supply = <&vdd>;
         };
     };
 ...
