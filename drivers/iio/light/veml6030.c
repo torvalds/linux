@@ -144,8 +144,17 @@ static const struct attribute_group veml6030_event_attr_group = {
 
 static int veml6030_als_pwr_on(struct veml6030_data *data)
 {
-	return regmap_clear_bits(data->regmap, VEML6030_REG_ALS_CONF,
-				 VEML6030_ALS_SD);
+	int ret;
+
+	ret = regmap_clear_bits(data->regmap, VEML6030_REG_ALS_CONF,
+				VEML6030_ALS_SD);
+	if (ret)
+		return ret;
+
+	/* Wait 4 ms to let processor & oscillator start correctly */
+	fsleep(4000);
+
+	return 0;
 }
 
 static int veml6030_als_shut_down(struct veml6030_data *data)
@@ -766,9 +775,6 @@ static int veml6030_hw_init(struct iio_dev *indio_dev)
 		dev_err(&client->dev, "can't poweron als %d\n", ret);
 		return ret;
 	}
-
-	/* Wait 4 ms to let processor & oscillator start correctly */
-	usleep_range(4000, 4002);
 
 	/* Clear stale interrupt status bits if any during start */
 	ret = regmap_read(data->regmap, VEML6030_REG_ALS_INT, &val);
