@@ -1259,6 +1259,28 @@ void gen11_display_irq_handler(struct drm_i915_private *i915)
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 }
 
+static void i915gm_irq_cstate_wa_enable(struct drm_i915_private *i915)
+{
+	lockdep_assert_held(&i915->drm.vblank_time_lock);
+
+	/*
+	 * Vblank interrupts fail to wake the device up from C2+.
+	 * Disabling render clock gating during C-states avoids
+	 * the problem. There is a small power cost so we do this
+	 * only when vblank interrupts are actually enabled.
+	 */
+	if (i915->display.irq.vblank_enabled++ == 0)
+		intel_uncore_write(&i915->uncore, SCPD0, _MASKED_BIT_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+}
+
+static void i915gm_irq_cstate_wa_disable(struct drm_i915_private *i915)
+{
+	lockdep_assert_held(&i915->drm.vblank_time_lock);
+
+	if (--i915->display.irq.vblank_enabled == 0)
+		intel_uncore_write(&i915->uncore, SCPD0, _MASKED_BIT_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+}
+
 int i8xx_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
@@ -1287,14 +1309,7 @@ int i915gm_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->dev);
 
-	/*
-	 * Vblank interrupts fail to wake the device up from C2+.
-	 * Disabling render clock gating during C-states avoids
-	 * the problem. There is a small power cost so we do this
-	 * only when vblank interrupts are actually enabled.
-	 */
-	if (i915->display.irq.vblank_enabled++ == 0)
-		intel_uncore_write(&i915->uncore, SCPD0, _MASKED_BIT_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+	i915gm_irq_cstate_wa_enable(i915);
 
 	return i8xx_enable_vblank(crtc);
 }
@@ -1305,8 +1320,7 @@ void i915gm_disable_vblank(struct drm_crtc *crtc)
 
 	i8xx_disable_vblank(crtc);
 
-	if (--i915->display.irq.vblank_enabled == 0)
-		intel_uncore_write(&i915->uncore, SCPD0, _MASKED_BIT_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+	i915gm_irq_cstate_wa_disable(i915);
 }
 
 int i965_enable_vblank(struct drm_crtc *crtc)
