@@ -1919,7 +1919,7 @@ void sigqueue_free(struct sigqueue *q)
 		__sigqueue_free(q);
 }
 
-int send_sigqueue(struct sigqueue *q, struct pid *pid, enum pid_type type)
+int send_sigqueue(struct sigqueue *q, struct pid *pid, enum pid_type type, int si_private)
 {
 	int sig = q->info.si_signo;
 	struct sigpending *pending;
@@ -1953,6 +1953,14 @@ int send_sigqueue(struct sigqueue *q, struct pid *pid, enum pid_type type)
 		t = current;
 	if (!likely(lock_task_sighand(t, &flags)))
 		goto ret;
+
+	/*
+	 * Update @q::info::si_sys_private for posix timer signals with
+	 * sighand locked to prevent a race against dequeue_signal() which
+	 * decides based on si_sys_private whether to invoke
+	 * posixtimer_rearm() or not.
+	 */
+	q->info.si_sys_private = si_private;
 
 	ret = 1; /* the signal is ignored */
 	result = TRACE_SIGNAL_IGNORED;
