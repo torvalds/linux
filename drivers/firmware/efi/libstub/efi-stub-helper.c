@@ -620,10 +620,6 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	status = efi_load_initrd_dev_path(&initrd, hard_limit);
 	if (status == EFI_SUCCESS) {
 		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
-		if (initrd.size > 0 &&
-		    efi_measure_tagged_event(initrd.base, initrd.size,
-					     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
-			efi_info("Measured initrd data into PCR 9\n");
 	} else if (status == EFI_NOT_FOUND) {
 		status = efi_load_initrd_cmdline(image, &initrd, soft_limit,
 						 hard_limit);
@@ -635,6 +631,11 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	}
 	if (status != EFI_SUCCESS)
 		goto failed;
+
+	if (initrd.size > 0 &&
+	    efi_measure_tagged_event(initrd.base, initrd.size,
+				     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
+		efi_info("Measured initrd data into PCR 9\n");
 
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(initrd),
 			     (void **)&tbl);
