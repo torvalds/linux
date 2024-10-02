@@ -881,7 +881,8 @@ static int zswap_cpu_comp_dead(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static bool zswap_compress(struct page *page, struct zswap_entry *entry)
+static bool zswap_compress(struct page *page, struct zswap_entry *entry,
+			   struct zswap_pool *pool)
 {
 	struct crypto_acomp_ctx *acomp_ctx;
 	struct scatterlist input, output;
@@ -893,7 +894,7 @@ static bool zswap_compress(struct page *page, struct zswap_entry *entry)
 	gfp_t gfp;
 	u8 *dst;
 
-	acomp_ctx = raw_cpu_ptr(entry->pool->acomp_ctx);
+	acomp_ctx = raw_cpu_ptr(pool->acomp_ctx);
 
 	mutex_lock(&acomp_ctx->mutex);
 
@@ -926,7 +927,7 @@ static bool zswap_compress(struct page *page, struct zswap_entry *entry)
 	if (comp_ret)
 		goto unlock;
 
-	zpool = entry->pool->zpool;
+	zpool = pool->zpool;
 	gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
 	if (zpool_malloc_support_movable(zpool))
 		gfp |= __GFP_HIGHMEM | __GFP_MOVABLE;
@@ -1414,32 +1415,21 @@ static ssize_t zswap_store_page(struct page *page,
 				struct obj_cgroup *objcg,
 				struct zswap_pool *pool)
 {
+	swp_entry_t page_swpentry = page_swap_entry(page);
 	struct zswap_entry *entry, *old;
 
 	/* allocate entry */
 	entry = zswap_entry_cache_alloc(GFP_KERNEL, page_to_nid(page));
 	if (!entry) {
 		zswap_reject_kmemcache_fail++;
-		goto reject;
+		return -EINVAL;
 	}
 
-	/* zswap_store() already holds a ref on 'objcg' and 'pool' */
-	if (objcg)
-		obj_cgroup_get(objcg);
-	zswap_pool_get(pool);
+	if (!zswap_compress(page, entry, pool))
+		goto compress_failed;
 
-	/* if entry is successfully added, it keeps the reference */
-	entry->pool = pool;
-
-	if (!zswap_compress(page, entry))
-		goto put_pool_objcg;
-
-	entry->swpentry = page_swap_entry(page);
-	entry->objcg = objcg;
-	entry->referenced = true;
-
-	old = xa_store(swap_zswap_tree(entry->swpentry),
-		       swp_offset(entry->swpentry),
+	old = xa_store(swap_zswap_tree(page_swpentry),
+		       swp_offset(page_swpentry),
 		       entry, GFP_KERNEL);
 	if (xa_is_err(old)) {
 		int err = xa_err(old);
@@ -1458,6 +1448,16 @@ static ssize_t zswap_store_page(struct page *page,
 		zswap_entry_free(old);
 
 	/*
+	 * The entry is successfully compressed and stored in the tree, there is
+	 * no further possibility of failure. Grab refs to the pool and objcg.
+	 * These refs will be dropped by zswap_entry_free() when the entry is
+	 * removed from the tree.
+	 */
+	zswap_pool_get(pool);
+	if (objcg)
+		obj_cgroup_get(objcg);
+
+	/*
 	 * We finish initializing the entry while it's already in xarray.
 	 * This is safe because:
 	 *
@@ -1467,25 +1467,21 @@ static ssize_t zswap_store_page(struct page *page,
 	 *    The publishing order matters to prevent writeback from seeing
 	 *    an incoherent entry.
 	 */
+	entry->pool = pool;
+	entry->swpentry = page_swpentry;
+	entry->objcg = objcg;
+	entry->referenced = true;
 	if (entry->length) {
 		INIT_LIST_HEAD(&entry->lru);
 		zswap_lru_add(&zswap_list_lru, entry);
 	}
 
-	/*
-	 * We shouldn't have any possibility of failure after the entry is
-	 * added in the xarray. The pool/objcg refs obtained here will only
-	 * be dropped if/when zswap_entry_free() gets called.
-	 */
 	return entry->length;
 
 store_failed:
-	zpool_free(entry->pool->zpool, entry->handle);
-put_pool_objcg:
-	zswap_pool_put(pool);
-	obj_cgroup_put(objcg);
+	zpool_free(pool->zpool, entry->handle);
+compress_failed:
 	zswap_entry_cache_free(entry);
-reject:
 	return -EINVAL;
 }
 
