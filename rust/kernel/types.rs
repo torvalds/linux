@@ -206,7 +206,58 @@ impl<T, F: FnOnce(T)> Drop for ScopeGuard<T, F> {
 
 /// Stores an opaque value.
 ///
-/// This is meant to be used with FFI objects that are never interpreted by Rust code.
+/// `Opaque<T>` is meant to be used with FFI objects that are never interpreted by Rust code.
+///
+/// It is used to wrap structs from the C side, like for example `Opaque<bindings::mutex>`.
+/// It gets rid of all the usual assumptions that Rust has for a value:
+///
+/// * The value is allowed to be uninitialized (for example have invalid bit patterns: `3` for a
+///   [`bool`]).
+/// * The value is allowed to be mutated, when a `&Opaque<T>` exists on the Rust side.
+/// * No uniqueness for mutable references: it is fine to have multiple `&mut Opaque<T>` point to
+///   the same value.
+/// * The value is not allowed to be shared with other threads (i.e. it is `!Sync`).
+///
+/// This has to be used for all values that the C side has access to, because it can't be ensured
+/// that the C side is adhering to the usual constraints that Rust needs.
+///
+/// Using `Opaque<T>` allows to continue to use references on the Rust side even for values shared
+/// with C.
+///
+/// # Examples
+///
+/// ```
+/// # #![expect(unreachable_pub, clippy::disallowed_names)]
+/// use kernel::types::Opaque;
+/// # // Emulate a C struct binding which is from C, maybe uninitialized or not, only the C side
+/// # // knows.
+/// # mod bindings {
+/// #     pub struct Foo {
+/// #         pub val: u8,
+/// #     }
+/// # }
+///
+/// // `foo.val` is assumed to be handled on the C side, so we use `Opaque` to wrap it.
+/// pub struct Foo {
+///     foo: Opaque<bindings::Foo>,
+/// }
+///
+/// impl Foo {
+///     pub fn get_val(&self) -> u8 {
+///         let ptr = Opaque::get(&self.foo);
+///
+///         // SAFETY: `Self` is valid from C side.
+///         unsafe { (*ptr).val }
+///     }
+/// }
+///
+/// // Create an instance of `Foo` with the `Opaque` wrapper.
+/// let foo = Foo {
+///     foo: Opaque::new(bindings::Foo { val: 0xdb }),
+/// };
+///
+/// assert_eq!(foo.get_val(), 0xdb);
+/// ```
 #[repr(transparent)]
 pub struct Opaque<T> {
     value: UnsafeCell<MaybeUninit<T>>,
