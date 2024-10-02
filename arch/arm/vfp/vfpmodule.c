@@ -708,7 +708,7 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 	if (!user_mode(regs))
 		return vfp_kmode_exception(regs, trigger);
 
-	local_bh_disable();
+	vfp_state_hold();
 	fpexc = fmrx(FPEXC);
 
 	/*
@@ -787,7 +787,7 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 			if (!(fpscr & FPSCR_IXE)) {
 				if (!(fpscr & FPSCR_LENGTH_MASK)) {
 					pr_debug("not VFP\n");
-					local_bh_enable();
+					vfp_state_release();
 					return -ENOEXEC;
 				}
 				fpexc |= FPEXC_DEX;
@@ -797,7 +797,7 @@ bounce:		regs->ARM_pc += 4;
 		VFP_bounce(trigger, fpexc, regs);
 	}
 
-	local_bh_enable();
+	vfp_state_release();
 	return 0;
 }
 
