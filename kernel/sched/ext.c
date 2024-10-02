@@ -4052,7 +4052,6 @@ static void scx_cgroup_exit(void)
 
 	percpu_rwsem_assert_held(&scx_cgroup_rwsem);
 
-	WARN_ON_ONCE(!scx_cgroup_enabled);
 	scx_cgroup_enabled = false;
 
 	/*
