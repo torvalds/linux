@@ -2402,10 +2402,10 @@ static unsigned int skip_age(rmap_age_t age)
 /*
  * Determines if a page should be skipped for the current scan.
  *
- * @page: page to check
+ * @folio: folio containing the page to check
  * @rmap_item: associated rmap_item of page
  */
-static bool should_skip_rmap_item(struct page *page,
+static bool should_skip_rmap_item(struct folio *folio,
 				  struct ksm_rmap_item *rmap_item)
 {
 	rmap_age_t age;
@@ -2418,7 +2418,7 @@ static bool should_skip_rmap_item(struct page *page,
 	 * will essentially ignore them, but we still have to process them
 	 * properly.
 	 */
-	if (PageKsm(page))
+	if (folio_test_ksm(folio))
 		return false;
 
 	age = rmap_item->age;
@@ -2561,7 +2561,7 @@ next_mm:
 					ksm_scan.rmap_list =
 							&rmap_item->rmap_list;
 
-					if (should_skip_rmap_item(tmp_page, rmap_item)) {
+					if (should_skip_rmap_item(folio, rmap_item)) {
 						folio_put(folio);
 						goto next_page;
 					}
