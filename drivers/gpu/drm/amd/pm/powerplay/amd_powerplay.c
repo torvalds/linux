@@ -173,10 +173,9 @@ static int pp_hw_init(struct amdgpu_ip_block *ip_block)
 	return ret;
 }
 
-static int pp_hw_fini(void *handle)
+static int pp_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
-	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+	struct pp_hwmgr *hwmgr = ip_block->adev->powerplay.pp_handle;
 
 	cancel_delayed_work_sync(&hwmgr->swctf_delayed_work);
 

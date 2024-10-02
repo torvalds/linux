@@ -40,7 +40,7 @@ MODULE_FIRMWARE("amdgpu/gc_12_0_1_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_0_1_uni_mes.bin");
 
 static int mes_v12_0_hw_init(struct amdgpu_ip_block *ip_block);
-static int mes_v12_0_hw_fini(void *handle);
+static int mes_v12_0_hw_fini(struct amdgpu_ip_block *ip_block);
 static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev);
 static int mes_v12_0_kiq_hw_fini(struct amdgpu_device *adev);
 
@@ -1480,6 +1480,12 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 
 	mes_v12_0_enable(adev, true);
 
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_MES);
+	if (unlikely(!ip_block)) {
+		dev_err(adev->dev, "Failed to get MES handle\n");
+		return -EINVAL;
+	}
+
 	r = mes_v12_0_queue_init(adev, AMDGPU_MES_KIQ_PIPE);
 	if (r)
 		goto failure;
@@ -1493,12 +1499,6 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 	}
 
 	if (adev->mes.enable_legacy_queue_map) {
-		ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_MES);
-		if (unlikely(!ip_block)) {
-			dev_err(adev->dev, "Failed to get MES handle\n");
-			return -EINVAL;
-		}
-
 		r = mes_v12_0_hw_init(ip_block);
 		if (r)
 			goto failure;
@@ -1507,7 +1507,7 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 	return r;
 
 failure:
-	mes_v12_0_hw_fini(adev);
+	mes_v12_0_hw_fini(ip_block);
 	return r;
 }
 
@@ -1591,11 +1591,11 @@ out:
 	return 0;
 
 failure:
-	mes_v12_0_hw_fini(adev);
+	mes_v12_0_hw_fini(ip_block);
 	return r;
 }
 
-static int mes_v12_0_hw_fini(void *handle)
+static int mes_v12_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
@@ -1603,13 +1603,12 @@ static int mes_v12_0_hw_fini(void *handle)
 static int mes_v12_0_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = ip_block->adev;
 
-	r = amdgpu_mes_suspend(adev);
+	r = amdgpu_mes_suspend(ip_block->adev);
 	if (r)
 		return r;
 
-	return mes_v12_0_hw_fini(adev);
+	return mes_v12_0_hw_fini(ip_block);
 }
 
 static int mes_v12_0_resume(struct amdgpu_ip_block *ip_block)

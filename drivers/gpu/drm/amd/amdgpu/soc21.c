@@ -867,9 +867,9 @@ static int soc21_common_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int soc21_common_hw_fini(void *handle)
+static int soc21_common_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* Disable the doorbell aperture and selfring doorbell aperture
 	 * separately in hw_fini because soc21_enable_doorbell_aperture
@@ -892,9 +892,7 @@ static int soc21_common_hw_fini(void *handle)
 
 static int soc21_common_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return soc21_common_hw_fini(adev);
+	return soc21_common_hw_fini(ip_block);
 }
 
 static bool soc21_need_reset_on_resume(struct amdgpu_device *adev)

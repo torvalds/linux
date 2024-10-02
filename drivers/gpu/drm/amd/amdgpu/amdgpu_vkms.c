@@ -600,7 +600,7 @@ static int amdgpu_vkms_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int amdgpu_vkms_hw_fini(void *handle)
+static int amdgpu_vkms_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
@@ -613,7 +613,7 @@ static int amdgpu_vkms_suspend(struct amdgpu_ip_block *ip_block)
 	r = drm_mode_config_helper_suspend(adev_to_drm(adev));
 	if (r)
 		return r;
-	return amdgpu_vkms_hw_fini(adev);
+	return amdgpu_vkms_hw_fini(ip_block);
 }
 
 static int amdgpu_vkms_resume(struct amdgpu_ip_block *ip_block)

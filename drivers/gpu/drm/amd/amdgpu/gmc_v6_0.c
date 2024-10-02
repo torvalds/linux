@@ -925,9 +925,9 @@ static int gmc_v6_0_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gmc_v6_0_hw_fini(void *handle)
+static int gmc_v6_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
 	gmc_v6_0_gart_disable(adev);
@@ -937,9 +937,7 @@ static int gmc_v6_0_hw_fini(void *handle)
 
 static int gmc_v6_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	gmc_v6_0_hw_fini(adev);
+	gmc_v6_0_hw_fini(ip_block);
 
 	return 0;
 }

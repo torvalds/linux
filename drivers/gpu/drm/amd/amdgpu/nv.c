@@ -1014,9 +1014,9 @@ static int nv_common_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int nv_common_hw_fini(void *handle)
+static int nv_common_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* Disable the doorbell aperture and selfring doorbell aperture
 	 * separately in hw_fini because nv_enable_doorbell_aperture
@@ -1031,9 +1031,7 @@ static int nv_common_hw_fini(void *handle)
 
 static int nv_common_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return nv_common_hw_fini(adev);
+	return nv_common_hw_fini(ip_block);
 }
 
 static int nv_common_resume(struct amdgpu_ip_block *ip_block)

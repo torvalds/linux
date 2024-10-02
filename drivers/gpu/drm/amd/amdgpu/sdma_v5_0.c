@@ -1489,9 +1489,9 @@ static int sdma_v5_0_hw_init(struct amdgpu_ip_block *ip_block)
 	return r;
 }
 
-static int sdma_v5_0_hw_fini(void *handle)
+static int sdma_v5_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
@@ -1504,9 +1504,7 @@ static int sdma_v5_0_hw_fini(void *handle)
 
 static int sdma_v5_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return sdma_v5_0_hw_fini(adev);
+	return sdma_v5_0_hw_fini(ip_block);
 }
 
 static int sdma_v5_0_resume(struct amdgpu_ip_block *ip_block)

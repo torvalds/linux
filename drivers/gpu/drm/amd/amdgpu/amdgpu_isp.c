@@ -66,10 +66,9 @@ static int isp_hw_init(struct amdgpu_ip_block *ip_block)
  * @handle: handle for amdgpu_device pointer
  *
  */
-static int isp_hw_fini(void *handle)
+static int isp_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_isp *isp = &adev->isp;
+	struct amdgpu_isp *isp = &ip_block->adev->isp;
 
 	if (isp->funcs->hw_fini != NULL)
 		return isp->funcs->hw_fini(isp);

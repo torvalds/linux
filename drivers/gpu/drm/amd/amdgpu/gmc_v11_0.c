@@ -940,9 +940,9 @@ static void gmc_v11_0_gart_disable(struct amdgpu_device *adev)
 	adev->mmhub.funcs->gart_disable(adev);
 }
 
-static int gmc_v11_0_hw_fini(void *handle)
+static int gmc_v11_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev)) {
 		/* full access mode, so don't touch any GMC register */
@@ -963,9 +963,7 @@ static int gmc_v11_0_hw_fini(void *handle)
 
 static int gmc_v11_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	gmc_v11_0_hw_fini(adev);
+	gmc_v11_0_hw_fini(ip_block);
 
 	return 0;
 }

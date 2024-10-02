@@ -421,9 +421,9 @@ static int vpe_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int vpe_hw_fini(void *handle)
+static int vpe_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	vpe_ring_stop(vpe);
@@ -440,7 +440,7 @@ static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 
 	cancel_delayed_work_sync(&adev->vpe.idle_work);
 
-	return vpe_hw_fini(adev);
+	return vpe_hw_fini(ip_block);
 }
 
 static int vpe_resume(struct amdgpu_ip_block *ip_block)

@@ -2148,16 +2148,14 @@ static int cik_common_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int cik_common_hw_fini(void *handle)
+static int cik_common_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
 
 static int cik_common_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return cik_common_hw_fini(adev);
+	return cik_common_hw_fini(ip_block);
 }
 
 static int cik_common_resume(struct amdgpu_ip_block *ip_block)

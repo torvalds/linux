@@ -3285,7 +3285,7 @@ static void amdgpu_device_smu_fini_early(struct amdgpu_device *adev)
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
-			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
+			r = adev->ip_blocks[i].version->funcs->hw_fini(&adev->ip_blocks[i]);
 			/* XXX handle errors */
 			if (r) {
 				DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",
@@ -3324,7 +3324,7 @@ static int amdgpu_device_ip_fini_early(struct amdgpu_device *adev)
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
 
-		r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
+		r = adev->ip_blocks[i].version->funcs->hw_fini(&adev->ip_blocks[i]);
 		/* XXX handle errors */
 		if (r) {
 			DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",

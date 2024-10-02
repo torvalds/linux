@@ -193,20 +193,16 @@ static int si_ih_hw_init(struct amdgpu_ip_block *ip_block)
 	return si_ih_irq_init(adev);
 }
 
-static int si_ih_hw_fini(void *handle)
+static int si_ih_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	si_ih_irq_disable(adev);
+	si_ih_irq_disable(ip_block->adev);
 
 	return 0;
 }
 
 static int si_ih_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return si_ih_hw_fini(adev);
+	return si_ih_hw_fini(ip_block);
 }
 
 static int si_ih_resume(struct amdgpu_ip_block *ip_block)

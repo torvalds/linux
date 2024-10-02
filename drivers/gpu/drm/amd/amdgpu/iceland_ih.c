@@ -318,20 +318,16 @@ static int iceland_ih_hw_init(struct amdgpu_ip_block *ip_block)
 	return iceland_ih_irq_init(adev);
 }
 
-static int iceland_ih_hw_fini(void *handle)
+static int iceland_ih_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	iceland_ih_irq_disable(adev);
+	iceland_ih_irq_disable(ip_block->adev);
 
 	return 0;
 }
 
 static int iceland_ih_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return iceland_ih_hw_fini(adev);
+	return iceland_ih_hw_fini(ip_block);
 }
 
 static int iceland_ih_resume(struct amdgpu_ip_block *ip_block)

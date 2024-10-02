@@ -3002,9 +3002,9 @@ failed:
 	return -EINVAL;
 }
 
-static int psp_hw_fini(void *handle)
+static int psp_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct psp_context *psp = &adev->psp;
 
 	if (psp->ta_fw) {

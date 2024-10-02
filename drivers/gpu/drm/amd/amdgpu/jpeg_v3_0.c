@@ -160,9 +160,9 @@ static int jpeg_v3_0_hw_init(struct amdgpu_ip_block *ip_block)
  *
  * Stop the JPEG block, mark ring as not ready any more
  */
-static int jpeg_v3_0_hw_fini(void *handle)
+static int jpeg_v3_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->vcn.idle_work);
 
@@ -182,14 +182,13 @@ static int jpeg_v3_0_hw_fini(void *handle)
  */
 static int jpeg_v3_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
-	r = jpeg_v3_0_hw_fini(adev);
+	r = jpeg_v3_0_hw_fini(ip_block);
 	if (r)
 		return r;
 
-	r = amdgpu_jpeg_suspend(adev);
+	r = amdgpu_jpeg_suspend(ip_block->adev);
 
 	return r;
 }

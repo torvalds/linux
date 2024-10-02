@@ -2009,9 +2009,9 @@ static int smu_reset_mp1_state(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_hw_fini(void *handle)
+static int smu_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 
@@ -2060,7 +2060,7 @@ static int smu_reset(struct smu_context *smu)
 	if (!ip_block)
 		return -EINVAL;
 
-	ret = smu_hw_fini(adev);
+	ret = smu_hw_fini(ip_block);
 	if (ret)
 		return ret;
 

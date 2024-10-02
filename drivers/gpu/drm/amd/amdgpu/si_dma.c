@@ -524,20 +524,16 @@ static int si_dma_hw_init(struct amdgpu_ip_block *ip_block)
 	return si_dma_start(adev);
 }
 
-static int si_dma_hw_fini(void *handle)
+static int si_dma_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	si_dma_stop(adev);
+	si_dma_stop(ip_block->adev);
 
 	return 0;
 }
 
 static int si_dma_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return si_dma_hw_fini(adev);
+	return si_dma_hw_fini(ip_block);
 }
 
 static int si_dma_resume(struct amdgpu_ip_block *ip_block)

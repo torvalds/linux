@@ -2369,9 +2369,9 @@ static int gfx_v9_4_3_hw_init(struct amdgpu_ip_block *ip_block)
 	return r;
 }
 
-static int gfx_v9_4_3_hw_fini(void *handle)
+static int gfx_v9_4_3_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, num_xcc;
 
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
@@ -2388,9 +2388,7 @@ static int gfx_v9_4_3_hw_fini(void *handle)
 
 static int gfx_v9_4_3_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return gfx_v9_4_3_hw_fini(adev);
+	return gfx_v9_4_3_hw_fini(ip_block);
 }
 
 static int gfx_v9_4_3_resume(struct amdgpu_ip_block *ip_block)

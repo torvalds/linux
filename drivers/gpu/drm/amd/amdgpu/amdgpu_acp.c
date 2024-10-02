@@ -500,11 +500,11 @@ failure:
  * @handle: handle used to pass amdgpu_device pointer
  *
  */
-static int acp_hw_fini(void *handle)
+static int acp_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	u32 val = 0;
 	u32 count = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* return early if no ACP */
 	if (!adev->acp.acp_genpd) {

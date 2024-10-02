@@ -485,15 +485,10 @@ static int vce_v3_0_hw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int vce_v3_0_hw_fini(void *handle)
+static int vce_v3_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ip_block *ip_block;
-
-	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCE);
-	if (!ip_block)
-		return -EINVAL;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->vce.idle_work);
 
@@ -533,7 +528,7 @@ static int vce_v3_0_suspend(struct amdgpu_ip_block *ip_block)
 						       AMD_CG_STATE_GATE);
 	}
 
-	r = vce_v3_0_hw_fini(adev);
+	r = vce_v3_0_hw_fini(ip_block);
 	if (r)
 		return r;
 

@@ -3052,9 +3052,9 @@ static int kv_dpm_hw_init(struct amdgpu_ip_block *ip_block)
 	return ret;
 }
 
-static int kv_dpm_hw_fini(void *handle)
+static int kv_dpm_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->pm.dpm_enabled)
 		kv_dpm_disable(adev);
