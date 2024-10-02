@@ -1258,8 +1258,8 @@ retry:
 							THP_SWPOUT_FALLBACK, 1);
 						count_vm_event(THP_SWPOUT_FALLBACK);
 					}
-					count_mthp_stat(order, MTHP_STAT_SWPOUT_FALLBACK);
 #endif
+					count_mthp_stat(order, MTHP_STAT_SWPOUT_FALLBACK);
 					if (!add_to_swap(folio))
 						goto activate_locked_split;
 				}
