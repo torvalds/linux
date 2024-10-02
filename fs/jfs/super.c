@@ -389,8 +389,8 @@ static int jfs_reconfigure(struct fs_context *fc)
 
 		if (!ctx->newLVSize) {
 			ctx->newLVSize = sb_bdev_nr_blocks(sb);
-				if (ctx->newLVSize == 0)
-					pr_err("JFS: Cannot determine volume size\n");
+			if (ctx->newLVSize == 0)
+				pr_err("JFS: Cannot determine volume size\n");
 		}
 
 		rc = jfs_extendfs(sb, ctx->newLVSize, 0);
