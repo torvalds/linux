@@ -1275,6 +1275,7 @@ config SENSORS_MAX31790
 config SENSORS_MC34VR500
 	tristate "NXP MC34VR500 hardware monitoring driver"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the temperature and input
 	  voltage sensors of the NXP MC34VR500.
