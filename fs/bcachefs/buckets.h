@@ -80,22 +80,9 @@ static inline void bucket_lock(struct bucket *b)
 			 TASK_UNINTERRUPTIBLE);
 }
 
-static inline struct bucket_array *gc_bucket_array(struct bch_dev *ca)
-{
-	return rcu_dereference_check(ca->buckets_gc,
-				     !ca->fs ||
-				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->state_lock) ||
-				     lockdep_is_held(&ca->bucket_lock));
-}
-
 static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
-	struct bucket_array *buckets = gc_bucket_array(ca);
-
-	if (b - buckets->first_bucket >= buckets->nbuckets_minus_first)
-		return NULL;
-	return buckets->b + b;
+	return genradix_ptr(&ca->buckets_gc, b);
 }
 
 static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)

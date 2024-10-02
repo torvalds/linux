@@ -40,7 +40,7 @@ static int linkmodes_prepare_data(const struct ethnl_req_info *req_base,
 		return ret;
 
 	ret = __ethtool_get_link_ksettings(dev, &data->ksettings);
-	if (ret < 0 && info) {
+	if (ret < 0) {
 		GENL_SET_ERR_MSG(info, "failed to retrieve link settings");
 		goto out;
 	}

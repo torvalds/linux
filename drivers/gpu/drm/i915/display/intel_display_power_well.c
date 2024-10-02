@@ -861,6 +861,8 @@ void skl_enable_dc6(struct drm_i915_private *dev_priv)
 
 void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	assert_can_enable_dc9(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling DC9\n");
@@ -870,19 +872,21 @@ void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 	 * because PPS registers are always on.
 	 */
 	if (!HAS_PCH_SPLIT(dev_priv))
-		intel_pps_reset_all(dev_priv);
+		intel_pps_reset_all(display);
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_DC9);
 }
 
 void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	assert_can_disable_dc9(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm, "Disabling DC9\n");
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
-	intel_pps_unlock_regs_wa(dev_priv);
+	intel_pps_unlock_regs_wa(display);
 }
 
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -1176,14 +1180,15 @@ static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 		       MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
 	intel_de_write(dev_priv, CBR1_VLV, 0);
 
-	drm_WARN_ON(&dev_priv->drm, RUNTIME_INFO(dev_priv)->rawclk_freq == 0);
+	drm_WARN_ON(&dev_priv->drm, DISPLAY_RUNTIME_INFO(dev_priv)->rawclk_freq == 0);
 	intel_de_write(dev_priv, RAWCLK_FREQ_VLV,
-		       DIV_ROUND_CLOSEST(RUNTIME_INFO(dev_priv)->rawclk_freq,
+		       DIV_ROUND_CLOSEST(DISPLAY_RUNTIME_INFO(dev_priv)->rawclk_freq,
 					 1000));
 }
 
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_encoder *encoder;
 	enum pipe pipe;
 
@@ -1229,11 +1234,13 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 
 	intel_vga_redisable_power_on(dev_priv);
 
-	intel_pps_unlock_regs_wa(dev_priv);
+	intel_pps_unlock_regs_wa(display);
 }
 
 static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_disable_display_irqs(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
@@ -1241,7 +1248,7 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	/* make sure we're done processing display irqs */
 	intel_synchronize_irq(dev_priv);
 
-	intel_pps_reset_all(dev_priv);
+	intel_pps_reset_all(display);
 
 	/* Prevent us from re-enabling polling on accident in late suspend */
 	if (!dev_priv->drm.dev->power.is_suspended)

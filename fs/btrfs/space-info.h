@@ -217,7 +217,7 @@ struct reserve_ticket {
 	wait_queue_head_t wait;
 };
 
-static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
+static inline bool btrfs_mixed_space_info(const struct btrfs_space_info *space_info)
 {
 	return ((space_info->flags & BTRFS_BLOCK_GROUP_METADATA) &&
 		(space_info->flags & BTRFS_BLOCK_GROUP_DATA));
@@ -258,7 +258,7 @@ void btrfs_update_space_info_chunk_size(struct btrfs_space_info *space_info,
 					u64 chunk_size);
 struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 					       u64 flags);
-u64 __pure btrfs_space_info_used(struct btrfs_space_info *s_info,
+u64 __pure btrfs_space_info_used(const struct btrfs_space_info *s_info,
 			  bool may_use_included);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
@@ -271,7 +271,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info);
 int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
-			 struct btrfs_space_info *space_info, u64 bytes,
+			 const struct btrfs_space_info *space_info, u64 bytes,
 			 enum btrfs_reserve_flush_enum flush);
 
 static inline void btrfs_space_info_free_bytes_may_use(
@@ -293,7 +293,7 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo);
 void btrfs_space_info_update_reclaimable(struct btrfs_space_info *space_info, s64 bytes);
 void btrfs_set_periodic_reclaim_ready(struct btrfs_space_info *space_info, bool ready);
 bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info);
-int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info);
-int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info);
+int btrfs_calc_reclaim_threshold(const struct btrfs_space_info *space_info);
+void btrfs_reclaim_sweep(const struct btrfs_fs_info *fs_info);
 
 #endif /* BTRFS_SPACE_INFO_H */

@@ -48,6 +48,13 @@ config ARM_CMN
 	  Support for PMU events monitoring on the Arm CMN-600 Coherent Mesh
 	  Network interconnect.
 
+config ARM_NI
+	tristate "Arm NI-700 PMU support"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Support for PMU events monitoring on the Arm NI-700 Network-on-Chip
+	  interconnect and family.
+
 config ARM_PMU
 	depends on ARM || ARM64
 	bool "ARM PMU framework"

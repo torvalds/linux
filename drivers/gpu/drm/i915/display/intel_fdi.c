@@ -5,6 +5,8 @@
 
 #include <linux/string_helpers.h>
 
+#include <drm/drm_fixed.h>
+
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
@@ -304,7 +306,7 @@ int intel_fdi_link_freq(struct drm_i915_private *i915,
 bool intel_fdi_compute_pipe_bpp(struct intel_crtc_state *crtc_state)
 {
 	int pipe_bpp = min(crtc_state->pipe_bpp,
-			   to_bpp_int(crtc_state->max_link_bpp_x16));
+			   fxp_q4_to_int(crtc_state->max_link_bpp_x16));
 
 	pipe_bpp = rounddown(pipe_bpp, 2 * 3);
 
@@ -340,7 +342,7 @@ int ilk_fdi_compute_config(struct intel_crtc *crtc,
 
 	pipe_config->fdi_lanes = lane;
 
-	intel_link_compute_m_n(to_bpp_x16(pipe_config->pipe_bpp),
+	intel_link_compute_m_n(fxp_q4_from_int(pipe_config->pipe_bpp),
 			       lane, fdi_dotclock,
 			       link_bw,
 			       intel_dp_bw_fec_overhead(false),

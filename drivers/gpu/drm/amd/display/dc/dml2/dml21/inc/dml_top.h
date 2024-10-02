@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML_TOP_H__
 #define __DML_TOP_H__
 

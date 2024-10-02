@@ -163,7 +163,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ret;
 
 out_err_dev_stop:
-	adf_dev_down(accel_dev, false);
+	adf_dev_down(accel_dev);
 out_err:
 	adf_cleanup_accel(accel_dev);
 	return ret;
@@ -177,7 +177,7 @@ static void adf_remove(struct pci_dev *pdev)
 		pr_err("QAT: Driver removal failed\n");
 		return;
 	}
-	adf_dev_down(accel_dev, false);
+	adf_dev_down(accel_dev);
 	adf_cleanup_accel(accel_dev);
 }
 

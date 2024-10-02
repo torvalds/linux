@@ -784,6 +784,43 @@ static int pseries_notify_resume(struct eeh_dev *edev)
 }
 #endif
 
+/**
+ * pseries_eeh_err_inject - Inject specified error to the indicated PE
+ * @pe: the indicated PE
+ * @type: error type
+ * @func: specific error type
+ * @addr: address
+ * @mask: address mask
+ * The routine is called to inject specified error, which is
+ * determined by @type and @func, to the indicated PE
+ */
+static int pseries_eeh_err_inject(struct eeh_pe *pe, int type, int func,
+				  unsigned long addr, unsigned long mask)
+{
+	struct	eeh_dev	*pdev;
+
+	/* Check on PCI error type */
+	if (type != EEH_ERR_TYPE_32 && type != EEH_ERR_TYPE_64)
+		return -EINVAL;
+
+	switch (func) {
+	case EEH_ERR_FUNC_LD_MEM_ADDR:
+	case EEH_ERR_FUNC_LD_MEM_DATA:
+	case EEH_ERR_FUNC_ST_MEM_ADDR:
+	case EEH_ERR_FUNC_ST_MEM_DATA:
+		/* injects a MMIO error for all pdev's belonging to PE */
+		pci_lock_rescan_remove();
+		list_for_each_entry(pdev, &pe->edevs, entry)
+			eeh_pe_inject_mmio_error(pdev->pdev);
+		pci_unlock_rescan_remove();
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
 	.probe			= pseries_eeh_probe,
@@ -792,7 +829,7 @@ static struct eeh_ops pseries_eeh_ops = {
 	.reset			= pseries_eeh_reset,
 	.get_log		= pseries_eeh_get_log,
 	.configure_bridge       = pseries_eeh_configure_bridge,
-	.err_inject		= NULL,
+	.err_inject		= pseries_eeh_err_inject,
 	.read_config		= pseries_eeh_read_config,
 	.write_config		= pseries_eeh_write_config,
 	.next_error		= NULL,

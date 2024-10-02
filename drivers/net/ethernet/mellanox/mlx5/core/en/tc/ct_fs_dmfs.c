@@ -65,9 +65,30 @@ mlx5_ct_fs_dmfs_ct_rule_del(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_ru
 	kfree(dmfs_rule);
 }
 
+static int mlx5_ct_fs_dmfs_ct_rule_update(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_rule,
+					  struct mlx5_flow_spec *spec, struct mlx5_flow_attr *attr)
+{
+	struct mlx5_ct_fs_dmfs_rule *dmfs_rule = container_of(fs_rule,
+							      struct mlx5_ct_fs_dmfs_rule,
+							      fs_rule);
+	struct mlx5e_priv *priv = netdev_priv(fs->netdev);
+	struct mlx5_flow_handle *rule;
+
+	rule = mlx5_tc_rule_insert(priv, spec, attr);
+	if (IS_ERR(rule))
+		return PTR_ERR(rule);
+	mlx5_tc_rule_delete(priv, dmfs_rule->rule, dmfs_rule->attr);
+
+	dmfs_rule->rule = rule;
+	dmfs_rule->attr = attr;
+
+	return 0;
+}
+
 static struct mlx5_ct_fs_ops dmfs_ops = {
 	.ct_rule_add = mlx5_ct_fs_dmfs_ct_rule_add,
 	.ct_rule_del = mlx5_ct_fs_dmfs_ct_rule_del,
+	.ct_rule_update = mlx5_ct_fs_dmfs_ct_rule_update,
 
 	.init = mlx5_ct_fs_dmfs_init,
 	.destroy = mlx5_ct_fs_dmfs_destroy,

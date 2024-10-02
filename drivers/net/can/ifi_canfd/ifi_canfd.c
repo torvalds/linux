@@ -1033,7 +1033,7 @@ static struct platform_driver ifi_canfd_plat_driver = {
 		.of_match_table	= ifi_canfd_of_table,
 	},
 	.probe	= ifi_canfd_plat_probe,
-	.remove_new = ifi_canfd_plat_remove,
+	.remove = ifi_canfd_plat_remove,
 };
 
 module_platform_driver(ifi_canfd_plat_driver);

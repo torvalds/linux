@@ -29,6 +29,12 @@
 #include "entry-header.S"
 #include <asm/probes.h>
 
+#ifdef CONFIG_HAVE_LD_DEAD_CODE_DATA_ELIMINATION
+#define RELOC_TEXT_NONE .reloc  .text, R_ARM_NONE, .
+#else
+#define RELOC_TEXT_NONE
+#endif
+
 /*
  * Interrupt handling.
  */
@@ -1065,7 +1071,7 @@ vector_addrexcptn:
 	.globl	vector_fiq
 
 	.section .vectors, "ax", %progbits
-	.reloc  .text, R_ARM_NONE, .
+	RELOC_TEXT_NONE
 	W(b)	vector_rst
 	W(b)	vector_und
 ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_swi		)
@@ -1079,7 +1085,7 @@ THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_swi		)
 
 #ifdef CONFIG_HARDEN_BRANCH_HISTORY
 	.section .vectors.bhb.loop8, "ax", %progbits
-	.reloc  .text, R_ARM_NONE, .
+	RELOC_TEXT_NONE
 	W(b)	vector_rst
 	W(b)	vector_bhb_loop8_und
 ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_bhb_loop8_swi	)
@@ -1092,7 +1098,7 @@ THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_bhb_loop8_swi	)
 	W(b)	vector_bhb_loop8_fiq
 
 	.section .vectors.bhb.bpiall, "ax", %progbits
-	.reloc  .text, R_ARM_NONE, .
+	RELOC_TEXT_NONE
 	W(b)	vector_rst
 	W(b)	vector_bhb_bpiall_und
 ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_bhb_bpiall_swi	)

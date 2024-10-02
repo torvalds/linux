@@ -111,7 +111,7 @@ MODULE_DEVICE_TABLE(of, ctucan_of_match);
 
 static struct platform_driver ctucanfd_driver = {
 	.probe	= ctucan_platform_probe,
-	.remove_new = ctucan_platform_remove,
+	.remove = ctucan_platform_remove,
 	.driver	= {
 		.name = DRV_NAME,
 		.pm = &ctucan_platform_pm_ops,

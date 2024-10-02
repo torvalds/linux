@@ -1285,6 +1285,15 @@ unregister_ports:
 	return ret;
 }
 
+static void cros_typec_remove(struct platform_device *pdev)
+{
+	struct cros_typec_data *typec = platform_get_drvdata(pdev);
+
+	cros_usbpd_unregister_notify(&typec->nb);
+	cancel_work_sync(&typec->port_work);
+	cros_unregister_ports(typec);
+}
+
 static int __maybe_unused cros_typec_suspend(struct device *dev)
 {
 	struct cros_typec_data *typec = dev_get_drvdata(dev);
@@ -1316,6 +1325,7 @@ static struct platform_driver cros_typec_driver = {
 		.pm = &cros_typec_pm_ops,
 	},
 	.probe = cros_typec_probe,
+	.remove_new = cros_typec_remove,
 };
 
 module_platform_driver(cros_typec_driver);

@@ -35,6 +35,7 @@ DECLARE_RC_STRUCT(map) {
 	enum mapping_type	mapping_type:8;
 	bool			erange_warned;
 	bool			priv;
+	bool			hit;
 };
 
 struct kmap;
@@ -81,6 +82,11 @@ static inline u32 map__prot(const struct map *map)
 static inline bool map__priv(const struct map *map)
 {
 	return RC_CHK_ACCESS(map)->priv;
+}
+
+static inline bool map__hit(const struct map *map)
+{
+	return RC_CHK_ACCESS(map)->hit;
 }
 
 static inline refcount_t *map__refcnt(struct map *map)
@@ -165,9 +171,6 @@ struct thread;
 
 #define map__for_each_symbol_by_name(map, sym_name, pos, idx)	\
 	__map__for_each_symbol_by_name(map, sym_name, (pos), idx)
-
-void map__init(struct map *map,
-	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 
 struct dso_id;
 struct build_id;
@@ -285,14 +288,19 @@ static inline void map__set_reloc(struct map *map, u64 reloc)
 	RC_CHK_ACCESS(map)->reloc = reloc;
 }
 
-static inline void map__set_priv(struct map *map, int priv)
+static inline void map__set_priv(struct map *map)
 {
-	RC_CHK_ACCESS(map)->priv = priv;
+	RC_CHK_ACCESS(map)->priv = true;
 }
 
-static inline void map__set_erange_warned(struct map *map, bool erange_warned)
+static inline void map__set_hit(struct map *map)
 {
-	RC_CHK_ACCESS(map)->erange_warned = erange_warned;
+	RC_CHK_ACCESS(map)->hit = true;
+}
+
+static inline void map__set_erange_warned(struct map *map)
+{
+	RC_CHK_ACCESS(map)->erange_warned = true;
 }
 
 static inline void map__set_dso(struct map *map, struct dso *dso)

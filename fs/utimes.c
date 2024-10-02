@@ -115,9 +115,9 @@ static int do_utimes_fd(int fd, struct timespec64 *times, int flags)
 		return -EINVAL;
 
 	f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
-	error = vfs_utimes(&f.file->f_path, times);
+	error = vfs_utimes(&fd_file(f)->f_path, times);
 	fdput(f);
 	return error;
 }

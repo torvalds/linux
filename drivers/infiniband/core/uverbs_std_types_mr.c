@@ -239,7 +239,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_DMABUF_MR)(
 
 	mr = pd->device->ops.reg_user_mr_dmabuf(pd, offset, length, iova, fd,
 						access_flags,
-						&attrs->driver_udata);
+						attrs);
 	if (IS_ERR(mr))
 		return PTR_ERR(mr);
 

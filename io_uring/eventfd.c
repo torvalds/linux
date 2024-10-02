@@ -15,7 +15,7 @@ struct io_ev_fd {
 	struct eventfd_ctx	*cq_ev_fd;
 	unsigned int		eventfd_async: 1;
 	struct rcu_head		rcu;
-	atomic_t		refs;
+	refcount_t		refs;
 	atomic_t		ops;
 };
 
@@ -37,7 +37,7 @@ static void io_eventfd_do_signal(struct rcu_head *rcu)
 
 	eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
 
-	if (atomic_dec_and_test(&ev_fd->refs))
+	if (refcount_dec_and_test(&ev_fd->refs))
 		io_eventfd_free(rcu);
 }
 
@@ -63,7 +63,7 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 	 */
 	if (unlikely(!ev_fd))
 		return;
-	if (!atomic_inc_not_zero(&ev_fd->refs))
+	if (!refcount_inc_not_zero(&ev_fd->refs))
 		return;
 	if (ev_fd->eventfd_async && !io_wq_current_is_worker())
 		goto out;
@@ -77,7 +77,7 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 		}
 	}
 out:
-	if (atomic_dec_and_test(&ev_fd->refs))
+	if (refcount_dec_and_test(&ev_fd->refs))
 		call_rcu(&ev_fd->rcu, io_eventfd_free);
 }
 
@@ -126,6 +126,7 @@ int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 	ev_fd->cq_ev_fd = eventfd_ctx_fdget(fd);
 	if (IS_ERR(ev_fd->cq_ev_fd)) {
 		int ret = PTR_ERR(ev_fd->cq_ev_fd);
+
 		kfree(ev_fd);
 		return ret;
 	}
@@ -136,7 +137,7 @@ int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	ev_fd->eventfd_async = eventfd_async;
 	ctx->has_evfd = true;
-	atomic_set(&ev_fd->refs, 1);
+	refcount_set(&ev_fd->refs, 1);
 	atomic_set(&ev_fd->ops, 0);
 	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
 	return 0;
@@ -151,7 +152,7 @@ int io_eventfd_unregister(struct io_ring_ctx *ctx)
 	if (ev_fd) {
 		ctx->has_evfd = false;
 		rcu_assign_pointer(ctx->io_ev_fd, NULL);
-		if (atomic_dec_and_test(&ev_fd->refs))
+		if (refcount_dec_and_test(&ev_fd->refs))
 			call_rcu(&ev_fd->rcu, io_eventfd_free);
 		return 0;
 	}

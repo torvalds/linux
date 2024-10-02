@@ -800,7 +800,7 @@ static bool __rtw89_reg_6ghz_tpe_recalc(struct rtw89_dev *rtwdev)
 		const struct rtw89_reg_6ghz_tpe *tmp;
 		const struct rtw89_chan *chan;
 
-		chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+		chan = rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
 		if (chan->band_type != RTW89_BAND_6G)
 			continue;
 
@@ -872,7 +872,7 @@ static bool __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
 	u8 index;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
-		chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+		chan = rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
 		if (chan->band_type != RTW89_BAND_6G)
 			continue;
 

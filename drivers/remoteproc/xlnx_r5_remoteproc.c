@@ -57,6 +57,17 @@ struct mem_bank_data {
 };
 
 /**
+ * struct zynqmp_sram_bank - sram bank description
+ *
+ * @sram_res: sram address region information
+ * @da: device address of sram
+ */
+struct zynqmp_sram_bank {
+	struct resource sram_res;
+	u32 da;
+};
+
+/**
  * struct mbox_info
  *
  * @rx_mc_buf: to copy data from mailbox rx channel
@@ -120,6 +131,8 @@ static const struct mem_bank_data zynqmp_tcm_banks_lockstep[] = {
  * struct zynqmp_r5_core
  *
  * @rsc_tbl_va: resource table virtual address
+ * @sram: Array of sram memories assigned to this core
+ * @num_sram: number of sram for this core
  * @dev: device of RPU instance
  * @np: device node of RPU instance
  * @tcm_bank_count: number TCM banks accessible to this RPU
@@ -131,6 +144,8 @@ static const struct mem_bank_data zynqmp_tcm_banks_lockstep[] = {
  */
 struct zynqmp_r5_core {
 	void __iomem *rsc_tbl_va;
+	struct zynqmp_sram_bank *sram;
+	int num_sram;
 	struct device *dev;
 	struct device_node *np;
 	int tcm_bank_count;
@@ -494,6 +509,45 @@ static int add_mem_regions_carveout(struct rproc *rproc)
 	return 0;
 }
 
+static int add_sram_carveouts(struct rproc *rproc)
+{
+	struct zynqmp_r5_core *r5_core = rproc->priv;
+	struct rproc_mem_entry *rproc_mem;
+	struct zynqmp_sram_bank *sram;
+	dma_addr_t dma_addr;
+	size_t len;
+	int da, i;
+
+	for (i = 0; i < r5_core->num_sram; i++) {
+		sram = &r5_core->sram[i];
+
+		dma_addr = (dma_addr_t)sram->sram_res.start;
+
+		len = resource_size(&sram->sram_res);
+		da = sram->da;
+
+		rproc_mem = rproc_mem_entry_init(&rproc->dev, NULL,
+						 dma_addr,
+						 len, da,
+						 zynqmp_r5_mem_region_map,
+						 zynqmp_r5_mem_region_unmap,
+						 sram->sram_res.name);
+		if (!rproc_mem) {
+			dev_err(&rproc->dev, "failed to add sram %s da=0x%x, size=0x%lx",
+				sram->sram_res.name, da, len);
+			return -ENOMEM;
+		}
+
+		rproc_add_carveout(rproc, rproc_mem);
+		rproc_coredump_add_segment(rproc, da, len);
+
+		dev_dbg(&rproc->dev, "sram carveout %s addr=%llx, da=0x%x, size=0x%lx",
+			sram->sram_res.name, dma_addr, da, len);
+	}
+
+	return 0;
+}
+
 /*
  * tcm_mem_unmap()
  * @rproc: single R5 core's corresponding rproc instance
@@ -666,6 +720,12 @@ static int zynqmp_r5_rproc_prepare(struct rproc *rproc)
 	ret = add_mem_regions_carveout(rproc);
 	if (ret) {
 		dev_err(&rproc->dev, "failed to get reserve mem regions %d\n", ret);
+		return ret;
+	}
+
+	ret = add_sram_carveouts(rproc);
+	if (ret) {
+		dev_err(&rproc->dev, "failed to get sram carveout %d\n", ret);
 		return ret;
 	}
 
@@ -881,6 +941,77 @@ free_rproc:
 	return ERR_PTR(ret);
 }
 
+static int zynqmp_r5_get_sram_banks(struct zynqmp_r5_core *r5_core)
+{
+	struct device_node *np = r5_core->np;
+	struct device *dev = r5_core->dev;
+	struct zynqmp_sram_bank *sram;
+	struct device_node *sram_np;
+	int num_sram, i, ret;
+	u64 abs_addr, size;
+
+	/* "sram" is optional property. Do not fail, if unavailable. */
+	if (!of_property_present(r5_core->np, "sram"))
+		return 0;
+
+	num_sram = of_property_count_elems_of_size(np, "sram", sizeof(phandle));
+	if (num_sram <= 0) {
+		dev_err(dev, "Invalid sram property, ret = %d\n",
+			num_sram);
+		return -EINVAL;
+	}
+
+	sram = devm_kcalloc(dev, num_sram,
+			    sizeof(struct zynqmp_sram_bank), GFP_KERNEL);
+	if (!sram)
+		return -ENOMEM;
+
+	for (i = 0; i < num_sram; i++) {
+		sram_np = of_parse_phandle(np, "sram", i);
+		if (!sram_np) {
+			dev_err(dev, "failed to get sram %d phandle\n", i);
+			return -EINVAL;
+		}
+
+		if (!of_device_is_available(sram_np)) {
+			dev_err(dev, "sram device not available\n");
+			ret = -EINVAL;
+			goto fail_sram_get;
+		}
+
+		ret = of_address_to_resource(sram_np, 0, &sram[i].sram_res);
+		if (ret) {
+			dev_err(dev, "addr to res failed\n");
+			goto fail_sram_get;
+		}
+
+		/* Get SRAM device address */
+		ret = of_property_read_reg(sram_np, i, &abs_addr, &size);
+		if (ret) {
+			dev_err(dev, "failed to get reg property\n");
+			goto fail_sram_get;
+		}
+
+		sram[i].da = (u32)abs_addr;
+
+		of_node_put(sram_np);
+
+		dev_dbg(dev, "sram %d: name=%s, addr=0x%llx, da=0x%x, size=0x%llx\n",
+			i, sram[i].sram_res.name, sram[i].sram_res.start,
+			sram[i].da, resource_size(&sram[i].sram_res));
+	}
+
+	r5_core->sram = sram;
+	r5_core->num_sram = num_sram;
+
+	return 0;
+
+fail_sram_get:
+	of_node_put(sram_np);
+
+	return ret;
+}
+
 static int zynqmp_r5_get_tcm_node_from_dt(struct zynqmp_r5_cluster *cluster)
 {
 	int i, j, tcm_bank_count, ret, tcm_pd_idx, pd_count;
@@ -1059,7 +1190,7 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 	r5_core = cluster->r5_cores[0];
 
 	/* Maintain backward compatibility for zynqmp by using hardcode TCM address. */
-	if (of_find_property(r5_core->np, "reg", NULL))
+	if (of_property_present(r5_core->np, "reg"))
 		ret = zynqmp_r5_get_tcm_node_from_dt(cluster);
 	else if (device_is_compatible(dev, "xlnx,zynqmp-r5fss"))
 		ret = zynqmp_r5_get_tcm_node(cluster);
@@ -1086,7 +1217,7 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 			return ret;
 		}
 
-		if (of_find_property(dev_of_node(dev), "xlnx,tcm-mode", NULL) ||
+		if (of_property_present(dev_of_node(dev), "xlnx,tcm-mode") ||
 		    device_is_compatible(dev, "xlnx,zynqmp-r5fss")) {
 			ret = zynqmp_pm_set_tcm_config(r5_core->pm_domain_id,
 						       tcm_mode);
@@ -1095,6 +1226,10 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 				return ret;
 			}
 		}
+
+		ret = zynqmp_r5_get_sram_banks(r5_core);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1147,7 +1282,7 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		return -EINVAL;
 	}
 
-	if (of_find_property(dev_node, "xlnx,tcm-mode", NULL)) {
+	if (of_property_present(dev_node, "xlnx,tcm-mode")) {
 		ret = of_property_read_u32(dev_node, "xlnx,tcm-mode", (u32 *)&tcm_mode);
 		if (ret)
 			return ret;

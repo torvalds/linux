@@ -242,17 +242,17 @@ static const struct regulator_desc tps65023_regulators[] = {
 	TPS65023_REGULATOR_LDO(2, TPS65023_LDO2_VSEL_table, 0x70),
 };
 
-static struct tps_driver_data tps65020_drv_data = {
+static const struct tps_driver_data tps65020_drv_data = {
 	.desc = tps65020_regulators,
 	.core_regulator = TPS65023_DCDC_3,
 };
 
-static struct tps_driver_data tps65021_drv_data = {
+static const struct tps_driver_data tps65021_drv_data = {
 	.desc = tps65021_regulators,
 	.core_regulator = TPS65023_DCDC_3,
 };
 
-static struct tps_driver_data tps65023_drv_data = {
+static const struct tps_driver_data tps65023_drv_data = {
 	.desc = tps65023_regulators,
 	.core_regulator = TPS65023_DCDC_1,
 };

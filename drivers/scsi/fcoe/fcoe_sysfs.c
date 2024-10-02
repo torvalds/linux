@@ -45,12 +45,8 @@ MODULE_PARM_DESC(fcf_dev_loss_tmo,
  */
 #define fcoe_ctlr_id(x)				\
 	((x)->id)
-#define fcoe_ctlr_work_q_name(x)		\
-	((x)->work_q_name)
 #define fcoe_ctlr_work_q(x)			\
 	((x)->work_q)
-#define fcoe_ctlr_devloss_work_q_name(x)	\
-	((x)->devloss_work_q_name)
 #define fcoe_ctlr_devloss_work_q(x)		\
 	((x)->devloss_work_q)
 #define fcoe_ctlr_mode(x)			\
@@ -797,18 +793,14 @@ struct fcoe_ctlr_device *fcoe_ctlr_device_add(struct device *parent,
 
 	ctlr->fcf_dev_loss_tmo = fcoe_fcf_dev_loss_tmo;
 
-	snprintf(ctlr->work_q_name, sizeof(ctlr->work_q_name),
-		 "ctlr_wq_%d", ctlr->id);
-	ctlr->work_q = create_singlethread_workqueue(
-		ctlr->work_q_name);
+	ctlr->work_q = alloc_ordered_workqueue("ctlr_wq_%d", WQ_MEM_RECLAIM,
+					       ctlr->id);
 	if (!ctlr->work_q)
 		goto out_del;
 
-	snprintf(ctlr->devloss_work_q_name,
-		 sizeof(ctlr->devloss_work_q_name),
-		 "ctlr_dl_wq_%d", ctlr->id);
-	ctlr->devloss_work_q = create_singlethread_workqueue(
-		ctlr->devloss_work_q_name);
+	ctlr->devloss_work_q = alloc_ordered_workqueue("ctlr_dl_wq_%d",
+						       WQ_MEM_RECLAIM,
+						       ctlr->id);
 	if (!ctlr->devloss_work_q)
 		goto out_del_q;
 

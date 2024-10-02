@@ -79,10 +79,17 @@ nilfs_sufile_block_get_segment_usage(const struct inode *sufile, __u64 segnum,
 		NILFS_MDT(sufile)->mi_entry_size;
 }
 
-static inline int nilfs_sufile_get_header_block(struct inode *sufile,
-						struct buffer_head **bhp)
+static int nilfs_sufile_get_header_block(struct inode *sufile,
+					 struct buffer_head **bhp)
 {
-	return nilfs_mdt_get_block(sufile, 0, 0, NULL, bhp);
+	int err = nilfs_mdt_get_block(sufile, 0, 0, NULL, bhp);
+
+	if (unlikely(err == -ENOENT)) {
+		nilfs_error(sufile->i_sb,
+			    "missing header block in segment usage metadata");
+		err = -EIO;
+	}
+	return err;
 }
 
 static inline int
@@ -506,8 +513,15 @@ int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum)
 
 	down_write(&NILFS_MDT(sufile)->mi_sem);
 	ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0, &bh);
-	if (ret)
+	if (unlikely(ret)) {
+		if (ret == -ENOENT) {
+			nilfs_error(sufile->i_sb,
+				    "segment usage for segment %llu is unreadable due to a hole block",
+				    (unsigned long long)segnum);
+			ret = -EIO;
+		}
 		goto out_sem;
+	}
 
 	kaddr = kmap_local_page(bh->b_page);
 	su = nilfs_sufile_block_get_segment_usage(sufile, segnum, bh, kaddr);
@@ -840,21 +854,17 @@ out:
 }
 
 /**
- * nilfs_sufile_get_suinfo -
+ * nilfs_sufile_get_suinfo - get segment usage information
  * @sufile: inode of segment usage file
  * @segnum: segment number to start looking
- * @buf: array of suinfo
- * @sisz: byte size of suinfo
- * @nsi: size of suinfo array
+ * @buf:    array of suinfo
+ * @sisz:   byte size of suinfo
+ * @nsi:    size of suinfo array
  *
- * Description:
- *
- * Return Value: On success, 0 is returned and .... On error, one of the
- * following negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
+ * Return: Count of segment usage info items stored in the output buffer on
+ * success, or the following negative error code on failure.
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
  */
 ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 				unsigned int sisz, size_t nsi)
@@ -1241,9 +1251,15 @@ int nilfs_sufile_read(struct super_block *sb, size_t susize,
 	if (err)
 		goto failed;
 
-	err = nilfs_sufile_get_header_block(sufile, &header_bh);
-	if (err)
+	err = nilfs_mdt_get_block(sufile, 0, 0, NULL, &header_bh);
+	if (unlikely(err)) {
+		if (err == -ENOENT) {
+			nilfs_err(sb,
+				  "missing header block in segment usage metadata");
+			err = -EINVAL;
+		}
 		goto failed;
+	}
 
 	sui = NILFS_SUI(sufile);
 	kaddr = kmap_local_page(header_bh->b_page);

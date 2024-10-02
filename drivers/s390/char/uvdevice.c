@@ -448,7 +448,6 @@ static long uvio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static const struct file_operations uvio_dev_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = uvio_ioctl,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice uvio_dev_miscdev = {

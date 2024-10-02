@@ -8,7 +8,8 @@
 #include <linux/minmax.h>
 
 #include <drm/drm_managed.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
+
 #include <generated/xe_wa_oob.h>
 
 #include "instructions/xe_gfxpipe_commands.h"
@@ -45,7 +46,6 @@
 #include "xe_migrate.h"
 #include "xe_mmio.h"
 #include "xe_pat.h"
-#include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_mocs.h"
 #include "xe_reg_sr.h"
@@ -95,6 +95,51 @@ void xe_gt_sanitize(struct xe_gt *gt)
 	gt->uc.guc.submission_state.enabled = false;
 }
 
+static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
+{
+	u32 reg;
+	int err;
+
+	if (!XE_WA(gt, 16023588340))
+		return;
+
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (WARN_ON(err))
+		return;
+
+	if (!xe_gt_is_media_type(gt)) {
+		xe_mmio_write32(gt, SCRATCH1LPFC, EN_L3_RW_CCS_CACHE_FLUSH);
+		reg = xe_gt_mcr_unicast_read_any(gt, XE2_GAMREQSTRM_CTRL);
+		reg |= CG_DIS_CNTLBUS;
+		xe_gt_mcr_multicast_write(gt, XE2_GAMREQSTRM_CTRL, reg);
+	}
+
+	xe_gt_mcr_multicast_write(gt, XEHPC_L3CLOS_MASK(3), 0x3);
+	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+}
+
+static void xe_gt_disable_host_l2_vram(struct xe_gt *gt)
+{
+	u32 reg;
+	int err;
+
+	if (!XE_WA(gt, 16023588340))
+		return;
+
+	if (xe_gt_is_media_type(gt))
+		return;
+
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (WARN_ON(err))
+		return;
+
+	reg = xe_gt_mcr_unicast_read_any(gt, XE2_GAMREQSTRM_CTRL);
+	reg &= ~CG_DIS_CNTLBUS;
+	xe_gt_mcr_multicast_write(gt, XE2_GAMREQSTRM_CTRL, reg);
+
+	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+}
+
 /**
  * xe_gt_remove() - Clean up the GT structures before driver removal
  * @gt: the GT object
@@ -111,6 +156,8 @@ void xe_gt_remove(struct xe_gt *gt)
 
 	for (i = 0; i < XE_ENGINE_CLASS_MAX; ++i)
 		xe_hw_fence_irq_finish(&gt->fence_irq[i]);
+
+	xe_gt_disable_host_l2_vram(gt);
 }
 
 static void gt_reset_worker(struct work_struct *w);
@@ -338,7 +385,7 @@ int xe_gt_init_early(struct xe_gt *gt)
 	xe_tuning_process_gt(gt);
 
 	xe_force_wake_init_gt(gt, gt_to_fw(gt));
-	xe_pcode_init(gt);
+	spin_lock_init(&gt->global_invl_lock);
 
 	return 0;
 }
@@ -519,6 +566,7 @@ int xe_gt_init_hwconfig(struct xe_gt *gt)
 
 	xe_gt_topology_init(gt);
 	xe_gt_mcr_init(gt);
+	xe_gt_enable_host_l2_vram(gt);
 
 out_fw:
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
@@ -643,6 +691,8 @@ static int do_gt_restart(struct xe_gt *gt)
 
 	xe_pat_init(gt);
 
+	xe_gt_enable_host_l2_vram(gt);
+
 	xe_gt_mcr_set_implicit_defaults(gt);
 	xe_reg_sr_apply_mmio(&gt->reg_sr, gt);
 
@@ -702,12 +752,13 @@ static int gt_reset(struct xe_gt *gt)
 
 	xe_gt_info(gt, "reset started\n");
 
+	xe_pm_runtime_get(gt_to_xe(gt));
+
 	if (xe_fault_inject_gt_reset()) {
 		err = -ECANCELED;
 		goto err_fail;
 	}
 
-	xe_pm_runtime_get(gt_to_xe(gt));
 	xe_gt_sanitize(gt);
 
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
@@ -742,11 +793,11 @@ err_out:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 err_msg:
 	XE_WARN_ON(xe_uc_start(&gt->uc));
-	xe_pm_runtime_put(gt_to_xe(gt));
 err_fail:
 	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
 
 	xe_device_declare_wedged(gt_to_xe(gt));
+	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return err;
 }
@@ -795,6 +846,8 @@ int xe_gt_suspend(struct xe_gt *gt)
 		goto err_force_wake;
 
 	xe_gt_idle_disable_pg(gt);
+
+	xe_gt_disable_host_l2_vram(gt);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 	xe_gt_dbg(gt, "suspended\n");

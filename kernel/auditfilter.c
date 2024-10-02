@@ -1344,7 +1344,7 @@ int audit_filter(int msgtype, unsigned int listtype)
 
 			switch (f->type) {
 			case AUDIT_PID:
-				pid = task_pid_nr(current);
+				pid = task_tgid_nr(current);
 				result = audit_comparator(pid, f->op, f->val);
 				break;
 			case AUDIT_UID:

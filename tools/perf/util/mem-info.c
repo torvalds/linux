@@ -33,3 +33,16 @@ struct mem_info *mem_info__new(void)
 
 	return result;
 }
+
+struct mem_info *mem_info__clone(struct mem_info *mi)
+{
+	struct mem_info *result = mem_info__new();
+
+	if (result) {
+		addr_map_symbol__copy(mem_info__iaddr(result), mem_info__iaddr(mi));
+		addr_map_symbol__copy(mem_info__daddr(result), mem_info__daddr(mi));
+		mem_info__data_src(result)->val = mem_info__data_src(mi)->val;
+	}
+
+	return result;
+}

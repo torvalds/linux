@@ -209,7 +209,7 @@ static void prism2_wep_print_stats(struct seq_file *m, void *priv)
 	seq_printf(m, "key[%d] alg=WEP len=%d\n", wep->key_idx, wep->key_len);
 }
 
-static struct lib80211_crypto_ops rtllib_crypt_wep = {
+static const struct lib80211_crypto_ops rtllib_crypt_wep = {
 	.name			= "R-WEP",
 	.init			= prism2_wep_init,
 	.deinit			= prism2_wep_deinit,

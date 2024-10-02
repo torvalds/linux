@@ -112,7 +112,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	/* if the slot exits it always contains a function */
+	/* if the slot exists it always contains a function */
 	*value = 1;
 	return 0;
 }

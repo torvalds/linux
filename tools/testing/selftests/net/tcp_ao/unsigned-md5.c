@@ -70,6 +70,7 @@ static void try_accept(const char *tst_name, unsigned int port,
 
 	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
 	err = test_wait_fd(lsk, timeout, 0);
+	synchronize_threads(); /* connect()/accept() timeouts */
 	if (err == -ETIMEDOUT) {
 		if (!fault(TIMEOUT))
 			test_fail("timed out for accept()");
@@ -100,10 +101,10 @@ static void try_accept(const char *tst_name, unsigned int port,
 	after_cnt = netstat_get_one(cnt_name, NULL);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did not increase: %" PRIu64 " <= %" PRIu64,
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
-		test_ok("%s: counter %s increased %zu => %zu",
+		test_ok("%s: counter %s increased %" PRIu64 " => %" PRIu64,
 			tst_name, cnt_name, before_cnt, after_cnt);
 	}
 	if (ao_addr)
@@ -283,6 +284,7 @@ static void try_connect(const char *tst_name, unsigned int port,
 	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
 	ret = _test_connect_socket(sk, this_ip_dest, port, timeout);
 
+	synchronize_threads(); /* connect()/accept() timeouts */
 	if (ret < 0) {
 		if (fault(KEYREJECT) && ret == -EKEYREJECTED)
 			test_ok("%s: connect() was prevented", tst_name);
@@ -451,6 +453,7 @@ static void try_to_add(const char *tst_name, unsigned int port,
 	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
 	ret = _test_connect_socket(sk, this_ip_dest, port, timeout);
 
+	synchronize_threads(); /* connect()/accept() timeouts */
 	if (ret <= 0) {
 		test_error("%s: connect() returned %d", tst_name, ret);
 		goto out;
@@ -671,24 +674,38 @@ static void *client_fn(void *arg)
 
 	try_connect("AO server (INADDR_ANY): AO client", port++, NULL, 0,
 		    &addr_any, 0, 100, 100, 0, 0, 0, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		    NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_AO_REQUIRED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO server (INADDR_ANY): unsigned client", port++, NULL, 0,
 		    NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 0, &this_ip_addr);
 	try_connect("AO server (AO_REQUIRED): AO client", port++, NULL, 0,
 		    &addr_any, 0, 100, 100, 0, 0, 0, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_AO_REQUIRED, client2,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO server (AO_REQUIRED): unsigned client", port++, NULL, 0,
 		    NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 0, &client2);
 
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("MD5 server (INADDR_ANY): AO client", port++, NULL, 0,
 		   &addr_any, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 	try_connect("MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, 0, 1, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_REQUIRED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("MD5 server (INADDR_ANY): no sign client", port++, NULL, 0,
 		   NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("no sign server: AO client", port++, NULL, 0,
 		   &addr_any, 0, 100, 100, 0, FAULT_TIMEOUT, 0, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("no sign server: MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, FAULT_TIMEOUT, 1, &this_ip_addr);
 	try_connect("no sign server: no sign client", port++, NULL, 0,
@@ -696,25 +713,37 @@ static void *client_fn(void *arg)
 
 	try_connect("AO+MD5 server: AO client (matching)", port++, NULL, 0,
 		   &addr_any, 0, 100, 100, 0, 0, 1, &client2);
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("AO+MD5 server: AO client (misconfig, matching MD5)",
 		   port++, NULL, 0, &addr_any, 0, 100, 100, 0,
 		   FAULT_TIMEOUT, 1, &this_ip_addr);
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, client3, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("AO+MD5 server: AO client (misconfig, non-matching)",
 		   port++, NULL, 0, &addr_any, 0, 100, 100, 0,
 		   FAULT_TIMEOUT, 1, &client3);
 	try_connect("AO+MD5 server: MD5 client (matching)", port++, &addr_any, 0,
 		   NULL, 0, 100, 100, 0, 0, 1, &this_ip_addr);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, client2,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: MD5 client (misconfig, matching AO)",
 		   port++, &addr_any, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client2);
+	trace_hash_event_expect(TCP_HASH_MD5_UNEXPECTED, client3,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: MD5 client (misconfig, non-matching)",
 		   port++, &addr_any, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client3);
 	try_connect("AO+MD5 server: no sign client (unmatched)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, 0, 1, &client3);
+	trace_hash_event_expect(TCP_HASH_AO_REQUIRED, client2,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: no sign client (misconfig, matching AO)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &client2);
+	trace_hash_event_expect(TCP_HASH_MD5_REQUIRED, this_ip_addr,
+				this_ip_dest, -1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO+MD5 server: no sign client (misconfig, matching MD5)",
 		   port++, NULL, 0, NULL, 0, 100, 100, 0, FAULT_TIMEOUT,
 		   1, &this_ip_addr);
@@ -736,6 +765,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(72, server_fn, client_fn);
+	test_init(73, server_fn, client_fn);
 	return 0;
 }

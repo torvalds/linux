@@ -15,8 +15,6 @@ extern int extract_param(const char *, const char *, unsigned int, char *,
 		unsigned char *);
 extern int iscsi_target_check_login_request(struct iscsit_conn *,
 		struct iscsi_login *);
-extern int iscsi_target_get_initial_payload(struct iscsit_conn *,
-		struct iscsi_login *);
 extern int iscsi_target_locate_portal(struct iscsi_np *, struct iscsit_conn *,
 		struct iscsi_login *);
 extern int iscsi_target_start_negotiation(

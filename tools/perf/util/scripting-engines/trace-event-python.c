@@ -762,6 +762,8 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, ch
 	}
 }
 
+#define MAX_REG_SIZE 128
+
 static int set_regs_in_dict(PyObject *dict,
 			     struct perf_sample *sample,
 			     struct evsel *evsel)
@@ -769,14 +771,7 @@ static int set_regs_in_dict(PyObject *dict,
 	struct perf_event_attr *attr = &evsel->core.attr;
 	const char *arch = perf_env__arch(evsel__env(evsel));
 
-	/*
-	 * Here value 28 is a constant size which can be used to print
-	 * one register value and its corresponds to:
-	 * 16 chars is to specify 64 bit register in hexadecimal.
-	 * 2 chars is for appending "0x" to the hexadecimal value and
-	 * 10 chars is for register name.
-	 */
-	int size = __sw_hweight64(attr->sample_regs_intr) * 28;
+	int size = (__sw_hweight64(attr->sample_regs_intr) * MAX_REG_SIZE) + 1;
 	char *bf = malloc(size);
 	if (!bf)
 		return -1;
@@ -888,6 +883,8 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	set_sample_read_in_dict(dict_sample, sample, evsel);
 	pydict_set_item_string_decref(dict_sample, "weight",
 			PyLong_FromUnsignedLongLong(sample->weight));
+	pydict_set_item_string_decref(dict_sample, "ins_lat",
+			PyLong_FromUnsignedLong(sample->ins_lat));
 	pydict_set_item_string_decref(dict_sample, "transaction",
 			PyLong_FromUnsignedLongLong(sample->transaction));
 	set_sample_datasrc_in_dict(dict_sample, sample);
@@ -1317,7 +1314,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
 
-	t = tuple_new(27);
+	t = tuple_new(28);
 
 	tuple_set_d64(t, 0, es->db_id);
 	tuple_set_d64(t, 1, es->evsel->db_id);
@@ -1346,6 +1343,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	tuple_set_s32(t, 24, es->sample->flags);
 	tuple_set_d64(t, 25, es->sample->id);
 	tuple_set_d64(t, 26, es->sample->stream_id);
+	tuple_set_u32(t, 27, es->sample->ins_lat);
 
 	call_object(tables->sample_handler, t, "sample_table");
 

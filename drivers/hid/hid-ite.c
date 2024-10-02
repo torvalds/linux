@@ -13,7 +13,7 @@
 
 #define QUIRK_TOUCHPAD_ON_OFF_REPORT		BIT(0)
 
-static __u8 *ite_report_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int *rsize)
+static const __u8 *ite_report_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int *rsize)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
 

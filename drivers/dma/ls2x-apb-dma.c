@@ -33,11 +33,11 @@
 #define LDMA_STOP		BIT(4) /* DMA stop operation */
 #define LDMA_CONFIG_MASK	GENMASK(4, 0) /* DMA controller config bits mask */
 
-/* Bitfields in ndesc_addr field of HW decriptor */
+/* Bitfields in ndesc_addr field of HW descriptor */
 #define LDMA_DESC_EN		BIT(0) /*1: The next descriptor is valid */
 #define LDMA_DESC_ADDR_LOW	GENMASK(31, 1)
 
-/* Bitfields in cmd field of HW decriptor */
+/* Bitfields in cmd field of HW descriptor */
 #define LDMA_INT		BIT(1) /* Enable DMA interrupts */
 #define LDMA_DATA_DIRECTION	BIT(12) /* 1: write to device, 0: read from device */
 

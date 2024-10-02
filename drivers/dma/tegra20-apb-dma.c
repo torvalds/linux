@@ -463,7 +463,7 @@ static void tegra_dma_configure_for_next(struct tegra_dma_channel *tdc,
 
 	/*
 	 * If interrupt is pending then do nothing as the ISR will handle
-	 * the programing for new request.
+	 * the programming for new request.
 	 */
 	if (status & TEGRA_APBDMA_STATUS_ISE_EOC) {
 		dev_err(tdc2dev(tdc),

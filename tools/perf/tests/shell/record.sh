@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf record tests
 # SPDX-License-Identifier: GPL-2.0
 
@@ -21,6 +21,16 @@ testprog="perf test -w thloop"
 cpu_pmu_dir="/sys/bus/event_source/devices/cpu*"
 br_cntr_file="/caps/branch_counter_nr"
 br_cntr_output="branch stack counters"
+br_cntr_script_output="br_cntr: A"
+
+default_fd_limit=$(ulimit -Sn)
+# With option --threads=cpu the number of open file descriptors should be
+# equal to sum of:    nmb_cpus * nmb_events (2+dummy),
+#                     nmb_threads for perf.data.n (equal to nmb_cpus) and
+#                     2*nmb_cpus of pipes = 4*nmb_cpus (each pipe has 2 ends)
+# All together it needs 8*nmb_cpus file descriptors plus some are also used
+# outside of testing, thus raising the limit to 16*nmb_cpus
+min_fd_limit=$(($(getconf _NPROCESSORS_ONLN) * 16))
 
 cleanup() {
   rm -rf "${perfdata}"
@@ -165,7 +175,7 @@ test_workload() {
 }
 
 test_branch_counter() {
-  echo "Basic branch counter test"
+  echo "Branch counter test"
   # Check if the branch counter feature is supported
   for dir in $cpu_pmu_dir
   do
@@ -175,26 +185,63 @@ test_branch_counter() {
       return
     fi
   done
-  if ! perf record -o "${perfdata}" -j any,counter ${testprog} 2> /dev/null
+  if ! perf record -o "${perfdata}" -e "{branches:p,instructions}" -j any,counter ${testprog} 2> /dev/null
   then
-    echo "Basic branch counter test [Failed record]"
+    echo "Branch counter record test [Failed record]"
     err=1
     return
   fi
   if ! perf report -i "${perfdata}" -D -q | grep -q "$br_cntr_output"
   then
-    echo "Basic branch record test [Failed missing output]"
+    echo "Branch counter report test [Failed missing output]"
     err=1
     return
   fi
-  echo "Basic branch counter test [Success]"
+  if ! perf script -i "${perfdata}" -F +brstackinsn,+brcntr | grep -q "$br_cntr_script_output"
+  then
+    echo " Branch counter script test [Failed missing output]"
+    err=1
+    return
+  fi
+  echo "Branch counter test [Success]"
 }
+
+test_cgroup() {
+  echo "Cgroup sampling test"
+  if ! perf record -aB --synth=cgroup --all-cgroups -o "${perfdata}" ${testprog} 2> /dev/null
+  then
+    echo "Cgroup sampling [Skipped not supported]"
+    return
+  fi
+  if ! perf report -i "${perfdata}" -D | grep -q "CGROUP"
+  then
+    echo "Cgroup sampling [Failed missing output]"
+    err=1
+    return
+  fi
+  if ! perf script -i "${perfdata}" -F cgroup | grep -q -v "unknown"
+  then
+    echo "Cgroup sampling [Failed cannot resolve cgroup names]"
+    err=1
+    return
+  fi
+  echo "Cgroup sampling test [Success]"
+}
+
+# raise the limit of file descriptors to minimum
+if [[ $default_fd_limit -lt $min_fd_limit ]]; then
+       ulimit -Sn $min_fd_limit
+fi
 
 test_per_thread
 test_register_capture
 test_system_wide
 test_workload
 test_branch_counter
+test_cgroup
+
+# restore the default value
+ulimit -Sn $default_fd_limit
 
 cleanup
 exit $err

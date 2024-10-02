@@ -13,6 +13,7 @@ TEST_PROGS += conntrack_ipip_mtu.sh
 TEST_PROGS += conntrack_tcp_unreplied.sh
 TEST_PROGS += conntrack_sctp_collision.sh
 TEST_PROGS += conntrack_vrf.sh
+TEST_PROGS += conntrack_reverse_clash.sh
 TEST_PROGS += ipvs.sh
 TEST_PROGS += nf_conntrack_packetdrill.sh
 TEST_PROGS += nf_nat_edemux.sh
@@ -26,6 +27,8 @@ TEST_PROGS += nft_nat.sh
 TEST_PROGS += nft_nat_zones.sh
 TEST_PROGS += nft_queue.sh
 TEST_PROGS += nft_synproxy.sh
+TEST_PROGS += nft_tproxy_tcp.sh
+TEST_PROGS += nft_tproxy_udp.sh
 TEST_PROGS += nft_zones_many.sh
 TEST_PROGS += rpath.sh
 TEST_PROGS += xt_string.sh
@@ -36,6 +39,7 @@ TEST_GEN_PROGS = conntrack_dump_flush
 
 TEST_GEN_FILES = audit_logread
 TEST_GEN_FILES += connect_close nf_queue
+TEST_GEN_FILES += conntrack_reverse_clash
 TEST_GEN_FILES += sctp_collision
 
 include ../../lib.mk

@@ -52,6 +52,25 @@ properties:
 allOf:
   - $ref: dsa.yaml#/$defs/ethernet-ports
 
+patternProperties:
+  "^(ethernet-)?ports$":
+    additionalProperties: true
+    patternProperties:
+      "^(ethernet-)?port@6$":
+        allOf:
+          - if:
+              properties:
+                phy-mode:
+                  contains:
+                    enum:
+                      - rgmii
+            then:
+              properties:
+                rx-internal-delay-ps:
+                  $ref: "#/$defs/internal-delay-ps"
+                tx-internal-delay-ps:
+                  $ref: "#/$defs/internal-delay-ps"
+
 # This checks if reg is a chipselect so the device is on an SPI
 # bus, the if-clause will fail if reg is a tuple such as for a
 # platform device.
@@ -66,6 +85,15 @@ then:
 required:
   - compatible
   - reg
+
+$defs:
+  internal-delay-ps:
+    description:
+      Disable tunable delay lines using 0 ps, or enable them and select
+      the phase between 1400 ps and 2000 ps in increments of 300 ps.
+    default: 2000
+    enum:
+      [0, 1400, 1700, 2000]
 
 unevaluatedProperties: false
 
@@ -108,6 +136,8 @@ examples:
             reg = <6>;
             ethernet = <&gmac1>;
             phy-mode = "rgmii";
+            rx-internal-delay-ps = <0>;
+            tx-internal-delay-ps = <0>;
             fixed-link {
               speed = <1000>;
               full-duplex;
@@ -150,6 +180,8 @@ examples:
           ethernet-port@6 {
             reg = <6>;
             ethernet = <&enet0>;
+            rx-internal-delay-ps = <0>;
+            tx-internal-delay-ps = <0>;
             phy-mode = "rgmii";
             fixed-link {
               speed = <1000>;

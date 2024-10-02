@@ -412,7 +412,6 @@ static const struct file_operations snd_mixer_oss_f_ops =
 	.owner =	THIS_MODULE,
 	.open =		snd_mixer_oss_open,
 	.release =	snd_mixer_oss_release,
-	.llseek =	no_llseek,
 	.unlocked_ioctl =	snd_mixer_oss_ioctl,
 	.compat_ioctl =	snd_mixer_oss_ioctl_compat,
 };

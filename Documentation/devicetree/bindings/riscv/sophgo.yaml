@@ -28,6 +28,11 @@ properties:
           - const: sophgo,cv1812h
       - items:
           - enum:
+              - sipeed,licheerv-nano-b
+          - const: sipeed,licheerv-nano
+          - const: sophgo,sg2002
+      - items:
+          - enum:
               - milkv,pioneer
           - const: sophgo,sg2042
 

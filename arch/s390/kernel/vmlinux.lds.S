@@ -39,7 +39,7 @@ PHDRS {
 
 SECTIONS
 {
-	. = __START_KERNEL;
+	. = TEXT_OFFSET;
 	.text : {
 		_stext = .;		/* Start of text section */
 		_text = .;		/* Text and read-only data */
@@ -191,8 +191,7 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	INIT_DATA_SECTION(0x100)
 
-	RUNTIME_CONST(shift, d_hash_shift)
-	RUNTIME_CONST(ptr, dentry_hashtable)
+	RUNTIME_CONST_VARIABLES
 
 	PERCPU_SECTION(0x100)
 

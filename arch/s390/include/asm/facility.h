@@ -14,7 +14,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/preempt.h>
-
+#include <asm/alternative.h>
 #include <asm/lowcore.h>
 
 #define MAX_FACILITY_BIT (sizeof(stfle_fac_list) * 8)
@@ -39,14 +39,34 @@ static inline void __clear_facility(unsigned long nr, void *facilities)
 	ptr[nr >> 3] &= ~(0x80 >> (nr & 7));
 }
 
-static inline int __test_facility(unsigned long nr, void *facilities)
+static __always_inline bool __test_facility(unsigned long nr, void *facilities)
 {
 	unsigned char *ptr;
 
 	if (nr >= MAX_FACILITY_BIT)
-		return 0;
+		return false;
 	ptr = (unsigned char *) facilities + (nr >> 3);
 	return (*ptr & (0x80 >> (nr & 7))) != 0;
+}
+
+/*
+ * __test_facility_constant() generates a single instruction branch. If the
+ * tested facility is available (likely) the branch is patched into a nop.
+ *
+ * Do not use this function unless you know what you are doing. All users are
+ * supposed to use test_facility() which will do the right thing.
+ */
+static __always_inline bool __test_facility_constant(unsigned long nr)
+{
+	asm goto(
+		ALTERNATIVE("brcl 15,%l[l_no]", "brcl 0,0", ALT_FACILITY(%[nr]))
+		:
+		: [nr] "i" (nr)
+		:
+		: l_no);
+	return true;
+l_no:
+	return false;
 }
 
 /*
@@ -54,13 +74,16 @@ static inline int __test_facility(unsigned long nr, void *facilities)
  * That makes it easier to query facility bits with the bit number as
  * documented in the Principles of Operation.
  */
-static inline int test_facility(unsigned long nr)
+static __always_inline bool test_facility(unsigned long nr)
 {
 	unsigned long facilities_als[] = { FACILITIES_ALS };
 
-	if (__builtin_constant_p(nr) && nr < sizeof(facilities_als) * 8) {
-		if (__test_facility(nr, &facilities_als))
-			return 1;
+	if (!__is_defined(__DECOMPRESSOR) && __builtin_constant_p(nr)) {
+		if (nr < sizeof(facilities_als) * 8) {
+			if (__test_facility(nr, &facilities_als))
+				return true;
+		}
+		return __test_facility_constant(nr);
 	}
 	return __test_facility(nr, &stfle_fac_list);
 }

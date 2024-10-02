@@ -182,7 +182,7 @@
 			};
 		};
 
-		core-cluster-thermal {
+		cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 3>;
@@ -282,7 +282,6 @@
 			compatible = "fsl,qoriq-memory-controller";
 			reg = <0x0 0x1080000 0x0 0x1000>;
 			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
-			big-endian;
 		};
 
 		ifc: memory-controller@1530000 {
@@ -315,7 +314,6 @@
 			clocks = <&clockgen QORIQ_CLK_HWACCEL 1>;
 			voltage-ranges = <1800 1800 3300 3300>;
 			sdhci,auto-cmd12;
-			big-endian;
 			bus-width = <4>;
 		};
 
@@ -694,7 +692,6 @@
 			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
-			big-endian;
 		};
 
 		edma0: dma-controller@2c00000 {
@@ -715,7 +712,7 @@
 					    QORIQ_CLK_PLL_DIV(2)>;
 		};
 
-		aux_bus: aux-bus {
+		aux_bus: bus {
 			#address-cells = <2>;
 			#size-cells = <2>;
 			compatible = "simple-bus";
@@ -823,7 +820,7 @@
 		};
 
 		pcie_ep1: pcie_ep@3400000 {
-			compatible = "fsl,ls1046a-pcie-ep","fsl,ls-pcie-ep";
+			compatible = "fsl,ls1046a-pcie-ep";
 			reg = <0x00 0x03400000 0x0 0x00100000>,
 			      <0x40 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -862,7 +859,7 @@
 		};
 
 		pcie_ep2: pcie_ep@3500000 {
-			compatible = "fsl,ls1046a-pcie-ep","fsl,ls-pcie-ep";
+			compatible = "fsl,ls1046a-pcie-ep";
 			reg = <0x00 0x03500000 0x0 0x00100000>,
 			      <0x48 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -901,7 +898,7 @@
 		};
 
 		pcie_ep3: pcie_ep@3600000 {
-			compatible = "fsl,ls1046a-pcie-ep", "fsl,ls-pcie-ep";
+			compatible = "fsl,ls1046a-pcie-ep";
 			reg = <0x00 0x03600000 0x0 0x00100000>,
 			      <0x50 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -935,7 +932,7 @@
 			big-endian;
 		};
 
-		rcpm: power-controller@1ee2140 {
+		rcpm: wakeup-controller@1ee2140 {
 			compatible = "fsl,ls1046a-rcpm", "fsl,qoriq-rcpm-2.1+";
 			reg = <0x0 0x1ee2140 0x0 0x4>;
 			#fsl,rcpm-wakeup-cells = <1>;

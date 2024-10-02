@@ -15,7 +15,7 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "display/xe_display.h"
 #include "instructions/xe_gpu_commands.h"
@@ -37,6 +37,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
+#include "xe_hw_engine_group.h"
 #include "xe_hwmon.h"
 #include "xe_irq.h"
 #include "xe_memirq.h"
@@ -54,6 +55,9 @@
 #include "xe_vm.h"
 #include "xe_vram.h"
 #include "xe_wait_user_fence.h"
+#include "xe_wa.h"
+
+#include <generated/xe_wa_oob.h>
 
 static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -61,6 +65,7 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	struct xe_drm_client *client;
 	struct xe_file *xef;
 	int ret = -ENOMEM;
+	struct task_struct *task = NULL;
 
 	xef = kzalloc(sizeof(*xef), GFP_KERNEL);
 	if (!xef)
@@ -89,6 +94,13 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = xef;
 	kref_init(&xef->refcount);
 
+	task = get_pid_task(rcu_access_pointer(file->pid), PIDTYPE_PID);
+	if (task) {
+		xef->process_name = kstrdup(task->comm, GFP_KERNEL);
+		xef->pid = task->pid;
+		put_task_struct(task);
+	}
+
 	return 0;
 }
 
@@ -107,6 +119,7 @@ static void xe_file_destroy(struct kref *ref)
 	spin_unlock(&xe->clients.lock);
 
 	xe_drm_client_put(xef->client);
+	kfree(xef->process_name);
 	kfree(xef);
 }
 
@@ -153,6 +166,8 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	 * vm->lock taken during xe_exec_queue_kill().
 	 */
 	xa_for_each(&xef->exec_queue.xa, idx, q) {
+		if (q->vm && q->hwe->hw_engine_group)
+			xe_hw_engine_group_del_exec_queue(q->hwe->hw_engine_group, q);
 		xe_exec_queue_kill(q);
 		xe_exec_queue_put(q);
 	}
@@ -238,6 +253,7 @@ static const struct file_operations xe_driver_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo = drm_show_fdinfo,
 #endif
+	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
 
 static struct drm_driver driver = {
@@ -531,7 +547,7 @@ static void update_device_info(struct xe_device *xe)
 {
 	/* disable features that are not available/applicable to VFs */
 	if (IS_SRIOV_VF(xe)) {
-		xe->info.enable_display = 0;
+		xe->info.probe_display = 0;
 		xe->info.has_heci_gscfi = 0;
 		xe->info.skip_guc_pc = 1;
 		xe->info.skip_pcode = 1;
@@ -785,13 +801,22 @@ void xe_device_shutdown(struct xe_device *xe)
 {
 }
 
+/**
+ * xe_device_wmb() - Device specific write memory barrier
+ * @xe: the &xe_device
+ *
+ * While wmb() is sufficient for a barrier if we use system memory, on discrete
+ * platforms with device memory we additionally need to issue a register write.
+ * Since it doesn't matter which register we write to, use the read-only VF_CAP
+ * register that is also marked as accessible by the VFs.
+ */
 void xe_device_wmb(struct xe_device *xe)
 {
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
 
 	wmb();
 	if (IS_DGFX(xe))
-		xe_mmio_write32(gt, SOFTWARE_FLAGS_SPR33, 0);
+		xe_mmio_write32(gt, VF_CAP_REG, 0);
 }
 
 /**
@@ -820,6 +845,11 @@ void xe_device_td_flush(struct xe_device *xe)
 	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) < 20)
 		return;
 
+	if (XE_WA(xe_root_mmio_gt(xe), 16023588340)) {
+		xe_device_l2_flush(xe);
+		return;
+	}
+
 	for_each_gt(gt, xe, id) {
 		if (xe_gt_is_media_type(gt))
 			continue;
@@ -841,6 +871,30 @@ void xe_device_td_flush(struct xe_device *xe)
 
 		xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	}
+}
+
+void xe_device_l2_flush(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	int err;
+
+	gt = xe_root_mmio_gt(xe);
+
+	if (!XE_WA(gt, 16023588340))
+		return;
+
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (err)
+		return;
+
+	spin_lock(&gt->global_invl_lock);
+	xe_mmio_write32(gt, XE2_GLOBAL_INVAL, 0x1);
+
+	if (xe_mmio_wait32(gt, XE2_GLOBAL_INVAL, 0x1, 0x0, 150, NULL, true))
+		xe_gt_err_once(gt, "Global invalidation timeout\n");
+	spin_unlock(&gt->global_invl_lock);
+
+	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size)

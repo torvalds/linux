@@ -71,12 +71,6 @@
 #define IF_HAVE_PG_MLOCK(_name)
 #endif
 
-#ifdef CONFIG_ARCH_USES_PG_UNCACHED
-#define IF_HAVE_PG_UNCACHED(_name) ,{1UL << PG_##_name, __stringify(_name)}
-#else
-#define IF_HAVE_PG_UNCACHED(_name)
-#endif
-
 #ifdef CONFIG_MEMORY_FAILURE
 #define IF_HAVE_PG_HWPOISON(_name) ,{1UL << PG_##_name, __stringify(_name)}
 #else
@@ -89,10 +83,16 @@
 #define IF_HAVE_PG_IDLE(_name)
 #endif
 
-#ifdef CONFIG_ARCH_USES_PG_ARCH_X
-#define IF_HAVE_PG_ARCH_X(_name) ,{1UL << PG_##_name, __stringify(_name)}
+#ifdef CONFIG_ARCH_USES_PG_ARCH_2
+#define IF_HAVE_PG_ARCH_2(_name) ,{1UL << PG_##_name, __stringify(_name)}
 #else
-#define IF_HAVE_PG_ARCH_X(_name)
+#define IF_HAVE_PG_ARCH_2(_name)
+#endif
+
+#ifdef CONFIG_ARCH_USES_PG_ARCH_3
+#define IF_HAVE_PG_ARCH_3(_name) ,{1UL << PG_##_name, __stringify(_name)}
+#else
+#define IF_HAVE_PG_ARCH_3(_name)
 #endif
 
 #define DEF_PAGEFLAG_NAME(_name) { 1UL <<  PG_##_name, __stringify(_name) }
@@ -100,7 +100,6 @@
 #define __def_pageflag_names						\
 	DEF_PAGEFLAG_NAME(locked),					\
 	DEF_PAGEFLAG_NAME(waiters),					\
-	DEF_PAGEFLAG_NAME(error),					\
 	DEF_PAGEFLAG_NAME(referenced),					\
 	DEF_PAGEFLAG_NAME(uptodate),					\
 	DEF_PAGEFLAG_NAME(dirty),					\
@@ -108,42 +107,31 @@
 	DEF_PAGEFLAG_NAME(active),					\
 	DEF_PAGEFLAG_NAME(workingset),					\
 	DEF_PAGEFLAG_NAME(owner_priv_1),				\
+	DEF_PAGEFLAG_NAME(owner_2),					\
 	DEF_PAGEFLAG_NAME(arch_1),					\
 	DEF_PAGEFLAG_NAME(reserved),					\
 	DEF_PAGEFLAG_NAME(private),					\
 	DEF_PAGEFLAG_NAME(private_2),					\
 	DEF_PAGEFLAG_NAME(writeback),					\
 	DEF_PAGEFLAG_NAME(head),					\
-	DEF_PAGEFLAG_NAME(mappedtodisk),				\
 	DEF_PAGEFLAG_NAME(reclaim),					\
 	DEF_PAGEFLAG_NAME(swapbacked),					\
 	DEF_PAGEFLAG_NAME(unevictable)					\
 IF_HAVE_PG_MLOCK(mlocked)						\
-IF_HAVE_PG_UNCACHED(uncached)						\
 IF_HAVE_PG_HWPOISON(hwpoison)						\
 IF_HAVE_PG_IDLE(idle)							\
 IF_HAVE_PG_IDLE(young)							\
-IF_HAVE_PG_ARCH_X(arch_2)						\
-IF_HAVE_PG_ARCH_X(arch_3)
+IF_HAVE_PG_ARCH_2(arch_2)						\
+IF_HAVE_PG_ARCH_3(arch_3)
 
 #define show_page_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_pageflag_names						\
 	) : "none"
 
-#define DEF_PAGETYPE_NAME(_name) { PG_##_name, __stringify(_name) }
-
-#define __def_pagetype_names						\
-	DEF_PAGETYPE_NAME(slab),					\
-	DEF_PAGETYPE_NAME(hugetlb),					\
-	DEF_PAGETYPE_NAME(offline),					\
-	DEF_PAGETYPE_NAME(guard),					\
-	DEF_PAGETYPE_NAME(table),					\
-	DEF_PAGETYPE_NAME(buddy)
-
 #if defined(CONFIG_X86)
 #define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
-#elif defined(CONFIG_PPC)
+#elif defined(CONFIG_PPC64)
 #define __VM_ARCH_SPECIFIC_1 {VM_SAO,     "sao"           }
 #elif defined(CONFIG_PARISC)
 #define __VM_ARCH_SPECIFIC_1 {VM_GROWSUP,	"growsup"	}
@@ -165,7 +153,7 @@ IF_HAVE_PG_ARCH_X(arch_3)
 # define IF_HAVE_UFFD_MINOR(flag, name)
 #endif
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) || defined(CONFIG_PPC32)
 # define IF_HAVE_VM_DROPPABLE(flag, name) {flag, name},
 #else
 # define IF_HAVE_VM_DROPPABLE(flag, name)
