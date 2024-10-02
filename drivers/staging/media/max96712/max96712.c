@@ -27,6 +27,7 @@ enum max96712_pattern {
 
 struct max96712_info {
 	unsigned int dpllfreq;
+	bool have_debug_extra;
 };
 
 struct max96712_priv {
@@ -173,8 +174,9 @@ static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
 		return;
 	}
 
-	/* PCLK 75MHz. */
-	max96712_write(priv, DEBUG_EXTRA_REG, DEBUG_EXTRA_PCLK_75MHZ);
+	/* Set PCLK to 75MHz if device have DEBUG_EXTRA register. */
+	if (priv->info->have_debug_extra)
+		max96712_write(priv, DEBUG_EXTRA_REG, DEBUG_EXTRA_PCLK_75MHZ);
 
 	/* Configure Video Timing Generator for 1920x1080 @ 30 fps. */
 	max96712_write_bulk_value(priv, 0x1052, 0, 3);
@@ -455,10 +457,16 @@ static void max96712_remove(struct i2c_client *client)
 
 static const struct max96712_info max96712_info_max96712 = {
 	.dpllfreq = 1000,
+	.have_debug_extra = true,
+};
+
+static const struct max96712_info max96712_info_max96724 = {
+	.dpllfreq = 1200,
 };
 
 static const struct of_device_id max96712_of_table[] = {
 	{ .compatible = "maxim,max96712", .data = &max96712_info_max96712 },
+	{ .compatible = "maxim,max96724", .data = &max96712_info_max96724 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, max96712_of_table);
