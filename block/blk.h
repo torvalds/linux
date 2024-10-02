@@ -212,8 +212,7 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
 				bip_next->bip_vec[0].bv_offset);
 }
 
-int blk_integrity_add(struct gendisk *disk);
-void blk_integrity_del(struct gendisk *);
+extern const struct attribute_group blk_integrity_attr_group;
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 static inline bool blk_integrity_merge_rq(struct request_queue *rq,
 		struct request *r1, struct request *r2)
@@ -244,13 +243,6 @@ static inline bool bio_integrity_endio(struct bio *bio)
 	return true;
 }
 static inline void bio_integrity_free(struct bio *bio)
-{
-}
-static inline int blk_integrity_add(struct gendisk *disk)
-{
-	return 0;
-}
-static inline void blk_integrity_del(struct gendisk *disk)
 {
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
