@@ -20,7 +20,7 @@ static const char *const tool_pmu__event_names[TOOL_PMU__EVENT_MAX] = {
 };
 
 
-const char *perf_tool_event__to_str(enum tool_pmu_event ev)
+const char *tool_pmu__event_to_str(enum tool_pmu_event ev)
 {
 	if (ev > TOOL_PMU__EVENT_NONE && ev < TOOL_PMU__EVENT_MAX)
 		return tool_pmu__event_names[ev];
@@ -28,11 +28,11 @@ const char *perf_tool_event__to_str(enum tool_pmu_event ev)
 	return NULL;
 }
 
-enum tool_pmu_event perf_tool_event__from_str(const char *str)
+enum tool_pmu_event tool_pmu__str_to_event(const char *str)
 {
 	int i;
 
-	perf_tool_event__for_each_event(i) {
+	tool_pmu__for_each_event(i) {
 		if (!strcasecmp(str, tool_pmu__event_names[i]))
 			return i;
 	}
@@ -44,7 +44,7 @@ static int tool_pmu__config_term(struct perf_event_attr *attr,
 				 struct parse_events_error *err)
 {
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER) {
-		enum tool_pmu_event ev = perf_tool_event__from_str(term->config);
+		enum tool_pmu_event ev = tool_pmu__str_to_event(term->config);
 
 		if (ev == TOOL_PMU__EVENT_NONE)
 			goto err_out;
@@ -91,10 +91,10 @@ int tool_pmu__for_each_event_cb(struct perf_pmu *pmu, void *state, pmu_event_cal
 	};
 	int i;
 
-	perf_tool_event__for_each_event(i) {
+	tool_pmu__for_each_event(i) {
 		int ret;
 
-		info.name = perf_tool_event__to_str(i);
+		info.name = tool_pmu__event_to_str(i);
 		info.alias = NULL;
 		info.scale_unit = NULL;
 		info.desc = NULL;
@@ -130,7 +130,7 @@ enum tool_pmu_event evsel__tool_event(const struct evsel *evsel)
 
 const char *evsel__tool_pmu_event_name(const struct evsel *evsel)
 {
-	return perf_tool_event__to_str(evsel->core.attr.config);
+	return tool_pmu__event_to_str(evsel->core.attr.config);
 }
 
 static bool read_until_char(struct io *io, char e)
@@ -328,7 +328,7 @@ out_close:
 	return err;
 }
 
-int evsel__read_tool(struct evsel *evsel, int cpu_map_idx, int thread)
+int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 {
 	__u64 *start_time, cur_time, delta_start;
 	int fd, err = 0;

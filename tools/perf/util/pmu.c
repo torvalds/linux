@@ -1836,7 +1836,7 @@ bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name)
 	if (!name)
 		return false;
 	if (perf_pmu__is_tool(pmu))
-		return perf_tool_event__from_str(name) != TOOL_PMU__EVENT_NONE;
+		return tool_pmu__str_to_event(name) != TOOL_PMU__EVENT_NONE;
 	if (perf_pmu__find_alias(pmu, name, /*load=*/ true) != NULL)
 		return true;
 	if (pmu->cpu_aliases_added || !pmu->events_table)
@@ -2331,7 +2331,7 @@ const char *perf_pmu__name_from_config(struct perf_pmu *pmu, u64 config)
 		return NULL;
 
 	if (perf_pmu__is_tool(pmu))
-		return perf_tool_event__to_str(config);
+		return tool_pmu__event_to_str(config);
 
 	pmu_aliases_parse(pmu);
 	pmu_add_cpu_aliases(pmu);

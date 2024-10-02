@@ -17,7 +17,7 @@ enum tool_pmu_event {
 	TOOL_PMU__EVENT_MAX,
 };
 
-#define perf_tool_event__for_each_event(ev)				\
+#define tool_pmu__for_each_event(ev)					\
 	for ((ev) = TOOL_PMU__EVENT_DURATION_TIME; (ev) < TOOL_PMU__EVENT_MAX; ev++)
 
 static inline size_t tool_pmu__num_events(void)
@@ -25,8 +25,8 @@ static inline size_t tool_pmu__num_events(void)
 	return TOOL_PMU__EVENT_MAX - 1;
 }
 
-const char *perf_tool_event__to_str(enum tool_pmu_event ev);
-enum tool_pmu_event perf_tool_event__from_str(const char *str);
+const char *tool_pmu__event_to_str(enum tool_pmu_event ev);
+enum tool_pmu_event tool_pmu__str_to_event(const char *str);
 int tool_pmu__config_terms(struct perf_event_attr *attr,
 			   struct parse_events_terms *terms,
 			   struct parse_events_error *err);
@@ -44,7 +44,7 @@ int evsel__tool_pmu_prepare_open(struct evsel *evsel,
 int evsel__tool_pmu_open(struct evsel *evsel,
 			 struct perf_thread_map *threads,
 			 int start_cpu_map_idx, int end_cpu_map_idx);
-int evsel__read_tool(struct evsel *evsel, int cpu_map_idx, int thread);
+int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread);
 
 struct perf_pmu *perf_pmus__tool_pmu(void);
 

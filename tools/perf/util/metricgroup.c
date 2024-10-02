@@ -686,7 +686,7 @@ static int metricgroup__build_event_string(struct strbuf *events,
 		pr_debug("found event %s\n", id);
 
 		/* Always move tool events outside of the group. */
-		ev = perf_tool_event__from_str(id);
+		ev = tool_pmu__str_to_event(id);
 		if (ev != TOOL_PMU__EVENT_NONE) {
 			has_tool_events = true;
 			tool_events[ev] = true;
@@ -755,14 +755,14 @@ static int metricgroup__build_event_string(struct strbuf *events,
 	if (has_tool_events) {
 		int i;
 
-		perf_tool_event__for_each_event(i) {
+		tool_pmu__for_each_event(i) {
 			if (tool_events[i]) {
 				if (!no_group) {
 					ret = strbuf_addch(events, ',');
 					RETURN_IF_NON_ZERO(ret);
 				}
 				no_group = false;
-				ret = strbuf_addstr(events, perf_tool_event__to_str(i));
+				ret = strbuf_addstr(events, tool_pmu__event_to_str(i));
 				RETURN_IF_NON_ZERO(ret);
 			}
 		}
@@ -1148,14 +1148,14 @@ static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
 	int i, left_count, right_count;
 
 	left_count = hashmap__size(left->pctx->ids);
-	perf_tool_event__for_each_event(i) {
-		if (!expr__get_id(left->pctx, perf_tool_event__to_str(i), &data))
+	tool_pmu__for_each_event(i) {
+		if (!expr__get_id(left->pctx, tool_pmu__event_to_str(i), &data))
 			left_count--;
 	}
 
 	right_count = hashmap__size(right->pctx->ids);
-	perf_tool_event__for_each_event(i) {
-		if (!expr__get_id(right->pctx, perf_tool_event__to_str(i), &data))
+	tool_pmu__for_each_event(i) {
+		if (!expr__get_id(right->pctx, tool_pmu__event_to_str(i), &data))
 			right_count--;
 	}
 
@@ -1382,11 +1382,11 @@ static void find_tool_events(const struct list_head *metric_list,
 	list_for_each_entry(m, metric_list, nd) {
 		int i;
 
-		perf_tool_event__for_each_event(i) {
+		tool_pmu__for_each_event(i) {
 			struct expr_id_data *data;
 
 			if (!tool_events[i] &&
-			    !expr__get_id(m->pctx, perf_tool_event__to_str(i), &data))
+			    !expr__get_id(m->pctx, tool_pmu__event_to_str(i), &data))
 				tool_events[i] = true;
 		}
 	}
@@ -1472,9 +1472,9 @@ static int parse_ids(bool metric_no_merge, bool fake_pmu,
 		 *    event1 if #smt_on else 0
 		 * Add a tool event to avoid a parse error on an empty string.
 		 */
-		perf_tool_event__for_each_event(i) {
+		tool_pmu__for_each_event(i) {
 			if (tool_events[i]) {
-				char *tmp = strdup(perf_tool_event__to_str(i));
+				char *tmp = strdup(tool_pmu__event_to_str(i));
 
 				if (!tmp)
 					return -ENOMEM;

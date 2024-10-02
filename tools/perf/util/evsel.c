@@ -1678,7 +1678,7 @@ bool __evsel__match(const struct evsel *evsel, u32 type, u64 config)
 int evsel__read_counter(struct evsel *evsel, int cpu_map_idx, int thread)
 {
 	if (evsel__is_tool(evsel))
-		return evsel__read_tool(evsel, cpu_map_idx, thread);
+		return evsel__tool_pmu_read(evsel, cpu_map_idx, thread);
 
 	if (evsel__is_retire_lat(evsel))
 		return evsel__read_retire_lat(evsel, cpu_map_idx, thread);
