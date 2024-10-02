@@ -22,7 +22,7 @@ This driver supports also IIO buffers.
 
 The IMU continuously performs an autocalibration procedure if (and only if)
 operating in fusion mode. The magnetometer autocalibration can however be
-disabled writing 0 in the sysfs in_magn_calibration_fast_enable attribute.
+disabled by writing 0 in the sysfs in_magn_calibration_fast_enable attribute.
 
 The driver provides access to autocalibration flags (i.e. you can known if
 the IMU has successfully autocalibrated) and to the calibration data blob.
