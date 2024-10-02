@@ -219,7 +219,7 @@ static const struct dmi_system_id acp_quirk_table[] = {
 /**
  * acp_hw_init - start and test ACP block
  *
- * @handle: handle used to pass amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
 static int acp_hw_init(struct amdgpu_ip_block *ip_block)
@@ -497,7 +497,7 @@ failure:
 /**
  * acp_hw_fini - stop the hardware block
  *
- * @handle: handle used to pass amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
 static int acp_hw_fini(struct amdgpu_ip_block *ip_block)

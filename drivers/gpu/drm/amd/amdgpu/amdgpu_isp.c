@@ -46,7 +46,7 @@ static int isp_sw_fini(struct amdgpu_ip_block *ip_block)
 /**
  * isp_hw_init - start and test isp block
  *
- * @handle: handle for amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
 static int isp_hw_init(struct amdgpu_ip_block *ip_block)
@@ -63,7 +63,7 @@ static int isp_hw_init(struct amdgpu_ip_block *ip_block)
 /**
  * isp_hw_fini - stop the hardware block
  *
- * @handle: handle for amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
 static int isp_hw_fini(struct amdgpu_ip_block *ip_block)

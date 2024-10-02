@@ -68,7 +68,7 @@ static inline bool jpeg_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
 /**
  * jpeg_v4_0_3_early_init - set function pointers
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Set ring and irq function pointers
  */
@@ -88,7 +88,7 @@ static int jpeg_v4_0_3_early_init(struct amdgpu_ip_block *ip_block)
 /**
  * jpeg_v4_0_3_sw_init - sw init for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Load firmware and sw initialization
  */
@@ -165,7 +165,7 @@ static int jpeg_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 /**
  * jpeg_v4_0_3_sw_fini - sw fini for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * JPEG suspend and free up sw allocation
  */
@@ -299,7 +299,7 @@ static int jpeg_v4_0_3_start_sriov(struct amdgpu_device *adev)
 /**
  * jpeg_v4_0_3_hw_init - start and test JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
 static int jpeg_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
@@ -358,7 +358,7 @@ static int jpeg_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 /**
  * jpeg_v4_0_3_hw_fini - stop the hardware block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Stop the JPEG block, mark ring as not ready any more
  */
@@ -380,7 +380,7 @@ static int jpeg_v4_0_3_hw_fini(struct amdgpu_ip_block *ip_block)
 /**
  * jpeg_v4_0_3_suspend - suspend JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * HW fini and suspend JPEG block
  */
@@ -400,7 +400,7 @@ static int jpeg_v4_0_3_suspend(struct amdgpu_ip_block *ip_block)
 /**
  * jpeg_v4_0_3_resume - resume JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Resume firmware and hw init JPEG block
  */

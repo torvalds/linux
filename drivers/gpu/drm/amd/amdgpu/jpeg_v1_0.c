@@ -458,7 +458,7 @@ static int jpeg_v1_0_process_interrupt(struct amdgpu_device *adev,
 /**
  * jpeg_v1_0_early_init - set function pointers
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Set ring and irq function pointers
  */
@@ -478,7 +478,7 @@ int jpeg_v1_0_early_init(struct amdgpu_ip_block *ip_block)
 /**
  * jpeg_v1_0_sw_init - sw init for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
 int jpeg_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
@@ -509,7 +509,7 @@ int jpeg_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 /**
  * jpeg_v1_0_sw_fini - sw fini for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * JPEG free up sw allocation
  */

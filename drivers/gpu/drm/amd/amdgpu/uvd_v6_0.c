@@ -455,7 +455,7 @@ static int uvd_v6_0_sw_fini(struct amdgpu_ip_block *ip_block)
 /**
  * uvd_v6_0_hw_init - start and test UVD block
  *
- * @handle: handle used to pass amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
@@ -524,7 +524,7 @@ done:
 /**
  * uvd_v6_0_hw_fini - stop the hardware block
  *
- * @handle: handle used to pass amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Stop the UVD block, mark ring as not ready any more
  */
