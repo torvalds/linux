@@ -2451,6 +2451,10 @@ static int linker_append_btf(struct bpf_linker *linker, struct src_obj *obj)
 			if (glob_sym && glob_sym->var_idx >= 0) {
 				__s64 sz;
 
+				/* FUNCs don't have size, nothing to update */
+				if (btf_is_func(t))
+					continue;
+
 				dst_var = &dst_sec->sec_vars[glob_sym->var_idx];
 				/* Because underlying BTF type might have
 				 * changed, so might its size have changed, so
