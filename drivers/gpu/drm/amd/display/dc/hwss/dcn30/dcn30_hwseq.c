@@ -245,6 +245,7 @@ static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 	bool result = false;
 	int acquired_rmu = 0;
@@ -283,8 +284,14 @@ static bool dcn30_set_mpc_shaper_3dlut(struct pipe_ctx *pipe_ctx,
 
 		result = mpc->funcs->program_3dlut(mpc, &stream->lut3d_func->lut_3d,
 						   stream->lut3d_func->state.bits.rmu_mux_num);
+		if (!result)
+			DC_LOG_ERROR("%s: program_3dlut failed\n", __func__);
+
 		result = mpc->funcs->program_shaper(mpc, shaper_lut,
 						    stream->lut3d_func->state.bits.rmu_mux_num);
+		if (!result)
+			DC_LOG_ERROR("%s: program_shaper failed\n", __func__);
+
 	} else {
 		// loop through the available mux and release the requested mpcc_id
 		mpc->funcs->release_rmu(mpc, mpcc_id);

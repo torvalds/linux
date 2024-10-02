@@ -439,6 +439,7 @@ bool dcn32_set_mpc_shaper_3dlut(
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 	bool result = false;
 
@@ -458,13 +459,13 @@ bool dcn32_set_mpc_shaper_3dlut(
 	if (stream->lut3d_func &&
 		stream->lut3d_func->state.bits.initialized == 1) {
 
-		result = mpc->funcs->program_3dlut(mpc,
-								&stream->lut3d_func->lut_3d,
-								mpcc_id);
+		result = mpc->funcs->program_3dlut(mpc,	&stream->lut3d_func->lut_3d, mpcc_id);
+		if (!result)
+			DC_LOG_ERROR("%s: program_3dlut failed\n", __func__);
 
-		result = mpc->funcs->program_shaper(mpc,
-								shaper_lut,
-								mpcc_id);
+		result = mpc->funcs->program_shaper(mpc, shaper_lut, mpcc_id);
+		if (!result)
+			DC_LOG_ERROR("%s: program_shaper failed\n", __func__);
 	}
 
 	return result;
