@@ -268,7 +268,7 @@ static void vfp_panic(char *reason, u32 inst)
 /*
  * Process bitmask of exception conditions.
  */
-static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_regs *regs)
+static int vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr)
 {
 	int si_code = 0;
 
@@ -276,8 +276,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 
 	if (exceptions == VFP_EXCEPTION_ERROR) {
 		vfp_panic("unhandled bounce", inst);
-		vfp_raise_sigfpe(FPE_FLTINV, regs);
-		return;
+		return FPE_FLTINV;
 	}
 
 	/*
@@ -305,8 +304,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 	RAISE(FPSCR_OFC, FPSCR_OFE, FPE_FLTOVF);
 	RAISE(FPSCR_IOC, FPSCR_IOE, FPE_FLTINV);
 
-	if (si_code)
-		vfp_raise_sigfpe(si_code, regs);
+	return si_code;
 }
 
 /*
@@ -352,6 +350,8 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 {
 	u32 fpscr, orig_fpscr, fpsid, exceptions;
+	int si_code2 = 0;
+	int si_code = 0;
 
 	pr_debug("VFP: bounce: trigger %08x fpexc %08x\n", trigger, fpexc);
 
@@ -397,8 +397,8 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 		 * unallocated VFP instruction but with FPSCR.IXE set and not
 		 * on VFP subarch 1.
 		 */
-		 vfp_raise_exceptions(VFP_EXCEPTION_ERROR, trigger, fpscr, regs);
-		return;
+		si_code = vfp_raise_exceptions(VFP_EXCEPTION_ERROR, trigger, fpscr);
+		goto exit;
 	}
 
 	/*
@@ -422,14 +422,14 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 */
 	exceptions = vfp_emulate_instruction(trigger, fpscr, regs);
 	if (exceptions)
-		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
+		si_code2 = vfp_raise_exceptions(exceptions, trigger, orig_fpscr);
 
 	/*
 	 * If there isn't a second FP instruction, exit now. Note that
 	 * the FPEXC.FP2V bit is valid only if FPEXC.EX is 1.
 	 */
 	if ((fpexc & (FPEXC_EX | FPEXC_FP2V)) != (FPEXC_EX | FPEXC_FP2V))
-		return;
+		goto exit;
 
 	/*
 	 * The barrier() here prevents fpinst2 being read
@@ -441,7 +441,13 @@ static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
  emulate:
 	exceptions = vfp_emulate_instruction(trigger, orig_fpscr, regs);
 	if (exceptions)
-		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
+		si_code = vfp_raise_exceptions(exceptions, trigger, orig_fpscr);
+exit:
+	vfp_state_release();
+	if (si_code2)
+		vfp_raise_sigfpe(si_code2, regs);
+	if (si_code)
+		vfp_raise_sigfpe(si_code, regs);
 }
 
 static void vfp_enable(void *unused)
@@ -773,6 +779,7 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 		 * replay the instruction that trapped.
 		 */
 		fmxr(FPEXC, fpexc);
+		vfp_state_release();
 	} else {
 		/* Check for synchronous or asynchronous exceptions */
 		if (!(fpexc & (FPEXC_EX | FPEXC_DEX))) {
@@ -794,10 +801,10 @@ static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
 			}
 		}
 bounce:		regs->ARM_pc += 4;
+		/* VFP_bounce() will invoke vfp_state_release() */
 		VFP_bounce(trigger, fpexc, regs);
 	}
 
-	vfp_state_release();
 	return 0;
 }
 
