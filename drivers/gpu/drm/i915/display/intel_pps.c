@@ -87,7 +87,7 @@ intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp,
 	mutex_unlock(&display->pps.mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
 
-	return 0;
+	return NULL;
 }
 
 static void

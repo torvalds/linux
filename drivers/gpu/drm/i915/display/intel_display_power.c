@@ -545,7 +545,7 @@ intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 
 	wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
 	if (!wakeref)
-		return 0;
+		return NULL;
 
 	mutex_lock(&power_domains->lock);
 
@@ -560,7 +560,7 @@ intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 
 	if (!is_enabled) {
 		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-		wakeref = 0;
+		wakeref = NULL;
 	}
 
 	return wakeref;
@@ -648,7 +648,7 @@ intel_display_power_put_async_work(struct work_struct *work)
 	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	intel_wakeref_t new_work_wakeref = intel_runtime_pm_get_raw(rpm);
-	intel_wakeref_t old_work_wakeref = 0;
+	intel_wakeref_t old_work_wakeref = NULL;
 
 	mutex_lock(&power_domains->lock);
 

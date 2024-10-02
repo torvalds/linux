@@ -250,7 +250,7 @@ static intel_wakeref_t __intel_runtime_pm_get_if_active(struct intel_runtime_pm 
 		     pm_runtime_get_if_active(rpm->kdev) <= 0) ||
 		    (!ignore_usecount &&
 		     pm_runtime_get_if_in_use(rpm->kdev) <= 0))
-			return 0;
+			return NULL;
 	}
 
 	intel_runtime_pm_acquire(rpm, true);

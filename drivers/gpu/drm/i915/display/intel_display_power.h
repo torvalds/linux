@@ -297,10 +297,10 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 
 #define with_intel_display_power(i915, domain, wf) \
 	for ((wf) = intel_display_power_get((i915), (domain)); (wf); \
-	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)
+	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = NULL)
 
 #define with_intel_display_power_if_enabled(i915, domain, wf) \
 	for ((wf) = intel_display_power_get_if_enabled((i915), (domain)); (wf); \
-	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)
+	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = NULL)
 
 #endif /* __INTEL_DISPLAY_POWER_H__ */

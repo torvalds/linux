@@ -531,7 +531,7 @@ void intel_pxp_invalidate(struct intel_pxp *pxp)
 		if (ctx->pxp_wakeref) {
 			intel_runtime_pm_put(&i915->runtime_pm,
 					     ctx->pxp_wakeref);
-			ctx->pxp_wakeref = 0;
+			ctx->pxp_wakeref = NULL;
 		}
 
 		spin_lock_irq(&i915->gem.contexts.lock);

@@ -35,7 +35,7 @@ static inline void __intel_gt_pm_get(struct intel_gt *gt)
 static inline intel_wakeref_t intel_gt_pm_get_if_awake(struct intel_gt *gt)
 {
 	if (!intel_wakeref_get_if_active(&gt->wakeref))
-		return 0;
+		return NULL;
 
 	return intel_wakeref_track(&gt->wakeref);
 }
@@ -73,7 +73,7 @@ static inline void intel_gt_pm_put_async(struct intel_gt *gt, intel_wakeref_t ha
 }
 
 #define with_intel_gt_pm(gt, wf) \
-	for (wf = intel_gt_pm_get(gt); wf; intel_gt_pm_put(gt, wf), wf = 0)
+	for ((wf) = intel_gt_pm_get(gt); (wf); intel_gt_pm_put((gt), (wf)), (wf) = NULL)
 
 /**
  * with_intel_gt_pm_if_awake - if GT is PM awake, get a reference to prevent
@@ -84,7 +84,7 @@ static inline void intel_gt_pm_put_async(struct intel_gt *gt, intel_wakeref_t ha
  * @wf: pointer to a temporary wakeref.
  */
 #define with_intel_gt_pm_if_awake(gt, wf) \
-	for (wf = intel_gt_pm_get_if_awake(gt); wf; intel_gt_pm_put_async(gt, wf), wf = 0)
+	for ((wf) = intel_gt_pm_get_if_awake(gt); (wf); intel_gt_pm_put_async((gt), (wf)), (wf) = NULL)
 
 static inline int intel_gt_pm_wait_for_idle(struct intel_gt *gt)
 {
