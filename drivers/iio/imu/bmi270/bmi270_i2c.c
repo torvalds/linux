@@ -9,12 +9,17 @@
 
 #include "bmi270.h"
 
+static const struct regmap_config bmi270_i2c_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+};
+
 static int bmi270_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	struct device *dev = &client->dev;
 
-	regmap = devm_regmap_init_i2c(client, &bmi270_regmap_config);
+	regmap = devm_regmap_init_i2c(client, &bmi270_i2c_regmap_config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap),
 				     "Failed to init i2c regmap");

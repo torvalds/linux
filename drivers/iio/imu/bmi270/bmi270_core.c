@@ -66,12 +66,6 @@ enum bmi270_scan {
 	BMI270_SCAN_GYRO_Z,
 };
 
-const struct regmap_config bmi270_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-};
-EXPORT_SYMBOL_NS_GPL(bmi270_regmap_config, IIO_BMI270);
-
 static int bmi270_get_data(struct bmi270_data *bmi270_device,
 			   int chan_type, int axis, int *val)
 {

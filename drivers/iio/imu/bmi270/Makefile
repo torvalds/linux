@@ -4,3 +4,4 @@
 #
 obj-$(CONFIG_BMI270) += bmi270_core.o
 obj-$(CONFIG_BMI270_I2C) += bmi270_i2c.o
+obj-$(CONFIG_BMI270_SPI) += bmi270_spi.o

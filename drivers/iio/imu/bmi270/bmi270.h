@@ -4,6 +4,7 @@
 #define BMI270_H_
 
 #include <linux/regmap.h>
+#include <linux/iio/iio.h>
 
 struct device;
 struct bmi270_data {
