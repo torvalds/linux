@@ -272,7 +272,7 @@ void dp_wait_for_training_aux_rd_interval(
 	struct dc_link *link,
 	uint32_t wait_in_micro_secs)
 {
-	fsleep(wait_in_micro_secs);
+	usleep_range_state(wait_in_micro_secs, wait_in_micro_secs, TASK_UNINTERRUPTIBLE);
 
 	DC_LOG_HW_LINK_TRAINING("%s:\n wait = %d\n",
 		__func__,
