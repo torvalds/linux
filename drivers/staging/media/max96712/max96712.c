@@ -16,6 +16,10 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#define DEBUG_EXTRA_REG			0x09
+#define DEBUG_EXTRA_PCLK_25MHZ		0x00
+#define DEBUG_EXTRA_PCLK_75MHZ		0x01
+
 enum max96712_pattern {
 	MAX96712_PATTERN_CHECKERBOARD = 0,
 	MAX96712_PATTERN_GRADIENT,
@@ -170,7 +174,7 @@ static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
 	}
 
 	/* PCLK 75MHz. */
-	max96712_write(priv, 0x0009, 0x01);
+	max96712_write(priv, DEBUG_EXTRA_REG, DEBUG_EXTRA_PCLK_75MHZ);
 
 	/* Configure Video Timing Generator for 1920x1080 @ 30 fps. */
 	max96712_write_bulk_value(priv, 0x1052, 0, 3);
