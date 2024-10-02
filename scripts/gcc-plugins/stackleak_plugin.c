@@ -226,8 +226,6 @@ static unsigned int stackleak_instrument_execute(void)
 	 *
 	 * Case in point: native_save_fl on amd64 when optimized for size
 	 * clobbers rdx if it were instrumented here.
-	 *
-	 * TODO: any more special cases?
 	 */
 	if (is_leaf &&
 	    !TREE_PUBLIC(current_function_decl) &&
