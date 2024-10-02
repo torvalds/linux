@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <asm/mipsregs.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <crypto/internal/hash.h>
 

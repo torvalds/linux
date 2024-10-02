@@ -44,7 +44,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/algapi.h>
 #include <crypto/gf128mul.h>
 #include <crypto/polyval.h>

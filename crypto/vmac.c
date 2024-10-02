@@ -28,7 +28,7 @@
  *	Last modified: 17 APR 08, 1700 PDT
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
