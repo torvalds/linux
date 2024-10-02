@@ -422,6 +422,11 @@
 #define GEN2_IIR	_MMIO(0x20a4)
 #define GEN2_IMR	_MMIO(0x20a8)
 #define GEN2_ISR	_MMIO(0x20ac)
+
+#define GEN2_IRQ_REGS		I915_IRQ_REGS(GEN2_IMR, \
+					      GEN2_IER, \
+					      GEN2_IIR)
+
 #define VLV_GUNIT_CLOCK_GATE	_MMIO(VLV_DISPLAY_BASE + 0x2060)
 #define   GINT_DIS		(1 << 22)
 #define   GCFG_DIS		(1 << 8)
@@ -433,6 +438,10 @@
 #define VLV_ISR		_MMIO(VLV_DISPLAY_BASE + 0x20ac)
 #define VLV_PCBR	_MMIO(VLV_DISPLAY_BASE + 0x2120)
 #define VLV_PCBR_ADDR_SHIFT	12
+
+#define VLV_IRQ_REGS		I915_IRQ_REGS(VLV_IMR, \
+					      VLV_IER, \
+					      VLV_IIR)
 
 #define   DISPLAY_PLANE_FLIP_PENDING(plane) (1 << (11 - (plane))) /* A and B only */
 #define EIR		_MMIO(0x20b0)
@@ -2444,10 +2453,18 @@
 #define DEIIR   _MMIO(0x44008)
 #define DEIER   _MMIO(0x4400c)
 
+#define DE_IRQ_REGS		I915_IRQ_REGS(DEIMR, \
+					      DEIER, \
+					      DEIIR)
+
 #define GTISR   _MMIO(0x44010)
 #define GTIMR   _MMIO(0x44014)
 #define GTIIR   _MMIO(0x44018)
 #define GTIER   _MMIO(0x4401c)
+
+#define GT_IRQ_REGS		I915_IRQ_REGS(GTIMR, \
+					      GTIER, \
+					      GTIIR)
 
 #define GEN8_MASTER_IRQ			_MMIO(0x44200)
 #define  GEN8_MASTER_IRQ_CONTROL	(1 << 31)
@@ -2560,6 +2577,10 @@
 #define  TGL_DE_PORT_AUX_DDIB		REG_BIT(1)
 #define  TGL_DE_PORT_AUX_DDIA		REG_BIT(0)
 
+#define GEN8_DE_PORT_IRQ_REGS		I915_IRQ_REGS(GEN8_DE_PORT_IMR, \
+						      GEN8_DE_PORT_IER, \
+						      GEN8_DE_PORT_IIR)
+
 #define GEN8_DE_MISC_ISR _MMIO(0x44460)
 #define GEN8_DE_MISC_IMR _MMIO(0x44464)
 #define GEN8_DE_MISC_IIR _MMIO(0x44468)
@@ -2570,16 +2591,28 @@
 #define  GEN8_DE_EDP_PSR		REG_BIT(19)
 #define  XELPDP_PMDEMAND_RSP		REG_BIT(3)
 
+#define GEN8_DE_MISC_IRQ_REGS		I915_IRQ_REGS(GEN8_DE_MISC_IMR, \
+						      GEN8_DE_MISC_IER, \
+						      GEN8_DE_MISC_IIR)
+
 #define GEN8_PCU_ISR _MMIO(0x444e0)
 #define GEN8_PCU_IMR _MMIO(0x444e4)
 #define GEN8_PCU_IIR _MMIO(0x444e8)
 #define GEN8_PCU_IER _MMIO(0x444ec)
+
+#define GEN8_PCU_IRQ_REGS		I915_IRQ_REGS(GEN8_PCU_IMR, \
+						      GEN8_PCU_IER, \
+						      GEN8_PCU_IIR)
 
 #define GEN11_GU_MISC_ISR	_MMIO(0x444f0)
 #define GEN11_GU_MISC_IMR	_MMIO(0x444f4)
 #define GEN11_GU_MISC_IIR	_MMIO(0x444f8)
 #define GEN11_GU_MISC_IER	_MMIO(0x444fc)
 #define  GEN11_GU_MISC_GSE	(1 << 27)
+
+#define GEN11_GU_MISC_IRQ_REGS		I915_IRQ_REGS(GEN11_GU_MISC_IMR, \
+						      GEN11_GU_MISC_IER, \
+						      GEN11_GU_MISC_IIR)
 
 #define GEN11_GFX_MSTR_IRQ		_MMIO(0x190010)
 #define  GEN11_MASTER_IRQ		(1 << 31)
@@ -2624,6 +2657,10 @@
 						 GEN11_TBT_HOTPLUG(HPD_PORT_TC2) | \
 						 GEN11_TBT_HOTPLUG(HPD_PORT_TC1))
 
+#define GEN11_DE_HPD_IRQ_REGS		I915_IRQ_REGS(GEN11_DE_HPD_IMR, \
+						      GEN11_DE_HPD_IER, \
+						      GEN11_DE_HPD_IIR)
+
 #define GEN11_TBT_HOTPLUG_CTL				_MMIO(0x44030)
 #define GEN11_TC_HOTPLUG_CTL				_MMIO(0x44038)
 #define  GEN11_HOTPLUG_CTL_ENABLE(hpd_pin)		(8 << (_HPD_PIN_TC(hpd_pin) * 4))
@@ -2643,6 +2680,10 @@
 #define  XE2LPD_AUX_DDI_MASK			REG_GENMASK(7, 6)
 #define  XELPDP_TBT_HOTPLUG(hpd_pin)		REG_BIT(_HPD_PIN_TC(hpd_pin))
 #define  XELPDP_TBT_HOTPLUG_MASK		REG_GENMASK(3, 0)
+
+#define PICAINTERRUPT_IRQ_REGS			I915_IRQ_REGS(PICAINTERRUPT_IMR, \
+							      PICAINTERRUPT_IER, \
+							      PICAINTERRUPT_IIR)
 
 #define XELPDP_PORT_HOTPLUG_CTL(hpd_pin)	_MMIO(0x16F270 + (_HPD_PIN_TC(hpd_pin) * 0x200))
 #define  XELPDP_TBT_HOTPLUG_ENABLE		REG_BIT(6)
@@ -2999,6 +3040,10 @@
 #define SDEIMR  _MMIO(0xc4004)
 #define SDEIIR  _MMIO(0xc4008)
 #define SDEIER  _MMIO(0xc400c)
+
+#define SDE_IRQ_REGS			I915_IRQ_REGS(SDEIMR, \
+						      SDEIER, \
+						      SDEIIR)
 
 #define SERR_INT			_MMIO(0xc4040)
 #define  SERR_INT_POISON		(1 << 31)

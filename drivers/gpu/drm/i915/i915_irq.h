@@ -55,9 +55,6 @@ void gen3_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
 					       GEN8_##type##_IIR(which_))); \
 })
 
-#define GEN3_IRQ_RESET(uncore, type) \
-	gen3_irq_reset((uncore), I915_IRQ_REGS(type##IMR, type##IER, type##IIR))
-
 #define GEN8_IRQ_INIT_NDX(uncore, type, which, imr_val, ier_val) \
 ({ \
 	unsigned int which_ = which; \
@@ -66,9 +63,5 @@ void gen3_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
 					      GEN8_##type##_IIR(which_)), \
 		      imr_val, ier_val); \
 })
-
-#define GEN3_IRQ_INIT(uncore, type, imr_val, ier_val) \
-	gen3_irq_init((uncore), I915_IRQ_REGS(type##IMR, type##IER, type##IIR), \
-		      imr_val, ier_val)
 
 #endif /* __I915_IRQ_H__ */

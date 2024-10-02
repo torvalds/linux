@@ -1472,6 +1472,10 @@
 						 GEN6_PM_RP_DOWN_THRESHOLD  | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
 
+#define GEN6_PM_IRQ_REGS			I915_IRQ_REGS(GEN6_PMIMR, \
+							      GEN6_PMIER, \
+							      GEN6_PMIIR)
+
 #define GEN7_GT_SCRATCH(i)			_MMIO(0x4f100 + (i) * 4)
 #define   GEN7_GT_SCRATCH_REG_NUM		8
 

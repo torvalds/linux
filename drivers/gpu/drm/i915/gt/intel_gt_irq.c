@@ -514,9 +514,9 @@ void gen5_gt_irq_reset(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
 
-	GEN3_IRQ_RESET(uncore, GT);
+	gen3_irq_reset(uncore, GT_IRQ_REGS);
 	if (GRAPHICS_VER(gt->i915) >= 6)
-		GEN3_IRQ_RESET(uncore, GEN6_PM);
+		gen3_irq_reset(uncore, GEN6_PM_IRQ_REGS);
 }
 
 void gen5_gt_irq_postinstall(struct intel_gt *gt)
@@ -538,7 +538,7 @@ void gen5_gt_irq_postinstall(struct intel_gt *gt)
 	else
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
 
-	GEN3_IRQ_INIT(uncore, GT, gt->gt_imr, gt_irqs);
+	gen3_irq_init(uncore, GT_IRQ_REGS, gt->gt_imr, gt_irqs);
 
 	if (GRAPHICS_VER(gt->i915) >= 6) {
 		/*
@@ -551,6 +551,6 @@ void gen5_gt_irq_postinstall(struct intel_gt *gt)
 		}
 
 		gt->pm_imr = 0xffffffff;
-		GEN3_IRQ_INIT(uncore, GEN6_PM, gt->pm_imr, pm_irqs);
+		gen3_irq_init(uncore, GEN6_PM_IRQ_REGS, gt->pm_imr, pm_irqs);
 	}
 }

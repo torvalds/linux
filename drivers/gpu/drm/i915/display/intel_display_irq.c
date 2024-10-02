@@ -1496,7 +1496,7 @@ void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	GEN3_IRQ_RESET(uncore, VLV_);
+	gen3_irq_reset(uncore, VLV_IRQ_REGS);
 	dev_priv->irq_mask = ~0u;
 }
 
@@ -1539,7 +1539,7 @@ void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	dev_priv->irq_mask = ~enable_mask;
 
-	GEN3_IRQ_INIT(uncore, VLV_, dev_priv->irq_mask, enable_mask);
+	gen3_irq_init(uncore, VLV_IRQ_REGS, dev_priv->irq_mask, enable_mask);
 }
 
 void gen8_display_irq_reset(struct drm_i915_private *dev_priv)
@@ -1558,8 +1558,8 @@ void gen8_display_irq_reset(struct drm_i915_private *dev_priv)
 						   POWER_DOMAIN_PIPE(pipe)))
 			GEN8_IRQ_RESET_NDX(uncore, DE_PIPE, pipe);
 
-	GEN3_IRQ_RESET(uncore, GEN8_DE_PORT_);
-	GEN3_IRQ_RESET(uncore, GEN8_DE_MISC_);
+	gen3_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
+	gen3_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
 }
 
 void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
@@ -1601,16 +1601,16 @@ void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 						   POWER_DOMAIN_PIPE(pipe)))
 			GEN8_IRQ_RESET_NDX(uncore, DE_PIPE, pipe);
 
-	GEN3_IRQ_RESET(uncore, GEN8_DE_PORT_);
-	GEN3_IRQ_RESET(uncore, GEN8_DE_MISC_);
+	gen3_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
+	gen3_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
 
 	if (DISPLAY_VER(dev_priv) >= 14)
-		GEN3_IRQ_RESET(uncore, PICAINTERRUPT_);
+		gen3_irq_reset(uncore, PICAINTERRUPT_IRQ_REGS);
 	else
-		GEN3_IRQ_RESET(uncore, GEN11_DE_HPD_);
+		gen3_irq_reset(uncore, GEN11_DE_HPD_IRQ_REGS);
 
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		GEN3_IRQ_RESET(uncore, SDE);
+		gen3_irq_reset(uncore, SDE_IRQ_REGS);
 }
 
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
@@ -1685,7 +1685,7 @@ static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 	else
 		mask = SDE_GMBUS_CPT;
 
-	GEN3_IRQ_INIT(uncore, SDE, ~mask, 0xffffffff);
+	gen3_irq_init(uncore, SDE_IRQ_REGS, ~mask, 0xffffffff);
 }
 
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
@@ -1753,7 +1753,7 @@ void ilk_de_irq_postinstall(struct drm_i915_private *i915)
 
 	ibx_irq_postinstall(i915);
 
-	GEN3_IRQ_INIT(uncore, DE, i915->irq_mask,
+	gen3_irq_init(uncore, DE_IRQ_REGS, i915->irq_mask,
 		      display_mask | extra_mask);
 }
 
@@ -1844,15 +1844,15 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  de_pipe_enables);
 	}
 
-	GEN3_IRQ_INIT(uncore, GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
-	GEN3_IRQ_INIT(uncore, GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
+	gen3_irq_init(uncore, GEN8_DE_PORT_IRQ_REGS, ~de_port_masked, de_port_enables);
+	gen3_irq_init(uncore, GEN8_DE_MISC_IRQ_REGS, ~de_misc_masked, de_misc_masked);
 
 	if (IS_DISPLAY_VER(dev_priv, 11, 13)) {
 		u32 de_hpd_masked = 0;
 		u32 de_hpd_enables = GEN11_DE_TC_HOTPLUG_MASK |
 				     GEN11_DE_TBT_HOTPLUG_MASK;
 
-		GEN3_IRQ_INIT(uncore, GEN11_DE_HPD_, ~de_hpd_masked,
+		gen3_irq_init(uncore, GEN11_DE_HPD_IRQ_REGS, ~de_hpd_masked,
 			      de_hpd_enables);
 	}
 }
@@ -1865,10 +1865,10 @@ static void mtp_irq_postinstall(struct drm_i915_private *i915)
 	u32 de_hpd_enables = de_hpd_mask | XELPDP_DP_ALT_HOTPLUG_MASK |
 			     XELPDP_TBT_HOTPLUG_MASK;
 
-	GEN3_IRQ_INIT(uncore, PICAINTERRUPT_, ~de_hpd_mask,
+	gen3_irq_init(uncore, PICAINTERRUPT_IRQ_REGS, ~de_hpd_mask,
 		      de_hpd_enables);
 
-	GEN3_IRQ_INIT(uncore, SDE, ~sde_mask, 0xffffffff);
+	gen3_irq_init(uncore, SDE_IRQ_REGS, ~sde_mask, 0xffffffff);
 }
 
 static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -1876,7 +1876,7 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask = SDE_GMBUS_ICP;
 
-	GEN3_IRQ_INIT(uncore, SDE, ~mask, 0xffffffff);
+	gen3_irq_init(uncore, SDE_IRQ_REGS, ~mask, 0xffffffff);
 }
 
 void gen11_de_irq_postinstall(struct drm_i915_private *dev_priv)
