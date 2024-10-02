@@ -25,7 +25,10 @@ static void timer_of_irq_exit(struct of_timer_irq *of_irq)
 
 	struct clock_event_device *clkevt = &to->clkevt;
 
-	free_irq(of_irq->irq, clkevt);
+	if (of_irq->percpu)
+		free_percpu_irq(of_irq->irq, clkevt);
+	else
+		free_irq(of_irq->irq, clkevt);
 }
 
 /**
@@ -38,6 +41,9 @@ static void timer_of_irq_exit(struct of_timer_irq *of_irq)
  *
  * - Get interrupt number by name
  * - Get interrupt number by index
+ *
+ * When the interrupt is per CPU, 'request_percpu_irq()' is called,
+ * otherwise 'request_irq()' is used.
  *
  * Returns 0 on success, < 0 otherwise
  */
@@ -63,9 +69,12 @@ static int timer_of_irq_init(struct device_node *np,
 		return -EINVAL;
 	}
 
-	ret = request_irq(of_irq->irq, of_irq->handler,
-			  of_irq->flags ? of_irq->flags : IRQF_TIMER,
-			  np->full_name, clkevt);
+	ret = of_irq->percpu ?
+		request_percpu_irq(of_irq->irq, of_irq->handler,
+				   np->full_name, clkevt) :
+		request_irq(of_irq->irq, of_irq->handler,
+			    of_irq->flags ? of_irq->flags : IRQF_TIMER,
+			    np->full_name, clkevt);
 	if (ret) {
 		pr_err("Failed to request irq %d for %pOF\n", of_irq->irq, np);
 		return ret;

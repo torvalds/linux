@@ -11,6 +11,7 @@
 struct of_timer_irq {
 	int irq;
 	int index;
+	int percpu;
 	const char *name;
 	unsigned long flags;
 	irq_handler_t handler;
