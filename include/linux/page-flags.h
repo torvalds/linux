@@ -725,13 +725,8 @@ static __always_inline bool folio_test_ksm(const struct folio *folio)
 	return ((unsigned long)folio->mapping & PAGE_MAPPING_FLAGS) ==
 				PAGE_MAPPING_KSM;
 }
-
-static __always_inline bool PageKsm(const struct page *page)
-{
-	return folio_test_ksm(page_folio(page));
-}
 #else
-TESTPAGEFLAG_FALSE(Ksm, ksm)
+FOLIO_TEST_FLAG_FALSE(ksm)
 #endif
 
 u64 stable_page_flags(const struct page *page);

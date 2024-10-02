@@ -656,7 +656,7 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr, bool lock_v
 	 *
 	 * VM_FAULT_SIGBUS could occur if we race with truncation of the
 	 * backing file, which also invalidates anonymous pages: that's
-	 * okay, that truncation will have unmapped the PageKsm for us.
+	 * okay, that truncation will have unmapped the KSM page for us.
 	 *
 	 * VM_FAULT_OOM: at the time of writing (late July 2009), setting
 	 * aside mem_cgroup limits, VM_FAULT_OOM would only be set if the
@@ -1434,7 +1434,7 @@ out:
  * try_to_merge_one_page - take two pages and merge them into one
  * @vma: the vma that holds the pte pointing to page
  * @page: the PageAnon page that we want to replace with kpage
- * @kpage: the PageKsm page that we want to map instead of page,
+ * @kpage: the KSM page that we want to map instead of page,
  *         or NULL the first time when we want to use page as kpage.
  *
  * This function returns 0 if the pages were merged, -EFAULT otherwise.
