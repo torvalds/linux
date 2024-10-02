@@ -33,6 +33,33 @@ static const char *const tool_pmu__event_names[TOOL_PMU__EVENT_MAX] = {
 	"system_tsc_freq",
 };
 
+bool tool_pmu__skip_event(const char *name __maybe_unused)
+{
+#if !defined(__aarch64__)
+	/* The slots event should only appear on arm64. */
+	if (strcasecmp(name, "slots") == 0)
+		return true;
+#endif
+#if !defined(__i386__) && !defined(__x86_64__)
+	/* The system_tsc_freq event should only appear on x86. */
+	if (strcasecmp(name, "system_tsc_freq") == 0)
+		return true;
+#endif
+	return false;
+}
+
+int tool_pmu__num_skip_events(void)
+{
+	int num = 0;
+
+#if !defined(__aarch64__)
+	num++;
+#endif
+#if !defined(__i386__) && !defined(__x86_64__)
+	num++;
+#endif
+	return num;
+}
 
 const char *tool_pmu__event_to_str(enum tool_pmu_event ev)
 {
@@ -46,88 +73,14 @@ enum tool_pmu_event tool_pmu__str_to_event(const char *str)
 {
 	int i;
 
+	if (tool_pmu__skip_event(str))
+		return TOOL_PMU__EVENT_NONE;
+
 	tool_pmu__for_each_event(i) {
-		if (!strcasecmp(str, tool_pmu__event_names[i])) {
-#if !defined(__aarch64__)
-			/* The slots event should only appear on arm64. */
-			if (i == TOOL_PMU__EVENT_SLOTS)
-				return TOOL_PMU__EVENT_NONE;
-#endif
+		if (!strcasecmp(str, tool_pmu__event_names[i]))
 			return i;
-		}
 	}
 	return TOOL_PMU__EVENT_NONE;
-}
-
-static int tool_pmu__config_term(struct perf_event_attr *attr,
-				 struct parse_events_term *term,
-				 struct parse_events_error *err)
-{
-	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER) {
-		enum tool_pmu_event ev = tool_pmu__str_to_event(term->config);
-
-		if (ev == TOOL_PMU__EVENT_NONE)
-			goto err_out;
-
-		attr->config = ev;
-		return 0;
-	}
-err_out:
-	if (err) {
-		char *err_str;
-
-		parse_events_error__handle(err, term->err_val,
-					asprintf(&err_str,
-						"unexpected tool event term (%s) %s",
-						parse_events__term_type_str(term->type_term),
-						term->config) < 0
-					? strdup("unexpected tool event term")
-					: err_str,
-					NULL);
-	}
-	return -EINVAL;
-}
-
-int tool_pmu__config_terms(struct perf_event_attr *attr,
-			   struct parse_events_terms *terms,
-			   struct parse_events_error *err)
-{
-	struct parse_events_term *term;
-
-	list_for_each_entry(term, &terms->terms, list) {
-		if (tool_pmu__config_term(attr, term, err))
-			return -EINVAL;
-	}
-
-	return 0;
-
-}
-
-int tool_pmu__for_each_event_cb(struct perf_pmu *pmu, void *state, pmu_event_callback cb)
-{
-	struct pmu_event_info info = {
-		.pmu = pmu,
-		.event_type_desc = "Tool event",
-	};
-	int i;
-
-	tool_pmu__for_each_event(i) {
-		int ret;
-
-		info.name = tool_pmu__event_to_str(i);
-		info.alias = NULL;
-		info.scale_unit = NULL;
-		info.desc = NULL;
-		info.long_desc = NULL;
-		info.encoding_desc = NULL;
-		info.topic = NULL;
-		info.pmu_name = pmu->name;
-		info.deprecated = false;
-		ret = cb(state, &info);
-		if (ret)
-			return ret;
-	}
-	return 0;
 }
 
 bool perf_pmu__is_tool(const struct perf_pmu *pmu)
@@ -546,6 +499,8 @@ struct perf_pmu *perf_pmus__tool_pmu(void)
 		.caps = LIST_HEAD_INIT(tool.caps),
 		.format = LIST_HEAD_INIT(tool.format),
 	};
+	if (!tool.events_table)
+		tool.events_table = find_core_events_table("common", "common");
 
 	return &tool;
 }

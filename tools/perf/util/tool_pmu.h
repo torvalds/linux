@@ -29,17 +29,11 @@ enum tool_pmu_event {
 #define tool_pmu__for_each_event(ev)					\
 	for ((ev) = TOOL_PMU__EVENT_DURATION_TIME; (ev) < TOOL_PMU__EVENT_MAX; ev++)
 
-static inline size_t tool_pmu__num_events(void)
-{
-	return TOOL_PMU__EVENT_MAX - 1;
-}
-
 const char *tool_pmu__event_to_str(enum tool_pmu_event ev);
 enum tool_pmu_event tool_pmu__str_to_event(const char *str);
-int tool_pmu__config_terms(struct perf_event_attr *attr,
-			   struct parse_events_terms *terms,
-			   struct parse_events_error *err);
-int tool_pmu__for_each_event_cb(struct perf_pmu *pmu, void *state, pmu_event_callback cb);
+bool tool_pmu__skip_event(const char *name);
+int tool_pmu__num_skip_events(void);
+
 bool tool_pmu__read_event(enum tool_pmu_event ev, u64 *result);
 
 u64 tool_pmu__cpu_slots_per_cycle(void);

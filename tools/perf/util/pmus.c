@@ -440,6 +440,7 @@ static int perf_pmus__print_pmu_events__callback(void *vstate,
 		pr_err("Unexpected event %s/%s/\n", info->pmu->name, info->name);
 		return 1;
 	}
+	assert(info->pmu != NULL || info->name != NULL);
 	s = &state->aliases[state->index];
 	s->pmu = info->pmu;
 #define COPY_STR(str) s->str = info->str ? strdup(info->str) : NULL
@@ -589,9 +590,6 @@ void perf_pmus__print_raw_pmu_events(const struct print_callbacks *print_cb, voi
 		};
 		int len = pmu_name_len_no_suffix(pmu->name);
 		const char *desc = "(see 'man perf-list' or 'man perf-record' on how to encode it)";
-
-		if (perf_pmu__is_tool(pmu))
-			continue;
 
 		if (!pmu->is_core)
 			desc = NULL;
