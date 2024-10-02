@@ -74,7 +74,7 @@ your source tree. Don't forget to cherry-pick with ``-x`` if you want a
 written record of where the patch came from!
 
 Note that if you are submitting a patch for stable, the format is
-slightly different; the first line after the subject line needs tobe
+slightly different; the first line after the subject line needs to be
 either::
 
     commit <upstream commit> upstream
