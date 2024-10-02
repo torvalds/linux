@@ -28,6 +28,8 @@
 
 
 #define AMD_MAX_USEC_TIMEOUT		1000000  /* 1000 ms */
+struct amdgpu_ip_block;
+
 
 /*
  * Chip flags
@@ -375,8 +377,6 @@ enum amd_dpm_forced_level;
  * making calls to hooks from each IP block. This list is ordered to ensure
  * that the driver initializes the IP blocks in a safe sequence.
  */
-struct amdgpu_ip_block;
-
 struct amd_ip_funcs {
 	char *name;
 	int (*early_init)(struct amdgpu_ip_block *ip_block);
