@@ -130,11 +130,17 @@ static void lock_graph_down(struct lock_graph *g, struct btree_trans *trans)
 	__lock_graph_down(g, trans);
 }
 
-static bool lock_graph_remove_non_waiters(struct lock_graph *g)
+static bool lock_graph_remove_non_waiters(struct lock_graph *g,
+					  struct trans_waiting_for_lock *from)
 {
 	struct trans_waiting_for_lock *i;
 
-	for (i = g->g + 1; i < g->g + g->nr; i++)
+	if (from->trans->locking != from->node_want) {
+		lock_graph_pop_from(g, from);
+		return true;
+	}
+
+	for (i = from + 1; i < g->g + g->nr; i++)
 		if (i->trans->locking != i->node_want ||
 		    i->trans->locking_wait.start_time != i[-1].lock_start_time) {
 			lock_graph_pop_from(g, i);
@@ -184,13 +190,14 @@ static int btree_trans_abort_preference(struct btree_trans *trans)
 	return 3;
 }
 
-static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
+static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle,
+				struct trans_waiting_for_lock *from)
 {
 	struct trans_waiting_for_lock *i, *abort = NULL;
 	unsigned best = 0, pref;
 	int ret;
 
-	if (lock_graph_remove_non_waiters(g))
+	if (lock_graph_remove_non_waiters(g, from))
 		return 0;
 
 	/* Only checking, for debugfs: */
@@ -200,7 +207,7 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 		goto out;
 	}
 
-	for (i = g->g; i < g->g + g->nr; i++) {
+	for (i = from; i < g->g + g->nr; i++) {
 		pref = btree_trans_abort_preference(i->trans);
 		if (pref > best) {
 			abort = i;
@@ -247,7 +254,7 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 	for (i = g->g; i < g->g + g->nr; i++)
 		if (i->trans == trans) {
 			closure_put(&trans->ref);
-			return break_cycle(g, cycle);
+			return break_cycle(g, cycle, i);
 		}
 
 	if (g->nr == ARRAY_SIZE(g->g)) {
@@ -339,7 +346,7 @@ next:
 				 * structures - which means it can't be blocked
 				 * waiting on a lock:
 				 */
-				if (!lock_graph_remove_non_waiters(&g)) {
+				if (!lock_graph_remove_non_waiters(&g, g.g)) {
 					/*
 					 * If lock_graph_remove_non_waiters()
 					 * didn't do anything, it must be
