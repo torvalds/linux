@@ -15,6 +15,7 @@
 #include "evsel.h"
 #include "pmus.h"
 #include "pmu.h"
+#include "tool_pmu.h"
 #include "print-events.h"
 #include "strbuf.h"
 
@@ -200,6 +201,7 @@ static void pmu_read_sysfs(bool core_only)
 	int fd;
 	DIR *dir;
 	struct dirent *dent;
+	struct perf_pmu *tool_pmu;
 
 	if (read_sysfs_all_pmus || (core_only && read_sysfs_core_pmus))
 		return;
@@ -229,6 +231,10 @@ static void pmu_read_sysfs(bool core_only)
 			pr_err("Failure to set up any core PMUs\n");
 	}
 	list_sort(NULL, &core_pmus, pmus_cmp);
+	if (!core_only) {
+		tool_pmu = perf_pmus__tool_pmu();
+		list_add_tail(&tool_pmu->list, &other_pmus);
+	}
 	list_sort(NULL, &other_pmus, pmus_cmp);
 	if (!list_empty(&core_pmus)) {
 		read_sysfs_core_pmus = true;
@@ -583,6 +589,9 @@ void perf_pmus__print_raw_pmu_events(const struct print_callbacks *print_cb, voi
 		};
 		int len = pmu_name_len_no_suffix(pmu->name);
 		const char *desc = "(see 'man perf-list' or 'man perf-record' on how to encode it)";
+
+		if (perf_pmu__is_tool(pmu))
+			continue;
 
 		if (!pmu->is_core)
 			desc = NULL;

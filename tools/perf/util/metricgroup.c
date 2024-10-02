@@ -14,6 +14,7 @@
 #include "pmus.h"
 #include "print-events.h"
 #include "smt.h"
+#include "tool_pmu.h"
 #include "expr.h"
 #include "rblist.h"
 #include <string.h>

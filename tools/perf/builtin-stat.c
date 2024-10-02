@@ -46,6 +46,7 @@
 #include "util/parse-events.h"
 #include "util/pmus.h"
 #include "util/pmu.h"
+#include "util/tool_pmu.h"
 #include "util/event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"

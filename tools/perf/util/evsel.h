@@ -11,6 +11,7 @@
 #include <perf/evsel.h>
 #include "symbol_conf.h"
 #include "pmus.h"
+#include "pmu.h"
 
 struct bpf_object;
 struct cgroup;
@@ -22,24 +23,8 @@ struct target;
 struct hashmap;
 struct bperf_leader_bpf;
 struct bperf_follower_bpf;
-struct perf_pmu;
 
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
-
-enum perf_tool_event {
-	PERF_TOOL_NONE		= 0,
-	PERF_TOOL_DURATION_TIME = 1,
-	PERF_TOOL_USER_TIME = 2,
-	PERF_TOOL_SYSTEM_TIME = 3,
-
-	PERF_TOOL_MAX,
-};
-
-const char *perf_tool_event__to_str(enum perf_tool_event ev);
-enum perf_tool_event perf_tool_event__from_str(const char *str);
-
-#define perf_tool_event__for_each_event(ev)		\
-	for ((ev) = PERF_TOOL_DURATION_TIME; (ev) < PERF_TOOL_MAX; ev++)
 
 /** struct evsel - event selector
  *
@@ -82,7 +67,6 @@ struct evsel {
 		const char		*unit;
 		struct cgroup		*cgrp;
 		const char		*metric_id;
-		enum perf_tool_event	tool_event;
 		/* parse modifier helper */
 		int			exclude_GH;
 		int			sample_read;
@@ -321,19 +305,9 @@ const char *evsel__name(struct evsel *evsel);
 bool evsel__name_is(struct evsel *evsel, const char *name);
 const char *evsel__metric_id(const struct evsel *evsel);
 
-static inline bool evsel__is_tool(const struct evsel *evsel)
-{
-	return evsel->tool_event != PERF_TOOL_NONE;
-}
-
 static inline bool evsel__is_retire_lat(const struct evsel *evsel)
 {
 	return evsel->retire_lat;
-}
-
-static inline enum perf_tool_event evsel__tool_event(const struct evsel *evsel)
-{
-	return evsel->tool_event;
 }
 
 const char *evsel__group_name(struct evsel *evsel);

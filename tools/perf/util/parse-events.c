@@ -301,38 +301,6 @@ static int add_event(struct list_head *list, int *idx,
 			   alternate_hw_config) ? 0 : -ENOMEM;
 }
 
-static int add_event_tool(struct list_head *list, int *idx,
-			  enum perf_tool_event tool_event)
-{
-	struct evsel *evsel;
-	struct perf_event_attr attr = {
-		.type = PERF_TYPE_SOFTWARE,
-		.config = PERF_COUNT_SW_DUMMY,
-	};
-	struct perf_cpu_map *cpu_list = NULL;
-
-	if (tool_event == PERF_TOOL_DURATION_TIME) {
-		/* Duration time is gathered globally, pretend it is only on CPU0. */
-		cpu_list = perf_cpu_map__new("0");
-	}
-	evsel = __add_event(list, idx, &attr, /*init_attr=*/true, /*name=*/NULL,
-			    /*metric_id=*/NULL, /*pmu=*/NULL,
-			    /*config_terms=*/NULL, /*auto_merge_stats=*/false,
-			    cpu_list,
-			    /*alternate_hw_config=*/PERF_COUNT_HW_MAX);
-	perf_cpu_map__put(cpu_list);
-	if (!evsel)
-		return -ENOMEM;
-	evsel->tool_event = tool_event;
-	if (tool_event == PERF_TOOL_DURATION_TIME
-	    || tool_event == PERF_TOOL_USER_TIME
-	    || tool_event == PERF_TOOL_SYSTEM_TIME) {
-		free((char *)evsel->unit);
-		evsel->unit = strdup("ns");
-	}
-	return 0;
-}
-
 /**
  * parse_aliases - search names for entries beginning or equalling str ignoring
  *                 case. If mutliple entries in names match str then the longest
@@ -1428,13 +1396,6 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 	}
 	return __parse_events_add_numeric(parse_state, list, perf_pmus__find_by_type(type),
 					type, /*extended_type=*/0, config, head_config);
-}
-
-int parse_events_add_tool(struct parse_events_state *parse_state,
-			  struct list_head *list,
-			  int tool_event)
-{
-	return add_event_tool(list, &parse_state->idx, tool_event);
 }
 
 static bool config_term_percore(struct list_head *config_terms)
