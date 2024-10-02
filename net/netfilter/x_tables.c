@@ -1190,11 +1190,10 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
 	if (sz < sizeof(*info) || sz >= XT_MAX_TABLE_SIZE)
 		return NULL;
 
-	info = kvmalloc(sz, GFP_KERNEL_ACCOUNT);
+	info = kvzalloc(sz, GFP_KERNEL_ACCOUNT);
 	if (!info)
 		return NULL;
 
-	memset(info, 0, sizeof(*info));
 	info->size = size;
 	return info;
 }
