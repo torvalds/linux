@@ -1287,7 +1287,7 @@ static struct reference_block * __must_check get_reference_block(struct vdo_slab
  * slab_block_number_from_pbn() - Determine the index within the slab of a particular physical
  *                                block number.
  * @slab: The slab.
- * @physical_block_number: The physical block number.
+ * @pbn: The physical block number.
  * @slab_block_number_ptr: A pointer to the slab block number.
  *
  * Return: VDO_SUCCESS or an error code.
@@ -1459,7 +1459,6 @@ static int increment_for_data(struct vdo_slab *slab, struct reference_block *blo
  * @block_number: The block to update.
  * @old_status: The reference status of the data block before this decrement.
  * @updater: The reference updater doing this operation in case we need to look up the pbn lock.
- * @lock: The pbn_lock associated with the block being decremented (may be NULL).
  * @counter_ptr: A pointer to the count for the data block (in, out).
  * @adjust_block_count: Whether to update the allocator's free block count.
  *
@@ -3232,8 +3231,7 @@ int vdo_enqueue_clean_slab_waiter(struct block_allocator *allocator,
 /**
  * vdo_modify_reference_count() - Modify the reference count of a block by first making a slab
  *                                journal entry and then updating the reference counter.
- *
- * @data_vio: The data_vio for which to add the entry.
+ * @completion: The data_vio completion for which to add the entry.
  * @updater: Which of the data_vio's reference updaters is being submitted.
  */
 void vdo_modify_reference_count(struct vdo_completion *completion,
@@ -4750,8 +4748,7 @@ void vdo_use_new_slabs(struct slab_depot *depot, struct vdo_completion *parent)
 /**
  * stop_scrubbing() - Tell the scrubber to stop scrubbing after it finishes the slab it is
  *                    currently working on.
- * @scrubber: The scrubber to stop.
- * @parent: The completion to notify when scrubbing has stopped.
+ * @allocator: The block allocator owning the scrubber to stop.
  */
 static void stop_scrubbing(struct block_allocator *allocator)
 {

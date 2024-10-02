@@ -327,8 +327,9 @@ static u32 __must_check pack_status(struct data_vio_compression_status status)
 
 /**
  * set_data_vio_compression_status() - Set the compression status of a data_vio.
- * @state: The expected current status of the data_vio.
- * @new_state: The status to set.
+ * @data_vio: The data_vio to change.
+ * @status: The expected current status of the data_vio.
+ * @new_status: The status to set.
  *
  * Return: true if the new status was set, false if the data_vio's compression status did not
  *         match the expected state, and so was left unchanged.
@@ -836,7 +837,7 @@ static void destroy_data_vio(struct data_vio *data_vio)
  * @vdo: The vdo to which the pool will belong.
  * @pool_size: The number of data_vios in the pool.
  * @discard_limit: The maximum number of data_vios which may be used for discards.
- * @pool: A pointer to hold the newly allocated pool.
+ * @pool_ptr: A pointer to hold the newly allocated pool.
  */
 int make_data_vio_pool(struct vdo *vdo, data_vio_count_t pool_size,
 		       data_vio_count_t discard_limit, struct data_vio_pool **pool_ptr)
