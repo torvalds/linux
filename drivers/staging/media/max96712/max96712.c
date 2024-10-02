@@ -16,8 +16,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define MAX96712_ID 0x20
-
 #define MAX96712_DPLL_FREQ 1000
 
 enum max96712_pattern {
@@ -39,19 +37,6 @@ struct max96712_priv {
 
 	enum max96712_pattern pattern;
 };
-
-static int max96712_read(struct max96712_priv *priv, int reg)
-{
-	int ret, val;
-
-	ret = regmap_read(priv->regmap, reg, &val);
-	if (ret) {
-		dev_err(&priv->client->dev, "read 0x%04x failed\n", reg);
-		return ret;
-	}
-
-	return val;
-}
 
 static int max96712_write(struct max96712_priv *priv, unsigned int reg, u8 val)
 {
@@ -437,9 +422,6 @@ static int max96712_probe(struct i2c_client *client)
 
 	if (priv->gpiod_pwdn)
 		usleep_range(4000, 5000);
-
-	if (max96712_read(priv, 0x4a) != MAX96712_ID)
-		return -ENODEV;
 
 	max96712_reset(priv);
 
