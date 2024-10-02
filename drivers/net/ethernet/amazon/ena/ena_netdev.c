@@ -1821,20 +1821,40 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 				      int first_index,
 				      int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_disable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, NULL);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, NULL);
+		}
+		napi_disable(napi);
+	}
 }
 
 static void ena_napi_enable_in_range(struct ena_adapter *adapter,
 				     int first_index,
 				     int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_enable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+		napi_enable(napi);
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, napi);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, napi);
+		}
+	}
 }
 
 /* Configure the Rx forwarding */
