@@ -383,16 +383,18 @@ int disk_scan_partitions(struct gendisk *disk, blk_mode_t mode)
 }
 
 /**
- * device_add_disk - add disk information to kernel list
+ * add_disk_fwnode - add disk information to kernel list with fwnode
  * @parent: parent device for the disk
  * @disk: per-device partitioning information
  * @groups: Additional per-device sysfs groups
+ * @fwnode: attached disk fwnode
  *
  * This function registers the partitioning information in @disk
- * with the kernel.
+ * with the kernel. Also attach a fwnode to the disk device.
  */
-int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
-				 const struct attribute_group **groups)
+int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups,
+				 struct fwnode_handle *fwnode)
 
 {
 	struct device *ddev = disk_to_dev(disk);
@@ -452,6 +454,8 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	ddev->parent = parent;
 	ddev->groups = groups;
 	dev_set_name(ddev, "%s", disk->disk_name);
+	if (fwnode)
+		device_set_node(ddev, fwnode);
 	if (!(disk->flags & GENHD_FL_HIDDEN))
 		ddev->devt = MKDEV(disk->major, disk->first_minor);
 	ret = device_add(ddev);
@@ -552,6 +556,22 @@ out_exit_elevator:
 	if (disk->queue->elevator)
 		elevator_exit(disk->queue);
 	return ret;
+}
+EXPORT_SYMBOL_GPL(add_disk_fwnode);
+
+/**
+ * device_add_disk - add disk information to kernel list
+ * @parent: parent device for the disk
+ * @disk: per-device partitioning information
+ * @groups: Additional per-device sysfs groups
+ *
+ * This function registers the partitioning information in @disk
+ * with the kernel.
+ */
+int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups)
+{
+	return add_disk_fwnode(parent, disk, groups, NULL);
 }
 EXPORT_SYMBOL(device_add_disk);
 

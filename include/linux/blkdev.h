@@ -725,6 +725,9 @@ static inline unsigned int blk_queue_depth(struct request_queue *q)
 #define for_each_bio(_bio)		\
 	for (; _bio; _bio = _bio->bi_next)
 
+int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups,
+				 struct fwnode_handle *fwnode);
 int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 				 const struct attribute_group **groups);
 static inline int __must_check add_disk(struct gendisk *disk)
