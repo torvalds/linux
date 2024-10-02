@@ -890,7 +890,7 @@
 	status = "okay";
 	pinctrl-0 = <&hsusb_pins>;
 	pinctrl-names = "default";
-	renesas,enable-gpio = <&gpio5 18 GPIO_ACTIVE_HIGH>;
+	renesas,enable-gpios = <&gpio5 18 GPIO_ACTIVE_HIGH>;
 };
 
 &usbphy {

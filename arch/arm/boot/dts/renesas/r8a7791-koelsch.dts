@@ -859,7 +859,7 @@
 	status = "okay";
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
-	renesas,enable-gpio = <&gpio5 31 GPIO_ACTIVE_HIGH>;
+	renesas,enable-gpios = <&gpio5 31 GPIO_ACTIVE_HIGH>;
 };
 
 &usbphy {
