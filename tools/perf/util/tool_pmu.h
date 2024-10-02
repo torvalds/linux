@@ -10,9 +10,18 @@ struct print_callbacks;
 
 enum tool_pmu_event {
 	TOOL_PMU__EVENT_NONE = 0,
-	TOOL_PMU__EVENT_DURATION_TIME = 1,
-	TOOL_PMU__EVENT_USER_TIME = 2,
-	TOOL_PMU__EVENT_SYSTEM_TIME = 3,
+	TOOL_PMU__EVENT_DURATION_TIME,
+	TOOL_PMU__EVENT_USER_TIME,
+	TOOL_PMU__EVENT_SYSTEM_TIME,
+	TOOL_PMU__EVENT_HAS_PMEM,
+	TOOL_PMU__EVENT_NUM_CORES,
+	TOOL_PMU__EVENT_NUM_CPUS,
+	TOOL_PMU__EVENT_NUM_CPUS_ONLINE,
+	TOOL_PMU__EVENT_NUM_DIES,
+	TOOL_PMU__EVENT_NUM_PACKAGES,
+	TOOL_PMU__EVENT_SLOTS,
+	TOOL_PMU__EVENT_SMT_ON,
+	TOOL_PMU__EVENT_SYSTEM_TSC_FREQ,
 
 	TOOL_PMU__EVENT_MAX,
 };
@@ -31,9 +40,11 @@ int tool_pmu__config_terms(struct perf_event_attr *attr,
 			   struct parse_events_terms *terms,
 			   struct parse_events_error *err);
 int tool_pmu__for_each_event_cb(struct perf_pmu *pmu, void *state, pmu_event_callback cb);
+bool tool_pmu__read_event(enum tool_pmu_event ev, u64 *result);
+
+u64 tool_pmu__cpu_slots_per_cycle(void);
 
 bool perf_pmu__is_tool(const struct perf_pmu *pmu);
-
 
 bool evsel__is_tool(const struct evsel *evsel);
 enum tool_pmu_event evsel__tool_event(const struct evsel *evsel);

@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include "cgroup.h"
 #include "counts.h"
+#include "cputopo.h"
 #include "evsel.h"
 #include "pmu.h"
 #include "print-events.h"
+#include "smt.h"
 #include "time-utils.h"
 #include "tool_pmu.h"
+#include "tsc.h"
+#include <api/fs/fs.h>
+#include <api/io.h>
 #include <api/io.h>
 #include <internal/threadmap.h>
 #include <perf/threadmap.h>
@@ -17,6 +22,15 @@ static const char *const tool_pmu__event_names[TOOL_PMU__EVENT_MAX] = {
 	"duration_time",
 	"user_time",
 	"system_time",
+	"has_pmem",
+	"num_cores",
+	"num_cpus",
+	"num_cpus_online",
+	"num_dies",
+	"num_packages",
+	"slots",
+	"smt_on",
+	"system_tsc_freq",
 };
 
 
@@ -33,8 +47,14 @@ enum tool_pmu_event tool_pmu__str_to_event(const char *str)
 	int i;
 
 	tool_pmu__for_each_event(i) {
-		if (!strcasecmp(str, tool_pmu__event_names[i]))
+		if (!strcasecmp(str, tool_pmu__event_names[i])) {
+#if !defined(__aarch64__)
+			/* The slots event should only appear on arm64. */
+			if (i == TOOL_PMU__EVENT_SLOTS)
+				return TOOL_PMU__EVENT_NONE;
+#endif
 			return i;
+		}
 	}
 	return TOOL_PMU__EVENT_NONE;
 }
@@ -250,6 +270,9 @@ int evsel__tool_pmu_open(struct evsel *evsel,
 	enum tool_pmu_event ev = evsel__tool_event(evsel);
 	int pid = -1, idx = 0, thread = 0, nthreads, err = 0, old_errno;
 
+	if (ev == TOOL_PMU__EVENT_NUM_CPUS)
+		return 0;
+
 	if (ev == TOOL_PMU__EVENT_DURATION_TIME) {
 		if (evsel->core.attr.sample_period) /* no sampling */
 			return -EINVAL;
@@ -328,16 +351,133 @@ out_close:
 	return err;
 }
 
+#if !defined(__i386__) && !defined(__x86_64__)
+u64 arch_get_tsc_freq(void)
+{
+	return 0;
+}
+#endif
+
+#if !defined(__aarch64__)
+u64 tool_pmu__cpu_slots_per_cycle(void)
+{
+	return 0;
+}
+#endif
+
+static bool has_pmem(void)
+{
+	static bool has_pmem, cached;
+	const char *sysfs = sysfs__mountpoint();
+	char path[PATH_MAX];
+
+	if (!cached) {
+		snprintf(path, sizeof(path), "%s/firmware/acpi/tables/NFIT", sysfs);
+		has_pmem = access(path, F_OK) == 0;
+		cached = true;
+	}
+	return has_pmem;
+}
+
+bool tool_pmu__read_event(enum tool_pmu_event ev, u64 *result)
+{
+	const struct cpu_topology *topology;
+
+	switch (ev) {
+	case TOOL_PMU__EVENT_HAS_PMEM:
+		*result = has_pmem() ? 1 : 0;
+		return true;
+
+	case TOOL_PMU__EVENT_NUM_CORES:
+		topology = online_topology();
+		*result = topology->core_cpus_lists;
+		return true;
+
+	case TOOL_PMU__EVENT_NUM_CPUS:
+		*result = cpu__max_present_cpu().cpu;
+		return true;
+
+	case TOOL_PMU__EVENT_NUM_CPUS_ONLINE: {
+		struct perf_cpu_map *online = cpu_map__online();
+
+		if (online) {
+			*result = perf_cpu_map__nr(online);
+			return true;
+		}
+		return false;
+	}
+	case TOOL_PMU__EVENT_NUM_DIES:
+		topology = online_topology();
+		*result = topology->die_cpus_lists;
+		return true;
+
+	case TOOL_PMU__EVENT_NUM_PACKAGES:
+		topology = online_topology();
+		*result = topology->package_cpus_lists;
+		return true;
+
+	case TOOL_PMU__EVENT_SLOTS:
+		*result = tool_pmu__cpu_slots_per_cycle();
+		return *result ? true : false;
+
+	case TOOL_PMU__EVENT_SMT_ON:
+		*result = smt_on() ? 1 : 0;
+		return true;
+
+	case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ:
+		*result = arch_get_tsc_freq();
+		return true;
+
+	case TOOL_PMU__EVENT_NONE:
+	case TOOL_PMU__EVENT_DURATION_TIME:
+	case TOOL_PMU__EVENT_USER_TIME:
+	case TOOL_PMU__EVENT_SYSTEM_TIME:
+	case TOOL_PMU__EVENT_MAX:
+	default:
+		return false;
+	}
+}
+
 int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 {
 	__u64 *start_time, cur_time, delta_start;
+	unsigned long val;
 	int fd, err = 0;
-	struct perf_counts_values *count;
+	struct perf_counts_values *count, *old_count = NULL;
 	bool adjust = false;
+	enum tool_pmu_event ev = evsel__tool_event(evsel);
 
 	count = perf_counts(evsel->counts, cpu_map_idx, thread);
 
-	switch (evsel__tool_event(evsel)) {
+	switch (ev) {
+	case TOOL_PMU__EVENT_HAS_PMEM:
+	case TOOL_PMU__EVENT_NUM_CORES:
+	case TOOL_PMU__EVENT_NUM_CPUS:
+	case TOOL_PMU__EVENT_NUM_CPUS_ONLINE:
+	case TOOL_PMU__EVENT_NUM_DIES:
+	case TOOL_PMU__EVENT_NUM_PACKAGES:
+	case TOOL_PMU__EVENT_SLOTS:
+	case TOOL_PMU__EVENT_SMT_ON:
+	case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ:
+		if (evsel->prev_raw_counts)
+			old_count = perf_counts(evsel->prev_raw_counts, cpu_map_idx, thread);
+		val = 0;
+		if (cpu_map_idx == 0 && thread == 0) {
+			if (!tool_pmu__read_event(ev, &val)) {
+				count->lost++;
+				val = 0;
+			}
+		}
+		if (old_count) {
+			count->val = old_count->val + val;
+			count->run = old_count->run + 1;
+			count->ena = old_count->ena + 1;
+		} else {
+			count->val = val;
+			count->run++;
+			count->ena++;
+		}
+		return 0;
 	case TOOL_PMU__EVENT_DURATION_TIME:
 		/*
 		 * Pretend duration_time is only on the first CPU and thread, or

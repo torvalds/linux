@@ -5,6 +5,7 @@
 #include "../../../util/header.h"
 #include "../../../util/pmu.h"
 #include "../../../util/pmus.h"
+#include "../../../util/tool_pmu.h"
 #include <api/fs/fs.h>
 #include <math.h>
 
@@ -24,7 +25,7 @@ const struct pmu_metrics_table *pmu_metrics_table__find(void)
 	return NULL;
 }
 
-double perf_pmu__cpu_slots_per_cycle(void)
+u64 tool_pmu__cpu_slots_per_cycle(void)
 {
 	char path[PATH_MAX];
 	unsigned long long slots = 0;
@@ -41,5 +42,5 @@ double perf_pmu__cpu_slots_per_cycle(void)
 		filename__read_ull(path, &slots);
 	}
 
-	return slots ? (double)slots : NAN;
+	return slots;
 }

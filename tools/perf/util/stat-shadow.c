@@ -400,8 +400,17 @@ static int prepare_metric(const struct metric_expr *mexp,
 			case TOOL_PMU__EVENT_MAX:
 				pr_err("Invalid tool event 'max'");
 				abort();
+			case TOOL_PMU__EVENT_HAS_PMEM:
+			case TOOL_PMU__EVENT_NUM_CORES:
+			case TOOL_PMU__EVENT_NUM_CPUS:
+			case TOOL_PMU__EVENT_NUM_CPUS_ONLINE:
+			case TOOL_PMU__EVENT_NUM_DIES:
+			case TOOL_PMU__EVENT_NUM_PACKAGES:
+			case TOOL_PMU__EVENT_SLOTS:
+			case TOOL_PMU__EVENT_SMT_ON:
+			case TOOL_PMU__EVENT_SYSTEM_TSC_FREQ:
 			default:
-				pr_err("Unknown tool event '%s'", evsel__name(metric_events[i]));
+				pr_err("Unexpected tool event '%s'", evsel__name(metric_events[i]));
 				abort();
 			}
 			val = avg_stats(stats) * scale;

@@ -271,7 +271,6 @@ void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu);
 
 bool perf_pmu__match(const struct perf_pmu *pmu, const char *tok);
 
-double perf_pmu__cpu_slots_per_cycle(void);
 int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size);
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,
 				 const char *pmu_name, const char *filename);

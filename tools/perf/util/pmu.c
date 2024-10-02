@@ -2254,11 +2254,6 @@ bool perf_pmu__match(const struct perf_pmu *pmu, const char *tok)
 		(need_fnmatch && !fnmatch(tok, name, 0));
 }
 
-double __weak perf_pmu__cpu_slots_per_cycle(void)
-{
-	return NAN;
-}
-
 int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size)
 {
 	const char *sysfs = sysfs__mountpoint();

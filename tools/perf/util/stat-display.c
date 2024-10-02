@@ -987,8 +987,12 @@ static bool should_skip_zero_counter(struct perf_stat_config *config,
 	 * Many tool events are only gathered on the first index, skip other
 	 * zero values.
 	 */
-	if (evsel__is_tool(counter))
-		return true;
+	if (evsel__is_tool(counter)) {
+		struct aggr_cpu_id own_id =
+			config->aggr_get_id(config, (struct perf_cpu){ .cpu = 0 });
+
+		return !aggr_cpu_id__equal(id, &own_id);
+	}
 
 	/*
 	 * Skip value 0 when it's an uncore event and the given aggr id
