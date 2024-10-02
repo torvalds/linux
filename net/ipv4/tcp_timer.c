@@ -717,6 +717,10 @@ static void tcp_write_timer(struct timer_list *t)
 			from_timer(icsk, t, icsk_retransmit_timer);
 	struct sock *sk = &icsk->icsk_inet.sk;
 
+	/* Avoid locking the socket when there is no pending event. */
+	if (!smp_load_acquire(&icsk->icsk_pending))
+		goto out;
+
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk)) {
 		tcp_write_timer_handler(sk);
@@ -726,6 +730,7 @@ static void tcp_write_timer(struct timer_list *t)
 			sock_hold(sk);
 	}
 	bh_unlock_sock(sk);
+out:
 	sock_put(sk);
 }
 
