@@ -701,11 +701,11 @@ void tcp_write_timer_handler(struct sock *sk)
 		tcp_send_loss_probe(sk);
 		break;
 	case ICSK_TIME_RETRANS:
-		icsk->icsk_pending = 0;
+		smp_store_release(&icsk->icsk_pending, 0);
 		tcp_retransmit_timer(sk);
 		break;
 	case ICSK_TIME_PROBE0:
-		icsk->icsk_pending = 0;
+		smp_store_release(&icsk->icsk_pending, 0);
 		tcp_probe_timer(sk);
 		break;
 	}

@@ -2960,7 +2960,7 @@ void tcp_send_loss_probe(struct sock *sk)
 		WARN_ONCE(tp->packets_out,
 			  "invalid inflight: %u state %u cwnd %u mss %d\n",
 			  tp->packets_out, sk->sk_state, tcp_snd_cwnd(tp), mss);
-		inet_csk(sk)->icsk_pending = 0;
+		smp_store_release(&inet_csk(sk)->icsk_pending, 0);
 		return;
 	}
 
@@ -2993,7 +2993,7 @@ probe_sent:
 
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPLOSSPROBES);
 	/* Reset s.t. tcp_rearm_rto will restart timer from now */
-	inet_csk(sk)->icsk_pending = 0;
+	smp_store_release(&inet_csk(sk)->icsk_pending, 0);
 rearm_timer:
 	tcp_rearm_rto(sk);
 }

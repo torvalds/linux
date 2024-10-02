@@ -197,7 +197,7 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
-		icsk->icsk_pending = 0;
+		smp_store_release(&icsk->icsk_pending, 0);
 #ifdef INET_CSK_CLEAR_TIMERS
 		sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
 #endif
@@ -229,7 +229,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0 ||
 	    what == ICSK_TIME_LOSS_PROBE || what == ICSK_TIME_REO_TIMEOUT) {
-		icsk->icsk_pending = what;
+		smp_store_release(&icsk->icsk_pending, what);
 		icsk->icsk_timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
 	} else if (what == ICSK_TIME_DACK) {
