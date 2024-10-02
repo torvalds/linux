@@ -229,8 +229,7 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 	ret = abort_lock(g, abort);
 out:
 	if (ret)
-		while (g->nr)
-			lock_graph_up(g);
+		lock_graph_pop_all(g);
 	return ret;
 }
 
@@ -252,8 +251,7 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 		if (orig_trans->lock_may_not_fail)
 			return 0;
 
-		while (g->nr)
-			lock_graph_up(g);
+		lock_graph_pop_all(g);
 
 		if (cycle)
 			return 0;
