@@ -452,10 +452,10 @@ void gen8_gt_irq_reset(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
 
-	GEN8_IRQ_RESET_NDX(uncore, GT, 0);
-	GEN8_IRQ_RESET_NDX(uncore, GT, 1);
-	GEN8_IRQ_RESET_NDX(uncore, GT, 2);
-	GEN8_IRQ_RESET_NDX(uncore, GT, 3);
+	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(0));
+	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(1));
+	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(2));
+	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(3));
 }
 
 void gen8_gt_irq_postinstall(struct intel_gt *gt)
@@ -476,14 +476,14 @@ void gen8_gt_irq_postinstall(struct intel_gt *gt)
 
 	gt->pm_ier = 0x0;
 	gt->pm_imr = ~gt->pm_ier;
-	GEN8_IRQ_INIT_NDX(uncore, GT, 0, ~gt_interrupts[0], gt_interrupts[0]);
-	GEN8_IRQ_INIT_NDX(uncore, GT, 1, ~gt_interrupts[1], gt_interrupts[1]);
+	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(0), ~gt_interrupts[0], gt_interrupts[0]);
+	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(1), ~gt_interrupts[1], gt_interrupts[1]);
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
 	 * is enabled/disabled. Same wil be the case for GuC interrupts.
 	 */
-	GEN8_IRQ_INIT_NDX(uncore, GT, 2, gt->pm_imr, gt->pm_ier);
-	GEN8_IRQ_INIT_NDX(uncore, GT, 3, ~gt_interrupts[3], gt_interrupts[3]);
+	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(2), gt->pm_imr, gt->pm_ier);
+	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(3), ~gt_interrupts[3], gt_interrupts[3]);
 }
 
 static void gen5_gt_update_irq(struct intel_gt *gt,

@@ -2491,6 +2491,10 @@
 #define GEN8_GT_IIR(which) _MMIO(0x44308 + (0x10 * (which)))
 #define GEN8_GT_IER(which) _MMIO(0x4430c + (0x10 * (which)))
 
+#define GEN8_GT_IRQ_REGS(which)		I915_IRQ_REGS(GEN8_GT_IMR(which), \
+						      GEN8_GT_IER(which), \
+						      GEN8_GT_IIR(which))
+
 #define GEN8_RCS_IRQ_SHIFT 0
 #define GEN8_BCS_IRQ_SHIFT 16
 #define GEN8_VCS0_IRQ_SHIFT 0  /* NB: VCS1 in bspec! */
@@ -2541,6 +2545,10 @@
 #define  GEN8_PIPE_SCAN_LINE_EVENT	REG_BIT(2)
 #define  GEN8_PIPE_VSYNC		REG_BIT(1)
 #define  GEN8_PIPE_VBLANK		REG_BIT(0)
+
+#define GEN8_DE_PIPE_IRQ_REGS(pipe)	I915_IRQ_REGS(GEN8_DE_PIPE_IMR(pipe), \
+						      GEN8_DE_PIPE_IER(pipe), \
+						      GEN8_DE_PIPE_IIR(pipe))
 
 #define _HPD_PIN_DDI(hpd_pin)	((hpd_pin) - HPD_PORT_A)
 #define _HPD_PIN_TC(hpd_pin)	((hpd_pin) - HPD_PORT_TC1)

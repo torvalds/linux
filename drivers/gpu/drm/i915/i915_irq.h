@@ -47,21 +47,4 @@ void gen3_irq_reset(struct intel_uncore *uncore, struct i915_irq_regs regs);
 void gen3_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
 		   u32 imr_val, u32 ier_val);
 
-#define GEN8_IRQ_RESET_NDX(uncore, type, which) \
-({ \
-	unsigned int which_ = which; \
-	gen3_irq_reset((uncore), I915_IRQ_REGS(GEN8_##type##_IMR(which_), \
-					       GEN8_##type##_IER(which_), \
-					       GEN8_##type##_IIR(which_))); \
-})
-
-#define GEN8_IRQ_INIT_NDX(uncore, type, which, imr_val, ier_val) \
-({ \
-	unsigned int which_ = which; \
-	gen3_irq_init((uncore), I915_IRQ_REGS(GEN8_##type##_IMR(which_), \
-					      GEN8_##type##_IER(which_), \
-					      GEN8_##type##_IIR(which_)), \
-		      imr_val, ier_val); \
-})
-
 #endif /* __I915_IRQ_H__ */

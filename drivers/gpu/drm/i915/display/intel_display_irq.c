@@ -1556,7 +1556,7 @@ void gen8_display_irq_reset(struct drm_i915_private *dev_priv)
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
-			GEN8_IRQ_RESET_NDX(uncore, DE_PIPE, pipe);
+			gen3_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
 	gen3_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
 	gen3_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
@@ -1599,7 +1599,7 @@ void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
-			GEN8_IRQ_RESET_NDX(uncore, DE_PIPE, pipe);
+			gen3_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
 	gen3_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
 	gen3_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
@@ -1630,9 +1630,9 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 	}
 
 	for_each_pipe_masked(dev_priv, pipe, pipe_mask)
-		GEN8_IRQ_INIT_NDX(uncore, DE_PIPE, pipe,
-				  dev_priv->display.irq.de_irq_mask[pipe],
-				  ~dev_priv->display.irq.de_irq_mask[pipe] | extra_ier);
+		gen3_irq_init(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe),
+			      dev_priv->display.irq.de_irq_mask[pipe],
+			      ~dev_priv->display.irq.de_irq_mask[pipe] | extra_ier);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
@@ -1651,7 +1651,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 	}
 
 	for_each_pipe_masked(dev_priv, pipe, pipe_mask)
-		GEN8_IRQ_RESET_NDX(uncore, DE_PIPE, pipe);
+		gen3_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -1839,9 +1839,9 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
-			GEN8_IRQ_INIT_NDX(uncore, DE_PIPE, pipe,
-					  dev_priv->display.irq.de_irq_mask[pipe],
-					  de_pipe_enables);
+			gen3_irq_init(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe),
+				      dev_priv->display.irq.de_irq_mask[pipe],
+				      de_pipe_enables);
 	}
 
 	gen3_irq_init(uncore, GEN8_DE_PORT_IRQ_REGS, ~de_port_masked, de_port_enables);
