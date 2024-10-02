@@ -165,6 +165,9 @@ include::itrace.txt[]
 --type-stat::
 	Show stats for the data type annotation.
 
+--skip-empty::
+	Do not display empty (or dummy) events.
+
 
 SEE ALSO
 --------

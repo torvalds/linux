@@ -39,6 +39,7 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
@@ -1014,9 +1015,14 @@ static bool cmrr_params_changed(const struct intel_crtc_state *old_crtc_state,
 		old_crtc_state->cmrr.cmrr_n != new_crtc_state->cmrr.cmrr_n;
 }
 
-static bool vrr_enabling(const struct intel_crtc_state *old_crtc_state,
-			 const struct intel_crtc_state *new_crtc_state)
+static bool intel_crtc_vrr_enabling(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
 {
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
 	if (!new_crtc_state->hw.active)
 		return false;
 
@@ -1026,9 +1032,14 @@ static bool vrr_enabling(const struct intel_crtc_state *old_crtc_state,
 		  vrr_params_changed(old_crtc_state, new_crtc_state)));
 }
 
-static bool vrr_disabling(const struct intel_crtc_state *old_crtc_state,
-			  const struct intel_crtc_state *new_crtc_state)
+bool intel_crtc_vrr_disabling(struct intel_atomic_state *state,
+			      struct intel_crtc *crtc)
 {
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
 	if (!old_crtc_state->hw.active)
 		return false;
 
@@ -1181,7 +1192,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	enum pipe pipe = crtc->pipe;
 
-	if (vrr_disabling(old_crtc_state, new_crtc_state)) {
+	if (intel_crtc_vrr_disabling(state, crtc)) {
 		intel_vrr_disable(old_crtc_state);
 		intel_crtc_update_active_timings(old_crtc_state, false);
 	}
@@ -4669,11 +4680,11 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 	crtc_state->fec_enable = limits->force_fec_pipes & BIT(crtc->pipe);
 	crtc_state->max_link_bpp_x16 = limits->max_bpp_x16[crtc->pipe];
 
-	if (crtc_state->pipe_bpp > to_bpp_int(crtc_state->max_link_bpp_x16)) {
+	if (crtc_state->pipe_bpp > fxp_q4_to_int(crtc_state->max_link_bpp_x16)) {
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] Link bpp limited to " BPP_X16_FMT "\n",
+			    "[CRTC:%d:%s] Link bpp limited to " FXP_Q4_FMT "\n",
 			    crtc->base.base.id, crtc->base.name,
-			    BPP_X16_ARGS(crtc_state->max_link_bpp_x16));
+			    FXP_Q4_ARGS(crtc_state->max_link_bpp_x16));
 		crtc_state->bw_constrained = true;
 	}
 
@@ -5100,7 +5111,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if (current_config->name != pipe_config->name) { \
 		BUILD_BUG_ON_MSG(!__same_type(current_config->name, bool), \
 				 __stringify(name) " is not bool");	\
-		pipe_config_mismatch(&p, fastset, crtc,  __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(expected %s, found %s)", \
 				     str_yes_no(current_config->name), \
 				     str_yes_no(pipe_config->name)); \
@@ -6249,6 +6260,8 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		case I915_FORMAT_MOD_Y_TILED:
 		case I915_FORMAT_MOD_Yf_TILED:
 		case I915_FORMAT_MOD_4_TILED:
+		case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+		case I915_FORMAT_MOD_4_TILED_LNL_CCS:
 			break;
 		default:
 			drm_dbg_kms(&i915->drm,
@@ -6830,8 +6843,6 @@ static void commit_pipe_post_planes(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	const struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
@@ -6844,7 +6855,7 @@ static void commit_pipe_post_planes(struct intel_atomic_state *state,
 	    !intel_crtc_needs_modeset(new_crtc_state))
 		skl_detach_scalers(new_crtc_state);
 
-	if (vrr_enabling(old_crtc_state, new_crtc_state))
+	if (intel_crtc_vrr_enabling(state, crtc))
 		intel_vrr_enable(new_crtc_state);
 }
 
@@ -6944,7 +6955,7 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	 *
 	 * FIXME Should be synchronized with the start of vblank somehow...
 	 */
-	if (vrr_enabling(old_crtc_state, new_crtc_state) ||
+	if (intel_crtc_vrr_enabling(state, crtc) ||
 	    new_crtc_state->update_m_n || new_crtc_state->update_lrr)
 		intel_crtc_update_active_timings(new_crtc_state,
 						 new_crtc_state->vrr.enable);
@@ -7502,7 +7513,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		 *
 		 * FIXME get rid of this funny new->old swapping
 		 */
-		old_crtc_state->dsb = fetch_and_zero(&new_crtc_state->dsb);
+		old_crtc_state->dsb_color_vblank = fetch_and_zero(&new_crtc_state->dsb_color_vblank);
+		old_crtc_state->dsb_color_commit = fetch_and_zero(&new_crtc_state->dsb_color_commit);
 	}
 
 	/* Underruns don't always raise interrupts, so check manually */
@@ -7777,10 +7789,11 @@ bool assert_port_valid(struct drm_i915_private *i915, enum port port)
 
 void intel_setup_outputs(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
-	intel_pps_unlock_regs_wa(dev_priv);
+	intel_pps_unlock_regs_wa(display);
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
@@ -7789,7 +7802,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (intel_ddi_crt_present(dev_priv))
 			intel_crt_init(dev_priv);
 
-		intel_bios_for_each_encoder(dev_priv, intel_ddi_init);
+		intel_bios_for_each_encoder(display, intel_ddi_init);
 
 		if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 			vlv_dsi_init(dev_priv);
@@ -7851,14 +7864,14 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 * HDMI ports that the VBT claim are DP or eDP.
 		 */
 		has_edp = intel_dp_is_port_edp(dev_priv, PORT_B);
-		has_port = intel_bios_is_port_present(dev_priv, PORT_B);
+		has_port = intel_bios_is_port_present(display, PORT_B);
 		if (intel_de_read(dev_priv, VLV_DP_B) & DP_DETECTED || has_port)
 			has_edp &= g4x_dp_init(dev_priv, VLV_DP_B, PORT_B);
 		if ((intel_de_read(dev_priv, VLV_HDMIB) & SDVO_DETECTED || has_port) && !has_edp)
 			g4x_hdmi_init(dev_priv, VLV_HDMIB, PORT_B);
 
 		has_edp = intel_dp_is_port_edp(dev_priv, PORT_C);
-		has_port = intel_bios_is_port_present(dev_priv, PORT_C);
+		has_port = intel_bios_is_port_present(display, PORT_C);
 		if (intel_de_read(dev_priv, VLV_DP_C) & DP_DETECTED || has_port)
 			has_edp &= g4x_dp_init(dev_priv, VLV_DP_C, PORT_C);
 		if ((intel_de_read(dev_priv, VLV_HDMIC) & SDVO_DETECTED || has_port) && !has_edp)
@@ -7869,7 +7882,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 			 * eDP not supported on port D,
 			 * so no need to worry about it
 			 */
-			has_port = intel_bios_is_port_present(dev_priv, PORT_D);
+			has_port = intel_bios_is_port_present(display, PORT_D);
 			if (intel_de_read(dev_priv, CHV_DP_D) & DP_DETECTED || has_port)
 				g4x_dp_init(dev_priv, CHV_DP_D, PORT_D);
 			if (intel_de_read(dev_priv, CHV_HDMID) & SDVO_DETECTED || has_port)
@@ -7923,7 +7936,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 			g4x_dp_init(dev_priv, DP_D, PORT_D);
 
 		if (SUPPORTS_TV(dev_priv))
-			intel_tv_init(dev_priv);
+			intel_tv_init(display);
 	} else if (DISPLAY_VER(dev_priv) == 2) {
 		if (IS_I85X(dev_priv))
 			intel_lvds_init(dev_priv);

@@ -391,9 +391,9 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 		mmio_value = 0;
 
 	/*
-	 * The masked MMIO value must obviously match itself and a removed SPTE
-	 * must not get a false positive.  Removed SPTEs and MMIO SPTEs should
-	 * never collide as MMIO must set some RWX bits, and removed SPTEs must
+	 * The masked MMIO value must obviously match itself and a frozen SPTE
+	 * must not get a false positive.  Frozen SPTEs and MMIO SPTEs should
+	 * never collide as MMIO must set some RWX bits, and frozen SPTEs must
 	 * not set any RWX bits.
 	 */
 	if (WARN_ON((mmio_value & mmio_mask) != mmio_value) ||

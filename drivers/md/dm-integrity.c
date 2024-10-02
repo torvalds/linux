@@ -284,6 +284,7 @@ struct dm_integrity_c {
 
 	mempool_t recheck_pool;
 	struct bio_set recheck_bios;
+	struct bio_set recalc_bios;
 
 	struct notifier_block reboot_notifier;
 };
@@ -321,7 +322,9 @@ struct dm_integrity_io {
 	struct dm_bio_details bio_details;
 
 	char *integrity_payload;
+	unsigned payload_len;
 	bool integrity_payload_from_mempool;
+	bool integrity_range_locked;
 };
 
 struct journal_completion {
@@ -359,7 +362,7 @@ static struct kmem_cache *journal_io_cache;
 #endif
 
 static void dm_integrity_map_continue(struct dm_integrity_io *dio, bool from_map);
-static int dm_integrity_map_inline(struct dm_integrity_io *dio);
+static int dm_integrity_map_inline(struct dm_integrity_io *dio, bool from_map);
 static void integrity_bio_wait(struct work_struct *w);
 static void dm_integrity_dtr(struct dm_target *ti);
 
@@ -491,7 +494,8 @@ static int sb_mac(struct dm_integrity_c *ic, bool wr)
 	__u8 *sb = (__u8 *)ic->sb;
 	__u8 *mac = sb + (1 << SECTOR_SHIFT) - mac_size;
 
-	if (sizeof(struct superblock) + mac_size > 1 << SECTOR_SHIFT) {
+	if (sizeof(struct superblock) + mac_size > 1 << SECTOR_SHIFT ||
+	    mac_size > HASH_MAX_DIGESTSIZE) {
 		dm_integrity_io_error(ic, "digest is too long", -EINVAL);
 		return -EINVAL;
 	}
@@ -1500,15 +1504,15 @@ static void dm_integrity_flush_buffers(struct dm_integrity_c *ic, bool flush_dat
 	if (!ic->meta_dev)
 		flush_data = false;
 	if (flush_data) {
-		fr.io_req.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC,
-		fr.io_req.mem.type = DM_IO_KMEM,
-		fr.io_req.mem.ptr.addr = NULL,
-		fr.io_req.notify.fn = flush_notify,
+		fr.io_req.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC;
+		fr.io_req.mem.type = DM_IO_KMEM;
+		fr.io_req.mem.ptr.addr = NULL;
+		fr.io_req.notify.fn = flush_notify;
 		fr.io_req.notify.context = &fr;
-		fr.io_req.client = dm_bufio_get_dm_io_client(ic->bufio),
-		fr.io_reg.bdev = ic->dev->bdev,
-		fr.io_reg.sector = 0,
-		fr.io_reg.count = 0,
+		fr.io_req.client = dm_bufio_get_dm_io_client(ic->bufio);
+		fr.io_reg.bdev = ic->dev->bdev;
+		fr.io_reg.sector = 0;
+		fr.io_reg.count = 0;
 		fr.ic = ic;
 		init_completion(&fr.comp);
 		r = dm_io(&fr.io_req, 1, &fr.io_reg, NULL, IOPRIO_DEFAULT);
@@ -1946,8 +1950,13 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 	dio->bi_status = 0;
 	dio->op = bio_op(bio);
 
-	if (ic->mode == 'I')
-		return dm_integrity_map_inline(dio);
+	if (ic->mode == 'I') {
+		bio->bi_iter.bi_sector = dm_target_offset(ic->ti, bio->bi_iter.bi_sector);
+		dio->integrity_payload = NULL;
+		dio->integrity_payload_from_mempool = false;
+		dio->integrity_range_locked = false;
+		return dm_integrity_map_inline(dio, true);
+	}
 
 	if (unlikely(dio->op == REQ_OP_DISCARD)) {
 		if (ti->max_io_len) {
@@ -2174,6 +2183,7 @@ static void dm_integrity_map_continue(struct dm_integrity_io *dio, bool from_map
 	struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 	unsigned int journal_section, journal_entry;
 	unsigned int journal_read_pos;
+	sector_t recalc_sector;
 	struct completion read_comp;
 	bool discard_retried = false;
 	bool need_sync_io = ic->internal_hash && dio->op == REQ_OP_READ;
@@ -2314,6 +2324,7 @@ offload_to_thread:
 			goto lock_retry;
 		}
 	}
+	recalc_sector = le64_to_cpu(ic->sb->recalc_sector);
 	spin_unlock_irq(&ic->endio_wait.lock);
 
 	if (unlikely(journal_read_pos != NOT_FOUND)) {
@@ -2368,7 +2379,7 @@ offload_to_thread:
 	if (need_sync_io) {
 		wait_for_completion_io(&read_comp);
 		if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING) &&
-		    dio->range.logical_sector + dio->range.n_sectors > le64_to_cpu(ic->sb->recalc_sector))
+		    dio->range.logical_sector + dio->range.n_sectors > recalc_sector)
 			goto skip_check;
 		if (ic->mode == 'B') {
 			if (!block_bitmap_op(ic, ic->recalc_bitmap, dio->range.logical_sector,
@@ -2395,15 +2406,13 @@ journal_read_write:
 	do_endio_flush(ic, dio);
 }
 
-static int dm_integrity_map_inline(struct dm_integrity_io *dio)
+static int dm_integrity_map_inline(struct dm_integrity_io *dio, bool from_map)
 {
 	struct dm_integrity_c *ic = dio->ic;
 	struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 	struct bio_integrity_payload *bip;
-	unsigned payload_len, digest_size, extra_size, ret;
-
-	dio->integrity_payload = NULL;
-	dio->integrity_payload_from_mempool = false;
+	unsigned ret;
+	sector_t recalc_sector;
 
 	if (unlikely(bio_integrity(bio))) {
 		bio->bi_status = BLK_STS_NOTSUPP;
@@ -2416,28 +2425,67 @@ static int dm_integrity_map_inline(struct dm_integrity_io *dio)
 		return DM_MAPIO_REMAPPED;
 
 retry:
-	payload_len = ic->tuple_size * (bio_sectors(bio) >> ic->sb->log2_sectors_per_block);
-	digest_size = crypto_shash_digestsize(ic->internal_hash);
-	extra_size = unlikely(digest_size > ic->tag_size) ? digest_size - ic->tag_size : 0;
-	payload_len += extra_size;
-	dio->integrity_payload = kmalloc(payload_len, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
-	if (unlikely(!dio->integrity_payload)) {
-		const unsigned x_size = PAGE_SIZE << 1;
-		if (payload_len > x_size) {
-			unsigned sectors = ((x_size - extra_size) / ic->tuple_size) << ic->sb->log2_sectors_per_block;
-			if (WARN_ON(!sectors || sectors >= bio_sectors(bio))) {
-				bio->bi_status = BLK_STS_NOTSUPP;
-				bio_endio(bio);
-				return DM_MAPIO_SUBMITTED;
+	if (!dio->integrity_payload) {
+		unsigned digest_size, extra_size;
+		dio->payload_len = ic->tuple_size * (bio_sectors(bio) >> ic->sb->log2_sectors_per_block);
+		digest_size = crypto_shash_digestsize(ic->internal_hash);
+		extra_size = unlikely(digest_size > ic->tag_size) ? digest_size - ic->tag_size : 0;
+		dio->payload_len += extra_size;
+		dio->integrity_payload = kmalloc(dio->payload_len, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+		if (unlikely(!dio->integrity_payload)) {
+			const unsigned x_size = PAGE_SIZE << 1;
+			if (dio->payload_len > x_size) {
+				unsigned sectors = ((x_size - extra_size) / ic->tuple_size) << ic->sb->log2_sectors_per_block;
+				if (WARN_ON(!sectors || sectors >= bio_sectors(bio))) {
+					bio->bi_status = BLK_STS_NOTSUPP;
+					bio_endio(bio);
+					return DM_MAPIO_SUBMITTED;
+				}
+				dm_accept_partial_bio(bio, sectors);
+				goto retry;
 			}
-			dm_accept_partial_bio(bio, sectors);
-			goto retry;
 		}
+	}
+
+	dio->range.logical_sector = bio->bi_iter.bi_sector;
+	dio->range.n_sectors = bio_sectors(bio);
+
+	if (!(ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)))
+		goto skip_spinlock;
+#ifdef CONFIG_64BIT
+	/*
+	 * On 64-bit CPUs we can optimize the lock away (so that it won't cause
+	 * cache line bouncing) and use acquire/release barriers instead.
+	 *
+	 * Paired with smp_store_release in integrity_recalc_inline.
+	 */
+	recalc_sector = le64_to_cpu(smp_load_acquire(&ic->sb->recalc_sector));
+	if (likely(dio->range.logical_sector + dio->range.n_sectors <= recalc_sector))
+		goto skip_spinlock;
+#endif
+	spin_lock_irq(&ic->endio_wait.lock);
+	recalc_sector = le64_to_cpu(ic->sb->recalc_sector);
+	if (dio->range.logical_sector + dio->range.n_sectors <= recalc_sector)
+		goto skip_unlock;
+	if (unlikely(!add_new_range(ic, &dio->range, true))) {
+		if (from_map) {
+			spin_unlock_irq(&ic->endio_wait.lock);
+			INIT_WORK(&dio->work, integrity_bio_wait);
+			queue_work(ic->wait_wq, &dio->work);
+			return DM_MAPIO_SUBMITTED;
+		}
+		wait_and_add_new_range(ic, &dio->range);
+	}
+	dio->integrity_range_locked = true;
+skip_unlock:
+	spin_unlock_irq(&ic->endio_wait.lock);
+skip_spinlock:
+
+	if (unlikely(!dio->integrity_payload)) {
 		dio->integrity_payload = page_to_virt((struct page *)mempool_alloc(&ic->recheck_pool, GFP_NOIO));
 		dio->integrity_payload_from_mempool = true;
 	}
 
-	bio->bi_iter.bi_sector = dm_target_offset(ic->ti, bio->bi_iter.bi_sector);
 	dio->bio_details.bi_iter = bio->bi_iter;
 
 	if (unlikely(!dm_integrity_check_limits(ic, bio->bi_iter.bi_sector, bio))) {
@@ -2447,7 +2495,7 @@ retry:
 	bio->bi_iter.bi_sector += ic->start + SB_SECTORS;
 
 	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
-	if (unlikely(IS_ERR(bip))) {
+	if (IS_ERR(bip)) {
 		bio->bi_status = errno_to_blk_status(PTR_ERR(bip));
 		bio_endio(bio);
 		return DM_MAPIO_SUBMITTED;
@@ -2468,8 +2516,8 @@ retry:
 	}
 
 	ret = bio_integrity_add_page(bio, virt_to_page(dio->integrity_payload),
-					payload_len, offset_in_page(dio->integrity_payload));
-	if (unlikely(ret != payload_len)) {
+					dio->payload_len, offset_in_page(dio->integrity_payload));
+	if (unlikely(ret != dio->payload_len)) {
 		bio->bi_status = BLK_STS_RESOURCE;
 		bio_endio(bio);
 		return DM_MAPIO_SUBMITTED;
@@ -2520,7 +2568,7 @@ static void dm_integrity_inline_recheck(struct work_struct *w)
 		}
 
 		bip = bio_integrity_alloc(outgoing_bio, GFP_NOIO, 1);
-		if (unlikely(IS_ERR(bip))) {
+		if (IS_ERR(bip)) {
 			bio_put(outgoing_bio);
 			bio->bi_status = errno_to_blk_status(PTR_ERR(bip));
 			bio_endio(bio);
@@ -2577,6 +2625,9 @@ static int dm_integrity_end_io(struct dm_target *ti, struct bio *bio, blk_status
 		struct dm_integrity_io *dio = dm_per_bio_data(bio, sizeof(struct dm_integrity_io));
 		if (dio->op == REQ_OP_READ && likely(*status == BLK_STS_OK)) {
 			unsigned pos = 0;
+			if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING) &&
+			    unlikely(dio->integrity_range_locked))
+				goto skip_check;
 			while (dio->bio_details.bi_iter.bi_size) {
 				char digest[HASH_MAX_DIGESTSIZE];
 				struct bio_vec bv = bio_iter_iovec(bio, dio->bio_details.bi_iter);
@@ -2596,9 +2647,10 @@ static int dm_integrity_end_io(struct dm_target *ti, struct bio *bio, blk_status
 				bio_advance_iter_single(bio, &dio->bio_details.bi_iter, ic->sectors_per_block << SECTOR_SHIFT);
 			}
 		}
-		if (likely(dio->op == REQ_OP_READ) || likely(dio->op == REQ_OP_WRITE)) {
-			dm_integrity_free_payload(dio);
-		}
+skip_check:
+		dm_integrity_free_payload(dio);
+		if (unlikely(dio->integrity_range_locked))
+			remove_range(ic, &dio->range);
 	}
 	return DM_ENDIO_DONE;
 }
@@ -2606,8 +2658,26 @@ static int dm_integrity_end_io(struct dm_target *ti, struct bio *bio, blk_status
 static void integrity_bio_wait(struct work_struct *w)
 {
 	struct dm_integrity_io *dio = container_of(w, struct dm_integrity_io, work);
+	struct dm_integrity_c *ic = dio->ic;
 
-	dm_integrity_map_continue(dio, false);
+	if (ic->mode == 'I') {
+		struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
+		int r = dm_integrity_map_inline(dio, false);
+		switch (r) {
+			case DM_MAPIO_KILL:
+				bio->bi_status = BLK_STS_IOERR;
+				fallthrough;
+			case DM_MAPIO_REMAPPED:
+				submit_bio_noacct(bio);
+				fallthrough;
+			case DM_MAPIO_SUBMITTED:
+				return;
+			default:
+				BUG();
+		}
+	} else {
+		dm_integrity_map_continue(dio, false);
+	}
 }
 
 static void pad_uncommitted(struct dm_integrity_c *ic)
@@ -3077,6 +3147,133 @@ unlock_ret:
 free_ret:
 	vfree(recalc_buffer);
 	kvfree(recalc_tags);
+}
+
+static void integrity_recalc_inline(struct work_struct *w)
+{
+	struct dm_integrity_c *ic = container_of(w, struct dm_integrity_c, recalc_work);
+	size_t recalc_tags_size;
+	u8 *recalc_buffer = NULL;
+	u8 *recalc_tags = NULL;
+	struct dm_integrity_range range;
+	struct bio *bio;
+	struct bio_integrity_payload *bip;
+	__u8 *t;
+	unsigned int i;
+	int r;
+	unsigned ret;
+	unsigned int super_counter = 0;
+	unsigned recalc_sectors = RECALC_SECTORS;
+
+retry:
+	recalc_buffer = kmalloc(recalc_sectors << SECTOR_SHIFT, GFP_NOIO | __GFP_NOWARN);
+	if (!recalc_buffer) {
+oom:
+		recalc_sectors >>= 1;
+		if (recalc_sectors >= 1U << ic->sb->log2_sectors_per_block)
+			goto retry;
+		DMCRIT("out of memory for recalculate buffer - recalculation disabled");
+		goto free_ret;
+	}
+
+	recalc_tags_size = (recalc_sectors >> ic->sb->log2_sectors_per_block) * ic->tuple_size;
+	if (crypto_shash_digestsize(ic->internal_hash) > ic->tuple_size)
+		recalc_tags_size += crypto_shash_digestsize(ic->internal_hash) - ic->tuple_size;
+	recalc_tags = kmalloc(recalc_tags_size, GFP_NOIO | __GFP_NOWARN);
+	if (!recalc_tags) {
+		kfree(recalc_buffer);
+		recalc_buffer = NULL;
+		goto oom;
+	}
+
+	spin_lock_irq(&ic->endio_wait.lock);
+
+next_chunk:
+	if (unlikely(dm_post_suspending(ic->ti)))
+		goto unlock_ret;
+
+	range.logical_sector = le64_to_cpu(ic->sb->recalc_sector);
+	if (unlikely(range.logical_sector >= ic->provided_data_sectors))
+		goto unlock_ret;
+	range.n_sectors = min((sector_t)recalc_sectors, ic->provided_data_sectors - range.logical_sector);
+
+	add_new_range_and_wait(ic, &range);
+	spin_unlock_irq(&ic->endio_wait.lock);
+
+	if (unlikely(++super_counter == RECALC_WRITE_SUPER)) {
+		recalc_write_super(ic);
+		super_counter = 0;
+	}
+
+	if (unlikely(dm_integrity_failed(ic)))
+		goto err;
+
+	DEBUG_print("recalculating: %llx - %llx\n", range.logical_sector, range.n_sectors);
+
+	bio = bio_alloc_bioset(ic->dev->bdev, 1, REQ_OP_READ, GFP_NOIO, &ic->recalc_bios);
+	bio->bi_iter.bi_sector = ic->start + SB_SECTORS + range.logical_sector;
+	__bio_add_page(bio, virt_to_page(recalc_buffer), range.n_sectors << SECTOR_SHIFT, offset_in_page(recalc_buffer));
+	r = submit_bio_wait(bio);
+	bio_put(bio);
+	if (unlikely(r)) {
+		dm_integrity_io_error(ic, "reading data", r);
+		goto err;
+	}
+
+	t = recalc_tags;
+	for (i = 0; i < range.n_sectors; i += ic->sectors_per_block) {
+		memset(t, 0, ic->tuple_size);
+		integrity_sector_checksum(ic, range.logical_sector + i, recalc_buffer + (i << SECTOR_SHIFT), t);
+		t += ic->tuple_size;
+	}
+
+	bio = bio_alloc_bioset(ic->dev->bdev, 1, REQ_OP_WRITE, GFP_NOIO, &ic->recalc_bios);
+	bio->bi_iter.bi_sector = ic->start + SB_SECTORS + range.logical_sector;
+	__bio_add_page(bio, virt_to_page(recalc_buffer), range.n_sectors << SECTOR_SHIFT, offset_in_page(recalc_buffer));
+
+	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
+	if (unlikely(IS_ERR(bip))) {
+		bio_put(bio);
+		DMCRIT("out of memory for bio integrity payload - recalculation disabled");
+		goto err;
+	}
+	ret = bio_integrity_add_page(bio, virt_to_page(recalc_tags), t - recalc_tags, offset_in_page(recalc_tags));
+	if (unlikely(ret != t - recalc_tags)) {
+		bio_put(bio);
+		dm_integrity_io_error(ic, "attaching integrity tags", -ENOMEM);
+		goto err;
+	}
+
+	r = submit_bio_wait(bio);
+	bio_put(bio);
+	if (unlikely(r)) {
+		dm_integrity_io_error(ic, "writing data", r);
+		goto err;
+	}
+
+	cond_resched();
+	spin_lock_irq(&ic->endio_wait.lock);
+	remove_range_unlocked(ic, &range);
+#ifdef CONFIG_64BIT
+	/* Paired with smp_load_acquire in dm_integrity_map_inline. */
+	smp_store_release(&ic->sb->recalc_sector, cpu_to_le64(range.logical_sector + range.n_sectors));
+#else
+	ic->sb->recalc_sector = cpu_to_le64(range.logical_sector + range.n_sectors);
+#endif
+	goto next_chunk;
+
+err:
+	remove_range(ic, &range);
+	goto free_ret;
+
+unlock_ret:
+	spin_unlock_irq(&ic->endio_wait.lock);
+
+	recalc_write_super(ic);
+
+free_ret:
+	kfree(recalc_buffer);
+	kfree(recalc_tags);
 }
 
 static void bitmap_block_work(struct work_struct *w)
@@ -4617,6 +4814,17 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 			r = -ENOMEM;
 			goto bad;
 		}
+		r = bioset_init(&ic->recalc_bios, 1, 0, BIOSET_NEED_BVECS);
+		if (r) {
+			ti->error = "Cannot allocate bio set";
+			goto bad;
+		}
+		r = bioset_integrity_create(&ic->recalc_bios, 1);
+		if (r) {
+			ti->error = "Cannot allocate bio integrity set";
+			r = -ENOMEM;
+			goto bad;
+		}
 	}
 
 	ic->metadata_wq = alloc_workqueue("dm-integrity-metadata",
@@ -4715,13 +4923,18 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 		ti->error = "Block size doesn't match the information in superblock";
 		goto bad;
 	}
-	if (!le32_to_cpu(ic->sb->journal_sections) != (ic->mode == 'I')) {
-		r = -EINVAL;
-		if (ic->mode != 'I')
+	if (ic->mode != 'I') {
+		if (!le32_to_cpu(ic->sb->journal_sections)) {
+			r = -EINVAL;
 			ti->error = "Corrupted superblock, journal_sections is 0";
-		else
+			goto bad;
+		}
+	} else {
+		if (le32_to_cpu(ic->sb->journal_sections)) {
+			r = -EINVAL;
 			ti->error = "Corrupted superblock, journal_sections is not 0";
-		goto bad;
+			goto bad;
+		}
 	}
 	/* make sure that ti->max_io_len doesn't overflow */
 	if (!ic->meta_dev) {
@@ -4828,7 +5041,7 @@ try_smaller_buffer:
 			r = -ENOMEM;
 			goto bad;
 		}
-		INIT_WORK(&ic->recalc_work, integrity_recalc);
+		INIT_WORK(&ic->recalc_work, ic->mode == 'I' ? integrity_recalc_inline : integrity_recalc);
 	} else {
 		if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)) {
 			ti->error = "Recalculate can only be specified with internal_hash";
@@ -4845,17 +5058,15 @@ try_smaller_buffer:
 		goto bad;
 	}
 
-	if (ic->mode != 'I') {
-		ic->bufio = dm_bufio_client_create(ic->meta_dev ? ic->meta_dev->bdev : ic->dev->bdev,
-				1U << (SECTOR_SHIFT + ic->log2_buffer_sectors), 1, 0, NULL, NULL, 0);
-		if (IS_ERR(ic->bufio)) {
-			r = PTR_ERR(ic->bufio);
-			ti->error = "Cannot initialize dm-bufio";
-			ic->bufio = NULL;
-			goto bad;
-		}
-		dm_bufio_set_sector_offset(ic->bufio, ic->start + ic->initial_sectors);
+	ic->bufio = dm_bufio_client_create(ic->meta_dev ? ic->meta_dev->bdev : ic->dev->bdev,
+			1U << (SECTOR_SHIFT + ic->log2_buffer_sectors), 1, 0, NULL, NULL, 0);
+	if (IS_ERR(ic->bufio)) {
+		r = PTR_ERR(ic->bufio);
+		ti->error = "Cannot initialize dm-bufio";
+		ic->bufio = NULL;
+		goto bad;
 	}
+	dm_bufio_set_sector_offset(ic->bufio, ic->start + ic->initial_sectors);
 
 	if (ic->mode != 'R' && ic->mode != 'I') {
 		r = create_journal(ic, &ti->error);
@@ -4977,6 +5188,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 	kvfree(ic->bbs);
 	if (ic->bufio)
 		dm_bufio_client_destroy(ic->bufio);
+	bioset_exit(&ic->recalc_bios);
 	bioset_exit(&ic->recheck_bios);
 	mempool_exit(&ic->recheck_pool);
 	mempool_exit(&ic->journal_io_mempool);
@@ -5031,7 +5243,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 
 static struct target_type integrity_target = {
 	.name			= "integrity",
-	.version		= {1, 12, 0},
+	.version		= {1, 13, 0},
 	.module			= THIS_MODULE,
 	.features		= DM_TARGET_SINGLETON | DM_TARGET_INTEGRITY,
 	.ctr			= dm_integrity_ctr,

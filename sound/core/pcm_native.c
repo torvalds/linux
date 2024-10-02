@@ -2250,12 +2250,12 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	bool nonatomic = substream->pcm->nonatomic;
 	CLASS(fd, f)(fd);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADFD;
-	if (!is_pcm_file(f.file))
+	if (!is_pcm_file(fd_file(f)))
 		return -EBADFD;
 
-	pcm_file = f.file->private_data;
+	pcm_file = fd_file(f)->private_data;
 	substream1 = pcm_file->substream;
 
 	if (substream == substream1)
@@ -4115,7 +4115,6 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.write_iter =		snd_pcm_writev,
 		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
-		.llseek =		no_llseek,
 		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
@@ -4129,7 +4128,6 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.read_iter =		snd_pcm_readv,
 		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
-		.llseek =		no_llseek,
 		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,

@@ -224,9 +224,9 @@ int vfs_fstat(int fd, struct kstat *stat)
 	int error;
 
 	f = fdget_raw(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
-	error = vfs_getattr(&f.file->f_path, stat, STATX_BASIC_STATS, 0);
+	error = vfs_getattr(&fd_file(f)->f_path, stat, STATX_BASIC_STATS, 0);
 	fdput(f);
 	return error;
 }
@@ -277,9 +277,9 @@ static int vfs_statx_fd(int fd, int flags, struct kstat *stat,
 			  u32 request_mask)
 {
 	CLASS(fd_raw, f)(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
-	return vfs_statx_path(&f.file->f_path, flags, stat, request_mask);
+	return vfs_statx_path(&fd_file(f)->f_path, flags, stat, request_mask);
 }
 
 /**

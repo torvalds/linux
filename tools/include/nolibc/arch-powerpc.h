@@ -172,7 +172,7 @@
 	_ret;                                                                \
 })
 
-#ifndef __powerpc64__
+#if !defined(__powerpc64__) && !defined(__clang__)
 /* FIXME: For 32-bit PowerPC, with newer gcc compilers (e.g. gcc 13.1.0),
  * "omit-frame-pointer" fails with __attribute__((no_stack_protector)) but
  * works with __attribute__((__optimize__("-fno-stack-protector")))
@@ -184,7 +184,7 @@
 #endif /* !__powerpc64__ */
 
 /* startup code */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
 {
 #ifdef __powerpc64__
 #if _CALL_ELF == 2
@@ -215,7 +215,7 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 		"bl     _start_c\n"     /* transfer to c runtime                         */
 	);
 #endif
-	__builtin_unreachable();
+	__nolibc_entrypoint_epilogue();
 }
 
 #endif /* _NOLIBC_ARCH_POWERPC_H */

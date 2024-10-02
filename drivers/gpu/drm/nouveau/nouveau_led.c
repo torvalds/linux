@@ -78,7 +78,7 @@ int
 nouveau_led_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
+	struct nvkm_gpio *gpio = nvxx_gpio(drm);
 	struct dcb_gpio_func logo_led;
 	int ret;
 

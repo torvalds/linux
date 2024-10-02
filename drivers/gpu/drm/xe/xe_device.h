@@ -15,9 +15,23 @@ static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 	return container_of(dev, struct xe_device, drm);
 }
 
+static inline struct xe_device *kdev_to_xe_device(struct device *kdev)
+{
+	struct drm_device *drm = dev_get_drvdata(kdev);
+
+	return drm ? to_xe_device(drm) : NULL;
+}
+
 static inline struct xe_device *pdev_to_xe_device(struct pci_dev *pdev)
 {
-	return pci_get_drvdata(pdev);
+	struct drm_device *drm = pci_get_drvdata(pdev);
+
+	return drm ? to_xe_device(drm) : NULL;
+}
+
+static inline struct xe_device *xe_device_const_cast(const struct xe_device *xe)
+{
+	return (struct xe_device *)xe;
 }
 
 static inline struct xe_device *ttm_to_xe_device(struct ttm_device *ttm)
@@ -129,16 +143,6 @@ static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 
 void xe_device_assert_mem_access(struct xe_device *xe);
 
-static inline bool xe_device_in_fault_mode(struct xe_device *xe)
-{
-	return xe->usm.num_vm_in_fault_mode != 0;
-}
-
-static inline bool xe_device_in_non_fault_mode(struct xe_device *xe)
-{
-	return xe->usm.num_vm_in_non_fault_mode != 0;
-}
-
 static inline bool xe_device_has_flat_ccs(struct xe_device *xe)
 {
 	return xe->info.has_flat_ccs;
@@ -162,6 +166,7 @@ u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address);
 u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address);
 
 void xe_device_td_flush(struct xe_device *xe);
+void xe_device_l2_flush(struct xe_device *xe);
 
 static inline bool xe_device_wedged(struct xe_device *xe)
 {

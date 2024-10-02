@@ -968,8 +968,6 @@ static inline void blk_queue_disable_write_zeroes(struct request_queue *q)
 /*
  * Access functions for manipulating queue properties
  */
-extern void blk_limits_io_min(struct queue_limits *limits, unsigned int min);
-extern void blk_limits_io_opt(struct queue_limits *limits, unsigned int opt);
 extern void blk_set_queue_depth(struct request_queue *q, unsigned int depth);
 extern void blk_set_stacking_limits(struct queue_limits *lim);
 extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
@@ -1187,7 +1185,8 @@ static inline unsigned int queue_max_segment_size(const struct request_queue *q)
 	return q->limits.max_segment_size;
 }
 
-static inline unsigned int queue_limits_max_zone_append_sectors(struct queue_limits *l)
+static inline unsigned int
+queue_limits_max_zone_append_sectors(const struct queue_limits *l)
 {
 	unsigned int max_sectors = min(l->chunk_sectors, l->max_hw_sectors);
 
@@ -1296,12 +1295,7 @@ bdev_max_secure_erase_sectors(struct block_device *bdev)
 
 static inline unsigned int bdev_write_zeroes_sectors(struct block_device *bdev)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (q)
-		return q->limits.max_write_zeroes_sectors;
-
-	return 0;
+	return bdev_get_queue(bdev)->limits.max_write_zeroes_sectors;
 }
 
 static inline bool bdev_nonrot(struct block_device *bdev)

@@ -383,7 +383,7 @@ static int bch2_copygc_thread(void *arg)
 			if (min_member_capacity == U64_MAX)
 				min_member_capacity = 128 * 2048;
 
-			bch2_trans_unlock_long(ctxt.trans);
+			move_buckets_wait(&ctxt, buckets, true);
 			bch2_kthread_io_clock_wait(clock, last + (min_member_capacity >> 6),
 					MAX_SCHEDULE_TIMEOUT);
 		}

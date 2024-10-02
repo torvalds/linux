@@ -552,7 +552,13 @@ static unsigned int damon_accesses_bp_to_nr_accesses(
 	return accesses_bp * damon_max_nr_accesses(attrs) / 10000;
 }
 
-/* convert nr_accesses to access ratio in bp (per 10,000) */
+/*
+ * Convert nr_accesses to access ratio in bp (per 10,000).
+ *
+ * Callers should ensure attrs.aggr_interval is not zero, like
+ * damon_update_monitoring_results() does .  Otherwise, divide-by-zero would
+ * happen.
+ */
 static unsigned int damon_nr_accesses_to_accesses_bp(
 		unsigned int nr_accesses, struct damon_attrs *attrs)
 {
@@ -1582,13 +1588,16 @@ static void damos_adjust_quota(struct damon_ctx *c, struct damos *s)
 		return;
 
 	/* Fill up the score histogram */
-	memset(quota->histogram, 0, sizeof(quota->histogram));
+	memset(c->regions_score_histogram, 0,
+			sizeof(*c->regions_score_histogram) *
+			(DAMOS_MAX_SCORE + 1));
 	damon_for_each_target(t, c) {
 		damon_for_each_region(r, t) {
 			if (!__damos_valid_target(r, s))
 				continue;
 			score = c->ops.get_scheme_score(c, t, r, s);
-			quota->histogram[score] += damon_sz_region(r);
+			c->regions_score_histogram[score] +=
+				damon_sz_region(r);
 			if (score > max_score)
 				max_score = score;
 		}
@@ -1596,7 +1605,7 @@ static void damos_adjust_quota(struct damon_ctx *c, struct damos *s)
 
 	/* Set the min score limit */
 	for (cumulated_sz = 0, score = max_score; ; score--) {
-		cumulated_sz += quota->histogram[score];
+		cumulated_sz += c->regions_score_histogram[score];
 		if (cumulated_sz >= quota->esz || !score)
 			break;
 	}
@@ -1957,6 +1966,10 @@ static int kdamond_fn(void *data)
 		ctx->ops.init(ctx);
 	if (ctx->callback.before_start && ctx->callback.before_start(ctx))
 		goto done;
+	ctx->regions_score_histogram = kmalloc_array(DAMOS_MAX_SCORE + 1,
+			sizeof(*ctx->regions_score_histogram), GFP_KERNEL);
+	if (!ctx->regions_score_histogram)
+		goto done;
 
 	sz_limit = damon_region_sz_limit(ctx);
 
@@ -2034,6 +2047,7 @@ done:
 		ctx->callback.before_terminate(ctx);
 	if (ctx->ops.cleanup)
 		ctx->ops.cleanup(ctx);
+	kfree(ctx->regions_score_histogram);
 
 	pr_debug("kdamond (%d) finishes\n", current->pid);
 	mutex_lock(&ctx->kdamond_lock);
@@ -2205,4 +2219,4 @@ static int __init damon_init(void)
 
 subsys_initcall(damon_init);
 
-#include "core-test.h"
+#include "tests/core-kunit.h"

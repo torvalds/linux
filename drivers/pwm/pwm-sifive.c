@@ -336,7 +336,7 @@ MODULE_DEVICE_TABLE(of, pwm_sifive_of_match);
 
 static struct platform_driver pwm_sifive_driver = {
 	.probe = pwm_sifive_probe,
-	.remove_new = pwm_sifive_remove,
+	.remove = pwm_sifive_remove,
 	.driver = {
 		.name = "pwm-sifive",
 		.of_match_table = pwm_sifive_of_match,

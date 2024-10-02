@@ -410,7 +410,7 @@ void amdgpu_sw_ring_ib_end(struct amdgpu_ring *ring)
 	struct amdgpu_ring_mux *mux = &adev->gfx.muxer;
 
 	WARN_ON(!ring->is_sw_ring);
-	if (ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT)
+	if (adev->gfx.mcbp && ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT)
 		return;
 	amdgpu_ring_mux_end_ib(mux, ring);
 }

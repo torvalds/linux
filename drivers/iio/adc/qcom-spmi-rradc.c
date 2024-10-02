@@ -1002,7 +1002,7 @@ static int rradc_probe(struct platform_device *pdev)
 static const struct of_device_id rradc_match_table[] = {
 	{ .compatible = "qcom,pm660-rradc" },
 	{ .compatible = "qcom,pmi8998-rradc" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rradc_match_table);
 

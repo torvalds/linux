@@ -121,6 +121,7 @@ struct mca_ras_info {
 
 #define P2S_TABLE_ID_A 0x50325341
 #define P2S_TABLE_ID_X 0x50325358
+#define P2S_TABLE_ID_3 0x50325303
 
 // clang-format off
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
@@ -271,14 +272,18 @@ static int smu_v13_0_6_init_microcode(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t p2s_table_id = P2S_TABLE_ID_A;
 	int ret = 0, i, p2stable_count;
+	int var = (adev->pdev->device & 0xF);
 	char ucode_prefix[15];
 
 	/* No need to load P2S tables in IOV mode */
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	if (!(adev->flags & AMD_IS_APU))
+	if (!(adev->flags & AMD_IS_APU)) {
 		p2s_table_id = P2S_TABLE_ID_X;
+		if (var == 0x5)
+			p2s_table_id = P2S_TABLE_ID_3;
+	}
 
 	amdgpu_ucode_ip_version_decode(adev, MP1_HWIP, ucode_prefix,
 				       sizeof(ucode_prefix));
@@ -2102,8 +2107,12 @@ static int smu_v13_0_6_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	mutex_lock(&adev->pm.mutex);
 	r = smu_v13_0_6_request_i2c_xfer(smu, req);
-	if (r)
-		goto fail;
+	if (r) {
+		/* Retry once, in case of an i2c collision */
+		r = smu_v13_0_6_request_i2c_xfer(smu, req);
+		if (r)
+			goto fail;
+	}
 
 	for (c = i = 0; i < num_msgs; i++) {
 		if (!(msg[i].flags & I2C_M_RD)) {

@@ -373,7 +373,7 @@ static __always_inline uint64_t read_str_var(struct strobemeta_cfg *cfg,
 	len = bpf_probe_read_user_str(&data->payload[off], STROBE_MAX_STR_LEN, value->ptr);
 	/*
 	 * if bpf_probe_read_user_str returns error (<0), due to casting to
-	 * unsinged int, it will become big number, so next check is
+	 * unsigned int, it will become big number, so next check is
 	 * sufficient to check for errors AND prove to BPF verifier, that
 	 * bpf_probe_read_user_str won't return anything bigger than
 	 * STROBE_MAX_STR_LEN
@@ -557,7 +557,7 @@ static void *read_strobe_meta(struct task_struct *task,
 		return NULL;
 
 	payload_off = ctx.payload_off;
-	/* this should not really happen, here only to satisfy verifer */
+	/* this should not really happen, here only to satisfy verifier */
 	if (payload_off > sizeof(data->payload))
 		payload_off = sizeof(data->payload);
 #else

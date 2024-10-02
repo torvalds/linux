@@ -889,7 +889,7 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 		return ret;
 
 	/* register dynamic object */
-	sbe = (struct soc_bytes_ext *)&kc.private_value;
+	sbe = (struct soc_bytes_ext *)kc.private_value;
 
 	INIT_LIST_HEAD(&sbe->dobj.list);
 	sbe->dobj.type = SND_SOC_DOBJ_BYTES;
@@ -923,7 +923,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 		return ret;
 
 	/* register dynamic object */
-	sm = (struct soc_mixer_control *)&kc.private_value;
+	sm = (struct soc_mixer_control *)kc.private_value;
 
 	INIT_LIST_HEAD(&sm->dobj.list);
 	sm->dobj.type = SND_SOC_DOBJ_MIXER;

@@ -118,8 +118,8 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 {
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
-	struct nvkm_clk *clk = nvxx_clk(&drm->client.device);
+	struct nvkm_bios *bios = nvxx_bios(drm);
+	struct nvkm_clk *clk = nvxx_clk(drm);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[nv_crtc->index];
@@ -617,9 +617,15 @@ nv_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
 
 	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, false);
 	if (ret == 0) {
-		if (disp->image[nv_crtc->index])
-			nouveau_bo_unpin(disp->image[nv_crtc->index]);
-		nouveau_bo_ref(nvbo, &disp->image[nv_crtc->index]);
+		if (disp->image[nv_crtc->index]) {
+			struct nouveau_bo *bo = disp->image[nv_crtc->index];
+
+			nouveau_bo_unpin(bo);
+			drm_gem_object_put(&bo->bo.base);
+		}
+
+		drm_gem_object_get(&nvbo->bo.base);
+		disp->image[nv_crtc->index] = nvbo;
 	}
 
 	return ret;
@@ -754,13 +760,17 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 
 	drm_crtc_cleanup(crtc);
 
-	if (disp->image[nv_crtc->index])
-		nouveau_bo_unpin(disp->image[nv_crtc->index]);
-	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
+	if (disp->image[nv_crtc->index]) {
+		struct nouveau_bo *bo = disp->image[nv_crtc->index];
+
+		nouveau_bo_unpin(bo);
+		drm_gem_object_put(&bo->bo.base);
+		disp->image[nv_crtc->index] = NULL;
+	}
 
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
-	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+	nouveau_bo_fini(nv_crtc->cursor.nvbo);
 	nvif_event_dtor(&nv_crtc->vblank);
 	nvif_head_dtor(&nv_crtc->head);
 	kfree(nv_crtc);
@@ -794,9 +804,14 @@ nv_crtc_disable(struct drm_crtc *crtc)
 {
 	struct nv04_display *disp = nv04_display(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	if (disp->image[nv_crtc->index])
-		nouveau_bo_unpin(disp->image[nv_crtc->index]);
-	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
+
+	if (disp->image[nv_crtc->index]) {
+		struct nouveau_bo *bo = disp->image[nv_crtc->index];
+
+		nouveau_bo_unpin(bo);
+		drm_gem_object_put(&bo->bo.base);
+		disp->image[nv_crtc->index] = NULL;
+	}
 }
 
 static int
@@ -1042,7 +1057,7 @@ nv04_finish_page_flip(struct nouveau_channel *chan,
 		      struct nv04_page_flip_state *ps)
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
-	struct nouveau_drm *drm = chan->drm;
+	struct nouveau_drm *drm = chan->cli->drm;
 	struct drm_device *dev = drm->dev;
 	struct nv04_page_flip_state *s;
 	unsigned long flags;
@@ -1098,9 +1113,9 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 		    struct nouveau_fence **pfence)
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
-	struct nouveau_drm *drm = chan->drm;
+	struct nouveau_drm *drm = chan->cli->drm;
 	struct drm_device *dev = drm->dev;
-	struct nvif_push *push = chan->chan.push;
+	struct nvif_push *push = &chan->chan.push;
 	unsigned long flags;
 	int ret;
 
@@ -1157,8 +1172,8 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	chan = drm->channel;
 	if (!chan)
 		return -ENODEV;
-	cli = (void *)chan->user.client;
-	push = chan->chan.push;
+	cli = chan->cli;
+	push = &chan->chan.push;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -1210,7 +1225,11 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		PUSH_NVSQ(push, NV05F, 0x0130, 0);
 	}
 
-	nouveau_bo_ref(new_bo, &dispnv04->image[head]);
+	if (dispnv04->image[head])
+		drm_gem_object_put(&dispnv04->image[head]->bo.base);
+
+	drm_gem_object_get(&new_bo->bo.base);
+	dispnv04->image[head] = new_bo;
 
 	ret = nv04_page_flip_emit(chan, old_bo, new_bo, s, &fence);
 	if (ret)
@@ -1329,7 +1348,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 				nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+			nouveau_bo_fini(nv_crtc->cursor.nvbo);
 	}
 
 	nv04_cursor_init(nv_crtc);

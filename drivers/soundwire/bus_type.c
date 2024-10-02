@@ -83,7 +83,6 @@ static int sdw_drv_probe(struct device *dev)
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
 	const struct sdw_device_id *id;
-	const char *name;
 	int ret;
 
 	/*
@@ -108,11 +107,6 @@ static int sdw_drv_probe(struct device *dev)
 
 	ret = drv->probe(slave, id);
 	if (ret) {
-		name = drv->name;
-		if (!name)
-			name = drv->driver.name;
-
-		dev_err(dev, "Probe of %s failed: %d\n", name, ret);
 		dev_pm_domain_detach(dev, false);
 		return ret;
 	}
@@ -129,7 +123,7 @@ static int sdw_drv_probe(struct device *dev)
 	/* init the dynamic sysfs attributes we need */
 	ret = sdw_slave_sysfs_dpn_init(slave);
 	if (ret < 0)
-		dev_warn(dev, "Slave sysfs init failed:%d\n", ret);
+		dev_warn(dev, "failed to initialise sysfs: %d\n", ret);
 
 	/*
 	 * Check for valid clk_stop_timeout, use DisCo worst case value of
@@ -153,7 +147,7 @@ static int sdw_drv_probe(struct device *dev)
 	if (drv->ops && drv->ops->update_status) {
 		ret = drv->ops->update_status(slave, slave->status);
 		if (ret < 0)
-			dev_warn(dev, "%s: update_status failed with status %d\n", __func__, ret);
+			dev_warn(dev, "failed to update status at probe: %d\n", ret);
 	}
 
 	mutex_unlock(&slave->sdw_dev_lock);
@@ -204,16 +198,11 @@ static void sdw_drv_shutdown(struct device *dev)
  */
 int __sdw_register_driver(struct sdw_driver *drv, struct module *owner)
 {
-	const char *name;
-
 	drv->driver.bus = &sdw_bus_type;
 
 	if (!drv->probe) {
-		name = drv->name;
-		if (!name)
-			name = drv->driver.name;
-
-		pr_err("driver %s didn't provide SDW probe routine\n", name);
+		pr_err("driver %s didn't provide SDW probe routine\n",
+				drv->driver.name);
 		return -EINVAL;
 	}
 

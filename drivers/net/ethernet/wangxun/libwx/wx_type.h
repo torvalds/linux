@@ -426,9 +426,9 @@ enum WX_MSCA_CMD_value {
 #define WX_MIN_RXD                   128
 #define WX_MIN_TXD                   128
 
-/* Number of Transmit and Receive Descriptors must be a multiple of 8 */
-#define WX_REQ_RX_DESCRIPTOR_MULTIPLE   8
-#define WX_REQ_TX_DESCRIPTOR_MULTIPLE   8
+/* Number of Transmit and Receive Descriptors must be a multiple of 128 */
+#define WX_REQ_RX_DESCRIPTOR_MULTIPLE   128
+#define WX_REQ_TX_DESCRIPTOR_MULTIPLE   128
 
 #define WX_MAX_JUMBO_FRAME_SIZE      9432 /* max payload 9414 */
 #define VMDQ_P(p)                    p

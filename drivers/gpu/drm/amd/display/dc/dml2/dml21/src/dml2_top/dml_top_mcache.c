@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_debug.h"
 
 #include "dml_top_mcache.h"
@@ -143,12 +142,12 @@ static unsigned int count_elements_in_span(int *array, unsigned int array_size, 
 
 	while (span_start_index < array_size) {
 		for (i = span_start_index; i < array_size; i++) {
-			if (array[i] - span_start_value > span) {
+			if (array[i] - span_start_value <= span) {
 				if (i - span_start_index + 1 > greatest_element_count) {
 					greatest_element_count = i - span_start_index + 1;
 				}
+			} else
 				break;
-			}
 		}
 
 		span_start_index++;
@@ -208,9 +207,9 @@ bool dml2_top_mcache_validate_admissability(struct top_mcache_validate_admissabi
 	int temp, p0shift, p1shift;
 	unsigned int plane_index = 0;
 	unsigned int i;
-	char odm_combine_factor = 1;
-	char mpc_combine_factor = 1;
-	char num_dpps;
+	unsigned int odm_combine_factor;
+	unsigned int mpc_combine_factor;
+	unsigned int num_dpps;
 	unsigned int num_boundaries;
 	enum dml2_scaling_transform scaling_transform;
 	const struct dml2_plane_parameters *plane;
@@ -227,10 +226,10 @@ bool dml2_top_mcache_validate_admissability(struct top_mcache_validate_admissabi
 		plane = &params->display_cfg->plane_descriptors[plane_index];
 		stream = &params->display_cfg->stream_descriptors[plane->stream_index];
 
-		odm_combine_factor = (char)params->cfg_support_info->stream_support_info[plane->stream_index].odms_used;
+		num_dpps = odm_combine_factor = params->cfg_support_info->stream_support_info[plane->stream_index].odms_used;
 
 		if (odm_combine_factor == 1)
-			mpc_combine_factor = (char)params->cfg_support_info->plane_support_info[plane_index].dpps_used;
+			num_dpps = mpc_combine_factor = (unsigned int)params->cfg_support_info->plane_support_info[plane_index].dpps_used;
 		else
 			mpc_combine_factor = 1;
 
@@ -260,13 +259,13 @@ bool dml2_top_mcache_validate_admissability(struct top_mcache_validate_admissabi
 		// The last element in the unshifted boundary array will always be the first pixel outside the
 		// plane, which means theres no mcache associated with it, so -1
 		num_boundaries = params->mcache_allocations[plane_index].num_mcaches_plane0 == 0 ? 0 : params->mcache_allocations[plane_index].num_mcaches_plane0 - 1;
-		if (count_elements_in_span(params->mcache_allocations[plane_index].mcache_x_offsets_plane0,
-			num_boundaries, max_per_pipe_vp_p0) <= 1) {
+		if ((count_elements_in_span(params->mcache_allocations[plane_index].mcache_x_offsets_plane0,
+			num_boundaries, max_per_pipe_vp_p0) <= 1) && (num_boundaries <= num_dpps)) {
 			p0pass = true;
 		}
 		num_boundaries = params->mcache_allocations[plane_index].num_mcaches_plane1 == 0 ? 0 : params->mcache_allocations[plane_index].num_mcaches_plane1 - 1;
-		if (count_elements_in_span(params->mcache_allocations[plane_index].mcache_x_offsets_plane1,
-			num_boundaries, max_per_pipe_vp_p1) <= 1) {
+		if ((count_elements_in_span(params->mcache_allocations[plane_index].mcache_x_offsets_plane1,
+			num_boundaries, max_per_pipe_vp_p1) <= 1) && (num_boundaries <= num_dpps)) {
 			p1pass = true;
 		}
 

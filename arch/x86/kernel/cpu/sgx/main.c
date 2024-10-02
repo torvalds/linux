@@ -475,24 +475,25 @@ struct sgx_epc_page *__sgx_alloc_epc_page(void)
 {
 	struct sgx_epc_page *page;
 	int nid_of_current = numa_node_id();
-	int nid = nid_of_current;
+	int nid_start, nid;
 
-	if (node_isset(nid_of_current, sgx_numa_mask)) {
-		page = __sgx_alloc_epc_page_from_node(nid_of_current);
-		if (page)
-			return page;
-	}
+	/*
+	 * Try local node first. If it doesn't have an EPC section,
+	 * fall back to the non-local NUMA nodes.
+	 */
+	if (node_isset(nid_of_current, sgx_numa_mask))
+		nid_start = nid_of_current;
+	else
+		nid_start = next_node_in(nid_of_current, sgx_numa_mask);
 
-	/* Fall back to the non-local NUMA nodes: */
-	while (true) {
-		nid = next_node_in(nid, sgx_numa_mask);
-		if (nid == nid_of_current)
-			break;
-
+	nid = nid_start;
+	do {
 		page = __sgx_alloc_epc_page_from_node(nid);
 		if (page)
 			return page;
-	}
+
+		nid = next_node_in(nid, sgx_numa_mask);
+	} while (nid != nid_start);
 
 	return ERR_PTR(-ENOMEM);
 }
@@ -732,7 +733,7 @@ out:
 	return 0;
 }
 
-/**
+/*
  * A section metric is concatenated in a way that @low bits 12-31 define the
  * bits 12-31 of the metric and @high bits 0-19 define the bits 32-51 of the
  * metric.
@@ -847,6 +848,13 @@ static bool __init sgx_page_cache_init(void)
 		return false;
 	}
 
+	for_each_online_node(nid) {
+		if (!node_isset(nid, sgx_numa_mask) &&
+		    node_state(nid, N_MEMORY) && node_state(nid, N_CPU))
+			pr_info("node%d has both CPUs and memory but doesn't have an EPC section\n",
+				nid);
+	}
+
 	return true;
 }
 
@@ -895,10 +903,10 @@ int sgx_set_attribute(unsigned long *allowed_attributes,
 {
 	struct fd f = fdget(attribute_fd);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EINVAL;
 
-	if (f.file->f_op != &sgx_provision_fops) {
+	if (fd_file(f)->f_op != &sgx_provision_fops) {
 		fdput(f);
 		return -EINVAL;
 	}

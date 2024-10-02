@@ -7,8 +7,6 @@
 TEST(default_rlimit)
 {
 	EXPECT_EQ(TOP_DOWN, memory_layout());
-
-	TEST_MMAPS;
 }
 
 TEST_HARNESS_MAIN

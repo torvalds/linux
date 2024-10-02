@@ -7,6 +7,7 @@
 #define KMSG_COMPONENT "setup"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/sched/debug.h>
 #include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -175,20 +176,45 @@ static __init void setup_topology(void)
 	topology_max_mnest = max_mnest;
 }
 
-void __do_early_pgm_check(struct pt_regs *regs)
+void __init __do_early_pgm_check(struct pt_regs *regs)
 {
-	if (!fixup_exception(regs))
-		disabled_wait();
+	struct lowcore *lc = get_lowcore();
+	unsigned long ip;
+
+	regs->int_code = lc->pgm_int_code;
+	regs->int_parm_long = lc->trans_exc_code;
+	ip = __rewind_psw(regs->psw, regs->int_code >> 16);
+
+	/* Monitor Event? Might be a warning */
+	if ((regs->int_code & PGM_INT_CODE_MASK) == 0x40) {
+		if (report_bug(ip, regs) == BUG_TRAP_TYPE_WARN)
+			return;
+	}
+	if (fixup_exception(regs))
+		return;
+	/*
+	 * Unhandled exception - system cannot continue but try to get some
+	 * helpful messages to the console. Use early_printk() to print
+	 * some basic information in case it is too early for printk().
+	 */
+	register_early_console();
+	early_printk("PANIC: early exception %04x PSW: %016lx %016lx\n",
+		     regs->int_code & 0xffff, regs->psw.mask, regs->psw.addr);
+	show_regs(regs);
+	disabled_wait();
 }
 
 static noinline __init void setup_lowcore_early(void)
 {
+	struct lowcore *lc = get_lowcore();
 	psw_t psw;
 
 	psw.addr = (unsigned long)early_pgm_check_handler;
 	psw.mask = PSW_KERNEL_BITS;
-	get_lowcore()->program_new_psw = psw;
-	get_lowcore()->preempt_count = INIT_PREEMPT_COUNT;
+	lc->program_new_psw = psw;
+	lc->preempt_count = INIT_PREEMPT_COUNT;
+	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
+	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 }
 
 static __init void detect_diag9c(void)
@@ -242,6 +268,8 @@ static __init void detect_machine_facilities(void)
 	}
 	if (test_facility(194))
 		get_lowcore()->machine_flags |= MACHINE_FLAG_RDP;
+	if (test_facility(85))
+		get_lowcore()->machine_flags |= MACHINE_FLAG_SEQ_INSN;
 }
 
 static inline void save_vector_registers(void)

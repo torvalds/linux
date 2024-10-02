@@ -49,6 +49,7 @@ Contents:
    cdc_mbim
    dccp
    dctcp
+   devmem
    dns_resolver
    driver
    eql
@@ -87,10 +88,12 @@ Contents:
    nexthop-group-resilient
    nf_conntrack-sysctl
    nf_flowtable
+   oa-tc6-framework
    openvswitch
    operstates
    packet_mmap
    phonet
+   phy-link-topology
    pktgen
    plip
    ppp_generic

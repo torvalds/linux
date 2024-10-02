@@ -45,54 +45,28 @@ int mpi_cmp_ui(MPI u, unsigned long v)
 }
 EXPORT_SYMBOL_GPL(mpi_cmp_ui);
 
-static int do_mpi_cmp(MPI u, MPI v, int absmode)
+int mpi_cmp(MPI u, MPI v)
 {
-	mpi_size_t usize;
-	mpi_size_t vsize;
-	int usign;
-	int vsign;
+	mpi_size_t usize, vsize;
 	int cmp;
 
 	mpi_normalize(u);
 	mpi_normalize(v);
-
 	usize = u->nlimbs;
 	vsize = v->nlimbs;
-	usign = absmode ? 0 : u->sign;
-	vsign = absmode ? 0 : v->sign;
-
-	/* Compare sign bits.  */
-
-	if (!usign && vsign)
+	if (!u->sign && v->sign)
 		return 1;
-	if (usign && !vsign)
+	if (u->sign && !v->sign)
 		return -1;
-
-	/* U and V are either both positive or both negative.  */
-
-	if (usize != vsize && !usign && !vsign)
+	if (usize != vsize && !u->sign && !v->sign)
 		return usize - vsize;
-	if (usize != vsize && usign && vsign)
-		return vsize + usize;
+	if (usize != vsize && u->sign && v->sign)
+		return vsize - usize;
 	if (!usize)
 		return 0;
 	cmp = mpihelp_cmp(u->d, v->d, usize);
-	if (!cmp)
-		return 0;
-	if ((cmp < 0?1:0) == (usign?1:0))
-		return 1;
-
-	return -1;
-}
-
-int mpi_cmp(MPI u, MPI v)
-{
-	return do_mpi_cmp(u, v, 0);
+	if (u->sign)
+		return -cmp;
+	return cmp;
 }
 EXPORT_SYMBOL_GPL(mpi_cmp);
-
-int mpi_cmpabs(MPI u, MPI v)
-{
-	return do_mpi_cmp(u, v, 1);
-}
-EXPORT_SYMBOL_GPL(mpi_cmpabs);

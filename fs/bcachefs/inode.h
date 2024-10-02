@@ -69,6 +69,7 @@ typedef u64 u96;
 
 struct bch_inode_unpacked {
 	u64			bi_inum;
+	u32			bi_snapshot;
 	u64			bi_journal_seq;
 	__le64			bi_hash_seed;
 	u64			bi_size;

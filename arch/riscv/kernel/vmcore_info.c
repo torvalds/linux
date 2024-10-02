@@ -19,6 +19,13 @@ void arch_crash_save_vmcoreinfo(void)
 #endif
 #endif
 	vmcoreinfo_append_str("NUMBER(KERNEL_LINK_ADDR)=0x%lx\n", KERNEL_LINK_ADDR);
+#ifdef CONFIG_XIP_KERNEL
+	/* TODO: Communicate with crash-utility developers on the information to
+	 * export. The XIP case is more complicated, because the virtual-physical
+	 * address offset depends on whether the address is in ROM or in RAM.
+	 */
+#else
 	vmcoreinfo_append_str("NUMBER(va_kernel_pa_offset)=0x%lx\n",
 						kernel_map.va_kernel_pa_offset);
+#endif
 }

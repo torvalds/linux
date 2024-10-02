@@ -76,7 +76,7 @@ struct xattr_acl_entry {
 struct xattr_smb_acl {
 	int count;
 	int next;
-	struct xattr_acl_entry entries[];
+	struct xattr_acl_entry entries[] __counted_by(count);
 };
 
 /* 64bytes hash in xattr_ntacl is computed with sha256 */
@@ -99,7 +99,7 @@ struct xattr_ntacl {
 	__u8	posix_acl_hash[XATTR_SD_HASH_SIZE]; /* 64bytes hash for posix acl */
 };
 
-/* DOS ATTRIBUITE XATTR PREFIX */
+/* DOS ATTRIBUTE XATTR PREFIX */
 #define DOS_ATTRIBUTE_PREFIX		"DOSATTRIB"
 #define DOS_ATTRIBUTE_PREFIX_LEN	(sizeof(DOS_ATTRIBUTE_PREFIX) - 1)
 #define XATTR_NAME_DOS_ATTRIBUTE	(XATTR_USER_PREFIX DOS_ATTRIBUTE_PREFIX)

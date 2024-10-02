@@ -68,6 +68,13 @@ static const int ltrf216a_int_time_reg[][2] = {
 	{  25, 0x40 },
 };
 
+struct ltr_chip_info {
+	/* Chip contains CLEAR_DATA_0/1/2 registers at offset 0xa..0xc */
+	bool		has_clear_data;
+	/* Lux calculation multiplier for ALS data */
+	int		lux_multiplier;
+};
+
 /*
  * Window Factor is needed when the device is under Window glass
  * with coated tinted ink. This is to compensate for the light loss
@@ -79,6 +86,7 @@ static const int ltrf216a_int_time_reg[][2] = {
 struct ltrf216a_data {
 	struct regmap *regmap;
 	struct i2c_client *client;
+	const struct ltr_chip_info *info;
 	u32 int_time;
 	u16 int_time_fac;
 	u8 als_gain_fac;
@@ -246,7 +254,7 @@ static int ltrf216a_get_lux(struct ltrf216a_data *data)
 
 	ltrf216a_set_power_state(data, false);
 
-	lux = greendata * 45 * LTRF216A_WIN_FAC;
+	lux = greendata * data->info->lux_multiplier * LTRF216A_WIN_FAC;
 
 	return lux;
 }
@@ -334,15 +342,15 @@ static const struct iio_info ltrf216a_info = {
 
 static bool ltrf216a_readable_reg(struct device *dev, unsigned int reg)
 {
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct ltrf216a_data *data = iio_priv(indio_dev);
+
 	switch (reg) {
 	case LTRF216A_MAIN_CTRL:
 	case LTRF216A_ALS_MEAS_RES:
 	case LTRF216A_ALS_GAIN:
 	case LTRF216A_PART_ID:
 	case LTRF216A_MAIN_STATUS:
-	case LTRF216A_ALS_CLEAR_DATA_0:
-	case LTRF216A_ALS_CLEAR_DATA_1:
-	case LTRF216A_ALS_CLEAR_DATA_2:
 	case LTRF216A_ALS_DATA_0:
 	case LTRF216A_ALS_DATA_1:
 	case LTRF216A_ALS_DATA_2:
@@ -355,6 +363,10 @@ static bool ltrf216a_readable_reg(struct device *dev, unsigned int reg)
 	case LTRF216A_ALS_THRES_LOW_1:
 	case LTRF216A_ALS_THRES_LOW_2:
 		return true;
+	case LTRF216A_ALS_CLEAR_DATA_0:
+	case LTRF216A_ALS_CLEAR_DATA_1:
+	case LTRF216A_ALS_CLEAR_DATA_2:
+		return data->info->has_clear_data;
 	default:
 		return false;
 	}
@@ -382,15 +394,23 @@ static bool ltrf216a_writable_reg(struct device *dev, unsigned int reg)
 
 static bool ltrf216a_volatile_reg(struct device *dev, unsigned int reg)
 {
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct ltrf216a_data *data = iio_priv(indio_dev);
+
 	switch (reg) {
 	case LTRF216A_MAIN_STATUS:
-	case LTRF216A_ALS_CLEAR_DATA_0:
-	case LTRF216A_ALS_CLEAR_DATA_1:
-	case LTRF216A_ALS_CLEAR_DATA_2:
 	case LTRF216A_ALS_DATA_0:
 	case LTRF216A_ALS_DATA_1:
 	case LTRF216A_ALS_DATA_2:
 		return true;
+	/*
+	 * If these registers are not present on a chip (like LTR-308),
+	 * the missing registers are not considered volatile.
+	 */
+	case LTRF216A_ALS_CLEAR_DATA_0:
+	case LTRF216A_ALS_CLEAR_DATA_1:
+	case LTRF216A_ALS_CLEAR_DATA_2:
+		return data->info->has_clear_data;
 	default:
 		return false;
 	}
@@ -433,6 +453,7 @@ static int ltrf216a_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
+	data->info = i2c_get_match_data(client);
 
 	mutex_init(&data->lock);
 
@@ -520,15 +541,27 @@ cache_only:
 static DEFINE_RUNTIME_DEV_PM_OPS(ltrf216a_pm_ops, ltrf216a_runtime_suspend,
 				 ltrf216a_runtime_resume, NULL);
 
+static const struct ltr_chip_info ltr308_chip_info = {
+	.has_clear_data		= false,
+	.lux_multiplier		= 60,
+};
+
+static const struct ltr_chip_info ltrf216a_chip_info = {
+	.has_clear_data		= true,
+	.lux_multiplier		= 45,
+};
+
 static const struct i2c_device_id ltrf216a_id[] = {
-	{ "ltrf216a" },
+	{ "ltr308", .driver_data = (kernel_ulong_t)&ltr308_chip_info },
+	{ "ltrf216a", .driver_data = (kernel_ulong_t)&ltrf216a_chip_info },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ltrf216a_id);
 
 static const struct of_device_id ltrf216a_of_match[] = {
-	{ .compatible = "liteon,ltrf216a" },
-	{ .compatible = "ltr,ltrf216a" },
+	{ .compatible = "liteon,ltr308", .data = &ltr308_chip_info },
+	{ .compatible = "liteon,ltrf216a", .data = &ltrf216a_chip_info },
+	{ .compatible = "ltr,ltrf216a", .data = &ltrf216a_chip_info },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ltrf216a_of_match);

@@ -217,6 +217,8 @@ remote UML and other VM instances.
 +-----------+--------+------------------------------------+------------+
 | fd        | vector | dependent on fd type               | varies     |
 +-----------+--------+------------------------------------+------------+
+| vde       | vector | dep. on VDE VPN: Virt.Net Locator  | varies     |
++-----------+--------+------------------------------------+------------+
 | tuntap    | legacy | none                               | ~ 500Mbit  |
 +-----------+--------+------------------------------------+------------+
 | daemon    | legacy | none                               | ~ 450Mbit  |
@@ -572,6 +574,41 @@ please see the BESS documentation.
 https://github.com/NetSys/bess/wiki/Built-In-Modules-and-Ports
 
 BESS transport does not require any special privileges.
+
+VDE vector transport
+--------------------
+
+Virtual Distributed Ethernet (VDE) is a project whose main goal is to provide a
+highly flexible support for virtual networking.
+
+http://wiki.virtualsquare.org/#/tutorials/vdebasics
+
+Common usages of VDE include fast prototyping and teaching.
+
+Examples:
+
+   ``vecX:transport=vde,vnl=tap://tap0``
+
+use tap0
+
+   ``vecX:transport=vde,vnl=slirp://``
+
+use slirp
+
+   ``vec0:transport=vde,vnl=vde:///tmp/switch``
+
+connect to a vde switch
+
+   ``vecX:transport=\"vde,vnl=cmd://ssh remote.host //tmp/sshlirp\"``
+
+connect to a remote slirp (instant VPN: convert ssh to VPN, it uses sshlirp)
+https://github.com/virtualsquare/sshlirp
+
+   ``vec0:transport=vde,vnl=vxvde://234.0.0.1``
+
+connect to a local area cloud (all the UML nodes using the same
+multicast address running on hosts in the same multicast domain (LAN)
+will be automagically connected together to a virtual LAN.
 
 Configuring Legacy transports
 =============================

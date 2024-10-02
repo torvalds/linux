@@ -20,7 +20,7 @@ Optional properties:
 		memcpy channels in eDMA.
 
 Notes:
-When requesting channel via ti,dra7-dma-crossbar, the DMA clinet must request
+When requesting channel via ti,dra7-dma-crossbar, the DMA client must request
 the DMA event number as crossbar ID (input to the DMA crossbar).
 
 For ti,am335x-edma-crossbar: the meaning of parameters of dmas for clients:

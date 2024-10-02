@@ -19,6 +19,7 @@
 #include "util/symbol.h"
 #include "util/pmus.h"
 #include "util/sample.h"
+#include "util/sort.h"
 #include "util/string2.h"
 #include "util/util.h"
 #include <linux/err.h>
@@ -28,12 +29,16 @@
 
 struct perf_mem {
 	struct perf_tool	tool;
-	char const		*input_name;
+	const char		*input_name;
+	const char		*sort_key;
 	bool			hide_unresolved;
 	bool			dump_raw;
 	bool			force;
 	bool			phys_addr;
 	bool			data_page_size;
+	bool			all_kernel;
+	bool			all_user;
+	bool			data_type;
 	int			operation;
 	const char		*cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -42,7 +47,7 @@ struct perf_mem {
 static int parse_record_events(const struct option *opt,
 			       const char *str, int unset __maybe_unused)
 {
-	struct perf_mem *mem = *(struct perf_mem **)opt->value;
+	struct perf_mem *mem = (struct perf_mem *)opt->value;
 	struct perf_pmu *pmu;
 
 	pmu = perf_mem_events_find_pmu();
@@ -62,33 +67,19 @@ static int parse_record_events(const struct option *opt,
 	return 0;
 }
 
-static const char * const __usage[] = {
-	"perf mem record [<options>] [<command>]",
-	"perf mem record [<options>] -- <command> [<options>]",
-	NULL
-};
-
-static const char * const *record_mem_usage = __usage;
-
-static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
+static int __cmd_record(int argc, const char **argv, struct perf_mem *mem,
+			const struct option *options)
 {
 	int rec_argc, i = 0, j;
 	int start, end;
 	const char **rec_argv;
 	int ret;
-	bool all_user = false, all_kernel = false;
 	struct perf_mem_event *e;
 	struct perf_pmu *pmu;
-	struct option options[] = {
-	OPT_CALLBACK('e', "event", &mem, "event",
-		     "event selector. use 'perf mem record -e list' to list available events",
-		     parse_record_events),
-	OPT_UINTEGER(0, "ldlat", &perf_mem_events__loads_ldlat, "mem-loads latency"),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show counter open errors, etc)"),
-	OPT_BOOLEAN('U', "all-user", &all_user, "collect only user level data"),
-	OPT_BOOLEAN('K', "all-kernel", &all_kernel, "collect only kernel level data"),
-	OPT_END()
+	const char * const record_usage[] = {
+		"perf mem record [<options>] [<command>]",
+		"perf mem record [<options>] -- <command> [<options>]",
+		NULL
 	};
 
 	pmu = perf_mem_events_find_pmu();
@@ -97,12 +88,12 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		return -1;
 	}
 
-	if (perf_pmu__mem_events_init(pmu)) {
+	if (perf_pmu__mem_events_init()) {
 		pr_err("failed: memory events not supported\n");
 		return -1;
 	}
 
-	argc = parse_options(argc, argv, options, record_mem_usage,
+	argc = parse_options(argc, argv, options, record_usage,
 			     PARSE_OPT_KEEP_UNKNOWN);
 
 	/* Max number of arguments multiplied by number of PMUs that can support them. */
@@ -126,22 +117,17 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	if (e->tag &&
 	    (mem->operation & MEM_OPERATION_LOAD) &&
 	    (mem->operation & MEM_OPERATION_STORE)) {
-		e->record = true;
+		perf_mem_record[PERF_MEM_EVENTS__LOAD_STORE] = true;
 		rec_argv[i++] = "-W";
 	} else {
-		if (mem->operation & MEM_OPERATION_LOAD) {
-			e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD);
-			e->record = true;
-		}
+		if (mem->operation & MEM_OPERATION_LOAD)
+			perf_mem_record[PERF_MEM_EVENTS__LOAD] = true;
 
-		if (mem->operation & MEM_OPERATION_STORE) {
-			e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__STORE);
-			e->record = true;
-		}
+		if (mem->operation & MEM_OPERATION_STORE)
+			perf_mem_record[PERF_MEM_EVENTS__STORE] = true;
 	}
 
-	e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD);
-	if (e->record)
+	if (perf_mem_record[PERF_MEM_EVENTS__LOAD])
 		rec_argv[i++] = "-W";
 
 	rec_argv[i++] = "-d";
@@ -158,10 +144,10 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		goto out;
 	end = i;
 
-	if (all_user)
+	if (mem->all_user)
 		rec_argv[i++] = "--all-user";
 
-	if (all_kernel)
+	if (mem->all_kernel)
 		rec_argv[i++] = "--all-kernel";
 
 	if (mem->cpu_list) {
@@ -188,7 +174,7 @@ out:
 }
 
 static int
-dump_raw_samples(struct perf_tool *tool,
+dump_raw_samples(const struct perf_tool *tool,
 		 union perf_event *event,
 		 struct perf_sample *sample,
 		 struct machine *machine)
@@ -262,7 +248,7 @@ out_put:
 	return 0;
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel __maybe_unused,
@@ -285,7 +271,23 @@ static int report_raw_events(struct perf_mem *mem)
 		.force = mem->force,
 	};
 	int ret;
-	struct perf_session *session = perf_session__new(&data, &mem->tool);
+	struct perf_session *session;
+
+	perf_tool__init(&mem->tool, /*ordered_events=*/true);
+	mem->tool.sample		= process_sample_event;
+	mem->tool.mmap		= perf_event__process_mmap;
+	mem->tool.mmap2		= perf_event__process_mmap2;
+	mem->tool.comm		= perf_event__process_comm;
+	mem->tool.lost		= perf_event__process_lost;
+	mem->tool.fork		= perf_event__process_fork;
+	mem->tool.attr		= perf_event__process_attr;
+	mem->tool.build_id	= perf_event__process_build_id;
+	mem->tool.namespaces	= perf_event__process_namespaces;
+	mem->tool.auxtrace_info  = perf_event__process_auxtrace_info;
+	mem->tool.auxtrace       = perf_event__process_auxtrace;
+	mem->tool.auxtrace_error = perf_event__process_auxtrace_error;
+
+	session = perf_session__new(&data, &mem->tool);
 
 	if (IS_ERR(session))
 		return PTR_ERR(session);
@@ -319,16 +321,21 @@ out_delete:
 	perf_session__delete(session);
 	return ret;
 }
+
 static char *get_sort_order(struct perf_mem *mem)
 {
 	bool has_extra_options = (mem->phys_addr | mem->data_page_size) ? true : false;
 	char sort[128];
 
+	if (mem->sort_key)
+		scnprintf(sort, sizeof(sort), "--sort=%s", mem->sort_key);
+	else if (mem->data_type)
+		strcpy(sort, "--sort=mem,snoop,tlb,type");
 	/*
 	 * there is no weight (cost) associated with stores, so don't print
 	 * the column
 	 */
-	if (!(mem->operation & MEM_OPERATION_LOAD)) {
+	else if (!(mem->operation & MEM_OPERATION_LOAD)) {
 		strcpy(sort, "--sort=mem,sym,dso,symbol_daddr,"
 			     "dso_daddr,tlb,locked");
 	} else if (has_extra_options) {
@@ -343,14 +350,26 @@ static char *get_sort_order(struct perf_mem *mem)
 	if (mem->data_page_size)
 		strcat(sort, ",data_page_size");
 
+	/* make sure it has 'type' sort key even -s option is used */
+	if (mem->data_type && !strstr(sort, "type"))
+		strcat(sort, ",type");
+
 	return strdup(sort);
 }
 
-static int report_events(int argc, const char **argv, struct perf_mem *mem)
+static int __cmd_report(int argc, const char **argv, struct perf_mem *mem,
+			const struct option *options)
 {
 	const char **rep_argv;
 	int ret, i = 0, j, rep_argc;
 	char *new_sort_order;
+	const char * const report_usage[] = {
+		"perf mem report [<options>]",
+		NULL
+	};
+
+	argc = parse_options(argc, argv, options, report_usage,
+			     PARSE_OPT_KEEP_UNKNOWN);
 
 	if (mem->dump_raw)
 		return report_raw_events(mem);
@@ -368,10 +387,11 @@ static int report_events(int argc, const char **argv, struct perf_mem *mem)
 	if (new_sort_order)
 		rep_argv[i++] = new_sort_order;
 
-	for (j = 1; j < argc; j++, i++)
+	for (j = 0; j < argc; j++, i++)
 		rep_argv[i] = argv[j];
 
 	ret = cmd_report(i, rep_argv);
+	free(new_sort_order);
 	free(rep_argv);
 	return ret;
 }
@@ -449,47 +469,51 @@ int cmd_mem(int argc, const char **argv)
 {
 	struct stat st;
 	struct perf_mem mem = {
-		.tool = {
-			.sample		= process_sample_event,
-			.mmap		= perf_event__process_mmap,
-			.mmap2		= perf_event__process_mmap2,
-			.comm		= perf_event__process_comm,
-			.lost		= perf_event__process_lost,
-			.fork		= perf_event__process_fork,
-			.attr		= perf_event__process_attr,
-			.build_id	= perf_event__process_build_id,
-			.namespaces	= perf_event__process_namespaces,
-			.auxtrace_info  = perf_event__process_auxtrace_info,
-			.auxtrace       = perf_event__process_auxtrace,
-			.auxtrace_error = perf_event__process_auxtrace_error,
-			.ordered_events	= true,
-		},
 		.input_name		 = "perf.data",
 		/*
 		 * default to both load an store sampling
 		 */
 		.operation		 = MEM_OPERATION_LOAD | MEM_OPERATION_STORE,
 	};
+	char *sort_order_help = sort_help("sort by key(s):", SORT_MODE__MEMORY);
 	const struct option mem_options[] = {
 	OPT_CALLBACK('t', "type", &mem.operation,
 		   "type", "memory operations(load,store) Default load,store",
 		    parse_mem_ops),
+	OPT_STRING('C', "cpu", &mem.cpu_list, "cpu",
+		   "list of cpus to profile"),
+	OPT_BOOLEAN('f', "force", &mem.force, "don't complain, do it"),
+	OPT_INCR('v', "verbose", &verbose,
+		 "be more verbose (show counter open errors, etc)"),
+	OPT_BOOLEAN('p', "phys-data", &mem.phys_addr, "Record/Report sample physical addresses"),
+	OPT_BOOLEAN(0, "data-page-size", &mem.data_page_size, "Record/Report sample data address page size"),
+	OPT_END()
+	};
+	const struct option record_options[] = {
+	OPT_CALLBACK('e', "event", &mem, "event",
+		     "event selector. use 'perf mem record -e list' to list available events",
+		     parse_record_events),
+	OPT_UINTEGER(0, "ldlat", &perf_mem_events__loads_ldlat, "mem-loads latency"),
+	OPT_BOOLEAN('U', "all-user", &mem.all_user, "collect only user level data"),
+	OPT_BOOLEAN('K', "all-kernel", &mem.all_kernel, "collect only kernel level data"),
+	OPT_PARENT(mem_options)
+	};
+	const struct option report_options[] = {
 	OPT_BOOLEAN('D', "dump-raw-samples", &mem.dump_raw,
 		    "dump raw samples in ASCII"),
 	OPT_BOOLEAN('U', "hide-unresolved", &mem.hide_unresolved,
 		    "Only display entries resolved to a symbol"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "input file name"),
-	OPT_STRING('C', "cpu", &mem.cpu_list, "cpu",
-		   "list of cpus to profile"),
 	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep,
 		   "separator",
 		   "separator for columns, no spaces will be added"
 		   " between columns '.' is reserved."),
-	OPT_BOOLEAN('f', "force", &mem.force, "don't complain, do it"),
-	OPT_BOOLEAN('p', "phys-data", &mem.phys_addr, "Record/Report sample physical addresses"),
-	OPT_BOOLEAN(0, "data-page-size", &mem.data_page_size, "Record/Report sample data address page size"),
-	OPT_END()
+	OPT_STRING('s', "sort", &mem.sort_key, "key[,key2...]",
+		   sort_order_help),
+	OPT_BOOLEAN('T', "type-profile", &mem.data_type,
+		    "Show data-type profile result"),
+	OPT_PARENT(mem_options)
 	};
 	const char *const mem_subcommands[] = { "record", "report", NULL };
 	const char *mem_usage[] = {
@@ -498,7 +522,7 @@ int cmd_mem(int argc, const char **argv)
 	};
 
 	argc = parse_options_subcommand(argc, argv, mem_options, mem_subcommands,
-					mem_usage, PARSE_OPT_KEEP_UNKNOWN);
+					mem_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (!argc || !(strncmp(argv[0], "rec", 3) || mem.operation))
 		usage_with_options(mem_usage, mem_options);
@@ -511,11 +535,14 @@ int cmd_mem(int argc, const char **argv)
 	}
 
 	if (strlen(argv[0]) > 2 && strstarts("record", argv[0]))
-		return __cmd_record(argc, argv, &mem);
+		return __cmd_record(argc, argv, &mem, record_options);
 	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0]))
-		return report_events(argc, argv, &mem);
+		return __cmd_report(argc, argv, &mem, report_options);
 	else
 		usage_with_options(mem_usage, mem_options);
+
+	/* free usage string allocated by parse_options_subcommand */
+	free((void *)mem_usage[0]);
 
 	return 0;
 }

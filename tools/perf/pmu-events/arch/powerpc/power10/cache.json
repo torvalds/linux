@@ -1,12 +1,22 @@
 [
   {
+    "EventCode": "0x1002C",
+    "EventName": "PM_LD_PREFETCH_CACHE_LINE_MISS",
+    "BriefDescription": "The L1 cache was reloaded with a line that fulfills a prefetch request."
+  },
+  {
+    "EventCode": "0x200FD",
+    "EventName": "PM_L1_ICACHE_MISS",
+    "BriefDescription": "Demand instruction cache miss."
+  },
+  {
+    "EventCode": "0x30068",
+    "EventName": "PM_L1_ICACHE_RELOADED_PREF",
+    "BriefDescription": "Counts all instruction cache prefetch reloads (includes demand turned into prefetch)."
+  },
+  {
     "EventCode": "0x300F4",
     "EventName": "PM_RUN_INST_CMPL_CONC",
     "BriefDescription": "PowerPC instruction completed by this thread when all threads in the core had the run-latch set."
-  },
-  {
-    "EventCode": "0x400F6",
-    "EventName": "PM_BR_MPRED_CMPL",
-    "BriefDescription": "A mispredicted branch completed. Includes direction and target."
   }
 ]

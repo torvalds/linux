@@ -90,7 +90,7 @@ static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kern
 		}
 		memgap_start = end;
 	}
-	kasan_populate(kernel_start, kernel_end, POPULATE_KASAN_MAP_SHADOW);
+	kasan_populate(kernel_start + TEXT_OFFSET, kernel_end, POPULATE_KASAN_MAP_SHADOW);
 	kasan_populate(0, (unsigned long)__identity_va(0), POPULATE_KASAN_ZERO_SHADOW);
 	kasan_populate(AMODE31_START, AMODE31_END, POPULATE_KASAN_ZERO_SHADOW);
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
@@ -475,7 +475,17 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 				 (unsigned long)__identity_va(end),
 				 POPULATE_IDENTITY);
 	}
-	pgtable_populate(kernel_start, kernel_end, POPULATE_KERNEL);
+
+	/*
+	 * [kernel_start..kernel_start + TEXT_OFFSET] region is never
+	 * accessed as per the linker script:
+	 *
+	 *	. = TEXT_OFFSET;
+	 *
+	 * Therefore, skip mapping TEXT_OFFSET bytes to prevent access to
+	 * [__kaslr_offset_phys..__kaslr_offset_phys + TEXT_OFFSET] region.
+	 */
+	pgtable_populate(kernel_start + TEXT_OFFSET, kernel_end, POPULATE_KERNEL);
 	pgtable_populate(AMODE31_START, AMODE31_END, POPULATE_DIRECT);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);

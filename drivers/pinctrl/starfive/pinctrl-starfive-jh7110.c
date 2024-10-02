@@ -793,12 +793,12 @@ static int jh7110_irq_set_type(struct irq_data *d, unsigned int trigger)
 	case IRQ_TYPE_LEVEL_HIGH:
 		irq_type  = 0;    /* 0: level triggered */
 		edge_both = 0;    /* 0: ignored */
-		polarity  = mask; /* 1: high level */
+		polarity  = 0;    /* 0: high level */
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		irq_type  = 0;    /* 0: level triggered */
 		edge_both = 0;    /* 0: ignored */
-		polarity  = 0;    /* 0: low level */
+		polarity  = mask; /* 1: low level */
 		break;
 	default:
 		return -EINVAL;

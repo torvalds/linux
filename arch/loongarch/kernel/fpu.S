@@ -530,6 +530,10 @@ SYM_FUNC_END(_restore_lasx_context)
 
 #ifdef CONFIG_CPU_HAS_LBT
 STACK_FRAME_NON_STANDARD _restore_fp
+#ifdef CONFIG_CPU_HAS_LSX
 STACK_FRAME_NON_STANDARD _restore_lsx
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
 STACK_FRAME_NON_STANDARD _restore_lasx
+#endif
 #endif

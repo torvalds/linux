@@ -116,7 +116,7 @@ The following services are provided:
  * Handle local caching, allowing cached data and server-read data to be
    interleaved for a single request.
 
- * Handle clearing of bufferage that aren't on the server.
+ * Handle clearing of bufferage that isn't on the server.
 
  * Handle retrying of reads that failed, switching reads from the cache to the
    server as necessary.

@@ -106,6 +106,12 @@ union GRBM_GFX_INDEX_BITS {
  * @uninitialize: Destroys all the device queue manager resources allocated in
  * initialize routine.
  *
+ * @halt: This routine unmaps queues from runlist and set halt status to true
+ * so no more queues will be mapped to runlist until unhalt.
+ *
+ * @unhalt: This routine unset halt status to flase and maps queues back to
+ * runlist.
+ *
  * @create_kernel_queue: Creates kernel queue. Used for debug queue.
  *
  * @destroy_kernel_queue: Destroys kernel queue. Used for debug queue.
@@ -153,6 +159,8 @@ struct device_queue_manager_ops {
 	int	(*start)(struct device_queue_manager *dqm);
 	int	(*stop)(struct device_queue_manager *dqm);
 	void	(*uninitialize)(struct device_queue_manager *dqm);
+	int     (*halt)(struct device_queue_manager *dqm);
+	int     (*unhalt)(struct device_queue_manager *dqm);
 	int	(*create_kernel_queue)(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
 					struct qcm_process_device *qpd);
@@ -210,6 +218,13 @@ struct device_queue_manager_asic_ops {
 				 struct kfd_node *dev);
 };
 
+struct dqm_detect_hang_info {
+	int pipe_id;
+	int queue_id;
+	int xcc_id;
+	uint64_t queue_address;
+};
+
 /**
  * struct device_queue_manager
  *
@@ -257,6 +272,7 @@ struct device_queue_manager {
 	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
 	bool			sched_running;
+	bool			sched_halt;
 
 	/* used for GFX 9.4.3 only */
 	uint32_t		current_logical_xcc_start;
@@ -264,6 +280,11 @@ struct device_queue_manager {
 	uint32_t		wait_times;
 
 	wait_queue_head_t	destroy_wait;
+
+	/* for per-queue reset support */
+	struct dqm_detect_hang_info *detect_hang_info;
+	size_t detect_hang_info_size;
+	int detect_hang_count;
 };
 
 void device_queue_manager_init_cik(
@@ -303,6 +324,9 @@ void set_queue_snapshot_entry(struct queue *q,
 int debug_lock_and_unmap(struct device_queue_manager *dqm);
 int debug_map_and_unlock(struct device_queue_manager *dqm);
 int debug_refresh_runlist(struct device_queue_manager *dqm);
+bool kfd_dqm_is_queue_in_process(struct device_queue_manager *dqm,
+				 struct qcm_process_device *qpd,
+				 int doorbell_off, u32 *queue_format);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {

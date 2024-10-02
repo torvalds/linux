@@ -368,9 +368,35 @@ mlx5_ct_fs_smfs_ct_rule_del(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_ru
 	kfree(smfs_rule);
 }
 
+static int mlx5_ct_fs_smfs_ct_rule_update(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_rule,
+					  struct mlx5_flow_spec *spec, struct mlx5_flow_attr *attr)
+{
+	struct mlx5_ct_fs_smfs_rule *smfs_rule = container_of(fs_rule,
+							      struct mlx5_ct_fs_smfs_rule,
+							      fs_rule);
+	struct mlx5_ct_fs_smfs *fs_smfs = mlx5_ct_fs_priv(fs);
+	struct mlx5dr_action *actions[3];  /* We only need to create 3 actions, see below. */
+	struct mlx5dr_rule *rule;
+
+	actions[0] = smfs_rule->count_action;
+	actions[1] = attr->modify_hdr->action.dr_action;
+	actions[2] = fs_smfs->fwd_action;
+
+	rule = mlx5_smfs_rule_create(smfs_rule->smfs_matcher->dr_matcher, spec,
+				     ARRAY_SIZE(actions), actions, spec->flow_context.flow_source);
+	if (!rule)
+		return -EINVAL;
+
+	mlx5_smfs_rule_destroy(smfs_rule->rule);
+	smfs_rule->rule = rule;
+
+	return 0;
+}
+
 static struct mlx5_ct_fs_ops fs_smfs_ops = {
 	.ct_rule_add = mlx5_ct_fs_smfs_ct_rule_add,
 	.ct_rule_del = mlx5_ct_fs_smfs_ct_rule_del,
+	.ct_rule_update = mlx5_ct_fs_smfs_ct_rule_update,
 
 	.init = mlx5_ct_fs_smfs_init,
 	.destroy = mlx5_ct_fs_smfs_destroy,

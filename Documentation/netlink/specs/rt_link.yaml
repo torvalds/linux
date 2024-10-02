@@ -903,6 +903,22 @@ definitions:
       - cfm-config
       - cfm-status
       - mst
+  -
+    name: netkit-policy
+    type: enum
+    entries:
+      -
+        name: forward
+        value: 0
+      -
+        name: blackhole
+        value: 2
+  -
+    name: netkit-mode
+    type: enum
+    entries:
+      - name: l2
+      - name: l3
 
 attribute-sets:
   -
@@ -2109,6 +2125,28 @@ attribute-sets:
       -
         name: id
         type: u32
+  -
+    name: linkinfo-netkit-attrs
+    name-prefix: ifla-netkit-
+    attributes:
+      -
+        name: peer-info
+        type: binary
+      -
+        name: primary
+        type: u8
+      -
+        name: policy
+        type: u32
+        enum: netkit-policy
+      -
+        name: peer-policy
+        type: u32
+        enum: netkit-policy
+      -
+        name: mode
+        type: u32
+        enum: netkit-mode
 
 sub-messages:
   -
@@ -2147,6 +2185,9 @@ sub-messages:
       -
         value: vrf
         attribute-set: linkinfo-vrf-attrs
+      -
+        value: netkit
+        attribute-set: linkinfo-netkit-attrs
   -
     name: linkinfo-member-data-msg
     formats:
