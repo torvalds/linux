@@ -674,20 +674,20 @@ static int metricgroup__build_event_string(struct strbuf *events,
 	struct hashmap_entry *cur;
 	size_t bkt;
 	bool no_group = true, has_tool_events = false;
-	bool tool_events[PERF_TOOL_MAX] = {false};
+	bool tool_events[TOOL_PMU__EVENT_MAX] = {false};
 	int ret = 0;
 
 #define RETURN_IF_NON_ZERO(x) do { if (x) return x; } while (0)
 
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
 		const char *sep, *rsep, *id = cur->pkey;
-		enum perf_tool_event ev;
+		enum tool_pmu_event ev;
 
 		pr_debug("found event %s\n", id);
 
 		/* Always move tool events outside of the group. */
 		ev = perf_tool_event__from_str(id);
-		if (ev != PERF_TOOL_NONE) {
+		if (ev != TOOL_PMU__EVENT_NONE) {
 			has_tool_events = true;
 			tool_events[ev] = true;
 			continue;
@@ -1375,7 +1375,7 @@ static void metricgroup__free_metrics(struct list_head *metric_list)
  *               to true if tool event is found.
  */
 static void find_tool_events(const struct list_head *metric_list,
-			     bool tool_events[PERF_TOOL_MAX])
+			     bool tool_events[TOOL_PMU__EVENT_MAX])
 {
 	struct metric *m;
 
@@ -1447,7 +1447,7 @@ err_out:
  */
 static int parse_ids(bool metric_no_merge, bool fake_pmu,
 		     struct expr_parse_ctx *ids, const char *modifier,
-		     bool group_events, const bool tool_events[PERF_TOOL_MAX],
+		     bool group_events, const bool tool_events[TOOL_PMU__EVENT_MAX],
 		     struct evlist **out_evlist)
 {
 	struct parse_events_error parse_error;
@@ -1536,7 +1536,7 @@ static int parse_groups(struct evlist *perf_evlist,
 	struct evlist *combined_evlist = NULL;
 	LIST_HEAD(metric_list);
 	struct metric *m;
-	bool tool_events[PERF_TOOL_MAX] = {false};
+	bool tool_events[TOOL_PMU__EVENT_MAX] = {false};
 	bool is_default = !strcmp(str, "Default");
 	int ret;
 

@@ -12,7 +12,7 @@
 #include <fcntl.h>
 #include <strings.h>
 
-static const char *const tool_pmu__event_names[PERF_TOOL_MAX] = {
+static const char *const tool_pmu__event_names[TOOL_PMU__EVENT_MAX] = {
 	NULL,
 	"duration_time",
 	"user_time",
@@ -20,15 +20,15 @@ static const char *const tool_pmu__event_names[PERF_TOOL_MAX] = {
 };
 
 
-const char *perf_tool_event__to_str(enum perf_tool_event ev)
+const char *perf_tool_event__to_str(enum tool_pmu_event ev)
 {
-	if (ev > PERF_TOOL_NONE && ev < PERF_TOOL_MAX)
+	if (ev > TOOL_PMU__EVENT_NONE && ev < TOOL_PMU__EVENT_MAX)
 		return tool_pmu__event_names[ev];
 
 	return NULL;
 }
 
-enum perf_tool_event perf_tool_event__from_str(const char *str)
+enum tool_pmu_event perf_tool_event__from_str(const char *str)
 {
 	int i;
 
@@ -36,7 +36,7 @@ enum perf_tool_event perf_tool_event__from_str(const char *str)
 		if (!strcasecmp(str, tool_pmu__event_names[i]))
 			return i;
 	}
-	return PERF_TOOL_NONE;
+	return TOOL_PMU__EVENT_NONE;
 }
 
 static int tool_pmu__config_term(struct perf_event_attr *attr,
@@ -44,9 +44,9 @@ static int tool_pmu__config_term(struct perf_event_attr *attr,
 				 struct parse_events_error *err)
 {
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER) {
-		enum perf_tool_event ev = perf_tool_event__from_str(term->config);
+		enum tool_pmu_event ev = perf_tool_event__from_str(term->config);
 
-		if (ev == PERF_TOOL_NONE)
+		if (ev == TOOL_PMU__EVENT_NONE)
 			goto err_out;
 
 		attr->config = ev;
@@ -120,12 +120,12 @@ bool evsel__is_tool(const struct evsel *evsel)
 	return perf_pmu__is_tool(evsel->pmu);
 }
 
-enum perf_tool_event evsel__tool_event(const struct evsel *evsel)
+enum tool_pmu_event evsel__tool_event(const struct evsel *evsel)
 {
 	if (!evsel__is_tool(evsel))
-		return PERF_TOOL_NONE;
+		return TOOL_PMU__EVENT_NONE;
 
-	return (enum perf_tool_event)evsel->core.attr.config;
+	return (enum tool_pmu_event)evsel->core.attr.config;
 }
 
 const char *evsel__tool_pmu_event_name(const struct evsel *evsel)
@@ -229,8 +229,8 @@ int evsel__tool_pmu_prepare_open(struct evsel *evsel,
 				 struct perf_cpu_map *cpus,
 				 int nthreads)
 {
-	if ((evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME ||
-	     evsel__tool_event(evsel) == PERF_TOOL_USER_TIME) &&
+	if ((evsel__tool_event(evsel) == TOOL_PMU__EVENT_SYSTEM_TIME ||
+	     evsel__tool_event(evsel) == TOOL_PMU__EVENT_USER_TIME) &&
 	    !evsel->start_times) {
 		evsel->start_times = xyarray__new(perf_cpu_map__nr(cpus),
 						  nthreads,
@@ -247,10 +247,10 @@ int evsel__tool_pmu_open(struct evsel *evsel,
 			 struct perf_thread_map *threads,
 			 int start_cpu_map_idx, int end_cpu_map_idx)
 {
-	enum perf_tool_event ev = evsel__tool_event(evsel);
+	enum tool_pmu_event ev = evsel__tool_event(evsel);
 	int pid = -1, idx = 0, thread = 0, nthreads, err = 0, old_errno;
 
-	if (ev == PERF_TOOL_DURATION_TIME) {
+	if (ev == TOOL_PMU__EVENT_DURATION_TIME) {
 		if (evsel->core.attr.sample_period) /* no sampling */
 			return -EINVAL;
 		evsel->start_time = rdclock();
@@ -269,8 +269,8 @@ int evsel__tool_pmu_open(struct evsel *evsel,
 			if (!evsel->cgrp && !evsel->core.system_wide)
 				pid = perf_thread_map__pid(threads, thread);
 
-			if (ev == PERF_TOOL_USER_TIME || ev == PERF_TOOL_SYSTEM_TIME) {
-				bool system = ev == PERF_TOOL_SYSTEM_TIME;
+			if (ev == TOOL_PMU__EVENT_USER_TIME || ev == TOOL_PMU__EVENT_SYSTEM_TIME) {
+				bool system = ev == TOOL_PMU__EVENT_SYSTEM_TIME;
 				__u64 *start_time = NULL;
 				int fd;
 
@@ -338,7 +338,7 @@ int evsel__read_tool(struct evsel *evsel, int cpu_map_idx, int thread)
 	count = perf_counts(evsel->counts, cpu_map_idx, thread);
 
 	switch (evsel__tool_event(evsel)) {
-	case PERF_TOOL_DURATION_TIME:
+	case TOOL_PMU__EVENT_DURATION_TIME:
 		/*
 		 * Pretend duration_time is only on the first CPU and thread, or
 		 * else aggregation will scale duration_time by the number of
@@ -350,9 +350,9 @@ int evsel__read_tool(struct evsel *evsel, int cpu_map_idx, int thread)
 		else
 			cur_time = *start_time;
 		break;
-	case PERF_TOOL_USER_TIME:
-	case PERF_TOOL_SYSTEM_TIME: {
-		bool system = evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME;
+	case TOOL_PMU__EVENT_USER_TIME:
+	case TOOL_PMU__EVENT_SYSTEM_TIME: {
+		bool system = evsel__tool_event(evsel) == TOOL_PMU__EVENT_SYSTEM_TIME;
 
 		start_time = xyarray__entry(evsel->start_times, cpu_map_idx, thread);
 		fd = FD(evsel, cpu_map_idx, thread);
@@ -377,8 +377,8 @@ int evsel__read_tool(struct evsel *evsel, int cpu_map_idx, int thread)
 		adjust = true;
 		break;
 	}
-	case PERF_TOOL_NONE:
-	case PERF_TOOL_MAX:
+	case TOOL_PMU__EVENT_NONE:
+	case TOOL_PMU__EVENT_MAX:
 	default:
 		err = -EINVAL;
 	}

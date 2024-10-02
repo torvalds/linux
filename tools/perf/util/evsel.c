@@ -1476,8 +1476,8 @@ void evsel__exit(struct evsel *evsel)
 	evsel->per_pkg_mask = NULL;
 	zfree(&evsel->metric_events);
 	perf_evsel__object.fini(evsel);
-	if (evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME ||
-	    evsel__tool_event(evsel) == PERF_TOOL_USER_TIME)
+	if (evsel__tool_event(evsel) == TOOL_PMU__EVENT_SYSTEM_TIME ||
+	    evsel__tool_event(evsel) == TOOL_PMU__EVENT_USER_TIME)
 		xyarray__delete(evsel->start_times);
 }
 
