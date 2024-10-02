@@ -863,7 +863,6 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		dev_err(qspi->dev,
 			"No Rx DMA available, trying mmap mode\n");
 		qspi->rx_chan = NULL;
-		ret = 0;
 		goto no_dma;
 	}
 	qspi->rx_bb_addr = dma_alloc_coherent(qspi->dev,
