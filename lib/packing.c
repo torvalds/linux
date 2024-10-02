@@ -141,7 +141,7 @@ int pack(void *pbuf, u64 uval, size_t startbit, size_t endbit, size_t pbuflen,
 		proj_start_bit = ((box * BITS_PER_BYTE) + box_start_bit) - endbit;
 		proj_end_bit = ((box * BITS_PER_BYTE) + box_end_bit) - endbit;
 		proj_mask = GENMASK_ULL(proj_start_bit, proj_end_bit);
-		box_mask  = GENMASK_ULL(box_start_bit, box_end_bit);
+		box_mask = GENMASK(box_start_bit, box_end_bit);
 
 		/* Determine the offset of the u8 box inside the pbuf,
 		 * adjusted for quirks. The adjusted box_addr will be used for
@@ -249,7 +249,7 @@ int unpack(const void *pbuf, u64 *uval, size_t startbit, size_t endbit,
 		proj_start_bit = ((box * BITS_PER_BYTE) + box_start_bit) - endbit;
 		proj_end_bit = ((box * BITS_PER_BYTE) + box_end_bit) - endbit;
 		proj_mask = GENMASK_ULL(proj_start_bit, proj_end_bit);
-		box_mask  = GENMASK_ULL(box_start_bit, box_end_bit);
+		box_mask = GENMASK(box_start_bit, box_end_bit);
 
 		/* Determine the offset of the u8 box inside the pbuf,
 		 * adjusted for quirks. The adjusted box_addr will be used for
