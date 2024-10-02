@@ -967,7 +967,6 @@ static void cs42l43_boot_work(struct work_struct *work)
 
 err:
 	pm_runtime_put_sync(cs42l43->dev);
-	cs42l43_dev_remove(cs42l43);
 }
 
 static int cs42l43_power_up(struct cs42l43 *cs42l43)
@@ -1101,6 +1100,8 @@ EXPORT_SYMBOL_NS_GPL(cs42l43_dev_probe, MFD_CS42L43);
 
 void cs42l43_dev_remove(struct cs42l43 *cs42l43)
 {
+	cancel_work_sync(&cs42l43->boot_work);
+
 	cs42l43_power_down(cs42l43);
 }
 EXPORT_SYMBOL_NS_GPL(cs42l43_dev_remove, MFD_CS42L43);
