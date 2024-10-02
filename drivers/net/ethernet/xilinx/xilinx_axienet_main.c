@@ -1161,6 +1161,7 @@ static int axienet_open(struct net_device *ndev)
 	phylink_start(lp->phylink);
 
 	/* Enable worker thread for Axi DMA error handling */
+	lp->stopping = false;
 	INIT_WORK(&lp->dma_err_task, axienet_dma_err_handler);
 
 	napi_enable(&lp->napi_rx);
@@ -1215,6 +1216,9 @@ static int axienet_stop(struct net_device *ndev)
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	dev_dbg(&ndev->dev, "axienet_close()\n");
+
+	WRITE_ONCE(lp->stopping, true);
+	flush_work(&lp->dma_err_task);
 
 	napi_disable(&lp->napi_tx);
 	napi_disable(&lp->napi_rx);
@@ -1759,6 +1763,10 @@ static void axienet_dma_err_handler(struct work_struct *work)
 	struct axienet_local *lp = container_of(work, struct axienet_local,
 						dma_err_task);
 	struct net_device *ndev = lp->ndev;
+
+	/* Don't bother if we are going to stop anyway */
+	if (READ_ONCE(lp->stopping))
+		return;
 
 	napi_disable(&lp->napi_tx);
 	napi_disable(&lp->napi_rx);
