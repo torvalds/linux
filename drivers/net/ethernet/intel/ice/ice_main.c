@@ -4799,7 +4799,7 @@ int ice_init_dev(struct ice_pf *pf)
 	if (err) {
 		dev_err(dev, "ice_init_interrupt_scheme failed: %d\n", err);
 		err = -EIO;
-		goto err_init_interrupt_scheme;
+		goto unroll_pf_init;
 	}
 
 	/* In case of MSIX we are going to setup the misc vector right here
@@ -4810,14 +4810,14 @@ int ice_init_dev(struct ice_pf *pf)
 	err = ice_req_irq_msix_misc(pf);
 	if (err) {
 		dev_err(dev, "setup of misc vector failed: %d\n", err);
-		goto err_req_irq_msix_misc;
+		goto unroll_irq_scheme_init;
 	}
 
 	return 0;
 
-err_req_irq_msix_misc:
+unroll_irq_scheme_init:
 	ice_clear_interrupt_scheme(pf);
-err_init_interrupt_scheme:
+unroll_pf_init:
 	ice_deinit_pf(pf);
 	return err;
 }
@@ -5324,18 +5324,18 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	devl_lock(priv_to_devlink(pf));
 	err = ice_load(pf);
 	if (err)
-		goto err_load;
+		goto unroll_init;
 
 	err = ice_init_devlink(pf);
 	if (err)
-		goto err_init_devlink;
+		goto unroll_load;
 	devl_unlock(priv_to_devlink(pf));
 
 	return 0;
 
-err_init_devlink:
+unroll_load:
 	ice_unload(pf);
-err_load:
+unroll_init:
 	devl_unlock(priv_to_devlink(pf));
 	ice_deinit(pf);
 unroll_hw_init:
