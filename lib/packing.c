@@ -90,6 +90,8 @@ static int calculate_box_addr(int box, size_t len, u8 quirks)
  * @quirks: A bit mask of QUIRK_LITTLE_ENDIAN, QUIRK_LSW32_IS_FIRST and
  *	    QUIRK_MSB_ON_THE_RIGHT.
  *
+ * Note: this is deprecated, prefer to use pack() or unpack() in new code.
+ *
  * Return: 0 on success, EINVAL or ERANGE if called incorrectly. Assuming
  *	   correct usage, return code may be discarded.
  *	   If op is PACK, pbuf is modified.
@@ -215,5 +217,57 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 	return 0;
 }
 EXPORT_SYMBOL(packing);
+
+/**
+ * pack - Pack u64 number into bitfield of buffer.
+ *
+ * @pbuf: Pointer to a buffer holding the packed value.
+ * @uval: Pointer to an u64 holding the unpacked value.
+ * @startbit: The index (in logical notation, compensated for quirks) where
+ *	      the packed value starts within pbuf. Must be larger than, or
+ *	      equal to, endbit.
+ * @endbit: The index (in logical notation, compensated for quirks) where
+ *	    the packed value ends within pbuf. Must be smaller than, or equal
+ *	    to, startbit.
+ * @pbuflen: The length in bytes of the packed buffer pointed to by @pbuf.
+ * @quirks: A bit mask of QUIRK_LITTLE_ENDIAN, QUIRK_LSW32_IS_FIRST and
+ *	    QUIRK_MSB_ON_THE_RIGHT.
+ *
+ * Return: 0 on success, EINVAL or ERANGE if called incorrectly. Assuming
+ *	   correct usage, return code may be discarded. The @pbuf memory will
+ *	   be modified on success.
+ */
+int pack(void *pbuf, const u64 *uval, size_t startbit, size_t endbit,
+	 size_t pbuflen, u8 quirks)
+{
+	return packing(pbuf, (u64 *)uval, startbit, endbit, pbuflen, PACK, quirks);
+}
+EXPORT_SYMBOL(pack);
+
+/**
+ * unpack - Unpack u64 number from packed buffer.
+ *
+ * @pbuf: Pointer to a buffer holding the packed value.
+ * @uval: Pointer to an u64 holding the unpacked value.
+ * @startbit: The index (in logical notation, compensated for quirks) where
+ *	      the packed value starts within pbuf. Must be larger than, or
+ *	      equal to, endbit.
+ * @endbit: The index (in logical notation, compensated for quirks) where
+ *	    the packed value ends within pbuf. Must be smaller than, or equal
+ *	    to, startbit.
+ * @pbuflen: The length in bytes of the packed buffer pointed to by @pbuf.
+ * @quirks: A bit mask of QUIRK_LITTLE_ENDIAN, QUIRK_LSW32_IS_FIRST and
+ *	    QUIRK_MSB_ON_THE_RIGHT.
+ *
+ * Return: 0 on success, EINVAL or ERANGE if called incorrectly. Assuming
+ *	   correct usage, return code may be discarded. The @uval will be
+ *	   modified on success.
+ */
+int unpack(const void *pbuf, u64 *uval, size_t startbit, size_t endbit,
+	   size_t pbuflen, u8 quirks)
+{
+	return packing((void *)pbuf, uval, startbit, endbit, pbuflen, UNPACK, quirks);
+}
+EXPORT_SYMBOL(unpack);
 
 MODULE_DESCRIPTION("Generic bitfield packing and unpacking");
