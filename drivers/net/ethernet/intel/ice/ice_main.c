@@ -4755,12 +4755,6 @@ int ice_init_dev(struct ice_pf *pf)
 	struct ice_hw *hw = &pf->hw;
 	int err;
 
-	err = ice_init_hw(hw);
-	if (err) {
-		dev_err(dev, "ice_init_hw failed: %d\n", err);
-		return err;
-	}
-
 	ice_init_feature_support(pf);
 
 	err = ice_init_ddp_config(hw, pf);
@@ -4781,7 +4775,7 @@ int ice_init_dev(struct ice_pf *pf)
 	err = ice_init_pf(pf);
 	if (err) {
 		dev_err(dev, "ice_init_pf failed: %d\n", err);
-		goto err_init_pf;
+		return err;
 	}
 
 	pf->hw.udp_tunnel_nic.set_port = ice_udp_tunnel_set_port;
@@ -4825,8 +4819,6 @@ err_req_irq_msix_misc:
 	ice_clear_interrupt_scheme(pf);
 err_init_interrupt_scheme:
 	ice_deinit_pf(pf);
-err_init_pf:
-	ice_deinit_hw(hw);
 	return err;
 }
 
@@ -5319,9 +5311,15 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		hw->debug_mask = debug;
 #endif
 
+	err = ice_init_hw(hw);
+	if (err) {
+		dev_err(dev, "ice_init_hw failed: %d\n", err);
+		goto unroll_adapter;
+	}
+
 	err = ice_init(pf);
 	if (err)
-		goto err_init;
+		goto unroll_hw_init;
 
 	devl_lock(priv_to_devlink(pf));
 	err = ice_load(pf);
@@ -5340,7 +5338,9 @@ err_init_devlink:
 err_load:
 	devl_unlock(priv_to_devlink(pf));
 	ice_deinit(pf);
-err_init:
+unroll_hw_init:
+	ice_deinit_hw(hw);
+unroll_adapter:
 	ice_adapter_put(pdev);
 	return err;
 }
