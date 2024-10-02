@@ -326,6 +326,31 @@ TEST(ruleset_fd_transfer)
 	ASSERT_EQ(1, WIFEXITED(status));
 	ASSERT_EQ(EXIT_SUCCESS, WEXITSTATUS(status));
 }
+TEST(io_uring_operations_restricted)
+{
+    int io_uring_fd;
+    struct io_uring_probe *probe;
+    int ret;
+
+    // Create an io_uring instance
+    io_uring_fd = io_uring_setup(10, NULL);
+    ASSERT_NE(-1, io_uring_fd);
+
+    // Probe for the availability of specified operations
+    probe = io_uring_get_probe();
+    ASSERT_NE(NULL, probe);
+
+    // Check if the desired io_uring operations are restricted
+    ret = io_uring_opcode_supported(probe, IORING_OP_OPENAT);
+    ASSERT_EQ(0, ret); // IORING_OP_OPENAT should be restricted
+
+    ret = io_uring_opcode_supported(probe, IORING_OP_CONNECT);
+    ASSERT_EQ(0, ret); // IORING_OP_CONNECT should be restricted
+
+    // Clean up
+    io_uring_free_probe(probe);
+    close(io_uring_fd);
+}
 
 TEST(cred_transfer)
 {
