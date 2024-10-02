@@ -3814,7 +3814,7 @@ static void enabled_joiner_pipes(struct drm_i915_private *dev_priv,
 		 secondary_ultrajoiner_pipes);
 
 	drm_WARN(display->drm, (uncompressed_joiner_pipes & bigjoiner_pipes) != 0,
-		 "Uncomressed joiner pipes(%#x) and bigjoiner pipes(%#x) can't intersect\n",
+		 "Uncompressed joiner pipes(%#x) and bigjoiner pipes(%#x) can't intersect\n",
 		 uncompressed_joiner_pipes, bigjoiner_pipes);
 
 	drm_WARN(display->drm, secondary_bigjoiner_pipes !=
