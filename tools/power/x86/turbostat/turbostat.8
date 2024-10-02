@@ -190,6 +190,8 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBRAMWatt\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
 .PP
+\fBSysWatt\fP Watts consumed by the whole platform (RAPL PSYS). Disabled by default. May require platform specific information to interpret the data, making it not suitable for general use.
+.PP
 \fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.  Note that the system summary is the sum of the package throttling time, and thus may be higher than 100% on a multi-package system.  Note that the meaning of this field is model specific.  For example, some hardware increments this counter when RAPL responds to thermal limits, but does not increment this counter when RAPL responds to power limits.  Comparing PkgWatt and PkgTmp to system limits is necessary.
 .PP
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.

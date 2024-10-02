@@ -200,6 +200,8 @@ struct msr_counter bic[] = {
 	{ 0x0, "SAMMHz", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "SAMAMHz", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "Die%c6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SysWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Sys_J", NULL, 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -262,6 +264,8 @@ struct msr_counter bic[] = {
 #define	BIC_SAMMHz		(1ULL << 56)
 #define	BIC_SAMACTMHz		(1ULL << 57)
 #define	BIC_Diec6		(1ULL << 58)
+#define	BIC_SysWatt		(1ULL << 59)
+#define	BIC_Sys_J		(1ULL << 60)
 
 #define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
 #define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
@@ -269,7 +273,7 @@ struct msr_counter bic[] = {
 #define BIC_IDLE (BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
 #define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC | BIC_SysWatt | BIC_Sys_J)
 
 unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
 unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
@@ -507,12 +511,15 @@ enum rapl_msrs {
 	RAPL_AMD_PWR_UNIT = BIT(14),	/* 0xc0010299 MSR_AMD_RAPL_POWER_UNIT */
 	RAPL_AMD_CORE_ENERGY_STAT = BIT(15),	/* 0xc001029a MSR_AMD_CORE_ENERGY_STATUS */
 	RAPL_AMD_PKG_ENERGY_STAT = BIT(16),	/* 0xc001029b MSR_AMD_PKG_ENERGY_STATUS */
+	RAPL_PLATFORM_ENERGY_LIMIT = BIT(17),	/* 0x64c MSR_PLATFORM_ENERGY_LIMIT */
+	RAPL_PLATFORM_ENERGY_STATUS = BIT(18),	/* 0x64d MSR_PLATFORM_ENERGY_STATUS */
 };
 
 #define RAPL_PKG	(RAPL_PKG_ENERGY_STATUS | RAPL_PKG_POWER_LIMIT)
 #define RAPL_DRAM	(RAPL_DRAM_ENERGY_STATUS | RAPL_DRAM_POWER_LIMIT)
 #define RAPL_CORE	(RAPL_CORE_ENERGY_STATUS | RAPL_CORE_POWER_LIMIT)
 #define RAPL_GFX	(RAPL_GFX_POWER_LIMIT | RAPL_GFX_ENERGY_STATUS)
+#define RAPL_PSYS	(RAPL_PLATFORM_ENERGY_STATUS | RAPL_PLATFORM_ENERGY_LIMIT)
 
 #define RAPL_PKG_ALL	(RAPL_PKG | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO)
 #define RAPL_DRAM_ALL	(RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_DRAM_POWER_INFO)
@@ -713,7 +720,7 @@ static const struct platform_features skl_features = {
 	.has_ext_cst_msrs = 1,
 	.trl_msrs = TRL_BASE,
 	.tcc_offset_bits = 6,
-	.rapl_msrs = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX | RAPL_PSYS,
 	.enable_tsc_tweak = 1,
 };
 
@@ -730,7 +737,7 @@ static const struct platform_features cnl_features = {
 	.has_ext_cst_msrs = 1,
 	.trl_msrs = TRL_BASE,
 	.tcc_offset_bits = 6,
-	.rapl_msrs = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX | RAPL_PSYS,
 	.enable_tsc_tweak = 1,
 };
 
@@ -797,7 +804,7 @@ static const struct platform_features icx_features = {
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
-	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_PSYS,
 	.has_fixed_rapl_unit = 1,
 };
 
@@ -813,7 +820,7 @@ static const struct platform_features spr_features = {
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
-	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_PSYS,
 };
 
 static const struct platform_features srf_features = {
@@ -829,7 +836,7 @@ static const struct platform_features srf_features = {
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
-	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_PSYS,
 };
 
 static const struct platform_features grr_features = {
@@ -845,7 +852,7 @@ static const struct platform_features grr_features = {
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
-	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_PSYS,
 };
 
 static const struct platform_features slv_features = {
@@ -1108,6 +1115,7 @@ enum rapl_rci_index {
 	RAPL_RCI_INDEX_PKG_PERF_STATUS = 4,
 	RAPL_RCI_INDEX_DRAM_PERF_STATUS = 5,
 	RAPL_RCI_INDEX_CORE_ENERGY = 6,
+	RAPL_RCI_INDEX_ENERGY_PLATFORM = 7,
 	NUM_RAPL_COUNTERS,
 };
 
@@ -1134,6 +1142,7 @@ struct rapl_counter_info_t {
 struct rapl_counter_info_t *rapl_counter_info_perdomain;
 unsigned int rapl_counter_info_perdomain_size;
 
+#define RAPL_COUNTER_FLAG_PLATFORM_COUNTER (1u << 0)
 #define RAPL_COUNTER_FLAG_USE_MSR_SUM (1u << 1)
 
 struct rapl_counter_arch_info {
@@ -1254,6 +1263,19 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .bic = BIC_CorWatt | BIC_Cor_J,
 	 .compat_scale = 1.0,
 	 .flags = 0,
+	  },
+	{
+	 .feature_mask = RAPL_PSYS,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-psys",
+	 .msr = MSR_PLATFORM_ENERGY_STATUS,
+	 .msr_mask = 0x00000000FFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_PLATFORM,
+	 .bic = BIC_SysWatt | BIC_Sys_J,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_PLATFORM_COUNTER | RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
 };
 
@@ -1682,6 +1704,7 @@ enum {
 	IDX_PP1_ENERGY,
 	IDX_PKG_PERF,
 	IDX_DRAM_PERF,
+	IDX_PSYS_ENERGY,
 	IDX_COUNT,
 };
 
@@ -1726,6 +1749,9 @@ off_t idx_to_offset(int idx)
 	case IDX_DRAM_PERF:
 		offset = MSR_DRAM_PERF_STATUS;
 		break;
+	case IDX_PSYS_ENERGY:
+		offset = MSR_PLATFORM_ENERGY_STATUS;
+		break;
 	default:
 		offset = -1;
 	}
@@ -1756,6 +1782,9 @@ int offset_to_idx(off_t offset)
 	case MSR_DRAM_PERF_STATUS:
 		idx = IDX_DRAM_PERF;
 		break;
+	case MSR_PLATFORM_ENERGY_STATUS:
+		idx = IDX_PSYS_ENERGY;
+		break;
 	default:
 		idx = -1;
 	}
@@ -1777,6 +1806,8 @@ int idx_valid(int idx)
 		return platform->rapl_msrs & RAPL_PKG_PERF_STATUS;
 	case IDX_DRAM_PERF:
 		return platform->rapl_msrs & RAPL_DRAM_PERF_STATUS;
+	case IDX_PSYS_ENERGY:
+		return platform->rapl_msrs & RAPL_PSYS;
 	default:
 		return 0;
 	}
@@ -1847,6 +1878,10 @@ struct system_summary {
 	struct core_data cores;
 	struct pkg_data packages;
 } average;
+
+struct platform_counters {
+	struct rapl_counter energy_psys;	/* MSR_PLATFORM_ENERGY_STATUS */
+} platform_counters_odd, platform_counters_even;
 
 struct cpu_topology {
 	int physical_package_id;
@@ -2512,6 +2547,11 @@ void print_header(char *delim)
 		ppmt = ppmt->next;
 	}
 
+	if (DO_BIC(BIC_SysWatt))
+		outp += sprintf(outp, "%sSysWatt", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_Sys_J))
+		outp += sprintf(outp, "%sSys_J", (printed++ ? delim : ""));
+
 	outp += sprintf(outp, "\n");
 }
 
@@ -2519,6 +2559,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 {
 	int i;
 	struct msr_counter *mp;
+	struct platform_counters *pplat_cnt = p == package_odd ? &platform_counters_odd : &platform_counters_even;
 
 	outp += sprintf(outp, "t %p, c %p, p %p\n", t, c, p);
 
@@ -2590,6 +2631,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		outp += sprintf(outp, "Joules COR: %0llX\n", p->energy_cores.raw_value);
 		outp += sprintf(outp, "Joules GFX: %0llX\n", p->energy_gfx.raw_value);
 		outp += sprintf(outp, "Joules RAM: %0llX\n", p->energy_dram.raw_value);
+		outp += sprintf(outp, "Joules PSYS: %0llX\n", pplat_cnt->energy_psys.raw_value);
 		outp += sprintf(outp, "Throttle PKG: %0llX\n", p->rapl_pkg_perf_status.raw_value);
 		outp += sprintf(outp, "Throttle RAM: %0llX\n", p->rapl_dram_perf_status.raw_value);
 		outp += sprintf(outp, "PTM: %dC\n", p->pkg_temp_c);
@@ -2628,6 +2670,9 @@ double rapl_counter_get_value(const struct rapl_counter *c, enum rapl_unit desir
  */
 int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
+	static int count;
+
+	struct platform_counters *pplat_cnt = NULL;
 	double interval_float, tsc;
 	char *fmt8;
 	int i;
@@ -2636,6 +2681,11 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	struct pmt_counter *ppmt;
 	char *delim = "\t";
 	int printed = 0;
+
+	if (t == &average.threads) {
+		pplat_cnt = count & 1 ? &platform_counters_odd : &platform_counters_even;
+		++count;
+	}
 
 	/* if showing only 1st thread in core and this isn't one, bail out */
 	if (show_core_only && !is_cpu_first_thread_in_core(t, c, p))
@@ -3093,6 +3143,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		}
 	}
 
+	if (DO_BIC(BIC_SysWatt) && (t == &average.threads))
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
+				rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_WATTS, interval_float));
+	if (DO_BIC(BIC_Sys_J) && (t == &average.threads))
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
+				rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_JOULES, interval_float));
+
 done:
 	if (*(outp - 1) != '\n')
 		outp += sprintf(outp, "\n");
@@ -3398,6 +3455,11 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 		retval = delta_package(p, p2);
 
 	return retval;
+}
+
+void delta_platform(struct platform_counters *new, struct platform_counters *old)
+{
+	old->energy_psys.raw_value = new->energy_psys.raw_value - old->energy_psys.raw_value;
 }
 
 void rapl_counter_clear(struct rapl_counter *c)
@@ -4129,6 +4191,9 @@ static size_t cstate_counter_info_count_perf(const struct cstate_counter_info_t 
 
 void write_rapl_counter(struct rapl_counter *rc, struct rapl_counter_info_t *rci, unsigned int idx)
 {
+	if (rci->source[idx] == COUNTER_SOURCE_NONE)
+		return;
+
 	rc->raw_value = rci->data[idx];
 	rc->unit = rci->unit[idx];
 	rc->scale = rci->scale[idx];
@@ -4136,6 +4201,7 @@ void write_rapl_counter(struct rapl_counter *rc, struct rapl_counter_info_t *rci
 
 int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct pkg_data *p)
 {
+	struct platform_counters *pplat_cnt = p == package_odd ? &platform_counters_odd : &platform_counters_even;
 	unsigned long long perf_data[NUM_RAPL_COUNTERS + 1];
 	struct rapl_counter_info_t *rci;
 
@@ -4163,6 +4229,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 	for (unsigned int i = 0, pi = 1; i < NUM_RAPL_COUNTERS; ++i) {
 		switch (rci->source[i]) {
 		case COUNTER_SOURCE_NONE:
+			rci->data[i] = 0;
 			break;
 
 		case COUNTER_SOURCE_PERF:
@@ -4201,7 +4268,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 		}
 	}
 
-	BUILD_BUG_ON(NUM_RAPL_COUNTERS != 7);
+	BUILD_BUG_ON(NUM_RAPL_COUNTERS != 8);
 	write_rapl_counter(&p->energy_pkg, rci, RAPL_RCI_INDEX_ENERGY_PKG);
 	write_rapl_counter(&p->energy_cores, rci, RAPL_RCI_INDEX_ENERGY_CORES);
 	write_rapl_counter(&p->energy_dram, rci, RAPL_RCI_INDEX_DRAM);
@@ -4209,6 +4276,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 	write_rapl_counter(&p->rapl_pkg_perf_status, rci, RAPL_RCI_INDEX_PKG_PERF_STATUS);
 	write_rapl_counter(&p->rapl_dram_perf_status, rci, RAPL_RCI_INDEX_DRAM_PERF_STATUS);
 	write_rapl_counter(&c->core_energy, rci, RAPL_RCI_INDEX_CORE_ENERGY);
+	write_rapl_counter(&pplat_cnt->energy_psys, rci, RAPL_RCI_INDEX_ENERGY_PLATFORM);
 
 	return 0;
 }
@@ -6144,6 +6212,7 @@ restart:
 			re_initialize();
 			goto restart;
 		}
+		delta_platform(&platform_counters_odd, &platform_counters_even);
 		compute_average(EVEN_COUNTERS);
 		format_all_counters(EVEN_COUNTERS);
 		flush_output_stdout();
@@ -6167,6 +6236,7 @@ restart:
 			re_initialize();
 			goto restart;
 		}
+		delta_platform(&platform_counters_even, &platform_counters_odd);
 		compute_average(ODD_COUNTERS);
 		format_all_counters(ODD_COUNTERS);
 		flush_output_stdout();
@@ -6945,8 +7015,8 @@ void rapl_probe_intel(void)
 	unsigned long long msr;
 	unsigned int time_unit;
 	double tdp;
-	const unsigned long long bic_watt_bits = BIC_PkgWatt | BIC_CorWatt | BIC_RAMWatt | BIC_GFXWatt;
-	const unsigned long long bic_joules_bits = BIC_Pkg_J | BIC_Cor_J | BIC_RAM_J | BIC_GFX_J;
+	const unsigned long long bic_watt_bits = BIC_SysWatt | BIC_PkgWatt | BIC_CorWatt | BIC_RAMWatt | BIC_GFXWatt;
+	const unsigned long long bic_joules_bits = BIC_Sys_J | BIC_Pkg_J | BIC_Cor_J | BIC_RAM_J | BIC_GFX_J;
 
 	if (rapl_joules)
 		bic_enabled &= ~bic_watt_bits;
@@ -7605,6 +7675,9 @@ void rapl_perf_init(void)
 				continue;
 
 			domain_visited[next_domain] = 1;
+
+			if ((cai->flags & RAPL_COUNTER_FLAG_PLATFORM_COUNTER) && (cpu != base_cpu))
+				continue;
 
 			struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[next_domain];
 
