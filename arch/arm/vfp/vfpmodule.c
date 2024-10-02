@@ -540,11 +540,9 @@ static inline void vfp_pm_init(void) { }
  */
 void vfp_sync_hwstate(struct thread_info *thread)
 {
-	unsigned int cpu = get_cpu();
+	vfp_state_hold();
 
-	local_bh_disable();
-
-	if (vfp_state_in_hw(cpu, thread)) {
+	if (vfp_state_in_hw(raw_smp_processor_id(), thread)) {
 		u32 fpexc = fmrx(FPEXC);
 
 		/*
@@ -555,8 +553,7 @@ void vfp_sync_hwstate(struct thread_info *thread)
 		fmxr(FPEXC, fpexc);
 	}
 
-	local_bh_enable();
-	put_cpu();
+	vfp_state_release();
 }
 
 /* Ensure that the thread reloads the hardware VFP state on the next use. */
