@@ -1722,6 +1722,7 @@ static void genpd_free_dev_data(struct device *dev,
 
 	spin_unlock_irq(&dev->power.lock);
 
+	dev_pm_opp_clear_config(gpd_data->opp_token);
 	kfree(gpd_data->td);
 	kfree(gpd_data);
 	dev_pm_put_subsys_data(dev);
@@ -2884,6 +2885,29 @@ static void genpd_dev_pm_sync(struct device *dev)
 	genpd_queue_power_off_work(pd);
 }
 
+static int genpd_set_required_opp_dev(struct device *dev,
+				      struct device *base_dev)
+{
+	struct dev_pm_opp_config config = {
+		.required_dev = dev,
+	};
+	int ret;
+
+	/* Limit support to non-providers for now. */
+	if (of_property_present(base_dev->of_node, "#power-domain-cells"))
+		return 0;
+
+	if (!dev_pm_opp_of_has_required_opp(base_dev))
+		return 0;
+
+	ret = dev_pm_opp_set_config(base_dev, &config);
+	if (ret < 0)
+		return ret;
+
+	dev_gpd_data(dev)->opp_token = ret;
+	return 0;
+}
+
 static int genpd_set_required_opp(struct device *dev, unsigned int index)
 {
 	int ret, pstate;
@@ -2908,7 +2932,8 @@ err:
 }
 
 static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
-				 unsigned int index, bool power_on)
+				 unsigned int index, unsigned int num_domains,
+				 bool power_on)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
@@ -2939,6 +2964,17 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
 
 	dev->pm_domain->detach = genpd_dev_pm_detach;
 	dev->pm_domain->sync = genpd_dev_pm_sync;
+
+	/*
+	 * For a single PM domain the index of the required OPP must be zero, so
+	 * let's try to assign a required dev in that case. In the multiple PM
+	 * domains case, we need platform code to specify the index.
+	 */
+	if (num_domains == 1) {
+		ret = genpd_set_required_opp_dev(dev, base_dev);
+		if (ret)
+			goto err;
+	}
 
 	ret = genpd_set_required_opp(dev, index);
 	if (ret)
@@ -2994,7 +3030,7 @@ int genpd_dev_pm_attach(struct device *dev)
 				       "#power-domain-cells") != 1)
 		return 0;
 
-	return __genpd_dev_pm_attach(dev, dev, 0, true);
+	return __genpd_dev_pm_attach(dev, dev, 0, 1, true);
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 
@@ -3047,7 +3083,7 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	}
 
 	/* Try to attach the device to the PM domain at the specified index. */
-	ret = __genpd_dev_pm_attach(virt_dev, dev, index, false);
+	ret = __genpd_dev_pm_attach(virt_dev, dev, index, num_domains, false);
 	if (ret < 1) {
 		device_unregister(virt_dev);
 		return ret ? ERR_PTR(ret) : NULL;
