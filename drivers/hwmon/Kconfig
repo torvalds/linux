@@ -1149,6 +1149,7 @@ config SENSORS_MAX1619
 config SENSORS_MAX1668
 	tristate "Maxim MAX1668 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for MAX1668, MAX1989 and
 	  MAX1805 chips.
