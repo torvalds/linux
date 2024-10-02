@@ -109,6 +109,12 @@ static noinline void lock_graph_pop_all(struct lock_graph *g)
 		lock_graph_up(g);
 }
 
+static noinline void lock_graph_pop_from(struct lock_graph *g, struct trans_waiting_for_lock *i)
+{
+	while (g->g + g->nr > i)
+		lock_graph_up(g);
+}
+
 static void __lock_graph_down(struct lock_graph *g, struct btree_trans *trans)
 {
 	g->g[g->nr++] = (struct trans_waiting_for_lock) {
@@ -131,8 +137,7 @@ static bool lock_graph_remove_non_waiters(struct lock_graph *g)
 	for (i = g->g + 1; i < g->g + g->nr; i++)
 		if (i->trans->locking != i->node_want ||
 		    i->trans->locking_wait.start_time != i[-1].lock_start_time) {
-			while (g->g + g->nr > i)
-				lock_graph_up(g);
+			lock_graph_pop_from(g, i);
 			return true;
 		}
 
