@@ -9,23 +9,6 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
-static void adjust_for_msb_right_quirk(u64 *to_write, size_t *box_start_bit,
-				       size_t *box_end_bit, u8 *box_mask)
-{
-	size_t box_bit_width = *box_start_bit - *box_end_bit + 1;
-	size_t new_box_start_bit, new_box_end_bit;
-
-	*to_write >>= *box_end_bit;
-	*to_write = bitrev8(*to_write) >> (8 - box_bit_width);
-	*to_write <<= *box_end_bit;
-
-	new_box_end_bit   = box_bit_width - *box_start_bit - 1;
-	new_box_start_bit = box_bit_width - *box_end_bit - 1;
-	*box_mask = GENMASK_ULL(new_box_start_bit, new_box_end_bit);
-	*box_start_bit = new_box_start_bit;
-	*box_end_bit   = new_box_end_bit;
-}
-
 /**
  * calculate_box_addr - Determine physical location of byte in buffer
  * @box: Index of byte within buffer seen as a logical big-endian big number
@@ -170,13 +153,13 @@ int pack(void *pbuf, u64 uval, size_t startbit, size_t endbit, size_t pbuflen,
 		/* Write to pbuf, read from uval */
 		pval = uval & proj_mask;
 		pval >>= proj_end_bit;
-		if (quirks & QUIRK_MSB_ON_THE_RIGHT)
-			adjust_for_msb_right_quirk(&pval,
-						   &box_start_bit,
-						   &box_end_bit,
-						   &box_mask);
-
 		pval <<= box_end_bit;
+
+		if (quirks & QUIRK_MSB_ON_THE_RIGHT) {
+			pval = bitrev8(pval);
+			box_mask = bitrev8(box_mask);
+		}
+
 		((u8 *)pbuf)[box_addr] &= ~box_mask;
 		((u8 *)pbuf)[box_addr] |= pval;
 	}
@@ -276,12 +259,12 @@ int unpack(const void *pbuf, u64 *uval, size_t startbit, size_t endbit,
 		box_addr = calculate_box_addr(box, pbuflen, quirks);
 
 		/* Read from pbuf, write to uval */
-		pval = ((u8 *)pbuf)[box_addr] & box_mask;
+		pval = ((u8 *)pbuf)[box_addr];
+
 		if (quirks & QUIRK_MSB_ON_THE_RIGHT)
-			adjust_for_msb_right_quirk(&pval,
-						   &box_start_bit,
-						   &box_end_bit,
-						   &box_mask);
+			pval = bitrev8(pval);
+
+		pval &= box_mask;
 
 		pval >>= box_end_bit;
 		pval <<= proj_end_bit;
