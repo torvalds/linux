@@ -56,6 +56,34 @@ extern unsigned int VFP_arch_feroceon __alias(VFP_arch);
 union vfp_state *vfp_current_hw_state[NR_CPUS];
 
 /*
+ * Claim ownership of the VFP unit.
+ *
+ * The caller may change VFP registers until vfp_state_release() is called.
+ *
+ * local_bh_disable() is used to disable preemption and to disable VFP
+ * processing in softirq context. On PREEMPT_RT kernels local_bh_disable() is
+ * not sufficient because it only serializes soft interrupt related sections
+ * via a local lock, but stays preemptible. Disabling preemption is the right
+ * choice here as bottom half processing is always in thread context on RT
+ * kernels so it implicitly prevents bottom half processing as well.
+ */
+static void vfp_state_hold(void)
+{
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		local_bh_disable();
+	else
+		preempt_disable();
+}
+
+static void vfp_state_release(void)
+{
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		local_bh_enable();
+	else
+		preempt_enable();
+}
+
+/*
  * Is 'thread's most up to date state stored in this CPUs hardware?
  * Must be called from non-preemptible context.
  */
@@ -837,7 +865,7 @@ void kernel_neon_begin(void)
 	unsigned int cpu;
 	u32 fpexc;
 
-	local_bh_disable();
+	vfp_state_hold();
 
 	/*
 	 * Kernel mode NEON is only allowed outside of hardirq context with
@@ -868,7 +896,7 @@ void kernel_neon_end(void)
 {
 	/* Disable the NEON/VFP unit. */
 	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
-	local_bh_enable();
+	vfp_state_release();
 }
 EXPORT_SYMBOL(kernel_neon_end);
 
