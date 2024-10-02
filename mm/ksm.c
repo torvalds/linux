@@ -1442,28 +1442,29 @@ out:
 static int try_to_merge_one_page(struct vm_area_struct *vma,
 				 struct page *page, struct page *kpage)
 {
+	struct folio *folio = page_folio(page);
 	pte_t orig_pte = __pte(0);
 	int err = -EFAULT;
 
 	if (page == kpage)			/* ksm page forked */
 		return 0;
 
-	if (!PageAnon(page))
+	if (!folio_test_anon(folio))
 		goto out;
 
 	/*
 	 * We need the folio lock to read a stable swapcache flag in
-	 * write_protect_page().  We use trylock_page() instead of
-	 * lock_page() because we don't want to wait here - we
-	 * prefer to continue scanning and merging different pages,
-	 * then come back to this page when it is unlocked.
+	 * write_protect_page().  We trylock because we don't want to wait
+	 * here - we prefer to continue scanning and merging different
+	 * pages, then come back to this page when it is unlocked.
 	 */
-	if (!trylock_page(page))
+	if (!folio_trylock(folio))
 		goto out;
 
-	if (PageTransCompound(page)) {
+	if (folio_test_large(folio)) {
 		if (split_huge_page(page))
 			goto out_unlock;
+		folio = page_folio(page);
 	}
 
 	/*
@@ -1472,28 +1473,28 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
 	 * ptes are necessarily already write-protected.  But in either
 	 * case, we need to lock and check page_count is not raised.
 	 */
-	if (write_protect_page(vma, page_folio(page), &orig_pte) == 0) {
+	if (write_protect_page(vma, folio, &orig_pte) == 0) {
 		if (!kpage) {
 			/*
-			 * While we hold page lock, upgrade page from
-			 * PageAnon+anon_vma to PageKsm+NULL stable_node:
+			 * While we hold folio lock, upgrade folio from
+			 * anon to a NULL stable_node with the KSM flag set:
 			 * stable_tree_insert() will update stable_node.
 			 */
-			folio_set_stable_node(page_folio(page), NULL);
-			mark_page_accessed(page);
+			folio_set_stable_node(folio, NULL);
+			folio_mark_accessed(folio);
 			/*
-			 * Page reclaim just frees a clean page with no dirty
+			 * Page reclaim just frees a clean folio with no dirty
 			 * ptes: make sure that the ksm page would be swapped.
 			 */
-			if (!PageDirty(page))
-				SetPageDirty(page);
+			if (!folio_test_dirty(folio))
+				folio_mark_dirty(folio);
 			err = 0;
 		} else if (pages_identical(page, kpage))
 			err = replace_page(vma, page, kpage, orig_pte);
 	}
 
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 out:
 	return err;
 }
