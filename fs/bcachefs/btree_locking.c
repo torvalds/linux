@@ -242,6 +242,8 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle,
 out:
 	if (ret)
 		lock_graph_pop_all(g);
+	else
+		lock_graph_pop_from(g, abort);
 	return ret;
 }
 
