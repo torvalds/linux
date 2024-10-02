@@ -5277,13 +5277,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	}
 
 	pci_set_master(pdev);
-
-	adapter = ice_adapter_get(pdev);
-	if (IS_ERR(adapter))
-		return PTR_ERR(adapter);
-
 	pf->pdev = pdev;
-	pf->adapter = adapter;
 	pci_set_drvdata(pdev, pf);
 	set_bit(ICE_DOWN, pf->state);
 	/* Disable service task until DOWN bit is cleared */
@@ -5314,12 +5308,19 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	err = ice_init_hw(hw);
 	if (err) {
 		dev_err(dev, "ice_init_hw failed: %d\n", err);
-		goto unroll_adapter;
+		return err;
 	}
+
+	adapter = ice_adapter_get(pdev);
+	if (IS_ERR(adapter)) {
+		err = PTR_ERR(adapter);
+		goto unroll_hw_init;
+	}
+	pf->adapter = adapter;
 
 	err = ice_init(pf);
 	if (err)
-		goto unroll_hw_init;
+		goto unroll_adapter;
 
 	devl_lock(priv_to_devlink(pf));
 	err = ice_load(pf);
@@ -5338,10 +5339,10 @@ unroll_load:
 unroll_init:
 	devl_unlock(priv_to_devlink(pf));
 	ice_deinit(pf);
-unroll_hw_init:
-	ice_deinit_hw(hw);
 unroll_adapter:
 	ice_adapter_put(pdev);
+unroll_hw_init:
+	ice_deinit_hw(hw);
 	return err;
 }
 
