@@ -197,6 +197,19 @@ class _XdrFixedLengthArray(_XdrDeclaration):
     size: str
     template: str = "fixed_length_array"
 
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        return xdr_quadlen(self.size) * max_widths[self.spec.type_name]
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        item_width = " + ".join(symbolic_widths[self.spec.type_name])
+        return ["(" + self.size + " * (" + item_width + "))"]
+
+    def __post_init__(self):
+        max_widths[self.name] = self.max_width()
+        symbolic_widths[self.name] = self.symbolic_width()
+
 
 @dataclass
 class _XdrVariableLengthArray(_XdrDeclaration):
