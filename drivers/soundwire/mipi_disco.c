@@ -398,7 +398,11 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	device_property_read_u32(dev, "mipi-sdw-sink-port-list",
 				 &prop->sink_ports);
 
-	/* Read dp0 properties */
+	/*
+	 * Read dp0 properties - we don't rely on the 'mipi-sdw-dp-0-supported'
+	 * property since the 'mipi-sdw-dp0-subproperties' property is logically
+	 * equivalent.
+	 */
 	port = device_get_named_child_node(dev, "mipi-sdw-dp-0-subproperties");
 	if (!port) {
 		dev_dbg(dev, "DP0 node not found!!\n");
