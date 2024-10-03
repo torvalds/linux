@@ -36,6 +36,7 @@ struct msm_rbmemptrs {
 
 	volatile struct msm_gpu_submit_stats stats[MSM_GPU_SUBMIT_STATS_COUNT];
 	volatile u64 ttbr0;
+	volatile u32 context_idr;
 };
 
 struct msm_cp_state {
@@ -100,6 +101,12 @@ struct msm_ringbuffer {
 	 * preemption.  Can be aquired from irq context.
 	 */
 	spinlock_t preempt_lock;
+
+	/*
+	 * Whether we skipped writing wptr and it needs to be updated in the
+	 * future when the ring becomes current.
+	 */
+	bool restore_wptr;
 
 	/**
 	 * cur_ctx_seqno:
