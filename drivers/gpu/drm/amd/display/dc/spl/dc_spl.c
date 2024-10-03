@@ -848,13 +848,13 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	 *  surfaces based on policy setting
 	 */
 	if (!spl_is_yuv420(spl_in->basic_in.format) &&
-		(spl_in->debug.sharpen_policy == SHARPEN_YUV))
+		(spl_in->sharpen_policy == SHARPEN_YUV))
 		return enable_isharp;
 	else if ((spl_is_yuv420(spl_in->basic_in.format) && !fullscreen) &&
-		(spl_in->debug.sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
+		(spl_in->sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
 		return enable_isharp;
 	else if (!spl_in->is_fullscreen &&
-			spl_in->debug.sharpen_policy == SHARPEN_FULLSCREEN_ALL)
+			spl_in->sharpen_policy == SHARPEN_FULLSCREEN_ALL)
 		return enable_isharp;
 
 	/*

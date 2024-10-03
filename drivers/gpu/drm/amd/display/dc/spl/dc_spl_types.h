@@ -508,7 +508,6 @@ struct spl_funcs	{
 struct spl_debug {
 	int visual_confirm_base_offset;
 	int visual_confirm_dpp_offset;
-	enum sharpen_policy sharpen_policy;
 	enum scale_to_sharpness_policy scale_to_sharpness_policy;
 };
 
@@ -530,6 +529,7 @@ struct spl_in	{
 	int h_active;
 	int v_active;
 	int sdr_white_level_nits;
+	enum sharpen_policy sharpen_policy;
 };
 // end of SPL inputs
 

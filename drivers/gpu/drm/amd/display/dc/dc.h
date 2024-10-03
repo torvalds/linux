@@ -227,6 +227,10 @@ struct dc_dmub_caps {
 	uint8_t fams_ver;
 };
 
+struct dc_scl_caps {
+	bool sharpener_support;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -292,6 +296,7 @@ struct dc_caps {
 	bool sequential_ono;
 	/* Conservative limit for DCC cases which require ODM4:1 to support*/
 	uint32_t dcc_plane_width_limit;
+	struct dc_scl_caps scl_caps;
 };
 
 struct dc_bug_wa {
@@ -1355,6 +1360,7 @@ struct dc_plane_state {
 	enum mpcc_movable_cm_location mcm_location;
 	struct dc_csc_transform cursor_csc_color_matrix;
 	bool adaptive_sharpness_en;
+	int adaptive_sharpness_policy;
 	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
 	unsigned int sdr_white_level_nits;

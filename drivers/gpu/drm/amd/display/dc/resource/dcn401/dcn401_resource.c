@@ -2171,6 +2171,7 @@ static bool dcn401_resource_construct(
 	/* SPL */
 	spl_init_easf_filter_coeffs();
 	spl_init_blur_scale_coeffs();
+	dc->caps.scl_caps.sharpener_support = true;
 
 	return true;
 
