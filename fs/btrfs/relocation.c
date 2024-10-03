@@ -2133,17 +2133,11 @@ static noinline_for_stack u64 calcu_metadata_size(struct reloc_control *rc,
 	return num_bytes;
 }
 
-static int reserve_metadata_space(struct btrfs_trans_handle *trans,
-				  struct reloc_control *rc,
-				  struct btrfs_backref_node *node)
+static int refill_metadata_space(struct btrfs_trans_handle *trans,
+				 struct reloc_control *rc, u64 num_bytes)
 {
-	struct btrfs_root *root = rc->extent_root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	u64 num_bytes;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
-	u64 tmp;
-
-	num_bytes = calcu_metadata_size(rc, node) * 2;
 
 	trans->block_rsv = rc->block_rsv;
 	rc->reserved_bytes += num_bytes;
@@ -2156,7 +2150,8 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 	ret = btrfs_block_rsv_refill(fs_info, rc->block_rsv, num_bytes,
 				     BTRFS_RESERVE_FLUSH_LIMIT);
 	if (ret) {
-		tmp = fs_info->nodesize * RELOCATION_RESERVED_NODES;
+		u64 tmp = fs_info->nodesize * RELOCATION_RESERVED_NODES;
+
 		while (tmp <= rc->reserved_bytes)
 			tmp <<= 1;
 		/*
@@ -2172,6 +2167,16 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 	}
 
 	return 0;
+}
+
+static int reserve_metadata_space(struct btrfs_trans_handle *trans,
+				  struct reloc_control *rc,
+				  struct btrfs_backref_node *node)
+{
+	u64 num_bytes;
+
+	num_bytes = calcu_metadata_size(rc, node) * 2;
+	return refill_metadata_space(trans, rc, num_bytes);
 }
 
 /*
@@ -2525,15 +2530,11 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			node->root = btrfs_grab_root(root);
 			ASSERT(node->root);
 		} else {
-			path->lowest_level = node->level;
-			if (root == root->fs_info->chunk_root)
-				btrfs_reserve_chunk_metadata(trans, false);
-			ret = btrfs_search_slot(trans, root, key, path, 0, 1);
-			btrfs_release_path(path);
-			if (root == root->fs_info->chunk_root)
-				btrfs_trans_release_chunk_metadata(trans);
-			if (ret > 0)
-				ret = 0;
+			btrfs_err(root->fs_info,
+				  "bytenr %llu resolved to a non-shareable root",
+				  node->bytenr);
+			ret = -EUCLEAN;
+			goto out;
 		}
 		if (!ret)
 			update_processed_blocks(rc, node);
@@ -2543,6 +2544,45 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 out:
 	if (ret || node->level == 0 || node->cowonly)
 		btrfs_backref_cleanup_node(&rc->backref_cache, node);
+	return ret;
+}
+
+static int relocate_cowonly_block(struct btrfs_trans_handle *trans,
+				  struct reloc_control *rc, struct tree_block *block,
+				  struct btrfs_path *path)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_root *root;
+	u64 num_bytes;
+	int nr_levels;
+	int ret;
+
+	root = btrfs_get_fs_root(fs_info, block->owner, true);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	nr_levels = max(btrfs_header_level(root->node) - block->level, 0) + 1;
+
+	num_bytes = fs_info->nodesize * nr_levels;
+	ret = refill_metadata_space(trans, rc, num_bytes);
+	if (ret) {
+		btrfs_put_root(root);
+		return ret;
+	}
+	path->lowest_level = block->level;
+	if (root == root->fs_info->chunk_root)
+		btrfs_reserve_chunk_metadata(trans, false);
+
+	ret = btrfs_search_slot(trans, root, &block->key, path, 0, 1);
+	path->lowest_level = 0;
+	btrfs_release_path(path);
+
+	if (root == root->fs_info->chunk_root)
+		btrfs_trans_release_chunk_metadata(trans);
+	if (ret > 0)
+		ret = 0;
+	btrfs_put_root(root);
+
 	return ret;
 }
 
@@ -2585,6 +2625,20 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 
 	/* Do tree relocation */
 	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
+		/*
+		 * For COWonly blocks, or the data reloc tree, we only need to
+		 * COW down to the block, there's no need to generate a backref
+		 * tree.
+		 */
+		if (block->owner &&
+		    (!is_fstree(block->owner) ||
+		     block->owner == BTRFS_DATA_RELOC_TREE_OBJECTID)) {
+			ret = relocate_cowonly_block(trans, rc, block, path);
+			if (ret)
+				break;
+			continue;
+		}
+
 		node = build_backref_tree(trans, rc, &block->key,
 					  block->level, block->bytenr);
 		if (IS_ERR(node)) {
