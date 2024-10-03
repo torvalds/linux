@@ -5267,7 +5267,13 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_bt_hid_desc hid = bt_linfo->hid_desc;
 	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
 	struct rtw89_btc_bt_pan_desc pan = bt_linfo->pan_desc;
+	struct rtw89_btc_dm *dm = &btc->dm;
 	u8 profile_map = 0;
+
+	if (dm->freerun_chk) {
+		_action_freerun(rtwdev);
+		return;
+	}
 
 	if (bt_linfo->hfp_desc.exist)
 		profile_map |= BTC_BT_HFP;
@@ -5283,30 +5289,20 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 
 	switch (profile_map) {
 	case BTC_BT_NOPROFILE:
-		if (_check_freerun(rtwdev))
-			_action_freerun(rtwdev);
-		else if (pan.active)
+		if (pan.active)
 			_action_bt_pan(rtwdev);
 		else
 			_action_bt_idle(rtwdev);
 		break;
 	case BTC_BT_HFP:
-		if (_check_freerun(rtwdev))
-			_action_freerun(rtwdev);
-		else
-			_action_bt_hfp(rtwdev);
+		_action_bt_hfp(rtwdev);
 		break;
 	case BTC_BT_HFP | BTC_BT_HID:
 	case BTC_BT_HID:
-		if (_check_freerun(rtwdev))
-			_action_freerun(rtwdev);
-		else
-			_action_bt_hid(rtwdev);
+		_action_bt_hid(rtwdev);
 		break;
 	case BTC_BT_A2DP:
-		if (_check_freerun(rtwdev))
-			_action_freerun(rtwdev);
-		else if (a2dp.sink)
+		if (a2dp.sink)
 			_action_bt_a2dpsink(rtwdev);
 		else if (bt_linfo->multi_link.now && !hid.pair_cnt)
 			_action_bt_a2dp_pan(rtwdev);
@@ -5319,13 +5315,18 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 	case BTC_BT_A2DP | BTC_BT_HFP:
 	case BTC_BT_A2DP | BTC_BT_HID:
 	case BTC_BT_A2DP | BTC_BT_HFP | BTC_BT_HID:
-		if (_check_freerun(rtwdev))
-			_action_freerun(rtwdev);
+		if (a2dp.sink)
+			_action_bt_a2dpsink(rtwdev);
+		else if (pan.active)
+			_action_bt_a2dp_pan_hid(rtwdev);
 		else
 			_action_bt_a2dp_hid(rtwdev);
 		break;
 	case BTC_BT_A2DP | BTC_BT_PAN:
-		_action_bt_a2dp_pan(rtwdev);
+		if (a2dp.sink)
+			_action_bt_a2dpsink(rtwdev);
+		else
+			_action_bt_a2dp_pan(rtwdev);
 		break;
 	case BTC_BT_PAN | BTC_BT_HFP:
 	case BTC_BT_PAN | BTC_BT_HID:
@@ -5335,7 +5336,10 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 	case BTC_BT_A2DP | BTC_BT_PAN | BTC_BT_HID:
 	case BTC_BT_A2DP | BTC_BT_PAN | BTC_BT_HFP:
 	default:
-		_action_bt_a2dp_pan_hid(rtwdev);
+		if (a2dp.sink)
+			_action_bt_a2dpsink(rtwdev);
+		else
+			_action_bt_a2dp_pan_hid(rtwdev);
 		break;
 	}
 }
@@ -6927,6 +6931,8 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	bt->scan_rx_low_pri = false;
 	igno_bt = false;
 
+	dm->freerun_chk = _check_freerun(rtwdev); /* check if meet freerun */
+
 	if (always_freerun) {
 		_action_freerun(rtwdev);
 		igno_bt = true;
@@ -7397,13 +7403,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 		    "[BTC], %s(): bt_info[2]=0x%02x\n",
 		    __func__, bt->raw_info[2]);
 
-	/* reset to mo-connect before update */
-	b->status.val = BTC_BLINK_NOCONNECT;
 	b->profile_cnt.last = b->profile_cnt.now;
-	b->relink.last = b->relink.now;
-	a2dp->exist_last = a2dp->exist;
-	b->multi_link.last = b->multi_link.now;
-	bt->inq_pag.last = bt->inq_pag.now;
 	b->profile_cnt.now = 0;
 	hid->type = 0;
 
@@ -7422,7 +7422,8 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	b->profile_cnt.now += (u8)hid->exist;
 	a2dp->exist = btinfo.lb2.a2dp;
 	b->profile_cnt.now += (u8)a2dp->exist;
-	pan->active = btinfo.lb2.pan;
+	pan->exist = btinfo.lb2.pan;
+	b->profile_cnt.now += (u8)pan->exist;
 	btc->dm.trx_info.bt_profile = u32_get_bits(btinfo.val, BT_PROFILE_PROTOCOL_MASK);
 
 	/* parse raw info low-Byte3 */
@@ -7446,8 +7447,14 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	/* parse raw info high-Byte1 */
 	btinfo.val = bt->raw_info[BTC_BTINFO_H1];
 	b->status.map.ble_connect = btinfo.hb1.ble_connect;
-	if (btinfo.hb1.ble_connect)
-		hid->type |= (hid->exist ? BTC_HID_BLE : BTC_HID_RCU);
+	if (btinfo.hb1.ble_connect) {
+		if (hid->exist)
+			hid->type |= BTC_HID_BLE;
+		else if (btinfo.hb1.voice)
+			hid->type |= BTC_HID_RCU_VOICE;
+		else
+			hid->type |= BTC_HID_RCU;
+	}
 
 	cx->cnt_bt[BTC_BCNT_REINIT] += !!(btinfo.hb1.reinit && !bt->reinit);
 	bt->reinit = btinfo.hb1.reinit;
@@ -7459,7 +7466,6 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	if (bt->igno_wl && !cx->wl.status.map.rf_off)
 		_set_bt_ignore_wlan_act(rtwdev, false);
 
-	hid->type |= (btinfo.hb1.voice ? BTC_HID_RCU_VOICE : 0);
 	bt->ble_scan_en = btinfo.hb1.ble_scan;
 
 	cx->cnt_bt[BTC_BCNT_ROLESW] += !!(btinfo.hb1.role_sw && !b->role_sw);
@@ -7469,8 +7475,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 
 	/* parse raw info high-Byte2 */
 	btinfo.val = bt->raw_info[BTC_BTINFO_H2];
-	pan->exist = btinfo.hb2.pan_active;
-	b->profile_cnt.now += (u8)pan->exist;
+	pan->active = !!btinfo.hb2.pan_active;
 
 	cx->cnt_bt[BTC_BCNT_AFH] += !!(btinfo.hb2.afh_update && !b->afh_update);
 	b->afh_update = btinfo.hb2.afh_update;
@@ -7478,8 +7483,9 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	b->slave_role = btinfo.hb2.slave;
 	hid->slot_info = btinfo.hb2.hid_slot;
 	hid->pair_cnt = btinfo.hb2.hid_cnt;
-	hid->type |= (hid->slot_info == BTC_HID_218 ?
-		      BTC_HID_218 : BTC_HID_418);
+	if (!b->status.map.ble_connect || hid->pair_cnt > 1)
+		hid->type |= (hid->slot_info == BTC_HID_218 ?
+			      BTC_HID_218 : BTC_HID_418);
 	/* parse raw info high-Byte3 */
 	btinfo.val = bt->raw_info[BTC_BTINFO_H3];
 	a2dp->bitpool = btinfo.hb3.a2dp_bitpool;
@@ -8031,8 +8037,10 @@ void rtw89_btc_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		return;
 
 	switch (func) {
-	case BTF_EVNT_RPT:
 	case BTF_EVNT_BUF_OVERFLOW:
+		pfwinfo->event[func]++;
+		break;
+	case BTF_EVNT_RPT:
 		pfwinfo->event[func]++;
 		/* Don't need rtw89_leave_ps_mode() */
 		btc_fw_event(rtwdev, func, buf, len);
