@@ -1180,7 +1180,7 @@ void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 
-	xe_guc_ct_print(&guc->ct, p, false);
+	xe_guc_ct_print(&guc->ct, p);
 	xe_guc_submit_print(guc, p);
 }
 

@@ -21,7 +21,7 @@ xe_guc_ct_snapshot_capture(struct xe_guc_ct *ct, bool atomic);
 void xe_guc_ct_snapshot_print(struct xe_guc_ct_snapshot *snapshot,
 			      struct drm_printer *p);
 void xe_guc_ct_snapshot_free(struct xe_guc_ct_snapshot *snapshot);
-void xe_guc_ct_print(struct xe_guc_ct *ct, struct drm_printer *p, bool atomic);
+void xe_guc_ct_print(struct xe_guc_ct *ct, struct drm_printer *p);
 
 static inline bool xe_guc_ct_enabled(struct xe_guc_ct *ct)
 {
