@@ -393,8 +393,6 @@ struct btrfs_backref_cache {
 	struct list_head pending[BTRFS_MAX_LEVEL];
 	/* List of backref nodes with no child node */
 	struct list_head leaves;
-	/* List of blocks that have been COWed in current transaction */
-	struct list_head changed;
 	/* List of detached backref node. */
 	struct list_head detached;
 

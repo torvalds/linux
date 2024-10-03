@@ -2113,14 +2113,13 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 		if (next->new_bytenr != root->node->start) {
 			/*
 			 * We just created the reloc root, so we shouldn't have
-			 * ->new_bytenr set and this shouldn't be in the changed
-			 *  list.  If it is then we have multiple roots pointing
-			 *  at the same bytenr which indicates corruption, or
-			 *  we've made a mistake in the backref walking code.
+			 * ->new_bytenr set yet. If it is then we have multiple
+			 *  roots pointing at the same bytenr which indicates
+			 *  corruption, or we've made a mistake in the backref
+			 *  walking code.
 			 */
 			ASSERT(next->new_bytenr == 0);
-			ASSERT(list_empty(&next->list));
-			if (next->new_bytenr || !list_empty(&next->list)) {
+			if (next->new_bytenr) {
 				btrfs_err(trans->fs_info,
 	"bytenr %llu possibly has multiple roots pointing at the same bytenr %llu",
 					  node->bytenr, next->bytenr);
@@ -2131,8 +2130,6 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 			btrfs_put_root(next->root);
 			next->root = btrfs_grab_root(root);
 			ASSERT(next->root);
-			list_add_tail(&next->list,
-				      &rc->backref_cache.changed);
 			mark_block_processed(rc, next);
 			break;
 		}
@@ -2442,7 +2439,7 @@ next:
 
 	if (!ret && node->pending) {
 		btrfs_backref_drop_node_buffer(node);
-		list_move_tail(&node->list, &rc->backref_cache.changed);
+		list_del_init(&node->list);
 		node->pending = 0;
 	}
 
@@ -2605,8 +2602,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			/*
 			 * This block was the root block of a root, and this is
 			 * the first time we're processing the block and thus it
-			 * should not have had the ->new_bytenr modified and
-			 * should have not been included on the changed list.
+			 * should not have had the ->new_bytenr modified.
 			 *
 			 * However in the case of corruption we could have
 			 * multiple refs pointing to the same block improperly,
@@ -2616,8 +2612,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			 * normal user in the case of corruption.
 			 */
 			ASSERT(node->new_bytenr == 0);
-			ASSERT(list_empty(&node->list));
-			if (node->new_bytenr || !list_empty(&node->list)) {
+			if (node->new_bytenr) {
 				btrfs_err(root->fs_info,
 				  "bytenr %llu has improper references to it",
 					  node->bytenr);
@@ -2640,7 +2635,6 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			btrfs_put_root(node->root);
 			node->root = btrfs_grab_root(root);
 			ASSERT(node->root);
-			list_add_tail(&node->list, &rc->backref_cache.changed);
 		} else {
 			path->lowest_level = node->level;
 			if (root == root->fs_info->chunk_root)
