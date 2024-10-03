@@ -17,10 +17,12 @@ extern bool hang_debug;
  *
  * @hwcg: hw clock gating register sequence
  * @protect: CP_PROTECT settings
+ * @pwrup_reglist pwrup reglist for preemption
  */
 struct a6xx_info {
 	const struct adreno_reglist *hwcg;
 	const struct adreno_protect *protect;
+	const struct adreno_reglist_list *pwrup_reglist;
 	u32 gmu_chipid;
 	u32 gmu_cgc_mode;
 	u32 prim_fifo_threshold;
