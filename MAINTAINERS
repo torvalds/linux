@@ -11906,7 +11906,7 @@ F:	Documentation/devicetree/bindings/media/i2c/isil,isl79987.yaml
 F:	drivers/media/i2c/isl7998x.c
 
 INVENSENSE ICM-426xx IMU DRIVER
-M:	Jean-Baptiste Maneyrol <jmaneyrol@invensense.com>
+M:	Jean-Baptiste Maneyrol <jean-baptiste.maneyrol@tdk.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 W:	https://invensense.tdk.com/
