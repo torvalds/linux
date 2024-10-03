@@ -304,8 +304,6 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 		fwnode_property_read_u32(node, "mipi-sdw-port-encoding-type",
 					 &dpn[i].port_encoding);
 
-		/* TODO: Read audio mode */
-
 		fwnode_handle_put(node);
 
 		i++;
