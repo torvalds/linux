@@ -32,8 +32,6 @@ struct trace_eval_map {
 
 #define TRACEPOINT_DEFAULT_PRIO	10
 
-extern struct srcu_struct tracepoint_srcu;
-
 extern int
 tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data);
 extern int
@@ -109,7 +107,6 @@ void for_each_tracepoint_in_module(struct module *mod,
 #ifdef CONFIG_TRACEPOINTS
 static inline void tracepoint_synchronize_unregister(void)
 {
-	synchronize_srcu(&tracepoint_srcu);
 	synchronize_rcu();
 }
 #else
@@ -207,7 +204,6 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		if (!(cond))						\
 			return;						\
 									\
-		/* keep srcu and sched-rcu usage consistent */		\
 		preempt_disable_notrace();				\
 									\
 		__DO_TRACE_CALL(name, TP_ARGS(args));			\
