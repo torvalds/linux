@@ -521,12 +521,7 @@ nfs_local_write_done(struct nfs_local_kiocb *iocb, long status)
 	}
 	if (status < 0)
 		nfs_reset_boot_verifier(inode);
-	else if (nfs_should_remove_suid(inode)) {
-		/* Deal with the suid/sgid bit corner case */
-		spin_lock(&inode->i_lock);
-		nfs_set_cache_invalid(inode, NFS_INO_INVALID_MODE);
-		spin_unlock(&inode->i_lock);
-	}
+
 	nfs_local_pgio_done(hdr, status);
 }
 
