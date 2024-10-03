@@ -1106,7 +1106,7 @@ static int check_inode(struct btree_trans *trans,
 			if (ret)
 				goto err;
 		} else {
-			if (fsck_err_on(bch2_inode_is_open(c, k.k->p),
+			if (fsck_err_on(!bch2_inode_is_open(c, k.k->p),
 					trans, inode_unlinked_and_not_open,
 				      "inode %llu%u unlinked and not open",
 				      u.bi_inum, u.bi_snapshot)) {
