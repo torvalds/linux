@@ -405,17 +405,6 @@ void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 		struct queue_limits *lim);
 int blk_dev_init(void);
 
-/*
- * Contribute to IO statistics IFF:
- *
- *	a) it's attached to a gendisk, and
- *	b) the queue had IO stats enabled when this request was started
- */
-static inline bool blk_do_io_stat(struct request *rq)
-{
-	return rq->rq_flags & RQF_IO_STAT;
-}
-
 void update_io_ticks(struct block_device *part, unsigned long now, bool end);
 unsigned int part_in_flight(struct block_device *part);
 
