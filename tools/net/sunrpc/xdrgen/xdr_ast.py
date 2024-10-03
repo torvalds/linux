@@ -227,6 +227,18 @@ class _XdrEnum(_XdrAst):
     maximum: int
     enumerators: List[_XdrEnumerator]
 
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        return 1
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        return ["XDR_int"]
+
+    def __post_init__(self):
+        max_widths[self.name] = self.max_width()
+        symbolic_widths[self.name] = self.symbolic_width()
+
 
 @dataclass
 class _XdrStruct(_XdrAst):
