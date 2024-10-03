@@ -4893,17 +4893,6 @@ void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans)
 	xa_destroy(&trans->delayed_refs.dirty_extents);
 }
 
-void btrfs_free_squota_rsv(struct btrfs_fs_info *fs_info, u64 root, u64 rsv_bytes)
-{
-	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE)
-		return;
-
-	if (!is_fstree(root))
-		return;
-
-	btrfs_qgroup_free_refroot(fs_info, root, rsv_bytes, BTRFS_QGROUP_RSV_DATA);
-}
-
 int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 			      const struct btrfs_squota_delta *delta)
 {
