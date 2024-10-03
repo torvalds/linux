@@ -835,7 +835,7 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 	return validate_ctr_version(hwc->config, set);
 }
 
-/* Events CPU_CYLCES and INSTRUCTIONS can be submitted with two different
+/* Events CPU_CYCLES and INSTRUCTIONS can be submitted with two different
  * attribute::type values:
  * - PERF_TYPE_HARDWARE:
  * - pmu->type:
