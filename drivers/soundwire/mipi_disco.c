@@ -398,6 +398,12 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	device_property_read_u32(dev, "mipi-sdw-sink-port-list",
 				 &prop->sink_ports);
 
+	device_property_read_u32(dev, "mipi-sdw-sdca-interrupt-register-list",
+				 &prop->sdca_interrupt_register_list);
+
+	prop->commit_register_supported = mipi_device_property_read_bool(dev,
+			"mipi-sdw-commit-register-supported");
+
 	/*
 	 * Read dp0 properties - we don't rely on the 'mipi-sdw-dp-0-supported'
 	 * property since the 'mipi-sdw-dp0-subproperties' property is logically

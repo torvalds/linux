@@ -335,8 +335,11 @@ struct sdw_dpn_prop {
  * @master_count: Number of Masters present on this Slave
  * @source_ports: Bitmap identifying source ports
  * @sink_ports: Bitmap identifying sink ports
- * @scp_int1_mask: SCP_INT1_MASK desired settings
  * @quirks: bitmask identifying deltas from the MIPI specification
+ * @sdca_interrupt_register_list: indicates which sets of SDCA interrupt status
+ * and masks are supported
+ * @commit_register_supported: is PCP_Commit register supported
+ * @scp_int1_mask: SCP_INT1_MASK desired settings
  * @clock_reg_supported: the Peripheral implements the clock base and scale
  * registers introduced with the SoundWire 1.2 specification. SDCA devices
  * do not need to set this boolean property as the registers are required.
@@ -363,6 +366,8 @@ struct sdw_slave_prop {
 	u32 source_ports;
 	u32 sink_ports;
 	u32 quirks;
+	u32 sdca_interrupt_register_list;
+	u8 commit_register_supported;
 	u8 scp_int1_mask;
 	bool clock_reg_supported;
 	bool use_domain_irq;
