@@ -865,6 +865,7 @@ static enum hrtimer_restart tcp_compressed_ack_kick(struct hrtimer *timer)
 			 * LINUX_MIB_TCPACKCOMPRESSED accurate.
 			 */
 			tp->compressed_ack--;
+			tcp_mstamp_refresh(tp);
 			tcp_send_ack(sk);
 		}
 	} else {
