@@ -341,8 +341,6 @@ struct btrfs_backref_node {
 	struct extent_buffer *eb;
 	/* Level of the tree block */
 	unsigned int level:8;
-	/* 1 if no child node is in the cache */
-	unsigned int lowest:1;
 	/* Is the extent buffer locked */
 	unsigned int locked:1;
 	/* Has the block been processed */
@@ -395,8 +393,6 @@ struct btrfs_backref_cache {
 	 * level blocks may not reflect the new location
 	 */
 	struct list_head pending[BTRFS_MAX_LEVEL];
-	/* List of backref nodes with no child node */
-	struct list_head leaves;
 	/* List of detached backref node. */
 	struct list_head detached;
 

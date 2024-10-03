@@ -3023,7 +3023,6 @@ void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++)
 		INIT_LIST_HEAD(&cache->pending[i]);
 	INIT_LIST_HEAD(&cache->detached);
-	INIT_LIST_HEAD(&cache->leaves);
 	INIT_LIST_HEAD(&cache->pending_edge);
 	INIT_LIST_HEAD(&cache->useless_node);
 	cache->fs_info = fs_info;
@@ -3131,29 +3130,17 @@ void btrfs_backref_drop_node(struct btrfs_backref_cache *tree,
 void btrfs_backref_cleanup_node(struct btrfs_backref_cache *cache,
 				struct btrfs_backref_node *node)
 {
-	struct btrfs_backref_node *upper;
 	struct btrfs_backref_edge *edge;
 
 	if (!node)
 		return;
 
-	BUG_ON(!node->lowest && !node->detached);
 	while (!list_empty(&node->upper)) {
 		edge = list_entry(node->upper.next, struct btrfs_backref_edge,
 				  list[LOWER]);
-		upper = edge->node[UPPER];
 		list_del(&edge->list[LOWER]);
 		list_del(&edge->list[UPPER]);
 		btrfs_backref_free_edge(cache, edge);
-
-		/*
-		 * Add the node to leaf node list if no other child block
-		 * cached.
-		 */
-		if (list_empty(&upper->lower)) {
-			list_add_tail(&upper->lower, &cache->leaves);
-			upper->lowest = 1;
-		}
 	}
 
 	btrfs_backref_drop_node(cache, node);
@@ -3589,7 +3576,6 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 	rb_node = rb_simple_insert(&cache->rb_root, start->bytenr, &start->rb_node);
 	if (rb_node)
 		btrfs_backref_panic(cache->fs_info, start->bytenr, -EEXIST);
-	list_add_tail(&start->lower, &cache->leaves);
 
 	/*
 	 * Use breadth first search to iterate all related edges.
@@ -3628,11 +3614,6 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 		 * parents have already been linked.
 		 */
 		if (!RB_EMPTY_NODE(&upper->rb_node)) {
-			if (upper->lowest) {
-				list_del_init(&upper->lower);
-				upper->lowest = 0;
-			}
-
 			list_add_tail(&edge->list[UPPER], &upper->lower);
 			continue;
 		}

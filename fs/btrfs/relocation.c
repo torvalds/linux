@@ -342,12 +342,6 @@ static bool handle_useless_nodes(struct reloc_control *rc,
 		if (cur == node)
 			ret = true;
 
-		/* The node is the lowest node */
-		if (cur->lowest) {
-			list_del_init(&cur->lower);
-			cur->lowest = 0;
-		}
-
 		/* Cleanup the lower edges */
 		while (!list_empty(&cur->lower)) {
 			struct btrfs_backref_edge *edge;
@@ -426,7 +420,6 @@ static noinline_for_stack struct btrfs_backref_node *build_backref_tree(
 		goto out;
 	}
 
-	node->lowest = 1;
 	cur = node;
 
 	/* Breadth-first search to build backref cache */
