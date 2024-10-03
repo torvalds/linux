@@ -169,12 +169,22 @@ static void resource_test_intersection(struct kunit *test)
 #define RES_TEST_RAM3_SIZE	SZ_1M
 #define RES_TEST_TOTAL_SIZE	((RES_TEST_WIN1_OFFSET + RES_TEST_WIN1_SIZE))
 
+KUNIT_DEFINE_ACTION_WRAPPER(kfree_wrapper, kfree, const void *);
+
 static void remove_free_resource(void *ctx)
 {
 	struct resource *res = (struct resource *)ctx;
 
 	remove_resource(res);
 	kfree(res);
+}
+
+static void resource_test_add_action_or_abort(
+	struct kunit *test, void (*action)(void *), void *ctx)
+{
+	KUNIT_ASSERT_EQ_MSG(test, 0,
+			    kunit_add_action_or_reset(test, action, ctx),
+			    "Fail to add action");
 }
 
 static void resource_test_request_region(struct kunit *test, struct resource *parent,
@@ -185,7 +195,7 @@ static void resource_test_request_region(struct kunit *test, struct resource *pa
 
 	res = __request_region(parent, start, size, name, flags);
 	KUNIT_ASSERT_NOT_NULL(test, res);
-	kunit_add_action_or_reset(test, remove_free_resource, res);
+	resource_test_add_action_or_abort(test, remove_free_resource, res);
 }
 
 static void resource_test_insert_resource(struct kunit *test, struct resource *parent,
@@ -202,11 +212,11 @@ static void resource_test_insert_resource(struct kunit *test, struct resource *p
 	res->end = start + size - 1;
 	res->flags = flags;
 	if (insert_resource(parent, res)) {
-		kfree(res);
+		resource_test_add_action_or_abort(test, kfree_wrapper, res);
 		KUNIT_FAIL_AND_ABORT(test, "Fail to insert resource %pR\n", res);
 	}
 
-	kunit_add_action_or_reset(test, remove_free_resource, res);
+	resource_test_add_action_or_abort(test, remove_free_resource, res);
 }
 
 static void resource_test_region_intersects(struct kunit *test)
@@ -220,7 +230,7 @@ static void resource_test_region_intersects(struct kunit *test)
 				       "test resources");
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
 	start = parent->start;
-	kunit_add_action_or_reset(test, remove_free_resource, parent);
+	resource_test_add_action_or_abort(test, remove_free_resource, parent);
 
 	resource_test_request_region(test, parent, start + RES_TEST_RAM0_OFFSET,
 				     RES_TEST_RAM0_SIZE, "Test System RAM 0", flags);

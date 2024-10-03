@@ -1358,10 +1358,6 @@ D: Major kbuild rework during the 2.5 cycle
 D: ISDN Maintainer
 S: USA
 
-N: Gerrit Renker
-E: gerrit@erg.abdn.ac.uk
-D: DCCP protocol support.
-
 N: Philip Gladstone
 E: philip@gladstonefamily.net
 D: Kernel / timekeeping stuff
@@ -1677,11 +1673,6 @@ W: http://www.carumba.com/
 D: bug toaster (A1 sauce makes all the difference)
 D: Random linux hacker
 
-N: James Hogan
-E: jhogan@kernel.org
-D: Metag architecture maintainer
-D: TZ1090 SoC maintainer
-
 N: Tim Hockin
 E: thockin@hockin.org
 W: http://www.hockin.org/~thockin
@@ -1696,6 +1687,11 @@ D: hwmon subsystem core
 D: hwmon subsystem maintainer
 D: i2c-sis96x and i2c-stub SMBus drivers
 S: USA
+
+N: James Hogan
+E: jhogan@kernel.org
+D: Metag architecture maintainer
+D: TZ1090 SoC maintainer
 
 N: Dirk Hohndel
 E: hohndel@suse.de
@@ -1871,6 +1867,10 @@ D: Maintain sunsite.mff.cuni.cz
 S: K osmidomkum 723
 S: 160 00 Praha 6
 S: Czech Republic
+
+N: Seth Jennings
+E: sjenning@redhat.com
+D: Creation and maintenance of zswap
 
 N: Jeremy Kerr
 D: Maintainer of SPU File System
@@ -2187,19 +2187,6 @@ S: USA
 N: Mike Kravetz
 E: mike.kravetz@oracle.com
 D: Maintenance and development of the hugetlb subsystem
-
-N: Seth Jennings
-E: sjenning@redhat.com
-D: Creation and maintenance of zswap
-
-N: Dan Streetman
-E: ddstreet@ieee.org
-D: Maintenance and development of zswap
-D: Creation and maintenance of the zpool API
-
-N: Vitaly Wool
-E: vitaly.wool@konsulko.com
-D: Maintenance and development of zswap
 
 N: Andreas S. Krebs
 E: akrebs@altavista.net
@@ -3191,6 +3178,11 @@ N: Ken Pizzini
 E: ken@halcyon.com
 D: CDROM driver "sonycd535" (Sony CDU-535/531)
 
+N: Mathieu Poirier
+E: mathieu.poirier@linaro.org
+D: CoreSight kernel subsystem, Maintainer 2014-2022
+D: Perf tool support for CoreSight
+
 N: Stelian Pop
 E: stelian@popies.net
 P: 1024D/EDBB6147 7B36 0E07 04BC 11DC A7A0  D3F7 7185 9E7A EDBB 6147
@@ -3299,6 +3291,10 @@ D: /proc/sound, minor fixes
 S: Schlossbergring 9
 S: 79098 Freiburg
 S: Germany
+
+N: Gerrit Renker
+E: gerrit@erg.abdn.ac.uk
+D: DCCP protocol support.
 
 N: Thomas Renninger
 E: trenn@suse.de
@@ -3576,11 +3572,6 @@ D: several improvements to system programs
 S: Oldenburg
 S: Germany
 
-N: Mathieu Poirier
-E: mathieu.poirier@linaro.org
-D: CoreSight kernel subsystem, Maintainer 2014-2022
-D: Perf tool support for CoreSight
-
 N: Robert Schwebel
 E: robert@schwebel.de
 W: https://www.schwebel.de
@@ -3770,6 +3761,11 @@ D: Miscellaneous bug-fixes
 S: Chr. Winthersvej 1 B, st.th.
 S: DK-1860 Frederiksberg C
 S: Denmark
+
+N: Dan Streetman
+E: ddstreet@ieee.org
+D: Maintenance and development of zswap
+D: Creation and maintenance of the zpool API
 
 N: Drew Sullivan
 E: drew@ss.org
@@ -4285,6 +4281,10 @@ S: c/o Intel Corporation
 S: Pipers Way
 S: Swindon. SN3 1RJ
 S: England
+
+N: Vitaly Wool
+E: vitaly.wool@konsulko.com
+D: Maintenance and development of zswap
 
 N: Chris Wright
 E: chrisw@sous-sol.org

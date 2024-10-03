@@ -289,6 +289,9 @@ static int hci_enhanced_setup_sync(struct hci_dev *hdev, void *data)
 
 	kfree(conn_handle);
 
+	if (!hci_conn_valid(hdev, conn))
+		return -ECANCELED;
+
 	bt_dev_dbg(hdev, "hcon %p", conn);
 
 	configure_datapath_sync(hdev, &conn->codec);
