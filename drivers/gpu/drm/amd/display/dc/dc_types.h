@@ -1303,4 +1303,31 @@ struct dc_commit_streams_params {
 	enum dc_power_source_type power_source;
 };
 
+struct set_backlight_level_params {
+	/* backlight in pwm */
+	uint32_t backlight_pwm_u16_16;
+	/* brightness ramping */
+	uint32_t frame_ramp;
+	/* backlight control type
+	 * 0: PWM backlight control
+	 * 1: VESA AUX backlight control
+	 * 2: AMD AUX backlight control
+	 */
+	enum backlight_control_type control_type;
+	/* backlight in millinits */
+	uint32_t backlight_millinits;
+	/* transition time in ms */
+	uint32_t transition_time_in_ms;
+	/* minimum luminance in nits */
+	uint32_t min_luminance;
+	/* maximum luminance in nits */
+	uint32_t max_luminance;
+	/* minimum backlight in pwm */
+	uint32_t min_backlight_pwm;
+	/* maximum backlight in pwm */
+	uint32_t max_backlight_pwm;
+	/* AUX HW instance */
+	uint8_t aux_inst;
+};
+
 #endif /* DC_TYPES_H_ */

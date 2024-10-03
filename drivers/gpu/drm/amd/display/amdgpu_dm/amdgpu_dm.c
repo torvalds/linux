@@ -4640,7 +4640,12 @@ static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 		if (!rc)
 			DRM_DEBUG("DM: Failed to update backlight via AUX on eDP[%d]\n", bl_idx);
 	} else {
-		rc = dc_link_set_backlight_level(link, brightness, 0);
+		struct set_backlight_level_params backlight_level_params = { 0 };
+
+		backlight_level_params.backlight_pwm_u16_16 = brightness;
+		backlight_level_params.transition_time_in_ms = 0;
+
+		rc = dc_link_set_backlight_level(link, &backlight_level_params);
 		if (!rc)
 			DRM_DEBUG("DM: Failed to update backlight on eDP[%d]\n", bl_idx);
 	}

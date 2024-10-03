@@ -430,11 +430,10 @@ bool dc_link_get_backlight_level_nits(struct dc_link *link,
 }
 
 bool dc_link_set_backlight_level(const struct dc_link *link,
-		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp)
+		struct set_backlight_level_params *backlight_level_params)
 {
 	return link->dc->link_srv->edp_set_backlight_level(link,
-			backlight_pwm_u16_16, frame_ramp);
+			backlight_level_params);
 }
 
 bool dc_link_set_backlight_level_nits(struct dc_link *link,

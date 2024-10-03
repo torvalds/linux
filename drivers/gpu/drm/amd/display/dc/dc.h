@@ -225,6 +225,7 @@ struct dc_dmub_caps {
 	bool subvp_psr;
 	bool gecc_enable;
 	uint8_t fams_ver;
+	bool aux_backlight_support;
 };
 
 struct dc_scl_caps {
@@ -2210,8 +2211,7 @@ void dc_link_edp_panel_backlight_power_on(struct dc_link *link,
  * and 16 bit fractional, where 1.0 is max backlight value.
  */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link,
-		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp);
+		struct set_backlight_level_params *backlight_level_params);
 
 /* Set/get nits-based backlight level of an embedded panel (eDP, LVDS). */
 bool dc_link_set_backlight_level_nits(struct dc_link *link,
