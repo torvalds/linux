@@ -1084,19 +1084,12 @@ int iomap_file_buffered_write_punch_delalloc(struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(iomap_file_buffered_write_punch_delalloc);
 
-static loff_t iomap_unshare_iter(struct iomap_iter *iter)
+bool iomap_want_unshare_iter(const struct iomap_iter *iter)
 {
-	struct iomap *iomap = &iter->iomap;
-	loff_t pos = iter->pos;
-	loff_t length = iomap_length(iter);
-	loff_t written = 0;
-
-	/* Don't bother with blocks that are not shared to start with. */
-	if (!(iomap->flags & IOMAP_F_SHARED))
-		return length;
-
 	/*
-	 * Don't bother with delalloc reservations, holes or unwritten extents.
+	 * Don't bother with blocks that are not shared to start with; or
+	 * mappings that cannot be shared, such as inline data, delalloc
+	 * reservations, holes or unwritten extents.
 	 *
 	 * Note that we use srcmap directly instead of iomap_iter_srcmap as
 	 * unsharing requires providing a separate source map, and the presence
@@ -1104,9 +1097,18 @@ static loff_t iomap_unshare_iter(struct iomap_iter *iter)
 	 * IOMAP_F_SHARED which can be set for any data that goes into the COW
 	 * fork for XFS.
 	 */
-	if (iter->srcmap.type == IOMAP_HOLE ||
-	    iter->srcmap.type == IOMAP_DELALLOC ||
-	    iter->srcmap.type == IOMAP_UNWRITTEN)
+	return (iter->iomap.flags & IOMAP_F_SHARED) &&
+		iter->srcmap.type == IOMAP_MAPPED;
+}
+
+static loff_t iomap_unshare_iter(struct iomap_iter *iter)
+{
+	struct iomap *iomap = &iter->iomap;
+	loff_t pos = iter->pos;
+	loff_t length = iomap_length(iter);
+	loff_t written = 0;
+
+	if (!iomap_want_unshare_iter(iter))
 		return length;
 
 	do {
