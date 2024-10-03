@@ -15,20 +15,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/preemptirq.h>
 
-/*
- * Use regular trace points on architectures that implement noinstr
- * tooling: these calls will only happen with RCU enabled, which can
- * use a regular tracepoint.
- *
- * On older architectures, use the rcuidle tracing methods (which
- * aren't NMI-safe - so exclude NMI contexts):
- */
-#ifdef CONFIG_ARCH_WANTS_NO_INSTR
-#define trace(point)	trace_##point
-#else
-#define trace(point)	if (!in_nmi()) trace_##point##_rcuidle
-#endif
-
 #ifdef CONFIG_TRACE_IRQFLAGS
 /* Per-cpu variable to prevent redundant calls when IRQs already off */
 static DEFINE_PER_CPU(int, tracing_irq_cpu);
@@ -42,7 +28,7 @@ static DEFINE_PER_CPU(int, tracing_irq_cpu);
 void trace_hardirqs_on_prepare(void)
 {
 	if (this_cpu_read(tracing_irq_cpu)) {
-		trace(irq_enable)(CALLER_ADDR0, CALLER_ADDR1);
+		trace_irq_enable(CALLER_ADDR0, CALLER_ADDR1);
 		tracer_hardirqs_on(CALLER_ADDR0, CALLER_ADDR1);
 		this_cpu_write(tracing_irq_cpu, 0);
 	}
@@ -53,7 +39,7 @@ NOKPROBE_SYMBOL(trace_hardirqs_on_prepare);
 void trace_hardirqs_on(void)
 {
 	if (this_cpu_read(tracing_irq_cpu)) {
-		trace(irq_enable)(CALLER_ADDR0, CALLER_ADDR1);
+		trace_irq_enable(CALLER_ADDR0, CALLER_ADDR1);
 		tracer_hardirqs_on(CALLER_ADDR0, CALLER_ADDR1);
 		this_cpu_write(tracing_irq_cpu, 0);
 	}
@@ -75,7 +61,7 @@ void trace_hardirqs_off_finish(void)
 	if (!this_cpu_read(tracing_irq_cpu)) {
 		this_cpu_write(tracing_irq_cpu, 1);
 		tracer_hardirqs_off(CALLER_ADDR0, CALLER_ADDR1);
-		trace(irq_disable)(CALLER_ADDR0, CALLER_ADDR1);
+		trace_irq_disable(CALLER_ADDR0, CALLER_ADDR1);
 	}
 
 }
@@ -89,7 +75,7 @@ void trace_hardirqs_off(void)
 	if (!this_cpu_read(tracing_irq_cpu)) {
 		this_cpu_write(tracing_irq_cpu, 1);
 		tracer_hardirqs_off(CALLER_ADDR0, CALLER_ADDR1);
-		trace(irq_disable)(CALLER_ADDR0, CALLER_ADDR1);
+		trace_irq_disable(CALLER_ADDR0, CALLER_ADDR1);
 	}
 }
 EXPORT_SYMBOL(trace_hardirqs_off);
@@ -100,13 +86,13 @@ NOKPROBE_SYMBOL(trace_hardirqs_off);
 
 void trace_preempt_on(unsigned long a0, unsigned long a1)
 {
-	trace(preempt_enable)(a0, a1);
+	trace_preempt_enable(a0, a1);
 	tracer_preempt_on(a0, a1);
 }
 
 void trace_preempt_off(unsigned long a0, unsigned long a1)
 {
-	trace(preempt_disable)(a0, a1);
+	trace_preempt_disable(a0, a1);
 	tracer_preempt_off(a0, a1);
 }
 #endif
