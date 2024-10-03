@@ -470,92 +470,6 @@ out:
 }
 
 /*
- * helper to add backref node for the newly created snapshot.
- * the backref node is created by cloning backref node that
- * corresponds to root of source tree
- */
-static int clone_backref_node(struct btrfs_trans_handle *trans,
-			      struct reloc_control *rc,
-			      const struct btrfs_root *src,
-			      struct btrfs_root *dest)
-{
-	struct btrfs_root *reloc_root = src->reloc_root;
-	struct btrfs_backref_cache *cache = &rc->backref_cache;
-	struct btrfs_backref_node *node = NULL;
-	struct btrfs_backref_node *new_node;
-	struct btrfs_backref_edge *edge;
-	struct btrfs_backref_edge *new_edge;
-	struct rb_node *rb_node;
-
-	rb_node = rb_simple_search(&cache->rb_root, src->commit_root->start);
-	if (rb_node) {
-		node = rb_entry(rb_node, struct btrfs_backref_node, rb_node);
-		if (node->detached)
-			node = NULL;
-		else
-			BUG_ON(node->new_bytenr != reloc_root->node->start);
-	}
-
-	if (!node) {
-		rb_node = rb_simple_search(&cache->rb_root,
-					   reloc_root->commit_root->start);
-		if (rb_node) {
-			node = rb_entry(rb_node, struct btrfs_backref_node,
-					rb_node);
-			BUG_ON(node->detached);
-		}
-	}
-
-	if (!node)
-		return 0;
-
-	new_node = btrfs_backref_alloc_node(cache, dest->node->start,
-					    node->level);
-	if (!new_node)
-		return -ENOMEM;
-
-	new_node->lowest = node->lowest;
-	new_node->checked = 1;
-	new_node->root = btrfs_grab_root(dest);
-	ASSERT(new_node->root);
-
-	if (!node->lowest) {
-		list_for_each_entry(edge, &node->lower, list[UPPER]) {
-			new_edge = btrfs_backref_alloc_edge(cache);
-			if (!new_edge)
-				goto fail;
-
-			btrfs_backref_link_edge(new_edge, edge->node[LOWER],
-						new_node, LINK_UPPER);
-		}
-	} else {
-		list_add_tail(&new_node->lower, &cache->leaves);
-	}
-
-	rb_node = rb_simple_insert(&cache->rb_root, new_node->bytenr,
-				   &new_node->rb_node);
-	if (rb_node)
-		btrfs_backref_panic(trans->fs_info, new_node->bytenr, -EEXIST);
-
-	if (!new_node->lowest) {
-		list_for_each_entry(new_edge, &new_node->lower, list[UPPER]) {
-			list_add_tail(&new_edge->list[LOWER],
-				      &new_edge->node[LOWER]->upper);
-		}
-	}
-	return 0;
-fail:
-	while (!list_empty(&new_node->lower)) {
-		new_edge = list_entry(new_node->lower.next,
-				      struct btrfs_backref_edge, list[UPPER]);
-		list_del(&new_edge->list[UPPER]);
-		btrfs_backref_free_edge(cache, new_edge);
-	}
-	btrfs_backref_free_node(cache, new_node);
-	return -ENOMEM;
-}
-
-/*
  * helper to add 'address of tree root -> reloc tree' mapping
  */
 static int __add_reloc_root(struct btrfs_root *root)
@@ -4485,10 +4399,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 	new_root->reloc_root = btrfs_grab_root(reloc_root);
-
-	if (rc->create_reloc_tree)
-		ret = clone_backref_node(trans, rc, root, reloc_root);
-	return ret;
+	return 0;
 }
 
 /*
