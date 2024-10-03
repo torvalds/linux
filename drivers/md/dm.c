@@ -2517,12 +2517,6 @@ void dm_unlock_md_type(struct mapped_device *md)
 	mutex_unlock(&md->type_lock);
 }
 
-void dm_set_md_type(struct mapped_device *md, enum dm_queue_mode type)
-{
-	BUG_ON(!mutex_is_locked(&md->type_lock));
-	md->type = type;
-}
-
 enum dm_queue_mode dm_get_md_type(struct mapped_device *md)
 {
 	return md->type;
