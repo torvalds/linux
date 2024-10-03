@@ -52,7 +52,9 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 	struct sdw_master_prop *prop = &bus->prop;
 	struct fwnode_handle *link;
 	char name[32];
-	int nval, i;
+	int nval;
+	int ret;
+	int i;
 
 	device_property_read_u32(bus->dev,
 				 "mipi-sdw-sw-interface-revision",
@@ -91,9 +93,11 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 			return -ENOMEM;
 		}
 
-		fwnode_property_read_u32_array(link,
+		ret = fwnode_property_read_u32_array(link,
 				"mipi-sdw-clock-frequencies-supported",
 				prop->clk_freq, prop->num_clk_freq);
+		if (ret < 0)
+			return ret;
 	}
 
 	/*
@@ -119,10 +123,12 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 			return -ENOMEM;
 		}
 
-		fwnode_property_read_u32_array(link,
+		ret = fwnode_property_read_u32_array(link,
 					       "mipi-sdw-supported-clock-gears",
 					       prop->clk_gears,
 					       prop->num_clk_gears);
+		if (ret < 0)
+			return ret;
 	}
 
 	fwnode_property_read_u32(link, "mipi-sdw-default-frame-rate",
@@ -151,6 +157,7 @@ static int sdw_slave_read_dp0(struct sdw_slave *slave,
 			      struct sdw_dp0_prop *dp0)
 {
 	int nval;
+	int ret;
 
 	fwnode_property_read_u32(port, "mipi-sdw-port-max-wordlength",
 				 &dp0->max_word);
@@ -168,9 +175,11 @@ static int sdw_slave_read_dp0(struct sdw_slave *slave,
 		if (!dp0->words)
 			return -ENOMEM;
 
-		fwnode_property_read_u32_array(port,
+		ret = fwnode_property_read_u32_array(port,
 				"mipi-sdw-port-wordlength-configs",
 				dp0->words, dp0->num_words);
+		if (ret < 0)
+			return ret;
 	}
 
 	dp0->BRA_flow_controlled = mipi_fwnode_property_read_bool(port,
@@ -191,9 +200,10 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 {
 	struct fwnode_handle *node;
 	u32 bit, i = 0;
-	int nval;
 	unsigned long addr;
 	char name[40];
+	int nval;
+	int ret;
 
 	addr = ports;
 	/* valid ports are 1 to 14 so apply mask */
@@ -228,9 +238,11 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 				return -ENOMEM;
 			}
 
-			fwnode_property_read_u32_array(node,
+			ret = fwnode_property_read_u32_array(node,
 					"mipi-sdw-port-wordlength-configs",
 					dpn[i].words, dpn[i].num_words);
+			if (ret < 0)
+				return ret;
 		}
 
 		fwnode_property_read_u32(node, "mipi-sdw-data-port-type",
@@ -269,9 +281,11 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 				return -ENOMEM;
 			}
 
-			fwnode_property_read_u32_array(node,
+			ret = fwnode_property_read_u32_array(node,
 					"mipi-sdw-channel-number-list",
 					dpn[i].channels, dpn[i].num_channels);
+			if (ret < 0)
+				return ret;
 		}
 
 		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-combination-list");
@@ -286,10 +300,12 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 				return -ENOMEM;
 			}
 
-			fwnode_property_read_u32_array(node,
+			ret = fwnode_property_read_u32_array(node,
 					"mipi-sdw-channel-combination-list",
 					dpn[i].ch_combinations,
 					dpn[i].num_ch_combinations);
+			if (ret < 0)
+				return ret;
 		}
 
 		fwnode_property_read_u32(node,
