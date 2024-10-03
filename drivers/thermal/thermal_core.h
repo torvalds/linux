@@ -194,6 +194,9 @@ int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
 
 struct thermal_zone_device *thermal_zone_get_by_id(int id);
 
+DEFINE_CLASS(thermal_zone_get_by_id, struct thermal_zone_device *,
+	     if (_T) put_device(&_T->device), thermal_zone_get_by_id(id), int id)
+
 static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 {
 	return cdev->ops->get_requested_power && cdev->ops->state2power &&

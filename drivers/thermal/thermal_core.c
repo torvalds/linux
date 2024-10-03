@@ -728,6 +728,7 @@ struct thermal_zone_device *thermal_zone_get_by_id(int id)
 	mutex_lock(&thermal_list_lock);
 	list_for_each_entry(tz, &thermal_tz_list, node) {
 		if (tz->id == id) {
+			get_device(&tz->device);
 			match = tz;
 			break;
 		}
