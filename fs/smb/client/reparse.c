@@ -1236,16 +1236,6 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	bool ok;
 
 	switch (tag) {
-	case IO_REPARSE_TAG_INTERNAL:
-		if (!(fattr->cf_cifsattrs & ATTR_DIRECTORY))
-			return false;
-		fallthrough;
-	case IO_REPARSE_TAG_DFS:
-	case IO_REPARSE_TAG_DFSR:
-	case IO_REPARSE_TAG_MOUNT_POINT:
-		/* See cifs_create_junction_fattr() */
-		fattr->cf_mode = S_IFDIR | 0711;
-		break;
 	case IO_REPARSE_TAG_LX_SYMLINK:
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_AF_UNIX:
@@ -1265,7 +1255,14 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 		fattr->cf_mode |= S_IFLNK;
 		break;
 	default:
-		return false;
+		if (!(fattr->cf_cifsattrs & ATTR_DIRECTORY))
+			return false;
+		if (!IS_REPARSE_TAG_NAME_SURROGATE(tag) &&
+		    tag != IO_REPARSE_TAG_INTERNAL)
+			return false;
+		/* See cifs_create_junction_fattr() */
+		fattr->cf_mode = S_IFDIR | 0711;
+		break;
 	}
 
 	fattr->cf_dtype = S_DT(fattr->cf_mode);
