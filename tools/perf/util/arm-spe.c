@@ -1133,16 +1133,60 @@ static bool arm_spe_evsel_is_auxtrace(struct perf_session *session,
 	return evsel->core.attr.type == spe->pmu_type;
 }
 
-static const char * const arm_spe_info_fmts[] = {
-	[ARM_SPE_PMU_TYPE]		= "  PMU Type           %"PRId64"\n",
+static const char * const metadata_hdr_v1_fmts[] = {
+	[ARM_SPE_PMU_TYPE]		= "  PMU Type           :%"PRId64"\n",
+	[ARM_SPE_PER_CPU_MMAPS]		= "  Per CPU mmaps      :%"PRId64"\n",
 };
 
-static void arm_spe_print_info(__u64 *arr)
+static const char * const metadata_hdr_fmts[] = {
+	[ARM_SPE_HEADER_VERSION]	= "  Header version     :%"PRId64"\n",
+	[ARM_SPE_HEADER_SIZE]		= "  Header size        :%"PRId64"\n",
+	[ARM_SPE_PMU_TYPE_V2]		= "  PMU type v2        :%"PRId64"\n",
+	[ARM_SPE_CPUS_NUM]		= "  CPU number         :%"PRId64"\n",
+};
+
+static const char * const metadata_per_cpu_fmts[] = {
+	[ARM_SPE_MAGIC]			= "    Magic            :0x%"PRIx64"\n",
+	[ARM_SPE_CPU]			= "    CPU #            :%"PRId64"\n",
+	[ARM_SPE_CPU_NR_PARAMS]		= "    Num of params    :%"PRId64"\n",
+	[ARM_SPE_CPU_MIDR]		= "    MIDR             :0x%"PRIx64"\n",
+	[ARM_SPE_CPU_PMU_TYPE]		= "    PMU Type         :%"PRId64"\n",
+	[ARM_SPE_CAP_MIN_IVAL]		= "    Min Interval     :%"PRId64"\n",
+};
+
+static void arm_spe_print_info(struct arm_spe *spe, __u64 *arr)
 {
+	unsigned int i, cpu, hdr_size, cpu_num, cpu_size;
+	const char * const *hdr_fmts;
+
 	if (!dump_trace)
 		return;
 
-	fprintf(stdout, arm_spe_info_fmts[ARM_SPE_PMU_TYPE], arr[ARM_SPE_PMU_TYPE]);
+	if (spe->metadata_ver == 1) {
+		cpu_num = 0;
+		hdr_size = ARM_SPE_AUXTRACE_V1_PRIV_MAX;
+		hdr_fmts = metadata_hdr_v1_fmts;
+	} else {
+		cpu_num = arr[ARM_SPE_CPUS_NUM];
+		hdr_size = arr[ARM_SPE_HEADER_SIZE];
+		hdr_fmts = metadata_hdr_fmts;
+	}
+
+	for (i = 0; i < hdr_size; i++)
+		fprintf(stdout, hdr_fmts[i], arr[i]);
+
+	arr += hdr_size;
+	for (cpu = 0; cpu < cpu_num; cpu++) {
+		/*
+		 * The parameters from ARM_SPE_MAGIC to ARM_SPE_CPU_NR_PARAMS
+		 * are fixed. The sequential parameter size is decided by the
+		 * field 'ARM_SPE_CPU_NR_PARAMS'.
+		 */
+		cpu_size = (ARM_SPE_CPU_NR_PARAMS + 1) + arr[ARM_SPE_CPU_NR_PARAMS];
+		for (i = 0; i < cpu_size; i++)
+			fprintf(stdout, metadata_per_cpu_fmts[i], arr[i]);
+		arr += cpu_size;
+	}
 }
 
 static void arm_spe_set_event_name(struct evlist *evlist, u64 id,
@@ -1407,7 +1451,7 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 	spe->auxtrace.evsel_is_auxtrace = arm_spe_evsel_is_auxtrace;
 	session->auxtrace = &spe->auxtrace;
 
-	arm_spe_print_info(&auxtrace_info->priv[0]);
+	arm_spe_print_info(spe, &auxtrace_info->priv[0]);
 
 	if (dump_trace)
 		return 0;
