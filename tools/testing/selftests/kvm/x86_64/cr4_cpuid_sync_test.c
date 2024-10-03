@@ -27,12 +27,9 @@ static void guest_code(void)
 		[KVM_CPUID_EAX] = X86_FEATURE_OSXSAVE.function,
 		[KVM_CPUID_ECX] = X86_FEATURE_OSXSAVE.index,
 	};
-	uint64_t cr4;
 
-	/* turn on CR4.OSXSAVE */
-	cr4 = get_cr4();
-	cr4 |= X86_CR4_OSXSAVE;
-	set_cr4(cr4);
+	/* CR4.OSXSAVE should be enabled by default (for selftests vCPUs). */
+	GUEST_ASSERT(get_cr4() & X86_CR4_OSXSAVE);
 
 	/* verify CR4.OSXSAVE == CPUID.OSXSAVE */
 	GUEST_ASSERT(this_cpu_has(X86_FEATURE_OSXSAVE));
