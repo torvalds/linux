@@ -450,9 +450,35 @@ class _XdrUnion(_XdrAst):
     cases: List[_XdrCaseSpec]
     default: _XdrDeclaration
 
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        max_width = 0
+        for case in self.cases:
+            if case.arm.max_width() > max_width:
+                max_width = case.arm.max_width()
+        if self.default:
+            if self.default.arm.max_width() > max_width:
+                max_width = self.default.arm.max_width()
+        return 1 + max_width
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        max_width = 0
+        for case in self.cases:
+            if case.arm.max_width() > max_width:
+                max_width = case.arm.max_width()
+                width = case.arm.symbolic_width()
+        if self.default:
+            if self.default.arm.max_width() > max_width:
+                max_width = self.default.arm.max_width()
+                width = self.default.arm.symbolic_width()
+        return symbolic_widths[self.discriminant.name] + width
+
     def __post_init__(self):
         structs.add(self.name)
         pass_by_reference.add(self.name)
+        max_widths[self.name] = self.max_width()
+        symbolic_widths[self.name] = self.symbolic_width()
 
 
 @dataclass
