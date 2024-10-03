@@ -226,16 +226,16 @@ enum sdw_clk_stop_mode {
 
 /**
  * struct sdw_dp0_prop - DP0 properties
+ * @words: wordlengths supported
  * @max_word: Maximum number of bits in a Payload Channel Sample, 1 to 64
  * (inclusive)
  * @min_word: Minimum number of bits in a Payload Channel Sample, 1 to 64
  * (inclusive)
  * @num_words: number of wordlengths supported
- * @words: wordlengths supported
+ * @ch_prep_timeout: Port-specific timeout value, in milliseconds
  * @BRA_flow_controlled: Slave implementation results in an OK_NotReady
  * response
  * @simple_ch_prep_sm: If channel prepare sequence is required
- * @ch_prep_timeout: Port-specific timeout value, in milliseconds
  * @imp_def_interrupts: If set, each bit corresponds to support for
  * implementation-defined interrupts
  *
@@ -244,13 +244,13 @@ enum sdw_clk_stop_mode {
  * support
  */
 struct sdw_dp0_prop {
+	u32 *words;
 	u32 max_word;
 	u32 min_word;
 	u32 num_words;
-	u32 *words;
+	u32 ch_prep_timeout;
 	bool BRA_flow_controlled;
 	bool simple_ch_prep_sm;
-	u32 ch_prep_timeout;
 	bool imp_def_interrupts;
 };
 
