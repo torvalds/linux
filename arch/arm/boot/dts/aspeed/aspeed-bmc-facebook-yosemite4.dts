@@ -32,6 +32,8 @@
 		i2c27 = &imux27;
 		i2c28 = &imux28;
 		i2c29 = &imux29;
+		i2c30 = &imux30;
+		i2c31 = &imux31;
 		i2c34 = &imux34;
 		i2c35 = &imux35;
 	};
@@ -1034,6 +1036,8 @@
 };
 
 &i2c14 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
 	bus-frequency = <400000>;
 	adc@1d {
@@ -1094,112 +1098,6 @@
 		reg = <0x51>;
 	};
 
-	i2c-mux@71 {
-		compatible = "nxp,pca9846";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		idle-state = <0>;
-		i2c-mux-idle-disconnect;
-		reg = <0x71>;
-
-		i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-
-			adc@1f {
-				compatible = "ti,adc128d818";
-				reg = <0x1f>;
-				ti,mode = /bits/ 8 <2>;
-			};
-
-			pwm@20{
-				compatible = "maxim,max31790";
-				reg = <0x20>;
-			};
-
-			gpio@22{
-				compatible = "ti,tca6424";
-				reg = <0x22>;
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
-
-			pwm@23{
-				compatible = "maxim,max31790";
-				reg = <0x23>;
-			};
-
-			adc@33 {
-				compatible = "maxim,max11615";
-				reg = <0x33>;
-			};
-
-			eeprom@52 {
-				compatible = "atmel,24c128";
-				reg = <0x52>;
-			};
-
-			gpio@61 {
-				compatible = "nxp,pca9552";
-				reg = <0x61>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
-		};
-
-		i2c@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-
-			adc@1f {
-				compatible = "ti,adc128d818";
-				reg = <0x1f>;
-				ti,mode = /bits/ 8 <2>;
-			};
-
-			pwm@20{
-				compatible = "maxim,max31790";
-				reg = <0x20>;
-			};
-
-			gpio@22{
-				compatible = "ti,tca6424";
-				reg = <0x22>;
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
-
-			pwm@23{
-				compatible = "maxim,max31790";
-				reg = <0x23>;
-			};
-
-			adc@33 {
-				compatible = "maxim,max11615";
-				reg = <0x33>;
-			};
-
-			eeprom@52 {
-				compatible = "atmel,24c128";
-				reg = <0x52>;
-			};
-
-			gpio@61 {
-				compatible = "nxp,pca9552";
-				reg = <0x61>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
-		};
-	};
-
 	i2c-mux@73 {
 		compatible = "nxp,pca9544";
 		#address-cells = <1>;
@@ -1228,6 +1126,110 @@
 			adc@35 {
 				compatible = "maxim,max11617";
 				reg = <0x35>;
+			};
+		};
+	};
+
+	i2c-mux@74 {
+		compatible = "nxp,pca9546";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
+
+		imux30: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			adc@1f {
+				compatible = "ti,adc128d818";
+				reg = <0x1f>;
+				ti,mode = /bits/ 8 <2>;
+			};
+
+			pwm@20{
+				compatible = "maxim,max31790";
+				reg = <0x20>;
+			};
+
+			gpio@22{
+				compatible = "ti,tca6424";
+				reg = <0x22>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			pwm@23{
+				compatible = "maxim,max31790";
+				reg = <0x23>;
+			};
+
+			adc@33 {
+				compatible = "maxim,max11615";
+				reg = <0x33>;
+			};
+
+			eeprom@52 {
+				compatible = "atmel,24c128";
+				reg = <0x52>;
+			};
+
+			gpio@61 {
+				compatible = "nxp,pca9552";
+				reg = <0x61>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+		};
+
+		imux31: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			adc@1f {
+				compatible = "ti,adc128d818";
+				reg = <0x1f>;
+				ti,mode = /bits/ 8 <2>;
+			};
+
+			pwm@20{
+				compatible = "maxim,max31790";
+				reg = <0x20>;
+			};
+
+			gpio@22{
+				compatible = "ti,tca6424";
+				reg = <0x22>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			pwm@23{
+				compatible = "maxim,max31790";
+				reg = <0x23>;
+			};
+
+			adc@33 {
+				compatible = "maxim,max11615";
+				reg = <0x33>;
+			};
+
+			eeprom@52 {
+				compatible = "atmel,24c128";
+				reg = <0x52>;
+			};
+
+			gpio@61 {
+				compatible = "nxp,pca9552";
+				reg = <0x61>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
 			};
 		};
 	};
