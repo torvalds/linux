@@ -4636,12 +4636,21 @@ static void _action_bt_a2dpsink(struct rtw89_dev *rtwdev)
 static void _action_bt_pan(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
+	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
+	struct rtw89_btc_bt_pan_desc pan = bt_linfo->pan_desc;
 
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
 	switch (btc->cx.state_map) {
 	case BTC_WBUSY_BNOSCAN: /* wl-busy + bt-PAN */
-		_set_policy(rtwdev, BTC_CXP_PFIX_TD5050, BTC_ACT_BT_PAN);
+		if (a2dp.active || !pan.exist) {
+			btc->dm.slot_dur[CXST_W1] = 80;
+			btc->dm.slot_dur[CXST_B1] = 20;
+			_set_policy(rtwdev, BTC_CXP_PFIX_TDW1B1, BTC_ACT_BT_PAN);
+		} else {
+			_set_policy(rtwdev, BTC_CXP_PFIX_TD5050, BTC_ACT_BT_PAN);
+		}
 		break;
 	case BTC_WBUSY_BSCAN: /* wl-busy + bt-inq + bt-PAN */
 		_set_policy(rtwdev, BTC_CXP_PFIX_TD3070, BTC_ACT_BT_PAN);
