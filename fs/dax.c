@@ -1268,8 +1268,7 @@ static s64 dax_unshare_iter(struct iomap_iter *iter)
 	s64 ret = 0;
 	void *daddr = NULL, *saddr = NULL;
 
-	/* don't bother with blocks that are not shared to start with */
-	if (!(iomap->flags & IOMAP_F_SHARED))
+	if (!iomap_want_unshare_iter(iter))
 		return length;
 
 	id = dax_read_lock();
