@@ -6510,7 +6510,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_507,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
-		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
 		.subdevice    = 0xa11b,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_507UA,
@@ -7438,6 +7438,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
 	case SAA7134_BOARD_AVERMEDIA_307:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_507:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_507UA:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_M135A:
