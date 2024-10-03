@@ -268,6 +268,18 @@ class _XdrBasic(_XdrDeclaration):
     spec: _XdrTypeSpecifier
     template: str = "basic"
 
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        return max_widths[self.spec.type_name]
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        return symbolic_widths[self.spec.type_name]
+
+    def __post_init__(self):
+        max_widths[self.name] = self.max_width()
+        symbolic_widths[self.name] = self.symbolic_width()
+
 
 @dataclass
 class _XdrVoid(_XdrDeclaration):
@@ -361,14 +373,22 @@ class _XdrTypedef(_XdrAst):
 
     declaration: _XdrDeclaration
 
-    def __post_init__(self):
-        if not isinstance(self.declaration, _XdrBasic):
-            return
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        return self.declaration.max_width()
 
-        new_type = self.declaration
-        if isinstance(new_type.spec, _XdrDefinedType):
-            if new_type.spec.type_name in pass_by_reference:
-                pass_by_reference.add(new_type.name)
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        return self.declaration.symbolic_width()
+
+    def __post_init__(self):
+        if isinstance(self.declaration, _XdrBasic):
+            new_type = self.declaration
+            if isinstance(new_type.spec, _XdrDefinedType):
+                if new_type.spec.type_name in pass_by_reference:
+                    pass_by_reference.add(new_type.name)
+                max_widths[new_type.name] = self.max_width()
+                symbolic_widths[new_type.name] = self.symbolic_width()
 
 
 @dataclass
