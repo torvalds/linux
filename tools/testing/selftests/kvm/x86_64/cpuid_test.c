@@ -62,6 +62,12 @@ static struct cpuid_mask get_const_cpuid_mask(const struct kvm_cpuid_entry2 *ent
 	memset(&mask, 0xff, sizeof(mask));
 
 	switch (entry->function) {
+	case 0x1:
+		mask.regs[X86_FEATURE_OSXSAVE.reg] &= ~BIT(X86_FEATURE_OSXSAVE.bit);
+		break;
+	case 0x7:
+		mask.regs[X86_FEATURE_OSPKE.reg] &= ~BIT(X86_FEATURE_OSPKE.bit);
+		break;
 	case 0xd:
 		/*
 		 * CPUID.0xD.{0,1}.EBX enumerate XSAVE size based on the current
