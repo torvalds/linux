@@ -393,8 +393,6 @@ struct btrfs_backref_cache {
 	 * level blocks may not reflect the new location
 	 */
 	struct list_head pending[BTRFS_MAX_LEVEL];
-	/* List of detached backref node. */
-	struct list_head detached;
 
 	u64 last_trans;
 

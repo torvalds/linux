@@ -3022,7 +3022,6 @@ void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
 	cache->rb_root = RB_ROOT;
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++)
 		INIT_LIST_HEAD(&cache->pending[i]);
-	INIT_LIST_HEAD(&cache->detached);
 	INIT_LIST_HEAD(&cache->pending_edge);
 	INIT_LIST_HEAD(&cache->useless_node);
 	cache->fs_info = fs_info;
@@ -3159,7 +3158,6 @@ void btrfs_backref_release_cache(struct btrfs_backref_cache *cache)
 
 	ASSERT(list_empty(&cache->pending_edge));
 	ASSERT(list_empty(&cache->useless_node));
-	ASSERT(list_empty(&cache->detached));
 	ASSERT(!cache->nr_nodes);
 	ASSERT(!cache->nr_edges);
 }

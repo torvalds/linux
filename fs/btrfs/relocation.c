@@ -367,7 +367,6 @@ static bool handle_useless_nodes(struct reloc_control *rc,
 		 * cache to avoid unnecessary backref lookup.
 		 */
 		if (cur->level > 0) {
-			list_add(&cur->list, &cache->detached);
 			cur->detached = 1;
 		} else {
 			rb_erase(&cur->rb_node, &cache->rb_root);
