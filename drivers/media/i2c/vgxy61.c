@@ -1617,7 +1617,7 @@ static int vgxy61_detect(struct vgxy61_dev *sensor)
 
 	ret = cci_read(sensor->regmap, VGXY61_REG_NVM, &st, NULL);
 	if (ret < 0)
-		return st;
+		return ret;
 	if (st != VGXY61_NVM_OK)
 		dev_warn(&client->dev, "Bad nvm state got %u\n", (u8)st);
 
