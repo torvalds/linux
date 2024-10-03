@@ -798,6 +798,8 @@ static int th1520_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	struct th1520_pinctrl *thp = pinctrl_dev_get_drvdata(pctldev);
 	const struct function_desc *func = pinmux_generic_get_function(pctldev, fsel);
 
+	if (!func)
+		return -EINVAL;
 	return th1520_pinmux_set(thp, thp->desc.pins[gsel].number,
 				 (uintptr_t)thp->desc.pins[gsel].drv_data & TH1520_PAD_MUXDATA,
 				 (uintptr_t)func->data);
