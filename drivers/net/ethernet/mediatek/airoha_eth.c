@@ -2787,7 +2787,7 @@ MODULE_DEVICE_TABLE(of, of_airoha_match);
 
 static struct platform_driver airoha_driver = {
 	.probe = airoha_probe,
-	.remove_new = airoha_remove,
+	.remove = airoha_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_airoha_match,

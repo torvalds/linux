@@ -7774,7 +7774,7 @@ MODULE_DEVICE_TABLE(acpi, mvpp2_acpi_match);
 
 static struct platform_driver mvpp2_driver = {
 	.probe = mvpp2_probe,
-	.remove_new = mvpp2_remove,
+	.remove = mvpp2_remove,
 	.driver = {
 		.name = MVPP2_DRIVER_NAME,
 		.of_match_table = mvpp2_match,

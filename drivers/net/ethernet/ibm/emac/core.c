@@ -3241,7 +3241,7 @@ static struct platform_driver emac_driver = {
 		.of_match_table = emac_match,
 	},
 	.probe = emac_probe,
-	.remove_new = emac_remove,
+	.remove = emac_remove,
 };
 
 static void __init emac_make_bootlist(void)

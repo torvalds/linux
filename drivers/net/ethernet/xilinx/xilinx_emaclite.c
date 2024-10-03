@@ -1257,7 +1257,7 @@ static struct platform_driver xemaclite_of_driver = {
 		.of_match_table = xemaclite_of_match,
 	},
 	.probe		= xemaclite_of_probe,
-	.remove_new	= xemaclite_of_remove,
+	.remove		= xemaclite_of_remove,
 };
 
 module_platform_driver(xemaclite_of_driver);

@@ -300,7 +300,7 @@ static struct platform_driver rgmii_driver = {
 		.of_match_table = rgmii_match,
 	},
 	.probe = rgmii_probe,
-	.remove_new = rgmii_remove,
+	.remove = rgmii_remove,
 };
 
 int __init rgmii_init(void)

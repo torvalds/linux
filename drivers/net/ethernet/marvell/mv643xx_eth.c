@@ -2888,7 +2888,7 @@ static void mv643xx_eth_shared_remove(struct platform_device *pdev)
 
 static struct platform_driver mv643xx_eth_shared_driver = {
 	.probe		= mv643xx_eth_shared_probe,
-	.remove_new	= mv643xx_eth_shared_remove,
+	.remove		= mv643xx_eth_shared_remove,
 	.driver = {
 		.name	= MV643XX_ETH_SHARED_NAME,
 		.of_match_table = of_match_ptr(mv643xx_eth_shared_ids),
@@ -3293,7 +3293,7 @@ static void mv643xx_eth_shutdown(struct platform_device *pdev)
 
 static struct platform_driver mv643xx_eth_driver = {
 	.probe		= mv643xx_eth_probe,
-	.remove_new	= mv643xx_eth_remove,
+	.remove		= mv643xx_eth_remove,
 	.shutdown	= mv643xx_eth_shutdown,
 	.driver = {
 		.name	= MV643XX_ETH_NAME,

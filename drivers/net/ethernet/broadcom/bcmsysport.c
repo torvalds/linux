@@ -2899,7 +2899,7 @@ static SIMPLE_DEV_PM_OPS(bcm_sysport_pm_ops,
 
 static struct platform_driver bcm_sysport_driver = {
 	.probe	= bcm_sysport_probe,
-	.remove_new = bcm_sysport_remove,
+	.remove = bcm_sysport_remove,
 	.driver =  {
 		.name = "brcm-systemport",
 		.of_match_table = bcm_sysport_of_match,
