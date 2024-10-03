@@ -382,6 +382,11 @@ int i2c_dw_fw_parse_and_configure(struct dw_i2c_dev *dev)
 
 	i2c_parse_fw_timings(device, t, false);
 
+	if (device_property_read_u32(device, "snps,bus-capacitance-pf", &dev->bus_capacitance_pF))
+		dev->bus_capacitance_pF = 100;
+
+	dev->clk_freq_optimized = device_property_read_bool(device, "snps,clk-freq-optimized");
+
 	i2c_dw_adjust_bus_speed(dev);
 
 	if (is_of_node(fwnode))
