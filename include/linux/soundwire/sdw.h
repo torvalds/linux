@@ -344,6 +344,9 @@ struct sdw_dpn_prop {
 
 /**
  * struct sdw_slave_prop - SoundWire Slave properties
+ * @dp0_prop: Data Port 0 properties
+ * @src_dpn_prop: Source Data Port N properties
+ * @sink_dpn_prop: Sink Data Port N properties
  * @mipi_revision: Spec version of the implementation
  * @wake_capable: Wake-up events are supported
  * @test_mode_capable: If test mode is supported
@@ -360,15 +363,12 @@ struct sdw_dpn_prop {
  * SCP_AddrPage2
  * @bank_delay_support: Slave implements bank delay/bridge support registers
  * SCP_BankDelay and SCP_NextFrame
+ * @lane_control_support: Slave supports lane control
  * @p15_behave: Slave behavior when the Master attempts a read to the Port15
  * alias
- * @lane_control_support: Slave supports lane control
  * @master_count: Number of Masters present on this Slave
  * @source_ports: Bitmap identifying source ports
  * @sink_ports: Bitmap identifying sink ports
- * @dp0_prop: Data Port 0 properties
- * @src_dpn_prop: Source Data Port N properties
- * @sink_dpn_prop: Sink Data Port N properties
  * @scp_int1_mask: SCP_INT1_MASK desired settings
  * @quirks: bitmask identifying deltas from the MIPI specification
  * @clock_reg_supported: the Peripheral implements the clock base and scale
@@ -377,6 +377,9 @@ struct sdw_dpn_prop {
  * @use_domain_irq: call actual IRQ handler on slave, as well as callback
  */
 struct sdw_slave_prop {
+	struct sdw_dp0_prop *dp0_prop;
+	struct sdw_dpn_prop *src_dpn_prop;
+	struct sdw_dpn_prop *sink_dpn_prop;
 	u32 mipi_revision;
 	bool wake_capable;
 	bool test_mode_capable;
@@ -388,16 +391,13 @@ struct sdw_slave_prop {
 	bool high_PHY_capable;
 	bool paging_support;
 	bool bank_delay_support;
-	enum sdw_p15_behave p15_behave;
 	bool lane_control_support;
+	enum sdw_p15_behave p15_behave;
 	u32 master_count;
 	u32 source_ports;
 	u32 sink_ports;
-	struct sdw_dp0_prop *dp0_prop;
-	struct sdw_dpn_prop *src_dpn_prop;
-	struct sdw_dpn_prop *sink_dpn_prop;
-	u8 scp_int1_mask;
 	u32 quirks;
+	u8 scp_int1_mask;
 	bool clock_reg_supported;
 	bool use_domain_irq;
 };
