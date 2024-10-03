@@ -107,6 +107,22 @@ config QCOM_DCC_V2
          driver provides interface to configure DCC block and read back
          captured data from DCC's internal SRAM.
 
+config MSM_SPM
+        bool "Driver support for SPM and AVS wrapper hardware"
+        help
+          Enables the support for SPM and AVS wrapper hardware on MSMs. SPM
+          hardware is used to manage the processor power during sleep. The
+          driver allows configuring SPM to allow different low power modes for
+          both core and L2.
+
+config MSM_L2_SPM
+        bool "SPM support for L2 cache"
+        help
+          Enable SPM driver support for L2 cache. Some MSM chipsets allow
+          control of L2 cache low power mode with a Subsystem Power manager.
+          Enabling this driver allows configuring L2 SPM for low power modes
+          on supported chipsets.
+
 config QCOM_GENI_SE
 	tristate "QCOM GENI Serial Engine Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
