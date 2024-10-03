@@ -1507,30 +1507,6 @@ int dm_cache_load_mappings(struct dm_cache_metadata *cmd,
 	return r;
 }
 
-static int __dump_mapping(void *context, uint64_t cblock, void *leaf)
-{
-	__le64 value;
-	dm_oblock_t oblock;
-	unsigned int flags;
-
-	memcpy(&value, leaf, sizeof(value));
-	unpack_value(value, &oblock, &flags);
-
-	return 0;
-}
-
-static int __dump_mappings(struct dm_cache_metadata *cmd)
-{
-	return dm_array_walk(&cmd->info, cmd->root, __dump_mapping, NULL);
-}
-
-void dm_cache_dump(struct dm_cache_metadata *cmd)
-{
-	READ_LOCK_VOID(cmd);
-	__dump_mappings(cmd);
-	READ_UNLOCK(cmd);
-}
-
 int dm_cache_changed_this_transaction(struct dm_cache_metadata *cmd)
 {
 	int r;

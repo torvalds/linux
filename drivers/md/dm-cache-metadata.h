@@ -123,8 +123,6 @@ int dm_cache_get_free_metadata_block_count(struct dm_cache_metadata *cmd,
 int dm_cache_get_metadata_dev_size(struct dm_cache_metadata *cmd,
 				   dm_block_t *result);
 
-void dm_cache_dump(struct dm_cache_metadata *cmd);
-
 /*
  * The policy is invited to save a 32bit hint value for every cblock (eg,
  * for a hit count).  These are stored against the policy name.  If
