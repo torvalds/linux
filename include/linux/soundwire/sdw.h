@@ -406,13 +406,14 @@ struct sdw_slave_prop {
 
 /**
  * struct sdw_master_prop - Master properties
+ * @clk_gears: Clock gears supported
+ * @clk_freq: Clock frequencies supported, in Hz
+ * @quirks: bitmask identifying optional behavior beyond the scope of the MIPI specification
  * @revision: MIPI spec version of the implementation
  * @clk_stop_modes: Bitmap, bit N set when clock-stop-modeN supported
  * @max_clk_freq: Maximum Bus clock frequency, in Hz
  * @num_clk_gears: Number of clock gears supported
- * @clk_gears: Clock gears supported
  * @num_clk_freq: Number of clock frequencies supported, in Hz
- * @clk_freq: Clock frequencies supported, in Hz
  * @default_frame_rate: Controller default Frame rate, in Hz
  * @default_row: Number of rows
  * @default_col: Number of columns
@@ -421,24 +422,23 @@ struct sdw_slave_prop {
  * command
  * @mclk_freq: clock reference passed to SoundWire Master, in Hz.
  * @hw_disabled: if true, the Master is not functional, typically due to pin-mux
- * @quirks: bitmask identifying optional behavior beyond the scope of the MIPI specification
  */
 struct sdw_master_prop {
+	u32 *clk_gears;
+	u32 *clk_freq;
+	u64 quirks;
 	u32 revision;
 	u32 clk_stop_modes;
 	u32 max_clk_freq;
 	u32 num_clk_gears;
-	u32 *clk_gears;
 	u32 num_clk_freq;
-	u32 *clk_freq;
 	u32 default_frame_rate;
 	u32 default_row;
 	u32 default_col;
-	bool dynamic_frame;
 	u32 err_threshold;
 	u32 mclk_freq;
+	bool dynamic_frame;
 	bool hw_disabled;
-	u64 quirks;
 };
 
 /* Definitions for Master quirks */
