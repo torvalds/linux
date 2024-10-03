@@ -17,6 +17,7 @@ properties:
     enum:
       - qcom,sc7280-dpu
       - qcom,sc8280xp-dpu
+      - qcom,sm8350-dpu
 
   reg:
     items:
