@@ -288,6 +288,7 @@ struct sdw_dpn_audio_mode {
 
 /**
  * struct sdw_dpn_prop - Data Port DPn properties
+ * @audio_modes: Audio modes supported
  * @num: port number
  * @max_word: Maximum number of bits in a Payload Channel Sample, 1 to 64
  * (inclusive)
@@ -298,26 +299,26 @@ struct sdw_dpn_audio_mode {
  * @type: Data port type. Full, Simplified or Reduced
  * @max_grouping: Maximum number of samples that can be grouped together for
  * a full data port
- * @simple_ch_prep_sm: If the port supports simplified channel prepare state
- * machine
  * @ch_prep_timeout: Port-specific timeout value, in milliseconds
  * @imp_def_interrupts: If set, each bit corresponds to support for
  * implementation-defined interrupts
  * @max_ch: Maximum channels supported
  * @min_ch: Minimum channels supported
  * @num_channels: Number of discrete channels supported
- * @channels: Discrete channels supported
  * @num_ch_combinations: Number of channel combinations supported
+ * @channels: Discrete channels supported
  * @ch_combinations: Channel combinations supported
  * @modes: SDW mode supported
  * @max_async_buffer: Number of samples that this port can buffer in
  * asynchronous modes
+ * @port_encoding: Payload Channel Sample encoding schemes supported
  * @block_pack_mode: Type of block port mode supported
  * @read_only_wordlength: Read Only wordlength field in DPN_BlockCtrl1 register
- * @port_encoding: Payload Channel Sample encoding schemes supported
- * @audio_modes: Audio modes supported
+ * @simple_ch_prep_sm: If the port supports simplified channel prepare state
+ * machine
  */
 struct sdw_dpn_prop {
+	struct sdw_dpn_audio_mode *audio_modes;
 	u32 num;
 	u32 max_word;
 	u32 min_word;
@@ -325,21 +326,20 @@ struct sdw_dpn_prop {
 	u32 *words;
 	enum sdw_dpn_type type;
 	u32 max_grouping;
-	bool simple_ch_prep_sm;
 	u32 ch_prep_timeout;
 	u32 imp_def_interrupts;
 	u32 max_ch;
 	u32 min_ch;
 	u32 num_channels;
-	u32 *channels;
 	u32 num_ch_combinations;
+	u32 *channels;
 	u32 *ch_combinations;
 	u32 modes;
 	u32 max_async_buffer;
+	u32 port_encoding;
 	bool block_pack_mode;
 	bool read_only_wordlength;
-	u32 port_encoding;
-	struct sdw_dpn_audio_mode *audio_modes;
+	bool simple_ch_prep_sm;
 };
 
 /**
