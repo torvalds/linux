@@ -9469,6 +9469,14 @@ M:	Kieran Bingham <kbingham@kernel.org>
 S:	Supported
 F:	scripts/gdb/
 
+GE HEALTHCARE PMC ADC DRIVER
+M:	Herve Codina <herve.codina@bootlin.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/adc/gehc,pmc-adc.yaml
+F:	drivers/iio/adc/gehc-pmc-adc.c
+F:	include/dt-bindings/iio/adc/gehc,pmc-adc.h
+
 GEMINI CRYPTO DRIVER
 M:	Corentin Labbe <clabbe@baylibre.com>
 L:	linux-crypto@vger.kernel.org
