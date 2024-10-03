@@ -14061,8 +14061,6 @@ void cfg80211_free_coalesce(struct cfg80211_coalesce *coalesce)
 
 	for (i = 0; i < coalesce->n_rules; i++) {
 		rule = &coalesce->rules[i];
-		if (!rule)
-			continue;
 		for (j = 0; j < rule->n_patterns; j++)
 			kfree(rule->patterns[j].mask);
 		kfree(rule->patterns);
