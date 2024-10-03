@@ -496,8 +496,8 @@ static void arm_spe__synth_data_source_neoverse(const struct arm_spe_record *rec
 	}
 }
 
-static void arm_spe__synth_data_source_generic(const struct arm_spe_record *record,
-					       union perf_mem_data_src *data_src)
+static void arm_spe__synth_memory_level(const struct arm_spe_record *record,
+					union perf_mem_data_src *data_src)
 {
 	if (record->type & (ARM_SPE_LLC_ACCESS | ARM_SPE_LLC_MISS)) {
 		data_src->mem_lvl = PERF_MEM_LVL_L3;
@@ -534,7 +534,7 @@ static u64 arm_spe__synth_data_source(const struct arm_spe_record *record, u64 m
 	if (is_neoverse)
 		arm_spe__synth_data_source_neoverse(record, &data_src);
 	else
-		arm_spe__synth_data_source_generic(record, &data_src);
+		arm_spe__synth_memory_level(record, &data_src);
 
 	if (record->type & (ARM_SPE_TLB_ACCESS | ARM_SPE_TLB_MISS)) {
 		data_src.mem_dtlb = PERF_MEM_TLB_WK;
