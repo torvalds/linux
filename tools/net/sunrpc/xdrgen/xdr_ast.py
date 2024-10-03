@@ -51,12 +51,16 @@ class _XdrTypeSpecifier(_XdrAst):
     """Corresponds to 'type_specifier' in the XDR language grammar"""
 
     type_name: str
-    c_classifier: str
+    c_classifier: str = ""
 
 
 @dataclass
 class _XdrDefinedType(_XdrTypeSpecifier):
     """Corresponds to a type defined by the input specification"""
+
+    def __post_init__(self):
+        if self.type_name in structs:
+            self.c_classifier = "struct "
 
 
 @dataclass
@@ -124,6 +128,10 @@ class _XdrOptionalData(_XdrDeclaration):
     spec: _XdrTypeSpecifier
     template: str = "optional_data"
 
+    def __post_init__(self):
+        structs.add(self.name)
+        pass_by_reference.add(self.name)
+
 
 @dataclass
 class _XdrBasic(_XdrDeclaration):
@@ -174,6 +182,10 @@ class _XdrStruct(_XdrAst):
     name: str
     fields: List[_XdrDeclaration]
 
+    def __post_init__(self):
+        structs.add(self.name)
+        pass_by_reference.add(self.name)
+
 
 @dataclass
 class _XdrPointer(_XdrAst):
@@ -182,12 +194,25 @@ class _XdrPointer(_XdrAst):
     name: str
     fields: List[_XdrDeclaration]
 
+    def __post_init__(self):
+        structs.add(self.name)
+        pass_by_reference.add(self.name)
+
 
 @dataclass
 class _XdrTypedef(_XdrAst):
     """An XDR typedef"""
 
     declaration: _XdrDeclaration
+
+    def __post_init__(self):
+        if not isinstance(self.declaration, _XdrBasic):
+            return
+
+        new_type = self.declaration
+        if isinstance(new_type.spec, _XdrDefinedType):
+            if new_type.spec.type_name in pass_by_reference:
+                pass_by_reference.add(new_type.name)
 
 
 @dataclass
@@ -215,6 +240,10 @@ class _XdrUnion(_XdrAst):
     discriminant: _XdrDeclaration
     cases: List[_XdrCaseSpec]
     default: _XdrDeclaration
+
+    def __post_init__(self):
+        structs.add(self.name)
+        pass_by_reference.add(self.name)
 
 
 @dataclass
@@ -290,22 +319,13 @@ class ParseToAst(Transformer):
         return _XdrConstantValue(value)
 
     def type_specifier(self, children):
-        """Instantiate one type_specifier object"""
-        c_classifier = ""
+        """Instantiate one _XdrTypeSpecifier object"""
         if isinstance(children[0], _XdrIdentifier):
             name = children[0].symbol
-            if name in structs:
-                c_classifier = "struct "
-            return _XdrDefinedType(
-                type_name=name,
-                c_classifier=c_classifier,
-            )
+            return _XdrDefinedType(type_name=name)
 
         name = children[0].data.value
-        return _XdrBuiltInType(
-            type_name=name,
-            c_classifier=c_classifier,
-        )
+        return _XdrBuiltInType(type_name=name)
 
     def constant_def(self, children):
         """Instantiate one _XdrConstant object"""
@@ -380,8 +400,6 @@ class ParseToAst(Transformer):
         """Instantiate one _XdrOptionalData declaration object"""
         spec = children[0]
         name = children[1].symbol
-        structs.add(name)
-        pass_by_reference.add(name)
 
         return _XdrOptionalData(name, spec)
 
@@ -400,8 +418,6 @@ class ParseToAst(Transformer):
     def struct(self, children):
         """Instantiate one _XdrStruct object"""
         name = children[0].symbol
-        structs.add(name)
-        pass_by_reference.add(name)
         fields = children[1].children
 
         last_field = fields[-1]
@@ -416,11 +432,6 @@ class ParseToAst(Transformer):
     def typedef(self, children):
         """Instantiate one _XdrTypedef object"""
         new_type = children[0]
-        if isinstance(new_type, _XdrBasic) and isinstance(
-            new_type.spec, _XdrDefinedType
-        ):
-            if new_type.spec.type_name in pass_by_reference:
-                pass_by_reference.add(new_type.name)
 
         return _XdrTypedef(new_type)
 
@@ -442,8 +453,6 @@ class ParseToAst(Transformer):
     def union(self, children):
         """Instantiate one _XdrUnion object"""
         name = children[0].symbol
-        structs.add(name)
-        pass_by_reference.add(name)
 
         body = children[1]
         discriminant = body.children[0].children[0]
