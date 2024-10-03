@@ -344,6 +344,7 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	struct device *dev = &slave->dev;
 	struct fwnode_handle *port;
 	int nval;
+	int ret;
 
 	device_property_read_u32(dev, "mipi-sdw-sw-interface-revision",
 				 &prop->mipi_revision);
@@ -366,8 +367,11 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	device_property_read_u32(dev, "mipi-sdw-clockstopprepare-timeout",
 				 &prop->clk_stop_timeout);
 
-	device_property_read_u32(dev, "mipi-sdw-slave-channelprepare-timeout",
-				 &prop->ch_prep_timeout);
+	ret = device_property_read_u32(dev, "mipi-sdw-peripheral-channelprepare-timeout",
+				       &prop->ch_prep_timeout);
+	if (ret < 0)
+		device_property_read_u32(dev, "mipi-sdw-slave-channelprepare-timeout",
+					 &prop->ch_prep_timeout);
 
 	device_property_read_u32(dev,
 			"mipi-sdw-clockstopprepare-hard-reset-behavior",
