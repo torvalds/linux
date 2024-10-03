@@ -238,6 +238,8 @@ enum sdw_clk_stop_mode {
  * @simple_ch_prep_sm: If channel prepare sequence is required
  * @imp_def_interrupts: If set, each bit corresponds to support for
  * implementation-defined interrupts
+ * @num_lanes: array size of @lane_list
+ * @lane_list: indicates which Lanes can be used by DP0
  *
  * The wordlengths are specified by Spec as max, min AND number of
  * discrete values, implementation can define based on the wordlengths they
@@ -252,6 +254,8 @@ struct sdw_dp0_prop {
 	bool BRA_flow_controlled;
 	bool simple_ch_prep_sm;
 	bool imp_def_interrupts;
+	int num_lanes;
+	u32 *lane_list;
 };
 
 /**
@@ -275,6 +279,8 @@ struct sdw_dp0_prop {
  * @num_ch_combinations: Number of channel combinations supported
  * @channels: Discrete channels supported
  * @ch_combinations: Channel combinations supported
+ * @lane_list: indicates which Lanes can be used by DPn
+ * @num_lanes: array size of @lane_list
  * @modes: SDW mode supported
  * @max_async_buffer: Number of samples that this port can buffer in
  * asynchronous modes
@@ -300,6 +306,8 @@ struct sdw_dpn_prop {
 	u32 num_ch_combinations;
 	u32 *channels;
 	u32 *ch_combinations;
+	u32 *lane_list;
+	int num_lanes;
 	u32 modes;
 	u32 max_async_buffer;
 	u32 port_encoding;

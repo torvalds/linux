@@ -197,6 +197,22 @@ static int sdw_slave_read_dp0(struct sdw_slave *slave,
 	dp0->imp_def_interrupts = mipi_fwnode_property_read_bool(port,
 				"mipi-sdw-imp-def-dp0-interrupts-supported");
 
+	nval = fwnode_property_count_u32(port, "mipi-sdw-lane-list");
+	if (nval > 0) {
+		dp0->num_lanes = nval;
+		dp0->lane_list = devm_kcalloc(&slave->dev,
+					      dp0->num_lanes, sizeof(*dp0->lane_list),
+					      GFP_KERNEL);
+		if (!dp0->lane_list)
+			return -ENOMEM;
+
+		ret = fwnode_property_read_u32_array(port,
+					       "mipi-sdw-lane-list",
+					       dp0->lane_list, dp0->num_lanes);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -325,6 +341,22 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 
 		fwnode_property_read_u32(node, "mipi-sdw-port-encoding-type",
 					 &dpn[i].port_encoding);
+
+		nval = fwnode_property_count_u32(node, "mipi-sdw-lane-list");
+		if (nval > 0) {
+			dpn[i].num_lanes = nval;
+			dpn[i].lane_list = devm_kcalloc(&slave->dev,
+							dpn[i].num_lanes, sizeof(*dpn[i].lane_list),
+							GFP_KERNEL);
+			if (!dpn[i].lane_list)
+				return -ENOMEM;
+
+			ret = fwnode_property_read_u32_array(node,
+						       "mipi-sdw-lane-list",
+						       dpn[i].lane_list, dpn[i].num_lanes);
+			if (ret < 0)
+				return ret;
+		}
 
 		fwnode_handle_put(node);
 
