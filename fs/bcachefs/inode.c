@@ -1244,8 +1244,9 @@ next_parent:
 	if (!unlinked)
 		return 0;
 
-	if (bch2_inode_is_open(trans->c, pos))
-		return 0;
+	ret = lockrestart_do(trans, bch2_inode_or_descendents_is_open(trans, pos));
+	if (ret)
+		return ret < 0 ? ret : 0;
 
 	ret = __bch2_inode_rm_snapshot(trans, pos.offset, pos.snapshot);
 	if (ret)

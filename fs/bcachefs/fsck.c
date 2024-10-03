@@ -1213,7 +1213,11 @@ static int check_inode(struct btree_trans *trans,
 			if (ret)
 				goto err;
 		} else {
-			if (fsck_err_on(!bch2_inode_is_open(c, k.k->p),
+			ret = bch2_inode_or_descendents_is_open(trans, k.k->p);
+			if (ret < 0)
+				goto err;
+
+			if (fsck_err_on(!ret,
 					trans, inode_unlinked_and_not_open,
 				      "inode %llu%u unlinked and not open",
 				      u.bi_inum, u.bi_snapshot)) {
@@ -1221,6 +1225,7 @@ static int check_inode(struct btree_trans *trans,
 				bch_err_msg(c, ret, "in fsck deleting inode");
 				goto err_noprint;
 			}
+			ret = 0;
 		}
 	}
 
