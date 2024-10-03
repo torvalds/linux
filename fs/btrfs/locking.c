@@ -162,21 +162,6 @@ int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 }
 
 /*
- * Try-lock for write.
- *
- * Return 1 if the rwlock has been taken, 0 otherwise
- */
-int btrfs_try_tree_write_lock(struct extent_buffer *eb)
-{
-	if (down_write_trylock(&eb->lock)) {
-		btrfs_set_eb_lock_owner(eb, current->pid);
-		trace_btrfs_try_tree_write_lock(eb);
-		return 1;
-	}
-	return 0;
-}
-
-/*
  * Release read lock.
  */
 void btrfs_tree_read_unlock(struct extent_buffer *eb)
