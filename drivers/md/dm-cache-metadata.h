@@ -71,7 +71,6 @@ void dm_cache_metadata_close(struct dm_cache_metadata *cmd);
  * origin blocks to map to.
  */
 int dm_cache_resize(struct dm_cache_metadata *cmd, dm_cblock_t new_cache_size);
-int dm_cache_size(struct dm_cache_metadata *cmd, dm_cblock_t *result);
 
 int dm_cache_discard_bitset_resize(struct dm_cache_metadata *cmd,
 				   sector_t discard_block_size,

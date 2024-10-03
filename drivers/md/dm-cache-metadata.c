@@ -1218,15 +1218,6 @@ int dm_cache_load_discards(struct dm_cache_metadata *cmd,
 	return r;
 }
 
-int dm_cache_size(struct dm_cache_metadata *cmd, dm_cblock_t *result)
-{
-	READ_LOCK(cmd);
-	*result = cmd->cache_blocks;
-	READ_UNLOCK(cmd);
-
-	return 0;
-}
-
 static int __remove(struct dm_cache_metadata *cmd, dm_cblock_t cblock)
 {
 	int r;
