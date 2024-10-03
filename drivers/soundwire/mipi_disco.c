@@ -23,6 +23,26 @@
 #include <linux/soundwire/sdw.h>
 #include "bus.h"
 
+static bool mipi_fwnode_property_read_bool(const struct fwnode_handle *fwnode,
+					   const char *propname)
+{
+	int ret;
+	u8 val;
+
+	if (!fwnode_property_present(fwnode, propname))
+		return false;
+	ret = fwnode_property_read_u8_array(fwnode, propname, &val, 1);
+	if (ret < 0)
+		return false;
+	return !!val;
+}
+
+static bool mipi_device_property_read_bool(const struct device *dev,
+					   const char *propname)
+{
+	return mipi_fwnode_property_read_bool(dev_fwnode(dev), propname);
+}
+
 /**
  * sdw_master_read_prop() - Read Master properties
  * @bus: SDW bus instance
@@ -48,11 +68,11 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 		return -EIO;
 	}
 
-	if (fwnode_property_read_bool(link,
+	if (mipi_fwnode_property_read_bool(link,
 				      "mipi-sdw-clock-stop-mode0-supported"))
 		prop->clk_stop_modes |= BIT(SDW_CLK_STOP_MODE0);
 
-	if (fwnode_property_read_bool(link,
+	if (mipi_fwnode_property_read_bool(link,
 				      "mipi-sdw-clock-stop-mode1-supported"))
 		prop->clk_stop_modes |= BIT(SDW_CLK_STOP_MODE1);
 
@@ -114,7 +134,7 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 	fwnode_property_read_u32(link, "mipi-sdw-default-frame-col-size",
 				 &prop->default_col);
 
-	prop->dynamic_frame =  fwnode_property_read_bool(link,
+	prop->dynamic_frame =  mipi_fwnode_property_read_bool(link,
 			"mipi-sdw-dynamic-frame-shape");
 
 	fwnode_property_read_u32(link, "mipi-sdw-command-error-threshold",
@@ -153,13 +173,13 @@ static int sdw_slave_read_dp0(struct sdw_slave *slave,
 				dp0->words, dp0->num_words);
 	}
 
-	dp0->BRA_flow_controlled = fwnode_property_read_bool(port,
+	dp0->BRA_flow_controlled = mipi_fwnode_property_read_bool(port,
 				"mipi-sdw-bra-flow-controlled");
 
-	dp0->simple_ch_prep_sm = fwnode_property_read_bool(port,
+	dp0->simple_ch_prep_sm = mipi_fwnode_property_read_bool(port,
 				"mipi-sdw-simplified-channel-prepare-sm");
 
-	dp0->imp_def_interrupts = fwnode_property_read_bool(port,
+	dp0->imp_def_interrupts = mipi_fwnode_property_read_bool(port,
 				"mipi-sdw-imp-def-dp0-interrupts-supported");
 
 	return 0;
@@ -220,7 +240,7 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 					 "mipi-sdw-max-grouping-supported",
 					 &dpn[i].max_grouping);
 
-		dpn[i].simple_ch_prep_sm = fwnode_property_read_bool(node,
+		dpn[i].simple_ch_prep_sm = mipi_fwnode_property_read_bool(node,
 				"mipi-sdw-simplified-channelprepare-sm");
 
 		fwnode_property_read_u32(node,
@@ -278,7 +298,7 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 		fwnode_property_read_u32(node, "mipi-sdw-max-async-buffer",
 					 &dpn[i].max_async_buffer);
 
-		dpn[i].block_pack_mode = fwnode_property_read_bool(node,
+		dpn[i].block_pack_mode = mipi_fwnode_property_read_bool(node,
 				"mipi-sdw-block-packing-mode");
 
 		fwnode_property_read_u32(node, "mipi-sdw-port-encoding-type",
@@ -308,19 +328,19 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 	device_property_read_u32(dev, "mipi-sdw-sw-interface-revision",
 				 &prop->mipi_revision);
 
-	prop->wake_capable = device_property_read_bool(dev,
+	prop->wake_capable = mipi_device_property_read_bool(dev,
 				"mipi-sdw-wake-up-unavailable");
 	prop->wake_capable = !prop->wake_capable;
 
-	prop->test_mode_capable = device_property_read_bool(dev,
+	prop->test_mode_capable = mipi_device_property_read_bool(dev,
 				"mipi-sdw-test-mode-supported");
 
 	prop->clk_stop_mode1 = false;
-	if (device_property_read_bool(dev,
+	if (mipi_device_property_read_bool(dev,
 				"mipi-sdw-clock-stop-mode1-supported"))
 		prop->clk_stop_mode1 = true;
 
-	prop->simple_clk_stop_capable = device_property_read_bool(dev,
+	prop->simple_clk_stop_capable = mipi_device_property_read_bool(dev,
 			"mipi-sdw-simplified-clockstopprepare-sm-supported");
 
 	device_property_read_u32(dev, "mipi-sdw-clockstopprepare-timeout",
@@ -333,13 +353,13 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 			"mipi-sdw-clockstopprepare-hard-reset-behavior",
 			&prop->reset_behave);
 
-	prop->high_PHY_capable = device_property_read_bool(dev,
+	prop->high_PHY_capable = mipi_device_property_read_bool(dev,
 			"mipi-sdw-highPHY-capable");
 
-	prop->paging_support = device_property_read_bool(dev,
+	prop->paging_support = mipi_device_property_read_bool(dev,
 			"mipi-sdw-paging-support");
 
-	prop->bank_delay_support = device_property_read_bool(dev,
+	prop->bank_delay_support = mipi_device_property_read_bool(dev,
 			"mipi-sdw-bank-delay-support");
 
 	device_property_read_u32(dev,
