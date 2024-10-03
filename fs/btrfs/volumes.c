@@ -5963,24 +5963,6 @@ unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 	return len;
 }
 
-int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
-{
-	struct btrfs_chunk_map *map;
-	int ret = 0;
-
-	if (!btrfs_fs_incompat(fs_info, RAID56))
-		return 0;
-
-	map = btrfs_get_chunk_map(fs_info, logical, len);
-
-	if (!WARN_ON(IS_ERR(map))) {
-		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
-			ret = 1;
-		btrfs_free_chunk_map(map);
-	}
-	return ret;
-}
-
 static int find_live_mirror(struct btrfs_fs_info *fs_info,
 			    struct btrfs_chunk_map *map, int first,
 			    int dev_replace_is_ongoing)
