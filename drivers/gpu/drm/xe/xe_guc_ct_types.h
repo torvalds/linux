@@ -52,8 +52,6 @@ struct guc_ctb {
 struct guc_ctb_snapshot {
 	/** @desc: snapshot of the CTB descriptor */
 	struct guc_ct_buffer_desc desc;
-	/** @cmds: snapshot of the CTB commands */
-	u32 *cmds;
 	/** @info: snapshot of the CTB info */
 	struct guc_ctb_info info;
 };
@@ -70,6 +68,10 @@ struct xe_guc_ct_snapshot {
 	struct guc_ctb_snapshot g2h;
 	/** @h2g: H2G CTB snapshot */
 	struct guc_ctb_snapshot h2g;
+	/** @ctb_size: size of the snapshot of the CTB */
+	size_t ctb_size;
+	/** @ctb: snapshot of the entire CTB */
+	u32 *ctb;
 };
 
 /**
