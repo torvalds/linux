@@ -1529,6 +1529,7 @@ config TI_AM335X_ADC
 config TI_LMP92064
 	tristate "Texas Instruments LMP92064 ADC driver"
 	depends on SPI
+	select REGMAP_SPI
 	help
 	  Say yes here to build support for the LMP92064 Precision Current and Voltage
 	  sensor.
