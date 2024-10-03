@@ -8,6 +8,7 @@ title: Qualcomm Display DPU on SC7280
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
+  - Neil Armstrong <neil.armstrong@linaro.org>
   - Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
   - Krishna Manikandan <quic_mkrishn@quicinc.com>
 
@@ -20,6 +21,7 @@ properties:
       - qcom,sc8280xp-dpu
       - qcom,sm8350-dpu
       - qcom,sm8450-dpu
+      - qcom,sm8550-dpu
 
   reg:
     items:
