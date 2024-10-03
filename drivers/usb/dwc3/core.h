@@ -1048,10 +1048,8 @@ struct dwc3_scratchpad_array {
  * @usb_psy: pointer to power supply interface.
  * @usb2_phy: pointer to USB2 PHY
  * @usb3_phy: pointer to USB3 PHY
- * @usb2_generic_phy: pointer to array of USB2 PHYs
- * @usb3_generic_phy: pointer to array of USB3 PHYs
- * @num_usb2_ports: number of USB2 ports
- * @num_usb3_ports: number of USB3 ports
+ * @usb2_generic_phy: pointer to USB2 PHY
+ * @usb3_generic_phy: pointer to USB3 PHY
  * @phys_ready: flag to indicate that PHYs are ready
  * @ulpi: pointer to ulpi interface
  * @ulpi_ready: flag to indicate that ULPI is initialized
@@ -1188,11 +1186,8 @@ struct dwc3 {
 	struct usb_phy		*usb2_phy;
 	struct usb_phy		*usb3_phy;
 
-	struct phy		*usb2_generic_phy[DWC3_USB2_MAX_PORTS];
-	struct phy		*usb3_generic_phy[DWC3_USB3_MAX_PORTS];
-
-	u8			num_usb2_ports;
-	u8			num_usb3_ports;
+	struct phy		*usb2_generic_phy;
+	struct phy		*usb3_generic_phy;
 
 	bool			phys_ready;
 
@@ -1375,6 +1370,23 @@ struct dwc3 {
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
+};
+
+/**
+ * struct dwc3_vendor - contains parameters without modifying the format of DWC3 core
+ * @dwc: contains dwc3 core reference
+ * @num_usb2_ports: number of USB2 ports
+ * @num_usb3_ports: number of USB3 ports
+ * @usb2_generic_phy: pointer to array of USB2 PHYs
+ * @usb3_generic_phy: pointer to array of USB3 PHYs
+ */
+struct dwc3_vendor {
+	struct dwc3	dwc;
+	u8		num_usb2_ports;
+	u8		num_usb3_ports;
+
+	struct phy		*usb2_generic_phy[DWC3_USB2_MAX_PORTS];
+	struct phy		*usb3_generic_phy[DWC3_USB3_MAX_PORTS];
 };
 
 #define INCRX_BURST_MODE 0
