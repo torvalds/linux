@@ -2058,97 +2058,72 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 	int index = 0;
 	int ret;
 
-	next = node;
-	while (1) {
-		cond_resched();
-		next = walk_up_backref(next, edges, &index);
-		root = next->root;
+	next = walk_up_backref(node, edges, &index);
+	root = next->root;
 
-		/*
-		 * If there is no root, then our references for this block are
-		 * incomplete, as we should be able to walk all the way up to a
-		 * block that is owned by a root.
-		 *
-		 * This path is only for SHAREABLE roots, so if we come upon a
-		 * non-SHAREABLE root then we have backrefs that resolve
-		 * improperly.
-		 *
-		 * Both of these cases indicate file system corruption, or a bug
-		 * in the backref walking code.
-		 */
-		if (!root) {
-			ASSERT(0);
-			btrfs_err(trans->fs_info,
-		"bytenr %llu doesn't have a backref path ending in a root",
-				  node->bytenr);
-			return ERR_PTR(-EUCLEAN);
-		}
-		if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state)) {
-			ASSERT(0);
-			btrfs_err(trans->fs_info,
-	"bytenr %llu has multiple refs with one ending in a non-shareable root",
-				  node->bytenr);
-			return ERR_PTR(-EUCLEAN);
-		}
+	/*
+	 * If there is no root, then our references for this block are
+	 * incomplete, as we should be able to walk all the way up to a block
+	 * that is owned by a root.
+	 *
+	 * This path is only for SHAREABLE roots, so if we come upon a
+	 * non-SHAREABLE root then we have backrefs that resolve improperly.
+	 *
+	 * Both of these cases indicate file system corruption, or a bug in the
+	 * backref walking code.
+	 */
+	if (unlikely(!root)) {
+		btrfs_err(trans->fs_info,
+			  "bytenr %llu doesn't have a backref path ending in a root",
+			  node->bytenr);
+		return ERR_PTR(-EUCLEAN);
+	}
+	if (unlikely(!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))) {
+		btrfs_err(trans->fs_info,
+			  "bytenr %llu has multiple refs with one ending in a non-shareable root",
+			  node->bytenr);
+		return ERR_PTR(-EUCLEAN);
+	}
 
-		if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) {
-			ret = record_reloc_root_in_trans(trans, root);
-			if (ret)
-				return ERR_PTR(ret);
-			break;
-		}
-
-		ret = btrfs_record_root_in_trans(trans, root);
+	if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) {
+		ret = record_reloc_root_in_trans(trans, root);
 		if (ret)
 			return ERR_PTR(ret);
-		root = root->reloc_root;
-
-		/*
-		 * We could have raced with another thread which failed, so
-		 * root->reloc_root may not be set, return ENOENT in this case.
-		 */
-		if (!root)
-			return ERR_PTR(-ENOENT);
-
-		if (next->new_bytenr != root->node->start) {
-			/*
-			 * We just created the reloc root, so we shouldn't have
-			 * ->new_bytenr set yet. If it is then we have multiple
-			 *  roots pointing at the same bytenr which indicates
-			 *  corruption, or we've made a mistake in the backref
-			 *  walking code.
-			 */
-			ASSERT(next->new_bytenr == 0);
-			if (next->new_bytenr) {
-				btrfs_err(trans->fs_info,
-	"bytenr %llu possibly has multiple roots pointing at the same bytenr %llu",
-					  node->bytenr, next->bytenr);
-				return ERR_PTR(-EUCLEAN);
-			}
-
-			next->new_bytenr = root->node->start;
-			btrfs_put_root(next->root);
-			next->root = btrfs_grab_root(root);
-			ASSERT(next->root);
-			mark_block_processed(rc, next);
-			break;
-		}
-
-		WARN_ON(1);
-		root = NULL;
-		next = walk_down_backref(edges, &index);
-		if (!next || next->level <= node->level)
-			break;
+		goto found;
 	}
-	if (!root) {
-		/*
-		 * This can happen if there's fs corruption or if there's a bug
-		 * in the backref lookup code.
-		 */
-		ASSERT(0);
+
+	ret = btrfs_record_root_in_trans(trans, root);
+	if (ret)
+		return ERR_PTR(ret);
+	root = root->reloc_root;
+
+	/*
+	 * We could have raced with another thread which failed, so
+	 * root->reloc_root may not be set, return ENOENT in this case.
+	 */
+	if (!root)
 		return ERR_PTR(-ENOENT);
+
+	if (next->new_bytenr) {
+		/*
+		 * We just created the reloc root, so we shouldn't have
+		 * ->new_bytenr set yet. If it is then we have multiple roots
+		 *  pointing at the same bytenr which indicates corruption, or
+		 *  we've made a mistake in the backref walking code.
+		 */
+		ASSERT(next->new_bytenr == 0);
+		btrfs_err(trans->fs_info,
+			  "bytenr %llu possibly has multiple roots pointing at the same bytenr %llu",
+			  node->bytenr, next->bytenr);
+		return ERR_PTR(-EUCLEAN);
 	}
 
+	next->new_bytenr = root->node->start;
+	btrfs_put_root(next->root);
+	next->root = btrfs_grab_root(root);
+	ASSERT(next->root);
+	mark_block_processed(rc, next);
+found:
 	next = node;
 	/* setup backref node path for btrfs_reloc_cow_block */
 	while (1) {
