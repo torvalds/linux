@@ -608,6 +608,9 @@ static int wilc_mac_open(struct net_device *ndev)
 		return ret;
 	}
 
+	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
+				vif->idx);
+
 	netdev_dbg(ndev, "Mac address: %pM\n", ndev->dev_addr);
 	ret = wilc_set_mac_address(vif, ndev->dev_addr);
 	if (ret) {
@@ -617,9 +620,6 @@ static int wilc_mac_open(struct net_device *ndev)
 			wilc_wlan_deinitialize(ndev);
 		return ret;
 	}
-
-	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
-				vif->idx);
 
 	mgmt_regs.interface_stypes = vif->mgmt_reg_stypes;
 	/* so we detect a change */
