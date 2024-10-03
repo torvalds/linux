@@ -79,6 +79,11 @@ static void guest_code(void)
 	ASSERT_ALL_OR_NONE_XFEATURE(supported_xcr0,
 				    XFEATURE_MASK_XTILE);
 
+	vector = xsetbv_safe(0, XFEATURE_MASK_FP);
+	__GUEST_ASSERT(!vector,
+		       "Expected success on XSETBV(FP), got vector '0x%x'",
+		       vector);
+
 	vector = xsetbv_safe(0, supported_xcr0);
 	__GUEST_ASSERT(!vector,
 		       "Expected success on XSETBV(0x%lx), got vector '0x%x'",
