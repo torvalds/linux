@@ -246,6 +246,23 @@ class Test(object):
                 return False
         return True
 
+    def restore_sample_rate(self, value=10000):
+        try:
+            # Check value of sample_rate
+            with open("/proc/sys/kernel/perf_event_max_sample_rate", "r") as fIn:
+                curr_value = fIn.readline()
+            # If too low restore to reasonable value
+            if not curr_value or int(curr_value) < int(value):
+                with open("/proc/sys/kernel/perf_event_max_sample_rate", "w") as fOut:
+                    fOut.write(str(value))
+
+        except IOError as e:
+            log.warning("couldn't restore sample_rate value: I/O error %s" % e)
+        except ValueError as e:
+            log.warning("couldn't restore sample_rate value: Value error %s" % e)
+        except TypeError as e:
+            log.warning("couldn't restore sample_rate value: Type error %s" % e)
+
     def load_events(self, path, events):
         parser_event = configparser.ConfigParser()
         parser_event.read(path)
@@ -283,6 +300,7 @@ class Test(object):
         if self.skip_test_kernel_until():
             raise Notest(self, "new kernel skip")
 
+        self.restore_sample_rate()
         cmd = "PERF_TEST_ATTR=%s %s %s -o %s/perf.data %s" % (tempdir,
               self.perf, self.command, tempdir, self.args)
         ret = os.WEXITSTATUS(os.system(cmd))
