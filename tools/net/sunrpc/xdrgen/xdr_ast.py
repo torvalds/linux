@@ -21,6 +21,16 @@ pass_by_reference = set()
 
 constants = {}
 
+
+def xdr_quadlen(val: str) -> int:
+    """Return integer XDR width of an XDR type"""
+    if val in constants:
+        octets = constants[val]
+    else:
+        octets = int(val)
+    return int((octets + 3) / 4)
+
+
 symbolic_widths = {
     "void": ["XDR_void"],
     "bool": ["XDR_bool"],
@@ -116,6 +126,18 @@ class _XdrFixedLengthOpaque(_XdrDeclaration):
     name: str
     size: str
     template: str = "fixed_length_opaque"
+
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        return xdr_quadlen(self.size)
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        return ["XDR_QUADLEN(" + self.size + ")"]
+
+    def __post_init__(self):
+        max_widths[self.name] = self.max_width()
+        symbolic_widths[self.name] = self.symbolic_width()
 
 
 @dataclass
