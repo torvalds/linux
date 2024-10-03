@@ -41,7 +41,7 @@ static size_t
 arm_spe_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 		       struct evlist *evlist __maybe_unused)
 {
-	return ARM_SPE_AUXTRACE_PRIV_SIZE;
+	return ARM_SPE_AUXTRACE_V1_PRIV_SIZE;
 }
 
 static int arm_spe_info_fill(struct auxtrace_record *itr,
@@ -53,7 +53,7 @@ static int arm_spe_info_fill(struct auxtrace_record *itr,
 			container_of(itr, struct arm_spe_recording, itr);
 	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
 
-	if (priv_size != ARM_SPE_AUXTRACE_PRIV_SIZE)
+	if (priv_size != ARM_SPE_AUXTRACE_V1_PRIV_SIZE)
 		return -EINVAL;
 
 	if (!session->evlist->core.nr_mmaps)
