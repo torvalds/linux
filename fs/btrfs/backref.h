@@ -318,6 +318,12 @@ struct btrfs_backref_node {
 		u64 bytenr;
 	}; /* Use rb_simple_node for search/insert */
 
+	/*
+	 * This is a sanity check, whenever we COW a block we will update
+	 * new_bytenr with it's current location, and we will check this in
+	 * various places to validate that the cache makes sense, it shouldn't
+	 * be used for anything else.
+	 */
 	u64 new_bytenr;
 	/* Objectid of tree block owner, can be not uptodate */
 	u64 owner;
