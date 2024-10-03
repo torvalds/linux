@@ -52,7 +52,12 @@ static inline uint32_t __div64_32(uint64_t *n, uint32_t base)
 
 #else
 
-static inline uint64_t __arch_xprod_64(uint64_t m, uint64_t n, bool bias)
+#ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+static __always_inline
+#else
+static inline
+#endif
+uint64_t __arch_xprod_64(uint64_t m, uint64_t n, bool bias)
 {
 	unsigned long long res;
 	register unsigned int tmp asm("ip") = 0;

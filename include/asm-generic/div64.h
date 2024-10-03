@@ -134,7 +134,12 @@
  * Hoping for compile-time optimization of  conditional code.
  * Architectures may provide their own optimized assembly implementation.
  */
-static inline uint64_t __arch_xprod_64(const uint64_t m, uint64_t n, bool bias)
+#ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+static __always_inline
+#else
+static inline
+#endif
+uint64_t __arch_xprod_64(const uint64_t m, uint64_t n, bool bias)
 {
 	uint32_t m_lo = m;
 	uint32_t m_hi = m >> 32;
