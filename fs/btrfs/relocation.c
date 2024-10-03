@@ -2542,7 +2542,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 		ret = do_relocation(trans, rc, node, key, path, 1);
 	}
 out:
-	if (ret || node->level == 0 || node->cowonly)
+	if (ret || node->level == 0)
 		btrfs_backref_cleanup_node(&rc->backref_cache, node);
 	return ret;
 }

@@ -341,8 +341,6 @@ struct btrfs_backref_node {
 	struct extent_buffer *eb;
 	/* Level of the tree block */
 	unsigned int level:8;
-	/* Is the block in a non-shareable tree */
-	unsigned int cowonly:1;
 	/* 1 if no child node is in the cache */
 	unsigned int lowest:1;
 	/* Is the extent buffer locked */
