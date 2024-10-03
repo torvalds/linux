@@ -3165,32 +3165,14 @@ void btrfs_backref_cleanup_node(struct btrfs_backref_cache *cache,
 void btrfs_backref_release_cache(struct btrfs_backref_cache *cache)
 {
 	struct btrfs_backref_node *node;
-	int i;
 
-	while (!list_empty(&cache->detached)) {
-		node = list_entry(cache->detached.next,
-				  struct btrfs_backref_node, list);
+	while ((node = rb_entry_safe(rb_first(&cache->rb_root),
+				     struct btrfs_backref_node, rb_node)))
 		btrfs_backref_cleanup_node(cache, node);
-	}
 
-	while (!list_empty(&cache->leaves)) {
-		node = list_entry(cache->leaves.next,
-				  struct btrfs_backref_node, lower);
-		btrfs_backref_cleanup_node(cache, node);
-	}
-
-	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
-		while (!list_empty(&cache->pending[i])) {
-			node = list_first_entry(&cache->pending[i],
-						struct btrfs_backref_node,
-						list);
-			btrfs_backref_cleanup_node(cache, node);
-		}
-	}
 	ASSERT(list_empty(&cache->pending_edge));
 	ASSERT(list_empty(&cache->useless_node));
 	ASSERT(list_empty(&cache->detached));
-	ASSERT(RB_EMPTY_ROOT(&cache->rb_root));
 	ASSERT(!cache->nr_nodes);
 	ASSERT(!cache->nr_edges);
 }
