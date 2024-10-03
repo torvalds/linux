@@ -156,7 +156,7 @@ static void k230_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 				      struct seq_file *s, unsigned int offset)
 {
 	struct k230_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
-	u32 val, mode, bias, drive, input, output, slew, schmitt, power;
+	u32 val, bias, drive, input, slew, schmitt, power;
 	struct k230_pin_group *grp = k230_pins[offset].drv_data;
 	static const char * const biasing[] = {
 			"pull none", "pull down", "pull up", "" };
@@ -167,11 +167,9 @@ static void k230_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 
 	regmap_read(info->regmap_base, offset * 4, &val);
 
-	mode	= (val & K230_PC_SEL) >> K230_SHIFT_SEL;
 	drive	= (val & K230_PC_DS) >> K230_SHIFT_DS;
 	bias	= (val & K230_PC_BIAS) >> K230_SHIFT_BIAS;
 	input	= (val & K230_PC_IE) >> K230_SHIFT_IE;
-	output	= (val & K230_PC_OE) >> K230_SHIFT_OE;
 	slew	= (val & K230_PC_SL) >> K230_SHIFT_SL;
 	schmitt	= (val & K230_PC_ST) >> K230_SHIFT_ST;
 	power	= (val & K230_PC_MSC) >> K230_SHIFT_MSC;
