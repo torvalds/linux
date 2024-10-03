@@ -976,18 +976,19 @@ static int aw9523_probe(struct i2c_client *client)
 	if (awi->vio_vreg && awi->vio_vreg != -ENODEV)
 		return awi->vio_vreg;
 
-	mutex_init(&awi->i2c_lock);
+	ret = devm_mutex_init(dev, &awi->i2c_lock);
+	if (ret)
+		return ret;
+
 	lockdep_set_subclass(&awi->i2c_lock, i2c_adapter_depth(client->adapter));
 
 	pdesc = devm_kzalloc(dev, sizeof(*pdesc), GFP_KERNEL);
-	if (!pdesc) {
-		ret = -ENOMEM;
-		goto err_disable_vregs;
-	}
+	if (!pdesc)
+		return -ENOMEM;
 
 	ret = aw9523_hw_init(awi);
 	if (ret)
-		goto err_disable_vregs;
+		return ret;
 
 	pdesc->name = dev_name(dev);
 	pdesc->owner = THIS_MODULE;
@@ -999,29 +1000,20 @@ static int aw9523_probe(struct i2c_client *client)
 
 	ret = aw9523_init_gpiochip(awi, pdesc->npins);
 	if (ret)
-		goto err_disable_vregs;
+		return ret;
 
 	if (client->irq) {
 		ret = aw9523_init_irq(awi, client->irq);
 		if (ret)
-			goto err_disable_vregs;
+			return ret;
 	}
 
 	awi->pctl = devm_pinctrl_register(dev, pdesc, awi);
-	if (IS_ERR(awi->pctl)) {
-		ret = dev_err_probe(dev, PTR_ERR(awi->pctl), "Cannot register pinctrl");
-		goto err_disable_vregs;
-	}
+	if (IS_ERR(awi->pctl))
+		return dev_err_probe(dev, PTR_ERR(awi->pctl),
+				     "Cannot register pinctrl");
 
-	ret = devm_gpiochip_add_data(dev, &awi->gpio, awi);
-	if (ret)
-		goto err_disable_vregs;
-
-	return ret;
-
-err_disable_vregs:
-	mutex_destroy(&awi->i2c_lock);
-	return ret;
+	return devm_gpiochip_add_data(dev, &awi->gpio, awi);
 }
 
 static void aw9523_remove(struct i2c_client *client)
@@ -1039,8 +1031,6 @@ static void aw9523_remove(struct i2c_client *client)
 		aw9523_hw_init(awi);
 		mutex_unlock(&awi->i2c_lock);
 	}
-
-	mutex_destroy(&awi->i2c_lock);
 }
 
 static const struct i2c_device_id aw9523_i2c_id_table[] = {
