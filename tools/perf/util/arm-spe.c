@@ -278,6 +278,20 @@ static int arm_spe_set_tid(struct arm_spe_queue *speq, pid_t tid)
 	return 0;
 }
 
+static u64 *arm_spe__get_metadata_by_cpu(struct arm_spe *spe, u64 cpu)
+{
+	u64 i;
+
+	if (!spe->metadata)
+		return NULL;
+
+	for (i = 0; i < spe->metadata_nr_cpu; i++)
+		if (spe->metadata[i][ARM_SPE_CPU] == cpu)
+			return spe->metadata[i];
+
+	return NULL;
+}
+
 static struct simd_flags arm_spe__synth_simd_flags(const struct arm_spe_record *record)
 {
 	struct simd_flags simd_flags = {};
@@ -520,10 +534,57 @@ static void arm_spe__synth_memory_level(const struct arm_spe_record *record,
 		data_src->mem_lvl |= PERF_MEM_LVL_REM_CCE1;
 }
 
-static u64 arm_spe__synth_data_source(const struct arm_spe_record *record, u64 midr)
+static bool arm_spe__is_common_ds_encoding(struct arm_spe_queue *speq)
+{
+	struct arm_spe *spe = speq->spe;
+	bool is_in_cpu_list;
+	u64 *metadata = NULL;
+	u64 midr = 0;
+
+	/*
+	 * Metadata version 1 doesn't contain any info for MIDR.
+	 * Simply return false in this case.
+	 */
+	if (spe->metadata_ver == 1) {
+		pr_warning_once("The data file contains metadata version 1, "
+				"which is absent the info for data source. "
+				"Please upgrade the tool to record data.\n");
+		return false;
+	}
+
+	/* CPU ID is -1 for per-thread mode */
+	if (speq->cpu < 0) {
+		/*
+		 * On the heterogeneous system, due to CPU ID is -1,
+		 * cannot confirm the data source packet is supported.
+		 */
+		if (!spe->is_homogeneous)
+			return false;
+
+		/* In homogeneous system, simply use CPU0's metadata */
+		if (spe->metadata)
+			metadata = spe->metadata[0];
+	} else {
+		metadata = arm_spe__get_metadata_by_cpu(spe, speq->cpu);
+	}
+
+	if (!metadata)
+		return false;
+
+	midr = metadata[ARM_SPE_CPU_MIDR];
+
+	is_in_cpu_list = is_midr_in_range_list(midr, common_ds_encoding_cpus);
+	if (is_in_cpu_list)
+		return true;
+	else
+		return false;
+}
+
+static u64 arm_spe__synth_data_source(struct arm_spe_queue *speq,
+				      const struct arm_spe_record *record)
 {
 	union perf_mem_data_src	data_src = { .mem_op = PERF_MEM_OP_NA };
-	bool is_common = is_midr_in_range_list(midr, common_ds_encoding_cpus);
+	bool is_common = arm_spe__is_common_ds_encoding(speq);
 
 	if (record->op & ARM_SPE_OP_LD)
 		data_src.mem_op = PERF_MEM_OP_LOAD;
@@ -556,7 +617,7 @@ static int arm_spe_sample(struct arm_spe_queue *speq)
 	u64 data_src;
 	int err;
 
-	data_src = arm_spe__synth_data_source(record, spe->midr);
+	data_src = arm_spe__synth_data_source(speq, record);
 
 	if (spe->sample_flc) {
 		if (record->type & ARM_SPE_L1D_MISS) {
