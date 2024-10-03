@@ -1913,15 +1913,6 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 			}
 			return -ETIMEDOUT;
 		}
-		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p bulk_wait completed wait DB clear\n",
-			    __func__, q2spi_pkt);
-		timeout = wait_event_interruptible(q2spi->read_wq,
-						   !atomic_read(&q2spi->doorbell_pending));
-		if (timeout) {
-			Q2SPI_DEBUG(q2spi, "%s: %p Err db pending interrupted\n",
-				    __func__, q2spi_pkt);
-			return 0;
-		}
 	} else if (q2spi_req.cmd == LOCAL_REG_READ) {
 		if (copy_to_user(q2spi_req.data_buff, q2spi_pkt->xfer->rx_buf,
 				 q2spi_req.data_len)) {
