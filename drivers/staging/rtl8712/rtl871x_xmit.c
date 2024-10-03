@@ -88,14 +88,14 @@ int _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 			((addr_t) (pxmitpriv->pallocated_frame_buf) & 3);
 	pxframe = (struct xmit_frame *) pxmitpriv->pxmit_frame_buf;
 	for (i = 0; i < NR_XMITFRAME; i++) {
-		INIT_LIST_HEAD(&(pxframe->list));
+		INIT_LIST_HEAD(&pxframe->list);
 		pxframe->padapter = padapter;
 		pxframe->frame_tag = DATA_FRAMETAG;
 		pxframe->pkt = NULL;
 		pxframe->buf_addr = NULL;
 		pxframe->pxmitbuf = NULL;
-		list_add_tail(&(pxframe->list),
-				 &(pxmitpriv->free_xmit_queue.queue));
+		list_add_tail(&pxframe->list,
+				 &pxmitpriv->free_xmit_queue.queue);
 		pxframe++;
 	}
 	pxmitpriv->free_xmitframe_cnt = NR_XMITFRAME;
@@ -137,7 +137,7 @@ int _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 			goto clean_up_alloc_buf;
 		}
 		list_add_tail(&pxmitbuf->list,
-				 &(pxmitpriv->free_xmitbuf_queue.queue));
+				 &pxmitpriv->free_xmitbuf_queue.queue);
 		pxmitbuf++;
 	}
 	pxmitpriv->free_xmitbuf_cnt = NR_XMITBUFF;
@@ -370,7 +370,7 @@ static int xmitframe_addmic(struct _adapter *padapter,
 	u8	*pframe, *payload, mic[8];
 	struct	mic_data micdata;
 	struct	sta_info *stainfo;
-	struct	qos_priv *pqospriv = &(padapter->mlmepriv.qospriv);
+	struct	qos_priv *pqospriv = &padapter->mlmepriv.qospriv;
 	struct	pkt_attrib  *pattrib = &pxmitframe->attrib;
 	struct	security_priv *psecpriv = &padapter->securitypriv;
 	struct	xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -452,11 +452,11 @@ static int xmitframe_addmic(struct _adapter *padapter,
 						  pattrib->icv_len;
 				}
 			}
-			r8712_secgetmic(&micdata, &(mic[0]));
+			r8712_secgetmic(&micdata, &mic[0]);
 			/* add mic code  and add the mic code length in
 			 * last_txcmdsz
 			 */
-			memcpy(payload, &(mic[0]), 8);
+			memcpy(payload, &mic[0], 8);
 			pattrib->last_txcmdsz += 8;
 			payload = payload - pattrib->last_txcmdsz + 8;
 		}
@@ -775,7 +775,7 @@ void r8712_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 		return;
 	spin_lock_irqsave(&pfree_xmitbuf_queue->lock, irqL);
 	list_del_init(&pxmitbuf->list);
-	list_add_tail(&(pxmitbuf->list), &pfree_xmitbuf_queue->queue);
+	list_add_tail(&pxmitbuf->list, &pfree_xmitbuf_queue->queue);
 	pxmitpriv->free_xmitbuf_cnt++;
 	spin_unlock_irqrestore(&pfree_xmitbuf_queue->lock, irqL);
 }
@@ -853,7 +853,7 @@ void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 	struct list_head *plist, *phead;
 	struct	xmit_frame	*pxmitframe;
 
-	spin_lock_irqsave(&(pframequeue->lock), irqL);
+	spin_lock_irqsave(&pframequeue->lock, irqL);
 	phead = &pframequeue->queue;
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
@@ -861,7 +861,7 @@ void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 		plist = plist->next;
 		r8712_free_xmitframe(pxmitpriv, pxmitframe);
 	}
-	spin_unlock_irqrestore(&(pframequeue->lock), irqL);
+	spin_unlock_irqrestore(&pframequeue->lock, irqL);
 }
 
 static inline struct tx_servq *get_sta_pending(struct _adapter *padapter,
@@ -874,26 +874,26 @@ static inline struct tx_servq *get_sta_pending(struct _adapter *padapter,
 	switch (up) {
 	case 1:
 	case 2:
-		ptxservq = &(psta->sta_xmitpriv.bk_q);
+		ptxservq = &psta->sta_xmitpriv.bk_q;
 		*ppstapending = &padapter->xmitpriv.bk_pending;
 		(phwxmits + 3)->accnt++;
 		break;
 	case 4:
 	case 5:
-		ptxservq = &(psta->sta_xmitpriv.vi_q);
+		ptxservq = &psta->sta_xmitpriv.vi_q;
 		*ppstapending = &padapter->xmitpriv.vi_pending;
 		(phwxmits + 1)->accnt++;
 		break;
 	case 6:
 	case 7:
-		ptxservq = &(psta->sta_xmitpriv.vo_q);
+		ptxservq = &psta->sta_xmitpriv.vo_q;
 		*ppstapending = &padapter->xmitpriv.vo_pending;
 		(phwxmits + 0)->accnt++;
 		break;
 	case 0:
 	case 3:
 	default:
-		ptxservq = &(psta->sta_xmitpriv.be_q);
+		ptxservq = &psta->sta_xmitpriv.be_q;
 		*ppstapending = &padapter->xmitpriv.be_pending;
 		(phwxmits + 2)->accnt++;
 		break;

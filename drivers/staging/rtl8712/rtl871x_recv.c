@@ -66,9 +66,9 @@ int _r8712_init_recv_priv(struct recv_priv *precvpriv,
 				    (RXFRAME_ALIGN_SZ - 1));
 	precvframe = (union recv_frame *)precvpriv->precv_frame_buf;
 	for (i = 0; i < NR_RECVFRAME; i++) {
-		INIT_LIST_HEAD(&(precvframe->u.list));
-		list_add_tail(&(precvframe->u.list),
-			      &(precvpriv->free_recv_queue.queue));
+		INIT_LIST_HEAD(&precvframe->u.list);
+		list_add_tail(&precvframe->u.list,
+			      &precvpriv->free_recv_queue.queue);
 		r8712_os_recv_resource_alloc(padapter, precvframe);
 		precvframe->u.hdr.adapter = padapter;
 		precvframe++;
@@ -654,7 +654,7 @@ void r8712_recv_entry(union recv_frame *precvframe)
 	s32 ret = _SUCCESS;
 
 	padapter = precvframe->u.hdr.adapter;
-	precvpriv = &(padapter->recvpriv);
+	precvpriv = &padapter->recvpriv;
 
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_RX);
 

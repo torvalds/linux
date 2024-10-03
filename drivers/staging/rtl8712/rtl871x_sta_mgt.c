@@ -53,7 +53,7 @@ int _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	psta = (struct sta_info *)(pstapriv->pstainfo_buf);
 	for (i = 0; i < NUM_STA; i++) {
 		_init_stainfo(psta);
-		INIT_LIST_HEAD(&(pstapriv->sta_hash[i]));
+		INIT_LIST_HEAD(&pstapriv->sta_hash[i]);
 		list_add_tail(&psta->list, &pstapriv->free_sta_queue.queue);
 		psta++;
 	}
@@ -153,22 +153,22 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 		return;
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 	pstaxmitpriv = &psta->sta_xmitpriv;
-	spin_lock_irqsave(&(pxmitpriv->vo_pending.lock), irqL0);
+	spin_lock_irqsave(&pxmitpriv->vo_pending.lock, irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vo_q.sta_pending);
-	list_del_init(&(pstaxmitpriv->vo_q.tx_pending));
-	spin_unlock_irqrestore(&(pxmitpriv->vo_pending.lock), irqL0);
-	spin_lock_irqsave(&(pxmitpriv->vi_pending.lock), irqL0);
+	list_del_init(&pstaxmitpriv->vo_q.tx_pending);
+	spin_unlock_irqrestore(&pxmitpriv->vo_pending.lock, irqL0);
+	spin_lock_irqsave(&pxmitpriv->vi_pending.lock, irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vi_q.sta_pending);
-	list_del_init(&(pstaxmitpriv->vi_q.tx_pending));
-	spin_unlock_irqrestore(&(pxmitpriv->vi_pending.lock), irqL0);
-	spin_lock_irqsave(&(pxmitpriv->bk_pending.lock), irqL0);
+	list_del_init(&pstaxmitpriv->vi_q.tx_pending);
+	spin_unlock_irqrestore(&pxmitpriv->vi_pending.lock, irqL0);
+	spin_lock_irqsave(&pxmitpriv->bk_pending.lock, irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
-	list_del_init(&(pstaxmitpriv->bk_q.tx_pending));
-	spin_unlock_irqrestore(&(pxmitpriv->bk_pending.lock), irqL0);
-	spin_lock_irqsave(&(pxmitpriv->be_pending.lock), irqL0);
+	list_del_init(&pstaxmitpriv->bk_q.tx_pending);
+	spin_unlock_irqrestore(&pxmitpriv->bk_pending.lock, irqL0);
+	spin_lock_irqsave(&pxmitpriv->be_pending.lock, irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->be_q.sta_pending);
-	list_del_init(&(pstaxmitpriv->be_q.tx_pending));
-	spin_unlock_irqrestore(&(pxmitpriv->be_pending.lock), irqL0);
+	list_del_init(&pstaxmitpriv->be_q.tx_pending);
+	spin_unlock_irqrestore(&pxmitpriv->be_pending.lock, irqL0);
 	list_del_init(&psta->hash_list);
 	pstapriv->asoc_sta_count--;
 	/* re-init sta_info; 20061114 */
@@ -181,10 +181,10 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
 		del_timer(&preorder_ctrl->reordering_ctrl_timer);
 	}
-	spin_lock(&(pfree_sta_queue->lock));
+	spin_lock(&pfree_sta_queue->lock);
 	/* insert into free_sta_queue; 20061114 */
 	list_add_tail(&psta->list, &pfree_sta_queue->queue);
-	spin_unlock(&(pfree_sta_queue->lock));
+	spin_unlock(&pfree_sta_queue->lock);
 }
 
 /* free all stainfo which in sta_hash[all] */
@@ -201,7 +201,7 @@ void r8712_free_all_stainfo(struct _adapter *padapter)
 		return;
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	for (index = 0; index < NUM_STA; index++) {
-		phead = &(pstapriv->sta_hash[index]);
+		phead = &pstapriv->sta_hash[index];
 		plist = phead->next;
 		while (!end_of_queue_search(phead, plist)) {
 			psta = container_of(plist,
@@ -226,7 +226,7 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 		return NULL;
 	index = wifi_mac_hash(hwaddr);
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
-	phead = &(pstapriv->sta_hash[index]);
+	phead = &pstapriv->sta_hash[index];
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
 		psta = container_of(plist, struct sta_info, hash_list);

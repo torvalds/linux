@@ -134,7 +134,7 @@ static unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 static void usb_write_mem_complete(struct urb *purb)
 {
 	struct io_queue *pio_q = (struct io_queue *)purb->context;
-	struct intf_hdl *pintf = &(pio_q->intf);
+	struct intf_hdl *pintf = &pio_q->intf;
 	struct intf_priv *pintfpriv = pintf->pintfpriv;
 	struct _adapter *padapter = (struct _adapter *)pintf->adapter;
 

@@ -86,8 +86,8 @@ void r8712_set_ps_mode(struct _adapter *padapter, uint ps_mode, uint smart_ps)
 void r8712_cpwm_int_hdl(struct _adapter *padapter,
 			struct reportpwrstate_parm *preportpwrstate)
 {
-	struct pwrctrl_priv *pwrpriv = &(padapter->pwrctrlpriv);
-	struct cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
+	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
+	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 
 	if (pwrpriv->cpwm_tog == ((preportpwrstate->state) & 0x80))
 		return;
@@ -96,7 +96,7 @@ void r8712_cpwm_int_hdl(struct _adapter *padapter,
 	pwrpriv->cpwm = (preportpwrstate->state) & 0xf;
 	if (pwrpriv->cpwm >= PS_STATE_S2) {
 		if (pwrpriv->alives & CMD_ALIVE)
-			complete(&(pcmdpriv->cmd_queue_comp));
+			complete(&pcmdpriv->cmd_queue_comp);
 	}
 	pwrpriv->cpwm_tog = (preportpwrstate->state) & 0x80;
 	mutex_unlock(&pwrpriv->mutex_lock);

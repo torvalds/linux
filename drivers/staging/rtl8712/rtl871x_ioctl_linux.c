@@ -892,7 +892,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		/*Return received signal strength indicator in -db for */
 		/* current AP */
 		/*<ssid> Rssi xx */
-		struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 		struct wlan_network *pcur_network = &pmlmepriv->cur_network;
 		/*static u8 xxxx; */
 		if (check_fwstate(pmlmepriv, _FW_LINKED)) {

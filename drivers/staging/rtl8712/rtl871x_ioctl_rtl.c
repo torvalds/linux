@@ -488,7 +488,7 @@ enum _CONNECT_STATE_ {
 uint oid_rt_get_connect_state_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *padapter = poid_par_priv->adapter_context;
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	u32 ulInfo;
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)

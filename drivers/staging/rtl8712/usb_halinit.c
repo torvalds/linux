@@ -285,7 +285,7 @@ unsigned int r8712_usb_inirp_init(struct _adapter *adapter)
 	u8 i;
 	struct recv_buf *recvbuf;
 	struct intf_hdl *intfhdl = &adapter->pio_queue->intf;
-	struct recv_priv *recvpriv = &(adapter->recvpriv);
+	struct recv_priv *recvpriv = &adapter->recvpriv;
 
 	recvpriv->ff_hwaddr = RTL8712_DMA_RX0FF; /* mapping rx fifo address */
 	/* issue Rx irp to receive data */

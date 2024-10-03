@@ -40,8 +40,8 @@ static u8 do_join(struct _adapter *padapter)
 {
 	struct list_head *plist, *phead;
 	u8 *pibss = NULL;
-	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
-	struct  __queue	*queue	= &(pmlmepriv->scanned_queue);
+	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
+	struct  __queue	*queue	= &pmlmepriv->scanned_queue;
 	int ret;
 
 	phead = &queue->queue;
@@ -228,7 +228,7 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network	*cur_network = &pmlmepriv->cur_network;
 	enum NDIS_802_11_NETWORK_INFRASTRUCTURE *pold_state =
-				&(cur_network->network.InfrastructureMode);
+				&cur_network->network.InfrastructureMode;
 
 	if (*pold_state != networktype) {
 		spin_lock_irqsave(&pmlmepriv->lock, irqL);

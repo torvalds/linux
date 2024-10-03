@@ -150,7 +150,7 @@ netdev_tx_t r8712_xmit_entry(_pkt *pkt, struct  net_device *netdev)
 {
 	struct xmit_frame *xmitframe = NULL;
 	struct _adapter *adapter = netdev_priv(netdev);
-	struct xmit_priv *xmitpriv = &(adapter->xmitpriv);
+	struct xmit_priv *xmitpriv = &adapter->xmitpriv;
 
 	if (!r8712_if_up(adapter))
 		goto _xmit_entry_drop;
