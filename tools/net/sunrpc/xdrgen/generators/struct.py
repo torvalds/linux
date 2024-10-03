@@ -12,7 +12,7 @@ from xdr_ast import _XdrBasic, _XdrString
 from xdr_ast import _XdrFixedLengthOpaque, _XdrVariableLengthOpaque
 from xdr_ast import _XdrFixedLengthArray, _XdrVariableLengthArray
 from xdr_ast import _XdrOptionalData, _XdrStruct, _XdrDeclaration
-from xdr_ast import public_apis
+from xdr_ast import public_apis, get_header_name
 
 
 def emit_struct_declaration(environment: Environment, node: _XdrStruct) -> None:
@@ -247,6 +247,18 @@ def emit_struct_encoder(environment: Environment, node: _XdrStruct) -> None:
     print(template.render())
 
 
+def emit_struct_maxsize(environment: Environment, node: _XdrStruct) -> None:
+    """Emit one maxsize macro for an XDR struct type"""
+    macro_name = get_header_name().upper() + "_" + node.name + "_sz"
+    template = get_jinja2_template(environment, "maxsize", "struct")
+    print(
+        template.render(
+            macro=macro_name,
+            width=" + ".join(node.symbolic_width()),
+        )
+    )
+
+
 class XdrStructGenerator(SourceGenerator):
     """Generate source code for XDR structs"""
 
@@ -270,3 +282,7 @@ class XdrStructGenerator(SourceGenerator):
     def emit_encoder(self, node: _XdrStruct) -> None:
         """Emit one encoder function for an XDR struct type"""
         emit_struct_encoder(self.environment, node)
+
+    def emit_maxsize(self, node: _XdrStruct) -> None:
+        """Emit one maxsize macro for an XDR struct type"""
+        emit_struct_maxsize(self.environment, node)

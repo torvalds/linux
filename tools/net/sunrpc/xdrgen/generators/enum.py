@@ -4,7 +4,7 @@
 """Generate code to handle XDR enum types"""
 
 from generators import SourceGenerator, create_jinja2_environment
-from xdr_ast import _XdrEnum, public_apis, big_endian
+from xdr_ast import _XdrEnum, public_apis, big_endian, get_header_name
 
 
 class XdrEnumGenerator(SourceGenerator):
@@ -51,3 +51,14 @@ class XdrEnumGenerator(SourceGenerator):
         else:
             template = self.environment.get_template("encoder/enum.j2")
         print(template.render(name=node.name))
+
+    def emit_maxsize(self, node: _XdrEnum) -> None:
+        """Emit one maxsize macro for an XDR enum type"""
+        macro_name = get_header_name().upper() + "_" + node.name + "_sz"
+        template = self.environment.get_template("maxsize/enum.j2")
+        print(
+            template.render(
+                macro=macro_name,
+                width=" + ".join(node.symbolic_width()),
+            )
+        )

@@ -12,7 +12,7 @@ from xdr_ast import _XdrBasic, _XdrString
 from xdr_ast import _XdrFixedLengthOpaque, _XdrVariableLengthOpaque
 from xdr_ast import _XdrFixedLengthArray, _XdrVariableLengthArray
 from xdr_ast import _XdrOptionalData, _XdrPointer, _XdrDeclaration
-from xdr_ast import public_apis
+from xdr_ast import public_apis, get_header_name
 
 
 def emit_pointer_declaration(environment: Environment, node: _XdrPointer) -> None:
@@ -247,6 +247,18 @@ def emit_pointer_encoder(environment: Environment, node: _XdrPointer) -> None:
     print(template.render())
 
 
+def emit_pointer_maxsize(environment: Environment, node: _XdrPointer) -> None:
+    """Emit one maxsize macro for an XDR pointer type"""
+    macro_name = get_header_name().upper() + "_" + node.name + "_sz"
+    template = get_jinja2_template(environment, "maxsize", "pointer")
+    print(
+        template.render(
+            macro=macro_name,
+            width=" + ".join(node.symbolic_width()),
+        )
+    )
+
+
 class XdrPointerGenerator(SourceGenerator):
     """Generate source code for XDR pointer"""
 
@@ -270,3 +282,7 @@ class XdrPointerGenerator(SourceGenerator):
     def emit_encoder(self, node: _XdrPointer) -> None:
         """Emit one encoder function for an XDR pointer type"""
         emit_pointer_encoder(self.environment, node)
+
+    def emit_maxsize(self, node: _XdrPointer) -> None:
+        """Emit one maxsize macro for an XDR pointer type"""
+        emit_pointer_maxsize(self.environment, node)

@@ -8,8 +8,8 @@ from jinja2 import Environment
 from generators import SourceGenerator
 from generators import create_jinja2_environment, get_jinja2_template
 
-from xdr_ast import _XdrBasic, _XdrUnion, _XdrVoid, big_endian
-from xdr_ast import _XdrDeclaration, _XdrCaseSpec, public_apis
+from xdr_ast import _XdrBasic, _XdrUnion, _XdrVoid, get_header_name
+from xdr_ast import _XdrDeclaration, _XdrCaseSpec, public_apis, big_endian
 
 
 def emit_union_declaration(environment: Environment, node: _XdrUnion) -> None:
@@ -234,6 +234,18 @@ def emit_union_encoder(environment, node: _XdrUnion) -> None:
     print(template.render())
 
 
+def emit_union_maxsize(environment: Environment, node: _XdrUnion) -> None:
+    """Emit one maxsize macro for an XDR union type"""
+    macro_name = get_header_name().upper() + "_" + node.name + "_sz"
+    template = get_jinja2_template(environment, "maxsize", "union")
+    print(
+        template.render(
+            macro=macro_name,
+            width=" + ".join(node.symbolic_width()),
+        )
+    )
+
+
 class XdrUnionGenerator(SourceGenerator):
     """Generate source code for XDR unions"""
 
@@ -257,3 +269,7 @@ class XdrUnionGenerator(SourceGenerator):
     def emit_encoder(self, node: _XdrUnion) -> None:
         """Emit one encoder function for an XDR union"""
         emit_union_encoder(self.environment, node)
+
+    def emit_maxsize(self, node: _XdrUnion) -> None:
+        """Emit one maxsize macro for an XDR union"""
+        emit_union_maxsize(self.environment, node)
