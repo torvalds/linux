@@ -20,11 +20,13 @@
 
 #include "network_helpers.h"
 
+/* backtrace() and backtrace_symbols_fd() are glibc specific,
+ * use header file when glibc is available and provide stub
+ * implementations when another libc implementation is used.
+ */
 #ifdef __GLIBC__
 #include <execinfo.h> /* backtrace */
-#endif
-
-/* Default backtrace funcs if missing at link */
+#else
 __weak int backtrace(void **buffer, int size)
 {
 	return 0;
@@ -34,6 +36,7 @@ __weak void backtrace_symbols_fd(void *const *buffer, int size, int fd)
 {
 	dprintf(fd, "<backtrace not supported>\n");
 }
+#endif /*__GLIBC__ */
 
 int env_verbosity = 0;
 
