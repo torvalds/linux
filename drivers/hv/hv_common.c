@@ -345,14 +345,14 @@ int __init hv_common_init(void)
 		BUG_ON(!hyperv_pcpu_output_arg);
 	}
 
-	hv_vp_index = kmalloc_array(num_possible_cpus(), sizeof(*hv_vp_index),
+	hv_vp_index = kmalloc_array(nr_cpu_ids, sizeof(*hv_vp_index),
 				    GFP_KERNEL);
 	if (!hv_vp_index) {
 		hv_common_free();
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < num_possible_cpus(); i++)
+	for (i = 0; i < nr_cpu_ids; i++)
 		hv_vp_index[i] = VP_INVAL;
 
 	return 0;
