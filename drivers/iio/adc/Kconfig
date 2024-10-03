@@ -571,6 +571,16 @@ config FSL_MX25_ADC
 	  Generic Conversion Queue driver used for general purpose ADC in the
 	  MX25. This driver supports single measurements using the MX25 ADC.
 
+config GEHC_PMC_ADC
+	tristate "GE HealthCare PMC ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the GE HealthCare PMC 16-bit
+	  16-Channel ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called gehc-pmc-adc.
+
 config HI8435
 	tristate "Holt Integrated Circuits HI-8435 threshold detector"
 	select IIO_TRIGGERED_EVENT
