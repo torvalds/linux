@@ -1203,10 +1203,6 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 			goto out;
 		}
 		break;
-	case IO_REPARSE_TAG_MOUNT_POINT:
-		cifs_create_junction_fattr(fattr, sb);
-		rc = 0;
-		goto out;
 	default:
 		/* Check for cached reparse point data */
 		if (data->symlink_target || data->reparse.buf) {
