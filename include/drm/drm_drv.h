@@ -369,7 +369,7 @@ struct drm_driver {
 			       uint64_t *offset);
 
 	/**
-	 * @fbdev_probe
+	 * @fbdev_probe:
 	 *
 	 * Allocates and initialize the fb_info structure for fbdev emulation.
 	 * Furthermore it also needs to allocate the DRM framebuffer used to
