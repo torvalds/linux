@@ -19372,6 +19372,13 @@ F:	Documentation/devicetree/bindings/media/raspberrypi,pispbe.yaml
 F:	drivers/media/platform/raspberrypi/pisp_be/
 F:	include/uapi/linux/media/raspberrypi/
 
+RASPBERRY PI PISP CAMERA FRONT END
+M:	Tomi Valkeinen <tomi.valkeinen@ideasonboard.com>
+M:	Raspberry Pi Kernel Maintenance <kernel-list@raspberrypi.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/raspberrypi,rp1-cfe.yaml
+F:	drivers/media/platform/raspberrypi/rp1-cfe/
+
 RC-CORE / LIRC FRAMEWORK
 M:	Sean Young <sean@mess.org>
 L:	linux-media@vger.kernel.org
