@@ -19,6 +19,8 @@ public_apis = []
 structs = set()
 pass_by_reference = set()
 
+constants = {}
+
 
 @dataclass
 class _XdrAst(ast_utils.Ast):
@@ -156,6 +158,10 @@ class _XdrConstant(_XdrAst):
     name: str
     value: str
 
+    def __post_init__(self):
+        if self.value not in constants:
+            constants[self.name] = int(self.value, 0)
+
 
 @dataclass
 class _XdrEnumerator(_XdrAst):
@@ -163,6 +169,10 @@ class _XdrEnumerator(_XdrAst):
 
     name: str
     value: str
+
+    def __post_init__(self):
+        if self.value not in constants:
+            constants[self.name] = int(self.value, 0)
 
 
 @dataclass
