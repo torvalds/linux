@@ -97,6 +97,14 @@ void tomoyo_load_policy(const char *filename)
 	if (!tomoyo_policy_loader_exists())
 		return;
 	done = true;
+#ifdef CONFIG_SECURITY_TOMOYO_LKM
+	/* Load tomoyo.ko if not yet loaded. */
+	if (!tomoyo_ops.check_profile)
+		request_module("tomoyo");
+	/* Check if tomoyo.ko was successfully loaded. */
+	if (!tomoyo_ops.check_profile)
+		panic("Failed to load tomoyo module.");
+#endif
 	pr_info("Calling %s to load policy. Please wait.\n", tomoyo_loader);
 	argv[0] = (char *) tomoyo_loader;
 	argv[1] = NULL;
@@ -104,7 +112,11 @@ void tomoyo_load_policy(const char *filename)
 	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 	envp[2] = NULL;
 	call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+#ifdef CONFIG_SECURITY_TOMOYO_LKM
+	tomoyo_ops.check_profile();
+#else
 	tomoyo_check_profile();
+#endif
 }
 
 #endif

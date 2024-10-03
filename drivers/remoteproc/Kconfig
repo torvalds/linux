@@ -330,8 +330,7 @@ config STM32_RPROC
 config TI_K3_DSP_REMOTEPROC
 	tristate "TI K3 DSP remoteproc support"
 	depends on ARCH_K3
-	select MAILBOX
-	select OMAP2PLUS_MBOX
+	depends on OMAP2PLUS_MBOX
 	help
 	  Say m here to support TI's C66x and C71x DSP remote processor
 	  subsystems on various TI K3 family of SoCs through the remote
@@ -356,8 +355,7 @@ config TI_K3_M4_REMOTEPROC
 config TI_K3_R5_REMOTEPROC
 	tristate "TI K3 R5 remoteproc support"
 	depends on ARCH_K3
-	select MAILBOX
-	select OMAP2PLUS_MBOX
+	depends on OMAP2PLUS_MBOX
 	help
 	  Say m here to support TI's R5F remote processor subsystems
 	  on various TI K3 family of SoCs through the remote processor

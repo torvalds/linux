@@ -10,7 +10,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/etherdevice.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "mt76x0.h"
 #include "eeprom.h"
 #include "../mt76x02_phy.h"

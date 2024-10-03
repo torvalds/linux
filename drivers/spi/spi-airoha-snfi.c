@@ -23,7 +23,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* SPI */
 #define REG_SPI_CTRL_BASE			0x1FA10000

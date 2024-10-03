@@ -1299,7 +1299,6 @@ static const struct file_operations evdev_fops = {
 	.compat_ioctl	= evdev_ioctl_compat,
 #endif
 	.fasync		= evdev_fasync,
-	.llseek		= no_llseek,
 };
 
 /*

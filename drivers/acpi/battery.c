@@ -21,7 +21,7 @@
 #include <linux/suspend.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/acpi.h>
 #include <linux/power_supply.h>

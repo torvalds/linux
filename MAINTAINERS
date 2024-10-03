@@ -2272,6 +2272,7 @@ N:	clps711x
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 M:	Alexander Sverdlin <alexander.sverdlin@gmail.com>
+M:	Nikita Shubin <nikita.shubin@maquefel.me>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/adc/cirrus,ep9301-adc.yaml
@@ -5727,8 +5728,7 @@ L:	linux-cxl@vger.kernel.org
 S:	Maintained
 F:	Documentation/driver-api/cxl
 F:	drivers/cxl/
-F:	include/linux/einj-cxl.h
-F:	include/linux/cxl-event.h
+F:	include/cxl/
 F:	include/uapi/linux/cxl_mem.h
 F:	tools/testing/cxl/
 
@@ -15678,6 +15678,9 @@ F:	include/dt-bindings/clock/mobileye,eyeq5-clk.h
 
 MODULE SUPPORT
 M:	Luis Chamberlain <mcgrof@kernel.org>
+R:	Petr Pavlu <petr.pavlu@suse.com>
+R:	Sami Tolvanen <samitolvanen@google.com>
+R:	Daniel Gomez <da.gomez@samsung.com>
 L:	linux-modules@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -19344,10 +19347,7 @@ F:	drivers/char/random.c
 F:	include/linux/random.h
 F:	include/uapi/linux/random.h
 F:	drivers/virt/vmgenid.c
-F:	include/vdso/getrandom.h
-F:	lib/vdso/getrandom.c
-F:	arch/x86/entry/vdso/vgetrandom*
-F:	arch/x86/include/asm/vdso/getrandom*
+N:	^.*/vdso/[^/]*getrandom[^/]+$
 
 RAPIDIO SUBSYSTEM
 M:	Matt Porter <mporter@kernel.crashing.org>

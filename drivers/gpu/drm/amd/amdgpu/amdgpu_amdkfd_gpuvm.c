@@ -1499,7 +1499,7 @@ static int amdgpu_amdkfd_gpuvm_pin_bo(struct amdgpu_bo *bo, u32 domain)
 		}
 	}
 
-	ret = amdgpu_bo_pin_restricted(bo, domain, 0, 0);
+	ret = amdgpu_bo_pin(bo, domain);
 	if (ret)
 		pr_err("Error in Pinning BO to domain: %d\n", domain);
 

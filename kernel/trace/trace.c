@@ -7557,7 +7557,6 @@ static const struct file_operations tracing_pipe_fops = {
 	.read		= tracing_read_pipe,
 	.splice_read	= tracing_splice_read_pipe,
 	.release	= tracing_release_pipe,
-	.llseek		= no_llseek,
 };
 
 static const struct file_operations tracing_entries_fops = {
@@ -7636,7 +7635,6 @@ static const struct file_operations snapshot_raw_fops = {
 	.read		= tracing_buffers_read,
 	.release	= tracing_buffers_release,
 	.splice_read	= tracing_buffers_splice_read,
-	.llseek		= no_llseek,
 };
 
 #endif /* CONFIG_TRACER_SNAPSHOT */
@@ -8466,7 +8464,6 @@ static const struct file_operations tracing_buffers_fops = {
 	.flush		= tracing_buffers_flush,
 	.splice_read	= tracing_buffers_splice_read,
 	.unlocked_ioctl = tracing_buffers_ioctl,
-	.llseek		= no_llseek,
 	.mmap		= tracing_buffers_mmap,
 };
 

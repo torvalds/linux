@@ -10,7 +10,7 @@
 #define _CIFSPDU_H
 
 #include <net/sock.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "../common/smbfsctl.h"
 
 #define CIFS_PROT   0

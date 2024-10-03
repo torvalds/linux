@@ -17,7 +17,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <crypto/des.h>
 #include <crypto/internal/des.h>

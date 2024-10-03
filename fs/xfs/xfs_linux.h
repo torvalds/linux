@@ -69,7 +69,7 @@ typedef __u32			xfs_nlink_t;
 #include <asm/param.h>
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "xfs_fs.h"
 #include "xfs_stats.h"

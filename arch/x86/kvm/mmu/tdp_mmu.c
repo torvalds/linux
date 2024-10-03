@@ -1046,10 +1046,8 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 	 * protected, emulation is needed. If the emulation was skipped,
 	 * the vCPU would have the same fault again.
 	 */
-	if (wrprot) {
-		if (fault->write)
-			ret = RET_PF_EMULATE;
-	}
+	if (wrprot && fault->write)
+		ret = RET_PF_WRITE_PROTECTED;
 
 	/* If a MMIO SPTE is installed, the MMIO will need to be emulated. */
 	if (unlikely(is_mmio_spte(vcpu->kvm, new_spte))) {

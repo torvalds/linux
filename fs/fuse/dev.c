@@ -2456,7 +2456,6 @@ static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
 const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
 	.open		= fuse_dev_open,
-	.llseek		= no_llseek,
 	.read_iter	= fuse_dev_read,
 	.splice_read	= fuse_dev_splice_read,
 	.write_iter	= fuse_dev_write,
