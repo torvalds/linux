@@ -181,6 +181,8 @@ static void test_sev_es_shutdown(void)
 
 int main(int argc, char *argv[])
 {
+	const u64 xf_mask = XFEATURE_MASK_X87_AVX;
+
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SEV));
 
 	test_sev(guest_sev_code, SEV_POLICY_NO_DBG);
@@ -193,7 +195,7 @@ int main(int argc, char *argv[])
 		test_sev_es_shutdown();
 
 		if (kvm_has_cap(KVM_CAP_XCRS) &&
-		    (xgetbv(0) & XFEATURE_MASK_X87_AVX) == XFEATURE_MASK_X87_AVX) {
+		    (xgetbv(0) & kvm_cpu_supported_xcr0() & xf_mask) == xf_mask) {
 			test_sync_vmsa(0);
 			test_sync_vmsa(SEV_POLICY_NO_DBG);
 		}
