@@ -21,6 +21,31 @@ pass_by_reference = set()
 
 constants = {}
 
+symbolic_widths = {
+    "void": ["XDR_void"],
+    "bool": ["XDR_bool"],
+    "int": ["XDR_int"],
+    "unsigned_int": ["XDR_unsigned_int"],
+    "long": ["XDR_long"],
+    "unsigned_long": ["XDR_unsigned_long"],
+    "hyper": ["XDR_hyper"],
+    "unsigned_hyper": ["XDR_unsigned_hyper"],
+}
+
+# Numeric XDR widths are tracked in a dictionary that is keyed
+# by type_name because sometimes a caller has nothing more than
+# the type_name to use to figure out the numeric width.
+max_widths = {
+    "void": 0,
+    "bool": 1,
+    "int": 1,
+    "unsigned_int": 1,
+    "long": 1,
+    "unsigned_long": 1,
+    "hyper": 2,
+    "unsigned_hyper": 2,
+}
+
 
 @dataclass
 class _XdrAst(ast_utils.Ast):
@@ -60,14 +85,23 @@ class _XdrTypeSpecifier(_XdrAst):
 class _XdrDefinedType(_XdrTypeSpecifier):
     """Corresponds to a type defined by the input specification"""
 
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        return [get_header_name().upper() + "_" + self.type_name + "_sz"]
+
     def __post_init__(self):
         if self.type_name in structs:
             self.c_classifier = "struct "
+        symbolic_widths[self.type_name] = self.symbolic_width()
 
 
 @dataclass
 class _XdrBuiltInType(_XdrTypeSpecifier):
     """Corresponds to a built-in XDR type"""
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        return symbolic_widths[self.type_name]
 
 
 @dataclass
@@ -148,7 +182,16 @@ class _XdrBasic(_XdrDeclaration):
 class _XdrVoid(_XdrDeclaration):
     """A void declaration"""
 
+    name: str = "void"
     template: str = "void"
+
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        return 0
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        return []
 
 
 @dataclass
