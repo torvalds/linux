@@ -1059,6 +1059,7 @@ properties:
       - items:
           - enum:
               - asus,vivobook-s15
+              - dell,xps13-9345
               - lenovo,yoga-slim7x
               - microsoft,romulus13
               - microsoft,romulus15
