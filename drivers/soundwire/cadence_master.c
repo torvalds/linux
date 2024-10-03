@@ -1425,6 +1425,11 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL, CDNS_IP_MCP_CONTROL_CMD_ACCEPT,
 			CDNS_IP_MCP_CONTROL_CMD_ACCEPT);
 
+	/* disable wakeup */
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL,
+			CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP,
+			0);
+
 	/* Configure mcp config */
 	val = cdns_readl(cdns, CDNS_MCP_CONFIG);
 
