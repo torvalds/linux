@@ -15,7 +15,9 @@ description: |
 
 properties:
   compatible:
-    const: ti,opt3001
+    enum:
+      - ti,opt3001
+      - ti,opt3002
 
   reg:
     maxItems: 1
