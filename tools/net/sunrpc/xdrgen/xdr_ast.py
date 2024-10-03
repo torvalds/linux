@@ -350,9 +350,25 @@ class _XdrStruct(_XdrAst):
     name: str
     fields: List[_XdrDeclaration]
 
+    def max_width(self) -> int:
+        """Return width of type in XDR_UNITS"""
+        width = 0
+        for field in self.fields:
+            width += field.max_width()
+        return width
+
+    def symbolic_width(self) -> List:
+        """Return list containing XDR width of type's components"""
+        widths = []
+        for field in self.fields:
+            widths += field.symbolic_width()
+        return widths
+
     def __post_init__(self):
         structs.add(self.name)
         pass_by_reference.add(self.name)
+        max_widths[self.name] = self.max_width()
+        symbolic_widths[self.name] = self.symbolic_width()
 
 
 @dataclass
