@@ -1074,35 +1074,6 @@ void dump_data_vio_pool(struct data_vio_pool *pool, bool dump_vios)
 	spin_unlock(&pool->lock);
 }
 
-data_vio_count_t get_data_vio_pool_active_discards(struct data_vio_pool *pool)
-{
-	return READ_ONCE(pool->discard_limiter.busy);
-}
-
-data_vio_count_t get_data_vio_pool_discard_limit(struct data_vio_pool *pool)
-{
-	return READ_ONCE(pool->discard_limiter.limit);
-}
-
-data_vio_count_t get_data_vio_pool_maximum_discards(struct data_vio_pool *pool)
-{
-	return READ_ONCE(pool->discard_limiter.max_busy);
-}
-
-int set_data_vio_pool_discard_limit(struct data_vio_pool *pool, data_vio_count_t limit)
-{
-	if (get_data_vio_pool_request_limit(pool) < limit) {
-		// The discard limit may not be higher than the data_vio limit.
-		return -EINVAL;
-	}
-
-	spin_lock(&pool->lock);
-	pool->discard_limiter.limit = limit;
-	spin_unlock(&pool->lock);
-
-	return VDO_SUCCESS;
-}
-
 data_vio_count_t get_data_vio_pool_active_requests(struct data_vio_pool *pool)
 {
 	return READ_ONCE(pool->limiter.busy);
