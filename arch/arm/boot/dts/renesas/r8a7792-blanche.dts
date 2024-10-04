@@ -335,8 +335,7 @@
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
-		interrupt-parent = <&irqc>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqc 3 IRQ_TYPE_EDGE_FALLING>;
 
 		avdd-supply = <&d1_8v>;
 		dvdd-supply = <&d1_8v>;

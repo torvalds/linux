@@ -194,8 +194,7 @@
 		hdmi@39 {
 			compatible = "adi,adv7511w";
 			reg = <0x39>;
-			interrupt-parent = <&gpio3>;
-			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio3 29 IRQ_TYPE_LEVEL_LOW>;
 
 			avdd-supply = <&reg_1p8v>;
 			dvdd-supply = <&reg_1p8v>;
