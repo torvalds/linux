@@ -132,6 +132,12 @@ xpcs_find_compat(struct dw_xpcs *xpcs, phy_interface_t interface)
 	return NULL;
 }
 
+struct phylink_pcs *xpcs_to_phylink_pcs(struct dw_xpcs *xpcs)
+{
+	return &xpcs->pcs;
+}
+EXPORT_SYMBOL_GPL(xpcs_to_phylink_pcs);
+
 int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface)
 {
 	const struct dw_xpcs_compat *compat;
