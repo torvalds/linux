@@ -51,7 +51,6 @@
 		pinctrl-0 = <&pinctrl_lcd1_pwr>;
 		enable-gpios = <&gpio2 31 GPIO_ACTIVE_HIGH>;
 		power-supply = <&reg_3v3>;
-		turn-on-delay-ms = <35>;
 		/*
 		 * a poor man's way to create a 1:1 relationship between
 		 * the PWM value and the actual duty cycle
