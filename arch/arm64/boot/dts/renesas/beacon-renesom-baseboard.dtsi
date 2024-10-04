@@ -442,8 +442,7 @@
 	touchscreen@26 {
 		compatible = "ilitek,ili2117";
 		reg = <0x26>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <9 IRQ_TYPE_EDGE_RISING>;
+		interrupts-extended = <&gpio5 9 IRQ_TYPE_EDGE_RISING>;
 		wakeup-source;
 	};
 
