@@ -9,8 +9,21 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include "soc-acpi-intel-sdw-mockup-match.h"
+#include <sound/soc-acpi-intel-ssp-common.h>
+
+static const struct snd_soc_acpi_codecs ptl_rt5682_rt5682s_hp = {
+	.num_codecs = 2,
+	.codecs = {RT5682_ACPI_HID, RT5682S_ACPI_HID},
+};
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_machines[] = {
+	{
+		.comp_ids = &ptl_rt5682_rt5682s_hp,
+		.drv_name = "ptl_rt5682_def",
+		.sof_tplg_filename = "sof-ptl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_ptl_machines);
