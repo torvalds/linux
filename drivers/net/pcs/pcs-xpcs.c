@@ -220,18 +220,15 @@ static int xpcs_modify_vpcs(struct dw_xpcs *xpcs, int reg, u16 mask, u16 val)
 
 static int xpcs_poll_reset(struct dw_xpcs *xpcs, int dev)
 {
-	/* Poll until the reset bit clears (50ms per retry == 0.6 sec) */
-	unsigned int retries = 12;
-	int ret;
+	int ret, val;
 
-	do {
-		msleep(50);
-		ret = xpcs_read(xpcs, dev, MDIO_CTRL1);
-		if (ret < 0)
-			return ret;
-	} while (ret & MDIO_CTRL1_RESET && --retries);
+	ret = read_poll_timeout(xpcs_read, val,
+				val < 0 || !(val & MDIO_CTRL1_RESET),
+				50000, 600000, true, xpcs, dev, MDIO_CTRL1);
+	if (val < 0)
+		ret = val;
 
-	return (ret & MDIO_CTRL1_RESET) ? -ETIMEDOUT : 0;
+	return ret;
 }
 
 static int xpcs_soft_reset(struct dw_xpcs *xpcs,
