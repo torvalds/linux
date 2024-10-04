@@ -73,7 +73,7 @@ const struct rhashtable_params dlm_rhash_rsb_params = {
 
 struct dlm_cluster {
 	struct config_group group;
-	unsigned int cl_tcp_port;
+	__be16 cl_tcp_port;
 	unsigned int cl_buffer_size;
 	unsigned int cl_rsbtbl_size;
 	unsigned int cl_recover_timer;
@@ -131,6 +131,45 @@ static ssize_t cluster_cluster_name_store(struct config_item *item,
 }
 
 CONFIGFS_ATTR(cluster_, cluster_name);
+
+static ssize_t cluster_tcp_port_show(struct config_item *item, char *buf)
+{
+	return sprintf(buf, "%u\n", be16_to_cpu(dlm_config.ci_tcp_port));
+}
+
+static int dlm_check_zero_and_dlm_running(unsigned int x)
+{
+	if (!x)
+		return -EINVAL;
+
+	if (dlm_lowcomms_is_running())
+		return -EBUSY;
+
+	return 0;
+}
+
+static ssize_t cluster_tcp_port_store(struct config_item *item,
+				      const char *buf, size_t len)
+{
+	int rc;
+	u16 x;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	rc = kstrtou16(buf, 0, &x);
+	if (rc)
+		return rc;
+
+	rc = dlm_check_zero_and_dlm_running(x);
+	if (rc)
+		return rc;
+
+	dlm_config.ci_tcp_port = cpu_to_be16(x);
+	return len;
+}
+
+CONFIGFS_ATTR(cluster_, tcp_port);
 
 static ssize_t cluster_set(struct dlm_cluster *cl, unsigned int *cl_field,
 			   int *info_field, int (*check_cb)(unsigned int x),
@@ -191,17 +230,6 @@ static int dlm_check_protocol_and_dlm_running(unsigned int x)
 	return 0;
 }
 
-static int dlm_check_zero_and_dlm_running(unsigned int x)
-{
-	if (!x)
-		return -EINVAL;
-
-	if (dlm_lowcomms_is_running())
-		return -EBUSY;
-
-	return 0;
-}
-
 static int dlm_check_zero(unsigned int x)
 {
 	if (!x)
@@ -218,7 +246,6 @@ static int dlm_check_buffer_size(unsigned int x)
 	return 0;
 }
 
-CLUSTER_ATTR(tcp_port, dlm_check_zero_and_dlm_running);
 CLUSTER_ATTR(buffer_size, dlm_check_buffer_size);
 CLUSTER_ATTR(rsbtbl_size, dlm_check_zero);
 CLUSTER_ATTR(recover_timer, dlm_check_zero);
@@ -982,7 +1009,7 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_CLUSTER_NAME      ""
 
 struct dlm_config_info dlm_config = {
-	.ci_tcp_port = DEFAULT_TCP_PORT,
+	.ci_tcp_port = cpu_to_be16(DEFAULT_TCP_PORT),
 	.ci_buffer_size = DLM_MAX_SOCKET_BUFSIZE,
 	.ci_rsbtbl_size = DEFAULT_RSBTBL_SIZE,
 	.ci_recover_timer = DEFAULT_RECOVER_TIMER,

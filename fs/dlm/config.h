@@ -29,7 +29,7 @@ extern const struct rhashtable_params dlm_rhash_rsb_params;
 #define DLM_PROTO_SCTP	1
 
 struct dlm_config_info {
-	int ci_tcp_port;
+	__be16 ci_tcp_port;
 	int ci_buffer_size;
 	int ci_rsbtbl_size;
 	int ci_recover_timer;
