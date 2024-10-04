@@ -935,13 +935,14 @@ void print_bind_err_msg(struct thermal_zone_device *tz,
 		cdev->type, thermal_zone_trip_id(tz, trip), ret);
 }
 
-static void __thermal_zone_cdev_bind(struct thermal_zone_device *tz,
+static bool __thermal_zone_cdev_bind(struct thermal_zone_device *tz,
 				     struct thermal_cooling_device *cdev)
 {
 	struct thermal_trip_desc *td;
+	bool update_tz = false;
 
 	if (!tz->ops.should_bind)
-		return;
+		return false;
 
 	for_each_trip_desc(tz, td) {
 		struct thermal_trip *trip = &td->trip;
@@ -956,9 +957,15 @@ static void __thermal_zone_cdev_bind(struct thermal_zone_device *tz,
 			continue;
 
 		ret = thermal_bind_cdev_to_trip(tz, trip, cdev, &c);
-		if (ret)
+		if (ret) {
 			print_bind_err_msg(tz, trip, cdev, ret);
+			continue;
+		}
+
+		update_tz = true;
 	}
+
+	return update_tz;
 }
 
 static void thermal_zone_cdev_bind(struct thermal_zone_device *tz,
@@ -966,7 +973,8 @@ static void thermal_zone_cdev_bind(struct thermal_zone_device *tz,
 {
 	mutex_lock(&tz->lock);
 
-	__thermal_zone_cdev_bind(tz, cdev);
+	if (__thermal_zone_cdev_bind(tz, cdev))
+		__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
 	mutex_unlock(&tz->lock);
 }
@@ -993,7 +1001,7 @@ __thermal_cooling_device_register(struct device_node *np,
 				  const struct thermal_cooling_device_ops *ops)
 {
 	struct thermal_cooling_device *cdev;
-	struct thermal_zone_device *pos = NULL;
+	struct thermal_zone_device *pos;
 	unsigned long current_state;
 	int id, ret;
 
@@ -1068,11 +1076,6 @@ __thermal_cooling_device_register(struct device_node *np,
 	/* Update binding information for 'this' new cdev */
 	list_for_each_entry(pos, &thermal_tz_list, node)
 		thermal_zone_cdev_bind(pos, cdev);
-
-	list_for_each_entry(pos, &thermal_tz_list, node)
-		if (atomic_cmpxchg(&pos->need_update, 1, 0))
-			thermal_zone_device_update(pos,
-						   THERMAL_EVENT_UNSPECIFIED);
 
 	mutex_unlock(&thermal_list_lock);
 
