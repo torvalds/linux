@@ -15,6 +15,14 @@
 	model = "Lenovo Yoga Slim 7x";
 	compatible = "lenovo,yoga-slim7x", "qcom,x1e80100";
 
+	aliases {
+		serial0 = &uart21;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	pmic-glink {
 		compatible = "qcom,x1e80100-pmic-glink",
 			     "qcom,sm8550-pmic-glink",
@@ -881,6 +889,11 @@
 		};
 	};
 
+};
+
+&uart21 {
+	compatible = "qcom,geni-debug-uart";
+	status = "okay";
 };
 
 &usb_1_ss0_hsphy {
