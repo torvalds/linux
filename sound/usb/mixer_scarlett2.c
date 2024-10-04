@@ -9516,7 +9516,7 @@ static long scarlett2_hwdep_write(struct snd_hwdep *hw,
 		     SCARLETT2_FLASH_BLOCK_SIZE;
 
 	if (count < 0 || *offset < 0 || *offset + count >= flash_size)
-		return -EINVAL;
+		return -ENOSPC;
 
 	if (!count)
 		return 0;
