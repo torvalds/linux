@@ -103,8 +103,7 @@
 
 	phy0: ethernet-phy@7 {
 		reg = <7>;
-		interrupt-parent = <&pinctrl>;
-		interrupts = <RZG2L_GPIO(12, 0) IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&pinctrl RZG2L_GPIO(12, 0) IRQ_TYPE_EDGE_FALLING>;
 		rxc-skew-psec = <0>;
 		txc-skew-psec = <0>;
 		rxdv-skew-psec = <0>;
@@ -129,8 +128,7 @@
 
 	phy1: ethernet-phy@7 {
 		reg = <7>;
-		interrupt-parent = <&pinctrl>;
-		interrupts = <RZG2L_GPIO(12, 1) IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&pinctrl RZG2L_GPIO(12, 1) IRQ_TYPE_EDGE_FALLING>;
 		rxc-skew-psec = <0>;
 		txc-skew-psec = <0>;
 		rxdv-skew-psec = <0>;

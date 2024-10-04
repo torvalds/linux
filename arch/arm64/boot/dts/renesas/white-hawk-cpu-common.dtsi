@@ -167,8 +167,7 @@
 				     "ethernet-phy-ieee802.3-c22";
 			rxc-skew-ps = <1500>;
 			reg = <0>;
-			interrupt-parent = <&gpio7>;
-			interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio7 5 IRQ_TYPE_LEVEL_LOW>;
 			reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
 		};
 	};

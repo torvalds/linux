@@ -102,8 +102,7 @@
 		compatible = "ethernet-phy-id0022.1640",
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <7>;
-		interrupt-parent = <&irqc>;
-		interrupts = <RZG2L_IRQ2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc RZG2L_IRQ2 IRQ_TYPE_LEVEL_LOW>;
 		rxc-skew-psec = <2400>;
 		txc-skew-psec = <2400>;
 		rxdv-skew-psec = <0>;
@@ -130,8 +129,7 @@
 		compatible = "ethernet-phy-id0022.1640",
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <7>;
-		interrupt-parent = <&irqc>;
-		interrupts = <RZG2L_IRQ3 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc RZG2L_IRQ3 IRQ_TYPE_LEVEL_LOW>;
 		rxc-skew-psec = <2400>;
 		txc-skew-psec = <2400>;
 		rxdv-skew-psec = <0>;
