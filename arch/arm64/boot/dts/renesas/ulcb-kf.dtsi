@@ -444,8 +444,7 @@
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1837";
 		reg = <2>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio1 25 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
