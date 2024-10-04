@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: September 2024
+:Date: October 2024
 
 The goal of Landlock is to enable to restrict ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -563,33 +563,34 @@ always allowed when using a kernel that only supports the first or second ABI.
 Starting with the Landlock ABI version 3, it is now possible to securely control
 truncation thanks to the new ``LANDLOCK_ACCESS_FS_TRUNCATE`` access right.
 
-Network support (ABI < 4)
--------------------------
+TCP bind and connect (ABI < 4)
+------------------------------
 
 Starting with the Landlock ABI version 4, it is now possible to restrict TCP
 bind and connect actions to only a set of allowed ports thanks to the new
 ``LANDLOCK_ACCESS_NET_BIND_TCP`` and ``LANDLOCK_ACCESS_NET_CONNECT_TCP``
 access rights.
 
-IOCTL (ABI < 5)
----------------
+Device IOCTL (ABI < 5)
+----------------------
 
 IOCTL operations could not be denied before the fifth Landlock ABI, so
 :manpage:`ioctl(2)` is always allowed when using a kernel that only supports an
 earlier ABI.
 
 Starting with the Landlock ABI version 5, it is possible to restrict the use of
-:manpage:`ioctl(2)` using the new ``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right.
+:manpage:`ioctl(2)` on character and block devices using the new
+``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right.
 
-Abstract UNIX socket scoping (ABI < 6)
---------------------------------------
+Abstract UNIX socket (ABI < 6)
+------------------------------
 
 Starting with the Landlock ABI version 6, it is possible to restrict
 connections to an abstract :manpage:`unix(7)` socket by setting
 ``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`` to the ``scoped`` ruleset attribute.
 
-Signal scoping (ABI < 6)
-------------------------
+Signal (ABI < 6)
+----------------
 
 Starting with the Landlock ABI version 6, it is possible to restrict
 :manpage:`signal(7)` sending by setting ``LANDLOCK_SCOPE_SIGNAL`` to the
