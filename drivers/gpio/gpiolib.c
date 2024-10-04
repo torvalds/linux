@@ -2434,7 +2434,7 @@ static void gpiod_free_commit(struct gpio_desc *desc)
 		desc_set_label(desc, NULL);
 		WRITE_ONCE(desc->flags, flags);
 
-		gpiod_line_state_notify(desc, GPIOLINE_CHANGED_RELEASED);
+		gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_RELEASED);
 	}
 }
 
@@ -4366,7 +4366,7 @@ struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 		return ERR_PTR(ret);
 	}
 
-	gpiod_line_state_notify(desc, GPIOLINE_CHANGED_REQUESTED);
+	gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_REQUESTED);
 
 	return desc;
 }
