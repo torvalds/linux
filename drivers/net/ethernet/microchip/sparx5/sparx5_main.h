@@ -269,6 +269,8 @@ struct sparx5_ops {
 	struct sparx5_sdlb_group *(*get_sdlb_group)(int idx);
 	int (*set_port_mux)(struct sparx5 *sparx5, struct sparx5_port *port,
 			    struct sparx5_port_config *conf);
+
+	irqreturn_t (*ptp_irq_handler)(int irq, void *args);
 };
 
 struct sparx5_main_io_resource {
