@@ -41,6 +41,10 @@ static int md_flags;
 module_param_named(sdw_md_flags, md_flags, int, 0444);
 MODULE_PARM_DESC(sdw_md_flags, "SoundWire Intel Master device flags (0x0 all off)");
 
+static int mclk_divider;
+module_param_named(sdw_mclk_divider, mclk_divider, int, 0444);
+MODULE_PARM_DESC(sdw_mclk_divider, "SoundWire Intel mclk divider");
+
 struct wake_capable_part {
 	const u16 mfg_id;
 	const u16 part_id;
@@ -142,8 +146,12 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 				 "intel-sdw-ip-clock",
 				 &prop->mclk_freq);
 
-	/* the values reported by BIOS are the 2x clock, not the bus clock */
-	prop->mclk_freq /= 2;
+	if (mclk_divider)
+		/* use kernel parameter for BIOS or board work-arounds */
+		prop->mclk_freq /= mclk_divider;
+	else
+		/* the values reported by BIOS are the 2x clock, not the bus clock */
+		prop->mclk_freq /= 2;
 
 	fwnode_property_read_u32(link,
 				 "intel-quirk-mask",
