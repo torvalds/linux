@@ -636,9 +636,6 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 	int ret, mdio_ctrl, tx_conf;
 	u16 mask, val;
 
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
-		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
-
 	/* For AN for C37 SGMII mode, the settings are :-
 	 * 1) VR_MII_MMD_CTRL Bit(12) [AN_ENABLE] = 0b (Disable SGMII AN in case
 	      it is already enabled)
@@ -713,9 +710,6 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 	int ret, mdio_ctrl, adv;
 	bool changed = 0;
 	u16 mask, val;
-
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
-		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
 
 	/* According to Chap 7.12, to set 1000BASE-X C37 AN, AN must
 	 * be disabled first:-
@@ -806,6 +800,14 @@ static int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 		ret = txgbe_xpcs_switch_mode(xpcs, interface);
 		if (ret)
 			return ret;
+
+		/* Wangxun devices need backplane CL37 AN enabled for
+		 * SGMII and 1000base-X
+		 */
+		if (interface == PHY_INTERFACE_MODE_SGMII ||
+		    interface == PHY_INTERFACE_MODE_1000BASEX)
+			xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1,
+					DW_CL37_BP | DW_EN_VSMMD1);
 	}
 
 	switch (compat->an_mode) {
