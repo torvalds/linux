@@ -356,7 +356,8 @@ static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 	return;
 
 out:
-	pr_err("%s: XPCS access returned %pe\n", __func__, ERR_PTR(ret));
+	dev_err(&xpcs->mdiodev->dev, "%s: XPCS access returned %pe\n",
+		__func__, ERR_PTR(ret));
 }
 
 static int _xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
@@ -1070,32 +1071,27 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 		break;
 	case DW_AN_C73:
 		ret = xpcs_get_state_c73(xpcs, state, compat);
-		if (ret) {
-			pr_err("xpcs_get_state_c73 returned %pe\n",
-			       ERR_PTR(ret));
-			return;
-		}
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_c73", ERR_PTR(ret));
 		break;
 	case DW_AN_C37_SGMII:
 		ret = xpcs_get_state_c37_sgmii(xpcs, state);
-		if (ret) {
-			pr_err("xpcs_get_state_c37_sgmii returned %pe\n",
-			       ERR_PTR(ret));
-		}
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_c37_sgmii", ERR_PTR(ret));
 		break;
 	case DW_AN_C37_1000BASEX:
 		ret = xpcs_get_state_c37_1000basex(xpcs, state);
-		if (ret) {
-			pr_err("xpcs_get_state_c37_1000basex returned %pe\n",
-			       ERR_PTR(ret));
-		}
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_c37_1000basex", ERR_PTR(ret));
 		break;
 	case DW_2500BASEX:
 		ret = xpcs_get_state_2500basex(xpcs, state);
-		if (ret) {
-			pr_err("xpcs_get_state_2500basex returned %pe\n",
-			       ERR_PTR(ret));
-		}
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_2500basex", ERR_PTR(ret));
 		break;
 	default:
 		return;
@@ -1113,7 +1109,8 @@ static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int neg_mode,
 	val = mii_bmcr_encode_fixed(speed, duplex);
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
 	if (ret)
-		pr_err("%s: xpcs_write returned %pe\n", __func__, ERR_PTR(ret));
+		dev_err(&xpcs->mdiodev->dev, "%s: xpcs_write returned %pe\n",
+			__func__, ERR_PTR(ret));
 }
 
 static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
@@ -1131,18 +1128,21 @@ static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
 	case SPEED_100:
 	case SPEED_10:
 	default:
-		pr_err("%s: speed = %d\n", __func__, speed);
+		dev_err(&xpcs->mdiodev->dev, "%s: speed = %d\n",
+			__func__, speed);
 		return;
 	}
 
 	if (duplex == DUPLEX_FULL)
 		val |= BMCR_FULLDPLX;
 	else
-		pr_err("%s: half duplex not supported\n", __func__);
+		dev_err(&xpcs->mdiodev->dev, "%s: half duplex not supported\n",
+			__func__);
 
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
 	if (ret)
-		pr_err("%s: xpcs_write returned %pe\n", __func__, ERR_PTR(ret));
+		dev_err(&xpcs->mdiodev->dev, "%s: xpcs_write returned %pe\n",
+			__func__, ERR_PTR(ret));
 }
 
 static void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
