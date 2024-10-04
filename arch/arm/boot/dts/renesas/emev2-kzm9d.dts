@@ -83,8 +83,7 @@
 		compatible = "smsc,lan9221", "smsc,lan9115";
 		reg = <0x20000000 0x10000>;
 		phy-mode = "mii";
-		interrupt-parent = <&gpio0>;
-		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+		interrupts-extended = <&gpio0 1 IRQ_TYPE_EDGE_RISING>;
 		reg-io-width = <4>;
 		smsc,irq-active-high;
 		smsc,irq-push-pull;

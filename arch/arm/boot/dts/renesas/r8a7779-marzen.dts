@@ -249,8 +249,7 @@
 		pinctrl-names = "default";
 
 		phy-mode = "mii";
-		interrupt-parent = <&irqpin0>;
-		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqpin0 1 IRQ_TYPE_EDGE_FALLING>;
 		smsc,irq-push-pull;
 		reg-io-width = <4>;
 		vddvario-supply = <&fixedregulator3v3>;

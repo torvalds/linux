@@ -193,8 +193,7 @@
 	ethernet@8000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x08000000 0x1000>;
-		interrupt-parent = <&irqc1>;
-		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&irqc1 8 IRQ_TYPE_LEVEL_HIGH>;
 		phy-mode = "mii";
 		reg-io-width = <4>;
 		smsc,irq-active-high;
