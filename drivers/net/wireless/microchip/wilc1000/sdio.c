@@ -186,6 +186,10 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto dispose_irq;
 
+	ret = wilc_cfg80211_register(wilc);
+	if (ret)
+		goto dispose_irq;
+
 	ret = wilc_load_mac_from_nv(wilc);
 	if (ret) {
 		pr_err("Can not retrieve MAC address from chip\n");

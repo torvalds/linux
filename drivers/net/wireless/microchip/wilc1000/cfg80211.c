@@ -1761,7 +1761,6 @@ static struct wilc *wilc_create_wiphy(struct device *dev)
 {
 	struct wiphy *wiphy;
 	struct wilc *wl;
-	int ret;
 
 	wiphy = wiphy_new(&wilc_cfg80211_ops, sizeof(*wl));
 	if (!wiphy)
@@ -1804,14 +1803,8 @@ static struct wilc *wilc_create_wiphy(struct device *dev)
 				BIT(NL80211_IFTYPE_P2P_GO) |
 				BIT(NL80211_IFTYPE_P2P_CLIENT);
 	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
-	wiphy->features |= NL80211_FEATURE_SAE;
 	set_wiphy_dev(wiphy, dev);
 	wl->wiphy = wiphy;
-	ret = wiphy_register(wiphy);
-	if (ret) {
-		wiphy_free(wiphy);
-		return NULL;
-	}
 	return wl;
 }
 
@@ -1855,11 +1848,18 @@ free_cfg:
 
 free_wl:
 	wlan_deinit_locks(wl);
-	wiphy_unregister(wl->wiphy);
 	wiphy_free(wl->wiphy);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wilc_cfg80211_init);
+
+int wilc_cfg80211_register(struct wilc *wilc)
+{
+	wilc->wiphy->features |= NL80211_FEATURE_SAE;
+
+	return wiphy_register(wilc->wiphy);
+}
+EXPORT_SYMBOL_GPL(wilc_cfg80211_register);
 
 int wilc_init_host_int(struct net_device *net)
 {
