@@ -670,8 +670,14 @@ static int __init nf_flow_table_module_init(void)
 	if (ret)
 		goto out_offload;
 
+	ret = nf_flow_register_bpf();
+	if (ret)
+		goto out_bpf;
+
 	return 0;
 
+out_bpf:
+	nf_flow_table_offload_exit();
 out_offload:
 	unregister_pernet_subsys(&nf_flow_table_net_ops);
 	return ret;

@@ -102,6 +102,8 @@ static void list_test_list_replace(struct kunit *test)
 	/* now: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.next, &b);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.prev, &list);
 }
 
 static void list_test_list_replace_init(struct kunit *test)
@@ -118,6 +120,8 @@ static void list_test_list_replace_init(struct kunit *test)
 	/* now: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.next, &b);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.prev, &list);
 
 	/* check a_old is empty (initialized) */
 	KUNIT_EXPECT_TRUE(test, list_empty_careful(&a_old));

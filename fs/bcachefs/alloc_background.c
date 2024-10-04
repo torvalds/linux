@@ -30,6 +30,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched/task.h>
 #include <linux/sort.h>
+#include <linux/jiffies.h>
 
 static void bch2_discard_one_bucket_fast(struct bch_dev *, u64);
 
@@ -1968,8 +1969,8 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 			break;
 	}
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 	percpu_ref_put(&ca->io_ref);
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
 
 static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
@@ -1979,18 +1980,18 @@ static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
 	if (discard_in_flight_add(ca, bucket, false))
 		return;
 
-	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard_fast))
 		return;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard_fast))
-		goto put_ioref;
+	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+		goto put_ref;
 
 	if (queue_work(c->write_ref_wq, &ca->discard_fast_work))
 		return;
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
-put_ioref:
 	percpu_ref_put(&ca->io_ref);
+put_ref:
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
 
 static int invalidate_one_bucket(struct btree_trans *trans,
@@ -2132,26 +2133,26 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	bch2_trans_put(trans);
-	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 	percpu_ref_put(&ca->io_ref);
+	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
 void bch2_dev_do_invalidates(struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 
-	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_invalidate))
 		return;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_invalidate))
-		goto put_ioref;
+	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+		goto put_ref;
 
 	if (queue_work(c->write_ref_wq, &ca->invalidate_work))
 		return;
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
-put_ioref:
 	percpu_ref_put(&ca->io_ref);
+put_ref:
+	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
 void bch2_do_invalidates(struct bch_fs *c)
@@ -2183,7 +2184,7 @@ int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 	 * freespace/need_discard/need_gc_gens btrees as needed:
 	 */
 	while (1) {
-		if (last_updated + HZ * 10 < jiffies) {
+		if (time_after(jiffies, last_updated + HZ * 10)) {
 			bch_info(ca, "%s: currently at %llu/%llu",
 				 __func__, iter.pos.offset, ca->mi.nbuckets);
 			last_updated = jiffies;
@@ -2295,6 +2296,36 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 	}
 
 	return 0;
+}
+
+/* device removal */
+
+int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
+{
+	struct bpos start	= POS(ca->dev_idx, 0);
+	struct bpos end		= POS(ca->dev_idx, U64_MAX);
+	int ret;
+
+	/*
+	 * We clear the LRU and need_discard btrees first so that we don't race
+	 * with bch2_do_invalidates() and bch2_do_discards()
+	 */
+	ret =   bch2_dev_remove_stripes(c, ca->dev_idx) ?:
+		bch2_btree_delete_range(c, BTREE_ID_lru, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_freespace, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_backpointers, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_dev_usage_remove(c, ca->dev_idx);
+	bch_err_msg(ca, ret, "removing dev alloc info");
+	return ret;
 }
 
 /* Bucket IO clocks: */
@@ -2432,12 +2463,14 @@ static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 /* device goes ro: */
 void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
 	/* First, remove device from allocation groups: */
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		clear_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 
 	/*
 	 * Capacity is calculated based off of devices in allocation groups:
@@ -2467,11 +2500,13 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 /* device goes rw: */
 void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		if (ca->mi.data_allowed & (1 << i))
 			set_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 }
 
 void bch2_dev_allocator_background_exit(struct bch_dev *ca)

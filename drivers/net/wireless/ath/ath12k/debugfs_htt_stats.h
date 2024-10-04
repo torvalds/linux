@@ -128,6 +128,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_SCHED	= 4,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_ERROR	= 5,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TQM	= 6,
+	ATH12K_DBG_HTT_EXT_STATS_TX_DE_INFO	= 8,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -143,6 +144,13 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_TQM_LIST_MPDU_CNT_TAG		= 13,
 	HTT_STATS_TX_TQM_CMN_TAG			= 14,
 	HTT_STATS_TX_TQM_PDEV_TAG			= 15,
+	HTT_STATS_TX_DE_EAPOL_PACKETS_TAG		= 17,
+	HTT_STATS_TX_DE_CLASSIFY_FAILED_TAG		= 18,
+	HTT_STATS_TX_DE_CLASSIFY_STATS_TAG		= 19,
+	HTT_STATS_TX_DE_CLASSIFY_STATUS_TAG		= 20,
+	HTT_STATS_TX_DE_ENQUEUE_PACKETS_TAG		= 21,
+	HTT_STATS_TX_DE_ENQUEUE_DISCARD_TAG		= 22,
+	HTT_STATS_TX_DE_CMN_TAG				= 23,
 	HTT_STATS_TX_PDEV_SCHEDULER_TXQ_STATS_TAG	= 36,
 	HTT_STATS_TX_SCHED_CMN_TAG			= 37,
 	HTT_STATS_SCHED_TXQ_CMD_POSTED_TAG		= 39,
@@ -150,6 +158,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_SCHED_TXQ_CMD_REAPED_TAG		= 44,
 	HTT_STATS_HW_INTR_MISC_TAG			= 54,
 	HTT_STATS_HW_PDEV_ERRS_TAG			= 56,
+	HTT_STATS_TX_DE_COMPL_STATS_TAG			= 65,
 	HTT_STATS_WHAL_TX_TAG				= 66,
 	HTT_STATS_TX_PDEV_SIFS_HIST_TAG			= 67,
 	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG		= 86,
@@ -562,6 +571,123 @@ struct ath12k_htt_tx_tqm_pdev_stats_tlv {
 	__le32 sched_udp_notify2;
 	__le32 sched_nonudp_notify1;
 	__le32 sched_nonudp_notify2;
+} __packed;
+
+struct ath12k_htt_tx_de_cmn_stats_tlv {
+	__le32 mac_id__word;
+	__le32 tcl2fw_entry_count;
+	__le32 not_to_fw;
+	__le32 invalid_pdev_vdev_peer;
+	__le32 tcl_res_invalid_addrx;
+	__le32 wbm2fw_entry_count;
+	__le32 invalid_pdev;
+	__le32 tcl_res_addrx_timeout;
+	__le32 invalid_vdev;
+	__le32 invalid_tcl_exp_frame_desc;
+	__le32 vdev_id_mismatch_cnt;
+} __packed;
+
+struct ath12k_htt_tx_de_eapol_packets_stats_tlv {
+	__le32 m1_packets;
+	__le32 m2_packets;
+	__le32 m3_packets;
+	__le32 m4_packets;
+	__le32 g1_packets;
+	__le32 g2_packets;
+	__le32 rc4_packets;
+	__le32 eap_packets;
+	__le32 eapol_start_packets;
+	__le32 eapol_logoff_packets;
+	__le32 eapol_encap_asf_packets;
+} __packed;
+
+struct ath12k_htt_tx_de_classify_stats_tlv {
+	__le32 arp_packets;
+	__le32 igmp_packets;
+	__le32 dhcp_packets;
+	__le32 host_inspected;
+	__le32 htt_included;
+	__le32 htt_valid_mcs;
+	__le32 htt_valid_nss;
+	__le32 htt_valid_preamble_type;
+	__le32 htt_valid_chainmask;
+	__le32 htt_valid_guard_interval;
+	__le32 htt_valid_retries;
+	__le32 htt_valid_bw_info;
+	__le32 htt_valid_power;
+	__le32 htt_valid_key_flags;
+	__le32 htt_valid_no_encryption;
+	__le32 fse_entry_count;
+	__le32 fse_priority_be;
+	__le32 fse_priority_high;
+	__le32 fse_priority_low;
+	__le32 fse_traffic_ptrn_be;
+	__le32 fse_traffic_ptrn_over_sub;
+	__le32 fse_traffic_ptrn_bursty;
+	__le32 fse_traffic_ptrn_interactive;
+	__le32 fse_traffic_ptrn_periodic;
+	__le32 fse_hwqueue_alloc;
+	__le32 fse_hwqueue_created;
+	__le32 fse_hwqueue_send_to_host;
+	__le32 mcast_entry;
+	__le32 bcast_entry;
+	__le32 htt_update_peer_cache;
+	__le32 htt_learning_frame;
+	__le32 fse_invalid_peer;
+	__le32 mec_notify;
+} __packed;
+
+struct ath12k_htt_tx_de_classify_failed_stats_tlv {
+	__le32 ap_bss_peer_not_found;
+	__le32 ap_bcast_mcast_no_peer;
+	__le32 sta_delete_in_progress;
+	__le32 ibss_no_bss_peer;
+	__le32 invalid_vdev_type;
+	__le32 invalid_ast_peer_entry;
+	__le32 peer_entry_invalid;
+	__le32 ethertype_not_ip;
+	__le32 eapol_lookup_failed;
+	__le32 qpeer_not_allow_data;
+	__le32 fse_tid_override;
+	__le32 ipv6_jumbogram_zero_length;
+	__le32 qos_to_non_qos_in_prog;
+	__le32 ap_bcast_mcast_eapol;
+	__le32 unicast_on_ap_bss_peer;
+	__le32 ap_vdev_invalid;
+	__le32 incomplete_llc;
+	__le32 eapol_duplicate_m3;
+	__le32 eapol_duplicate_m4;
+} __packed;
+
+struct ath12k_htt_tx_de_classify_status_stats_tlv {
+	__le32 eok;
+	__le32 classify_done;
+	__le32 lookup_failed;
+	__le32 send_host_dhcp;
+	__le32 send_host_mcast;
+	__le32 send_host_unknown_dest;
+	__le32 send_host;
+	__le32 status_invalid;
+} __packed;
+
+struct ath12k_htt_tx_de_enqueue_packets_stats_tlv {
+	__le32 enqueued_pkts;
+	__le32 to_tqm;
+	__le32 to_tqm_bypass;
+} __packed;
+
+struct ath12k_htt_tx_de_enqueue_discard_stats_tlv {
+	__le32 discarded_pkts;
+	__le32 local_frames;
+	__le32 is_ext_msdu;
+} __packed;
+
+struct ath12k_htt_tx_de_compl_stats_tlv {
+	__le32 tcl_dummy_frame;
+	__le32 tqm_dummy_frame;
+	__le32 tqm_notify_frame;
+	__le32 fw2wbm_enq;
+	__le32 tqm_bypass_frame;
 } __packed;
 
 #endif

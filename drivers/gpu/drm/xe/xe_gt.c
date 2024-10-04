@@ -12,8 +12,6 @@
 
 #include <generated/xe_wa_oob.h>
 
-#include <generated/xe_wa_oob.h>
-
 #include "instructions/xe_gfxpipe_commands.h"
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_gt_regs.h"

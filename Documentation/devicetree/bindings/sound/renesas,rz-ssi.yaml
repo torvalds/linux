@@ -87,6 +87,10 @@ properties:
   '#sound-dai-cells':
     const: 0
 
+  port:
+    $ref: audio-graph-port.yaml#/definitions/port-base
+    description: Connection to controller providing I2S signals
+
 required:
   - compatible
   - reg

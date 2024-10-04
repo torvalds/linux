@@ -1266,7 +1266,6 @@ static int xe_oa_mmap(struct file *file, struct vm_area_struct *vma)
 
 static const struct file_operations xe_oa_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.release	= xe_oa_release,
 	.poll		= xe_oa_poll,
 	.read		= xe_oa_read,

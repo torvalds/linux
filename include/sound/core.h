@@ -99,7 +99,7 @@ struct snd_card {
 	struct device *ctl_dev;		/* control device */
 	unsigned int last_numid;	/* last used numeric ID */
 	struct rw_semaphore controls_rwsem;	/* controls lock (list and values) */
-	rwlock_t ctl_files_rwlock;	/* ctl_files list lock */
+	rwlock_t controls_rwlock;	/* lock for lookup and ctl_files list */
 	int controls_count;		/* count of all controls */
 	size_t user_ctl_alloc_size;	// current memory allocation by user controls.
 	struct list_head controls;	/* all controls for this card */
@@ -345,45 +345,7 @@ void release_and_free_resource(struct resource *res);
 
 /* --- */
 
-/* sound printk debug levels */
-enum {
-	SND_PR_ALWAYS,
-	SND_PR_DEBUG,
-	SND_PR_VERBOSE,
-};
-
-#if defined(CONFIG_SND_DEBUG) || defined(CONFIG_SND_VERBOSE_PRINTK)
-__printf(4, 5)
-void __snd_printk(unsigned int level, const char *file, int line,
-		  const char *format, ...);
-#else
-#define __snd_printk(level, file, line, format, ...) \
-	printk(format, ##__VA_ARGS__)
-#endif
-
-/**
- * snd_printk - printk wrapper
- * @fmt: format string
- *
- * Works like printk() but prints the file and the line of the caller
- * when configured with CONFIG_SND_VERBOSE_PRINTK.
- */
-#define snd_printk(fmt, ...) \
-	__snd_printk(0, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-
 #ifdef CONFIG_SND_DEBUG
-/**
- * snd_printd - debug printk
- * @fmt: format string
- *
- * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG is not set.
- */
-#define snd_printd(fmt, ...) \
-	__snd_printk(1, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-#define _snd_printd(level, fmt, ...) \
-	__snd_printk(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-
 /**
  * snd_BUG - give a BUG warning message and stack trace
  *
@@ -391,12 +353,6 @@ void __snd_printk(unsigned int level, const char *file, int line,
  * Ignored when CONFIG_SND_DEBUG is not set.
  */
 #define snd_BUG()		WARN(1, "BUG?\n")
-
-/**
- * snd_printd_ratelimit - Suppress high rates of output when
- * 			  CONFIG_SND_DEBUG is enabled.
- */
-#define snd_printd_ratelimit() printk_ratelimit()
 
 /**
  * snd_BUG_ON - debugging check macro
@@ -409,11 +365,6 @@ void __snd_printk(unsigned int level, const char *file, int line,
 
 #else /* !CONFIG_SND_DEBUG */
 
-__printf(1, 2)
-static inline void snd_printd(const char *format, ...) {}
-__printf(2, 3)
-static inline void _snd_printd(int level, const char *format, ...) {}
-
 #define snd_BUG()			do { } while (0)
 
 #define snd_BUG_ON(condition) ({ \
@@ -421,25 +372,7 @@ static inline void _snd_printd(int level, const char *format, ...) {}
 	unlikely(__ret_warn_on); \
 })
 
-static inline bool snd_printd_ratelimit(void) { return false; }
-
 #endif /* CONFIG_SND_DEBUG */
-
-#ifdef CONFIG_SND_DEBUG_VERBOSE
-/**
- * snd_printdd - debug printk
- * @format: format string
- *
- * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
- */
-#define snd_printdd(format, ...) \
-	__snd_printk(2, __FILE__, __LINE__, format, ##__VA_ARGS__)
-#else
-__printf(1, 2)
-static inline void snd_printdd(const char *format, ...) {}
-#endif
-
 
 #define SNDRV_OSS_VERSION         ((3<<16)|(8<<8)|(1<<4)|(0))	/* 3.8.1a */
 

@@ -111,7 +111,6 @@ static irqreturn_t ac_interrupt(int, void *);
 
 static const struct file_operations ac_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.read = ac_read,
 	.write = ac_write,
 	.unlocked_ioctl = ac_ioctl,

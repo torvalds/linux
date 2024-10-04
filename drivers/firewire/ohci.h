@@ -153,7 +153,205 @@
 #define OHCI1394_evt_unknown		0xe
 #define OHCI1394_evt_flushed		0xf
 
-#define OHCI1394_phy_tcode		0xe
+
+// Asynchronous Transmit DMA.
+//
+// The content of first two quadlets of data for AT DMA is different from the header for IEEE 1394
+// asynchronous packet.
+
+#define OHCI1394_AT_DATA_Q0_srcBusID_MASK		0x00800000
+#define OHCI1394_AT_DATA_Q0_srcBusID_SHIFT		23
+#define OHCI1394_AT_DATA_Q0_spd_MASK			0x00070000
+#define OHCI1394_AT_DATA_Q0_spd_SHIFT			16
+#define OHCI1394_AT_DATA_Q0_tLabel_MASK			0x0000fc00
+#define OHCI1394_AT_DATA_Q0_tLabel_SHIFT		10
+#define OHCI1394_AT_DATA_Q0_rt_MASK			0x00000300
+#define OHCI1394_AT_DATA_Q0_rt_SHIFT			8
+#define OHCI1394_AT_DATA_Q0_tCode_MASK			0x000000f0
+#define OHCI1394_AT_DATA_Q0_tCode_SHIFT			4
+#define OHCI1394_AT_DATA_Q1_destinationId_MASK		0xffff0000
+#define OHCI1394_AT_DATA_Q1_destinationId_SHIFT		16
+#define OHCI1394_AT_DATA_Q1_destinationOffsetHigh_MASK	0x0000ffff
+#define OHCI1394_AT_DATA_Q1_destinationOffsetHigh_SHIFT	0
+#define OHCI1394_AT_DATA_Q1_rCode_MASK			0x0000f000
+#define OHCI1394_AT_DATA_Q1_rCode_SHIFT			12
+
+static inline bool ohci1394_at_data_get_src_bus_id(const __le32 *data)
+{
+	return !!((data[0] & OHCI1394_AT_DATA_Q0_srcBusID_MASK) >> OHCI1394_AT_DATA_Q0_srcBusID_SHIFT);
+}
+
+static inline void ohci1394_at_data_set_src_bus_id(__le32 *data, bool src_bus_id)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_AT_DATA_Q0_srcBusID_MASK);
+	data[0] |= cpu_to_le32((src_bus_id << OHCI1394_AT_DATA_Q0_srcBusID_SHIFT) & OHCI1394_AT_DATA_Q0_srcBusID_MASK);
+}
+
+static inline unsigned int ohci1394_at_data_get_speed(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_AT_DATA_Q0_spd_MASK) >> OHCI1394_AT_DATA_Q0_spd_SHIFT;
+}
+
+static inline void ohci1394_at_data_set_speed(__le32 *data, unsigned int scode)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_AT_DATA_Q0_spd_MASK);
+	data[0] |= cpu_to_le32((scode << OHCI1394_AT_DATA_Q0_spd_SHIFT) & OHCI1394_AT_DATA_Q0_spd_MASK);
+}
+
+static inline unsigned int ohci1394_at_data_get_tlabel(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_AT_DATA_Q0_tLabel_MASK) >> OHCI1394_AT_DATA_Q0_tLabel_SHIFT;
+}
+
+static inline void ohci1394_at_data_set_tlabel(__le32 *data, unsigned int tlabel)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_AT_DATA_Q0_tLabel_MASK);
+	data[0] |= cpu_to_le32((tlabel << OHCI1394_AT_DATA_Q0_tLabel_SHIFT) & OHCI1394_AT_DATA_Q0_tLabel_MASK);
+}
+
+static inline unsigned int ohci1394_at_data_get_retry(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_AT_DATA_Q0_rt_MASK) >> OHCI1394_AT_DATA_Q0_rt_SHIFT;
+}
+
+static inline void ohci1394_at_data_set_retry(__le32 *data, unsigned int retry)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_AT_DATA_Q0_rt_MASK);
+	data[0] |= cpu_to_le32((retry << OHCI1394_AT_DATA_Q0_rt_SHIFT) & OHCI1394_AT_DATA_Q0_rt_MASK);
+}
+
+static inline unsigned int ohci1394_at_data_get_tcode(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_AT_DATA_Q0_tCode_MASK) >> OHCI1394_AT_DATA_Q0_tCode_SHIFT;
+}
+
+static inline void ohci1394_at_data_set_tcode(__le32 *data, unsigned int tcode)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_AT_DATA_Q0_tCode_MASK);
+	data[0] |= cpu_to_le32((tcode << OHCI1394_AT_DATA_Q0_tCode_SHIFT) & OHCI1394_AT_DATA_Q0_tCode_MASK);
+}
+
+static inline unsigned int ohci1394_at_data_get_destination_id(const __le32 *data)
+{
+	return (le32_to_cpu(data[1]) & OHCI1394_AT_DATA_Q1_destinationId_MASK) >> OHCI1394_AT_DATA_Q1_destinationId_SHIFT;
+}
+
+static inline void ohci1394_at_data_set_destination_id(__le32 *data, unsigned int destination_id)
+{
+	data[1] &= cpu_to_le32(~OHCI1394_AT_DATA_Q1_destinationId_MASK);
+	data[1] |= cpu_to_le32((destination_id << OHCI1394_AT_DATA_Q1_destinationId_SHIFT) & OHCI1394_AT_DATA_Q1_destinationId_MASK);
+}
+
+static inline u64 ohci1394_at_data_get_destination_offset(const __le32 *data)
+{
+	u64 hi = (u64)((le32_to_cpu(data[1]) & OHCI1394_AT_DATA_Q1_destinationOffsetHigh_MASK) >> OHCI1394_AT_DATA_Q1_destinationOffsetHigh_SHIFT);
+	u64 lo = (u64)le32_to_cpu(data[2]);
+	return (hi << 32) | lo;
+}
+
+static inline void ohci1394_at_data_set_destination_offset(__le32 *data, u64 offset)
+{
+	u32 hi = (u32)(offset >> 32);
+	u32 lo = (u32)(offset & 0x00000000ffffffff);
+	data[1] &= cpu_to_le32(~OHCI1394_AT_DATA_Q1_destinationOffsetHigh_MASK);
+	data[1] |= cpu_to_le32((hi << OHCI1394_AT_DATA_Q1_destinationOffsetHigh_SHIFT) & OHCI1394_AT_DATA_Q1_destinationOffsetHigh_MASK);
+	data[2] = cpu_to_le32(lo);
+}
+
+static inline unsigned int ohci1394_at_data_get_rcode(const __le32 *data)
+{
+	return (le32_to_cpu(data[1]) & OHCI1394_AT_DATA_Q1_rCode_MASK) >> OHCI1394_AT_DATA_Q1_rCode_SHIFT;
+}
+
+static inline void ohci1394_at_data_set_rcode(__le32 *data, unsigned int rcode)
+{
+	data[1] &= cpu_to_le32(~OHCI1394_AT_DATA_Q1_rCode_MASK);
+	data[1] |= cpu_to_le32((rcode << OHCI1394_AT_DATA_Q1_rCode_SHIFT) & OHCI1394_AT_DATA_Q1_rCode_MASK);
+}
+
+// Isochronous Transmit DMA.
+//
+// The content of first two quadlets of data for IT DMA is different from the header for IEEE 1394
+// isochronous packet.
+
+#define OHCI1394_IT_DATA_Q0_spd_MASK		0x00070000
+#define OHCI1394_IT_DATA_Q0_spd_SHIFT		16
+#define OHCI1394_IT_DATA_Q0_tag_MASK		0x0000c000
+#define OHCI1394_IT_DATA_Q0_tag_SHIFT		14
+#define OHCI1394_IT_DATA_Q0_chanNum_MASK	0x00003f00
+#define OHCI1394_IT_DATA_Q0_chanNum_SHIFT	8
+#define OHCI1394_IT_DATA_Q0_tcode_MASK		0x000000f0
+#define OHCI1394_IT_DATA_Q0_tcode_SHIFT		4
+#define OHCI1394_IT_DATA_Q0_sy_MASK		0x0000000f
+#define OHCI1394_IT_DATA_Q0_sy_SHIFT		0
+#define OHCI1394_IT_DATA_Q1_dataLength_MASK	0xffff0000
+#define OHCI1394_IT_DATA_Q1_dataLength_SHIFT	16
+
+static inline unsigned int ohci1394_it_data_get_speed(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_IT_DATA_Q0_spd_MASK) >> OHCI1394_IT_DATA_Q0_spd_SHIFT;
+}
+
+static inline void ohci1394_it_data_set_speed(__le32 *data, unsigned int scode)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_IT_DATA_Q0_spd_MASK);
+	data[0] |= cpu_to_le32((scode << OHCI1394_IT_DATA_Q0_spd_SHIFT) & OHCI1394_IT_DATA_Q0_spd_MASK);
+}
+
+static inline unsigned int ohci1394_it_data_get_tag(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_IT_DATA_Q0_tag_MASK) >> OHCI1394_IT_DATA_Q0_tag_SHIFT;
+}
+
+static inline void ohci1394_it_data_set_tag(__le32 *data, unsigned int tag)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_IT_DATA_Q0_tag_MASK);
+	data[0] |= cpu_to_le32((tag << OHCI1394_IT_DATA_Q0_tag_SHIFT) & OHCI1394_IT_DATA_Q0_tag_MASK);
+}
+
+static inline unsigned int ohci1394_it_data_get_channel(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_IT_DATA_Q0_chanNum_MASK) >> OHCI1394_IT_DATA_Q0_chanNum_SHIFT;
+}
+
+static inline void ohci1394_it_data_set_channel(__le32 *data, unsigned int channel)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_IT_DATA_Q0_chanNum_MASK);
+	data[0] |= cpu_to_le32((channel << OHCI1394_IT_DATA_Q0_chanNum_SHIFT) & OHCI1394_IT_DATA_Q0_chanNum_MASK);
+}
+
+static inline unsigned int ohci1394_it_data_get_tcode(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_IT_DATA_Q0_tcode_MASK) >> OHCI1394_IT_DATA_Q0_tcode_SHIFT;
+}
+
+static inline void ohci1394_it_data_set_tcode(__le32 *data, unsigned int tcode)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_IT_DATA_Q0_tcode_MASK);
+	data[0] |= cpu_to_le32((tcode << OHCI1394_IT_DATA_Q0_tcode_SHIFT) & OHCI1394_IT_DATA_Q0_tcode_MASK);
+}
+
+static inline unsigned int ohci1394_it_data_get_sync(const __le32 *data)
+{
+	return (le32_to_cpu(data[0]) & OHCI1394_IT_DATA_Q0_sy_MASK) >> OHCI1394_IT_DATA_Q0_sy_SHIFT;
+}
+
+static inline void ohci1394_it_data_set_sync(__le32 *data, unsigned int sync)
+{
+	data[0] &= cpu_to_le32(~OHCI1394_IT_DATA_Q0_sy_MASK);
+	data[0] |= cpu_to_le32((sync << OHCI1394_IT_DATA_Q0_sy_SHIFT) & OHCI1394_IT_DATA_Q0_sy_MASK);
+}
+
+static inline unsigned int ohci1394_it_data_get_data_length(const __le32 *data)
+{
+	return (le32_to_cpu(data[1]) & OHCI1394_IT_DATA_Q1_dataLength_MASK) >> OHCI1394_IT_DATA_Q1_dataLength_SHIFT;
+}
+
+static inline void ohci1394_it_data_set_data_length(__le32 *data, unsigned int data_length)
+{
+	data[1] &= cpu_to_le32(~OHCI1394_IT_DATA_Q1_dataLength_MASK);
+	data[1] |= cpu_to_le32((data_length << OHCI1394_IT_DATA_Q1_dataLength_SHIFT) & OHCI1394_IT_DATA_Q1_dataLength_MASK);
+}
 
 // Self-ID DMA.
 

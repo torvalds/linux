@@ -666,7 +666,7 @@ static int spidev_release(struct inode *inode, struct file *filp)
 	}
 #ifdef CONFIG_SPI_SLAVE
 	if (!dofree)
-		spi_slave_abort(spidev->spi);
+		spi_target_abort(spidev->spi);
 #endif
 	mutex_unlock(&device_list_lock);
 
@@ -685,7 +685,6 @@ static const struct file_operations spidev_fops = {
 	.compat_ioctl = spidev_compat_ioctl,
 	.open =		spidev_open,
 	.release =	spidev_release,
-	.llseek =	no_llseek,
 };
 
 /*-------------------------------------------------------------------------*/

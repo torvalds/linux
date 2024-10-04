@@ -56,20 +56,6 @@ static const unsigned int sd_au_size[] = {
 	SZ_16M / 512,	(SZ_16M + SZ_8M) / 512,	SZ_32M / 512,	SZ_64M / 512,
 };
 
-#define UNSTUFF_BITS(resp,start,size)					\
-	({								\
-		const int __size = size;				\
-		const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1;	\
-		const int __off = 3 - ((start) / 32);			\
-		const int __shft = (start) & 31;			\
-		u32 __res;						\
-									\
-		__res = resp[__off] >> __shft;				\
-		if (__size + __shft > 32)				\
-			__res |= resp[__off-1] << ((32 - __shft) % 32);	\
-		__res & __mask;						\
-	})
-
 #define SD_POWEROFF_NOTIFY_TIMEOUT_MS 1000
 #define SD_WRITE_EXTR_SINGLE_TIMEOUT_MS 1000
 
@@ -95,18 +81,18 @@ void mmc_decode_cid(struct mmc_card *card)
 	 * SD doesn't currently have a version field so we will
 	 * have to assume we can parse this.
 	 */
-	card->cid.manfid		= UNSTUFF_BITS(resp, 120, 8);
-	card->cid.oemid			= UNSTUFF_BITS(resp, 104, 16);
-	card->cid.prod_name[0]		= UNSTUFF_BITS(resp, 96, 8);
-	card->cid.prod_name[1]		= UNSTUFF_BITS(resp, 88, 8);
-	card->cid.prod_name[2]		= UNSTUFF_BITS(resp, 80, 8);
-	card->cid.prod_name[3]		= UNSTUFF_BITS(resp, 72, 8);
-	card->cid.prod_name[4]		= UNSTUFF_BITS(resp, 64, 8);
-	card->cid.hwrev			= UNSTUFF_BITS(resp, 60, 4);
-	card->cid.fwrev			= UNSTUFF_BITS(resp, 56, 4);
-	card->cid.serial		= UNSTUFF_BITS(resp, 24, 32);
-	card->cid.year			= UNSTUFF_BITS(resp, 12, 8);
-	card->cid.month			= UNSTUFF_BITS(resp, 8, 4);
+	card->cid.manfid		= unstuff_bits(resp, 120, 8);
+	card->cid.oemid			= unstuff_bits(resp, 104, 16);
+	card->cid.prod_name[0]		= unstuff_bits(resp, 96, 8);
+	card->cid.prod_name[1]		= unstuff_bits(resp, 88, 8);
+	card->cid.prod_name[2]		= unstuff_bits(resp, 80, 8);
+	card->cid.prod_name[3]		= unstuff_bits(resp, 72, 8);
+	card->cid.prod_name[4]		= unstuff_bits(resp, 64, 8);
+	card->cid.hwrev			= unstuff_bits(resp, 60, 4);
+	card->cid.fwrev			= unstuff_bits(resp, 56, 4);
+	card->cid.serial		= unstuff_bits(resp, 24, 32);
+	card->cid.year			= unstuff_bits(resp, 12, 8);
+	card->cid.month			= unstuff_bits(resp, 8, 4);
 
 	card->cid.year += 2000; /* SD cards year offset */
 }
@@ -120,41 +106,41 @@ static int mmc_decode_csd(struct mmc_card *card)
 	unsigned int e, m, csd_struct;
 	u32 *resp = card->raw_csd;
 
-	csd_struct = UNSTUFF_BITS(resp, 126, 2);
+	csd_struct = unstuff_bits(resp, 126, 2);
 
 	switch (csd_struct) {
 	case 0:
-		m = UNSTUFF_BITS(resp, 115, 4);
-		e = UNSTUFF_BITS(resp, 112, 3);
+		m = unstuff_bits(resp, 115, 4);
+		e = unstuff_bits(resp, 112, 3);
 		csd->taac_ns	 = (taac_exp[e] * taac_mant[m] + 9) / 10;
-		csd->taac_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
+		csd->taac_clks	 = unstuff_bits(resp, 104, 8) * 100;
 
-		m = UNSTUFF_BITS(resp, 99, 4);
-		e = UNSTUFF_BITS(resp, 96, 3);
+		m = unstuff_bits(resp, 99, 4);
+		e = unstuff_bits(resp, 96, 3);
 		csd->max_dtr	  = tran_exp[e] * tran_mant[m];
-		csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
+		csd->cmdclass	  = unstuff_bits(resp, 84, 12);
 
-		e = UNSTUFF_BITS(resp, 47, 3);
-		m = UNSTUFF_BITS(resp, 62, 12);
+		e = unstuff_bits(resp, 47, 3);
+		m = unstuff_bits(resp, 62, 12);
 		csd->capacity	  = (1 + m) << (e + 2);
 
-		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
-		csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
-		csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
-		csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
-		csd->dsr_imp = UNSTUFF_BITS(resp, 76, 1);
-		csd->r2w_factor = UNSTUFF_BITS(resp, 26, 3);
-		csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
-		csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
+		csd->read_blkbits = unstuff_bits(resp, 80, 4);
+		csd->read_partial = unstuff_bits(resp, 79, 1);
+		csd->write_misalign = unstuff_bits(resp, 78, 1);
+		csd->read_misalign = unstuff_bits(resp, 77, 1);
+		csd->dsr_imp = unstuff_bits(resp, 76, 1);
+		csd->r2w_factor = unstuff_bits(resp, 26, 3);
+		csd->write_blkbits = unstuff_bits(resp, 22, 4);
+		csd->write_partial = unstuff_bits(resp, 21, 1);
 
-		if (UNSTUFF_BITS(resp, 46, 1)) {
+		if (unstuff_bits(resp, 46, 1)) {
 			csd->erase_size = 1;
 		} else if (csd->write_blkbits >= 9) {
-			csd->erase_size = UNSTUFF_BITS(resp, 39, 7) + 1;
+			csd->erase_size = unstuff_bits(resp, 39, 7) + 1;
 			csd->erase_size <<= csd->write_blkbits - 9;
 		}
 
-		if (UNSTUFF_BITS(resp, 13, 1))
+		if (unstuff_bits(resp, 13, 1))
 			mmc_card_set_readonly(card);
 		break;
 	case 1:
@@ -169,17 +155,17 @@ static int mmc_decode_csd(struct mmc_card *card)
 		csd->taac_ns	 = 0; /* Unused */
 		csd->taac_clks	 = 0; /* Unused */
 
-		m = UNSTUFF_BITS(resp, 99, 4);
-		e = UNSTUFF_BITS(resp, 96, 3);
+		m = unstuff_bits(resp, 99, 4);
+		e = unstuff_bits(resp, 96, 3);
 		csd->max_dtr	  = tran_exp[e] * tran_mant[m];
-		csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
-		csd->c_size	  = UNSTUFF_BITS(resp, 48, 22);
+		csd->cmdclass	  = unstuff_bits(resp, 84, 12);
+		csd->c_size	  = unstuff_bits(resp, 48, 22);
 
 		/* SDXC cards have a minimum C_SIZE of 0x00FFFF */
 		if (csd->c_size >= 0xFFFF)
 			mmc_card_set_ext_capacity(card);
 
-		m = UNSTUFF_BITS(resp, 48, 22);
+		m = unstuff_bits(resp, 48, 22);
 		csd->capacity     = (1 + m) << 10;
 
 		csd->read_blkbits = 9;
@@ -191,7 +177,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 		csd->write_partial = 0;
 		csd->erase_size = 1;
 
-		if (UNSTUFF_BITS(resp, 13, 1))
+		if (unstuff_bits(resp, 13, 1))
 			mmc_card_set_readonly(card);
 		break;
 	default:
@@ -217,33 +203,33 @@ static int mmc_decode_scr(struct mmc_card *card)
 	resp[3] = card->raw_scr[1];
 	resp[2] = card->raw_scr[0];
 
-	scr_struct = UNSTUFF_BITS(resp, 60, 4);
+	scr_struct = unstuff_bits(resp, 60, 4);
 	if (scr_struct != 0) {
 		pr_err("%s: unrecognised SCR structure version %d\n",
 			mmc_hostname(card->host), scr_struct);
 		return -EINVAL;
 	}
 
-	scr->sda_vsn = UNSTUFF_BITS(resp, 56, 4);
-	scr->bus_widths = UNSTUFF_BITS(resp, 48, 4);
+	scr->sda_vsn = unstuff_bits(resp, 56, 4);
+	scr->bus_widths = unstuff_bits(resp, 48, 4);
 	if (scr->sda_vsn == SCR_SPEC_VER_2)
 		/* Check if Physical Layer Spec v3.0 is supported */
-		scr->sda_spec3 = UNSTUFF_BITS(resp, 47, 1);
+		scr->sda_spec3 = unstuff_bits(resp, 47, 1);
 
 	if (scr->sda_spec3) {
-		scr->sda_spec4 = UNSTUFF_BITS(resp, 42, 1);
-		scr->sda_specx = UNSTUFF_BITS(resp, 38, 4);
+		scr->sda_spec4 = unstuff_bits(resp, 42, 1);
+		scr->sda_specx = unstuff_bits(resp, 38, 4);
 	}
 
-	if (UNSTUFF_BITS(resp, 55, 1))
+	if (unstuff_bits(resp, 55, 1))
 		card->erased_byte = 0xFF;
 	else
 		card->erased_byte = 0x0;
 
 	if (scr->sda_spec4)
-		scr->cmds = UNSTUFF_BITS(resp, 32, 4);
+		scr->cmds = unstuff_bits(resp, 32, 4);
 	else if (scr->sda_spec3)
-		scr->cmds = UNSTUFF_BITS(resp, 32, 2);
+		scr->cmds = unstuff_bits(resp, 32, 2);
 
 	/* SD Spec says: any SD Card shall set at least bits 0 and 2 */
 	if (!(scr->bus_widths & SD_SCR_BUS_WIDTH_1) ||
@@ -289,17 +275,17 @@ static int mmc_read_ssr(struct mmc_card *card)
 	kfree(raw_ssr);
 
 	/*
-	 * UNSTUFF_BITS only works with four u32s so we have to offset the
+	 * unstuff_bits only works with four u32s so we have to offset the
 	 * bitfield positions accordingly.
 	 */
-	au = UNSTUFF_BITS(card->raw_ssr, 428 - 384, 4);
+	au = unstuff_bits(card->raw_ssr, 428 - 384, 4);
 	if (au) {
 		if (au <= 9 || card->scr.sda_spec3) {
 			card->ssr.au = sd_au_size[au];
-			es = UNSTUFF_BITS(card->raw_ssr, 408 - 384, 16);
-			et = UNSTUFF_BITS(card->raw_ssr, 402 - 384, 6);
+			es = unstuff_bits(card->raw_ssr, 408 - 384, 16);
+			et = unstuff_bits(card->raw_ssr, 402 - 384, 6);
 			if (es && et) {
-				eo = UNSTUFF_BITS(card->raw_ssr, 400 - 384, 2);
+				eo = unstuff_bits(card->raw_ssr, 400 - 384, 2);
 				card->ssr.erase_timeout = (et * 1000) / es;
 				card->ssr.erase_offset = eo * 1000;
 			}
@@ -313,7 +299,7 @@ static int mmc_read_ssr(struct mmc_card *card)
 	 * starting SD5.1 discard is supported if DISCARD_SUPPORT (b313) is set
 	 */
 	resp[3] = card->raw_ssr[6];
-	discard_support = UNSTUFF_BITS(resp, 313 - 288, 1);
+	discard_support = unstuff_bits(resp, 313 - 288, 1);
 	card->erase_arg = (card->scr.sda_specx && discard_support) ?
 			    SD_DISCARD_ARG : SD_ERASE_ARG;
 
@@ -346,7 +332,7 @@ static int mmc_read_switch(struct mmc_card *card)
 	 * The argument does not matter, as the support bits do not
 	 * change with the arguments.
 	 */
-	err = mmc_sd_switch(card, 0, 0, 0, status);
+	err = mmc_sd_switch(card, SD_SWITCH_CHECK, 0, 0, status);
 	if (err) {
 		/*
 		 * If the host or the card can't do the switch,
@@ -402,7 +388,8 @@ int mmc_sd_switch_hs(struct mmc_card *card)
 	if (!status)
 		return -ENOMEM;
 
-	err = mmc_sd_switch(card, 1, 0, HIGH_SPEED_BUS_SPEED, status);
+	err = mmc_sd_switch(card, SD_SWITCH_SET, 0,
+			HIGH_SPEED_BUS_SPEED, status);
 	if (err)
 		goto out;
 
@@ -434,7 +421,8 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 						   card_drv_type, &drv_type);
 
 	if (drive_strength) {
-		err = mmc_sd_switch(card, 1, 2, drive_strength, status);
+		err = mmc_sd_switch(card, SD_SWITCH_SET, 2,
+				drive_strength, status);
 		if (err)
 			return err;
 		if ((status[15] & 0xF) != drive_strength) {
@@ -514,7 +502,7 @@ static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
 		return 0;
 	}
 
-	err = mmc_sd_switch(card, 1, 0, card->sd_bus_speed, status);
+	err = mmc_sd_switch(card, SD_SWITCH_SET, 0, card->sd_bus_speed, status);
 	if (err)
 		return err;
 
@@ -605,7 +593,8 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 		current_limit = SD_SET_CURRENT_LIMIT_200;
 
 	if (current_limit != SD_SET_CURRENT_NO_CHANGE) {
-		err = mmc_sd_switch(card, 1, 3, current_limit, status);
+		err = mmc_sd_switch(card, SD_SWITCH_SET, 3,
+				current_limit, status);
 		if (err)
 			return err;
 

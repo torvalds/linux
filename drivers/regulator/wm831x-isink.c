@@ -146,10 +146,10 @@ static int wm831x_isink_probe(struct platform_device *pdev)
 	isink->desc.ops = &wm831x_isink_ops;
 	isink->desc.type = REGULATOR_CURRENT;
 	isink->desc.owner = THIS_MODULE;
-	isink->desc.curr_table = wm831x_isinkv_values,
-	isink->desc.n_current_limits = ARRAY_SIZE(wm831x_isinkv_values),
-	isink->desc.csel_reg = isink->reg,
-	isink->desc.csel_mask = WM831X_CS1_ISEL_MASK,
+	isink->desc.curr_table = wm831x_isinkv_values;
+	isink->desc.n_current_limits = ARRAY_SIZE(wm831x_isinkv_values);
+	isink->desc.csel_reg = isink->reg;
+	isink->desc.csel_mask = WM831X_CS1_ISEL_MASK;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->isink[id];

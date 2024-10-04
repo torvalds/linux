@@ -97,7 +97,9 @@ static inline bool __bch2_ptr_matches_stripe(const struct bch_extent_ptr *stripe
 					     const struct bch_extent_ptr *data_ptr,
 					     unsigned sectors)
 {
-	return  data_ptr->dev    == stripe_ptr->dev &&
+	return  (data_ptr->dev    == stripe_ptr->dev ||
+		 data_ptr->dev    == BCH_SB_MEMBER_INVALID ||
+		 stripe_ptr->dev  == BCH_SB_MEMBER_INVALID) &&
 		data_ptr->gen    == stripe_ptr->gen &&
 		data_ptr->offset >= stripe_ptr->offset &&
 		data_ptr->offset  < stripe_ptr->offset + sectors;
@@ -186,10 +188,15 @@ struct ec_stripe_head {
 	struct list_head	list;
 	struct mutex		lock;
 
-	unsigned		target;
+	unsigned		disk_label;
 	unsigned		algo;
 	unsigned		redundancy;
 	enum bch_watermark	watermark;
+	bool			insufficient_devs;
+
+	unsigned long		rw_devs_change_count;
+
+	u64			nr_created;
 
 	struct bch_devs_mask	devs;
 	unsigned		nr_active_devs;
@@ -202,7 +209,7 @@ struct ec_stripe_head {
 	struct ec_stripe_new	*s;
 };
 
-int bch2_ec_read_extent(struct btree_trans *, struct bch_read_bio *);
+int bch2_ec_read_extent(struct btree_trans *, struct bch_read_bio *, struct bkey_s_c);
 
 void *bch2_writepoint_ec_buf(struct bch_fs *, struct write_point *);
 
@@ -246,6 +253,8 @@ static inline void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s,
 			BUG();
 		}
 }
+
+int bch2_dev_remove_stripes(struct bch_fs *, unsigned);
 
 void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);
 void bch2_fs_ec_stop(struct bch_fs *);

@@ -46,6 +46,9 @@
 #include <xen/page.h>
 #include <xen/xen-ops.h>
 #include <xen/balloon.h>
+#ifdef CONFIG_XEN_ACPI
+#include <xen/acpi.h>
+#endif
 
 #include "privcmd.h"
 
@@ -844,6 +847,31 @@ out:
 	return rc;
 }
 
+static long privcmd_ioctl_pcidev_get_gsi(struct file *file, void __user *udata)
+{
+#if defined(CONFIG_XEN_ACPI)
+	int rc = -EINVAL;
+	struct privcmd_pcidev_get_gsi kdata;
+
+	if (copy_from_user(&kdata, udata, sizeof(kdata)))
+		return -EFAULT;
+
+	if (IS_REACHABLE(CONFIG_XEN_PCIDEV_BACKEND))
+		rc = pcistub_get_gsi_from_sbdf(kdata.sbdf);
+
+	if (rc < 0)
+		return rc;
+
+	kdata.gsi = rc;
+	if (copy_to_user(udata, &kdata, sizeof(kdata)))
+		return -EFAULT;
+
+	return 0;
+#else
+	return -EINVAL;
+#endif
+}
+
 #ifdef CONFIG_XEN_PRIVCMD_EVENTFD
 /* Irqfd support */
 static struct workqueue_struct *irqfd_cleanup_wq;
@@ -959,12 +987,12 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	INIT_WORK(&kirqfd->shutdown, irqfd_shutdown);
 
 	f = fdget(irqfd->fd);
-	if (!f.file) {
+	if (!fd_file(f)) {
 		ret = -EBADF;
 		goto error_kfree;
 	}
 
-	kirqfd->eventfd = eventfd_ctx_fileget(f.file);
+	kirqfd->eventfd = eventfd_ctx_fileget(fd_file(f));
 	if (IS_ERR(kirqfd->eventfd)) {
 		ret = PTR_ERR(kirqfd->eventfd);
 		goto error_fd_put;
@@ -995,7 +1023,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	 * Check if there was an event already pending on the eventfd before we
 	 * registered, and trigger it as if we didn't miss it.
 	 */
-	events = vfs_poll(f.file, &kirqfd->pt);
+	events = vfs_poll(fd_file(f), &kirqfd->pt);
 	if (events & EPOLLIN)
 		irqfd_inject(kirqfd);
 
@@ -1345,12 +1373,12 @@ static int privcmd_ioeventfd_assign(struct privcmd_ioeventfd *ioeventfd)
 		return -ENOMEM;
 
 	f = fdget(ioeventfd->event_fd);
-	if (!f.file) {
+	if (!fd_file(f)) {
 		ret = -EBADF;
 		goto error_kfree;
 	}
 
-	kioeventfd->eventfd = eventfd_ctx_fileget(f.file);
+	kioeventfd->eventfd = eventfd_ctx_fileget(fd_file(f));
 	fdput(f);
 
 	if (IS_ERR(kioeventfd->eventfd)) {
@@ -1541,6 +1569,10 @@ static long privcmd_ioctl(struct file *file,
 
 	case IOCTL_PRIVCMD_IOEVENTFD:
 		ret = privcmd_ioctl_ioeventfd(file, udata);
+		break;
+
+	case IOCTL_PRIVCMD_PCIDEV_GET_GSI:
+		ret = privcmd_ioctl_pcidev_get_gsi(file, udata);
 		break;
 
 	default:

@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
-obj-y = audit.o common.o condition.o domain.o environ.o file.o gc.o group.o load_policy.o memory.o mount.o network.o realpath.o securityfs_if.o tomoyo.o util.o
+tomoyo-objs := audit.o common.o condition.o domain.o environ.o file.o gc.o group.o memory.o mount.o network.o proxy.o realpath.o securityfs_if.o util.o
+obj-y += init.o load_policy.o
+ifdef CONFIG_SECURITY_TOMOYO_LKM
+obj-m += tomoyo.o
+else
+obj-y += tomoyo.o
+endif
 
 targets += builtin-policy.h
 

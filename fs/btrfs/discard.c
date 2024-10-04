@@ -68,7 +68,7 @@ static int discard_minlen[BTRFS_NR_DISCARD_LISTS] = {
 };
 
 static struct list_head *get_discard_list(struct btrfs_discard_ctl *discard_ctl,
-					  struct btrfs_block_group *block_group)
+					  const struct btrfs_block_group *block_group)
 {
 	return &discard_ctl->discard_list[block_group->discard_index];
 }
@@ -80,7 +80,7 @@ static struct list_head *get_discard_list(struct btrfs_discard_ctl *discard_ctl,
  *
  * Check if the file system is writeable and BTRFS_FS_DISCARD_RUNNING is set.
  */
-static bool btrfs_run_discard_work(struct btrfs_discard_ctl *discard_ctl)
+static bool btrfs_run_discard_work(const struct btrfs_discard_ctl *discard_ctl)
 {
 	struct btrfs_fs_info *fs_info = container_of(discard_ctl,
 						     struct btrfs_fs_info,

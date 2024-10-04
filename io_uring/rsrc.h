@@ -22,8 +22,6 @@ struct io_rsrc_put {
 	};
 };
 
-typedef void (rsrc_put_fn)(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
-
 struct io_rsrc_data {
 	struct io_ring_ctx		*ctx;
 
@@ -44,10 +42,20 @@ struct io_rsrc_node {
 
 struct io_mapped_ubuf {
 	u64		ubuf;
-	u64		ubuf_end;
+	unsigned int	len;
 	unsigned int	nr_bvecs;
+	unsigned int    folio_shift;
+	refcount_t	refs;
 	unsigned long	acct_pages;
 	struct bio_vec	bvec[] __counted_by(nr_bvecs);
+};
+
+struct io_imu_folio_data {
+	/* Head folio can be partially included in the fixed buf */
+	unsigned int	nr_pages_head;
+	/* For non-head/tail folios, has to be fully included */
+	unsigned int	nr_pages_mid;
+	unsigned int	folio_shift;
 };
 
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
@@ -59,6 +67,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 			   struct io_mapped_ubuf *imu,
 			   u64 buf_addr, size_t len);
 
+int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg);
 void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx);
 int io_sqe_buffers_unregister(struct io_ring_ctx *ctx);
 int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,

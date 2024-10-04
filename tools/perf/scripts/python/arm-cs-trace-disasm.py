@@ -192,16 +192,15 @@ def process_event(param_dict):
 	ip = sample["ip"]
 	addr = sample["addr"]
 
+	if (options.verbose == True):
+		print("Event type: %s" % name)
+		print_sample(sample)
+
 	# Initialize CPU data if it's empty, and directly return back
 	# if this is the first tracing event for this CPU.
 	if (cpu_data.get(str(cpu) + 'addr') == None):
 		cpu_data[str(cpu) + 'addr'] = addr
 		return
-
-
-	if (options.verbose == True):
-		print("Event type: %s" % name)
-		print_sample(sample)
 
 	# If cannot find dso so cannot dump assembler, bail out
 	if (dso == '[unknown]'):

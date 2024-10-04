@@ -300,8 +300,6 @@ sub check_sphinx()
 	}
 
 	$cur_version = get_sphinx_version($sphinx);
-	die ("$sphinx returned an error") if (!$cur_version);
-
 	die "$sphinx didn't return its version" if (!$cur_version);
 
 	if ($cur_version lt $min_version) {

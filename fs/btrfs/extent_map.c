@@ -192,10 +192,13 @@ static inline u64 extent_map_block_len(const struct extent_map *em)
 
 static inline u64 extent_map_block_end(const struct extent_map *em)
 {
-	if (extent_map_block_start(em) + extent_map_block_len(em) <
-	    extent_map_block_start(em))
+	const u64 block_start = extent_map_block_start(em);
+	const u64 block_end = block_start + extent_map_block_len(em);
+
+	if (block_end < block_start)
 		return (u64)-1;
-	return extent_map_block_start(em) + extent_map_block_len(em);
+
+	return block_end;
 }
 
 static bool can_merge_extent_map(const struct extent_map *em)

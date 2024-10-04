@@ -22,7 +22,7 @@
 
 #include "hid-ids.h"
 
-static __u8 *ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x01) {

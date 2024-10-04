@@ -470,8 +470,7 @@ static const struct thermal_zone_device_ops max77621_tz_ops = {
 static int max8973_thermal_init(struct max8973_chip *mchip)
 {
 	struct thermal_zone_device *tzd;
-	struct irq_data *irq_data;
-	unsigned long irq_flags = 0;
+	unsigned long irq_flags;
 	int ret;
 
 	if (mchip->id != MAX77621)
@@ -489,9 +488,7 @@ static int max8973_thermal_init(struct max8973_chip *mchip)
 	if (mchip->irq <= 0)
 		return 0;
 
-	irq_data = irq_get_irq_data(mchip->irq);
-	if (irq_data)
-		irq_flags = irqd_get_trigger_type(irq_data);
+	irq_flags = irq_get_trigger_type(mchip->irq);
 
 	ret = devm_request_threaded_irq(mchip->dev, mchip->irq, NULL,
 					max8973_thermal_irq,

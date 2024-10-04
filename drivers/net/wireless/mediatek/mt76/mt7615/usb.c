@@ -123,6 +123,7 @@ static int mt7663u_probe(struct usb_interface *usb_intf,
 		.sta_add = mt7615_mac_sta_add,
 		.sta_remove = mt7615_mac_sta_remove,
 		.update_survey = mt7615_update_channel,
+		.set_channel = mt7615_set_channel,
 	};
 	static struct mt76_bus_ops bus_ops = {
 		.rr = mt7663u_rr,

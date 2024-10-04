@@ -203,10 +203,10 @@ TRACE_EVENT(mlx5_fs_set_fte,
 			   fs_get_obj(__entry->fg, fte->node.parent);
 			   __entry->group_index = __entry->fg->id;
 			   __entry->index = fte->index;
-			   __entry->action = fte->action.action;
+			   __entry->action = fte->act_dests.action.action;
 			   __entry->mask_enable = __entry->fg->mask.match_criteria_enable;
-			   __entry->flow_tag = fte->flow_context.flow_tag;
-			   __entry->flow_source = fte->flow_context.flow_source;
+			   __entry->flow_tag = fte->act_dests.flow_context.flow_tag;
+			   __entry->flow_source = fte->act_dests.flow_context.flow_source;
 			   memcpy(__entry->mask_outer,
 				  MLX5_ADDR_OF(fte_match_param,
 					       &__entry->fg->mask.match_criteria,
@@ -284,7 +284,7 @@ TRACE_EVENT(mlx5_fs_add_rule,
 	    TP_fast_assign(
 			   __entry->rule = rule;
 			   fs_get_obj(__entry->fte, rule->node.parent);
-			   __entry->index = __entry->fte->dests_size - 1;
+			   __entry->index = __entry->fte->act_dests.dests_size - 1;
 			   __entry->sw_action = rule->sw_action;
 			   memcpy(__entry->destination,
 				  &rule->dest_attr,

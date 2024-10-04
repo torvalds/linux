@@ -66,7 +66,7 @@ patternProperties:
             IMAXled = 160000 * (592 / 600.5) * (1 / max-current-switch-number)
           And the minimum output current formula:
             IMINled = 3300 * (592 / 600.5) * (1 / max-current-switch-number)
-          where max-current-switch-number is determinated by led configuration
+          where max-current-switch-number is determined by led configuration
           and depends on how leds are physically connected to the led driver.
 
 allOf:

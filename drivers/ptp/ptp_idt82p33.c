@@ -1171,10 +1171,10 @@ static void idt82p33_caps_init(u32 index, struct ptp_clock_info *caps,
 	caps->owner = THIS_MODULE;
 	caps->max_adj = DCO_MAX_PPB;
 	caps->n_per_out = MAX_PER_OUT;
-	caps->n_ext_ts = MAX_PHC_PLL,
-	caps->n_pins = max_pins,
-	caps->adjphase = idt82p33_adjwritephase,
-	caps->getmaxphase = idt82p33_getmaxphase,
+	caps->n_ext_ts = MAX_PHC_PLL;
+	caps->n_pins = max_pins;
+	caps->adjphase = idt82p33_adjwritephase;
+	caps->getmaxphase = idt82p33_getmaxphase;
 	caps->adjfine = idt82p33_adjfine;
 	caps->adjtime = idt82p33_adjtime;
 	caps->gettime64 = idt82p33_gettime;

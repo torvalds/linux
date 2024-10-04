@@ -10,9 +10,6 @@
 #ifndef MDEV_PRIVATE_H
 #define MDEV_PRIVATE_H
 
-int  mdev_bus_register(void);
-void mdev_bus_unregister(void);
-
 extern const struct bus_type mdev_bus_type;
 extern const struct attribute_group *mdev_device_groups[];
 

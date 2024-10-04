@@ -346,7 +346,6 @@ void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
 
 
 	VDO_ASSERT_LOG_ONLY(!code->quiescent, "I/O not allowed in state %s", code->name);
-	VDO_ASSERT_LOG_ONLY(vio->bio->bi_next == NULL, "metadata bio has no next bio");
 
 	vdo_reset_completion(completion);
 	completion->error_handler = error_handler;

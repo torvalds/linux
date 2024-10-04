@@ -53,11 +53,6 @@ pc_to_xe(struct xe_guc_pc *pc)
 	return gt_to_xe(gt);
 }
 
-static inline const char *str_up_down(bool v)
-{
-	return v ? "up" : "down";
-}
-
 static const char *gt_idle_state_to_string(enum xe_gt_idle_state state)
 {
 	switch (state) {

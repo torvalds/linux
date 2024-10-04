@@ -882,7 +882,7 @@ int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
 			if (ret)
 				return ret;
 
-			/* gfx block ras dsiable cmd must send to ras-ta */
+			/* gfx block ras disable cmd must send to ras-ta */
 			if (head->block == AMDGPU_RAS_BLOCK__GFX)
 				con->features |= BIT(head->block);
 
@@ -3468,6 +3468,11 @@ init_ras_enabled_flag:
 
 	/* aca is disabled by default */
 	adev->aca.is_enabled = false;
+
+	/* bad page feature is not applicable to specific app platform */
+	if (adev->gmc.is_app_apu &&
+	    amdgpu_ip_version(adev, UMC_HWIP, 0) == IP_VERSION(12, 0, 0))
+		amdgpu_bad_page_threshold = 0;
 }
 
 static void amdgpu_ras_counte_dw(struct work_struct *work)
