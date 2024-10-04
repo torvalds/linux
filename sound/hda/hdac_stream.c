@@ -657,6 +657,7 @@ static void azx_timecounter_init(struct hdac_stream *azx_dev,
  * snd_hdac_stream_timecounter_init - initialize time counter
  * @azx_dev: HD-audio core stream (master stream)
  * @streams: bit flags of streams to set up
+ * @start: true for PCM trigger start, false for other cases
  *
  * Initializes the time counter of streams marked by the bit flags (each
  * bit corresponds to the stream index).
