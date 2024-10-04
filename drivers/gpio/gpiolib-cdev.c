@@ -143,18 +143,22 @@ static int linehandle_validate_flags(u32 flags)
 
 static void linehandle_flags_to_desc_flags(u32 lflags, unsigned long *flagsp)
 {
-	assign_bit(FLAG_ACTIVE_LOW, flagsp,
+	unsigned long flags = READ_ONCE(*flagsp);
+
+	assign_bit(FLAG_ACTIVE_LOW, &flags,
 		   lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW);
-	assign_bit(FLAG_OPEN_DRAIN, flagsp,
+	assign_bit(FLAG_OPEN_DRAIN, &flags,
 		   lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN);
-	assign_bit(FLAG_OPEN_SOURCE, flagsp,
+	assign_bit(FLAG_OPEN_SOURCE, &flags,
 		   lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE);
-	assign_bit(FLAG_PULL_UP, flagsp,
+	assign_bit(FLAG_PULL_UP, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP);
-	assign_bit(FLAG_PULL_DOWN, flagsp,
+	assign_bit(FLAG_PULL_DOWN, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN);
-	assign_bit(FLAG_BIAS_DISABLE, flagsp,
+	assign_bit(FLAG_BIAS_DISABLE, &flags,
 		   lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE);
+
+	WRITE_ONCE(*flagsp, flags);
 }
 
 static long linehandle_set_config(struct linehandle_state *lh,
@@ -1348,38 +1352,42 @@ static int gpio_v2_line_config_validate(struct gpio_v2_line_config *lc,
 	return 0;
 }
 
-static void gpio_v2_line_config_flags_to_desc_flags(u64 flags,
+static void gpio_v2_line_config_flags_to_desc_flags(u64 lflags,
 						    unsigned long *flagsp)
 {
-	assign_bit(FLAG_ACTIVE_LOW, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_ACTIVE_LOW);
+	unsigned long flags = READ_ONCE(*flagsp);
 
-	if (flags & GPIO_V2_LINE_FLAG_OUTPUT)
-		set_bit(FLAG_IS_OUT, flagsp);
-	else if (flags & GPIO_V2_LINE_FLAG_INPUT)
-		clear_bit(FLAG_IS_OUT, flagsp);
+	assign_bit(FLAG_ACTIVE_LOW, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_ACTIVE_LOW);
 
-	assign_bit(FLAG_EDGE_RISING, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EDGE_RISING);
-	assign_bit(FLAG_EDGE_FALLING, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EDGE_FALLING);
+	if (lflags & GPIO_V2_LINE_FLAG_OUTPUT)
+		set_bit(FLAG_IS_OUT, &flags);
+	else if (lflags & GPIO_V2_LINE_FLAG_INPUT)
+		clear_bit(FLAG_IS_OUT, &flags);
 
-	assign_bit(FLAG_OPEN_DRAIN, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_OPEN_DRAIN);
-	assign_bit(FLAG_OPEN_SOURCE, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_OPEN_SOURCE);
+	assign_bit(FLAG_EDGE_RISING, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EDGE_RISING);
+	assign_bit(FLAG_EDGE_FALLING, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EDGE_FALLING);
 
-	assign_bit(FLAG_PULL_UP, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_BIAS_PULL_UP);
-	assign_bit(FLAG_PULL_DOWN, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_BIAS_PULL_DOWN);
-	assign_bit(FLAG_BIAS_DISABLE, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_BIAS_DISABLED);
+	assign_bit(FLAG_OPEN_DRAIN, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_OPEN_DRAIN);
+	assign_bit(FLAG_OPEN_SOURCE, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_OPEN_SOURCE);
 
-	assign_bit(FLAG_EVENT_CLOCK_REALTIME, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME);
-	assign_bit(FLAG_EVENT_CLOCK_HTE, flagsp,
-		   flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE);
+	assign_bit(FLAG_PULL_UP, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_BIAS_PULL_UP);
+	assign_bit(FLAG_PULL_DOWN, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_BIAS_PULL_DOWN);
+	assign_bit(FLAG_BIAS_DISABLE, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_BIAS_DISABLED);
+
+	assign_bit(FLAG_EVENT_CLOCK_REALTIME, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME);
+	assign_bit(FLAG_EVENT_CLOCK_HTE, &flags,
+		   lflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE);
+
+	WRITE_ONCE(*flagsp, flags);
 }
 
 static long linereq_get_values(struct linereq *lr, void __user *ip)
