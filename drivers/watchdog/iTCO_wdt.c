@@ -609,10 +609,8 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_reboot(&p->wddev);
 	watchdog_stop_on_unregister(&p->wddev);
 	ret = devm_watchdog_register_device(dev, &p->wddev);
-	if (ret != 0) {
-		dev_err(dev, "cannot register watchdog device (err=%d)\n", ret);
+	if (ret != 0)
 		return ret;
-	}
 
 	dev_info(dev, "initialized. heartbeat=%d sec (nowayout=%d)\n",
 		heartbeat, nowayout);
