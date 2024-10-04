@@ -3423,7 +3423,7 @@ intel_edp_init_source_oui(struct intel_dp *intel_dp, bool careful)
 	}
 
 	if (drm_dp_dpcd_write(&intel_dp->aux, DP_SOURCE_OUI, oui, sizeof(oui)) < 0)
-		drm_err(&i915->drm, "Failed to write source OUI\n");
+		drm_info(&i915->drm, "Failed to write source OUI\n");
 
 	intel_dp->last_oui_write = jiffies;
 }
