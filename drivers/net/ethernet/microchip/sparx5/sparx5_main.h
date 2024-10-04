@@ -267,6 +267,8 @@ struct sparx5_ops {
 	u32  (*get_port_dev_bit)(struct sparx5 *sparx5, int port);
 	u32  (*get_hsch_max_group_rate)(int grp);
 	struct sparx5_sdlb_group *(*get_sdlb_group)(int idx);
+	int (*set_port_mux)(struct sparx5 *sparx5, struct sparx5_port *port,
+			    struct sparx5_port_config *conf);
 };
 
 struct sparx5_main_io_resource {
@@ -484,6 +486,10 @@ int sparx5_pool_put(struct sparx5_pool_entry *pool, int size, u32 id);
 int sparx5_pool_get(struct sparx5_pool_entry *pool, int size, u32 *id);
 int sparx5_pool_get_with_idx(struct sparx5_pool_entry *pool, int size, u32 idx,
 			     u32 *id);
+
+/* sparx5_port.c */
+int sparx5_port_mux_set(struct sparx5 *sparx5, struct sparx5_port *port,
+			struct sparx5_port_config *conf);
 
 /* sparx5_sdlb.c */
 #define SPX5_SDLB_PUP_TOKEN_DISABLE 0x1FFF
