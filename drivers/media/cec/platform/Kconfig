@@ -99,7 +99,7 @@ config CEC_TEGRA
 
 config CEC_SECO
 	tristate "SECO Boards HDMI CEC driver"
-	depends on X86 || COMPILE_TEST
+	depends on X86 || (COMPILE_TEST && HAS_IOPORT)
 	depends on PCI && DMI
 	select CEC_CORE
 	select CEC_NOTIFIER
