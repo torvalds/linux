@@ -1254,7 +1254,7 @@ int vms_gather_munmap_vmas(struct vma_munmap_struct *vms,
 		else if (is_data_mapping(next->vm_flags))
 			vms->data_vm += nrpages;
 
-		if (unlikely(vms->uf)) {
+		if (vms->uf) {
 			/*
 			 * If userfaultfd_unmap_prep returns an error the vmas
 			 * will remain split, but userland will get a
