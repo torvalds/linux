@@ -175,6 +175,11 @@ int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
 	return mdiodev_c45_write(xpcs->mdiodev, dev, reg, val);
 }
 
+int xpcs_modify(struct dw_xpcs *xpcs, int dev, u32 reg, u16 mask, u16 set)
+{
+	return mdiodev_c45_modify(xpcs->mdiodev, dev, reg, mask, set);
+}
+
 static int xpcs_modify_changed(struct dw_xpcs *xpcs, int dev, u32 reg,
 			       u16 mask, u16 set)
 {
@@ -192,6 +197,12 @@ static int xpcs_write_vendor(struct dw_xpcs *xpcs, int dev, int reg,
 	return xpcs_write(xpcs, dev, DW_VENDOR | reg, val);
 }
 
+static int xpcs_modify_vendor(struct dw_xpcs *xpcs, int dev, int reg, u16 mask,
+			      u16 set)
+{
+	return xpcs_modify(xpcs, dev, DW_VENDOR | reg, mask, set);
+}
+
 int xpcs_read_vpcs(struct dw_xpcs *xpcs, int reg)
 {
 	return xpcs_read_vendor(xpcs, MDIO_MMD_PCS, reg);
@@ -200,6 +211,11 @@ int xpcs_read_vpcs(struct dw_xpcs *xpcs, int reg)
 int xpcs_write_vpcs(struct dw_xpcs *xpcs, int reg, u16 val)
 {
 	return xpcs_write_vendor(xpcs, MDIO_MMD_PCS, reg, val);
+}
+
+static int xpcs_modify_vpcs(struct dw_xpcs *xpcs, int reg, u16 mask, u16 val)
+{
+	return xpcs_modify_vendor(xpcs, MDIO_MMD_PCS, reg, mask, val);
 }
 
 static int xpcs_poll_reset(struct dw_xpcs *xpcs, int dev)
@@ -326,30 +342,17 @@ static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 		return;
 	}
 
-	ret = xpcs_read_vpcs(xpcs, MDIO_CTRL1);
+	ret = xpcs_modify_vpcs(xpcs, MDIO_CTRL1, DW_USXGMII_EN, DW_USXGMII_EN);
 	if (ret < 0)
 		goto out;
 
-	ret = xpcs_write_vpcs(xpcs, MDIO_CTRL1, ret | DW_USXGMII_EN);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, DW_USXGMII_SS_MASK,
+			  speed_sel | DW_USXGMII_FULL);
 	if (ret < 0)
 		goto out;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1);
-	if (ret < 0)
-		goto out;
-
-	ret &= ~DW_USXGMII_SS_MASK;
-	ret |= speed_sel | DW_USXGMII_FULL;
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, ret);
-	if (ret < 0)
-		goto out;
-
-	ret = xpcs_read_vpcs(xpcs, MDIO_CTRL1);
-	if (ret < 0)
-		goto out;
-
-	ret = xpcs_write_vpcs(xpcs, MDIO_CTRL1, ret | DW_USXGMII_RST);
+	ret = xpcs_modify_vpcs(xpcs, MDIO_CTRL1, DW_USXGMII_RST,
+			       DW_USXGMII_RST);
 	if (ret < 0)
 		goto out;
 
@@ -413,13 +416,9 @@ static int xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
 	if (ret < 0)
 		return ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_AN, MDIO_CTRL1);
-	if (ret < 0)
-		return ret;
-
-	ret |= MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART;
-
-	return xpcs_write(xpcs, MDIO_MMD_AN, MDIO_CTRL1, ret);
+	return xpcs_modify(xpcs, MDIO_MMD_AN, MDIO_CTRL1,
+			   MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART,
+			   MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART);
 }
 
 static int xpcs_aneg_done_c73(struct dw_xpcs *xpcs,
@@ -581,40 +580,31 @@ EXPORT_SYMBOL_GPL(xpcs_get_interfaces);
 
 int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns, int enable)
 {
+	u16 mask, val;
 	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL0);
-	if (ret < 0)
-		return ret;
+	mask = DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
+	       DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
+	       DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
+	       DW_VR_MII_EEE_MULT_FACT_100NS;
 
-	if (enable) {
-	/* Enable EEE */
-		ret = DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
+	if (enable)
+		val = DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
 		      DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
 		      DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
 		      FIELD_PREP(DW_VR_MII_EEE_MULT_FACT_100NS,
 				 mult_fact_100ns);
-	} else {
-		ret &= ~(DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
-		       DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
-		       DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
-		       DW_VR_MII_EEE_MULT_FACT_100NS);
-	}
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL0, ret);
-	if (ret < 0)
-		return ret;
-
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL1);
-	if (ret < 0)
-		return ret;
-
-	if (enable)
-		ret |= DW_VR_MII_EEE_TRN_LPI;
 	else
-		ret &= ~DW_VR_MII_EEE_TRN_LPI;
+		val = 0;
 
-	return xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL1, ret);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL0, mask,
+			  val);
+	if (ret < 0)
+		return ret;
+
+	return xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_EEE_MCTRL1,
+			   DW_VR_MII_EEE_TRN_LPI,
+			   enable ? DW_VR_MII_EEE_TRN_LPI : 0);
 }
 EXPORT_SYMBOL_GPL(xpcs_config_eee);
 
@@ -646,6 +636,7 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 				      unsigned int neg_mode)
 {
 	int ret, mdio_ctrl, tx_conf;
+	u16 mask, val;
 
 	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
 		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
@@ -677,38 +668,35 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 			return ret;
 	}
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL);
-	if (ret < 0)
-		return ret;
+	mask = DW_VR_MII_PCS_MODE_MASK | DW_VR_MII_TX_CONFIG_MASK;
+	val = FIELD_PREP(DW_VR_MII_PCS_MODE_MASK,
+			 DW_VR_MII_PCS_MODE_C37_SGMII);
 
-	ret &= ~(DW_VR_MII_PCS_MODE_MASK | DW_VR_MII_TX_CONFIG_MASK);
-	ret |= FIELD_PREP(DW_VR_MII_PCS_MODE_MASK,
-			  DW_VR_MII_PCS_MODE_C37_SGMII);
 	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
-		ret |= DW_VR_MII_AN_CTRL_8BIT;
+		mask |= DW_VR_MII_AN_CTRL_8BIT;
+		val |= DW_VR_MII_AN_CTRL_8BIT;
 		/* Hardware requires it to be PHY side SGMII */
 		tx_conf = DW_VR_MII_TX_CONFIG_PHY_SIDE_SGMII;
 	} else {
 		tx_conf = DW_VR_MII_TX_CONFIG_MAC_SIDE_SGMII;
 	}
-	ret |= FIELD_PREP(DW_VR_MII_TX_CONFIG_MASK, tx_conf);
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, ret);
+
+	val |= FIELD_PREP(DW_VR_MII_TX_CONFIG_MASK, tx_conf);
+
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, mask, val);
 	if (ret < 0)
 		return ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1);
-	if (ret < 0)
-		return ret;
-
+	mask = DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		ret |= DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
-	else
-		ret &= ~DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
+		val = DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
 
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
-		ret |= DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL;
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
+		mask |= DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL;
+		val |= DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL;
+	}
 
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1, ret);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1, mask, val);
 	if (ret < 0)
 		return ret;
 
@@ -726,6 +714,7 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 	phy_interface_t interface = PHY_INTERFACE_MODE_1000BASEX;
 	int ret, mdio_ctrl, adv;
 	bool changed = 0;
+	u16 mask, val;
 
 	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
 		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
@@ -746,14 +735,16 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 			return ret;
 	}
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL);
-	if (ret < 0)
-		return ret;
+	mask = DW_VR_MII_PCS_MODE_MASK;
+	val = FIELD_PREP(DW_VR_MII_PCS_MODE_MASK,
+			 DW_VR_MII_PCS_MODE_C37_1000BASEX);
 
-	ret &= ~DW_VR_MII_PCS_MODE_MASK;
-	if (!xpcs->pcs.poll)
-		ret |= DW_VR_MII_AN_INTR_EN;
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, ret);
+	if (!xpcs->pcs.poll) {
+		mask |= DW_VR_MII_AN_INTR_EN;
+		val |= DW_VR_MII_AN_INTR_EN;
+	}
+
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, mask, val);
 	if (ret < 0)
 		return ret;
 
@@ -790,22 +781,16 @@ static int xpcs_config_2500basex(struct dw_xpcs *xpcs)
 {
 	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1);
-	if (ret < 0)
-		return ret;
-	ret |= DW_VR_MII_DIG_CTRL1_2G5_EN;
-	ret &= ~DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1, ret);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1,
+			  DW_VR_MII_DIG_CTRL1_2G5_EN |
+			  DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW,
+			  DW_VR_MII_DIG_CTRL1_2G5_EN);
 	if (ret < 0)
 		return ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL);
-	if (ret < 0)
-		return ret;
-	ret &= ~AN_CL37_EN;
-	ret |= SGMII_SPEED_SS6;
-	ret &= ~SGMII_SPEED_SS13;
-	return xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL, ret);
+	return xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
+			   AN_CL37_EN | SGMII_SPEED_SS6 | SGMII_SPEED_SS13,
+			   SGMII_SPEED_SS6);
 }
 
 static int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
@@ -1179,13 +1164,9 @@ static void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 static void xpcs_an_restart(struct phylink_pcs *pcs)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
-	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1);
-	if (ret >= 0) {
-		ret |= BMCR_ANRESTART;
-		xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, ret);
-	}
+	xpcs_modify(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, BMCR_ANRESTART,
+		    BMCR_ANRESTART);
 }
 
 static int xpcs_read_ids(struct dw_xpcs *xpcs)
