@@ -211,6 +211,11 @@ struct __guc_capture_ads_cache {
 
 struct xe_guc_state_capture {
 	const struct __guc_mmio_reg_descr_group *reglists;
+	/**
+	 * NOTE: steered registers have multiple instances depending on the HW configuration
+	 * (slices or dual-sub-slices) and thus depends on HW fuses discovered
+	 */
+	struct __guc_mmio_reg_descr_group *extlists;
 	struct __guc_capture_ads_cache ads_cache[GUC_CAPTURE_LIST_INDEX_MAX]
 						[GUC_STATE_CAPTURE_TYPE_MAX]
 						[GUC_CAPTURE_LIST_CLASS_MAX];
@@ -245,14 +250,156 @@ guc_capture_get_one_list(const struct __guc_mmio_reg_descr_group *reglists,
 	return NULL;
 }
 
+struct __ext_steer_reg {
+	const char *name;
+	struct xe_reg_mcr reg;
+};
+
+static const struct __ext_steer_reg xe_extregs[] = {
+	{"SAMPLER_INSTDONE",		SAMPLER_INSTDONE},
+	{"ROW_INSTDONE",		ROW_INSTDONE}
+};
+
+static const struct __ext_steer_reg xehpg_extregs[] = {
+	{"SC_INSTDONE",			XEHPG_SC_INSTDONE},
+	{"SC_INSTDONE_EXTRA",		XEHPG_SC_INSTDONE_EXTRA},
+	{"SC_INSTDONE_EXTRA2",		XEHPG_SC_INSTDONE_EXTRA2},
+	{"INSTDONE_GEOM_SVGUNIT",	XEHPG_INSTDONE_GEOM_SVGUNIT}
+};
+
+static void __fill_ext_reg(struct __guc_mmio_reg_descr *ext,
+			   const struct __ext_steer_reg *extlist,
+			   int slice_id, int subslice_id)
+{
+	if (!ext || !extlist)
+		return;
+
+	ext->reg = XE_REG(extlist->reg.__reg.addr);
+	ext->flags = FIELD_PREP(GUC_REGSET_STEERING_NEEDED, 1);
+	ext->flags = FIELD_PREP(GUC_REGSET_STEERING_GROUP, slice_id);
+	ext->flags |= FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, subslice_id);
+	ext->regname = extlist->name;
+}
+
+static int
+__alloc_ext_regs(struct drm_device *drm, struct __guc_mmio_reg_descr_group *newlist,
+		 const struct __guc_mmio_reg_descr_group *rootlist, int num_regs)
+{
+	struct __guc_mmio_reg_descr *list;
+
+	list = drmm_kzalloc(drm, num_regs * sizeof(struct __guc_mmio_reg_descr), GFP_KERNEL);
+	if (!list)
+		return -ENOMEM;
+
+	newlist->list = list;
+	newlist->num_regs = num_regs;
+	newlist->owner = rootlist->owner;
+	newlist->engine = rootlist->engine;
+	newlist->type = rootlist->type;
+
+	return 0;
+}
+
+static int guc_capture_get_steer_reg_num(struct xe_device *xe)
+{
+	int num = ARRAY_SIZE(xe_extregs);
+
+	if (GRAPHICS_VERx100(xe) >= 1255)
+		num += ARRAY_SIZE(xehpg_extregs);
+
+	return num;
+}
+
+static void guc_capture_alloc_steered_lists(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	u16 slice, subslice;
+	int iter, i, total = 0;
+	const struct __guc_mmio_reg_descr_group *lists = guc->capture->reglists;
+	const struct __guc_mmio_reg_descr_group *list;
+	struct __guc_mmio_reg_descr_group *extlists;
+	struct __guc_mmio_reg_descr *extarray;
+	bool has_xehpg_extregs = GRAPHICS_VERx100(gt_to_xe(gt)) >= 1255;
+	struct drm_device *drm = &gt_to_xe(gt)->drm;
+	bool has_rcs_ccs = false;
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	/*
+	 * If GT has no rcs/ccs, no need to alloc steered list.
+	 * Currently, only rcs/ccs has steering register, if in the future,
+	 * other engine types has steering register, this condition check need
+	 * to be extended
+	 */
+	for_each_hw_engine(hwe, gt, id) {
+		if (xe_engine_class_to_guc_capture_class(hwe->class) ==
+		    GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE) {
+			has_rcs_ccs = true;
+			break;
+		}
+	}
+
+	if (!has_rcs_ccs)
+		return;
+
+	/* steered registers currently only exist for the render-class */
+	list = guc_capture_get_one_list(lists, GUC_CAPTURE_LIST_INDEX_PF,
+					GUC_STATE_CAPTURE_TYPE_ENGINE_CLASS,
+					GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE);
+	/*
+	 * Skip if this platform has no engine class registers or if extlists
+	 * was previously allocated
+	 */
+	if (!list || guc->capture->extlists)
+		return;
+
+	total = bitmap_weight(gt->fuse_topo.g_dss_mask, sizeof(gt->fuse_topo.g_dss_mask) * 8) *
+		guc_capture_get_steer_reg_num(guc_to_xe(guc));
+
+	if (!total)
+		return;
+
+	/* allocate an extra for an end marker */
+	extlists = drmm_kzalloc(drm, 2 * sizeof(struct __guc_mmio_reg_descr_group), GFP_KERNEL);
+	if (!extlists)
+		return;
+
+	if (__alloc_ext_regs(drm, &extlists[0], list, total)) {
+		drmm_kfree(drm, extlists);
+		return;
+	}
+
+	/* For steering registers, the list is generated at run-time */
+	extarray = (struct __guc_mmio_reg_descr *)extlists[0].list;
+	for_each_dss_steering(iter, gt, slice, subslice) {
+		for (i = 0; i < ARRAY_SIZE(xe_extregs); ++i) {
+			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
+			++extarray;
+		}
+
+		if (has_xehpg_extregs)
+			for (i = 0; i < ARRAY_SIZE(xehpg_extregs); ++i) {
+				__fill_ext_reg(extarray, &xehpg_extregs[i], slice, subslice);
+				++extarray;
+			}
+	}
+
+	extlists[0].num_regs = total;
+
+	xe_gt_dbg(guc_to_gt(guc), "capture found %d ext-regs.\n", total);
+	guc->capture->extlists = extlists;
+}
+
 static int
 guc_capture_list_init(struct xe_guc *guc, u32 owner, u32 type,
 		      enum guc_capture_list_class_type capture_class, struct guc_mmio_reg *ptr,
 		      u16 num_entries)
 {
-	u32 i = 0;
+	u32 ptr_idx = 0, list_idx = 0;
 	const struct __guc_mmio_reg_descr_group *reglists = guc->capture->reglists;
+	struct __guc_mmio_reg_descr_group *extlists = guc->capture->extlists;
 	const struct __guc_mmio_reg_descr_group *match;
+	u32 list_num;
 
 	if (!reglists)
 		return -ENODEV;
@@ -261,16 +408,28 @@ guc_capture_list_init(struct xe_guc *guc, u32 owner, u32 type,
 	if (!match)
 		return -ENODATA;
 
-	for (i = 0; i < num_entries && i < match->num_regs; ++i) {
-		ptr[i].offset = match->list[i].reg.addr;
-		ptr[i].value = 0xDEADF00D;
-		ptr[i].flags = match->list[i].flags;
-		ptr[i].mask = match->list[i].mask;
+	list_num = match->num_regs;
+	for (list_idx = 0; ptr_idx < num_entries && list_idx < list_num; ++list_idx, ++ptr_idx) {
+		ptr[ptr_idx].offset = match->list[list_idx].reg.addr;
+		ptr[ptr_idx].value = 0xDEADF00D;
+		ptr[ptr_idx].flags = match->list[list_idx].flags;
+		ptr[ptr_idx].mask = match->list[list_idx].mask;
 	}
 
-	if (i < num_entries)
-		xe_gt_dbg(guc_to_gt(guc), "Got short capture reglist init: %d out %d.\n", i,
-			  num_entries);
+	match = guc_capture_get_one_list(extlists, owner, type, capture_class);
+	if (match)
+		for (ptr_idx = list_num, list_idx = 0;
+		     ptr_idx < num_entries && list_idx < match->num_regs;
+		     ++ptr_idx, ++list_idx) {
+			ptr[ptr_idx].offset = match->list[list_idx].reg.addr;
+			ptr[ptr_idx].value = 0xDEADF00D;
+			ptr[ptr_idx].flags = match->list[list_idx].flags;
+			ptr[ptr_idx].mask = match->list[list_idx].mask;
+		}
+
+	if (ptr_idx < num_entries)
+		xe_gt_dbg(guc_to_gt(guc), "Got short capture reglist init: %d out-of %d.\n",
+			  ptr_idx, num_entries);
 
 	return 0;
 }
@@ -280,12 +439,22 @@ guc_cap_list_num_regs(struct xe_guc *guc, u32 owner, u32 type,
 		      enum guc_capture_list_class_type capture_class)
 {
 	const struct __guc_mmio_reg_descr_group *match;
+	int num_regs = 0;
 
 	match = guc_capture_get_one_list(guc->capture->reglists, owner, type, capture_class);
-	if (!match)
-		return 0;
+	if (match)
+		num_regs = match->num_regs;
 
-	return match->num_regs;
+	match = guc_capture_get_one_list(guc->capture->extlists, owner, type, capture_class);
+	if (match)
+		num_regs += match->num_regs;
+	else
+		/* Estimate steering register size for rcs/ccs */
+		if (capture_class == GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE)
+			num_regs += guc_capture_get_steer_reg_num(guc_to_xe(guc)) *
+				    XE_MAX_DSS_FUSE_BITS;
+
+	return num_regs;
 }
 
 static int
@@ -500,6 +669,23 @@ size_t xe_guc_capture_ads_input_worst_size(struct xe_guc *guc)
 	return PAGE_ALIGN(total_size);
 }
 
+/*
+ * xe_guc_capture_steered_list_init - Init steering register list
+ * @guc: The GuC object
+ *
+ * Init steering register list for GuC register capture
+ */
+void xe_guc_capture_steered_list_init(struct xe_guc *guc)
+{
+	/*
+	 * For certain engine classes, there are slice and subslice
+	 * level registers requiring steering. We allocate and populate
+	 * these based on hw config and add it as an extension list at
+	 * the end of the pre-populated render list.
+	 */
+	guc_capture_alloc_steered_lists(guc);
+}
+
 /**
  * xe_guc_capture_init - Init for GuC register capture
  * @guc: The GuC object
@@ -507,7 +693,7 @@ size_t xe_guc_capture_ads_input_worst_size(struct xe_guc *guc)
  * Init for GuC register capture, alloc memory for capture data structure.
  *
  * Returns: 0 if success.
-	    -ENOMEM if out of memory
+ *	    -ENOMEM if out of memory
  */
 int xe_guc_capture_init(struct xe_guc *guc)
 {

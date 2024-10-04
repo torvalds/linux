@@ -599,6 +599,12 @@ static int guc_capture_prep_lists(struct xe_guc_ads *ads)
 	void *ptr;
 	int i, j;
 
+	/*
+	 * GuC Capture's steered reg-list needs to be allocated and initialized
+	 * after the GuC-hwconfig is available which guaranteed from here.
+	 */
+	xe_guc_capture_steered_list_init(ads_to_guc(ads));
+
 	capture_offset = guc_ads_capture_offset(ads);
 	ads_ggtt = xe_bo_ggtt_addr(ads->bo);
 	info_map = IOSYS_MAP_INIT_OFFSET(ads_to_map(ads),

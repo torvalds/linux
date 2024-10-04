@@ -43,6 +43,7 @@ int xe_guc_capture_getlistsize(struct xe_guc *guc, u32 owner, u32 type,
 			       enum guc_capture_list_class_type capture_class, size_t *size);
 int xe_guc_capture_getnullheader(struct xe_guc *guc, void **outptr, size_t *size);
 size_t xe_guc_capture_ads_input_worst_size(struct xe_guc *guc);
+void xe_guc_capture_steered_list_init(struct xe_guc *guc);
 int xe_guc_capture_init(struct xe_guc *guc);
 
 #endif
