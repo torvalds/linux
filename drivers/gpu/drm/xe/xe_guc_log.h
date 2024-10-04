@@ -7,6 +7,7 @@
 #define _XE_GUC_LOG_H_
 
 #include "xe_guc_log_types.h"
+#include "abi/guc_log_abi.h"
 
 struct drm_printer;
 struct xe_device;
@@ -18,7 +19,7 @@ struct xe_device;
 #else
 #define CRASH_BUFFER_SIZE	SZ_8K
 #define DEBUG_BUFFER_SIZE	SZ_64K
-#define CAPTURE_BUFFER_SIZE	SZ_16K
+#define CAPTURE_BUFFER_SIZE	SZ_1M
 #endif
 /*
  * While we're using plain log level in i915, GuC controls are much more...
@@ -49,5 +50,9 @@ xe_guc_log_get_level(struct xe_guc_log *log)
 {
 	return log->level;
 }
+
+u32 xe_guc_log_section_size_capture(struct xe_guc_log *log);
+u32 xe_guc_get_log_buffer_size(struct xe_guc_log *log, enum guc_log_buffer_type type);
+u32 xe_guc_get_log_buffer_offset(struct xe_guc_log *log, enum guc_log_buffer_type type);
 
 #endif

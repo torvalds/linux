@@ -22,6 +22,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
 #include "xe_guc.h"
+#include "xe_guc_ads.h"
 #include "xe_guc_capture.h"
 #include "xe_guc_capture_types.h"
 #include "xe_guc_ct.h"
@@ -669,6 +670,85 @@ size_t xe_guc_capture_ads_input_worst_size(struct xe_guc *guc)
 	return PAGE_ALIGN(total_size);
 }
 
+static int guc_capture_output_size_est(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	int capture_size = 0;
+	size_t tmp = 0;
+
+	if (!guc->capture)
+		return -ENODEV;
+
+	/*
+	 * If every single engine-instance suffered a failure in quick succession but
+	 * were all unrelated, then a burst of multiple error-capture events would dump
+	 * registers for every one engine instance, one at a time. In this case, GuC
+	 * would even dump the global-registers repeatedly.
+	 *
+	 * For each engine instance, there would be 1 x guc_state_capture_group_t output
+	 * followed by 3 x guc_state_capture_t lists. The latter is how the register
+	 * dumps are split across different register types (where the '3' are global vs class
+	 * vs instance).
+	 */
+	for_each_hw_engine(hwe, gt, id) {
+		enum guc_capture_list_class_type capture_class;
+
+		capture_class = xe_engine_class_to_guc_capture_class(hwe->class);
+		capture_size += sizeof(struct guc_state_capture_group_header_t) +
+					 (3 * sizeof(struct guc_state_capture_header_t));
+
+		if (!guc_capture_getlistsize(guc, 0, GUC_STATE_CAPTURE_TYPE_GLOBAL,
+					     0, &tmp, true))
+			capture_size += tmp;
+		if (!guc_capture_getlistsize(guc, 0, GUC_STATE_CAPTURE_TYPE_ENGINE_CLASS,
+					     capture_class, &tmp, true))
+			capture_size += tmp;
+		if (!guc_capture_getlistsize(guc, 0, GUC_STATE_CAPTURE_TYPE_ENGINE_INSTANCE,
+					     capture_class, &tmp, true))
+			capture_size += tmp;
+	}
+
+	return capture_size;
+}
+
+/*
+ * Add on a 3x multiplier to allow for multiple back-to-back captures occurring
+ * before the Xe can read the data out and process it
+ */
+#define GUC_CAPTURE_OVERBUFFER_MULTIPLIER 3
+
+static void check_guc_capture_size(struct xe_guc *guc)
+{
+	int capture_size = guc_capture_output_size_est(guc);
+	int spare_size = capture_size * GUC_CAPTURE_OVERBUFFER_MULTIPLIER;
+	u32 buffer_size = xe_guc_log_section_size_capture(&guc->log);
+
+	/*
+	 * NOTE: capture_size is much smaller than the capture region
+	 * allocation (DG2: <80K vs 1MB).
+	 * Additionally, its based on space needed to fit all engines getting
+	 * reset at once within the same G2H handler task slot. This is very
+	 * unlikely. However, if GuC really does run out of space for whatever
+	 * reason, we will see an separate warning message when processing the
+	 * G2H event capture-notification, search for:
+	 * xe_guc_STATE_CAPTURE_EVENT_STATUS_NOSPACE.
+	 */
+	if (capture_size < 0)
+		xe_gt_dbg(guc_to_gt(guc),
+			  "Failed to calculate error state capture buffer minimum size: %d!\n",
+			  capture_size);
+	if (capture_size > buffer_size)
+		xe_gt_dbg(guc_to_gt(guc), "Error state capture buffer maybe small: %d < %d\n",
+			  buffer_size, capture_size);
+	else if (spare_size > buffer_size)
+		xe_gt_dbg(guc_to_gt(guc),
+			  "Error state capture buffer lacks spare size: %d < %d (min = %d)\n",
+			  buffer_size, spare_size, capture_size);
+}
+
 /*
  * xe_guc_capture_steered_list_init - Init steering register list
  * @guc: The GuC object
@@ -684,9 +764,10 @@ void xe_guc_capture_steered_list_init(struct xe_guc *guc)
 	 * the end of the pre-populated render list.
 	 */
 	guc_capture_alloc_steered_lists(guc);
+	check_guc_capture_size(guc);
 }
 
-/**
+/*
  * xe_guc_capture_init - Init for GuC register capture
  * @guc: The GuC object
  *

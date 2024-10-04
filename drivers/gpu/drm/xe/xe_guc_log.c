@@ -270,4 +270,70 @@ int xe_guc_log_init(struct xe_guc_log *log)
 
 	return 0;
 }
+
 ALLOW_ERROR_INJECTION(xe_guc_log_init, ERRNO); /* See xe_pci_probe() */
+
+static u32 xe_guc_log_section_size_crash(struct xe_guc_log *log)
+{
+	return CRASH_BUFFER_SIZE;
+}
+
+static u32 xe_guc_log_section_size_debug(struct xe_guc_log *log)
+{
+	return DEBUG_BUFFER_SIZE;
+}
+
+/**
+ * xe_guc_log_section_size_capture - Get capture buffer size within log sections.
+ * @log: The log object.
+ *
+ * This function will return the capture buffer size within log sections.
+ *
+ * Return: capture buffer size.
+ */
+u32 xe_guc_log_section_size_capture(struct xe_guc_log *log)
+{
+	return CAPTURE_BUFFER_SIZE;
+}
+
+/**
+ * xe_guc_get_log_buffer_size - Get log buffer size for a type.
+ * @log: The log object.
+ * @type: The log buffer type
+ *
+ * Return: buffer size.
+ */
+u32 xe_guc_get_log_buffer_size(struct xe_guc_log *log, enum guc_log_buffer_type type)
+{
+	switch (type) {
+	case GUC_LOG_BUFFER_CRASH_DUMP:
+		return xe_guc_log_section_size_crash(log);
+	case GUC_LOG_BUFFER_DEBUG:
+		return xe_guc_log_section_size_debug(log);
+	case GUC_LOG_BUFFER_CAPTURE:
+		return xe_guc_log_section_size_capture(log);
+	}
+	return 0;
+}
+
+/**
+ * xe_guc_get_log_buffer_offset - Get offset in log buffer for a type.
+ * @log: The log object.
+ * @type: The log buffer type
+ *
+ * This function will return the offset in the log buffer for a type.
+ * Return: buffer offset.
+ */
+u32 xe_guc_get_log_buffer_offset(struct xe_guc_log *log, enum guc_log_buffer_type type)
+{
+	enum guc_log_buffer_type i;
+	u32 offset = PAGE_SIZE;/* for the log_buffer_states */
+
+	for (i = GUC_LOG_BUFFER_CRASH_DUMP; i < GUC_LOG_BUFFER_TYPE_MAX; ++i) {
+		if (i == type)
+			break;
+		offset += xe_guc_get_log_buffer_size(log, i);
+	}
+
+	return offset;
+}
