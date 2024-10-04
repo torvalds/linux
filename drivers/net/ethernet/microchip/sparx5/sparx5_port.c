@@ -847,8 +847,10 @@ static int sparx5_port_pcs_high_set(struct sparx5 *sparx5,
 /* Switch between 1G/2500 and 5G/10G/25G devices */
 static void sparx5_dev_switch(struct sparx5 *sparx5, int port, bool hsd)
 {
-	int bt_indx = BIT(sparx5_port_dev_index(sparx5, port));
 	const struct sparx5_ops *ops = sparx5->data->ops;
+	int bt_indx;
+
+	bt_indx = BIT(ops->get_port_dev_bit(sparx5, port));
 
 	if (ops->is_port_5g(port)) {
 		spx5_rmw(hsd ? 0 : bt_indx,

@@ -62,7 +62,7 @@ static inline u32 sparx5_to_pcs_dev(struct sparx5 *sparx5, int port)
 	return TARGET_PCS25G_BR;
 }
 
-static inline int sparx5_port_dev_index(struct sparx5 *sparx5, int port)
+static inline u32 sparx5_port_dev_mapping(struct sparx5 *sparx5, int port)
 {
 	if (sparx5_port_is_2g5(port))
 		return port;
@@ -72,6 +72,11 @@ static inline int sparx5_port_dev_index(struct sparx5 *sparx5, int port)
 		return (port >= 12 && port <= 15) ?
 			port - 12 : port - 44;
 	return (port - 56);
+}
+
+static inline u32 sparx5_port_dev_index(struct sparx5 *sparx5, int port)
+{
+	return sparx5->data->ops->get_port_dev_index(sparx5, port);
 }
 
 int sparx5_port_init(struct sparx5 *sparx5,
