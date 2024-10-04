@@ -960,6 +960,7 @@ static int wilc_sdio_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct wilc *wilc = sdio_get_drvdata(func);
+	int ret;
 
 	dev_info(dev, "sdio suspend\n");
 
@@ -969,7 +970,11 @@ static int wilc_sdio_suspend(struct device *dev)
 	if (!IS_ERR(wilc->rtc_clk))
 		clk_disable_unprepare(wilc->rtc_clk);
 
-	host_sleep_notify(wilc);
+	ret = host_sleep_notify(wilc);
+	if (ret) {
+		clk_prepare_enable(wilc->rtc_clk);
+		return ret;
+	}
 
 	wilc_sdio_disable_interrupt(wilc);
 
@@ -992,9 +997,7 @@ static int wilc_sdio_resume(struct device *dev)
 	wilc_sdio_init(wilc, true);
 	wilc_sdio_enable_interrupt(wilc);
 
-	host_wakeup_notify(wilc);
-
-	return 0;
+	return host_wakeup_notify(wilc);
 }
 
 static const struct of_device_id wilc_of_match[] = {
