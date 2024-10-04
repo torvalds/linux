@@ -280,6 +280,7 @@ static void dw_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if (ret < 0)
 		return;
 
+	ep->outbound_addr[atu_index] = 0;
 	dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_OB, atu_index);
 	clear_bit(atu_index, ep->ob_window_map);
 }
