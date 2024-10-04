@@ -40,6 +40,8 @@ static DEFINE_MUTEX(thermal_governor_lock);
 
 static struct thermal_governor *def_governor;
 
+static bool thermal_pm_suspended;
+
 /*
  * Governor section: set of functions to handle thermal governors
  *
@@ -1337,6 +1339,14 @@ static void thermal_zone_init_complete(struct thermal_zone_device *tz)
 	mutex_lock(&tz->lock);
 
 	tz->state &= ~TZ_STATE_FLAG_INIT;
+	/*
+	 * If system suspend or resume is in progress at this point, the
+	 * new thermal zone needs to be marked as suspended because
+	 * thermal_pm_notify() has run already.
+	 */
+	if (thermal_pm_suspended)
+		tz->state |= TZ_STATE_FLAG_SUSPENDED;
+
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
 	mutex_unlock(&tz->lock);
@@ -1514,9 +1524,9 @@ thermal_zone_device_register_with_trips(const char *type,
 	list_for_each_entry(cdev, &thermal_cdev_list, node)
 		thermal_zone_cdev_bind(tz, cdev);
 
-	mutex_unlock(&thermal_list_lock);
-
 	thermal_zone_init_complete(tz);
+
+	mutex_unlock(&thermal_list_lock);
 
 	thermal_notify_tz_create(tz);
 
@@ -1737,6 +1747,8 @@ static int thermal_pm_notify(struct notifier_block *nb,
 	case PM_SUSPEND_PREPARE:
 		mutex_lock(&thermal_list_lock);
 
+		thermal_pm_suspended = true;
+
 		list_for_each_entry(tz, &thermal_tz_list, node)
 			thermal_zone_pm_prepare(tz);
 
@@ -1746,6 +1758,8 @@ static int thermal_pm_notify(struct notifier_block *nb,
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
 		mutex_lock(&thermal_list_lock);
+
+		thermal_pm_suspended = false;
 
 		list_for_each_entry(tz, &thermal_tz_list, node)
 			thermal_zone_pm_complete(tz);
