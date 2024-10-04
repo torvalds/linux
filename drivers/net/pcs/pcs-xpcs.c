@@ -107,38 +107,9 @@ static const int xpcs_2500basex_features[] = {
 	__ETHTOOL_LINK_MODE_MASK_NBITS,
 };
 
-static const phy_interface_t xpcs_usxgmii_interfaces[] = {
-	PHY_INTERFACE_MODE_USXGMII,
-};
-
-static const phy_interface_t xpcs_10gkr_interfaces[] = {
-	PHY_INTERFACE_MODE_10GKR,
-};
-
-static const phy_interface_t xpcs_xlgmii_interfaces[] = {
-	PHY_INTERFACE_MODE_XLGMII,
-};
-
-static const phy_interface_t xpcs_10gbaser_interfaces[] = {
-	PHY_INTERFACE_MODE_10GBASER,
-};
-
-static const phy_interface_t xpcs_sgmii_interfaces[] = {
-	PHY_INTERFACE_MODE_SGMII,
-};
-
-static const phy_interface_t xpcs_1000basex_interfaces[] = {
-	PHY_INTERFACE_MODE_1000BASEX,
-};
-
-static const phy_interface_t xpcs_2500basex_interfaces[] = {
-	PHY_INTERFACE_MODE_2500BASEX,
-};
-
 struct dw_xpcs_compat {
+	phy_interface_t interface;
 	const int *supported;
-	const phy_interface_t *interface;
-	int num_interfaces;
 	int an_mode;
 	int (*pma_config)(struct dw_xpcs *xpcs);
 };
@@ -153,12 +124,10 @@ static const struct dw_xpcs_compat *
 xpcs_find_compat(const struct dw_xpcs_desc *desc, phy_interface_t interface)
 {
 	const struct dw_xpcs_compat *compat;
-	int j;
 
 	for (compat = desc->compat; compat->supported; compat++)
-		for (j = 0; j < compat->num_interfaces; j++)
-			if (compat->interface[j] == interface)
-				return compat;
+		if (compat->interface == interface)
+			return compat;
 
 	return NULL;
 }
@@ -598,11 +567,9 @@ static int xpcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
 void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces)
 {
 	const struct dw_xpcs_compat *compat;
-	int j;
 
 	for (compat = xpcs->desc->compat; compat->supported; compat++)
-		for (j = 0; j < compat->num_interfaces; j++)
-			__set_bit(compat->interface[j], interfaces);
+		__set_bit(compat->interface, interfaces);
 }
 EXPORT_SYMBOL_GPL(xpcs_get_interfaces);
 
@@ -1285,39 +1252,32 @@ static int xpcs_get_id(struct dw_xpcs *xpcs)
 
 static const struct dw_xpcs_compat synopsys_xpcs_compat[] = {
 	{
+		.interface = PHY_INTERFACE_MODE_USXGMII,
 		.supported = xpcs_usxgmii_features,
-		.interface = xpcs_usxgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_usxgmii_interfaces),
 		.an_mode = DW_AN_C73,
 	}, {
+		.interface = PHY_INTERFACE_MODE_10GKR,
 		.supported = xpcs_10gkr_features,
-		.interface = xpcs_10gkr_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_10gkr_interfaces),
 		.an_mode = DW_AN_C73,
 	}, {
+		.interface = PHY_INTERFACE_MODE_XLGMII,
 		.supported = xpcs_xlgmii_features,
-		.interface = xpcs_xlgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_xlgmii_interfaces),
 		.an_mode = DW_AN_C73,
 	}, {
+		.interface = PHY_INTERFACE_MODE_10GBASER,
 		.supported = xpcs_10gbaser_features,
-		.interface = xpcs_10gbaser_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_10gbaser_interfaces),
 		.an_mode = DW_10GBASER,
 	}, {
+		.interface = PHY_INTERFACE_MODE_SGMII,
 		.supported = xpcs_sgmii_features,
-		.interface = xpcs_sgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
 	}, {
+		.interface = PHY_INTERFACE_MODE_1000BASEX,
 		.supported = xpcs_1000basex_features,
-		.interface = xpcs_1000basex_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_1000basex_interfaces),
 		.an_mode = DW_AN_C37_1000BASEX,
 	}, {
+		.interface = PHY_INTERFACE_MODE_2500BASEX,
 		.supported = xpcs_2500basex_features,
-		.interface = xpcs_2500basex_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_2500basex_interfaces),
 		.an_mode = DW_2500BASEX,
 	}, {
 	}
@@ -1325,9 +1285,8 @@ static const struct dw_xpcs_compat synopsys_xpcs_compat[] = {
 
 static const struct dw_xpcs_compat nxp_sja1105_xpcs_compat[] = {
 	{
+		.interface = PHY_INTERFACE_MODE_SGMII,
 		.supported = xpcs_sgmii_features,
-		.interface = xpcs_sgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
 		.pma_config = nxp_sja1105_sgmii_pma_config,
 	}, {
@@ -1336,15 +1295,13 @@ static const struct dw_xpcs_compat nxp_sja1105_xpcs_compat[] = {
 
 static const struct dw_xpcs_compat nxp_sja1110_xpcs_compat[] = {
 	{
+		.interface = PHY_INTERFACE_MODE_SGMII,
 		.supported = xpcs_sgmii_features,
-		.interface = xpcs_sgmii_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
 		.pma_config = nxp_sja1110_sgmii_pma_config,
 	}, {
+		.interface = PHY_INTERFACE_MODE_2500BASEX,
 		.supported = xpcs_2500basex_features,
-		.interface = xpcs_2500basex_interfaces,
-		.num_interfaces = ARRAY_SIZE(xpcs_2500basex_interfaces),
 		.an_mode = DW_2500BASEX,
 		.pma_config = nxp_sja1110_2500basex_pma_config,
 	}, {
