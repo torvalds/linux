@@ -226,6 +226,18 @@ struct sparx5_mall_entry {
 #define SPARX5_SKB_CB(skb) \
 	((struct sparx5_skb_cb *)((skb)->cb))
 
+struct sparx5_main_io_resource {
+	enum sparx5_target id;
+	phys_addr_t offset;
+	int range;
+};
+
+struct sparx5_match_data {
+	const struct sparx5_main_io_resource *iomap;
+	int ioranges;
+	int iomap_size;
+};
+
 struct sparx5 {
 	struct platform_device *pdev;
 	struct device *dev;
@@ -293,6 +305,7 @@ struct sparx5 {
 	struct list_head mall_entries;
 	/* Common root for debugfs */
 	struct dentry *debugfs_root;
+	const struct sparx5_match_data *data;
 };
 
 /* sparx5_switchdev.c */
