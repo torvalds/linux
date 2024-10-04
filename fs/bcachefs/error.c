@@ -430,10 +430,17 @@ err:
 
 int __bch2_bkey_fsck_err(struct bch_fs *c,
 			 struct bkey_s_c k,
-			 enum bch_fsck_flags flags,
+			 enum bch_validate_flags validate_flags,
 			 enum bch_sb_error_id err,
 			 const char *fmt, ...)
 {
+	if (validate_flags & BCH_VALIDATE_silent)
+		return -BCH_ERR_fsck_delete_bkey;
+
+	unsigned fsck_flags = 0;
+	if (!(validate_flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)))
+		fsck_flags |= FSCK_AUTOFIX|FSCK_CAN_FIX;
+
 	struct printbuf buf = PRINTBUF;
 	va_list args;
 
@@ -445,7 +452,7 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 	va_end(args);
 	prt_str(&buf, ": delete?");
 
-	int ret = __bch2_fsck_err(c, NULL, flags, err, "%s", buf.buf);
+	int ret = __bch2_fsck_err(c, NULL, fsck_flags, err, "%s", buf.buf);
 	printbuf_exit(&buf);
 	return ret;
 }
