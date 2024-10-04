@@ -547,7 +547,7 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	int low = -INT_MAX, high = INT_MAX;
 	int temp, ret;
 
-	if (tz->suspended || tz->mode != THERMAL_DEVICE_ENABLED)
+	if (tz->state != TZ_STATE_READY || tz->mode != THERMAL_DEVICE_ENABLED)
 		return;
 
 	ret = __thermal_zone_get_temp(tz, &temp);
@@ -1671,7 +1671,7 @@ static void thermal_zone_device_resume(struct work_struct *work)
 
 	mutex_lock(&tz->lock);
 
-	tz->suspended = false;
+	tz->state &= ~(TZ_STATE_FLAG_SUSPENDED | TZ_STATE_FLAG_RESUMING);
 
 	thermal_debug_tz_resume(tz);
 	thermal_zone_device_init(tz);
@@ -1679,7 +1679,6 @@ static void thermal_zone_device_resume(struct work_struct *work)
 	__thermal_zone_device_update(tz, THERMAL_TZ_RESUME);
 
 	complete(&tz->resume);
-	tz->resuming = false;
 
 	mutex_unlock(&tz->lock);
 }
@@ -1688,7 +1687,7 @@ static void thermal_zone_pm_prepare(struct thermal_zone_device *tz)
 {
 	mutex_lock(&tz->lock);
 
-	if (tz->resuming) {
+	if (tz->state & TZ_STATE_FLAG_RESUMING) {
 		/*
 		 * thermal_zone_device_resume() queued up for this zone has not
 		 * acquired the lock yet, so release it to let the function run
@@ -1701,7 +1700,7 @@ static void thermal_zone_pm_prepare(struct thermal_zone_device *tz)
 		mutex_lock(&tz->lock);
 	}
 
-	tz->suspended = true;
+	tz->state |= TZ_STATE_FLAG_SUSPENDED;
 
 	mutex_unlock(&tz->lock);
 }
@@ -1713,7 +1712,7 @@ static void thermal_zone_pm_complete(struct thermal_zone_device *tz)
 	cancel_delayed_work(&tz->poll_queue);
 
 	reinit_completion(&tz->resume);
-	tz->resuming = true;
+	tz->state |= TZ_STATE_FLAG_RESUMING;
 
 	/*
 	 * Replace the work function with the resume one, which will restore the
