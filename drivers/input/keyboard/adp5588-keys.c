@@ -822,7 +822,8 @@ static int adp5588_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	disable_irq(client->irq);
+	if (client->irq)
+		disable_irq(client->irq);
 
 	return 0;
 }
@@ -831,7 +832,8 @@ static int adp5588_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	enable_irq(client->irq);
+	if (client->irq)
+		enable_irq(client->irq);
 
 	return 0;
 }
