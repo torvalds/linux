@@ -1268,15 +1268,21 @@ unlock_list:
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_update);
 
-static void thermal_zone_cdev_unbind(struct thermal_zone_device *tz,
-				     struct thermal_cooling_device *cdev)
+static void __thermal_zone_cdev_unbind(struct thermal_zone_device *tz,
+				       struct thermal_cooling_device *cdev)
 {
 	struct thermal_trip_desc *td;
 
-	mutex_lock(&tz->lock);
-
 	for_each_trip_desc(tz, td)
 		thermal_unbind_cdev_from_trip(tz, &td->trip, cdev);
+}
+
+static void thermal_zone_cdev_unbind(struct thermal_zone_device *tz,
+				     struct thermal_cooling_device *cdev)
+{
+	mutex_lock(&tz->lock);
+
+	__thermal_zone_cdev_unbind(tz, cdev);
 
 	mutex_unlock(&tz->lock);
 }
@@ -1596,42 +1602,48 @@ struct device *thermal_zone_device(struct thermal_zone_device *tzd)
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device);
 
+static bool thermal_zone_exit(struct thermal_zone_device *tz)
+{
+	struct thermal_cooling_device *cdev;
+	bool ret = true;
+
+	mutex_lock(&thermal_list_lock);
+
+	if (list_empty(&tz->node)) {
+		ret = false;
+		goto unlock;
+	}
+
+	mutex_lock(&tz->lock);
+
+	tz->state |= TZ_STATE_FLAG_EXIT;
+	list_del_init(&tz->node);
+
+	/* Unbind all cdevs associated with this thermal zone. */
+	list_for_each_entry(cdev, &thermal_cdev_list, node)
+		__thermal_zone_cdev_unbind(tz, cdev);
+
+	mutex_unlock(&tz->lock);
+
+unlock:
+	mutex_unlock(&thermal_list_lock);
+
+	return ret;
+}
+
 /**
  * thermal_zone_device_unregister - removes the registered thermal zone device
  * @tz: the thermal zone device to remove
  */
 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 {
-	struct thermal_cooling_device *cdev;
-	struct thermal_zone_device *pos = NULL;
-
 	if (!tz)
 		return;
 
 	thermal_debug_tz_remove(tz);
 
-	mutex_lock(&thermal_list_lock);
-	list_for_each_entry(pos, &thermal_tz_list, node)
-		if (pos == tz)
-			break;
-	if (pos != tz) {
-		/* thermal zone device not found */
-		mutex_unlock(&thermal_list_lock);
+	if (!thermal_zone_exit(tz))
 		return;
-	}
-
-	mutex_lock(&tz->lock);
-
-	tz->state |= TZ_STATE_FLAG_EXIT;
-	list_del(&tz->node);
-
-	mutex_unlock(&tz->lock);
-
-	/* Unbind all cdevs associated with 'this' thermal zone */
-	list_for_each_entry(cdev, &thermal_cdev_list, node)
-		thermal_zone_cdev_unbind(tz, cdev);
-
-	mutex_unlock(&thermal_list_lock);
 
 	cancel_delayed_work_sync(&tz->poll_queue);
 
