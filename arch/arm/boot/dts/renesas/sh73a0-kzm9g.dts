@@ -195,8 +195,7 @@
 	compass@c {
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0c>;
-		interrupt-parent = <&irqpin3>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqpin3 4 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 	ak4648: codec@12 {
@@ -208,9 +207,8 @@
 	accelerometer@1d {
 		compatible = "adi,adxl345";
 		reg = <0x1d>;
-		interrupt-parent = <&irqpin3>;
-		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
-			     <3 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&irqpin3 2 IRQ_TYPE_LEVEL_HIGH>,
+				      <&irqpin3 3 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	rtc@32 {
