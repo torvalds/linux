@@ -1621,7 +1621,10 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	}
 
 	mutex_lock(&tz->lock);
+
+	tz->state |= TZ_STATE_FLAG_EXIT;
 	list_del(&tz->node);
+
 	mutex_unlock(&tz->lock);
 
 	/* Unbind all cdevs associated with 'this' thermal zone */
