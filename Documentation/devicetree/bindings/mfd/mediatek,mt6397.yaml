@@ -17,6 +17,7 @@ description: |
   MT6397/MT6323 is a multifunction device with the following sub modules:
   - Regulators
   - RTC
+  - ADC
   - Audio codec
   - GPIO
   - Clock
@@ -88,6 +89,7 @@ properties:
           - enum:
               - mediatek,mt6323-regulator
               - mediatek,mt6358-regulator
+              - mediatek,mt6359-regulator
               - mediatek,mt6397-regulator
           - items:
               - enum:
@@ -96,6 +98,11 @@ properties:
 
     required:
       - compatible
+
+  adc:
+    type: object
+    $ref: /schemas/iio/adc/mediatek,mt6359-auxadc.yaml#
+    unevaluatedProperties: false
 
   audio-codec:
     type: object
@@ -108,6 +115,7 @@ properties:
         oneOf:
           - enum:
               - mediatek,mt6358-sound
+              - mediatek,mt6359-codec
               - mediatek,mt6397-codec
           - items:
               - enum:
