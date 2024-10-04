@@ -1008,7 +1008,7 @@ static struct platform_driver tegra_admac_driver = {
 		.of_match_table = tegra_adma_of_match,
 	},
 	.probe		= tegra_adma_probe,
-	.remove_new	= tegra_adma_remove,
+	.remove		= tegra_adma_remove,
 };
 
 module_platform_driver(tegra_admac_driver);

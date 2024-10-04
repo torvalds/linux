@@ -1532,7 +1532,7 @@ static struct platform_driver tegra_dma_driver = {
 		.of_match_table = tegra_dma_of_match,
 	},
 	.probe		= tegra_dma_probe,
-	.remove_new	= tegra_dma_remove,
+	.remove		= tegra_dma_remove,
 };
 
 module_platform_driver(tegra_dma_driver);

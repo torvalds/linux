@@ -633,7 +633,7 @@ MODULE_DEVICE_TABLE(of, sf_pdma_dt_ids);
 
 static struct platform_driver sf_pdma_driver = {
 	.probe		= sf_pdma_probe,
-	.remove_new	= sf_pdma_remove,
+	.remove		= sf_pdma_remove,
 	.driver		= {
 		.name	= "sf-pdma",
 		.of_match_table = sf_pdma_dt_ids,

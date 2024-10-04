@@ -740,7 +740,7 @@ static struct platform_driver fsl_edma_driver = {
 		.pm     = &fsl_edma_pm_ops,
 	},
 	.probe          = fsl_edma_probe,
-	.remove_new	= fsl_edma_remove,
+	.remove		= fsl_edma_remove,
 };
 
 static int __init fsl_edma_init(void)

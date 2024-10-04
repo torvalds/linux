@@ -1192,7 +1192,7 @@ static struct platform_driver zynqmp_dma_driver = {
 		.pm = &zynqmp_dma_dev_pm_ops,
 	},
 	.probe = zynqmp_dma_probe,
-	.remove_new = zynqmp_dma_remove,
+	.remove = zynqmp_dma_remove,
 };
 
 module_platform_driver(zynqmp_dma_driver);

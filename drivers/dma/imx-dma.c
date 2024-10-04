@@ -1233,7 +1233,7 @@ static struct platform_driver imxdma_driver = {
 		.name	= "imx-dma",
 		.of_match_table = imx_dma_of_dev_id,
 	},
-	.remove_new	= imxdma_remove,
+	.remove		= imxdma_remove,
 };
 
 static int __init imxdma_module_init(void)

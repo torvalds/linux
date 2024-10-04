@@ -1133,7 +1133,7 @@ static struct platform_driver amd_qdma_driver = {
 		.name = "amd-qdma",
 	},
 	.probe		= amd_qdma_probe,
-	.remove_new	= amd_qdma_remove,
+	.remove		= amd_qdma_remove,
 };
 
 module_platform_driver(amd_qdma_driver);

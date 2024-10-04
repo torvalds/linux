@@ -948,7 +948,7 @@ MODULE_DEVICE_TABLE(acpi, hidma_acpi_ids);
 
 static struct platform_driver hidma_driver = {
 	.probe = hidma_probe,
-	.remove_new = hidma_remove,
+	.remove = hidma_remove,
 	.shutdown = hidma_shutdown,
 	.driver = {
 		   .name = "hidma",

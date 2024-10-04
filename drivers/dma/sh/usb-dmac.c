@@ -899,7 +899,7 @@ static struct platform_driver usb_dmac_driver = {
 		.of_match_table = usb_dmac_of_ids,
 	},
 	.probe		= usb_dmac_probe,
-	.remove_new	= usb_dmac_remove,
+	.remove		= usb_dmac_remove,
 	.shutdown	= usb_dmac_shutdown,
 };
 

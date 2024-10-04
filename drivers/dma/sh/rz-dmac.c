@@ -1004,7 +1004,7 @@ static struct platform_driver rz_dmac_driver = {
 		.of_match_table = of_rz_dmac_match,
 	},
 	.probe		= rz_dmac_probe,
-	.remove_new	= rz_dmac_remove,
+	.remove		= rz_dmac_remove,
 };
 
 module_platform_driver(rz_dmac_driver);

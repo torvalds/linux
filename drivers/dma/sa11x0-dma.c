@@ -1079,7 +1079,7 @@ static struct platform_driver sa11x0_dma_driver = {
 		.pm	= &sa11x0_dma_pm_ops,
 	},
 	.probe		= sa11x0_dma_probe,
-	.remove_new	= sa11x0_dma_remove,
+	.remove		= sa11x0_dma_remove,
 };
 
 static int __init sa11x0_dma_init(void)

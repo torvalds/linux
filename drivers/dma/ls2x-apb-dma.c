@@ -692,7 +692,7 @@ MODULE_DEVICE_TABLE(of, ls2x_dma_of_match_table);
 
 static struct platform_driver ls2x_dmac_driver = {
 	.probe		= ls2x_dma_probe,
-	.remove_new	= ls2x_dma_remove,
+	.remove		= ls2x_dma_remove,
 	.driver = {
 		.name	= "ls2x-apbdma",
 		.of_match_table	= ls2x_dma_of_match_table,

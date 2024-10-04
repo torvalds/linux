@@ -1122,7 +1122,7 @@ MODULE_DEVICE_TABLE(of, jz4780_dma_dt_match);
 
 static struct platform_driver jz4780_dma_driver = {
 	.probe		= jz4780_dma_probe,
-	.remove_new	= jz4780_dma_remove,
+	.remove		= jz4780_dma_remove,
 	.driver	= {
 		.name	= "jz4780-dma",
 		.of_match_table = jz4780_dma_dt_match,
