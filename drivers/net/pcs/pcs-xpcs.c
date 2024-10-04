@@ -592,7 +592,8 @@ int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns, int enable)
 		ret = DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
 		      DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
 		      DW_VR_MII_EEE_TX_EN_CTRL | DW_VR_MII_EEE_RX_EN_CTRL |
-		      mult_fact_100ns << DW_VR_MII_EEE_MULT_FACT_100NS_SHIFT;
+		      FIELD_PREP(DW_VR_MII_EEE_MULT_FACT_100NS,
+				 mult_fact_100ns);
 	} else {
 		ret &= ~(DW_VR_MII_EEE_LTX_EN | DW_VR_MII_EEE_LRX_EN |
 		       DW_VR_MII_EEE_TX_QUIET_EN | DW_VR_MII_EEE_RX_QUIET_EN |
@@ -681,9 +682,8 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 		return ret;
 
 	ret &= ~(DW_VR_MII_PCS_MODE_MASK | DW_VR_MII_TX_CONFIG_MASK);
-	ret |= (DW_VR_MII_PCS_MODE_C37_SGMII <<
-		DW_VR_MII_AN_CTRL_PCS_MODE_SHIFT &
-		DW_VR_MII_PCS_MODE_MASK);
+	ret |= FIELD_PREP(DW_VR_MII_PCS_MODE_MASK,
+			  DW_VR_MII_PCS_MODE_C37_SGMII);
 	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
 		ret |= DW_VR_MII_AN_CTRL_8BIT;
 		/* Hardware requires it to be PHY side SGMII */
@@ -691,8 +691,7 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 	} else {
 		tx_conf = DW_VR_MII_TX_CONFIG_MAC_SIDE_SGMII;
 	}
-	ret |= tx_conf << DW_VR_MII_AN_CTRL_TX_CONFIG_SHIFT &
-		DW_VR_MII_TX_CONFIG_MASK;
+	ret |= FIELD_PREP(DW_VR_MII_TX_CONFIG_MASK, tx_conf);
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL, ret);
 	if (ret < 0)
 		return ret;
@@ -971,8 +970,7 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 
 		state->link = true;
 
-		speed_value = (ret & DW_VR_MII_AN_STS_C37_ANSGM_SP) >>
-			      DW_VR_MII_AN_STS_C37_ANSGM_SP_SHIFT;
+		speed_value = FIELD_GET(DW_VR_MII_AN_STS_C37_ANSGM_SP, ret);
 		if (speed_value == DW_VR_MII_C37_ANSGM_SP_1000)
 			state->speed = SPEED_1000;
 		else if (speed_value == DW_VR_MII_C37_ANSGM_SP_100)
