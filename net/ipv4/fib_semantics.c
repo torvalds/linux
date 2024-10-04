@@ -50,7 +50,6 @@
 
 #include "fib_lookup.h"
 
-static DEFINE_SPINLOCK(fib_info_lock);
 static struct hlist_head *fib_info_hash;
 static struct hlist_head *fib_info_laddrhash;
 static unsigned int fib_info_hash_size;
@@ -260,12 +259,11 @@ EXPORT_SYMBOL_GPL(free_fib_info);
 
 void fib_release_info(struct fib_info *fi)
 {
-	spin_lock_bh(&fib_info_lock);
+	ASSERT_RTNL();
 	if (fi && refcount_dec_and_test(&fi->fib_treeref)) {
 		hlist_del(&fi->fib_hash);
 
-		/* Paired with READ_ONCE() in fib_create_info(). */
-		WRITE_ONCE(fib_info_cnt, fib_info_cnt - 1);
+		fib_info_cnt--;
 
 		if (fi->fib_prefsrc)
 			hlist_del(&fi->fib_lhash);
@@ -282,7 +280,6 @@ void fib_release_info(struct fib_info *fi)
 		WRITE_ONCE(fi->fib_dead, 1);
 		fib_info_put(fi);
 	}
-	spin_unlock_bh(&fib_info_lock);
 }
 
 static inline int nh_comp(struct fib_info *fi, struct fib_info *ofi)
@@ -1266,7 +1263,7 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 	unsigned int old_size = fib_info_hash_size;
 	unsigned int i;
 
-	spin_lock_bh(&fib_info_lock);
+	ASSERT_RTNL();
 	old_info_hash = fib_info_hash;
 	old_laddrhash = fib_info_laddrhash;
 	fib_info_hash_size = new_size;
@@ -1302,8 +1299,6 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 			hlist_add_head(&fi->fib_lhash, ldest);
 		}
 	}
-
-	spin_unlock_bh(&fib_info_lock);
 
 	kvfree(old_info_hash);
 	kvfree(old_laddrhash);
@@ -1380,6 +1375,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	int nhs = 1;
 	struct net *net = cfg->fc_nlinfo.nl_net;
 
+	ASSERT_RTNL();
 	if (cfg->fc_type > RTN_MAX)
 		goto err_inval;
 
@@ -1422,8 +1418,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 
 	err = -ENOBUFS;
 
-	/* Paired with WRITE_ONCE() in fib_release_info() */
-	if (READ_ONCE(fib_info_cnt) >= fib_info_hash_size) {
+	if (fib_info_cnt >= fib_info_hash_size) {
 		unsigned int new_size = fib_info_hash_size << 1;
 		struct hlist_head *new_info_hash;
 		struct hlist_head *new_laddrhash;
@@ -1582,7 +1577,7 @@ link_it:
 
 	refcount_set(&fi->fib_treeref, 1);
 	refcount_set(&fi->fib_clntref, 1);
-	spin_lock_bh(&fib_info_lock);
+
 	fib_info_cnt++;
 	hlist_add_head(&fi->fib_hash,
 		       &fib_info_hash[fib_info_hashfn(fi)]);
@@ -1604,7 +1599,6 @@ link_it:
 			hlist_add_head_rcu(&nexthop_nh->nh_hash, head);
 		} endfor_nexthops(fi)
 	}
-	spin_unlock_bh(&fib_info_lock);
 	return fi;
 
 err_inval:
