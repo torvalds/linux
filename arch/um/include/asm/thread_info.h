@@ -23,8 +23,6 @@ struct thread_info {
 	int			preempt_count;  /* 0 => preemptable,
 						   <0 => BUG */
 	struct thread_info	*real_thread;    /* Points to non-IRQ stack */
-	unsigned long aux_fp_regs[FP_SIZE];	/* auxiliary fp_regs to save/restore
-						   them out-of-band */
 };
 
 #define INIT_THREAD_INFO(tsk)			\
