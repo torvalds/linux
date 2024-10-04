@@ -983,12 +983,20 @@ static const struct sparx5_consts sparx5_consts = {
 	.tod_pin             = 4,
 };
 
+static const struct sparx5_ops sparx5_ops = {
+	.is_port_2g5             = &sparx5_port_is_2g5,
+	.is_port_5g              = &sparx5_port_is_5g,
+	.is_port_10g             = &sparx5_port_is_10g,
+	.is_port_25g             = &sparx5_port_is_25g,
+};
+
 static const struct sparx5_match_data sparx5_desc = {
 	.iomap = sparx5_main_iomap,
 	.iomap_size = ARRAY_SIZE(sparx5_main_iomap),
 	.ioranges = 3,
 	.regs = &sparx5_regs,
 	.consts = &sparx5_consts,
+	.ops = &sparx5_ops,
 };
 
 static const struct of_device_id mchp_sparx5_match[] = {

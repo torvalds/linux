@@ -258,6 +258,13 @@ struct sparx5_consts {
 	u32 tod_pin;             /* PTP TOD pin */
 };
 
+struct sparx5_ops {
+	bool (*is_port_2g5)(int portno);
+	bool (*is_port_5g)(int portno);
+	bool (*is_port_10g)(int portno);
+	bool (*is_port_25g)(int portno);
+};
+
 struct sparx5_main_io_resource {
 	enum sparx5_target id;
 	phys_addr_t offset;
@@ -267,6 +274,7 @@ struct sparx5_main_io_resource {
 struct sparx5_match_data {
 	const struct sparx5_regs *regs;
 	const struct sparx5_consts *consts;
+	const struct sparx5_ops *ops;
 	const struct sparx5_main_io_resource *iomap;
 	int ioranges;
 	int iomap_size;

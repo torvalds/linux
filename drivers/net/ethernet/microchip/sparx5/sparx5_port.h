@@ -42,18 +42,22 @@ static inline bool sparx5_port_is_25g(int portno)
 
 static inline u32 sparx5_to_high_dev(struct sparx5 *sparx5, int port)
 {
-	if (sparx5_port_is_5g(port))
+	const struct sparx5_ops *ops = sparx5->data->ops;
+
+	if (ops->is_port_5g(port))
 		return TARGET_DEV5G;
-	if (sparx5_port_is_10g(port))
+	if (ops->is_port_10g(port))
 		return TARGET_DEV10G;
 	return TARGET_DEV25G;
 }
 
 static inline u32 sparx5_to_pcs_dev(struct sparx5 *sparx5, int port)
 {
-	if (sparx5_port_is_5g(port))
+	const struct sparx5_ops *ops = sparx5->data->ops;
+
+	if (ops->is_port_5g(port))
 		return TARGET_PCS5G_BR;
-	if (sparx5_port_is_10g(port))
+	if (ops->is_port_10g(port))
 		return TARGET_PCS10G_BR;
 	return TARGET_PCS25G_BR;
 }
