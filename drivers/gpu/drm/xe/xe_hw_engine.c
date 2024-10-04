@@ -24,6 +24,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_topology.h"
+#include "xe_guc_capture.h"
 #include "xe_hw_engine_group.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
@@ -877,65 +878,10 @@ xe_hw_engine_snapshot_instdone_capture(struct xe_hw_engine *hwe,
 	}
 }
 
-/**
- * xe_hw_engine_snapshot_capture - Take a quick snapshot of the HW Engine.
- * @hwe: Xe HW Engine.
- *
- * This can be printed out in a later stage like during dev_coredump
- * analysis.
- *
- * Returns: a Xe HW Engine snapshot object that must be freed by the
- * caller, using `xe_hw_engine_snapshot_free`.
- */
-struct xe_hw_engine_snapshot *
-xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
+static void
+xe_hw_engine_manual_capture(struct xe_hw_engine *hwe, struct xe_hw_engine_snapshot *snapshot)
 {
-	struct xe_hw_engine_snapshot *snapshot;
-	size_t len;
 	u64 val;
-
-	if (!xe_hw_engine_is_valid(hwe))
-		return NULL;
-
-	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
-
-	if (!snapshot)
-		return NULL;
-
-	/* Because XE_MAX_DSS_FUSE_BITS is defined in xe_gt_types.h and it
-	 * includes xe_hw_engine_types.h the length of this 3 registers can't be
-	 * set in struct xe_hw_engine_snapshot, so here doing additional
-	 * allocations.
-	 */
-	len = (XE_MAX_DSS_FUSE_BITS * sizeof(u32));
-	snapshot->reg.instdone.slice_common = kzalloc(len, GFP_ATOMIC);
-	snapshot->reg.instdone.slice_common_extra = kzalloc(len, GFP_ATOMIC);
-	snapshot->reg.instdone.slice_common_extra2 = kzalloc(len, GFP_ATOMIC);
-	snapshot->reg.instdone.sampler = kzalloc(len, GFP_ATOMIC);
-	snapshot->reg.instdone.row = kzalloc(len, GFP_ATOMIC);
-	snapshot->reg.instdone.geom_svg = kzalloc(len, GFP_ATOMIC);
-	if (!snapshot->reg.instdone.slice_common ||
-	    !snapshot->reg.instdone.slice_common_extra ||
-	    !snapshot->reg.instdone.slice_common_extra2 ||
-	    !snapshot->reg.instdone.sampler ||
-	    !snapshot->reg.instdone.row ||
-	    !snapshot->reg.instdone.geom_svg) {
-		xe_hw_engine_snapshot_free(snapshot);
-		return NULL;
-	}
-
-	snapshot->name = kstrdup(hwe->name, GFP_ATOMIC);
-	snapshot->hwe = hwe;
-	snapshot->logical_instance = hwe->logical_instance;
-	snapshot->forcewake.domain = hwe->domain;
-	snapshot->forcewake.ref = xe_force_wake_ref(gt_to_fw(hwe->gt),
-						    hwe->domain);
-	snapshot->mmio_base = hwe->mmio_base;
-	snapshot->kernel_reserved = xe_hw_engine_is_reserved(hwe);
-
-	/* no more VF accessible data below this point */
-	if (IS_SRIOV_VF(gt_to_xe(hwe->gt)))
-		return snapshot;
 
 	snapshot->reg.ring_execlist_status =
 		xe_hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0));
@@ -989,6 +935,87 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 
 	if (snapshot->hwe->class == XE_ENGINE_CLASS_COMPUTE)
 		snapshot->reg.rcu_mode = xe_mmio_read32(&hwe->gt->mmio, RCU_MODE);
+}
+
+/**
+ * xe_hw_engine_snapshot_capture - Take a quick snapshot of the HW Engine.
+ * @hwe: Xe HW Engine.
+ * @job: The job object.
+ *
+ * This can be printed out in a later stage like during dev_coredump
+ * analysis.
+ *
+ * Returns: a Xe HW Engine snapshot object that must be freed by the
+ * caller, using `xe_hw_engine_snapshot_free`.
+ */
+struct xe_hw_engine_snapshot *
+xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe, struct xe_sched_job *job)
+{
+	struct xe_hw_engine_snapshot *snapshot;
+	size_t len;
+	struct __guc_capture_parsed_output *node;
+
+	if (!xe_hw_engine_is_valid(hwe))
+		return NULL;
+
+	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+
+	if (!snapshot)
+		return NULL;
+
+	/* Because XE_MAX_DSS_FUSE_BITS is defined in xe_gt_types.h and it
+	 * includes xe_hw_engine_types.h the length of this 3 registers can't be
+	 * set in struct xe_hw_engine_snapshot, so here doing additional
+	 * allocations.
+	 */
+	len = (XE_MAX_DSS_FUSE_BITS * sizeof(u32));
+	snapshot->reg.instdone.slice_common = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.slice_common_extra = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.slice_common_extra2 = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.sampler = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.row = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.geom_svg = kzalloc(len, GFP_ATOMIC);
+	if (!snapshot->reg.instdone.slice_common ||
+	    !snapshot->reg.instdone.slice_common_extra ||
+	    !snapshot->reg.instdone.slice_common_extra2 ||
+	    !snapshot->reg.instdone.sampler ||
+	    !snapshot->reg.instdone.row ||
+	    !snapshot->reg.instdone.geom_svg) {
+		xe_hw_engine_snapshot_free(snapshot);
+		return NULL;
+	}
+
+	snapshot->name = kstrdup(hwe->name, GFP_ATOMIC);
+	snapshot->hwe = hwe;
+	snapshot->logical_instance = hwe->logical_instance;
+	snapshot->forcewake.domain = hwe->domain;
+	snapshot->forcewake.ref = xe_force_wake_ref(gt_to_fw(hwe->gt),
+						    hwe->domain);
+	snapshot->mmio_base = hwe->mmio_base;
+	snapshot->kernel_reserved = xe_hw_engine_is_reserved(hwe);
+
+	/* no more VF accessible data below this point */
+	if (IS_SRIOV_VF(gt_to_xe(hwe->gt)))
+		return snapshot;
+
+	if (job) {
+		/* If got guc capture, set source to GuC */
+		node = xe_guc_capture_get_matching_and_lock(job);
+		if (node) {
+			struct xe_device *xe = gt_to_xe(hwe->gt);
+			struct xe_devcoredump *coredump = &xe->devcoredump;
+
+			coredump->snapshot.matched_node = node;
+			snapshot->source = XE_ENGINE_CAPTURE_SOURCE_GUC;
+			xe_gt_dbg(hwe->gt, "Found and locked GuC-err-capture node");
+			return snapshot;
+		}
+	}
+
+	/* otherwise, do manual capture */
+	xe_hw_engine_manual_capture(hwe, snapshot);
+	snapshot->source = XE_ENGINE_CAPTURE_SOURCE_MANUAL;
+	xe_gt_dbg(hwe->gt, "Proceeding with manual engine snapshot");
 
 	return snapshot;
 }
@@ -1036,19 +1063,9 @@ xe_hw_engine_snapshot_instdone_print(struct xe_hw_engine_snapshot *snapshot, str
 	}
 }
 
-/**
- * xe_hw_engine_snapshot_print - Print out a given Xe HW Engine snapshot.
- * @snapshot: Xe HW Engine snapshot object.
- * @p: drm_printer where it will be printed out.
- *
- * This function prints out a given Xe HW Engine snapshot object.
- */
-void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
-				 struct drm_printer *p)
+static void __xe_hw_engine_manual_print(struct xe_hw_engine_snapshot *snapshot,
+					struct drm_printer *p)
 {
-	if (!snapshot)
-		return;
-
 	drm_printf(p, "%s (physical), logical instance=%d\n",
 		   snapshot->name ? snapshot->name : "",
 		   snapshot->logical_instance);
@@ -1087,6 +1104,24 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 }
 
 /**
+ * xe_hw_engine_snapshot_print - Print out a given Xe HW Engine snapshot.
+ * @snapshot: Xe HW Engine snapshot object.
+ * @p: drm_printer where it will be printed out.
+ *
+ * This function prints out a given Xe HW Engine snapshot object.
+ */
+void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
+				 struct drm_printer *p)
+{
+	if (!snapshot)
+		return;
+
+	if (snapshot->source == XE_ENGINE_CAPTURE_SOURCE_MANUAL)
+		__xe_hw_engine_manual_print(snapshot, p);
+	else
+		xe_engine_guc_capture_print(snapshot, p);
+}
+/**
  * xe_hw_engine_snapshot_free - Free all allocated objects for a given snapshot.
  * @snapshot: Xe HW Engine snapshot object.
  *
@@ -1119,7 +1154,7 @@ void xe_hw_engine_print(struct xe_hw_engine *hwe, struct drm_printer *p)
 {
 	struct xe_hw_engine_snapshot *snapshot;
 
-	snapshot = xe_hw_engine_snapshot_capture(hwe);
+	snapshot = xe_hw_engine_snapshot_capture(hwe, NULL);
 	xe_hw_engine_snapshot_print(snapshot, p);
 	xe_hw_engine_snapshot_free(snapshot);
 }

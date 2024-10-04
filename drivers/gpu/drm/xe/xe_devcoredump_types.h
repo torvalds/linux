@@ -49,6 +49,12 @@ struct xe_devcoredump_snapshot {
 	struct xe_hw_engine_snapshot *hwe[XE_NUM_HW_ENGINES];
 	/** @job: Snapshot of job state */
 	struct xe_sched_job_snapshot *job;
+	/**
+	 * @matched_node: The matched capture node for timedout job
+	 * this single-node tracker works because devcoredump will always only
+	 * produce one hw-engine capture per devcoredump event
+	 */
+	struct __guc_capture_parsed_output *matched_node;
 	/** @vm: Snapshot of VM state */
 	struct xe_vm_snapshot *vm;
 
@@ -74,6 +80,8 @@ struct xe_devcoredump {
 	bool captured;
 	/** @snapshot: Snapshot is captured at time of the first crash */
 	struct xe_devcoredump_snapshot snapshot;
+	/** @job: Point to the faulting job */
+	struct xe_sched_job *job;
 };
 
 #endif

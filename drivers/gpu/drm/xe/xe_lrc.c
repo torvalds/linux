@@ -38,24 +38,6 @@
 
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
 
-struct xe_lrc_snapshot {
-	struct xe_bo *lrc_bo;
-	void *lrc_snapshot;
-	unsigned long lrc_size, lrc_offset;
-
-	u32 context_desc;
-	u32 indirect_context_desc;
-	u32 head;
-	struct {
-		u32 internal;
-		u32 memory;
-	} tail;
-	u32 start_seqno;
-	u32 seqno;
-	u32 ctx_timestamp;
-	u32 ctx_job_timestamp;
-};
-
 static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
 {
