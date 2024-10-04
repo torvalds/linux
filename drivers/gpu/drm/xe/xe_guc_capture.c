@@ -935,7 +935,7 @@ guc_capture_init_node(struct xe_guc *guc, struct __guc_capture_parsed_output *no
  *                   guc->capture->cachelist and populated with the error-capture
  *                   data from GuC and then it's added into guc->capture->outlist linked
  *                   list. This list is used for matchup and printout by xe_devcoredump_read
- *                   and xe_hw_engine_snapshot_print, (when user invokes the devcoredump sysfs).
+ *                   and xe_engine_snapshot_print, (when user invokes the devcoredump sysfs).
  *
  * GUC --> notify context reset:
  * -----------------------------
@@ -943,12 +943,13 @@ guc_capture_init_node(struct xe_guc *guc, struct __guc_capture_parsed_output *no
  *                   L--> xe_devcoredump
  *                          L--> devcoredump_snapshot
  *                               --> xe_hw_engine_snapshot_capture
+ *                               --> xe_engine_manual_capture(For manual capture)
  *
  * User Sysfs / Debugfs
  * --------------------
  *      --> xe_devcoredump_read->
  *             L--> xxx_snapshot_print
- *                    L--> xe_hw_engine_snapshot_print
+ *                    L--> xe_engine_snapshot_print
  *                         Print register lists values saved at
  *                         guc->capture->outlist
  *
@@ -1524,6 +1525,129 @@ guc_capture_create_prealloc_nodes(struct xe_guc *guc)
 	__guc_capture_create_prealloc_nodes(guc);
 }
 
+static void
+read_reg_to_node(struct xe_hw_engine *hwe, const struct __guc_mmio_reg_descr_group *list,
+		 struct guc_mmio_reg *regs)
+{
+	int i;
+
+	if (!list || list->num_regs == 0)
+		return;
+
+	if (!regs)
+		return;
+
+	for (i = 0; i < list->num_regs; i++) {
+		struct __guc_mmio_reg_descr desc = list->list[i];
+		u32 value;
+
+		if (!list->list)
+			return;
+
+		if (list->type == GUC_STATE_CAPTURE_TYPE_ENGINE_INSTANCE) {
+			value = xe_hw_engine_mmio_read32(hwe, desc.reg);
+		} else {
+			if (list->type == GUC_STATE_CAPTURE_TYPE_ENGINE_CLASS &&
+			    FIELD_GET(GUC_REGSET_STEERING_NEEDED, desc.flags)) {
+				int group, instance;
+
+				group = FIELD_GET(GUC_REGSET_STEERING_GROUP, desc.flags);
+				instance = FIELD_GET(GUC_REGSET_STEERING_INSTANCE, desc.flags);
+				value = xe_gt_mcr_unicast_read(hwe->gt, XE_REG_MCR(desc.reg.addr),
+							       group, instance);
+			} else {
+				value = xe_mmio_read32(&hwe->gt->mmio, desc.reg);
+			}
+		}
+
+		regs[i].value = value;
+		regs[i].offset = desc.reg.addr;
+		regs[i].flags = desc.flags;
+		regs[i].mask = desc.mask;
+	}
+}
+
+/**
+ * xe_engine_manual_capture - Take a manual engine snapshot from engine.
+ * @hwe: Xe HW Engine.
+ * @snapshot: The engine snapshot
+ *
+ * Take engine snapshot from engine read.
+ *
+ * Returns: None
+ */
+void
+xe_engine_manual_capture(struct xe_hw_engine *hwe, struct xe_hw_engine_snapshot *snapshot)
+{
+	struct xe_gt *gt = hwe->gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_guc *guc = &gt->uc.guc;
+	struct xe_devcoredump *devcoredump = &xe->devcoredump;
+	enum guc_capture_list_class_type capture_class;
+	const struct __guc_mmio_reg_descr_group *list;
+	struct __guc_capture_parsed_output *new;
+	enum guc_state_capture_type type;
+	u16 guc_id = 0;
+	u32 lrca = 0;
+
+	new = guc_capture_get_prealloc_node(guc);
+	if (!new)
+		return;
+
+	capture_class = xe_engine_class_to_guc_capture_class(hwe->class);
+	for (type = GUC_STATE_CAPTURE_TYPE_GLOBAL; type < GUC_STATE_CAPTURE_TYPE_MAX; type++) {
+		struct gcap_reg_list_info *reginfo = &new->reginfo[type];
+		/*
+		 * regsinfo->regs is allocated based on guc->capture->max_mmio_per_node
+		 * which is based on the descriptor list driving the population so
+		 * should not overflow
+		 */
+
+		/* Get register list for the type/class */
+		list = xe_guc_capture_get_reg_desc_list(gt, GUC_CAPTURE_LIST_INDEX_PF, type,
+							capture_class, false);
+		if (!list) {
+			xe_gt_dbg(gt, "Empty GuC capture register descriptor for %s",
+				  hwe->name);
+			continue;
+		}
+
+		read_reg_to_node(hwe, list, reginfo->regs);
+		reginfo->num_regs = list->num_regs;
+
+		/* Capture steering registers for rcs/ccs */
+		if (capture_class == GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE) {
+			list = xe_guc_capture_get_reg_desc_list(gt, GUC_CAPTURE_LIST_INDEX_PF,
+								type, capture_class, true);
+			if (list) {
+				read_reg_to_node(hwe, list, &reginfo->regs[reginfo->num_regs]);
+				reginfo->num_regs += list->num_regs;
+			}
+		}
+	}
+
+	if (devcoredump && devcoredump->captured) {
+		struct xe_guc_submit_exec_queue_snapshot *ge = devcoredump->snapshot.ge;
+
+		if (ge) {
+			guc_id = ge->guc.id;
+			if (ge->lrc[0])
+				lrca = ge->lrc[0]->context_desc;
+		}
+	}
+
+	new->eng_class = xe_engine_class_to_guc_class(hwe->class);
+	new->eng_inst = hwe->instance;
+	new->guc_id = guc_id;
+	new->lrca = lrca;
+	new->is_partial = 0;
+	new->locked = 1;
+	new->source = XE_ENGINE_CAPTURE_SOURCE_MANUAL;
+
+	guc_capture_add_node_to_outlist(guc->capture, new);
+	devcoredump->snapshot.matched_node = new;
+}
+
 static struct guc_mmio_reg *
 guc_capture_find_reg(struct gcap_reg_list_info *reginfo, u32 addr, u32 flags)
 {
@@ -1609,7 +1733,7 @@ snapshot_print_by_list_order(struct xe_hw_engine_snapshot *snapshot, struct drm_
  *
  * This function prints out a given Xe HW Engine snapshot object.
  */
-void xe_engine_guc_capture_print(struct xe_hw_engine_snapshot *snapshot, struct drm_printer *p)
+void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm_printer *p)
 {
 	const char *grptype[GUC_STATE_CAPTURE_GROUP_TYPE_MAX] = {
 		"full-capture",
@@ -1648,6 +1772,8 @@ void xe_engine_guc_capture_print(struct xe_hw_engine_snapshot *snapshot, struct 
 	drm_printf(p, "\tCoverage: %s\n", grptype[devcore_snapshot->matched_node->is_partial]);
 	drm_printf(p, "\tForcewake: domain 0x%x, ref %d\n",
 		   snapshot->forcewake.domain, snapshot->forcewake.ref);
+	drm_printf(p, "\tReserved: %s\n",
+		   str_yes_no(snapshot->kernel_reserved));
 
 	for (type = GUC_STATE_CAPTURE_TYPE_GLOBAL; type < GUC_STATE_CAPTURE_TYPE_MAX; type++) {
 		list = xe_guc_capture_get_reg_desc_list(gt, GUC_CAPTURE_LIST_INDEX_PF, type,
@@ -1757,8 +1883,27 @@ xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
 			continue;
 		}
 
-		if (!coredump->snapshot.hwe[id])
+		if (!coredump->snapshot.hwe[id]) {
 			coredump->snapshot.hwe[id] = xe_hw_engine_snapshot_capture(hwe, job);
+		} else {
+			struct __guc_capture_parsed_output *new;
+
+			new = xe_guc_capture_get_matching_and_lock(job);
+			if (new) {
+				struct xe_guc *guc =  &q->gt->uc.guc;
+
+				/*
+				 * If we are in here, it means we found a fresh
+				 * GuC-err-capture node for this engine after
+				 * previously failing to find a match in the
+				 * early part of guc_exec_queue_timedout_job.
+				 * Thus we must free the manually captured node
+				 */
+				guc_capture_free_outlist_node(guc->capture,
+							      coredump->snapshot.matched_node);
+				coredump->snapshot.matched_node = new;
+			}
+		}
 
 		break;
 	}
