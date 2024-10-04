@@ -1079,6 +1079,9 @@ struct scarlett2_device_info {
 	/* minimum firmware version required */
 	u16 min_firmware_version;
 
+	/* has a downloadable device map */
+	u8 has_devmap;
+
 	/* support for main/alt speaker switching */
 	u8 has_speaker_switching;
 
@@ -1773,6 +1776,7 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 static const struct scarlett2_device_info vocaster_one_info = {
 	.config_set = &scarlett2_config_set_vocaster,
 	.min_firmware_version = 1769,
+	.has_devmap = 1,
 
 	.phantom_count = 1,
 	.inputs_per_phantom = 1,
@@ -1815,6 +1819,7 @@ static const struct scarlett2_device_info vocaster_one_info = {
 static const struct scarlett2_device_info vocaster_two_info = {
 	.config_set = &scarlett2_config_set_vocaster,
 	.min_firmware_version = 1769,
+	.has_devmap = 1,
 
 	.phantom_count = 2,
 	.inputs_per_phantom = 1,
@@ -1858,6 +1863,7 @@ static const struct scarlett2_device_info vocaster_two_info = {
 static const struct scarlett2_device_info solo_gen4_info = {
 	.config_set = &scarlett2_config_set_gen4_solo,
 	.min_firmware_version = 2115,
+	.has_devmap = 1,
 
 	.level_input_count = 1,
 	.air_input_count = 1,
@@ -1912,6 +1918,7 @@ static const struct scarlett2_device_info solo_gen4_info = {
 static const struct scarlett2_device_info s2i2_gen4_info = {
 	.config_set = &scarlett2_config_set_gen4_2i2,
 	.min_firmware_version = 2115,
+	.has_devmap = 1,
 
 	.level_input_count = 2,
 	.air_input_count = 2,
@@ -1966,6 +1973,7 @@ static const struct scarlett2_device_info s2i2_gen4_info = {
 static const struct scarlett2_device_info s4i4_gen4_info = {
 	.config_set = &scarlett2_config_set_gen4_4i4,
 	.min_firmware_version = 2089,
+	.has_devmap = 1,
 
 	.level_input_count = 2,
 	.air_input_count = 2,
@@ -2264,6 +2272,8 @@ static int scarlett2_get_port_start_num(
 #define SCARLETT2_USB_GET_DATA      0x00800000
 #define SCARLETT2_USB_SET_DATA      0x00800001
 #define SCARLETT2_USB_DATA_CMD      0x00800002
+#define SCARLETT2_USB_INFO_DEVMAP   0x0080000c
+#define SCARLETT2_USB_GET_DEVMAP    0x0080000d
 
 #define SCARLETT2_USB_CONFIG_SAVE 6
 
@@ -2276,6 +2286,14 @@ static int scarlett2_get_port_start_num(
 
 #define SCARLETT2_SEGMENT_SETTINGS_NAME "App_Settings"
 #define SCARLETT2_SEGMENT_FIRMWARE_NAME "App_Upgrade"
+
+/* Gen 4 device firmware provides access to a base64-encoded
+ * zlib-compressed JSON description of the device's capabilities and
+ * configuration. This device map is made available in
+ * /proc/asound/cardX/device-map.json.zz.b64
+ */
+#define SCARLETT2_DEVMAP_BLOCK_SIZE 1024
+#define SCARLETT2_DEVMAP_FILENAME "device-map.json.zz.b64"
 
 /* proprietary request/response format */
 struct scarlett2_usb_packet {
@@ -9562,6 +9580,116 @@ static int scarlett2_hwdep_init(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+/*** device-map file ***/
+
+static ssize_t scarlett2_devmap_read(
+	struct snd_info_entry *entry,
+	void                  *file_private_data,
+	struct file           *file,
+	char __user           *buf,
+	size_t                 count,
+	loff_t                 pos)
+{
+	struct usb_mixer_interface *mixer = entry->private_data;
+	u8           *resp_buf;
+	const size_t  block_size = SCARLETT2_DEVMAP_BLOCK_SIZE;
+	size_t        copied = 0;
+
+	if (pos >= entry->size)
+		return 0;
+
+	if (pos + count > entry->size)
+		count = entry->size - pos;
+
+	resp_buf = kmalloc(block_size, GFP_KERNEL);
+	if (!resp_buf)
+		return -ENOMEM;
+
+	while (count > 0) {
+		/* SCARLETT2_USB_GET_DEVMAP reads only on block boundaries,
+		 * so we need to read a whole block and copy the requested
+		 * chunk to userspace.
+		 */
+
+		__le32 req;
+		int    err;
+
+		/* offset within the block that we're reading */
+		size_t offset = pos % block_size;
+
+		/* read_size is block_size except for the last block */
+		size_t block_start = pos - offset;
+		size_t read_size = min_t(size_t,
+					 block_size,
+					 entry->size - block_start);
+
+		/* size of the chunk to copy to userspace */
+		size_t copy_size = min_t(size_t, count, read_size - offset);
+
+		/* request the block */
+		req = cpu_to_le32(pos / block_size);
+		err = scarlett2_usb(mixer, SCARLETT2_USB_GET_DEVMAP,
+				    &req, sizeof(req), resp_buf, read_size);
+		if (err < 0) {
+			kfree(resp_buf);
+			return copied ? copied : err;
+		}
+
+		if (copy_to_user(buf, resp_buf + offset, copy_size)) {
+			kfree(resp_buf);
+			return -EFAULT;
+		}
+
+		buf += copy_size;
+		pos += copy_size;
+		copied += copy_size;
+		count -= copy_size;
+	}
+
+	kfree(resp_buf);
+	return copied;
+}
+
+static const struct snd_info_entry_ops scarlett2_devmap_ops = {
+	.read = scarlett2_devmap_read,
+};
+
+static int scarlett2_devmap_init(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+	__le16 config_len_buf[2];
+	int config_len;
+	struct snd_info_entry *entry;
+	int err;
+
+	/* If the device doesn't support the DEVMAP commands, don't
+	 * create the /proc/asound/cardX/scarlett.json.zlib entry
+	 */
+	if (!info->has_devmap)
+		return 0;
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_INFO_DEVMAP,
+			    NULL, 0, &config_len_buf, sizeof(config_len_buf));
+	if (err < 0)
+		return err;
+
+	config_len = le16_to_cpu(config_len_buf[1]);
+
+	err = snd_card_proc_new(card, SCARLETT2_DEVMAP_FILENAME, &entry);
+	if (err < 0)
+		return err;
+
+	entry->content = SNDRV_INFO_CONTENT_DATA;
+	entry->private_data = mixer;
+	entry->c.ops = &scarlett2_devmap_ops;
+	entry->size = config_len;
+	entry->mode = S_IFREG | 0444;
+
+	return 0;
+}
+
 int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 {
 	struct snd_usb_audio *chip = mixer->chip;
@@ -9612,9 +9740,18 @@ int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 	}
 
 	err = scarlett2_hwdep_init(mixer);
-	if (err < 0)
+	if (err < 0) {
 		usb_audio_err(mixer->chip,
 			      "Error creating %s hwdep device: %d",
+			      entry->series_name,
+			      err);
+		return err;
+	}
+
+	err = scarlett2_devmap_init(mixer);
+	if (err < 0)
+		usb_audio_err(mixer->chip,
+			      "Error creating %s devmap entry: %d",
 			      entry->series_name,
 			      err);
 
