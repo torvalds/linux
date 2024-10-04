@@ -337,3 +337,38 @@ u32 xe_guc_get_log_buffer_offset(struct xe_guc_log *log, enum guc_log_buffer_typ
 
 	return offset;
 }
+
+/**
+ * xe_guc_check_log_buf_overflow - Check if log buffer overflowed
+ * @log: The log object.
+ * @type: The log buffer type
+ * @full_cnt: The count of buffer full
+ *
+ * This function will check count of buffer full against previous, mismatch
+ * indicate overflowed.
+ * Update the sampled_overflow counter, if the 4 bit counter overflowed, add
+ * up 16 to correct the value.
+ *
+ * Return: True if overflowed.
+ */
+bool xe_guc_check_log_buf_overflow(struct xe_guc_log *log, enum guc_log_buffer_type type,
+				   unsigned int full_cnt)
+{
+	unsigned int prev_full_cnt = log->stats[type].sampled_overflow;
+	bool overflow = false;
+
+	if (full_cnt != prev_full_cnt) {
+		overflow = true;
+
+		log->stats[type].overflow = full_cnt;
+		log->stats[type].sampled_overflow += full_cnt - prev_full_cnt;
+
+		if (full_cnt < prev_full_cnt) {
+			/* buffer_full_cnt is a 4 bit counter */
+			log->stats[type].sampled_overflow += 16;
+		}
+		xe_gt_notice(log_to_gt(log), "log buffer overflow\n");
+	}
+
+	return overflow;
+}

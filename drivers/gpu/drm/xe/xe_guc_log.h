@@ -54,5 +54,8 @@ xe_guc_log_get_level(struct xe_guc_log *log)
 u32 xe_guc_log_section_size_capture(struct xe_guc_log *log);
 u32 xe_guc_get_log_buffer_size(struct xe_guc_log *log, enum guc_log_buffer_type type);
 u32 xe_guc_get_log_buffer_offset(struct xe_guc_log *log, enum guc_log_buffer_type type);
+bool xe_guc_check_log_buf_overflow(struct xe_guc_log *log,
+				   enum guc_log_buffer_type type,
+				   unsigned int full_cnt);
 
 #endif

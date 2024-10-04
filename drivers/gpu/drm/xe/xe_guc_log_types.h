@@ -7,6 +7,7 @@
 #define _XE_GUC_LOG_TYPES_H_
 
 #include <linux/types.h>
+#include "abi/guc_log_abi.h"
 
 #include "xe_uc_fw_types.h"
 
@@ -45,6 +46,12 @@ struct xe_guc_log {
 	u32 level;
 	/** @bo: XE BO for GuC log */
 	struct xe_bo *bo;
+	/** @stats: logging related stats */
+	struct {
+		u32 sampled_overflow;
+		u32 overflow;
+		u32 flush;
+	} stats[GUC_LOG_BUFFER_TYPE_MAX];
 };
 
 #endif

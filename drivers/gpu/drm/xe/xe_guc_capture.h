@@ -37,6 +37,7 @@ xe_engine_class_to_guc_capture_class(enum xe_engine_class class)
 	return xe_guc_class_to_capture_class(xe_engine_class_to_guc_class(class));
 }
 
+void xe_guc_capture_process(struct xe_guc *guc);
 int xe_guc_capture_getlist(struct xe_guc *guc, u32 owner, u32 type,
 			   enum guc_capture_list_class_type capture_class, void **outptr);
 int xe_guc_capture_getlistsize(struct xe_guc *guc, u32 owner, u32 type,
