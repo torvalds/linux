@@ -884,6 +884,7 @@ static int gpy_led_brightness_set(struct phy_device *phydev,
 }
 
 static const unsigned long supported_triggers = (BIT(TRIGGER_NETDEV_LINK) |
+						 BIT(TRIGGER_NETDEV_LINK_10) |
 						 BIT(TRIGGER_NETDEV_LINK_100) |
 						 BIT(TRIGGER_NETDEV_LINK_1000) |
 						 BIT(TRIGGER_NETDEV_LINK_2500) |
