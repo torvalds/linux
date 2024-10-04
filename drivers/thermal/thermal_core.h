@@ -96,7 +96,6 @@ struct thermal_governor {
 			trip point.
  * @prev_high_trip:	the above current temperature if you've crossed a
 			passive trip point.
- * @need_update:	if equals 1, thermal_zone_device_update needs to be invoked.
  * @ops:	operations this &thermal_zone_device supports
  * @tzp:	thermal zone parameters
  * @governor:	pointer to the governor for this thermal zone
@@ -130,7 +129,6 @@ struct thermal_zone_device {
 	int passive;
 	int prev_low_trip;
 	int prev_high_trip;
-	atomic_t need_update;
 	struct thermal_zone_device_ops ops;
 	struct thermal_zone_params *tzp;
 	struct thermal_governor *governor;

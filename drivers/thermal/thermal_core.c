@@ -842,7 +842,6 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 	if (!result) {
 		list_add_tail(&dev->tz_node, &tz->thermal_instances);
 		list_add_tail(&dev->cdev_node, &cdev->thermal_instances);
-		atomic_set(&tz->need_update, 1);
 
 		thermal_governor_update_tz(tz, THERMAL_TZ_BIND_CDEV);
 	}
@@ -1506,9 +1505,6 @@ thermal_zone_device_register_with_trips(const char *type,
 	result = thermal_zone_create_device_groups(tz);
 	if (result)
 		goto remove_id;
-
-	/* A new thermal zone needs to be updated anyway. */
-	atomic_set(&tz->need_update, 1);
 
 	result = dev_set_name(&tz->device, "thermal_zone%d", tz->id);
 	if (result) {
