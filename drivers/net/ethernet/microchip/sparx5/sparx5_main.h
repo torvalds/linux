@@ -54,23 +54,21 @@ enum sparx5_vlan_port_type {
 #define SPX5_PORTS             65
 #define SPX5_PORTS_ALL         70 /* Total number of ports */
 
-#define SPX5_PORT_CPU          (SPX5_PORTS)  /* Next port is CPU port */
-#define SPX5_PORT_CPU_0        (SPX5_PORT_CPU + 0) /* CPU Port 65 */
-#define SPX5_PORT_CPU_1        (SPX5_PORT_CPU + 1) /* CPU Port 66 */
-#define SPX5_PORT_VD0          (SPX5_PORT_CPU + 2) /* VD0/Port 67 used for IPMC */
-#define SPX5_PORT_VD1          (SPX5_PORT_CPU + 3) /* VD1/Port 68 used for AFI/OAM */
-#define SPX5_PORT_VD2          (SPX5_PORT_CPU + 4) /* VD2/Port 69 used for IPinIP*/
+#define SPX5_PORT_CPU_0        0 /* CPU Port 0 */
+#define SPX5_PORT_CPU_1        1 /* CPU Port 1 */
+#define SPX5_PORT_VD0          2 /* VD0/Port used for IPMC */
+#define SPX5_PORT_VD1          3 /* VD1/Port used for AFI/OAM */
+#define SPX5_PORT_VD2          4 /* VD2/Port used for IPinIP*/
 
-#define PGID_BASE              SPX5_PORTS /* Starts after port PGIDs */
-#define PGID_UC_FLOOD          (PGID_BASE + 0)
-#define PGID_MC_FLOOD          (PGID_BASE + 1)
-#define PGID_IPV4_MC_DATA      (PGID_BASE + 2)
-#define PGID_IPV4_MC_CTRL      (PGID_BASE + 3)
-#define PGID_IPV6_MC_DATA      (PGID_BASE + 4)
-#define PGID_IPV6_MC_CTRL      (PGID_BASE + 5)
-#define PGID_BCAST	       (PGID_BASE + 6)
-#define PGID_CPU	       (PGID_BASE + 7)
-#define PGID_MCAST_START       (PGID_BASE + 8)
+#define PGID_UC_FLOOD          0
+#define PGID_MC_FLOOD          1
+#define PGID_IPV4_MC_DATA      2
+#define PGID_IPV4_MC_CTRL      3
+#define PGID_IPV6_MC_DATA      4
+#define PGID_IPV6_MC_CTRL      5
+#define PGID_BCAST             6
+#define PGID_CPU               7
+#define PGID_MCAST_START       8
 
 #define PGID_TABLE_SIZE	       3290
 
@@ -500,6 +498,7 @@ enum sparx5_pgid_type {
 void sparx5_pgid_init(struct sparx5 *spx5);
 int sparx5_pgid_alloc_mcast(struct sparx5 *spx5, u16 *idx);
 int sparx5_pgid_free(struct sparx5 *spx5, u16 idx);
+int sparx5_get_pgid(struct sparx5 *sparx5, int pgid);
 
 /* sparx5_pool.c */
 struct sparx5_pool_entry {
@@ -516,6 +515,7 @@ int sparx5_pool_get_with_idx(struct sparx5_pool_entry *pool, int size, u32 idx,
 /* sparx5_port.c */
 int sparx5_port_mux_set(struct sparx5 *sparx5, struct sparx5_port *port,
 			struct sparx5_port_config *conf);
+int sparx5_get_internal_port(struct sparx5 *sparx5, int port);
 
 /* sparx5_sdlb.c */
 #define SPX5_SDLB_PUP_TOKEN_DISABLE 0x1FFF

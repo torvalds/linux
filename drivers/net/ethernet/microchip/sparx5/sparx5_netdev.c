@@ -68,7 +68,8 @@ void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno)
 	/* MISC.PIPELINE_ACT */
 	ifh_encode_bitfield(ifh_hdr, 1,        42, 3);
 	/* FWD.SRC_PORT = CPU */
-	ifh_encode_bitfield(ifh_hdr, SPX5_PORT_CPU, 46, 7);
+	ifh_encode_bitfield(ifh_hdr, sparx5_get_pgid(sparx5, SPX5_PORT_CPU_0),
+			    46, 7);
 	/* FWD.SFLOW_ID (disable SFlow sampling) */
 	ifh_encode_bitfield(ifh_hdr, 124,      57, 7);
 	/* FWD.UPDATE_FCS = Enable. Enforce update of FCS. */
@@ -190,7 +191,8 @@ static int sparx5_set_mac_address(struct net_device *dev, void *p)
 	sparx5_mact_forget(sparx5, dev->dev_addr,  port->pvid);
 
 	/* Add new */
-	sparx5_mact_learn(sparx5, PGID_CPU, addr->sa_data, port->pvid);
+	sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
+			  addr->sa_data, port->pvid);
 
 	/* Record the address */
 	eth_hw_addr_set(dev, addr->sa_data);

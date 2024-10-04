@@ -129,7 +129,8 @@ int sparx5_mc_sync(struct net_device *dev, const unsigned char *addr)
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *sparx5 = port->sparx5;
 
-	return sparx5_mact_learn(sparx5, PGID_CPU, addr, port->pvid);
+	return sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
+				 addr, port->pvid);
 }
 
 static int sparx5_mact_get(struct sparx5 *sparx5,

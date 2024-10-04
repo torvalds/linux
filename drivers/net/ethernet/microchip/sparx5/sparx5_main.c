@@ -649,13 +649,14 @@ static int sparx5_start(struct sparx5 *sparx5)
 	sparx5_update_fwd(sparx5);
 
 	/* CPU copy CPU pgids */
-	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
-		sparx5, ANA_AC_PGID_MISC_CFG(PGID_CPU));
-	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
-		sparx5, ANA_AC_PGID_MISC_CFG(PGID_BCAST));
+	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
+		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_CPU)));
+	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
+		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_BCAST)));
 
 	/* Recalc injected frame FCS */
-	for (idx = SPX5_PORT_CPU_0; idx <= SPX5_PORT_CPU_1; idx++)
+	for (idx = sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_0);
+	     idx <= sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_1); idx++)
 		spx5_rmw(ANA_CL_FILTER_CTRL_FORCE_FCS_UPDATE_ENA_SET(1),
 			 ANA_CL_FILTER_CTRL_FORCE_FCS_UPDATE_ENA,
 			 sparx5, ANA_CL_FILTER_CTRL(idx));
@@ -670,7 +671,8 @@ static int sparx5_start(struct sparx5 *sparx5)
 	sparx5_vlan_init(sparx5);
 
 	/* Add host mode BC address (points only to CPU) */
-	sparx5_mact_learn(sparx5, PGID_CPU, broadcast, NULL_VID);
+	sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU), broadcast,
+			  NULL_VID);
 
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);

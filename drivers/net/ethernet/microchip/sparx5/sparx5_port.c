@@ -1352,3 +1352,8 @@ int sparx5_port_qos_default_set(const struct sparx5_port *port,
 
 	return 0;
 }
+
+int sparx5_get_internal_port(struct sparx5 *sparx5, int port)
+{
+	return sparx5->data->consts->n_ports + port;
+}

@@ -118,16 +118,22 @@ static enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5,
 
 	if (portno >= sparx5->data->consts->n_ports) {
 		/* Internal ports */
-		if (portno == SPX5_PORT_CPU_0 || portno == SPX5_PORT_CPU_1) {
+		if (portno ==
+			    sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_0) ||
+		    portno ==
+			    sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_1)) {
 			/* Equals 1.25G */
 			return SPX5_CAL_SPEED_2G5;
-		} else if (portno == SPX5_PORT_VD0) {
+		} else if (portno ==
+			   sparx5_get_internal_port(sparx5, SPX5_PORT_VD0)) {
 			/* IPMC only idle BW */
 			return SPX5_CAL_SPEED_NONE;
-		} else if (portno == SPX5_PORT_VD1) {
+		} else if (portno ==
+			   sparx5_get_internal_port(sparx5, SPX5_PORT_VD1)) {
 			/* OAM only idle BW */
 			return SPX5_CAL_SPEED_NONE;
-		} else if (portno == SPX5_PORT_VD2) {
+		} else if (portno ==
+			   sparx5_get_internal_port(sparx5, SPX5_PORT_VD2)) {
 			/* IPinIP gets only idle BW */
 			return SPX5_CAL_SPEED_NONE;
 		}
