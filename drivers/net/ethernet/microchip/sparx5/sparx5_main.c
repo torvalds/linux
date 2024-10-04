@@ -990,6 +990,8 @@ static const struct sparx5_ops sparx5_ops = {
 	.is_port_25g             = &sparx5_port_is_25g,
 	.get_port_dev_index      = &sparx5_port_dev_mapping,
 	.get_port_dev_bit        = &sparx5_port_dev_mapping,
+	.get_hsch_max_group_rate = &sparx5_get_hsch_max_group_rate,
+	.get_sdlb_group          = &sparx5_get_sdlb_group,
 };
 
 static const struct sparx5_match_data sparx5_desc = {

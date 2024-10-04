@@ -319,11 +319,12 @@ int sparx5_psfp_fm_del(struct sparx5 *sparx5, u32 id)
 
 void sparx5_psfp_init(struct sparx5 *sparx5)
 {
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	const struct sparx5_sdlb_group *group;
 	int i;
 
 	for (i = 0; i < sparx5->data->consts->n_lb_groups; i++) {
-		group = &sdlb_groups[i];
+		group = ops->get_sdlb_group(i);
 		sparx5_sdlb_group_init(sparx5, group->max_rate,
 				       group->min_burst, group->frame_size, i);
 	}

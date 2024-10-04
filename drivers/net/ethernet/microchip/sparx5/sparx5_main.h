@@ -265,6 +265,8 @@ struct sparx5_ops {
 	bool (*is_port_25g)(int portno);
 	u32  (*get_port_dev_index)(struct sparx5 *sparx5, int port);
 	u32  (*get_port_dev_bit)(struct sparx5 *sparx5, int port);
+	u32  (*get_hsch_max_group_rate)(int grp);
+	struct sparx5_sdlb_group *(*get_sdlb_group)(int idx);
 };
 
 struct sparx5_main_io_resource {
@@ -501,6 +503,7 @@ struct sparx5_sdlb_group {
 };
 
 extern struct sparx5_sdlb_group sdlb_groups[SPX5_SDLB_GROUP_CNT];
+struct sparx5_sdlb_group *sparx5_get_sdlb_group(int idx);
 int sparx5_sdlb_pup_token_get(struct sparx5 *sparx5, u32 pup_interval,
 			      u64 rate);
 

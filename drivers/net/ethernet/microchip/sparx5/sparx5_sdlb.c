@@ -20,6 +20,11 @@ struct sparx5_sdlb_group sdlb_groups[SPX5_SDLB_GROUP_CNT] = {
 	{     5000000ULL,              8192 / 8, 64 }  /*   5 M */
 };
 
+struct sparx5_sdlb_group *sparx5_get_sdlb_group(int idx)
+{
+	return &sdlb_groups[idx];
+}
+
 int sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5)
 {
 	u32 clk_per_100ps;
@@ -178,6 +183,7 @@ static int sparx5_sdlb_group_get_count(struct sparx5 *sparx5, u32 group)
 
 int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst)
 {
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	const struct sparx5_sdlb_group *group;
 	u64 rate_bps;
 	int i, count;
@@ -185,7 +191,7 @@ int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst)
 	rate_bps = rate * 1000;
 
 	for (i = sparx5->data->consts->n_lb_groups - 1; i >= 0; i--) {
-		group = &sdlb_groups[i];
+		group = ops->get_sdlb_group(i);
 
 		count = sparx5_sdlb_group_get_count(sparx5, i);
 
@@ -303,11 +309,12 @@ int sparx5_sdlb_group_del(struct sparx5 *sparx5, u32 group, u32 idx)
 void sparx5_sdlb_group_init(struct sparx5 *sparx5, u64 max_rate, u32 min_burst,
 			    u32 frame_size, u32 idx)
 {
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	u32 thres_shift, mask = 0x01, power = 0;
 	struct sparx5_sdlb_group *group;
 	u64 max_token;
 
-	group = &sdlb_groups[idx];
+	group = ops->get_sdlb_group(idx);
 
 	/* Number of positions to right-shift LB's threshold value. */
 	while ((min_burst & mask) == 0) {
