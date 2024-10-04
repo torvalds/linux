@@ -522,7 +522,7 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		 sparx5,
 		 LRN_AUTOAGE_CFG_1);
 
-	for (idx = 0; idx < 3; idx++)
+	for (idx = 0; idx < sparx5->data->consts->n_sio_clks; idx++)
 		spx5_rmw(GCB_SIO_CLOCK_SYS_CLK_PERIOD_SET(clk_period / 100),
 			 GCB_SIO_CLOCK_SYS_CLK_PERIOD,
 			 sparx5,
@@ -550,16 +550,21 @@ static u32 qlim_wm(struct sparx5 *sparx5, int fraction)
 
 static int sparx5_qlim_set(struct sparx5 *sparx5)
 {
+	const struct sparx5_consts *consts = sparx5->data->consts;
 	u32 res, dp, prio;
 
 	for (res = 0; res < 2; res++) {
 		for (prio = 0; prio < 8; prio++)
 			spx5_wr(0xFFF, sparx5,
-				QRES_RES_CFG(prio + 630 + res * 1024));
+				QRES_RES_CFG(prio +
+					     consts->qres_max_prio_idx +
+					     res * 1024));
 
 		for (dp = 0; dp < 4; dp++)
 			spx5_wr(0xFFF, sparx5,
-				QRES_RES_CFG(dp + 638 + res * 1024));
+				QRES_RES_CFG(dp +
+					     consts->qres_max_colour_idx +
+					     res * 1024));
 	}
 
 	/* Set 80,90,95,100% of memory size for top watermarks */
@@ -605,7 +610,7 @@ static int sparx5_start(struct sparx5 *sparx5)
 	int err;
 
 	/* Setup own UPSIDs */
-	for (idx = 0; idx < 3; idx++) {
+	for (idx = 0; idx < consts->n_own_upsids; idx++) {
 		spx5_wr(idx, sparx5, ANA_AC_OWN_UPSID(idx));
 		spx5_wr(idx, sparx5, ANA_CL_OWN_UPSID(idx));
 		spx5_wr(idx, sparx5, ANA_L2_OWN_UPSID(idx));
