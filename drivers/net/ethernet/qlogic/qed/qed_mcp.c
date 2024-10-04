@@ -459,12 +459,11 @@ static void qed_mcp_print_cpu_info(struct qed_hwfn *p_hwfn,
 static int
 _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		       struct qed_ptt *p_ptt,
-		       struct qed_mcp_mb_params *p_mb_params,
-		       u32 max_retries, u32 usecs)
+		       struct qed_mcp_mb_params *p_mb_params)
 {
-	u32 cnt = 0, msecs = DIV_ROUND_UP(usecs, 1000);
 	struct qed_mcp_cmd_elem *p_cmd_elem;
 	u16 seq_num;
+	u32 cnt = 0;
 	int rc = 0;
 
 	/* Wait until the mailbox is non-occupied */
@@ -488,12 +487,13 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
 
 		if (QED_MB_FLAGS_IS_SET(p_mb_params, CAN_SLEEP))
-			msleep(msecs);
+			usleep_range(QED_MCP_RESP_ITER_US,
+				     QED_MCP_RESP_ITER_US * 2);
 		else
-			udelay(usecs);
-	} while (++cnt < max_retries);
+			udelay(QED_MCP_RESP_ITER_US);
+	} while (++cnt < QED_DRV_MB_MAX_RETRIES);
 
-	if (cnt >= max_retries) {
+	if (cnt >= QED_DRV_MB_MAX_RETRIES) {
 		DP_NOTICE(p_hwfn,
 			  "The MFW mailbox is occupied by an uncompleted command. Failed to send command 0x%08x [param 0x%08x].\n",
 			  p_mb_params->cmd, p_mb_params->param);
@@ -520,9 +520,10 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		 */
 
 		if (QED_MB_FLAGS_IS_SET(p_mb_params, CAN_SLEEP))
-			msleep(msecs);
+			usleep_range(QED_MCP_RESP_ITER_US,
+				     QED_MCP_RESP_ITER_US * 2);
 		else
-			udelay(usecs);
+			udelay(QED_MCP_RESP_ITER_US);
 
 		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
 
@@ -536,9 +537,9 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 			goto err;
 
 		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
-	} while (++cnt < max_retries);
+	} while (++cnt < QED_DRV_MB_MAX_RETRIES);
 
-	if (cnt >= max_retries) {
+	if (cnt >= QED_DRV_MB_MAX_RETRIES) {
 		DP_NOTICE(p_hwfn,
 			  "The MFW failed to respond to command 0x%08x [param 0x%08x].\n",
 			  p_mb_params->cmd, p_mb_params->param);
@@ -564,7 +565,8 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		   "MFW mailbox: response 0x%08x param 0x%08x [after %d.%03d ms]\n",
 		   p_mb_params->mcp_resp,
 		   p_mb_params->mcp_param,
-		   (cnt * usecs) / 1000, (cnt * usecs) % 1000);
+		   (cnt * QED_MCP_RESP_ITER_US) / 1000,
+		   (cnt * QED_MCP_RESP_ITER_US) % 1000);
 
 	/* Clear the sequence number from the MFW response */
 	p_mb_params->mcp_resp &= FW_MSG_CODE_MASK;
@@ -581,8 +583,6 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 				 struct qed_mcp_mb_params *p_mb_params)
 {
 	size_t union_data_size = sizeof(union drv_union_data);
-	u32 max_retries = QED_DRV_MB_MAX_RETRIES;
-	u32 usecs = QED_MCP_RESP_ITER_US;
 
 	/* MCP not initialized */
 	if (!qed_mcp_is_init(p_hwfn)) {
@@ -606,13 +606,7 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	if (QED_MB_FLAGS_IS_SET(p_mb_params, CAN_SLEEP)) {
-		max_retries = DIV_ROUND_UP(max_retries, 1000);
-		usecs *= 1000;
-	}
-
-	return _qed_mcp_cmd_and_union(p_hwfn, p_ptt, p_mb_params, max_retries,
-				      usecs);
+	return _qed_mcp_cmd_and_union(p_hwfn, p_ptt, p_mb_params);
 }
 
 static int _qed_mcp_cmd(struct qed_hwfn *p_hwfn,
@@ -3085,19 +3079,12 @@ int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
 					 DRV_MB_PARAM_NVM_LEN_OFFSET),
 					&resp, &resp_param,
 					&read_len,
-					(u32 *)(p_buf + offset), false);
+					(u32 *)(p_buf + offset), true);
 
 		if (rc || (resp != FW_MSG_CODE_NVM_OK)) {
 			DP_NOTICE(cdev, "MCP command rc = %d\n", rc);
 			break;
 		}
-
-		/* This can be a lengthy process, and it's possible scheduler
-		 * isn't preemptible. Sleep a bit to prevent CPU hogging.
-		 */
-		if (bytes_left % 0x1000 <
-		    (bytes_left - read_len) % 0x1000)
-			usleep_range(1000, 2000);
 
 		offset += read_len;
 		bytes_left -= read_len;
