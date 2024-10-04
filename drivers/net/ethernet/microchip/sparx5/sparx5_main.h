@@ -226,6 +226,17 @@ struct sparx5_mall_entry {
 #define SPARX5_SKB_CB(skb) \
 	((struct sparx5_skb_cb *)((skb)->cb))
 
+struct sparx5_regs {
+	const unsigned int *tsize;
+	const unsigned int *gaddr;
+	const unsigned int *gcnt;
+	const unsigned int *gsize;
+	const unsigned int *raddr;
+	const unsigned int *rcnt;
+	const unsigned int *fpos;
+	const unsigned int *fsize;
+};
+
 struct sparx5_main_io_resource {
 	enum sparx5_target id;
 	phys_addr_t offset;
@@ -233,6 +244,7 @@ struct sparx5_main_io_resource {
 };
 
 struct sparx5_match_data {
+	const struct sparx5_regs *regs;
 	const struct sparx5_main_io_resource *iomap;
 	int ioranges;
 	int iomap_size;

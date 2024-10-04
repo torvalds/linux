@@ -29,6 +29,8 @@
 #include "sparx5_port.h"
 #include "sparx5_qos.h"
 
+const struct sparx5_regs *regs;
+
 #define QLIM_WM(fraction) \
 	((SPX5_BUFFER_MEMORY / SPX5_BUFFER_CELL_SZ - 100) * (fraction) / 100)
 #define IO_RANGES 3
@@ -759,6 +761,9 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	sparx5->data = device_get_match_data(sparx5->dev);
 	if (!sparx5->data)
 		return -EINVAL;
+
+	regs = sparx5->data->regs;
+
 	/* Do switch core reset if available */
 	reset = devm_reset_control_get_optional_shared(&pdev->dev, "switch");
 	if (IS_ERR(reset))
@@ -937,10 +942,22 @@ static void mchp_sparx5_remove(struct platform_device *pdev)
 	destroy_workqueue(sparx5->mact_queue);
 }
 
+static const struct sparx5_regs sparx5_regs = {
+	.tsize = sparx5_tsize,
+	.gaddr = sparx5_gaddr,
+	.gcnt = sparx5_gcnt,
+	.gsize = sparx5_gsize,
+	.raddr = sparx5_raddr,
+	.rcnt = sparx5_rcnt,
+	.fpos = sparx5_fpos,
+	.fsize = sparx5_fsize,
+};
+
 static const struct sparx5_match_data sparx5_desc = {
 	.iomap = sparx5_main_iomap,
 	.iomap_size = ARRAY_SIZE(sparx5_main_iomap),
 	.ioranges = 3,
+	.regs = &sparx5_regs,
 };
 
 static const struct of_device_id mchp_sparx5_match[] = {
