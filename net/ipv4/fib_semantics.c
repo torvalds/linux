@@ -56,10 +56,6 @@ static unsigned int fib_info_hash_size;
 static unsigned int fib_info_hash_bits;
 static unsigned int fib_info_cnt;
 
-#define DEVINDEX_HASHBITS 8
-#define DEVINDEX_HASHSIZE (1U << DEVINDEX_HASHBITS)
-static struct hlist_head fib_info_devhash[DEVINDEX_HASHSIZE];
-
 /* for_nexthops and change_nexthops only used when nexthop object
  * is not set in a fib_info. The logic within can reference fib_nh.
  */
@@ -319,12 +315,9 @@ static inline int nh_comp(struct fib_info *fi, struct fib_info *ofi)
 	return 0;
 }
 
-static struct hlist_head *
-fib_info_devhash_bucket(const struct net_device *dev)
+static struct hlist_head *fib_nh_head(struct net_device *dev)
 {
-	u32 val = net_hash_mix(dev_net(dev)) ^ dev->ifindex;
-
-	return &fib_info_devhash[hash_32(val, DEVINDEX_HASHBITS)];
+	return &dev->fib_nh_head;
 }
 
 static unsigned int fib_info_hashfn_1(int init_val, u8 protocol, u8 scope,
@@ -435,11 +428,11 @@ int ip_fib_check_default(__be32 gw, struct net_device *dev)
 	struct hlist_head *head;
 	struct fib_nh *nh;
 
-	head = fib_info_devhash_bucket(dev);
+	head = fib_nh_head(dev);
 
 	hlist_for_each_entry_rcu(nh, head, nh_hash) {
-		if (nh->fib_nh_dev == dev &&
-		    nh->fib_nh_gw4 == gw &&
+		DEBUG_NET_WARN_ON_ONCE(nh->fib_nh_dev != dev);
+		if (nh->fib_nh_gw4 == gw &&
 		    !(nh->fib_nh_flags & RTNH_F_DEAD)) {
 			return 0;
 		}
@@ -1595,7 +1588,7 @@ link_it:
 
 			if (!nexthop_nh->fib_nh_dev)
 				continue;
-			head = fib_info_devhash_bucket(nexthop_nh->fib_nh_dev);
+			head = fib_nh_head(nexthop_nh->fib_nh_dev);
 			hlist_add_head_rcu(&nexthop_nh->nh_hash, head);
 		} endfor_nexthops(fi)
 	}
@@ -1948,12 +1941,12 @@ void fib_nhc_update_mtu(struct fib_nh_common *nhc, u32 new, u32 orig)
 
 void fib_sync_mtu(struct net_device *dev, u32 orig_mtu)
 {
-	struct hlist_head *head = fib_info_devhash_bucket(dev);
+	struct hlist_head *head = fib_nh_head(dev);
 	struct fib_nh *nh;
 
 	hlist_for_each_entry(nh, head, nh_hash) {
-		if (nh->fib_nh_dev == dev)
-			fib_nhc_update_mtu(&nh->nh_common, dev->mtu, orig_mtu);
+		DEBUG_NET_WARN_ON_ONCE(nh->fib_nh_dev != dev);
+		fib_nhc_update_mtu(&nh->nh_common, dev->mtu, orig_mtu);
 	}
 }
 
@@ -1967,7 +1960,7 @@ void fib_sync_mtu(struct net_device *dev, u32 orig_mtu)
  */
 int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 {
-	struct hlist_head *head = fib_info_devhash_bucket(dev);
+	struct hlist_head *head = fib_nh_head(dev);
 	struct fib_info *prev_fi = NULL;
 	int scope = RT_SCOPE_NOWHERE;
 	struct fib_nh *nh;
@@ -1981,7 +1974,8 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 		int dead;
 
 		BUG_ON(!fi->fib_nhs);
-		if (nh->fib_nh_dev != dev || fi == prev_fi)
+		DEBUG_NET_WARN_ON_ONCE(nh->fib_nh_dev != dev);
+		if (fi == prev_fi)
 			continue;
 		prev_fi = fi;
 		dead = 0;
@@ -2131,7 +2125,7 @@ int fib_sync_up(struct net_device *dev, unsigned char nh_flags)
 	}
 
 	prev_fi = NULL;
-	head = fib_info_devhash_bucket(dev);
+	head = fib_nh_head(dev);
 	ret = 0;
 
 	hlist_for_each_entry(nh, head, nh_hash) {
@@ -2139,7 +2133,8 @@ int fib_sync_up(struct net_device *dev, unsigned char nh_flags)
 		int alive;
 
 		BUG_ON(!fi->fib_nhs);
-		if (nh->fib_nh_dev != dev || fi == prev_fi)
+		DEBUG_NET_WARN_ON_ONCE(nh->fib_nh_dev != dev);
+		if (fi == prev_fi)
 			continue;
 
 		prev_fi = fi;
