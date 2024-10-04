@@ -19,8 +19,8 @@
 #include <linux/sysfs.h>
 #include <linux/util_macros.h>
 
-#include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/triggered_buffer.h>
