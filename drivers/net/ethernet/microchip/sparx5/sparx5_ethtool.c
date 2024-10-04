@@ -505,8 +505,8 @@ static void sparx5_get_dev_misc_stats(u64 *portstats, void __iomem *inst, u32
 static void sparx5_get_device_stats(struct sparx5 *sparx5, int portno)
 {
 	u64 *portstats = &sparx5->stats[portno * sparx5->num_stats];
-	u32 tinst = sparx5_port_dev_index(portno);
-	u32 dev = sparx5_to_high_dev(portno);
+	u32 tinst = sparx5_port_dev_index(sparx5, portno);
+	u32 dev = sparx5_to_high_dev(sparx5, portno);
 	void __iomem *inst;
 
 	inst = spx5_inst_get(sparx5, dev, tinst);
@@ -819,8 +819,8 @@ static void sparx5_get_eth_phy_stats(struct net_device *ndev,
 
 	portstats = &sparx5->stats[portno * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(sparx5, portno);
+		u32 dev = sparx5_to_high_dev(sparx5, portno);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_phy_stats(portstats, inst, tinst);
@@ -844,8 +844,8 @@ static void sparx5_get_eth_mac_stats(struct net_device *ndev,
 
 	portstats = &sparx5->stats[portno * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(sparx5, portno);
+		u32 dev = sparx5_to_high_dev(sparx5, portno);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_mac_stats(portstats, inst, tinst);
@@ -912,8 +912,8 @@ static void sparx5_get_eth_mac_ctrl_stats(struct net_device *ndev,
 
 	portstats = &sparx5->stats[portno * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(sparx5, portno);
+		u32 dev = sparx5_to_high_dev(sparx5, portno);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_mac_ctrl_stats(portstats, inst, tinst);
@@ -944,8 +944,8 @@ static void sparx5_get_eth_rmon_stats(struct net_device *ndev,
 
 	portstats = &sparx5->stats[portno * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(sparx5, portno);
+		u32 dev = sparx5_to_high_dev(sparx5, portno);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_rmon_stats(portstats, inst, tinst);
@@ -1027,8 +1027,8 @@ static void sparx5_get_sset_data(struct net_device *ndev,
 
 	portstats = &sparx5->stats[portno * sparx5->num_stats];
 	if (sparx5_is_baser(port->conf.portmode)) {
-		u32 tinst = sparx5_port_dev_index(portno);
-		u32 dev = sparx5_to_high_dev(portno);
+		u32 tinst = sparx5_port_dev_index(sparx5, portno);
+		u32 dev = sparx5_to_high_dev(sparx5, portno);
 
 		inst = spx5_inst_get(sparx5, dev, tinst);
 		sparx5_get_dev_misc_stats(portstats, inst, tinst);

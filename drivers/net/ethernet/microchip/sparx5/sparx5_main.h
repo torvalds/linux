@@ -401,7 +401,7 @@ void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp);
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
 void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type);
 void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset);
-void sparx5_set_port_ifh(void *ifh_hdr, u16 portno);
+void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno);
 bool sparx5_netdevice_check(const struct net_device *dev);
 struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);
 int sparx5_register_netdevs(struct sparx5 *sparx5);

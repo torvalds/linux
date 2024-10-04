@@ -40,7 +40,7 @@ static inline bool sparx5_port_is_25g(int portno)
 	return portno >= 56 && portno <= 63;
 }
 
-static inline u32 sparx5_to_high_dev(int port)
+static inline u32 sparx5_to_high_dev(struct sparx5 *sparx5, int port)
 {
 	if (sparx5_port_is_5g(port))
 		return TARGET_DEV5G;
@@ -49,7 +49,7 @@ static inline u32 sparx5_to_high_dev(int port)
 	return TARGET_DEV25G;
 }
 
-static inline u32 sparx5_to_pcs_dev(int port)
+static inline u32 sparx5_to_pcs_dev(struct sparx5 *sparx5, int port)
 {
 	if (sparx5_port_is_5g(port))
 		return TARGET_PCS5G_BR;
@@ -58,7 +58,7 @@ static inline u32 sparx5_to_pcs_dev(int port)
 	return TARGET_PCS25G_BR;
 }
 
-static inline int sparx5_port_dev_index(int port)
+static inline int sparx5_port_dev_index(struct sparx5 *sparx5, int port)
 {
 	if (sparx5_port_is_2g5(port))
 		return port;

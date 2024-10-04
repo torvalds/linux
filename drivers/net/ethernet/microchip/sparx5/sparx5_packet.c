@@ -235,7 +235,7 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	netdev_tx_t ret;
 
 	memset(ifh, 0, IFH_LEN * 4);
-	sparx5_set_port_ifh(ifh, port->portno);
+	sparx5_set_port_ifh(sparx5, ifh, port->portno);
 
 	if (sparx5->ptp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		if (sparx5_ptp_txtstamp_request(port, skb) < 0)

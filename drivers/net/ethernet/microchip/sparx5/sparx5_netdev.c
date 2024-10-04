@@ -55,7 +55,7 @@ static void __ifh_encode_bitfield(void *ifh, u64 value, u32 pos, u32 width)
 		ifh_hdr[byte - 5] |= (u8)((encode & 0xFF0000000000) >> 40);
 }
 
-void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
+void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno)
 {
 	/* VSTAX.RSV = 1. MSBit must be 1 */
 	ifh_encode_bitfield(ifh_hdr, 1, VSTAX + 79,  1);
