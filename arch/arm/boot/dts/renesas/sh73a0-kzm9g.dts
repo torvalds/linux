@@ -296,8 +296,7 @@
 	touchscreen@55 {
 		compatible = "sitronix,st1232";
 		reg = <0x55>;
-		interrupt-parent = <&irqpin1>;
-		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqpin1 0 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
