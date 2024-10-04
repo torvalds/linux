@@ -215,7 +215,6 @@ pub unsafe trait Allocator {
     }
 }
 
-#[allow(dead_code)]
 /// Returns a properly aligned dangling pointer from the given `layout`.
 pub(crate) fn dangling_from_layout(layout: Layout) -> NonNull<u8> {
     let ptr = layout.align() as *mut u8;
