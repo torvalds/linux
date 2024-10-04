@@ -7,6 +7,7 @@
 #include <kunit/visibility.h>
 
 #include <linux/iosys-map.h>
+#include <linux/math64.h>
 #include <linux/random.h>
 #include <linux/swap.h>
 
@@ -440,7 +441,7 @@ static int shrink_test_run_device(struct xe_device *xe)
 	LIST_HEAD(bos);
 	struct xe_bo_link *link, *next;
 	struct sysinfo si;
-	size_t ram, ram_and_swap, purgeable, alloced, to_alloc, limit;
+	u64 ram, ram_and_swap, purgeable = 0, alloced, to_alloc, limit;
 	unsigned int interrupted = 0, successful = 0, count = 0;
 	struct rnd_state prng;
 	u64 rand_seed;
@@ -469,7 +470,7 @@ static int shrink_test_run_device(struct xe_device *xe)
 	ram_and_swap = ram + get_nr_swap_pages() * PAGE_SIZE;
 	if (to_alloc > ram_and_swap)
 		purgeable = to_alloc - ram_and_swap;
-	purgeable += purgeable / 5;
+	purgeable += div64_u64(purgeable, 5);
 
 	kunit_info(test, "Free ram is %lu bytes. Will allocate twice of that.\n",
 		   (unsigned long)ram);
