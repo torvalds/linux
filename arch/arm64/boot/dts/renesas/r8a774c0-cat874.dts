@@ -232,8 +232,7 @@
 	tda19988: tda19988@70 {
 		compatible = "nxp,tda998x";
 		reg = <0x70>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio1 1 IRQ_TYPE_LEVEL_LOW>;
 
 		video-ports = <0x234501>;
 
