@@ -953,11 +953,32 @@ static const struct sparx5_regs sparx5_regs = {
 	.fsize = sparx5_fsize,
 };
 
+static const struct sparx5_consts sparx5_consts = {
+	.n_ports             = 65,
+	.n_ports_all         = 70,
+	.n_hsch_l1_elems     = 64,
+	.n_hsch_queues       = 8,
+	.n_lb_groups         = 10,
+	.n_pgids             = 2113, /* (2048 + n_ports) */
+	.n_sio_clks          = 3,
+	.n_own_upsids        = 3,
+	.n_auto_cals         = 7,
+	.n_filters           = 1024,
+	.n_gates             = 1024,
+	.n_sdlbs             = 4096,
+	.n_dsm_cal_taxis     = 8,
+	.buf_size            = 4194280,
+	.qres_max_prio_idx   = 630,
+	.qres_max_colour_idx = 638,
+	.tod_pin             = 4,
+};
+
 static const struct sparx5_match_data sparx5_desc = {
 	.iomap = sparx5_main_iomap,
 	.iomap_size = ARRAY_SIZE(sparx5_main_iomap),
 	.ioranges = 3,
 	.regs = &sparx5_regs,
+	.consts = &sparx5_consts,
 };
 
 static const struct of_device_id mchp_sparx5_match[] = {

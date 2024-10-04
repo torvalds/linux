@@ -238,6 +238,26 @@ struct sparx5_regs {
 	const unsigned int *fsize;
 };
 
+struct sparx5_consts {
+	u32 n_ports;             /* Number of front ports */
+	u32 n_ports_all;         /* Number of front ports + internal ports */
+	u32 n_hsch_l1_elems;     /* Number of HSCH layer 1 elements */
+	u32 n_hsch_queues;       /* Number of HSCH queues */
+	u32 n_lb_groups;         /* Number of leacky bucket groupd */
+	u32 n_pgids;             /* Number of PGID's */
+	u32 n_sio_clks;          /* Number of serial IO clocks */
+	u32 n_own_upsids;        /* Number of own UPSID's */
+	u32 n_auto_cals;         /* Number of auto calendars */
+	u32 n_filters;           /* Number of PSFP filters */
+	u32 n_gates;             /* Number of PSFP gates */
+	u32 n_sdlbs;             /* Number of service dual leaky buckets */
+	u32 n_dsm_cal_taxis;     /* Number of DSM calendar taxis */
+	u32 buf_size;            /* Amount of QLIM watermark memory */
+	u32 qres_max_prio_idx;   /* Maximum QRES prio index */
+	u32 qres_max_colour_idx; /* Maximum QRES colour index */
+	u32 tod_pin;             /* PTP TOD pin */
+};
+
 struct sparx5_main_io_resource {
 	enum sparx5_target id;
 	phys_addr_t offset;
@@ -246,6 +266,7 @@ struct sparx5_main_io_resource {
 
 struct sparx5_match_data {
 	const struct sparx5_regs *regs;
+	const struct sparx5_consts *consts;
 	const struct sparx5_main_io_resource *iomap;
 	int ioranges;
 	int iomap_size;
