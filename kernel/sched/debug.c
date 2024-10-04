@@ -248,9 +248,9 @@ static int sched_dynamic_show(struct seq_file *m, void *v)
 		"none", "voluntary", "full", "lazy",
 	};
 	int j = ARRAY_SIZE(preempt_modes) - !IS_ENABLED(CONFIG_ARCH_HAS_PREEMPT_LAZY);
-	int i;
+	int i = IS_ENABLED(CONFIG_PREEMPT_RT) * 2;
 
-	for (i = 0; i < j; i++) {
+	for (; i < j; i++) {
 		if (preempt_dynamic_mode == i)
 			seq_puts(m, "(");
 		seq_puts(m, preempt_modes[i]);
