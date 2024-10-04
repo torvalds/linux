@@ -456,15 +456,17 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		if (!rex_w)
 			break;
 
-		/* skip RIP relative displacement */
-		if (is_RIP())
-			break;
-
 		/* skip nontrivial SIB */
 		if (have_SIB()) {
 			modrm_rm = sib_base;
 			if (sib_index != CFI_SP)
 				break;
+		}
+
+		/* lea disp(%rip), %dst */
+		if (is_RIP()) {
+			insn->type = INSN_LEA_RIP;
+			break;
 		}
 
 		/* lea disp(%src), %dst */
@@ -737,7 +739,10 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 	}
 
-	insn->immediate = ins.immediate.nbytes ? ins.immediate.value : 0;
+	if (ins.immediate.nbytes)
+		insn->immediate = ins.immediate.value;
+	else if (ins.displacement.nbytes)
+		insn->immediate = ins.displacement.value;
 
 	return 0;
 }
