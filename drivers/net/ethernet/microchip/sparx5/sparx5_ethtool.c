@@ -1189,7 +1189,7 @@ static int sparx5_get_ts_info(struct net_device *dev,
 	struct sparx5 *sparx5 = port->sparx5;
 	struct sparx5_phc *phc;
 
-	if (!sparx5->ptp)
+	if (!sparx5->ptp && is_sparx5(sparx5))
 		return ethtool_op_get_ts_info(dev, info);
 
 	phc = &sparx5->phc[SPARX5_PHC_PORT];

@@ -376,6 +376,9 @@ struct sparx5 {
 	const struct sparx5_match_data *data;
 };
 
+/* sparx5_main.c */
+bool is_sparx5(struct sparx5 *sparx5);
+
 /* sparx5_switchdev.c */
 int sparx5_register_notifier_blocks(struct sparx5 *sparx5);
 void sparx5_unregister_notifier_blocks(struct sparx5 *sparx5);

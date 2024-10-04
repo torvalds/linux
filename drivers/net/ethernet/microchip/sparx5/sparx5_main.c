@@ -208,6 +208,25 @@ static const struct sparx5_main_io_resource sparx5_main_iomap[] =  {
 	{ TARGET_VOP,                0x11a00000, 2 }, /* 0x611a00000 */
 };
 
+bool is_sparx5(struct sparx5 *sparx5)
+{
+	switch (sparx5->target_ct) {
+	case SPX5_TARGET_CT_7546:
+	case SPX5_TARGET_CT_7549:
+	case SPX5_TARGET_CT_7552:
+	case SPX5_TARGET_CT_7556:
+	case SPX5_TARGET_CT_7558:
+	case SPX5_TARGET_CT_7546TSN:
+	case SPX5_TARGET_CT_7549TSN:
+	case SPX5_TARGET_CT_7552TSN:
+	case SPX5_TARGET_CT_7556TSN:
+	case SPX5_TARGET_CT_7558TSN:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int sparx5_create_targets(struct sparx5 *sparx5)
 {
 	const struct sparx5_main_io_resource *iomap = sparx5->data->iomap;
@@ -462,44 +481,45 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		return -ENODEV;
 	}
 
-	switch (freq) {
-	case SPX5_CORE_CLOCK_250MHZ:
-		clk_div = 10;
-		pol_upd_int = 312;
-		break;
-	case SPX5_CORE_CLOCK_500MHZ:
-		clk_div = 5;
-		pol_upd_int = 624;
-		break;
-	case SPX5_CORE_CLOCK_625MHZ:
-		clk_div = 4;
-		pol_upd_int = 780;
-		break;
-	default:
-		dev_err(sparx5->dev, "%d coreclock not supported on (%#04x)\n",
-			sparx5->coreclock, sparx5->target_ct);
-		return -EINVAL;
+	if (is_sparx5(sparx5)) {
+		switch (freq) {
+		case SPX5_CORE_CLOCK_250MHZ:
+			clk_div = 10;
+			pol_upd_int = 312;
+			break;
+		case SPX5_CORE_CLOCK_500MHZ:
+			clk_div = 5;
+			pol_upd_int = 624;
+			break;
+		case SPX5_CORE_CLOCK_625MHZ:
+			clk_div = 4;
+			pol_upd_int = 780;
+			break;
+		default:
+			dev_err(sparx5->dev,
+				"%d coreclock not supported on (%#04x)\n",
+				sparx5->coreclock, sparx5->target_ct);
+			return -EINVAL;
+		}
+
+		/* Configure the LCPLL */
+		spx5_rmw(CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV_SET(clk_div) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA_SET(1),
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA,
+			 sparx5, CLKGEN_LCPLL1_CORE_CLK_CFG);
 	}
 
 	/* Update state with chosen frequency */
 	sparx5->coreclock = freq;
-
-	/* Configure the LCPLL */
-	spx5_rmw(CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV_SET(clk_div) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA_SET(1),
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA,
-		 sparx5,
-		 CLKGEN_LCPLL1_CORE_CLK_CFG);
-
 	clk_period = sparx5_clk_period(freq);
 
 	spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),

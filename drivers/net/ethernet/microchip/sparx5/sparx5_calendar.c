@@ -194,9 +194,10 @@ int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 	}
 
 	/* Halt the calendar while changing it */
-	spx5_rmw(QSYS_CAL_CTRL_CAL_MODE_SET(10),
-		 QSYS_CAL_CTRL_CAL_MODE,
-		 sparx5, QSYS_CAL_CTRL);
+	if (is_sparx5(sparx5))
+		spx5_rmw(QSYS_CAL_CTRL_CAL_MODE_SET(10),
+			 QSYS_CAL_CTRL_CAL_MODE,
+			 sparx5, QSYS_CAL_CTRL);
 
 	/* Assign port bandwidth to auto calendar */
 	for (idx = 0; idx < consts->n_auto_cals; idx++)
