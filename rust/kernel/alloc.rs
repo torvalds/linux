@@ -5,6 +5,7 @@
 #[cfg(not(any(test, testlib)))]
 pub mod allocator;
 pub mod kbox;
+pub mod kvec;
 pub mod layout;
 pub mod vec_ext;
 
@@ -18,6 +19,11 @@ pub use self::kbox::Box;
 pub use self::kbox::KBox;
 pub use self::kbox::KVBox;
 pub use self::kbox::VBox;
+
+pub use self::kvec::KVVec;
+pub use self::kvec::KVec;
+pub use self::kvec::VVec;
+pub use self::kvec::Vec;
 
 /// Indicates an allocation error.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
