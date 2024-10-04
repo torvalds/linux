@@ -67,7 +67,7 @@ static bool mlxsw_afk_blocks_check(struct mlxsw_afk *mlxsw_afk)
 
 		for (j = 0; j < block->instances_count; j++) {
 			const struct mlxsw_afk_element_info *elinfo;
-			struct mlxsw_afk_element_inst *elinst;
+			const struct mlxsw_afk_element_inst *elinst;
 
 			elinst = &block->instances[j];
 			elinfo = &mlxsw_afk_element_infos[elinst->element];
@@ -154,7 +154,7 @@ static void mlxsw_afk_picker_count_hits(struct mlxsw_afk *mlxsw_afk,
 		const struct mlxsw_afk_block *block = &mlxsw_afk->blocks[i];
 
 		for (j = 0; j < block->instances_count; j++) {
-			struct mlxsw_afk_element_inst *elinst;
+			const struct mlxsw_afk_element_inst *elinst;
 
 			elinst = &block->instances[j];
 			if (elinst->element == element) {
@@ -386,7 +386,7 @@ mlxsw_afk_block_elinst_get(const struct mlxsw_afk_block *block,
 	int i;
 
 	for (i = 0; i < block->instances_count; i++) {
-		struct mlxsw_afk_element_inst *elinst;
+		const struct mlxsw_afk_element_inst *elinst;
 
 		elinst = &block->instances[i];
 		if (elinst->element == element)
