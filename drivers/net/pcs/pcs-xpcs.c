@@ -135,17 +135,6 @@ static const phy_interface_t xpcs_2500basex_interfaces[] = {
 	PHY_INTERFACE_MODE_2500BASEX,
 };
 
-enum {
-	DW_XPCS_USXGMII,
-	DW_XPCS_10GKR,
-	DW_XPCS_XLGMII,
-	DW_XPCS_10GBASER,
-	DW_XPCS_SGMII,
-	DW_XPCS_1000BASEX,
-	DW_XPCS_2500BASEX,
-	DW_XPCS_INTERFACE_MAX,
-};
-
 struct dw_xpcs_compat {
 	const int *supported;
 	const phy_interface_t *interface;
@@ -163,15 +152,13 @@ struct dw_xpcs_desc {
 static const struct dw_xpcs_compat *
 xpcs_find_compat(const struct dw_xpcs_desc *desc, phy_interface_t interface)
 {
-	int i, j;
+	const struct dw_xpcs_compat *compat;
+	int j;
 
-	for (i = 0; i < DW_XPCS_INTERFACE_MAX; i++) {
-		const struct dw_xpcs_compat *compat = &desc->compat[i];
-
+	for (compat = desc->compat; compat->supported; compat++)
 		for (j = 0; j < compat->num_interfaces; j++)
 			if (compat->interface[j] == interface)
 				return compat;
-	}
 
 	return NULL;
 }
@@ -610,14 +597,12 @@ static int xpcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
 
 void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces)
 {
-	int i, j;
+	const struct dw_xpcs_compat *compat;
+	int j;
 
-	for (i = 0; i < DW_XPCS_INTERFACE_MAX; i++) {
-		const struct dw_xpcs_compat *compat = &xpcs->desc->compat[i];
-
+	for (compat = xpcs->desc->compat; compat->supported; compat++)
 		for (j = 0; j < compat->num_interfaces; j++)
 			__set_bit(compat->interface[j], interfaces);
-	}
 }
 EXPORT_SYMBOL_GPL(xpcs_get_interfaces);
 
@@ -1298,76 +1283,72 @@ static int xpcs_get_id(struct dw_xpcs *xpcs)
 	return 0;
 }
 
-static const struct dw_xpcs_compat synopsys_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
-	[DW_XPCS_USXGMII] = {
+static const struct dw_xpcs_compat synopsys_xpcs_compat[] = {
+	{
 		.supported = xpcs_usxgmii_features,
 		.interface = xpcs_usxgmii_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_usxgmii_interfaces),
 		.an_mode = DW_AN_C73,
-	},
-	[DW_XPCS_10GKR] = {
+	}, {
 		.supported = xpcs_10gkr_features,
 		.interface = xpcs_10gkr_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_10gkr_interfaces),
 		.an_mode = DW_AN_C73,
-	},
-	[DW_XPCS_XLGMII] = {
+	}, {
 		.supported = xpcs_xlgmii_features,
 		.interface = xpcs_xlgmii_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_xlgmii_interfaces),
 		.an_mode = DW_AN_C73,
-	},
-	[DW_XPCS_10GBASER] = {
+	}, {
 		.supported = xpcs_10gbaser_features,
 		.interface = xpcs_10gbaser_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_10gbaser_interfaces),
 		.an_mode = DW_10GBASER,
-	},
-	[DW_XPCS_SGMII] = {
+	}, {
 		.supported = xpcs_sgmii_features,
 		.interface = xpcs_sgmii_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
-	},
-	[DW_XPCS_1000BASEX] = {
+	}, {
 		.supported = xpcs_1000basex_features,
 		.interface = xpcs_1000basex_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_1000basex_interfaces),
 		.an_mode = DW_AN_C37_1000BASEX,
-	},
-	[DW_XPCS_2500BASEX] = {
+	}, {
 		.supported = xpcs_2500basex_features,
 		.interface = xpcs_2500basex_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_2500basex_interfaces),
 		.an_mode = DW_2500BASEX,
-	},
+	}, {
+	}
 };
 
-static const struct dw_xpcs_compat nxp_sja1105_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
-	[DW_XPCS_SGMII] = {
+static const struct dw_xpcs_compat nxp_sja1105_xpcs_compat[] = {
+	{
 		.supported = xpcs_sgmii_features,
 		.interface = xpcs_sgmii_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
 		.pma_config = nxp_sja1105_sgmii_pma_config,
-	},
+	}, {
+	}
 };
 
-static const struct dw_xpcs_compat nxp_sja1110_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
-	[DW_XPCS_SGMII] = {
+static const struct dw_xpcs_compat nxp_sja1110_xpcs_compat[] = {
+	{
 		.supported = xpcs_sgmii_features,
 		.interface = xpcs_sgmii_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_sgmii_interfaces),
 		.an_mode = DW_AN_C37_SGMII,
 		.pma_config = nxp_sja1110_sgmii_pma_config,
-	},
-	[DW_XPCS_2500BASEX] = {
+	}, {
 		.supported = xpcs_2500basex_features,
 		.interface = xpcs_2500basex_interfaces,
 		.num_interfaces = ARRAY_SIZE(xpcs_2500basex_interfaces),
 		.an_mode = DW_2500BASEX,
 		.pma_config = nxp_sja1110_2500basex_pma_config,
-	},
+	}, {
+	}
 };
 
 static const struct dw_xpcs_desc xpcs_desc_list[] = {
