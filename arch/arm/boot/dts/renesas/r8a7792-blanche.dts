@@ -376,8 +376,7 @@
 		reg = <0x58>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_irq_pins>;
-		interrupt-parent = <&irqc>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc 2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
