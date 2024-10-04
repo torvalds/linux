@@ -63,6 +63,7 @@ struct thermal_governor {
 
 #define	TZ_STATE_FLAG_SUSPENDED	BIT(0)
 #define	TZ_STATE_FLAG_RESUMING	BIT(1)
+#define	TZ_STATE_FLAG_INIT	BIT(2)
 
 #define TZ_STATE_READY		0
 
