@@ -101,7 +101,23 @@ enum sparx5_vlan_port_type {
 #define IFH_PDU_TYPE_IPV4_UDP_PTP	0x6
 #define IFH_PDU_TYPE_IPV6_UDP_PTP	0x7
 
+#define SPX5_DSM_CAL_LEN               64
+#define SPX5_DSM_CAL_MAX_DEVS_PER_TAXI 13
+
 struct sparx5;
+
+struct sparx5_calendar_data {
+	u32 schedule[SPX5_DSM_CAL_LEN];
+	u32 avg_dist[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
+	u32 taxi_ports[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
+	u32 taxi_speeds[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
+	u32 dev_slots[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
+	u32 new_slots[SPX5_DSM_CAL_LEN];
+	u32 temp_sched[SPX5_DSM_CAL_LEN];
+	u32 indices[SPX5_DSM_CAL_LEN];
+	u32 short_list[SPX5_DSM_CAL_LEN];
+	u32 long_list[SPX5_DSM_CAL_LEN];
+};
 
 /* Frame DMA receive state:
  * For each DB, there is a SKB, and the skb data pointer is mapped in
@@ -271,6 +287,8 @@ struct sparx5_ops {
 			    struct sparx5_port_config *conf);
 
 	irqreturn_t (*ptp_irq_handler)(int irq, void *args);
+	int (*dsm_calendar_calc)(struct sparx5 *sparx5, u32 taxi,
+				 struct sparx5_calendar_data *data);
 };
 
 struct sparx5_main_io_resource {
@@ -418,6 +436,9 @@ void sparx5_vlan_port_apply(struct sparx5 *sparx5, struct sparx5_port *port);
 /* sparx5_calendar.c */
 int sparx5_config_auto_calendar(struct sparx5 *sparx5);
 int sparx5_config_dsm_calendar(struct sparx5 *sparx5);
+int sparx5_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
+			     struct sparx5_calendar_data *data);
+
 
 /* sparx5_ethtool.c */
 void sparx5_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *stats);
