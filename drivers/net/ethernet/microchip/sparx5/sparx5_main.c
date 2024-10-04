@@ -31,8 +31,6 @@
 
 const struct sparx5_regs *regs;
 
-#define QLIM_WM(fraction) \
-	((SPX5_BUFFER_MEMORY / SPX5_BUFFER_CELL_SZ - 100) * (fraction) / 100)
 #define IO_RANGES 3
 
 struct initial_port_config {
@@ -544,6 +542,12 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 	return 0;
 }
 
+static u32 qlim_wm(struct sparx5 *sparx5, int fraction)
+{
+	return (sparx5->data->consts->buf_size / SPX5_BUFFER_CELL_SZ - 100) *
+	       fraction / 100;
+}
+
 static int sparx5_qlim_set(struct sparx5 *sparx5)
 {
 	u32 res, dp, prio;
@@ -559,10 +563,10 @@ static int sparx5_qlim_set(struct sparx5 *sparx5)
 	}
 
 	/* Set 80,90,95,100% of memory size for top watermarks */
-	spx5_wr(QLIM_WM(80), sparx5, XQS_QLIMIT_SHR_QLIM_CFG(0));
-	spx5_wr(QLIM_WM(90), sparx5, XQS_QLIMIT_SHR_CTOP_CFG(0));
-	spx5_wr(QLIM_WM(95), sparx5, XQS_QLIMIT_SHR_ATOP_CFG(0));
-	spx5_wr(QLIM_WM(100), sparx5, XQS_QLIMIT_SHR_TOP_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 80), sparx5, XQS_QLIMIT_SHR_QLIM_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 90), sparx5, XQS_QLIMIT_SHR_CTOP_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 95), sparx5, XQS_QLIMIT_SHR_ATOP_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 100), sparx5, XQS_QLIMIT_SHR_TOP_CFG(0));
 
 	return 0;
 }
@@ -584,7 +588,7 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 		 GCB_HW_SGPIO_SD_CFG);
 
 	/* Refer to LOS SGPIO */
-	for (idx = 0; idx < SPX5_PORTS; idx++)
+	for (idx = 0; idx < sparx5->data->consts->n_ports; idx++)
 		if (sparx5->ports[idx])
 			if (sparx5->ports[idx]->conf.sd_sgpio != ~0)
 				spx5_wr(sparx5->ports[idx]->conf.sd_sgpio,
@@ -595,6 +599,7 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 static int sparx5_start(struct sparx5 *sparx5)
 {
 	u8 broadcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	const struct sparx5_consts *consts = sparx5->data->consts;
 	char queue_name[32];
 	u32 idx;
 	int err;
@@ -608,7 +613,7 @@ static int sparx5_start(struct sparx5 *sparx5)
 	}
 
 	/* Enable CPU ports */
-	for (idx = SPX5_PORTS; idx < SPX5_PORTS_ALL; idx++)
+	for (idx = consts->n_ports; idx < consts->n_ports_all; idx++)
 		spx5_rmw(QFWD_SWITCH_PORT_MODE_PORT_ENA_SET(1),
 			 QFWD_SWITCH_PORT_MODE_PORT_ENA,
 			 sparx5,

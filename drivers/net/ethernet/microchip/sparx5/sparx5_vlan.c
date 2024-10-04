@@ -169,7 +169,7 @@ void sparx5_update_fwd(struct sparx5 *sparx5)
 	}
 
 	/* Update SRC masks */
-	for (port = 0; port < SPX5_PORTS; port++) {
+	for (port = 0; port < sparx5->data->consts->n_ports; port++) {
 		if (test_bit(port, sparx5->bridge_fwd_mask)) {
 			/* Allow to send to all bridged but self */
 			bitmap_copy(workmask, sparx5->bridge_fwd_mask, SPX5_PORTS);

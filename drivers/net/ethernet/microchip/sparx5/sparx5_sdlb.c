@@ -184,7 +184,7 @@ int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst)
 
 	rate_bps = rate * 1000;
 
-	for (i = SPX5_SDLB_GROUP_CNT - 1; i >= 0; i--) {
+	for (i = sparx5->data->consts->n_lb_groups - 1; i >= 0; i--) {
 		group = &sdlb_groups[i];
 
 		count = sparx5_sdlb_group_get_count(sparx5, i);
@@ -208,7 +208,7 @@ int sparx5_sdlb_group_get_by_index(struct sparx5 *sparx5, u32 idx, u32 *group)
 	u32 itr, next;
 	int i;
 
-	for (i = 0; i < SPX5_SDLB_GROUP_CNT; i++) {
+	for (i = 0; i < sparx5->data->consts->n_lb_groups; i++) {
 		if (sparx5_sdlb_group_is_empty(sparx5, i))
 			continue;
 

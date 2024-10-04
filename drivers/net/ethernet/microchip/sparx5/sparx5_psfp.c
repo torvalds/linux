@@ -22,34 +22,38 @@ static struct sparx5_pool_entry sparx5_psfp_sf_pool[SPX5_PSFP_SF_CNT];
 
 static int sparx5_psfp_sf_get(struct sparx5 *sparx5, u32 *id)
 {
-	return sparx5_pool_get(sparx5_psfp_sf_pool, SPX5_PSFP_SF_CNT, id);
+	return sparx5_pool_get(sparx5_psfp_sf_pool,
+			       sparx5->data->consts->n_filters, id);
 }
 
 static int sparx5_psfp_sf_put(struct sparx5 *sparx5, u32 id)
 {
-	return sparx5_pool_put(sparx5_psfp_sf_pool, SPX5_PSFP_SF_CNT, id);
+	return sparx5_pool_put(sparx5_psfp_sf_pool,
+			       sparx5->data->consts->n_filters, id);
 }
 
 static int sparx5_psfp_sg_get(struct sparx5 *sparx5, u32 idx, u32 *id)
 {
-	return sparx5_pool_get_with_idx(sparx5_psfp_sg_pool, SPX5_PSFP_SG_CNT,
-					idx, id);
+	return sparx5_pool_get_with_idx(sparx5_psfp_sg_pool,
+					sparx5->data->consts->n_gates, idx, id);
 }
 
 static int sparx5_psfp_sg_put(struct sparx5 *sparx5, u32 id)
 {
-	return sparx5_pool_put(sparx5_psfp_sg_pool, SPX5_PSFP_SG_CNT, id);
+	return sparx5_pool_put(sparx5_psfp_sg_pool,
+			       sparx5->data->consts->n_gates, id);
 }
 
 static int sparx5_psfp_fm_get(struct sparx5 *sparx5, u32 idx, u32 *id)
 {
-	return sparx5_pool_get_with_idx(sparx5_psfp_fm_pool, SPX5_SDLB_CNT, idx,
-					id);
+	return sparx5_pool_get_with_idx(sparx5_psfp_fm_pool,
+					sparx5->data->consts->n_sdlbs, idx, id);
 }
 
 static int sparx5_psfp_fm_put(struct sparx5 *sparx5, u32 id)
 {
-	return sparx5_pool_put(sparx5_psfp_fm_pool, SPX5_SDLB_CNT, id);
+	return sparx5_pool_put(sparx5_psfp_fm_pool,
+			       sparx5->data->consts->n_sdlbs, id);
 }
 
 u32 sparx5_psfp_isdx_get_sf(struct sparx5 *sparx5, u32 isdx)
@@ -318,7 +322,7 @@ void sparx5_psfp_init(struct sparx5 *sparx5)
 	const struct sparx5_sdlb_group *group;
 	int i;
 
-	for (i = 0; i < SPX5_SDLB_GROUP_CNT; i++) {
+	for (i = 0; i < sparx5->data->consts->n_lb_groups; i++) {
 		group = &sdlb_groups[i];
 		sparx5_sdlb_group_init(sparx5, group->max_rate,
 				       group->min_burst, group->frame_size, i);

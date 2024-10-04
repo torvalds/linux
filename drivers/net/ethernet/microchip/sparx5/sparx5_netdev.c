@@ -290,7 +290,7 @@ int sparx5_register_netdevs(struct sparx5 *sparx5)
 	int portno;
 	int err;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++)
+	for (portno = 0; portno < sparx5->data->consts->n_ports; portno++)
 		if (sparx5->ports[portno]) {
 			err = register_netdev(sparx5->ports[portno]->ndev);
 			if (err) {
@@ -309,7 +309,7 @@ void sparx5_destroy_netdevs(struct sparx5 *sparx5)
 	struct sparx5_port *port;
 	int portno;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++) {
+	for (portno = 0; portno < sparx5->data->consts->n_ports; portno++) {
 		port = sparx5->ports[portno];
 		if (port && port->phylink) {
 			/* Disconnect the phy */
@@ -327,8 +327,7 @@ void sparx5_unregister_netdevs(struct sparx5 *sparx5)
 {
 	int portno;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++)
+	for (portno = 0; portno < sparx5->data->consts->n_ports; portno++)
 		if (sparx5->ports[portno])
 			unregister_netdev(sparx5->ports[portno]->ndev);
 }
-

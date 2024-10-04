@@ -75,7 +75,7 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 	sparx5_ifh_parse(ifh, &fi);
 
 	/* Map to port netdev */
-	port = fi.src_port < SPX5_PORTS ?
+	port = fi.src_port < sparx5->data->consts->n_ports ?
 		sparx5->ports[fi.src_port] : NULL;
 	if (!port || !port->ndev) {
 		dev_err(sparx5->dev, "Data on inactive port %d\n", fi.src_port);

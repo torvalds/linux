@@ -547,7 +547,7 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 
 	/* Add any mrouter ports to the new entry */
 	if (is_new && ether_addr_is_ip_mcast(v->addr))
-		for (i = 0; i < SPX5_PORTS; i++)
+		for (i = 0; i < spx5->data->consts->n_ports; i++)
 			if (spx5->ports[i] && spx5->ports[i]->is_mrouter)
 				sparx5_pgid_update_mask(spx5->ports[i],
 							entry->pgid_idx,
