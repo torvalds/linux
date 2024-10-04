@@ -375,6 +375,7 @@ static void packing_test_pack(struct kunit *test)
 	int err;
 
 	pbuf = kunit_kzalloc(test, params->pbuf_size, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, pbuf);
 
 	err = pack(pbuf, params->uval, params->start_bit, params->end_bit,
 		   params->pbuf_size, params->quirks);
