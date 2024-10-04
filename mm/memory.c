@@ -6388,7 +6388,7 @@ static inline void pfnmap_lockdep_assert(struct vm_area_struct *vma)
 	struct address_space *mapping = file ? file->f_mapping : NULL;
 
 	if (mapping)
-		lockdep_assert(lockdep_is_held(&vma->vm_file->f_mapping->i_mmap_rwsem) ||
+		lockdep_assert(lockdep_is_held(&mapping->i_mmap_rwsem) ||
 			       lockdep_is_held(&vma->vm_mm->mmap_lock));
 	else
 		lockdep_assert(lockdep_is_held(&vma->vm_mm->mmap_lock));
