@@ -419,7 +419,7 @@ static int spi_probe(struct device *dev)
 	if (dev->of_node) {
 		spi->irq = of_irq_get(dev->of_node, 0);
 		if (spi->irq == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+			return dev_err_probe(dev, -EPROBE_DEFER, "Failed to get irq\n");
 		if (spi->irq < 0)
 			spi->irq = 0;
 	}
