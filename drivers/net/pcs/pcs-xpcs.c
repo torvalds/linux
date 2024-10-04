@@ -121,11 +121,11 @@ struct dw_xpcs_desc {
 };
 
 static const struct dw_xpcs_compat *
-xpcs_find_compat(const struct dw_xpcs_desc *desc, phy_interface_t interface)
+xpcs_find_compat(struct dw_xpcs *xpcs, phy_interface_t interface)
 {
 	const struct dw_xpcs_compat *compat;
 
-	for (compat = desc->compat; compat->supported; compat++)
+	for (compat = xpcs->desc->compat; compat->supported; compat++)
 		if (compat->interface == interface)
 			return compat;
 
@@ -136,7 +136,7 @@ int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface)
 {
 	const struct dw_xpcs_compat *compat;
 
-	compat = xpcs_find_compat(xpcs->desc, interface);
+	compat = xpcs_find_compat(xpcs, interface);
 	if (!compat)
 		return -ENODEV;
 
@@ -548,7 +548,7 @@ static int xpcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
 	int i;
 
 	xpcs = phylink_pcs_to_xpcs(pcs);
-	compat = xpcs_find_compat(xpcs->desc, state->interface);
+	compat = xpcs_find_compat(xpcs, state->interface);
 	if (!compat)
 		return -EINVAL;
 
@@ -620,7 +620,7 @@ static void xpcs_pre_config(struct phylink_pcs *pcs, phy_interface_t interface)
 	if (!xpcs->need_reset)
 		return;
 
-	compat = xpcs_find_compat(xpcs->desc, interface);
+	compat = xpcs_find_compat(xpcs, interface);
 	if (!compat) {
 		dev_err(&xpcs->mdiodev->dev, "unsupported interface %s\n",
 			phy_modes(interface));
@@ -810,7 +810,7 @@ static int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 	const struct dw_xpcs_compat *compat;
 	int ret;
 
-	compat = xpcs_find_compat(xpcs->desc, interface);
+	compat = xpcs_find_compat(xpcs, interface);
 	if (!compat)
 		return -ENODEV;
 
@@ -1074,7 +1074,7 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 	const struct dw_xpcs_compat *compat;
 	int ret;
 
-	compat = xpcs_find_compat(xpcs->desc, state->interface);
+	compat = xpcs_find_compat(xpcs, state->interface);
 	if (!compat)
 		return;
 
