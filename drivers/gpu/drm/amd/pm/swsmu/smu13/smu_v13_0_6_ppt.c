@@ -108,6 +108,18 @@ static inline bool smu_v13_0_6_is_unified_metrics(struct smu_context *smu)
 		smu->smc_fw_version <= 0x4556900;
 }
 
+static inline bool smu_v13_0_6_is_other_end_count_available(struct smu_context *smu)
+{
+	switch (amdgpu_ip_version(smu->adev, MP1_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+		return smu->smc_fw_version >= 0x557600;
+	case IP_VERSION(13, 0, 14):
+		return smu->smc_fw_version >= 0x05550E00;
+	default:
+		return false;
+	}
+}
+
 struct mca_bank_ipid {
 	enum amdgpu_mca_ip ip;
 	uint16_t hwid;
@@ -2417,6 +2429,10 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 				metrics_x->PCIeNAKSentCountAcc;
 		gpu_metrics->pcie_nak_rcvd_count_acc =
 				metrics_x->PCIeNAKReceivedCountAcc;
+		if (smu_v13_0_6_is_other_end_count_available(smu))
+			gpu_metrics->pcie_lc_perf_other_end_recovery =
+				metrics_x->PCIeOtherEndRecoveryAcc;
+
 	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
