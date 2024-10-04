@@ -1233,7 +1233,7 @@ static int wilc_validate_chipid(struct wilc *wilc)
 		dev_err(&spi->dev, "Fail cmd read chip id...\n");
 		return ret;
 	}
-	if (!is_wilc1000(chipid)) {
+	if (!is_wilc1000(chipid) && !is_wilc3000(chipid)) {
 		dev_err(&spi->dev, "Unknown chip id 0x%x\n", chipid);
 		return -ENODEV;
 	}

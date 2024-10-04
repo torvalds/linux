@@ -23,6 +23,12 @@
 #define __WILC1000_FW(api)		WILC1000_FW_PREFIX #api ".bin"
 #define WILC1000_FW(api)		__WILC1000_FW(api)
 
+#define WILC3000_API_VER		1
+
+#define WILC3000_FW_PREFIX		"atmel/wilc3000_wifi_firmware-"
+#define __WILC3000_FW(api)		WILC3000_FW_PREFIX #api ".bin"
+#define WILC3000_FW(api)		__WILC3000_FW(api)
+
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
 	struct wilc *wilc = user_data;
@@ -196,19 +202,23 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
 	const struct firmware *wilc_fw;
+	char *firmware;
 	int ret;
 
-	if (!is_wilc1000(wilc->chipid))
+	if (is_wilc1000(wilc->chipid))
+		firmware = WILC1000_FW(WILC1000_API_VER);
+	else if (is_wilc3000(wilc->chipid))
+		firmware = WILC3000_FW(WILC3000_API_VER);
+	else
 		return -EINVAL;
 
-	netdev_info(dev, "WILC1000 loading firmware [%s]\n",
-		    WILC1000_FW(WILC1000_API_VER));
+	netdev_info(dev, "WILC%d loading firmware [%s]\n",
+		    is_wilc1000(wilc->chipid) ? 1000 : 3000,
+		    firmware);
 
-	ret = request_firmware(&wilc_fw, WILC1000_FW(WILC1000_API_VER),
-			       wilc->dev);
+	ret = request_firmware(&wilc_fw, firmware, wilc->dev);
 	if (ret != 0) {
-		netdev_err(dev, "%s - firmware not available\n",
-			   WILC1000_FW(WILC1000_API_VER));
+		netdev_err(dev, "%s - firmware not available\n", firmware);
 		return -EINVAL;
 	}
 	wilc->firmware = wilc_fw;
@@ -233,7 +243,7 @@ static int wilc_start_firmware(struct net_device *dev)
 	return 0;
 }
 
-static int wilc1000_firmware_download(struct net_device *dev)
+static int wilc_firmware_download(struct net_device *dev)
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
@@ -528,7 +538,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 		if (ret)
 			goto fail_irq_enable;
 
-		ret = wilc1000_firmware_download(dev);
+		ret = wilc_firmware_download(dev);
 		if (ret)
 			goto fail_irq_enable;
 
@@ -1014,3 +1024,4 @@ EXPORT_SYMBOL_GPL(wilc_netdev_ifc_init);
 MODULE_DESCRIPTION("Atmel WILC1000 core wireless driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(WILC1000_FW(WILC1000_API_VER));
+MODULE_FIRMWARE(WILC3000_FW(WILC3000_API_VER));
