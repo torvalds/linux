@@ -717,7 +717,7 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	bochs = devm_drm_dev_alloc(&pdev->dev, &bochs_driver, struct bochs_device, dev);
 	if (IS_ERR(bochs))
-		return PTR_ERR(dev);
+		return PTR_ERR(bochs);
 	dev = &bochs->dev;
 
 	ret = pcim_enable_device(pdev);
