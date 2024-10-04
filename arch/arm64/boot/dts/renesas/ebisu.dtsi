@@ -434,10 +434,9 @@
 		compatible = "adi,adv7482";
 		reg = <0x70>;
 
-		interrupt-parent = <&gpio0>;
+		interrupts-extended = <&gpio0 7 IRQ_TYPE_LEVEL_LOW>,
+				      <&gpio0 17 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-names = "intrq1", "intrq2";
-		interrupts = <7 IRQ_TYPE_LEVEL_LOW>,
-			     <17 IRQ_TYPE_LEVEL_LOW>;
 
 		ports {
 			#address-cells = <1>;

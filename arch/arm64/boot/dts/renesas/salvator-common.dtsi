@@ -530,10 +530,9 @@
 		reg-names = "main", "dpll", "cp", "hdmi", "edid", "repeater",
 			    "infoframe", "cbus", "cec", "sdp", "txa", "txb" ;
 
-		interrupt-parent = <&gpio6>;
+		interrupts-extended = <&gpio6 30 IRQ_TYPE_LEVEL_LOW>,
+				      <&gpio6 31 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-names = "intrq1", "intrq2";
-		interrupts = <30 IRQ_TYPE_LEVEL_LOW>,
-			     <31 IRQ_TYPE_LEVEL_LOW>;
 
 		ports {
 			#address-cells = <1>;
