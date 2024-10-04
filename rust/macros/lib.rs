@@ -243,7 +243,7 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// struct DriverData {
 ///     #[pin]
 ///     queue: Mutex<Vec<Command>>,
-///     buf: Box<[u8; 1024 * 1024]>,
+///     buf: KBox<[u8; 1024 * 1024]>,
 /// }
 /// ```
 ///
@@ -252,7 +252,7 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// struct DriverData {
 ///     #[pin]
 ///     queue: Mutex<Vec<Command>>,
-///     buf: Box<[u8; 1024 * 1024]>,
+///     buf: KBox<[u8; 1024 * 1024]>,
 ///     raw_info: *mut Info,
 /// }
 ///
@@ -282,7 +282,7 @@ pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
 /// struct DriverData {
 ///     #[pin]
 ///     queue: Mutex<Vec<Command>>,
-///     buf: Box<[u8; 1024 * 1024]>,
+///     buf: KBox<[u8; 1024 * 1024]>,
 ///     raw_info: *mut Info,
 /// }
 ///
