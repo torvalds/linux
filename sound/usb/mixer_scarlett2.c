@@ -11,7 +11,7 @@
  *   - Clarett 2Pre/4Pre/8Pre USB
  *   - Clarett+ 2Pre/4Pre/8Pre
  *
- *   Copyright (c) 2018-2023 by Geoffrey D. Bennett <g at b4.vu>
+ *   Copyright (c) 2018-2024 by Geoffrey D. Bennett <g at b4.vu>
  *   Copyright (c) 2020-2021 by Vladimir Sadovnikov <sadko4u@gmail.com>
  *   Copyright (c) 2022 by Christian Colglazier <christian@cacolglazier.com>
  *
@@ -1253,7 +1253,7 @@ struct scarlett2_data {
 	u8 phantom_switch[SCARLETT2_PHANTOM_SWITCH_MAX];
 	u8 phantom_persistence;
 	u8 input_select_switch;
-	u8 input_link_switch[SCARLETT2_INPUT_GAIN_MAX / 2];
+	u8 input_link_switch[SCARLETT2_INPUT_GAIN_MAX];
 	u8 gain[SCARLETT2_INPUT_GAIN_MAX];
 	u8 autogain_switch[SCARLETT2_INPUT_GAIN_MAX];
 	u8 autogain_status[SCARLETT2_INPUT_GAIN_MAX];
@@ -1284,7 +1284,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *input_mute_ctls[SCARLETT2_INPUT_MUTE_SWITCH_MAX];
 	struct snd_kcontrol *phantom_ctls[SCARLETT2_PHANTOM_SWITCH_MAX];
 	struct snd_kcontrol *input_select_ctl;
-	struct snd_kcontrol *input_link_ctls[SCARLETT2_INPUT_GAIN_MAX / 2];
+	struct snd_kcontrol *input_link_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *input_gain_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *autogain_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *autogain_status_ctls[SCARLETT2_INPUT_GAIN_MAX];
@@ -3439,7 +3439,7 @@ static void scarlett2_autogain_update_access(struct usb_mixer_interface *mixer)
 		scarlett2_set_ctl_access(private->input_select_ctl, val);
 	if (scarlett2_has_config_item(private,
 				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH))
-		for (i = 0; i < info->gain_input_count / 2; i++)
+		for (i = 0; i < info->gain_input_count; i++)
 			scarlett2_set_ctl_access(private->input_link_ctls[i],
 						 val);
 	for (i = 0; i < info->gain_input_count; i++)
@@ -3480,7 +3480,7 @@ static void scarlett2_autogain_notify_access(struct usb_mixer_interface *mixer)
 			       &private->input_select_ctl->id);
 	if (scarlett2_has_config_item(private,
 				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH))
-		for (i = 0; i < info->gain_input_count / 2; i++)
+		for (i = 0; i < info->gain_input_count; i++)
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
 				       &private->input_link_ctls[i]->id);
 	for (i = 0; i < info->gain_input_count; i++)
@@ -3825,7 +3825,7 @@ static int scarlett2_update_input_select(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	int link_count = info->gain_input_count / 2;
+	int link_count = info->gain_input_count;
 	int err;
 
 	private->input_select_updated = 0;
@@ -3846,10 +3846,6 @@ static int scarlett2_update_input_select(struct usb_mixer_interface *mixer)
 		link_count, private->input_link_switch);
 	if (err < 0)
 		return err;
-
-	/* simplified because no model yet has link_count > 1 */
-	if (private->input_link_switch[0])
-		private->input_select_switch = 0;
 
 	return 0;
 }
@@ -3887,9 +3883,9 @@ static int scarlett2_input_select_ctl_put(
 	struct usb_mixer_elem_info *elem = kctl->private_data;
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
 
 	int oval, val, err;
-	int max_val = private->input_link_switch[0] ? 0 : 1;
 
 	mutex_lock(&private->data_mutex);
 
@@ -3907,19 +3903,18 @@ static int scarlett2_input_select_ctl_put(
 
 	if (val < 0)
 		val = 0;
-	else if (val > max_val)
-		val = max_val;
+	else if (val >= info->gain_input_count)
+		val = info->gain_input_count - 1;
 
 	if (oval == val)
 		goto unlock;
 
 	private->input_select_switch = val;
 
-	/* Send switch change to the device if inputs not linked */
-	if (!private->input_link_switch[0])
-		err = scarlett2_usb_set_config(
-			mixer, SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
-			1, val);
+	/* Send new value to the device */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
+		0, val);
 	if (err == 0)
 		err = 1;
 
@@ -3936,8 +3931,7 @@ static int scarlett2_input_select_ctl_info(
 	struct scarlett2_data *private = mixer->private_data;
 
 	int inputs = private->info->gain_input_count;
-	int i, j;
-	int err;
+	int i, err;
 	char **values = kcalloc(inputs, sizeof(char *), GFP_KERNEL);
 
 	if (!values)
@@ -3954,21 +3948,11 @@ static int scarlett2_input_select_ctl_info(
 	if (err < 0)
 		goto unlock;
 
-	/* Loop through each input
-	 * Linked inputs have one value for the pair
-	 */
-	for (i = 0, j = 0; i < inputs; i++) {
-		if (private->input_link_switch[i / 2]) {
-			values[j++] = kasprintf(
-				GFP_KERNEL, "Input %d-%d", i + 1, i + 2);
-			i++;
-		} else {
-			values[j++] = kasprintf(
-				GFP_KERNEL, "Input %d", i + 1);
-		}
-	}
+	/* Loop through each input */
+	for (i = 0; i < inputs; i++)
+		values[i] = kasprintf(GFP_KERNEL, "Input %d", i + 1);
 
-	err = snd_ctl_enum_info(uinfo, 1, j,
+	err = snd_ctl_enum_info(uinfo, 1, i,
 				(const char * const *)values);
 
 unlock:
@@ -4077,18 +4061,8 @@ static int scarlett2_input_link_ctl_put(
 
 	private->input_link_switch[index] = val;
 
-	/* Notify of change in input select options available */
-	snd_ctl_notify(mixer->chip->card,
-		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
-		       &private->input_select_ctl->id);
-	private->input_select_updated = 1;
-
-	/* Send switch change to the device
-	 * Link for channels 1-2 is at index 1
-	 * No device yet has more than 2 channels linked
-	 */
 	err = scarlett2_usb_set_config(
-		mixer, SCARLETT2_CONFIG_INPUT_LINK_SWITCH, index + 1, val);
+		mixer, SCARLETT2_CONFIG_INPUT_LINK_SWITCH, index, val);
 	if (err == 0)
 		err = 1;
 
@@ -6914,10 +6888,9 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 
 	if (scarlett2_has_config_item(private,
 				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH)) {
-		for (i = 0; i < info->gain_input_count / 2; i++) {
+		for (i = 0; i < info->gain_input_count; i++) {
 			scnprintf(s, sizeof(s),
-				  "Line In %d-%d Link Capture Switch",
-				  (i * 2) + 1, (i * 2) + 2);
+				  "Line In %d Link Capture Switch", i + 1);
 			err = scarlett2_add_new_ctl(
 				mixer, &scarlett2_input_link_ctl,
 				i, 1, s, &private->input_link_ctls[i]);
@@ -8244,7 +8217,7 @@ static void scarlett2_notify_input_select(struct usb_mixer_interface *mixer)
 		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 		       &private->input_select_ctl->id);
 
-	for (i = 0; i < info->gain_input_count / 2; i++)
+	for (i = 0; i < info->gain_input_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->input_link_ctls[i]->id);
 }
