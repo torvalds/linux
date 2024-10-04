@@ -228,10 +228,8 @@ void radeon_dp_aux_init(struct radeon_connector *radeon_connector)
 {
 	struct drm_device *dev = radeon_connector->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
-	int ret;
 
 	radeon_connector->ddc_bus->rec.hpd = radeon_connector->hpd.hpd;
-	radeon_connector->ddc_bus->aux.dev = radeon_connector->base.kdev;
 	radeon_connector->ddc_bus->aux.drm_dev = radeon_connector->base.dev;
 	if (ASIC_IS_DCE5(rdev)) {
 		if (radeon_auxch)
@@ -242,11 +240,8 @@ void radeon_dp_aux_init(struct radeon_connector *radeon_connector)
 		radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
 	}
 
-	ret = drm_dp_aux_register(&radeon_connector->ddc_bus->aux);
-	if (!ret)
-		radeon_connector->ddc_bus->has_aux = true;
-
-	WARN(ret, "drm_dp_aux_register() failed with error %d\n", ret);
+	drm_dp_aux_init(&radeon_connector->ddc_bus->aux);
+	radeon_connector->ddc_bus->has_aux = true;
 }
 
 /***** general DP utility functions *****/
