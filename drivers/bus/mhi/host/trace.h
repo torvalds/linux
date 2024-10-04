@@ -9,6 +9,7 @@
 #if !defined(_TRACE_EVENT_MHI_HOST_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_EVENT_MHI_HOST_H
 
+#include <linux/byteorder/generic.h>
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
 #include "../common.h"
@@ -97,18 +98,18 @@ TRACE_EVENT(mhi_gen_tre,
 		__string(name, mhi_cntrl->mhi_dev->name)
 		__field(int, ch_num)
 		__field(void *, wp)
-		__field(__le64, tre_ptr)
-		__field(__le32, dword0)
-		__field(__le32, dword1)
+		__field(uint64_t, tre_ptr)
+		__field(uint32_t, dword0)
+		__field(uint32_t, dword1)
 	),
 
 	TP_fast_assign(
 		__assign_str(name);
 		__entry->ch_num = mhi_chan->chan;
 		__entry->wp = mhi_tre;
-		__entry->tre_ptr = mhi_tre->ptr;
-		__entry->dword0 = mhi_tre->dword[0];
-		__entry->dword1 = mhi_tre->dword[1];
+		__entry->tre_ptr = le64_to_cpu(mhi_tre->ptr);
+		__entry->dword0 = le32_to_cpu(mhi_tre->dword[0]);
+		__entry->dword1 = le32_to_cpu(mhi_tre->dword[1]);
 	),
 
 	TP_printk("%s: Chan: %d TRE: 0x%p TRE buf: 0x%llx DWORD0: 0x%08x DWORD1: 0x%08x\n",
@@ -176,19 +177,19 @@ DECLARE_EVENT_CLASS(mhi_process_event_ring,
 
 	TP_STRUCT__entry(
 		__string(name, mhi_cntrl->mhi_dev->name)
-		__field(__le32, dword0)
-		__field(__le32, dword1)
+		__field(uint32_t, dword0)
+		__field(uint32_t, dword1)
 		__field(int, state)
-		__field(__le64, ptr)
+		__field(uint64_t, ptr)
 		__field(void *, rp)
 	),
 
 	TP_fast_assign(
 		__assign_str(name);
 		__entry->rp = rp;
-		__entry->ptr = rp->ptr;
-		__entry->dword0 = rp->dword[0];
-		__entry->dword1 = rp->dword[1];
+		__entry->ptr = le64_to_cpu(rp->ptr);
+		__entry->dword0 = le32_to_cpu(rp->dword[0]);
+		__entry->dword1 = le32_to_cpu(rp->dword[1]);
 		__entry->state = MHI_TRE_GET_EV_STATE(rp);
 	),
 
