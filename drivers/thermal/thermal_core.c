@@ -935,15 +935,13 @@ void print_bind_err_msg(struct thermal_zone_device *tz,
 		cdev->type, thermal_zone_trip_id(tz, trip), ret);
 }
 
-static void thermal_zone_cdev_bind(struct thermal_zone_device *tz,
-				   struct thermal_cooling_device *cdev)
+static void __thermal_zone_cdev_bind(struct thermal_zone_device *tz,
+				     struct thermal_cooling_device *cdev)
 {
 	struct thermal_trip_desc *td;
 
 	if (!tz->ops.should_bind)
 		return;
-
-	mutex_lock(&tz->lock);
 
 	for_each_trip_desc(tz, td) {
 		struct thermal_trip *trip = &td->trip;
@@ -961,6 +959,14 @@ static void thermal_zone_cdev_bind(struct thermal_zone_device *tz,
 		if (ret)
 			print_bind_err_msg(tz, trip, cdev, ret);
 	}
+}
+
+static void thermal_zone_cdev_bind(struct thermal_zone_device *tz,
+				   struct thermal_cooling_device *cdev)
+{
+	mutex_lock(&tz->lock);
+
+	__thermal_zone_cdev_bind(tz, cdev);
 
 	mutex_unlock(&tz->lock);
 }
@@ -1338,7 +1344,17 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_crit_temp);
 
 static void thermal_zone_init_complete(struct thermal_zone_device *tz)
 {
+	struct thermal_cooling_device *cdev;
+
+	mutex_lock(&thermal_list_lock);
+
+	list_add_tail(&tz->node, &thermal_tz_list);
+
 	mutex_lock(&tz->lock);
+
+	/* Bind cooling devices for this zone. */
+	list_for_each_entry(cdev, &thermal_cdev_list, node)
+		__thermal_zone_cdev_bind(tz, cdev);
 
 	tz->state &= ~TZ_STATE_FLAG_INIT;
 	/*
@@ -1352,6 +1368,8 @@ static void thermal_zone_init_complete(struct thermal_zone_device *tz)
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
 	mutex_unlock(&tz->lock);
+
+	mutex_unlock(&thermal_list_lock);
 }
 
 /**
@@ -1388,7 +1406,6 @@ thermal_zone_device_register_with_trips(const char *type,
 					unsigned int polling_delay)
 {
 	const struct thermal_trip *trip = trips;
-	struct thermal_cooling_device *cdev;
 	struct thermal_zone_device *tz;
 	struct thermal_trip_desc *td;
 	int id;
@@ -1520,19 +1537,7 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (result)
 		goto remove_hwmon;
 
-	mutex_lock(&thermal_list_lock);
-
-	mutex_lock(&tz->lock);
-	list_add_tail(&tz->node, &thermal_tz_list);
-	mutex_unlock(&tz->lock);
-
-	/* Bind cooling devices for this zone */
-	list_for_each_entry(cdev, &thermal_cdev_list, node)
-		thermal_zone_cdev_bind(tz, cdev);
-
 	thermal_zone_init_complete(tz);
-
-	mutex_unlock(&thermal_list_lock);
 
 	thermal_notify_tz_create(tz);
 
