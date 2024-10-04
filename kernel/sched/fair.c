@@ -1251,7 +1251,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 		return;
 
 	if (resched || did_preempt_short(cfs_rq, curr)) {
-		resched_curr(rq);
+		resched_curr_lazy(rq);
 		clear_buddies(cfs_rq, curr);
 	}
 }
@@ -5677,7 +5677,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 	 * validating it and just reschedule.
 	 */
 	if (queued) {
-		resched_curr(rq_of(cfs_rq));
+		resched_curr_lazy(rq_of(cfs_rq));
 		return;
 	}
 #endif
@@ -8829,7 +8829,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 	return;
 
 preempt:
-	resched_curr(rq);
+	resched_curr_lazy(rq);
 }
 
 static struct task_struct *pick_task_fair(struct rq *rq)

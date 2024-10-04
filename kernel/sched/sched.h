@@ -2689,6 +2689,7 @@ extern void init_sched_rt_class(void);
 extern void init_sched_fair_class(void);
 
 extern void resched_curr(struct rq *rq);
+extern void resched_curr_lazy(struct rq *rq);
 extern void resched_cpu(int cpu);
 
 extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
