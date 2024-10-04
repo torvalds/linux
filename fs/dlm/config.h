@@ -50,7 +50,7 @@ int dlm_config_init(void);
 void dlm_config_exit(void);
 int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 		     int *count_out);
-int dlm_comm_seq(int nodeid, uint32_t *seq);
+int dlm_comm_seq(int nodeid, uint32_t *seq, bool locked);
 int dlm_our_nodeid(void);
 int dlm_our_addr(struct sockaddr_storage *addr, int num);
 
