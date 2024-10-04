@@ -603,8 +603,7 @@
 
 		compatible = "rohm,bd9571mwv";
 		reg = <0x30>;
-		interrupt-parent = <&intc_ex>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&intc_ex 0 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		gpio-controller;
