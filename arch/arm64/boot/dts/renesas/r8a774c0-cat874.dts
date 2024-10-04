@@ -208,8 +208,7 @@
 	hd3ss3220@47 {
 		compatible = "ti,hd3ss3220";
 		reg = <0x47>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio6 3 IRQ_TYPE_LEVEL_LOW>;
 
 		ports {
 			#address-cells = <1>;
