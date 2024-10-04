@@ -1339,6 +1339,26 @@ static const struct phylink_pcs_ops xpcs_phylink_ops = {
 	.pcs_link_up = xpcs_link_up,
 };
 
+static int xpcs_identify(struct dw_xpcs *xpcs)
+{
+	int i, ret;
+
+	ret = xpcs_read_ids(xpcs);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(xpcs_desc_list); i++) {
+		const struct dw_xpcs_desc *entry = &xpcs_desc_list[i];
+
+		if ((xpcs->info.pcs & entry->mask) == entry->id) {
+			xpcs->desc = entry;
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+
 static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev)
 {
 	struct dw_xpcs *xpcs;
@@ -1395,7 +1415,6 @@ static void xpcs_clear_clks(struct dw_xpcs *xpcs)
 static int xpcs_init_id(struct dw_xpcs *xpcs)
 {
 	const struct dw_xpcs_info *info;
-	int i, ret;
 
 	info = dev_get_platdata(&xpcs->mdiodev->dev);
 	if (!info) {
@@ -1405,25 +1424,7 @@ static int xpcs_init_id(struct dw_xpcs *xpcs)
 		xpcs->info = *info;
 	}
 
-	ret = xpcs_read_ids(xpcs);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(xpcs_desc_list); i++) {
-		const struct dw_xpcs_desc *desc = &xpcs_desc_list[i];
-
-		if ((xpcs->info.pcs & desc->mask) != desc->id)
-			continue;
-
-		xpcs->desc = desc;
-
-		break;
-	}
-
-	if (!xpcs->desc)
-		return -ENODEV;
-
-	return 0;
+	return xpcs_identify(xpcs);
 }
 
 static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev)
