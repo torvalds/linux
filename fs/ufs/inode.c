@@ -220,7 +220,7 @@ changed:
  */
 static bool
 ufs_extend_tail(struct inode *inode, u64 writes_to,
-		  int *err, struct page *locked_page)
+		  int *err, struct folio *locked_folio)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -239,7 +239,7 @@ ufs_extend_tail(struct inode *inode, u64 writes_to,
 	p = ufs_get_direct_data_ptr(uspi, ufsi, block);
 	tmp = ufs_new_fragments(inode, p, lastfrag, ufs_data_ptr_to_cpu(sb, p),
 				new_size - (lastfrag & uspi->s_fpbmask), err,
-				locked_page);
+				&locked_folio->page);
 	return tmp != 0;
 }
 
@@ -413,7 +413,7 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 		unsigned tailfrags = lastfrag & uspi->s_fpbmask;
 		if (tailfrags && fragment >= lastfrag) {
 			if (!ufs_extend_tail(inode, fragment,
-					     &err, bh_result->b_page))
+					     &err, bh_result->b_folio))
 				goto out;
 		}
 	}
