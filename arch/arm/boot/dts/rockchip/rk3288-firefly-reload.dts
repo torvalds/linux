@@ -85,7 +85,7 @@
 		#sound-dai-cells = <0>;
 	};
 
-	vcc_host_5v: usb-host-regulator {
+	vcc_host_5v: regulator-usb-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
@@ -98,7 +98,7 @@
 		vin-supply = <&vcc_5v>;
 	};
 
-	vcc_5v: vcc_sys: vsys-regulator {
+	vcc_5v: vcc_sys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_5v";
 		regulator-min-microvolt = <5000000>;
@@ -107,7 +107,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -119,7 +119,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_otg_5v: usb-otg-regulator {
+	vcc_otg_5v: regulator-usb-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
@@ -132,7 +132,7 @@
 		vin-supply = <&vcc_5v>;
 	};
 
-	dovdd_1v8: dovdd-1v8-regulator {
+	dovdd_1v8: regulator-dovdd-1v8 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
@@ -144,7 +144,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc28_dvp: vcc28-dvp-regulator {
+	vcc28_dvp: regulator-vcc28-dvp {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
@@ -156,7 +156,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	af_28: af_28-regulator {
+	af_28: regulator-af-28 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
@@ -168,7 +168,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	dvdd_1v2: af_28-regulator {
+	dvdd_1v2: regulator-dvdd-1v2 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio7 RK_PB4 GPIO_ACTIVE_HIGH>;
@@ -180,7 +180,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vbat_wl: wifi-regulator {
+	vbat_wl: regulator-wifi {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat_wl";
 		regulator-min-microvolt = <3300000>;
