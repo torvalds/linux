@@ -774,7 +774,6 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
 unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 {
 	struct folio *folio = page_folio(page);
-	pgoff_t pgoff;
 
 	if (folio_test_anon(folio)) {
 		struct anon_vma *page__anon_vma = folio_anon_vma(folio);
@@ -792,8 +791,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 	}
 
 	/* The !page__anon_vma above handles KSM folios */
-	pgoff = folio->index + folio_page_idx(folio, page);
-	return vma_address(vma, pgoff, 1);
+	return vma_address(vma, page_pgoff(folio, page), 1);
 }
 
 /*
