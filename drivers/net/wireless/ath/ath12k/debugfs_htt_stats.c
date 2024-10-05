@@ -2437,6 +2437,71 @@ ath12k_htt_print_pdev_stats_cca_counters_tlv(const void *tag_buf, u16 tag_len,
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_pdev_obss_pd_stats_tlv(const void *tag_buf, u16 tag_len,
+					struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_pdev_obss_pd_stats_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u8 i;
+	static const char *access_cat_names[ATH12K_HTT_NUM_AC_WMM] = {"best effort",
+								      "background",
+								      "video", "voice"};
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PDEV_OBSS_PD_STATS_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "num_spatial_reuse_tx = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_sr_tx_transmissions));
+	len += scnprintf(buf + len, buf_len - len,
+			 "num_spatial_reuse_opportunities = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_spatial_reuse_opportunities));
+	len += scnprintf(buf + len, buf_len - len, "num_non_srg_opportunities = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_non_srg_opportunities));
+	len += scnprintf(buf + len, buf_len - len, "num_non_srg_ppdu_tried = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_non_srg_ppdu_tried));
+	len += scnprintf(buf + len, buf_len - len, "num_non_srg_ppdu_success = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_non_srg_ppdu_success));
+	len += scnprintf(buf + len, buf_len - len, "num_srg_opportunities = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_srg_opportunities));
+	len += scnprintf(buf + len, buf_len - len, "num_srg_ppdu_tried = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_srg_ppdu_tried));
+	len += scnprintf(buf + len, buf_len - len, "num_srg_ppdu_success = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_srg_ppdu_success));
+	len += scnprintf(buf + len, buf_len - len, "num_psr_opportunities = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_psr_opportunities));
+	len += scnprintf(buf + len, buf_len - len, "num_psr_ppdu_tried = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_psr_ppdu_tried));
+	len += scnprintf(buf + len, buf_len - len, "num_psr_ppdu_success = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_psr_ppdu_success));
+	len += scnprintf(buf + len, buf_len - len, "min_duration_check_flush_cnt = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_obss_min_dur_check_flush_cnt));
+	len += scnprintf(buf + len, buf_len - len, "sr_ppdu_abort_flush_cnt = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->num_sr_ppdu_abort_flush_cnt));
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PDEV_OBSS_PD_PER_AC_STATS:\n");
+	for (i = 0; i < ATH12K_HTT_NUM_AC_WMM; i++) {
+		len += scnprintf(buf + len, buf_len - len, "Access Category %u (%s)\n",
+				 i, access_cat_names[i]);
+		len += scnprintf(buf + len, buf_len - len,
+				 "num_non_srg_ppdu_tried = %u\n",
+				 le32_to_cpu(htt_stats_buf->num_non_srg_tried_per_ac[i]));
+		len += scnprintf(buf + len, buf_len - len,
+				 "num_non_srg_ppdu_success = %u\n",
+				 le32_to_cpu(htt_stats_buf->num_non_srg_success_ac[i]));
+		len += scnprintf(buf + len, buf_len - len, "num_srg_ppdu_tried = %u\n",
+				 le32_to_cpu(htt_stats_buf->num_srg_tried_per_ac[i]));
+		len += scnprintf(buf + len, buf_len - len,
+				 "num_srg_ppdu_success = %u\n\n",
+				 le32_to_cpu(htt_stats_buf->num_srg_success_per_ac[i]));
+	}
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -2606,6 +2671,9 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_PDEV_CCA_COUNTERS_TAG:
 		ath12k_htt_print_pdev_stats_cca_counters_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PDEV_OBSS_PD_TAG:
+		ath12k_htt_print_pdev_obss_pd_stats_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;

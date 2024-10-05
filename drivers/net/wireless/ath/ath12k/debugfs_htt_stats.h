@@ -134,6 +134,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_SFM_INFO		= 16,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_MU		= 17,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_CCA_STATS		= 19,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_OBSS_PD_STATS	= 23,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -184,6 +185,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_PDEV_MPDU_STATS_TAG		= 74,
 	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG		= 86,
 	HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG	= 87,
+	HTT_STATS_PDEV_OBSS_PD_TAG			= 88,
 	HTT_STATS_HW_WAR_TAG				= 89,
 	HTT_STATS_SCHED_TXQ_SUPERCYCLE_TRIGGER_TAG	= 100,
 	HTT_STATS_PDEV_CTRL_PATH_TX_STATS_TAG		= 102,
@@ -1022,6 +1024,28 @@ struct ath12k_htt_pdev_cca_stats_hist_v1_tlv {
 	__le32 num_records;
 	__le32 valid_cca_counters_bitmap;
 	__le32 collection_interval;
+} __packed;
+
+struct ath12k_htt_pdev_obss_pd_stats_tlv {
+	__le32 num_obss_tx_ppdu_success;
+	__le32 num_obss_tx_ppdu_failure;
+	__le32 num_sr_tx_transmissions;
+	__le32 num_spatial_reuse_opportunities;
+	__le32 num_non_srg_opportunities;
+	__le32 num_non_srg_ppdu_tried;
+	__le32 num_non_srg_ppdu_success;
+	__le32 num_srg_opportunities;
+	__le32 num_srg_ppdu_tried;
+	__le32 num_srg_ppdu_success;
+	__le32 num_psr_opportunities;
+	__le32 num_psr_ppdu_tried;
+	__le32 num_psr_ppdu_success;
+	__le32 num_non_srg_tried_per_ac[ATH12K_HTT_NUM_AC_WMM];
+	__le32 num_non_srg_success_ac[ATH12K_HTT_NUM_AC_WMM];
+	__le32 num_srg_tried_per_ac[ATH12K_HTT_NUM_AC_WMM];
+	__le32 num_srg_success_per_ac[ATH12K_HTT_NUM_AC_WMM];
+	__le32 num_obss_min_dur_check_flush_cnt;
+	__le32 num_sr_ppdu_abort_flush_cnt;
 } __packed;
 
 #endif
