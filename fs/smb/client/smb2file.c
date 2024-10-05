@@ -158,7 +158,8 @@ int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32
 	if (smb2_path == NULL)
 		return -ENOMEM;
 
-	if (!(oparms->desired_access & FILE_READ_ATTRIBUTES)) {
+	if (!(oparms->desired_access & FILE_READ_ATTRIBUTES) &&
+	    !(oparms->desired_access & MAXIMUM_ALLOWED)) {
 		oparms->desired_access |= FILE_READ_ATTRIBUTES;
 		retry_without_read_attributes = true;
 	}
