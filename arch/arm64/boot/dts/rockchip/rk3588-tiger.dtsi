@@ -65,7 +65,7 @@
 		enable-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>; /* PCIE30X4_CLKREQN_M1_L */
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo_s3";
 		regulator-always-on;
@@ -75,7 +75,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc_1v2_s3: vcc-1v2-s3-regulator {
+	vcc_1v2_s3: regulator-vcc-1v2-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v2_s3";
 		regulator-always-on;
@@ -85,7 +85,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;

@@ -44,7 +44,7 @@
 	};
 
 	/* DCIN is 12-24V but standard is 12V */
-	dc_12v: dc-12v-regulator {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -111,7 +111,7 @@
 		gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo_s3";
 		regulator-always-on;
@@ -121,7 +121,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc_1v2_s3: vcc-1v2-s3-regulator {
+	vcc_1v2_s3: regulator-vcc-1v2-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v2_s3";
 		regulator-always-on;
@@ -132,7 +132,7 @@
 	};
 
 	/* Exposed on P14 and P15 */
-	vcc_2v8_s3: vcc-2v8-s3-regulator {
+	vcc_2v8_s3: regulator-vcc-2v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_2v8_s3";
 		regulator-always-on;
@@ -142,7 +142,7 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
-	vcc_5v0_usb_a: vcc-5v0-usb-a-regulator {
+	vcc_5v0_usb_a: regulator-vcc-5v0-usb-a {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_a_vcc";
 		regulator-min-microvolt = <5000000>;
@@ -152,7 +152,7 @@
 		enable-active-high;
 	};
 
-	vcc_5v0_usb_c1: vcc-5v0-usb-c1-regulator {
+	vcc_5v0_usb_c1: regulator-vcc-5v0-usb-c1 {
 		compatible = "regulator-fixed";
 		regulator-name = "5v_usbc1";
 		regulator-min-microvolt = <5000000>;
@@ -162,7 +162,7 @@
 		enable-active-high;
 	};
 
-	vcc_5v0_usb_c2: vcc-5v0-usb-c2-regulator {
+	vcc_5v0_usb_c2: regulator-vcc-5v0-usb-c2 {
 		compatible = "regulator-fixed";
 		regulator-name = "5v_usbc2";
 		regulator-min-microvolt = <5000000>;
@@ -172,7 +172,7 @@
 		enable-active-high;
 	};
 
-	vcc3v3_mdot2: vcc3v3-mdot2-regulator {
+	vcc3v3_mdot2: regulator-vcc3v3-mdot2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_mdot2";
 		regulator-always-on;
@@ -182,7 +182,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -192,7 +192,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_usb: vcc5v0-usb-regulator {
+	vcc5v0_usb: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb";
 		regulator-always-on;

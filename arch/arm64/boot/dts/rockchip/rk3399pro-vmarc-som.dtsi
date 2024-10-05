@@ -18,7 +18,7 @@
 		mmc1 = &sdmmc;
 	};
 
-	vcc3v3_pcie: vcc-pcie-regulator {
+	vcc3v3_pcie: regulator-vcc-pcie {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PD4 GPIO_ACTIVE_HIGH>;

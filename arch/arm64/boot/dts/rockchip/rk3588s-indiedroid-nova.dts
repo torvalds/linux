@@ -83,7 +83,7 @@
 		dais = <&i2s0_8ch_p0>;
 	};
 
-	vbus5v0_typec: vbus5v0-typec-regulator {
+	vbus5v0_typec: regulator-vbus5v0-typec {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
@@ -95,7 +95,7 @@
 		vin-supply = <&vcc5v0_usb>;
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;
@@ -106,7 +106,7 @@
 	};
 
 	/* Regulator is enabled whenever vcc_1v8_s0 is above 1.6v */
-	vcc_3v3_s0: vcc-3v3-s0-regulator {
+	vcc_3v3_s0: regulator-vcc-3v3-s0 {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;
@@ -120,7 +120,7 @@
 		};
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;
@@ -129,7 +129,7 @@
 		regulator-name = "vcc5v0_sys";
 	};
 
-	vcc5v0_usb: vcc5v0-usb-regulator {
+	vcc5v0_usb: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;
@@ -139,7 +139,7 @@
 		vin-supply = <&vcc5v0_usbdcin>;
 	};
 
-	vcc5v0_usbdcin: vcc5v0-usbdcin-regulator {
+	vcc5v0_usbdcin: regulator-vcc5v0-usbdcin {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;

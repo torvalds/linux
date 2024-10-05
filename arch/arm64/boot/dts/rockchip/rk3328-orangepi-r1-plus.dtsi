@@ -53,7 +53,7 @@
 		};
 	};
 
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PD6 GPIO_ACTIVE_LOW>;
 		pinctrl-0 = <&sdmmc0m1_pin>;
@@ -63,7 +63,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
@@ -72,7 +72,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vdd_5v_lan: vdd-5v-lan-regulator {
+	vdd_5v_lan: regulator-vdd-5v-lan {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;

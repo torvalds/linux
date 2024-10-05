@@ -17,7 +17,7 @@
 		reset-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;

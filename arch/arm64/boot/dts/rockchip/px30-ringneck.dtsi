@@ -43,7 +43,7 @@
 		};
 	};
 
-	vcc5v0_sys: vccsys-regulator {
+	vcc5v0_sys: regulator-vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
