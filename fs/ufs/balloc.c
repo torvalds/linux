@@ -229,13 +229,13 @@ failed:
  * situated at the end of file.
  *
  * We can come here from ufs_writepage or ufs_prepare_write,
- * locked_page is argument of these functions, so we already lock it.
+ * locked_folio is argument of these functions, so we already lock it.
  */
 static void ufs_change_blocknr(struct inode *inode, sector_t beg,
 			       unsigned int count, sector_t oldb,
-			       sector_t newb, struct page *locked_page)
+			       sector_t newb, struct folio *locked_folio)
 {
-	struct folio *folio, *locked_folio = page_folio(locked_page);
+	struct folio *folio;
 	const unsigned blks_per_page =
 		1 << (PAGE_SHIFT - inode->i_blkbits);
 	const unsigned mask = blks_per_page - 1;
@@ -461,7 +461,7 @@ u64 ufs_new_fragments(struct inode *inode, void *p, u64 fragment,
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		ufs_change_blocknr(inode, fragment - oldcount, oldcount,
 				   uspi->s_sbbase + tmp,
-				   uspi->s_sbbase + result, &locked_folio->page);
+				   uspi->s_sbbase + result, locked_folio);
 		*err = 0;
 		write_seqlock(&UFS_I(inode)->meta_lock);
 		ufs_cpu_to_data_ptr(sb, p, result);
