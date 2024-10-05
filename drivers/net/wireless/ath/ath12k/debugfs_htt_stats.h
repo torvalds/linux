@@ -123,12 +123,13 @@ struct ath12k_htt_extd_stats_msg {
 
 /* htt_dbg_ext_stats_type */
 enum ath12k_dbg_htt_ext_stats_type {
-	ATH12K_DBG_HTT_EXT_STATS_RESET		= 0,
-	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX	= 1,
-	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_SCHED	= 4,
-	ATH12K_DBG_HTT_EXT_STATS_PDEV_ERROR	= 5,
-	ATH12K_DBG_HTT_EXT_STATS_PDEV_TQM	= 6,
-	ATH12K_DBG_HTT_EXT_STATS_TX_DE_INFO	= 8,
+	ATH12K_DBG_HTT_EXT_STATS_RESET			= 0,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX		= 1,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_SCHED		= 4,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_ERROR		= 5,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TQM		= 6,
+	ATH12K_DBG_HTT_EXT_STATS_TX_DE_INFO		= 8,
+	ATH12K_DBG_HTT_EXT_STATS_TX_SELFGEN_INFO	= 12,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -156,6 +157,11 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_SCHED_TXQ_CMD_POSTED_TAG		= 39,
 	HTT_STATS_TX_TQM_ERROR_STATS_TAG                = 43,
 	HTT_STATS_SCHED_TXQ_CMD_REAPED_TAG		= 44,
+	HTT_STATS_TX_SELFGEN_AC_ERR_STATS_TAG		= 46,
+	HTT_STATS_TX_SELFGEN_CMN_STATS_TAG		= 47,
+	HTT_STATS_TX_SELFGEN_AC_STATS_TAG		= 48,
+	HTT_STATS_TX_SELFGEN_AX_STATS_TAG		= 49,
+	HTT_STATS_TX_SELFGEN_AX_ERR_STATS_TAG		= 50,
 	HTT_STATS_HW_INTR_MISC_TAG			= 54,
 	HTT_STATS_HW_PDEV_ERRS_TAG			= 56,
 	HTT_STATS_TX_DE_COMPL_STATS_TAG			= 65,
@@ -166,7 +172,12 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_HW_WAR_TAG				= 89,
 	HTT_STATS_SCHED_TXQ_SUPERCYCLE_TRIGGER_TAG	= 100,
 	HTT_STATS_PDEV_CTRL_PATH_TX_STATS_TAG		= 102,
+	HTT_STATS_TX_SELFGEN_AC_SCHED_STATUS_STATS_TAG	= 111,
+	HTT_STATS_TX_SELFGEN_AX_SCHED_STATUS_STATS_TAG	= 112,
 	HTT_STATS_MU_PPDU_DIST_TAG			= 129,
+	HTT_STATS_TX_SELFGEN_BE_ERR_STATS_TAG		= 137,
+	HTT_STATS_TX_SELFGEN_BE_STATS_TAG		= 138,
+	HTT_STATS_TX_SELFGEN_BE_SCHED_STATUS_STATS_TAG	= 139,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -688,6 +699,169 @@ struct ath12k_htt_tx_de_compl_stats_tlv {
 	__le32 tqm_notify_frame;
 	__le32 fw2wbm_enq;
 	__le32 tqm_bypass_frame;
+} __packed;
+
+#define ATH12K_HTT_NUM_AC_WMM				0x4
+#define ATH12K_HTT_MAX_NUM_SBT_INTR			4
+#define ATH12K_HTT_TX_NUM_AC_MUMIMO_USER_STATS		4
+#define ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS		8
+#define ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS		8
+#define ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS	7
+
+struct ath12k_htt_tx_selfgen_cmn_stats_tlv {
+	__le32 mac_id__word;
+	__le32 su_bar;
+	__le32 rts;
+	__le32 cts2self;
+	__le32 qos_null;
+	__le32 delayed_bar_1;
+	__le32 delayed_bar_2;
+	__le32 delayed_bar_3;
+	__le32 delayed_bar_4;
+	__le32 delayed_bar_5;
+	__le32 delayed_bar_6;
+	__le32 delayed_bar_7;
+} __packed;
+
+struct ath12k_htt_tx_selfgen_ac_stats_tlv {
+	__le32 ac_su_ndpa;
+	__le32 ac_su_ndp;
+	__le32 ac_mu_mimo_ndpa;
+	__le32 ac_mu_mimo_ndp;
+	__le32 ac_mu_mimo_brpoll[ATH12K_HTT_TX_NUM_AC_MUMIMO_USER_STATS - 1];
+} __packed;
+
+struct ath12k_htt_tx_selfgen_ax_stats_tlv {
+	__le32 ax_su_ndpa;
+	__le32 ax_su_ndp;
+	__le32 ax_mu_mimo_ndpa;
+	__le32 ax_mu_mimo_ndp;
+	__le32 ax_mu_mimo_brpoll[ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS - 1];
+	__le32 ax_basic_trigger;
+	__le32 ax_bsr_trigger;
+	__le32 ax_mu_bar_trigger;
+	__le32 ax_mu_rts_trigger;
+	__le32 ax_ulmumimo_trigger;
+} __packed;
+
+struct ath12k_htt_tx_selfgen_be_stats_tlv {
+	__le32 be_su_ndpa;
+	__le32 be_su_ndp;
+	__le32 be_mu_mimo_ndpa;
+	__le32 be_mu_mimo_ndp;
+	__le32 be_mu_mimo_brpoll[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS - 1];
+	__le32 be_basic_trigger;
+	__le32 be_bsr_trigger;
+	__le32 be_mu_bar_trigger;
+	__le32 be_mu_rts_trigger;
+	__le32 be_ulmumimo_trigger;
+	__le32 be_su_ndpa_queued;
+	__le32 be_su_ndp_queued;
+	__le32 be_mu_mimo_ndpa_queued;
+	__le32 be_mu_mimo_ndp_queued;
+	__le32 be_mu_mimo_brpoll_queued[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS - 1];
+	__le32 be_ul_mumimo_trigger[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS];
+} __packed;
+
+struct ath12k_htt_tx_selfgen_ac_err_stats_tlv {
+	__le32 ac_su_ndp_err;
+	__le32 ac_su_ndpa_err;
+	__le32 ac_mu_mimo_ndpa_err;
+	__le32 ac_mu_mimo_ndp_err;
+	__le32 ac_mu_mimo_brp1_err;
+	__le32 ac_mu_mimo_brp2_err;
+	__le32 ac_mu_mimo_brp3_err;
+} __packed;
+
+struct ath12k_htt_tx_selfgen_ax_err_stats_tlv {
+	__le32 ax_su_ndp_err;
+	__le32 ax_su_ndpa_err;
+	__le32 ax_mu_mimo_ndpa_err;
+	__le32 ax_mu_mimo_ndp_err;
+	__le32 ax_mu_mimo_brp_err[ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS - 1];
+	__le32 ax_basic_trigger_err;
+	__le32 ax_bsr_trigger_err;
+	__le32 ax_mu_bar_trigger_err;
+	__le32 ax_mu_rts_trigger_err;
+	__le32 ax_ulmumimo_trigger_err;
+} __packed;
+
+struct ath12k_htt_tx_selfgen_be_err_stats_tlv {
+	__le32 be_su_ndp_err;
+	__le32 be_su_ndpa_err;
+	__le32 be_mu_mimo_ndpa_err;
+	__le32 be_mu_mimo_ndp_err;
+	__le32 be_mu_mimo_brp_err[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS - 1];
+	__le32 be_basic_trigger_err;
+	__le32 be_bsr_trigger_err;
+	__le32 be_mu_bar_trigger_err;
+	__le32 be_mu_rts_trigger_err;
+	__le32 be_ulmumimo_trigger_err;
+	__le32 be_mu_mimo_brp_err_num_cbf_rxd[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS];
+	__le32 be_su_ndpa_flushed;
+	__le32 be_su_ndp_flushed;
+	__le32 be_mu_mimo_ndpa_flushed;
+	__le32 be_mu_mimo_ndp_flushed;
+	__le32 be_mu_mimo_brpoll_flushed[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS - 1];
+	__le32 be_ul_mumimo_trigger_err[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS];
+} __packed;
+
+enum ath12k_htt_tx_selfgen_sch_tsflag_error_stats {
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_FLUSH_RCVD_ERR,
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_FILT_SCHED_CMD_ERR,
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_RESP_MISMATCH_ERR,
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_RESP_CBF_MIMO_CTRL_MISMATCH_ERR,
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_RESP_CBF_BW_MISMATCH_ERR,
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_RETRY_COUNT_FAIL_ERR,
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_RESP_TOO_LATE_RECEIVED_ERR,
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_SIFS_STALL_NO_NEXT_CMD_ERR,
+
+	ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS
+};
+
+struct ath12k_htt_tx_selfgen_ac_sched_status_stats_tlv {
+	__le32 ac_su_ndpa_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ac_su_ndp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ac_su_ndp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 ac_mu_mimo_ndpa_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ac_mu_mimo_ndp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ac_mu_mimo_ndp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 ac_mu_mimo_brp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ac_mu_mimo_brp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+} __packed;
+
+struct ath12k_htt_tx_selfgen_ax_sched_status_stats_tlv {
+	__le32 ax_su_ndpa_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_su_ndp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_su_ndp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 ax_mu_mimo_ndpa_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_mu_mimo_ndp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_mu_mimo_ndp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 ax_mu_brp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_mu_brp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 ax_mu_bar_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_mu_bar_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 ax_basic_trig_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_basic_trig_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 ax_ulmumimo_trig_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 ax_ulmumimo_trig_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+} __packed;
+
+struct ath12k_htt_tx_selfgen_be_sched_status_stats_tlv {
+	__le32 be_su_ndpa_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_su_ndp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_su_ndp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 be_mu_mimo_ndpa_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_mu_mimo_ndp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_mu_mimo_ndp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 be_mu_brp_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_mu_brp_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 be_mu_bar_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_mu_bar_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 be_basic_trig_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_basic_trig_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+	__le32 be_ulmumimo_trig_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
+	__le32 be_ulmumimo_trig_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
 } __packed;
 
 #endif
