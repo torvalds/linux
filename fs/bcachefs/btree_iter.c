@@ -2381,9 +2381,9 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 		else
 			iter_pos = bkey_max(iter->pos, bkey_start_pos(k.k));
 
-		if (unlikely(!(iter->flags & BTREE_ITER_is_extents)
-			     ? bkey_gt(iter_pos, end)
-			     : bkey_ge(iter_pos, end)))
+		if (unlikely(iter->flags & BTREE_ITER_all_snapshots	? bpos_gt(iter_pos, end) :
+			     iter->flags & BTREE_ITER_is_extents	? bkey_ge(iter_pos, end) :
+									  bkey_gt(iter_pos, end)))
 			goto end;
 
 		break;
