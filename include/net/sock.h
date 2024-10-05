@@ -2824,8 +2824,6 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
 extern __u32 sysctl_wmem_max;
 extern __u32 sysctl_rmem_max;
 
-extern int sysctl_tstamp_allow_data;
-
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;
 
