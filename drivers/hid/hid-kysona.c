@@ -18,6 +18,8 @@
 
 struct kysona_drvdata {
 	struct hid_device *hdev;
+	bool online;
+
 	struct power_supply_desc battery_desc;
 	struct power_supply *battery;
 	u8 battery_capacity;
@@ -32,7 +34,8 @@ static enum power_supply_property kysona_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_MODEL_NAME,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_ONLINE
 };
 
 static int kysona_battery_get_property(struct power_supply *psy,
@@ -46,11 +49,16 @@ static int kysona_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = 1;
 		break;
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = drv_data->online;
+		break;
 	case POWER_SUPPLY_PROP_STATUS:
-		// TODO: check if device is online
-		val->intval = drv_data->battery_charging ?
-			POWER_SUPPLY_STATUS_CHARGING :
-			POWER_SUPPLY_STATUS_DISCHARGING;
+		if (drv_data->online)
+			val->intval = drv_data->battery_charging ?
+					POWER_SUPPLY_STATUS_CHARGING :
+					POWER_SUPPLY_STATUS_DISCHARGING;
+		else
+			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
@@ -124,7 +132,9 @@ static int kysona_battery_probe(struct hid_device *hdev)
 	struct power_supply_config pscfg = { .drv_data = drv_data };
 	int ret = 0;
 
+	drv_data->online = false;
 	drv_data->battery_capacity = 100;
+	drv_data->battery_voltage = 4200;
 
 	drv_data->battery_desc.properties = kysona_battery_props;
 	drv_data->battery_desc.num_properties = ARRAY_SIZE(kysona_battery_props);
@@ -201,6 +211,7 @@ static int kysona_raw_event(struct hid_device *hdev,
 		drv_data->battery_capacity = data[6];
 		drv_data->battery_charging = data[7];
 		drv_data->battery_voltage = (data[8] << 8) | data[9];
+		drv_data->online = true;
 	}
 
 	return 0;
