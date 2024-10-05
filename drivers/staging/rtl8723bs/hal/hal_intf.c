@@ -39,8 +39,7 @@ void rtw_hal_free_data(struct adapter *padapter)
 
 void rtw_hal_dm_init(struct adapter *padapter)
 {
-	if (padapter->HalFunc.dm_init)
-		padapter->HalFunc.dm_init(padapter);
+	rtl8723b_init_dm_priv(padapter);
 }
 
 void rtw_hal_dm_deinit(struct adapter *padapter)
