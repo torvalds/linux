@@ -16,6 +16,7 @@ ipsec
 ipv6_flowlabel
 ipv6_flowlabel_mgr
 log.txt
+msg_oob
 msg_zerocopy
 ncdevmem
 nettest
