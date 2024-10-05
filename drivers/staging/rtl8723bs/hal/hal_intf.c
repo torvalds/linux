@@ -26,8 +26,7 @@ void rtw_hal_read_chip_version(struct adapter *padapter)
 
 void rtw_hal_def_value_init(struct adapter *padapter)
 {
-	if (padapter->HalFunc.init_default_value)
-		padapter->HalFunc.init_default_value(padapter);
+	rtl8723bs_init_default_value(padapter);
 }
 
 void rtw_hal_free_data(struct adapter *padapter)

@@ -88,5 +88,6 @@ void rtl8723b_query_rx_phy_status(union recv_frame *prframe, struct phy_stat *pp
 void rtl8723b_process_phy_info(struct adapter *padapter, void *prframe);
 
 void rtl8723b_read_chip_version(struct adapter *padapter);
+void rtl8723bs_init_default_value(struct adapter *padapter);
 
 #endif
