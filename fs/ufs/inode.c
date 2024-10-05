@@ -252,10 +252,9 @@ ufs_extend_tail(struct inode *inode, u64 writes_to,
  * @new: we set it if we allocate new block
  * @locked_page: for ufs_new_fragments()
  */
-static u64
-ufs_inode_getfrag(struct inode *inode, unsigned index,
+static u64 ufs_inode_getfrag(struct inode *inode, unsigned index,
 		  sector_t new_fragment, int *err,
-		  int *new, struct page *locked_page)
+		  int *new, struct folio *locked_folio)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -283,7 +282,7 @@ ufs_inode_getfrag(struct inode *inode, unsigned index,
 			goal += uspi->s_fpb;
 	}
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment),
-				goal, nfrags, err, locked_page);
+				goal, nfrags, err, &locked_folio->page);
 
 	if (!tmp) {
 		*err = -ENOSPC;
@@ -420,7 +419,7 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 
 	if (depth == 1) {
 		phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
-					   &err, &new, bh_result->b_page);
+					   &err, &new, bh_result->b_folio);
 	} else {
 		int i;
 		phys64 = ufs_inode_getfrag(inode, offsets[0], fragment,
