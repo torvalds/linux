@@ -56,6 +56,7 @@ u8 wmidev_instance_count(struct wmi_device *wdev);
  * @no_singleton: Driver can be instantiated multiple times
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
+ * @shutdown: Callback for device shutdown
  * @notify: Callback for receiving WMI events
  *
  * This represents WMI drivers which handle WMI devices.
@@ -68,6 +69,7 @@ struct wmi_driver {
 
 	int (*probe)(struct wmi_device *wdev, const void *context);
 	void (*remove)(struct wmi_device *wdev);
+	void (*shutdown)(struct wmi_device *wdev);
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
 };
 
