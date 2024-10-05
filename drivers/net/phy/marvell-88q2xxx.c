@@ -174,6 +174,21 @@ static const struct mmd_val mv88q222x_revb1_revb2_init_seq1[] = {
 	{ MDIO_MMD_PCS, 0xfe11, 0x1105 },
 };
 
+static int mv88q2xxx_write_mmd_vals(struct phy_device *phydev,
+				    const struct mmd_val *vals, size_t len)
+{
+	int ret;
+
+	for (; len; vals++, len--) {
+		ret = phy_write_mmd(phydev, vals->devad, vals->regnum,
+				    vals->val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mv88q2xxx_soft_reset(struct phy_device *phydev)
 {
 	int ret;
@@ -724,33 +739,18 @@ static int mv88q2xxx_probe(struct phy_device *phydev)
 	return mv88q2xxx_hwmon_probe(phydev);
 }
 
-static int mv88q222x_write_mmd_vals(struct phy_device *phydev,
-				    const struct mmd_val *vals, size_t len)
-{
-	int ret;
-
-	for (; len; vals++, len--) {
-		ret = phy_write_mmd(phydev, vals->devad, vals->regnum,
-				    vals->val);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int mv88q222x_revb0_config_init(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb0_init_seq0,
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb0_init_seq0,
 				       ARRAY_SIZE(mv88q222x_revb0_init_seq0));
 	if (ret < 0)
 		return ret;
 
 	usleep_range(5000, 10000);
 
-	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb0_init_seq1,
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb0_init_seq1,
 				       ARRAY_SIZE(mv88q222x_revb0_init_seq1));
 	if (ret < 0)
 		return ret;
@@ -764,17 +764,17 @@ static int mv88q222x_revb1_revb2_config_init(struct phy_device *phydev)
 	int ret;
 
 	if (is_rev_b1)
-		ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb1_init_seq0,
+		ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb1_init_seq0,
 					       ARRAY_SIZE(mv88q222x_revb1_init_seq0));
 	else
-		ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb2_init_seq0,
+		ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb2_init_seq0,
 					       ARRAY_SIZE(mv88q222x_revb2_init_seq0));
 	if (ret < 0)
 		return ret;
 
 	usleep_range(3000, 5000);
 
-	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb1_revb2_init_seq1,
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb1_revb2_init_seq1,
 				       ARRAY_SIZE(mv88q222x_revb1_revb2_init_seq1));
 	if (ret < 0)
 		return ret;
