@@ -35,9 +35,6 @@ void rtw_hal_free_data(struct adapter *padapter)
 {
 	/* free HAL Data */
 	rtw_hal_data_deinit(padapter);
-
-	if (padapter->HalFunc.free_hal_data)
-		padapter->HalFunc.free_hal_data(padapter);
 }
 
 void rtw_hal_dm_init(struct adapter *padapter)

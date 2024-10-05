@@ -439,10 +439,6 @@ void rtl8723b_InitializeFirmwareVars(struct adapter *padapter)
 /* pHalData->H2CStopInsertQueue = false; */
 }
 
-static void rtl8723b_free_hal_data(struct adapter *padapter)
-{
-}
-
 /*  */
 /* 				Efuse related code */
 /*  */
@@ -1827,8 +1823,6 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->free_hal_data = &rtl8723b_free_hal_data;
-
 	pHalFunc->dm_init = &rtl8723b_init_dm_priv;
 
 	pHalFunc->read_chip_version = &rtl8723b_read_chip_version;
