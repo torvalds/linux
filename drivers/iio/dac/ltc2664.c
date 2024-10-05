@@ -516,7 +516,7 @@ static int ltc2664_channel_config(struct ltc2664_state *st)
 	const struct ltc2664_chip_info *chip_info = st->chip_info;
 	struct device *dev = &st->spi->dev;
 	u32 reg, tmp[2], mspan;
-	int ret, span = 0;
+	int ret;
 
 	mspan = LTC2664_MSPAN_SOFTSPAN;
 	ret = device_property_read_u32(dev, "adi,manual-span-operation-config",
@@ -579,20 +579,21 @@ static int ltc2664_channel_config(struct ltc2664_state *st)
 		ret = fwnode_property_read_u32_array(child, "output-range-microvolt",
 						     tmp, ARRAY_SIZE(tmp));
 		if (!ret && mspan == LTC2664_MSPAN_SOFTSPAN) {
-			chan->span = ltc2664_set_span(st, tmp[0] / 1000,
-						      tmp[1] / 1000, reg);
-			if (span < 0)
-				return dev_err_probe(dev, span,
+			ret = ltc2664_set_span(st, tmp[0] / 1000, tmp[1] / 1000, reg);
+			if (ret < 0)
+				return dev_err_probe(dev, ret,
 						     "Failed to set span\n");
+			chan->span = ret;
 		}
 
 		ret = fwnode_property_read_u32_array(child, "output-range-microamp",
 						     tmp, ARRAY_SIZE(tmp));
 		if (!ret) {
-			chan->span = ltc2664_set_span(st, 0, tmp[1] / 1000, reg);
-			if (span < 0)
-				return dev_err_probe(dev, span,
+			ret = ltc2664_set_span(st, 0, tmp[1] / 1000, reg);
+			if (ret < 0)
+				return dev_err_probe(dev, ret,
 						     "Failed to set span\n");
+			chan->span = ret;
 		}
 	}
 
