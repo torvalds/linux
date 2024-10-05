@@ -44,9 +44,6 @@ void rtw_hal_dm_init(struct adapter *padapter)
 
 void rtw_hal_dm_deinit(struct adapter *padapter)
 {
-	/*  cancel dm  timer */
-	if (padapter->HalFunc.dm_deinit)
-		padapter->HalFunc.dm_deinit(padapter);
 }
 
 static void rtw_hal_init_opmode(struct adapter *padapter)
