@@ -130,6 +130,8 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TQM		= 6,
 	ATH12K_DBG_HTT_EXT_STATS_TX_DE_INFO		= 8,
 	ATH12K_DBG_HTT_EXT_STATS_TX_SELFGEN_INFO	= 12,
+	ATH12K_DBG_HTT_EXT_STATS_SRNG_INFO		= 15,
+	ATH12K_DBG_HTT_EXT_STATS_SFM_INFO		= 16,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -140,6 +142,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_PDEV_UNDERRUN_TAG			= 1,
 	HTT_STATS_TX_PDEV_SIFS_TAG			= 2,
 	HTT_STATS_TX_PDEV_FLUSH_TAG			= 3,
+	HTT_STATS_STRING_TAG				= 5,
 	HTT_STATS_TX_TQM_GEN_MPDU_TAG			= 11,
 	HTT_STATS_TX_TQM_LIST_MPDU_TAG			= 12,
 	HTT_STATS_TX_TQM_LIST_MPDU_CNT_TAG		= 13,
@@ -152,9 +155,13 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_DE_ENQUEUE_PACKETS_TAG		= 21,
 	HTT_STATS_TX_DE_ENQUEUE_DISCARD_TAG		= 22,
 	HTT_STATS_TX_DE_CMN_TAG				= 23,
+	HTT_STATS_SFM_CMN_TAG				= 26,
+	HTT_STATS_SRING_STATS_TAG			= 27,
 	HTT_STATS_TX_PDEV_SCHEDULER_TXQ_STATS_TAG	= 36,
 	HTT_STATS_TX_SCHED_CMN_TAG			= 37,
 	HTT_STATS_SCHED_TXQ_CMD_POSTED_TAG		= 39,
+	HTT_STATS_SFM_CLIENT_USER_TAG			= 41,
+	HTT_STATS_SFM_CLIENT_TAG			= 42,
 	HTT_STATS_TX_TQM_ERROR_STATS_TAG                = 43,
 	HTT_STATS_SCHED_TXQ_CMD_REAPED_TAG		= 44,
 	HTT_STATS_TX_SELFGEN_AC_ERR_STATS_TAG		= 46,
@@ -862,6 +869,57 @@ struct ath12k_htt_tx_selfgen_be_sched_status_stats_tlv {
 	__le32 be_basic_trig_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
 	__le32 be_ulmumimo_trig_sch_status[ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
 	__le32 be_ulmumimo_trig_sch_flag_err[ATH12K_HTT_TX_SELFGEN_SCH_TSFLAG_ERR_STATS];
+} __packed;
+
+struct ath12k_htt_stats_string_tlv {
+	DECLARE_FLEX_ARRAY(__le32, data);
+} __packed;
+
+#define ATH12K_HTT_SRING_STATS_MAC_ID                  GENMASK(7, 0)
+#define ATH12K_HTT_SRING_STATS_RING_ID                 GENMASK(15, 8)
+#define ATH12K_HTT_SRING_STATS_ARENA                   GENMASK(23, 16)
+#define ATH12K_HTT_SRING_STATS_EP                      BIT(24)
+#define ATH12K_HTT_SRING_STATS_NUM_AVAIL_WORDS         GENMASK(15, 0)
+#define ATH12K_HTT_SRING_STATS_NUM_VALID_WORDS         GENMASK(31, 16)
+#define ATH12K_HTT_SRING_STATS_HEAD_PTR                GENMASK(15, 0)
+#define ATH12K_HTT_SRING_STATS_TAIL_PTR                GENMASK(31, 16)
+#define ATH12K_HTT_SRING_STATS_CONSUMER_EMPTY          GENMASK(15, 0)
+#define ATH12K_HTT_SRING_STATS_PRODUCER_FULL           GENMASK(31, 16)
+#define ATH12K_HTT_SRING_STATS_PREFETCH_COUNT          GENMASK(15, 0)
+#define ATH12K_HTT_SRING_STATS_INTERNAL_TAIL_PTR       GENMASK(31, 16)
+
+struct ath12k_htt_sring_stats_tlv {
+	__le32 mac_id__ring_id__arena__ep;
+	__le32 base_addr_lsb;
+	__le32 base_addr_msb;
+	__le32 ring_size;
+	__le32 elem_size;
+	__le32 num_avail_words__num_valid_words;
+	__le32 head_ptr__tail_ptr;
+	__le32 consumer_empty__producer_full;
+	__le32 prefetch_count__internal_tail_ptr;
+} __packed;
+
+struct ath12k_htt_sfm_cmn_tlv {
+	__le32 mac_id__word;
+	__le32 buf_total;
+	__le32 mem_empty;
+	__le32 deallocate_bufs;
+	__le32 num_records;
+} __packed;
+
+struct ath12k_htt_sfm_client_tlv {
+	__le32 client_id;
+	__le32 buf_min;
+	__le32 buf_max;
+	__le32 buf_busy;
+	__le32 buf_alloc;
+	__le32 buf_avail;
+	__le32 num_users;
+} __packed;
+
+struct ath12k_htt_sfm_client_user_tlv {
+	DECLARE_FLEX_ARRAY(__le32, dwords_used_by_user_n);
 } __packed;
 
 #endif

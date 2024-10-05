@@ -1911,6 +1911,178 @@ ath12k_htt_print_tx_selfgen_be_sched_status_stats_tlv(const void *tag_buf, u16 t
 	stats->buf_len = len;
 }
 
+static void
+ath12k_htt_print_stats_string_tlv(const void *tag_buf, u16 tag_len,
+				  struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_stats_string_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u8 i;
+	u16 index = 0;
+	u32 datum;
+	char data[ATH12K_HTT_MAX_STRING_LEN] = {0};
+
+	tag_len = tag_len >> 2;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_STATS_STRING_TLV:\n");
+	for (i = 0; i < tag_len; i++) {
+		datum = __le32_to_cpu(htt_stats_buf->data[i]);
+		index += scnprintf(&data[index], ATH12K_HTT_MAX_STRING_LEN - index,
+				   "%.*s", 4, (char *)&datum);
+		if (index >= ATH12K_HTT_MAX_STRING_LEN)
+			break;
+	}
+	len += scnprintf(buf + len, buf_len - len, "data = %s\n\n", data);
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sring_stats_tlv(const void *tag_buf, u16 tag_len,
+				 struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sring_stats_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+	u32 avail_words;
+	u32 head_tail_ptr;
+	u32 sring_stat;
+	u32 tail_ptr;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = __le32_to_cpu(htt_stats_buf->mac_id__ring_id__arena__ep);
+	avail_words = __le32_to_cpu(htt_stats_buf->num_avail_words__num_valid_words);
+	head_tail_ptr = __le32_to_cpu(htt_stats_buf->head_ptr__tail_ptr);
+	sring_stat = __le32_to_cpu(htt_stats_buf->consumer_empty__producer_full);
+	tail_ptr = __le32_to_cpu(htt_stats_buf->prefetch_count__internal_tail_ptr);
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_SRING_STATS_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_SRING_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "ring_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_SRING_STATS_RING_ID));
+	len += scnprintf(buf + len, buf_len - len, "arena = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_SRING_STATS_ARENA));
+	len += scnprintf(buf + len, buf_len - len, "ep = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_SRING_STATS_EP));
+	len += scnprintf(buf + len, buf_len - len, "base_addr_lsb = 0x%x\n",
+			 le32_to_cpu(htt_stats_buf->base_addr_lsb));
+	len += scnprintf(buf + len, buf_len - len, "base_addr_msb = 0x%x\n",
+			 le32_to_cpu(htt_stats_buf->base_addr_msb));
+	len += scnprintf(buf + len, buf_len - len, "ring_size = %u\n",
+			 le32_to_cpu(htt_stats_buf->ring_size));
+	len += scnprintf(buf + len, buf_len - len, "elem_size = %u\n",
+			 le32_to_cpu(htt_stats_buf->elem_size));
+	len += scnprintf(buf + len, buf_len - len, "num_avail_words = %u\n",
+			 u32_get_bits(avail_words,
+				      ATH12K_HTT_SRING_STATS_NUM_AVAIL_WORDS));
+	len += scnprintf(buf + len, buf_len - len, "num_valid_words = %u\n",
+			 u32_get_bits(avail_words,
+				      ATH12K_HTT_SRING_STATS_NUM_VALID_WORDS));
+	len += scnprintf(buf + len, buf_len - len, "head_ptr = %u\n",
+			 u32_get_bits(head_tail_ptr, ATH12K_HTT_SRING_STATS_HEAD_PTR));
+	len += scnprintf(buf + len, buf_len - len, "tail_ptr = %u\n",
+			 u32_get_bits(head_tail_ptr, ATH12K_HTT_SRING_STATS_TAIL_PTR));
+	len += scnprintf(buf + len, buf_len - len, "consumer_empty = %u\n",
+			 u32_get_bits(sring_stat,
+				      ATH12K_HTT_SRING_STATS_CONSUMER_EMPTY));
+	len += scnprintf(buf + len, buf_len - len, "producer_full = %u\n",
+			 u32_get_bits(head_tail_ptr,
+				      ATH12K_HTT_SRING_STATS_PRODUCER_FULL));
+	len += scnprintf(buf + len, buf_len - len, "prefetch_count = %u\n",
+			 u32_get_bits(tail_ptr, ATH12K_HTT_SRING_STATS_PREFETCH_COUNT));
+	len += scnprintf(buf + len, buf_len - len, "internal_tail_ptr = %u\n\n",
+			 u32_get_bits(tail_ptr,
+				      ATH12K_HTT_SRING_STATS_INTERNAL_TAIL_PTR));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sfm_cmn_tlv(const void *tag_buf, u16 tag_len,
+			     struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sfm_cmn_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = __le32_to_cpu(htt_stats_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_SFM_CMN_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "buf_total = %u\n",
+			 le32_to_cpu(htt_stats_buf->buf_total));
+	len += scnprintf(buf + len, buf_len - len, "mem_empty = %u\n",
+			 le32_to_cpu(htt_stats_buf->mem_empty));
+	len += scnprintf(buf + len, buf_len - len, "deallocate_bufs = %u\n",
+			 le32_to_cpu(htt_stats_buf->deallocate_bufs));
+	len += scnprintf(buf + len, buf_len - len, "num_records = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->num_records));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sfm_client_tlv(const void *tag_buf, u16 tag_len,
+				struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sfm_client_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_SFM_CLIENT_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "client_id = %u\n",
+			 le32_to_cpu(htt_stats_buf->client_id));
+	len += scnprintf(buf + len, buf_len - len, "buf_min = %u\n",
+			 le32_to_cpu(htt_stats_buf->buf_min));
+	len += scnprintf(buf + len, buf_len - len, "buf_max = %u\n",
+			 le32_to_cpu(htt_stats_buf->buf_max));
+	len += scnprintf(buf + len, buf_len - len, "buf_busy = %u\n",
+			 le32_to_cpu(htt_stats_buf->buf_busy));
+	len += scnprintf(buf + len, buf_len - len, "buf_alloc = %u\n",
+			 le32_to_cpu(htt_stats_buf->buf_alloc));
+	len += scnprintf(buf + len, buf_len - len, "buf_avail = %u\n",
+			 le32_to_cpu(htt_stats_buf->buf_avail));
+	len += scnprintf(buf + len, buf_len - len, "num_users = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->num_users));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sfm_client_user_tlv(const void *tag_buf, u16 tag_len,
+				     struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sfm_client_user_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u16 num_elems = tag_len >> 2;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_SFM_CLIENT_USER_TLV:\n");
+	len += print_array_to_buf(buf, len, "dwords_used_by_user_n",
+				  htt_stats_buf->dwords_used_by_user_n,
+				  num_elems, "\n\n");
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -2048,6 +2220,21 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 	case HTT_STATS_TX_SELFGEN_BE_SCHED_STATUS_STATS_TAG:
 		ath12k_htt_print_tx_selfgen_be_sched_status_stats_tlv(tag_buf, len,
 								      stats_req);
+		break;
+	case HTT_STATS_STRING_TAG:
+		ath12k_htt_print_stats_string_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SRING_STATS_TAG:
+		ath12k_htt_print_sring_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SFM_CMN_TAG:
+		ath12k_htt_print_sfm_cmn_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SFM_CLIENT_TAG:
+		ath12k_htt_print_sfm_client_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SFM_CLIENT_USER_TAG:
+		ath12k_htt_print_sfm_client_user_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;
