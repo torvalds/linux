@@ -606,6 +606,7 @@
 };
 
 &i2c1 {
+	clock-frequency = <100000>;
 	status = "okay";
 
 	typec-mux@1c {
