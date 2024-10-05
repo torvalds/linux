@@ -30,7 +30,7 @@
 			compatible = "brcm,brahma-b53";
 			reg = <0x0>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0x0 0xfff8>;
+			cpu-release-addr = <0x0 0xff8>;
 			next-level-cache = <&l2>;
 		};
 
@@ -39,7 +39,7 @@
 			compatible = "brcm,brahma-b53";
 			reg = <0x1>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0x0 0xfff8>;
+			cpu-release-addr = <0x0 0xff8>;
 			next-level-cache = <&l2>;
 		};
 
@@ -48,7 +48,7 @@
 			compatible = "brcm,brahma-b53";
 			reg = <0x2>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0x0 0xfff8>;
+			cpu-release-addr = <0x0 0xff8>;
 			next-level-cache = <&l2>;
 		};
 
@@ -57,7 +57,7 @@
 			compatible = "brcm,brahma-b53";
 			reg = <0x3>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0x0 0xfff8>;
+			cpu-release-addr = <0x0 0xff8>;
 			next-level-cache = <&l2>;
 		};
 
