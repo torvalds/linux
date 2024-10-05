@@ -496,7 +496,7 @@ void __init anon_vma_init(void)
  * concurrently without folio lock protection). See folio_lock_anon_vma_read()
  * which has already covered that, and comment above remap_pages().
  */
-struct anon_vma *folio_get_anon_vma(struct folio *folio)
+struct anon_vma *folio_get_anon_vma(const struct folio *folio)
 {
 	struct anon_vma *anon_vma = NULL;
 	unsigned long anon_mapping;
@@ -540,7 +540,7 @@ out:
  * reference like with folio_get_anon_vma() and then block on the mutex
  * on !rwc->try_lock case.
  */
-struct anon_vma *folio_lock_anon_vma_read(struct folio *folio,
+struct anon_vma *folio_lock_anon_vma_read(const struct folio *folio,
 					  struct rmap_walk_control *rwc)
 {
 	struct anon_vma *anon_vma = NULL;
@@ -1271,8 +1271,9 @@ static void __folio_set_anon(struct folio *folio, struct vm_area_struct *vma,
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  */
-static void __page_check_anon_rmap(struct folio *folio, struct page *page,
-	struct vm_area_struct *vma, unsigned long address)
+static void __page_check_anon_rmap(const struct folio *folio,
+		const struct page *page, struct vm_area_struct *vma,
+		unsigned long address)
 {
 	/*
 	 * The page's anon-rmap details (mapping and index) are guaranteed to
@@ -2569,7 +2570,7 @@ void __put_anon_vma(struct anon_vma *anon_vma)
 		anon_vma_free(root);
 }
 
-static struct anon_vma *rmap_walk_anon_lock(struct folio *folio,
+static struct anon_vma *rmap_walk_anon_lock(const struct folio *folio,
 					    struct rmap_walk_control *rwc)
 {
 	struct anon_vma *anon_vma;

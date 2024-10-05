@@ -445,7 +445,7 @@ static unsigned long dev_pagemap_mapping_shift(struct vm_area_struct *vma,
  * Schedule a process for later kill.
  * Uses GFP_ATOMIC allocations to avoid potential recursions in the VM.
  */
-static void __add_to_kill(struct task_struct *tsk, struct page *p,
+static void __add_to_kill(struct task_struct *tsk, const struct page *p,
 			  struct vm_area_struct *vma, struct list_head *to_kill,
 			  unsigned long addr)
 {
@@ -461,7 +461,7 @@ static void __add_to_kill(struct task_struct *tsk, struct page *p,
 	if (is_zone_device_page(p))
 		tk->size_shift = dev_pagemap_mapping_shift(vma, tk->addr);
 	else
-		tk->size_shift = page_shift(compound_head(p));
+		tk->size_shift = folio_shift(page_folio(p));
 
 	/*
 	 * Send SIGKILL if "tk->addr == -EFAULT". Also, as
@@ -486,7 +486,7 @@ static void __add_to_kill(struct task_struct *tsk, struct page *p,
 	list_add_tail(&tk->nd, to_kill);
 }
 
-static void add_to_kill_anon_file(struct task_struct *tsk, struct page *p,
+static void add_to_kill_anon_file(struct task_struct *tsk, const struct page *p,
 		struct vm_area_struct *vma, struct list_head *to_kill,
 		unsigned long addr)
 {
@@ -509,7 +509,7 @@ static bool task_in_to_kill_list(struct list_head *to_kill,
 	return false;
 }
 
-void add_to_kill_ksm(struct task_struct *tsk, struct page *p,
+void add_to_kill_ksm(struct task_struct *tsk, const struct page *p,
 		     struct vm_area_struct *vma, struct list_head *to_kill,
 		     unsigned long addr)
 {
@@ -606,8 +606,9 @@ struct task_struct *task_early_kill(struct task_struct *tsk, int force_early)
 /*
  * Collect processes when the error hit an anonymous page.
  */
-static void collect_procs_anon(struct folio *folio, struct page *page,
-		struct list_head *to_kill, int force_early)
+static void collect_procs_anon(const struct folio *folio,
+		const struct page *page, struct list_head *to_kill,
+		int force_early)
 {
 	struct task_struct *tsk;
 	struct anon_vma *av;
@@ -643,8 +644,9 @@ static void collect_procs_anon(struct folio *folio, struct page *page,
 /*
  * Collect processes when the error hit a file mapped page.
  */
-static void collect_procs_file(struct folio *folio, struct page *page,
-		struct list_head *to_kill, int force_early)
+static void collect_procs_file(const struct folio *folio,
+		const struct page *page, struct list_head *to_kill,
+		int force_early)
 {
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
@@ -680,7 +682,7 @@ static void collect_procs_file(struct folio *folio, struct page *page,
 }
 
 #ifdef CONFIG_FS_DAX
-static void add_to_kill_fsdax(struct task_struct *tsk, struct page *p,
+static void add_to_kill_fsdax(struct task_struct *tsk, const struct page *p,
 			      struct vm_area_struct *vma,
 			      struct list_head *to_kill, pgoff_t pgoff)
 {
@@ -691,7 +693,7 @@ static void add_to_kill_fsdax(struct task_struct *tsk, struct page *p,
 /*
  * Collect processes when the error hit a fsdax page.
  */
-static void collect_procs_fsdax(struct page *page,
+static void collect_procs_fsdax(const struct page *page,
 		struct address_space *mapping, pgoff_t pgoff,
 		struct list_head *to_kill, bool pre_remove)
 {
@@ -725,7 +727,7 @@ static void collect_procs_fsdax(struct page *page,
 /*
  * Collect the processes who have the corrupted page mapped to kill.
  */
-static void collect_procs(struct folio *folio, struct page *page,
+static void collect_procs(const struct folio *folio, const struct page *page,
 		struct list_head *tokill, int force_early)
 {
 	if (!folio->mapping)

@@ -1051,7 +1051,8 @@ static int unmerge_ksm_pages(struct vm_area_struct *vma,
 	return err;
 }
 
-static inline struct ksm_stable_node *folio_stable_node(struct folio *folio)
+static inline
+struct ksm_stable_node *folio_stable_node(const struct folio *folio)
 {
 	return folio_test_ksm(folio) ? folio_raw_mapping(folio) : NULL;
 }
@@ -3067,7 +3068,7 @@ again:
 /*
  * Collect processes when the error hit an ksm page.
  */
-void collect_procs_ksm(struct folio *folio, struct page *page,
+void collect_procs_ksm(const struct folio *folio, const struct page *page,
 		struct list_head *to_kill, int force_early)
 {
 	struct ksm_stable_node *stable_node;
