@@ -1895,7 +1895,7 @@ static inline unsigned long page_to_section(const struct page *page)
  *
  * Return: The Page Frame Number of the first page in the folio.
  */
-static inline unsigned long folio_pfn(struct folio *folio)
+static inline unsigned long folio_pfn(const struct folio *folio)
 {
 	return page_to_pfn(&folio->page);
 }

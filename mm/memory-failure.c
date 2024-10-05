@@ -617,7 +617,7 @@ static void collect_procs_anon(struct folio *folio, struct page *page,
 	if (av == NULL)	/* Not actually mapped anymore */
 		return;
 
-	pgoff = page_to_pgoff(page);
+	pgoff = page_pgoff(folio, page);
 	rcu_read_lock();
 	for_each_process(tsk) {
 		struct vm_area_struct *vma;
@@ -653,7 +653,7 @@ static void collect_procs_file(struct folio *folio, struct page *page,
 
 	i_mmap_lock_read(mapping);
 	rcu_read_lock();
-	pgoff = page_to_pgoff(page);
+	pgoff = page_pgoff(folio, page);
 	for_each_process(tsk) {
 		struct task_struct *t = task_early_kill(tsk, force_early);
 		unsigned long addr;
