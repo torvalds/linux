@@ -16,7 +16,7 @@
 /* Default: temperature hysteresis */
 #define AB8500_TEMP_HYSTERESIS	3
 
-static struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
+static const struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
 	{ .ocv = 4186000, .capacity = 100},
 	{ .ocv = 4163000, .capacity = 99},
 	{ .ocv = 4114000, .capacity = 95},
