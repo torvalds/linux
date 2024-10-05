@@ -88,10 +88,10 @@ struct ufs_inode_info {
 #endif
 
 /* balloc.c */
-extern void ufs_free_fragments (struct inode *, u64, unsigned);
-extern void ufs_free_blocks (struct inode *, u64, unsigned);
-extern u64 ufs_new_fragments(struct inode *, void *, u64, u64,
-			     unsigned, int *, struct page *);
+void ufs_free_fragments (struct inode *, u64 fragment, unsigned count);
+void ufs_free_blocks (struct inode *, u64 fragment, unsigned count);
+u64 ufs_new_fragments(struct inode *, void *, u64 fragment, u64 goal,
+		unsigned count, int *err, struct folio *);
 
 /* cylinder.c */
 extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, unsigned);

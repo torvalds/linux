@@ -239,7 +239,7 @@ ufs_extend_tail(struct inode *inode, u64 writes_to,
 	p = ufs_get_direct_data_ptr(uspi, ufsi, block);
 	tmp = ufs_new_fragments(inode, p, lastfrag, ufs_data_ptr_to_cpu(sb, p),
 				new_size - (lastfrag & uspi->s_fpbmask), err,
-				&locked_folio->page);
+				locked_folio);
 	return tmp != 0;
 }
 
@@ -250,7 +250,7 @@ ufs_extend_tail(struct inode *inode, u64 writes_to,
  * @new_fragment: number of new allocated fragment(s)
  * @err: we set it if something wrong
  * @new: we set it if we allocate new block
- * @locked_page: for ufs_new_fragments()
+ * @locked_folio: for ufs_new_fragments()
  */
 static u64 ufs_inode_getfrag(struct inode *inode, unsigned index,
 		  sector_t new_fragment, int *err,
@@ -282,7 +282,7 @@ static u64 ufs_inode_getfrag(struct inode *inode, unsigned index,
 			goal += uspi->s_fpb;
 	}
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment),
-				goal, nfrags, err, &locked_folio->page);
+				goal, nfrags, err, locked_folio);
 
 	if (!tmp) {
 		*err = -ENOSPC;
@@ -347,7 +347,7 @@ static u64 ufs_inode_getblock(struct inode *inode, u64 ind_block,
 	else
 		goal = bh->b_blocknr + uspi->s_fpb;
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment), goal,
-				uspi->s_fpb, err, &locked_folio->page);
+				uspi->s_fpb, err, locked_folio);
 	if (!tmp)
 		goto out;
 
