@@ -2378,6 +2378,65 @@ ath12k_htt_print_tx_pdev_mu_mimo_mpdu_stats_tlv(const void *tag_buf, u16 tag_len
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_pdev_cca_stats_hist_tlv(const void *tag_buf, u16 tag_len,
+					 struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_pdev_cca_stats_hist_v1_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PDEV_CCA_STATS_HIST_TLV :\n");
+	len += scnprintf(buf + len, buf_len - len, "chan_num = %u\n",
+			 le32_to_cpu(htt_stats_buf->chan_num));
+	len += scnprintf(buf + len, buf_len - len, "num_records = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_records));
+	len += scnprintf(buf + len, buf_len - len, "valid_cca_counters_bitmap = 0x%x\n",
+			 le32_to_cpu(htt_stats_buf->valid_cca_counters_bitmap));
+	len += scnprintf(buf + len, buf_len - len, "collection_interval = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->collection_interval));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_pdev_stats_cca_counters_tlv(const void *tag_buf, u16 tag_len,
+					     struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_pdev_stats_cca_counters_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "HTT_PDEV_STATS_CCA_COUNTERS_TLV:(in usec)\n");
+	len += scnprintf(buf + len, buf_len - len, "tx_frame_usec = %u\n",
+			 le32_to_cpu(htt_stats_buf->tx_frame_usec));
+	len += scnprintf(buf + len, buf_len - len, "rx_frame_usec = %u\n",
+			 le32_to_cpu(htt_stats_buf->rx_frame_usec));
+	len += scnprintf(buf + len, buf_len - len, "rx_clear_usec = %u\n",
+			 le32_to_cpu(htt_stats_buf->rx_clear_usec));
+	len += scnprintf(buf + len, buf_len - len, "my_rx_frame_usec = %u\n",
+			 le32_to_cpu(htt_stats_buf->my_rx_frame_usec));
+	len += scnprintf(buf + len, buf_len - len, "usec_cnt = %u\n",
+			 le32_to_cpu(htt_stats_buf->usec_cnt));
+	len += scnprintf(buf + len, buf_len - len, "med_rx_idle_usec = %u\n",
+			 le32_to_cpu(htt_stats_buf->med_rx_idle_usec));
+	len += scnprintf(buf + len, buf_len - len, "med_tx_idle_global_usec = %u\n",
+			 le32_to_cpu(htt_stats_buf->med_tx_idle_global_usec));
+	len += scnprintf(buf + len, buf_len - len, "cca_obss_usec = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->cca_obss_usec));
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -2539,6 +2598,14 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_TX_PDEV_MPDU_STATS_TAG:
 		ath12k_htt_print_tx_pdev_mu_mimo_mpdu_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PDEV_CCA_1SEC_HIST_TAG:
+	case HTT_STATS_PDEV_CCA_100MSEC_HIST_TAG:
+	case HTT_STATS_PDEV_CCA_STAT_CUMULATIVE_TAG:
+		ath12k_htt_print_pdev_cca_stats_hist_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PDEV_CCA_COUNTERS_TAG:
+		ath12k_htt_print_pdev_stats_cca_counters_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;

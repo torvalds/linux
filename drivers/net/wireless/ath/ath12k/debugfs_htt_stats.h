@@ -133,6 +133,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_SRNG_INFO		= 15,
 	ATH12K_DBG_HTT_EXT_STATS_SFM_INFO		= 16,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_MU		= 17,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_CCA_STATS		= 19,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -176,6 +177,10 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_DE_COMPL_STATS_TAG			= 65,
 	HTT_STATS_WHAL_TX_TAG				= 66,
 	HTT_STATS_TX_PDEV_SIFS_HIST_TAG			= 67,
+	HTT_STATS_PDEV_CCA_1SEC_HIST_TAG		= 70,
+	HTT_STATS_PDEV_CCA_100MSEC_HIST_TAG		= 71,
+	HTT_STATS_PDEV_CCA_STAT_CUMULATIVE_TAG		= 72,
+	HTT_STATS_PDEV_CCA_COUNTERS_TAG			= 73,
 	HTT_STATS_TX_PDEV_MPDU_STATS_TAG		= 74,
 	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG		= 86,
 	HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG	= 87,
@@ -999,6 +1004,24 @@ struct ath12k_htt_tx_pdev_mpdu_stats_tlv {
 	__le32 ampdu_underrun_usr;
 	__le32 user_index;
 	__le32 tx_sched_mode;
+} __packed;
+
+struct ath12k_htt_pdev_stats_cca_counters_tlv {
+	__le32 tx_frame_usec;
+	__le32 rx_frame_usec;
+	__le32 rx_clear_usec;
+	__le32 my_rx_frame_usec;
+	__le32 usec_cnt;
+	__le32 med_rx_idle_usec;
+	__le32 med_tx_idle_global_usec;
+	__le32 cca_obss_usec;
+} __packed;
+
+struct ath12k_htt_pdev_cca_stats_hist_v1_tlv {
+	__le32 chan_num;
+	__le32 num_records;
+	__le32 valid_cca_counters_bitmap;
+	__le32 collection_interval;
 } __packed;
 
 #endif
