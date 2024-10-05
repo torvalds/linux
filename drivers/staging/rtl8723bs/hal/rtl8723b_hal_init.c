@@ -1610,7 +1610,7 @@ static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 	return ChipVersion;
 }
 
-static void rtl8723b_read_chip_version(struct adapter *padapter)
+void rtl8723b_read_chip_version(struct adapter *padapter)
 {
 	ReadChipVersion8723B(padapter);
 }
@@ -1823,8 +1823,6 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->read_chip_version = &rtl8723b_read_chip_version;
-
 	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8723B;
 
 	pHalFunc->set_channel_handler = &PHY_SwChnl8723B;
