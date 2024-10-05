@@ -18,7 +18,7 @@ extern int power_supply_property_is_writeable(struct power_supply *psy,
 
 #ifdef CONFIG_SYSFS
 
-extern void power_supply_init_attrs(void);
+extern void __init power_supply_init_attrs(void);
 extern int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env);
 extern const struct attribute_group *power_supply_attr_groups[];
 
