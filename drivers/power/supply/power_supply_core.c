@@ -1342,8 +1342,7 @@ static void psy_unregister_thermal(struct power_supply *psy)
 static struct power_supply *__must_check
 __power_supply_register(struct device *parent,
 				   const struct power_supply_desc *desc,
-				   const struct power_supply_config *cfg,
-				   bool ws)
+				   const struct power_supply_config *cfg)
 {
 	struct device *dev;
 	struct power_supply *psy;
@@ -1410,10 +1409,7 @@ __power_supply_register(struct device *parent,
 	if (rc)
 		goto device_add_failed;
 
-	if (cfg && cfg->no_wakeup_source)
-		ws = false;
-
-	rc = device_init_wakeup(dev, ws);
+	rc = device_init_wakeup(dev, cfg ? !cfg->no_wakeup_source : true);
 	if (rc)
 		goto wakeup_init_failed;
 
@@ -1479,32 +1475,9 @@ struct power_supply *__must_check power_supply_register(struct device *parent,
 		const struct power_supply_desc *desc,
 		const struct power_supply_config *cfg)
 {
-	return __power_supply_register(parent, desc, cfg, true);
+	return __power_supply_register(parent, desc, cfg);
 }
 EXPORT_SYMBOL_GPL(power_supply_register);
-
-/**
- * power_supply_register_no_ws() - Register new non-waking-source power supply
- * @parent:	Device to be a parent of power supply's device, usually
- *		the device which probe function calls this
- * @desc:	Description of power supply, must be valid through whole
- *		lifetime of this power supply
- * @cfg:	Run-time specific configuration accessed during registering,
- *		may be NULL
- *
- * Return: A pointer to newly allocated power_supply on success
- * or ERR_PTR otherwise.
- * Use power_supply_unregister() on returned power_supply pointer to release
- * resources.
- */
-struct power_supply *__must_check
-power_supply_register_no_ws(struct device *parent,
-		const struct power_supply_desc *desc,
-		const struct power_supply_config *cfg)
-{
-	return __power_supply_register(parent, desc, cfg, false);
-}
-EXPORT_SYMBOL_GPL(power_supply_register_no_ws);
 
 static void devm_power_supply_release(struct device *dev, void *res)
 {
@@ -1538,7 +1511,7 @@ devm_power_supply_register(struct device *parent,
 
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
-	psy = __power_supply_register(parent, desc, cfg, true);
+	psy = __power_supply_register(parent, desc, cfg);
 	if (IS_ERR(psy)) {
 		devres_free(ptr);
 	} else {
@@ -1548,42 +1521,6 @@ devm_power_supply_register(struct device *parent,
 	return psy;
 }
 EXPORT_SYMBOL_GPL(devm_power_supply_register);
-
-/**
- * devm_power_supply_register_no_ws() - Register managed non-waking-source power supply
- * @parent:	Device to be a parent of power supply's device, usually
- *		the device which probe function calls this
- * @desc:	Description of power supply, must be valid through whole
- *		lifetime of this power supply
- * @cfg:	Run-time specific configuration accessed during registering,
- *		may be NULL
- *
- * Return: A pointer to newly allocated power_supply on success
- * or ERR_PTR otherwise.
- * The returned power_supply pointer will be automatically unregistered
- * on driver detach.
- */
-struct power_supply *__must_check
-devm_power_supply_register_no_ws(struct device *parent,
-		const struct power_supply_desc *desc,
-		const struct power_supply_config *cfg)
-{
-	struct power_supply **ptr, *psy;
-
-	ptr = devres_alloc(devm_power_supply_release, sizeof(*ptr), GFP_KERNEL);
-
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-	psy = __power_supply_register(parent, desc, cfg, false);
-	if (IS_ERR(psy)) {
-		devres_free(ptr);
-	} else {
-		*ptr = psy;
-		devres_add(parent, ptr);
-	}
-	return psy;
-}
-EXPORT_SYMBOL_GPL(devm_power_supply_register_no_ws);
 
 /**
  * power_supply_unregister() - Remove this power supply from system
