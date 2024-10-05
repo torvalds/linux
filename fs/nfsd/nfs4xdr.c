@@ -4826,6 +4826,25 @@ nfsd4_encode_server_owner4(struct xdr_stream *xdr, struct svc_rqst *rqstp)
 }
 
 static __be32
+nfsd4_encode_nfs_impl_id4(struct xdr_stream *xdr, struct nfsd4_exchange_id *exid)
+{
+	__be32 status;
+
+	/* nii_domain */
+	status = nfsd4_encode_opaque(xdr, exid->nii_domain.data,
+				     exid->nii_domain.len);
+	if (status != nfs_ok)
+		return status;
+	/* nii_name */
+	status = nfsd4_encode_opaque(xdr, exid->nii_name.data,
+				     exid->nii_name.len);
+	if (status != nfs_ok)
+		return status;
+	/* nii_time */
+	return nfsd4_encode_nfstime4(xdr, &exid->nii_time);
+}
+
+static __be32
 nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 			 union nfsd4_op_u *u)
 {
@@ -4859,8 +4878,11 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (nfserr != nfs_ok)
 		return nfserr;
 	/* eir_server_impl_id<1> */
-	if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
+	if (xdr_stream_encode_u32(xdr, 1) != XDR_UNIT)
 		return nfserr_resource;
+	nfserr = nfsd4_encode_nfs_impl_id4(xdr, exid);
+	if (nfserr != nfs_ok)
+		return nfserr;
 
 	return nfs_ok;
 }

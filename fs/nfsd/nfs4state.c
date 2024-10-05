@@ -3524,6 +3524,12 @@ nfsd4_exchange_id(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		__func__, rqstp, exid, exid->clname.len, exid->clname.data,
 		addr_str, exid->flags, exid->spa_how);
 
+	exid->server_impl_name = kasprintf(GFP_KERNEL, "%s %s %s %s",
+					   utsname()->sysname, utsname()->release,
+					   utsname()->version, utsname()->machine);
+	if (!exid->server_impl_name)
+		return nfserr_jukebox;
+
 	if (exid->flags & ~EXCHGID4_FLAG_MASK_A)
 		return nfserr_inval;
 
@@ -3661,6 +3667,23 @@ out_copy:
 	exid->seqid = conf->cl_cs_slot.sl_seqid + 1;
 	nfsd4_set_ex_flags(conf, exid);
 
+	exid->nii_domain.len = sizeof("kernel.org") - 1;
+	exid->nii_domain.data = "kernel.org";
+
+	/*
+	 * Note that RFC 8881 places no length limit on
+	 * nii_name, but this implementation permits no
+	 * more than NFS4_OPAQUE_LIMIT bytes.
+	 */
+	exid->nii_name.len = strlen(exid->server_impl_name);
+	if (exid->nii_name.len > NFS4_OPAQUE_LIMIT)
+		exid->nii_name.len = NFS4_OPAQUE_LIMIT;
+	exid->nii_name.data = exid->server_impl_name;
+
+	/* just send zeros - the date is in nii_name */
+	exid->nii_time.tv_sec = 0;
+	exid->nii_time.tv_nsec = 0;
+
 	dprintk("nfsd4_exchange_id seqid %d flags %x\n",
 		conf->cl_cs_slot.sl_seqid, conf->cl_exchange_flags);
 	status = nfs_ok;
@@ -3675,6 +3698,14 @@ out_nolock:
 		expire_client(unconf);
 	}
 	return status;
+}
+
+void
+nfsd4_exchange_id_release(union nfsd4_op_u *u)
+{
+	struct nfsd4_exchange_id *exid = &u->exchange_id;
+
+	kfree(exid->server_impl_name);
 }
 
 static __be32 check_slot_seqid(u32 seqid, u32 slot_seqid, bool slot_inuse)

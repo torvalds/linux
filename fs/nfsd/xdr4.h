@@ -567,6 +567,7 @@ struct nfsd4_exchange_id {
 	struct xdr_netobj nii_domain;
 	struct xdr_netobj nii_name;
 	struct timespec64 nii_time;
+	char		*server_impl_name;
 };
 
 struct nfsd4_sequence {
@@ -930,6 +931,7 @@ extern __be32 nfsd4_setclientid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
 extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
+void nfsd4_exchange_id_release(union nfsd4_op_u *u);
 extern __be32 nfsd4_exchange_id(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
 extern __be32 nfsd4_backchannel_ctl(struct svc_rqst *,
