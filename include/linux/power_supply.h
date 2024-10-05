@@ -236,6 +236,8 @@ struct power_supply_config {
 
 	char **supplied_to;
 	size_t num_supplicants;
+
+	bool no_wakeup_source;
 };
 
 /* Description of power supply */

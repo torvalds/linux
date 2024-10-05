@@ -1410,6 +1410,9 @@ __power_supply_register(struct device *parent,
 	if (rc)
 		goto device_add_failed;
 
+	if (cfg && cfg->no_wakeup_source)
+		ws = false;
+
 	rc = device_init_wakeup(dev, ws);
 	if (rc)
 		goto wakeup_init_failed;
