@@ -12,6 +12,8 @@
 
 #include "hid-ids.h"
 
+#define BATTERY_TIMEOUT_MS 5000
+
 #define BATTERY_REPORT_ID 4
 
 struct kysona_drvdata {
@@ -21,6 +23,7 @@ struct kysona_drvdata {
 	u8 battery_capacity;
 	bool battery_charging;
 	u16 battery_voltage;
+	struct delayed_work battery_work;
 };
 
 static enum power_supply_property kysona_battery_props[] = {
@@ -104,6 +107,17 @@ static void kysona_fetch_battery(struct hid_device *hdev)
 			"Battery query failed (err: %d)\n", ret);
 }
 
+static void kysona_battery_timer_tick(struct work_struct *work)
+{
+	struct kysona_drvdata *drv_data = container_of(work,
+		struct kysona_drvdata, battery_work.work);
+	struct hid_device *hdev = drv_data->hdev;
+
+	kysona_fetch_battery(hdev);
+	schedule_delayed_work(&drv_data->battery_work,
+			      msecs_to_jiffies(BATTERY_TIMEOUT_MS));
+}
+
 static int kysona_battery_probe(struct hid_device *hdev)
 {
 	struct kysona_drvdata *drv_data = hid_get_drvdata(hdev);
@@ -134,7 +148,11 @@ static int kysona_battery_probe(struct hid_device *hdev)
 	}
 
 	power_supply_powers(drv_data->battery, &hdev->dev);
+
+	INIT_DELAYED_WORK(&drv_data->battery_work, kysona_battery_timer_tick);
 	kysona_fetch_battery(hdev);
+	schedule_delayed_work(&drv_data->battery_work,
+			      msecs_to_jiffies(BATTERY_TIMEOUT_MS));
 
 	return ret;
 }
@@ -188,6 +206,16 @@ static int kysona_raw_event(struct hid_device *hdev,
 	return 0;
 }
 
+static void kysona_remove(struct hid_device *hdev)
+{
+	struct kysona_drvdata *drv_data = hid_get_drvdata(hdev);
+
+	if (drv_data->battery)
+		cancel_delayed_work_sync(&drv_data->battery_work);
+
+	hid_hw_stop(hdev);
+}
+
 static const struct hid_device_id kysona_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYSONA, USB_DEVICE_ID_KYSONA_M600_DONGLE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KYSONA, USB_DEVICE_ID_KYSONA_M600_WIRED) },
@@ -199,7 +227,8 @@ static struct hid_driver kysona_driver = {
 	.name			= "kysona",
 	.id_table		= kysona_devices,
 	.probe			= kysona_probe,
-	.raw_event		= kysona_raw_event
+	.raw_event		= kysona_raw_event,
+	.remove			= kysona_remove
 };
 module_hid_driver(kysona_driver);
 
