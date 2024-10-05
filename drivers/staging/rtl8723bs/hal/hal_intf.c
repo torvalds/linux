@@ -9,8 +9,7 @@
 
 void rtw_hal_chip_configure(struct adapter *padapter)
 {
-	if (padapter->HalFunc.intf_chip_configure)
-		padapter->HalFunc.intf_chip_configure(padapter);
+	rtl8723bs_interface_configure(padapter);
 }
 
 void rtw_hal_read_chip_info(struct adapter *padapter)

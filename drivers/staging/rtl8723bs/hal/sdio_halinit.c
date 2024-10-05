@@ -950,7 +950,7 @@ void rtl8723bs_init_default_value(struct adapter *padapter)
 	pHalData->SdioRxFIFOCnt = 0;
 }
 
-static void rtl8723bs_interface_configure(struct adapter *padapter)
+void rtl8723bs_interface_configure(struct adapter *padapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
@@ -1259,7 +1259,6 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 
 	rtl8723b_set_hal_ops(pHalFunc);
 
-	pHalFunc->intf_chip_configure = &rtl8723bs_interface_configure;
 	pHalFunc->read_adapter_info = &ReadAdapterInfo8723BS;
 
 	pHalFunc->enable_interrupt = &EnableInterrupt8723BSdio;
