@@ -132,6 +132,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_TX_SELFGEN_INFO	= 12,
 	ATH12K_DBG_HTT_EXT_STATS_SRNG_INFO		= 15,
 	ATH12K_DBG_HTT_EXT_STATS_SFM_INFO		= 16,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_MU		= 17,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -155,6 +156,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_DE_ENQUEUE_PACKETS_TAG		= 21,
 	HTT_STATS_TX_DE_ENQUEUE_DISCARD_TAG		= 22,
 	HTT_STATS_TX_DE_CMN_TAG				= 23,
+	HTT_STATS_TX_PDEV_MU_MIMO_STATS_TAG		= 25,
 	HTT_STATS_SFM_CMN_TAG				= 26,
 	HTT_STATS_SRING_STATS_TAG			= 27,
 	HTT_STATS_TX_PDEV_SCHEDULER_TXQ_STATS_TAG	= 36,
@@ -174,6 +176,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_DE_COMPL_STATS_TAG			= 65,
 	HTT_STATS_WHAL_TX_TAG				= 66,
 	HTT_STATS_TX_PDEV_SIFS_HIST_TAG			= 67,
+	HTT_STATS_TX_PDEV_MPDU_STATS_TAG		= 74,
 	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG		= 86,
 	HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG	= 87,
 	HTT_STATS_HW_WAR_TAG				= 89,
@@ -182,6 +185,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_SELFGEN_AC_SCHED_STATUS_STATS_TAG	= 111,
 	HTT_STATS_TX_SELFGEN_AX_SCHED_STATUS_STATS_TAG	= 112,
 	HTT_STATS_MU_PPDU_DIST_TAG			= 129,
+	HTT_STATS_TX_PDEV_MUMIMO_GRP_STATS_TAG		= 130,
 	HTT_STATS_TX_SELFGEN_BE_ERR_STATS_TAG		= 137,
 	HTT_STATS_TX_SELFGEN_BE_STATS_TAG		= 138,
 	HTT_STATS_TX_SELFGEN_BE_SCHED_STATUS_STATS_TAG	= 139,
@@ -708,12 +712,35 @@ struct ath12k_htt_tx_de_compl_stats_tlv {
 	__le32 tqm_bypass_frame;
 } __packed;
 
+enum ath12k_htt_tx_mumimo_grp_invalid_reason_code_stats {
+	ATH12K_HTT_TX_MUMIMO_GRP_VALID,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_NUM_MU_USERS_EXCEEDED_MU_MAX_USERS,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_SCHED_ALGO_NOT_MU_COMPATIBLE_GID,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_NON_PRIMARY_GRP,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_ZERO_CANDIDATES,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_MORE_CANDIDATES,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_GROUP_SIZE_EXCEED_NSS,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_GROUP_INELIGIBLE,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_GROUP_EFF_MU_TPUT_OMBPS,
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_MAX_REASON_CODE,
+};
+
 #define ATH12K_HTT_NUM_AC_WMM				0x4
 #define ATH12K_HTT_MAX_NUM_SBT_INTR			4
 #define ATH12K_HTT_TX_NUM_AC_MUMIMO_USER_STATS		4
 #define ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS		8
 #define ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS		8
 #define ATH12K_HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS	7
+#define ATH12K_HTT_TX_NUM_OFDMA_USER_STATS		74
+#define ATH12K_HTT_TX_NUM_UL_MUMIMO_USER_STATS		8
+#define ATH12K_HTT_STATS_NUM_MAX_MUMIMO_SZ		8
+#define ATH12K_HTT_STATS_MUMIMO_TPUT_NUM_BINS		10
+
+#define ATH12K_HTT_STATS_MAX_INVALID_REASON_CODE \
+	ATH12K_HTT_TX_MUMIMO_GRP_INVALID_MAX_REASON_CODE
+#define ATH12K_HTT_TX_NUM_MUMIMO_GRP_INVALID_WORDS \
+	(ATH12K_HTT_STATS_NUM_MAX_MUMIMO_SZ * ATH12K_HTT_STATS_MAX_INVALID_REASON_CODE)
 
 struct ath12k_htt_tx_selfgen_cmn_stats_tlv {
 	__le32 mac_id__word;
@@ -920,6 +947,58 @@ struct ath12k_htt_sfm_client_tlv {
 
 struct ath12k_htt_sfm_client_user_tlv {
 	DECLARE_FLEX_ARRAY(__le32, dwords_used_by_user_n);
+} __packed;
+
+struct ath12k_htt_tx_pdev_mu_mimo_sch_stats_tlv {
+	__le32 mu_mimo_sch_posted;
+	__le32 mu_mimo_sch_failed;
+	__le32 mu_mimo_ppdu_posted;
+	__le32 ac_mu_mimo_sch_nusers[ATH12K_HTT_TX_NUM_AC_MUMIMO_USER_STATS];
+	__le32 ax_mu_mimo_sch_nusers[ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS];
+	__le32 ax_ofdma_sch_nusers[ATH12K_HTT_TX_NUM_OFDMA_USER_STATS];
+	__le32 ax_ul_ofdma_nusers[ATH12K_HTT_TX_NUM_OFDMA_USER_STATS];
+	__le32 ax_ul_ofdma_bsr_nusers[ATH12K_HTT_TX_NUM_OFDMA_USER_STATS];
+	__le32 ax_ul_ofdma_bar_nusers[ATH12K_HTT_TX_NUM_OFDMA_USER_STATS];
+	__le32 ax_ul_ofdma_brp_nusers[ATH12K_HTT_TX_NUM_OFDMA_USER_STATS];
+	__le32 ax_ul_mumimo_nusers[ATH12K_HTT_TX_NUM_UL_MUMIMO_USER_STATS];
+	__le32 ax_ul_mumimo_brp_nusers[ATH12K_HTT_TX_NUM_UL_MUMIMO_USER_STATS];
+	__le32 ac_mu_mimo_per_grp_sz[ATH12K_HTT_TX_NUM_AC_MUMIMO_USER_STATS];
+	__le32 ax_mu_mimo_per_grp_sz[ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS];
+	__le32 be_mu_mimo_sch_nusers[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS];
+	__le32 be_mu_mimo_per_grp_sz[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS];
+	__le32 ac_mu_mimo_grp_sz_ext[ATH12K_HTT_TX_NUM_AC_MUMIMO_USER_STATS];
+} __packed;
+
+struct ath12k_htt_tx_pdev_mumimo_grp_stats_tlv {
+	__le32 dl_mumimo_grp_best_grp_size[ATH12K_HTT_STATS_NUM_MAX_MUMIMO_SZ];
+	__le32 dl_mumimo_grp_best_num_usrs[ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS];
+	__le32 dl_mumimo_grp_eligible[ATH12K_HTT_STATS_NUM_MAX_MUMIMO_SZ];
+	__le32 dl_mumimo_grp_ineligible[ATH12K_HTT_STATS_NUM_MAX_MUMIMO_SZ];
+	__le32 dl_mumimo_grp_invalid[ATH12K_HTT_TX_NUM_MUMIMO_GRP_INVALID_WORDS];
+	__le32 dl_mumimo_grp_tputs[ATH12K_HTT_STATS_MUMIMO_TPUT_NUM_BINS];
+	__le32 ul_mumimo_grp_best_grp_size[ATH12K_HTT_STATS_NUM_MAX_MUMIMO_SZ];
+	__le32 ul_mumimo_grp_best_usrs[ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS];
+	__le32 ul_mumimo_grp_tputs[ATH12K_HTT_STATS_MUMIMO_TPUT_NUM_BINS];
+} __packed;
+
+enum ath12k_htt_stats_tx_sched_modes {
+	ATH12K_HTT_STATS_TX_SCHED_MODE_MU_MIMO_AC = 0,
+	ATH12K_HTT_STATS_TX_SCHED_MODE_MU_MIMO_AX,
+	ATH12K_HTT_STATS_TX_SCHED_MODE_MU_OFDMA_AX,
+	ATH12K_HTT_STATS_TX_SCHED_MODE_MU_OFDMA_BE,
+	ATH12K_HTT_STATS_TX_SCHED_MODE_MU_MIMO_BE
+};
+
+struct ath12k_htt_tx_pdev_mpdu_stats_tlv {
+	__le32 mpdus_queued_usr;
+	__le32 mpdus_tried_usr;
+	__le32 mpdus_failed_usr;
+	__le32 mpdus_requeued_usr;
+	__le32 err_no_ba_usr;
+	__le32 mpdu_underrun_usr;
+	__le32 ampdu_underrun_usr;
+	__le32 user_index;
+	__le32 tx_sched_mode;
 } __packed;
 
 #endif
