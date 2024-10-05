@@ -225,8 +225,7 @@ s32	rtw_hal_init_xmit_priv(struct adapter *padapter)
 
 void rtw_hal_free_xmit_priv(struct adapter *padapter)
 {
-	if (padapter->HalFunc.free_xmit_priv)
-		padapter->HalFunc.free_xmit_priv(padapter);
+	rtl8723bs_free_xmit_priv(padapter);
 }
 
 s32	rtw_hal_init_recv_priv(struct adapter *padapter)
