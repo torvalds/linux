@@ -230,10 +230,7 @@ void rtw_hal_free_xmit_priv(struct adapter *padapter)
 
 s32	rtw_hal_init_recv_priv(struct adapter *padapter)
 {
-	if (padapter->HalFunc.init_recv_priv)
-		return padapter->HalFunc.init_recv_priv(padapter);
-
-	return _FAIL;
+	return rtl8723bs_init_recv_priv(padapter);
 }
 
 void rtw_hal_free_recv_priv(struct adapter *padapter)

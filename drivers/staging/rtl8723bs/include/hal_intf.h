@@ -162,7 +162,6 @@ enum hal_intf_ps_func {
 typedef s32 (*c2h_id_filter)(u8 *c2h_evt);
 
 struct hal_ops {
-	s32	(*init_recv_priv)(struct adapter *padapter);
 	void (*free_recv_priv)(struct adapter *padapter);
 
 	void (*dm_init)(struct adapter *padapter);
