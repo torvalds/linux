@@ -431,7 +431,7 @@ static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb58515
  * temperature compensation tables so we just state 100% for every temperature.
  * If you have the datasheets, please provide these tables.
  */
-static struct power_supply_resistance_temp_table samsung_temp2res[] = {
+static const struct power_supply_resistance_temp_table samsung_temp2res[] = {
 	{ .temp = 50, .resistance = 100 },
 	{ .temp = 40, .resistance = 100 },
 	{ .temp = 30, .resistance = 100 },
