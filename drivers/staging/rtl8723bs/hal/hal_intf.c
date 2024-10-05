@@ -151,8 +151,7 @@ void rtw_hal_enable_interrupt(struct adapter *padapter)
 
 void rtw_hal_disable_interrupt(struct adapter *padapter)
 {
-	if (padapter->HalFunc.disable_interrupt)
-		padapter->HalFunc.disable_interrupt(padapter);
+	DisableInterrupt8723BSdio(padapter);
 }
 
 u8 rtw_hal_check_ips_status(struct adapter *padapter)
