@@ -671,7 +671,7 @@ static void collect_procs_file(struct folio *folio, struct page *page,
 			 */
 			if (vma->vm_mm != t->mm)
 				continue;
-			addr = page_address_in_vma(page, vma);
+			addr = page_address_in_vma(folio, page, vma);
 			add_to_kill_anon_file(t, page, vma, to_kill, addr);
 		}
 	}

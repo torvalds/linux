@@ -767,14 +767,27 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
 }
 #endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
 
-/*
- * At what user virtual address is page expected in vma?
- * Caller should check the page is actually part of the vma.
+/**
+ * page_address_in_vma - The virtual address of a page in this VMA.
+ * @folio: The folio containing the page.
+ * @page: The page within the folio.
+ * @vma: The VMA we need to know the address in.
+ *
+ * Calculates the user virtual address of this page in the specified VMA.
+ * It is the caller's responsibililty to check the page is actually
+ * within the VMA.  There may not currently be a PTE pointing at this
+ * page, but if a page fault occurs at this address, this is the page
+ * which will be accessed.
+ *
+ * Context: Caller should hold a reference to the folio.  Caller should
+ * hold a lock (eg the i_mmap_lock or the mmap_lock) which keeps the
+ * VMA from being altered.
+ *
+ * Return: The virtual address corresponding to this page in the VMA.
  */
-unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
+unsigned long page_address_in_vma(const struct folio *folio,
+		const struct page *page, const struct vm_area_struct *vma)
 {
-	struct folio *folio = page_folio(page);
-
 	if (folio_test_anon(folio)) {
 		struct anon_vma *page__anon_vma = folio_anon_vma(folio);
 		/*
@@ -790,7 +803,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 		return -EFAULT;
 	}
 
-	/* The !page__anon_vma above handles KSM folios */
+	/* KSM folios don't reach here because of the !page__anon_vma check */
 	return vma_address(vma, page_pgoff(folio, page), 1);
 }
 
