@@ -107,7 +107,7 @@ uint rtw_hal_deinit(struct adapter *padapter)
 	uint status = _SUCCESS;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 
-	status = padapter->HalFunc.hal_deinit(padapter);
+	status = rtl8723bs_hal_deinit(padapter);
 
 	if (status == _SUCCESS) {
 		padapter = dvobj->padapters;

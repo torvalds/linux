@@ -884,7 +884,7 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 	HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723B_card_disable_flow);
 }
 
-static u32 rtl8723bs_hal_deinit(struct adapter *padapter)
+u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 {
 	struct dvobj_priv *psdpriv = padapter->dvobj;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
@@ -1258,8 +1258,6 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 	struct hal_ops *pHalFunc = &padapter->HalFunc;
 
 	rtl8723b_set_hal_ops(pHalFunc);
-
-	pHalFunc->hal_deinit = &rtl8723bs_hal_deinit;
 
 	pHalFunc->init_xmit_priv = &rtl8723bs_init_xmit_priv;
 	pHalFunc->free_xmit_priv = &rtl8723bs_free_xmit_priv;
