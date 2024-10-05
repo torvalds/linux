@@ -309,12 +309,11 @@ out:
  *  (block will hold this fragment and also uspi->s_fpb-1)
  * @err: see ufs_inode_getfrag()
  * @new: see ufs_inode_getfrag()
- * @locked_page: see ufs_inode_getfrag()
+ * @locked_folio: see ufs_inode_getfrag()
  */
-static u64
-ufs_inode_getblock(struct inode *inode, u64 ind_block,
-		  unsigned index, sector_t new_fragment, int *err,
-		  int *new, struct page *locked_page)
+static u64 ufs_inode_getblock(struct inode *inode, u64 ind_block,
+		unsigned index, sector_t new_fragment, int *err,
+		int *new, struct folio *locked_folio)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
@@ -349,7 +348,7 @@ ufs_inode_getblock(struct inode *inode, u64 ind_block,
 	else
 		goal = bh->b_blocknr + uspi->s_fpb;
 	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment), goal,
-				uspi->s_fpb, err, locked_page);
+				uspi->s_fpb, err, &locked_folio->page);
 	if (!tmp)
 		goto out;
 
@@ -430,7 +429,7 @@ static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buff
 			phys64 = ufs_inode_getblock(inode, phys64, offsets[i],
 						fragment, &err, NULL, NULL);
 		phys64 = ufs_inode_getblock(inode, phys64, offsets[depth - 1],
-					fragment, &err, &new, bh_result->b_page);
+				fragment, &err, &new, bh_result->b_folio);
 	}
 out:
 	if (phys64) {
