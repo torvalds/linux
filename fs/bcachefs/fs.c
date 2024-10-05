@@ -174,20 +174,24 @@ static const struct rhashtable_params bch2_vfs_inodes_params = {
 	.automatic_shrinking	= true,
 };
 
-static void __wait_on_freeing_inode(struct inode *inode)
-{
-	wait_queue_head_t *wq;
-	DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
-	wq = bit_waitqueue(&inode->i_state, __I_NEW);
-	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-	spin_unlock(&inode->i_lock);
-	schedule();
-	finish_wait(wq, &wait.wq_entry);
-}
-
 struct bch_inode_info *__bch2_inode_hash_find(struct bch_fs *c, subvol_inum inum)
 {
 	return rhashtable_lookup_fast(&c->vfs_inodes_table, &inum, bch2_vfs_inodes_params);
+}
+
+static void __wait_on_freeing_inode(struct bch_fs *c,
+				    struct bch_inode_info *inode,
+				    subvol_inum inum)
+{
+	wait_queue_head_t *wq;
+	DEFINE_WAIT_BIT(wait, &inode->v.i_state, __I_NEW);
+	wq = inode_bit_waitqueue(&wait, &inode->v, __I_NEW);
+	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
+	spin_unlock(&inode->v.i_lock);
+
+	if (__bch2_inode_hash_find(c, inum) == inode)
+		schedule_timeout(HZ * 10);
+	finish_wait(wq, &wait.wq_entry);
 }
 
 static struct bch_inode_info *bch2_inode_hash_find(struct bch_fs *c, struct btree_trans *trans,
@@ -204,10 +208,10 @@ repeat:
 		}
 		if ((inode->v.i_state & (I_FREEING|I_WILL_FREE))) {
 			if (!trans) {
-				__wait_on_freeing_inode(&inode->v);
+				__wait_on_freeing_inode(c, inode, inum);
 			} else {
 				bch2_trans_unlock(trans);
-				__wait_on_freeing_inode(&inode->v);
+				__wait_on_freeing_inode(c, inode, inum);
 				int ret = bch2_trans_relock(trans);
 				if (ret)
 					return ERR_PTR(ret);
@@ -232,6 +236,11 @@ static void bch2_inode_hash_remove(struct bch_fs *c, struct bch_inode_info *inod
 					&inode->hash, bch2_vfs_inodes_params);
 		BUG_ON(ret);
 		inode->v.i_hash.pprev = NULL;
+		/*
+		 * This pairs with the bch2_inode_hash_find() ->
+		 * __wait_on_freeing_inode() path
+		 */
+		inode_wake_up_bit(&inode->v, __I_NEW);
 	}
 }
 
