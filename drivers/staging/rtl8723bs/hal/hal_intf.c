@@ -235,8 +235,7 @@ s32	rtw_hal_init_recv_priv(struct adapter *padapter)
 
 void rtw_hal_free_recv_priv(struct adapter *padapter)
 {
-	if (padapter->HalFunc.free_recv_priv)
-		padapter->HalFunc.free_recv_priv(padapter);
+	rtl8723bs_free_recv_priv(padapter);
 }
 
 void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level)
