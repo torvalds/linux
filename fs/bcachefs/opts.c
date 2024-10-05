@@ -427,7 +427,9 @@ void bch2_opt_to_text(struct printbuf *out,
 			prt_printf(out, "%lli", v);
 		break;
 	case BCH_OPT_STR:
-		if (flags & OPT_SHOW_FULL_LIST)
+		if (v < opt->min || v >= opt->max - 1)
+			prt_printf(out, "(invalid option %lli)", v);
+		else if (flags & OPT_SHOW_FULL_LIST)
 			prt_string_option(out, opt->choices, v);
 		else
 			prt_str(out, opt->choices[v]);
