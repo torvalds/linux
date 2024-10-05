@@ -992,7 +992,7 @@ static int sc27xx_fgu_calibration(struct sc27xx_fgu_data *data)
 static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 {
 	struct power_supply_battery_info *info;
-	struct power_supply_battery_ocv_table *table;
+	const struct power_supply_battery_ocv_table *table;
 	int ret, delta_clbcnt, alarm_adc;
 
 	ret = power_supply_get_battery_info(data->battery, &info);
