@@ -583,7 +583,7 @@ static bool HalDetectPwrDownMode(struct adapter *Adapter)
 	return pHalData->pwrdown;
 }	/*  HalDetectPwrDownMode */
 
-static u32 rtl8723bs_hal_init(struct adapter *padapter)
+u32 rtl8723bs_hal_init(struct adapter *padapter)
 {
 	s32 ret;
 	struct hal_com_data *pHalData;
@@ -1259,7 +1259,6 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 
 	rtl8723b_set_hal_ops(pHalFunc);
 
-	pHalFunc->hal_init = &rtl8723bs_hal_init;
 	pHalFunc->hal_deinit = &rtl8723bs_hal_deinit;
 
 	pHalFunc->init_xmit_priv = &rtl8723bs_init_xmit_priv;
