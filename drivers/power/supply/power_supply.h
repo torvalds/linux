@@ -13,6 +13,9 @@ struct device;
 struct device_type;
 struct power_supply;
 
+extern int power_supply_property_is_writeable(struct power_supply *psy,
+					      enum power_supply_property psp);
+
 #ifdef CONFIG_SYSFS
 
 extern void power_supply_init_attrs(void);

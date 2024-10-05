@@ -865,8 +865,6 @@ static inline int power_supply_set_property(struct power_supply *psy,
 			    const union power_supply_propval *val)
 { return 0; }
 #endif
-extern int power_supply_property_is_writeable(struct power_supply *psy,
-					enum power_supply_property psp);
 extern void power_supply_external_power_changed(struct power_supply *psy);
 
 extern struct power_supply *__must_check

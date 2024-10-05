@@ -1231,7 +1231,6 @@ int power_supply_property_is_writeable(struct power_supply *psy,
 {
 	return psy->desc->property_is_writeable && psy->desc->property_is_writeable(psy, psp);
 }
-EXPORT_SYMBOL_GPL(power_supply_property_is_writeable);
 
 void power_supply_external_power_changed(struct power_supply *psy)
 {
