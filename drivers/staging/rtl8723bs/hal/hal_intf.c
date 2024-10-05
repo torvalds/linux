@@ -146,8 +146,7 @@ void rtw_hal_set_odm_var(struct adapter *padapter, enum hal_odm_variable eVariab
 
 void rtw_hal_enable_interrupt(struct adapter *padapter)
 {
-	if (padapter->HalFunc.enable_interrupt)
-		padapter->HalFunc.enable_interrupt(padapter);
+	EnableInterrupt8723BSdio(padapter);
 }
 
 void rtw_hal_disable_interrupt(struct adapter *padapter)
