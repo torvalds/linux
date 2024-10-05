@@ -9,6 +9,7 @@ use crate::{alloc::AllocError, str::CStr};
 use alloc::alloc::LayoutError;
 
 use core::fmt;
+use core::num::NonZeroI32;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;
 
@@ -20,7 +21,11 @@ pub mod code {
             $(
             #[doc = $doc]
             )*
-            pub const $err: super::Error = super::Error(-(crate::bindings::$err as i32));
+            pub const $err: super::Error =
+                match super::Error::try_from_errno(-(crate::bindings::$err as i32)) {
+                    Some(err) => err,
+                    None => panic!("Invalid errno in `declare_err!`"),
+                };
         };
     }
 
@@ -88,7 +93,7 @@ pub mod code {
 ///
 /// The value is a valid `errno` (i.e. `>= -MAX_ERRNO && < 0`).
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Error(core::ffi::c_int);
+pub struct Error(NonZeroI32);
 
 impl Error {
     /// Creates an [`Error`] from a kernel error code.
@@ -107,7 +112,20 @@ impl Error {
 
         // INVARIANT: The check above ensures the type invariant
         // will hold.
-        Error(errno)
+        // SAFETY: `errno` is checked above to be in a valid range.
+        unsafe { Error::from_errno_unchecked(errno) }
+    }
+
+    /// Creates an [`Error`] from a kernel error code.
+    ///
+    /// Returns [`None`] if `errno` is out-of-range.
+    const fn try_from_errno(errno: core::ffi::c_int) -> Option<Error> {
+        if errno < -(bindings::MAX_ERRNO as i32) || errno >= 0 {
+            return None;
+        }
+
+        // SAFETY: `errno` is checked above to be in a valid range.
+        Some(unsafe { Error::from_errno_unchecked(errno) })
     }
 
     /// Creates an [`Error`] from a kernel error code.
@@ -115,21 +133,22 @@ impl Error {
     /// # Safety
     ///
     /// `errno` must be within error code range (i.e. `>= -MAX_ERRNO && < 0`).
-    unsafe fn from_errno_unchecked(errno: core::ffi::c_int) -> Error {
+    const unsafe fn from_errno_unchecked(errno: core::ffi::c_int) -> Error {
         // INVARIANT: The contract ensures the type invariant
         // will hold.
-        Error(errno)
+        // SAFETY: The caller guarantees `errno` is non-zero.
+        Error(unsafe { NonZeroI32::new_unchecked(errno) })
     }
 
     /// Returns the kernel error code.
     pub fn to_errno(self) -> core::ffi::c_int {
-        self.0
+        self.0.get()
     }
 
     #[cfg(CONFIG_BLOCK)]
     pub(crate) fn to_blk_status(self) -> bindings::blk_status_t {
         // SAFETY: `self.0` is a valid error due to its invariant.
-        unsafe { bindings::errno_to_blk_status(self.0) }
+        unsafe { bindings::errno_to_blk_status(self.0.get()) }
     }
 
     /// Returns the error encoded as a pointer.
@@ -137,7 +156,7 @@ impl Error {
         #[cfg_attr(target_pointer_width = "32", allow(clippy::useless_conversion))]
         // SAFETY: `self.0` is a valid error due to its invariant.
         unsafe {
-            bindings::ERR_PTR(self.0.into()) as *mut _
+            bindings::ERR_PTR(self.0.get().into()) as *mut _
         }
     }
 
@@ -145,7 +164,7 @@ impl Error {
     #[cfg(not(testlib))]
     pub fn name(&self) -> Option<&'static CStr> {
         // SAFETY: Just an FFI call, there are no extra safety requirements.
-        let ptr = unsafe { bindings::errname(-self.0) };
+        let ptr = unsafe { bindings::errname(-self.0.get()) };
         if ptr.is_null() {
             None
         } else {
