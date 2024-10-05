@@ -48,7 +48,7 @@ static struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
  * temperature values to work. Factory resistance is 300 mOhm and the
  * resistance values to the right are percentages of 300 mOhm.
  */
-static struct power_supply_resistance_temp_table temp_to_batres_tbl_thermistor[] = {
+static const struct power_supply_resistance_temp_table temp_to_batres_tbl_thermistor[] = {
 	{ .temp = 40, .resistance = 40 /* 120 mOhm */ },
 	{ .temp = 30, .resistance = 45 /* 135 mOhm */ },
 	{ .temp = 20, .resistance = 55 /* 165 mOhm */ },
