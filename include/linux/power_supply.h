@@ -750,7 +750,7 @@ struct power_supply_battery_info {
 	int temp_alert_max;
 	int temp_min;
 	int temp_max;
-	struct power_supply_battery_ocv_table *ocv_table[POWER_SUPPLY_OCV_TEMP_MAX];
+	const struct power_supply_battery_ocv_table *ocv_table[POWER_SUPPLY_OCV_TEMP_MAX];
 	int ocv_table_size[POWER_SUPPLY_OCV_TEMP_MAX];
 	const struct power_supply_resistance_temp_table *resist_table;
 	int resist_table_size;
@@ -797,9 +797,9 @@ extern bool power_supply_battery_info_has_prop(struct power_supply_battery_info 
 extern int power_supply_battery_info_get_prop(struct power_supply_battery_info *info,
 					      enum power_supply_property psp,
 					      union power_supply_propval *val);
-extern int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
+extern int power_supply_ocv2cap_simple(const struct power_supply_battery_ocv_table *table,
 				       int table_len, int ocv);
-extern struct power_supply_battery_ocv_table *
+extern const struct power_supply_battery_ocv_table *
 power_supply_find_ocv2cap_table(struct power_supply_battery_info *info,
 				int temp, int *table_len);
 extern int power_supply_batinfo_ocv2cap(struct power_supply_battery_info *info,

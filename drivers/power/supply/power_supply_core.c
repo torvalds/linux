@@ -777,7 +777,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		tab_len = size / (2 * sizeof(__be32));
 		info->ocv_table_size[index] = tab_len;
 
-		table = info->ocv_table[index] =
+		info->ocv_table[index] = table =
 			devm_kcalloc(&psy->dev, tab_len, sizeof(*table), GFP_KERNEL);
 		if (!info->ocv_table[index]) {
 			power_supply_put_battery_info(psy, info);
@@ -1093,7 +1093,7 @@ EXPORT_SYMBOL_GPL(power_supply_get_maintenance_charging_setting);
  *
  * Return: the battery capacity.
  */
-int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
+int power_supply_ocv2cap_simple(const struct power_supply_battery_ocv_table *table,
 				int table_len, int ocv)
 {
 	int i, high, low;
@@ -1118,7 +1118,7 @@ int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
 }
 EXPORT_SYMBOL_GPL(power_supply_ocv2cap_simple);
 
-struct power_supply_battery_ocv_table *
+const struct power_supply_battery_ocv_table *
 power_supply_find_ocv2cap_table(struct power_supply_battery_info *info,
 				int temp, int *table_len)
 {
@@ -1149,7 +1149,7 @@ EXPORT_SYMBOL_GPL(power_supply_find_ocv2cap_table);
 int power_supply_batinfo_ocv2cap(struct power_supply_battery_info *info,
 				 int ocv, int temp)
 {
-	struct power_supply_battery_ocv_table *table;
+	const struct power_supply_battery_ocv_table *table;
 	int table_len;
 
 	table = power_supply_find_ocv2cap_table(info, temp, &table_len);
