@@ -6,7 +6,7 @@
 # nolibc.
 #
 
-TEST_GEN_PROGS := basic-gcs libc-gcs gcs-locking gcs-stress
+TEST_GEN_PROGS := basic-gcs libc-gcs gcs-locking gcs-stress gcspushm gcsstr
 TEST_GEN_PROGS_EXTENDED := gcs-stress-thread
 
 LDLIBS+=-lpthread
@@ -21,4 +21,10 @@ $(OUTPUT)/basic-gcs: basic-gcs.c
 		-ffreestanding -Wall $^ -o $@ -lgcc
 
 $(OUTPUT)/gcs-stress-thread: gcs-stress-thread.S
+	$(CC) -nostdlib $^ -o $@
+
+$(OUTPUT)/gcspushm: gcspushm.S
+	$(CC) -nostdlib $^ -o $@
+
+$(OUTPUT)/gcsstr: gcsstr.S
 	$(CC) -nostdlib $^ -o $@
