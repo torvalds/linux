@@ -14,8 +14,7 @@ void rtw_hal_chip_configure(struct adapter *padapter)
 
 void rtw_hal_read_chip_info(struct adapter *padapter)
 {
-	if (padapter->HalFunc.read_adapter_info)
-		padapter->HalFunc.read_adapter_info(padapter);
+	ReadAdapterInfo8723BS(padapter);
 }
 
 void rtw_hal_read_chip_version(struct adapter *padapter)

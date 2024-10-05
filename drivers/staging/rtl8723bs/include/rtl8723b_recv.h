@@ -90,5 +90,6 @@ void rtl8723b_process_phy_info(struct adapter *padapter, void *prframe);
 void rtl8723b_read_chip_version(struct adapter *padapter);
 void rtl8723bs_init_default_value(struct adapter *padapter);
 void rtl8723bs_interface_configure(struct adapter *padapter);
+void ReadAdapterInfo8723BS(struct adapter *padapter);
 
 #endif

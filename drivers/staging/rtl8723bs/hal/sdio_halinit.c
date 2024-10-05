@@ -1132,7 +1132,7 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	return _SUCCESS;
 }
 
-static void ReadAdapterInfo8723BS(struct adapter *padapter)
+void ReadAdapterInfo8723BS(struct adapter *padapter)
 {
 	/*  Read EEPROM size before call any EEPROM function */
 	padapter->EepromAddressSize = GetEEPROMSize8723B(padapter);
@@ -1258,8 +1258,6 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 	struct hal_ops *pHalFunc = &padapter->HalFunc;
 
 	rtl8723b_set_hal_ops(pHalFunc);
-
-	pHalFunc->read_adapter_info = &ReadAdapterInfo8723BS;
 
 	pHalFunc->enable_interrupt = &EnableInterrupt8723BSdio;
 	pHalFunc->disable_interrupt = &DisableInterrupt8723BSdio;
