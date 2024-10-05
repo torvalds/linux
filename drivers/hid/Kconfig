@@ -465,6 +465,15 @@ config HID_KYE
 	- MousePen i608X tablet
 	- EasyPen M610X tablet
 
+config HID_KYSONA
+	tristate "Kysona devices"
+	depends on USB_HID
+	help
+	Support for Kysona mice.
+
+	Say Y here if you have a Kysona M600 mouse
+	and want to be able to read its battery capacity.
+
 config HID_UCLOGIC
 	tristate "UC-Logic"
 	depends on USB_HID
