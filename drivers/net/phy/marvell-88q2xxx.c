@@ -179,15 +179,34 @@ static int mv88q2xxx_soft_reset(struct phy_device *phydev)
 	int ret;
 	int val;
 
-	ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
-			    MDIO_PCS_1000BT1_CTRL, MDIO_PCS_1000BT1_CTRL_RESET);
+	/* Enable RESET of DCL */
+	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x48);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_1000BT1_CTRL,
+			    MDIO_PCS_1000BT1_CTRL_RESET);
 	if (ret < 0)
 		return ret;
 
-	return phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
-					 MDIO_PCS_1000BT1_CTRL, val,
-					 !(val & MDIO_PCS_1000BT1_CTRL_RESET),
-					 50000, 600000, true);
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					MDIO_PCS_1000BT1_CTRL, val,
+					!(val & MDIO_PCS_1000BT1_CTRL_RESET),
+					50000, 600000, true);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xffe4, 0xc);
+	if (ret < 0)
+		return ret;
+
+	/* Disable RESET of DCL */
+	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000)
+		return phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x58);
+
+	return 0;
 }
 
 static int mv88q2xxx_read_link_gbit(struct phy_device *phydev)
@@ -705,33 +724,6 @@ static int mv88q2xxx_probe(struct phy_device *phydev)
 	return mv88q2xxx_hwmon_probe(phydev);
 }
 
-static int mv88q222x_soft_reset(struct phy_device *phydev)
-{
-	int ret;
-
-	/* Enable RESET of DCL */
-	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000) {
-		ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x48);
-		if (ret < 0)
-			return ret;
-	}
-
-	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_1000BT1_CTRL,
-			    MDIO_PCS_1000BT1_CTRL_RESET);
-	if (ret < 0)
-		return ret;
-
-	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xffe4, 0xc);
-	if (ret < 0)
-		return ret;
-
-	/* Disable RESET of DCL */
-	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000)
-		return phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x58);
-
-	return 0;
-}
-
 static int mv88q222x_write_mmd_vals(struct phy_device *phydev,
 				    const struct mmd_val *vals, size_t len)
 {
@@ -906,7 +898,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.aneg_done		= genphy_c45_aneg_done,
 		.config_init		= mv88q222x_config_init,
 		.read_status		= mv88q2xxx_read_status,
-		.soft_reset		= mv88q222x_soft_reset,
+		.soft_reset		= mv88q2xxx_soft_reset,
 		.config_intr		= mv88q2xxx_config_intr,
 		.handle_interrupt	= mv88q2xxx_handle_interrupt,
 		.set_loopback		= genphy_c45_loopback,
