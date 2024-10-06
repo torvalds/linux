@@ -440,6 +440,9 @@ struct mv88e6xxx_chip {
 
 	/* Bridge MST to SID mappings */
 	struct list_head msts;
+
+	/* FID map */
+	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
 };
 
 struct mv88e6xxx_bus_ops {
@@ -842,7 +845,5 @@ int mv88e6xxx_vtu_walk(struct mv88e6xxx_chip *chip,
 				 const struct mv88e6xxx_vtu_entry *entry,
 				 void *priv),
 		       void *priv);
-
-int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *bitmap);
 
 #endif /* _MV88E6XXX_CHIP_H */
