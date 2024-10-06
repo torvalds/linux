@@ -1558,7 +1558,7 @@ cont:
 			goto free_card;
 	}
 
-	if (host->cqe_ops && !host->cqe_enabled) {
+	if (!mmc_card_ult_capacity(card) && host->cqe_ops && !host->cqe_enabled) {
 		err = host->cqe_ops->cqe_enable(host, card);
 		if (!err) {
 			host->cqe_enabled = true;
