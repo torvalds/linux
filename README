@@ -16,3 +16,9 @@ several of them using the reStructuredText markup notation.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result by upgrading your kernel.
+
+Do not skip this step even if you are only upgrading one minor version. 
+New configuration options are added in each release,
+and odd problems will turn up if the configuration files are not set up as expected.
+If you want to carry your existing configuration to a new version with minimal work,
+use make oldconfig, which will only ask you for the answers to new questions.
