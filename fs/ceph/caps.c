@@ -978,20 +978,6 @@ int __ceph_caps_revoking_other(struct ceph_inode_info *ci,
 	return 0;
 }
 
-int ceph_caps_revoking(struct ceph_inode_info *ci, int mask)
-{
-	struct inode *inode = &ci->netfs.inode;
-	struct ceph_client *cl = ceph_inode_to_client(inode);
-	int ret;
-
-	spin_lock(&ci->i_ceph_lock);
-	ret = __ceph_caps_revoking_other(ci, NULL, mask);
-	spin_unlock(&ci->i_ceph_lock);
-	doutc(cl, "%p %llx.%llx %s = %d\n", inode, ceph_vinop(inode),
-	      ceph_cap_string(mask), ret);
-	return ret;
-}
-
 int __ceph_caps_used(struct ceph_inode_info *ci)
 {
 	int used = 0;
