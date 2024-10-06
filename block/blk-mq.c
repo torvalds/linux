@@ -331,14 +331,9 @@ EXPORT_SYMBOL(blk_rq_init);
 /* Set start and alloc time when the allocated request is actually used */
 static inline void blk_mq_rq_time_init(struct request *rq, u64 alloc_time_ns)
 {
-	if (blk_queue_io_stat(rq->q))
-		rq->start_time_ns = blk_time_get_ns();
-	else
-		rq->start_time_ns = 0;
-
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
 	if (blk_queue_rq_alloc_time(rq->q))
-		rq->alloc_time_ns = alloc_time_ns ?: rq->start_time_ns;
+		rq->alloc_time_ns = alloc_time_ns;
 	else
 		rq->alloc_time_ns = 0;
 #endif
@@ -566,7 +561,7 @@ static struct request *blk_mq_alloc_cached_request(struct request_queue *q,
 			return NULL;
 
 		plug->cached_rq = rq_list_next(rq);
-		blk_mq_rq_time_init(rq, 0);
+		blk_mq_rq_time_init(rq, blk_time_get_ns());
 	}
 
 	rq->cmd_flags = opf;
@@ -1003,6 +998,7 @@ static inline void blk_account_io_start(struct request *req)
 		return;
 
 	req->rq_flags |= RQF_IO_STAT;
+	req->start_time_ns = blk_time_get_ns();
 
 	/*
 	 * All non-passthrough requests are created from a bio with one
@@ -2909,7 +2905,7 @@ static void blk_mq_use_cached_rq(struct request *rq, struct blk_plug *plug,
 	plug->cached_rq = rq_list_next(rq);
 	rq_qos_throttle(rq->q, bio);
 
-	blk_mq_rq_time_init(rq, 0);
+	blk_mq_rq_time_init(rq, blk_time_get_ns());
 	rq->cmd_flags = bio->bi_opf;
 	INIT_LIST_HEAD(&rq->queuelist);
 }
