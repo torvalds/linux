@@ -31,9 +31,19 @@ struct io_rw {
 	rwf_t				flags;
 };
 
-static inline bool io_file_supports_nowait(struct io_kiocb *req)
+static bool io_file_supports_nowait(struct io_kiocb *req, __poll_t mask)
 {
-	return req->flags & REQ_F_SUPPORT_NOWAIT;
+	/* If FMODE_NOWAIT is set for a file, we're golden */
+	if (req->flags & REQ_F_SUPPORT_NOWAIT)
+		return true;
+	/* No FMODE_NOWAIT, if we can poll, check the status */
+	if (io_file_can_poll(req)) {
+		struct poll_table_struct pt = { ._key = mask };
+
+		return vfs_poll(req->file, &pt) & mask;
+	}
+	/* No FMODE_NOWAIT support, and file isn't pollable. Tough luck. */
+	return false;
 }
 
 #ifdef CONFIG_COMPAT
@@ -796,8 +806,8 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode, int rw_type)
 	 * supports async. Otherwise it's impossible to use O_NONBLOCK files
 	 * reliably. If not, or it IOCB_NOWAIT is set, don't retry.
 	 */
-	if ((kiocb->ki_flags & IOCB_NOWAIT) ||
-	    ((file->f_flags & O_NONBLOCK) && !io_file_supports_nowait(req)))
+	if (kiocb->ki_flags & IOCB_NOWAIT ||
+	    ((file->f_flags & O_NONBLOCK && (req->flags & REQ_F_SUPPORT_NOWAIT))))
 		req->flags |= REQ_F_NOWAIT;
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
@@ -838,7 +848,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (force_nonblock) {
 		/* If the file doesn't support async, just async punt */
-		if (unlikely(!io_file_supports_nowait(req)))
+		if (unlikely(!io_file_supports_nowait(req, EPOLLIN)))
 			return -EAGAIN;
 		kiocb->ki_flags |= IOCB_NOWAIT;
 	} else {
@@ -952,13 +962,6 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	ret = __io_read(req, issue_flags);
 
 	/*
-	 * If the file doesn't support proper NOWAIT, then disable multishot
-	 * and stay in single shot mode.
-	 */
-	if (!io_file_supports_nowait(req))
-		req->flags &= ~REQ_F_APOLL_MULTISHOT;
-
-	/*
 	 * If we get -EAGAIN, recycle our buffer and just let normal poll
 	 * handling arm it.
 	 */
@@ -984,9 +987,6 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		 * jump to the termination path. This request is then done.
 		 */
 		cflags = io_put_kbuf(req, ret, issue_flags);
-		if (!(req->flags & REQ_F_APOLL_MULTISHOT))
-			goto done;
-
 		rw->len = 0; /* similarly to above, reset len to 0 */
 
 		if (io_req_post_cqe(req, ret, cflags | IORING_CQE_F_MORE)) {
@@ -1007,7 +1007,6 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	 * Either an error, or we've hit overflow posting the CQE. For any
 	 * multishot request, hitting overflow will terminate it.
 	 */
-done:
 	io_req_set_res(req, ret, cflags);
 	io_req_rw_cleanup(req, issue_flags);
 	if (issue_flags & IO_URING_F_MULTISHOT)
@@ -1031,7 +1030,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (force_nonblock) {
 		/* If the file doesn't support async, just async punt */
-		if (unlikely(!io_file_supports_nowait(req)))
+		if (unlikely(!io_file_supports_nowait(req, EPOLLOUT)))
 			goto ret_eagain;
 
 		/* Check if we can support NOWAIT. */
