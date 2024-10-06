@@ -188,10 +188,6 @@ struct emac_instance {
 	struct emac_instance		*mdio_instance;
 	struct mutex			mdio_lock;
 
-	/* Device-tree based phy configuration */
-	struct mii_bus			*mii_bus;
-	struct phy_device		*phy_dev;
-
 	/* ZMII infos if any */
 	u32				zmii_ph;
 	u32				zmii_port;
@@ -400,7 +396,7 @@ static inline int emac_has_feature(struct emac_instance *dev,
 	((u32)(1 << (EMAC_XAHT_WIDTH(dev) - 1)) >>	\
 	 ((slot) & (u32)(EMAC_XAHT_WIDTH(dev) - 1)))
 
-static inline u32 *emac_xaht_base(struct emac_instance *dev)
+static inline u32 __iomem *emac_xaht_base(struct emac_instance *dev)
 {
 	struct emac_regs __iomem *p = dev->emacp;
 	int offset;
@@ -413,10 +409,10 @@ static inline u32 *emac_xaht_base(struct emac_instance *dev)
 	else
 		offset = offsetof(struct emac_regs, u0.emac4.iaht1);
 
-	return (u32 *)((ptrdiff_t)p + offset);
+	return (u32 __iomem *)((__force ptrdiff_t)p + offset);
 }
 
-static inline u32 *emac_gaht_base(struct emac_instance *dev)
+static inline u32 __iomem *emac_gaht_base(struct emac_instance *dev)
 {
 	/* GAHT registers always come after an identical number of
 	 * IAHT registers.

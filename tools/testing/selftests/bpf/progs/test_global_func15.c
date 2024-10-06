@@ -44,7 +44,7 @@ __naked int global_func15_tricky_pruning(void)
 		 * case we have a valid 1 stored in R0 register, but in
 		 * a branch case we assign some random value to R0.  So if
 		 * there is something wrong with precision tracking for R0 at
-		 * program exit, we might erronenously prune branch case,
+		 * program exit, we might erroneously prune branch case,
 		 * because R0 in fallthrough case is imprecise (and thus any
 		 * value is valid from POV of verifier is_state_equal() logic)
 		 */

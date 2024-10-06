@@ -289,13 +289,13 @@ static int nwl_dsi_config_dpi(struct nwl_dsi *dsi)
 
 	nwl_dsi_write(dsi, NWL_DSI_INTERFACE_COLOR_CODING, NWL_DSI_DPI_24_BIT);
 	nwl_dsi_write(dsi, NWL_DSI_PIXEL_FORMAT, color_format);
-	/*
-	 * Adjusting input polarity based on the video mode results in
-	 * a black screen so always pick active low:
-	 */
 	nwl_dsi_write(dsi, NWL_DSI_VSYNC_POLARITY,
+		      dsi->mode.flags & DRM_MODE_FLAG_PVSYNC ?
+		      NWL_DSI_VSYNC_POLARITY_ACTIVE_HIGH :
 		      NWL_DSI_VSYNC_POLARITY_ACTIVE_LOW);
 	nwl_dsi_write(dsi, NWL_DSI_HSYNC_POLARITY,
+		      dsi->mode.flags & DRM_MODE_FLAG_PHSYNC ?
+		      NWL_DSI_HSYNC_POLARITY_ACTIVE_HIGH :
 		      NWL_DSI_HSYNC_POLARITY_ACTIVE_LOW);
 
 	burst_mode = (dsi->dsi_mode_flags & MIPI_DSI_MODE_VIDEO_BURST) &&

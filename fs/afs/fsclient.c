@@ -304,6 +304,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_read *req = op->fetch.req;
 	const __be32 *bp;
+	size_t count_before;
 	int ret;
 
 	_enter("{%u,%zu,%zu/%llu}",
@@ -345,10 +346,14 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		/* extract the returned data */
 	case 2:
-		_debug("extract data %zu/%llu",
-		       iov_iter_count(call->iter), req->actual_len);
+		count_before = call->iov_len;
+		_debug("extract data %zu/%llu", count_before, req->actual_len);
 
 		ret = afs_extract_data(call, true);
+		if (req->subreq) {
+			req->subreq->transferred += count_before - call->iov_len;
+			netfs_read_subreq_progress(req->subreq, false);
+		}
 		if (ret < 0)
 			return ret;
 

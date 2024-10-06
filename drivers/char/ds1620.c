@@ -353,7 +353,6 @@ static const struct file_operations ds1620_fops = {
 	.open		= ds1620_open,
 	.read		= ds1620_read,
 	.unlocked_ioctl	= ds1620_unlocked_ioctl,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice ds1620_miscdev = {

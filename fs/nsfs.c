@@ -12,6 +12,7 @@
 #include <linux/user_namespace.h>
 #include <linux/nsfs.h>
 #include <linux/uaccess.h>
+#include <linux/mnt_namespace.h>
 
 #include "mount.h"
 #include "internal.h"
@@ -21,7 +22,6 @@ static struct vfsmount *nsfs_mnt;
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg);
 static const struct file_operations ns_file_operations = {
-	.llseek		= no_llseek,
 	.unlocked_ioctl = ns_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 };
@@ -128,6 +128,30 @@ int open_related_ns(struct ns_common *ns,
 }
 EXPORT_SYMBOL_GPL(open_related_ns);
 
+static int copy_ns_info_to_user(const struct mnt_namespace *mnt_ns,
+				struct mnt_ns_info __user *uinfo, size_t usize,
+				struct mnt_ns_info *kinfo)
+{
+	/*
+	 * If userspace and the kernel have the same struct size it can just
+	 * be copied. If userspace provides an older struct, only the bits that
+	 * userspace knows about will be copied. If userspace provides a new
+	 * struct, only the bits that the kernel knows aobut will be copied and
+	 * the size value will be set to the size the kernel knows about.
+	 */
+	kinfo->size		= min(usize, sizeof(*kinfo));
+	kinfo->mnt_ns_id	= mnt_ns->seq;
+	kinfo->nr_mounts	= READ_ONCE(mnt_ns->nr_mounts);
+	/* Subtract the root mount of the mount namespace. */
+	if (kinfo->nr_mounts)
+		kinfo->nr_mounts--;
+
+	if (copy_to_user(uinfo, kinfo, kinfo->size))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)
 {
@@ -135,6 +159,8 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 	struct pid_namespace *pid_ns;
 	struct task_struct *tsk;
 	struct ns_common *ns = get_proc_ns(file_inode(filp));
+	struct mnt_namespace *mnt_ns;
+	bool previous = false;
 	uid_t __user *argp;
 	uid_t uid;
 	int ret;
@@ -156,7 +182,6 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		uid = from_kuid_munged(current_user_ns(), user_ns->owner);
 		return put_user(uid, argp);
 	case NS_GET_MNTNS_ID: {
-		struct mnt_namespace *mnt_ns;
 		__u64 __user *idp;
 		__u64 id;
 
@@ -211,7 +236,79 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 
 		if (!ret)
 			ret = -ESRCH;
-		break;
+		return ret;
+	}
+	}
+
+	/* extensible ioctls */
+	switch (_IOC_NR(ioctl)) {
+	case _IOC_NR(NS_MNT_GET_INFO): {
+		struct mnt_ns_info kinfo = {};
+		struct mnt_ns_info __user *uinfo = (struct mnt_ns_info __user *)arg;
+		size_t usize = _IOC_SIZE(ioctl);
+
+		if (ns->ops->type != CLONE_NEWNS)
+			return -EINVAL;
+
+		if (!uinfo)
+			return -EINVAL;
+
+		if (usize < MNT_NS_INFO_SIZE_VER0)
+			return -EINVAL;
+
+		return copy_ns_info_to_user(to_mnt_ns(ns), uinfo, usize, &kinfo);
+	}
+	case _IOC_NR(NS_MNT_GET_PREV):
+		previous = true;
+		fallthrough;
+	case _IOC_NR(NS_MNT_GET_NEXT): {
+		struct mnt_ns_info kinfo = {};
+		struct mnt_ns_info __user *uinfo = (struct mnt_ns_info __user *)arg;
+		struct path path __free(path_put) = {};
+		struct file *f __free(fput) = NULL;
+		size_t usize = _IOC_SIZE(ioctl);
+
+		if (ns->ops->type != CLONE_NEWNS)
+			return -EINVAL;
+
+		if (usize < MNT_NS_INFO_SIZE_VER0)
+			return -EINVAL;
+
+		if (previous)
+			mnt_ns = lookup_prev_mnt_ns(to_mnt_ns(ns));
+		else
+			mnt_ns = lookup_next_mnt_ns(to_mnt_ns(ns));
+		if (IS_ERR(mnt_ns))
+			return PTR_ERR(mnt_ns);
+
+		ns = to_ns_common(mnt_ns);
+		/* Transfer ownership of @mnt_ns reference to @path. */
+		ret = path_from_stashed(&ns->stashed, nsfs_mnt, ns, &path);
+		if (ret)
+			return ret;
+
+		CLASS(get_unused_fd, fd)(O_CLOEXEC);
+		if (fd < 0)
+			return fd;
+
+		f = dentry_open(&path, O_RDONLY, current_cred());
+		if (IS_ERR(f))
+			return PTR_ERR(f);
+
+		if (uinfo) {
+			/*
+			 * If @uinfo is passed return all information about the
+			 * mount namespace as well.
+			 */
+			ret = copy_ns_info_to_user(to_mnt_ns(ns), uinfo, usize, &kinfo);
+			if (ret)
+				return ret;
+		}
+
+		/* Transfer reference of @f to caller's fdtable. */
+		fd_install(fd, no_free_ptr(f));
+		/* File descriptor is live so hand it off to the caller. */
+		return take_fd(fd);
 	}
 	default:
 		ret = -ENOTTY;

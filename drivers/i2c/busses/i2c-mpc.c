@@ -88,7 +88,6 @@ struct mpc_i2c {
 	int irq;
 	u32 real_clk;
 	u8 fdr, dfsrr;
-	struct clk *clk_per;
 	u32 cntl_bits;
 	enum mpc_i2c_action action;
 	struct i2c_msg *msgs;
@@ -779,7 +778,6 @@ static int fsl_i2c_probe(struct platform_device *op)
 	struct clk *clk;
 	int result;
 	u32 clock;
-	int err;
 
 	i2c = devm_kzalloc(&op->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -809,17 +807,11 @@ static int fsl_i2c_probe(struct platform_device *op)
 	 * enable clock for the I2C peripheral (non fatal),
 	 * keep a reference upon successful allocation
 	 */
-	clk = devm_clk_get_optional(&op->dev, NULL);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	err = clk_prepare_enable(clk);
-	if (err) {
+	clk = devm_clk_get_optional_enabled(&op->dev, NULL);
+	if (IS_ERR(clk)) {
 		dev_err(&op->dev, "failed to enable clock\n");
-		return err;
+		return PTR_ERR(clk);
 	}
-
-	i2c->clk_per = clk;
 
 	if (of_property_read_bool(op->dev.of_node, "fsl,preserve-clocking")) {
 		clock = MPC_I2C_CLOCK_PRESERVE;
@@ -876,14 +868,9 @@ static int fsl_i2c_probe(struct platform_device *op)
 
 	result = i2c_add_numbered_adapter(&i2c->adap);
 	if (result)
-		goto fail_add;
+		return result;
 
 	return 0;
-
- fail_add:
-	clk_disable_unprepare(i2c->clk_per);
-
-	return result;
 };
 
 static void fsl_i2c_remove(struct platform_device *op)
@@ -891,8 +878,6 @@ static void fsl_i2c_remove(struct platform_device *op)
 	struct mpc_i2c *i2c = platform_get_drvdata(op);
 
 	i2c_del_adapter(&i2c->adap);
-
-	clk_disable_unprepare(i2c->clk_per);
 };
 
 static int __maybe_unused mpc_i2c_suspend(struct device *dev)

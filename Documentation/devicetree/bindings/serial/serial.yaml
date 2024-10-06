@@ -88,10 +88,12 @@ properties:
       TX FIFO threshold configuration (in bytes).
 
 patternProperties:
-  "^(bluetooth|bluetooth-gnss|gnss|gps|mcu|onewire)$":
+  "^(bluetooth|bluetooth-gnss|embedded-controller|gnss|gps|mcu|onewire)$":
     if:
       type: object
     then:
+      additionalProperties: true
+      $ref: serial-peripheral-props.yaml#
       description:
         Serial attached devices shall be a child node of the host UART device
         the slave device is attached to. It is expected that the attached
@@ -102,28 +104,6 @@ patternProperties:
         compatible:
           description:
             Compatible of the device connected to the serial port.
-
-        max-speed:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description:
-            The maximum baud rate the device operates at.
-            This should only be present if the maximum is less than the slave
-            device can support.  For example, a particular board has some
-            signal quality issue or the host processor can't support higher
-            baud rates.
-
-        current-speed:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: |
-            The current baud rate the device operates at.
-            This should only be present in case a driver has no chance to know
-            the baud rate of the slave device.
-            Examples:
-              * device supports auto-baud
-              * the rate is setup by a bootloader and there is no way to reset
-                the device
-              * device baud rate is configured by its firmware but there is no
-                way to request the actual settings
 
       required:
         - compatible

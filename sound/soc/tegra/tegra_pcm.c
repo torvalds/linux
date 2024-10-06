@@ -213,7 +213,7 @@ int tegra_pcm_construct(struct snd_soc_component *component,
 	 * Fallback for backwards-compatibility with older device trees that
 	 * have the iommus property in the virtual, top-level "sound" node.
 	 */
-	if (!of_get_property(dev->of_node, "iommus", NULL))
+	if (!of_property_present(dev->of_node, "iommus"))
 		dev = rtd->card->snd_card->dev;
 
 	return tegra_pcm_dma_allocate(dev, rtd, tegra_pcm_hardware.buffer_bytes_max);

@@ -527,7 +527,7 @@ static struct platform_driver atmel_tcb_pwm_driver = {
 		.pm = pm_ptr(&atmel_tcb_pwm_pm_ops),
 	},
 	.probe = atmel_tcb_pwm_probe,
-	.remove_new = atmel_tcb_pwm_remove,
+	.remove = atmel_tcb_pwm_remove,
 };
 module_platform_driver(atmel_tcb_pwm_driver);
 

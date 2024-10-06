@@ -61,7 +61,7 @@ static int bmi323_regmap_i2c_write(void *context, const void *data,
 					      data + sizeof(u8));
 }
 
-static struct regmap_bus bmi323_regmap_bus = {
+static const struct regmap_bus bmi323_regmap_bus = {
 	.read = bmi323_regmap_i2c_read,
 	.write = bmi323_regmap_i2c_write,
 };
@@ -128,6 +128,7 @@ MODULE_DEVICE_TABLE(of, bmi323_of_i2c_match);
 static struct i2c_driver bmi323_i2c_driver = {
 	.driver = {
 		.name = "bmi323",
+		.pm = pm_ptr(&bmi323_core_pm_ops),
 		.of_match_table = bmi323_of_i2c_match,
 		.acpi_match_table = bmi323_acpi_match,
 	},

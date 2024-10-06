@@ -484,12 +484,9 @@ void lbtf_complete_command(struct lbtf_private *priv, struct cmd_ctrl_node *cmd,
 void lbtf_cmd_response_rx(struct lbtf_private *priv);
 
 /* main.c */
-struct chan_freq_power *lbtf_get_region_cfp_table(u8 region,
-	int *cfp_no);
 struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev,
 				   const struct lbtf_ops *ops);
 int lbtf_remove_card(struct lbtf_private *priv);
-int lbtf_start_card(struct lbtf_private *priv);
 int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb);
 void lbtf_send_tx_feedback(struct lbtf_private *priv, u8 retrycnt, u8 fail);
 void lbtf_bcn_sent(struct lbtf_private *priv);

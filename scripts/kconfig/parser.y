@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include <xalloc.h>
 #include "lkc.h"
 #include "internal.h"
 #include "preprocess.h"
@@ -530,14 +531,6 @@ void conf_parse(const char *name)
 		yydebug = 1;
 	yyparse();
 
-	/*
-	 * FIXME:
-	 * cur_filename and cur_lineno are used even after yyparse();
-	 * menu_finalize() calls menu_add_symbol(). This should be fixed.
-	 */
-	cur_filename = "<none>";
-	cur_lineno = 0;
-
 	str_printf(&autoconf_cmd,
 		   "\n"
 		   "$(autoconfig): $(deps_config)\n"
@@ -714,10 +707,6 @@ static void print_symbol(FILE *out, const struct menu *menu)
 			fputs( "  menu ", out);
 			print_quoted_string(out, prop->text);
 			fputc('\n', out);
-			break;
-		case P_SYMBOL:
-			fputs( "  symbol ", out);
-			fprintf(out, "%s\n", prop->menu->sym->name);
 			break;
 		default:
 			fprintf(out, "  unknown prop %d!\n", prop->type);

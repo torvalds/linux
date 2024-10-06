@@ -378,6 +378,9 @@ S: 1549 Hiironen Rd.
 S: Brimson, MN  55602
 S: USA
 
+N: Arnd Bergmann
+D: Maintainer of Cell Broadband Engine Architecture
+
 N: Hennus Bergman
 P: 1024/77D50909 76 99 FD 31 91 E1 96 1C  90 BB 22 80 62 F6 BD 63
 D: Author and maintainer of the QIC-02 tape driver
@@ -1868,6 +1871,9 @@ D: Maintain sunsite.mff.cuni.cz
 S: K osmidomkum 723
 S: 160 00 Praha 6
 S: Czech Republic
+
+N: Jeremy Kerr
+D: Maintainer of SPU File System
 
 N: Michael Kerrisk
 E: mtk.manpages@gmail.com

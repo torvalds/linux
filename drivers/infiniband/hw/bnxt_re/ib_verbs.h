@@ -77,6 +77,8 @@ struct bnxt_re_srq {
 	struct bnxt_qplib_srq	qplib_srq;
 	struct ib_umem		*umem;
 	spinlock_t		lock;		/* protect srq */
+	void			*uctx_srq_page;
+	struct hlist_node       hash_entry;
 };
 
 struct bnxt_re_qp {
@@ -171,10 +173,24 @@ static inline u16 bnxt_re_get_rwqe_size(int nsge)
 	return sizeof(struct rq_wqe_hdr) + (nsge * sizeof(struct sq_sge));
 }
 
+enum {
+	BNXT_RE_UCNTX_CAP_POW2_DISABLED = 0x1ULL,
+	BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED = 0x2ULL,
+};
+
 static inline u32 bnxt_re_init_depth(u32 ent, struct bnxt_re_ucontext *uctx)
 {
-	return uctx ? (uctx->cmask & BNXT_RE_UCNTX_CMASK_POW2_DISABLED) ?
+	return uctx ? (uctx->cmask & BNXT_RE_UCNTX_CAP_POW2_DISABLED) ?
 		ent : roundup_pow_of_two(ent) : ent;
+}
+
+static inline bool bnxt_re_is_var_size_supported(struct bnxt_re_dev *rdev,
+						 struct bnxt_re_ucontext *uctx)
+{
+	if (uctx)
+		return uctx->cmask & BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED;
+	else
+		return rdev->chip_ctx->modes.wqe_mode;
 }
 
 int bnxt_re_query_device(struct ib_device *ibdev,
@@ -242,7 +258,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 struct ib_mr *bnxt_re_reg_user_mr_dmabuf(struct ib_pd *ib_pd, u64 start,
 					 u64 length, u64 virt_addr,
 					 int fd, int mr_access_flags,
-					 struct ib_udata *udata);
+					 struct uverbs_attr_bundle *attrs);
 int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata);
 void bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);

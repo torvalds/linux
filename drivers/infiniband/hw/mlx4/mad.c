@@ -2158,7 +2158,6 @@ static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
 				       struct mlx4_ib_demux_ctx *ctx,
 				       int port)
 {
-	char name[21];
 	int ret = 0;
 	int i;
 
@@ -2194,24 +2193,21 @@ static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
 		goto err_mcg;
 	}
 
-	snprintf(name, sizeof(name), "mlx4_ibt%d", port);
-	ctx->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
+	ctx->wq = alloc_ordered_workqueue("mlx4_ibt%d", WQ_MEM_RECLAIM, port);
 	if (!ctx->wq) {
 		pr_err("Failed to create tunnelling WQ for port %d\n", port);
 		ret = -ENOMEM;
 		goto err_wq;
 	}
 
-	snprintf(name, sizeof(name), "mlx4_ibwi%d", port);
-	ctx->wi_wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
+	ctx->wi_wq = alloc_ordered_workqueue("mlx4_ibwi%d", WQ_MEM_RECLAIM, port);
 	if (!ctx->wi_wq) {
 		pr_err("Failed to create wire WQ for port %d\n", port);
 		ret = -ENOMEM;
 		goto err_wiwq;
 	}
 
-	snprintf(name, sizeof(name), "mlx4_ibud%d", port);
-	ctx->ud_wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
+	ctx->ud_wq = alloc_ordered_workqueue("mlx4_ibud%d", WQ_MEM_RECLAIM, port);
 	if (!ctx->ud_wq) {
 		pr_err("Failed to create up/down WQ for port %d\n", port);
 		ret = -ENOMEM;

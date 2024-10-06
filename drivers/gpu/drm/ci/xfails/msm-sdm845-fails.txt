@@ -33,4 +33,3 @@ kms_plane_alpha_blend@coverage-vs-premult-vs-constant,Fail
 kms_plane_cursor@overlay,Fail
 kms_plane_cursor@viewport,Fail
 kms_rmfb@close-fd,Fail
-tools_test@tools_test,Fail

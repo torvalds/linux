@@ -93,7 +93,7 @@ static int wait_for_reset(struct intel_engine_cs *engine,
 		return -EINVAL;
 	}
 
-	/* Give the request a jiffie to complete after flushing the worker */
+	/* Give the request a jiffy to complete after flushing the worker */
 	if (i915_request_wait(rq, 0,
 			      max(0l, (long)(timeout - jiffies)) + 1) < 0) {
 		pr_err("%s: hanging request %llx:%lld did not complete\n",
@@ -3426,7 +3426,7 @@ static int live_preempt_timeout(void *arg)
 			cpu_relax();
 
 		saved_timeout = engine->props.preempt_timeout_ms;
-		engine->props.preempt_timeout_ms = 1; /* in ms, -> 1 jiffie */
+		engine->props.preempt_timeout_ms = 1; /* in ms, -> 1 jiffy */
 
 		i915_request_get(rq);
 		i915_request_add(rq);

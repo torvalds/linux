@@ -27,11 +27,6 @@ properties:
       - const: samsung,odroid-xu4-audio
         deprecated: true
 
-  assigned-clock-parents: true
-  assigned-clock-rates: true
-  assigned-clocks: true
-  clocks: true
-
   cpu:
     type: object
     additionalProperties: false

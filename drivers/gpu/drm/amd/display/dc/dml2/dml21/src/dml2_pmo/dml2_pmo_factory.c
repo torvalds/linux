@@ -2,10 +2,8 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_pmo_factory.h"
 #include "dml2_pmo_dcn4_fams2.h"
-#include "dml2_pmo_dcn4.h"
 #include "dml2_pmo_dcn3.h"
 #include "dml2_external_lib_deps.h"
 
@@ -28,15 +26,15 @@ bool dml2_pmo_create(enum dml2_project_id project_id, struct dml2_pmo_instance *
 {
 	bool result = false;
 
-	if (!out)
+	if (out == 0)
 		return false;
 
 	memset(out, 0, sizeof(struct dml2_pmo_instance));
 
 	switch (project_id) {
 	case dml2_project_dcn4x_stage1:
-		out->initialize = pmo_dcn4_initialize;
-		out->optimize_dcc_mcache = pmo_dcn4_optimize_dcc_mcache;
+		out->initialize = pmo_dcn4_fams2_initialize;
+		out->optimize_dcc_mcache = pmo_dcn4_fams2_optimize_dcc_mcache;
 		result = true;
 		break;
 	case dml2_project_dcn4x_stage2:

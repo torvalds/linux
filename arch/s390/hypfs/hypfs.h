@@ -78,7 +78,6 @@ struct hypfs_dbfs_file {
 	struct dentry		*dentry;
 };
 
-extern void hypfs_dbfs_exit(void);
 extern void hypfs_dbfs_create_file(struct hypfs_dbfs_file *df);
 extern void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df);
 

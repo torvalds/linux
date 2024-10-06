@@ -42,7 +42,7 @@ properties:
         minItems: 1
     description:
       phandle to rcpm node, Please refer
-      Documentation/devicetree/bindings/soc/fsl/rcpm.txt
+      Documentation/devicetree/bindings/soc/fsl/fsl,rcpm.yaml
 
   big-endian:
     $ref: /schemas/types.yaml#/definitions/flag

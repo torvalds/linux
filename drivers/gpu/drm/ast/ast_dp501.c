@@ -4,6 +4,11 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 
+#include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_probe_helper.h>
+
 #include "ast_drv.h"
 
 MODULE_FIRMWARE("ast_dp501_fw.bin");
@@ -170,7 +175,7 @@ static void clear_cmd(struct ast_device *ast)
 }
 #endif
 
-void ast_set_dp501_video_output(struct drm_device *dev, u8 mode)
+static void ast_set_dp501_video_output(struct drm_device *dev, u8 mode)
 {
 	ast_write_cmd(dev, 0x40);
 	ast_write_data(dev, mode);
@@ -272,7 +277,7 @@ static bool ast_launch_m68k(struct drm_device *dev)
 	return true;
 }
 
-bool ast_dp501_is_connected(struct ast_device *ast)
+static bool ast_dp501_is_connected(struct ast_device *ast)
 {
 	u32 boot_address, offset, data;
 
@@ -313,32 +318,30 @@ bool ast_dp501_is_connected(struct ast_device *ast)
 	return true;
 }
 
-bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata)
+static int ast_dp512_read_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 {
-	struct ast_device *ast = to_ast_device(dev);
-	u32 i, boot_address, offset, data;
-	u32 *pEDIDidx;
+	struct ast_device *ast = data;
+	size_t rdlen = round_up(len, 4);
+	u32 i, boot_address, offset, ediddata;
 
-	if (!ast_dp501_is_connected(ast))
-		return false;
+	if (block > (512 / EDID_LENGTH))
+		return -EIO;
+
+	offset = AST_DP501_EDID_DATA + block * EDID_LENGTH;
 
 	if (ast->config_mode == ast_use_p2a) {
 		boot_address = get_fw_base(ast);
 
-		/* Read EDID */
-		offset = AST_DP501_EDID_DATA;
-		for (i = 0; i < 128; i += 4) {
-			data = ast_mindwm(ast, boot_address + offset + i);
-			pEDIDidx = (u32 *)(ediddata + i);
-			*pEDIDidx = data;
+		for (i = 0; i < rdlen; i += 4) {
+			ediddata = ast_mindwm(ast, boot_address + offset + i);
+			memcpy(buf, &ediddata, min((len - i), 4));
+			buf += 4;
 		}
 	} else {
-		/* Read EDID */
-		offset = AST_DP501_EDID_DATA;
-		for (i = 0; i < 128; i += 4) {
-			data = readl(ast->dp501_fw_buf + offset + i);
-			pEDIDidx = (u32 *)(ediddata + i);
-			*pEDIDidx = data;
+		for (i = 0; i < rdlen; i += 4) {
+			ediddata = readl(ast->dp501_fw_buf + offset + i);
+			memcpy(buf, &ediddata, min((len - i), 4));
+			buf += 4;
 		}
 	}
 
@@ -469,4 +472,145 @@ void ast_init_3rdtx(struct drm_device *dev)
 				ast_init_analog(dev);
 		}
 	}
+}
+
+/*
+ * Encoder
+ */
+
+static const struct drm_encoder_funcs ast_dp501_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static void ast_dp501_encoder_helper_atomic_enable(struct drm_encoder *encoder,
+						   struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_set_dp501_video_output(dev, 1);
+}
+
+static void ast_dp501_encoder_helper_atomic_disable(struct drm_encoder *encoder,
+						    struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_set_dp501_video_output(dev, 0);
+}
+
+static const struct drm_encoder_helper_funcs ast_dp501_encoder_helper_funcs = {
+	.atomic_enable = ast_dp501_encoder_helper_atomic_enable,
+	.atomic_disable = ast_dp501_encoder_helper_atomic_disable,
+};
+
+/*
+ * Connector
+ */
+
+static int ast_dp501_connector_helper_get_modes(struct drm_connector *connector)
+{
+	struct ast_connector *ast_connector = to_ast_connector(connector);
+	int count;
+
+	if (ast_connector->physical_status == connector_status_connected) {
+		struct ast_device *ast = to_ast_device(connector->dev);
+		const struct drm_edid *drm_edid;
+
+		drm_edid = drm_edid_read_custom(connector, ast_dp512_read_edid_block, ast);
+		drm_edid_connector_update(connector, drm_edid);
+		count = drm_edid_connector_add_modes(connector);
+		drm_edid_free(drm_edid);
+	} else {
+		drm_edid_connector_update(connector, NULL);
+
+		/*
+		 * There's no EDID data without a connected monitor. Set BMC-
+		 * compatible modes in this case. The XGA default resolution
+		 * should work well for all BMCs.
+		 */
+		count = drm_add_modes_noedid(connector, 4096, 4096);
+		if (count)
+			drm_set_preferred_mode(connector, 1024, 768);
+	}
+
+	return count;
+}
+
+static int ast_dp501_connector_helper_detect_ctx(struct drm_connector *connector,
+						 struct drm_modeset_acquire_ctx *ctx,
+						 bool force)
+{
+	struct ast_connector *ast_connector = to_ast_connector(connector);
+	struct ast_device *ast = to_ast_device(connector->dev);
+	enum drm_connector_status status = connector_status_disconnected;
+
+	if (ast_dp501_is_connected(ast))
+		status = connector_status_connected;
+
+	if (status != ast_connector->physical_status)
+		++connector->epoch_counter;
+	ast_connector->physical_status = status;
+
+	return connector_status_connected;
+}
+
+static const struct drm_connector_helper_funcs ast_dp501_connector_helper_funcs = {
+	.get_modes = ast_dp501_connector_helper_get_modes,
+	.detect_ctx = ast_dp501_connector_helper_detect_ctx,
+};
+
+static const struct drm_connector_funcs ast_dp501_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static int ast_dp501_connector_init(struct drm_device *dev, struct drm_connector *connector)
+{
+	int ret;
+
+	ret = drm_connector_init(dev, connector, &ast_dp501_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
+	if (ret)
+		return ret;
+
+	drm_connector_helper_add(connector, &ast_dp501_connector_helper_funcs);
+
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+
+	return 0;
+}
+
+int ast_dp501_output_init(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_crtc *crtc = &ast->crtc;
+	struct drm_encoder *encoder = &ast->output.dp501.encoder;
+	struct ast_connector *ast_connector = &ast->output.dp501.connector;
+	struct drm_connector *connector = &ast_connector->base;
+	int ret;
+
+	ret = drm_encoder_init(dev, encoder, &ast_dp501_encoder_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
+	if (ret)
+		return ret;
+	drm_encoder_helper_add(encoder, &ast_dp501_encoder_helper_funcs);
+
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	ret = ast_dp501_connector_init(dev, connector);
+	if (ret)
+		return ret;
+	ast_connector->physical_status = connector->status;
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ret;
+
+	return 0;
 }

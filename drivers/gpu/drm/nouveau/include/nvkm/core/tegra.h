@@ -51,6 +51,5 @@ struct nvkm_device_tegra_func {
 int nvkm_device_tegra_new(const struct nvkm_device_tegra_func *,
 			  struct platform_device *,
 			  const char *cfg, const char *dbg,
-			  bool detect, bool mmio, u64 subdev_mask,
 			  struct nvkm_device **);
 #endif

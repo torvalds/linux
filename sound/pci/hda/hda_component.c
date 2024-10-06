@@ -142,7 +142,6 @@ int hda_component_manager_bind(struct hda_codec *cdc,
 
 	/* Init shared and component specific data */
 	memset(parent->comps, 0, sizeof(parent->comps));
-	parent->codec = cdc;
 
 	mutex_lock(&parent->mutex);
 	ret = component_bind_all(hda_codec_dev(cdc), parent);
@@ -162,6 +161,13 @@ int hda_component_manager_init(struct hda_codec *cdc,
 	struct component_match *match = NULL;
 	struct hda_scodec_match *sm;
 	int ret, i;
+
+	if (parent->codec) {
+		codec_err(cdc, "Component binding already created (SSID: %x)\n",
+			  cdc->core.subsystem_id);
+		return -EINVAL;
+	}
+	parent->codec = cdc;
 
 	mutex_init(&parent->mutex);
 
@@ -185,12 +191,19 @@ int hda_component_manager_init(struct hda_codec *cdc,
 }
 EXPORT_SYMBOL_NS_GPL(hda_component_manager_init, SND_HDA_SCODEC_COMPONENT);
 
-void hda_component_manager_free(struct hda_codec *cdc,
+void hda_component_manager_free(struct hda_component_parent *parent,
 				const struct component_master_ops *ops)
 {
-	struct device *dev = hda_codec_dev(cdc);
+	struct device *dev;
+
+	if (!parent->codec)
+		return;
+
+	dev = hda_codec_dev(parent->codec);
 
 	component_master_del(dev, ops);
+
+	parent->codec = NULL;
 }
 EXPORT_SYMBOL_NS_GPL(hda_component_manager_free, SND_HDA_SCODEC_COMPONENT);
 

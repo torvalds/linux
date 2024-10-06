@@ -163,6 +163,14 @@ struct intel_modifier_desc {
 
 static const struct intel_modifier_desc intel_modifiers[] = {
 	{
+		.modifier = I915_FORMAT_MOD_4_TILED_LNL_CCS,
+		.display_ver = { 20, -1 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4,
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_BMG_CCS,
+		.display_ver = { 14, -1 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_NEED64K_PHYS,
+	}, {
 		.modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS,
 		.display_ver = { 14, 14 },
 		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_MC,
@@ -412,6 +420,24 @@ bool intel_fb_is_mc_ccs_modifier(u64 modifier)
 				      INTEL_PLANE_CAP_CCS_MC);
 }
 
+/**
+ * intel_fb_needs_64k_phys: Check if modifier requires 64k physical placement.
+ * @modifier: Modifier to check
+ *
+ * Returns:
+ * Returns %true if @modifier requires 64k aligned physical pages.
+ */
+bool intel_fb_needs_64k_phys(u64 modifier)
+{
+	const struct intel_modifier_desc *md = lookup_modifier_or_null(modifier);
+
+	if (!md)
+		return false;
+
+	return plane_caps_contain_any(md->plane_caps,
+				      INTEL_PLANE_CAP_NEED64K_PHYS);
+}
+
 static bool check_modifier_display_ver_range(const struct intel_modifier_desc *md,
 					     u8 display_ver_from, u8 display_ver_until)
 {
@@ -435,6 +461,14 @@ static bool plane_has_modifier(struct drm_i915_private *i915,
 	 */
 	if (intel_fb_is_ccs_modifier(md->modifier) &&
 	    HAS_FLAT_CCS(i915) != !md->ccs.packed_aux_planes)
+		return false;
+
+	if (md->modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS &&
+	    (GRAPHICS_VER(i915) < 20 || !IS_DGFX(i915)))
+		return false;
+
+	if (md->modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS &&
+	    (GRAPHICS_VER(i915) < 20 || IS_DGFX(i915)))
 		return false;
 
 	return true;
@@ -653,6 +687,8 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 			return 128;
 		else
 			return 512;
+	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
 	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
 	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
 	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:

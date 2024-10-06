@@ -13,6 +13,7 @@
 #include "errcode.h"
 #include "error.h"
 #include "inode.h"
+#include "io_write.h"
 #include "move.h"
 #include "rebalance.h"
 #include "subvolume.h"
@@ -156,6 +157,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 	data_opts->rewrite_ptrs		=
 		bch2_bkey_ptrs_need_rebalance(c, k, r->target, r->compression);
 	data_opts->target		= r->target;
+	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
 
 	if (!data_opts->rewrite_ptrs) {
 		/*
@@ -263,6 +265,7 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, k, target, compression);
 	data_opts->target		= target;
+	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
 	return data_opts->rewrite_ptrs != 0;
 }
 

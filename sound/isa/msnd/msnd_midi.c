@@ -42,8 +42,6 @@ static int snd_msndmidi_input_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_msndmidi *mpu;
 
-	snd_printdd("snd_msndmidi_input_open()\n");
-
 	mpu = substream->rmidi->private_data;
 
 	mpu->substream_input = substream;
@@ -83,8 +81,6 @@ static void snd_msndmidi_input_trigger(struct snd_rawmidi_substream *substream,
 {
 	unsigned long flags;
 	struct snd_msndmidi *mpu;
-
-	snd_printdd("snd_msndmidi_input_trigger(, %i)\n", up);
 
 	mpu = substream->rmidi->private_data;
 	spin_lock_irqsave(&mpu->input_lock, flags);

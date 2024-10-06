@@ -447,7 +447,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		ret = devm_request_irq(dev, irq, rcar_thermal_irq,
 				       IRQF_SHARED, dev_name(dev), common);
 		if (ret) {
-			dev_err(dev, "irq request failed\n ");
+			dev_err(dev, "irq request failed\n");
 			goto error_unregister;
 		}
 

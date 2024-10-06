@@ -286,7 +286,7 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 	 */
 	bool promote_full = (failed ||
 			     *read_full ||
-			     READ_ONCE(c->promote_whole_extents));
+			     READ_ONCE(c->opts.promote_whole_extents));
 	/* data might have to be decompressed in the write path: */
 	unsigned sectors = promote_full
 		? max(pick->crc.compressed_size, pick->crc.live_size)
@@ -517,7 +517,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if ((ret = bkey_err(k)))
 		goto out;
 
-	if (bversion_cmp(k.k->version, rbio->version) ||
+	if (bversion_cmp(k.k->bversion, rbio->version) ||
 	    !bch2_bkey_matches_ptr(c, k, rbio->pick.ptr, data_offset))
 		goto out;
 
@@ -777,7 +777,7 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 			orig_k->k->k.size,
 			reflink_offset);
 		bch2_inconsistent_error(trans->c);
-		ret = -EIO;
+		ret = -BCH_ERR_missing_indirect_extent;
 		goto err;
 	}
 
@@ -869,9 +869,15 @@ retry_pick:
 		goto hole;
 
 	if (pick_ret < 0) {
+		struct printbuf buf = PRINTBUF;
+		bch2_bkey_val_to_text(&buf, c, k);
+
 		bch_err_inum_offset_ratelimited(c,
 				read_pos.inode, read_pos.offset << 9,
-				"no device to read from");
+				"no device to read from: %s\n  %s",
+				bch2_err_str(pick_ret),
+				buf.buf);
+		printbuf_exit(&buf);
 		goto err;
 	}
 
@@ -1025,7 +1031,7 @@ get_bio:
 	rbio->read_pos		= read_pos;
 	rbio->data_btree	= data_btree;
 	rbio->data_pos		= data_pos;
-	rbio->version		= k.k->version;
+	rbio->version		= k.k->bversion;
 	rbio->promote		= promote;
 	INIT_WORK(&rbio->work, NULL);
 
@@ -1086,7 +1092,7 @@ get_bio:
 		trans->notrace_relock_fail = true;
 	} else {
 		/* Attempting reconstruct read: */
-		if (bch2_ec_read_extent(trans, rbio)) {
+		if (bch2_ec_read_extent(trans, rbio, k)) {
 			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 			goto out;
 		}
@@ -1214,10 +1220,6 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 		swap(bvec_iter.bi_size, bytes);
 		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
-
-		ret = btree_trans_too_many_iters(trans);
-		if (ret)
-			goto err;
 err:
 		if (ret &&
 		    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&

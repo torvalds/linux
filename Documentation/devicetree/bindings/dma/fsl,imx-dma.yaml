@@ -28,6 +28,14 @@ properties:
       - description: DMA Error interrupt
     minItems: 1
 
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: ahb
+
   "#dma-cells":
     const: 1
 
@@ -42,15 +50,21 @@ required:
   - reg
   - interrupts
   - "#dma-cells"
+  - clocks
+  - clock-names
 
 additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/imx27-clock.h>
+
     dma-controller@10001000 {
       compatible = "fsl,imx27-dma";
       reg = <0x10001000 0x1000>;
       interrupts = <32 33>;
       #dma-cells = <1>;
       dma-channels = <16>;
+      clocks = <&clks IMX27_CLK_DMA_IPG_GATE>, <&clks IMX27_CLK_DMA_AHB_GATE>;
+      clock-names = "ipg", "ahb";
     };

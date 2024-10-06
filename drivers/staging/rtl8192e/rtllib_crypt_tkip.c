@@ -637,12 +637,6 @@ static int rtllib_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 
 	if (seq) {
 		/* Return the sequence number of the last transmitted frame. */
-		u16 iv16 = tkey->tx_iv16;
-		u32 iv32 = tkey->tx_iv32;
-
-		if (iv16 == 0)
-			iv32--;
-		iv16--;
 		seq[0] = tkey->tx_iv16;
 		seq[1] = tkey->tx_iv16 >> 8;
 		seq[2] = tkey->tx_iv32;
@@ -678,7 +672,7 @@ static void rtllib_tkip_print_stats(struct seq_file *m, void *priv)
 		   tkip->dot11RSNAStatsTKIPLocalMICFailures);
 }
 
-static struct lib80211_crypto_ops rtllib_crypt_tkip = {
+static const struct lib80211_crypto_ops rtllib_crypt_tkip = {
 	.name			= "R-TKIP",
 	.init			= rtllib_tkip_init,
 	.deinit			= rtllib_tkip_deinit,

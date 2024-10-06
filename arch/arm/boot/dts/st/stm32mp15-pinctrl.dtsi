@@ -2229,6 +2229,9 @@
 				 <STM32_PINMUX('A', 9, AF10)>, /* SDMMC2_D5 */
 				 <STM32_PINMUX('E', 5, AF9)>, /* SDMMC2_D6 */
 				 <STM32_PINMUX('C', 7, AF10)>; /* SDMMC2_D7 */
+			slew-rate = <1>;
+			drive-push-pull;
+			bias-pull-up;
 		};
 	};
 

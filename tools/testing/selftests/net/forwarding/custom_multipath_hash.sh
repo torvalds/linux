@@ -224,10 +224,10 @@ send_dst_ipv6()
 send_flowlabel()
 {
 	# Generate 16384 echo requests, each with a random flow label.
-	for _ in $(seq 1 16384); do
-		ip vrf exec v$h1 \
-			$PING6 2001:db8:4::2 -F 0 -c 1 -q >/dev/null 2>&1
-	done
+	ip vrf exec v$h1 sh -c \
+		"for _ in {1..16384}; do \
+			$PING6 2001:db8:4::2 -F 0 -c 1 -q >/dev/null 2>&1; \
+		done"
 }
 
 send_src_udp6()

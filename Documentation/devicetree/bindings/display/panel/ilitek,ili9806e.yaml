@@ -16,6 +16,7 @@ properties:
   compatible:
     items:
       - enum:
+          - densitron,dmt028vghmcmi-1d
           - ortustech,com35h3p70ulc
       - const: ilitek,ili9806e
 

@@ -198,7 +198,6 @@ static long scx200_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations scx200_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.write = scx200_wdt_write,
 	.unlocked_ioctl = scx200_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

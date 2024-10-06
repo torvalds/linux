@@ -33,7 +33,7 @@ static void __hyp_sve_save_guest(struct kvm_vcpu *vcpu)
 	 */
 	sve_cond_update_zcr_vq(vcpu_sve_max_vq(vcpu) - 1, SYS_ZCR_EL2);
 	__sve_save_state(vcpu_sve_pffr(vcpu), &vcpu->arch.ctxt.fp_regs.fpsr, true);
-	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
+	write_sysreg_s(sve_vq_from_vl(kvm_host_sve_max_vl) - 1, SYS_ZCR_EL2);
 }
 
 static void __hyp_sve_restore_host(void)
@@ -45,10 +45,11 @@ static void __hyp_sve_restore_host(void)
 	 * the host. The layout of the data when saving the sve state depends
 	 * on the VL, so use a consistent (i.e., the maximum) host VL.
 	 *
-	 * Setting ZCR_EL2 to ZCR_ELx_LEN_MASK sets the effective length
-	 * supported by the system (or limited at EL3).
+	 * Note that this constrains the PE to the maximum shared VL
+	 * that was discovered, if we wish to use larger VLs this will
+	 * need to be revisited.
 	 */
-	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
+	write_sysreg_s(sve_vq_from_vl(kvm_host_sve_max_vl) - 1, SYS_ZCR_EL2);
 	__sve_restore_state(sve_state->sve_regs + sve_ffr_offset(kvm_host_sve_max_vl),
 			    &sve_state->fpsr,
 			    true);
@@ -488,7 +489,8 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 	case ESR_ELx_EC_SVE:
 		cpacr_clear_set(0, CPACR_ELx_ZEN);
 		isb();
-		sve_cond_update_zcr_vq(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
+		sve_cond_update_zcr_vq(sve_vq_from_vl(kvm_host_sve_max_vl) - 1,
+				       SYS_ZCR_EL2);
 		break;
 	case ESR_ELx_EC_IABT_LOW:
 	case ESR_ELx_EC_DABT_LOW:

@@ -136,6 +136,7 @@ static int __init init_fs_stat_sysctls(void)
 	register_sysctl_init("fs", fs_stat_sysctls);
 	if (IS_ENABLED(CONFIG_BINFMT_MISC)) {
 		struct ctl_table_header *hdr;
+
 		hdr = register_sysctl_mount_point("fs/binfmt_misc");
 		kmemleak_not_leak(hdr);
 	}
@@ -155,8 +156,14 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 		return error;
 	}
 
-	rwlock_init(&f->f_owner.lock);
 	spin_lock_init(&f->f_lock);
+	/*
+	 * Note that f_pos_lock is only used for files raising
+	 * FMODE_ATOMIC_POS and directories. Other files such as pipes
+	 * don't need it and since f_pos_lock is in a union may reuse
+	 * the space for other purposes. They are expected to initialize
+	 * the respective member when opening the file.
+	 */
 	mutex_init(&f->f_pos_lock);
 	f->f_flags = flags;
 	f->f_mode = OPEN_FMODE(flags);
@@ -383,7 +390,9 @@ EXPORT_SYMBOL_GPL(alloc_file_pseudo_noaccount);
 struct file *alloc_file_clone(struct file *base, int flags,
 				const struct file_operations *fops)
 {
-	struct file *f = alloc_file(&base->f_path, flags, fops);
+	struct file *f;
+
+	f = alloc_file(&base->f_path, flags, fops);
 	if (!IS_ERR(f)) {
 		path_get(&f->f_path);
 		f->f_mapping = base->f_mapping;
@@ -425,7 +434,7 @@ static void __fput(struct file *file)
 		cdev_put(inode->i_cdev);
 	}
 	fops_put(file->f_op);
-	put_pid(file->f_owner.pid);
+	file_f_owner_release(file);
 	put_file_access(file);
 	dput(dentry);
 	if (unlikely(mode & FMODE_NEED_UNMOUNT))
@@ -512,9 +521,14 @@ EXPORT_SYMBOL(__fput_sync);
 
 void __init files_init(void)
 {
-	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
-				SLAB_TYPESAFE_BY_RCU | SLAB_HWCACHE_ALIGN |
-				SLAB_PANIC | SLAB_ACCOUNT, NULL);
+	struct kmem_cache_args args = {
+		.use_freeptr_offset = true,
+		.freeptr_offset = offsetof(struct file, f_freeptr),
+	};
+
+	filp_cachep = kmem_cache_create("filp", sizeof(struct file), &args,
+				SLAB_HWCACHE_ALIGN | SLAB_PANIC |
+				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU);
 	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
 }
 

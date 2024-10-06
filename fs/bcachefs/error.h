@@ -184,7 +184,7 @@ do {									\
 		ret = -BCH_ERR_fsck_delete_bkey;			\
 		goto fsck_err;						\
 	}								\
-	int _ret = __bch2_bkey_fsck_err(c, k, FSCK_CAN_FIX,		\
+	int _ret = __bch2_bkey_fsck_err(c, k, FSCK_CAN_FIX|FSCK_AUTOFIX,\
 				BCH_FSCK_ERR_##_err_type,		\
 				_err_msg, ##__VA_ARGS__);		\
 	if (_ret != -BCH_ERR_fsck_fix &&				\

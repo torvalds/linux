@@ -890,7 +890,7 @@ int mt7921_mcu_set_chan_info(struct mt792x_phy *phy, int cmd)
 	if (cmd == MCU_EXT_CMD(SET_RX_PATH) ||
 	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
 		req.switch_reason = CH_SWITCH_NORMAL;
-	else if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+	else if (phy->mt76->offchannel)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
 	else if (!cfg80211_reg_can_beacon(dev->mt76.hw->wiphy, chandef,
 					  NL80211_IFTYPE_AP))

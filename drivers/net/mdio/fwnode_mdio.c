@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dev_printk.h>
 #include <linux/fwnode_mdio.h>
 #include <linux/of.h>
 #include <linux/phy.h>
@@ -104,7 +105,7 @@ int fwnode_mdiobus_phy_device_register(struct mii_bus *mdio,
 		return rc;
 	}
 
-	dev_dbg(&mdio->dev, "registered phy %p fwnode at address %i\n",
+	dev_dbg(&mdio->dev, "registered phy fwnode %pfw at address %i\n",
 		child, addr);
 	return 0;
 }

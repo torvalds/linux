@@ -15,7 +15,6 @@
 #define QCA8327_A_PHY_ID			0x004dd033
 #define QCA8327_B_PHY_ID			0x004dd034
 #define QCA8337_PHY_ID				0x004dd036
-#define QCA8K_PHY_ID_MASK			0xffffffff
 
 #define QCA8K_DEVFLAGS_REVISION_MASK		GENMASK(2, 0)
 
@@ -216,8 +215,7 @@ static int qca8327_suspend(struct phy_device *phydev)
 static struct phy_driver qca83xx_driver[] = {
 {
 	/* QCA8337 */
-	.phy_id			= QCA8337_PHY_ID,
-	.phy_id_mask		= QCA8K_PHY_ID_MASK,
+	PHY_ID_MATCH_EXACT(QCA8337_PHY_ID),
 	.name			= "Qualcomm Atheros 8337 internal PHY",
 	/* PHY_GBIT_FEATURES */
 	.probe			= qca83xx_probe,
@@ -231,8 +229,7 @@ static struct phy_driver qca83xx_driver[] = {
 	.resume			= qca83xx_resume,
 }, {
 	/* QCA8327-A from switch QCA8327-AL1A */
-	.phy_id			= QCA8327_A_PHY_ID,
-	.phy_id_mask		= QCA8K_PHY_ID_MASK,
+	PHY_ID_MATCH_EXACT(QCA8327_A_PHY_ID),
 	.name			= "Qualcomm Atheros 8327-A internal PHY",
 	/* PHY_GBIT_FEATURES */
 	.link_change_notify	= qca83xx_link_change_notify,
@@ -247,8 +244,7 @@ static struct phy_driver qca83xx_driver[] = {
 	.resume			= qca83xx_resume,
 }, {
 	/* QCA8327-B from switch QCA8327-BL1A */
-	.phy_id			= QCA8327_B_PHY_ID,
-	.phy_id_mask		= QCA8K_PHY_ID_MASK,
+	PHY_ID_MATCH_EXACT(QCA8327_B_PHY_ID),
 	.name			= "Qualcomm Atheros 8327-B internal PHY",
 	/* PHY_GBIT_FEATURES */
 	.link_change_notify	= qca83xx_link_change_notify,

@@ -103,18 +103,24 @@ struct guest_session {
 	struct guest_event		ev;
 };
 
+enum build_id_rewrite_style {
+	BID_RWS__NONE = 0,
+	BID_RWS__INJECT_HEADER_LAZY,
+	BID_RWS__INJECT_HEADER_ALL,
+	BID_RWS__MMAP2_BUILDID_ALL,
+	BID_RWS__MMAP2_BUILDID_LAZY,
+};
+
 struct perf_inject {
 	struct perf_tool	tool;
 	struct perf_session	*session;
-	bool			build_ids;
-	bool			build_id_all;
+	enum build_id_rewrite_style build_id_style;
 	bool			sched_stat;
 	bool			have_auxtrace;
 	bool			strip;
 	bool			jit_mode;
 	bool			in_place_update;
 	bool			in_place_update_dry_run;
-	bool			is_pipe;
 	bool			copy_kcore_dir;
 	const char		*input_name;
 	struct perf_data	output;
@@ -126,6 +132,7 @@ struct perf_inject {
 	struct perf_file_section secs[HEADER_FEAT_BITS];
 	struct guest_session	guest_session;
 	struct strlist		*known_build_ids;
+	const struct evsel	*mmap_evsel;
 };
 
 struct event_entry {
@@ -134,8 +141,23 @@ struct event_entry {
 	union perf_event event[];
 };
 
-static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
-				struct machine *machine, u8 cpumode, u32 flags);
+static int tool__inject_build_id(const struct perf_tool *tool,
+				 struct perf_sample *sample,
+				 struct machine *machine,
+				 const struct evsel *evsel,
+				 __u16 misc,
+				 const char *filename,
+				 struct dso *dso, u32 flags);
+static int tool__inject_mmap2_build_id(const struct perf_tool *tool,
+				      struct perf_sample *sample,
+				      struct machine *machine,
+				      const struct evsel *evsel,
+				      __u16 misc,
+				      __u32 pid, __u32 tid,
+				      __u64 start, __u64 len, __u64 pgoff,
+				      struct dso *dso,
+				      __u32 prot, __u32 flags,
+				      const char *filename);
 
 static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 {
@@ -149,8 +171,9 @@ static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 	return 0;
 }
 
-static int perf_event__repipe_synth(struct perf_tool *tool,
+static int perf_event__repipe_synth(const struct perf_tool *tool,
 				    union perf_event *event)
+
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
@@ -158,7 +181,7 @@ static int perf_event__repipe_synth(struct perf_tool *tool,
 	return output_bytes(inject, event, event->header.size);
 }
 
-static int perf_event__repipe_oe_synth(struct perf_tool *tool,
+static int perf_event__repipe_oe_synth(const struct perf_tool *tool,
 				       union perf_event *event,
 				       struct ordered_events *oe __maybe_unused)
 {
@@ -166,7 +189,7 @@ static int perf_event__repipe_oe_synth(struct perf_tool *tool,
 }
 
 #ifdef HAVE_JITDUMP
-static int perf_event__drop_oe(struct perf_tool *tool __maybe_unused,
+static int perf_event__drop_oe(const struct perf_tool *tool __maybe_unused,
 			       union perf_event *event __maybe_unused,
 			       struct ordered_events *oe __maybe_unused)
 {
@@ -188,7 +211,7 @@ static int perf_event__repipe_op4_synth(struct perf_session *session,
 	return perf_event__repipe_synth(session->tool, event);
 }
 
-static int perf_event__repipe_attr(struct perf_tool *tool,
+static int perf_event__repipe_attr(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct evlist **pevlist)
 {
@@ -200,13 +223,14 @@ static int perf_event__repipe_attr(struct perf_tool *tool,
 	if (ret)
 		return ret;
 
-	if (!inject->is_pipe)
+	/* If the output isn't a pipe then the attributes will be written as part of the header. */
+	if (!inject->output.is_pipe)
 		return 0;
 
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_event_update(struct perf_tool *tool,
+static int perf_event__repipe_event_update(const struct perf_tool *tool,
 					   union perf_event *event,
 					   struct evlist **pevlist __maybe_unused)
 {
@@ -237,7 +261,7 @@ static int copy_bytes(struct perf_inject *inject, struct perf_data *data, off_t 
 static s64 perf_event__repipe_auxtrace(struct perf_session *session,
 				       union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
 	int ret;
@@ -284,7 +308,7 @@ perf_event__repipe_auxtrace(struct perf_session *session __maybe_unused,
 
 #endif
 
-static int perf_event__repipe(struct perf_tool *tool,
+static int perf_event__repipe(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -292,7 +316,7 @@ static int perf_event__repipe(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__drop(struct perf_tool *tool __maybe_unused,
+static int perf_event__drop(const struct perf_tool *tool __maybe_unused,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample __maybe_unused,
 			    struct machine *machine __maybe_unused)
@@ -300,7 +324,7 @@ static int perf_event__drop(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int perf_event__drop_aux(struct perf_tool *tool,
+static int perf_event__drop_aux(const struct perf_tool *tool,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
 				struct machine *machine __maybe_unused)
@@ -341,13 +365,13 @@ perf_inject__cut_auxtrace_sample(struct perf_inject *inject,
 	return ev;
 }
 
-typedef int (*inject_handler)(struct perf_tool *tool,
+typedef int (*inject_handler)(const struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample,
 			      struct evsel *evsel,
 			      struct machine *machine);
 
-static int perf_event__repipe_sample(struct perf_tool *tool,
+static int perf_event__repipe_sample(const struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct evsel *evsel,
@@ -372,46 +396,8 @@ static int perf_event__repipe_sample(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_mmap(struct perf_tool *tool,
-				   union perf_event *event,
-				   struct perf_sample *sample,
-				   struct machine *machine)
-{
-	int err;
-
-	err = perf_event__process_mmap(tool, event, sample, machine);
-	perf_event__repipe(tool, event, sample, machine);
-
-	return err;
-}
-
-#ifdef HAVE_JITDUMP
-static int perf_event__jit_repipe_mmap(struct perf_tool *tool,
-				       union perf_event *event,
-				       struct perf_sample *sample,
-				       struct machine *machine)
-{
-	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
-	u64 n = 0;
-	int ret;
-
-	/*
-	 * if jit marker, then inject jit mmaps and generate ELF images
-	 */
-	ret = jit_process(inject->session, &inject->output, machine,
-			  event->mmap.filename, event->mmap.pid, event->mmap.tid, &n);
-	if (ret < 0)
-		return ret;
-	if (ret) {
-		inject->bytes_written += n;
-		return 0;
-	}
-	return perf_event__repipe_mmap(tool, event, sample, machine);
-}
-#endif
-
 static struct dso *findnew_dso(int pid, int tid, const char *filename,
-			       struct dso_id *id, struct machine *machine)
+			       const struct dso_id *id, struct machine *machine)
 {
 	struct thread *thread;
 	struct nsinfo *nsi = NULL;
@@ -455,117 +441,173 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 	return dso;
 }
 
-static int perf_event__repipe_buildid_mmap(struct perf_tool *tool,
-					   union perf_event *event,
-					   struct perf_sample *sample,
-					   struct machine *machine)
+/*
+ * The evsel used for the sample ID for mmap events. Typically stashed when
+ * processing mmap events. If not stashed, search the evlist for the first mmap
+ * gathering event.
+ */
+static const struct evsel *inject__mmap_evsel(struct perf_inject *inject)
 {
-	struct dso *dso;
+	struct evsel *pos;
 
-	dso = findnew_dso(event->mmap.pid, event->mmap.tid,
-			  event->mmap.filename, NULL, machine);
+	if (inject->mmap_evsel)
+		return inject->mmap_evsel;
 
-	if (dso && !dso__hit(dso)) {
-		dso__set_hit(dso);
-		dso__inject_build_id(dso, tool, machine, sample->cpumode, 0);
+	evlist__for_each_entry(inject->session->evlist, pos) {
+		if (pos->core.attr.mmap) {
+			inject->mmap_evsel = pos;
+			return pos;
+		}
+	}
+	pr_err("No mmap events found\n");
+	return NULL;
+}
+
+static int perf_event__repipe_common_mmap(const struct perf_tool *tool,
+					  union perf_event *event,
+					  struct perf_sample *sample,
+					  struct machine *machine,
+					  __u32 pid, __u32 tid,
+					  __u64 start, __u64 len, __u64 pgoff,
+					  __u32 flags, __u32 prot,
+					  const char *filename,
+					  const struct dso_id *dso_id,
+					  int (*perf_event_process)(const struct perf_tool *tool,
+								    union perf_event *event,
+								    struct perf_sample *sample,
+								    struct machine *machine))
+{
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
+	struct dso *dso = NULL;
+	bool dso_sought = false;
+
+#ifdef HAVE_JITDUMP
+	if (inject->jit_mode) {
+		u64 n = 0;
+		int ret;
+
+		/* If jit marker, then inject jit mmaps and generate ELF images. */
+		ret = jit_process(inject->session, &inject->output, machine,
+				  filename, pid, tid, &n);
+		if (ret < 0)
+			return ret;
+		if (ret) {
+			inject->bytes_written += n;
+			return 0;
+		}
+	}
+#endif
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
+		dso = findnew_dso(pid, tid, filename, dso_id, machine);
+		dso_sought = true;
+		if (dso) {
+			/* mark it not to inject build-id */
+			dso__set_hit(dso);
+		}
+	}
+	if (inject->build_id_style == BID_RWS__INJECT_HEADER_ALL) {
+		if (!dso_sought) {
+			dso = findnew_dso(pid, tid, filename, dso_id, machine);
+			dso_sought = true;
+		}
+
+		if (dso && !dso__hit(dso)) {
+			struct evsel *evsel = evlist__event2evsel(inject->session->evlist, event);
+
+			if (evsel) {
+				dso__set_hit(dso);
+				tool__inject_build_id(tool, sample, machine, evsel,
+						      /*misc=*/sample->cpumode,
+						      filename, dso, flags);
+			}
+		}
+	} else {
+		int err;
+
+		/*
+		 * Remember the evsel for lazy build id generation. It is used
+		 * for the sample id header type.
+		 */
+		if ((inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY ||
+		     inject->build_id_style == BID_RWS__MMAP2_BUILDID_LAZY) &&
+		    !inject->mmap_evsel)
+			inject->mmap_evsel = evlist__event2evsel(inject->session->evlist, event);
+
+		/* Create the thread, map, etc. Not done for the unordered inject all case. */
+		err = perf_event_process(tool, event, sample, machine);
+
+		if (err) {
+			dso__put(dso);
+			return err;
+		}
+	}
+	if ((inject->build_id_style == BID_RWS__MMAP2_BUILDID_ALL) &&
+	    !(event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID)) {
+		struct evsel *evsel = evlist__event2evsel(inject->session->evlist, event);
+
+		if (evsel && !dso_sought) {
+			dso = findnew_dso(pid, tid, filename, dso_id, machine);
+			dso_sought = true;
+		}
+		if (evsel && dso &&
+		    !tool__inject_mmap2_build_id(tool, sample, machine, evsel,
+						 sample->cpumode | PERF_RECORD_MISC_MMAP_BUILD_ID,
+						 pid, tid, start, len, pgoff,
+						 dso,
+						 prot, flags,
+						 filename)) {
+			/* Injected mmap2 so no need to repipe. */
+			dso__put(dso);
+			return 0;
+		}
 	}
 	dso__put(dso);
+	if (inject->build_id_style == BID_RWS__MMAP2_BUILDID_LAZY)
+		return 0;
 
 	return perf_event__repipe(tool, event, sample, machine);
 }
 
-static int perf_event__repipe_mmap2(struct perf_tool *tool,
-				   union perf_event *event,
-				   struct perf_sample *sample,
-				   struct machine *machine)
+static int perf_event__repipe_mmap(const struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct machine *machine)
 {
-	int err;
-
-	err = perf_event__process_mmap2(tool, event, sample, machine);
-	perf_event__repipe(tool, event, sample, machine);
-
-	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
-		struct dso *dso;
-
-		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
-				  event->mmap2.filename, NULL, machine);
-		if (dso) {
-			/* mark it not to inject build-id */
-			dso__set_hit(dso);
-		}
-		dso__put(dso);
-	}
-
-	return err;
+	return perf_event__repipe_common_mmap(
+		tool, event, sample, machine,
+		event->mmap.pid, event->mmap.tid,
+		event->mmap.start, event->mmap.len, event->mmap.pgoff,
+		/*flags=*/0, PROT_EXEC,
+		event->mmap.filename, /*dso_id=*/NULL,
+		perf_event__process_mmap);
 }
 
-#ifdef HAVE_JITDUMP
-static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
-					union perf_event *event,
-					struct perf_sample *sample,
-					struct machine *machine)
+static int perf_event__repipe_mmap2(const struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct machine *machine)
 {
-	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
-	u64 n = 0;
-	int ret;
+	struct dso_id id;
+	struct dso_id *dso_id = NULL;
 
-	/*
-	 * if jit marker, then inject jit mmaps and generate ELF images
-	 */
-	ret = jit_process(inject->session, &inject->output, machine,
-			  event->mmap2.filename, event->mmap2.pid, event->mmap2.tid, &n);
-	if (ret < 0)
-		return ret;
-	if (ret) {
-		inject->bytes_written += n;
-		return 0;
-	}
-	return perf_event__repipe_mmap2(tool, event, sample, machine);
-}
-#endif
-
-static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
-					    union perf_event *event,
-					    struct perf_sample *sample,
-					    struct machine *machine)
-{
-	struct dso_id dso_id = {
-		.maj = event->mmap2.maj,
-		.min = event->mmap2.min,
-		.ino = event->mmap2.ino,
-		.ino_generation = event->mmap2.ino_generation,
-	};
-	struct dso *dso;
-
-	if (event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID) {
-		/* cannot use dso_id since it'd have invalid info */
-		dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
-				  event->mmap2.filename, NULL, machine);
-		if (dso) {
-			/* mark it not to inject build-id */
-			dso__set_hit(dso);
-		}
-		dso__put(dso);
-		perf_event__repipe(tool, event, sample, machine);
-		return 0;
+	if (!(event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID)) {
+		id.maj = event->mmap2.maj;
+		id.min = event->mmap2.min;
+		id.ino = event->mmap2.ino;
+		id.ino_generation = event->mmap2.ino_generation;
+		dso_id = &id;
 	}
 
-	dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
-			  event->mmap2.filename, &dso_id, machine);
-
-	if (dso && !dso__hit(dso)) {
-		dso__set_hit(dso);
-		dso__inject_build_id(dso, tool, machine, sample->cpumode,
-				     event->mmap2.flags);
-	}
-	dso__put(dso);
-
-	perf_event__repipe(tool, event, sample, machine);
-
-	return 0;
+	return perf_event__repipe_common_mmap(
+		tool, event, sample, machine,
+		event->mmap2.pid, event->mmap2.tid,
+		event->mmap2.start, event->mmap2.len, event->mmap2.pgoff,
+		event->mmap2.flags, event->mmap2.prot,
+		event->mmap2.filename, dso_id,
+		perf_event__process_mmap2);
 }
 
-static int perf_event__repipe_fork(struct perf_tool *tool,
+static int perf_event__repipe_fork(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -578,7 +620,7 @@ static int perf_event__repipe_fork(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_comm(struct perf_tool *tool,
+static int perf_event__repipe_comm(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -591,7 +633,7 @@ static int perf_event__repipe_comm(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_namespaces(struct perf_tool *tool,
+static int perf_event__repipe_namespaces(const struct perf_tool *tool,
 					 union perf_event *event,
 					 struct perf_sample *sample,
 					 struct machine *machine)
@@ -603,7 +645,7 @@ static int perf_event__repipe_namespaces(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_exit(struct perf_tool *tool,
+static int perf_event__repipe_exit(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine)
@@ -712,16 +754,20 @@ static bool perf_inject__lookup_known_build_id(struct perf_inject *inject,
 	return false;
 }
 
-static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
-				struct machine *machine, u8 cpumode, u32 flags)
+static int tool__inject_build_id(const struct perf_tool *tool,
+				 struct perf_sample *sample,
+				 struct machine *machine,
+				 const struct evsel *evsel,
+				 __u16 misc,
+				 const char *filename,
+				 struct dso *dso, u32 flags)
 {
-	struct perf_inject *inject = container_of(tool, struct perf_inject,
-						  tool);
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	int err;
 
-	if (is_anon_memory(dso__long_name(dso)) || flags & MAP_HUGETLB)
+	if (is_anon_memory(filename) || flags & MAP_HUGETLB)
 		return 0;
-	if (is_no_dso_memory(dso__long_name(dso)))
+	if (is_no_dso_memory(filename))
 		return 0;
 
 	if (inject->known_build_ids != NULL &&
@@ -729,27 +775,158 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 		return 1;
 
 	if (dso__read_build_id(dso) < 0) {
-		pr_debug("no build_id found for %s\n", dso__long_name(dso));
+		pr_debug("no build_id found for %s\n", filename);
 		return -1;
 	}
 
-	err = perf_event__synthesize_build_id(tool, dso, cpumode,
-					      perf_event__repipe, machine);
+	err = perf_event__synthesize_build_id(tool, sample, machine,
+					      perf_event__repipe,
+					      evsel, misc, dso__bid(dso),
+					      filename);
 	if (err) {
-		pr_err("Can't synthesize build_id event for %s\n", dso__long_name(dso));
+		pr_err("Can't synthesize build_id event for %s\n", filename);
 		return -1;
 	}
 
 	return 0;
 }
 
-int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
+static int tool__inject_mmap2_build_id(const struct perf_tool *tool,
+				       struct perf_sample *sample,
+				       struct machine *machine,
+				       const struct evsel *evsel,
+				       __u16 misc,
+				       __u32 pid, __u32 tid,
+				       __u64 start, __u64 len, __u64 pgoff,
+				       struct dso *dso,
+				       __u32 prot, __u32 flags,
+				       const char *filename)
+{
+	int err;
+
+	/* Return to repipe anonymous maps. */
+	if (is_anon_memory(filename) || flags & MAP_HUGETLB)
+		return 1;
+	if (is_no_dso_memory(filename))
+		return 1;
+
+	if (dso__read_build_id(dso)) {
+		pr_debug("no build_id found for %s\n", filename);
+		return -1;
+	}
+
+	err = perf_event__synthesize_mmap2_build_id(tool, sample, machine,
+						    perf_event__repipe,
+						    evsel,
+						    misc, pid, tid,
+						    start, len, pgoff,
+						    dso__bid(dso),
+						    prot, flags,
+						    filename);
+	if (err) {
+		pr_err("Can't synthesize build_id event for %s\n", filename);
+		return -1;
+	}
+	return 0;
+}
+
+static int mark_dso_hit(const struct perf_inject *inject,
+			const struct perf_tool *tool,
+			struct perf_sample *sample,
+			struct machine *machine,
+			const struct evsel *mmap_evsel,
+			struct map *map, bool sample_in_dso)
+{
+	struct dso *dso;
+	u16 misc = sample->cpumode;
+
+	if (!map)
+		return 0;
+
+	if (!sample_in_dso) {
+		u16 guest_mask = PERF_RECORD_MISC_GUEST_KERNEL |
+			PERF_RECORD_MISC_GUEST_USER;
+
+		if ((misc & guest_mask) != 0) {
+			misc &= PERF_RECORD_MISC_HYPERVISOR;
+			misc |= __map__is_kernel(map)
+				? PERF_RECORD_MISC_GUEST_KERNEL
+				: PERF_RECORD_MISC_GUEST_USER;
+		} else {
+			misc &= PERF_RECORD_MISC_HYPERVISOR;
+			misc |= __map__is_kernel(map)
+				? PERF_RECORD_MISC_KERNEL
+				: PERF_RECORD_MISC_USER;
+		}
+	}
+	dso = map__dso(map);
+	if (inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY) {
+		if (dso && !dso__hit(dso)) {
+			dso__set_hit(dso);
+			tool__inject_build_id(tool, sample, machine,
+					     mmap_evsel, misc, dso__long_name(dso), dso,
+					     map__flags(map));
+		}
+	} else if (inject->build_id_style == BID_RWS__MMAP2_BUILDID_LAZY) {
+		if (!map__hit(map)) {
+			const struct build_id null_bid = { .size = 0 };
+			const struct build_id *bid = dso ? dso__bid(dso) : &null_bid;
+			const char *filename = dso ? dso__long_name(dso) : "";
+
+			map__set_hit(map);
+			perf_event__synthesize_mmap2_build_id(tool, sample, machine,
+								perf_event__repipe,
+								mmap_evsel,
+								misc,
+								sample->pid, sample->tid,
+								map__start(map),
+								map__end(map) - map__start(map),
+								map__pgoff(map),
+								bid,
+								map__prot(map),
+								map__flags(map),
+								filename);
+		}
+	}
+	return 0;
+}
+
+struct mark_dso_hit_args {
+	const struct perf_inject *inject;
+	const struct perf_tool *tool;
+	struct perf_sample *sample;
+	struct machine *machine;
+	const struct evsel *mmap_evsel;
+};
+
+static int mark_dso_hit_callback(struct callchain_cursor_node *node, void *data)
+{
+	struct mark_dso_hit_args *args = data;
+	struct map *map = node->ms.map;
+
+	return mark_dso_hit(args->inject, args->tool, args->sample, args->machine,
+			    args->mmap_evsel, map, /*sample_in_dso=*/false);
+}
+
+int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *event,
 			       struct perf_sample *sample,
 			       struct evsel *evsel __maybe_unused,
 			       struct machine *machine)
 {
 	struct addr_location al;
 	struct thread *thread;
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
+	struct mark_dso_hit_args args = {
+		.inject = inject,
+		.tool = tool,
+		/*
+		 * Use the parsed sample data of the sample event, which will
+		 * have a later timestamp than the mmap event.
+		 */
+		.sample = sample,
+		.machine = machine,
+		.mmap_evsel = inject__mmap_evsel(inject),
+	};
 
 	addr_location__init(&al);
 	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
@@ -760,14 +937,12 @@ int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
 	}
 
 	if (thread__find_map(thread, sample->cpumode, sample->ip, &al)) {
-		struct dso *dso = map__dso(al.map);
-
-		if (!dso__hit(dso)) {
-			dso__set_hit(dso);
-			dso__inject_build_id(dso, tool, machine,
-					     sample->cpumode, map__flags(al.map));
-		}
+		mark_dso_hit(inject, tool, sample, machine, args.mmap_evsel, al.map,
+			     /*sample_in_dso=*/true);
 	}
+
+	sample__for_each_callchain_node(thread, evsel, sample, PERF_MAX_STACK_DEPTH,
+					/*symbols=*/false, mark_dso_hit_callback, &args);
 
 	thread__put(thread);
 repipe:
@@ -776,7 +951,7 @@ repipe:
 	return 0;
 }
 
-static int perf_inject__sched_process_exit(struct perf_tool *tool,
+static int perf_inject__sched_process_exit(const struct perf_tool *tool,
 					   union perf_event *event __maybe_unused,
 					   struct perf_sample *sample,
 					   struct evsel *evsel __maybe_unused,
@@ -796,7 +971,7 @@ static int perf_inject__sched_process_exit(struct perf_tool *tool,
 	return 0;
 }
 
-static int perf_inject__sched_switch(struct perf_tool *tool,
+static int perf_inject__sched_switch(const struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct evsel *evsel,
@@ -821,7 +996,7 @@ static int perf_inject__sched_switch(struct perf_tool *tool,
 }
 
 #ifdef HAVE_LIBTRACEEVENT
-static int perf_inject__sched_stat(struct perf_tool *tool,
+static int perf_inject__sched_stat(const struct perf_tool *tool,
 				   union perf_event *event __maybe_unused,
 				   struct perf_sample *sample,
 				   struct evsel *evsel,
@@ -866,7 +1041,7 @@ static int guest_session__output_bytes(struct guest_session *gs, void *buf, size
 	return ret < 0 ? ret : 0;
 }
 
-static int guest_session__repipe(struct perf_tool *tool,
+static int guest_session__repipe(const struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_sample *sample __maybe_unused,
 				 struct machine *machine __maybe_unused)
@@ -1032,7 +1207,7 @@ static struct guest_id *guest_session__lookup_id(struct guest_session *gs, u64 i
 	return NULL;
 }
 
-static int process_attr(struct perf_tool *tool, union perf_event *event,
+static int process_attr(const struct perf_tool *tool, union perf_event *event,
 			struct perf_sample *sample __maybe_unused,
 			struct machine *machine __maybe_unused)
 {
@@ -1160,7 +1335,7 @@ static u64 evlist__first_id(struct evlist *evlist)
 	return 0;
 }
 
-static int process_build_id(struct perf_tool *tool,
+static int process_build_id(const struct perf_tool *tool,
 			    union perf_event *event,
 			    struct perf_sample *sample __maybe_unused,
 			    struct machine *machine __maybe_unused)
@@ -1173,17 +1348,27 @@ static int process_build_id(struct perf_tool *tool,
 static int synthesize_build_id(struct perf_inject *inject, struct dso *dso, pid_t machine_pid)
 {
 	struct machine *machine = perf_session__findnew_machine(inject->session, machine_pid);
-	u8 cpumode = dso__is_in_kernel_space(dso) ?
-			PERF_RECORD_MISC_GUEST_KERNEL :
-			PERF_RECORD_MISC_GUEST_USER;
+	struct perf_sample synth_sample = {
+		.pid	   = -1,
+		.tid	   = -1,
+		.time	   = -1,
+		.stream_id = -1,
+		.cpu	   = -1,
+		.period	   = 1,
+		.cpumode   = dso__is_in_kernel_space(dso)
+		? PERF_RECORD_MISC_GUEST_KERNEL
+		: PERF_RECORD_MISC_GUEST_USER,
+	};
 
 	if (!machine)
 		return -ENOMEM;
 
 	dso__set_hit(dso);
 
-	return perf_event__synthesize_build_id(&inject->tool, dso, cpumode,
-					       process_build_id, machine);
+	return perf_event__synthesize_build_id(&inject->tool, &synth_sample, machine,
+					       process_build_id, inject__mmap_evsel(inject),
+					       /*misc=*/synth_sample.cpumode,
+					       dso__bid(dso), dso__long_name(dso));
 }
 
 static int guest_session__add_build_ids_cb(struct dso *dso, void *data)
@@ -1210,7 +1395,7 @@ static int guest_session__add_build_ids(struct guest_session *gs)
 				  gs);
 }
 
-static int guest_session__ksymbol_event(struct perf_tool *tool,
+static int guest_session__ksymbol_event(const struct perf_tool *tool,
 					union perf_event *event,
 					struct perf_sample *sample __maybe_unused,
 					struct machine *machine __maybe_unused)
@@ -1574,7 +1759,7 @@ static int guest_session__flush_events(struct guest_session *gs)
 	return guest_session__inject_events(gs, -1);
 }
 
-static int host__repipe(struct perf_tool *tool,
+static int host__repipe(const struct perf_tool *tool,
 			union perf_event *event,
 			struct perf_sample *sample,
 			struct machine *machine)
@@ -1647,7 +1832,7 @@ static int host__finished_init(struct perf_session *session, union perf_event *e
  * guest events up to the same time. Finally write out the FINISHED_ROUND event
  * itself.
  */
-static int host__finished_round(struct perf_tool *tool,
+static int host__finished_round(const struct perf_tool *tool,
 				union perf_event *event,
 				struct ordered_events *oe)
 {
@@ -1665,7 +1850,7 @@ static int host__finished_round(struct perf_tool *tool,
 	return perf_event__repipe_oe_synth(tool, event, oe);
 }
 
-static int host__context_switch(struct perf_tool *tool,
+static int host__context_switch(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct machine *machine)
@@ -1719,7 +1904,7 @@ static int evsel__check_stype(struct evsel *evsel, u64 sample_type, const char *
 	return 0;
 }
 
-static int drop_sample(struct perf_tool *tool __maybe_unused,
+static int drop_sample(const struct perf_tool *tool __maybe_unused,
 		       union perf_event *event __maybe_unused,
 		       struct perf_sample *sample __maybe_unused,
 		       struct evsel *evsel __maybe_unused,
@@ -1980,12 +2165,18 @@ static int __cmd_inject(struct perf_inject *inject)
 	struct guest_session *gs = &inject->guest_session;
 	struct perf_session *session = inject->session;
 	int fd = output_fd(inject);
-	u64 output_data_offset;
+	u64 output_data_offset = perf_session__data_offset(session->evlist);
+	/*
+	 * Pipe input hasn't loaded the attributes and will handle them as
+	 * events. So that the attributes don't overlap the data, write the
+	 * attributes after the data.
+	 */
+	bool write_attrs_after_data = !inject->output.is_pipe && inject->session->data->is_pipe;
 
 	signal(SIGINT, sig_handler);
 
-	if (inject->build_ids || inject->sched_stat ||
-	    inject->itrace_synth_opts.set || inject->build_id_all) {
+	if (inject->build_id_style != BID_RWS__NONE || inject->sched_stat ||
+	    inject->itrace_synth_opts.set) {
 		inject->tool.mmap	  = perf_event__repipe_mmap;
 		inject->tool.mmap2	  = perf_event__repipe_mmap2;
 		inject->tool.fork	  = perf_event__repipe_fork;
@@ -1994,12 +2185,8 @@ static int __cmd_inject(struct perf_inject *inject)
 #endif
 	}
 
-	output_data_offset = perf_session__data_offset(session->evlist);
-
-	if (inject->build_id_all) {
-		inject->tool.mmap	  = perf_event__repipe_buildid_mmap;
-		inject->tool.mmap2	  = perf_event__repipe_buildid_mmap2;
-	} else if (inject->build_ids) {
+	if (inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY ||
+	    inject->build_id_style == BID_RWS__MMAP2_BUILDID_LAZY) {
 		inject->tool.sample = perf_event__inject_buildid;
 	} else if (inject->sched_stat) {
 		struct evsel *evsel;
@@ -2069,7 +2256,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		 */
 		inject->tool.finished_init	= host__finished_init;
 		/* Obey finished round ordering */
-		inject->tool.finished_round	= host__finished_round,
+		inject->tool.finished_round	= host__finished_round;
 		/* Keep track of which CPU a VCPU is runnng on */
 		inject->tool.context_switch	= host__context_switch;
 		/*
@@ -2092,7 +2279,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!inject->itrace_synth_opts.set)
 		auxtrace_index__free(&session->auxtrace_index);
 
-	if (!inject->is_pipe && !inject->in_place_update)
+	if (!inject->output.is_pipe && !inject->in_place_update)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
@@ -2111,15 +2298,15 @@ static int __cmd_inject(struct perf_inject *inject)
 		}
 	}
 
-	if (!inject->is_pipe && !inject->in_place_update) {
+	if (!inject->output.is_pipe && !inject->in_place_update) {
 		struct inject_fc inj_fc = {
 			.fc.copy = feat_copy_cb,
 			.inject = inject,
 		};
 
-		if (inject->build_ids)
-			perf_header__set_feat(&session->header,
-					      HEADER_BUILD_ID);
+		if (inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY ||
+		    inject->build_id_style == BID_RWS__INJECT_HEADER_ALL)
+			perf_header__set_feat(&session->header, HEADER_BUILD_ID);
 		/*
 		 * Keep all buildids when there is unprocessed AUX data because
 		 * it is not known which ones the AUX trace hits.
@@ -2141,7 +2328,8 @@ static int __cmd_inject(struct perf_inject *inject)
 		}
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
-		perf_session__inject_header(session, session->evlist, fd, &inj_fc.fc);
+		perf_session__inject_header(session, session->evlist, fd, &inj_fc.fc,
+					    write_attrs_after_data);
 
 		if (inject->copy_kcore_dir) {
 			ret = copy_kcore_dir(inject);
@@ -2165,46 +2353,6 @@ static int __cmd_inject(struct perf_inject *inject)
 int cmd_inject(int argc, const char **argv)
 {
 	struct perf_inject inject = {
-		.tool = {
-			.sample		= perf_event__repipe_sample,
-			.read		= perf_event__repipe_sample,
-			.mmap		= perf_event__repipe,
-			.mmap2		= perf_event__repipe,
-			.comm		= perf_event__repipe,
-			.namespaces	= perf_event__repipe,
-			.cgroup		= perf_event__repipe,
-			.fork		= perf_event__repipe,
-			.exit		= perf_event__repipe,
-			.lost		= perf_event__repipe,
-			.lost_samples	= perf_event__repipe,
-			.aux		= perf_event__repipe,
-			.itrace_start	= perf_event__repipe,
-			.aux_output_hw_id = perf_event__repipe,
-			.context_switch	= perf_event__repipe,
-			.throttle	= perf_event__repipe,
-			.unthrottle	= perf_event__repipe,
-			.ksymbol	= perf_event__repipe,
-			.bpf		= perf_event__repipe,
-			.text_poke	= perf_event__repipe,
-			.attr		= perf_event__repipe_attr,
-			.event_update	= perf_event__repipe_event_update,
-			.tracing_data	= perf_event__repipe_op2_synth,
-			.finished_round	= perf_event__repipe_oe_synth,
-			.build_id	= perf_event__repipe_op2_synth,
-			.id_index	= perf_event__repipe_op2_synth,
-			.auxtrace_info	= perf_event__repipe_op2_synth,
-			.auxtrace_error	= perf_event__repipe_op2_synth,
-			.time_conv	= perf_event__repipe_op2_synth,
-			.thread_map	= perf_event__repipe_op2_synth,
-			.cpu_map	= perf_event__repipe_op2_synth,
-			.stat_config	= perf_event__repipe_op2_synth,
-			.stat		= perf_event__repipe_op2_synth,
-			.stat_round	= perf_event__repipe_op2_synth,
-			.feature	= perf_event__repipe_op2_synth,
-			.finished_init	= perf_event__repipe_op2_synth,
-			.compressed	= perf_event__repipe_op4_synth,
-			.auxtrace	= perf_event__repipe_auxtrace,
-		},
 		.input_name  = "-",
 		.samples = LIST_HEAD_INIT(inject.samples),
 		.output = {
@@ -2218,14 +2366,21 @@ int cmd_inject(int argc, const char **argv)
 		.use_stdio = true,
 	};
 	int ret;
-	bool repipe = true;
 	const char *known_build_ids = NULL;
+	bool build_ids;
+	bool build_id_all;
+	bool mmap2_build_ids;
+	bool mmap2_build_id_all;
 
 	struct option options[] = {
-		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
+		OPT_BOOLEAN('b', "build-ids", &build_ids,
 			    "Inject build-ids into the output stream"),
-		OPT_BOOLEAN(0, "buildid-all", &inject.build_id_all,
+		OPT_BOOLEAN(0, "buildid-all", &build_id_all,
 			    "Inject build-ids of all DSOs into the output stream"),
+		OPT_BOOLEAN('B', "mmap2-buildids", &mmap2_build_ids,
+			    "Drop unused mmap events, make others mmap2 with build IDs"),
+		OPT_BOOLEAN(0, "mmap2-buildid-all", &mmap2_build_id_all,
+			    "Rewrite all mmap events as mmap2 events with build IDs"),
 		OPT_STRING(0, "known-build-ids", &known_build_ids,
 			   "buildid path [,buildid path...]",
 			   "build-ids to use for given paths"),
@@ -2269,6 +2424,7 @@ int cmd_inject(int argc, const char **argv)
 		"perf inject [<options>]",
 		NULL
 	};
+	bool ordered_events;
 
 	if (!inject.itrace_synth_opts.set) {
 		/* Disable eager loading of kernel symbols that adds overhead to perf inject. */
@@ -2321,22 +2477,63 @@ int cmd_inject(int argc, const char **argv)
 			return -1;
 		}
 	}
+	if (mmap2_build_ids)
+		inject.build_id_style = BID_RWS__MMAP2_BUILDID_LAZY;
+	if (mmap2_build_id_all)
+		inject.build_id_style = BID_RWS__MMAP2_BUILDID_ALL;
+	if (build_ids)
+		inject.build_id_style = BID_RWS__INJECT_HEADER_LAZY;
+	if (build_id_all)
+		inject.build_id_style = BID_RWS__INJECT_HEADER_ALL;
 
 	data.path = inject.input_name;
-	if (!strcmp(inject.input_name, "-") || inject.output.is_pipe) {
-		inject.is_pipe = true;
-		/*
-		 * Do not repipe header when input is a regular file
-		 * since either it can rewrite the header at the end
-		 * or write a new pipe header.
-		 */
-		if (strcmp(inject.input_name, "-"))
-			repipe = false;
-	}
 
-	inject.session = __perf_session__new(&data, repipe,
-					     output_fd(&inject),
-					     &inject.tool);
+	ordered_events = inject.jit_mode || inject.sched_stat ||
+		inject.build_id_style == BID_RWS__INJECT_HEADER_LAZY ||
+		inject.build_id_style == BID_RWS__MMAP2_BUILDID_LAZY;
+	perf_tool__init(&inject.tool, ordered_events);
+	inject.tool.sample		= perf_event__repipe_sample;
+	inject.tool.read		= perf_event__repipe_sample;
+	inject.tool.mmap		= perf_event__repipe;
+	inject.tool.mmap2		= perf_event__repipe;
+	inject.tool.comm		= perf_event__repipe;
+	inject.tool.namespaces		= perf_event__repipe;
+	inject.tool.cgroup		= perf_event__repipe;
+	inject.tool.fork		= perf_event__repipe;
+	inject.tool.exit		= perf_event__repipe;
+	inject.tool.lost		= perf_event__repipe;
+	inject.tool.lost_samples	= perf_event__repipe;
+	inject.tool.aux			= perf_event__repipe;
+	inject.tool.itrace_start	= perf_event__repipe;
+	inject.tool.aux_output_hw_id	= perf_event__repipe;
+	inject.tool.context_switch	= perf_event__repipe;
+	inject.tool.throttle		= perf_event__repipe;
+	inject.tool.unthrottle		= perf_event__repipe;
+	inject.tool.ksymbol		= perf_event__repipe;
+	inject.tool.bpf			= perf_event__repipe;
+	inject.tool.text_poke		= perf_event__repipe;
+	inject.tool.attr		= perf_event__repipe_attr;
+	inject.tool.event_update	= perf_event__repipe_event_update;
+	inject.tool.tracing_data	= perf_event__repipe_op2_synth;
+	inject.tool.finished_round	= perf_event__repipe_oe_synth;
+	inject.tool.build_id		= perf_event__repipe_op2_synth;
+	inject.tool.id_index		= perf_event__repipe_op2_synth;
+	inject.tool.auxtrace_info	= perf_event__repipe_op2_synth;
+	inject.tool.auxtrace_error	= perf_event__repipe_op2_synth;
+	inject.tool.time_conv		= perf_event__repipe_op2_synth;
+	inject.tool.thread_map		= perf_event__repipe_op2_synth;
+	inject.tool.cpu_map		= perf_event__repipe_op2_synth;
+	inject.tool.stat_config		= perf_event__repipe_op2_synth;
+	inject.tool.stat		= perf_event__repipe_op2_synth;
+	inject.tool.stat_round		= perf_event__repipe_op2_synth;
+	inject.tool.feature		= perf_event__repipe_op2_synth;
+	inject.tool.finished_init	= perf_event__repipe_op2_synth;
+	inject.tool.compressed		= perf_event__repipe_op4_synth;
+	inject.tool.auxtrace		= perf_event__repipe_auxtrace;
+	inject.tool.dont_split_sample_group = true;
+	inject.session = __perf_session__new(&data, &inject.tool,
+					     /*trace_event_repipe=*/inject.output.is_pipe);
+
 	if (IS_ERR(inject.session)) {
 		ret = PTR_ERR(inject.session);
 		goto out_close_output;
@@ -2350,50 +2547,52 @@ int cmd_inject(int argc, const char **argv)
 	if (ret)
 		goto out_delete;
 
-	if (!data.is_pipe && inject.output.is_pipe) {
+	if (inject.output.is_pipe) {
 		ret = perf_header__write_pipe(perf_data__fd(&inject.output));
 		if (ret < 0) {
 			pr_err("Couldn't write a new pipe header.\n");
 			goto out_delete;
 		}
 
-		ret = perf_event__synthesize_for_pipe(&inject.tool,
-						      inject.session,
-						      &inject.output,
-						      perf_event__repipe);
-		if (ret < 0)
-			goto out_delete;
+		/*
+		 * If the input is already a pipe then the features and
+		 * attributes don't need synthesizing, they will be present in
+		 * the input.
+		 */
+		if (!data.is_pipe) {
+			ret = perf_event__synthesize_for_pipe(&inject.tool,
+							      inject.session,
+							      &inject.output,
+							      perf_event__repipe);
+			if (ret < 0)
+				goto out_delete;
+		}
 	}
 
-	if (inject.build_ids && !inject.build_id_all) {
+	if (inject.build_id_style == BID_RWS__INJECT_HEADER_LAZY ||
+	    inject.build_id_style == BID_RWS__MMAP2_BUILDID_LAZY) {
 		/*
 		 * to make sure the mmap records are ordered correctly
 		 * and so that the correct especially due to jitted code
 		 * mmaps. We cannot generate the buildid hit list and
 		 * inject the jit mmaps at the same time for now.
 		 */
-		inject.tool.ordered_events = true;
 		inject.tool.ordering_requires_timestamps = true;
-		if (known_build_ids != NULL) {
-			inject.known_build_ids =
-				perf_inject__parse_known_build_ids(known_build_ids);
-
-			if (inject.known_build_ids == NULL) {
-				pr_err("Couldn't parse known build ids.\n");
-				goto out_delete;
-			}
-		}
 	}
+	if (inject.build_id_style != BID_RWS__NONE && known_build_ids != NULL) {
+		inject.known_build_ids =
+			perf_inject__parse_known_build_ids(known_build_ids);
 
-	if (inject.sched_stat) {
-		inject.tool.ordered_events = true;
+		if (inject.known_build_ids == NULL) {
+			pr_err("Couldn't parse known build ids.\n");
+			goto out_delete;
+		}
 	}
 
 #ifdef HAVE_JITDUMP
 	if (inject.jit_mode) {
-		inject.tool.mmap2	   = perf_event__jit_repipe_mmap2;
-		inject.tool.mmap	   = perf_event__jit_repipe_mmap;
-		inject.tool.ordered_events = true;
+		inject.tool.mmap2	   = perf_event__repipe_mmap2;
+		inject.tool.mmap	   = perf_event__repipe_mmap;
 		inject.tool.ordering_requires_timestamps = true;
 		/*
 		 * JIT MMAP injection injects all MMAP events in one go, so it

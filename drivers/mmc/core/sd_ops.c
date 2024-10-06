@@ -336,14 +336,13 @@ int mmc_app_send_scr(struct mmc_card *card)
 	return 0;
 }
 
-int mmc_sd_switch(struct mmc_card *card, int mode, int group,
+int mmc_sd_switch(struct mmc_card *card, bool mode, int group,
 	u8 value, u8 *resp)
 {
 	u32 cmd_args;
 
 	/* NOTE: caller guarantees resp is heap-allocated */
 
-	mode = !!mode;
 	value &= 0xF;
 	cmd_args = mode << 31 | 0x00FFFFFF;
 	cmd_args &= ~(0xF << (group * 4));

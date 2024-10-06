@@ -369,8 +369,7 @@ static irqreturn_t sx_common_trigger_handler(int irq, void *private)
 
 	mutex_lock(&data->mutex);
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		ret = data->chip_info->ops.read_prox_data(data,
 						     &indio_dev->channels[bit],
 						     &val);
@@ -398,8 +397,7 @@ static int sx_common_buffer_preenable(struct iio_dev *indio_dev)
 	int bit, ret;
 
 	mutex_lock(&data->mutex);
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength)
+	iio_for_each_active_channel(indio_dev, bit)
 		__set_bit(indio_dev->channels[bit].channel, &channels);
 
 	ret = sx_common_update_chan_en(data, channels, data->chan_event);

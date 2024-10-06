@@ -210,22 +210,23 @@ enum bch_fsck_flags {
 	x(inode_snapshot_mismatch,				196,	0)		\
 	x(inode_unlinked_but_clean,				197,	0)		\
 	x(inode_unlinked_but_nlink_nonzero,			198,	0)		\
+	x(inode_unlinked_and_not_open,				281,	0)		\
 	x(inode_checksum_type_invalid,				199,	0)		\
 	x(inode_compression_type_invalid,			200,	0)		\
 	x(inode_subvol_root_but_not_dir,			201,	0)		\
-	x(inode_i_size_dirty_but_clean,				202,	0)		\
-	x(inode_i_sectors_dirty_but_clean,			203,	0)		\
-	x(inode_i_sectors_wrong,				204,	0)		\
-	x(inode_dir_wrong_nlink,				205,	0)		\
-	x(inode_dir_multiple_links,				206,	0)		\
-	x(inode_multiple_links_but_nlink_0,			207,	0)		\
-	x(inode_wrong_backpointer,				208,	0)		\
-	x(inode_wrong_nlink,					209,	0)		\
-	x(inode_unreachable,					210,	0)		\
-	x(deleted_inode_but_clean,				211,	0)		\
-	x(deleted_inode_missing,				212,	0)		\
-	x(deleted_inode_is_dir,					213,	0)		\
-	x(deleted_inode_not_unlinked,				214,	0)		\
+	x(inode_i_size_dirty_but_clean,				202,	FSCK_AUTOFIX)	\
+	x(inode_i_sectors_dirty_but_clean,			203,	FSCK_AUTOFIX)	\
+	x(inode_i_sectors_wrong,				204,	FSCK_AUTOFIX)	\
+	x(inode_dir_wrong_nlink,				205,	FSCK_AUTOFIX)	\
+	x(inode_dir_multiple_links,				206,	FSCK_AUTOFIX)	\
+	x(inode_multiple_links_but_nlink_0,			207,	FSCK_AUTOFIX)	\
+	x(inode_wrong_backpointer,				208,	FSCK_AUTOFIX)	\
+	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
+	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
+	x(deleted_inode_but_clean,				211,	FSCK_AUTOFIX)	\
+	x(deleted_inode_missing,				212,	FSCK_AUTOFIX)	\
+	x(deleted_inode_is_dir,					213,	FSCK_AUTOFIX)	\
+	x(deleted_inode_not_unlinked,				214,	FSCK_AUTOFIX)	\
 	x(extent_overlapping,					215,	0)		\
 	x(key_in_missing_inode,					216,	0)		\
 	x(key_in_wrong_inode_type,				217,	0)		\
@@ -255,7 +256,7 @@ enum bch_fsck_flags {
 	x(dir_loop,						241,	0)		\
 	x(hash_table_key_duplicate,				242,	0)		\
 	x(hash_table_key_wrong_offset,				243,	0)		\
-	x(unlinked_inode_not_on_deleted_list,			244,	0)		\
+	x(unlinked_inode_not_on_deleted_list,			244,	FSCK_AUTOFIX)	\
 	x(reflink_p_front_pad_bad,				245,	0)		\
 	x(journal_entry_dup_same_device,			246,	0)		\
 	x(inode_bi_subvol_missing,				247,	0)		\
@@ -270,7 +271,7 @@ enum bch_fsck_flags {
 	x(subvol_children_not_set,				256,	0)		\
 	x(subvol_children_bad,					257,	0)		\
 	x(subvol_loop,						258,	0)		\
-	x(subvol_unreachable,					259,	0)		\
+	x(subvol_unreachable,					259,	FSCK_AUTOFIX)	\
 	x(btree_node_bkey_bad_u64s,				260,	0)		\
 	x(btree_node_topology_empty_interior_node,		261,	0)		\
 	x(btree_ptr_v2_min_key_bad,				262,	0)		\
@@ -282,8 +283,8 @@ enum bch_fsck_flags {
 	x(btree_ptr_v2_written_0,				268,	0)		\
 	x(subvol_snapshot_bad,					269,	0)		\
 	x(subvol_inode_bad,					270,	0)		\
-	x(alloc_key_stripe_sectors_wrong,			271,	0)		\
-	x(accounting_mismatch,					272,	0)		\
+	x(alloc_key_stripe_sectors_wrong,			271,	FSCK_AUTOFIX)	\
+	x(accounting_mismatch,					272,	FSCK_AUTOFIX)	\
 	x(accounting_replicas_not_marked,			273,	0)		\
 	x(invalid_btree_id,					274,	0)		\
 	x(alloc_key_io_time_bad,				275,	0)		\
@@ -292,12 +293,14 @@ enum bch_fsck_flags {
 	x(accounting_key_replicas_nr_devs_0,			278,	FSCK_AUTOFIX)	\
 	x(accounting_key_replicas_nr_required_bad,		279,	FSCK_AUTOFIX)	\
 	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
+	x(accounting_key_version_0,				282,	FSCK_AUTOFIX)	\
+	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
+	x(MAX,							284,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
 	BCH_SB_ERRS()
 #undef x
-	BCH_SB_ERR_MAX
 };
 
 struct bch_sb_field_errors {

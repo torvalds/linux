@@ -68,7 +68,7 @@ struct mt792x_fw_features {
 
 enum {
 	MT792x_CLC_POWER,
-	MT792x_CLC_CHAN,
+	MT792x_CLC_POWER_EXT,
 	MT792x_CLC_MAX_NUM,
 };
 
