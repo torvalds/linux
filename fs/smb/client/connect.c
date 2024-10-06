@@ -2351,6 +2351,7 @@ retry_old_session:
 	ses->cred_uid = ctx->cred_uid;
 	ses->linux_uid = ctx->linux_uid;
 
+	ses->unicode = ctx->unicode;
 	ses->sectype = ctx->sectype;
 	ses->sign = ctx->sign;
 
@@ -4123,7 +4124,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		   struct TCP_Server_Info *server,
 		   struct nls_table *nls_info)
 {
-	int rc = -ENOSYS;
+	int rc = 0;
 	struct TCP_Server_Info *pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&pserver->dstaddr;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&pserver->dstaddr;
@@ -4175,6 +4176,26 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		if (!linuxExtEnabled)
 			ses->capabilities &= (~server->vals->cap_unix);
 
+		/*
+		 * Check if the server supports specified encoding mode.
+		 * Zero value in vals->cap_unicode indidcates that chosen
+		 * protocol dialect does not support non-UNICODE mode.
+		 */
+		if (ses->unicode == 1 && server->vals->cap_unicode != 0 &&
+		    !(server->capabilities & server->vals->cap_unicode)) {
+			cifs_dbg(VFS, "Server does not support mounting in UNICODE mode\n");
+			rc = -EOPNOTSUPP;
+		} else if (ses->unicode == 0 && server->vals->cap_unicode == 0) {
+			cifs_dbg(VFS, "Server does not support mounting in non-UNICODE mode\n");
+			rc = -EOPNOTSUPP;
+		} else if (ses->unicode == 0) {
+			/*
+			 * When UNICODE mode was explicitly disabled then
+			 * do not announce client UNICODE capability.
+			 */
+			ses->capabilities &= (~server->vals->cap_unicode);
+		}
+
 		if (ses->auth_key.response) {
 			cifs_dbg(FYI, "Free previous auth_key.response = %p\n",
 				 ses->auth_key.response);
@@ -4187,8 +4208,12 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	cifs_dbg(FYI, "Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d\n",
 		 server->sec_mode, server->capabilities, server->timeAdj);
 
-	if (server->ops->sess_setup)
-		rc = server->ops->sess_setup(xid, ses, server, nls_info);
+	if (!rc) {
+		if (server->ops->sess_setup)
+			rc = server->ops->sess_setup(xid, ses, server, nls_info);
+		else
+			rc = -ENOSYS;
+	}
 
 	if (rc) {
 		cifs_server_dbg(VFS, "Send error in SessSetup = %d\n", rc);
@@ -4258,6 +4283,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	ctx->seal = master_tcon->seal;
 	ctx->witness = master_tcon->use_witness;
 	ctx->dfs_root_ses = master_tcon->ses->dfs_root_ses;
+	ctx->unicode = master_tcon->ses->unicode;
 
 	rc = cifs_set_vol_auth(ctx, master_tcon->ses);
 	if (rc) {

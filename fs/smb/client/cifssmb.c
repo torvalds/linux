@@ -437,7 +437,10 @@ CIFSSMBNegotiate(const unsigned int xid,
 		return rc;
 
 	pSMB->hdr.Mid = get_next_mid(server);
-	pSMB->hdr.Flags2 |= (SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS);
+	pSMB->hdr.Flags2 |= SMBFLG2_ERR_STATUS;
+
+	if (ses->unicode != 0)
+		pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
 
 	if (should_set_ext_sec_flag(ses->sectype)) {
 		cifs_dbg(FYI, "Requesting extended security\n");
