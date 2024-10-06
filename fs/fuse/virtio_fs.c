@@ -521,6 +521,7 @@ static int virtio_fs_read_tag(struct virtio_device *vdev, struct virtio_fs *fs)
 		return -EINVAL;
 	}
 
+	dev_info(&vdev->dev, "discovered new tag: %s\n", fs->tag);
 	return 0;
 }
 
