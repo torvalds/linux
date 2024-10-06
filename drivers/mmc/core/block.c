@@ -1759,6 +1759,11 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 		brq->sbc.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		brq->mrq.sbc = &brq->sbc;
 	}
+
+	if (mmc_card_ult_capacity(card)) {
+		brq->cmd.ext_addr = blk_rq_pos(req) >> 32;
+		brq->cmd.has_ext_addr = true;
+	}
 }
 
 #define MMC_MAX_RETRIES		5

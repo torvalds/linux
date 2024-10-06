@@ -96,6 +96,10 @@ struct mmc_command {
 	unsigned int		busy_timeout;	/* busy detect timeout in ms */
 	struct mmc_data		*data;		/* data segment associated with cmd */
 	struct mmc_request	*mrq;		/* associated request */
+
+	/* for SDUC */
+	bool has_ext_addr;
+	u8 ext_addr;
 };
 
 struct mmc_data {
