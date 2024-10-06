@@ -89,7 +89,6 @@ int smb2_parse_symlink_response(struct cifs_sb_info *cifs_sb, const struct kvec 
 	return smb2_parse_native_symlink(path,
 					 (char *)sym->PathBuffer + sub_offs,
 					 sub_len,
-					 true,
 					 le32_to_cpu(sym->Flags) & SYMLINK_FLAG_RELATIVE,
 					 full_path,
 					 cifs_sb);
