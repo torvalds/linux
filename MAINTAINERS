@@ -11499,7 +11499,7 @@ F:	include/uapi/linux/idxd.h
 
 INTEL IN FIELD SCAN (IFS) DEVICE
 M:	Jithu Joseph <jithu.joseph@intel.com>
-R:	Ashok Raj <ashok.raj@intel.com>
+R:	Ashok Raj <ashok.raj.linux@gmail.com>
 R:	Tony Luck <tony.luck@intel.com>
 S:	Maintained
 F:	drivers/platform/x86/intel/ifs
