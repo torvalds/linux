@@ -18683,6 +18683,13 @@ S:	Maintained
 F:	drivers/ptp/ptp_vclock.c
 F:	net/ethtool/phc_vclocks.c
 
+PTP VMCLOCK SUPPORT
+M:	David Woodhouse <dwmw2@infradead.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/ptp/ptp_vmclock.c
+F:	include/uapi/linux/vmclock-abi.h
+
 PTRACE SUPPORT
 M:	Oleg Nesterov <oleg@redhat.com>
 S:	Maintained
