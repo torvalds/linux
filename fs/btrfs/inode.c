@@ -8941,28 +8941,6 @@ out_inode:
 	return finish_open_simple(file, ret);
 }
 
-void btrfs_set_range_writeback(struct btrfs_inode *inode, u64 start, u64 end)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	unsigned long index = start >> PAGE_SHIFT;
-	unsigned long end_index = end >> PAGE_SHIFT;
-	struct folio *folio;
-	u32 len;
-
-	ASSERT(end + 1 - start <= U32_MAX);
-	len = end + 1 - start;
-	while (index <= end_index) {
-		folio = __filemap_get_folio(inode->vfs_inode.i_mapping, index, 0, 0);
-		ASSERT(!IS_ERR(folio)); /* folios should be in the extent_io_tree */
-
-		/* This is for data, which doesn't yet support larger folio. */
-		ASSERT(folio_order(folio) == 0);
-		btrfs_folio_set_writeback(fs_info, folio, start, len);
-		folio_put(folio);
-		index++;
-	}
-}
-
 int btrfs_encoded_io_compression_from_extent(struct btrfs_fs_info *fs_info,
 					     int compress_type)
 {

@@ -1360,7 +1360,7 @@ static int submit_one_sector(struct btrfs_inode *inode,
 	 * a folio for a range already written to disk.
 	 */
 	btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
-	btrfs_set_range_writeback(inode, filepos, filepos + sectorsize - 1);
+	btrfs_folio_set_writeback(fs_info, folio, filepos, sectorsize);
 	/*
 	 * Above call should set the whole folio with writeback flag, even
 	 * just for a single subpage sector.
