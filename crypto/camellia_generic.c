@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static const u32 camellia_sp1110[256] = {
 	0x70707000, 0x82828200, 0x2c2c2c00, 0xececec00,

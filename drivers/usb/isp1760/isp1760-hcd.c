@@ -27,7 +27,7 @@
 #include <linux/iopoll.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/cacheflush.h>
 
 #include "isp1760-core.h"

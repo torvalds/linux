@@ -14,7 +14,7 @@
 #include <keys/trusted-type.h>
 #include <keys/trusted_tpm.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "tpm2key.asn1.h"
 

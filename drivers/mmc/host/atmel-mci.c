@@ -37,7 +37,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/io.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ATMCI_MAX_NR_SLOTS	2
 

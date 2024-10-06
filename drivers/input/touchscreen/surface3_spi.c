@@ -18,7 +18,7 @@
 #include <linux/spi/spi.h>
 #include <linux/acpi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define SURFACE3_PACKET_SIZE	264
 
