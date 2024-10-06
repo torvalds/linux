@@ -26,6 +26,7 @@ properties:
     enum:
       - qcom,sm4450-gpucc
       - qcom,sm8450-gpucc
+      - qcom,sm8475-gpucc
       - qcom,sm8550-gpucc
       - qcom,sm8650-gpucc
       - qcom,x1e80100-gpucc
