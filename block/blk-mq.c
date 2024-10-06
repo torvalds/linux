@@ -331,7 +331,7 @@ EXPORT_SYMBOL(blk_rq_init);
 /* Set start and alloc time when the allocated request is actually used */
 static inline void blk_mq_rq_time_init(struct request *rq, u64 alloc_time_ns)
 {
-	if (blk_mq_need_time_stamp(rq))
+	if (blk_queue_io_stat(rq->q))
 		rq->start_time_ns = blk_time_get_ns();
 	else
 		rq->start_time_ns = 0;
