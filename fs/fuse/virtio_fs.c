@@ -242,7 +242,7 @@ static ssize_t cpu_list_show(struct kobject *kobj,
 
 	qid = fsvq->vq->index;
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
-		if (qid < VQ_REQUEST || (fs->mq_map[cpu] == qid - VQ_REQUEST)) {
+		if (qid < VQ_REQUEST || (fs->mq_map[cpu] == qid)) {
 			if (first)
 				ret = snprintf(buf + pos, size - pos, "%u", cpu);
 			else
@@ -871,23 +871,23 @@ static void virtio_fs_map_queues(struct virtio_device *vdev, struct virtio_fs *f
 			goto fallback;
 
 		for_each_cpu(cpu, mask)
-			fs->mq_map[cpu] = q;
+			fs->mq_map[cpu] = q + VQ_REQUEST;
 	}
 
 	return;
 fallback:
 	/* Attempt to map evenly in groups over the CPUs */
 	masks = group_cpus_evenly(fs->num_request_queues);
-	/* If even this fails we default to all CPUs use queue zero */
+	/* If even this fails we default to all CPUs use first request queue */
 	if (!masks) {
 		for_each_possible_cpu(cpu)
-			fs->mq_map[cpu] = 0;
+			fs->mq_map[cpu] = VQ_REQUEST;
 		return;
 	}
 
 	for (q = 0; q < fs->num_request_queues; q++) {
 		for_each_cpu(cpu, &masks[q])
-			fs->mq_map[cpu] = q;
+			fs->mq_map[cpu] = q + VQ_REQUEST;
 	}
 	kfree(masks);
 }
@@ -1482,7 +1482,7 @@ static void virtio_fs_send_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 	clear_bit(FR_PENDING, &req->flags);
 
 	fs = fiq->priv;
-	queue_id = VQ_REQUEST + fs->mq_map[raw_smp_processor_id()];
+	queue_id = fs->mq_map[raw_smp_processor_id()];
 
 	pr_debug("%s: opcode %u unique %#llx nodeid %#llx in.len %u out.len %u queue_id %u\n",
 		 __func__, req->in.h.opcode, req->in.h.unique,
