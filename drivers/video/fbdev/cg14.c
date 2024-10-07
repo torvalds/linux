@@ -590,7 +590,7 @@ static struct platform_driver cg14_driver = {
 		.of_match_table = cg14_match,
 	},
 	.probe		= cg14_probe,
-	.remove_new	= cg14_remove,
+	.remove		= cg14_remove,
 };
 
 static int __init cg14_init(void)
