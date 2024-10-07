@@ -5,6 +5,7 @@
 
 #include "xe_gt_topology.h"
 
+#include <generated/xe_wa_oob.h>
 #include <linux/bitmap.h>
 #include <linux/compiler.h>
 
@@ -12,6 +13,7 @@
 #include "xe_assert.h"
 #include "xe_gt.h"
 #include "xe_mmio.h"
+#include "xe_wa.h"
 
 static void
 load_dss_mask(struct xe_gt *gt, xe_dss_mask_t mask, int numregs, ...)
@@ -128,6 +130,18 @@ load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 fuse3 = xe_mmio_read32(gt, MIRROR_FUSE3);
+
+	/*
+	 * PTL platforms with media version 30.00 do not provide proper values
+	 * for the media GT's L3 bank registers.  Skip the readout since we
+	 * don't have any way to obtain real values.
+	 *
+	 * This may get re-described as an official workaround in the future,
+	 * but there's no tracking number assigned yet so we use a custom
+	 * OOB workaround descriptor.
+	 */
+	if (XE_WA(gt, no_media_l3))
+		return;
 
 	if (GRAPHICS_VER(xe) >= 20) {
 		xe_l3_bank_mask_t per_node = {};
