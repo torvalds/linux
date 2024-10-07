@@ -942,18 +942,15 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	}
 
 	/* (Re)enable the PMU and sampling facility */
-	cpuhw->flags |= PMU_F_ENABLED;
-	barrier();
-
 	err = lsctl(&cpuhw->lsctl);
 	if (err) {
-		cpuhw->flags &= ~PMU_F_ENABLED;
 		pr_err("Loading sampling controls failed: op 1 err %i\n", err);
 		return;
 	}
 
 	/* Load current program parameter */
 	lpp(&get_lowcore()->lpp);
+	cpuhw->flags |= PMU_F_ENABLED;
 }
 
 static void cpumsf_pmu_disable(struct pmu *pmu)
