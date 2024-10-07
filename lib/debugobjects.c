@@ -141,6 +141,64 @@ static __always_inline bool pool_must_refill(struct obj_pool *pool)
 	return pool_count(pool) < pool->min_cnt / 2;
 }
 
+static bool pool_move_batch(struct obj_pool *dst, struct obj_pool *src)
+{
+	if (dst->cnt + ODEBUG_BATCH_SIZE > dst->max_cnt || !src->cnt)
+		return false;
+
+	for (int i = 0; i < ODEBUG_BATCH_SIZE && src->cnt; i++) {
+		struct hlist_node *node = src->objects.first;
+
+		WRITE_ONCE(src->cnt, src->cnt - 1);
+		WRITE_ONCE(dst->cnt, dst->cnt + 1);
+
+		hlist_del(node);
+		hlist_add_head(node, &dst->objects);
+	}
+	return true;
+}
+
+static struct debug_obj *__alloc_object(struct hlist_head *list)
+{
+	struct debug_obj *obj;
+
+	if (unlikely(!list->first))
+		return NULL;
+
+	obj = hlist_entry(list->first, typeof(*obj), node);
+	hlist_del(&obj->node);
+	return obj;
+}
+
+static struct debug_obj *pcpu_alloc(void)
+{
+	struct obj_pool *pcp = this_cpu_ptr(&pool_pcpu);
+
+	lockdep_assert_irqs_disabled();
+
+	for (;;) {
+		struct debug_obj *obj = __alloc_object(&pcp->objects);
+
+		if (likely(obj)) {
+			pcp->cnt--;
+			return obj;
+		}
+
+		guard(raw_spinlock)(&pool_lock);
+		if (!pool_move_batch(pcp, &pool_to_free)) {
+			if (!pool_move_batch(pcp, &pool_global))
+				return NULL;
+		}
+		obj_pool_used += pcp->cnt;
+
+		if (obj_pool_used > obj_pool_max_used)
+			obj_pool_max_used = obj_pool_used;
+
+		if (pool_global.cnt < obj_pool_min_free)
+			obj_pool_min_free = pool_global.cnt;
+	}
+}
+
 static void free_object_list(struct hlist_head *head)
 {
 	struct hlist_node *tmp;
@@ -158,7 +216,6 @@ static void free_object_list(struct hlist_head *head)
 static void fill_pool_from_freelist(void)
 {
 	static unsigned long state;
-	struct debug_obj *obj;
 
 	/*
 	 * Reuse objs from the global obj_to_free list; they will be
@@ -180,17 +237,11 @@ static void fill_pool_from_freelist(void)
 	if (test_bit(0, &state) || test_and_set_bit(0, &state))
 		return;
 
-	guard(raw_spinlock)(&pool_lock);
-	/*
-	 * Recheck with the lock held as the worker thread might have
-	 * won the race and freed the global free list already.
-	 */
-	while (pool_to_free.cnt && (pool_global.cnt < pool_global.min_cnt)) {
-		obj = hlist_entry(pool_to_free.objects.first, typeof(*obj), node);
-		hlist_del(&obj->node);
-		WRITE_ONCE(pool_to_free.cnt, pool_to_free.cnt - 1);
-		hlist_add_head(&obj->node, &pool_global.objects);
-		WRITE_ONCE(pool_global.cnt, pool_global.cnt + 1);
+	/* Avoid taking the lock when there is no work to do */
+	while (pool_should_refill(&pool_global) && pool_count(&pool_to_free)) {
+		guard(raw_spinlock)(&pool_lock);
+		/* Move a batch if possible */
+		pool_move_batch(&pool_global, &pool_to_free);
 	}
 	clear_bit(0, &state);
 }
@@ -251,74 +302,17 @@ static struct debug_obj *lookup_object(void *addr, struct debug_bucket *b)
 	return NULL;
 }
 
-/*
- * Allocate a new object from the hlist
- */
-static struct debug_obj *__alloc_object(struct hlist_head *list)
+static struct debug_obj *alloc_object(void *addr, struct debug_bucket *b,
+				      const struct debug_obj_descr *descr)
 {
-	struct debug_obj *obj = NULL;
-
-	if (list->first) {
-		obj = hlist_entry(list->first, typeof(*obj), node);
-		hlist_del(&obj->node);
-	}
-
-	return obj;
-}
-
-static struct debug_obj *
-alloc_object(void *addr, struct debug_bucket *b, const struct debug_obj_descr *descr)
-{
-	struct obj_pool *percpu_pool = this_cpu_ptr(&pool_pcpu);
 	struct debug_obj *obj;
 
-	if (likely(obj_cache)) {
-		obj = __alloc_object(&percpu_pool->objects);
-		if (obj) {
-			percpu_pool->cnt--;
-			goto init_obj;
-		}
-	} else {
+	if (likely(obj_cache))
+		obj = pcpu_alloc();
+	else
 		obj = __alloc_object(&pool_boot);
-		goto init_obj;
-	}
 
-	raw_spin_lock(&pool_lock);
-	obj = __alloc_object(&pool_global.objects);
-	if (obj) {
-		obj_pool_used++;
-		WRITE_ONCE(pool_global.cnt, pool_global.cnt - 1);
-
-		/*
-		 * Looking ahead, allocate one batch of debug objects and
-		 * put them into the percpu free pool.
-		 */
-		if (likely(obj_cache)) {
-			int i;
-
-			for (i = 0; i < ODEBUG_BATCH_SIZE; i++) {
-				struct debug_obj *obj2;
-
-				obj2 = __alloc_object(&pool_global.objects);
-				if (!obj2)
-					break;
-				hlist_add_head(&obj2->node, &percpu_pool->objects);
-				percpu_pool->cnt++;
-				obj_pool_used++;
-				WRITE_ONCE(pool_global.cnt, pool_global.cnt - 1);
-			}
-		}
-
-		if (obj_pool_used > obj_pool_max_used)
-			obj_pool_max_used = obj_pool_used;
-
-		if (pool_global.cnt < obj_pool_min_free)
-			obj_pool_min_free = pool_global.cnt;
-	}
-	raw_spin_unlock(&pool_lock);
-
-init_obj:
-	if (obj) {
+	if (likely(obj)) {
 		obj->object = addr;
 		obj->descr  = descr;
 		obj->state  = ODEBUG_STATE_NONE;
