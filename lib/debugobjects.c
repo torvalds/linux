@@ -7,16 +7,16 @@
 
 #define pr_fmt(fmt) "ODEBUG: " fmt
 
+#include <linux/cpu.h>
 #include <linux/debugobjects.h>
-#include <linux/interrupt.h>
+#include <linux/debugfs.h>
+#include <linux/hash.h>
+#include <linux/kmemleak.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
 #include <linux/slab.h>
-#include <linux/hash.h>
-#include <linux/kmemleak.h>
-#include <linux/cpu.h>
+#include <linux/static_key.h>
 
 #define ODEBUG_HASH_BITS	14
 #define ODEBUG_HASH_SIZE	(1 << ODEBUG_HASH_BITS)
@@ -102,6 +102,8 @@ static int __data_racy		debug_objects_freed;
 
 static void free_obj_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(debug_obj_work, free_obj_work);
+
+static DEFINE_STATIC_KEY_FALSE(obj_cache_enabled);
 
 static int __init enable_object_debug(char *str)
 {
@@ -343,7 +345,7 @@ static struct debug_obj *alloc_object(void *addr, struct debug_bucket *b,
 {
 	struct debug_obj *obj;
 
-	if (likely(obj_cache))
+	if (static_branch_likely(&obj_cache_enabled))
 		obj = pcpu_alloc();
 	else
 		obj = __alloc_object(&pool_boot);
@@ -393,7 +395,7 @@ static void free_obj_work(struct work_struct *work)
 static void __free_object(struct debug_obj *obj)
 {
 	guard(irqsave)();
-	if (likely(obj_cache))
+	if (static_branch_likely(&obj_cache_enabled))
 		pcpu_free(obj);
 	else
 		hlist_add_head(&obj->node, &pool_boot);
@@ -572,7 +574,7 @@ static struct debug_obj *lookup_object_or_alloc(void *addr, struct debug_bucket 
 
 static void debug_objects_fill_pool(void)
 {
-	if (unlikely(!obj_cache))
+	if (!static_branch_likely(&obj_cache_enabled))
 		return;
 
 	if (likely(!pool_should_refill(&pool_global)))
@@ -1378,6 +1380,7 @@ void __init debug_objects_mem_init(void)
 
 	/* Everything worked. Expose the cache */
 	obj_cache = cache;
+	static_branch_enable(&obj_cache_enabled);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	cpuhp_setup_state_nocalls(CPUHP_DEBUG_OBJ_DEAD, "object:offline", NULL,
