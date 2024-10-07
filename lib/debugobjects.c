@@ -429,7 +429,6 @@ static void free_object(struct debug_obj *obj)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void put_objects(struct hlist_head *list)
 {
 	struct hlist_node *tmp;
@@ -445,6 +444,7 @@ static void put_objects(struct hlist_head *list)
 	}
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int object_cpu_offline(unsigned int cpu)
 {
 	/* Remote access is safe as the CPU is dead already */
@@ -456,31 +456,19 @@ static int object_cpu_offline(unsigned int cpu)
 }
 #endif
 
-/*
- * We run out of memory. That means we probably have tons of objects
- * allocated.
- */
+/* Out of memory. Free all objects from hash */
 static void debug_objects_oom(void)
 {
 	struct debug_bucket *db = obj_hash;
-	struct hlist_node *tmp;
 	HLIST_HEAD(freelist);
-	struct debug_obj *obj;
-	unsigned long flags;
-	int i;
 
 	pr_warn("Out of memory. ODEBUG disabled\n");
 
-	for (i = 0; i < ODEBUG_HASH_SIZE; i++, db++) {
-		raw_spin_lock_irqsave(&db->lock, flags);
-		hlist_move_list(&db->list, &freelist);
-		raw_spin_unlock_irqrestore(&db->lock, flags);
+	for (int i = 0; i < ODEBUG_HASH_SIZE; i++, db++) {
+		scoped_guard(raw_spinlock_irqsave, &db->lock)
+			hlist_move_list(&db->list, &freelist);
 
-		/* Now free them */
-		hlist_for_each_entry_safe(obj, tmp, &freelist, node) {
-			hlist_del(&obj->node);
-			free_object(obj);
-		}
+		put_objects(&freelist);
 	}
 }
 
