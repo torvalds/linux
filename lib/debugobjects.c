@@ -255,6 +255,24 @@ static struct debug_obj *pcpu_alloc(void)
 
 		if (likely(obj)) {
 			pcp->cnt--;
+			/*
+			 * If this emptied a batch try to refill from the
+			 * free pool. Don't do that if this was the top-most
+			 * batch as pcpu_free() expects the per CPU pool
+			 * to be less than ODEBUG_POOL_PERCPU_SIZE.
+			 */
+			if (unlikely(pcp->cnt < (ODEBUG_POOL_PERCPU_SIZE - ODEBUG_BATCH_SIZE) &&
+				     !(pcp->cnt % ODEBUG_BATCH_SIZE))) {
+				/*
+				 * Don't try to allocate from the regular pool here
+				 * to not exhaust it prematurely.
+				 */
+				if (pool_count(&pool_to_free)) {
+					guard(raw_spinlock)(&pool_lock);
+					pool_move_batch(pcp, &pool_to_free);
+					pcpu_refill_stats();
+				}
+			}
 			return obj;
 		}
 
