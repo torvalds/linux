@@ -19,7 +19,6 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <net/sock.h>
-#include <net/lib80211.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
 #include <linux/ctype.h>
