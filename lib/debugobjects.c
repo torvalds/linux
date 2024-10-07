@@ -82,7 +82,7 @@ static int __data_racy			debug_objects_maxchain __read_mostly;
 static int __data_racy __maybe_unused	debug_objects_maxchecked __read_mostly;
 static int __data_racy			debug_objects_fixups __read_mostly;
 static int __data_racy			debug_objects_warnings __read_mostly;
-static int __data_racy			debug_objects_enabled __read_mostly
+static bool __data_racy			debug_objects_enabled __read_mostly
 					= CONFIG_DEBUG_OBJECTS_ENABLE_DEFAULT;
 static int				debug_objects_pool_size __ro_after_init
 					= ODEBUG_POOL_SIZE;
@@ -103,17 +103,16 @@ static DECLARE_DELAYED_WORK(debug_obj_work, free_obj_work);
 
 static int __init enable_object_debug(char *str)
 {
-	debug_objects_enabled = 1;
+	debug_objects_enabled = true;
 	return 0;
 }
+early_param("debug_objects", enable_object_debug);
 
 static int __init disable_object_debug(char *str)
 {
-	debug_objects_enabled = 0;
+	debug_objects_enabled = false;
 	return 0;
 }
-
-early_param("debug_objects", enable_object_debug);
 early_param("no_debug_objects", disable_object_debug);
 
 static const char *obj_states[ODEBUG_STATE_MAX] = {
@@ -592,7 +591,7 @@ static struct debug_obj *lookup_object_or_alloc(void *addr, struct debug_bucket 
 	}
 
 	/* Out of memory. Do the cleanup outside of the locked region */
-	debug_objects_enabled = 0;
+	debug_objects_enabled = false;
 	return NULL;
 }
 
@@ -1194,7 +1193,7 @@ check_results(void *addr, enum debug_obj_state state, int fixups, int warnings)
 out:
 	raw_spin_unlock_irqrestore(&db->lock, flags);
 	if (res)
-		debug_objects_enabled = 0;
+		debug_objects_enabled = false;
 	return res;
 }
 
@@ -1278,7 +1277,7 @@ out:
 	descr_test = NULL;
 
 	local_irq_restore(flags);
-	return !!debug_objects_enabled;
+	return debug_objects_enabled;
 }
 #else
 static inline bool debug_objects_selftest(void) { return true; }
@@ -1372,7 +1371,7 @@ void __init debug_objects_mem_init(void)
 				  SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE, NULL);
 
 	if (!cache || !debug_objects_replace_static_objects(cache)) {
-		debug_objects_enabled = 0;
+		debug_objects_enabled = false;
 		pr_warn("Out of memory.\n");
 		return;
 	}
