@@ -1303,7 +1303,7 @@ static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache
 	struct debug_obj *obj, *new;
 	struct hlist_node *tmp;
 	HLIST_HEAD(objects);
-	int i, cnt = 0;
+	int i;
 
 	for (i = 0; i < ODEBUG_POOL_SIZE; i++) {
 		obj = kmem_cache_zalloc(cache, GFP_KERNEL);
@@ -1330,11 +1330,8 @@ static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache
 			/* copy object data */
 			*new = *obj;
 			hlist_add_head(&new->node, &db->list);
-			cnt++;
 		}
 	}
-
-	pr_debug("%d of %d active objects replaced\n", cnt, obj_pool_used);
 	return true;
 free:
 	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
