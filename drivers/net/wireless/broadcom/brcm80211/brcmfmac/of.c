@@ -116,12 +116,11 @@ int brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		of_node_put(root);
 	}
 
-	clk = devm_clk_get_optional_enabled(dev, "lpo");
+	clk = devm_clk_get_optional_enabled_with_rate(dev, "lpo", 32768);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
 	brcmf_dbg(INFO, "%s LPO clock\n", clk ? "enable" : "no");
-	clk_set_rate(clk, 32768);
 
 	if (!np || !of_device_is_compatible(np, "brcm,bcm4329-fmac"))
 		return 0;
