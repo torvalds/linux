@@ -634,7 +634,7 @@ static struct kvm_s2_mmu *get_s2_mmu_nested(struct kvm_vcpu *vcpu)
 
 	/* Clear the old state */
 	if (kvm_s2_mmu_valid(s2_mmu))
-		kvm_stage2_unmap_range(s2_mmu, 0, kvm_phys_size(s2_mmu));
+		kvm_stage2_unmap_range(s2_mmu, 0, kvm_phys_size(s2_mmu), false);
 
 	/*
 	 * The virtual VMID (modulo CnP) will be used as a key when matching
@@ -745,7 +745,7 @@ void kvm_nested_s2_wp(struct kvm *kvm)
 	}
 }
 
-void kvm_nested_s2_unmap(struct kvm *kvm)
+void kvm_nested_s2_unmap(struct kvm *kvm, bool may_block)
 {
 	int i;
 
@@ -755,7 +755,7 @@ void kvm_nested_s2_unmap(struct kvm *kvm)
 		struct kvm_s2_mmu *mmu = &kvm->arch.nested_mmus[i];
 
 		if (kvm_s2_mmu_valid(mmu))
-			kvm_stage2_unmap_range(mmu, 0, kvm_phys_size(mmu));
+			kvm_stage2_unmap_range(mmu, 0, kvm_phys_size(mmu), may_block);
 	}
 }
 

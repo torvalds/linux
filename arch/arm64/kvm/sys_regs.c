@@ -2937,7 +2937,7 @@ static bool handle_alle1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	 * Drop all shadow S2s, resulting in S1/S2 TLBIs for each of the
 	 * corresponding VMIDs.
 	 */
-	kvm_nested_s2_unmap(vcpu->kvm);
+	kvm_nested_s2_unmap(vcpu->kvm, true);
 
 	write_unlock(&vcpu->kvm->mmu_lock);
 
@@ -2989,7 +2989,7 @@ union tlbi_info {
 static void s2_mmu_unmap_range(struct kvm_s2_mmu *mmu,
 			       const union tlbi_info *info)
 {
-	kvm_stage2_unmap_range(mmu, info->range.start, info->range.size);
+	kvm_stage2_unmap_range(mmu, info->range.start, info->range.size, true);
 }
 
 static bool handle_vmalls12e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
@@ -3084,7 +3084,7 @@ static void s2_mmu_unmap_ipa(struct kvm_s2_mmu *mmu,
 	max_size = compute_tlb_inval_range(mmu, info->ipa.addr);
 	base_addr &= ~(max_size - 1);
 
-	kvm_stage2_unmap_range(mmu, base_addr, max_size);
+	kvm_stage2_unmap_range(mmu, base_addr, max_size, true);
 }
 
 static bool handle_ipas2e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
