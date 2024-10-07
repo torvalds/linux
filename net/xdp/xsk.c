@@ -141,7 +141,7 @@ static int __xsk_rcv_zc(struct xdp_sock *xs, struct xdp_buff_xsk *xskb, u32 len,
 	u64 addr;
 	int err;
 
-	addr = xp_get_handle(xskb);
+	addr = xp_get_handle(xskb, xskb->pool);
 	err = xskq_prod_reserve_desc(xs->rx, addr, len, flags);
 	if (err) {
 		xs->rx_queue_full++;
