@@ -1312,9 +1312,6 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (old)
 		return -EALREADY;
 
-	if (params->smps_mode != NL80211_SMPS_OFF)
-		return -EOPNOTSUPP;
-
 	link->smps_mode = IEEE80211_SMPS_OFF;
 
 	link->needed_rx_chains = sdata->local->rx_chains;

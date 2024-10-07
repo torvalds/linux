@@ -6227,33 +6227,9 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 			goto out;
 	}
 
-	if (info->attrs[NL80211_ATTR_SMPS_MODE]) {
-		params->smps_mode =
-			nla_get_u8(info->attrs[NL80211_ATTR_SMPS_MODE]);
-		switch (params->smps_mode) {
-		case NL80211_SMPS_OFF:
-			break;
-		case NL80211_SMPS_STATIC:
-			if (!(rdev->wiphy.features &
-			      NL80211_FEATURE_STATIC_SMPS)) {
-				err = -EINVAL;
-				goto out;
-			}
-			break;
-		case NL80211_SMPS_DYNAMIC:
-			if (!(rdev->wiphy.features &
-			      NL80211_FEATURE_DYNAMIC_SMPS)) {
-				err = -EINVAL;
-				goto out;
-			}
-			break;
-		default:
-			err = -EINVAL;
-			goto out;
-		}
-	} else {
-		params->smps_mode = NL80211_SMPS_OFF;
-	}
+	if (info->attrs[NL80211_ATTR_SMPS_MODE] &&
+	    nla_get_u8(info->attrs[NL80211_ATTR_SMPS_MODE]) != NL80211_SMPS_OFF)
+		return -EOPNOTSUPP;
 
 	params->pbss = nla_get_flag(info->attrs[NL80211_ATTR_PBSS]);
 	if (params->pbss && !rdev->wiphy.bands[NL80211_BAND_60GHZ]) {
