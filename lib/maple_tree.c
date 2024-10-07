@@ -64,6 +64,21 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/maple_tree.h>
 
+/*
+ * Kernel pointer hashing renders much of the maple tree dump useless as tagged
+ * pointers get hashed to arbitrary values.
+ *
+ * If CONFIG_DEBUG_VM_MAPLE_TREE is set we are in a debug mode where it is
+ * permissible to bypass this. Otherwise remain cautious and retain the hashing.
+ *
+ * Userland doesn't know about %px so also use %p there.
+ */
+#if defined(__KERNEL__) && defined(CONFIG_DEBUG_VM_MAPLE_TREE)
+#define PTR_FMT "%px"
+#else
+#define PTR_FMT "%p"
+#endif
+
 #define MA_ROOT_PARENT 1
 
 /*
@@ -5414,7 +5429,8 @@ void *mas_store(struct ma_state *mas, void *entry)
 	trace_ma_write(__func__, mas, 0, entry);
 #ifdef CONFIG_DEBUG_MAPLE_TREE
 	if (MAS_WARN_ON(mas, mas->index > mas->last))
-		pr_err("Error %lX > %lX %p\n", mas->index, mas->last, entry);
+		pr_err("Error %lX > %lX " PTR_FMT "\n", mas->index, mas->last,
+		       entry);
 
 	if (mas->index > mas->last) {
 		mas_set_err(mas, -EINVAL);
@@ -7119,14 +7135,14 @@ static void mt_dump_entry(void *entry, unsigned long min, unsigned long max,
 	mt_dump_range(min, max, depth, format);
 
 	if (xa_is_value(entry))
-		pr_cont("value %ld (0x%lx) [%p]\n", xa_to_value(entry),
-				xa_to_value(entry), entry);
+		pr_cont("value %ld (0x%lx) [" PTR_FMT "]\n", xa_to_value(entry),
+			xa_to_value(entry), entry);
 	else if (xa_is_zero(entry))
 		pr_cont("zero (%ld)\n", xa_to_internal(entry));
 	else if (mt_is_reserved(entry))
-		pr_cont("UNKNOWN ENTRY (%p)\n", entry);
+		pr_cont("UNKNOWN ENTRY (" PTR_FMT ")\n", entry);
 	else
-		pr_cont("%p\n", entry);
+		pr_cont(PTR_FMT "\n", entry);
 }
 
 static void mt_dump_range64(const struct maple_tree *mt, void *entry,
@@ -7142,13 +7158,13 @@ static void mt_dump_range64(const struct maple_tree *mt, void *entry,
 	for (i = 0; i < MAPLE_RANGE64_SLOTS - 1; i++) {
 		switch(format) {
 		case mt_dump_hex:
-			pr_cont("%p %lX ", node->slot[i], node->pivot[i]);
+			pr_cont(PTR_FMT " %lX ", node->slot[i], node->pivot[i]);
 			break;
 		case mt_dump_dec:
-			pr_cont("%p %lu ", node->slot[i], node->pivot[i]);
+			pr_cont(PTR_FMT " %lu ", node->slot[i], node->pivot[i]);
 		}
 	}
-	pr_cont("%p\n", node->slot[i]);
+	pr_cont(PTR_FMT "\n", node->slot[i]);
 	for (i = 0; i < MAPLE_RANGE64_SLOTS; i++) {
 		unsigned long last = max;
 
@@ -7170,11 +7186,11 @@ static void mt_dump_range64(const struct maple_tree *mt, void *entry,
 		if (last > max) {
 			switch(format) {
 			case mt_dump_hex:
-				pr_err("node %p last (%lx) > max (%lx) at pivot %d!\n",
+				pr_err("node " PTR_FMT " last (%lx) > max (%lx) at pivot %d!\n",
 					node, last, max, i);
 				break;
 			case mt_dump_dec:
-				pr_err("node %p last (%lu) > max (%lu) at pivot %d!\n",
+				pr_err("node " PTR_FMT " last (%lu) > max (%lu) at pivot %d!\n",
 					node, last, max, i);
 			}
 		}
@@ -7204,13 +7220,13 @@ static void mt_dump_arange64(const struct maple_tree *mt, void *entry,
 	for (i = 0; i < MAPLE_ARANGE64_SLOTS - 1; i++) {
 		switch (format) {
 		case mt_dump_hex:
-			pr_cont("%p %lX ", node->slot[i], node->pivot[i]);
+			pr_cont(PTR_FMT " %lX ", node->slot[i], node->pivot[i]);
 			break;
 		case mt_dump_dec:
-			pr_cont("%p %lu ", node->slot[i], node->pivot[i]);
+			pr_cont(PTR_FMT " %lu ", node->slot[i], node->pivot[i]);
 		}
 	}
-	pr_cont("%p\n", node->slot[i]);
+	pr_cont(PTR_FMT "\n", node->slot[i]);
 	for (i = 0; i < MAPLE_ARANGE64_SLOTS; i++) {
 		unsigned long last = max;
 
@@ -7229,11 +7245,11 @@ static void mt_dump_arange64(const struct maple_tree *mt, void *entry,
 		if (last > max) {
 			switch(format) {
 			case mt_dump_hex:
-				pr_err("node %p last (%lx) > max (%lx) at pivot %d!\n",
+				pr_err("node " PTR_FMT " last (%lx) > max (%lx) at pivot %d!\n",
 					node, last, max, i);
 				break;
 			case mt_dump_dec:
-				pr_err("node %p last (%lu) > max (%lu) at pivot %d!\n",
+				pr_err("node " PTR_FMT " last (%lu) > max (%lu) at pivot %d!\n",
 					node, last, max, i);
 			}
 		}
@@ -7251,8 +7267,8 @@ static void mt_dump_node(const struct maple_tree *mt, void *entry,
 
 	mt_dump_range(min, max, depth, format);
 
-	pr_cont("node %p depth %d type %d parent %p", node, depth, type,
-			node ? node->parent : NULL);
+	pr_cont("node " PTR_FMT " depth %d type %d parent " PTR_FMT, node,
+		depth, type, node ? node->parent : NULL);
 	switch (type) {
 	case maple_dense:
 		pr_cont("\n");
@@ -7280,7 +7296,7 @@ void mt_dump(const struct maple_tree *mt, enum mt_dump_format format)
 {
 	void *entry = rcu_dereference_check(mt->ma_root, mt_locked(mt));
 
-	pr_info("maple_tree(%p) flags %X, height %u root %p\n",
+	pr_info("maple_tree(" PTR_FMT ") flags %X, height %u root " PTR_FMT "\n",
 		 mt, mt->ma_flags, mt_height(mt), entry);
 	if (!xa_is_node(entry))
 		mt_dump_entry(entry, 0, 0, 0, format);
@@ -7332,7 +7348,7 @@ static void mas_validate_gaps(struct ma_state *mas)
 			MT_BUG_ON(mas->tree, !entry);
 
 			if (gap > p_end - p_start + 1) {
-				pr_err("%p[%u] %lu >= %lu - %lu + 1 (%lu)\n",
+				pr_err(PTR_FMT "[%u] %lu >= %lu - %lu + 1 (%lu)\n",
 				       mas_mn(mas), i, gap, p_end, p_start,
 				       p_end - p_start + 1);
 				MT_BUG_ON(mas->tree, gap > p_end - p_start + 1);
@@ -7352,19 +7368,19 @@ counted:
 		MT_BUG_ON(mas->tree, !gaps);
 		offset = ma_meta_gap(node);
 		if (offset > i) {
-			pr_err("gap offset %p[%u] is invalid\n", node, offset);
+			pr_err("gap offset " PTR_FMT "[%u] is invalid\n", node, offset);
 			MT_BUG_ON(mas->tree, 1);
 		}
 
 		if (gaps[offset] != max_gap) {
-			pr_err("gap %p[%u] is not the largest gap %lu\n",
+			pr_err("gap " PTR_FMT "[%u] is not the largest gap %lu\n",
 			       node, offset, max_gap);
 			MT_BUG_ON(mas->tree, 1);
 		}
 
 		for (i++ ; i < mt_slot_count(mte); i++) {
 			if (gaps[i] != 0) {
-				pr_err("gap %p[%u] beyond node limit != 0\n",
+				pr_err("gap " PTR_FMT "[%u] beyond node limit != 0\n",
 				       node, i);
 				MT_BUG_ON(mas->tree, 1);
 			}
@@ -7378,7 +7394,7 @@ counted:
 	p_mn = mte_parent(mte);
 	MT_BUG_ON(mas->tree, max_gap > mas->max);
 	if (ma_gaps(p_mn, mas_parent_type(mas, mte))[p_slot] != max_gap) {
-		pr_err("gap %p[%u] != %lu\n", p_mn, p_slot, max_gap);
+		pr_err("gap " PTR_FMT "[%u] != %lu\n", p_mn, p_slot, max_gap);
 		mt_dump(mas->tree, mt_dump_hex);
 		MT_BUG_ON(mas->tree, 1);
 	}
@@ -7408,11 +7424,11 @@ static void mas_validate_parent_slot(struct ma_state *mas)
 		node = mas_slot(mas, slots, i);
 		if (i == p_slot) {
 			if (node != mas->node)
-				pr_err("parent %p[%u] does not have %p\n",
+				pr_err("parent " PTR_FMT "[%u] does not have " PTR_FMT "\n",
 					parent, i, mas_mn(mas));
 			MT_BUG_ON(mas->tree, node != mas->node);
 		} else if (node == mas->node) {
-			pr_err("Invalid child %p at parent %p[%u] p_slot %u\n",
+			pr_err("Invalid child " PTR_FMT " at parent " PTR_FMT "[%u] p_slot %u\n",
 			       mas_mn(mas), parent, i, p_slot);
 			MT_BUG_ON(mas->tree, node == mas->node);
 		}
@@ -7434,20 +7450,20 @@ static void mas_validate_child_slot(struct ma_state *mas)
 		child = mas_slot(mas, slots, i);
 
 		if (!child) {
-			pr_err("Non-leaf node lacks child at %p[%u]\n",
+			pr_err("Non-leaf node lacks child at " PTR_FMT "[%u]\n",
 			       mas_mn(mas), i);
 			MT_BUG_ON(mas->tree, 1);
 		}
 
 		if (mte_parent_slot(child) != i) {
-			pr_err("Slot error at %p[%u]: child %p has pslot %u\n",
+			pr_err("Slot error at " PTR_FMT "[%u]: child " PTR_FMT " has pslot %u\n",
 			       mas_mn(mas), i, mte_to_node(child),
 			       mte_parent_slot(child));
 			MT_BUG_ON(mas->tree, 1);
 		}
 
 		if (mte_parent(child) != mte_to_node(mas->node)) {
-			pr_err("child %p has parent %p not %p\n",
+			pr_err("child " PTR_FMT " has parent " PTR_FMT " not " PTR_FMT "\n",
 			       mte_to_node(child), mte_parent(child),
 			       mte_to_node(mas->node));
 			MT_BUG_ON(mas->tree, 1);
@@ -7477,24 +7493,24 @@ static void mas_validate_limits(struct ma_state *mas)
 		piv = mas_safe_pivot(mas, pivots, i, type);
 
 		if (!piv && (i != 0)) {
-			pr_err("Missing node limit pivot at %p[%u]",
+			pr_err("Missing node limit pivot at " PTR_FMT "[%u]",
 			       mas_mn(mas), i);
 			MAS_WARN_ON(mas, 1);
 		}
 
 		if (prev_piv > piv) {
-			pr_err("%p[%u] piv %lu < prev_piv %lu\n",
+			pr_err(PTR_FMT "[%u] piv %lu < prev_piv %lu\n",
 				mas_mn(mas), i, piv, prev_piv);
 			MAS_WARN_ON(mas, piv < prev_piv);
 		}
 
 		if (piv < mas->min) {
-			pr_err("%p[%u] %lu < %lu\n", mas_mn(mas), i,
+			pr_err(PTR_FMT "[%u] %lu < %lu\n", mas_mn(mas), i,
 				piv, mas->min);
 			MAS_WARN_ON(mas, piv < mas->min);
 		}
 		if (piv > mas->max) {
-			pr_err("%p[%u] %lu > %lu\n", mas_mn(mas), i,
+			pr_err(PTR_FMT "[%u] %lu > %lu\n", mas_mn(mas), i,
 				piv, mas->max);
 			MAS_WARN_ON(mas, piv > mas->max);
 		}
@@ -7504,7 +7520,7 @@ static void mas_validate_limits(struct ma_state *mas)
 	}
 
 	if (mas_data_end(mas) != i) {
-		pr_err("node%p: data_end %u != the last slot offset %u\n",
+		pr_err("node" PTR_FMT ": data_end %u != the last slot offset %u\n",
 		       mas_mn(mas), mas_data_end(mas), i);
 		MT_BUG_ON(mas->tree, 1);
 	}
@@ -7513,8 +7529,8 @@ static void mas_validate_limits(struct ma_state *mas)
 		void *entry = mas_slot(mas, slots, i);
 
 		if (entry && (i != mt_slots[type] - 1)) {
-			pr_err("%p[%u] should not have entry %p\n", mas_mn(mas),
-			       i, entry);
+			pr_err(PTR_FMT "[%u] should not have entry " PTR_FMT "\n",
+			       mas_mn(mas), i, entry);
 			MT_BUG_ON(mas->tree, entry != NULL);
 		}
 
@@ -7524,7 +7540,7 @@ static void mas_validate_limits(struct ma_state *mas)
 			if (!piv)
 				continue;
 
-			pr_err("%p[%u] should not have piv %lu\n",
+			pr_err(PTR_FMT "[%u] should not have piv %lu\n",
 			       mas_mn(mas), i, piv);
 			MAS_WARN_ON(mas, i < mt_pivots[type] - 1);
 		}
@@ -7549,7 +7565,7 @@ static void mt_validate_nulls(struct maple_tree *mt)
 	do {
 		entry = mas_slot(&mas, slots, offset);
 		if (!last && !entry) {
-			pr_err("Sequential nulls end at %p[%u]\n",
+			pr_err("Sequential nulls end at " PTR_FMT "[%u]\n",
 				mas_mn(&mas), offset);
 		}
 		MT_BUG_ON(mt, !last && !entry);
@@ -7591,7 +7607,8 @@ void mt_validate(struct maple_tree *mt)
 		end = mas_data_end(&mas);
 		if (MAS_WARN_ON(&mas, (end < mt_min_slot_count(mas.node)) &&
 				(mas.max != ULONG_MAX))) {
-			pr_err("Invalid size %u of %p\n", end, mas_mn(&mas));
+			pr_err("Invalid size %u of " PTR_FMT "\n",
+			       end, mas_mn(&mas));
 		}
 
 		mas_validate_parent_slot(&mas);
@@ -7607,7 +7624,8 @@ EXPORT_SYMBOL_GPL(mt_validate);
 
 void mas_dump(const struct ma_state *mas)
 {
-	pr_err("MAS: tree=%p enode=%p ", mas->tree, mas->node);
+	pr_err("MAS: tree=" PTR_FMT " enode=" PTR_FMT " ",
+	       mas->tree, mas->node);
 	switch (mas->status) {
 	case ma_active:
 		pr_err("(ma_active)");
@@ -7671,7 +7689,7 @@ void mas_dump(const struct ma_state *mas)
 
 	pr_err("[%u/%u] index=%lx last=%lx\n", mas->offset, mas->end,
 	       mas->index, mas->last);
-	pr_err("     min=%lx max=%lx alloc=%p, depth=%u, flags=%x\n",
+	pr_err("     min=%lx max=%lx alloc=" PTR_FMT ", depth=%u, flags=%x\n",
 	       mas->min, mas->max, mas->alloc, mas->depth, mas->mas_flags);
 	if (mas->index > mas->last)
 		pr_err("Check index & last\n");
@@ -7680,7 +7698,7 @@ EXPORT_SYMBOL_GPL(mas_dump);
 
 void mas_wr_dump(const struct ma_wr_state *wr_mas)
 {
-	pr_err("WR_MAS: node=%p r_min=%lx r_max=%lx\n",
+	pr_err("WR_MAS: node=" PTR_FMT " r_min=%lx r_max=%lx\n",
 	       wr_mas->node, wr_mas->r_min, wr_mas->r_max);
 	pr_err("        type=%u off_end=%u, node_end=%u, end_piv=%lx\n",
 	       wr_mas->type, wr_mas->offset_end, wr_mas->mas->end,
