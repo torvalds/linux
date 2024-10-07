@@ -138,14 +138,10 @@ static void free_object_list(struct hlist_head *head)
 	debug_objects_freed += cnt;
 }
 
-static void fill_pool(void)
+static void fill_pool_from_freelist(void)
 {
-	gfp_t gfp = __GFP_HIGH | __GFP_NOWARN;
+	static unsigned long state;
 	struct debug_obj *obj;
-	unsigned long flags;
-
-	if (likely(READ_ONCE(obj_pool_free) >= debug_objects_pool_min_level))
-		return;
 
 	/*
 	 * Reuse objs from the global obj_to_free list; they will be
@@ -154,32 +150,58 @@ static void fill_pool(void)
 	 * obj_nr_tofree is checked locklessly; the READ_ONCE() pairs with
 	 * the WRITE_ONCE() in pool_lock critical sections.
 	 */
-	if (READ_ONCE(obj_nr_tofree)) {
-		raw_spin_lock_irqsave(&pool_lock, flags);
-		/*
-		 * Recheck with the lock held as the worker thread might have
-		 * won the race and freed the global free list already.
-		 */
-		while (obj_nr_tofree && (obj_pool_free < debug_objects_pool_min_level)) {
-			obj = hlist_entry(obj_to_free.first, typeof(*obj), node);
-			hlist_del(&obj->node);
-			WRITE_ONCE(obj_nr_tofree, obj_nr_tofree - 1);
-			hlist_add_head(&obj->node, &obj_pool);
-			WRITE_ONCE(obj_pool_free, obj_pool_free + 1);
-		}
-		raw_spin_unlock_irqrestore(&pool_lock, flags);
-	}
-
-	if (unlikely(!obj_cache))
+	if (!READ_ONCE(obj_nr_tofree))
 		return;
 
+	/*
+	 * Prevent the context from being scheduled or interrupted after
+	 * setting the state flag;
+	 */
+	guard(irqsave)();
+
+	/*
+	 * Avoid lock contention on &pool_lock and avoid making the cache
+	 * line exclusive by testing the bit before attempting to set it.
+	 */
+	if (test_bit(0, &state) || test_and_set_bit(0, &state))
+		return;
+
+	guard(raw_spinlock)(&pool_lock);
+	/*
+	 * Recheck with the lock held as the worker thread might have
+	 * won the race and freed the global free list already.
+	 */
+	while (obj_nr_tofree && (obj_pool_free < debug_objects_pool_min_level)) {
+		obj = hlist_entry(obj_to_free.first, typeof(*obj), node);
+		hlist_del(&obj->node);
+		WRITE_ONCE(obj_nr_tofree, obj_nr_tofree - 1);
+		hlist_add_head(&obj->node, &obj_pool);
+		WRITE_ONCE(obj_pool_free, obj_pool_free + 1);
+	}
+	clear_bit(0, &state);
+}
+
+static void fill_pool(void)
+{
+	static atomic_t cpus_allocating;
+
+	/*
+	 * Avoid allocation and lock contention when:
+	 *   - One other CPU is already allocating
+	 *   - the global pool has not reached the critical level yet
+	 */
+	if (READ_ONCE(obj_pool_free) > (debug_objects_pool_min_level / 2) &&
+	    atomic_read(&cpus_allocating))
+		return;
+
+	atomic_inc(&cpus_allocating);
 	while (READ_ONCE(obj_pool_free) < debug_objects_pool_min_level) {
 		struct debug_obj *new, *last = NULL;
 		HLIST_HEAD(head);
 		int cnt;
 
 		for (cnt = 0; cnt < ODEBUG_BATCH_SIZE; cnt++) {
-			new = kmem_cache_zalloc(obj_cache, gfp);
+			new = kmem_cache_zalloc(obj_cache, __GFP_HIGH | __GFP_NOWARN);
 			if (!new)
 				break;
 			hlist_add_head(&new->node, &head);
@@ -187,14 +209,14 @@ static void fill_pool(void)
 				last = new;
 		}
 		if (!cnt)
-			return;
+			break;
 
-		raw_spin_lock_irqsave(&pool_lock, flags);
+		guard(raw_spinlock_irqsave)(&pool_lock);
 		hlist_splice_init(&head, &last->node, &obj_pool);
 		debug_objects_allocated += cnt;
 		WRITE_ONCE(obj_pool_free, obj_pool_free + cnt);
-		raw_spin_unlock_irqrestore(&pool_lock, flags);
 	}
+	atomic_dec(&cpus_allocating);
 }
 
 /*
@@ -597,6 +619,18 @@ static struct debug_obj *lookup_object_or_alloc(void *addr, struct debug_bucket 
 
 static void debug_objects_fill_pool(void)
 {
+	if (unlikely(!obj_cache))
+		return;
+
+	if (likely(READ_ONCE(obj_pool_free) >= debug_objects_pool_min_level))
+		return;
+
+	/* Try reusing objects from obj_to_free_list */
+	fill_pool_from_freelist();
+
+	if (likely(READ_ONCE(obj_pool_free) >= debug_objects_pool_min_level))
+		return;
+
 	/*
 	 * On RT enabled kernels the pool refill must happen in preemptible
 	 * context -- for !RT kernels we rely on the fact that spinlock_t and
