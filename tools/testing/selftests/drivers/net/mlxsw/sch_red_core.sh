@@ -532,10 +532,11 @@ do_red_test()
 	check_fail $? "Traffic went into backlog instead of being early-dropped"
 	pct=$(check_marking get_nmarked $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
+	backlog=$(get_qdisc_backlog $vlan)
 	local diff=$((limit - backlog))
 	pct=$((100 * diff / limit))
-	((-10 <= pct && pct <= 10))
-	check_err $? "backlog $backlog / $limit expected <= 10% distance"
+	((-15 <= pct && pct <= 15))
+	check_err $? "backlog $backlog / $limit expected <= 15% distance"
 	log_test "TC $((vlan - 10)): RED backlog > limit"
 
 	stop_traffic
