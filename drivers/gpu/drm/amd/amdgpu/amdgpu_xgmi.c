@@ -1548,6 +1548,7 @@ static void amdgpu_xgmi_schedule_reset_on_init(struct amdgpu_hive_info *hive)
 int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_hive_info *hive;
+	bool reset_scheduled;
 	int num_devs;
 
 	hive = amdgpu_get_xgmi_hive(adev);
@@ -1556,11 +1557,17 @@ int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev)
 
 	mutex_lock(&hive->hive_lock);
 	num_devs = atomic_read(&hive->number_devices);
-	if (num_devs == adev->gmc.xgmi.num_physical_nodes)
+	reset_scheduled = false;
+	if (num_devs == adev->gmc.xgmi.num_physical_nodes) {
 		amdgpu_xgmi_schedule_reset_on_init(hive);
+		reset_scheduled = true;
+	}
 
 	mutex_unlock(&hive->hive_lock);
 	amdgpu_put_xgmi_hive(hive);
+
+	if (reset_scheduled)
+		flush_work(&hive->reset_on_init_work);
 
 	return 0;
 }
