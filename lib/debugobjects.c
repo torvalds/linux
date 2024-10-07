@@ -164,6 +164,22 @@ static bool pool_move_batch(struct obj_pool *dst, struct obj_pool *src)
 	return true;
 }
 
+static bool pool_push_batch(struct obj_pool *dst, struct hlist_head *head)
+{
+	struct hlist_node *last;
+	struct debug_obj *obj;
+
+	if (dst->cnt >= dst->max_cnt)
+		return false;
+
+	obj = hlist_entry(head->first, typeof(*obj), node);
+	last = obj->batch_last;
+
+	hlist_splice_init(head, last, &dst->objects);
+	WRITE_ONCE(dst->cnt, dst->cnt + ODEBUG_BATCH_SIZE);
+	return true;
+}
+
 static bool pool_pop_batch(struct hlist_head *head, struct obj_pool *src)
 {
 	if (!src->cnt)
@@ -288,6 +304,28 @@ static void fill_pool_from_freelist(void)
 	clear_bit(0, &state);
 }
 
+static bool kmem_alloc_batch(struct hlist_head *head, struct kmem_cache *cache, gfp_t gfp)
+{
+	struct hlist_node *last = NULL;
+	struct debug_obj *obj;
+
+	for (int cnt = 0; cnt < ODEBUG_BATCH_SIZE; cnt++) {
+		obj = kmem_cache_zalloc(cache, gfp);
+		if (!obj) {
+			free_object_list(head);
+			return false;
+		}
+		debug_objects_allocated++;
+
+		if (!last)
+			last = &obj->node;
+		obj->batch_last = last;
+
+		hlist_add_head(&obj->node, head);
+	}
+	return true;
+}
+
 static void fill_pool(void)
 {
 	static atomic_t cpus_allocating;
@@ -302,25 +340,14 @@ static void fill_pool(void)
 
 	atomic_inc(&cpus_allocating);
 	while (pool_should_refill(&pool_global)) {
-		struct debug_obj *new, *last = NULL;
 		HLIST_HEAD(head);
-		int cnt;
 
-		for (cnt = 0; cnt < ODEBUG_BATCH_SIZE; cnt++) {
-			new = kmem_cache_zalloc(obj_cache, __GFP_HIGH | __GFP_NOWARN);
-			if (!new)
-				break;
-			hlist_add_head(&new->node, &head);
-			if (!last)
-				last = new;
-		}
-		if (!cnt)
+		if (!kmem_alloc_batch(&head, obj_cache, __GFP_HIGH | __GFP_NOWARN))
 			break;
 
 		guard(raw_spinlock_irqsave)(&pool_lock);
-		hlist_splice_init(&head, &last->node, &pool_global.objects);
-		debug_objects_allocated += cnt;
-		WRITE_ONCE(pool_global.cnt, pool_global.cnt + cnt);
+		if (!pool_push_batch(&pool_global, &head))
+			pool_push_batch(&pool_to_free, &head);
 	}
 	atomic_dec(&cpus_allocating);
 }
@@ -1302,26 +1329,18 @@ void __init debug_objects_early_init(void)
 static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache)
 {
 	struct debug_bucket *db = obj_hash;
-	struct debug_obj *obj, *new;
 	struct hlist_node *tmp;
+	struct debug_obj *obj;
 	HLIST_HEAD(objects);
 	int i;
 
-	for (i = 0; i < ODEBUG_POOL_SIZE; i++) {
-		obj = kmem_cache_zalloc(cache, GFP_KERNEL);
-		if (!obj)
+	for (i = 0; i < ODEBUG_POOL_SIZE; i += ODEBUG_BATCH_SIZE) {
+		if (!kmem_alloc_batch(&objects, cache, GFP_KERNEL))
 			goto free;
-		hlist_add_head(&obj->node, &objects);
+		pool_push_batch(&pool_global, &objects);
 	}
 
-	debug_objects_allocated = ODEBUG_POOL_SIZE;
-	pool_global.cnt = ODEBUG_POOL_SIZE;
-
-	/*
-	 * Move the allocated objects to the global pool and disconnect the
-	 * boot pool.
-	 */
-	hlist_move_list(&objects, &pool_global.objects);
+	/* Disconnect the boot pool. */
 	pool_boot.first = NULL;
 
 	/* Replace the active object references */
@@ -1329,9 +1348,8 @@ static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache
 		hlist_move_list(&db->list, &objects);
 
 		hlist_for_each_entry(obj, &objects, node) {
-			new = hlist_entry(pool_global.objects.first, typeof(*obj), node);
-			hlist_del(&new->node);
-			pool_global.cnt--;
+			struct debug_obj *new = pcpu_alloc();
+
 			/* copy object data */
 			*new = *obj;
 			hlist_add_head(&new->node, &db->list);
@@ -1340,7 +1358,7 @@ static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache
 	return true;
 free:
 	/* Can't use free_object_list() as the cache is not populated yet */
-	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
+	hlist_for_each_entry_safe(obj, tmp, &pool_global.objects, node) {
 		hlist_del(&obj->node);
 		kmem_cache_free(cache, obj);
 	}
