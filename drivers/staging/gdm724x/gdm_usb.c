@@ -916,7 +916,7 @@ static int gdm_usb_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	rx = &udev->rx;
 	if (udev->usb_state != PM_NORMAL) {
 		dev_err(intf->usb_dev, "usb suspend - invalid state\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	udev->usb_state = PM_SUSPEND;
@@ -952,7 +952,7 @@ static int gdm_usb_resume(struct usb_interface *intf)
 
 	if (udev->usb_state != PM_SUSPEND) {
 		dev_err(intf->usb_dev, "usb resume - invalid state\n");
-		return -1;
+		return -EINVAL;
 	}
 	udev->usb_state = PM_NORMAL;
 
@@ -989,9 +989,11 @@ static struct usb_driver gdm_usb_lte_driver = {
 
 static int __init gdm_usb_lte_init(void)
 {
-	if (gdm_lte_event_init() < 0) {
+	int ret = gdm_lte_event_init();
+
+	if (ret < 0) {
 		pr_err("error creating event\n");
-		return -1;
+		return ret;
 	}
 
 	return usb_register(&gdm_usb_lte_driver);

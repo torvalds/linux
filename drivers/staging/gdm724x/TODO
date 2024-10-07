@@ -2,7 +2,6 @@ TODO:
 - Clean up coding style to meet kernel standard. (80 line limit, netdev_err)
 - Remove test for host endian
 - Remove confusing macros (endian, hci_send, sdu_send, rcv_with_cb)
-- Fixes for every instances of function returning -1
 - Check for skb->len in gdm_lte_emulate_arp()
 - Use ALIGN() macro for dummy_cnt in up_to_host()
 - Error handling in init_usb()
