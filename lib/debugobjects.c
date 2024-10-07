@@ -199,6 +199,27 @@ static struct debug_obj *pcpu_alloc(void)
 	}
 }
 
+static void pcpu_free(struct debug_obj *obj)
+{
+	struct obj_pool *pcp = this_cpu_ptr(&pool_pcpu);
+
+	lockdep_assert_irqs_disabled();
+
+	hlist_add_head(&obj->node, &pcp->objects);
+	pcp->cnt++;
+
+	/* Pool full ? */
+	if (pcp->cnt < ODEBUG_POOL_PERCPU_SIZE)
+		return;
+
+	/* Remove a batch from the per CPU pool */
+	guard(raw_spinlock)(&pool_lock);
+	/* Try to fit the batch into the pool_global first */
+	if (!pool_move_batch(&pool_global, pcp))
+		pool_move_batch(&pool_to_free, pcp);
+	obj_pool_used -= ODEBUG_BATCH_SIZE;
+}
+
 static void free_object_list(struct hlist_head *head)
 {
 	struct hlist_node *tmp;
@@ -375,83 +396,11 @@ free_objs:
 
 static void __free_object(struct debug_obj *obj)
 {
-	struct debug_obj *objs[ODEBUG_BATCH_SIZE];
-	struct obj_pool *percpu_pool;
-	int lookahead_count = 0;
-	bool work;
-
 	guard(irqsave)();
-
-	if (unlikely(!obj_cache)) {
+	if (likely(obj_cache))
+		pcpu_free(obj);
+	else
 		hlist_add_head(&obj->node, &pool_boot);
-		return;
-	}
-
-	/*
-	 * Try to free it into the percpu pool first.
-	 */
-	percpu_pool = this_cpu_ptr(&pool_pcpu);
-	if (percpu_pool->cnt < ODEBUG_POOL_PERCPU_SIZE) {
-		hlist_add_head(&obj->node, &percpu_pool->objects);
-		percpu_pool->cnt++;
-		return;
-	}
-
-	/*
-	 * As the percpu pool is full, look ahead and pull out a batch
-	 * of objects from the percpu pool and free them as well.
-	 */
-	for (; lookahead_count < ODEBUG_BATCH_SIZE; lookahead_count++) {
-		objs[lookahead_count] = __alloc_object(&percpu_pool->objects);
-		if (!objs[lookahead_count])
-			break;
-		percpu_pool->cnt--;
-	}
-
-	raw_spin_lock(&pool_lock);
-	work = (pool_global.cnt > pool_global.max_cnt) && obj_cache &&
-	       (pool_to_free.cnt < ODEBUG_FREE_WORK_MAX);
-	obj_pool_used--;
-
-	if (work) {
-		WRITE_ONCE(pool_to_free.cnt, pool_to_free.cnt + 1);
-		hlist_add_head(&obj->node, &pool_to_free.objects);
-		if (lookahead_count) {
-			WRITE_ONCE(pool_to_free.cnt, pool_to_free.cnt + lookahead_count);
-			obj_pool_used -= lookahead_count;
-			while (lookahead_count) {
-				hlist_add_head(&objs[--lookahead_count]->node,
-					       &pool_to_free.objects);
-			}
-		}
-
-		if ((pool_global.cnt > pool_global.max_cnt) &&
-		    (pool_to_free.cnt < ODEBUG_FREE_WORK_MAX)) {
-			int i;
-
-			/*
-			 * Free one more batch of objects from obj_pool.
-			 */
-			for (i = 0; i < ODEBUG_BATCH_SIZE; i++) {
-				obj = __alloc_object(&pool_global.objects);
-				hlist_add_head(&obj->node, &pool_to_free.objects);
-				WRITE_ONCE(pool_global.cnt, pool_global.cnt - 1);
-				WRITE_ONCE(pool_to_free.cnt, pool_to_free.cnt + 1);
-			}
-		}
-	} else {
-		WRITE_ONCE(pool_global.cnt, pool_global.cnt + 1);
-		hlist_add_head(&obj->node, &pool_global.objects);
-		if (lookahead_count) {
-			WRITE_ONCE(pool_global.cnt, pool_global.cnt + lookahead_count);
-			obj_pool_used -= lookahead_count;
-			while (lookahead_count) {
-				hlist_add_head(&objs[--lookahead_count]->node,
-					       &pool_global.objects);
-			}
-		}
-	}
-	raw_spin_unlock(&pool_lock);
 }
 
 /*
