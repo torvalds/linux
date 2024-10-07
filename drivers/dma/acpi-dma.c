@@ -236,7 +236,7 @@ int acpi_dma_controller_free(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(acpi_dma_controller_free);
 
-static void devm_acpi_dma_release(struct device *dev, void *res)
+static void devm_acpi_dma_free(void *dev)
 {
 	acpi_dma_controller_free(dev);
 }
@@ -259,20 +259,13 @@ int devm_acpi_dma_controller_register(struct device *dev,
 		(struct acpi_dma_spec *, struct acpi_dma *),
 		void *data)
 {
-	void *res;
 	int ret;
 
-	res = devres_alloc(devm_acpi_dma_release, 0, GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
 	ret = acpi_dma_controller_register(dev, acpi_dma_xlate, data);
-	if (ret) {
-		devres_free(res);
+	if (ret)
 		return ret;
-	}
-	devres_add(dev, res);
-	return 0;
+
+	return devm_add_action_or_reset(dev, devm_acpi_dma_free, dev);
 }
 EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
 
