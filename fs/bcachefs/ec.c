@@ -909,7 +909,7 @@ err:
 	bch2_bkey_val_to_text(&msgbuf, c, orig_k);
 	bch_err_ratelimited(c,
 			    "error doing reconstruct read: %s\n  %s", msg, msgbuf.buf);
-	printbuf_exit(&msgbuf);;
+	printbuf_exit(&msgbuf);
 	ret = -BCH_ERR_stripe_reconstruct;
 	goto out;
 }
