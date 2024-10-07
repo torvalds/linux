@@ -1648,7 +1648,7 @@ static const struct dev_pm_ops tegra_uart_pm_ops = {
 
 static struct platform_driver tegra_uart_platform_driver = {
 	.probe		= tegra_uart_probe,
-	.remove_new	= tegra_uart_remove,
+	.remove		= tegra_uart_remove,
 	.driver		= {
 		.name	= "serial-tegra",
 		.of_match_table = tegra_uart_of_match,

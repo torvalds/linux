@@ -2702,7 +2702,7 @@ static const struct dev_pm_ops imx_uart_pm_ops = {
 
 static struct platform_driver imx_uart_platform_driver = {
 	.probe = imx_uart_probe,
-	.remove_new = imx_uart_remove,
+	.remove = imx_uart_remove,
 
 	.driver = {
 		.name = "imx-uart",

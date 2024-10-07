@@ -1204,7 +1204,7 @@ static struct platform_driver brcmuart_platform_driver = {
 		.of_match_table = brcmuart_dt_ids,
 	},
 	.probe		= brcmuart_probe,
-	.remove_new	= brcmuart_remove,
+	.remove		= brcmuart_remove,
 };
 
 static int __init brcmuart_init(void)

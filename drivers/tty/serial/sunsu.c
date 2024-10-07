@@ -1549,7 +1549,7 @@ static struct platform_driver su_driver = {
 		.of_match_table = su_match,
 	},
 	.probe		= su_probe,
-	.remove_new	= su_remove,
+	.remove		= su_remove,
 };
 
 static int __init sunsu_init(void)

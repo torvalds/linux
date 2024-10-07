@@ -1867,7 +1867,7 @@ static struct platform_driver omap8250_platform_driver = {
 		.of_match_table = omap8250_dt_ids,
 	},
 	.probe			= omap8250_probe,
-	.remove_new		= omap8250_remove,
+	.remove			= omap8250_remove,
 };
 module_platform_driver(omap8250_platform_driver);
 

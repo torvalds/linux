@@ -179,7 +179,7 @@ static struct platform_driver fsl8250_platform_driver = {
 		.acpi_match_table	= ACPI_PTR(fsl_8250_acpi_id),
 	},
 	.probe			= fsl8250_acpi_probe,
-	.remove_new		= fsl8250_acpi_remove,
+	.remove			= fsl8250_acpi_remove,
 };
 
 module_platform_driver(fsl8250_platform_driver);

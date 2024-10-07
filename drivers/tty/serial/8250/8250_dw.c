@@ -796,7 +796,7 @@ static struct platform_driver dw8250_platform_driver = {
 		.acpi_match_table = dw8250_acpi_match,
 	},
 	.probe			= dw8250_probe,
-	.remove_new		= dw8250_remove,
+	.remove			= dw8250_remove,
 };
 
 module_platform_driver(dw8250_platform_driver);

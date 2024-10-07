@@ -522,7 +522,7 @@ static struct platform_driver digicolor_uart_platform = {
 		.of_match_table	= of_match_ptr(digicolor_uart_dt_ids),
 	},
 	.probe	= digicolor_uart_probe,
-	.remove_new = digicolor_uart_remove,
+	.remove = digicolor_uart_remove,
 };
 
 static int __init digicolor_uart_init(void)

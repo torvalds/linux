@@ -882,7 +882,7 @@ static SIMPLE_DEV_PM_OPS(linflex_pm_ops, linflex_suspend, linflex_resume);
 
 static struct platform_driver linflex_driver = {
 	.probe		= linflex_probe,
-	.remove_new	= linflex_remove,
+	.remove		= linflex_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= linflex_dt_ids,
