@@ -863,6 +863,9 @@ int ovl_real_fileattr_set(const struct path *realpath, struct fileattr *fa);
 int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 int ovl_fileattr_set(struct mnt_idmap *idmap,
 		     struct dentry *dentry, struct fileattr *fa);
+struct ovl_file;
+struct ovl_file *ovl_file_alloc(struct file *realfile);
+void ovl_file_free(struct ovl_file *of);
 
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);

@@ -1323,6 +1323,7 @@ static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 	const struct cred *old_cred, *new_cred = NULL;
 	struct path realparentpath;
 	struct file *realfile;
+	struct ovl_file *of;
 	struct dentry *newdentry;
 	/* It's okay to set O_NOATIME, since the owner will be current fsuid */
 	int flags = file->f_flags | OVL_OPEN_FLAGS;
@@ -1344,14 +1345,21 @@ static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 	if (err)
 		goto out_revert_creds;
 
+	of = ovl_file_alloc(realfile);
+	if (!of) {
+		fput(realfile);
+		err = -ENOMEM;
+		goto out_revert_creds;
+	}
+
 	/* ovl_instantiate() consumes the newdentry reference on success */
 	newdentry = dget(realfile->f_path.dentry);
 	err = ovl_instantiate(dentry, inode, newdentry, false, file);
 	if (!err) {
-		file->private_data = realfile;
+		file->private_data = of;
 	} else {
 		dput(newdentry);
-		fput(realfile);
+		ovl_file_free(of);
 	}
 out_revert_creds:
 	ovl_revert_creds(old_cred);
@@ -1407,7 +1415,7 @@ static int ovl_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 put_realfile:
 	/* Without FMODE_OPENED ->release() won't be called on @file */
 	if (!(file->f_mode & FMODE_OPENED))
-		fput(file->private_data);
+		ovl_file_free(file->private_data);
 put_inode:
 	iput(inode);
 drop_write:
