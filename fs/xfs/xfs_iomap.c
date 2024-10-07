@@ -707,7 +707,7 @@ imap_needs_cow(
 		return false;
 
 	/* when zeroing we don't have to COW holes or unwritten extents */
-	if (flags & IOMAP_ZERO) {
+	if (flags & (IOMAP_UNSHARE | IOMAP_ZERO)) {
 		if (!nimaps ||
 		    imap->br_startblock == HOLESTARTBLOCK ||
 		    imap->br_state == XFS_EXT_UNWRITTEN)
