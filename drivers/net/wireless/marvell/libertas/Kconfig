@@ -3,7 +3,6 @@ config LIBERTAS
 	tristate "Marvell 8xxx Libertas WLAN driver support"
 	depends on USB || MMC || SPI
 	depends on CFG80211
-	select LIB80211
 	select FW_LOADER
 	help
 	  A library for Marvell Libertas 8xxx devices.
