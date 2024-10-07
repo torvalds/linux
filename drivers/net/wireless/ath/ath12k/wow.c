@@ -132,7 +132,7 @@ static int ath12k_wow_cleanup(struct ath12k *ar)
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		ret = ath12k_wow_vif_cleanup(arvif);
@@ -476,7 +476,7 @@ static int ath12k_wow_set_wakeups(struct ath12k *ar,
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		if (ath12k_wow_is_p2p_vdev(arvif))
@@ -535,7 +535,7 @@ static int ath12k_wow_nlo_cleanup(struct ath12k *ar)
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		if (ath12k_wow_is_p2p_vdev(arvif))
@@ -558,7 +558,7 @@ static int ath12k_wow_set_hw_filter(struct ath12k *ar)
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		if (arvif->vdev_type != WMI_VDEV_TYPE_STA)
@@ -584,7 +584,7 @@ static int ath12k_wow_clear_hw_filter(struct ath12k *ar)
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		if (arvif->vdev_type != WMI_VDEV_TYPE_STA)
@@ -735,7 +735,7 @@ static int ath12k_wow_arp_ns_offload(struct ath12k *ar, bool enable)
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	offload = kmalloc(sizeof(*offload), GFP_KERNEL);
 	if (!offload)
@@ -769,7 +769,7 @@ static int ath12k_gtk_rekey_offload(struct ath12k *ar, bool enable)
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		if (arvif->vdev_type != WMI_VDEV_TYPE_STA ||
@@ -827,7 +827,7 @@ static int ath12k_wow_set_keepalive(struct ath12k *ar,
 	struct ath12k_vif *arvif;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		ret = ath12k_mac_vif_set_keepalive(arvif, method, interval);
@@ -845,7 +845,7 @@ int ath12k_wow_op_suspend(struct ieee80211_hw *hw,
 	struct ath12k *ar = ath12k_ah_to_ar(ah, 0);
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_wiphy(hw->wiphy);
 
 	ret =  ath12k_wow_cleanup(ar);
 	if (ret) {
@@ -913,7 +913,6 @@ cleanup:
 	ath12k_wow_cleanup(ar);
 
 exit:
-	mutex_unlock(&ar->conf_mutex);
 	return ret ? 1 : 0;
 }
 
@@ -922,9 +921,9 @@ void ath12k_wow_op_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar = ath12k_ah_to_ar(ah, 0);
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_wiphy(hw->wiphy);
+
 	device_set_wakeup_enable(ar->ab->dev, enabled);
-	mutex_unlock(&ar->conf_mutex);
 }
 
 int ath12k_wow_op_resume(struct ieee80211_hw *hw)
@@ -933,7 +932,7 @@ int ath12k_wow_op_resume(struct ieee80211_hw *hw)
 	struct ath12k *ar = ath12k_ah_to_ar(ah, 0);
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_wiphy(hw->wiphy);
 
 	ret = ath12k_hif_resume(ar->ab);
 	if (ret) {
@@ -995,7 +994,6 @@ exit:
 		}
 	}
 
-	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
 

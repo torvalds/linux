@@ -15,14 +15,14 @@ static ssize_t ath12k_write_simulate_radar(struct file *file,
 	struct ath12k *ar = file->private_data;
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
 	ret = ath12k_wmi_simulate_radar(ar);
 	if (ret)
 		goto exit;
 
 	ret = count;
 exit:
-	mutex_unlock(&ar->conf_mutex);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 	return ret;
 }
 

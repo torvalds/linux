@@ -2750,9 +2750,9 @@ static ssize_t ath12k_read_htt_stats_type(struct file *file,
 	char buf[32];
 	size_t len;
 
-	mutex_lock(&ar->conf_mutex);
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
 	type = ar->debug.htt_stats.type;
-	mutex_unlock(&ar->conf_mutex);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 
 	len = scnprintf(buf, sizeof(buf), "%u\n", type);
 
@@ -2785,7 +2785,7 @@ static ssize_t ath12k_write_htt_stats_type(struct file *file,
 	    type >= ATH12K_DBG_HTT_NUM_EXT_STATS)
 		return -EINVAL;
 
-	mutex_lock(&ar->conf_mutex);
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
 
 	ar->debug.htt_stats.type = type;
 	ar->debug.htt_stats.cfg_param[0] = cfg_param[0];
@@ -2793,7 +2793,7 @@ static ssize_t ath12k_write_htt_stats_type(struct file *file,
 	ar->debug.htt_stats.cfg_param[2] = cfg_param[2];
 	ar->debug.htt_stats.cfg_param[3] = cfg_param[3];
 
-	mutex_unlock(&ar->conf_mutex);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 
 	return count;
 }
@@ -2814,7 +2814,7 @@ static int ath12k_debugfs_htt_stats_req(struct ath12k *ar)
 	int ret, pdev_id;
 	struct htt_ext_stats_cfg_params cfg_params = { 0 };
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	init_completion(&stats_req->htt_stats_rcvd);
 
@@ -2864,7 +2864,7 @@ static int ath12k_open_htt_stats(struct inode *inode,
 	if (type == ATH12K_DBG_HTT_EXT_STATS_RESET)
 		return -EPERM;
 
-	mutex_lock(&ar->conf_mutex);
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
 
 	if (ah->state != ATH12K_HW_STATE_ON) {
 		ret = -ENETDOWN;
@@ -2899,14 +2899,14 @@ static int ath12k_open_htt_stats(struct inode *inode,
 
 	file->private_data = stats_req;
 
-	mutex_unlock(&ar->conf_mutex);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 
 	return 0;
 out:
 	kfree(stats_req);
 	ar->debug.htt_stats.stats_req = NULL;
 err_unlock:
-	mutex_unlock(&ar->conf_mutex);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 
 	return ret;
 }
@@ -2916,10 +2916,10 @@ static int ath12k_release_htt_stats(struct inode *inode,
 {
 	struct ath12k *ar = inode->i_private;
 
-	mutex_lock(&ar->conf_mutex);
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
 	kfree(file->private_data);
 	ar->debug.htt_stats.stats_req = NULL;
-	mutex_unlock(&ar->conf_mutex);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 
 	return 0;
 }
@@ -2963,7 +2963,7 @@ static ssize_t ath12k_write_htt_stats_reset(struct file *file,
 	    type == ATH12K_DBG_HTT_EXT_STATS_RESET)
 		return -E2BIG;
 
-	mutex_lock(&ar->conf_mutex);
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
 	cfg_params.cfg0 = HTT_STAT_DEFAULT_RESET_START_OFFSET;
 	param_pos = (type >> 5) + 1;
 
@@ -2989,12 +2989,12 @@ static ssize_t ath12k_write_htt_stats_reset(struct file *file,
 						 0ULL);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to send htt stats request: %d\n", ret);
-		mutex_unlock(&ar->conf_mutex);
+		wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 		return ret;
 	}
 
 	ar->debug.htt_stats.reset = type;
-	mutex_unlock(&ar->conf_mutex);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 
 	return count;
 }
