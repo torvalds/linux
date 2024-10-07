@@ -4195,12 +4195,19 @@ static int try_flush_qgroup(struct btrfs_root *root)
 		return 0;
 	}
 
-	btrfs_run_delayed_iputs(root->fs_info);
-	btrfs_wait_on_delayed_iputs(root->fs_info);
 	ret = btrfs_start_delalloc_snapshot(root, true);
 	if (ret < 0)
 		goto out;
 	btrfs_wait_ordered_extents(root, U64_MAX, NULL);
+
+	/*
+	 * After waiting for ordered extents run delayed iputs in order to free
+	 * space from unlinked files before committing the current transaction,
+	 * as ordered extents may have been holding the last reference of an
+	 * inode and they add a delayed iput when they complete.
+	 */
+	btrfs_run_delayed_iputs(root->fs_info);
+	btrfs_wait_on_delayed_iputs(root->fs_info);
 
 	ret = btrfs_commit_current_transaction(root);
 out:
