@@ -419,7 +419,7 @@ e_rpf:
 
 /* Ignore rp_filter for packets protected by IPsec. */
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
-			u8 tos, int oif, struct net_device *dev,
+			dscp_t dscp, int oif, struct net_device *dev,
 			struct in_device *idev, u32 *itag)
 {
 	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
@@ -448,7 +448,8 @@ ok:
 	}
 
 full_check:
-	return __fib_validate_source(skb, src, dst, tos, oif, dev, r, idev, itag);
+	return __fib_validate_source(skb, src, dst, inet_dscp_to_dsfield(dscp),
+				     oif, dev, r, idev, itag);
 }
 
 static inline __be32 sk_extract_addr(struct sockaddr *addr)
