@@ -96,10 +96,6 @@ int main(void)
   DEFINE(FREGS_SIZE,		sizeof(struct ftrace_regs));
   BLANK();
 #endif
-  DEFINE(VM_EXEC,	       	VM_EXEC);
-  BLANK();
-  DEFINE(PAGE_SZ,	       	PAGE_SIZE);
-  BLANK();
   DEFINE(DMA_TO_DEVICE,		DMA_TO_DEVICE);
   DEFINE(DMA_FROM_DEVICE,	DMA_FROM_DEVICE);
   BLANK();
