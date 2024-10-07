@@ -28,8 +28,9 @@ module_param(ieee80211_default_rc_algo, charp, 0644);
 MODULE_PARM_DESC(ieee80211_default_rc_algo,
 		 "Default rate control algorithm for mac80211 to use");
 
-void rate_control_rate_init(struct sta_info *sta)
+void rate_control_rate_init(struct link_sta_info *link_sta)
 {
+	struct sta_info *sta = link_sta->sta;
 	struct ieee80211_local *local = sta->sdata->local;
 	struct rate_control_ref *ref = sta->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
@@ -37,9 +38,13 @@ void rate_control_rate_init(struct sta_info *sta)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 
-	ieee80211_sta_init_nss(&sta->deflink);
+	ieee80211_sta_init_nss(link_sta);
 
 	if (!ref)
+		return;
+
+	/* SW rate control isn't supported with MLO right now */
+	if (WARN_ON(ieee80211_vif_is_mld(&sta->sdata->vif)))
 		return;
 
 	rcu_read_lock();
@@ -65,6 +70,21 @@ void rate_control_rate_init(struct sta_info *sta)
 	spin_unlock_bh(&sta->rate_ctrl_lock);
 	rcu_read_unlock();
 	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);
+}
+
+void rate_control_rate_init_all_links(struct sta_info *sta)
+{
+	int link_id;
+
+	for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
+		struct link_sta_info *link_sta;
+
+		link_sta = sdata_dereference(sta->link[link_id], sta->sdata);
+		if (!link_sta)
+			continue;
+
+		rate_control_rate_init(link_sta);
+	}
 }
 
 void rate_control_tx_status(struct ieee80211_local *local,

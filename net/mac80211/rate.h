@@ -3,7 +3,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022, 2024 Intel Corporation
  */
 
 #ifndef IEEE80211_RATE_H
@@ -29,7 +29,8 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 void rate_control_tx_status(struct ieee80211_local *local,
 			    struct ieee80211_tx_status *st);
 
-void rate_control_rate_init(struct sta_info *sta);
+void rate_control_rate_init(struct link_sta_info *link_sta);
+void rate_control_rate_init_all_links(struct sta_info *sta);
 void rate_control_rate_update(struct ieee80211_local *local,
 			      struct ieee80211_supported_band *sband,
 			      struct sta_info *sta,
