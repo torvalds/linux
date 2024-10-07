@@ -125,6 +125,20 @@ static const char *obj_states[ODEBUG_STATE_MAX] = {
 	[ODEBUG_STATE_NOTAVAILABLE]	= "not available",
 };
 
+static void free_object_list(struct hlist_head *head)
+{
+	struct hlist_node *tmp;
+	struct debug_obj *obj;
+	int cnt = 0;
+
+	hlist_for_each_entry_safe(obj, tmp, head, node) {
+		hlist_del(&obj->node);
+		kmem_cache_free(obj_cache, obj);
+		cnt++;
+	}
+	debug_objects_freed += cnt;
+}
+
 static void fill_pool(void)
 {
 	gfp_t gfp = __GFP_HIGH | __GFP_NOWARN;
@@ -286,7 +300,6 @@ init_obj:
  */
 static void free_obj_work(struct work_struct *work)
 {
-	struct hlist_node *tmp;
 	struct debug_obj *obj;
 	unsigned long flags;
 	HLIST_HEAD(tofree);
@@ -323,15 +336,11 @@ free_objs:
 	 */
 	if (obj_nr_tofree) {
 		hlist_move_list(&obj_to_free, &tofree);
-		debug_objects_freed += obj_nr_tofree;
 		WRITE_ONCE(obj_nr_tofree, 0);
 	}
 	raw_spin_unlock_irqrestore(&pool_lock, flags);
 
-	hlist_for_each_entry_safe(obj, tmp, &tofree, node) {
-		hlist_del(&obj->node);
-		kmem_cache_free(obj_cache, obj);
-	}
+	free_object_list(&tofree);
 }
 
 static void __free_object(struct debug_obj *obj)
@@ -1334,6 +1343,7 @@ static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache
 	}
 	return true;
 free:
+	/* Can't use free_object_list() as the cache is not populated yet */
 	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
 		hlist_del(&obj->node);
 		kmem_cache_free(cache, obj);
