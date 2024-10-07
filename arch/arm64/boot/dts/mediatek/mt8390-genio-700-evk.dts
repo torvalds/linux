@@ -366,6 +366,16 @@
 	mediatek,mic-type-1 = <3>; /* DCC */
 };
 
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_pins_default>;
+	status = "okay";
+};
+
+&pciephy {
+	status = "okay";
+};
+
 &pio {
 	audio_default_pins: audio-default-pins {
 		pins-cmd-dat {
@@ -728,6 +738,15 @@
 		pins-rst {
 			pinmux = <PINMUX_GPIO25__FUNC_B_GPIO25>;
 			output-high;
+		};
+	};
+
+	pcie_pins_default: pcie-default {
+		mux {
+			pinmux = <PINMUX_GPIO47__FUNC_I1_WAKEN>,
+				 <PINMUX_GPIO48__FUNC_O_PERSTN>,
+				 <PINMUX_GPIO49__FUNC_B1_CLKREQN>;
+			bias-pull-up;
 		};
 	};
 
