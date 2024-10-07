@@ -11,10 +11,11 @@
 #ifndef __LINUX_ACPI_DMA_H
 #define __LINUX_ACPI_DMA_H
 
-#include <linux/list.h>
-#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/dmaengine.h>
+#include <linux/types.h>
+
+struct device;
 
 /**
  * struct acpi_dma_spec - slave device DMA resources

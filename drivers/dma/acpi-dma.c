@@ -9,18 +9,21 @@
  *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/acpi.h>
+#include <linux/acpi_dma.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
-#include <linux/ioport.h>
-#include <linux/acpi.h>
-#include <linux/acpi_dma.h>
 #include <linux/property.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 static LIST_HEAD(acpi_dma_list);
 static DEFINE_MUTEX(acpi_dma_lock);
