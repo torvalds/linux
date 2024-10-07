@@ -1364,19 +1364,10 @@ free:
 void __init debug_objects_mem_init(void)
 {
 	struct kmem_cache *cache;
-	int cpu, extras;
+	int extras;
 
 	if (!debug_objects_enabled)
 		return;
-
-	/*
-	 * Initialize the percpu object pools
-	 *
-	 * Initialization is not strictly necessary, but was done for
-	 * completeness.
-	 */
-	for_each_possible_cpu(cpu)
-		INIT_HLIST_HEAD(&per_cpu(percpu_obj_pool.free_objs, cpu));
 
 	if (!debug_objects_selftest())
 		return;
