@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * VEML6030 and VMEL6035 Ambient Light Sensors
+ * VEML6030, VMEL6035 and VEML7700 Ambient Light Sensors
  *
  * Copyright (c) 2019, Rishi Gupta <gupt21@gmail.com>
  *
@@ -11,6 +11,10 @@
  * VEML6035:
  * Datasheet: https://www.vishay.com/docs/84889/veml6035.pdf
  * Appnote-84944: https://www.vishay.com/docs/84944/designingveml6035.pdf
+ *
+ * VEML7700:
+ * Datasheet: https://www.vishay.com/docs/84286/veml7700.pdf
+ * Appnote-84323: https://www.vishay.com/docs/84323/designingveml7700.pdf
  */
 
 #include <linux/bitfield.h>
@@ -56,7 +60,10 @@ struct veml603x_chip {
 	const char *name;
 	const int(*scale_vals)[][2];
 	const int num_scale_vals;
+	const struct iio_chan_spec *channels;
+	const int num_channels;
 	int (*hw_init)(struct iio_dev *indio_dev, struct device *dev);
+	int (*set_info)(struct iio_dev *indio_dev);
 	int (*set_als_gain)(struct iio_dev *indio_dev, int val, int val2);
 	int (*get_als_gain)(struct iio_dev *indio_dev, int *val, int *val2);
 };
@@ -236,6 +243,30 @@ static const struct iio_chan_spec veml6030_channels[] = {
 						     BIT(IIO_CHAN_INFO_SCALE),
 		.event_spec = veml6030_event_spec,
 		.num_event_specs = ARRAY_SIZE(veml6030_event_spec),
+	},
+	{
+		.type = IIO_INTENSITY,
+		.channel = CH_WHITE,
+		.modified = 1,
+		.channel2 = IIO_MOD_LIGHT_BOTH,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
+						     BIT(IIO_CHAN_INFO_SCALE),
+	},
+};
+
+static const struct iio_chan_spec veml7700_channels[] = {
+	{
+		.type = IIO_LIGHT,
+		.channel = CH_ALS,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_PROCESSED) |
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
+						     BIT(IIO_CHAN_INFO_SCALE),
 	},
 	{
 		.type = IIO_INTENSITY,
@@ -862,6 +893,37 @@ static irqreturn_t veml6030_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static int veml6030_set_info(struct iio_dev *indio_dev)
+{
+	struct veml6030_data *data = iio_priv(indio_dev);
+	struct i2c_client *client = data->client;
+	int ret;
+
+	if (client->irq) {
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL, veml6030_event_handler,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						indio_dev->name, indio_dev);
+		if (ret < 0)
+			return dev_err_probe(&client->dev, ret,
+					     "irq %d request failed\n",
+					     client->irq);
+
+		indio_dev->info = &veml6030_info;
+	} else {
+		indio_dev->info = &veml6030_info_no_irq;
+	}
+
+	return 0;
+}
+
+static int veml7700_set_info(struct iio_dev *indio_dev)
+{
+	indio_dev->info = &veml6030_info_no_irq;
+
+	return 0;
+}
+
 /*
  * Set ALS gain to 1/8, integration time to 100 ms, PSM to mode 2,
  * persistence to 1 x integration time and the threshold
@@ -1007,24 +1069,13 @@ static int veml6030_probe(struct i2c_client *client)
 		return -EINVAL;
 
 	indio_dev->name = data->chip->name;
-	indio_dev->channels = veml6030_channels;
-	indio_dev->num_channels = ARRAY_SIZE(veml6030_channels);
+	indio_dev->channels = data->chip->channels;
+	indio_dev->num_channels = data->chip->num_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (client->irq) {
-		ret = devm_request_threaded_irq(&client->dev, client->irq,
-						NULL, veml6030_event_handler,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-						indio_dev->name, indio_dev);
-		if (ret < 0)
-			return dev_err_probe(&client->dev, ret,
-					     "irq %d request failed\n",
-					     client->irq);
-
-		indio_dev->info = &veml6030_info;
-	} else {
-		indio_dev->info = &veml6030_info_no_irq;
-	}
+	ret = data->chip->set_info(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	ret = data->chip->hw_init(indio_dev, &client->dev);
 	if (ret < 0)
@@ -1066,7 +1117,10 @@ static const struct veml603x_chip veml6030_chip = {
 	.name = "veml6030",
 	.scale_vals = &veml6030_scale_vals,
 	.num_scale_vals = ARRAY_SIZE(veml6030_scale_vals),
+	.channels = veml6030_channels,
+	.num_channels = ARRAY_SIZE(veml6030_channels),
 	.hw_init = veml6030_hw_init,
+	.set_info = veml6030_set_info,
 	.set_als_gain = veml6030_set_als_gain,
 	.get_als_gain = veml6030_get_als_gain,
 };
@@ -1075,9 +1129,24 @@ static const struct veml603x_chip veml6035_chip = {
 	.name = "veml6035",
 	.scale_vals = &veml6035_scale_vals,
 	.num_scale_vals = ARRAY_SIZE(veml6035_scale_vals),
+	.channels = veml6030_channels,
+	.num_channels = ARRAY_SIZE(veml6030_channels),
 	.hw_init = veml6035_hw_init,
+	.set_info = veml6030_set_info,
 	.set_als_gain = veml6035_set_als_gain,
 	.get_als_gain = veml6035_get_als_gain,
+};
+
+static const struct veml603x_chip veml7700_chip = {
+	.name = "veml7700",
+	.scale_vals = &veml6030_scale_vals,
+	.num_scale_vals = ARRAY_SIZE(veml6030_scale_vals),
+	.channels = veml7700_channels,
+	.num_channels = ARRAY_SIZE(veml7700_channels),
+	.hw_init = veml6030_hw_init,
+	.set_info = veml7700_set_info,
+	.set_als_gain = veml6030_set_als_gain,
+	.get_als_gain = veml6030_get_als_gain,
 };
 
 static const struct of_device_id veml6030_of_match[] = {
@@ -1089,6 +1158,10 @@ static const struct of_device_id veml6030_of_match[] = {
 		.compatible = "vishay,veml6035",
 		.data = &veml6035_chip,
 	},
+	{
+		.compatible = "vishay,veml7700",
+		.data = &veml7700_chip,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, veml6030_of_match);
@@ -1096,6 +1169,7 @@ MODULE_DEVICE_TABLE(of, veml6030_of_match);
 static const struct i2c_device_id veml6030_id[] = {
 	{ "veml6030", (kernel_ulong_t)&veml6030_chip},
 	{ "veml6035", (kernel_ulong_t)&veml6035_chip},
+	{ "veml7700", (kernel_ulong_t)&veml7700_chip},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, veml6030_id);
