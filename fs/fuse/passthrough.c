@@ -234,7 +234,6 @@ int fuse_backing_open(struct fuse_conn *fc, struct fuse_backing_map *map)
 		goto out;
 
 	backing_sb = file_inode(file)->i_sb;
-	pr_info("%s: %x:%pD %i\n", __func__, backing_sb->s_dev, file, backing_sb->s_stack_depth);
 	res = -ELOOP;
 	if (backing_sb->s_stack_depth >= fc->max_stack_depth)
 		goto out_fput;
