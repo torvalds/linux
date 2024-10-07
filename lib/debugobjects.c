@@ -68,6 +68,8 @@ static DEFINE_RAW_SPINLOCK(pool_lock);
 static struct obj_pool		pool_global;
 static struct obj_pool		pool_to_free;
 
+static HLIST_HEAD(pool_boot);
+
 /*
  * Because of the presence of percpu free pools, obj_pool_free will
  * under-count those in the percpu free pools. Similarly, obj_pool_used
@@ -278,6 +280,9 @@ alloc_object(void *addr, struct debug_bucket *b, const struct debug_obj_descr *d
 			percpu_pool->obj_free--;
 			goto init_obj;
 		}
+	} else {
+		obj = __alloc_object(&pool_boot);
+		goto init_obj;
 	}
 
 	raw_spin_lock(&pool_lock);
@@ -381,12 +386,14 @@ static void __free_object(struct debug_obj *obj)
 	struct debug_obj *objs[ODEBUG_BATCH_SIZE];
 	struct debug_percpu_free *percpu_pool;
 	int lookahead_count = 0;
-	unsigned long flags;
 	bool work;
 
-	local_irq_save(flags);
-	if (!obj_cache)
-		goto free_to_obj_pool;
+	guard(irqsave)();
+
+	if (unlikely(!obj_cache)) {
+		hlist_add_head(&obj->node, &pool_boot);
+		return;
+	}
 
 	/*
 	 * Try to free it into the percpu pool first.
@@ -395,7 +402,6 @@ static void __free_object(struct debug_obj *obj)
 	if (percpu_pool->obj_free < ODEBUG_POOL_PERCPU_SIZE) {
 		hlist_add_head(&obj->node, &percpu_pool->free_objs);
 		percpu_pool->obj_free++;
-		local_irq_restore(flags);
 		return;
 	}
 
@@ -410,7 +416,6 @@ static void __free_object(struct debug_obj *obj)
 		percpu_pool->obj_free--;
 	}
 
-free_to_obj_pool:
 	raw_spin_lock(&pool_lock);
 	work = (pool_global.cnt > debug_objects_pool_size) && obj_cache &&
 	       (pool_to_free.cnt < ODEBUG_FREE_WORK_MAX);
@@ -455,7 +460,6 @@ free_to_obj_pool:
 		}
 	}
 	raw_spin_unlock(&pool_lock);
-	local_irq_restore(flags);
 }
 
 /*
@@ -1341,10 +1345,9 @@ void __init debug_objects_early_init(void)
 	for (i = 0; i < ODEBUG_HASH_SIZE; i++)
 		raw_spin_lock_init(&obj_hash[i].lock);
 
+	/* Keep early boot simple and add everything to the boot list */
 	for (i = 0; i < ODEBUG_POOL_SIZE; i++)
-		hlist_add_head(&obj_static_pool[i].node, &pool_global.objects);
-
-	pool_global.cnt = ODEBUG_POOL_SIZE;
+		hlist_add_head(&obj_static_pool[i].node, &pool_boot);
 }
 
 /*
@@ -1372,10 +1375,11 @@ static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache
 	pool_global.cnt = ODEBUG_POOL_SIZE;
 
 	/*
-	 * Replace the statically allocated objects list with the allocated
-	 * objects list.
+	 * Move the allocated objects to the global pool and disconnect the
+	 * boot pool.
 	 */
 	hlist_move_list(&objects, &pool_global.objects);
+	pool_boot.first = NULL;
 
 	/* Replace the active object references */
 	for (i = 0; i < ODEBUG_HASH_SIZE; i++, db++) {
