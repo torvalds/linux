@@ -409,7 +409,7 @@ _ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 	if (!ctx->driver_present)
 		return 0;
 
-	return IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
+	return IEEE80211_CHANCTX_CHANGE_MIN_DEF;
 }
 
 static void ieee80211_chan_bw_change(struct ieee80211_local *local,
