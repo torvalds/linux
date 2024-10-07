@@ -418,8 +418,6 @@ struct iw_spy_data {
 struct libipw_device;
 /* The struct */
 struct iw_public_data {
-	/* Driver enhanced spy support */
-	struct iw_spy_data *		spy_data;
 	/* Legacy structure managed by the ipw2x00-specific IEEE 802.11 layer */
 	struct libipw_device *		libipw;
 };
@@ -442,22 +440,6 @@ static inline void wireless_nlevent_flush(void) {}
 
 /* We may need a function to send a stream of events to user space.
  * More on that later... */
-
-/* Standard handler for SIOCSIWSPY */
-int iw_handler_set_spy(struct net_device *dev, struct iw_request_info *info,
-		       union iwreq_data *wrqu, char *extra);
-/* Standard handler for SIOCGIWSPY */
-int iw_handler_get_spy(struct net_device *dev, struct iw_request_info *info,
-		       union iwreq_data *wrqu, char *extra);
-/* Standard handler for SIOCSIWTHRSPY */
-int iw_handler_set_thrspy(struct net_device *dev, struct iw_request_info *info,
-			  union iwreq_data *wrqu, char *extra);
-/* Standard handler for SIOCGIWTHRSPY */
-int iw_handler_get_thrspy(struct net_device *dev, struct iw_request_info *info,
-			  union iwreq_data *wrqu, char *extra);
-/* Driver call to update spy records */
-void wireless_spy_update(struct net_device *dev, unsigned char *address,
-			 struct iw_quality *wstats);
 
 /************************* INLINE FUNCTIONS *************************/
 /*

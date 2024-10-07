@@ -393,7 +393,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 			wstats.updated |= IW_QUAL_QUAL_INVALID;
 
 		/* Update spy records */
-		wireless_spy_update(ieee->dev, hdr->addr2, &wstats);
+		libipw_spy_update(ieee->dev, hdr->addr2, &wstats);
 	}
 #endif				/* IW_WIRELESS_SPY */
 #endif				/* CONFIG_WIRELESS_EXT */

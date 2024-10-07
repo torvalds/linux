@@ -13,6 +13,7 @@ libipw-objs := \
 	libipw_rx.o \
 	libipw_wx.o \
 	libipw_geo.o \
+	libipw_spy.o \
 	libipw_crypto.o \
 	libipw_crypto_ccmp.o \
 	libipw_crypto_tkip.o \

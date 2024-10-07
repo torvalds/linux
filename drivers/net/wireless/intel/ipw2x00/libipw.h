@@ -788,6 +788,7 @@ struct libipw_device {
 
 	int iw_mode;		/* operating mode (IW_MODE_*) */
 	struct iw_spy_data spy_data;	/* iwspy support */
+	bool spy_enabled;
 
 	spinlock_t lock;
 
@@ -1082,5 +1083,17 @@ void libipw_crypto_wep_exit(void);
 void libipw_crypto_tkip_exit(void);
 void libipw_crypto_ccmp_exit(void);
 void libipw_crypto_exit(void);
+
+
+int ipw_wx_set_spy(struct net_device *dev, struct iw_request_info *info,
+		   union iwreq_data *wrqu, char *extra);
+int ipw_wx_get_spy(struct net_device *dev, struct iw_request_info *info,
+		   union iwreq_data *wrqu, char *extra);
+int ipw_wx_set_thrspy(struct net_device *dev, struct iw_request_info *info,
+		      union iwreq_data *wrqu, char *extra);
+int ipw_wx_get_thrspy(struct net_device *dev, struct iw_request_info *info,
+		      union iwreq_data *wrqu, char *extra);
+void libipw_spy_update(struct net_device *dev, unsigned char *address,
+		       struct iw_quality *wstats);
 
 #endif				/* LIBIPW_H */

@@ -9856,10 +9856,10 @@ static iw_handler ipw_wx_handlers[] = {
 	IW_HANDLER(SIOCGIWENCODE, ipw_wx_get_encode),
 	IW_HANDLER(SIOCSIWPOWER, ipw_wx_set_power),
 	IW_HANDLER(SIOCGIWPOWER, ipw_wx_get_power),
-	IW_HANDLER(SIOCSIWSPY, iw_handler_set_spy),
-	IW_HANDLER(SIOCGIWSPY, iw_handler_get_spy),
-	IW_HANDLER(SIOCSIWTHRSPY, iw_handler_set_thrspy),
-	IW_HANDLER(SIOCGIWTHRSPY, iw_handler_get_thrspy),
+	IW_HANDLER(SIOCSIWSPY, ipw_wx_set_spy),
+	IW_HANDLER(SIOCGIWSPY, ipw_wx_get_spy),
+	IW_HANDLER(SIOCSIWTHRSPY, ipw_wx_set_thrspy),
+	IW_HANDLER(SIOCGIWTHRSPY, ipw_wx_get_thrspy),
 	IW_HANDLER(SIOCSIWGENIE, ipw_wx_set_genie),
 	IW_HANDLER(SIOCGIWGENIE, ipw_wx_get_genie),
 	IW_HANDLER(SIOCSIWMLME, ipw_wx_set_mlme),
@@ -11636,7 +11636,7 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 	priv->ieee->worst_rssi = -85;
 
 	net_dev->netdev_ops = &ipw_netdev_ops;
-	priv->wireless_data.spy_data = &priv->ieee->spy_data;
+	priv->ieee->spy_enabled = true;
 	net_dev->wireless_data = &priv->wireless_data;
 	net_dev->wireless_handlers = &ipw_wx_handler_def;
 	net_dev->ethtool_ops = &ipw_ethtool_ops;

@@ -11,9 +11,6 @@ config WEXT_PROC
 	depends on PROC_FS
 	depends on WEXT_CORE
 
-config WEXT_SPY
-	bool
-
 config WEXT_PRIV
 	bool
 
