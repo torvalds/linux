@@ -662,7 +662,7 @@ static struct platform_driver davinci_gpio_driver = {
 	.driver		= {
 		.name		= "davinci_gpio",
 		.pm = pm_sleep_ptr(&davinci_gpio_dev_pm_ops),
-		.of_match_table	= of_match_ptr(davinci_gpio_ids),
+		.of_match_table	= davinci_gpio_ids,
 	},
 };
 
