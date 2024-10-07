@@ -1211,7 +1211,7 @@ static __initconst const struct debug_obj_descr descr_type_test = {
 
 static __initdata struct self_test obj = { .static_init = 0 };
 
-static void __init debug_objects_selftest(void)
+static bool __init debug_objects_selftest(void)
 {
 	int fixups, oldfixups, warnings, oldwarnings;
 	unsigned long flags;
@@ -1280,9 +1280,10 @@ out:
 	descr_test = NULL;
 
 	local_irq_restore(flags);
+	return !!debug_objects_enabled;
 }
 #else
-static inline void debug_objects_selftest(void) { }
+static inline bool debug_objects_selftest(void) { return true; }
 #endif
 
 /*
@@ -1302,30 +1303,27 @@ void __init debug_objects_early_init(void)
 }
 
 /*
- * Convert the statically allocated objects to dynamic ones:
+ * Convert the statically allocated objects to dynamic ones.
+ * debug_objects_mem_init() is called early so only one CPU is up and
+ * interrupts are disabled, which means it is safe to replace the active
+ * object references.
  */
-static int __init debug_objects_replace_static_objects(void)
+static bool __init debug_objects_replace_static_objects(struct kmem_cache *cache)
 {
 	struct debug_bucket *db = obj_hash;
-	struct hlist_node *tmp;
 	struct debug_obj *obj, *new;
+	struct hlist_node *tmp;
 	HLIST_HEAD(objects);
 	int i, cnt = 0;
 
 	for (i = 0; i < ODEBUG_POOL_SIZE; i++) {
-		obj = kmem_cache_zalloc(obj_cache, GFP_KERNEL);
+		obj = kmem_cache_zalloc(cache, GFP_KERNEL);
 		if (!obj)
 			goto free;
 		hlist_add_head(&obj->node, &objects);
 	}
 
 	debug_objects_allocated += i;
-
-	/*
-	 * debug_objects_mem_init() is now called early that only one CPU is up
-	 * and interrupts have been disabled, so it is safe to replace the
-	 * active object references.
-	 */
 
 	/*
 	 * Replace the statically allocated objects list with the allocated
@@ -1347,15 +1345,14 @@ static int __init debug_objects_replace_static_objects(void)
 		}
 	}
 
-	pr_debug("%d of %d active objects replaced\n",
-		 cnt, obj_pool_used);
-	return 0;
+	pr_debug("%d of %d active objects replaced\n", cnt, obj_pool_used);
+	return true;
 free:
 	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
 		hlist_del(&obj->node);
-		kmem_cache_free(obj_cache, obj);
+		kmem_cache_free(cache, obj);
 	}
-	return -ENOMEM;
+	return false;
 }
 
 /*
@@ -1366,6 +1363,7 @@ free:
  */
 void __init debug_objects_mem_init(void)
 {
+	struct kmem_cache *cache;
 	int cpu, extras;
 
 	if (!debug_objects_enabled)
@@ -1380,29 +1378,33 @@ void __init debug_objects_mem_init(void)
 	for_each_possible_cpu(cpu)
 		INIT_HLIST_HEAD(&per_cpu(percpu_obj_pool.free_objs, cpu));
 
-	obj_cache = kmem_cache_create("debug_objects_cache",
-				      sizeof (struct debug_obj), 0,
-				      SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE,
-				      NULL);
-
-	if (!obj_cache || debug_objects_replace_static_objects()) {
-		debug_objects_enabled = 0;
-		kmem_cache_destroy(obj_cache);
-		pr_warn("out of memory.\n");
+	if (!debug_objects_selftest())
 		return;
-	} else
-		debug_objects_selftest();
 
-#ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_setup_state_nocalls(CPUHP_DEBUG_OBJ_DEAD, "object:offline", NULL,
-					object_cpu_offline);
-#endif
+	cache = kmem_cache_create("debug_objects_cache", sizeof (struct debug_obj), 0,
+				  SLAB_DEBUG_OBJECTS | SLAB_NOLEAKTRACE, NULL);
+
+	if (!cache || !debug_objects_replace_static_objects(cache)) {
+		debug_objects_enabled = 0;
+		pr_warn("Out of memory.\n");
+		return;
+	}
 
 	/*
-	 * Increase the thresholds for allocating and freeing objects
-	 * according to the number of possible CPUs available in the system.
+	 * Adjust the thresholds for allocating and freeing objects
+	 * according to the number of possible CPUs available in the
+	 * system.
 	 */
 	extras = num_possible_cpus() * ODEBUG_BATCH_SIZE;
 	debug_objects_pool_size += extras;
 	debug_objects_pool_min_level += extras;
+
+	/* Everything worked. Expose the cache */
+	obj_cache = cache;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	cpuhp_setup_state_nocalls(CPUHP_DEBUG_OBJ_DEAD, "object:offline", NULL,
+				  object_cpu_offline);
+#endif
+	return;
 }
