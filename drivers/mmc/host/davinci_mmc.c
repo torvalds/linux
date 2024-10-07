@@ -21,9 +21,9 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_data/mmc-davinci.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 /*
  * Register Definitions
@@ -1228,7 +1228,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 
 	host->mmc_input_clk = clk_get_rate(host->clk);
 
-	pdev->id_entry = of_device_get_match_data(&pdev->dev);
+	pdev->id_entry = device_get_match_data(&pdev->dev);
 	if (pdev->id_entry) {
 		ret = mmc_of_parse(mmc);
 		if (ret) {
