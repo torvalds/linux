@@ -19,6 +19,7 @@ enum axp20x_variants {
 	AXP223_ID,
 	AXP288_ID,
 	AXP313A_ID,
+	AXP323_ID,
 	AXP717_ID,
 	AXP803_ID,
 	AXP806_ID,
@@ -113,6 +114,7 @@ enum axp20x_variants {
 #define AXP313A_SHUTDOWN_CTRL		0x1a
 #define AXP313A_IRQ_EN			0x20
 #define AXP313A_IRQ_STATE		0x21
+#define AXP323_DCDC_MODE_CTRL2		0x22
 
 #define AXP717_ON_INDICATE		0x00
 #define AXP717_PMU_STATUS_2		0x01

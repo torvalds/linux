@@ -42,6 +42,7 @@ static const char * const axp20x_model_names[] = {
 	[AXP223_ID] = "AXP223",
 	[AXP288_ID] = "AXP288",
 	[AXP313A_ID] = "AXP313a",
+	[AXP323_ID] = "AXP323",
 	[AXP717_ID] = "AXP717",
 	[AXP803_ID] = "AXP803",
 	[AXP806_ID] = "AXP806",
@@ -193,6 +194,10 @@ static const struct regmap_range axp313a_writeable_ranges[] = {
 	regmap_reg_range(AXP313A_ON_INDICATE, AXP313A_IRQ_STATE),
 };
 
+static const struct regmap_range axp323_writeable_ranges[] = {
+	regmap_reg_range(AXP313A_ON_INDICATE, AXP323_DCDC_MODE_CTRL2),
+};
+
 static const struct regmap_range axp313a_volatile_ranges[] = {
 	regmap_reg_range(AXP313A_SHUTDOWN_CTRL, AXP313A_SHUTDOWN_CTRL),
 	regmap_reg_range(AXP313A_IRQ_STATE, AXP313A_IRQ_STATE),
@@ -201,6 +206,11 @@ static const struct regmap_range axp313a_volatile_ranges[] = {
 static const struct regmap_access_table axp313a_writeable_table = {
 	.yes_ranges = axp313a_writeable_ranges,
 	.n_yes_ranges = ARRAY_SIZE(axp313a_writeable_ranges),
+};
+
+static const struct regmap_access_table axp323_writeable_table = {
+	.yes_ranges = axp323_writeable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(axp323_writeable_ranges),
 };
 
 static const struct regmap_access_table axp313a_volatile_table = {
@@ -430,6 +440,15 @@ static const struct regmap_config axp313a_regmap_config = {
 	.wr_table = &axp313a_writeable_table,
 	.volatile_table = &axp313a_volatile_table,
 	.max_register = AXP313A_IRQ_STATE,
+	.cache_type = REGCACHE_MAPLE,
+};
+
+static const struct regmap_config axp323_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.wr_table = &axp323_writeable_table,
+	.volatile_table = &axp313a_volatile_table,
+	.max_register = AXP323_DCDC_MODE_CTRL2,
 	.cache_type = REGCACHE_MAPLE,
 };
 
@@ -1221,6 +1240,7 @@ static int axp20x_power_off(struct sys_off_data *data)
 	unsigned int shutdown_reg;
 
 	switch (axp20x->variant) {
+	case AXP323_ID:
 	case AXP313A_ID:
 		shutdown_reg = AXP313A_SHUTDOWN_CTRL;
 		break;
@@ -1287,6 +1307,12 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->nr_cells = ARRAY_SIZE(axp313a_cells);
 		axp20x->cells = axp313a_cells;
 		axp20x->regmap_cfg = &axp313a_regmap_config;
+		axp20x->regmap_irq_chip = &axp313a_regmap_irq_chip;
+		break;
+	case AXP323_ID:
+		axp20x->nr_cells = ARRAY_SIZE(axp313a_cells);
+		axp20x->cells = axp313a_cells;
+		axp20x->regmap_cfg = &axp323_regmap_config;
 		axp20x->regmap_irq_chip = &axp313a_regmap_irq_chip;
 		break;
 	case AXP717_ID:
