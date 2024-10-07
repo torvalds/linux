@@ -5,7 +5,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/trace_seq.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <trace/events/scsi.h>
 
 #define SERVICE_ACTION16(cdb) (cdb[1] & 0x1f)

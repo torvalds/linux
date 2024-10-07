@@ -22,7 +22,7 @@ endif
 
 ifneq ($(c-getrandom-y),)
   CFLAGS_vgetrandom-32.o += -include $(c-getrandom-y)
-  CFLAGS_vgetrandom-64.o += -include $(c-getrandom-y) $(call cc-option, -ffixed-r30)
+  CFLAGS_vgetrandom-64.o += -include $(c-getrandom-y)
 endif
 
 # Build rules

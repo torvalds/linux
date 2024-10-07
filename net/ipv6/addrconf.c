@@ -85,7 +85,7 @@
 #include <linux/netconf.h>
 #include <linux/random.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

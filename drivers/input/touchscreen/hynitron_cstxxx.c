@@ -22,7 +22,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Per chip data */
 struct hynitron_ts_chip_data {

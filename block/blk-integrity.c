@@ -56,8 +56,7 @@ new_segment:
 
 /**
  * blk_rq_map_integrity_sg - Map integrity metadata into a scatterlist
- * @q:		request queue
- * @bio:	bio with integrity metadata attached
+ * @rq:		request to map
  * @sglist:	target scatterlist
  *
  * Description: Map the integrity vectors in request into a

@@ -19,7 +19,7 @@
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
 #include <asm/sections.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/unwind.h>
 
 extern char __start_unwind[], __end_unwind[];
