@@ -1325,10 +1325,10 @@ static int __init debug_objects_replace_static_objects(void)
 	 * active object references.
 	 */
 
-	/* Remove the statically allocated objects from the pool */
-	hlist_for_each_entry_safe(obj, tmp, &obj_pool, node)
-		hlist_del(&obj->node);
-	/* Move the allocated objects to the pool */
+	/*
+	 * Replace the statically allocated objects list with the allocated
+	 * objects list.
+	 */
 	hlist_move_list(&objects, &obj_pool);
 
 	/* Replace the active object references */
