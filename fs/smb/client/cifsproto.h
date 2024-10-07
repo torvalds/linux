@@ -549,13 +549,6 @@ extern int generate_smb311signingkey(struct cifs_ses *ses,
 				     struct TCP_Server_Info *server);
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-extern int CIFSSMBCopy(unsigned int xid,
-			struct cifs_tcon *source_tcon,
-			const char *fromName,
-			const __u16 target_tid,
-			const char *toName, const int flags,
-			const struct nls_table *nls_codepage,
-			int remap_special_chars);
 extern ssize_t CIFSSMBQAllEAs(const unsigned int xid, struct cifs_tcon *tcon,
 			const unsigned char *searchName,
 			const unsigned char *ea_name, char *EAData,
