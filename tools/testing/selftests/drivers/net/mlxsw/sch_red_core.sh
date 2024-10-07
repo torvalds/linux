@@ -372,6 +372,7 @@ build_backlog()
 	local i=0
 
 	while :; do
+		sleep 1
 		local cur=$(busywait 1100 until_counter_is "> $cur" \
 					    get_qdisc_backlog $vlan)
 		local diff=$((size - cur))
