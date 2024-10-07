@@ -6,7 +6,7 @@
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/delay.h>
 #include <linux/kernel.h>

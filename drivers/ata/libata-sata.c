@@ -13,7 +13,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
 #include <linux/libata.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "libata.h"
 #include "libata-transport.h"

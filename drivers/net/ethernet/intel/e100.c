@@ -146,7 +146,7 @@
 #include <linux/string.h>
 #include <linux/firmware.h>
 #include <linux/rtnetlink.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 #define DRV_NAME		"e100"

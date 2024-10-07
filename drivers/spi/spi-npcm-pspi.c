@@ -12,7 +12,7 @@
 #include <linux/spi/spi.h>
 #include <linux/reset.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>

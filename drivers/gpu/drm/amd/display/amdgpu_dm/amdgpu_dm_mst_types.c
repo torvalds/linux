@@ -1027,6 +1027,7 @@ static int try_disable_dsc(struct drm_atomic_state *state,
 	int remaining_to_try = 0;
 	int ret;
 	uint16_t fec_overhead_multiplier_x1000 = get_fec_overhead_multiplier(dc_link);
+	int var_pbn;
 
 	for (i = 0; i < count; i++) {
 		if (vars[i + k].dsc_enabled
@@ -1057,13 +1058,18 @@ static int try_disable_dsc(struct drm_atomic_state *state,
 			break;
 
 		DRM_DEBUG_DRIVER("MST_DSC index #%d, try no compression\n", next_index);
+		var_pbn = vars[next_index].pbn;
 		vars[next_index].pbn = kbps_to_peak_pbn(params[next_index].bw_range.stream_kbps, fec_overhead_multiplier_x1000);
 		ret = drm_dp_atomic_find_time_slots(state,
 						    params[next_index].port->mgr,
 						    params[next_index].port,
 						    vars[next_index].pbn);
-		if (ret < 0)
+		if (ret < 0) {
+			DRM_DEBUG_DRIVER("%s:%d MST_DSC index #%d, failed to set pbn to the state, %d\n",
+						__func__, __LINE__, next_index, ret);
+			vars[next_index].pbn = var_pbn;
 			return ret;
+		}
 
 		ret = drm_dp_mst_atomic_check(state);
 		if (ret == 0) {
@@ -1071,14 +1077,17 @@ static int try_disable_dsc(struct drm_atomic_state *state,
 			vars[next_index].dsc_enabled = false;
 			vars[next_index].bpp_x16 = 0;
 		} else {
-			DRM_DEBUG_DRIVER("MST_DSC index #%d, restore minimum compression\n", next_index);
-			vars[next_index].pbn = kbps_to_peak_pbn(params[next_index].bw_range.max_kbps, fec_overhead_multiplier_x1000);
+			DRM_DEBUG_DRIVER("MST_DSC index #%d, restore optimized pbn value\n", next_index);
+			vars[next_index].pbn = var_pbn;
 			ret = drm_dp_atomic_find_time_slots(state,
 							    params[next_index].port->mgr,
 							    params[next_index].port,
 							    vars[next_index].pbn);
-			if (ret < 0)
+			if (ret < 0) {
+				DRM_DEBUG_DRIVER("%s:%d MST_DSC index #%d, failed to set pbn to the state, %d\n",
+							__func__, __LINE__, next_index, ret);
 				return ret;
+			}
 		}
 
 		tried[next_index] = true;

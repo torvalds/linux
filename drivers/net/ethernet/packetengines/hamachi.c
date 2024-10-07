@@ -163,7 +163,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/uaccess.h>
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/cache.h>
 
 static const char version[] =

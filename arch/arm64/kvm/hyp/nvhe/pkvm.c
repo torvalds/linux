@@ -574,12 +574,14 @@ int __pkvm_init_vcpu(pkvm_handle_t handle, struct kvm_vcpu *host_vcpu,
 unlock:
 	hyp_spin_unlock(&vm_table_lock);
 
-	if (ret)
+	if (ret) {
 		unmap_donated_memory(hyp_vcpu, sizeof(*hyp_vcpu));
+		return ret;
+	}
 
 	hyp_vcpu->vcpu.arch.cptr_el2 = kvm_get_reset_cptr_el2(&hyp_vcpu->vcpu);
 
-	return ret;
+	return 0;
 }
 
 static void

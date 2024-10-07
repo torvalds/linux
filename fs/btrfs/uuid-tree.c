@@ -5,7 +5,7 @@
 
 #include <linux/kthread.h>
 #include <linux/uuid.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "messages.h"
 #include "ctree.h"
 #include "transaction.h"

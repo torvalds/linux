@@ -21,7 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/sysfs.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
