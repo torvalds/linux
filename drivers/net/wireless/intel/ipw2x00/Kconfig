@@ -10,7 +10,6 @@ config IPW2100
 	select WEXT_SPY
 	select WEXT_PRIV
 	select FW_LOADER
-	select LIB80211
 	select LIBIPW
 	help
 	  A driver for the Intel PRO/Wireless 2100 Network
@@ -72,7 +71,6 @@ config IPW2200
 	select WEXT_SPY
 	select WEXT_PRIV
 	select FW_LOADER
-	select LIB80211
 	select LIBIPW
 	help
 	  A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
@@ -162,10 +160,6 @@ config LIBIPW
 	select CRYPTO
 	select CRYPTO_MICHAEL_MIC
 	select CRC32
-	select LIB80211
-	select LIB80211_CRYPT_WEP
-	select LIB80211_CRYPT_TKIP
-	select LIB80211_CRYPT_CCMP
 	help
 	This option enables the hardware independent IEEE 802.11
 	networking stack.  This component is deprecated in favor of the

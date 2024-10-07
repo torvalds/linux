@@ -31,8 +31,6 @@
 #include <linux/wireless.h>
 #include <linux/jiffies.h>
 #include <asm/io.h>
-
-#include <net/lib80211.h>
 #include <net/ieee80211_radiotap.h>
 
 #define DRV_NAME	"ipw2200"
