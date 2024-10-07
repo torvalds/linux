@@ -44,8 +44,9 @@
 
 static void ieee80211_iface_work(struct wiphy *wiphy, struct wiphy_work *work);
 
-bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+bool __ieee80211_recalc_txpower(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	int power;
 
@@ -77,7 +78,7 @@ bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 void ieee80211_recalc_txpower(struct ieee80211_link_data *link,
 			      bool update_bss)
 {
-	if (__ieee80211_recalc_txpower(link->sdata) ||
+	if (__ieee80211_recalc_txpower(link) ||
 	    (update_bss && ieee80211_sdata_running(link->sdata)))
 		ieee80211_link_info_change_notify(link->sdata, link,
 						  BSS_CHANGED_TXPOWER);
