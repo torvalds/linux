@@ -43,21 +43,12 @@ struct debug_bucket {
 	raw_spinlock_t		lock;
 };
 
-/*
- * Debug object percpu free list
- * Access is protected by disabling irq
- */
-struct debug_percpu_free {
-	struct hlist_head	free_objs;
-	int			obj_free;
-};
-
 struct obj_pool {
 	struct hlist_head	objects;
 	unsigned int		cnt;
 } ____cacheline_aligned;
 
-static DEFINE_PER_CPU(struct debug_percpu_free, percpu_obj_pool);
+static DEFINE_PER_CPU(struct obj_pool, pool_pcpu);
 
 static struct debug_bucket	obj_hash[ODEBUG_HASH_SIZE];
 
@@ -271,13 +262,13 @@ static struct debug_obj *__alloc_object(struct hlist_head *list)
 static struct debug_obj *
 alloc_object(void *addr, struct debug_bucket *b, const struct debug_obj_descr *descr)
 {
-	struct debug_percpu_free *percpu_pool = this_cpu_ptr(&percpu_obj_pool);
+	struct obj_pool *percpu_pool = this_cpu_ptr(&pool_pcpu);
 	struct debug_obj *obj;
 
 	if (likely(obj_cache)) {
-		obj = __alloc_object(&percpu_pool->free_objs);
+		obj = __alloc_object(&percpu_pool->objects);
 		if (obj) {
-			percpu_pool->obj_free--;
+			percpu_pool->cnt--;
 			goto init_obj;
 		}
 	} else {
@@ -304,8 +295,8 @@ alloc_object(void *addr, struct debug_bucket *b, const struct debug_obj_descr *d
 				obj2 = __alloc_object(&pool_global.objects);
 				if (!obj2)
 					break;
-				hlist_add_head(&obj2->node, &percpu_pool->free_objs);
-				percpu_pool->obj_free++;
+				hlist_add_head(&obj2->node, &percpu_pool->objects);
+				percpu_pool->cnt++;
 				obj_pool_used++;
 				WRITE_ONCE(pool_global.cnt, pool_global.cnt - 1);
 			}
@@ -384,7 +375,7 @@ free_objs:
 static void __free_object(struct debug_obj *obj)
 {
 	struct debug_obj *objs[ODEBUG_BATCH_SIZE];
-	struct debug_percpu_free *percpu_pool;
+	struct obj_pool *percpu_pool;
 	int lookahead_count = 0;
 	bool work;
 
@@ -398,10 +389,10 @@ static void __free_object(struct debug_obj *obj)
 	/*
 	 * Try to free it into the percpu pool first.
 	 */
-	percpu_pool = this_cpu_ptr(&percpu_obj_pool);
-	if (percpu_pool->obj_free < ODEBUG_POOL_PERCPU_SIZE) {
-		hlist_add_head(&obj->node, &percpu_pool->free_objs);
-		percpu_pool->obj_free++;
+	percpu_pool = this_cpu_ptr(&pool_pcpu);
+	if (percpu_pool->cnt < ODEBUG_POOL_PERCPU_SIZE) {
+		hlist_add_head(&obj->node, &percpu_pool->objects);
+		percpu_pool->cnt++;
 		return;
 	}
 
@@ -410,10 +401,10 @@ static void __free_object(struct debug_obj *obj)
 	 * of objects from the percpu pool and free them as well.
 	 */
 	for (; lookahead_count < ODEBUG_BATCH_SIZE; lookahead_count++) {
-		objs[lookahead_count] = __alloc_object(&percpu_pool->free_objs);
+		objs[lookahead_count] = __alloc_object(&percpu_pool->objects);
 		if (!objs[lookahead_count])
 			break;
-		percpu_pool->obj_free--;
+		percpu_pool->cnt--;
 	}
 
 	raw_spin_lock(&pool_lock);
@@ -494,10 +485,10 @@ static void put_objects(struct hlist_head *list)
 static int object_cpu_offline(unsigned int cpu)
 {
 	/* Remote access is safe as the CPU is dead already */
-	struct debug_percpu_free *pcp = per_cpu_ptr(&percpu_obj_pool, cpu);
+	struct obj_pool *pcp = per_cpu_ptr(&pool_pcpu, cpu);
 
-	put_objects(&pcp->free_objs);
-	pcp->obj_free = 0;
+	put_objects(&pcp->objects);
+	pcp->cnt = 0;
 	return 0;
 }
 #endif
@@ -1076,7 +1067,7 @@ static int debug_stats_show(struct seq_file *m, void *v)
 	int cpu, obj_percpu_free = 0;
 
 	for_each_possible_cpu(cpu)
-		obj_percpu_free += per_cpu(percpu_obj_pool.obj_free, cpu);
+		obj_percpu_free += per_cpu(pool_pcpu.cnt, cpu);
 
 	seq_printf(m, "max_chain     :%d\n", debug_objects_maxchain);
 	seq_printf(m, "max_checked   :%d\n", debug_objects_maxchecked);
