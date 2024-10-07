@@ -597,7 +597,7 @@ MODULE_DEVICE_TABLE(of, s3c_rtc_dt_match);
 
 static struct platform_driver s3c_rtc_driver = {
 	.probe		= s3c_rtc_probe,
-	.remove_new	= s3c_rtc_remove,
+	.remove		= s3c_rtc_remove,
 	.driver		= {
 		.name	= "s3c-rtc",
 		.pm	= &s3c_rtc_pm_ops,

@@ -251,7 +251,7 @@ MODULE_DEVICE_TABLE(of, wmt_dt_ids);
 
 static struct platform_driver vt8500_rtc_driver = {
 	.probe		= vt8500_rtc_probe,
-	.remove_new	= vt8500_rtc_remove,
+	.remove		= vt8500_rtc_remove,
 	.driver		= {
 		.name	= "vt8500-rtc",
 		.of_match_table = wmt_dt_ids,

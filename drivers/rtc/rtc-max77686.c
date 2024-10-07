@@ -875,7 +875,7 @@ static struct platform_driver max77686_rtc_driver = {
 		.pm	= &max77686_rtc_pm_ops,
 	},
 	.probe		= max77686_rtc_probe,
-	.remove_new	= max77686_rtc_remove,
+	.remove		= max77686_rtc_remove,
 	.id_table	= rtc_id,
 };
 

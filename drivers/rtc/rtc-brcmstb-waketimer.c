@@ -417,7 +417,7 @@ static const __maybe_unused struct of_device_id brcmstb_waketmr_of_match[] = {
 
 static struct platform_driver brcmstb_waketmr_driver = {
 	.probe			= brcmstb_waketmr_probe,
-	.remove_new		= brcmstb_waketmr_remove,
+	.remove			= brcmstb_waketmr_remove,
 	.driver = {
 		.name		= "brcmstb-waketimer",
 		.pm		= &brcmstb_waketmr_pm_ops,
