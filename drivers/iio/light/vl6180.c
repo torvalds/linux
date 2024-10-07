@@ -38,7 +38,9 @@
 #define VL6180_OUT_OF_RESET 0x016
 #define VL6180_HOLD 0x017
 #define VL6180_RANGE_START 0x018
+#define VL6180_RANGE_INTER_MEAS_TIME 0x01b
 #define VL6180_ALS_START 0x038
+#define VL6180_ALS_INTER_MEAS_TIME 0x03e
 #define VL6180_ALS_GAIN 0x03f
 #define VL6180_ALS_IT 0x040
 
@@ -86,6 +88,8 @@ struct vl6180_data {
 	struct mutex lock;
 	unsigned int als_gain_milli;
 	unsigned int als_it_ms;
+	unsigned int als_meas_rate;
+	unsigned int range_meas_rate;
 };
 
 enum { VL6180_ALS, VL6180_RANGE, VL6180_PROX };
@@ -261,12 +265,14 @@ static const struct iio_chan_spec vl6180_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_INT_TIME) |
 			BIT(IIO_CHAN_INFO_SCALE) |
-			BIT(IIO_CHAN_INFO_HARDWAREGAIN),
+			BIT(IIO_CHAN_INFO_HARDWAREGAIN) |
+			BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	}, {
 		.type = IIO_DISTANCE,
 		.address = VL6180_RANGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SCALE),
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	}, {
 		.type = IIO_PROXIMITY,
 		.address = VL6180_PROX,
@@ -332,6 +338,18 @@ static int vl6180_read_raw(struct iio_dev *indio_dev,
 		*val2 = 1000;
 
 		return IIO_VAL_FRACTIONAL;
+
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		switch (chan->type) {
+		case IIO_DISTANCE:
+			*val = data->range_meas_rate;
+			return IIO_VAL_INT;
+		case IIO_LIGHT:
+			*val = data->als_meas_rate;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 
 	default:
 		return -EINVAL;
@@ -412,11 +430,23 @@ fail:
 	return ret;
 }
 
+static int vl6180_meas_reg_val_from_mhz(unsigned int mhz)
+{
+	unsigned int period = DIV_ROUND_CLOSEST(1000 * 1000, mhz);
+	unsigned int reg_val = 0;
+
+	if (period > 10)
+		reg_val = period < 2550 ? (DIV_ROUND_CLOSEST(period, 10) - 1) : 254;
+
+	return reg_val;
+}
+
 static int vl6180_write_raw(struct iio_dev *indio_dev,
 			     struct iio_chan_spec const *chan,
 			     int val, int val2, long mask)
 {
 	struct vl6180_data *data = iio_priv(indio_dev);
+	unsigned int reg_val;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
@@ -427,6 +457,28 @@ static int vl6180_write_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 
 		return vl6180_set_als_gain(data, val, val2);
+
+	case IIO_CHAN_INFO_SAMP_FREQ:
+	{
+		guard(mutex)(&data->lock);
+		switch (chan->type) {
+		case IIO_DISTANCE:
+			data->range_meas_rate = val;
+			reg_val = vl6180_meas_reg_val_from_mhz(val);
+			return vl6180_write_byte(data->client,
+				VL6180_RANGE_INTER_MEAS_TIME, reg_val);
+
+		case IIO_LIGHT:
+			data->als_meas_rate = val;
+			reg_val = vl6180_meas_reg_val_from_mhz(val);
+			return vl6180_write_byte(data->client,
+				VL6180_ALS_INTER_MEAS_TIME, reg_val);
+
+		default:
+			return -EINVAL;
+		}
+	}
+
 	default:
 		return -EINVAL;
 	}
@@ -472,6 +524,20 @@ static int vl6180_init(struct vl6180_data *data)
 				VL6180_ALS_READY | VL6180_RANGE_READY);
 	if (ret < 0)
 		return ret;
+
+	/* Default Range inter-measurement time: 50ms or 20000 mHz */
+	ret = vl6180_write_byte(client, VL6180_RANGE_INTER_MEAS_TIME,
+				vl6180_meas_reg_val_from_mhz(20000));
+	if (ret < 0)
+		return ret;
+	data->range_meas_rate = 20000;
+
+	/* Default ALS inter-measurement time: 10ms or 100000 mHz */
+	ret = vl6180_write_byte(client, VL6180_ALS_INTER_MEAS_TIME,
+				vl6180_meas_reg_val_from_mhz(100000));
+	if (ret < 0)
+		return ret;
+	data->als_meas_rate = 100000;
 
 	/* ALS integration time: 100ms */
 	data->als_it_ms = 100;
