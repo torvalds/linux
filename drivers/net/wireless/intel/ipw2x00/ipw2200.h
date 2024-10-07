@@ -1274,8 +1274,6 @@ struct ipw_priv {
 
 	struct iw_statistics wstats;
 
-	struct iw_public_data wireless_data;
-
 	int user_requested_scan;
 	u8 direct_scan_ssid[IW_ESSID_MAX_SIZE];
 	u8 direct_scan_ssid_len;

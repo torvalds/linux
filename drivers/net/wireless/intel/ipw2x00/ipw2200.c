@@ -11645,7 +11645,6 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 
 	net_dev->netdev_ops = &ipw_netdev_ops;
 	priv->ieee->spy_enabled = true;
-	net_dev->wireless_data = &priv->wireless_data;
 	net_dev->wireless_handlers = &ipw_wx_handler_def;
 	net_dev->ethtool_ops = &ipw_ethtool_ops;
 

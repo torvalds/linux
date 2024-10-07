@@ -18,9 +18,10 @@
 
 static struct iw_spy_data *get_spydata(struct net_device *dev)
 {
-	if (dev->wireless_data && dev->wireless_data->libipw &&
-	    dev->wireless_data->libipw->spy_enabled)
-		return &dev->wireless_data->libipw->spy_data;
+	struct libipw_device *ieee = netdev_priv(dev);
+
+	if (ieee->spy_enabled)
+		return &ieee->spy_data;
 	return NULL;
 }
 

@@ -404,24 +404,6 @@ struct iw_spy_data {
 	u_char			spy_thr_under[IW_MAX_SPY];
 };
 
-/* --------------------- DEVICE WIRELESS DATA --------------------- */
-/*
- * This is all the wireless data specific to a device instance that
- * is managed by the core of Wireless Extensions or the 802.11 layer.
- * We only keep pointer to those structures, so that a driver is free
- * to share them between instances.
- * This structure should be initialised before registering the device.
- * Access to this data follow the same rules as any other struct net_device
- * data (i.e. valid as long as struct net_device exist, same locking rules).
- */
-/* Forward declaration */
-struct libipw_device;
-/* The struct */
-struct iw_public_data {
-	/* Legacy structure managed by the ipw2x00-specific IEEE 802.11 layer */
-	struct libipw_device *		libipw;
-};
-
 /**************************** PROTOTYPES ****************************/
 /*
  * Functions part of the Wireless Extensions (defined in net/wireless/wext-core.c).
