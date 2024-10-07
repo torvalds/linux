@@ -7704,6 +7704,33 @@ void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
  */
 void ieee80211_send_teardown_neg_ttlm(struct ieee80211_vif *vif);
 
+/**
+ * ieee80211_chan_width_to_rx_bw - convert channel width to STA RX bandwidth
+ * @width: the channel width value to convert
+ * Return: the STA RX bandwidth value for the channel width
+ */
+static inline enum ieee80211_sta_rx_bandwidth
+ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
+{
+	switch (width) {
+	default:
+		WARN_ON_ONCE(1);
+		fallthrough;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		return IEEE80211_STA_RX_BW_20;
+	case NL80211_CHAN_WIDTH_40:
+		return IEEE80211_STA_RX_BW_40;
+	case NL80211_CHAN_WIDTH_80:
+		return IEEE80211_STA_RX_BW_80;
+	case NL80211_CHAN_WIDTH_160:
+	case NL80211_CHAN_WIDTH_80P80:
+		return IEEE80211_STA_RX_BW_160;
+	case NL80211_CHAN_WIDTH_320:
+		return IEEE80211_STA_RX_BW_320;
+	}
+}
+
 /* for older drivers - let's not document these ... */
 int ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
 				  struct ieee80211_chanctx_conf *ctx);
