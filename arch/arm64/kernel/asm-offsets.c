@@ -96,8 +96,6 @@ int main(void)
   DEFINE(FREGS_SIZE,		sizeof(struct ftrace_regs));
   BLANK();
 #endif
-  DEFINE(MM_CONTEXT_ID,		offsetof(struct mm_struct, context.id.counter));
-  BLANK();
   DEFINE(VM_EXEC,	       	VM_EXEC);
   BLANK();
   DEFINE(PAGE_SZ,	       	PAGE_SIZE);
