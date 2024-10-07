@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 #define NRCSR_OFFSET		0x00
@@ -490,7 +490,7 @@ MODULE_DEVICE_TABLE(of, davinci_nand_of_match);
 static struct davinci_nand_pdata *
 nand_davinci_get_pdata(struct platform_device *pdev)
 {
-	if (!dev_get_platdata(&pdev->dev) && pdev->dev.of_node) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		struct davinci_nand_pdata *pdata;
 		const char *mode;
 		u32 prop;
@@ -501,23 +501,24 @@ nand_davinci_get_pdata(struct platform_device *pdev)
 		pdev->dev.platform_data = pdata;
 		if (!pdata)
 			return ERR_PTR(-ENOMEM);
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-chipselect", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-chipselect", &prop))
 			pdata->core_chipsel = prop;
 		else
 			return ERR_PTR(-EINVAL);
 
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-mask-ale", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-mask-ale", &prop))
 			pdata->mask_ale = prop;
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-mask-cle", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-mask-cle", &prop))
 			pdata->mask_cle = prop;
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-mask-chipsel", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-mask-chipsel", &prop))
 			pdata->mask_chipsel = prop;
-		if (!of_property_read_string(pdev->dev.of_node,
-			"ti,davinci-ecc-mode", &mode)) {
+		if (!device_property_read_string(&pdev->dev,
+						 "ti,davinci-ecc-mode",
+						 &mode)) {
 			if (!strncmp("none", mode, 4))
 				pdata->engine_type = NAND_ECC_ENGINE_TYPE_NONE;
 			if (!strncmp("soft", mode, 4))
@@ -525,16 +526,17 @@ nand_davinci_get_pdata(struct platform_device *pdev)
 			if (!strncmp("hw", mode, 2))
 				pdata->engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 		}
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-ecc-bits", &prop))
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-ecc-bits", &prop))
 			pdata->ecc_bits = prop;
 
-		if (!of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-nand-buswidth", &prop) && prop == 16)
+		if (!device_property_read_u32(&pdev->dev,
+					      "ti,davinci-nand-buswidth",
+					      &prop) && prop == 16)
 			pdata->options |= NAND_BUSWIDTH_16;
 
-		if (of_property_read_bool(pdev->dev.of_node,
-			"ti,davinci-nand-use-bbt"))
+		if (device_property_read_bool(&pdev->dev,
+					      "ti,davinci-nand-use-bbt"))
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
 
 		/*
@@ -548,10 +550,8 @@ nand_davinci_get_pdata(struct platform_device *pdev)
 		 * then use "ti,davinci-nand" as the compatible in your
 		 * device-tree file.
 		 */
-		if (of_device_is_compatible(pdev->dev.of_node,
-					    "ti,keystone-nand")) {
+		if (device_is_compatible(&pdev->dev, "ti,keystone-nand"))
 			pdata->options |= NAND_NO_SUBPAGE_WRITE;
-		}
 	}
 
 	return dev_get_platdata(&pdev->dev);
