@@ -2290,8 +2290,10 @@ static struct mapped_device *alloc_dev(int minor)
 	 * override accordingly.
 	 */
 	md->disk = blk_alloc_disk(NULL, md->numa_node_id);
-	if (IS_ERR(md->disk))
+	if (IS_ERR(md->disk)) {
+		md->disk = NULL;
 		goto bad;
+	}
 	md->queue = md->disk->queue;
 
 	init_waitqueue_head(&md->wait);
