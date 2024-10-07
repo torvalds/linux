@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/light/vishay,veml6030.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: VEML6030 and VEML6035 Ambient Light Sensors (ALS)
+title: VEML6030, VEML6035 and VEML7700 Ambient Light Sensors (ALS)
 
 maintainers:
   - Rishi Gupta <gupt21@gmail.com>
@@ -22,12 +22,14 @@ description: |
   Specifications about the sensors can be found at:
     https://www.vishay.com/docs/84366/veml6030.pdf
     https://www.vishay.com/docs/84889/veml6035.pdf
+    https://www.vishay.com/docs/84286/veml7700.pdf
 
 properties:
   compatible:
     enum:
       - vishay,veml6030
       - vishay,veml6035
+      - vishay,veml7700
 
   reg:
     maxItems: 1
@@ -69,6 +71,18 @@ allOf:
         reg:
           enum:
             - 0x29
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - vishay,veml7700
+    then:
+      properties:
+        reg:
+          enum:
+            - 0x10
+        interrupts: false
 
 additionalProperties: false
 
