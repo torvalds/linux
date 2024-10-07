@@ -35,7 +35,7 @@
  * frequency of 10Hz and about 1024 objects for each freeing operation.
  * So it is freeing at most 10k debug objects per second.
  */
-#define ODEBUG_FREE_WORK_MAX	1024
+#define ODEBUG_FREE_WORK_MAX	(1024 / ODEBUG_BATCH_SIZE)
 #define ODEBUG_FREE_WORK_DELAY	DIV_ROUND_UP(HZ, 10)
 
 struct debug_bucket {
@@ -154,6 +154,21 @@ static bool pool_move_batch(struct obj_pool *dst, struct obj_pool *src)
 
 		hlist_del(node);
 		hlist_add_head(node, &dst->objects);
+	}
+	return true;
+}
+
+static bool pool_pop_batch(struct hlist_head *head, struct obj_pool *src)
+{
+	if (!src->cnt)
+		return false;
+
+	for (int i = 0; src->cnt && i < ODEBUG_BATCH_SIZE; i++) {
+		struct hlist_node *node = src->objects.first;
+
+		WRITE_ONCE(src->cnt, src->cnt - 1);
+		hlist_del(node);
+		hlist_add_head(node, head);
 	}
 	return true;
 }
@@ -343,55 +358,36 @@ static struct debug_obj *alloc_object(void *addr, struct debug_bucket *b,
 	return obj;
 }
 
-/*
- * workqueue function to free objects.
- *
- * To reduce contention on the global pool_lock, the actual freeing of
- * debug objects will be delayed if the pool_lock is busy.
- */
+/* workqueue function to free objects. */
 static void free_obj_work(struct work_struct *work)
 {
-	struct debug_obj *obj;
-	unsigned long flags;
-	HLIST_HEAD(tofree);
+	bool free = true;
 
 	WRITE_ONCE(obj_freeing, false);
-	if (!raw_spin_trylock_irqsave(&pool_lock, flags))
+
+	if (!pool_count(&pool_to_free))
 		return;
 
-	if (pool_global.cnt >= pool_global.max_cnt)
-		goto free_objs;
+	for (unsigned int cnt = 0; cnt < ODEBUG_FREE_WORK_MAX; cnt++) {
+		HLIST_HEAD(tofree);
 
-	/*
-	 * The objs on the pool list might be allocated before the work is
-	 * run, so recheck if pool list it full or not, if not fill pool
-	 * list from the global free list. As it is likely that a workload
-	 * may be gearing up to use more and more objects, don't free any
-	 * of them until the next round.
-	 */
-	while (pool_to_free.cnt && pool_global.cnt < pool_global.max_cnt) {
-		obj = hlist_entry(pool_to_free.objects.first, typeof(*obj), node);
-		hlist_del(&obj->node);
-		hlist_add_head(&obj->node, &pool_global.objects);
-		WRITE_ONCE(pool_to_free.cnt, pool_to_free.cnt - 1);
-		WRITE_ONCE(pool_global.cnt, pool_global.cnt + 1);
+		/* Acquire and drop the lock for each batch */
+		scoped_guard(raw_spinlock_irqsave, &pool_lock) {
+			if (!pool_to_free.cnt)
+				return;
+
+			/* Refill the global pool if possible */
+			if (pool_move_batch(&pool_global, &pool_to_free)) {
+				/* Don't free as there seems to be demand */
+				free = false;
+			} else if (free) {
+				pool_pop_batch(&tofree, &pool_to_free);
+			} else {
+				return;
+			}
+		}
+		free_object_list(&tofree);
 	}
-	raw_spin_unlock_irqrestore(&pool_lock, flags);
-	return;
-
-free_objs:
-	/*
-	 * Pool list is already full and there are still objs on the free
-	 * list. Move remaining free objs to a temporary list to free the
-	 * memory outside the pool_lock held region.
-	 */
-	if (pool_to_free.cnt) {
-		hlist_move_list(&pool_to_free.objects, &tofree);
-		WRITE_ONCE(pool_to_free.cnt, 0);
-	}
-	raw_spin_unlock_irqrestore(&pool_lock, flags);
-
-	free_object_list(&tofree);
 }
 
 static void __free_object(struct debug_obj *obj)
