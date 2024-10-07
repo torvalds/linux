@@ -5,6 +5,12 @@
 #include <net/iw_handler.h>
 #include <linux/wireless.h>
 
+#ifdef CONFIG_WEXT_CORE
+void wireless_nlevent_flush(void);
+#else
+static inline void wireless_nlevent_flush(void) {}
+#endif
+
 int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 			       struct iw_request_info *info,
 			       struct iw_freq *wextfreq, char *extra);
