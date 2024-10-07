@@ -1728,4 +1728,16 @@ drv_can_neg_ttlm(struct ieee80211_local *local,
 
 	return res;
 }
+
+static inline void
+drv_prep_add_interface(struct ieee80211_local *local,
+		       enum nl80211_iftype type)
+{
+	trace_drv_prep_add_interface(local, type);
+	if (local->ops->prep_add_interface)
+		local->ops->prep_add_interface(&local->hw, type);
+
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

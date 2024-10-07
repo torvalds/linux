@@ -194,6 +194,24 @@ static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
 		}
 	}
 
+	/* Let the driver know that an interface is going to be added.
+	 * Indicate so only for interface types that will be added to the
+	 * driver.
+	 */
+	switch (type) {
+	case NL80211_IFTYPE_AP_VLAN:
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (!ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF) ||
+		    !(params->flags & MONITOR_FLAG_ACTIVE))
+			break;
+		fallthrough;
+	default:
+		drv_prep_add_interface(local,
+				       ieee80211_vif_type_p2p(&sdata->vif));
+		break;
+	}
+
 	return wdev;
 }
 

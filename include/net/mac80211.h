@@ -4444,6 +4444,12 @@ struct ieee80211_prep_tx_info {
  *	if the requested TID-To-Link mapping can be accepted or not.
  *	If it's not accepted the driver may suggest a preferred mapping and
  *	modify @ttlm parameter with the suggested TID-to-Link mapping.
+ * @prep_add_interface: prepare for interface addition. This can be used by
+ *      drivers to prepare for the addition of a new interface, e.g., allocate
+ *      the needed resources etc. This callback doesn't guarantee that an
+ *      interface with the specified type would be added, and thus drivers that
+ *      implement this callback need to handle such cases. The type is the full
+ *      &enum nl80211_iftype.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -4828,6 +4834,8 @@ struct ieee80211_ops {
 	enum ieee80211_neg_ttlm_res
 	(*can_neg_ttlm)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_neg_ttlm *ttlm);
+	void (*prep_add_interface)(struct ieee80211_hw *hw,
+				   enum nl80211_iftype type);
 };
 
 /**
