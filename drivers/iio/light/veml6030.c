@@ -56,8 +56,6 @@ struct veml603x_chip {
 	const char *name;
 	const int(*scale_vals)[][2];
 	const int num_scale_vals;
-	const struct iio_info *info;
-	const struct iio_info *info_no_irq;
 	int (*hw_init)(struct iio_dev *indio_dev, struct device *dev);
 	int (*set_als_gain)(struct iio_dev *indio_dev, int val, int val2);
 	int (*get_als_gain)(struct iio_dev *indio_dev, int *val, int *val2);
@@ -829,25 +827,9 @@ static const struct iio_info veml6030_info = {
 	.event_attrs = &veml6030_event_attr_group,
 };
 
-static const struct iio_info veml6035_info = {
-	.read_raw  = veml6030_read_raw,
-	.read_avail  = veml6030_read_avail,
-	.write_raw = veml6030_write_raw,
-	.read_event_value = veml6030_read_event_val,
-	.write_event_value = veml6030_write_event_val,
-	.read_event_config = veml6030_read_interrupt_config,
-	.write_event_config = veml6030_write_interrupt_config,
-	.event_attrs = &veml6030_event_attr_group,
-};
-
 static const struct iio_info veml6030_info_no_irq = {
 	.read_raw  = veml6030_read_raw,
 	.read_avail  = veml6030_read_avail,
-	.write_raw = veml6030_write_raw,
-};
-
-static const struct iio_info veml6035_info_no_irq = {
-	.read_raw  = veml6030_read_raw,
 	.write_raw = veml6030_write_raw,
 };
 
@@ -1039,9 +1021,9 @@ static int veml6030_probe(struct i2c_client *client)
 					     "irq %d request failed\n",
 					     client->irq);
 
-		indio_dev->info = data->chip->info;
+		indio_dev->info = &veml6030_info;
 	} else {
-		indio_dev->info = data->chip->info_no_irq;
+		indio_dev->info = &veml6030_info_no_irq;
 	}
 
 	ret = data->chip->hw_init(indio_dev, &client->dev);
@@ -1084,8 +1066,6 @@ static const struct veml603x_chip veml6030_chip = {
 	.name = "veml6030",
 	.scale_vals = &veml6030_scale_vals,
 	.num_scale_vals = ARRAY_SIZE(veml6030_scale_vals),
-	.info = &veml6030_info,
-	.info_no_irq = &veml6030_info_no_irq,
 	.hw_init = veml6030_hw_init,
 	.set_als_gain = veml6030_set_als_gain,
 	.get_als_gain = veml6030_get_als_gain,
@@ -1095,8 +1075,6 @@ static const struct veml603x_chip veml6035_chip = {
 	.name = "veml6035",
 	.scale_vals = &veml6035_scale_vals,
 	.num_scale_vals = ARRAY_SIZE(veml6035_scale_vals),
-	.info = &veml6035_info,
-	.info_no_irq = &veml6035_info_no_irq,
 	.hw_init = veml6035_hw_init,
 	.set_als_gain = veml6035_set_als_gain,
 	.get_als_gain = veml6035_get_als_gain,
