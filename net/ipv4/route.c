@@ -1697,7 +1697,7 @@ int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 /* called in rcu_read_lock() section */
 static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-			     u8 tos, struct net_device *dev, int our)
+			     dscp_t dscp, struct net_device *dev, int our)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
 	unsigned int flags = RTCF_MULTICAST;
@@ -1705,7 +1705,9 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	u32 itag = 0;
 	int err;
 
-	err = ip_mc_validate_source(skb, daddr, saddr, tos, dev, in_dev, &itag);
+	err = ip_mc_validate_source(skb, daddr, saddr,
+				    inet_dscp_to_dsfield(dscp), dev, in_dev,
+				    &itag);
 	if (err)
 		return err;
 
@@ -2455,9 +2457,8 @@ static int ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		     IN_DEV_MFORWARD(in_dev))
 #endif
 		   ) {
-			err = ip_route_input_mc(skb, daddr, saddr,
-						inet_dscp_to_dsfield(dscp),
-						dev, our);
+			err = ip_route_input_mc(skb, daddr, saddr, dscp, dev,
+						our);
 		}
 		return err;
 	}
