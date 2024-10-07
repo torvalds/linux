@@ -487,8 +487,8 @@ static const struct of_device_id davinci_nand_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, davinci_nand_of_match);
 
-static struct davinci_nand_pdata
-	*nand_davinci_get_pdata(struct platform_device *pdev)
+static struct davinci_nand_pdata *
+nand_davinci_get_pdata(struct platform_device *pdev)
 {
 	if (!dev_get_platdata(&pdev->dev) && pdev->dev.of_node) {
 		struct davinci_nand_pdata *pdata;
@@ -557,8 +557,8 @@ static struct davinci_nand_pdata
 	return dev_get_platdata(&pdev->dev);
 }
 #else
-static struct davinci_nand_pdata
-	*nand_davinci_get_pdata(struct platform_device *pdev)
+static struct davinci_nand_pdata *
+nand_davinci_get_pdata(struct platform_device *pdev)
 {
 	return dev_get_platdata(&pdev->dev);
 }
