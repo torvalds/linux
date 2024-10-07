@@ -34,20 +34,20 @@
 #define AXP806_REG_ADDR_EXT_ADDR_SLAVE_MODE	BIT(4)
 
 static const char * const axp20x_model_names[] = {
-	"AXP152",
-	"AXP192",
-	"AXP202",
-	"AXP209",
-	"AXP221",
-	"AXP223",
-	"AXP288",
-	"AXP313a",
-	"AXP717",
-	"AXP803",
-	"AXP806",
-	"AXP809",
-	"AXP813",
-	"AXP15060",
+	[AXP152_ID] = "AXP152",
+	[AXP192_ID] = "AXP192",
+	[AXP202_ID] = "AXP202",
+	[AXP209_ID] = "AXP209",
+	[AXP221_ID] = "AXP221",
+	[AXP223_ID] = "AXP223",
+	[AXP288_ID] = "AXP288",
+	[AXP313A_ID] = "AXP313a",
+	[AXP717_ID] = "AXP717",
+	[AXP803_ID] = "AXP803",
+	[AXP806_ID] = "AXP806",
+	[AXP809_ID] = "AXP809",
+	[AXP813_ID] = "AXP813",
+	[AXP15060_ID] = "AXP15060",
 };
 
 static const struct regmap_range axp152_writeable_ranges[] = {
@@ -1345,7 +1345,7 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->regmap_irq_chip = &axp15060_regmap_irq_chip;
 		break;
 	default:
-		dev_err(dev, "unsupported AXP20X ID %lu\n", axp20x->variant);
+		dev_err(dev, "unsupported AXP20X ID %u\n", axp20x->variant);
 		return -EINVAL;
 	}
 

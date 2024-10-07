@@ -1597,7 +1597,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		nregulators = AXP15060_REG_ID_MAX;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unsupported AXP variant: %ld\n",
+		dev_err(&pdev->dev, "Unsupported AXP variant: %d\n",
 			axp20x->variant);
 		return -EINVAL;
 	}
