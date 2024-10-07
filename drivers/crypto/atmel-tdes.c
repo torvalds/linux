@@ -1074,7 +1074,7 @@ static void atmel_tdes_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_tdes_driver = {
 	.probe		= atmel_tdes_probe,
-	.remove_new	= atmel_tdes_remove,
+	.remove		= atmel_tdes_remove,
 	.driver		= {
 		.name	= "atmel_tdes",
 		.of_match_table = atmel_tdes_dt_ids,

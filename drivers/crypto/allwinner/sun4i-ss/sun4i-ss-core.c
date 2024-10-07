@@ -542,7 +542,7 @@ MODULE_DEVICE_TABLE(of, a20ss_crypto_of_match_table);
 
 static struct platform_driver sun4i_ss_driver = {
 	.probe          = sun4i_ss_probe,
-	.remove_new     = sun4i_ss_remove,
+	.remove         = sun4i_ss_remove,
 	.driver         = {
 		.name           = "sun4i-ss",
 		.pm		= &sun4i_ss_pm_ops,

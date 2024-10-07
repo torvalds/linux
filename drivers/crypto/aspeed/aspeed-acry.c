@@ -806,7 +806,7 @@ MODULE_DEVICE_TABLE(of, aspeed_acry_of_matches);
 
 static struct platform_driver aspeed_acry_driver = {
 	.probe		= aspeed_acry_probe,
-	.remove_new	= aspeed_acry_remove,
+	.remove		= aspeed_acry_remove,
 	.driver		= {
 		.name   = KBUILD_MODNAME,
 		.of_match_table = aspeed_acry_of_matches,

@@ -2691,7 +2691,7 @@ static void atmel_sha_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_sha_driver = {
 	.probe		= atmel_sha_probe,
-	.remove_new	= atmel_sha_remove,
+	.remove		= atmel_sha_remove,
 	.driver		= {
 		.name	= "atmel_sha",
 		.of_match_table	= atmel_sha_dt_ids,

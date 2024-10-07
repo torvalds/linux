@@ -604,7 +604,7 @@ MODULE_DEVICE_TABLE(platform, mv_cesa_plat_id_table);
 
 static struct platform_driver marvell_cesa = {
 	.probe		= mv_cesa_probe,
-	.remove_new	= mv_cesa_remove,
+	.remove		= mv_cesa_remove,
 	.id_table	= mv_cesa_plat_id_table,
 	.driver		= {
 		.name	= "marvell-cesa",

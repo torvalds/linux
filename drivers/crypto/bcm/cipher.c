@@ -4704,7 +4704,7 @@ static struct platform_driver bcm_spu_pdriver = {
 		   .of_match_table = of_match_ptr(bcm_spu_dt_ids),
 		   },
 	.probe = bcm_spu_probe,
-	.remove_new = bcm_spu_remove,
+	.remove = bcm_spu_remove,
 };
 module_platform_driver(bcm_spu_pdriver);
 

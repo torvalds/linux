@@ -387,7 +387,7 @@ static struct platform_driver tegra_se_driver = {
 		.of_match_table = tegra_se_of_match,
 	},
 	.probe		= tegra_se_probe,
-	.remove_new	= tegra_se_remove,
+	.remove		= tegra_se_remove,
 };
 
 static int tegra_se_host1x_probe(struct host1x_device *dev)

@@ -2489,7 +2489,7 @@ static void sa_ul_remove(struct platform_device *pdev)
 
 static struct platform_driver sa_ul_driver = {
 	.probe = sa_ul_probe,
-	.remove_new = sa_ul_remove,
+	.remove = sa_ul_remove,
 	.driver = {
 		   .name = "saul-crypto",
 		   .of_match_table = of_match,

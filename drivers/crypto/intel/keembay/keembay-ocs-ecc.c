@@ -991,7 +991,7 @@ static const struct of_device_id kmb_ocs_ecc_of_match[] = {
 /* The OCS driver is a platform device. */
 static struct platform_driver kmb_ocs_ecc_driver = {
 	.probe = kmb_ocs_ecc_probe,
-	.remove_new = kmb_ocs_ecc_remove,
+	.remove = kmb_ocs_ecc_remove,
 	.driver = {
 			.name = DRV_NAME,
 			.of_match_table = kmb_ocs_ecc_of_match,

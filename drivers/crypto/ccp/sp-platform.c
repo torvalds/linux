@@ -210,7 +210,7 @@ static struct platform_driver sp_platform_driver = {
 		.of_match_table = sp_of_match,
 	},
 	.probe = sp_platform_probe,
-	.remove_new = sp_platform_remove,
+	.remove = sp_platform_remove,
 #ifdef CONFIG_PM
 	.suspend = sp_platform_suspend,
 	.resume = sp_platform_resume,
