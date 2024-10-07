@@ -224,7 +224,7 @@ typedef struct { /* nothing */ } lockdep_map_p;
  * (set at tree creation time) and dynamic information set under the spinlock.
  *
  * Another use of flags are to indicate global states of the tree.  This is the
- * case with the MAPLE_USE_RCU flag, which indicates the tree is currently in
+ * case with the MT_FLAGS_USE_RCU flag, which indicates the tree is currently in
  * RCU mode.  This mode was added to allow the tree to reuse nodes instead of
  * re-allocating and RCU freeing nodes when there is a single user.
  */
