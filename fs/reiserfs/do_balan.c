@@ -38,7 +38,7 @@ static inline void buffer_info_init_tbS0(struct tree_balance *tb,
                                          struct buffer_info *bi)
 {
 	bi->tb          = tb;
-	bi->bi_bh        = PATH_PLAST_BUFFER(tb->tb_path);
+	bi->bi_bh       = PATH_PLAST_BUFFER(tb->tb_path);
 	bi->bi_parent   = PATH_H_PPARENT(tb->tb_path, 0);
 	bi->bi_position = PATH_H_POSITION(tb->tb_path, 1);
 }
