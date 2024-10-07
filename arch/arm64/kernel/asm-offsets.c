@@ -28,8 +28,6 @@
 
 int main(void)
 {
-  DEFINE(TSK_ACTIVE_MM,		offsetof(struct task_struct, active_mm));
-  BLANK();
   DEFINE(TSK_TI_CPU,		offsetof(struct task_struct, thread_info.cpu));
   DEFINE(TSK_TI_FLAGS,		offsetof(struct task_struct, thread_info.flags));
   DEFINE(TSK_TI_PREEMPT,	offsetof(struct task_struct, thread_info.preempt_count));
