@@ -362,7 +362,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	dai_links = devm_kcalloc(dev, num_links, sizeof(*dai_links), GFP_KERNEL);
 	if (!dai_links) {
 		ret = -ENOMEM;
-	goto err_end;
+		goto err_end;
 	}
 
 	card->codec_conf = codec_conf;
