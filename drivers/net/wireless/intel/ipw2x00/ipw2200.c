@@ -6463,6 +6463,14 @@ static int ipw_set_rsn_capa(struct ipw_priv *priv,
  * WE-18 support
  */
 
+static int ipw_wx_get_name(struct net_device *dev,
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
+{
+	strcpy(wrqu->name, "IEEE 802.11");
+	return 0;
+}
+
 /* SIOCSIWGENIE */
 static int ipw_wx_set_genie(struct net_device *dev,
 			    struct iw_request_info *info,
@@ -9826,7 +9834,7 @@ static int ipw_wx_sw_reset(struct net_device *dev,
 
 /* Rebase the WE IOCTLs to zero for the handler array */
 static iw_handler ipw_wx_handlers[] = {
-	IW_HANDLER(SIOCGIWNAME, cfg80211_wext_giwname),
+	IW_HANDLER(SIOCGIWNAME, ipw_wx_get_name),
 	IW_HANDLER(SIOCSIWFREQ, ipw_wx_set_freq),
 	IW_HANDLER(SIOCGIWFREQ, ipw_wx_get_freq),
 	IW_HANDLER(SIOCSIWMODE, ipw_wx_set_mode),
