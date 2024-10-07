@@ -12,7 +12,6 @@
 #include <linux/ftrace.h>
 #include <linux/kexec.h>
 #include <linux/mm.h>
-#include <linux/dma-mapping.h>
 #include <linux/kvm_host.h>
 #include <linux/preempt.h>
 #include <linux/suspend.h>
@@ -96,9 +95,6 @@ int main(void)
   DEFINE(FREGS_SIZE,		sizeof(struct ftrace_regs));
   BLANK();
 #endif
-  DEFINE(DMA_TO_DEVICE,		DMA_TO_DEVICE);
-  DEFINE(DMA_FROM_DEVICE,	DMA_FROM_DEVICE);
-  BLANK();
   DEFINE(PREEMPT_DISABLE_OFFSET, PREEMPT_DISABLE_OFFSET);
   BLANK();
   DEFINE(CPU_BOOT_TASK,		offsetof(struct secondary_data, task));
