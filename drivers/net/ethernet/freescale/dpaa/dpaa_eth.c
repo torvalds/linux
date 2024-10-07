@@ -463,6 +463,22 @@ static int dpaa_set_mac_address(struct net_device *net_dev, void *addr)
 	return 0;
 }
 
+static int dpaa_addr_sync(struct net_device *net_dev, const u8 *addr)
+{
+	const struct dpaa_priv *priv = netdev_priv(net_dev);
+
+	return priv->mac_dev->add_hash_mac_addr(priv->mac_dev->fman_mac,
+						(enet_addr_t *)addr);
+}
+
+static int dpaa_addr_unsync(struct net_device *net_dev, const u8 *addr)
+{
+	const struct dpaa_priv *priv = netdev_priv(net_dev);
+
+	return priv->mac_dev->remove_hash_mac_addr(priv->mac_dev->fman_mac,
+						   (enet_addr_t *)addr);
+}
+
 static void dpaa_set_rx_mode(struct net_device *net_dev)
 {
 	const struct dpaa_priv	*priv;
@@ -490,9 +506,9 @@ static void dpaa_set_rx_mode(struct net_device *net_dev)
 				  err);
 	}
 
-	err = priv->mac_dev->set_multi(net_dev, priv->mac_dev);
+	err = __dev_mc_sync(net_dev, dpaa_addr_sync, dpaa_addr_unsync);
 	if (err < 0)
-		netif_err(priv, drv, net_dev, "mac_dev->set_multi() = %d\n",
+		netif_err(priv, drv, net_dev, "dpaa_addr_sync() = %d\n",
 			  err);
 }
 

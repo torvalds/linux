@@ -32,8 +32,6 @@ MODULE_DESCRIPTION("FSL FMan MAC API based driver");
 struct mac_priv_s {
 	u8				cell_index;
 	struct fman			*fman;
-	/* List of multicast addresses */
-	struct list_head		mc_addr_list;
 	struct platform_device		*eth_dev;
 	u16				speed;
 };
@@ -55,44 +53,6 @@ static void mac_exception(struct mac_device *mac_dev,
 
 	dev_dbg(mac_dev->dev, "%s:%s() -> %d\n", KBUILD_BASENAME ".c",
 		__func__, ex);
-}
-
-int fman_set_multi(struct net_device *net_dev, struct mac_device *mac_dev)
-{
-	struct mac_priv_s	*priv;
-	struct mac_address	*old_addr, *tmp;
-	struct netdev_hw_addr	*ha;
-	int			err;
-	enet_addr_t		*addr;
-
-	priv = mac_dev->priv;
-
-	/* Clear previous address list */
-	list_for_each_entry_safe(old_addr, tmp, &priv->mc_addr_list, list) {
-		addr = (enet_addr_t *)old_addr->addr;
-		err = mac_dev->remove_hash_mac_addr(mac_dev->fman_mac, addr);
-		if (err < 0)
-			return err;
-
-		list_del(&old_addr->list);
-		kfree(old_addr);
-	}
-
-	/* Add all the addresses from the new list */
-	netdev_for_each_mc_addr(ha, net_dev) {
-		addr = (enet_addr_t *)ha->addr;
-		err = mac_dev->add_hash_mac_addr(mac_dev->fman_mac, addr);
-		if (err < 0)
-			return err;
-
-		tmp = kmalloc(sizeof(*tmp), GFP_ATOMIC);
-		if (!tmp)
-			return -ENOMEM;
-
-		ether_addr_copy(tmp->addr, ha->addr);
-		list_add(&tmp->list, &priv->mc_addr_list);
-	}
-	return 0;
 }
 
 static DEFINE_MUTEX(eth_lock);
@@ -180,8 +140,6 @@ static int mac_probe(struct platform_device *_of_dev)
 	/* Save private information */
 	mac_dev->priv = priv;
 	mac_dev->dev = dev;
-
-	INIT_LIST_HEAD(&priv->mc_addr_list);
 
 	/* Get the FM node */
 	dev_node = of_get_parent(mac_node);
