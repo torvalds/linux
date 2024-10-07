@@ -323,18 +323,26 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 			continue;
 
 		switch (link->sdata->vif.type) {
+		case NL80211_IFTYPE_STATION:
+			if (!link->sdata->vif.cfg.assoc) {
+				/*
+				 * The AP's sta->bandwidth may not yet be set
+				 * at this point (pre-association), so simply
+				 * take the width from the chandef. We cannot
+				 * have TDLS peers yet (only after association).
+				 */
+				width = link->conf->chanreq.oper.width;
+				break;
+			}
+			/*
+			 * otherwise just use min_def like in AP, depending on what
+			 * we currently think the AP STA (and possibly TDLS peers)
+			 * require(s)
+			 */
+			fallthrough;
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_AP_VLAN:
 			width = ieee80211_get_max_required_bw(link);
-			break;
-		case NL80211_IFTYPE_STATION:
-			/*
-			 * The ap's sta->bandwidth is not set yet at this
-			 * point, so take the width from the chandef, but
-			 * account also for TDLS peers
-			 */
-			width = max(link->conf->chanreq.oper.width,
-				    ieee80211_get_max_required_bw(link));
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
 		case NL80211_IFTYPE_NAN:
