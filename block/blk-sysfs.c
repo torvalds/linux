@@ -272,6 +272,34 @@ static ssize_t queue_nr_zones_show(struct gendisk *disk, char *page)
 	return queue_var_show(disk_nr_zones(disk), page);
 }
 
+static ssize_t queue_iostats_passthrough_show(struct gendisk *disk, char *page)
+{
+	return queue_var_show(blk_queue_passthrough_stat(disk->queue), page);
+}
+
+static ssize_t queue_iostats_passthrough_store(struct gendisk *disk,
+					       const char *page, size_t count)
+{
+	struct queue_limits lim;
+	unsigned long ios;
+	ssize_t ret;
+
+	ret = queue_var_store(&ios, page, count);
+	if (ret < 0)
+		return ret;
+
+	lim = queue_limits_start_update(disk->queue);
+	if (ios)
+		lim.flags |= BLK_FLAG_IOSTATS_PASSTHROUGH;
+	else
+		lim.flags &= ~BLK_FLAG_IOSTATS_PASSTHROUGH;
+
+	ret = queue_limits_commit_update(disk->queue, &lim);
+	if (ret)
+		return ret;
+
+	return count;
+}
 static ssize_t queue_nomerges_show(struct gendisk *disk, char *page)
 {
 	return queue_var_show((blk_queue_nomerges(disk->queue) << 1) |
@@ -460,6 +488,7 @@ QUEUE_RO_ENTRY(queue_max_open_zones, "max_open_zones");
 QUEUE_RO_ENTRY(queue_max_active_zones, "max_active_zones");
 
 QUEUE_RW_ENTRY(queue_nomerges, "nomerges");
+QUEUE_RW_ENTRY(queue_iostats_passthrough, "iostats_passthrough");
 QUEUE_RW_ENTRY(queue_rq_affinity, "rq_affinity");
 QUEUE_RW_ENTRY(queue_poll, "io_poll");
 QUEUE_RW_ENTRY(queue_poll_delay, "io_poll_delay");
@@ -586,6 +615,7 @@ static struct attribute *queue_attrs[] = {
 	&queue_max_open_zones_entry.attr,
 	&queue_max_active_zones_entry.attr,
 	&queue_nomerges_entry.attr,
+	&queue_iostats_passthrough_entry.attr,
 	&queue_iostats_entry.attr,
 	&queue_stable_writes_entry.attr,
 	&queue_add_random_entry.attr,

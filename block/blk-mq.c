@@ -988,13 +988,43 @@ static inline void blk_account_io_done(struct request *req, u64 now)
 	}
 }
 
+static inline bool blk_rq_passthrough_stats(struct request *req)
+{
+	struct bio *bio = req->bio;
+
+	if (!blk_queue_passthrough_stat(req->q))
+		return false;
+
+	/* Requests without a bio do not transfer data. */
+	if (!bio)
+		return false;
+
+	/*
+	 * Stats are accumulated in the bdev, so must have one attached to a
+	 * bio to track stats. Most drivers do not set the bdev for passthrough
+	 * requests, but nvme is one that will set it.
+	 */
+	if (!bio->bi_bdev)
+		return false;
+
+	/*
+	 * We don't know what a passthrough command does, but we know the
+	 * payload size and data direction. Ensuring the size is aligned to the
+	 * block size filters out most commands with payloads that don't
+	 * represent sector access.
+	 */
+	if (blk_rq_bytes(req) & (bdev_logical_block_size(bio->bi_bdev) - 1))
+		return false;
+	return true;
+}
+
 static inline void blk_account_io_start(struct request *req)
 {
 	trace_block_io_start(req);
 
 	if (!blk_queue_io_stat(req->q))
 		return;
-	if (blk_rq_is_passthrough(req))
+	if (blk_rq_is_passthrough(req) && !blk_rq_passthrough_stats(req))
 		return;
 
 	req->rq_flags |= RQF_IO_STAT;

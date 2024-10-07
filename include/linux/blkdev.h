@@ -349,6 +349,9 @@ typedef unsigned int __bitwise blk_flags_t;
 /* I/O topology is misaligned */
 #define BLK_FLAG_MISALIGNED		((__force blk_flags_t)(1u << 1))
 
+/* passthrough command IO accounting */
+#define BLK_FLAG_IOSTATS_PASSTHROUGH	((__force blk_flags_t)(1u << 2))
+
 struct queue_limits {
 	blk_features_t		features;
 	blk_flags_t		flags;
@@ -617,6 +620,8 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
 #define blk_queue_nonrot(q)	(!((q)->limits.features & BLK_FEAT_ROTATIONAL))
 #define blk_queue_io_stat(q)	((q)->limits.features & BLK_FEAT_IO_STAT)
+#define blk_queue_passthrough_stat(q)	\
+	((q)->limits.flags & BLK_FLAG_IOSTATS_PASSTHROUGH)
 #define blk_queue_dax(q)	((q)->limits.features & BLK_FEAT_DAX)
 #define blk_queue_pci_p2pdma(q)	((q)->limits.features & BLK_FEAT_PCI_P2PDMA)
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
