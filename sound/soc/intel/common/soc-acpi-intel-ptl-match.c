@@ -78,6 +78,15 @@ static const struct snd_soc_acpi_adr_device rt722_0_single_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device rt722_1_single_adr[] = {
+	{
+		.adr = 0x000130025d072201ull,
+		.num_endpoints = ARRAY_SIZE(rt722_endpoints),
+		.endpoints = rt722_endpoints,
+		.name_prefix = "rt722"
+	}
+};
+
 static const struct snd_soc_acpi_adr_device rt722_3_single_adr[] = {
 	{
 		.adr = 0x000330025d072201ull,
@@ -92,6 +101,15 @@ static const struct snd_soc_acpi_link_adr ptl_rt722_only[] = {
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt722_0_single_adr),
 		.adr_d = rt722_0_single_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr ptl_rt722_l1[] = {
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt722_1_single_adr),
+		.adr_d = rt722_1_single_adr,
 	},
 	{}
 };
@@ -144,6 +162,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 	{
 		.link_mask = BIT(0),
 		.links = ptl_rt722_only,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-rt722.tplg",
+	},
+	{
+		.link_mask = BIT(1),
+		.links = ptl_rt722_l1,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt722.tplg",
 	},
