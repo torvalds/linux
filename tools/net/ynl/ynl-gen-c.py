@@ -464,17 +464,22 @@ class TypeBinary(Type):
         return f'.type = YNL_PT_BINARY,'
 
     def _attr_policy(self, policy):
-        if 'exact-len' in self.checks:
-            mem = 'NLA_POLICY_EXACT_LEN(' + str(self.get_limit('exact-len')) + ')'
+        if len(self.checks) == 0:
+            pass
+        elif len(self.checks) == 1:
+            check_name = list(self.checks)[0]
+            if check_name not in {'exact-len', 'min-len'}:
+                raise Exception('Unsupported check for binary type: ' + check_name)
         else:
-            mem = '{ '
-            if len(self.checks) == 1 and 'min-len' in self.checks:
-                mem += '.len = ' + str(self.get_limit('min-len'))
-            elif len(self.checks) == 0:
-                mem += '.type = NLA_BINARY'
-            else:
-                raise Exception('One or more of binary type checks not implemented, yet')
-            mem += ', }'
+            raise Exception('More than one check for binary type not implemented, yet')
+
+        if len(self.checks) == 0:
+            mem = '{ .type = NLA_BINARY, }'
+        elif 'exact-len' in self.checks:
+            mem = 'NLA_POLICY_EXACT_LEN(' + str(self.get_limit('exact-len')) + ')'
+        elif 'min-len' in self.checks:
+            mem = '{ .len = ' + str(self.get_limit('min-len')) + ', }'
+
         return mem
 
     def attr_put(self, ri, var):
