@@ -3,6 +3,7 @@
  * Copyright (C) 2022-2024 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
+#include <linux/compiler.h>
 #include <tools/le_byteshift.h>
 #include <sys/random.h>
 #include <sys/auxv.h>
@@ -73,10 +74,10 @@ static void reference_chacha20_blocks(uint8_t *dst_bytes, const uint32_t *key, u
 	counter[1] = s[13];
 }
 
-typedef uint8_t u8;
-typedef uint32_t u32;
-typedef uint64_t u64;
-#include <vdso/getrandom.h>
+void __weak __arch_chacha20_blocks_nostack(uint8_t *dst_bytes, const uint32_t *key, uint32_t *counter, size_t nblocks)
+{
+	ksft_exit_skip("Not implemented on architecture\n");
+}
 
 int main(int argc, char *argv[])
 {
