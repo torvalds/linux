@@ -1704,8 +1704,18 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 					      &stripe_len, &bioc, &io_stripe, &mirror);
 			btrfs_put_bioc(bioc);
 			if (err < 0) {
-				set_bit(i, &stripe->io_error_bitmap);
-				set_bit(i, &stripe->error_bitmap);
+				if (err != -ENODATA) {
+					/*
+					 * Earlier btrfs_get_raid_extent_offset()
+					 * returned -ENODATA, which means there's
+					 * no entry for the corresponding range
+					 * in the stripe tree.  But if it's in
+					 * the extent tree, then it's a preallocated
+					 * extent and not an error.
+					 */
+					set_bit(i, &stripe->io_error_bitmap);
+					set_bit(i, &stripe->error_bitmap);
+				}
 				continue;
 			}
 
