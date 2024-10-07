@@ -2989,6 +2989,29 @@ union tlbi_info {
 static void s2_mmu_unmap_range(struct kvm_s2_mmu *mmu,
 			       const union tlbi_info *info)
 {
+	/*
+	 * The unmap operation is allowed to drop the MMU lock and block, which
+	 * means that @mmu could be used for a different context than the one
+	 * currently being invalidated.
+	 *
+	 * This behavior is still safe, as:
+	 *
+	 *  1) The vCPU(s) that recycled the MMU are responsible for invalidating
+	 *     the entire MMU before reusing it, which still honors the intent
+	 *     of a TLBI.
+	 *
+	 *  2) Until the guest TLBI instruction is 'retired' (i.e. increment PC
+	 *     and ERET to the guest), other vCPUs are allowed to use stale
+	 *     translations.
+	 *
+	 *  3) Accidentally unmapping an unrelated MMU context is nonfatal, and
+	 *     at worst may cause more aborts for shadow stage-2 fills.
+	 *
+	 * Dropping the MMU lock also implies that shadow stage-2 fills could
+	 * happen behind the back of the TLBI. This is still safe, though, as
+	 * the L1 needs to put its stage-2 in a consistent state before doing
+	 * the TLBI.
+	 */
 	kvm_stage2_unmap_range(mmu, info->range.start, info->range.size, true);
 }
 
@@ -3084,6 +3107,10 @@ static void s2_mmu_unmap_ipa(struct kvm_s2_mmu *mmu,
 	max_size = compute_tlb_inval_range(mmu, info->ipa.addr);
 	base_addr &= ~(max_size - 1);
 
+	/*
+	 * See comment in s2_mmu_unmap_range() for why this is allowed to
+	 * reschedule.
+	 */
 	kvm_stage2_unmap_range(mmu, base_addr, max_size, true);
 }
 
