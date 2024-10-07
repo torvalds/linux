@@ -341,9 +341,9 @@ config TI_K3_DSP_REMOTEPROC
 
 config TI_K3_M4_REMOTEPROC
 	tristate "TI K3 M4 remoteproc support"
-	depends on ARCH_OMAP2PLUS || ARCH_K3
-	select MAILBOX
-	select OMAP2PLUS_MBOX
+	depends on ARCH_K3 || COMPILE_TEST
+	depends on TI_SCI_PROTOCOL || (COMPILE_TEST && TI_SCI_PROTOCOL=n)
+	depends on OMAP2PLUS_MBOX
 	help
 	  Say m here to support TI's M4 remote processor subsystems
 	  on various TI K3 family of SoCs through the remote processor
