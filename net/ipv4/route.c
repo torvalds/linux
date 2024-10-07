@@ -2112,11 +2112,9 @@ int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 }
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
-static int ip_mkroute_input(struct sk_buff *skb,
-			    struct fib_result *res,
-			    struct in_device *in_dev,
-			    __be32 daddr, __be32 saddr, u32 tos,
-			    struct flow_keys *hkeys)
+static int ip_mkroute_input(struct sk_buff *skb, struct fib_result *res,
+			    struct in_device *in_dev, __be32 daddr,
+			    __be32 saddr, dscp_t dscp, struct flow_keys *hkeys)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi && fib_info_num_path(res->fi) > 1) {
@@ -2128,7 +2126,8 @@ static int ip_mkroute_input(struct sk_buff *skb,
 #endif
 
 	/* create a routing cache entry */
-	return __mkroute_input(skb, res, in_dev, daddr, saddr, tos);
+	return __mkroute_input(skb, res, in_dev, daddr, saddr,
+			       inet_dscp_to_dsfield(dscp));
 }
 
 /* Implements all the saddr-related checks as ip_route_input_slow(),
@@ -2315,8 +2314,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto martian_destination;
 
 make_route:
-	err = ip_mkroute_input(skb, res, in_dev, daddr, saddr,
-			       inet_dscp_to_dsfield(dscp), flkeys);
+	err = ip_mkroute_input(skb, res, in_dev, daddr, saddr, dscp, flkeys);
 out:	return err;
 
 brd_input:
