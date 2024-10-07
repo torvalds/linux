@@ -10,15 +10,15 @@
  *   Dirk Behme <Dirk.Behme@gmail.com>
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/iopoll.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mtd/partitions.h>
-#include <linux/slab.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #define NRCSR_OFFSET		0x00
 #define NANDFCR_OFFSET		0x60
