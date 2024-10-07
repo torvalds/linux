@@ -46,9 +46,14 @@ struct debug_bucket {
 struct obj_pool {
 	struct hlist_head	objects;
 	unsigned int		cnt;
+	unsigned int		min_cnt;
+	unsigned int		max_cnt;
 } ____cacheline_aligned;
 
-static DEFINE_PER_CPU(struct obj_pool, pool_pcpu);
+
+static DEFINE_PER_CPU_ALIGNED(struct obj_pool, pool_pcpu)  = {
+	.max_cnt	= ODEBUG_POOL_PERCPU_SIZE,
+};
 
 static struct debug_bucket	obj_hash[ODEBUG_HASH_SIZE];
 
@@ -56,8 +61,14 @@ static struct debug_obj		obj_static_pool[ODEBUG_POOL_SIZE] __initdata;
 
 static DEFINE_RAW_SPINLOCK(pool_lock);
 
-static struct obj_pool		pool_global;
-static struct obj_pool		pool_to_free;
+static struct obj_pool pool_global = {
+	.min_cnt	= ODEBUG_POOL_MIN_LEVEL,
+	.max_cnt	= ODEBUG_POOL_SIZE,
+};
+
+static struct obj_pool pool_to_free = {
+	.max_cnt	= UINT_MAX,
+};
 
 static HLIST_HEAD(pool_boot);
 
@@ -79,13 +90,9 @@ static int __data_racy			debug_objects_fixups __read_mostly;
 static int __data_racy			debug_objects_warnings __read_mostly;
 static bool __data_racy			debug_objects_enabled __read_mostly
 					= CONFIG_DEBUG_OBJECTS_ENABLE_DEFAULT;
-static int				debug_objects_pool_size __ro_after_init
-					= ODEBUG_POOL_SIZE;
-static int				debug_objects_pool_min_level __ro_after_init
-					= ODEBUG_POOL_MIN_LEVEL;
 
-static const struct debug_obj_descr *descr_test  __read_mostly;
-static struct kmem_cache	*obj_cache __ro_after_init;
+static const struct debug_obj_descr	*descr_test  __read_mostly;
+static struct kmem_cache		*obj_cache __ro_after_init;
 
 /*
  * Track numbers of kmem_cache_alloc()/free() calls done.
@@ -124,14 +131,14 @@ static __always_inline unsigned int pool_count(struct obj_pool *pool)
 	return READ_ONCE(pool->cnt);
 }
 
-static inline bool pool_global_should_refill(void)
+static __always_inline bool pool_should_refill(struct obj_pool *pool)
 {
-	return READ_ONCE(pool_global.cnt) < debug_objects_pool_min_level;
+	return pool_count(pool) < pool->min_cnt;
 }
 
-static inline bool pool_global_must_refill(void)
+static __always_inline bool pool_must_refill(struct obj_pool *pool)
 {
-	return READ_ONCE(pool_global.cnt) < (debug_objects_pool_min_level / 2);
+	return pool_count(pool) < pool->min_cnt / 2;
 }
 
 static void free_object_list(struct hlist_head *head)
@@ -178,7 +185,7 @@ static void fill_pool_from_freelist(void)
 	 * Recheck with the lock held as the worker thread might have
 	 * won the race and freed the global free list already.
 	 */
-	while (pool_to_free.cnt && (pool_global.cnt < debug_objects_pool_min_level)) {
+	while (pool_to_free.cnt && (pool_global.cnt < pool_global.min_cnt)) {
 		obj = hlist_entry(pool_to_free.objects.first, typeof(*obj), node);
 		hlist_del(&obj->node);
 		WRITE_ONCE(pool_to_free.cnt, pool_to_free.cnt - 1);
@@ -197,11 +204,11 @@ static void fill_pool(void)
 	 *   - One other CPU is already allocating
 	 *   - the global pool has not reached the critical level yet
 	 */
-	if (!pool_global_must_refill() && atomic_read(&cpus_allocating))
+	if (!pool_must_refill(&pool_global) && atomic_read(&cpus_allocating))
 		return;
 
 	atomic_inc(&cpus_allocating);
-	while (pool_global_should_refill()) {
+	while (pool_should_refill(&pool_global)) {
 		struct debug_obj *new, *last = NULL;
 		HLIST_HEAD(head);
 		int cnt;
@@ -337,7 +344,7 @@ static void free_obj_work(struct work_struct *work)
 	if (!raw_spin_trylock_irqsave(&pool_lock, flags))
 		return;
 
-	if (pool_global.cnt >= debug_objects_pool_size)
+	if (pool_global.cnt >= pool_global.max_cnt)
 		goto free_objs;
 
 	/*
@@ -347,7 +354,7 @@ static void free_obj_work(struct work_struct *work)
 	 * may be gearing up to use more and more objects, don't free any
 	 * of them until the next round.
 	 */
-	while (pool_to_free.cnt && pool_global.cnt < debug_objects_pool_size) {
+	while (pool_to_free.cnt && pool_global.cnt < pool_global.max_cnt) {
 		obj = hlist_entry(pool_to_free.objects.first, typeof(*obj), node);
 		hlist_del(&obj->node);
 		hlist_add_head(&obj->node, &pool_global.objects);
@@ -408,7 +415,7 @@ static void __free_object(struct debug_obj *obj)
 	}
 
 	raw_spin_lock(&pool_lock);
-	work = (pool_global.cnt > debug_objects_pool_size) && obj_cache &&
+	work = (pool_global.cnt > pool_global.max_cnt) && obj_cache &&
 	       (pool_to_free.cnt < ODEBUG_FREE_WORK_MAX);
 	obj_pool_used--;
 
@@ -424,7 +431,7 @@ static void __free_object(struct debug_obj *obj)
 			}
 		}
 
-		if ((pool_global.cnt > debug_objects_pool_size) &&
+		if ((pool_global.cnt > pool_global.max_cnt) &&
 		    (pool_to_free.cnt < ODEBUG_FREE_WORK_MAX)) {
 			int i;
 
@@ -629,13 +636,13 @@ static void debug_objects_fill_pool(void)
 	if (unlikely(!obj_cache))
 		return;
 
-	if (likely(!pool_global_should_refill()))
+	if (likely(!pool_should_refill(&pool_global)))
 		return;
 
 	/* Try reusing objects from obj_to_free_list */
 	fill_pool_from_freelist();
 
-	if (likely(!pool_global_should_refill()))
+	if (likely(!pool_should_refill(&pool_global)))
 		return;
 
 	/*
@@ -1427,8 +1434,8 @@ void __init debug_objects_mem_init(void)
 	 * system.
 	 */
 	extras = num_possible_cpus() * ODEBUG_BATCH_SIZE;
-	debug_objects_pool_size += extras;
-	debug_objects_pool_min_level += extras;
+	pool_global.max_cnt += extras;
+	pool_global.min_cnt += extras;
 
 	/* Everything worked. Expose the cache */
 	obj_cache = cache;
