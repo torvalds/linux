@@ -905,7 +905,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	}
 
 	if (new_ctx && ieee80211_chanctx_num_assigned(local, new_ctx) > 0) {
-		ieee80211_recalc_txpower(sdata, false);
+		ieee80211_recalc_txpower(&sdata->deflink, false);
 		ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL, false);
 	}
 
@@ -1712,7 +1712,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 								  link,
 								  changed);
 
-			ieee80211_recalc_txpower(sdata, false);
+			ieee80211_recalc_txpower(&sdata->deflink, false);
 		}
 
 		ieee80211_recalc_chanctx_chantype(local, ctx);
