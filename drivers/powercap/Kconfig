@@ -77,4 +77,16 @@ config DTPM_DEVFREQ
 	help
 	  This enables support for device power limitation based on
 	  energy model.
+
+config QCOM_POWER_TELEMETRY
+	tristate "Qualcomm Technologies, Inc. Power Telemetry Hardware driver"
+	depends on SPMI && NVMEM_SPMI_SDAM
+	default n
+	help
+	  This enables Qualcomm Technologies, Inc. power telemetry
+	  hardware device driver. It provides to measure different
+	  pmic regulators or bucks power consumption data in different
+	  modes. It exposes these data to userspace clients via
+	  powercap sysfs interface.
+
 endif
