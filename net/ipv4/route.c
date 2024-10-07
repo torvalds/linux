@@ -2136,7 +2136,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
  * Uses the provided hint instead of performing a route lookup.
  */
 int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-		      u8 tos, struct net_device *dev,
+		      dscp_t dscp, struct net_device *dev,
 		      const struct sk_buff *hint)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -2160,8 +2160,8 @@ int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (rt->rt_type != RTN_LOCAL)
 		goto skip_validate_source;
 
-	tos &= INET_DSCP_MASK;
-	err = fib_validate_source(skb, saddr, daddr, tos, 0, dev, in_dev, &tag);
+	err = fib_validate_source(skb, saddr, daddr, inet_dscp_to_dsfield(dscp),
+				  0, dev, in_dev, &tag);
 	if (err < 0)
 		goto martian_source;
 
