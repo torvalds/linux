@@ -213,7 +213,7 @@ static struct platform_driver ts72xx_nand_driver = {
 		.of_match_table = ts72xx_id_table,
 	},
 	.probe = ts72xx_nand_probe,
-	.remove_new = ts72xx_nand_remove,
+	.remove = ts72xx_nand_remove,
 };
 module_platform_driver(ts72xx_nand_driver);
 

@@ -171,7 +171,7 @@ MODULE_DEVICE_TABLE(platform, rpc_if_hyperflash_id_table);
 
 static struct platform_driver rpcif_platform_driver = {
 	.probe	= rpcif_hb_probe,
-	.remove_new = rpcif_hb_remove,
+	.remove = rpcif_hb_remove,
 	.id_table = rpc_if_hyperflash_id_table,
 	.driver	= {
 		.name	= "rpc-if-hyperflash",

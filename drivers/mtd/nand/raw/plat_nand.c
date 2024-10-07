@@ -144,7 +144,7 @@ MODULE_DEVICE_TABLE(of, plat_nand_match);
 
 static struct platform_driver plat_nand_driver = {
 	.probe	= plat_nand_probe,
-	.remove_new = plat_nand_remove,
+	.remove = plat_nand_remove,
 	.driver	= {
 		.name		= "gen_nand",
 		.of_match_table = plat_nand_match,

@@ -901,7 +901,7 @@ static void nand_davinci_remove(struct platform_device *pdev)
 
 static struct platform_driver nand_davinci_driver = {
 	.probe		= nand_davinci_probe,
-	.remove_new	= nand_davinci_remove,
+	.remove		= nand_davinci_remove,
 	.driver		= {
 		.name	= "davinci_nand",
 		.of_match_table = of_match_ptr(davinci_nand_of_match),

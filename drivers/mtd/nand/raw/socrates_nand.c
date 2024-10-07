@@ -231,7 +231,7 @@ static struct platform_driver socrates_nand_driver = {
 		.of_match_table = socrates_nand_match,
 	},
 	.probe		= socrates_nand_probe,
-	.remove_new	= socrates_nand_remove,
+	.remove		= socrates_nand_remove,
 };
 
 module_platform_driver(socrates_nand_driver);

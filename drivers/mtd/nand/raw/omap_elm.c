@@ -560,7 +560,7 @@ static struct platform_driver elm_driver = {
 		.pm	= &elm_pm_ops,
 	},
 	.probe	= elm_probe,
-	.remove_new = elm_remove,
+	.remove = elm_remove,
 };
 
 module_platform_driver(elm_driver);

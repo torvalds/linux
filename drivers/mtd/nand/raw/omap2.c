@@ -2291,7 +2291,7 @@ MODULE_DEVICE_TABLE(of, omap_nand_ids);
 
 static struct platform_driver omap_nand_driver = {
 	.probe		= omap_nand_probe,
-	.remove_new	= omap_nand_remove,
+	.remove		= omap_nand_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = omap_nand_ids,

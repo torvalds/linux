@@ -2663,7 +2663,7 @@ static struct platform_driver atmel_nand_controller_driver = {
 		.pm = &atmel_nand_controller_pm_ops,
 	},
 	.probe = atmel_nand_controller_probe,
-	.remove_new = atmel_nand_controller_remove,
+	.remove = atmel_nand_controller_remove,
 };
 module_platform_driver(atmel_nand_controller_driver);
 

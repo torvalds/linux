@@ -869,7 +869,7 @@ static struct platform_driver mxic_ecc_driver = {
 		.of_match_table = mxic_ecc_of_ids,
 	},
 	.probe = mxic_ecc_probe,
-	.remove_new = mxic_ecc_remove,
+	.remove = mxic_ecc_remove,
 };
 module_platform_driver(mxic_ecc_driver);
 

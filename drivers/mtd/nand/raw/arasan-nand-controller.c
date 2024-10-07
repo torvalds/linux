@@ -1500,7 +1500,7 @@ static struct platform_driver anfc_driver = {
 		.of_match_table = anfc_ids,
 	},
 	.probe = anfc_probe,
-	.remove_new = anfc_remove,
+	.remove = anfc_remove,
 };
 module_platform_driver(anfc_driver);
 

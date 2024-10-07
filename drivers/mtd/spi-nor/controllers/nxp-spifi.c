@@ -446,7 +446,7 @@ MODULE_DEVICE_TABLE(of, nxp_spifi_match);
 
 static struct platform_driver nxp_spifi_driver = {
 	.probe	= nxp_spifi_probe,
-	.remove_new = nxp_spifi_remove,
+	.remove = nxp_spifi_remove,
 	.driver	= {
 		.name = "nxp-spifi",
 		.of_match_table = nxp_spifi_match,
