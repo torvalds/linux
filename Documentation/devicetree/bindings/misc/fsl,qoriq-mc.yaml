@@ -113,7 +113,7 @@ properties:
 
   msi-parent:
     deprecated: true
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description:
       Describes the MSI controller node handling message
       interrupts for the MC. When there is no translation
