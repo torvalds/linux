@@ -752,10 +752,8 @@ static int btintel_pcie_submit_rx_work(struct btintel_pcie_data *data, u8 status
 	buf += sizeof(*rfh_hdr);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
-	if (!skb) {
-		ret = -ENOMEM;
+	if (!skb)
 		goto resubmit;
-	}
 
 	skb_put_data(skb, buf, len);
 	skb_queue_tail(&data->rx_skb_q, skb);
