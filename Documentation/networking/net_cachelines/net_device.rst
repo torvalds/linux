@@ -83,6 +83,7 @@ unsigned_int                        allmulti
 bool                                uc_promisc                                                      
 unsigned_char                       nested_level                                                    
 struct_in_device*                   ip_ptr                  read_mostly         read_mostly         __in_dev_get
+struct hlist_head                   fib_nh_head
 struct_inet6_dev*                   ip6_ptr                 read_mostly         read_mostly         __in6_dev_get
 struct_vlan_info*                   vlan_info                                                       
 struct_dsa_port*                    dsa_ptr                                                         
