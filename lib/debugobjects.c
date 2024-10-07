@@ -47,11 +47,18 @@ struct debug_bucket {
 	raw_spinlock_t		lock;
 };
 
+struct pool_stats {
+	unsigned int		cur_used;
+	unsigned int		max_used;
+	unsigned int		min_fill;
+};
+
 struct obj_pool {
 	struct hlist_head	objects;
 	unsigned int		cnt;
 	unsigned int		min_cnt;
 	unsigned int		max_cnt;
+	struct pool_stats	stats;
 } ____cacheline_aligned;
 
 
@@ -66,8 +73,11 @@ static struct debug_obj		obj_static_pool[ODEBUG_POOL_SIZE] __initdata;
 static DEFINE_RAW_SPINLOCK(pool_lock);
 
 static struct obj_pool pool_global = {
-	.min_cnt	= ODEBUG_POOL_MIN_LEVEL,
-	.max_cnt	= ODEBUG_POOL_SIZE,
+	.min_cnt		= ODEBUG_POOL_MIN_LEVEL,
+	.max_cnt		= ODEBUG_POOL_SIZE,
+	.stats			= {
+		.min_fill	= ODEBUG_POOL_SIZE,
+	},
 };
 
 static struct obj_pool pool_to_free = {
@@ -76,16 +86,6 @@ static struct obj_pool pool_to_free = {
 
 static HLIST_HEAD(pool_boot);
 
-/*
- * Because of the presence of percpu free pools, obj_pool_free will
- * under-count those in the percpu free pools. Similarly, obj_pool_used
- * will over-count those in the percpu free pools. Adjustments will be
- * made at debug_stats_show(). Both obj_pool_min_free and obj_pool_max_used
- * can be off.
- */
-static int __data_racy		obj_pool_min_free = ODEBUG_POOL_SIZE;
-static int			obj_pool_used;
-static int __data_racy		obj_pool_max_used;
 static bool			obj_freeing;
 
 static int __data_racy			debug_objects_maxchain __read_mostly;
@@ -231,6 +231,19 @@ static struct debug_obj *__alloc_object(struct hlist_head *list)
 	return obj;
 }
 
+static void pcpu_refill_stats(void)
+{
+	struct pool_stats *stats = &pool_global.stats;
+
+	WRITE_ONCE(stats->cur_used, stats->cur_used + ODEBUG_BATCH_SIZE);
+
+	if (stats->cur_used > stats->max_used)
+		stats->max_used = stats->cur_used;
+
+	if (pool_global.cnt < stats->min_fill)
+		stats->min_fill = pool_global.cnt;
+}
+
 static struct debug_obj *pcpu_alloc(void)
 {
 	struct obj_pool *pcp = this_cpu_ptr(&pool_pcpu);
@@ -250,13 +263,7 @@ static struct debug_obj *pcpu_alloc(void)
 			if (!pool_move_batch(pcp, &pool_global))
 				return NULL;
 		}
-		obj_pool_used += ODEBUG_BATCH_SIZE;
-
-		if (obj_pool_used > obj_pool_max_used)
-			obj_pool_max_used = obj_pool_used;
-
-		if (pool_global.cnt < obj_pool_min_free)
-			obj_pool_min_free = pool_global.cnt;
+		pcpu_refill_stats();
 	}
 }
 
@@ -285,7 +292,7 @@ static void pcpu_free(struct debug_obj *obj)
 	/* Try to fit the batch into the pool_global first */
 	if (!pool_move_batch(&pool_global, pcp))
 		pool_move_batch(&pool_to_free, pcp);
-	obj_pool_used -= ODEBUG_BATCH_SIZE;
+	WRITE_ONCE(pool_global.stats.cur_used, pool_global.stats.cur_used - ODEBUG_BATCH_SIZE);
 }
 
 static void free_object_list(struct hlist_head *head)
@@ -1074,23 +1081,33 @@ void debug_check_no_obj_freed(const void *address, unsigned long size)
 
 static int debug_stats_show(struct seq_file *m, void *v)
 {
-	int cpu, obj_percpu_free = 0;
+	unsigned int cpu, pool_used, pcp_free = 0;
 
+	/*
+	 * pool_global.stats.cur_used is the number of batches currently
+	 * handed out to per CPU pools. Convert it to number of objects
+	 * and subtract the number of free objects in the per CPU pools.
+	 * As this is lockless the number is an estimate.
+	 */
 	for_each_possible_cpu(cpu)
-		obj_percpu_free += per_cpu(pool_pcpu.cnt, cpu);
+		pcp_free += per_cpu(pool_pcpu.cnt, cpu);
 
-	seq_printf(m, "max_chain     :%d\n", debug_objects_maxchain);
-	seq_printf(m, "max_checked   :%d\n", debug_objects_maxchecked);
-	seq_printf(m, "warnings      :%d\n", debug_objects_warnings);
-	seq_printf(m, "fixups        :%d\n", debug_objects_fixups);
-	seq_printf(m, "pool_free     :%d\n", pool_count(&pool_global) + obj_percpu_free);
-	seq_printf(m, "pool_pcp_free :%d\n", obj_percpu_free);
-	seq_printf(m, "pool_min_free :%d\n", obj_pool_min_free);
-	seq_printf(m, "pool_used     :%d\n", obj_pool_used - obj_percpu_free);
-	seq_printf(m, "pool_max_used :%d\n", obj_pool_max_used);
-	seq_printf(m, "on_free_list  :%d\n", pool_count(&pool_to_free));
-	seq_printf(m, "objs_allocated:%d\n", debug_objects_allocated);
-	seq_printf(m, "objs_freed    :%d\n", debug_objects_freed);
+	pool_used = data_race(pool_global.stats.cur_used);
+	pcp_free = min(pool_used, pcp_free);
+	pool_used -= pcp_free;
+
+	seq_printf(m, "max_chain     : %d\n", debug_objects_maxchain);
+	seq_printf(m, "max_checked   : %d\n", debug_objects_maxchecked);
+	seq_printf(m, "warnings      : %d\n", debug_objects_warnings);
+	seq_printf(m, "fixups        : %d\n", debug_objects_fixups);
+	seq_printf(m, "pool_free     : %u\n", pool_count(&pool_global) + pcp_free);
+	seq_printf(m, "pool_pcp_free : %u\n", pcp_free);
+	seq_printf(m, "pool_min_free : %u\n", data_race(pool_global.stats.min_fill));
+	seq_printf(m, "pool_used     : %u\n", pool_used);
+	seq_printf(m, "pool_max_used : %u\n", data_race(pool_global.stats.max_used));
+	seq_printf(m, "on_free_list  : %u\n", pool_count(&pool_to_free));
+	seq_printf(m, "objs_allocated: %d\n", debug_objects_allocated);
+	seq_printf(m, "objs_freed    : %d\n", debug_objects_freed);
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(debug_stats);
