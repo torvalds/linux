@@ -430,27 +430,28 @@ static void free_object(struct debug_obj *obj)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int object_cpu_offline(unsigned int cpu)
+static void put_objects(struct hlist_head *list)
 {
-	struct debug_percpu_free *percpu_pool;
 	struct hlist_node *tmp;
 	struct debug_obj *obj;
-	unsigned long flags;
 
-	/* Remote access is safe as the CPU is dead already */
-	percpu_pool = per_cpu_ptr(&percpu_obj_pool, cpu);
-	hlist_for_each_entry_safe(obj, tmp, &percpu_pool->free_objs, node) {
+	/*
+	 * Using free_object() puts the objects into reuse or schedules
+	 * them for freeing and it get's all the accounting correct.
+	 */
+	hlist_for_each_entry_safe(obj, tmp, list, node) {
 		hlist_del(&obj->node);
-		kmem_cache_free(obj_cache, obj);
+		free_object(obj);
 	}
+}
 
-	raw_spin_lock_irqsave(&pool_lock, flags);
-	obj_pool_used -= percpu_pool->obj_free;
-	debug_objects_freed += percpu_pool->obj_free;
-	raw_spin_unlock_irqrestore(&pool_lock, flags);
+static int object_cpu_offline(unsigned int cpu)
+{
+	/* Remote access is safe as the CPU is dead already */
+	struct debug_percpu_free *pcp = per_cpu_ptr(&percpu_obj_pool, cpu);
 
-	percpu_pool->obj_free = 0;
-
+	put_objects(&pcp->free_objs);
+	pcp->obj_free = 0;
 	return 0;
 }
 #endif
