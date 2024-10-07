@@ -277,21 +277,6 @@ int devm_acpi_dma_controller_register(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
 
 /**
- * devm_acpi_dma_controller_free - resource managed acpi_dma_controller_free()
- * @dev:	device that is unregistering as DMA controller
- *
- * Unregister a DMA controller registered with
- * devm_acpi_dma_controller_register(). Normally this function will not need to
- * be called and the resource management code will ensure that the resource is
- * freed.
- */
-void devm_acpi_dma_controller_free(struct device *dev)
-{
-	WARN_ON(devres_release(dev, devm_acpi_dma_release, NULL, NULL));
-}
-EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_free);
-
-/**
  * acpi_dma_update_dma_spec - prepare dma specifier to pass to translation function
  * @adma:	struct acpi_dma of DMA controller
  * @dma_spec:	dma specifier to update

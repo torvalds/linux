@@ -65,7 +65,6 @@ int devm_acpi_dma_controller_register(struct device *dev,
 		struct dma_chan *(*acpi_dma_xlate)
 		(struct acpi_dma_spec *, struct acpi_dma *),
 		void *data);
-void devm_acpi_dma_controller_free(struct device *dev);
 
 struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 						      size_t index);
@@ -93,9 +92,6 @@ static inline int devm_acpi_dma_controller_register(struct device *dev,
 		void *data)
 {
 	return -ENODEV;
-}
-static inline void devm_acpi_dma_controller_free(struct device *dev)
-{
 }
 
 static inline struct dma_chan *acpi_dma_request_slave_chan_by_index(
