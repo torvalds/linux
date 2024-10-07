@@ -767,17 +767,137 @@ static int vmd_pm_enable_quirk(struct pci_dev *pdev, void *userdata)
 	return 0;
 }
 
-static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
+static void vmd_configure_cfgbar(struct vmd_dev *vmd)
 {
-	struct pci_sysdata *sd = &vmd->sysdata;
+	struct resource *res;
+
+	res = &vmd->dev->resource[VMD_CFGBAR];
+	vmd->resources[0] = (struct resource){
+		.name = "VMD CFGBAR",
+		.start = vmd->busn_start,
+		.end = vmd->busn_start + (resource_size(res) >> 20) - 1,
+		.flags = IORESOURCE_BUS | IORESOURCE_PCI_FIXED,
+	};
+}
+
+/*
+ * If the window is below 4GB, clear IORESOURCE_MEM_64 so we can
+ * put 32-bit resources in the window.
+ *
+ * There's no hardware reason why a 64-bit window *couldn't*
+ * contain a 32-bit resource, but pbus_size_mem() computes the
+ * bridge window size assuming a 64-bit window will contain no
+ * 32-bit resources.  __pci_assign_resource() enforces that
+ * artificial restriction to make sure everything will fit.
+ *
+ * The only way we could use a 64-bit non-prefetchable MEMBAR is
+ * if its address is <4GB so that we can convert it to a 32-bit
+ * resource.  To be visible to the host OS, all VMD endpoints must
+ * be initially configured by platform BIOS, which includes setting
+ * up these resources.  We can assume the device is configured
+ * according to the platform needs.
+ */
+static void vmd_configure_membar1(struct vmd_dev *vmd)
+{
 	struct resource *res;
 	u32 upper_bits;
 	unsigned long flags;
+
+	res = &vmd->dev->resource[VMD_MEMBAR1];
+	upper_bits = upper_32_bits(res->end);
+	flags = res->flags & ~IORESOURCE_SIZEALIGN;
+	if (!upper_bits)
+		flags &= ~IORESOURCE_MEM_64;
+	vmd->resources[1] = (struct resource){
+		.name = "VMD MEMBAR1",
+		.start = res->start,
+		.end = res->end,
+		.flags = flags,
+		.parent = res,
+	};
+}
+
+/*
+ * Align resource information the same as for vmd_configure_membar1
+ * function.
+ */
+static void vmd_configure_membar2(struct vmd_dev *vmd,
+				  resource_size_t membar2_offset)
+{
+	struct resource *res;
+	u32 upper_bits;
+	unsigned long flags;
+
+	res = &vmd->dev->resource[VMD_MEMBAR2];
+	upper_bits = upper_32_bits(res->end);
+	flags = res->flags & ~IORESOURCE_SIZEALIGN;
+
+	if (!upper_bits)
+		flags &= ~IORESOURCE_MEM_64;
+
+	vmd->resources[2] = (struct resource){
+		.name = "VMD MEMBAR2",
+		.start = res->start + membar2_offset,
+		.end = res->end,
+		.flags = flags,
+		.parent = res,
+	};
+}
+
+static void vmd_bus_enumeration(struct pci_bus *bus, unsigned long features)
+{
+	struct pci_bus *child;
+	struct pci_dev *dev;
+	int ret;
+
+	vmd_acpi_begin();
+
+	pci_scan_child_bus(bus);
+	vmd_domain_reset(vmd_from_bus(bus));
+
+	/*
+	 * When Intel VMD is enabled, the OS does not discover the Root Ports
+	 * owned by Intel VMD within the MMCFG space. pci_reset_bus() applies
+	 * a reset to the parent of the PCI device supplied as argument. This
+	 * is why we pass a child device, so the reset can be triggered at
+	 * the Intel bridge level and propagated to all the children in the
+	 * hierarchy.
+	 */
+	list_for_each_entry(child, &bus->children, node) {
+		if (!list_empty(&child->devices)) {
+			dev = list_first_entry(&child->devices, struct pci_dev,
+					       bus_list);
+			ret = pci_reset_bus(dev);
+			if (ret)
+				pci_warn(dev, "can't reset device: %d\n", ret);
+
+			break;
+		}
+	}
+
+	pci_assign_unassigned_bus_resources(bus);
+
+	pci_walk_bus(bus, vmd_pm_enable_quirk, &features);
+
+	/*
+	 * VMD root buses are virtual and don't return true on pci_is_pcie()
+	 * and will fail pcie_bus_configure_settings() early. It can instead be
+	 * run on each of the real root ports.
+	 */
+	list_for_each_entry(child, &bus->children, node)
+		pcie_bus_configure_settings(child);
+
+	pci_bus_add_devices(bus);
+
+	vmd_acpi_end();
+}
+
+static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
+{
+	struct pci_sysdata *sd = &vmd->sysdata;
 	LIST_HEAD(resources);
 	resource_size_t offset[2] = {0};
 	resource_size_t membar2_offset = 0x2000;
-	struct pci_bus *child;
-	struct pci_dev *dev;
 	int ret;
 
 	/*
@@ -807,56 +927,9 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 			return ret;
 	}
 
-	res = &vmd->dev->resource[VMD_CFGBAR];
-	vmd->resources[0] = (struct resource) {
-		.name  = "VMD CFGBAR",
-		.start = vmd->busn_start,
-		.end   = vmd->busn_start + (resource_size(res) >> 20) - 1,
-		.flags = IORESOURCE_BUS | IORESOURCE_PCI_FIXED,
-	};
-
-	/*
-	 * If the window is below 4GB, clear IORESOURCE_MEM_64 so we can
-	 * put 32-bit resources in the window.
-	 *
-	 * There's no hardware reason why a 64-bit window *couldn't*
-	 * contain a 32-bit resource, but pbus_size_mem() computes the
-	 * bridge window size assuming a 64-bit window will contain no
-	 * 32-bit resources.  __pci_assign_resource() enforces that
-	 * artificial restriction to make sure everything will fit.
-	 *
-	 * The only way we could use a 64-bit non-prefetchable MEMBAR is
-	 * if its address is <4GB so that we can convert it to a 32-bit
-	 * resource.  To be visible to the host OS, all VMD endpoints must
-	 * be initially configured by platform BIOS, which includes setting
-	 * up these resources.  We can assume the device is configured
-	 * according to the platform needs.
-	 */
-	res = &vmd->dev->resource[VMD_MEMBAR1];
-	upper_bits = upper_32_bits(res->end);
-	flags = res->flags & ~IORESOURCE_SIZEALIGN;
-	if (!upper_bits)
-		flags &= ~IORESOURCE_MEM_64;
-	vmd->resources[1] = (struct resource) {
-		.name  = "VMD MEMBAR1",
-		.start = res->start,
-		.end   = res->end,
-		.flags = flags,
-		.parent = res,
-	};
-
-	res = &vmd->dev->resource[VMD_MEMBAR2];
-	upper_bits = upper_32_bits(res->end);
-	flags = res->flags & ~IORESOURCE_SIZEALIGN;
-	if (!upper_bits)
-		flags &= ~IORESOURCE_MEM_64;
-	vmd->resources[2] = (struct resource) {
-		.name  = "VMD MEMBAR2",
-		.start = res->start + membar2_offset,
-		.end   = res->end,
-		.flags = flags,
-		.parent = res,
-	};
+	vmd_configure_cfgbar(vmd);
+	vmd_configure_membar1(vmd);
+	vmd_configure_membar2(vmd, membar2_offset);
 
 	sd->vmd_dev = vmd->dev;
 	sd->domain = vmd_find_free_domain();
@@ -917,45 +990,8 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	WARN(sysfs_create_link(&vmd->dev->dev.kobj, &vmd->bus->dev.kobj,
 			       "domain"), "Can't create symlink to domain\n");
 
-	vmd_acpi_begin();
+	vmd_bus_enumeration(vmd->bus, features);
 
-	pci_scan_child_bus(vmd->bus);
-	vmd_domain_reset(vmd);
-
-	/* When Intel VMD is enabled, the OS does not discover the Root Ports
-	 * owned by Intel VMD within the MMCFG space. pci_reset_bus() applies
-	 * a reset to the parent of the PCI device supplied as argument. This
-	 * is why we pass a child device, so the reset can be triggered at
-	 * the Intel bridge level and propagated to all the children in the
-	 * hierarchy.
-	 */
-	list_for_each_entry(child, &vmd->bus->children, node) {
-		if (!list_empty(&child->devices)) {
-			dev = list_first_entry(&child->devices,
-					       struct pci_dev, bus_list);
-			ret = pci_reset_bus(dev);
-			if (ret)
-				pci_warn(dev, "can't reset device: %d\n", ret);
-
-			break;
-		}
-	}
-
-	pci_assign_unassigned_bus_resources(vmd->bus);
-
-	pci_walk_bus(vmd->bus, vmd_pm_enable_quirk, &features);
-
-	/*
-	 * VMD root buses are virtual and don't return true on pci_is_pcie()
-	 * and will fail pcie_bus_configure_settings() early. It can instead be
-	 * run on each of the real root ports.
-	 */
-	list_for_each_entry(child, &vmd->bus->children, node)
-		pcie_bus_configure_settings(child);
-
-	pci_bus_add_devices(vmd->bus);
-
-	vmd_acpi_end();
 	return 0;
 }
 
