@@ -866,8 +866,6 @@ skip_dsp_setup:
 			dev_err(sdev->dev, "could not startup SoundWire links\n");
 			goto disable_pp_cap;
 		}
-
-		hda_sdw_int_enable(sdev, true);
 	}
 
 	init_waitqueue_head(&hdev->waitq);
