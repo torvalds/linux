@@ -15,7 +15,7 @@ In order to build the documentation, use
 
 ### The formatted documentation can also be read online at:
 
-[The Linux Kernel documentation]([https://pages.github.com/](https://www.kernel.org/doc/html/latest/))
+[The Linux Kernel documentation](https://pages.github.com/](https://www.kernel.org/doc/html/latest/)
 
 There are various text files in the `Documentation/` subdirectory,
 several of them using the reStructuredText markup notation.
