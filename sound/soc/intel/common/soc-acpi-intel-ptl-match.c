@@ -36,10 +36,10 @@ static const struct snd_soc_acpi_endpoint single_endpoint = {
 };
 
 /*
- * RT722 is a multi-function codec, three endpoints are created for
- * its headset, amp and dmic functions.
+ * Multi-function codecs with three endpoints created for
+ * headset, amp and dmic functions.
  */
-static const struct snd_soc_acpi_endpoint rt722_endpoints[] = {
+static const struct snd_soc_acpi_endpoint rt_mf_endpoints[] = {
 	{
 		.num = 0,
 		.aggregated = 0,
@@ -72,8 +72,8 @@ static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 static const struct snd_soc_acpi_adr_device rt722_0_single_adr[] = {
 	{
 		.adr = 0x000030025d072201ull,
-		.num_endpoints = ARRAY_SIZE(rt722_endpoints),
-		.endpoints = rt722_endpoints,
+		.num_endpoints = ARRAY_SIZE(rt_mf_endpoints),
+		.endpoints = rt_mf_endpoints,
 		.name_prefix = "rt722"
 	}
 };
@@ -81,8 +81,8 @@ static const struct snd_soc_acpi_adr_device rt722_0_single_adr[] = {
 static const struct snd_soc_acpi_adr_device rt722_1_single_adr[] = {
 	{
 		.adr = 0x000130025d072201ull,
-		.num_endpoints = ARRAY_SIZE(rt722_endpoints),
-		.endpoints = rt722_endpoints,
+		.num_endpoints = ARRAY_SIZE(rt_mf_endpoints),
+		.endpoints = rt_mf_endpoints,
 		.name_prefix = "rt722"
 	}
 };
@@ -90,8 +90,8 @@ static const struct snd_soc_acpi_adr_device rt722_1_single_adr[] = {
 static const struct snd_soc_acpi_adr_device rt722_3_single_adr[] = {
 	{
 		.adr = 0x000330025d072201ull,
-		.num_endpoints = ARRAY_SIZE(rt722_endpoints),
-		.endpoints = rt722_endpoints,
+		.num_endpoints = ARRAY_SIZE(rt_mf_endpoints),
+		.endpoints = rt_mf_endpoints,
 		.name_prefix = "rt722"
 	}
 };
