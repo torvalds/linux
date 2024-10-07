@@ -1091,7 +1091,7 @@ static void madera_pin_remove(struct platform_device *pdev)
 
 static struct platform_driver madera_pin_driver = {
 	.probe = madera_pin_probe,
-	.remove_new = madera_pin_remove,
+	.remove = madera_pin_remove,
 	.driver = {
 		.name = "madera-pinctrl",
 	},

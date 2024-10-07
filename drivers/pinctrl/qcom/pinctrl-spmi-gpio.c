@@ -1268,7 +1268,7 @@ static struct platform_driver pmic_gpio_driver = {
 		   .of_match_table = pmic_gpio_of_match,
 	},
 	.probe	= pmic_gpio_probe,
-	.remove_new = pmic_gpio_remove,
+	.remove = pmic_gpio_remove,
 };
 
 module_platform_driver(pmic_gpio_driver);

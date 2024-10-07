@@ -1204,7 +1204,7 @@ static struct platform_driver amd_gpio_driver = {
 #endif
 	},
 	.probe		= amd_gpio_probe,
-	.remove_new	= amd_gpio_remove,
+	.remove		= amd_gpio_remove,
 };
 
 module_platform_driver(amd_gpio_driver);

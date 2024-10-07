@@ -1792,7 +1792,7 @@ MODULE_DEVICE_TABLE(acpi, chv_pinctrl_acpi_match);
 
 static struct platform_driver chv_pinctrl_driver = {
 	.probe = chv_pinctrl_probe,
-	.remove_new = chv_pinctrl_remove,
+	.remove = chv_pinctrl_remove,
 	.driver = {
 		.name = "cherryview-pinctrl",
 		.pm = pm_sleep_ptr(&chv_pinctrl_pm_ops),

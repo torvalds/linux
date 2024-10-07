@@ -925,7 +925,7 @@ MODULE_DEVICE_TABLE(of, rzn1_pinctrl_match);
 
 static struct platform_driver rzn1_pinctrl_driver = {
 	.probe	= rzn1_pinctrl_probe,
-	.remove_new = rzn1_pinctrl_remove,
+	.remove = rzn1_pinctrl_remove,
 	.driver	= {
 		.name		= "rzn1-pinctrl",
 		.of_match_table	= rzn1_pinctrl_match,

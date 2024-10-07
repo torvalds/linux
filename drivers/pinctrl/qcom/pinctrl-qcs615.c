@@ -1087,7 +1087,7 @@ static struct platform_driver qcs615_tlmm_driver = {
 		.of_match_table = qcs615_tlmm_of_match,
 	},
 	.probe = qcs615_tlmm_probe,
-	.remove_new = msm_pinctrl_remove,
+	.remove = msm_pinctrl_remove,
 };
 
 static int __init qcs615_tlmm_init(void)

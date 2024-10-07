@@ -4221,7 +4221,7 @@ static const struct of_device_id rockchip_pinctrl_dt_match[] = {
 
 static struct platform_driver rockchip_pinctrl_driver = {
 	.probe		= rockchip_pinctrl_probe,
-	.remove_new	= rockchip_pinctrl_remove,
+	.remove		= rockchip_pinctrl_remove,
 	.driver = {
 		.name	= "rockchip-pinctrl",
 		.pm = &rockchip_pinctrl_dev_pm_ops,

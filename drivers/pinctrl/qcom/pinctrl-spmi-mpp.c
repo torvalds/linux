@@ -1000,7 +1000,7 @@ static struct platform_driver pmic_mpp_driver = {
 		   .of_match_table = pmic_mpp_of_match,
 	},
 	.probe	= pmic_mpp_probe,
-	.remove_new = pmic_mpp_remove,
+	.remove = pmic_mpp_remove,
 };
 
 module_platform_driver(pmic_mpp_driver);
