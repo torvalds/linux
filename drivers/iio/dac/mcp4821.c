@@ -23,7 +23,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define MCP4821_ACTIVE_MODE BIT(12)
 #define MCP4802_SECOND_CHAN BIT(15)

@@ -25,7 +25,7 @@
 #include <linux/map_to_7segment.h>
 #include <linux/map_to_14segment.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "line-display.h"
 

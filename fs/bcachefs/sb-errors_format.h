@@ -115,8 +115,8 @@ enum bch_fsck_flags {
 	x(alloc_key_data_type_inconsistency,			101,	0)		\
 	x(alloc_key_to_missing_dev_bucket,			102,	0)		\
 	x(alloc_key_cached_inconsistency,			103,	0)		\
-	x(alloc_key_cached_but_read_time_zero,			104,	0)		\
-	x(alloc_key_to_missing_lru_entry,			105,	0)		\
+	x(alloc_key_cached_but_read_time_zero,			104,	FSCK_AUTOFIX)	\
+	x(alloc_key_to_missing_lru_entry,			105,	FSCK_AUTOFIX)	\
 	x(alloc_key_data_type_wrong,				106,	FSCK_AUTOFIX)	\
 	x(alloc_key_gen_wrong,					107,	FSCK_AUTOFIX)	\
 	x(alloc_key_dirty_sectors_wrong,			108,	FSCK_AUTOFIX)	\
@@ -129,20 +129,20 @@ enum bch_fsck_flags {
 	x(freespace_key_wrong,					115,	0)		\
 	x(freespace_hole_missing,				116,	0)		\
 	x(bucket_gens_val_size_bad,				117,	0)		\
-	x(bucket_gens_key_wrong,				118,	0)		\
-	x(bucket_gens_hole_wrong,				119,	0)		\
-	x(bucket_gens_to_invalid_dev,				120,	0)		\
-	x(bucket_gens_to_invalid_buckets,			121,	0)		\
-	x(bucket_gens_nonzero_for_invalid_buckets,		122,	0)		\
+	x(bucket_gens_key_wrong,				118,	FSCK_AUTOFIX)	\
+	x(bucket_gens_hole_wrong,				119,	FSCK_AUTOFIX)	\
+	x(bucket_gens_to_invalid_dev,				120,	FSCK_AUTOFIX)	\
+	x(bucket_gens_to_invalid_buckets,			121,	FSCK_AUTOFIX)	\
+	x(bucket_gens_nonzero_for_invalid_buckets,		122,	FSCK_AUTOFIX)	\
 	x(need_discard_freespace_key_to_invalid_dev_bucket,	123,	0)		\
 	x(need_discard_freespace_key_bad,			124,	0)		\
 	x(backpointer_bucket_offset_wrong,			125,	0)		\
 	x(backpointer_to_missing_device,			126,	0)		\
 	x(backpointer_to_missing_alloc,				127,	0)		\
 	x(backpointer_to_missing_ptr,				128,	0)		\
-	x(lru_entry_at_time_0,					129,	0)		\
-	x(lru_entry_to_invalid_bucket,				130,	0)		\
-	x(lru_entry_bad,					131,	0)		\
+	x(lru_entry_at_time_0,					129,	FSCK_AUTOFIX)	\
+	x(lru_entry_to_invalid_bucket,				130,	FSCK_AUTOFIX)	\
+	x(lru_entry_bad,					131,	FSCK_AUTOFIX)	\
 	x(btree_ptr_val_too_big,				132,	0)		\
 	x(btree_ptr_v2_val_too_big,				133,	0)		\
 	x(btree_ptr_has_non_ptr,				134,	0)		\
@@ -158,9 +158,9 @@ enum bch_fsck_flags {
 	x(ptr_after_last_bucket,				144,	0)		\
 	x(ptr_before_first_bucket,				145,	0)		\
 	x(ptr_spans_multiple_buckets,				146,	0)		\
-	x(ptr_to_missing_backpointer,				147,	0)		\
-	x(ptr_to_missing_alloc_key,				148,	0)		\
-	x(ptr_to_missing_replicas_entry,			149,	0)		\
+	x(ptr_to_missing_backpointer,				147,	FSCK_AUTOFIX)	\
+	x(ptr_to_missing_alloc_key,				148,	FSCK_AUTOFIX)	\
+	x(ptr_to_missing_replicas_entry,			149,	FSCK_AUTOFIX)	\
 	x(ptr_to_missing_stripe,				150,	0)		\
 	x(ptr_to_incorrect_stripe,				151,	0)		\
 	x(ptr_gen_newer_than_bucket_gen,			152,	0)		\
@@ -194,7 +194,7 @@ enum bch_fsck_flags {
 	x(snapshot_skiplist_not_normalized,			180,	0)		\
 	x(snapshot_skiplist_bad,				181,	0)		\
 	x(snapshot_should_not_have_subvol,			182,	0)		\
-	x(snapshot_to_bad_snapshot_tree,			183,	0)		\
+	x(snapshot_to_bad_snapshot_tree,			183,	FSCK_AUTOFIX)	\
 	x(snapshot_bad_depth,					184,	0)		\
 	x(snapshot_bad_skiplist,				185,	0)		\
 	x(subvol_pos_bad,					186,	0)		\
@@ -211,6 +211,7 @@ enum bch_fsck_flags {
 	x(inode_unlinked_but_clean,				197,	0)		\
 	x(inode_unlinked_but_nlink_nonzero,			198,	0)		\
 	x(inode_unlinked_and_not_open,				281,	0)		\
+	x(inode_unlinked_but_has_dirent,			285,	0)		\
 	x(inode_checksum_type_invalid,				199,	0)		\
 	x(inode_compression_type_invalid,			200,	0)		\
 	x(inode_subvol_root_but_not_dir,			201,	0)		\
@@ -219,6 +220,8 @@ enum bch_fsck_flags {
 	x(inode_i_sectors_wrong,				204,	FSCK_AUTOFIX)	\
 	x(inode_dir_wrong_nlink,				205,	FSCK_AUTOFIX)	\
 	x(inode_dir_multiple_links,				206,	FSCK_AUTOFIX)	\
+	x(inode_dir_missing_backpointer,			284,	FSCK_AUTOFIX)	\
+	x(inode_dir_unlinked_but_not_empty,			286,	FSCK_AUTOFIX)	\
 	x(inode_multiple_links_but_nlink_0,			207,	FSCK_AUTOFIX)	\
 	x(inode_wrong_backpointer,				208,	FSCK_AUTOFIX)	\
 	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
@@ -295,7 +298,7 @@ enum bch_fsck_flags {
 	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
 	x(accounting_key_version_0,				282,	FSCK_AUTOFIX)	\
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
-	x(MAX,							284,	0)
+	x(MAX,							287,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

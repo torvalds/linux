@@ -17,7 +17,7 @@
 #include <linux/idr.h>
 #include <linux/delay.h>
 #include <linux/sched/signal.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/inet.h>
 #include <net/ipv6.h>
 #include <scsi/scsi_proto.h>

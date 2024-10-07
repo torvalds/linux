@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/units.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define EBU_CLC			0x000
 #define EBU_CLC_RST		0x00000000u

@@ -5,7 +5,7 @@
  * Copyright (C) 2024 Matteo Martelli <matteomartelli3@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/i2c.h>
 #include <linux/iio/events.h>
