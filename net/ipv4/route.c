@@ -1666,7 +1666,7 @@ EXPORT_SYMBOL(rt_dst_clone);
 
 /* called in rcu_read_lock() section */
 int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-			  u8 tos, struct net_device *dev,
+			  dscp_t dscp, struct net_device *dev,
 			  struct in_device *in_dev, u32 *itag)
 {
 	int err;
@@ -1687,7 +1687,8 @@ int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    ip_hdr(skb)->protocol != IPPROTO_IGMP)
 			return -EINVAL;
 	} else {
-		err = fib_validate_source(skb, saddr, 0, tos, 0, dev,
+		err = fib_validate_source(skb, saddr, 0,
+					  inet_dscp_to_dsfield(dscp), 0, dev,
 					  in_dev, itag);
 		if (err < 0)
 			return err;
@@ -1705,8 +1706,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	u32 itag = 0;
 	int err;
 
-	err = ip_mc_validate_source(skb, daddr, saddr,
-				    inet_dscp_to_dsfield(dscp), dev, in_dev,
+	err = ip_mc_validate_source(skb, daddr, saddr, dscp, dev, in_dev,
 				    &itag);
 	if (err)
 		return err;

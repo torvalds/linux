@@ -100,6 +100,7 @@
 #include <net/net_namespace.h>
 #include <net/icmp.h>
 #include <net/inet_hashtables.h>
+#include <net/ip.h>
 #include <net/ip_tunnels.h>
 #include <net/route.h>
 #include <net/checksum.h>
@@ -115,7 +116,6 @@
 #include <net/addrconf.h>
 #include <net/udp_tunnel.h>
 #include <net/gro.h>
-#include <net/inet_dscp.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6_stubs.h>
 #endif
@@ -2619,7 +2619,7 @@ int udp_v4_early_demux(struct sk_buff *skb)
 		if (!inet_sk(sk)->inet_daddr && in_dev)
 			return ip_mc_validate_source(skb, iph->daddr,
 						     iph->saddr,
-						     iph->tos & INET_DSCP_MASK,
+						     ip4h_dscp(iph),
 						     skb->dev, in_dev, &itag);
 	}
 	return 0;
