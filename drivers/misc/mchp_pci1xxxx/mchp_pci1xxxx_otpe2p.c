@@ -384,6 +384,7 @@ static int pci1xxxx_otp_eeprom_probe(struct auxiliary_device *aux_dev,
 
 	priv->nvmem_config_otp.type = NVMEM_TYPE_OTP;
 	priv->nvmem_config_otp.name = OTP_NAME;
+	priv->nvmem_config_otp.id = NVMEM_DEVID_AUTO;
 	priv->nvmem_config_otp.dev = &aux_dev->dev;
 	priv->nvmem_config_otp.owner = THIS_MODULE;
 	priv->nvmem_config_otp.reg_read = pci1xxxx_otp_read;
