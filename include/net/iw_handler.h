@@ -279,8 +279,6 @@
 #define IW_DESCR_FLAG_RESTRICT	0x0004	/* GET : request is ROOT only */
 				/* SET : Omit payload from generated iwevent */
 #define IW_DESCR_FLAG_NOMAX	0x0008	/* GET : no limit on request size */
-/* Driver level flags */
-#define IW_DESCR_FLAG_WAIT	0x0100	/* Wait for driver event */
 
 /****************************** TYPES ******************************/
 
@@ -373,11 +371,10 @@ struct iw_handler_def {
  */
 struct iw_ioctl_description {
 	__u8	header_type;		/* NULL, iw_point or other */
-	__u8	token_type;		/* Future */
+	__u8	flags;			/* Special handling of the request */
 	__u16	token_size;		/* Granularity of payload */
 	__u16	min_tokens;		/* Min acceptable token number */
 	__u16	max_tokens;		/* Max acceptable token number */
-	__u32	flags;			/* Special handling of the request */
 };
 
 /* Need to think of short header translation table. Later. */
