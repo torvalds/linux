@@ -4090,8 +4090,8 @@ struct ieee80211_prep_tx_info {
  *	in @sta_state.
  *	The callback can sleep.
  *
- * @sta_rc_update: Notifies the driver of changes to the bitrates that can be
- *	used to transmit to the station. The changes are advertised with bits
+ * @link_sta_rc_update: Notifies the driver of changes to the bitrates that can
+ *	be used to transmit to the station. The changes are advertised with bits
  *	from &enum ieee80211_rate_control_changed and the values are reflected
  *	in the station data. This callback should only be used when the driver
  *	uses hardware rate control (%IEEE80211_HW_HAS_RATE_CONTROL) since
@@ -4581,10 +4581,10 @@ struct ieee80211_ops {
 	void (*sta_pre_rcu_remove)(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta);
-	void (*sta_rc_update)(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta,
-			      u32 changed);
+	void (*link_sta_rc_update)(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_link_sta *link_sta,
+				   u32 changed);
 	void (*sta_rate_tbl_update)(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_sta *sta);

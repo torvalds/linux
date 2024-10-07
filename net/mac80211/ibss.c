@@ -1072,7 +1072,8 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		if (sta->sta.deflink.rx_nss != rx_nss)
 			changed |= IEEE80211_RC_NSS_CHANGED;
 
-		drv_sta_rc_update(local, sdata, &sta->sta, changed);
+		drv_link_sta_rc_update(local, sdata, &sta->sta.deflink,
+				       changed);
 	}
 
 	rcu_read_unlock();

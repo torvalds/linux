@@ -2594,10 +2594,11 @@ static void mac80211_hwsim_link_info_changed(struct ieee80211_hw *hw,
 static void
 mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
-			     struct ieee80211_sta *sta,
+			     struct ieee80211_link_sta *link_sta,
 			     u32 changed)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
+	struct ieee80211_sta *sta = link_sta->sta;
 	u32 bw = U32_MAX;
 	int link_id;
 
@@ -2607,7 +2608,6 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 	     link_id++) {
 		enum nl80211_chan_width confbw = NL80211_CHAN_WIDTH_20_NOHT;
 		struct ieee80211_bss_conf *vif_conf;
-		struct ieee80211_link_sta *link_sta;
 
 		link_sta = rcu_dereference(sta->link[link_id]);
 
@@ -2659,7 +2659,7 @@ static int mac80211_hwsim_sta_add(struct ieee80211_hw *hw,
 
 	hwsim_check_magic(vif);
 	hwsim_set_sta_magic(sta);
-	mac80211_hwsim_sta_rc_update(hw, vif, sta, 0);
+	mac80211_hwsim_sta_rc_update(hw, vif, &sta->deflink, 0);
 
 	if (sta->valid_links) {
 		WARN(hweight16(sta->valid_links) > 1,
@@ -3961,7 +3961,7 @@ out:
 	.link_info_changed = mac80211_hwsim_link_info_changed,  \
 	.tx_last_beacon = mac80211_hwsim_tx_last_beacon,	\
 	.sta_notify = mac80211_hwsim_sta_notify,		\
-	.sta_rc_update = mac80211_hwsim_sta_rc_update,		\
+	.link_sta_rc_update = mac80211_hwsim_sta_rc_update,	\
 	.conf_tx = mac80211_hwsim_conf_tx,			\
 	.get_survey = mac80211_hwsim_get_survey,		\
 	CFG80211_TESTMODE_CMD(mac80211_hwsim_testmode_cmd)	\

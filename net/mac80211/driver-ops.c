@@ -181,9 +181,10 @@ int drv_sta_set_txpwr(struct ieee80211_local *local,
 	return ret;
 }
 
-void drv_sta_rc_update(struct ieee80211_local *local,
-		       struct ieee80211_sub_if_data *sdata,
-		       struct ieee80211_sta *sta, u32 changed)
+void drv_link_sta_rc_update(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata,
+			    struct ieee80211_link_sta *link_sta,
+			    u32 changed)
 {
 	sdata = get_bss_sdata(sdata);
 	if (!check_sdata_in_driver(sdata))
@@ -193,10 +194,10 @@ void drv_sta_rc_update(struct ieee80211_local *local,
 		(sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		 sdata->vif.type != NL80211_IFTYPE_MESH_POINT));
 
-	trace_drv_sta_rc_update(local, sdata, sta, changed);
-	if (local->ops->sta_rc_update)
-		local->ops->sta_rc_update(&local->hw, &sdata->vif,
-					  sta, changed);
+	trace_drv_link_sta_rc_update(local, sdata, link_sta, changed);
+	if (local->ops->link_sta_rc_update)
+		local->ops->link_sta_rc_update(&local->hw, &sdata->vif,
+					       link_sta, changed);
 
 	trace_drv_return_void(local);
 }

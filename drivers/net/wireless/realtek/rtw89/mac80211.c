@@ -1290,8 +1290,10 @@ out:
 
 static void rtw89_ops_sta_rc_update(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta, u32 changed)
+				    struct ieee80211_link_sta *link_sta,
+				    u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct rtw89_dev *rtwdev = hw->priv;
 
 	rtw89_phy_ra_update_sta(rtwdev, sta, changed);
@@ -1593,7 +1595,7 @@ const struct ieee80211_ops rtw89_ops = {
 	.remain_on_channel		= rtw89_ops_remain_on_channel,
 	.cancel_remain_on_channel	= rtw89_ops_cancel_remain_on_channel,
 	.set_sar_specs		= rtw89_ops_set_sar_specs,
-	.sta_rc_update		= rtw89_ops_sta_rc_update,
+	.link_sta_rc_update	= rtw89_ops_sta_rc_update,
 	.set_tid_config		= rtw89_ops_set_tid_config,
 #ifdef CONFIG_PM
 	.suspend		= rtw89_ops_suspend,

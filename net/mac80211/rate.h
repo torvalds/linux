@@ -33,8 +33,7 @@ void rate_control_rate_init(struct link_sta_info *link_sta);
 void rate_control_rate_init_all_links(struct sta_info *sta);
 void rate_control_rate_update(struct ieee80211_local *local,
 			      struct ieee80211_supported_band *sband,
-			      struct sta_info *sta,
-			      unsigned int link_id,
+			      struct link_sta_info *link_sta,
 			      u32 changed);
 
 static inline void *rate_control_alloc_sta(struct rate_control_ref *ref,

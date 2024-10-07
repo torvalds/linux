@@ -467,7 +467,7 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 				continue;
 
 			link_sta->pub->bandwidth = new_sta_bw;
-			rate_control_rate_update(local, sband, sta, link_id,
+			rate_control_rate_update(local, sband, link_sta,
 						 IEEE80211_RC_BW_CHANGED);
 		}
 	}
