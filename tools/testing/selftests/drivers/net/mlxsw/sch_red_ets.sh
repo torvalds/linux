@@ -20,8 +20,8 @@ source sch_red_core.sh
 # $BACKLOG2 are far enough not to overlap, so that we can assume that if we do
 # see (do not see) marking, it is actually due to the configuration of that one
 # TC, and not due to configuration of the other TC leaking over.
-BACKLOG1=200000
-BACKLOG2=500000
+BACKLOG1=400000
+BACKLOG2=1000000
 
 install_root_qdisc()
 {
@@ -35,7 +35,7 @@ install_qdisc_tc0()
 
 	tc qdisc add dev $swp3 parent 10:8 handle 108: red \
 	   limit 1000000 min $BACKLOG1 max $((BACKLOG1 + 1)) \
-	   probability 1.0 avpkt 8000 burst 38 "${args[@]}"
+	   probability 1.0 avpkt 8000 burst 51 "${args[@]}"
 }
 
 install_qdisc_tc1()
@@ -44,7 +44,7 @@ install_qdisc_tc1()
 
 	tc qdisc add dev $swp3 parent 10:7 handle 107: red \
 	   limit 1000000 min $BACKLOG2 max $((BACKLOG2 + 1)) \
-	   probability 1.0 avpkt 8000 burst 63 "${args[@]}"
+	   probability 1.0 avpkt 8000 burst 126 "${args[@]}"
 }
 
 install_qdisc()
