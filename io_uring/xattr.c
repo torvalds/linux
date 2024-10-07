@@ -48,9 +48,6 @@ static int __io_getxattr_prep(struct io_kiocb *req,
 	const char __user *name;
 	int ret;
 
-	if (unlikely(req->flags & REQ_F_FIXED_FILE))
-		return -EBADF;
-
 	ix->filename = NULL;
 	ix->ctx.kvalue = NULL;
 	name = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -89,6 +86,9 @@ int io_getxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
 	const char __user *path;
 	int ret;
+
+	if (unlikely(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
 
 	ret = __io_getxattr_prep(req, sqe);
 	if (ret)
@@ -152,9 +152,6 @@ static int __io_setxattr_prep(struct io_kiocb *req,
 	const char __user *name;
 	int ret;
 
-	if (unlikely(req->flags & REQ_F_FIXED_FILE))
-		return -EBADF;
-
 	ix->filename = NULL;
 	name = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	ix->ctx.cvalue = u64_to_user_ptr(READ_ONCE(sqe->addr2));
@@ -182,6 +179,9 @@ int io_setxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
 	const char __user *path;
 	int ret;
+
+	if (unlikely(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
 
 	ret = __io_setxattr_prep(req, sqe);
 	if (ret)
