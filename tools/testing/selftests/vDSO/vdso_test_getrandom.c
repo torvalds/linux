@@ -121,7 +121,7 @@ static void vgetrandom_init(void)
 	vgrnd.fn = (__typeof__(vgrnd.fn))vdso_sym(version, name);
 	if (!vgrnd.fn) {
 		printf("%s is missing!\n", name);
-		exit(KSFT_FAIL);
+		exit(KSFT_SKIP);
 	}
 	ret = VDSO_CALL(vgrnd.fn, 5, NULL, 0, 0, &vgrnd.params, ~0UL);
 	if (ret == -ENOSYS) {
