@@ -1764,10 +1764,9 @@ static void ip_handle_martian_source(struct net_device *dev,
 }
 
 /* called in rcu_read_lock() section */
-static int __mkroute_input(struct sk_buff *skb,
-			   const struct fib_result *res,
-			   struct in_device *in_dev,
-			   __be32 daddr, __be32 saddr, u32 tos)
+static int __mkroute_input(struct sk_buff *skb, const struct fib_result *res,
+			   struct in_device *in_dev, __be32 daddr,
+			   __be32 saddr, dscp_t dscp)
 {
 	struct fib_nh_common *nhc = FIB_RES_NHC(*res);
 	struct net_device *dev = nhc->nhc_dev;
@@ -1785,8 +1784,8 @@ static int __mkroute_input(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = fib_validate_source(skb, saddr, daddr, tos, FIB_RES_OIF(*res),
-				  in_dev->dev, in_dev, &itag);
+	err = fib_validate_source(skb, saddr, daddr, inet_dscp_to_dsfield(dscp),
+				  FIB_RES_OIF(*res), in_dev->dev, in_dev, &itag);
 	if (err < 0) {
 		ip_handle_martian_source(in_dev->dev, in_dev, skb, daddr,
 					 saddr);
@@ -2126,8 +2125,7 @@ static int ip_mkroute_input(struct sk_buff *skb, struct fib_result *res,
 #endif
 
 	/* create a routing cache entry */
-	return __mkroute_input(skb, res, in_dev, daddr, saddr,
-			       inet_dscp_to_dsfield(dscp));
+	return __mkroute_input(skb, res, in_dev, daddr, saddr, dscp);
 }
 
 /* Implements all the saddr-related checks as ip_route_input_slow(),
