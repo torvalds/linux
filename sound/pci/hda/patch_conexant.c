@@ -1014,7 +1014,7 @@ static const struct hda_fixup cxt_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk cxt5045_fixups[] = {
+static const struct hda_quirk cxt5045_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x30d5, "HP 530", CXT_FIXUP_HP_530),
 	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba P105", CXT_FIXUP_TOSHIBA_P105),
 	/* HP, Packard Bell, Fujitsu-Siemens & Lenovo laptops have
@@ -1034,7 +1034,7 @@ static const struct hda_model_fixup cxt5045_fixup_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk cxt5047_fixups[] = {
+static const struct hda_quirk cxt5047_fixups[] = {
 	/* HP laptops have really bad sound over 0 dB on NID 0x10.
 	 */
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", CXT_FIXUP_CAP_MIX_AMP_5047),
@@ -1046,7 +1046,7 @@ static const struct hda_model_fixup cxt5047_fixup_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk cxt5051_fixups[] = {
+static const struct hda_quirk cxt5051_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x360b, "Compaq CQ60", CXT_PINCFG_COMPAQ_CQ60),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT_PINCFG_LENOVO_X200),
 	{}
@@ -1057,7 +1057,7 @@ static const struct hda_model_fixup cxt5051_fixup_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk cxt5066_fixups[] = {
+static const struct hda_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_ASPIRE_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x054f, "Acer Aspire 4830T", CXT_FIXUP_ASPIRE_DMIC),
