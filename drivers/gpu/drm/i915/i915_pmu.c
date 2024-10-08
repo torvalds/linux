@@ -356,7 +356,7 @@ static bool exclusive_mmio_access(const struct drm_i915_private *i915)
 	return GRAPHICS_VER(i915) == 7;
 }
 
-static void engine_sample(struct intel_engine_cs *engine, unsigned int period_ns)
+static void gen3_engine_sample(struct intel_engine_cs *engine, unsigned int period_ns)
 {
 	struct intel_engine_pmu *pmu = &engine->pmu;
 	bool busy;
@@ -389,6 +389,31 @@ static void engine_sample(struct intel_engine_cs *engine, unsigned int period_ns
 	}
 	if (busy)
 		add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
+}
+
+static void gen2_engine_sample(struct intel_engine_cs *engine, unsigned int period_ns)
+{
+	struct intel_engine_pmu *pmu = &engine->pmu;
+	u32 tail, head, acthd;
+
+	tail = ENGINE_READ_FW(engine, RING_TAIL);
+	head = ENGINE_READ_FW(engine, RING_HEAD);
+	acthd = ENGINE_READ_FW(engine, ACTHD);
+
+	if (head & HEAD_WAIT_I8XX)
+		add_sample(&pmu->sample[I915_SAMPLE_WAIT], period_ns);
+
+	if (head & HEAD_WAIT_I8XX || head != acthd ||
+	    (head & HEAD_ADDR) != (tail & TAIL_ADDR))
+		add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
+}
+
+static void engine_sample(struct intel_engine_cs *engine, unsigned int period_ns)
+{
+	if (GRAPHICS_VER(engine->i915) >= 3)
+		gen3_engine_sample(engine, period_ns);
+	else
+		gen2_engine_sample(engine, period_ns);
 }
 
 static void
@@ -1242,11 +1267,6 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	};
 
 	int ret = -ENOMEM;
-
-	if (GRAPHICS_VER(i915) <= 2) {
-		drm_info(&i915->drm, "PMU not supported for this GPU.");
-		return;
-	}
 
 	spin_lock_init(&pmu->lock);
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
