@@ -977,7 +977,7 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 
 	/* Check for compressed frame. */
 	err = attr_is_frame_compressed(ni, attr_b, vcn >> NTFS_LZNT_CUNIT,
-				       &hint);
+				       &hint, run);
 	if (err)
 		goto out;
 
@@ -1521,16 +1521,16 @@ out:
  * attr_is_frame_compressed - Used to detect compressed frame.
  *
  * attr - base (primary) attribute segment.
+ * run  - run to use, usually == &ni->file.run.
  * Only base segments contains valid 'attr->nres.c_unit'
  */
 int attr_is_frame_compressed(struct ntfs_inode *ni, struct ATTRIB *attr,
-			     CLST frame, CLST *clst_data)
+			     CLST frame, CLST *clst_data, struct runs_tree *run)
 {
 	int err;
 	u32 clst_frame;
 	CLST clen, lcn, vcn, alen, slen, vcn_next;
 	size_t idx;
-	struct runs_tree *run;
 
 	*clst_data = 0;
 
@@ -1542,7 +1542,6 @@ int attr_is_frame_compressed(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 	clst_frame = 1u << attr->nres.c_unit;
 	vcn = frame * clst_frame;
-	run = &ni->file.run;
 
 	if (!run_lookup_entry(run, vcn, &lcn, &clen, &idx)) {
 		err = attr_load_runs_vcn(ni, attr->type, attr_name(attr),
@@ -1678,7 +1677,7 @@ int attr_allocate_frame(struct ntfs_inode *ni, CLST frame, size_t compr_size,
 	if (err)
 		goto out;
 
-	err = attr_is_frame_compressed(ni, attr_b, frame, &clst_data);
+	err = attr_is_frame_compressed(ni, attr_b, frame, &clst_data, run);
 	if (err)
 		goto out;
 
