@@ -838,6 +838,7 @@ int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
 {
 	struct regmap *r = sub->aio->chip->regmap;
 	u32 repet = 0, pause = OPORTMXPAUDAT_PAUSEPC_CMN;
+	int ret;
 
 	switch (pc) {
 	case IEC61937_PC_AC3:
@@ -880,8 +881,13 @@ int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
 		break;
 	}
 
-	regmap_write(r, OPORTMXREPET(sub->swm->oport.map), repet);
-	regmap_write(r, OPORTMXPAUDAT(sub->swm->oport.map), pause);
+	ret = regmap_write(r, OPORTMXREPET(sub->swm->oport.map), repet);
+	if (ret)
+		return ret;
+	
+	ret = regmap_write(r, OPORTMXPAUDAT(sub->swm->oport.map), pause);
+	if (ret)
+		return ret;
 
 	return 0;
 }
