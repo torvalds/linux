@@ -1320,16 +1320,14 @@ static int sof_ipc4_init_input_audio_fmt(struct snd_sof_dev *sdev,
 
 in_fmt:
 	/* copy input format */
-	if (pin_fmts_size && i < pin_fmts_size) {
-		memcpy(&base_config->audio_fmt, &pin_fmts[i].audio_fmt,
-		       sizeof(struct sof_ipc4_audio_format));
+	memcpy(&base_config->audio_fmt, &pin_fmts[i].audio_fmt,
+	       sizeof(struct sof_ipc4_audio_format));
 
-		/* set base_cfg ibs/obs */
-		base_config->ibs = pin_fmts[i].buffer_size;
+	/* set base_cfg ibs/obs */
+	base_config->ibs = pin_fmts[i].buffer_size;
 
-		dev_dbg(sdev->dev, "Init input audio formats for %s\n", swidget->widget->name);
-		sof_ipc4_dbg_audio_format(sdev->dev, &pin_fmts[i], 1);
-	}
+	dev_dbg(sdev->dev, "Init input audio formats for %s\n", swidget->widget->name);
+	sof_ipc4_dbg_audio_format(sdev->dev, &pin_fmts[i], 1);
 
 	return i;
 }
