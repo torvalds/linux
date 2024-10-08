@@ -1227,8 +1227,20 @@ xfs_buffered_write_iomap_end(
 	unsigned		flags,
 	struct iomap		*iomap)
 {
-	iomap_file_buffered_write_punch_delalloc(inode, offset, length, written,
-			flags, iomap, &xfs_buffered_write_delalloc_punch);
+	loff_t			start_byte, end_byte;
+
+	/* If we didn't reserve the blocks, we're not allowed to punch them. */
+	if (iomap->type != IOMAP_DELALLOC || !(iomap->flags & IOMAP_F_NEW))
+		return 0;
+
+	/* Nothing to do if we've written the entire delalloc extent */
+	start_byte = iomap_last_written_block(inode, offset, written);
+	end_byte = round_up(offset + length, i_blocksize(inode));
+	if (start_byte >= end_byte)
+		return 0;
+
+	iomap_write_delalloc_release(inode, start_byte, end_byte, flags, iomap,
+			xfs_buffered_write_delalloc_punch);
 	return 0;
 }
 

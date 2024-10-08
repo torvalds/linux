@@ -290,9 +290,9 @@ vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf,
 
 typedef void (*iomap_punch_t)(struct inode *inode, loff_t offset, loff_t length,
 		struct iomap *iomap);
-void iomap_file_buffered_write_punch_delalloc(struct inode *inode, loff_t pos,
-		loff_t length, ssize_t written, unsigned flag,
-		struct iomap *iomap, iomap_punch_t punch);
+void iomap_write_delalloc_release(struct inode *inode, loff_t start_byte,
+		loff_t end_byte, unsigned flags, struct iomap *iomap,
+		iomap_punch_t punch);
 
 int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 len, const struct iomap_ops *ops);
