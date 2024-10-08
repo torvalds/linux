@@ -1239,10 +1239,18 @@ xfs_buffered_write_iomap_end(
 	if (start_byte >= end_byte)
 		return 0;
 
-	filemap_invalidate_lock(inode->i_mapping);
-	iomap_write_delalloc_release(inode, start_byte, end_byte, flags, iomap,
-			xfs_buffered_write_delalloc_punch);
-	filemap_invalidate_unlock(inode->i_mapping);
+	/* For zeroing operations the callers already hold invalidate_lock. */
+	if (flags & (IOMAP_UNSHARE | IOMAP_ZERO)) {
+		rwsem_assert_held_write(&inode->i_mapping->invalidate_lock);
+		iomap_write_delalloc_release(inode, start_byte, end_byte, flags,
+				iomap, xfs_buffered_write_delalloc_punch);
+	} else {
+		filemap_invalidate_lock(inode->i_mapping);
+		iomap_write_delalloc_release(inode, start_byte, end_byte, flags,
+				iomap, xfs_buffered_write_delalloc_punch);
+		filemap_invalidate_unlock(inode->i_mapping);
+	}
+
 	return 0;
 }
 
