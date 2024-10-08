@@ -397,6 +397,9 @@ static long f_dupfd_query(int fd, struct file *filp)
 {
 	CLASS(fd_raw, f)(fd);
 
+	if (fd_empty(f))
+		return -EBADF;
+
 	/*
 	 * We can do the 'fdput()' immediately, as the only thing that
 	 * matters is the pointer value which isn't changed by the fdput.
