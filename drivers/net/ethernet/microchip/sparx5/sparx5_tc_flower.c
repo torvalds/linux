@@ -785,7 +785,9 @@ static int sparx5_tc_flower_psfp_setup(struct sparx5 *sparx5,
 	 * allocate a stream gate that is always open.
 	 */
 	if (sg_idx < 0) {
-		sg_idx = sparx5_pool_idx_to_id(SPX5_PSFP_SG_OPEN);
+		/* Always-open stream gate is always the last */
+		sg_idx = sparx5_pool_idx_to_id(sparx5->data->consts->n_gates -
+					       1);
 		sg->ipv = 0; /* Disabled */
 		sg->cycletime = SPX5_PSFP_SG_CYCLE_TIME_DEFAULT;
 		sg->num_entries = 1;
