@@ -181,7 +181,7 @@
 		#gpio-cells = <2>;
 		pinctrl-0 = <&pmic_int_l>;
 		pinctrl-names = "default";
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vdd_5v>;
