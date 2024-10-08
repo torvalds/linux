@@ -28,7 +28,9 @@ int mlx5_qos_create_leaf_node(struct mlx5_core_dev *mdev, u32 parent_id,
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
 
-	if (!(MLX5_CAP_QOS(mdev, nic_element_type) & ELEMENT_TYPE_CAP_MASK_QUEUE_GROUP))
+	if (!mlx5_qos_element_type_supported(mdev,
+					     SCHEDULING_CONTEXT_ELEMENT_TYPE_QUEUE_GROUP,
+					     SCHEDULING_HIERARCHY_NIC))
 		return -EOPNOTSUPP;
 
 	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, parent_id);
@@ -47,7 +49,9 @@ int mlx5_qos_create_inner_node(struct mlx5_core_dev *mdev, u32 parent_id,
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
 	void *attr;
 
-	if (!(MLX5_CAP_QOS(mdev, nic_element_type) & ELEMENT_TYPE_CAP_MASK_TSAR) ||
+	if (!mlx5_qos_element_type_supported(mdev,
+					     SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR,
+					     SCHEDULING_HIERARCHY_NIC) ||
 	    !(MLX5_CAP_QOS(mdev, nic_tsar_type) & TSAR_TYPE_CAP_MASK_DWRR))
 		return -EOPNOTSUPP;
 
