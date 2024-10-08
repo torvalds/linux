@@ -480,7 +480,7 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 	int ret = -EINVAL;
 
 	if (!bridge->s_subdev)
-		goto error;
+		return ret;
 
 	memset(&bridge->r, 0, sizeof(bridge->r));
 
@@ -490,13 +490,13 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 	/* build registers content */
 	ret = mipid02_configure_from_rx(bridge, fmt);
 	if (ret)
-		goto error;
+		return ret;
 	ret = mipid02_configure_from_tx(bridge);
 	if (ret)
-		goto error;
+		return ret;
 	ret = mipid02_configure_from_code(bridge, fmt);
 	if (ret)
-		goto error;
+		return ret;
 
 	v4l2_subdev_unlock_state(state);
 
@@ -531,8 +531,10 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 	return 0;
 
 error:
+	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1, 0, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG1, 0, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
 	dev_err(&client->dev, "failed to stream on %d", ret);
-	mipid02_stream_disable(bridge);
 
 	return ret;
 }
