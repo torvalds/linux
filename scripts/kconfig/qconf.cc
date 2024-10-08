@@ -1340,29 +1340,28 @@ ConfigMainWindow::ConfigMainWindow(void)
 	ConfigItem::menubackIcon = QIcon(QPixmap(xpm_menuback));
 
 	QWidget *widget = new QWidget(this);
-	QVBoxLayout *layout = new QVBoxLayout(widget);
 	setCentralWidget(widget);
 
-	split1 = new QSplitter(Qt::Horizontal, widget);
-	split1->setChildrenCollapsible(false);
-
-	menuList = new ConfigList(widget, "menu");
+	QVBoxLayout *layout = new QVBoxLayout(widget);
 
 	split2 = new QSplitter(Qt::Vertical, widget);
+	layout->addWidget(split2);
 	split2->setChildrenCollapsible(false);
 
-	// create config tree
+	split1 = new QSplitter(Qt::Horizontal, widget);
+	split2->addWidget(split1);
+	split1->setChildrenCollapsible(false);
+
 	configList = new ConfigList(widget, "config");
+	split1->addWidget(configList);
+
+	menuList = new ConfigList(widget, "menu");
+	split1->addWidget(menuList);
 
 	helpText = new ConfigInfoView(widget, "help");
-
-	layout->addWidget(split2);
-	split2->addWidget(split1);
-	split1->addWidget(configList);
-	split1->addWidget(menuList);
 	split2->addWidget(helpText);
-
 	setTabOrder(configList, helpText);
+
 	configList->setFocus();
 
 	backAction = new QAction(QPixmap(xpm_back), "Back", this);
