@@ -1247,9 +1247,8 @@ static irqreturn_t emac_isr(int _irq, void *data)
 		}
 
 		if (status & ISR_OVER)
-			emac_warn(adpt, intr, adpt->netdev, "TX/RX overflow status 0x%lx\n",
-				  status & ISR_OVER);
-
+			net_warn_ratelimited("%s: TX/RX overflow interrupt\n",
+					     adpt->netdev->name);
 		/* link event */
 		if (status & (ISR_GPHY_LINK | SW_MAN_INT)) {
 			adpt->irq_status = ISR_GPHY_LINK;
