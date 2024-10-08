@@ -773,9 +773,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 	}
 
-	rcu_read_lock();
 	sta_mask = iwl_mvm_sta_fw_id_mask(mvm, sta, -1);
-	rcu_read_unlock();
 
 	if (IWL_FW_CHECK(mvm,
 			 tid != baid_data->tid ||
