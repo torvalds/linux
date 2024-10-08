@@ -486,15 +486,12 @@ static void inet_del_ifa(struct in_device *in_dev,
 	__inet_del_ifa(in_dev, ifap, destroy, NULL, 0);
 }
 
-static void check_lifetime(struct work_struct *work);
-
-static DECLARE_DELAYED_WORK(check_lifetime_work, check_lifetime);
-
 static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 			     u32 portid, struct netlink_ext_ack *extack)
 {
 	struct in_ifaddr __rcu **last_primary, **ifap;
 	struct in_device *in_dev = ifa->ifa_dev;
+	struct net *net = dev_net(in_dev->dev);
 	struct in_validator_info ivi;
 	struct in_ifaddr *ifa1;
 	int ret;
@@ -563,8 +560,8 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 
 	inet_hash_insert(dev_net(in_dev->dev), ifa);
 
-	cancel_delayed_work(&check_lifetime_work);
-	queue_delayed_work(system_power_efficient_wq, &check_lifetime_work, 0);
+	cancel_delayed_work(&net->ipv4.addr_chk_work);
+	queue_delayed_work(system_power_efficient_wq, &net->ipv4.addr_chk_work, 0);
 
 	/* Send message first, then call notifier.
 	   Notifier will trigger FIB update, so that
@@ -710,16 +707,19 @@ static void check_lifetime(struct work_struct *work)
 	unsigned long now, next, next_sec, next_sched;
 	struct in_ifaddr *ifa;
 	struct hlist_node *n;
+	struct net *net;
 	int i;
 
+	net = container_of(to_delayed_work(work), struct net, ipv4.addr_chk_work);
 	now = jiffies;
 	next = round_jiffies_up(now + ADDR_CHECK_FREQUENCY);
 
 	for (i = 0; i < IN4_ADDR_HSIZE; i++) {
+		struct hlist_head *head = &net->ipv4.inet_addr_lst[i];
 		bool change_needed = false;
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(ifa, &inet_addr_lst[i], hash) {
+		hlist_for_each_entry_rcu(ifa, head, addr_lst) {
 			unsigned long age, tstamp;
 			u32 preferred_lft;
 			u32 valid_lft;
@@ -757,7 +757,7 @@ static void check_lifetime(struct work_struct *work)
 		if (!change_needed)
 			continue;
 		rtnl_lock();
-		hlist_for_each_entry_safe(ifa, n, &inet_addr_lst[i], hash) {
+		hlist_for_each_entry_safe(ifa, n, head, addr_lst) {
 			unsigned long age;
 
 			if (ifa->ifa_flags & IFA_F_PERMANENT)
@@ -806,8 +806,8 @@ static void check_lifetime(struct work_struct *work)
 	if (time_before(next_sched, now + ADDRCONF_TIMER_FUZZ_MAX))
 		next_sched = now + ADDRCONF_TIMER_FUZZ_MAX;
 
-	queue_delayed_work(system_power_efficient_wq, &check_lifetime_work,
-			next_sched - now);
+	queue_delayed_work(system_power_efficient_wq, &net->ipv4.addr_chk_work,
+			   next_sched - now);
 }
 
 static void set_ifa_lifetime(struct in_ifaddr *ifa, __u32 valid_lft,
@@ -1004,9 +1004,9 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		ifa->ifa_proto = new_proto;
 
 		set_ifa_lifetime(ifa, valid_lft, prefered_lft);
-		cancel_delayed_work(&check_lifetime_work);
+		cancel_delayed_work(&net->ipv4.addr_chk_work);
 		queue_delayed_work(system_power_efficient_wq,
-				&check_lifetime_work, 0);
+				   &net->ipv4.addr_chk_work, 0);
 		rtmsg_ifa(RTM_NEWADDR, ifa, nlh, NETLINK_CB(skb).portid);
 	}
 	return 0;
@@ -2743,6 +2743,8 @@ static __net_init int devinet_init_net(struct net *net)
 	for (i = 0; i < IN4_ADDR_HSIZE; i++)
 		INIT_HLIST_HEAD(&net->ipv4.inet_addr_lst[i]);
 
+	INIT_DEFERRABLE_WORK(&net->ipv4.addr_chk_work, check_lifetime);
+
 	net->ipv4.devconf_all = all;
 	net->ipv4.devconf_dflt = dflt;
 	return 0;
@@ -2769,7 +2771,11 @@ static __net_exit void devinet_exit_net(struct net *net)
 {
 #ifdef CONFIG_SYSCTL
 	const struct ctl_table *tbl;
+#endif
 
+	cancel_delayed_work_sync(&net->ipv4.addr_chk_work);
+
+#ifdef CONFIG_SYSCTL
 	tbl = net->ipv4.forw_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.forw_hdr);
 	__devinet_sysctl_unregister(net, net->ipv4.devconf_dflt,
@@ -2805,8 +2811,6 @@ void __init devinet_init(void)
 
 	register_pernet_subsys(&devinet_ops);
 	register_netdevice_notifier(&ip_netdev_notifier);
-
-	queue_delayed_work(system_power_efficient_wq, &check_lifetime_work, 0);
 
 	rtnl_af_register(&inet_af_ops);
 
