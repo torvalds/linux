@@ -1240,8 +1240,7 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow *parent)
 	layout2->addWidget(searchButton);
 	layout1->addLayout(layout2);
 
-	split = new QSplitter(this);
-	split->setOrientation(Qt::Vertical);
+	split = new QSplitter(Qt::Vertical, this);
 	list = new ConfigList(split, "search");
 	list->mode = listMode;
 	info = new ConfigInfoView(split, "search");
@@ -1344,15 +1343,13 @@ ConfigMainWindow::ConfigMainWindow(void)
 	QVBoxLayout *layout = new QVBoxLayout(widget);
 	setCentralWidget(widget);
 
-	split1 = new QSplitter(widget);
-	split1->setOrientation(Qt::Horizontal);
+	split1 = new QSplitter(Qt::Horizontal, widget);
 	split1->setChildrenCollapsible(false);
 
 	menuList = new ConfigList(widget, "menu");
 
-	split2 = new QSplitter(widget);
+	split2 = new QSplitter(Qt::Vertical, widget);
 	split2->setChildrenCollapsible(false);
-	split2->setOrientation(Qt::Vertical);
 
 	// create config tree
 	configList = new ConfigList(widget, "config");
