@@ -180,6 +180,15 @@ static int cmdq_pkt_append_command(struct cmdq_pkt *pkt,
 	return 0;
 }
 
+static int cmdq_pkt_mask(struct cmdq_pkt *pkt, u32 mask)
+{
+	struct cmdq_instruction inst = {
+		.op = CMDQ_CODE_MASK,
+		.mask = ~mask
+	};
+	return cmdq_pkt_append_command(pkt, inst);
+}
+
 int cmdq_pkt_write(struct cmdq_pkt *pkt, u8 subsys, u16 offset, u32 value)
 {
 	struct cmdq_instruction inst;
@@ -196,14 +205,11 @@ EXPORT_SYMBOL(cmdq_pkt_write);
 int cmdq_pkt_write_mask(struct cmdq_pkt *pkt, u8 subsys,
 			u16 offset, u32 value, u32 mask)
 {
-	struct cmdq_instruction inst = { {0} };
 	u16 offset_mask = offset;
 	int err;
 
 	if (mask != 0xffffffff) {
-		inst.op = CMDQ_CODE_MASK;
-		inst.mask = ~mask;
-		err = cmdq_pkt_append_command(pkt, inst);
+		err = cmdq_pkt_mask(pkt, mask);
 		if (err < 0)
 			return err;
 
@@ -251,9 +257,7 @@ int cmdq_pkt_write_s_mask(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
 	struct cmdq_instruction inst = {};
 	int err;
 
-	inst.op = CMDQ_CODE_MASK;
-	inst.mask = ~mask;
-	err = cmdq_pkt_append_command(pkt, inst);
+	err = cmdq_pkt_mask(pkt, mask);
 	if (err < 0)
 		return err;
 
@@ -288,9 +292,7 @@ int cmdq_pkt_write_s_mask_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
 	struct cmdq_instruction inst = {};
 	int err;
 
-	inst.op = CMDQ_CODE_MASK;
-	inst.mask = ~mask;
-	err = cmdq_pkt_append_command(pkt, inst);
+	err = cmdq_pkt_mask(pkt, mask);
 	if (err < 0)
 		return err;
 
@@ -409,12 +411,9 @@ EXPORT_SYMBOL(cmdq_pkt_poll);
 int cmdq_pkt_poll_mask(struct cmdq_pkt *pkt, u8 subsys,
 		       u16 offset, u32 value, u32 mask)
 {
-	struct cmdq_instruction inst = { {0} };
 	int err;
 
-	inst.op = CMDQ_CODE_MASK;
-	inst.mask = ~mask;
-	err = cmdq_pkt_append_command(pkt, inst);
+	err = cmdq_pkt_mask(pkt, mask);
 	if (err < 0)
 		return err;
 
@@ -436,9 +435,7 @@ int cmdq_pkt_poll_addr(struct cmdq_pkt *pkt, dma_addr_t addr, u32 value, u32 mas
 	 * which enables use_mask bit.
 	 */
 	if (mask != GENMASK(31, 0)) {
-		inst.op = CMDQ_CODE_MASK;
-		inst.mask = ~mask;
-		ret = cmdq_pkt_append_command(pkt, inst);
+		ret = cmdq_pkt_mask(pkt, mask);
 		if (ret < 0)
 			return ret;
 		use_mask = CMDQ_POLL_ENABLE_MASK;
