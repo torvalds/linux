@@ -35,35 +35,37 @@
  */
 
 /* Base controls */
-#define AXI_DAC_REG_CONFIG		0x0c
-#define	   AXI_DDS_DISABLE		BIT(6)
+#define AXI_DAC_CONFIG_REG			0x0c
+#define   AXI_DAC_CONFIG_DDS_DISABLE		BIT(6)
 
  /* DAC controls */
-#define AXI_DAC_REG_RSTN		0x0040
-#define   AXI_DAC_RSTN_CE_N		BIT(2)
-#define   AXI_DAC_RSTN_MMCM_RSTN	BIT(1)
-#define   AXI_DAC_RSTN_RSTN		BIT(0)
-#define AXI_DAC_REG_CNTRL_1		0x0044
-#define   AXI_DAC_SYNC			BIT(0)
-#define AXI_DAC_REG_CNTRL_2		0x0048
-#define	  ADI_DAC_R1_MODE		BIT(5)
-#define AXI_DAC_DRP_STATUS		0x0074
-#define   AXI_DAC_DRP_LOCKED		BIT(17)
+#define AXI_DAC_RSTN_REG			0x0040
+#define   AXI_DAC_RSTN_CE_N			BIT(2)
+#define   AXI_DAC_RSTN_MMCM_RSTN		BIT(1)
+#define   AXI_DAC_RSTN_RSTN			BIT(0)
+#define AXI_DAC_CNTRL_1_REG			0x0044
+#define   AXI_DAC_CNTRL_1_SYNC			BIT(0)
+#define AXI_DAC_CNTRL_2_REG			0x0048
+#define   ADI_DAC_CNTRL_2_R1_MODE		BIT(5)
+#define AXI_DAC_DRP_STATUS_REG			0x0074
+#define   AXI_DAC_DRP_STATUS_DRP_LOCKED		BIT(17)
+
 /* DAC Channel controls */
-#define AXI_DAC_REG_CHAN_CNTRL_1(c)	(0x0400 + (c) * 0x40)
-#define AXI_DAC_REG_CHAN_CNTRL_3(c)	(0x0408 + (c) * 0x40)
-#define   AXI_DAC_SCALE_SIGN		BIT(15)
-#define   AXI_DAC_SCALE_INT		BIT(14)
-#define   AXI_DAC_SCALE			GENMASK(14, 0)
-#define AXI_DAC_REG_CHAN_CNTRL_2(c)	(0x0404 + (c) * 0x40)
-#define AXI_DAC_REG_CHAN_CNTRL_4(c)	(0x040c + (c) * 0x40)
-#define   AXI_DAC_PHASE			GENMASK(31, 16)
-#define   AXI_DAC_FREQUENCY		GENMASK(15, 0)
-#define AXI_DAC_REG_CHAN_CNTRL_7(c)	(0x0418 + (c) * 0x40)
-#define   AXI_DAC_DATA_SEL		GENMASK(3, 0)
+#define AXI_DAC_CHAN_CNTRL_1_REG(c)		(0x0400 + (c) * 0x40)
+#define AXI_DAC_CHAN_CNTRL_3_REG(c)		(0x0408 + (c) * 0x40)
+#define   AXI_DAC_CHAN_CNTRL_3_SCALE_SIGN	BIT(15)
+#define   AXI_DAC_CHAN_CNTRL_3_SCALE_INT	BIT(14)
+#define   AXI_DAC_CHAN_CNTRL_3_SCALE		GENMASK(14, 0)
+#define AXI_DAC_CHAN_CNTRL_2_REG(c)		(0x0404 + (c) * 0x40)
+#define   AXI_DAC_CHAN_CNTRL_2_PHASE		GENMASK(31, 16)
+#define   AXI_DAC_CHAN_CNTRL_2_FREQUENCY	GENMASK(15, 0)
+#define AXI_DAC_CHAN_CNTRL_4_REG(c)		(0x040c + (c) * 0x40)
+#define AXI_DAC_CHAN_CNTRL_7_REG(c)		(0x0418 + (c) * 0x40)
+#define   AXI_DAC_CHAN_CNTRL_7_DATA_SEL		GENMASK(3, 0)
 
 /* 360 degrees in rad */
-#define AXI_DAC_2_PI_MEGA		6283190
+#define AXI_DAC_2_PI_MEGA			6283190
+
 enum {
 	AXI_DAC_DATA_INTERNAL_TONE,
 	AXI_DAC_DATA_DMA = 2,
@@ -89,7 +91,7 @@ static int axi_dac_enable(struct iio_backend *back)
 	int ret;
 
 	guard(mutex)(&st->lock);
-	ret = regmap_set_bits(st->regmap, AXI_DAC_REG_RSTN,
+	ret = regmap_set_bits(st->regmap, AXI_DAC_RSTN_REG,
 			      AXI_DAC_RSTN_MMCM_RSTN);
 	if (ret)
 		return ret;
@@ -98,12 +100,14 @@ static int axi_dac_enable(struct iio_backend *back)
 	 * designs really use it but if they don't we still get the lock bit
 	 * set. So let's do it all the time so the code is generic.
 	 */
-	ret = regmap_read_poll_timeout(st->regmap, AXI_DAC_DRP_STATUS, __val,
-				       __val & AXI_DAC_DRP_LOCKED, 100, 1000);
+	ret = regmap_read_poll_timeout(st->regmap, AXI_DAC_DRP_STATUS_REG,
+				       __val,
+				       __val & AXI_DAC_DRP_STATUS_DRP_LOCKED,
+				       100, 1000);
 	if (ret)
 		return ret;
 
-	return regmap_set_bits(st->regmap, AXI_DAC_REG_RSTN,
+	return regmap_set_bits(st->regmap, AXI_DAC_RSTN_REG,
 			       AXI_DAC_RSTN_RSTN | AXI_DAC_RSTN_MMCM_RSTN);
 }
 
@@ -112,7 +116,7 @@ static void axi_dac_disable(struct iio_backend *back)
 	struct axi_dac_state *st = iio_backend_get_priv(back);
 
 	guard(mutex)(&st->lock);
-	regmap_write(st->regmap, AXI_DAC_REG_RSTN, 0);
+	regmap_write(st->regmap, AXI_DAC_RSTN_REG, 0);
 }
 
 static struct iio_buffer *axi_dac_request_buffer(struct iio_backend *back,
@@ -155,15 +159,15 @@ static int __axi_dac_frequency_get(struct axi_dac_state *st, unsigned int chan,
 	}
 
 	if (tone_2)
-		reg = AXI_DAC_REG_CHAN_CNTRL_4(chan);
+		reg = AXI_DAC_CHAN_CNTRL_4_REG(chan);
 	else
-		reg = AXI_DAC_REG_CHAN_CNTRL_2(chan);
+		reg = AXI_DAC_CHAN_CNTRL_2_REG(chan);
 
 	ret = regmap_read(st->regmap, reg, &raw);
 	if (ret)
 		return ret;
 
-	raw = FIELD_GET(AXI_DAC_FREQUENCY, raw);
+	raw = FIELD_GET(AXI_DAC_CHAN_CNTRL_2_FREQUENCY, raw);
 	*freq = DIV_ROUND_CLOSEST_ULL(raw * st->dac_clk, BIT(16));
 
 	return 0;
@@ -194,17 +198,18 @@ static int axi_dac_scale_get(struct axi_dac_state *st,
 	u32 reg, raw;
 
 	if (tone_2)
-		reg = AXI_DAC_REG_CHAN_CNTRL_3(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_3_REG(chan->channel);
 	else
-		reg = AXI_DAC_REG_CHAN_CNTRL_1(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_1_REG(chan->channel);
 
 	ret = regmap_read(st->regmap, reg, &raw);
 	if (ret)
 		return ret;
 
-	sign = FIELD_GET(AXI_DAC_SCALE_SIGN, raw);
-	raw = FIELD_GET(AXI_DAC_SCALE, raw);
-	scale = DIV_ROUND_CLOSEST_ULL((u64)raw * MEGA, AXI_DAC_SCALE_INT);
+	sign = FIELD_GET(AXI_DAC_CHAN_CNTRL_3_SCALE_SIGN, raw);
+	raw = FIELD_GET(AXI_DAC_CHAN_CNTRL_3_SCALE, raw);
+	scale = DIV_ROUND_CLOSEST_ULL((u64)raw * MEGA,
+				      AXI_DAC_CHAN_CNTRL_3_SCALE_INT);
 
 	vals[0] = scale / MEGA;
 	vals[1] = scale % MEGA;
@@ -227,15 +232,15 @@ static int axi_dac_phase_get(struct axi_dac_state *st,
 	int ret, vals[2];
 
 	if (tone_2)
-		reg = AXI_DAC_REG_CHAN_CNTRL_4(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_4_REG(chan->channel);
 	else
-		reg = AXI_DAC_REG_CHAN_CNTRL_2(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_2_REG(chan->channel);
 
 	ret = regmap_read(st->regmap, reg, &raw);
 	if (ret)
 		return ret;
 
-	raw = FIELD_GET(AXI_DAC_PHASE, raw);
+	raw = FIELD_GET(AXI_DAC_CHAN_CNTRL_2_PHASE, raw);
 	phase = DIV_ROUND_CLOSEST_ULL((u64)raw * AXI_DAC_2_PI_MEGA, U16_MAX);
 
 	vals[0] = phase / MEGA;
@@ -260,18 +265,20 @@ static int __axi_dac_frequency_set(struct axi_dac_state *st, unsigned int chan,
 	}
 
 	if (tone_2)
-		reg = AXI_DAC_REG_CHAN_CNTRL_4(chan);
+		reg = AXI_DAC_CHAN_CNTRL_4_REG(chan);
 	else
-		reg = AXI_DAC_REG_CHAN_CNTRL_2(chan);
+		reg = AXI_DAC_CHAN_CNTRL_2_REG(chan);
 
 	raw = DIV64_U64_ROUND_CLOSEST((u64)freq * BIT(16), sample_rate);
 
-	ret = regmap_update_bits(st->regmap,  reg, AXI_DAC_FREQUENCY, raw);
+	ret = regmap_update_bits(st->regmap, reg,
+				 AXI_DAC_CHAN_CNTRL_2_FREQUENCY, raw);
 	if (ret)
 		return ret;
 
 	/* synchronize channels */
-	return regmap_set_bits(st->regmap, AXI_DAC_REG_CNTRL_1, AXI_DAC_SYNC);
+	return regmap_set_bits(st->regmap, AXI_DAC_CNTRL_1_REG,
+			       AXI_DAC_CNTRL_1_SYNC);
 }
 
 static int axi_dac_frequency_set(struct axi_dac_state *st,
@@ -312,16 +319,16 @@ static int axi_dac_scale_set(struct axi_dac_state *st,
 
 	/*  format is 1.1.14 (sign, integer and fractional bits) */
 	if (scale < 0) {
-		raw = FIELD_PREP(AXI_DAC_SCALE_SIGN, 1);
+		raw = FIELD_PREP(AXI_DAC_CHAN_CNTRL_3_SCALE_SIGN, 1);
 		scale *= -1;
 	}
 
-	raw |= div_u64((u64)scale * AXI_DAC_SCALE_INT, MEGA);
+	raw |= div_u64((u64)scale * AXI_DAC_CHAN_CNTRL_3_SCALE_INT, MEGA);
 
 	if (tone_2)
-		reg = AXI_DAC_REG_CHAN_CNTRL_3(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_3_REG(chan->channel);
 	else
-		reg = AXI_DAC_REG_CHAN_CNTRL_1(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_1_REG(chan->channel);
 
 	guard(mutex)(&st->lock);
 	ret = regmap_write(st->regmap, reg, raw);
@@ -329,7 +336,8 @@ static int axi_dac_scale_set(struct axi_dac_state *st,
 		return ret;
 
 	/* synchronize channels */
-	ret = regmap_set_bits(st->regmap, AXI_DAC_REG_CNTRL_1, AXI_DAC_SYNC);
+	ret = regmap_set_bits(st->regmap, AXI_DAC_CNTRL_1_REG,
+			      AXI_DAC_CNTRL_1_SYNC);
 	if (ret)
 		return ret;
 
@@ -355,18 +363,19 @@ static int axi_dac_phase_set(struct axi_dac_state *st,
 	raw = DIV_ROUND_CLOSEST_ULL((u64)phase * U16_MAX, AXI_DAC_2_PI_MEGA);
 
 	if (tone_2)
-		reg = AXI_DAC_REG_CHAN_CNTRL_4(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_4_REG(chan->channel);
 	else
-		reg = AXI_DAC_REG_CHAN_CNTRL_2(chan->channel);
+		reg = AXI_DAC_CHAN_CNTRL_2_REG(chan->channel);
 
 	guard(mutex)(&st->lock);
-	ret = regmap_update_bits(st->regmap, reg, AXI_DAC_PHASE,
-				 FIELD_PREP(AXI_DAC_PHASE, raw));
+	ret = regmap_update_bits(st->regmap, reg, AXI_DAC_CHAN_CNTRL_2_PHASE,
+				 FIELD_PREP(AXI_DAC_CHAN_CNTRL_2_PHASE, raw));
 	if (ret)
 		return ret;
 
 	/* synchronize channels */
-	ret = regmap_set_bits(st->regmap, AXI_DAC_REG_CNTRL_1, AXI_DAC_SYNC);
+	ret = regmap_set_bits(st->regmap, AXI_DAC_CNTRL_1_REG,
+			      AXI_DAC_CNTRL_1_SYNC);
 	if (ret)
 		return ret;
 
@@ -437,7 +446,7 @@ static int axi_dac_extend_chan(struct iio_backend *back,
 
 	if (chan->type != IIO_ALTVOLTAGE)
 		return -EINVAL;
-	if (st->reg_config & AXI_DDS_DISABLE)
+	if (st->reg_config & AXI_DAC_CONFIG_DDS_DISABLE)
 		/* nothing to extend */
 		return 0;
 
@@ -454,13 +463,14 @@ static int axi_dac_data_source_set(struct iio_backend *back, unsigned int chan,
 	switch (data) {
 	case IIO_BACKEND_INTERNAL_CONTINUOUS_WAVE:
 		return regmap_update_bits(st->regmap,
-					  AXI_DAC_REG_CHAN_CNTRL_7(chan),
-					  AXI_DAC_DATA_SEL,
+					  AXI_DAC_CHAN_CNTRL_7_REG(chan),
+					  AXI_DAC_CHAN_CNTRL_7_DATA_SEL,
 					  AXI_DAC_DATA_INTERNAL_TONE);
 	case IIO_BACKEND_EXTERNAL:
 		return regmap_update_bits(st->regmap,
-					  AXI_DAC_REG_CHAN_CNTRL_7(chan),
-					  AXI_DAC_DATA_SEL, AXI_DAC_DATA_DMA);
+					  AXI_DAC_CHAN_CNTRL_7_REG(chan),
+					  AXI_DAC_CHAN_CNTRL_7_DATA_SEL,
+					  AXI_DAC_DATA_DMA);
 	default:
 		return -EINVAL;
 	}
@@ -475,7 +485,7 @@ static int axi_dac_set_sample_rate(struct iio_backend *back, unsigned int chan,
 
 	if (!sample_rate)
 		return -EINVAL;
-	if (st->reg_config & AXI_DDS_DISABLE)
+	if (st->reg_config & AXI_DAC_CONFIG_DDS_DISABLE)
 		/* sample_rate has no meaning if DDS is disabled */
 		return 0;
 
@@ -580,7 +590,7 @@ static int axi_dac_probe(struct platform_device *pdev)
 	 * Force disable the core. Up to the frontend to enable us. And we can
 	 * still read/write registers...
 	 */
-	ret = regmap_write(st->regmap, AXI_DAC_REG_RSTN, 0);
+	ret = regmap_write(st->regmap, AXI_DAC_RSTN_REG, 0);
 	if (ret)
 		return ret;
 
@@ -601,7 +611,7 @@ static int axi_dac_probe(struct platform_device *pdev)
 	}
 
 	/* Let's get the core read only configuration */
-	ret = regmap_read(st->regmap, AXI_DAC_REG_CONFIG, &st->reg_config);
+	ret = regmap_read(st->regmap, AXI_DAC_CONFIG_REG, &st->reg_config);
 	if (ret)
 		return ret;
 
@@ -613,7 +623,8 @@ static int axi_dac_probe(struct platform_device *pdev)
 	 * want independent channels let's override the core's default value and
 	 * set the R1_MODE bit.
 	 */
-	ret = regmap_set_bits(st->regmap, AXI_DAC_REG_CNTRL_2, ADI_DAC_R1_MODE);
+	ret = regmap_set_bits(st->regmap, AXI_DAC_CNTRL_2_REG,
+			      ADI_DAC_CNTRL_2_R1_MODE);
 	if (ret)
 		return ret;
 
