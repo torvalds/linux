@@ -1091,8 +1091,8 @@ static void setup_irq(struct intel_engine_cs *engine)
 		engine->irq_enable = gen5_irq_enable;
 		engine->irq_disable = gen5_irq_disable;
 	} else {
-		engine->irq_enable = gen3_irq_enable;
-		engine->irq_disable = gen3_irq_disable;
+		engine->irq_enable = gen2_irq_enable;
+		engine->irq_disable = gen2_irq_disable;
 	}
 }
 
@@ -1143,7 +1143,7 @@ static void setup_common(struct intel_engine_cs *engine)
 	 * equivalent to our next initial bread so we can elide
 	 * engine->emit_init_breadcrumb().
 	 */
-	engine->emit_fini_breadcrumb = gen3_emit_breadcrumb;
+	engine->emit_fini_breadcrumb = gen2_emit_breadcrumb;
 	if (GRAPHICS_VER(i915) == 5)
 		engine->emit_fini_breadcrumb = gen5_emit_breadcrumb;
 
@@ -1156,7 +1156,7 @@ static void setup_common(struct intel_engine_cs *engine)
 	else if (IS_I830(i915) || IS_I845G(i915))
 		engine->emit_bb_start = i830_emit_bb_start;
 	else
-		engine->emit_bb_start = gen3_emit_bb_start;
+		engine->emit_bb_start = gen2_emit_bb_start;
 }
 
 static void setup_rcs(struct intel_engine_cs *engine)
