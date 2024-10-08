@@ -1336,6 +1336,8 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 	 * of packets the FW sent out, so we must reconnect.
 	 */
 	iwl_mvm_teardown_tdls_peers(mvm);
+
+	IWL_INFO(mvm, "restart completed\n");
 }
 
 void iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,
