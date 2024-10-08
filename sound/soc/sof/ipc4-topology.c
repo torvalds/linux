@@ -1305,11 +1305,8 @@ static int sof_ipc4_init_input_audio_fmt(struct snd_sof_dev *sdev,
 		channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
 		valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
 		if (params_rate(params) == rate && params_channels(params) == channels &&
-		    sample_valid_bits == valid_bits) {
-			dev_dbg(sdev->dev, "matched audio format index for %uHz, %ubit, %u channels: %d\n",
-				rate, valid_bits, channels, i);
+		    sample_valid_bits == valid_bits)
 			break;
-		}
 	}
 
 	if (i == pin_fmts_size) {
@@ -1326,7 +1323,14 @@ in_fmt:
 	/* set base_cfg ibs/obs */
 	base_config->ibs = pin_fmts[i].buffer_size;
 
-	dev_dbg(sdev->dev, "Init input audio formats for %s\n", swidget->widget->name);
+	if (single_format)
+		dev_dbg(sdev->dev, "Input audio format for %s:\n",
+			swidget->widget->name);
+	else
+		dev_dbg(sdev->dev,
+			"Input audio format (format index: %d) for %s:\n", i,
+			swidget->widget->name);
+
 	sof_ipc4_dbg_audio_format(sdev->dev, &pin_fmts[i], 1);
 
 	return i;
