@@ -122,6 +122,7 @@ filegroup(
         "android/abi_gki_aarch64_sony",
         "android/abi_gki_aarch64_sunxi",
         "android/abi_gki_aarch64_telechips",
+        "android/abi_gki_aarch64_transsion",
         "android/abi_gki_aarch64_tuxera",
         "android/abi_gki_aarch64_type_visibility",
         "android/abi_gki_aarch64_unisoc",
