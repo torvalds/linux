@@ -85,7 +85,7 @@ static int esw_qos_vport_config(struct mlx5_vport *vport,
 		return err;
 	}
 
-	trace_mlx5_esw_vport_qos_config(vport, bw_share, max_rate);
+	trace_mlx5_esw_vport_qos_config(dev, vport, bw_share, max_rate);
 
 	return 0;
 }
@@ -675,7 +675,7 @@ static int esw_qos_vport_enable(struct mlx5_vport *vport,
 		goto err_out;
 
 	vport->qos.enabled = true;
-	trace_mlx5_esw_vport_qos_create(vport, bw_share, max_rate);
+	trace_mlx5_esw_vport_qos_create(vport->dev, vport, bw_share, max_rate);
 
 	return 0;
 
@@ -707,7 +707,7 @@ void mlx5_esw_qos_vport_disable(struct mlx5_vport *vport)
 			 vport->vport, err);
 
 	memset(&vport->qos, 0, sizeof(vport->qos));
-	trace_mlx5_esw_vport_qos_destroy(vport);
+	trace_mlx5_esw_vport_qos_destroy(dev, vport);
 
 	esw_qos_put(esw);
 }

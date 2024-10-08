@@ -11,9 +11,9 @@
 #include "eswitch.h"
 
 TRACE_EVENT(mlx5_esw_vport_qos_destroy,
-	    TP_PROTO(const struct mlx5_vport *vport),
-	    TP_ARGS(vport),
-	    TP_STRUCT__entry(__string(devname, dev_name(vport->dev->device))
+	    TP_PROTO(const struct mlx5_core_dev *dev, const struct mlx5_vport *vport),
+	    TP_ARGS(dev, vport),
+	    TP_STRUCT__entry(__string(devname, dev_name(dev->device))
 			     __field(unsigned short, vport_id)
 			     __field(unsigned int,   sched_elem_ix)
 			     ),
@@ -27,9 +27,10 @@ TRACE_EVENT(mlx5_esw_vport_qos_destroy,
 );
 
 DECLARE_EVENT_CLASS(mlx5_esw_vport_qos_template,
-		    TP_PROTO(const struct mlx5_vport *vport, u32 bw_share, u32 max_rate),
-		    TP_ARGS(vport, bw_share, max_rate),
-		    TP_STRUCT__entry(__string(devname, dev_name(vport->dev->device))
+		    TP_PROTO(const struct mlx5_core_dev *dev, const struct mlx5_vport *vport,
+			     u32 bw_share, u32 max_rate),
+		    TP_ARGS(dev, vport, bw_share, max_rate),
+		    TP_STRUCT__entry(__string(devname, dev_name(dev->device))
 				     __field(unsigned short, vport_id)
 				     __field(unsigned int, sched_elem_ix)
 				     __field(unsigned int, bw_share)
@@ -50,13 +51,15 @@ DECLARE_EVENT_CLASS(mlx5_esw_vport_qos_template,
 );
 
 DEFINE_EVENT(mlx5_esw_vport_qos_template, mlx5_esw_vport_qos_create,
-	     TP_PROTO(const struct mlx5_vport *vport, u32 bw_share, u32 max_rate),
-	     TP_ARGS(vport, bw_share, max_rate)
+	     TP_PROTO(const struct mlx5_core_dev *dev, const struct mlx5_vport *vport,
+		      u32 bw_share, u32 max_rate),
+	     TP_ARGS(dev, vport, bw_share, max_rate)
 	     );
 
 DEFINE_EVENT(mlx5_esw_vport_qos_template, mlx5_esw_vport_qos_config,
-	     TP_PROTO(const struct mlx5_vport *vport, u32 bw_share, u32 max_rate),
-	     TP_ARGS(vport, bw_share, max_rate)
+	     TP_PROTO(const struct mlx5_core_dev *dev, const struct mlx5_vport *vport,
+		      u32 bw_share, u32 max_rate),
+	     TP_ARGS(dev, vport, bw_share, max_rate)
 	     );
 
 DECLARE_EVENT_CLASS(mlx5_esw_group_qos_template,
