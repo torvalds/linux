@@ -134,7 +134,7 @@ arm_kprobe_decode_insn(kprobe_opcode_t *addr, struct arch_specific_insn *asi)
 {
 	enum probe_insn decoded;
 	probe_opcode_t insn = le32_to_cpu(*addr);
-	probe_opcode_t *scan_end = NULL;
+	kprobe_opcode_t *scan_end = NULL;
 	unsigned long size = 0, offset = 0;
 	struct arch_probe_insn *api = &asi->api;
 

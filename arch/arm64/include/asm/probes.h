@@ -16,10 +16,10 @@ struct arch_probe_insn {
 	probes_handler_t *handler;
 };
 #ifdef CONFIG_KPROBES
-typedef u32 kprobe_opcode_t;
+typedef __le32 kprobe_opcode_t;
 struct arch_specific_insn {
 	struct arch_probe_insn api;
-	probe_opcode_t *xol_insn;
+	kprobe_opcode_t *xol_insn;
 	/* restore address after step xol */
 	unsigned long xol_restore;
 };

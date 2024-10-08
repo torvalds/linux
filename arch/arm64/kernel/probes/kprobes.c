@@ -64,7 +64,7 @@ static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 	 * the BRK exception handler, so it is unnecessary to generate
 	 * Contex-Synchronization-Event via ISB again.
 	 */
-	aarch64_insn_patch_text_nosync(addr, p->opcode);
+	aarch64_insn_patch_text_nosync(addr, le32_to_cpu(p->opcode));
 	aarch64_insn_patch_text_nosync(addr + 1, BRK64_OPCODE_KPROBES_SS);
 
 	/*
@@ -85,7 +85,7 @@ static void __kprobes arch_simulate_insn(struct kprobe *p, struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
 	if (p->ainsn.api.handler)
-		p->ainsn.api.handler((u32)p->opcode, (long)p->addr, regs);
+		p->ainsn.api.handler(le32_to_cpu(p->opcode), (long)p->addr, regs);
 
 	/* single step simulated, now go for post processing */
 	post_kprobe_handler(p, kcb, regs);
@@ -99,7 +99,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		return -EINVAL;
 
 	/* copy instruction */
-	p->opcode = le32_to_cpu(*p->addr);
+	p->opcode = *p->addr;
 
 	if (search_exception_tables(probe_addr))
 		return -EINVAL;
@@ -142,8 +142,9 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	void *addr = p->addr;
+	u32 insn = le32_to_cpu(p->opcode);
 
-	aarch64_insn_patch_text(&addr, &p->opcode, 1);
+	aarch64_insn_patch_text(&addr, &insn, 1);
 }
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
