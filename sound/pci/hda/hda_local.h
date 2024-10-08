@@ -292,6 +292,26 @@ struct hda_fixup {
 	} v;
 };
 
+/*
+ * extended form of snd_pci_quirk:
+ * for PCI SSID matching, use SND_PCI_QUIRK() like before;
+ * for codec SSID matching, use the new HDA_CODEC_QUIRK() instead
+ */
+struct hda_quirk {
+	unsigned short subvendor;	/* PCI subvendor ID */
+	unsigned short subdevice;	/* PCI subdevice ID */
+	unsigned short subdevice_mask;	/* bitmask to match */
+	bool match_codec_ssid;		/* match only with codec SSID */
+	int value;			/* value */
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+	const char *name;		/* name of the device (optional) */
+#endif
+};
+
+#define HDA_CODEC_QUIRK(vend, dev, xname, val) \
+	{ _SND_PCI_QUIRK_ID(vend, dev), .value = (val), .name = (xname),\
+			.match_codec_ssid = true }
+
 struct snd_hda_pin_quirk {
 	unsigned int codec;             /* Codec vendor/device ID */
 	unsigned short subvendor;	/* PCI subvendor ID */
@@ -351,7 +371,7 @@ void snd_hda_apply_fixup(struct hda_codec *codec, int action);
 void __snd_hda_apply_fixup(struct hda_codec *codec, int id, int action, int depth);
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
-			const struct snd_pci_quirk *quirk,
+			const struct hda_quirk *quirk,
 			const struct hda_fixup *fixlist);
 void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			    const struct snd_hda_pin_quirk *pin_quirk,
