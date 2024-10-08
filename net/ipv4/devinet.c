@@ -119,8 +119,6 @@ struct inet_fill_args {
 #define IN4_ADDR_HSIZE_SHIFT	8
 #define IN4_ADDR_HSIZE		(1U << IN4_ADDR_HSIZE_SHIFT)
 
-static struct hlist_head inet_addr_lst[IN4_ADDR_HSIZE];
-
 static u32 inet_addr_hash(const struct net *net, __be32 addr)
 {
 	u32 val = (__force u32) addr ^ net_hash_mix(net);
@@ -133,7 +131,6 @@ static void inet_hash_insert(struct net *net, struct in_ifaddr *ifa)
 	u32 hash = inet_addr_hash(net, ifa->ifa_local);
 
 	ASSERT_RTNL();
-	hlist_add_head_rcu(&ifa->hash, &inet_addr_lst[hash]);
 	hlist_add_head_rcu(&ifa->addr_lst, &net->ipv4.inet_addr_lst[hash]);
 }
 
@@ -141,7 +138,6 @@ static void inet_hash_remove(struct in_ifaddr *ifa)
 {
 	ASSERT_RTNL();
 	hlist_del_init_rcu(&ifa->addr_lst);
-	hlist_del_init_rcu(&ifa->hash);
 }
 
 /**
@@ -228,7 +224,6 @@ static struct in_ifaddr *inet_alloc_ifa(struct in_device *in_dev)
 	in_dev_hold(in_dev);
 	ifa->ifa_dev = in_dev;
 
-	INIT_HLIST_NODE(&ifa->hash);
 	INIT_HLIST_NODE(&ifa->addr_lst);
 
 	return ifa;
@@ -2804,11 +2799,6 @@ static struct rtnl_af_ops inet_af_ops __read_mostly = {
 
 void __init devinet_init(void)
 {
-	int i;
-
-	for (i = 0; i < IN4_ADDR_HSIZE; i++)
-		INIT_HLIST_HEAD(&inet_addr_lst[i]);
-
 	register_pernet_subsys(&devinet_ops);
 	register_netdevice_notifier(&ip_netdev_notifier);
 
