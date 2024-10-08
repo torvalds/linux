@@ -213,6 +213,7 @@ struct mlx5_vport {
 	struct mlx5_vport_info  info;
 
 	struct {
+		/* Initially false, set to true whenever any QoS features are used. */
 		bool enabled;
 		u32 esw_sched_elem_ix;
 		u32 min_rate;
@@ -362,14 +363,17 @@ struct mlx5_eswitch {
 	atomic64_t user_count;
 
 	struct {
-		u32             root_tsar_ix;
-		struct mlx5_esw_rate_group *group0;
-		struct list_head groups; /* Protected by esw->state_lock */
-
 		/* Protected by esw->state_lock.
 		 * Initially 0, meaning no QoS users and QoS is disabled.
 		 */
 		refcount_t refcnt;
+		u32 root_tsar_ix;
+		/* Contains all vports with QoS enabled but no explicit group.
+		 * Cannot be NULL if QoS is enabled, but may be a fake group
+		 * referencing the root TSAR if the esw doesn't support groups.
+		 */
+		struct mlx5_esw_rate_group *group0;
+		struct list_head groups; /* Protected by esw->state_lock */
 	} qos;
 
 	struct mlx5_esw_bridge_offloads *br_offloads;

@@ -113,7 +113,7 @@ static u32 esw_qos_calculate_group_min_rate_divider(struct mlx5_eswitch *esw,
 	/* If vports max min_rate divider is 0 but their group has bw_share
 	 * configured, then set bw_share for vports to minimal value.
 	 */
-	if (group && group->bw_share)
+	if (group->bw_share)
 		return 1;
 
 	/* A divider of 0 sets bw_share for all group vports to 0,
@@ -132,7 +132,7 @@ static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw)
 	 * This will correspond to fw_max_bw_share in the final bw_share calculation.
 	 */
 	list_for_each_entry(group, &esw->qos.groups, list) {
-		if (group->min_rate < max_guarantee)
+		if (group->min_rate < max_guarantee || group->tsar_ix == esw->qos.root_tsar_ix)
 			continue;
 		max_guarantee = group->min_rate;
 	}
@@ -188,6 +188,8 @@ static int esw_qos_normalize_min_rate(struct mlx5_eswitch *esw, struct netlink_e
 	int err;
 
 	list_for_each_entry(group, &esw->qos.groups, list) {
+		if (group->tsar_ix == esw->qos.root_tsar_ix)
+			continue;
 		bw_share = esw_qos_calc_bw_share(group->min_rate, divider, fw_max_bw_share);
 
 		if (bw_share == group->bw_share)
@@ -252,7 +254,7 @@ static int esw_qos_set_vport_max_rate(struct mlx5_eswitch *esw, struct mlx5_vpor
 		return 0;
 
 	/* Use parent group limit if new max rate is 0. */
-	if (vport->qos.group && !max_rate)
+	if (!max_rate)
 		act_max_rate = vport->qos.group->max_rate;
 
 	err = esw_qos_vport_config(esw, vport, act_max_rate, vport->qos.bw_share, extack);
@@ -348,19 +350,17 @@ static int esw_qos_vport_create_sched_element(struct mlx5_eswitch *esw,
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_esw_rate_group *group = vport->qos.group;
 	struct mlx5_core_dev *dev = esw->dev;
-	u32 parent_tsar_ix;
 	void *attr;
 	int err;
 
 	if (!esw_qos_element_type_supported(dev, SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT))
 		return -EOPNOTSUPP;
 
-	parent_tsar_ix = group ? group->tsar_ix : esw->qos.root_tsar_ix;
 	MLX5_SET(scheduling_context, sched_ctx, element_type,
 		 SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT);
 	attr = MLX5_ADDR_OF(scheduling_context, sched_ctx, element_attributes);
 	MLX5_SET(vport_element, attr, vport_number, vport->vport);
-	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, parent_tsar_ix);
+	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, group->tsar_ix);
 	MLX5_SET(scheduling_context, sched_ctx, max_average_bw, max_rate);
 	MLX5_SET(scheduling_context, sched_ctx, bw_share, bw_share);
 
@@ -605,12 +605,17 @@ static int esw_qos_create(struct mlx5_eswitch *esw, struct netlink_ext_ack *exta
 	INIT_LIST_HEAD(&esw->qos.groups);
 	if (MLX5_CAP_QOS(dev, log_esw_max_sched_depth)) {
 		esw->qos.group0 = __esw_qos_create_rate_group(esw, extack);
-		if (IS_ERR(esw->qos.group0)) {
-			esw_warn(dev, "E-Switch create rate group 0 failed (%ld)\n",
-				 PTR_ERR(esw->qos.group0));
-			err = PTR_ERR(esw->qos.group0);
-			goto err_group0;
-		}
+	} else {
+		/* The eswitch doesn't support scheduling groups.
+		 * Create a software-only group0 using the root TSAR to attach vport QoS to.
+		 */
+		if (!__esw_qos_alloc_rate_group(esw, esw->qos.root_tsar_ix))
+			esw->qos.group0 = ERR_PTR(-ENOMEM);
+	}
+	if (IS_ERR(esw->qos.group0)) {
+		err = PTR_ERR(esw->qos.group0);
+		esw_warn(dev, "E-Switch create rate group 0 failed (%d)\n", err);
+		goto err_group0;
 	}
 	refcount_set(&esw->qos.refcnt, 1);
 
@@ -628,8 +633,11 @@ static void esw_qos_destroy(struct mlx5_eswitch *esw)
 {
 	int err;
 
-	if (esw->qos.group0)
+	if (esw->qos.group0->tsar_ix != esw->qos.root_tsar_ix)
 		__esw_qos_destroy_rate_group(esw, esw->qos.group0, NULL);
+	else
+		__esw_qos_free_rate_group(esw->qos.group0);
+	esw->qos.group0 = NULL;
 
 	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
 						  SCHEDULING_HIERARCHY_E_SWITCH,
@@ -699,7 +707,7 @@ void mlx5_esw_qos_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vpo
 	lockdep_assert_held(&esw->state_lock);
 	if (!vport->qos.enabled)
 		return;
-	WARN(vport->qos.group && vport->qos.group != esw->qos.group0,
+	WARN(vport->qos.group != esw->qos.group0,
 	     "Disabling QoS on port before detaching it from group");
 
 	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
