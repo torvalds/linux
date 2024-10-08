@@ -224,7 +224,7 @@ static void vc4_hvs_lut_load(struct vc4_hvs *hvs,
 	if (!drm_dev_enter(drm, &idx))
 		return;
 
-	if (hvs->vc4->gen == VC4_GEN_4)
+	if (hvs->vc4->gen != VC4_GEN_4)
 		goto exit;
 
 	/* The LUT memory is laid out with each HVS channel in order,
