@@ -834,8 +834,7 @@ static inline bool system_supports_lpa2(void)
 
 static inline bool system_supports_poe(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_POE) &&
-		alternative_has_cap_unlikely(ARM64_HAS_S1POE);
+	return alternative_has_cap_unlikely(ARM64_HAS_S1POE);
 }
 
 int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
