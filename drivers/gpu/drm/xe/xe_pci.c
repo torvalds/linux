@@ -208,7 +208,7 @@ static const struct xe_media_desc media_xelpmp = {
 };
 
 static const struct xe_media_desc media_xe2 = {
-	.name = "Xe2_LPM / Xe2_HPM",
+	.name = "Xe2_LPM / Xe2_HPM / Xe3_LPM",
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
 		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0) |
@@ -356,6 +356,8 @@ static const struct gmdid_map graphics_ip_map[] = {
 	{ 1274, &graphics_xelpg },	/* Xe_LPG+ */
 	{ 2001, &graphics_xe2 },
 	{ 2004, &graphics_xe2 },
+	{ 3000, &graphics_xe2 },
+	{ 3001, &graphics_xe2 },
 };
 
 /* Map of GMD_ID values to media IP */
@@ -363,6 +365,7 @@ static const struct gmdid_map media_ip_map[] = {
 	{ 1300, &media_xelpmp },
 	{ 1301, &media_xe2 },
 	{ 2000, &media_xe2 },
+	{ 3000, &media_xe2 },
 };
 
 #define INTEL_VGA_DEVICE(id, info) {			\
