@@ -51,13 +51,16 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	return addr;
 }
 
-struct ftrace_regs {
+struct ftrace_regs;
+#define arch_ftrace_regs(fregs) ((struct __arch_ftrace_regs *)(fregs))
+
+struct __arch_ftrace_regs {
 	struct pt_regs regs;
 };
 
 static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *fregs)
 {
-	struct pt_regs *regs = &fregs->regs;
+	struct pt_regs *regs = &arch_ftrace_regs(fregs)->regs;
 
 	if (test_pt_regs_flag(regs, PIF_FTRACE_FULL_REGS))
 		return regs;
@@ -84,26 +87,26 @@ static __always_inline unsigned long fgraph_ret_regs_frame_pointer(struct fgraph
 static __always_inline unsigned long
 ftrace_regs_get_instruction_pointer(const struct ftrace_regs *fregs)
 {
-	return fregs->regs.psw.addr;
+	return arch_ftrace_regs(fregs)->regs.psw.addr;
 }
 
 static __always_inline void
 ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
 				    unsigned long ip)
 {
-	fregs->regs.psw.addr = ip;
+	arch_ftrace_regs(fregs)->regs.psw.addr = ip;
 }
 
 #define ftrace_regs_get_argument(fregs, n) \
-	regs_get_kernel_argument(&(fregs)->regs, n)
+	regs_get_kernel_argument(&arch_ftrace_regs(fregs)->regs, n)
 #define ftrace_regs_get_stack_pointer(fregs) \
-	kernel_stack_pointer(&(fregs)->regs)
+	kernel_stack_pointer(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_return_value(fregs) \
-	regs_return_value(&(fregs)->regs)
+	regs_return_value(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_set_return_value(fregs, ret) \
-	regs_set_return_value(&(fregs)->regs, ret)
+	regs_set_return_value(&arch_ftrace_regs(fregs)->regs, ret)
 #define ftrace_override_function_with_return(fregs) \
-	override_function_with_return(&(fregs)->regs)
+	override_function_with_return(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_query_register_offset(name) \
 	regs_query_register_offset(name)
 
@@ -117,7 +120,7 @@ ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
  */
 static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs, unsigned long addr)
 {
-	struct pt_regs *regs = &fregs->regs;
+	struct pt_regs *regs = &arch_ftrace_regs(fregs)->regs;
 	regs->orig_gpr2 = addr;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */

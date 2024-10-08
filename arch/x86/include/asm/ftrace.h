@@ -33,7 +33,10 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 }
 
 #ifdef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS
-struct ftrace_regs {
+struct ftrace_regs;
+#define arch_ftrace_regs(fregs) ((struct __arch_ftrace_regs *)(fregs))
+
+struct __arch_ftrace_regs {
 	struct pt_regs		regs;
 };
 
@@ -41,27 +44,27 @@ static __always_inline struct pt_regs *
 arch_ftrace_get_regs(struct ftrace_regs *fregs)
 {
 	/* Only when FL_SAVE_REGS is set, cs will be non zero */
-	if (!fregs->regs.cs)
+	if (!arch_ftrace_regs(fregs)->regs.cs)
 		return NULL;
-	return &fregs->regs;
+	return &arch_ftrace_regs(fregs)->regs;
 }
 
 #define ftrace_regs_set_instruction_pointer(fregs, _ip)	\
-	do { (fregs)->regs.ip = (_ip); } while (0)
+	do { arch_ftrace_regs(fregs)->regs.ip = (_ip); } while (0)
 
 #define ftrace_regs_get_instruction_pointer(fregs) \
-	((fregs)->regs.ip)
+	arch_ftrace_regs(fregs)->regs.ip)
 
 #define ftrace_regs_get_argument(fregs, n) \
-	regs_get_kernel_argument(&(fregs)->regs, n)
+	regs_get_kernel_argument(&arch_ftrace_regs(fregs)->regs, n)
 #define ftrace_regs_get_stack_pointer(fregs) \
-	kernel_stack_pointer(&(fregs)->regs)
+	kernel_stack_pointer(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_return_value(fregs) \
-	regs_return_value(&(fregs)->regs)
+	regs_return_value(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_set_return_value(fregs, ret) \
-	regs_set_return_value(&(fregs)->regs, ret)
+	regs_set_return_value(&arch_ftrace_regs(fregs)->regs, ret)
 #define ftrace_override_function_with_return(fregs) \
-	override_function_with_return(&(fregs)->regs)
+	override_function_with_return(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_query_register_offset(name) \
 	regs_query_register_offset(name)
 
@@ -88,7 +91,7 @@ __arch_ftrace_set_direct_caller(struct pt_regs *regs, unsigned long addr)
 	regs->orig_ax = addr;
 }
 #define arch_ftrace_set_direct_caller(fregs, addr) \
-	__arch_ftrace_set_direct_caller(&(fregs)->regs, addr)
+	__arch_ftrace_set_direct_caller(&arch_ftrace_regs(fregs)->regs, addr)
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
