@@ -23,6 +23,7 @@ imx8mp_hdmi_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 		       const struct drm_display_mode *mode)
 {
 	struct imx8mp_hdmi *hdmi = (struct imx8mp_hdmi *)data;
+	long round_rate;
 
 	if (mode->clock < 13500)
 		return MODE_CLOCK_LOW;
@@ -30,8 +31,14 @@ imx8mp_hdmi_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 	if (mode->clock > 297000)
 		return MODE_CLOCK_HIGH;
 
-	if (clk_round_rate(hdmi->pixclk, mode->clock * 1000) !=
-	    mode->clock * 1000)
+	round_rate = clk_round_rate(hdmi->pixclk, mode->clock * 1000);
+	/* imx8mp's pixel clock generator (fsl-samsung-hdmi) cannot generate
+	 * all possible frequencies, so allow some tolerance to support more
+	 * modes.
+	 * Allow 0.5% difference allowed in various standards (VESA, CEA861)
+	 * 0.5% = 5/1000 tolerance (mode->clock is 1/1000)
+	 */
+	if (abs(round_rate - mode->clock * 1000) > mode->clock * 5)
 		return MODE_CLOCK_RANGE;
 
 	/* We don't support double-clocked and Interlaced modes */
@@ -111,12 +118,12 @@ static void imx8mp_dw_hdmi_remove(struct platform_device *pdev)
 	dw_hdmi_remove(hdmi->dw_hdmi);
 }
 
-static int __maybe_unused imx8mp_dw_hdmi_pm_suspend(struct device *dev)
+static int imx8mp_dw_hdmi_pm_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int __maybe_unused imx8mp_dw_hdmi_pm_resume(struct device *dev)
+static int imx8mp_dw_hdmi_pm_resume(struct device *dev)
 {
 	struct imx8mp_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -126,8 +133,7 @@ static int __maybe_unused imx8mp_dw_hdmi_pm_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops imx8mp_dw_hdmi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx8mp_dw_hdmi_pm_suspend,
-				imx8mp_dw_hdmi_pm_resume)
+	SYSTEM_SLEEP_PM_OPS(imx8mp_dw_hdmi_pm_suspend, imx8mp_dw_hdmi_pm_resume)
 };
 
 static const struct of_device_id imx8mp_dw_hdmi_of_table[] = {
@@ -142,7 +148,7 @@ static struct platform_driver imx8mp_dw_hdmi_platform_driver = {
 	.driver		= {
 		.name	= "imx8mp-dw-hdmi-tx",
 		.of_match_table = imx8mp_dw_hdmi_of_table,
-		.pm = &imx8mp_dw_hdmi_pm_ops,
+		.pm = pm_ptr(&imx8mp_dw_hdmi_pm_ops),
 	},
 };
 

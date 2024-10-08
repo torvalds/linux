@@ -674,9 +674,10 @@ EXPORT_SYMBOL(drm_sched_stop);
  * drm_sched_start - recover jobs after a reset
  *
  * @sched: scheduler instance
+ * @errno: error to set on the pending fences
  *
  */
-void drm_sched_start(struct drm_gpu_scheduler *sched)
+void drm_sched_start(struct drm_gpu_scheduler *sched, int errno)
 {
 	struct drm_sched_job *s_job, *tmp;
 
@@ -691,13 +692,13 @@ void drm_sched_start(struct drm_gpu_scheduler *sched)
 		atomic_add(s_job->credits, &sched->credit_count);
 
 		if (!fence) {
-			drm_sched_job_done(s_job, -ECANCELED);
+			drm_sched_job_done(s_job, errno ?: -ECANCELED);
 			continue;
 		}
 
 		if (dma_fence_add_callback(fence, &s_job->cb,
 					   drm_sched_job_done_cb))
-			drm_sched_job_done(s_job, fence->error);
+			drm_sched_job_done(s_job, fence->error ?: errno);
 	}
 
 	drm_sched_start_timeout_unlocked(sched);

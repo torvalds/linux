@@ -574,6 +574,12 @@ int dma_fence_get_status(struct dma_fence *fence);
  * rather than success. This must be set before signaling (so that the value
  * is visible before any waiters on the signal callback are woken). This
  * helper exists to help catching erroneous setting of #dma_fence.error.
+ *
+ * Examples of error codes which drivers should use:
+ *
+ * * %-ENODATA	 This operation produced no data, no other operation affected.
+ * * %-ECANCELED All operations from the same context have been canceled.
+ * * %-ETIME	 Operation caused a timeout and potentially device reset.
  */
 static inline void dma_fence_set_error(struct dma_fence *fence,
 				       int error)
