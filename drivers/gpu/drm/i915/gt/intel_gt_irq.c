@@ -452,10 +452,10 @@ void gen8_gt_irq_reset(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
 
-	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(0));
-	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(1));
-	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(2));
-	gen3_irq_reset(uncore, GEN8_GT_IRQ_REGS(3));
+	gen2_irq_reset(uncore, GEN8_GT_IRQ_REGS(0));
+	gen2_irq_reset(uncore, GEN8_GT_IRQ_REGS(1));
+	gen2_irq_reset(uncore, GEN8_GT_IRQ_REGS(2));
+	gen2_irq_reset(uncore, GEN8_GT_IRQ_REGS(3));
 }
 
 void gen8_gt_irq_postinstall(struct intel_gt *gt)
@@ -476,14 +476,14 @@ void gen8_gt_irq_postinstall(struct intel_gt *gt)
 
 	gt->pm_ier = 0x0;
 	gt->pm_imr = ~gt->pm_ier;
-	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(0), ~gt_interrupts[0], gt_interrupts[0]);
-	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(1), ~gt_interrupts[1], gt_interrupts[1]);
+	gen2_irq_init(uncore, GEN8_GT_IRQ_REGS(0), ~gt_interrupts[0], gt_interrupts[0]);
+	gen2_irq_init(uncore, GEN8_GT_IRQ_REGS(1), ~gt_interrupts[1], gt_interrupts[1]);
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
 	 * is enabled/disabled. Same wil be the case for GuC interrupts.
 	 */
-	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(2), gt->pm_imr, gt->pm_ier);
-	gen3_irq_init(uncore, GEN8_GT_IRQ_REGS(3), ~gt_interrupts[3], gt_interrupts[3]);
+	gen2_irq_init(uncore, GEN8_GT_IRQ_REGS(2), gt->pm_imr, gt->pm_ier);
+	gen2_irq_init(uncore, GEN8_GT_IRQ_REGS(3), ~gt_interrupts[3], gt_interrupts[3]);
 }
 
 static void gen5_gt_update_irq(struct intel_gt *gt,
@@ -514,9 +514,9 @@ void gen5_gt_irq_reset(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
 
-	gen3_irq_reset(uncore, GT_IRQ_REGS);
+	gen2_irq_reset(uncore, GT_IRQ_REGS);
 	if (GRAPHICS_VER(gt->i915) >= 6)
-		gen3_irq_reset(uncore, GEN6_PM_IRQ_REGS);
+		gen2_irq_reset(uncore, GEN6_PM_IRQ_REGS);
 }
 
 void gen5_gt_irq_postinstall(struct intel_gt *gt)
@@ -538,7 +538,7 @@ void gen5_gt_irq_postinstall(struct intel_gt *gt)
 	else
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
 
-	gen3_irq_init(uncore, GT_IRQ_REGS, gt->gt_imr, gt_irqs);
+	gen2_irq_init(uncore, GT_IRQ_REGS, gt->gt_imr, gt_irqs);
 
 	if (GRAPHICS_VER(gt->i915) >= 6) {
 		/*
@@ -551,6 +551,6 @@ void gen5_gt_irq_postinstall(struct intel_gt *gt)
 		}
 
 		gt->pm_imr = 0xffffffff;
-		gen3_irq_init(uncore, GEN6_PM_IRQ_REGS, gt->pm_imr, pm_irqs);
+		gen2_irq_init(uncore, GEN6_PM_IRQ_REGS, gt->pm_imr, pm_irqs);
 	}
 }

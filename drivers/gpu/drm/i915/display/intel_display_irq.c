@@ -1496,7 +1496,7 @@ void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	gen3_irq_reset(uncore, VLV_IRQ_REGS);
+	gen2_irq_reset(uncore, VLV_IRQ_REGS);
 	dev_priv->irq_mask = ~0u;
 }
 
@@ -1539,7 +1539,7 @@ void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	dev_priv->irq_mask = ~enable_mask;
 
-	gen3_irq_init(uncore, VLV_IRQ_REGS, dev_priv->irq_mask, enable_mask);
+	gen2_irq_init(uncore, VLV_IRQ_REGS, dev_priv->irq_mask, enable_mask);
 }
 
 void gen8_display_irq_reset(struct drm_i915_private *dev_priv)
@@ -1556,10 +1556,10 @@ void gen8_display_irq_reset(struct drm_i915_private *dev_priv)
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
-			gen3_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
+			gen2_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
-	gen3_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
-	gen3_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
+	gen2_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
+	gen2_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
 }
 
 void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
@@ -1599,18 +1599,18 @@ void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
-			gen3_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
+			gen2_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
-	gen3_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
-	gen3_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
+	gen2_irq_reset(uncore, GEN8_DE_PORT_IRQ_REGS);
+	gen2_irq_reset(uncore, GEN8_DE_MISC_IRQ_REGS);
 
 	if (DISPLAY_VER(dev_priv) >= 14)
-		gen3_irq_reset(uncore, PICAINTERRUPT_IRQ_REGS);
+		gen2_irq_reset(uncore, PICAINTERRUPT_IRQ_REGS);
 	else
-		gen3_irq_reset(uncore, GEN11_DE_HPD_IRQ_REGS);
+		gen2_irq_reset(uncore, GEN11_DE_HPD_IRQ_REGS);
 
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		gen3_irq_reset(uncore, SDE_IRQ_REGS);
+		gen2_irq_reset(uncore, SDE_IRQ_REGS);
 }
 
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
@@ -1630,7 +1630,7 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 	}
 
 	for_each_pipe_masked(dev_priv, pipe, pipe_mask)
-		gen3_irq_init(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe),
+		gen2_irq_init(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe),
 			      dev_priv->display.irq.de_irq_mask[pipe],
 			      ~dev_priv->display.irq.de_irq_mask[pipe] | extra_ier);
 
@@ -1651,7 +1651,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 	}
 
 	for_each_pipe_masked(dev_priv, pipe, pipe_mask)
-		gen3_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
+		gen2_irq_reset(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -1685,7 +1685,7 @@ static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 	else
 		mask = SDE_GMBUS_CPT;
 
-	gen3_irq_init(uncore, SDE_IRQ_REGS, ~mask, 0xffffffff);
+	gen2_irq_init(uncore, SDE_IRQ_REGS, ~mask, 0xffffffff);
 }
 
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
@@ -1742,7 +1742,7 @@ void ilk_de_irq_postinstall(struct drm_i915_private *i915)
 	}
 
 	if (IS_HASWELL(i915)) {
-		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
+		gen2_assert_iir_is_zero(uncore, EDP_PSR_IIR);
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
 
@@ -1753,7 +1753,7 @@ void ilk_de_irq_postinstall(struct drm_i915_private *i915)
 
 	ibx_irq_postinstall(i915);
 
-	gen3_irq_init(uncore, DE_IRQ_REGS, i915->irq_mask,
+	gen2_irq_init(uncore, DE_IRQ_REGS, i915->irq_mask,
 		      display_mask | extra_mask);
 }
 
@@ -1827,11 +1827,11 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 			if (!intel_display_power_is_enabled(dev_priv, domain))
 				continue;
 
-			gen3_assert_iir_is_zero(uncore,
+			gen2_assert_iir_is_zero(uncore,
 						TRANS_PSR_IIR(dev_priv, trans));
 		}
 	} else {
-		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
+		gen2_assert_iir_is_zero(uncore, EDP_PSR_IIR);
 	}
 
 	for_each_pipe(dev_priv, pipe) {
@@ -1839,20 +1839,20 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
-			gen3_irq_init(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe),
+			gen2_irq_init(uncore, GEN8_DE_PIPE_IRQ_REGS(pipe),
 				      dev_priv->display.irq.de_irq_mask[pipe],
 				      de_pipe_enables);
 	}
 
-	gen3_irq_init(uncore, GEN8_DE_PORT_IRQ_REGS, ~de_port_masked, de_port_enables);
-	gen3_irq_init(uncore, GEN8_DE_MISC_IRQ_REGS, ~de_misc_masked, de_misc_masked);
+	gen2_irq_init(uncore, GEN8_DE_PORT_IRQ_REGS, ~de_port_masked, de_port_enables);
+	gen2_irq_init(uncore, GEN8_DE_MISC_IRQ_REGS, ~de_misc_masked, de_misc_masked);
 
 	if (IS_DISPLAY_VER(dev_priv, 11, 13)) {
 		u32 de_hpd_masked = 0;
 		u32 de_hpd_enables = GEN11_DE_TC_HOTPLUG_MASK |
 				     GEN11_DE_TBT_HOTPLUG_MASK;
 
-		gen3_irq_init(uncore, GEN11_DE_HPD_IRQ_REGS, ~de_hpd_masked,
+		gen2_irq_init(uncore, GEN11_DE_HPD_IRQ_REGS, ~de_hpd_masked,
 			      de_hpd_enables);
 	}
 }
@@ -1865,10 +1865,10 @@ static void mtp_irq_postinstall(struct drm_i915_private *i915)
 	u32 de_hpd_enables = de_hpd_mask | XELPDP_DP_ALT_HOTPLUG_MASK |
 			     XELPDP_TBT_HOTPLUG_MASK;
 
-	gen3_irq_init(uncore, PICAINTERRUPT_IRQ_REGS, ~de_hpd_mask,
+	gen2_irq_init(uncore, PICAINTERRUPT_IRQ_REGS, ~de_hpd_mask,
 		      de_hpd_enables);
 
-	gen3_irq_init(uncore, SDE_IRQ_REGS, ~sde_mask, 0xffffffff);
+	gen2_irq_init(uncore, SDE_IRQ_REGS, ~sde_mask, 0xffffffff);
 }
 
 static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -1876,7 +1876,7 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask = SDE_GMBUS_ICP;
 
-	gen3_irq_init(uncore, SDE_IRQ_REGS, ~mask, 0xffffffff);
+	gen2_irq_init(uncore, SDE_IRQ_REGS, ~mask, 0xffffffff);
 }
 
 void gen11_de_irq_postinstall(struct drm_i915_private *dev_priv)
