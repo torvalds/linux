@@ -357,6 +357,11 @@ Guidelines
   difference in execution characteristics between using a dedicated wq
   and a system wq.
 
+  Note: If something may generate more than @max_active outstanding
+  work items (do stress test your producers), it may saturate a system
+  wq and potentially lead to deadlock. It should utilize its own
+  dedicated workqueue rather than the system wq.
+
 * Unless work items are expected to consume a huge amount of CPU
   cycles, using a bound wq is usually beneficial due to the increased
   level of locality in wq operations and work item execution.
