@@ -1090,12 +1090,9 @@ static void setup_irq(struct intel_engine_cs *engine)
 	} else if (GRAPHICS_VER(i915) >= 5) {
 		engine->irq_enable = gen5_irq_enable;
 		engine->irq_disable = gen5_irq_disable;
-	} else if (GRAPHICS_VER(i915) >= 3) {
+	} else {
 		engine->irq_enable = gen3_irq_enable;
 		engine->irq_disable = gen3_irq_disable;
-	} else {
-		engine->irq_enable = gen2_irq_enable;
-		engine->irq_disable = gen2_irq_disable;
 	}
 }
 

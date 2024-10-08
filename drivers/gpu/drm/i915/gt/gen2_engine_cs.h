@@ -28,8 +28,6 @@ int gen4_emit_bb_start(struct i915_request *rq,
 		       u64 offset, u32 length,
 		       unsigned int dispatch_flags);
 
-void gen2_irq_enable(struct intel_engine_cs *engine);
-void gen2_irq_disable(struct intel_engine_cs *engine);
 void gen3_irq_enable(struct intel_engine_cs *engine);
 void gen3_irq_disable(struct intel_engine_cs *engine);
 void gen5_irq_enable(struct intel_engine_cs *engine);
