@@ -3371,6 +3371,23 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.debugfs_snapshot_regs = debugfs_snapshot_regs_v3_hw,
 };
 
+static int check_fw_info_v3_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+
+	if (hisi_hba->n_phy < 0 || hisi_hba->n_phy > 8) {
+		dev_err(dev, "invalid phy number from FW\n");
+		return -EINVAL;
+	}
+
+	if (hisi_hba->queue_count < 0 || hisi_hba->queue_count > 16) {
+		dev_err(dev, "invalid queue count from FW\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static struct Scsi_Host *
 hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 {
@@ -3399,6 +3416,9 @@ hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 		hisi_hba->prot_mask = prot_mask;
 
 	if (hisi_sas_get_fw_info(hisi_hba) < 0)
+		goto err_out;
+
+	if (check_fw_info_v3_hw(hisi_hba) < 0)
 		goto err_out;
 
 	if (experimental_iopoll_q_cnt < 0 ||

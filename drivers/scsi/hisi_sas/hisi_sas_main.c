@@ -2450,6 +2450,11 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	if (hisi_sas_get_fw_info(hisi_hba) < 0)
 		goto err_out;
 
+	if (hisi_hba->hw->fw_info_check) {
+		if (hisi_hba->hw->fw_info_check(hisi_hba))
+			goto err_out;
+	}
+
 	error = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (error) {
 		dev_err(dev, "No usable DMA addressing method\n");
