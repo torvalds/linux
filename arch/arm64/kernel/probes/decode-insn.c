@@ -73,7 +73,7 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
  *   INSN_GOOD_NO_SLOT If instruction is supported but doesn't use its slot.
  */
 enum probe_insn __kprobes
-arm_probe_decode_insn(probe_opcode_t insn, struct arch_probe_insn *api)
+arm_probe_decode_insn(u32 insn, struct arch_probe_insn *api)
 {
 	/*
 	 * Instructions reading or modifying the PC won't work from the XOL
@@ -133,7 +133,7 @@ enum probe_insn __kprobes
 arm_kprobe_decode_insn(kprobe_opcode_t *addr, struct arch_specific_insn *asi)
 {
 	enum probe_insn decoded;
-	probe_opcode_t insn = le32_to_cpu(*addr);
+	u32 insn = le32_to_cpu(*addr);
 	kprobe_opcode_t *scan_end = NULL;
 	unsigned long size = 0, offset = 0;
 	struct arch_probe_insn *api = &asi->api;

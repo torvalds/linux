@@ -9,7 +9,6 @@
 
 #include <asm/insn.h>
 
-typedef u32 probe_opcode_t;
 typedef void (probes_handler_t) (u32 opcode, long addr, struct pt_regs *);
 
 struct arch_probe_insn {
