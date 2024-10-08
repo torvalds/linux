@@ -100,6 +100,7 @@ struct mipid02_dev {
 	/* remote source */
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev *s_subdev;
+	u16 s_subdev_pad_id;
 	/* registers */
 	struct {
 		u8 clk_lane_reg1;
@@ -447,15 +448,19 @@ static int mipid02_configure_from_code(struct mipid02_dev *bridge,
 	return 0;
 }
 
-static int mipid02_stream_disable(struct mipid02_dev *bridge)
+static int mipid02_disable_streams(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state, u32 pad,
+				   u64 streams_mask)
 {
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
 	int ret = -EINVAL;
 
 	if (!bridge->s_subdev)
 		goto error;
 
-	ret = v4l2_subdev_call(bridge->s_subdev, video, s_stream, 0);
+	ret = v4l2_subdev_disable_streams(bridge->s_subdev,
+					  bridge->s_subdev_pad_id, BIT(0));
 	if (ret)
 		goto error;
 
@@ -472,10 +477,12 @@ error:
 	return ret;
 }
 
-static int mipid02_stream_enable(struct mipid02_dev *bridge)
+static int mipid02_enable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
-	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *fmt;
 	int ret = -EINVAL;
 
@@ -484,7 +491,6 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 
 	memset(&bridge->r, 0, sizeof(bridge->r));
 
-	state = v4l2_subdev_lock_and_get_active_state(&bridge->sd);
 	fmt = v4l2_subdev_state_get_format(state, MIPID02_SINK_0);
 
 	/* build registers content */
@@ -497,8 +503,6 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 	ret = mipid02_configure_from_code(bridge, fmt);
 	if (ret)
 		return ret;
-
-	v4l2_subdev_unlock_state(state);
 
 	/* write mipi registers */
 	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1,
@@ -524,7 +528,8 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 	if (ret)
 		goto error;
 
-	ret = v4l2_subdev_call(bridge->s_subdev, video, s_stream, 1);
+	ret = v4l2_subdev_enable_streams(bridge->s_subdev,
+					 bridge->s_subdev_pad_id, BIT(0));
 	if (ret)
 		goto error;
 
@@ -535,23 +540,6 @@ error:
 	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG1, 0, &ret);
 	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
 	dev_err(&client->dev, "failed to stream on %d", ret);
-
-	return ret;
-}
-
-static int mipid02_s_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct mipid02_dev *bridge = to_mipid02_dev(sd);
-	struct i2c_client *client = bridge->i2c_client;
-	int ret = 0;
-
-	dev_dbg(&client->dev, "%s : requested %d\n", __func__, enable);
-
-	ret = enable ? mipid02_stream_enable(bridge) :
-		       mipid02_stream_disable(bridge);
-	if (ret)
-		dev_err(&client->dev, "failed to stream %s (%d)\n",
-			enable ? "enable" : "disable", ret);
 
 	return ret;
 }
@@ -642,13 +630,15 @@ static int mipid02_set_fmt(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_video_ops mipid02_video_ops = {
-	.s_stream = mipid02_s_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops mipid02_pad_ops = {
 	.enum_mbus_code = mipid02_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = mipid02_set_fmt,
+	.enable_streams = mipid02_enable_streams,
+	.disable_streams = mipid02_disable_streams,
 };
 
 static const struct v4l2_subdev_ops mipid02_subdev_ops = {
@@ -694,6 +684,7 @@ static int mipid02_async_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	bridge->s_subdev = s_subdev;
+	bridge->s_subdev_pad_id = source_pad;
 
 	return 0;
 }
