@@ -2669,7 +2669,7 @@ EXPORT_SYMBOL(inode_set_ctime_current);
  * @inode:	inode to check
  * @vfsgid:	the new/current vfsgid of @inode
  *
- * Check wether @vfsgid is in the caller's group list or if the caller is
+ * Check whether @vfsgid is in the caller's group list or if the caller is
  * privileged with CAP_FSETID over @inode. This can be used to determine
  * whether the setgid bit can be kept or must be dropped.
  *
