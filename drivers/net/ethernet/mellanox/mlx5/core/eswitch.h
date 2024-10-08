@@ -220,6 +220,7 @@ struct mlx5_vport {
 		/* A computed value indicating relative min_rate between vports in a group. */
 		u32 bw_share;
 		struct mlx5_esw_rate_group *group;
+		struct list_head group_entry;
 	} qos;
 
 	u16 vport;
