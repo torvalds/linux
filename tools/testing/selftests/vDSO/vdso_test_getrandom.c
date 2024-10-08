@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sched.h>
 #include <signal.h>
 #include <sys/auxv.h>
 #include <sys/mman.h>
