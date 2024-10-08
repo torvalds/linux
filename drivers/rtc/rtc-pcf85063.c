@@ -586,6 +586,16 @@ static int pcf85063_probe(struct i2c_client *client)
 		return err;
 	}
 
+	ret = regmap_read(pcf85063->regmap, PCF85063_REG_SC, &tmp);
+	if (ret < 0)
+		return ret;
+
+	// cleat the OS Bit if it is set
+	if ((tmp & (1 << (8 - 1)))) {
+		tmp = tmp & (~(1 << (8 - 1)));
+		regmap_write(pcf85063->regmap, PCF85063_REG_SC, tmp);
+	}
+	
 	pcf85063->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(pcf85063->rtc))
 		return PTR_ERR(pcf85063->rtc);
