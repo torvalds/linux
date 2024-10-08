@@ -12,9 +12,14 @@
 #include "fbnic_netdev.h"
 #include "fbnic_txrx.h"
 
+enum {
+	FBNIC_XMIT_CB_TS	= 0x01,
+};
+
 struct fbnic_xmit_cb {
 	u32 bytecount;
 	u8 desc_count;
+	u8 flags;
 	int hw_head;
 };
 
@@ -150,10 +155,31 @@ static void fbnic_unmap_page_twd(struct device *dev, __le64 *twd)
 #define FBNIC_TWD_TYPE(_type) \
 	cpu_to_le64(FIELD_PREP(FBNIC_TWD_TYPE_MASK, FBNIC_TWD_TYPE_##_type))
 
+static bool fbnic_tx_tstamp(struct sk_buff *skb)
+{
+	struct fbnic_net *fbn;
+
+	if (!unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		return false;
+
+	fbn = netdev_priv(skb->dev);
+	if (fbn->hwtstamp_config.tx_type == HWTSTAMP_TX_OFF)
+		return false;
+
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+	FBNIC_XMIT_CB(skb)->flags |= FBNIC_XMIT_CB_TS;
+	FBNIC_XMIT_CB(skb)->hw_head = -1;
+
+	return true;
+}
+
 static bool
 fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 {
 	unsigned int l2len, i3len;
+
+	if (fbnic_tx_tstamp(skb))
+		*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_TS);
 
 	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL))
 		return false;
@@ -374,6 +400,12 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 		if (desc_cnt > clean_desc)
 			break;
 
+		if (unlikely(FBNIC_XMIT_CB(skb)->flags & FBNIC_XMIT_CB_TS)) {
+			FBNIC_XMIT_CB(skb)->hw_head = hw_head;
+			if (likely(!discard))
+				break;
+		}
+
 		ring->tx_buf[head] = NULL;
 
 		clean_desc -= desc_cnt;
@@ -427,6 +459,53 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 				 FBNIC_TX_DESC_WAKEUP);
 }
 
+static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
+			    struct fbnic_ring *ring,
+			    u64 tcd, int *ts_head, int *head0)
+{
+	struct skb_shared_hwtstamps hwtstamp;
+	struct fbnic_net *fbn;
+	struct sk_buff *skb;
+	int head;
+	u64 ns;
+
+	head = (*ts_head < 0) ? ring->head : *ts_head;
+
+	do {
+		unsigned int desc_cnt;
+
+		if (head == ring->tail) {
+			if (unlikely(net_ratelimit()))
+				netdev_err(nv->napi.dev,
+					   "Tx timestamp without matching packet\n");
+			return;
+		}
+
+		skb = ring->tx_buf[head];
+		desc_cnt = FBNIC_XMIT_CB(skb)->desc_count;
+
+		head += desc_cnt;
+		head &= ring->size_mask;
+	} while (!(FBNIC_XMIT_CB(skb)->flags & FBNIC_XMIT_CB_TS));
+
+	fbn = netdev_priv(nv->napi.dev);
+	ns = fbnic_ts40_to_ns(fbn, FIELD_GET(FBNIC_TCD_TYPE1_TS_MASK, tcd));
+
+	memset(&hwtstamp, 0, sizeof(hwtstamp));
+	hwtstamp.hwtstamp = ns_to_ktime(ns);
+
+	*ts_head = head;
+
+	FBNIC_XMIT_CB(skb)->flags &= ~FBNIC_XMIT_CB_TS;
+	if (*head0 < 0) {
+		head = FBNIC_XMIT_CB(skb)->hw_head;
+		if (head >= 0)
+			*head0 = head;
+	}
+
+	skb_tstamp_tx(skb, &hwtstamp);
+}
+
 static void fbnic_page_pool_init(struct fbnic_ring *ring, unsigned int idx,
 				 struct page *page)
 {
@@ -460,10 +539,12 @@ static void fbnic_page_pool_drain(struct fbnic_ring *ring, unsigned int idx,
 }
 
 static void fbnic_clean_twq(struct fbnic_napi_vector *nv, int napi_budget,
-			    struct fbnic_q_triad *qt, s32 head0)
+			    struct fbnic_q_triad *qt, s32 ts_head, s32 head0)
 {
 	if (head0 >= 0)
 		fbnic_clean_twq0(nv, napi_budget, &qt->sub0, false, head0);
+	else if (ts_head >= 0)
+		fbnic_clean_twq0(nv, napi_budget, &qt->sub0, false, ts_head);
 }
 
 static void
@@ -471,9 +552,9 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 		int napi_budget)
 {
 	struct fbnic_ring *cmpl = &qt->cmpl;
+	s32 head0 = -1, ts_head = -1;
 	__le64 *raw_tcd, done;
 	u32 head = cmpl->head;
-	s32 head0 = -1;
 
 	done = (head & (cmpl->size_mask + 1)) ? 0 : cpu_to_le64(FBNIC_TCD_DONE);
 	raw_tcd = &cmpl->desc[head & cmpl->size_mask];
@@ -496,6 +577,12 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 			 * they are skipped for now.
 			 */
 			break;
+		case FBNIC_TCD_TYPE_1:
+			if (WARN_ON_ONCE(tcd & FBNIC_TCD_TWQ1))
+				break;
+
+			fbnic_clean_tsq(nv, &qt->sub0, tcd, &ts_head, &head0);
+			break;
 		default:
 			break;
 		}
@@ -515,7 +602,7 @@ fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
 	}
 
 	/* Unmap and free processed buffers */
-	fbnic_clean_twq(nv, napi_budget, qt, head0);
+	fbnic_clean_twq(nv, napi_budget, qt, ts_head, head0);
 }
 
 static void fbnic_clean_bdq(struct fbnic_napi_vector *nv, int napi_budget,

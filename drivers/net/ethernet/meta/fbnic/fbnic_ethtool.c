@@ -16,8 +16,13 @@ fbnic_get_ts_info(struct net_device *netdev,
 
 	tsinfo->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |
+		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
 		SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	tsinfo->tx_types =
+		BIT(HWTSTAMP_TX_OFF) |
+		BIT(HWTSTAMP_TX_ON);
 
 	tsinfo->rx_filters =
 		BIT(HWTSTAMP_FILTER_NONE) |
