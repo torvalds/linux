@@ -1384,6 +1384,7 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 {
+	u32 new_state = hisi_hba->hw->get_phys_state(hisi_hba);
 	struct asd_sas_port *_sas_port = NULL;
 	int phy_no;
 
@@ -1397,7 +1398,7 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 			continue;
 
 		/* Report PHY state change to libsas */
-		if (state & BIT(phy_no)) {
+		if (new_state & BIT(phy_no)) {
 			if (do_port_check && sas_port && sas_port->port_dev) {
 				struct domain_device *dev = sas_port->port_dev;
 
@@ -1410,6 +1411,16 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 			}
 		} else {
 			hisi_sas_phy_down(hisi_hba, phy_no, 0, GFP_KERNEL);
+
+			/*
+			 * The new_state is not ready but old_state is ready,
+			 * the two possible causes:
+			 * 1. The connected device is removed
+			 * 2. Device exists but phyup timed out
+			 */
+			if (state & BIT(phy_no))
+				hisi_sas_notify_phy_event(phy,
+							  HISI_PHYE_LINK_RESET);
 		}
 	}
 }
