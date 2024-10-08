@@ -2630,10 +2630,10 @@ static __init int hisi_sas_init(void)
 
 static __exit void hisi_sas_exit(void)
 {
-	sas_release_transport(hisi_sas_stt);
-
 	if (hisi_sas_debugfs_enable)
 		debugfs_remove(hisi_sas_debugfs_dir);
+
+	sas_release_transport(hisi_sas_stt);
 }
 
 module_init(hisi_sas_init);
