@@ -801,7 +801,7 @@ xrep_bmap(
 {
 	struct xrep_bmap	*rb;
 	char			*descr;
-	unsigned int		max_bmbt_recs;
+	xfs_extnum_t		max_bmbt_recs;
 	bool			large_extcount;
 	int			error = 0;
 
