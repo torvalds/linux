@@ -46,4 +46,32 @@ config ARCH_MDM9615
 	bool "Enable support for MDM9615"
 	select CLKSRC_QCOM
 
+config ARCH_MDM9607
+	bool "Enable support for MDM9607"
+	select ARM_GIC
+	select CPU_V7
+	select REGULATOR
+	select REGULATOR_RPM_SMD
+	select HAVE_ARM_ARCH_TIMER
+	select MSM_RPM_SMD
+	select MEMORY_HOLE_CARVEOUT
+	select MSM_CORTEX_A7
+	select PINCTRL
+	select QCOM_GDSC
+	select USE_PINCTRL_IRQ
+	select MSM_IRQ
+	select MSM_PM if PM
+	select PM_DEVFREQ
+	select MSM_DEVFREQ_DEVBW
+	select MSM_BIMC_BWMON
+	select DEVFREQ_GOV_MSM_BW_HWMON
+	select HWSPINLOCK
+	select MTD_UBI
+	select HAVE_CLK_PREPARE
+	help
+	  Enable support for MDM9607.
+
+	  This enables support for MDM9607 SoC devicetree based systems.
+	  If you do not wish to build a kernel that runs on this
+	  chipset or if you are unsure, say 'N' here.
 endif
