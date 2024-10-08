@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
-#
+# S390 code only
 # s390/Makefile
 #
-# This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies.
-#
+# This file is included by the global makefile so that you can add your own architecture-specific flags and dependencies.
 # Copyright (C) 1994 by Linus Torvalds
 #
 

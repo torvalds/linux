@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Ext3 configs are here for backward compatibility with old configs which may
+# The Ext3 configs are here for backward compatibility with old configs which may
 # have EXT3_FS set but not EXT4_FS set and thus would result in non-bootable
 # kernels after the removal of ext3 driver.
 config EXT3_FS
@@ -91,7 +91,7 @@ config EXT4_FS_SECURITY
 	  labels in the ext4 filesystem.
 
 	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
+	  extended attributes for file security labels, say No.
 
 config EXT4_DEBUG
 	bool "Ext4 debugging support"
@@ -117,4 +117,4 @@ config EXT4_KUNIT_TESTS
 	  For more information on KUnit and unit tests in general please refer
 	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
-	  If unsure, say N.
+	  If unsure, say No.

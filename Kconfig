@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.rst.
-#
+# Do not mess with this file.
+# For a description of the syntax of this configuration file,see Documentation/kbuild/kconfig-language.rst.
+# This scirpt is to configure the Kernel.
 mainmenu "Linux/$(ARCH) $(KERNELVERSION) Kernel Configuration"
 
 source "scripts/Kconfig.include"
@@ -30,3 +29,5 @@ source "lib/Kconfig"
 source "lib/Kconfig.debug"
 
 source "Documentation/Kconfig"
+
+# Refer to kernal docs at https://docs.kernel.org/
