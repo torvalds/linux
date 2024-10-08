@@ -866,6 +866,7 @@ enum bq27xxx_dm_reg_id {
 	BQ27XXX_DM_DESIGN_CAPACITY = 0,
 	BQ27XXX_DM_DESIGN_ENERGY,
 	BQ27XXX_DM_TERMINATE_VOLTAGE,
+	BQ27XXX_DM_TAPER_RATE,
 };
 
 #define bq27000_dm_regs NULL
@@ -920,6 +921,7 @@ static struct bq27xxx_dm_reg bq27421_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 10, 2,    0,  8000 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 12, 2,    0, 32767 },
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
+	[BQ27XXX_DM_TAPER_RATE]        = { 82, 27, 2,    0,  2000 }, /* Taper rate */
 };
 
 static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
@@ -1058,10 +1060,11 @@ static const char * const bq27xxx_dm_reg_name[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY] = "design-capacity",
 	[BQ27XXX_DM_DESIGN_ENERGY] = "design-energy",
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = "terminate-voltage",
+	[BQ27XXX_DM_TAPER_RATE] = "Taper-rate",
 };
 
 
-static bool bq27xxx_dt_to_nvm = true;
+static bool bq27xxx_dt_to_nvm;
 module_param_named(dt_monitored_battery_updates_nvm, bq27xxx_dt_to_nvm, bool, 0444);
 MODULE_PARM_DESC(dt_monitored_battery_updates_nvm,
 	"Devicetree monitored-battery config updates data memory on NVM/flash chips.\n"
@@ -1390,7 +1393,8 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	BQ27XXX_MSLEEP(1);
 
-	ret = bq27xxx_write_block(di, BQ27XXX_DM_DATA, buf->data, BQ27XXX_DM_SZ);
+	ret = bq27xxx_write_block(di, BQ27XXX_DM_DATA, buf->data,
+				  (BQ27XXX_DM_SZ-1));
 	if (ret < 0)
 		goto out;
 
@@ -1431,6 +1435,7 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	struct bq27xxx_dm_buf bd = BQ27XXX_DM_BUF(di, BQ27XXX_DM_DESIGN_CAPACITY);
 	struct bq27xxx_dm_buf bt = BQ27XXX_DM_BUF(di, BQ27XXX_DM_TERMINATE_VOLTAGE);
 	bool updated;
+	u32 taper_rate, i;
 
 	if (bq27xxx_battery_unseal(di) < 0)
 		return;
@@ -1438,13 +1443,18 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	if (info->charge_full_design_uah != -EINVAL &&
 	    info->energy_full_design_uwh != -EINVAL) {
 		bq27xxx_battery_read_dm_block(di, &bd);
-		/* assume design energy & capacity are in same block */
+		taper_rate = (u32)((info->charge_full_design_uah * 10) /
+				   info->charge_term_current_ua);
+		/* assume design energy, taper_rate & capacity are in same block */
 		bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_CAPACITY,
 					info->charge_full_design_uah / 1000);
 		bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_ENERGY,
 					info->energy_full_design_uwh / 1000);
+		/* update Taper rate based on the capacity and term current*/
+		bq27xxx_battery_update_dm_block(di, &bd, BQ27XXX_DM_TAPER_RATE,
+						taper_rate);
 	}
 
 	if (info->voltage_min_design_uv != -EINVAL) {
@@ -1460,6 +1470,10 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	bq27xxx_battery_write_dm_block(di, &bd);
 	bq27xxx_battery_write_dm_block(di, &bt);
+
+	bq27xxx_battery_read_dm_block(di, &bd);
+	for (i = 0; i < BQ27XXX_DM_SZ; i++)
+		dev_dbg(di->dev, "BQ27xxx: DM_NVM[%d]: 0x%04x\n", i, bd.data[i]);
 
 	bq27xxx_battery_seal(di);
 

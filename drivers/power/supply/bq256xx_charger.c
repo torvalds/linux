@@ -1890,10 +1890,41 @@ static int bq256xx_resume(struct device *dev)
 	return 0;
 }
 
+static int bq256xx_restore(struct device *dev)
+{
+	int ret = 0;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bq256xx_device *bq = i2c_get_clientdata(client);
+
+	if (client->irq > 0) {
+		disable_irq_nosync(client->irq);
+		devm_free_irq(dev, client->irq, bq);
+		/*
+		 * Set extcon state depending upon USB connect/disconnect state
+		 * on hibernation exit
+		 */
+		bq256xx_irq_handler_thread(client->irq, bq);
+		ret = devm_request_threaded_irq(dev, client->irq, NULL,
+						bq256xx_irq_handler_thread,
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						dev_name(&client->dev), bq);
+		if (ret < 0) {
+			dev_err(dev, "get irq fail: %d\n", ret);
+			return ret;
+		}
+
+		enable_irq_wake(client->irq);
+	}
+
+	return ret;
+}
+
 static const struct dev_pm_ops  bq256xx_pm_ops = {
 	.suspend =  bq256xx_suspend,
 	.suspend_noirq = bq256xx_suspend_noirq,
 	.resume =  bq256xx_resume,
+	.restore = bq256xx_restore,
 };
 
 static struct i2c_driver bq256xx_driver = {
