@@ -215,9 +215,10 @@ struct mlx5_vport {
 	struct {
 		bool enabled;
 		u32 esw_sched_elem_ix;
-		u32 bw_share;
 		u32 min_rate;
 		u32 max_rate;
+		/* A computed value indicating relative min_rate between vports in a group. */
+		u32 bw_share;
 		struct mlx5_esw_rate_group *group;
 	} qos;
 
