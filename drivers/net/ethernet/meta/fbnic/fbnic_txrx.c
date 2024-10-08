@@ -385,7 +385,7 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 			     struct fbnic_ring *ring, bool discard,
 			     unsigned int hw_head)
 {
-	u64 total_bytes = 0, total_packets = 0;
+	u64 total_bytes = 0, total_packets = 0, ts_lost = 0;
 	unsigned int head = ring->head;
 	struct netdev_queue *txq;
 	unsigned int clean_desc;
@@ -404,6 +404,7 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 			FBNIC_XMIT_CB(skb)->hw_head = hw_head;
 			if (likely(!discard))
 				break;
+			ts_lost++;
 		}
 
 		ring->tx_buf[head] = NULL;
@@ -443,6 +444,7 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 	if (unlikely(discard)) {
 		u64_stats_update_begin(&ring->stats.syncp);
 		ring->stats.dropped += total_packets;
+		ring->stats.ts_lost += ts_lost;
 		u64_stats_update_end(&ring->stats.syncp);
 
 		netdev_tx_completed_queue(txq, total_packets, total_bytes);
@@ -504,6 +506,9 @@ static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
 	}
 
 	skb_tstamp_tx(skb, &hwtstamp);
+	u64_stats_update_begin(&ring->stats.syncp);
+	ring->stats.ts_packets++;
+	u64_stats_update_end(&ring->stats.syncp);
 }
 
 static void fbnic_page_pool_init(struct fbnic_ring *ring, unsigned int idx,
@@ -1060,6 +1065,8 @@ static void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 	fbn->tx_stats.bytes += stats->bytes;
 	fbn->tx_stats.packets += stats->packets;
 	fbn->tx_stats.dropped += stats->dropped;
+	fbn->tx_stats.ts_lost += stats->ts_lost;
+	fbn->tx_stats.ts_packets += stats->ts_packets;
 }
 
 static void fbnic_remove_tx_ring(struct fbnic_net *fbn,
