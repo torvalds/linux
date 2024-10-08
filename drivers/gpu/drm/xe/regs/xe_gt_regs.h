@@ -528,7 +528,7 @@
  *   [4-6]     RSVD
  *   [7]       Disabled
  */
-#define CCS_MODE				XE_REG(0x14804)
+#define CCS_MODE				XE_REG(0x14804, XE_REG_OPTION_MASKED)
 #define   CCS_MODE_CSLICE_0_3_MASK		REG_GENMASK(11, 0) /* 3 bits per cslice */
 #define   CCS_MODE_CSLICE_MASK			0x7 /* CCS0-3 + rsvd */
 #define   CCS_MODE_CSLICE_WIDTH			ilog2(CCS_MODE_CSLICE_MASK + 1)
