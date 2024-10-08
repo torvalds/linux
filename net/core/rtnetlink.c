@@ -179,6 +179,76 @@ bool lockdep_rtnl_is_held(void)
 EXPORT_SYMBOL(lockdep_rtnl_is_held);
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
+#ifdef CONFIG_DEBUG_NET_SMALL_RTNL
+void __rtnl_net_lock(struct net *net)
+{
+	ASSERT_RTNL();
+
+	mutex_lock(&net->rtnl_mutex);
+}
+EXPORT_SYMBOL(__rtnl_net_lock);
+
+void __rtnl_net_unlock(struct net *net)
+{
+	ASSERT_RTNL();
+
+	mutex_unlock(&net->rtnl_mutex);
+}
+EXPORT_SYMBOL(__rtnl_net_unlock);
+
+void rtnl_net_lock(struct net *net)
+{
+	rtnl_lock();
+	__rtnl_net_lock(net);
+}
+EXPORT_SYMBOL(rtnl_net_lock);
+
+void rtnl_net_unlock(struct net *net)
+{
+	__rtnl_net_unlock(net);
+	rtnl_unlock();
+}
+EXPORT_SYMBOL(rtnl_net_unlock);
+
+static int rtnl_net_cmp_locks(const struct net *net_a, const struct net *net_b)
+{
+	if (net_eq(net_a, net_b))
+		return 0;
+
+	/* always init_net first */
+	if (net_eq(net_a, &init_net))
+		return -1;
+
+	if (net_eq(net_b, &init_net))
+		return 1;
+
+	/* otherwise lock in ascending order */
+	return net_a < net_b ? -1 : 1;
+}
+
+int rtnl_net_lock_cmp_fn(const struct lockdep_map *a, const struct lockdep_map *b)
+{
+	const struct net *net_a, *net_b;
+
+	net_a = container_of(a, struct net, rtnl_mutex.dep_map);
+	net_b = container_of(b, struct net, rtnl_mutex.dep_map);
+
+	return rtnl_net_cmp_locks(net_a, net_b);
+}
+
+bool rtnl_net_is_locked(struct net *net)
+{
+	return rtnl_is_locked() && mutex_is_locked(&net->rtnl_mutex);
+}
+EXPORT_SYMBOL(rtnl_net_is_locked);
+
+bool lockdep_rtnl_net_is_held(struct net *net)
+{
+	return lockdep_rtnl_is_held() && lockdep_is_held(&net->rtnl_mutex);
+}
+EXPORT_SYMBOL(lockdep_rtnl_net_is_held);
+#endif
+
 static struct rtnl_link __rcu *__rcu *rtnl_msg_handlers[RTNL_FAMILY_MAX + 1];
 
 static inline int rtm_msgindex(int msgtype)

@@ -188,6 +188,10 @@ struct net {
 #if IS_ENABLED(CONFIG_SMC)
 	struct netns_smc	smc;
 #endif
+#ifdef CONFIG_DEBUG_NET_SMALL_RTNL
+	/* Move to a better place when the config guard is removed. */
+	struct mutex		rtnl_mutex;
+#endif
 } __randomize_layout;
 
 #include <linux/seq_file_net.h>
