@@ -2000,8 +2000,17 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	else
 		split = count/2;
 
+	if (WARN_ON_ONCE(split == 0)) {
+		/* Should never happen, but avoid out-of-bounds access below */
+		ext4_error_inode_block(dir, (*bh)->b_blocknr, 0,
+			"bad indexed directory? hash=%08x:%08x count=%d move=%u",
+			hinfo->hash, hinfo->minor_hash, count, move);
+		err = -EFSCORRUPTED;
+		goto out;
+	}
+
 	hash2 = map[split].hash;
-	continued = split > 0 ? hash2 == map[split - 1].hash : 0;
+	continued = hash2 == map[split - 1].hash;
 	dxtrace(printk(KERN_INFO "Split block %lu at %x, %i/%i\n",
 			(unsigned long)dx_get_block(frame->at),
 					hash2, split, count-split));
@@ -2043,10 +2052,11 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	return de;
 
 journal_error:
+	ext4_std_error(dir->i_sb, err);
+out:
 	brelse(*bh);
 	brelse(bh2);
 	*bh = NULL;
-	ext4_std_error(dir->i_sb, err);
 	return ERR_PTR(err);
 }
 
