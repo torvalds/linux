@@ -20,9 +20,72 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/close_range.h>
+#include <linux/file_ref.h>
 #include <net/sock.h>
 
 #include "internal.h"
+
+/**
+ * __file_ref_put - Slowpath of file_ref_put()
+ * @ref:	Pointer to the reference count
+ * @cnt:	Current reference count
+ *
+ * Invoked when the reference count is outside of the valid zone.
+ *
+ * Return:
+ *	True if this was the last reference with no future references
+ *	possible. This signals the caller that it can safely schedule the
+ *	object, which is protected by the reference counter, for
+ *	deconstruction.
+ *
+ *	False if there are still active references or the put() raced
+ *	with a concurrent get()/put() pair. Caller is not allowed to
+ *	deconstruct the protected object.
+ */
+bool __file_ref_put(file_ref_t *ref, unsigned long cnt)
+{
+	/* Did this drop the last reference? */
+	if (likely(cnt == FILE_REF_NOREF)) {
+		/*
+		 * Carefully try to set the reference count to FILE_REF_DEAD.
+		 *
+		 * This can fail if a concurrent get() operation has
+		 * elevated it again or the corresponding put() even marked
+		 * it dead already. Both are valid situations and do not
+		 * require a retry. If this fails the caller is not
+		 * allowed to deconstruct the object.
+		 */
+		if (!atomic_long_try_cmpxchg_release(&ref->refcnt, &cnt, FILE_REF_DEAD))
+			return false;
+
+		/*
+		 * The caller can safely schedule the object for
+		 * deconstruction. Provide acquire ordering.
+		 */
+		smp_acquire__after_ctrl_dep();
+		return true;
+	}
+
+	/*
+	 * If the reference count was already in the dead zone, then this
+	 * put() operation is imbalanced. Warn, put the reference count back to
+	 * DEAD and tell the caller to not deconstruct the object.
+	 */
+	if (WARN_ONCE(cnt >= FILE_REF_RELEASED, "imbalanced put on file reference count")) {
+		atomic_long_set(&ref->refcnt, FILE_REF_DEAD);
+		return false;
+	}
+
+	/*
+	 * This is a put() operation on a saturated refcount. Restore the
+	 * mean saturation value and tell the caller to not deconstruct the
+	 * object.
+	 */
+	if (cnt > FILE_REF_MAXREF)
+		atomic_long_set(&ref->refcnt, FILE_REF_SATURATED);
+	return false;
+}
+EXPORT_SYMBOL_GPL(__file_ref_put);
 
 unsigned int sysctl_nr_open __read_mostly = 1024*1024;
 unsigned int sysctl_nr_open_min = BITS_PER_LONG;
@@ -839,7 +902,7 @@ static struct file *__get_file_rcu(struct file __rcu **f)
 	if (!file)
 		return NULL;
 
-	if (unlikely(!atomic_long_inc_not_zero(&file->f_count)))
+	if (unlikely(!file_ref_get(&file->f_ref)))
 		return ERR_PTR(-EAGAIN);
 
 	file_reloaded = rcu_dereference_raw(*f);
@@ -853,8 +916,8 @@ static struct file *__get_file_rcu(struct file __rcu **f)
 	OPTIMIZER_HIDE_VAR(file_reloaded_cmp);
 
 	/*
-	 * atomic_long_inc_not_zero() above provided a full memory
-	 * barrier when we acquired a reference.
+	 * file_ref_get() above provided a full memory barrier when we
+	 * acquired a reference.
 	 *
 	 * This is paired with the write barrier from assigning to the
 	 * __rcu protected file pointer so that if that pointer still
@@ -952,11 +1015,11 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 * We need to confirm it by incrementing the refcount
 		 * and then check the lookup again.
 		 *
-		 * atomic_long_inc_not_zero() gives us a full memory
-		 * barrier. We only really need an 'acquire' one to
-		 * protect the loads below, but we don't have that.
+		 * file_ref_get() gives us a full memory barrier. We
+		 * only really need an 'acquire' one to protect the
+		 * loads below, but we don't have that.
 		 */
-		if (unlikely(!atomic_long_inc_not_zero(&file->f_count)))
+		if (unlikely(!file_ref_get(&file->f_ref)))
 			continue;
 
 		/*
