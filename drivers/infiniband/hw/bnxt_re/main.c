@@ -1880,12 +1880,14 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 op_type)
 		rdev->nb.notifier_call = NULL;
 		pr_err("%s: Cannot register to netdevice_notifier",
 		       ROCE_DRV_MODULE_NAME);
-		return rc;
+		goto re_dev_unreg;
 	}
 	bnxt_re_setup_cc(rdev, true);
 
 	return 0;
 
+re_dev_unreg:
+	ib_unregister_device(&rdev->ibdev);
 re_dev_uninit:
 	bnxt_re_update_en_info_rdev(NULL, en_info, adev);
 	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
@@ -2029,15 +2031,7 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 	auxiliary_set_drvdata(adev, en_info);
 
 	rc = bnxt_re_add_device(adev, BNXT_RE_COMPLETE_INIT);
-	if (rc)
-		goto err;
 	mutex_unlock(&bnxt_re_mutex);
-	return 0;
-
-err:
-	mutex_unlock(&bnxt_re_mutex);
-	bnxt_re_remove(adev);
-
 	return rc;
 }
 
