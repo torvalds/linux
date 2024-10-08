@@ -6,6 +6,16 @@
 #include "fbnic_netdev.h"
 #include "fbnic_tlv.h"
 
+static int
+fbnic_get_ts_info(struct net_device *netdev,
+		  struct kernel_ethtool_ts_info *tsinfo)
+{
+	tsinfo->so_timestamping =
+		SOF_TIMESTAMPING_TX_SOFTWARE;
+
+	return 0;
+}
+
 static void
 fbnic_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
@@ -66,6 +76,7 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 
 static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_drvinfo		= fbnic_get_drvinfo,
+	.get_ts_info		= fbnic_get_ts_info,
 	.get_eth_mac_stats	= fbnic_get_eth_mac_stats,
 };
 
