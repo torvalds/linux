@@ -2493,6 +2493,7 @@ static int complete_v3_hw(struct hisi_sas_cq *cq)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+	cond_resched();
 
 	return completed;
 }
