@@ -910,10 +910,14 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	struct hw_perf_event *hwc;
 	int err;
 
-	if (cpuhw->flags & PMU_F_ENABLED)
-		return;
-
-	if (cpuhw->flags & PMU_F_ERR_MASK)
+	/*
+	 * Event must be
+	 * - added/started on this CPU (PMU_F_IN_USE set)
+	 * - and CPU must be available (PMU_F_RESERVED set)
+	 * - and not already enabled (PMU_F_ENABLED not set)
+	 * - and not in error condition (PMU_F_ERR_MASK not set)
+	 */
+	if (cpuhw->flags != (PMU_F_IN_USE | PMU_F_RESERVED))
 		return;
 
 	/* Check whether to extent the sampling buffer.
@@ -927,19 +931,16 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	 * facility, but it can be fully re-enabled using sampling controls that
 	 * have been saved in cpumsf_pmu_disable().
 	 */
-	if (cpuhw->event) {
-		hwc = &cpuhw->event->hw;
-		if (!(SAMPL_DIAG_MODE(hwc))) {
-			/*
-			 * Account number of overflow-designated
-			 * buffer extents
-			 */
-			sfb_account_overflows(cpuhw, hwc);
-			extend_sampling_buffer(&cpuhw->sfb, hwc);
-		}
-		/* Rate may be adjusted with ioctl() */
-		cpuhw->lsctl.interval = SAMPL_RATE(hwc);
+	hwc = &cpuhw->event->hw;
+	if (!(SAMPL_DIAG_MODE(hwc))) {
+		/*
+		 * Account number of overflow-designated buffer extents
+		 */
+		sfb_account_overflows(cpuhw, hwc);
+		extend_sampling_buffer(&cpuhw->sfb, hwc);
 	}
+	/* Rate may be adjusted with ioctl() */
+	cpuhw->lsctl.interval = SAMPL_RATE(hwc);
 
 	/* (Re)enable the PMU and sampling facility */
 	err = lsctl(&cpuhw->lsctl);
@@ -1954,13 +1955,12 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 
 	/* Program alert request */
 	if (alert & CPU_MF_INT_SF_PRA) {
-		if (cpuhw->flags & PMU_F_IN_USE)
+		if (cpuhw->flags & PMU_F_IN_USE) {
 			if (SAMPL_DIAG_MODE(&cpuhw->event->hw))
 				hw_collect_aux(cpuhw);
 			else
 				hw_perf_event_update(cpuhw->event, 0);
-		else
-			WARN_ON_ONCE(!(cpuhw->flags & PMU_F_IN_USE));
+		}
 	}
 
 	/* Report measurement alerts only for non-PRA codes */
