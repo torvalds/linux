@@ -43,6 +43,46 @@ static void fbnic_ring_wr32(struct fbnic_ring *ring, unsigned int csr, u32 val)
 	writel(val, csr_base + csr);
 }
 
+/**
+ * fbnic_ts40_to_ns() - convert descriptor timestamp to PHC time
+ * @fbn: netdev priv of the FB NIC
+ * @ts40: timestamp read from a descriptor
+ *
+ * Return: u64 value of PHC time in nanoseconds
+ *
+ * Convert truncated 40 bit device timestamp as read from a descriptor
+ * to the full PHC time in nanoseconds.
+ */
+static __maybe_unused u64 fbnic_ts40_to_ns(struct fbnic_net *fbn, u64 ts40)
+{
+	unsigned int s;
+	u64 time_ns;
+	s64 offset;
+	u8 ts_top;
+	u32 high;
+
+	do {
+		s = u64_stats_fetch_begin(&fbn->time_seq);
+		offset = READ_ONCE(fbn->time_offset);
+	} while (u64_stats_fetch_retry(&fbn->time_seq, s));
+
+	high = READ_ONCE(fbn->time_high);
+
+	/* Bits 63..40 from periodic clock reads, 39..0 from ts40 */
+	time_ns = (u64)(high >> 8) << 40 | ts40;
+
+	/* Compare bits 32-39 between periodic reads and ts40,
+	 * see if HW clock may have wrapped since last read. We are sure
+	 * that periodic reads are always at least ~1 minute behind, so
+	 * this logic works perfectly fine.
+	 */
+	ts_top = ts40 >> 32;
+	if (ts_top < (u8)high && (u8)high - ts_top > U8_MAX / 2)
+		time_ns += 1ULL << 40;
+
+	return time_ns + offset;
+}
+
 static unsigned int fbnic_desc_unused(struct fbnic_ring *ring)
 {
 	return (ring->head - ring->tail - 1) & ring->size_mask;
@@ -710,6 +750,10 @@ static struct sk_buff *fbnic_build_skb(struct fbnic_napi_vector *nv,
 	/* Set MAC header specific fields */
 	skb->protocol = eth_type_trans(skb, nv->napi.dev);
 
+	/* Add timestamp if present */
+	if (pkt->hwtstamp)
+		skb_hwtstamps(skb)->hwtstamp = pkt->hwtstamp;
+
 	return skb;
 }
 
@@ -718,6 +762,23 @@ static enum pkt_hash_types fbnic_skb_hash_type(u64 rcd)
 	return (FBNIC_RCD_META_L4_TYPE_MASK & rcd) ? PKT_HASH_TYPE_L4 :
 	       (FBNIC_RCD_META_L3_TYPE_MASK & rcd) ? PKT_HASH_TYPE_L3 :
 						     PKT_HASH_TYPE_L2;
+}
+
+static void fbnic_rx_tstamp(struct fbnic_napi_vector *nv, u64 rcd,
+			    struct fbnic_pkt_buff *pkt)
+{
+	struct fbnic_net *fbn;
+	u64 ns, ts;
+
+	if (!FIELD_GET(FBNIC_RCD_OPT_META_TS, rcd))
+		return;
+
+	fbn = netdev_priv(nv->napi.dev);
+	ts = FIELD_GET(FBNIC_RCD_OPT_META_TS_MASK, rcd);
+	ns = fbnic_ts40_to_ns(fbn, ts);
+
+	/* Add timestamp to shared info */
+	pkt->hwtstamp = ns_to_ktime(ns);
 }
 
 static void fbnic_populate_skb_fields(struct fbnic_napi_vector *nv,
@@ -783,6 +844,8 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			/* Only type 0 is currently supported */
 			if (FIELD_GET(FBNIC_RCD_OPT_META_TYPE_MASK, rcd))
 				break;
+
+			fbnic_rx_tstamp(nv, rcd, pkt);
 
 			/* We currently ignore the action table index */
 			break;

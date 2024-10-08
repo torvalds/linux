@@ -54,6 +54,9 @@ struct fbnic_net {
 	struct fbnic_queue_stats rx_stats;
 	u64 link_down_events;
 
+	/* Time stampinn filter config */
+	struct kernel_hwtstamp_config hwtstamp_config;
+
 	struct list_head napis;
 };
 

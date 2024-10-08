@@ -10,8 +10,22 @@ static int
 fbnic_get_ts_info(struct net_device *netdev,
 		  struct kernel_ethtool_ts_info *tsinfo)
 {
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	tsinfo->phc_index = ptp_clock_index(fbn->fbd->ptp);
+
 	tsinfo->so_timestamping =
-		SOF_TIMESTAMPING_TX_SOFTWARE;
+		SOF_TIMESTAMPING_TX_SOFTWARE |
+		SOF_TIMESTAMPING_RX_HARDWARE |
+		SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	tsinfo->rx_filters =
+		BIT(HWTSTAMP_FILTER_NONE) |
+		BIT(HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
+		BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+		BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+		BIT(HWTSTAMP_FILTER_PTP_V2_EVENT) |
+		BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
 }
