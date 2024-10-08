@@ -15,14 +15,14 @@ TRACE_EVENT(mlx5_esw_vport_qos_destroy,
 	    TP_ARGS(vport),
 	    TP_STRUCT__entry(__string(devname, dev_name(vport->dev->device))
 			     __field(unsigned short, vport_id)
-			     __field(unsigned int,   tsar_ix)
+			     __field(unsigned int,   sched_elem_ix)
 			     ),
 	    TP_fast_assign(__assign_str(devname);
 		    __entry->vport_id = vport->vport;
-		    __entry->tsar_ix = vport->qos.esw_tsar_ix;
+		    __entry->sched_elem_ix = vport->qos.esw_sched_elem_ix;
 	    ),
-	    TP_printk("(%s) vport=%hu tsar_ix=%u\n",
-		      __get_str(devname), __entry->vport_id, __entry->tsar_ix
+	    TP_printk("(%s) vport=%hu sched_elem_ix=%u\n",
+		      __get_str(devname), __entry->vport_id, __entry->sched_elem_ix
 		      )
 );
 
@@ -31,20 +31,20 @@ DECLARE_EVENT_CLASS(mlx5_esw_vport_qos_template,
 		    TP_ARGS(vport, bw_share, max_rate),
 		    TP_STRUCT__entry(__string(devname, dev_name(vport->dev->device))
 				     __field(unsigned short, vport_id)
-				     __field(unsigned int, tsar_ix)
+				     __field(unsigned int, sched_elem_ix)
 				     __field(unsigned int, bw_share)
 				     __field(unsigned int, max_rate)
 				     __field(void *, group)
 				     ),
 		    TP_fast_assign(__assign_str(devname);
 			    __entry->vport_id = vport->vport;
-			    __entry->tsar_ix = vport->qos.esw_tsar_ix;
+			    __entry->sched_elem_ix = vport->qos.esw_sched_elem_ix;
 			    __entry->bw_share = bw_share;
 			    __entry->max_rate = max_rate;
 			    __entry->group = vport->qos.group;
 		    ),
-		    TP_printk("(%s) vport=%hu tsar_ix=%u bw_share=%u, max_rate=%u group=%p\n",
-			      __get_str(devname), __entry->vport_id, __entry->tsar_ix,
+		    TP_printk("(%s) vport=%hu sched_elem_ix=%u bw_share=%u, max_rate=%u group=%p\n",
+			      __get_str(devname), __entry->vport_id, __entry->sched_elem_ix,
 			      __entry->bw_share, __entry->max_rate, __entry->group
 			      )
 );

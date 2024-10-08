@@ -22,9 +22,10 @@ struct mlx5_esw_rate_group {
 	struct list_head list;
 };
 
-static int esw_qos_tsar_config(struct mlx5_core_dev *dev, u32 *sched_ctx,
-			       u32 tsar_ix, u32 max_rate, u32 bw_share)
+static int esw_qos_sched_elem_config(struct mlx5_core_dev *dev, u32 sched_elem_ix,
+				     u32 max_rate, u32 bw_share)
 {
+	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	u32 bitmask = 0;
 
 	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, esw_scheduling))
@@ -38,20 +39,17 @@ static int esw_qos_tsar_config(struct mlx5_core_dev *dev, u32 *sched_ctx,
 	return mlx5_modify_scheduling_element_cmd(dev,
 						  SCHEDULING_HIERARCHY_E_SWITCH,
 						  sched_ctx,
-						  tsar_ix,
+						  sched_elem_ix,
 						  bitmask);
 }
 
 static int esw_qos_group_config(struct mlx5_eswitch *esw, struct mlx5_esw_rate_group *group,
 				u32 max_rate, u32 bw_share, struct netlink_ext_ack *extack)
 {
-	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	int err;
 
-	err = esw_qos_tsar_config(dev, sched_ctx,
-				  group->tsar_ix,
-				  max_rate, bw_share);
+	err = esw_qos_sched_elem_config(dev, group->tsar_ix, max_rate, bw_share);
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify group TSAR element failed");
 
@@ -65,20 +63,18 @@ static int esw_qos_vport_config(struct mlx5_eswitch *esw,
 				u32 max_rate, u32 bw_share,
 				struct netlink_ext_ack *extack)
 {
-	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	int err;
 
 	if (!vport->qos.enabled)
 		return -EIO;
 
-	err = esw_qos_tsar_config(dev, sched_ctx, vport->qos.esw_tsar_ix,
-				  max_rate, bw_share);
+	err = esw_qos_sched_elem_config(dev, vport->qos.esw_sched_elem_ix, max_rate, bw_share);
 	if (err) {
 		esw_warn(esw->dev,
-			 "E-Switch modify TSAR vport element failed (vport=%d,err=%d)\n",
+			 "E-Switch modify vport scheduling element failed (vport=%d,err=%d)\n",
 			 vport->vport, err);
-		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify TSAR vport element failed");
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify vport scheduling element failed");
 		return err;
 	}
 
@@ -357,9 +353,10 @@ static int esw_qos_vport_create_sched_element(struct mlx5_eswitch *esw,
 	err = mlx5_create_scheduling_element_cmd(dev,
 						 SCHEDULING_HIERARCHY_E_SWITCH,
 						 sched_ctx,
-						 &vport->qos.esw_tsar_ix);
+						 &vport->qos.esw_sched_elem_ix);
 	if (err) {
-		esw_warn(esw->dev, "E-Switch create TSAR vport element failed (vport=%d,err=%d)\n",
+		esw_warn(vport->dev,
+			 "E-Switch create vport scheduling element failed (vport=%d,err=%d)\n",
 			 vport->vport, err);
 		return err;
 	}
@@ -378,9 +375,9 @@ static int esw_qos_update_group_scheduling_element(struct mlx5_eswitch *esw,
 
 	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
 						  SCHEDULING_HIERARCHY_E_SWITCH,
-						  vport->qos.esw_tsar_ix);
+						  vport->qos.esw_sched_elem_ix);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "E-Switch destroy TSAR vport element failed");
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch destroy vport scheduling element failed");
 		return err;
 	}
 
@@ -683,9 +680,9 @@ void mlx5_esw_qos_vport_disable(struct mlx5_eswitch *esw, struct mlx5_vport *vpo
 
 	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
 						  SCHEDULING_HIERARCHY_E_SWITCH,
-						  vport->qos.esw_tsar_ix);
+						  vport->qos.esw_sched_elem_ix);
 	if (err)
-		esw_warn(esw->dev, "E-Switch destroy TSAR vport element failed (vport=%d,err=%d)\n",
+		esw_warn(esw->dev, "E-Switch destroy vport scheduling element failed (vport=%d,err=%d)\n",
 			 vport->vport, err);
 
 	memset(&vport->qos, 0, sizeof(vport->qos));
@@ -809,7 +806,7 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 		err = mlx5_modify_scheduling_element_cmd(esw->dev,
 							 SCHEDULING_HIERARCHY_E_SWITCH,
 							 ctx,
-							 vport->qos.esw_tsar_ix,
+							 vport->qos.esw_sched_elem_ix,
 							 bitmask);
 	}
 	mutex_unlock(&esw->state_lock);

@@ -213,9 +213,9 @@ struct mlx5_vport {
 	struct mlx5_vport_info  info;
 
 	struct {
-		bool            enabled;
-		u32             esw_tsar_ix;
-		u32             bw_share;
+		bool enabled;
+		u32 esw_sched_elem_ix;
+		u32 bw_share;
 		u32 min_rate;
 		u32 max_rate;
 		struct mlx5_esw_rate_group *group;
