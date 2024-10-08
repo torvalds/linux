@@ -1553,6 +1553,25 @@ config SXR_TCSRCC_NEO
 	  NEO devices.
 	  Say Y if you want to support miscellaneous top-level clocks
 	  such as for the PHY references.
+
+config SXR_GCC_SERAPH
+	tristate "SERAPH Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on Qualcomm Technologies, Inc
+	  SERAPH devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
+config SXR_TCSRCC_SERAPH
+	tristate "Top-Level CSR Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the TCSR clock controller on Qualcomm Technologies, Inc
+	  SERAPH devices.
+	  Say Y if you want to support miscellaneous top-level clocks
+	  such as for the PHY references.
+
 endif
 
 config VIRTIO_CLK
