@@ -6,6 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
@@ -48,6 +49,16 @@ struct fbnic_dev {
 
 	/* Number of TCQs/RCQs available on hardware */
 	u16 max_num_queues;
+
+	/* Lock protecting writes to @time_high, @time_offset of fbnic_netdev,
+	 * and the HW time CSR machinery.
+	 */
+	spinlock_t time_lock;
+	/* Externally accessible PTP clock, may be NULL */
+	struct ptp_clock *ptp;
+	struct ptp_clock_info ptp_info;
+	/* Last @time_high refresh time in jiffies (to catch stalls) */
+	unsigned long last_read;
 
 	/* Local copy of hardware statistics */
 	struct fbnic_hw_stats hw_stats;
