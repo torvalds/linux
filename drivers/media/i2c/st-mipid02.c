@@ -14,6 +14,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <media/mipi-csi2.h>
@@ -249,8 +250,10 @@ static void mipid02_apply_reset(struct mipid02_dev *bridge)
 	usleep_range(5000, 10000);
 }
 
-static int mipid02_set_power_on(struct mipid02_dev *bridge)
+static int mipid02_set_power_on(struct device *dev)
 {
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
 	int ret;
 
@@ -283,10 +286,15 @@ xclk_off:
 	return ret;
 }
 
-static void mipid02_set_power_off(struct mipid02_dev *bridge)
+static int mipid02_set_power_off(struct device *dev)
 {
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
+
 	regulator_bulk_disable(MIPID02_NUM_SUPPLIES, bridge->supplies);
 	clk_disable_unprepare(bridge->xclk);
+
+	return 0;
 }
 
 static int mipid02_detect(struct mipid02_dev *bridge)
@@ -470,6 +478,10 @@ static int mipid02_disable_streams(struct v4l2_subdev *sd,
 	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
 	if (ret)
 		goto error;
+
+	pm_runtime_mark_last_busy(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
+
 error:
 	if (ret)
 		dev_err(&client->dev, "failed to stream off %d", ret);
@@ -502,6 +514,10 @@ static int mipid02_enable_streams(struct v4l2_subdev *sd,
 		return ret;
 	ret = mipid02_configure_from_code(bridge, fmt);
 	if (ret)
+		return ret;
+
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret < 0)
 		return ret;
 
 	/* write mipi registers */
@@ -539,8 +555,9 @@ error:
 	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1, 0, &ret);
 	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG1, 0, &ret);
 	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
-	dev_err(&client->dev, "failed to stream on %d", ret);
 
+	pm_runtime_mark_last_busy(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 	return ret;
 }
 
@@ -868,7 +885,7 @@ static int mipid02_probe(struct i2c_client *client)
 	}
 
 	/* enable clock, power and reset device if available */
-	ret = mipid02_set_power_on(bridge);
+	ret = mipid02_set_power_on(&client->dev);
 	if (ret)
 		goto entity_cleanup;
 
@@ -890,6 +907,15 @@ static int mipid02_probe(struct i2c_client *client)
 		goto power_off;
 	}
 
+	/* Enable runtime PM and turn off the device */
+	pm_runtime_set_active(dev);
+	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_enable(dev);
+
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
+
 	ret = v4l2_async_register_subdev(&bridge->sd);
 	if (ret < 0) {
 		dev_err(&client->dev, "v4l2_async_register_subdev failed %d",
@@ -904,8 +930,10 @@ static int mipid02_probe(struct i2c_client *client)
 unregister_notifier:
 	v4l2_async_nf_unregister(&bridge->notifier);
 	v4l2_async_nf_cleanup(&bridge->notifier);
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 power_off:
-	mipid02_set_power_off(bridge);
+	mipid02_set_power_off(&client->dev);
 entity_cleanup:
 	media_entity_cleanup(&bridge->sd.entity);
 
@@ -920,7 +948,11 @@ static void mipid02_remove(struct i2c_client *client)
 	v4l2_async_nf_unregister(&bridge->notifier);
 	v4l2_async_nf_cleanup(&bridge->notifier);
 	v4l2_async_unregister_subdev(&bridge->sd);
-	mipid02_set_power_off(bridge);
+
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		mipid02_set_power_off(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	media_entity_cleanup(&bridge->sd.entity);
 }
 
@@ -930,10 +962,15 @@ static const struct of_device_id mipid02_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mipid02_dt_ids);
 
+static const struct dev_pm_ops mipid02_pm_ops = {
+	RUNTIME_PM_OPS(mipid02_set_power_off, mipid02_set_power_on, NULL)
+};
+
 static struct i2c_driver mipid02_i2c_driver = {
 	.driver = {
 		.name  = "st-mipid02",
 		.of_match_table = mipid02_dt_ids,
+		.pm = pm_ptr(&mipid02_pm_ops),
 	},
 	.probe = mipid02_probe,
 	.remove = mipid02_remove,
