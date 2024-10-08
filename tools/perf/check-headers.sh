@@ -136,6 +136,30 @@ beauty_check () {
   check_2 "tools/perf/trace/beauty/$file" "$file" "$@"
 }
 
+check_ignore_some_hunks () {
+  orig_file="$1"
+  tools_file="tools/$orig_file"
+  hunks_to_ignore="tools/perf/check-header_ignore_hunks/$orig_file"
+
+  if [ ! -f "$hunks_to_ignore" ]; then
+    echo "$hunks_to_ignore not found. Skipping $orig_file check."
+    FAILURES+=(
+      "$tools_file $orig_file"
+    )
+    return
+  fi
+
+  cmd="diff -u \"$tools_file\" \"$orig_file\" | grep -vf \"$hunks_to_ignore\" | wc -l | grep -qw 0"
+
+  if [ -f "$orig_file" ] && ! eval "$cmd"
+  then
+    FAILURES+=(
+      "$tools_file $orig_file"
+    )
+  fi
+}
+
+
 # Check if we have the kernel headers (tools/perf/../../include), else
 # we're probably on a detached tarball, so no point in trying to check
 # differences.
@@ -169,7 +193,6 @@ check include/uapi/linux/mman.h       '-I "^#include <\(uapi/\)*asm/mman.h>"'
 check include/linux/build_bug.h       '-I "^#\(ifndef\|endif\)\( \/\/\)* static_assert$"'
 check include/linux/ctype.h	      '-I "isdigit("'
 check lib/ctype.c		      '-I "^EXPORT_SYMBOL" -I "^#include <linux/export.h>" -B'
-check lib/list_sort.c		      '-I "^#include <linux/bug.h>"'
 
 # diff non-symmetric files
 check_2 tools/perf/arch/x86/entry/syscalls/syscall_32.tbl arch/x86/entry/syscalls/syscall_32.tbl
@@ -186,6 +209,10 @@ done
 # check duplicated library files
 check_2 tools/perf/util/hashmap.h tools/lib/bpf/hashmap.h
 check_2 tools/perf/util/hashmap.c tools/lib/bpf/hashmap.c
+
+# Files with larger differences
+
+check_ignore_some_hunks lib/list_sort.c
 
 cd tools/perf || exit
 
