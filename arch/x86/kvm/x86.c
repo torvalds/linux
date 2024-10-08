@@ -10606,11 +10606,11 @@ void __kvm_set_or_clear_apicv_inhibit(struct kvm *kvm,
 	if (!!old != !!new) {
 		/*
 		 * Kick all vCPUs before setting apicv_inhibit_reasons to avoid
-		 * false positives in the sanity check WARN in svm_vcpu_run().
+		 * false positives in the sanity check WARN in vcpu_enter_guest().
 		 * This task will wait for all vCPUs to ack the kick IRQ before
 		 * updating apicv_inhibit_reasons, and all other vCPUs will
 		 * block on acquiring apicv_update_lock so that vCPUs can't
-		 * redo svm_vcpu_run() without seeing the new inhibit state.
+		 * redo vcpu_enter_guest() without seeing the new inhibit state.
 		 *
 		 * Note, holding apicv_update_lock and taking it in the read
 		 * side (handling the request) also prevents other vCPUs from
