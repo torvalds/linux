@@ -139,9 +139,10 @@ ccs_mode_store(struct device *kdev, struct device_attribute *attr,
 	}
 
 	/* CCS mode can only be updated when there are no drm clients */
-	spin_lock(&xe->clients.lock);
-	if (xe->clients.count) {
-		spin_unlock(&xe->clients.lock);
+	mutex_lock(&xe->drm.filelist_mutex);
+	if (!list_empty(&xe->drm.filelist)) {
+		mutex_unlock(&xe->drm.filelist_mutex);
+		xe_gt_dbg(gt, "Rejecting compute mode change as there are active drm clients\n");
 		return -EBUSY;
 	}
 
@@ -152,7 +153,7 @@ ccs_mode_store(struct device *kdev, struct device_attribute *attr,
 		xe_gt_reset_async(gt);
 	}
 
-	spin_unlock(&xe->clients.lock);
+	mutex_unlock(&xe->drm.filelist_mutex);
 
 	return count;
 }
