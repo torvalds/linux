@@ -267,7 +267,8 @@ struct gdma_event {
 struct gdma_queue;
 
 struct mana_eq {
-	struct gdma_queue *eq;
+	struct gdma_queue	*eq;
+	struct dentry		*mana_eq_debugfs;
 };
 
 typedef void gdma_eq_callback(void *context, struct gdma_queue *q,
@@ -365,6 +366,7 @@ struct gdma_irq_context {
 
 struct gdma_context {
 	struct device		*dev;
+	struct dentry		*mana_pci_debugfs;
 
 	/* Per-vPort max number of queues */
 	unsigned int		max_num_queues;
@@ -878,5 +880,7 @@ int mana_gd_send_request(struct gdma_context *gc, u32 req_len, const void *req,
 			 u32 resp_len, void *resp);
 
 int mana_gd_destroy_dma_region(struct gdma_context *gc, u64 dma_region_handle);
+void mana_register_debugfs(void);
+void mana_unregister_debugfs(void);
 
 #endif /* _GDMA_H */
