@@ -5205,15 +5205,20 @@ static ssize_t s3_debug_store(struct device *device,
 	int s3_state;
 	struct drm_device *drm_dev = dev_get_drvdata(device);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
+	struct amdgpu_ip_block *ip_block;
+
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_DCE);
+	if (!ip_block)
+		return -EINVAL;
 
 	ret = kstrtoint(buf, 0, &s3_state);
 
 	if (ret == 0) {
 		if (s3_state) {
-			dm_resume(adev);
+			dm_resume(ip_block);
 			drm_kms_helper_hotplug_event(adev_to_drm(adev));
 		} else
-			dm_suspend(adev);
+			dm_suspend(ip_block);
 	}
 
 	return ret == 0 ? count : 0;
