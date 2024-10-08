@@ -134,7 +134,7 @@
 		pinctrl-names = "default";
 		#clock-cells = <0>;
 		clock-output-names = "xin32k";
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc5v0_sys>;
