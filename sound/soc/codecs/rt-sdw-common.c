@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(rt_sdca_index_update_bits);
 int rt_sdca_btn_type(unsigned char *buffer)
 {
 	u8 btn_type = 0;
-	int ret;
+	int ret = 0;
 
 	btn_type |= buffer[0] & 0xf;
 	btn_type |= (buffer[0] >> 4) & 0xf;
