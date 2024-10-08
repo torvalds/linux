@@ -32,6 +32,8 @@
   android_rvh_probe_register
   anon_inode_getfd
   anon_inode_getfile
+  arc4_crypt
+  arc4_setkey
   __arch_clear_user
   __arch_copy_from_user
   __arch_copy_to_user
@@ -594,6 +596,7 @@
   dev_pm_opp_put_opp_table
   dev_pm_opp_register_notifier
   dev_pm_opp_remove_all_dynamic
+  dev_pm_opp_remove_table
   dev_pm_opp_set_config
   dev_pm_opp_unregister_notifier
   dev_pm_qos_add_notifier
