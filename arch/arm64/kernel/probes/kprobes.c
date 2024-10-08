@@ -43,7 +43,7 @@ post_kprobe_handler(struct kprobe *, struct kprobe_ctlblk *, struct pt_regs *);
 
 static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 {
-	kprobe_opcode_t *addr = p->ainsn.api.insn;
+	kprobe_opcode_t *addr = p->ainsn.xol_insn;
 
 	/*
 	 * Prepare insn slot, Mark Rutland points out it depends on a coupe of
@@ -70,14 +70,14 @@ static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 	/*
 	 * Needs restoring of return address after stepping xol.
 	 */
-	p->ainsn.api.restore = (unsigned long) p->addr +
+	p->ainsn.xol_restore = (unsigned long) p->addr +
 	  sizeof(kprobe_opcode_t);
 }
 
 static void __kprobes arch_prepare_simulate(struct kprobe *p)
 {
 	/* This instructions is not executed xol. No need to adjust the PC */
-	p->ainsn.api.restore = 0;
+	p->ainsn.xol_restore = 0;
 }
 
 static void __kprobes arch_simulate_insn(struct kprobe *p, struct pt_regs *regs)
@@ -110,18 +110,18 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		return -EINVAL;
 
 	case INSN_GOOD_NO_SLOT:	/* insn need simulation */
-		p->ainsn.api.insn = NULL;
+		p->ainsn.xol_insn = NULL;
 		break;
 
 	case INSN_GOOD:	/* instruction uses slot */
-		p->ainsn.api.insn = get_insn_slot();
-		if (!p->ainsn.api.insn)
+		p->ainsn.xol_insn = get_insn_slot();
+		if (!p->ainsn.xol_insn)
 			return -ENOMEM;
 		break;
 	}
 
 	/* prepare the instruction */
-	if (p->ainsn.api.insn)
+	if (p->ainsn.xol_insn)
 		arch_prepare_ss_slot(p);
 	else
 		arch_prepare_simulate(p);
@@ -148,9 +148,9 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	if (p->ainsn.api.insn) {
-		free_insn_slot(p->ainsn.api.insn, 0);
-		p->ainsn.api.insn = NULL;
+	if (p->ainsn.xol_insn) {
+		free_insn_slot(p->ainsn.xol_insn, 0);
+		p->ainsn.xol_insn = NULL;
 	}
 }
 
@@ -205,9 +205,9 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 	}
 
 
-	if (p->ainsn.api.insn) {
+	if (p->ainsn.xol_insn) {
 		/* prepare for single stepping */
-		slot = (unsigned long)p->ainsn.api.insn;
+		slot = (unsigned long)p->ainsn.xol_insn;
 
 		kprobes_save_local_irqflag(kcb, regs);
 		instruction_pointer_set(regs, slot);
@@ -245,8 +245,8 @@ static void __kprobes
 post_kprobe_handler(struct kprobe *cur, struct kprobe_ctlblk *kcb, struct pt_regs *regs)
 {
 	/* return addr restore if non-branching insn */
-	if (cur->ainsn.api.restore != 0)
-		instruction_pointer_set(regs, cur->ainsn.api.restore);
+	if (cur->ainsn.xol_restore != 0)
+		instruction_pointer_set(regs, cur->ainsn.xol_restore);
 
 	/* restore back original saved kprobe variables and continue */
 	if (kcb->kprobe_status == KPROBE_REENTER) {
@@ -348,7 +348,7 @@ kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned long esr)
 	struct kprobe *cur = kprobe_running();
 
 	if (cur && (kcb->kprobe_status & (KPROBE_HIT_SS | KPROBE_REENTER)) &&
-	    ((unsigned long)&cur->ainsn.api.insn[1] == addr)) {
+	    ((unsigned long)&cur->ainsn.xol_insn[1] == addr)) {
 		kprobes_restore_local_irqflag(kcb, regs);
 		post_kprobe_handler(cur, kcb, regs);
 
