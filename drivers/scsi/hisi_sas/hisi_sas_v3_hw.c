@@ -5048,7 +5048,8 @@ static int _suspend_v3_hw(struct device *device)
 	interrupt_disable_v3_hw(hisi_hba);
 
 #ifdef CONFIG_PM
-	if (atomic_read(&device->power.usage_count)) {
+	if ((device->power.runtime_status == RPM_SUSPENDING) &&
+	    atomic_read(&device->power.usage_count)) {
 		dev_err(dev, "PM suspend: host status cannot be suspended\n");
 		rc = -EBUSY;
 		goto err_out;
