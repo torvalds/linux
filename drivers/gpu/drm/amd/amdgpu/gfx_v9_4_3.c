@@ -4569,8 +4569,6 @@ static void gfx_v9_4_3_enable_watchdog_timer(struct amdgpu_device *adev)
 
 static void gfx_v9_4_3_ring_insert_nop(struct amdgpu_ring *ring, uint32_t num_nop)
 {
-	int i;
-
 	/* Header itself is a NOP packet */
 	if (num_nop == 1) {
 		amdgpu_ring_write(ring, ring->funcs->nop);
@@ -4581,8 +4579,7 @@ static void gfx_v9_4_3_ring_insert_nop(struct amdgpu_ring *ring, uint32_t num_no
 	amdgpu_ring_write(ring, PACKET3(PACKET3_NOP, min(num_nop - 2, 0x3ffe)));
 
 	/* Header is at index 0, followed by num_nops - 1 NOP packet's */
-	for (i = 1; i < num_nop; i++)
-		amdgpu_ring_write(ring, ring->funcs->nop);
+	amdgpu_ring_insert_nop(ring, num_nop - 1);
 }
 
 static void gfx_v9_4_3_ip_print(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
