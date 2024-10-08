@@ -920,6 +920,13 @@ definitions:
       - name: l2
       - name: l3
 
+  -
+    name: netkit-scrub
+    type: enum
+    entries:
+      - name: none
+      - name: default
+
 attribute-sets:
   -
     name: link-attrs
@@ -2147,6 +2154,14 @@ attribute-sets:
         name: mode
         type: u32
         enum: netkit-mode
+      -
+        name: scrub
+        type: u32
+        enum: netkit-scrub
+      -
+        name: peer-scrub
+        type: u32
+        enum: netkit-scrub
 
 sub-messages:
   -
