@@ -1864,6 +1864,10 @@ restart:
 
 area_found:
 	pcpu_stats_area_alloc(chunk, size);
+
+	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
+		pcpu_schedule_balance_work();
+
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	/* populate if not all pages are already there */
@@ -1890,9 +1894,6 @@ area_found:
 
 		mutex_unlock(&pcpu_alloc_mutex);
 	}
-
-	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
-		pcpu_schedule_balance_work();
 
 	/* clear the areas and return address relative to base address */
 	for_each_possible_cpu(cpu)
