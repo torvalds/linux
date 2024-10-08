@@ -1376,6 +1376,36 @@ iwl_mvm_mld_mac_pre_channel_switch(struct ieee80211_hw *hw,
 	return ret;
 }
 
+#define IWL_MVM_MLD_UNBLOCK_ESR_NON_BSS_TIMEOUT (5 * HZ)
+
+static void iwl_mvm_mld_prep_add_interface(struct ieee80211_hw *hw,
+					   enum nl80211_iftype type)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
+	struct iwl_mvm_vif *mvmvif;
+	int ret;
+
+	IWL_DEBUG_MAC80211(mvm, "prep_add_interface: type=%u\n",
+			   type);
+
+	if (IS_ERR_OR_NULL(bss_vif) ||
+	    !(type == NL80211_IFTYPE_AP ||
+	      type == NL80211_IFTYPE_P2P_GO ||
+	      type == NL80211_IFTYPE_P2P_CLIENT))
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(bss_vif);
+	ret = iwl_mvm_block_esr_sync(mvm, bss_vif,
+				     IWL_MVM_ESR_BLOCKED_TMP_NON_BSS);
+	if (ret)
+		return;
+
+	wiphy_delayed_work_queue(mvmvif->mvm->hw->wiphy,
+				 &mvmvif->unblock_esr_tmp_non_bss_wk,
+				 IWL_MVM_MLD_UNBLOCK_ESR_NON_BSS_TIMEOUT);
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
@@ -1472,4 +1502,5 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.change_sta_links = iwl_mvm_mld_change_sta_links,
 	.can_activate_links = iwl_mvm_mld_can_activate_links,
 	.can_neg_ttlm = iwl_mvm_mld_can_neg_ttlm,
+	.prep_add_interface = iwl_mvm_mld_prep_add_interface,
 };

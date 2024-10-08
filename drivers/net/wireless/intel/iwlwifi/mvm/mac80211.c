@@ -1731,6 +1731,21 @@ static void iwl_mvm_unblock_esr_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
 	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT);
 }
 
+static void iwl_mvm_unblock_esr_tmp_non_bss(struct wiphy *wiphy,
+					    struct wiphy_work *wk)
+{
+	struct iwl_mvm_vif *mvmvif =
+		container_of(wk, struct iwl_mvm_vif,
+			     unblock_esr_tmp_non_bss_wk.work);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_vif *vif =
+		container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TMP_NON_BSS);
+	mutex_unlock(&mvm->mutex);
+}
+
 void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 {
 	lockdep_assert_held(&mvm->mutex);
@@ -1749,6 +1764,9 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 
 	wiphy_work_init(&mvmvif->unblock_esr_tpt_wk,
 			iwl_mvm_unblock_esr_tpt);
+
+	wiphy_delayed_work_init(&mvmvif->unblock_esr_tmp_non_bss_wk,
+				iwl_mvm_unblock_esr_tmp_non_bss);
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -1899,6 +1917,8 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 				  &mvmvif->mlo_int_scan_wk);
 
 	wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
+	wiphy_delayed_work_cancel(mvm->hw->wiphy,
+				  &mvmvif->unblock_esr_tmp_non_bss_wk);
 
 	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
@@ -4075,6 +4095,8 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 					  &mvmvif->mlo_int_scan_wk);
 
 		wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
+		wiphy_delayed_work_cancel(mvm->hw->wiphy,
+					  &mvmvif->unblock_esr_tmp_non_bss_wk);
 
 		/* No need for the periodic statistics anymore */
 		if (ieee80211_vif_is_mld(vif) && mvmvif->esr_active)
