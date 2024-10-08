@@ -42,7 +42,7 @@ static int z_erofs_load_lz4_config(struct super_block *sb,
 		if (!sbi->lz4.max_pclusterblks) {
 			sbi->lz4.max_pclusterblks = 1;	/* reserved case */
 		} else if (sbi->lz4.max_pclusterblks >
-			   Z_EROFS_PCLUSTER_MAX_SIZE / EROFS_BLKSIZ) {
+			   erofs_blknr(sb, Z_EROFS_PCLUSTER_MAX_SIZE)) {
 			erofs_err(sb, "too large lz4 pclusterblks %u",
 				  sbi->lz4.max_pclusterblks);
 			return -EINVAL;
@@ -221,13 +221,13 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 		support_0padding = true;
 		ret = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
 				min_t(unsigned int, rq->inputsize,
-				      EROFS_BLKSIZ - rq->pageofs_in));
+				      rq->sb->s_blocksize - rq->pageofs_in));
 		if (ret) {
 			kunmap_local(headpage);
 			return ret;
 		}
 		may_inplace = !((rq->pageofs_in + rq->inputsize) &
-				(EROFS_BLKSIZ - 1));
+				(rq->sb->s_blocksize - 1));
 	}
 
 	inputmargin = rq->pageofs_in;
