@@ -47,7 +47,7 @@ int amdgpu_jpeg_sw_init(struct amdgpu_device *adev)
 		adev->jpeg.indirect_sram = true;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
-		if (adev->jpeg.harvest_config & (1 << i))
+		if (adev->jpeg.harvest_config & (1U << i))
 			continue;
 
 		if (adev->jpeg.indirect_sram) {
@@ -73,7 +73,7 @@ int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
 	int i, j;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		if (adev->jpeg.harvest_config & (1 << i))
+		if (adev->jpeg.harvest_config & (1U << i))
 			continue;
 
 		amdgpu_bo_free_kernel(
@@ -110,7 +110,7 @@ static void amdgpu_jpeg_idle_work_handler(struct work_struct *work)
 	unsigned int i, j;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		if (adev->jpeg.harvest_config & (1 << i))
+		if (adev->jpeg.harvest_config & (1U << i))
 			continue;
 
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j)
@@ -357,7 +357,7 @@ static int amdgpu_debugfs_jpeg_sched_mask_set(void *data, u64 val)
 	if (!adev)
 		return -ENODEV;
 
-	mask = (1 << (adev->jpeg.num_jpeg_inst * adev->jpeg.num_jpeg_rings)) - 1;
+	mask = (1ULL << (adev->jpeg.num_jpeg_inst * adev->jpeg.num_jpeg_rings)) - 1;
 	if ((val & mask) == 0)
 		return -EINVAL;
 
@@ -388,7 +388,7 @@ static int amdgpu_debugfs_jpeg_sched_mask_get(void *data, u64 *val)
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
 			ring = &adev->jpeg.inst[i].ring_dec[j];
 			if (ring->sched.ready)
-				mask |= 1 << ((i * adev->jpeg.num_jpeg_rings) + j);
+				mask |= 1ULL << ((i * adev->jpeg.num_jpeg_rings) + j);
 		}
 	}
 	*val = mask;
