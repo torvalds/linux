@@ -30,7 +30,7 @@
 #include <linux/hdreg.h>
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/ioprio.h>
 #include <linux/of.h>
 

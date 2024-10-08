@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/sizes.h>
 #include <linux/count_zeros.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "lz77.h"
 

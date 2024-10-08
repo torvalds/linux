@@ -4,7 +4,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/xxhash.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define XXHASH64_BLOCK_SIZE	32
 #define XXHASH64_DIGEST_SIZE	8

@@ -8,7 +8,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define IMX208_REG_MODE_SELECT		0x0100
 #define IMX208_MODE_STANDBY		0x00

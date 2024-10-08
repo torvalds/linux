@@ -3,7 +3,7 @@
 
 #include <linux/exportfs.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "super.h"
 #include "mds_client.h"

@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include "tulip.h"
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 
