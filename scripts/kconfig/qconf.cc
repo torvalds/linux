@@ -1348,18 +1348,14 @@ ConfigMainWindow::ConfigMainWindow(void)
 	layout->addWidget(split2);
 	split2->setChildrenCollapsible(false);
 
-	split1 = new QSplitter(Qt::Horizontal, widget);
-	split2->addWidget(split1);
+	split1 = new QSplitter(Qt::Horizontal, split2);
 	split1->setChildrenCollapsible(false);
 
-	configList = new ConfigList(widget, "config");
-	split1->addWidget(configList);
+	configList = new ConfigList(split1, "config");
 
-	menuList = new ConfigList(widget, "menu");
-	split1->addWidget(menuList);
+	menuList = new ConfigList(split1, "menu");
 
-	helpText = new ConfigInfoView(widget, "help");
-	split2->addWidget(helpText);
+	helpText = new ConfigInfoView(split2, "help");
 	setTabOrder(configList, helpText);
 
 	configList->setFocus();
