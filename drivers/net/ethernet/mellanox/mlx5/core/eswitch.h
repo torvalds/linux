@@ -212,6 +212,7 @@ struct mlx5_vport {
 
 	struct mlx5_vport_info  info;
 
+	/* Protected with the E-Switch qos domain lock. */
 	struct {
 		/* Initially false, set to true whenever any QoS features are used. */
 		bool enabled;
@@ -363,10 +364,9 @@ struct mlx5_eswitch {
 	struct rw_semaphore mode_lock;
 	atomic64_t user_count;
 
+	/* Protected with the E-Switch qos domain lock. */
 	struct {
-		/* Protected by esw->state_lock.
-		 * Initially 0, meaning no QoS users and QoS is disabled.
-		 */
+		/* Initially 0, meaning no QoS users and QoS is disabled. */
 		refcount_t refcnt;
 		u32 root_tsar_ix;
 		struct mlx5_qos_domain *domain;

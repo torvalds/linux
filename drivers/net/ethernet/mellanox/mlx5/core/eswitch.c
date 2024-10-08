@@ -2068,6 +2068,7 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  u16 vport, struct ifla_vf_info *ivi)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
+	u32 max_rate, min_rate;
 
 	if (IS_ERR(evport))
 		return PTR_ERR(evport);
@@ -2082,9 +2083,10 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	ivi->qos = evport->info.qos;
 	ivi->spoofchk = evport->info.spoofchk;
 	ivi->trusted = evport->info.trusted;
-	if (evport->qos.enabled) {
-		ivi->min_tx_rate = evport->qos.min_rate;
-		ivi->max_tx_rate = evport->qos.max_rate;
+
+	if (mlx5_esw_qos_get_vport_rate(evport, &max_rate, &min_rate)) {
+		ivi->max_tx_rate = max_rate;
+		ivi->min_tx_rate = min_rate;
 	}
 	mutex_unlock(&esw->state_lock);
 

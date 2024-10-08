@@ -10,6 +10,7 @@ int mlx5_esw_qos_init(struct mlx5_eswitch *esw);
 void mlx5_esw_qos_cleanup(struct mlx5_eswitch *esw);
 
 int mlx5_esw_qos_set_vport_rate(struct mlx5_vport *evport, u32 max_rate, u32 min_rate);
+bool mlx5_esw_qos_get_vport_rate(struct mlx5_vport *vport, u32 *max_rate, u32 *min_rate);
 void mlx5_esw_qos_vport_disable(struct mlx5_vport *vport);
 
 int mlx5_esw_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, void *priv,
