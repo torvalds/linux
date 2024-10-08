@@ -255,7 +255,7 @@ static struct platform_driver slidebar_drv = {
 	.driver = {
 		.name = "ideapad_slidebar",
 	},
-	.remove_new = ideapad_remove,
+	.remove = ideapad_remove,
 };
 
 static int __init ideapad_dmi_check(const struct dmi_system_id *id)

@@ -315,7 +315,7 @@ static struct platform_driver ep93xx_keypad_driver = {
 		.pm	= pm_sleep_ptr(&ep93xx_keypad_pm_ops),
 	},
 	.probe		= ep93xx_keypad_probe,
-	.remove_new	= ep93xx_keypad_remove,
+	.remove		= ep93xx_keypad_remove,
 };
 module_platform_driver(ep93xx_keypad_driver);
 

@@ -101,7 +101,7 @@ static struct platform_driver sparc_i8042_driver = {
 		.of_match_table = sparc_i8042_match,
 	},
 	.probe		= sparc_i8042_probe,
-	.remove_new	= sparc_i8042_remove,
+	.remove		= sparc_i8042_remove,
 };
 
 static bool i8042_is_mr_coffee(void)

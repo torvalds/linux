@@ -208,7 +208,7 @@ static struct platform_driver apbps2_of_driver = {
 		.of_match_table = apbps2_of_match,
 	},
 	.probe = apbps2_of_probe,
-	.remove_new = apbps2_of_remove,
+	.remove = apbps2_of_remove,
 };
 
 module_platform_driver(apbps2_of_driver);

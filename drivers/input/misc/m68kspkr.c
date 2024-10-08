@@ -95,7 +95,7 @@ static struct platform_driver m68kspkr_platform_driver = {
 		.name	= "m68kspkr",
 	},
 	.probe		= m68kspkr_probe,
-	.remove_new	= m68kspkr_remove,
+	.remove		= m68kspkr_remove,
 	.shutdown	= m68kspkr_shutdown,
 };
 

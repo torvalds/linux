@@ -260,7 +260,7 @@ static struct platform_driver arc_ps2_driver = {
 		.of_match_table	= of_match_ptr(arc_ps2_match),
 	},
 	.probe	= arc_ps2_probe,
-	.remove_new = arc_ps2_remove,
+	.remove	= arc_ps2_remove,
 };
 
 module_platform_driver(arc_ps2_driver);

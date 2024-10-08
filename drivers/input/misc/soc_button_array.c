@@ -612,7 +612,7 @@ MODULE_DEVICE_TABLE(acpi, soc_button_acpi_match);
 
 static struct platform_driver soc_button_driver = {
 	.probe          = soc_button_probe,
-	.remove_new	= soc_button_remove,
+	.remove		= soc_button_remove,
 	.driver		= {
 		.name = KBUILD_MODNAME,
 		.acpi_match_table = ACPI_PTR(soc_button_acpi_match),

@@ -261,7 +261,7 @@ static void mainstone_wm97xx_remove(struct platform_device *pdev)
 
 static struct platform_driver mainstone_wm97xx_driver = {
 	.probe	= mainstone_wm97xx_probe,
-	.remove_new = mainstone_wm97xx_remove,
+	.remove	= mainstone_wm97xx_remove,
 	.driver	= {
 		.name	= "wm97xx-touch",
 	},

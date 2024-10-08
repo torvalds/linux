@@ -1334,7 +1334,7 @@ static struct platform_driver wistron_driver = {
 		.pm	= pm_sleep_ptr(&wistron_pm_ops),
 	},
 	.probe		= wistron_probe,
-	.remove_new	= wistron_remove,
+	.remove		= wistron_remove,
 };
 
 static int __init wb_module_init(void)

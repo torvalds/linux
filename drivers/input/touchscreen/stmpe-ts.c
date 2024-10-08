@@ -362,7 +362,7 @@ static struct platform_driver stmpe_ts_driver = {
 		.name = STMPE_TS_NAME,
 	},
 	.probe = stmpe_input_probe,
-	.remove_new = stmpe_ts_remove,
+	.remove = stmpe_ts_remove,
 };
 module_platform_driver(stmpe_ts_driver);
 

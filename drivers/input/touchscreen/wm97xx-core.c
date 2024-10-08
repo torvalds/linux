@@ -876,7 +876,7 @@ static struct platform_driver wm97xx_mfd_driver = {
 		.pm =		pm_sleep_ptr(&wm97xx_pm_ops),
 	},
 	.probe =	wm97xx_mfd_probe,
-	.remove_new =	wm97xx_mfd_remove,
+	.remove =	wm97xx_mfd_remove,
 };
 
 static int __init wm97xx_init(void)

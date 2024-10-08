@@ -353,7 +353,7 @@ static struct platform_driver xps2_of_driver = {
 		.of_match_table = xps2_of_match,
 	},
 	.probe		= xps2_of_probe,
-	.remove_new	= xps2_of_remove,
+	.remove		= xps2_of_remove,
 };
 module_platform_driver(xps2_of_driver);
 

@@ -140,8 +140,8 @@ static void da9052_onkey_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_onkey_driver = {
 	.probe	= da9052_onkey_probe,
-	.remove_new = da9052_onkey_remove,
-	.driver = {
+	.remove	= da9052_onkey_remove,
+	.driver	= {
 		.name	= "da9052-onkey",
 	},
 };

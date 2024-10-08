@@ -387,7 +387,7 @@ static struct platform_driver wm831x_ts_driver = {
 		.name = "wm831x-touch",
 	},
 	.probe = wm831x_ts_probe,
-	.remove_new = wm831x_ts_remove,
+	.remove = wm831x_ts_remove,
 };
 module_platform_driver(wm831x_ts_driver);
 

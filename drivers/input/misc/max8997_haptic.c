@@ -384,7 +384,7 @@ static struct platform_driver max8997_haptic_driver = {
 		.pm	= pm_sleep_ptr(&max8997_haptic_pm_ops),
 	},
 	.probe		= max8997_haptic_probe,
-	.remove_new	= max8997_haptic_remove,
+	.remove		= max8997_haptic_remove,
 	.id_table	= max8997_haptic_id,
 };
 module_platform_driver(max8997_haptic_driver);

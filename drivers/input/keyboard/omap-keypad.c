@@ -290,7 +290,7 @@ static void omap_kp_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_kp_driver = {
 	.probe		= omap_kp_probe,
-	.remove_new	= omap_kp_remove,
+	.remove		= omap_kp_remove,
 	.driver		= {
 		.name	= "omap-keypad",
 		.dev_groups = omap_kp_groups,

@@ -1590,7 +1590,7 @@ static struct platform_driver i8042_driver = {
 #endif
 	},
 	.probe		= i8042_probe,
-	.remove_new	= i8042_remove,
+	.remove		= i8042_remove,
 	.shutdown	= i8042_shutdown,
 };
 

@@ -491,7 +491,7 @@ MODULE_DEVICE_TABLE(of, ps2_gpio_match);
 
 static struct platform_driver ps2_gpio_driver = {
 	.probe		= ps2_gpio_probe,
-	.remove_new	= ps2_gpio_remove,
+	.remove		= ps2_gpio_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(ps2_gpio_match),
