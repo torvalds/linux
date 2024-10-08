@@ -4814,12 +4814,29 @@ static void debugfs_bist_init_v3_hw(struct hisi_hba *hisi_hba)
 	hisi_hba->debugfs_bist_linkrate = SAS_LINK_RATE_1_5_GBPS;
 }
 
+static int debugfs_dump_index_v3_hw_show(struct seq_file *s, void *p)
+{
+	int *debugfs_dump_index = s->private;
+
+	if (*debugfs_dump_index > 0)
+		seq_printf(s, "%d\n", *debugfs_dump_index - 1);
+	else
+		seq_puts(s, "dump not triggered\n");
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(debugfs_dump_index_v3_hw);
+
 static void debugfs_dump_init_v3_hw(struct hisi_hba *hisi_hba)
 {
 	int i;
 
 	hisi_hba->debugfs_dump_dentry =
 			debugfs_create_dir("dump", hisi_hba->debugfs_dir);
+
+	debugfs_create_file("latest_dump", 0400, hisi_hba->debugfs_dump_dentry,
+			    &hisi_hba->debugfs_dump_index,
+			    &debugfs_dump_index_v3_hw_fops);
 
 	for (i = 0; i < hisi_sas_debugfs_dump_count; i++)
 		debugfs_create_files_v3_hw(hisi_hba, i);
