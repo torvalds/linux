@@ -1838,10 +1838,11 @@ static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
+
+	/* we don't need transaction context anymore after we got the lock. */
+	bch2_trans_put(trans);
 	__btree_node_write_done(c, b);
 	six_unlock_read(&b->c.lock);
-
-	bch2_trans_put(trans);
 }
 
 static void btree_node_write_work(struct work_struct *work)
