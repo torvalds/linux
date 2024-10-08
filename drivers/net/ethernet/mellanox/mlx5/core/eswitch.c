@@ -894,7 +894,7 @@ static void esw_vport_cleanup(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 					      vport_num, 1,
 					      MLX5_VPORT_ADMIN_STATE_DOWN);
 
-	mlx5_esw_qos_vport_disable(esw, vport);
+	mlx5_esw_qos_vport_disable(vport);
 	esw_vport_cleanup_acl(esw, vport);
 }
 

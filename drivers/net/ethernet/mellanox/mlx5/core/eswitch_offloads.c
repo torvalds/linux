@@ -2617,7 +2617,7 @@ int mlx5_esw_offloads_load_rep(struct mlx5_eswitch *esw, struct mlx5_vport *vpor
 	return err;
 
 load_err:
-	mlx5_esw_offloads_devlink_port_unregister(esw, vport);
+	mlx5_esw_offloads_devlink_port_unregister(vport);
 	return err;
 }
 
@@ -2628,7 +2628,7 @@ void mlx5_esw_offloads_unload_rep(struct mlx5_eswitch *esw, struct mlx5_vport *v
 
 	mlx5_esw_offloads_rep_unload(esw, vport->vport);
 
-	mlx5_esw_offloads_devlink_port_unregister(esw, vport);
+	mlx5_esw_offloads_devlink_port_unregister(vport);
 }
 
 static int esw_set_slave_root_fdb(struct mlx5_core_dev *master,
