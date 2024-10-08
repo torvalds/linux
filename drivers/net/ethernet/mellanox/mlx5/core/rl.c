@@ -34,6 +34,33 @@
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
 
+bool mlx5_qos_tsar_type_supported(struct mlx5_core_dev *dev, int type, u8 hierarchy)
+{
+	int cap;
+
+	switch (hierarchy) {
+	case SCHEDULING_HIERARCHY_E_SWITCH:
+		cap =  MLX5_CAP_QOS(dev, esw_tsar_type);
+		break;
+	case SCHEDULING_HIERARCHY_NIC:
+		cap = MLX5_CAP_QOS(dev, nic_tsar_type);
+		break;
+	default:
+		return false;
+	}
+
+	switch (type) {
+	case TSAR_ELEMENT_TSAR_TYPE_DWRR:
+		return cap & TSAR_TYPE_CAP_MASK_DWRR;
+	case TSAR_ELEMENT_TSAR_TYPE_ROUND_ROBIN:
+		return cap & TSAR_TYPE_CAP_MASK_ROUND_ROBIN;
+	case TSAR_ELEMENT_TSAR_TYPE_ETS:
+		return cap & TSAR_TYPE_CAP_MASK_ETS;
+	}
+
+	return false;
+}
+
 bool mlx5_qos_element_type_supported(struct mlx5_core_dev *dev, int type, u8 hierarchy)
 {
 	int cap;

@@ -52,7 +52,9 @@ int mlx5_qos_create_inner_node(struct mlx5_core_dev *mdev, u32 parent_id,
 	if (!mlx5_qos_element_type_supported(mdev,
 					     SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR,
 					     SCHEDULING_HIERARCHY_NIC) ||
-	    !(MLX5_CAP_QOS(mdev, nic_tsar_type) & TSAR_TYPE_CAP_MASK_DWRR))
+	    !mlx5_qos_tsar_type_supported(mdev,
+					  TSAR_ELEMENT_TSAR_TYPE_DWRR,
+					  SCHEDULING_HIERARCHY_NIC))
 		return -EOPNOTSUPP;
 
 	MLX5_SET(scheduling_context, sched_ctx, parent_element_id, parent_id);
