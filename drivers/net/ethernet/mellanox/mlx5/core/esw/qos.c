@@ -11,6 +11,37 @@
 /* Minimum supported BW share value by the HW is 1 Mbit/sec */
 #define MLX5_MIN_BW_SHARE 1
 
+/* Holds rate groups associated with an E-Switch. */
+struct mlx5_qos_domain {
+	/* List of all mlx5_esw_rate_groups. */
+	struct list_head groups;
+};
+
+static struct mlx5_qos_domain *esw_qos_domain_alloc(void)
+{
+	struct mlx5_qos_domain *qos_domain;
+
+	qos_domain = kzalloc(sizeof(*qos_domain), GFP_KERNEL);
+	if (!qos_domain)
+		return NULL;
+
+	INIT_LIST_HEAD(&qos_domain->groups);
+
+	return qos_domain;
+}
+
+static int esw_qos_domain_init(struct mlx5_eswitch *esw)
+{
+	esw->qos.domain = esw_qos_domain_alloc();
+
+	return esw->qos.domain ? 0 : -ENOMEM;
+}
+
+static void esw_qos_domain_release(struct mlx5_eswitch *esw)
+{
+	kfree(esw->qos.domain);
+	esw->qos.domain = NULL;
+}
 
 struct mlx5_esw_rate_group {
 	u32 tsar_ix;
@@ -19,6 +50,7 @@ struct mlx5_esw_rate_group {
 	u32 min_rate;
 	/* A computed value indicating relative min_rate between group members. */
 	u32 bw_share;
+	/* Membership in the qos domain 'groups' list. */
 	struct list_head parent_entry;
 	/* The eswitch this group belongs to. */
 	struct mlx5_eswitch *esw;
@@ -128,10 +160,10 @@ static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw)
 	/* Find max min_rate across all esw groups.
 	 * This will correspond to fw_max_bw_share in the final bw_share calculation.
 	 */
-	list_for_each_entry(group, &esw->qos.groups, parent_entry) {
-		if (group->min_rate < max_guarantee || group->tsar_ix == esw->qos.root_tsar_ix)
-			continue;
-		max_guarantee = group->min_rate;
+	list_for_each_entry(group, &esw->qos.domain->groups, parent_entry) {
+		if (group->esw == esw && group->tsar_ix != esw->qos.root_tsar_ix &&
+		    group->min_rate > max_guarantee)
+			max_guarantee = group->min_rate;
 	}
 
 	if (max_guarantee)
@@ -183,8 +215,8 @@ static int esw_qos_normalize_min_rate(struct mlx5_eswitch *esw, struct netlink_e
 	u32 bw_share;
 	int err;
 
-	list_for_each_entry(group, &esw->qos.groups, parent_entry) {
-		if (group->tsar_ix == esw->qos.root_tsar_ix)
+	list_for_each_entry(group, &esw->qos.domain->groups, parent_entry) {
+		if (group->esw != esw || group->tsar_ix == esw->qos.root_tsar_ix)
 			continue;
 		bw_share = esw_qos_calc_bw_share(group->min_rate, divider, fw_max_bw_share);
 
@@ -452,7 +484,7 @@ __esw_qos_alloc_rate_group(struct mlx5_eswitch *esw, u32 tsar_ix)
 	group->esw = esw;
 	group->tsar_ix = tsar_ix;
 	INIT_LIST_HEAD(&group->members);
-	list_add_tail(&group->parent_entry, &esw->qos.groups);
+	list_add_tail(&group->parent_entry, &esw->qos.domain->groups);
 	return group;
 }
 
@@ -586,7 +618,6 @@ static int esw_qos_create(struct mlx5_eswitch *esw, struct netlink_ext_ack *exta
 		return err;
 	}
 
-	INIT_LIST_HEAD(&esw->qos.groups);
 	if (MLX5_CAP_QOS(dev, log_esw_max_sched_depth)) {
 		esw->qos.group0 = __esw_qos_create_rate_group(esw, extack);
 	} else {
@@ -866,6 +897,17 @@ static int esw_qos_devlink_rate_to_mbps(struct mlx5_core_dev *mdev, const char *
 
 	*rate = value;
 	return 0;
+}
+
+int mlx5_esw_qos_init(struct mlx5_eswitch *esw)
+{
+	return esw_qos_domain_init(esw);
+}
+
+void mlx5_esw_qos_cleanup(struct mlx5_eswitch *esw)
+{
+	if (esw->qos.domain)
+		esw_qos_domain_release(esw);
 }
 
 /* Eswitch devlink rate API */
