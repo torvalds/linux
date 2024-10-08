@@ -960,7 +960,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	return ib_register_device(ibdev, "bnxt_re%d", &rdev->en_dev->pdev->dev);
 }
 
-static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
+static struct bnxt_re_dev *bnxt_re_dev_add(struct auxiliary_device *adev,
 					   struct bnxt_en_dev *en_dev)
 {
 	struct bnxt_re_dev *rdev;
@@ -976,6 +976,7 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
 	rdev->nb.notifier_call = NULL;
 	rdev->netdev = en_dev->net;
 	rdev->en_dev = en_dev;
+	rdev->adev = adev;
 	rdev->id = rdev->en_dev->pdev->devfn;
 	INIT_LIST_HEAD(&rdev->qp_list);
 	mutex_init(&rdev->qp_lock);
@@ -1829,7 +1830,6 @@ static void bnxt_re_update_en_info_rdev(struct bnxt_re_dev *rdev,
 	 */
 	rtnl_lock();
 	en_info->rdev = rdev;
-	rdev->adev = adev;
 	rtnl_unlock();
 }
 
@@ -1846,7 +1846,7 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 op_type)
 	en_dev = en_info->en_dev;
 
 
-	rdev = bnxt_re_dev_add(aux_priv, en_dev);
+	rdev = bnxt_re_dev_add(adev, en_dev);
 	if (!rdev || !rdev_to_dev(rdev)) {
 		rc = -ENOMEM;
 		goto exit;
