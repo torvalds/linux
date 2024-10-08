@@ -1210,19 +1210,19 @@ static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 					  u32 out_ref_rate, u32 out_ref_channels,
 					  u32 out_ref_valid_bits)
 {
-	struct sof_ipc4_audio_format *out_fmt;
+	struct sof_ipc4_pin_format *pin_fmts = available_fmt->output_pin_fmts;
+	u32 pin_fmts_size = available_fmt->num_output_formats;
 	bool single_format;
 	int i;
 
-	if (!available_fmt->num_output_formats)
+	if (!pin_fmts_size)
 		return -EINVAL;
 
-	single_format = sof_ipc4_is_single_format(sdev, available_fmt->output_pin_fmts,
-						  available_fmt->num_output_formats);
+	single_format = sof_ipc4_is_single_format(sdev, pin_fmts, pin_fmts_size);
 
 	/* pick the first format if there's only one available or if all formats are the same */
 	if (single_format) {
-		base_config->obs = available_fmt->output_pin_fmts[0].buffer_size;
+		base_config->obs = pin_fmts[0].buffer_size;
 		return 0;
 	}
 
@@ -1230,17 +1230,18 @@ static int sof_ipc4_init_output_audio_fmt(struct snd_sof_dev *sdev,
 	 * if there are multiple output formats, then choose the output format that matches
 	 * the reference params
 	 */
-	for (i = 0; i < available_fmt->num_output_formats; i++) {
+	for (i = 0; i < pin_fmts_size; i++) {
+		struct sof_ipc4_audio_format *fmt = &pin_fmts[i].audio_fmt;
+
 		u32 _out_rate, _out_channels, _out_valid_bits;
 
-		out_fmt = &available_fmt->output_pin_fmts[i].audio_fmt;
-		_out_rate = out_fmt->sampling_frequency;
-		_out_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(out_fmt->fmt_cfg);
-		_out_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(out_fmt->fmt_cfg);
+		_out_rate = fmt->sampling_frequency;
+		_out_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+		_out_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
 
 		if (_out_rate == out_ref_rate && _out_channels == out_ref_channels &&
 		    _out_valid_bits == out_ref_valid_bits) {
-			base_config->obs = available_fmt->output_pin_fmts[i].buffer_size;
+			base_config->obs = pin_fmts[i].buffer_size;
 			return i;
 		}
 	}
