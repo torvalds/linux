@@ -19,7 +19,7 @@ struct mlx5_esw_rate_group {
 	u32 min_rate;
 	/* A computed value indicating relative min_rate between group members. */
 	u32 bw_share;
-	struct list_head list;
+	struct list_head parent_entry;
 	/* The eswitch this group belongs to. */
 	struct mlx5_eswitch *esw;
 	/* Vport members of this group.*/
@@ -128,7 +128,7 @@ static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw)
 	/* Find max min_rate across all esw groups.
 	 * This will correspond to fw_max_bw_share in the final bw_share calculation.
 	 */
-	list_for_each_entry(group, &esw->qos.groups, list) {
+	list_for_each_entry(group, &esw->qos.groups, parent_entry) {
 		if (group->min_rate < max_guarantee || group->tsar_ix == esw->qos.root_tsar_ix)
 			continue;
 		max_guarantee = group->min_rate;
@@ -183,7 +183,7 @@ static int esw_qos_normalize_min_rate(struct mlx5_eswitch *esw, struct netlink_e
 	u32 bw_share;
 	int err;
 
-	list_for_each_entry(group, &esw->qos.groups, list) {
+	list_for_each_entry(group, &esw->qos.groups, parent_entry) {
 		if (group->tsar_ix == esw->qos.root_tsar_ix)
 			continue;
 		bw_share = esw_qos_calc_bw_share(group->min_rate, divider, fw_max_bw_share);
@@ -452,13 +452,13 @@ __esw_qos_alloc_rate_group(struct mlx5_eswitch *esw, u32 tsar_ix)
 	group->esw = esw;
 	group->tsar_ix = tsar_ix;
 	INIT_LIST_HEAD(&group->members);
-	list_add_tail(&group->list, &esw->qos.groups);
+	list_add_tail(&group->parent_entry, &esw->qos.groups);
 	return group;
 }
 
 static void __esw_qos_free_rate_group(struct mlx5_esw_rate_group *group)
 {
-	list_del(&group->list);
+	list_del(&group->parent_entry);
 	kfree(group);
 }
 
