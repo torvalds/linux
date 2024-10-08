@@ -440,12 +440,6 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-	if (!mvmsta) {
-		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
-			notif->sta_id);
-		goto out;
-	}
-
 	flags = le32_to_cpu(notif->flags);
 
 	mvm_link_sta = rcu_dereference(mvmsta->link[link_sta->link_id]);
