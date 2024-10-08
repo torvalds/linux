@@ -134,11 +134,13 @@ static void inet_hash_insert(struct net *net, struct in_ifaddr *ifa)
 
 	ASSERT_RTNL();
 	hlist_add_head_rcu(&ifa->hash, &inet_addr_lst[hash]);
+	hlist_add_head_rcu(&ifa->addr_lst, &net->ipv4.inet_addr_lst[hash]);
 }
 
 static void inet_hash_remove(struct in_ifaddr *ifa)
 {
 	ASSERT_RTNL();
+	hlist_del_init_rcu(&ifa->addr_lst);
 	hlist_del_init_rcu(&ifa->hash);
 }
 
@@ -228,6 +230,7 @@ static struct in_ifaddr *inet_alloc_ifa(struct in_device *in_dev)
 	ifa->ifa_dev = in_dev;
 
 	INIT_HLIST_NODE(&ifa->hash);
+	INIT_HLIST_NODE(&ifa->addr_lst);
 
 	return ifa;
 }
@@ -2663,14 +2666,21 @@ static struct ctl_table ctl_forward_entry[] = {
 
 static __net_init int devinet_init_net(struct net *net)
 {
-	int err;
-	struct ipv4_devconf *all, *dflt;
 #ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl;
 	struct ctl_table_header *forw_hdr;
+	struct ctl_table *tbl;
 #endif
+	struct ipv4_devconf *all, *dflt;
+	int err;
+	int i;
 
 	err = -ENOMEM;
+	net->ipv4.inet_addr_lst = kmalloc_array(IN4_ADDR_HSIZE,
+						sizeof(struct hlist_head),
+						GFP_KERNEL);
+	if (!net->ipv4.inet_addr_lst)
+		goto err_alloc_hash;
+
 	all = kmemdup(&ipv4_devconf, sizeof(ipv4_devconf), GFP_KERNEL);
 	if (!all)
 		goto err_alloc_all;
@@ -2731,6 +2741,9 @@ static __net_init int devinet_init_net(struct net *net)
 	net->ipv4.forw_hdr = forw_hdr;
 #endif
 
+	for (i = 0; i < IN4_ADDR_HSIZE; i++)
+		INIT_HLIST_HEAD(&net->ipv4.inet_addr_lst[i]);
+
 	net->ipv4.devconf_all = all;
 	net->ipv4.devconf_dflt = dflt;
 	return 0;
@@ -2748,6 +2761,8 @@ err_alloc_ctl:
 err_alloc_dflt:
 	kfree(all);
 err_alloc_all:
+	kfree(net->ipv4.inet_addr_lst);
+err_alloc_hash:
 	return err;
 }
 
@@ -2766,6 +2781,7 @@ static __net_exit void devinet_exit_net(struct net *net)
 #endif
 	kfree(net->ipv4.devconf_dflt);
 	kfree(net->ipv4.devconf_all);
+	kfree(net->ipv4.inet_addr_lst);
 }
 
 static __net_initdata struct pernet_operations devinet_ops = {
