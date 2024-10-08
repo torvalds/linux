@@ -14,9 +14,6 @@
 
 #include <asm/numa.h>
 
-/* define default numa node to 0 */
-#define DEFAULT_NODE 0
-
 /*
  * Even though we connect cpus to numa domains later in SMP
  * init, we need to know the node ids now for all cpus.
