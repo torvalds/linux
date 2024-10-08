@@ -39,6 +39,8 @@
 
 #define NVMET_RDMA_BACKLOG 128
 
+#define NVMET_RDMA_DISCRETE_RSP_TAG		-1
+
 struct nvmet_rdma_srq;
 
 struct nvmet_rdma_cmd {
@@ -75,7 +77,7 @@ struct nvmet_rdma_rsp {
 	u32			invalidate_rkey;
 
 	struct list_head	wait_list;
-	struct list_head	free_list;
+	int			tag;
 };
 
 enum nvmet_rdma_queue_state {
@@ -98,8 +100,7 @@ struct nvmet_rdma_queue {
 	struct nvmet_sq		nvme_sq;
 
 	struct nvmet_rdma_rsp	*rsps;
-	struct list_head	free_rsps;
-	spinlock_t		rsps_lock;
+	struct sbitmap		rsp_tags;
 	struct nvmet_rdma_cmd	*cmds;
 
 	struct work_struct	release_work;
@@ -172,7 +173,8 @@ static void nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue);
 static void nvmet_rdma_free_rsp(struct nvmet_rdma_device *ndev,
 				struct nvmet_rdma_rsp *r);
 static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
-				struct nvmet_rdma_rsp *r);
+				struct nvmet_rdma_rsp *r,
+				int tag);
 
 static const struct nvmet_fabrics_ops nvmet_rdma_ops;
 
@@ -210,15 +212,12 @@ static inline bool nvmet_rdma_need_data_out(struct nvmet_rdma_rsp *rsp)
 static inline struct nvmet_rdma_rsp *
 nvmet_rdma_get_rsp(struct nvmet_rdma_queue *queue)
 {
-	struct nvmet_rdma_rsp *rsp;
-	unsigned long flags;
+	struct nvmet_rdma_rsp *rsp = NULL;
+	int tag;
 
-	spin_lock_irqsave(&queue->rsps_lock, flags);
-	rsp = list_first_entry_or_null(&queue->free_rsps,
-				struct nvmet_rdma_rsp, free_list);
-	if (likely(rsp))
-		list_del(&rsp->free_list);
-	spin_unlock_irqrestore(&queue->rsps_lock, flags);
+	tag = sbitmap_get(&queue->rsp_tags);
+	if (tag >= 0)
+		rsp = &queue->rsps[tag];
 
 	if (unlikely(!rsp)) {
 		int ret;
@@ -226,13 +225,12 @@ nvmet_rdma_get_rsp(struct nvmet_rdma_queue *queue)
 		rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
 		if (unlikely(!rsp))
 			return NULL;
-		ret = nvmet_rdma_alloc_rsp(queue->dev, rsp);
+		ret = nvmet_rdma_alloc_rsp(queue->dev, rsp,
+				NVMET_RDMA_DISCRETE_RSP_TAG);
 		if (unlikely(ret)) {
 			kfree(rsp);
 			return NULL;
 		}
-
-		rsp->allocated = true;
 	}
 
 	return rsp;
@@ -241,17 +239,13 @@ nvmet_rdma_get_rsp(struct nvmet_rdma_queue *queue)
 static inline void
 nvmet_rdma_put_rsp(struct nvmet_rdma_rsp *rsp)
 {
-	unsigned long flags;
-
-	if (unlikely(rsp->allocated)) {
+	if (unlikely(rsp->tag == NVMET_RDMA_DISCRETE_RSP_TAG)) {
 		nvmet_rdma_free_rsp(rsp->queue->dev, rsp);
 		kfree(rsp);
 		return;
 	}
 
-	spin_lock_irqsave(&rsp->queue->rsps_lock, flags);
-	list_add_tail(&rsp->free_list, &rsp->queue->free_rsps);
-	spin_unlock_irqrestore(&rsp->queue->rsps_lock, flags);
+	sbitmap_clear_bit(&rsp->queue->rsp_tags, rsp->tag);
 }
 
 static void nvmet_rdma_free_inline_pages(struct nvmet_rdma_device *ndev,
@@ -404,7 +398,7 @@ static void nvmet_rdma_free_cmds(struct nvmet_rdma_device *ndev,
 }
 
 static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
-		struct nvmet_rdma_rsp *r)
+		struct nvmet_rdma_rsp *r, int tag)
 {
 	/* NVMe CQE / RDMA SEND */
 	r->req.cqe = kmalloc(sizeof(*r->req.cqe), GFP_KERNEL);
@@ -432,6 +426,7 @@ static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
 	r->read_cqe.done = nvmet_rdma_read_data_done;
 	/* Data Out / RDMA WRITE */
 	r->write_cqe.done = nvmet_rdma_write_data_done;
+	r->tag = tag;
 
 	return 0;
 
@@ -454,21 +449,23 @@ nvmet_rdma_alloc_rsps(struct nvmet_rdma_queue *queue)
 {
 	struct nvmet_rdma_device *ndev = queue->dev;
 	int nr_rsps = queue->recv_queue_size * 2;
-	int ret = -EINVAL, i;
+	int ret = -ENOMEM, i;
+
+	if (sbitmap_init_node(&queue->rsp_tags, nr_rsps, -1, GFP_KERNEL,
+			NUMA_NO_NODE, false, true))
+		goto out;
 
 	queue->rsps = kcalloc(nr_rsps, sizeof(struct nvmet_rdma_rsp),
 			GFP_KERNEL);
 	if (!queue->rsps)
-		goto out;
+		goto out_free_sbitmap;
 
 	for (i = 0; i < nr_rsps; i++) {
 		struct nvmet_rdma_rsp *rsp = &queue->rsps[i];
 
-		ret = nvmet_rdma_alloc_rsp(ndev, rsp);
+		ret = nvmet_rdma_alloc_rsp(ndev, rsp, i);
 		if (ret)
 			goto out_free;
-
-		list_add_tail(&rsp->free_list, &queue->free_rsps);
 	}
 
 	return 0;
@@ -477,6 +474,8 @@ out_free:
 	while (--i >= 0)
 		nvmet_rdma_free_rsp(ndev, &queue->rsps[i]);
 	kfree(queue->rsps);
+out_free_sbitmap:
+	sbitmap_free(&queue->rsp_tags);
 out:
 	return ret;
 }
@@ -489,6 +488,7 @@ static void nvmet_rdma_free_rsps(struct nvmet_rdma_queue *queue)
 	for (i = 0; i < nr_rsps; i++)
 		nvmet_rdma_free_rsp(ndev, &queue->rsps[i]);
 	kfree(queue->rsps);
+	sbitmap_free(&queue->rsp_tags);
 }
 
 static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
@@ -1447,8 +1447,6 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	INIT_LIST_HEAD(&queue->rsp_wait_list);
 	INIT_LIST_HEAD(&queue->rsp_wr_wait_list);
 	spin_lock_init(&queue->rsp_wr_wait_lock);
-	INIT_LIST_HEAD(&queue->free_rsps);
-	spin_lock_init(&queue->rsps_lock);
 	INIT_LIST_HEAD(&queue->queue_list);
 
 	queue->idx = ida_alloc(&nvmet_rdma_queue_ida, GFP_KERNEL);
