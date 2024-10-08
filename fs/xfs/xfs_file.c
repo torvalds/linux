@@ -364,6 +364,7 @@ xfs_file_write_zero_eof(
 {
 	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
 	loff_t			isize;
+	int			error;
 
 	/*
 	 * We need to serialise against EOF updates that occur in IO completions
@@ -411,7 +412,12 @@ xfs_file_write_zero_eof(
 	}
 
 	trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
-	return xfs_zero_range(ip, isize, iocb->ki_pos - isize, NULL);
+
+	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+	error = xfs_zero_range(ip, isize, iocb->ki_pos - isize, NULL);
+	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+
+	return error;
 }
 
 /*
