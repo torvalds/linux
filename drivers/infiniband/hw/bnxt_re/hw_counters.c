@@ -366,7 +366,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 				goto done;
 			}
 		}
-		if (rdev->pacing.dbr_pacing)
+		if (rdev->pacing.dbr_pacing && bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
 			bnxt_re_copy_db_pacing_stats(rdev, stats);
 	}
 
