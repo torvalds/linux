@@ -3835,7 +3835,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	dc_exit_ips_for_hw_access(dc);
 
 	dc_z10_restore(dc);
-	if (update_type == UPDATE_TYPE_FULL)
+	if (update_type == UPDATE_TYPE_FULL && dc->optimized_required)
 		hwss_process_outstanding_hw_updates(dc, dc->current_state);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -3861,6 +3861,9 @@ static void commit_planes_for_stream(struct dc *dc,
 
 		context_clock_trace(dc, context);
 	}
+
+	if (update_type == UPDATE_TYPE_FULL)
+		hwss_wait_for_outstanding_hw_updates(dc, dc->current_state);
 
 	top_pipe_to_program = resource_get_otg_master_for_stream(
 				&context->res_ctx,
