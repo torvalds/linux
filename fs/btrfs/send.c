@@ -980,9 +980,7 @@ static int get_inode_gen(struct btrfs_root *root, u64 ino, u64 *gen)
 	return ret;
 }
 
-typedef int (*iterate_inode_ref_t)(u64 dir, int index,
-				   struct fs_path *p,
-				   void *ctx);
+typedef int (*iterate_inode_ref_t)(u64 dir, struct fs_path *p, void *ctx);
 
 /*
  * Helper function to iterate the entries in ONE btrfs_inode_ref or
@@ -1007,7 +1005,6 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 	u32 name_len;
 	char *start;
 	int ret = 0;
-	int index;
 	u64 dir;
 	unsigned long name_off;
 	unsigned long elem_size;
@@ -1042,13 +1039,11 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 			iref = (struct btrfs_inode_ref *)(ptr + cur);
 			name_len = btrfs_inode_ref_name_len(eb, iref);
 			name_off = (unsigned long)(iref + 1);
-			index = btrfs_inode_ref_index(eb, iref);
 			dir = found_key->offset;
 		} else {
 			extref = (struct btrfs_inode_extref *)(ptr + cur);
 			name_len = btrfs_inode_extref_name_len(eb, extref);
 			name_off = (unsigned long)&extref->name;
-			index = btrfs_inode_extref_index(eb, extref);
 			dir = btrfs_inode_extref_parent(eb, extref);
 		}
 
@@ -1093,7 +1088,7 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 		}
 
 		cur += elem_size + name_len;
-		ret = iterate(dir, index, p, ctx);
+		ret = iterate(dir, p, ctx);
 		if (ret)
 			goto out;
 	}
@@ -1225,8 +1220,7 @@ out:
 	return ret;
 }
 
-static int __copy_first_ref(u64 dir, int index,
-			    struct fs_path *p, void *ctx)
+static int __copy_first_ref(u64 dir, struct fs_path *p, void *ctx)
 {
 	int ret;
 	struct fs_path *pt = ctx;
@@ -4706,8 +4700,7 @@ out:
 	return ret;
 }
 
-static int record_new_ref_if_needed(u64 dir, int index,
-				    struct fs_path *name, void *ctx)
+static int record_new_ref_if_needed(u64 dir, struct fs_path *name, void *ctx)
 {
 	int ret = 0;
 	struct send_ctx *sctx = ctx;
@@ -4736,8 +4729,7 @@ out:
 	return ret;
 }
 
-static int record_deleted_ref_if_needed(u64 dir, int index,
-					struct fs_path *name, void *ctx)
+static int record_deleted_ref_if_needed(u64 dir, struct fs_path *name, void *ctx)
 {
 	int ret = 0;
 	struct send_ctx *sctx = ctx;
