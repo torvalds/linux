@@ -1371,8 +1371,7 @@ int audit_filter(int msgtype, unsigned int listtype)
 			case AUDIT_SUBJ_CLR:
 				if (f->lsm_rule) {
 					/* scaffolding */
-					security_current_getsecid_subj(
-							&prop.scaffold.secid);
+					security_current_getlsmprop_subj(&prop);
 					result = security_audit_rule_match(
 						   &prop, f->type, f->op,
 						   f->lsm_rule);

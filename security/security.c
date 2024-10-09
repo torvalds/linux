@@ -3492,33 +3492,33 @@ int security_task_getsid(struct task_struct *p)
 }
 
 /**
- * security_current_getsecid_subj() - Get the current task's subjective secid
- * @secid: secid value
+ * security_current_getlsmprop_subj() - Current task's subjective LSM data
+ * @prop: lsm specific information
  *
  * Retrieve the subjective security identifier of the current task and return
- * it in @secid.  In case of failure, @secid will be set to zero.
+ * it in @prop.
  */
-void security_current_getsecid_subj(u32 *secid)
+void security_current_getlsmprop_subj(struct lsm_prop *prop)
 {
-	*secid = 0;
-	call_void_hook(current_getsecid_subj, secid);
+	lsmprop_init(prop);
+	call_void_hook(current_getlsmprop_subj, prop);
 }
-EXPORT_SYMBOL(security_current_getsecid_subj);
+EXPORT_SYMBOL(security_current_getlsmprop_subj);
 
 /**
- * security_task_getsecid_obj() - Get a task's objective secid
+ * security_task_getlsmprop_obj() - Get a task's objective LSM data
  * @p: target task
- * @secid: secid value
+ * @prop: lsm specific information
  *
  * Retrieve the objective security identifier of the task_struct in @p and
- * return it in @secid. In case of failure, @secid will be set to zero.
+ * return it in @prop.
  */
-void security_task_getsecid_obj(struct task_struct *p, u32 *secid)
+void security_task_getlsmprop_obj(struct task_struct *p, struct lsm_prop *prop)
 {
-	*secid = 0;
-	call_void_hook(task_getsecid_obj, p, secid);
+	lsmprop_init(prop);
+	call_void_hook(task_getlsmprop_obj, p, prop);
 }
-EXPORT_SYMBOL(security_task_getsecid_obj);
+EXPORT_SYMBOL(security_task_getlsmprop_obj);
 
 /**
  * security_task_setnice() - Check if setting a task's nice value is allowed
