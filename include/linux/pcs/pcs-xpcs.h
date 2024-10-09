@@ -21,8 +21,6 @@
 #define DW_AN_C37_1000BASEX		4
 #define DW_10GBASER			5
 
-struct dw_xpcs_desc;
-
 enum dw_xpcs_pcs_id {
 	DW_XPCS_ID_NATIVE = 0,
 	NXP_SJA1105_XPCS_ID = 0x00000010,
@@ -48,22 +46,9 @@ struct dw_xpcs_info {
 	u32 pma;
 };
 
-enum dw_xpcs_clock {
-	DW_XPCS_CORE_CLK,
-	DW_XPCS_PAD_CLK,
-	DW_XPCS_NUM_CLKS,
-};
+struct dw_xpcs;
 
-struct dw_xpcs {
-	struct dw_xpcs_info info;
-	const struct dw_xpcs_desc *desc;
-	struct mdio_device *mdiodev;
-	struct clk_bulk_data clks[DW_XPCS_NUM_CLKS];
-	struct phylink_pcs pcs;
-	phy_interface_t interface;
-	bool need_reset;
-};
-
+struct phylink_pcs *xpcs_to_phylink_pcs(struct dw_xpcs *xpcs);
 int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface);
 void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces);
 int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns,
