@@ -15,7 +15,6 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -301,7 +300,6 @@ static const struct of_device_id mpc8xxx_gpio_ids[] = {
 static int mpc8xxx_probe(struct platform_device *pdev)
 {
 	const struct mpc8xxx_gpio_devtype *devtype = NULL;
-	struct device_node *np = pdev->dev.of_node;
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc;
 	struct device *dev = &pdev->dev;
 	struct fwnode_handle *fwnode;
@@ -368,9 +366,9 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	 * the port value to the GPIO Data Register.
 	 */
 	fwnode = dev_fwnode(dev);
-	if (of_device_is_compatible(np, "fsl,qoriq-gpio") ||
-	    of_device_is_compatible(np, "fsl,ls1028a-gpio") ||
-	    of_device_is_compatible(np, "fsl,ls1088a-gpio") ||
+	if (device_is_compatible(dev, "fsl,qoriq-gpio") ||
+	    device_is_compatible(dev, "fsl,ls1028a-gpio") ||
+	    device_is_compatible(dev, "fsl,ls1088a-gpio") ||
 	    is_acpi_node(fwnode)) {
 		gc->write_reg(mpc8xxx_gc->regs + GPIO_IBE, 0xffffffff);
 		/* Also, latch state of GPIOs configured as output by bootloader. */
