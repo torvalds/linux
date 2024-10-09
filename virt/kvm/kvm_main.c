@@ -4116,12 +4116,6 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 
 	mutex_lock(&kvm->lock);
 
-#ifdef CONFIG_LOCKDEP
-	/* Ensure that lockdep knows vcpu->mutex is taken *inside* kvm->lock */
-	mutex_lock(&vcpu->mutex);
-	mutex_unlock(&vcpu->mutex);
-#endif
-
 	if (kvm_get_vcpu_by_id(kvm, id)) {
 		r = -EEXIST;
 		goto unlock_vcpu_destroy;
@@ -4138,7 +4132,8 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 	 * so that userspace can't invoke vCPU ioctl()s until the vCPU is fully
 	 * visible (per online_vcpus), e.g. so that KVM doesn't get tricked
 	 * into a NULL-pointer dereference because KVM thinks the _current_
-	 * vCPU doesn't exist.
+	 * vCPU doesn't exist.  As a bonus, taking vcpu->mutex ensures lockdep
+	 * knows it's taken *inside* kvm->lock.
 	 */
 	mutex_lock(&vcpu->mutex);
 	kvm_get_kvm(kvm);
