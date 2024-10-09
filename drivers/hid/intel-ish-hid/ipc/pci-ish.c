@@ -381,6 +381,50 @@ static int __maybe_unused ish_resume(struct device *device)
 
 static SIMPLE_DEV_PM_OPS(ish_pm_ops, ish_suspend, ish_resume);
 
+static ssize_t base_version_show(struct device *cdev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ishtp_device *dev = dev_get_drvdata(cdev);
+
+	return sysfs_emit(buf, "%u.%u.%u.%u\n", dev->base_ver.major,
+			  dev->base_ver.minor, dev->base_ver.hotfix,
+			  dev->base_ver.build);
+}
+static DEVICE_ATTR_RO(base_version);
+
+static ssize_t project_version_show(struct device *cdev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct ishtp_device *dev = dev_get_drvdata(cdev);
+
+	return sysfs_emit(buf, "%u.%u.%u.%u\n", dev->prj_ver.major,
+			  dev->prj_ver.minor, dev->prj_ver.hotfix,
+			  dev->prj_ver.build);
+}
+static DEVICE_ATTR_RO(project_version);
+
+static struct attribute *ish_firmware_attrs[] = {
+	&dev_attr_base_version.attr,
+	&dev_attr_project_version.attr,
+	NULL
+};
+
+static umode_t firmware_is_visible(struct kobject *kobj, struct attribute *attr,
+				   int i)
+{
+	struct ishtp_device *dev = dev_get_drvdata(kobj_to_dev(kobj));
+
+	return dev->driver_data->fw_generation ? attr->mode : 0;
+}
+
+static const struct attribute_group ish_firmware_group = {
+	.name = "firmware",
+	.attrs = ish_firmware_attrs,
+	.is_visible = firmware_is_visible,
+};
+
+__ATTRIBUTE_GROUPS(ish_firmware);
+
 static struct pci_driver ish_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = ish_pci_tbl,
@@ -388,6 +432,7 @@ static struct pci_driver ish_driver = {
 	.remove = ish_remove,
 	.shutdown = ish_shutdown,
 	.driver.pm = &ish_pm_ops,
+	.dev_groups = ish_firmware_groups,
 };
 
 module_pci_driver(ish_driver);

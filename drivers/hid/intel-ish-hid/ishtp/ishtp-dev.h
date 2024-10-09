@@ -140,6 +140,13 @@ struct ishtp_driver_data {
 	char *fw_generation;
 };
 
+struct ish_version {
+	u16 major;
+	u16 minor;
+	u16 hotfix;
+	u16 build;
+};
+
 /**
  * struct ishtp_device - ISHTP private device struct
  */
@@ -235,6 +242,11 @@ struct ishtp_device {
 
 	/* Dump to trace buffers if enabled*/
 	ishtp_print_log print_log;
+
+	/* Base version of Intel's released firmware */
+	struct ish_version base_ver;
+	/* Vendor-customized project version */
+	struct ish_version prj_ver;
 
 	/* Debug stats */
 	unsigned int	ipc_rx_cnt;
