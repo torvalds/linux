@@ -3379,12 +3379,13 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			amdgpu_ib_pool_fini(adev);
 			amdgpu_seq64_fini(adev);
 		}
-
-		r = adev->ip_blocks[i].version->funcs->sw_fini(&adev->ip_blocks[i]);
-		/* XXX handle errors */
-		if (r) {
-			DRM_DEBUG("sw_fini of IP block <%s> failed %d\n",
-				  adev->ip_blocks[i].version->funcs->name, r);
+		if (adev->ip_blocks[i].version->funcs->sw_fini) {
+			r = adev->ip_blocks[i].version->funcs->sw_fini(&adev->ip_blocks[i]);
+			/* XXX handle errors */
+			if (r) {
+				DRM_DEBUG("sw_fini of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+			}
 		}
 		adev->ip_blocks[i].status.sw = false;
 		adev->ip_blocks[i].status.valid = false;
