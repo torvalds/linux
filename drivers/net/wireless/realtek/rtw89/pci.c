@@ -2671,9 +2671,10 @@ static void rtw89_pci_clr_idx_all_ax(struct rtw89_dev *rtwdev)
 static int rtw89_pci_poll_txdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
-	u32 ret, check, dma_busy;
 	u32 dma_busy1 = info->dma_busy1.addr;
 	u32 dma_busy2 = info->dma_busy2_reg;
+	u32 check, dma_busy;
+	int ret;
 
 	check = info->dma_busy1.mask;
 
@@ -2698,8 +2699,9 @@ static int rtw89_pci_poll_txdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 static int rtw89_pci_poll_rxdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
-	u32 ret, check, dma_busy;
 	u32 dma_busy3 = info->dma_busy3_reg;
+	u32 check, dma_busy;
+	int ret;
 
 	check = B_AX_RXQ_BUSY | B_AX_RPQ_BUSY;
 
