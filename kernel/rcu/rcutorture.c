@@ -1059,8 +1059,13 @@ static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long *star
 			// At most one persisted message per boost test.
 			j = jiffies;
 			lp = READ_ONCE(last_persist);
-			if (time_after(j, lp + mininterval) && cmpxchg(&last_persist, lp, j) == lp)
-				pr_info("Boost inversion persisted: No QS from CPU %d\n", cpu);
+			if (time_after(j, lp + mininterval) &&
+			    cmpxchg(&last_persist, lp, j) == lp) {
+				if (cpu < 0)
+					pr_info("Boost inversion persisted: QS from all CPUs\n");
+				else
+					pr_info("Boost inversion persisted: No QS from CPU %d\n", cpu);
+			}
 			return false; // passed on a technicality
 		}
 		VERBOSE_TOROUT_STRING("rcu_torture_boost boosting failed");
