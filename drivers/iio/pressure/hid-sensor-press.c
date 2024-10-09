@@ -350,7 +350,7 @@ static struct platform_driver hid_press_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_press_probe,
-	.remove_new	= hid_press_remove,
+	.remove		= hid_press_remove,
 };
 module_platform_driver(hid_press_platform_driver);
 

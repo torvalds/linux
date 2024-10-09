@@ -344,7 +344,7 @@ static struct platform_driver hid_prox_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_prox_probe,
-	.remove_new	= hid_prox_remove,
+	.remove		= hid_prox_remove,
 };
 module_platform_driver(hid_prox_platform_driver);
 

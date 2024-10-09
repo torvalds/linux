@@ -700,7 +700,7 @@ static void dln2_adc_remove(struct platform_device *pdev)
 static struct platform_driver dln2_adc_driver = {
 	.driver.name	= DLN2_ADC_MOD_NAME,
 	.probe		= dln2_adc_probe,
-	.remove_new	= dln2_adc_remove,
+	.remove		= dln2_adc_remove,
 };
 
 module_platform_driver(dln2_adc_driver);

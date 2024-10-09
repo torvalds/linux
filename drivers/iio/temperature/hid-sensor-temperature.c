@@ -283,7 +283,7 @@ static struct platform_driver hid_temperature_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_temperature_probe,
-	.remove_new	= hid_temperature_remove,
+	.remove		= hid_temperature_remove,
 };
 module_platform_driver(hid_temperature_platform_driver);
 

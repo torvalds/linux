@@ -467,7 +467,7 @@ static struct platform_driver hid_als_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_als_probe,
-	.remove_new	= hid_als_remove,
+	.remove		= hid_als_remove,
 };
 module_platform_driver(hid_als_platform_driver);
 

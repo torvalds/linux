@@ -697,7 +697,7 @@ static struct platform_driver sun4i_gpadc_driver = {
 	},
 	.id_table = sun4i_gpadc_id,
 	.probe = sun4i_gpadc_probe,
-	.remove_new = sun4i_gpadc_remove,
+	.remove = sun4i_gpadc_remove,
 };
 MODULE_DEVICE_TABLE(of, sun4i_gpadc_of_id);
 

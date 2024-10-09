@@ -1182,7 +1182,7 @@ static struct platform_driver axp20x_adc_driver = {
 	},
 	.id_table = axp20x_adc_id_match,
 	.probe = axp20x_probe,
-	.remove_new = axp20x_remove,
+	.remove = axp20x_remove,
 };
 
 module_platform_driver(axp20x_adc_driver);

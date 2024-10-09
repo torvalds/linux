@@ -96,7 +96,7 @@ static void iio_interrupt_trigger_remove(struct platform_device *pdev)
 
 static struct platform_driver iio_interrupt_trigger_driver = {
 	.probe = iio_interrupt_trigger_probe,
-	.remove_new = iio_interrupt_trigger_remove,
+	.remove = iio_interrupt_trigger_remove,
 	.driver = {
 		.name = "iio_interrupt_trigger",
 	},

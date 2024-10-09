@@ -369,7 +369,7 @@ static struct platform_driver hid_hinge_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_hinge_probe,
-	.remove_new	= hid_hinge_remove,
+	.remove		= hid_hinge_remove,
 };
 module_platform_driver(hid_hinge_platform_driver);
 

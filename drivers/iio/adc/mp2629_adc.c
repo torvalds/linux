@@ -195,7 +195,7 @@ static struct platform_driver mp2629_adc_driver = {
 		.of_match_table = mp2629_adc_of_match,
 	},
 	.probe		= mp2629_adc_probe,
-	.remove_new	= mp2629_adc_remove,
+	.remove		= mp2629_adc_remove,
 };
 module_platform_driver(mp2629_adc_driver);
 

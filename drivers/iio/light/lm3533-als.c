@@ -912,7 +912,7 @@ static struct platform_driver lm3533_als_driver = {
 		.name	= "lm3533-als",
 	},
 	.probe		= lm3533_als_probe,
-	.remove_new	= lm3533_als_remove,
+	.remove		= lm3533_als_remove,
 };
 module_platform_driver(lm3533_als_driver);
 

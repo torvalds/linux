@@ -337,7 +337,7 @@ static void npcm_adc_remove(struct platform_device *pdev)
 
 static struct platform_driver npcm_adc_driver = {
 	.probe		= npcm_adc_probe,
-	.remove_new	= npcm_adc_remove,
+	.remove		= npcm_adc_remove,
 	.driver		= {
 		.name	= "npcm_adc",
 		.of_match_table = npcm_adc_match,

@@ -574,7 +574,7 @@ static struct platform_driver hid_magn_3d_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_magn_3d_probe,
-	.remove_new	= hid_magn_3d_remove,
+	.remove		= hid_magn_3d_remove,
 };
 module_platform_driver(hid_magn_3d_platform_driver);
 
