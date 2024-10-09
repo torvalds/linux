@@ -3737,7 +3737,7 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base,
 	}
 
 	do {
-		u32 *fw_data = (u32 *)(fw_hdr + 1);
+		__be32 *fw_data = (__be32 *)(fw_hdr + 1);
 		for (i = 0; i < tg3_fw_data_len(tp, fw_hdr); i++)
 			write_op(tp, cpu_scratch_base +
 				     (be32_to_cpu(fw_hdr->base_addr) & 0xffff) +
@@ -13126,12 +13126,16 @@ static int tg3_test_nvram(struct tg3 *tp)
 
 	/* Bootstrap checksum at offset 0x10 */
 	csum = calc_crc((unsigned char *) buf, 0x10);
-	if (csum != le32_to_cpu(buf[0x10/4]))
+
+	/* The type of buf is __be32 *, but this value is __le32 */
+	if (csum != le32_to_cpu((__force __le32)buf[0x10 / 4]))
 		goto out;
 
 	/* Manufacturing block starts at offset 0x74, checksum at 0xfc */
-	csum = calc_crc((unsigned char *) &buf[0x74/4], 0x88);
-	if (csum != le32_to_cpu(buf[0xfc/4]))
+	csum = calc_crc((unsigned char *)&buf[0x74 / 4], 0x88);
+
+	/* The type of buf is __be32 *, but this value is __le32 */
+	if (csum != le32_to_cpu((__force __le32)buf[0xfc / 4]))
 		goto out;
 
 	kfree(buf);
@@ -17098,12 +17102,14 @@ static int tg3_get_device_address(struct tg3 *tp, u8 *addr)
 		addr_ok = is_valid_ether_addr(addr);
 	}
 	if (!addr_ok) {
+		__be32 be_hi, be_lo;
+
 		/* Next, try NVRAM. */
 		if (!tg3_flag(tp, NO_NVRAM) &&
-		    !tg3_nvram_read_be32(tp, mac_offset + 0, &hi) &&
-		    !tg3_nvram_read_be32(tp, mac_offset + 4, &lo)) {
-			memcpy(&addr[0], ((char *)&hi) + 2, 2);
-			memcpy(&addr[2], (char *)&lo, sizeof(lo));
+		    !tg3_nvram_read_be32(tp, mac_offset + 0, &be_hi) &&
+		    !tg3_nvram_read_be32(tp, mac_offset + 4, &be_lo)) {
+			memcpy(&addr[0], ((char *)&be_hi) + 2, 2);
+			memcpy(&addr[2], (char *)&be_lo, sizeof(be_lo));
 		}
 		/* Finally just fetch it out of the MAC control regs. */
 		else {
