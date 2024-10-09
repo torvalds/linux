@@ -222,9 +222,6 @@ static struct kmem_cache *create_cache(const char *name,
 	struct kmem_cache *s;
 	int err;
 
-	if (WARN_ON(args->useroffset + args->usersize > object_size))
-		args->useroffset = args->usersize = 0;
-
 	/* If a custom freelist pointer is requested make sure it's sane. */
 	err = -EINVAL;
 	if (args->use_freeptr_offset &&
