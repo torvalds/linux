@@ -158,7 +158,6 @@ struct adf4371_chip_info {
 struct adf4371_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
-	struct clk *clkin;
 	/*
 	 * Lock for accessing device registers. Some operations require
 	 * multiple consecutive R/W operations, during which the device
@@ -547,6 +546,7 @@ static int adf4371_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	struct adf4371_state *st;
 	struct regmap *regmap;
+	struct clk *clkin;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -575,11 +575,11 @@ static int adf4371_probe(struct spi_device *spi)
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
 
-	st->clkin = devm_clk_get_enabled(&spi->dev, "clkin");
-	if (IS_ERR(st->clkin))
-		return PTR_ERR(st->clkin);
+	clkin = devm_clk_get_enabled(&spi->dev, "clkin");
+	if (IS_ERR(clkin))
+		return PTR_ERR(clkin);
 
-	st->clkin_freq = clk_get_rate(st->clkin);
+	st->clkin_freq = clk_get_rate(clkin);
 
 	ret = adf4371_setup(st);
 	if (ret < 0) {
