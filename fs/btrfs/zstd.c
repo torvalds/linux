@@ -111,6 +111,8 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 	unsigned long reclaim_threshold = jiffies - ZSTD_BTRFS_RECLAIM_JIFFIES;
 	struct list_head *pos, *next;
 
+	ASSERT(timer == &wsm.timer);
+
 	spin_lock(&wsm.lock);
 
 	if (list_empty(&wsm.lru_list)) {
