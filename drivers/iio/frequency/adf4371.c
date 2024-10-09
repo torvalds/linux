@@ -4,6 +4,7 @@
  *
  * Copyright 2019 Analog Devices Inc.
  */
+#include "linux/dev_printk.h"
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -554,11 +555,9 @@ static int adf4371_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	regmap = devm_regmap_init_spi(spi, &adf4371_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
-			PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&spi->dev, PTR_ERR(regmap),
+				     "Error initializing spi regmap\n");
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
@@ -577,15 +576,14 @@ static int adf4371_probe(struct spi_device *spi)
 
 	clkin = devm_clk_get_enabled(&spi->dev, "clkin");
 	if (IS_ERR(clkin))
-		return PTR_ERR(clkin);
+		return dev_err_probe(&spi->dev, PTR_ERR(clkin),
+				     "Failed to get clkin\n");
 
 	st->clkin_freq = clk_get_rate(clkin);
 
 	ret = adf4371_setup(st);
-	if (ret < 0) {
-		dev_err(&spi->dev, "ADF4371 setup failed\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&spi->dev, ret, "ADF4371 setup failed\n");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
