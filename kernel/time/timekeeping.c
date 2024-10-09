@@ -742,6 +742,18 @@ static inline void tk_update_leap_state(struct timekeeper *tk)
 }
 
 /*
+ * Leap state update for both shadow and the real timekeeper
+ * Separate to spare a full memcpy() of the timekeeper.
+ */
+static void tk_update_leap_state_all(struct tk_data *tkd)
+{
+	write_seqcount_begin(&tkd->seq);
+	tk_update_leap_state(&tkd->shadow_timekeeper);
+	tkd->timekeeper.next_leap_ktime = tkd->shadow_timekeeper.next_leap_ktime;
+	write_seqcount_end(&tkd->seq);
+}
+
+/*
  * Update the ktime_t based scalar nsec members of the timekeeper
  */
 static inline void tk_update_ktime_data(struct timekeeper *tk)
@@ -2656,13 +2668,10 @@ EXPORT_SYMBOL_GPL(random_get_entropy_fallback);
  */
 int do_adjtimex(struct __kernel_timex *txc)
 {
-	struct timekeeper *tk = &tk_core.timekeeper;
 	struct audit_ntp_data ad;
 	bool offset_set = false;
 	bool clock_set = false;
 	struct timespec64 ts;
-	unsigned long flags;
-	s32 orig_tai, tai;
 	int ret;
 
 	/* Validate the data before disabling interrupts */
@@ -2673,6 +2682,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 
 	if (txc->modes & ADJ_SETOFFSET) {
 		struct timespec64 delta;
+
 		delta.tv_sec  = txc->time.tv_sec;
 		delta.tv_nsec = txc->time.tv_usec;
 		if (!(txc->modes & ADJ_NANO))
@@ -2690,22 +2700,21 @@ int do_adjtimex(struct __kernel_timex *txc)
 	ktime_get_real_ts64(&ts);
 	add_device_randomness(&ts, sizeof(ts));
 
-	raw_spin_lock_irqsave(&tk_core.lock, flags);
-	write_seqcount_begin(&tk_core.seq);
+	scoped_guard (raw_spinlock_irqsave, &tk_core.lock) {
+		struct timekeeper *tks = &tk_core.shadow_timekeeper;
+		s32 orig_tai, tai;
 
-	orig_tai = tai = tk->tai_offset;
-	ret = __do_adjtimex(txc, &ts, &tai, &ad);
+		orig_tai = tai = tks->tai_offset;
+		ret = __do_adjtimex(txc, &ts, &tai, &ad);
 
-	if (tai != orig_tai) {
-		__timekeeping_set_tai_offset(tk, tai);
-		timekeeping_update(&tk_core, tk, TK_MIRROR | TK_CLOCK_WAS_SET);
-		clock_set = true;
-	} else {
-		tk_update_leap_state(tk);
+		if (tai != orig_tai) {
+			__timekeeping_set_tai_offset(tks, tai);
+			timekeeping_update_from_shadow(&tk_core, TK_CLOCK_WAS_SET);
+			clock_set = true;
+		} else {
+			tk_update_leap_state_all(&tk_core);
+		}
 	}
-
-	write_seqcount_end(&tk_core.seq);
-	raw_spin_unlock_irqrestore(&tk_core.lock, flags);
 
 	audit_ntp_log(&ad);
 
