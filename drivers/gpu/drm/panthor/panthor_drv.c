@@ -170,6 +170,7 @@ panthor_get_uobj_array(const struct drm_panthor_obj_array *in, u32 min_stride,
 		 PANTHOR_UOBJ_DECL(struct drm_panthor_gpu_info, tiler_present), \
 		 PANTHOR_UOBJ_DECL(struct drm_panthor_csif_info, pad), \
 		 PANTHOR_UOBJ_DECL(struct drm_panthor_timestamp_info, current_timestamp), \
+		 PANTHOR_UOBJ_DECL(struct drm_panthor_group_priorities_info, pad), \
 		 PANTHOR_UOBJ_DECL(struct drm_panthor_sync_op, timeline_value), \
 		 PANTHOR_UOBJ_DECL(struct drm_panthor_queue_submit, syncs), \
 		 PANTHOR_UOBJ_DECL(struct drm_panthor_queue_create, ringbuf_size), \
@@ -777,11 +778,41 @@ static int panthor_query_timestamp_info(struct panthor_device *ptdev,
 	return 0;
 }
 
+static int group_priority_permit(struct drm_file *file,
+				 u8 priority)
+{
+	/* Ensure that priority is valid */
+	if (priority > PANTHOR_GROUP_PRIORITY_REALTIME)
+		return -EINVAL;
+
+	/* Medium priority and below are always allowed */
+	if (priority <= PANTHOR_GROUP_PRIORITY_MEDIUM)
+		return 0;
+
+	/* Higher priorities require CAP_SYS_NICE or DRM_MASTER */
+	if (capable(CAP_SYS_NICE) || drm_is_current_master(file))
+		return 0;
+
+	return -EACCES;
+}
+
+static void panthor_query_group_priorities_info(struct drm_file *file,
+						struct drm_panthor_group_priorities_info *arg)
+{
+	int prio;
+
+	for (prio = PANTHOR_GROUP_PRIORITY_REALTIME; prio >= 0; prio--) {
+		if (!group_priority_permit(file, prio))
+			arg->allowed_mask |= BIT(prio);
+	}
+}
+
 static int panthor_ioctl_dev_query(struct drm_device *ddev, void *data, struct drm_file *file)
 {
 	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
 	struct drm_panthor_dev_query *args = data;
 	struct drm_panthor_timestamp_info timestamp_info;
+	struct drm_panthor_group_priorities_info priorities_info;
 	int ret;
 
 	if (!args->pointer) {
@@ -796,6 +827,10 @@ static int panthor_ioctl_dev_query(struct drm_device *ddev, void *data, struct d
 
 		case DRM_PANTHOR_DEV_QUERY_TIMESTAMP_INFO:
 			args->size = sizeof(timestamp_info);
+			return 0;
+
+		case DRM_PANTHOR_DEV_QUERY_GROUP_PRIORITIES_INFO:
+			args->size = sizeof(priorities_info);
 			return 0;
 
 		default:
@@ -817,6 +852,10 @@ static int panthor_ioctl_dev_query(struct drm_device *ddev, void *data, struct d
 			return ret;
 
 		return PANTHOR_UOBJ_SET(args->pointer, args->size, timestamp_info);
+
+	case DRM_PANTHOR_DEV_QUERY_GROUP_PRIORITIES_INFO:
+		panthor_query_group_priorities_info(file, &priorities_info);
+		return PANTHOR_UOBJ_SET(args->pointer, args->size, priorities_info);
 
 	default:
 		return -EINVAL;
@@ -1035,24 +1074,6 @@ static int panthor_ioctl_group_destroy(struct drm_device *ddev, void *data,
 		return -EINVAL;
 
 	return panthor_group_destroy(pfile, args->group_handle);
-}
-
-static int group_priority_permit(struct drm_file *file,
-				 u8 priority)
-{
-	/* Ensure that priority is valid */
-	if (priority > PANTHOR_GROUP_PRIORITY_HIGH)
-		return -EINVAL;
-
-	/* Medium priority and below are always allowed */
-	if (priority <= PANTHOR_GROUP_PRIORITY_MEDIUM)
-		return 0;
-
-	/* Higher priorities require CAP_SYS_NICE or DRM_MASTER */
-	if (capable(CAP_SYS_NICE) || drm_is_current_master(file))
-		return 0;
-
-	return -EACCES;
 }
 
 static int panthor_ioctl_group_create(struct drm_device *ddev, void *data,
@@ -1437,6 +1458,8 @@ static void panthor_debugfs_init(struct drm_minor *minor)
  * PanCSF driver version:
  * - 1.0 - initial interface
  * - 1.1 - adds DEV_QUERY_TIMESTAMP_INFO query
+ * - 1.2 - adds DEV_QUERY_GROUP_PRIORITIES_INFO query
+ *       - adds PANTHOR_GROUP_PRIORITY_REALTIME priority
  */
 static const struct drm_driver panthor_drm_driver = {
 	.driver_features = DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ |
@@ -1450,7 +1473,7 @@ static const struct drm_driver panthor_drm_driver = {
 	.desc = "Panthor DRM driver",
 	.date = "20230801",
 	.major = 1,
-	.minor = 1,
+	.minor = 2,
 
 	.gem_create_object = panthor_gem_create_object,
 	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,

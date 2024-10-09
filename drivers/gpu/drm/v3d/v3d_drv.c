@@ -36,6 +36,13 @@
 #define DRIVER_MINOR 0
 #define DRIVER_PATCHLEVEL 0
 
+/* Only expose the `super_pages` modparam if THP is enabled. */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+bool super_pages = true;
+module_param_named(super_pages, super_pages, bool, 0400);
+MODULE_PARM_DESC(super_pages, "Enable/Disable Super Pages support.");
+#endif
+
 static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
 {
@@ -96,6 +103,9 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	case DRM_V3D_PARAM_MAX_PERF_COUNTERS:
 		args->value = v3d->perfmon_info.max_counters;
+		return 0;
+	case DRM_V3D_PARAM_SUPPORTS_SUPER_PAGES:
+		args->value = !!v3d->gemfs;
 		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);

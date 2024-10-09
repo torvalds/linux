@@ -7460,8 +7460,8 @@ T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	drivers/gpu/drm/udl/
 
 DRM DRIVER FOR VIRTUAL KERNEL MODESETTING (VKMS)
-M:	Rodrigo Siqueira <rodrigosiqueiramelo@gmail.com>
 M:	Maíra Canal <mairacanal@riseup.net>
+M:	Louis Chauvet <louis.chauvet@bootlin.com>
 R:	Haneen Mohammed <hamohammed.sa@gmail.com>
 R:	Simona Vetter <simona@ffwll.ch>
 R:	Melissa Wen <melissa.srw@gmail.com>
@@ -24205,6 +24205,7 @@ F:	lib/iov_iter.c
 
 USERSPACE DMA BUFFER DRIVER
 M:	Gerd Hoffmann <kraxel@redhat.com>
+M:	Vivek Kasireddy <vivek.kasireddy@intel.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git

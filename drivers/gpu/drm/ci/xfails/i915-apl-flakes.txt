@@ -4,3 +4,10 @@
 # IGT Version: 1.28-g0df7b9b97
 # Linux Version: 6.9.0-rc7
 kms_fb_coherency@memset-crc
+
+# Board Name: asus-C523NA-A20057-coral
+# Bug Report: https://lore.kernel.org/intel-gfx/61f62c86-3e82-4eff-bd3c-8123fa0ca332@collabora.com/T/#t
+# Failure Rate: 100
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_universal_plane@cursor-fb-leak
