@@ -181,10 +181,11 @@ done
 
 # Function to check for presence of a file on the specified system.
 # Complain if the system cannot be reached, and retry after a wait.
-# Currently just waits forever if a machine disappears.
+# Currently just waits 15 minutes if a machine disappears.
 #
 # Usage: checkremotefile system pathname
 checkremotefile () {
+	local nsshfails=0
 	local ret
 	local sleeptime=60
 
@@ -195,6 +196,11 @@ checkremotefile () {
 		if test "$ret" -eq 255
 		then
 			echo " ---" ssh failure to $1 checking for file $2, retry after $sleeptime seconds. `date` | tee -a "$oldrun/remote-log"
+			nsshfails=$((nsshfails+1))
+			if ((nsshfails > 15))
+			then
+				return 255
+			fi
 		elif test "$ret" -eq 0
 		then
 			return 0
@@ -268,12 +274,23 @@ echo All batches started. `date` | tee -a "$oldrun/remote-log"
 for i in $systems
 do
 	echo " ---" Waiting for $i `date` | tee -a "$oldrun/remote-log"
-	while checkremotefile "$i" "$resdir/$ds/remote.run"
+	while :
 	do
+		checkremotefile "$i" "$resdir/$ds/remote.run"
+		ret=$?
+		if test "$ret" -eq 1
+		then
+			echo " ---" Collecting results from $i `date` | tee -a "$oldrun/remote-log"
+			( cd "$oldrun"; ssh -o BatchMode=yes $i "cd $rundir; tar -czf - kvm-remote-*.sh.out */console.log */kvm-test-1-run*.sh.out */qemu[_-]pid */qemu-retval */qemu-affinity; rm -rf $T > /dev/null 2>&1" | tar -xzf - )
+			break;
+		fi
+		if test "$ret" -eq 255
+		then
+			echo System $i persistent ssh failure, lost results `date` | tee -a "$oldrun/remote-log"
+			break;
+		fi
 		sleep 30
 	done
-	echo " ---" Collecting results from $i `date` | tee -a "$oldrun/remote-log"
-	( cd "$oldrun"; ssh -o BatchMode=yes $i "cd $rundir; tar -czf - kvm-remote-*.sh.out */console.log */kvm-test-1-run*.sh.out */qemu[_-]pid */qemu-retval */qemu-affinity; rm -rf $T > /dev/null 2>&1" | tar -xzf - )
 done
 
 ( kvm-end-run-stats.sh "$oldrun" "$starttime"; echo $? > $T/exitcode ) | tee -a "$oldrun/remote-log"
