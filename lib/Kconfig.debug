@@ -1409,21 +1409,13 @@ config PROVE_LOCKING
 	 For more details, see Documentation/locking/lockdep-design.rst.
 
 config PROVE_RAW_LOCK_NESTING
-	bool "Enable raw_spinlock - spinlock nesting checks"
+	bool
 	depends on PROVE_LOCKING
-	default n
+	default y
 	help
 	 Enable the raw_spinlock vs. spinlock nesting checks which ensure
 	 that the lock nesting rules for PREEMPT_RT enabled kernels are
 	 not violated.
-
-	 NOTE: There are known nesting problems. So if you enable this
-	 option expect lockdep splats until these problems have been fully
-	 addressed which is work in progress. This config switch allows to
-	 identify and analyze these problems. It will be removed and the
-	 check permanently enabled once the main issues have been fixed.
-
-	 If unsure, select N.
 
 config LOCK_STAT
 	bool "Lock usage statistics"
