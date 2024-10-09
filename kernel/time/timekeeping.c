@@ -1809,7 +1809,7 @@ static bool persistent_clock_exists;
 void __init timekeeping_init(void)
 {
 	struct timespec64 wall_time, boot_offset, wall_to_mono;
-	struct timekeeper *tk = &tk_core.timekeeper;
+	struct timekeeper *tks = &tk_core.shadow_timekeeper;
 	struct clocksource *clock;
 
 	tkd_basic_setup(&tk_core);
@@ -1833,22 +1833,20 @@ void __init timekeeping_init(void)
 	wall_to_mono = timespec64_sub(boot_offset, wall_time);
 
 	guard(raw_spinlock_irqsave)(&tk_core.lock);
-	write_seqcount_begin(&tk_core.seq);
+
 	ntp_init();
 
 	clock = clocksource_default_clock();
 	if (clock->enable)
 		clock->enable(clock);
-	tk_setup_internals(tk, clock);
+	tk_setup_internals(tks, clock);
 
-	tk_set_xtime(tk, &wall_time);
-	tk->raw_sec = 0;
+	tk_set_xtime(tks, &wall_time);
+	tks->raw_sec = 0;
 
-	tk_set_wall_to_mono(tk, wall_to_mono);
+	tk_set_wall_to_mono(tks, wall_to_mono);
 
-	timekeeping_update(&tk_core, tk, TK_MIRROR | TK_CLOCK_WAS_SET);
-
-	write_seqcount_end(&tk_core.seq);
+	timekeeping_update_from_shadow(&tk_core, TK_CLOCK_WAS_SET);
 }
 
 /* time in seconds when suspend began for persistent clock */
