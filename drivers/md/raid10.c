@@ -4061,9 +4061,12 @@ static int raid10_run(struct mddev *mddev)
 	}
 
 	if (!mddev_is_dm(conf->mddev)) {
-		ret = raid10_set_queue_limits(mddev);
-		if (ret)
+		int err = raid10_set_queue_limits(mddev);
+
+		if (err) {
+			ret = err;
 			goto out_free_conf;
+		}
 	}
 
 	/* need to check that every block has at least one working mirror */
