@@ -68,7 +68,7 @@ unsigned int __read_mostly hardlockup_panic =
  * for example when running the kernel as a guest on a hypervisor. In these
  * cases this function can be called to disable hard lockup detection. This
  * function should only be executed once by the boot processor before the
- * kernel command line parameters are parsed, because otherwise it is not
+ * kernel command line parameters are parsed because otherwise it is not
  * possible to override this in hardlockup_panic_setup().
  */
 void __init hardlockup_detector_disable(void)
@@ -293,8 +293,8 @@ static void lockup_detector_update_enable(void)
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 
 /*
- * Delay the soflockup report when running a known slow code.
- * It does _not_ affect the timestamp of the last successdul reschedule.
+ * Delay the soft lockup report when running a known slow code.
+ * It does _not_ affect the timestamp of the last successful reschedule.
  */
 #define SOFTLOCKUP_DELAY_REPORT	ULONG_MAX
 
@@ -313,7 +313,7 @@ static u64 __read_mostly sample_period;
 
 /* Timestamp taken after the last successful reschedule. */
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
-/* Timestamp of the last softlockup report. */
+/* Timestamp of the last soft lockup report. */
 static DEFINE_PER_CPU(unsigned long, watchdog_report_ts);
 static DEFINE_PER_CPU(struct hrtimer, watchdog_hrtimer);
 static DEFINE_PER_CPU(bool, softlockup_touch_sync);
@@ -583,7 +583,7 @@ static void update_touch_ts(void)
  *
  * Call when the scheduler may have stalled for legitimate reasons
  * preventing the watchdog task from executing - e.g. the scheduler
- * entering idle state.  This should only be used for scheduler events.
+ * entering an idle state.  This should only be used for scheduler events.
  * Use touch_softlockup_watchdog() for everything else.
  */
 notrace void touch_softlockup_watchdog_sched(void)
@@ -607,13 +607,13 @@ void touch_all_softlockup_watchdogs(void)
 	int cpu;
 
 	/*
-	 * watchdog_mutex cannpt be taken here, as this might be called
+	 * watchdog_mutex can not be taken here, as this might be called
 	 * from (soft)interrupt context, so the access to
 	 * watchdog_allowed_cpumask might race with a concurrent update.
 	 *
 	 * The watchdog time stamp can race against a concurrent real
 	 * update as well, the only side effect might be a cycle delay for
-	 * the softlockup check.
+	 * the soft lockup check.
 	 */
 	for_each_cpu(cpu, &watchdog_allowed_mask) {
 		per_cpu(watchdog_report_ts, cpu) = SOFTLOCKUP_DELAY_REPORT;
@@ -659,7 +659,7 @@ static DEFINE_PER_CPU(struct cpu_stop_work, softlockup_stop_work);
  * The watchdog feed function - touches the timestamp.
  *
  * It only runs once every sample_period seconds (4 seconds by
- * default) to reset the softlockup timestamp. If this gets delayed
+ * default) to reset the soft lockup timestamp. If this gets delayed
  * for more than 2*watchdog_thresh seconds then the debug-printout
  * triggers in watchdog_timer_fn().
  */
@@ -686,7 +686,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 
 	watchdog_hardlockup_kick();
 
-	/* kick the softlockup detector */
+	/* kick the soft lockup detector */
 	if (completion_done(this_cpu_ptr(&softlockup_completion))) {
 		reinit_completion(this_cpu_ptr(&softlockup_completion));
 		stop_one_cpu_nowait(smp_processor_id(),
@@ -732,20 +732,20 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		return HRTIMER_RESTART;
 	}
 
-	/* Check for a softlockup. */
+	/* Check for a soft lockup. */
 	touch_ts = __this_cpu_read(watchdog_touch_ts);
 	duration = is_softlockup(touch_ts, period_ts, now);
 	if (unlikely(duration)) {
 		/*
 		 * Prevent multiple soft-lockup reports if one cpu is already
-		 * engaged in dumping all cpu back traces.
+		 * engaged in dumping all cpu backtraces.
 		 */
 		if (softlockup_all_cpu_backtrace) {
 			if (test_and_set_bit_lock(0, &soft_lockup_nmi_warn))
 				return HRTIMER_RESTART;
 		}
 
-		/* Start period for the next softlockup warning. */
+		/* Start period for the next soft lockup warning. */
 		update_report_ts();
 
 		printk_cpu_sync_get_irqsave(flags);
@@ -769,7 +769,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 
 		add_taint(TAINT_SOFTLOCKUP, LOCKDEP_STILL_OK);
 		if (softlockup_panic)
-			panic("softlockup: hung tasks");
+			panic("soft lockup: hung tasks");
 	}
 
 	return HRTIMER_RESTART;
@@ -1234,8 +1234,8 @@ void __init lockup_detector_retry_init(void)
 }
 
 /*
- * Ensure that optional delayed hardlockup init is proceed before
- * the init code and memory is freed.
+ * Ensure that optional delayed hardlockup init proceeds before
+ * the init code and memory are freed.
  */
 static int __init lockup_detector_check(void)
 {
