@@ -646,7 +646,7 @@ static bool can_cow_file_range_inline(struct btrfs_inode *inode,
  * If being used directly, you must have already checked we're allowed to cow
  * the range by getting true from can_cow_file_range_inline().
  */
-static noinline int __cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
+static noinline int __cow_file_range_inline(struct btrfs_inode *inode,
 					    u64 size, size_t compressed_size,
 					    int compress_type,
 					    struct folio *compressed_folio,
@@ -736,7 +736,7 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode,
 		return 1;
 
 	lock_extent(&inode->io_tree, offset, end, &cached);
-	ret = __cow_file_range_inline(inode, offset, size, compressed_size,
+	ret = __cow_file_range_inline(inode, size, compressed_size,
 				      compress_type, compressed_folio,
 				      update_i_size);
 	if (ret > 0) {
@@ -9502,7 +9502,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	if (encoded->unencoded_len == encoded->len &&
 	    encoded->unencoded_offset == 0 &&
 	    can_cow_file_range_inline(inode, start, encoded->len, orig_count)) {
-		ret = __cow_file_range_inline(inode, start, encoded->len,
+		ret = __cow_file_range_inline(inode, encoded->len,
 					      orig_count, compression, folios[0],
 					      true);
 		if (ret <= 0) {
