@@ -71,11 +71,6 @@ static int isp_suspend(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int isp_resume(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int isp_load_fw_by_psp(struct amdgpu_device *adev)
 {
 	const struct common_firmware_header *hdr;
@@ -167,7 +162,6 @@ static const struct amd_ip_funcs isp_ip_funcs = {
 	.hw_init = isp_hw_init,
 	.hw_fini = isp_hw_fini,
 	.suspend = isp_suspend,
-	.resume = isp_resume,
 	.is_idle = isp_is_idle,
 	.wait_for_idle = isp_wait_for_idle,
 	.soft_reset = isp_soft_reset,
