@@ -799,7 +799,32 @@ static void timekeeping_update(struct tk_data *tkd, struct timekeeper *tk, unsig
 	 * timekeeper structure on the next update with stale data
 	 */
 	if (action & TK_MIRROR)
-		memcpy(&tk_core.shadow_timekeeper, &tk_core.timekeeper, sizeof(tk_core.timekeeper));
+		memcpy(&tkd->shadow_timekeeper, tk, sizeof(*tk));
+}
+
+static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int action)
+{
+	/*
+	 * Block out readers before invoking timekeeping_update() because
+	 * that updates VDSO and other time related infrastructure. Not
+	 * blocking the readers might let a reader see time going backwards
+	 * when reading from the VDSO after the VDSO update and then
+	 * reading in the kernel from the timekeeper before that got updated.
+	 */
+	write_seqcount_begin(&tkd->seq);
+
+	timekeeping_update(tkd, &tkd->shadow_timekeeper, action);
+
+	/*
+	 * Update the real timekeeper.
+	 *
+	 * We could avoid this memcpy() by switching pointers, but that has
+	 * the downside that the reader side does not longer benefit from
+	 * the cacheline optimized data layout of the timekeeper and requires
+	 * another indirection.
+	 */
+	memcpy(&tkd->timekeeper, &tkd->shadow_timekeeper, sizeof(tkd->shadow_timekeeper));
+	write_seqcount_end(&tkd->seq);
 }
 
 /**
@@ -2364,21 +2389,7 @@ static bool timekeeping_advance(enum timekeeping_adv_mode mode)
 	 */
 	clock_set |= accumulate_nsecs_to_secs(tk);
 
-	write_seqcount_begin(&tk_core.seq);
-	/*
-	 * Update the real timekeeper.
-	 *
-	 * We could avoid this memcpy by switching pointers, but that
-	 * requires changes to all other timekeeper usage sites as
-	 * well, i.e. move the timekeeper pointer getter into the
-	 * spinlocked/seqcount protected sections. And we trade this
-	 * memcpy under the tk_core.seq against one before we start
-	 * updating.
-	 */
-	timekeeping_update(&tk_core, tk, clock_set);
-	memcpy(real_tk, tk, sizeof(*tk));
-	/* The memcpy must come last. Do not put anything here! */
-	write_seqcount_end(&tk_core.seq);
+	timekeeping_update_from_shadow(&tk_core, clock_set);
 
 	return !!clock_set;
 }
