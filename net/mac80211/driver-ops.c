@@ -65,6 +65,7 @@ int drv_add_interface(struct ieee80211_local *local,
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
 		    (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
 		     !ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF) &&
+		     !ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR) &&
 		     !(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))))
 		return -EINVAL;
 

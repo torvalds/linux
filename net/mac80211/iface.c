@@ -279,8 +279,13 @@ static int _ieee80211_change_mac(struct ieee80211_sub_if_data *sdata,
 	ret = eth_mac_addr(sdata->dev, sa);
 
 	if (ret == 0) {
-		memcpy(sdata->vif.addr, sa->sa_data, ETH_ALEN);
-		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
+		if (check_dup) {
+			memcpy(sdata->vif.addr, sa->sa_data, ETH_ALEN);
+			ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
+		} else {
+			memset(sdata->vif.addr, 0, ETH_ALEN);
+			memset(sdata->vif.bss_conf.addr, 0, ETH_ALEN);
+		}
 	}
 
 	/* Regardless of eth_mac_addr() return we still want to add the
@@ -699,9 +704,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		ieee80211_recalc_idle(local);
 		ieee80211_recalc_offload(local);
 
-		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
+		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) &&
+		    !ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
 			break;
 
+		ieee80211_link_release_channel(&sdata->deflink);
 		fallthrough;
 	default:
 		if (!going_down)
@@ -1131,7 +1138,8 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	ASSERT_RTNL();
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (local->monitor_sdata)
+	if (local->monitor_sdata ||
+	    ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
 		return 0;
 
 	sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size, GFP_KERNEL);
@@ -1192,6 +1200,9 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
+
+	if (ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
+		return;
 
 	ASSERT_RTNL();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1328,7 +1339,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			break;
 		}
 
-		if (sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) {
+		if ((sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) ||
+		    ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;

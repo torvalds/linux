@@ -105,8 +105,11 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* also validate MU-MIMO change */
-	monitor_sdata = wiphy_dereference(local->hw.wiphy,
-					  local->monitor_sdata);
+	if (ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
+		monitor_sdata = sdata;
+	else
+		monitor_sdata = wiphy_dereference(local->hw.wiphy,
+						  local->monitor_sdata);
 
 	if (!monitor_sdata &&
 	    (params->vht_mumimo_groups || params->vht_mumimo_follow_addr))
@@ -114,7 +117,9 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 
 	/* apply all changes now - no failures allowed */
 
-	if (monitor_sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
+	if (monitor_sdata &&
+		(ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF) ||
+		 ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)))
 		ieee80211_set_mu_mimo_follow(monitor_sdata, params);
 
 	if (params->flags) {
@@ -907,22 +912,25 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (cfg80211_chandef_identical(&local->monitor_chanreq.oper,
-				       &chanreq.oper))
-		return 0;
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (!ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
+		if (cfg80211_chandef_identical(&local->monitor_chanreq.oper,
+						   &chanreq.oper))
+			return 0;
 
-	sdata = wiphy_dereference(local->hw.wiphy,
-				  local->monitor_sdata);
-	if (!sdata)
-		goto done;
+		sdata = wiphy_dereference(wiphy, local->monitor_sdata);
+		if (!sdata)
+			goto done;
+	}
 
-	if (cfg80211_chandef_identical(&sdata->vif.bss_conf.chanreq.oper,
+	if (rcu_access_pointer(sdata->deflink.conf->chanctx_conf) &&
+		cfg80211_chandef_identical(&sdata->vif.bss_conf.chanreq.oper,
 				       &chanreq.oper))
 		return 0;
 
 	ieee80211_link_release_channel(&sdata->deflink);
 	ret = ieee80211_link_use_channel(&sdata->deflink, &chanreq,
-					 IEEE80211_CHANCTX_EXCLUSIVE);
+					 IEEE80211_CHANCTX_SHARED);
 	if (ret)
 		return ret;
 done:
@@ -3084,7 +3092,8 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	if (wdev) {
 		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
-		if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+		    !ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 			if (!ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
 				return -EOPNOTSUPP;
 
@@ -3118,7 +3127,8 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	local->user_power_level = user_power_level;
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+		    !ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 			has_monitor = true;
 			continue;
 		}
@@ -3139,7 +3149,8 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 		}
 	}
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+		    !ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
 			continue;
 
 		for (int link_id = 0;
@@ -4342,7 +4353,8 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 	if (chanctx_conf) {
 		*chandef = link->conf->chanreq.oper;
 		ret = 0;
-	} else if (local->open_count > 0 &&
+	} else if (!ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR) &&
+		   local->open_count > 0 &&
 		   local->open_count == local->monitors &&
 		   sdata->vif.type == NL80211_IFTYPE_MONITOR) {
 		*chandef = local->monitor_chanreq.oper;

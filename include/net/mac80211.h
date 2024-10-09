@@ -2694,6 +2694,11 @@ struct ieee80211_txq {
  *	a virtual monitor interface when monitor interfaces are the only
  *	active interfaces.
  *
+ * @IEEE80211_HW_NO_VIRTUAL_MONITOR: The driver would like to be informed
+ *	of any monitor interface, as well as their configured channel.
+ *	This is useful for supporting multiple monitor interfaces on different
+ *	channels.
+ *
  * @IEEE80211_HW_NO_AUTO_VIF: The driver would like for no wlanX to
  *	be created.  It is expected user-space will create vifs as
  *	desired (and thus have them named as desired).
@@ -2853,6 +2858,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_DYNAMIC_PS,
 	IEEE80211_HW_MFP_CAPABLE,
 	IEEE80211_HW_WANT_MONITOR_VIF,
+	IEEE80211_HW_NO_VIRTUAL_MONITOR,
 	IEEE80211_HW_NO_AUTO_VIF,
 	IEEE80211_HW_SW_CRYPTO_CONTROL,
 	IEEE80211_HW_SUPPORT_FAST_XMIT,
