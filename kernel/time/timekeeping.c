@@ -45,12 +45,14 @@ enum timekeeping_adv_mode {
  * The most important data for readout fits into a single 64 byte
  * cache line.
  */
-static struct {
+struct tk_data {
 	seqcount_raw_spinlock_t	seq;
 	struct timekeeper	timekeeper;
 	struct timekeeper	shadow_timekeeper;
 	raw_spinlock_t		lock;
-} tk_core ____cacheline_aligned;
+} ____cacheline_aligned;
+
+static struct tk_data tk_core;
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
