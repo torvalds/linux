@@ -4132,7 +4132,14 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 	if (r)
 		goto unlock_vcpu_destroy;
 
-	/* Now it's all set up, let userspace reach it */
+	/*
+	 * Now it's all set up, let userspace reach it.  Grab the vCPU's mutex
+	 * so that userspace can't invoke vCPU ioctl()s until the vCPU is fully
+	 * visible (per online_vcpus), e.g. so that KVM doesn't get tricked
+	 * into a NULL-pointer dereference because KVM thinks the _current_
+	 * vCPU doesn't exist.
+	 */
+	mutex_lock(&vcpu->mutex);
 	kvm_get_kvm(kvm);
 	r = create_vcpu_fd(vcpu);
 	if (r < 0)
@@ -4149,6 +4156,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 	 */
 	smp_wmb();
 	atomic_inc(&kvm->online_vcpus);
+	mutex_unlock(&vcpu->mutex);
 
 	mutex_unlock(&kvm->lock);
 	kvm_arch_vcpu_postcreate(vcpu);
@@ -4156,6 +4164,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, unsigned long id)
 	return r;
 
 kvm_put_xa_release:
+	mutex_unlock(&vcpu->mutex);
 	kvm_put_kvm_no_destroy(kvm);
 	xa_release(&kvm->vcpu_array, vcpu->vcpu_idx);
 unlock_vcpu_destroy:
@@ -4282,6 +4291,33 @@ static int kvm_vcpu_pre_fault_memory(struct kvm_vcpu *vcpu,
 }
 #endif
 
+static int kvm_wait_for_vcpu_online(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	/*
+	 * In practice, this happy path will always be taken, as a well-behaved
+	 * VMM will never invoke a vCPU ioctl() before KVM_CREATE_VCPU returns.
+	 */
+	if (likely(vcpu->vcpu_idx < atomic_read(&kvm->online_vcpus)))
+		return 0;
+
+	/*
+	 * Acquire and release the vCPU's mutex to wait for vCPU creation to
+	 * complete (kvm_vm_ioctl_create_vcpu() holds the mutex until the vCPU
+	 * is fully online).
+	 */
+	if (mutex_lock_killable(&vcpu->mutex))
+		return -EINTR;
+
+	mutex_unlock(&vcpu->mutex);
+
+	if (WARN_ON_ONCE(!kvm_get_vcpu(kvm, vcpu->vcpu_idx)))
+		return -EIO;
+
+	return 0;
+}
+
 static long kvm_vcpu_ioctl(struct file *filp,
 			   unsigned int ioctl, unsigned long arg)
 {
@@ -4296,6 +4332,15 @@ static long kvm_vcpu_ioctl(struct file *filp,
 
 	if (unlikely(_IOC_TYPE(ioctl) != KVMIO))
 		return -EINVAL;
+
+	/*
+	 * Wait for the vCPU to be online before handling the ioctl(), as KVM
+	 * assumes the vCPU is reachable via vcpu_array, i.e. may dereference
+	 * a NULL pointer if userspace invokes an ioctl() before KVM is ready.
+	 */
+	r = kvm_wait_for_vcpu_online(vcpu);
+	if (r)
+		return r;
 
 	/*
 	 * Some architectures have vcpu ioctls that are asynchronous to vcpu
