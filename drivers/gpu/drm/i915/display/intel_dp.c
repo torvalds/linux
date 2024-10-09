@@ -85,6 +85,7 @@
 #include "intel_pch_display.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
+#include "intel_runtime_pm.h"
 #include "intel_quirks.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
@@ -6054,7 +6055,9 @@ intel_dp_hpd_pulse(struct intel_digital_port *dig_port, bool long_hpd)
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 
 	if (dig_port->base.type == INTEL_OUTPUT_EDP &&
-	    (long_hpd || !intel_pps_have_panel_power_or_vdd(intel_dp))) {
+	    (long_hpd ||
+	     intel_runtime_pm_suspended(&i915->runtime_pm) ||
+	     !intel_pps_have_panel_power_or_vdd(intel_dp))) {
 		/*
 		 * vdd off can generate a long/short pulse on eDP which
 		 * would require vdd on to handle it, and thus we
