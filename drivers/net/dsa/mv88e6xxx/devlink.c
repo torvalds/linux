@@ -376,7 +376,7 @@ static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 	struct mv88e6xxx_devlink_atu_entry *table;
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int fid = -1, count, err;
+	int fid = -1, err = 0, count;
 
 	table = kmalloc_array(mv88e6xxx_num_databases(chip),
 			      sizeof(struct mv88e6xxx_devlink_atu_entry),
