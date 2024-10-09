@@ -4692,8 +4692,7 @@ out:
  *			BOTH POINTERS ARE BEFORE TREE SWAP
  * @last_snapshot:	last snapshot generation of the subvolume tree
  */
-int btrfs_qgroup_add_swapped_blocks(struct btrfs_trans_handle *trans,
-		struct btrfs_root *subvol_root,
+int btrfs_qgroup_add_swapped_blocks(struct btrfs_root *subvol_root,
 		struct btrfs_block_group *bg,
 		struct extent_buffer *subvol_parent, int subvol_slot,
 		struct extent_buffer *reloc_parent, int reloc_slot,
