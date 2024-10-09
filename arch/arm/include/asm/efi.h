@@ -59,7 +59,7 @@ void efi_virtmap_unload(void);
 /*
  * A reasonable upper bound for the uncompressed kernel size is 32 MBytes,
  * so we will reserve that amount of memory. We have no easy way to tell what
- * the actuall size of code + data the uncompressed kernel will use.
+ * the actual size of code + data the uncompressed kernel will use.
  * If this is insufficient, the decompressor will relocate itself out of the
  * way before performing the decompression.
  */
