@@ -9132,8 +9132,8 @@ static void btrfs_encoded_read_endio(struct btrfs_bio *bbio)
 }
 
 int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
-					  u64 file_offset, u64 disk_bytenr,
-					  u64 disk_io_size, struct page **pages)
+					  u64 disk_bytenr, u64 disk_io_size,
+					  struct page **pages)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_encoded_read_private priv = {
@@ -9203,7 +9203,7 @@ static ssize_t btrfs_encoded_read_regular(struct kiocb *iocb,
 		goto out;
 		}
 
-	ret = btrfs_encoded_read_regular_fill_pages(inode, start, disk_bytenr,
+	ret = btrfs_encoded_read_regular_fill_pages(inode, disk_bytenr,
 						    disk_io_size, pages);
 	if (ret)
 		goto out;
