@@ -829,7 +829,7 @@ repeat:
 		goto end;
 
 	// Make sure that the CPU is affinitized appropriately during testing.
-	WARN_ON_ONCE(raw_smp_processor_id() != me);
+	WARN_ON_ONCE(raw_smp_processor_id() != me % nr_cpu_ids);
 
 	WRITE_ONCE(rt->start_reader, 0);
 	if (!atomic_dec_return(&n_started))
