@@ -6549,7 +6549,26 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 				return -EINVAL;
 			}
 			break;
-
+		case I915_FORMAT_MOD_Y_TILED_CCS:
+		case I915_FORMAT_MOD_Yf_TILED_CCS:
+			/*
+			 * Display WA #0731: skl
+			 * WaDisableRCWithAsyncFlip: skl
+			 * "When render decompression is enabled, hardware
+			 *  internally converts the Async flips to Sync flips."
+			 *
+			 * Display WA #1159: glk
+			 * "Async flip with render compression may result in
+			 *  intermittent underrun corruption."
+			 */
+			if (DISPLAY_VER(i915) < 11) {
+				drm_dbg_kms(&i915->drm,
+					    "[PLANE:%d:%s] Modifier 0x%llx does not support async flip on display ver %d\n",
+					    plane->base.base.id, plane->base.name,
+					    new_plane_state->hw.fb->modifier, DISPLAY_VER(i915));
+				return -EINVAL;
+			}
+			break;
 		case I915_FORMAT_MOD_X_TILED:
 		case I915_FORMAT_MOD_Y_TILED:
 		case I915_FORMAT_MOD_Yf_TILED:
