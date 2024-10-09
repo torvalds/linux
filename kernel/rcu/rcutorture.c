@@ -393,6 +393,7 @@ struct rcu_torture_ops {
 	int slow_gps;
 	int no_pi_lock;
 	int debug_objects;
+	int start_poll_irqsoff;
 	const char *name;
 };
 
@@ -581,6 +582,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.can_boost		= IS_ENABLED(CONFIG_RCU_BOOST),
 	.extendables		= RCUTORTURE_MAX_EXTEND,
 	.debug_objects		= 1,
+	.start_poll_irqsoff	= 1,
 	.name			= "rcu"
 };
 
@@ -1695,14 +1697,22 @@ rcu_torture_fakewriter(void *arg)
 				cur_ops->cond_sync_exp_full(&gp_snap_full);
 				break;
 			case RTWS_POLL_GET:
+				if (cur_ops->start_poll_irqsoff)
+					local_irq_disable();
 				gp_snap = cur_ops->start_gp_poll();
+				if (cur_ops->start_poll_irqsoff)
+					local_irq_enable();
 				while (!cur_ops->poll_gp_state(gp_snap)) {
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
 				}
 				break;
 			case RTWS_POLL_GET_FULL:
+				if (cur_ops->start_poll_irqsoff)
+					local_irq_disable();
 				cur_ops->start_gp_poll_full(&gp_snap_full);
+				if (cur_ops->start_poll_irqsoff)
+					local_irq_enable();
 				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
