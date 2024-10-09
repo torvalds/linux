@@ -37,4 +37,7 @@ bool icl_is_nv12_y_plane(struct drm_i915_private *dev_priv,
 u8 icl_hdr_plane_mask(void);
 bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id);
 
+u32 skl_plane_aux_dist(const struct intel_plane_state *plane_state,
+		       int color_plane);
+
 #endif
