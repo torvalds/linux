@@ -2507,7 +2507,7 @@ static int extent_buffer_under_io(const struct extent_buffer *eb)
 		test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
 }
 
-static bool folio_range_has_eb(struct btrfs_fs_info *fs_info, struct folio *folio)
+static bool folio_range_has_eb(struct folio *folio)
 {
 	struct btrfs_subpage *subpage;
 
@@ -2581,7 +2581,7 @@ static void detach_extent_buffer_folio(const struct extent_buffer *eb, struct fo
 	 * We can only detach the folio private if there are no other ebs in the
 	 * page range and no unfinished IO.
 	 */
-	if (!folio_range_has_eb(fs_info, folio))
+	if (!folio_range_has_eb(folio))
 		btrfs_detach_subpage(fs_info, folio);
 
 	spin_unlock(&folio->mapping->i_private_lock);
