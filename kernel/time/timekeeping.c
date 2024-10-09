@@ -548,7 +548,7 @@ EXPORT_SYMBOL_GPL(ktime_get_raw_fast_ns);
  *    timekeeping_inject_sleeptime64()
  *    __timekeeping_inject_sleeptime(tk, delta);
  *                                                 timestamp();
- *    timekeeping_update(tkd, tk, TK_CLEAR_NTP...);
+ *    timekeeping_update_staged(tkd, TK_CLEAR_NTP...);
  *
  * (2) On 32-bit systems, the 64-bit boot offset (tk->offs_boot) may be
  * partially updated.  Since the tk->offs_boot update is a rare event, this
@@ -794,9 +794,20 @@ static void timekeeping_restore_shadow(struct tk_data *tkd)
 	memcpy(&tkd->shadow_timekeeper, &tkd->timekeeper, sizeof(tkd->timekeeper));
 }
 
-static void timekeeping_update(struct tk_data *tkd, struct timekeeper *tk, unsigned int action)
+static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int action)
 {
+	struct timekeeper *tk = &tk_core.shadow_timekeeper;
+
 	lockdep_assert_held(&tkd->lock);
+
+	/*
+	 * Block out readers before running the updates below because that
+	 * updates VDSO and other time related infrastructure. Not blocking
+	 * the readers might let a reader see time going backwards when
+	 * reading from the VDSO after the VDSO update and then reading in
+	 * the kernel from the timekeeper before that got updated.
+	 */
+	write_seqcount_begin(&tkd->seq);
 
 	if (action & TK_CLEAR_NTP) {
 		tk->ntp_error = 0;
@@ -815,20 +826,6 @@ static void timekeeping_update(struct tk_data *tkd, struct timekeeper *tk, unsig
 
 	if (action & TK_CLOCK_WAS_SET)
 		tk->clock_was_set_seq++;
-}
-
-static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int action)
-{
-	/*
-	 * Block out readers before invoking timekeeping_update() because
-	 * that updates VDSO and other time related infrastructure. Not
-	 * blocking the readers might let a reader see time going backwards
-	 * when reading from the VDSO after the VDSO update and then
-	 * reading in the kernel from the timekeeper before that got updated.
-	 */
-	write_seqcount_begin(&tkd->seq);
-
-	timekeeping_update(tkd, &tkd->shadow_timekeeper, action);
 
 	/*
 	 * Update the real timekeeper.
@@ -838,7 +835,7 @@ static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int act
 	 * the cacheline optimized data layout of the timekeeper and requires
 	 * another indirection.
 	 */
-	memcpy(&tkd->timekeeper, &tkd->shadow_timekeeper, sizeof(tkd->shadow_timekeeper));
+	memcpy(&tkd->timekeeper, tk, sizeof(*tk));
 	write_seqcount_end(&tkd->seq);
 }
 
