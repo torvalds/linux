@@ -580,7 +580,7 @@ static void handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
 }
 #endif /* CONFIG_SERIAL_QCOM_GENI_CONSOLE */
 
-static void handle_rx_uart(struct uart_port *uport, u32 bytes, bool drop)
+static void handle_rx_uart(struct uart_port *uport, u32 bytes)
 {
 	struct qcom_geni_serial_port *port = to_dev_port(uport);
 	struct tty_port *tport = &uport->state->port;
@@ -873,7 +873,7 @@ static void qcom_geni_serial_handle_rx_dma(struct uart_port *uport, bool drop)
 	}
 
 	if (!drop)
-		handle_rx_uart(uport, rx_in, drop);
+		handle_rx_uart(uport, rx_in);
 
 	ret = geni_se_rx_dma_prep(&port->se, port->rx_buf,
 				  DMA_RX_BUF_SIZE,
