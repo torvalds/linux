@@ -2,7 +2,7 @@ config VIDEO_INTEL_IPU6
 	tristate "Intel IPU6 driver"
 	depends on ACPI || COMPILE_TEST
 	depends on VIDEO_DEV
-	depends on X86 && X86_64 && HAS_DMA
+	depends on X86 && HAS_DMA
 	depends on IPU_BRIDGE || !IPU_BRIDGE
 	#
 	# This driver incorrectly tries to override the dma_ops.  It should
