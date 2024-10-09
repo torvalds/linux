@@ -370,6 +370,11 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 		dev_err(dev, "failed to set cpui dai mclk1 rate (%lu): %d\n", mclk_freq, ret);
 		return ret;
 	}
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk_freq, SND_SOC_CLOCK_IN);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(dev, "failed to set codec dai mclk rate (%lu): %d\n", mclk_freq, ret);
+		return ret;
+	}
 
 	return 0;
 }
