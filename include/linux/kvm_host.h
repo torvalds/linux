@@ -979,9 +979,10 @@ static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 	return xa_load(&kvm->vcpu_array, i);
 }
 
-#define kvm_for_each_vcpu(idx, vcpup, kvm)		   \
-	xa_for_each_range(&kvm->vcpu_array, idx, vcpup, 0, \
-			  (atomic_read(&kvm->online_vcpus) - 1))
+#define kvm_for_each_vcpu(idx, vcpup, kvm)				\
+	if (atomic_read(&kvm->online_vcpus))				\
+		xa_for_each_range(&kvm->vcpu_array, idx, vcpup, 0,	\
+				  (atomic_read(&kvm->online_vcpus) - 1))
 
 static inline struct kvm_vcpu *kvm_get_vcpu_by_id(struct kvm *kvm, int id)
 {
