@@ -702,7 +702,7 @@ static void free_heuristic_ws(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *alloc_heuristic_ws(unsigned int level)
+static struct list_head *alloc_heuristic_ws(void)
 {
 	struct heuristic_ws *ws;
 
@@ -744,7 +744,7 @@ static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 static struct list_head *alloc_workspace(int type, unsigned int level)
 {
 	switch (type) {
-	case BTRFS_COMPRESS_NONE: return alloc_heuristic_ws(level);
+	case BTRFS_COMPRESS_NONE: return alloc_heuristic_ws();
 	case BTRFS_COMPRESS_ZLIB: return zlib_alloc_workspace(level);
 	case BTRFS_COMPRESS_LZO:  return lzo_alloc_workspace();
 	case BTRFS_COMPRESS_ZSTD: return zstd_alloc_workspace(level);
