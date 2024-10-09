@@ -26,6 +26,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -1046,8 +1047,6 @@ static int nmk_i2c_eyeq5_probe(struct nmk_i2c_dev *priv)
 	struct regmap *olb;
 	unsigned int id;
 
-	priv->has_32b_bus = true;
-
 	olb = syscon_regmap_lookup_by_phandle_args(np, "mobileye,olb", 1, &id);
 	if (IS_ERR(olb))
 		return PTR_ERR(olb);
@@ -1068,15 +1067,35 @@ static int nmk_i2c_eyeq5_probe(struct nmk_i2c_dev *priv)
 	return 0;
 }
 
+#define NMK_I2C_EYEQ_FLAG_32B_BUS	BIT(0)
+#define NMK_I2C_EYEQ_FLAG_IS_EYEQ5	BIT(1)
+
+static const struct of_device_id nmk_i2c_eyeq_match_table[] = {
+	{
+		.compatible = "mobileye,eyeq5-i2c",
+		.data = (void *)(NMK_I2C_EYEQ_FLAG_32B_BUS | NMK_I2C_EYEQ_FLAG_IS_EYEQ5),
+	},
+};
+
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
-	int ret = 0;
-	struct nmk_i2c_dev *priv;
-	struct device_node *np = adev->dev.of_node;
-	struct device *dev = &adev->dev;
-	struct i2c_adapter *adap;
 	struct i2c_vendor_data *vendor = id->data;
 	u32 max_fifo_threshold = (vendor->fifodepth / 2) - 1;
+	struct device_node *np = adev->dev.of_node;
+	const struct of_device_id *match;
+	struct device *dev = &adev->dev;
+	unsigned long match_flags = 0;
+	struct nmk_i2c_dev *priv;
+	struct i2c_adapter *adap;
+	int ret = 0;
+
+	/*
+	 * We do not want to attach a .of_match_table to our amba driver.
+	 * Do not convert to device_get_match_data().
+	 */
+	match = of_match_device(nmk_i2c_eyeq_match_table, dev);
+	if (match)
+		match_flags = (unsigned long)match->data;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1084,10 +1103,10 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 
 	priv->vendor = vendor;
 	priv->adev = adev;
-	priv->has_32b_bus = false;
+	priv->has_32b_bus = match_flags & NMK_I2C_EYEQ_FLAG_32B_BUS;
 	nmk_i2c_of_probe(np, priv);
 
-	if (of_device_is_compatible(np, "mobileye,eyeq5-i2c")) {
+	if (match_flags & NMK_I2C_EYEQ_FLAG_IS_EYEQ5) {
 		ret = nmk_i2c_eyeq5_probe(priv);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed OLB lookup\n");
