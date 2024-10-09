@@ -746,7 +746,7 @@ static struct list_head *alloc_workspace(int type, unsigned int level)
 	switch (type) {
 	case BTRFS_COMPRESS_NONE: return alloc_heuristic_ws(level);
 	case BTRFS_COMPRESS_ZLIB: return zlib_alloc_workspace(level);
-	case BTRFS_COMPRESS_LZO:  return lzo_alloc_workspace(level);
+	case BTRFS_COMPRESS_LZO:  return lzo_alloc_workspace();
 	case BTRFS_COMPRESS_ZSTD: return zstd_alloc_workspace(level);
 	default:
 		/*
