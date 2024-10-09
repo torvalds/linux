@@ -758,10 +758,12 @@ static int bch2_journal_reclaim_thread(void *arg)
 			journal_empty = fifo_empty(&j->pin);
 			spin_unlock(&j->lock);
 
+			long timeout = j->next_reclaim - jiffies;
+
 			if (journal_empty)
 				schedule();
-			else if (time_after(j->next_reclaim, jiffies))
-				schedule_timeout(j->next_reclaim - jiffies);
+			else if (timeout > 0)
+				schedule_timeout(timeout);
 			else
 				break;
 		}
