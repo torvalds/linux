@@ -207,6 +207,26 @@ if (q2spi_ptr) { \
 } \
 } while (0)
 
+#define Q2SPI_DBG_1(q2spi_ptr, x...) do { \
+if (q2spi_ptr) { \
+	if (q2spi_ptr->q2spi_log_lvl >= LOG_DBG_LEVEL1) {\
+		GENI_SE_DBG(q2spi_ptr->ipc, false, q2spi_ptr->dev, x); \
+		if (q2spi_ptr->dev) \
+			q2spi_trace_log(q2spi_ptr->dev, x); \
+	} \
+} \
+} while (0)
+
+#define Q2SPI_DBG_2(q2spi_ptr, x...) do { \
+if (q2spi_ptr) { \
+	if (q2spi_ptr->q2spi_log_lvl >= LOG_DBG_LEVEL2) {\
+		GENI_SE_DBG(q2spi_ptr->ipc, false, q2spi_ptr->dev, x); \
+		if (q2spi_ptr->dev) \
+			q2spi_trace_log(q2spi_ptr->dev, x); \
+	} \
+} \
+} while (0)
+
 #define Q2SPI_DEBUG(q2spi_ptr, x...) do { \
 if (q2spi_ptr) { \
 	GENI_SE_DBG(q2spi_ptr->ipc, false, q2spi_ptr->dev, x); \
@@ -253,6 +273,12 @@ enum q2spi_cr_hdr_type {
 	CR_HDR_BULK = 1,
 	CR_HDR_VAR3 = 2,
 	CR_HDR_EXT  = 3,
+};
+
+enum DEBUG_LOG_LVL {
+	LOG_DBG_LEVEL0 = 0,  /* Indicates lowest level debug log level, default log level */
+	LOG_DBG_LEVEL1 = 1,
+	LOG_DBG_LEVEL2 = 2,
 };
 
 struct q2spi_mc_hrf_entry {
@@ -530,6 +556,7 @@ struct q2spi_dma_transfer {
  * @q2spi_cr_hdr_err: reflects CR Header incorrect in CR Header
  * @is_start_seq_fail: start sequence fail due to slave not responding
  * @wait_comp_start_fail: completion for transfer callback during start sequence failure
+ * @q2spi_log_lvl: reflects log level in q2spi driver
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -638,6 +665,7 @@ struct q2spi_geni {
 	bool q2spi_cr_hdr_err;
 	bool is_start_seq_fail;
 	struct completion wait_comp_start_fail;
+	u32 q2spi_log_lvl;
 };
 
 /**
