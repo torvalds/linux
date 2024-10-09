@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-snd-soc-sst-dsp-y := sst-dsp.o
-snd-soc-sst-ipc-y := sst-ipc.o
 snd-soc-acpi-intel-match-y := soc-acpi-intel-byt-match.o soc-acpi-intel-cht-match.o \
 	soc-acpi-intel-hsw-bdw-match.o \
 	soc-acpi-intel-skl-match.o soc-acpi-intel-kbl-match.o \
@@ -18,5 +16,4 @@ snd-soc-acpi-intel-match-y := soc-acpi-intel-byt-match.o soc-acpi-intel-cht-matc
 
 snd-soc-acpi-intel-match-y += soc-acpi-intel-ssp-common.o
 
-obj-$(CONFIG_SND_SOC_INTEL_SST) += snd-soc-sst-dsp.o snd-soc-sst-ipc.o
 obj-$(CONFIG_SND_SOC_ACPI_INTEL_MATCH) += snd-soc-acpi-intel-match.o
