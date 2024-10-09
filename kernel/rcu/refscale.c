@@ -75,6 +75,9 @@ MODULE_PARM_DESC(scale_type, "Type of test (rcu, srcu, refcnt, rwsem, rwlock.");
 torture_param(int, verbose, 0, "Enable verbose debugging printk()s");
 torture_param(int, verbose_batched, 0, "Batch verbose debugging printk()s");
 
+// Number of seconds to extend warm-up and cool-down for multiple guest OSes
+torture_param(long, guest_os_delay, 0,
+	      "Number of seconds to extend warm-up/cool-down for multiple guest OSes.");
 // Wait until there are multiple CPUs before starting test.
 torture_param(int, holdoff, IS_BUILTIN(CONFIG_RCU_REF_SCALE_TEST) ? 10 : 0,
 	      "Holdoff time before test start (s)");
@@ -801,6 +804,18 @@ static void rcu_scale_one_reader(void)
 		cur_ops->delaysection(loops, readdelay / 1000, readdelay % 1000);
 }
 
+// Warm up cache, or, if needed run a series of rcu_scale_one_reader()
+// to allow multiple rcuscale guest OSes to collect mutually valid data.
+static void rcu_scale_warm_cool(void)
+{
+	unsigned long jdone = jiffies + (guest_os_delay > 0 ? guest_os_delay * HZ : -1);
+
+	do {
+		rcu_scale_one_reader();
+		cond_resched();
+	} while (time_before(jiffies, jdone));
+}
+
 // Reader kthread.  Repeatedly does empty RCU read-side
 // critical section, minimizing update-side interference.
 static int
@@ -957,6 +972,7 @@ static int main_func(void *arg)
 		schedule_timeout_uninterruptible(1);
 
 	// Start exp readers up per experiment
+	rcu_scale_warm_cool();
 	for (exp = 0; exp < nruns && !torture_must_stop(); exp++) {
 		if (torture_must_stop())
 			goto end;
@@ -987,6 +1003,7 @@ static int main_func(void *arg)
 
 		result_avg[exp] = div_u64(1000 * process_durations(nreaders), nreaders * loops);
 	}
+	rcu_scale_warm_cool();
 
 	// Print the average of all experiments
 	SCALEOUT("END OF TEST. Calculating average duration per loop (nanoseconds)...\n");
