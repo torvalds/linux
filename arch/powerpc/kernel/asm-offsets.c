@@ -596,7 +596,6 @@ int main(void)
 	HSTATE_FIELD(HSTATE_DABR, dabr);
 	HSTATE_FIELD(HSTATE_DECEXP, dec_expires);
 	HSTATE_FIELD(HSTATE_SPLIT_MODE, kvm_split_mode);
-	DEFINE(IPI_PRIORITY, IPI_PRIORITY);
 	OFFSET(KVM_SPLIT_RPR, kvm_split_mode, rpr);
 	OFFSET(KVM_SPLIT_PMMAR, kvm_split_mode, pmmar);
 	OFFSET(KVM_SPLIT_LDBAR, kvm_split_mode, ldbar);
