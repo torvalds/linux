@@ -479,6 +479,7 @@ void xe_display_pm_runtime_resume(struct xe_device *xe)
 		return;
 	}
 
+	intel_hpd_init(xe);
 	intel_hpd_poll_disable(xe);
 }
 
