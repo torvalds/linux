@@ -454,9 +454,13 @@ static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 	 * operation, and the other is for std, fast mode, fast mode
 	 * plus operation. Currently we do not supprt high speed mode
 	 * so set brcr1 to 0.
+	 *
+	 * BRCR is a clock divider amount. Pick highest value that
+	 * leads to rate strictly below target. Eg when asking for
+	 * 400kHz you want a bus rate <=400kHz (and not >=400kHz).
 	 */
 	brcr1 = FIELD_PREP(I2C_BRCR_BRCNT1, 0);
-	brcr2 = FIELD_PREP(I2C_BRCR_BRCNT2, i2c_clk / (priv->clk_freq * div));
+	brcr2 = FIELD_PREP(I2C_BRCR_BRCNT2, DIV_ROUND_UP(i2c_clk, priv->clk_freq * div));
 
 	/* set the baud rate counter register */
 	writel((brcr1 | brcr2), priv->virtbase + I2C_BRCR);
