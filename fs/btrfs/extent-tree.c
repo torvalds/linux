@@ -5270,7 +5270,7 @@ struct walk_control {
  * corrupted file systems must have been caught before calling this function.
  */
 static bool visit_node_for_delete(struct btrfs_root *root, struct walk_control *wc,
-				  struct extent_buffer *eb, u64 refs, u64 flags, int slot)
+				  struct extent_buffer *eb, u64 flags, int slot)
 {
 	struct btrfs_key key;
 	u64 generation;
@@ -5384,7 +5384,7 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 			continue;
 
 		/* If we don't need to visit this node don't reada. */
-		if (!visit_node_for_delete(root, wc, eb, refs, flags, slot))
+		if (!visit_node_for_delete(root, wc, eb, flags, slot))
 			continue;
 reada:
 		btrfs_readahead_node_child(eb, slot);
@@ -5737,8 +5737,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	/* If we don't have to walk into this node skip it. */
 	if (!visit_node_for_delete(root, wc, path->nodes[level],
-				   wc->refs[level - 1], wc->flags[level - 1],
-				   path->slots[level]))
+				   wc->flags[level - 1], path->slots[level]))
 		goto skip;
 
 	/*
