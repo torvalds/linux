@@ -8,7 +8,6 @@ TODO:
   - abstract VT3253 chipset specific code
 - add common vt665x infrastructure
 - kill ttype.h
-- switch to use LIB80211
 - switch to use MAC80211
 - verify unsigned long usage for x86-64 arch
 - reduce .data footprint

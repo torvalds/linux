@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * lib80211 crypt: host-based WEP encryption implementation for lib80211
+ * libipw crypt: host-based WEP encryption implementation for libipw
  *
  * Copyright (c) 2002-2004, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
@@ -16,17 +16,11 @@
 #include <linux/skbuff.h>
 #include <linux/mm.h>
 #include <asm/string.h>
-
-#include <net/lib80211.h>
-
 #include <crypto/arc4.h>
 #include <linux/crc32.h>
+#include "libipw.h"
 
-MODULE_AUTHOR("Jouni Malinen");
-MODULE_DESCRIPTION("lib80211 crypt: WEP");
-MODULE_LICENSE("GPL");
-
-struct lib80211_wep_data {
+struct libipw_wep_data {
 	u32 iv;
 #define WEP_KEY_LEN 13
 	u8 key[WEP_KEY_LEN + 1];
@@ -36,9 +30,9 @@ struct lib80211_wep_data {
 	struct arc4_ctx rx_ctx;
 };
 
-static void *lib80211_wep_init(int keyidx)
+static void *libipw_wep_init(int keyidx)
 {
-	struct lib80211_wep_data *priv;
+	struct libipw_wep_data *priv;
 
 	if (fips_enabled)
 		return NULL;
@@ -54,16 +48,16 @@ static void *lib80211_wep_init(int keyidx)
 	return priv;
 }
 
-static void lib80211_wep_deinit(void *priv)
+static void libipw_wep_deinit(void *priv)
 {
 	kfree_sensitive(priv);
 }
 
 /* Add WEP IV/key info to a frame that has at least 4 bytes of headroom */
-static int lib80211_wep_build_iv(struct sk_buff *skb, int hdr_len,
+static int libipw_wep_build_iv(struct sk_buff *skb, int hdr_len,
 			       u8 *key, int keylen, void *priv)
 {
-	struct lib80211_wep_data *wep = priv;
+	struct libipw_wep_data *wep = priv;
 	u32 klen;
 	u8 *pos;
 
@@ -102,19 +96,19 @@ static int lib80211_wep_build_iv(struct sk_buff *skb, int hdr_len,
  *
  * WEP frame payload: IV + TX key idx, RC4(data), ICV = RC4(CRC32(data))
  */
-static int lib80211_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int libipw_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct lib80211_wep_data *wep = priv;
+	struct libipw_wep_data *wep = priv;
 	u32 crc, klen, len;
 	u8 *pos, *icv;
 	u8 key[WEP_KEY_LEN + 3];
 
-	/* other checks are in lib80211_wep_build_iv */
+	/* other checks are in libipw_wep_build_iv */
 	if (skb_tailroom(skb) < 4)
 		return -1;
 
 	/* add the IV to the frame */
-	if (lib80211_wep_build_iv(skb, hdr_len, NULL, 0, priv))
+	if (libipw_wep_build_iv(skb, hdr_len, NULL, 0, priv))
 		return -1;
 
 	/* Copy the IV into the first 3 bytes of the key */
@@ -148,9 +142,9 @@ static int lib80211_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
  * Returns 0 if frame was decrypted successfully and ICV was correct and -1 on
  * failure. If frame is OK, IV and ICV will be removed.
  */
-static int lib80211_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int libipw_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct lib80211_wep_data *wep = priv;
+	struct libipw_wep_data *wep = priv;
 	u32 crc, klen, plen;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 keyidx, *pos, icv[4];
@@ -195,9 +189,9 @@ static int lib80211_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
-static int lib80211_wep_set_key(void *key, int len, u8 * seq, void *priv)
+static int libipw_wep_set_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct lib80211_wep_data *wep = priv;
+	struct libipw_wep_data *wep = priv;
 
 	if (len < 0 || len > WEP_KEY_LEN)
 		return -1;
@@ -208,9 +202,9 @@ static int lib80211_wep_set_key(void *key, int len, u8 * seq, void *priv)
 	return 0;
 }
 
-static int lib80211_wep_get_key(void *key, int len, u8 * seq, void *priv)
+static int libipw_wep_get_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct lib80211_wep_data *wep = priv;
+	struct libipw_wep_data *wep = priv;
 
 	if (len < wep->key_len)
 		return -1;
@@ -220,37 +214,34 @@ static int lib80211_wep_get_key(void *key, int len, u8 * seq, void *priv)
 	return wep->key_len;
 }
 
-static void lib80211_wep_print_stats(struct seq_file *m, void *priv)
+static void libipw_wep_print_stats(struct seq_file *m, void *priv)
 {
-	struct lib80211_wep_data *wep = priv;
+	struct libipw_wep_data *wep = priv;
 	seq_printf(m, "key[%d] alg=WEP len=%d\n", wep->key_idx, wep->key_len);
 }
 
-static const struct lib80211_crypto_ops lib80211_crypt_wep = {
+static const struct libipw_crypto_ops libipw_crypt_wep = {
 	.name = "WEP",
-	.init = lib80211_wep_init,
-	.deinit = lib80211_wep_deinit,
-	.encrypt_mpdu = lib80211_wep_encrypt,
-	.decrypt_mpdu = lib80211_wep_decrypt,
+	.init = libipw_wep_init,
+	.deinit = libipw_wep_deinit,
+	.encrypt_mpdu = libipw_wep_encrypt,
+	.decrypt_mpdu = libipw_wep_decrypt,
 	.encrypt_msdu = NULL,
 	.decrypt_msdu = NULL,
-	.set_key = lib80211_wep_set_key,
-	.get_key = lib80211_wep_get_key,
-	.print_stats = lib80211_wep_print_stats,
+	.set_key = libipw_wep_set_key,
+	.get_key = libipw_wep_get_key,
+	.print_stats = libipw_wep_print_stats,
 	.extra_mpdu_prefix_len = 4,	/* IV */
 	.extra_mpdu_postfix_len = 4,	/* ICV */
 	.owner = THIS_MODULE,
 };
 
-static int __init lib80211_crypto_wep_init(void)
+int __init libipw_crypto_wep_init(void)
 {
-	return lib80211_register_crypto_ops(&lib80211_crypt_wep);
+	return libipw_register_crypto_ops(&libipw_crypt_wep);
 }
 
-static void __exit lib80211_crypto_wep_exit(void)
+void __exit libipw_crypto_wep_exit(void)
 {
-	lib80211_unregister_crypto_ops(&lib80211_crypt_wep);
+	libipw_unregister_crypto_ops(&libipw_crypt_wep);
 }
-
-module_init(lib80211_crypto_wep_init);
-module_exit(lib80211_crypto_wep_exit);

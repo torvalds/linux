@@ -3031,7 +3031,7 @@ MODULE_DEVICE_TABLE(of, g_dsaf_match);
 
 static struct platform_driver g_dsaf_driver = {
 	.probe = hns_dsaf_probe,
-	.remove_new = hns_dsaf_remove,
+	.remove = hns_dsaf_remove,
 	.driver = {
 		.name = DSAF_DRV_NAME,
 		.of_match_table = g_dsaf_match,

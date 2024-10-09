@@ -102,7 +102,7 @@ static struct platform_driver ocelot_ext_switch_driver = {
 		.of_match_table = ocelot_ext_switch_of_match,
 	},
 	.probe = ocelot_ext_probe,
-	.remove_new = ocelot_ext_remove,
+	.remove = ocelot_ext_remove,
 	.shutdown = ocelot_ext_shutdown,
 };
 module_platform_driver(ocelot_ext_switch_driver);

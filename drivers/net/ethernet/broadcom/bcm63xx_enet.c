@@ -1936,7 +1936,7 @@ static void bcm_enet_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm63xx_enet_driver = {
 	.probe	= bcm_enet_probe,
-	.remove_new = bcm_enet_remove,
+	.remove = bcm_enet_remove,
 	.driver	= {
 		.name	= "bcm63xx_enet",
 	},
@@ -2755,7 +2755,7 @@ static void bcm_enetsw_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm63xx_enetsw_driver = {
 	.probe	= bcm_enetsw_probe,
-	.remove_new = bcm_enetsw_remove,
+	.remove = bcm_enetsw_remove,
 	.driver	= {
 		.name	= "bcm63xx_enetsw",
 	},

@@ -391,7 +391,7 @@ MODULE_DEVICE_TABLE(of, ipq4019_mdio_dt_ids);
 
 static struct platform_driver ipq4019_mdio_driver = {
 	.probe = ipq4019_mdio_probe,
-	.remove_new = ipq4019_mdio_remove,
+	.remove = ipq4019_mdio_remove,
 	.driver = {
 		.name = "ipq4019-mdio",
 		.of_match_table = ipq4019_mdio_dt_ids,

@@ -3560,7 +3560,7 @@ MODULE_DEVICE_TABLE(platform, sh_eth_id_table);
 
 static struct platform_driver sh_eth_driver = {
 	.probe = sh_eth_drv_probe,
-	.remove_new = sh_eth_drv_remove,
+	.remove = sh_eth_drv_remove,
 	.id_table = sh_eth_id_table,
 	.driver = {
 		   .name = CARDNAME,

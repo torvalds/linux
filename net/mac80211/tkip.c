@@ -313,7 +313,7 @@ int ieee80211_tkip_decrypt_data(struct arc4_ctx *ctx,
 		 * Record previously received IV, will be copied into the
 		 * key information after MIC verification. It is possible
 		 * that we don't catch replays of fragments but that's ok
-		 * because the Michael MIC verication will then fail.
+		 * because the Michael MIC verification will then fail.
 		 */
 		*out_iv32 = iv32;
 		*out_iv16 = iv16;

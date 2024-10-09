@@ -1324,7 +1324,7 @@ static struct platform_driver a5psw_driver = {
 		.of_match_table = a5psw_of_mtable,
 	},
 	.probe = a5psw_probe,
-	.remove_new = a5psw_remove,
+	.remove = a5psw_remove,
 	.shutdown = a5psw_shutdown,
 };
 module_platform_driver(a5psw_driver);

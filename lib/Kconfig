@@ -40,6 +40,18 @@ config PACKING
 
 	  When in doubt, say N.
 
+config PACKING_KUNIT_TEST
+	tristate "KUnit tests for packing library" if !KUNIT_ALL_TESTS
+	depends on PACKING && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for the packing library.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  When in doubt, say N.
+
 config BITREVERSE
 	tristate
 

@@ -289,7 +289,7 @@ static bool cfg80211_valid_center_freq(u32 center,
 
 	/*
 	 * Valid channels are packed from lowest frequency towards higher ones.
-	 * So test that the lower frequency alignes with one of these steps.
+	 * So test that the lower frequency aligns with one of these steps.
 	 */
 	return (center - bw / 2 - 5945) % step == 0;
 }

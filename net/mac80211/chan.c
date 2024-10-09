@@ -462,7 +462,7 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 				continue;
 
 			/* vif changed to narrow BW and narrow BW for station wasn't
-			 * requested or vise versa */
+			 * requested or vice versa */
 			if ((new_sta_bw < link_sta->pub->bandwidth) == !narrowed)
 				continue;
 
@@ -1118,7 +1118,7 @@ ieee80211_replace_chanctx(struct ieee80211_local *local,
 		 *
 		 * Consider ctx1..3, link1..6, each ctx has 2 links. link1 and
 		 * link2 from ctx1 request new different chandefs starting 2
-		 * in-place reserations with ctx4 and ctx5 replacing ctx1 and
+		 * in-place reservations with ctx4 and ctx5 replacing ctx1 and
 		 * ctx2 respectively. Next link5 and link6 from ctx3 reserve
 		 * ctx4. If link3 and link4 remain on ctx2 as they are then this
 		 * fails unless `replace_ctx` from ctx5 is replaced with ctx3.

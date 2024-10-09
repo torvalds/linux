@@ -75,6 +75,7 @@ struct bcm_sf2_priv {
 	unsigned int			core_reg_align;
 	unsigned int			num_cfp_rules;
 	unsigned int			num_crossbar_int_ports;
+	unsigned int			num_crossbar_ext_bits;
 
 	/* spinlock protecting access to the indirect registers */
 	spinlock_t			indir_lock;

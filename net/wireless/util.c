@@ -743,7 +743,7 @@ __ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
 		return NULL;
 
 	/*
-	 * When reusing framents, copy some data to the head to simplify
+	 * When reusing fragments, copy some data to the head to simplify
 	 * ethernet header handling and speed up protocol header processing
 	 * in the stack later.
 	 */

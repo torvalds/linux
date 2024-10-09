@@ -797,7 +797,7 @@ void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
 
 	if (!test_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state)) {
 		ieee80211_send_addba_with_timeout(sta, tid_tx);
-		/* RESPONSE_RECEIVED state whould trigger the flow again */
+		/* RESPONSE_RECEIVED state would trigger the flow again */
 		return;
 	}
 

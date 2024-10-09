@@ -146,7 +146,7 @@ EXPORT_SYMBOL_NS_GPL(realtek_mdio_probe, REALTEK_DSA);
  * realtek_mdio_remove() - Remove the driver of an MDIO-connected switch
  * @mdiodev: mdio_device to be removed.
  *
- * This function should be used as the .remove_new in an mdio_driver. First
+ * This function should be used as the .remove in an mdio_driver. First
  * it unregisters the DSA switch and then it calls the common remove function.
  *
  * Context: Can sleep.

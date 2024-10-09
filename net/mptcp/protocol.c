@@ -3504,7 +3504,8 @@ static void schedule_3rdack_retransmission(struct sock *ssk)
 	timeout += jiffies;
 
 	WARN_ON_ONCE(icsk->icsk_ack.pending & ICSK_ACK_TIMER);
-	icsk->icsk_ack.pending |= ICSK_ACK_SCHED | ICSK_ACK_TIMER;
+	smp_store_release(&icsk->icsk_ack.pending,
+			  icsk->icsk_ack.pending | ICSK_ACK_SCHED | ICSK_ACK_TIMER);
 	icsk->icsk_ack.timeout = timeout;
 	sk_reset_timer(ssk, &icsk->icsk_delack_timer, timeout);
 }

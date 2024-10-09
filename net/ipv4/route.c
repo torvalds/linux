@@ -2201,7 +2201,7 @@ static struct net_device *ip_rt_get_dev(struct net *net,
  */
 
 static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-			       u8 tos, struct net_device *dev,
+			       dscp_t dscp, struct net_device *dev,
 			       struct fib_result *res)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -2266,7 +2266,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	fl4.flowi4_oif = 0;
 	fl4.flowi4_iif = dev->ifindex;
 	fl4.flowi4_mark = skb->mark;
-	fl4.flowi4_tos = tos;
+	fl4.flowi4_tos = inet_dscp_to_dsfield(dscp);
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 	fl4.flowi4_flags = 0;
 	fl4.daddr = daddr;
@@ -2299,8 +2299,9 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	}
 
 	if (res->type == RTN_LOCAL) {
-		err = fib_validate_source(skb, saddr, daddr, tos,
-					  0, dev, in_dev, &itag);
+		err = fib_validate_source(skb, saddr, daddr,
+					  inet_dscp_to_dsfield(dscp), 0, dev,
+					  in_dev, &itag);
 		if (err < 0)
 			goto martian_source;
 		goto local_input;
@@ -2314,7 +2315,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto martian_destination;
 
 make_route:
-	err = ip_mkroute_input(skb, res, in_dev, daddr, saddr, tos, flkeys);
+	err = ip_mkroute_input(skb, res, in_dev, daddr, saddr,
+			       inet_dscp_to_dsfield(dscp), flkeys);
 out:	return err;
 
 brd_input:
@@ -2322,7 +2324,8 @@ brd_input:
 		goto e_inval;
 
 	if (!ipv4_is_zeronet(saddr)) {
-		err = fib_validate_source(skb, saddr, 0, tos, 0, dev,
+		err = fib_validate_source(skb, saddr, 0,
+					  inet_dscp_to_dsfield(dscp), 0, dev,
 					  in_dev, &itag);
 		if (err < 0)
 			goto martian_source;
@@ -2415,7 +2418,8 @@ martian_source:
 
 /* called with rcu_read_lock held */
 static int ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-			      u8 tos, struct net_device *dev, struct fib_result *res)
+			      dscp_t dscp, struct net_device *dev,
+			      struct fib_result *res)
 {
 	/* Multicast recognition logic is moved from route cache to here.
 	 * The problem was that too many Ethernet cards have broken/missing
@@ -2456,23 +2460,23 @@ static int ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 #endif
 		   ) {
 			err = ip_route_input_mc(skb, daddr, saddr,
-						tos, dev, our);
+						inet_dscp_to_dsfield(dscp),
+						dev, our);
 		}
 		return err;
 	}
 
-	return ip_route_input_slow(skb, daddr, saddr, tos, dev, res);
+	return ip_route_input_slow(skb, daddr, saddr, dscp, dev, res);
 }
 
 int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-			 u8 tos, struct net_device *dev)
+			 dscp_t dscp, struct net_device *dev)
 {
 	struct fib_result res;
 	int err;
 
-	tos &= INET_DSCP_MASK;
 	rcu_read_lock();
-	err = ip_route_input_rcu(skb, daddr, saddr, tos, dev, &res);
+	err = ip_route_input_rcu(skb, daddr, saddr, dscp, dev, &res);
 	rcu_read_unlock();
 
 	return err;
@@ -3286,8 +3290,8 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		skb->dev	= dev;
 		skb->mark	= mark;
 		err = ip_route_input_rcu(skb, dst, src,
-					 rtm->rtm_tos & INET_DSCP_MASK, dev,
-					 &res);
+					 inet_dsfield_to_dscp(rtm->rtm_tos),
+					 dev, &res);
 
 		rt = skb_rtable(skb);
 		if (err == 0 && rt->dst.error)

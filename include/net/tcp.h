@@ -2442,7 +2442,7 @@ static inline s64 tcp_rto_delta_us(const struct sock *sk)
 		return rto_time_stamp_us - tcp_sk(sk)->tcp_mstamp;
 	} else {
 		WARN_ONCE(1,
-			"rtx queue emtpy: "
+			"rtx queue empty: "
 			"out:%u sacked:%u lost:%u retrans:%u "
 			"tlp_high_seq:%u sk_state:%u ca_state:%u "
 			"advmss:%u mss_cache:%u pmtu:%u\n",

@@ -148,9 +148,6 @@ that only one external action is invoked at a time.
 #include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/pm_qos.h>
-
-#include <net/lib80211.h>
-
 #include "ipw2100.h"
 #include "ipw.h"
 
@@ -6025,8 +6022,6 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	dev->netdev_ops = &ipw2100_netdev_ops;
 	dev->ethtool_ops = &ipw2100_ethtool_ops;
 	dev->wireless_handlers = &ipw2100_wx_handler_def;
-	priv->wireless_data.libipw = priv->ieee;
-	dev->wireless_data = &priv->wireless_data;
 	dev->watchdog_timeo = 3 * HZ;
 	dev->irq = 0;
 	dev->min_mtu = 68;
@@ -7571,7 +7566,7 @@ static int ipw2100_wx_set_auth(struct net_device *dev,
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	struct libipw_device *ieee = priv->ieee;
 	struct iw_param *param = &wrqu->param;
-	struct lib80211_crypt_data *crypt;
+	struct libipw_crypt_data *crypt;
 	unsigned long flags;
 	int ret = 0;
 
@@ -7663,7 +7658,7 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 {
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	struct libipw_device *ieee = priv->ieee;
-	struct lib80211_crypt_data *crypt;
+	struct libipw_crypt_data *crypt;
 	struct iw_param *param = &wrqu->param;
 
 	switch (param->flags & IW_AUTH_INDEX) {

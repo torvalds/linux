@@ -6214,7 +6214,7 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 		goto start_xmit;
 
 	/* update QoS header to prioritize control port frames if possible,
-	 * priorization also happens for control port frames send over
+	 * prioritization also happens for control port frames send over
 	 * AF_PACKET
 	 */
 	rcu_read_lock();

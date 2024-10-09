@@ -1010,7 +1010,7 @@ void ieee80211_set_wmm_default(struct ieee80211_link_data *link,
 	else
 		aCWmin = 15;
 
-	/* Confiure old 802.11b/g medium access rules. */
+	/* Configure old 802.11b/g medium access rules. */
 	qparam.cw_max = aCWmax;
 	qparam.cw_min = aCWmin;
 	qparam.txop = 0;
@@ -2752,7 +2752,7 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	return pos + sizeof(struct ieee80211_vht_operation);
 }
 
-u8 *ieee80211_ie_build_he_oper(u8 *pos, struct cfg80211_chan_def *chandef)
+u8 *ieee80211_ie_build_he_oper(u8 *pos, const struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_he_operation *he_oper;
 	struct ieee80211_he_6ghz_oper *he_6ghz_op;
@@ -2844,7 +2844,7 @@ out:
 	return pos;
 }
 
-u8 *ieee80211_ie_build_eht_oper(u8 *pos, struct cfg80211_chan_def *chandef,
+u8 *ieee80211_ie_build_eht_oper(u8 *pos, const struct cfg80211_chan_def *chandef,
 				const struct ieee80211_sta_eht_cap *eht_cap)
 
 {

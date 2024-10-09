@@ -75,7 +75,7 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 	sparx5_ifh_parse(ifh, &fi);
 
 	/* Map to port netdev */
-	port = fi.src_port < SPX5_PORTS ?
+	port = fi.src_port < sparx5->data->consts->n_ports ?
 		sparx5->ports[fi.src_port] : NULL;
 	if (!port || !port->ndev) {
 		dev_err(sparx5->dev, "Data on inactive port %d\n", fi.src_port);
@@ -235,7 +235,7 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	netdev_tx_t ret;
 
 	memset(ifh, 0, IFH_LEN * 4);
-	sparx5_set_port_ifh(ifh, port->portno);
+	sparx5_set_port_ifh(sparx5, ifh, port->portno);
 
 	if (sparx5->ptp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		if (sparx5_ptp_txtstamp_request(port, skb) < 0)
@@ -317,7 +317,9 @@ int sparx5_manual_injection_mode(struct sparx5 *sparx5)
 		sparx5, QS_INJ_GRP_CFG(INJ_QUEUE));
 
 	/* CPU ports capture setup */
-	for (portno = SPX5_PORT_CPU_0; portno <= SPX5_PORT_CPU_1; portno++) {
+	for (portno = sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_0);
+	     portno <= sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_1);
+	     portno++) {
 		/* ASM CPU port: No preamble, IFH, enable padding */
 		spx5_wr(ASM_PORT_CFG_PAD_ENA_SET(1) |
 			ASM_PORT_CFG_NO_PREAMBLE_ENA_SET(1) |

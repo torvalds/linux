@@ -3,7 +3,6 @@
 
 obj-y				+= media/
 obj-$(CONFIG_FB_OLPC_DCON)	+= olpc_dcon/
-obj-$(CONFIG_RTL8192E)		+= rtl8192e/
 obj-$(CONFIG_RTL8723BS)		+= rtl8723bs/
 obj-$(CONFIG_R8712U)		+= rtl8712/
 obj-$(CONFIG_RTS5208)		+= rts5208/

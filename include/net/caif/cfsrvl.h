@@ -40,7 +40,6 @@ void cfsrvl_init(struct cfsrvl *service,
 			struct dev_info *dev_info,
 			bool supports_flowctrl);
 bool cfsrvl_ready(struct cfsrvl *service, int *err);
-u8 cfsrvl_getphyid(struct cflayer *layer);
 
 static inline void cfsrvl_get(struct cflayer *layr)
 {

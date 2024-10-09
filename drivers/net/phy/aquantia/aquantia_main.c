@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/bitfield.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 
 #include "aquantia.h"
@@ -70,6 +71,11 @@
 
 #define MDIO_AN_TX_VEND_INT_MASK2		0xd401
 #define MDIO_AN_TX_VEND_INT_MASK2_LINK		BIT(0)
+
+#define PMAPMD_RSVD_VEND_PROV			0xe400
+#define PMAPMD_RSVD_VEND_PROV_MDI_CONF		GENMASK(1, 0)
+#define PMAPMD_RSVD_VEND_PROV_MDI_REVERSE	BIT(0)
+#define PMAPMD_RSVD_VEND_PROV_MDI_FORCE		BIT(1)
 
 #define MDIO_AN_RX_LP_STAT1			0xe820
 #define MDIO_AN_RX_LP_STAT1_1000BASET_FULL	BIT(15)
@@ -485,6 +491,29 @@ static void aqr107_chip_info(struct phy_device *phydev)
 		   fw_major, fw_minor, build_id, prov_id);
 }
 
+static int aqr107_config_mdi(struct phy_device *phydev)
+{
+	struct device_node *np = phydev->mdio.dev.of_node;
+	u32 mdi_conf;
+	int ret;
+
+	ret = of_property_read_u32(np, "marvell,mdi-cfg-order", &mdi_conf);
+
+	/* Do nothing in case property "marvell,mdi-cfg-order" is not present */
+	if (ret == -ENOENT)
+		return 0;
+
+	if (ret)
+		return ret;
+
+	if (mdi_conf & ~PMAPMD_RSVD_VEND_PROV_MDI_REVERSE)
+		return -EINVAL;
+
+	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_RSVD_VEND_PROV,
+			      PMAPMD_RSVD_VEND_PROV_MDI_CONF,
+			      mdi_conf | PMAPMD_RSVD_VEND_PROV_MDI_FORCE);
+}
+
 static int aqr107_config_init(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
@@ -511,6 +540,10 @@ static int aqr107_config_init(struct phy_device *phydev)
 		aqr107_chip_info(phydev);
 
 	ret = aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
+	if (ret)
+		return ret;
+
+	ret = aqr107_config_mdi(phydev);
 	if (ret)
 		return ret;
 
