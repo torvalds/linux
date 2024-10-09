@@ -13214,6 +13214,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 {
+	WARN_ON_ONCE(!kvm_arch_pmi_in_guest(vcpu));
+
 	if (vcpu->arch.guest_state_protected)
 		return true;
 
@@ -13222,6 +13224,11 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 
 unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)
 {
+	WARN_ON_ONCE(!kvm_arch_pmi_in_guest(vcpu));
+
+	if (vcpu->arch.guest_state_protected)
+		return 0;
+
 	return kvm_rip_read(vcpu);
 }
 
