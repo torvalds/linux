@@ -397,7 +397,7 @@ static u32 load_i2c_mcr_reg(struct nmk_i2c_dev *priv, u16 flags)
  */
 static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 {
-	u32 brcr1, brcr2;
+	u32 brcr;
 	u32 i2c_clk, div;
 	u32 ns;
 	u16 slsu;
@@ -444,7 +444,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 	/*
 	 * The spec says, in case of std. mode the divider is
 	 * 2 whereas it is 3 for fast and fastplus mode of
-	 * operation. TODO - high speed support.
+	 * operation.
 	 */
 	div = (priv->clk_freq > I2C_MAX_STANDARD_MODE_FREQ) ? 3 : 2;
 
@@ -452,34 +452,23 @@ static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 	 * generate the mask for baud rate counters. The controller
 	 * has two baud rate counters. One is used for High speed
 	 * operation, and the other is for std, fast mode, fast mode
-	 * plus operation. Currently we do not supprt high speed mode
-	 * so set brcr1 to 0.
+	 * plus operation.
 	 *
 	 * BRCR is a clock divider amount. Pick highest value that
 	 * leads to rate strictly below target. Eg when asking for
 	 * 400kHz you want a bus rate <=400kHz (and not >=400kHz).
 	 */
-	brcr1 = FIELD_PREP(I2C_BRCR_BRCNT1, 0);
-	brcr2 = FIELD_PREP(I2C_BRCR_BRCNT2, DIV_ROUND_UP(i2c_clk, priv->clk_freq * div));
+	brcr = DIV_ROUND_UP(i2c_clk, priv->clk_freq * div);
+
+	if (priv->sm == I2C_FREQ_MODE_HIGH_SPEED)
+		brcr = FIELD_PREP(I2C_BRCR_BRCNT1, brcr);
+	else
+		brcr = FIELD_PREP(I2C_BRCR_BRCNT2, brcr);
 
 	/* set the baud rate counter register */
-	writel((brcr1 | brcr2), priv->virtbase + I2C_BRCR);
+	writel(brcr, priv->virtbase + I2C_BRCR);
 
-	/*
-	 * set the speed mode. Currently we support
-	 * only standard and fast mode of operation
-	 * TODO - support for fast mode plus (up to 1Mb/s)
-	 * and high speed (up to 3.4 Mb/s)
-	 */
-	if (priv->sm > I2C_FREQ_MODE_FAST) {
-		dev_err(&priv->adev->dev,
-			"do not support this mode defaulting to std. mode\n");
-		brcr2 = FIELD_PREP(I2C_BRCR_BRCNT2,
-				   i2c_clk / (I2C_MAX_STANDARD_MODE_FREQ * 2));
-		writel((brcr1 | brcr2), priv->virtbase + I2C_BRCR);
-		writel(FIELD_PREP(I2C_CR_SM, I2C_FREQ_MODE_STANDARD),
-		       priv->virtbase + I2C_CR);
-	}
+	/* set the speed mode */
 	writel(FIELD_PREP(I2C_CR_SM, priv->sm), priv->virtbase + I2C_CR);
 
 	/* set the Tx and Rx FIFO threshold */
@@ -1020,11 +1009,14 @@ static void nmk_i2c_of_probe(struct device_node *np,
 	if (of_property_read_u32(np, "clock-frequency", &priv->clk_freq))
 		priv->clk_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
-	/* This driver only supports 'standard' and 'fast' modes of operation. */
 	if (priv->clk_freq <= I2C_MAX_STANDARD_MODE_FREQ)
 		priv->sm = I2C_FREQ_MODE_STANDARD;
-	else
+	else if (priv->clk_freq <= I2C_MAX_FAST_MODE_FREQ)
 		priv->sm = I2C_FREQ_MODE_FAST;
+	else if (priv->clk_freq <= I2C_MAX_FAST_MODE_PLUS_FREQ)
+		priv->sm = I2C_FREQ_MODE_FAST_PLUS;
+	else
+		priv->sm = I2C_FREQ_MODE_HIGH_SPEED;
 	priv->tft = 1; /* Tx FIFO threshold */
 	priv->rft = 8; /* Rx FIFO threshold */
 
