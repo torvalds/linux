@@ -2652,9 +2652,6 @@ static u8 skl_get_plane_caps(struct drm_i915_private *i915,
 	if (HAS_4TILE(display))
 		caps |= INTEL_PLANE_CAP_TILING_4;
 
-	if (!IS_ENABLED(I915) && !HAS_FLAT_CCS(i915))
-		return caps;
-
 	if (skl_plane_has_rc_ccs(i915, pipe, plane_id)) {
 		caps |= INTEL_PLANE_CAP_CCS_RC;
 		if (DISPLAY_VER(display) >= 12)
@@ -2683,6 +2680,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	const u32 *formats;
 	int num_formats;
 	int ret;
+	u8 caps;
 
 	plane = intel_plane_alloc();
 	if (IS_ERR(plane))
@@ -2774,8 +2772,15 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	else
 		plane_type = DRM_PLANE_TYPE_OVERLAY;
 
-	modifiers = intel_fb_plane_get_modifiers(dev_priv,
-						 skl_get_plane_caps(dev_priv, pipe, plane_id));
+	caps = skl_get_plane_caps(dev_priv, pipe, plane_id);
+
+	/* FIXME: xe has problems with AUX */
+	if (!IS_ENABLED(I915) && !HAS_FLAT_CCS(dev_priv))
+		caps &= ~(INTEL_PLANE_CAP_CCS_RC |
+			  INTEL_PLANE_CAP_CCS_RC_CC |
+			  INTEL_PLANE_CAP_CCS_MC);
+
+	modifiers = intel_fb_plane_get_modifiers(dev_priv, caps);
 
 	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 				       0, plane_funcs,
