@@ -1943,12 +1943,12 @@ void timekeeping_inject_sleeptime64(const struct timespec64 *delta)
  */
 void timekeeping_resume(void)
 {
-	struct timekeeper *tk = &tk_core.timekeeper;
-	struct clocksource *clock = tk->tkr_mono.clock;
-	unsigned long flags;
+	struct timekeeper *tks = &tk_core.shadow_timekeeper;
+	struct clocksource *clock = tks->tkr_mono.clock;
 	struct timespec64 ts_new, ts_delta;
-	u64 cycle_now, nsec;
 	bool inject_sleeptime = false;
+	u64 cycle_now, nsec;
+	unsigned long flags;
 
 	read_persistent_clock64(&ts_new);
 
@@ -1956,7 +1956,6 @@ void timekeeping_resume(void)
 	clocksource_resume();
 
 	raw_spin_lock_irqsave(&tk_core.lock, flags);
-	write_seqcount_begin(&tk_core.seq);
 
 	/*
 	 * After system resumes, we need to calculate the suspended time and
@@ -1970,7 +1969,7 @@ void timekeeping_resume(void)
 	 * The less preferred source will only be tried if there is no better
 	 * usable source. The rtc part is handled separately in rtc core code.
 	 */
-	cycle_now = tk_clock_read(&tk->tkr_mono);
+	cycle_now = tk_clock_read(&tks->tkr_mono);
 	nsec = clocksource_stop_suspend_timing(clock, cycle_now);
 	if (nsec > 0) {
 		ts_delta = ns_to_timespec64(nsec);
@@ -1982,17 +1981,16 @@ void timekeeping_resume(void)
 
 	if (inject_sleeptime) {
 		suspend_timing_needed = false;
-		__timekeeping_inject_sleeptime(tk, &ts_delta);
+		__timekeeping_inject_sleeptime(tks, &ts_delta);
 	}
 
 	/* Re-base the last cycle value */
-	tk->tkr_mono.cycle_last = cycle_now;
-	tk->tkr_raw.cycle_last  = cycle_now;
+	tks->tkr_mono.cycle_last = cycle_now;
+	tks->tkr_raw.cycle_last  = cycle_now;
 
-	tk->ntp_error = 0;
+	tks->ntp_error = 0;
 	timekeeping_suspended = 0;
-	timekeeping_update(&tk_core, tk, TK_MIRROR | TK_CLOCK_WAS_SET);
-	write_seqcount_end(&tk_core.seq);
+	timekeeping_update_from_shadow(&tk_core, TK_CLOCK_WAS_SET);
 	raw_spin_unlock_irqrestore(&tk_core.lock, flags);
 
 	touch_softlockup_watchdog();
