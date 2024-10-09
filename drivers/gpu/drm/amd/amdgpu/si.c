@@ -2639,11 +2639,6 @@ static int si_common_hw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int si_common_suspend(struct amdgpu_ip_block *ip_block)
-{
-	return si_common_hw_fini(ip_block);
-}
-
 static int si_common_resume(struct amdgpu_ip_block *ip_block)
 {
 	return si_common_hw_init(ip_block);
@@ -2682,7 +2677,6 @@ static const struct amd_ip_funcs si_common_ip_funcs = {
 	.late_init = NULL,
 	.hw_init = si_common_hw_init,
 	.hw_fini = si_common_hw_fini,
-	.suspend = si_common_suspend,
 	.resume = si_common_resume,
 	.is_idle = si_common_is_idle,
 	.wait_for_idle = si_common_wait_for_idle,

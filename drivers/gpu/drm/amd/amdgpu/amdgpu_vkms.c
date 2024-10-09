@@ -613,7 +613,8 @@ static int amdgpu_vkms_suspend(struct amdgpu_ip_block *ip_block)
 	r = drm_mode_config_helper_suspend(adev_to_drm(adev));
 	if (r)
 		return r;
-	return amdgpu_vkms_hw_fini(ip_block);
+
+	return 0;
 }
 
 static int amdgpu_vkms_resume(struct amdgpu_ip_block *ip_block)
