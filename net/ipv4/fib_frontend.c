@@ -342,7 +342,7 @@ EXPORT_SYMBOL_GPL(fib_info_nh_uses_dev);
  * called with rcu_read_lock()
  */
 static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
-				 u8 tos, int oif, struct net_device *dev,
+				 dscp_t dscp, int oif, struct net_device *dev,
 				 int rpf, struct in_device *idev, u32 *itag)
 {
 	struct net *net = dev_net(dev);
@@ -357,7 +357,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
 	fl4.saddr = dst;
-	fl4.flowi4_tos = tos;
+	fl4.flowi4_tos = inet_dscp_to_dsfield(dscp);
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 	fl4.flowi4_tun_key.tun_id = 0;
 	fl4.flowi4_flags = 0;
@@ -419,7 +419,7 @@ e_rpf:
 
 /* Ignore rp_filter for packets protected by IPsec. */
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
-			u8 tos, int oif, struct net_device *dev,
+			dscp_t dscp, int oif, struct net_device *dev,
 			struct in_device *idev, u32 *itag)
 {
 	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
@@ -448,7 +448,8 @@ ok:
 	}
 
 full_check:
-	return __fib_validate_source(skb, src, dst, tos, oif, dev, r, idev, itag);
+	return __fib_validate_source(skb, src, dst, dscp, oif, dev, r, idev,
+				     itag);
 }
 
 static inline __be32 sk_extract_addr(struct sockaddr *addr)

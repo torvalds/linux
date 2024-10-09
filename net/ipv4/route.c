@@ -1666,7 +1666,7 @@ EXPORT_SYMBOL(rt_dst_clone);
 
 /* called in rcu_read_lock() section */
 int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-			  u8 tos, struct net_device *dev,
+			  dscp_t dscp, struct net_device *dev,
 			  struct in_device *in_dev, u32 *itag)
 {
 	int err;
@@ -1687,8 +1687,8 @@ int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    ip_hdr(skb)->protocol != IPPROTO_IGMP)
 			return -EINVAL;
 	} else {
-		err = fib_validate_source(skb, saddr, 0, tos, 0, dev,
-					  in_dev, itag);
+		err = fib_validate_source(skb, saddr, 0, dscp, 0, dev, in_dev,
+					  itag);
 		if (err < 0)
 			return err;
 	}
@@ -1697,7 +1697,7 @@ int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 /* called in rcu_read_lock() section */
 static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-			     u8 tos, struct net_device *dev, int our)
+			     dscp_t dscp, struct net_device *dev, int our)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
 	unsigned int flags = RTCF_MULTICAST;
@@ -1705,7 +1705,8 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	u32 itag = 0;
 	int err;
 
-	err = ip_mc_validate_source(skb, daddr, saddr, tos, dev, in_dev, &itag);
+	err = ip_mc_validate_source(skb, daddr, saddr, dscp, dev, in_dev,
+				    &itag);
 	if (err)
 		return err;
 
@@ -1764,10 +1765,9 @@ static void ip_handle_martian_source(struct net_device *dev,
 }
 
 /* called in rcu_read_lock() section */
-static int __mkroute_input(struct sk_buff *skb,
-			   const struct fib_result *res,
-			   struct in_device *in_dev,
-			   __be32 daddr, __be32 saddr, u32 tos)
+static int __mkroute_input(struct sk_buff *skb, const struct fib_result *res,
+			   struct in_device *in_dev, __be32 daddr,
+			   __be32 saddr, dscp_t dscp)
 {
 	struct fib_nh_common *nhc = FIB_RES_NHC(*res);
 	struct net_device *dev = nhc->nhc_dev;
@@ -1785,7 +1785,7 @@ static int __mkroute_input(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = fib_validate_source(skb, saddr, daddr, tos, FIB_RES_OIF(*res),
+	err = fib_validate_source(skb, saddr, daddr, dscp, FIB_RES_OIF(*res),
 				  in_dev->dev, in_dev, &itag);
 	if (err < 0) {
 		ip_handle_martian_source(in_dev->dev, in_dev, skb, daddr,
@@ -2112,11 +2112,9 @@ int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 }
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
-static int ip_mkroute_input(struct sk_buff *skb,
-			    struct fib_result *res,
-			    struct in_device *in_dev,
-			    __be32 daddr, __be32 saddr, u32 tos,
-			    struct flow_keys *hkeys)
+static int ip_mkroute_input(struct sk_buff *skb, struct fib_result *res,
+			    struct in_device *in_dev, __be32 daddr,
+			    __be32 saddr, dscp_t dscp, struct flow_keys *hkeys)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi && fib_info_num_path(res->fi) > 1) {
@@ -2128,7 +2126,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
 #endif
 
 	/* create a routing cache entry */
-	return __mkroute_input(skb, res, in_dev, daddr, saddr, tos);
+	return __mkroute_input(skb, res, in_dev, daddr, saddr, dscp);
 }
 
 /* Implements all the saddr-related checks as ip_route_input_slow(),
@@ -2136,7 +2134,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
  * Uses the provided hint instead of performing a route lookup.
  */
 int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-		      u8 tos, struct net_device *dev,
+		      dscp_t dscp, struct net_device *dev,
 		      const struct sk_buff *hint)
 {
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -2160,8 +2158,8 @@ int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (rt->rt_type != RTN_LOCAL)
 		goto skip_validate_source;
 
-	tos &= INET_DSCP_MASK;
-	err = fib_validate_source(skb, saddr, daddr, tos, 0, dev, in_dev, &tag);
+	err = fib_validate_source(skb, saddr, daddr, dscp, 0, dev, in_dev,
+				  &tag);
 	if (err < 0)
 		goto martian_source;
 
@@ -2299,8 +2297,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	}
 
 	if (res->type == RTN_LOCAL) {
-		err = fib_validate_source(skb, saddr, daddr,
-					  inet_dscp_to_dsfield(dscp), 0, dev,
+		err = fib_validate_source(skb, saddr, daddr, dscp, 0, dev,
 					  in_dev, &itag);
 		if (err < 0)
 			goto martian_source;
@@ -2315,8 +2312,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto martian_destination;
 
 make_route:
-	err = ip_mkroute_input(skb, res, in_dev, daddr, saddr,
-			       inet_dscp_to_dsfield(dscp), flkeys);
+	err = ip_mkroute_input(skb, res, in_dev, daddr, saddr, dscp, flkeys);
 out:	return err;
 
 brd_input:
@@ -2324,9 +2320,8 @@ brd_input:
 		goto e_inval;
 
 	if (!ipv4_is_zeronet(saddr)) {
-		err = fib_validate_source(skb, saddr, 0,
-					  inet_dscp_to_dsfield(dscp), 0, dev,
-					  in_dev, &itag);
+		err = fib_validate_source(skb, saddr, 0, dscp, 0, dev, in_dev,
+					  &itag);
 		if (err < 0)
 			goto martian_source;
 	}
@@ -2459,9 +2454,8 @@ static int ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		     IN_DEV_MFORWARD(in_dev))
 #endif
 		   ) {
-			err = ip_route_input_mc(skb, daddr, saddr,
-						inet_dscp_to_dsfield(dscp),
-						dev, our);
+			err = ip_route_input_mc(skb, daddr, saddr, dscp, dev,
+						our);
 		}
 		return err;
 	}
