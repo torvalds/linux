@@ -649,8 +649,7 @@ retry:
 		case LSM_OBJ_USER:
 		case LSM_OBJ_ROLE:
 		case LSM_OBJ_TYPE:
-			/* scaffolding */
-			security_inode_getsecid(inode, &prop.scaffold.secid);
+			security_inode_getlsmprop(inode, &prop);
 			rc = ima_filter_rule_match(&prop, lsm_rule->lsm[i].type,
 						   Audit_equal,
 						   lsm_rule->lsm[i].rule);
