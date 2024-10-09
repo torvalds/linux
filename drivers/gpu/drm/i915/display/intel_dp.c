@@ -6476,7 +6476,8 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	if (!HAS_GMCH(dev_priv) && DISPLAY_VER(dev_priv) < 12)
 		connector->interlace_allowed = true;
 
-	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
+	if (type != DRM_MODE_CONNECTOR_eDP)
+		intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
 	intel_connector->base.polled = intel_connector->polled;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
