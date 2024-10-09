@@ -64,7 +64,7 @@ static void rpmb_dev_release(struct device *dev)
 	struct rpmb_dev *rdev = to_rpmb_dev(dev);
 
 	mutex_lock(&rpmb_mutex);
-	ida_simple_remove(&rpmb_ida, rdev->id);
+	ida_free(&rpmb_ida, rdev->id);
 	mutex_unlock(&rpmb_mutex);
 	kfree(rdev->descr.dev_id);
 	kfree(rdev);
@@ -176,7 +176,7 @@ struct rpmb_dev *rpmb_dev_register(struct device *dev,
 	}
 
 	mutex_lock(&rpmb_mutex);
-	ret = ida_simple_get(&rpmb_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&rpmb_ida, GFP_KERNEL);
 	mutex_unlock(&rpmb_mutex);
 	if (ret < 0)
 		goto err_free_dev_id;
