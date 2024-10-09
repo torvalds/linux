@@ -25,6 +25,7 @@ enum codec_type {
 	CODEC_AK4458,
 	CODEC_AK4497,
 	CODEC_AK5552,
+	CODEC_CS42888,
 };
 
 /*
@@ -185,6 +186,16 @@ static struct imx_akcodec_tdm_fs_mul ak5558_tdm_fs_mul[] = {
 	{ .min = 512,	.max = 512,	.mul = 1024 },
 };
 
+static struct imx_akcodec_fs_mul cs42888_fs_mul[] = {
+	{ .rmin = 8000,   .rmax = 48000,  .wmin = 256,  .wmax = 1024, },
+	{ .rmin = 64000,  .rmax = 96000,  .wmin = 128,  .wmax = 512, },
+	{ .rmin = 176400, .rmax = 192000, .wmin = 64,  .wmax = 256, },
+};
+
+static struct imx_akcodec_tdm_fs_mul cs42888_tdm_fs_mul[] = {
+	{ .min = 256,	.max = 256,	.mul = 256 },
+};
+
 static const u32 akcodec_rates[] = {
 	8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
 	96000, 176400, 192000, 352800, 384000, 705600, 768000,
@@ -207,6 +218,14 @@ static const u32 ak5558_channels[] = {
 };
 
 static const u32 ak5558_tdm_channels[] = {
+	1, 2, 3, 4, 5, 6, 7, 8,
+};
+
+static const u32 cs42888_channels[] = {
+	1, 2, 4, 6, 8,
+};
+
+static const u32 cs42888_tdm_channels[] = {
 	1, 2, 3, 4, 5, 6, 7, 8,
 };
 
@@ -241,6 +260,7 @@ static bool codec_is_akcodec(unsigned int type)
 	case CODEC_AK4497:
 	case CODEC_AK5558:
 	case CODEC_AK5552:
+	case CODEC_CS42888:
 		return true;
 	default:
 		break;
@@ -340,13 +360,15 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		}
 
-		ret = snd_soc_dai_set_tdm_slot(codec_dai,
-					       BIT(slots) - 1,
-					       BIT(slots) - 1,
-					       slots, slot_width);
-		if (ret && ret != -ENOTSUPP) {
-			dev_err(dev, "failed to set codec dai[%d] tdm slot: %d\n", i, ret);
-			return ret;
+		if (format_is_tdm(link_data)) {
+			ret = snd_soc_dai_set_tdm_slot(codec_dai,
+						       BIT(slots) - 1,
+						       BIT(slots) - 1,
+						       slots, slot_width);
+			if (ret && ret != -ENOTSUPP) {
+				dev_err(dev, "failed to set codec dai[%d] tdm slot: %d\n", i, ret);
+				return ret;
+			}
 		}
 	}
 
@@ -609,6 +631,8 @@ static int imx_card_parse_of(struct imx_card_data *data)
 				plat_data->type = CODEC_AK5558;
 			else if (!strcmp(link->codecs->dai_name, "ak5552-aif"))
 				plat_data->type = CODEC_AK5552;
+			else if (!strcmp(link->codecs->dai_name, "cs42888"))
+				plat_data->type = CODEC_CS42888;
 
 		} else {
 			link->codecs	 = &snd_soc_dummy_dlc;
@@ -766,6 +790,12 @@ static int imx_card_probe(struct platform_device *pdev)
 		data->dapm_routes[i].sink = "ASRC-Capture";
 		data->dapm_routes[i].source = "CPU-Capture";
 		break;
+	case CODEC_CS42888:
+		data->dapm_routes[0].sink = "Playback";
+		data->dapm_routes[0].source = "CPU-Playback";
+		data->dapm_routes[1].sink = "CPU-Capture";
+		data->dapm_routes[1].source = "Capture";
+		break;
 	default:
 		break;
 	}
@@ -804,6 +834,16 @@ static int imx_card_probe(struct platform_device *pdev)
 			plat_data->num_channels = ARRAY_SIZE(ak5558_channels);
 			plat_data->support_tdm_channels = ak5558_tdm_channels;
 			plat_data->num_tdm_channels = ARRAY_SIZE(ak5558_tdm_channels);
+			break;
+		case CODEC_CS42888:
+			plat_data->fs_mul = cs42888_fs_mul;
+			plat_data->num_fs_mul = ARRAY_SIZE(cs42888_fs_mul);
+			plat_data->tdm_fs_mul = cs42888_tdm_fs_mul;
+			plat_data->num_tdm_fs_mul = ARRAY_SIZE(cs42888_tdm_fs_mul);
+			plat_data->support_channels = cs42888_channels;
+			plat_data->num_channels = ARRAY_SIZE(cs42888_channels);
+			plat_data->support_tdm_channels = cs42888_tdm_channels;
+			plat_data->num_tdm_channels = ARRAY_SIZE(cs42888_tdm_channels);
 			break;
 		default:
 			break;
