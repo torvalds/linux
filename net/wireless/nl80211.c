@@ -2431,6 +2431,11 @@ static int nl80211_put_radio(struct wiphy *wiphy, struct sk_buff *msg, int idx)
 	if (nla_put_u32(msg, NL80211_WIPHY_RADIO_ATTR_INDEX, idx))
 		goto nla_put_failure;
 
+	if (r->antenna_mask &&
+	    nla_put_u32(msg, NL80211_WIPHY_RADIO_ATTR_ANTENNA_MASK,
+			r->antenna_mask))
+		goto nla_put_failure;
+
 	for (i = 0; i < r->n_freq_range; i++) {
 		const struct wiphy_radio_freq_range *range = &r->freq_range[i];
 
