@@ -1424,7 +1424,7 @@ static void intel_display_vblank_dc_work(struct work_struct *work)
 	struct intel_display *display =
 		container_of(work, typeof(*display), irq.vblank_dc_work);
 	struct drm_i915_private *i915 = to_i915(display->drm);
-	u8 vblank_enabled = READ_ONCE(display->irq.vblank_enabled);
+	int vblank_wa_num_pipes = READ_ONCE(display->irq.vblank_wa_num_pipes);
 
 	/*
 	 * NOTE: intel_display_power_set_target_dc_state is used only by PSR
@@ -1432,7 +1432,7 @@ static void intel_display_vblank_dc_work(struct work_struct *work)
 	 * PSR code. If DC3CO is taken into use we need take that into account
 	 * here as well.
 	 */
-	intel_display_power_set_target_dc_state(i915, vblank_enabled ? DC_STATE_DISABLE :
+	intel_display_power_set_target_dc_state(i915, vblank_wa_num_pipes ? DC_STATE_DISABLE :
 						DC_STATE_EN_UPTO_DC6);
 }
 
@@ -1447,7 +1447,7 @@ int bdw_enable_vblank(struct drm_crtc *_crtc)
 	if (gen11_dsi_configure_te(crtc, true))
 		return 0;
 
-	if (display->irq.vblank_enabled++ == 0 && crtc->block_dc_for_vblank)
+	if (display->irq.vblank_wa_num_pipes++ == 0 && crtc->block_dc_for_vblank)
 		schedule_work(&display->irq.vblank_dc_work);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -1478,7 +1478,7 @@ void bdw_disable_vblank(struct drm_crtc *_crtc)
 	bdw_disable_pipe_irq(dev_priv, pipe, GEN8_PIPE_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
-	if (--display->irq.vblank_enabled == 0 && crtc->block_dc_for_vblank)
+	if (--display->irq.vblank_wa_num_pipes == 0 && crtc->block_dc_for_vblank)
 		schedule_work(&display->irq.vblank_dc_work);
 }
 
