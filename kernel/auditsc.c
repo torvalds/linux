@@ -471,6 +471,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 	const struct cred *cred;
 	int i, need_sid = 1;
 	u32 sid;
+	struct lsm_prop prop = { };
 	unsigned int sessionid;
 
 	if (ctx && rule->prio <= ctx->prio)
@@ -681,7 +682,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 					security_current_getsecid_subj(&sid);
 					need_sid = 0;
 				}
-				result = security_audit_rule_match(sid, f->type,
+				/* scaffolding */
+				prop.scaffold.secid = sid;
+				result = security_audit_rule_match(&prop,
+								   f->type,
 								   f->op,
 								   f->lsm_rule);
 			}
@@ -696,15 +700,19 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (f->lsm_rule) {
 				/* Find files that match */
 				if (name) {
+					/* scaffolding */
+					prop.scaffold.secid = name->osid;
 					result = security_audit_rule_match(
-								name->osid,
+								&prop,
 								f->type,
 								f->op,
 								f->lsm_rule);
 				} else if (ctx) {
 					list_for_each_entry(n, &ctx->names_list, list) {
+						/* scaffolding */
+						prop.scaffold.secid = n->osid;
 						if (security_audit_rule_match(
-								n->osid,
+								&prop,
 								f->type,
 								f->op,
 								f->lsm_rule)) {
@@ -716,7 +724,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 				/* Find ipc objects that match */
 				if (!ctx || ctx->type != AUDIT_IPC)
 					break;
-				if (security_audit_rule_match(ctx->ipc.osid,
+				/* scaffolding */
+				prop.scaffold.secid = ctx->ipc.osid;
+				if (security_audit_rule_match(&prop,
 							      f->type, f->op,
 							      f->lsm_rule))
 					++result;

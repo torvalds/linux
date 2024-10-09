@@ -555,7 +555,7 @@ static inline void ima_filter_rule_free(void *lsmrule)
 {
 }
 
-static inline int ima_filter_rule_match(u32 secid, u32 field, u32 op,
+static inline int ima_filter_rule_match(struct lsm_prop *prop, u32 field, u32 op,
 					void *lsmrule)
 {
 	return -EINVAL;
