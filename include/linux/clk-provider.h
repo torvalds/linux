@@ -1360,7 +1360,6 @@ unsigned long clk_hw_get_flags(const struct clk_hw *hw);
 	(clk_hw_get_flags((hw)) & CLK_SET_RATE_PARENT)
 
 bool clk_hw_is_prepared(const struct clk_hw *hw);
-bool clk_hw_rate_is_protected(const struct clk_hw *hw);
 bool clk_hw_is_enabled(const struct clk_hw *hw);
 bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
