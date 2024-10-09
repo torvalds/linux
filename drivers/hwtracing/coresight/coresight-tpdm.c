@@ -1308,8 +1308,8 @@ static void tpdm_remove(struct amba_device *adev)
  */
 static struct amba_id tpdm_ids[] = {
 	{
-		.id = 0x000f0e00,
-		.mask = 0x000fff00,
+		.id	= 0x001f0e00,
+		.mask	= 0x00ffff00,
 	},
 	{ 0, 0, NULL },
 };
