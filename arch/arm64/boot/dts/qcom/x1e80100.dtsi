@@ -2934,6 +2934,8 @@
 			linux,pci-domain = <6>;
 			num-lanes = <2>;
 
+			msi-map = <0x0 &gic_its 0xe0000 0x10000>;
+
 			interrupts = <GIC_SPI 773 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 774 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 837 IRQ_TYPE_LEVEL_HIGH>,
@@ -3175,6 +3177,8 @@
 
 			linux,pci-domain = <4>;
 			num-lanes = <2>;
+
+			msi-map = <0x0 &gic_its 0xc0000 0x10000>;
 
 			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
@@ -5766,8 +5770,6 @@
 
 				msi-controller;
 				#msi-cells = <1>;
-
-				status = "disabled";
 			};
 		};
 
