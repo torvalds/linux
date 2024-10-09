@@ -780,12 +780,11 @@ static unsigned int vlv_primary_min_alignment(struct intel_plane *plane,
 					      const struct drm_framebuffer *fb,
 					      int color_plane)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	if (intel_plane_can_async_flip(plane, fb->modifier))
+		return 256 * 1024;
 
 	switch (fb->modifier) {
 	case I915_FORMAT_MOD_X_TILED:
-		if (HAS_ASYNC_FLIPS(i915))
-			return 256 * 1024;
 		return 4 * 1024;
 	case DRM_FORMAT_MOD_LINEAR:
 		return 128 * 1024;
@@ -799,13 +798,11 @@ static unsigned int g4x_primary_min_alignment(struct intel_plane *plane,
 					      const struct drm_framebuffer *fb,
 					      int color_plane)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	if (intel_plane_can_async_flip(plane, fb->modifier))
+		return 256 * 1024;
 
 	switch (fb->modifier) {
 	case I915_FORMAT_MOD_X_TILED:
-		if (HAS_ASYNC_FLIPS(i915))
-			return 256 * 1024;
-		return 4 * 1024;
 	case DRM_FORMAT_MOD_LINEAR:
 		return 4 * 1024;
 	default:
@@ -960,27 +957,29 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		plane->async_flip = vlv_primary_async_flip;
-		plane->enable_flip_done = vlv_primary_enable_flip_done;
-		plane->disable_flip_done = vlv_primary_disable_flip_done;
-		plane->can_async_flip = i9xx_plane_can_async_flip;
-	} else if (IS_BROADWELL(dev_priv)) {
-		plane->need_async_flip_toggle_wa = true;
-		plane->async_flip = g4x_primary_async_flip;
-		plane->enable_flip_done = bdw_primary_enable_flip_done;
-		plane->disable_flip_done = bdw_primary_disable_flip_done;
-		plane->can_async_flip = i9xx_plane_can_async_flip;
-	} else if (DISPLAY_VER(dev_priv) >= 7) {
-		plane->async_flip = g4x_primary_async_flip;
-		plane->enable_flip_done = ivb_primary_enable_flip_done;
-		plane->disable_flip_done = ivb_primary_disable_flip_done;
-		plane->can_async_flip = i9xx_plane_can_async_flip;
-	} else if (DISPLAY_VER(dev_priv) >= 5) {
-		plane->async_flip = g4x_primary_async_flip;
-		plane->enable_flip_done = ilk_primary_enable_flip_done;
-		plane->disable_flip_done = ilk_primary_disable_flip_done;
-		plane->can_async_flip = i9xx_plane_can_async_flip;
+	if (HAS_ASYNC_FLIPS(dev_priv)) {
+		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+			plane->async_flip = vlv_primary_async_flip;
+			plane->enable_flip_done = vlv_primary_enable_flip_done;
+			plane->disable_flip_done = vlv_primary_disable_flip_done;
+			plane->can_async_flip = i9xx_plane_can_async_flip;
+		} else if (IS_BROADWELL(dev_priv)) {
+			plane->need_async_flip_toggle_wa = true;
+			plane->async_flip = g4x_primary_async_flip;
+			plane->enable_flip_done = bdw_primary_enable_flip_done;
+			plane->disable_flip_done = bdw_primary_disable_flip_done;
+			plane->can_async_flip = i9xx_plane_can_async_flip;
+		} else if (DISPLAY_VER(dev_priv) >= 7) {
+			plane->async_flip = g4x_primary_async_flip;
+			plane->enable_flip_done = ivb_primary_enable_flip_done;
+			plane->disable_flip_done = ivb_primary_disable_flip_done;
+			plane->can_async_flip = i9xx_plane_can_async_flip;
+		} else if (DISPLAY_VER(dev_priv) >= 5) {
+			plane->async_flip = g4x_primary_async_flip;
+			plane->enable_flip_done = ilk_primary_enable_flip_done;
+			plane->disable_flip_done = ilk_primary_disable_flip_done;
+			plane->can_async_flip = i9xx_plane_can_async_flip;
+		}
 	}
 
 	modifiers = intel_fb_plane_get_modifiers(dev_priv, INTEL_PLANE_CAP_TILING_X);
