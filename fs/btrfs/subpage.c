@@ -140,12 +140,10 @@ struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&ret->lock);
-	if (type == BTRFS_SUBPAGE_METADATA) {
+	if (type == BTRFS_SUBPAGE_METADATA)
 		atomic_set(&ret->eb_refs, 0);
-	} else {
-		atomic_set(&ret->readers, 0);
+	else
 		atomic_set(&ret->writers, 0);
-	}
 	return ret;
 }
 
@@ -220,62 +218,6 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 	__start_bit += fs_info->sectors_per_page * btrfs_bitmap_nr_##name; \
 	__start_bit;							\
 })
-
-void btrfs_subpage_start_reader(const struct btrfs_fs_info *fs_info,
-				struct folio *folio, u64 start, u32 len)
-{
-	struct btrfs_subpage *subpage = folio_get_private(folio);
-	const int start_bit = subpage_calc_start_bit(fs_info, folio, locked, start, len);
-	const int nbits = len >> fs_info->sectorsize_bits;
-	unsigned long flags;
-
-
-	btrfs_subpage_assert(fs_info, folio, start, len);
-
-	spin_lock_irqsave(&subpage->lock, flags);
-	/*
-	 * Even though it's just for reading the page, no one should have
-	 * locked the subpage range.
-	 */
-	ASSERT(bitmap_test_range_all_zero(subpage->bitmaps, start_bit, nbits));
-	bitmap_set(subpage->bitmaps, start_bit, nbits);
-	atomic_add(nbits, &subpage->readers);
-	spin_unlock_irqrestore(&subpage->lock, flags);
-}
-
-void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
-			      struct folio *folio, u64 start, u32 len)
-{
-	struct btrfs_subpage *subpage = folio_get_private(folio);
-	const int start_bit = subpage_calc_start_bit(fs_info, folio, locked, start, len);
-	const int nbits = len >> fs_info->sectorsize_bits;
-	unsigned long flags;
-	bool is_data;
-	bool last;
-
-	btrfs_subpage_assert(fs_info, folio, start, len);
-	is_data = is_data_inode(BTRFS_I(folio->mapping->host));
-
-	spin_lock_irqsave(&subpage->lock, flags);
-
-	/* The range should have already been locked. */
-	ASSERT(bitmap_test_range_all_set(subpage->bitmaps, start_bit, nbits));
-	ASSERT(atomic_read(&subpage->readers) >= nbits);
-
-	bitmap_clear(subpage->bitmaps, start_bit, nbits);
-	last = atomic_sub_and_test(nbits, &subpage->readers);
-
-	/*
-	 * For data we need to unlock the page if the last read has finished.
-	 *
-	 * And please don't replace @last with atomic_sub_and_test() call
-	 * inside if () condition.
-	 * As we want the atomic_sub_and_test() to be always executed.
-	 */
-	if (is_data && last)
-		folio_unlock(folio);
-	spin_unlock_irqrestore(&subpage->lock, flags);
-}
 
 static void btrfs_subpage_clamp_range(struct folio *folio, u64 *start, u32 *len)
 {
