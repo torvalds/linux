@@ -2240,9 +2240,12 @@ int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		if (adev->ip_blocks[i].version->type == block_type) {
-			r = adev->ip_blocks[i].version->funcs->wait_for_idle(&adev->ip_blocks[i]);
-			if (r)
-				return r;
+			if (adev->ip_blocks[i].version->funcs->wait_for_idle) {
+				r = adev->ip_blocks[i].version->funcs->wait_for_idle(
+								&adev->ip_blocks[i]);
+				if (r)
+					return r;
+			}
 			break;
 		}
 	}
