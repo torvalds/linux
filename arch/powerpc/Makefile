@@ -352,7 +352,7 @@ define archhelp
   echo '  install         - Install kernel using'
   echo '                    (your) ~/bin/$(INSTALLKERNEL) or'
   echo '                    (distribution) /sbin/$(INSTALLKERNEL) or'
-  echo '                    install to $$(INSTALL_PATH) and run lilo'
+  echo '                    install to $$(INSTALL_PATH)'
   echo '  *_defconfig     - Select default config from arch/powerpc/configs'
   echo ''
   echo '  Targets with <dt> embed a device tree blob inside the image'
