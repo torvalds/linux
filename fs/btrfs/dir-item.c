@@ -27,7 +27,6 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 						   const char *name,
 						   int name_len)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	char *ptr;
 	struct extent_buffer *leaf;
@@ -35,7 +34,7 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 	ret = btrfs_insert_empty_item(trans, root, path, cpu_key, data_size);
 	if (ret == -EEXIST) {
 		struct btrfs_dir_item *di;
-		di = btrfs_match_dir_item_name(fs_info, path, name, name_len);
+		di = btrfs_match_dir_item_name(path, name, name_len);
 		if (di)
 			return ERR_PTR(-EEXIST);
 		btrfs_extend_item(trans, path, data_size);
@@ -190,7 +189,7 @@ static struct btrfs_dir_item *btrfs_lookup_match_dir(
 	if (ret > 0)
 		return ERR_PTR(-ENOENT);
 
-	return btrfs_match_dir_item_name(root->fs_info, path, name, name_len);
+	return btrfs_match_dir_item_name(path, name, name_len);
 }
 
 /*
@@ -341,8 +340,7 @@ btrfs_search_dir_index_item(struct btrfs_root *root, struct btrfs_path *path,
 		if (key.objectid != dirid || key.type != BTRFS_DIR_INDEX_KEY)
 			break;
 
-		di = btrfs_match_dir_item_name(root->fs_info, path,
-					       name->name, name->len);
+		di = btrfs_match_dir_item_name(path, name->name, name->len);
 		if (di)
 			return di;
 	}
@@ -378,8 +376,7 @@ struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
  * this walks through all the entries in a dir item and finds one
  * for a specific name.
  */
-struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
-						 const struct btrfs_path *path,
+struct btrfs_dir_item *btrfs_match_dir_item_name(const struct btrfs_path *path,
 						 const char *name, int name_len)
 {
 	struct btrfs_dir_item *dir_item;
