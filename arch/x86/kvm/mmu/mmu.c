@@ -1884,14 +1884,10 @@ static bool sp_has_gptes(struct kvm_mmu_page *sp)
 		if (is_obsolete_sp((_kvm), (_sp))) {			\
 		} else
 
-#define for_each_gfn_valid_sp(_kvm, _sp, _gfn)				\
+#define for_each_gfn_valid_sp_with_gptes(_kvm, _sp, _gfn)		\
 	for_each_valid_sp(_kvm, _sp,					\
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)])	\
-		if ((_sp)->gfn != (_gfn)) {} else
-
-#define for_each_gfn_valid_sp_with_gptes(_kvm, _sp, _gfn)		\
-	for_each_gfn_valid_sp(_kvm, _sp, _gfn)				\
-		if (!sp_has_gptes(_sp)) {} else
+		if ((_sp)->gfn != (_gfn) || !sp_has_gptes(_sp)) {} else
 
 static bool kvm_sync_page_check(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
@@ -7063,15 +7059,15 @@ static void kvm_mmu_zap_memslot_pages_and_flush(struct kvm *kvm,
 
 	/*
 	 * Since accounting information is stored in struct kvm_arch_memory_slot,
-	 * shadow pages deletion (e.g. unaccount_shadowed()) requires that all
-	 * gfns with a shadow page have a corresponding memslot.  Do so before
-	 * the memslot goes away.
+	 * all MMU pages that are shadowing guest PTEs must be zapped before the
+	 * memslot is deleted, as freeing such pages after the memslot is freed
+	 * will result in use-after-free, e.g. in unaccount_shadowed().
 	 */
 	for (i = 0; i < slot->npages; i++) {
 		struct kvm_mmu_page *sp;
 		gfn_t gfn = slot->base_gfn + i;
 
-		for_each_gfn_valid_sp(kvm, sp, gfn)
+		for_each_gfn_valid_sp_with_gptes(kvm, sp, gfn)
 			kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
 
 		if (need_resched() || rwlock_needbreak(&kvm->mmu_lock)) {
