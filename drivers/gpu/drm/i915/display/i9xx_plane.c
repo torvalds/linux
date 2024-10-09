@@ -776,9 +776,9 @@ i8xx_plane_max_stride(struct intel_plane *plane,
 		return 8 * 1024;
 }
 
-static unsigned int vlv_primary_min_alignment(struct intel_plane *plane,
-					      const struct drm_framebuffer *fb,
-					      int color_plane)
+unsigned int vlv_plane_min_alignment(struct intel_plane *plane,
+				     const struct drm_framebuffer *fb,
+				     int color_plane)
 {
 	if (intel_plane_can_async_flip(plane, fb->modifier))
 		return 256 * 1024;
@@ -939,7 +939,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	}
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		plane->min_alignment = vlv_primary_min_alignment;
+		plane->min_alignment = vlv_plane_min_alignment;
 	else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		plane->min_alignment = g4x_primary_min_alignment;
 	else if (DISPLAY_VER(dev_priv) == 4)
