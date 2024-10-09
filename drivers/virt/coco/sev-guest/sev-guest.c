@@ -345,6 +345,14 @@ static int snp_send_guest_request(struct snp_guest_dev *snp_dev, struct snp_gues
 	u64 seqno;
 	int rc;
 
+	guard(mutex)(&snp_cmd_mutex);
+
+	/* Check if the VMPCK is not empty */
+	if (is_vmpck_empty(snp_dev)) {
+		dev_err_ratelimited(snp_dev->dev, "VMPCK is disabled\n");
+		return -ENOTTY;
+	}
+
 	/* Get message sequence and verify that its a non-zero */
 	seqno = snp_get_msg_seqno(snp_dev);
 	if (!seqno)
@@ -401,8 +409,6 @@ static int get_report(struct snp_guest_dev *snp_dev, struct snp_guest_request_io
 	struct snp_guest_req req = {};
 	int rc, resp_len;
 
-	lockdep_assert_held(&snp_cmd_mutex);
-
 	if (!arg->req_data || !arg->resp_data)
 		return -EINVAL;
 
@@ -448,8 +454,6 @@ static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_reque
 	int rc, resp_len;
 	/* Response data is 64 bytes and max authsize for GCM is 16 bytes. */
 	u8 buf[64 + 16];
-
-	lockdep_assert_held(&snp_cmd_mutex);
 
 	if (!arg->req_data || !arg->resp_data)
 		return -EINVAL;
@@ -500,8 +504,6 @@ static int get_ext_report(struct snp_guest_dev *snp_dev, struct snp_guest_reques
 	struct snp_guest_req req = {};
 	int ret, npages = 0, resp_len;
 	sockptr_t certs_address;
-
-	lockdep_assert_held(&snp_cmd_mutex);
 
 	if (sockptr_is_null(io->req_data) || sockptr_is_null(io->resp_data))
 		return -EINVAL;
@@ -598,15 +600,6 @@ static long snp_guest_ioctl(struct file *file, unsigned int ioctl, unsigned long
 	if (!input.msg_version)
 		return -EINVAL;
 
-	mutex_lock(&snp_cmd_mutex);
-
-	/* Check if the VMPCK is not empty */
-	if (is_vmpck_empty(snp_dev)) {
-		dev_err_ratelimited(snp_dev->dev, "VMPCK is disabled\n");
-		mutex_unlock(&snp_cmd_mutex);
-		return -ENOTTY;
-	}
-
 	switch (ioctl) {
 	case SNP_GET_REPORT:
 		ret = get_report(snp_dev, &input);
@@ -627,8 +620,6 @@ static long snp_guest_ioctl(struct file *file, unsigned int ioctl, unsigned long
 	default:
 		break;
 	}
-
-	mutex_unlock(&snp_cmd_mutex);
 
 	if (input.exitinfo2 && copy_to_user(argp, &input, sizeof(input)))
 		return -EFAULT;
@@ -743,8 +734,6 @@ static int sev_svsm_report_new(struct tsm_report *report, void *data)
 	rep_len = SZ_4K;
 	man_len = SZ_4K;
 	certs_len = SEV_FW_BLOB_MAX_SIZE;
-
-	guard(mutex)(&snp_cmd_mutex);
 
 	if (guid_is_null(&desc->service_guid)) {
 		call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SERVICES);
@@ -879,14 +868,6 @@ static int sev_report_new(struct tsm_report *report, void *data)
 	void *buf __free(kvfree) = kvzalloc(size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-
-	guard(mutex)(&snp_cmd_mutex);
-
-	/* Check if the VMPCK is not empty */
-	if (is_vmpck_empty(snp_dev)) {
-		dev_err_ratelimited(snp_dev->dev, "VMPCK is disabled\n");
-		return -ENOTTY;
-	}
 
 	cert_table = buf + report_size;
 	struct snp_ext_report_req ext_req = {
