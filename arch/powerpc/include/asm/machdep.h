@@ -4,7 +4,6 @@
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
-#include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
@@ -18,6 +17,7 @@ struct file;
 struct pci_controller;
 struct kimage;
 struct pci_host_bridge;
+struct seq_file;
 
 struct machdep_calls {
 	const char	*name;
