@@ -3596,24 +3596,41 @@ static inline void mm_cid_put(struct mm_struct *mm)
 	__mm_cid_put(mm, mm_cid_clear_lazy_put(cid));
 }
 
-static inline int __mm_cid_try_get(struct mm_struct *mm)
+static inline int __mm_cid_try_get(struct task_struct *t, struct mm_struct *mm)
 {
-	struct cpumask *cpumask;
-	int cid;
+	struct cpumask *cidmask = mm_cidmask(mm);
+	struct mm_cid __percpu *pcpu_cid = mm->pcpu_cid;
+	int cid = __this_cpu_read(pcpu_cid->recent_cid);
 
-	cpumask = mm_cidmask(mm);
+	/* Try to re-use recent cid. This improves cache locality. */
+	if (!mm_cid_is_unset(cid) && !cpumask_test_and_set_cpu(cid, cidmask))
+		return cid;
 	/*
+	 * Expand cid allocation if the maximum number of concurrency
+	 * IDs allocated (max_nr_cid) is below the number cpus allowed
+	 * and number of threads. Expanding cid allocation as much as
+	 * possible improves cache locality.
+	 */
+	cid = atomic_read(&mm->max_nr_cid);
+	while (cid < READ_ONCE(mm->nr_cpus_allowed) && cid < atomic_read(&mm->mm_users)) {
+		if (!atomic_try_cmpxchg(&mm->max_nr_cid, &cid, cid + 1))
+			continue;
+		if (!cpumask_test_and_set_cpu(cid, cidmask))
+			return cid;
+	}
+	/*
+	 * Find the first available concurrency id.
 	 * Retry finding first zero bit if the mask is temporarily
 	 * filled. This only happens during concurrent remote-clear
 	 * which owns a cid without holding a rq lock.
 	 */
 	for (;;) {
-		cid = cpumask_first_zero(cpumask);
-		if (cid < nr_cpu_ids)
+		cid = cpumask_first_zero(cidmask);
+		if (cid < READ_ONCE(mm->nr_cpus_allowed))
 			break;
 		cpu_relax();
 	}
-	if (cpumask_test_and_set_cpu(cid, cpumask))
+	if (cpumask_test_and_set_cpu(cid, cidmask))
 		return -1;
 
 	return cid;
@@ -3631,7 +3648,8 @@ static inline void mm_cid_snapshot_time(struct rq *rq, struct mm_struct *mm)
 	WRITE_ONCE(pcpu_cid->time, rq->clock);
 }
 
-static inline int __mm_cid_get(struct rq *rq, struct mm_struct *mm)
+static inline int __mm_cid_get(struct rq *rq, struct task_struct *t,
+			       struct mm_struct *mm)
 {
 	int cid;
 
@@ -3641,13 +3659,13 @@ static inline int __mm_cid_get(struct rq *rq, struct mm_struct *mm)
 	 * guarantee forward progress.
 	 */
 	if (!READ_ONCE(use_cid_lock)) {
-		cid = __mm_cid_try_get(mm);
+		cid = __mm_cid_try_get(t, mm);
 		if (cid >= 0)
 			goto end;
 		raw_spin_lock(&cid_lock);
 	} else {
 		raw_spin_lock(&cid_lock);
-		cid = __mm_cid_try_get(mm);
+		cid = __mm_cid_try_get(t, mm);
 		if (cid >= 0)
 			goto unlock;
 	}
@@ -3667,7 +3685,7 @@ static inline int __mm_cid_get(struct rq *rq, struct mm_struct *mm)
 	 * all newcoming allocations observe the use_cid_lock flag set.
 	 */
 	do {
-		cid = __mm_cid_try_get(mm);
+		cid = __mm_cid_try_get(t, mm);
 		cpu_relax();
 	} while (cid < 0);
 	/*
@@ -3684,7 +3702,8 @@ end:
 	return cid;
 }
 
-static inline int mm_cid_get(struct rq *rq, struct mm_struct *mm)
+static inline int mm_cid_get(struct rq *rq, struct task_struct *t,
+			     struct mm_struct *mm)
 {
 	struct mm_cid __percpu *pcpu_cid = mm->pcpu_cid;
 	struct cpumask *cpumask;
@@ -3701,8 +3720,9 @@ static inline int mm_cid_get(struct rq *rq, struct mm_struct *mm)
 		if (try_cmpxchg(&this_cpu_ptr(pcpu_cid)->cid, &cid, MM_CID_UNSET))
 			__mm_cid_put(mm, mm_cid_clear_lazy_put(cid));
 	}
-	cid = __mm_cid_get(rq, mm);
+	cid = __mm_cid_get(rq, t, mm);
 	__this_cpu_write(pcpu_cid->cid, cid);
+	__this_cpu_write(pcpu_cid->recent_cid, cid);
 
 	return cid;
 }
@@ -3755,7 +3775,7 @@ static inline void switch_mm_cid(struct rq *rq,
 		prev->mm_cid = -1;
 	}
 	if (next->mm_cid_active)
-		next->last_mm_cid = next->mm_cid = mm_cid_get(rq, next->mm);
+		next->last_mm_cid = next->mm_cid = mm_cid_get(rq, next, next->mm);
 }
 
 #else /* !CONFIG_SCHED_MM_CID: */

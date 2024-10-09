@@ -2696,6 +2696,7 @@ __do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
 		put_prev_task(rq, p);
 
 	p->sched_class->set_cpus_allowed(p, ctx);
+	mm_set_cpus_allowed(p->mm, ctx->new_mask);
 
 	if (queued)
 		enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
@@ -10243,6 +10244,7 @@ int __sched_mm_cid_migrate_from_try_steal_cid(struct rq *src_rq,
 	 */
 	if (!try_cmpxchg(&src_pcpu_cid->cid, &lazy_cid, MM_CID_UNSET))
 		return -1;
+	WRITE_ONCE(src_pcpu_cid->recent_cid, MM_CID_UNSET);
 	return src_cid;
 }
 
@@ -10255,7 +10257,8 @@ void sched_mm_cid_migrate_to(struct rq *dst_rq, struct task_struct *t)
 {
 	struct mm_cid *src_pcpu_cid, *dst_pcpu_cid;
 	struct mm_struct *mm = t->mm;
-	int src_cid, dst_cid, src_cpu;
+	int src_cid, src_cpu;
+	bool dst_cid_is_set;
 	struct rq *src_rq;
 
 	lockdep_assert_rq_held(dst_rq);
@@ -10272,9 +10275,9 @@ void sched_mm_cid_migrate_to(struct rq *dst_rq, struct task_struct *t)
 	 * allocation closest to 0 in cases where few threads migrate around
 	 * many CPUs.
 	 *
-	 * If destination cid is already set, we may have to just clear
-	 * the src cid to ensure compactness in frequent migrations
-	 * scenarios.
+	 * If destination cid or recent cid is already set, we may have
+	 * to just clear the src cid to ensure compactness in frequent
+	 * migrations scenarios.
 	 *
 	 * It is not useful to clear the src cid when the number of threads is
 	 * greater or equal to the number of allowed CPUs, because user-space
@@ -10282,9 +10285,9 @@ void sched_mm_cid_migrate_to(struct rq *dst_rq, struct task_struct *t)
 	 * allowed CPUs.
 	 */
 	dst_pcpu_cid = per_cpu_ptr(mm->pcpu_cid, cpu_of(dst_rq));
-	dst_cid = READ_ONCE(dst_pcpu_cid->cid);
-	if (!mm_cid_is_unset(dst_cid) &&
-	    atomic_read(&mm->mm_users) >= t->nr_cpus_allowed)
+	dst_cid_is_set = !mm_cid_is_unset(READ_ONCE(dst_pcpu_cid->cid)) ||
+			 !mm_cid_is_unset(READ_ONCE(dst_pcpu_cid->recent_cid));
+	if (dst_cid_is_set && atomic_read(&mm->mm_users) >= READ_ONCE(mm->nr_cpus_allowed))
 		return;
 	src_pcpu_cid = per_cpu_ptr(mm->pcpu_cid, src_cpu);
 	src_rq = cpu_rq(src_cpu);
@@ -10295,13 +10298,14 @@ void sched_mm_cid_migrate_to(struct rq *dst_rq, struct task_struct *t)
 							    src_cid);
 	if (src_cid == -1)
 		return;
-	if (!mm_cid_is_unset(dst_cid)) {
+	if (dst_cid_is_set) {
 		__mm_cid_put(mm, src_cid);
 		return;
 	}
 	/* Move src_cid to dst cpu. */
 	mm_cid_snapshot_time(dst_rq, mm);
 	WRITE_ONCE(dst_pcpu_cid->cid, src_cid);
+	WRITE_ONCE(dst_pcpu_cid->recent_cid, src_cid);
 }
 
 static void sched_mm_cid_remote_clear(struct mm_struct *mm, struct mm_cid *pcpu_cid,
@@ -10540,7 +10544,7 @@ void sched_mm_cid_after_execve(struct task_struct *t)
 		 * Matches barrier in sched_mm_cid_remote_clear_old().
 		 */
 		smp_mb();
-		t->last_mm_cid = t->mm_cid = mm_cid_get(rq, mm);
+		t->last_mm_cid = t->mm_cid = mm_cid_get(rq, t, mm);
 	}
 	rseq_set_notify_resume(t);
 }
