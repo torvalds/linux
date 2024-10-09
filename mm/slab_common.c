@@ -254,10 +254,22 @@ out:
  * @object_size: The size of objects to be created in this cache.
  * @args: Additional arguments for the cache creation (see
  *        &struct kmem_cache_args).
- * @flags: See %SLAB_* flags for an explanation of individual @flags.
+ * @flags: See the desriptions of individual flags. The common ones are listed
+ *         in the description below.
  *
  * Not to be called directly, use the kmem_cache_create() wrapper with the same
  * parameters.
+ *
+ * Commonly used @flags:
+ *
+ * &SLAB_ACCOUNT - Account allocations to memcg.
+ *
+ * &SLAB_HWCACHE_ALIGN - Align objects on cache line boundaries.
+ *
+ * &SLAB_RECLAIM_ACCOUNT - Objects are reclaimable.
+ *
+ * &SLAB_TYPESAFE_BY_RCU - Slab page (not individual objects) freeing delayed
+ * by a grace period - see the full description before using.
  *
  * Context: Cannot be called within a interrupt, but can be interrupted.
  *
