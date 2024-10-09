@@ -6,10 +6,10 @@
  * I2C master mode controller driver, used in Nomadik 8815
  * and Ux500 platforms.
  *
- * The Mobileye EyeQ5 platform is also supported; it uses
+ * The Mobileye EyeQ5 and EyeQ6H platforms are also supported; they use
  * the same Ux500/DB8500 IP block with two quirks:
  *  - The memory bus only supports 32-bit accesses.
- *  - A register must be configured for the I2C speed mode;
+ *  - (only EyeQ5) A register must be configured for the I2C speed mode;
  *    it is located in a shared register region called OLB.
  *
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
@@ -1074,6 +1074,10 @@ static const struct of_device_id nmk_i2c_eyeq_match_table[] = {
 	{
 		.compatible = "mobileye,eyeq5-i2c",
 		.data = (void *)(NMK_I2C_EYEQ_FLAG_32B_BUS | NMK_I2C_EYEQ_FLAG_IS_EYEQ5),
+	},
+	{
+		.compatible = "mobileye,eyeq6h-i2c",
+		.data = (void *)NMK_I2C_EYEQ_FLAG_32B_BUS,
 	},
 };
 
