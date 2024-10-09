@@ -303,7 +303,7 @@ struct hfsplus_readdir_data {
 };
 
 /*
- * Find minimum acceptible I/O size for an hfsplus sb.
+ * Find minimum acceptable I/O size for an hfsplus sb.
  */
 static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
 {
