@@ -37,6 +37,8 @@
 #define   AXI_PWMGEN_REG_RSTN_LOAD_CONFIG	BIT(1)
 #define   AXI_PWMGEN_REG_RSTN_RESET		BIT(0)
 #define AXI_PWMGEN_REG_NPWM		0x14
+#define AXI_PWMGEN_REG_CONFIG		0x18
+#define   AXI_PWMGEN_REG_CONFIG_FORCE_ALIGN	BIT(1)
 #define AXI_PWMGEN_CHX_PERIOD(ch)	(0x40 + (4 * (ch)))
 #define AXI_PWMGEN_CHX_DUTY(ch)		(0x80 + (4 * (ch)))
 #define AXI_PWMGEN_CHX_OFFSET(ch)	(0xC0 + (4 * (ch)))
@@ -224,6 +226,16 @@ static int axi_pwmgen_setup(struct regmap *regmap, struct device *dev)
 
 	/* Enable the core */
 	ret = regmap_clear_bits(regmap, AXI_PWMGEN_REG_RSTN, AXI_PWMGEN_REG_RSTN_RESET);
+	if (ret)
+		return ret;
+
+	/*
+	 * Enable force align so that changes to PWM period and duty cycle take
+	 * effect immediately. Otherwise, the effect of the change is delayed
+	 * until the period of all channels run out, which can be long after the
+	 * apply function returns.
+	 */
+	ret = regmap_set_bits(regmap, AXI_PWMGEN_REG_CONFIG, AXI_PWMGEN_REG_CONFIG_FORCE_ALIGN);
 	if (ret)
 		return ret;
 
