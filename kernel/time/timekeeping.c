@@ -41,7 +41,7 @@ enum timekeeping_adv_mode {
 	TK_ADV_FREQ
 };
 
-DEFINE_RAW_SPINLOCK(timekeeper_lock);
+static DEFINE_RAW_SPINLOCK(timekeeper_lock);
 
 /*
  * The most important data for readout fits into a single 64 byte
@@ -113,6 +113,19 @@ static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
 	.base[0] = FAST_TK_INIT,
 	.base[1] = FAST_TK_INIT,
 };
+
+unsigned long timekeeper_lock_irqsave(void)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&timekeeper_lock, flags);
+	return flags;
+}
+
+void timekeeper_unlock_irqrestore(unsigned long flags)
+{
+	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
+}
 
 /*
  * Multigrain timestamps require tracking the latest fine-grained timestamp
