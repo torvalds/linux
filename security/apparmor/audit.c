@@ -270,11 +270,7 @@ int aa_audit_rule_match(struct lsm_prop *prop, u32 field, u32 op, void *vrule)
 	struct aa_label *label;
 	int found = 0;
 
-	/* scaffolding */
-	if (!prop->apparmor.label && prop->scaffold.secid)
-		label = aa_secid_to_label(prop->scaffold.secid);
-	else
-		label = prop->apparmor.label;
+	label = prop->apparmor.label;
 
 	if (!label)
 		return -ENOENT;

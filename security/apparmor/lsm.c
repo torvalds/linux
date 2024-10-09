@@ -987,8 +987,6 @@ static void apparmor_current_getlsmprop_subj(struct lsm_prop *prop)
 	struct aa_label *label = __begin_current_label_crit_section();
 
 	prop->apparmor.label = label;
-	/* scaffolding */
-	prop->scaffold.secid = label->secid;
 	__end_current_label_crit_section(label);
 }
 
@@ -998,8 +996,6 @@ static void apparmor_task_getlsmprop_obj(struct task_struct *p,
 	struct aa_label *label = aa_get_task_label(p);
 
 	prop->apparmor.label = label;
-	/* scaffolding */
-	prop->scaffold.secid = label->secid;
 	aa_put_label(label);
 }
 

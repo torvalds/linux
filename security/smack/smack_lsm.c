@@ -1655,11 +1655,7 @@ static int smack_inode_listsecurity(struct inode *inode, char *buffer,
  */
 static void smack_inode_getlsmprop(struct inode *inode, struct lsm_prop *prop)
 {
-	struct smack_known *skp = smk_of_inode(inode);
-
-	prop->smack.skp = skp;
-	/* scaffolding */
-	prop->scaffold.secid = skp->smk_secid;
+	prop->smack.skp = smk_of_inode(inode);
 }
 
 /*
@@ -2162,8 +2158,6 @@ static void smack_cred_getlsmprop(const struct cred *cred,
 {
 	rcu_read_lock();
 	prop->smack.skp = smk_of_task(smack_cred(cred));
-	/* scaffolding */
-	prop->scaffold.secid = prop->smack.skp->smk_secid;
 	rcu_read_unlock();
 }
 
@@ -2265,11 +2259,7 @@ static int smack_task_getsid(struct task_struct *p)
  */
 static void smack_current_getlsmprop_subj(struct lsm_prop *prop)
 {
-	struct smack_known *skp = smk_of_current();
-
-	prop->smack.skp = skp;
-	/* scaffolding */
-	prop->scaffold.secid = skp->smk_secid;
+	prop->smack.skp = smk_of_current();
 }
 
 /**
@@ -2282,11 +2272,7 @@ static void smack_current_getlsmprop_subj(struct lsm_prop *prop)
 static void smack_task_getlsmprop_obj(struct task_struct *p,
 				      struct lsm_prop *prop)
 {
-	struct smack_known *skp = smk_of_task_struct_obj(p);
-
-	prop->smack.skp = skp;
-	/* scaffolding */
-	prop->scaffold.secid = skp->smk_secid;
+	prop->smack.skp = smk_of_task_struct_obj(p);
 }
 
 /**
@@ -3466,11 +3452,8 @@ static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
 static void smack_ipc_getlsmprop(struct kern_ipc_perm *ipp, struct lsm_prop *prop)
 {
 	struct smack_known **iskpp = smack_ipc(ipp);
-	struct smack_known *iskp = *iskpp;
 
-	prop->smack.skp = iskp;
-	/* scaffolding */
-	prop->scaffold.secid = iskp->smk_secid;
+	prop->smack.skp = *iskpp;
 }
 
 /**
@@ -4805,10 +4788,6 @@ static int smack_audit_rule_match(struct lsm_prop *prop, u32 field, u32 op,
 	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
 		return 0;
 
-	/* scaffolding */
-	if (!skp && prop->scaffold.secid)
-		skp = smack_from_secid(prop->scaffold.secid);
-
 	/*
 	 * No need to do string comparisons. If a match occurs,
 	 * both pointers will point to the same smack_known
@@ -4868,10 +4847,6 @@ static int smack_lsmprop_to_secctx(struct lsm_prop *prop, char **secdata,
 				   u32 *seclen)
 {
 	struct smack_known *skp = prop->smack.skp;
-
-	/* scaffolding */
-	if (!skp && prop->scaffold.secid)
-		skp = smack_from_secid(prop->scaffold.secid);
 
 	if (secdata)
 		*secdata = skp->smk_known;

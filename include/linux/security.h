@@ -156,11 +156,6 @@ enum lockdown_reason {
 	LOCKDOWN_CONFIDENTIALITY_MAX,
 };
 
-/* scaffolding */
-struct lsm_prop_scaffold {
-	u32 secid;
-};
-
 /*
  * Data exported by the security modules
  */
@@ -169,7 +164,6 @@ struct lsm_prop {
 	struct lsm_prop_smack smack;
 	struct lsm_prop_apparmor apparmor;
 	struct lsm_prop_bpf bpf;
-	struct lsm_prop_scaffold scaffold;
 };
 
 extern const char *const lockdown_reasons[LOCKDOWN_CONFIDENTIALITY_MAX+1];

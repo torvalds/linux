@@ -102,11 +102,7 @@ int apparmor_lsmprop_to_secctx(struct lsm_prop *prop, char **secdata,
 {
 	struct aa_label *label;
 
-	/* scaffolding */
-	if (!prop->apparmor.label && prop->scaffold.secid)
-		label = aa_secid_to_label(prop->scaffold.secid);
-	else
-		label = prop->apparmor.label;
+	label = prop->apparmor.label;
 
 	return apparmor_label_to_secctx(label, secdata, seclen);
 }

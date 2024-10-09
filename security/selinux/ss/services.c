@@ -3661,10 +3661,6 @@ int selinux_audit_rule_match(struct lsm_prop *prop, u32 field, u32 op, void *vru
 		goto out;
 	}
 
-	/* scaffolding */
-	if (!prop->selinux.secid && prop->scaffold.secid)
-		prop->selinux.secid = prop->scaffold.secid;
-
 	ctxt = sidtab_search(policy->sidtab, prop->selinux.secid);
 	if (unlikely(!ctxt)) {
 		WARN_ONCE(1, "selinux_audit_rule_match: unrecognized SID %d\n",
