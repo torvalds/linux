@@ -2715,8 +2715,9 @@ int do_adjtimex(struct __kernel_timex *txc)
 		__timekeeping_set_tai_offset(tk, tai);
 		timekeeping_update(tk, TK_MIRROR | TK_CLOCK_WAS_SET);
 		clock_set = true;
+	} else {
+		tk_update_leap_state(tk);
 	}
-	tk_update_leap_state(tk);
 
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
