@@ -7,9 +7,9 @@ kms_3d
 
 # Skip driver specific tests
 ^amdgpu.*
-msm_.*
+^msm.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*

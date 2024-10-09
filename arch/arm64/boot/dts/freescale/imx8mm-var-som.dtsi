@@ -8,7 +8,6 @@
 
 / {
 	model = "Variscite VAR-SOM-MX8MM module";
-	compatible = "variscite,var-som-mx8mm", "fsl,imx8mm";
 
 	chosen {
 		stdout-path = &uart4;

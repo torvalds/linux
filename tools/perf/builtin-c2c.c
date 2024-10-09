@@ -273,7 +273,7 @@ static void compute_stats(struct c2c_hist_entry *c2c_he,
 		update_stats(&cstats->load, weight);
 }
 
-static int process_sample_event(struct perf_tool *tool __maybe_unused,
+static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
@@ -384,24 +384,6 @@ free_mi:
 	ret = -ENOMEM;
 	goto out;
 }
-
-static struct perf_c2c c2c = {
-	.tool = {
-		.sample		= process_sample_event,
-		.mmap		= perf_event__process_mmap,
-		.mmap2		= perf_event__process_mmap2,
-		.comm		= perf_event__process_comm,
-		.exit		= perf_event__process_exit,
-		.fork		= perf_event__process_fork,
-		.lost		= perf_event__process_lost,
-		.attr		= perf_event__process_attr,
-		.auxtrace_info  = perf_event__process_auxtrace_info,
-		.auxtrace       = perf_event__process_auxtrace,
-		.auxtrace_error = perf_event__process_auxtrace_error,
-		.ordered_events	= true,
-		.ordering_requires_timestamps = true,
-	},
-};
 
 static const char * const c2c_usage[] = {
 	"perf c2c {record|report}",
@@ -3070,6 +3052,19 @@ static int perf_c2c__report(int argc, const char **argv)
 	data.path  = input_name;
 	data.force = symbol_conf.force;
 
+	perf_tool__init(&c2c.tool, /*ordered_events=*/true);
+	c2c.tool.sample		= process_sample_event;
+	c2c.tool.mmap		= perf_event__process_mmap;
+	c2c.tool.mmap2		= perf_event__process_mmap2;
+	c2c.tool.comm		= perf_event__process_comm;
+	c2c.tool.exit		= perf_event__process_exit;
+	c2c.tool.fork		= perf_event__process_fork;
+	c2c.tool.lost		= perf_event__process_lost;
+	c2c.tool.attr		= perf_event__process_attr;
+	c2c.tool.auxtrace_info  = perf_event__process_auxtrace_info;
+	c2c.tool.auxtrace       = perf_event__process_auxtrace;
+	c2c.tool.auxtrace_error = perf_event__process_auxtrace_error;
+	c2c.tool.ordering_requires_timestamps = true;
 	session = perf_session__new(&data, &c2c.tool);
 	if (IS_ERR(session)) {
 		err = PTR_ERR(session);
@@ -3266,7 +3261,7 @@ static int perf_c2c__record(int argc, const char **argv)
 		return -1;
 	}
 
-	if (perf_pmu__mem_events_init(pmu)) {
+	if (perf_pmu__mem_events_init()) {
 		pr_err("failed: memory events not supported\n");
 		return -1;
 	}
@@ -3290,19 +3285,15 @@ static int perf_c2c__record(int argc, const char **argv)
 		 * PERF_MEM_EVENTS__LOAD_STORE if it is supported.
 		 */
 		if (e->tag) {
-			e->record = true;
+			perf_mem_record[PERF_MEM_EVENTS__LOAD_STORE] = true;
 			rec_argv[i++] = "-W";
 		} else {
-			e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD);
-			e->record = true;
-
-			e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__STORE);
-			e->record = true;
+			perf_mem_record[PERF_MEM_EVENTS__LOAD] = true;
+			perf_mem_record[PERF_MEM_EVENTS__STORE] = true;
 		}
 	}
 
-	e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD);
-	if (e->record)
+	if (perf_mem_record[PERF_MEM_EVENTS__LOAD])
 		rec_argv[i++] = "-W";
 
 	rec_argv[i++] = "-d";

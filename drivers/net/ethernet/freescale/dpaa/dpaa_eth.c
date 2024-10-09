@@ -3571,7 +3571,7 @@ static struct platform_driver dpaa_driver = {
 	},
 	.id_table = dpaa_devtype,
 	.probe = dpaa_eth_probe,
-	.remove_new = dpaa_remove
+	.remove = dpaa_remove
 };
 
 static int __init dpaa_load(void)

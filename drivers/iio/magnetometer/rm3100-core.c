@@ -22,7 +22,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "rm3100.h"
 
@@ -464,7 +464,7 @@ static irqreturn_t rm3100_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	unsigned long scan_mask = *indio_dev->active_scan_mask;
-	unsigned int mask_len = indio_dev->masklength;
+	unsigned int mask_len = iio_get_masklength(indio_dev);
 	struct rm3100_data *data = iio_priv(indio_dev);
 	struct regmap *regmap = data->regmap;
 	int ret, i, bit;

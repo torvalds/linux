@@ -60,42 +60,42 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "sil164",
 		.port = PORT_C,
-		.slave_addr = SIL164_ADDR,
+		.target_addr = SIL164_ADDR,
 		.dev_ops = &sil164_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "ch7xxx",
 		.port = PORT_C,
-		.slave_addr = CH7xxx_ADDR,
+		.target_addr = CH7xxx_ADDR,
 		.dev_ops = &ch7xxx_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "ch7xxx",
 		.port = PORT_C,
-		.slave_addr = 0x75, /* For some ch7010 */
+		.target_addr = 0x75, /* For some ch7010 */
 		.dev_ops = &ch7xxx_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_LVDS,
 		.name = "ivch",
 		.port = PORT_A,
-		.slave_addr = 0x02, /* Might also be 0x44, 0x84, 0xc4 */
+		.target_addr = 0x02, /* Might also be 0x44, 0x84, 0xc4 */
 		.dev_ops = &ivch_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "tfp410",
 		.port = PORT_C,
-		.slave_addr = TFP410_ADDR,
+		.target_addr = TFP410_ADDR,
 		.dev_ops = &tfp410_ops,
 	},
 	{
 		.type = INTEL_DVO_CHIP_LVDS,
 		.name = "ch7017",
 		.port = PORT_C,
-		.slave_addr = 0x75,
+		.target_addr = 0x75,
 		.gpio = GMBUS_PIN_DPB,
 		.dev_ops = &ch7017_ops,
 	},
@@ -103,7 +103,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_LVDS_NO_FIXED,
 		.name = "ns2501",
 		.port = PORT_B,
-		.slave_addr = NS2501_ADDR,
+		.target_addr = NS2501_ADDR,
 		.dev_ops = &ns2501_ops,
 	},
 };

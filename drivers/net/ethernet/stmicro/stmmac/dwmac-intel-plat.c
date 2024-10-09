@@ -167,7 +167,7 @@ static void intel_eth_plat_remove(struct platform_device *pdev)
 
 static struct platform_driver intel_eth_plat_driver = {
 	.probe  = intel_eth_plat_probe,
-	.remove_new = intel_eth_plat_remove,
+	.remove = intel_eth_plat_remove,
 	.driver = {
 		.name		= "intel-eth-plat",
 		.pm		= &stmmac_pltfr_pm_ops,

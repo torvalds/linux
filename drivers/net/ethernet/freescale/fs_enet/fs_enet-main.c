@@ -895,7 +895,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	 * but require enable to succeed when a clock was specified/found,
 	 * keep a reference to the clock upon successful acquisition
 	 */
-	clk = devm_clk_get_enabled(&ofdev->dev, "per");
+	clk = devm_clk_get_optional_enabled(&ofdev->dev, "per");
 	if (IS_ERR(clk))
 		goto out_free_fpi;
 
@@ -1052,7 +1052,7 @@ static struct platform_driver fs_enet_driver = {
 		.of_match_table = fs_enet_match,
 	},
 	.probe = fs_enet_probe,
-	.remove_new = fs_enet_remove,
+	.remove = fs_enet_remove,
 };
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

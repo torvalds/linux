@@ -303,16 +303,12 @@ int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe,
 
 struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 
-void qib_rc_rnr_retry(unsigned long arg);
-
 void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
 int qib_post_ud_send(struct rvt_qp *qp, const struct ib_send_wr *wr);
 
 void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
-
-void mr_rcu_callback(struct rcu_head *list);
 
 void qib_migrate_qp(struct rvt_qp *qp);
 

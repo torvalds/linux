@@ -84,13 +84,3 @@ extern void gpmc_read_settings_dt(struct device_node *np,
 struct gpmc_timings;
 struct omap_nand_platform_data;
 struct omap_onenand_platform_data;
-
-#if IS_ENABLED(CONFIG_MTD_ONENAND_OMAP2)
-extern int gpmc_onenand_init(struct omap_onenand_platform_data *d);
-#else
-#define board_onenand_data	NULL
-static inline int gpmc_onenand_init(struct omap_onenand_platform_data *d)
-{
-	return 0;
-}
-#endif

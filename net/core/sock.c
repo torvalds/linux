@@ -85,7 +85,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/errqueue.h>
@@ -285,8 +285,6 @@ __u32 sysctl_rmem_max __read_mostly = SK_RMEM_MAX;
 EXPORT_SYMBOL(sysctl_rmem_max);
 __u32 sysctl_wmem_default __read_mostly = SK_WMEM_MAX;
 __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
-
-int sysctl_tstamp_allow_data __read_mostly = 1;
 
 DEFINE_STATIC_KEY_FALSE(memalloc_socks_key);
 EXPORT_SYMBOL_GPL(memalloc_socks_key);
@@ -2899,6 +2897,8 @@ int __sock_cmsg_send(struct sock *sk, struct cmsghdr *cmsg,
 {
 	u32 tsflags;
 
+	BUILD_BUG_ON(SOF_TIMESTAMPING_LAST == (1 << 31));
+
 	switch (cmsg->cmsg_type) {
 	case SO_MARK:
 		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
@@ -2926,6 +2926,17 @@ int __sock_cmsg_send(struct sock *sk, struct cmsghdr *cmsg,
 		if (cmsg->cmsg_len != CMSG_LEN(sizeof(u64)))
 			return -EINVAL;
 		sockc->transmit_time = get_unaligned((u64 *)CMSG_DATA(cmsg));
+		break;
+	case SCM_TS_OPT_ID:
+		if (sk_is_tcp(sk))
+			return -EINVAL;
+		tsflags = READ_ONCE(sk->sk_tsflags);
+		if (!(tsflags & SOF_TIMESTAMPING_OPT_ID))
+			return -EINVAL;
+		if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
+			return -EINVAL;
+		sockc->ts_opt_id = *(u32 *)CMSG_DATA(cmsg);
+		sockc->tsflags |= SOCKCM_FLAG_TS_OPT_ID;
 		break;
 	/* SCM_RIGHTS and SCM_CREDENTIALS are semantically in SOL_UNIX. */
 	case SCM_RIGHTS:
@@ -3497,7 +3508,7 @@ static void sock_def_destruct(struct sock *sk)
 void sk_send_sigurg(struct sock *sk)
 {
 	if (sk->sk_socket && sk->sk_socket->file)
-		if (send_sigurg(&sk->sk_socket->file->f_owner))
+		if (send_sigurg(sk->sk_socket->file))
 			sk_wake_async(sk, SOCK_WAKE_URG, POLL_PRI);
 }
 EXPORT_SYMBOL(sk_send_sigurg);

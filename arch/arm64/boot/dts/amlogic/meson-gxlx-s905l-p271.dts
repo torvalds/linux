@@ -38,10 +38,6 @@
 	};
 };
 
-&saradc {
-	compatible = "amlogic,meson-gxlx-saradc", "amlogic,meson-saradc";
-};
-
 &usb {
 	dr_mode = "host";
 };

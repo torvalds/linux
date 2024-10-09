@@ -391,7 +391,7 @@ static void device_irq_exit_800(struct pm80x_chip *chip)
 	regmap_del_irq_chip(chip->irq, chip->irq_data);
 }
 
-static struct regmap_irq_chip pm800_irq_chip = {
+static const struct regmap_irq_chip pm800_irq_chip = {
 	.name = "88pm800",
 	.irqs = pm800_irqs,
 	.num_irqs = ARRAY_SIZE(pm800_irqs),

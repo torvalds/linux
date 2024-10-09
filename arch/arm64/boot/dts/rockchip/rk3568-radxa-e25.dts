@@ -103,6 +103,10 @@
 	phy-supply = <&vcc3v3_pcie30x1>;
 };
 
+&display_subsystem {
+	status = "disabled";
+};
+
 &pcie2x1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie20_reset_h>;

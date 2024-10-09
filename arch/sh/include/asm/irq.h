@@ -14,12 +14,6 @@
 #define NO_IRQ_IGNORE		((unsigned int)-1)
 
 /*
- * Simple Mask Register Support
- */
-extern void make_maskreg_irq(unsigned int irq);
-extern unsigned short *irq_mask_register;
-
-/*
  * PINT IRQs
  */
 void make_imask_irq(unsigned int irq);

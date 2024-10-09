@@ -66,7 +66,7 @@ combinatorial explosion in the library entry points.
 Finally, with the advance of high level language constructs (in C++ but in
 other languages too) it is now possible for the compiler to leverage GPUs and
 other devices without programmer knowledge. Some compiler identified patterns
-are only do-able with a shared address space. It is also more reasonable to use
+are only doable with a shared address space. It is also more reasonable to use
 a shared address space for all other patterns.
 
 
@@ -267,7 +267,7 @@ functions are designed to make drivers easier to write and to centralize common
 code across drivers.
 
 Before migrating pages to device private memory, special device private
-``struct page`` need to be created. These will be used as special "swap"
+``struct page`` needs to be created. These will be used as special "swap"
 page table entries so that a CPU process will fault if it tries to access
 a page that has been migrated to device private memory.
 
@@ -322,7 +322,7 @@ between device driver specific code and shared common code:
    The ``invalidate_range_start()`` callback is passed a
    ``struct mmu_notifier_range`` with the ``event`` field set to
    ``MMU_NOTIFY_MIGRATE`` and the ``owner`` field set to
-   the ``args->pgmap_owner`` field passed to migrate_vma_setup(). This is
+   the ``args->pgmap_owner`` field passed to migrate_vma_setup(). This
    allows the device driver to skip the invalidation callback and only
    invalidate device private MMU mappings that are actually migrating.
    This is explained more in the next section.
@@ -405,7 +405,7 @@ can be used to make a memory range inaccessible from userspace.
 
 This replaces all mappings for pages in the given range with special swap
 entries. Any attempt to access the swap entry results in a fault which is
-resovled by replacing the entry with the original mapping. A driver gets
+resolved by replacing the entry with the original mapping. A driver gets
 notified that the mapping has been changed by MMU notifiers, after which point
 it will no longer have exclusive access to the page. Exclusive access is
 guaranteed to last until the driver drops the page lock and page reference, at
@@ -431,7 +431,7 @@ Same decision was made for memory cgroup. Device memory pages are accounted
 against same memory cgroup a regular page would be accounted to. This does
 simplify migration to and from device memory. This also means that migration
 back from device memory to regular memory cannot fail because it would
-go above memory cgroup limit. We might revisit this choice latter on once we
+go above memory cgroup limit. We might revisit this choice later on once we
 get more experience in how device memory is used and its impact on memory
 resource control.
 

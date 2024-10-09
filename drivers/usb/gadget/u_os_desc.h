@@ -13,7 +13,7 @@
 #ifndef __U_OS_DESC_H__
 #define __U_OS_DESC_H__
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/nls.h>
 
 #define USB_EXT_PROP_DW_SIZE			0

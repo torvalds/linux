@@ -38,7 +38,6 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bio-integrity.h>
 #include <linux/hdreg.h>
 #include <linux/errno.h>
 #include <linux/idr.h>
@@ -58,7 +57,7 @@
 #include <linux/pr.h>
 #include <linux/t10-pi.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -1382,7 +1381,7 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 	if (protect && sdkp->protection_type == T10_PI_TYPE2_PROTECTION) {
 		ret = sd_setup_rw32_cmnd(cmd, write, lba, nr_blocks,
 					 protect | fua, dld);
-	} else if (rq->cmd_flags & REQ_ATOMIC && write) {
+	} else if (rq->cmd_flags & REQ_ATOMIC) {
 		ret = sd_setup_atomic_cmnd(cmd, lba, nr_blocks,
 				sdkp->use_atomic_write_boundary,
 				protect | fua);
@@ -3404,7 +3403,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp,
 	rcu_read_lock();
 	vpd = rcu_dereference(sdkp->device->vpd_pgb1);
 
-	if (!vpd || vpd->len < 8) {
+	if (!vpd || vpd->len <= 8) {
 		rcu_read_unlock();
 	        return;
 	}
@@ -4093,9 +4092,38 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 {
 	unsigned char cmd[6] = { START_STOP };	/* START_VALID */
 	struct scsi_sense_hdr sshdr;
+	struct scsi_failure failure_defs[] = {
+		{
+			/* Power on, reset, or bus device reset occurred */
+			.sense = UNIT_ATTENTION,
+			.asc = 0x29,
+			.ascq = 0,
+			.result = SAM_STAT_CHECK_CONDITION,
+		},
+		{
+			/* Power on occurred */
+			.sense = UNIT_ATTENTION,
+			.asc = 0x29,
+			.ascq = 1,
+			.result = SAM_STAT_CHECK_CONDITION,
+		},
+		{
+			/* SCSI bus reset */
+			.sense = UNIT_ATTENTION,
+			.asc = 0x29,
+			.ascq = 2,
+			.result = SAM_STAT_CHECK_CONDITION,
+		},
+		{}
+	};
+	struct scsi_failures failures = {
+		.total_allowed = 3,
+		.failure_definitions = failure_defs,
+	};
 	const struct scsi_exec_args exec_args = {
 		.sshdr = &sshdr,
 		.req_flags = BLK_MQ_REQ_PM,
+		.failures = &failures,
 	};
 	struct scsi_device *sdp = sdkp->device;
 	int res;

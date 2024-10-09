@@ -3,9 +3,9 @@ kms_plane_scaling@invalid-parameters
 
 # Skip driver specific tests
 ^amdgpu.*
-msm_.*
+^msm.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
@@ -19,6 +19,7 @@ i915_suspend.*
 xe_module_load.*
 api_intel_allocator.*
 kms_cursor_legacy.*
+i915_pm_rpm.*
 
 # Kernel panic
 drm_fdinfo.*

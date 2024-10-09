@@ -14,7 +14,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* ADA4250 Register Map */
 #define ADA4250_REG_GAIN_MUX        0x00

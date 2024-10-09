@@ -1738,7 +1738,7 @@ static struct platform_driver va_macro_driver = {
 		.pm = &va_macro_pm_ops,
 	},
 	.probe = va_macro_probe,
-	.remove_new = va_macro_remove,
+	.remove = va_macro_remove,
 };
 
 module_platform_driver(va_macro_driver);

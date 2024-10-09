@@ -789,7 +789,7 @@ static struct platform_driver bcm4908_enet_driver = {
 		.of_match_table = bcm4908_enet_of_match,
 	},
 	.probe	= bcm4908_enet_probe,
-	.remove_new = bcm4908_enet_remove,
+	.remove = bcm4908_enet_remove,
 };
 module_platform_driver(bcm4908_enet_driver);
 

@@ -20,7 +20,7 @@
 
 #include <linux/random.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define x(name, ...)	#name,
 const char * const bch2_inode_opts[] = {
@@ -320,9 +320,11 @@ static noinline int bch2_inode_unpack_slowpath(struct bkey_s_c k,
 int bch2_inode_unpack(struct bkey_s_c k,
 		      struct bch_inode_unpacked *unpacked)
 {
-	if (likely(k.k->type == KEY_TYPE_inode_v3))
-		return bch2_inode_unpack_v3(k, unpacked);
-	return bch2_inode_unpack_slowpath(k, unpacked);
+	unpacked->bi_snapshot = k.k->p.snapshot;
+
+	return likely(k.k->type == KEY_TYPE_inode_v3)
+		? bch2_inode_unpack_v3(k, unpacked)
+		: bch2_inode_unpack_slowpath(k, unpacked);
 }
 
 int bch2_inode_peek_nowarn(struct btree_trans *trans,
@@ -365,7 +367,7 @@ int bch2_inode_peek(struct btree_trans *trans,
 		    subvol_inum inum, unsigned flags)
 {
 	int ret = bch2_inode_peek_nowarn(trans, iter, inode, inum, flags);
-	bch_err_msg(trans->c, ret, "looking up inum %u:%llu:", inum.subvol, inum.inum);
+	bch_err_msg(trans->c, ret, "looking up inum %llu:%llu:", inum.subvol, inum.inum);
 	return ret;
 }
 
@@ -557,7 +559,7 @@ static void __bch2_inode_unpacked_to_text(struct printbuf *out,
 
 void bch2_inode_unpacked_to_text(struct printbuf *out, struct bch_inode_unpacked *inode)
 {
-	prt_printf(out, "inum: %llu ", inode->bi_inum);
+	prt_printf(out, "inum: %llu:%u ", inode->bi_inum, inode->bi_snapshot);
 	__bch2_inode_unpacked_to_text(out, inode);
 }
 
@@ -1111,7 +1113,7 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 			pos.offset, pos.snapshot))
 		goto delete;
 
-	if (c->sb.clean &&
+	if (test_bit(BCH_FS_clean_recovery, &c->flags) &&
 	    !fsck_err(trans, deleted_inode_but_clean,
 		      "filesystem marked as clean but have deleted inode %llu:%u",
 		      pos.offset, pos.snapshot)) {

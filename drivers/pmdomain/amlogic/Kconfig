@@ -1,17 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Amlogic PM Domains"
 
-config MESON_GX_PM_DOMAINS
-	tristate "Amlogic Meson GX Power Domains driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	depends on PM && OF
-	default ARCH_MESON
-	select PM_GENERIC_DOMAINS
-	select PM_GENERIC_DOMAINS_OF
-	help
-	  Say yes to expose Amlogic Meson GX Power Domains as
-	  Generic Power Domains.
-
 config MESON_EE_PM_DOMAINS
 	tristate "Amlogic Meson Everything-Else Power Domains driver"
 	depends on ARCH_MESON || COMPILE_TEST

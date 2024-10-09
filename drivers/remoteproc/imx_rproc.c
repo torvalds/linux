@@ -18,6 +18,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
 #include <linux/workqueue.h>
@@ -90,7 +91,7 @@ struct imx_rproc_mem {
 #define ATT_CORE_MASK   0xffff
 #define ATT_CORE(I)     BIT((I))
 
-static int imx_rproc_xtr_mbox_init(struct rproc *rproc);
+static int imx_rproc_xtr_mbox_init(struct rproc *rproc, bool tx_block);
 static void imx_rproc_free_mbox(struct rproc *rproc);
 
 struct imx_rproc {
@@ -119,20 +120,16 @@ struct imx_rproc {
 static const struct imx_rproc_att imx_rproc_att_imx93[] = {
 	/* dev addr , sys addr  , size	    , flags */
 	/* TCM CODE NON-SECURE */
-	{ 0x0FFC0000, 0x201C0000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x0FFE0000, 0x201E0000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x0FFC0000, 0x201C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* TCM CODE SECURE */
-	{ 0x1FFC0000, 0x201C0000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x1FFE0000, 0x201E0000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x1FFC0000, 0x201C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* TCM SYS NON-SECURE*/
-	{ 0x20000000, 0x20200000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x20020000, 0x20220000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x20000000, 0x20200000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* TCM SYS SECURE*/
-	{ 0x30000000, 0x20200000, 0x00020000, ATT_OWN | ATT_IOMEM },
-	{ 0x30020000, 0x20220000, 0x00020000, ATT_OWN | ATT_IOMEM },
+	{ 0x30000000, 0x20200000, 0x00040000, ATT_OWN | ATT_IOMEM },
 
 	/* DDR */
 	{ 0x80000000, 0x80000000, 0x10000000, 0 },
@@ -210,11 +207,9 @@ static const struct imx_rproc_att imx_rproc_att_imx8mq[] = {
 	/* QSPI Code - alias */
 	{ 0x08000000, 0x08000000, 0x08000000, 0 },
 	/* DDR (Code) - alias */
-	{ 0x10000000, 0x80000000, 0x0FFE0000, 0 },
-	/* TCML */
-	{ 0x1FFE0000, 0x007E0000, 0x00020000, ATT_OWN  | ATT_IOMEM},
-	/* TCMU */
-	{ 0x20000000, 0x00800000, 0x00020000, ATT_OWN  | ATT_IOMEM},
+	{ 0x10000000, 0x40000000, 0x0FFE0000, 0 },
+	/* TCML/U */
+	{ 0x1FFE0000, 0x007E0000, 0x00040000, ATT_OWN  | ATT_IOMEM},
 	/* OCRAM_S */
 	{ 0x20180000, 0x00180000, 0x00008000, ATT_OWN },
 	/* OCRAM */
@@ -339,6 +334,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx7ulp = {
 	.att		= imx_rproc_att_imx7ulp,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7ulp),
 	.method		= IMX_RPROC_NONE,
+	.flags		= IMX_RPROC_NEED_SYSTEM_OFF,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx7d = {
@@ -375,7 +371,7 @@ static int imx_rproc_start(struct rproc *rproc)
 	struct arm_smccc_res res;
 	int ret;
 
-	ret = imx_rproc_xtr_mbox_init(rproc);
+	ret = imx_rproc_xtr_mbox_init(rproc, true);
 	if (ret)
 		return ret;
 
@@ -635,7 +631,7 @@ static void imx_rproc_kick(struct rproc *rproc, int vqid)
 
 static int imx_rproc_attach(struct rproc *rproc)
 {
-	return imx_rproc_xtr_mbox_init(rproc);
+	return imx_rproc_xtr_mbox_init(rproc, true);
 }
 
 static int imx_rproc_detach(struct rproc *rproc)
@@ -666,6 +662,17 @@ static struct resource_table *imx_rproc_get_loaded_rsc_table(struct rproc *rproc
 	return (struct resource_table *)priv->rsc_table;
 }
 
+static struct resource_table *
+imx_rproc_elf_find_loaded_rsc_table(struct rproc *rproc, const struct firmware *fw)
+{
+	struct imx_rproc *priv = rproc->priv;
+
+	if (priv->rsc_table)
+		return (struct resource_table *)priv->rsc_table;
+
+	return rproc_elf_find_loaded_rsc_table(rproc, fw);
+}
+
 static const struct rproc_ops imx_rproc_ops = {
 	.prepare	= imx_rproc_prepare,
 	.attach		= imx_rproc_attach,
@@ -676,7 +683,7 @@ static const struct rproc_ops imx_rproc_ops = {
 	.da_to_va       = imx_rproc_da_to_va,
 	.load		= rproc_elf_load_segments,
 	.parse_fw	= imx_rproc_parse_fw,
-	.find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table,
+	.find_loaded_rsc_table = imx_rproc_elf_find_loaded_rsc_table,
 	.get_loaded_rsc_table = imx_rproc_get_loaded_rsc_table,
 	.sanity_check	= rproc_elf_sanity_check,
 	.get_boot_addr	= rproc_elf_get_boot_addr,
@@ -789,7 +796,7 @@ static void imx_rproc_rx_callback(struct mbox_client *cl, void *msg)
 	queue_work(priv->workqueue, &priv->rproc_work);
 }
 
-static int imx_rproc_xtr_mbox_init(struct rproc *rproc)
+static int imx_rproc_xtr_mbox_init(struct rproc *rproc, bool tx_block)
 {
 	struct imx_rproc *priv = rproc->priv;
 	struct device *dev = priv->dev;
@@ -807,12 +814,12 @@ static int imx_rproc_xtr_mbox_init(struct rproc *rproc)
 	if (priv->tx_ch && priv->rx_ch)
 		return 0;
 
-	if (!of_get_property(dev->of_node, "mbox-names", NULL))
+	if (!of_property_present(dev->of_node, "mbox-names"))
 		return 0;
 
 	cl = &priv->cl;
 	cl->dev = dev;
-	cl->tx_block = true;
+	cl->tx_block = tx_block;
 	cl->tx_tout = 100;
 	cl->knows_txdone = false;
 	cl->rx_callback = imx_rproc_rx_callback;
@@ -1045,6 +1052,22 @@ static int imx_rproc_clk_enable(struct imx_rproc *priv)
 	return 0;
 }
 
+static int imx_rproc_sys_off_handler(struct sys_off_data *data)
+{
+	struct rproc *rproc = data->cb_data;
+	int ret;
+
+	imx_rproc_free_mbox(rproc);
+
+	ret = imx_rproc_xtr_mbox_init(rproc, false);
+	if (ret) {
+		dev_err(&rproc->dev, "Failed to request non-blocking mbox\n");
+		return NOTIFY_BAD;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int imx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1076,7 +1099,9 @@ static int imx_rproc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = imx_rproc_xtr_mbox_init(rproc);
+	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
+
+	ret = imx_rproc_xtr_mbox_init(rproc, true);
 	if (ret)
 		goto err_put_wkq;
 
@@ -1094,10 +1119,32 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put_scu;
 
-	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
-
 	if (rproc->state != RPROC_DETACHED)
 		rproc->auto_boot = of_property_read_bool(np, "fsl,auto-boot");
+
+	if (dcfg->flags & IMX_RPROC_NEED_SYSTEM_OFF) {
+		/*
+		 * setup mailbox to non-blocking mode in
+		 * [SYS_OFF_MODE_POWER_OFF_PREPARE, SYS_OFF_MODE_RESTART_PREPARE]
+		 * phase before invoking [SYS_OFF_MODE_POWER_OFF, SYS_OFF_MODE_RESTART]
+		 * atomic chain, see kernel/reboot.c.
+		 */
+		ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_POWER_OFF_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    imx_rproc_sys_off_handler, rproc);
+		if (ret) {
+			dev_err(dev, "register power off handler failure\n");
+			goto err_put_clk;
+		}
+
+		ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_RESTART_PREPARE,
+						    SYS_OFF_PRIO_DEFAULT,
+						    imx_rproc_sys_off_handler, rproc);
+		if (ret) {
+			dev_err(dev, "register restart handler failure\n");
+			goto err_put_clk;
+		}
+	}
 
 	ret = rproc_add(rproc);
 	if (ret) {

@@ -4028,7 +4028,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 		dev_priv->display.funcs.wm = &g4x_wm_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!pnv_get_cxsr_latency(dev_priv)) {
-			drm_info(&dev_priv->drm,  "Unknown FSB/MEM, disabling CxSR\n");
+			drm_info(&dev_priv->drm, "Unknown FSB/MEM, disabling CxSR\n");
 			/* Disable CxSR and never update its watermark again */
 			intel_set_memory_cxsr(dev_priv, false);
 			dev_priv->display.funcs.wm = &nop_funcs;

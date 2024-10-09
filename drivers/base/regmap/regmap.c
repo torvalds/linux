@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/log2.h>
 #include <linux/hwspinlock.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -1445,6 +1445,7 @@ void regmap_exit(struct regmap *map)
 	struct regmap_async *async;
 
 	regcache_exit(map);
+
 	regmap_debugfs_exit(map);
 	regmap_range_exit(map);
 	if (map->bus && map->bus->free_context)

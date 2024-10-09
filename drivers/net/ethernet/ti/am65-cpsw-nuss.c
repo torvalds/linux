@@ -763,7 +763,7 @@ fail_tx:
 	k3_udma_glue_disable_rx_chn(rx_chn->rx_chn);
 
 fail_rx:
-	for (i = 0; i < common->rx_ch_num_flows; i--)
+	for (i = 0; i < common->rx_ch_num_flows; i++)
 		k3_udma_glue_reset_rx_chn(rx_chn->rx_chn, i, &rx_chn->flows[i],
 					  am65_cpsw_nuss_rx_cleanup, 0);
 
@@ -3769,7 +3769,7 @@ static struct platform_driver am65_cpsw_nuss_driver = {
 		.pm = &am65_cpsw_nuss_dev_pm_ops,
 	},
 	.probe = am65_cpsw_nuss_probe,
-	.remove_new = am65_cpsw_nuss_remove,
+	.remove = am65_cpsw_nuss_remove,
 };
 
 module_platform_driver(am65_cpsw_nuss_driver);

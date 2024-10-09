@@ -350,22 +350,19 @@ int tty_dev_name_to_number(const char *name, dev_t *number)
 		return ret;
 
 	prefix_length = str - name;
-	mutex_lock(&tty_mutex);
+
+	guard(mutex)(&tty_mutex);
 
 	list_for_each_entry(p, &tty_drivers, tty_drivers)
 		if (prefix_length == strlen(p->name) && strncmp(name,
 					p->name, prefix_length) == 0) {
 			if (index < p->num) {
 				*number = MKDEV(p->major, p->minor_start + index);
-				goto out;
+				return 0;
 			}
 		}
 
-	/* if here then driver wasn't found */
-	ret = -ENODEV;
-out:
-	mutex_unlock(&tty_mutex);
-	return ret;
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(tty_dev_name_to_number);
 
@@ -462,7 +459,6 @@ static void tty_show_fdinfo(struct seq_file *m, struct file *file)
 }
 
 static const struct file_operations tty_fops = {
-	.llseek		= no_llseek,
 	.read_iter	= tty_read,
 	.write_iter	= tty_write,
 	.splice_read	= copy_splice_read,
@@ -477,7 +473,6 @@ static const struct file_operations tty_fops = {
 };
 
 static const struct file_operations console_fops = {
-	.llseek		= no_llseek,
 	.read_iter	= tty_read,
 	.write_iter	= redirected_tty_write,
 	.splice_read	= copy_splice_read,
@@ -491,7 +486,6 @@ static const struct file_operations console_fops = {
 };
 
 static const struct file_operations hung_up_tty_fops = {
-	.llseek		= no_llseek,
 	.read_iter	= hung_up_tty_read,
 	.write_iter	= hung_up_tty_write,
 	.poll		= hung_up_tty_poll,
@@ -2225,6 +2219,12 @@ static int __tty_fasync(int fd, struct file *filp, int on)
 	if (tty_paranoia_check(tty, file_inode(filp), "tty_fasync"))
 		goto out;
 
+	if (on) {
+		retval = file_f_owner_allocate(filp);
+		if (retval)
+			goto out;
+	}
+
 	retval = fasync_helper(fd, filp, on, &tty->fasync);
 	if (retval <= 0)
 		goto out;
@@ -3567,7 +3567,7 @@ static ssize_t show_cons_active(struct device *dev,
 	for_each_console(c) {
 		if (!c->device)
 			continue;
-		if (!c->write)
+		if (!(c->flags & CON_NBCON) && !c->write)
 			continue;
 		if ((c->flags & CON_ENABLED) == 0)
 			continue;

@@ -241,6 +241,7 @@
 		bootph-pre-ram;
 		compatible = "ti,j721e-esm";
 		reg = <0x00 0x420000 0x00 0x1000>;
+		/* Interrupt sources: rti0, rti1, rti15, wrti0, rti2, rti3 */
 		ti,esm-pins = <160>, <161>, <162>, <163>, <177>, <178>;
 	};
 

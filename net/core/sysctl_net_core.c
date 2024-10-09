@@ -491,15 +491,6 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{
-		.procname	= "tstamp_allow_data",
-		.data		= &sysctl_tstamp_allow_data,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
-	},
 #ifdef CONFIG_RPS
 	{
 		.procname	= "rps_sock_flow_entries",
@@ -664,6 +655,15 @@ static struct ctl_table netns_core_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 		.proc_handler	= proc_dou8vec_minmax,
+	},
+	{
+		.procname	= "tstamp_allow_data",
+		.data		= &init_net.core.sysctl_tstamp_allow_data,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE
 	},
 	/* sysctl_core_net_init() will set the values after this
 	 * to readonly in network namespaces

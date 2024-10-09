@@ -175,7 +175,7 @@ field2会导致非对齐访问，这并不是不合理的。你会期望field2�
 避免非对齐访问
 ==============
 
-避免非对齐访问的最简单方法是使用<asm/unaligned.h>头文件提供的get_unaligned()和
+避免非对齐访问的最简单方法是使用<linux/unaligned.h>头文件提供的get_unaligned()和
 put_unaligned()宏。
 
 回到前面的一个可能导致非对齐访问的代码例子::

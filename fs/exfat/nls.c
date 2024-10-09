@@ -6,7 +6,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -779,8 +779,11 @@ int exfat_create_upcase_table(struct super_block *sb)
 				le32_to_cpu(ep->dentry.upcase.checksum));
 
 			brelse(bh);
-			if (ret && ret != -EIO)
+			if (ret && ret != -EIO) {
+				/* free memory from exfat_load_upcase_table call */
+				exfat_free_upcase_table(sbi);
 				goto load_default;
+			}
 
 			/* load successfully */
 			return ret;

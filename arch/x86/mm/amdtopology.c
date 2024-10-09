@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/nodemask.h>
 #include <linux/memblock.h>
+#include <linux/numa_memblks.h>
 
 #include <asm/io.h>
 #include <linux/pci_ids.h>

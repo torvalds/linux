@@ -126,6 +126,8 @@ source "sound/soc/xtensa/Kconfig"
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
 
+source "sound/soc/sdw_utils/Kconfig"
+
 # generic frame-work
 source "sound/soc/generic/Kconfig"
 

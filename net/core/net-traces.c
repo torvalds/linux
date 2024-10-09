@@ -23,7 +23,7 @@
 #include <linux/net_dropmon.h>
 #include <linux/slab.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/bitops.h>
 
 #define CREATE_TRACE_POINTS

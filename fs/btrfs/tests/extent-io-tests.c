@@ -180,7 +180,7 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 	set_extent_bit(tmp, 0, sectorsize - 1, EXTENT_DELALLOC, NULL);
 	start = 0;
 	end = start + PAGE_SIZE - 1;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(inode, page_folio(locked_page), &start,
 					 &end);
 	if (!found) {
 		test_err("should have found at least one delalloc");
@@ -211,7 +211,7 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 	set_extent_bit(tmp, sectorsize, max_bytes - 1, EXTENT_DELALLOC, NULL);
 	start = test_start;
 	end = start + PAGE_SIZE - 1;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(inode, page_folio(locked_page), &start,
 					 &end);
 	if (!found) {
 		test_err("couldn't find delalloc in our range");
@@ -245,7 +245,7 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 	}
 	start = test_start;
 	end = start + PAGE_SIZE - 1;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(inode, page_folio(locked_page), &start,
 					 &end);
 	if (found) {
 		test_err("found range when we shouldn't have");
@@ -266,7 +266,7 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 	set_extent_bit(tmp, max_bytes, total_dirty - 1, EXTENT_DELALLOC, NULL);
 	start = test_start;
 	end = start + PAGE_SIZE - 1;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(inode, page_folio(locked_page), &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");
@@ -307,7 +307,7 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 	 * this changes at any point in the future we will need to fix this
 	 * tests expected behavior.
 	 */
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(inode, page_folio(locked_page), &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");

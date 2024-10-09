@@ -481,7 +481,9 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 	u32 byte_offset;
 
-	len = skb->len < ETH_ZLEN ? ETH_ZLEN : skb->len;
+	if (skb_put_padto(skb, ETH_ZLEN))
+		return NETDEV_TX_OK;
+	len = skb->len;
 
 	if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) || ch->skb[ch->dma.desc]) {
 		netdev_err(dev, "tx ring full\n");
@@ -732,7 +734,7 @@ static void ltq_etop_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ltq_mii_driver = {
-	.remove_new = ltq_etop_remove,
+	.remove = ltq_etop_remove,
 	.driver = {
 		.name = "ltq_etop",
 	},

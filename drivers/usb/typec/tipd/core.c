@@ -150,11 +150,6 @@ static enum power_supply_property tps6598x_psy_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-static enum power_supply_usb_type tps6598x_psy_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_C,
-	POWER_SUPPLY_USB_TYPE_PD,
-};
-
 static const char *tps6598x_psy_name_prefix = "tps6598x-source-psy-";
 
 /*
@@ -827,8 +822,8 @@ static int devm_tps6598_psy_register(struct tps6598x *tps)
 
 	tps->psy_desc.name = psy_name;
 	tps->psy_desc.type = POWER_SUPPLY_TYPE_USB;
-	tps->psy_desc.usb_types = tps6598x_psy_usb_types;
-	tps->psy_desc.num_usb_types = ARRAY_SIZE(tps6598x_psy_usb_types);
+	tps->psy_desc.usb_types = BIT(POWER_SUPPLY_USB_TYPE_C) |
+				  BIT(POWER_SUPPLY_USB_TYPE_PD);
 	tps->psy_desc.properties = tps6598x_psy_props;
 	tps->psy_desc.num_properties = ARRAY_SIZE(tps6598x_psy_props);
 	tps->psy_desc.get_property = tps6598x_psy_get_prop;
@@ -1465,8 +1460,9 @@ static void tps6598x_remove(struct i2c_client *client)
 
 	if (!client->irq)
 		cancel_delayed_work_sync(&tps->wq_poll);
+	else
+		devm_free_irq(tps->dev, client->irq, tps);
 
-	devm_free_irq(tps->dev, client->irq, tps);
 	tps6598x_disconnect(tps, 0);
 	typec_unregister_port(tps->port);
 	usb_role_switch_put(tps->role_sw);

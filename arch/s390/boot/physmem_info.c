@@ -190,27 +190,27 @@ static void die_oom(unsigned long size, unsigned long align, unsigned long min, 
 	enum reserved_range_type t;
 	int i;
 
-	decompressor_printk("Linux version %s\n", kernel_version);
+	boot_printk("Linux version %s\n", kernel_version);
 	if (!is_prot_virt_guest() && early_command_line[0])
-		decompressor_printk("Kernel command line: %s\n", early_command_line);
-	decompressor_printk("Out of memory allocating %lx bytes %lx aligned in range %lx:%lx\n",
-			    size, align, min, max);
-	decompressor_printk("Reserved memory ranges:\n");
+		boot_printk("Kernel command line: %s\n", early_command_line);
+	boot_printk("Out of memory allocating %lx bytes %lx aligned in range %lx:%lx\n",
+		    size, align, min, max);
+	boot_printk("Reserved memory ranges:\n");
 	for_each_physmem_reserved_range(t, range, &start, &end) {
-		decompressor_printk("%016lx %016lx %s\n", start, end, get_rr_type_name(t));
+		boot_printk("%016lx %016lx %s\n", start, end, get_rr_type_name(t));
 		total_reserved_mem += end - start;
 	}
-	decompressor_printk("Usable online memory ranges (info source: %s [%x]):\n",
-			    get_physmem_info_source(), physmem_info.info_source);
+	boot_printk("Usable online memory ranges (info source: %s [%x]):\n",
+		    get_physmem_info_source(), physmem_info.info_source);
 	for_each_physmem_usable_range(i, &start, &end) {
-		decompressor_printk("%016lx %016lx\n", start, end);
+		boot_printk("%016lx %016lx\n", start, end);
 		total_mem += end - start;
 	}
-	decompressor_printk("Usable online memory total: %lx Reserved: %lx Free: %lx\n",
-			    total_mem, total_reserved_mem,
-			    total_mem > total_reserved_mem ? total_mem - total_reserved_mem : 0);
+	boot_printk("Usable online memory total: %lx Reserved: %lx Free: %lx\n",
+		    total_mem, total_reserved_mem,
+		    total_mem > total_reserved_mem ? total_mem - total_reserved_mem : 0);
 	print_stacktrace(current_frame_address());
-	sclp_early_printk("\n\n -- System halted\n");
+	boot_printk("\n\n -- System halted\n");
 	disabled_wait();
 }
 

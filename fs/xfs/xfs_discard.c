@@ -554,11 +554,10 @@ xfs_trim_rtdev_extents(
 	xfs_daddr_t		end,
 	xfs_daddr_t		minlen)
 {
-	struct xfs_rtalloc_rec	low = { };
-	struct xfs_rtalloc_rec	high = { };
 	struct xfs_trim_rtdev	tr = {
 		.minlen_fsb	= XFS_BB_TO_FSB(mp, minlen),
 	};
+	xfs_rtxnum_t		low, high;
 	struct xfs_trans	*tp;
 	xfs_daddr_t		rtdev_daddr;
 	int			error;
@@ -584,17 +583,17 @@ xfs_trim_rtdev_extents(
 			XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks) - 1);
 
 	/* Convert the rt blocks to rt extents */
-	low.ar_startext = xfs_rtb_to_rtxup(mp, XFS_BB_TO_FSB(mp, start));
-	high.ar_startext = xfs_rtb_to_rtx(mp, XFS_BB_TO_FSBT(mp, end));
+	low = xfs_rtb_to_rtxup(mp, XFS_BB_TO_FSB(mp, start));
+	high = xfs_rtb_to_rtx(mp, XFS_BB_TO_FSBT(mp, end));
 
 	/*
 	 * Walk the free ranges between low and high.  The query_range function
 	 * trims the extents returned.
 	 */
 	do {
-		tr.stop_rtx = low.ar_startext + (mp->m_sb.sb_blocksize * NBBY);
+		tr.stop_rtx = low + (mp->m_sb.sb_blocksize * NBBY);
 		xfs_rtbitmap_lock_shared(mp, XFS_RBMLOCK_BITMAP);
-		error = xfs_rtalloc_query_range(mp, tp, &low, &high,
+		error = xfs_rtalloc_query_range(mp, tp, low, high,
 				xfs_trim_gather_rtextent, &tr);
 
 		if (error == -ECANCELED)
@@ -615,8 +614,8 @@ xfs_trim_rtdev_extents(
 		if (error)
 			break;
 
-		low.ar_startext = tr.restart_rtx;
-	} while (!xfs_trim_should_stop() && low.ar_startext <= high.ar_startext);
+		low = tr.restart_rtx;
+	} while (!xfs_trim_should_stop() && low <= high);
 
 	xfs_trans_cancel(tp);
 	return error;
@@ -708,7 +707,7 @@ xfs_ioc_trim(
 		return last_error;
 
 	range.len = min_t(unsigned long long, range.len,
-			  XFS_FSB_TO_B(mp, max_blocks));
+			  XFS_FSB_TO_B(mp, max_blocks) - range.start);
 	if (copy_to_user(urange, &range, sizeof(range)))
 		return -EFAULT;
 	return 0;

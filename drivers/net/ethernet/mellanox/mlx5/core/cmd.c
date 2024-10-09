@@ -1887,10 +1887,12 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 
 	throttle_op = mlx5_cmd_is_throttle_opcode(opcode);
 	if (throttle_op) {
-		/* atomic context may not sleep */
-		if (callback)
-			return -EINVAL;
-		down(&dev->cmd.vars.throttle_sem);
+		if (callback) {
+			if (down_trylock(&dev->cmd.vars.throttle_sem))
+				return -EBUSY;
+		} else {
+			down(&dev->cmd.vars.throttle_sem);
+		}
 	}
 
 	pages_queue = is_manage_pages(in);
@@ -2096,10 +2098,19 @@ static void mlx5_cmd_exec_cb_handler(int status, void *_work)
 {
 	struct mlx5_async_work *work = _work;
 	struct mlx5_async_ctx *ctx;
+	struct mlx5_core_dev *dev;
+	u16 opcode;
 
 	ctx = work->ctx;
-	status = cmd_status_err(ctx->dev, status, work->opcode, work->op_mod, work->out);
+	dev = ctx->dev;
+	opcode = work->opcode;
+	status = cmd_status_err(dev, status, work->opcode, work->op_mod, work->out);
 	work->user_callback(status, work);
+	/* Can't access "work" from this point on. It could have been freed in
+	 * the callback.
+	 */
+	if (mlx5_cmd_is_throttle_opcode(opcode))
+		up(&dev->cmd.vars.throttle_sem);
 	if (atomic_dec_and_test(&ctx->num_inflight))
 		complete(&ctx->inflight_done);
 }

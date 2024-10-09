@@ -10,7 +10,7 @@
 #define _CIFSPDU_H
 
 #include <net/sock.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "../common/smbfsctl.h"
 
 #define CIFS_PROT   0
@@ -2572,12 +2572,6 @@ typedef struct {
 	char FileName[];
 } __attribute__((packed)) FIND_FILE_STANDARD_INFO; /* level 0x1 FF resp data */
 
-
-struct win_dev {
-	unsigned char type[8]; /* IntxCHR or IntxBLK or LnxFIFO or LnxSOCK */
-	__le64 major;
-	__le64 minor;
-} __attribute__((packed));
 
 struct fea {
 	unsigned char EA_flags;

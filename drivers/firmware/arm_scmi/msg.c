@@ -4,7 +4,7 @@
  *
  * Derived from shm.c.
  *
- * Copyright (C) 2019-2021 ARM Ltd.
+ * Copyright (C) 2019-2024 ARM Ltd.
  * Copyright (C) 2020-2021 OpenSynergy GmbH
  */
 
@@ -30,7 +30,7 @@ struct scmi_msg_payld {
  *
  * Return: transport SDU size.
  */
-size_t msg_command_size(struct scmi_xfer *xfer)
+static size_t msg_command_size(struct scmi_xfer *xfer)
 {
 	return sizeof(struct scmi_msg_payld) + xfer->tx.len;
 }
@@ -42,7 +42,7 @@ size_t msg_command_size(struct scmi_xfer *xfer)
  *
  * Return: transport SDU size.
  */
-size_t msg_response_size(struct scmi_xfer *xfer)
+static size_t msg_response_size(struct scmi_xfer *xfer)
 {
 	return sizeof(struct scmi_msg_payld) + sizeof(__le32) + xfer->rx.len;
 }
@@ -53,7 +53,7 @@ size_t msg_response_size(struct scmi_xfer *xfer)
  * @msg: transport SDU for command
  * @xfer: message which is being sent
  */
-void msg_tx_prepare(struct scmi_msg_payld *msg, struct scmi_xfer *xfer)
+static void msg_tx_prepare(struct scmi_msg_payld *msg, struct scmi_xfer *xfer)
 {
 	msg->msg_header = cpu_to_le32(pack_scmi_header(&xfer->hdr));
 	if (xfer->tx.buf)
@@ -67,7 +67,7 @@ void msg_tx_prepare(struct scmi_msg_payld *msg, struct scmi_xfer *xfer)
  *
  * Return: SCMI header
  */
-u32 msg_read_header(struct scmi_msg_payld *msg)
+static u32 msg_read_header(struct scmi_msg_payld *msg)
 {
 	return le32_to_cpu(msg->msg_header);
 }
@@ -79,8 +79,8 @@ u32 msg_read_header(struct scmi_msg_payld *msg)
  * @len: transport SDU size
  * @xfer: message being responded to
  */
-void msg_fetch_response(struct scmi_msg_payld *msg, size_t len,
-			struct scmi_xfer *xfer)
+static void msg_fetch_response(struct scmi_msg_payld *msg,
+			       size_t len, struct scmi_xfer *xfer)
 {
 	size_t prefix_len = sizeof(*msg) + sizeof(msg->msg_payload[0]);
 
@@ -100,12 +100,26 @@ void msg_fetch_response(struct scmi_msg_payld *msg, size_t len,
  * @max_len: maximum SCMI payload size to fetch
  * @xfer: notification message
  */
-void msg_fetch_notification(struct scmi_msg_payld *msg, size_t len,
-			    size_t max_len, struct scmi_xfer *xfer)
+static void msg_fetch_notification(struct scmi_msg_payld *msg, size_t len,
+				   size_t max_len, struct scmi_xfer *xfer)
 {
 	xfer->rx.len = min_t(size_t, max_len,
 			     len >= sizeof(*msg) ? len - sizeof(*msg) : 0);
 
 	/* Take a copy to the rx buffer.. */
 	memcpy(xfer->rx.buf, msg->msg_payload, xfer->rx.len);
+}
+
+static const struct scmi_message_operations scmi_msg_ops = {
+	.tx_prepare = msg_tx_prepare,
+	.command_size = msg_command_size,
+	.response_size = msg_response_size,
+	.read_header = msg_read_header,
+	.fetch_response = msg_fetch_response,
+	.fetch_notification = msg_fetch_notification,
+};
+
+const struct scmi_message_operations *scmi_message_operations_get(void)
+{
+	return &scmi_msg_ops;
 }

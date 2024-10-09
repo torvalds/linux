@@ -34,7 +34,6 @@
 #include <drm/drm_drv.h>
 
 #include "display/intel_display_irq.h"
-#include "display/intel_display_types.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_hotplug_irq.h"
 #include "display/intel_lpe_audio.h"

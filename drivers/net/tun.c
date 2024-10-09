@@ -71,7 +71,7 @@
 #include <linux/bpf_trace.h>
 #include <linux/mutex.h>
 #include <linux/ieee802154.h>
-#include <linux/if_ltalk.h>
+#include <uapi/linux/if_ltalk.h>
 #include <uapi/linux/if_fddi.h>
 #include <uapi/linux/if_hippi.h>
 #include <uapi/linux/if_fc.h>
@@ -3452,6 +3452,12 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 	struct tun_file *tfile = file->private_data;
 	int ret;
 
+	if (on) {
+		ret = file_f_owner_allocate(file);
+		if (ret)
+			goto out;
+	}
+
 	if ((ret = fasync_helper(fd, file, on, &tfile->fasync)) < 0)
 		goto out;
 
@@ -3537,7 +3543,6 @@ static void tun_chr_show_fdinfo(struct seq_file *m, struct file *file)
 
 static const struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
-	.llseek = no_llseek,
 	.read_iter  = tun_chr_read_iter,
 	.write_iter = tun_chr_write_iter,
 	.poll	= tun_chr_poll,

@@ -317,6 +317,7 @@ static __net_init void preinit_net_sysctl(struct net *net)
 	 */
 	net->core.sysctl_optmem_max = 128 * 1024;
 	net->core.sysctl_txrehash = SOCK_TXREHASH_ENABLED;
+	net->core.sysctl_tstamp_allow_data = 1;
 }
 
 /* init code that must occur even if setup_net() is not called. */
@@ -334,6 +335,12 @@ static __net_init void preinit_net(struct net *net, struct user_namespace *user_
 	idr_init(&net->netns_ids);
 	spin_lock_init(&net->nsid_lock);
 	mutex_init(&net->ipv4.ra_mutex);
+
+#ifdef CONFIG_DEBUG_NET_SMALL_RTNL
+	mutex_init(&net->rtnl_mutex);
+	lock_set_cmp_fn(&net->rtnl_mutex, rtnl_net_lock_cmp_fn, NULL);
+#endif
+
 	preinit_net_sysctl(net);
 }
 
@@ -697,11 +704,11 @@ struct net *get_net_ns_by_fd(int fd)
 	struct fd f = fdget(fd);
 	struct net *net = ERR_PTR(-EINVAL);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
 
-	if (proc_ns_file(f.file)) {
-		struct ns_common *ns = get_proc_ns(file_inode(f.file));
+	if (proc_ns_file(fd_file(f))) {
+		struct ns_common *ns = get_proc_ns(file_inode(fd_file(f)));
 		if (ns->ops == &netns_operations)
 			net = get_net(container_of(ns, struct net, ns));
 	}

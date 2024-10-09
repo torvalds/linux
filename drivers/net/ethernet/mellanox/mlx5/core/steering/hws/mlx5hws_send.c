@@ -584,7 +584,7 @@ static int hws_send_ring_alloc_sq(struct mlx5_core_dev *mdev,
 	}
 
 	sq->wr_priv = kzalloc(sizeof(*sq->wr_priv) * buf_sz, GFP_KERNEL);
-	if (!sq->dep_wqe) {
+	if (!sq->wr_priv) {
 		err = -ENOMEM;
 		goto free_dep_wqe;
 	}
@@ -653,6 +653,12 @@ static int hws_send_ring_create_sq(struct mlx5_core_dev *mdev, u32 pdn,
 	return err;
 }
 
+static void hws_send_ring_destroy_sq(struct mlx5_core_dev *mdev,
+				     struct mlx5hws_send_ring_sq *sq)
+{
+	mlx5_core_destroy_sq(mdev, sq->sqn);
+}
+
 static int hws_send_ring_set_sq_rdy(struct mlx5_core_dev *mdev, u32 sqn)
 {
 	void *in, *sqc;
@@ -696,7 +702,7 @@ static int hws_send_ring_create_sq_rdy(struct mlx5_core_dev *mdev, u32 pdn,
 
 	err = hws_send_ring_set_sq_rdy(mdev, sq->sqn);
 	if (err)
-		hws_send_ring_close_sq(sq);
+		hws_send_ring_destroy_sq(mdev, sq);
 
 	return err;
 }

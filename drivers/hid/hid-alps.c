@@ -8,7 +8,7 @@
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "hid-ids.h"
 
 /* ALPS Device Product ID */

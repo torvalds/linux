@@ -7,7 +7,7 @@
  *
  * Based on goodix_ts_berlin driver.
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -169,6 +169,7 @@ static struct spi_driver goodix_berlin_spi_driver = {
 		.name = "goodix-berlin-spi",
 		.of_match_table = goodix_berlin_spi_of_match,
 		.pm = pm_sleep_ptr(&goodix_berlin_pm_ops),
+		.dev_groups = goodix_berlin_groups,
 	},
 	.probe = goodix_berlin_spi_probe,
 	.id_table = goodix_berlin_spi_ids,

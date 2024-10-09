@@ -61,7 +61,7 @@ const struct clk_ops meson_clk_phase_ops = {
 	.get_phase	= meson_clk_phase_get_phase,
 	.set_phase	= meson_clk_phase_set_phase,
 };
-EXPORT_SYMBOL_GPL(meson_clk_phase_ops);
+EXPORT_SYMBOL_NS_GPL(meson_clk_phase_ops, CLK_MESON);
 
 /*
  * This is a special clock for the audio controller.
@@ -123,7 +123,7 @@ const struct clk_ops meson_clk_triphase_ops = {
 	.get_phase	= meson_clk_triphase_get_phase,
 	.set_phase	= meson_clk_triphase_set_phase,
 };
-EXPORT_SYMBOL_GPL(meson_clk_triphase_ops);
+EXPORT_SYMBOL_NS_GPL(meson_clk_triphase_ops, CLK_MESON);
 
 /*
  * This is a special clock for the audio controller.
@@ -178,9 +178,9 @@ const struct clk_ops meson_sclk_ws_inv_ops = {
 	.get_phase	= meson_sclk_ws_inv_get_phase,
 	.set_phase	= meson_sclk_ws_inv_set_phase,
 };
-EXPORT_SYMBOL_GPL(meson_sclk_ws_inv_ops);
-
+EXPORT_SYMBOL_NS_GPL(meson_sclk_ws_inv_ops, CLK_MESON);
 
 MODULE_DESCRIPTION("Amlogic phase driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CLK_MESON);

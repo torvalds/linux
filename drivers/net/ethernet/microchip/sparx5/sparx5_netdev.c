@@ -55,7 +55,7 @@ static void __ifh_encode_bitfield(void *ifh, u64 value, u32 pos, u32 width)
 		ifh_hdr[byte - 5] |= (u8)((encode & 0xFF0000000000) >> 40);
 }
 
-void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
+void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno)
 {
 	/* VSTAX.RSV = 1. MSBit must be 1 */
 	ifh_encode_bitfield(ifh_hdr, 1, VSTAX + 79,  1);
@@ -68,7 +68,8 @@ void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
 	/* MISC.PIPELINE_ACT */
 	ifh_encode_bitfield(ifh_hdr, 1,        42, 3);
 	/* FWD.SRC_PORT = CPU */
-	ifh_encode_bitfield(ifh_hdr, SPX5_PORT_CPU, 46, 7);
+	ifh_encode_bitfield(ifh_hdr, sparx5_get_pgid(sparx5, SPX5_PORT_CPU_0),
+			    46, 7);
 	/* FWD.SFLOW_ID (disable SFlow sampling) */
 	ifh_encode_bitfield(ifh_hdr, 124,      57, 7);
 	/* FWD.UPDATE_FCS = Enable. Enforce update of FCS. */
@@ -190,7 +191,8 @@ static int sparx5_set_mac_address(struct net_device *dev, void *p)
 	sparx5_mact_forget(sparx5, dev->dev_addr,  port->pvid);
 
 	/* Add new */
-	sparx5_mact_learn(sparx5, PGID_CPU, addr->sa_data, port->pvid);
+	sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU),
+			  addr->sa_data, port->pvid);
 
 	/* Record the address */
 	eth_hw_addr_set(dev, addr->sa_data);
@@ -290,7 +292,7 @@ int sparx5_register_netdevs(struct sparx5 *sparx5)
 	int portno;
 	int err;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++)
+	for (portno = 0; portno < sparx5->data->consts->n_ports; portno++)
 		if (sparx5->ports[portno]) {
 			err = register_netdev(sparx5->ports[portno]->ndev);
 			if (err) {
@@ -309,7 +311,7 @@ void sparx5_destroy_netdevs(struct sparx5 *sparx5)
 	struct sparx5_port *port;
 	int portno;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++) {
+	for (portno = 0; portno < sparx5->data->consts->n_ports; portno++) {
 		port = sparx5->ports[portno];
 		if (port && port->phylink) {
 			/* Disconnect the phy */
@@ -327,8 +329,7 @@ void sparx5_unregister_netdevs(struct sparx5 *sparx5)
 {
 	int portno;
 
-	for (portno = 0; portno < SPX5_PORTS; portno++)
+	for (portno = 0; portno < sparx5->data->consts->n_ports; portno++)
 		if (sparx5->ports[portno])
 			unregister_netdev(sparx5->ports[portno]->ndev);
 }
-

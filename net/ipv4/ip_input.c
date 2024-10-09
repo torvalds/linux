@@ -363,7 +363,7 @@ static int ip_rcv_finish_core(struct net *net, struct sock *sk,
 	 */
 	if (!skb_valid_dst(skb)) {
 		err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
-					   iph->tos, dev);
+					   ip4h_dscp(iph), dev);
 		if (unlikely(err))
 			goto drop_error;
 	} else {

@@ -9,7 +9,6 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
-#include "xe_gt.h"
 
 u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
 {

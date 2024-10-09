@@ -1128,7 +1128,7 @@ static void ov6650_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov6650_id[] = {
-	{ "ov6650", 0 },
+	{ "ov6650" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov6650_id);

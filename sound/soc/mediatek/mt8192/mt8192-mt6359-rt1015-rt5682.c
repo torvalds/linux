@@ -1108,9 +1108,7 @@ static int mt8192_mt6359_legacy_probe(struct mtk_soc_card_data *soc_card_data)
 err_headset_codec:
 	of_node_put(speaker_codec);
 err_speaker_codec:
-	if (hdmi_codec)
-		of_node_put(hdmi_codec);
-
+	of_node_put(hdmi_codec);
 	return ret;
 }
 

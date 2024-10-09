@@ -22,7 +22,7 @@
 #include <linux/mmc/slot-gpio.h>
 
 #include <linux/sizes.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mvsdio.h"
 

@@ -177,6 +177,33 @@ config ADXL372_I2C
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl372_i2c.
 
+config ADXL380
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config ADXL380_SPI
+	tristate "Analog Devices ADXL380 3-Axis Accelerometer SPI Driver"
+	depends on SPI
+	select ADXL380
+	select REGMAP_SPI
+	help
+	  Say yes here to add support for the Analog Devices ADXL380 triaxial
+	  acceleration sensor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl380_spi.
+
+config ADXL380_I2C
+	tristate "Analog Devices ADXL380 3-Axis Accelerometer I2C Driver"
+	depends on I2C
+	select ADXL380
+	select REGMAP_I2C
+	help
+	  Say yes here to add support for the Analog Devices ADXL380 triaxial
+	  acceleration sensor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl380_i2c.
+
 config BMA180
 	tristate "Bosch BMA023/BMA1x0/BMA250 3-Axis Accelerometer Driver"
 	depends on I2C && INPUT_BMA150=n

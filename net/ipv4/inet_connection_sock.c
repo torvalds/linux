@@ -714,6 +714,7 @@ struct sock *inet_csk_accept(struct sock *sk, struct proto_accept_arg *arg)
 out:
 	release_sock(sk);
 	if (newsk && mem_cgroup_sockets_enabled) {
+		gfp_t gfp = GFP_KERNEL | __GFP_NOFAIL;
 		int amt = 0;
 
 		/* atomically get the memory usage, set and charge the
@@ -731,8 +732,8 @@ out:
 		}
 
 		if (amt)
-			mem_cgroup_charge_skmem(newsk->sk_memcg, amt,
-						GFP_KERNEL | __GFP_NOFAIL);
+			mem_cgroup_charge_skmem(newsk->sk_memcg, amt, gfp);
+		kmem_cache_charge(newsk, gfp);
 
 		release_sock(newsk);
 	}
@@ -774,7 +775,8 @@ void inet_csk_clear_xmit_timers(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	icsk->icsk_pending = icsk->icsk_ack.pending = 0;
+	smp_store_release(&icsk->icsk_pending, 0);
+	smp_store_release(&icsk->icsk_ack.pending, 0);
 
 	sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
 	sk_stop_timer(sk, &icsk->icsk_delack_timer);
@@ -789,7 +791,8 @@ void inet_csk_clear_xmit_timers_sync(struct sock *sk)
 	/* ongoing timer handlers need to acquire socket lock. */
 	sock_not_owned_by_me(sk);
 
-	icsk->icsk_pending = icsk->icsk_ack.pending = 0;
+	smp_store_release(&icsk->icsk_pending, 0);
+	smp_store_release(&icsk->icsk_ack.pending, 0);
 
 	sk_stop_timer_sync(sk, &icsk->icsk_retransmit_timer);
 	sk_stop_timer_sync(sk, &icsk->icsk_delack_timer);

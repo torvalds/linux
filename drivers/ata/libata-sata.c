@@ -13,7 +13,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
 #include <linux/libata.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "libata.h"
 #include "libata-transport.h"
@@ -518,6 +518,86 @@ int sata_set_spd(struct ata_link *link)
 EXPORT_SYMBOL_GPL(sata_set_spd);
 
 /**
+ *	sata_down_spd_limit - adjust SATA spd limit downward
+ *	@link: Link to adjust SATA spd limit for
+ *	@spd_limit: Additional limit
+ *
+ *	Adjust SATA spd limit of @link downward.  Note that this
+ *	function only adjusts the limit.  The change must be applied
+ *	using sata_set_spd().
+ *
+ *	If @spd_limit is non-zero, the speed is limited to equal to or
+ *	lower than @spd_limit if such speed is supported.  If
+ *	@spd_limit is slower than any supported speed, only the lowest
+ *	supported speed is allowed.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno on failure
+ */
+int sata_down_spd_limit(struct ata_link *link, u32 spd_limit)
+{
+	u32 sstatus, spd, mask;
+	int rc, bit;
+
+	if (!sata_scr_valid(link))
+		return -EOPNOTSUPP;
+
+	/* If SCR can be read, use it to determine the current SPD.
+	 * If not, use cached value in link->sata_spd.
+	 */
+	rc = sata_scr_read(link, SCR_STATUS, &sstatus);
+	if (rc == 0 && ata_sstatus_online(sstatus))
+		spd = (sstatus >> 4) & 0xf;
+	else
+		spd = link->sata_spd;
+
+	mask = link->sata_spd_limit;
+	if (mask <= 1)
+		return -EINVAL;
+
+	/* unconditionally mask off the highest bit */
+	bit = fls(mask) - 1;
+	mask &= ~(1 << bit);
+
+	/*
+	 * Mask off all speeds higher than or equal to the current one.  At
+	 * this point, if current SPD is not available and we previously
+	 * recorded the link speed from SStatus, the driver has already
+	 * masked off the highest bit so mask should already be 1 or 0.
+	 * Otherwise, we should not force 1.5Gbps on a link where we have
+	 * not previously recorded speed from SStatus.  Just return in this
+	 * case.
+	 */
+	if (spd > 1)
+		mask &= (1 << (spd - 1)) - 1;
+	else if (link->sata_spd)
+		return -EINVAL;
+
+	/* were we already at the bottom? */
+	if (!mask)
+		return -EINVAL;
+
+	if (spd_limit) {
+		if (mask & ((1 << spd_limit) - 1))
+			mask &= (1 << spd_limit) - 1;
+		else {
+			bit = ffs(mask) - 1;
+			mask = 1 << bit;
+		}
+	}
+
+	link->sata_spd_limit = mask;
+
+	ata_link_warn(link, "limiting SATA link speed to %s\n",
+		      sata_spd_string(fls(mask)));
+
+	return 0;
+}
+
+/**
  *	sata_link_hardreset - reset link via SATA phy reset
  *	@link: link to reset
  *	@timing: timing parameters { interval, duration, timeout } in msec
@@ -625,6 +705,34 @@ int sata_link_hardreset(struct ata_link *link, const unsigned int *timing,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(sata_link_hardreset);
+
+/**
+ *	sata_std_hardreset - COMRESET w/o waiting or classification
+ *	@link: link to reset
+ *	@class: resulting class of attached device
+ *	@deadline: deadline jiffies for the operation
+ *
+ *	Standard SATA COMRESET w/o waiting or classification.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 if link offline, -EAGAIN if link online, -errno on errors.
+ */
+int sata_std_hardreset(struct ata_link *link, unsigned int *class,
+		       unsigned long deadline)
+{
+	const unsigned int *timing = sata_ehc_deb_timing(&link->eh_context);
+	bool online;
+	int rc;
+
+	rc = sata_link_hardreset(link, timing, deadline, &online, NULL);
+	if (online)
+		return -EAGAIN;
+	return rc;
+}
+EXPORT_SYMBOL_GPL(sata_std_hardreset);
 
 /**
  *	ata_qc_complete_multiple - Complete multiple qcs successfully
@@ -818,7 +926,7 @@ static ssize_t ata_scsi_lpm_store(struct device *device,
 
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, &ap->link, ENABLED) {
-			if (dev->horkage & ATA_HORKAGE_NOLPM) {
+			if (dev->quirks & ATA_QUIRK_NOLPM) {
 				count = -EOPNOTSUPP;
 				goto out_unlock;
 			}
@@ -1340,7 +1448,7 @@ EXPORT_SYMBOL_GPL(sata_async_notification);
 static int ata_eh_read_log_10h(struct ata_device *dev,
 			       int *tag, struct ata_taskfile *tf)
 {
-	u8 *buf = dev->link->ap->sector_buf;
+	u8 *buf = dev->sector_buf;
 	unsigned int err_mask;
 	u8 csum;
 	int i;
@@ -1379,8 +1487,8 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 }
 
 /**
- *	ata_eh_read_sense_success_ncq_log - Read the sense data for successful
- *					    NCQ commands log
+ *	ata_eh_get_ncq_success_sense - Read and process the sense data for
+ *				       successful NCQ commands log page
  *	@link: ATA link to get sense data for
  *
  *	Read the sense data for successful NCQ commands log page to obtain
@@ -1393,11 +1501,11 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
+int ata_eh_get_ncq_success_sense(struct ata_link *link)
 {
 	struct ata_device *dev = link->device;
 	struct ata_port *ap = dev->link->ap;
-	u8 *buf = ap->ncq_sense_buf;
+	u8 *buf = dev->cdl->ncq_sense_log_buf;
 	struct ata_queued_cmd *qc;
 	unsigned int err_mask, tag;
 	u8 *sense, sk = 0, asc = 0, ascq = 0;
@@ -1455,17 +1563,14 @@ int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
 		qc->flags |= ATA_QCFLAG_SENSE_VALID;
 
 		/*
-		 * If we have sense data, call scsi_check_sense() in order to
-		 * set the correct SCSI ML byte (if any). No point in checking
-		 * the return value, since the command has already completed
-		 * successfully.
+		 * No point in checking the return value, since the command has
+		 * already completed successfully.
 		 */
-		scsi_check_sense(qc->scsicmd);
+		ata_eh_decide_disposition(qc);
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ata_eh_read_sense_success_ncq_log);
 
 /**
  *	ata_eh_analyze_ncq_error - analyze NCQ error
@@ -1576,3 +1681,11 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	ehc->i.err_mask &= ~AC_ERR_DEV;
 }
 EXPORT_SYMBOL_GPL(ata_eh_analyze_ncq_error);
+
+const struct ata_port_operations sata_port_ops = {
+	.inherits		= &ata_base_port_ops,
+
+	.qc_defer		= ata_std_qc_defer,
+	.hardreset		= sata_std_hardreset,
+};
+EXPORT_SYMBOL_GPL(sata_port_ops);

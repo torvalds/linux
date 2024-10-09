@@ -4,7 +4,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/bitfield.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <ufs/ufs.h>
 #include <ufs/unipro.h>
@@ -198,6 +198,24 @@ static u32 ufshcd_us_to_ahit(unsigned int timer)
 	       FIELD_PREP(UFSHCI_AHIBERN8_SCALE_MASK, scale);
 }
 
+static int ufshcd_read_hci_reg(struct ufs_hba *hba, u32 *val, unsigned int reg)
+{
+	down(&hba->host_sem);
+	if (!ufshcd_is_user_access_allowed(hba)) {
+		up(&hba->host_sem);
+		return -EBUSY;
+	}
+
+	ufshcd_rpm_get_sync(hba);
+	ufshcd_hold(hba);
+	*val = ufshcd_readl(hba, reg);
+	ufshcd_release(hba);
+	ufshcd_rpm_put_sync(hba);
+
+	up(&hba->host_sem);
+	return 0;
+}
+
 static ssize_t auto_hibern8_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -208,23 +226,11 @@ static ssize_t auto_hibern8_show(struct device *dev,
 	if (!ufshcd_is_auto_hibern8_supported(hba))
 		return -EOPNOTSUPP;
 
-	down(&hba->host_sem);
-	if (!ufshcd_is_user_access_allowed(hba)) {
-		ret = -EBUSY;
-		goto out;
-	}
+	ret = ufshcd_read_hci_reg(hba, &ahit, REG_AUTO_HIBERNATE_IDLE_TIMER);
+	if (ret)
+		return ret;
 
-	pm_runtime_get_sync(hba->dev);
-	ufshcd_hold(hba);
-	ahit = ufshcd_readl(hba, REG_AUTO_HIBERNATE_IDLE_TIMER);
-	ufshcd_release(hba);
-	pm_runtime_put_sync(hba->dev);
-
-	ret = sysfs_emit(buf, "%d\n", ufshcd_ahit_to_us(ahit));
-
-out:
-	up(&hba->host_sem);
-	return ret;
+	return sysfs_emit(buf, "%d\n", ufshcd_ahit_to_us(ahit));
 }
 
 static ssize_t auto_hibern8_store(struct device *dev,
@@ -517,6 +523,58 @@ static struct attribute *ufs_sysfs_capabilities_attrs[] = {
 static const struct attribute_group ufs_sysfs_capabilities_group = {
 	.name = "capabilities",
 	.attrs = ufs_sysfs_capabilities_attrs,
+};
+
+static ssize_t version_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "0x%x\n", hba->ufs_version);
+}
+
+static ssize_t product_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+	u32 val;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	ret = ufshcd_read_hci_reg(hba, &val, REG_CONTROLLER_PID);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "0x%x\n", val);
+}
+
+static ssize_t man_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+	u32 val;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	ret = ufshcd_read_hci_reg(hba, &val, REG_CONTROLLER_MID);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "0x%x\n", val);
+}
+
+static DEVICE_ATTR_RO(version);
+static DEVICE_ATTR_RO(product_id);
+static DEVICE_ATTR_RO(man_id);
+
+static struct attribute *ufs_sysfs_ufshci_cap_attrs[] = {
+	&dev_attr_version.attr,
+	&dev_attr_product_id.attr,
+	&dev_attr_man_id.attr,
+	NULL
+};
+
+static const struct attribute_group ufs_sysfs_ufshci_group = {
+	.name = "ufshci_capabilities",
+	.attrs = ufs_sysfs_ufshci_cap_attrs,
 };
 
 static ssize_t monitor_enable_show(struct device *dev,
@@ -1502,6 +1560,7 @@ static const struct attribute_group ufs_sysfs_attributes_group = {
 static const struct attribute_group *ufs_sysfs_groups[] = {
 	&ufs_sysfs_default_group,
 	&ufs_sysfs_capabilities_group,
+	&ufs_sysfs_ufshci_group,
 	&ufs_sysfs_monitor_group,
 	&ufs_sysfs_power_info_group,
 	&ufs_sysfs_device_descriptor_group,

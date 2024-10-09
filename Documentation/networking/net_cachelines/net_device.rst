@@ -82,6 +82,7 @@ unsigned_int                        allmulti
 bool                                uc_promisc                                                      
 unsigned_char                       nested_level                                                    
 struct_in_device*                   ip_ptr                  read_mostly         read_mostly         __in_dev_get
+struct hlist_head                   fib_nh_head
 struct_inet6_dev*                   ip6_ptr                 read_mostly         read_mostly         __in6_dev_get
 struct_vlan_info*                   vlan_info                                                       
 struct_dsa_port*                    dsa_ptr                                                         
@@ -182,3 +183,4 @@ struct_devlink_port*                devlink_port
 struct_dpll_pin*                    dpll_pin                                                        
 struct hlist_head                   page_pools
 struct dim_irq_moder*               irq_moder
+u64                                 max_pacing_offload_horizon

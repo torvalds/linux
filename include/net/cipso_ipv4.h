@@ -28,7 +28,7 @@
 #include <net/request_sock.h>
 #include <linux/atomic.h>
 #include <linux/refcount.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* known doi values */
 #define CIPSO_V4_DOI_UNKNOWN          0x00000000

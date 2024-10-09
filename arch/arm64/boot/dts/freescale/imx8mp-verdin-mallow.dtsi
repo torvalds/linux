@@ -62,6 +62,11 @@
 	};
 };
 
+/* Verdin HDMI_1 Audio */
+&aud2htx {
+	status = "okay";
+};
+
 &backlight {
 	power-supply = <&reg_3p3v>;
 };
@@ -180,6 +185,11 @@
 
 &reg_usdhc2_vmmc {
 	vin-supply = <&reg_3p3v>;
+};
+
+/* Verdin HDMI_1 Audio */
+&sound_hdmi {
+	status = "okay";
 };
 
 /* Verdin UART_1 */

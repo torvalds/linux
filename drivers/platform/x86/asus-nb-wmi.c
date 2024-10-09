@@ -7,12 +7,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/backlight.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
-#include <linux/fb.h>
 #include <linux/dmi.h>
 #include <linux/i8042.h>
 
@@ -538,7 +538,7 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 	dmi_check_system(asus_quirks);
 
 	driver->quirks = quirks;
-	driver->panel_power = FB_BLANK_UNBLANK;
+	driver->panel_power = BACKLIGHT_POWER_ON;
 
 	/* overwrite the wapf setting if the wapf paramater is specified */
 	if (wapf != -1)

@@ -41,20 +41,6 @@ include $(srctree)/scripts/Makefile.compiler
 include $(kbuild-file)
 include $(srctree)/scripts/Makefile.lib
 
-# Do not include hostprogs rules unless needed.
-# $(sort ...) is used here to remove duplicated words and excessive spaces.
-hostprogs := $(sort $(hostprogs))
-ifneq ($(hostprogs),)
-include $(srctree)/scripts/Makefile.host
-endif
-
-# Do not include userprogs rules unless needed.
-# $(sort ...) is used here to remove duplicated words and excessive spaces.
-userprogs := $(sort $(userprogs))
-ifneq ($(userprogs),)
-include $(srctree)/scripts/Makefile.userprogs
-endif
-
 ifndef obj
 $(warning kbuild: Makefile.build is included improperly)
 endif
@@ -71,7 +57,6 @@ endif
 # subdir-builtin and subdir-modorder may contain duplications. Use $(sort ...)
 subdir-builtin := $(sort $(filter %/built-in.a, $(real-obj-y)))
 subdir-modorder := $(sort $(filter %/modules.order, $(obj-m)))
-subdir-dtbslist := $(sort $(filter %/dtbs-list, $(dtb-y)))
 
 targets-for-builtin := $(extra-y)
 
@@ -288,10 +273,15 @@ rust_common_cmd = \
 # would not match each other.
 
 quiet_cmd_rustc_o_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
-      cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $<
+      cmd_rustc_o_rs = $(rust_common_cmd) --emit=obj=$@ $< $(cmd_objtool)
+
+define rule_rustc_o_rs
+	$(call cmd_and_fixdep,rustc_o_rs)
+	$(call cmd,gen_objtooldep)
+endef
 
 $(obj)/%.o: $(obj)/%.rs FORCE
-	+$(call if_changed_dep,rustc_o_rs)
+	+$(call if_changed_rule,rustc_o_rs)
 
 quiet_cmd_rustc_rsi_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
       cmd_rustc_rsi_rs = \
@@ -363,7 +353,7 @@ $(obj)/%.o: $(obj)/%.S FORCE
 
 targets += $(filter-out $(subdir-builtin), $(real-obj-y))
 targets += $(filter-out $(subdir-modorder), $(real-obj-m))
-targets += $(real-dtb-y) $(lib-y) $(always-y)
+targets += $(lib-y) $(always-y)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -389,7 +379,6 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
 # To build objects in subdirs, we need to descend into the directories
 $(subdir-builtin): $(obj)/%/built-in.a: $(obj)/% ;
 $(subdir-modorder): $(obj)/%/modules.order: $(obj)/% ;
-$(subdir-dtbslist): $(obj)/%/dtbs-list: $(obj)/% ;
 
 #
 # Rule to compile a set of .o files into one .a file (without symbol table)
@@ -405,21 +394,14 @@ quiet_cmd_ar_builtin = AR      $@
 $(obj)/built-in.a: $(real-obj-y) FORCE
 	$(call if_changed,ar_builtin)
 
-#
-# Rule to create modules.order and dtbs-list
-#
-# This is a list of build artifacts (module or dtb) from the current Makefile
-# and its sub-directories. The timestamp should be updated when any of the
-# member files.
+# This is a list of build artifacts from the current Makefile and its
+# sub-directories. The timestamp should be updated when any of the member files.
 
 cmd_gen_order = { $(foreach m, $(real-prereqs), \
 	$(if $(filter %/$(notdir $@), $m), cat $m, echo $m);) :; } \
 	> $@
 
 $(obj)/modules.order: $(obj-m) FORCE
-	$(call if_changed,gen_order)
-
-$(obj)/dtbs-list: $(dtb-y) FORCE
 	$(call if_changed,gen_order)
 
 #
@@ -450,15 +432,26 @@ intermediate_targets = $(foreach sfx, $(2), \
 				$(patsubst %$(strip $(1)),%$(sfx), \
 					$(filter %$(strip $(1)), $(targets))))
 # %.asn1.o <- %.asn1.[ch] <- %.asn1
-# %.dtb.o <- %.dtb.S <- %.dtb <- %.dts
-# %.dtbo.o <- %.dtbo.S <- %.dtbo <- %.dtso
-# %.lex.o <- %.lex.c <- %.l
-# %.tab.o <- %.tab.[ch] <- %.y
-targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
-	   $(call intermediate_targets, .dtb.o, .dtb.S .dtb) \
-	   $(call intermediate_targets, .dtbo.o, .dtbo.S .dtbo) \
-	   $(call intermediate_targets, .lex.o, .lex.c) \
-	   $(call intermediate_targets, .tab.o, .tab.c .tab.h)
+targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h)
+
+# Include additional build rules when necessary
+# ---------------------------------------------------------------------------
+
+# $(sort ...) is used here to remove duplicated words and excessive spaces.
+hostprogs := $(sort $(hostprogs))
+ifneq ($(hostprogs),)
+include $(srctree)/scripts/Makefile.host
+endif
+
+# $(sort ...) is used here to remove duplicated words and excessive spaces.
+userprogs := $(sort $(userprogs))
+ifneq ($(userprogs),)
+include $(srctree)/scripts/Makefile.userprogs
+endif
+
+ifneq ($(need-dtbslist)$(dtb-y)$(dtb-)$(filter %.dtb %.dtb.o %.dtbo.o,$(targets)),)
+include $(srctree)/scripts/Makefile.dtbs
+endif
 
 # Build
 # ---------------------------------------------------------------------------

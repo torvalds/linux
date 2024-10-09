@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/bitfield.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 
 #include "aquantia.h"
@@ -70,6 +71,11 @@
 
 #define MDIO_AN_TX_VEND_INT_MASK2		0xd401
 #define MDIO_AN_TX_VEND_INT_MASK2_LINK		BIT(0)
+
+#define PMAPMD_RSVD_VEND_PROV			0xe400
+#define PMAPMD_RSVD_VEND_PROV_MDI_CONF		GENMASK(1, 0)
+#define PMAPMD_RSVD_VEND_PROV_MDI_REVERSE	BIT(0)
+#define PMAPMD_RSVD_VEND_PROV_MDI_FORCE		BIT(1)
 
 #define MDIO_AN_RX_LP_STAT1			0xe820
 #define MDIO_AN_RX_LP_STAT1_1000BASET_FULL	BIT(15)
@@ -435,6 +441,9 @@ static int aqr107_set_tunable(struct phy_device *phydev,
 	}
 }
 
+#define AQR_FW_WAIT_SLEEP_US	20000
+#define AQR_FW_WAIT_TIMEOUT_US	2000000
+
 /* If we configure settings whilst firmware is still initializing the chip,
  * then these settings may be overwritten. Therefore make sure chip
  * initialization has completed. Use presence of the firmware ID as
@@ -444,11 +453,19 @@ static int aqr107_set_tunable(struct phy_device *phydev,
  */
 int aqr_wait_reset_complete(struct phy_device *phydev)
 {
-	int val;
+	int ret, val;
 
-	return phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
-					 VEND1_GLOBAL_FW_ID, val, val != 0,
-					 20000, 2000000, false);
+	ret = read_poll_timeout(phy_read_mmd, val, val != 0,
+				AQR_FW_WAIT_SLEEP_US, AQR_FW_WAIT_TIMEOUT_US,
+				false, phydev, MDIO_MMD_VEND1,
+				VEND1_GLOBAL_FW_ID);
+	if (val < 0) {
+		phydev_err(phydev, "Failed to read VEND1_GLOBAL_FW_ID: %pe\n",
+			   ERR_PTR(val));
+		return val;
+	}
+
+	return ret;
 }
 
 static void aqr107_chip_info(struct phy_device *phydev)
@@ -474,11 +491,34 @@ static void aqr107_chip_info(struct phy_device *phydev)
 		   fw_major, fw_minor, build_id, prov_id);
 }
 
+static int aqr107_config_mdi(struct phy_device *phydev)
+{
+	struct device_node *np = phydev->mdio.dev.of_node;
+	u32 mdi_conf;
+	int ret;
+
+	ret = of_property_read_u32(np, "marvell,mdi-cfg-order", &mdi_conf);
+
+	/* Do nothing in case property "marvell,mdi-cfg-order" is not present */
+	if (ret == -ENOENT)
+		return 0;
+
+	if (ret)
+		return ret;
+
+	if (mdi_conf & ~PMAPMD_RSVD_VEND_PROV_MDI_REVERSE)
+		return -EINVAL;
+
+	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_RSVD_VEND_PROV,
+			      PMAPMD_RSVD_VEND_PROV_MDI_CONF,
+			      mdi_conf | PMAPMD_RSVD_VEND_PROV_MDI_FORCE);
+}
+
 static int aqr107_config_init(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
 	u32 led_active_low;
-	int ret, index = 0;
+	int ret;
 
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
@@ -503,12 +543,15 @@ static int aqr107_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
+	ret = aqr107_config_mdi(phydev);
+	if (ret)
+		return ret;
+
 	/* Restore LED polarity state after reset */
 	for_each_set_bit(led_active_low, &priv->leds_active_low, AQR_MAX_LEDS) {
-		ret = aqr_phy_led_active_low_set(phydev, index, led_active_low);
+		ret = aqr_phy_led_active_low_set(phydev, led_active_low, true);
 		if (ret)
 			return ret;
-		index++;
 	}
 
 	return 0;

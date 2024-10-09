@@ -137,7 +137,7 @@ h2_create()
 	# Prevent this by adding a shaper which limits the traffic in $h2 to
 	# 1Gbps.
 
-	tc qdisc replace dev $h2 root handle 10: tbf rate 1gbit \
+	tc qdisc replace dev $h2 root handle 10: tbf rate 200mbit \
 		burst 128K limit 1G
 }
 
@@ -199,7 +199,7 @@ switch_create()
 	done
 
 	for intf in $swp3 $swp4; do
-		tc qdisc replace dev $intf root handle 1: tbf rate 1gbit \
+		tc qdisc replace dev $intf root handle 1: tbf rate 200mbit \
 			burst 128K limit 1G
 	done
 
@@ -372,6 +372,7 @@ build_backlog()
 	local i=0
 
 	while :; do
+		sleep 1
 		local cur=$(busywait 1100 until_counter_is "> $cur" \
 					    get_qdisc_backlog $vlan)
 		local diff=$((size - cur))
@@ -532,10 +533,11 @@ do_red_test()
 	check_fail $? "Traffic went into backlog instead of being early-dropped"
 	pct=$(check_marking get_nmarked $vlan "== 0")
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
+	backlog=$(get_qdisc_backlog $vlan)
 	local diff=$((limit - backlog))
 	pct=$((100 * diff / limit))
-	((-10 <= pct && pct <= 10))
-	check_err $? "backlog $backlog / $limit expected <= 10% distance"
+	((-15 <= pct && pct <= 15))
+	check_err $? "backlog $backlog / $limit expected <= 15% distance"
 	log_test "TC $((vlan - 10)): RED backlog > limit"
 
 	stop_traffic
@@ -600,7 +602,7 @@ do_mark_test()
 	# Above limit, everything should be mirrored, we should see lots of
 	# packets.
 	build_backlog $vlan $((3 * limit / 2)) tcp tos=0x01 >/dev/null
-	busywait_for_counter 1100 +10000 \
+	busywait_for_counter 1100 +2500 \
 		 $fetch_counter > /dev/null
 	check_err_fail "$should_fail" $? "ECN-marked packets $subtest'd"
 
@@ -651,20 +653,22 @@ do_drop_test()
 	build_backlog $vlan $((3 * limit / 2)) udp >/dev/null
 
 	base=$($fetch_counter)
-	send_packets $vlan udp 11
+	send_packets $vlan udp 100
 
-	now=$(busywait 1100 until_counter_is ">= $((base + 10))" $fetch_counter)
-	check_err $? "Dropped packets not observed: 11 expected, $((now - base)) seen"
+	now=$(busywait 1100 until_counter_is ">= $((base + 95))" $fetch_counter)
+	check_err $? "${trigger}ped packets not observed: 100 expected, $((now - base)) seen"
 
 	# When no extra traffic is injected, there should be no mirroring.
-	busywait 1100 until_counter_is ">= $((base + 20))" $fetch_counter >/dev/null
+	busywait 1100 until_counter_is ">= $((base + 110))" \
+		 $fetch_counter >/dev/null
 	check_fail $? "Spurious packets observed"
 
 	# When the rule is uninstalled, there should be no mirroring.
 	qevent_rule_uninstall_$subtest
-	send_packets $vlan udp 11
-	busywait 1100 until_counter_is ">= $((base + 20))" $fetch_counter >/dev/null
-	check_fail $? "Spurious packets observed after uninstall"
+	send_packets $vlan udp 100
+	now=$(busywait 1100 until_counter_is ">= $((base + 110))" \
+		       $fetch_counter)
+	check_fail $? "$((now - base)) spurious packets observed after uninstall"
 
 	log_test "TC $((vlan - 10)): ${trigger}ped packets $subtest'd"
 

@@ -484,9 +484,24 @@
 
 #define WCD937X_MAX_MICBIAS			3
 #define WCD937X_MAX_BULK_SUPPLY			4
-#define WCD937X_MAX_TX_SWR_PORTS		4
-#define WCD937X_MAX_SWR_PORTS			5
 #define WCD937X_MAX_SWR_CH_IDS			15
+
+enum wcd937x_tx_sdw_ports {
+	WCD937X_ADC_1_PORT = 1,
+	WCD937X_ADC_2_3_PORT,
+	WCD937X_DMIC_0_3_MBHC_PORT,
+	WCD937X_DMIC_4_6_PORT,
+	WCD937X_MAX_TX_SWR_PORTS = WCD937X_DMIC_4_6_PORT,
+};
+
+enum wcd937x_rx_sdw_ports {
+	WCD937X_HPH_PORT = 1,
+	WCD937X_CLSH_PORT,
+	WCD937X_COMP_PORT,
+	WCD937X_LO_PORT,
+	WCD937X_DSD_PORT,
+	WCD937X_MAX_SWR_PORTS = WCD937X_DSD_PORT,
+};
 
 struct wcd937x_sdw_ch_info {
 	int port_num;
@@ -581,13 +596,6 @@ enum {
 	WCD937X_NUM_IRQS,
 };
 
-enum wcd937x_tx_sdw_ports {
-	WCD937X_ADC_1_PORT = 1,
-	WCD937X_ADC_2_3_PORT,
-	WCD937X_DMIC_0_3_MBHC_PORT,
-	WCD937X_DMIC_4_6_PORT,
-};
-
 enum wcd937x_tx_sdw_channels {
 	WCD937X_ADC1,
 	WCD937X_ADC2,
@@ -600,14 +608,6 @@ enum wcd937x_tx_sdw_channels {
 	WCD937X_DMIC4,
 	WCD937X_DMIC5,
 	WCD937X_DMIC6,
-};
-
-enum wcd937x_rx_sdw_ports {
-	WCD937X_HPH_PORT = 1,
-	WCD937X_CLSH_PORT,
-	WCD937X_COMP_PORT,
-	WCD937X_LO_PORT,
-	WCD937X_DSD_PORT,
 };
 
 enum wcd937x_rx_sdw_channels {

@@ -17,7 +17,6 @@
 #include <linux/soc/mediatek/mtk-mmsys.h>
 #include <linux/soc/mediatek/mtk-mutex.h>
 
-#include "mtk_crtc.h"
 #include "mtk_ddp_comp.h"
 #include "mtk_disp_drv.h"
 #include "mtk_drm_drv.h"
@@ -494,12 +493,12 @@ static int compare_of(struct device *dev, void *data)
 static int ovl_adaptor_comp_init(struct device *dev, struct component_match **match)
 {
 	struct mtk_disp_ovl_adaptor *priv = dev_get_drvdata(dev);
-	struct device_node *node, *parent;
+	struct device_node *parent;
 	struct platform_device *comp_pdev;
 
 	parent = dev->parent->parent->of_node->parent;
 
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_node_scoped(parent, node) {
 		const struct of_device_id *of_id;
 		enum mtk_ovl_adaptor_comp_type type;
 		int id;

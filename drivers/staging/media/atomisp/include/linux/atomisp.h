@@ -200,7 +200,7 @@ struct atomisp_dis_vector {
 };
 
 /* DVS 2.0 Coefficient types. This structure contains 4 pointers to
- *  arrays that contain the coeffients for each type.
+ *  arrays that contain the coefficients for each type.
  */
 struct atomisp_dvs2_coef_types {
 	short __user *odd_real; /** real part of the odd coefficients*/
@@ -698,7 +698,7 @@ enum atomisp_burst_capture_options {
 /* Digital Image Stabilization:
  * 1. get dis statistics: reads DIS statistics from ISP (every frame)
  * 2. set dis coefficients: set DIS filter coefficients (one time)
- * 3. set dis motion vecotr: set motion vector (result of DIS, every frame)
+ * 3. set dis motion vector: set motion vector (result of DIS, every frame)
  */
 #define ATOMISP_IOC_G_DIS_STAT \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 6, struct atomisp_dis_statistics)

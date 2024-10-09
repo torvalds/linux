@@ -2008,6 +2008,8 @@ enum netdev_reg_state {
  *	@dpll_pin: Pointer to the SyncE source pin of a DPLL subsystem,
  *		   where the clock is recovered.
  *
+ *	@max_pacing_offload_horizon: max EDT offload horizon in nsec.
+ *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
@@ -2207,6 +2209,9 @@ struct net_device {
 
 	/* Protocol-specific pointers */
 	struct in_device __rcu	*ip_ptr;
+	/** @fib_nh_head: nexthops associated with this netdev */
+	struct hlist_head	fib_nh_head;
+
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 	struct vlan_info __rcu	*vlan_info;
 #endif
@@ -2396,6 +2401,8 @@ struct net_device {
 
 	/** @irq_moder: dim parameters used if IS_ENABLED(CONFIG_DIMLIB). */
 	struct dim_irq_moder	*irq_moder;
+
+	u64			max_pacing_offload_horizon;
 
 	u8			priv[] ____cacheline_aligned
 				       __counted_by(priv_len);
@@ -5026,6 +5033,24 @@ void netif_set_tso_max_size(struct net_device *dev, unsigned int size);
 void netif_set_tso_max_segs(struct net_device *dev, unsigned int segs);
 void netif_inherit_tso_max(struct net_device *to,
 			   const struct net_device *from);
+
+static inline unsigned int
+netif_get_gro_max_size(const struct net_device *dev, const struct sk_buff *skb)
+{
+	/* pairs with WRITE_ONCE() in netif_set_gro(_ipv4)_max_size() */
+	return skb->protocol == htons(ETH_P_IPV6) ?
+	       READ_ONCE(dev->gro_max_size) :
+	       READ_ONCE(dev->gro_ipv4_max_size);
+}
+
+static inline unsigned int
+netif_get_gso_max_size(const struct net_device *dev, const struct sk_buff *skb)
+{
+	/* pairs with WRITE_ONCE() in netif_set_gso(_ipv4)_max_size() */
+	return skb->protocol == htons(ETH_P_IPV6) ?
+	       READ_ONCE(dev->gso_max_size) :
+	       READ_ONCE(dev->gso_ipv4_max_size);
+}
 
 static inline bool netif_is_macsec(const struct net_device *dev)
 {

@@ -43,7 +43,7 @@ enum TRI_STATE {
  * size beyond this value gets rejected by __alloc_page() call.
  */
 #define MAX_RX_BUFFERS_PER_QUEUE 8192
-#define DEF_RX_BUFFERS_PER_QUEUE 512
+#define DEF_RX_BUFFERS_PER_QUEUE 1024
 #define MIN_RX_BUFFERS_PER_QUEUE 128
 
 /* This max value for TX buffers is derived as the maximum allocatable
