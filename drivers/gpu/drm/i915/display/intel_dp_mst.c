@@ -466,6 +466,9 @@ hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
 	if (mode_hblank_period_ns(adjusted_mode) > hblank_limit)
 		return false;
 
+	if (!intel_dp_mst_dsc_get_slice_count(connector, crtc_state))
+		return false;
+
 	return true;
 }
 
