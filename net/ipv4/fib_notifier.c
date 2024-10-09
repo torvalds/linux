@@ -27,7 +27,7 @@ int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
 	return call_fib_notifiers(net, event_type, info);
 }
 
-static unsigned int fib4_seq_read(struct net *net)
+static unsigned int fib4_seq_read(const struct net *net)
 {
 	/* Paired with WRITE_ONCE() in call_fib4_notifiers() */
 	return READ_ONCE(net->ipv4.fib_seq) + fib4_rules_seq_read(net);

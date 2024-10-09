@@ -3035,7 +3035,7 @@ static const struct net_protocol pim_protocol = {
 };
 #endif
 
-static unsigned int ipmr_seq_read(struct net *net)
+static unsigned int ipmr_seq_read(const struct net *net)
 {
 	return READ_ONCE(net->ipv4.ipmr_seq) + ipmr_rules_seq_read(net);
 }
