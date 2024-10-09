@@ -67,7 +67,7 @@ static void dwc_dphy_write(struct ipu6_isys *isys, u32 phy_id, u32 addr,
 	void __iomem *isys_base = isys->pdata->base;
 	void __iomem *base = isys_base + IPU6_DWC_DPHY_BASE(phy_id);
 
-	dev_dbg(dev, "write: reg 0x%lx = data 0x%x", base + addr - isys_base,
+	dev_dbg(dev, "write: reg 0x%zx = data 0x%x", base + addr - isys_base,
 		data);
 	writel(data, base + addr);
 }
@@ -80,7 +80,7 @@ static u32 dwc_dphy_read(struct ipu6_isys *isys, u32 phy_id, u32 addr)
 	u32 data;
 
 	data = readl(base + addr);
-	dev_dbg(dev, "read: reg 0x%lx = data 0x%x", base + addr - isys_base,
+	dev_dbg(dev, "read: reg 0x%zx = data 0x%x", base + addr - isys_base,
 		data);
 
 	return data;
