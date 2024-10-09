@@ -905,6 +905,10 @@ void start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 
+	pr_info("start_kernel(void)");
+	GlobalLogParametersInit(PRINT_LOG_STATE_TIMES, 100);
+	pr_info_self("start_kernel(void)");
+	
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
 	debug_objects_early_init();
@@ -958,6 +962,7 @@ void start_kernel(void)
 	 * initalization of page allocator
 	 */
 	setup_log_buf(0);
+	GlobalLogParametersInit(PRINT_LOG_STATE_STOP, 0);
 	vfs_caches_init_early();
 	sort_main_extable();
 	trap_init();
