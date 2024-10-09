@@ -99,16 +99,6 @@ degli sviluppatori:
 
    kernel-docs
 
-Ed infine, qui ci sono alcune guide più tecniche che son state messe qua solo
-perché non si è trovato un posto migliore.
-
-.. toctree::
-   :maxdepth: 1
-
-   magic-number
-   clang-format
-   ../arch/riscv/patch-acceptance
-
 .. only::  subproject and html
 
    Indices

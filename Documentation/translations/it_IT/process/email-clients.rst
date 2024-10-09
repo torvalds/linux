@@ -228,7 +228,7 @@ Mutt è molto personalizzabile. Qui di seguito trovate la configurazione minima
 per iniziare ad usare Mutt per inviare patch usando Gmail::
 
   # .muttrc
-  # ================  IMAP ====================
+  # ================  IMAP  ====================
   set imap_user = 'yourusername@gmail.com'
   set imap_pass = 'yourpassword'
   set spoolfile = imaps://imap.gmail.com/INBOX
@@ -365,27 +365,12 @@ un editor esterno.
 Un altro problema è che Gmail usa la codifica base64 per tutti quei messaggi
 che contengono caratteri non ASCII. Questo include cose tipo i nomi europei.
 
-Proton Mail
-***********
+HacKerMaiL (TUI)
+****************
 
-Il servizio Proton Mail ha una funzionalità che cripta tutti i messaggi verso
-ogni destinatario per cui è possibile trovare una chiave usando il *Web Key
-Directory* (WKD). Il servizio kernel.org pubblica il WKD per ogni sviluppatore
-in possesso di un conto kernel.org. Di conseguenza, tutti i messaggi inviati
-usando Proton Mail verso indirizzi kernel.org verranno criptati.
-
-Proton Mail non fornisce alcun meccanismo per disabilitare questa funzionalità
-perché verrebbe considerato un problema per la riservatezza. Questa funzionalità
-è attiva anche quando si inviano messaggi usando il Proton Mail Bridge. Dunque
-tutta la posta in uscita verrà criptata, incluse le patch inviate con ``git
-send-email``.
-
-I messaggi criptati sono una fonte di problemi; altri sviluppatori potrebbero
-non aver configurato i loro programmi, o strumenti, per gestire messaggi
-criptati; inoltre, alcuni programmi di posta elettronica potrebbero criptare le
-risposte a messaggi criptati per tutti i partecipanti alla discussione, inclusa
-la lista di discussione stessa.
-
-A meno che non venga introdotta una maniera per disabilitare questa
-funzionalità, non è consigliato usare Proton Mail per contribuire allo sviluppo
-del kernel.
+HacKerMaiL (hkml) è una semplice casella pubblica per la gestione dei messaggi
+di posta che non richiede alcuna sottoscrizione ad una lista di discussione.
+Viene sviluppato e mantenuto dal manutentore di DAMON e si pone come obiettivo
+quello di gestire il processo di sviluppo semplice come quello di DAMON e più in
+generale i sottosistemi del kernel. Per maggiori dettagli, fate riferimento al
+documento README (https://github.com/sjp38/hackermail/blob/master/README.md).
