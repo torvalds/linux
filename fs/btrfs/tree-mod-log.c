@@ -909,7 +909,6 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
  * is freed (its refcount is decremented).
  */
 struct extent_buffer *btrfs_tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
-						struct btrfs_path *path,
 						struct extent_buffer *eb,
 						u64 time_seq)
 {
