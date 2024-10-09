@@ -588,9 +588,8 @@ static void handle_rx_uart(struct uart_port *uport, u32 bytes, bool drop)
 
 	ret = tty_insert_flip_string(tport, port->rx_buf, bytes);
 	if (ret != bytes) {
-		dev_err(uport->dev, "%s:Unable to push data ret %d_bytes %d\n",
-				__func__, ret, bytes);
-		WARN_ON_ONCE(1);
+		dev_err_ratelimited(uport->dev, "failed to push data (%d < %u)\n",
+				ret, bytes);
 	}
 	uport->icount.rx += ret;
 	tty_flip_buffer_push(tport);
