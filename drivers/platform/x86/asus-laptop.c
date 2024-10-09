@@ -1832,8 +1832,8 @@ static int asus_acpi_add(struct acpi_device *device)
 	if (!asus)
 		return -ENOMEM;
 	asus->handle = device->handle;
-	strcpy(acpi_device_name(device), ASUS_LAPTOP_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ASUS_LAPTOP_CLASS);
+	strscpy(acpi_device_name(device), ASUS_LAPTOP_DEVICE_NAME);
+	strscpy(acpi_device_class(device), ASUS_LAPTOP_CLASS);
 	device->driver_data = asus;
 	asus->device = device;
 
