@@ -6734,8 +6734,7 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	return ret;
 }
 
-static int read_inline_extent(struct btrfs_inode *inode, struct btrfs_path *path,
-			      struct folio *folio)
+static int read_inline_extent(struct btrfs_path *path, struct folio *folio)
 {
 	struct btrfs_file_extent_item *fi;
 	void *kaddr;
@@ -6933,7 +6932,7 @@ next:
 		ASSERT(em->disk_bytenr == EXTENT_MAP_INLINE);
 		ASSERT(em->len == fs_info->sectorsize);
 
-		ret = read_inline_extent(inode, path, folio);
+		ret = read_inline_extent(path, folio);
 		if (ret < 0)
 			goto out;
 		goto insert;
