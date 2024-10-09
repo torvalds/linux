@@ -465,11 +465,6 @@ static int soc24_common_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int soc24_common_sw_fini(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int soc24_common_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -591,7 +586,6 @@ static const struct amd_ip_funcs soc24_common_ip_funcs = {
 	.early_init = soc24_common_early_init,
 	.late_init = soc24_common_late_init,
 	.sw_init = soc24_common_sw_init,
-	.sw_fini = soc24_common_sw_fini,
 	.hw_init = soc24_common_hw_init,
 	.hw_fini = soc24_common_hw_fini,
 	.suspend = soc24_common_suspend,

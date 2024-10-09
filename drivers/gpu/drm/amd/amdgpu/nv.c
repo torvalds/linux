@@ -983,11 +983,6 @@ static int nv_common_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int nv_common_sw_fini(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int nv_common_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -1111,7 +1106,6 @@ static const struct amd_ip_funcs nv_common_ip_funcs = {
 	.early_init = nv_common_early_init,
 	.late_init = nv_common_late_init,
 	.sw_init = nv_common_sw_init,
-	.sw_fini = nv_common_sw_fini,
 	.hw_init = nv_common_hw_init,
 	.hw_fini = nv_common_hw_fini,
 	.suspend = nv_common_suspend,

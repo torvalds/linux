@@ -33,11 +33,6 @@
 #include "isp_v4_1_0.h"
 #include "isp_v4_1_1.h"
 
-static int isp_sw_fini(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 /**
  * isp_hw_init - start and test isp block
  *
@@ -169,7 +164,6 @@ static const struct amd_ip_funcs isp_ip_funcs = {
 	.name = "isp_ip",
 	.early_init = isp_early_init,
 	.late_init = NULL,
-	.sw_fini = isp_sw_fini,
 	.hw_init = isp_hw_init,
 	.hw_fini = isp_hw_fini,
 	.suspend = isp_suspend,
