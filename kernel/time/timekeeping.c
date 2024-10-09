@@ -1627,9 +1627,7 @@ static void __timekeeping_set_tai_offset(struct timekeeper *tk, s32 tai_offset)
  */
 static int change_clocksource(void *data)
 {
-	struct timekeeper *tk = &tk_core.timekeeper;
 	struct clocksource *new = data, *old = NULL;
-	unsigned long flags;
 
 	/*
 	 * If the clocksource is in a module, get a module reference.
@@ -1645,16 +1643,14 @@ static int change_clocksource(void *data)
 		return 0;
 	}
 
-	raw_spin_lock_irqsave(&tk_core.lock, flags);
-	write_seqcount_begin(&tk_core.seq);
+	scoped_guard (raw_spinlock_irqsave, &tk_core.lock) {
+		struct timekeeper *tks = &tk_core.shadow_timekeeper;
 
-	timekeeping_forward_now(tk);
-	old = tk->tkr_mono.clock;
-	tk_setup_internals(tk, new);
-	timekeeping_update(&tk_core, tk, TK_UPDATE_ALL | TK_MIRROR);
-
-	write_seqcount_end(&tk_core.seq);
-	raw_spin_unlock_irqrestore(&tk_core.lock, flags);
+		timekeeping_forward_now(tks);
+		old = tks->tkr_mono.clock;
+		tk_setup_internals(tks, new);
+		timekeeping_update_from_shadow(&tk_core, TK_UPDATE_ALL);
+	}
 
 	if (old) {
 		if (old->disable)
