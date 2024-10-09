@@ -278,7 +278,8 @@ static void __wait_on_freeing_inode(struct bch_fs *c,
 				    subvol_inum inum)
 {
 	wait_queue_head_t *wq;
-	DEFINE_WAIT_BIT(wait, &inode->v.i_state, __I_NEW);
+	struct wait_bit_queue_entry wait;
+
 	wq = inode_bit_waitqueue(&wait, &inode->v, __I_NEW);
 	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
 	spin_unlock(&inode->v.i_lock);
