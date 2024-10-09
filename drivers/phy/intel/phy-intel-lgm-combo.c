@@ -605,7 +605,7 @@ static const struct of_device_id of_intel_cbphy_match[] = {
 
 static struct platform_driver intel_cbphy_driver = {
 	.probe = intel_cbphy_probe,
-	.remove_new = intel_cbphy_remove,
+	.remove = intel_cbphy_remove,
 	.driver = {
 		.name = "intel-combo-phy",
 		.of_match_table = of_intel_cbphy_match,

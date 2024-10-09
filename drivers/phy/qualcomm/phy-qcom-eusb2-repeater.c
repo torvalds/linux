@@ -294,7 +294,7 @@ MODULE_DEVICE_TABLE(of, eusb2_repeater_of_match_table);
 
 static struct platform_driver eusb2_repeater_driver = {
 	.probe		= eusb2_repeater_probe,
-	.remove_new	= eusb2_repeater_remove,
+	.remove		= eusb2_repeater_remove,
 	.driver = {
 		.name	= "qcom-eusb2-repeater",
 		.of_match_table = eusb2_repeater_of_match_table,

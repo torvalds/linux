@@ -734,7 +734,7 @@ MODULE_DEVICE_TABLE(of, usbphy_rtk_dt_match);
 
 static struct platform_driver rtk_usb3phy_driver = {
 	.probe		= rtk_usb3phy_probe,
-	.remove_new	= rtk_usb3phy_remove,
+	.remove		= rtk_usb3phy_remove,
 	.driver		= {
 		.name	= "rtk-usb3phy",
 		.of_match_table = usbphy_rtk_dt_match,

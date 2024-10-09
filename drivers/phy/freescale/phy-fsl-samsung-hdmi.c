@@ -749,8 +749,8 @@ static const struct of_device_id fsl_samsung_hdmi_phy_of_match[] = {
 MODULE_DEVICE_TABLE(of, fsl_samsung_hdmi_phy_of_match);
 
 static struct platform_driver fsl_samsung_hdmi_phy_driver = {
-	.probe  = fsl_samsung_hdmi_phy_probe,
-	.remove_new = fsl_samsung_hdmi_phy_remove,
+	.probe = fsl_samsung_hdmi_phy_probe,
+	.remove = fsl_samsung_hdmi_phy_remove,
 	.driver = {
 		.name = "fsl-samsung-hdmi-phy",
 		.of_match_table = fsl_samsung_hdmi_phy_of_match,

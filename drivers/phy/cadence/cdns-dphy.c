@@ -472,7 +472,7 @@ MODULE_DEVICE_TABLE(of, cdns_dphy_of_match);
 
 static struct platform_driver cdns_dphy_platform_driver = {
 	.probe		= cdns_dphy_probe,
-	.remove_new	= cdns_dphy_remove,
+	.remove		= cdns_dphy_remove,
 	.driver		= {
 		.name		= "cdns-mipi-dphy",
 		.of_match_table	= cdns_dphy_of_match,

@@ -784,7 +784,7 @@ static struct platform_driver inno_dsidphy_driver = {
 		.of_match_table	= of_match_ptr(inno_dsidphy_of_match),
 	},
 	.probe = inno_dsidphy_probe,
-	.remove_new = inno_dsidphy_remove,
+	.remove = inno_dsidphy_remove,
 };
 module_platform_driver(inno_dsidphy_driver);
 

@@ -5440,8 +5440,8 @@ MODULE_DEVICE_TABLE(of, cdns_torrent_phy_of_match);
 
 static struct platform_driver cdns_torrent_phy_driver = {
 	.probe	= cdns_torrent_phy_probe,
-	.remove_new = cdns_torrent_phy_remove,
-	.driver = {
+	.remove	= cdns_torrent_phy_remove,
+	.driver	= {
 		.name	= "cdns-torrent-phy",
 		.of_match_table	= cdns_torrent_phy_of_match,
 		.pm	= pm_sleep_ptr(&cdns_torrent_phy_pm_ops),
