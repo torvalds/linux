@@ -9,7 +9,7 @@
  *
  * Limitations:
  * - The writes to registers for period and duty are shadowed until
- *   LOAD_CONFIG is written to AXI_PWMGEN_REG_CONFIG, at which point
+ *   LOAD_CONFIG is written to AXI_PWMGEN_REG_RSTN, at which point
  *   they take effect.
  * - Writing LOAD_CONFIG also has the effect of re-synchronizing all
  *   enabled channels, which could cause glitching on other channels. It
@@ -33,14 +33,14 @@
 #define AXI_PWMGEN_REG_ID		0x04
 #define AXI_PWMGEN_REG_SCRATCHPAD	0x08
 #define AXI_PWMGEN_REG_CORE_MAGIC	0x0C
-#define AXI_PWMGEN_REG_CONFIG		0x10
+#define AXI_PWMGEN_REG_RSTN		0x10
+#define   AXI_PWMGEN_REG_RSTN_LOAD_CONFIG	BIT(1)
+#define   AXI_PWMGEN_REG_RSTN_RESET		BIT(0)
 #define AXI_PWMGEN_REG_NPWM		0x14
 #define AXI_PWMGEN_CHX_PERIOD(ch)	(0x40 + (4 * (ch)))
 #define AXI_PWMGEN_CHX_DUTY(ch)		(0x80 + (4 * (ch)))
 #define AXI_PWMGEN_CHX_OFFSET(ch)	(0xC0 + (4 * (ch)))
 #define AXI_PWMGEN_REG_CORE_MAGIC_VAL	0x601A3471 /* Identification number to test during setup */
-#define AXI_PWMGEN_LOAD_CONFIG		BIT(1)
-#define AXI_PWMGEN_REG_CONFIG_RESET	BIT(0)
 
 struct axi_pwmgen_ddata {
 	struct regmap *regmap;
@@ -152,7 +152,7 @@ static int axi_pwmgen_write_waveform(struct pwm_chip *chip,
 	if (ret)
 		return ret;
 
-	return regmap_write(regmap, AXI_PWMGEN_REG_CONFIG, AXI_PWMGEN_LOAD_CONFIG);
+	return regmap_write(regmap, AXI_PWMGEN_REG_RSTN, AXI_PWMGEN_REG_RSTN_LOAD_CONFIG);
 }
 
 static int axi_pwmgen_read_waveform(struct pwm_chip *chip,
@@ -223,7 +223,7 @@ static int axi_pwmgen_setup(struct regmap *regmap, struct device *dev)
 	}
 
 	/* Enable the core */
-	ret = regmap_clear_bits(regmap, AXI_PWMGEN_REG_CONFIG, AXI_PWMGEN_REG_CONFIG_RESET);
+	ret = regmap_clear_bits(regmap, AXI_PWMGEN_REG_RSTN, AXI_PWMGEN_REG_RSTN_RESET);
 	if (ret)
 		return ret;
 
