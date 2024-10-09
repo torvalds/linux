@@ -516,6 +516,79 @@ skl_plane_max_stride(struct intel_plane *plane,
 				max_pixels, max_bytes);
 }
 
+static bool tgl_plane_can_async_flip(u64 modifier)
+{
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_4_TILED:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
+		return true;
+	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+	case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
+		return false;
+	default:
+		return false;
+	}
+}
+
+static bool icl_plane_can_async_flip(u64 modifier)
+{
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		/*
+		 * FIXME: Async on Linear buffer is supported on ICL
+		 * but with additional alignment and fbc restrictions
+		 * need to be taken care of.
+		 */
+		return false;
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool skl_plane_can_async_flip(u64 modifier)
+{
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		return false;
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		return true;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		/*
+		 * Display WA #0731: skl
+		 * WaDisableRCWithAsyncFlip: skl
+		 * "When render decompression is enabled, hardware
+		 *  internally converts the Async flips to Sync flips."
+		 *
+		 * Display WA #1159: glk
+		 * "Async flip with render compression may result in
+		 *  intermittent underrun corruption."
+		 */
+		return false;
+	default:
+		return false;
+	}
+}
+
 static u32 tgl_plane_min_alignment(struct intel_plane *plane,
 				   const struct drm_framebuffer *fb,
 				   int color_plane)
@@ -2679,6 +2752,13 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		plane->async_flip = skl_plane_async_flip;
 		plane->enable_flip_done = skl_plane_enable_flip_done;
 		plane->disable_flip_done = skl_plane_disable_flip_done;
+
+		if (DISPLAY_VER(dev_priv) >= 12)
+			plane->can_async_flip = tgl_plane_can_async_flip;
+		else if (DISPLAY_VER(dev_priv) == 11)
+			plane->can_async_flip = icl_plane_can_async_flip;
+		else
+			plane->can_async_flip = skl_plane_can_async_flip;
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 11)

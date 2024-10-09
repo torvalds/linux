@@ -19,6 +19,7 @@ struct intel_plane;
 struct intel_plane_state;
 enum plane_id;
 
+bool intel_plane_can_async_flip(struct intel_plane *plane, u64 modifier);
 unsigned int intel_adjusted_rate(const struct drm_rect *src,
 				 const struct drm_rect *dst,
 				 unsigned int rate);

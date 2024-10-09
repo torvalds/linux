@@ -673,6 +673,11 @@ vlv_primary_disable_flip_done(struct intel_plane *plane)
 	spin_unlock_irq(&i915->irq_lock);
 }
 
+static bool i9xx_plane_can_async_flip(u64 modifier)
+{
+	return modifier == I915_FORMAT_MOD_X_TILED;
+}
+
 static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 				    enum pipe *pipe)
 {
@@ -959,19 +964,23 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->async_flip = vlv_primary_async_flip;
 		plane->enable_flip_done = vlv_primary_enable_flip_done;
 		plane->disable_flip_done = vlv_primary_disable_flip_done;
+		plane->can_async_flip = i9xx_plane_can_async_flip;
 	} else if (IS_BROADWELL(dev_priv)) {
 		plane->need_async_flip_toggle_wa = true;
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = bdw_primary_enable_flip_done;
 		plane->disable_flip_done = bdw_primary_disable_flip_done;
+		plane->can_async_flip = i9xx_plane_can_async_flip;
 	} else if (DISPLAY_VER(dev_priv) >= 7) {
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = ivb_primary_enable_flip_done;
 		plane->disable_flip_done = ivb_primary_disable_flip_done;
+		plane->can_async_flip = i9xx_plane_can_async_flip;
 	} else if (DISPLAY_VER(dev_priv) >= 5) {
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = ilk_primary_enable_flip_done;
 		plane->disable_flip_done = ilk_primary_disable_flip_done;
+		plane->can_async_flip = i9xx_plane_can_async_flip;
 	}
 
 	modifiers = intel_fb_plane_get_modifiers(dev_priv, INTEL_PLANE_CAP_TILING_X);
