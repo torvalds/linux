@@ -291,6 +291,19 @@ static inline const char *kernel_load_data_id_str(enum kernel_load_data_id id)
 
 #ifdef CONFIG_SECURITY
 
+/**
+ * lsmprop_is_set - report if there is a value in the lsm_prop
+ * @prop: Pointer to the exported LSM data
+ *
+ * Returns true if there is a value set, false otherwise
+ */
+static inline bool lsmprop_is_set(struct lsm_prop *prop)
+{
+	const struct lsm_prop empty = {};
+
+	return !!memcmp(prop, &empty, sizeof(*prop));
+}
+
 int call_blocking_lsm_notifier(enum lsm_event event, void *data);
 int register_blocking_lsm_notifier(struct notifier_block *nb);
 int unregister_blocking_lsm_notifier(struct notifier_block *nb);
@@ -551,6 +564,17 @@ int security_bdev_setintegrity(struct block_device *bdev,
 			       enum lsm_integrity_type type, const void *value,
 			       size_t size);
 #else /* CONFIG_SECURITY */
+
+/**
+ * lsmprop_is_set - report if there is a value in the lsm_prop
+ * @prop: Pointer to the exported LSM data
+ *
+ * Returns true if there is a value set, false otherwise
+ */
+static inline bool lsmprop_is_set(struct lsm_prop *prop)
+{
+	return false;
+}
 
 static inline int call_blocking_lsm_notifier(enum lsm_event event, void *data)
 {
