@@ -54,7 +54,7 @@
 #define DIRTY_POLL_THRESH	(128 >> (PAGE_SHIFT - 10))
 
 /*
- * Estimate write bandwidth at 200ms intervals.
+ * Estimate write bandwidth or update dirty limit at 200ms intervals.
  */
 #define BANDWIDTH_INTERVAL	max(HZ/5, 1)
 
