@@ -191,4 +191,5 @@ Driver specific implementations
 
 * :ref:`i915-usage-stats`
 * :ref:`panfrost-usage-stats`
+* :ref:`panthor-usage-stats`
 * :ref:`xe-usage-stats`

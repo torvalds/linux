@@ -4,7 +4,7 @@
  drm/Panthor CSF driver
 =========================
 
-.. _panfrost-usage-stats:
+.. _panthor-usage-stats:
 
 Panthor DRM client usage stats implementation
 ==============================================
