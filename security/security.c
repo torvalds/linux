@@ -4312,6 +4312,27 @@ int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 EXPORT_SYMBOL(security_secid_to_secctx);
 
 /**
+ * security_lsmprop_to_secctx() - Convert a lsm_prop to a secctx
+ * @prop: lsm specific information
+ * @secdata: secctx
+ * @seclen: secctx length
+ *
+ * Convert a @prop entry to security context.  If @secdata is NULL the
+ * length of the result will be returned in @seclen, but no @secdata
+ * will be returned.  This does mean that the length could change between
+ * calls to check the length and the next call which actually allocates
+ * and returns the @secdata.
+ *
+ * Return: Return 0 on success, error on failure.
+ */
+int security_lsmprop_to_secctx(struct lsm_prop *prop, char **secdata,
+			       u32 *seclen)
+{
+	return call_int_hook(lsmprop_to_secctx, prop, secdata, seclen);
+}
+EXPORT_SYMBOL(security_lsmprop_to_secctx);
+
+/**
  * security_secctx_to_secid() - Convert a secctx to a secid
  * @secdata: secctx
  * @seclen: length of secctx
