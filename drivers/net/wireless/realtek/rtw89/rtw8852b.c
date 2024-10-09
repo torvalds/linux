@@ -254,7 +254,7 @@ static void rtw8852b_pwr_sps_ana(struct rtw89_dev *rtwdev)
 static int rtw8852b_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret;
+	int ret;
 
 	rtw8852b_pwr_sps_ana(rtwdev);
 
@@ -383,7 +383,7 @@ func_en:
 static int rtw8852b_pwr_off_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret;
+	int ret;
 
 	rtw8852b_pwr_sps_ana(rtwdev);
 
