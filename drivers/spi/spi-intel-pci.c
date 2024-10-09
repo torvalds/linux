@@ -94,6 +94,7 @@ static struct pci_driver intel_spi_pci_driver = {
 	.name = "intel-spi",
 	.id_table = intel_spi_pci_ids,
 	.probe = intel_spi_pci_probe,
+	.dev_groups = intel_spi_groups,
 };
 
 module_pci_driver(intel_spi_pci_driver);
