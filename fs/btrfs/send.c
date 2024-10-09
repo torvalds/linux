@@ -980,7 +980,7 @@ static int get_inode_gen(struct btrfs_root *root, u64 ino, u64 *gen)
 	return ret;
 }
 
-typedef int (*iterate_inode_ref_t)(int num, u64 dir, int index,
+typedef int (*iterate_inode_ref_t)(u64 dir, int index,
 				   struct fs_path *p,
 				   void *ctx);
 
@@ -1007,7 +1007,6 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 	u32 name_len;
 	char *start;
 	int ret = 0;
-	int num = 0;
 	int index;
 	u64 dir;
 	unsigned long name_off;
@@ -1094,10 +1093,9 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 		}
 
 		cur += elem_size + name_len;
-		ret = iterate(num, dir, index, p, ctx);
+		ret = iterate(dir, index, p, ctx);
 		if (ret)
 			goto out;
-		num++;
 	}
 
 out:
@@ -1227,7 +1225,7 @@ out:
 	return ret;
 }
 
-static int __copy_first_ref(int num, u64 dir, int index,
+static int __copy_first_ref(u64 dir, int index,
 			    struct fs_path *p, void *ctx)
 {
 	int ret;
@@ -4708,7 +4706,7 @@ out:
 	return ret;
 }
 
-static int record_new_ref_if_needed(int num, u64 dir, int index,
+static int record_new_ref_if_needed(u64 dir, int index,
 				    struct fs_path *name, void *ctx)
 {
 	int ret = 0;
@@ -4738,7 +4736,7 @@ out:
 	return ret;
 }
 
-static int record_deleted_ref_if_needed(int num, u64 dir, int index,
+static int record_deleted_ref_if_needed(u64 dir, int index,
 					struct fs_path *name, void *ctx)
 {
 	int ret = 0;
