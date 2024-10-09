@@ -143,7 +143,7 @@ struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 	if (type == BTRFS_SUBPAGE_METADATA)
 		atomic_set(&ret->eb_refs, 0);
 	else
-		atomic_set(&ret->writers, 0);
+		atomic_set(&ret->nr_locked, 0);
 	return ret;
 }
 
@@ -237,8 +237,8 @@ static void btrfs_subpage_clamp_range(struct folio *folio, u64 *start, u32 *len)
 			     orig_start + orig_len) - *start;
 }
 
-static bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_info,
-					      struct folio *folio, u64 start, u32 len)
+static bool btrfs_subpage_end_and_test_lock(const struct btrfs_fs_info *fs_info,
+					    struct folio *folio, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = folio_get_private(folio);
 	const int start_bit = subpage_calc_start_bit(fs_info, folio, locked, start, len);
@@ -256,9 +256,9 @@ static bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_inf
 	 * extent_clear_unlock_delalloc() for compression path.
 	 *
 	 * This @locked_page is locked by plain lock_page(), thus its
-	 * subpage::writers is 0.  Handle them in a special way.
+	 * subpage::locked is 0.  Handle them in a special way.
 	 */
-	if (atomic_read(&subpage->writers) == 0) {
+	if (atomic_read(&subpage->nr_locked) == 0) {
 		spin_unlock_irqrestore(&subpage->lock, flags);
 		return true;
 	}
@@ -267,8 +267,8 @@ static bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_inf
 		clear_bit(bit, subpage->bitmaps);
 		cleared++;
 	}
-	ASSERT(atomic_read(&subpage->writers) >= cleared);
-	last = atomic_sub_and_test(cleared, &subpage->writers);
+	ASSERT(atomic_read(&subpage->nr_locked) >= cleared);
+	last = atomic_sub_and_test(cleared, &subpage->nr_locked);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 	return last;
 }
@@ -289,8 +289,8 @@ static bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_inf
  *   bitmap, reduce the writer lock number, and unlock the page if that's
  *   the last locked range.
  */
-void btrfs_folio_end_writer_lock(const struct btrfs_fs_info *fs_info,
-				 struct folio *folio, u64 start, u32 len)
+void btrfs_folio_end_lock(const struct btrfs_fs_info *fs_info,
+			  struct folio *folio, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = folio_get_private(folio);
 
@@ -303,24 +303,24 @@ void btrfs_folio_end_writer_lock(const struct btrfs_fs_info *fs_info,
 
 	/*
 	 * For subpage case, there are two types of locked page.  With or
-	 * without writers number.
+	 * without locked number.
 	 *
-	 * Since we own the page lock, no one else could touch subpage::writers
+	 * Since we own the page lock, no one else could touch subpage::locked
 	 * and we are safe to do several atomic operations without spinlock.
 	 */
-	if (atomic_read(&subpage->writers) == 0) {
-		/* No writers, locked by plain lock_page(). */
+	if (atomic_read(&subpage->nr_locked) == 0) {
+		/* No subpage lock, locked by plain lock_page(). */
 		folio_unlock(folio);
 		return;
 	}
 
 	btrfs_subpage_clamp_range(folio, &start, &len);
-	if (btrfs_subpage_end_and_test_writer(fs_info, folio, start, len))
+	if (btrfs_subpage_end_and_test_lock(fs_info, folio, start, len))
 		folio_unlock(folio);
 }
 
-void btrfs_folio_end_writer_lock_bitmap(const struct btrfs_fs_info *fs_info,
-					struct folio *folio, unsigned long bitmap)
+void btrfs_folio_end_lock_bitmap(const struct btrfs_fs_info *fs_info,
+				 struct folio *folio, unsigned long bitmap)
 {
 	struct btrfs_subpage *subpage = folio_get_private(folio);
 	const int start_bit = fs_info->sectors_per_page * btrfs_bitmap_nr_locked;
@@ -334,8 +334,8 @@ void btrfs_folio_end_writer_lock_bitmap(const struct btrfs_fs_info *fs_info,
 		return;
 	}
 
-	if (atomic_read(&subpage->writers) == 0) {
-		/* No writers, locked by plain lock_page(). */
+	if (atomic_read(&subpage->nr_locked) == 0) {
+		/* No subpage lock, locked by plain lock_page(). */
 		folio_unlock(folio);
 		return;
 	}
@@ -345,8 +345,8 @@ void btrfs_folio_end_writer_lock_bitmap(const struct btrfs_fs_info *fs_info,
 		if (test_and_clear_bit(bit + start_bit, subpage->bitmaps))
 			cleared++;
 	}
-	ASSERT(atomic_read(&subpage->writers) >= cleared);
-	last = atomic_sub_and_test(cleared, &subpage->writers);
+	ASSERT(atomic_read(&subpage->nr_locked) >= cleared);
+	last = atomic_sub_and_test(cleared, &subpage->nr_locked);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 	if (last)
 		folio_unlock(folio);
@@ -671,8 +671,8 @@ void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info,
  * This populates the involved subpage ranges so that subpage helpers can
  * properly unlock them.
  */
-void btrfs_folio_set_writer_lock(const struct btrfs_fs_info *fs_info,
-				 struct folio *folio, u64 start, u32 len)
+void btrfs_folio_set_lock(const struct btrfs_fs_info *fs_info,
+			  struct folio *folio, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage;
 	unsigned long flags;
@@ -691,7 +691,7 @@ void btrfs_folio_set_writer_lock(const struct btrfs_fs_info *fs_info,
 	/* Target range should not yet be locked. */
 	ASSERT(bitmap_test_range_all_zero(subpage->bitmaps, start_bit, nbits));
 	bitmap_set(subpage->bitmaps, start_bit, nbits);
-	ret = atomic_add_return(nbits, &subpage->writers);
+	ret = atomic_add_return(nbits, &subpage->nr_locked);
 	ASSERT(ret <= fs_info->sectors_per_page);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
