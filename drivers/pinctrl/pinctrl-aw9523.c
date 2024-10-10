@@ -550,10 +550,10 @@ static int aw9523_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 /**
  * _aw9523_gpio_get_multiple - Get I/O state for an entire port
- * @regmap: Regmap structure
- * @pin: gpiolib pin number
+ * @awi: Controller data
  * @regbit: hw pin index, used to retrieve port number
  * @state: returned port I/O state
+ * @mask: lines to read values for
  *
  * Return: Zero for success or negative number for error
  */
