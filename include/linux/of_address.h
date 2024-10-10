@@ -83,8 +83,8 @@ extern struct of_pci_range *of_pci_range_parser_one(
 					struct of_pci_range *range);
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				      struct resource *r);
-extern int of_pci_range_to_resource(struct of_pci_range *range,
-				    struct device_node *np,
+extern int of_pci_range_to_resource(const struct of_pci_range *range,
+				    const struct device_node *np,
 				    struct resource *res);
 extern int of_range_to_resource(struct device_node *np, int index,
 				struct resource *res);

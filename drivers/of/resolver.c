@@ -147,8 +147,8 @@ static int node_name_cmp(const struct device_node *dn1,
  * of offsets of the phandle reference(s) within the respective property
  * value(s).  The values at these offsets will be fixed up.
  */
-static int adjust_local_phandle_references(struct device_node *local_fixups,
-		struct device_node *overlay, int phandle_delta)
+static int adjust_local_phandle_references(const struct device_node *local_fixups,
+		const struct device_node *overlay, int phandle_delta)
 {
 	struct device_node *overlay_child;
 	struct property *prop_fix, *prop;

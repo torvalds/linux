@@ -147,7 +147,7 @@ static unsigned int of_bus_pci_get_flags(const __be32 *addr)
  * PCI bus specific translator
  */
 
-static bool of_node_is_pcie(struct device_node *np)
+static bool of_node_is_pcie(const struct device_node *np)
 {
 	bool is_pcie = of_node_name_eq(np, "pcie");
 
@@ -230,8 +230,8 @@ static int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
  * To guard against that we try to register the IO range first.
  * If that fails we know that pci_address_to_pio() will do too.
  */
-int of_pci_range_to_resource(struct of_pci_range *range,
-			     struct device_node *np, struct resource *res)
+int of_pci_range_to_resource(const struct of_pci_range *range,
+			     const struct device_node *np, struct resource *res)
 {
 	u64 start;
 	int err;
@@ -399,7 +399,7 @@ static struct of_bus *of_match_bus(struct device_node *np)
 	return NULL;
 }
 
-static int of_empty_ranges_quirk(struct device_node *np)
+static int of_empty_ranges_quirk(const struct device_node *np)
 {
 	if (IS_ENABLED(CONFIG_PPC)) {
 		/* To save cycles, we cache the result for global "Mac" setting */
@@ -1030,7 +1030,7 @@ EXPORT_SYMBOL_GPL(of_dma_is_coherent);
  * This is currently only enabled on builds that support Apple ARM devices, as
  * an optimization.
  */
-static bool of_mmio_is_nonposted(struct device_node *np)
+static bool of_mmio_is_nonposted(const struct device_node *np)
 {
 	if (!IS_ENABLED(CONFIG_ARCH_APPLE))
 		return false;

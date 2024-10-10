@@ -357,7 +357,7 @@ extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 extern struct device_node *of_cpu_device_node_get(int cpu);
 extern int of_cpu_node_to_id(struct device_node *np);
 extern struct device_node *of_get_next_cpu_node(struct device_node *prev);
-extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
+extern struct device_node *of_get_cpu_state_node(const struct device_node *cpu_node,
 						 int index);
 extern u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread);
 
@@ -395,7 +395,7 @@ extern int of_phandle_iterator_args(struct of_phandle_iterator *it,
 				    int size);
 
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
-extern int of_alias_get_id(struct device_node *np, const char *stem);
+extern int of_alias_get_id(const struct device_node *np, const char *stem);
 extern int of_alias_get_highest_id(const char *stem);
 
 bool of_machine_compatible_match(const char *const *compats);
@@ -446,9 +446,9 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
  */
 const char *of_prop_next_string(struct property *prop, const char *cur);
 
-bool of_console_check(struct device_node *dn, char *name, int index);
+bool of_console_check(const struct device_node *dn, char *name, int index);
 
-int of_map_id(struct device_node *np, u32 id,
+int of_map_id(const struct device_node *np, u32 id,
 	       const char *map_name, const char *map_mask_name,
 	       struct device_node **target, u32 *id_out);
 
@@ -871,7 +871,7 @@ static inline void of_property_clear_flag(struct property *p, unsigned long flag
 {
 }
 
-static inline int of_map_id(struct device_node *np, u32 id,
+static inline int of_map_id(const struct device_node *np, u32 id,
 			     const char *map_name, const char *map_mask_name,
 			     struct device_node **target, u32 *id_out)
 {
@@ -1734,7 +1734,7 @@ struct of_overlay_notify_data {
 #ifdef CONFIG_OF_OVERLAY
 
 int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
-			 int *ovcs_id, struct device_node *target_base);
+			 int *ovcs_id, const struct device_node *target_base);
 int of_overlay_remove(int *ovcs_id);
 int of_overlay_remove_all(void);
 
@@ -1744,7 +1744,7 @@ int of_overlay_notifier_unregister(struct notifier_block *nb);
 #else
 
 static inline int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
-				       int *ovcs_id, struct device_node *target_base)
+				       int *ovcs_id, const struct device_node *target_base)
 {
 	return -ENOTSUPP;
 }

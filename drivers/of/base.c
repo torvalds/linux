@@ -771,7 +771,7 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_get_child_by_name);
 
-struct device_node *__of_find_node_by_path(struct device_node *parent,
+struct device_node *__of_find_node_by_path(const struct device_node *parent,
 						const char *path)
 {
 	struct device_node *child;
@@ -1840,7 +1840,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
  *
  * Return: The alias id if found.
  */
-int of_alias_get_id(struct device_node *np, const char *stem)
+int of_alias_get_id(const struct device_node *np, const char *stem)
 {
 	struct alias_prop *app;
 	int id = -ENODEV;
@@ -1898,7 +1898,7 @@ EXPORT_SYMBOL_GPL(of_alias_get_highest_id);
  *
  * Return: TRUE if console successfully setup. Otherwise return FALSE.
  */
-bool of_console_check(struct device_node *dn, char *name, int index)
+bool of_console_check(const struct device_node *dn, char *name, int index)
 {
 	if (!dn || dn != of_stdout || console_set_on_cmdline)
 		return false;
@@ -1986,7 +1986,7 @@ int of_find_last_cache_level(unsigned int cpu)
  *
  * Return: 0 on success or a standard error code on failure.
  */
-int of_map_id(struct device_node *np, u32 id,
+int of_map_id(const struct device_node *np, u32 id,
 	       const char *map_name, const char *map_mask_name,
 	       struct device_node **target, u32 *id_out)
 {

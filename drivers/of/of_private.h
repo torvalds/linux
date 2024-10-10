@@ -127,7 +127,7 @@ void __of_prop_free(struct property *prop);
 struct device_node *__of_node_dup(const struct device_node *np,
 				  const char *full_name);
 
-struct device_node *__of_find_node_by_path(struct device_node *parent,
+struct device_node *__of_find_node_by_path(const struct device_node *parent,
 						const char *path);
 struct device_node *__of_find_node_by_full_path(struct device_node *node,
 						const char *path);
