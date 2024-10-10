@@ -255,7 +255,7 @@ static struct platform_driver wm8350_led_driver = {
 		   .name = "wm8350-led",
 		   },
 	.probe = wm8350_led_probe,
-	.remove_new = wm8350_led_remove,
+	.remove = wm8350_led_remove,
 	.shutdown = wm8350_led_shutdown,
 };
 

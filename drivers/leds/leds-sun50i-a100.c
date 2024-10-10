@@ -558,7 +558,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(sun50i_a100_ledc_pm,
 
 static struct platform_driver sun50i_a100_ledc_driver = {
 	.probe		= sun50i_a100_ledc_probe,
-	.remove_new	= sun50i_a100_ledc_remove,
+	.remove		= sun50i_a100_ledc_remove,
 	.shutdown	= sun50i_a100_ledc_remove,
 	.driver		= {
 		.name		= "sun50i-a100-ledc",

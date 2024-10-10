@@ -49,7 +49,7 @@ static void rb532_led_remove(struct platform_device *pdev)
 
 static struct platform_driver rb532_led_driver = {
 	.probe = rb532_led_probe,
-	.remove_new = rb532_led_remove,
+	.remove = rb532_led_remove,
 	.driver = {
 		.name = "rb532-led",
 	},

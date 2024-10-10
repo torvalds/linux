@@ -536,7 +536,7 @@ MODULE_DEVICE_TABLE(of, aat1290_led_dt_match);
 
 static struct platform_driver aat1290_led_driver = {
 	.probe		= aat1290_led_probe,
-	.remove_new	= aat1290_led_remove,
+	.remove		= aat1290_led_remove,
 	.driver		= {
 		.name	= "aat1290",
 		.of_match_table = aat1290_led_dt_match,

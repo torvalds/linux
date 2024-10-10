@@ -886,7 +886,7 @@ static struct platform_driver mt6360_led_driver = {
 		.of_match_table = mt6360_led_of_id,
 	},
 	.probe = mt6360_led_probe,
-	.remove_new = mt6360_led_remove,
+	.remove = mt6360_led_remove,
 };
 module_platform_driver(mt6360_led_driver);
 

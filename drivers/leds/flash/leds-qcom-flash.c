@@ -940,7 +940,7 @@ static struct platform_driver qcom_flash_led_driver = {
 		.of_match_table = qcom_flash_led_match_table,
 	},
 	.probe = qcom_flash_led_probe,
-	.remove_new = qcom_flash_led_remove,
+	.remove = qcom_flash_led_remove,
 };
 
 module_platform_driver(qcom_flash_led_driver);

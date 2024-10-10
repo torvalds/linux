@@ -344,7 +344,7 @@ static struct platform_driver sc27xx_led_driver = {
 		.of_match_table = sc27xx_led_of_match,
 	},
 	.probe = sc27xx_led_probe,
-	.remove_new = sc27xx_led_remove,
+	.remove = sc27xx_led_remove,
 };
 
 module_platform_driver(sc27xx_led_driver);

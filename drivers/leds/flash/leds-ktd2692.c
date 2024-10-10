@@ -343,7 +343,7 @@ static struct platform_driver ktd2692_driver = {
 		.of_match_table = ktd2692_match,
 	},
 	.probe  = ktd2692_probe,
-	.remove_new = ktd2692_remove,
+	.remove = ktd2692_remove,
 };
 
 module_platform_driver(ktd2692_driver);
