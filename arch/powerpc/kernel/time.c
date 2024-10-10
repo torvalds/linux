@@ -71,6 +71,7 @@
 #include <asm/vdso_datapage.h>
 #include <asm/firmware.h>
 #include <asm/mce.h>
+#include <asm/systemcfg.h>
 
 /* powerpc clocksource/clockevent code */
 

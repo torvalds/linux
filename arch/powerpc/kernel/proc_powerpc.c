@@ -13,6 +13,7 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/rtas.h>
+#include <asm/systemcfg.h>
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_PPC64_PROC_SYSTEMCFG
