@@ -3111,13 +3111,13 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 		state->id, service->localport, dir_char, queue->local_insert,
 		queue->remote_insert, queue->process);
 
-        if (bulk_waiter) {
-                bulk_waiter->bulk = bulk;
+	if (bulk_waiter) {
+		bulk_waiter->bulk = bulk;
 		if (wait_for_completion_killable(&bulk_waiter->event))
 			status = -EINTR;
-                else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
-                        status = -EINVAL;
-        }
+		else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
+			status = -EINVAL;
+	}
 
 	return status;
 
