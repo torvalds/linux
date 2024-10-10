@@ -8,20 +8,22 @@
 #include <asm/vgtod.h>
 #include <asm/vvar.h>
 
+extern struct vdso_data *vdso_data;
+
 /*
  * Update the vDSO data page to keep in sync with kernel timekeeping.
  */
 static __always_inline
 struct vdso_data *__x86_get_k_vdso_data(void)
 {
-	return _vdso_data;
+	return vdso_data;
 }
 #define __arch_get_k_vdso_data __x86_get_k_vdso_data
 
 static __always_inline
 struct vdso_rng_data *__x86_get_k_vdso_rng_data(void)
 {
-	return (void *)&__vvar_page + __VDSO_RND_DATA_OFFSET;
+	return (void *)vdso_data + __VDSO_RND_DATA_OFFSET;
 }
 #define __arch_get_k_vdso_rng_data __x86_get_k_vdso_rng_data
 

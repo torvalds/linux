@@ -20,25 +20,19 @@
 #include <asm/vgtod.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
-#include <asm/vvar.h>
 #include <asm/tlb.h>
 #include <asm/page.h>
 #include <asm/desc.h>
 #include <asm/cpufeature.h>
 #include <clocksource/hyperv_timer.h>
 
-#undef _ASM_X86_VVAR_H
-#define EMIT_VVAR(name, offset)	\
-	const size_t name ## _offset = offset;
-#include <asm/vvar.h>
-
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
 {
-	return (struct vdso_data *)(vvar_page + _vdso_data_offset);
+	return (struct vdso_data *)vvar_page;
 }
-#undef EMIT_VVAR
 
-DEFINE_VVAR(struct vdso_data, _vdso_data);
+static union vdso_data_store vdso_data_store __page_aligned_data;
+struct vdso_data *vdso_data = vdso_data_store.data;
 
 unsigned int vclocks_used __read_mostly;
 
@@ -153,7 +147,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	if (sym_offset == image->sym_vvar_page) {
 		struct page *timens_page = find_timens_vvar_page(vma);
 
-		pfn = __pa_symbol(&__vvar_page) >> PAGE_SHIFT;
+		pfn = __pa_symbol(vdso_data) >> PAGE_SHIFT;
 
 		/*
 		 * If a task belongs to a time namespace then a namespace
@@ -200,7 +194,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 		if (!timens_page)
 			return VM_FAULT_SIGBUS;
 
-		pfn = __pa_symbol(&__vvar_page) >> PAGE_SHIFT;
+		pfn = __pa_symbol(vdso_data) >> PAGE_SHIFT;
 		return vmf_insert_pfn(vma, vmf->address, pfn);
 	}
 
