@@ -507,6 +507,16 @@ config SC_CAMCC_8280XP
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config SA_DISPCC_8775P
+	tristate "SA8775P Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SA_GCC_8775P
+	help
+	  Support for the two display clock controllers on Qualcomm
+	  Technologies, Inc. SA8775P devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config SC_DISPCC_7180
 	tristate "SC7180 Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
