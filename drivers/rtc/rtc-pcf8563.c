@@ -11,14 +11,14 @@
  * https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf
  */
 
-#include <linux/clk-provider.h>
-#include <linux/i2c.h>
 #include <linux/bcd.h>
-#include <linux/rtc.h>
-#include <linux/slab.h>
+#include <linux/clk-provider.h>
+#include <linux/err.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/err.h>
+#include <linux/rtc.h>
+#include <linux/slab.h>
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
