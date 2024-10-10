@@ -140,7 +140,7 @@ int thermal_register_governor(struct thermal_governor *governor)
 			def_governor = governor;
 	}
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
 
 	list_for_each_entry(pos, &thermal_tz_list, node) {
 		/*
@@ -163,7 +163,6 @@ int thermal_register_governor(struct thermal_governor *governor)
 		}
 	}
 
-	mutex_unlock(&thermal_list_lock);
 	mutex_unlock(&thermal_governor_lock);
 
 	return err;
@@ -181,7 +180,9 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 	if (!__find_governor(governor->name))
 		goto exit;
 
-	mutex_lock(&thermal_list_lock);
+	list_del(&governor->governor_list);
+
+	guard(mutex)(&thermal_list_lock);
 
 	list_for_each_entry(pos, &thermal_tz_list, node) {
 		if (!strncasecmp(pos->governor->name, governor->name,
@@ -189,8 +190,6 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 			thermal_set_governor(pos, NULL);
 	}
 
-	mutex_unlock(&thermal_list_lock);
-	list_del(&governor->governor_list);
 exit:
 	mutex_unlock(&thermal_governor_lock);
 }
@@ -688,51 +687,52 @@ int for_each_thermal_cooling_device(int (*cb)(struct thermal_cooling_device *,
 					      void *), void *data)
 {
 	struct thermal_cooling_device *cdev;
-	int ret = 0;
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
+
 	list_for_each_entry(cdev, &thermal_cdev_list, node) {
+		int ret;
+
 		ret = cb(cdev, data);
 		if (ret)
-			break;
+			return ret;
 	}
-	mutex_unlock(&thermal_list_lock);
 
-	return ret;
+	return 0;
 }
 
 int for_each_thermal_zone(int (*cb)(struct thermal_zone_device *, void *),
 			  void *data)
 {
 	struct thermal_zone_device *tz;
-	int ret = 0;
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
+
 	list_for_each_entry(tz, &thermal_tz_list, node) {
+		int ret;
+
 		ret = cb(tz, data);
 		if (ret)
-			break;
+			return ret;
 	}
-	mutex_unlock(&thermal_list_lock);
 
-	return ret;
+	return 0;
 }
 
 struct thermal_zone_device *thermal_zone_get_by_id(int id)
 {
-	struct thermal_zone_device *tz, *match = NULL;
+	struct thermal_zone_device *tz;
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
+
 	list_for_each_entry(tz, &thermal_tz_list, node) {
 		if (tz->id == id) {
 			get_device(&tz->device);
-			match = tz;
-			break;
+			return tz;
 		}
 	}
-	mutex_unlock(&thermal_list_lock);
 
-	return match;
+	return NULL;
 }
 
 /*
@@ -971,14 +971,12 @@ static void thermal_cooling_device_init_complete(struct thermal_cooling_device *
 {
 	struct thermal_zone_device *tz;
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
 
 	list_add(&cdev->node, &thermal_cdev_list);
 
 	list_for_each_entry(tz, &thermal_tz_list, node)
 		thermal_zone_cdev_bind(tz, cdev);
-
-	mutex_unlock(&thermal_list_lock);
 }
 
 /**
@@ -1212,10 +1210,10 @@ void thermal_cooling_device_update(struct thermal_cooling_device *cdev)
 	 * Hold thermal_list_lock throughout the update to prevent the device
 	 * from going away while being updated.
 	 */
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
 
 	if (!thermal_cooling_device_present(cdev))
-		goto unlock_list;
+		return;
 
 	/*
 	 * Update under the cdev lock to prevent the state from being set beyond
@@ -1257,9 +1255,6 @@ void thermal_cooling_device_update(struct thermal_cooling_device *cdev)
 
 unlock:
 	mutex_unlock(&cdev->lock);
-
-unlock_list:
-	mutex_unlock(&thermal_list_lock);
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_update);
 
@@ -1283,24 +1278,18 @@ static void thermal_zone_cdev_unbind(struct thermal_zone_device *tz,
 static bool thermal_cooling_device_exit(struct thermal_cooling_device *cdev)
 {
 	struct thermal_zone_device *tz;
-	bool ret = true;
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
 
-	if (!thermal_cooling_device_present(cdev)) {
-		ret = false;
-		goto unlock;
-	}
+	if (!thermal_cooling_device_present(cdev))
+		return false;
 
 	list_del(&cdev->node);
 
 	list_for_each_entry(tz, &thermal_tz_list, node)
 		thermal_zone_cdev_unbind(tz, cdev);
 
-unlock:
-	mutex_unlock(&thermal_list_lock);
-
-	return ret;
+	return true;
 }
 
 /**
@@ -1347,7 +1336,7 @@ static void thermal_zone_init_complete(struct thermal_zone_device *tz)
 {
 	struct thermal_cooling_device *cdev;
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
 
 	list_add_tail(&tz->node, &thermal_tz_list);
 
@@ -1367,8 +1356,6 @@ static void thermal_zone_init_complete(struct thermal_zone_device *tz)
 		tz->state |= TZ_STATE_FLAG_SUSPENDED;
 
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
-
-	mutex_unlock(&thermal_list_lock);
 }
 
 /**
@@ -1595,14 +1582,11 @@ EXPORT_SYMBOL_GPL(thermal_zone_device);
 static bool thermal_zone_exit(struct thermal_zone_device *tz)
 {
 	struct thermal_cooling_device *cdev;
-	bool ret = true;
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
 
-	if (list_empty(&tz->node)) {
-		ret = false;
-		goto unlock;
-	}
+	if (list_empty(&tz->node))
+		return false;
 
 	guard(thermal_zone)(tz);
 
@@ -1613,10 +1597,7 @@ static bool thermal_zone_exit(struct thermal_zone_device *tz)
 	list_for_each_entry(cdev, &thermal_cdev_list, node)
 		__thermal_zone_cdev_unbind(tz, cdev);
 
-unlock:
-	mutex_unlock(&thermal_list_lock);
-
-	return ret;
+	return true;
 }
 
 /**
@@ -1669,24 +1650,23 @@ struct thermal_zone_device *thermal_zone_get_zone_by_name(const char *name)
 	unsigned int found = 0;
 
 	if (!name)
-		goto exit;
+		return ERR_PTR(-EINVAL);
 
-	mutex_lock(&thermal_list_lock);
+	guard(mutex)(&thermal_list_lock);
+
 	list_for_each_entry(pos, &thermal_tz_list, node)
 		if (!strncasecmp(name, pos->type, THERMAL_NAME_LENGTH)) {
 			found++;
 			ref = pos;
 		}
-	mutex_unlock(&thermal_list_lock);
 
-	/* nothing has been found, thus an error code for it */
-	if (found == 0)
-		ref = ERR_PTR(-ENODEV);
-	else if (found > 1)
-	/* Success only when an unique zone is found */
-		ref = ERR_PTR(-EEXIST);
+	if (!found)
+		return ERR_PTR(-ENODEV);
 
-exit:
+	/* Success only when one zone is found. */
+	if (found > 1)
+		return ERR_PTR(-EEXIST);
+
 	return ref;
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_name);
@@ -1727,6 +1707,18 @@ static void thermal_zone_pm_prepare(struct thermal_zone_device *tz)
 	tz->state |= TZ_STATE_FLAG_SUSPENDED;
 }
 
+static void thermal_pm_notify_prepare(void)
+{
+	struct thermal_zone_device *tz;
+
+	guard(mutex)(&thermal_list_lock);
+
+	thermal_pm_suspended = true;
+
+	list_for_each_entry(tz, &thermal_tz_list, node)
+		thermal_zone_pm_prepare(tz);
+}
+
 static void thermal_zone_pm_complete(struct thermal_zone_device *tz)
 {
 	guard(thermal_zone)(tz);
@@ -1745,35 +1737,31 @@ static void thermal_zone_pm_complete(struct thermal_zone_device *tz)
 	mod_delayed_work(system_freezable_power_efficient_wq, &tz->poll_queue, 0);
 }
 
-static int thermal_pm_notify(struct notifier_block *nb,
-			     unsigned long mode, void *_unused)
+static void thermal_pm_notify_complete(void)
 {
 	struct thermal_zone_device *tz;
 
+	guard(mutex)(&thermal_list_lock);
+
+	thermal_pm_suspended = false;
+
+	list_for_each_entry(tz, &thermal_tz_list, node)
+		thermal_zone_pm_complete(tz);
+}
+
+static int thermal_pm_notify(struct notifier_block *nb,
+			     unsigned long mode, void *_unused)
+{
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_RESTORE_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		mutex_lock(&thermal_list_lock);
-
-		thermal_pm_suspended = true;
-
-		list_for_each_entry(tz, &thermal_tz_list, node)
-			thermal_zone_pm_prepare(tz);
-
-		mutex_unlock(&thermal_list_lock);
+		thermal_pm_notify_prepare();
 		break;
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
-		mutex_lock(&thermal_list_lock);
-
-		thermal_pm_suspended = false;
-
-		list_for_each_entry(tz, &thermal_tz_list, node)
-			thermal_zone_pm_complete(tz);
-
-		mutex_unlock(&thermal_list_lock);
+		thermal_pm_notify_complete();
 		break;
 	default:
 		break;
