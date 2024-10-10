@@ -39,7 +39,6 @@ struct vdso_data *arch_get_vdso_data(void *vvar_page)
 #undef EMIT_VVAR
 
 DEFINE_VVAR(struct vdso_data, _vdso_data);
-DEFINE_VVAR_SINGLE(struct vdso_rng_data, _vdso_rng_data);
 
 unsigned int vclocks_used __read_mostly;
 
