@@ -1345,6 +1345,25 @@ int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp)
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_crit_temp);
 
+static int thermal_zone_init_governor(struct thermal_zone_device *tz)
+{
+	struct thermal_governor *governor;
+	int ret;
+
+	mutex_lock(&thermal_governor_lock);
+
+	if (tz->tzp)
+		governor = __find_governor(tz->tzp->governor_name);
+	else
+		governor = def_governor;
+
+	ret = thermal_set_governor(tz, governor);
+
+	mutex_unlock(&thermal_governor_lock);
+
+	return ret;
+}
+
 static void thermal_zone_init_complete(struct thermal_zone_device *tz)
 {
 	struct thermal_cooling_device *cdev;
@@ -1409,7 +1428,6 @@ thermal_zone_device_register_with_trips(const char *type,
 	struct thermal_trip_desc *td;
 	int id;
 	int result;
-	struct thermal_governor *governor;
 
 	if (!type || strlen(type) == 0) {
 		pr_err("No thermal zone type defined\n");
@@ -1507,21 +1525,9 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (result)
 		goto release_device;
 
-	/* Update 'this' zone's governor information */
-	mutex_lock(&thermal_governor_lock);
-
-	if (tz->tzp)
-		governor = __find_governor(tz->tzp->governor_name);
-	else
-		governor = def_governor;
-
-	result = thermal_set_governor(tz, governor);
-	if (result) {
-		mutex_unlock(&thermal_governor_lock);
+	result = thermal_zone_init_governor(tz);
+	if (result)
 		goto unregister;
-	}
-
-	mutex_unlock(&thermal_governor_lock);
 
 	if (!tz->tzp || !tz->tzp->no_hwmon) {
 		result = thermal_add_hwmon_sysfs(tz);
