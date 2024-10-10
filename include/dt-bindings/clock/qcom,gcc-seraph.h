@@ -183,6 +183,17 @@
 #define GCC_VIDEO_AXI0_CLK					173
 #define GCC_VIDEO_AXI1_CLK					174
 #define GCC_VIDEO_XO_CLK					175
+#define GCC_PDM_XO4_DIV_CLK_SRC					176
+#define GCC_PWM0_XO512_CLK_SRC					177
+#define GCC_PWM1_XO512_CLK_SRC					178
+#define GCC_PWM2_XO512_CLK_SRC					179
+#define GCC_PWM3_XO512_CLK_SRC					180
+#define GCC_PWM4_XO512_CLK_SRC					181
+#define GCC_PWM5_XO512_CLK_SRC					182
+#define GCC_PWM6_XO512_CLK_SRC					183
+#define GCC_PWM7_XO512_CLK_SRC					184
+#define GCC_PWM8_XO512_CLK_SRC					185
+#define GCC_PWM9_XO512_CLK_SRC					186
 
 /* GCC resets */
 #define GCC_CAMERA_BCR						0
@@ -215,5 +226,10 @@
 #define GCC_VIDEO_BCR						27
 #define GCC_VIDEO_AXI0_CLK_ARES					28
 #define GCC_VIDEO_AXI1_CLK_ARES					29
+#define GCC_VIDEO_XO_CLK_ARES					30
+#define GCC_EVA_AXI0_CLK_ARES					31
+#define GCC_EVA_AXI0C_CLK_ARES					32
+#define GCC_LSR_AXI0_CLK_ARES					33
+#define GCC_LSR_AXI_CV_CPU_CLK_ARES				34
 
 #endif

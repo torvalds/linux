@@ -29,5 +29,8 @@
 #define LSR_CC_LSR_NOC_BCR					1
 #define LSR_CC_MVS0_BCR						2
 #define LSR_CC_MVS0C_BCR					3
+#define LSR_CC_MVS0_FREERUN_CLK_ARES				4
+#define LSR_CC_MVS0C_CLK_ARES					5
+#define LSR_CC_MVS0C_FREERUN_CLK_ARES				6
 
 #endif

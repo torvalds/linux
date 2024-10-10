@@ -40,5 +40,7 @@
 #define VIDEO_CC_MVS0C_BCR					4
 #define VIDEO_CC_MVS0C_CLK_ARES					5
 #define VIDEO_CC_XO_CLK_ARES					6
+#define VIDEO_CC_MVS0_FREERUN_CLK_ARES				7
+#define VIDEO_CC_MVS0C_FREERUN_CLK_ARES				8
 
 #endif
