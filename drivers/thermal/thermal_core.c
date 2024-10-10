@@ -967,6 +967,20 @@ static void thermal_zone_cdev_bind(struct thermal_zone_device *tz,
 		__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 }
 
+static void thermal_cooling_device_init_complete(struct thermal_cooling_device *cdev)
+{
+	struct thermal_zone_device *tz;
+
+	mutex_lock(&thermal_list_lock);
+
+	list_add(&cdev->node, &thermal_cdev_list);
+
+	list_for_each_entry(tz, &thermal_tz_list, node)
+		thermal_zone_cdev_bind(tz, cdev);
+
+	mutex_unlock(&thermal_list_lock);
+}
+
 /**
  * __thermal_cooling_device_register() - register a new thermal cooling device
  * @np:		a pointer to a device tree node.
@@ -989,7 +1003,6 @@ __thermal_cooling_device_register(struct device_node *np,
 				  const struct thermal_cooling_device_ops *ops)
 {
 	struct thermal_cooling_device *cdev;
-	struct thermal_zone_device *pos;
 	unsigned long current_state;
 	int id, ret;
 
@@ -1056,16 +1069,7 @@ __thermal_cooling_device_register(struct device_node *np,
 	if (current_state <= cdev->max_state)
 		thermal_debug_cdev_add(cdev, current_state);
 
-	/* Add 'this' new cdev to the global cdev list */
-	mutex_lock(&thermal_list_lock);
-
-	list_add(&cdev->node, &thermal_cdev_list);
-
-	/* Update binding information for 'this' new cdev */
-	list_for_each_entry(pos, &thermal_tz_list, node)
-		thermal_zone_cdev_bind(pos, cdev);
-
-	mutex_unlock(&thermal_list_lock);
+	thermal_cooling_device_init_complete(cdev);
 
 	return cdev;
 
@@ -1276,38 +1280,42 @@ static void thermal_zone_cdev_unbind(struct thermal_zone_device *tz,
 	__thermal_zone_cdev_unbind(tz, cdev);
 }
 
+static bool thermal_cooling_device_exit(struct thermal_cooling_device *cdev)
+{
+	struct thermal_zone_device *tz;
+	bool ret = true;
+
+	mutex_lock(&thermal_list_lock);
+
+	if (!thermal_cooling_device_present(cdev)) {
+		ret = false;
+		goto unlock;
+	}
+
+	list_del(&cdev->node);
+
+	list_for_each_entry(tz, &thermal_tz_list, node)
+		thermal_zone_cdev_unbind(tz, cdev);
+
+unlock:
+	mutex_unlock(&thermal_list_lock);
+
+	return ret;
+}
+
 /**
- * thermal_cooling_device_unregister - removes a thermal cooling device
- * @cdev:	the thermal cooling device to remove.
- *
- * thermal_cooling_device_unregister() must be called when a registered
- * thermal cooling device is no longer needed.
+ * thermal_cooling_device_unregister() - removes a thermal cooling device
+ * @cdev: Thermal cooling device to remove.
  */
 void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 {
-	struct thermal_zone_device *tz;
-
 	if (!cdev)
 		return;
 
 	thermal_debug_cdev_remove(cdev);
 
-	mutex_lock(&thermal_list_lock);
-
-	if (!thermal_cooling_device_present(cdev)) {
-		mutex_unlock(&thermal_list_lock);
-		return;
-	}
-
-	list_del(&cdev->node);
-
-	/* Unbind all thermal zones associated with 'this' cdev */
-	list_for_each_entry(tz, &thermal_tz_list, node)
-		thermal_zone_cdev_unbind(tz, cdev);
-
-	mutex_unlock(&thermal_list_lock);
-
-	device_unregister(&cdev->device);
+	if (thermal_cooling_device_exit(cdev))
+		device_unregister(&cdev->device);
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_unregister);
 
