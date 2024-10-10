@@ -5525,11 +5525,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev->features |= dev->hw_features;
 
-	/* There has been a number of reports that using SG/TSO results in
-	 * tx timeouts. However for a lot of people SG/TSO works fine.
-	 * Therefore disable both features by default, but allow users to
-	 * enable them. Use at own risk!
-	 */
 	if (rtl_chip_supports_csum_v2(tp)) {
 		dev->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
 		netif_set_tso_max_size(dev, RTL_GSO_MAX_SIZE_V2);
@@ -5539,6 +5534,17 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_set_tso_max_size(dev, RTL_GSO_MAX_SIZE_V1);
 		netif_set_tso_max_segs(dev, RTL_GSO_MAX_SEGS_V1);
 	}
+
+	/* There has been a number of reports that using SG/TSO results in
+	 * tx timeouts. However for a lot of people SG/TSO works fine.
+	 * It's not fully clear which chip versions are affected. Vendor
+	 * drivers enable SG/TSO for certain chip versions per default,
+	 * let's mimic this here. On other chip versions users can
+	 * use ethtool to enable SG/TSO, use at own risk!
+	 */
+	if (tp->mac_version >= RTL_GIGA_MAC_VER_46 &&
+	    tp->mac_version != RTL_GIGA_MAC_VER_61)
+		dev->features |= dev->hw_features;
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
