@@ -206,6 +206,19 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 }
 
 /**
+ * thermal_cdev_update_nocheck() - Unconditionally update cooling device state
+ * @cdev: Target cooling device.
+ */
+void thermal_cdev_update_nocheck(struct thermal_cooling_device *cdev)
+{
+	mutex_lock(&cdev->lock);
+
+	__thermal_cdev_update(cdev);
+
+	mutex_unlock(&cdev->lock);
+}
+
+/**
  * thermal_zone_get_slope - return the slope attribute of the thermal zone
  * @tz: thermal zone device with the slope attribute
  *

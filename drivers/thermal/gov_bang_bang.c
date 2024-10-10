@@ -30,9 +30,7 @@ static void bang_bang_set_instance_target(struct thermal_instance *instance,
 
 	dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
 
-	mutex_lock(&instance->cdev->lock);
-	__thermal_cdev_update(instance->cdev);
-	mutex_unlock(&instance->cdev->lock);
+	thermal_cdev_update_nocheck(instance->cdev);
 }
 
 /**

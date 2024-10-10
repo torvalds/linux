@@ -89,9 +89,7 @@ static void fair_share_throttle(struct thermal_zone_device *tz,
 		}
 		instance->target = div_u64(dividend, divisor);
 
-		mutex_lock(&cdev->lock);
-		__thermal_cdev_update(cdev);
-		mutex_unlock(&cdev->lock);
+		thermal_cdev_update_nocheck(cdev);
 	}
 }
 

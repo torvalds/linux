@@ -215,6 +215,7 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 }
 
 void thermal_cdev_update(struct thermal_cooling_device *);
+void thermal_cdev_update_nocheck(struct thermal_cooling_device *cdev);
 void __thermal_cdev_update(struct thermal_cooling_device *cdev);
 
 int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip);
