@@ -52,10 +52,6 @@ void update_surface_trace(
 
 void post_surface_trace(struct dc *dc);
 
-void context_timing_trace(
-		struct dc *dc,
-		struct resource_context *res_ctx);
-
 void context_clock_trace(
 		struct dc *dc,
 		struct dc_state *context);
