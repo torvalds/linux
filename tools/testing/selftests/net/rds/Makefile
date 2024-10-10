@@ -8,6 +8,6 @@ TEST_PROGS := run.sh \
 
 TEST_FILES := include.sh
 
-EXTRA_CLEAN := /tmp/rds_logs
+EXTRA_CLEAN := /tmp/rds_logs include.sh
 
 include ../../lib.mk
