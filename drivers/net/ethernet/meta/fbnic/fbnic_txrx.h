@@ -47,6 +47,7 @@ struct fbnic_net;
 
 struct fbnic_pkt_buff {
 	struct xdp_buff buff;
+	ktime_t hwtstamp;
 	u32 data_truesize;
 	u16 data_len;
 	u16 nr_frags;
@@ -56,6 +57,8 @@ struct fbnic_queue_stats {
 	u64 packets;
 	u64 bytes;
 	u64 dropped;
+	u64 ts_packets;
+	u64 ts_lost;
 	struct u64_stats_sync syncp;
 };
 

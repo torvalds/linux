@@ -413,6 +413,44 @@ enum {
 #define FBNIC_TMI_DROP_CTRL		0x04401		/* 0x11004 */
 #define FBNIC_TMI_DROP_CTRL_EN			CSR_BIT(0)
 #define FBNIC_CSR_END_TMI		0x0443f	/* CSR section delimiter */
+
+/* Precision Time Protocol Registers */
+#define FBNIC_CSR_START_PTP		0x04800 /* CSR section delimiter */
+#define FBNIC_PTP_REG_BASE		0x04800		/* 0x12000 */
+
+#define FBNIC_PTP_CTRL			0x04800		/* 0x12000 */
+#define FBNIC_PTP_CTRL_EN			CSR_BIT(0)
+#define FBNIC_PTP_CTRL_MONO_EN			CSR_BIT(4)
+#define FBNIC_PTP_CTRL_TQS_OUT_EN		CSR_BIT(8)
+#define FBNIC_PTP_CTRL_MAC_OUT_IVAL		CSR_GENMASK(16, 12)
+#define FBNIC_PTP_CTRL_TICK_IVAL		CSR_GENMASK(23, 20)
+
+#define FBNIC_PTP_ADJUST		0x04801		/* 0x12004 */
+#define FBNIC_PTP_ADJUST_INIT			CSR_BIT(0)
+#define FBNIC_PTP_ADJUST_SUB_NUDGE		CSR_BIT(8)
+#define FBNIC_PTP_ADJUST_ADD_NUDGE		CSR_BIT(16)
+#define FBNIC_PTP_ADJUST_ADDEND_SET		CSR_BIT(24)
+
+#define FBNIC_PTP_INIT_HI		0x04802		/* 0x12008 */
+#define FBNIC_PTP_INIT_LO		0x04803		/* 0x1200c */
+
+#define FBNIC_PTP_NUDGE_NS		0x04804		/* 0x12010 */
+#define FBNIC_PTP_NUDGE_SUBNS		0x04805		/* 0x12014 */
+
+#define FBNIC_PTP_ADD_VAL_NS		0x04806		/* 0x12018 */
+#define FBNIC_PTP_ADD_VAL_NS_MASK		CSR_GENMASK(15, 0)
+#define FBNIC_PTP_ADD_VAL_SUBNS		0x04807	/* 0x1201c */
+
+#define FBNIC_PTP_CTR_VAL_HI		0x04808		/* 0x12020 */
+#define FBNIC_PTP_CTR_VAL_LO		0x04809		/* 0x12024 */
+
+#define FBNIC_PTP_MONO_PTP_CTR_HI	0x0480a		/* 0x12028 */
+#define FBNIC_PTP_MONO_PTP_CTR_LO	0x0480b		/* 0x1202c */
+
+#define FBNIC_PTP_CDC_FIFO_STATUS	0x0480c		/* 0x12030 */
+#define FBNIC_PTP_SPARE			0x0480d		/* 0x12034 */
+#define FBNIC_CSR_END_PTP		0x0480d /* CSR section delimiter */
+
 /* Rx Buffer Registers */
 #define FBNIC_CSR_START_RXB		0x08000	/* CSR section delimiter */
 enum {
@@ -548,6 +586,7 @@ enum {
 };
 
 #define FBNIC_RPC_ACT_TBL0_DMA_HINT		CSR_GENMASK(24, 16)
+#define FBNIC_RPC_ACT_TBL0_TS_ENA		CSR_BIT(28)
 #define FBNIC_RPC_ACT_TBL0_RSS_CTXT_ID		CSR_BIT(30)
 
 #define FBNIC_RPC_ACT_TBL1_DEFAULT	0x0840b		/* 0x2102c */

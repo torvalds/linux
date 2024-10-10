@@ -244,6 +244,12 @@ void fbnic_bmc_rpc_init(struct fbnic_dev *fbd)
 	 ((_ip) ? FBNIC_RPC_TCAM_ACT1_IP_VALID : 0) |	\
 	 ((_v6) ? FBNIC_RPC_TCAM_ACT1_IP_IS_V6 : 0))
 
+#define FBNIC_TSTAMP_MASK(_all, _udp, _ether)			\
+	(((_all) ? ((1u << FBNIC_NUM_HASH_OPT) - 1) : 0) |	\
+	 ((_udp) ? (1u << FBNIC_UDP6_HASH_OPT) |		\
+		   (1u << FBNIC_UDP4_HASH_OPT) : 0) |		\
+	 ((_ether) ? (1u << FBNIC_ETHER_HASH_OPT) : 0))
+
 void fbnic_rss_reinit(struct fbnic_dev *fbd, struct fbnic_net *fbn)
 {
 	static const u32 act1_value[FBNIC_NUM_HASH_OPT] = {
@@ -255,6 +261,7 @@ void fbnic_rss_reinit(struct fbnic_dev *fbd, struct fbnic_net *fbn)
 		FBNIC_ACT1_INIT(0, 0, 1, 0),	/* IP4 */
 		0				/* Ether */
 	};
+	u32 tstamp_mask = 0;
 	unsigned int i;
 
 	/* To support scenarios where a BMC is present we must write the
@@ -263,6 +270,28 @@ void fbnic_rss_reinit(struct fbnic_dev *fbd, struct fbnic_net *fbn)
 	 */
 	BUILD_BUG_ON(FBNIC_RSS_EN_NUM_UNICAST * 2 != FBNIC_RSS_EN_NUM_ENTRIES);
 	BUILD_BUG_ON(ARRAY_SIZE(act1_value) != FBNIC_NUM_HASH_OPT);
+
+	/* Set timestamp mask with 1b per flow type */
+	if (fbn->hwtstamp_config.rx_filter != HWTSTAMP_FILTER_NONE) {
+		switch (fbn->hwtstamp_config.rx_filter) {
+		case HWTSTAMP_FILTER_ALL:
+			tstamp_mask = FBNIC_TSTAMP_MASK(1, 1, 1);
+			break;
+		case HWTSTAMP_FILTER_PTP_V2_EVENT:
+			tstamp_mask = FBNIC_TSTAMP_MASK(0, 1, 1);
+			break;
+		case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+		case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+			tstamp_mask = FBNIC_TSTAMP_MASK(0, 1, 0);
+			break;
+		case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+			tstamp_mask = FBNIC_TSTAMP_MASK(0, 0, 1);
+			break;
+		default:
+			netdev_warn(fbn->netdev, "Unsupported hwtstamp_rx_filter\n");
+			break;
+		}
+	}
 
 	/* Program RSS hash enable mask for host in action TCAM/table. */
 	for (i = fbnic_bmc_present(fbd) ? 0 : FBNIC_RSS_EN_NUM_UNICAST;
@@ -287,6 +316,8 @@ void fbnic_rss_reinit(struct fbnic_dev *fbd, struct fbnic_net *fbn)
 
 		if (!dest)
 			dest = FBNIC_RPC_ACT_TBL0_DROP;
+		else if (tstamp_mask & (1u << flow_type))
+			dest |= FBNIC_RPC_ACT_TBL0_TS_ENA;
 
 		if (act1_value[flow_type] & FBNIC_RPC_TCAM_ACT1_L4_VALID)
 			dest |= FIELD_PREP(FBNIC_RPC_ACT_TBL0_DMA_HINT,
