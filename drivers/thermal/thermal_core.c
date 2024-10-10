@@ -745,6 +745,28 @@ struct thermal_zone_device *thermal_zone_get_by_id(int id)
  *				     binding, and unbinding.
  */
 
+static int thermal_instance_add(struct thermal_instance *new_instance,
+				struct thermal_cooling_device *cdev,
+				struct thermal_trip_desc *td)
+{
+	struct thermal_instance *instance;
+
+	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
+		if (instance->cdev == cdev)
+			return -EEXIST;
+	}
+
+	list_add_tail(&new_instance->trip_node, &td->thermal_instances);
+
+	mutex_lock(&cdev->lock);
+
+	list_add_tail(&new_instance->cdev_node, &cdev->thermal_instances);
+
+	mutex_unlock(&cdev->lock);
+
+	return 0;
+}
+
 /**
  * thermal_bind_cdev_to_trip - bind a cooling device to a thermal zone
  * @tz:		pointer to struct thermal_zone_device
@@ -763,7 +785,7 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 				     struct thermal_cooling_device *cdev,
 				     struct cooling_spec *cool_spec)
 {
-	struct thermal_instance *dev, *instance;
+	struct thermal_instance *dev;
 	bool upper_no_limit;
 	int result;
 
@@ -825,23 +847,15 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 	if (result)
 		goto remove_trip_file;
 
-	mutex_lock(&cdev->lock);
-	list_for_each_entry(instance, &td->thermal_instances, trip_node)
-		if (instance->cdev == cdev) {
-			result = -EEXIST;
-			break;
-		}
-	if (!result) {
-		list_add_tail(&dev->trip_node, &td->thermal_instances);
-		list_add_tail(&dev->cdev_node, &cdev->thermal_instances);
-	}
-	mutex_unlock(&cdev->lock);
+	result = thermal_instance_add(dev, cdev, td);
+	if (result)
+		goto remove_weight_file;
 
-	if (!result) {
-		thermal_governor_update_tz(tz, THERMAL_TZ_BIND_CDEV);
-		return 0;
-	}
+	thermal_governor_update_tz(tz, THERMAL_TZ_BIND_CDEV);
 
+	return 0;
+
+remove_weight_file:
 	device_remove_file(&tz->device, &dev->weight_attr);
 remove_trip_file:
 	device_remove_file(&tz->device, &dev->attr);
