@@ -46,6 +46,55 @@
 		};
 	};
 
+	cb_v18: regulator-cb-v18 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cb_v18_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "cb_v18";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	cb_v33: regulator-cb-v33 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cb_v33_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "cb_v33";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		gpio = <&gpio6 30 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	regulator-cb-v50 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cb_v50_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "cb_v50";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		gpio = <&gpio6 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	lb_v50: regulator-lb-v50 {
+		/* required for many things at the head (probably indirectly) */
+		pinctrl-names = "default";
+		pinctrl-0 = <&lb_v50_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "lb_v50";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		gpio = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	unknown_supply: unknown-supply {
 		compatible = "regulator-fixed";
 		regulator-name = "unknown";
@@ -336,6 +385,24 @@
 		>;
 	};
 
+	cb_v18_pins: pinmux-cb-v18-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1d0, PIN_OUTPUT | MUX_MODE3) /* gpio28 */
+		>;
+	};
+
+	cb_v33_pins: pinmux-cb-v33-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1d2, PIN_OUTPUT | MUX_MODE3) /* gpio190 */
+		>;
+	};
+
+	cb_v50_pins: pinmux-cb-v50-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1d4, PIN_OUTPUT | MUX_MODE3) /* gpio191 */
+		>;
+	};
+
 	gpio_keys_pins: pinmux-gpio-key-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x56, PIN_INPUT_PULLUP | MUX_MODE3) /* gpio35 */
@@ -384,6 +451,12 @@
 			OMAP4_IOPAD(0x005a, PIN_OUTPUT | MUX_MODE1)
 			/* kpd_col2 */
 			OMAP4_IOPAD(0x005c, PIN_OUTPUT | MUX_MODE1)
+		>;
+	};
+
+	lb_v50_pins: pinmux-lb-v50-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x1ce, PIN_OUTPUT | MUX_MODE3) /* gpio27 */
 		>;
 	};
 
