@@ -124,7 +124,7 @@ int thermal_register_governor(struct thermal_governor *governor)
 	if (!governor)
 		return -EINVAL;
 
-	mutex_lock(&thermal_governor_lock);
+	guard(mutex)(&thermal_governor_lock);
 
 	err = -EBUSY;
 	if (!__find_governor(governor->name)) {
@@ -163,8 +163,6 @@ int thermal_register_governor(struct thermal_governor *governor)
 		}
 	}
 
-	mutex_unlock(&thermal_governor_lock);
-
 	return err;
 }
 
@@ -175,10 +173,10 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 	if (!governor)
 		return;
 
-	mutex_lock(&thermal_governor_lock);
+	guard(mutex)(&thermal_governor_lock);
 
 	if (!__find_governor(governor->name))
-		goto exit;
+		return;
 
 	list_del(&governor->governor_list);
 
@@ -189,9 +187,6 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 				 THERMAL_NAME_LENGTH))
 			thermal_set_governor(pos, NULL);
 	}
-
-exit:
-	mutex_unlock(&thermal_governor_lock);
 }
 
 int thermal_zone_device_set_policy(struct thermal_zone_device *tz,
@@ -200,15 +195,12 @@ int thermal_zone_device_set_policy(struct thermal_zone_device *tz,
 	struct thermal_governor *gov;
 	int ret = -EINVAL;
 
-	mutex_lock(&thermal_governor_lock);
-
+	guard(mutex)(&thermal_governor_lock);
 	guard(thermal_zone)(tz);
 
 	gov = __find_governor(strim(policy));
 	if (gov)
 		ret = thermal_set_governor(tz, gov);
-
-	mutex_unlock(&thermal_governor_lock);
 
 	thermal_notify_tz_gov_change(tz, policy);
 
@@ -220,14 +212,12 @@ int thermal_build_list_of_policies(char *buf)
 	struct thermal_governor *pos;
 	ssize_t count = 0;
 
-	mutex_lock(&thermal_governor_lock);
+	guard(mutex)(&thermal_governor_lock);
 
 	list_for_each_entry(pos, &thermal_governor_list, governor_list) {
 		count += sysfs_emit_at(buf, count, "%s ", pos->name);
 	}
 	count += sysfs_emit_at(buf, count, "\n");
-
-	mutex_unlock(&thermal_governor_lock);
 
 	return count;
 }
@@ -670,17 +660,18 @@ int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
 			      void *data)
 {
 	struct thermal_governor *gov;
-	int ret = 0;
 
-	mutex_lock(&thermal_governor_lock);
+	guard(mutex)(&thermal_governor_lock);
+
 	list_for_each_entry(gov, &thermal_governor_list, governor_list) {
+		int ret;
+
 		ret = cb(gov, data);
 		if (ret)
-			break;
+			return ret;
 	}
-	mutex_unlock(&thermal_governor_lock);
 
-	return ret;
+	return 0;
 }
 
 int for_each_thermal_cooling_device(int (*cb)(struct thermal_cooling_device *,
@@ -1348,20 +1339,15 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_crit_temp);
 static int thermal_zone_init_governor(struct thermal_zone_device *tz)
 {
 	struct thermal_governor *governor;
-	int ret;
 
-	mutex_lock(&thermal_governor_lock);
+	guard(mutex)(&thermal_governor_lock);
 
 	if (tz->tzp)
 		governor = __find_governor(tz->tzp->governor_name);
 	else
 		governor = def_governor;
 
-	ret = thermal_set_governor(tz, governor);
-
-	mutex_unlock(&thermal_governor_lock);
-
-	return ret;
+	return thermal_set_governor(tz, governor);
 }
 
 static void thermal_zone_init_complete(struct thermal_zone_device *tz)
