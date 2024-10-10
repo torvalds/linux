@@ -1271,6 +1271,10 @@ static int process_attr(const struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+#define CALLCHAIN_BRANCH_SORT_ORDER	\
+	"srcline,symbol,dso,callchain_branch_predicted," \
+	"callchain_branch_abort,callchain_branch_cycles"
+
 int cmd_report(int argc, const char **argv)
 {
 	struct perf_session *session;
@@ -1639,7 +1643,7 @@ repeat:
 		symbol_conf.use_callchain = true;
 		callchain_register_param(&callchain_param);
 		if (sort_order == NULL)
-			sort_order = "srcline,symbol,dso";
+			sort_order = CALLCHAIN_BRANCH_SORT_ORDER;
 	}
 
 	if (report.mem_mode) {
