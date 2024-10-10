@@ -513,15 +513,11 @@ int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, u16 vport,
 				u32 max_rate, u32 min_rate)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
-	int err;
 
 	if (!mlx5_esw_allowed(esw))
 		return -EPERM;
 	if (IS_ERR(evport))
 		return PTR_ERR(evport);
 
-	mutex_lock(&esw->state_lock);
-	err = mlx5_esw_qos_set_vport_rate(esw, evport, max_rate, min_rate);
-	mutex_unlock(&esw->state_lock);
-	return err;
+	return mlx5_esw_qos_set_vport_rate(evport, max_rate, min_rate);
 }

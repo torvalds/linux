@@ -4105,11 +4105,47 @@ enum {
 	ELEMENT_TYPE_CAP_MASK_QUEUE_GROUP	= 1 << 4,
 };
 
+enum {
+	TSAR_ELEMENT_TSAR_TYPE_DWRR = 0x0,
+	TSAR_ELEMENT_TSAR_TYPE_ROUND_ROBIN = 0x1,
+	TSAR_ELEMENT_TSAR_TYPE_ETS = 0x2,
+};
+
+enum {
+	TSAR_TYPE_CAP_MASK_DWRR		= 1 << 0,
+	TSAR_TYPE_CAP_MASK_ROUND_ROBIN	= 1 << 1,
+	TSAR_TYPE_CAP_MASK_ETS		= 1 << 2,
+};
+
+struct mlx5_ifc_tsar_element_bits {
+	u8         reserved_at_0[0x8];
+	u8         tsar_type[0x8];
+	u8         reserved_at_10[0x10];
+};
+
+struct mlx5_ifc_vport_element_bits {
+	u8         reserved_at_0[0x10];
+	u8         vport_number[0x10];
+};
+
+struct mlx5_ifc_vport_tc_element_bits {
+	u8         traffic_class[0x4];
+	u8         reserved_at_4[0xc];
+	u8         vport_number[0x10];
+};
+
+union mlx5_ifc_element_attributes_bits {
+	struct mlx5_ifc_tsar_element_bits tsar;
+	struct mlx5_ifc_vport_element_bits vport;
+	struct mlx5_ifc_vport_tc_element_bits vport_tc;
+	u8 reserved_at_0[0x20];
+};
+
 struct mlx5_ifc_scheduling_context_bits {
 	u8         element_type[0x8];
 	u8         reserved_at_8[0x18];
 
-	u8         element_attributes[0x20];
+	union mlx5_ifc_element_attributes_bits element_attributes;
 
 	u8         parent_element_id[0x20];
 
@@ -4796,35 +4832,6 @@ struct mlx5_ifc_register_loopback_control_bits {
 	u8         reserved_at_10[0x10];
 
 	u8         reserved_at_20[0x60];
-};
-
-struct mlx5_ifc_vport_tc_element_bits {
-	u8         traffic_class[0x4];
-	u8         reserved_at_4[0xc];
-	u8         vport_number[0x10];
-};
-
-struct mlx5_ifc_vport_element_bits {
-	u8         reserved_at_0[0x10];
-	u8         vport_number[0x10];
-};
-
-enum {
-	TSAR_ELEMENT_TSAR_TYPE_DWRR = 0x0,
-	TSAR_ELEMENT_TSAR_TYPE_ROUND_ROBIN = 0x1,
-	TSAR_ELEMENT_TSAR_TYPE_ETS = 0x2,
-};
-
-enum {
-	TSAR_TYPE_CAP_MASK_DWRR		= 1 << 0,
-	TSAR_TYPE_CAP_MASK_ROUND_ROBIN	= 1 << 1,
-	TSAR_TYPE_CAP_MASK_ETS		= 1 << 2,
-};
-
-struct mlx5_ifc_tsar_element_bits {
-	u8         reserved_at_0[0x8];
-	u8         tsar_type[0x8];
-	u8         reserved_at_10[0x10];
 };
 
 enum {
