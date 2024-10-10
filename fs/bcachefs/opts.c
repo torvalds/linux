@@ -596,6 +596,9 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 	copied_opts_start = copied_opts;
 
 	while ((opt = strsep(&copied_opts, ",")) != NULL) {
+		if (!*opt)
+			continue;
+
 		name	= strsep(&opt, "=");
 		val	= opt;
 
