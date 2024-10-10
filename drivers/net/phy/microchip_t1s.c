@@ -112,7 +112,7 @@ static int lan865x_revb0_indirect_read(struct phy_device *phydev, u16 addr)
 /* This is pulled straight from AN1760 from 'calculation of offset 1' &
  * 'calculation of offset 2'
  */
-static int lan865x_generate_cfg_offsets(struct phy_device *phydev, s8 offsets[2])
+static int lan865x_generate_cfg_offsets(struct phy_device *phydev, s8 offsets[])
 {
 	const u16 fixup_regs[2] = {0x0004, 0x0008};
 	int ret;
@@ -130,13 +130,15 @@ static int lan865x_generate_cfg_offsets(struct phy_device *phydev, s8 offsets[2]
 	return 0;
 }
 
-static int lan865x_read_cfg_params(struct phy_device *phydev, u16 cfg_params[])
+static int lan865x_read_cfg_params(struct phy_device *phydev,
+				   const u16 cfg_regs[], u16 cfg_params[],
+				   u8 count)
 {
 	int ret;
 
-	for (int i = 0; i < ARRAY_SIZE(lan865x_revb0_fixup_cfg_regs); i++) {
+	for (int i = 0; i < count; i++) {
 		ret = phy_read_mmd(phydev, MDIO_MMD_VEND2,
-				   lan865x_revb0_fixup_cfg_regs[i]);
+				   cfg_regs[i]);
 		if (ret < 0)
 			return ret;
 		cfg_params[i] = (u16)ret;
@@ -145,13 +147,14 @@ static int lan865x_read_cfg_params(struct phy_device *phydev, u16 cfg_params[])
 	return 0;
 }
 
-static int lan865x_write_cfg_params(struct phy_device *phydev, u16 cfg_params[])
+static int lan865x_write_cfg_params(struct phy_device *phydev,
+				    const u16 cfg_regs[], u16 cfg_params[],
+				    u8 count)
 {
 	int ret;
 
-	for (int i = 0; i < ARRAY_SIZE(lan865x_revb0_fixup_cfg_regs); i++) {
-		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
-				    lan865x_revb0_fixup_cfg_regs[i],
+	for (int i = 0; i < count; i++) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2, cfg_regs[i],
 				    cfg_params[i]);
 		if (ret)
 			return ret;
@@ -162,8 +165,8 @@ static int lan865x_write_cfg_params(struct phy_device *phydev, u16 cfg_params[])
 
 static int lan865x_setup_cfgparam(struct phy_device *phydev)
 {
+	u16 cfg_results[ARRAY_SIZE(lan865x_revb0_fixup_cfg_regs)];
 	u16 cfg_params[ARRAY_SIZE(lan865x_revb0_fixup_cfg_regs)];
-	u16 cfg_results[5];
 	s8 offsets[2];
 	int ret;
 
@@ -171,7 +174,8 @@ static int lan865x_setup_cfgparam(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = lan865x_read_cfg_params(phydev, cfg_params);
+	ret = lan865x_read_cfg_params(phydev, lan865x_revb0_fixup_cfg_regs,
+				      cfg_params, ARRAY_SIZE(cfg_params));
 	if (ret)
 		return ret;
 
@@ -190,7 +194,8 @@ static int lan865x_setup_cfgparam(struct phy_device *phydev)
 			  FIELD_PREP(GENMASK(15, 8), 17 + offsets[0]) |
 			  (22 + offsets[0]);
 
-	return lan865x_write_cfg_params(phydev, cfg_results);
+	return lan865x_write_cfg_params(phydev, lan865x_revb0_fixup_cfg_regs,
+					cfg_results, ARRAY_SIZE(cfg_results));
 }
 
 static int lan865x_revb0_config_init(struct phy_device *phydev)
