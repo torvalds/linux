@@ -375,7 +375,6 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 {
 	struct mv_cesa_dev *cesa = platform_get_drvdata(pdev);
 	struct mv_cesa_engine *engine = &cesa->engines[idx];
-	const char *res_name = "sram";
 	struct resource *res;
 
 	engine->pool = of_gen_pool_get(cesa->dev->of_node,
@@ -391,19 +390,7 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 		return -ENOMEM;
 	}
 
-	if (cesa->caps->nengines > 1) {
-		if (!idx)
-			res_name = "sram0";
-		else
-			res_name = "sram1";
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   res_name);
-	if (!res || resource_size(res) < cesa->sram_size)
-		return -EINVAL;
-
-	engine->sram = devm_ioremap_resource(cesa->dev, res);
+	engine->sram = devm_platform_get_and_ioremap_resource(pdev, idx, &res);
 	if (IS_ERR(engine->sram))
 		return PTR_ERR(engine->sram);
 
