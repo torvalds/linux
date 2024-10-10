@@ -29,7 +29,6 @@
 #include <asm/firmware.h>
 #include <asm/rtas.h>
 #include <asm/time.h>
-#include <asm/vdso_datapage.h>
 #include <asm/vio.h>
 #include <asm/mmu.h>
 #include <asm/machdep.h>
@@ -530,7 +529,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 		lrdrp = of_get_property(rtas_node, "ibm,lrdr-capacity", NULL);
 
 	if (lrdrp == NULL) {
-		partition_potential_processors = vdso_data->processorCount;
+		partition_potential_processors = num_possible_cpus();
 	} else {
 		partition_potential_processors = be32_to_cpup(lrdrp + 4);
 	}
