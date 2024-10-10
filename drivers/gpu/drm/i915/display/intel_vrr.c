@@ -56,6 +56,11 @@ bool intel_vrr_is_in_range(struct intel_connector *connector, int vrefresh)
 		vrefresh <= info->monitor_range.max_vfreq;
 }
 
+bool intel_vrr_possible(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->vrr.flipline;
+}
+
 void
 intel_vrr_check_modeset(struct intel_atomic_state *state)
 {
@@ -281,7 +286,7 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 		intel_de_rmw(display, CHICKEN_TRANS(cpu_transcoder),
 			     0, PIPE_VBLANK_WITH_DELAY);
 
-	if (!crtc_state->vrr.flipline) {
+	if (!intel_vrr_possible(crtc_state)) {
 		intel_de_write(display,
 			       TRANS_VRR_CTL(display, cpu_transcoder), 0);
 		return;
