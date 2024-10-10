@@ -1791,13 +1791,17 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		pcp = per_cpu_ptr(zone->per_cpu_pageset, i);
 		seq_printf(m,
 			   "\n    cpu: %i"
-			   "\n              count: %i"
-			   "\n              high:  %i"
-			   "\n              batch: %i",
+			   "\n              count:    %i"
+			   "\n              high:     %i"
+			   "\n              batch:    %i"
+			   "\n              high_min: %i"
+			   "\n              high_max: %i",
 			   i,
 			   pcp->count,
 			   pcp->high,
-			   pcp->batch);
+			   pcp->batch,
+			   pcp->high_min,
+			   pcp->high_max);
 #ifdef CONFIG_SMP
 		pzstats = per_cpu_ptr(zone->per_cpu_zonestats, i);
 		seq_printf(m, "\n  vm stats threshold: %d",
