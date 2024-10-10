@@ -20,13 +20,13 @@
 	backlight-left {
 		compatible = "pwm-backlight";
 		pwms = <&twl_pwm 1 7812500>;
-		power-supply = <&unknown_supply>;
+		power-supply = <&lb_v50>;
 	};
 
 	backlight-right {
 		compatible = "pwm-backlight";
 		pwms = <&twl_pwm 0 7812500>;
-		power-supply = <&unknown_supply>;
+		power-supply = <&lb_v50>;
 	};
 
 	chosen {
@@ -93,11 +93,6 @@
 		regulator-always-on;
 		gpio = <&gpio1 27 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};
-
-	unknown_supply: unknown-supply {
-		compatible = "regulator-fixed";
-		regulator-name = "unknown";
 	};
 
 	wl12xx_pwrseq: wl12xx-pwrseq {
@@ -308,6 +303,8 @@
 		pinctrl-0 = <&mpu9150_pins>;
 		interrupt-parent = <&gpio2>;
 		interrupt = <7 IRQ_TYPE_LEVEL_HIGH>;
+		vddio-supply = <&cb_v18>;
+		vdd-supply = <&cb_v33>;
 		invensense,level-shifter;
 	};
 };
