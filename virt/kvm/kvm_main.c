@@ -95,6 +95,13 @@ module_param(halt_poll_ns_shrink, uint, 0644);
 EXPORT_SYMBOL_GPL(halt_poll_ns_shrink);
 
 /*
+ * Allow direct access (from KVM or the CPU) without MMU notifier protection
+ * to unpinned pages.
+ */
+static bool allow_unsafe_mappings;
+module_param(allow_unsafe_mappings, bool, 0444);
+
+/*
  * Ordering of locks:
  *
  *	kvm->lock --> kvm->slots_lock --> kvm->irq_lock
@@ -2811,6 +2818,9 @@ static kvm_pfn_t kvm_resolve_pfn(struct kvm_follow_pfn *kfp, struct page *page,
 	 * reference to such pages would cause KVM to prematurely free a page
 	 * it doesn't own (KVM gets and puts the one and only reference).
 	 * Don't allow those pages until the FIXME is resolved.
+	 *
+	 * Don't grab a reference for pins, callers that pin pages are required
+	 * to check refcounted_page, i.e. must not blindly release the pfn.
 	 */
 	if (map) {
 		pfn = map->pfn;
@@ -2928,6 +2938,14 @@ static int hva_to_pfn_remapped(struct vm_area_struct *vma,
 	struct follow_pfnmap_args args = { .vma = vma, .address = kfp->hva };
 	bool write_fault = kfp->flags & FOLL_WRITE;
 	int r;
+
+	/*
+	 * Remapped memory cannot be pinned in any meaningful sense.  Bail if
+	 * the caller wants to pin the page, i.e. access the page outside of
+	 * MMU notifier protection, and unsafe umappings are disallowed.
+	 */
+	if (kfp->pin && !allow_unsafe_mappings)
+		return -EINVAL;
 
 	r = follow_pfnmap_start(&args);
 	if (r) {
