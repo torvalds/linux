@@ -44,6 +44,7 @@
 #include "gfx_v12_0.h"
 #include "nbif_v6_3_1.h"
 #include "mes_v12_0.h"
+#include "mes_userqueue.h"
 
 #define GFX12_NUM_GFX_RINGS	1
 #define GFX12_MEC_HPD_SIZE	2048
@@ -1417,6 +1418,10 @@ static int gfx_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 		adev->gfx.mec.num_mec = 1;
 		adev->gfx.mec.num_pipe_per_mec = 2;
 		adev->gfx.mec.num_queue_per_pipe = 4;
+#ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
+		adev->userq_funcs[AMDGPU_HW_IP_GFX] = &userq_mes_funcs;
+		adev->userq_funcs[AMDGPU_HW_IP_COMPUTE] = &userq_mes_funcs;
+#endif
 		break;
 	default:
 		adev->gfx.me.num_me = 1;
