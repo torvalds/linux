@@ -1276,76 +1276,86 @@ struct scx_task_iter {
 };
 
 /**
- * scx_task_iter_init - Initialize a task iterator
+ * scx_task_iter_start - Lock scx_tasks_lock and start a task iteration
  * @iter: iterator to init
  *
- * Initialize @iter. Must be called with scx_tasks_lock held. Once initialized,
- * @iter must eventually be exited with scx_task_iter_exit().
+ * Initialize @iter and return with scx_tasks_lock held. Once initialized, @iter
+ * must eventually be stopped with scx_task_iter_stop().
  *
- * scx_tasks_lock may be released between this and the first next() call or
- * between any two next() calls. If scx_tasks_lock is released between two
- * next() calls, the caller is responsible for ensuring that the task being
- * iterated remains accessible either through RCU read lock or obtaining a
- * reference count.
+ * scx_tasks_lock and the rq lock may be released using scx_task_iter_unlock()
+ * between this and the first next() call or between any two next() calls. If
+ * the locks are released between two next() calls, the caller is responsible
+ * for ensuring that the task being iterated remains accessible either through
+ * RCU read lock or obtaining a reference count.
  *
  * All tasks which existed when the iteration started are guaranteed to be
  * visited as long as they still exist.
  */
-static void scx_task_iter_init(struct scx_task_iter *iter)
+static void scx_task_iter_start(struct scx_task_iter *iter)
 {
-	lockdep_assert_held(&scx_tasks_lock);
-
 	BUILD_BUG_ON(__SCX_DSQ_ITER_ALL_FLAGS &
 		     ((1U << __SCX_DSQ_LNODE_PRIV_SHIFT) - 1));
+
+	spin_lock_irq(&scx_tasks_lock);
 
 	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
 	list_add(&iter->cursor.tasks_node, &scx_tasks);
 	iter->locked = NULL;
 }
 
-/**
- * scx_task_iter_rq_unlock - Unlock rq locked by a task iterator
- * @iter: iterator to unlock rq for
- *
- * If @iter is in the middle of a locked iteration, it may be locking the rq of
- * the task currently being visited. Unlock the rq if so. This function can be
- * safely called anytime during an iteration.
- *
- * Returns %true if the rq @iter was locking is unlocked. %false if @iter was
- * not locking an rq.
- */
-static bool scx_task_iter_rq_unlock(struct scx_task_iter *iter)
+static void __scx_task_iter_rq_unlock(struct scx_task_iter *iter)
 {
 	if (iter->locked) {
 		task_rq_unlock(iter->rq, iter->locked, &iter->rf);
 		iter->locked = NULL;
-		return true;
-	} else {
-		return false;
 	}
 }
 
 /**
- * scx_task_iter_exit - Exit a task iterator
+ * scx_task_iter_unlock - Unlock rq and scx_tasks_lock held by a task iterator
+ * @iter: iterator to unlock
+ *
+ * If @iter is in the middle of a locked iteration, it may be locking the rq of
+ * the task currently being visited in addition to scx_tasks_lock. Unlock both.
+ * This function can be safely called anytime during an iteration.
+ */
+static void scx_task_iter_unlock(struct scx_task_iter *iter)
+{
+	__scx_task_iter_rq_unlock(iter);
+	spin_unlock_irq(&scx_tasks_lock);
+}
+
+/**
+ * scx_task_iter_relock - Lock scx_tasks_lock released by scx_task_iter_unlock()
+ * @iter: iterator to re-lock
+ *
+ * Re-lock scx_tasks_lock unlocked by scx_task_iter_unlock(). Note that it
+ * doesn't re-lock the rq lock. Must be called before other iterator operations.
+ */
+static void scx_task_iter_relock(struct scx_task_iter *iter)
+{
+	spin_lock_irq(&scx_tasks_lock);
+}
+
+/**
+ * scx_task_iter_stop - Stop a task iteration and unlock scx_tasks_lock
  * @iter: iterator to exit
  *
- * Exit a previously initialized @iter. Must be called with scx_tasks_lock held.
- * If the iterator holds a task's rq lock, that rq lock is released. See
- * scx_task_iter_init() for details.
+ * Exit a previously initialized @iter. Must be called with scx_tasks_lock held
+ * which is released on return. If the iterator holds a task's rq lock, that rq
+ * lock is also released. See scx_task_iter_start() for details.
  */
-static void scx_task_iter_exit(struct scx_task_iter *iter)
+static void scx_task_iter_stop(struct scx_task_iter *iter)
 {
-	lockdep_assert_held(&scx_tasks_lock);
-
-	scx_task_iter_rq_unlock(iter);
 	list_del_init(&iter->cursor.tasks_node);
+	scx_task_iter_unlock(iter);
 }
 
 /**
  * scx_task_iter_next - Next task
  * @iter: iterator to walk
  *
- * Visit the next task. See scx_task_iter_init() for details.
+ * Visit the next task. See scx_task_iter_start() for details.
  */
 static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
 {
@@ -1373,14 +1383,14 @@ static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
  * @include_dead: Whether we should include dead tasks in the iteration
  *
  * Visit the non-idle task with its rq lock held. Allows callers to specify
- * whether they would like to filter out dead tasks. See scx_task_iter_init()
+ * whether they would like to filter out dead tasks. See scx_task_iter_start()
  * for details.
  */
 static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 {
 	struct task_struct *p;
 
-	scx_task_iter_rq_unlock(iter);
+	__scx_task_iter_rq_unlock(iter);
 
 	while ((p = scx_task_iter_next(iter))) {
 		/*
@@ -4462,8 +4472,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 
 	scx_ops_init_task_enabled = false;
 
-	spin_lock_irq(&scx_tasks_lock);
-	scx_task_iter_init(&sti);
+	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
 		struct sched_enq_and_set_ctx ctx;
@@ -4478,8 +4487,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 		check_class_changed(task_rq(p), p, old_class, p->prio);
 		scx_ops_exit_task(p);
 	}
-	scx_task_iter_exit(&sti);
-	spin_unlock_irq(&scx_tasks_lock);
+	scx_task_iter_stop(&sti);
 	percpu_up_write(&scx_fork_rwsem);
 
 	/* no task is on scx, turn off all the switches and flush in-progress calls */
@@ -5130,8 +5138,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	if (ret)
 		goto err_disable_unlock_all;
 
-	spin_lock_irq(&scx_tasks_lock);
-	scx_task_iter_init(&sti);
+	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		/*
 		 * @p may already be dead, have lost all its usages counts and
@@ -5141,15 +5148,13 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		if (!tryget_task_struct(p))
 			continue;
 
-		scx_task_iter_rq_unlock(&sti);
-		spin_unlock_irq(&scx_tasks_lock);
+		scx_task_iter_unlock(&sti);
 
 		ret = scx_ops_init_task(p, task_group(p), false);
 		if (ret) {
 			put_task_struct(p);
-			spin_lock_irq(&scx_tasks_lock);
-			scx_task_iter_exit(&sti);
-			spin_unlock_irq(&scx_tasks_lock);
+			scx_task_iter_relock(&sti);
+			scx_task_iter_stop(&sti);
 			scx_ops_error("ops.init_task() failed (%d) for %s[%d]",
 				      ret, p->comm, p->pid);
 			goto err_disable_unlock_all;
@@ -5158,10 +5163,9 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		scx_set_task_state(p, SCX_TASK_READY);
 
 		put_task_struct(p);
-		spin_lock_irq(&scx_tasks_lock);
+		scx_task_iter_relock(&sti);
 	}
-	scx_task_iter_exit(&sti);
-	spin_unlock_irq(&scx_tasks_lock);
+	scx_task_iter_stop(&sti);
 	scx_cgroup_unlock();
 	percpu_up_write(&scx_fork_rwsem);
 
@@ -5178,8 +5182,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	 * scx_tasks_lock.
 	 */
 	percpu_down_write(&scx_fork_rwsem);
-	spin_lock_irq(&scx_tasks_lock);
-	scx_task_iter_init(&sti);
+	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
 		struct sched_enq_and_set_ctx ctx;
@@ -5194,8 +5197,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 		check_class_changed(task_rq(p), p, old_class, p->prio);
 	}
-	scx_task_iter_exit(&sti);
-	spin_unlock_irq(&scx_tasks_lock);
+	scx_task_iter_stop(&sti);
 	percpu_up_write(&scx_fork_rwsem);
 
 	scx_ops_bypass(false);
