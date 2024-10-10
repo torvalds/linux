@@ -1068,28 +1068,19 @@ struct ftrace_graph_ret {
 	unsigned long long rettime;
 } __packed;
 
-struct fgraph_extras;
 struct fgraph_ops;
 
 /* Type of the callback handlers for tracing function graph*/
 typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *,
 				       struct fgraph_ops *); /* return */
 typedef int (*trace_func_graph_ent_t)(struct ftrace_graph_ent *,
-				      struct fgraph_ops *,
-				      struct fgraph_extras *); /* entry */
+				      struct fgraph_ops *); /* entry */
 
 extern int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace,
-				   struct fgraph_ops *gops,
-				   struct fgraph_extras *extras);
+				   struct fgraph_ops *gops);
 bool ftrace_pids_enabled(struct ftrace_ops *ops);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-
-/* Used to convey some extra datas when creating a graph entry */
-struct fgraph_extras {
-	u32 flags;
-	unsigned long retaddr;
-};
 
 struct fgraph_ops {
 	trace_func_graph_ent_t		entryfunc;
@@ -1131,12 +1122,11 @@ function_graph_enter(unsigned long ret, unsigned long func,
 
 struct ftrace_ret_stack *
 ftrace_graph_get_ret_stack(struct task_struct *task, int skip);
+unsigned long ftrace_graph_top_ret_addr(struct task_struct *task);
 
 unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 				    unsigned long ret, unsigned long *retp);
 unsigned long *fgraph_get_task_var(struct fgraph_ops *gops);
-
-u32 graph_tracer_flags_get(u32 flags);
 
 /*
  * Sometimes we don't want to trace a function with the function

@@ -90,9 +90,9 @@ static struct tracer_flags tracer_flags = {
 	.opts = trace_opts
 };
 
-u32 graph_tracer_flags_get(u32 flags)
+static bool tracer_flags_is_set(u32 flags)
 {
-	return tracer_flags.val & flags;
+	return (tracer_flags.val & flags) == flags;
 }
 
 /*
@@ -179,8 +179,7 @@ struct fgraph_times {
 };
 
 int trace_graph_entry(struct ftrace_graph_ent *trace,
-		      struct fgraph_ops *gops,
-		      struct fgraph_extras *extras)
+		      struct fgraph_ops *gops)
 {
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
@@ -246,11 +245,12 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		trace_ctx = tracing_gen_ctx_flags(flags);
-		if (unlikely(IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) && extras
-				&& (extras->flags & TRACE_GRAPH_PRINT_RETADDR)))
-			ret = __trace_graph_retaddr_entry(tr, trace, trace_ctx,
-							  extras->retaddr);
-		else
+		if (unlikely(IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) &&
+			tracer_flags_is_set(TRACE_GRAPH_PRINT_RETADDR))) {
+			unsigned long retaddr = ftrace_graph_top_ret_addr(current);
+
+			ret = __trace_graph_retaddr_entry(tr, trace, trace_ctx, retaddr);
+		} else
 			ret = __trace_graph_entry(tr, trace, trace_ctx);
 	} else {
 		ret = 0;
