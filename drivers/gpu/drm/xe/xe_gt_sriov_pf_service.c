@@ -237,7 +237,7 @@ static void read_many(struct xe_gt *gt, unsigned int count,
 		      const struct xe_reg *regs, u32 *values)
 {
 	while (count--)
-		*values++ = xe_mmio_read32(gt, *regs++);
+		*values++ = xe_mmio_read32(&gt->mmio, *regs++);
 }
 
 static void pf_prepare_runtime_info(struct xe_gt *gt)
@@ -402,7 +402,7 @@ static int pf_service_runtime_query(struct xe_gt *gt, u32 start, u32 limit,
 
 	for (i = 0; i < count; ++i, ++data) {
 		addr = runtime->regs[start + i].addr;
-		data->offset = xe_mmio_adjusted_addr(gt, addr);
+		data->offset = xe_mmio_adjusted_addr(&gt->mmio, addr);
 		data->value = runtime->values[start + i];
 	}
 
@@ -513,7 +513,7 @@ int xe_gt_sriov_pf_service_print_runtime(struct xe_gt *gt, struct drm_printer *p
 
 	for (; size--; regs++, values++) {
 		drm_printf(p, "reg[%#x] = %#x\n",
-			   xe_mmio_adjusted_addr(gt, regs->addr), *values);
+			   xe_mmio_adjusted_addr(&gt->mmio, regs->addr), *values);
 	}
 
 	return 0;

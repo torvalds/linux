@@ -6,6 +6,7 @@
 #ifndef _XE_GT_TYPES_H_
 #define _XE_GT_TYPES_H_
 
+#include "xe_device_types.h"
 #include "xe_force_wake_types.h"
 #include "xe_gt_idle_types.h"
 #include "xe_gt_sriov_pf_types.h"
@@ -145,19 +146,20 @@ struct xe_gt {
 	/**
 	 * @mmio: mmio info for GT.  All GTs within a tile share the same
 	 * register space, but have their own copy of GSI registers at a
-	 * specific offset, as well as their own forcewake handling.
+	 * specific offset.
+	 */
+	struct xe_mmio mmio;
+
+	/**
+	 * @pm: power management info for GT.  The driver uses the GT's
+	 * "force wake" interface to wake up specific parts of the GT hardware
+	 * from C6 sleep states and ensure the hardware remains awake while it
+	 * is being actively used.
 	 */
 	struct {
-		/** @mmio.fw: force wake for GT */
+		/** @pm.fw: force wake for GT */
 		struct xe_force_wake fw;
-		/**
-		 * @mmio.adj_limit: adjust MMIO address if address is below this
-		 * value
-		 */
-		u32 adj_limit;
-		/** @mmio.adj_offset: offect to add to MMIO address when adjusting */
-		u32 adj_offset;
-	} mmio;
+	} pm;
 
 	/** @sriov: virtualization data related to GT */
 	union {

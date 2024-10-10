@@ -65,7 +65,7 @@ gsc_to_gt(struct xe_gsc *gsc)
 bool xe_gsc_proxy_init_done(struct xe_gsc *gsc)
 {
 	struct xe_gt *gt = gsc_to_gt(gsc);
-	u32 fwsts1 = xe_mmio_read32(gt, HECI_FWSTS1(MTL_GSC_HECI1_BASE));
+	u32 fwsts1 = xe_mmio_read32(&gt->mmio, HECI_FWSTS1(MTL_GSC_HECI1_BASE));
 
 	return REG_FIELD_GET(HECI1_FWSTS1_CURRENT_STATE, fwsts1) ==
 	       HECI1_FWSTS1_PROXY_STATE_NORMAL;
@@ -78,7 +78,7 @@ static void __gsc_proxy_irq_rmw(struct xe_gsc *gsc, u32 clr, u32 set)
 	/* make sure we never accidentally write the RST bit */
 	clr |= HECI_H_CSR_RST;
 
-	xe_mmio_rmw32(gt, HECI_H_CSR(MTL_GSC_HECI2_BASE), clr, set);
+	xe_mmio_rmw32(&gt->mmio, HECI_H_CSR(MTL_GSC_HECI2_BASE), clr, set);
 }
 
 static void gsc_proxy_irq_clear(struct xe_gsc *gsc)

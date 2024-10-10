@@ -38,24 +38,6 @@
 
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
 
-struct xe_lrc_snapshot {
-	struct xe_bo *lrc_bo;
-	void *lrc_snapshot;
-	unsigned long lrc_size, lrc_offset;
-
-	u32 context_desc;
-	u32 indirect_context_desc;
-	u32 head;
-	struct {
-		u32 internal;
-		u32 memory;
-	} tail;
-	u32 start_seqno;
-	u32 seqno;
-	u32 ctx_timestamp;
-	u32 ctx_job_timestamp;
-};
-
 static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
 {
@@ -599,10 +581,10 @@ static void set_context_control(u32 *regs, struct xe_hw_engine *hwe)
 
 static void set_memory_based_intr(u32 *regs, struct xe_hw_engine *hwe)
 {
-	struct xe_memirq *memirq = &gt_to_tile(hwe->gt)->sriov.vf.memirq;
+	struct xe_memirq *memirq = &gt_to_tile(hwe->gt)->memirq;
 	struct xe_device *xe = gt_to_xe(hwe->gt);
 
-	if (!IS_SRIOV_VF(xe) || !xe_device_has_memirq(xe))
+	if (!xe_device_uses_memirq(xe))
 		return;
 
 	regs[CTX_LRM_INT_MASK_ENABLE] = MI_LOAD_REGISTER_MEM |
@@ -613,9 +595,9 @@ static void set_memory_based_intr(u32 *regs, struct xe_hw_engine *hwe)
 	regs[CTX_LRI_INT_REPORT_PTR] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
 				       MI_LRI_LRM_CS_MMIO | MI_LRI_FORCE_POSTED;
 	regs[CTX_INT_STATUS_REPORT_REG] = RING_INT_STATUS_RPT_PTR(0).addr;
-	regs[CTX_INT_STATUS_REPORT_PTR] = xe_memirq_status_ptr(memirq);
+	regs[CTX_INT_STATUS_REPORT_PTR] = xe_memirq_status_ptr(memirq, hwe);
 	regs[CTX_INT_SRC_REPORT_REG] = RING_INT_SRC_RPT_PTR(0).addr;
-	regs[CTX_INT_SRC_REPORT_PTR] = xe_memirq_source_ptr(memirq);
+	regs[CTX_INT_SRC_REPORT_PTR] = xe_memirq_source_ptr(memirq, hwe);
 }
 
 static int lrc_ring_mi_mode(struct xe_hw_engine *hwe)

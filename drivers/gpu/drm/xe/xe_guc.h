@@ -82,4 +82,9 @@ static inline struct xe_device *guc_to_xe(struct xe_guc *guc)
 	return gt_to_xe(guc_to_gt(guc));
 }
 
+static inline struct drm_device *guc_to_drm(struct xe_guc *guc)
+{
+	return &guc_to_xe(guc)->drm;
+}
+
 #endif

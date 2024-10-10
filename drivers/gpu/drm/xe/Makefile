@@ -56,6 +56,7 @@ xe-y += xe_bb.o \
 	xe_gt_topology.o \
 	xe_guc.o \
 	xe_guc_ads.o \
+	xe_guc_capture.o \
 	xe_guc_ct.o \
 	xe_guc_db_mgr.o \
 	xe_guc_hwconfig.o \
@@ -129,6 +130,7 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_gt_sriov_pf.o \
 	xe_gt_sriov_pf_config.o \
 	xe_gt_sriov_pf_control.o \
+	xe_gt_sriov_pf_migration.o \
 	xe_gt_sriov_pf_monitor.o \
 	xe_gt_sriov_pf_policy.o \
 	xe_gt_sriov_pf_service.o \

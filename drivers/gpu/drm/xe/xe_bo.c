@@ -283,6 +283,8 @@ struct xe_ttm_tt {
 	struct device *dev;
 	struct sg_table sgt;
 	struct sg_table *sg;
+	/** @purgeable: Whether the content of the pages of @ttm is purgeable. */
+	bool purgeable;
 };
 
 static int xe_tt_map_sg(struct ttm_tt *tt)
@@ -468,7 +470,7 @@ static int xe_ttm_io_mem_reserve(struct ttm_device *bdev,
 		mem->bus.offset += vram->io_start;
 		mem->bus.is_iomem = true;
 
-#if  !defined(CONFIG_X86)
+#if  !IS_ENABLED(CONFIG_X86)
 		mem->bus.caching = ttm_write_combined;
 #endif
 		return 0;
@@ -761,7 +763,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	if (xe_rpm_reclaim_safe(xe)) {
 		/*
 		 * We might be called through swapout in the validation path of
-		 * another TTM device, so unconditionally acquire rpm here.
+		 * another TTM device, so acquire rpm here.
 		 */
 		xe_pm_runtime_get(xe);
 	} else {
@@ -1082,6 +1084,33 @@ static void xe_ttm_bo_delete_mem_notify(struct ttm_buffer_object *ttm_bo)
 	}
 }
 
+static void xe_ttm_bo_purge(struct ttm_buffer_object *ttm_bo, struct ttm_operation_ctx *ctx)
+{
+	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
+
+	if (ttm_bo->ttm) {
+		struct ttm_placement place = {};
+		int ret = ttm_bo_validate(ttm_bo, &place, ctx);
+
+		drm_WARN_ON(&xe->drm, ret);
+	}
+}
+
+static void xe_ttm_bo_swap_notify(struct ttm_buffer_object *ttm_bo)
+{
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false
+	};
+
+	if (ttm_bo->ttm) {
+		struct xe_ttm_tt *xe_tt =
+			container_of(ttm_bo->ttm, struct xe_ttm_tt, ttm);
+
+		if (xe_tt->purgeable)
+			xe_ttm_bo_purge(ttm_bo, &ctx);
+	}
+}
+
 const struct ttm_device_funcs xe_ttm_funcs = {
 	.ttm_tt_create = xe_ttm_tt_create,
 	.ttm_tt_populate = xe_ttm_tt_populate,
@@ -1094,6 +1123,7 @@ const struct ttm_device_funcs xe_ttm_funcs = {
 	.release_notify = xe_ttm_bo_release_notify,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.delete_mem_notify = xe_ttm_bo_delete_mem_notify,
+	.swap_notify = xe_ttm_bo_swap_notify,
 };
 
 static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)

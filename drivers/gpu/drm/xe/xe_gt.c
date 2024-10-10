@@ -108,7 +108,6 @@ static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
 		return;
 
 	if (!xe_gt_is_media_type(gt)) {
-		xe_mmio_write32(gt, SCRATCH1LPFC, EN_L3_RW_CCS_CACHE_FLUSH);
 		reg = xe_gt_mcr_unicast_read_any(gt, XE2_GAMREQSTRM_CTRL);
 		reg |= CG_DIS_CNTLBUS;
 		xe_gt_mcr_multicast_write(gt, XE2_GAMREQSTRM_CTRL, reg);
@@ -245,7 +244,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 			else if (entry->clr_bits + 1)
 				val = (reg.mcr ?
 				       xe_gt_mcr_unicast_read_any(gt, reg_mcr) :
-				       xe_mmio_read32(gt, reg)) & (~entry->clr_bits);
+				       xe_mmio_read32(&gt->mmio, reg)) & (~entry->clr_bits);
 			else
 				val = 0;
 
@@ -440,7 +439,7 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	 * Stash hardware-reported version.  Since this register does not exist
 	 * on pre-MTL platforms, reading it there will (correctly) return 0.
 	 */
-	gt->info.gmdid = xe_mmio_read32(gt, GMD_ID);
+	gt->info.gmdid = xe_mmio_read32(&gt->mmio, GMD_ID);
 
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	XE_WARN_ON(err);
@@ -623,6 +622,30 @@ int xe_gt_init(struct xe_gt *gt)
 	return 0;
 }
 
+/**
+ * xe_gt_mmio_init() - Initialize GT's MMIO access
+ * @gt: the GT object
+ *
+ * Initialize GT's MMIO accessor, which will be used to access registers inside
+ * this GT.
+ */
+void xe_gt_mmio_init(struct xe_gt *gt)
+{
+	struct xe_tile *tile = gt_to_tile(gt);
+
+	gt->mmio.regs = tile->mmio.regs;
+	gt->mmio.regs_size = tile->mmio.regs_size;
+	gt->mmio.tile = tile;
+
+	if (gt->info.type == XE_GT_TYPE_MEDIA) {
+		gt->mmio.adj_offset = MEDIA_GT_GSI_OFFSET;
+		gt->mmio.adj_limit = MEDIA_GT_GSI_LENGTH;
+	}
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		gt->mmio.sriov_vf_gt = gt;
+}
+
 void xe_gt_record_user_engines(struct xe_gt *gt)
 {
 	struct xe_hw_engine *hwe;
@@ -650,8 +673,8 @@ static int do_gt_reset(struct xe_gt *gt)
 
 	xe_gsc_wa_14015076503(gt, true);
 
-	xe_mmio_write32(gt, GDRST, GRDOM_FULL);
-	err = xe_mmio_wait32(gt, GDRST, GRDOM_FULL, 0, 5000, NULL, false);
+	xe_mmio_write32(&gt->mmio, GDRST, GRDOM_FULL);
+	err = xe_mmio_wait32(&gt->mmio, GDRST, GRDOM_FULL, 0, 5000, NULL, false);
 	if (err)
 		xe_gt_err(gt, "failed to clear GRDOM_FULL (%pe)\n",
 			  ERR_PTR(err));
@@ -862,6 +885,13 @@ err_msg:
 	return err;
 }
 
+void xe_gt_shutdown(struct xe_gt *gt)
+{
+	xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	do_gt_reset(gt);
+	xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+}
+
 /**
  * xe_gt_sanitize_freq() - Restore saved frequencies if necessary.
  * @gt: the GT object
@@ -874,7 +904,9 @@ int xe_gt_sanitize_freq(struct xe_gt *gt)
 	int ret = 0;
 
 	if ((!xe_uc_fw_is_available(&gt->uc.gsc.fw) ||
-	     xe_uc_fw_is_loaded(&gt->uc.gsc.fw)) && XE_WA(gt, 22019338487))
+	     xe_uc_fw_is_loaded(&gt->uc.gsc.fw) ||
+	     xe_uc_fw_is_in_error_state(&gt->uc.gsc.fw)) &&
+	    XE_WA(gt, 22019338487))
 		ret = xe_guc_pc_restore_stashed_freq(&gt->uc.guc.pc);
 
 	return ret;
