@@ -21,7 +21,9 @@
 #include <clocksource/hyperv_timer.h>
 
 #define __vdso_data (VVAR(_vdso_data))
-#define __timens_vdso_data (TIMENS(_vdso_data))
+
+extern struct vdso_data timens_page
+	__attribute__((visibility("hidden")));
 
 #define VDSO_HAS_TIME 1
 
@@ -61,7 +63,7 @@ extern struct ms_hyperv_tsc_page hvclock_page
 static __always_inline
 const struct vdso_data *__arch_get_timens_vdso_data(const struct vdso_data *vd)
 {
-	return __timens_vdso_data;
+	return &timens_page;
 }
 #endif
 
