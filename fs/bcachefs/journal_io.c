@@ -421,7 +421,8 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 			bch2_prt_jset_entry_type(out, entry->type);
 			prt_str(out, ": ");
 		}
-		prt_printf(out, "btree=%s l=%u ", bch2_btree_id_str(entry->btree_id), entry->level);
+		bch2_btree_id_level_to_text(out, entry->btree_id, entry->level);
+		prt_char(out, ' ');
 		bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(k));
 		first = false;
 	}

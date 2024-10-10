@@ -1004,16 +1004,14 @@ static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 		return;
 
 	prt_printf(&buf,
-	       "btree node header doesn't match ptr\n"
-	       "btree %s level %u\n"
-	       "ptr: ",
-	       bch2_btree_id_str(b->c.btree_id), b->c.level);
+		   "btree node header doesn't match ptr: ");
+	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
+	prt_str(&buf, "\nptr: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
-	prt_printf(&buf, "\nheader: btree %s level %llu\n"
-	       "min ",
-	       bch2_btree_id_str(BTREE_NODE_ID(b->data)),
-	       BTREE_NODE_LEVEL(b->data));
+	prt_str(&buf, "\nheader: ");
+	bch2_btree_id_level_to_text(&buf, BTREE_NODE_ID(b->data), BTREE_NODE_LEVEL(b->data));
+	prt_str(&buf, "\nmin ");
 	bch2_bpos_to_text(&buf, b->data->min_key);
 
 	prt_printf(&buf, "\nmax ");
@@ -1398,12 +1396,19 @@ void bch2_btree_id_to_text(struct printbuf *out, enum btree_id btree)
 		prt_printf(out, "(unknown btree %u)", btree);
 }
 
+void bch2_btree_id_level_to_text(struct printbuf *out, enum btree_id btree, unsigned level)
+{
+	prt_str(out, "btree=");
+	bch2_btree_id_to_text(out, btree);
+	prt_printf(out, " level=%u", level);
+}
+
 void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
 {
-	prt_printf(out, "%s level %u/%u\n  ",
-	       bch2_btree_id_str(b->c.btree_id),
-	       b->c.level,
-	       bch2_btree_id_root(c, b->c.btree_id)->level);
+	bch2_btree_id_to_text(out, b->c.btree_id);
+	prt_printf(out, " level %u/%u\n  ",
+		   b->c.level,
+		   bch2_btree_id_root(c, b->c.btree_id)->level);
 	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
 }
 
@@ -1478,8 +1483,12 @@ void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc
 	prt_printf(out, "cannibalize lock:\t%p\n",	bc->alloc_lock);
 	prt_newline(out);
 
-	for (unsigned i = 0; i < ARRAY_SIZE(bc->nr_by_btree); i++)
-		prt_btree_cache_line(out, c, bch2_btree_id_str(i), bc->nr_by_btree[i]);
+	for (unsigned i = 0; i < ARRAY_SIZE(bc->nr_by_btree); i++) {
+		bch2_btree_id_to_text(out, i);
+		prt_printf(out, "\t");
+		prt_human_readable_u64(out, bc->nr_by_btree[i] * c->opts.btree_node_size);
+		prt_printf(out, " (%zu)\n", bc->nr_by_btree[i]);
+	}
 
 	prt_newline(out);
 	prt_printf(out, "freed:\t%zu\n", bc->nr_freed);

@@ -628,8 +628,11 @@ void bch2_journal_keys_dump(struct bch_fs *c)
 
 	darray_for_each(*keys, i) {
 		printbuf_reset(&buf);
+		prt_printf(&buf, "btree=");
+		bch2_btree_id_to_text(&buf, i->btree_id);
+		prt_printf(&buf, " l=%u ", i->level);
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(i->k));
-		pr_err("%s l=%u %s", bch2_btree_id_str(i->btree_id), i->level, buf.buf);
+		pr_err("%s", buf.buf);
 	}
 	printbuf_exit(&buf);
 }

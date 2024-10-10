@@ -217,7 +217,8 @@ void bch2_accounting_key_to_text(struct printbuf *out, struct disk_accounting_po
 		prt_printf(out, "id=%u", k->snapshot.id);
 		break;
 	case BCH_DISK_ACCOUNTING_btree:
-		prt_printf(out, "btree=%s", bch2_btree_id_str(k->btree.id));
+		prt_str(out, "btree=");
+		bch2_btree_id_to_text(out, k->btree.id);
 		break;
 	}
 }
