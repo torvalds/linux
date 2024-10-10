@@ -440,10 +440,12 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 	struct dpu_hw_ctl *ctl;
 	const struct msm_format *fmt;
 	u32 fmt_fourcc;
+	u32 mode_3d;
 
 	ctl = phys_enc->hw_ctl;
 	fmt_fourcc = dpu_encoder_get_drm_fmt(phys_enc);
 	fmt = mdp_get_format(&phys_enc->dpu_kms->base, fmt_fourcc, 0);
+	mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
 
 	DPU_DEBUG_VIDENC(phys_enc, "\n");
 
@@ -466,7 +468,8 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 		goto skip_flush;
 
 	ctl->ops.update_pending_flush_intf(ctl, phys_enc->hw_intf->idx);
-	if (ctl->ops.update_pending_flush_merge_3d && phys_enc->hw_pp->merge_3d)
+	if (mode_3d && ctl->ops.update_pending_flush_merge_3d &&
+	    phys_enc->hw_pp->merge_3d)
 		ctl->ops.update_pending_flush_merge_3d(ctl, phys_enc->hw_pp->merge_3d->idx);
 
 	if (ctl->ops.update_pending_flush_cdm && phys_enc->hw_cdm)
