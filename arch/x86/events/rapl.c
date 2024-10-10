@@ -602,19 +602,8 @@ static int rapl_cpu_online(unsigned int cpu)
 	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
 	int target;
 
-	if (!pmu) {
-		pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
-		if (!pmu)
-			return -ENOMEM;
-
-		raw_spin_lock_init(&pmu->lock);
-		INIT_LIST_HEAD(&pmu->active_list);
-		pmu->pmu = &rapl_pmus->pmu;
-		pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
-		rapl_hrtimer_init(pmu);
-
-		rapl_pmus->pmus[rapl_pmu_idx] = pmu;
-	}
+	if (!pmu)
+		return -ENOMEM;
 
 	/*
 	 * Check if there is an online cpu in the package which collects rapl
@@ -707,6 +696,32 @@ static const struct attribute_group *rapl_attr_update[] = {
 	NULL,
 };
 
+static int __init init_rapl_pmu(void)
+{
+	struct rapl_pmu *pmu;
+	int idx;
+
+	for (idx = 0; idx < rapl_pmus->nr_rapl_pmu; idx++) {
+		pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
+		if (!pmu)
+			goto free;
+
+		raw_spin_lock_init(&pmu->lock);
+		INIT_LIST_HEAD(&pmu->active_list);
+		pmu->pmu = &rapl_pmus->pmu;
+		pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
+		rapl_hrtimer_init(pmu);
+
+		rapl_pmus->pmus[idx] = pmu;
+	}
+
+	return 0;
+free:
+	for (; idx > 0; idx--)
+		kfree(rapl_pmus->pmus[idx - 1]);
+	return -ENOMEM;
+}
+
 static int __init init_rapl_pmus(void)
 {
 	int nr_rapl_pmu = topology_max_packages();
@@ -730,7 +745,8 @@ static int __init init_rapl_pmus(void)
 	rapl_pmus->pmu.read		= rapl_pmu_event_read;
 	rapl_pmus->pmu.module		= THIS_MODULE;
 	rapl_pmus->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
-	return 0;
+
+	return init_rapl_pmu();
 }
 
 static struct rapl_model model_snb = {
