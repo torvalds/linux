@@ -834,13 +834,13 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 	if (!result) {
 		list_add_tail(&dev->trip_node, &td->thermal_instances);
 		list_add_tail(&dev->cdev_node, &cdev->thermal_instances);
-
-		thermal_governor_update_tz(tz, THERMAL_TZ_BIND_CDEV);
 	}
 	mutex_unlock(&cdev->lock);
 
-	if (!result)
+	if (!result) {
+		thermal_governor_update_tz(tz, THERMAL_TZ_BIND_CDEV);
 		return 0;
+	}
 
 	device_remove_file(&tz->device, &dev->weight_attr);
 remove_trip_file:
@@ -875,9 +875,6 @@ static void thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
 		if (pos->cdev == cdev) {
 			list_del(&pos->trip_node);
 			list_del(&pos->cdev_node);
-
-			thermal_governor_update_tz(tz, THERMAL_TZ_UNBIND_CDEV);
-
 			mutex_unlock(&cdev->lock);
 			goto unbind;
 		}
@@ -887,6 +884,8 @@ static void thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
 	return;
 
 unbind:
+	thermal_governor_update_tz(tz, THERMAL_TZ_UNBIND_CDEV);
+
 	device_remove_file(&tz->device, &pos->weight_attr);
 	device_remove_file(&tz->device, &pos->attr);
 	sysfs_remove_link(&tz->device.kobj, pos->name);
