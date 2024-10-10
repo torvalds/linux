@@ -6778,8 +6778,6 @@ __bpf_sk_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
 		/* sk_to_full_sk() may return (sk)->rsk_listener, so make sure the original sk
 		 * sock refcnt is decremented to prevent a request_sock leak.
 		 */
-		if (!sk_fullsock(sk2))
-			sk2 = NULL;
 		if (sk2 != sk) {
 			sock_gen_put(sk);
 			/* Ensure there is no need to bump sk2 refcnt */
@@ -6826,8 +6824,6 @@ bpf_sk_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
 		/* sk_to_full_sk() may return (sk)->rsk_listener, so make sure the original sk
 		 * sock refcnt is decremented to prevent a request_sock leak.
 		 */
-		if (!sk_fullsock(sk2))
-			sk2 = NULL;
 		if (sk2 != sk) {
 			sock_gen_put(sk);
 			/* Ensure there is no need to bump sk2 refcnt */
@@ -7276,7 +7272,7 @@ BPF_CALL_1(bpf_get_listener_sock, struct sock *, sk)
 {
 	sk = sk_to_full_sk(sk);
 
-	if (sk->sk_state == TCP_LISTEN && sock_flag(sk, SOCK_RCU_FREE))
+	if (sk && sk->sk_state == TCP_LISTEN && sock_flag(sk, SOCK_RCU_FREE))
 		return (unsigned long)sk;
 
 	return (unsigned long)NULL;
