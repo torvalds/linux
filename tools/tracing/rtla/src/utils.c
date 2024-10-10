@@ -211,24 +211,20 @@ long parse_ns_duration(char *val)
 /*
  * This is a set of helper functions to use SCHED_DEADLINE.
  */
-#ifdef __x86_64__
-# define __NR_sched_setattr	314
-# define __NR_sched_getattr	315
-#elif __i386__
-# define __NR_sched_setattr	351
-# define __NR_sched_getattr	352
-#elif __arm__
-# define __NR_sched_setattr	380
-# define __NR_sched_getattr	381
-#elif __aarch64__ || __riscv
-# define __NR_sched_setattr	274
-# define __NR_sched_getattr	275
-#elif __powerpc__
-# define __NR_sched_setattr	355
-# define __NR_sched_getattr	356
-#elif __s390x__
-# define __NR_sched_setattr	345
-# define __NR_sched_getattr	346
+#ifndef __NR_sched_setattr
+# ifdef __x86_64__
+#  define __NR_sched_setattr	314
+# elif __i386__
+#  define __NR_sched_setattr	351
+# elif __arm__
+#  define __NR_sched_setattr	380
+# elif __aarch64__ || __riscv
+#  define __NR_sched_setattr	274
+# elif __powerpc__
+#  define __NR_sched_setattr	355
+# elif __s390x__
+#  define __NR_sched_setattr	345
+# endif
 #endif
 
 #define SCHED_DEADLINE		6
