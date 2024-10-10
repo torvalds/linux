@@ -24,6 +24,8 @@ SECTIONS
 #include <asm/vvar.h>
 #undef EMIT_VVAR
 
+	vdso_rng_data = vvar_page + __VDSO_RND_DATA_OFFSET;
+
 	pvclock_page = vvar_start + PAGE_SIZE;
 	hvclock_page = vvar_start + 2 * PAGE_SIZE;
 	timens_page  = vvar_start + 3 * PAGE_SIZE;
