@@ -9,7 +9,6 @@
 #define SCX_OP_IDX(op)		(offsetof(struct sched_ext_ops, op) / sizeof(void (*)(void)))
 
 enum scx_consts {
-	SCX_SLICE_BYPASS		= SCX_SLICE_DFL / 4,
 	SCX_DSP_DFL_MAX_BATCH		= 32,
 	SCX_DSP_MAX_LOOPS		= 32,
 	SCX_WATCHDOG_MAX_TIMEOUT	= 30 * HZ,
@@ -1949,7 +1948,6 @@ static bool scx_rq_online(struct rq *rq)
 static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 			    int sticky_cpu)
 {
-	bool bypassing = scx_rq_bypassing(rq);
 	struct task_struct **ddsp_taskp;
 	unsigned long qseq;
 
@@ -1967,7 +1965,7 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	if (!scx_rq_online(rq))
 		goto local;
 
-	if (bypassing)
+	if (scx_rq_bypassing(rq))
 		goto global;
 
 	if (p->scx.ddsp_dsq_id != SCX_DSQ_INVALID)
@@ -2022,7 +2020,7 @@ local_norefill:
 
 global:
 	touch_core_sched(rq, p);	/* see the comment in local: */
-	p->scx.slice = bypassing ? SCX_SLICE_BYPASS : SCX_SLICE_DFL;
+	p->scx.slice = SCX_SLICE_DFL;
 	dispatch_enqueue(find_global_dsq(p), p, enq_flags);
 }
 
