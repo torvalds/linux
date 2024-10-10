@@ -160,7 +160,7 @@ my @export_file_list;
 
 my @build_time;
 if (defined($ENV{'KBUILD_BUILD_TIMESTAMP'}) &&
-    (my $seconds = `date -d"${ENV{'KBUILD_BUILD_TIMESTAMP'}}" +%s`) ne '') {
+    (my $seconds = `date -d "${ENV{'KBUILD_BUILD_TIMESTAMP'}}" +%s`) ne '') {
     @build_time = gmtime($seconds);
 } else {
     @build_time = localtime;
