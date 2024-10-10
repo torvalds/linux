@@ -137,7 +137,6 @@ int __trace_graph_retaddr_entry(struct trace_array *tr,
 				unsigned int trace_ctx,
 				unsigned long retaddr)
 {
-	struct trace_event_call *call = &event_fgraph_retaddr_entry;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct fgraph_retaddr_ent_entry *entry;
@@ -150,8 +149,7 @@ int __trace_graph_retaddr_entry(struct trace_array *tr,
 	entry->graph_ent.func = trace->func;
 	entry->graph_ent.depth = trace->depth;
 	entry->graph_ent.retaddr = retaddr;
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+	trace_buffer_unlock_commit_nostack(buffer, event);
 
 	return 1;
 }
