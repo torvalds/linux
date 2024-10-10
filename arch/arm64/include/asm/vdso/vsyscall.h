@@ -6,7 +6,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/timekeeper_internal.h>
 #include <vdso/datapage.h>
 
 enum vvar_pages {
@@ -37,7 +36,7 @@ struct vdso_rng_data *__arm64_get_k_vdso_rnd_data(void)
 #define __arch_get_k_vdso_rng_data __arm64_get_k_vdso_rnd_data
 
 static __always_inline
-void __arm64_update_vsyscall(struct vdso_data *vdata, struct timekeeper *tk)
+void __arm64_update_vsyscall(struct vdso_data *vdata)
 {
 	vdata[CS_HRES_COARSE].mask	= VDSO_PRECISION_MASK;
 	vdata[CS_RAW].mask		= VDSO_PRECISION_MASK;
