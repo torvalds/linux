@@ -989,7 +989,7 @@ static int gpy_led_hw_control_set(struct phy_device *phydev, u8 index,
 static int gpy_led_polarity_set(struct phy_device *phydev, int index,
 				unsigned long modes)
 {
-	bool active_low = false;
+	bool force_active_low = false, force_active_high = false;
 	u32 mode;
 
 	if (index >= GPY_MAX_LEDS)
@@ -998,15 +998,23 @@ static int gpy_led_polarity_set(struct phy_device *phydev, int index,
 	for_each_set_bit(mode, &modes, __PHY_LED_MODES_NUM) {
 		switch (mode) {
 		case PHY_LED_ACTIVE_LOW:
-			active_low = true;
+			force_active_low = true;
+			break;
+		case PHY_LED_ACTIVE_HIGH:
+			force_active_high = true;
 			break;
 		default:
 			return -EINVAL;
 		}
 	}
 
-	return phy_modify(phydev, PHY_LED, PHY_LED_POLARITY(index),
-			  active_low ? 0 : PHY_LED_POLARITY(index));
+	if (force_active_low)
+		return phy_set_bits(phydev, PHY_LED, PHY_LED_POLARITY(index));
+
+	if (force_active_high)
+		return phy_clear_bits(phydev, PHY_LED, PHY_LED_POLARITY(index));
+
+	unreachable();
 }
 
 static struct phy_driver gpy_drivers[] = {
