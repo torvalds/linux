@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/zii,rave-sp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Zodiac Inflight Innovations RAVE Supervisory Processor
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  RAVE Supervisory Processor communicates with SoC over UART. It is
+  expected that its Device Tree node is specified as a child of a node
+  corresponding to UART controller used for communication.
+
+properties:
+  compatible:
+    enum:
+      - zii,rave-sp-niu
+      - zii,rave-sp-mezz
+      - zii,rave-sp-esb
+      - zii,rave-sp-rdu1
+      - zii,rave-sp-rdu2
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  watchdog:
+    $ref: /schemas/watchdog/zii,rave-sp-wdt.yaml
+
+  backlight:
+    $ref: /schemas/leds/backlight/zii,rave-sp-backlight.yaml
+
+  pwrbutton:
+    $ref: /schemas/input/zii,rave-sp-pwrbutton.yaml
+
+patternProperties:
+  '^eeprom@[0-9a-f]+$':
+    $ref: /schemas/nvmem/zii,rave-sp-eeprom.yaml
+
+required:
+  - compatible
+
+allOf:
+  - $ref: /schemas/serial/serial-peripheral-props.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mfd {
+        compatible = "zii,rave-sp-rdu2";
+        current-speed = <1000000>;
+
+        watchdog {
+            compatible = "zii,rave-sp-watchdog";
+        };
+    };
+
