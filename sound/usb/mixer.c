@@ -2224,7 +2224,8 @@ static void build_mixer_unit_ctl(struct mixer_build *state,
 		len = get_term_name(state->chip, iterm, kctl->id.name,
 				    sizeof(kctl->id.name), 0);
 	if (!len)
-		len = sprintf(kctl->id.name, "Mixer Source %d", in_ch + 1);
+		snprintf(kctl->id.name, sizeof(kctl->id.name), "Mixer Source %d", in_ch + 1);
+
 	append_ctl_name(kctl, " Volume");
 
 	usb_audio_dbg(state->chip, "[%d] MU [%s] ch = %d, val = %d/%d\n",

@@ -1462,7 +1462,7 @@ static const struct hda_model_fixup stac9200_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac9200_fixup_tbl[] = {
+static const struct hda_quirk stac9200_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_REF),
@@ -1683,7 +1683,7 @@ static const struct hda_model_fixup stac925x_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac925x_fixup_tbl[] = {
+static const struct hda_quirk stac925x_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668, "DFI LanParty", STAC_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101, "DFI LanParty", STAC_REF),
@@ -1957,7 +1957,7 @@ static const struct hda_model_fixup stac92hd73xx_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac92hd73xx_fixup_tbl[] = {
+static const struct hda_quirk stac92hd73xx_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 				"DFI LanParty", STAC_92HD73XX_REF),
@@ -2753,7 +2753,7 @@ static const struct hda_model_fixup stac92hd83xxx_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
+static const struct hda_quirk stac92hd83xxx_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_92HD83XXX_REF),
@@ -3236,7 +3236,7 @@ static const struct hda_model_fixup stac92hd71bxx_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac92hd71bxx_fixup_tbl[] = {
+static const struct hda_quirk stac92hd71bxx_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_92HD71BXX_REF),
@@ -3496,7 +3496,7 @@ static const struct hda_pintbl ecs202_pin_configs[] = {
 };
 
 /* codec SSIDs for Intel Mac sharing the same PCI SSID 8384:7680 */
-static const struct snd_pci_quirk stac922x_intel_mac_fixup_tbl[] = {
+static const struct hda_quirk stac922x_intel_mac_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x0000, 0x0100, "Mac Mini", STAC_INTEL_MAC_V3),
 	SND_PCI_QUIRK(0x106b, 0x0800, "Mac", STAC_INTEL_MAC_V1),
 	SND_PCI_QUIRK(0x106b, 0x0600, "Mac", STAC_INTEL_MAC_V2),
@@ -3640,7 +3640,7 @@ static const struct hda_model_fixup stac922x_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac922x_fixup_tbl[] = {
+static const struct hda_quirk stac922x_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_D945_REF),
@@ -3968,7 +3968,7 @@ static const struct hda_model_fixup stac927x_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac927x_fixup_tbl[] = {
+static const struct hda_quirk stac927x_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_D965_REF),
@@ -4178,7 +4178,7 @@ static const struct hda_model_fixup stac9205_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk stac9205_fixup_tbl[] = {
+static const struct hda_quirk stac9205_fixup_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_9205_REF),
@@ -4255,7 +4255,7 @@ static const struct hda_fixup stac92hd95_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk stac92hd95_fixup_tbl[] = {
+static const struct hda_quirk stac92hd95_fixup_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1911, "HP Spectre 13", STAC_92HD95_HP_BASS),
 	{} /* terminator */
 };
@@ -5002,7 +5002,7 @@ static const struct hda_fixup stac9872_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk stac9872_fixup_tbl[] = {
+static const struct hda_quirk stac9872_fixup_tbl[] = {
 	SND_PCI_QUIRK_MASK(0x104d, 0xfff0, 0x81e0,
 			   "Sony VAIO F/S", STAC_9872_VAIO),
 	{} /* terminator */
