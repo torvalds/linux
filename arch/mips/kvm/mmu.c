@@ -514,7 +514,6 @@ static int _kvm_mips_map_page_fast(struct kvm_vcpu *vcpu, unsigned long gpa,
 		set_pte(ptep, pte_mkdirty(*ptep));
 		pfn = pte_pfn(*ptep);
 		mark_page_dirty(kvm, gfn);
-		kvm_set_pfn_dirty(pfn);
 	}
 
 	if (out_entry)
@@ -628,7 +627,6 @@ retry:
 		if (write_fault) {
 			prot_bits |= __WRITEABLE;
 			mark_page_dirty(kvm, gfn);
-			kvm_set_pfn_dirty(pfn);
 		}
 	}
 	entry = pfn_pte(pfn, __pgprot(prot_bits));
@@ -641,6 +639,9 @@ retry:
 		*out_entry = *ptep;
 	if (out_buddy)
 		*out_buddy = *ptep_buddy(ptep);
+
+	if (writeable)
+		kvm_set_pfn_dirty(pfn);
 
 	spin_unlock(&kvm->mmu_lock);
 	kvm_release_pfn_clean(pfn);
