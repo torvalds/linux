@@ -143,7 +143,7 @@ static inline int zpci_get_max_io_size(u64 src, u64 dst, int len, int max)
 
 static inline int zpci_memcpy_fromio(void *dst,
 				     const volatile void __iomem *src,
-				     unsigned long n)
+				     size_t n)
 {
 	int size, rc = 0;
 
@@ -162,7 +162,7 @@ static inline int zpci_memcpy_fromio(void *dst,
 }
 
 static inline int zpci_memcpy_toio(volatile void __iomem *dst,
-				   const void *src, unsigned long n)
+				   const void *src, size_t n)
 {
 	int size, rc = 0;
 
@@ -187,7 +187,7 @@ static inline int zpci_memcpy_toio(volatile void __iomem *dst,
 }
 
 static inline int zpci_memset_io(volatile void __iomem *dst,
-				 unsigned char val, size_t count)
+				 int val, size_t count)
 {
 	u8 *src = kmalloc(count, GFP_KERNEL);
 	int rc;
