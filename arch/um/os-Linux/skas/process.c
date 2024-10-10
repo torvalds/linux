@@ -388,6 +388,9 @@ int start_userspace(unsigned long stub_stack)
 	return err;
 }
 
+int unscheduled_userspace_iterations;
+extern unsigned long tt_extra_sched_jiffies;
+
 void userspace(struct uml_pt_regs *regs)
 {
 	int err, status, op, pid = userspace_pid[0];
@@ -397,6 +400,27 @@ void userspace(struct uml_pt_regs *regs)
 	interrupt_end();
 
 	while (1) {
+		/*
+		 * When we are in time-travel mode, userspace can theoretically
+		 * do a *lot* of work without being scheduled. The problem with
+		 * this is that it will prevent kernel bookkeeping (primarily
+		 * the RCU) from running and this can for example cause OOM
+		 * situations.
+		 *
+		 * This code accounts a jiffie against the scheduling clock
+		 * after the defined userspace iterations in the same thread.
+		 * By doing so the situation is effectively prevented.
+		 */
+		if (time_travel_mode == TT_MODE_INFCPU ||
+		    time_travel_mode == TT_MODE_EXTERNAL) {
+			if (UML_CONFIG_UML_MAX_USERSPACE_ITERATIONS &&
+			    unscheduled_userspace_iterations++ >
+			    UML_CONFIG_UML_MAX_USERSPACE_ITERATIONS) {
+				tt_extra_sched_jiffies += 1;
+				unscheduled_userspace_iterations = 0;
+			}
+		}
+
 		time_travel_print_bc_msg();
 
 		current_mm_sync();
@@ -539,6 +563,8 @@ void new_thread(void *stack, jmp_buf *buf, void (*handler)(void))
 
 void switch_threads(jmp_buf *me, jmp_buf *you)
 {
+	unscheduled_userspace_iterations = 0;
+
 	if (UML_SETJMP(me) == 0)
 		UML_LONGJMP(you, 1);
 }

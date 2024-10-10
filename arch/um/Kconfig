@@ -227,6 +227,21 @@ config UML_TIME_TRAVEL_SUPPORT
 
 	  It is safe to say Y, but you probably don't need this.
 
+config UML_MAX_USERSPACE_ITERATIONS
+	int
+	prompt "Maximum number of unscheduled userspace iterations"
+	default 10000
+	depends on UML_TIME_TRAVEL_SUPPORT
+	help
+	  In UML inf-cpu and ext time-travel mode userspace can run without being
+	  interrupted. This will eventually overwhelm the kernel and create OOM
+	  situations (mainly RCU not running). This setting specifies the number
+	  of kernel/userspace switches (minor/major page fault, signal or syscall)
+	  for the same userspace thread before the sched_clock is advanced by a
+	  jiffie to trigger scheduling.
+
+	  Setting it to zero disables the feature.
+
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
