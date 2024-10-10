@@ -67,7 +67,6 @@ bool __ieee80211_recalc_txpower(struct ieee80211_link_data *link)
 
 	if (power != link->conf->txpower) {
 		link->conf->txpower = power;
-		ieee80211_hw_config(link->sdata->local, 0);
 		return true;
 	}
 
