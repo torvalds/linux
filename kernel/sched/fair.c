@@ -13177,22 +13177,6 @@ static void attach_task_cfs_rq(struct task_struct *p)
 static void switched_from_fair(struct rq *rq, struct task_struct *p)
 {
 	detach_task_cfs_rq(p);
-	/*
-	 * Since this is called after changing class, this is a little weird
-	 * and we cannot use DEQUEUE_DELAYED.
-	 */
-	if (p->se.sched_delayed) {
-		/* First, dequeue it from its new class' structures */
-		dequeue_task(rq, p, DEQUEUE_NOCLOCK | DEQUEUE_SLEEP);
-		/*
-		 * Now, clean up the fair_sched_class side of things
-		 * related to sched_delayed being true and that wasn't done
-		 * due to the generic dequeue not using DEQUEUE_DELAYED.
-		 */
-		finish_delayed_dequeue_entity(&p->se);
-		p->se.rel_deadline = 0;
-		__block_task(rq, p);
-	}
 }
 
 static void switched_to_fair(struct rq *rq, struct task_struct *p)
