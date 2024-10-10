@@ -1011,7 +1011,7 @@ static void object_set_excess_ref(unsigned long ptr, unsigned long excess_ref)
 }
 
 /*
- * Set the OBJECT_NO_SCAN flag for the object corresponding to the give
+ * Set the OBJECT_NO_SCAN flag for the object corresponding to the given
  * pointer. Such object will not be scanned by kmemleak but references to it
  * are searched.
  */
