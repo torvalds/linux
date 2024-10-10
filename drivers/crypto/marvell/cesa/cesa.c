@@ -510,25 +510,21 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		 * if the clock does not exist.
 		 */
 		snprintf(res_name, sizeof(res_name), "cesa%u", i);
-		engine->clk = devm_clk_get(dev, res_name);
+		engine->clk = devm_clk_get_optional_enabled(dev, res_name);
 		if (IS_ERR(engine->clk)) {
-			engine->clk = devm_clk_get(dev, NULL);
-			if (IS_ERR(engine->clk))
-				engine->clk = NULL;
+			engine->clk = devm_clk_get_optional_enabled(dev, NULL);
+			if (IS_ERR(engine->clk)) {
+				ret = PTR_ERR(engine->clk);
+				goto err_cleanup;
+			}
 		}
 
 		snprintf(res_name, sizeof(res_name), "cesaz%u", i);
-		engine->zclk = devm_clk_get(dev, res_name);
-		if (IS_ERR(engine->zclk))
-			engine->zclk = NULL;
-
-		ret = clk_prepare_enable(engine->clk);
-		if (ret)
+		engine->zclk = devm_clk_get_optional_enabled(dev, res_name);
+		if (IS_ERR(engine->zclk)) {
+			ret = PTR_ERR(engine->zclk);
 			goto err_cleanup;
-
-		ret = clk_prepare_enable(engine->zclk);
-		if (ret)
-			goto err_cleanup;
+		}
 
 		engine->regs = cesa->regs + CESA_ENGINE_OFF(i);
 
@@ -571,8 +567,6 @@ static int mv_cesa_probe(struct platform_device *pdev)
 
 err_cleanup:
 	for (i = 0; i < caps->nengines; i++) {
-		clk_disable_unprepare(cesa->engines[i].zclk);
-		clk_disable_unprepare(cesa->engines[i].clk);
 		mv_cesa_put_sram(pdev, i);
 		if (cesa->engines[i].irq > 0)
 			irq_set_affinity_hint(cesa->engines[i].irq, NULL);
@@ -589,8 +583,6 @@ static void mv_cesa_remove(struct platform_device *pdev)
 	mv_cesa_remove_algs(cesa);
 
 	for (i = 0; i < cesa->caps->nengines; i++) {
-		clk_disable_unprepare(cesa->engines[i].zclk);
-		clk_disable_unprepare(cesa->engines[i].clk);
 		mv_cesa_put_sram(pdev, i);
 		irq_set_affinity_hint(cesa->engines[i].irq, NULL);
 	}
