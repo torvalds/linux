@@ -2804,8 +2804,6 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 	struct page *page;
 	int npages;
 
-	might_sleep();
-
 	if (writable)
 		*writable = write_fault;
 
@@ -2938,6 +2936,8 @@ kvm_pfn_t hva_to_pfn(unsigned long addr, bool interruptible, bool *async,
 	struct vm_area_struct *vma;
 	kvm_pfn_t pfn;
 	int npages, r;
+
+	might_sleep();
 
 	if (hva_to_pfn_fast(addr, write_fault, writable, &pfn))
 		return pfn;
