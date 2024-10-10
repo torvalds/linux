@@ -59,29 +59,45 @@ static const u16 lan867x_revb1_fixup_masks[12] = {
 	0x0600, 0x7F00, 0x2000, 0xFFFF,
 };
 
-/* LAN865x Rev.B0 configuration parameters from AN1760 */
-static const u32 lan865x_revb0_fixup_registers[28] = {
-	0x0091, 0x0081, 0x0043, 0x0044,
-	0x0045, 0x0053, 0x0054, 0x0055,
-	0x0040, 0x0050, 0x00D0, 0x00E9,
-	0x00F5, 0x00F4, 0x00F8, 0x00F9,
+/* LAN865x Rev.B0 configuration parameters from AN1760
+ * As per the Configuration Application Note AN1760 published in the below link,
+ * https://www.microchip.com/en-us/application-notes/an1760
+ * Revision F (DS60001760G - June 2024)
+ */
+static const u32 lan865x_revb0_fixup_registers[17] = {
+	0x00D0, 0x00E0, 0x00E9, 0x00F5,
+	0x00F4, 0x00F8, 0x00F9, 0x0081,
+	0x0091, 0x0043, 0x0044, 0x0045,
+	0x0053, 0x0054, 0x0055, 0x0040,
+	0x0050,
+};
+
+static const u16 lan865x_revb0_fixup_values[17] = {
+	0x3F31, 0xC000, 0x9E50, 0x1CF8,
+	0xC020, 0xB900, 0x4E53, 0x0080,
+	0x9660, 0x00FF, 0xFFFF, 0x0000,
+	0x00FF, 0xFFFF, 0x0000, 0x0002,
+	0x0002,
+};
+
+static const u16 lan865x_revb0_fixup_cfg_regs[2] = {
+	0x0084, 0x008A,
+};
+
+static const u32 lan865x_revb0_sqi_fixup_regs[12] = {
 	0x00B0, 0x00B1, 0x00B2, 0x00B3,
 	0x00B4, 0x00B5, 0x00B6, 0x00B7,
 	0x00B8, 0x00B9, 0x00BA, 0x00BB,
 };
 
-static const u16 lan865x_revb0_fixup_values[28] = {
-	0x9660, 0x00C0, 0x00FF, 0xFFFF,
-	0x0000, 0x00FF, 0xFFFF, 0x0000,
-	0x0002, 0x0002, 0x5F21, 0x9E50,
-	0x1CF8, 0xC020, 0x9B00, 0x4E53,
+static const u16 lan865x_revb0_sqi_fixup_values[12] = {
 	0x0103, 0x0910, 0x1D26, 0x002A,
 	0x0103, 0x070D, 0x1720, 0x0027,
 	0x0509, 0x0E13, 0x1C25, 0x002B,
 };
 
-static const u16 lan865x_revb0_fixup_cfg_regs[5] = {
-	0x0084, 0x008A, 0x00AD, 0x00AE, 0x00AF
+static const u16 lan865x_revb0_sqi_fixup_cfg_regs[3] = {
+	0x00AD, 0x00AE, 0x00AF,
 };
 
 /* Pulled from AN1760 describing 'indirect read'
@@ -121,6 +137,9 @@ static int lan865x_generate_cfg_offsets(struct phy_device *phydev, s8 offsets[])
 		ret = lan865x_revb0_indirect_read(phydev, fixup_regs[i]);
 		if (ret < 0)
 			return ret;
+
+		/* 5-bit signed value, sign extend */
+		ret &= GENMASK(4, 0);
 		if (ret & BIT(4))
 			offsets[i] = ret | 0xE0;
 		else
@@ -163,59 +182,88 @@ static int lan865x_write_cfg_params(struct phy_device *phydev,
 	return 0;
 }
 
-static int lan865x_setup_cfgparam(struct phy_device *phydev)
+static int lan865x_setup_cfgparam(struct phy_device *phydev, s8 offsets[])
 {
 	u16 cfg_results[ARRAY_SIZE(lan865x_revb0_fixup_cfg_regs)];
 	u16 cfg_params[ARRAY_SIZE(lan865x_revb0_fixup_cfg_regs)];
-	s8 offsets[2];
 	int ret;
-
-	ret = lan865x_generate_cfg_offsets(phydev, offsets);
-	if (ret)
-		return ret;
 
 	ret = lan865x_read_cfg_params(phydev, lan865x_revb0_fixup_cfg_regs,
 				      cfg_params, ARRAY_SIZE(cfg_params));
 	if (ret)
 		return ret;
 
-	cfg_results[0] = (cfg_params[0] & 0x000F) |
-			  FIELD_PREP(GENMASK(15, 10), 9 + offsets[0]) |
-			  FIELD_PREP(GENMASK(15, 4), 14 + offsets[0]);
-	cfg_results[1] = (cfg_params[1] & 0x03FF) |
-			  FIELD_PREP(GENMASK(15, 10), 40 + offsets[1]);
-	cfg_results[2] = (cfg_params[2] & 0xC0C0) |
-			  FIELD_PREP(GENMASK(15, 8), 5 + offsets[0]) |
-			  (9 + offsets[0]);
-	cfg_results[3] = (cfg_params[3] & 0xC0C0) |
-			  FIELD_PREP(GENMASK(15, 8), 9 + offsets[0]) |
-			  (14 + offsets[0]);
-	cfg_results[4] = (cfg_params[4] & 0xC0C0) |
-			  FIELD_PREP(GENMASK(15, 8), 17 + offsets[0]) |
-			  (22 + offsets[0]);
+	cfg_results[0] = FIELD_PREP(GENMASK(15, 10), 9 + offsets[0]) |
+			 FIELD_PREP(GENMASK(9, 4), 14 + offsets[0]) |
+			 0x03;
+	cfg_results[1] = FIELD_PREP(GENMASK(15, 10), 40 + offsets[1]);
 
 	return lan865x_write_cfg_params(phydev, lan865x_revb0_fixup_cfg_regs,
 					cfg_results, ARRAY_SIZE(cfg_results));
 }
 
+static int lan865x_setup_sqi_cfgparam(struct phy_device *phydev, s8 offsets[])
+{
+	u16 cfg_results[ARRAY_SIZE(lan865x_revb0_sqi_fixup_cfg_regs)];
+	u16 cfg_params[ARRAY_SIZE(lan865x_revb0_sqi_fixup_cfg_regs)];
+	int ret;
+
+	ret = lan865x_read_cfg_params(phydev, lan865x_revb0_sqi_fixup_cfg_regs,
+				      cfg_params, ARRAY_SIZE(cfg_params));
+	if (ret)
+		return ret;
+
+	cfg_results[0] = FIELD_PREP(GENMASK(13, 8), 5 + offsets[0]) |
+			 (9 + offsets[0]);
+	cfg_results[1] = FIELD_PREP(GENMASK(13, 8), 9 + offsets[0]) |
+			 (14 + offsets[0]);
+	cfg_results[2] = FIELD_PREP(GENMASK(13, 8), 17 + offsets[0]) |
+			 (22 + offsets[0]);
+
+	return lan865x_write_cfg_params(phydev,
+					lan865x_revb0_sqi_fixup_cfg_regs,
+					cfg_results, ARRAY_SIZE(cfg_results));
+}
+
 static int lan865x_revb0_config_init(struct phy_device *phydev)
 {
+	s8 offsets[2];
 	int ret;
 
 	/* Reference to AN1760
 	 * https://ww1.microchip.com/downloads/aemDocuments/documents/AIS/ProductDocuments/SupportingCollateral/AN-LAN8650-1-Configuration-60001760.pdf
 	 */
+	ret = lan865x_generate_cfg_offsets(phydev, offsets);
+	if (ret)
+		return ret;
+
 	for (int i = 0; i < ARRAY_SIZE(lan865x_revb0_fixup_registers); i++) {
 		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
 				    lan865x_revb0_fixup_registers[i],
 				    lan865x_revb0_fixup_values[i]);
 		if (ret)
 			return ret;
+
+		if (i == 1) {
+			ret = lan865x_setup_cfgparam(phydev, offsets);
+			if (ret)
+				return ret;
+		}
 	}
-	/* Function to calculate and write the configuration parameters in the
-	 * 0x0084, 0x008A, 0x00AD, 0x00AE and 0x00AF registers (from AN1760)
-	 */
-	return lan865x_setup_cfgparam(phydev);
+
+	ret = lan865x_setup_sqi_cfgparam(phydev, offsets);
+	if (ret)
+		return ret;
+
+	for (int i = 0; i < ARRAY_SIZE(lan865x_revb0_sqi_fixup_regs); i++) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+				    lan865x_revb0_sqi_fixup_regs[i],
+				    lan865x_revb0_sqi_fixup_values[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int lan867x_revb1_config_init(struct phy_device *phydev)
