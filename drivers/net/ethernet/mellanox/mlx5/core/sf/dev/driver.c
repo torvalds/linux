@@ -75,6 +75,7 @@ static void mlx5_sf_dev_shutdown(struct auxiliary_device *adev)
 {
 	struct mlx5_sf_dev *sf_dev = container_of(adev, struct mlx5_sf_dev, adev);
 
+	mlx5_drain_health_wq(sf_dev->mdev);
 	mlx5_unload_one(sf_dev->mdev, false);
 }
 
