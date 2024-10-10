@@ -1219,6 +1219,15 @@ struct jset_entry_log {
 	u8			d[];
 } __packed __aligned(8);
 
+static inline unsigned jset_entry_log_msg_bytes(struct jset_entry_log *l)
+{
+	unsigned b = vstruct_bytes(&l->entry) - offsetof(struct jset_entry_log, d);
+
+	while (b && !l->d[b - 1])
+		--b;
+	return b;
+}
+
 struct jset_entry_datetime {
 	struct jset_entry	entry;
 	__le64			seconds;

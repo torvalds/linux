@@ -738,9 +738,8 @@ static void journal_entry_log_to_text(struct printbuf *out, struct bch_fs *c,
 				      struct jset_entry *entry)
 {
 	struct jset_entry_log *l = container_of(entry, struct jset_entry_log, entry);
-	unsigned bytes = vstruct_bytes(entry) - offsetof(struct jset_entry_log, d);
 
-	prt_printf(out, "%.*s", bytes, l->d);
+	prt_printf(out, "%.*s", jset_entry_log_msg_bytes(l), l->d);
 }
 
 static int journal_entry_overwrite_validate(struct bch_fs *c,
