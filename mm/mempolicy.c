@@ -2290,7 +2290,6 @@ struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
  * @order: Order of the folio.
  * @vma: Pointer to VMA.
  * @addr: Virtual address of the allocation.  Must be inside @vma.
- * @hugepage: Unused (was: For hugepages try only preferred node if possible).
  *
  * Allocate a folio for a specific address in @vma, using the appropriate
  * NUMA policy.  The caller must hold the mmap_lock of the mm_struct of the
@@ -2301,7 +2300,7 @@ struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
  * Return: The folio on success or NULL if allocation fails.
  */
 struct folio *vma_alloc_folio_noprof(gfp_t gfp, int order, struct vm_area_struct *vma,
-		unsigned long addr, bool hugepage)
+		unsigned long addr)
 {
 	struct mempolicy *pol;
 	pgoff_t ilx;
