@@ -1155,6 +1155,7 @@ static const struct of_device_id exynosautov920_cmu_of_match[] = {
 		.compatible = "samsung,exynosautov920-cmu-peric0",
 		.data = &peric0_cmu_info,
 	},
+	{ }
 };
 
 static struct platform_driver exynosautov920_cmu_driver __refdata = {
