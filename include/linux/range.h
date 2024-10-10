@@ -13,7 +13,8 @@ static inline u64 range_len(const struct range *range)
 	return range->end - range->start + 1;
 }
 
-static inline bool range_contains(struct range *r1, struct range *r2)
+static inline bool range_contains(const struct range *r1,
+				  const struct range *r2)
 {
 	return r1->start <= r2->start && r1->end >= r2->end;
 }
