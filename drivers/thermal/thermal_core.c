@@ -868,6 +868,17 @@ free_mem:
 	return result;
 }
 
+static void thermal_instance_delete(struct thermal_instance *instance)
+{
+	list_del(&instance->trip_node);
+
+	mutex_lock(&instance->cdev->lock);
+
+	list_del(&instance->cdev_node);
+
+	mutex_unlock(&instance->cdev->lock);
+}
+
 /**
  * thermal_unbind_cdev_from_trip - unbind a cooling device from a thermal zone.
  * @tz:		pointer to a struct thermal_zone_device.
@@ -884,16 +895,12 @@ static void thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
 {
 	struct thermal_instance *pos, *next;
 
-	mutex_lock(&cdev->lock);
 	list_for_each_entry_safe(pos, next, &td->thermal_instances, trip_node) {
 		if (pos->cdev == cdev) {
-			list_del(&pos->trip_node);
-			list_del(&pos->cdev_node);
-			mutex_unlock(&cdev->lock);
+			thermal_instance_delete(pos);
 			goto unbind;
 		}
 	}
-	mutex_unlock(&cdev->lock);
 
 	return;
 
