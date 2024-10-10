@@ -18,6 +18,12 @@ enum scx_consts {
 	SCX_EXIT_DUMP_DFL_LEN		= 32768,
 
 	SCX_CPUPERF_ONE			= SCHED_CAPACITY_SCALE,
+
+	/*
+	 * Iterating all tasks may take a while. Periodically drop
+	 * scx_tasks_lock to avoid causing e.g. CSD and RCU stalls.
+	 */
+	SCX_OPS_TASK_ITER_BATCH		= 32,
 };
 
 enum scx_exit_kind {
@@ -1273,6 +1279,7 @@ struct scx_task_iter {
 	struct task_struct		*locked;
 	struct rq			*rq;
 	struct rq_flags			rf;
+	u32				cnt;
 };
 
 /**
@@ -1301,6 +1308,7 @@ static void scx_task_iter_start(struct scx_task_iter *iter)
 	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
 	list_add(&iter->cursor.tasks_node, &scx_tasks);
 	iter->locked = NULL;
+	iter->cnt = 0;
 }
 
 static void __scx_task_iter_rq_unlock(struct scx_task_iter *iter)
@@ -1355,14 +1363,21 @@ static void scx_task_iter_stop(struct scx_task_iter *iter)
  * scx_task_iter_next - Next task
  * @iter: iterator to walk
  *
- * Visit the next task. See scx_task_iter_start() for details.
+ * Visit the next task. See scx_task_iter_start() for details. Locks are dropped
+ * and re-acquired every %SCX_OPS_TASK_ITER_BATCH iterations to avoid causing
+ * stalls by holding scx_tasks_lock for too long.
  */
 static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
 {
 	struct list_head *cursor = &iter->cursor.tasks_node;
 	struct sched_ext_entity *pos;
 
-	lockdep_assert_held(&scx_tasks_lock);
+	if (!(++iter->cnt % SCX_OPS_TASK_ITER_BATCH)) {
+		scx_task_iter_unlock(iter);
+		cpu_relax();
+		cond_resched();
+		scx_task_iter_relock(iter);
+	}
 
 	list_for_each_entry(pos, cursor, tasks_node) {
 		if (&pos->tasks_node == &scx_tasks)
