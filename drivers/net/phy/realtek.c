@@ -80,15 +80,18 @@
 
 #define RTL822X_VND2_GANLPAR				0xa414
 
-#define RTL822X_VND2_PHYSR				0xa434
-
 #define RTL8366RB_POWER_SAVE			0x15
 #define RTL8366RB_POWER_SAVE_ON			BIT(12)
 
 #define RTL9000A_GINMR				0x14
 #define RTL9000A_GINMR_LINK_STATUS		BIT(4)
 
-#define RTLGEN_SPEED_MASK			0x0630
+#define RTL_VND2_PHYSR				0xa434
+#define RTL_VND2_PHYSR_DUPLEX			BIT(3)
+#define RTL_VND2_PHYSR_SPEEDL			GENMASK(5, 4)
+#define RTL_VND2_PHYSR_SPEEDH			GENMASK(10, 9)
+#define RTL_VND2_PHYSR_MASTER			BIT(11)
+#define RTL_VND2_PHYSR_SPEED_MASK		(RTL_VND2_PHYSR_SPEEDL | RTL_VND2_PHYSR_SPEEDH)
 
 #define RTL_GENERIC_PHYID			0x001cc800
 #define RTL_8211FVD_PHYID			0x001cc878
@@ -660,9 +663,18 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 }
 
 /* get actual speed to cover the downshift case */
-static void rtlgen_decode_speed(struct phy_device *phydev, int val)
+static void rtlgen_decode_physr(struct phy_device *phydev, int val)
 {
-	switch (val & RTLGEN_SPEED_MASK) {
+	/* bit 3
+	 * 0: Half Duplex
+	 * 1: Full Duplex
+	 */
+	if (val & RTL_VND2_PHYSR_DUPLEX)
+		phydev->duplex = DUPLEX_FULL;
+	else
+		phydev->duplex = DUPLEX_HALF;
+
+	switch (val & RTL_VND2_PHYSR_SPEED_MASK) {
 	case 0x0000:
 		phydev->speed = SPEED_10;
 		break;
@@ -684,6 +696,19 @@ static void rtlgen_decode_speed(struct phy_device *phydev, int val)
 	default:
 		break;
 	}
+
+	/* bit 11
+	 * 0: Slave Mode
+	 * 1: Master Mode
+	 */
+	if (phydev->speed >= 1000) {
+		if (val & RTL_VND2_PHYSR_MASTER)
+			phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
+		else
+			phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
+	} else {
+		phydev->master_slave_state = MASTER_SLAVE_STATE_UNSUPPORTED;
+	}
 }
 
 static int rtlgen_read_status(struct phy_device *phydev)
@@ -701,7 +726,7 @@ static int rtlgen_read_status(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	rtlgen_decode_speed(phydev, val);
+	rtlgen_decode_physr(phydev, val);
 
 	return 0;
 }
@@ -1007,11 +1032,11 @@ static int rtl822x_c45_read_status(struct phy_device *phydev)
 		return 0;
 
 	/* Read actual speed from vendor register. */
-	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, RTL822X_VND2_PHYSR);
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, RTL_VND2_PHYSR);
 	if (val < 0)
 		return val;
 
-	rtlgen_decode_speed(phydev, val);
+	rtlgen_decode_physr(phydev, val);
 
 	return 0;
 }
