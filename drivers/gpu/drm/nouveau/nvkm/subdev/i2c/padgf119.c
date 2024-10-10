@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "pad.h"
-#include "aux.h"
+#include "auxch.h"
 #include "bus.h"
 
 static const struct nvkm_i2c_pad_func

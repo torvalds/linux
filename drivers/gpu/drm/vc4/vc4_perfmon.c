@@ -236,11 +236,7 @@ int vc4_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 		return -ENODEV;
 	}
 
-	mutex_lock(&vc4file->perfmon.lock);
-	perfmon = idr_find(&vc4file->perfmon.idr, req->id);
-	vc4_perfmon_get(perfmon);
-	mutex_unlock(&vc4file->perfmon.lock);
-
+	perfmon = vc4_perfmon_find(vc4file, req->id);
 	if (!perfmon)
 		return -EINVAL;
 

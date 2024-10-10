@@ -347,7 +347,7 @@ static void riva_bl_init(struct riva_par *par)
 		FB_BACKLIGHT_MAX);
 
 	bd->props.brightness = bd->props.max_brightness;
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(bd);
 
 	printk("riva: Backlight initialized (%s)\n", name);

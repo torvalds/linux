@@ -901,7 +901,7 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 		}
 	}
 
-	ret = ttm_tt_populate(bo->ttm.bdev, bo->ttm.ttm, &ctx);
+	ret = ttm_bo_populate(&bo->ttm, &ctx);
 	if (ret)
 		goto err_res_free;
 
@@ -954,7 +954,7 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 	if (ret)
 		return ret;
 
-	ret = ttm_tt_populate(bo->ttm.bdev, bo->ttm.ttm, &ctx);
+	ret = ttm_bo_populate(&bo->ttm, &ctx);
 	if (ret)
 		goto err_res_free;
 

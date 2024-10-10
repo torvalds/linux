@@ -1299,11 +1299,11 @@ static void aty128_set_lcd_enable(struct aty128fb_par *par, int on)
 		reg &= ~LVDS_DISPLAY_DIS;
 		aty_st_le32(LVDS_GEN_CNTL, reg);
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-		aty128_bl_set_power(info, FB_BLANK_UNBLANK);
+		aty128_bl_set_power(info, BACKLIGHT_POWER_ON);
 #endif
 	} else {
 #ifdef CONFIG_FB_ATY128_BACKLIGHT
-		aty128_bl_set_power(info, FB_BLANK_POWERDOWN);
+		aty128_bl_set_power(info, BACKLIGHT_POWER_OFF);
 #endif
 		reg = aty_ld_le32(LVDS_GEN_CNTL);
 		reg |= LVDS_DISPLAY_DIS;
@@ -1858,7 +1858,7 @@ static void aty128_bl_init(struct aty128fb_par *par)
 		219 * FB_BACKLIGHT_MAX / MAX_LEVEL);
 
 	bd->props.brightness = bd->props.max_brightness;
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(bd);
 
 	printk("aty128: Backlight initialized (%s)\n", name);
