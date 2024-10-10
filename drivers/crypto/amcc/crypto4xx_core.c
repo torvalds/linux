@@ -653,7 +653,6 @@ static void crypto4xx_stop_all(struct crypto4xx_core_device *core_dev)
 	crypto4xx_destroy_pdr(core_dev->dev);
 	crypto4xx_destroy_gdr(core_dev->dev);
 	crypto4xx_destroy_sdr(core_dev->dev);
-	iounmap(core_dev->dev->ce_base);
 	kfree(core_dev->dev);
 	kfree(core_dev);
 }
@@ -1333,16 +1332,11 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 static int crypto4xx_probe(struct platform_device *ofdev)
 {
 	int rc;
-	struct resource res;
 	struct device *dev = &ofdev->dev;
 	struct crypto4xx_core_device *core_dev;
 	struct device_node *np;
 	u32 pvr;
 	bool is_revb = true;
-
-	rc = of_address_to_resource(ofdev->dev.of_node, 0, &res);
-	if (rc)
-		return -ENODEV;
 
 	np = of_find_compatible_node(NULL, NULL, "amcc,ppc460ex-crypto");
 	if (np) {
@@ -1421,11 +1415,11 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	tasklet_init(&core_dev->tasklet, crypto4xx_bh_tasklet_cb,
 		     (unsigned long) dev);
 
-	core_dev->dev->ce_base = of_iomap(ofdev->dev.of_node, 0);
-	if (!core_dev->dev->ce_base) {
-		dev_err(dev, "failed to of_iomap\n");
-		rc = -ENOMEM;
-		goto err_iomap;
+	core_dev->dev->ce_base = devm_platform_ioremap_resource(ofdev, 0);
+	if (IS_ERR(core_dev->dev->ce_base)) {
+		dev_err(&ofdev->dev, "failed to ioremap resource");
+		rc = PTR_ERR(core_dev->dev->ce_base);
+		goto err_build_sdr;
 	}
 
 	/* Register for Crypto isr, Crypto Engine IRQ */
@@ -1453,7 +1447,6 @@ err_start_dev:
 	free_irq(core_dev->irq, dev);
 err_request_irq:
 	irq_dispose_mapping(core_dev->irq);
-	iounmap(core_dev->dev->ce_base);
 err_iomap:
 	tasklet_kill(&core_dev->tasklet);
 err_build_sdr:
