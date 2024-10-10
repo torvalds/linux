@@ -181,7 +181,7 @@ static u64 get_inode_sequence_number(struct inode *inode)
 		return old;
 
 	for (;;) {
-		u64 new = atomic64_add_return(1, &i_seq);
+		u64 new = atomic64_inc_return(&i_seq);
 		if (WARN_ON_ONCE(!new))
 			continue;
 
