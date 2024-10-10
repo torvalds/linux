@@ -86,7 +86,7 @@ static int __init parse_crashkernel_mem(char *cmdline,
 		}
 		cur++;
 
-		/* if no ':' is here, than we read the end */
+		/* if no ':' is here, then we read the end */
 		if (*cur != ':') {
 			end = memparse(cur, &tmp);
 			if (cur == tmp) {
@@ -131,12 +131,13 @@ static int __init parse_crashkernel_mem(char *cmdline,
 			cur++;
 			*crash_base = memparse(cur, &tmp);
 			if (cur == tmp) {
-				pr_warn("crahskernel: Memory value expected after '@'\n");
+				pr_warn("crashkernel: Memory value expected after '@'\n"); // Fixed typo
 				return -EINVAL;
 			}
 		}
-	} else
+	} else {
 		pr_info("crashkernel size resulted in zero bytes\n");
+	}
 
 	return 0;
 }
@@ -180,7 +181,7 @@ static __initdata char *suffix_tbl[] = {
 };
 
 /*
- * That function parses "suffix"  crashkernel command lines like
+ * That function parses "suffix" crashkernel command lines like
  *
  *	crashkernel=size,[high|low]
  *
@@ -332,8 +333,10 @@ int __init parse_crashkernel(char *cmdline,
 		*high = true;
 	}
 #endif
-	if (!*crash_size)
+	if (!*crash_size) {
+		pr_warn("crashkernel: calculated crash size is zero\n");
 		ret = -EINVAL;
+	}
 
 	if (*crash_size >= system_ram)
 		ret = -EINVAL;
@@ -383,6 +386,8 @@ void __init reserve_crashkernel_generic(char *cmdline,
 {
 	unsigned long long search_end = CRASH_ADDR_LOW_MAX, search_base = 0;
 	bool fixed_base = false;
+	int retry_count = 0;
+	const int max_retries = 5; // To prevent infinite loops
 
 	/* User specifies base address explicitly. */
 	if (crash_base) {
@@ -398,6 +403,11 @@ retry:
 	crash_base = memblock_phys_alloc_range(crash_size, CRASH_ALIGN,
 					       search_base, search_end);
 	if (!crash_base) {
+		if (retry_count++ >= max_retries) {
+			pr_warn("crashkernel reservation failed after maximum retries.\n");
+			return;
+		}
+
 		/*
 		 * For crashkernel=size[KMG]@offset[KMG], print out failure
 		 * message if can't reserve the specified region.
