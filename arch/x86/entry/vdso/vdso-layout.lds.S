@@ -20,11 +20,6 @@ SECTIONS
 	vvar_start = . - 4 * PAGE_SIZE;
 	vvar_page  = vvar_start;
 
-	/* Place all vvars at the offsets in asm/vvar.h. */
-#define EMIT_VVAR(name, offset) vvar_ ## name = vvar_page + offset;
-#include <asm/vvar.h>
-#undef EMIT_VVAR
-
 	vdso_rng_data = vvar_page + __VDSO_RND_DATA_OFFSET;
 
 	pvclock_page = vvar_start + PAGE_SIZE;

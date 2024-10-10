@@ -14,13 +14,13 @@
 
 #include <uapi/linux/time.h>
 #include <asm/vgtod.h>
-#include <asm/vvar.h>
 #include <asm/unistd.h>
 #include <asm/msr.h>
 #include <asm/pvclock.h>
 #include <clocksource/hyperv_timer.h>
 
-#define __vdso_data (VVAR(_vdso_data))
+extern struct vdso_data vvar_page
+	__attribute__((visibility("hidden")));
 
 extern struct vdso_data timens_page
 	__attribute__((visibility("hidden")));
@@ -277,7 +277,7 @@ static inline u64 __arch_get_hw_counter(s32 clock_mode,
 
 static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 {
-	return __vdso_data;
+	return &vvar_page;
 }
 
 static inline bool arch_vdso_clocksource_ok(const struct vdso_data *vd)
