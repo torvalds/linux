@@ -26,7 +26,7 @@ void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 	[SIGFPE]	= relay_signal,
 	[SIGILL]	= relay_signal,
 	[SIGWINCH]	= winch,
-	[SIGBUS]	= bus_handler,
+	[SIGBUS]	= relay_signal,
 	[SIGSEGV]	= segv_handler,
 	[SIGIO]		= sigio_handler,
 };
