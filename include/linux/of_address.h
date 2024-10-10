@@ -10,7 +10,7 @@ struct of_bus;
 
 struct of_pci_range_parser {
 	struct device_node *node;
-	struct of_bus *bus;
+	const struct of_bus *bus;
 	const __be32 *range;
 	const __be32 *end;
 	int na;

@@ -340,7 +340,7 @@ static int of_bus_default_flags_match(struct device_node *np)
  * Array of bus specific translators
  */
 
-static struct of_bus of_busses[] = {
+static const struct of_bus of_busses[] = {
 #ifdef CONFIG_PCI
 	/* PCI */
 	{
@@ -388,7 +388,7 @@ static struct of_bus of_busses[] = {
 	},
 };
 
-static struct of_bus *of_match_bus(struct device_node *np)
+static const struct of_bus *of_match_bus(struct device_node *np)
 {
 	int i;
 
@@ -419,8 +419,8 @@ static int of_empty_ranges_quirk(const struct device_node *np)
 	return false;
 }
 
-static int of_translate_one(struct device_node *parent, struct of_bus *bus,
-			    struct of_bus *pbus, __be32 *addr,
+static int of_translate_one(const struct device_node *parent, const struct of_bus *bus,
+			    const struct of_bus *pbus, __be32 *addr,
 			    int na, int ns, int pna, const char *rprop)
 {
 	const __be32 *ranges;
@@ -505,7 +505,7 @@ static u64 __of_translate_address(struct device_node *node,
 {
 	struct device_node *dev __free(device_node) = of_node_get(node);
 	struct device_node *parent __free(device_node) = get_parent(dev);
-	struct of_bus *bus, *pbus;
+	const struct of_bus *bus, *pbus;
 	__be32 addr[OF_MAX_ADDR_CELLS];
 	int na, ns, pna, pns;
 
@@ -690,7 +690,7 @@ const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 	const __be32 *prop;
 	unsigned int psize;
 	struct device_node *parent __free(device_node) = of_get_parent(dev);
-	struct of_bus *bus;
+	const struct of_bus *bus;
 	int onesize, i, na, ns;
 
 	if (parent == NULL)
