@@ -9917,7 +9917,7 @@ static int set_loop_callback_state(struct bpf_verifier_env *env,
 {
 	/* bpf_loop(u32 nr_loops, void *callback_fn, void *callback_ctx,
 	 *	    u64 flags);
-	 * callback_fn(u32 index, void *callback_ctx);
+	 * callback_fn(u64 index, void *callback_ctx);
 	 */
 	callee->regs[BPF_REG_1].type = SCALAR_VALUE;
 	callee->regs[BPF_REG_2] = caller->regs[BPF_REG_3];
