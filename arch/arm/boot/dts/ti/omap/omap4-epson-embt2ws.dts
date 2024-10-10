@@ -299,6 +299,19 @@
 
 	clock-frequency = <200000>;
 
+	/* is sometimes not available, research needed */
+	gpio_head: gpio@20 {
+		compatible = "ti,tca6408";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	/*
+	 * camera chip at 0x3c, available if <&gpio_head 1> high
+	 * and <&gpio_head 5> low
+	 */
+
 	/* at head/glasses */
 	mpu9150h: imu@68 {
 		compatible = "invensense,mpu9150";
