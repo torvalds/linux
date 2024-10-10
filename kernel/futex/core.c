@@ -185,8 +185,8 @@ static u64 get_inode_sequence_number(struct inode *inode)
 		if (WARN_ON_ONCE(!new))
 			continue;
 
-		old = atomic64_cmpxchg_relaxed(&inode->i_sequence, 0, new);
-		if (old)
+		old = 0;
+		if (!atomic64_try_cmpxchg_relaxed(&inode->i_sequence, &old, new))
 			return old;
 		return new;
 	}
