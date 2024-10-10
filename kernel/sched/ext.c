@@ -3062,11 +3062,6 @@ static s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 
 	*found = false;
 
-	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
-		scx_ops_error("built-in idle tracking is disabled");
-		return prev_cpu;
-	}
-
 	/*
 	 * If WAKE_SYNC, the waker's local DSQ is empty, and the system is
 	 * under utilized, wake up @p to the local DSQ of the waker. Checking
@@ -5870,16 +5865,21 @@ __bpf_kfunc_start_defs();
 __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 				       u64 wake_flags, bool *is_idle)
 {
-	if (!scx_kf_allowed(SCX_KF_SELECT_CPU)) {
-		*is_idle = false;
-		return prev_cpu;
+	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
+		scx_ops_error("built-in idle tracking is disabled");
+		goto prev_cpu;
 	}
+
+	if (!scx_kf_allowed(SCX_KF_SELECT_CPU))
+		goto prev_cpu;
+
 #ifdef CONFIG_SMP
 	return scx_select_cpu_dfl(p, prev_cpu, wake_flags, is_idle);
-#else
+#endif
+
+prev_cpu:
 	*is_idle = false;
 	return prev_cpu;
-#endif
 }
 
 __bpf_kfunc_end_defs();
