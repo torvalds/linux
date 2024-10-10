@@ -17,14 +17,16 @@ SECTIONS
 	 * segment.
 	 */
 
-	vvar_start = . - 4 * PAGE_SIZE;
+	vvar_start = . - __VVAR_PAGES * PAGE_SIZE;
 	vvar_page  = vvar_start;
 
 	vdso_rng_data = vvar_page + __VDSO_RND_DATA_OFFSET;
 
-	pvclock_page = vvar_start + PAGE_SIZE;
-	hvclock_page = vvar_start + 2 * PAGE_SIZE;
-	timens_page  = vvar_start + 3 * PAGE_SIZE;
+	timens_page  = vvar_start + PAGE_SIZE;
+
+	vclock_pages = vvar_start + VDSO_NR_VCLOCK_PAGES * PAGE_SIZE;
+	pvclock_page = vclock_pages + VDSO_PAGE_PVCLOCK_OFFSET * PAGE_SIZE;
+	hvclock_page = vclock_pages + VDSO_PAGE_HVCLOCK_OFFSET * PAGE_SIZE;
 
 	. = SIZEOF_HEADERS;
 

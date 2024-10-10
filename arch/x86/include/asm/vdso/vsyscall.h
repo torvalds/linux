@@ -3,6 +3,11 @@
 #define __ASM_VDSO_VSYSCALL_H
 
 #define __VDSO_RND_DATA_OFFSET  640
+#define __VVAR_PAGES	4
+
+#define VDSO_NR_VCLOCK_PAGES	2
+#define VDSO_PAGE_PVCLOCK_OFFSET	0
+#define VDSO_PAGE_HVCLOCK_OFFSET	1
 
 #ifndef __ASSEMBLY__
 
