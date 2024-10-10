@@ -427,7 +427,7 @@ static void at91_reset_remove(struct platform_device *pdev)
 
 static struct platform_driver at91_reset_driver = {
 	.probe = at91_reset_probe,
-	.remove_new = at91_reset_remove,
+	.remove = at91_reset_remove,
 	.driver = {
 		.name = "at91-reset",
 		.of_match_table = at91_reset_of_match,

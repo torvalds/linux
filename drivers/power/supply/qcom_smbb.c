@@ -1017,10 +1017,10 @@ static const struct of_device_id smbb_charger_id_table[] = {
 MODULE_DEVICE_TABLE(of, smbb_charger_id_table);
 
 static struct platform_driver smbb_charger_driver = {
-	.probe	  = smbb_charger_probe,
-	.remove_new	 = smbb_charger_remove,
-	.driver	 = {
-		.name   = "qcom-smbb",
+	.probe = smbb_charger_probe,
+	.remove = smbb_charger_remove,
+	.driver = {
+		.name = "qcom-smbb",
 		.of_match_table = smbb_charger_id_table,
 	},
 };

@@ -651,7 +651,7 @@ static struct platform_driver act8945a_charger_driver = {
 		.name = "act8945a-charger",
 	},
 	.probe	= act8945a_charger_probe,
-	.remove_new = act8945a_charger_remove,
+	.remove	= act8945a_charger_remove,
 };
 module_platform_driver(act8945a_charger_driver);
 

@@ -286,7 +286,7 @@ static struct platform_driver a500_battery_driver = {
 		.pm = &a500_battery_pm_ops,
 	},
 	.probe = a500_battery_probe,
-	.remove_new = a500_battery_remove,
+	.remove = a500_battery_remove,
 };
 module_platform_driver(a500_battery_driver);
 

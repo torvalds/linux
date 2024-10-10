@@ -571,7 +571,7 @@ static struct platform_driver da903x_battery_driver = {
 		.name	= "da903x-battery",
 	},
 	.probe = da9030_battery_probe,
-	.remove_new = da9030_battery_remove,
+	.remove = da9030_battery_remove,
 };
 
 module_platform_driver(da903x_battery_driver);

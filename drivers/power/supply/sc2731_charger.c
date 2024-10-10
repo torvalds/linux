@@ -530,7 +530,7 @@ static struct platform_driver sc2731_charger_driver = {
 		.of_match_table = sc2731_charger_of_match,
 	},
 	.probe = sc2731_charger_probe,
-	.remove_new = sc2731_charger_remove,
+	.remove = sc2731_charger_remove,
 };
 
 module_platform_driver(sc2731_charger_driver);

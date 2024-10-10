@@ -302,7 +302,7 @@ static struct platform_driver micro_batt_device_driver = {
 		.pm	= &micro_batt_dev_pm_ops,
 	},
 	.probe		= micro_batt_probe,
-	.remove_new	= micro_batt_remove,
+	.remove		= micro_batt_remove,
 };
 module_platform_driver(micro_batt_device_driver);
 

@@ -648,7 +648,7 @@ static void da9052_bat_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_bat_driver = {
 	.probe = da9052_bat_probe,
-	.remove_new = da9052_bat_remove,
+	.remove = da9052_bat_remove,
 	.driver = {
 		.name = "da9052-bat",
 	},

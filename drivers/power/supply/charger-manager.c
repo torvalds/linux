@@ -1740,7 +1740,7 @@ static struct platform_driver charger_manager_driver = {
 		.of_match_table = charger_manager_match,
 	},
 	.probe = charger_manager_probe,
-	.remove_new = charger_manager_remove,
+	.remove = charger_manager_remove,
 	.id_table = charger_manager_id,
 };
 

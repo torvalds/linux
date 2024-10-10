@@ -969,7 +969,7 @@ static struct platform_driver cpcap_charger_driver = {
 		.of_match_table = cpcap_charger_id_table,
 	},
 	.shutdown = cpcap_charger_shutdown,
-	.remove_new = cpcap_charger_remove,
+	.remove = cpcap_charger_remove,
 };
 module_platform_driver(cpcap_charger_driver);
 

@@ -636,7 +636,7 @@ static struct platform_driver da9150_charger_driver = {
 		.name = "da9150-charger",
 	},
 	.probe = da9150_charger_probe,
-	.remove_new = da9150_charger_remove,
+	.remove = da9150_charger_remove,
 };
 
 module_platform_driver(da9150_charger_driver);
