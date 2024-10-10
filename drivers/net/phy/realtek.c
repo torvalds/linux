@@ -949,17 +949,25 @@ static void rtl822xb_update_interface(struct phy_device *phydev)
 
 static int rtl822x_read_status(struct phy_device *phydev)
 {
-	if (phydev->autoneg == AUTONEG_ENABLE) {
-		int lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
+	int lpadv, ret;
 
-		if (lpadv < 0)
-			return lpadv;
+	ret = rtlgen_read_status(phydev);
+	if (ret < 0)
+		return ret;
 
-		mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising,
-						  lpadv);
+	if (phydev->autoneg == AUTONEG_DISABLE ||
+	    !phydev->autoneg_complete) {
+		mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising, 0);
+		return 0;
 	}
 
-	return rtlgen_read_status(phydev);
+	lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
+	if (lpadv < 0)
+		return lpadv;
+
+	mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising, lpadv);
+
+	return 0;
 }
 
 static int rtl822xb_read_status(struct phy_device *phydev)
