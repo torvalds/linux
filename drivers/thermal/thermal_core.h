@@ -150,6 +150,9 @@ struct thermal_zone_device {
 DEFINE_GUARD(thermal_zone, struct thermal_zone_device *, mutex_lock(&_T->lock),
 	     mutex_unlock(&_T->lock))
 
+DEFINE_GUARD(thermal_zone_reverse, struct thermal_zone_device *,
+	     mutex_unlock(&_T->lock), mutex_lock(&_T->lock))
+
 /* Initial thermal zone temperature. */
 #define THERMAL_TEMP_INIT	INT_MIN
 

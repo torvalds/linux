@@ -1711,11 +1711,9 @@ static void thermal_zone_pm_prepare(struct thermal_zone_device *tz)
 		 * acquired the lock yet, so release it to let the function run
 		 * and wait util it has done the work.
 		 */
-		mutex_unlock(&tz->lock);
-
-		wait_for_completion(&tz->resume);
-
-		mutex_lock(&tz->lock);
+		scoped_guard(thermal_zone_reverse, tz) {
+			wait_for_completion(&tz->resume);
+		}
 	}
 
 	tz->state |= TZ_STATE_FLAG_SUSPENDED;
