@@ -1306,6 +1306,13 @@ static int submit_one_sector(struct btrfs_inode *inode,
 	free_extent_map(em);
 	em = NULL;
 
+	/*
+	 * Although the PageDirty bit is cleared before entering this
+	 * function, subpage dirty bit is not cleared.
+	 * So clear subpage dirty bit here so next time we won't submit
+	 * a folio for a range already written to disk.
+	 */
+	btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
 	btrfs_set_range_writeback(inode, filepos, filepos + sectorsize - 1);
 	/*
 	 * Above call should set the whole folio with writeback flag, even
@@ -1315,13 +1322,6 @@ static int submit_one_sector(struct btrfs_inode *inode,
 	 */
 	ASSERT(folio_test_writeback(folio));
 
-	/*
-	 * Although the PageDirty bit is cleared before entering this
-	 * function, subpage dirty bit is not cleared.
-	 * So clear subpage dirty bit here so next time we won't submit
-	 * folio for range already written to disk.
-	 */
-	btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
 	submit_extent_folio(bio_ctrl, disk_bytenr, folio,
 			    sectorsize, filepos - folio_pos(folio));
 	return 0;
