@@ -122,10 +122,4 @@ static int __init rtnl_net_debug_init(void)
 	return ret;
 }
 
-static void __exit rtnl_net_debug_exit(void)
-{
-	unregister_netdevice_notifier(&rtnl_net_debug_block);
-	unregister_pernet_device(&rtnl_net_debug_net_ops);
-}
-
 subsys_initcall(rtnl_net_debug_init);
