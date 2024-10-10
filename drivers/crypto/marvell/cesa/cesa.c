@@ -566,11 +566,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	return 0;
 
 err_cleanup:
-	for (i = 0; i < caps->nengines; i++) {
+	for (i = 0; i < caps->nengines; i++)
 		mv_cesa_put_sram(pdev, i);
-		if (cesa->engines[i].irq > 0)
-			irq_set_affinity_hint(cesa->engines[i].irq, NULL);
-	}
 
 	return ret;
 }
@@ -582,10 +579,8 @@ static void mv_cesa_remove(struct platform_device *pdev)
 
 	mv_cesa_remove_algs(cesa);
 
-	for (i = 0; i < cesa->caps->nengines; i++) {
+	for (i = 0; i < cesa->caps->nengines; i++)
 		mv_cesa_put_sram(pdev, i);
-		irq_set_affinity_hint(cesa->engines[i].irq, NULL);
-	}
 }
 
 static const struct platform_device_id mv_cesa_plat_id_table[] = {
