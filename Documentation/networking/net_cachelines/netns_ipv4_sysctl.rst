@@ -59,7 +59,7 @@ u8                              sysctl_udp_early_demux
 u8                              sysctl_nexthop_compat_mode
 u8                              sysctl_fwmark_reflect
 u8                              sysctl_tcp_fwmark_accept
-u8                              sysctl_tcp_l3mdev_accept
+u8                              sysctl_tcp_l3mdev_accept                                         read_mostly         __inet6_lookup_established/inet_request_bound_dev_if
 u8                              sysctl_tcp_mtu_probing
 int                             sysctl_tcp_mtu_probe_floor
 int                             sysctl_tcp_base_mss
