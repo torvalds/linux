@@ -26,6 +26,12 @@
 #define LAN865X_REG_CFGPARAM_CTRL 0x00DA
 #define LAN865X_REG_STS2 0x0019
 
+/* Collision Detector Control 0 Register */
+#define LAN86XX_REG_COL_DET_CTRL0	0x0087
+#define COL_DET_CTRL0_ENABLE_BIT_MASK	BIT(15)
+#define COL_DET_ENABLE			BIT(15)
+#define COL_DET_DISABLE			0x0000
+
 #define LAN865X_CFGPARAM_READ_ENABLE BIT(1)
 
 /* The arrays below are pulled from the following table from AN1699
@@ -371,6 +377,36 @@ static int lan867x_revb1_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+/* As per LAN8650/1 Rev.B0/B1 AN1760 (Revision F (DS60001760G - June 2024)) and
+ * LAN8670/1/2 Rev.C1/C2 AN1699 (Revision E (DS60001699F - June 2024)), under
+ * normal operation, the device should be operated in PLCA mode. Disabling
+ * collision detection is recommended to allow the device to operate in noisy
+ * environments or when reflections and other inherent transmission line
+ * distortion cause poor signal quality. Collision detection must be re-enabled
+ * if the device is configured to operate in CSMA/CD mode.
+ *
+ * AN1760: https://www.microchip.com/en-us/application-notes/an1760
+ * AN1699: https://www.microchip.com/en-us/application-notes/an1699
+ */
+static int lan86xx_plca_set_cfg(struct phy_device *phydev,
+				const struct phy_plca_cfg *plca_cfg)
+{
+	int ret;
+
+	ret = genphy_c45_plca_set_cfg(phydev, plca_cfg);
+	if (ret)
+		return ret;
+
+	if (plca_cfg->enabled)
+		return phy_modify_mmd(phydev, MDIO_MMD_VEND2,
+				      LAN86XX_REG_COL_DET_CTRL0,
+				      COL_DET_CTRL0_ENABLE_BIT_MASK,
+				      COL_DET_DISABLE);
+
+	return phy_modify_mmd(phydev, MDIO_MMD_VEND2, LAN86XX_REG_COL_DET_CTRL0,
+			      COL_DET_CTRL0_ENABLE_BIT_MASK, COL_DET_ENABLE);
+}
+
 static int lan86xx_read_status(struct phy_device *phydev)
 {
 	/* The phy has some limitations, namely:
@@ -432,7 +468,7 @@ static struct phy_driver microchip_t1s_driver[] = {
 		.config_init        = lan867x_revc_config_init,
 		.read_status        = lan86xx_read_status,
 		.get_plca_cfg	    = genphy_c45_plca_get_cfg,
-		.set_plca_cfg	    = genphy_c45_plca_set_cfg,
+		.set_plca_cfg	    = lan86xx_plca_set_cfg,
 		.get_plca_status    = genphy_c45_plca_get_status,
 	},
 	{
@@ -442,7 +478,7 @@ static struct phy_driver microchip_t1s_driver[] = {
 		.config_init        = lan867x_revc_config_init,
 		.read_status        = lan86xx_read_status,
 		.get_plca_cfg	    = genphy_c45_plca_get_cfg,
-		.set_plca_cfg	    = genphy_c45_plca_set_cfg,
+		.set_plca_cfg	    = lan86xx_plca_set_cfg,
 		.get_plca_status    = genphy_c45_plca_get_status,
 	},
 	{
@@ -454,7 +490,7 @@ static struct phy_driver microchip_t1s_driver[] = {
 		.read_mmd           = lan865x_phy_read_mmd,
 		.write_mmd          = lan865x_phy_write_mmd,
 		.get_plca_cfg	    = genphy_c45_plca_get_cfg,
-		.set_plca_cfg	    = genphy_c45_plca_set_cfg,
+		.set_plca_cfg	    = lan86xx_plca_set_cfg,
 		.get_plca_status    = genphy_c45_plca_get_status,
 	},
 };
