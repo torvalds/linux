@@ -153,7 +153,9 @@ static void xhci_soft_reset(struct brcm_usb_init_params *params,
 	} else {
 		USB_CTRL_SET(ctrl, USB_PM, XHC_SOFT_RESETB);
 		/* Required for COMMONONN to be set */
-		USB_XHCI_GBL_UNSET(xhci_gbl, GUSB2PHYCFG, U2_FREECLK_EXISTS);
+		if (params->supported_port_modes != USB_CTLR_MODE_DRD)
+			USB_XHCI_GBL_UNSET(xhci_gbl, GUSB2PHYCFG,
+					   U2_FREECLK_EXISTS);
 	}
 }
 
@@ -328,8 +330,12 @@ static void usb_init_common_7216(struct brcm_usb_init_params *params)
 	/* 1 millisecond - for USB clocks to settle down */
 	usleep_range(1000, 2000);
 
-	/* Disable PHY when port is suspended */
-	USB_CTRL_SET(ctrl, P0_U2PHY_CFG1, COMMONONN);
+	/*
+	 * Disable PHY when port is suspended
+	 * Does not work in DRD mode
+	 */
+	if (params->supported_port_modes != USB_CTLR_MODE_DRD)
+		USB_CTRL_SET(ctrl, P0_U2PHY_CFG1, COMMONONN);
 
 	usb_wake_enable_7216(params, false);
 	usb_init_common(params);
