@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <asm/vdso.h>
+#include <asm/vdso/vsyscall.h>
 
 /*
  * Linker script for vDSO.  This is an ELF shared object prelinked to
