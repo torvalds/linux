@@ -34,8 +34,8 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 ssize_t btrfs_do_write_iter(struct kiocb *iocb, struct iov_iter *from,
 			    const struct btrfs_ioctl_encoded_io_args *encoded);
 int btrfs_release_file(struct inode *inode, struct file *file);
-int btrfs_dirty_page(struct btrfs_inode *inode, struct page *page, loff_t pos,
-		     size_t write_bytes, struct extent_state **cached, bool noreserve);
+int btrfs_dirty_folio(struct btrfs_inode *inode, struct folio *folio, loff_t pos,
+		      size_t write_bytes, struct extent_state **cached, bool noreserve);
 int btrfs_fdatawrite_range(struct btrfs_inode *inode, loff_t start, loff_t end);
 int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 			   size_t *write_bytes, bool nowait);

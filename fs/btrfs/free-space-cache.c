@@ -1464,8 +1464,8 @@ static int __btrfs_write_out_cache(struct inode *inode,
 		u64 dirty_start = i * PAGE_SIZE;
 		u64 dirty_len = min_t(u64, dirty_start + PAGE_SIZE, i_size) - dirty_start;
 
-		ret = btrfs_dirty_page(BTRFS_I(inode), io_ctl->pages[i],
-				       dirty_start, dirty_len, &cached_state, false);
+		ret = btrfs_dirty_folio(BTRFS_I(inode), page_folio(io_ctl->pages[i]),
+					dirty_start, dirty_len, &cached_state, false);
 		if (ret < 0)
 			goto out_nospc;
 	}
