@@ -350,11 +350,6 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 		rcu_read_unlock();
 	}
 
-	if (vif->type == NL80211_IFTYPE_STATION)
-		iwl_mvm_send_ap_tx_power_constraint_cmd(mvm, vif,
-							link_conf,
-							false);
-
 	/* then activate */
 	ret = iwl_mvm_link_changed(mvm, vif, link_conf,
 				   LINK_CONTEXT_MODIFY_ACTIVE |
@@ -362,6 +357,11 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 				   true);
 	if (ret)
 		goto out;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		iwl_mvm_send_ap_tx_power_constraint_cmd(mvm, vif,
+							link_conf,
+							false);
 
 	/*
 	 * Power state must be updated before quotas,
