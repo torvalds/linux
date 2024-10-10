@@ -773,15 +773,15 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	rs->apb_pclk = devm_clk_get_enabled(&pdev->dev, "apb_pclk");
 	if (IS_ERR(rs->apb_pclk)) {
-		dev_err(&pdev->dev, "Failed to get apb_pclk\n");
-		ret = PTR_ERR(rs->apb_pclk);
+		ret = dev_err_probe(&pdev->dev, PTR_ERR(rs->apb_pclk),
+				    "Failed to get apb_pclk\n");
 		goto err_put_ctlr;
 	}
 
 	rs->spiclk = devm_clk_get_enabled(&pdev->dev, "spiclk");
 	if (IS_ERR(rs->spiclk)) {
-		dev_err(&pdev->dev, "Failed to get spi_pclk\n");
-		ret = PTR_ERR(rs->spiclk);
+		ret = dev_err_probe(&pdev->dev, PTR_ERR(rs->spiclk),
+				    "Failed to get spi_pclk\n");
 		goto err_put_ctlr;
 	}
 
@@ -817,8 +817,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	rs->fifo_len = get_fifo_len(rs);
 	if (!rs->fifo_len) {
-		dev_err(&pdev->dev, "Failed to get fifo length\n");
-		ret = -EINVAL;
+		ret = dev_err_probe(&pdev->dev, -EINVAL, "Failed to get fifo length\n");
 		goto err_put_ctlr;
 	}
 
@@ -858,22 +857,21 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	ctlr->dma_tx = dma_request_chan(rs->dev, "tx");
 	if (IS_ERR(ctlr->dma_tx)) {
-		/* Check tx to see if we need defer probing driver */
-		if (PTR_ERR(ctlr->dma_tx) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
+		/* Check tx to see if we need to defer driver probing */
+		ret = dev_warn_probe(rs->dev, PTR_ERR(ctlr->dma_tx),
+				     "Failed to request optional TX DMA channel\n");
+		if (ret == -EPROBE_DEFER)
 			goto err_disable_pm_runtime;
-		}
-		dev_warn(rs->dev, "Failed to request TX DMA channel\n");
 		ctlr->dma_tx = NULL;
 	}
 
 	ctlr->dma_rx = dma_request_chan(rs->dev, "rx");
 	if (IS_ERR(ctlr->dma_rx)) {
-		if (PTR_ERR(ctlr->dma_rx) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
+		/* Check rx to see if we need to defer driver probing */
+		ret = dev_warn_probe(rs->dev, PTR_ERR(ctlr->dma_rx),
+				     "Failed to request optional RX DMA channel\n");
+		if (ret == -EPROBE_DEFER)
 			goto err_free_dma_tx;
-		}
-		dev_warn(rs->dev, "Failed to request RX DMA channel\n");
 		ctlr->dma_rx = NULL;
 	}
 
