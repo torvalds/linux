@@ -281,7 +281,7 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 
 	g.nr = 0;
 
-	if (trans->lock_must_abort) {
+	if (trans->lock_must_abort && !trans->lock_may_not_fail) {
 		if (cycle)
 			return -1;
 
