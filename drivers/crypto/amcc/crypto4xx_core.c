@@ -653,8 +653,6 @@ static void crypto4xx_stop_all(struct crypto4xx_core_device *core_dev)
 	crypto4xx_destroy_pdr(core_dev->dev);
 	crypto4xx_destroy_gdr(core_dev->dev);
 	crypto4xx_destroy_sdr(core_dev->dev);
-	kfree(core_dev->dev);
-	kfree(core_dev);
 }
 
 static u32 get_next_gd(u32 current)
@@ -1368,16 +1366,17 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 
 	of_node_put(np);
 
-	core_dev = kzalloc(sizeof(struct crypto4xx_core_device), GFP_KERNEL);
+	core_dev = devm_kzalloc(
+		&ofdev->dev, sizeof(struct crypto4xx_core_device), GFP_KERNEL);
 	if (!core_dev)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, core_dev);
 	core_dev->ofdev = ofdev;
-	core_dev->dev = kzalloc(sizeof(struct crypto4xx_device), GFP_KERNEL);
-	rc = -ENOMEM;
+	core_dev->dev = devm_kzalloc(
+		&ofdev->dev, sizeof(struct crypto4xx_device), GFP_KERNEL);
 	if (!core_dev->dev)
-		goto err_alloc_dev;
+		return -ENOMEM;
 
 	/*
 	 * Older version of 460EX/GT have a hardware bug.
@@ -1396,7 +1395,9 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	core_dev->dev->core_dev = core_dev;
 	core_dev->dev->is_revb = is_revb;
 	core_dev->device = dev;
-	mutex_init(&core_dev->rng_lock);
+	rc = devm_mutex_init(&ofdev->dev, &core_dev->rng_lock);
+	if (rc)
+		return rc;
 	spin_lock_init(&core_dev->lock);
 	INIT_LIST_HEAD(&core_dev->dev->alg_list);
 	ratelimit_default_init(&core_dev->dev->aead_ratelimit);
@@ -1424,12 +1425,12 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 
 	/* Register for Crypto isr, Crypto Engine IRQ */
 	core_dev->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
-	rc = request_irq(core_dev->irq, is_revb ?
-			 crypto4xx_ce_interrupt_handler_revb :
-			 crypto4xx_ce_interrupt_handler, 0,
-			 KBUILD_MODNAME, dev);
+	rc = devm_request_irq(&ofdev->dev, core_dev->irq,
+			      is_revb ? crypto4xx_ce_interrupt_handler_revb :
+					crypto4xx_ce_interrupt_handler,
+			      0, KBUILD_MODNAME, dev);
 	if (rc)
-		goto err_request_irq;
+		goto err_iomap;
 
 	/* need to setup pdr, rdr, gdr and sdr before this */
 	crypto4xx_hw_init(core_dev->dev);
@@ -1438,25 +1439,17 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	rc = crypto4xx_register_alg(core_dev->dev, crypto4xx_alg,
 			       ARRAY_SIZE(crypto4xx_alg));
 	if (rc)
-		goto err_start_dev;
+		goto err_iomap;
 
 	ppc4xx_trng_probe(core_dev);
 	return 0;
 
-err_start_dev:
-	free_irq(core_dev->irq, dev);
-err_request_irq:
-	irq_dispose_mapping(core_dev->irq);
 err_iomap:
 	tasklet_kill(&core_dev->tasklet);
 err_build_sdr:
 	crypto4xx_destroy_sdr(core_dev->dev);
 	crypto4xx_destroy_gdr(core_dev->dev);
 	crypto4xx_destroy_pdr(core_dev->dev);
-	kfree(core_dev->dev);
-err_alloc_dev:
-	kfree(core_dev);
-
 	return rc;
 }
 
@@ -1467,13 +1460,9 @@ static void crypto4xx_remove(struct platform_device *ofdev)
 
 	ppc4xx_trng_remove(core_dev);
 
-	free_irq(core_dev->irq, dev);
-	irq_dispose_mapping(core_dev->irq);
-
 	tasklet_kill(&core_dev->tasklet);
 	/* Un-register with Linux CryptoAPI */
 	crypto4xx_unregister_alg(core_dev->dev);
-	mutex_destroy(&core_dev->rng_lock);
 	/* Free all allocated memory */
 	crypto4xx_stop_all(core_dev);
 }
