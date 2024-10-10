@@ -435,7 +435,7 @@ extern int of_detach_node(struct device_node *);
  * of_property_for_each_u32(np, "propname", u)
  *         printk("U32 value: %x\n", u);
  */
-const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
+const __be32 *of_prop_next_u32(const struct property *prop, const __be32 *cur,
 			       u32 *pu);
 /*
  * struct property *prop;
@@ -444,7 +444,7 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
  * of_property_for_each_string(np, "propname", prop, s)
  *         printk("String value: %s\n", s);
  */
-const char *of_prop_next_string(struct property *prop, const char *cur);
+const char *of_prop_next_string(const struct property *prop, const char *cur);
 
 bool of_console_check(const struct device_node *dn, char *name, int index);
 
@@ -826,13 +826,13 @@ static inline bool of_console_check(const struct device_node *dn, const char *na
 	return false;
 }
 
-static inline const __be32 *of_prop_next_u32(struct property *prop,
+static inline const __be32 *of_prop_next_u32(const struct property *prop,
 		const __be32 *cur, u32 *pu)
 {
 	return NULL;
 }
 
-static inline const char *of_prop_next_string(struct property *prop,
+static inline const char *of_prop_next_string(const struct property *prop,
 		const char *cur)
 {
 	return NULL;
@@ -899,7 +899,7 @@ static inline const void *of_device_get_match_data(const struct device *dev)
 #define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
 #endif
 
-static inline int of_prop_val_eq(struct property *p1, struct property *p2)
+static inline int of_prop_val_eq(const struct property *p1, const struct property *p2)
 {
 	return p1->length == p2->length &&
 	       !memcmp(p1->value, p2->value, (size_t)p1->length);
@@ -1252,7 +1252,7 @@ static inline int of_property_read_string_index(const struct device_node *np,
 static inline bool of_property_read_bool(const struct device_node *np,
 					 const char *propname)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
+	const struct property *prop = of_find_property(np, propname, NULL);
 
 	return prop ? true : false;
 }
@@ -1430,7 +1430,7 @@ static inline int of_property_read_s32(const struct device_node *np,
 	     err = of_phandle_iterator_next(it))
 
 #define of_property_for_each_u32(np, propname, u)			\
-	for (struct {struct property *prop; const __be32 *item; } _it =	\
+	for (struct {const struct property *prop; const __be32 *item; } _it =	\
 		{of_find_property(np, propname, NULL),			\
 		 of_prop_next_u32(_it.prop, NULL, &u)};			\
 	     _it.item;							\

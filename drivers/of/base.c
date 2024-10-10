@@ -270,7 +270,7 @@ EXPORT_SYMBOL(of_find_all_nodes);
 const void *__of_get_property(const struct device_node *np,
 			      const char *name, int *lenp)
 {
-	struct property *pp = __of_find_property(np, name, lenp);
+	const struct property *pp = __of_find_property(np, name, lenp);
 
 	return pp ? pp->value : NULL;
 }
@@ -282,7 +282,7 @@ const void *__of_get_property(const struct device_node *np,
 const void *of_get_property(const struct device_node *np, const char *name,
 			    int *lenp)
 {
-	struct property *pp = of_find_property(np, name, lenp);
+	const struct property *pp = of_find_property(np, name, lenp);
 
 	return pp ? pp->value : NULL;
 }
@@ -321,7 +321,7 @@ EXPORT_SYMBOL(of_get_property);
 static int __of_device_is_compatible(const struct device_node *device,
 				     const char *compat, const char *type, const char *name)
 {
-	struct property *prop;
+	const struct property *prop;
 	const char *cp;
 	int index = 0, score = 0;
 
@@ -828,7 +828,7 @@ struct device_node *__of_find_node_by_full_path(struct device_node *node,
 struct device_node *of_find_node_opts_by_path(const char *path, const char **opts)
 {
 	struct device_node *np = NULL;
-	struct property *pp;
+	const struct property *pp;
 	unsigned long flags;
 	const char *separator = strchr(path, ':');
 
@@ -974,7 +974,7 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	const char *prop_name)
 {
 	struct device_node *np;
-	struct property *pp;
+	const struct property *pp;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -1769,7 +1769,7 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
  */
 void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 {
-	struct property *pp;
+	const struct property *pp;
 
 	of_aliases = of_find_node_by_path("/aliases");
 	of_chosen = of_find_node_by_path("/chosen");

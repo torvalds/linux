@@ -42,7 +42,7 @@ static void adjust_overlay_phandles(struct device_node *overlay,
 		int phandle_delta)
 {
 	struct device_node *child;
-	struct property *prop;
+	const struct property *prop;
 	phandle phandle;
 
 	/* adjust node's phandle in node */
@@ -71,10 +71,10 @@ static void adjust_overlay_phandles(struct device_node *overlay,
 }
 
 static int update_usages_of_a_phandle_reference(struct device_node *overlay,
-		struct property *prop_fixup, phandle phandle)
+		const struct property *prop_fixup, phandle phandle)
 {
 	struct device_node *refnode;
-	struct property *prop;
+	const struct property *prop;
 	char *value __free(kfree) = kmemdup(prop_fixup->value, prop_fixup->length, GFP_KERNEL);
 	char *cur, *end, *node_path, *prop_name, *s;
 	int offset, len;
@@ -151,7 +151,7 @@ static int adjust_local_phandle_references(const struct device_node *local_fixup
 		const struct device_node *overlay, int phandle_delta)
 {
 	struct device_node *overlay_child;
-	struct property *prop_fix, *prop;
+	const struct property *prop_fix, *prop;
 	int err, i, count;
 	unsigned int off;
 

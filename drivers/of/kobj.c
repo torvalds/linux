@@ -84,7 +84,7 @@ int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 	return rc;
 }
 
-void __of_sysfs_remove_bin_file(struct device_node *np, struct property *prop)
+void __of_sysfs_remove_bin_file(struct device_node *np, const struct property *prop)
 {
 	if (!IS_ENABLED(CONFIG_SYSFS))
 		return;
@@ -93,7 +93,7 @@ void __of_sysfs_remove_bin_file(struct device_node *np, struct property *prop)
 	kfree(prop->attr.attr.name);
 }
 
-void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
+void __of_remove_property_sysfs(struct device_node *np, const struct property *prop)
 {
 	/* at early boot, bail here and defer setup to of_init() */
 	if (of_kset && of_node_is_attached(np))
@@ -101,7 +101,7 @@ void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
 }
 
 void __of_update_property_sysfs(struct device_node *np, struct property *newprop,
-		struct property *oldprop)
+		const struct property *oldprop)
 {
 	/* At early boot, bail out and defer setup to of_init() */
 	if (!of_kset)

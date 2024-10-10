@@ -68,7 +68,7 @@ EXPORT_SYMBOL(of_graph_is_present);
 int of_property_count_elems_of_size(const struct device_node *np,
 				const char *propname, int elem_size)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
+	const struct property *prop = of_find_property(np, propname, NULL);
 
 	if (!prop)
 		return -EINVAL;
@@ -104,7 +104,7 @@ EXPORT_SYMBOL_GPL(of_property_count_elems_of_size);
 static void *of_find_property_value_of_size(const struct device_node *np,
 			const char *propname, u32 min, u32 max, size_t *len)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
+	const struct property *prop = of_find_property(np, propname, NULL);
 
 	if (!prop)
 		return ERR_PTR(-EINVAL);
@@ -530,7 +530,7 @@ int of_property_read_string_helper(const struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(of_property_read_string_helper);
 
-const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
+const __be32 *of_prop_next_u32(const struct property *prop, const __be32 *cur,
 			       u32 *pu)
 {
 	const void *curv = cur;
@@ -553,7 +553,7 @@ out_val:
 }
 EXPORT_SYMBOL_GPL(of_prop_next_u32);
 
-const char *of_prop_next_string(struct property *prop, const char *cur)
+const char *of_prop_next_string(const struct property *prop, const char *cur)
 {
 	const void *curv = cur;
 
@@ -1466,7 +1466,7 @@ static int of_fwnode_irq_get(const struct fwnode_handle *fwnode,
 
 static int of_fwnode_add_links(struct fwnode_handle *fwnode)
 {
-	struct property *p;
+	const struct property *p;
 	struct device_node *con_np = to_of_node(fwnode);
 
 	if (IS_ENABLED(CONFIG_X86))

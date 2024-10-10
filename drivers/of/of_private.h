@@ -69,9 +69,9 @@ static inline void of_platform_register_reconfig_notifier(void) { }
 #if defined(CONFIG_OF_KOBJ)
 int of_node_is_attached(const struct device_node *node);
 int __of_add_property_sysfs(struct device_node *np, struct property *pp);
-void __of_remove_property_sysfs(struct device_node *np, struct property *prop);
+void __of_remove_property_sysfs(struct device_node *np, const struct property *prop);
 void __of_update_property_sysfs(struct device_node *np, struct property *newprop,
-		struct property *oldprop);
+		const struct property *oldprop);
 int __of_attach_node_sysfs(struct device_node *np);
 void __of_detach_node_sysfs(struct device_node *np);
 #else
@@ -79,9 +79,9 @@ static inline int __of_add_property_sysfs(struct device_node *np, struct propert
 {
 	return 0;
 }
-static inline void __of_remove_property_sysfs(struct device_node *np, struct property *prop) {}
+static inline void __of_remove_property_sysfs(struct device_node *np, const struct property *prop) {}
 static inline void __of_update_property_sysfs(struct device_node *np,
-		struct property *newprop, struct property *oldprop) {}
+		struct property *newprop, const struct property *oldprop) {}
 static inline int __of_attach_node_sysfs(struct device_node *np)
 {
 	return 0;
@@ -142,7 +142,7 @@ extern int __of_update_property(struct device_node *np,
 extern void __of_detach_node(struct device_node *np);
 
 extern void __of_sysfs_remove_bin_file(struct device_node *np,
-				       struct property *prop);
+				       const struct property *prop);
 
 /* illegal phandle value (set when unresolved) */
 #define OF_PHANDLE_ILLEGAL	0xdeadbeef

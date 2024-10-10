@@ -296,10 +296,11 @@ err_free_target_path:
  * invalid @overlay.
  */
 static int add_changeset_property(struct overlay_changeset *ovcs,
-		struct target *target, struct property *overlay_prop,
+		struct target *target, const struct property *overlay_prop,
 		bool is_symbols_prop)
 {
-	struct property *new_prop = NULL, *prop;
+	struct property *new_prop = NULL;
+	const struct property *prop;
 	int ret = 0;
 
 	if (target->in_livetree)
