@@ -553,7 +553,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	} else {		/* non SPLPAR case */
 
 		seq_printf(m, "system_active_processors=%d\n",
-			   partition_potential_processors);
+			   partition_active_processors);
 
 		seq_printf(m, "system_potential_processors=%d\n",
 			   partition_potential_processors);
