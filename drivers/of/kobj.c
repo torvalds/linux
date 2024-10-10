@@ -37,7 +37,7 @@ static ssize_t of_node_property_read(struct file *filp, struct kobject *kobj,
 }
 
 /* always return newly allocated name, caller must free after use */
-static const char *safe_name(struct kobject *kobj, const char *orig_name)
+static const char *safe_name(const struct kobject *kobj, const char *orig_name)
 {
 	const char *name = orig_name;
 	struct kernfs_node *kn;
