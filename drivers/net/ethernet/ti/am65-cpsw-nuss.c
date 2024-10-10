@@ -3500,7 +3500,7 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct clk *clk;
 	int ale_entries;
-	u64 id_temp;
+	__be64 id_temp;
 	int ret, i;
 
 	common = devm_kzalloc(dev, sizeof(struct am65_cpsw_common), GFP_KERNEL);
