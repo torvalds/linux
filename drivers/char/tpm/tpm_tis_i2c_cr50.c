@@ -201,8 +201,6 @@ static int tpm_cr50_i2c_read(struct tpm_chip *chip, u8 addr, u8 *buffer, size_t 
 	};
 	int rc;
 
-	i2c_lock_bus(client->adapter, I2C_LOCK_SEGMENT);
-
 	/* Prepare for completion interrupt */
 	tpm_cr50_i2c_enable_tpm_irq(chip);
 
@@ -221,7 +219,6 @@ static int tpm_cr50_i2c_read(struct tpm_chip *chip, u8 addr, u8 *buffer, size_t 
 
 out:
 	tpm_cr50_i2c_disable_tpm_irq(chip);
-	i2c_unlock_bus(client->adapter, I2C_LOCK_SEGMENT);
 
 	if (rc < 0)
 		return rc;
@@ -263,8 +260,6 @@ static int tpm_cr50_i2c_write(struct tpm_chip *chip, u8 addr, u8 *buffer,
 	priv->buf[0] = addr;
 	memcpy(priv->buf + 1, buffer, len);
 
-	i2c_lock_bus(client->adapter, I2C_LOCK_SEGMENT);
-
 	/* Prepare for completion interrupt */
 	tpm_cr50_i2c_enable_tpm_irq(chip);
 
@@ -278,7 +273,6 @@ static int tpm_cr50_i2c_write(struct tpm_chip *chip, u8 addr, u8 *buffer,
 
 out:
 	tpm_cr50_i2c_disable_tpm_irq(chip);
-	i2c_unlock_bus(client->adapter, I2C_LOCK_SEGMENT);
 
 	if (rc < 0)
 		return rc;
@@ -322,6 +316,7 @@ static int tpm_cr50_check_locality(struct tpm_chip *chip, int loc)
  */
 static int tpm_cr50_release_locality(struct tpm_chip *chip, int loc)
 {
+	struct i2c_client *client = to_i2c_client(chip->dev.parent);
 	u8 mask = TPM_ACCESS_VALID | TPM_ACCESS_REQUEST_PENDING;
 	u8 addr = TPM_I2C_ACCESS(loc);
 	u8 buf;
@@ -329,13 +324,15 @@ static int tpm_cr50_release_locality(struct tpm_chip *chip, int loc)
 
 	rc = tpm_cr50_i2c_read(chip, addr, &buf, sizeof(buf));
 	if (rc < 0)
-		return rc;
+		goto unlock_out;
 
 	if ((buf & mask) == mask) {
 		buf = TPM_ACCESS_ACTIVE_LOCALITY;
 		rc = tpm_cr50_i2c_write(chip, addr, &buf, sizeof(buf));
 	}
 
+unlock_out:
+	i2c_unlock_bus(client->adapter, I2C_LOCK_SEGMENT);
 	return rc;
 }
 
@@ -350,16 +347,19 @@ static int tpm_cr50_release_locality(struct tpm_chip *chip, int loc)
  */
 static int tpm_cr50_request_locality(struct tpm_chip *chip, int loc)
 {
+	struct i2c_client *client = to_i2c_client(chip->dev.parent);
 	u8 buf = TPM_ACCESS_REQUEST_USE;
 	unsigned long stop;
 	int rc;
+
+	i2c_lock_bus(client->adapter, I2C_LOCK_SEGMENT);
 
 	if (tpm_cr50_check_locality(chip, loc) == loc)
 		return loc;
 
 	rc = tpm_cr50_i2c_write(chip, TPM_I2C_ACCESS(loc), &buf, sizeof(buf));
 	if (rc < 0)
-		return rc;
+		goto unlock_out;
 
 	stop = jiffies + chip->timeout_a;
 	do {
@@ -369,7 +369,11 @@ static int tpm_cr50_request_locality(struct tpm_chip *chip, int loc)
 		msleep(TPM_CR50_TIMEOUT_SHORT_MS);
 	} while (time_before(jiffies, stop));
 
-	return -ETIMEDOUT;
+	rc = -ETIMEDOUT;
+
+unlock_out:
+	i2c_unlock_bus(client->adapter, I2C_LOCK_SEGMENT);
+	return rc;
 }
 
 /**
