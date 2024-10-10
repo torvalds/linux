@@ -136,7 +136,9 @@ static int pnv_smp_cpu_disable(void)
 	 * the generic fixup_irqs. --BenH.
 	 */
 	set_cpu_online(cpu, false);
-	vdso_data->processorCount--;
+#ifdef CONFIG_PPC64_PROC_SYSTEMCFG
+	systemcfg->processorCount--;
+#endif
 	if (cpu == boot_cpuid)
 		boot_cpuid = cpumask_any(cpu_online_mask);
 	if (xive_enabled())

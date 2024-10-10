@@ -11,21 +11,6 @@
 
 
 /*
- * Note about this structure:
- *
- * This structure was historically called systemcfg and exposed to
- * userland via /proc/ppc64/systemcfg. Unfortunately, this became an
- * ABI issue as some proprietary software started relying on being able
- * to mmap() it, thus we have to keep the base layout at least for a
- * few kernel versions.
- *
- * However, since ppc32 doesn't suffer from this backward handicap,
- * a simpler version of the data structure is used there with only the
- * fields actually used by the vDSO.
- *
- */
-
-/*
  * If the major version changes we are incompatible.
  * Minor version changes are a hint.
  */
@@ -40,13 +25,9 @@
 
 #define SYSCALL_MAP_SIZE      ((NR_syscalls + 31) / 32)
 
-/*
- * So here is the ppc64 backward compatible version
- */
-
 #ifdef CONFIG_PPC64
 
-struct vdso_arch_data {
+struct systemcfg {
 	__u8  eye_catcher[16];		/* Eyecatcher: SYSTEMCFG:PPC64	0x00 */
 	struct {			/* Systemcfg version numbers	     */
 		__u32 major;		/* Major number			0x10 */
@@ -71,10 +52,12 @@ struct vdso_arch_data {
 	__u32 dcache_line_size;		/* L1 d-cache line size		0x64 */
 	__u32 icache_size;		/* L1 i-cache size		0x68 */
 	__u32 icache_line_size;		/* L1 i-cache line size		0x6C */
+};
 
-	/* those additional ones don't have to be located anywhere
-	 * special as they were not part of the original systemcfg
-	 */
+extern struct systemcfg *systemcfg;
+
+struct vdso_arch_data {
+	__u64 tb_ticks_per_sec;			/* Timebase tics / sec */
 	__u32 dcache_block_size;		/* L1 d-cache block size     */
 	__u32 icache_block_size;		/* L1 i-cache block size     */
 	__u32 dcache_log_block_size;		/* L1 d-cache log block size */
@@ -88,9 +71,6 @@ struct vdso_arch_data {
 
 #else /* CONFIG_PPC64 */
 
-/*
- * And here is the simpler 32 bits version
- */
 struct vdso_arch_data {
 	__u64 tb_ticks_per_sec;		/* Timebase tics / sec */
 	__u32 syscall_map[SYSCALL_MAP_SIZE]; /* Map of syscalls */

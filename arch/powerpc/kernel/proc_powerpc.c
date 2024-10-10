@@ -4,6 +4,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
@@ -44,13 +45,35 @@ static const struct proc_ops page_map_proc_ops = {
 	.proc_mmap	= page_map_mmap,
 };
 
+static union {
+	struct systemcfg	data;
+	u8			page[PAGE_SIZE];
+} systemcfg_data_store __page_aligned_data;
+struct systemcfg *systemcfg = &systemcfg_data_store.data;
 
 static int __init proc_ppc64_init(void)
 {
 	struct proc_dir_entry *pde;
 
+	strcpy((char *)systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
+	systemcfg->version.major = SYSTEMCFG_MAJOR;
+	systemcfg->version.minor = SYSTEMCFG_MINOR;
+	systemcfg->processor = mfspr(SPRN_PVR);
+	/*
+	 * Fake the old platform number for pSeries and add
+	 * in LPAR bit if necessary
+	 */
+	systemcfg->platform = 0x100;
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		systemcfg->platform |= 1;
+	systemcfg->physicalMemorySize = memblock_phys_mem_size();
+	systemcfg->dcache_size = ppc64_caches.l1d.size;
+	systemcfg->dcache_line_size = ppc64_caches.l1d.line_size;
+	systemcfg->icache_size = ppc64_caches.l1i.size;
+	systemcfg->icache_line_size = ppc64_caches.l1i.line_size;
+
 	pde = proc_create_data("powerpc/systemcfg", S_IFREG | 0444, NULL,
-			       &page_map_proc_ops, vdso_data);
+			       &page_map_proc_ops, systemcfg);
 	if (!pde)
 		return 1;
 	proc_set_size(pde, PAGE_SIZE);

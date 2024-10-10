@@ -83,7 +83,9 @@ static int pseries_cpu_disable(void)
 	int cpu = smp_processor_id();
 
 	set_cpu_online(cpu, false);
-	vdso_data->processorCount--;
+#ifdef CONFIG_PPC64_PROC_SYSTEMCFG
+	systemcfg->processorCount--;
+#endif
 
 	/*fix boot_cpuid here*/
 	if (cpu == boot_cpuid)
