@@ -14,16 +14,16 @@
 /* Integer value ranges */
 static const struct netlink_range_validation netdev_a_page_pool_id_range = {
 	.min	= 1ULL,
-	.max	= 4294967295ULL,
+	.max	= U32_MAX,
 };
 
 static const struct netlink_range_validation netdev_a_page_pool_ifindex_range = {
 	.min	= 1ULL,
-	.max	= 2147483647ULL,
+	.max	= S32_MAX,
 };
 
 static const struct netlink_range_validation netdev_a_napi_defer_hard_irqs_range = {
-	.max	= 2147483647ULL,
+	.max	= S32_MAX,
 };
 
 /* Common nested types */
