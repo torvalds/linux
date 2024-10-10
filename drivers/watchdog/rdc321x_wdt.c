@@ -268,7 +268,7 @@ static void rdc321x_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver rdc321x_wdt_driver = {
 	.probe = rdc321x_wdt_probe,
-	.remove_new = rdc321x_wdt_remove,
+	.remove = rdc321x_wdt_remove,
 	.driver = {
 		.name = "rdc321x-wdt",
 	},
