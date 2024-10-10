@@ -4535,6 +4535,14 @@ static int ufshcd_get_max_pwr_mode(struct ufs_hba *hba)
 		return -EINVAL;
 	}
 
+	if (pwr_info->lane_rx != pwr_info->lane_tx) {
+		dev_err(hba->dev, "%s: asymmetric connected lanes. rx=%d, tx=%d\n",
+			__func__,
+				pwr_info->lane_rx,
+				pwr_info->lane_tx);
+		return -EINVAL;
+	}
+
 	/*
 	 * First, get the maximum gears of HS speed.
 	 * If a zero value, it means there is no HSGEAR capability.
