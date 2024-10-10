@@ -50,13 +50,13 @@ static ssize_t
 mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int enabled;
 
-	mutex_lock(&tz->lock);
-	enabled = tz->mode == THERMAL_DEVICE_ENABLED;
-	mutex_unlock(&tz->lock);
+	guard(thermal_zone)(tz);
 
-	return sprintf(buf, "%s\n", enabled ? "enabled" : "disabled");
+	if (tz->mode == THERMAL_DEVICE_ENABLED)
+		return sprintf(buf, "enabled\n");
+
+	return sprintf(buf, "disabled\n");
 }
 
 static ssize_t
@@ -103,38 +103,34 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 {
 	struct thermal_trip *trip = thermal_trip_of_attr(attr, temp);
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int ret, temp;
+	int temp;
 
-	ret = kstrtoint(buf, 10, &temp);
-	if (ret)
+	if (kstrtoint(buf, 10, &temp))
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
 	if (temp == trip->temperature)
-		goto unlock;
+		return count;
 
 	/* Arrange the condition to avoid integer overflows. */
 	if (temp != THERMAL_TEMP_INVALID &&
-	    temp <= trip->hysteresis + THERMAL_TEMP_INVALID) {
-		ret = -EINVAL;
-		goto unlock;
-	}
+	    temp <= trip->hysteresis + THERMAL_TEMP_INVALID)
+		return -EINVAL;
 
 	if (tz->ops.set_trip_temp) {
+		int ret;
+
 		ret = tz->ops.set_trip_temp(tz, trip, temp);
 		if (ret)
-			goto unlock;
+			return ret;
 	}
 
 	thermal_zone_set_trip_temp(tz, trip, temp);
 
 	__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 
-unlock:
-	mutex_unlock(&tz->lock);
-
-	return ret ? ret : count;
+	return count;
 }
 
 static ssize_t
@@ -152,16 +148,15 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 {
 	struct thermal_trip *trip = thermal_trip_of_attr(attr, hyst);
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int ret, hyst;
+	int hyst;
 
-	ret = kstrtoint(buf, 10, &hyst);
-	if (ret || hyst < 0)
+	if (kstrtoint(buf, 10, &hyst) || hyst < 0)
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
 	if (hyst == trip->hysteresis)
-		goto unlock;
+		return count;
 
 	/*
 	 * Allow the hysteresis to be updated when the temperature is invalid
@@ -171,22 +166,17 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 	 */
 	if (trip->temperature == THERMAL_TEMP_INVALID) {
 		WRITE_ONCE(trip->hysteresis, hyst);
-		goto unlock;
+		return count;
 	}
 
-	if (trip->temperature - hyst <= THERMAL_TEMP_INVALID) {
-		ret = -EINVAL;
-		goto unlock;
-	}
+	if (trip->temperature - hyst <= THERMAL_TEMP_INVALID)
+		return -EINVAL;
 
 	thermal_zone_set_trip_hyst(tz, trip, hyst);
 
 	__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 
-unlock:
-	mutex_unlock(&tz->lock);
-
-	return ret ? ret : count;
+	return count;
 }
 
 static ssize_t
@@ -236,25 +226,26 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int ret = 0;
 	int temperature;
 
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
-	if (!tz->ops.set_emul_temp)
-		tz->emul_temperature = temperature;
-	else
+	if (tz->ops.set_emul_temp) {
+		int ret;
+
 		ret = tz->ops.set_emul_temp(tz, temperature);
+		if (ret)
+			return ret;
+	} else {
+		tz->emul_temperature = temperature;
+	}
 
-	if (!ret)
-		__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
-	mutex_unlock(&tz->lock);
-
-	return ret ? ret : count;
+	return count;
 }
 static DEVICE_ATTR_WO(emul_temp);
 #endif
@@ -894,13 +885,11 @@ ssize_t weight_store(struct device *dev, struct device_attribute *attr,
 	instance = container_of(attr, struct thermal_instance, weight_attr);
 
 	/* Don't race with governors using the 'weight' value */
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
 	instance->weight = weight;
 
 	thermal_governor_update_tz(tz, THERMAL_INSTANCE_WEIGHT_CHANGED);
-
-	mutex_unlock(&tz->lock);
 
 	return count;
 }

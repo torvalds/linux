@@ -459,7 +459,7 @@ static int thermal_genl_cmd_tz_get_trip(struct param *p)
 	if (!start_trip)
 		return -EMSGSIZE;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
 	for_each_trip_desc(tz, td) {
 		const struct thermal_trip *trip = &td->trip;
@@ -469,19 +469,12 @@ static int thermal_genl_cmd_tz_get_trip(struct param *p)
 		    nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_TRIP_TYPE, trip->type) ||
 		    nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_TRIP_TEMP, trip->temperature) ||
 		    nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_TRIP_HYST, trip->hysteresis))
-			goto out_cancel_nest;
+			return -EMSGSIZE;
 	}
-
-	mutex_unlock(&tz->lock);
 
 	nla_nest_end(msg, start_trip);
 
 	return 0;
-
-out_cancel_nest:
-	mutex_unlock(&tz->lock);
-
-	return -EMSGSIZE;
 }
 
 static int thermal_genl_cmd_tz_get_temp(struct param *p)
@@ -512,7 +505,7 @@ static int thermal_genl_cmd_tz_get_temp(struct param *p)
 static int thermal_genl_cmd_tz_get_gov(struct param *p)
 {
 	struct sk_buff *msg = p->msg;
-	int id, ret = 0;
+	int id;
 
 	if (!p->attrs[THERMAL_GENL_ATTR_TZ_ID])
 		return -EINVAL;
@@ -523,16 +516,14 @@ static int thermal_genl_cmd_tz_get_gov(struct param *p)
 	if (!tz)
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
 	if (nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_ID, id) ||
 	    nla_put_string(msg, THERMAL_GENL_ATTR_TZ_GOV_NAME,
 			   tz->governor->name))
-		ret = -EMSGSIZE;
+		return -EMSGSIZE;
 
-	mutex_unlock(&tz->lock);
-
-	return ret;
+	return 0;
 }
 
 static int __thermal_genl_cmd_cdev_get(struct thermal_cooling_device *cdev,

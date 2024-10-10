@@ -60,13 +60,13 @@ bool thermal_trip_is_bound_to_cdev(struct thermal_zone_device *tz,
 {
 	bool ret;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
+
 	mutex_lock(&cdev->lock);
 
 	ret = thermal_instance_present(tz, cdev, trip);
 
 	mutex_unlock(&cdev->lock);
-	mutex_unlock(&tz->lock);
 
 	return ret;
 }
@@ -138,19 +138,14 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 	if (IS_ERR_OR_NULL(tz))
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
-	if (!tz->ops.get_temp) {
-		ret = -EINVAL;
-		goto unlock;
-	}
+	if (!tz->ops.get_temp)
+		return -EINVAL;
 
 	ret = __thermal_zone_get_temp(tz, temp);
 	if (!ret && *temp <= THERMAL_TEMP_INVALID)
-		ret = -ENODATA;
-
-unlock:
-	mutex_unlock(&tz->lock);
+		return -ENODATA;
 
 	return ret;
 }

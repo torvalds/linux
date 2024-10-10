@@ -9,6 +9,7 @@
 #ifndef __THERMAL_CORE_H__
 #define __THERMAL_CORE_H__
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/thermal.h>
 
@@ -145,6 +146,9 @@ struct thermal_zone_device {
 	struct list_head user_thresholds;
 	struct thermal_trip_desc trips[] __counted_by(num_trips);
 };
+
+DEFINE_GUARD(thermal_zone, struct thermal_zone_device *, mutex_lock(&_T->lock),
+	     mutex_unlock(&_T->lock))
 
 /* Initial thermal zone temperature. */
 #define THERMAL_TEMP_INIT	INT_MIN

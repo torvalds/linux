@@ -45,13 +45,9 @@ int thermal_zone_for_each_trip(struct thermal_zone_device *tz,
 			       int (*cb)(struct thermal_trip *, void *),
 			       void *data)
 {
-	int ret;
+	guard(thermal_zone)(tz);
 
-	mutex_lock(&tz->lock);
-	ret = for_each_thermal_trip(tz, cb, data);
-	mutex_unlock(&tz->lock);
-
-	return ret;
+	return for_each_thermal_trip(tz, cb, data);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_for_each_trip);
 
