@@ -109,6 +109,8 @@ torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
 torture_param(int, onoff_interval, 0, "Time between CPU hotplugs (jiffies), 0=disable");
 torture_param(int, nocbs_nthreads, 0, "Number of NOCB toggle threads, 0 to disable");
 torture_param(int, nocbs_toggle, 1000, "Time between toggling nocb state (ms)");
+torture_param(int, preempt_duration, 0, "Preemption duration (ms), zero to disable");
+torture_param(int, preempt_interval, MSEC_PER_SEC, "Interval between preemptions (ms)");
 torture_param(int, read_exit_delay, 13, "Delay between read-then-exit episodes (s)");
 torture_param(int, read_exit_burst, 16, "# of read-then-exit bursts per episode, zero to disable");
 torture_param(int, reader_flavor, 0x1, "Reader flavors to use, one per bit.");
@@ -149,6 +151,7 @@ static struct task_struct **fwd_prog_tasks;
 static struct task_struct **barrier_cbs_tasks;
 static struct task_struct *barrier_task;
 static struct task_struct *read_exit_task;
+static struct task_struct *preempt_task;
 
 #define RCU_TORTURE_PIPE_LEN 10
 
@@ -2425,7 +2428,8 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "read_exit_delay=%d read_exit_burst=%d "
 		 "reader_flavor=%x "
 		 "nocbs_nthreads=%d nocbs_toggle=%d "
-		 "test_nmis=%d\n",
+		 "test_nmis=%d "
+		 "preempt_duration=%d preempt_interval=%d\n",
 		 torture_type, tag, nrealreaders, nfakewriters,
 		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
@@ -2438,7 +2442,8 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 read_exit_delay, read_exit_burst,
 		 reader_flavor,
 		 nocbs_nthreads, nocbs_toggle,
-		 test_nmis);
+		 test_nmis,
+		 preempt_duration, preempt_interval);
 }
 
 static int rcutorture_booster_cleanup(unsigned int cpu)
@@ -3418,6 +3423,35 @@ static void rcutorture_test_nmis(int n)
 #endif // #else // #if IS_BUILTIN(CONFIG_RCU_TORTURE_TEST)
 }
 
+// Randomly preempt online CPUs.
+static int rcu_torture_preempt(void *unused)
+{
+	int cpu = -1;
+	DEFINE_TORTURE_RANDOM(rand);
+
+	schedule_timeout_idle(stall_cpu_holdoff);
+	do {
+		// Wait for preempt_interval ms with up to 100us fuzz.
+		torture_hrtimeout_ms(preempt_interval, 100, &rand);
+		// Select online CPU.
+		cpu = cpumask_next(cpu, cpu_online_mask);
+		if (cpu >= nr_cpu_ids)
+			cpu = cpumask_next(-1, cpu_online_mask);
+		WARN_ON_ONCE(cpu >= nr_cpu_ids);
+		// Move to that CPU, if can't do so, retry later.
+		if (torture_sched_setaffinity(current->pid, cpumask_of(cpu), false))
+			continue;
+		// Preempt at high-ish priority, then reset to normal.
+		sched_set_fifo(current);
+		torture_sched_setaffinity(current->pid, cpu_present_mask, true);
+		mdelay(preempt_duration);
+		sched_set_normal(current, 0);
+		stutter_wait("rcu_torture_preempt");
+	} while (!torture_must_stop());
+	torture_kthread_stopping("rcu_torture_preempt");
+	return 0;
+}
+
 static enum cpuhp_state rcutor_hp;
 
 static void
@@ -3446,6 +3480,7 @@ rcu_torture_cleanup(void)
 
 	if (cur_ops->gp_kthread_dbg)
 		cur_ops->gp_kthread_dbg();
+	torture_stop_kthread(rcu_torture_preempt, preempt_task);
 	rcu_torture_read_exit_cleanup();
 	rcu_torture_barrier_cleanup();
 	rcu_torture_fwd_prog_cleanup();
@@ -4019,6 +4054,11 @@ rcu_torture_init(void)
 	firsterr = rcu_torture_read_exit_init();
 	if (torture_init_error(firsterr))
 		goto unwind;
+	if (preempt_duration > 0) {
+		firsterr = torture_create_kthread(rcu_torture_preempt, NULL, preempt_task);
+		if (torture_init_error(firsterr))
+			goto unwind;
+	}
 	if (object_debug)
 		rcu_test_debug_objects();
 	torture_init_end();
