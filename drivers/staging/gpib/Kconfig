@@ -14,6 +14,7 @@ if GPIB
 
 config GPIB_KERNEL_DEBUG
 	bool "GPIB debugging"
+	depends on BROKEN
 	help
 	  This is an option for use by developers; most people should
 	  say N here.
