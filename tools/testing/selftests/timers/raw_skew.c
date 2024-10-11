@@ -28,8 +28,6 @@
 #include <include/vdso/time64.h>
 #include "../kselftest.h"
 
-#define CLOCK_MONOTONIC_RAW		4
-
 #define shift_right(x, s) ({		\
 	__typeof__(x) __x = (x);	\
 	__typeof__(s) __s = (s);	\

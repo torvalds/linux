@@ -26,8 +26,6 @@
 
 #include "../kselftest.h"
 
-#define CLOCK_MONOTONIC_RAW	4
-
 #define MILLION			1000000
 
 long systick;
