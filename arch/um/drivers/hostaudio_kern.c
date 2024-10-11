@@ -48,6 +48,7 @@ MODULE_PARM_DESC(mixer, MIXER_HELP);
 #ifndef MODULE
 static int set_dsp(char *name, int *add)
 {
+	*add = 0;
 	dsp = name;
 	return 0;
 }
