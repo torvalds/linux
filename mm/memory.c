@@ -4719,7 +4719,15 @@ static struct folio *alloc_anon_folio(struct vm_fault *vmf)
 				goto next;
 			}
 			folio_throttle_swaprate(folio, gfp);
-			folio_zero_user(folio, vmf->address);
+			/*
+			 * When a folio is not zeroed during allocation
+			 * (__GFP_ZERO not used), folio_zero_user() is used
+			 * to make sure that the page corresponding to the
+			 * faulting address will be hot in the cache after
+			 * zeroing.
+			 */
+			if (!alloc_zeroed())
+				folio_zero_user(folio, vmf->address);
 			return folio;
 		}
 next:
