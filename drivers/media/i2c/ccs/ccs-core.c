@@ -3123,8 +3123,6 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 
 	rval = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
 					&hwcfg->ext_clk);
-	if (rval)
-		dev_info(dev, "can't get clock-frequency\n");
 
 	dev_dbg(dev, "clk %u, mode %u\n", hwcfg->ext_clk,
 		hwcfg->csi_signalling_mode);
