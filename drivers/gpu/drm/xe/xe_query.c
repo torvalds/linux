@@ -163,16 +163,10 @@ query_engine_cycles(struct xe_device *xe,
 		resp.width = 36;
 
 	/* Only write to the output fields of user query */
-	if (put_user(resp.cpu_timestamp, &query_ptr->cpu_timestamp))
-		return -EFAULT;
-
-	if (put_user(resp.cpu_delta, &query_ptr->cpu_delta))
-		return -EFAULT;
-
-	if (put_user(resp.engine_cycles, &query_ptr->engine_cycles))
-		return -EFAULT;
-
-	if (put_user(resp.width, &query_ptr->width))
+	if (put_user(resp.cpu_timestamp, &query_ptr->cpu_timestamp) ||
+	    put_user(resp.cpu_delta, &query_ptr->cpu_delta) ||
+	    put_user(resp.engine_cycles, &query_ptr->engine_cycles) ||
+	    put_user(resp.width, &query_ptr->width))
 		return -EFAULT;
 
 	return 0;
