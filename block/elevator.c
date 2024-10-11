@@ -106,8 +106,7 @@ static struct elevator_type *__elevator_find(const char *name)
 	return NULL;
 }
 
-static struct elevator_type *elevator_find_get(struct request_queue *q,
-		const char *name)
+static struct elevator_type *elevator_find_get(const char *name)
 {
 	struct elevator_type *e;
 
@@ -569,7 +568,7 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 	    !blk_mq_is_shared_tags(q->tag_set->flags))
 		return NULL;
 
-	return elevator_find_get(q, "mq-deadline");
+	return elevator_find_get("mq-deadline");
 }
 
 /*
@@ -697,7 +696,7 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	if (q->elevator && elevator_match(q->elevator->type, elevator_name))
 		return 0;
 
-	e = elevator_find_get(q, elevator_name);
+	e = elevator_find_get(elevator_name);
 	if (!e)
 		return -EINVAL;
 	ret = elevator_switch(q, e);
