@@ -4795,11 +4795,9 @@ static void mvneta_ethtool_get_strings(struct net_device *netdev, u32 sset,
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(mvneta_statistics); i++)
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       mvneta_statistics[i].name, ETH_GSTRING_LEN);
+			ethtool_puts(&data, mvneta_statistics[i].name);
 
 		if (!pp->bm_priv) {
-			data += ETH_GSTRING_LEN * ARRAY_SIZE(mvneta_statistics);
 			page_pool_ethtool_stats_get_strings(data);
 		}
 	}
