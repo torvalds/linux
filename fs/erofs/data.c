@@ -473,8 +473,32 @@ static int erofs_file_mmap(struct file *file, struct vm_area_struct *vma)
 #define erofs_file_mmap	generic_file_readonly_mmap
 #endif
 
+static loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct inode *inode = file->f_mapping->host;
+	const struct iomap_ops *ops = &erofs_iomap_ops;
+
+	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout))
+#ifdef CONFIG_EROFS_FS_ZIP
+		ops = &z_erofs_iomap_report_ops;
+#else
+		return generic_file_llseek(file, offset, whence);
+#endif
+
+	if (whence == SEEK_HOLE)
+		offset = iomap_seek_hole(inode, offset, ops);
+	else if (whence == SEEK_DATA)
+		offset = iomap_seek_data(inode, offset, ops);
+	else
+		return generic_file_llseek(file, offset, whence);
+
+	if (offset < 0)
+		return offset;
+	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+}
+
 const struct file_operations erofs_file_fops = {
-	.llseek		= generic_file_llseek,
+	.llseek		= erofs_file_llseek,
 	.read_iter	= erofs_file_read_iter,
 	.mmap		= erofs_file_mmap,
 	.get_unmapped_area = thp_get_unmapped_area,
