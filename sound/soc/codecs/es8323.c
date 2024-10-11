@@ -743,7 +743,7 @@ static int es8323_i2c_probe(struct i2c_client *i2c_client)
 	struct device *dev = &i2c_client->dev;
 
 	es8323 = devm_kzalloc(dev, sizeof(*es8323), GFP_KERNEL);
-	if (IS_ERR(es8323))
+	if (!es8323)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c_client, es8323);
