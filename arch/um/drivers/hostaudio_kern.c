@@ -57,6 +57,7 @@ __uml_setup("dsp=", set_dsp, "dsp=<dsp device>\n" DSP_HELP);
 
 static int set_mixer(char *name, int *add)
 {
+	*add = 0;
 	mixer = name;
 	return 0;
 }
