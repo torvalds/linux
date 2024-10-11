@@ -469,7 +469,6 @@ static int do_faccessat(int dfd, const char __user *filename, int mode, int flag
 	int res;
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 	const struct cred *old_cred = NULL;
-	struct filename *name;
 
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
@@ -486,7 +485,7 @@ static int do_faccessat(int dfd, const char __user *filename, int mode, int flag
 			return -ENOMEM;
 	}
 
-	name = getname_uflags(filename, flags);
+	CLASS(filename_uflags, name)(filename, flags);
 retry:
 	res = filename_lookup(dfd, name, lookup_flags, &path, NULL);
 	if (res)
@@ -528,7 +527,6 @@ out_path_release:
 		goto retry;
 	}
 out:
-	putname(name);
 	if (old_cred)
 		put_cred(revert_creds(old_cred));
 
@@ -677,7 +675,6 @@ static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
 		       unsigned int flags)
 {
 	struct path path;
-	struct filename *name;
 	int error;
 	unsigned int lookup_flags;
 
@@ -685,7 +682,7 @@ static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
 		return -EINVAL;
 
 	lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
-	name = getname_uflags(filename, flags);
+	CLASS(filename_uflags, name)(filename, flags);
 retry:
 	error = filename_lookup(dfd, name, lookup_flags, &path, NULL);
 	if (!error) {
@@ -696,7 +693,6 @@ retry:
 			goto retry;
 		}
 	}
-	putname(name);
 	return error;
 }
 
