@@ -251,10 +251,8 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 		return irq;
 
 	irq_data = irq_get_irq_data(irq);
-	if (!irq_data) {
-		dev_err(dev, "irq_get_irq_data(%d): NULL\n", irq);
-		return -EINVAL;
-	}
+	if (!irq_data)
+		return dev_err_probe(dev, -EINVAL, "irq_get_irq_data(%d): NULL\n", irq);
 
 	bootreg = devm_platform_ioremap_resource_byname(pdev, "host1cfg");
 	if (IS_ERR(bootreg))
@@ -269,21 +267,13 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(dsp_clk), "clk_get error\n");
 
 	dsp_reset = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(dsp_reset)) {
-		if (PTR_ERR(dsp_reset) != -EPROBE_DEFER)
-			dev_err(dev, "unable to get reset control: %ld\n",
-				PTR_ERR(dsp_reset));
-
-		return PTR_ERR(dsp_reset);
-	}
+	if (IS_ERR(dsp_reset))
+		return dev_err_probe(dev, PTR_ERR(dsp_reset), "unable to get reset control\n");
 
 	if (dev->of_node) {
 		ret = of_reserved_mem_device_init(dev);
-		if (ret) {
-			dev_err(dev, "device does not have specific CMA pool: %d\n",
-				ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "device does not have specific CMA pool\n");
 	}
 
 	rproc = rproc_alloc(dev, "dsp", &da8xx_rproc_ops, da8xx_fw_name,
