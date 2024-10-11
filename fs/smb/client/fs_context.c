@@ -185,6 +185,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_string("cache", Opt_cache),
 	fsparam_string("reparse", Opt_reparse),
 	fsparam_string("upcall_target", Opt_upcalltarget),
+	fsparam_string("symlink", Opt_symlink),
 	fsparam_string("symlinkroot", Opt_symlinkroot),
 
 	/* Arguments that should be ignored */
@@ -355,6 +356,55 @@ static int parse_reparse_flavor(struct fs_context *fc, char *value,
 		break;
 	default:
 		cifs_errorf(fc, "bad reparse= option: %s\n", value);
+		return 1;
+	}
+	return 0;
+}
+
+static const match_table_t symlink_flavor_tokens = {
+	{ Opt_symlink_default,		"default" },
+	{ Opt_symlink_none,		"none" },
+	{ Opt_symlink_native,		"native" },
+	{ Opt_symlink_unix,		"unix" },
+	{ Opt_symlink_mfsymlinks,	"mfsymlinks" },
+	{ Opt_symlink_sfu,		"sfu" },
+	{ Opt_symlink_nfs,		"nfs" },
+	{ Opt_symlink_wsl,		"wsl" },
+	{ Opt_symlink_err,		NULL },
+};
+
+static int parse_symlink_flavor(struct fs_context *fc, char *value,
+				struct smb3_fs_context *ctx)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	switch (match_token(value, symlink_flavor_tokens, args)) {
+	case Opt_symlink_default:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_DEFAULT;
+		break;
+	case Opt_symlink_none:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_NONE;
+		break;
+	case Opt_symlink_native:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_NATIVE;
+		break;
+	case Opt_symlink_unix:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_UNIX;
+		break;
+	case Opt_symlink_mfsymlinks:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_MFSYMLINKS;
+		break;
+	case Opt_symlink_sfu:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_SFU;
+		break;
+	case Opt_symlink_nfs:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_NFS;
+		break;
+	case Opt_symlink_wsl:
+		ctx->symlink_type = CIFS_SYMLINK_TYPE_WSL;
+		break;
+	default:
+		cifs_errorf(fc, "bad symlink= option: %s\n", value);
 		return 1;
 	}
 	return 0;
@@ -1730,6 +1780,10 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		if (parse_reparse_flavor(fc, param->string, ctx))
 			goto cifs_parse_mount_err;
 		break;
+	case Opt_symlink:
+		if (parse_symlink_flavor(fc, param->string, ctx))
+			goto cifs_parse_mount_err;
+		break;
 	case Opt_symlinkroot:
 		if (param->string[0] != '/') {
 			cifs_errorf(fc, "symlinkroot mount options must be absolute path\n");
@@ -1763,6 +1817,22 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	kfree_sensitive(ctx->password2);
 	ctx->password2 = NULL;
 	return -EINVAL;
+}
+
+enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb)
+{
+	if (cifs_sb->ctx->symlink_type == CIFS_SYMLINK_TYPE_DEFAULT) {
+		if (cifs_sb->ctx->mfsymlinks)
+			return CIFS_SYMLINK_TYPE_MFSYMLINKS;
+		else if (cifs_sb->ctx->sfu_emul)
+			return CIFS_SYMLINK_TYPE_SFU;
+		else if (cifs_sb->ctx->linux_ext && !cifs_sb->ctx->no_linux_ext)
+			return CIFS_SYMLINK_TYPE_UNIX;
+		else
+			return CIFS_SYMLINK_TYPE_NATIVE;
+	} else {
+		return cifs_sb->ctx->symlink_type;
+	}
 }
 
 int smb3_init_fs_context(struct fs_context *fc)
@@ -1841,6 +1911,7 @@ int smb3_init_fs_context(struct fs_context *fc)
 
 	ctx->retrans = 1;
 	ctx->reparse_type = CIFS_REPARSE_TYPE_DEFAULT;
+	ctx->symlink_type = CIFS_SYMLINK_TYPE_DEFAULT;
 
 /*
  *	short int override_uid = -1;

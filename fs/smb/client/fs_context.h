@@ -48,6 +48,18 @@ enum cifs_reparse_parm {
 	Opt_reparse_err
 };
 
+enum cifs_symlink_parm {
+	Opt_symlink_default,
+	Opt_symlink_none,
+	Opt_symlink_native,
+	Opt_symlink_unix,
+	Opt_symlink_mfsymlinks,
+	Opt_symlink_sfu,
+	Opt_symlink_nfs,
+	Opt_symlink_wsl,
+	Opt_symlink_err
+};
+
 enum cifs_sec_param {
 	Opt_sec_krb5,
 	Opt_sec_krb5i,
@@ -166,6 +178,7 @@ enum cifs_param {
 	Opt_cache,
 	Opt_reparse,
 	Opt_upcalltarget,
+	Opt_symlink,
 	Opt_symlinkroot,
 
 	/* Mount options to be ignored */
@@ -295,12 +308,15 @@ struct smb3_fs_context {
 	struct cifs_ses *dfs_root_ses;
 	bool dfs_automount:1; /* set for dfs automount only */
 	enum cifs_reparse_type reparse_type;
+	enum cifs_symlink_type symlink_type;
 	bool dfs_conn:1; /* set for dfs mounts */
 	char *dns_dom;
 	char *symlinkroot; /* top level directory for native SMB symlinks in absolute format */
 };
 
 extern const struct fs_parameter_spec smb3_fs_parameters[];
+
+extern enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb);
 
 extern int smb3_init_fs_context(struct fs_context *fc);
 extern void smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx);

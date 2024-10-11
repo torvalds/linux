@@ -14,6 +14,20 @@
 #include "fs_context.h"
 #include "reparse.h"
 
+static int mknod_nfs(unsigned int xid, struct inode *inode,
+		     struct dentry *dentry, struct cifs_tcon *tcon,
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname);
+
+static int mknod_wsl(unsigned int xid, struct inode *inode,
+		     struct dentry *dentry, struct cifs_tcon *tcon,
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname);
+
+static int create_native_symlink(const unsigned int xid, struct inode *inode,
+				 struct dentry *dentry, struct cifs_tcon *tcon,
+				 const char *full_path, const char *symname);
+
 static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 					   const unsigned int xid,
 					   const char *full_path,
@@ -23,6 +37,22 @@ static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				struct dentry *dentry, struct cifs_tcon *tcon,
 				const char *full_path, const char *symname)
+{
+	switch (get_cifs_symlink_type(CIFS_SB(inode->i_sb))) {
+	case CIFS_SYMLINK_TYPE_NATIVE:
+		return create_native_symlink(xid, inode, dentry, tcon, full_path, symname);
+	case CIFS_SYMLINK_TYPE_NFS:
+		return mknod_nfs(xid, inode, dentry, tcon, full_path, S_IFLNK, 0, symname);
+	case CIFS_SYMLINK_TYPE_WSL:
+		return mknod_wsl(xid, inode, dentry, tcon, full_path, S_IFLNK, 0, symname);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int create_native_symlink(const unsigned int xid, struct inode *inode,
+				 struct dentry *dentry, struct cifs_tcon *tcon,
+				 const char *full_path, const char *symname)
 {
 	struct reparse_symlink_data_buffer *buf = NULL;
 	struct cifs_open_info_data data = {};
@@ -366,6 +396,7 @@ static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 	case NFS_SPECFILE_SOCK:
 		dlen = 0;
 		break;
+	case NFS_SPECFILE_LNK: /* TODO: add support for NFS symlinks */
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -384,7 +415,8 @@ static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 
 static int mknod_nfs(unsigned int xid, struct inode *inode,
 		     struct dentry *dentry, struct cifs_tcon *tcon,
-		     const char *full_path, umode_t mode, dev_t dev)
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname)
 {
 	struct cifs_open_info_data data;
 	struct reparse_nfs_data_buffer *p;
@@ -424,6 +456,7 @@ static int wsl_set_reparse_buf(struct reparse_data_buffer *buf,
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_AF_UNIX:
 		break;
+	case IO_REPARSE_TAG_LX_SYMLINK: /* TODO: add support for WSL symlinks */
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -521,7 +554,8 @@ static int wsl_set_xattrs(struct inode *inode, umode_t _mode,
 
 static int mknod_wsl(unsigned int xid, struct inode *inode,
 		     struct dentry *dentry, struct cifs_tcon *tcon,
-		     const char *full_path, umode_t mode, dev_t dev)
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname)
 {
 	struct cifs_open_info_data data;
 	struct reparse_data_buffer buf;
@@ -566,17 +600,15 @@ int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
 		       const char *full_path, umode_t mode, dev_t dev)
 {
 	struct smb3_fs_context *ctx = CIFS_SB(inode->i_sb)->ctx;
-	int rc = -EOPNOTSUPP;
 
 	switch (ctx->reparse_type) {
 	case CIFS_REPARSE_TYPE_NFS:
-		rc = mknod_nfs(xid, inode, dentry, tcon, full_path, mode, dev);
-		break;
+		return mknod_nfs(xid, inode, dentry, tcon, full_path, mode, dev, NULL);
 	case CIFS_REPARSE_TYPE_WSL:
-		rc = mknod_wsl(xid, inode, dentry, tcon, full_path, mode, dev);
-		break;
+		return mknod_wsl(xid, inode, dentry, tcon, full_path, mode, dev, NULL);
+	default:
+		return -EOPNOTSUPP;
 	}
-	return rc;
 }
 
 /* See MS-FSCC 2.1.2.6 for the 'NFS' style reparse tags */
@@ -849,7 +881,7 @@ out:
 	return rc;
 }
 
-static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
+static int parse_reparse_native_symlink(struct reparse_symlink_data_buffer *sym,
 				 u32 plen,
 				 struct cifs_sb_info *cifs_sb,
 				 const char *full_path,
@@ -936,7 +968,7 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 		return parse_reparse_nfs((struct reparse_nfs_data_buffer *)buf,
 					   cifs_sb, data);
 	case IO_REPARSE_TAG_SYMLINK:
-		return parse_reparse_symlink(
+		return parse_reparse_native_symlink(
 			(struct reparse_symlink_data_buffer *)buf,
 			plen, cifs_sb, full_path, data);
 	case IO_REPARSE_TAG_LX_SYMLINK:
