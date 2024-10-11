@@ -488,23 +488,6 @@ static void mmu_spte_set(u64 *sptep, u64 new_spte)
 /* Rules for using mmu_spte_update:
  * Update the state bits, it means the mapped pfn is not changed.
  *
- * If the MMU-writable flag is cleared, i.e. the SPTE is write-protected for
- * write-tracking, remote TLBs must be flushed, even if the SPTE was read-only,
- * as KVM allows stale Writable TLB entries to exist.  When dirty logging, KVM
- * flushes TLBs based on whether or not dirty bitmap/ring entries were reaped,
- * not whether or not SPTEs were modified, i.e. only the write-tracking case
- * needs to flush at the time the SPTEs is modified, before dropping mmu_lock.
- *
- * Don't flush if the Accessed bit is cleared, as access tracking tolerates
- * false negatives, and the one path that does care about TLB flushes,
- * kvm_mmu_notifier_clear_flush_young(), flushes if a young SPTE is found, i.e.
- * doesn't rely on lower helpers to detect the need to flush.
- *
- * Lastly, don't flush if the Dirty bit is cleared, as KVM unconditionally
- * flushes when enabling dirty logging (see kvm_mmu_slot_apply_flags()), and
- * when clearing dirty logs, KVM flushes based on whether or not dirty entries
- * were reaped from the bitmap/ring, not whether or not dirty SPTEs were found.
- *
  * Returns true if the TLB needs to be flushed
  */
 static bool mmu_spte_update(u64 *sptep, u64 new_spte)
@@ -527,7 +510,7 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 	WARN_ON_ONCE(!is_shadow_present_pte(old_spte) ||
 		     spte_to_pfn(old_spte) != spte_to_pfn(new_spte));
 
-	return is_mmu_writable_spte(old_spte) && !is_mmu_writable_spte(new_spte);
+	return leaf_spte_change_needs_tlb_flush(old_spte, new_spte);
 }
 
 /*

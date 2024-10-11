@@ -467,6 +467,34 @@ static inline bool is_mmu_writable_spte(u64 spte)
 	return spte & shadow_mmu_writable_mask;
 }
 
+/*
+ * If the MMU-writable flag is cleared, i.e. the SPTE is write-protected for
+ * write-tracking, remote TLBs must be flushed, even if the SPTE was read-only,
+ * as KVM allows stale Writable TLB entries to exist.  When dirty logging, KVM
+ * flushes TLBs based on whether or not dirty bitmap/ring entries were reaped,
+ * not whether or not SPTEs were modified, i.e. only the write-tracking case
+ * needs to flush at the time the SPTEs is modified, before dropping mmu_lock.
+ *
+ * Don't flush if the Accessed bit is cleared, as access tracking tolerates
+ * false negatives, and the one path that does care about TLB flushes,
+ * kvm_mmu_notifier_clear_flush_young(), flushes if a young SPTE is found, i.e.
+ * doesn't rely on lower helpers to detect the need to flush.
+ *
+ * Lastly, don't flush if the Dirty bit is cleared, as KVM unconditionally
+ * flushes when enabling dirty logging (see kvm_mmu_slot_apply_flags()), and
+ * when clearing dirty logs, KVM flushes based on whether or not dirty entries
+ * were reaped from the bitmap/ring, not whether or not dirty SPTEs were found.
+ *
+ * Note, this logic only applies to shadow-present leaf SPTEs.  The caller is
+ * responsible for checking that the old SPTE is shadow-present, and is also
+ * responsible for determining whether or not a TLB flush is required when
+ * modifying a shadow-present non-leaf SPTE.
+ */
+static inline bool leaf_spte_change_needs_tlb_flush(u64 old_spte, u64 new_spte)
+{
+	return is_mmu_writable_spte(old_spte) && !is_mmu_writable_spte(new_spte);
+}
+
 static inline u64 get_mmio_spte_generation(u64 spte)
 {
 	u64 gen;
