@@ -1462,6 +1462,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		mutex_lock(&dev->ethtool->rss_lock);
 		locked = true;
 	}
+
+	if (rxfh.rss_context && rxfh_dev.rss_delete) {
+		ret = ethtool_check_rss_ctx_busy(dev, rxfh.rss_context);
+		if (ret)
+			goto out;
+	}
+
 	if (create) {
 		if (rxfh_dev.rss_delete) {
 			ret = -EINVAL;

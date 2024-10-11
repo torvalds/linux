@@ -47,6 +47,7 @@ bool convert_legacy_settings_to_link_ksettings(
 int ethtool_check_max_channel(struct net_device *dev,
 			      struct ethtool_channels channels,
 			      struct genl_info *info);
+int ethtool_check_rss_ctx_busy(struct net_device *dev, u32 rss_context);
 int __ethtool_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info);
 
 extern const struct ethtool_phy_ops *ethtool_phy_ops;
