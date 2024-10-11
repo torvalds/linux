@@ -52,7 +52,7 @@ int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 	 *          3,015,058      cycles
 	 *    <not supported>      topdown-retiring
 	 *
-	 * if slots event and topdown metrics events are in two groups, the group which
+	 * If slots event and topdown metrics events are in two groups, the group which
 	 * has topdown metrics events must contain only the topdown metrics event,
 	 * otherwise topdown metrics event can't be regrouped correctly as well, e.g.
 	 *
@@ -69,13 +69,16 @@ int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 			return -1;
 		if (arch_is_topdown_slots(rhs))
 			return 1;
-		/* Followed by topdown events. */
-		if (arch_is_topdown_metrics(lhs) && !arch_is_topdown_metrics(rhs))
-			return -1;
+
 		/*
-		 * Move topdown events forward only when topdown events
-		 * are not in same group with previous event.
+		 * Move topdown metrics events forward only when topdown metrics
+		 * events are not in same group with previous slots event. If
+		 * topdown metrics events are already in same group with slots
+		 * event, do nothing.
 		 */
+		if (arch_is_topdown_metrics(lhs) && !arch_is_topdown_metrics(rhs) &&
+		    lhs->core.leader != rhs->core.leader)
+			return -1;
 		if (!arch_is_topdown_metrics(lhs) && arch_is_topdown_metrics(rhs) &&
 		    lhs->core.leader != rhs->core.leader)
 			return 1;
