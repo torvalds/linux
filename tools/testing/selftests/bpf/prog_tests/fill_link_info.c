@@ -420,6 +420,15 @@ verify_umulti_link_info(int fd, bool retprobe, __u64 *offsets,
 	if (!ASSERT_NEQ(err, -1, "readlink"))
 		return -1;
 
+	memset(&info, 0, sizeof(info));
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	if (!ASSERT_OK(err, "bpf_link_get_info_by_fd"))
+		return -1;
+
+	ASSERT_EQ(info.uprobe_multi.count, 3, "info.uprobe_multi.count");
+	ASSERT_EQ(info.uprobe_multi.path_size, strlen(path) + 1,
+		  "info.uprobe_multi.path_size");
+
 	for (bit = 0; bit < 8; bit++) {
 		memset(&info, 0, sizeof(info));
 		info.uprobe_multi.path = ptr_to_u64(path_buf);
