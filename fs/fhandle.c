@@ -31,6 +31,14 @@ static long do_sys_name_to_handle(const struct path *path,
 	if (!exportfs_can_encode_fh(path->dentry->d_sb->s_export_op, fh_flags))
 		return -EOPNOTSUPP;
 
+	/*
+	 * A request to encode a connectable handle for a disconnected dentry
+	 * is unexpected since AT_EMPTY_PATH is not allowed.
+	 */
+	if (fh_flags & EXPORT_FH_CONNECTABLE &&
+	    WARN_ON(path->dentry->d_flags & DCACHE_DISCONNECTED))
+		return -EINVAL;
+
 	if (copy_from_user(&f_handle, ufh, sizeof(struct file_handle)))
 		return -EFAULT;
 
@@ -45,7 +53,7 @@ static long do_sys_name_to_handle(const struct path *path,
 	/* convert handle size to multiple of sizeof(u32) */
 	handle_dwords = f_handle.handle_bytes >> 2;
 
-	/* we ask for a non connectable maybe decodeable file handle */
+	/* Encode a possibly decodeable/connectable file handle */
 	retval = exportfs_encode_fh(path->dentry,
 				    (struct fid *)handle->f_handle,
 				    &handle_dwords, fh_flags);
@@ -67,8 +75,23 @@ static long do_sys_name_to_handle(const struct path *path,
 		 * non variable part of the file_handle
 		 */
 		handle_bytes = 0;
-	} else
+	} else {
+		/*
+		 * When asked to encode a connectable file handle, encode this
+		 * property in the file handle itself, so that we later know
+		 * how to decode it.
+		 * For sanity, also encode in the file handle if the encoded
+		 * object is a directory and verify this during decode, because
+		 * decoding directory file handles is quite different than
+		 * decoding connectable non-directory file handles.
+		 */
+		if (fh_flags & EXPORT_FH_CONNECTABLE) {
+			handle->handle_type |= FILEID_IS_CONNECTABLE;
+			if (d_is_dir(path->dentry))
+				fh_flags |= FILEID_IS_DIR;
+		}
 		retval = 0;
+	}
 	/* copy the mount id */
 	if (unique_mntid) {
 		if (put_user(real_mount(path->mnt)->mnt_id_unique,
@@ -109,15 +132,30 @@ SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
 {
 	struct path path;
 	int lookup_flags;
-	int fh_flags;
+	int fh_flags = 0;
 	int err;
 
 	if (flag & ~(AT_SYMLINK_FOLLOW | AT_EMPTY_PATH | AT_HANDLE_FID |
-		     AT_HANDLE_MNT_ID_UNIQUE))
+		     AT_HANDLE_MNT_ID_UNIQUE | AT_HANDLE_CONNECTABLE))
 		return -EINVAL;
 
+	/*
+	 * AT_HANDLE_FID means there is no intention to decode file handle
+	 * AT_HANDLE_CONNECTABLE means there is an intention to decode a
+	 * connected fd (with known path), so these flags are conflicting.
+	 * AT_EMPTY_PATH could be used along with a dfd that refers to a
+	 * disconnected non-directory, which cannot be used to encode a
+	 * connectable file handle, because its parent is unknown.
+	 */
+	if (flag & AT_HANDLE_CONNECTABLE &&
+	    flag & (AT_HANDLE_FID | AT_EMPTY_PATH))
+		return -EINVAL;
+	else if (flag & AT_HANDLE_FID)
+		fh_flags |= EXPORT_FH_FID;
+	else if (flag & AT_HANDLE_CONNECTABLE)
+		fh_flags |= EXPORT_FH_CONNECTABLE;
+
 	lookup_flags = (flag & AT_SYMLINK_FOLLOW) ? LOOKUP_FOLLOW : 0;
-	fh_flags = (flag & AT_HANDLE_FID) ? EXPORT_FH_FID : 0;
 	if (flag & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
 	err = user_path_at(dfd, name, lookup_flags, &path);
