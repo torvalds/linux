@@ -32,6 +32,7 @@
 /* BAR 0 registers */
 #define CP500_VERSION_REG	0x00
 #define CP500_RECONFIG_REG	0x11	/* upper 8-bits of STARTUP register */
+#define CP500_PRESENT_REG	0x20
 #define CP500_AXI_REG		0x40
 
 /* Bits in BUILD_REG */
@@ -39,6 +40,9 @@
 
 /* Bits in RECONFIG_REG */
 #define CP500_RECFG_REQ		0x01	/* reconfigure FPGA on next reset */
+
+/* Bits in PRESENT_REG */
+#define CP500_PRESENT_FAN0	0x01
 
 /* MSIX */
 #define CP500_AXI_MSIX		3
@@ -77,27 +81,31 @@ struct cp500_devs {
 	struct cp500_dev_info startup;
 	struct cp500_dev_info spi;
 	struct cp500_dev_info i2c;
+	struct cp500_dev_info fan;
 };
 
 /* list of devices within FPGA of CP035 family (CP035, CP056, CP057) */
 static struct cp500_devs cp035_devices = {
-	.startup = { 0x0000, SZ_4K },
-	.spi	 = { 0x1000, SZ_4K },
-	.i2c     = { 0x4000, SZ_4K },
+	.startup   = { 0x0000, SZ_4K },
+	.spi       = { 0x1000, SZ_4K },
+	.i2c       = { 0x4000, SZ_4K },
+	.fan       = { 0x9000, SZ_4K },
 };
 
 /* list of devices within FPGA of CP505 family (CP503, CP505, CP507) */
 static struct cp500_devs cp505_devices = {
-	.startup = { 0x0000, SZ_4K },
-	.spi     = { 0x4000, SZ_4K },
-	.i2c     = { 0x5000, SZ_4K },
+	.startup   = { 0x0000, SZ_4K },
+	.spi       = { 0x4000, SZ_4K },
+	.i2c       = { 0x5000, SZ_4K },
+	.fan       = { 0x9000, SZ_4K },
 };
 
 /* list of devices within FPGA of CP520 family (CP520, CP530) */
 static struct cp500_devs cp520_devices = {
-	.startup = { 0x0000, SZ_4K },
-	.spi     = { 0x4000, SZ_4K },
-	.i2c     = { 0x5000, SZ_4K },
+	.startup   = { 0x0000, SZ_4K },
+	.spi       = { 0x4000, SZ_4K },
+	.i2c       = { 0x5000, SZ_4K },
+	.fan       = { 0x8000, SZ_4K },
 };
 
 struct cp500_nvmem {
@@ -121,6 +129,7 @@ struct cp500 {
 	resource_size_t sys_hwbase;
 	struct keba_spi_auxdev *spi;
 	struct keba_i2c_auxdev *i2c;
+	struct keba_fan_auxdev *fan;
 
 	/* ECM EtherCAT BAR */
 	resource_size_t ecm_hwbase;
@@ -400,6 +409,54 @@ static int cp500_register_spi(struct cp500 *cp500, u8 esc_type)
 	return 0;
 }
 
+static void cp500_fan_release(struct device *dev)
+{
+	struct keba_fan_auxdev *fan =
+		container_of(dev, struct keba_fan_auxdev, auxdev.dev);
+
+	kfree(fan);
+}
+
+static int cp500_register_fan(struct cp500 *cp500)
+{
+	int ret;
+
+	cp500->fan = kzalloc(sizeof(*cp500->fan), GFP_KERNEL);
+	if (!cp500->fan)
+		return -ENOMEM;
+
+	cp500->fan->auxdev.name = "fan";
+	cp500->fan->auxdev.id = 0;
+	cp500->fan->auxdev.dev.release = cp500_fan_release;
+	cp500->fan->auxdev.dev.parent = &cp500->pci_dev->dev;
+	cp500->fan->io = (struct resource) {
+		 /* fan register area */
+		 .start = (resource_size_t) cp500->sys_hwbase +
+			  cp500->devs->fan.offset,
+		 .end   = (resource_size_t) cp500->sys_hwbase +
+			  cp500->devs->fan.offset +
+			  cp500->devs->fan.size - 1,
+		 .flags = IORESOURCE_MEM,
+	};
+
+	ret = auxiliary_device_init(&cp500->fan->auxdev);
+	if (ret) {
+		kfree(cp500->fan);
+		cp500->fan = NULL;
+
+		return ret;
+	}
+	ret = __auxiliary_device_add(&cp500->fan->auxdev, "keba");
+	if (ret) {
+		auxiliary_device_uninit(&cp500->fan->auxdev);
+		cp500->fan = NULL;
+
+		return ret;
+	}
+
+	return 0;
+}
+
 static int cp500_nvmem_read(void *priv, unsigned int offset, void *val,
 			    size_t bytes)
 {
@@ -549,9 +606,13 @@ static int cp500_nvmem(struct notifier_block *nb, unsigned long action,
 static void cp500_register_auxiliary_devs(struct cp500 *cp500)
 {
 	struct device *dev = &cp500->pci_dev->dev;
+	u8 present = ioread8(cp500->system_startup_addr + CP500_PRESENT_REG);
 
 	if (cp500_register_i2c(cp500))
 		dev_warn(dev, "Failed to register I2C!\n");
+	if (present & CP500_PRESENT_FAN0)
+		if (cp500_register_fan(cp500))
+			dev_warn(dev, "Failed to register fan!\n");
 }
 
 static void cp500_unregister_dev(struct auxiliary_device *auxdev)
@@ -569,6 +630,10 @@ static void cp500_unregister_auxiliary_devs(struct cp500 *cp500)
 	if (cp500->i2c) {
 		cp500_unregister_dev(&cp500->i2c->auxdev);
 		cp500->i2c = NULL;
+	}
+	if (cp500->fan) {
+		cp500_unregister_dev(&cp500->fan->auxdev);
+		cp500->fan = NULL;
 	}
 }
 

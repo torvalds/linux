@@ -37,4 +37,14 @@ struct keba_spi_auxdev {
 	struct spi_board_info *info;
 };
 
+/**
+ * struct keba_fan_auxdev - KEBA fan auxiliary device
+ * @auxdev: auxiliary device object
+ * @io: address range of fan controller IO memory
+ */
+struct keba_fan_auxdev {
+	struct auxiliary_device auxdev;
+	struct resource io;
+};
+
 #endif /* _LINUX_MISC_KEBA_H */
