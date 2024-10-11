@@ -6,7 +6,7 @@ import random
 from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ne, ksft_ge, ksft_lt
 from lib.py import NetDrvEpEnv
 from lib.py import EthtoolFamily, NetdevFamily
-from lib.py import KsftSkipEx
+from lib.py import KsftSkipEx, KsftFailEx
 from lib.py import rand_port
 from lib.py import ethtool, ip, defer, GenerateTraffic, CmdExitFailure
 
@@ -606,6 +606,33 @@ def test_rss_context_overlap2(cfg):
     test_rss_context_overlap(cfg, True)
 
 
+def test_delete_rss_context_busy(cfg):
+    """
+    Test that deletion returns -EBUSY when an rss context is being used
+    by an ntuple filter.
+    """
+
+    require_ntuple(cfg)
+
+    # create additional rss context
+    ctx_id = ethtool_create(cfg, "-X", "context new")
+    ctx_deleter = defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    # utilize context from ntuple filter
+    port = rand_port()
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+    ntuple_id = ethtool_create(cfg, "-N", flow)
+    defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
+
+    # attempt to delete in-use context
+    try:
+        ctx_deleter.exec_only()
+        ctx_deleter.cancel()
+        raise KsftFailEx(f"deleted context {ctx_id} used by rule {ntuple_id}")
+    except CmdExitFailure:
+        pass
+
+
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         cfg.ethnl = EthtoolFamily()
@@ -616,7 +643,8 @@ def main() -> None:
                   test_rss_context, test_rss_context4, test_rss_context32,
                   test_rss_context_dump, test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
-                  test_rss_context_out_of_order, test_rss_context4_create_with_cfg],
+                  test_rss_context_out_of_order, test_rss_context4_create_with_cfg,
+                  test_delete_rss_context_busy],
                  args=(cfg, ))
     ksft_exit()
 
