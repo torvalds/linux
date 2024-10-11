@@ -308,9 +308,15 @@ struct hda_quirk {
 #endif
 };
 
+#ifdef CONFIG_SND_DEBUG_VERBOSE
 #define HDA_CODEC_QUIRK(vend, dev, xname, val) \
 	{ _SND_PCI_QUIRK_ID(vend, dev), .value = (val), .name = (xname),\
 			.match_codec_ssid = true }
+#else
+#define HDA_CODEC_QUIRK(vend, dev, xname, val) \
+	{ _SND_PCI_QUIRK_ID(vend, dev), .value = (val), \
+			.match_codec_ssid = true }
+#endif
 
 struct snd_hda_pin_quirk {
 	unsigned int codec;             /* Codec vendor/device ID */
