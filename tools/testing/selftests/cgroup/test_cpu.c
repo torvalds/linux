@@ -281,7 +281,7 @@ static int test_cpucg_nice(const char *root)
 
 		/* Try to keep niced CPU usage as constrained to hog_cpu as possible */
 		nice(1);
-		hog_cpus_timed(cpucg, param);
+		hog_cpus_timed(cpucg, &param);
 		exit(0);
 	} else {
 		waitpid(pid, &status, 0);
