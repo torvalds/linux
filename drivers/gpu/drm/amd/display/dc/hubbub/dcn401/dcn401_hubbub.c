@@ -1192,6 +1192,17 @@ static void dcn401_wait_for_det_update(struct hubbub *hubbub, int hubp_inst)
 	}
 }
 
+static void dcn401_program_timeout_thresholds(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	/* request backpressure and outstanding return threshold (unused)*/
+	//REG_UPDATE(DCHUBBUB_TIMEOUT_DETECTION_CTRL1, DCHUBBUB_TIMEOUT_REQ_STALL_THRESHOLD, arb_regs->req_stall_threshold);
+
+	/* P-State stall threshold */
+	REG_UPDATE(DCHUBBUB_TIMEOUT_DETECTION_CTRL2, DCHUBBUB_TIMEOUT_PSTATE_STALL_THRESHOLD, arb_regs->pstate_stall_threshold);
+}
+
 static const struct hubbub_funcs hubbub4_01_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub3_init_dchub_sys_ctx,
@@ -1215,6 +1226,7 @@ static const struct hubbub_funcs hubbub4_01_funcs = {
 	.program_det_segments = dcn401_program_det_segments,
 	.program_compbuf_segments = dcn401_program_compbuf_segments,
 	.wait_for_det_update = dcn401_wait_for_det_update,
+	.program_timeout_thresholds = dcn401_program_timeout_thresholds,
 };
 
 void hubbub401_construct(struct dcn20_hubbub *hubbub2,
