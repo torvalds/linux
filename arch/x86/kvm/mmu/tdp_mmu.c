@@ -1192,35 +1192,6 @@ bool kvm_tdp_mmu_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range,
 	return flush;
 }
 
-typedef bool (*tdp_handler_t)(struct kvm *kvm, struct tdp_iter *iter,
-			      struct kvm_gfn_range *range);
-
-static __always_inline bool kvm_tdp_mmu_handle_gfn(struct kvm *kvm,
-						   struct kvm_gfn_range *range,
-						   tdp_handler_t handler)
-{
-	struct kvm_mmu_page *root;
-	struct tdp_iter iter;
-	bool ret = false;
-
-	/*
-	 * Don't support rescheduling, none of the MMU notifiers that funnel
-	 * into this helper allow blocking; it'd be dead, wasteful code.  Note,
-	 * this helper must NOT be used to unmap GFNs, as it processes only
-	 * valid roots!
-	 */
-	for_each_valid_tdp_mmu_root(kvm, root, range->slot->as_id) {
-		rcu_read_lock();
-
-		tdp_root_for_each_leaf_pte(iter, root, range->start, range->end)
-			ret |= handler(kvm, &iter, range);
-
-		rcu_read_unlock();
-	}
-
-	return ret;
-}
-
 /*
  * Mark the SPTEs range of GFNs [start, end) unaccessed and return non-zero
  * if any of the GFNs in the range have been accessed.
@@ -1229,14 +1200,9 @@ static __always_inline bool kvm_tdp_mmu_handle_gfn(struct kvm *kvm,
  * from the clear_young() or clear_flush_young() notifier, which uses the
  * return value to determine if the page has been accessed.
  */
-static bool age_gfn_range(struct kvm *kvm, struct tdp_iter *iter,
-			  struct kvm_gfn_range *range)
+static void kvm_tdp_mmu_age_spte(struct tdp_iter *iter)
 {
 	u64 new_spte;
-
-	/* If we have a non-accessed entry we don't need to change the pte. */
-	if (!is_accessed_spte(iter->old_spte))
-		return false;
 
 	if (spte_ad_enabled(iter->old_spte)) {
 		iter->old_spte = tdp_mmu_clear_spte_bits(iter->sptep,
@@ -1253,23 +1219,48 @@ static bool age_gfn_range(struct kvm *kvm, struct tdp_iter *iter,
 
 	trace_kvm_tdp_mmu_spte_changed(iter->as_id, iter->gfn, iter->level,
 				       iter->old_spte, new_spte);
-	return true;
+}
+
+static bool __kvm_tdp_mmu_age_gfn_range(struct kvm *kvm,
+					struct kvm_gfn_range *range,
+					bool test_only)
+{
+	struct kvm_mmu_page *root;
+	struct tdp_iter iter;
+	bool ret = false;
+
+	/*
+	 * Don't support rescheduling, none of the MMU notifiers that funnel
+	 * into this helper allow blocking; it'd be dead, wasteful code.  Note,
+	 * this helper must NOT be used to unmap GFNs, as it processes only
+	 * valid roots!
+	 */
+	for_each_valid_tdp_mmu_root(kvm, root, range->slot->as_id) {
+		guard(rcu)();
+
+		tdp_root_for_each_leaf_pte(iter, root, range->start, range->end) {
+			if (!is_accessed_spte(iter.old_spte))
+				continue;
+
+			if (test_only)
+				return true;
+
+			ret = true;
+			kvm_tdp_mmu_age_spte(&iter);
+		}
+	}
+
+	return ret;
 }
 
 bool kvm_tdp_mmu_age_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	return kvm_tdp_mmu_handle_gfn(kvm, range, age_gfn_range);
-}
-
-static bool test_age_gfn(struct kvm *kvm, struct tdp_iter *iter,
-			 struct kvm_gfn_range *range)
-{
-	return is_accessed_spte(iter->old_spte);
+	return __kvm_tdp_mmu_age_gfn_range(kvm, range, false);
 }
 
 bool kvm_tdp_mmu_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	return kvm_tdp_mmu_handle_gfn(kvm, range, test_age_gfn);
+	return __kvm_tdp_mmu_age_gfn_range(kvm, range, true);
 }
 
 /*
