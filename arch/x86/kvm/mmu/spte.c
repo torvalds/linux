@@ -237,7 +237,7 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			wrprot = true;
 		else
 			spte |= PT_WRITABLE_MASK | shadow_mmu_writable_mask |
-				spte_shadow_dirty_mask(spte);
+				shadow_dirty_mask;
 	}
 
 	if (prefetch && !synchronizing)
