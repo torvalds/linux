@@ -1594,6 +1594,9 @@ void zswap_invalidate(swp_entry_t swp)
 	struct xarray *tree = swap_zswap_tree(swp);
 	struct zswap_entry *entry;
 
+	if (xa_empty(tree))
+		return;
+
 	entry = xa_erase(tree, offset);
 	if (entry)
 		zswap_entry_free(entry);
