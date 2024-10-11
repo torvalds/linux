@@ -11604,6 +11604,16 @@ F:	drivers/crypto/intel/keembay/keembay-ocs-hcu-core.c
 F:	drivers/crypto/intel/keembay/ocs-hcu.c
 F:	drivers/crypto/intel/keembay/ocs-hcu.h
 
+INTEL LA JOLLA COVE ADAPTER (LJCA) USB I/O EXPANDER DRIVERS
+M:	Wentong Wu <wentong.wu@intel.com>
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+S:	Maintained
+F:	drivers/gpio/gpio-ljca.c
+F:	drivers/i2c/busses/i2c-ljca.c
+F:	drivers/spi/spi-ljca.c
+F:	drivers/usb/misc/usb-ljca.c
+F:	include/linux/usb/ljca.h
+
 INTEL MANAGEMENT ENGINE (mei)
 M:	Tomas Winkler <tomas.winkler@intel.com>
 L:	linux-kernel@vger.kernel.org
