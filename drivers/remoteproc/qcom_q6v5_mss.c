@@ -261,7 +261,6 @@ enum {
 static int q6v5_regulator_init(struct device *dev, struct reg_info *regs,
 			       const struct qcom_mss_reg_res *reg_res)
 {
-	int rc;
 	int i;
 
 	if (!reg_res)
@@ -269,13 +268,10 @@ static int q6v5_regulator_init(struct device *dev, struct reg_info *regs,
 
 	for (i = 0; reg_res[i].supply; i++) {
 		regs[i].reg = devm_regulator_get(dev, reg_res[i].supply);
-		if (IS_ERR(regs[i].reg)) {
-			rc = PTR_ERR(regs[i].reg);
-			if (rc != -EPROBE_DEFER)
-				dev_err(dev, "Failed to get %s\n regulator",
-					reg_res[i].supply);
-			return rc;
-		}
+		if (IS_ERR(regs[i].reg))
+			return dev_err_probe(dev, PTR_ERR(regs[i].reg),
+					     "Failed to get %s\n regulator",
+					     reg_res[i].supply);
 
 		regs[i].uV = reg_res[i].uV;
 		regs[i].uA = reg_res[i].uA;
@@ -1813,14 +1809,10 @@ static int q6v5_init_clocks(struct device *dev, struct clk **clks,
 
 	for (i = 0; clk_names[i]; i++) {
 		clks[i] = devm_clk_get(dev, clk_names[i]);
-		if (IS_ERR(clks[i])) {
-			int rc = PTR_ERR(clks[i]);
-
-			if (rc != -EPROBE_DEFER)
-				dev_err(dev, "Failed to get %s clock\n",
-					clk_names[i]);
-			return rc;
-		}
+		if (IS_ERR(clks[i]))
+			return dev_err_probe(dev, PTR_ERR(clks[i]),
+					     "Failed to get %s clock\n",
+					     clk_names[i]);
 	}
 
 	return i;
