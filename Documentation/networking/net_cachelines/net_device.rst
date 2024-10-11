@@ -186,4 +186,5 @@ struct dpll_pin*                    dpll_pin
 struct hlist_head                   page_pools
 struct dim_irq_moder*               irq_moder
 u64                                 max_pacing_offload_horizon
+u32                                 napi_defer_hard_irqs
 =================================== =========================== =================== =================== ===================================================================================
