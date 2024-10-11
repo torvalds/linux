@@ -2222,6 +2222,8 @@ static irqreturn_t bmp580_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
+	offset = 0;
+
 	/* Pressure calculations */
 	memcpy(&data->sensor_data[offset], &data->buf[3], 3);
 
