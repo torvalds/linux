@@ -167,6 +167,15 @@ static_assert(!(SHADOW_NONPRESENT_VALUE & SPTE_MMU_PRESENT_MASK));
 #define SHADOW_NONPRESENT_VALUE	0ULL
 #endif
 
+
+/*
+ * True if A/D bits are supported in hardware and are enabled by KVM.  When
+ * enabled, KVM uses A/D bits for all non-nested MMUs.  Because L1 can disable
+ * A/D bits in EPTP12, SP and SPTE variants are needed to handle the scenario
+ * where KVM is using A/D bits for L1, but not L2.
+ */
+extern bool __read_mostly kvm_ad_enabled;
+
 extern u64 __read_mostly shadow_host_writable_mask;
 extern u64 __read_mostly shadow_mmu_writable_mask;
 extern u64 __read_mostly shadow_nx_mask;
@@ -283,17 +292,6 @@ static inline bool is_ept_ve_possible(u64 spte)
 	return (shadow_present_mask & VMX_EPT_SUPPRESS_VE_BIT) &&
 	       !(spte & VMX_EPT_SUPPRESS_VE_BIT) &&
 	       (spte & VMX_EPT_RWX_MASK) != VMX_EPT_MISCONFIG_WX_VALUE;
-}
-
-/*
- * Returns true if A/D bits are supported in hardware and are enabled by KVM.
- * When enabled, KVM uses A/D bits for all non-nested MMUs.  Because L1 can
- * disable A/D bits in EPTP12, SP and SPTE variants are needed to handle the
- * scenario where KVM is using A/D bits for L1, but not L2.
- */
-static inline bool kvm_ad_enabled(void)
-{
-	return !!shadow_accessed_mask;
 }
 
 static inline bool sp_ad_disabled(struct kvm_mmu_page *sp)

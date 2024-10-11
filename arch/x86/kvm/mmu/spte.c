@@ -24,6 +24,8 @@ static bool __ro_after_init allow_mmio_caching;
 module_param_named(mmio_caching, enable_mmio_caching, bool, 0444);
 EXPORT_SYMBOL_GPL(enable_mmio_caching);
 
+bool __read_mostly kvm_ad_enabled;
+
 u64 __read_mostly shadow_host_writable_mask;
 u64 __read_mostly shadow_mmu_writable_mask;
 u64 __read_mostly shadow_nx_mask;
@@ -414,6 +416,8 @@ EXPORT_SYMBOL_GPL(kvm_mmu_set_me_spte_mask);
 
 void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only)
 {
+	kvm_ad_enabled		= has_ad_bits;
+
 	shadow_user_mask	= VMX_EPT_READABLE_MASK;
 	shadow_accessed_mask	= has_ad_bits ? VMX_EPT_ACCESS_BIT : 0ull;
 	shadow_dirty_mask	= has_ad_bits ? VMX_EPT_DIRTY_BIT : 0ull;
@@ -446,6 +450,8 @@ void kvm_mmu_reset_all_pte_masks(void)
 {
 	u8 low_phys_bits;
 	u64 mask;
+
+	kvm_ad_enabled = true;
 
 	/*
 	 * If the CPU has 46 or less physical address bits, then set an
