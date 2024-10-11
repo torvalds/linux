@@ -470,9 +470,8 @@ static inline bool is_mmu_writable_spte(u64 spte)
  * needs to flush at the time the SPTEs is modified, before dropping mmu_lock.
  *
  * Don't flush if the Accessed bit is cleared, as access tracking tolerates
- * false negatives, and the one path that does care about TLB flushes,
- * kvm_mmu_notifier_clear_flush_young(), flushes if a young SPTE is found, i.e.
- * doesn't rely on lower helpers to detect the need to flush.
+ * false negatives, e.g. KVM x86 omits TLB flushes even when aging SPTEs for a
+ * mmu_notifier.clear_flush_young() event.
  *
  * Lastly, don't flush if the Dirty bit is cleared, as KVM unconditionally
  * flushes when enabling dirty logging (see kvm_mmu_slot_apply_flags()), and
