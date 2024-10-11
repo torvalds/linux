@@ -2442,7 +2442,7 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (!data->started || !link_data->beacon_int) {
 			hrtimer_cancel(&link_data->beacon_timer);
-		} else if (!hrtimer_is_queued(&link_data->beacon_timer)) {
+		} else if (!hrtimer_active(&link_data->beacon_timer)) {
 			u64 tsf = mac80211_hwsim_get_tsf(hw, NULL);
 			u32 bcn_int = link_data->beacon_int;
 			u64 until_tbtt = bcn_int - do_div(tsf, bcn_int);
@@ -2537,7 +2537,7 @@ static void mac80211_hwsim_link_info_changed(struct ieee80211_hw *hw,
 			  info->enable_beacon, info->beacon_int);
 		vp->bcn_en = info->enable_beacon;
 		if (data->started &&
-		    !hrtimer_is_queued(&link_data->beacon_timer) &&
+		    !hrtimer_active(&link_data->beacon_timer) &&
 		    info->enable_beacon) {
 			u64 tsf, until_tbtt;
 			u32 bcn_int;
