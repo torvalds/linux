@@ -1312,6 +1312,8 @@ static int ath12k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath12k *ar;
 	int ret;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_ah_to_ar(ah, 0);
 
 	ret = ath12k_mac_config(ar, changed);
@@ -3435,6 +3437,8 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	struct ath12k_vif_cache *cache;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_get_ar_by_vif(hw, vif);
 
 	/* if the vdev is not created on a certain radio,
@@ -3448,8 +3452,6 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		arvif->cache->bss_conf_changed |= changed;
 		return;
 	}
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	ath12k_mac_bss_info_changed(ar, arvif, info, changed);
 }
@@ -3809,12 +3811,12 @@ static void ath12k_mac_op_cancel_hw_scan(struct ieee80211_hw *hw,
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	struct ath12k *ar;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	if (!arvif->is_created)
 		return;
 
 	ar = arvif->ar;
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	ath12k_scan_abort(ar);
 
@@ -4569,13 +4571,13 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	struct ath12k_peer *peer;
 	int ret = 0;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_get_ar_by_vif(hw, vif);
 	if (!ar) {
 		WARN_ON_ONCE(1);
 		return -EINVAL;
 	}
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
@@ -4691,6 +4693,8 @@ static int ath12k_mac_op_sta_set_txpwr(struct ieee80211_hw *hw,
 	int ret;
 	s16 txpwr;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	if (sta->deflink.txpwr.type == NL80211_TX_POWER_AUTOMATIC) {
 		txpwr = 0;
 	} else {
@@ -4703,8 +4707,6 @@ static int ath12k_mac_op_sta_set_txpwr(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	ar = ath12k_ah_to_ar(ah, 0);
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	ret = ath12k_wmi_set_peer_param(ar, sta->addr, arvif->vdev_id,
 					WMI_PEER_USE_FIXED_PWR, txpwr);
@@ -6030,6 +6032,8 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 	struct ath12k *ar;
 	int ret, i;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ath12k_drain_tx(ah);
 
 	guard(mutex)(&ah->hw_mutex);
@@ -6168,6 +6172,8 @@ static void ath12k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar;
 	int i;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	ath12k_drain_tx(ah);
 
@@ -6390,6 +6396,8 @@ static void ath12k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif)
 {
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	ath12k_mac_update_vif_offload(arvif);
 }
@@ -6935,9 +6943,9 @@ static void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar;
 
-	ar = ath12k_ah_to_ar(ah, 0);
-
 	lockdep_assert_wiphy(hw->wiphy);
+
+	ar = ath12k_ah_to_ar(ah, 0);
 
 	*total_flags &= SUPPORTED_FILTERS;
 	ath12k_mac_configure_filter(ar, *total_flags);
@@ -7020,13 +7028,13 @@ static int ath12k_mac_op_ampdu_action(struct ieee80211_hw *hw,
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	int ret = -EINVAL;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_get_ar_by_vif(hw, vif);
 	if (!ar)
 		return -EINVAL;
 
 	ar = ath12k_ah_to_ar(ah, 0);
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	ret = ath12k_mac_ampdu_action(arvif, params);
 	if (ret)
@@ -7042,6 +7050,8 @@ static int ath12k_mac_op_add_chanctx(struct ieee80211_hw *hw,
 	struct ath12k *ar;
 	struct ath12k_base *ab;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_get_ar_by_ctx(hw, ctx);
 	if (!ar)
 		return -EINVAL;
@@ -7051,8 +7061,6 @@ static int ath12k_mac_op_add_chanctx(struct ieee80211_hw *hw,
 	ath12k_dbg(ab, ATH12K_DBG_MAC,
 		   "mac chanctx add freq %u width %d ptr %p\n",
 		   ctx->def.chan->center_freq, ctx->def.width, ctx);
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	spin_lock_bh(&ar->data_lock);
 	/* TODO: In case of multiple channel context, populate rx_channel from
@@ -7070,6 +7078,8 @@ static void ath12k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 	struct ath12k *ar;
 	struct ath12k_base *ab;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_get_ar_by_ctx(hw, ctx);
 	if (!ar)
 		return;
@@ -7079,8 +7089,6 @@ static void ath12k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 	ath12k_dbg(ab, ATH12K_DBG_MAC,
 		   "mac chanctx remove freq %u width %d ptr %p\n",
 		   ctx->def.chan->center_freq, ctx->def.width, ctx);
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	spin_lock_bh(&ar->data_lock);
 	/* TODO: In case of there is one more channel context left, populate
@@ -7524,13 +7532,13 @@ static void ath12k_mac_op_change_chanctx(struct ieee80211_hw *hw,
 	struct ath12k *ar;
 	struct ath12k_base *ab;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_get_ar_by_ctx(hw, ctx);
 	if (!ar)
 		return;
 
 	ab = ar->ab;
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	ath12k_dbg(ab, ATH12K_DBG_MAC,
 		   "mac chanctx change freq %u width %d ptr %p changed %x\n",
@@ -7661,6 +7669,8 @@ ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	int ret;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	/* The vif is expected to be attached to an ar's VDEV.
 	 * We leave the vif/vdev in this function as is
 	 * and not delete the vdev symmetric to assign_vif_chanctx()
@@ -7673,8 +7683,6 @@ ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	ar = arvif->ar;
 	ab = ar->ab;
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	ath12k_dbg(ab, ATH12K_DBG_MAC,
 		   "mac chanctx unassign ptr %p vdev_id %i\n",
@@ -7713,11 +7721,11 @@ ath12k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 {
 	struct ath12k *ar;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	ar = ath12k_get_ar_by_ctx(hw, vifs->old_ctx);
 	if (!ar)
 		return -EINVAL;
-
-	lockdep_assert_wiphy(hw->wiphy);
 
 	/* Switching channels across radio is not allowed */
 	if (ar != ath12k_get_ar_by_ctx(hw, vifs->new_ctx))
@@ -7764,6 +7772,8 @@ static int ath12k_mac_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	struct ath12k *ar;
 	int param_id = WMI_VDEV_PARAM_RTS_THRESHOLD, ret = 0, i;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	/* Currently we set the rts threshold value to all the vifs across
 	 * all radios of the single wiphy.
 	 * TODO Once support for vif specific RTS threshold in mac80211 is
@@ -7793,6 +7803,9 @@ static int ath12k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 	 * supported. This effectively prevents mac80211 from doing frame
 	 * fragmentation in software.
 	 */
+
+	lockdep_assert_wiphy(hw->wiphy);
+
 	return -EOPNOTSUPP;
 }
 
@@ -7836,6 +7849,8 @@ static void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *v
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar;
 	int i;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	if (drop)
 		return;
@@ -8363,6 +8378,8 @@ static void ath12k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 					 struct station_info *sinfo)
 {
 	struct ath12k_sta *arsta = ath12k_sta_to_arsta(sta);
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	sinfo->rx_duration = arsta->rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
