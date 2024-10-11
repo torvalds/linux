@@ -902,90 +902,58 @@ static int q6v5_alloc_memory_region(struct q6v5_wcss *wcss)
 
 static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 {
-	int ret;
-
 	wcss->xo = devm_clk_get(wcss->dev, "xo");
-	if (IS_ERR(wcss->xo)) {
-		ret = PTR_ERR(wcss->xo);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get xo clock");
-		return ret;
-	}
+	if (IS_ERR(wcss->xo))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->xo),
+				     "failed to get xo clock");
 
 	wcss->gcc_abhs_cbcr = devm_clk_get(wcss->dev, "gcc_abhs_cbcr");
-	if (IS_ERR(wcss->gcc_abhs_cbcr)) {
-		ret = PTR_ERR(wcss->gcc_abhs_cbcr);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get gcc abhs clock");
-		return ret;
-	}
+	if (IS_ERR(wcss->gcc_abhs_cbcr))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->gcc_abhs_cbcr),
+				     "failed to get gcc abhs clock");
 
 	wcss->gcc_axim_cbcr = devm_clk_get(wcss->dev, "gcc_axim_cbcr");
-	if (IS_ERR(wcss->gcc_axim_cbcr)) {
-		ret = PTR_ERR(wcss->gcc_axim_cbcr);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get gcc axim clock\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->gcc_axim_cbcr))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->gcc_axim_cbcr),
+				     "failed to get gcc axim clock\n");
 
 	wcss->ahbfabric_cbcr_clk = devm_clk_get(wcss->dev,
 						"lcc_ahbfabric_cbc");
-	if (IS_ERR(wcss->ahbfabric_cbcr_clk)) {
-		ret = PTR_ERR(wcss->ahbfabric_cbcr_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get ahbfabric clock\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->ahbfabric_cbcr_clk))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->ahbfabric_cbcr_clk),
+				     "failed to get ahbfabric clock\n");
 
 	wcss->lcc_csr_cbcr = devm_clk_get(wcss->dev, "tcsr_lcc_cbc");
-	if (IS_ERR(wcss->lcc_csr_cbcr)) {
-		ret = PTR_ERR(wcss->lcc_csr_cbcr);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get csr cbcr clk\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->lcc_csr_cbcr))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->lcc_csr_cbcr),
+				     "failed to get csr cbcr clk\n");
 
 	wcss->ahbs_cbcr = devm_clk_get(wcss->dev,
 				       "lcc_abhs_cbc");
-	if (IS_ERR(wcss->ahbs_cbcr)) {
-		ret = PTR_ERR(wcss->ahbs_cbcr);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get ahbs_cbcr clk\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->ahbs_cbcr))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->ahbs_cbcr),
+				     "failed to get ahbs_cbcr clk\n");
 
 	wcss->tcm_slave_cbcr = devm_clk_get(wcss->dev,
 					    "lcc_tcm_slave_cbc");
-	if (IS_ERR(wcss->tcm_slave_cbcr)) {
-		ret = PTR_ERR(wcss->tcm_slave_cbcr);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get tcm cbcr clk\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->tcm_slave_cbcr))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->tcm_slave_cbcr),
+				     "failed to get tcm cbcr clk\n");
 
 	wcss->qdsp6ss_abhm_cbcr = devm_clk_get(wcss->dev, "lcc_abhm_cbc");
-	if (IS_ERR(wcss->qdsp6ss_abhm_cbcr)) {
-		ret = PTR_ERR(wcss->qdsp6ss_abhm_cbcr);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get abhm cbcr clk\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->qdsp6ss_abhm_cbcr))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->qdsp6ss_abhm_cbcr),
+				     "failed to get abhm cbcr clk\n");
 
 	wcss->qdsp6ss_axim_cbcr = devm_clk_get(wcss->dev, "lcc_axim_cbc");
-	if (IS_ERR(wcss->qdsp6ss_axim_cbcr)) {
-		ret = PTR_ERR(wcss->qdsp6ss_axim_cbcr);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get axim cbcr clk\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->qdsp6ss_axim_cbcr))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->qdsp6ss_axim_cbcr),
+				     "failed to get axim cbcr clk\n");
 
 	wcss->lcc_bcr_sleep = devm_clk_get(wcss->dev, "lcc_bcr_sleep");
-	if (IS_ERR(wcss->lcc_bcr_sleep)) {
-		ret = PTR_ERR(wcss->lcc_bcr_sleep);
-		if (ret != -EPROBE_DEFER)
-			dev_err(wcss->dev, "failed to get bcr cbcr clk\n");
-		return ret;
-	}
+	if (IS_ERR(wcss->lcc_bcr_sleep))
+		return dev_err_probe(wcss->dev, PTR_ERR(wcss->lcc_bcr_sleep),
+				     "failed to get bcr cbcr clk\n");
 
 	return 0;
 }
