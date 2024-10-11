@@ -274,7 +274,7 @@ static void cp500_register_auxiliary_devs(struct cp500 *cp500)
 	struct device *dev = &cp500->pci_dev->dev;
 
 	if (cp500_register_i2c(cp500))
-		dev_warn(dev, "Failed to register i2c!\n");
+		dev_warn(dev, "Failed to register I2C!\n");
 }
 
 static void cp500_unregister_dev(struct auxiliary_device *auxdev)
