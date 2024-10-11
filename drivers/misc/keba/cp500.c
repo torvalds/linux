@@ -12,7 +12,11 @@
 #include <linux/i2c.h>
 #include <linux/misc/keba.h>
 #include <linux/module.h>
+#include <linux/mtd/partitions.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/pci.h>
+#include <linux/spi/flash.h>
+#include <linux/spi/spi.h>
 
 #define CP500 "cp500"
 
@@ -43,6 +47,16 @@
 
 /* EEPROM */
 #define CP500_HW_CPU_EEPROM_NAME	"cp500_cpu_eeprom"
+#define CP500_EEPROM_DA_OFFSET		0x016F
+#define CP500_EEPROM_DA_ESC_TYPE_MASK	0x01
+#define CP500_EEPROM_ESC_LAN9252	0x00
+#define CP500_EEPROM_ESC_ET1100		0x01
+
+/* SPI flash running at full speed */
+#define CP500_FLASH_HZ		(33 * 1000 * 1000)
+
+/* LAN9252 */
+#define CP500_LAN9252_HZ	(10 * 1000 * 1000)
 
 #define CP500_IS_CP035(dev)	((dev)->pci_dev->device == PCI_DEVICE_ID_KEBA_CP035)
 #define CP500_IS_CP505(dev)	((dev)->pci_dev->device == PCI_DEVICE_ID_KEBA_CP505)
@@ -55,25 +69,29 @@ struct cp500_dev_info {
 
 struct cp500_devs {
 	struct cp500_dev_info startup;
+	struct cp500_dev_info spi;
 	struct cp500_dev_info i2c;
 };
 
 /* list of devices within FPGA of CP035 family (CP035, CP056, CP057) */
 static struct cp500_devs cp035_devices = {
-	.startup   = { 0x0000, SZ_4K },
-	.i2c       = { 0x4000, SZ_4K },
+	.startup = { 0x0000, SZ_4K },
+	.spi	 = { 0x1000, SZ_4K },
+	.i2c     = { 0x4000, SZ_4K },
 };
 
 /* list of devices within FPGA of CP505 family (CP503, CP505, CP507) */
 static struct cp500_devs cp505_devices = {
-	.startup   = { 0x0000, SZ_4K },
-	.i2c       = { 0x5000, SZ_4K },
+	.startup = { 0x0000, SZ_4K },
+	.spi     = { 0x4000, SZ_4K },
+	.i2c     = { 0x5000, SZ_4K },
 };
 
 /* list of devices within FPGA of CP520 family (CP520, CP530) */
 static struct cp500_devs cp520_devices = {
-	.startup     = { 0x0000, SZ_4K },
-	.i2c         = { 0x5000, SZ_4K },
+	.startup = { 0x0000, SZ_4K },
+	.spi     = { 0x4000, SZ_4K },
+	.i2c     = { 0x5000, SZ_4K },
 };
 
 struct cp500 {
@@ -85,9 +103,12 @@ struct cp500 {
 		int minor;
 		int build;
 	} version;
+	struct notifier_block nvmem_notifier;
+	atomic_t nvmem_notified;
 
 	/* system FPGA BAR */
 	resource_size_t sys_hwbase;
+	struct keba_spi_auxdev *spi;
 	struct keba_i2c_auxdev *i2c;
 
 	/* ECM EtherCAT BAR */
@@ -97,6 +118,7 @@ struct cp500 {
 };
 
 /* I2C devices */
+#define CP500_EEPROM_ADDR	0x50
 static struct i2c_board_info cp500_i2c_info[] = {
 	{	/* temperature sensor */
 		I2C_BOARD_INFO("emc1403", 0x4c),
@@ -107,30 +129,67 @@ static struct i2c_board_info cp500_i2c_info[] = {
 		 * CP505 family: bridge board
 		 * CP520 family: carrier board
 		 */
-		I2C_BOARD_INFO("24c32", 0x50),
+		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR),
 		.dev_name = CP500_HW_CPU_EEPROM_NAME,
 	},
 	{	/* interface board EEPROM */
-		I2C_BOARD_INFO("24c32", 0x51),
+		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR + 1),
 	},
 	{	/*
 		 * EEPROM (optional)
 		 * CP505 family: CPU board
 		 * CP520 family: MMI board
 		 */
-		I2C_BOARD_INFO("24c32", 0x52),
+		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR + 2),
 	},
 	{	/* extension module 0 EEPROM (optional) */
-		I2C_BOARD_INFO("24c32", 0x53),
+		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR + 3),
 	},
 	{	/* extension module 1 EEPROM (optional) */
-		I2C_BOARD_INFO("24c32", 0x54),
+		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR + 4),
 	},
 	{	/* extension module 2 EEPROM (optional) */
-		I2C_BOARD_INFO("24c32", 0x55),
+		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR + 5),
 	},
 	{	/* extension module 3 EEPROM (optional) */
-		I2C_BOARD_INFO("24c32", 0x56),
+		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR + 6),
+	}
+};
+
+/* SPI devices */
+static struct mtd_partition cp500_partitions[] = {
+	{
+		.name       = "system-flash-parts",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = 0,
+		.mask_flags = 0
+	}
+};
+static const struct flash_platform_data cp500_w25q32 = {
+	.type     = "w25q32",
+	.name     = "system-flash",
+	.parts    = cp500_partitions,
+	.nr_parts = ARRAY_SIZE(cp500_partitions),
+};
+static const struct flash_platform_data cp500_m25p16 = {
+	.type     = "m25p16",
+	.name     = "system-flash",
+	.parts    = cp500_partitions,
+	.nr_parts = ARRAY_SIZE(cp500_partitions),
+};
+static struct spi_board_info cp500_spi_info[] = {
+	{       /* system FPGA configuration bitstream flash */
+		.modalias      = "m25p80",
+		.platform_data = &cp500_m25p16,
+		.max_speed_hz  = CP500_FLASH_HZ,
+		.chip_select   = 0,
+		.mode          = SPI_MODE_3,
+	}, {    /* LAN9252 EtherCAT slave controller */
+		.modalias      = "lan9252",
+		.platform_data = NULL,
+		.max_speed_hz  = CP500_LAN9252_HZ,
+		.chip_select   = 1,
+		.mode          = SPI_MODE_3,
 	}
 };
 
@@ -269,6 +328,125 @@ static int cp500_register_i2c(struct cp500 *cp500)
 	return 0;
 }
 
+static void cp500_spi_release(struct device *dev)
+{
+	struct keba_spi_auxdev *spi =
+		container_of(dev, struct keba_spi_auxdev, auxdev.dev);
+
+	kfree(spi);
+}
+
+static int cp500_register_spi(struct cp500 *cp500, u8 esc_type)
+{
+	int info_size;
+	int ret;
+
+	cp500->spi = kzalloc(sizeof(*cp500->spi), GFP_KERNEL);
+	if (!cp500->spi)
+		return -ENOMEM;
+
+	if (CP500_IS_CP035(cp500))
+		cp500_spi_info[0].platform_data = &cp500_w25q32;
+	if (esc_type == CP500_EEPROM_ESC_LAN9252)
+		info_size = ARRAY_SIZE(cp500_spi_info);
+	else
+		info_size = ARRAY_SIZE(cp500_spi_info) - 1;
+
+	cp500->spi->auxdev.name = "spi";
+	cp500->spi->auxdev.id = 0;
+	cp500->spi->auxdev.dev.release = cp500_spi_release;
+	cp500->spi->auxdev.dev.parent = &cp500->pci_dev->dev;
+	cp500->spi->io = (struct resource) {
+		 /* SPI register area */
+		 .start = (resource_size_t) cp500->sys_hwbase +
+			  cp500->devs->spi.offset,
+		 .end   = (resource_size_t) cp500->sys_hwbase +
+			  cp500->devs->spi.offset +
+			  cp500->devs->spi.size - 1,
+		 .flags = IORESOURCE_MEM,
+	};
+	cp500->spi->info_size = info_size;
+	cp500->spi->info = cp500_spi_info;
+
+	ret = auxiliary_device_init(&cp500->spi->auxdev);
+	if (ret) {
+		kfree(cp500->spi);
+		cp500->spi = NULL;
+
+		return ret;
+	}
+	ret = __auxiliary_device_add(&cp500->spi->auxdev, "keba");
+	if (ret) {
+		auxiliary_device_uninit(&cp500->spi->auxdev);
+		cp500->spi = NULL;
+
+		return ret;
+	}
+
+	return 0;
+}
+
+static int cp500_nvmem_match(struct device *dev, const void *data)
+{
+	const struct cp500 *cp500 = data;
+	struct i2c_client *client;
+
+	/* match only CPU EEPROM below the cp500 device */
+	dev = dev->parent;
+	client = i2c_verify_client(dev);
+	if (!client || client->addr != CP500_EEPROM_ADDR)
+		return 0;
+	while ((dev = dev->parent))
+		if (dev == &cp500->pci_dev->dev)
+			return 1;
+
+	return 0;
+}
+
+static int cp500_nvmem(struct notifier_block *nb, unsigned long action,
+		       void *data)
+{
+	struct nvmem_device *nvmem;
+	struct cp500 *cp500;
+	struct device *dev;
+	int notified;
+	u8 esc_type;
+	int ret;
+
+	if (action != NVMEM_ADD)
+		return NOTIFY_DONE;
+	cp500 = container_of(nb, struct cp500, nvmem_notifier);
+	dev = &cp500->pci_dev->dev;
+
+	/* process CPU EEPROM content only once */
+	notified = atomic_read(&cp500->nvmem_notified);
+	if (notified)
+		return NOTIFY_DONE;
+	nvmem = nvmem_device_find(cp500, cp500_nvmem_match);
+	if (IS_ERR_OR_NULL(nvmem))
+		return NOTIFY_DONE;
+	if (!atomic_try_cmpxchg_relaxed(&cp500->nvmem_notified, &notified, 1)) {
+		nvmem_device_put(nvmem);
+
+		return NOTIFY_DONE;
+	}
+
+	ret = nvmem_device_read(nvmem, CP500_EEPROM_DA_OFFSET, sizeof(esc_type),
+				(void *)&esc_type);
+	nvmem_device_put(nvmem);
+	if (ret != sizeof(esc_type)) {
+		dev_warn(dev, "Failed to read device assembly!\n");
+
+		return NOTIFY_DONE;
+	}
+	esc_type &= CP500_EEPROM_DA_ESC_TYPE_MASK;
+
+	if (cp500_register_spi(cp500, esc_type))
+		dev_warn(dev, "Failed to register SPI!\n");
+
+	return NOTIFY_OK;
+}
+
 static void cp500_register_auxiliary_devs(struct cp500 *cp500)
 {
 	struct device *dev = &cp500->pci_dev->dev;
@@ -285,7 +463,10 @@ static void cp500_unregister_dev(struct auxiliary_device *auxdev)
 
 static void cp500_unregister_auxiliary_devs(struct cp500 *cp500)
 {
-
+	if (cp500->spi) {
+		cp500_unregister_dev(&cp500->spi->auxdev);
+		cp500->spi = NULL;
+	}
 	if (cp500->i2c) {
 		cp500_unregister_dev(&cp500->i2c->auxdev);
 		cp500->i2c = NULL;
@@ -396,15 +577,21 @@ static int cp500_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pci_dev, cp500);
 
+	cp500->nvmem_notifier.notifier_call = cp500_nvmem;
+	ret = nvmem_register_notifier(&cp500->nvmem_notifier);
+	if (ret != 0)
+		goto out_free_irq;
 
 	ret = cp500_enable(cp500);
 	if (ret != 0)
-		goto out_free_irq;
+		goto out_unregister_nvmem;
 
 	cp500_register_auxiliary_devs(cp500);
 
 	return 0;
 
+out_unregister_nvmem:
+	nvmem_unregister_notifier(&cp500->nvmem_notifier);
 out_free_irq:
 	pci_free_irq_vectors(pci_dev);
 out_disable:
@@ -421,6 +608,8 @@ static void cp500_remove(struct pci_dev *pci_dev)
 	cp500_unregister_auxiliary_devs(cp500);
 
 	cp500_disable(cp500);
+
+	nvmem_unregister_notifier(&cp500->nvmem_notifier);
 
 	pci_set_drvdata(pci_dev, 0);
 

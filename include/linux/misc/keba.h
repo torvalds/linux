@@ -7,6 +7,7 @@
 #include <linux/auxiliary_bus.h>
 
 struct i2c_board_info;
+struct spi_board_info;
 
 /**
  * struct keba_i2c_auxdev - KEBA I2C auxiliary device
@@ -20,6 +21,20 @@ struct keba_i2c_auxdev {
 	struct resource io;
 	int info_size;
 	struct i2c_board_info *info;
+};
+
+/**
+ * struct keba_spi_auxdev - KEBA SPI auxiliary device
+ * @auxdev: auxiliary device object
+ * @io: address range of SPI controller IO memory
+ * @info_size: number of SPI devices to be probed
+ * @info: SPI devices to be probed
+ */
+struct keba_spi_auxdev {
+	struct auxiliary_device auxdev;
+	struct resource io;
+	int info_size;
+	struct spi_board_info *info;
 };
 
 #endif /* _LINUX_MISC_KEBA_H */
