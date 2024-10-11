@@ -56,7 +56,7 @@ static int num_processors(void)
 	return nproc;
 }
 
-static void start_thread(struct child_data *child)
+static void start_thread(struct child_data *child, int id)
 {
 	int ret, pipefd[2], i;
 	struct epoll_event ev;
@@ -132,7 +132,7 @@ static void start_thread(struct child_data *child)
 		ev.events = EPOLLIN | EPOLLHUP;
 		ev.data.ptr = child;
 
-		ret = asprintf(&child->name, "Thread-%d", child->pid);
+		ret = asprintf(&child->name, "Thread-%d", id);
 		if (ret == -1)
 			ksft_exit_fail_msg("asprintf() failed\n");
 
@@ -437,7 +437,7 @@ int main(int argc, char **argv)
 				   tests);
 
 	for (i = 0; i < gcs_threads; i++)
-		start_thread(&children[i]);
+		start_thread(&children[i], i);
 
 	/*
 	 * All children started, close the startup pipe and let them
