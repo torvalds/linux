@@ -30,7 +30,6 @@ enum stub_syscall_type {
 	STUB_SYSCALL_UNSET = 0,
 	STUB_SYSCALL_MMAP,
 	STUB_SYSCALL_MUNMAP,
-	STUB_SYSCALL_MPROTECT,
 };
 
 struct stub_syscall {

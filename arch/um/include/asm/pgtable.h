@@ -12,7 +12,6 @@
 
 #define _PAGE_PRESENT	0x001
 #define _PAGE_NEWPAGE	0x002
-#define _PAGE_NEWPROT	0x004
 #define _PAGE_RW	0x020
 #define _PAGE_USER	0x040
 #define _PAGE_ACCESSED	0x080
@@ -151,22 +150,11 @@ static inline int pte_newpage(pte_t pte)
 	return pte_get_bits(pte, _PAGE_NEWPAGE);
 }
 
-static inline int pte_newprot(pte_t pte)
-{
-	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
-}
-
 /*
  * =================================
  * Flags setting section.
  * =================================
  */
-
-static inline pte_t pte_mknewprot(pte_t pte)
-{
-	pte_set_bits(pte, _PAGE_NEWPROT);
-	return(pte);
-}
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
@@ -182,19 +170,14 @@ static inline pte_t pte_mkold(pte_t pte)
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	if (likely(pte_get_bits(pte, _PAGE_RW)))
-		pte_clear_bits(pte, _PAGE_RW);
-	else
-		return pte;
-	return(pte_mknewprot(pte));
+	pte_clear_bits(pte, _PAGE_RW);
+	return pte;
 }
 
 static inline pte_t pte_mkread(pte_t pte)
 {
-	if (unlikely(pte_get_bits(pte, _PAGE_USER)))
-		return pte;
 	pte_set_bits(pte, _PAGE_USER);
-	return(pte_mknewprot(pte));
+	return pte;
 }
 
 static inline pte_t pte_mkdirty(pte_t pte)
@@ -211,18 +194,14 @@ static inline pte_t pte_mkyoung(pte_t pte)
 
 static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
-	if (unlikely(pte_get_bits(pte,  _PAGE_RW)))
-		return pte;
 	pte_set_bits(pte, _PAGE_RW);
-	return(pte_mknewprot(pte));
+	return pte;
 }
 
 static inline pte_t pte_mkuptodate(pte_t pte)
 {
 	pte_clear_bits(pte, _PAGE_NEWPAGE);
-	if(pte_present(pte))
-		pte_clear_bits(pte, _PAGE_NEWPROT);
-	return(pte);
+	return pte;
 }
 
 static inline pte_t pte_mknewpage(pte_t pte)
@@ -236,12 +215,10 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 	pte_copy(*pteptr, pteval);
 
 	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
-	 * fix_range knows to unmap it.  _PAGE_NEWPROT is specific to
-	 * mapped pages.
+	 * update_pte_range knows to unmap it.
 	 */
 
 	*pteptr = pte_mknewpage(*pteptr);
-	if(pte_present(*pteptr)) *pteptr = pte_mknewprot(*pteptr);
 }
 
 #define PFN_PTE_SHIFT		PAGE_SHIFT
@@ -298,8 +275,6 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 	({ pte_t pte;					\
 							\
 	pte_set_val(pte, page_to_phys(page), (pgprot));	\
-	if (pte_present(pte))				\
-		pte_mknewprot(pte_mknewpage(pte));	\
 	pte;})
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)

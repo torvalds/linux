@@ -23,9 +23,6 @@ struct vm_ops {
 		    int phys_fd, unsigned long long offset);
 	int (*unmap)(struct mm_id *mm_idp,
 		     unsigned long virt, unsigned long len);
-	int (*mprotect)(struct mm_id *mm_idp,
-			unsigned long virt, unsigned long len,
-			unsigned int prot);
 };
 
 static int kern_map(struct mm_id *mm_idp,
@@ -44,15 +41,6 @@ static int kern_unmap(struct mm_id *mm_idp,
 	return os_unmap_memory((void *)virt, len);
 }
 
-static int kern_mprotect(struct mm_id *mm_idp,
-			 unsigned long virt, unsigned long len,
-			 unsigned int prot)
-{
-	return os_protect_memory((void *)virt, len,
-				 prot & UM_PROT_READ, prot & UM_PROT_WRITE,
-				 1);
-}
-
 void report_enomem(void)
 {
 	printk(KERN_ERR "UML ran out of memory on the host side! "
@@ -65,33 +53,37 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 				   struct vm_ops *ops)
 {
 	pte_t *pte;
-	int r, w, x, prot, ret = 0;
+	int ret = 0;
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		r = pte_read(*pte);
-		w = pte_write(*pte);
-		x = pte_exec(*pte);
-		if (!pte_young(*pte)) {
-			r = 0;
-			w = 0;
-		} else if (!pte_dirty(*pte))
-			w = 0;
+		if (!pte_newpage(*pte))
+			continue;
 
-		prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
-			(x ? UM_PROT_EXEC : 0));
-		if (pte_newpage(*pte)) {
-			if (pte_present(*pte)) {
-				__u64 offset;
-				unsigned long phys = pte_val(*pte) & PAGE_MASK;
-				int fd = phys_mapping(phys, &offset);
+		if (pte_present(*pte)) {
+			__u64 offset;
+			unsigned long phys = pte_val(*pte) & PAGE_MASK;
+			int fd = phys_mapping(phys, &offset);
+			int r, w, x, prot;
 
-				ret = ops->mmap(ops->mm_idp, addr, PAGE_SIZE,
-						prot, fd, offset);
-			} else
-				ret = ops->unmap(ops->mm_idp, addr, PAGE_SIZE);
-		} else if (pte_newprot(*pte))
-			ret = ops->mprotect(ops->mm_idp, addr, PAGE_SIZE, prot);
+			r = pte_read(*pte);
+			w = pte_write(*pte);
+			x = pte_exec(*pte);
+			if (!pte_young(*pte)) {
+				r = 0;
+				w = 0;
+			} else if (!pte_dirty(*pte))
+				w = 0;
+
+			prot = (r ? UM_PROT_READ : 0) |
+			       (w ? UM_PROT_WRITE : 0) |
+			       (x ? UM_PROT_EXEC : 0);
+
+			ret = ops->mmap(ops->mm_idp, addr, PAGE_SIZE,
+					prot, fd, offset);
+		} else
+			ret = ops->unmap(ops->mm_idp, addr, PAGE_SIZE);
+
 		*pte = pte_mkuptodate(*pte);
 	} while (pte++, addr += PAGE_SIZE, ((addr < end) && !ret));
 	return ret;
@@ -180,11 +172,9 @@ int um_tlb_sync(struct mm_struct *mm)
 	if (mm == &init_mm) {
 		ops.mmap = kern_map;
 		ops.unmap = kern_unmap;
-		ops.mprotect = kern_mprotect;
 	} else {
 		ops.mmap = map;
 		ops.unmap = unmap;
-		ops.mprotect = protect;
 	}
 
 	pgd = pgd_offset(mm, addr);
