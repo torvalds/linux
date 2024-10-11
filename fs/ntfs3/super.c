@@ -1885,7 +1885,7 @@ static int __init init_ntfs_fs(void)
 
 	err = ntfs3_init_bitmap();
 	if (err)
-		return err;
+		goto out2;
 
 	ntfs_inode_cachep = kmem_cache_create(
 		"ntfs_inode_cache", sizeof(struct ntfs_inode), 0,
@@ -1905,6 +1905,8 @@ out:
 	kmem_cache_destroy(ntfs_inode_cachep);
 out1:
 	ntfs3_exit_bitmap();
+out2:
+	ntfs_remove_proc_root();
 	return err;
 }
 
