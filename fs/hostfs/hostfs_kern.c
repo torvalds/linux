@@ -57,6 +57,7 @@ static int __init hostfs_args(char *options, int *add)
 {
 	char *ptr;
 
+	*add = 0;
 	ptr = strchr(options, ',');
 	if (ptr != NULL)
 		*ptr++ = '\0';
