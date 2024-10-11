@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/mtd/partitions.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/nvmem-provider.h>
 #include <linux/pci.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
@@ -46,11 +47,16 @@
 #define CP500_NUM_MSIX_NO_AXI	3
 
 /* EEPROM */
-#define CP500_HW_CPU_EEPROM_NAME	"cp500_cpu_eeprom"
 #define CP500_EEPROM_DA_OFFSET		0x016F
 #define CP500_EEPROM_DA_ESC_TYPE_MASK	0x01
 #define CP500_EEPROM_ESC_LAN9252	0x00
 #define CP500_EEPROM_ESC_ET1100		0x01
+#define CP500_EEPROM_CPU_NAME		"cpu_eeprom"
+#define CP500_EEPROM_CPU_OFFSET		0
+#define CP500_EEPROM_CPU_SIZE		3072
+#define CP500_EEPROM_USER_NAME		"user_eeprom"
+#define CP500_EEPROM_USER_OFFSET	3072
+#define CP500_EEPROM_USER_SIZE		1024
 
 /* SPI flash running at full speed */
 #define CP500_FLASH_HZ		(33 * 1000 * 1000)
@@ -94,6 +100,11 @@ static struct cp500_devs cp520_devices = {
 	.i2c     = { 0x5000, SZ_4K },
 };
 
+struct cp500_nvmem {
+	struct nvmem_device *nvmem;
+	unsigned int offset;
+};
+
 struct cp500 {
 	struct pci_dev *pci_dev;
 	struct cp500_devs *devs;
@@ -114,6 +125,10 @@ struct cp500 {
 	/* ECM EtherCAT BAR */
 	resource_size_t ecm_hwbase;
 
+	/* NVMEM devices */
+	struct cp500_nvmem nvmem_cpu;
+	struct cp500_nvmem nvmem_user;
+
 	void __iomem *system_startup_addr;
 };
 
@@ -130,7 +145,6 @@ static struct i2c_board_info cp500_i2c_info[] = {
 		 * CP520 family: carrier board
 		 */
 		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR),
-		.dev_name = CP500_HW_CPU_EEPROM_NAME,
 	},
 	{	/* interface board EEPROM */
 		I2C_BOARD_INFO("24c32", CP500_EEPROM_ADDR + 1),
@@ -386,6 +400,77 @@ static int cp500_register_spi(struct cp500 *cp500, u8 esc_type)
 	return 0;
 }
 
+static int cp500_nvmem_read(void *priv, unsigned int offset, void *val,
+			    size_t bytes)
+{
+	struct cp500_nvmem *nvmem = priv;
+	int ret;
+
+	ret = nvmem_device_read(nvmem->nvmem, nvmem->offset + offset, bytes,
+				val);
+	if (ret != bytes)
+		return ret;
+
+	return 0;
+}
+
+static int cp500_nvmem_write(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	struct cp500_nvmem *nvmem = priv;
+	int ret;
+
+	ret = nvmem_device_write(nvmem->nvmem, nvmem->offset + offset, bytes,
+				 val);
+	if (ret != bytes)
+		return ret;
+
+	return 0;
+}
+
+static int cp500_nvmem_register(struct cp500 *cp500, struct nvmem_device *nvmem)
+{
+	struct device *dev = &cp500->pci_dev->dev;
+	struct nvmem_config nvmem_config = {};
+	struct nvmem_device *tmp;
+
+	/*
+	 * The main EEPROM of CP500 devices is logically split into two EEPROMs.
+	 * The first logical EEPROM with 3 kB contains the type label which is
+	 * programmed during production of the device. The second logical EEPROM
+	 * with 1 kB is not programmed during production and can be used for
+	 * arbitrary user data.
+	 */
+
+	nvmem_config.dev = dev;
+	nvmem_config.owner = THIS_MODULE;
+	nvmem_config.id = NVMEM_DEVID_NONE;
+	nvmem_config.type = NVMEM_TYPE_EEPROM;
+	nvmem_config.root_only = true;
+	nvmem_config.reg_read = cp500_nvmem_read;
+	nvmem_config.reg_write = cp500_nvmem_write;
+
+	cp500->nvmem_cpu.nvmem = nvmem;
+	cp500->nvmem_cpu.offset = CP500_EEPROM_CPU_OFFSET;
+	nvmem_config.name = CP500_EEPROM_CPU_NAME;
+	nvmem_config.size = CP500_EEPROM_CPU_SIZE;
+	nvmem_config.priv = &cp500->nvmem_cpu;
+	tmp = devm_nvmem_register(dev, &nvmem_config);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+
+	cp500->nvmem_user.nvmem = nvmem;
+	cp500->nvmem_user.offset = CP500_EEPROM_USER_OFFSET;
+	nvmem_config.name = CP500_EEPROM_USER_NAME;
+	nvmem_config.size = CP500_EEPROM_USER_SIZE;
+	nvmem_config.priv = &cp500->nvmem_user;
+	tmp = devm_nvmem_register(dev, &nvmem_config);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+
+	return 0;
+}
+
 static int cp500_nvmem_match(struct device *dev, const void *data)
 {
 	const struct cp500 *cp500 = data;
@@ -401,6 +486,13 @@ static int cp500_nvmem_match(struct device *dev, const void *data)
 			return 1;
 
 	return 0;
+}
+
+static void cp500_devm_nvmem_put(void *data)
+{
+	struct nvmem_device *nvmem = data;
+
+	nvmem_device_put(nvmem);
 }
 
 static int cp500_nvmem(struct notifier_block *nb, unsigned long action,
@@ -431,9 +523,16 @@ static int cp500_nvmem(struct notifier_block *nb, unsigned long action,
 		return NOTIFY_DONE;
 	}
 
+	ret = devm_add_action_or_reset(dev, cp500_devm_nvmem_put, nvmem);
+	if (ret)
+		return ret;
+
+	ret = cp500_nvmem_register(cp500, nvmem);
+	if (ret)
+		return ret;
+
 	ret = nvmem_device_read(nvmem, CP500_EEPROM_DA_OFFSET, sizeof(esc_type),
 				(void *)&esc_type);
-	nvmem_device_put(nvmem);
 	if (ret != sizeof(esc_type)) {
 		dev_warn(dev, "Failed to read device assembly!\n");
 
