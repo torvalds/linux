@@ -161,6 +161,7 @@ static int
 netdev_nl_napi_fill_one(struct sk_buff *rsp, struct napi_struct *napi,
 			const struct genl_info *info)
 {
+	unsigned long gro_flush_timeout;
 	u32 napi_defer_hard_irqs;
 	void *hdr;
 	pid_t pid;
@@ -193,6 +194,11 @@ netdev_nl_napi_fill_one(struct sk_buff *rsp, struct napi_struct *napi,
 	napi_defer_hard_irqs = napi_get_defer_hard_irqs(napi);
 	if (nla_put_s32(rsp, NETDEV_A_NAPI_DEFER_HARD_IRQS,
 			napi_defer_hard_irqs))
+		goto nla_put_failure;
+
+	gro_flush_timeout = napi_get_gro_flush_timeout(napi);
+	if (nla_put_uint(rsp, NETDEV_A_NAPI_GRO_FLUSH_TIMEOUT,
+			 gro_flush_timeout))
 		goto nla_put_failure;
 
 	genlmsg_end(rsp, hdr);

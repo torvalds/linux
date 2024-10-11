@@ -255,6 +255,14 @@ attribute-sets:
         type: u32
         checks:
           max: s32-max
+      -
+        name: gro-flush-timeout
+        doc: The timeout, in nanoseconds, of when to trigger the NAPI watchdog
+             timer which schedules NAPI processing. Additionally, a non-zero
+             value will also prevent GRO from flushing recent super-frames at
+             the end of a NAPI cycle. This may add receive latency in exchange
+             for reducing the number of frames processed by the network stack.
+        type: uint
   -
     name: queue
     attributes:
@@ -644,6 +652,7 @@ operations:
             - irq
             - pid
             - defer-hard-irqs
+            - gro-flush-timeout
       dump:
         request:
           attributes:
