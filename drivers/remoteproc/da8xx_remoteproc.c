@@ -265,11 +265,8 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 		return PTR_ERR(chipsig);
 
 	dsp_clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(dsp_clk)) {
-		dev_err(dev, "clk_get error: %ld\n", PTR_ERR(dsp_clk));
-
-		return PTR_ERR(dsp_clk);
-	}
+	if (IS_ERR(dsp_clk))
+		return dev_err_probe(dev, PTR_ERR(dsp_clk), "clk_get error\n");
 
 	dsp_reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(dsp_reset)) {
