@@ -1067,6 +1067,7 @@ struct dc_debug_options {
 	unsigned int sharpen_policy;
 	unsigned int scale_to_sharpness_policy;
 	bool skip_full_updated_if_possible;
+	unsigned int enable_oled_edp_power_up_opt;
 };
 
 
