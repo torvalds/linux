@@ -98,7 +98,6 @@ TEST_PROGS += vlan_hw_filter.sh
 TEST_PROGS += bpf_offload.py
 
 # YNL files, must be before "include ..lib.mk"
-EXTRA_CLEAN += $(OUTPUT)/libynl.a
 YNL_GEN_FILES := ncdevmem
 TEST_GEN_FILES += $(YNL_GEN_FILES)
 
