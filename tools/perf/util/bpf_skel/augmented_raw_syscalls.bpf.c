@@ -288,6 +288,10 @@ int sys_enter_rename(struct syscall_enter_args *args)
 	augmented_args->arg.size = PERF_ALIGN(oldpath_len + 1, sizeof(u64));
 	len += augmented_args->arg.size;
 
+	/* Every read from userspace is limited to value size */
+	if (augmented_args->arg.size > sizeof(augmented_args->arg.value))
+		return 1; /* Failure: don't filter */
+
 	struct augmented_arg *arg2 = (void *)&augmented_args->arg.value + augmented_args->arg.size;
 
 	newpath_len = augmented_arg__read_str(arg2, newpath_arg, sizeof(augmented_args->arg.value));
@@ -314,6 +318,10 @@ int sys_enter_renameat2(struct syscall_enter_args *args)
 	oldpath_len = augmented_arg__read_str(&augmented_args->arg, oldpath_arg, sizeof(augmented_args->arg.value));
 	augmented_args->arg.size = PERF_ALIGN(oldpath_len + 1, sizeof(u64));
 	len += augmented_args->arg.size;
+
+	/* Every read from userspace is limited to value size */
+	if (augmented_args->arg.size > sizeof(augmented_args->arg.value))
+		return 1; /* Failure: don't filter */
 
 	struct augmented_arg *arg2 = (void *)&augmented_args->arg.value + augmented_args->arg.size;
 
@@ -423,8 +431,9 @@ static bool pid_filter__has(struct pids_filtered *pids, pid_t pid)
 static int augment_sys_enter(void *ctx, struct syscall_enter_args *args)
 {
 	bool augmented, do_output = false;
-	int zero = 0, size, aug_size, index, output = 0,
+	int zero = 0, size, aug_size, index,
 	    value_size = sizeof(struct augmented_arg) - offsetof(struct augmented_arg, value);
+	u64 output = 0; /* has to be u64, otherwise it won't pass the verifier */
 	unsigned int nr, *beauty_map;
 	struct beauty_payload_enter *payload;
 	void *arg, *payload_offset;
@@ -490,9 +499,16 @@ static int augment_sys_enter(void *ctx, struct syscall_enter_args *args)
 			}
 		}
 
+		/* Augmented data size is limited to sizeof(augmented_arg->unnamed union with value field) */
+		if (aug_size > value_size)
+			aug_size = value_size;
+
 		/* write data to payload */
 		if (augmented) {
 			int written = offsetof(struct augmented_arg, value) + aug_size;
+
+			if (written < 0 || written > sizeof(struct augmented_arg))
+				return 1;
 
 			((struct augmented_arg *)payload_offset)->size = aug_size;
 			output += written;
@@ -501,7 +517,7 @@ static int augment_sys_enter(void *ctx, struct syscall_enter_args *args)
 		}
 	}
 
-	if (!do_output)
+	if (!do_output || (sizeof(struct syscall_enter_args) + output) > sizeof(struct beauty_payload_enter))
 		return 1;
 
 	return augmented__beauty_output(ctx, payload, sizeof(struct syscall_enter_args) + output);
