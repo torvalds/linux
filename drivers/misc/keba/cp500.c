@@ -46,6 +46,9 @@
 
 /* MSIX */
 #define CP500_AXI_MSIX		3
+#define CP500_RFB_UART_MSIX	4
+#define CP500_DEBUG_UART_MSIX	5
+#define CP500_SI1_UART_MSIX	6
 #define CP500_NUM_MSIX		8
 #define CP500_NUM_MSIX_NO_MMI	2
 #define CP500_NUM_MSIX_NO_AXI	3
@@ -75,6 +78,7 @@
 struct cp500_dev_info {
 	off_t offset;
 	size_t size;
+	unsigned int msix;
 };
 
 struct cp500_devs {
@@ -83,6 +87,9 @@ struct cp500_devs {
 	struct cp500_dev_info i2c;
 	struct cp500_dev_info fan;
 	struct cp500_dev_info batt;
+	struct cp500_dev_info uart0_rfb;
+	struct cp500_dev_info uart1_dbg;
+	struct cp500_dev_info uart2_si1;
 };
 
 /* list of devices within FPGA of CP035 family (CP035, CP056, CP057) */
@@ -92,6 +99,8 @@ static struct cp500_devs cp035_devices = {
 	.i2c       = { 0x4000, SZ_4K },
 	.fan       = { 0x9000, SZ_4K },
 	.batt      = { 0xA000, SZ_4K },
+	.uart0_rfb = { 0xB000, SZ_4K, CP500_RFB_UART_MSIX },
+	.uart2_si1 = { 0xD000, SZ_4K, CP500_SI1_UART_MSIX },
 };
 
 /* list of devices within FPGA of CP505 family (CP503, CP505, CP507) */
@@ -101,6 +110,8 @@ static struct cp500_devs cp505_devices = {
 	.i2c       = { 0x5000, SZ_4K },
 	.fan       = { 0x9000, SZ_4K },
 	.batt      = { 0xA000, SZ_4K },
+	.uart0_rfb = { 0xB000, SZ_4K, CP500_RFB_UART_MSIX },
+	.uart2_si1 = { 0xD000, SZ_4K, CP500_SI1_UART_MSIX },
 };
 
 /* list of devices within FPGA of CP520 family (CP520, CP530) */
@@ -110,6 +121,8 @@ static struct cp500_devs cp520_devices = {
 	.i2c       = { 0x5000, SZ_4K },
 	.fan       = { 0x8000, SZ_4K },
 	.batt      = { 0x9000, SZ_4K },
+	.uart0_rfb = { 0xC000, SZ_4K, CP500_RFB_UART_MSIX },
+	.uart1_dbg = { 0xD000, SZ_4K, CP500_DEBUG_UART_MSIX },
 };
 
 struct cp500_nvmem {
@@ -135,6 +148,9 @@ struct cp500 {
 	struct keba_i2c_auxdev *i2c;
 	struct keba_fan_auxdev *fan;
 	struct keba_batt_auxdev *batt;
+	struct keba_uart_auxdev *uart0_rfb;
+	struct keba_uart_auxdev *uart1_dbg;
+	struct keba_uart_auxdev *uart2_si1;
 
 	/* ECM EtherCAT BAR */
 	resource_size_t ecm_hwbase;
@@ -510,6 +526,55 @@ static int cp500_register_batt(struct cp500 *cp500)
 	return 0;
 }
 
+static void cp500_uart_release(struct device *dev)
+{
+	struct keba_uart_auxdev *uart =
+		container_of(dev, struct keba_uart_auxdev, auxdev.dev);
+
+	kfree(uart);
+}
+
+static int cp500_register_uart(struct cp500 *cp500,
+			       struct keba_uart_auxdev **uart, const char *name,
+			       struct cp500_dev_info *info, unsigned int irq)
+{
+	int ret;
+
+	*uart = kzalloc(sizeof(**uart), GFP_KERNEL);
+	if (!*uart)
+		return -ENOMEM;
+
+	(*uart)->auxdev.name = name;
+	(*uart)->auxdev.id = 0;
+	(*uart)->auxdev.dev.release = cp500_uart_release;
+	(*uart)->auxdev.dev.parent = &cp500->pci_dev->dev;
+	(*uart)->io = (struct resource) {
+		 /* UART register area */
+		 .start = (resource_size_t) cp500->sys_hwbase + info->offset,
+		 .end   = (resource_size_t) cp500->sys_hwbase + info->offset +
+			  info->size - 1,
+		 .flags = IORESOURCE_MEM,
+	};
+	(*uart)->irq = irq;
+
+	ret = auxiliary_device_init(&(*uart)->auxdev);
+	if (ret) {
+		kfree(*uart);
+		*uart = NULL;
+
+		return ret;
+	}
+	ret = __auxiliary_device_add(&(*uart)->auxdev, "keba");
+	if (ret) {
+		auxiliary_device_uninit(&(*uart)->auxdev);
+		*uart = NULL;
+
+		return ret;
+	}
+
+	return 0;
+}
+
 static int cp500_nvmem_read(void *priv, unsigned int offset, void *val,
 			    size_t bytes)
 {
@@ -668,6 +733,33 @@ static void cp500_register_auxiliary_devs(struct cp500 *cp500)
 			dev_warn(dev, "Failed to register fan!\n");
 	if (cp500_register_batt(cp500))
 		dev_warn(dev, "Failed to register battery!\n");
+	if (cp500->devs->uart0_rfb.size &&
+	    cp500->devs->uart0_rfb.msix < cp500->msix_num) {
+		int irq = pci_irq_vector(cp500->pci_dev,
+					 cp500->devs->uart0_rfb.msix);
+
+		if (cp500_register_uart(cp500, &cp500->uart0_rfb, "rs485-uart",
+					&cp500->devs->uart0_rfb, irq))
+			dev_warn(dev, "Failed to register RFB UART!\n");
+	}
+	if (cp500->devs->uart1_dbg.size &&
+	    cp500->devs->uart1_dbg.msix < cp500->msix_num) {
+		int irq = pci_irq_vector(cp500->pci_dev,
+					 cp500->devs->uart1_dbg.msix);
+
+		if (cp500_register_uart(cp500, &cp500->uart1_dbg, "rs232-uart",
+					&cp500->devs->uart1_dbg, irq))
+			dev_warn(dev, "Failed to register debug UART!\n");
+	}
+	if (cp500->devs->uart2_si1.size &&
+	    cp500->devs->uart2_si1.msix < cp500->msix_num) {
+		int irq = pci_irq_vector(cp500->pci_dev,
+					 cp500->devs->uart2_si1.msix);
+
+		if (cp500_register_uart(cp500, &cp500->uart2_si1, "uart",
+					&cp500->devs->uart2_si1, irq))
+			dev_warn(dev, "Failed to register SI1 UART!\n");
+	}
 }
 
 static void cp500_unregister_dev(struct auxiliary_device *auxdev)
@@ -693,6 +785,18 @@ static void cp500_unregister_auxiliary_devs(struct cp500 *cp500)
 	if (cp500->batt) {
 		cp500_unregister_dev(&cp500->batt->auxdev);
 		cp500->batt = NULL;
+	}
+	if (cp500->uart0_rfb) {
+		cp500_unregister_dev(&cp500->uart0_rfb->auxdev);
+		cp500->uart0_rfb = NULL;
+	}
+	if (cp500->uart1_dbg) {
+		cp500_unregister_dev(&cp500->uart1_dbg->auxdev);
+		cp500->uart1_dbg = NULL;
+	}
+	if (cp500->uart2_si1) {
+		cp500_unregister_dev(&cp500->uart2_si1->auxdev);
+		cp500->uart2_si1 = NULL;
 	}
 }
 

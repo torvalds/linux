@@ -57,4 +57,16 @@ struct keba_batt_auxdev {
 	struct resource io;
 };
 
+/**
+ * struct keba_uart_auxdev - KEBA UART auxiliary device
+ * @auxdev: auxiliary device object
+ * @io: address range of UART controller IO memory
+ * @irq: number of UART controller interrupt
+ */
+struct keba_uart_auxdev {
+	struct auxiliary_device auxdev;
+	struct resource io;
+	unsigned int irq;
+};
+
 #endif /* _LINUX_MISC_KEBA_H */
