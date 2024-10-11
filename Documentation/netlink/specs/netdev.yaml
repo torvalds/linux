@@ -693,6 +693,17 @@ operations:
         reply:
           attributes:
             - id
+    -
+      name: napi-set
+      doc: Set configurable NAPI instance settings.
+      attribute-set: napi
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - id
+            - defer-hard-irqs
+            - gro-flush-timeout
 
 kernel-family:
   headers: [ "linux/list.h"]
