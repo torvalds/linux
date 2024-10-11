@@ -762,7 +762,7 @@ static int gfx_v12_0_rlc_init(struct amdgpu_device *adev)
 
 	/* init spm vmid with 0xf */
 	if (adev->gfx.rlc.funcs->update_spm_vmid)
-		adev->gfx.rlc.funcs->update_spm_vmid(adev, NULL, 0xf);
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0, NULL, 0xf);
 
 	return 0;
 }
@@ -3957,6 +3957,7 @@ static void gfx_v12_0_update_perf_clk(struct amdgpu_device *adev,
 }
 
 static void gfx_v12_0_update_spm_vmid(struct amdgpu_device *adev,
+				      int xcc_id,
 				      struct amdgpu_ring *ring,
 				      unsigned vmid)
 {
