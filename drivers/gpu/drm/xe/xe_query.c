@@ -85,16 +85,13 @@ static __ktime_func_t __clock_id_to_func(clockid_t clk_id)
 }
 
 static void
-__read_timestamps(struct xe_gt *gt,
-		  struct xe_reg lower_reg,
-		  struct xe_reg upper_reg,
-		  u64 *engine_ts,
-		  u64 *cpu_ts,
-		  u64 *cpu_delta,
-		  __ktime_func_t cpu_clock)
+hwe_read_timestamp(struct xe_hw_engine *hwe, u64 *engine_ts, u64 *cpu_ts,
+		   u64 *cpu_delta, __ktime_func_t cpu_clock)
 {
-	struct xe_mmio *mmio = &gt->mmio;
+	struct xe_mmio *mmio = &hwe->gt->mmio;
 	u32 upper, lower, old_upper, loop = 0;
+	struct xe_reg upper_reg = RING_TIMESTAMP_UDW(hwe->mmio_base),
+		      lower_reg = RING_TIMESTAMP(hwe->mmio_base);
 
 	upper = xe_mmio_read32(mmio, upper_reg);
 	do {
@@ -155,13 +152,8 @@ query_engine_cycles(struct xe_device *xe,
 	if (xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL))
 		return -EIO;
 
-	__read_timestamps(gt,
-			  RING_TIMESTAMP(hwe->mmio_base),
-			  RING_TIMESTAMP_UDW(hwe->mmio_base),
-			  &resp.engine_cycles,
-			  &resp.cpu_timestamp,
-			  &resp.cpu_delta,
-			  cpu_clock);
+	hwe_read_timestamp(hwe, &resp.engine_cycles, &resp.cpu_timestamp,
+			   &resp.cpu_delta, cpu_clock);
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 
