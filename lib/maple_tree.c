@@ -4218,7 +4218,7 @@ static inline void mas_wr_store_type(struct ma_wr_state *wr_mas)
 
 	/* Potential spanning rebalance collapsing a node */
 	if (new_end < mt_min_slots[wr_mas->type]) {
-		if (!mte_is_root(mas->node)) {
+		if (!mte_is_root(mas->node) && !(mas->mas_flags & MA_STATE_BULK)) {
 			mas->store_type = wr_rebalance;
 			return;
 		}
