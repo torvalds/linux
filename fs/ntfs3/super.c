@@ -586,9 +586,24 @@ static void ntfs_remove_procdir(struct super_block *sb)
 	remove_proc_entry(sb->s_id, proc_info_root);
 	sbi->procdir = NULL;
 }
+
+static void ntfs_create_proc_root(void)
+{
+	proc_info_root = proc_mkdir("fs/ntfs3", NULL);
+}
+
+static void ntfs_remove_proc_root(void)
+{
+	if (proc_info_root) {
+		remove_proc_entry("fs/ntfs3", NULL);
+		proc_info_root = NULL;
+	}
+}
 #else
 static void ntfs_create_procdir(struct super_block *sb) {}
 static void ntfs_remove_procdir(struct super_block *sb) {}
+static void ntfs_create_proc_root(void) {}
+static void ntfs_remove_proc_root(void) {}
 #endif
 
 static struct kmem_cache *ntfs_inode_cachep;
@@ -1866,10 +1881,7 @@ static int __init init_ntfs_fs(void)
 	if (IS_ENABLED(CONFIG_NTFS3_LZX_XPRESS))
 		pr_info("ntfs3: Read-only LZX/Xpress compression included\n");
 
-#ifdef CONFIG_PROC_FS
-	/* Create "/proc/fs/ntfs3" */
-	proc_info_root = proc_mkdir("fs/ntfs3", NULL);
-#endif
+	ntfs_create_proc_root();
 
 	err = ntfs3_init_bitmap();
 	if (err)
@@ -1903,11 +1915,7 @@ static void __exit exit_ntfs_fs(void)
 	unregister_filesystem(&ntfs_fs_type);
 	unregister_as_ntfs_legacy();
 	ntfs3_exit_bitmap();
-
-#ifdef CONFIG_PROC_FS
-	if (proc_info_root)
-		remove_proc_entry("fs/ntfs3", NULL);
-#endif
+	ntfs_remove_proc_root();
 }
 
 MODULE_LICENSE("GPL");
