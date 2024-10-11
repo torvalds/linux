@@ -11,7 +11,7 @@
 #include <asm/fixmap.h>
 
 #define _PAGE_PRESENT	0x001
-#define _PAGE_NEWPAGE	0x002
+#define _PAGE_NEEDSYNC	0x002
 #define _PAGE_RW	0x020
 #define _PAGE_USER	0x040
 #define _PAGE_ACCESSED	0x080
@@ -79,22 +79,22 @@ extern unsigned long end_iomem;
  */
 #define ZERO_PAGE(vaddr) virt_to_page(empty_zero_page)
 
-#define pte_clear(mm,addr,xp) pte_set_val(*(xp), (phys_t) 0, __pgprot(_PAGE_NEWPAGE))
+#define pte_clear(mm, addr, xp) pte_set_val(*(xp), (phys_t) 0, __pgprot(_PAGE_NEEDSYNC))
 
-#define pmd_none(x)	(!((unsigned long)pmd_val(x) & ~_PAGE_NEWPAGE))
+#define pmd_none(x)	(!((unsigned long)pmd_val(x) & ~_PAGE_NEEDSYNC))
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
-#define pmd_clear(xp)	do { pmd_val(*(xp)) = _PAGE_NEWPAGE; } while (0)
+#define pmd_clear(xp)	do { pmd_val(*(xp)) = _PAGE_NEEDSYNC; } while (0)
 
-#define pmd_newpage(x)  (pmd_val(x) & _PAGE_NEWPAGE)
-#define pmd_mkuptodate(x) (pmd_val(x) &= ~_PAGE_NEWPAGE)
+#define pmd_needsync(x)   (pmd_val(x) & _PAGE_NEEDSYNC)
+#define pmd_mkuptodate(x) (pmd_val(x) &= ~_PAGE_NEEDSYNC)
 
-#define pud_newpage(x)  (pud_val(x) & _PAGE_NEWPAGE)
-#define pud_mkuptodate(x) (pud_val(x) &= ~_PAGE_NEWPAGE)
+#define pud_needsync(x)   (pud_val(x) & _PAGE_NEEDSYNC)
+#define pud_mkuptodate(x) (pud_val(x) &= ~_PAGE_NEEDSYNC)
 
-#define p4d_newpage(x)  (p4d_val(x) & _PAGE_NEWPAGE)
-#define p4d_mkuptodate(x) (p4d_val(x) &= ~_PAGE_NEWPAGE)
+#define p4d_needsync(x)   (p4d_val(x) & _PAGE_NEEDSYNC)
+#define p4d_mkuptodate(x) (p4d_val(x) &= ~_PAGE_NEEDSYNC)
 
 #define pmd_pfn(pmd) (pmd_val(pmd) >> PAGE_SHIFT)
 #define pmd_page(pmd) phys_to_page(pmd_val(pmd) & PAGE_MASK)
@@ -145,9 +145,9 @@ static inline int pte_young(pte_t pte)
 	return pte_get_bits(pte, _PAGE_ACCESSED);
 }
 
-static inline int pte_newpage(pte_t pte)
+static inline int pte_needsync(pte_t pte)
 {
-	return pte_get_bits(pte, _PAGE_NEWPAGE);
+	return pte_get_bits(pte, _PAGE_NEEDSYNC);
 }
 
 /*
@@ -200,13 +200,13 @@ static inline pte_t pte_mkwrite_novma(pte_t pte)
 
 static inline pte_t pte_mkuptodate(pte_t pte)
 {
-	pte_clear_bits(pte, _PAGE_NEWPAGE);
+	pte_clear_bits(pte, _PAGE_NEEDSYNC);
 	return pte;
 }
 
-static inline pte_t pte_mknewpage(pte_t pte)
+static inline pte_t pte_mkneedsync(pte_t pte)
 {
-	pte_set_bits(pte, _PAGE_NEWPAGE);
+	pte_set_bits(pte, _PAGE_NEEDSYNC);
 	return(pte);
 }
 
@@ -214,11 +214,11 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 {
 	pte_copy(*pteptr, pteval);
 
-	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
+	/* If it's a swap entry, it needs to be marked _PAGE_NEEDSYNC so
 	 * update_pte_range knows to unmap it.
 	 */
 
-	*pteptr = pte_mknewpage(*pteptr);
+	*pteptr = pte_mkneedsync(*pteptr);
 }
 
 #define PFN_PTE_SHIFT		PAGE_SHIFT
@@ -258,7 +258,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 #define __HAVE_ARCH_PTE_SAME
 static inline int pte_same(pte_t pte_a, pte_t pte_b)
 {
-	return !((pte_val(pte_a) ^ pte_val(pte_b)) & ~_PAGE_NEWPAGE);
+	return !((pte_val(pte_a) ^ pte_val(pte_b)) & ~_PAGE_NEEDSYNC);
 }
 
 /*
@@ -308,7 +308,7 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
  *   <--------------- offset ----------------> E < type -> 0 0 0 1 0
  *
  *   E is the exclusive marker that is not stored in swap entries.
- *   _PAGE_NEWPAGE (bit 1) is always set to 1 in set_pte().
+ *   _PAGE_NEEDSYNC (bit 1) is always set to 1 in set_pte().
  */
 #define __swp_type(x)			(((x).val >> 5) & 0x1f)
 #define __swp_offset(x)			((x).val >> 11)

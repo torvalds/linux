@@ -56,7 +56,7 @@ typedef struct { unsigned long pud; } pud_t;
 #define pte_set_bits(p, bits) ((p).pte |= (bits))
 #define pte_clear_bits(p, bits) ((p).pte &= ~(bits))
 #define pte_copy(to, from) ((to).pte = (from).pte)
-#define pte_is_zero(p) (!((p).pte & ~_PAGE_NEWPAGE))
+#define pte_is_zero(p) (!((p).pte & ~_PAGE_NEEDSYNC))
 #define pte_set_val(p, phys, prot) (p).pte = (phys | pgprot_val(prot))
 
 typedef unsigned long phys_t;

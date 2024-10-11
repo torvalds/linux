@@ -55,7 +55,7 @@
         printk("%s:%d: bad pgd %p(%016lx).\n", __FILE__, __LINE__, &(e), \
 	       pgd_val(e))
 
-#define pud_none(x)	(!(pud_val(x) & ~_PAGE_NEWPAGE))
+#define pud_none(x)	(!(pud_val(x) & ~_PAGE_NEEDSYNC))
 #define	pud_bad(x)	((pud_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 #define pud_present(x)	(pud_val(x) & _PAGE_PRESENT)
 #define pud_populate(mm, pud, pmd) \
@@ -63,7 +63,7 @@
 
 #define set_pud(pudptr, pudval) (*(pudptr) = (pudval))
 
-#define p4d_none(x)	(!(p4d_val(x) & ~_PAGE_NEWPAGE))
+#define p4d_none(x)	(!(p4d_val(x) & ~_PAGE_NEEDSYNC))
 #define	p4d_bad(x)	((p4d_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 #define p4d_present(x)	(p4d_val(x) & _PAGE_PRESENT)
 #define p4d_populate(mm, p4d, pud) \
@@ -72,23 +72,23 @@
 #define set_p4d(p4dptr, p4dval) (*(p4dptr) = (p4dval))
 
 
-static inline int pgd_newpage(pgd_t pgd)
+static inline int pgd_needsync(pgd_t pgd)
 {
-	return(pgd_val(pgd) & _PAGE_NEWPAGE);
+	return pgd_val(pgd) & _PAGE_NEEDSYNC;
 }
 
-static inline void pgd_mkuptodate(pgd_t pgd) { pgd_val(pgd) &= ~_PAGE_NEWPAGE; }
+static inline void pgd_mkuptodate(pgd_t pgd) { pgd_val(pgd) &= ~_PAGE_NEEDSYNC; }
 
 #define set_pmd(pmdptr, pmdval) (*(pmdptr) = (pmdval))
 
 static inline void pud_clear (pud_t *pud)
 {
-	set_pud(pud, __pud(_PAGE_NEWPAGE));
+	set_pud(pud, __pud(_PAGE_NEEDSYNC));
 }
 
 static inline void p4d_clear (p4d_t *p4d)
 {
-	set_p4d(p4d, __p4d(_PAGE_NEWPAGE));
+	set_p4d(p4d, __p4d(_PAGE_NEEDSYNC));
 }
 
 #define pud_page(pud) phys_to_page(pud_val(pud) & PAGE_MASK)

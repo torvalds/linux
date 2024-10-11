@@ -57,7 +57,7 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		if (!pte_newpage(*pte))
+		if (!pte_needsync(*pte))
 			continue;
 
 		if (pte_present(*pte)) {
@@ -101,7 +101,7 @@ static inline int update_pmd_range(pud_t *pud, unsigned long addr,
 	do {
 		next = pmd_addr_end(addr, end);
 		if (!pmd_present(*pmd)) {
-			if (pmd_newpage(*pmd)) {
+			if (pmd_needsync(*pmd)) {
 				ret = ops->unmap(ops->mm_idp, addr,
 						 next - addr);
 				pmd_mkuptodate(*pmd);
@@ -124,7 +124,7 @@ static inline int update_pud_range(p4d_t *p4d, unsigned long addr,
 	do {
 		next = pud_addr_end(addr, end);
 		if (!pud_present(*pud)) {
-			if (pud_newpage(*pud)) {
+			if (pud_needsync(*pud)) {
 				ret = ops->unmap(ops->mm_idp, addr,
 						 next - addr);
 				pud_mkuptodate(*pud);
@@ -147,7 +147,7 @@ static inline int update_p4d_range(pgd_t *pgd, unsigned long addr,
 	do {
 		next = p4d_addr_end(addr, end);
 		if (!p4d_present(*p4d)) {
-			if (p4d_newpage(*p4d)) {
+			if (p4d_needsync(*p4d)) {
 				ret = ops->unmap(ops->mm_idp, addr,
 						 next - addr);
 				p4d_mkuptodate(*p4d);
@@ -181,7 +181,7 @@ int um_tlb_sync(struct mm_struct *mm)
 	do {
 		next = pgd_addr_end(addr, mm->context.sync_tlb_range_to);
 		if (!pgd_present(*pgd)) {
-			if (pgd_newpage(*pgd)) {
+			if (pgd_needsync(*pgd)) {
 				ret = ops.unmap(ops.mm_idp, addr,
 						next - addr);
 				pgd_mkuptodate(*pgd);
