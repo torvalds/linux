@@ -622,6 +622,7 @@ static bool noreboot;
 
 static int __init noreboot_cmd_param(char *str, int *add)
 {
+	*add = 0;
 	noreboot = true;
 	return 0;
 }
