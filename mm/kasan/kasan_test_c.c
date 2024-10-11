@@ -1928,6 +1928,41 @@ static void rust_uaf(struct kunit *test)
 	KUNIT_EXPECT_KASAN_FAIL(test, kasan_test_rust_uaf());
 }
 
+static void copy_to_kernel_nofault_oob(struct kunit *test)
+{
+	char *ptr;
+	char buf[128];
+	size_t size = sizeof(buf);
+
+	/*
+	 * This test currently fails with the HW_TAGS mode. The reason is
+	 * unknown and needs to be investigated.
+	 */
+	KASAN_TEST_NEEDS_CONFIG_OFF(test, CONFIG_KASAN_HW_TAGS);
+
+	ptr = kmalloc(size - KASAN_GRANULE_SIZE, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
+	OPTIMIZER_HIDE_VAR(ptr);
+
+	/*
+	 * We test copy_to_kernel_nofault() to detect corrupted memory that is
+	 * being written into the kernel. In contrast,
+	 * copy_from_kernel_nofault() is primarily used in kernel helper
+	 * functions where the source address might be random or uninitialized.
+	 * Applying KASAN instrumentation to copy_from_kernel_nofault() could
+	 * lead to false positives.  By focusing KASAN checks only on
+	 * copy_to_kernel_nofault(), we ensure that only valid memory is
+	 * written to the kernel, minimizing the risk of kernel corruption
+	 * while avoiding false positives in the reverse case.
+	 */
+	KUNIT_EXPECT_KASAN_FAIL(test,
+		copy_to_kernel_nofault(&buf[0], ptr, size));
+	KUNIT_EXPECT_KASAN_FAIL(test,
+		copy_to_kernel_nofault(ptr, &buf[0], size));
+
+	kfree(ptr);
+}
+
 static struct kunit_case kasan_kunit_test_cases[] = {
 	KUNIT_CASE(kmalloc_oob_right),
 	KUNIT_CASE(kmalloc_oob_left),
@@ -2000,6 +2035,7 @@ static struct kunit_case kasan_kunit_test_cases[] = {
 	KUNIT_CASE(match_all_not_assigned),
 	KUNIT_CASE(match_all_ptr_tag),
 	KUNIT_CASE(match_all_mem_tag),
+	KUNIT_CASE(copy_to_kernel_nofault_oob),
 	KUNIT_CASE(rust_uaf),
 	{}
 };
