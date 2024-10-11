@@ -229,7 +229,7 @@ static void cp500_i2c_release(struct device *dev)
 
 static int cp500_register_i2c(struct cp500 *cp500)
 {
-	int retval;
+	int ret;
 
 	cp500->i2c = kzalloc(sizeof(*cp500->i2c), GFP_KERNEL);
 	if (!cp500->i2c)
@@ -251,19 +251,19 @@ static int cp500_register_i2c(struct cp500 *cp500)
 	cp500->i2c->info_size = ARRAY_SIZE(cp500_i2c_info);
 	cp500->i2c->info = cp500_i2c_info;
 
-	retval = auxiliary_device_init(&cp500->i2c->auxdev);
-	if (retval) {
+	ret = auxiliary_device_init(&cp500->i2c->auxdev);
+	if (ret) {
 		kfree(cp500->i2c);
 		cp500->i2c = NULL;
 
-		return retval;
+		return ret;
 	}
-	retval = __auxiliary_device_add(&cp500->i2c->auxdev, "keba");
-	if (retval) {
+	ret = __auxiliary_device_add(&cp500->i2c->auxdev, "keba");
+	if (ret) {
 		auxiliary_device_uninit(&cp500->i2c->auxdev);
 		cp500->i2c = NULL;
 
-		return retval;
+		return ret;
 	}
 
 	return 0;
