@@ -453,24 +453,16 @@ static const struct rproc_ops adsp_minidump_ops = {
 
 static int adsp_init_clock(struct qcom_adsp *adsp)
 {
-	int ret;
-
 	adsp->xo = devm_clk_get(adsp->dev, "xo");
-	if (IS_ERR(adsp->xo)) {
-		ret = PTR_ERR(adsp->xo);
-		if (ret != -EPROBE_DEFER)
-			dev_err(adsp->dev, "failed to get xo clock");
-		return ret;
-	}
+	if (IS_ERR(adsp->xo))
+		return dev_err_probe(adsp->dev, PTR_ERR(adsp->xo),
+				     "failed to get xo clock");
+
 
 	adsp->aggre2_clk = devm_clk_get_optional(adsp->dev, "aggre2");
-	if (IS_ERR(adsp->aggre2_clk)) {
-		ret = PTR_ERR(adsp->aggre2_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(adsp->dev,
-				"failed to get aggre2 clock");
-		return ret;
-	}
+	if (IS_ERR(adsp->aggre2_clk))
+		return dev_err_probe(adsp->dev, PTR_ERR(adsp->aggre2_clk),
+				     "failed to get aggre2 clock");
 
 	return 0;
 }
