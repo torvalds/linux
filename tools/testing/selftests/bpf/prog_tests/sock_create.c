@@ -6,6 +6,11 @@
 static char bpf_log_buf[4096];
 static bool verbose;
 
+enum sock_create_test_error {
+	OK = 0,
+	DENY_CREATE,
+};
+
 static struct sock_create_test {
 	const char			*descr;
 	const struct bpf_insn		insns[64];
@@ -14,9 +19,11 @@ static struct sock_create_test {
 
 	int				domain;
 	int				type;
+	int				protocol;
 
 	int				optname;
 	int				optval;
+	enum sock_create_test_error	error;
 } tests[] = {
 	{
 		.descr = "AF_INET set priority",
@@ -164,6 +171,72 @@ static struct sock_create_test {
 		.optname = SO_BINDTOIFINDEX,
 		.optval = 1,
 	},
+	{
+		.descr = "block AF_INET, SOCK_DGRAM, IPPROTO_ICMP socket",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 1),	/* r0 = verdict */
+
+			/* sock->family == AF_INET */
+			BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct bpf_sock, family)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, AF_INET, 5),
+
+			/* sock->type == SOCK_DGRAM */
+			BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct bpf_sock, type)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, SOCK_DGRAM, 3),
+
+			/* sock->protocol == IPPROTO_ICMP */
+			BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct bpf_sock, protocol)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, IPPROTO_ICMP, 1),
+
+			/* return 0 (block) */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+
+		.domain = AF_INET,
+		.type = SOCK_DGRAM,
+		.protocol = IPPROTO_ICMP,
+
+		.error = DENY_CREATE,
+	},
+	{
+		.descr = "block AF_INET6, SOCK_DGRAM, IPPROTO_ICMPV6 socket",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 1),	/* r0 = verdict */
+
+			/* sock->family == AF_INET6 */
+			BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct bpf_sock, family)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, AF_INET6, 5),
+
+			/* sock->type == SOCK_DGRAM */
+			BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct bpf_sock, type)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, SOCK_DGRAM, 3),
+
+			/* sock->protocol == IPPROTO_ICMPV6 */
+			BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct bpf_sock, protocol)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, IPPROTO_ICMPV6, 1),
+
+			/* return 0 (block) */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+
+		.domain = AF_INET,
+		.type = SOCK_DGRAM,
+		.protocol = IPPROTO_ICMPV6,
+
+		.error = DENY_CREATE,
+	},
 };
 
 static int load_prog(const struct bpf_insn *insns,
@@ -208,9 +281,13 @@ static int run_test(int cgroup_fd, struct sock_create_test *test)
 		goto close_prog_fd;
 	}
 
-	sock_fd = socket(test->domain, test->type, 0);
+	sock_fd = socket(test->domain, test->type, test->protocol);
 	if (sock_fd < 0) {
-		log_err("Failed to create socket");
+		if (test->error == DENY_CREATE)
+			ret = 0;
+		else
+			log_err("Failed to create socket");
+
 		goto detach_prog;
 	}
 
@@ -226,7 +303,7 @@ static int run_test(int cgroup_fd, struct sock_create_test *test)
 		goto cleanup;
 	}
 
-	ret = 0;
+	ret = test->error != OK;
 
 cleanup:
 	close(sock_fd);
