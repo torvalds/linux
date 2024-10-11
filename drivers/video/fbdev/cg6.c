@@ -858,7 +858,7 @@ static struct platform_driver cg6_driver = {
 		.of_match_table = cg6_match,
 	},
 	.probe		= cg6_probe,
-	.remove_new	= cg6_remove,
+	.remove		= cg6_remove,
 };
 
 static int __init cg6_init(void)
