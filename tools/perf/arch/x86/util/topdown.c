@@ -41,43 +41,22 @@ bool arch_is_topdown_slots(const struct evsel *evsel)
 	return false;
 }
 
-static int compare_topdown_event(void *vstate, struct pmu_event_info *info)
-{
-	int *config = vstate;
-	int event = 0;
-	int umask = 0;
-	char *str;
-
-	if (!strcasestr(info->name, "topdown"))
-		return 0;
-
-	str = strcasestr(info->str, "event=");
-	if (str)
-		sscanf(str, "event=%x", &event);
-
-	str = strcasestr(info->str, "umask=");
-	if (str)
-		sscanf(str, "umask=%x", &umask);
-
-	if (event == 0 && *config == (event | umask << 8))
-		return 1;
-
-	return 0;
-}
-
 bool arch_is_topdown_metrics(const struct evsel *evsel)
 {
-	struct perf_pmu *pmu = evsel__find_pmu(evsel);
 	int config = evsel->core.attr.config;
+	const char *name_from_config;
+	struct perf_pmu *pmu;
 
+	/* All topdown events have an event code of 0. */
+	if ((config & 0xFF) != 0)
+		return false;
+
+	pmu = evsel__find_pmu(evsel);
 	if (!pmu || !pmu->is_core)
 		return false;
 
-	if (perf_pmu__for_each_event(pmu, false, &config,
-				     compare_topdown_event))
-		return true;
-
-	return false;
+	name_from_config = perf_pmu__name_from_config(pmu, config);
+	return name_from_config && strcasestr(name_from_config, "topdown");
 }
 
 /*
