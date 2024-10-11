@@ -521,12 +521,15 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
  * not whether or not SPTEs were modified, i.e. only the write-tracking case
  * needs to flush at the time the SPTEs is modified, before dropping mmu_lock.
  *
- * Remote TLBs also need to be flushed if the Dirty bit is cleared, as false
- * negatives are not acceptable, e.g. if KVM is using D-bit based PML on VMX.
- *
  * Don't flush if the Accessed bit is cleared, as access tracking tolerates
  * false negatives, and the one path that does care about TLB flushes,
- * kvm_mmu_notifier_clear_flush_young(), uses mmu_spte_update_no_track().
+ * kvm_mmu_notifier_clear_flush_young(), flushes if a young SPTE is found, i.e.
+ * doesn't rely on lower helpers to detect the need to flush.
+ *
+ * Lastly, don't flush if the Dirty bit is cleared, as KVM unconditionally
+ * flushes when enabling dirty logging (see kvm_mmu_slot_apply_flags()), and
+ * when clearing dirty logs, KVM flushes based on whether or not dirty entries
+ * were reaped from the bitmap/ring, not whether or not dirty SPTEs were found.
  *
  * Returns true if the TLB needs to be flushed
  */
@@ -537,8 +540,7 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 	if (!is_shadow_present_pte(old_spte))
 		return false;
 
-	return (is_mmu_writable_spte(old_spte) && !is_mmu_writable_spte(new_spte)) ||
-	       (is_dirty_spte(old_spte) && !is_dirty_spte(new_spte));
+	return is_mmu_writable_spte(old_spte) && !is_mmu_writable_spte(new_spte);
 }
 
 /*
