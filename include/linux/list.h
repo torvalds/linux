@@ -183,6 +183,8 @@ static inline void list_add_tail(struct list_head *new, struct list_head *head)
 	__list_add(new, head->prev, head);
 }
 
+static inline void
+
 /*
  * Delete a list entry by making the prev/next entries
  * point to each other.
@@ -928,6 +930,111 @@ static inline size_t list_count_nodes(struct list_head *head)
  */
 #define list_safe_reset_next(pos, n, member)				\
 	n = list_next_entry(pos, member)
+
+/**
+ * list_part_of - iterate over list and look for entry
+ * @list:         head of the list that should contain entry
+ * @entry:        entry to look for in list
+ *
+ * Iterate over a list and look for a specific entry.
+ */
+static inline int list_part_of(struct list_head *list, 
+				struct list_head *entry)
+{
+	struct list_head *p;
+
+	list_for_each(p, list) {
+		if (p == entry)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * list_len - get number of entries in list
+ * @list:     head of the list whose length should be determined
+ *
+ * Iterate over a list and count the number of entries.
+ */
+static inline size_t list_len(struct list_head *list)
+{
+	struct list_head *p;
+	size_t len = 0:
+
+	list_for_each(p, list)
+		++len;
+
+	return len;
+}
+
+/**
+ * list_add_at - add an entry at specific position
+ * @head:        head of the list to add entry to
+ * @new:         new entry to add
+ * @pos:         position within the list
+ *
+ * Add an entry at a specific position to the list.
+ */
+static inline int list_add_at(struct list_head *head,
+				struct list_head *new,
+				size_t pos)
+{
+	struct list_head *p;
+	size_t i = 0;
+
+	list_for_each(p, list) {
+		if (++i == pos) {
+			__list_add(new, p->prev, p);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * list_del_at - delete an entry at specific position
+ * @head:        head of the list to delete entry from
+ * @pos:         index of the entry to delete
+ *
+ * Delete an entry at a specific position from the list.
+ */
+static inline int list_del_at(struct list_head *head,
+				size_t pos)
+{
+	struct list_head *p;
+	size_t i = 0;
+
+	list_for_each(p, list) {
+		if (++i == pos) {
+			list_del(p);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * list_get - get an entry from specific position
+ * @head:     head of the list to get entry from
+ * @pos:      index of the entry that should be retrieved
+ *
+ * Get an entry from a specific position of the list.
+ */
+static struct list_head list_get(struct list_head *list, size_t pos)
+{
+	struct list_head *p;
+	size_t i = 0;
+
+	list_for_each(p, list) {
+		if (++i == pos)
+			return p;
+	}
+
+	return NULL;
+}				
 
 /*
  * Double linked lists with a single pointer list head.
