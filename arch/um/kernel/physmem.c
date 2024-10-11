@@ -139,6 +139,8 @@ EXPORT_SYMBOL(phys_mapping);
 static int __init uml_mem_setup(char *line, int *add)
 {
 	char *retptr;
+
+	*add = 0;
 	physmem_size = memparse(line,&retptr);
 	return 0;
 }
