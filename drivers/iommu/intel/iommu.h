@@ -125,11 +125,6 @@
 #define DMAR_MTRR_PHYSMASK8_REG 0x208
 #define DMAR_MTRR_PHYSBASE9_REG 0x210
 #define DMAR_MTRR_PHYSMASK9_REG 0x218
-#define DMAR_PERFCAP_REG	0x300
-#define DMAR_PERFCFGOFF_REG	0x310
-#define DMAR_PERFOVFOFF_REG	0x318
-#define DMAR_PERFCNTROFF_REG	0x31c
-#define DMAR_PERFEVNTCAP_REG	0x380
 #define DMAR_VCCAP_REG		0xe30 /* Virtual command capability register */
 #define DMAR_VCMD_REG		0xe00 /* Virtual command register */
 #define DMAR_VCRSP_REG		0xe10 /* Virtual command response register */
@@ -153,7 +148,6 @@
  */
 #define cap_esrtps(c)		(((c) >> 63) & 1)
 #define cap_esirtps(c)		(((c) >> 62) & 1)
-#define cap_ecmds(c)		(((c) >> 61) & 1)
 #define cap_fl5lp_support(c)	(((c) >> 60) & 1)
 #define cap_pi_support(c)	(((c) >> 59) & 1)
 #define cap_fl1gp_support(c)	(((c) >> 56) & 1)
@@ -185,8 +179,7 @@
  * Extended Capability Register
  */
 
-#define ecap_pms(e)		(((e) >> 51) & 0x1)
-#define ecap_rps(e)		(((e) >> 49) & 0x1)
+#define	ecap_rps(e)		(((e) >> 49) & 0x1)
 #define ecap_smpwc(e)		(((e) >> 48) & 0x1)
 #define ecap_flts(e)		(((e) >> 47) & 0x1)
 #define ecap_slts(e)		(((e) >> 46) & 0x1)
@@ -216,22 +209,6 @@
 #define ecap_dev_iotlb_support(e)	(((e) >> 2) & 0x1)
 #define ecap_max_handle_mask(e) (((e) >> 20) & 0xf)
 #define ecap_sc_support(e)	(((e) >> 7) & 0x1) /* Snooping Control */
-
-/*
- * Decoding Perf Capability Register
- */
-#define pcap_num_cntr(p)	((p) & 0xffff)
-#define pcap_cntr_width(p)	(((p) >> 16) & 0x7f)
-#define pcap_num_event_group(p)	(((p) >> 24) & 0x1f)
-#define pcap_filters_mask(p)	(((p) >> 32) & 0x1f)
-#define pcap_interrupt(p)	(((p) >> 50) & 0x1)
-/* The counter stride is calculated as 2 ^ (x+10) bytes */
-#define pcap_cntr_stride(p)	(1ULL << ((((p) >> 52) & 0x7) + 10))
-
-/*
- * Decoding Perf Event Capability Register
- */
-#define pecap_es(p)		((p) & 0xfffffff)
 
 /* Virtual command interface capability */
 #define vccap_pasid(v)		(((v) & DMA_VCS_PAS)) /* PASID allocation */
@@ -584,22 +561,6 @@ struct dmar_domain {
 					   iommu core */
 };
 
-struct iommu_pmu {
-	struct intel_iommu	*iommu;
-	u32			num_cntr;	/* Number of counters */
-	u32			num_eg;		/* Number of event group */
-	u32			cntr_width;	/* Counter width */
-	u32			cntr_stride;	/* Counter Stride */
-	u32			filter;		/* Bitmask of filter support */
-	void __iomem		*base;		/* the PerfMon base address */
-	void __iomem		*cfg_reg;	/* counter configuration base address */
-	void __iomem		*cntr_reg;	/* counter 0 address*/
-	void __iomem		*overflow;	/* overflow status register */
-
-	u64			*evcap;		/* Indicates all supported events */
-	u32			**cntr_evcap;	/* Supported events of each counter. */
-};
-
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64 		reg_phys; /* physical address of hw register set */
@@ -647,8 +608,6 @@ struct intel_iommu {
 
 	struct dmar_drhd_unit *drhd;
 	void *perf_statistic;
-
-	struct iommu_pmu *pmu;
 };
 
 /* PCI domain-device relationship */
