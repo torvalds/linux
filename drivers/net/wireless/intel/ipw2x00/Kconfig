@@ -155,6 +155,7 @@ config LIBIPW
 	select WIRELESS_EXT
 	select CRYPTO
 	select CRYPTO_MICHAEL_MIC
+	select CRYPTO_LIB_ARC4
 	select CRC32
 	help
 	This option enables the hardware independent IEEE 802.11
