@@ -316,12 +316,6 @@ static inline bool spte_ad_need_write_protect(u64 spte)
 	return (spte & SPTE_TDP_AD_MASK) != SPTE_TDP_AD_ENABLED;
 }
 
-static inline u64 spte_shadow_accessed_mask(u64 spte)
-{
-	KVM_MMU_WARN_ON(!is_shadow_present_pte(spte));
-	return spte_ad_enabled(spte) ? shadow_accessed_mask : 0;
-}
-
 static inline u64 spte_shadow_dirty_mask(u64 spte)
 {
 	KVM_MMU_WARN_ON(!is_shadow_present_pte(spte));
@@ -355,10 +349,7 @@ static inline kvm_pfn_t spte_to_pfn(u64 pte)
 
 static inline bool is_accessed_spte(u64 spte)
 {
-	u64 accessed_mask = spte_shadow_accessed_mask(spte);
-
-	return accessed_mask ? spte & accessed_mask
-			     : !is_access_track_spte(spte);
+	return spte & shadow_accessed_mask;
 }
 
 static inline u64 get_rsvd_bits(struct rsvd_bits_validate *rsvd_check, u64 pte,
