@@ -47,4 +47,14 @@ struct keba_fan_auxdev {
 	struct resource io;
 };
 
+/**
+ * struct keba_batt_auxdev - KEBA battery auxiliary device
+ * @auxdev: auxiliary device object
+ * @io: address range of battery controller IO memory
+ */
+struct keba_batt_auxdev {
+	struct auxiliary_device auxdev;
+	struct resource io;
+};
+
 #endif /* _LINUX_MISC_KEBA_H */

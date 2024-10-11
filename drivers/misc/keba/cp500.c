@@ -82,6 +82,7 @@ struct cp500_devs {
 	struct cp500_dev_info spi;
 	struct cp500_dev_info i2c;
 	struct cp500_dev_info fan;
+	struct cp500_dev_info batt;
 };
 
 /* list of devices within FPGA of CP035 family (CP035, CP056, CP057) */
@@ -90,6 +91,7 @@ static struct cp500_devs cp035_devices = {
 	.spi       = { 0x1000, SZ_4K },
 	.i2c       = { 0x4000, SZ_4K },
 	.fan       = { 0x9000, SZ_4K },
+	.batt      = { 0xA000, SZ_4K },
 };
 
 /* list of devices within FPGA of CP505 family (CP503, CP505, CP507) */
@@ -98,6 +100,7 @@ static struct cp500_devs cp505_devices = {
 	.spi       = { 0x4000, SZ_4K },
 	.i2c       = { 0x5000, SZ_4K },
 	.fan       = { 0x9000, SZ_4K },
+	.batt      = { 0xA000, SZ_4K },
 };
 
 /* list of devices within FPGA of CP520 family (CP520, CP530) */
@@ -106,6 +109,7 @@ static struct cp500_devs cp520_devices = {
 	.spi       = { 0x4000, SZ_4K },
 	.i2c       = { 0x5000, SZ_4K },
 	.fan       = { 0x8000, SZ_4K },
+	.batt      = { 0x9000, SZ_4K },
 };
 
 struct cp500_nvmem {
@@ -130,6 +134,7 @@ struct cp500 {
 	struct keba_spi_auxdev *spi;
 	struct keba_i2c_auxdev *i2c;
 	struct keba_fan_auxdev *fan;
+	struct keba_batt_auxdev *batt;
 
 	/* ECM EtherCAT BAR */
 	resource_size_t ecm_hwbase;
@@ -457,6 +462,54 @@ static int cp500_register_fan(struct cp500 *cp500)
 	return 0;
 }
 
+static void cp500_batt_release(struct device *dev)
+{
+	struct keba_batt_auxdev *fan =
+		container_of(dev, struct keba_batt_auxdev, auxdev.dev);
+
+	kfree(fan);
+}
+
+static int cp500_register_batt(struct cp500 *cp500)
+{
+	int ret;
+
+	cp500->batt = kzalloc(sizeof(*cp500->batt), GFP_KERNEL);
+	if (!cp500->batt)
+		return -ENOMEM;
+
+	cp500->batt->auxdev.name = "batt";
+	cp500->batt->auxdev.id = 0;
+	cp500->batt->auxdev.dev.release = cp500_batt_release;
+	cp500->batt->auxdev.dev.parent = &cp500->pci_dev->dev;
+	cp500->batt->io = (struct resource) {
+		 /* battery register area */
+		 .start = (resource_size_t) cp500->sys_hwbase +
+			  cp500->devs->batt.offset,
+		 .end   = (resource_size_t) cp500->sys_hwbase +
+			  cp500->devs->batt.offset +
+			  cp500->devs->batt.size - 1,
+		 .flags = IORESOURCE_MEM,
+	};
+
+	ret = auxiliary_device_init(&cp500->batt->auxdev);
+	if (ret) {
+		kfree(cp500->batt);
+		cp500->batt = NULL;
+
+		return ret;
+	}
+	ret = __auxiliary_device_add(&cp500->batt->auxdev, "keba");
+	if (ret) {
+		auxiliary_device_uninit(&cp500->batt->auxdev);
+		cp500->batt = NULL;
+
+		return ret;
+	}
+
+	return 0;
+}
+
 static int cp500_nvmem_read(void *priv, unsigned int offset, void *val,
 			    size_t bytes)
 {
@@ -613,6 +666,8 @@ static void cp500_register_auxiliary_devs(struct cp500 *cp500)
 	if (present & CP500_PRESENT_FAN0)
 		if (cp500_register_fan(cp500))
 			dev_warn(dev, "Failed to register fan!\n");
+	if (cp500_register_batt(cp500))
+		dev_warn(dev, "Failed to register battery!\n");
 }
 
 static void cp500_unregister_dev(struct auxiliary_device *auxdev)
@@ -634,6 +689,10 @@ static void cp500_unregister_auxiliary_devs(struct cp500 *cp500)
 	if (cp500->fan) {
 		cp500_unregister_dev(&cp500->fan->auxdev);
 		cp500->fan = NULL;
+	}
+	if (cp500->batt) {
+		cp500_unregister_dev(&cp500->batt->auxdev);
+		cp500->batt = NULL;
 	}
 }
 
