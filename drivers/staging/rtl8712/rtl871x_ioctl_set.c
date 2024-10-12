@@ -19,6 +19,7 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "rtl871x_ioctl_set.h"
+#include "rtl871x_security.h"
 #include "usb_osintf.h"
 #include "usb_ops.h"
 
@@ -318,7 +319,7 @@ u8 r8712_set_802_11_authentication_mode(struct _adapter *padapter,
 
 	psecuritypriv->ndisauthtype = authmode;
 	if (psecuritypriv->ndisauthtype > 3)
-		psecuritypriv->auth_algorithm = 2; /* 802.1x */
+		psecuritypriv->auth_algorithm = _AUTH_8021x_;
 	if (r8712_set_auth(padapter, psecuritypriv))
 		ret = false;
 	else

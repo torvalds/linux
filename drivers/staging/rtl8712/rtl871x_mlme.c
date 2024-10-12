@@ -23,6 +23,7 @@
 #include "recv_osdep.h"
 #include "xmit_osdep.h"
 #include "mlme_osdep.h"
+#include "rtl871x_security.h"
 #include "sta_info.h"
 #include "wifi.h"
 #include "wlan_bssdef.h"
@@ -768,7 +769,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 					ptarget_sta->aid = pnetwork->join_res;
 					ptarget_sta->qos_option = 1;
 					ptarget_sta->mac_id = 5;
-					if (adapter->securitypriv.auth_algorithm == 2) {
+					if (adapter->securitypriv.auth_algorithm == _AUTH_8021x_) {
 						adapter->securitypriv.binstallGrpkey = false;
 						adapter->securitypriv.busetkipkey = false;
 						adapter->securitypriv.bgrpkey_handshake = false;
@@ -869,7 +870,7 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 	psta->mac_id = le32_to_cpu(pstassoc->cam_id);
 	/* psta->aid = (uint)pstassoc->cam_id; */
 
-	if (adapter->securitypriv.auth_algorithm == 2)
+	if (adapter->securitypriv.auth_algorithm == _AUTH_8021x_)
 		psta->XPrivacy = adapter->securitypriv.privacy_algorithm;
 	psta->ieee8021x_blocked = false;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
@@ -1160,7 +1161,7 @@ int r8712_set_key(struct _adapter *adapter,
 		ret = -ENOMEM;
 		goto err_free_cmd;
 	}
-	if (psecuritypriv->auth_algorithm == 2) { /* 802.1X */
+	if (psecuritypriv->auth_algorithm == _AUTH_8021x_) {
 		psetkeyparm->algorithm =
 			 (u8)psecuritypriv->XGrpPrivacy;
 	} else { /* WEP */
