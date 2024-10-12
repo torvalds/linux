@@ -1528,12 +1528,6 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
 		epp = 0;
 
-	/* Set initial EPP value */
-	if (cpu_feature_enabled(X86_FEATURE_CPPC)) {
-		value &= ~GENMASK_ULL(31, 24);
-		value |= (u64)epp << 24;
-	}
-
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
 	return amd_pstate_set_epp(cpudata, epp);
 }
