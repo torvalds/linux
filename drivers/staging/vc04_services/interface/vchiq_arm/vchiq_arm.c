@@ -106,7 +106,6 @@ struct vchiq_arm_state {
 	int first_connect;
 };
 
-
 static int
 vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *data,
 			     unsigned int size, enum vchiq_bulk_dir dir);
@@ -308,9 +307,6 @@ static struct vchiq_arm_state *vchiq_platform_get_arm_state(struct vchiq_state *
 {
 	return (struct vchiq_arm_state *)state->platform_state;
 }
-
-
-
 
 void vchiq_dump_platform_state(struct seq_file *f)
 {
