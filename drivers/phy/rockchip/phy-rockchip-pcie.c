@@ -274,30 +274,19 @@ static int rockchip_pcie_phy_init(struct phy *phy)
 
 	mutex_lock(&rk_phy->pcie_mutex);
 
-	if (rk_phy->init_cnt++)
-		goto err_out;
-
-	err = clk_prepare_enable(rk_phy->clk_pciephy_ref);
-	if (err) {
-		dev_err(&phy->dev, "Fail to enable pcie ref clock.\n");
-		goto err_refclk;
+	if (rk_phy->init_cnt++) {
+		mutex_unlock(&rk_phy->pcie_mutex);
+		return 0;
 	}
 
 	err = reset_control_assert(rk_phy->phy_rst);
 	if (err) {
 		dev_err(&phy->dev, "assert phy_rst err %d\n", err);
-		goto err_reset;
+		rk_phy->init_cnt--;
+		mutex_unlock(&rk_phy->pcie_mutex);
+		return err;
 	}
 
-err_out:
-	mutex_unlock(&rk_phy->pcie_mutex);
-	return 0;
-
-err_reset:
-
-	clk_disable_unprepare(rk_phy->clk_pciephy_ref);
-err_refclk:
-	rk_phy->init_cnt--;
 	mutex_unlock(&rk_phy->pcie_mutex);
 	return err;
 }
@@ -311,8 +300,6 @@ static int rockchip_pcie_phy_exit(struct phy *phy)
 
 	if (--rk_phy->init_cnt)
 		goto err_init_cnt;
-
-	clk_disable_unprepare(rk_phy->clk_pciephy_ref);
 
 err_init_cnt:
 	mutex_unlock(&rk_phy->pcie_mutex);
@@ -375,11 +362,10 @@ static int rockchip_pcie_phy_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(rk_phy->phy_rst),
 				     "missing phy property for reset controller\n");
 
-	rk_phy->clk_pciephy_ref = devm_clk_get(dev, "refclk");
-	if (IS_ERR(rk_phy->clk_pciephy_ref)) {
-		dev_err(dev, "refclk not found.\n");
-		return PTR_ERR(rk_phy->clk_pciephy_ref);
-	}
+	rk_phy->clk_pciephy_ref = devm_clk_get_enabled(dev, "refclk");
+	if (IS_ERR(rk_phy->clk_pciephy_ref))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rk_phy->clk_pciephy_ref),
+				     "failed to get phyclk\n");
 
 	/* parse #phy-cells to see if it's legacy PHY model */
 	if (of_property_read_u32(dev->of_node, "#phy-cells", &phy_num))
