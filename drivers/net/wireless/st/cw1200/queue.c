@@ -411,33 +411,6 @@ int cw1200_queue_requeue(struct cw1200_queue *queue, u32 packet_id)
 	return ret;
 }
 
-int cw1200_queue_requeue_all(struct cw1200_queue *queue)
-{
-	struct cw1200_queue_item *item, *tmp;
-	struct cw1200_queue_stats *stats = queue->stats;
-	spin_lock_bh(&queue->lock);
-
-	list_for_each_entry_safe_reverse(item, tmp, &queue->pending, head) {
-		--queue->num_pending;
-		++queue->link_map_cache[item->txpriv.link_id];
-
-		spin_lock_bh(&stats->lock);
-		++stats->num_queued;
-		++stats->link_map_cache[item->txpriv.link_id];
-		spin_unlock_bh(&stats->lock);
-
-		++item->generation;
-		item->packet_id = cw1200_queue_mk_packet_id(queue->generation,
-							    queue->queue_id,
-							    item->generation,
-							    item - queue->pool);
-		list_move(&item->head, &queue->queue);
-	}
-	spin_unlock_bh(&queue->lock);
-
-	return 0;
-}
-
 int cw1200_queue_remove(struct cw1200_queue *queue, u32 packet_id)
 {
 	int ret = 0;
