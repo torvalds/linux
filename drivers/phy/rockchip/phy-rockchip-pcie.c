@@ -132,26 +132,24 @@ static int rockchip_pcie_phy_power_off(struct phy *phy)
 				   PHY_LANE_IDLE_MASK,
 				   PHY_LANE_IDLE_A_SHIFT + inst->index));
 
-	if (--rk_phy->pwr_cnt)
-		goto err_out;
+	if (--rk_phy->pwr_cnt) {
+		mutex_unlock(&rk_phy->pcie_mutex);
+		return 0;
+	}
 
 	err = reset_control_assert(rk_phy->phy_rst);
 	if (err) {
 		dev_err(&phy->dev, "assert phy_rst err %d\n", err);
-		goto err_restore;
+		rk_phy->pwr_cnt++;
+		regmap_write(rk_phy->reg_base,
+			     rk_phy->phy_data->pcie_laneoff,
+			     HIWORD_UPDATE(!PHY_LANE_IDLE_OFF,
+					   PHY_LANE_IDLE_MASK,
+					   PHY_LANE_IDLE_A_SHIFT + inst->index));
+		mutex_unlock(&rk_phy->pcie_mutex);
+		return err;
 	}
 
-err_out:
-	mutex_unlock(&rk_phy->pcie_mutex);
-	return 0;
-
-err_restore:
-	rk_phy->pwr_cnt++;
-	regmap_write(rk_phy->reg_base,
-		     rk_phy->phy_data->pcie_laneoff,
-		     HIWORD_UPDATE(!PHY_LANE_IDLE_OFF,
-				   PHY_LANE_IDLE_MASK,
-				   PHY_LANE_IDLE_A_SHIFT + inst->index));
 	mutex_unlock(&rk_phy->pcie_mutex);
 	return err;
 }
