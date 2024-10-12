@@ -4038,15 +4038,28 @@ static void btusb_disconnect(struct usb_interface *intf)
 static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct btusb_data *data = usb_get_intfdata(intf);
+	int err;
 
 	BT_DBG("intf %p", intf);
 
-	/* Don't suspend if there are connections */
-	if (hci_conn_count(data->hdev))
+	/* Don't auto-suspend if there are connections; external suspend calls
+	 * shall never fail.
+	 */
+	if (PMSG_IS_AUTO(message) && hci_conn_count(data->hdev))
 		return -EBUSY;
 
 	if (data->suspend_count++)
 		return 0;
+
+	/* Notify Host stack to suspend; this has to be done before stopping
+	 * the traffic since the hci_suspend_dev itself may generate some
+	 * traffic.
+	 */
+	err = hci_suspend_dev(data->hdev);
+	if (err) {
+		data->suspend_count--;
+		return err;
+	}
 
 	spin_lock_irq(&data->txlock);
 	if (!(PMSG_IS_AUTO(message) && data->tx_in_flight)) {
@@ -4055,6 +4068,7 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 	} else {
 		spin_unlock_irq(&data->txlock);
 		data->suspend_count--;
+		hci_resume_dev(data->hdev);
 		return -EBUSY;
 	}
 
@@ -4174,6 +4188,8 @@ static int btusb_resume(struct usb_interface *intf)
 	clear_bit(BTUSB_SUSPENDING, &data->flags);
 	spin_unlock_irq(&data->txlock);
 	schedule_work(&data->work);
+
+	hci_resume_dev(data->hdev);
 
 	return 0;
 

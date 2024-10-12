@@ -625,6 +625,10 @@ struct sched_ext_ops {
 	/**
 	 * exit - Clean up after the BPF scheduler
 	 * @info: Exit info
+	 *
+	 * ops.exit() is also called on ops.init() failure, which is a bit
+	 * unusual. This is to allow rich reporting through @info on how
+	 * ops.init() failed.
 	 */
 	void (*exit)(struct scx_exit_info *info);
 
@@ -692,6 +696,7 @@ enum scx_enq_flags {
 	/* expose select ENQUEUE_* flags as enums */
 	SCX_ENQ_WAKEUP		= ENQUEUE_WAKEUP,
 	SCX_ENQ_HEAD		= ENQUEUE_HEAD,
+	SCX_ENQ_CPU_SELECTED	= ENQUEUE_RQ_SELECTED,
 
 	/* high 32bits are SCX specific */
 
@@ -4048,7 +4053,6 @@ static void scx_cgroup_exit(void)
 
 	percpu_rwsem_assert_held(&scx_cgroup_rwsem);
 
-	WARN_ON_ONCE(!scx_cgroup_enabled);
 	scx_cgroup_enabled = false;
 
 	/*
@@ -4117,6 +4121,7 @@ static int scx_cgroup_init(void)
 				      css->cgroup, &args);
 		if (ret) {
 			css_put(css);
+			scx_ops_error("ops.cgroup_init() failed (%d)", ret);
 			return ret;
 		}
 		tg->scx_flags |= SCX_TG_INITED;
@@ -5041,6 +5046,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		if (ret) {
 			ret = ops_sanitize_err("init", ret);
 			cpus_read_unlock();
+			scx_ops_error("ops.init() failed (%d)", ret);
 			goto err_disable;
 		}
 	}
@@ -5150,8 +5156,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 			spin_lock_irq(&scx_tasks_lock);
 			scx_task_iter_exit(&sti);
 			spin_unlock_irq(&scx_tasks_lock);
-			pr_err("sched_ext: ops.init_task() failed (%d) for %s[%d] while loading\n",
-			       ret, p->comm, p->pid);
+			scx_ops_error("ops.init_task() failed (%d) for %s[%d]",
+				      ret, p->comm, p->pid);
 			goto err_disable_unlock_all;
 		}
 
@@ -5199,14 +5205,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 	scx_ops_bypass(false);
 
-	/*
-	 * Returning an error code here would lose the recorded error
-	 * information. Exit indicating success so that the error is notified
-	 * through ops.exit() with all the details.
-	 */
 	if (!scx_ops_tryset_enable_state(SCX_OPS_ENABLED, SCX_OPS_ENABLING)) {
 		WARN_ON_ONCE(atomic_read(&scx_exit_kind) == SCX_EXIT_NONE);
-		ret = 0;
 		goto err_disable;
 	}
 
@@ -5241,10 +5241,18 @@ err_disable_unlock_all:
 	scx_ops_bypass(false);
 err_disable:
 	mutex_unlock(&scx_ops_enable_mutex);
-	/* must be fully disabled before returning */
-	scx_ops_disable(SCX_EXIT_ERROR);
+	/*
+	 * Returning an error code here would not pass all the error information
+	 * to userspace. Record errno using scx_ops_error() for cases
+	 * scx_ops_error() wasn't already invoked and exit indicating success so
+	 * that the error is notified through ops.exit() with all the details.
+	 *
+	 * Flush scx_ops_disable_work to ensure that error is reported before
+	 * init completion.
+	 */
+	scx_ops_error("scx_ops_enable() failed (%d)", ret);
 	kthread_flush_work(&scx_ops_disable_work);
-	return ret;
+	return 0;
 }
 
 

@@ -2337,9 +2337,12 @@ static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 	if (!buffer->buffers[cpu])
 		goto fail_free_buffers;
 
-	ret = cpuhp_state_add_instance(CPUHP_TRACE_RB_PREPARE, &buffer->node);
-	if (ret < 0)
-		goto fail_free_buffers;
+	/* If already mapped, do not hook to CPU hotplug */
+	if (!start) {
+		ret = cpuhp_state_add_instance(CPUHP_TRACE_RB_PREPARE, &buffer->node);
+		if (ret < 0)
+			goto fail_free_buffers;
+	}
 
 	mutex_init(&buffer->mutex);
 

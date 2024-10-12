@@ -3774,8 +3774,8 @@ static void __exit amifb_remove(struct platform_device *pdev)
  * triggers a section mismatch warning.
  */
 static struct platform_driver amifb_driver __refdata = {
-	.remove_new = __exit_p(amifb_remove),
-	.driver   = {
+	.remove = __exit_p(amifb_remove),
+	.driver = {
 		.name	= "amiga-video",
 	},
 };

@@ -1053,7 +1053,7 @@ static struct platform_driver ffb_driver = {
 		.of_match_table = ffb_match,
 	},
 	.probe		= ffb_probe,
-	.remove_new	= ffb_remove,
+	.remove		= ffb_remove,
 };
 
 static int __init ffb_init(void)
