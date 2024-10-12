@@ -300,6 +300,10 @@
 				#power-domain-cells = <1>;
 			};
 
+			scmi_sys_power: protocol@12 {
+				reg = <0x12>;
+			};
+
 			scmi_perf: protocol@13 {
 				reg = <0x13>;
 				#power-domain-cells = <1>;
@@ -319,6 +323,13 @@
 				reg = <0x19>;
 			};
 
+			scmi_bbm: protocol@81 {
+				reg = <0x81>;
+			};
+
+			scmi_misc: protocol@84 {
+				reg = <0x84>;
+			};
 		};
 	};
 
