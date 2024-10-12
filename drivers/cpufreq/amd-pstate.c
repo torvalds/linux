@@ -1485,26 +1485,13 @@ static void amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
 static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
-	u32 max_perf, min_perf, min_limit_perf, max_limit_perf;
+	u32 max_perf, min_perf;
 	u64 value;
 	s16 epp;
 
-	if (cpudata->boost_supported && !policy->boost_enabled)
-		max_perf = READ_ONCE(cpudata->nominal_perf);
-	else
-		max_perf = READ_ONCE(cpudata->highest_perf);
+	max_perf = READ_ONCE(cpudata->highest_perf);
 	min_perf = READ_ONCE(cpudata->lowest_perf);
-	max_limit_perf = div_u64(policy->max * max_perf, policy->cpuinfo.max_freq);
-	min_limit_perf = div_u64(policy->min * max_perf, policy->cpuinfo.max_freq);
-
-	if (min_limit_perf < min_perf)
-		min_limit_perf = min_perf;
-
-	if (max_limit_perf < min_limit_perf)
-		max_limit_perf = min_limit_perf;
-
-	WRITE_ONCE(cpudata->max_limit_perf, max_limit_perf);
-	WRITE_ONCE(cpudata->min_limit_perf, min_limit_perf);
+	amd_pstate_update_min_max_limit(policy);
 
 	max_perf = clamp_t(unsigned long, max_perf, cpudata->min_limit_perf,
 			cpudata->max_limit_perf);
