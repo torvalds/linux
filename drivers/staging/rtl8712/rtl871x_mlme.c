@@ -219,10 +219,10 @@ int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork)
 	int ret = true;
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 
-	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
+	if ((psecuritypriv->privacy_algorithm != _NO_PRIVACY_) &&
 		    (pnetwork->network.Privacy == cpu_to_le32(0)))
 		ret = false;
-	else if ((psecuritypriv->PrivacyAlgrthm == _NO_PRIVACY_) &&
+	else if ((psecuritypriv->privacy_algorithm == _NO_PRIVACY_) &&
 		 (pnetwork->network.Privacy == cpu_to_le32(1)))
 		ret = false;
 	else
@@ -426,7 +426,7 @@ static int is_desired_network(struct _adapter *adapter,
 			return true;
 		return false;
 	}
-	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
+	if ((psecuritypriv->privacy_algorithm != _NO_PRIVACY_) &&
 		    (pnetwork->network.Privacy == 0))
 		bselected = false;
 	if (check_fwstate(&adapter->mlmepriv, WIFI_ADHOC_STATE)) {
@@ -774,7 +774,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 						adapter->securitypriv.bgrpkey_handshake = false;
 						ptarget_sta->ieee8021x_blocked = true;
 						ptarget_sta->XPrivacy =
-							adapter->securitypriv.PrivacyAlgrthm;
+							adapter->securitypriv.privacy_algorithm;
 						memset((u8 *)&ptarget_sta->x_UncstKey,
 							0,
 							sizeof(union Keytype));
@@ -870,7 +870,7 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 	/* psta->aid = (uint)pstassoc->cam_id; */
 
 	if (adapter->securitypriv.auth_algorithm == 2)
-		psta->XPrivacy = adapter->securitypriv.PrivacyAlgrthm;
+		psta->XPrivacy = adapter->securitypriv.privacy_algorithm;
 	psta->ieee8021x_blocked = false;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) ||
@@ -1165,7 +1165,7 @@ int r8712_set_key(struct _adapter *adapter,
 			 (u8)psecuritypriv->XGrpPrivacy;
 	} else { /* WEP */
 		psetkeyparm->algorithm =
-			 (u8)psecuritypriv->PrivacyAlgrthm;
+			 (u8)psecuritypriv->privacy_algorithm;
 	}
 	psetkeyparm->keyid = (u8)keyid;
 
@@ -1542,7 +1542,7 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 	struct security_priv	*psecuritypriv = &adapter->securitypriv;
 	struct wlan_network	*cur_network = &adapter->mlmepriv.cur_network;
 
-	pdev_network->Privacy = cpu_to_le32(psecuritypriv->PrivacyAlgrthm
+	pdev_network->Privacy = cpu_to_le32(psecuritypriv->privacy_algorithm
 					    > 0 ? 1 : 0); /* adhoc no 802.1x */
 	pdev_network->Rssi = 0;
 	switch (pregistrypriv->wireless_mode) {

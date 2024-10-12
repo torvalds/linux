@@ -337,13 +337,13 @@ int r8712_set_802_11_add_wep(struct _adapter *padapter,
 		return -EINVAL;
 	switch (wep->KeyLength) {
 	case 5:
-		psecuritypriv->PrivacyAlgrthm = _WEP40_;
+		psecuritypriv->privacy_algorithm = _WEP40_;
 		break;
 	case 13:
-		psecuritypriv->PrivacyAlgrthm = _WEP104_;
+		psecuritypriv->privacy_algorithm = _WEP104_;
 		break;
 	default:
-		psecuritypriv->PrivacyAlgrthm = _NO_PRIVACY_;
+		psecuritypriv->privacy_algorithm = _NO_PRIVACY_;
 		break;
 	}
 	memcpy(psecuritypriv->DefKey[keyid].skey, &wep->KeyMaterial,

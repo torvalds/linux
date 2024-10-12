@@ -122,7 +122,7 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		struct security_priv *sec_priv = &adapter->securitypriv;
 
 		sec_priv->auth_algorithm = 0; /*open system*/
-		sec_priv->PrivacyAlgrthm = _NO_PRIVACY_;
+		sec_priv->privacy_algorithm = _NO_PRIVACY_;
 		sec_priv->PrivacyKeyIndex = 0;
 		sec_priv->XGrpPrivacy = _NO_PRIVACY_;
 		sec_priv->XGrpKeyid = 1;

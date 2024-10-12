@@ -370,7 +370,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		netdev_info(dev, "r8712u: %s: crypt.alg = WEP\n", __func__);
 		padapter->securitypriv.ndisencryptstatus =
 			     Ndis802_11Encryption1Enabled;
-		padapter->securitypriv.PrivacyAlgrthm = _WEP40_;
+		padapter->securitypriv.privacy_algorithm = _WEP40_;
 		padapter->securitypriv.XGrpPrivacy = _WEP40_;
 		wep_key_idx = param->u.crypt.idx;
 		wep_key_len = param->u.crypt.key_len;
@@ -387,7 +387,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		pwep->Length = wep_key_len +
 			offsetof(struct NDIS_802_11_WEP, KeyMaterial);
 		if (wep_key_len == 13) {
-			padapter->securitypriv.PrivacyAlgrthm = _WEP104_;
+			padapter->securitypriv.privacy_algorithm = _WEP104_;
 			padapter->securitypriv.XGrpPrivacy = _WEP104_;
 		}
 		pwep->KeyIndex = wep_key_idx;
@@ -397,7 +397,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 			if (r8712_set_802_11_add_wep(padapter, pwep))
 				ret = -EOPNOTSUPP;
 		} else {
-			/* don't update "psecuritypriv->PrivacyAlgrthm" and
+			/* don't update "psecuritypriv->privacy_algorithm" and
 			 * "psecuritypriv->PrivacyKeyIndex=keyid", but can
 			 * r8712_set_key to fw/cam
 			 */
@@ -429,7 +429,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 				    Ndis802_11Encryption2Enabled ||
 				    spriv->ndisencryptstatus ==
 				    Ndis802_11Encryption3Enabled)
-					psta->XPrivacy = spriv->PrivacyAlgrthm;
+					psta->XPrivacy = spriv->privacy_algorithm;
 				if (param->u.crypt.set_tx == 1)
 					handle_pairwise_key(psta, param,
 							    padapter);
@@ -444,7 +444,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 				    spriv->ndisencryptstatus ==
 				    Ndis802_11Encryption3Enabled)
 					pbcmc_sta->XPrivacy =
-						spriv->PrivacyAlgrthm;
+						spriv->privacy_algorithm;
 			}
 		}
 	}
@@ -506,23 +506,23 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 		}
 		switch (pairwise_cipher) {
 		case WPA_CIPHER_NONE:
-			padapter->securitypriv.PrivacyAlgrthm = _NO_PRIVACY_;
+			padapter->securitypriv.privacy_algorithm = _NO_PRIVACY_;
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11EncryptionDisabled;
 			break;
 		case WPA_CIPHER_WEP40:
-			padapter->securitypriv.PrivacyAlgrthm = _WEP40_;
+			padapter->securitypriv.privacy_algorithm = _WEP40_;
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11Encryption1Enabled;
 			break;
 		case WPA_CIPHER_TKIP:
-			padapter->securitypriv.PrivacyAlgrthm = _TKIP_;
+			padapter->securitypriv.privacy_algorithm = _TKIP_;
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11Encryption2Enabled;
 			break;
 		case WPA_CIPHER_CCMP:
-			padapter->securitypriv.PrivacyAlgrthm = _AES_;
+			padapter->securitypriv.privacy_algorithm = _AES_;
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11Encryption3Enabled;
 			break;
 		case WPA_CIPHER_WEP104:
-			padapter->securitypriv.PrivacyAlgrthm = _WEP104_;
+			padapter->securitypriv.privacy_algorithm = _WEP104_;
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11Encryption1Enabled;
 			break;
 		}
@@ -1448,7 +1448,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		netdev_info(dev, "r8712u: %s: EncryptionDisabled\n", __func__);
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11EncryptionDisabled;
-		padapter->securitypriv.PrivacyAlgrthm = _NO_PRIVACY_;
+		padapter->securitypriv.privacy_algorithm = _NO_PRIVACY_;
 		padapter->securitypriv.XGrpPrivacy = _NO_PRIVACY_;
 		padapter->securitypriv.auth_algorithm = 0; /* open system */
 		authmode = Ndis802_11AuthModeOpen;
@@ -1470,7 +1470,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.auth_algorithm = 0; /* open system */
-		padapter->securitypriv.PrivacyAlgrthm = _NO_PRIVACY_;
+		padapter->securitypriv.privacy_algorithm = _NO_PRIVACY_;
 		padapter->securitypriv.XGrpPrivacy = _NO_PRIVACY_;
 		authmode = Ndis802_11AuthModeOpen;
 		padapter->securitypriv.ndisauthtype = authmode;
@@ -1480,7 +1480,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.auth_algorithm = 1; /* shared system */
-		padapter->securitypriv.PrivacyAlgrthm = _WEP40_;
+		padapter->securitypriv.privacy_algorithm = _WEP40_;
 		padapter->securitypriv.XGrpPrivacy = _WEP40_;
 		authmode = Ndis802_11AuthModeShared;
 		padapter->securitypriv.ndisauthtype = authmode;
@@ -1488,7 +1488,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.auth_algorithm = 0; /* open system */
-		padapter->securitypriv.PrivacyAlgrthm = _NO_PRIVACY_;
+		padapter->securitypriv.privacy_algorithm = _NO_PRIVACY_;
 		padapter->securitypriv.XGrpPrivacy = _NO_PRIVACY_;
 		authmode = Ndis802_11AuthModeOpen;
 		padapter->securitypriv.ndisauthtype = authmode;
@@ -1506,15 +1506,15 @@ static int r8711_wx_set_enc(struct net_device *dev,
 			padapter->securitypriv.PrivacyKeyIndex = key;
 			switch (padapter->securitypriv.DefKeylen[key]) {
 			case 5:
-				padapter->securitypriv.PrivacyAlgrthm =
+				padapter->securitypriv.privacy_algorithm =
 						 _WEP40_;
 				break;
 			case 13:
-				padapter->securitypriv.PrivacyAlgrthm =
+				padapter->securitypriv.privacy_algorithm =
 						 _WEP104_;
 				break;
 			default:
-				padapter->securitypriv.PrivacyAlgrthm =
+				padapter->securitypriv.privacy_algorithm =
 						 _NO_PRIVACY_;
 				break;
 			}
@@ -1668,7 +1668,7 @@ static int r871x_wx_set_auth(struct net_device *dev,
 		if (paramval) {
 			padapter->securitypriv.ndisencryptstatus =
 				   Ndis802_11EncryptionDisabled;
-			padapter->securitypriv.PrivacyAlgrthm =
+			padapter->securitypriv.privacy_algorithm =
 				  _NO_PRIVACY_;
 			padapter->securitypriv.XGrpPrivacy =
 				  _NO_PRIVACY_;

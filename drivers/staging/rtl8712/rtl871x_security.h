@@ -80,7 +80,7 @@ struct security_priv {
 	u32 auth_algorithm;		/* 802.11 auth, could be open, shared,
 					 * 8021x and authswitch
 					 */
-	u32 PrivacyAlgrthm;		/* This specify the privacy for shared
+	u32 privacy_algorithm;		/* This specify the privacy for shared
 					 * auth. algorithm.
 					 */
 	u32 PrivacyKeyIndex;		/* this is only valid for legendary
@@ -143,7 +143,7 @@ do { \
 	case 0: \
 	case 1: \
 	case 3: \
-		encry_algo = (u8)psecuritypriv->PrivacyAlgrthm; \
+		encry_algo = (u8)psecuritypriv->privacy_algorithm; \
 		break; \
 	case 2: \
 		if (bmcst) \

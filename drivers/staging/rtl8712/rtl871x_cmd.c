@@ -407,8 +407,8 @@ int r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		 * to avoid some IOT issues, especially for Realtek 8192u
 		 * SoftAP.
 		 */
-		if ((padapter->securitypriv.PrivacyAlgrthm != _WEP40_) &&
-		    (padapter->securitypriv.PrivacyAlgrthm != _WEP104_)) {
+		if ((padapter->securitypriv.privacy_algorithm != _WEP40_) &&
+		    (padapter->securitypriv.privacy_algorithm != _WEP104_)) {
 			/* restructure_ht_ie */
 			r8712_restructure_ht_ie(padapter,
 						&pnetwork->network.IEs[0],
@@ -522,7 +522,7 @@ void r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 	ether_addr_copy(psetstakey_para->addr, sta->hwaddr);
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		psetstakey_para->algorithm = (unsigned char)
-					    psecuritypriv->PrivacyAlgrthm;
+					    psecuritypriv->privacy_algorithm;
 	else
 		GET_ENCRY_ALGO(psecuritypriv, sta, psetstakey_para->algorithm, false);
 	if (unicast_key)
