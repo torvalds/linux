@@ -16,6 +16,7 @@ config SND_SOC_LOONGSON_CARD
 config SND_SOC_LOONGSON_I2S_PCI
 	tristate "Loongson I2S-PCI Device Driver"
 	depends on LOONGARCH || COMPILE_TEST
+	depends on PCI
 	select REGMAP_MMIO
 	help
 	  Say Y or M if you want to add support for I2S driver for
