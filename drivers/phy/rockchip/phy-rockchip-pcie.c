@@ -163,13 +163,17 @@ static int rockchip_pcie_phy_power_on(struct phy *phy)
 
 	mutex_lock(&rk_phy->pcie_mutex);
 
-	if (rk_phy->pwr_cnt++)
-		goto err_out;
+	if (rk_phy->pwr_cnt++) {
+		mutex_unlock(&rk_phy->pcie_mutex);
+		return 0;
+	}
 
 	err = reset_control_deassert(rk_phy->phy_rst);
 	if (err) {
 		dev_err(&phy->dev, "deassert phy_rst err %d\n", err);
-		goto err_pwr_cnt;
+		rk_phy->pwr_cnt--;
+		mutex_unlock(&rk_phy->pcie_mutex);
+		return err;
 	}
 
 	regmap_write(rk_phy->reg_base, rk_phy->phy_data->pcie_conf,
@@ -226,13 +230,11 @@ static int rockchip_pcie_phy_power_on(struct phy *phy)
 		goto err_pll_lock;
 	}
 
-err_out:
 	mutex_unlock(&rk_phy->pcie_mutex);
-	return 0;
+	return err;
 
 err_pll_lock:
 	reset_control_assert(rk_phy->phy_rst);
-err_pwr_cnt:
 	rk_phy->pwr_cnt--;
 	mutex_unlock(&rk_phy->pcie_mutex);
 	return err;
