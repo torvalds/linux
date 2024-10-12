@@ -273,7 +273,7 @@ static inline void sg_unmark_end(struct scatterlist *sg)
 }
 
 /*
- * One 64-bit architectures there is a 4-byte padding in struct scatterlist
+ * On 64-bit architectures there is a 4-byte padding in struct scatterlist
  * (assuming also CONFIG_NEED_SG_DMA_LENGTH is set). Use this padding for DMA
  * flags bits to indicate when a specific dma address is a bus address or the
  * buffer may have been bounced via SWIOTLB.
