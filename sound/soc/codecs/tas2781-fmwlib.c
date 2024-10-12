@@ -20,7 +20,7 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/tas2781.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ERROR_PRAM_CRCCHK			0x0000000
 #define ERROR_YRAM_CRCCHK			0x0000001

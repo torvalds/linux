@@ -20,7 +20,7 @@
 #include <linux/cdrom.h>
 #include <linux/ratelimit.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>

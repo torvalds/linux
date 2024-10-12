@@ -27,7 +27,7 @@
 #ifndef __L2CAP_H
 #define __L2CAP_H
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 
 /* L2CAP defaults */

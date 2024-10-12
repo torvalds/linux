@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -33,8 +34,6 @@
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-
-#include <asm/unaligned.h>
 
 #define MAX1363_SETUP_BYTE(a) ((a) | 0x80)
 

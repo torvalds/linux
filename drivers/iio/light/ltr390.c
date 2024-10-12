@@ -31,7 +31,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/events.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define LTR390_MAIN_CTRL		0x00
 #define LTR390_ALS_UVS_MEAS_RATE	0x04

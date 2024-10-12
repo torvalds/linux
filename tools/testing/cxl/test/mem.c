@@ -9,7 +9,7 @@
 #include <linux/sizes.h>
 #include <linux/bits.h>
 #include <cxl/mailbox.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/sha2.h>
 #include <cxlmem.h>
 

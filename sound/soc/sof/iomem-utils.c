@@ -10,7 +10,7 @@
 
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/platform_device.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include "sof-priv.h"

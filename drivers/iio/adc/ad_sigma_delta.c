@@ -23,7 +23,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/adc/ad_sigma_delta.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 #define AD_SD_COMM_CHAN_MASK	0x3
