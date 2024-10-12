@@ -836,7 +836,8 @@ static void nsim_dev_trap_report_work(struct work_struct *work)
 	nsim_dev = nsim_trap_data->nsim_dev;
 
 	if (!devl_trylock(priv_to_devlink(nsim_dev))) {
-		schedule_delayed_work(&nsim_dev->trap_data->trap_report_dw, 1);
+		queue_delayed_work(system_unbound_wq,
+				   &nsim_dev->trap_data->trap_report_dw, 1);
 		return;
 	}
 
@@ -848,11 +849,12 @@ static void nsim_dev_trap_report_work(struct work_struct *work)
 			continue;
 
 		nsim_dev_trap_report(nsim_dev_port);
+		cond_resched();
 	}
 	devl_unlock(priv_to_devlink(nsim_dev));
-
-	schedule_delayed_work(&nsim_dev->trap_data->trap_report_dw,
-			      msecs_to_jiffies(NSIM_TRAP_REPORT_INTERVAL_MS));
+	queue_delayed_work(system_unbound_wq,
+			   &nsim_dev->trap_data->trap_report_dw,
+			   msecs_to_jiffies(NSIM_TRAP_REPORT_INTERVAL_MS));
 }
 
 static int nsim_dev_traps_init(struct devlink *devlink)
@@ -907,8 +909,9 @@ static int nsim_dev_traps_init(struct devlink *devlink)
 
 	INIT_DELAYED_WORK(&nsim_dev->trap_data->trap_report_dw,
 			  nsim_dev_trap_report_work);
-	schedule_delayed_work(&nsim_dev->trap_data->trap_report_dw,
-			      msecs_to_jiffies(NSIM_TRAP_REPORT_INTERVAL_MS));
+	queue_delayed_work(system_unbound_wq,
+			   &nsim_dev->trap_data->trap_report_dw,
+			   msecs_to_jiffies(NSIM_TRAP_REPORT_INTERVAL_MS));
 
 	return 0;
 
