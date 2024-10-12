@@ -124,6 +124,11 @@ int bch2_stripe_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "incorrect value size (%zu < %u)",
 			 bkey_val_u64s(k.k), stripe_val_u64s(s));
 
+	bkey_fsck_err_on(s->csum_granularity_bits >= 64,
+			 c, stripe_csum_granularity_bad,
+			 "invalid csum granularity (%u >= 64)",
+			 s->csum_granularity_bits);
+
 	ret = bch2_bkey_ptrs_validate(c, k, flags);
 fsck_err:
 	return ret;
@@ -145,7 +150,11 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 		   nr_data,
 		   s.nr_redundant);
 	bch2_prt_csum_type(out, s.csum_type);
-	prt_printf(out, " gran %u", 1U << s.csum_granularity_bits);
+	prt_str(out, " gran ");
+	if (s.csum_granularity_bits < 64)
+		prt_printf(out, "%llu", 1ULL << s.csum_granularity_bits);
+	else
+		prt_printf(out, "(invalid shift %u)", s.csum_granularity_bits);
 
 	if (s.disk_label) {
 		prt_str(out, " label");
