@@ -244,10 +244,10 @@ void bch2_accounting_swab(struct bkey_s k)
 }
 
 static inline void __accounting_to_replicas(struct bch_replicas_entry_v1 *r,
-					    struct disk_accounting_pos acc)
+					    struct disk_accounting_pos *acc)
 {
-	unsafe_memcpy(r, &acc.replicas,
-		      replicas_entry_bytes(&acc.replicas),
+	unsafe_memcpy(r, &acc->replicas,
+		      replicas_entry_bytes(&acc->replicas),
 		      "variable length struct");
 }
 
@@ -258,7 +258,7 @@ static inline bool accounting_to_replicas(struct bch_replicas_entry_v1 *r, struc
 
 	switch (acc_k.type) {
 	case BCH_DISK_ACCOUNTING_replicas:
-		__accounting_to_replicas(r, acc_k);
+		__accounting_to_replicas(r, &acc_k);
 		return true;
 	default:
 		return false;
@@ -626,7 +626,7 @@ static int bch2_disk_accounting_validate_late(struct btree_trans *trans,
 	switch (acc.type) {
 	case BCH_DISK_ACCOUNTING_replicas: {
 		struct bch_replicas_padded r;
-		__accounting_to_replicas(&r.e, acc);
+		__accounting_to_replicas(&r.e, &acc);
 
 		for (unsigned i = 0; i < r.e.nr_devs; i++)
 			if (r.e.devs[i] != BCH_SB_MEMBER_INVALID &&
