@@ -21982,11 +21982,6 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/sm750fb/
 
-STAGING - VIA VT665X DRIVERS
-M:	Philipp Hortmann <philipp.g.hortmann@gmail.com>
-S:	Odd Fixes
-F:	drivers/staging/vt665?/
-
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-staging@lists.linux.dev
