@@ -124,7 +124,7 @@ static int rockchip_pcie_phy_power_off(struct phy *phy)
 	struct rockchip_pcie_phy *rk_phy = to_pcie_phy(inst);
 	int err = 0;
 
-	mutex_lock(&rk_phy->pcie_mutex);
+	guard(mutex)(&rk_phy->pcie_mutex);
 
 	regmap_write(rk_phy->reg_base,
 		     rk_phy->phy_data->pcie_laneoff,
@@ -133,7 +133,6 @@ static int rockchip_pcie_phy_power_off(struct phy *phy)
 				   PHY_LANE_IDLE_A_SHIFT + inst->index));
 
 	if (--rk_phy->pwr_cnt) {
-		mutex_unlock(&rk_phy->pcie_mutex);
 		return 0;
 	}
 
@@ -146,11 +145,9 @@ static int rockchip_pcie_phy_power_off(struct phy *phy)
 			     HIWORD_UPDATE(!PHY_LANE_IDLE_OFF,
 					   PHY_LANE_IDLE_MASK,
 					   PHY_LANE_IDLE_A_SHIFT + inst->index));
-		mutex_unlock(&rk_phy->pcie_mutex);
 		return err;
 	}
 
-	mutex_unlock(&rk_phy->pcie_mutex);
 	return err;
 }
 
@@ -161,10 +158,9 @@ static int rockchip_pcie_phy_power_on(struct phy *phy)
 	int err = 0;
 	u32 status;
 
-	mutex_lock(&rk_phy->pcie_mutex);
+	guard(mutex)(&rk_phy->pcie_mutex);
 
 	if (rk_phy->pwr_cnt++) {
-		mutex_unlock(&rk_phy->pcie_mutex);
 		return 0;
 	}
 
@@ -172,7 +168,6 @@ static int rockchip_pcie_phy_power_on(struct phy *phy)
 	if (err) {
 		dev_err(&phy->dev, "deassert phy_rst err %d\n", err);
 		rk_phy->pwr_cnt--;
-		mutex_unlock(&rk_phy->pcie_mutex);
 		return err;
 	}
 
@@ -230,13 +225,11 @@ static int rockchip_pcie_phy_power_on(struct phy *phy)
 		goto err_pll_lock;
 	}
 
-	mutex_unlock(&rk_phy->pcie_mutex);
 	return err;
 
 err_pll_lock:
 	reset_control_assert(rk_phy->phy_rst);
 	rk_phy->pwr_cnt--;
-	mutex_unlock(&rk_phy->pcie_mutex);
 	return err;
 }
 
@@ -246,10 +239,9 @@ static int rockchip_pcie_phy_init(struct phy *phy)
 	struct rockchip_pcie_phy *rk_phy = to_pcie_phy(inst);
 	int err = 0;
 
-	mutex_lock(&rk_phy->pcie_mutex);
+	guard(mutex)(&rk_phy->pcie_mutex);
 
 	if (rk_phy->init_cnt++) {
-		mutex_unlock(&rk_phy->pcie_mutex);
 		return 0;
 	}
 
@@ -257,11 +249,9 @@ static int rockchip_pcie_phy_init(struct phy *phy)
 	if (err) {
 		dev_err(&phy->dev, "assert phy_rst err %d\n", err);
 		rk_phy->init_cnt--;
-		mutex_unlock(&rk_phy->pcie_mutex);
 		return err;
 	}
 
-	mutex_unlock(&rk_phy->pcie_mutex);
 	return err;
 }
 
@@ -270,13 +260,12 @@ static int rockchip_pcie_phy_exit(struct phy *phy)
 	struct phy_pcie_instance *inst = phy_get_drvdata(phy);
 	struct rockchip_pcie_phy *rk_phy = to_pcie_phy(inst);
 
-	mutex_lock(&rk_phy->pcie_mutex);
+	guard(mutex)(&rk_phy->pcie_mutex);
 
 	if (--rk_phy->init_cnt)
 		goto err_init_cnt;
 
 err_init_cnt:
-	mutex_unlock(&rk_phy->pcie_mutex);
 	return 0;
 }
 
