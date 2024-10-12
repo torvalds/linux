@@ -51,6 +51,9 @@
 
 #define PERFPROBE_GROUP "probe"
 
+/* Defined in kernel/trace/trace.h */
+#define MAX_EVENT_NAME_LEN	64
+
 bool probe_event_dry_run;	/* Dry run flag */
 struct probe_conf probe_conf = { .magic_num = DEFAULT_PROBE_MAGIC_NUM };
 
@@ -2841,7 +2844,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 				       bool allow_suffix)
 {
 	const char *event, *group;
-	char buf[64];
+	char buf[MAX_EVENT_NAME_LEN];
 	int ret;
 
 	/* If probe_event or trace_event already have the name, reuse it */
