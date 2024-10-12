@@ -6299,9 +6299,6 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 		}
 	}
 
-	if (err)
-		goto ERR;
-
 ERR:
 	if (need_scaler)
 		ia_css_pipe_destroy_cas_scaler_desc(&cas_scaler_descr);
