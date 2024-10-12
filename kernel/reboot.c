@@ -72,6 +72,13 @@ static bool poweroff_fallback_to_halt;
  */
 void __weak (*pm_power_off)(void);
 
+/*
+ *	Notifier list for kernel code which wants to be called
+ *	at shutdown. This is used to stop any idling DMA operations
+ *	and the like.
+ */
+static BLOCKING_NOTIFIER_HEAD(reboot_notifier_list);
+
 /**
  *	emergency_restart - reboot the system
  *
