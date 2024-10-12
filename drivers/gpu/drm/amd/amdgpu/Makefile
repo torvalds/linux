@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2017-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -200,6 +200,7 @@ amdgpu-y += \
 	vcn_v4_0_3.o \
 	vcn_v4_0_5.o \
 	vcn_v5_0_0.o \
+	vcn_v5_0_1.o \
 	amdgpu_jpeg.o \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
