@@ -228,7 +228,7 @@ int __aa_path_perm(const char *op, const struct cred *subj_cred,
 	int e = 0;
 
 	if (profile_unconfined(profile) ||
-	    ((flags & PATH_SOCK_COND) && !RULE_MEDIATES_NET(rules)))
+	    ((flags & PATH_SOCK_COND) && !RULE_MEDIATES_v9NET(rules)))
 		return 0;
 	aa_str_perms(rules->file, rules->file->start[AA_CLASS_FILE],
 		     name, cond, perms);
