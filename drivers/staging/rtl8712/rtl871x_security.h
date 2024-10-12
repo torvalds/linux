@@ -77,7 +77,7 @@ struct RT_PMKID_LIST {
 };
 
 struct security_priv {
-	u32 AuthAlgrthm;		/* 802.11 auth, could be open, shared,
+	u32 auth_algorithm;		/* 802.11 auth, could be open, shared,
 					 * 8021x and authswitch
 					 */
 	u32 PrivacyAlgrthm;		/* This specify the privacy for shared
@@ -139,7 +139,7 @@ struct security_priv {
 
 #define GET_ENCRY_ALGO(psecuritypriv, psta, encry_algo, bmcst) \
 do { \
-	switch (psecuritypriv->AuthAlgrthm) { \
+	switch (psecuritypriv->auth_algorithm) { \
 	case 0: \
 	case 1: \
 	case 3: \

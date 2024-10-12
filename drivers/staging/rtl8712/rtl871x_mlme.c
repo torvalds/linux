@@ -768,7 +768,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 					ptarget_sta->aid = pnetwork->join_res;
 					ptarget_sta->qos_option = 1;
 					ptarget_sta->mac_id = 5;
-					if (adapter->securitypriv.AuthAlgrthm == 2) {
+					if (adapter->securitypriv.auth_algorithm == 2) {
 						adapter->securitypriv.binstallGrpkey = false;
 						adapter->securitypriv.busetkipkey = false;
 						adapter->securitypriv.bgrpkey_handshake = false;
@@ -869,7 +869,7 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 	psta->mac_id = le32_to_cpu(pstassoc->cam_id);
 	/* psta->aid = (uint)pstassoc->cam_id; */
 
-	if (adapter->securitypriv.AuthAlgrthm == 2)
+	if (adapter->securitypriv.auth_algorithm == 2)
 		psta->XPrivacy = adapter->securitypriv.PrivacyAlgrthm;
 	psta->ieee8021x_blocked = false;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
@@ -1131,7 +1131,7 @@ int r8712_set_auth(struct _adapter *adapter,
 		kfree(pcmd);
 		return -ENOMEM;
 	}
-	psetauthparm->mode = (u8)psecuritypriv->AuthAlgrthm;
+	psetauthparm->mode = (u8)psecuritypriv->auth_algorithm;
 	pcmd->cmdcode = _SetAuth_CMD_;
 	pcmd->parmbuf = (unsigned char *)psetauthparm;
 	pcmd->cmdsz = sizeof(struct setauth_parm);
@@ -1160,7 +1160,7 @@ int r8712_set_key(struct _adapter *adapter,
 		ret = -ENOMEM;
 		goto err_free_cmd;
 	}
-	if (psecuritypriv->AuthAlgrthm == 2) { /* 802.1X */
+	if (psecuritypriv->auth_algorithm == 2) { /* 802.1X */
 		psetkeyparm->algorithm =
 			 (u8)psecuritypriv->XGrpPrivacy;
 	} else { /* WEP */

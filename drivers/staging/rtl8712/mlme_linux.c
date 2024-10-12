@@ -92,7 +92,7 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 
 	r8712_indicate_wx_disassoc_event(adapter);
 	netif_carrier_off(adapter->pnetdev);
-	if (adapter->securitypriv.AuthAlgrthm == 2) { /*/802.1x*/
+	if (adapter->securitypriv.auth_algorithm == 2) { /*/802.1x*/
 		/* We have to backup the PMK information for WiFi PMK Caching
 		 * test item. Backup the btkip_countermeasure information.
 		 * When the countermeasure is trigger, the driver have to
@@ -121,7 +121,7 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 	} else { /*reset values in securitypriv*/
 		struct security_priv *sec_priv = &adapter->securitypriv;
 
-		sec_priv->AuthAlgrthm = 0; /*open system*/
+		sec_priv->auth_algorithm = 0; /*open system*/
 		sec_priv->PrivacyAlgrthm = _NO_PRIVACY_;
 		sec_priv->PrivacyKeyIndex = 0;
 		sec_priv->XGrpPrivacy = _NO_PRIVACY_;

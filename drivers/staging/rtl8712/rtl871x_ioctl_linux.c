@@ -325,18 +325,18 @@ static int wpa_set_auth_algs(struct net_device *dev, u32 value)
 						 Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.ndisauthtype =
 						 Ndis802_11AuthModeAutoSwitch;
-		padapter->securitypriv.AuthAlgrthm = 3;
+		padapter->securitypriv.auth_algorithm = 3;
 	} else if (value & AUTH_ALG_SHARED_KEY) {
 		padapter->securitypriv.ndisencryptstatus =
 						 Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeShared;
-		padapter->securitypriv.AuthAlgrthm = 1;
+		padapter->securitypriv.auth_algorithm = 1;
 	} else if (value & AUTH_ALG_OPEN_SYSTEM) {
 		if (padapter->securitypriv.ndisauthtype <
 						 Ndis802_11AuthModeWPAPSK) {
 			padapter->securitypriv.ndisauthtype =
 						 Ndis802_11AuthModeOpen;
-			padapter->securitypriv.AuthAlgrthm = 0;
+			padapter->securitypriv.auth_algorithm = 0;
 		}
 	} else {
 		ret = -EINVAL;
@@ -414,7 +414,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		}
 		goto exit;
 	}
-	if (padapter->securitypriv.AuthAlgrthm == 2) { /* 802_1x */
+	if (padapter->securitypriv.auth_algorithm == 2) { /* 802_1x */
 		struct sta_info *psta, *pbcmc_sta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 		struct security_priv *spriv = &padapter->securitypriv;
@@ -472,13 +472,13 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 		}
 		if (r8712_parse_wpa_ie(buf, ielen, &group_cipher,
 				       &pairwise_cipher) == 0) {
-			padapter->securitypriv.AuthAlgrthm = 2;
+			padapter->securitypriv.auth_algorithm = 2;
 			padapter->securitypriv.ndisauthtype =
 				  Ndis802_11AuthModeWPAPSK;
 		}
 		if (r8712_parse_wpa2_ie(buf, ielen, &group_cipher,
 					&pairwise_cipher) == 0) {
-			padapter->securitypriv.AuthAlgrthm = 2;
+			padapter->securitypriv.auth_algorithm = 2;
 			padapter->securitypriv.ndisauthtype =
 				  Ndis802_11AuthModeWPA2PSK;
 		}
@@ -1450,7 +1450,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 				 Ndis802_11EncryptionDisabled;
 		padapter->securitypriv.PrivacyAlgrthm = _NO_PRIVACY_;
 		padapter->securitypriv.XGrpPrivacy = _NO_PRIVACY_;
-		padapter->securitypriv.AuthAlgrthm = 0; /* open system */
+		padapter->securitypriv.auth_algorithm = 0; /* open system */
 		authmode = Ndis802_11AuthModeOpen;
 		padapter->securitypriv.ndisauthtype = authmode;
 		return 0;
@@ -1469,7 +1469,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 		netdev_info(dev, "r8712u: %s: IW_ENCODE_OPEN\n", __func__);
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11Encryption1Enabled;
-		padapter->securitypriv.AuthAlgrthm = 0; /* open system */
+		padapter->securitypriv.auth_algorithm = 0; /* open system */
 		padapter->securitypriv.PrivacyAlgrthm = _NO_PRIVACY_;
 		padapter->securitypriv.XGrpPrivacy = _NO_PRIVACY_;
 		authmode = Ndis802_11AuthModeOpen;
@@ -1479,7 +1479,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 				"r8712u: %s: IW_ENCODE_RESTRICTED\n", __func__);
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11Encryption1Enabled;
-		padapter->securitypriv.AuthAlgrthm = 1; /* shared system */
+		padapter->securitypriv.auth_algorithm = 1; /* shared system */
 		padapter->securitypriv.PrivacyAlgrthm = _WEP40_;
 		padapter->securitypriv.XGrpPrivacy = _WEP40_;
 		authmode = Ndis802_11AuthModeShared;
@@ -1487,7 +1487,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 	} else {
 		padapter->securitypriv.ndisencryptstatus =
 				 Ndis802_11Encryption1Enabled;
-		padapter->securitypriv.AuthAlgrthm = 0; /* open system */
+		padapter->securitypriv.auth_algorithm = 0; /* open system */
 		padapter->securitypriv.PrivacyAlgrthm = _NO_PRIVACY_;
 		padapter->securitypriv.XGrpPrivacy = _NO_PRIVACY_;
 		authmode = Ndis802_11AuthModeOpen;
@@ -1672,7 +1672,7 @@ static int r871x_wx_set_auth(struct net_device *dev,
 				  _NO_PRIVACY_;
 			padapter->securitypriv.XGrpPrivacy =
 				  _NO_PRIVACY_;
-			padapter->securitypriv.AuthAlgrthm = 0;
+			padapter->securitypriv.auth_algorithm = 0;
 			padapter->securitypriv.ndisauthtype =
 				  Ndis802_11AuthModeOpen;
 		}
@@ -2017,7 +2017,7 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 
 	switch (name) {
 	case IEEE_PARAM_WPA_ENABLED:
-		padapter->securitypriv.AuthAlgrthm = 2; /* 802.1x */
+		padapter->securitypriv.auth_algorithm = 2; /* 802.1x */
 		switch ((value) & 0xff) {
 		case 1: /* WPA */
 			padapter->securitypriv.ndisauthtype =

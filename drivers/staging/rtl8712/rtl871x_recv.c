@@ -240,7 +240,7 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 	pfhdr = &precv_frame->u.hdr;
 	psta_addr = pfhdr->attrib.ta;
 	psta = r8712_get_stainfo(pstapriv, psta_addr);
-	auth_alg = adapter->securitypriv.AuthAlgrthm;
+	auth_alg = adapter->securitypriv.auth_algorithm;
 	if (auth_alg == 2) {
 		/* get ether_type */
 		ptr = ptr + pfhdr->attrib.hdrlen + LLC_HEADER_SIZE;

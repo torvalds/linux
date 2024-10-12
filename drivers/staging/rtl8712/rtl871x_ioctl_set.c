@@ -318,7 +318,7 @@ u8 r8712_set_802_11_authentication_mode(struct _adapter *padapter,
 
 	psecuritypriv->ndisauthtype = authmode;
 	if (psecuritypriv->ndisauthtype > 3)
-		psecuritypriv->AuthAlgrthm = 2; /* 802.1x */
+		psecuritypriv->auth_algorithm = 2; /* 802.1x */
 	if (r8712_set_auth(padapter, psecuritypriv))
 		ret = false;
 	else
