@@ -318,7 +318,6 @@ static inline void jbd2_data_do_escape(char *data)
  *
  *
  * Return value:
- *  <0: Error
  *  =0: Finished OK without escape
  *  =1: Finished OK with escape
  */
@@ -386,12 +385,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 			goto escape_done;
 
 		spin_unlock(&jh_in->b_state_lock);
-		tmp = jbd2_alloc(bh_in->b_size, GFP_NOFS);
-		if (!tmp) {
-			brelse(new_bh);
-			free_buffer_head(new_bh);
-			return -ENOMEM;
-		}
+		tmp = jbd2_alloc(bh_in->b_size, GFP_NOFS | __GFP_NOFAIL);
 		spin_lock(&jh_in->b_state_lock);
 		if (jh_in->b_frozen_data) {
 			jbd2_free(tmp, bh_in->b_size);
