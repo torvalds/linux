@@ -2760,7 +2760,10 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	/* Try no suffix number */
 	ret = e_snprintf(buf, len, "%s%s", nbase, ret_event ? "__return" : "");
 	if (ret < 0) {
-		pr_warning("snprintf() failed: %d; the event name nbase='%s' is too long\n", ret, nbase);
+		pr_warning("snprintf() failed: %d; the event name '%s' is too long\n"
+			   "  Hint: Set a shorter event with syntax \"EVENT=PROBEDEF\"\n"
+			   "        EVENT: Event name (max length: %d bytes).\n",
+			   ret, nbase, MAX_EVENT_NAME_LEN);
 		goto out;
 	}
 	if (!strlist__has_entry(namelist, buf))
@@ -2780,7 +2783,10 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	for (i = 1; i < MAX_EVENT_INDEX; i++) {
 		ret = e_snprintf(buf, len, "%s_%d", nbase, i);
 		if (ret < 0) {
-			pr_debug("snprintf() failed: %d\n", ret);
+			pr_warning("Add suffix failed: %d; the event name '%s' is too long\n"
+				   "  Hint: Set a shorter event with syntax \"EVENT=PROBEDEF\"\n"
+				   "        EVENT: Event name (max length: %d bytes).\n",
+				   ret, nbase, MAX_EVENT_NAME_LEN);
 			goto out;
 		}
 		if (!strlist__has_entry(namelist, buf))
