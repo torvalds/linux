@@ -989,7 +989,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		} },
 	},
 };
-const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id cx231xx_id_table[] = {
