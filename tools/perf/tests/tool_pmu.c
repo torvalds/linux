@@ -22,7 +22,7 @@ static int do_test(enum tool_pmu_event ev, bool with_pmu)
 	if (with_pmu)
 		snprintf(str, sizeof(str), "tool/%s/", tool_pmu__event_to_str(ev));
 	else
-		strncpy(str, tool_pmu__event_to_str(ev), sizeof(str));
+		snprintf(str, sizeof(str), "%s", tool_pmu__event_to_str(ev));
 
 	parse_events_error__init(&err);
 	ret = parse_events(evlist, str, &err);
