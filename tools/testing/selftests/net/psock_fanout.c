@@ -279,6 +279,41 @@ static int sock_fanout_read(int fds[], char *rings[], const int expect[])
 	return 0;
 }
 
+/* Test that creating/joining a fanout group fails for unbound socket without
+ * a specified protocol
+ */
+static void test_unbound_fanout(void)
+{
+	int val, fd0, fd1, err;
+
+	fprintf(stderr, "test: unbound fanout\n");
+	fd0 = socket(PF_PACKET, SOCK_RAW, 0);
+	if (fd0 < 0) {
+		perror("socket packet");
+		exit(1);
+	}
+	/* Try to create a new fanout group. Should fail. */
+	val = (PACKET_FANOUT_HASH << 16) | 1;
+	err = setsockopt(fd0, SOL_PACKET, PACKET_FANOUT, &val, sizeof(val));
+	if (!err) {
+		fprintf(stderr, "ERROR: unbound socket fanout create\n");
+		exit(1);
+	}
+	fd1 = sock_fanout_open(PACKET_FANOUT_HASH, 1);
+	if (fd1 == -1) {
+		fprintf(stderr, "ERROR: failed to open HASH socket\n");
+		exit(1);
+	}
+	/* Try to join an existing fanout group. Should fail. */
+	err = setsockopt(fd0, SOL_PACKET, PACKET_FANOUT, &val, sizeof(val));
+	if (!err) {
+		fprintf(stderr, "ERROR: unbound socket fanout join\n");
+		exit(1);
+	}
+	close(fd0);
+	close(fd1);
+}
+
 /* Test illegal mode + flag combination */
 static void test_control_single(void)
 {
@@ -523,6 +558,7 @@ int main(int argc, char **argv)
 	const int expect_uniqueid[2][2] = { { 20, 20},  { 20, 20 } };
 	int port_off = 2, tries = 20, ret;
 
+	test_unbound_fanout();
 	test_control_single();
 	test_control_group(0);
 	test_control_group(1);
