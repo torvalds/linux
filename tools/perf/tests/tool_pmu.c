@@ -27,7 +27,6 @@ static int do_test(enum tool_pmu_event ev, bool with_pmu)
 	parse_events_error__init(&err);
 	ret = parse_events(evlist, str, &err);
 	if (ret) {
-		evlist__delete(evlist);
 		if (tool_pmu__skip_event(tool_pmu__event_to_str(ev))) {
 			ret = TEST_OK;
 			goto out;
