@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
+#include <linux/mutex.h>
 #include "../include/linux/atomisp_gmin_platform.h"
 #include <media/v4l2-device.h>
 
@@ -1527,7 +1528,6 @@ static void mt9m114_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
-	kfree(dev);
 }
 
 static int mt9m114_probe(struct i2c_client *client)
@@ -1538,9 +1538,13 @@ static int mt9m114_probe(struct i2c_client *client)
 	void *pdata;
 
 	/* Setup sensor configuration structure */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
+
+	ret = devm_mutex_init(&client->dev, &dev->input_lock);
+	if (ret)
+		return ret;
 
 	v4l2_i2c_subdev_init(&dev->sd, client, &mt9m114_ops);
 	pdata = gmin_camera_platform_data(&dev->sd,
@@ -1550,14 +1554,12 @@ static int mt9m114_probe(struct i2c_client *client)
 		ret = mt9m114_s_config(&dev->sd, client->irq, pdata);
 	if (!pdata || ret) {
 		v4l2_device_unregister_subdev(&dev->sd);
-		kfree(dev);
 		return ret;
 	}
 
 	ret = atomisp_register_i2c_module(&dev->sd, pdata);
 	if (ret) {
 		v4l2_device_unregister_subdev(&dev->sd);
-		kfree(dev);
 		/* Coverity CID 298095 - return on error */
 		return ret;
 	}
