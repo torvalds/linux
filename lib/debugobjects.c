@@ -13,6 +13,7 @@
 #include <linux/hash.h>
 #include <linux/kmemleak.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -86,6 +87,7 @@ static struct obj_pool pool_to_free = {
 
 static HLIST_HEAD(pool_boot);
 
+static unsigned long		avg_usage;
 static bool			obj_freeing;
 
 static int __data_racy			debug_objects_maxchain __read_mostly;
@@ -427,10 +429,30 @@ static struct debug_obj *lookup_object(void *addr, struct debug_bucket *b)
 	return NULL;
 }
 
+static void calc_usage(void)
+{
+	static DEFINE_RAW_SPINLOCK(avg_lock);
+	static unsigned long avg_period;
+	unsigned long cur, now = jiffies;
+
+	if (!time_after_eq(now, READ_ONCE(avg_period)))
+		return;
+
+	if (!raw_spin_trylock(&avg_lock))
+		return;
+
+	WRITE_ONCE(avg_period, now + msecs_to_jiffies(10));
+	cur = READ_ONCE(pool_global.stats.cur_used) * ODEBUG_FREE_WORK_MAX;
+	WRITE_ONCE(avg_usage, calc_load(avg_usage, EXP_5, cur));
+	raw_spin_unlock(&avg_lock);
+}
+
 static struct debug_obj *alloc_object(void *addr, struct debug_bucket *b,
 				      const struct debug_obj_descr *descr)
 {
 	struct debug_obj *obj;
+
+	calc_usage();
 
 	if (static_branch_likely(&obj_cache_enabled))
 		obj = pcpu_alloc();
@@ -450,14 +472,26 @@ static struct debug_obj *alloc_object(void *addr, struct debug_bucket *b,
 /* workqueue function to free objects. */
 static void free_obj_work(struct work_struct *work)
 {
-	bool free = true;
+	static unsigned long last_use_avg;
+	unsigned long cur_used, last_used, delta;
+	unsigned int max_free = 0;
 
 	WRITE_ONCE(obj_freeing, false);
+
+	/* Rate limit freeing based on current use average */
+	cur_used = READ_ONCE(avg_usage);
+	last_used = last_use_avg;
+	last_use_avg = cur_used;
 
 	if (!pool_count(&pool_to_free))
 		return;
 
-	for (unsigned int cnt = 0; cnt < ODEBUG_FREE_WORK_MAX; cnt++) {
+	if (cur_used <= last_used) {
+		delta = (last_used - cur_used) / ODEBUG_FREE_WORK_MAX;
+		max_free = min(delta, ODEBUG_FREE_WORK_MAX);
+	}
+
+	for (int cnt = 0; cnt < ODEBUG_FREE_WORK_MAX; cnt++) {
 		HLIST_HEAD(tofree);
 
 		/* Acquire and drop the lock for each batch */
@@ -468,9 +502,10 @@ static void free_obj_work(struct work_struct *work)
 			/* Refill the global pool if possible */
 			if (pool_move_batch(&pool_global, &pool_to_free)) {
 				/* Don't free as there seems to be demand */
-				free = false;
-			} else if (free) {
+				max_free = 0;
+			} else if (max_free) {
 				pool_pop_batch(&tofree, &pool_to_free);
+				max_free--;
 			} else {
 				return;
 			}
@@ -1110,7 +1145,7 @@ static int debug_stats_show(struct seq_file *m, void *v)
 	for_each_possible_cpu(cpu)
 		pcp_free += per_cpu(pool_pcpu.cnt, cpu);
 
-	pool_used = data_race(pool_global.stats.cur_used);
+	pool_used = READ_ONCE(pool_global.stats.cur_used);
 	pcp_free = min(pool_used, pcp_free);
 	pool_used -= pcp_free;
 
