@@ -46,6 +46,46 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 	return 0;
 }
 
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static __cold void common_tracking_show_fdinfo(struct io_ring_ctx *ctx,
+					       struct seq_file *m,
+					       const char *tracking_strategy)
+{
+	seq_puts(m, "NAPI:\tenabled\n");
+	seq_printf(m, "napi tracking:\t%s\n", tracking_strategy);
+	seq_printf(m, "napi_busy_poll_dt:\t%llu\n", ctx->napi_busy_poll_dt);
+	if (ctx->napi_prefer_busy_poll)
+		seq_puts(m, "napi_prefer_busy_poll:\ttrue\n");
+	else
+		seq_puts(m, "napi_prefer_busy_poll:\tfalse\n");
+}
+
+static __cold void napi_show_fdinfo(struct io_ring_ctx *ctx,
+				    struct seq_file *m)
+{
+	unsigned int mode = READ_ONCE(ctx->napi_track_mode);
+
+	switch (mode) {
+	case IO_URING_NAPI_TRACKING_INACTIVE:
+		seq_puts(m, "NAPI:\tdisabled\n");
+		break;
+	case IO_URING_NAPI_TRACKING_DYNAMIC:
+		common_tracking_show_fdinfo(ctx, m, "dynamic");
+		break;
+	case IO_URING_NAPI_TRACKING_STATIC:
+		common_tracking_show_fdinfo(ctx, m, "static");
+		break;
+	default:
+		seq_printf(m, "NAPI:\tunknown mode (%u)\n", mode);
+	}
+}
+#else
+static inline void napi_show_fdinfo(struct io_ring_ctx *ctx,
+				    struct seq_file *m)
+{
+}
+#endif
+
 /*
  * Caller holds a reference to the file already, we don't need to do
  * anything else to get an extra reference.
@@ -219,18 +259,6 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 
 	}
 	spin_unlock(&ctx->completion_lock);
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	if (ctx->napi_enabled) {
-		seq_puts(m, "NAPI:\tenabled\n");
-		seq_printf(m, "napi_busy_poll_dt:\t%llu\n", ctx->napi_busy_poll_dt);
-		if (ctx->napi_prefer_busy_poll)
-			seq_puts(m, "napi_prefer_busy_poll:\ttrue\n");
-		else
-			seq_puts(m, "napi_prefer_busy_poll:\tfalse\n");
-	} else {
-		seq_puts(m, "NAPI:\tdisabled\n");
-	}
-#endif
+	napi_show_fdinfo(ctx, m);
 }
 #endif

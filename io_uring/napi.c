@@ -81,6 +81,27 @@ int __io_napi_add_id(struct io_ring_ctx *ctx, unsigned int napi_id)
 	return 0;
 }
 
+static int __io_napi_del_id(struct io_ring_ctx *ctx, unsigned int napi_id)
+{
+	struct hlist_head *hash_list;
+	struct io_napi_entry *e;
+
+	/* Non-NAPI IDs can be rejected. */
+	if (napi_id < MIN_NAPI_ID)
+		return -EINVAL;
+
+	hash_list = &ctx->napi_ht[hash_min(napi_id, HASH_BITS(ctx->napi_ht))];
+	guard(spinlock)(&ctx->napi_lock);
+	e = io_napi_hash_find(hash_list, napi_id);
+	if (!e)
+		return -ENOENT;
+
+	list_del_rcu(&e->list);
+	hash_del_rcu(&e->node);
+	kfree_rcu(e, rcu);
+	return 0;
+}
+
 static void __io_napi_remove_stale(struct io_ring_ctx *ctx)
 {
 	struct io_napi_entry *e;
@@ -136,9 +157,25 @@ static bool io_napi_busy_loop_should_end(void *data,
 	return false;
 }
 
-static bool __io_napi_do_busy_loop(struct io_ring_ctx *ctx,
-				   bool (*loop_end)(void *, unsigned long),
-				   void *loop_end_arg)
+/*
+ * never report stale entries
+ */
+static bool static_tracking_do_busy_loop(struct io_ring_ctx *ctx,
+					 bool (*loop_end)(void *, unsigned long),
+					 void *loop_end_arg)
+{
+	struct io_napi_entry *e;
+
+	list_for_each_entry_rcu(e, &ctx->napi_list, list)
+		napi_busy_loop_rcu(e->napi_id, loop_end, loop_end_arg,
+				   ctx->napi_prefer_busy_poll, BUSY_POLL_BUDGET);
+	return false;
+}
+
+static bool
+dynamic_tracking_do_busy_loop(struct io_ring_ctx *ctx,
+			      bool (*loop_end)(void *, unsigned long),
+			      void *loop_end_arg)
 {
 	struct io_napi_entry *e;
 	bool is_stale = false;
@@ -152,6 +189,16 @@ static bool __io_napi_do_busy_loop(struct io_ring_ctx *ctx,
 	}
 
 	return is_stale;
+}
+
+static inline bool
+__io_napi_do_busy_loop(struct io_ring_ctx *ctx,
+		       bool (*loop_end)(void *, unsigned long),
+		       void *loop_end_arg)
+{
+	if (READ_ONCE(ctx->napi_track_mode) == IO_URING_NAPI_TRACKING_STATIC)
+		return static_tracking_do_busy_loop(ctx, loop_end, loop_end_arg);
+	return dynamic_tracking_do_busy_loop(ctx, loop_end, loop_end_arg);
 }
 
 static void io_napi_blocking_busy_loop(struct io_ring_ctx *ctx,
@@ -195,6 +242,7 @@ void io_napi_init(struct io_ring_ctx *ctx)
 	spin_lock_init(&ctx->napi_lock);
 	ctx->napi_prefer_busy_poll = false;
 	ctx->napi_busy_poll_dt = ns_to_ktime(sys_dt);
+	ctx->napi_track_mode = IO_URING_NAPI_TRACKING_INACTIVE;
 }
 
 /*
@@ -215,6 +263,24 @@ void io_napi_free(struct io_ring_ctx *ctx)
 	INIT_LIST_HEAD_RCU(&ctx->napi_list);
 }
 
+static int io_napi_register_napi(struct io_ring_ctx *ctx,
+				 struct io_uring_napi *napi)
+{
+	switch (napi->op_param) {
+	case IO_URING_NAPI_TRACKING_DYNAMIC:
+	case IO_URING_NAPI_TRACKING_STATIC:
+		break;
+	default:
+		return -EINVAL;
+	}
+	/* clean the napi list for new settings */
+	io_napi_free(ctx);
+	WRITE_ONCE(ctx->napi_track_mode, napi->op_param);
+	WRITE_ONCE(ctx->napi_busy_poll_dt, napi->busy_poll_to * NSEC_PER_USEC);
+	WRITE_ONCE(ctx->napi_prefer_busy_poll, !!napi->prefer_busy_poll);
+	return 0;
+}
+
 /*
  * io_napi_register() - Register napi with io-uring
  * @ctx: pointer to io-uring context structure
@@ -226,7 +292,8 @@ int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
 {
 	const struct io_uring_napi curr = {
 		.busy_poll_to 	  = ktime_to_us(ctx->napi_busy_poll_dt),
-		.prefer_busy_poll = ctx->napi_prefer_busy_poll
+		.prefer_busy_poll = ctx->napi_prefer_busy_poll,
+		.op_param	  = ctx->napi_track_mode
 	};
 	struct io_uring_napi napi;
 
@@ -234,16 +301,26 @@ int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
 		return -EINVAL;
 	if (copy_from_user(&napi, arg, sizeof(napi)))
 		return -EFAULT;
-	if (napi.pad[0] || napi.pad[1] || napi.pad[2] || napi.resv)
+	if (napi.pad[0] || napi.pad[1] || napi.resv)
 		return -EINVAL;
 
 	if (copy_to_user(arg, &curr, sizeof(curr)))
 		return -EFAULT;
 
-	WRITE_ONCE(ctx->napi_busy_poll_dt, napi.busy_poll_to * NSEC_PER_USEC);
-	WRITE_ONCE(ctx->napi_prefer_busy_poll, !!napi.prefer_busy_poll);
-	WRITE_ONCE(ctx->napi_enabled, true);
-	return 0;
+	switch (napi.opcode) {
+	case IO_URING_NAPI_REGISTER_OP:
+		return io_napi_register_napi(ctx, &napi);
+	case IO_URING_NAPI_STATIC_ADD_ID:
+		if (curr.op_param != IO_URING_NAPI_TRACKING_STATIC)
+			return -EINVAL;
+		return __io_napi_add_id(ctx, napi.op_param);
+	case IO_URING_NAPI_STATIC_DEL_ID:
+		if (curr.op_param != IO_URING_NAPI_TRACKING_STATIC)
+			return -EINVAL;
+		return __io_napi_del_id(ctx, napi.op_param);
+	default:
+		return -EINVAL;
+	}
 }
 
 /*
@@ -266,7 +343,7 @@ int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
 
 	WRITE_ONCE(ctx->napi_busy_poll_dt, 0);
 	WRITE_ONCE(ctx->napi_prefer_busy_poll, false);
-	WRITE_ONCE(ctx->napi_enabled, false);
+	WRITE_ONCE(ctx->napi_track_mode, IO_URING_NAPI_TRACKING_INACTIVE);
 	return 0;
 }
 

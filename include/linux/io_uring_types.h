@@ -408,7 +408,7 @@ struct io_ring_ctx {
 	/* napi busy poll default timeout */
 	ktime_t			napi_busy_poll_dt;
 	bool			napi_prefer_busy_poll;
-	bool			napi_enabled;
+	u8			napi_track_mode;
 
 	DECLARE_HASHTABLE(napi_ht, 4);
 #endif
