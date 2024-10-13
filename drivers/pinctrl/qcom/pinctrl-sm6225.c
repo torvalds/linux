@@ -474,8 +474,7 @@ static const char * const qdss_gpio_groups[] = {
 static const char * const atest_groups[] = {
 	"gpio0", "gpio1", "gpio2", "gpio3", "gpio4", "gpio5", "gpio6",
 	"gpio22", "gpio23", "gpio24", "gpio25", "gpio26", "gpio29", "gpio30",
-	"gpio31", "gpio32", "gpio33", "gpio86", "gpio87", "gpio88", "gpio89",
-	"gpio100", "gpio101",
+	"gpio31", "gpio32", "gpio33", "gpio86", "gpio89", "gpio100", "gpio101",
 };
 static const char * const mpm_pwr_groups[] = {
 	"gpio1",
@@ -645,11 +644,11 @@ static const char * const mdp_vsync_out_0_groups[] = {
 static const char * const mdp_vsync_out_1_groups[] = {
 	"gpio81",
 };
-static const char * const usb_phy_groups[] = {
-	"gpio89",
-};
 static const char * const usb2phy_ac_groups[] = {
 	"gpio0",
+};
+static const char * const usb_phy_groups[] = {
+	"gpio89",
 };
 static const char * const mss_lte_groups[] = {
 	"gpio90", "gpio91",

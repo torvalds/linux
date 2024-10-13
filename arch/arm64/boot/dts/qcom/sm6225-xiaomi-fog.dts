@@ -5,12 +5,9 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/input/gpio-keys.h>
-#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "sm6225.dtsi"
 #include "pm6125.dtsi"
+#include <dt-bindings/arm/qcom,ids.h>
 
 / {
 	/* required for bootloader to select correct board */
@@ -35,6 +32,23 @@
 			height = <1650>;
 			stride = <(720 * 4)>;
 			format = "a8r8g8b8";
+			clocks = <&gcc GCC_DISP_HF_AXI_CLK>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&vol_up_n>;
+		pinctrl-names = "default";
+
+		key-volume-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&pm6125_gpios 5 GPIO_ACTIVE_LOW>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			wakeup-source;
 		};
 	};
 
@@ -63,170 +77,200 @@
 		};
 	};
 
+	extcon_usb: usb-id {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpios = <&tlmm 102 GPIO_ACTIVE_HIGH>;
+	};
+
+};
+
+&pm6125_gpios {
+	vol_up_n: vol-up-n-state {
+		pins = "gpio5";
+		function = "normal";
+		power-source = <0>;
+		bias-pull-up;
+		input-enable;
+	};
+};
+
+&pon_pwrkey {
+	status = "okay";
+};
+
+&pon_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &rpm_requests {
 	regulators-0 {
 		compatible = "qcom,rpm-pm6125-regulators";
 
-		pm6125_s6: s6 {
+		pm6125_s6a: s6 {
 			regulator-min-microvolt = <304000>;
 			regulator-max-microvolt = <1456000>;
 		};
 
-		pm6125_s7: s7 {
+		pm6125_s7a: s7 {
 			regulator-min-microvolt = <1280000>;
-			regulator-max-microvolt = <2080000>;
+			regulator-max-microvolt = <2040000>;
 		};
 
-		pm6125_s8: s8 {
+		pm6125_s8a: s8 {
 			regulator-min-microvolt = <1064000>;
 			regulator-max-microvolt = <1304000>;
 		};
 
-		pm6125_l1: l1 {
+		pm6125_l1a: l1 {
 			regulator-min-microvolt = <952000>;
 			regulator-max-microvolt = <1152000>;
 		};
 
-		pm6125_l4: l4 {
+		pm6125_l4a: l4 {
 			regulator-min-microvolt = <488000>;
 			regulator-max-microvolt = <1000000>;
 		};
 
-		pm6125_l5: l5 {
+		pm6125_l5a: l5 {
 			regulator-min-microvolt = <1648000>;
-			/* 3.056V capped to 2.96V for SDHCI */
-			regulator-max-microvolt = <2960000>;
-			regulator-allow-set-load;
-			/* Broken hw, this one can't be turned off or SDHCI will break! */
-			regulator-always-on;
+			regulator-max-microvolt = <3056000>;
 		};
 
-		pm6125_l6: l6 {
+		pm6125_l6a: l6 {
 			regulator-min-microvolt = <576000>;
 			regulator-max-microvolt = <656000>;
 		};
 
-		pm6125_l7: l7 {
-			/* 1.2V-1.304V fixed at 1.256V for SDHCI bias */
-			regulator-min-microvolt = <1256000>;
-			regulator-max-microvolt = <1256000>;
-			/*
-			 * TODO: SDHCI seems to also work with this one turned off, however
-			 * there exists a possibility that it may not work with some very
-			 * specific SDCard types, perhaps validating this against a wide
-			 * range of models could rule that out, saving some power would
-			 * certainly be nice..
-			 */
-			regulator-always-on;
+		pm6125_l7a: l7 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1304000>;
 		};
 
-		pm6125_l8: l8 {
+		pm6125_l8a: l8 {
 			regulator-min-microvolt = <400000>;
 			regulator-max-microvolt = <728000>;
 		};
 
-		pm6125_l9: l9 {
+		pm6125_l9a: l9 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2000000>;
 		};
 
-		pm6125_l10: l10 {
+		pm6125_l10a: l10 {
 			regulator-min-microvolt = <1704000>;
 			regulator-max-microvolt = <1904000>;
 		};
 
-		pm6125_l11: l11 {
+		pm6125_l11a: l11 {
 			regulator-min-microvolt = <1704000>;
 			regulator-max-microvolt = <1952000>;
+			regulator-allow-set-load;
 		};
 
-		pm6125_l12: l12 {
+		pm6125_l12a: l12 {
 			regulator-min-microvolt = <1624000>;
 			regulator-max-microvolt = <1984000>;
 		};
 
-		pm6125_l13: l13 {
+		pm6125_l13a: l13 {
 			regulator-min-microvolt = <1504000>;
 			regulator-max-microvolt = <1952000>;
 		};
 
-		pm6125_l14: l14 {
+		pm6125_l14a: l14 {
 			regulator-min-microvolt = <1704000>;
 			regulator-max-microvolt = <1904000>;
 		};
 
-		pm6125_l15: l15 {
+		pm6125_l15a: l15 {
 			regulator-min-microvolt = <2920000>;
 			regulator-max-microvolt = <3232000>;
 		};
 
-		pm6125_l16: l16 {
+		pm6125_l16a: l16 {
 			regulator-min-microvolt = <1704000>;
 			regulator-max-microvolt = <1904000>;
 		};
 
-		pm6125_l17: l17 {
+		pm6125_l17a: l17 {
 			regulator-min-microvolt = <1152000>;
 			regulator-max-microvolt = <1384000>;
 		};
 
-		pm6125_l18: l18 {
-			/* 1.104V-1.312V fixed @ 1.232V for DSIPHY */
-			regulator-min-microvolt = <1232000>;
-			regulator-max-microvolt = <1232000>;
+		pm6125_l18a: l18 {
+			regulator-min-microvolt = <1104000>;
+			regulator-max-microvolt = <1312000>;
 		};
 
-		pm6125_l19: l19 {
+		pm6125_l19a: l19 {
 			regulator-min-microvolt = <1624000>;
 			regulator-max-microvolt = <3304000>;
 		};
 
-		pm6125_l20: l20 {
+		pm6125_l20a: l20 {
 			regulator-min-microvolt = <1624000>;
 			regulator-max-microvolt = <3304000>;
 		};
 
-		pm6125_l21: l21 {
+		pm6125_l21a: l21 {
 			regulator-min-microvolt = <2400000>;
 			regulator-max-microvolt = <3600000>;
 		};
 
-		pm6125_l22: l22 {
+		pm6125_l22a: l22 {
 			regulator-min-microvolt = <2952000>;
-			/* 3.304V capped to 2.96V for SDHCI */
-			regulator-max-microvolt = <2960000>;
-			regulator-allow-set-load;
-			/* Broken hw, this one can't be turned off or SDHCI will break! */
-			regulator-always-on;
+			regulator-max-microvolt = <3304000>;
 		};
 
-		pm6125_l23: l23 {
+		pm6125_l23a: l23 {
 			regulator-min-microvolt = <3200000>;
 			regulator-max-microvolt = <3400000>;
 		};
 
-		pm6125_l24: l24 {
+		pm6125_l24a: l24 {
 			regulator-min-microvolt = <2704000>;
 			regulator-max-microvolt = <3600000>;
+			regulator-allow-set-load;
 		};
 	};
 };
 
+&sleep_clk {
+	clock-frequency = <32764>;
+};
 
+&tlmm {
+	gpio-reserved-ranges = <0 4>, <14 4>;
+};
 
-&ufs_mem_hc {
-	vcc-supply = <&pm6125_l24>;
-	vcc-max-microamp = <600000>;
-	vccq2-supply = <&pm6125_l11>;
-	vccq2-max-microamp = <600000>;
-	vdd-hba-supply = <&pm6125_l18>;
+&sdc2_state_off {
+	sd-cd-pins {
+		pins = "gpio98";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&sdc2_state_on {
+	sd-cd-pins {
+		pins = "gpio98";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 98 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&pm6125_l22a>;
+	vqmmc-supply = <&pm6125_l5a>;
+	no-sdio;
+	no-mmc;
 	status = "okay";
 };
 
-&ufs_mem_phy {
-	vdda-phy-supply = <&pm6125_l4>;
-	vdda-pll-supply = <&pm6125_l12>;
-	status = "okay";
+&xo_board {
+	clock-frequency = <19200000>;
 };
