@@ -276,7 +276,6 @@ quiet_cmd_wrap	= WRAP    $@
 
 image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
 image-$(CONFIG_PPC_POWERNV)		+= zImage.pseries
-image-$(CONFIG_PPC_MAPLE)		+= zImage.maple
 image-$(CONFIG_PPC_IBM_CELL_BLADE)	+= zImage.pseries
 image-$(CONFIG_PPC_PS3)			+= dtbImage.ps3
 image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
@@ -444,7 +443,7 @@ $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
 clean-files += $(image-) $(initrd-) cuImage.* dtbImage.* treeImage.* \
 	zImage zImage.initrd zImage.chrp zImage.coff zImage.holly \
 	zImage.miboot zImage.pmac zImage.pseries \
-	zImage.maple simpleImage.* otheros.bld
+	simpleImage.* otheros.bld
 
 # clean up files cached by wrapper
 clean-kernel-base := vmlinux.strip vmlinux.bin
