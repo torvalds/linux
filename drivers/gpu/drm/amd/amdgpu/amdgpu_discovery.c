@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2018-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -104,6 +104,7 @@
 #include "smuio_v13_0_6.h"
 #include "smuio_v14_0_2.h"
 #include "vcn_v5_0_0.h"
+#include "vcn_v5_0_1.h"
 #include "jpeg_v5_0_0.h"
 #include "jpeg_v5_0_1.h"
 
@@ -2368,6 +2369,7 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_0_ip_block);
 			break;
 		case IP_VERSION(5, 0, 1):
+			amdgpu_device_ip_block_add(adev, &vcn_v5_0_1_ip_block);
 			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_1_ip_block);
 			break;
 		default:
