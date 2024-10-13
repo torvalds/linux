@@ -51,64 +51,6 @@ struct srq_data *t4_init_srq(int srq_size)
 	return s;
 }
 
-/* cxgb4_get_srq_entry: read the SRQ table entry
- * @dev: Pointer to the net_device
- * @idx: Index to the srq
- * @entryp: pointer to the srq entry
- *
- * Sends CPL_SRQ_TABLE_REQ message for the given index.
- * Contents will be returned in CPL_SRQ_TABLE_RPL message.
- *
- * Returns zero if the read is successful, else a error
- * number will be returned. Caller should not use the srq
- * entry if the return value is non-zero.
- *
- *
- */
-int cxgb4_get_srq_entry(struct net_device *dev,
-			int srq_idx, struct srq_entry *entryp)
-{
-	struct cpl_srq_table_req *req;
-	struct adapter *adap;
-	struct sk_buff *skb;
-	struct srq_data *s;
-	int rc = -ENODEV;
-
-	adap = netdev2adap(dev);
-	s = adap->srq;
-
-	if (!(adap->flags & CXGB4_FULL_INIT_DONE) || !s)
-		goto out;
-
-	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-	req = (struct cpl_srq_table_req *)
-		__skb_put_zero(skb, sizeof(*req));
-	INIT_TP_WR(req, 0);
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SRQ_TABLE_REQ,
-					      TID_TID_V(srq_idx) |
-				TID_QID_V(adap->sge.fw_evtq.abs_id)));
-	req->idx = srq_idx;
-
-	mutex_lock(&s->lock);
-
-	s->entryp = entryp;
-	t4_mgmt_tx(adap, skb);
-
-	rc = wait_for_completion_timeout(&s->comp, SRQ_WAIT_TO);
-	if (rc)
-		rc = 0;
-	else /* !rc means we timed out */
-		rc = -ETIMEDOUT;
-
-	WARN_ON_ONCE(entryp->idx != srq_idx);
-	mutex_unlock(&s->lock);
-out:
-	return rc;
-}
-EXPORT_SYMBOL(cxgb4_get_srq_entry);
-
 void do_srq_table_rpl(struct adapter *adap,
 		      const struct cpl_srq_table_rpl *rpl)
 {
