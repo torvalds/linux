@@ -21955,13 +21955,6 @@ L:	linux-tegra@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/nvec/
 
-STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
-M:	Jens Frederich <jfrederich@gmail.com>
-M:	Jon Nettleton <jon.nettleton@gmail.com>
-S:	Maintained
-W:	http://wiki.laptop.org/go/DCON
-F:	drivers/staging/olpc_dcon/
-
 STAGING - REALTEK RTL8712U DRIVERS
 M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
 S:	Odd Fixes
