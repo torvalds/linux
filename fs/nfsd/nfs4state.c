@@ -572,13 +572,6 @@ opaque_hashval(const void *ptr, int nbytes)
 	return x;
 }
 
-static void nfsd4_free_file_rcu(struct rcu_head *rcu)
-{
-	struct nfs4_file *fp = container_of(rcu, struct nfs4_file, fi_rcu);
-
-	kmem_cache_free(file_slab, fp);
-}
-
 void
 put_nfs4_file(struct nfs4_file *fi)
 {
@@ -586,7 +579,7 @@ put_nfs4_file(struct nfs4_file *fi)
 		nfsd4_file_hash_remove(fi);
 		WARN_ON_ONCE(!list_empty(&fi->fi_clnt_odstate));
 		WARN_ON_ONCE(!list_empty(&fi->fi_delegations));
-		call_rcu(&fi->fi_rcu, nfsd4_free_file_rcu);
+		kfree_rcu(fi, fi_rcu);
 	}
 }
 
