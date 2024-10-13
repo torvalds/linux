@@ -1224,6 +1224,7 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.def = 0,
 		.flags = 0,
 	},
+#if 0 /* Causes v4l2_ctrl_new_custom() to fail with -ERANGE, disable for now */
 	{
 		.ops = &ctrl_ops,
 		.id = V4L2_CID_3A_LOCK,
@@ -1235,6 +1236,7 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.def = 0,
 		.flags = 0,
 	},
+#endif
 };
 
 static int mt9m114_detect(struct mt9m114_device *dev, struct i2c_client *client)
