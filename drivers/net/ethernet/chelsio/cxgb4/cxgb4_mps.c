@@ -187,36 +187,6 @@ int cxgb4_alloc_raw_mac_filt(struct adapter *adap,
 	return ret;
 }
 
-int cxgb4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
-			      int idx, bool sleep_ok)
-{
-	int ret = 0;
-
-	if (!cxgb4_mps_ref_dec(adap, idx))
-		ret = t4_free_encap_mac_filt(adap, viid, idx, sleep_ok);
-
-	return ret;
-}
-
-int cxgb4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
-			       const u8 *addr, const u8 *mask,
-			       unsigned int vni, unsigned int vni_mask,
-			       u8 dip_hit, u8 lookup_type, bool sleep_ok)
-{
-	int ret;
-
-	ret = t4_alloc_encap_mac_filt(adap, viid, addr, mask, vni, vni_mask,
-				      dip_hit, lookup_type, sleep_ok);
-	if (ret < 0)
-		return ret;
-
-	if (cxgb4_mps_ref_inc(adap, addr, ret, mask)) {
-		ret = -ENOMEM;
-		t4_free_encap_mac_filt(adap, viid, ret, sleep_ok);
-	}
-	return ret;
-}
-
 int cxgb4_init_mps_ref_entries(struct adapter *adap)
 {
 	spin_lock_init(&adap->mps_ref_lock);
