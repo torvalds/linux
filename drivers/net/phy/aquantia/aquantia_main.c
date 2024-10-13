@@ -513,7 +513,7 @@ static int aqr107_config_mdi(struct phy_device *phydev)
 	ret = of_property_read_u32(np, "marvell,mdi-cfg-order", &mdi_conf);
 
 	/* Do nothing in case property "marvell,mdi-cfg-order" is not present */
-	if (ret == -ENOENT)
+	if (ret == -EINVAL || ret == -ENOSYS)
 		return 0;
 
 	if (ret)
