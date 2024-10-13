@@ -2161,6 +2161,19 @@ static void rtl8169_get_ringparam(struct net_device *dev,
 	data->tx_pending = NUM_TX_DESC;
 }
 
+static void rtl8169_get_pause_stats(struct net_device *dev,
+				    struct ethtool_pause_stats *pause_stats)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	if (!rtl_is_8125(tp))
+		return;
+
+	rtl8169_update_counters(tp);
+	pause_stats->tx_pause_frames = le32_to_cpu(tp->counters->tx_pause_on);
+	pause_stats->rx_pause_frames = le32_to_cpu(tp->counters->rx_pause_on);
+}
+
 static void rtl8169_get_pauseparam(struct net_device *dev,
 				   struct ethtool_pauseparam *data)
 {
@@ -2187,6 +2200,69 @@ static int rtl8169_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
+static void rtl8169_get_eth_mac_stats(struct net_device *dev,
+				      struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	rtl8169_update_counters(tp);
+
+	mac_stats->FramesTransmittedOK =
+		le64_to_cpu(tp->counters->tx_packets);
+	mac_stats->SingleCollisionFrames =
+		le32_to_cpu(tp->counters->tx_one_collision);
+	mac_stats->MultipleCollisionFrames =
+		le32_to_cpu(tp->counters->tx_multi_collision);
+	mac_stats->FramesReceivedOK =
+		le64_to_cpu(tp->counters->rx_packets);
+	mac_stats->AlignmentErrors =
+		le16_to_cpu(tp->counters->align_errors);
+	mac_stats->FramesLostDueToIntMACXmitError =
+		le64_to_cpu(tp->counters->tx_errors);
+	mac_stats->BroadcastFramesReceivedOK =
+		le64_to_cpu(tp->counters->rx_broadcast);
+	mac_stats->MulticastFramesReceivedOK =
+		le32_to_cpu(tp->counters->rx_multicast);
+
+	if (!rtl_is_8125(tp))
+		return;
+
+	mac_stats->AlignmentErrors =
+		le32_to_cpu(tp->counters->align_errors32);
+	mac_stats->OctetsTransmittedOK =
+		le64_to_cpu(tp->counters->tx_octets);
+	mac_stats->LateCollisions =
+		le32_to_cpu(tp->counters->tx_late_collision);
+	mac_stats->FramesAbortedDueToXSColls =
+		le32_to_cpu(tp->counters->tx_aborted32);
+	mac_stats->OctetsReceivedOK =
+		le64_to_cpu(tp->counters->rx_octets);
+	mac_stats->FramesLostDueToIntMACRcvError =
+		le32_to_cpu(tp->counters->rx_mac_error);
+	mac_stats->MulticastFramesXmittedOK =
+		le64_to_cpu(tp->counters->tx_multicast64);
+	mac_stats->BroadcastFramesXmittedOK =
+		le64_to_cpu(tp->counters->tx_broadcast64);
+	mac_stats->MulticastFramesReceivedOK =
+		le64_to_cpu(tp->counters->rx_multicast64);
+	 mac_stats->FrameTooLongErrors =
+		le32_to_cpu(tp->counters->rx_frame_too_long);
+}
+
+static void rtl8169_get_eth_ctrl_stats(struct net_device *dev,
+				       struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	if (!rtl_is_8125(tp))
+		return;
+
+	rtl8169_update_counters(tp);
+
+	ctrl_stats->UnsupportedOpcodesReceived =
+		le32_to_cpu(tp->counters->rx_unknown_opcode);
+}
+
 static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -2208,8 +2284,11 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 	.get_ringparam		= rtl8169_get_ringparam,
+	.get_pause_stats	= rtl8169_get_pause_stats,
 	.get_pauseparam		= rtl8169_get_pauseparam,
 	.set_pauseparam		= rtl8169_set_pauseparam,
+	.get_eth_mac_stats	= rtl8169_get_eth_mac_stats,
+	.get_eth_ctrl_stats	= rtl8169_get_eth_ctrl_stats,
 };
 
 static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
@@ -3893,6 +3972,9 @@ static void rtl_hw_start_8125(struct rtl8169_private *tp)
 	default:
 		break;
 	}
+
+	/* enable extended tally counter */
+	r8168_mac_ocp_modify(tp, 0xea84, 0, BIT(1) | BIT(0));
 
 	rtl_hw_config(tp);
 }
