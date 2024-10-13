@@ -126,28 +126,25 @@ efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr)
 		return EFI_OUT_OF_RESOURCES;
 	}
 
+	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
+		status = efi_parse_options(cmdline);
+		if (status != EFI_SUCCESS)
+			goto fail_free_cmdline;
+	}
+
 	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
 	    IS_ENABLED(CONFIG_CMDLINE_FORCE) ||
 	    cmdline[0] == 0) {
 		status = efi_parse_options(CONFIG_CMDLINE);
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to parse options\n");
+		if (status != EFI_SUCCESS)
 			goto fail_free_cmdline;
-		}
-	}
-
-	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
-		status = efi_parse_options(cmdline);
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to parse options\n");
-			goto fail_free_cmdline;
-		}
 	}
 
 	*cmdline_ptr = cmdline;
 	return EFI_SUCCESS;
 
 fail_free_cmdline:
+	efi_err("Failed to parse options\n");
 	efi_bs_call(free_pool, cmdline);
 	return status;
 }
