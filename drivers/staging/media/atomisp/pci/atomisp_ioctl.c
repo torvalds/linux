@@ -881,8 +881,10 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	mutex_lock(&isp->mutex);
 
 	ret = atomisp_pipe_check(pipe, false);
-	if (ret)
+	if (ret) {
+		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
+	}
 
 	/*
 	 * When running a classic v4l2 app after a media-controller aware
@@ -895,6 +897,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	mutex_unlock(&isp->media_dev.graph_mutex);
 	if (ret) {
 		dev_err(isp->dev, "Error starting mc pipeline: %d\n", ret);
+		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
 		goto out_unlock;
 	}
 
