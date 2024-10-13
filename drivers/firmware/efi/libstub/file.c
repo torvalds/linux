@@ -195,7 +195,8 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 				  unsigned long *load_addr,
 				  unsigned long *load_size)
 {
-	const bool ignore_load_options = false;
+	const bool ignore_load_options = IS_ENABLED(CONFIG_CMDLINE_OVERRIDE) ||
+					 IS_ENABLED(CONFIG_CMDLINE_FORCE);
 	const efi_char16_t *cmdline = efi_table_attr(image, load_options);
 	u32 cmdline_len = efi_table_attr(image, load_options_size);
 	unsigned long efi_chunk_size = ULONG_MAX;
