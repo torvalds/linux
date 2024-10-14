@@ -214,7 +214,6 @@
 
 	sata-port@1 {
 		phys = <&cp0_comphy3 1>;
-		phy-names = "cp0-sata0-1-phy";
 	};
 };
 
