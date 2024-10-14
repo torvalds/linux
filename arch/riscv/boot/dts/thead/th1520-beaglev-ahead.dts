@@ -150,7 +150,3 @@
 	pinctrl-0 = <&uart0_pins>;
 	status = "okay";
 };
-
-&spi0 {
-	status = "okay";
-};
