@@ -2714,6 +2714,7 @@ config MITIGATION_ITS
 	bool "Enable Indirect Target Selection mitigation"
 	depends on CPU_SUP_INTEL && X86_64
 	depends on MITIGATION_RETPOLINE && MITIGATION_RETHUNK
+	select EXECMEM
 	default y
 	help
 	  Enable Indirect Target Selection (ITS) mitigation. ITS is a bug in
