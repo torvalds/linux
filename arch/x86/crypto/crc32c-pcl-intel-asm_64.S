@@ -60,7 +60,7 @@
 # regular CRC code that does not interleave the CRC instructions.
 #define SMALL_SIZE 200
 
-# unsigned int crc_pcl(u8 *buffer, int len, unsigned int crc_init);
+# unsigned int crc_pcl(const u8 *buffer, unsigned int len, unsigned int crc_init);
 
 .text
 SYM_FUNC_START(crc_pcl)
@@ -72,14 +72,11 @@ SYM_FUNC_START(crc_pcl)
 #define    block_0	%rcx
 #define    block_1	%rdx
 #define    block_2	%r11
-#define    len		%rsi
-#define    len_dw	%esi
-#define    len_w	%si
-#define    len_b	%sil
-#define    crc_init_arg %rdx
+#define    len		%esi
+#define    crc_init_arg %edx
 #define    tmp		%rbx
-#define    crc_init	%r8
-#define    crc_init_dw	%r8d
+#define    crc_init	%r8d
+#define    crc_init_q	%r8
 #define    crc1		%r9
 #define    crc2		%r10
 
@@ -107,9 +104,9 @@ SYM_FUNC_START(crc_pcl)
 	movq    (bufptmp), tmp		# load a quadward from the buffer
 	add     %bufp, bufptmp		# align buffer pointer for quadword
 					# processing
-	sub     %bufp, len		# update buffer length
+	sub	bufp_dw, len		# update buffer length
 .Lalign_loop:
-	crc32b  %bl, crc_init_dw 	# compute crc32 of 1-byte
+	crc32b	%bl, crc_init		# compute crc32 of 1-byte
 	shr     $8, tmp			# get next byte
 	dec     %bufp
 	jne     .Lalign_loop
@@ -121,15 +118,14 @@ SYM_FUNC_START(crc_pcl)
 	################################################################
 
 	## compute num of bytes to be processed
-	movq    len, tmp		# save num bytes in tmp
 
-	cmpq    $128*24, len
+	cmp	$128*24, len
 	jae     .Lfull_block
 
 .Lcontinue_block:
 	## len < 128*24
 	movq    $2731, %rax		# 2731 = ceil(2^16 / 24)
-	mul     len_dw
+	mul	len
 	shrq    $16, %rax
 
 	## eax contains floor(bytes / 24) = num 24-byte chunks to do
@@ -176,7 +172,7 @@ SYM_FUNC_START(crc_pcl)
 LABEL crc_ %i
 .noaltmacro
 	ENDBR
-	crc32q   -i*8(block_0), crc_init
+	crc32q   -i*8(block_0), crc_init_q
 	crc32q   -i*8(block_1), crc1
 	crc32q   -i*8(block_2), crc2
 	i=(i-1)
@@ -186,7 +182,7 @@ LABEL crc_ %i
 LABEL crc_ %i
 .noaltmacro
 	ENDBR
-	crc32q   -i*8(block_0), crc_init
+	crc32q   -i*8(block_0), crc_init_q
 	crc32q   -i*8(block_1), crc1
 # SKIP  crc32  -i*8(block_2), crc2 ; Don't do this one yet
 
@@ -200,9 +196,9 @@ LABEL crc_ %i
 	shlq    $3, %rax			# rax *= 8
 	pmovzxdq (%bufp,%rax), %xmm0		# 2 consts: K1:K2
 	leal	(%eax,%eax,2), %eax		# rax *= 3 (total *24)
-	subq    %rax, tmp			# tmp -= rax*24
+	sub	%eax, len			# len -= rax*24
 
-	movq    crc_init, %xmm1			# CRC for block 1
+	movq	crc_init_q, %xmm1		# CRC for block 1
 	pclmulqdq $0x00, %xmm0, %xmm1		# Multiply by K2
 
 	movq    crc1, %xmm2			# CRC for block 2
@@ -211,8 +207,8 @@ LABEL crc_ %i
 	pxor    %xmm2,%xmm1
 	movq    %xmm1, %rax
 	xor     -i*8(block_2), %rax
-	mov     crc2, crc_init
-	crc32   %rax, crc_init
+	mov	crc2, crc_init_q
+	crc32	%rax, crc_init_q
 
 	################################################################
 	## 5) Check for end:
@@ -220,10 +216,9 @@ LABEL crc_ %i
 
 LABEL crc_ 0
 	ENDBR
-	mov     tmp, len
-	cmp     $128*24, tmp
+	cmp	$128*24, len
 	jae     .Lfull_block
-	cmp	$SMALL_SIZE, tmp
+	cmp	$SMALL_SIZE, len
 	jae     .Lcontinue_block
 
 	#######################################################################
@@ -232,30 +227,30 @@ LABEL crc_ 0
 .Lsmall:
 	test	len, len
 	jz	.Ldone
-	mov	len_dw, %eax
+	mov	len, %eax
 	shr	$3, %eax
 	jz	.Ldo_dword
 .Ldo_qwords:
-	crc32q	(bufptmp), crc_init
+	crc32q	(bufptmp), crc_init_q
 	add	$8, bufptmp
 	dec	%eax
 	jnz	.Ldo_qwords
 .Ldo_dword:
-	test	$4, len_dw
+	test	$4, len
 	jz	.Ldo_word
-	crc32l	(bufptmp), crc_init_dw
+	crc32l	(bufptmp), crc_init
 	add	$4, bufptmp
 .Ldo_word:
-	test	$2, len_dw
+	test	$2, len
 	jz	.Ldo_byte
-	crc32w	(bufptmp), crc_init_dw
+	crc32w	(bufptmp), crc_init
 	add	$2, bufptmp
 .Ldo_byte:
-	test	$1, len_dw
+	test	$1, len
 	jz	.Ldone
-	crc32b	(bufptmp), crc_init_dw
+	crc32b	(bufptmp), crc_init
 .Ldone:
-	movq    crc_init, %rax
+	mov	crc_init, %eax
 	popq    %rsi
 	popq    %rdi
 	popq    %rbx
