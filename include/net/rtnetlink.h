@@ -29,6 +29,16 @@ static inline enum rtnl_kinds rtnl_msgtype_kind(int msgtype)
 	return msgtype & RTNL_KIND_MASK;
 }
 
+/**
+ *	struct rtnl_msg_handler - rtnetlink message type and handlers
+ *
+ *	@owner: NULL for built-in, THIS_MODULE for module
+ *	@protocol: Protocol family or PF_UNSPEC
+ *	@msgtype: rtnetlink message type
+ *	@doit: Function pointer called for each request message
+ *	@dumpit: Function pointer called for each dump request (NLM_F_DUMP) message
+ *	@flags: rtnl_link_flags to modify behaviour of doit/dumpit functions
+ */
 struct rtnl_msg_handler {
 	struct module *owner;
 	int protocol;
@@ -38,11 +48,6 @@ struct rtnl_msg_handler {
 	int flags;
 };
 
-void rtnl_register(int protocol, int msgtype,
-		   rtnl_doit_func, rtnl_dumpit_func, unsigned int flags);
-int rtnl_register_module(struct module *owner, int protocol, int msgtype,
-			 rtnl_doit_func, rtnl_dumpit_func, unsigned int flags);
-int rtnl_unregister(int protocol, int msgtype);
 void rtnl_unregister_all(int protocol);
 
 int __rtnl_register_many(const struct rtnl_msg_handler *handlers, int n);
