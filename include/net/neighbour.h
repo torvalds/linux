@@ -239,7 +239,6 @@ struct neigh_table {
 enum {
 	NEIGH_ARP_TABLE = 0,
 	NEIGH_ND_TABLE = 1,
-	NEIGH_DN_TABLE = 2,
 	NEIGH_NR_TABLES,
 	NEIGH_LINK_TABLE = NEIGH_NR_TABLES /* Pseudo table for neigh_xmit */
 };

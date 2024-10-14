@@ -1664,7 +1664,7 @@ static int nla_put_via(struct sk_buff *skb,
 		       u8 table, const void *addr, int alen)
 {
 	static const int table_to_family[NEIGH_NR_TABLES + 1] = {
-		AF_INET, AF_INET6, AF_DECnet, AF_PACKET,
+		AF_INET, AF_INET6, AF_PACKET,
 	};
 	struct nlattr *nla;
 	struct rtvia *via;
