@@ -77,26 +77,9 @@ static void twl6032_clks_unprepare(struct clk_hw *hw)
 		dev_err(cinfo->dev, "clk unprepare failed\n");
 }
 
-static int twl6032_clks_is_prepared(struct clk_hw *hw)
-{
-	struct twl_clock_info *cinfo = to_twl_clks_info(hw);
-	int val;
-
-	val = twlclk_read(cinfo, TWL_MODULE_PM_RECEIVER, VREG_STATE);
-	if (val < 0) {
-		dev_err(cinfo->dev, "clk read failed\n");
-		return val;
-	}
-
-	val &= TWL6030_CFG_STATE_MASK;
-
-	return val == TWL6030_CFG_STATE_ON;
-}
-
 static const struct clk_ops twl6032_clks_ops = {
 	.prepare	= twl6032_clks_prepare,
 	.unprepare	= twl6032_clks_unprepare,
-	.is_prepared	= twl6032_clks_is_prepared,
 	.recalc_rate	= twl_clks_recalc_rate,
 };
 
