@@ -1885,7 +1885,15 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 	bitmap_and(devs.d, devs.d, c->rw_devs[BCH_DATA_user].d, BCH_SB_MEMBERS_MAX);
 
 	for_each_set_bit(i, h->s->blocks_gotten, v->nr_blocks) {
-		__clear_bit(v->ptrs[i].dev, devs.d);
+		/*
+		 * Note: we don't yet repair invalid blocks (failed/removed
+		 * devices) when reusing stripes - we still need a codepath to
+		 * walk backpointers and update all extents that point to that
+		 * block when updating the stripe
+		 */
+		if (v->ptrs[i].dev != BCH_SB_MEMBER_INVALID)
+			__clear_bit(v->ptrs[i].dev, devs.d);
+
 		if (i < h->s->nr_data)
 			nr_have_data++;
 		else
