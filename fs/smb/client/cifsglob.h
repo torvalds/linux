@@ -625,10 +625,8 @@ struct smb_version_operations {
 	bool (*is_status_io_timeout)(char *buf);
 	/* Check for STATUS_NETWORK_NAME_DELETED */
 	bool (*is_network_name_deleted)(char *buf, struct TCP_Server_Info *srv);
-	int (*parse_reparse_point)(struct cifs_sb_info *cifs_sb,
-				   const char *full_path,
-				   struct kvec *rsp_iov,
-				   struct cifs_open_info_data *data);
+	struct reparse_data_buffer * (*get_reparse_point_buffer)(const struct kvec *rsp_iov,
+								 u32 *plen);
 	int (*create_reparse_symlink)(const unsigned int xid,
 				      struct inode *inode,
 				      struct dentry *dentry,

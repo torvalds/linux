@@ -970,18 +970,13 @@ static int cifs_query_symlink(const unsigned int xid,
 	return rc;
 }
 
-static int cifs_parse_reparse_point(struct cifs_sb_info *cifs_sb,
-				    const char *full_path,
-				    struct kvec *rsp_iov,
-				    struct cifs_open_info_data *data)
+static struct reparse_data_buffer *cifs_get_reparse_point_buffer(const struct kvec *rsp_iov,
+								 u32 *plen)
 {
-	struct reparse_data_buffer *buf;
 	TRANSACT_IOCTL_RSP *io = rsp_iov->iov_base;
-	u32 plen = le16_to_cpu(io->ByteCount);
-
-	buf = (struct reparse_data_buffer *)((__u8 *)&io->hdr.Protocol +
-					     le32_to_cpu(io->DataOffset));
-	return parse_reparse_point(buf, plen, cifs_sb, full_path, data);
+	*plen = le16_to_cpu(io->ByteCount);
+	return (struct reparse_data_buffer *)((__u8 *)&io->hdr.Protocol +
+					      le32_to_cpu(io->DataOffset));
 }
 
 static bool
@@ -1157,7 +1152,7 @@ struct smb_version_operations smb1_operations = {
 	.rename = CIFSSMBRename,
 	.create_hardlink = CIFSCreateHardLink,
 	.query_symlink = cifs_query_symlink,
-	.parse_reparse_point = cifs_parse_reparse_point,
+	.get_reparse_point_buffer = cifs_get_reparse_point_buffer,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,

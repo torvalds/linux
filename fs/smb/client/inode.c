@@ -1207,10 +1207,13 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 		/* Check for cached reparse point data */
 		if (data->symlink_target || data->reparse.buf) {
 			rc = 0;
-		} else if (iov && server->ops->parse_reparse_point) {
-			rc = server->ops->parse_reparse_point(cifs_sb,
-							      full_path,
-							      iov, data);
+		} else if (iov && server->ops->get_reparse_point_buffer) {
+			struct reparse_data_buffer *reparse_buf;
+			u32 reparse_len;
+
+			reparse_buf = server->ops->get_reparse_point_buffer(iov, &reparse_len);
+			rc = parse_reparse_point(reparse_buf, reparse_len,
+						 cifs_sb, full_path, data);
 			/*
 			 * If the reparse point was not handled but it is the
 			 * name surrogate which points to directory, then treat
