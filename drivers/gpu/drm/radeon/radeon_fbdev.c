@@ -288,12 +288,6 @@ err_radeon_fbdev_destroy_pinned_object:
 	return ret;
 }
 
-void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
-{
-	if (rdev_to_drm(rdev)->fb_helper)
-		drm_fb_helper_set_suspend(rdev_to_drm(rdev)->fb_helper, state);
-}
-
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 {
 	struct drm_fb_helper *fb_helper = rdev_to_drm(rdev)->fb_helper;
