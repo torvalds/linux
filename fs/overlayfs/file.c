@@ -91,6 +91,7 @@ static int ovl_change_flags(struct file *file, unsigned int flags)
 
 struct ovl_file {
 	struct file *realfile;
+	struct file *upperfile;
 };
 
 struct ovl_file *ovl_file_alloc(struct file *realfile)
@@ -107,7 +108,15 @@ struct ovl_file *ovl_file_alloc(struct file *realfile)
 void ovl_file_free(struct ovl_file *of)
 {
 	fput(of->realfile);
+	if (of->upperfile)
+		fput(of->upperfile);
 	kfree(of);
+}
+
+static bool ovl_is_real_file(const struct file *realfile,
+			     const struct path *realpath)
+{
+	return file_inode(realfile) == d_inode(realpath->dentry);
 }
 
 static int ovl_real_fdget_path(const struct file *file, struct fd *real,
@@ -116,24 +125,48 @@ static int ovl_real_fdget_path(const struct file *file, struct fd *real,
 	struct ovl_file *of = file->private_data;
 	struct file *realfile = of->realfile;
 
-	real->word = (unsigned long)realfile;
+	real->word = 0;
 
 	if (WARN_ON_ONCE(!realpath->dentry))
 		return -EIO;
 
-	/* Has it been copied up since we'd opened it? */
-	if (unlikely(file_inode(realfile) != d_inode(realpath->dentry))) {
-		struct file *f = ovl_open_realfile(file, realpath);
-		if (IS_ERR(f))
-			return PTR_ERR(f);
-		real->word = (unsigned long)f | FDPUT_FPUT;
-		return 0;
+	/*
+	 * If the realfile that we want is not where the data used to be at
+	 * open time, either we'd been copied up, or it's an fsync of a
+	 * metacopied file.  We need the upperfile either way, so see if it
+	 * is already opened and if it is not then open and store it.
+	 */
+	if (unlikely(!ovl_is_real_file(realfile, realpath))) {
+		struct file *upperfile = READ_ONCE(of->upperfile);
+		struct file *old;
+
+		if (!upperfile) { /* Nobody opened upperfile yet */
+			upperfile = ovl_open_realfile(file, realpath);
+			if (IS_ERR(upperfile))
+				return PTR_ERR(upperfile);
+
+			/* Store the upperfile for later */
+			old = cmpxchg_release(&of->upperfile, NULL, upperfile);
+			if (old) { /* Someone opened upperfile before us */
+				fput(upperfile);
+				upperfile = old;
+			}
+		}
+		/*
+		 * Stored file must be from the right inode, unless someone's
+		 * been corrupting the upper layer.
+		 */
+		if (WARN_ON_ONCE(!ovl_is_real_file(upperfile, realpath)))
+			return -EIO;
+
+		realfile = upperfile;
 	}
 
 	/* Did the flags change since open? */
 	if (unlikely((file->f_flags ^ realfile->f_flags) & ~OVL_OPEN_FLAGS))
 		return ovl_change_flags(realfile, file->f_flags);
 
+	real->word = (unsigned long)realfile;
 	return 0;
 }
 
