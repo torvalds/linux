@@ -861,8 +861,6 @@ static const struct vb2_ops rcar_drif_vb2_ops = {
 	.buf_queue              = rcar_drif_buf_queue,
 	.start_streaming        = rcar_drif_start_streaming,
 	.stop_streaming         = rcar_drif_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int rcar_drif_querycap(struct file *file, void *fh,

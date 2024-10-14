@@ -1114,8 +1114,6 @@ static const struct vb2_ops hva_qops = {
 	.buf_queue		= hva_buf_queue,
 	.start_streaming	= hva_start_streaming,
 	.stop_streaming		= hva_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /*

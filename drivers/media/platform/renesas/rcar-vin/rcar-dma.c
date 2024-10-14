@@ -1559,8 +1559,6 @@ static const struct vb2_ops rvin_qops = {
 	.buf_queue		= rvin_buffer_queue,
 	.start_streaming	= rvin_start_streaming_vq,
 	.stop_streaming		= rvin_stop_streaming_vq,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 void rvin_dma_unregister(struct rvin_dev *vin)

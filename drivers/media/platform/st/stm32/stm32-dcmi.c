@@ -898,8 +898,6 @@ static const struct vb2_ops dcmi_video_qops = {
 	.buf_queue		= dcmi_buf_queue,
 	.start_streaming	= dcmi_start_streaming,
 	.stop_streaming		= dcmi_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int dcmi_g_fmt_vid_cap(struct file *file, void *priv,

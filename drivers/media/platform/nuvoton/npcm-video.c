@@ -1558,8 +1558,6 @@ static const struct regmap_config npcm_video_ece_regmap_cfg = {
 
 static const struct vb2_ops npcm_video_vb2_ops = {
 	.queue_setup = npcm_video_queue_setup,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.buf_prepare = npcm_video_buf_prepare,
 	.buf_finish = npcm_video_buf_finish,
 	.start_streaming = npcm_video_start_streaming,

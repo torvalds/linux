@@ -2897,8 +2897,6 @@ static const struct vb2_ops allegro_queue_ops = {
 	.buf_queue = allegro_buf_queue,
 	.start_streaming = allegro_start_streaming,
 	.stop_streaming = allegro_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int allegro_queue_init(void *priv,

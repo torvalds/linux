@@ -884,8 +884,6 @@ static const struct vb2_ops mtk_jpeg_dec_qops = {
 	.queue_setup        = mtk_jpeg_queue_setup,
 	.buf_prepare        = mtk_jpeg_buf_prepare,
 	.buf_queue          = mtk_jpeg_dec_buf_queue,
-	.wait_prepare       = vb2_ops_wait_prepare,
-	.wait_finish        = vb2_ops_wait_finish,
 	.stop_streaming     = mtk_jpeg_dec_stop_streaming,
 };
 
@@ -893,8 +891,6 @@ static const struct vb2_ops mtk_jpeg_enc_qops = {
 	.queue_setup        = mtk_jpeg_queue_setup,
 	.buf_prepare        = mtk_jpeg_buf_prepare,
 	.buf_queue          = mtk_jpeg_enc_buf_queue,
-	.wait_prepare       = vb2_ops_wait_prepare,
-	.wait_finish        = vb2_ops_wait_finish,
 	.stop_streaming     = mtk_jpeg_enc_stop_streaming,
 };
 

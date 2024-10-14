@@ -526,8 +526,6 @@ static const struct vb2_ops isi_video_qops = {
 	.buf_queue		= buffer_queue,
 	.start_streaming	= start_streaming,
 	.stop_streaming		= stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int isi_g_fmt_vid_cap(struct file *file, void *priv,

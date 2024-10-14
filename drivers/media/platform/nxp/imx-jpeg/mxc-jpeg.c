@@ -1965,8 +1965,6 @@ static int mxc_jpeg_buf_prepare(struct vb2_buffer *vb)
 
 static const struct vb2_ops mxc_jpeg_qops = {
 	.queue_setup		= mxc_jpeg_queue_setup,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 	.buf_out_validate	= mxc_jpeg_buf_out_validate,
 	.buf_prepare		= mxc_jpeg_buf_prepare,
 	.start_streaming	= mxc_jpeg_start_streaming,

@@ -646,8 +646,6 @@ static const struct vb2_ops vpu_vb2_ops = {
 	.start_streaming    = vpu_vb2_start_streaming,
 	.stop_streaming     = vpu_vb2_stop_streaming,
 	.buf_queue          = vpu_vb2_buf_queue,
-	.wait_prepare       = vb2_ops_wait_prepare,
-	.wait_finish        = vb2_ops_wait_finish,
 };
 
 static int vpu_m2m_queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)

@@ -558,8 +558,6 @@ static const struct vb2_ops dw100_qops = {
 	.buf_queue	 = dw100_buf_queue,
 	.start_streaming = dw100_start_streaming,
 	.stop_streaming  = dw100_stop_streaming,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int dw100_m2m_queue_init(void *priv, struct vb2_queue *src_vq,

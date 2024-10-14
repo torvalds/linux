@@ -155,8 +155,6 @@ static const struct vb2_ops histo_video_queue_qops = {
 	.queue_setup = histo_queue_setup,
 	.buf_prepare = histo_buffer_prepare,
 	.buf_queue = histo_buffer_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = histo_start_streaming,
 	.stop_streaming = histo_stop_streaming,
 };

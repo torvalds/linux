@@ -522,8 +522,6 @@ static const struct vb2_ops rotate_qops = {
 	.buf_queue		= rotate_buf_queue,
 	.start_streaming	= rotate_start_streaming,
 	.stop_streaming		= rotate_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int rotate_queue_init(void *priv, struct vb2_queue *src_vq,

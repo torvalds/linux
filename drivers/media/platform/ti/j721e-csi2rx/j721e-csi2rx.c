@@ -878,8 +878,6 @@ static const struct vb2_ops csi_vb2_qops = {
 	.buf_queue = ti_csi2rx_buffer_queue,
 	.start_streaming = ti_csi2rx_start_streaming,
 	.stop_streaming = ti_csi2rx_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int ti_csi2rx_init_vb2q(struct ti_csi2rx_dev *csi)

@@ -328,8 +328,6 @@ static const struct vb2_ops tegra_qops = {
 	.buf_request_complete = tegra_buf_request_complete,
 	.start_streaming = tegra_start_streaming,
 	.stop_streaming = tegra_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int tegra_queue_init(void *priv,

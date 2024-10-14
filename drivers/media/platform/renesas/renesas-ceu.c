@@ -761,8 +761,6 @@ static const struct vb2_ops ceu_vb2_ops = {
 	.queue_setup		= ceu_vb2_setup,
 	.buf_queue		= ceu_vb2_queue,
 	.buf_prepare		= ceu_vb2_prepare,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 	.start_streaming	= ceu_start_streaming,
 	.stop_streaming		= ceu_stop_streaming,
 };

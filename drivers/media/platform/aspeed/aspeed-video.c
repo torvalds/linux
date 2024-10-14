@@ -1891,8 +1891,6 @@ static void aspeed_video_buf_queue(struct vb2_buffer *vb)
 
 static const struct vb2_ops aspeed_video_vb2_ops = {
 	.queue_setup = aspeed_video_queue_setup,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.buf_prepare = aspeed_video_buf_prepare,
 	.start_streaming = aspeed_video_start_streaming,
 	.stop_streaming = aspeed_video_stop_streaming,

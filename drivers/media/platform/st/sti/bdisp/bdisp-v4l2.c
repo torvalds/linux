@@ -531,8 +531,6 @@ static const struct vb2_ops bdisp_qops = {
 	.queue_setup     = bdisp_queue_setup,
 	.buf_prepare     = bdisp_buf_prepare,
 	.buf_queue       = bdisp_buf_queue,
-	.wait_prepare    = vb2_ops_wait_prepare,
-	.wait_finish     = vb2_ops_wait_finish,
 	.stop_streaming  = bdisp_stop_streaming,
 	.start_streaming = bdisp_start_streaming,
 };

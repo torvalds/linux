@@ -1507,8 +1507,6 @@ static const struct vb2_ops imx7_csi_video_qops = {
 	.buf_init        = imx7_csi_video_buf_init,
 	.buf_prepare	 = imx7_csi_video_buf_prepare,
 	.buf_queue	 = imx7_csi_video_buf_queue,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 	.start_streaming = imx7_csi_video_start_streaming,
 	.stop_streaming  = imx7_csi_video_stop_streaming,
 };

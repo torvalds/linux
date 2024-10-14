@@ -1171,8 +1171,6 @@ static const struct vb2_ops jpu_qops = {
 	.buf_finish		= jpu_buf_finish,
 	.start_streaming	= jpu_start_streaming,
 	.stop_streaming		= jpu_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int jpu_queue_init(void *priv, struct vb2_queue *src_vq,

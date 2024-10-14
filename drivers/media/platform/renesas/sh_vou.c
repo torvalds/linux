@@ -360,8 +360,6 @@ static const struct vb2_ops sh_vou_qops = {
 	.buf_queue		= sh_vou_buf_queue,
 	.start_streaming	= sh_vou_start_streaming,
 	.stop_streaming		= sh_vou_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /* Video IOCTLs */

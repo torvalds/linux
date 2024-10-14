@@ -391,8 +391,6 @@ static const struct vb2_ops ge2d_qops = {
 	.buf_queue = ge2d_buf_queue,
 	.start_streaming = ge2d_start_streaming,
 	.stop_streaming = ge2d_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int

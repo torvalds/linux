@@ -1300,8 +1300,6 @@ static const struct vb2_ops omap_vout_vb2_ops = {
 	.buf_prepare		= omap_vout_vb2_prepare,
 	.start_streaming	= omap_vout_vb2_start_streaming,
 	.stop_streaming		= omap_vout_vb2_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /* Init functions used during driver initialization */

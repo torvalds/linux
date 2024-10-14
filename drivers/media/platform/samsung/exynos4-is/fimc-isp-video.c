@@ -255,8 +255,6 @@ static const struct vb2_ops isp_video_capture_qops = {
 	.queue_setup	 = isp_video_capture_queue_setup,
 	.buf_prepare	 = isp_video_capture_buffer_prepare,
 	.buf_queue	 = isp_video_capture_buffer_queue,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 	.start_streaming = isp_video_capture_start_streaming,
 	.stop_streaming	 = isp_video_capture_stop_streaming,
 };

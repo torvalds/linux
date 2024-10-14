@@ -371,8 +371,6 @@ static const struct vb2_ops sun4i_csi_qops = {
 	.buf_queue		= sun4i_csi_buffer_queue,
 	.start_streaming	= sun4i_csi_start_streaming,
 	.stop_streaming		= sun4i_csi_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static irqreturn_t sun4i_csi_irq(int irq, void *data)

@@ -1004,6 +1004,4 @@ const struct vb2_ops hantro_queue_ops = {
 	.buf_request_complete = hantro_buf_request_complete,
 	.start_streaming = hantro_start_streaming,
 	.stop_streaming = hantro_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };

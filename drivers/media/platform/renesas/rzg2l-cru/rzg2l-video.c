@@ -622,8 +622,6 @@ static const struct vb2_ops rzg2l_cru_qops = {
 	.buf_queue		= rzg2l_cru_buffer_queue,
 	.start_streaming	= rzg2l_cru_start_streaming_vq,
 	.stop_streaming		= rzg2l_cru_stop_streaming_vq,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 void rzg2l_cru_dma_unregister(struct rzg2l_cru_dev *cru)

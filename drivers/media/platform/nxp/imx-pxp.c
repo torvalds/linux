@@ -1606,8 +1606,6 @@ static const struct vb2_ops pxp_qops = {
 	.buf_queue	 = pxp_buf_queue,
 	.start_streaming = pxp_start_streaming,
 	.stop_streaming  = pxp_stop_streaming,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,

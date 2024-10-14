@@ -1471,8 +1471,6 @@ static void wave5_vpu_enc_stop_streaming(struct vb2_queue *q)
 
 static const struct vb2_ops wave5_vpu_enc_vb2_ops = {
 	.queue_setup = wave5_vpu_enc_queue_setup,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.buf_queue = wave5_vpu_enc_buf_queue,
 	.start_streaming = wave5_vpu_enc_start_streaming,
 	.stop_streaming = wave5_vpu_enc_stop_streaming,
