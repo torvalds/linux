@@ -62,6 +62,28 @@ static const struct reset_control_ops sparx5_reset_ops = {
 	.reset = sparx5_reset_noop,
 };
 
+static const struct regmap_config mchp_lan966x_syscon_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
+static struct regmap *mchp_lan966x_syscon_to_regmap(struct device *dev,
+						    struct device_node *syscon_np)
+{
+	struct regmap_config regmap_config = mchp_lan966x_syscon_regmap_config;
+	resource_size_t size;
+	void __iomem *base;
+
+	base = devm_of_iomap(dev, syscon_np, 0, &size);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	regmap_config.max_register = size - 4;
+
+	return devm_regmap_init_mmio(dev, base, &regmap_config);
+}
+
 static int mchp_sparx5_map_syscon(struct platform_device *pdev, char *name,
 				  struct regmap **target)
 {
@@ -72,7 +94,18 @@ static int mchp_sparx5_map_syscon(struct platform_device *pdev, char *name,
 	syscon_np = of_parse_phandle(pdev->dev.of_node, name, 0);
 	if (!syscon_np)
 		return -ENODEV;
-	regmap = syscon_node_to_regmap(syscon_np);
+
+	/*
+	 * The syscon API doesn't support syscon device removal.
+	 * When used in LAN966x PCI device, the cpu-syscon device needs to be
+	 * removed when the PCI device is removed.
+	 * In case of LAN966x, map the syscon device locally to support the
+	 * device removal.
+	 */
+	if (of_device_is_compatible(pdev->dev.of_node, "microchip,lan966x-switch-reset"))
+		regmap = mchp_lan966x_syscon_to_regmap(&pdev->dev, syscon_np);
+	else
+		regmap = syscon_node_to_regmap(syscon_np);
 	of_node_put(syscon_np);
 	if (IS_ERR(regmap)) {
 		err = PTR_ERR(regmap);
