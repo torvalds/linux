@@ -95,8 +95,10 @@ static void gve_rx_reset_ring_dqo(struct gve_priv *priv, int idx)
 		for (i = 0; i < rx->dqo.num_buf_states; i++) {
 			struct gve_rx_buf_state_dqo *bs = &rx->dqo.buf_states[i];
 
-			if (bs->page_info.page)
-				gve_free_page_dqo(priv, bs, !rx->dqo.qpl);
+			if (rx->dqo.page_pool)
+				gve_free_to_page_pool(rx, bs, false);
+			else
+				gve_free_qpl_page_dqo(bs);
 		}
 	}
 
@@ -138,9 +140,11 @@ void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 
 	for (i = 0; i < rx->dqo.num_buf_states; i++) {
 		struct gve_rx_buf_state_dqo *bs = &rx->dqo.buf_states[i];
-		/* Only free page for RDA. QPL pages are freed in gve_main. */
-		if (bs->page_info.page)
-			gve_free_page_dqo(priv, bs, !rx->dqo.qpl);
+
+		if (rx->dqo.page_pool)
+			gve_free_to_page_pool(rx, bs, false);
+		else
+			gve_free_qpl_page_dqo(bs);
 	}
 
 	if (rx->dqo.qpl) {
@@ -166,6 +170,11 @@ void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 
 	kvfree(rx->dqo.buf_states);
 	rx->dqo.buf_states = NULL;
+
+	if (rx->dqo.page_pool) {
+		page_pool_destroy(rx->dqo.page_pool);
+		rx->dqo.page_pool = NULL;
+	}
 
 	gve_rx_free_hdr_bufs(priv, rx);
 
@@ -199,6 +208,7 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 			  int idx)
 {
 	struct device *hdev = &priv->pdev->dev;
+	struct page_pool *pool;
 	int qpl_page_cnt;
 	size_t size;
 	u32 qpl_id;
@@ -212,8 +222,7 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 	rx->gve = priv;
 	rx->q_num = idx;
 
-	rx->dqo.num_buf_states = cfg->raw_addressing ?
-		min_t(s16, S16_MAX, buffer_queue_slots * 4) :
+	rx->dqo.num_buf_states = cfg->raw_addressing ? buffer_queue_slots :
 		gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
 	rx->dqo.buf_states = kvcalloc(rx->dqo.num_buf_states,
 				      sizeof(rx->dqo.buf_states[0]),
@@ -241,7 +250,13 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 	if (!rx->dqo.bufq.desc_ring)
 		goto err;
 
-	if (!cfg->raw_addressing) {
+	if (cfg->raw_addressing) {
+		pool = gve_rx_create_page_pool(priv, rx);
+		if (IS_ERR(pool))
+			goto err;
+
+		rx->dqo.page_pool = pool;
+	} else {
 		qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
 		qpl_page_cnt = gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
 
@@ -338,26 +353,14 @@ void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx)
 	num_avail_slots = min_t(u32, num_avail_slots, complq->num_free_slots);
 	while (num_posted < num_avail_slots) {
 		struct gve_rx_desc_dqo *desc = &bufq->desc_ring[bufq->tail];
-		struct gve_rx_buf_state_dqo *buf_state;
 
-		buf_state = gve_get_recycled_buf_state(rx);
-		if (unlikely(!buf_state)) {
-			buf_state = gve_alloc_buf_state(rx);
-			if (unlikely(!buf_state))
-				break;
-
-			if (unlikely(gve_alloc_page_dqo(rx, buf_state))) {
-				u64_stats_update_begin(&rx->statss);
-				rx->rx_buf_alloc_fail++;
-				u64_stats_update_end(&rx->statss);
-				gve_free_buf_state(rx, buf_state);
-				break;
-			}
+		if (unlikely(gve_alloc_buffer(rx, desc))) {
+			u64_stats_update_begin(&rx->statss);
+			rx->rx_buf_alloc_fail++;
+			u64_stats_update_end(&rx->statss);
+			break;
 		}
 
-		desc->buf_id = cpu_to_le16(buf_state - rx->dqo.buf_states);
-		desc->buf_addr = cpu_to_le64(buf_state->addr +
-					     buf_state->page_info.page_offset);
 		if (rx->dqo.hdr_bufs.data)
 			desc->header_buf_addr =
 				cpu_to_le64(rx->dqo.hdr_bufs.addr +
@@ -488,6 +491,9 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 		if (!skb)
 			return -1;
 
+		if (rx->dqo.page_pool)
+			skb_mark_for_recycle(skb);
+
 		if (rx->ctx.skb_tail == rx->ctx.skb_head)
 			skb_shinfo(rx->ctx.skb_head)->frag_list = skb;
 		else
@@ -498,7 +504,7 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 	if (rx->ctx.skb_tail != rx->ctx.skb_head) {
 		rx->ctx.skb_head->len += buf_len;
 		rx->ctx.skb_head->data_len += buf_len;
-		rx->ctx.skb_head->truesize += priv->data_buffer_size_dqo;
+		rx->ctx.skb_head->truesize += buf_state->page_info.buf_size;
 	}
 
 	/* Trigger ondemand page allocation if we are running low on buffers */
@@ -508,13 +514,8 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 	skb_add_rx_frag(rx->ctx.skb_tail, num_frags,
 			buf_state->page_info.page,
 			buf_state->page_info.page_offset,
-			buf_len, priv->data_buffer_size_dqo);
-	gve_dec_pagecnt_bias(&buf_state->page_info);
-
-	/* Advances buffer page-offset if page is partially used.
-	 * Marks buffer as used if page is full.
-	 */
-	gve_try_recycle_buf(priv, rx, buf_state);
+			buf_len, buf_state->page_info.buf_size);
+	gve_reuse_buffer(rx, buf_state);
 	return 0;
 }
 
@@ -548,8 +549,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	}
 
 	if (unlikely(compl_desc->rx_error)) {
-		gve_enqueue_buf_state(rx, &rx->dqo.recycled_buf_states,
-				      buf_state);
+		gve_free_buffer(rx, buf_state);
 		return -EINVAL;
 	}
 
@@ -573,6 +573,9 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 			if (unlikely(!rx->ctx.skb_head))
 				goto error;
 			rx->ctx.skb_tail = rx->ctx.skb_head;
+
+			if (rx->dqo.page_pool)
+				skb_mark_for_recycle(rx->ctx.skb_head);
 		} else {
 			unsplit = 1;
 		}
@@ -609,8 +612,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		rx->rx_copybreak_pkt++;
 		u64_stats_update_end(&rx->statss);
 
-		gve_enqueue_buf_state(rx, &rx->dqo.recycled_buf_states,
-				      buf_state);
+		gve_free_buffer(rx, buf_state);
 		return 0;
 	}
 
@@ -625,16 +627,17 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		return 0;
 	}
 
+	if (rx->dqo.page_pool)
+		skb_mark_for_recycle(rx->ctx.skb_head);
+
 	skb_add_rx_frag(rx->ctx.skb_head, 0, buf_state->page_info.page,
 			buf_state->page_info.page_offset, buf_len,
-			priv->data_buffer_size_dqo);
-	gve_dec_pagecnt_bias(&buf_state->page_info);
-
-	gve_try_recycle_buf(priv, rx, buf_state);
+			buf_state->page_info.buf_size);
+	gve_reuse_buffer(rx, buf_state);
 	return 0;
 
 error:
-	gve_enqueue_buf_state(rx, &rx->dqo.recycled_buf_states, buf_state);
+	gve_free_buffer(rx, buf_state);
 	return -ENOMEM;
 }
 
