@@ -295,9 +295,9 @@ slot set.
 
 Fourth, the io_tlb_slot array keeps track of any "padding slots" allocated to
 meet alloc_align_mask requirements described above. When
-swiotlb_tlb_map_single() allocates bounce buffer space to meet alloc_align_mask
+swiotlb_tbl_map_single() allocates bounce buffer space to meet alloc_align_mask
 requirements, it may allocate pre-padding space across zero or more slots. But
-when swiotbl_tlb_unmap_single() is called with the bounce buffer address, the
+when swiotlb_tbl_unmap_single() is called with the bounce buffer address, the
 alloc_align_mask value that governed the allocation, and therefore the
 allocation of any padding slots, is not known. The "pad_slots" field records
 the number of padding slots so that swiotlb_tbl_unmap_single() can free them.
