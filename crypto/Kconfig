@@ -296,7 +296,7 @@ config CRYPTO_ECDSA
 	help
 	  ECDSA (Elliptic Curve Digital Signature Algorithm) (FIPS 186,
 	  ISO/IEC 14888-3)
-	  using curves P-192, P-256, and P-384
+	  using curves P-192, P-256, P-384 and P-521
 
 	  Only signature verification is implemented.
 
