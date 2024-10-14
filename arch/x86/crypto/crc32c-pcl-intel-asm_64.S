@@ -56,19 +56,9 @@
 .quad .Lcrc_\i
 .endm
 
-.macro JNC_LESS_THAN j
-	jnc .Lless_than_\j
-.endm
-
-# Define threshold where buffers are considered "small" and routed to more
-# efficient "by-1" code. This "by-1" code only handles up to 255 bytes, so
-# SMALL_SIZE can be no larger than 255.
-
+# Define threshold below which buffers are considered "small" and routed to
+# regular CRC code that does not interleave the CRC instructions.
 #define SMALL_SIZE 200
-
-.if (SMALL_SIZE > 255)
-.error "SMALL_ SIZE must be < 256"
-.endif
 
 # unsigned int crc_pcl(u8 *buffer, int len, unsigned int crc_init);
 
@@ -100,24 +90,17 @@ SYM_FUNC_START(crc_pcl)
 	## Move crc_init for Linux to a different
 	mov     crc_init_arg, crc_init
 
+	mov	%bufp, bufptmp		# rdi = *buf
+	cmp	$SMALL_SIZE, len
+	jb	.Lsmall
+
 	################################################################
 	## 1) ALIGN:
 	################################################################
-
-	mov     %bufp, bufptmp		# rdi = *buf
 	neg     %bufp
 	and     $7, %bufp		# calculate the unalignment amount of
 					# the address
 	je      .Lproc_block		# Skip if aligned
-
-	## If len is less than 8 and we're unaligned, we need to jump
-	## to special code to avoid reading beyond the end of the buffer
-	cmp     $8, len
-	jae     .Ldo_align
-	# less_than_8 expects length in upper 3 bits of len_dw
-	# less_than_8_post_shl1 expects length = carryflag * 8 + len_dw[31:30]
-	shl     $32-3+1, len_dw
-	jmp     .Lless_than_8_post_shl1
 
 .Ldo_align:
 	#### Calculate CRC of unaligned bytes of the buffer (if any)
@@ -144,9 +127,6 @@ SYM_FUNC_START(crc_pcl)
 	jae     .Lfull_block
 
 .Lcontinue_block:
-	cmpq    $SMALL_SIZE, len
-	jb      .Lsmall
-
 	## len < 128*24
 	movq    $2731, %rax		# 2731 = ceil(2^16 / 24)
 	mul     len_dw
@@ -243,68 +223,38 @@ LABEL crc_ 0
 	mov     tmp, len
 	cmp     $128*24, tmp
 	jae     .Lfull_block
-	cmp     $24, tmp
+	cmp	$SMALL_SIZE, tmp
 	jae     .Lcontinue_block
 
-.Lless_than_24:
-	shl     $32-4, len_dw			# less_than_16 expects length
-						# in upper 4 bits of len_dw
-	jnc     .Lless_than_16
-	crc32q  (bufptmp), crc_init
-	crc32q  8(bufptmp), crc_init
-	jz      .Ldo_return
-	add     $16, bufptmp
-	# len is less than 8 if we got here
-	# less_than_8 expects length in upper 3 bits of len_dw
-	# less_than_8_post_shl1 expects length = carryflag * 8 + len_dw[31:30]
-	shl     $2, len_dw
-	jmp     .Lless_than_8_post_shl1
-
 	#######################################################################
-	## 6) LESS THAN 256-bytes REMAIN AT THIS POINT (8-bits of len are full)
+	## 6) Process any remainder without interleaving:
 	#######################################################################
 .Lsmall:
-	shl $32-8, len_dw		# Prepare len_dw for less_than_256
-	j=256
-.rept 5					# j = {256, 128, 64, 32, 16}
-.altmacro
-LABEL less_than_ %j			# less_than_j: Length should be in
-					# upper lg(j) bits of len_dw
-	j=(j/2)
-	shl     $1, len_dw		# Get next MSB
-	JNC_LESS_THAN %j
-.noaltmacro
-	i=0
-.rept (j/8)
-	crc32q  i(bufptmp), crc_init	# Compute crc32 of 8-byte data
-	i=i+8
-.endr
-	jz      .Ldo_return		# Return if remaining length is zero
-	add     $j, bufptmp		# Advance buf
-.endr
-
-.Lless_than_8:				# Length should be stored in
-					# upper 3 bits of len_dw
-	shl     $1, len_dw
-.Lless_than_8_post_shl1:
-	jnc     .Lless_than_4
-	crc32l  (bufptmp), crc_init_dw	# CRC of 4 bytes
-	jz      .Ldo_return		# return if remaining data is zero
-	add     $4, bufptmp
-.Lless_than_4:				# Length should be stored in
-					# upper 2 bits of len_dw
-	shl     $1, len_dw
-	jnc     .Lless_than_2
-	crc32w  (bufptmp), crc_init_dw	# CRC of 2 bytes
-	jz      .Ldo_return		# return if remaining data is zero
-	add     $2, bufptmp
-.Lless_than_2:				# Length should be stored in the MSB
-					# of len_dw
-	shl     $1, len_dw
-	jnc     .Lless_than_1
-	crc32b  (bufptmp), crc_init_dw	# CRC of 1 byte
-.Lless_than_1:				# Length should be zero
-.Ldo_return:
+	test	len, len
+	jz	.Ldone
+	mov	len_dw, %eax
+	shr	$3, %eax
+	jz	.Ldo_dword
+.Ldo_qwords:
+	crc32q	(bufptmp), crc_init
+	add	$8, bufptmp
+	dec	%eax
+	jnz	.Ldo_qwords
+.Ldo_dword:
+	test	$4, len_dw
+	jz	.Ldo_word
+	crc32l	(bufptmp), crc_init_dw
+	add	$4, bufptmp
+.Ldo_word:
+	test	$2, len_dw
+	jz	.Ldo_byte
+	crc32w	(bufptmp), crc_init_dw
+	add	$2, bufptmp
+.Ldo_byte:
+	test	$1, len_dw
+	jz	.Ldone
+	crc32b	(bufptmp), crc_init_dw
+.Ldone:
 	movq    crc_init, %rax
 	popq    %rsi
 	popq    %rdi
