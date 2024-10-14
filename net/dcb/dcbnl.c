@@ -2408,6 +2408,11 @@ static struct notifier_block dcbnl_nb __read_mostly = {
 	.notifier_call  = dcbnl_netdevice_event,
 };
 
+static const struct rtnl_msg_handler dcbnl_rtnl_msg_handlers[] __initconst = {
+	{.msgtype = RTM_GETDCB, .doit = dcb_doit},
+	{.msgtype = RTM_SETDCB, .doit = dcb_doit},
+};
+
 static int __init dcbnl_init(void)
 {
 	int err;
@@ -2416,8 +2421,7 @@ static int __init dcbnl_init(void)
 	if (err)
 		return err;
 
-	rtnl_register(PF_UNSPEC, RTM_GETDCB, dcb_doit, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_SETDCB, dcb_doit, NULL, 0);
+	rtnl_register_many(dcbnl_rtnl_msg_handlers);
 
 	return 0;
 }
