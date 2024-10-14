@@ -2643,45 +2643,6 @@ static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 }
 
 /**
- * _regulator_delay_helper - a delay helper function
- * @delay: time to delay in microseconds
- *
- * Delay for the requested amount of time as per the guidelines in:
- *
- *     Documentation/timers/timers-howto.rst
- *
- * The assumption here is that these regulator operations will never used in
- * atomic context and therefore sleeping functions can be used.
- */
-static void _regulator_delay_helper(unsigned int delay)
-{
-	unsigned int ms = delay / 1000;
-	unsigned int us = delay % 1000;
-
-	if (ms > 0) {
-		/*
-		 * For small enough values, handle super-millisecond
-		 * delays in the usleep_range() call below.
-		 */
-		if (ms < 20)
-			us += ms * 1000;
-		else
-			msleep(ms);
-	}
-
-	/*
-	 * Give the scheduler some room to coalesce with any other
-	 * wakeup sources. For delays shorter than 10 us, don't even
-	 * bother setting up high-resolution timers and just busy-
-	 * loop.
-	 */
-	if (us >= 10)
-		usleep_range(us, us + 100);
-	else
-		udelay(us);
-}
-
-/**
  * _regulator_check_status_enabled - check if regulator status can be
  *				     interpreted as "regulator is enabled"
  * @rdev: the regulator device to check
@@ -2733,7 +2694,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 		s64 remaining = ktime_us_delta(end, ktime_get_boottime());
 
 		if (remaining > 0)
-			_regulator_delay_helper(remaining);
+			fsleep(remaining);
 	}
 
 	if (rdev->ena_pin) {
@@ -2767,7 +2728,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 		int time_remaining = delay;
 
 		while (time_remaining > 0) {
-			_regulator_delay_helper(rdev->desc->poll_enabled_time);
+			fsleep(rdev->desc->poll_enabled_time);
 
 			if (rdev->desc->ops->get_status) {
 				ret = _regulator_check_status_enabled(rdev);
@@ -2786,7 +2747,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 			return -ETIMEDOUT;
 		}
 	} else {
-		_regulator_delay_helper(delay);
+		fsleep(delay);
 	}
 
 	trace_regulator_enable_complete(rdev_get_name(rdev));
@@ -3730,7 +3691,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	}
 
 	/* Insert any necessary delays */
-	_regulator_delay_helper(delay);
+	fsleep(delay);
 
 	if (best_val >= 0) {
 		unsigned long data = best_val;
