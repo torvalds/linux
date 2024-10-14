@@ -146,15 +146,18 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
  * @polarities: the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced: if this flag is true, it indicates interlaced format
+ * @cap: the v4l2_dv_timings_cap capabilities.
  * @fmt: the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a
  * valid CVT format. If so, then it will return true, and fmt will be filled
  * in with the found CVT timings.
  */
-bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
-		unsigned active_width, u32 polarities, bool interlaced,
-		struct v4l2_dv_timings *fmt);
+bool v4l2_detect_cvt(unsigned int frame_height, unsigned int hfreq,
+		     unsigned int vsync, unsigned int active_width,
+		     u32 polarities, bool interlaced,
+		     const struct v4l2_dv_timings_cap *cap,
+		     struct v4l2_dv_timings *fmt);
 
 /**
  * v4l2_detect_gtf - detect if the given timings follow the GTF standard
@@ -170,15 +173,18 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
  *		image height, so it has to be passed explicitly. Usually
  *		the native screen aspect ratio is used for this. If it
  *		is not filled in correctly, then 16:9 will be assumed.
+ * @cap: the v4l2_dv_timings_cap capabilities.
  * @fmt: the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a
  * valid GTF format. If so, then it will return true, and fmt will be filled
  * in with the found GTF timings.
  */
-bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
-		u32 polarities, bool interlaced, struct v4l2_fract aspect,
-		struct v4l2_dv_timings *fmt);
+bool v4l2_detect_gtf(unsigned int frame_height, unsigned int hfreq,
+		     unsigned int vsync, u32 polarities, bool interlaced,
+		     struct v4l2_fract aspect,
+		     const struct v4l2_dv_timings_cap *cap,
+		     struct v4l2_dv_timings *fmt);
 
 /**
  * v4l2_calc_aspect_ratio - calculate the aspect ratio based on bytes
