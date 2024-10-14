@@ -816,7 +816,8 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	return 0;
 }
 
-static void atmel_hlcdc_atomic_disable(struct atmel_hlcdc_plane *plane)
+static void atmel_hlcdc_atomic_disable(struct atmel_hlcdc_plane *plane,
+				       struct atmel_hlcdc_dc *dc)
 {
 	/* Disable interrupts */
 	atmel_hlcdc_layer_write_reg(&plane->layer, ATMEL_HLCDC_LAYER_IDR,
@@ -832,7 +833,8 @@ static void atmel_hlcdc_atomic_disable(struct atmel_hlcdc_plane *plane)
 	atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_ISR);
 }
 
-static void atmel_xlcdc_atomic_disable(struct atmel_hlcdc_plane *plane)
+static void atmel_xlcdc_atomic_disable(struct atmel_hlcdc_plane *plane,
+				       struct atmel_hlcdc_dc *dc)
 {
 	/* Disable interrupts */
 	atmel_hlcdc_layer_write_reg(&plane->layer, ATMEL_XLCDC_LAYER_IDR,
@@ -841,6 +843,15 @@ static void atmel_xlcdc_atomic_disable(struct atmel_hlcdc_plane *plane)
 	/* Disable the layer */
 	atmel_hlcdc_layer_write_reg(&plane->layer,
 				    ATMEL_XLCDC_LAYER_ENR, 0);
+
+	/*
+	 * Updating XLCDC_xxxCFGx, XLCDC_xxxFBA and XLCDC_xxxEN,
+	 * (where xxx indicates each layer) requires writing one to the
+	 * Update Attribute field for each layer in LCDC_ATTRE register for SAM9X7.
+	 */
+	regmap_write(dc->hlcdc->regmap, ATMEL_XLCDC_ATTRE, ATMEL_XLCDC_BASE_UPDATE |
+		     ATMEL_XLCDC_OVR1_UPDATE | ATMEL_XLCDC_OVR3_UPDATE |
+		     ATMEL_XLCDC_HEO_UPDATE);
 
 	/* Clear all pending interrupts */
 	atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_XLCDC_LAYER_ISR);
@@ -852,7 +863,7 @@ static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
 	struct atmel_hlcdc_dc *dc = plane->base.dev->dev_private;
 
-	dc->desc->ops->lcdc_atomic_disable(plane);
+	dc->desc->ops->lcdc_atomic_disable(plane, dc);
 }
 
 static void atmel_hlcdc_atomic_update(struct atmel_hlcdc_plane *plane,
