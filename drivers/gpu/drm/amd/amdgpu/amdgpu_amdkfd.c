@@ -890,6 +890,15 @@ int amdgpu_amdkfd_start_sched(struct amdgpu_device *adev, uint32_t node_id)
 	return kgd2kfd_start_sched(adev->kfd.dev, node_id);
 }
 
+/* check if there are KFD queues active */
+bool amdgpu_amdkfd_compute_active(struct amdgpu_device *adev, uint32_t node_id)
+{
+	if (!adev->kfd.init_complete)
+		return false;
+
+	return kgd2kfd_compute_active(adev->kfd.dev, node_id);
+}
+
 /* Config CGTT_SQ_CLK_CTRL */
 int amdgpu_amdkfd_config_sq_perfmon(struct amdgpu_device *adev, uint32_t xcp_id,
 	bool core_override_enable, bool reg_override_enable, bool perfmon_override_enable)
