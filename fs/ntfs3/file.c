@@ -182,13 +182,15 @@ static int ntfs_extend_initialized_size(struct file *file,
 	loff_t pos = valid;
 	int err;
 
+	if (valid >= new_valid)
+		return 0;
+
 	if (is_resident(ni)) {
 		ni->i_valid = new_valid;
 		return 0;
 	}
 
 	WARN_ON(is_compressed(ni));
-	WARN_ON(valid >= new_valid);
 
 	for (;;) {
 		u32 zerofrom, len;
