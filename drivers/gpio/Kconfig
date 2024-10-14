@@ -70,8 +70,7 @@ config GPIO_SYSFS
 	  ioctl() operations instead.
 
 config GPIO_CDEV
-	bool
-	prompt "Character device (/dev/gpiochipN) support" if EXPERT
+	bool "Character device (/dev/gpiochipN) support" if EXPERT
 	default y
 	help
 	  Say Y here to add the character device /dev/gpiochipN interface
