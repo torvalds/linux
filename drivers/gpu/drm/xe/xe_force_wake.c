@@ -154,29 +154,61 @@ static int domain_sleep_wait(struct xe_gt *gt,
 					 (ffs(tmp__) - 1))) && \
 					 domain__->reg_ctl.addr)
 
-int xe_force_wake_get(struct xe_force_wake *fw,
-		      enum xe_force_wake_domains domains)
+/**
+ * xe_force_wake_get() : Increase the domain refcount
+ * @fw: struct xe_force_wake
+ * @domains: forcewake domains to get refcount on
+ *
+ * This function wakes up @domains if they are asleep and takes references.
+ * If requested domain is XE_FORCEWAKE_ALL then only applicable/initialized
+ * domains will be considered for refcount and it is a caller responsibility
+ * to check returned ref if it includes any specific domain by using
+ * xe_force_wake_ref_has_domain() function. Caller must call
+ * xe_force_wake_put() function to decrease incremented refcounts.
+ *
+ * Return: opaque reference to woken domains or zero if none of requested
+ * domains were awake.
+ */
+unsigned int xe_force_wake_get(struct xe_force_wake *fw,
+			       enum xe_force_wake_domains domains)
 {
 	struct xe_gt *gt = fw->gt;
 	struct xe_force_wake_domain *domain;
-	enum xe_force_wake_domains tmp, woken = 0;
+	unsigned int ref_incr = 0, awake_rqst = 0, awake_failed = 0;
+	unsigned int tmp, ref_rqst;
 	unsigned long flags;
-	int ret = 0;
 
+	xe_gt_assert(gt, is_power_of_2(domains));
+	xe_gt_assert(gt, domains <= XE_FORCEWAKE_ALL);
+	xe_gt_assert(gt, domains == XE_FORCEWAKE_ALL || fw->initialized_domains & domains);
+
+	ref_rqst = (domains == XE_FORCEWAKE_ALL) ? fw->initialized_domains : domains;
 	spin_lock_irqsave(&fw->lock, flags);
-	for_each_fw_domain_masked(domain, domains, fw, tmp) {
+	for_each_fw_domain_masked(domain, ref_rqst, fw, tmp) {
 		if (!domain->ref++) {
-			woken |= BIT(domain->id);
+			awake_rqst |= BIT(domain->id);
 			domain_wake(gt, domain);
 		}
+		ref_incr |= BIT(domain->id);
 	}
-	for_each_fw_domain_masked(domain, woken, fw, tmp) {
-		ret |= domain_wake_wait(gt, domain);
+	for_each_fw_domain_masked(domain, awake_rqst, fw, tmp) {
+		if (domain_wake_wait(gt, domain) == 0) {
+			fw->awake_domains |= BIT(domain->id);
+		} else {
+			awake_failed |= BIT(domain->id);
+			--domain->ref;
+		}
 	}
-	fw->awake_domains |= woken;
+	ref_incr &= ~awake_failed;
 	spin_unlock_irqrestore(&fw->lock, flags);
 
-	return ret;
+	xe_gt_WARN(gt, awake_failed, "Forcewake domain%s %#x failed to acknowledge awake request\n",
+		   str_plural(hweight_long(awake_failed)), awake_failed);
+
+	if (domains == XE_FORCEWAKE_ALL && ref_incr == fw->initialized_domains)
+		ref_incr |= XE_FORCEWAKE_ALL;
+
+	return ref_incr;
 }
 
 int xe_force_wake_put(struct xe_force_wake *fw,
