@@ -144,13 +144,17 @@ drm_kms_helper-y := \
 	drm_probe_helper.o \
 	drm_self_refresh_helper.o \
 	drm_simple_kms_helper.o
-drm_kms_helper-$(CONFIG_DRM_CLIENT_SETUP) += \
-	drm_client_setup.o
 drm_kms_helper-$(CONFIG_DRM_PANEL_BRIDGE) += bridge/panel.o
-drm_kms_helper-$(CONFIG_DRM_FBDEV_EMULATION) += \
-	drm_fbdev_client.o \
-	drm_fb_helper.o
+drm_kms_helper-$(CONFIG_DRM_FBDEV_EMULATION) += drm_fb_helper.o
 obj-$(CONFIG_DRM_KMS_HELPER) += drm_kms_helper.o
+
+#
+# DRM clients
+#
+
+drm_client_lib-y := drm_client_setup.o
+drm_client_lib-$(CONFIG_DRM_FBDEV_EMULATION) += drm_fbdev_client.o
+obj-$(CONFIG_DRM_CLIENT_LIB) += drm_client_lib.o
 
 #
 # Drivers and the rest
