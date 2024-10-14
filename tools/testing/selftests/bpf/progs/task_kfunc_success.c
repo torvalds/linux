@@ -366,3 +366,54 @@ int BPF_PROG(task_kfunc_acquire_trusted_walked, struct task_struct *task, u64 cl
 
 	return 0;
 }
+
+SEC("syscall")
+int test_task_from_vpid_current(const void *ctx)
+{
+	struct task_struct *current, *v_task;
+
+	v_task = bpf_task_from_vpid(1);
+	if (!v_task) {
+		err = 1;
+		return 0;
+	}
+
+	current = bpf_get_current_task_btf();
+
+	/* The current process should be the init process (pid 1) in the new pid namespace. */
+	if (current != v_task)
+		err = 2;
+
+	bpf_task_release(v_task);
+	return 0;
+}
+
+SEC("syscall")
+int test_task_from_vpid_invalid(const void *ctx)
+{
+	struct task_struct *v_task;
+
+	v_task = bpf_task_from_vpid(-1);
+	if (v_task) {
+		err = 1;
+		goto err;
+	}
+
+	/* There should be only one process (current process) in the new pid namespace. */
+	v_task = bpf_task_from_vpid(2);
+	if (v_task) {
+		err = 2;
+		goto err;
+	}
+
+	v_task = bpf_task_from_vpid(9999);
+	if (v_task) {
+		err = 3;
+		goto err;
+	}
+
+	return 0;
+err:
+	bpf_task_release(v_task);
+	return 0;
+}
