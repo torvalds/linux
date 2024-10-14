@@ -1550,7 +1550,7 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 	int rc = 0;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 	struct smb_version_operations *ops;
-	const u32 info = 0;
+	const u32 info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO;
 
 	cifs_dbg(NOISY, "converting ACL to mode for %s\n", path);
 
@@ -1604,7 +1604,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 	struct tcon_link *tlink;
 	struct smb_version_operations *ops;
 	bool mode_from_sid, id_from_sid;
-	const u32 info = 0;
+	const u32 info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO;
 	bool posix;
 
 	tlink = cifs_sb_tlink(cifs_sb);
