@@ -549,11 +549,10 @@ static struct attribute *gpio_class_attrs[] = {
 };
 ATTRIBUTE_GROUPS(gpio_class);
 
-static struct class gpio_class = {
+static const struct class gpio_class = {
 	.name =		"gpio",
-	.class_groups = gpio_class_groups,
+	.class_groups =	gpio_class_groups,
 };
-
 
 /**
  * gpiod_export - export a GPIO through sysfs
