@@ -7,7 +7,7 @@
 #include <linux/kthread.h>
 #include <linux/sched/signal.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/tcp.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>

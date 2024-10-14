@@ -21,7 +21,7 @@
 #include <linux/of_platform.h>
 #include <linux/sched.h>
 #include <linux/serdev.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * UART protocol using following entities:

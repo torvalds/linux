@@ -10,7 +10,7 @@
  * integer types.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/curve25519.h>
 #include <linux/string.h>
 

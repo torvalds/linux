@@ -785,6 +785,17 @@ static int pse_ethtool_c33_set_config(struct pse_control *psec,
 	 */
 	switch (config->c33_admin_control) {
 	case ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED:
+		/* We could have mismatch between admin_state_enabled and
+		 * state reported by regulator_is_enabled. This can occur when
+		 * the PI is forcibly turn off by the controller. Call
+		 * regulator_disable on that case to fix the counters state.
+		 */
+		if (psec->pcdev->pi[psec->id].admin_state_enabled &&
+		    !regulator_is_enabled(psec->ps)) {
+			err = regulator_disable(psec->ps);
+			if (err)
+				break;
+		}
 		if (!psec->pcdev->pi[psec->id].admin_state_enabled)
 			err = regulator_enable(psec->ps);
 		break;

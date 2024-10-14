@@ -9,7 +9,7 @@
 #include <linux/crc-t10dif.h>
 #include <linux/crc64.h>
 #include <net/checksum.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "blk.h"
 
 struct blk_integrity_iter {

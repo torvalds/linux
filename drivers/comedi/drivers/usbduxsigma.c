@@ -39,7 +39,7 @@
 #include <linux/input.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/comedi/comedi_usb.h>
 
 /* timeout for the USB-transfer in ms*/

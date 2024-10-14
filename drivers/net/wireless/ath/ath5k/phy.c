@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ath5k.h"
 #include "reg.h"

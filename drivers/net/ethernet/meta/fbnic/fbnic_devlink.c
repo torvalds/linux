@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/pci.h>
 #include <linux/types.h>
 #include <net/devlink.h>

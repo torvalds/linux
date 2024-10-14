@@ -26,6 +26,8 @@ int bch2_subvolume_trigger(struct btree_trans *, enum btree_id, unsigned,
 int bch2_subvol_has_children(struct btree_trans *, u32);
 int bch2_subvolume_get(struct btree_trans *, unsigned,
 		       bool, int, struct bch_subvolume *);
+int __bch2_subvolume_get_snapshot(struct btree_trans *, u32,
+				  u32 *, bool);
 int bch2_subvolume_get_snapshot(struct btree_trans *, u32, u32 *);
 
 int bch2_subvol_is_ro_trans(struct btree_trans *, u32);

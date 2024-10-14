@@ -11,7 +11,7 @@
 #include <asm-generic/access_ok.h>
 
 #ifdef CONFIG_UACCESS_MEMCPY
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static __always_inline int
 __get_user_fn(size_t size, const void __user *from, void *to)

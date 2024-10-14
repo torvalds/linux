@@ -16,7 +16,7 @@
 #include <linux/kthread.h>
 #include <linux/io.h>
 #include <linux/random.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <soc.h>
 #include <chipcommon.h>

@@ -164,10 +164,16 @@ struct test_kfree_rcu_struct {
 
 static void test_kfree_rcu(struct kunit *test)
 {
-	struct kmem_cache *s = test_kmem_cache_create("TestSlub_kfree_rcu",
-				sizeof(struct test_kfree_rcu_struct),
-				SLAB_NO_MERGE);
-	struct test_kfree_rcu_struct *p = kmem_cache_alloc(s, GFP_KERNEL);
+	struct kmem_cache *s;
+	struct test_kfree_rcu_struct *p;
+
+	if (IS_BUILTIN(CONFIG_SLUB_KUNIT_TEST))
+		kunit_skip(test, "can't do kfree_rcu() when test is built-in");
+
+	s = test_kmem_cache_create("TestSlub_kfree_rcu",
+				   sizeof(struct test_kfree_rcu_struct),
+				   SLAB_NO_MERGE);
+	p = kmem_cache_alloc(s, GFP_KERNEL);
 
 	kfree_rcu(p, rcu);
 	kmem_cache_destroy(s);
@@ -177,13 +183,13 @@ static void test_kfree_rcu(struct kunit *test)
 
 static void test_leak_destroy(struct kunit *test)
 {
-	struct kmem_cache *s = test_kmem_cache_create("TestSlub_kfree_rcu",
+	struct kmem_cache *s = test_kmem_cache_create("TestSlub_leak_destroy",
 							64, SLAB_NO_MERGE);
 	kmem_cache_alloc(s, GFP_KERNEL);
 
 	kmem_cache_destroy(s);
 
-	KUNIT_EXPECT_EQ(test, 1, slab_errors);
+	KUNIT_EXPECT_EQ(test, 2, slab_errors);
 }
 
 static int test_init(struct kunit *test)

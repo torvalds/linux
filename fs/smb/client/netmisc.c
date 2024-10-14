@@ -1003,7 +1003,7 @@ struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 	 year is 2**7, the last year is 1980+127, which means we need only
 	 consider 2 special case years, ie the years 2000 and 2100, and only
 	 adjust for the lack of leap year for the year 2100, as 2000 was a
-	 leap year (divisable by 400) */
+	 leap year (divisible by 400) */
 	if (year >= 120)  /* the year 2100 */
 		days = days - 1;  /* do not count leap year for the year 2100 */
 

@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define SSI_TIMEOUT_MS		2000
 #define SSI_POLL_TIMEOUT_US	200

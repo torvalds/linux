@@ -29,7 +29,7 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/platform_device.h>
 
 #include "bdc.h"

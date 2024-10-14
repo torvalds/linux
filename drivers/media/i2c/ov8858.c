@@ -5,7 +5,7 @@
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>

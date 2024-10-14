@@ -21,7 +21,7 @@
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/fileattr.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "ecryptfs_kernel.h"
 
 static int lock_parent(struct dentry *dentry,

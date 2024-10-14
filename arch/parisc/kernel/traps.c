@@ -36,7 +36,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 #include <asm/smp.h>
 #include <asm/pdc.h>
@@ -46,6 +46,8 @@
 #include <asm/cacheflush.h>
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
+
+#include "unaligned.h"
 
 #if defined(CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK)
 #include <asm/spinlock.h>

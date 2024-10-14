@@ -6,7 +6,7 @@
 #include <linux/crc-itu-t.h>
 #include <linux/nvmem-consumer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "aquantia.h"
 

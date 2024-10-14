@@ -18,7 +18,7 @@
 #include <linux/spi/spi.h>
 #include <linux/units.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* ADMV1013 Register Map */
 #define ADMV1013_REG_SPI_CONTROL		0x00

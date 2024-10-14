@@ -23,7 +23,7 @@
 #include <linux/bcma/bcma.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>

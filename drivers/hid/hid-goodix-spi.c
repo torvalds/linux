@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2024 Godix, Inc.
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/delay.h>
 #include <linux/hid.h>
 #include <linux/interrupt.h>

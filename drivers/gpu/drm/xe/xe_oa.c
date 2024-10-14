@@ -709,8 +709,7 @@ static int xe_oa_configure_oar_context(struct xe_oa_stream *stream, bool enable)
 		{
 			RING_CONTEXT_CONTROL(stream->hwe->mmio_base),
 			regs_offset + CTX_CONTEXT_CONTROL,
-			_MASKED_FIELD(CTX_CTRL_OAC_CONTEXT_ENABLE,
-				      enable ? CTX_CTRL_OAC_CONTEXT_ENABLE : 0)
+			_MASKED_BIT_ENABLE(CTX_CTRL_OAC_CONTEXT_ENABLE),
 		},
 	};
 	struct xe_oa_reg reg_lri = { OAR_OACONTROL, oacontrol };
@@ -742,10 +741,8 @@ static int xe_oa_configure_oac_context(struct xe_oa_stream *stream, bool enable)
 		{
 			RING_CONTEXT_CONTROL(stream->hwe->mmio_base),
 			regs_offset + CTX_CONTEXT_CONTROL,
-			_MASKED_FIELD(CTX_CTRL_OAC_CONTEXT_ENABLE,
-				      enable ? CTX_CTRL_OAC_CONTEXT_ENABLE : 0) |
-			_MASKED_FIELD(CTX_CTRL_RUN_ALONE,
-				      enable ? CTX_CTRL_RUN_ALONE : 0),
+			_MASKED_BIT_ENABLE(CTX_CTRL_OAC_CONTEXT_ENABLE) |
+			_MASKED_FIELD(CTX_CTRL_RUN_ALONE, enable ? CTX_CTRL_RUN_ALONE : 0),
 		},
 	};
 	struct xe_oa_reg reg_lri = { OAC_OACONTROL, oacontrol };

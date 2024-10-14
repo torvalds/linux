@@ -53,7 +53,7 @@ void nfsd_localio_ops_init(void)
  *
  * On successful return, returned nfsd_file will have its nf_net member
  * set. Caller (NFS client) is responsible for calling nfsd_serv_put and
- * nfsd_file_put (via nfs_to->nfsd_file_put_local).
+ * nfsd_file_put (via nfs_to_nfsd_file_put_local).
  */
 struct nfsd_file *
 nfsd_open_local_fh(struct net *net, struct auth_domain *dom,

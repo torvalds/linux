@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_GENERIC_UNALIGNED_H
-#define __ASM_GENERIC_UNALIGNED_H
+#ifndef __LINUX_UNALIGNED_H
+#define __LINUX_UNALIGNED_H
 
 /*
  * This is the most generic implementation of unaligned accesses
@@ -143,4 +143,4 @@ static inline u64 get_unaligned_be48(const void *p)
 	return __get_unaligned_be48(p);
 }
 
-#endif /* __ASM_GENERIC_UNALIGNED_H */
+#endif /* __LINUX_UNALIGNED_H */

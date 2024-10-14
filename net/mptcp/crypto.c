@@ -22,7 +22,7 @@
 
 #include <linux/kernel.h>
 #include <crypto/sha2.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "protocol.h"
 

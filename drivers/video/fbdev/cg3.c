@@ -458,7 +458,7 @@ static struct platform_driver cg3_driver = {
 		.of_match_table = cg3_match,
 	},
 	.probe		= cg3_probe,
-	.remove_new	= cg3_remove,
+	.remove		= cg3_remove,
 };
 
 static int __init cg3_init(void)

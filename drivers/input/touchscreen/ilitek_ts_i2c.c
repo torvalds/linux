@@ -19,7 +19,7 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/input/touchscreen.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 #define ILITEK_TS_NAME					"ilitek_ts"
