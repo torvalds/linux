@@ -3886,17 +3886,18 @@ EXPORT_SYMBOL(neigh_sysctl_unregister);
 
 #endif	/* CONFIG_SYSCTL */
 
+static const struct rtnl_msg_handler neigh_rtnl_msg_handlers[] __initconst = {
+	{.msgtype = RTM_NEWNEIGH, .doit = neigh_add},
+	{.msgtype = RTM_DELNEIGH, .doit = neigh_delete},
+	{.msgtype = RTM_GETNEIGH, .doit = neigh_get, .dumpit = neigh_dump_info,
+	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.msgtype = RTM_GETNEIGHTBL, .dumpit = neightbl_dump_info},
+	{.msgtype = RTM_SETNEIGHTBL, .doit = neightbl_set},
+};
+
 static int __init neigh_init(void)
 {
-	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, neigh_get, neigh_dump_info,
-		      RTNL_FLAG_DUMP_UNLOCKED);
-
-	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info,
-		      0);
-	rtnl_register(PF_UNSPEC, RTM_SETNEIGHTBL, neightbl_set, NULL, 0);
-
+	rtnl_register_many(neigh_rtnl_msg_handlers);
 	return 0;
 }
 
