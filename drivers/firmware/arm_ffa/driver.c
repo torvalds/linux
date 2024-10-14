@@ -501,7 +501,7 @@ static int ffa_msg_send_direct_req2(u16 src_id, u16 dst_id, const uuid_t *uuid,
 		return ffa_to_linux_errno((int)ret.a2);
 
 	if (ret.a0 == FFA_MSG_SEND_DIRECT_RESP2) {
-		memcpy(data, &ret.a4, sizeof(*data));
+		memcpy(data, (void *)&ret + offsetof(ffa_value_t, a4), sizeof(*data));
 		return 0;
 	}
 
