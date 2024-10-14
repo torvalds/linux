@@ -3288,8 +3288,8 @@ static int gfx_v9_0_cp_gfx_start(struct amdgpu_device *adev)
 	 * confirmed that the APU gfx10/gfx11 needn't such update.
 	 */
 	if (adev->flags & AMD_IS_APU &&
-			adev->in_s3 && !adev->suspend_complete) {
-		DRM_INFO(" Will skip the CSB packet resubmit\n");
+			adev->in_s3 && !pm_resume_via_firmware()) {
+		DRM_INFO("Will skip the CSB packet resubmit\n");
 		return 0;
 	}
 	r = amdgpu_ring_alloc(ring, gfx_v9_0_get_csb_size(adev) + 4 + 3);

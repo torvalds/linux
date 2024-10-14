@@ -897,9 +897,10 @@ static bool soc21_need_reset_on_resume(struct amdgpu_device *adev)
 	/* Will reset for the following suspend abort cases.
 	 * 1) Only reset dGPU side.
 	 * 2) S3 suspend got aborted and TOS is active.
+	 *    As for dGPU suspend abort cases the SOL value
+	 *    will be kept as zero at this resume point.
 	 */
-	if (!(adev->flags & AMD_IS_APU) && adev->in_s3 &&
-	    !adev->suspend_complete) {
+	if (!(adev->flags & AMD_IS_APU) && adev->in_s3) {
 		sol_reg1 = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81);
 		msleep(100);
 		sol_reg2 = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81);
