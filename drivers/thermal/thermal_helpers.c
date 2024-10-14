@@ -58,17 +58,10 @@ bool thermal_trip_is_bound_to_cdev(struct thermal_zone_device *tz,
 				   const struct thermal_trip *trip,
 				   struct thermal_cooling_device *cdev)
 {
-	bool ret;
-
 	guard(thermal_zone)(tz);
+	guard(cooling_dev)(cdev);
 
-	mutex_lock(&cdev->lock);
-
-	ret = thermal_instance_present(tz, cdev, trip);
-
-	mutex_unlock(&cdev->lock);
-
-	return ret;
+	return thermal_instance_present(tz, cdev, trip);
 }
 EXPORT_SYMBOL_GPL(thermal_trip_is_bound_to_cdev);
 
@@ -197,12 +190,12 @@ void __thermal_cdev_update(struct thermal_cooling_device *cdev)
  */
 void thermal_cdev_update(struct thermal_cooling_device *cdev)
 {
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
+
 	if (!cdev->updated) {
 		__thermal_cdev_update(cdev);
 		cdev->updated = true;
 	}
-	mutex_unlock(&cdev->lock);
 }
 
 /**
@@ -211,11 +204,9 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
  */
 void thermal_cdev_update_nocheck(struct thermal_cooling_device *cdev)
 {
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	__thermal_cdev_update(cdev);
-
-	mutex_unlock(&cdev->lock);
 }
 
 /**

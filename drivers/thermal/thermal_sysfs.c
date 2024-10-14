@@ -544,14 +544,15 @@ cur_state_store(struct device *dev, struct device_attribute *attr,
 	if (state > cdev->max_state)
 		return -EINVAL;
 
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	result = cdev->ops->set_cur_state(cdev, state);
-	if (!result)
-		thermal_cooling_device_stats_update(cdev, state);
+	if (result)
+		return result;
 
-	mutex_unlock(&cdev->lock);
-	return result ? result : count;
+	thermal_cooling_device_stats_update(cdev, state);
+
+	return count;
 }
 
 static struct device_attribute
@@ -625,20 +626,17 @@ static ssize_t total_trans_show(struct device *dev,
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
 	struct cooling_dev_stats *stats;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	stats = cdev->stats;
 	if (!stats)
-		goto unlock;
+		return 0;
 
 	spin_lock(&stats->lock);
 	ret = sprintf(buf, "%u\n", stats->total_trans);
 	spin_unlock(&stats->lock);
-
-unlock:
-	mutex_unlock(&cdev->lock);
 
 	return ret;
 }
@@ -652,11 +650,11 @@ time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
 	ssize_t len = 0;
 	int i;
 
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	stats = cdev->stats;
 	if (!stats)
-		goto unlock;
+		return 0;
 
 	spin_lock(&stats->lock);
 
@@ -667,9 +665,6 @@ time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
 			       ktime_to_ms(stats->time_in_state[i]));
 	}
 	spin_unlock(&stats->lock);
-
-unlock:
-	mutex_unlock(&cdev->lock);
 
 	return len;
 }
@@ -682,11 +677,11 @@ reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	struct cooling_dev_stats *stats;
 	int i, states;
 
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	stats = cdev->stats;
 	if (!stats)
-		goto unlock;
+		return count;
 
 	states = cdev->max_state + 1;
 
@@ -702,9 +697,6 @@ reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
 
 	spin_unlock(&stats->lock);
 
-unlock:
-	mutex_unlock(&cdev->lock);
-
 	return count;
 }
 
@@ -716,13 +708,11 @@ static ssize_t trans_table_show(struct device *dev,
 	ssize_t len = 0;
 	int i, j;
 
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	stats = cdev->stats;
-	if (!stats) {
-		len = -ENODATA;
-		goto unlock;
-	}
+	if (!stats)
+		return -ENODATA;
 
 	len += snprintf(buf + len, PAGE_SIZE - len, " From  :    To\n");
 	len += snprintf(buf + len, PAGE_SIZE - len, "       : ");
@@ -731,10 +721,8 @@ static ssize_t trans_table_show(struct device *dev,
 			break;
 		len += snprintf(buf + len, PAGE_SIZE - len, "state%2u  ", i);
 	}
-	if (len >= PAGE_SIZE) {
-		len = PAGE_SIZE;
-		goto unlock;
-	}
+	if (len >= PAGE_SIZE)
+		return PAGE_SIZE;
 
 	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 
@@ -759,9 +747,6 @@ static ssize_t trans_table_show(struct device *dev,
 		pr_warn_once("Thermal transition table exceeds PAGE_SIZE. Disabling\n");
 		len = -EFBIG;
 	}
-
-unlock:
-	mutex_unlock(&cdev->lock);
 
 	return len;
 }

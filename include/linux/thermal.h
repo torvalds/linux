@@ -140,6 +140,9 @@ struct thermal_cooling_device {
 #endif
 };
 
+DEFINE_GUARD(cooling_dev, struct thermal_cooling_device *, mutex_lock(&_T->lock),
+	     mutex_unlock(&_T->lock))
+
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
 	const char *governor_name;

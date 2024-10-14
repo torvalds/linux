@@ -758,11 +758,9 @@ static int thermal_instance_add(struct thermal_instance *new_instance,
 
 	list_add_tail(&new_instance->trip_node, &td->thermal_instances);
 
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	list_add_tail(&new_instance->cdev_node, &cdev->thermal_instances);
-
-	mutex_unlock(&cdev->lock);
 
 	return 0;
 }
@@ -872,11 +870,9 @@ static void thermal_instance_delete(struct thermal_instance *instance)
 {
 	list_del(&instance->trip_node);
 
-	mutex_lock(&instance->cdev->lock);
+	guard(cooling_dev)(instance->cdev);
 
 	list_del(&instance->cdev_node);
-
-	mutex_unlock(&instance->cdev->lock);
 }
 
 /**
@@ -1239,10 +1235,10 @@ void thermal_cooling_device_update(struct thermal_cooling_device *cdev)
 	 * Update under the cdev lock to prevent the state from being set beyond
 	 * the new limit concurrently.
 	 */
-	mutex_lock(&cdev->lock);
+	guard(cooling_dev)(cdev);
 
 	if (cdev->ops->get_max_state(cdev, &cdev->max_state))
-		goto unlock;
+		return;
 
 	thermal_cooling_device_stats_reinit(cdev);
 
@@ -1269,12 +1265,9 @@ void thermal_cooling_device_update(struct thermal_cooling_device *cdev)
 	}
 
 	if (cdev->ops->get_cur_state(cdev, &state) || state > cdev->max_state)
-		goto unlock;
+		return;
 
 	thermal_cooling_device_stats_update(cdev, state);
-
-unlock:
-	mutex_unlock(&cdev->lock);
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_update);
 
