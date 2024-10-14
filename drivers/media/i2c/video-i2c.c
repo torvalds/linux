@@ -566,8 +566,6 @@ static const struct vb2_ops video_i2c_video_qops = {
 	.buf_queue		= buffer_queue,
 	.start_streaming	= start_streaming,
 	.stop_streaming		= stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int video_i2c_querycap(struct file *file, void  *priv,
