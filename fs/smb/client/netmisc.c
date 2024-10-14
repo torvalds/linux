@@ -871,6 +871,13 @@ map_smb_to_linux_error(char *buf, bool logErr)
 	}
 	/* else ERRHRD class errors or junk  - return EIO */
 
+	/* special cases for NT status codes which cannot be translated to DOS codes */
+	if (smb->Flags2 & SMBFLG2_ERR_STATUS) {
+		__u32 err = le32_to_cpu(smb->Status.CifsError);
+		if (err == (NT_STATUS_NOT_A_REPARSE_POINT))
+			rc = -ENODATA;
+	}
+
 	cifs_dbg(FYI, "Mapping smb error code 0x%x to POSIX err %d\n",
 		 le32_to_cpu(smb->Status.CifsError), rc);
 
