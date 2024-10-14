@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Based on rk3328-nanopi-r2s.dts, which is:
- *   Copyright (c) 2020 David Bauer <mail@david-bauer.net>
+ * (C) Copyright 2018 FriendlyElec Computer Tech. Co., Ltd.
+ * (http://www.friendlyarm.com)
+ *
+ * (C) Copyright 2016 Rockchip Electronics Co., Ltd
  */
 
 /dts-v1/;
 
-#include "rk3328-orangepi-r1-plus.dtsi"
-
-/ {
-	model = "Xunlong Orange Pi R1 Plus";
-	compatible = "xunlong,orangepi-r1-plus", "rockchip,rk3328";
-};
+#include "rk3328-nanopi-r2.dtsi"
 
 &gmac2io {
 	phy-handle = <&rtl8211e>;

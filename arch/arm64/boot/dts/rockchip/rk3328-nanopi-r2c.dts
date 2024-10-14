@@ -7,34 +7,10 @@
  */
 
 /dts-v1/;
-#include "rk3328-nanopi-r2s.dts"
+
+#include "rk3328-nanopi-r2c.dtsi"
 
 / {
 	model = "FriendlyElec NanoPi R2C";
 	compatible = "friendlyarm,nanopi-r2c", "rockchip,rk3328";
-};
-
-&gmac2io {
-	phy-handle = <&yt8521s>;
-	tx_delay = <0x22>;
-	rx_delay = <0x12>;
-
-	mdio {
-		/delete-node/ ethernet-phy@1;
-
-		yt8521s: ethernet-phy@3 {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <3>;
-
-			motorcomm,clk-out-frequency-hz = <125000000>;
-			motorcomm,keep-pll-enabled;
-			motorcomm,auto-sleep-disabled;
-
-			pinctrl-0 = <&eth_phy_reset_pin>;
-			pinctrl-names = "default";
-			reset-assert-us = <10000>;
-			reset-deassert-us = <50000>;
-			reset-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
-		};
-	};
 };
