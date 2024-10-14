@@ -431,9 +431,9 @@ int bch2_folio_reservation_get(struct bch_fs *c,
 		ret = bch2_quota_reservation_add(c, inode, &res->quota, quota_sectors, true);
 		if (unlikely(ret)) {
 			struct disk_reservation tmp = { .sectors = disk_sectors };
+			res->disk.sectors -= disk_sectors;
 
 			bch2_disk_reservation_put(c, &tmp);
-			res->disk.sectors -= disk_sectors;
 			return ret;
 		}
 	}
