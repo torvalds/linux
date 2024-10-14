@@ -1843,8 +1843,8 @@ static int rk808_regulator_dt_parse_pdata(struct device *dev, struct regmap *map
 		pdata->dvs_gpio[i] =
 			devm_gpiod_get_index_optional(dev, "dvs", i, GPIOD_OUT_LOW);
 		if (IS_ERR(pdata->dvs_gpio[i])) {
-			ret = PTR_ERR(pdata->dvs_gpio[i]);
-			dev_err(dev, "failed to get dvs%d gpio (%d)\n", i, ret);
+			ret = dev_err_probe(dev, PTR_ERR(pdata->dvs_gpio[i]),
+					    "failed to get dvs%d gpio\n", i);
 			goto dt_parse_end;
 		}
 
@@ -1920,9 +1920,8 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 		nregulators = RK818_NUM_REGULATORS;
 		break;
 	default:
-		dev_err(&pdev->dev, "unsupported RK8XX ID %lu\n",
-			rk808->variant);
-		return -EINVAL;
+		return dev_err_probe(&pdev->dev, -EINVAL,
+				     "unsupported RK8xx ID %lu\n", rk808->variant);
 	}
 
 	config.dev = &pdev->dev;
