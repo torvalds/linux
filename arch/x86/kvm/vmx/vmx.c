@@ -481,10 +481,9 @@ noinline void invvpid_error(unsigned long ext, u16 vpid, gva_t gva)
 			ext, vpid, gva);
 }
 
-noinline void invept_error(unsigned long ext, u64 eptp, gpa_t gpa)
+noinline void invept_error(unsigned long ext, u64 eptp)
 {
-	vmx_insn_failed("invept failed: ext=0x%lx eptp=%llx gpa=0x%llx\n",
-			ext, eptp, gpa);
+	vmx_insn_failed("invept failed: ext=0x%lx eptp=%llx\n", ext, eptp);
 }
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
