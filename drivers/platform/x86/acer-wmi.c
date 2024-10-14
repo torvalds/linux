@@ -258,11 +258,6 @@ enum interface_flags {
 	ACER_WMID_v2,
 };
 
-#define ACER_DEFAULT_WIRELESS  0
-#define ACER_DEFAULT_BLUETOOTH 0
-#define ACER_DEFAULT_MAILLED   0
-#define ACER_DEFAULT_THREEG    0
-
 static int max_brightness = 0xF;
 
 static int mailled = -1;
