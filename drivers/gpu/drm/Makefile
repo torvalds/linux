@@ -41,6 +41,7 @@ drm-y := \
 	drm_bridge.o \
 	drm_cache.o \
 	drm_client.o \
+	drm_client_event.o \
 	drm_client_modeset.o \
 	drm_color_mgmt.o \
 	drm_connector.o \

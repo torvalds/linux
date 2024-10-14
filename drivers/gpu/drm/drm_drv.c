@@ -38,7 +38,7 @@
 
 #include <drm/drm_accel.h>
 #include <drm/drm_cache.h>
-#include <drm/drm_client.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
