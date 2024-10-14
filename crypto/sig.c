@@ -84,15 +84,6 @@ struct crypto_sig *crypto_alloc_sig(const char *alg_name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_sig);
 
-static void sig_prepare_alg(struct sig_alg *alg)
-{
-	struct crypto_alg *base = &alg->base;
-
-	base->cra_type = &crypto_sig_type;
-	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
-	base->cra_flags |= CRYPTO_ALG_TYPE_SIG;
-}
-
 static int sig_default_sign(struct crypto_sig *tfm,
 			    const void *src, unsigned int slen,
 			    void *dst, unsigned int dlen)
@@ -113,7 +104,7 @@ static int sig_default_set_key(struct crypto_sig *tfm,
 	return -ENOSYS;
 }
 
-int crypto_register_sig(struct sig_alg *alg)
+static int sig_prepare_alg(struct sig_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
 
@@ -132,7 +123,22 @@ int crypto_register_sig(struct sig_alg *alg)
 	if (!alg->digest_size)
 		alg->digest_size = alg->key_size;
 
-	sig_prepare_alg(alg);
+	base->cra_type = &crypto_sig_type;
+	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
+	base->cra_flags |= CRYPTO_ALG_TYPE_SIG;
+
+	return 0;
+}
+
+int crypto_register_sig(struct sig_alg *alg)
+{
+	struct crypto_alg *base = &alg->base;
+	int err;
+
+	err = sig_prepare_alg(alg);
+	if (err)
+		return err;
+
 	return crypto_register_alg(base);
 }
 EXPORT_SYMBOL_GPL(crypto_register_sig);
@@ -146,9 +152,15 @@ EXPORT_SYMBOL_GPL(crypto_unregister_sig);
 int sig_register_instance(struct crypto_template *tmpl,
 			  struct sig_instance *inst)
 {
+	int err;
+
 	if (WARN_ON(!inst->free))
 		return -EINVAL;
-	sig_prepare_alg(&inst->alg);
+
+	err = sig_prepare_alg(&inst->alg);
+	if (err)
+		return err;
+
 	return crypto_register_instance(tmpl, sig_crypto_instance(inst));
 }
 EXPORT_SYMBOL_GPL(sig_register_instance);
