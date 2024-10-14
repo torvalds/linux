@@ -4227,7 +4227,7 @@ static int q2spi_sleep_config(struct q2spi_geni *q2spi, struct platform_device *
 	Q2SPI_DBG_1(q2spi, "%s Q2SPI clk_gpio:%d mosi_gpio:%d\n",
 		    __func__, q2spi->wake_clk_gpio, q2spi->wake_mosi_gpio);
 
-	q2spi->wakeup_wq = alloc_workqueue("%s", WQ_HIGHPRI, 1, dev_name(q2spi->dev));
+	q2spi->wakeup_wq = alloc_workqueue("%s",  WQ_UNBOUND | WQ_HIGHPRI, 1, dev_name(q2spi->dev));
 	if (!q2spi->wakeup_wq) {
 		Q2SPI_ERROR(q2spi, "Err failed to wakeup workqueue");
 		return -ENOMEM;
@@ -4508,7 +4508,7 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 		goto free_buf;
 	}
 
-	q2spi->doorbell_wq = alloc_workqueue("%s", WQ_HIGHPRI, 1, dev_name(dev));
+	q2spi->doorbell_wq = alloc_workqueue("%s",  WQ_UNBOUND | WQ_HIGHPRI, 1, dev_name(dev));
 	if (!q2spi->doorbell_wq) {
 		ret = -ENOMEM;
 		Q2SPI_ERROR(q2spi, "Err failed to allocate workqueue");
