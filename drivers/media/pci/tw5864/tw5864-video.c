@@ -471,8 +471,6 @@ static const struct vb2_ops tw5864_video_qops = {
 	.buf_queue = tw5864_buf_queue,
 	.start_streaming = tw5864_start_streaming,
 	.stop_streaming = tw5864_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int tw5864_s_ctrl(struct v4l2_ctrl *ctrl)

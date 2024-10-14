@@ -767,8 +767,6 @@ void ipu6_isys_queue_buf_ready(struct ipu6_isys_stream *stream,
 
 static const struct vb2_ops ipu6_isys_queue_ops = {
 	.queue_setup = queue_setup,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.buf_prepare = ipu6_isys_buf_prepare,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,

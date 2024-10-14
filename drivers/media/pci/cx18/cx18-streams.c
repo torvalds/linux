@@ -229,8 +229,6 @@ static const struct vb2_ops cx18_vb2_qops = {
 	.buf_prepare		= cx18_buf_prepare,
 	.start_streaming	= cx18_start_streaming,
 	.stop_streaming		= cx18_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int cx18_stream_init(struct cx18 *cx, int type)

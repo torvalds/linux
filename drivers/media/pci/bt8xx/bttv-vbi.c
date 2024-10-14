@@ -170,8 +170,6 @@ const struct vb2_ops bttv_vbi_qops = {
 	.buf_cleanup	= buf_cleanup_vbi,
 	.start_streaming = start_streaming_vbi,
 	.stop_streaming = stop_streaming_vbi,
-	.wait_prepare   = vb2_ops_wait_prepare,
-	.wait_finish    = vb2_ops_wait_finish,
 };
 
 /* ----------------------------------------------------------------------- */

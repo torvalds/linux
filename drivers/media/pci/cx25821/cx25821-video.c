@@ -295,8 +295,6 @@ static const struct vb2_ops cx25821_video_qops = {
 	.buf_prepare  = cx25821_buffer_prepare,
 	.buf_finish = cx25821_buffer_finish,
 	.buf_queue    = cx25821_buffer_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = cx25821_start_streaming,
 	.stop_streaming = cx25821_stop_streaming,
 };
