@@ -180,7 +180,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define SD_STS_FIFO_READY	0x20	/* FIFO ready */
 
 /* INTCTL and INTSTS */
-#define AZX_INT_ALL_STREAM	0xff	   /* all stream interrupts */
+#define AZX_INT_ALL_STREAM	0x3fffffff	   /* all stream interrupts */
 #define AZX_INT_CTRL_EN	0x40000000 /* controller interrupt enable bit */
 #define AZX_INT_GLOBAL_EN	0x80000000 /* global interrupt enable bit */
 
