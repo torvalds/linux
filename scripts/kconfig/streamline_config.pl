@@ -503,7 +503,7 @@ sub parse_config_selects
 
 	    # Check if something other than a module selects this config
 	    if (defined($orig_configs{$conf}) && $orig_configs{$conf} ne "m") {
-		dprint "$conf (non module) selects config, we are good\n";
+		dprint "$conf (non module) selects $config, we are good\n";
 		# we are good with this
 		return;
 	    }
