@@ -453,7 +453,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		if (pg_index > end_index)
 			break;
 
-		folio = __filemap_get_folio(mapping, pg_index, 0, 0);
+		folio = filemap_get_folio(mapping, pg_index);
 		if (!IS_ERR(folio)) {
 			u64 folio_sz = folio_size(folio);
 			u64 offset = offset_in_folio(folio, cur);

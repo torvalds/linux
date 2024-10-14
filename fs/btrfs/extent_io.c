@@ -2265,7 +2265,7 @@ void extent_write_locked_range(struct inode *inode, const struct folio *locked_f
 		u32 cur_len = cur_end + 1 - cur;
 		struct folio *folio;
 
-		folio = __filemap_get_folio(mapping, cur >> PAGE_SHIFT, 0, 0);
+		folio = filemap_get_folio(mapping, cur >> PAGE_SHIFT);
 
 		/*
 		 * This shouldn't happen, the pages are pinned and locked, this

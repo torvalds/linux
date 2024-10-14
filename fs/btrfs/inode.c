@@ -421,7 +421,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 			index++;
 			continue;
 		}
-		folio = __filemap_get_folio(inode->vfs_inode.i_mapping, index, 0, 0);
+		folio = filemap_get_folio(inode->vfs_inode.i_mapping, index);
 		index++;
 		if (IS_ERR(folio))
 			continue;
@@ -556,8 +556,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	} else {
 		struct folio *folio;
 
-		folio = __filemap_get_folio(inode->vfs_inode.i_mapping,
-					    0, 0, 0);
+		folio = filemap_get_folio(inode->vfs_inode.i_mapping, 0);
 		ASSERT(!IS_ERR(folio));
 		btrfs_set_file_extent_compression(leaf, ei, 0);
 		kaddr = kmap_local_folio(folio, 0);
@@ -880,7 +879,7 @@ static int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 e
 
 	for (unsigned long index = start >> PAGE_SHIFT;
 	     index <= end_index; index++) {
-		folio = __filemap_get_folio(inode->i_mapping, index, 0, 0);
+		folio = filemap_get_folio(inode->i_mapping, index);
 		if (IS_ERR(folio)) {
 			if (!ret)
 				ret = PTR_ERR(folio);
