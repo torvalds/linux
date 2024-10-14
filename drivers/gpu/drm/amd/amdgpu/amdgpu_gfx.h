@@ -472,6 +472,8 @@ struct amdgpu_gfx {
 	struct mutex                    kfd_sch_mutex;
 	u64				kfd_sch_req_count[MAX_XCP];
 	bool				kfd_sch_inactive[MAX_XCP];
+	unsigned long			enforce_isolation_jiffies[MAX_XCP];
+	unsigned long			enforce_isolation_time[MAX_XCP];
 };
 
 struct amdgpu_gfx_ras_reg_entry {

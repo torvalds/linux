@@ -118,7 +118,7 @@
 
 #define MAX_GPU_INSTANCE		64
 
-#define GFX_SLICE_PERIOD		msecs_to_jiffies(250)
+#define GFX_SLICE_PERIOD_MS		250
 
 struct amdgpu_gpu_instance {
 	struct amdgpu_device		*adev;

@@ -1752,7 +1752,7 @@ static void amdgpu_gfx_kfd_sch_ctrl(struct amdgpu_device *adev, u32 idx,
 		if (adev->gfx.kfd_sch_req_count[idx] == 0 &&
 		    adev->gfx.kfd_sch_inactive[idx]) {
 			schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
-					      GFX_SLICE_PERIOD);
+					      msecs_to_jiffies(adev->gfx.enforce_isolation_time[idx]));
 		}
 	} else {
 		if (adev->gfx.kfd_sch_req_count[idx] == 0) {
@@ -1807,8 +1807,9 @@ void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
 			fences += amdgpu_fence_count_emitted(&adev->gfx.compute_ring[i]);
 	}
 	if (fences) {
+		/* we've already had our timeslice, so let's wrap this up */
 		schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
-				      GFX_SLICE_PERIOD);
+				      msecs_to_jiffies(1));
 	} else {
 		/* Tell KFD to resume the runqueue */
 		if (adev->kfd.init_complete) {
@@ -1819,6 +1820,51 @@ void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&adev->enforce_isolation_mutex);
+}
+
+static void
+amdgpu_gfx_enforce_isolation_wait_for_kfd(struct amdgpu_device *adev,
+					  u32 idx)
+{
+	unsigned long cjiffies;
+	bool wait = false;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		/* set the initial values if nothing is set */
+		if (!adev->gfx.enforce_isolation_jiffies[idx]) {
+			adev->gfx.enforce_isolation_jiffies[idx] = jiffies;
+			adev->gfx.enforce_isolation_time[idx] =	GFX_SLICE_PERIOD_MS;
+		}
+		/* Make sure KFD gets a chance to run */
+		if (amdgpu_amdkfd_compute_active(adev, idx)) {
+			cjiffies = jiffies;
+			if (time_after(cjiffies, adev->gfx.enforce_isolation_jiffies[idx])) {
+				cjiffies -= adev->gfx.enforce_isolation_jiffies[idx];
+				if ((jiffies_to_msecs(cjiffies) >= GFX_SLICE_PERIOD_MS)) {
+					/* if our time is up, let KGD work drain before scheduling more */
+					wait = true;
+					/* reset the timer period */
+					adev->gfx.enforce_isolation_time[idx] =	GFX_SLICE_PERIOD_MS;
+				} else {
+					/* set the timer period to what's left in our time slice */
+					adev->gfx.enforce_isolation_time[idx] =
+						GFX_SLICE_PERIOD_MS - jiffies_to_msecs(cjiffies);
+				}
+			} else {
+				/* if jiffies wrap around we will just wait a little longer */
+				adev->gfx.enforce_isolation_jiffies[idx] = jiffies;
+			}
+		} else {
+			/* if there is no KFD work, then set the full slice period */
+			adev->gfx.enforce_isolation_jiffies[idx] = jiffies;
+			adev->gfx.enforce_isolation_time[idx] = GFX_SLICE_PERIOD_MS;
+		}
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+
+	if (wait)
+		msleep(GFX_SLICE_PERIOD_MS);
 }
 
 void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
@@ -1836,6 +1882,9 @@ void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
 
 	if (idx >= MAX_XCP)
 		return;
+
+	/* Don't submit more work until KFD has had some time */
+	amdgpu_gfx_enforce_isolation_wait_for_kfd(adev, idx);
 
 	mutex_lock(&adev->enforce_isolation_mutex);
 	if (adev->enforce_isolation[idx]) {
