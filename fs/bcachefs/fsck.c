@@ -2509,7 +2509,7 @@ fsck_err:
 /* Get root directory, create if it doesn't exist: */
 int bch2_check_root(struct bch_fs *c)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+	int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_root_trans(trans));
 	bch_err_fn(c, ret);
 	return ret;

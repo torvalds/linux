@@ -1977,7 +1977,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 					     ca->mi.bucket_size,
 					     GFP_KERNEL);
 
-		int ret = bch2_trans_do(c, NULL, NULL,
+		int ret = bch2_trans_commit_do(c, NULL, NULL,
 			BCH_WATERMARK_btree|
 			BCH_TRANS_COMMIT_no_enospc,
 			bch2_clear_bucket_needs_discard(trans, POS(ca->dev_idx, bucket)));

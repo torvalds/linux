@@ -658,7 +658,7 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	struct bch_hash_info hash = bch2_hash_info_init(c, &dir->ei_inode);
 
 	struct bch_inode_info *inode;
-	bch2_trans_do(c, NULL, NULL, 0,
+	bch2_trans_do(c,
 		PTR_ERR_OR_ZERO(inode = bch2_lookup_trans(trans, inode_inum(dir),
 							  &hash, &dentry->d_name)));
 	if (IS_ERR(inode))

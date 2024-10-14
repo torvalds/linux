@@ -1087,8 +1087,7 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *trans,
 int bch2_inode_find_by_inum(struct bch_fs *c, subvol_inum inum,
 			    struct bch_inode_unpacked *inode)
 {
-	return bch2_trans_do(c, NULL, NULL, 0,
-		bch2_inode_find_by_inum_trans(trans, inum, inode));
+	return bch2_trans_do(c, bch2_inode_find_by_inum_trans(trans, inum, inode));
 }
 
 int bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)

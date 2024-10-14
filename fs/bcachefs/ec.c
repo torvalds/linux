@@ -1186,7 +1186,7 @@ static void ec_stripe_delete_work(struct work_struct *work)
 		if (!idx)
 			break;
 
-		int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 					ec_stripe_delete(trans, idx));
 		bch_err_fn(c, ret);
 		if (ret)
@@ -1519,14 +1519,14 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 		goto err;
 	}
 
-	ret = bch2_trans_do(c, &s->res, NULL,
-			    BCH_TRANS_COMMIT_no_check_rw|
-			    BCH_TRANS_COMMIT_no_enospc,
-			    ec_stripe_key_update(trans,
-					s->have_existing_stripe
-					? bkey_i_to_stripe(&s->existing_stripe.key)
-					: NULL,
-					bkey_i_to_stripe(&s->new_stripe.key)));
+	ret = bch2_trans_commit_do(c, &s->res, NULL,
+		BCH_TRANS_COMMIT_no_check_rw|
+		BCH_TRANS_COMMIT_no_enospc,
+		ec_stripe_key_update(trans,
+				     s->have_existing_stripe
+				     ? bkey_i_to_stripe(&s->existing_stripe.key)
+				     : NULL,
+				     bkey_i_to_stripe(&s->new_stripe.key)));
 	bch_err_msg(c, ret, "creating stripe key");
 	if (ret) {
 		goto err;
