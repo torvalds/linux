@@ -48,6 +48,46 @@ print_array_to_buf(u8 *buf, u32 offset, const char *header,
 					footer);
 }
 
+static const char *ath12k_htt_be_tx_rx_ru_size_to_str(u8 ru_size)
+{
+	switch (ru_size) {
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_26:
+		return "26";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_52:
+		return "52";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_52_26:
+		return "52+26";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_106:
+		return "106";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_106_26:
+		return "106+26";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_242:
+		return "242";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_484:
+		return "484";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_484_242:
+		return "484+242";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996:
+		return "996";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996_484:
+		return "996+484";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996_484_242:
+		return "996+484+242";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996x2:
+		return "996x2";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996x2_484:
+		return "996x2+484";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996x3:
+		return "996x3";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996x3_484:
+		return "996x3+484";
+	case ATH12K_HTT_TX_RX_PDEV_STATS_BE_RU_SIZE_996x4:
+		return "996x4";
+	default:
+		return "unknown";
+	}
+}
+
 static void
 htt_print_tx_pdev_stats_cmn_tlv(const void *tag_buf, u16 tag_len,
 				struct debug_htt_stats_req *stats_req)
@@ -2612,6 +2652,58 @@ ath12k_htt_print_pdev_sched_algo_ofdma_stats_tlv(const void *tag_buf, u16 tag_le
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_tx_pdev_rate_stats_be_ofdma_tlv(const void *tag_buf, u16 tag_len,
+						 struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_tx_pdev_rate_stats_be_ofdma_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+	u8 i;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = le32_to_cpu(htt_stats_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "HTT_TX_PDEV_RATE_STATS_BE_OFDMA_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "be_ofdma_tx_ldpc = %u\n",
+			 le32_to_cpu(htt_stats_buf->be_ofdma_tx_ldpc));
+	len += print_array_to_buf(buf, len, "be_ofdma_tx_mcs",
+				  htt_stats_buf->be_ofdma_tx_mcs,
+				  ATH12K_HTT_TX_PDEV_NUM_BE_MCS_CNTRS, "\n");
+	len += print_array_to_buf(buf, len, "be_ofdma_eht_sig_mcs",
+				  htt_stats_buf->be_ofdma_eht_sig_mcs,
+				  ATH12K_HTT_TX_PDEV_NUM_EHT_SIG_MCS_CNTRS, "\n");
+	len += scnprintf(buf + len, buf_len - len, "be_ofdma_tx_ru_size = ");
+	for (i = 0; i < ATH12K_HTT_TX_RX_PDEV_NUM_BE_RU_SIZE_CNTRS; i++)
+		len += scnprintf(buf + len, buf_len - len, " %s:%u ",
+				 ath12k_htt_be_tx_rx_ru_size_to_str(i),
+				 le32_to_cpu(htt_stats_buf->be_ofdma_tx_ru_size[i]));
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += print_array_to_buf_index(buf, len, "be_ofdma_tx_nss = ", 1,
+					htt_stats_buf->be_ofdma_tx_nss,
+					ATH12K_HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS,
+					"\n");
+	len += print_array_to_buf(buf, len, "be_ofdma_tx_bw",
+				  htt_stats_buf->be_ofdma_tx_bw,
+				  ATH12K_HTT_TX_PDEV_NUM_BE_BW_CNTRS, "\n");
+	for (i = 0; i < ATH12K_HTT_TX_PDEV_NUM_GI_CNTRS; i++) {
+		len += scnprintf(buf + len, buf_len - len,
+				 "be_ofdma_tx_gi[%u]", i);
+		len += print_array_to_buf(buf, len, "", htt_stats_buf->gi[i],
+					  ATH12K_HTT_TX_PDEV_NUM_BE_MCS_CNTRS, "\n");
+	}
+	len += scnprintf(buf + len, buf_len - len, "\n");
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -2790,6 +2882,9 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_PDEV_SCHED_ALGO_OFDMA_STATS_TAG:
 		ath12k_htt_print_pdev_sched_algo_ofdma_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_TX_PDEV_RATE_STATS_BE_OFDMA_TAG:
+		ath12k_htt_print_tx_pdev_rate_stats_be_ofdma_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;
