@@ -1,20 +1,25 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/rng/omap_rng.yaml#
+$id: http://devicetree.org/schemas/rng/inside-secure,safexcel-eip76.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: OMAP SoC and Inside-Secure HWRNG Module
+title: Inside-Secure HWRNG Module
 
 maintainers:
   - Jayesh Choudhary <j-choudhary@ti.com>
 
 properties:
   compatible:
-    enum:
-      - ti,omap2-rng
-      - ti,omap4-rng
-      - inside-secure,safexcel-eip76
+    oneOf:
+      - enum:
+          - ti,omap2-rng
+          - ti,omap4-rng
+          - inside-secure,safexcel-eip76
+      - items:
+          - enum:
+              - marvell,armada-8k-rng
+          - const: inside-secure,safexcel-eip76
 
   ti,hwmods:
     const: rng
