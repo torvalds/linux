@@ -450,8 +450,6 @@ static const struct vb2_ops vdec_vb2_ops = {
 	.stop_streaming = vdec_stop_streaming,
 	.buf_queue = vdec_vb2_buf_queue,
 	.buf_prepare = vdec_vb2_buf_prepare,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int

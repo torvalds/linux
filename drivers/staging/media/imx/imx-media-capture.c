@@ -768,8 +768,6 @@ static const struct vb2_ops capture_qops = {
 	.buf_init        = capture_buf_init,
 	.buf_prepare	 = capture_buf_prepare,
 	.buf_queue	 = capture_buf_queue,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 	.start_streaming = capture_start_streaming,
 	.stop_streaming  = capture_stop_streaming,
 };

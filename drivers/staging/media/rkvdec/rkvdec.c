@@ -617,8 +617,6 @@ static const struct vb2_ops rkvdec_queue_ops = {
 	.buf_request_complete = rkvdec_buf_request_complete,
 	.start_streaming = rkvdec_start_streaming,
 	.stop_streaming = rkvdec_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int rkvdec_request_validate(struct media_request *req)

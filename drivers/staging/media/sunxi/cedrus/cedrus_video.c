@@ -570,8 +570,6 @@ static const struct vb2_ops cedrus_qops = {
 	.buf_request_complete	= cedrus_buf_request_complete,
 	.start_streaming	= cedrus_start_streaming,
 	.stop_streaming		= cedrus_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 int cedrus_queue_init(void *priv, struct vb2_queue *src_vq,
