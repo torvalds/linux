@@ -464,6 +464,10 @@ int __rtnl_register_many(const struct rtnl_msg_handler *handlers, int n)
 					     handler->msgtype, handler->doit,
 					     handler->dumpit, handler->flags);
 		if (err) {
+			if (!handler->owner)
+				panic("Unable to register rtnetlink message "
+				      "handlers, %pS\n", handlers);
+
 			__rtnl_unregister_many(handlers, i);
 			break;
 		}
