@@ -484,6 +484,7 @@ static inline void *kunit_kcalloc(struct kunit *test, size_t n, size_t size, gfp
 
 /**
  * kunit_kfree_const() - conditionally free test managed memory
+ * @test: The test context object.
  * @x: pointer to the memory
  *
  * Calls kunit_kfree() only if @x is not in .rodata section.

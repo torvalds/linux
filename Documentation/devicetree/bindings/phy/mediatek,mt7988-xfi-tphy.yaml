@@ -41,7 +41,7 @@ properties:
     description:
       One instance of the T-PHY on MT7988 suffers from a performance
       problem in 10GBase-R mode which needs a work-around in the driver.
-      This flag enables a work-around ajusting an analog phy setting and
+      This flag enables a work-around adjusting an analog phy setting and
       is required for XFI Port0 of the MT7988 SoC to be in compliance with
       the SFP specification.
 

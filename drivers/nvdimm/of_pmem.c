@@ -47,7 +47,7 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, priv);
 
-	is_volatile = !!of_find_property(np, "volatile", NULL);
+	is_volatile = of_property_read_bool(np, "volatile");
 	dev_dbg(&pdev->dev, "Registering %s regions from %pOF\n",
 			is_volatile ? "volatile" : "non-volatile",  np);
 

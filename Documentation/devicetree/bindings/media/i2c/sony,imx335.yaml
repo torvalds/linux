@@ -75,6 +75,8 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
+
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -91,6 +93,8 @@ examples:
             avdd-supply = <&camera_vdda_2v9>;
             ovdd-supply = <&camera_vddo_1v8>;
             dvdd-supply = <&camera_vddd_1v2>;
+
+            reset-gpios = <&gpio 50 GPIO_ACTIVE_LOW>;
 
             port {
                 imx335: endpoint {

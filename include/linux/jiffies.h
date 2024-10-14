@@ -418,7 +418,7 @@ extern unsigned long preset_lpj;
 #define NSEC_CONVERSION ((unsigned long)((((u64)1 << NSEC_JIFFIE_SC) +\
                                         TICK_NSEC -1) / (u64)TICK_NSEC))
 /*
- * The maximum jiffie value is (MAX_INT >> 1).  Here we translate that
+ * The maximum jiffy value is (MAX_INT >> 1).  Here we translate that
  * into seconds.  The 64-bit case will overflow if we are not careful,
  * so use the messy SH_DIV macro to do it.  Still all constants.
  */

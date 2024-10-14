@@ -1343,10 +1343,10 @@ group_extend_out:
 		me.moved_len = 0;
 
 		donor = fdget(me.donor_fd);
-		if (!donor.file)
+		if (!fd_file(donor))
 			return -EBADF;
 
-		if (!(donor.file->f_mode & FMODE_WRITE)) {
+		if (!(fd_file(donor)->f_mode & FMODE_WRITE)) {
 			err = -EBADF;
 			goto mext_out;
 		}
@@ -1367,7 +1367,7 @@ group_extend_out:
 		if (err)
 			goto mext_out;
 
-		err = ext4_move_extents(filp, donor.file, me.orig_start,
+		err = ext4_move_extents(filp, fd_file(donor), me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
 		mnt_drop_write_file(filp);
 

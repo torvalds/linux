@@ -99,9 +99,7 @@ static inline void bch2_folio_release(struct folio *folio)
 
 static inline struct bch_folio *__bch2_folio(struct folio *folio)
 {
-	return folio_has_private(folio)
-		? (struct bch_folio *) folio_get_private(folio)
-		: NULL;
+	return folio_get_private(folio);
 }
 
 static inline struct bch_folio *bch2_folio(struct folio *folio)

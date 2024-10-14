@@ -70,7 +70,7 @@ config TURRIS_OMNIA_MCU_TRNG
 	bool "Turris Omnia MCU true random number generator"
 	default y
 	depends on TURRIS_OMNIA_MCU_GPIO
-	depends on HW_RANDOM
+	depends on HW_RANDOM=y || HW_RANDOM=TURRIS_OMNIA_MCU
 	help
 	  Say Y here to add support for the true random number generator
 	  provided by CZ.NIC's Turris Omnia MCU.

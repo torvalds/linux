@@ -14,7 +14,6 @@
 #include <linux/pci.h>
 #include <linux/backlight.h>
 #include <linux/leds.h>
-#include <linux/fb.h>
 #include <linux/dmi.h>
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
@@ -554,7 +553,7 @@ static int update_status(struct backlight_device *bd)
 
 	set_brightness(samsung, bd->props.brightness);
 
-	if (bd->props.power == FB_BLANK_UNBLANK)
+	if (bd->props.power == BACKLIGHT_POWER_ON)
 		sabi_set_commandb(samsung, commands->set_backlight, 1);
 	else
 		sabi_set_commandb(samsung, commands->set_backlight, 0);
@@ -1189,7 +1188,7 @@ static int __init samsung_backlight_init(struct samsung_laptop *samsung)
 
 	samsung->backlight_device = bd;
 	samsung->backlight_device->props.brightness = read_brightness(samsung);
-	samsung->backlight_device->props.power = FB_BLANK_UNBLANK;
+	samsung->backlight_device->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(samsung->backlight_device);
 
 	return 0;

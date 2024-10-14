@@ -4,6 +4,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/barrier.h>
 #include <vdso/datapage.h>
 
 static __always_inline u32 vdso_read_begin(const struct vdso_data *vd)

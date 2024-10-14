@@ -200,7 +200,6 @@ static const struct file_operations uleds_fops = {
 	.read		= uleds_read,
 	.write		= uleds_write,
 	.poll		= uleds_poll,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice uleds_misc = {

@@ -214,7 +214,7 @@ extern u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
  */
 #define FROZEN_SPTE	(SHADOW_NONPRESENT_VALUE | 0x5a0ULL)
 
-/* Removed SPTEs must not be misconstrued as shadow present PTEs. */
+/* Frozen SPTEs must not be misconstrued as shadow present PTEs. */
 static_assert(!(FROZEN_SPTE & SPTE_MMU_PRESENT_MASK));
 
 static inline bool is_frozen_spte(u64 spte)

@@ -861,18 +861,21 @@ static void mipi_csis_log_counters(struct mipi_csis_device *csis, bool non_error
 {
 	unsigned int num_events = non_errors ? MIPI_CSIS_NUM_EVENTS
 				: MIPI_CSIS_NUM_EVENTS - 8;
+	unsigned int counters[MIPI_CSIS_NUM_EVENTS];
 	unsigned long flags;
 	unsigned int i;
 
 	spin_lock_irqsave(&csis->slock, flags);
+	for (i = 0; i < num_events; ++i)
+		counters[i] =  csis->events[i].counter;
+	spin_unlock_irqrestore(&csis->slock, flags);
 
 	for (i = 0; i < num_events; ++i) {
-		if (csis->events[i].counter > 0 || csis->debug.enable)
+		if (counters[i] > 0 || csis->debug.enable)
 			dev_info(csis->dev, "%s events: %d\n",
 				 csis->events[i].name,
-				 csis->events[i].counter);
+				 counters[i]);
 	}
-	spin_unlock_irqrestore(&csis->slock, flags);
 }
 
 static int mipi_csis_dump_regs(struct mipi_csis_device *csis)
@@ -1344,7 +1347,7 @@ err_parse:
  * Suspend/resume
  */
 
-static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
+static int mipi_csis_runtime_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
@@ -1359,7 +1362,7 @@ static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
+static int mipi_csis_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
@@ -1379,8 +1382,8 @@ static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops mipi_csis_pm_ops = {
-	SET_RUNTIME_PM_OPS(mipi_csis_runtime_suspend, mipi_csis_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(mipi_csis_runtime_suspend, mipi_csis_runtime_resume,
+		       NULL)
 };
 
 /* -----------------------------------------------------------------------------
@@ -1571,7 +1574,7 @@ static struct platform_driver mipi_csis_driver = {
 	.driver		= {
 		.of_match_table = mipi_csis_of_match,
 		.name		= CSIS_DRIVER_NAME,
-		.pm		= &mipi_csis_pm_ops,
+		.pm		= pm_ptr(&mipi_csis_pm_ops),
 	},
 };
 

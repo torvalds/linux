@@ -1913,8 +1913,13 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	__d_instantiate(entry, inode);
 	WARN_ON(!(inode->i_state & I_NEW));
 	inode->i_state &= ~I_NEW & ~I_CREATING;
+	/*
+	 * Pairs with the barrier in prepare_to_wait_event() to make sure
+	 * ___wait_var_event() either sees the bit cleared or
+	 * waitqueue_active() check in wake_up_var() sees the waiter.
+	 */
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_NEW);
+	inode_wake_up_bit(inode, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(d_instantiate_new);
@@ -2167,9 +2172,6 @@ seqretry:
  * held, and rcu_read_lock held. The returned dentry must not be stored into
  * without taking d_lock and checking d_seq sequence count against @seq
  * returned here.
- *
- * A refcount may be taken on the found dentry with the d_rcu_to_refcount
- * function.
  *
  * Alternatively, __d_lookup_rcu may be called again to look up the child of
  * the returned dentry, so long as its parent's seqlock is checked after the

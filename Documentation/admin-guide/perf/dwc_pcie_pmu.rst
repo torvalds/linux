@@ -46,16 +46,16 @@ Some of the events only exist for specific configurations.
 DesignWare Cores (DWC) PCIe PMU Driver
 =======================================
 
-This driver adds PMU devices for each PCIe Root Port named based on the BDF of
+This driver adds PMU devices for each PCIe Root Port named based on the SBDF of
 the Root Port. For example,
 
-    30:03.0 PCI bridge: Device 1ded:8000 (rev 01)
+    0001:30:03.0 PCI bridge: Device 1ded:8000 (rev 01)
 
-the PMU device name for this Root Port is dwc_rootport_3018.
+the PMU device name for this Root Port is dwc_rootport_13018.
 
 The DWC PCIe PMU driver registers a perf PMU driver, which provides
 description of available events and configuration options in sysfs, see
-/sys/bus/event_source/devices/dwc_rootport_{bdf}.
+/sys/bus/event_source/devices/dwc_rootport_{sbdf}.
 
 The "format" directory describes format of the config fields of the
 perf_event_attr structure. The "events" directory provides configuration
@@ -66,16 +66,16 @@ The "perf list" command shall list the available events from sysfs, e.g.::
 
     $# perf list | grep dwc_rootport
     <...>
-    dwc_rootport_3018/Rx_PCIe_TLP_Data_Payload/        [Kernel PMU event]
+    dwc_rootport_13018/Rx_PCIe_TLP_Data_Payload/        [Kernel PMU event]
     <...>
-    dwc_rootport_3018/rx_memory_read,lane=?/               [Kernel PMU event]
+    dwc_rootport_13018/rx_memory_read,lane=?/               [Kernel PMU event]
 
 Time Based Analysis Event Usage
 -------------------------------
 
 Example usage of counting PCIe RX TLP data payload (Units of bytes)::
 
-    $# perf stat -a -e dwc_rootport_3018/Rx_PCIe_TLP_Data_Payload/
+    $# perf stat -a -e dwc_rootport_13018/Rx_PCIe_TLP_Data_Payload/
 
 The average RX/TX bandwidth can be calculated using the following formula:
 
@@ -88,7 +88,7 @@ Lane Event Usage
 Each lane has the same event set and to avoid generating a list of hundreds
 of events, the user need to specify the lane ID explicitly, e.g.::
 
-    $# perf stat -a -e dwc_rootport_3018/rx_memory_read,lane=4/
+    $# perf stat -a -e dwc_rootport_13018/rx_memory_read,lane=4/
 
 The driver does not support sampling, therefore "perf record" will not
 work. Per-task (without "-a") perf sessions are not supported.

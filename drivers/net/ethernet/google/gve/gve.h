@@ -784,6 +784,8 @@ struct gve_priv {
 	u32 adminq_verify_driver_compatibility_cnt;
 	u32 adminq_query_flow_rules_cnt;
 	u32 adminq_cfg_flow_rule_cnt;
+	u32 adminq_cfg_rss_cnt;
+	u32 adminq_query_rss_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
@@ -831,6 +833,9 @@ struct gve_priv {
 	u32 num_flow_rules;
 
 	struct gve_flow_rules_cache flow_rules_cache;
+
+	u16 rss_key_size;
+	u16 rss_lut_size;
 };
 
 enum gve_service_task_flags_bit {
@@ -1148,7 +1153,6 @@ int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
 			  int idx);
 void gve_rx_free_ring_gqi(struct gve_priv *priv, struct gve_rx_ring *rx,
 			  struct gve_rx_alloc_rings_cfg *cfg);
-int gve_rx_alloc_rings(struct gve_priv *priv);
 int gve_rx_alloc_rings_gqi(struct gve_priv *priv,
 			   struct gve_rx_alloc_rings_cfg *cfg);
 void gve_rx_free_rings_gqi(struct gve_priv *priv,

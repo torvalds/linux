@@ -16,7 +16,7 @@
 #include <linux/string.h>
 #include <linux/wait.h>
 #include <linux/inet.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
@@ -578,8 +578,8 @@ static void nvmet_rdma_set_sig_domain(struct blk_integrity *bi,
 	if (control & NVME_RW_PRINFO_PRCHK_REF)
 		domain->sig.dif.ref_remap = true;
 
-	domain->sig.dif.app_tag = le16_to_cpu(cmd->rw.apptag);
-	domain->sig.dif.apptag_check_mask = le16_to_cpu(cmd->rw.appmask);
+	domain->sig.dif.app_tag = le16_to_cpu(cmd->rw.lbat);
+	domain->sig.dif.apptag_check_mask = le16_to_cpu(cmd->rw.lbatm);
 	domain->sig.dif.app_escape = true;
 	if (pi_type == NVME_NS_DPS_PI_TYPE3)
 		domain->sig.dif.ref_escape = true;

@@ -254,7 +254,7 @@ static int snd_ctl_led_set_id(int card_number, struct snd_ctl_elem_id *id,
 	if (!card)
 		return -ENXIO;
 	guard(rwsem_write)(&card->controls_rwsem);
-	kctl = snd_ctl_find_id_locked(card, id);
+	kctl = snd_ctl_find_id(card, id);
 	if (!kctl)
 		return -ENOENT;
 	ioff = snd_ctl_get_ioff(kctl, id);
@@ -677,7 +677,7 @@ static void snd_ctl_led_sysfs_add(struct snd_card *card)
 cerr:
 		put_device(&led_card->dev);
 cerr2:
-		printk(KERN_ERR "snd_ctl_led: unable to add card%d", card->number);
+		dev_err(card->dev, "snd_ctl_led: unable to add card%d", card->number);
 	}
 }
 

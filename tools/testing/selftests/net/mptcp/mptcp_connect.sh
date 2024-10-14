@@ -345,9 +345,11 @@ do_transfer()
 
 	local addr_port
 	addr_port=$(printf "%s:%d" ${connect_addr} ${port})
-	local result_msg
-	result_msg="$(printf "%.3s %-5s -> %.3s (%-20s) %-5s" ${connector_ns} ${cl_proto} ${listener_ns} ${addr_port} ${srv_proto})"
-	mptcp_lib_print_title "${result_msg}"
+	local pretty_title
+	pretty_title="$(printf "%.3s %-5s -> %.3s (%-20s) %-5s" ${connector_ns} ${cl_proto} ${listener_ns} ${addr_port} ${srv_proto})"
+	mptcp_lib_print_title "${pretty_title}"
+
+	local tap_title="${connector_ns:0:3} ${cl_proto} -> ${listener_ns:0:3} (${addr_port}) ${srv_proto}"
 
 	if $capture; then
 		local capuser
@@ -431,7 +433,6 @@ do_transfer()
 
 	local duration
 	duration=$((stop-start))
-	result_msg+=" # time=${duration}ms"
 	printf "(duration %05sms) " "${duration}"
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
 		mptcp_lib_pr_fail "client exit code $retc, server $rets"
@@ -444,7 +445,7 @@ do_transfer()
 
 		echo
 		cat "$capout"
-		mptcp_lib_result_fail "${TEST_GROUP}: ${result_msg}"
+		mptcp_lib_result_fail "${TEST_GROUP}: ${tap_title}"
 		return 1
 	fi
 
@@ -544,12 +545,12 @@ do_transfer()
 
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ]; then
 		mptcp_lib_pr_ok "${extra:1}"
-		mptcp_lib_result_pass "${TEST_GROUP}: ${result_msg}"
+		mptcp_lib_result_pass "${TEST_GROUP}: ${tap_title}"
 	else
 		if [ -n "${extra}" ]; then
 			mptcp_lib_print_warn "${extra:1}"
 		fi
-		mptcp_lib_result_fail "${TEST_GROUP}: ${result_msg}"
+		mptcp_lib_result_fail "${TEST_GROUP}: ${tap_title}"
 	fi
 
 	cat "$capout"
@@ -847,6 +848,8 @@ stop_if_error()
 
 make_file "$cin" "client"
 make_file "$sin" "server"
+
+mptcp_lib_subtests_last_ts_reset
 
 check_mptcp_disabled
 

@@ -144,6 +144,20 @@ All components are stored with the same number of bits per component.
       - Cb, Cr
       - Yes
       - 4x4 tiles
+    * - V4L2_PIX_FMT_MT2110T
+      - 'MT2T'
+      - 15
+      - 4:2:0
+      - Cb, Cr
+      - No
+      - 16x32 / 16x16 tiles tiled low bits
+    * - V4L2_PIX_FMT_MT2110R
+      - 'MT2R'
+      - 15
+      - 4:2:0
+      - Cb, Cr
+      - No
+      - 16x32 / 16x16 tiles raster low bits
     * - V4L2_PIX_FMT_NV16
       - 'NV16'
       - 8
@@ -295,8 +309,6 @@ of the luma plane.
 .. _V4L2-PIX-FMT-NV12-32L32:
 .. _V4L2-PIX-FMT-NV12M-8L128:
 .. _V4L2-PIX-FMT-NV12-8L128:
-.. _V4L2-PIX-FMT-NV12M-10BE-8L128:
-.. _V4L2-PIX-FMT-NV12-10BE-8L128:
 .. _V4L2-PIX-FMT-MM21:
 
 Tiled NV12
@@ -322,6 +334,22 @@ If the vertical resolution is an odd number of tiles, the last row of
 tiles is stored in linear order. The layouts of the luma and chroma
 planes are identical.
 
+.. _nv12mt:
+
+.. kernel-figure:: nv12mt.svg
+    :alt:    nv12mt.svg
+    :align:  center
+
+    V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
+
+.. _nv12mt_ex:
+
+.. kernel-figure:: nv12mt_example.svg
+    :alt:    nv12mt_example.svg
+    :align:  center
+
+    Example V4L2_PIX_FMT_NV12MT memory layout of tiles
+
 ``V4L2_PIX_FMT_NV12_4L4`` stores pixels in 4x4 tiles, and stores
 tiles linearly in memory. The line stride and image height must be
 aligned to a multiple of 4. The layouts of the luma and chroma planes are
@@ -345,6 +373,27 @@ The layouts of the luma and chroma planes are identical.
 ``V4L2_PIX_FMT_NV12_8L128`` is similar to ``V4L2_PIX_FMT_NV12M_8L128`` but stores
 two planes in one memory.
 
+``V4L2_PIX_FMT_MM21`` store luma pixel in 16x32 tiles, and chroma pixels
+in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
+image height must be aligned to a multiple of 32. The number of luma and chroma
+tiles are identical, even though the tile size differ. The image is formed of
+two non-contiguous planes.
+
+
+.. _V4L2-PIX-FMT-NV15-4L4:
+.. _V4L2-PIX-FMT-NV12M-10BE-8L128:
+.. _V4L2-PIX-FMT-NV12-10BE-8L128:
+.. _V4L2-PIX-FMT-MT2110T:
+.. _V4L2-PIX-FMT-MT2110R:
+
+Tiled NV15
+----------
+
+``V4L2_PIX_FMT_NV15_4L4`` Semi-planar 10-bit YUV 4:2:0 formats, using 4x4 tiling.
+All components are packed without any padding between each other.
+As a side-effect, each group of 4 components are stored over 5 bytes
+(YYYY or UVUV = 4 * 10 bits = 40 bits = 5 bytes).
+
 ``V4L2_PIX_FMT_NV12M_10BE_8L128`` is similar to ``V4L2_PIX_FMT_NV12M`` but stores
 10 bits pixels in 2D 8x128 tiles, and stores tiles linearly in memory.
 the data is arranged in big endian order.
@@ -363,37 +412,119 @@ byte 4: Y3(bits 7-0)
 ``V4L2_PIX_FMT_NV12_10BE_8L128`` is similar to ``V4L2_PIX_FMT_NV12M_10BE_8L128`` but stores
 two planes in one memory.
 
-``V4L2_PIX_FMT_MM21`` store luma pixel in 16x32 tiles, and chroma pixels
-in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
-image height must be aligned to a multiple of 32. The number of luma and chroma
-tiles are identical, even though the tile size differ. The image is formed of
-two non-contiguous planes.
+``V4L2_PIX_FMT_MT2110T`` is one of Mediatek packed 10bit YUV 4:2:0 formats.
+It is fully packed 10bit 4:2:0 format like NV15 (15 bits per pixel), except
+that the lower two bits data is stored in separate partitions. The format is
+composed of 16x32 luma tiles, and 16x16 chroma tiles. Each tiles is 640 bytes
+long, divided into 8 partitions of 80 bytes.  The first 16 bytes of the
+partition represent the 2 least significant bits of pixel data. The remaining
+64 bytes represent the 8 most significant bits of pixel data.
 
-.. _nv12mt:
-
-.. kernel-figure:: nv12mt.svg
-    :alt:    nv12mt.svg
+.. kernel-figure:: mt2110t.svg
+    :alt:    mt2110t.svg
     :align:  center
 
-    V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
+    Layout of MT2110T Chroma Tile
 
-.. _nv12mt_ex:
+Filtering out the upper part of each partitions results in a valid
+``V4L2_PIX_FMT_MM21`` frame. A partition is a sub-tile of size 16 x 4. The
+lower two bits is said to be tiled since each bytes contains the lower two
+bits of the column of for pixel matching the same index. The chroma tiles
+only have 4 partitions.
 
-.. kernel-figure:: nv12mt_example.svg
-    :alt:    nv12mt_example.svg
-    :align:  center
+.. flat-table:: MT2110T LSB bits layout
+    :header-rows:  1
+    :stub-columns: 1
 
-    Example V4L2_PIX_FMT_NV12MT memory layout of tiles
+    * -
+      - start + 0:
+      - start + 1:
+      - . . .
+      - start\ +\ 15:
+    * - Bits 1:0
+      - Y'\ :sub:`0:0`
+      - Y'\ :sub:`0:1`
+      - . . .
+      - Y'\ :sub:`0:15`
+    * - Bit 3:2
+      - Y'\ :sub:`1:0`
+      - Y'\ :sub:`1:1`
+      - . . .
+      - Y'\ :sub:`1:15`
+    * - Bits 5:4
+      - Y'\ :sub:`2:0`
+      - Y'\ :sub:`2:1`
+      - . . .
+      - Y'\ :sub:`2:15`
+    * - Bits 7:6
+      - Y'\ :sub:`3:0`
+      - Y'\ :sub:`3:1`
+      - . . .
+      - Y'\ :sub:`3:15`
 
-.. _V4L2-PIX-FMT-NV15-4L4:
+``V4L2_PIX_FMT_MT2110R`` is identical to ``V4L2_PIX_FMT_MT2110T`` except that
+the least significant two bits layout is in raster order. This means the first byte
+contains 4 pixels of the first row, with 4 bytes per line.
 
-Tiled NV15
-----------
+.. flat-table:: MT2110R LSB bits layout
+    :header-rows:  2
+    :stub-columns: 1
 
-Semi-planar 10-bit YUV 4:2:0 formats, using 4x4 tiling.
-All components are packed without any padding between each other.
-As a side-effect, each group of 4 components are stored over 5 bytes
-(YYYY or UVUV = 4 * 10 bits = 40 bits = 5 bytes).
+    * -
+      - :cspan:`3` Byte 0
+      - ...
+      - :cspan:`3` Byte 3
+    * -
+      - 7:6
+      - 5:4
+      - 3:2
+      - 1:0
+      - ...
+      - 7:6
+      - 5:4
+      - 3:2
+      - 1:0
+    * - start + 0:
+      - Y'\ :sub:`0:3`
+      - Y'\ :sub:`0:2`
+      - Y'\ :sub:`0:1`
+      - Y'\ :sub:`0:0`
+      - ...
+      - Y'\ :sub:`0:15`
+      - Y'\ :sub:`0:14`
+      - Y'\ :sub:`0:13`
+      - Y'\ :sub:`0:12`
+    * - start + 4:
+      - Y'\ :sub:`1:3`
+      - Y'\ :sub:`1:2`
+      - Y'\ :sub:`1:1`
+      - Y'\ :sub:`1:0`
+      - ...
+      - Y'\ :sub:`1:15`
+      - Y'\ :sub:`1:14`
+      - Y'\ :sub:`1:13`
+      - Y'\ :sub:`1:12`
+    * - start + 8:
+      - Y'\ :sub:`2:3`
+      - Y'\ :sub:`2:2`
+      - Y'\ :sub:`2:1`
+      - Y'\ :sub:`2:0`
+      - ...
+      - Y'\ :sub:`2:15`
+      - Y'\ :sub:`2:14`
+      - Y'\ :sub:`2:13`
+      - Y'\ :sub:`2:12`
+    * - start\ +\ 12:
+      - Y'\ :sub:`3:3`
+      - Y'\ :sub:`3:2`
+      - Y'\ :sub:`3:1`
+      - Y'\ :sub:`3:0`
+      - ...
+      - Y'\ :sub:`3:15`
+      - Y'\ :sub:`3:14`
+      - Y'\ :sub:`3:13`
+      - Y'\ :sub:`3:12`
+
 
 .. _V4L2-PIX-FMT-NV16:
 .. _V4L2-PIX-FMT-NV61:

@@ -29,7 +29,7 @@ typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
 
 /*
  * Highlevel btrfs I/O structure.  It is allocated by btrfs_bio_alloc and
- * passed to btrfs_submit_bio for mapping to the physical devices.
+ * passed to btrfs_submit_bbio() for mapping to the physical devices.
  */
 struct btrfs_bio {
 	/*
@@ -42,7 +42,7 @@ struct btrfs_bio {
 	union {
 		/*
 		 * For data reads: checksumming and original I/O information.
-		 * (for internal use in the btrfs_submit_bio machinery only)
+		 * (for internal use in the btrfs_submit_bbio() machinery only)
 		 */
 		struct {
 			u8 *csum;
@@ -104,7 +104,7 @@ void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status);
 /* Submit using blkcg_punt_bio_submit. */
 #define REQ_BTRFS_CGROUP_PUNT			REQ_FS_PRIVATE
 
-void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num);
+void btrfs_submit_bbio(struct btrfs_bio *bbio, int mirror_num);
 void btrfs_submit_repair_write(struct btrfs_bio *bbio, int mirror_num, bool dev_replace);
 int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 			    u64 length, u64 logical, struct folio *folio,

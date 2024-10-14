@@ -15,8 +15,10 @@
 
 #define BNXT_MIN_ROCE_CP_RINGS	2
 #define BNXT_MIN_ROCE_STAT_CTXS	1
-#define BNXT_MAX_ROCE_MSIX	9
-#define BNXT_MAX_VF_ROCE_MSIX	2
+
+#define BNXT_MAX_ROCE_MSIX_VF		2
+#define BNXT_MAX_ROCE_MSIX_NPAR_PF	5
+#define BNXT_MAX_ROCE_MSIX		64
 
 struct hwrm_async_event_cmpl;
 struct bnxt;

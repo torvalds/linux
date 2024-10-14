@@ -311,9 +311,9 @@ xfs_set_inode_alloc(
 	 * the allocator to accommodate the request.
 	 */
 	if (xfs_has_small_inums(mp) && ino > XFS_MAXINUMBER_32)
-		set_bit(XFS_OPSTATE_INODE32, &mp->m_opstate);
+		xfs_set_inode32(mp);
 	else
-		clear_bit(XFS_OPSTATE_INODE32, &mp->m_opstate);
+		xfs_clear_inode32(mp);
 
 	for (index = 0; index < agcount; index++) {
 		struct xfs_perag	*pag;
@@ -1511,7 +1511,7 @@ xfs_fs_fill_super(
 	 * the newer fsopen/fsconfig API.
 	 */
 	if (fc->sb_flags & SB_RDONLY)
-		set_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
+		xfs_set_readonly(mp);
 	if (fc->sb_flags & SB_DIRSYNC)
 		mp->m_features |= XFS_FEAT_DIRSYNC;
 	if (fc->sb_flags & SB_SYNCHRONOUS)
@@ -1638,16 +1638,28 @@ xfs_fs_fill_super(
 		goto out_free_sb;
 	}
 
-	/*
-	 * Until this is fixed only page-sized or smaller data blocks work.
-	 */
 	if (mp->m_sb.sb_blocksize > PAGE_SIZE) {
-		xfs_warn(mp,
-		"File system with blocksize %d bytes. "
-		"Only pagesize (%ld) or less will currently work.",
+		size_t max_folio_size = mapping_max_folio_size_supported();
+
+		if (!xfs_has_crc(mp)) {
+			xfs_warn(mp,
+"V4 Filesystem with blocksize %d bytes. Only pagesize (%ld) or less is supported.",
 				mp->m_sb.sb_blocksize, PAGE_SIZE);
-		error = -ENOSYS;
-		goto out_free_sb;
+			error = -ENOSYS;
+			goto out_free_sb;
+		}
+
+		if (mp->m_sb.sb_blocksize > max_folio_size) {
+			xfs_warn(mp,
+"block size (%u bytes) not supported; Only block size (%zu) or less is supported",
+				mp->m_sb.sb_blocksize, max_folio_size);
+			error = -ENOSYS;
+			goto out_free_sb;
+		}
+
+		xfs_warn(mp,
+"EXPERIMENTAL: V5 Filesystem with Large Block Size (%d bytes) enabled.",
+			mp->m_sb.sb_blocksize);
 	}
 
 	/* Ensure this filesystem fits in the page cache limits */
@@ -1820,7 +1832,7 @@ xfs_remount_rw(
 		return -EINVAL;
 	}
 
-	clear_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
+	xfs_clear_readonly(mp);
 
 	/*
 	 * If this is the first remount to writeable state we might have some
@@ -1908,7 +1920,7 @@ xfs_remount_ro(
 	xfs_save_resvblks(mp);
 
 	xfs_log_clean(mp);
-	set_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
+	xfs_set_readonly(mp);
 
 	return 0;
 }
@@ -2009,8 +2021,7 @@ static int xfs_init_fs_context(
 		return -ENOMEM;
 
 	spin_lock_init(&mp->m_sb_lock);
-	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
-	spin_lock_init(&mp->m_perag_lock);
+	xa_init(&mp->m_perags);
 	mutex_init(&mp->m_growlock);
 	INIT_WORK(&mp->m_flush_inodes_work, xfs_flush_inodes_worker);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);

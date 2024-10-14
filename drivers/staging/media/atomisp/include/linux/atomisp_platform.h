@@ -116,7 +116,7 @@ struct intel_v4l2_subdev_table {
 };
 
 /*
- *  Sensor of external ISP can send multiple steams with different mipi data
+ *  Sensor of external ISP can send multiple streams with different mipi data
  * type in the same virtual channel. This information needs to come from the
  * sensor or external ISP
  */
@@ -138,7 +138,7 @@ struct atomisp_input_stream_info {
 	/*
 	 * if more isys_configs is more than 0, sensor needs to configure the
 	 * input format differently. width and height can be 0. If width and
-	 * height is not zero, then the corresponsing data needs to be set
+	 * height is not zero, then the corresponding data needs to be set
 	 */
 	struct atomisp_isys_config_info isys_info[MAX_STREAMS_PER_CHANNEL];
 };
@@ -174,8 +174,6 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 				    enum atomisp_input_format format,
 				    enum atomisp_bayer_order bayer_order);
 void atomisp_unregister_subdev(struct v4l2_subdev *subdev);
-
-int v4l2_get_acpi_sensor_info(struct device *dev, char **module_id_str);
 
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vfm == x)

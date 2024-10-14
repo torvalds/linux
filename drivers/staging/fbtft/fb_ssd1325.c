@@ -72,10 +72,6 @@ static uint8_t rgb565_to_g16(u16 pixel)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe,
-		      ye);
-
 	write_reg(par, 0x75);
 	write_reg(par, 0x00);
 	write_reg(par, 0x3f);
@@ -86,9 +82,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int blank(struct fbtft_par *par, bool on)
 {
-	fbtft_par_dbg(DEBUG_BLANK, par, "(%s=%s)\n",
-		      __func__, on ? "true" : "false");
-
 	if (on)
 		write_reg(par, 0xAE);
 	else
@@ -108,8 +101,6 @@ static int blank(struct fbtft_par *par, bool on)
 static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	for (i = 0; i < GAMMA_LEN; i++) {
 		if (i > 0 && curves[i] < 1) {

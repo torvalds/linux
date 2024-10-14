@@ -2029,6 +2029,31 @@ Sysreg	FAR_EL1	3	0	6	0	0
 Field	63:0	ADDR
 EndSysreg
 
+Sysreg	PMICNTR_EL0	3	3	9	4	0
+Field	63:0	ICNT
+EndSysreg
+
+Sysreg	PMICFILTR_EL0	3	3	9	6	0
+Res0	63:59
+Field	58	SYNC
+Field	57:56	VS
+Res0	55:32
+Field	31	P
+Field	30	U
+Field	29	NSK
+Field	28	NSU
+Field	27	NSH
+Field	26	M
+Res0	25
+Field	24	SH
+Field	23	T
+Field	22	RLK
+Field	21	RLU
+Field	20	RLH
+Res0	19:16
+Field	15:0	evtCount
+EndSysreg
+
 Sysreg	PMSCR_EL1	3	0	9	9	0
 Res0	63:8
 Field	7:6	PCT
@@ -2151,6 +2176,11 @@ Res0	7:6
 Field	5	F
 Field	4	P
 Field	3:0	ALIGN
+EndSysreg
+
+Sysreg	PMSELR_EL0	3	3	9	12	5
+Res0	63:5
+Field	4:0	SEL
 EndSysreg
 
 SysregFields	CONTEXTIDR_ELx

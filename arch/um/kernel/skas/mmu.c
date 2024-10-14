@@ -32,11 +32,11 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	new_id->stack = stack;
 
 	block_signals_trace();
-	new_id->u.pid = start_userspace(stack);
+	new_id->pid = start_userspace(stack);
 	unblock_signals_trace();
 
-	if (new_id->u.pid < 0) {
-		ret = new_id->u.pid;
+	if (new_id->pid < 0) {
+		ret = new_id->pid;
 		goto out_free;
 	}
 
@@ -83,12 +83,12 @@ void destroy_context(struct mm_struct *mm)
 	 * whole UML suddenly dying.  Also, cover negative and
 	 * 1 cases, since they shouldn't happen either.
 	 */
-	if (mmu->id.u.pid < 2) {
+	if (mmu->id.pid < 2) {
 		printk(KERN_ERR "corrupt mm_context - pid = %d\n",
-		       mmu->id.u.pid);
+		       mmu->id.pid);
 		return;
 	}
-	os_kill_ptraced_process(mmu->id.u.pid, 1);
+	os_kill_ptraced_process(mmu->id.pid, 1);
 
 	free_pages(mmu->id.stack, ilog2(STUB_DATA_PAGES));
 }

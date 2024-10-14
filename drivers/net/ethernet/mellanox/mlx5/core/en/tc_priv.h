@@ -109,6 +109,7 @@ struct mlx5e_tc_flow {
 	struct completion init_done;
 	struct completion del_hw_done;
 	struct mlx5_flow_attr *attr;
+	struct mlx5_flow_attr *extra_split_attr;
 	struct list_head attrs;
 	u32 chain_mapping;
 };

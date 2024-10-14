@@ -118,6 +118,11 @@ static const struct apd_device_desc wt_i2c_desc = {
 	.fixed_clk_rate = 150000000,
 };
 
+static const struct apd_device_desc wt_i3c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 125000000,
+};
+
 static struct property_entry uart_properties[] = {
 	PROPERTY_ENTRY_U32("reg-io-width", 4),
 	PROPERTY_ENTRY_U32("reg-shift", 2),
@@ -231,6 +236,7 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	{ "AMD0030", },
 	{ "AMD0040", APD_ADDR(fch_misc_desc)},
 	{ "AMDI0010", APD_ADDR(wt_i2c_desc) },
+	{ "AMDI0015", APD_ADDR(wt_i3c_desc) },
 	{ "AMDI0019", APD_ADDR(wt_i2c_desc) },
 	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
 	{ "AMDI0022", APD_ADDR(cz_uart_desc) },

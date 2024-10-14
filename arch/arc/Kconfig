@@ -13,6 +13,7 @@ config ARC
 	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_NEED_CMPXCHG_1_EMU
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select ARCH_32BIT_OFF_T
 	select BUILDTIME_TABLE_SORT
@@ -553,7 +554,7 @@ config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"
 	help
 	  Set the name of the DTB to embed in the vmlinux binary
-	  Leaving it blank selects the minimal "skeleton" dtb
+	  Leaving it blank selects the "nsim_700" dtb.
 
 endmenu	 # "ARC Architecture Configuration"
 

@@ -213,9 +213,13 @@ static unsigned int hantro_postproc_buffer_size(struct hantro_ctx *ctx)
 	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_VP9_FRAME)
 		buf_size += hantro_vp9_mv_size(pix_mp.width,
 					       pix_mp.height);
-	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_HEVC_SLICE)
+	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_HEVC_SLICE) {
 		buf_size += hantro_hevc_mv_size(pix_mp.width,
 						pix_mp.height);
+		if (ctx->hevc_dec.use_compression)
+			buf_size += hantro_hevc_compressed_size(pix_mp.width,
+								pix_mp.height);
+	}
 	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_AV1_FRAME)
 		buf_size += hantro_av1_mv_size(pix_mp.width,
 					       pix_mp.height);

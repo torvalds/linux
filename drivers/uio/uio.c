@@ -118,7 +118,7 @@ static const struct sysfs_ops map_sysfs_ops = {
 	.show = map_type_show,
 };
 
-static struct kobj_type map_attr_type = {
+static const struct kobj_type map_attr_type = {
 	.release	= map_release,
 	.sysfs_ops	= &map_sysfs_ops,
 	.default_groups	= map_groups,
@@ -207,7 +207,7 @@ static const struct sysfs_ops portio_sysfs_ops = {
 	.show = portio_type_show,
 };
 
-static struct kobj_type portio_attr_type = {
+static const struct kobj_type portio_attr_type = {
 	.release	= portio_release,
 	.sysfs_ops	= &portio_sysfs_ops,
 	.default_groups	= portio_groups,

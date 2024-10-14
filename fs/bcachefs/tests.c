@@ -394,7 +394,7 @@ static int insert_test_extent(struct bch_fs *c,
 	k.k_i.k.p.offset = end;
 	k.k_i.k.p.snapshot = U32_MAX;
 	k.k_i.k.size = end - start;
-	k.k_i.k.version.lo = test_version++;
+	k.k_i.k.bversion.lo = test_version++;
 
 	ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i, NULL, 0, 0);
 	bch_err_fn(c, ret);

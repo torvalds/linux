@@ -5,8 +5,9 @@
 #include <asm/current.h>
 #include <linux/thread_info.h>
 #include <asm/atomic_ops.h>
+#include <asm/march.h>
 
-#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+#ifdef MARCH_HAS_Z196_FEATURES
 
 /* We use the MSB mostly because its available */
 #define PREEMPT_NEED_RESCHED	0x80000000
@@ -75,7 +76,7 @@ static __always_inline bool should_resched(int preempt_offset)
 			preempt_offset);
 }
 
-#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+#else /* MARCH_HAS_Z196_FEATURES */
 
 #define PREEMPT_ENABLED	(0)
 
@@ -123,7 +124,7 @@ static __always_inline bool should_resched(int preempt_offset)
 			tif_need_resched());
 }
 
-#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+#endif /* MARCH_HAS_Z196_FEATURES */
 
 #define init_task_preempt_count(p)	do { } while (0)
 /* Deferred to CPU bringup time */

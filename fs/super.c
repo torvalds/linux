@@ -621,7 +621,7 @@ void generic_shutdown_super(struct super_block *sb)
 		sync_filesystem(sb);
 		sb->s_flags &= ~SB_ACTIVE;
 
-		cgroup_writeback_umount();
+		cgroup_writeback_umount(sb);
 
 		/* Evict all inodes with zero refcount. */
 		evict_inodes(sb);
@@ -1905,7 +1905,7 @@ static void lockdep_sb_freeze_release(struct super_block *sb)
 	int level;
 
 	for (level = SB_FREEZE_LEVELS - 1; level >= 0; level--)
-		percpu_rwsem_release(sb->s_writers.rw_sem + level, 0, _THIS_IP_);
+		percpu_rwsem_release(sb->s_writers.rw_sem + level, _THIS_IP_);
 }
 
 /*

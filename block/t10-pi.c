@@ -8,9 +8,8 @@
 #include <linux/blk-integrity.h>
 #include <linux/crc-t10dif.h>
 #include <linux/crc64.h>
-#include <linux/module.h>
 #include <net/checksum.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "blk.h"
 
 struct blk_integrity_iter {
@@ -240,9 +239,9 @@ static void ext_pi_crc64_generate(struct blk_integrity_iter *iter,
 	}
 }
 
-static bool ext_pi_ref_escape(u8 *ref_tag)
+static bool ext_pi_ref_escape(const u8 ref_tag[6])
 {
-	static u8 ref_escape[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	static const u8 ref_escape[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	return memcmp(ref_tag, ref_escape, sizeof(ref_escape)) == 0;
 }
@@ -472,6 +471,3 @@ void blk_integrity_complete(struct request *rq, unsigned int nr_bytes)
 	else
 		t10_pi_type1_complete(rq, nr_bytes);
 }
-
-MODULE_DESCRIPTION("T10 Protection Information module");
-MODULE_LICENSE("GPL");

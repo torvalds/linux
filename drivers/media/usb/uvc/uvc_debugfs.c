@@ -59,7 +59,6 @@ static int uvc_debugfs_stats_release(struct inode *inode, struct file *file)
 static const struct file_operations uvc_debugfs_stats_fops = {
 	.owner = THIS_MODULE,
 	.open = uvc_debugfs_stats_open,
-	.llseek = no_llseek,
 	.read = uvc_debugfs_stats_read,
 	.release = uvc_debugfs_stats_release,
 };

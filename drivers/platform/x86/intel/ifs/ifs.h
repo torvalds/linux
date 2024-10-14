@@ -126,11 +126,40 @@
  * The driver does not make use of this, it only tests one core at a time.
  *
  * .. [#f1] https://github.com/intel/TBD
+ *
+ *
+ * Structural Based Functional Test at Field (SBAF):
+ * -------------------------------------------------
+ *
+ * SBAF is a new type of testing that provides comprehensive core test
+ * coverage complementing Scan at Field (SAF) testing. SBAF mimics the
+ * manufacturing screening environment and leverages the same test suite.
+ * It makes use of Design For Test (DFT) observation sites and features
+ * to maximize coverage in minimum time.
+ *
+ * Similar to the SAF test, SBAF isolates the core under test from the
+ * rest of the system during execution. Upon completion, the core
+ * seamlessly resets to its pre-test state and resumes normal operation.
+ * Any machine checks or hangs encountered during the test are confined to
+ * the isolated core, preventing disruption to the overall system.
+ *
+ * Like the SAF test, the SBAF test is also divided into multiple batches,
+ * and each batch test can take hundreds of milliseconds (100-200 ms) to
+ * complete. If such a lengthy interruption is undesirable, it is
+ * recommended to relocate the time-sensitive applications to other cores.
  */
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
 #define MSR_ARRAY_BIST				0x00000105
+
+#define MSR_COPY_SBAF_HASHES			0x000002b8
+#define MSR_SBAF_HASHES_STATUS			0x000002b9
+#define MSR_AUTHENTICATE_AND_COPY_SBAF_CHUNK	0x000002ba
+#define MSR_SBAF_CHUNKS_AUTHENTICATION_STATUS	0x000002bb
+#define MSR_ACTIVATE_SBAF			0x000002bc
+#define MSR_SBAF_STATUS				0x000002bd
+
 #define MSR_COPY_SCAN_HASHES			0x000002c2
 #define MSR_SCAN_HASHES_STATUS			0x000002c3
 #define MSR_AUTHENTICATE_AND_COPY_CHUNK		0x000002c4
@@ -140,6 +169,7 @@
 #define MSR_ARRAY_TRIGGER			0x000002d6
 #define MSR_ARRAY_STATUS			0x000002d7
 #define MSR_SAF_CTRL				0x000004f0
+#define MSR_SBAF_CTRL				0x000004f8
 
 #define SCAN_NOT_TESTED				0
 #define SCAN_TEST_PASS				1
@@ -147,6 +177,7 @@
 
 #define IFS_TYPE_SAF			0
 #define IFS_TYPE_ARRAY_BIST		1
+#define IFS_TYPE_SBAF			2
 
 #define ARRAY_GEN0			0
 #define ARRAY_GEN1			1
@@ -196,7 +227,8 @@ union ifs_chunks_auth_status_gen2 {
 		u16	valid_chunks;
 		u16	total_chunks;
 		u32	error_code	:8;
-		u32	rsvd2		:24;
+		u32	rsvd2		:8;
+		u32	max_bundle	:16;
 	};
 };
 
@@ -253,6 +285,34 @@ union ifs_array {
 	};
 };
 
+/* MSR_ACTIVATE_SBAF bit fields */
+union ifs_sbaf {
+	u64	data;
+	struct {
+		u32	bundle_idx	:9;
+		u32	rsvd1		:5;
+		u32	pgm_idx		:2;
+		u32	rsvd2		:16;
+		u32	delay		:31;
+		u32	sigmce		:1;
+	};
+};
+
+/* MSR_SBAF_STATUS bit fields */
+union ifs_sbaf_status {
+	u64	data;
+	struct {
+		u32	bundle_idx	:9;
+		u32	rsvd1		:5;
+		u32	pgm_idx		:2;
+		u32	rsvd2		:16;
+		u32	error_code	:8;
+		u32	rsvd3		:21;
+		u32	test_fail	:1;
+		u32	sbaf_status	:2;
+	};
+};
+
 /*
  * Driver populated error-codes
  * 0xFD: Test timed out before completing all the chunks.
@@ -261,9 +321,28 @@ union ifs_array {
 #define IFS_SW_TIMEOUT				0xFD
 #define IFS_SW_PARTIAL_COMPLETION		0xFE
 
+#define IFS_SUFFIX_SZ		5
+
 struct ifs_test_caps {
 	int	integrity_cap_bit;
 	int	test_num;
+	char	image_suffix[IFS_SUFFIX_SZ];
+};
+
+/**
+ * struct ifs_test_msrs - MSRs used in IFS tests
+ * @copy_hashes: Copy test hash data
+ * @copy_hashes_status: Status of copied test hash data
+ * @copy_chunks: Copy chunks of the test data
+ * @copy_chunks_status: Status of the copied test data chunks
+ * @test_ctrl: Control the test attributes
+ */
+struct ifs_test_msrs {
+	u32	copy_hashes;
+	u32	copy_hashes_status;
+	u32	copy_chunks;
+	u32	copy_chunks_status;
+	u32	test_ctrl;
 };
 
 /**
@@ -278,6 +357,7 @@ struct ifs_test_caps {
  * @generation: IFS test generation enumerated by hardware
  * @chunk_size: size of a test chunk
  * @array_gen: test generation of array test
+ * @max_bundle: maximum bundle index
  */
 struct ifs_data {
 	int	loaded_version;
@@ -290,6 +370,7 @@ struct ifs_data {
 	u32	generation;
 	u32	chunk_size;
 	u32	array_gen;
+	u32	max_bundle;
 };
 
 struct ifs_work {
@@ -299,6 +380,7 @@ struct ifs_work {
 
 struct ifs_device {
 	const struct ifs_test_caps *test_caps;
+	const struct ifs_test_msrs *test_msrs;
 	struct ifs_data rw_data;
 	struct miscdevice misc;
 };
@@ -317,6 +399,14 @@ static inline const struct ifs_test_caps *ifs_get_test_caps(struct device *dev)
 	struct ifs_device *d = container_of(m, struct ifs_device, misc);
 
 	return d->test_caps;
+}
+
+static inline const struct ifs_test_msrs *ifs_get_test_msrs(struct device *dev)
+{
+	struct miscdevice *m = dev_get_drvdata(dev);
+	struct ifs_device *d = container_of(m, struct ifs_device, misc);
+
+	return d->test_msrs;
 }
 
 extern bool *ifs_pkg_auth;

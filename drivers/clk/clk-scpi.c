@@ -303,7 +303,7 @@ static struct platform_driver scpi_clocks_driver = {
 		.of_match_table = scpi_clocks_ids,
 	},
 	.probe = scpi_clocks_probe,
-	.remove_new = scpi_clocks_remove,
+	.remove = scpi_clocks_remove,
 };
 module_platform_driver(scpi_clocks_driver);
 

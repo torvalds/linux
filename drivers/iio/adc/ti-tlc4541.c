@@ -237,14 +237,14 @@ static void tlc4541_remove(struct spi_device *spi)
 static const struct of_device_id tlc4541_dt_ids[] = {
 	{ .compatible = "ti,tlc3541", },
 	{ .compatible = "ti,tlc4541", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, tlc4541_dt_ids);
 
 static const struct spi_device_id tlc4541_id[] = {
-	{"tlc3541", TLC3541},
-	{"tlc4541", TLC4541},
-	{}
+	{ "tlc3541", TLC3541 },
+	{ "tlc4541", TLC4541 },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, tlc4541_id);
 

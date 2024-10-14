@@ -526,7 +526,7 @@ PNAME(pmu_200m_100m_p)			= { "clk_pmu1_200m_src", "clk_pmu1_100m_src" };
 PNAME(pmu_300m_24m_p)			= { "clk_300m_src", "xin24m" };
 PNAME(pmu_400m_24m_p)			= { "clk_400m_src", "xin24m" };
 PNAME(pmu_100m_50m_24m_src_p)		= { "clk_pmu1_100m_src", "clk_pmu1_50m_src", "xin24m" };
-PNAME(pmu_24m_32k_100m_src_p)		= { "xin24m", "32k", "clk_pmu1_100m_src" };
+PNAME(pmu_24m_32k_100m_src_p)		= { "xin24m", "xin32k", "clk_pmu1_100m_src" };
 PNAME(hclk_pmu1_root_p)			= { "clk_pmu1_200m_src", "clk_pmu1_100m_src", "clk_pmu1_50m_src", "xin24m" };
 PNAME(hclk_pmu_cm0_root_p)		= { "clk_pmu1_400m_src", "clk_pmu1_200m_src", "clk_pmu1_100m_src", "xin24m" };
 PNAME(mclk_pdm0_p)			= { "clk_pmu1_300m_src", "clk_pmu1_200m_src" };
@@ -2502,43 +2502,3 @@ static void __init rk3588_clk_init(struct device_node *np)
 }
 
 CLK_OF_DECLARE(rk3588_cru, "rockchip,rk3588-cru", rk3588_clk_init);
-
-struct clk_rk3588_inits {
-	void (*inits)(struct device_node *np);
-};
-
-static const struct clk_rk3588_inits clk_3588_cru_init = {
-	.inits = rk3588_clk_init,
-};
-
-static const struct of_device_id clk_rk3588_match_table[] = {
-	{
-		.compatible = "rockchip,rk3588-cru",
-		.data = &clk_3588_cru_init,
-	},
-	{ }
-};
-
-static int __init clk_rk3588_probe(struct platform_device *pdev)
-{
-	const struct clk_rk3588_inits *init_data;
-	struct device *dev = &pdev->dev;
-
-	init_data = device_get_match_data(dev);
-	if (!init_data)
-		return -EINVAL;
-
-	if (init_data->inits)
-		init_data->inits(dev->of_node);
-
-	return 0;
-}
-
-static struct platform_driver clk_rk3588_driver = {
-	.driver		= {
-		.name	= "clk-rk3588",
-		.of_match_table = clk_rk3588_match_table,
-		.suppress_bind_attrs = true,
-	},
-};
-builtin_platform_driver_probe(clk_rk3588_driver, clk_rk3588_probe);

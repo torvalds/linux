@@ -909,7 +909,7 @@ cifs_oplock_response(struct cifs_tcon *tcon, __u64 persistent_fid,
 
 static int
 cifs_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
-	     struct cifs_sb_info *cifs_sb, struct kstatfs *buf)
+	     const char *path, struct cifs_sb_info *cifs_sb, struct kstatfs *buf)
 {
 	int rc = -EOPNOTSUPP;
 
@@ -1078,7 +1078,7 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 	/*
 	 * Check if mounted with mount parm 'sfu' mount parm.
 	 * SFU emulation should work with all servers, but only
-	 * supports block and char device (no socket & fifo),
+	 * supports block and char device, socket & fifo,
 	 * and was used by default in earlier versions of Windows
 	 */
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))

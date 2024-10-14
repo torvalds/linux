@@ -1784,7 +1784,6 @@ static const struct file_operations snd_rawmidi_f_ops = {
 	.write =	snd_rawmidi_write,
 	.open =		snd_rawmidi_open,
 	.release =	snd_rawmidi_release,
-	.llseek =	no_llseek,
 	.poll =		snd_rawmidi_poll,
 	.unlocked_ioctl =	snd_rawmidi_ioctl,
 	.compat_ioctl =	snd_rawmidi_ioctl_compat,

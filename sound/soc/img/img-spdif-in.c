@@ -878,7 +878,7 @@ static struct platform_driver img_spdif_in_driver = {
 		.pm = &img_spdif_in_pm_ops
 	},
 	.probe = img_spdif_in_probe,
-	.remove_new = img_spdif_in_dev_remove
+	.remove = img_spdif_in_dev_remove
 };
 module_platform_driver(img_spdif_in_driver);
 

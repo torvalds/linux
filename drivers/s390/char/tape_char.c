@@ -52,7 +52,6 @@ static const struct file_operations tape_fops =
 #endif
 	.open = tapechar_open,
 	.release = tapechar_release,
-	.llseek = no_llseek,
 };
 
 static int tapechar_major = TAPECHAR_MAJOR;

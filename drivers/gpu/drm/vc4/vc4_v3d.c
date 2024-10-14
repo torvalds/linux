@@ -441,21 +441,9 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	vc4->v3d = v3d;
 	v3d->vc4 = vc4;
 
-	v3d->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(v3d->clk)) {
-		int ret = PTR_ERR(v3d->clk);
-
-		if (ret == -ENOENT) {
-			/* bcm2835 didn't have a clock reference in the DT. */
-			ret = 0;
-			v3d->clk = NULL;
-		} else {
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Failed to get V3D clock: %d\n",
-					ret);
-			return ret;
-		}
-	}
+	v3d->clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(v3d->clk))
+		return dev_err_probe(dev, PTR_ERR(v3d->clk), "Failed to get V3D clock\n");
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -471,8 +459,8 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
-		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
-			  V3D_READ(V3D_IDENT0), V3D_EXPECTED_IDENT0);
+		drm_err(drm, "V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
+			V3D_READ(V3D_IDENT0), V3D_EXPECTED_IDENT0);
 		ret = -EINVAL;
 		goto err_put_runtime_pm;
 	}
@@ -485,7 +473,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 
 	ret = vc4_irq_install(drm, vc4->irq);
 	if (ret) {
-		DRM_ERROR("Failed to install IRQ handler\n");
+		drm_err(drm, "Failed to install IRQ handler\n");
 		goto err_put_runtime_pm;
 	}
 

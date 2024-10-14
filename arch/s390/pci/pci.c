@@ -587,7 +587,6 @@ int pcibios_device_add(struct pci_dev *pdev)
 	if (pdev->is_physfn)
 		pdev->no_vf_scan = 1;
 
-	pdev->dev.groups = zpci_attr_groups;
 	zpci_map_resources(pdev);
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {

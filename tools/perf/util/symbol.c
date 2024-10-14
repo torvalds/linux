@@ -1931,6 +1931,9 @@ int dso__load(struct dso *dso, struct map *map)
 		if (next_slot) {
 			ss_pos++;
 
+			if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND)
+				dso__set_binary_type(dso, symtab_type);
+
 			if (syms_ss && runtime_ss)
 				break;
 		} else {

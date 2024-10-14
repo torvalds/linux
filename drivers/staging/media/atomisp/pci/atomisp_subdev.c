@@ -797,12 +797,12 @@ static int atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 	pipe->vb_queue.ops = &atomisp_vb2_ops;
 	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;
 	pipe->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	pipe->vb_queue.lock = &pipe->vb_queue_mutex;
 	ret = vb2_queue_init(&pipe->vb_queue);
 	if (ret)
 		return ret;
 
 	pipe->vdev.queue = &pipe->vb_queue;
-	pipe->vdev.queue->lock = &pipe->vb_queue_mutex;
 
 	INIT_LIST_HEAD(&pipe->buffers_in_css);
 	INIT_LIST_HEAD(&pipe->activeq);

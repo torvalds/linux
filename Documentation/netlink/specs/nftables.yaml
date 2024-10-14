@@ -63,6 +63,13 @@ definitions:
       - sdifname
       - bri-broute
   -
+    name: bitwise-ops
+    type: enum
+    entries:
+      - bool
+      - lshift
+      - rshift
+  -
     name: cmp-ops
     type: enum
     entries:
@@ -125,6 +132,99 @@ definitions:
       - object
       - concat
       - expr
+  -
+    name: lookup-flags
+    type: flags
+    entries:
+      - invert
+  -
+    name: ct-keys
+    type: enum
+    entries:
+      - state
+      - direction
+      - status
+      - mark
+      - secmark
+      - expiration
+      - helper
+      - l3protocol
+      - src
+      - dst
+      - protocol
+      - proto-src
+      - proto-dst
+      - labels
+      - pkts
+      - bytes
+      - avgpkt
+      - zone
+      - eventmask
+      - src-ip
+      - dst-ip
+      - src-ip6
+      - dst-ip6
+      - ct-id
+  -
+    name: ct-direction
+    type: enum
+    entries:
+      - original
+      - reply
+  -
+    name: quota-flags
+    type: flags
+    entries:
+      - invert
+      - depleted
+  -
+    name: verdict-code
+    type: enum
+    entries:
+      - name: continue
+        value: 0xffffffff
+      - name: break
+        value: 0xfffffffe
+      - name: jump
+        value: 0xfffffffd
+      - name: goto
+        value: 0xfffffffc
+      - name: return
+        value: 0xfffffffb
+      - name: drop
+        value: 0
+      - name: accept
+        value: 1
+      - name: stolen
+        value: 2
+      - name: queue
+        value: 3
+      - name: repeat
+        value: 4
+  -
+    name: fib-result
+    type: enum
+    entries:
+      - oif
+      - oifname
+      - addrtype
+  -
+    name: fib-flags
+    type: flags
+    entries:
+      - saddr
+      - daddr
+      - mark
+      - iif
+      - oif
+      - present
+  -
+    name: reject-types
+    type: enum
+    entries:
+      - icmp-unreach
+      - tcp-rst
+      - icmpx-unreach
 
 attribute-sets:
   -
@@ -611,9 +711,10 @@ attribute-sets:
         type: u64
         byte-order: big-endian
       -
-        name: flags # TODO
+        name: flags
         type: u32
         byte-order: big-endian
+        enum: quota-flags
       -
         name: pad
         type: pad
@@ -665,6 +766,38 @@ attribute-sets:
         type: nest
         nested-attributes: hook-dev-attrs
   -
+    name: expr-bitwise-attrs
+    attributes:
+      -
+        name: sreg
+        type: u32
+        byte-order: big-endian
+      -
+        name: dreg
+        type: u32
+        byte-order: big-endian
+      -
+        name: len
+        type: u32
+        byte-order: big-endian
+      -
+        name: mask
+        type: nest
+        nested-attributes: data-attrs
+      -
+        name: xor
+        type: nest
+        nested-attributes: data-attrs
+      -
+        name: op
+        type: u32
+        byte-order: big-endian
+        enum: bitwise-ops
+      -
+        name: data
+        type: nest
+        nested-attributes: data-attrs
+  -
     name: expr-cmp-attrs
     attributes:
       -
@@ -698,6 +831,7 @@ attribute-sets:
         name: code
         type: u32
         byte-order: big-endian
+        enum: verdict-code
       -
         name: chain
         type: string
@@ -719,6 +853,43 @@ attribute-sets:
         name: pad
         type: pad
   -
+    name: expr-fib-attrs
+    attributes:
+      -
+        name: dreg
+        type: u32
+        byte-order: big-endian
+      -
+        name: result
+        type: u32
+        byte-order: big-endian
+        enum: fib-result
+      -
+        name: flags
+        type: u32
+        byte-order: big-endian
+        enum: fib-flags
+  -
+    name: expr-ct-attrs
+    attributes:
+      -
+        name: dreg
+        type: u32
+        byte-order: big-endian
+      -
+        name: key
+        type: u32
+        byte-order: big-endian
+        enum: ct-keys
+      -
+        name: direction
+        type: u8
+        enum: ct-direction
+      -
+        name: sreg
+        type: u32
+        byte-order: big-endian
+  -
     name: expr-flow-offload-attrs
     attributes:
       -
@@ -736,6 +907,31 @@ attribute-sets:
         name: data
         type: nest
         nested-attributes: data-attrs
+  -
+    name: expr-lookup-attrs
+    attributes:
+      -
+        name: set
+        type: string
+        doc: Name of set to use
+      -
+        name: set id
+        type: u32
+        byte-order: big-endian
+        doc: ID of set to use
+      -
+        name: sreg
+        type: u32
+        byte-order: big-endian
+      -
+        name: dreg
+        type: u32
+        byte-order: big-endian
+      -
+        name: flags
+        type: u32
+        byte-order: big-endian
+        enum: lookup-flags
   -
     name: expr-meta-attrs
     attributes:
@@ -821,6 +1017,30 @@ attribute-sets:
         type: u32
         byte-order: big-endian
   -
+    name: expr-reject-attrs
+    attributes:
+      -
+        name: type
+        type: u32
+        byte-order: big-endian
+        enum: reject-types
+      -
+        name: icmp-code
+        type: u8
+  -
+    name: expr-target-attrs
+    attributes:
+      -
+        name: name
+        type: string
+      -
+        name: rev
+        type: u32
+        byte-order: big-endian
+      -
+        name: info
+        type: binary
+  -
     name: expr-tproxy-attrs
     attributes:
       -
@@ -835,13 +1055,38 @@ attribute-sets:
         name: reg-port
         type: u32
         byte-order: big-endian
+  -
+    name: expr-objref-attrs
+    attributes:
+      -
+        name: imm-type
+        type: u32
+        byte-order: big-endian
+      -
+        name: imm-name
+        type: string
+        doc: object name
+      -
+        name: set-sreg
+        type: u32
+        byte-order: big-endian
+      -
+        name: set-name
+        type: string
+        doc: name of object map
+      -
+        name: set-id
+        type: u32
+        byte-order: big-endian
+        doc: id of object map
 
 sub-messages:
   -
     name: expr-ops
     formats:
       -
-        value: bitwise # TODO
+        value: bitwise
+        attribute-set: expr-bitwise-attrs
       -
         value: cmp
         attribute-set: expr-cmp-attrs
@@ -849,7 +1094,11 @@ sub-messages:
         value: counter
         attribute-set: expr-counter-attrs
       -
-        value: ct # TODO
+        value: ct
+        attribute-set: expr-ct-attrs
+      -
+        value: fib
+        attribute-set: expr-fib-attrs
       -
         value: flow_offload
         attribute-set: expr-flow-offload-attrs
@@ -857,7 +1106,8 @@ sub-messages:
         value: immediate
         attribute-set: expr-immediate-attrs
       -
-        value: lookup # TODO
+        value: lookup
+        attribute-set: expr-lookup-attrs
       -
         value: meta
         attribute-set: expr-meta-attrs
@@ -865,8 +1115,20 @@ sub-messages:
         value: nat
         attribute-set: expr-nat-attrs
       -
+        value: objref
+        attribute-set: expr-objref-attrs
+      -
         value: payload
         attribute-set: expr-payload-attrs
+      -
+        value: quota
+        attribute-set: quota-attrs
+      -
+        value: reject
+        attribute-set: expr-reject-attrs
+      -
+        value: target
+        attribute-set: expr-target-attrs
       -
         value: tproxy
         attribute-set: expr-tproxy-attrs

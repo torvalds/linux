@@ -18,7 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/typec_dp.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "ucsi.h"
 
 enum enum_fw_mode {

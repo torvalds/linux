@@ -924,7 +924,6 @@ static const struct file_operations chsc_fops = {
 	.release = chsc_release,
 	.unlocked_ioctl = chsc_ioctl,
 	.compat_ioctl = chsc_ioctl,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice chsc_misc_device = {

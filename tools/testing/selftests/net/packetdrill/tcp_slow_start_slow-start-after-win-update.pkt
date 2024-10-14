@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test of slow start after window update
+// This test expects tso size to be at least initial cwnd * mss
+
+`./defaults.sh
+./set_sysctls.py /proc/sys/net/ipv4/tcp_slow_start_after_idle=1 \
+		 /proc/sys/net/ipv4/tcp_min_tso_segs=10`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 65535 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 511
+   +0 accept(3, ..., ...) = 4
+   +0 setsockopt(4, SOL_SOCKET, SO_SNDBUF, [200000], 4) = 0
+
+   +0 write(4, ..., 26000) = 26000
+   +0 > P. 1:5001(5000) ack 1
+   +0 > P. 5001:10001(5000) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 10, tcpi_snd_cwnd }%
+
+  +.1 < . 1:1(0) ack 10001 win 511
+   +0 %{ assert tcpi_snd_cwnd == 20, tcpi_snd_cwnd }%
+   +0 > P. 10001:20001(10000) ack 1
+   +0 > P. 20001:26001(6000) ack 1
+
+  +.1 < . 1:1(0) ack 26001 win 0
+   +0 %{ assert tcpi_snd_cwnd == 36, tcpi_snd_cwnd }%
+
+   +0 write(4, ..., 20000) = 20000
+// 1st win0 probe
++.3~+.310 > . 26000:26000(0) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 36, tcpi_snd_cwnd }%
+
+// 2nd win0 probe
++.6~+.620 > . 26000:26000(0) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 36, tcpi_snd_cwnd }%
+
+// 3rd win0 probe
++1.2~+1.240 > . 26000:26000(0) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 36, tcpi_snd_cwnd }%
+
+  +.9 < . 1:1(0) ack 26001 win 511
+   +0 > P. 26001:31001(5000) ack 1
+
+// Reset sysctls
+`/tmp/sysctl_restore_${PPID}.sh`

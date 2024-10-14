@@ -355,4 +355,11 @@ enum tx_port_idx {
 	MT_TX_PORT_IDX_MCU
 };
 
+enum tx_frag_idx {
+	MT_TX_FRAG_NONE,
+	MT_TX_FRAG_FIRST,
+	MT_TX_FRAG_MID,
+	MT_TX_FRAG_LAST
+};
+
 #endif /* __MT76_CONNAC2_MAC_H */

@@ -411,7 +411,7 @@ static const unsigned int s2_demod_gpio0_pins[]		= { GPIOZ_12 };
 static const unsigned int gen_clk_z9_pins[]		= { GPIOZ_9 };
 static const unsigned int gen_clk_z12_pins[]		= { GPIOZ_12 };
 
-static struct meson_pmx_group meson_s4_periphs_groups[] = {
+static const struct meson_pmx_group meson_s4_periphs_groups[] = {
 	GPIO_GROUP(GPIOE_0),
 	GPIO_GROUP(GPIOE_1),
 
@@ -1100,7 +1100,7 @@ static const char * const s2_demod_groups[] = {
 	"s2_demod_gpio3", "s2_demod_gpio2", "s2_demod_gpio1", "s2_demod_gpio0",
 };
 
-static struct meson_pmx_func meson_s4_periphs_functions[] = {
+static const struct meson_pmx_func meson_s4_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(i2c0),
 	FUNCTION(i2c1),
@@ -1160,7 +1160,7 @@ static struct meson_pmx_func meson_s4_periphs_functions[] = {
 	FUNCTION(s2_demod),
 };
 
-static struct meson_bank meson_s4_periphs_banks[] = {
+static const struct meson_bank meson_s4_periphs_banks[] = {
 	/* name  first  last  irq  pullen  pull  dir  out  in */
 	BANK_DS("B", GPIOB_0,    GPIOB_13,  0, 13,
 		0x63,  0,  0x64,  0,  0x62, 0,  0x61, 0,  0x60, 0, 0x67, 0),
@@ -1180,7 +1180,7 @@ static struct meson_bank meson_s4_periphs_banks[] = {
 		0x83,  0,  0x84,  0,  0x82, 0,  0x81,  0, 0x80, 0, 0x87, 0),
 };
 
-static struct meson_pmx_bank meson_s4_periphs_pmx_banks[] = {
+static const struct meson_pmx_bank meson_s4_periphs_pmx_banks[] = {
 	/*name	            first	 lask        reg offset*/
 	BANK_PMX("B",      GPIOB_0,     GPIOB_13,    0x00, 0),
 	BANK_PMX("C",      GPIOC_0,     GPIOC_7,     0x9,  0),
@@ -1192,12 +1192,12 @@ static struct meson_pmx_bank meson_s4_periphs_pmx_banks[] = {
 	BANK_PMX("TEST_N", GPIO_TEST_N, GPIO_TEST_N, 0xf,  0)
 };
 
-static struct meson_axg_pmx_data meson_s4_periphs_pmx_banks_data = {
+static const struct meson_axg_pmx_data meson_s4_periphs_pmx_banks_data = {
 	.pmx_banks	= meson_s4_periphs_pmx_banks,
 	.num_pmx_banks	= ARRAY_SIZE(meson_s4_periphs_pmx_banks),
 };
 
-static struct meson_pinctrl_data meson_s4_periphs_pinctrl_data = {
+static const struct meson_pinctrl_data meson_s4_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
 	.pins		= meson_s4_periphs_pins,
 	.groups		= meson_s4_periphs_groups,

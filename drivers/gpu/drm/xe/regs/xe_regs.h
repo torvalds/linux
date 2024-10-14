@@ -15,8 +15,6 @@
 #define GU_MISC_IRQ_OFFSET			0x444f0
 #define   GU_MISC_GSE				REG_BIT(27)
 
-#define SOFTWARE_FLAGS_SPR33			XE_REG(0x4f084)
-
 #define GU_CNTL_PROTECTED			XE_REG(0x10100C)
 #define   DRIVERINT_FLR_DIS			REG_BIT(31)
 
@@ -24,11 +22,14 @@
 #define   LMEM_INIT				REG_BIT(7)
 #define   DRIVERFLR				REG_BIT(31)
 
+#define XEHP_CLOCK_GATE_DIS			XE_REG(0x101014)
+#define   SGSI_SIDECLK_DIS			REG_BIT(17)
+
 #define GU_DEBUG				XE_REG(0x101018)
 #define   DRIVERFLR_STATUS			REG_BIT(31)
 
-#define XEHP_CLOCK_GATE_DIS			XE_REG(0x101014)
-#define   SGSI_SIDECLK_DIS			REG_BIT(17)
+#define VIRTUAL_CTRL_REG			XE_REG(0x10108c)
+#define   GUEST_GTT_UPDATE_EN			REG_BIT(8)
 
 #define XEHP_MTCFG_ADDR				XE_REG(0x101800)
 #define   TILE_COUNT				REG_GENMASK(15, 8)
@@ -65,6 +66,9 @@
 #define   GU_MISC_IRQ				REG_BIT(29)
 #define   DISPLAY_IRQ				REG_BIT(16)
 #define   GT_DW_IRQ(x)				REG_BIT(x)
+
+#define VF_CAP_REG				XE_REG(0x1901f8, XE_REG_OPTION_VF)
+#define   VF_CAP				REG_BIT(0)
 
 #define PVC_RP_STATE_CAP			XE_REG(0x281014)
 

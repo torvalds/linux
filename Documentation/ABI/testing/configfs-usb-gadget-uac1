@@ -30,4 +30,12 @@ Description:
 		req_number		the number of pre-allocated requests
 					for both capture and playback
 		function_name		name of the interface
+		p_it_name		playback input terminal name
+		p_it_ch_name		playback channels name
+		p_ot_name		playback output terminal name
+		p_fu_vol_name		playback mute/volume functional unit name
+		c_it_name		capture input terminal name
+		c_it_ch_name		capture channels name
+		c_ot_name		capture output terminal name
+		c_fu_vol_name		capture mute/volume functional unit name
 		=====================	=======================================

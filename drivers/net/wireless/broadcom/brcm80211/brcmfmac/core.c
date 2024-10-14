@@ -691,7 +691,7 @@ static int brcmf_net_mon_open(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
-	u32 monitor = 0;
+	u32 monitor;
 	int err;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -1184,7 +1184,6 @@ static ssize_t bus_reset_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations bus_reset_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
 	.write	= bus_reset_write,
 };
 

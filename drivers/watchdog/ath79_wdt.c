@@ -231,7 +231,6 @@ static long ath79_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations ath79_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= ath79_wdt_write,
 	.unlocked_ioctl	= ath79_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

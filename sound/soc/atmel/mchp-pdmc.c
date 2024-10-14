@@ -90,6 +90,15 @@
 #define MCHP_PDMC_DS_NO			2
 #define MCHP_PDMC_EDGE_NO		2
 
+/*
+ * ---- DMA chunk size allowed ----
+ */
+#define MCHP_PDMC_DMA_8_WORD_CHUNK			8
+#define MCHP_PDMC_DMA_4_WORD_CHUNK			4
+#define MCHP_PDMC_DMA_2_WORD_CHUNK			2
+#define MCHP_PDMC_DMA_1_WORD_CHUNK			1
+#define DMA_BURST_ALIGNED(_p, _s, _w)		!(_p % (_s * _w))
+
 struct mic_map {
 	int ds_pos;
 	int clk_edge;
@@ -115,6 +124,7 @@ struct mchp_pdmc {
 	int mic_no;
 	int sinc_order;
 	bool audio_filter_en;
+	atomic_t busy_stream;
 };
 
 static const char *const mchp_pdmc_sinc_filter_order_text[] = {
@@ -158,6 +168,10 @@ static int mchp_pdmc_sinc_order_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	val = snd_soc_enum_item_to_val(e, item[0]) << e->shift_l;
+
+	if (atomic_read(&dd->busy_stream))
+		return -EBUSY;
+
 	if (val == dd->sinc_order)
 		return 0;
 
@@ -183,6 +197,9 @@ static int mchp_pdmc_af_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct mchp_pdmc *dd = snd_soc_component_get_drvdata(component);
 	bool af = uvalue->value.integer.value[0] ? true : false;
+
+	if (atomic_read(&dd->busy_stream))
+		return -EBUSY;
 
 	if (dd->audio_filter_en == af)
 		return 0;
@@ -285,6 +302,9 @@ static int mchp_pdmc_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 	if (!substream)
 		return -ENODEV;
 
+	if (!substream->runtime)
+		return 0; /* just for avoiding error from alsactl restore */
+
 	map = mchp_pdmc_chmap_get(substream, info);
 	if (!map)
 		return -EINVAL;
@@ -370,52 +390,10 @@ static const struct snd_kcontrol_new mchp_pdmc_snd_controls[] = {
 	},
 };
 
-static int mchp_pdmc_close(struct snd_soc_component *component,
-			   struct snd_pcm_substream *substream)
-{
-	return snd_soc_add_component_controls(component, mchp_pdmc_snd_controls,
-					      ARRAY_SIZE(mchp_pdmc_snd_controls));
-}
-
-static int mchp_pdmc_open(struct snd_soc_component *component,
-			  struct snd_pcm_substream *substream)
-{
-	int i;
-
-	/* remove controls that can't be changed at runtime */
-	for (i = 0; i < ARRAY_SIZE(mchp_pdmc_snd_controls); i++) {
-		const struct snd_kcontrol_new *control = &mchp_pdmc_snd_controls[i];
-		struct snd_ctl_elem_id id;
-		int err;
-
-		if (component->name_prefix)
-			snprintf(id.name, sizeof(id.name), "%s %s", component->name_prefix,
-				 control->name);
-		else
-			strscpy(id.name, control->name, sizeof(id.name));
-
-		id.numid = 0;
-		id.iface = control->iface;
-		id.device = control->device;
-		id.subdevice = control->subdevice;
-		id.index = control->index;
-		err = snd_ctl_remove_id(component->card->snd_card, &id);
-		if (err < 0)
-			dev_err(component->dev, "%d: Failed to remove %s\n", err,
-				control->name);
-	}
-
-	return 0;
-}
-
 static const struct snd_soc_component_driver mchp_pdmc_dai_component = {
 	.name = "mchp-pdmc",
 	.controls = mchp_pdmc_snd_controls,
 	.num_controls = ARRAY_SIZE(mchp_pdmc_snd_controls),
-	.open = &mchp_pdmc_open,
-	.close = &mchp_pdmc_close,
-	.legacy_dai_naming = 1,
-	.trigger_start = SND_SOC_TRIGGER_ORDER_LDC,
 };
 
 static const unsigned int mchp_pdmc_1mic[] = {1};
@@ -511,15 +489,18 @@ static u32 mchp_pdmc_mr_set_osr(int audio_filter_en, unsigned int osr)
 	return 0;
 }
 
-static inline int mchp_pdmc_period_to_maxburst(int period_size)
+static inline int mchp_pdmc_period_to_maxburst(int period_size, int sample_size)
 {
-	if (!(period_size % 8))
-		return 8;
-	if (!(period_size % 4))
-		return 4;
-	if (!(period_size % 2))
-		return 2;
-	return 1;
+	int p_size = period_size;
+	int s_size = sample_size;
+
+	if (DMA_BURST_ALIGNED(p_size, s_size, MCHP_PDMC_DMA_8_WORD_CHUNK))
+		return MCHP_PDMC_DMA_8_WORD_CHUNK;
+	if (DMA_BURST_ALIGNED(p_size, s_size, MCHP_PDMC_DMA_4_WORD_CHUNK))
+		return MCHP_PDMC_DMA_4_WORD_CHUNK;
+	if (DMA_BURST_ALIGNED(p_size, s_size, MCHP_PDMC_DMA_2_WORD_CHUNK))
+		return MCHP_PDMC_DMA_2_WORD_CHUNK;
+	return MCHP_PDMC_DMA_1_WORD_CHUNK;
 }
 
 static struct snd_pcm_chmap_elem mchp_pdmc_std_chmaps[] = {
@@ -547,14 +528,18 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	unsigned int osr = 0, osr_start;
 	unsigned int fs = params_rate(params);
+	int sample_bytes = params_physical_width(params) / 8;
+	int period_bytes = params_period_size(params) *
+		params_channels(params) * sample_bytes;
+	int maxburst;
 	u32 mr_val = 0;
 	u32 cfgr_val = 0;
 	int i;
 	int ret;
 
-	dev_dbg(comp->dev, "%s() rate=%u format=%#x width=%u channels=%u\n",
+	dev_dbg(comp->dev, "%s() rate=%u format=%#x width=%u channels=%u period_bytes=%d\n",
 		__func__, params_rate(params), params_format(params),
-		params_width(params), params_channels(params));
+		params_width(params), params_channels(params), period_bytes);
 
 	if (channels > dd->mic_no) {
 		dev_err(comp->dev, "more channels %u than microphones %d\n",
@@ -571,6 +556,11 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 			cfgr_val |= MCHP_PDMC_CFGR_BSSEL(i);
 	}
 
+	/*
+	 * from these point forward, we consider the controller busy, so the
+	 * audio filter and SINC order can't be changed
+	 */
+	atomic_set(&dd->busy_stream, 1);
 	for (osr_start = dd->audio_filter_en ? 64 : 8;
 	     osr_start <= 256 && best_diff_rate; osr_start *= 2) {
 		long round_rate;
@@ -608,7 +598,8 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 
 	mr_val |= FIELD_PREP(MCHP_PDMC_MR_SINCORDER_MASK, dd->sinc_order);
 
-	dd->addr.maxburst = mchp_pdmc_period_to_maxburst(snd_pcm_lib_period_bytes(substream));
+	maxburst = mchp_pdmc_period_to_maxburst(period_bytes, sample_bytes);
+	dd->addr.maxburst = maxburst;
 	mr_val |= FIELD_PREP(MCHP_PDMC_MR_CHUNK_MASK, dd->addr.maxburst);
 	dev_dbg(comp->dev, "maxburst set to %d\n", dd->addr.maxburst);
 
@@ -760,6 +751,7 @@ static const struct snd_soc_dai_ops mchp_pdmc_dai_ops = {
 };
 
 static struct snd_soc_dai_driver mchp_pdmc_dai = {
+	.name	= "mchp-pdmc",
 	.capture = {
 		.stream_name	= "Capture",
 		.channels_min	= 1,
@@ -1125,6 +1117,8 @@ static void mchp_pdmc_remove(struct platform_device *pdev)
 {
 	struct mchp_pdmc *dd = platform_get_drvdata(pdev);
 
+	atomic_set(&dd->busy_stream, 0);
+
 	if (!pm_runtime_status_suspended(dd->dev))
 		mchp_pdmc_runtime_suspend(dd->dev);
 
@@ -1153,7 +1147,7 @@ static struct platform_driver mchp_pdmc_driver = {
 		.pm		= pm_ptr(&mchp_pdmc_pm_ops),
 	},
 	.probe	= mchp_pdmc_probe,
-	.remove_new = mchp_pdmc_remove,
+	.remove = mchp_pdmc_remove,
 };
 module_platform_driver(mchp_pdmc_driver);
 

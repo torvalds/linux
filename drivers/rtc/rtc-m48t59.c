@@ -132,7 +132,7 @@ static int m48t59_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	M48T59_WRITE((bin2bcd(tm->tm_mon + 1) & 0x1F), M48T59_MONTH);
 	M48T59_WRITE(bin2bcd(year % 100), M48T59_YEAR);
 
-	if (pdata->type == M48T59RTC_TYPE_M48T59 && (year / 100))
+	if (pdata->type == M48T59RTC_TYPE_M48T59 && (year >= 100))
 		val = (M48T59_WDAY_CEB | M48T59_WDAY_CB);
 	val |= (bin2bcd(tm->tm_wday) & 0x07);
 	M48T59_WRITE(val, M48T59_WDAY);
@@ -458,6 +458,8 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, m48t59);
 
 	m48t59->rtc->ops = &m48t59_rtc_ops;
+	m48t59->rtc->range_min = RTC_TIMESTAMP_BEGIN_1900;
+	m48t59->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	nvmem_cfg.size = pdata->offset;
 	ret = devm_rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);

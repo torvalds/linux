@@ -1495,18 +1495,6 @@ struct htt_ppdu_stats_user_rate {
 #define HTT_TX_INFO_PEERID(_flags) \
 			u32_get_bits(_flags, HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M)
 
-struct htt_tx_ppdu_stats_info {
-	struct htt_tlv tlv_hdr;
-	__le32 tx_success_bytes;
-	__le32 tx_retry_bytes;
-	__le32 tx_failed_bytes;
-	__le32 flags; /* %HTT_PPDU_STATS_TX_INFO_FLAGS_ */
-	__le16 tx_success_msdus;
-	__le16 tx_retry_msdus;
-	__le16 tx_failed_msdus;
-	__le16 tx_duration; /* united in us */
-} __packed;
-
 enum  htt_ppdu_stats_usr_compln_status {
 	HTT_PPDU_STATS_USER_STATUS_OK,
 	HTT_PPDU_STATS_USER_STATUS_FILTERED,

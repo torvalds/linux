@@ -58,7 +58,7 @@
  * These descriptors remove the combined Y axis and instead report
  * separate throttle (Y) and brake (RZ).
  */
-static __u8 df_rdesc_fixed[] = {
+static const __u8 df_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
 0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
@@ -124,7 +124,7 @@ static __u8 df_rdesc_fixed[] = {
 0xC0                /*  End Collection                          */
 };
 
-static __u8 dfp_rdesc_fixed[] = {
+static const __u8 dfp_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
 0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
@@ -172,7 +172,7 @@ static __u8 dfp_rdesc_fixed[] = {
 0xC0                /*  End Collection                          */
 };
 
-static __u8 fv_rdesc_fixed[] = {
+static const __u8 fv_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
 0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
@@ -239,7 +239,7 @@ static __u8 fv_rdesc_fixed[] = {
 0xC0                /*  End Collection                          */
 };
 
-static __u8 momo_rdesc_fixed[] = {
+static const __u8 momo_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
 0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
@@ -285,7 +285,7 @@ static __u8 momo_rdesc_fixed[] = {
 0xC0                /*  End Collection                      */
 };
 
-static __u8 momo2_rdesc_fixed[] = {
+static const __u8 momo2_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
 0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
@@ -333,7 +333,7 @@ static __u8 momo2_rdesc_fixed[] = {
 0xC0                /*  End Collection                      */
 };
 
-static __u8 ffg_rdesc_fixed[] = {
+static const __u8 ffg_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
 0x09, 0x04,         /*  Usage (Joystik),                    */
 0xA1, 0x01,         /*  Collection (Application),           */
@@ -379,7 +379,7 @@ static __u8 ffg_rdesc_fixed[] = {
 0xC0                /*  End Collection                      */
 };
 
-static __u8 fg_rdesc_fixed[] = {
+static const __u8 fg_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
 0x09, 0x04,         /*  Usage (Joystik),                    */
 0xA1, 0x01,         /*  Collection (Application),           */
@@ -427,7 +427,7 @@ static __u8 fg_rdesc_fixed[] = {
  * above the logical maximum described in descriptor. This extends
  * the original value of 0x28c of logical maximum to 0x104d
  */
-static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
@@ -453,8 +453,8 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		if (*rsize == FG_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Wingman Formula GP report descriptor\n");
-			rdesc = fg_rdesc_fixed;
 			*rsize = sizeof(fg_rdesc_fixed);
+			return fg_rdesc_fixed;
 		} else {
 			hid_info(hdev,
 				"rdesc size test failed for formula gp\n");
@@ -466,8 +466,8 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		if (*rsize == FFG_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Wingman Formula Force GP report descriptor\n");
-			rdesc = ffg_rdesc_fixed;
 			*rsize = sizeof(ffg_rdesc_fixed);
+			return ffg_rdesc_fixed;
 		}
 		break;
 
@@ -476,8 +476,8 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		if (*rsize == DF_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Driving Force report descriptor\n");
-			rdesc = df_rdesc_fixed;
 			*rsize = sizeof(df_rdesc_fixed);
+			return df_rdesc_fixed;
 		}
 		break;
 
@@ -485,8 +485,8 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		if (*rsize == MOMO_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Momo Force (Red) report descriptor\n");
-			rdesc = momo_rdesc_fixed;
 			*rsize = sizeof(momo_rdesc_fixed);
+			return momo_rdesc_fixed;
 		}
 		break;
 
@@ -494,8 +494,8 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		if (*rsize == MOMO2_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Momo Racing Force (Black) report descriptor\n");
-			rdesc = momo2_rdesc_fixed;
 			*rsize = sizeof(momo2_rdesc_fixed);
+			return momo2_rdesc_fixed;
 		}
 		break;
 
@@ -503,8 +503,8 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		if (*rsize == FV_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Formula Vibration report descriptor\n");
-			rdesc = fv_rdesc_fixed;
 			*rsize = sizeof(fv_rdesc_fixed);
+			return fv_rdesc_fixed;
 		}
 		break;
 
@@ -512,8 +512,8 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		if (*rsize == DFP_RDESC_ORIG_SIZE) {
 			hid_info(hdev,
 				"fixing up Logitech Driving Force Pro report descriptor\n");
-			rdesc = dfp_rdesc_fixed;
 			*rsize = sizeof(dfp_rdesc_fixed);
+			return dfp_rdesc_fixed;
 		}
 		break;
 

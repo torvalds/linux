@@ -1257,7 +1257,7 @@ static struct platform_driver clk_wzrd_driver = {
 		.pm = &clk_wzrd_dev_pm_ops,
 	},
 	.probe = clk_wzrd_probe,
-	.remove_new = clk_wzrd_remove,
+	.remove = clk_wzrd_remove,
 };
 module_platform_driver(clk_wzrd_driver);
 

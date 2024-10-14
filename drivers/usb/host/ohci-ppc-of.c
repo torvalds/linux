@@ -204,10 +204,6 @@ static const struct of_device_id ohci_hcd_ppc_of_match[] = {
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF_LE
 	{
 		.name = "usb",
-		.compatible = "ohci-littledian",
-	},
-	{
-		.name = "usb",
 		.compatible = "ohci-le",
 	},
 #endif

@@ -160,10 +160,10 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 		.count = count
 	};
 
-	if (!arg.file)
+	if (!fd_file(arg))
 		return -EBADF;
 
-	error = iterate_dir(arg.file, &buf.ctx);
+	error = iterate_dir(fd_file(arg), &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
 	if (count != buf.count)
@@ -1229,7 +1229,7 @@ arch_get_unmapped_area_1(unsigned long addr, unsigned long len,
 unsigned long
 arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		       unsigned long len, unsigned long pgoff,
-		       unsigned long flags)
+		       unsigned long flags, vm_flags_t vm_flags)
 {
 	unsigned long limit;
 

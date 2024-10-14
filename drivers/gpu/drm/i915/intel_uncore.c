@@ -24,6 +24,7 @@
 #include <drm/drm_managed.h>
 #include <linux/pm_runtime.h>
 
+#include "gt/intel_gt.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
 
@@ -180,14 +181,16 @@ fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 	if (!wait_ack_clear(d, FORCEWAKE_KERNEL))
 		return;
 
-	if (fw_ack(d) == ~0)
+	if (fw_ack(d) == ~0) {
 		drm_err(&d->uncore->i915->drm,
 			"%s: MMIO unreliable (forcewake register returns 0xFFFFFFFF)!\n",
 			intel_uncore_forcewake_domain_to_str(d->id));
-	else
+		intel_gt_set_wedged_async(d->uncore->gt);
+	} else {
 		drm_err(&d->uncore->i915->drm,
 			"%s: timed out waiting for forcewake ack to clear.\n",
 			intel_uncore_forcewake_domain_to_str(d->id));
+	}
 
 	add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
 }

@@ -8,5 +8,7 @@
 #include <linux/printk.h>
 #include <linux/linkage.h>
 #include <linux/kconfig.h>
+#include <linux/string.h>
+#include <linux/ctype.h>
 
 #endif

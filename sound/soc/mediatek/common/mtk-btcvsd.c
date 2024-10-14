@@ -1400,7 +1400,7 @@ static struct platform_driver mtk_btcvsd_snd_driver = {
 		.of_match_table = mtk_btcvsd_snd_dt_match,
 	},
 	.probe = mtk_btcvsd_snd_probe,
-	.remove_new = mtk_btcvsd_snd_remove,
+	.remove = mtk_btcvsd_snd_remove,
 };
 
 module_platform_driver(mtk_btcvsd_snd_driver);

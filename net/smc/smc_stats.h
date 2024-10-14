@@ -79,6 +79,8 @@ struct smc_stats_tech {
 	u64			tx_bytes;
 	u64			rx_cnt;
 	u64			tx_cnt;
+	u64			rx_rmbuse;
+	u64			tx_rmbuse;
 };
 
 struct smc_stats {
@@ -135,38 +137,46 @@ do { \
 } \
 while (0)
 
-#define SMC_STAT_RMB_SIZE_SUB(_smc_stats, _tech, k, _len) \
+#define SMC_STAT_RMB_SIZE_SUB(_smc_stats, _tech, k, _is_add, _len) \
 do { \
+	typeof(_smc_stats) stats = (_smc_stats); \
+	typeof(_is_add) is_a = (_is_add); \
 	typeof(_len) _l = (_len); \
 	typeof(_tech) t = (_tech); \
 	int _pos; \
 	int m = SMC_BUF_MAX - 1; \
 	if (_l <= 0) \
 		break; \
-	_pos = fls((_l - 1) >> 13); \
-	_pos = (_pos <= m) ? _pos : m; \
-	this_cpu_inc((*(_smc_stats)).smc[t].k ## _rmbsize.buf[_pos]); \
+	if (is_a) { \
+		_pos = fls((_l - 1) >> 13); \
+		_pos = (_pos <= m) ? _pos : m; \
+		this_cpu_inc((*stats).smc[t].k ## _rmbsize.buf[_pos]); \
+		this_cpu_add((*stats).smc[t].k ## _rmbuse, _l); \
+	} else { \
+		this_cpu_sub((*stats).smc[t].k ## _rmbuse, _l); \
+	} \
 } \
 while (0)
 
 #define SMC_STAT_RMB_SUB(_smc_stats, type, t, key) \
 	this_cpu_inc((*(_smc_stats)).smc[t].rmb ## _ ## key.type ## _cnt)
 
-#define SMC_STAT_RMB_SIZE(_smc, _is_smcd, _is_rx, _len) \
+#define SMC_STAT_RMB_SIZE(_smc, _is_smcd, _is_rx, _is_add, _len) \
 do { \
 	struct net *_net = sock_net(&(_smc)->sk); \
 	struct smc_stats __percpu *_smc_stats = _net->smc.smc_stats; \
+	typeof(_is_add) is_add = (_is_add); \
 	typeof(_is_smcd) is_d = (_is_smcd); \
 	typeof(_is_rx) is_r = (_is_rx); \
 	typeof(_len) l = (_len); \
 	if ((is_d) && (is_r)) \
-		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_D, rx, l); \
+		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_D, rx, is_add, l); \
 	if ((is_d) && !(is_r)) \
-		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_D, tx, l); \
+		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_D, tx, is_add, l); \
 	if (!(is_d) && (is_r)) \
-		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_R, rx, l); \
+		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_R, rx, is_add, l); \
 	if (!(is_d) && !(is_r)) \
-		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_R, tx, l); \
+		SMC_STAT_RMB_SIZE_SUB(_smc_stats, SMC_TYPE_R, tx, is_add, l); \
 } \
 while (0)
 

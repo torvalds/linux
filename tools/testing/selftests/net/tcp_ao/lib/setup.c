@@ -111,7 +111,7 @@ static void sig_int(int signo)
 
 int open_netns(void)
 {
-	const char *netns_path = "/proc/self/ns/net";
+	const char *netns_path = "/proc/thread-self/ns/net";
 	int fd;
 
 	fd = open(netns_path, O_RDONLY);
@@ -140,6 +140,13 @@ int switch_save_ns(int new_ns)
 
 	switch_ns(new_ns);
 	return ret;
+}
+
+void switch_close_ns(int fd)
+{
+	if (setns(fd, CLONE_NEWNET))
+		test_error("setns()");
+	close(fd);
 }
 
 static int nsfd_outside	= -1;
@@ -243,9 +250,9 @@ void __test_init(unsigned int ntests, int family, unsigned int prefix,
 	test_print("rand seed %u", (unsigned int)seed);
 	srand(seed);
 
-
 	ksft_print_header();
 	init_namespaces();
+	test_init_ftrace(nsfd_parent, nsfd_child);
 
 	if (add_veth(veth_name, nsfd_parent, nsfd_child))
 		test_error("Failed to add veth");
@@ -296,7 +303,7 @@ static bool is_optmem_namespaced(void)
 		int old_ns = switch_save_ns(nsfd_child);
 
 		optmem_ns = !access(optmem_file, F_OK);
-		switch_ns(old_ns);
+		switch_close_ns(old_ns);
 	}
 	return !!optmem_ns;
 }
@@ -317,7 +324,7 @@ size_t test_get_optmem(void)
 		test_error("can't read from %s", optmem_file);
 	fclose(foptmem);
 	if (!is_optmem_namespaced())
-		switch_ns(old_ns);
+		switch_close_ns(old_ns);
 	return ret;
 }
 
@@ -339,7 +346,7 @@ static void __test_set_optmem(size_t new, size_t *old)
 		test_error("can't write %zu to %s", new, optmem_file);
 	fclose(foptmem);
 	if (!is_optmem_namespaced())
-		switch_ns(old_ns);
+		switch_close_ns(old_ns);
 }
 
 static void test_revert_optmem(void)

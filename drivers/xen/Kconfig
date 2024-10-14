@@ -177,8 +177,8 @@ config XEN_GRANT_DMA_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
+	depends on ARCH_HAS_DMA_OPS
 	depends on XEN_PV || ARM || ARM64
-	select DMA_OPS
 	select SWIOTLB
 
 config XEN_PCI_STUB
@@ -261,6 +261,7 @@ config XEN_SCSI_BACKEND
 config XEN_PRIVCMD
 	tristate "Xen hypercall passthrough driver"
 	depends on XEN
+	imply XEN_PCIDEV_BACKEND
 	default m
 	help
 	  The hypercall passthrough driver allows privileged user programs to
@@ -348,10 +349,10 @@ config XEN_GRANT_DMA_IOMMU
 
 config XEN_GRANT_DMA_OPS
 	bool
-	select DMA_OPS
 
 config XEN_VIRTIO
 	bool "Xen virtio support"
+	depends on ARCH_HAS_DMA_OPS
 	depends on VIRTIO
 	select XEN_GRANT_DMA_OPS
 	select XEN_GRANT_DMA_IOMMU if OF

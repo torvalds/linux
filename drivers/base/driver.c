@@ -150,7 +150,7 @@ EXPORT_SYMBOL_GPL(driver_for_each_device);
  */
 struct device *driver_find_device(const struct device_driver *drv,
 				  struct device *start, const void *data,
-				  int (*match)(struct device *dev, const void *data))
+				  device_match_t match)
 {
 	struct klist_iter i;
 	struct device *dev;

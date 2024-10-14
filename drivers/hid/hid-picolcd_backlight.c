@@ -31,7 +31,8 @@ static int picolcd_set_brightness(struct backlight_device *bdev)
 	data->lcd_brightness = bdev->props.brightness & 0x0ff;
 	data->lcd_power      = bdev->props.power;
 	spin_lock_irqsave(&data->lock, flags);
-	hid_set_field(report->field[0], 0, data->lcd_power == FB_BLANK_UNBLANK ? data->lcd_brightness : 0);
+	hid_set_field(report->field[0], 0,
+		      data->lcd_power == BACKLIGHT_POWER_ON ? data->lcd_brightness : 0);
 	if (!(data->status & PICOLCD_FAILED))
 		hid_hw_request(data->hdev, report, HID_REQ_SET_REPORT);
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -94,7 +95,7 @@ void picolcd_suspend_backlight(struct picolcd_data *data)
 	if (!data->backlight)
 		return;
 
-	data->backlight->props.power = FB_BLANK_POWERDOWN;
+	data->backlight->props.power = BACKLIGHT_POWER_OFF;
 	picolcd_set_brightness(data->backlight);
 	data->lcd_power = data->backlight->props.power = bl_power;
 }

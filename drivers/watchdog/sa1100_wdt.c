@@ -164,7 +164,6 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations sa1100dog_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= sa1100dog_write,
 	.unlocked_ioctl	= sa1100dog_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

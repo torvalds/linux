@@ -507,7 +507,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8ulp_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8ulp_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8ulp",
 		.pm = &sof_of_pm,

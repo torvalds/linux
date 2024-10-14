@@ -135,7 +135,6 @@ extern void __init setup_per_cpu_areas(void);
 
 extern void __percpu *pcpu_alloc_noprof(size_t size, size_t align, bool reserved,
 				   gfp_t gfp) __alloc_size(1);
-extern size_t pcpu_alloc_size(void __percpu *__pdata);
 
 #define __alloc_percpu_gfp(_size, _align, _gfp)				\
 	alloc_hooks(pcpu_alloc_noprof(_size, _align, false, _gfp))

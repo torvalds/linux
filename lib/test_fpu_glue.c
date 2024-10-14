@@ -42,7 +42,7 @@ static int __init test_fpu_init(void)
 		return -EINVAL;
 
 	selftest_dir = debugfs_create_dir("selftest_helpers", NULL);
-	if (!selftest_dir)
+	if (IS_ERR(selftest_dir))
 		return -ENOMEM;
 
 	debugfs_create_file_unsafe("test_fpu", 0444, selftest_dir, NULL,

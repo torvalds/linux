@@ -100,7 +100,8 @@ static u8 cmis_cdb_advert_rpl_inst_supported(struct cmis_cdb_advert_rpl *rpl)
 }
 
 static int cmis_cdb_advertisement_get(struct ethtool_cmis_cdb *cdb,
-				      struct net_device *dev)
+				      struct net_device *dev,
+				      struct ethnl_module_fw_flash_ntf_params *ntf_params)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_module_eeprom page_data = {};
@@ -119,8 +120,12 @@ static int cmis_cdb_advertisement_get(struct ethtool_cmis_cdb *cdb,
 		return err;
 	}
 
-	if (!cmis_cdb_advert_rpl_inst_supported(&rpl))
+	if (!cmis_cdb_advert_rpl_inst_supported(&rpl)) {
+		ethnl_module_fw_flash_ntf_err(dev, ntf_params,
+					      "CDB functionality is not supported",
+					      NULL);
 		return -EOPNOTSUPP;
+	}
 
 	cdb->read_write_len_ext = rpl.read_write_len_ext;
 
@@ -282,7 +287,7 @@ ethtool_cmis_cdb_init(struct net_device *dev,
 		goto err;
 	}
 
-	err = cmis_cdb_advertisement_get(cdb, dev);
+	err = cmis_cdb_advertisement_get(cdb, dev, ntf_params);
 	if (err < 0)
 		goto err;
 
@@ -443,6 +448,9 @@ static void cmis_cdb_status_fail_msg_get(u8 status, char **err_msg)
 		break;
 	case 0b01000101:
 		*err_msg = "CDB status failed: CdbChkCode error";
+		break;
+	case 0b01000110:
+		*err_msg = "CDB status failed: Password error";
 		break;
 	default:
 		*err_msg = "Unknown failure reason";

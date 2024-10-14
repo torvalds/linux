@@ -40,10 +40,7 @@ static const uuid_t tee_client_uuid_ns = UUID_INIT(0x58ac9ca0, 0x2086, 0x4683,
 static DECLARE_BITMAP(dev_mask, TEE_NUM_DEVICES);
 static DEFINE_SPINLOCK(driver_lock);
 
-static const struct class tee_class = {
-	.name = "tee",
-};
-
+static const struct class tee_class;
 static dev_t tee_devt;
 
 struct tee_context *teedev_open(struct tee_device *teedev)
@@ -965,6 +962,13 @@ err:
 }
 EXPORT_SYMBOL_GPL(tee_device_alloc);
 
+void tee_device_set_dev_groups(struct tee_device *teedev,
+			       const struct attribute_group **dev_groups)
+{
+	teedev->dev.groups = dev_groups;
+}
+EXPORT_SYMBOL_GPL(tee_device_set_dev_groups);
+
 static ssize_t implementation_id_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
@@ -983,6 +987,11 @@ static struct attribute *tee_dev_attrs[] = {
 
 ATTRIBUTE_GROUPS(tee_dev);
 
+static const struct class tee_class = {
+	.name = "tee",
+	.dev_groups = tee_dev_groups,
+};
+
 /**
  * tee_device_register() - Registers a TEE device
  * @teedev:	Device to register
@@ -1000,8 +1009,6 @@ int tee_device_register(struct tee_device *teedev)
 		dev_err(&teedev->dev, "attempt to register twice\n");
 		return -EINVAL;
 	}
-
-	teedev->dev.groups = tee_dev_groups;
 
 	rc = cdev_device_add(&teedev->cdev, &teedev->dev);
 	if (rc) {

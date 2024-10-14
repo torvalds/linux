@@ -112,6 +112,7 @@ struct efa_com_get_device_attr_result {
 	u8 addr[EFA_GID_SIZE];
 	u64 page_size_cap;
 	u64 max_mr_pages;
+	u64 guid;
 	u32 mtu;
 	u32 fw_version;
 	u32 admin_api_version;

@@ -370,7 +370,7 @@ static void p1022_rdk_remove(struct platform_device *pdev)
 
 static struct platform_driver p1022_rdk_driver = {
 	.probe = p1022_rdk_probe,
-	.remove_new = p1022_rdk_remove,
+	.remove = p1022_rdk_remove,
 	.driver = {
 		/*
 		 * The name must match 'compatible' property in the device tree,

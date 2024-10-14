@@ -24,6 +24,8 @@ helpme()
 	[-t <basic: Basic cpufreq testing
 	     suspend: suspend/resume,
 	     hibernate: hibernate/resume,
+	     suspend_rtc: suspend/resume back using the RTC wakeup alarm,
+	     hibernate_rtc: hibernate/resume back using the RTC wakeup alarm,
 	     modtest: test driver or governor modules. Only to be used with -d or -g options,
 	     sptest1: Simple governor switch to produce lockdep.
 	     sptest2: Concurrent governor switch to produce lockdep.
@@ -76,7 +78,8 @@ parse_arguments()
 				helpme
 				;;
 
-			t) # --func_type (Function to perform: basic, suspend, hibernate, modtest, sptest1/2/3/4 (default: basic))
+			t) # --func_type (Function to perform: basic, suspend, hibernate,
+			   # suspend_rtc, hibernate_rtc, modtest, sptest1/2/3/4 (default: basic))
 				FUNC=$OPTARG
 				;;
 
@@ -120,6 +123,14 @@ do_test()
 		"hibernate")
 		do_suspend "hibernate" 1
 		;;
+
+		"suspend_rtc")
+                do_suspend "suspend" 1 rtc
+                ;;
+
+                "hibernate_rtc")
+                do_suspend "hibernate" 1 rtc
+                ;;
 
 		"modtest")
 		# Do we have modules in place?

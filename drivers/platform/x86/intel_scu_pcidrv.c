@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 
-#include <asm/intel_scu_ipc.h>
+#include <linux/platform_data/x86/intel_scu_ipc.h>
 
 static int intel_scu_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)

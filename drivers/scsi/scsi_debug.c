@@ -47,7 +47,7 @@
 
 #include <net/checksum.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -2760,7 +2760,6 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	else
 		bd_len = 0;
 	alloc_len = msense_6 ? cmd[4] : get_unaligned_be16(cmd + 7);
-	memset(arr, 0, SDEBUG_MAX_MSENSE_SZ);
 	if (0x3 == pcontrol) {  /* Saving values not supported */
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, SAVING_PARAMS_UNSUP, 0);
 		return check_condition_result;

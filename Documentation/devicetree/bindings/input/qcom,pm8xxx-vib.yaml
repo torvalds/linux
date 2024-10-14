@@ -19,6 +19,7 @@ properties:
           - qcom,pmi632-vib
       - items:
           - enum:
+              - qcom,pm6150-vib
               - qcom,pm7250b-vib
               - qcom,pm7325b-vib
               - qcom,pm7550ba-vib

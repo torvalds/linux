@@ -154,7 +154,7 @@ Examples for illustration:
 
     We modify the hot cpu handling to cancel the delayed work on the dying
     cpu and run the worker immediately on a different cpu in same domain. We
-    donot flush the worker because the MBM overflow worker reschedules the
+    do not flush the worker because the MBM overflow worker reschedules the
     worker on same CPU and scans the domain->cpu_mask to get the domain
     pointer.
 

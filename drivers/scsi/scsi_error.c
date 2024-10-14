@@ -48,7 +48,7 @@
 
 #include <trace/events/scsi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * These should *probably* be handled by the host itself.

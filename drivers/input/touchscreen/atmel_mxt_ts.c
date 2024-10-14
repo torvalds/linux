@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>

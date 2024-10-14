@@ -22,11 +22,13 @@
 #include <linux/io.h>
 #include <linux/rfkill.h>
 #include <linux/power_supply.h>
+#include <linux/sysfs.h>
 #include <linux/acpi.h>
 #include <linux/mm.h>
 #include <linux/i8042.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <acpi/battery.h>
 #include <acpi/video.h>
 #include "dell-rbtn.h"
 #include "dell-smbios.h"
@@ -98,6 +100,20 @@ static struct rfkill *wwan_rfkill;
 static bool force_rfkill;
 static bool micmute_led_registered;
 static bool mute_led_registered;
+
+struct battery_mode_info {
+	int token;
+	const char *label;
+};
+
+static const struct battery_mode_info battery_modes[] = {
+	{ BAT_PRI_AC_MODE_TOKEN,   "Trickle" },
+	{ BAT_EXPRESS_MODE_TOKEN,  "Fast" },
+	{ BAT_STANDARD_MODE_TOKEN, "Standard" },
+	{ BAT_ADAPTIVE_MODE_TOKEN, "Adaptive" },
+	{ BAT_CUSTOM_MODE_TOKEN,   "Custom" },
+};
+static u32 battery_supported_modes;
 
 module_param(force_rfkill, bool, 0444);
 MODULE_PARM_DESC(force_rfkill, "enable rfkill on non whitelisted models");
@@ -352,6 +368,32 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 	},
 	{ }
 };
+
+/* -1 is a sentinel value, telling us to use token->value */
+#define USE_TVAL ((u32) -1)
+static int dell_send_request_for_tokenid(struct calling_interface_buffer *buffer,
+					 u16 class, u16 select, u16 tokenid,
+					 u32 val)
+{
+	struct calling_interface_token *token;
+
+	token = dell_smbios_find_token(tokenid);
+	if (!token)
+		return -ENODEV;
+
+	if (val == USE_TVAL)
+		val = token->value;
+
+	dell_fill_request(buffer, token->location, val, 0, 0);
+	return dell_send_request(buffer, class, select);
+}
+
+static inline int dell_set_std_token_value(struct calling_interface_buffer *buffer,
+		u16 tokenid, u32 value)
+{
+	return dell_send_request_for_tokenid(buffer, CLASS_TOKEN_WRITE,
+			SELECT_TOKEN_STD, tokenid, value);
+}
 
 /*
  * Derived from information in smbios-wireless-ctl:
@@ -895,43 +937,24 @@ static void dell_cleanup_rfkill(void)
 static int dell_send_intensity(struct backlight_device *bd)
 {
 	struct calling_interface_buffer buffer;
-	struct calling_interface_token *token;
-	int ret;
+	u16 select;
 
-	token = dell_smbios_find_token(BRIGHTNESS_TOKEN);
-	if (!token)
-		return -ENODEV;
-
-	dell_fill_request(&buffer,
-			   token->location, bd->props.brightness, 0, 0);
-	if (power_supply_is_system_supplied() > 0)
-		ret = dell_send_request(&buffer,
-					CLASS_TOKEN_WRITE, SELECT_TOKEN_AC);
-	else
-		ret = dell_send_request(&buffer,
-					CLASS_TOKEN_WRITE, SELECT_TOKEN_BAT);
-
-	return ret;
+	select = power_supply_is_system_supplied() > 0 ?
+			SELECT_TOKEN_AC : SELECT_TOKEN_BAT;
+	return dell_send_request_for_tokenid(&buffer, CLASS_TOKEN_WRITE,
+			select, BRIGHTNESS_TOKEN, bd->props.brightness);
 }
 
 static int dell_get_intensity(struct backlight_device *bd)
 {
 	struct calling_interface_buffer buffer;
-	struct calling_interface_token *token;
 	int ret;
+	u16 select;
 
-	token = dell_smbios_find_token(BRIGHTNESS_TOKEN);
-	if (!token)
-		return -ENODEV;
-
-	dell_fill_request(&buffer, token->location, 0, 0, 0);
-	if (power_supply_is_system_supplied() > 0)
-		ret = dell_send_request(&buffer,
-					CLASS_TOKEN_READ, SELECT_TOKEN_AC);
-	else
-		ret = dell_send_request(&buffer,
-					CLASS_TOKEN_READ, SELECT_TOKEN_BAT);
-
+	select = power_supply_is_system_supplied() > 0 ?
+			SELECT_TOKEN_AC : SELECT_TOKEN_BAT;
+	ret = dell_send_request_for_tokenid(&buffer, CLASS_TOKEN_READ,
+			select, BRIGHTNESS_TOKEN, 0);
 	if (ret == 0)
 		ret = buffer.output[1];
 
@@ -1355,20 +1378,11 @@ static int kbd_set_state_safe(struct kbd_state *state, struct kbd_state *old)
 static int kbd_set_token_bit(u8 bit)
 {
 	struct calling_interface_buffer buffer;
-	struct calling_interface_token *token;
-	int ret;
 
 	if (bit >= ARRAY_SIZE(kbd_tokens))
 		return -EINVAL;
 
-	token = dell_smbios_find_token(kbd_tokens[bit]);
-	if (!token)
-		return -EINVAL;
-
-	dell_fill_request(&buffer, token->location, token->value, 0, 0);
-	ret = dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
-
-	return ret;
+	return dell_set_std_token_value(&buffer, kbd_tokens[bit], USE_TVAL);
 }
 
 static int kbd_get_token_bit(u8 bit)
@@ -1387,11 +1401,10 @@ static int kbd_get_token_bit(u8 bit)
 
 	dell_fill_request(&buffer, token->location, 0, 0, 0);
 	ret = dell_send_request(&buffer, CLASS_TOKEN_READ, SELECT_TOKEN_STD);
-	val = buffer.output[1];
-
 	if (ret)
 		return ret;
 
+	val = buffer.output[1];
 	return (val == token->value);
 }
 
@@ -1497,7 +1510,7 @@ static inline int kbd_init_info(void)
 
 }
 
-static inline void kbd_init_tokens(void)
+static inline void __init kbd_init_tokens(void)
 {
 	int i;
 
@@ -1506,7 +1519,7 @@ static inline void kbd_init_tokens(void)
 			kbd_token_bits |= BIT(i);
 }
 
-static void kbd_init(void)
+static void __init kbd_init(void)
 {
 	int ret;
 
@@ -2131,21 +2144,11 @@ static int micmute_led_set(struct led_classdev *led_cdev,
 			   enum led_brightness brightness)
 {
 	struct calling_interface_buffer buffer;
-	struct calling_interface_token *token;
-	int state = brightness != LED_OFF;
+	u32 tokenid;
 
-	if (state == 0)
-		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
-	else
-		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
-
-	if (!token)
-		return -ENODEV;
-
-	dell_fill_request(&buffer, token->location, token->value, 0, 0);
-	dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
-
-	return 0;
+	tokenid = brightness == LED_OFF ?
+			GLOBAL_MIC_MUTE_DISABLE : GLOBAL_MIC_MUTE_ENABLE;
+	return dell_set_std_token_value(&buffer, tokenid, USE_TVAL);
 }
 
 static struct led_classdev micmute_led_cdev = {
@@ -2159,21 +2162,11 @@ static int mute_led_set(struct led_classdev *led_cdev,
 			   enum led_brightness brightness)
 {
 	struct calling_interface_buffer buffer;
-	struct calling_interface_token *token;
-	int state = brightness != LED_OFF;
+	u32 tokenid;
 
-	if (state == 0)
-		token = dell_smbios_find_token(GLOBAL_MUTE_DISABLE);
-	else
-		token = dell_smbios_find_token(GLOBAL_MUTE_ENABLE);
-
-	if (!token)
-		return -ENODEV;
-
-	dell_fill_request(&buffer, token->location, token->value, 0, 0);
-	dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
-
-	return 0;
+	tokenid = brightness == LED_OFF ?
+			GLOBAL_MUTE_DISABLE : GLOBAL_MUTE_ENABLE;
+	return dell_set_std_token_value(&buffer, tokenid, USE_TVAL);
 }
 
 static struct led_classdev mute_led_cdev = {
@@ -2183,9 +2176,283 @@ static struct led_classdev mute_led_cdev = {
 	.default_trigger = "audio-mute",
 };
 
-static int __init dell_init(void)
+static int dell_battery_set_mode(const u16 tokenid)
+{
+	struct calling_interface_buffer buffer;
+
+	return dell_set_std_token_value(&buffer, tokenid, USE_TVAL);
+}
+
+static int dell_battery_read(const u16 tokenid)
+{
+	struct calling_interface_buffer buffer;
+	int err;
+
+	err = dell_send_request_for_tokenid(&buffer, CLASS_TOKEN_READ,
+			SELECT_TOKEN_STD, tokenid, 0);
+	if (err)
+		return err;
+
+	if (buffer.output[1] > INT_MAX)
+		return -EIO;
+
+	return buffer.output[1];
+}
+
+static bool dell_battery_mode_is_active(const u16 tokenid)
 {
 	struct calling_interface_token *token;
+	int ret;
+
+	ret = dell_battery_read(tokenid);
+	if (ret < 0)
+		return false;
+
+	token = dell_smbios_find_token(tokenid);
+	/* token's already verified by dell_battery_read() */
+
+	return token->value == (u16) ret;
+}
+
+/*
+ * The rules: the minimum start charging value is 50%. The maximum
+ * start charging value is 95%. The minimum end charging value is
+ * 55%. The maximum end charging value is 100%. And finally, there
+ * has to be at least a 5% difference between start & end values.
+ */
+#define CHARGE_START_MIN	50
+#define CHARGE_START_MAX	95
+#define CHARGE_END_MIN		55
+#define CHARGE_END_MAX		100
+#define CHARGE_MIN_DIFF		5
+
+static int dell_battery_set_custom_charge_start(int start)
+{
+	struct calling_interface_buffer buffer;
+	int end;
+
+	start = clamp(start, CHARGE_START_MIN, CHARGE_START_MAX);
+	end = dell_battery_read(BAT_CUSTOM_CHARGE_END);
+	if (end < 0)
+		return end;
+	if ((end - start) < CHARGE_MIN_DIFF)
+		start = end - CHARGE_MIN_DIFF;
+
+	return dell_set_std_token_value(&buffer, BAT_CUSTOM_CHARGE_START,
+			start);
+}
+
+static int dell_battery_set_custom_charge_end(int end)
+{
+	struct calling_interface_buffer buffer;
+	int start;
+
+	end = clamp(end, CHARGE_END_MIN, CHARGE_END_MAX);
+	start = dell_battery_read(BAT_CUSTOM_CHARGE_START);
+	if (start < 0)
+		return start;
+	if ((end - start) < CHARGE_MIN_DIFF)
+		end = start + CHARGE_MIN_DIFF;
+
+	return dell_set_std_token_value(&buffer, BAT_CUSTOM_CHARGE_END, end);
+}
+
+static ssize_t charge_types_show(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	ssize_t count = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(battery_modes); i++) {
+		bool active;
+
+		if (!(battery_supported_modes & BIT(i)))
+			continue;
+
+		active = dell_battery_mode_is_active(battery_modes[i].token);
+		count += sysfs_emit_at(buf, count, active ? "[%s] " : "%s ",
+				battery_modes[i].label);
+	}
+
+	/* convert the last space to a newline */
+	if (count > 0)
+		count--;
+	count += sysfs_emit_at(buf, count, "\n");
+
+	return count;
+}
+
+static ssize_t charge_types_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	bool matched = false;
+	int err, i;
+
+	for (i = 0; i < ARRAY_SIZE(battery_modes); i++) {
+		if (!(battery_supported_modes & BIT(i)))
+			continue;
+
+		if (sysfs_streq(battery_modes[i].label, buf)) {
+			matched = true;
+			break;
+		}
+	}
+	if (!matched)
+		return -EINVAL;
+
+	err = dell_battery_set_mode(battery_modes[i].token);
+	if (err)
+		return err;
+
+	return size;
+}
+
+static ssize_t charge_control_start_threshold_show(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	int start;
+
+	start = dell_battery_read(BAT_CUSTOM_CHARGE_START);
+	if (start < 0)
+		return start;
+
+	if (start > CHARGE_START_MAX)
+		return -EIO;
+
+	return sysfs_emit(buf, "%d\n", start);
+}
+
+static ssize_t charge_control_start_threshold_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	int ret, start;
+
+	ret = kstrtoint(buf, 10, &start);
+	if (ret)
+		return ret;
+	if (start < 0 || start > 100)
+		return -EINVAL;
+
+	ret = dell_battery_set_custom_charge_start(start);
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static ssize_t charge_control_end_threshold_show(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	int end;
+
+	end = dell_battery_read(BAT_CUSTOM_CHARGE_END);
+	if (end < 0)
+		return end;
+
+	if (end > CHARGE_END_MAX)
+		return -EIO;
+
+	return sysfs_emit(buf, "%d\n", end);
+}
+
+static ssize_t charge_control_end_threshold_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	int ret, end;
+
+	ret = kstrtouint(buf, 10, &end);
+	if (ret)
+		return ret;
+	if (end < 0 || end > 100)
+		return -EINVAL;
+
+	ret = dell_battery_set_custom_charge_end(end);
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static DEVICE_ATTR_RW(charge_control_start_threshold);
+static DEVICE_ATTR_RW(charge_control_end_threshold);
+static DEVICE_ATTR_RW(charge_types);
+
+static struct attribute *dell_battery_attrs[] = {
+	&dev_attr_charge_control_start_threshold.attr,
+	&dev_attr_charge_control_end_threshold.attr,
+	&dev_attr_charge_types.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(dell_battery);
+
+static bool dell_battery_supported(struct power_supply *battery)
+{
+	/* We currently only support the primary battery */
+	return strcmp(battery->desc->name, "BAT0") == 0;
+}
+
+static int dell_battery_add(struct power_supply *battery,
+		struct acpi_battery_hook *hook)
+{
+	/* Return 0 instead of an error to avoid being unloaded */
+	if (!dell_battery_supported(battery))
+		return 0;
+
+	return device_add_groups(&battery->dev, dell_battery_groups);
+}
+
+static int dell_battery_remove(struct power_supply *battery,
+		struct acpi_battery_hook *hook)
+{
+	if (!dell_battery_supported(battery))
+		return 0;
+
+	device_remove_groups(&battery->dev, dell_battery_groups);
+	return 0;
+}
+
+static struct acpi_battery_hook dell_battery_hook = {
+	.add_battery = dell_battery_add,
+	.remove_battery = dell_battery_remove,
+	.name = "Dell Primary Battery Extension",
+};
+
+static u32 __init battery_get_supported_modes(void)
+{
+	u32 modes = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(battery_modes); i++) {
+		if (dell_smbios_find_token(battery_modes[i].token))
+			modes |= BIT(i);
+	}
+
+	return modes;
+}
+
+static void __init dell_battery_init(struct device *dev)
+{
+	battery_supported_modes = battery_get_supported_modes();
+
+	if (battery_supported_modes != 0)
+		battery_hook_register(&dell_battery_hook);
+}
+
+static void dell_battery_exit(void)
+{
+	if (battery_supported_modes != 0)
+		battery_hook_unregister(&dell_battery_hook);
+}
+
+static int __init dell_init(void)
+{
+	struct calling_interface_buffer buffer;
 	int max_intensity = 0;
 	int ret;
 
@@ -2219,6 +2486,7 @@ static int __init dell_init(void)
 		touchpad_led_init(&platform_device->dev);
 
 	kbd_led_init(&platform_device->dev);
+	dell_battery_init(&platform_device->dev);
 
 	dell_laptop_dir = debugfs_create_dir("dell_laptop", NULL);
 	debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
@@ -2246,16 +2514,10 @@ static int __init dell_init(void)
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return 0;
 
-	token = dell_smbios_find_token(BRIGHTNESS_TOKEN);
-	if (token) {
-		struct calling_interface_buffer buffer;
-
-		dell_fill_request(&buffer, token->location, 0, 0, 0);
-		ret = dell_send_request(&buffer,
-					CLASS_TOKEN_READ, SELECT_TOKEN_AC);
-		if (ret == 0)
-			max_intensity = buffer.output[3];
-	}
+	ret = dell_send_request_for_tokenid(&buffer, CLASS_TOKEN_READ,
+			SELECT_TOKEN_AC, BRIGHTNESS_TOKEN, 0);
+	if (ret == 0)
+		max_intensity = buffer.output[3];
 
 	if (max_intensity) {
 		struct backlight_properties props;
@@ -2293,6 +2555,7 @@ fail_backlight:
 	if (mute_led_registered)
 		led_classdev_unregister(&mute_led_cdev);
 fail_led:
+	dell_battery_exit();
 	dell_cleanup_rfkill();
 fail_rfkill:
 	platform_device_del(platform_device);
@@ -2311,6 +2574,7 @@ static void __exit dell_exit(void)
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
 	kbd_led_exit();
+	dell_battery_exit();
 	backlight_device_unregister(dell_backlight_device);
 	if (micmute_led_registered)
 		led_classdev_unregister(&micmute_led_cdev);

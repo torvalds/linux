@@ -70,7 +70,7 @@ static int max5970_read(struct device *dev, enum hwmon_sensor_types type,
 			 * millivolts) and then divide it by the maximum value of the 10-bit ADC.
 			 */
 			*val = (*val * ddata->irng) >> 10;
-			/* Convert the voltage meansurement across shunt resistor to current */
+			/* Convert the voltage measurement across shunt resistor to current */
 			*val = (*val * 1000) / ddata->shunt_micro_ohms;
 			return 0;
 		default:

@@ -19,7 +19,7 @@ it really need to delay in atomic context?" If so...
 
 ATOMIC CONTEXT:
 	You must use the `*delay` family of functions. These
-	functions use the jiffie estimation of clock speed
+	functions use the jiffy estimation of clock speed
 	and will busy wait for enough loop cycles to achieve
 	the desired delay:
 

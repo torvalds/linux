@@ -333,12 +333,17 @@
 					  allowed anymore to lift isolation
 					  requirements as needed. This option
 					  does not override iommu=pt
-			force_enable - Force enable the IOMMU on platforms known
-				       to be buggy with IOMMU enabled. Use this
-				       option with care.
-			pgtbl_v1     - Use v1 page table for DMA-API (Default).
-			pgtbl_v2     - Use v2 page table for DMA-API.
-			irtcachedis  - Disable Interrupt Remapping Table (IRT) caching.
+			force_enable    - Force enable the IOMMU on platforms known
+				          to be buggy with IOMMU enabled. Use this
+				          option with care.
+			pgtbl_v1        - Use v1 page table for DMA-API (Default).
+			pgtbl_v2        - Use v2 page table for DMA-API.
+			irtcachedis     - Disable Interrupt Remapping Table (IRT) caching.
+			nohugepages     - Limit page-sizes used for v1 page-tables
+				          to 4 KiB.
+			v2_pgsizes_only - Limit page-sizes used for v1 page-tables
+				          to 4KiB/2Mib/1GiB.
+
 
 	amd_iommu_dump=	[HW,X86-64]
 			Enable AMD IOMMU driver option to dump the ACPI table
@@ -516,6 +521,18 @@
 			BayCom Serial Port AX.25 Modem (Half Duplex Mode)
 			Format: <io>,<irq>,<mode>
 			See header of drivers/net/hamradio/baycom_ser_hdx.c.
+
+	bdev_allow_write_mounted=
+			Format: <bool>
+			Control the ability to open a mounted block device
+			for writing, i.e., allow / disallow writes that bypass
+			the FS. This was implemented as a means to prevent
+			fuzzers from crashing the kernel by overwriting the
+			metadata underneath a mounted FS without its awareness.
+			This also prevents destructive formatting of mounted
+			filesystems by naive storage tooling that don't use
+			O_EXCL. Default is Y and can be changed through the
+			Kconfig option CONFIG_BLK_DEV_WRITE_MOUNTED.
 
 	bert_disable	[ACPI]
 			Disable BERT OS support on buggy BIOSes.
@@ -2350,6 +2367,18 @@
 	ipcmni_extend	[KNL,EARLY] Extend the maximum number of unique System V
 			IPC identifiers from 32,768 to 16,777,216.
 
+	ipe.enforce=	[IPE]
+			Format: <bool>
+			Determine whether IPE starts in permissive (0) or
+			enforce (1) mode. The default is enforce.
+
+	ipe.success_audit=
+			[IPE]
+			Format: <bool>
+			Start IPE with success auditing enabled, emitting
+			an audit event when a binary is allowed. The default
+			is 0.
+
 	irqaffinity=	[SMP] Set the default irq affinity mask
 			The argument is a cpu list, as described above.
 
@@ -2647,6 +2676,23 @@
 			Eager page splitting is only supported when kvm.tdp_mmu=Y.
 
 			Default is Y (on).
+
+	kvm.enable_virt_at_load=[KVM,ARM64,LOONGARCH,MIPS,RISCV,X86]
+			If enabled, KVM will enable virtualization in hardware
+			when KVM is loaded, and disable virtualization when KVM
+			is unloaded (if KVM is built as a module).
+
+			If disabled, KVM will dynamically enable and disable
+			virtualization on-demand when creating and destroying
+			VMs, i.e. on the 0=>1 and 1=>0 transitions of the
+			number of VMs.
+
+			Enabling virtualization at module lode avoids potential
+			latency for creation of the 0=>1 VM, as KVM serializes
+			virtualization enabling across all online CPUs.  The
+			"cost" of enabling virtualization when KVM is loaded,
+			is that doing so may interfere with using out-of-tree
+			hypervisors that want to "own" virtualization hardware.
 
 	kvm.enable_vmware_backdoor=[KVM] Support VMware backdoor PV interface.
 				   Default is false (don't support).
@@ -4123,6 +4169,21 @@
 			Disable NUMA, Only set up a single NUMA node
 			spanning all memory.
 
+	numa=fake=<size>[MG]
+			[KNL, ARM64, RISCV, X86, EARLY]
+			If given as a memory unit, fills all system RAM with
+			nodes of size interleaved over physical nodes.
+
+	numa=fake=<N>
+			[KNL, ARM64, RISCV, X86, EARLY]
+			If given as an integer, fills all system RAM with N
+			fake nodes interleaved over physical nodes.
+
+	numa=fake=<N>U
+			[KNL, ARM64, RISCV, X86, EARLY]
+			If given as an integer followed by 'U', it will
+			divide each physical node into N emulated nodes.
+
 	numa_balancing=	[KNL,ARM64,PPC,RISCV,S390,X86] Enable or disable automatic
 			NUMA balancing.
 			Allowed values are enable and disable
@@ -4788,6 +4849,16 @@
 	printk.time=	Show timing data prefixed to each printk message line
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 
+	proc_mem.force_override= [KNL]
+			Format: {always | ptrace | never}
+			Traditionally /proc/pid/mem allows memory permissions to be
+			overridden without restrictions. This option may be set to
+			restrict that. Can be one of:
+			- 'always': traditional behavior always allows mem overrides.
+			- 'ptrace': only allow mem overrides for active ptracers.
+			- 'never':  never allow mem overrides.
+			If not specified, default is the CONFIG_PROC_MEM_* choice.
+
 	processor.max_cstate=	[HW,ACPI]
 			Limit processor to maximum C-state
 			max_cstate=9 overrides any DMI blacklist limit.
@@ -4934,6 +5005,10 @@
 	rcutree.blimit=	[KNL]
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
+
+	rcutree.csd_lock_suppress_rcu_stall=	[KNL]
+			Do only a one-line RCU CPU stall warning when
+			there is an ongoing too-long CSD-lock wait.
 
 	rcutree.do_rcu_barrier=	[KNL]
 			Request a call to rcu_barrier().  This is
@@ -5382,7 +5457,13 @@
 			Time to wait (s) after boot before inducing stall.
 
 	rcutorture.stall_cpu_irqsoff= [KNL]
-			Disable interrupts while stalling if set.
+			Disable interrupts while stalling if set, but only
+			on the first stall in the set.
+
+	rcutorture.stall_cpu_repeat= [KNL]
+			Number of times to repeat the stall sequence,
+			so that rcutorture.stall_cpu_repeat=3 will result
+			in four stall sequences.
 
 	rcutorture.stall_gp_kthread= [KNL]
 			Duration (s) of forced sleep within RCU
@@ -5569,14 +5650,6 @@
 			A negative value will take the default.  A value
 			of zero will disable batching.	Batching is
 			always disabled for synchronize_rcu_tasks().
-
-	rcupdate.rcu_tasks_rude_lazy_ms= [KNL]
-			Set timeout in milliseconds RCU Tasks
-			Rude asynchronous callback batching for
-			call_rcu_tasks_rude().	A negative value
-			will take the default.	A value of zero will
-			disable batching.  Batching is always disabled
-			for synchronize_rcu_tasks_rude().
 
 	rcupdate.rcu_tasks_trace_lazy_ms= [KNL]
 			Set timeout in milliseconds RCU Tasks
@@ -6614,6 +6687,15 @@
 			<deci-seconds>: poll all this frequency
 			0: no polling (default)
 
+	thp_anon=	[KNL]
+			Format: <size>,<size>[KMG]:<state>;<size>-<size>[KMG]:<state>
+			state is one of "always", "madvise", "never" or "inherit".
+			Control the default behavior of the system with respect
+			to anonymous transparent hugepages.
+			Can be used multiple times for multiple anon THP sizes.
+			See Documentation/admin-guide/mm/transhuge.rst for more
+			details.
+
 	threadirqs	[KNL,EARLY]
 			Force threading of all interrupt handlers except those
 			marked explicitly IRQF_NO_THREAD.
@@ -6742,6 +6824,51 @@
 			will enable the "sched_switch" event (note, the "sched:" is optional, and
 			the same thing would happen if it was left off). The irq_handler_entry
 			event, and all events under the "initcall" system.
+
+			Flags can be added to the instance to modify its behavior when it is
+			created. The flags are separated by '^'.
+
+			The available flags are:
+
+			    traceoff	- Have the tracing instance tracing disabled after it is created.
+			    traceprintk	- Have trace_printk() write into this trace instance
+					  (note, "printk" and "trace_printk" can also be used)
+
+				trace_instance=foo^traceoff^traceprintk,sched,irq
+
+			The flags must come before the defined events.
+
+			If memory has been reserved (see memmap for x86), the instance
+			can use that memory:
+
+				memmap=12M$0x284500000 trace_instance=boot_map@0x284500000:12M
+
+			The above will create a "boot_map" instance that uses the physical
+			memory at 0x284500000 that is 12Megs. The per CPU buffers of that
+			instance will be split up accordingly.
+
+			Alternatively, the memory can be reserved by the reserve_mem option:
+
+				reserve_mem=12M:4096:trace trace_instance=boot_map@trace
+
+			This will reserve 12 megabytes at boot up with a 4096 byte alignment
+			and place the ring buffer in this memory. Note that due to KASLR, the
+			memory may not be the same location each time, which will not preserve
+			the buffer content.
+
+			Also note that the layout of the ring buffer data may change between
+			kernel versions where the validator will fail and reset the ring buffer
+			if the layout is not the same as the previous kernel.
+
+			If the ring buffer is used for persistent bootups and has events enabled,
+			it is recommend to disable tracing so that events from a previous boot do not
+			mix with events of the current boot (unless you are debugging a random crash
+			at boot up).
+
+				reserve_mem=12M:4096:trace trace_instance=boot_map^traceoff^traceprintk@trace,sched,irq
+
+			See also Documentation/trace/debugging.rst
+
 
 	trace_options=[option-list]
 			[FTRACE] Enable or disable tracer options at boot.
@@ -7351,6 +7478,13 @@
 			duration in seconds.  The default value is 30 and
 			it can be updated at runtime by writing to the
 			corresponding sysfs file.
+
+	workqueue.panic_on_stall=<uint>
+			Panic when workqueue stall is detected by
+			CONFIG_WQ_WATCHDOG. It sets the number times of the
+			stall to trigger panic.
+
+			The default is 0, which disables the panic on stall.
 
 	workqueue.cpu_intensive_thresh_us=
 			Per-cpu work items which run for longer than this

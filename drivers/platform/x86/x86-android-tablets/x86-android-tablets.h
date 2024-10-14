@@ -61,7 +61,7 @@ struct x86_serdev_info {
 	const char *ctrl_uid;
 	const char *ctrl_devname;
 	/*
-	 * ATM the serdev core only supports of or ACPI matching; and sofar all
+	 * ATM the serdev core only supports of or ACPI matching; and so far all
 	 * Android x86 tablets DSDTs have usable serdev nodes, but sometimes
 	 * under the wrong controller. So we just tie the existing serdev ACPI
 	 * node to the right controller.

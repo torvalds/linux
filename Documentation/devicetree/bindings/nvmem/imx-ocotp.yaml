@@ -14,7 +14,7 @@ maintainers:
 description: |
   This binding represents the on-chip eFuse OTP controller found on
   i.MX6Q/D, i.MX6DL/S, i.MX6SL, i.MX6SX, i.MX6UL, i.MX6ULL/ULZ, i.MX6SLL,
-  i.MX7D/S, i.MX7ULP, i.MX8MQ, i.MX8MM, i.MX8MN i.MX8MP and i.MX93 SoCs.
+  i.MX7D/S, i.MX7ULP, i.MX8MQ, i.MX8MM, i.MX8MN i.MX8MP and i.MX93/5 SoCs.
 
 allOf:
   - $ref: nvmem.yaml#
@@ -36,6 +36,7 @@ properties:
               - fsl,imx8mq-ocotp
               - fsl,imx8mm-ocotp
               - fsl,imx93-ocotp
+              - fsl,imx95-ocotp
           - const: syscon
       - items:
           - enum:

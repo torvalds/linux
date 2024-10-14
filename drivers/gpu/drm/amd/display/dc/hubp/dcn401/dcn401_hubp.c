@@ -725,8 +725,8 @@ void hubp401_cursor_set_position(
 		CURSOR_ENABLE, cur_en);
 
 	REG_SET_2(CURSOR_POSITION, 0,
-		CURSOR_X_POSITION, pos->x,
-		CURSOR_Y_POSITION, pos->y);
+		CURSOR_X_POSITION, x_pos,
+		CURSOR_Y_POSITION, y_pos);
 
 	REG_SET_2(CURSOR_HOT_SPOT, 0,
 		CURSOR_HOT_SPOT_X, pos->x_hotspot,
@@ -990,7 +990,6 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_soft_reset = hubp31_soft_reset,
 	.hubp_set_flip_int = hubp401_set_flip_int,
 	.hubp_in_blank = hubp401_in_blank,
-	.hubp_update_force_pstate_disallow = hubp32_update_force_pstate_disallow,
 	.phantom_hubp_post_enable = hubp32_phantom_hubp_post_enable,
 	.hubp_update_mall_sel = hubp401_update_mall_sel,
 	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering,

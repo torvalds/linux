@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/uio.h>
 #include <linux/bvec.h>
+#include <linux/folio_queue.h>
 #include <kunit/test.h>
 
 MODULE_DESCRIPTION("iov_iter testing");
@@ -61,6 +62,9 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
 		release_pages(pages, got);
 		KUNIT_ASSERT_EQ(test, got, npages);
 	}
+
+	for (int i = 0; i < npages; i++)
+		pages[i]->index = i;
 
 	buffer = vmap(pages, npages, VM_MAP | VM_MAP_PUT_PAGES, PAGE_KERNEL);
         KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buffer);
@@ -346,6 +350,179 @@ static void __init iov_kunit_copy_from_bvec(struct kunit *test)
 
 		for (j = pr->from; j < pr->to; j++) {
 			buffer[i++] = pattern(patt + j);
+			if (i >= bufsize)
+				goto stop;
+		}
+	}
+stop:
+
+	/* Compare the images */
+	for (i = 0; i < bufsize; i++) {
+		KUNIT_EXPECT_EQ_MSG(test, scratch[i], buffer[i], "at i=%x", i);
+		if (scratch[i] != buffer[i])
+			return;
+	}
+
+	KUNIT_SUCCEED(test);
+}
+
+static void iov_kunit_destroy_folioq(void *data)
+{
+	struct folio_queue *folioq, *next;
+
+	for (folioq = data; folioq; folioq = next) {
+		next = folioq->next;
+		for (int i = 0; i < folioq_nr_slots(folioq); i++)
+			if (folioq_folio(folioq, i))
+				folio_put(folioq_folio(folioq, i));
+		kfree(folioq);
+	}
+}
+
+static void __init iov_kunit_load_folioq(struct kunit *test,
+					struct iov_iter *iter, int dir,
+					struct folio_queue *folioq,
+					struct page **pages, size_t npages)
+{
+	struct folio_queue *p = folioq;
+	size_t size = 0;
+	int i;
+
+	for (i = 0; i < npages; i++) {
+		if (folioq_full(p)) {
+			p->next = kzalloc(sizeof(struct folio_queue), GFP_KERNEL);
+			KUNIT_ASSERT_NOT_ERR_OR_NULL(test, p->next);
+			folioq_init(p->next);
+			p->next->prev = p;
+			p = p->next;
+		}
+		folioq_append(p, page_folio(pages[i]));
+		size += PAGE_SIZE;
+	}
+	iov_iter_folio_queue(iter, dir, folioq, 0, 0, size);
+}
+
+static struct folio_queue *iov_kunit_create_folioq(struct kunit *test)
+{
+	struct folio_queue *folioq;
+
+	folioq = kzalloc(sizeof(struct folio_queue), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, folioq);
+	kunit_add_action_or_reset(test, iov_kunit_destroy_folioq, folioq);
+	folioq_init(folioq);
+	return folioq;
+}
+
+/*
+ * Test copying to a ITER_FOLIOQ-type iterator.
+ */
+static void __init iov_kunit_copy_to_folioq(struct kunit *test)
+{
+	const struct kvec_test_range *pr;
+	struct iov_iter iter;
+	struct folio_queue *folioq;
+	struct page **spages, **bpages;
+	u8 *scratch, *buffer;
+	size_t bufsize, npages, size, copied;
+	int i, patt;
+
+	bufsize = 0x100000;
+	npages = bufsize / PAGE_SIZE;
+
+	folioq = iov_kunit_create_folioq(test);
+
+	scratch = iov_kunit_create_buffer(test, &spages, npages);
+	for (i = 0; i < bufsize; i++)
+		scratch[i] = pattern(i);
+
+	buffer = iov_kunit_create_buffer(test, &bpages, npages);
+	memset(buffer, 0, bufsize);
+
+	iov_kunit_load_folioq(test, &iter, READ, folioq, bpages, npages);
+
+	i = 0;
+	for (pr = kvec_test_ranges; pr->from >= 0; pr++) {
+		size = pr->to - pr->from;
+		KUNIT_ASSERT_LE(test, pr->to, bufsize);
+
+		iov_iter_folio_queue(&iter, READ, folioq, 0, 0, pr->to);
+		iov_iter_advance(&iter, pr->from);
+		copied = copy_to_iter(scratch + i, size, &iter);
+
+		KUNIT_EXPECT_EQ(test, copied, size);
+		KUNIT_EXPECT_EQ(test, iter.count, 0);
+		KUNIT_EXPECT_EQ(test, iter.iov_offset, pr->to % PAGE_SIZE);
+		i += size;
+		if (test->status == KUNIT_FAILURE)
+			goto stop;
+	}
+
+	/* Build the expected image in the scratch buffer. */
+	patt = 0;
+	memset(scratch, 0, bufsize);
+	for (pr = kvec_test_ranges; pr->from >= 0; pr++)
+		for (i = pr->from; i < pr->to; i++)
+			scratch[i] = pattern(patt++);
+
+	/* Compare the images */
+	for (i = 0; i < bufsize; i++) {
+		KUNIT_EXPECT_EQ_MSG(test, buffer[i], scratch[i], "at i=%x", i);
+		if (buffer[i] != scratch[i])
+			return;
+	}
+
+stop:
+	KUNIT_SUCCEED(test);
+}
+
+/*
+ * Test copying from a ITER_FOLIOQ-type iterator.
+ */
+static void __init iov_kunit_copy_from_folioq(struct kunit *test)
+{
+	const struct kvec_test_range *pr;
+	struct iov_iter iter;
+	struct folio_queue *folioq;
+	struct page **spages, **bpages;
+	u8 *scratch, *buffer;
+	size_t bufsize, npages, size, copied;
+	int i, j;
+
+	bufsize = 0x100000;
+	npages = bufsize / PAGE_SIZE;
+
+	folioq = iov_kunit_create_folioq(test);
+
+	buffer = iov_kunit_create_buffer(test, &bpages, npages);
+	for (i = 0; i < bufsize; i++)
+		buffer[i] = pattern(i);
+
+	scratch = iov_kunit_create_buffer(test, &spages, npages);
+	memset(scratch, 0, bufsize);
+
+	iov_kunit_load_folioq(test, &iter, READ, folioq, bpages, npages);
+
+	i = 0;
+	for (pr = kvec_test_ranges; pr->from >= 0; pr++) {
+		size = pr->to - pr->from;
+		KUNIT_ASSERT_LE(test, pr->to, bufsize);
+
+		iov_iter_folio_queue(&iter, WRITE, folioq, 0, 0, pr->to);
+		iov_iter_advance(&iter, pr->from);
+		copied = copy_from_iter(scratch + i, size, &iter);
+
+		KUNIT_EXPECT_EQ(test, copied, size);
+		KUNIT_EXPECT_EQ(test, iter.count, 0);
+		KUNIT_EXPECT_EQ(test, iter.iov_offset, pr->to % PAGE_SIZE);
+		i += size;
+	}
+
+	/* Build the expected image in the main buffer. */
+	i = 0;
+	memset(buffer, 0, bufsize);
+	for (pr = kvec_test_ranges; pr->from >= 0; pr++) {
+		for (j = pr->from; j < pr->to; j++) {
+			buffer[i++] = pattern(j);
 			if (i >= bufsize)
 				goto stop;
 		}
@@ -678,6 +855,85 @@ stop:
 }
 
 /*
+ * Test the extraction of ITER_FOLIOQ-type iterators.
+ */
+static void __init iov_kunit_extract_pages_folioq(struct kunit *test)
+{
+	const struct kvec_test_range *pr;
+	struct folio_queue *folioq;
+	struct iov_iter iter;
+	struct page **bpages, *pagelist[8], **pages = pagelist;
+	ssize_t len;
+	size_t bufsize, size = 0, npages;
+	int i, from;
+
+	bufsize = 0x100000;
+	npages = bufsize / PAGE_SIZE;
+
+	folioq = iov_kunit_create_folioq(test);
+
+	iov_kunit_create_buffer(test, &bpages, npages);
+	iov_kunit_load_folioq(test, &iter, READ, folioq, bpages, npages);
+
+	for (pr = kvec_test_ranges; pr->from >= 0; pr++) {
+		from = pr->from;
+		size = pr->to - from;
+		KUNIT_ASSERT_LE(test, pr->to, bufsize);
+
+		iov_iter_folio_queue(&iter, WRITE, folioq, 0, 0, pr->to);
+		iov_iter_advance(&iter, from);
+
+		do {
+			size_t offset0 = LONG_MAX;
+
+			for (i = 0; i < ARRAY_SIZE(pagelist); i++)
+				pagelist[i] = (void *)(unsigned long)0xaa55aa55aa55aa55ULL;
+
+			len = iov_iter_extract_pages(&iter, &pages, 100 * 1024,
+						     ARRAY_SIZE(pagelist), 0, &offset0);
+			KUNIT_EXPECT_GE(test, len, 0);
+			if (len < 0)
+				break;
+			KUNIT_EXPECT_LE(test, len, size);
+			KUNIT_EXPECT_EQ(test, iter.count, size - len);
+			if (len == 0)
+				break;
+			size -= len;
+			KUNIT_EXPECT_GE(test, (ssize_t)offset0, 0);
+			KUNIT_EXPECT_LT(test, offset0, PAGE_SIZE);
+
+			for (i = 0; i < ARRAY_SIZE(pagelist); i++) {
+				struct page *p;
+				ssize_t part = min_t(ssize_t, len, PAGE_SIZE - offset0);
+				int ix;
+
+				KUNIT_ASSERT_GE(test, part, 0);
+				ix = from / PAGE_SIZE;
+				KUNIT_ASSERT_LT(test, ix, npages);
+				p = bpages[ix];
+				KUNIT_EXPECT_PTR_EQ(test, pagelist[i], p);
+				KUNIT_EXPECT_EQ(test, offset0, from % PAGE_SIZE);
+				from += part;
+				len -= part;
+				KUNIT_ASSERT_GE(test, len, 0);
+				if (len == 0)
+					break;
+				offset0 = 0;
+			}
+
+			if (test->status == KUNIT_FAILURE)
+				goto stop;
+		} while (iov_iter_count(&iter) > 0);
+
+		KUNIT_EXPECT_EQ(test, size, 0);
+		KUNIT_EXPECT_EQ(test, iter.count, 0);
+	}
+
+stop:
+	KUNIT_SUCCEED(test);
+}
+
+/*
  * Test the extraction of ITER_XARRAY-type iterators.
  */
 static void __init iov_kunit_extract_pages_xarray(struct kunit *test)
@@ -761,10 +1017,13 @@ static struct kunit_case __refdata iov_kunit_cases[] = {
 	KUNIT_CASE(iov_kunit_copy_from_kvec),
 	KUNIT_CASE(iov_kunit_copy_to_bvec),
 	KUNIT_CASE(iov_kunit_copy_from_bvec),
+	KUNIT_CASE(iov_kunit_copy_to_folioq),
+	KUNIT_CASE(iov_kunit_copy_from_folioq),
 	KUNIT_CASE(iov_kunit_copy_to_xarray),
 	KUNIT_CASE(iov_kunit_copy_from_xarray),
 	KUNIT_CASE(iov_kunit_extract_pages_kvec),
 	KUNIT_CASE(iov_kunit_extract_pages_bvec),
+	KUNIT_CASE(iov_kunit_extract_pages_folioq),
 	KUNIT_CASE(iov_kunit_extract_pages_xarray),
 	{}
 };

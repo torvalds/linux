@@ -771,13 +771,9 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 		if (IS_ERR(common->smi_ao_base))
 			return PTR_ERR(common->smi_ao_base);
 
-		common->clk_async = devm_clk_get(dev, "async");
+		common->clk_async = devm_clk_get_enabled(dev, "async");
 		if (IS_ERR(common->clk_async))
 			return PTR_ERR(common->clk_async);
-
-		ret = clk_prepare_enable(common->clk_async);
-		if (ret)
-			return ret;
 	} else {
 		common->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(common->base))

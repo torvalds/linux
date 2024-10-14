@@ -29,7 +29,6 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-#define AXI_PWMGEN_REG_CORE_VERSION	0x00
 #define AXI_PWMGEN_REG_ID		0x04
 #define AXI_PWMGEN_REG_SCRATCHPAD	0x08
 #define AXI_PWMGEN_REG_CORE_MAGIC	0x0C
@@ -145,7 +144,7 @@ static int axi_pwmgen_setup(struct regmap *regmap, struct device *dev)
 			"failed to read expected value from register: got %08x, expected %08x\n",
 			val, AXI_PWMGEN_REG_CORE_MAGIC_VAL);
 
-	ret = regmap_read(regmap, AXI_PWMGEN_REG_CORE_VERSION, &val);
+	ret = regmap_read(regmap, ADI_AXI_REG_VERSION, &val);
 	if (ret)
 		return ret;
 

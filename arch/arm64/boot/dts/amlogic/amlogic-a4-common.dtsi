@@ -52,6 +52,12 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xfe000000 0x0 0x480000>;
 
+			watchdog@2100 {
+				compatible = "amlogic,a4-wdt", "amlogic,t7-wdt";
+				reg = <0x0 0x2100 0x0 0x10>;
+				clocks = <&xtal>;
+			};
+
 			uart_b: serial@7a000 {
 				compatible = "amlogic,a4-uart",
 					     "amlogic,meson-s4-uart";
@@ -60,6 +66,14 @@
 				clocks = <&xtal>, <&xtal>, <&xtal>;
 				clock-names = "xtal", "pclk", "baud";
 				status = "disabled";
+			};
+
+			sec_ao: ao-secure@10220 {
+				compatible = "amlogic,a4-ao-secure",
+					     "amlogic,meson-gx-ao-secure",
+					     "syscon";
+				reg = <0x0 0x10220 0x0 0x140>;
+				amlogic,has-chip-id;
 			};
 		};
 	};

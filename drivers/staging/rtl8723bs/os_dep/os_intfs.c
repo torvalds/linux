@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <hal_data.h>
 
 MODULE_LICENSE("GPL");

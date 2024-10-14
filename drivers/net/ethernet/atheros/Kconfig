@@ -6,7 +6,7 @@
 config NET_VENDOR_ATHEROS
 	bool "Atheros devices"
 	default y
-	depends on (PCI || ATH79)
+	depends on PCI || ATH79 || COMPILE_TEST
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -19,7 +19,7 @@ if NET_VENDOR_ATHEROS
 
 config AG71XX
 	tristate "Atheros AR7XXX/AR9XXX built-in ethernet mac support"
-	depends on ATH79
+	depends on ATH79 || COMPILE_TEST
 	select PHYLINK
 	imply NET_SELFTESTS
 	help

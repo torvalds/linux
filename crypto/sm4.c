@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/sm4.h>
 
 static const u32 ____cacheline_aligned fk[4] = {

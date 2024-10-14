@@ -203,7 +203,6 @@ struct hsr_priv {
 	struct timer_list	prune_proxy_timer;
 	int announce_count;
 	u16 sequence_nr;
-	u16 interlink_sequence_nr; /* Interlink port seq_nr */
 	u16 sup_sequence_nr;	/* For HSRv1 separate seq_nr for supervision */
 	enum hsr_version prot_version;	/* Indicate if HSRv0, HSRv1 or PRPv1 */
 	spinlock_t seqnr_lock;	/* locking for sequence_nr */

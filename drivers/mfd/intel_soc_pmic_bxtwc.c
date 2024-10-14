@@ -15,8 +15,7 @@
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/mfd/intel_soc_pmic_bxtwc.h>
 #include <linux/module.h>
-
-#include <asm/intel_scu_ipc.h>
+#include <linux/platform_data/x86/intel_scu_ipc.h>
 
 /* PMIC device registers */
 #define REG_ADDR_MASK		GENMASK(15, 8)
@@ -138,7 +137,7 @@ static const struct regmap_irq bxtwc_regmap_irqs_crit[] = {
 	REGMAP_IRQ_REG(BXTWC_CRIT_IRQ, 0, GENMASK(1, 0)),
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip = {
+static const struct regmap_irq_chip bxtwc_regmap_irq_chip = {
 	.name = "bxtwc_irq_chip",
 	.status_base = BXTWC_IRQLVL1,
 	.mask_base = BXTWC_MIRQLVL1,
@@ -147,7 +146,7 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip = {
 	.num_regs = 1,
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip_pwrbtn = {
+static const struct regmap_irq_chip bxtwc_regmap_irq_chip_pwrbtn = {
 	.name = "bxtwc_irq_chip_pwrbtn",
 	.status_base = BXTWC_PWRBTNIRQ,
 	.mask_base = BXTWC_MPWRBTNIRQ,
@@ -156,7 +155,7 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip_pwrbtn = {
 	.num_regs = 1,
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip_tmu = {
+static const struct regmap_irq_chip bxtwc_regmap_irq_chip_tmu = {
 	.name = "bxtwc_irq_chip_tmu",
 	.status_base = BXTWC_TMUIRQ,
 	.mask_base = BXTWC_MTMUIRQ,
@@ -165,7 +164,7 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip_tmu = {
 	.num_regs = 1,
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip_bcu = {
+static const struct regmap_irq_chip bxtwc_regmap_irq_chip_bcu = {
 	.name = "bxtwc_irq_chip_bcu",
 	.status_base = BXTWC_BCUIRQ,
 	.mask_base = BXTWC_MBCUIRQ,
@@ -174,7 +173,7 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip_bcu = {
 	.num_regs = 1,
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip_adc = {
+static const struct regmap_irq_chip bxtwc_regmap_irq_chip_adc = {
 	.name = "bxtwc_irq_chip_adc",
 	.status_base = BXTWC_ADCIRQ,
 	.mask_base = BXTWC_MADCIRQ,
@@ -183,7 +182,7 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip_adc = {
 	.num_regs = 1,
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip_chgr = {
+static const struct regmap_irq_chip bxtwc_regmap_irq_chip_chgr = {
 	.name = "bxtwc_irq_chip_chgr",
 	.status_base = BXTWC_CHGR0IRQ,
 	.mask_base = BXTWC_MCHGR0IRQ,
@@ -192,7 +191,7 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip_chgr = {
 	.num_regs = 2,
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip_crit = {
+static const struct regmap_irq_chip bxtwc_regmap_irq_chip_crit = {
 	.name = "bxtwc_irq_chip_crit",
 	.status_base = BXTWC_CRITIRQ,
 	.mask_base = BXTWC_MCRITIRQ,

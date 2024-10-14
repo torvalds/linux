@@ -644,7 +644,6 @@ static int mpc52xx_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations mpc52xx_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= mpc52xx_wdt_write,
 	.unlocked_ioctl = mpc52xx_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

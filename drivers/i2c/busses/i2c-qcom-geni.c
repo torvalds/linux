@@ -721,7 +721,7 @@ static const struct i2c_algorithm geni_i2c_algo = {
 static const struct acpi_device_id geni_i2c_acpi_match[] = {
 	{ "QCOM0220"},
 	{ "QCOM0411" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, geni_i2c_acpi_match);
 #endif
@@ -818,15 +818,13 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	init_completion(&gi2c->done);
 	spin_lock_init(&gi2c->lock);
 	platform_set_drvdata(pdev, gi2c);
-	ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq, 0,
+	ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq, IRQF_NO_AUTOEN,
 			       dev_name(dev), gi2c);
 	if (ret) {
 		dev_err(dev, "Request_irq failed:%d: err:%d\n",
 			gi2c->irq, ret);
 		return ret;
 	}
-	/* Disable the interrupt so that the system can enter low-power mode */
-	disable_irq(gi2c->irq);
 	i2c_set_adapdata(&gi2c->adap, gi2c);
 	gi2c->adap.dev.parent = dev;
 	gi2c->adap.dev.of_node = dev->of_node;
@@ -986,21 +984,24 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 		return ret;
 
 	ret = clk_prepare_enable(gi2c->core_clk);
-	if (ret) {
-		geni_icc_disable(&gi2c->se);
-		return ret;
-	}
+	if (ret)
+		goto out_icc_disable;
 
 	ret = geni_se_resources_on(&gi2c->se);
-	if (ret) {
-		clk_disable_unprepare(gi2c->core_clk);
-		geni_icc_disable(&gi2c->se);
-		return ret;
-	}
+	if (ret)
+		goto out_clk_disable;
 
 	enable_irq(gi2c->irq);
 	gi2c->suspended = 0;
+
 	return 0;
+
+out_clk_disable:
+	clk_disable_unprepare(gi2c->core_clk);
+out_icc_disable:
+	geni_icc_disable(&gi2c->se);
+
+	return ret;
 }
 
 static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)

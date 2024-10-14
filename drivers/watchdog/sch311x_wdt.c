@@ -334,7 +334,6 @@ static int sch311x_wdt_close(struct inode *inode, struct file *file)
 
 static const struct file_operations sch311x_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= sch311x_wdt_write,
 	.unlocked_ioctl	= sch311x_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

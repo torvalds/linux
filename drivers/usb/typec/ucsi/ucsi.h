@@ -11,7 +11,7 @@
 #include <linux/usb/typec.h>
 #include <linux/usb/pd.h>
 #include <linux/usb/role.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* -------------------------------------------------------------------------- */
 
@@ -29,6 +29,7 @@ struct dentry;
 #define UCSIv2_MESSAGE_OUT		272
 
 /* UCSI versions */
+#define UCSI_VERSION_1_1	0x0110
 #define UCSI_VERSION_1_2	0x0120
 #define UCSI_VERSION_2_0	0x0200
 #define UCSI_VERSION_2_1	0x0210
@@ -122,7 +123,9 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 #define UCSI_DEFAULT_GET_CONNECTOR_NUMBER(_cmd_)	(((_cmd_) >> 16) & GENMASK(6, 0))
 
 /* CONNECTOR_RESET command bits */
-#define UCSI_CONNECTOR_RESET_HARD		BIT(23) /* Deprecated in v1.1 */
+#define UCSI_CONNECTOR_RESET_HARD_VER_1_0	BIT(23) /* Deprecated in v1.1 */
+#define UCSI_CONNECTOR_RESET_DATA_VER_2_0	BIT(23) /* Redefined in v2.0 */
+
 
 /* ACK_CC_CI bits */
 #define UCSI_ACK_CONNECTOR_CHANGE		BIT(16)
@@ -344,47 +347,12 @@ struct ucsi_connector_status {
 #define   UCSI_CONSTAT_PARTNER_TYPE_AUDIO	6
 	u32 request_data_obj;
 
-	u8 pwr_status[3];
-#define UCSI_CONSTAT_BC_STATUS(_p_)		((_p_[0]) & GENMASK(1, 0))
+	u8 pwr_status;
+#define UCSI_CONSTAT_BC_STATUS(_p_)		((_p_) & GENMASK(1, 0))
 #define   UCSI_CONSTAT_BC_NOT_CHARGING		0
 #define   UCSI_CONSTAT_BC_NOMINAL_CHARGING	1
 #define   UCSI_CONSTAT_BC_SLOW_CHARGING		2
 #define   UCSI_CONSTAT_BC_TRICKLE_CHARGING	3
-#define UCSI_CONSTAT_PROVIDER_CAP_LIMIT(_p_)	(((_p_[0]) & GENMASK(5, 2)) >> 2)
-#define   UCSI_CONSTAT_CAP_PWR_LOWERED		0
-#define   UCSI_CONSTAT_CAP_PWR_BUDGET_LIMIT	1
-#define UCSI_CONSTAT_PROVIDER_PD_VERSION_OPER_MODE(_p_)	\
-	((get_unaligned_le32(_p_) & GENMASK(21, 6)) >> 6)
-#define UCSI_CONSTAT_ORIENTATION(_p_)		(((_p_[2]) & GENMASK(6, 6)) >> 6)
-#define   UCSI_CONSTAT_ORIENTATION_DIRECT	0
-#define   UCSI_CONSTAT_ORIENTATION_FLIPPED	1
-#define UCSI_CONSTAT_SINK_PATH_STATUS(_p_)	(((_p_[2]) & GENMASK(7, 7)) >> 7)
-#define   UCSI_CONSTAT_SINK_PATH_DISABLED	0
-#define   UCSI_CONSTAT_SINK_PATH_ENABLED	1
-	u8 pwr_readings[9];
-#define UCSI_CONSTAT_REV_CURR_PROT_STATUS(_p_)	((_p_[0]) & 0x1)
-#define UCSI_CONSTAT_PWR_READING_VALID(_p_)	(((_p_[0]) & GENMASK(1, 1)) >> 1)
-#define UCSI_CONSTAT_CURRENT_SCALE(_p_)		(((_p_[0]) & GENMASK(4, 2)) >> 2)
-#define UCSI_CONSTAT_PEAK_CURRENT(_p_) \
-	((get_unaligned_le32(_p_) & GENMASK(20, 5)) >> 5)
-#define UCSI_CONSTAT_AVG_CURRENT(_p_) \
-	((get_unaligned_le32(&(_p_)[2]) & GENMASK(20, 5)) >> 5)
-#define UCSI_CONSTAT_VOLTAGE_SCALE(_p_) \
-	((get_unaligned_le16(&(_p_)[4]) & GENMASK(8, 5)) >> 5)
-#define UCSI_CONSTAT_VOLTAGE_READING(_p_) \
-	((get_unaligned_le32(&(_p_)[5]) & GENMASK(16, 1)) >> 1)
-} __packed;
-
-/*
- * Data structure filled by PPM in response to GET_PD_MESSAGE command with the
- * Response Message Type set to Discover Identity Response.
- */
-struct ucsi_pd_message_disc_id {
-	u32 vdm_header;
-	u32 id_header;
-	u32 cert_stat;
-	u32 product;
-	u32 vdo[3];
 } __packed;
 
 /* -------------------------------------------------------------------------- */
@@ -435,6 +403,8 @@ struct ucsi {
 #define UCSI_DELAY_DEVICE_PDOS	BIT(1)	/* Reading PDOs fails until the parter is in PD mode */
 };
 
+#define UCSI_MAX_DATA_LENGTH(u) (((u)->version < UCSI_VERSION_2_0) ? 0x10 : 0xff)
+
 #define UCSI_MAX_SVID		5
 #define UCSI_MAX_ALTMODES	(UCSI_MAX_SVID * 6)
 
@@ -465,7 +435,6 @@ struct ucsi_connector {
 
 	struct ucsi_connector_status status;
 	struct ucsi_connector_capability cap;
-	struct ucsi_cable_property cable_prop;
 	struct power_supply *psy;
 	struct power_supply_desc psy_desc;
 	u32 rdo;

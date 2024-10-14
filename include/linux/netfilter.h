@@ -376,15 +376,11 @@ int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 struct nf_conn;
 enum nf_nat_manip_type;
 struct nlattr;
-enum ip_conntrack_dir;
 
 struct nf_nat_hook {
 	int (*parse_nat_setup)(struct nf_conn *ct, enum nf_nat_manip_type manip,
 			       const struct nlattr *attr);
 	void (*decode_session)(struct sk_buff *skb, struct flowi *fl);
-	unsigned int (*manip_pkt)(struct sk_buff *skb, struct nf_conn *ct,
-				  enum nf_nat_manip_type mtype,
-				  enum ip_conntrack_dir dir);
 	void (*remove_nat_bysrc)(struct nf_conn *ct);
 };
 

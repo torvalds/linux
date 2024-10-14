@@ -130,7 +130,7 @@ static const struct platform_device_id s3c24xx_driver_ids[] = {
 	}, {
 		.name		= "s3c2440-hdmiphy-i2c",
 		.driver_data	= QUIRK_S3C2440 | QUIRK_HDMIPHY | QUIRK_NO_GPIO,
-	}, { },
+	}, { }
 };
 MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);
 

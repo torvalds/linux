@@ -22,29 +22,23 @@ struct {								\
 typedef DARRAY(char)	darray_char;
 typedef DARRAY(char *) darray_str;
 
-int __bch2_darray_resize(darray_char *, size_t, size_t, gfp_t);
+int __bch2_darray_resize_noprof(darray_char *, size_t, size_t, gfp_t);
 
-static inline int __darray_resize(darray_char *d, size_t element_size,
-				  size_t new_size, gfp_t gfp)
-{
-	return unlikely(new_size > d->size)
-		? __bch2_darray_resize(d, element_size, new_size, gfp)
-		: 0;
-}
+#define __bch2_darray_resize(...)	alloc_hooks(__bch2_darray_resize_noprof(__VA_ARGS__))
+
+#define __darray_resize(_d, _element_size, _new_size, _gfp)		\
+	(unlikely((_new_size) > (_d)->size)				\
+	 ? __bch2_darray_resize((_d), (_element_size), (_new_size), (_gfp))\
+	 : 0)
 
 #define darray_resize_gfp(_d, _new_size, _gfp)				\
-	unlikely(__darray_resize((darray_char *) (_d), sizeof((_d)->data[0]), (_new_size), _gfp))
+	__darray_resize((darray_char *) (_d), sizeof((_d)->data[0]), (_new_size), _gfp)
 
 #define darray_resize(_d, _new_size)					\
 	darray_resize_gfp(_d, _new_size, GFP_KERNEL)
 
-static inline int __darray_make_room(darray_char *d, size_t t_size, size_t more, gfp_t gfp)
-{
-	return __darray_resize(d, t_size, d->nr + more, gfp);
-}
-
 #define darray_make_room_gfp(_d, _more, _gfp)				\
-	__darray_make_room((darray_char *) (_d), sizeof((_d)->data[0]), (_more), _gfp)
+	darray_resize_gfp((_d), (_d)->nr + (_more), _gfp)
 
 #define darray_make_room(_d, _more)					\
 	darray_make_room_gfp(_d, _more, GFP_KERNEL)

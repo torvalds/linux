@@ -25,6 +25,7 @@ properties:
       - renesas,pfc-r8a7745     # RZ/G1E
       - renesas,pfc-r8a77470    # RZ/G1C
       - renesas,pfc-r8a774a1    # RZ/G2M
+      - renesas,pfc-r8a774a3    # RZ/G2M v3.0
       - renesas,pfc-r8a774b1    # RZ/G2N
       - renesas,pfc-r8a774c0    # RZ/G2E
       - renesas,pfc-r8a774e1    # RZ/G2H

@@ -156,7 +156,6 @@ static const struct file_operations fops_raw = {
 	.owner = THIS_MODULE,
 	.read = raw_read,
 	.write = raw_write,
-	.llseek = no_llseek,
 };
 
 #define CMD_KB_CHROME		0x88

@@ -500,3 +500,75 @@ Description:
 		console drivers from the device.  Raw users of pci-sysfs
 		resourceN attributes must be terminated prior to resizing.
 		Success of the resizing operation is not guaranteed.
+
+What:		/sys/bus/pci/devices/.../leds/*:enclosure:*/brightness
+What:		/sys/class/leds/*:enclosure:*/brightness
+Date:		August 2024
+KernelVersion:	6.12
+Description:
+		LED indications on PCIe storage enclosures which are controlled
+		through the NPEM interface (Native PCIe Enclosure Management,
+		PCIe r6.1 sec 6.28) are accessible as led class devices, both
+		below /sys/class/leds and below NPEM-capable PCI devices.
+
+		Although these led class devices could be manipulated manually,
+		in practice they are typically manipulated automatically by an
+		application such as ledmon(8).
+
+		The name of a led class device is as follows:
+		<bdf>:enclosure:<indication>
+		where:
+
+		- <bdf> is the domain, bus, device and function number
+		  (e.g. 10000:02:05.0)
+		- <indication> is a short description of the LED indication
+
+		Valid indications per PCIe r6.1 table 6-27 are:
+
+		- ok (drive is functioning normally)
+		- locate (drive is being identified by an admin)
+		- fail (drive is not functioning properly)
+		- rebuild (drive is part of an array that is rebuilding)
+		- pfa (drive is predicted to fail soon)
+		- hotspare (drive is marked to be used as a replacement)
+		- ica (drive is part of an array that is degraded)
+		- ifa (drive is part of an array that is failed)
+		- idt (drive is not the right type for the connector)
+		- disabled (drive is disabled, removal is safe)
+		- specific0 to specific7 (enclosure-specific indications)
+
+		Broadly, the indications fall into one of these categories:
+
+		- to signify drive state (ok, locate, fail, idt, disabled)
+		- to signify drive role or state in a software RAID array
+		  (rebuild, pfa, hotspare, ica, ifa)
+		- to signify any other role or state (specific0 to specific7)
+
+		Mandatory indications per PCIe r6.1 sec 7.9.19.2 comprise:
+		ok, locate, fail, rebuild. All others are optional.
+		A led class device is only visible if the corresponding
+		indication is supported by the device.
+
+		To manipulate the indications, write 0 (LED_OFF) or 1 (LED_ON)
+		to the "brightness" file. Note that manipulating an indication
+		may implicitly manipulate other indications at the vendor's
+		discretion. E.g. when the user lights up the "ok" indication,
+		the vendor may choose to automatically turn off the "fail"
+		indication. The current state of an indication can be
+		retrieved by reading its "brightness" file.
+
+		The PCIe Base Specification allows vendors leeway to choose
+		different colors or blinking patterns for the indications,
+		but they typically follow the IBPI standard. E.g. the "locate"
+		indication is usually presented as one or two LEDs blinking at
+		4 Hz frequency:
+		https://en.wikipedia.org/wiki/International_Blinking_Pattern_Interpretation
+
+		PCI Firmware Specification r3.3 sec 4.7 defines a DSM interface
+		to facilitate shared access by operating system and platform
+		firmware to a device's NPEM registers. The kernel will use
+		this DSM interface where available, instead of accessing NPEM
+		registers directly. The DSM interface does not support the
+		enclosure-specific indications "specific0" to "specific7",
+		hence the corresponding led class devices are unavailable if
+		the DSM interface is used.

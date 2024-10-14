@@ -150,7 +150,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 {
 	struct fwnode_handle *child;
 	struct gpio_leds_priv *priv;
-	int count, ret;
+	int count, used, ret;
 
 	count = device_get_child_node_count(dev);
 	if (!count)
@@ -159,9 +159,11 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 	priv = devm_kzalloc(dev, struct_size(priv, leds, count), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
+	priv->num_leds = count;
+	used = 0;
 
 	device_for_each_child_node(dev, child) {
-		struct gpio_led_data *led_dat = &priv->leds[priv->num_leds];
+		struct gpio_led_data *led_dat = &priv->leds[used];
 		struct gpio_led led = {};
 
 		/*
@@ -197,8 +199,9 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 		/* Set gpiod label to match the corresponding LED name. */
 		gpiod_set_consumer_name(led_dat->gpiod,
 					led_dat->cdev.dev->kobj.name);
-		priv->num_leds++;
+		used++;
 	}
+	priv->num_leds = used;
 
 	return priv;
 }

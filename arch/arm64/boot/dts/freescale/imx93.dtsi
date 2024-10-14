@@ -69,6 +69,13 @@
 			enable-method = "psci";
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpu_pd_wait>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <128>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l0>;
 		};
 
 		A55_1: cpu@100 {
@@ -78,8 +85,43 @@
 			enable-method = "psci";
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpu_pd_wait>;
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <128>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l1>;
 		};
 
+		l2_cache_l0: l2-cache-l0 {
+			compatible = "cache";
+			cache-size = <65536>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			cache-level = <2>;
+			cache-unified;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l1: l2-cache-l1 {
+			compatible = "cache";
+			cache-size = <65536>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			cache-level = <2>;
+			cache-unified;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l3_cache: l3-cache {
+			compatible = "cache";
+			cache-size = <262144>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			cache-level = <3>;
+			cache-unified;
+		};
 	};
 
 	osc_32k: clock-osc-32k {
@@ -425,6 +467,7 @@
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 				dmas = <&edma1 22 0 FSL_EDMA_RX>, <&edma1 21 0 0>;
 				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 
@@ -524,6 +567,7 @@
 				clock-names = "ipg_clk", "ipg_clk_app", "pll8k";
 				dmas = <&edma1 29 0 5>;
 				dma-names = "rx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 
@@ -846,6 +890,7 @@
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 				dmas = <&edma2 59 0 FSL_EDMA_RX>, <&edma2 58 0 0>;
 				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 
@@ -859,6 +904,7 @@
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 				dmas = <&edma2 61 0 FSL_EDMA_RX>, <&edma2 60 0 0>;
 				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 
@@ -878,6 +924,7 @@
 				clock-names = "ipg", "phy", "spba", "pll_ipg";
 				dmas = <&edma2 65 0 FSL_EDMA_RX>, <&edma2 66 0 0>;
 				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 

@@ -1496,11 +1496,7 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto release_region;
 
-	err = dma_set_max_seg_size(&pdev->dev, UINT_MAX);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to set dma device segment size\n");
-		goto release_region;
-	}
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	err = -ENOMEM;
 	gc = vzalloc(sizeof(*gc));

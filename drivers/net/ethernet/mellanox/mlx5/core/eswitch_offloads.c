@@ -613,6 +613,13 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 		}
 	}
 
+	if (attr->extra_split_ft) {
+		flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+		dest[*i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+		dest[*i].ft = attr->extra_split_ft;
+		(*i)++;
+	}
+
 out:
 	return err;
 }

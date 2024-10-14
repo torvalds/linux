@@ -996,6 +996,7 @@ static struct btf *btf_new_empty(struct btf *base_btf)
 		btf->base_btf = base_btf;
 		btf->start_id = btf__type_cnt(base_btf);
 		btf->start_str_off = base_btf->hdr->str_len;
+		btf->swapped_endian = base_btf->swapped_endian;
 	}
 
 	/* +1 for empty string at offset 0 */
@@ -4191,7 +4192,7 @@ static bool btf_dedup_identical_structs(struct btf_dedup *d, __u32 id1, __u32 id
  * and canonical graphs are not compatible structurally, whole graphs are
  * incompatible. If types are structurally equivalent (i.e., all information
  * except referenced type IDs is exactly the same), a mapping from `canon_id` to
- * a `cand_id` is recored in hypothetical mapping (`btf_dedup->hypot_map`).
+ * a `cand_id` is recoded in hypothetical mapping (`btf_dedup->hypot_map`).
  * If a type references other types, then those referenced types are checked
  * for equivalence recursively.
  *
@@ -4229,7 +4230,7 @@ static bool btf_dedup_identical_structs(struct btf_dedup *d, __u32 id1, __u32 id
  * consists of portions of the graph that come from multiple compilation units.
  * This is due to the fact that types within single compilation unit are always
  * deduplicated and FWDs are already resolved, if referenced struct/union
- * definiton is available. So, if we had unresolved FWD and found corresponding
+ * definition is available. So, if we had unresolved FWD and found corresponding
  * STRUCT/UNION, they will be from different compilation units. This
  * consequently means that when we "link" FWD to corresponding STRUCT/UNION,
  * type graph will likely have at least two different BTF types that describe
@@ -5394,6 +5395,9 @@ int btf__distill_base(const struct btf *src_btf, struct btf **new_base_btf,
 	new_base = btf__new_empty();
 	if (!new_base)
 		return libbpf_err(-ENOMEM);
+
+	btf__set_endianness(new_base, btf__endianness(src_btf));
+
 	dist.id_map = calloc(n, sizeof(*dist.id_map));
 	if (!dist.id_map) {
 		err = -ENOMEM;

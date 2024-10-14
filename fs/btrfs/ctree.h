@@ -6,6 +6,7 @@
 #ifndef BTRFS_CTREE_H
 #define BTRFS_CTREE_H
 
+#include "linux/cleanup.h"
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
@@ -83,6 +84,9 @@ struct btrfs_path {
 	/* Stop search if any locks need to be taken (for read) */
 	unsigned int nowait:1;
 };
+
+#define BTRFS_PATH_AUTO_FREE(path_name)					\
+	struct btrfs_path *path_name __free(btrfs_free_path) = NULL
 
 /*
  * The state of btrfs root
@@ -459,6 +463,8 @@ struct btrfs_file_private {
 	void *filldir_buf;
 	u64 last_index;
 	struct extent_state *llseek_cached_state;
+	/* Task that allocated this structure. */
+	struct task_struct *owner_task;
 };
 
 static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_fs_info *info)
@@ -538,7 +544,7 @@ int btrfs_previous_item(struct btrfs_root *root,
 int btrfs_previous_extent_item(struct btrfs_root *root,
 			struct btrfs_path *path, u64 min_objectid);
 void btrfs_set_item_key_safe(struct btrfs_trans_handle *trans,
-			     struct btrfs_path *path,
+			     const struct btrfs_path *path,
 			     const struct btrfs_key *new_key);
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
@@ -572,9 +578,9 @@ bool btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
 int btrfs_del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct btrfs_path *path, int level, int slot);
 void btrfs_extend_item(struct btrfs_trans_handle *trans,
-		       struct btrfs_path *path, u32 data_size);
+		       const struct btrfs_path *path, u32 data_size);
 void btrfs_truncate_item(struct btrfs_trans_handle *trans,
-			 struct btrfs_path *path, u32 new_size, int from_end);
+			 const struct btrfs_path *path, u32 new_size, int from_end);
 int btrfs_split_item(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root,
 		     struct btrfs_path *path,
@@ -598,6 +604,7 @@ int btrfs_search_slot_for_read(struct btrfs_root *root,
 void btrfs_release_path(struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
+DEFINE_FREE(btrfs_free_path, struct btrfs_path *, btrfs_free_path(_T))
 
 int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path, int slot, int nr);

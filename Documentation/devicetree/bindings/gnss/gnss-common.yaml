@@ -35,11 +35,6 @@ properties:
       GPIO line, this is used.
     maxItems: 1
 
-  current-speed:
-    description: The baudrate in bits per second of the device as it comes
-      online, current active speed.
-    $ref: /schemas/types.yaml#/definitions/uint32
-
 additionalProperties: true
 
 examples:

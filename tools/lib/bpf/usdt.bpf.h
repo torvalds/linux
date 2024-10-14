@@ -39,7 +39,7 @@ enum __bpf_usdt_arg_type {
 struct __bpf_usdt_arg_spec {
 	/* u64 scalar interpreted depending on arg_type, see below */
 	__u64 val_off;
-	/* arg location case, see bpf_udst_arg() for details */
+	/* arg location case, see bpf_usdt_arg() for details */
 	enum __bpf_usdt_arg_type arg_type;
 	/* offset of referenced register within struct pt_regs */
 	short reg_off;

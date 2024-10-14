@@ -402,7 +402,7 @@ static int test_wait_timeout(void *arg)
 
 	if (dma_fence_wait_timeout(wt.f, false, 2) == -ETIME) {
 		if (timer_pending(&wt.timer)) {
-			pr_notice("Timer did not fire within the jiffie!\n");
+			pr_notice("Timer did not fire within the jiffy!\n");
 			err = 0; /* not our fault! */
 		} else {
 			pr_err("Wait reported incomplete after timeout\n");

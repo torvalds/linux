@@ -509,7 +509,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	int i, idx, ret = 0;
 	int group_key = 0;
 	const char *alg, *module;
-	struct lib80211_crypto_ops *ops;
+	const struct lib80211_crypto_ops *ops;
 	struct lib80211_crypt_data **crypt;
 
 	struct libipw_security sec = {

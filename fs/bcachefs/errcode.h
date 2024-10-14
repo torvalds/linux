@@ -119,8 +119,8 @@
 	x(EEXIST,			EEXIST_str_hash_set)			\
 	x(EEXIST,			EEXIST_discard_in_flight_add)		\
 	x(EEXIST,			EEXIST_subvolume_create)		\
-	x(0,				open_buckets_empty)			\
-	x(0,				freelist_empty)				\
+	x(ENOSPC,			open_buckets_empty)			\
+	x(ENOSPC,			freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\
 	x(0,				transaction_restart)			\
 	x(BCH_ERR_transaction_restart,	transaction_restart_fault_inject)	\
@@ -244,6 +244,16 @@
 	x(EIO,				btree_node_read_error)			\
 	x(EIO,				btree_node_read_validate_error)		\
 	x(EIO,				btree_need_topology_repair)		\
+	x(EIO,				bucket_ref_update)			\
+	x(EIO,				trigger_pointer)			\
+	x(EIO,				trigger_stripe_pointer)			\
+	x(EIO,				metadata_bucket_inconsistency)		\
+	x(EIO,				mark_stripe)				\
+	x(EIO,				stripe_reconstruct)			\
+	x(EIO,				key_type_error)				\
+	x(EIO,				no_device_to_read_from)			\
+	x(EIO,				missing_indirect_extent)		\
+	x(EIO,				invalidate_stripe_to_dev)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\

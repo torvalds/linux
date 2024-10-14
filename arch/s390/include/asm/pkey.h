@@ -22,7 +22,7 @@
  * @param protkey pointer to buffer receiving the protected key
  * @return 0 on success, negative errno value on failure
  */
-int pkey_keyblob2pkey(const u8 *key, u32 keylen,
-		      u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+int pkey_key2protkey(const u8 *key, u32 keylen,
+		     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
 
 #endif /* _KAPI_PKEY_H */

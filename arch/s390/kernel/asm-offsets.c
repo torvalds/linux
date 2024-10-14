@@ -112,8 +112,7 @@ int main(void)
 	OFFSET(__LC_MCK_NEW_PSW, lowcore, mcck_new_psw);
 	OFFSET(__LC_IO_NEW_PSW, lowcore, io_new_psw);
 	/* software defined lowcore locations 0x200 - 0xdff*/
-	OFFSET(__LC_SAVE_AREA_SYNC, lowcore, save_area_sync);
-	OFFSET(__LC_SAVE_AREA_ASYNC, lowcore, save_area_async);
+	OFFSET(__LC_SAVE_AREA, lowcore, save_area);
 	OFFSET(__LC_SAVE_AREA_RESTART, lowcore, save_area_restart);
 	OFFSET(__LC_PCPU, lowcore, pcpu);
 	OFFSET(__LC_RETURN_PSW, lowcore, return_psw);

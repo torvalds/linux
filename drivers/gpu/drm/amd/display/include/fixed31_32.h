@@ -531,4 +531,10 @@ static inline struct fixed31_32 dc_fixpt_truncate(struct fixed31_32 arg, unsigne
 	return arg;
 }
 
+struct fixed31_32 dc_fixpt_from_ux_dy(unsigned int value, unsigned int integer_bits, unsigned int fractional_bits);
+struct fixed31_32 dc_fixpt_from_int_dy(unsigned int int_value,
+		unsigned int frac_value,
+		unsigned int integer_bits,
+		unsigned int fractional_bits);
+
 #endif

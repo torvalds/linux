@@ -603,7 +603,7 @@ static struct platform_driver ehrpwm_pwm_driver = {
 		.pm = pm_ptr(&ehrpwm_pwm_pm_ops),
 	},
 	.probe = ehrpwm_pwm_probe,
-	.remove_new = ehrpwm_pwm_remove,
+	.remove = ehrpwm_pwm_remove,
 };
 module_platform_driver(ehrpwm_pwm_driver);
 

@@ -59,6 +59,7 @@ static void t7xx_trace_port_uninit(struct t7xx_port *port)
 
 	relay_close(relaych);
 	debugfs_remove_recursive(debugfs_dir);
+	port->log.relaych = NULL;
 }
 
 static int t7xx_trace_port_recv_skb(struct t7xx_port *port, struct sk_buff *skb)

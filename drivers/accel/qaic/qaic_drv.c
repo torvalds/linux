@@ -447,9 +447,7 @@ static int init_pci(struct qaic_device *qdev, struct pci_dev *pdev)
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret)
 		return ret;
-	ret = dma_set_max_seg_size(&pdev->dev, UINT_MAX);
-	if (ret)
-		return ret;
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	qdev->bar_0 = devm_ioremap_resource(&pdev->dev, &pdev->resource[0]);
 	if (IS_ERR(qdev->bar_0))

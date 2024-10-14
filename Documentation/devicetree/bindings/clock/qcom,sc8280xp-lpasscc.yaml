@@ -18,9 +18,16 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,sc8280xp-lpassaudiocc
-      - qcom,sc8280xp-lpasscc
+    oneOf:
+      - enum:
+          - qcom,sc8280xp-lpassaudiocc
+          - qcom,sc8280xp-lpasscc
+      - items:
+          - const: qcom,x1e80100-lpassaudiocc
+          - const: qcom,sc8280xp-lpassaudiocc
+      - items:
+          - const: qcom,x1e80100-lpasscc
+          - const: qcom,sc8280xp-lpasscc
 
   reg:
     maxItems: 1

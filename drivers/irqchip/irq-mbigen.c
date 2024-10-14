@@ -234,37 +234,27 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 				   struct mbigen_device *mgn_chip)
 {
 	struct platform_device *child;
-	struct device_node *np;
 	u32 num_pins;
-	int ret = 0;
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
+	for_each_child_of_node_scoped(pdev->dev.of_node, np) {
 		if (!of_property_read_bool(np, "interrupt-controller"))
 			continue;
 
 		child = of_platform_device_create(np, NULL, NULL);
-		if (!child) {
-			ret = -ENOMEM;
-			break;
-		}
+		if (!child)
+			return -ENOMEM;
 
 		if (of_property_read_u32(child->dev.of_node, "num-pins",
 					 &num_pins) < 0) {
 			dev_err(&pdev->dev, "No num-pins property\n");
-			ret = -EINVAL;
-			break;
+			return -EINVAL;
 		}
 
-		if (!mbigen_create_device_domain(&child->dev, num_pins, mgn_chip)) {
-			ret = -ENOMEM;
-			break;
-		}
+		if (!mbigen_create_device_domain(&child->dev, num_pins, mgn_chip))
+			return -ENOMEM;
 	}
 
-	if (ret)
-		of_node_put(np);
-
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_ACPI

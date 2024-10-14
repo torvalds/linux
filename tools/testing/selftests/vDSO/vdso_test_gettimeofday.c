@@ -19,6 +19,7 @@
 #include "../kselftest.h"
 #include "parse_vdso.h"
 #include "vdso_config.h"
+#include "vdso_call.h"
 
 int main(int argc, char **argv)
 {
@@ -43,7 +44,7 @@ int main(int argc, char **argv)
 	}
 
 	struct timeval tv;
-	long ret = gtod(&tv, 0);
+	long ret = VDSO_CALL(gtod, 2, &tv, 0);
 
 	if (ret == 0) {
 		printf("The time is %lld.%06lld\n",

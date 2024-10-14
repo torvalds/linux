@@ -201,9 +201,6 @@ struct il_cmd_header {
 	 *  15          unsolicited RX or uCode-originated notification
 	 */
 	__le16 sequence;
-
-	/* command or response/notification data follows immediately */
-	u8 data[];
 } __packed;
 
 /**
@@ -1160,23 +1157,33 @@ struct il_wep_cmd {
 #define RX_MPDU_RES_STATUS_DEC_DONE_MSK	(0x800)
 
 struct il3945_rx_frame_stats {
-	u8 phy_count;
-	u8 id;
-	u8 rssi;
-	u8 agc;
-	__le16 sig_avg;
-	__le16 noise_diff;
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(il3945_rx_frame_stats_hdr, hdr, __packed,
+		u8 phy_count;
+		u8 id;
+		u8 rssi;
+		u8 agc;
+		__le16 sig_avg;
+		__le16 noise_diff;
+	);
 	u8 payload[];
 } __packed;
+static_assert(offsetof(struct il3945_rx_frame_stats, payload) == sizeof(struct il3945_rx_frame_stats_hdr),
+	      "struct member likely outside of __struct_group()");
 
 struct il3945_rx_frame_hdr {
-	__le16 channel;
-	__le16 phy_flags;
-	u8 reserved1;
-	u8 rate;
-	__le16 len;
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(il3945_rx_frame_hdr_hdr, hdr, __packed,
+		__le16 channel;
+		__le16 phy_flags;
+		u8 reserved1;
+		u8 rate;
+		__le16 len;
+	);
 	u8 payload[];
 } __packed;
+static_assert(offsetof(struct il3945_rx_frame_hdr, payload) == sizeof(struct il3945_rx_frame_hdr_hdr),
+	      "struct member likely outside of __struct_group()");
 
 struct il3945_rx_frame_end {
 	__le32 status;
@@ -1193,8 +1200,8 @@ struct il3945_rx_frame_end {
  * stats.phy_count
  */
 struct il3945_rx_frame {
-	struct il3945_rx_frame_stats stats;
-	struct il3945_rx_frame_hdr hdr;
+	struct il3945_rx_frame_stats_hdr stats;
+	struct il3945_rx_frame_hdr_hdr hdr;
 	struct il3945_rx_frame_end end;
 } __packed;
 
@@ -1352,67 +1359,69 @@ struct il_rx_mpdu_res_start {
  */
 
 struct il3945_tx_cmd {
-	/*
-	 * MPDU byte count:
-	 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
-	 * + 8 byte IV for CCM or TKIP (not used for WEP)
-	 * + Data payload
-	 * + 8-byte MIC (not used for CCM/WEP)
-	 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
-	 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
-	 * Range: 14-2342 bytes.
-	 */
-	__le16 len;
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(il3945_tx_cmd_hdr, __hdr, __packed,
+		/*
+		 * MPDU byte count:
+		 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
+		 * + 8 byte IV for CCM or TKIP (not used for WEP)
+		 * + Data payload
+		 * + 8-byte MIC (not used for CCM/WEP)
+		 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
+		 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
+		 * Range: 14-2342 bytes.
+		 */
+		__le16 len;
 
-	/*
-	 * MPDU or MSDU byte count for next frame.
-	 * Used for fragmentation and bursting, but not 11n aggregation.
-	 * Same as "len", but for next frame.  Set to 0 if not applicable.
-	 */
-	__le16 next_frame_len;
+		/*
+		 * MPDU or MSDU byte count for next frame.
+		 * Used for fragmentation and bursting, but not 11n aggregation.
+		 * Same as "len", but for next frame.  Set to 0 if not applicable.
+		 */
+		__le16 next_frame_len;
 
-	__le32 tx_flags;	/* TX_CMD_FLG_* */
+		__le32 tx_flags;	/* TX_CMD_FLG_* */
 
-	u8 rate;
+		u8 rate;
 
-	/* Index of recipient station in uCode's station table */
-	u8 sta_id;
-	u8 tid_tspec;
-	u8 sec_ctl;
-	u8 key[16];
-	union {
-		u8 byte[8];
-		__le16 word[4];
-		__le32 dw[2];
-	} tkip_mic;
-	__le32 next_frame_info;
-	union {
-		__le32 life_time;
-		__le32 attempt;
-	} stop_time;
-	u8 supp_rates[2];
-	u8 rts_retry_limit;	/*byte 50 */
-	u8 data_retry_limit;	/*byte 51 */
-	union {
-		__le16 pm_frame_timeout;
-		__le16 attempt_duration;
-	} timeout;
+		/* Index of recipient station in uCode's station table */
+		u8 sta_id;
+		u8 tid_tspec;
+		u8 sec_ctl;
+		u8 key[16];
+		union {
+			u8 byte[8];
+			__le16 word[4];
+			__le32 dw[2];
+		} tkip_mic;
+		__le32 next_frame_info;
+		union {
+			__le32 life_time;
+			__le32 attempt;
+		} stop_time;
+		u8 supp_rates[2];
+		u8 rts_retry_limit;	/*byte 50 */
+		u8 data_retry_limit;	/*byte 51 */
+		union {
+			__le16 pm_frame_timeout;
+			__le16 attempt_duration;
+		} timeout;
 
-	/*
-	 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
-	 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
-	 */
-	__le16 driver_txop;
+		/*
+		 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
+		 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
+		 */
+		__le16 driver_txop;
+	);
 
 	/*
 	 * MAC header goes here, followed by 2 bytes padding if MAC header
 	 * length is 26 or 30 bytes, followed by payload data
 	 */
-	union {
-		DECLARE_FLEX_ARRAY(u8, payload);
-		DECLARE_FLEX_ARRAY(struct ieee80211_hdr, hdr);
-	};
+	struct ieee80211_hdr hdr[];
 } __packed;
+static_assert(offsetof(struct il3945_tx_cmd, hdr) == sizeof(struct il3945_tx_cmd_hdr),
+	      "struct member likely outside of __struct_group()");
 
 /*
  * C_TX = 0x1c (response)
@@ -1438,83 +1447,87 @@ struct il_dram_scratch {
 } __packed;
 
 struct il_tx_cmd {
-	/*
-	 * MPDU byte count:
-	 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
-	 * + 8 byte IV for CCM or TKIP (not used for WEP)
-	 * + Data payload
-	 * + 8-byte MIC (not used for CCM/WEP)
-	 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
-	 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
-	 * Range: 14-2342 bytes.
-	 */
-	__le16 len;
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(il_tx_cmd_hdr, __hdr, __packed,
+		/*
+		 * MPDU byte count:
+		 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
+		 * + 8 byte IV for CCM or TKIP (not used for WEP)
+		 * + Data payload
+		 * + 8-byte MIC (not used for CCM/WEP)
+		 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
+		 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
+		 * Range: 14-2342 bytes.
+		 */
+		__le16 len;
 
-	/*
-	 * MPDU or MSDU byte count for next frame.
-	 * Used for fragmentation and bursting, but not 11n aggregation.
-	 * Same as "len", but for next frame.  Set to 0 if not applicable.
-	 */
-	__le16 next_frame_len;
+		/*
+		 * MPDU or MSDU byte count for next frame.
+		 * Used for fragmentation and bursting, but not 11n aggregation.
+		 * Same as "len", but for next frame.  Set to 0 if not applicable.
+		 */
+		__le16 next_frame_len;
 
-	__le32 tx_flags;	/* TX_CMD_FLG_* */
+		__le32 tx_flags;	/* TX_CMD_FLG_* */
 
-	/* uCode may modify this field of the Tx command (in host DRAM!).
-	 * Driver must also set dram_lsb_ptr and dram_msb_ptr in this cmd. */
-	struct il_dram_scratch scratch;
+		/* uCode may modify this field of the Tx command (in host DRAM!).
+		 * Driver must also set dram_lsb_ptr and dram_msb_ptr in this cmd. */
+		struct il_dram_scratch scratch;
 
-	/* Rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is cleared. */
-	__le32 rate_n_flags;	/* RATE_MCS_* */
+		/* Rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is cleared. */
+		__le32 rate_n_flags;	/* RATE_MCS_* */
 
-	/* Index of destination station in uCode's station table */
-	u8 sta_id;
+		/* Index of destination station in uCode's station table */
+		u8 sta_id;
 
-	/* Type of security encryption:  CCM or TKIP */
-	u8 sec_ctl;		/* TX_CMD_SEC_* */
+		/* Type of security encryption:  CCM or TKIP */
+		u8 sec_ctl;		/* TX_CMD_SEC_* */
 
-	/*
-	 * Index into rate table (see C_TX_LINK_QUALITY_CMD) for initial
-	 * Tx attempt, if TX_CMD_FLG_STA_RATE_MSK is set.  Normally "0" for
-	 * data frames, this field may be used to selectively reduce initial
-	 * rate (via non-0 value) for special frames (e.g. management), while
-	 * still supporting rate scaling for all frames.
-	 */
-	u8 initial_rate_idx;
-	u8 reserved;
-	u8 key[16];
-	__le16 next_frame_flags;
-	__le16 reserved2;
-	union {
-		__le32 life_time;
-		__le32 attempt;
-	} stop_time;
+		/*
+		 * Index into rate table (see C_TX_LINK_QUALITY_CMD) for initial
+		 * Tx attempt, if TX_CMD_FLG_STA_RATE_MSK is set.  Normally "0" for
+		 * data frames, this field may be used to selectively reduce initial
+		 * rate (via non-0 value) for special frames (e.g. management), while
+		 * still supporting rate scaling for all frames.
+		 */
+		u8 initial_rate_idx;
+		u8 reserved;
+		u8 key[16];
+		__le16 next_frame_flags;
+		__le16 reserved2;
+		union {
+			__le32 life_time;
+			__le32 attempt;
+		} stop_time;
 
-	/* Host DRAM physical address pointer to "scratch" in this command.
-	 * Must be dword aligned.  "0" in dram_lsb_ptr disables usage. */
-	__le32 dram_lsb_ptr;
-	u8 dram_msb_ptr;
+		/* Host DRAM physical address pointer to "scratch" in this command.
+		 * Must be dword aligned.  "0" in dram_lsb_ptr disables usage. */
+		__le32 dram_lsb_ptr;
+		u8 dram_msb_ptr;
 
-	u8 rts_retry_limit;	/*byte 50 */
-	u8 data_retry_limit;	/*byte 51 */
-	u8 tid_tspec;
-	union {
-		__le16 pm_frame_timeout;
-		__le16 attempt_duration;
-	} timeout;
+		u8 rts_retry_limit;	/*byte 50 */
+		u8 data_retry_limit;	/*byte 51 */
+		u8 tid_tspec;
+		union {
+			__le16 pm_frame_timeout;
+			__le16 attempt_duration;
+		} timeout;
 
-	/*
-	 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
-	 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
-	 */
-	__le16 driver_txop;
+		/*
+		 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
+		 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
+		 */
+		__le16 driver_txop;
+	);
 
 	/*
 	 * MAC header goes here, followed by 2 bytes padding if MAC header
 	 * length is 26 or 30 bytes, followed by payload data
 	 */
-	u8 payload[0];
 	struct ieee80211_hdr hdr[];
 } __packed;
+static_assert(offsetof(struct il_tx_cmd, hdr) == sizeof(struct il_tx_cmd_hdr),
+	      "struct member likely outside of __struct_group()");
 
 /* TX command response is sent after *3945* transmission attempts.
  *
@@ -2502,7 +2515,7 @@ struct il3945_scan_cmd {
 
 	/* For active scans (set to all-0s for passive scans).
 	 * Does not include payload.  Must specify Tx rate; no rate scaling. */
-	struct il3945_tx_cmd tx_cmd;
+	struct il3945_tx_cmd_hdr tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
 	struct il_ssid_ie direct_scan[PROBE_OPTION_MAX_3945];
@@ -2546,7 +2559,7 @@ struct il_scan_cmd {
 
 	/* For active scans (set to all-0s for passive scans).
 	 * Does not include payload.  Must specify Tx rate; no rate scaling. */
-	struct il_tx_cmd tx_cmd;
+	struct il_tx_cmd_hdr tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
 	struct il_ssid_ie direct_scan[PROBE_OPTION_MAX];
@@ -2662,7 +2675,7 @@ struct il4965_beacon_notif {
  */
 
 struct il3945_tx_beacon_cmd {
-	struct il3945_tx_cmd tx;
+	struct il3945_tx_cmd_hdr tx;
 	__le16 tim_idx;
 	u8 tim_size;
 	u8 reserved1;
@@ -2670,7 +2683,7 @@ struct il3945_tx_beacon_cmd {
 } __packed;
 
 struct il_tx_beacon_cmd {
-	struct il_tx_cmd tx;
+	struct il_tx_cmd_hdr tx;
 	__le16 tim_idx;
 	u8 tim_size;
 	u8 reserved1;

@@ -54,6 +54,17 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
 #define valid_user_address(x) ((__force long)(x) >= 0)
 
 /*
+ * Masking the user address is an alternative to a conditional
+ * user_access_begin that can avoid the fencing. This only works
+ * for dense accesses starting at the address.
+ */
+#define mask_user_address(x) ((typeof(x))((long)(x)|((long)(x)>>63)))
+#define masked_user_access_begin(x) ({				\
+	__auto_type __masked_ptr = (x);				\
+	__masked_ptr = mask_user_address(__masked_ptr);		\
+	__uaccess_begin(); __masked_ptr; })
+
+/*
  * User pointers can have tag bits on x86-64.  This scheme tolerates
  * arbitrary values in those bits rather then masking them off.
  *

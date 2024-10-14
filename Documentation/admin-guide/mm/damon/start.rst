@@ -7,7 +7,7 @@ Getting Started
 This document briefly describes how you can use DAMON by demonstrating its
 default user space tool.  Please note that this document describes only a part
 of its features for brevity.  Please refer to the usage `doc
-<https://github.com/awslabs/damo/blob/next/USAGE.md>`_ of the tool for more
+<https://github.com/damonitor/damo/blob/next/USAGE.md>`_ of the tool for more
 details.
 
 
@@ -26,7 +26,7 @@ User Space Tool
 
 For the demonstration, we will use the default user space tool for DAMON,
 called DAMON Operator (DAMO).  It is available at
-https://github.com/awslabs/damo.  The examples below assume that ``damo`` is on
+https://github.com/damonitor/damo.  The examples below assume that ``damo`` is on
 your ``$PATH``.  It's not mandatory, though.
 
 Because DAMO is using the sysfs interface (refer to :doc:`usage` for the

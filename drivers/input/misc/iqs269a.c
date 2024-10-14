@@ -811,7 +811,6 @@ static int iqs269_parse_prop(struct iqs269_private *iqs269)
 {
 	struct iqs269_sys_reg *sys_reg = &iqs269->sys_reg;
 	struct i2c_client *client = iqs269->client;
-	struct fwnode_handle *ch_node;
 	u16 general, misc_a, misc_b;
 	unsigned int val;
 	int error;
@@ -1049,12 +1048,10 @@ static int iqs269_parse_prop(struct iqs269_private *iqs269)
 
 	sys_reg->event_mask = ~((u8)IQS269_EVENT_MASK_SYS);
 
-	device_for_each_child_node(&client->dev, ch_node) {
+	device_for_each_child_node_scoped(&client->dev, ch_node) {
 		error = iqs269_parse_chan(iqs269, ch_node);
-		if (error) {
-			fwnode_handle_put(ch_node);
+		if (error)
 			return error;
-		}
 	}
 
 	/*

@@ -527,7 +527,6 @@ static int mt6323_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev_of_node(dev);
-	struct device_node *child;
 	struct mt6397_chip *hw = dev_get_drvdata(dev->parent);
 	struct mt6323_leds *leds;
 	struct mt6323_led *led;
@@ -565,28 +564,25 @@ static int mt6323_led_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_node_scoped(np, child) {
 		struct led_init_data init_data = {};
 		bool is_wled;
 
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to read led 'reg' property\n");
-			goto put_child_node;
+			return ret;
 		}
 
 		if (reg >= max_leds || reg >= MAX_SUPPORTED_LEDS ||
 		    leds->led[reg]) {
 			dev_err(dev, "Invalid led reg %u\n", reg);
-			ret = -EINVAL;
-			goto put_child_node;
+			return -EINVAL;
 		}
 
 		led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
-		if (!led) {
-			ret = -ENOMEM;
-			goto put_child_node;
-		}
+		if (!led)
+			return -ENOMEM;
 
 		is_wled = of_property_read_bool(child, "mediatek,is-wled");
 
@@ -612,7 +608,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 		if (ret < 0) {
 			dev_err(leds->dev,
 				"Failed to LED set default from devicetree\n");
-			goto put_child_node;
+			return ret;
 		}
 
 		init_data.fwnode = of_fwnode_handle(child);
@@ -621,15 +617,11 @@ static int mt6323_led_probe(struct platform_device *pdev)
 						     &init_data);
 		if (ret) {
 			dev_err(dev, "Failed to register LED: %d\n", ret);
-			goto put_child_node;
+			return ret;
 		}
 	}
 
 	return 0;
-
-put_child_node:
-	of_node_put(child);
-	return ret;
 }
 
 static void mt6323_led_remove(struct platform_device *pdev)

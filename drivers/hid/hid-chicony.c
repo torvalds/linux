@@ -88,8 +88,8 @@ static int ch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 1;
 }
 
-static __u8 *ch_switch12_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize)
+static const __u8 *ch_switch12_report_fixup(struct hid_device *hdev,
+		__u8 *rdesc, unsigned int *rsize)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 	

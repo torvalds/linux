@@ -18,6 +18,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <xalloc.h>
 #include "internal.h"
 #include "lkc.h"
 
@@ -394,6 +395,8 @@ load:
 			sym->def[def].tri = no;
 		}
 	}
+
+	expr_invalidate_all();
 
 	while (getline_stripped(&line, &line_asize, in) != -1) {
 		struct menu *choice;

@@ -156,7 +156,7 @@ static struct platform_driver clk_mt8173_infracfg_drv = {
 		.of_match_table = of_match_clk_mt8173_infracfg,
 	},
 	.probe = clk_mt8173_infracfg_probe,
-	.remove_new = clk_mt8173_infracfg_remove,
+	.remove = clk_mt8173_infracfg_remove,
 };
 module_platform_driver(clk_mt8173_infracfg_drv);
 

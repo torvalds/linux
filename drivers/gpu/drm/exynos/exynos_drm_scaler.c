@@ -403,7 +403,7 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	return 0;
 }
 
-static struct exynos_drm_ipp_funcs ipp_funcs = {
+static const struct exynos_drm_ipp_funcs ipp_funcs = {
 	.commit = scaler_commit,
 };
 

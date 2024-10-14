@@ -17,7 +17,7 @@
 
 #include <linux/util_macros.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define SI1133_REG_PART_ID		0x00
 #define SI1133_REG_REV_ID		0x01

@@ -9,7 +9,6 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/usb/pd.h>
 #include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	model = "Firefly-RK3399 Board";

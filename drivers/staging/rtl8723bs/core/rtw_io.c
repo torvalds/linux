@@ -26,7 +26,6 @@ jackson@realtek.com.tw
 */
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 
 u8 rtw_read8(struct adapter *adapter, u32 addr)
 {

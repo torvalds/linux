@@ -66,7 +66,7 @@ static int saitek_probe(struct hid_device *hdev,
 	return 0;
 }
 
-static __u8 *saitek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *saitek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	struct saitek_sc *ssc = hid_get_drvdata(hdev);

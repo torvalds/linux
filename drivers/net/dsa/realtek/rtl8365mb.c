@@ -1740,7 +1740,7 @@ static int rtl8365mb_irq_setup(struct realtek_priv *priv)
 	}
 
 	/* Configure chip interrupt signal polarity */
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
+	irq_trig = irq_get_trigger_type(irq);
 	switch (irq_trig) {
 	case IRQF_TRIGGER_RISING:
 	case IRQF_TRIGGER_HIGH:

@@ -846,7 +846,7 @@ xrep_dinode_bad_bmbt_fork(
 	nrecs = be16_to_cpu(dfp->bb_numrecs);
 	level = be16_to_cpu(dfp->bb_level);
 
-	if (nrecs == 0 || XFS_BMDR_SPACE_CALC(nrecs) > dfork_size)
+	if (nrecs == 0 || xfs_bmdr_space_calc(nrecs) > dfork_size)
 		return true;
 	if (level == 0 || level >= XFS_BM_MAXLEVELS(sc->mp, whichfork))
 		return true;
@@ -858,12 +858,12 @@ xrep_dinode_bad_bmbt_fork(
 		xfs_fileoff_t		fileoff;
 		xfs_fsblock_t		fsbno;
 
-		fkp = XFS_BMDR_KEY_ADDR(dfp, i);
+		fkp = xfs_bmdr_key_addr(dfp, i);
 		fileoff = be64_to_cpu(fkp->br_startoff);
 		if (!xfs_verify_fileoff(sc->mp, fileoff))
 			return true;
 
-		fpp = XFS_BMDR_PTR_ADDR(dfp, i, dmxr);
+		fpp = xfs_bmdr_ptr_addr(dfp, i, dmxr);
 		fsbno = be64_to_cpu(*fpp);
 		if (!xfs_verify_fsbno(sc->mp, fsbno))
 			return true;
@@ -1121,7 +1121,7 @@ xrep_dinode_ensure_forkoff(
 	struct xfs_bmdr_block	*bmdr;
 	struct xfs_scrub	*sc = ri->sc;
 	xfs_extnum_t		attr_extents, data_extents;
-	size_t			bmdr_minsz = XFS_BMDR_SPACE_CALC(1);
+	size_t			bmdr_minsz = xfs_bmdr_space_calc(1);
 	unsigned int		lit_sz = XFS_LITINO(sc->mp);
 	unsigned int		afork_min, dfork_min;
 
@@ -1173,7 +1173,7 @@ xrep_dinode_ensure_forkoff(
 	case XFS_DINODE_FMT_BTREE:
 		/* Must have space for btree header and key/pointers. */
 		bmdr = XFS_DFORK_PTR(dip, XFS_ATTR_FORK);
-		afork_min = XFS_BMAP_BROOT_SPACE(sc->mp, bmdr);
+		afork_min = xfs_bmap_broot_space(sc->mp, bmdr);
 		break;
 	default:
 		/* We should never see any other formats. */
@@ -1223,7 +1223,7 @@ xrep_dinode_ensure_forkoff(
 	case XFS_DINODE_FMT_BTREE:
 		/* Must have space for btree header and key/pointers. */
 		bmdr = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
-		dfork_min = XFS_BMAP_BROOT_SPACE(sc->mp, bmdr);
+		dfork_min = xfs_bmap_broot_space(sc->mp, bmdr);
 		break;
 	default:
 		dfork_min = 0;

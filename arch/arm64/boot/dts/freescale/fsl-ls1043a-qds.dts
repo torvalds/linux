@@ -211,7 +211,7 @@
 };
 
 &fpga {
-	mdio-mux-emi1@54 {
+	mdio-mux@54 {
 		compatible = "mdio-mux-mmioreg", "mdio-mux";
 		mdio-parent-bus = <&mdio0>;
 		#address-cells = <1>;

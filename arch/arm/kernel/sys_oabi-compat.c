@@ -239,19 +239,19 @@ asmlinkage long sys_oabi_fcntl64(unsigned int fd, unsigned int cmd,
 	struct flock64 flock;
 	long err = -EBADF;
 
-	if (!f.file)
+	if (!fd_file(f))
 		goto out;
 
 	switch (cmd) {
 	case F_GETLK64:
 	case F_OFD_GETLK:
-		err = security_file_fcntl(f.file, cmd, arg);
+		err = security_file_fcntl(fd_file(f), cmd, arg);
 		if (err)
 			break;
 		err = get_oabi_flock(&flock, argp);
 		if (err)
 			break;
-		err = fcntl_getlk64(f.file, cmd, &flock);
+		err = fcntl_getlk64(fd_file(f), cmd, &flock);
 		if (!err)
 		       err = put_oabi_flock(&flock, argp);
 		break;
@@ -259,13 +259,13 @@ asmlinkage long sys_oabi_fcntl64(unsigned int fd, unsigned int cmd,
 	case F_SETLKW64:
 	case F_OFD_SETLK:
 	case F_OFD_SETLKW:
-		err = security_file_fcntl(f.file, cmd, arg);
+		err = security_file_fcntl(fd_file(f), cmd, arg);
 		if (err)
 			break;
 		err = get_oabi_flock(&flock, argp);
 		if (err)
 			break;
-		err = fcntl_setlk64(fd, f.file, cmd, &flock);
+		err = fcntl_setlk64(fd, fd_file(f), cmd, &flock);
 		break;
 	default:
 		err = sys_fcntl64(fd, cmd, arg);

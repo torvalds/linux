@@ -30,9 +30,9 @@
 #include "util.h"
 #include "trace_gfs2.h"
 
-static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wbc)
+static void gfs2_aspace_write_folio(struct folio *folio,
+		struct writeback_control *wbc)
 {
-	struct folio *folio = page_folio(page);
 	struct buffer_head *bh, *head;
 	int nr_underway = 0;
 	blk_opf_t write_flags = REQ_META | REQ_PRIO | wbc_to_write_flags(wbc);
@@ -66,8 +66,8 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 	} while ((bh = bh->b_this_page) != head);
 
 	/*
-	 * The page and its buffers are protected by PageWriteback(), so we can
-	 * drop the bh refcounts early.
+	 * The folio and its buffers are protected from truncation by
+	 * the writeback flag, so we can drop the bh refcounts early.
 	 */
 	BUG_ON(folio_test_writeback(folio));
 	folio_start_writeback(folio);
@@ -84,21 +84,31 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 
 	if (nr_underway == 0)
 		folio_end_writeback(folio);
+}
 
-	return 0;
+static int gfs2_aspace_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
+{
+	struct folio *folio = NULL;
+	int error;
+
+	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
+		gfs2_aspace_write_folio(folio, wbc);
+
+	return error;
 }
 
 const struct address_space_operations gfs2_meta_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.writepage = gfs2_aspace_writepage,
+	.writepages = gfs2_aspace_writepages,
 	.release_folio = gfs2_release_folio,
 };
 
 const struct address_space_operations gfs2_rgrp_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.writepage = gfs2_aspace_writepage,
+	.writepages = gfs2_aspace_writepages,
 	.release_folio = gfs2_release_folio,
 };
 

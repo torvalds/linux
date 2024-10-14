@@ -232,6 +232,21 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 	capability. If that is not set, then the ``EPERM`` error code is
 	returned.
 
+    * .. _`CEC-MSG-FL-REPLY-VENDOR-ID`:
+
+      - ``CEC_MSG_FL_REPLY_VENDOR_ID``
+      - 4
+      - This flag is only available if the ``CEC_CAP_REPLY_VENDOR_ID`` capability
+	is set. If this flag is set, then the reply is expected to consist of
+	the ``CEC_MSG_VENDOR_COMMAND_WITH_ID`` opcode followed by the Vendor ID
+	(in bytes 1-4 of the message), followed by the ``struct cec_msg``
+	``reply`` field.
+
+	Note that this assumes that the byte after the Vendor ID is a
+	vendor-specific opcode.
+
+	This flag makes it easier to wait for replies to vendor commands.
+
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{10.8cm}|
 
 .. _cec-tx-status:

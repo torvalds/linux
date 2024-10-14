@@ -30,6 +30,11 @@ static struct mm_struct sva_mm = {
 	.pgd = (void *)0xdaedbeefdeadbeefULL,
 };
 
+enum arm_smmu_test_master_feat {
+	ARM_SMMU_MASTER_TEST_ATS = BIT(0),
+	ARM_SMMU_MASTER_TEST_STALL = BIT(1),
+};
+
 static bool arm_smmu_entry_differs_in_used_bits(const __le64 *entry,
 						const __le64 *used_bits,
 						const __le64 *target,
@@ -164,16 +169,22 @@ static const dma_addr_t fake_cdtab_dma_addr = 0xF0F0F0F0F0F0;
 
 static void arm_smmu_test_make_cdtable_ste(struct arm_smmu_ste *ste,
 					   unsigned int s1dss,
-					   const dma_addr_t dma_addr)
+					   const dma_addr_t dma_addr,
+					   enum arm_smmu_test_master_feat feat)
 {
+	bool ats_enabled = feat & ARM_SMMU_MASTER_TEST_ATS;
+	bool stall_enabled = feat & ARM_SMMU_MASTER_TEST_STALL;
+
 	struct arm_smmu_master master = {
+		.ats_enabled = ats_enabled,
 		.cd_table.cdtab_dma = dma_addr,
 		.cd_table.s1cdmax = 0xFF,
 		.cd_table.s1fmt = STRTAB_STE_0_S1FMT_64K_L2,
 		.smmu = &smmu,
+		.stall_enabled = stall_enabled,
 	};
 
-	arm_smmu_make_cdtable_ste(ste, &master, true, s1dss);
+	arm_smmu_make_cdtable_ste(ste, &master, ats_enabled, s1dss);
 }
 
 static void arm_smmu_v3_write_ste_test_bypass_to_abort(struct kunit *test)
@@ -204,7 +215,7 @@ static void arm_smmu_v3_write_ste_test_cdtable_to_abort(struct kunit *test)
 	struct arm_smmu_ste ste;
 
 	arm_smmu_test_make_cdtable_ste(&ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &ste, &abort_ste,
 						       NUM_EXPECTED_SYNCS(2));
 }
@@ -214,7 +225,7 @@ static void arm_smmu_v3_write_ste_test_abort_to_cdtable(struct kunit *test)
 	struct arm_smmu_ste ste;
 
 	arm_smmu_test_make_cdtable_ste(&ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &abort_ste, &ste,
 						       NUM_EXPECTED_SYNCS(2));
 }
@@ -224,7 +235,7 @@ static void arm_smmu_v3_write_ste_test_cdtable_to_bypass(struct kunit *test)
 	struct arm_smmu_ste ste;
 
 	arm_smmu_test_make_cdtable_ste(&ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &ste, &bypass_ste,
 						       NUM_EXPECTED_SYNCS(3));
 }
@@ -234,7 +245,7 @@ static void arm_smmu_v3_write_ste_test_bypass_to_cdtable(struct kunit *test)
 	struct arm_smmu_ste ste;
 
 	arm_smmu_test_make_cdtable_ste(&ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &bypass_ste, &ste,
 						       NUM_EXPECTED_SYNCS(3));
 }
@@ -245,9 +256,9 @@ static void arm_smmu_v3_write_ste_test_cdtable_s1dss_change(struct kunit *test)
 	struct arm_smmu_ste s1dss_bypass;
 
 	arm_smmu_test_make_cdtable_ste(&ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_test_make_cdtable_ste(&s1dss_bypass, STRTAB_STE_1_S1DSS_BYPASS,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 
 	/*
 	 * Flipping s1dss on a CD table STE only involves changes to the second
@@ -265,7 +276,7 @@ arm_smmu_v3_write_ste_test_s1dssbypass_to_stebypass(struct kunit *test)
 	struct arm_smmu_ste s1dss_bypass;
 
 	arm_smmu_test_make_cdtable_ste(&s1dss_bypass, STRTAB_STE_1_S1DSS_BYPASS,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(
 		test, &s1dss_bypass, &bypass_ste, NUM_EXPECTED_SYNCS(2));
 }
@@ -276,16 +287,20 @@ arm_smmu_v3_write_ste_test_stebypass_to_s1dssbypass(struct kunit *test)
 	struct arm_smmu_ste s1dss_bypass;
 
 	arm_smmu_test_make_cdtable_ste(&s1dss_bypass, STRTAB_STE_1_S1DSS_BYPASS,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(
 		test, &bypass_ste, &s1dss_bypass, NUM_EXPECTED_SYNCS(2));
 }
 
 static void arm_smmu_test_make_s2_ste(struct arm_smmu_ste *ste,
-				      bool ats_enabled)
+				      enum arm_smmu_test_master_feat feat)
 {
+	bool ats_enabled = feat & ARM_SMMU_MASTER_TEST_ATS;
+	bool stall_enabled = feat & ARM_SMMU_MASTER_TEST_STALL;
 	struct arm_smmu_master master = {
+		.ats_enabled = ats_enabled,
 		.smmu = &smmu,
+		.stall_enabled = stall_enabled,
 	};
 	struct io_pgtable io_pgtable = {};
 	struct arm_smmu_domain smmu_domain = {
@@ -308,7 +323,7 @@ static void arm_smmu_v3_write_ste_test_s2_to_abort(struct kunit *test)
 {
 	struct arm_smmu_ste ste;
 
-	arm_smmu_test_make_s2_ste(&ste, true);
+	arm_smmu_test_make_s2_ste(&ste, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &ste, &abort_ste,
 						       NUM_EXPECTED_SYNCS(2));
 }
@@ -317,7 +332,7 @@ static void arm_smmu_v3_write_ste_test_abort_to_s2(struct kunit *test)
 {
 	struct arm_smmu_ste ste;
 
-	arm_smmu_test_make_s2_ste(&ste, true);
+	arm_smmu_test_make_s2_ste(&ste, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &abort_ste, &ste,
 						       NUM_EXPECTED_SYNCS(2));
 }
@@ -326,7 +341,7 @@ static void arm_smmu_v3_write_ste_test_s2_to_bypass(struct kunit *test)
 {
 	struct arm_smmu_ste ste;
 
-	arm_smmu_test_make_s2_ste(&ste, true);
+	arm_smmu_test_make_s2_ste(&ste, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &ste, &bypass_ste,
 						       NUM_EXPECTED_SYNCS(2));
 }
@@ -335,7 +350,7 @@ static void arm_smmu_v3_write_ste_test_bypass_to_s2(struct kunit *test)
 {
 	struct arm_smmu_ste ste;
 
-	arm_smmu_test_make_s2_ste(&ste, true);
+	arm_smmu_test_make_s2_ste(&ste, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &bypass_ste, &ste,
 						       NUM_EXPECTED_SYNCS(2));
 }
@@ -346,8 +361,8 @@ static void arm_smmu_v3_write_ste_test_s1_to_s2(struct kunit *test)
 	struct arm_smmu_ste s2_ste;
 
 	arm_smmu_test_make_cdtable_ste(&s1_ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
-	arm_smmu_test_make_s2_ste(&s2_ste, true);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
+	arm_smmu_test_make_s2_ste(&s2_ste, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &s1_ste, &s2_ste,
 						       NUM_EXPECTED_SYNCS(3));
 }
@@ -358,8 +373,8 @@ static void arm_smmu_v3_write_ste_test_s2_to_s1(struct kunit *test)
 	struct arm_smmu_ste s2_ste;
 
 	arm_smmu_test_make_cdtable_ste(&s1_ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
-	arm_smmu_test_make_s2_ste(&s2_ste, true);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
+	arm_smmu_test_make_s2_ste(&s2_ste, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_hitless_transition(test, &s2_ste, &s1_ste,
 						       NUM_EXPECTED_SYNCS(3));
 }
@@ -375,9 +390,9 @@ static void arm_smmu_v3_write_ste_test_non_hitless(struct kunit *test)
 	 * s1 dss field in the same update.
 	 */
 	arm_smmu_test_make_cdtable_ste(&ste, STRTAB_STE_1_S1DSS_SSID0,
-				       fake_cdtab_dma_addr);
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_test_make_cdtable_ste(&ste_2, STRTAB_STE_1_S1DSS_BYPASS,
-				       0x4B4B4b4B4B);
+				       0x4B4B4b4B4B, ARM_SMMU_MASTER_TEST_ATS);
 	arm_smmu_v3_test_ste_expect_non_hitless_transition(
 		test, &ste, &ste_2, NUM_EXPECTED_SYNCS(3));
 }
@@ -503,6 +518,30 @@ static void arm_smmu_test_make_sva_release_cd(struct arm_smmu_cd *cd,
 	arm_smmu_make_sva_cd(cd, &master, NULL, asid);
 }
 
+static void arm_smmu_v3_write_ste_test_s1_to_s2_stall(struct kunit *test)
+{
+	struct arm_smmu_ste s1_ste;
+	struct arm_smmu_ste s2_ste;
+
+	arm_smmu_test_make_cdtable_ste(&s1_ste, STRTAB_STE_1_S1DSS_SSID0,
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_STALL);
+	arm_smmu_test_make_s2_ste(&s2_ste, ARM_SMMU_MASTER_TEST_STALL);
+	arm_smmu_v3_test_ste_expect_hitless_transition(test, &s1_ste, &s2_ste,
+						       NUM_EXPECTED_SYNCS(3));
+}
+
+static void arm_smmu_v3_write_ste_test_s2_to_s1_stall(struct kunit *test)
+{
+	struct arm_smmu_ste s1_ste;
+	struct arm_smmu_ste s2_ste;
+
+	arm_smmu_test_make_cdtable_ste(&s1_ste, STRTAB_STE_1_S1DSS_SSID0,
+				       fake_cdtab_dma_addr, ARM_SMMU_MASTER_TEST_STALL);
+	arm_smmu_test_make_s2_ste(&s2_ste, ARM_SMMU_MASTER_TEST_STALL);
+	arm_smmu_v3_test_ste_expect_hitless_transition(test, &s2_ste, &s1_ste,
+						       NUM_EXPECTED_SYNCS(3));
+}
+
 static void arm_smmu_v3_write_cd_test_sva_clear(struct kunit *test)
 {
 	struct arm_smmu_cd cd = {};
@@ -547,6 +586,8 @@ static struct kunit_case arm_smmu_v3_test_cases[] = {
 	KUNIT_CASE(arm_smmu_v3_write_ste_test_non_hitless),
 	KUNIT_CASE(arm_smmu_v3_write_cd_test_s1_clear),
 	KUNIT_CASE(arm_smmu_v3_write_cd_test_s1_change_asid),
+	KUNIT_CASE(arm_smmu_v3_write_ste_test_s1_to_s2_stall),
+	KUNIT_CASE(arm_smmu_v3_write_ste_test_s2_to_s1_stall),
 	KUNIT_CASE(arm_smmu_v3_write_cd_test_sva_clear),
 	KUNIT_CASE(arm_smmu_v3_write_cd_test_sva_release),
 	{},

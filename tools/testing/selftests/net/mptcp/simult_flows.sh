@@ -286,6 +286,7 @@ while getopts "bcdhi" option;do
 done
 
 setup
+mptcp_lib_subtests_last_ts_reset
 run_test 10 10 0 0 "balanced bwidth"
 run_test 10 10 1 25 "balanced bwidth with unbalanced delay"
 

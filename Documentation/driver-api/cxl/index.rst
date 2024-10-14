@@ -8,6 +8,7 @@ Compute Express Link
    :maxdepth: 1
 
    memory-devices
+   access-coordinates
 
    maturity-map
 

@@ -30,6 +30,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <linux/pci.h>
 #include <xen/acpi.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
@@ -75,3 +76,52 @@ int xen_acpi_notify_hypervisor_extended_sleep(u8 sleep_state,
 	return xen_acpi_notify_hypervisor_state(sleep_state, val_a,
 						val_b, true);
 }
+
+struct acpi_prt_entry {
+	struct acpi_pci_id      id;
+	u8                      pin;
+	acpi_handle             link;
+	u32                     index;
+};
+
+int xen_acpi_get_gsi_info(struct pci_dev *dev,
+						  int *gsi_out,
+						  int *trigger_out,
+						  int *polarity_out)
+{
+	int gsi;
+	u8 pin;
+	struct acpi_prt_entry *entry;
+	int trigger = ACPI_LEVEL_SENSITIVE;
+	int polarity = acpi_irq_model == ACPI_IRQ_MODEL_GIC ?
+				      ACPI_ACTIVE_HIGH : ACPI_ACTIVE_LOW;
+
+	if (!dev || !gsi_out || !trigger_out || !polarity_out)
+		return -EINVAL;
+
+	pin = dev->pin;
+	if (!pin)
+		return -EINVAL;
+
+	entry = acpi_pci_irq_lookup(dev, pin);
+	if (entry) {
+		if (entry->link)
+			gsi = acpi_pci_link_allocate_irq(entry->link,
+							 entry->index,
+							 &trigger, &polarity,
+							 NULL);
+		else
+			gsi = entry->index;
+	} else
+		gsi = -1;
+
+	if (gsi < 0)
+		return -EINVAL;
+
+	*gsi_out = gsi;
+	*trigger_out = trigger;
+	*polarity_out = polarity;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xen_acpi_get_gsi_info);

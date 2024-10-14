@@ -73,7 +73,7 @@ struct tk_read_base {
  * @overflow_seen:	Overflow warning flag (DEBUG_TIMEKEEPING)
  *
  * Note: For timespec(64) based interfaces wall_to_monotonic is what
- * we need to add to xtime (or xtime corrected for sub jiffie times)
+ * we need to add to xtime (or xtime corrected for sub jiffy times)
  * to get to monotonic time.  Monotonic is pegged at zero at system
  * boot time, so wall_to_monotonic will be negative, however, we will
  * ALWAYS keep the tv_nsec part positive so we can use the usual

@@ -219,7 +219,6 @@ read_attribute(copy_gc_wait);
 rw_attribute(rebalance_enabled);
 sysfs_pd_controller_attribute(rebalance);
 read_attribute(rebalance_status);
-rw_attribute(promote_whole_extents);
 
 read_attribute(new_stripes);
 
@@ -234,7 +233,7 @@ write_attribute(perf_test);
 
 #define x(_name)						\
 	static struct attribute sysfs_time_stat_##_name =		\
-		{ .name = #_name, .mode = 0444 };
+		{ .name = #_name, .mode = 0644 };
 	BCH_TIME_STATS()
 #undef x
 
@@ -245,14 +244,18 @@ static struct attribute sysfs_state_rw = {
 
 static size_t bch2_btree_cache_size(struct bch_fs *c)
 {
+	struct btree_cache *bc = &c->btree_cache;
 	size_t ret = 0;
 	struct btree *b;
 
-	mutex_lock(&c->btree_cache.lock);
-	list_for_each_entry(b, &c->btree_cache.live, list)
+	mutex_lock(&bc->lock);
+	list_for_each_entry(b, &bc->live[0].list, list)
 		ret += btree_buf_bytes(b);
-
-	mutex_unlock(&c->btree_cache.lock);
+	list_for_each_entry(b, &bc->live[1].list, list)
+		ret += btree_buf_bytes(b);
+	list_for_each_entry(b, &bc->freeable, list)
+		ret += btree_buf_bytes(b);
+	mutex_unlock(&bc->lock);
 	return ret;
 }
 
@@ -288,7 +291,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 		prt_tab_rjust(out);
 
 		prt_human_readable_u64(out, nr_extents
-				       ? div_u64(sectors_uncompressed << 9, nr_extents)
+				       ? div64_u64(sectors_uncompressed << 9, nr_extents)
 				       : 0);
 		prt_tab_rjust(out);
 		prt_newline(out);
@@ -346,8 +349,6 @@ SHOW(bch2_fs)
 
 	if (attr == &sysfs_rebalance_status)
 		bch2_rebalance_status_to_text(out, c);
-
-	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
 
 	/* Debugging: */
 
@@ -436,8 +437,6 @@ STORE(bch2_fs)
 
 	sysfs_pd_controller_store(rebalance,	&c->rebalance.pd);
 
-	sysfs_strtoul(promote_whole_extents,	c->promote_whole_extents);
-
 	/* Debugging: */
 
 	if (!test_bit(BCH_FS_started, &c->flags))
@@ -449,11 +448,12 @@ STORE(bch2_fs)
 		return -EROFS;
 
 	if (attr == &sysfs_trigger_btree_cache_shrink) {
+		struct btree_cache *bc = &c->btree_cache;
 		struct shrink_control sc;
 
 		sc.gfp_mask = GFP_KERNEL;
 		sc.nr_to_scan = strtoul_or_return(buf);
-		c->btree_cache.shrink->scan_objects(c->btree_cache.shrink, &sc);
+		bc->live[0].shrink->scan_objects(bc->live[0].shrink, &sc);
 	}
 
 	if (attr == &sysfs_trigger_btree_key_cache_shrink) {
@@ -461,7 +461,7 @@ STORE(bch2_fs)
 
 		sc.gfp_mask = GFP_KERNEL;
 		sc.nr_to_scan = strtoul_or_return(buf);
-		c->btree_key_cache.shrink->scan_objects(c->btree_cache.shrink, &sc);
+		c->btree_key_cache.shrink->scan_objects(c->btree_key_cache.shrink, &sc);
 	}
 
 	if (attr == &sysfs_trigger_gc)
@@ -514,7 +514,7 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_btree_cache_size,
 	&sysfs_btree_write_stats,
 
-	&sysfs_promote_whole_extents,
+	&sysfs_rebalance_status,
 
 	&sysfs_compression_stats,
 
@@ -614,7 +614,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_copy_gc_wait,
 
 	&sysfs_rebalance_enabled,
-	&sysfs_rebalance_status,
 	sysfs_pd_controller_files(rebalance),
 
 	&sysfs_moving_ctxts,
@@ -674,7 +673,7 @@ STORE(bch2_fs_opts_dir)
 	if (ret < 0)
 		goto err;
 
-	bch2_opt_set_sb(c, opt, v);
+	bch2_opt_set_sb(c, NULL, opt, v);
 	bch2_opt_set_by_id(&c->opts, id, v);
 
 	if (v &&
@@ -728,6 +727,13 @@ SHOW(bch2_fs_time_stats)
 
 STORE(bch2_fs_time_stats)
 {
+	struct bch_fs *c = container_of(kobj, struct bch_fs, time_stats);
+
+#define x(name)								\
+	if (attr == &sysfs_time_stat_##name)				\
+		bch2_time_stats_reset(&c->times[BCH_TIME_##name]);
+	BCH_TIME_STATS()
+#undef x
 	return size;
 }
 SYSFS_OPS(bch2_fs_time_stats);
@@ -821,32 +827,17 @@ STORE(bch2_dev)
 {
 	struct bch_dev *ca = container_of(kobj, struct bch_dev, kobj);
 	struct bch_fs *c = ca->fs;
-	struct bch_member *mi;
 
 	if (attr == &sysfs_discard) {
 		bool v = strtoul_or_return(buf);
 
-		mutex_lock(&c->sb_lock);
-		mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
-
-		if (v != BCH_MEMBER_DISCARD(mi)) {
-			SET_BCH_MEMBER_DISCARD(mi, v);
-			bch2_write_super(c);
-		}
-		mutex_unlock(&c->sb_lock);
+		bch2_opt_set_sb(c, ca, bch2_opt_table + Opt_discard, v);
 	}
 
 	if (attr == &sysfs_durability) {
 		u64 v = strtoul_or_return(buf);
 
-		mutex_lock(&c->sb_lock);
-		mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
-
-		if (v + 1 != BCH_MEMBER_DURABILITY(mi)) {
-			SET_BCH_MEMBER_DURABILITY(mi, v + 1);
-			bch2_write_super(c);
-		}
-		mutex_unlock(&c->sb_lock);
+		bch2_opt_set_sb(c, ca, bch2_opt_table + Opt_durability, v);
 	}
 
 	if (attr == &sysfs_label) {

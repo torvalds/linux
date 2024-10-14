@@ -7,7 +7,7 @@
 #define IB_HDRS_H
 
 #include <linux/types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <rdma/ib_verbs.h>
 
 #define IB_SEQ_NAK	(3 << 29)

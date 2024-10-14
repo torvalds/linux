@@ -397,6 +397,7 @@ inline uint16_t pseries_errorlog_length(struct pseries_errorlog *sect)
 #define PSERIES_HP_ELOG_RESOURCE_SLOT	3
 #define PSERIES_HP_ELOG_RESOURCE_PHB	4
 #define PSERIES_HP_ELOG_RESOURCE_PMEM   6
+#define PSERIES_HP_ELOG_RESOURCE_DT	7
 
 #define PSERIES_HP_ELOG_ACTION_ADD	1
 #define PSERIES_HP_ELOG_ACTION_REMOVE	2

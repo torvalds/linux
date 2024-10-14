@@ -28,7 +28,6 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
-#include "xfs_trans_priv.h"
 #include "xfs_exchmaps.h"
 
 static struct kmem_cache	*xfs_defer_pending_cache;

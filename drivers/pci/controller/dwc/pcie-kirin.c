@@ -420,11 +420,11 @@ static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 						     "unable to get a valid reset gpio\n");
 			}
 
-			pcie->num_slots++;
-			if (pcie->num_slots > MAX_PCI_SLOTS) {
+			if (pcie->num_slots + 1 >= MAX_PCI_SLOTS) {
 				dev_err(dev, "Too many PCI slots!\n");
 				return -EINVAL;
 			}
+			pcie->num_slots++;
 
 			ret = of_pci_get_devfn(child);
 			if (ret < 0) {

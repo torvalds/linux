@@ -333,7 +333,7 @@ file: media/v4l/capture.c
 	    if (-1 == xioctl(fd, VIDIOC_REQBUFS, &req)) {
 		    if (EINVAL == errno) {
 			    fprintf(stderr, "%s does not support "
-				     "memory mappingn", dev_name);
+				     "memory mapping\n", dev_name);
 			    exit(EXIT_FAILURE);
 		    } else {
 			    errno_exit("VIDIOC_REQBUFS");
@@ -391,7 +391,7 @@ file: media/v4l/capture.c
 	    if (-1 == xioctl(fd, VIDIOC_REQBUFS, &req)) {
 		    if (EINVAL == errno) {
 			    fprintf(stderr, "%s does not support "
-				     "user pointer i/on", dev_name);
+				     "user pointer i/o\n", dev_name);
 			    exit(EXIT_FAILURE);
 		    } else {
 			    errno_exit("VIDIOC_REQBUFS");
@@ -547,7 +547,7 @@ file: media/v4l/capture.c
 	    }
 
 	    if (!S_ISCHR(st.st_mode)) {
-		    fprintf(stderr, "%s is no devicen", dev_name);
+		    fprintf(stderr, "%s is no device\n", dev_name);
 		    exit(EXIT_FAILURE);
 	    }
 

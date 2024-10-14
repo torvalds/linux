@@ -133,6 +133,7 @@ config PPC
 	select ARCH_HAS_DEBUG_WX		if STRICT_KERNEL_RWX
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_DMA_MAP_DIRECT 		if PPC_PSERIES
+	select ARCH_HAS_DMA_OPS			if PPC64
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_KCOV
@@ -185,7 +186,6 @@ config PPC
 	select CPUMASK_OFFSTACK			if NR_CPUS >= 8192
 	select DCACHE_WORD_ACCESS		if PPC64 && CPU_LITTLE_ENDIAN
 	select DMA_OPS_BYPASS			if PPC64
-	select DMA_OPS				if PPC64
 	select DYNAMIC_FTRACE			if FUNCTION_TRACER
 	select EDAC_ATOMIC_SCRUB
 	select EDAC_SUPPORT
@@ -269,6 +269,7 @@ config PPC
 	select HAVE_PERF_EVENTS_NMI		if PPC64
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_RETHOOK			if KPROBES
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE
 	select HAVE_RSEQ
@@ -311,6 +312,7 @@ config PPC
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
+	select VDSO_GETRANDOM
 	#
 	# Please keep this list sorted alphabetically.
 	#
@@ -853,8 +855,8 @@ config DATA_SHIFT_BOOL
 	bool "Set custom data alignment"
 	depends on ADVANCED_OPTIONS
 	depends on STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE
-	depends on PPC_BOOK3S_32 || (PPC_8xx && !PIN_TLB_DATA && !STRICT_KERNEL_RWX) || \
-		   PPC_85xx
+	depends on (PPC_8xx && !PIN_TLB_DATA && (!STRICT_KERNEL_RWX || !PIN_TLB_TEXT)) || \
+		   PPC_BOOK3S_32 || PPC_85xx
 	help
 	  This option allows you to set the kernel data alignment. When
 	  RAM is mapped by blocks, the alignment needs to fit the size and
@@ -870,9 +872,9 @@ config DATA_SHIFT
 	range 20 24 if (STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE) && PPC_85xx
 	default 22 if STRICT_KERNEL_RWX && PPC_BOOK3S_32
 	default 18 if (DEBUG_PAGEALLOC || KFENCE) && PPC_BOOK3S_32
-	default 23 if STRICT_KERNEL_RWX && PPC_8xx
-	default 23 if (DEBUG_PAGEALLOC || KFENCE) && PPC_8xx && PIN_TLB_DATA
-	default 19 if (DEBUG_PAGEALLOC || KFENCE) && PPC_8xx
+	default 23 if (STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE) && PPC_8xx && \
+		      (PIN_TLB_DATA || PIN_TLB_TEXT)
+	default 19 if (STRICT_KERNEL_RWX || DEBUG_PAGEALLOC || KFENCE) && PPC_8xx
 	default 24 if STRICT_KERNEL_RWX && PPC_85xx
 	default PAGE_SHIFT
 	help
@@ -1025,6 +1027,10 @@ config PPC_MEM_KEYS
 	  For details, see Documentation/core-api/protection-keys.rst
 
 	  If unsure, say y.
+
+config ARCH_PKEY_BITS
+	int
+	default 5
 
 config PPC_SECURE_BOOT
 	prompt "Enable secure boot support"
@@ -1269,8 +1275,27 @@ config TASK_SIZE_BOOL
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000" if PPC_8xx
-	default "0xb0000000" if PPC_BOOK3S_32
+	default "0xb0000000" if PPC_BOOK3S_32 && EXECMEM
 	default "0xc0000000"
+
+config MODULES_SIZE_BOOL
+	bool "Set custom size for modules/execmem area"
+	depends on EXECMEM && ADVANCED_OPTIONS
+	help
+	  This option allows you to set the size of kernel virtual address
+	  space dedicated for modules/execmem.
+	  For the time being it is only for 8xx and book3s/32. Other
+	  platform share it with vmalloc space.
+
+	  Say N here unless you know what you are doing.
+
+config MODULES_SIZE
+	int "Size of modules/execmem area (In Mbytes)" if MODULES_SIZE_BOOL
+	range 1 256 if EXECMEM
+	default 64 if EXECMEM && PPC_BOOK3S_32
+	default 32 if EXECMEM && PPC_8xx
+	default 0
+
 endmenu
 
 if PPC64

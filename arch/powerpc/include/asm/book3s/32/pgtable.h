@@ -196,7 +196,8 @@ void unmap_kernel_page(unsigned long va);
 #endif
 
 #define MODULES_END	ALIGN_DOWN(PAGE_OFFSET, SZ_256M)
-#define MODULES_VADDR	(MODULES_END - SZ_256M)
+#define MODULES_SIZE	(CONFIG_MODULES_SIZE * SZ_1M)
+#define MODULES_VADDR	(MODULES_END - MODULES_SIZE)
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>

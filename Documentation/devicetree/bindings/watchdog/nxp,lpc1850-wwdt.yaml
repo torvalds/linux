@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/nxp,lpc1850-wwdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC18xx Watchdog Timer (WDT)
+
+maintainers:
+  - Animesh Agarwal <animeshagarwal28@gmail.com>
+
+properties:
+  compatible:
+    const: nxp,lpc1850-wwdt
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Watchdog counter clock
+      - description: Register interface clock
+
+  clock-names:
+    items:
+      - const: wdtclk
+      - const: reg
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-cgu.h>
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    watchdog@40080000 {
+        compatible = "nxp,lpc1850-wwdt";
+        reg = <0x40080000 0x24>;
+        clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_WWDT>;
+        clock-names = "wdtclk", "reg";
+        interrupts = <49>;
+    };

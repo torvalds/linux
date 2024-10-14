@@ -46,6 +46,14 @@ struct xe_devcoredump_snapshot {
 	struct xe_sched_job_snapshot *job;
 	/** @vm: Snapshot of VM state */
 	struct xe_vm_snapshot *vm;
+
+	/** @read: devcoredump in human readable format */
+	struct {
+		/** @read.size: size of devcoredump in human readable format */
+		ssize_t size;
+		/** @read.buffer: buffer of devcoredump in human readable format */
+		char *buffer;
+	} read;
 };
 
 /**

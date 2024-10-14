@@ -1353,14 +1353,48 @@ int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target, u8 index
 int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 		       u8 index, u8 reg, const void *buf, u8 size);
 
+/**
+ * enum usb4_margin_sw_error_counter - Software margining error counter operation
+ * @USB4_MARGIN_SW_ERROR_COUNTER_NOP: No change in counter setup
+ * @USB4_MARGIN_SW_ERROR_COUNTER_CLEAR: Set the error counter to 0, enable counter
+ * @USB4_MARGIN_SW_ERROR_COUNTER_START: Start counter, count from last value
+ * @USB4_MARGIN_SW_ERROR_COUNTER_STOP: Stop counter, do not clear value
+ */
+enum usb4_margin_sw_error_counter {
+	USB4_MARGIN_SW_ERROR_COUNTER_NOP,
+	USB4_MARGIN_SW_ERROR_COUNTER_CLEAR,
+	USB4_MARGIN_SW_ERROR_COUNTER_START,
+	USB4_MARGIN_SW_ERROR_COUNTER_STOP,
+};
+
+/**
+ * struct usb4_port_margining_params - USB4 margining parameters
+ * @error_counter: Error counter operation for software margining
+ * @ber_level: Current BER level contour value
+ * @lanes: %0, %1 or %7 (all)
+ * @voltage_time_offset: Offset for voltage / time for software margining
+ * @optional_voltage_offset_range: Enable optional extended voltage range
+ * @right_high: %false if left/low margin test is performed, %true if right/high
+ * @time: %true if time margining is used instead of voltage
+ */
+struct usb4_port_margining_params {
+	enum usb4_margin_sw_error_counter error_counter;
+	u32 ber_level;
+	u32 lanes;
+	u32 voltage_time_offset;
+	bool optional_voltage_offset_range;
+	bool right_high;
+	bool time;
+};
+
 int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
 			     u8 index, u32 *caps);
 int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
-			u8 index, unsigned int lanes, unsigned int ber_level,
-			bool timing, bool right_high, u32 *results);
+			u8 index, const struct usb4_port_margining_params *params,
+			u32 *results);
 int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
-			u8 index, unsigned int lanes, bool timing,
-			bool right_high, u32 counter);
+			u8 index, const struct usb4_port_margining_params *params,
+			u32 *results);
 int usb4_port_sw_margin_errors(struct tb_port *port, enum usb4_sb_target target,
 			       u8 index, u32 *errors);
 

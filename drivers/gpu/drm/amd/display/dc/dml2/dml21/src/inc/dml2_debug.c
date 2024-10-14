@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_debug.h"
 
 int dml2_printf(const char *format, ...)

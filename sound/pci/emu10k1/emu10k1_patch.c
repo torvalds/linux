@@ -40,8 +40,9 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 
 	if (sp->v.mode_flags & (SNDRV_SFNT_SAMPLE_BIDIR_LOOP | SNDRV_SFNT_SAMPLE_REVERSE_LOOP)) {
 		/* should instead return -ENOTSUPP; but compatibility */
-		printk(KERN_WARNING "Emu10k1 wavetable patch %d with unsupported loop feature\n",
-		       sp->v.sample);
+		dev_warn(emu->card->dev,
+			 "Emu10k1 wavetable patch %d with unsupported loop feature\n",
+			 sp->v.sample);
 	}
 
 	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS) {

@@ -6,29 +6,6 @@
 #include "idxd.h"
 #include "perfmon.h"
 
-static ssize_t cpumask_show(struct device *dev, struct device_attribute *attr,
-			    char *buf);
-
-static cpumask_t		perfmon_dsa_cpu_mask;
-static bool			cpuhp_set_up;
-static enum cpuhp_state		cpuhp_slot;
-
-/*
- * perf userspace reads this attribute to determine which cpus to open
- * counters on.  It's connected to perfmon_dsa_cpu_mask, which is
- * maintained by the cpu hotplug handlers.
- */
-static DEVICE_ATTR_RO(cpumask);
-
-static struct attribute *perfmon_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL,
-};
-
-static struct attribute_group cpumask_attr_group = {
-	.attrs = perfmon_cpumask_attrs,
-};
-
 /*
  * These attributes specify the bits in the config word that the perf
  * syscall uses to pass the event ids and categories to perfmon.
@@ -67,15 +44,8 @@ static struct attribute_group perfmon_format_attr_group = {
 
 static const struct attribute_group *perfmon_attr_groups[] = {
 	&perfmon_format_attr_group,
-	&cpumask_attr_group,
 	NULL,
 };
-
-static ssize_t cpumask_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
-{
-	return cpumap_print_to_pagebuf(true, buf, &perfmon_dsa_cpu_mask);
-}
 
 static bool is_idxd_event(struct idxd_pmu *idxd_pmu, struct perf_event *event)
 {
@@ -217,7 +187,6 @@ static int perfmon_pmu_event_init(struct perf_event *event)
 		return -EINVAL;
 
 	event->hw.event_base = ioread64(PERFMON_TABLE_OFFSET(idxd));
-	event->cpu = idxd->idxd_pmu->cpu;
 	event->hw.config = event->attr.config;
 
 	if (event->group_leader != event)
@@ -480,14 +449,15 @@ static void idxd_pmu_init(struct idxd_pmu *idxd_pmu)
 	idxd_pmu->pmu.attr_groups	= perfmon_attr_groups;
 	idxd_pmu->pmu.task_ctx_nr	= perf_invalid_context;
 	idxd_pmu->pmu.event_init	= perfmon_pmu_event_init;
-	idxd_pmu->pmu.pmu_enable	= perfmon_pmu_enable,
-	idxd_pmu->pmu.pmu_disable	= perfmon_pmu_disable,
+	idxd_pmu->pmu.pmu_enable	= perfmon_pmu_enable;
+	idxd_pmu->pmu.pmu_disable	= perfmon_pmu_disable;
 	idxd_pmu->pmu.add		= perfmon_pmu_event_add;
 	idxd_pmu->pmu.del		= perfmon_pmu_event_del;
 	idxd_pmu->pmu.start		= perfmon_pmu_event_start;
 	idxd_pmu->pmu.stop		= perfmon_pmu_event_stop;
 	idxd_pmu->pmu.read		= perfmon_pmu_event_update;
 	idxd_pmu->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
+	idxd_pmu->pmu.scope		= PERF_PMU_SCOPE_SYS_WIDE;
 	idxd_pmu->pmu.module		= THIS_MODULE;
 }
 
@@ -496,45 +466,9 @@ void perfmon_pmu_remove(struct idxd_device *idxd)
 	if (!idxd->idxd_pmu)
 		return;
 
-	cpuhp_state_remove_instance(cpuhp_slot, &idxd->idxd_pmu->cpuhp_node);
 	perf_pmu_unregister(&idxd->idxd_pmu->pmu);
 	kfree(idxd->idxd_pmu);
 	idxd->idxd_pmu = NULL;
-}
-
-static int perf_event_cpu_online(unsigned int cpu, struct hlist_node *node)
-{
-	struct idxd_pmu *idxd_pmu;
-
-	idxd_pmu = hlist_entry_safe(node, typeof(*idxd_pmu), cpuhp_node);
-
-	/* select the first online CPU as the designated reader */
-	if (cpumask_empty(&perfmon_dsa_cpu_mask)) {
-		cpumask_set_cpu(cpu, &perfmon_dsa_cpu_mask);
-		idxd_pmu->cpu = cpu;
-	}
-
-	return 0;
-}
-
-static int perf_event_cpu_offline(unsigned int cpu, struct hlist_node *node)
-{
-	struct idxd_pmu *idxd_pmu;
-	unsigned int target;
-
-	idxd_pmu = hlist_entry_safe(node, typeof(*idxd_pmu), cpuhp_node);
-
-	if (!cpumask_test_and_clear_cpu(cpu, &perfmon_dsa_cpu_mask))
-		return 0;
-
-	target = cpumask_any_but(cpu_online_mask, cpu);
-	/* migrate events if there is a valid target */
-	if (target < nr_cpu_ids) {
-		cpumask_set_cpu(target, &perfmon_dsa_cpu_mask);
-		perf_pmu_migrate_context(&idxd_pmu->pmu, cpu, target);
-	}
-
-	return 0;
 }
 
 int perfmon_pmu_init(struct idxd_device *idxd)
@@ -542,12 +476,6 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 	union idxd_perfcap perfcap;
 	struct idxd_pmu *idxd_pmu;
 	int rc = -ENODEV;
-
-	/*
-	 * perfmon module initialization failed, nothing to do
-	 */
-	if (!cpuhp_set_up)
-		return -ENODEV;
 
 	/*
 	 * If perfmon_offset or num_counters is 0, it means perfmon is
@@ -624,11 +552,6 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 	if (rc)
 		goto free;
 
-	rc = cpuhp_state_add_instance(cpuhp_slot, &idxd_pmu->cpuhp_node);
-	if (rc) {
-		perf_pmu_unregister(&idxd->idxd_pmu->pmu);
-		goto free;
-	}
 out:
 	return rc;
 free:
@@ -636,23 +559,4 @@ free:
 	idxd->idxd_pmu = NULL;
 
 	goto out;
-}
-
-void __init perfmon_init(void)
-{
-	int rc = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
-					 "driver/dma/idxd/perf:online",
-					 perf_event_cpu_online,
-					 perf_event_cpu_offline);
-	if (WARN_ON(rc < 0))
-		return;
-
-	cpuhp_slot = rc;
-	cpuhp_set_up = true;
-}
-
-void __exit perfmon_exit(void)
-{
-	if (cpuhp_set_up)
-		cpuhp_remove_multi_state(cpuhp_slot);
 }

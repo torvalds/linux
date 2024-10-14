@@ -1073,6 +1073,13 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static int aic32x4_of_xlate_dai_id(struct snd_soc_component *component,
+				   struct device_node *endpoint)
+{
+	/* return dai id 0, whatever the endpoint index */
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_dev_aic32x4 = {
 	.probe			= aic32x4_component_probe,
 	.set_bias_level		= aic32x4_set_bias_level,
@@ -1082,6 +1089,7 @@ static const struct snd_soc_component_driver soc_component_dev_aic32x4 = {
 	.num_dapm_widgets	= ARRAY_SIZE(aic32x4_dapm_widgets),
 	.dapm_routes		= aic32x4_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(aic32x4_dapm_routes),
+	.of_xlate_dai_id	= aic32x4_of_xlate_dai_id,
 	.suspend_bias_off	= 1,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
@@ -1203,6 +1211,7 @@ static const struct snd_soc_component_driver soc_component_dev_aic32x4_tas2505 =
 	.num_dapm_widgets	= ARRAY_SIZE(aic32x4_tas2505_dapm_widgets),
 	.dapm_routes		= aic32x4_tas2505_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(aic32x4_tas2505_dapm_routes),
+	.of_xlate_dai_id	= aic32x4_of_xlate_dai_id,
 	.suspend_bias_off	= 1,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,

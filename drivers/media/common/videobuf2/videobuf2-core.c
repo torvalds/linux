@@ -303,14 +303,22 @@ static void __vb2_plane_dmabuf_put(struct vb2_buffer *vb, struct vb2_plane *p)
 	if (!p->mem_priv)
 		return;
 
-	if (p->dbuf_mapped)
-		call_void_memop(vb, unmap_dmabuf, p->mem_priv);
+	if (!p->dbuf_duplicated) {
+		if (p->dbuf_mapped)
+			call_void_memop(vb, unmap_dmabuf, p->mem_priv);
 
-	call_void_memop(vb, detach_dmabuf, p->mem_priv);
+		call_void_memop(vb, detach_dmabuf, p->mem_priv);
+	}
+
 	dma_buf_put(p->dbuf);
 	p->mem_priv = NULL;
 	p->dbuf = NULL;
 	p->dbuf_mapped = 0;
+	p->bytesused = 0;
+	p->length = 0;
+	p->m.fd = 0;
+	p->data_offset = 0;
+	p->dbuf_duplicated = false;
 }
 
 /*
@@ -319,9 +327,15 @@ static void __vb2_plane_dmabuf_put(struct vb2_buffer *vb, struct vb2_plane *p)
  */
 static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
 {
-	unsigned int plane;
+	int plane;
 
-	for (plane = 0; plane < vb->num_planes; ++plane)
+	/*
+	 * When multiple planes share the same DMA buffer attachment, the plane
+	 * with the lowest index owns the mem_priv.
+	 * Put planes in the reversed order so that we don't leave invalid
+	 * mem_priv behind.
+	 */
+	for (plane = vb->num_planes - 1; plane >= 0; --plane)
 		__vb2_plane_dmabuf_put(vb, &vb->planes[plane]);
 }
 
@@ -1369,7 +1383,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 	struct vb2_plane planes[VB2_MAX_PLANES];
 	struct vb2_queue *q = vb->vb2_queue;
 	void *mem_priv;
-	unsigned int plane;
+	unsigned int plane, i;
 	int ret = 0;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
@@ -1383,11 +1397,13 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		struct dma_buf *dbuf = dma_buf_get(planes[plane].m.fd);
 
+		planes[plane].dbuf = dbuf;
+
 		if (IS_ERR_OR_NULL(dbuf)) {
 			dprintk(q, 1, "invalid dmabuf fd for plane %d\n",
 				plane);
 			ret = -EINVAL;
-			goto err;
+			goto err_put_planes;
 		}
 
 		/* use DMABUF size if length is not provided */
@@ -1398,80 +1414,86 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 			dprintk(q, 1, "invalid dmabuf length %u for plane %d, minimum length %u\n",
 				planes[plane].length, plane,
 				vb->planes[plane].min_length);
-			dma_buf_put(dbuf);
 			ret = -EINVAL;
-			goto err;
+			goto err_put_planes;
 		}
 
 		/* Skip the plane if already verified */
 		if (dbuf == vb->planes[plane].dbuf &&
-			vb->planes[plane].length == planes[plane].length) {
-			dma_buf_put(dbuf);
+		    vb->planes[plane].length == planes[plane].length)
 			continue;
-		}
 
 		dprintk(q, 3, "buffer for plane %d changed\n", plane);
 
-		if (!reacquired) {
-			reacquired = true;
-			vb->copied_timestamp = 0;
-			call_void_vb_qop(vb, buf_cleanup, vb);
-		}
-
-		/* Release previously acquired memory if present */
-		__vb2_plane_dmabuf_put(vb, &vb->planes[plane]);
-		vb->planes[plane].bytesused = 0;
-		vb->planes[plane].length = 0;
-		vb->planes[plane].m.fd = 0;
-		vb->planes[plane].data_offset = 0;
-
-		/* Acquire each plane's memory */
-		mem_priv = call_ptr_memop(attach_dmabuf,
-					  vb,
-					  q->alloc_devs[plane] ? : q->dev,
-					  dbuf,
-					  planes[plane].length);
-		if (IS_ERR(mem_priv)) {
-			dprintk(q, 1, "failed to attach dmabuf\n");
-			ret = PTR_ERR(mem_priv);
-			dma_buf_put(dbuf);
-			goto err;
-		}
-
-		vb->planes[plane].dbuf = dbuf;
-		vb->planes[plane].mem_priv = mem_priv;
-	}
-
-	/*
-	 * This pins the buffer(s) with dma_buf_map_attachment()). It's done
-	 * here instead just before the DMA, while queueing the buffer(s) so
-	 * userspace knows sooner rather than later if the dma-buf map fails.
-	 */
-	for (plane = 0; plane < vb->num_planes; ++plane) {
-		if (vb->planes[plane].dbuf_mapped)
-			continue;
-
-		ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv);
-		if (ret) {
-			dprintk(q, 1, "failed to map dmabuf for plane %d\n",
-				plane);
-			goto err;
-		}
-		vb->planes[plane].dbuf_mapped = 1;
-	}
-
-	/*
-	 * Now that everything is in order, copy relevant information
-	 * provided by userspace.
-	 */
-	for (plane = 0; plane < vb->num_planes; ++plane) {
-		vb->planes[plane].bytesused = planes[plane].bytesused;
-		vb->planes[plane].length = planes[plane].length;
-		vb->planes[plane].m.fd = planes[plane].m.fd;
-		vb->planes[plane].data_offset = planes[plane].data_offset;
+		reacquired = true;
 	}
 
 	if (reacquired) {
+		if (vb->planes[0].mem_priv) {
+			vb->copied_timestamp = 0;
+			call_void_vb_qop(vb, buf_cleanup, vb);
+			__vb2_buf_dmabuf_put(vb);
+		}
+
+		for (plane = 0; plane < vb->num_planes; ++plane) {
+			/*
+			 * This is an optimization to reduce dma_buf attachment/mapping.
+			 * When the same dma_buf is used for multiple planes, there is no need
+			 * to create duplicated attachments.
+			 */
+			for (i = 0; i < plane; ++i) {
+				if (planes[plane].dbuf == vb->planes[i].dbuf &&
+				    q->alloc_devs[plane] == q->alloc_devs[i]) {
+					vb->planes[plane].dbuf_duplicated = true;
+					vb->planes[plane].dbuf = vb->planes[i].dbuf;
+					vb->planes[plane].mem_priv = vb->planes[i].mem_priv;
+					break;
+				}
+			}
+
+			if (vb->planes[plane].dbuf_duplicated)
+				continue;
+
+			/* Acquire each plane's memory */
+			mem_priv = call_ptr_memop(attach_dmabuf,
+						  vb,
+						  q->alloc_devs[plane] ? : q->dev,
+						  planes[plane].dbuf,
+						  planes[plane].length);
+			if (IS_ERR(mem_priv)) {
+				dprintk(q, 1, "failed to attach dmabuf\n");
+				ret = PTR_ERR(mem_priv);
+				goto err_put_vb2_buf;
+			}
+
+			vb->planes[plane].dbuf = planes[plane].dbuf;
+			vb->planes[plane].mem_priv = mem_priv;
+
+			/*
+			 * This pins the buffer(s) with dma_buf_map_attachment()). It's done
+			 * here instead just before the DMA, while queueing the buffer(s) so
+			 * userspace knows sooner rather than later if the dma-buf map fails.
+			 */
+			ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv);
+			if (ret) {
+				dprintk(q, 1, "failed to map dmabuf for plane %d\n",
+					plane);
+				goto err_put_vb2_buf;
+			}
+			vb->planes[plane].dbuf_mapped = 1;
+		}
+
+		/*
+		 * Now that everything is in order, copy relevant information
+		 * provided by userspace.
+		 */
+		for (plane = 0; plane < vb->num_planes; ++plane) {
+			vb->planes[plane].bytesused = planes[plane].bytesused;
+			vb->planes[plane].length = planes[plane].length;
+			vb->planes[plane].m.fd = planes[plane].m.fd;
+			vb->planes[plane].data_offset = planes[plane].data_offset;
+		}
+
 		/*
 		 * Call driver-specific initialization on the newly acquired buffer,
 		 * if provided.
@@ -1479,19 +1501,28 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 		ret = call_vb_qop(vb, buf_init, vb);
 		if (ret) {
 			dprintk(q, 1, "buffer initialization failed\n");
-			goto err;
+			goto err_put_vb2_buf;
 		}
+	} else {
+		for (plane = 0; plane < vb->num_planes; ++plane)
+			dma_buf_put(planes[plane].dbuf);
 	}
 
 	ret = call_vb_qop(vb, buf_prepare, vb);
 	if (ret) {
 		dprintk(q, 1, "buffer preparation failed\n");
 		call_void_vb_qop(vb, buf_cleanup, vb);
-		goto err;
+		goto err_put_vb2_buf;
 	}
 
 	return 0;
-err:
+
+err_put_planes:
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		if (!IS_ERR_OR_NULL(planes[plane].dbuf))
+			dma_buf_put(planes[plane].dbuf);
+	}
+err_put_vb2_buf:
 	/* In case of errors, release planes that were already acquired */
 	__vb2_buf_dmabuf_put(vb);
 
@@ -2600,13 +2631,6 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	 */
 	if (WARN_ON(q->supports_requests && q->min_queued_buffers))
 		return -EINVAL;
-
-	/*
-	 * The minimum requirement is 2: one buffer is used
-	 * by the hardware while the other is being processed by userspace.
-	 */
-	if (q->min_reqbufs_allocation < 2)
-		q->min_reqbufs_allocation = 2;
 
 	/*
 	 * If the driver needs 'min_queued_buffers' in the queue before

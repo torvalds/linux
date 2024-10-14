@@ -587,54 +587,6 @@ static struct notifier_block skx_mce_dec = {
 	.priority	= MCE_PRIO_EDAC,
 };
 
-#ifdef CONFIG_EDAC_DEBUG
-/*
- * Debug feature.
- * Exercise the address decode logic by writing an address to
- * /sys/kernel/debug/edac/skx_test/addr.
- */
-static struct dentry *skx_test;
-
-static int debugfs_u64_set(void *data, u64 val)
-{
-	struct mce m;
-
-	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
-
-	memset(&m, 0, sizeof(m));
-	/* ADDRV + MemRd + Unknown channel */
-	m.status = MCI_STATUS_ADDRV + 0x90;
-	/* One corrected error */
-	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
-	m.addr = val;
-	skx_mce_check_error(NULL, 0, &m);
-
-	return 0;
-}
-DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
-
-static void setup_skx_debug(void)
-{
-	skx_test = edac_debugfs_create_dir("skx_test");
-	if (!skx_test)
-		return;
-
-	if (!edac_debugfs_create_file("addr", 0200, skx_test,
-				      NULL, &fops_u64_wo)) {
-		debugfs_remove(skx_test);
-		skx_test = NULL;
-	}
-}
-
-static void teardown_skx_debug(void)
-{
-	debugfs_remove_recursive(skx_test);
-}
-#else
-static inline void setup_skx_debug(void) {}
-static inline void teardown_skx_debug(void) {}
-#endif /*CONFIG_EDAC_DEBUG*/
-
 /*
  * skx_init:
  *	make sure we are running on the correct cpu model
@@ -728,7 +680,7 @@ static int __init skx_init(void)
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
 
-	setup_skx_debug();
+	skx_setup_debug("skx_test");
 
 	mce_register_decode_chain(&skx_mce_dec);
 
@@ -742,7 +694,7 @@ static void __exit skx_exit(void)
 {
 	edac_dbg(2, "\n");
 	mce_unregister_decode_chain(&skx_mce_dec);
-	teardown_skx_debug();
+	skx_teardown_debug();
 	if (nvdimm_count)
 		skx_adxl_put();
 	skx_remove();

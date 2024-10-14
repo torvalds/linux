@@ -904,8 +904,6 @@
 };
 
 &xhci1 {
-	phys = <&u2port1 PHY_TYPE_USB2>,
-	       <&u3port1 PHY_TYPE_USB3>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
 };

@@ -1556,12 +1556,9 @@ static int get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *ts
 	struct  adapter *adapter = pi->adapter;
 
 	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				   SOF_TIMESTAMPING_RX_SOFTWARE |
-				   SOF_TIMESTAMPING_SOFTWARE;
-
-	ts_info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE |
-				    SOF_TIMESTAMPING_TX_HARDWARE |
-				    SOF_TIMESTAMPING_RAW_HARDWARE;
+				   SOF_TIMESTAMPING_RX_HARDWARE |
+				   SOF_TIMESTAMPING_TX_HARDWARE |
+				   SOF_TIMESTAMPING_RAW_HARDWARE;
 
 	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			    (1 << HWTSTAMP_TX_ON);
@@ -1575,8 +1572,6 @@ static int get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *ts
 
 	if (adapter->ptp_clock)
 		ts_info->phc_index = ptp_clock_index(adapter->ptp_clock);
-	else
-		ts_info->phc_index = -1;
 
 	return 0;
 }

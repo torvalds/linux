@@ -439,7 +439,16 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(BACO_CG),			\
        __SMU_DUMMY_MAP(SOC_CG),    \
        __SMU_DUMMY_MAP(LOW_POWER_DCNCLKS),       \
-       __SMU_DUMMY_MAP(WHISPER_MODE),
+       __SMU_DUMMY_MAP(WHISPER_MODE),			\
+       __SMU_DUMMY_MAP(EDC_PWRBRK),				\
+       __SMU_DUMMY_MAP(SOC_EDC_XVMIN),				\
+       __SMU_DUMMY_MAP(GFX_PSM_DIDT),				\
+       __SMU_DUMMY_MAP(APT_ALL_ENABLE),				\
+       __SMU_DUMMY_MAP(APT_SQ_THROTTLE),				\
+       __SMU_DUMMY_MAP(APT_PF_DCS),				\
+       __SMU_DUMMY_MAP(GFX_EDC_XVMIN),				\
+       __SMU_DUMMY_MAP(GFX_DIDT_XVMIN),				\
+       __SMU_DUMMY_MAP(FAN_ABNORMAL),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT

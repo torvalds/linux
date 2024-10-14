@@ -105,7 +105,6 @@ static const struct hw_sequencer_funcs dcn20_funcs = {
 
 static const struct hwseq_private_funcs dcn20_private_funcs = {
 	.init_pipes = dcn10_init_pipes,
-	.update_plane_addr = dcn20_update_plane_addr,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.update_mpcc = dcn20_update_mpcc,
 	.set_input_transfer_func = dcn20_set_input_transfer_func,

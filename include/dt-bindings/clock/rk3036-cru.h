@@ -94,8 +94,6 @@
 #define HCLK_CPU		477
 #define HCLK_PERI		478
 
-#define CLK_NR_CLKS		(HCLK_PERI + 1)
-
 /* soft-reset indices */
 #define SRST_CORE0		0
 #define SRST_CORE1		1

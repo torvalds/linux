@@ -493,7 +493,7 @@ struct child_device_config {
 	u16 addin_offset;
 	u8 dvo_port; /* See DEVICE_PORT_* and DVO_PORT_* above */
 	u8 i2c_pin;
-	u8 slave_addr;
+	u8 target_addr;
 	u8 ddc_pin;
 	u16 edid_ptr;
 	u8 dvo_cfg; /* See DEVICE_CFG_* above */
@@ -502,7 +502,7 @@ struct child_device_config {
 		struct {
 			u8 dvo2_port;
 			u8 i2c2_pin;
-			u8 slave2_addr;
+			u8 target2_addr;
 			u8 ddc2_pin;
 		} __packed;
 		struct {
@@ -1080,6 +1080,8 @@ struct bdb_edp {
 	u16 edp_fast_link_training_rate[16];			/* 224+ */
 	u16 edp_max_port_link_rate[16];				/* 244+ */
 	u16 edp_dsc_disable;					/* 251+ */
+	u16 t6_delay_support;					/* 260+ */
+	u16 link_idle_time[16];					/* 260+ */
 } __packed;
 
 /*
@@ -1321,7 +1323,7 @@ struct als_data_entry {
 } __packed;
 
 struct aggressiveness_profile_entry {
-	u8 dpst_aggressiveness : 4;
+	u8 dpst_aggressiveness : 4;		/* (228/252)-256 */
 	u8 lace_aggressiveness : 4;
 } __packed;
 
@@ -1330,12 +1332,27 @@ struct aggressiveness_profile2_entry {
 	u8 elp_aggressiveness : 4;
 } __packed;
 
+struct aggressiveness_profile3_entry {
+	u8 apd_aggressiveness:4;
+	u8 pixoptix_aggressiveness:4;
+} __packed;
+
+struct aggressiveness_profile4_entry {
+	u8 xpst_aggressiveness:4;
+	u8 tcon_aggressiveness:4;
+} __packed;
+
+struct panel_identification {
+	u8 panel_technology:4;
+	u8 reserved:4;
+} __packed;
+
 struct bdb_lfp_power {
 	struct lfp_power_features features;				/* ???-227 */
 	struct als_data_entry als[5];
 	u8 lace_aggressiveness_profile:3;				/* 210-227 */
 	u8 reserved1:5;
-	u16 dpst;							/* 228+ */
+	u16 dpst;							/* 228-256 */
 	u16 psr;							/* 228+ */
 	u16 drrs;							/* 228+ */
 	u16 lace_support;						/* 228+ */
@@ -1343,12 +1360,20 @@ struct bdb_lfp_power {
 	u16 dmrrs;							/* 228+ */
 	u16 adb;							/* 228+ */
 	u16 lace_enabled_status;					/* 228+ */
-	struct aggressiveness_profile_entry aggressiveness[16];		/* 228+ */
+	struct aggressiveness_profile_entry aggressiveness[16];
 	u16 hobl;							/* 232+ */
 	u16 vrr_feature_enabled;					/* 233+ */
-	u16 elp;							/* 247+ */
-	u16 opst;							/* 247+ */
-	struct aggressiveness_profile2_entry aggressiveness2[16];	/* 247+ */
+	u16 elp;							/* 247-256 */
+	u16 opst;							/* 247-256 */
+	struct aggressiveness_profile2_entry aggressiveness2[16];	/* 247-256 */
+	u16 apd;							/* 253-256 */
+	u16 pixoptix;							/* 253-256 */
+	struct aggressiveness_profile3_entry aggressiveness3[16];	/* 253-256 */
+	struct panel_identification panel_identification[16];		/* 257+ */
+	u16 xpst_support;						/* 257+ */
+	u16 tcon_based_backlight_optimization;				/* 257+ */
+	struct aggressiveness_profile4_entry aggressiveness4[16];	/* 257+ */
+	u16 tcon_backlight_xpst_coexistence;				/* 257+ */
 } __packed;
 
 /*

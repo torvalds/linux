@@ -178,7 +178,6 @@ struct session_key {
 
 /* crypto hashing related structure/fields, not specific to a sec mech */
 struct cifs_secmech {
-	struct shash_desc *hmacmd5; /* hmacmd5 hash function, for NTLMv2/CR1 hashes */
 	struct shash_desc *md5; /* md5 hash function, for CIFS/SMB1 signatures */
 	struct shash_desc *hmacsha256; /* hmac-sha256 hash function, for SMB2 signatures */
 	struct shash_desc *sha512; /* sha512 hash function, for SMB3.1.1 preauth hash */
@@ -202,10 +201,10 @@ struct cifs_cred {
 	int gid;
 	int mode;
 	int cecount;
-	struct cifs_sid osid;
-	struct cifs_sid gsid;
+	struct smb_sid osid;
+	struct smb_sid gsid;
 	struct cifs_ntace *ntaces;
-	struct cifs_ace *aces;
+	struct smb_ace *aces;
 };
 
 struct cifs_open_info_data {
@@ -231,8 +230,8 @@ struct cifs_open_info_data {
 		unsigned int	eas_len;
 	} wsl;
 	char *symlink_target;
-	struct cifs_sid posix_owner;
-	struct cifs_sid posix_group;
+	struct smb_sid posix_owner;
+	struct smb_sid posix_group;
 	union {
 		struct smb2_file_all_info fi;
 		struct smb311_posix_qinfo posix_fi;
@@ -255,7 +254,7 @@ struct smb_rqst {
 	struct kvec	*rq_iov;	/* array of kvecs */
 	unsigned int	rq_nvec;	/* number of kvecs in array */
 	struct iov_iter	rq_iter;	/* Data iterator */
-	struct xarray	rq_buffer;	/* Page buffer for encryption */
+	struct folio_queue *rq_buffer;	/* Buffer for encryption */
 };
 
 struct mid_q_entry;
@@ -482,7 +481,7 @@ struct smb_version_operations {
 			__u16 net_fid, struct cifsInodeInfo *cifs_inode);
 	/* query remote filesystem */
 	int (*queryfs)(const unsigned int, struct cifs_tcon *,
-		       struct cifs_sb_info *, struct kstatfs *);
+		       const char *, struct cifs_sb_info *, struct kstatfs *);
 	/* send mandatory brlock to the server */
 	int (*mand_lock)(const unsigned int, struct cifsFileInfo *, __u64,
 			 __u64, __u32, int, int, bool);
@@ -536,12 +535,12 @@ struct smb_version_operations {
 	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
 			const char *, const void *, const __u16,
 			const struct nls_table *, struct cifs_sb_info *);
-	struct cifs_ntsd * (*get_acl)(struct cifs_sb_info *, struct inode *,
-			const char *, u32 *, u32);
-	struct cifs_ntsd * (*get_acl_by_fid)(struct cifs_sb_info *,
-			const struct cifs_fid *, u32 *, u32);
-	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
-			int);
+	struct smb_ntsd * (*get_acl)(struct cifs_sb_info *cifssb, struct inode *ino,
+			const char *patch, u32 *plen, u32 info);
+	struct smb_ntsd * (*get_acl_by_fid)(struct cifs_sb_info *cifssmb,
+			const struct cifs_fid *pfid, u32 *plen, u32 info);
+	int (*set_acl)(struct smb_ntsd *pntsd, __u32 len, struct inode *ino, const char *path,
+			int flag);
 	/* writepages retry size */
 	unsigned int (*wp_retry_size)(struct inode *);
 	/* get mtu credits */
@@ -555,7 +554,7 @@ struct smb_version_operations {
 	bool (*dir_needs_close)(struct cifsFileInfo *);
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
 			  loff_t);
-	/* init transform request - used for encryption for now */
+	/* init transform (compress/encrypt) request */
 	int (*init_transform_rq)(struct TCP_Server_Info *, int num_rqst,
 				 struct smb_rqst *, struct smb_rqst *);
 	int (*is_transform_hdr)(void *buf);
@@ -776,7 +775,7 @@ struct TCP_Server_Info {
 	} compression;
 	__u16	signing_algorithm;
 	__le16	cipher_type;
-	 /* save initital negprot hash */
+	 /* save initial negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 	bool	signing_negotiated; /* true if valid signing context rcvd from server */
 	bool	posix_ext_supported;
@@ -821,6 +820,7 @@ struct TCP_Server_Info {
 	 * format: \\HOST\SHARE[\OPTIONAL PATH]
 	 */
 	char *leaf_fullpath;
+	bool dfs_conn:1;
 };
 
 static inline bool is_smb1(struct TCP_Server_Info *server)
@@ -1059,6 +1059,7 @@ struct cifs_ses {
 	struct list_head smb_ses_list;
 	struct list_head rlist; /* reconnect list */
 	struct list_head tcon_list;
+	struct list_head dlist; /* dfs list */
 	struct cifs_tcon *tcon_ipc;
 	spinlock_t ses_lock;  /* protect anything here that is not protected */
 	struct mutex session_mutex;
@@ -1287,6 +1288,7 @@ struct cifs_tcon {
 	/* BB add field for back pointer to sb struct(s)? */
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	struct delayed_work dfs_cache_work;
+	struct list_head dfs_ses_list;
 #endif
 	struct delayed_work	query_interfaces; /* query interfaces workqueue job */
 	char *origin_fullpath; /* canonical copy of smb3_fs_context::source */
@@ -1485,7 +1487,6 @@ struct cifs_io_subrequest {
 		struct cifs_io_request *req;
 	};
 	ssize_t				got_bytes;
-	size_t				actual_len;
 	unsigned int			xid;
 	int				result;
 	bool				have_xid;
@@ -1550,7 +1551,6 @@ struct cifsInodeInfo {
 #define CIFS_INO_DELETE_PENDING		  (3) /* delete pending on server */
 #define CIFS_INO_INVALID_MAPPING	  (4) /* pagecache is invalid */
 #define CIFS_INO_LOCK			  (5) /* lock bit for synchronization */
-#define CIFS_INO_MODIFIED_ATTR            (6) /* Indicate change in mtime/ctime */
 #define CIFS_INO_CLOSE_ON_LOCK            (7) /* Not to defer the close when lock is set */
 	unsigned long flags;
 	spinlock_t writers_lock;
@@ -1876,6 +1876,7 @@ static inline bool is_replayable_error(int error)
 #define   CIFS_HAS_CREDITS        0x0400 /* already has credits */
 #define   CIFS_TRANSFORM_REQ      0x0800 /* transform request before sending */
 #define   CIFS_NO_SRV_RSP         0x1000 /* there is no server response */
+#define   CIFS_COMPRESS_REQ       0x4000 /* compress request before sending */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

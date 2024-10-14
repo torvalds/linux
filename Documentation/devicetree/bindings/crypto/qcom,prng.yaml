@@ -17,6 +17,7 @@ properties:
           - qcom,prng-ee  # 8996 and later using EE
       - items:
           - enum:
+              - qcom,sa8255p-trng
               - qcom,sa8775p-trng
               - qcom,sc7280-trng
               - qcom,sm8450-trng

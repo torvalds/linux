@@ -8,16 +8,15 @@
 #include <linux/etherdevice.h>
 #include "mt76x0.h"
 
-static void
-mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
+int mt76x0_set_channel(struct mt76_phy *mphy)
 {
-	cancel_delayed_work_sync(&dev->cal_work);
+	struct mt76x02_dev *dev = container_of(mphy->dev, struct mt76x02_dev, mt76);
+
 	mt76x02_pre_tbtt_enable(dev, false);
 	if (mt76_is_mmio(&dev->mt76))
 		tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 
-	mt76_set_channel(&dev->mphy);
-	mt76x0_phy_set_channel(dev, chandef);
+	mt76x0_phy_set_channel(dev, &mphy->chandef);
 
 	mt76x02_mac_cc_reset(dev);
 	mt76x02_edcca_init(dev);
@@ -28,8 +27,9 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	}
 	mt76x02_pre_tbtt_enable(dev, true);
 
-	mt76_txq_schedule_all(&dev->mphy);
+	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76x0_set_channel);
 
 int mt76x0_set_sar_specs(struct ieee80211_hw *hw,
 			 const struct cfg80211_sar_specs *sar)
@@ -61,13 +61,10 @@ int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mt76.mutex);
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
+		mt76_update_channel(&dev->mphy);
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ieee80211_stop_queues(hw);
-		mt76x0_set_channel(dev, &hw->conf.chandef);
-		ieee80211_wake_queues(hw);
-	}
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		struct mt76_phy *mphy = &dev->mphy;

@@ -34,5 +34,6 @@
 };
 
 &usdhc0 {
+	disable-wp;
 	status = "okay";
 };

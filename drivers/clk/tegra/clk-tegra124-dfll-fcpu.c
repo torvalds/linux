@@ -635,7 +635,7 @@ static const struct dev_pm_ops tegra124_dfll_pm_ops = {
 
 static struct platform_driver tegra124_dfll_fcpu_driver = {
 	.probe = tegra124_dfll_fcpu_probe,
-	.remove_new = tegra124_dfll_fcpu_remove,
+	.remove = tegra124_dfll_fcpu_remove,
 	.driver = {
 		.name = "tegra124-dfll",
 		.of_match_table = tegra124_dfll_fcpu_of_match,

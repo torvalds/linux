@@ -116,6 +116,7 @@ properties:
           - const: atmel,24c02
       - items:
           - enum:
+              - giantec,gt24c04a
               - onnn,cat24c04
               - onnn,cat24c05
               - rohm,br24g04

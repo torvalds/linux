@@ -13,20 +13,6 @@
 #include <linux/fs.h>
 #include <sound/core.h>
 
-#ifdef CONFIG_SND_DEBUG
-
-#ifdef CONFIG_SND_DEBUG_VERBOSE
-#define DEFAULT_DEBUG_LEVEL	2
-#else
-#define DEFAULT_DEBUG_LEVEL	1
-#endif
-
-static int debug = DEFAULT_DEBUG_LEVEL;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0 = disable)");
-
-#endif /* CONFIG_SND_DEBUG */
-
 void release_and_free_resource(struct resource *res)
 {
 	if (res) {
@@ -35,63 +21,6 @@ void release_and_free_resource(struct resource *res)
 	}
 }
 EXPORT_SYMBOL(release_and_free_resource);
-
-#ifdef CONFIG_SND_VERBOSE_PRINTK
-/* strip the leading path if the given path is absolute */
-static const char *sanity_file_name(const char *path)
-{
-	if (*path == '/')
-		return strrchr(path, '/') + 1;
-	else
-		return path;
-}
-#endif
-
-#if defined(CONFIG_SND_DEBUG) || defined(CONFIG_SND_VERBOSE_PRINTK)
-void __snd_printk(unsigned int level, const char *path, int line,
-		  const char *format, ...)
-{
-	va_list args;
-#ifdef CONFIG_SND_VERBOSE_PRINTK
-	int kern_level;
-	struct va_format vaf;
-	char verbose_fmt[] = KERN_DEFAULT "ALSA %s:%d %pV";
-	bool level_found = false;
-#endif
-
-#ifdef CONFIG_SND_DEBUG
-	if (debug < level)
-		return;
-#endif
-
-	va_start(args, format);
-#ifdef CONFIG_SND_VERBOSE_PRINTK
-	vaf.fmt = format;
-	vaf.va = &args;
-
-	while ((kern_level = printk_get_level(vaf.fmt)) != 0) {
-		const char *end_of_header = printk_skip_level(vaf.fmt);
-
-		/* Ignore KERN_CONT. We print filename:line for each piece. */
-		if (kern_level >= '0' && kern_level <= '7') {
-			memcpy(verbose_fmt, vaf.fmt, end_of_header - vaf.fmt);
-			level_found = true;
-		}
-
-		vaf.fmt = end_of_header;
-	}
-
-	if (!level_found && level)
-		memcpy(verbose_fmt, KERN_DEBUG, sizeof(KERN_DEBUG) - 1);
-
-	printk(verbose_fmt, sanity_file_name(path), line, &vaf);
-#else
-	vprintk(format, args);
-#endif
-	va_end(args);
-}
-EXPORT_SYMBOL_GPL(__snd_printk);
-#endif
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>

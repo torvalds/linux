@@ -143,12 +143,17 @@
 			"AIN2R", "Line In Jack";
 	};
 
+	spdif_in: spdif-in {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-sabreauto-spdif",
 			     "fsl,imx-audio-spdif";
 		model = "imx-spdif";
-		spdif-controller = <&spdif>;
-		spdif-in;
+		audio-cpu = <&spdif>;
+		audio-codec = <&spdif_in>;
 	};
 
 	backlight {
@@ -690,7 +695,7 @@
 			>;
 		};
 
-		pinctrl_usdhc3_100mhz: usdhc3grp100mhz {
+		pinctrl_usdhc3_100mhz: usdhc3-100mhz-grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x170b9
 				MX6QDL_PAD_SD3_CLK__SD3_CLK		0x100b9
@@ -705,7 +710,7 @@
 			>;
 		};
 
-		pinctrl_usdhc3_200mhz: usdhc3grp200mhz {
+		pinctrl_usdhc3_200mhz: usdhc3-200mhz-grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x170f9
 				MX6QDL_PAD_SD3_CLK__SD3_CLK		0x100f9

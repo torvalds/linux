@@ -193,10 +193,10 @@ long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 	if (length < 0)
 		return -EINVAL;
 	f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	error = do_ftruncate(f.file, length, small);
+	error = do_ftruncate(fd_file(f), length, small);
 
 	fdput(f);
 	return error;
@@ -252,40 +252,39 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (offset < 0 || len <= 0)
 		return -EINVAL;
 
-	/* Return error if mode is not supported */
-	if (mode & ~FALLOC_FL_SUPPORTED_MASK)
+	if (mode & ~(FALLOC_FL_MODE_MASK | FALLOC_FL_KEEP_SIZE))
 		return -EOPNOTSUPP;
 
-	/* Punch hole and zero range are mutually exclusive */
-	if ((mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)) ==
-	    (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE))
+	/*
+	 * Modes are exclusive, even if that is not obvious from the encoding
+	 * as bit masks and the mix with the flag in the same namespace.
+	 *
+	 * To make things even more complicated, FALLOC_FL_ALLOCATE_RANGE is
+	 * encoded as no bit set.
+	 */
+	switch (mode & FALLOC_FL_MODE_MASK) {
+	case FALLOC_FL_ALLOCATE_RANGE:
+	case FALLOC_FL_UNSHARE_RANGE:
+	case FALLOC_FL_ZERO_RANGE:
+		break;
+	case FALLOC_FL_PUNCH_HOLE:
+		if (!(mode & FALLOC_FL_KEEP_SIZE))
+			return -EOPNOTSUPP;
+		break;
+	case FALLOC_FL_COLLAPSE_RANGE:
+	case FALLOC_FL_INSERT_RANGE:
+		if (mode & FALLOC_FL_KEEP_SIZE)
+			return -EOPNOTSUPP;
+		break;
+	default:
 		return -EOPNOTSUPP;
-
-	/* Punch hole must have keep size set */
-	if ((mode & FALLOC_FL_PUNCH_HOLE) &&
-	    !(mode & FALLOC_FL_KEEP_SIZE))
-		return -EOPNOTSUPP;
-
-	/* Collapse range should only be used exclusively. */
-	if ((mode & FALLOC_FL_COLLAPSE_RANGE) &&
-	    (mode & ~FALLOC_FL_COLLAPSE_RANGE))
-		return -EINVAL;
-
-	/* Insert range should only be used exclusively. */
-	if ((mode & FALLOC_FL_INSERT_RANGE) &&
-	    (mode & ~FALLOC_FL_INSERT_RANGE))
-		return -EINVAL;
-
-	/* Unshare range should only be used with allocate mode. */
-	if ((mode & FALLOC_FL_UNSHARE_RANGE) &&
-	    (mode & ~(FALLOC_FL_UNSHARE_RANGE | FALLOC_FL_KEEP_SIZE)))
-		return -EINVAL;
+	}
 
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
 
 	/*
-	 * We can only allow pure fallocate on append only files
+	 * On append-only files only space preallocation is supported.
 	 */
 	if ((mode & ~FALLOC_FL_KEEP_SIZE) && IS_APPEND(inode))
 		return -EPERM;
@@ -353,8 +352,8 @@ int ksys_fallocate(int fd, int mode, loff_t offset, loff_t len)
 	struct fd f = fdget(fd);
 	int error = -EBADF;
 
-	if (f.file) {
-		error = vfs_fallocate(f.file, mode, offset, len);
+	if (fd_file(f)) {
+		error = vfs_fallocate(fd_file(f), mode, offset, len);
 		fdput(f);
 	}
 	return error;
@@ -585,16 +584,16 @@ SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 	int error;
 
 	error = -EBADF;
-	if (!f.file)
+	if (!fd_file(f))
 		goto out;
 
 	error = -ENOTDIR;
-	if (!d_can_lookup(f.file->f_path.dentry))
+	if (!d_can_lookup(fd_file(f)->f_path.dentry))
 		goto out_putf;
 
-	error = file_permission(f.file, MAY_EXEC | MAY_CHDIR);
+	error = file_permission(fd_file(f), MAY_EXEC | MAY_CHDIR);
 	if (!error)
-		set_fs_pwd(current->fs, &f.file->f_path);
+		set_fs_pwd(current->fs, &fd_file(f)->f_path);
 out_putf:
 	fdput(f);
 out:
@@ -675,8 +674,8 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 	struct fd f = fdget(fd);
 	int err = -EBADF;
 
-	if (f.file) {
-		err = vfs_fchmod(f.file, mode);
+	if (fd_file(f)) {
+		err = vfs_fchmod(fd_file(f), mode);
 		fdput(f);
 	}
 	return err;
@@ -869,8 +868,8 @@ int ksys_fchown(unsigned int fd, uid_t user, gid_t group)
 	struct fd f = fdget(fd);
 	int error = -EBADF;
 
-	if (f.file) {
-		error = vfs_fchown(f.file, user, group);
+	if (fd_file(f)) {
+		error = vfs_fchown(fd_file(f), user, group);
 		fdput(f);
 	}
 	return error;

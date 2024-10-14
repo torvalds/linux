@@ -50,9 +50,7 @@ struct fcoe_ctlr_device {
 	struct fcoe_sysfs_function_template *f;
 
 	struct list_head		fcfs;
-	char				work_q_name[20];
 	struct workqueue_struct		*work_q;
-	char				devloss_work_q_name[20];
 	struct workqueue_struct		*devloss_work_q;
 	struct mutex			lock;
 

@@ -715,7 +715,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		pr_debug("%s no matching queue found => ENODEV\n", __func__);
+		pr_debug("no matching queue found => ENODEV\n");
 		rc = -ENODEV;
 		goto out;
 	}
@@ -819,7 +819,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		pr_debug("%s no matching queue found => ENODEV\n", __func__);
+		pr_debug("no matching queue found => ENODEV\n");
 		rc = -ENODEV;
 		goto out;
 	}
@@ -940,8 +940,8 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		pr_debug("%s no match for address %02x.%04x => ENODEV\n",
-			 __func__, xcrb->user_defined, *domain);
+		pr_debug("no match for address %02x.%04x => ENODEV\n",
+			 xcrb->user_defined, *domain);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -991,7 +991,7 @@ long zcrypt_send_cprb(struct ica_xcRB *xcrb)
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
-		pr_debug("%s rc=%d\n", __func__, rc);
+		pr_debug("rc=%d\n", rc);
 
 	return rc;
 }
@@ -1138,15 +1138,13 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 
 	if (!pref_zq) {
 		if (targets && target_num == 1) {
-			pr_debug("%s no match for address %02x.%04x => ENODEV\n",
-				 __func__, (int)targets->ap_id,
-				 (int)targets->dom_id);
+			pr_debug("no match for address %02x.%04x => ENODEV\n",
+				 (int)targets->ap_id, (int)targets->dom_id);
 		} else if (targets) {
-			pr_debug("%s no match for %d target addrs => ENODEV\n",
-				 __func__, (int)target_num);
+			pr_debug("no match for %d target addrs => ENODEV\n",
+				 (int)target_num);
 		} else {
-			pr_debug("%s no match for address ff.ffff => ENODEV\n",
-				 __func__);
+			pr_debug("no match for address ff.ffff => ENODEV\n");
 		}
 		rc = -ENODEV;
 		goto out_free;
@@ -1195,7 +1193,7 @@ long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
-		pr_debug("%s rc=%d\n", __func__, rc);
+		pr_debug("rc=%d\n", rc);
 
 	return rc;
 }
@@ -1247,7 +1245,7 @@ static long zcrypt_rng(char *buffer)
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		pr_debug("%s no matching queue found => ENODEV\n", __func__);
+		pr_debug("no matching queue found => ENODEV\n");
 		rc = -ENODEV;
 		goto out;
 	}
@@ -1910,7 +1908,6 @@ static const struct file_operations zcrypt_fops = {
 #endif
 	.open		= zcrypt_open,
 	.release	= zcrypt_release,
-	.llseek		= no_llseek,
 };
 
 /*
@@ -2037,8 +2034,7 @@ int zcrypt_wait_api_operational(void)
 			break;
 		default:
 			/* other failure */
-			pr_debug("%s ap_wait_init_apqn_bindings_complete()=%d\n",
-				 __func__, rc);
+			pr_debug("ap_wait_init_apqn_bindings_complete()=%d\n", rc);
 			break;
 		}
 		break;

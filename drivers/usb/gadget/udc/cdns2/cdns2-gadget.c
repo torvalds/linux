@@ -2033,8 +2033,8 @@ static void cdns2_quiesce(struct cdns2_device *pdev)
 	set_reg_bit_8(&pdev->usb_regs->usbcs, USBCS_DISCON);
 
 	/* Disable interrupt. */
-	writeb(0, &pdev->interrupt_regs->extien),
-	writeb(0, &pdev->interrupt_regs->usbien),
+	writeb(0, &pdev->interrupt_regs->extien);
+	writeb(0, &pdev->interrupt_regs->usbien);
 	writew(0, &pdev->adma_regs->ep_ien);
 
 	/* Clear interrupt line. */
@@ -2251,7 +2251,6 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 {
 	u32 max_speed;
 	void *buf;
-	int val;
 	int ret;
 
 	pdev->usb_regs = pdev->regs;
@@ -2261,14 +2260,9 @@ static int cdns2_gadget_start(struct cdns2_device *pdev)
 	pdev->adma_regs = pdev->regs + CDNS2_ADMA_REGS_OFFSET;
 
 	/* Reset controller. */
-	set_reg_bit_8(&pdev->usb_regs->cpuctrl, CPUCTRL_SW_RST);
-
-	ret = readl_poll_timeout_atomic(&pdev->usb_regs->cpuctrl, val,
-					!(val & CPUCTRL_SW_RST), 1, 10000);
-	if (ret) {
-		dev_err(pdev->dev, "Error: reset controller timeout\n");
-		return -EINVAL;
-	}
+	writeb(CPUCTRL_SW_RST | CPUCTRL_UPCLK | CPUCTRL_WUEN,
+	       &pdev->usb_regs->cpuctrl);
+	usleep_range(5, 10);
 
 	usb_initialize_gadget(pdev->dev, &pdev->gadget, NULL);
 

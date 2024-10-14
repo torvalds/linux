@@ -742,6 +742,9 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
 	return folio_file_page(folio, index);
 }
 
+static void memcg1_check_events(struct mem_cgroup *memcg, int nid);
+static void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages);
+
 /**
  * mem_cgroup_move_account - move account of the folio
  * @folio: The folio.
@@ -853,9 +856,9 @@ static int mem_cgroup_move_account(struct folio *folio,
 	nid = folio_nid(folio);
 
 	local_irq_disable();
-	mem_cgroup_charge_statistics(to, nr_pages);
+	memcg1_charge_statistics(to, nr_pages);
 	memcg1_check_events(to, nid);
-	mem_cgroup_charge_statistics(from, -nr_pages);
+	memcg1_charge_statistics(from, -nr_pages);
 	memcg1_check_events(from, nid);
 	local_irq_enable();
 out:
@@ -1439,26 +1442,110 @@ static void mem_cgroup_threshold(struct mem_cgroup *memcg)
 	}
 }
 
+/* Cgroup1: threshold notifications & softlimit tree updates */
+struct memcg1_events_percpu {
+	unsigned long nr_page_events;
+	unsigned long targets[MEM_CGROUP_NTARGETS];
+};
+
+static void memcg1_charge_statistics(struct mem_cgroup *memcg, int nr_pages)
+{
+	/* pagein of a big page is an event. So, ignore page size */
+	if (nr_pages > 0)
+		__count_memcg_events(memcg, PGPGIN, 1);
+	else {
+		__count_memcg_events(memcg, PGPGOUT, 1);
+		nr_pages = -nr_pages; /* for event */
+	}
+
+	__this_cpu_add(memcg->events_percpu->nr_page_events, nr_pages);
+}
+
+#define THRESHOLDS_EVENTS_TARGET 128
+#define SOFTLIMIT_EVENTS_TARGET 1024
+
+static bool memcg1_event_ratelimit(struct mem_cgroup *memcg,
+				enum mem_cgroup_events_target target)
+{
+	unsigned long val, next;
+
+	val = __this_cpu_read(memcg->events_percpu->nr_page_events);
+	next = __this_cpu_read(memcg->events_percpu->targets[target]);
+	/* from time_after() in jiffies.h */
+	if ((long)(next - val) < 0) {
+		switch (target) {
+		case MEM_CGROUP_TARGET_THRESH:
+			next = val + THRESHOLDS_EVENTS_TARGET;
+			break;
+		case MEM_CGROUP_TARGET_SOFTLIMIT:
+			next = val + SOFTLIMIT_EVENTS_TARGET;
+			break;
+		default:
+			break;
+		}
+		__this_cpu_write(memcg->events_percpu->targets[target], next);
+		return true;
+	}
+	return false;
+}
+
 /*
  * Check events in order.
  *
  */
-void memcg1_check_events(struct mem_cgroup *memcg, int nid)
+static void memcg1_check_events(struct mem_cgroup *memcg, int nid)
 {
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
 		return;
 
 	/* threshold event is triggered in finer grain than soft limit */
-	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+	if (unlikely(memcg1_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_THRESH))) {
 		bool do_softlimit;
 
-		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+		do_softlimit = memcg1_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_SOFTLIMIT);
 		mem_cgroup_threshold(memcg);
 		if (unlikely(do_softlimit))
 			memcg1_update_tree(memcg, nid);
 	}
+}
+
+void memcg1_commit_charge(struct folio *folio, struct mem_cgroup *memcg)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	memcg1_charge_statistics(memcg, folio_nr_pages(folio));
+	memcg1_check_events(memcg, folio_nid(folio));
+	local_irq_restore(flags);
+}
+
+void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg)
+{
+	/*
+	 * Interrupts should be disabled here because the caller holds the
+	 * i_pages lock which is taken with interrupts-off. It is
+	 * important here to have the interrupts disabled because it is the
+	 * only synchronisation we have for updating the per-CPU variables.
+	 */
+	preempt_disable_nested();
+	VM_WARN_ON_IRQS_ENABLED();
+	memcg1_charge_statistics(memcg, -folio_nr_pages(folio));
+	preempt_enable_nested();
+	memcg1_check_events(memcg, folio_nid(folio));
+}
+
+void memcg1_uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+			   unsigned long nr_memory, int nid)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__count_memcg_events(memcg, PGPGOUT, pgpgout);
+	__this_cpu_add(memcg->events_percpu->nr_page_events, nr_memory);
+	memcg1_check_events(memcg, nid);
+	local_irq_restore(flags);
 }
 
 static int compare_thresholds(const void *a, const void *b)
@@ -1860,26 +1947,26 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
 	INIT_WORK(&event->remove, memcg_event_remove);
 
 	efile = fdget(efd);
-	if (!efile.file) {
+	if (!fd_file(efile)) {
 		ret = -EBADF;
 		goto out_kfree;
 	}
 
-	event->eventfd = eventfd_ctx_fileget(efile.file);
+	event->eventfd = eventfd_ctx_fileget(fd_file(efile));
 	if (IS_ERR(event->eventfd)) {
 		ret = PTR_ERR(event->eventfd);
 		goto out_put_efile;
 	}
 
 	cfile = fdget(cfd);
-	if (!cfile.file) {
+	if (!fd_file(cfile)) {
 		ret = -EBADF;
 		goto out_put_eventfd;
 	}
 
 	/* the process need read permission on control file */
 	/* AV: shouldn't we check that it's been opened for read instead? */
-	ret = file_permission(cfile.file, MAY_READ);
+	ret = file_permission(fd_file(cfile), MAY_READ);
 	if (ret < 0)
 		goto out_put_cfile;
 
@@ -1887,7 +1974,7 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
 	 * The control file must be a regular cgroup1 file. As a regular cgroup
 	 * file can't be renamed, it's safe to access its name afterwards.
 	 */
-	cdentry = cfile.file->f_path.dentry;
+	cdentry = fd_file(cfile)->f_path.dentry;
 	if (cdentry->d_sb->s_type != &cgroup_fs_type || !d_is_reg(cdentry)) {
 		ret = -EINVAL;
 		goto out_put_cfile;
@@ -1907,9 +1994,15 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
 		event->register_event = mem_cgroup_usage_register_event;
 		event->unregister_event = mem_cgroup_usage_unregister_event;
 	} else if (!strcmp(name, "memory.oom_control")) {
+		pr_warn_once("oom_control is deprecated and will be removed. "
+			     "Please report your usecase to linux-mm-@kvack.org"
+			     " if you depend on this functionality. \n");
 		event->register_event = mem_cgroup_oom_register_event;
 		event->unregister_event = mem_cgroup_oom_unregister_event;
 	} else if (!strcmp(name, "memory.pressure_level")) {
+		pr_warn_once("pressure_level is deprecated and will be removed. "
+			     "Please report your usecase to linux-mm-@kvack.org "
+			     "if you depend on this functionality. \n");
 		event->register_event = vmpressure_register_event;
 		event->unregister_event = vmpressure_unregister_event;
 	} else if (!strcmp(name, "memory.memsw.usage_in_bytes")) {
@@ -1939,7 +2032,7 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
 	if (ret)
 		goto out_put_css;
 
-	vfs_poll(efile.file, &event->pt);
+	vfs_poll(fd_file(efile), &event->pt);
 
 	spin_lock_irq(&memcg->event_list_lock);
 	list_add(&event->list, &memcg->event_list);
@@ -2447,6 +2540,9 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
 			ret = 0;
 			break;
 		case _TCP:
+			pr_warn_once("kmem.tcp.limit_in_bytes is deprecated and will be removed. "
+				     "Please report your usecase to linux-mm@kvack.org if you "
+				     "depend on this functionality.\n");
 			ret = memcg_update_tcp_max(memcg, nr_pages);
 			break;
 		}
@@ -2455,6 +2551,9 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
 		if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
 			ret = -EOPNOTSUPP;
 		} else {
+			pr_warn_once("soft_limit_in_bytes is deprecated and will be removed. "
+				     "Please report your usecase to linux-mm@kvack.org if you "
+				     "depend on this functionality.\n");
 			WRITE_ONCE(memcg->soft_limit, nr_pages);
 			ret = 0;
 		}
@@ -2748,6 +2847,10 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 
+	pr_warn_once("oom_control is deprecated and will be removed. "
+		     "Please report your usecase to linux-mm-@kvack.org if you "
+		     "depend on this functionality. \n");
+
 	/* cannot set to root cgroup and only 0 and 1 are allowed */
 	if (mem_cgroup_is_root(memcg) || !((val == 0) || (val == 1)))
 		return -EINVAL;
@@ -2950,6 +3053,19 @@ bool memcg1_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages,
 		return true;
 	}
 	return false;
+}
+
+bool memcg1_alloc_events(struct mem_cgroup *memcg)
+{
+	memcg->events_percpu = alloc_percpu_gfp(struct memcg1_events_percpu,
+						GFP_KERNEL_ACCOUNT);
+	return !!memcg->events_percpu;
+}
+
+void memcg1_free_events(struct mem_cgroup *memcg)
+{
+	if (memcg->events_percpu)
+		free_percpu(memcg->events_percpu);
 }
 
 static int __init memcg1_init(void)

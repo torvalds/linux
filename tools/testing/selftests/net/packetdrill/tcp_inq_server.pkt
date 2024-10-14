@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test TCP_INQ and TCP_CM_INQ on the server side.
+`./defaults.sh
+`
+
+// Initialize connection
+    0	socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0	setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0	bind(3, ..., ...) = 0
+   +0	listen(3, 1) = 0
+
+   +0	< S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 10>
+   +0	> S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+ +.01	< . 1:1(0) ack 1 win 514
+
+// Accept the connection and enable TCP_INQ.
+   +0	accept(3, ..., ...) = 4
+   +0	setsockopt(4, SOL_TCP, TCP_INQ, [1], 4) = 0
+
+// Now we have 10K of data ready on the socket.
+   +0	< . 1:10001(10000) ack 1 win 514
+   +0	> . 1:1(0) ack 10001
+
+// We read 2K and we should have 8K ready to read.
+   +0	recvmsg(4, {msg_name(...)=...,
+		    msg_iov(1)=[{..., 2000}],
+		    msg_flags=0,
+		    msg_control=[{cmsg_level=SOL_TCP,
+				  cmsg_type=TCP_CM_INQ,
+				  cmsg_data=8000}]}, 0) = 2000
+// We read 8K and we should have no further data ready to read.
+   +0	recvmsg(4, {msg_name(...)=...,
+		    msg_iov(1)=[{..., 8000}],
+		    msg_flags=0,
+		    msg_control=[{cmsg_level=SOL_TCP,
+				  cmsg_type=TCP_CM_INQ,
+				  cmsg_data=0}]}, 0) = 8000
+// Client sends more data and closes the connections.
+   +0	< F. 10001:20001(10000) ack 1 win 514
+   +0	> . 1:1(0) ack 20002
+
+// We read 10K and we should have one "fake" byte because the connection is
+// closed.
+   +0	recvmsg(4, {msg_name(...)=...,
+		    msg_iov(1)=[{..., 10000}],
+		    msg_flags=0,
+		    msg_control=[{cmsg_level=SOL_TCP,
+				  cmsg_type=TCP_CM_INQ,
+				  cmsg_data=1}]}, 0) = 10000
+// Now, receive error.
+   +0	read(3, ..., 2000) = -1 ENOTCONN (Transport endpoint is not connected)

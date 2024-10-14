@@ -325,7 +325,6 @@ static const struct file_operations dtl_fops = {
 	.open		= dtl_file_open,
 	.release	= dtl_file_release,
 	.read		= dtl_file_read,
-	.llseek		= no_llseek,
 };
 
 static struct dentry *dtl_dir;

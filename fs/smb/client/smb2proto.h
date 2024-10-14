@@ -61,6 +61,7 @@ struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
 				     const unsigned int xid,
 				     struct cifs_tcon *tcon,
 				     const char *full_path,
+				     bool directory,
 				     struct kvec *reparse_iov,
 				     struct kvec *xattr_iov);
 int smb2_query_reparse_point(const unsigned int xid,
@@ -238,7 +239,7 @@ extern int SMB2_set_info_init(struct cifs_tcon *tcon,
 extern void SMB2_set_info_free(struct smb_rqst *rqst);
 extern int SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid,
-			struct cifs_ntsd *pnntsd, int pacllen, int aclflag);
+			struct smb_ntsd *pnntsd, int pacllen, int aclflag);
 extern int SMB2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 		       u64 persistent_fid, u64 volatile_fid,
 		       struct smb2_file_full_ea_info *buf, int len);

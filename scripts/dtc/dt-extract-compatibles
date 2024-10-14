@@ -46,6 +46,15 @@ def parse_of_match_table(data):
 	return match_table_list
 
 
+def parse_of_functions(data, func_name):
+	""" Find all compatibles in the last argument of a given function """
+	compat_list = []
+	for m in re.finditer(rf'{func_name}\(([a-zA-Z0-9_>\(\)"\-]+,\s)*"([a-zA-Z0-9_,-]+)"\)', data):
+		compat_list.append(m[2])
+
+	return compat_list
+
+
 def parse_compatibles(file, compat_ignore_list):
 	with open(file, 'r', encoding='utf-8') as f:
 		data = f.read().replace('\n', '')
@@ -60,6 +69,10 @@ def parse_compatibles(file, compat_ignore_list):
 	else:
 		compat_list = parse_of_declare_macros(data)
 		compat_list += parse_of_device_id(data)
+		compat_list += parse_of_functions(data, "_is_compatible")
+		compat_list += parse_of_functions(data, "of_find_compatible_node")
+		compat_list += parse_of_functions(data, "for_each_compatible_node")
+		compat_list += parse_of_functions(data, "of_get_compatible_child")
 
 	return compat_list
 

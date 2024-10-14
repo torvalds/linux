@@ -8,7 +8,7 @@
  *	    Chris Morgan <macromorgan@hotmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/devm-helpers.h>
 #include <linux/mfd/rk808.h>
 #include <linux/irq.h>
@@ -673,11 +673,6 @@ static enum power_supply_property rk817_chg_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 };
 
-static enum power_supply_usb_type rk817_usb_type[] = {
-	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-};
-
 static const struct power_supply_desc rk817_bat_desc = {
 	.name = "rk817-battery",
 	.type = POWER_SUPPLY_TYPE_BATTERY,
@@ -689,8 +684,8 @@ static const struct power_supply_desc rk817_bat_desc = {
 static const struct power_supply_desc rk817_chg_desc = {
 	.name = "rk817-charger",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = rk817_usb_type,
-	.num_usb_types = ARRAY_SIZE(rk817_usb_type),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
 	.properties = rk817_chg_props,
 	.num_properties = ARRAY_SIZE(rk817_chg_props),
 	.get_property = rk817_chg_get_prop,

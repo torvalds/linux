@@ -32,6 +32,7 @@ source lib.sh
 
 IP0=172.30.30.1
 IP1=172.30.30.2
+DUMMYNET=10.9.9
 PFXL=30
 ret=0
 
@@ -54,6 +55,7 @@ setup_ns ns0 ns1
 ip netns exec "$ns0" sysctl -q -w net.ipv4.conf.default.rp_filter=0
 ip netns exec "$ns0" sysctl -q -w net.ipv4.conf.all.rp_filter=0
 ip netns exec "$ns0" sysctl -q -w net.ipv4.conf.all.rp_filter=0
+ip netns exec "$ns0" sysctl -q -w net.ipv4.conf.all.forwarding=1
 
 if ! ip link add veth0 netns "$ns0" type veth peer name veth0 netns "$ns1" > /dev/null 2>&1; then
 	echo "SKIP: Could not add veth device"
@@ -65,13 +67,18 @@ if ! ip -net "$ns0" li add tvrf type vrf table 9876; then
 	exit $ksft_skip
 fi
 
+ip -net "$ns0" link add dummy0 type dummy
+
 ip -net "$ns0" li set veth0 master tvrf
+ip -net "$ns0" li set dummy0 master tvrf
 ip -net "$ns0" li set tvrf up
 ip -net "$ns0" li set veth0 up
+ip -net "$ns0" li set dummy0 up
 ip -net "$ns1" li set veth0 up
 
 ip -net "$ns0" addr add $IP0/$PFXL dev veth0
 ip -net "$ns1" addr add $IP1/$PFXL dev veth0
+ip -net "$ns0" addr add $DUMMYNET.1/$PFXL dev dummy0
 
 listener_ready()
 {
@@ -212,9 +219,35 @@ EOF
 	fi
 }
 
+test_fib()
+{
+ip netns exec "$ns0" nft -f - <<EOF
+flush ruleset
+table ip t {
+	counter fibcount { }
+
+	chain prerouting {
+		type filter hook prerouting priority 0;
+		meta iifname veth0 ip daddr $DUMMYNET.2 fib daddr oif dummy0 counter name fibcount notrack
+	}
+}
+EOF
+	ip -net "$ns1" route add 10.9.9.0/24 via "$IP0" dev veth0
+	ip netns exec "$ns1" ping -q -w 1 -c 1 "$DUMMYNET".2 > /dev/null
+
+	if ip netns exec "$ns0" nft list counter t fibcount | grep -q "packets 1"; then
+		echo "PASS: fib lookup returned exepected output interface"
+	else
+		echo "FAIL: fib lookup did not return exepected output interface"
+		ret=1
+		return
+	fi
+}
+
 test_ct_zone_in
 test_masquerade_vrf "default"
 test_masquerade_vrf "pfifo"
 test_masquerade_veth
+test_fib
 
 exit $ret

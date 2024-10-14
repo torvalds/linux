@@ -7,6 +7,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
+#include <linux/u64_stats_sync.h>
 #include <net/xdp.h>
 
 struct fbnic_net;
@@ -51,6 +52,13 @@ struct fbnic_pkt_buff {
 	u16 nr_frags;
 };
 
+struct fbnic_queue_stats {
+	u64 packets;
+	u64 bytes;
+	u64 dropped;
+	struct u64_stats_sync syncp;
+};
+
 /* Pagecnt bias is long max to reserve the last bit to catch overflow
  * cases where if we overcharge the bias it will flip over to be negative.
  */
@@ -76,6 +84,8 @@ struct fbnic_ring {
 	u8 flags;			/* Ring flags (FBNIC_RING_F_*) */
 
 	u32 head, tail;			/* Head/Tail of ring */
+
+	struct fbnic_queue_stats stats;
 
 	/* Slow path fields follow */
 	dma_addr_t dma;			/* Phys addr of descriptor memory */

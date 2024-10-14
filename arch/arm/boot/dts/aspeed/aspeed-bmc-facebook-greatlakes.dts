@@ -201,7 +201,7 @@
 &i2c12 {
 	status = "okay";
 	temperature-sensor@4f {
-		compatible = "lm75";
+		compatible = "national,lm75";
 		reg = <0x4f>;
 	};
 };

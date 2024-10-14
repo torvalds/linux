@@ -38,11 +38,7 @@ void test_bpf_syscall_macro(void)
 	/* check whether args of syscall are copied correctly */
 	prctl(exp_arg1, exp_arg2, exp_arg3, exp_arg4, exp_arg5);
 
-#if defined(__aarch64__) || defined(__s390__)
-	ASSERT_NEQ(skel->bss->arg1, exp_arg1, "syscall_arg1");
-#else
 	ASSERT_EQ(skel->bss->arg1, exp_arg1, "syscall_arg1");
-#endif
 	ASSERT_EQ(skel->bss->arg2, exp_arg2, "syscall_arg2");
 	ASSERT_EQ(skel->bss->arg3, exp_arg3, "syscall_arg3");
 	/* it cannot copy arg4 when uses PT_REGS_PARM4 on x86_64 */

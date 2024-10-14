@@ -202,8 +202,8 @@ struct btrfs_delayed_ref_root {
 	/* head ref rbtree */
 	struct rb_root_cached href_root;
 
-	/* dirty extent records */
-	struct rb_root dirty_extent_root;
+	/* Track dirty extent records. */
+	struct xarray dirty_extents;
 
 	/* this spin lock protects the rbtree and the entries inside */
 	spinlock_t lock;

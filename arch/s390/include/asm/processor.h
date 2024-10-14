@@ -44,6 +44,7 @@ struct pcpu {
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
 	unsigned long ec_clk;		/* sigp timestamp for ec_xxx */
 	unsigned long flags;		/* per CPU flags */
+	unsigned long capacity;		/* cpu capacity for scheduler */
 	signed char state;		/* physical cpu state */
 	signed char polarization;	/* physical polarization */
 	u16 address;			/* physical cpu address */

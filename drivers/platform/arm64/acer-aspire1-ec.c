@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2024, Nikita Travkin <nikita@trvn.ru> */
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 #include <drm/drm_bridge.h>
 #include <linux/bits.h>
 #include <linux/delay.h>

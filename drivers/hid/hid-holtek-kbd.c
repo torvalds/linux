@@ -27,7 +27,7 @@
  * to the boot interface.
  */
 
-static __u8 holtek_kbd_rdesc_fixed[] = {
+static const __u8 holtek_kbd_rdesc_fixed[] = {
 	/* Original report descriptor, with reduced number of consumer usages */
 	0x05, 0x01,         /*  Usage Page (Desktop),                         */
 	0x09, 0x80,         /*  Usage (Sys Control),                          */
@@ -102,14 +102,14 @@ static __u8 holtek_kbd_rdesc_fixed[] = {
 	0xC0,               /*  End Collection                                */
 };
 
-static __u8 *holtek_kbd_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *holtek_kbd_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber == 1) {
-		rdesc = holtek_kbd_rdesc_fixed;
 		*rsize = sizeof(holtek_kbd_rdesc_fixed);
+		return holtek_kbd_rdesc_fixed;
 	}
 	return rdesc;
 }

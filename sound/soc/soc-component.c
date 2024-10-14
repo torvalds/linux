@@ -257,18 +257,6 @@ struct snd_kcontrol *snd_soc_component_get_kcontrol(struct snd_soc_component *co
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_get_kcontrol);
 
-struct snd_kcontrol *
-snd_soc_component_get_kcontrol_locked(struct snd_soc_component *component,
-				      const char * const ctl)
-{
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-
-	soc_get_kcontrol_name(component, name, ARRAY_SIZE(name), ctl);
-
-	return snd_soc_card_get_kcontrol_locked(component->card, name);
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_get_kcontrol_locked);
-
 int snd_soc_component_notify_control(struct snd_soc_component *component,
 				     const char * const ctl)
 {

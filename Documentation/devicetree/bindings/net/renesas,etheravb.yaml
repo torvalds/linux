@@ -62,15 +62,27 @@ properties:
               - renesas,r9a08g045-gbeth # RZ/G3S
           - const: renesas,rzg2l-gbeth  # RZ/{G2L,G2UL,V2L} family
 
-  reg: true
+  reg:
+    minItems: 1
+    items:
+      - description: MAC register block
+      - description: Stream buffer
 
-  interrupts: true
+  interrupts:
+    minItems: 1
+    maxItems: 29
 
-  interrupt-names: true
+  interrupt-names:
+    minItems: 1
+    maxItems: 29
 
-  clocks: true
+  clocks:
+    minItems: 1
+    maxItems: 3
 
-  clock-names: true
+  clock-names:
+    minItems: 1
+    maxItems: 3
 
   iommus:
     maxItems: 1
@@ -150,14 +162,11 @@ allOf:
     then:
       properties:
         reg:
-          items:
-            - description: MAC register block
-            - description: Stream buffer
+          minItems: 2
     else:
       properties:
         reg:
-          items:
-            - description: MAC register block
+          maxItems: 1
 
   - if:
       properties:

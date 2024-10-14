@@ -455,37 +455,30 @@ static int mt7921_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	return mt7921_abort_roc(phy, mvif);
 }
 
-static int mt7921_set_channel(struct mt792x_phy *phy)
+int mt7921_set_channel(struct mt76_phy *mphy)
 {
+	struct mt792x_phy *phy = mphy->priv;
 	struct mt792x_dev *dev = phy->dev;
 	int ret;
 
-	cancel_delayed_work_sync(&phy->mt76->mac_work);
-
-	mt792x_mutex_acquire(dev);
-	set_bit(MT76_RESET, &phy->mt76->state);
-
-	mt76_set_channel(phy->mt76);
-
+	mt76_connac_pm_wake(mphy, &dev->pm);
 	ret = mt7921_mcu_set_chan_info(phy, MCU_EXT_CMD(CHANNEL_SWITCH));
 	if (ret)
 		goto out;
 
 	mt792x_mac_set_timeing(phy);
-
 	mt792x_mac_reset_counters(phy);
 	phy->noise = 0;
 
 out:
-	clear_bit(MT76_RESET, &phy->mt76->state);
-	mt792x_mutex_release(dev);
+	mt76_connac_power_save_sched(mphy, &dev->pm);
 
-	mt76_worker_schedule(&dev->mt76.tx_worker);
-	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mt76->mac_work,
+	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
 				     MT792x_WATCHDOG_TIME);
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7921_set_channel);
 
 static int mt7921_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
@@ -620,11 +613,9 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 	int ret = 0;
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ieee80211_stop_queues(hw);
-		ret = mt7921_set_channel(phy);
+		ret = mt76_update_channel(phy->mt76);
 		if (ret)
 			return ret;
-		ieee80211_wake_queues(hw);
 	}
 
 	mt792x_mutex_acquire(dev);
@@ -831,12 +822,15 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt7921_mac_sta_add);
 
-void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta)
+int mt7921_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta, enum mt76_sta_event ev)
 {
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+
+	if (ev != MT76_STA_EVENT_ASSOC)
+	    return 0;
 
 	mt792x_mutex_acquire(dev);
 
@@ -853,8 +847,10 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt7921_mcu_sta_update(dev, sta, vif, true, MT76_STA_INFO_STATE_ASSOC);
 
 	mt792x_mutex_release(dev);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(mt7921_mac_sta_assoc);
+EXPORT_SYMBOL_GPL(mt7921_mac_sta_event);
 
 void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)

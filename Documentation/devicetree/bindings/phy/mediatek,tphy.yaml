@@ -240,7 +240,7 @@ patternProperties:
           The force mode is used to manually switch the shared phy mode between
           USB3 and PCIe, when USB3 phy type is selected by the consumer, and
           force-mode is set, will cause phy's power and pipe toggled and force
-          phy as USB3 mode which switched from default PCIe mode. But perfer to
+          phy as USB3 mode which switched from default PCIe mode. But prefer to
           use the property "mediatek,syscon-type" for newer SoCs that support it.
         type: boolean
 

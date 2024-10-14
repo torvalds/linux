@@ -48,6 +48,20 @@ void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_vf2pf_notify_shutdown);
 
+void adf_vf2pf_notify_restart_complete(struct adf_accel_dev *accel_dev)
+{
+	struct pfvf_message msg = { .type = ADF_VF2PF_MSGTYPE_RESTARTING_COMPLETE };
+
+	/* Check compatibility version */
+	if (accel_dev->vf.pf_compat_ver < ADF_PFVF_COMPAT_FALLBACK)
+		return;
+
+	if (adf_send_vf2pf_msg(accel_dev, msg))
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to send Restarting complete event to PF\n");
+}
+EXPORT_SYMBOL_GPL(adf_vf2pf_notify_restart_complete);
+
 int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 {
 	u8 pf_version;

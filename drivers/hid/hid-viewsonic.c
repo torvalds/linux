@@ -22,7 +22,7 @@
 #define PD1011_RDESC_ORIG_SIZE	408
 
 /* Fixed report descriptor of PD1011 signature pad */
-static __u8 pd1011_rdesc_fixed[] = {
+static const __u8 pd1011_rdesc_fixed[] = {
 	0x05, 0x0D,             /*  Usage Page (Digitizer),             */
 	0x09, 0x01,             /*  Usage (Digitizer),                  */
 	0xA1, 0x01,             /*  Collection (Application),           */
@@ -70,15 +70,15 @@ static __u8 pd1011_rdesc_fixed[] = {
 	0xC0                    /*  End Collection                      */
 };
 
-static __u8 *viewsonic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				    unsigned int *rsize)
+static const __u8 *viewsonic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+					  unsigned int *rsize)
 {
 	switch (hdev->product) {
 	case USB_DEVICE_ID_VIEWSONIC_PD1011:
 	case USB_DEVICE_ID_SIGNOTEC_VIEWSONIC_PD1011:
 		if (*rsize == PD1011_RDESC_ORIG_SIZE) {
-			rdesc = pd1011_rdesc_fixed;
 			*rsize = sizeof(pd1011_rdesc_fixed);
+			return pd1011_rdesc_fixed;
 		}
 		break;
 	}

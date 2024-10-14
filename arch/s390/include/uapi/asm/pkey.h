@@ -41,6 +41,10 @@
 #define PKEY_KEYTYPE_ECC_P521		7
 #define PKEY_KEYTYPE_ECC_ED25519	8
 #define PKEY_KEYTYPE_ECC_ED448		9
+#define PKEY_KEYTYPE_AES_XTS_128	10
+#define PKEY_KEYTYPE_AES_XTS_256	11
+#define PKEY_KEYTYPE_HMAC_512		12
+#define PKEY_KEYTYPE_HMAC_1024		13
 
 /* the newer ioctls use a pkey_key_type enum for type information */
 enum pkey_key_type {
@@ -50,6 +54,7 @@ enum pkey_key_type {
 	PKEY_TYPE_CCA_ECC    = (__u32) 0x1f,
 	PKEY_TYPE_EP11_AES   = (__u32) 6,
 	PKEY_TYPE_EP11_ECC   = (__u32) 7,
+	PKEY_TYPE_PROTKEY    = (__u32) 8,
 };
 
 /* the newer ioctls use a pkey_key_size enum for key size information */

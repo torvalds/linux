@@ -493,7 +493,6 @@
 };
 
 &usb_host0_xhci {
-	dr_mode = "peripheral";
 	status = "okay";
 };
 

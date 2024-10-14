@@ -2993,7 +2993,11 @@ This structure contains all loop filter related parameters. See sections
       - Applications and drivers must set this to zero.
     * - __u16
       - ``max_frame_width_minus_1``
-      - specifies the maximum frame width minus 1 for the frames represented by
+      - Specifies the maximum frame width minus 1 for the frames represented by
+        this sequence header.
+    * - __u16
+      - ``max_frame_height_minus_1``
+      - Specifies the maximum frame height minus 1 for the frames represented by
         this sequence header.
 
 .. _av1_sequence_flags:
@@ -3374,7 +3378,7 @@ semantics" of :ref:`av1`.
       - ``uv_pri_strength[V4L2_AV1_CDEF_MAX]``
       -  Specifies the strength of the primary filter.
     * - __u8
-      - ``uv_secondary_strength[V4L2_AV1_CDEF_MAX]``
+      - ``uv_sec_strength[V4L2_AV1_CDEF_MAX]``
       -  Specifies the strength of the secondary filter.
 
 .. c:type:: v4l2_av1_segment_feature
@@ -3439,7 +3443,7 @@ semantics" of :ref:`av1`.
       - Bitmask defining which features are enabled in each segment. Use
         V4L2_AV1_SEGMENT_FEATURE_ENABLED to build a suitable mask.
     * - __u16
-      - `feature_data[V4L2_AV1_MAX_SEGMENTS][V4L2_AV1_SEG_LVL_MAX]``
+      - ``feature_data[V4L2_AV1_MAX_SEGMENTS][V4L2_AV1_SEG_LVL_MAX]``
       -  Data attached to each feature. Data entry is only valid if the feature
          is enabled.
 
@@ -3490,7 +3494,7 @@ AV1 Loop filter params as defined in section 6.8.10 "Loop filter semantics" of
 
 .. tabularcolumns:: |p{1.5cm}|p{5.8cm}|p{10.0cm}|
 
-.. flat-table:: struct v4l2_av1_global_motion
+.. flat-table:: struct v4l2_av1_loop_filter
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
@@ -3806,12 +3810,12 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
     * - struct :c:type:`v4l2_av1_quantization`
       - ``quantization``
       - Quantization parameters.
-    * - struct :c:type:`v4l2_av1_segmentation`
-      - ``segmentation``
-      - Segmentation parameters.
     * - __u8
       - ``superres_denom``
       - The denominator for the upscaling ratio.
+    * - struct :c:type:`v4l2_av1_segmentation`
+      - ``segmentation``
+      - Segmentation parameters.
     * - struct :c:type:`v4l2_av1_loop_filter`
       - ``loop_filter``
       - Loop filter params
@@ -3829,7 +3833,7 @@ AV1 Tx mode as described in section 6.8.21 "TX mode semantics" of :ref:`av1`.
     * - struct :c:type:`v4l2_av1_loop_restoration`
       - ``loop_restoration``
       - Loop restoration parameters.
-    * - struct :c:type:`v4l2_av1_loop_global_motion`
+    * - struct :c:type:`v4l2_av1_global_motion`
       - ``global_motion``
       - Global motion parameters.
     * - __u32

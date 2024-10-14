@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/fsl,imx-audio-es8328.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX audio complex with ES8328 codec
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+  - Sascha Hauer <s.hauer@pengutronix.de>
+
+allOf:
+  - $ref: sound-card-common.yaml#
+
+properties:
+  compatible:
+    const: fsl,imx-audio-es8328
+
+  model:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: The user-visible name of this sound complex
+
+  ssi-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle of the i.MX SSI controller
+
+  jack-gpio:
+    description: Optional GPIO for headphone jack
+    maxItems: 1
+
+  audio-amp-supply:
+    description: Power regulator for speaker amps
+
+  audio-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle to the ES8328 audio codec
+
+  audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: |
+      A list of the connections between audio components. Each entry
+      is a pair of strings, the first being the connection's sink, the second
+      being the connection's source. Valid names could be power supplies,
+      ES8328 pins, and the jacks on the board:
+
+      Power supplies:
+        * audio-amp
+
+      ES8328 pins:
+        * LOUT1
+        * LOUT2
+        * ROUT1
+        * ROUT2
+        * LINPUT1
+        * LINPUT2
+        * RINPUT1
+        * RINPUT2
+        * Mic PGA
+
+      Board connectors:
+        * Headphone
+        * Speaker
+        * Mic Jack
+
+  mux-int-port:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The internal port of the i.MX audio muxer (AUDMUX)
+    enum: [1, 2, 7]
+    default: 1
+
+  mux-ext-port:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The external port of the i.MX audio muxer (AUDMIX)
+    enum: [3, 4, 5, 6]
+    default: 3
+
+required:
+  - compatible
+  - model
+  - ssi-controller
+  - jack-gpio
+  - audio-amp-supply
+  - audio-codec
+  - audio-routing
+  - mux-int-port
+  - mux-ext-port
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "fsl,imx-audio-es8328";
+        model = "imx-audio-es8328";
+        ssi-controller = <&ssi1>;
+        audio-codec = <&codec>;
+        jack-gpio = <&gpio5 15 0>;
+        audio-amp-supply = <&reg_audio_amp>;
+        audio-routing =
+            "Speaker", "LOUT2",
+            "Speaker", "ROUT2",
+            "Speaker", "audio-amp",
+            "Headphone", "ROUT1",
+            "Headphone", "LOUT1",
+            "LINPUT1", "Mic Jack",
+            "RINPUT1", "Mic Jack",
+            "Mic Jack", "Mic Bias";
+        mux-int-port = <1>;
+        mux-ext-port = <3>;
+    };

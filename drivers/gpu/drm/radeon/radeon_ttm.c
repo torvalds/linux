@@ -682,8 +682,8 @@ int radeon_ttm_init(struct radeon_device *rdev)
 
 	/* No others user of address space so set it to 0 */
 	r = ttm_device_init(&rdev->mman.bdev, &radeon_bo_driver, rdev->dev,
-			       rdev->ddev->anon_inode->i_mapping,
-			       rdev->ddev->vma_offset_manager,
+			       rdev_to_drm(rdev)->anon_inode->i_mapping,
+			       rdev_to_drm(rdev)->vma_offset_manager,
 			       rdev->need_swiotlb,
 			       dma_addressing_limited(&rdev->pdev->dev));
 	if (r) {
@@ -890,7 +890,7 @@ static const struct file_operations radeon_ttm_gtt_fops = {
 static void radeon_ttm_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = rdev->ddev->primary;
+	struct drm_minor *minor = rdev_to_drm(rdev)->primary;
 	struct dentry *root = minor->debugfs_root;
 
 	debugfs_create_file("radeon_vram", 0444, root, rdev,

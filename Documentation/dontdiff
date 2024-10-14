@@ -180,6 +180,7 @@ modpost
 modules-only.symvers
 modules.builtin
 modules.builtin.modinfo
+modules.builtin.ranges
 modules.nsdeps
 modules.order
 modversions.h*
@@ -262,7 +263,7 @@ vsyscall_32.lds
 wanxlfw.inc
 uImage
 unifdef
-utf8data.h
+utf8data.c
 wakeup.bin
 wakeup.elf
 wakeup.lds

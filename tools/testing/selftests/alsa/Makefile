@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 #
+ifneq ($(shell pkg-config --exists alsa && echo 0 || echo 1),0)
+$(error Package alsa not found, please install alsa development package or \
+	add directory containing `alsa.pc` in PKG_CONFIG_PATH)
+endif
 
 CFLAGS += $(shell pkg-config --cflags alsa) $(KHDR_INCLUDES)
 LDLIBS += $(shell pkg-config --libs alsa)
@@ -12,9 +16,9 @@ LDLIBS+=-lpthread
 
 OVERRIDE_TARGETS = 1
 
-TEST_GEN_PROGS := mixer-test pcm-test test-pcmtest-driver
+TEST_GEN_PROGS := mixer-test pcm-test test-pcmtest-driver utimer-test
 
-TEST_GEN_PROGS_EXTENDED := libatest.so
+TEST_GEN_PROGS_EXTENDED := libatest.so global-timer
 
 TEST_FILES := conf.d pcm-test.conf
 

@@ -458,7 +458,7 @@ static void sec_ipv6_hashmask(struct sec_dev_info *info, u32 hash_mask[])
 static int sec_ipv4_hashmask(struct sec_dev_info *info, u32 hash_mask)
 {
 	if (hash_mask & SEC_HASH_IPV4_MASK) {
-		dev_err(info->dev, "Sec Ipv4 Hash Mask Input Error!\n ");
+		dev_err(info->dev, "Sec Ipv4 Hash Mask Input Error!\n");
 		return -EINVAL;
 	}
 

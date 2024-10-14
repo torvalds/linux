@@ -57,7 +57,6 @@ int process_param(int fd, int msg_index, __u8 *signature, int *data)
 		.msg_index = msg_index,
 		.param = *data,
 	};
-	int ret;
 
 	assert(signature);
 	assert(data);

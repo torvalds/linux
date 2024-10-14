@@ -16,24 +16,25 @@
 #include "xfs_qm.h"
 
 
-static void
+static int
 xfs_qm_fill_state(
 	struct qc_type_state	*tstate,
 	struct xfs_mount	*mp,
-	struct xfs_inode	*ip,
-	xfs_ino_t		ino,
-	struct xfs_def_quota	*defq)
+	xfs_dqtype_t		type)
 {
-	bool			tempqip = false;
+	struct xfs_inode	*ip;
+	struct xfs_def_quota	*defq;
+	int			error;
 
-	tstate->ino = ino;
-	if (!ip && ino == NULLFSINO)
-		return;
-	if (!ip) {
-		if (xfs_iget(mp, NULL, ino, 0, 0, &ip))
-			return;
-		tempqip = true;
+	error = xfs_qm_qino_load(mp, type, &ip);
+	if (error) {
+		tstate->ino = NULLFSINO;
+		return error != -ENOENT ? error : 0;
 	}
+
+	defq = xfs_get_defquota(mp->m_quotainfo, type);
+
+	tstate->ino = ip->i_ino;
 	tstate->flags |= QCI_SYSFILE;
 	tstate->blocks = ip->i_nblocks;
 	tstate->nextents = ip->i_df.if_nextents;
@@ -43,8 +44,9 @@ xfs_qm_fill_state(
 	tstate->spc_warnlimit = 0;
 	tstate->ino_warnlimit = 0;
 	tstate->rt_spc_warnlimit = 0;
-	if (tempqip)
-		xfs_irele(ip);
+	xfs_irele(ip);
+
+	return 0;
 }
 
 /*
@@ -56,8 +58,9 @@ xfs_fs_get_quota_state(
 	struct super_block	*sb,
 	struct qc_state		*state)
 {
-	struct xfs_mount *mp = XFS_M(sb);
-	struct xfs_quotainfo *q = mp->m_quotainfo;
+	struct xfs_mount	*mp = XFS_M(sb);
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
+	int			error;
 
 	memset(state, 0, sizeof(*state));
 	if (!XFS_IS_QUOTA_ON(mp))
@@ -76,12 +79,18 @@ xfs_fs_get_quota_state(
 	if (XFS_IS_PQUOTA_ENFORCED(mp))
 		state->s_state[PRJQUOTA].flags |= QCI_LIMITS_ENFORCED;
 
-	xfs_qm_fill_state(&state->s_state[USRQUOTA], mp, q->qi_uquotaip,
-			  mp->m_sb.sb_uquotino, &q->qi_usr_default);
-	xfs_qm_fill_state(&state->s_state[GRPQUOTA], mp, q->qi_gquotaip,
-			  mp->m_sb.sb_gquotino, &q->qi_grp_default);
-	xfs_qm_fill_state(&state->s_state[PRJQUOTA], mp, q->qi_pquotaip,
-			  mp->m_sb.sb_pquotino, &q->qi_prj_default);
+	error = xfs_qm_fill_state(&state->s_state[USRQUOTA], mp,
+			XFS_DQTYPE_USER);
+	if (error)
+		return error;
+	error = xfs_qm_fill_state(&state->s_state[GRPQUOTA], mp,
+			XFS_DQTYPE_GROUP);
+	if (error)
+		return error;
+	error = xfs_qm_fill_state(&state->s_state[PRJQUOTA], mp,
+			XFS_DQTYPE_PROJ);
+	if (error)
+		return error;
 	return 0;
 }
 

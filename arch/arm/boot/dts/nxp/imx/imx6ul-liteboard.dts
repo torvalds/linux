@@ -100,7 +100,7 @@
 		>;
 	};
 
-	pinctrl_usb_otg1_vbus: usb-otg1-vbus {
+	pinctrl_usb_otg1_vbus: usb-otg1-vbus-grp {
 		fsl,pins = <
 			MX6UL_PAD_ENET2_RX_DATA0__GPIO2_IO08	0x79
 		>;

@@ -402,27 +402,27 @@ replay_abort:
 		{
 			nfnl_unlock(subsys_id);
 			netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
-			return kfree_skb(skb);
+			return consume_skb(skb);
 		}
 	}
 
 	if (!ss->valid_genid || !ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
 		netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
-		return kfree_skb(skb);
+		return consume_skb(skb);
 	}
 
 	if (!try_module_get(ss->owner)) {
 		nfnl_unlock(subsys_id);
 		netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
-		return kfree_skb(skb);
+		return consume_skb(skb);
 	}
 
 	if (!ss->valid_genid(net, genid)) {
 		module_put(ss->owner);
 		nfnl_unlock(subsys_id);
 		netlink_ack(oskb, nlh, -ERESTART, NULL);
-		return kfree_skb(skb);
+		return consume_skb(skb);
 	}
 
 	nfnl_unlock(subsys_id);
@@ -567,7 +567,7 @@ done:
 	if (status & NFNL_BATCH_REPLAY) {
 		ss->abort(net, oskb, NFNL_ABORT_AUTOLOAD);
 		nfnl_err_reset(&err_list);
-		kfree_skb(skb);
+		consume_skb(skb);
 		module_put(ss->owner);
 		goto replay;
 	} else if (status == NFNL_BATCH_DONE) {
@@ -593,7 +593,7 @@ done:
 		err = ss->abort(net, oskb, abort_action);
 		if (err == -EAGAIN) {
 			nfnl_err_reset(&err_list);
-			kfree_skb(skb);
+			consume_skb(skb);
 			module_put(ss->owner);
 			status |= NFNL_BATCH_FAILURE;
 			goto replay_abort;
@@ -601,7 +601,7 @@ done:
 	}
 
 	nfnl_err_deliver(&err_list, oskb);
-	kfree_skb(skb);
+	consume_skb(skb);
 	module_put(ss->owner);
 }
 

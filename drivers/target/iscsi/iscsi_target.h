@@ -15,7 +15,6 @@ struct kref;
 struct sockaddr_storage;
 
 extern struct iscsi_tiqn *iscsit_get_tiqn_for_login(unsigned char *);
-extern struct iscsi_tiqn *iscsit_get_tiqn(unsigned char *, int);
 extern void iscsit_put_tiqn_for_login(struct iscsi_tiqn *);
 extern struct iscsi_tiqn *iscsit_add_tiqn(unsigned char *);
 extern void iscsit_del_tiqn(struct iscsi_tiqn *);
@@ -35,7 +34,6 @@ extern void iscsit_set_unsolicited_dataout(struct iscsit_cmd *);
 extern int iscsit_logout_closesession(struct iscsit_cmd *, struct iscsit_conn *);
 extern int iscsit_logout_closeconnection(struct iscsit_cmd *, struct iscsit_conn *);
 extern int iscsit_logout_removeconnforrecovery(struct iscsit_cmd *, struct iscsit_conn *);
-extern int iscsit_send_async_msg(struct iscsit_conn *, u16, u8, u8);
 extern int iscsit_build_r2ts_for_cmd(struct iscsit_conn *, struct iscsit_cmd *, bool recovery);
 extern void iscsit_thread_get_cpumask(struct iscsit_conn *);
 extern int iscsi_target_tx_thread(void *);

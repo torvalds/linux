@@ -17,9 +17,14 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: microchip,mpfs-qspi
+          - enum:
+              - microchip,mpfs-qspi
+              - microchip,pic64gx-qspi
           - const: microchip,coreqspi-rtl-v2
       - const: microchip,coreqspi-rtl-v2 # FPGA QSPI
+      - items:
+          - const: microchip,pic64gx-spi
+          - const: microchip,mpfs-spi
       - const: microchip,mpfs-spi
 
   reg:

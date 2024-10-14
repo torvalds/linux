@@ -9,8 +9,8 @@
 #include <linux/types.h>
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
-#include <linux/sched.h>
 #include <kunit/test.h>
+#include <kunit/test-bug.h>
 
 /*
  * Each test that provides a kunit private test structure, place a test id
@@ -31,8 +31,6 @@ struct xe_test_priv {
 
 #define XE_TEST_DECLARE(x) x
 #define XE_TEST_ONLY(x) unlikely(x)
-#define XE_TEST_EXPORT
-#define xe_cur_kunit() current->kunit_test
 
 /**
  * xe_cur_kunit_priv - Obtain the struct xe_test_priv pointed to by
@@ -48,10 +46,10 @@ xe_cur_kunit_priv(enum xe_test_priv_id id)
 {
 	struct xe_test_priv *priv;
 
-	if (!xe_cur_kunit())
+	if (!kunit_get_current_test())
 		return NULL;
 
-	priv = xe_cur_kunit()->priv;
+	priv = kunit_get_current_test()->priv;
 	return priv->id == id ? priv : NULL;
 }
 
@@ -59,8 +57,6 @@ xe_cur_kunit_priv(enum xe_test_priv_id id)
 
 #define XE_TEST_DECLARE(x)
 #define XE_TEST_ONLY(x) 0
-#define XE_TEST_EXPORT static
-#define xe_cur_kunit() NULL
 #define xe_cur_kunit_priv(_id) NULL
 
 #endif

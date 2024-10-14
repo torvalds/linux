@@ -177,17 +177,12 @@
 #define N_FTS_VAL					52
 #define FTS_VAL						52
 
-#define GEN3_EQ_CONTROL_OFF			0x8a8
-#define GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_SHIFT	8
-#define GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_MASK	GENMASK(23, 8)
-#define GEN3_EQ_CONTROL_OFF_FB_MODE_MASK	GENMASK(3, 0)
-
 #define PORT_LOGIC_AMBA_ERROR_RESPONSE_DEFAULT	0x8D0
-#define AMBA_ERROR_RESPONSE_CRS_SHIFT		3
-#define AMBA_ERROR_RESPONSE_CRS_MASK		GENMASK(1, 0)
-#define AMBA_ERROR_RESPONSE_CRS_OKAY		0
-#define AMBA_ERROR_RESPONSE_CRS_OKAY_FFFFFFFF	1
-#define AMBA_ERROR_RESPONSE_CRS_OKAY_FFFF0001	2
+#define AMBA_ERROR_RESPONSE_RRS_SHIFT		3
+#define AMBA_ERROR_RESPONSE_RRS_MASK		GENMASK(1, 0)
+#define AMBA_ERROR_RESPONSE_RRS_OKAY		0
+#define AMBA_ERROR_RESPONSE_RRS_OKAY_FFFFFFFF	1
+#define AMBA_ERROR_RESPONSE_RRS_OKAY_FFFF0001	2
 
 #define MSIX_ADDR_MATCH_LOW_OFF			0x940
 #define MSIX_ADDR_MATCH_LOW_OFF_EN		BIT(0)
@@ -861,9 +856,9 @@ static void config_gen3_gen4_eq_presets(struct tegra_pcie_dw *pcie)
 	dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
 
 	val = dw_pcie_readl_dbi(pci, GEN3_EQ_CONTROL_OFF);
-	val &= ~GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_MASK;
-	val |= (0x3ff << GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_SHIFT);
-	val &= ~GEN3_EQ_CONTROL_OFF_FB_MODE_MASK;
+	val &= ~GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC;
+	val |= FIELD_PREP(GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC, 0x3ff);
+	val &= ~GEN3_EQ_CONTROL_OFF_FB_MODE;
 	dw_pcie_writel_dbi(pci, GEN3_EQ_CONTROL_OFF, val);
 
 	val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
@@ -872,10 +867,10 @@ static void config_gen3_gen4_eq_presets(struct tegra_pcie_dw *pcie)
 	dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
 
 	val = dw_pcie_readl_dbi(pci, GEN3_EQ_CONTROL_OFF);
-	val &= ~GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_MASK;
-	val |= (pcie->of_data->gen4_preset_vec <<
-		GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC_SHIFT);
-	val &= ~GEN3_EQ_CONTROL_OFF_FB_MODE_MASK;
+	val &= ~GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC;
+	val |= FIELD_PREP(GEN3_EQ_CONTROL_OFF_PSET_REQ_VEC,
+			  pcie->of_data->gen4_preset_vec);
+	val &= ~GEN3_EQ_CONTROL_OFF_FB_MODE;
 	dw_pcie_writel_dbi(pci, GEN3_EQ_CONTROL_OFF, val);
 
 	val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
@@ -907,11 +902,11 @@ static int tegra_pcie_dw_host_init(struct dw_pcie_rp *pp)
 
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, 0);
 
-	/* Enable as 0xFFFF0001 response for CRS */
+	/* Enable as 0xFFFF0001 response for RRS */
 	val = dw_pcie_readl_dbi(pci, PORT_LOGIC_AMBA_ERROR_RESPONSE_DEFAULT);
-	val &= ~(AMBA_ERROR_RESPONSE_CRS_MASK << AMBA_ERROR_RESPONSE_CRS_SHIFT);
-	val |= (AMBA_ERROR_RESPONSE_CRS_OKAY_FFFF0001 <<
-		AMBA_ERROR_RESPONSE_CRS_SHIFT);
+	val &= ~(AMBA_ERROR_RESPONSE_RRS_MASK << AMBA_ERROR_RESPONSE_RRS_SHIFT);
+	val |= (AMBA_ERROR_RESPONSE_RRS_OKAY_FFFF0001 <<
+		AMBA_ERROR_RESPONSE_RRS_SHIFT);
 	dw_pcie_writel_dbi(pci, PORT_LOGIC_AMBA_ERROR_RESPONSE_DEFAULT, val);
 
 	/* Clear Slot Clock Configuration bit if SRNS configuration */

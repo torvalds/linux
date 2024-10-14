@@ -420,28 +420,38 @@ static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
 #ifdef CONFIG_FILE_LOCKING
 static inline int break_lease(struct inode *inode, unsigned int mode)
 {
+	struct file_lock_context *flctx;
+
 	/*
 	 * Since this check is lockless, we must ensure that any refcounts
 	 * taken are done before checking i_flctx->flc_lease. Otherwise, we
 	 * could end up racing with tasks trying to set a new lease on this
 	 * file.
 	 */
+	flctx = READ_ONCE(inode->i_flctx);
+	if (!flctx)
+		return 0;
 	smp_mb();
-	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
+	if (!list_empty_careful(&flctx->flc_lease))
 		return __break_lease(inode, mode, FL_LEASE);
 	return 0;
 }
 
 static inline int break_deleg(struct inode *inode, unsigned int mode)
 {
+	struct file_lock_context *flctx;
+
 	/*
 	 * Since this check is lockless, we must ensure that any refcounts
 	 * taken are done before checking i_flctx->flc_lease. Otherwise, we
 	 * could end up racing with tasks trying to set a new lease on this
 	 * file.
 	 */
+	flctx = READ_ONCE(inode->i_flctx);
+	if (!flctx)
+		return 0;
 	smp_mb();
-	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
+	if (!list_empty_careful(&flctx->flc_lease))
 		return __break_lease(inode, mode, FL_DELEG);
 	return 0;
 }

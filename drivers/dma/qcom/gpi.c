@@ -1856,7 +1856,7 @@ static void gpi_issue_pending(struct dma_chan *chan)
 
 	read_lock_irqsave(&gpii->pm_lock, pm_lock_flags);
 
-	/* move all submitted discriptors to issued list */
+	/* move all submitted descriptors to issued list */
 	spin_lock_irqsave(&gchan->vc.lock, flags);
 	if (vchan_issue_pending(&gchan->vc))
 		vd = list_last_entry(&gchan->vc.desc_issued,

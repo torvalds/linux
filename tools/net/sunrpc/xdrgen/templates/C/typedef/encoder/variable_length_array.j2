@@ -1,0 +1,30 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+
+{% if annotate %}
+/* typedef {{ name }} */
+{% endif %}
+{% if name in public_apis %}
+bool
+{% else %}
+static bool __maybe_unused
+{% endif %}
+xdrgen_encode_{{ name }}(struct xdr_stream *xdr, const {{ classifier }}{{ name }} value)
+{
+{% if annotate %}
+	/* (variable-length array) */
+{% endif %}
+{% if maxsize != "0" %}
+	if (unlikely(value.count > {{ maxsize }}))
+		return false;
+{% endif %}
+	if (xdr_stream_encode_u32(xdr, value.count) != XDR_UNIT)
+		return false;
+	for (u32 i = 0; i < value.count; i++)
+{% if type in pass_by_reference %}
+		if (!xdrgen_encode_{{ type }}(xdr, &value.element[i]))
+{% else %}
+		if (!xdrgen_encode_{{ type }}(xdr, value.element[i]))
+{% endif %}
+			return false;
+	return true;
+};

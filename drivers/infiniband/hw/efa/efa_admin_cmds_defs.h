@@ -674,6 +674,9 @@ struct efa_admin_feature_device_attr_desc {
 
 	/* Max RDMA transfer size in bytes */
 	u32 max_rdma_size;
+
+	/* Unique global ID for an EFA device */
+	u64 guid;
 };
 
 struct efa_admin_feature_queue_attr_desc {

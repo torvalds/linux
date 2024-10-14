@@ -78,10 +78,6 @@ efx_siena_rx_packet_gro(struct efx_channel *channel,
 			struct efx_rx_buffer *rx_buf,
 			unsigned int n_frags, u8 *eh, __wsum csum);
 
-struct efx_rss_context *efx_siena_alloc_rss_context_entry(struct efx_nic *efx);
-struct efx_rss_context *efx_siena_find_rss_context_entry(struct efx_nic *efx,
-							 u32 id);
-void efx_siena_free_rss_context_entry(struct efx_rss_context *ctx);
 void efx_siena_set_default_rx_indir_table(struct efx_nic *efx,
 					  struct efx_rss_context *ctx);
 

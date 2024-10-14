@@ -39,7 +39,6 @@ void arch_perf_update_userpage(struct perf_event *event,
 	userpg->cap_user_time_short = 0;
 	userpg->cap_user_rdpmc = riscv_perf_user_access(event);
 
-#ifdef CONFIG_RISCV_PMU
 	/*
 	 * The counters are 64-bit but the priv spec doesn't mandate all the
 	 * bits to be implemented: that's why, counter width can vary based on
@@ -47,7 +46,6 @@ void arch_perf_update_userpage(struct perf_event *event,
 	 */
 	if (userpg->cap_user_rdpmc)
 		userpg->pmc_width = to_riscv_pmu(event->pmu)->ctr_get_width(event->hw.idx) + 1;
-#endif
 
 	do {
 		rd = sched_clock_read_begin(&seq);

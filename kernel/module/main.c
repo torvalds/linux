@@ -3234,7 +3234,7 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 		return -EINVAL;
 
 	f = fdget(fd);
-	err = idempotent_init_module(f.file, uargs, flags);
+	err = idempotent_init_module(fd_file(f), uargs, flags);
 	fdput(f);
 	return err;
 }

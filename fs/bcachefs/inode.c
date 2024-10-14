@@ -20,7 +20,7 @@
 
 #include <linux/random.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define x(name, ...)	#name,
 const char * const bch2_inode_opts[] = {
@@ -320,27 +320,27 @@ static noinline int bch2_inode_unpack_slowpath(struct bkey_s_c k,
 int bch2_inode_unpack(struct bkey_s_c k,
 		      struct bch_inode_unpacked *unpacked)
 {
-	if (likely(k.k->type == KEY_TYPE_inode_v3))
-		return bch2_inode_unpack_v3(k, unpacked);
-	return bch2_inode_unpack_slowpath(k, unpacked);
+	unpacked->bi_snapshot = k.k->p.snapshot;
+
+	return likely(k.k->type == KEY_TYPE_inode_v3)
+		? bch2_inode_unpack_v3(k, unpacked)
+		: bch2_inode_unpack_slowpath(k, unpacked);
 }
 
-int bch2_inode_peek_nowarn(struct btree_trans *trans,
-		    struct btree_iter *iter,
-		    struct bch_inode_unpacked *inode,
-		    subvol_inum inum, unsigned flags)
+int __bch2_inode_peek(struct btree_trans *trans,
+		      struct btree_iter *iter,
+		      struct bch_inode_unpacked *inode,
+		      subvol_inum inum, unsigned flags,
+		      bool warn)
 {
-	struct bkey_s_c k;
 	u32 snapshot;
-	int ret;
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
+	int ret = __bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot, warn);
 	if (ret)
 		return ret;
 
-	k = bch2_bkey_get_iter(trans, iter, BTREE_ID_inodes,
-			       SPOS(0, inum.inum, snapshot),
-			       flags|BTREE_ITER_cached);
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, iter, BTREE_ID_inodes,
+					       SPOS(0, inum.inum, snapshot),
+					       flags|BTREE_ITER_cached);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -355,17 +355,9 @@ int bch2_inode_peek_nowarn(struct btree_trans *trans,
 
 	return 0;
 err:
+	if (warn)
+		bch_err_msg(trans->c, ret, "looking up inum %llu:%llu:", inum.subvol, inum.inum);
 	bch2_trans_iter_exit(trans, iter);
-	return ret;
-}
-
-int bch2_inode_peek(struct btree_trans *trans,
-		    struct btree_iter *iter,
-		    struct bch_inode_unpacked *inode,
-		    subvol_inum inum, unsigned flags)
-{
-	int ret = bch2_inode_peek_nowarn(trans, iter, inode, inum, flags);
-	bch_err_msg(trans->c, ret, "looking up inum %u:%llu:", inum.subvol, inum.inum);
 	return ret;
 }
 
@@ -385,9 +377,7 @@ int bch2_inode_write_flags(struct btree_trans *trans,
 	return bch2_trans_update(trans, iter, &inode_p->inode.k_i, flags);
 }
 
-int __bch2_fsck_write_inode(struct btree_trans *trans,
-			 struct bch_inode_unpacked *inode,
-			 u32 snapshot)
+int __bch2_fsck_write_inode(struct btree_trans *trans, struct bch_inode_unpacked *inode)
 {
 	struct bkey_inode_buf *inode_p =
 		bch2_trans_kmalloc(trans, sizeof(*inode_p));
@@ -396,19 +386,17 @@ int __bch2_fsck_write_inode(struct btree_trans *trans,
 		return PTR_ERR(inode_p);
 
 	bch2_inode_pack(inode_p, inode);
-	inode_p->inode.k.p.snapshot = snapshot;
+	inode_p->inode.k.p.snapshot = inode->bi_snapshot;
 
 	return bch2_btree_insert_nonextent(trans, BTREE_ID_inodes,
 				&inode_p->inode.k_i,
 				BTREE_UPDATE_internal_snapshot_node);
 }
 
-int bch2_fsck_write_inode(struct btree_trans *trans,
-			    struct bch_inode_unpacked *inode,
-			    u32 snapshot)
+int bch2_fsck_write_inode(struct btree_trans *trans, struct bch_inode_unpacked *inode)
 {
 	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			    __bch2_fsck_write_inode(trans, inode, snapshot));
+			    __bch2_fsck_write_inode(trans, inode));
 	bch_err_fn(trans->c, ret);
 	return ret;
 }
@@ -557,7 +545,7 @@ static void __bch2_inode_unpacked_to_text(struct printbuf *out,
 
 void bch2_inode_unpacked_to_text(struct printbuf *out, struct bch_inode_unpacked *inode)
 {
-	prt_printf(out, "inum: %llu ", inode->bi_inum);
+	prt_printf(out, "inum: %llu:%u ", inode->bi_inum, inode->bi_snapshot);
 	__bch2_inode_unpacked_to_text(out, inode);
 }
 
@@ -1111,7 +1099,7 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 			pos.offset, pos.snapshot))
 		goto delete;
 
-	if (c->sb.clean &&
+	if (test_bit(BCH_FS_clean_recovery, &c->flags) &&
 	    !fsck_err(trans, deleted_inode_but_clean,
 		      "filesystem marked as clean but have deleted inode %llu:%u",
 		      pos.offset, pos.snapshot)) {

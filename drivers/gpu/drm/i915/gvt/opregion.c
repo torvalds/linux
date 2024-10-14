@@ -86,7 +86,7 @@ struct efp_child_device_config {
 	u8 skip2;
 	u8 dvo_port;
 	u8 i2c_pin; /* for add-in card */
-	u8 slave_addr; /* for add-in card */
+	u8 target_addr; /* for add-in card */
 	u8 ddc_pin;
 	u16 edid_ptr;
 	u8 dvo_config;

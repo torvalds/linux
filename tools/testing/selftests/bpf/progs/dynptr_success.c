@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"
 #include "bpf_kfuncs.h"
 #include "errno.h"
@@ -539,6 +540,28 @@ int test_dynptr_skb_strcmp(struct __sk_buff *skb)
 	data = bpf_dynptr_slice(&ptr, 0, NULL, 10);
 	if (data) {
 		bpf_strncmp(data, 10, "foo");
+		return 1;
+	}
+
+	return 1;
+}
+
+SEC("tp_btf/kfree_skb")
+int BPF_PROG(test_dynptr_skb_tp_btf, void *skb, void *location)
+{
+	__u8 write_data[2] = {1, 2};
+	struct bpf_dynptr ptr;
+	int ret;
+
+	if (bpf_dynptr_from_skb(skb, 0, &ptr)) {
+		err = 1;
+		return 1;
+	}
+
+	/* since tp_btf skbs are read only, writes should fail */
+	ret = bpf_dynptr_write(&ptr, 0, write_data, sizeof(write_data), 0);
+	if (ret != -EINVAL) {
+		err = 2;
 		return 1;
 	}
 

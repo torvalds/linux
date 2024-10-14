@@ -27,7 +27,7 @@
 #ifndef __L2CAP_H
 #define __L2CAP_H
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 
 /* L2CAP defaults */
@@ -968,10 +968,6 @@ void l2cap_chan_list(struct l2cap_conn *conn, l2cap_chan_func_t func,
 		     void *data);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
 void l2cap_send_conn_req(struct l2cap_chan *chan);
-void l2cap_move_start(struct l2cap_chan *chan);
-void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
-		       u8 status);
-void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
 
 struct l2cap_conn *l2cap_conn_get(struct l2cap_conn *conn);
 void l2cap_conn_put(struct l2cap_conn *conn);

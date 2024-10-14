@@ -1,0 +1,290 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) Protonic Holland
+ * Author: David Jander <david@protonic.nl>
+ */
+/dts-v1/;
+
+#include "stm32mp151.dtsi"
+#include "stm32mp15xc.dtsi"
+#include "stm32mp15-pinctrl.dtsi"
+#include "stm32mp15xxaa-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	model = "Protonic MECT1S";
+	compatible = "prt,mect1s", "st,stm32mp151";
+
+	chosen {
+		stdout-path = "serial0:1500000n8";
+	};
+
+	aliases {
+		serial0 = &uart4;
+		ethernet0 = &ethernet0;
+		ethernet1 = &ethernet1;
+		ethernet2 = &ethernet2;
+		ethernet3 = &ethernet3;
+		ethernet4 = &ethernet4;
+	};
+
+	v3v3: regulator-v3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "v3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	v5v: regulator-v5v {
+		compatible = "regulator-fixed";
+		regulator-name = "v5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	led {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_DEBUG;
+			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
+		};
+
+		led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			gpios = <&gpioa 14 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&clk_hse {
+	clock-frequency = <24000000>;
+};
+
+&clk_lse {
+	status = "disabled";
+};
+
+&ethernet0 {
+	status = "okay";
+	pinctrl-0 = <&ethernet0_rmii_pins_a>;
+	pinctrl-1 = <&ethernet0_rmii_sleep_pins_a>;
+	pinctrl-names = "default", "sleep";
+	phy-mode = "rmii";
+	max-speed = <100>;
+	st,eth-clk-sel;
+
+	fixed-link {
+		speed = <100>;
+		full-duplex;
+	};
+
+	mdio0: mdio {
+		 #address-cells = <1>;
+		 #size-cells = <0>;
+		 compatible = "snps,dwmac-mdio";
+	};
+};
+
+&{ethernet0_rmii_pins_a/pins1} {
+	pinmux = <STM32_PINMUX('B', 12, AF11)>, /* ETH1_RMII_TXD0 */
+		 <STM32_PINMUX('B', 13, AF11)>, /* ETH1_RMII_TXD1 */
+		 <STM32_PINMUX('B', 11, AF11)>, /* ETH1_RMII_TX_EN */
+		 <STM32_PINMUX('A', 2, AF11)>,  /* ETH1_MDIO */
+		 <STM32_PINMUX('C', 1, AF11)>;  /* ETH1_MDC */
+};
+
+&{ethernet0_rmii_pins_a/pins2} {
+	pinmux = <STM32_PINMUX('C', 4, AF11)>,  /* ETH1_RMII_RXD0 */
+		 <STM32_PINMUX('C', 5, AF11)>,  /* ETH1_RMII_RXD1 */
+		 <STM32_PINMUX('A', 1, AF11)>,  /* ETH1_RMII_REF_CLK input */
+		 <STM32_PINMUX('A', 7, AF11)>;  /* ETH1_RMII_CRS_DV */
+};
+
+&{ethernet0_rmii_sleep_pins_a/pins1} {
+	pinmux = <STM32_PINMUX('B', 12, ANALOG)>, /* ETH1_RMII_TXD0 */
+		 <STM32_PINMUX('B', 13, ANALOG)>, /* ETH1_RMII_TXD1 */
+		 <STM32_PINMUX('B', 11, ANALOG)>, /* ETH1_RMII_TX_EN */
+		 <STM32_PINMUX('C', 4, ANALOG)>,  /* ETH1_RMII_RXD0 */
+		 <STM32_PINMUX('C', 5, ANALOG)>,  /* ETH1_RMII_RXD1 */
+		 <STM32_PINMUX('A', 1, ANALOG)>,  /* ETH1_RMII_REF_CLK */
+		 <STM32_PINMUX('A', 7, ANALOG)>;  /* ETH1_RMII_CRS_DV */
+};
+
+&mdio0 {
+	/* All this DP83TG720R PHYs can't be probed before switch@0 is
+	 * probed so we need to use compatible with PHYid
+	 */
+	/* TI DP83TG720R */
+	t1_phy0: ethernet-phy@8 {
+		compatible = "ethernet-phy-id2000.a284";
+		reg = <8>;
+		interrupts-extended = <&gpioi 5 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpioh 13 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10>;
+		reset-deassert-us = <35>;
+	};
+
+	/* TI DP83TG720R */
+	t1_phy1: ethernet-phy@c {
+		compatible = "ethernet-phy-id2000.a284";
+		reg = <12>;
+		interrupts-extended = <&gpioj 0 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpioh 14 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10>;
+		reset-deassert-us = <35>;
+	};
+
+	/* TI DP83TG720R */
+	t1_phy2: ethernet-phy@4 {
+		compatible = "ethernet-phy-id2000.a284";
+		reg = <4>;
+		interrupts-extended = <&gpioi 7 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpioh 15 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10>;
+		reset-deassert-us = <35>;
+	};
+
+	/* TI DP83TG720R */
+	t1_phy3: ethernet-phy@d {
+		compatible = "ethernet-phy-id2000.a284";
+		reg = <13>;
+		interrupts-extended = <&gpioi 15 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpioi 13 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <1000>;
+	};
+};
+
+&qspi {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qspi_clk_pins_a
+		     &qspi_bk1_pins_a
+		     &qspi_cs1_pins_a>;
+	pinctrl-1 = <&qspi_clk_sleep_pins_a
+		     &qspi_bk1_sleep_pins_a
+		     &qspi_cs1_sleep_pins_a>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&{qspi_bk1_pins_a/pins} {
+	/delete-property/ bias-disable;
+	bias-pull-up;
+	drive-push-pull;
+	slew-rate = <1>;
+};
+
+&spi2 {
+	pinctrl-0 = <&spi2_pins_b>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpioj 3 GPIO_ACTIVE_LOW>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	status = "okay";
+
+	switch@0 {
+		compatible = "nxp,sja1105q";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-rx-delay-us = <1>;
+		spi-tx-delay-us = <1>;
+		spi-cpha;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet1: port@0 {
+				reg = <0>;
+				label = "t10";
+				phy-mode = "rgmii-id";
+				phy-handle = <&t1_phy0>;
+			};
+
+			ethernet2: port@1 {
+				reg = <1>;
+				label = "t11";
+				phy-mode = "rgmii-id";
+				phy-handle = <&t1_phy1>;
+			};
+
+			ethernet3: port@2 {
+				reg = <2>;
+				label = "t12";
+				phy-mode = "rgmii-id";
+				phy-handle = <&t1_phy2>;
+			};
+
+			ethernet4: port@3 {
+				reg = <3>;
+				label = "t13";
+				phy-mode = "rgmii-id";
+				phy-handle = <&t1_phy3>;
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "cpu";
+				ethernet = <&ethernet0>;
+				phy-mode = "rmii";
+
+				/* RGMII mode is not working properly, using RMII instead. */
+				fixed-link {
+					speed = <100>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};
+
+&uart4 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&uart4_pins_a>;
+	pinctrl-1 = <&uart4_sleep_pins_a>;
+	pinctrl-2 = <&uart4_idle_pins_a>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	status = "okay";
+};
+
+&usbh_ehci {
+	status = "okay";
+};
+
+&usbotg_hs {
+	dr_mode = "host";
+	pinctrl-0 = <&usbotg_hs_pins_a>;
+	pinctrl-names = "default";
+	phys = <&usbphyc_port1 0>;
+	phy-names = "usb2-phy";
+	vbus-supply = <&v5v>;
+	status = "okay";
+};
+
+&usbphyc {
+	status = "okay";
+};
+
+&usbphyc_port0 {
+	phy-supply = <&v3v3>;
+};
+
+&usbphyc_port1 {
+	phy-supply = <&v3v3>;
+};

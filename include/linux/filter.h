@@ -437,6 +437,16 @@ static inline bool insn_is_cast_user(const struct bpf_insn *insn)
 		.off   = OFF,					\
 		.imm   = 0 })
 
+/* Unconditional jumps, gotol pc + imm32 */
+
+#define BPF_JMP32_A(IMM)					\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP32 | BPF_JA,			\
+		.dst_reg = 0,					\
+		.src_reg = 0,					\
+		.off   = 0,					\
+		.imm   = IMM })
+
 /* Relative call */
 
 #define BPF_CALL_REL(TGT)					\
@@ -1616,7 +1626,7 @@ extern struct static_key_false bpf_sk_lookup_enabled;
 		_all_pass || _selected_sk ? SK_PASS : SK_DROP;		\
 	 })
 
-static inline bool bpf_sk_lookup_run_v4(struct net *net, int protocol,
+static inline bool bpf_sk_lookup_run_v4(const struct net *net, int protocol,
 					const __be32 saddr, const __be16 sport,
 					const __be32 daddr, const u16 dport,
 					const int ifindex, struct sock **psk)
@@ -1653,7 +1663,7 @@ static inline bool bpf_sk_lookup_run_v4(struct net *net, int protocol,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static inline bool bpf_sk_lookup_run_v6(struct net *net, int protocol,
+static inline bool bpf_sk_lookup_run_v6(const struct net *net, int protocol,
 					const struct in6_addr *saddr,
 					const __be16 sport,
 					const struct in6_addr *daddr,

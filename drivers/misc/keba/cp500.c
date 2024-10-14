@@ -212,12 +212,12 @@ static ssize_t keep_cfg_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(keep_cfg);
 
-static struct attribute *attrs[] = {
+static struct attribute *cp500_attrs[] = {
 	&dev_attr_version.attr,
 	&dev_attr_keep_cfg.attr,
 	NULL
 };
-static const struct attribute_group attrs_group = { .attrs = attrs };
+ATTRIBUTE_GROUPS(cp500);
 
 static void cp500_i2c_release(struct device *dev)
 {
@@ -396,20 +396,15 @@ static int cp500_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pci_dev, cp500);
 
-	ret = sysfs_create_group(&pci_dev->dev.kobj, &attrs_group);
-	if (ret != 0)
-		goto out_free_irq;
 
 	ret = cp500_enable(cp500);
 	if (ret != 0)
-		goto out_remove_group;
+		goto out_free_irq;
 
 	cp500_register_auxiliary_devs(cp500);
 
 	return 0;
 
-out_remove_group:
-	sysfs_remove_group(&pci_dev->dev.kobj, &attrs_group);
 out_free_irq:
 	pci_free_irq_vectors(pci_dev);
 out_disable:
@@ -426,8 +421,6 @@ static void cp500_remove(struct pci_dev *pci_dev)
 	cp500_unregister_auxiliary_devs(cp500);
 
 	cp500_disable(cp500);
-
-	sysfs_remove_group(&pci_dev->dev.kobj, &attrs_group);
 
 	pci_set_drvdata(pci_dev, 0);
 
@@ -450,6 +443,7 @@ static struct pci_driver cp500_driver = {
 	.id_table = cp500_ids,
 	.probe = cp500_probe,
 	.remove = cp500_remove,
+	.dev_groups = cp500_groups,
 };
 module_pci_driver(cp500_driver);
 

@@ -9,7 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/atomic.h>
 #include <linux/kernel.h>
@@ -679,7 +679,6 @@ static const struct file_operations vhci_fops = {
 	.poll		= vhci_poll,
 	.open		= vhci_open,
 	.release	= vhci_release,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice vhci_miscdev = {

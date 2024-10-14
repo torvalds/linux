@@ -61,14 +61,8 @@ int attribute_container_device_trigger_safe(struct device *dev,
 					    int (*undo)(struct attribute_container *,
 							struct device *,
 							struct device *));
-void attribute_container_trigger(struct device *dev, 
-				 int (*fn)(struct attribute_container *,
-					   struct device *));
 int attribute_container_add_attrs(struct device *classdev);
 int attribute_container_add_class_device(struct device *classdev);
-int attribute_container_add_class_device_adapter(struct attribute_container *cont,
-						 struct device *dev,
-						 struct device *classdev);
 void attribute_container_remove_attrs(struct device *classdev);
 void attribute_container_class_device_del(struct device *classdev);
 struct attribute_container *attribute_container_classdev_to_container(struct device *);

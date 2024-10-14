@@ -2107,8 +2107,12 @@ static int smu_v13_0_6_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	mutex_lock(&adev->pm.mutex);
 	r = smu_v13_0_6_request_i2c_xfer(smu, req);
-	if (r)
-		goto fail;
+	if (r) {
+		/* Retry once, in case of an i2c collision */
+		r = smu_v13_0_6_request_i2c_xfer(smu, req);
+		if (r)
+			goto fail;
+	}
 
 	for (c = i = 0; i < num_msgs; i++) {
 		if (!(msg[i].flags & I2C_M_RD)) {

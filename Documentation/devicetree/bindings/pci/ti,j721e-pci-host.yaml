@@ -38,6 +38,16 @@ properties:
       - const: reg
       - const: cfg
 
+  ti,syscon-acspcie-proxy-ctrl:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the ACSPCIE Proxy Control Register
+          - description: Bitmask corresponding to the PAD IO Buffer
+                         output enable fields (Active Low).
+    description: Specifier for enabling the ACSPCIE PAD outputs to drive
+                 the reference clock to the Endpoint device.
+
   ti,syscon-pcie-ctrl:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:

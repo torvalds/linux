@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define OCC_SRAM_BYTES		4096
 #define OCC_CMD_DATA_BYTES	4090

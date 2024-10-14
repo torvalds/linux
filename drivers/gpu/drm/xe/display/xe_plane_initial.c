@@ -18,6 +18,9 @@
 #include "intel_frontbuffer.h"
 #include "intel_plane_initial.h"
 #include "xe_bo.h"
+#include "xe_wa.h"
+
+#include <generated/xe_wa_oob.h>
 
 static bool
 intel_reuse_initial_plane_obj(struct intel_crtc *this,
@@ -103,6 +106,9 @@ initial_plane_bo(struct xe_device *xe,
 			return NULL;
 		phys_base = base;
 		flags |= XE_BO_FLAG_STOLEN;
+
+		if (XE_WA(xe_root_mmio_gt(xe), 22019338487_display))
+			return NULL;
 
 		/*
 		 * If the FB is too big, just don't use it since fbdev is not very

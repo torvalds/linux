@@ -400,7 +400,7 @@ static int max77620_config_fps(struct max77620_chip *chip,
 static int max77620_initialise_fps(struct max77620_chip *chip)
 {
 	struct device *dev = chip->dev;
-	struct device_node *fps_np, *fps_child;
+	struct device_node *fps_np;
 	u8 config;
 	int fps_id;
 	int ret;
@@ -414,10 +414,9 @@ static int max77620_initialise_fps(struct max77620_chip *chip)
 	if (!fps_np)
 		goto skip_fps;
 
-	for_each_child_of_node(fps_np, fps_child) {
+	for_each_child_of_node_scoped(fps_np, fps_child) {
 		ret = max77620_config_fps(chip, fps_child);
 		if (ret < 0) {
-			of_node_put(fps_child);
 			of_node_put(fps_np);
 			return ret;
 		}

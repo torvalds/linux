@@ -274,7 +274,8 @@ void notify_eq(struct erdma_eq *eq);
 void *get_next_valid_eqe(struct erdma_eq *eq);
 
 int erdma_aeq_init(struct erdma_dev *dev);
-void erdma_aeq_destroy(struct erdma_dev *dev);
+int erdma_eq_common_init(struct erdma_dev *dev, struct erdma_eq *eq, u32 depth);
+void erdma_eq_destroy(struct erdma_dev *dev, struct erdma_eq *eq);
 
 void erdma_aeq_event_handler(struct erdma_dev *dev);
 void erdma_ceq_completion_handler(struct erdma_eq_cb *ceq_cb);

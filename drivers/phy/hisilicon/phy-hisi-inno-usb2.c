@@ -138,7 +138,6 @@ static int hisi_inno_phy_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct hisi_inno_phy_priv *priv;
 	struct phy_provider *provider;
-	struct device_node *child;
 	int i = 0;
 	int ret;
 
@@ -162,24 +161,20 @@ static int hisi_inno_phy_probe(struct platform_device *pdev)
 
 	priv->type = (uintptr_t) of_device_get_match_data(dev);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		struct reset_control *rst;
 		struct phy *phy;
 
 		rst = of_reset_control_get_exclusive(child, NULL);
-		if (IS_ERR(rst)) {
-			of_node_put(child);
+		if (IS_ERR(rst))
 			return PTR_ERR(rst);
-		}
 
 		priv->ports[i].utmi_rst = rst;
 		priv->ports[i].priv = priv;
 
 		phy = devm_phy_create(dev, child, &hisi_inno_phy_ops);
-		if (IS_ERR(phy)) {
-			of_node_put(child);
+		if (IS_ERR(phy))
 			return PTR_ERR(phy);
-		}
 
 		phy_set_bus_width(phy, 8);
 		phy_set_drvdata(phy, &priv->ports[i]);
@@ -187,7 +182,6 @@ static int hisi_inno_phy_probe(struct platform_device *pdev)
 
 		if (i >= INNO_PHY_PORT_NUM) {
 			dev_warn(dev, "Support %d ports in maximum\n", i);
-			of_node_put(child);
 			break;
 		}
 	}

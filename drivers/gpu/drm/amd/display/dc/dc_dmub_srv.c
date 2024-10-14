@@ -979,6 +979,9 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
 	DC_LOG_DEBUG("    inbox0_rptr        : %08x", diag_data.inbox0_rptr);
 	DC_LOG_DEBUG("    inbox0_wptr        : %08x", diag_data.inbox0_wptr);
 	DC_LOG_DEBUG("    inbox0_size        : %08x", diag_data.inbox0_size);
+	DC_LOG_DEBUG("    outbox1_rptr       : %08x", diag_data.outbox1_rptr);
+	DC_LOG_DEBUG("    outbox1_wptr       : %08x", diag_data.outbox1_wptr);
+	DC_LOG_DEBUG("    outbox1_size       : %08x", diag_data.outbox1_size);
 	DC_LOG_DEBUG("    is_enabled         : %d", diag_data.is_dmcub_enabled);
 	DC_LOG_DEBUG("    is_soft_reset      : %d", diag_data.is_dmcub_soft_reset);
 	DC_LOG_DEBUG("    is_secure_reset    : %d", diag_data.is_dmcub_secure_reset);
@@ -1282,7 +1285,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		union dmub_shared_state_ips_driver_signals new_signals;
 
 		DC_LOG_IPS(
-			"%s wait idle (ips1_commit=%d ips2_commit=%d)",
+			"%s wait idle (ips1_commit=%u ips2_commit=%u)",
 			__func__,
 			ips_fw->signals.bits.ips1_commit,
 			ips_fw->signals.bits.ips2_commit);
@@ -1328,7 +1331,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	}
 
 	DC_LOG_IPS(
-		"%s send allow_idle=%d (ips1_commit=%d ips2_commit=%d)",
+		"%s send allow_idle=%d (ips1_commit=%u ips2_commit=%u)",
 		__func__,
 		allow_idle,
 		ips_fw->signals.bits.ips1_commit,
@@ -1371,7 +1374,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		dc_dmub_srv->driver_signals = ips_driver->signals;
 
 		DC_LOG_IPS(
-			"%s (allow ips1=%d ips2=%d) (commit ips1=%d ips2=%d) (count rcg=%d ips1=%d ips2=%d)",
+			"%s (allow ips1=%u ips2=%u) (commit ips1=%u ips2=%u) (count rcg=%u ips1=%u ips2=%u)",
 			__func__,
 			ips_driver->signals.bits.allow_ips1,
 			ips_driver->signals.bits.allow_ips2,
@@ -1390,7 +1393,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		    (!dc->debug.optimize_ips_handshake ||
 		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle)) {
 			DC_LOG_IPS(
-				"wait IPS2 eval (ips1_commit=%d ips2_commit=%d)",
+				"wait IPS2 eval (ips1_commit=%u ips2_commit=%u)",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 
@@ -1399,7 +1402,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 			if (ips_fw->signals.bits.ips2_commit) {
 				DC_LOG_IPS(
-					"exit IPS2 #1 (ips1_commit=%d ips2_commit=%d)",
+					"exit IPS2 #1 (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1407,7 +1410,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
 				DC_LOG_IPS(
-					"wait IPS2 entry delay (ips1_commit=%d ips2_commit=%d)",
+					"wait IPS2 entry delay (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1415,14 +1418,14 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 				udelay(dc->debug.ips2_entry_delay_us);
 
 				DC_LOG_IPS(
-					"exit IPS2 #2 (ips1_commit=%d ips2_commit=%d)",
+					"exit IPS2 #2 (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
 				DC_LOG_IPS(
-					"wait IPS2 commit clear (ips1_commit=%d ips2_commit=%d)",
+					"wait IPS2 commit clear (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1430,7 +1433,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 					udelay(1);
 
 				DC_LOG_IPS(
-					"wait hw_pwr_up (ips1_commit=%d ips2_commit=%d)",
+					"wait hw_pwr_up (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1438,7 +1441,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 					ASSERT(0);
 
 				DC_LOG_IPS(
-					"resync inbox1 (ips1_commit=%d ips2_commit=%d)",
+					"resync inbox1 (ips1_commit=%u ips2_commit=%u)",
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
@@ -1449,7 +1452,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		dc_dmub_srv_notify_idle(dc, false);
 		if (prev_driver_signals.bits.allow_ips1) {
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear (ips1_commit=%d ips2_commit=%d)",
+				"wait for IPS1 commit clear (ips1_commit=%u ips2_commit=%u)",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 
@@ -1457,7 +1460,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 				udelay(1);
 
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear done (ips1_commit=%d ips2_commit=%d)",
+				"wait for IPS1 commit clear done (ips1_commit=%u ips2_commit=%u)",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 		}
@@ -1466,14 +1469,14 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 		ASSERT(0);
 
-	DC_LOG_IPS("%s exit (count rcg=%d ips1=%d ips2=%d)",
+	DC_LOG_IPS("%s exit (count rcg=%u ips1=%u ips2=%u)",
 		__func__,
 		rcg_exit_count,
 		ips1_exit_count,
 		ips2_exit_count);
 }
 
-void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState)
+void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state power_state)
 {
 	struct dmub_srv *dmub;
 
@@ -1482,10 +1485,36 @@ void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_c
 
 	dmub = dc_dmub_srv->dmub;
 
-	if (powerState == DC_ACPI_CM_POWER_STATE_D0)
+	if (power_state == DC_ACPI_CM_POWER_STATE_D0)
 		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D0);
 	else
 		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D3);
+}
+
+void dc_dmub_srv_notify_fw_dc_power_state(struct dc_dmub_srv *dc_dmub_srv,
+					  enum dc_acpi_cm_power_state power_state)
+{
+	union dmub_rb_cmd cmd;
+
+	if (!dc_dmub_srv)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.idle_opt_set_dc_power_state.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.idle_opt_set_dc_power_state.header.sub_type = DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE;
+	cmd.idle_opt_set_dc_power_state.header.payload_bytes =
+		sizeof(cmd.idle_opt_set_dc_power_state) - sizeof(cmd.idle_opt_set_dc_power_state.header);
+
+	if (power_state == DC_ACPI_CM_POWER_STATE_D0) {
+		cmd.idle_opt_set_dc_power_state.data.power_state = DMUB_IDLE_OPT_DC_POWER_STATE_D0;
+	} else if (power_state == DC_ACPI_CM_POWER_STATE_D3) {
+		cmd.idle_opt_set_dc_power_state.data.power_state = DMUB_IDLE_OPT_DC_POWER_STATE_D3;
+	} else {
+		cmd.idle_opt_set_dc_power_state.data.power_state = DMUB_IDLE_OPT_DC_POWER_STATE_UNKNOWN;
+	}
+
+	dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 bool dc_dmub_srv_should_detect(struct dc_dmub_srv *dc_dmub_srv)
@@ -1672,22 +1701,17 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 	global_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
 	global_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
 
-	/* send global configuration parameters */
-	global_cmd->config.global.max_allow_delay_us = 100 * 1000; //100ms
-	global_cmd->config.global.lock_wait_time_us = 5000; //5ms
-	global_cmd->config.global.recovery_timeout_us = 5000; //5ms
-	global_cmd->config.global.hwfq_flip_programming_delay_us = 100; //100us
-
-	/* copy static feature configuration */
-	global_cmd->config.global.features.all = dc->debug.fams2_config.all;
-
-	/* apply feature configuration based on current driver state */
-	global_cmd->config.global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
-	global_cmd->config.global.features.bits.enable = enable;
-
-	/* construct per-stream configs */
 	if (enable) {
-		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_stream_count; i++) {
+		/* send global configuration parameters */
+		memcpy(&global_cmd->config.global, &context->bw_ctx.bw.dcn.fams2_global_config, sizeof(struct dmub_cmd_fams2_global_config));
+
+		/* copy static feature configuration overrides */
+		global_cmd->config.global.features.bits.enable_stall_recovery = dc->debug.fams2_config.bits.enable_stall_recovery;
+		global_cmd->config.global.features.bits.enable_debug = dc->debug.fams2_config.bits.enable_debug;
+		global_cmd->config.global.features.bits.enable_offload_flip = dc->debug.fams2_config.bits.enable_offload_flip;
+
+		/* construct per-stream configs */
+		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {
 			struct dmub_rb_cmd_fams2 *stream_cmd = &cmd[i+1].fams2_config;
 
 			/* configure command header */
@@ -1702,12 +1726,15 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 		}
 	}
 
-	if (enable && context->bw_ctx.bw.dcn.fams2_stream_count) {
+	/* apply feature configuration based on current driver state */
+	global_cmd->config.global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
+	global_cmd->config.global.features.bits.enable = enable;
+
+	if (enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) {
 		/* set multi pending for global, and unset for last stream cmd */
-		global_cmd->config.global.num_streams = context->bw_ctx.bw.dcn.fams2_stream_count;
 		global_cmd->header.multi_cmd_pending = 1;
-		cmd[context->bw_ctx.bw.dcn.fams2_stream_count].fams2_config.header.multi_cmd_pending = 0;
-		num_cmds += context->bw_ctx.bw.dcn.fams2_stream_count;
+		cmd[context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config.header.multi_cmd_pending = 0;
+		num_cmds += context->bw_ctx.bw.dcn.fams2_global_config.num_streams;
 	}
 
 	dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmd, DM_DMUB_WAIT_TYPE_WAIT);

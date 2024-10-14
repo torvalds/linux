@@ -23,6 +23,7 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -34,7 +35,7 @@
 struct lt9611uxc {
 	struct device *dev;
 	struct drm_bridge bridge;
-	struct drm_connector connector;
+	struct drm_bridge *next_bridge;
 
 	struct regmap *regmap;
 	/* Protects all accesses to registers by stopping the on-chip MCU */
@@ -120,11 +121,6 @@ static struct lt9611uxc *bridge_to_lt9611uxc(struct drm_bridge *bridge)
 	return container_of(bridge, struct lt9611uxc, bridge);
 }
 
-static struct lt9611uxc *connector_to_lt9611uxc(struct drm_connector *connector)
-{
-	return container_of(connector, struct lt9611uxc, connector);
-}
-
 static void lt9611uxc_lock(struct lt9611uxc *lt9611uxc)
 {
 	mutex_lock(&lt9611uxc->ocm_lock);
@@ -171,20 +167,14 @@ static void lt9611uxc_hpd_work(struct work_struct *work)
 	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc, work);
 	bool connected;
 
-	if (lt9611uxc->connector.dev) {
-		if (lt9611uxc->connector.dev->mode_config.funcs)
-			drm_kms_helper_hotplug_event(lt9611uxc->connector.dev);
-	} else {
+	mutex_lock(&lt9611uxc->ocm_lock);
+	connected = lt9611uxc->hdmi_connected;
+	mutex_unlock(&lt9611uxc->ocm_lock);
 
-		mutex_lock(&lt9611uxc->ocm_lock);
-		connected = lt9611uxc->hdmi_connected;
-		mutex_unlock(&lt9611uxc->ocm_lock);
-
-		drm_bridge_hpd_notify(&lt9611uxc->bridge,
-				      connected ?
-				      connector_status_connected :
-				      connector_status_disconnected);
-	}
+	drm_bridge_hpd_notify(&lt9611uxc->bridge,
+			      connected ?
+			      connector_status_connected :
+			      connector_status_disconnected);
 }
 
 static void lt9611uxc_reset(struct lt9611uxc *lt9611uxc)
@@ -289,82 +279,13 @@ static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 	return dsi;
 }
 
-static int lt9611uxc_connector_get_modes(struct drm_connector *connector)
-{
-	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
-	const struct drm_edid *drm_edid;
-	int count;
-
-	drm_edid = drm_bridge_edid_read(&lt9611uxc->bridge, connector);
-	drm_edid_connector_update(connector, drm_edid);
-	count = drm_edid_connector_add_modes(connector);
-	drm_edid_free(drm_edid);
-
-	return count;
-}
-
-static enum drm_connector_status lt9611uxc_connector_detect(struct drm_connector *connector,
-							    bool force)
-{
-	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
-
-	return lt9611uxc->bridge.funcs->detect(&lt9611uxc->bridge);
-}
-
-static enum drm_mode_status lt9611uxc_connector_mode_valid(struct drm_connector *connector,
-							   struct drm_display_mode *mode)
-{
-	struct lt9611uxc_mode *lt9611uxc_mode = lt9611uxc_find_mode(mode);
-
-	return lt9611uxc_mode ? MODE_OK : MODE_BAD;
-}
-
-static const struct drm_connector_helper_funcs lt9611uxc_bridge_connector_helper_funcs = {
-	.get_modes = lt9611uxc_connector_get_modes,
-	.mode_valid = lt9611uxc_connector_mode_valid,
-};
-
-static const struct drm_connector_funcs lt9611uxc_bridge_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = lt9611uxc_connector_detect,
-	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static int lt9611uxc_connector_init(struct drm_bridge *bridge, struct lt9611uxc *lt9611uxc)
-{
-	int ret;
-
-	lt9611uxc->connector.polled = DRM_CONNECTOR_POLL_HPD;
-
-	drm_connector_helper_add(&lt9611uxc->connector,
-				 &lt9611uxc_bridge_connector_helper_funcs);
-	ret = drm_connector_init(bridge->dev, &lt9611uxc->connector,
-				 &lt9611uxc_bridge_connector_funcs,
-				 DRM_MODE_CONNECTOR_HDMIA);
-	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
-		return ret;
-	}
-
-	return drm_connector_attach_encoder(&lt9611uxc->connector, bridge->encoder);
-}
-
 static int lt9611uxc_bridge_attach(struct drm_bridge *bridge,
 				   enum drm_bridge_attach_flags flags)
 {
 	struct lt9611uxc *lt9611uxc = bridge_to_lt9611uxc(bridge);
-	int ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
-		ret = lt9611uxc_connector_init(bridge, lt9611uxc);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return drm_bridge_attach(bridge->encoder, lt9611uxc->next_bridge,
+				 bridge, flags);
 }
 
 static enum drm_mode_status
@@ -525,7 +446,7 @@ static int lt9611uxc_parse_dt(struct device *dev,
 
 	lt9611uxc->dsi1_node = of_graph_get_remote_node(dev->of_node, 1, -1);
 
-	return 0;
+	return drm_of_find_panel_or_bridge(dev->of_node, 2, -1, NULL, &lt9611uxc->next_bridge);
 }
 
 static int lt9611uxc_gpio_init(struct lt9611uxc *lt9611uxc)

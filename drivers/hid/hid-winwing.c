@@ -27,7 +27,7 @@ struct winwing_led_info {
 	const char *led_name;
 };
 
-static struct winwing_led_info led_info[3] = {
+static const struct winwing_led_info led_info[3] = {
 	{ 0, 255, "backlight" },
 	{ 1, 1, "a-a" },
 	{ 2, 1, "a-g" },
@@ -94,7 +94,7 @@ static int winwing_init_led(struct hid_device *hdev,
 		return -ENOMEM;
 
 	for (i = 0; i < 3; i += 1) {
-		struct winwing_led_info *info = &led_info[i];
+		const struct winwing_led_info *info = &led_info[i];
 
 		led = &data->leds[i];
 		led->hdev = hdev;
@@ -150,7 +150,7 @@ static int winwing_input_configured(struct hid_device *hdev,
 	return ret;
 }
 
-static __u8 original_rdesc_buttons[] = {
+static const __u8 original_rdesc_buttons[] = {
 	0x05, 0x09, 0x19, 0x01, 0x29, 0x6F,
 	0x15, 0x00, 0x25, 0x01, 0x35, 0x00,
 	0x45, 0x01, 0x75, 0x01, 0x95, 0x6F,
@@ -165,7 +165,7 @@ static __u8 original_rdesc_buttons[] = {
  * This module skips numbers 32-63, unused on some throttle grips.
  */
 
-static __u8 *winwing_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *winwing_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	int sig_length = sizeof(original_rdesc_buttons);

@@ -402,7 +402,7 @@ __naked void spill_32bit_of_64bit_fail(void)
 	*(u32*)(r10 - 8) = r1;				\
 	/* 32-bit fill r2 from stack. */		\
 	r2 = *(u32*)(r10 - 8);				\
-	/* Compare r2 with another register to trigger find_equal_scalars.\
+	/* Compare r2 with another register to trigger sync_linked_regs.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners. If the ID was mistakenly preserved on spill, this would\
 	 * cause the verifier to think that r1 is also equal to zero in one of\
@@ -441,7 +441,7 @@ __naked void spill_16bit_of_32bit_fail(void)
 	*(u16*)(r10 - 8) = r1;				\
 	/* 16-bit fill r2 from stack. */		\
 	r2 = *(u16*)(r10 - 8);				\
-	/* Compare r2 with another register to trigger find_equal_scalars.\
+	/* Compare r2 with another register to trigger sync_linked_regs.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners. If the ID was mistakenly preserved on spill, this would\
 	 * cause the verifier to think that r1 is also equal to zero in one of\
@@ -833,7 +833,7 @@ __naked void spill_64bit_of_64bit_ok(void)
 	*(u64*)(r10 - 8) = r0;				\
 	/* 64-bit fill r1 from stack - should preserve the ID. */\
 	r1 = *(u64*)(r10 - 8);				\
-	/* Compare r1 with another register to trigger find_equal_scalars.\
+	/* Compare r1 with another register to trigger sync_linked_regs.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners.					\
 	 */						\
@@ -866,7 +866,7 @@ __naked void spill_32bit_of_32bit_ok(void)
 	*(u32*)(r10 - 8) = r0;				\
 	/* 32-bit fill r1 from stack - should preserve the ID. */\
 	r1 = *(u32*)(r10 - 8);				\
-	/* Compare r1 with another register to trigger find_equal_scalars.\
+	/* Compare r1 with another register to trigger sync_linked_regs.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners.					\
 	 */						\
@@ -899,7 +899,7 @@ __naked void spill_16bit_of_16bit_ok(void)
 	*(u16*)(r10 - 8) = r0;				\
 	/* 16-bit fill r1 from stack - should preserve the ID. */\
 	r1 = *(u16*)(r10 - 8);				\
-	/* Compare r1 with another register to trigger find_equal_scalars.\
+	/* Compare r1 with another register to trigger sync_linked_regs.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners.					\
 	 */						\
@@ -932,7 +932,7 @@ __naked void spill_8bit_of_8bit_ok(void)
 	*(u8*)(r10 - 8) = r0;				\
 	/* 8-bit fill r1 from stack - should preserve the ID. */\
 	r1 = *(u8*)(r10 - 8);				\
-	/* Compare r1 with another register to trigger find_equal_scalars.\
+	/* Compare r1 with another register to trigger sync_linked_regs.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners.					\
 	 */						\
@@ -1029,7 +1029,7 @@ __naked void fill_32bit_after_spill_64bit_preserve_id(void)
 	"r1 = *(u32*)(r10 - 4);"
 #endif
 	"						\
-	/* Compare r1 with another register to trigger find_equal_scalars. */\
+	/* Compare r1 with another register to trigger sync_linked_regs. */\
 	r2 = 0;						\
 	if r1 != r2 goto l0_%=;				\
 	/* The result of this comparison is predefined. */\
@@ -1070,7 +1070,7 @@ __naked void fill_32bit_after_spill_64bit_clear_id(void)
 	"r2 = *(u32*)(r10 - 4);"
 #endif
 	"						\
-	/* Compare r2 with another register to trigger find_equal_scalars.\
+	/* Compare r2 with another register to trigger sync_linked_regs.\
 	 * Having one random bit is important here, otherwise the verifier cuts\
 	 * the corners. If the ID was mistakenly preserved on fill, this would\
 	 * cause the verifier to think that r1 is also equal to zero in one of\
@@ -1213,10 +1213,10 @@ __success  __log_level(2)
  * - once for path entry - label 2;
  * - once for path entry - label 1 - label 2.
  */
-__msg("r1 = *(u64 *)(r10 -8)")
-__msg("exit")
-__msg("r1 = *(u64 *)(r10 -8)")
-__msg("exit")
+__msg("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg("9: (95) exit")
+__msg("from 2 to 7")
+__msg("8: safe")
 __msg("processed 11 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
 __naked void old_stack_misc_vs_cur_ctx_ptr(void)

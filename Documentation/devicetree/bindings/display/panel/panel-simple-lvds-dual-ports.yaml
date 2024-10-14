@@ -84,11 +84,7 @@ properties:
       - port@0
       - port@1
 
-  backlight: true
-  enable-gpios: true
-  power-supply: true
-
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

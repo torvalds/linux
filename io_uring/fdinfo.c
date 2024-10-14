@@ -177,9 +177,8 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 	seq_printf(m, "UserBufs:\t%u\n", ctx->nr_user_bufs);
 	for (i = 0; has_lock && i < ctx->nr_user_bufs; i++) {
 		struct io_mapped_ubuf *buf = ctx->user_bufs[i];
-		unsigned int len = buf->ubuf_end - buf->ubuf;
 
-		seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf, len);
+		seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf, buf->len);
 	}
 	if (has_lock && !xa_empty(&ctx->personalities)) {
 		unsigned long index;
@@ -221,7 +220,19 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 			   cqe->user_data, cqe->res, cqe->flags);
 
 	}
-
 	spin_unlock(&ctx->completion_lock);
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	if (ctx->napi_enabled) {
+		seq_puts(m, "NAPI:\tenabled\n");
+		seq_printf(m, "napi_busy_poll_dt:\t%llu\n", ctx->napi_busy_poll_dt);
+		if (ctx->napi_prefer_busy_poll)
+			seq_puts(m, "napi_prefer_busy_poll:\ttrue\n");
+		else
+			seq_puts(m, "napi_prefer_busy_poll:\tfalse\n");
+	} else {
+		seq_puts(m, "NAPI:\tdisabled\n");
+	}
+#endif
 }
 #endif

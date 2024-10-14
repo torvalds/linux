@@ -165,12 +165,8 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 	mvm->lar_regdom_set = true;
 	mvm->mcc_src = src_id;
 
-	/* Some kind of regulatory mess means we need to currently disallow
-	 * puncturing in the US and Canada. Do that here, at least until we
-	 * figure out the new chanctx APIs for puncturing.
-	 */
-	if (resp->mcc == cpu_to_le16(IWL_MCC_US) ||
-	    resp->mcc == cpu_to_le16(IWL_MCC_CANADA))
+	if (!iwl_puncturing_is_allowed_in_bios(mvm->bios_enable_puncturing,
+					       le16_to_cpu(resp->mcc)))
 		ieee80211_hw_set(mvm->hw, DISALLOW_PUNCTURING);
 	else
 		__clear_bit(IEEE80211_HW_DISALLOW_PUNCTURING, mvm->hw->flags);
@@ -639,9 +635,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
 			       NL80211_FEATURE_P2P_GO_OPPPS |
 			       NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
-			       NL80211_FEATURE_DYNAMIC_SMPS |
-			       NL80211_FEATURE_STATIC_SMPS |
 			       NL80211_FEATURE_SUPPORTS_WMM_ADMISSION;
+
+	/* when firmware supports RLC/SMPS offload, do not set these
+	 * driver features, since it's no longer supported by driver.
+	 */
+	if (!iwl_mvm_has_rlc_offload(mvm))
+		hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS |
+				       NL80211_FEATURE_DYNAMIC_SMPS;
 
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT))
@@ -838,20 +839,10 @@ void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	if (ieee80211_is_mgmt(hdr->frame_control))
 		sta = NULL;
 
-	/* If there is no sta, and it's not offchannel - send through AP */
+	/* this shouldn't even happen: just drop */
 	if (!sta && info->control.vif->type == NL80211_IFTYPE_STATION &&
-	    !offchannel) {
-		struct iwl_mvm_vif *mvmvif =
-			iwl_mvm_vif_from_mac80211(info->control.vif);
-		u8 ap_sta_id = READ_ONCE(mvmvif->deflink.ap_sta_id);
-
-		if (ap_sta_id < mvm->fw->ucode_capa.num_stations) {
-			/* mac80211 holds rcu read lock */
-			sta = rcu_dereference(mvm->fw_id_to_mac_id[ap_sta_id]);
-			if (IS_ERR_OR_NULL(sta))
-				goto drop;
-		}
-	}
+	    !offchannel)
+		goto drop;
 
 	if (tmp_sta && !sta && link_id != IEEE80211_LINK_UNSPECIFIED &&
 	    !ieee80211_is_probe_resp(hdr->frame_control)) {
@@ -1241,7 +1232,7 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 		mvm->nvm_data = NULL;
 	}
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	/* fast_resume will be cleared by iwl_mvm_fast_resume */
 	fast_resume = mvm->fast_resume;
 
@@ -1263,7 +1254,7 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 			set_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 		}
 	}
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 	if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status)) {
 		/*
@@ -1480,19 +1471,33 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	u32 cmd_id = REDUCE_TX_POWER_CMD;
 	int len;
-	struct iwl_dev_tx_power_cmd cmd = {
+	struct iwl_dev_tx_power_cmd_v3_v8 cmd = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC),
 		.common.mac_context_id =
 			cpu_to_le32(iwl_mvm_vif_from_mac80211(vif)->id),
-		.common.pwr_restriction = cpu_to_le16(8 * tx_power),
 	};
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
-					   IWL_FW_CMD_VER_UNKNOWN);
+	struct iwl_dev_tx_power_cmd cmd_v9_v10;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 3);
+	u16 u_tx_power = tx_power == IWL_DEFAULT_MAX_TX_POWER ?
+		IWL_DEV_MAX_TX_POWER : 8 * tx_power;
+	void *cmd_data = &cmd;
 
-	if (tx_power == IWL_DEFAULT_MAX_TX_POWER)
-		cmd.common.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
+	cmd.common.pwr_restriction = cpu_to_le16(u_tx_power);
 
-	if (cmd_ver == 8)
+	if (cmd_ver > 8) {
+		/* Those fields sit on the same place for v9 and v10 */
+		cmd_v9_v10.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC);
+		cmd_v9_v10.common.mac_context_id =
+			cpu_to_le32(iwl_mvm_vif_from_mac80211(vif)->id);
+		cmd_v9_v10.common.pwr_restriction = cpu_to_le16(u_tx_power);
+		cmd_data = &cmd_v9_v10;
+	}
+
+	if (cmd_ver == 10)
+		len = sizeof(cmd_v9_v10.v10);
+	else if (cmd_ver == 9)
+		len = sizeof(cmd_v9_v10.v9);
+	else if (cmd_ver == 8)
 		len = sizeof(cmd.v8);
 	else if (cmd_ver == 7)
 		len = sizeof(cmd.v7);
@@ -1507,10 +1512,14 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	else
 		len = sizeof(cmd.v3);
 
-	/* all structs have the same common part, add it */
+	/* all structs have the same common part, add its length */
 	len += sizeof(cmd.common);
 
-	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
+	if (cmd_ver < 9)
+		len += sizeof(cmd.per_band);
+
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, cmd_data);
+
 }
 
 static void iwl_mvm_post_csa_tx(void *data, struct ieee80211_sta *sta)

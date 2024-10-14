@@ -85,7 +85,7 @@ struct kvm_s2_trans {
 	bool readable;
 	int level;
 	u32 esr;
-	u64 upper_attr;
+	u64 desc;
 };
 
 static inline phys_addr_t kvm_s2_trans_output(struct kvm_s2_trans *trans)
@@ -115,7 +115,7 @@ static inline bool kvm_s2_trans_writable(struct kvm_s2_trans *trans)
 
 static inline bool kvm_s2_trans_executable(struct kvm_s2_trans *trans)
 {
-	return !(trans->upper_attr & BIT(54));
+	return !(trans->desc & BIT(54));
 }
 
 extern int kvm_walk_nested_s2(struct kvm_vcpu *vcpu, phys_addr_t gipa,
@@ -203,6 +203,42 @@ static inline bool kvm_auth_eretax(struct kvm_vcpu *vcpu, u64 *elr)
 static inline u64 kvm_encode_nested_level(struct kvm_s2_trans *trans)
 {
 	return FIELD_PREP(KVM_NV_GUEST_MAP_SZ, trans->level);
+}
+
+/* Adjust alignment for the contiguous bit as per StageOA() */
+#define contiguous_bit_shift(d, wi, l)					\
+	({								\
+		u8 shift = 0;						\
+									\
+		if ((d) & PTE_CONT) {					\
+			switch (BIT((wi)->pgshift)) {			\
+			case SZ_4K:					\
+				shift = 4;				\
+				break;					\
+			case SZ_16K:					\
+				shift = (l) == 2 ? 5 : 7;		\
+				break;					\
+			case SZ_64K:					\
+				shift = 5;				\
+				break;					\
+			}						\
+		}							\
+									\
+		shift;							\
+	})
+
+static inline unsigned int ps_to_output_size(unsigned int ps)
+{
+	switch (ps) {
+	case 0: return 32;
+	case 1: return 36;
+	case 2: return 40;
+	case 3: return 42;
+	case 4: return 44;
+	case 5:
+	default:
+		return 48;
+	}
 }
 
 #endif /* __ARM64_KVM_NESTED_H */

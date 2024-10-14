@@ -60,7 +60,7 @@ properties:
       The 4th cell is a phandle to a node describing a set of CPUs this
       interrupt is affine to. The interrupt must be a PPI, and the node
       pointed must be a subnode of the "ppi-partitions" subnode. For
-      interrupt types other than PPI or PPIs that are not partitionned,
+      interrupt types other than PPI or PPIs that are not partitioned,
       this cell must be zero. See the "ppi-partitions" node description
       below.
 

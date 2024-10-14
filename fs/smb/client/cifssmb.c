@@ -1076,8 +1076,8 @@ OldOpenRetry:
 	pSMB->OpenFlags |= cpu_to_le16(REQ_MORE_INFO);
 	pSMB->Mode = cpu_to_le16(access_flags_to_smbopen_mode(access_flags));
 	pSMB->Mode |= cpu_to_le16(0x40); /* deny none */
-	/* set file as system file if special file such
-	   as fifo and server expecting SFU style and
+	/* set file as system file if special file such as fifo,
+	 * socket, char or block and server expecting SFU style and
 	   no Unix extensions */
 
 	if (create_options & CREATE_OPTION_SPECIAL)
@@ -1193,8 +1193,8 @@ openRetry:
 	req->AllocationSize = 0;
 
 	/*
-	 * Set file as system file if special file such as fifo and server
-	 * expecting SFU style and no Unix extensions.
+	 * Set file as system file if special file such as fifo, socket, char
+	 * or block and server expecting SFU style and no Unix extensions.
 	 */
 	if (create_options & CREATE_OPTION_SPECIAL)
 		req->FileAttributes = cpu_to_le32(ATTR_SYSTEM);
@@ -1215,7 +1215,7 @@ openRetry:
 	req->CreateDisposition = cpu_to_le32(disposition);
 	req->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK);
 
-	/* BB Expirement with various impersonation levels and verify */
+	/* BB Experiment with various impersonation levels and verify */
 	req->ImpersonationLevel = cpu_to_le32(SECURITY_IMPERSONATION);
 	req->SecurityFlags = SECURITY_CONTEXT_TRACKING|SECURITY_EFFECTIVE_ONLY;
 
@@ -1261,16 +1261,30 @@ openRetry:
 	return rc;
 }
 
+static void cifs_readv_worker(struct work_struct *work)
+{
+	struct cifs_io_subrequest *rdata =
+		container_of(work, struct cifs_io_subrequest, subreq.work);
+
+	netfs_read_subreq_terminated(&rdata->subreq, rdata->result, false);
+}
+
 static void
 cifs_readv_callback(struct mid_q_entry *mid)
 {
 	struct cifs_io_subrequest *rdata = mid->callback_data;
+	struct netfs_inode *ictx = netfs_inode(rdata->rreq->inode);
 	struct cifs_tcon *tcon = tlink_tcon(rdata->req->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct smb_rqst rqst = { .rq_iov = rdata->iov,
 				 .rq_nvec = 2,
 				 .rq_iter = rdata->subreq.io_iter };
-	struct cifs_credits credits = { .value = 1, .instance = 0 };
+	struct cifs_credits credits = {
+		.value = 1,
+		.instance = 0,
+		.rreq_debug_id = rdata->rreq->debug_id,
+		.rreq_debug_index = rdata->subreq.debug_index,
+	};
 
 	cifs_dbg(FYI, "%s: mid=%llu state=%d result=%d bytes=%zu\n",
 		 __func__, mid->mid, mid->mid_state, rdata->result,
@@ -1282,6 +1296,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		if (server->sign) {
 			int rc = 0;
 
+			iov_iter_truncate(&rqst.rq_iter, rdata->got_bytes);
 			rc = cifs_verify_signature(&rqst, server,
 						  mid->sequence_number);
 			if (rc)
@@ -1306,13 +1321,22 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		rdata->result = -EIO;
 	}
 
-	if (rdata->result == 0 || rdata->result == -EAGAIN)
-		iov_iter_advance(&rdata->subreq.io_iter, rdata->got_bytes);
+	if (rdata->result == -ENODATA) {
+		__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
+		rdata->result = 0;
+	} else {
+		size_t trans = rdata->subreq.transferred + rdata->got_bytes;
+		if (trans < rdata->subreq.len &&
+		    rdata->subreq.start + trans == ictx->remote_i_size) {
+			__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
+			rdata->result = 0;
+		}
+	}
+
 	rdata->credits.value = 0;
-	netfs_subreq_terminated(&rdata->subreq,
-				(rdata->result == 0 || rdata->result == -EAGAIN) ?
-				rdata->got_bytes : rdata->result,
-				false);
+	rdata->subreq.transferred += rdata->got_bytes;
+	INIT_WORK(&rdata->subreq.work, cifs_readv_worker);
+	queue_work(cifsiod_wq, &rdata->subreq.work);
 	release_mid(mid);
 	add_credits(server, &credits, 0);
 }
@@ -1619,9 +1643,15 @@ static void
 cifs_writev_callback(struct mid_q_entry *mid)
 {
 	struct cifs_io_subrequest *wdata = mid->callback_data;
+	struct TCP_Server_Info *server = wdata->server;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->req->cfile->tlink);
 	WRITE_RSP *smb = (WRITE_RSP *)mid->resp_buf;
-	struct cifs_credits credits = { .value = 1, .instance = 0 };
+	struct cifs_credits credits = {
+		.value = 1,
+		.instance = 0,
+		.rreq_debug_id = wdata->rreq->debug_id,
+		.rreq_debug_index = wdata->subreq.debug_index,
+	};
 	ssize_t result;
 	size_t written;
 
@@ -1657,9 +1687,16 @@ cifs_writev_callback(struct mid_q_entry *mid)
 		break;
 	}
 
+	trace_smb3_rw_credits(credits.rreq_debug_id, credits.rreq_debug_index,
+			      wdata->credits.value,
+			      server->credits, server->in_flight,
+			      0, cifs_trace_rw_credits_write_response_clear);
 	wdata->credits.value = 0;
 	cifs_write_subrequest_terminated(wdata, result, true);
 	release_mid(mid);
+	trace_smb3_rw_credits(credits.rreq_debug_id, credits.rreq_debug_index, 0,
+			      server->credits, server->in_flight,
+			      credits.value, cifs_trace_rw_credits_write_response_add);
 	add_credits(tcon->ses->server, &credits, 0);
 }
 
@@ -2981,7 +3018,7 @@ static void cifs_init_ace(struct cifs_posix_ace *cifs_ace,
 
 /**
  * posix_acl_to_cifs - convert ACLs from POSIX ACL to cifs format
- * @parm_data: ACLs in cifs format to conver to
+ * @parm_data: ACLs in cifs format to convert to
  * @acl: ACLs in POSIX ACL format to convert from
  * @acl_type: the type of POSIX ACLs stored in @acl
  *
@@ -3390,7 +3427,7 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 /* Get Security Descriptor (by handle) from remote server for a file or dir */
 int
 CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
-		  struct cifs_ntsd **acl_inf, __u32 *pbuflen)
+		  struct smb_ntsd **acl_inf, __u32 *pbuflen)
 {
 	int rc = 0;
 	int buf_type = 0;
@@ -3460,7 +3497,7 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 
 		/* check if buffer is big enough for the acl
 		   header followed by the smallest SID */
-		if ((*pbuflen < sizeof(struct cifs_ntsd) + 8) ||
+		if ((*pbuflen < sizeof(struct smb_ntsd) + 8) ||
 		    (*pbuflen >= 64 * 1024)) {
 			cifs_dbg(VFS, "bad acl length %d\n", *pbuflen);
 			rc = -EINVAL;
@@ -3480,7 +3517,7 @@ qsec_out:
 
 int
 CIFSSMBSetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
-			struct cifs_ntsd *pntsd, __u32 acllen, int aclflag)
+			struct smb_ntsd *pntsd, __u32 acllen, int aclflag)
 {
 	__u16 byte_count, param_count, data_count, param_offset, data_offset;
 	int rc = 0;
@@ -3958,7 +3995,7 @@ findFirstRetry:
 		name_len =
 		    cifsConvertToUTF16((__le16 *) pSMB->FileName, searchName,
 				       PATH_MAX, nls_codepage, remap);
-		/* We can not add the asterik earlier in case
+		/* We can not add the asterisk earlier in case
 		it got remapped to 0xF03A as if it were part of the
 		directory name instead of a wildcard */
 		name_len *= 2;

@@ -66,6 +66,12 @@ config SKB_DECRYPTED
 config SKB_EXTENSIONS
 	bool
 
+config NET_DEVMEM
+	def_bool y
+	depends on DMA_SHARED_BUFFER
+	depends on GENERIC_ALLOCATOR
+	depends on PAGE_POOL
+
 menu "Networking options"
 
 source "net/packet/Kconfig"

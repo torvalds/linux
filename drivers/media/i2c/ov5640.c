@@ -4003,8 +4003,8 @@ static const struct dev_pm_ops ov5640_pm_ops = {
 };
 
 static const struct i2c_device_id ov5640_id[] = {
-	{"ov5640", 0},
-	{},
+	{ "ov5640" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ov5640_id);
 

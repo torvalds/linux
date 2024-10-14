@@ -49,6 +49,7 @@ config DELL_LAPTOP
 	default m
 	depends on DMI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_BATTERY
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
 	depends on DELL_WMI || DELL_WMI = n

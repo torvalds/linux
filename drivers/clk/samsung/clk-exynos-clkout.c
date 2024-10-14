@@ -241,7 +241,7 @@ static struct platform_driver exynos_clkout_driver = {
 		.pm = &exynos_clkout_pm_ops,
 	},
 	.probe = exynos_clkout_probe,
-	.remove_new = exynos_clkout_remove,
+	.remove = exynos_clkout_remove,
 };
 module_platform_driver(exynos_clkout_driver);
 

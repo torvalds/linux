@@ -18,7 +18,7 @@
 #include <linux/regmap.h>
 #include <linux/thermal.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "../thermal_hwmon.h"
 

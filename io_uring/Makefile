@@ -2,6 +2,10 @@
 #
 # Makefile for io_uring
 
+ifdef CONFIG_GCOV_PROFILE_URING
+GCOV_PROFILE := y
+endif
+
 obj-$(CONFIG_IO_URING)		+= io_uring.o opdef.o kbuf.o rsrc.o notif.o \
 					tctx.o filetable.o rw.o net.o poll.o \
 					eventfd.o uring_cmd.o openclose.o \

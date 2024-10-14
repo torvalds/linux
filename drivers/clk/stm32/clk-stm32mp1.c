@@ -2354,7 +2354,7 @@ static struct platform_driver stm32mp1_rcc_clocks_driver = {
 		.of_match_table = stm32mp1_match_data,
 	},
 	.probe = stm32mp1_rcc_clocks_probe,
-	.remove_new = stm32mp1_rcc_clocks_remove,
+	.remove = stm32mp1_rcc_clocks_remove,
 };
 
 static int __init stm32mp1_clocks_init(void)

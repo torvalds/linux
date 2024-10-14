@@ -80,7 +80,7 @@ struct nfc_ops {
 #define NFC_ATR_REQ_GT_OFFSET 14
 
 /**
- * struct nfc_target - NFC target descriptiom
+ * struct nfc_target - NFC target description
  *
  * @sens_res: 2 bytes describing the target SENS_RES response, if the target
  *	is a type A one. The %sens_res most significant byte must be byte 2
@@ -230,10 +230,10 @@ static inline void nfc_set_parent_dev(struct nfc_dev *nfc_dev,
 }
 
 /**
- * nfc_set_drvdata - set driver specifc data
+ * nfc_set_drvdata - set driver specific data
  *
  * @dev: The nfc device
- * @data: Pointer to driver specifc data
+ * @data: Pointer to driver specific data
  */
 static inline void nfc_set_drvdata(struct nfc_dev *dev, void *data)
 {
@@ -241,7 +241,7 @@ static inline void nfc_set_drvdata(struct nfc_dev *dev, void *data)
 }
 
 /**
- * nfc_get_drvdata - get driver specifc data
+ * nfc_get_drvdata - get driver specific data
  *
  * @dev: The nfc device
  */

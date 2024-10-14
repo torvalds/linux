@@ -54,12 +54,14 @@ static void amd_pstate_ut_acpi_cpc_valid(u32 index);
 static void amd_pstate_ut_check_enabled(u32 index);
 static void amd_pstate_ut_check_perf(u32 index);
 static void amd_pstate_ut_check_freq(u32 index);
+static void amd_pstate_ut_check_driver(u32 index);
 
 static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_acpi_cpc_valid",   amd_pstate_ut_acpi_cpc_valid   },
 	{"amd_pstate_ut_check_enabled",    amd_pstate_ut_check_enabled    },
 	{"amd_pstate_ut_check_perf",       amd_pstate_ut_check_perf       },
-	{"amd_pstate_ut_check_freq",       amd_pstate_ut_check_freq       }
+	{"amd_pstate_ut_check_freq",       amd_pstate_ut_check_freq       },
+	{"amd_pstate_ut_check_driver",	   amd_pstate_ut_check_driver     }
 };
 
 static bool get_shared_mem(void)
@@ -255,6 +257,43 @@ static void amd_pstate_ut_check_freq(u32 index)
 	return;
 skip_test:
 	cpufreq_cpu_put(policy);
+}
+
+static int amd_pstate_set_mode(enum amd_pstate_mode mode)
+{
+	const char *mode_str = amd_pstate_get_mode_string(mode);
+
+	pr_debug("->setting mode to %s\n", mode_str);
+
+	return amd_pstate_update_status(mode_str, strlen(mode_str));
+}
+
+static void amd_pstate_ut_check_driver(u32 index)
+{
+	enum amd_pstate_mode mode1, mode2 = AMD_PSTATE_DISABLE;
+	int ret;
+
+	for (mode1 = AMD_PSTATE_DISABLE; mode1 < AMD_PSTATE_MAX; mode1++) {
+		ret = amd_pstate_set_mode(mode1);
+		if (ret)
+			goto out;
+		for (mode2 = AMD_PSTATE_DISABLE; mode2 < AMD_PSTATE_MAX; mode2++) {
+			if (mode1 == mode2)
+				continue;
+			ret = amd_pstate_set_mode(mode2);
+			if (ret)
+				goto out;
+		}
+	}
+out:
+	if (ret)
+		pr_warn("%s: failed to update status for %s->%s: %d\n", __func__,
+			amd_pstate_get_mode_string(mode1),
+			amd_pstate_get_mode_string(mode2), ret);
+
+	amd_pstate_ut_cases[index].result = ret ?
+					    AMD_PSTATE_UT_RESULT_FAIL :
+					    AMD_PSTATE_UT_RESULT_PASS;
 }
 
 static int __init amd_pstate_ut_init(void)

@@ -54,7 +54,7 @@ enum sof_comp_type {
 struct sof_ipc_comp {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t id;
-	enum sof_comp_type type;
+	uint32_t type;
 	uint32_t pipeline_id;
 	uint32_t core;
 

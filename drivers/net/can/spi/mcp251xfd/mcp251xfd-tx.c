@@ -12,7 +12,7 @@
 // Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
 //
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bitfield.h>
 
 #include "mcp251xfd.h"

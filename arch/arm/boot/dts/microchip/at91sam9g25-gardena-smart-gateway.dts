@@ -37,71 +37,71 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power_blue {
+		led-power-blue {
 			label = "smartgw:power:blue";
 			gpios = <&pioC 21 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		power_green {
+		led-power-green {
 			label = "smartgw:power:green";
 			gpios = <&pioC 20 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
-		power_red {
+		led-power-red {
 			label = "smartgw:power:red";
 			gpios = <&pioC 19 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		radio_blue {
+		led-radio-blue {
 			label = "smartgw:radio:blue";
 			gpios = <&pioC 18 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		radio_green {
+		led-radio-green {
 			label = "smartgw:radio:green";
 			gpios = <&pioC 17 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		radio_red {
+		led-radio-red {
 			label = "smartgw:radio:red";
 			gpios = <&pioC 16 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		internet_blue {
+		led-internet-blue {
 			label = "smartgw:internet:blue";
 			gpios = <&pioC 15 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		internet_green {
+		led-internet-green {
 			label = "smartgw:internet:green";
 			gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		internet_red {
+		led-internet-red {
 			label = "smartgw:internet:red";
 			gpios = <&pioC 13 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		heartbeat {
+		led-heartbeat {
 			label = "smartgw:heartbeat";
 			gpios = <&pioB 8 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		pb18 {
+		led-pb18 {
 			status = "disabled";
 		};
 
-		pd21 {
+		led-pd21 {
 			status = "disabled";
 		};
 	};

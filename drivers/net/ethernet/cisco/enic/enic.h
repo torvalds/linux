@@ -128,6 +128,40 @@ struct vxlan_offload {
 	u8 flags;
 };
 
+struct enic_wq_stats {
+	u64 packets;		/* pkts queued for Tx */
+	u64 stopped;		/* Tx ring almost full, queue stopped */
+	u64 wake;		/* Tx ring no longer full, queue woken up*/
+	u64 tso;		/* non-encap tso pkt */
+	u64 encap_tso;		/* encap tso pkt */
+	u64 encap_csum;		/* encap HW csum */
+	u64 csum_partial;	/* skb->ip_summed = CHECKSUM_PARTIAL */
+	u64 csum_none;		/* HW csum not required */
+	u64 bytes;		/* bytes queued for Tx */
+	u64 add_vlan;		/* HW adds vlan tag */
+	u64 cq_work;		/* Tx completions processed */
+	u64 cq_bytes;		/* Tx bytes processed */
+	u64 null_pkt;		/* skb length <= 0 */
+	u64 skb_linear_fail;	/* linearize failures */
+	u64 desc_full_awake;	/* TX ring full while queue awake */
+};
+
+struct enic_rq_stats {
+	u64 packets;			/* pkts received */
+	u64 bytes;			/* bytes received */
+	u64 l4_rss_hash;		/* hashed on l4 */
+	u64 l3_rss_hash;		/* hashed on l3 */
+	u64 csum_unnecessary;		/* HW verified csum */
+	u64 csum_unnecessary_encap;	/* HW verified csum on encap packet */
+	u64 vlan_stripped;		/* HW stripped vlan */
+	u64 napi_complete;		/* napi complete intr reenabled */
+	u64 napi_repoll;		/* napi poll again */
+	u64 bad_fcs;			/* bad pkts */
+	u64 pkt_truncated;		/* truncated pkts */
+	u64 no_skb;			/* out of skbs */
+	u64 desc_skip;			/* Rx pkt went into later buffer */
+};
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -162,16 +196,16 @@ struct enic {
 	/* work queue cache line section */
 	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];
 	spinlock_t wq_lock[ENIC_WQ_MAX];
+	struct enic_wq_stats wq_stats[ENIC_WQ_MAX];
 	unsigned int wq_count;
 	u16 loop_enable;
 	u16 loop_tag;
 
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
+	struct enic_rq_stats rq_stats[ENIC_RQ_MAX];
 	unsigned int rq_count;
 	struct vxlan_offload vxlan;
-	u64 rq_truncated_pkts;
-	u64 rq_bad_fcs;
 	struct napi_struct napi[ENIC_RQ_MAX + ENIC_WQ_MAX];
 
 	/* interrupt resource cache line section */

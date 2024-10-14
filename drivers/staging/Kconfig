@@ -54,8 +54,6 @@ source "drivers/staging/fbtft/Kconfig"
 
 source "drivers/staging/most/Kconfig"
 
-source "drivers/staging/ks7010/Kconfig"
-
 source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"

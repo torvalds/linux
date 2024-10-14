@@ -134,12 +134,12 @@ int vfio_virqfd_enable(void *opaque,
 	INIT_WORK(&virqfd->flush_inject, virqfd_flush_inject);
 
 	irqfd = fdget(fd);
-	if (!irqfd.file) {
+	if (!fd_file(irqfd)) {
 		ret = -EBADF;
 		goto err_fd;
 	}
 
-	ctx = eventfd_ctx_fileget(irqfd.file);
+	ctx = eventfd_ctx_fileget(fd_file(irqfd));
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
 		goto err_ctx;
@@ -171,7 +171,7 @@ int vfio_virqfd_enable(void *opaque,
 	init_waitqueue_func_entry(&virqfd->wait, virqfd_wakeup);
 	init_poll_funcptr(&virqfd->pt, virqfd_ptable_queue_proc);
 
-	events = vfs_poll(irqfd.file, &virqfd->pt);
+	events = vfs_poll(fd_file(irqfd), &virqfd->pt);
 
 	/*
 	 * Check if there was an event already pending on the eventfd

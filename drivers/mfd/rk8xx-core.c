@@ -531,7 +531,7 @@ static const struct regmap_irq rk817_irqs[RK817_IRQ_END] = {
 	REGMAP_IRQ_REG_LINE(23, 8)
 };
 
-static struct regmap_irq_chip rk805_irq_chip = {
+static const struct regmap_irq_chip rk805_irq_chip = {
 	.name = "rk805",
 	.irqs = rk805_irqs,
 	.num_irqs = ARRAY_SIZE(rk805_irqs),
@@ -542,7 +542,7 @@ static struct regmap_irq_chip rk805_irq_chip = {
 	.init_ack_masked = true,
 };
 
-static struct regmap_irq_chip rk806_irq_chip = {
+static const struct regmap_irq_chip rk806_irq_chip = {
 	.name = "rk806",
 	.irqs = rk806_irqs,
 	.num_irqs = ARRAY_SIZE(rk806_irqs),
@@ -578,7 +578,7 @@ static const struct regmap_irq_chip rk816_irq_chip = {
 	.init_ack_masked = true,
 };
 
-static struct regmap_irq_chip rk817_irq_chip = {
+static const struct regmap_irq_chip rk817_irq_chip = {
 	.name = "rk817",
 	.irqs = rk817_irqs,
 	.num_irqs = ARRAY_SIZE(rk817_irqs),

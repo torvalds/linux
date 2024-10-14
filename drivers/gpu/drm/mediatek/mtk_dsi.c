@@ -88,12 +88,15 @@
 #define DSI_HSA_WC		0x50
 #define DSI_HBP_WC		0x54
 #define DSI_HFP_WC		0x58
+#define HFP_HS_VB_PS_WC		GENMASK(30, 16)
+#define HFP_HS_EN			BIT(31)
 
 #define DSI_CMDQ_SIZE		0x60
 #define CMDQ_SIZE			0x3f
 #define CMDQ_SIZE_SEL		BIT(15)
 
 #define DSI_HSTX_CKL_WC		0x64
+#define HSTX_CKL_WC			GENMASK(15, 2)
 
 #define DSI_RX_DATA0		0x74
 #define DSI_RX_DATA1		0x78
@@ -187,6 +190,7 @@ struct mtk_dsi_driver_data {
 	bool has_shadow_ctl;
 	bool has_size_ctl;
 	bool cmdq_long_packet_ctl;
+	bool support_per_frame_lp;
 };
 
 struct mtk_dsi {
@@ -426,7 +430,75 @@ static void mtk_dsi_ps_control(struct mtk_dsi *dsi, bool config_vact)
 	writel(ps_val, dsi->regs + DSI_PSCTRL);
 }
 
-static void mtk_dsi_config_vdo_timing(struct mtk_dsi *dsi)
+static void mtk_dsi_config_vdo_timing_per_frame_lp(struct mtk_dsi *dsi)
+{
+	u32 horizontal_sync_active_byte;
+	u32 horizontal_backporch_byte;
+	u32 horizontal_frontporch_byte;
+	u32 hfp_byte_adjust, v_active_adjust;
+	u32 cklp_wc_min_adjust, cklp_wc_max_adjust;
+	u32 dsi_tmp_buf_bpp;
+	unsigned int da_hs_trail;
+	unsigned int ps_wc, hs_vb_ps_wc;
+	u32 v_active_roundup, hstx_cklp_wc;
+	u32 hstx_cklp_wc_max, hstx_cklp_wc_min;
+	struct videomode *vm = &dsi->vm;
+
+	if (dsi->format == MIPI_DSI_FMT_RGB565)
+		dsi_tmp_buf_bpp = 2;
+	else
+		dsi_tmp_buf_bpp = 3;
+
+	da_hs_trail = dsi->phy_timing.da_hs_trail;
+	ps_wc = vm->hactive * dsi_tmp_buf_bpp;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
+		horizontal_sync_active_byte =
+			vm->hsync_len * dsi_tmp_buf_bpp - 10;
+		horizontal_backporch_byte =
+			vm->hback_porch * dsi_tmp_buf_bpp - 10;
+		hfp_byte_adjust = 12;
+		v_active_adjust = 32 + horizontal_sync_active_byte;
+		cklp_wc_min_adjust = 12 + 2 + 4 + horizontal_sync_active_byte;
+		cklp_wc_max_adjust = 20 + 6 + 4 + horizontal_sync_active_byte;
+	} else {
+		horizontal_sync_active_byte = vm->hsync_len * dsi_tmp_buf_bpp - 4;
+		horizontal_backporch_byte = (vm->hback_porch + vm->hsync_len) *
+			dsi_tmp_buf_bpp - 10;
+		cklp_wc_min_adjust = 4;
+		cklp_wc_max_adjust = 12 + 4 + 4;
+		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
+			hfp_byte_adjust = 18;
+			v_active_adjust = 28;
+		} else {
+			hfp_byte_adjust = 12;
+			v_active_adjust = 22;
+		}
+	}
+	horizontal_frontporch_byte = vm->hfront_porch * dsi_tmp_buf_bpp - hfp_byte_adjust;
+	v_active_roundup = (v_active_adjust + horizontal_backporch_byte + ps_wc +
+			   horizontal_frontporch_byte) % dsi->lanes;
+	if (v_active_roundup)
+		horizontal_backporch_byte += dsi->lanes - v_active_roundup;
+	hstx_cklp_wc_min = (DIV_ROUND_UP(cklp_wc_min_adjust, dsi->lanes) + da_hs_trail + 1)
+			   * dsi->lanes / 6 - 1;
+	hstx_cklp_wc_max = (DIV_ROUND_UP((cklp_wc_max_adjust + horizontal_backporch_byte +
+			   ps_wc), dsi->lanes) + da_hs_trail + 1) * dsi->lanes / 6 - 1;
+
+	hstx_cklp_wc = FIELD_PREP(HSTX_CKL_WC, (hstx_cklp_wc_min + hstx_cklp_wc_max) / 2);
+	writel(hstx_cklp_wc, dsi->regs + DSI_HSTX_CKL_WC);
+
+	hs_vb_ps_wc = ps_wc - (dsi->phy_timing.lpx + dsi->phy_timing.da_hs_exit +
+		      dsi->phy_timing.da_hs_prepare + dsi->phy_timing.da_hs_zero + 2) * dsi->lanes;
+	horizontal_frontporch_byte |= FIELD_PREP(HFP_HS_EN, 1) |
+				      FIELD_PREP(HFP_HS_VB_PS_WC, hs_vb_ps_wc);
+
+	writel(horizontal_sync_active_byte, dsi->regs + DSI_HSA_WC);
+	writel(horizontal_backporch_byte, dsi->regs + DSI_HBP_WC);
+	writel(horizontal_frontporch_byte, dsi->regs + DSI_HFP_WC);
+}
+
+static void mtk_dsi_config_vdo_timing_per_line_lp(struct mtk_dsi *dsi)
 {
 	u32 horizontal_sync_active_byte;
 	u32 horizontal_backporch_byte;
@@ -436,23 +508,12 @@ static void mtk_dsi_config_vdo_timing(struct mtk_dsi *dsi)
 	u32 dsi_tmp_buf_bpp, data_phy_cycles;
 	u32 delta;
 	struct mtk_phy_timing *timing = &dsi->phy_timing;
-
 	struct videomode *vm = &dsi->vm;
 
 	if (dsi->format == MIPI_DSI_FMT_RGB565)
 		dsi_tmp_buf_bpp = 2;
 	else
 		dsi_tmp_buf_bpp = 3;
-
-	writel(vm->vsync_len, dsi->regs + DSI_VSA_NL);
-	writel(vm->vback_porch, dsi->regs + DSI_VBP_NL);
-	writel(vm->vfront_porch, dsi->regs + DSI_VFP_NL);
-	writel(vm->vactive, dsi->regs + DSI_VACT_NL);
-
-	if (dsi->driver_data->has_size_ctl)
-		writel(FIELD_PREP(DSI_HEIGHT, vm->vactive) |
-		       FIELD_PREP(DSI_WIDTH, vm->hactive),
-		       dsi->regs + DSI_SIZE_CON);
 
 	horizontal_sync_active_byte = (vm->hsync_len * dsi_tmp_buf_bpp - 10);
 
@@ -499,6 +560,26 @@ static void mtk_dsi_config_vdo_timing(struct mtk_dsi *dsi)
 	writel(horizontal_sync_active_byte, dsi->regs + DSI_HSA_WC);
 	writel(horizontal_backporch_byte, dsi->regs + DSI_HBP_WC);
 	writel(horizontal_frontporch_byte, dsi->regs + DSI_HFP_WC);
+}
+
+static void mtk_dsi_config_vdo_timing(struct mtk_dsi *dsi)
+{
+	struct videomode *vm = &dsi->vm;
+
+	writel(vm->vsync_len, dsi->regs + DSI_VSA_NL);
+	writel(vm->vback_porch, dsi->regs + DSI_VBP_NL);
+	writel(vm->vfront_porch, dsi->regs + DSI_VFP_NL);
+	writel(vm->vactive, dsi->regs + DSI_VACT_NL);
+
+	if (dsi->driver_data->has_size_ctl)
+		writel(FIELD_PREP(DSI_HEIGHT, vm->vactive) |
+			FIELD_PREP(DSI_WIDTH, vm->hactive),
+			dsi->regs + DSI_SIZE_CON);
+
+	if (dsi->driver_data->support_per_frame_lp)
+		mtk_dsi_config_vdo_timing_per_frame_lp(dsi);
+	else
+		mtk_dsi_config_vdo_timing_per_line_lp(dsi);
 
 	mtk_dsi_ps_control(dsi, false);
 }
@@ -1197,6 +1278,7 @@ static const struct mtk_dsi_driver_data mt8188_dsi_driver_data = {
 	.has_shadow_ctl = true,
 	.has_size_ctl = true,
 	.cmdq_long_packet_ctl = true,
+	.support_per_frame_lp = true,
 };
 
 static const struct of_device_id mtk_dsi_of_match[] = {

@@ -316,7 +316,9 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 	    cpu >= nr_cpu_ids || cpu >= num_possible_cpus())
 		return NULL;
 
-	pkg_id = topology_physical_package_id(cpu);
+	pkg_id = topology_logical_package_id(cpu);
+	if (pkg_id >= topology_max_packages())
+		return NULL;
 
 	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
 	if (bus_number < 0)
@@ -651,10 +653,6 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 
 /* Lock to prevent module registration when already opened by user space */
 static DEFINE_MUTEX(punit_misc_dev_open_lock);
-/* Lock to allow one shared misc device for all ISST interfaces */
-static DEFINE_MUTEX(punit_misc_dev_reg_lock);
-static int misc_usage_count;
-static int misc_device_ret;
 static int misc_device_open;
 
 static int isst_if_open(struct inode *inode, struct file *file)
@@ -720,39 +718,23 @@ static struct miscdevice isst_if_char_driver = {
 
 static int isst_misc_reg(void)
 {
-	mutex_lock(&punit_misc_dev_reg_lock);
-	if (misc_device_ret)
-		goto unlock_exit;
+	int ret;
 
-	if (!misc_usage_count) {
-		misc_device_ret = isst_if_cpu_info_init();
-		if (misc_device_ret)
-			goto unlock_exit;
+	ret = isst_if_cpu_info_init();
+	if (ret)
+		return ret;
 
-		misc_device_ret = misc_register(&isst_if_char_driver);
-		if (misc_device_ret) {
-			isst_if_cpu_info_exit();
-			goto unlock_exit;
-		}
-	}
-	misc_usage_count++;
+	ret = misc_register(&isst_if_char_driver);
+	if (ret)
+		isst_if_cpu_info_exit();
 
-unlock_exit:
-	mutex_unlock(&punit_misc_dev_reg_lock);
-
-	return misc_device_ret;
+	return ret;
 }
 
 static void isst_misc_unreg(void)
 {
-	mutex_lock(&punit_misc_dev_reg_lock);
-	if (misc_usage_count)
-		misc_usage_count--;
-	if (!misc_usage_count && !misc_device_ret) {
-		misc_deregister(&isst_if_char_driver);
-		isst_if_cpu_info_exit();
-	}
-	mutex_unlock(&punit_misc_dev_reg_lock);
+	misc_deregister(&isst_if_char_driver);
+	isst_if_cpu_info_exit();
 }
 
 /**
@@ -827,6 +809,7 @@ static const struct x86_cpu_id isst_cpu_ids[] = {
 	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,	SST_HPM_SUPPORTED),
 	X86_MATCH_VFM(INTEL_ICELAKE_D,		0),
 	X86_MATCH_VFM(INTEL_ICELAKE_X,		0),
+	X86_MATCH_VFM(INTEL_PANTHERCOVE_X,	SST_HPM_SUPPORTED),
 	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,	0),
 	X86_MATCH_VFM(INTEL_SKYLAKE_X,		SST_MBOX_SUPPORTED),
 	{}

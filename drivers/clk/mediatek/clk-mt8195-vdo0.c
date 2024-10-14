@@ -106,7 +106,7 @@ MODULE_DEVICE_TABLE(platform, clk_mt8195_vdo0_id_table);
 
 static struct platform_driver clk_mt8195_vdo0_drv = {
 	.probe = mtk_clk_pdev_probe,
-	.remove_new = mtk_clk_pdev_remove,
+	.remove = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt8195-vdo0",
 	},

@@ -14,10 +14,10 @@ Gestor de tareas CFS
 
 CFS viene de las siglas en inglés de "Gestor de tareas totalmente justo"
 ("Completely Fair Scheduler"), y es el nuevo gestor de tareas de escritorio
-implementado por Ingo Molnar e integrado en Linux 2.6.23. Es el sustituto de
-el previo gestor de tareas SCHED_OTHER.
-
-Nota: El planificador EEVDF fue incorporado más recientemente al kernel.
+implementado por Ingo Molnar e integrado en Linux 2.6.23. Es el sustituto
+del previo gestor de tareas SCHED_OTHER. Hoy en día se está abriendo camino
+para el gestor de tareas EEVDF, cuya documentación se puede ver en
+Documentation/scheduler/sched-eevdf.rst
 
 El 80% del diseño de CFS puede ser resumido en una única frase: CFS
 básicamente modela una "CPU ideal, precisa y multi-tarea" sobre hardware
@@ -109,7 +109,7 @@ para que se ejecute, y la tarea en ejecución es interrumpida.
 ==================================
 
 CFS usa una granularidad de nanosegundos y no depende de ningún
-jiffie o detalles como HZ. De este modo, el gestor de tareas CFS no tiene
+jiffy o detalles como HZ. De este modo, el gestor de tareas CFS no tiene
 noción de "ventanas de tiempo" de la forma en que tenía el gestor de
 tareas previo, y tampoco tiene heurísticos. Únicamente hay un parámetro
 central ajustable (se ha de cambiar en CONFIG_SCHED_DEBUG):

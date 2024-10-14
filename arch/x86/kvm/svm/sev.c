@@ -534,10 +534,10 @@ static int __sev_issue_cmd(int fd, int id, void *data, int *error)
 	int ret;
 
 	f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	ret = sev_issue_cmd_external_user(f.file, id, data, error);
+	ret = sev_issue_cmd_external_user(fd_file(f), id, data, error);
 
 	fdput(f);
 	return ret;
@@ -2078,15 +2078,15 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	bool charged = false;
 	int ret;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	if (!file_is_kvm(f.file)) {
+	if (!file_is_kvm(fd_file(f))) {
 		ret = -EBADF;
 		goto out_fput;
 	}
 
-	source_kvm = f.file->private_data;
+	source_kvm = fd_file(f)->private_data;
 	ret = sev_lock_two_vms(kvm, source_kvm);
 	if (ret)
 		goto out_fput;
@@ -2803,15 +2803,15 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	struct kvm_sev_info *source_sev, *mirror_sev;
 	int ret;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	if (!file_is_kvm(f.file)) {
+	if (!file_is_kvm(fd_file(f))) {
 		ret = -EBADF;
 		goto e_source_fput;
 	}
 
-	source_kvm = f.file->private_data;
+	source_kvm = fd_file(f)->private_data;
 	ret = sev_lock_two_vms(kvm, source_kvm);
 	if (ret)
 		goto e_source_fput;

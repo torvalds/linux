@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 #include <test_progs.h>
+#include "bpf_util.h"
 
 void serial_test_fexit_stress(void)
 {
@@ -36,7 +37,7 @@ void serial_test_fexit_stress(void)
 	for (i = 0; i < bpf_max_tramp_links; i++) {
 		fexit_fd[i] = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL",
 					    trace_program,
-					    sizeof(trace_program) / sizeof(struct bpf_insn),
+					    ARRAY_SIZE(trace_program),
 					    &trace_opts);
 		if (!ASSERT_GE(fexit_fd[i], 0, "fexit load"))
 			goto out;

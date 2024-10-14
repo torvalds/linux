@@ -76,6 +76,9 @@
 
 #include "dml2/dml2_wrapper.h"
 
+#include "spl/dc_spl_scl_easf_filters.h"
+#include "spl/dc_spl_isharp_filters.h"
+
 #define DC_LOGGER_INIT(logger)
 
 enum dcn401_clk_src_array_id {
@@ -1188,7 +1191,7 @@ static struct stream_encoder *dcn401_stream_encoder_create(
 	vpg = dcn401_vpg_create(ctx, vpg_inst);
 	afmt = dcn401_afmt_create(ctx, afmt_inst);
 
-	if (!enc1 || !vpg || !afmt) {
+	if (!enc1 || !vpg || !afmt || eng_id >= ARRAY_SIZE(stream_enc_regs)) {
 		kfree(enc1);
 		kfree(vpg);
 		kfree(afmt);
@@ -1822,6 +1825,7 @@ static bool dcn401_resource_construct(
 	dc->caps.edp_dsc_support = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
+	dc->caps.max_v_total = (1 << 15) - 1;
 
 	if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev))
 		dc->caps.dcc_plane_width_limit = 7680;
@@ -2099,6 +2103,7 @@ static bool dcn401_resource_construct(
 	dc->dml2_options.use_native_soc_bb_construction = true;
 	dc->dml2_options.minimize_dispclk_using_odm = true;
 	dc->dml2_options.map_dc_pipes_with_callbacks = true;
+	dc->dml2_options.force_tdlut_enable = true;
 
 	resource_init_common_dml2_callbacks(dc, &dc->dml2_options);
 	dc->dml2_options.callbacks.can_support_mclk_switch_using_fw_based_vblank_stretch = &dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch;
@@ -2123,6 +2128,10 @@ static bool dcn401_resource_construct(
 
 	dc->dml2_options.max_segments_per_hubp = 20;
 	dc->dml2_options.det_segment_size = DCN4_01_CRB_SEGMENT_SIZE_KB;
+
+	/* SPL */
+	spl_init_easf_filter_coeffs();
+	spl_init_blur_scale_coeffs();
 
 	return true;
 

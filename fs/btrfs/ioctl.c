@@ -543,13 +543,11 @@ static noinline int btrfs_ioctl_fitrim(struct btrfs_fs_info *fs_info,
 
 	range.minlen = max(range.minlen, minlen);
 	ret = btrfs_trim_fs(fs_info, &range);
-	if (ret < 0)
-		return ret;
 
 	if (copy_to_user(arg, &range, sizeof(range)))
 		return -EFAULT;
 
-	return 0;
+	return ret;
 }
 
 int __pure btrfs_is_empty_uuid(const u8 *uuid)
@@ -1312,12 +1310,12 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 	} else {
 		struct fd src = fdget(fd);
 		struct inode *src_inode;
-		if (!src.file) {
+		if (!fd_file(src)) {
 			ret = -EINVAL;
 			goto out_drop_write;
 		}
 
-		src_inode = file_inode(src.file);
+		src_inode = file_inode(fd_file(src));
 		if (src_inode->i_sb != file_inode(file)->i_sb) {
 			btrfs_info(BTRFS_I(file_inode(file))->root->fs_info,
 				   "Snapshot src from another FS");
@@ -4765,11 +4763,10 @@ long btrfs_ioctl(struct file *file, unsigned int
 			return ret;
 		ret = btrfs_sync_fs(inode->i_sb, 1);
 		/*
-		 * The transaction thread may want to do more work,
-		 * namely it pokes the cleaner kthread that will start
-		 * processing uncleaned subvols.
+		 * There may be work for the cleaner kthread to do (subvolume
+		 * deletion, delayed iputs, defrag inodes, etc), so wake it up.
 		 */
-		wake_up_process(fs_info->transaction_kthread);
+		wake_up_process(fs_info->cleaner_kthread);
 		return ret;
 	}
 	case BTRFS_IOC_START_SYNC:

@@ -788,7 +788,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	struct qcom_slim_ngd_ctrl *ctrl = dev_get_drvdata(sctrl->dev);
 	DECLARE_COMPLETION_ONSTACK(tx_sent);
 	DECLARE_COMPLETION_ONSTACK(done);
-	int ret, timeout, i;
+	int ret, i;
+	unsigned long time_left;
 	u8 wbuf[SLIM_MSGQ_BUF_LEN];
 	u8 rbuf[SLIM_MSGQ_BUF_LEN];
 	u32 *pbuf;
@@ -890,8 +891,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		return ret;
 	}
 
-	timeout = wait_for_completion_timeout(&tx_sent, HZ);
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(&tx_sent, HZ);
+	if (!time_left) {
 		dev_err(sctrl->dev, "TX timed out:MC:0x%x,mt:0x%x", txn->mc,
 					txn->mt);
 		mutex_unlock(&ctrl->tx_lock);
@@ -899,8 +900,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	}
 
 	if (usr_msg) {
-		timeout = wait_for_completion_timeout(&done, HZ);
-		if (!timeout) {
+		time_left = wait_for_completion_timeout(&done, HZ);
+		if (!time_left) {
 			dev_err(sctrl->dev, "TX timed out:MC:0x%x,mt:0x%x",
 				txn->mc, txn->mt);
 			mutex_unlock(&ctrl->tx_lock);
@@ -916,7 +917,8 @@ static int qcom_slim_ngd_xfer_msg_sync(struct slim_controller *ctrl,
 				       struct slim_msg_txn *txn)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
-	int ret, timeout;
+	int ret;
+	unsigned long time_left;
 
 	ret = pm_runtime_get_sync(ctrl->dev);
 	if (ret < 0)
@@ -928,8 +930,8 @@ static int qcom_slim_ngd_xfer_msg_sync(struct slim_controller *ctrl,
 	if (ret)
 		goto pm_put;
 
-	timeout = wait_for_completion_timeout(&done, HZ);
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(&done, HZ);
+	if (!time_left) {
 		dev_err(ctrl->dev, "TX timed out:MC:0x%x,mt:0x%x", txn->mc,
 				txn->mt);
 		ret = -ETIMEDOUT;
@@ -1168,11 +1170,12 @@ static int qcom_slim_ngd_power_up(struct qcom_slim_ngd_ctrl *ctrl)
 	enum qcom_slim_ngd_state cur_state = ctrl->state;
 	struct qcom_slim_ngd *ngd = ctrl->ngd;
 	u32 laddr, rx_msgq;
-	int timeout, ret = 0;
+	int ret = 0;
+	unsigned long time_left;
 
 	if (ctrl->state == QCOM_SLIM_NGD_CTRL_DOWN) {
-		timeout = wait_for_completion_timeout(&ctrl->qmi.qmi_comp, HZ);
-		if (!timeout)
+		time_left = wait_for_completion_timeout(&ctrl->qmi.qmi_comp, HZ);
+		if (!time_left)
 			return -EREMOTEIO;
 	}
 
@@ -1217,8 +1220,8 @@ static int qcom_slim_ngd_power_up(struct qcom_slim_ngd_ctrl *ctrl)
 				ngd->base + NGD_RX_MSGQ_CFG);
 	qcom_slim_ngd_setup(ctrl);
 
-	timeout = wait_for_completion_timeout(&ctrl->reconf, HZ);
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(&ctrl->reconf, HZ);
+	if (!time_left) {
 		dev_err(ctrl->dev, "capability exchange timed-out\n");
 		return -ETIMEDOUT;
 	}

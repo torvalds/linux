@@ -335,8 +335,6 @@
 #define HCLK_SDIO_NOC			495
 #define HCLK_SDIOAUDIO_NOC		496
 
-#define CLK_NR_CLKS			(HCLK_SDIOAUDIO_NOC + 1)
-
 /* pmu-clocks indices */
 
 #define PLL_PPLL			1
@@ -377,8 +375,6 @@
 #define DCLK_CM0S_PMU			48
 #define PCLK_INTR_ARB_PMU		49
 #define HCLK_NOC_PMU			50
-
-#define CLKPMU_NR_CLKS			(HCLK_NOC_PMU + 1)
 
 /* soft-reset indices */
 

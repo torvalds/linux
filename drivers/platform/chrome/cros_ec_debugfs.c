@@ -302,7 +302,6 @@ static const struct file_operations cros_ec_console_log_fops = {
 	.owner = THIS_MODULE,
 	.open = cros_ec_console_log_open,
 	.read = cros_ec_console_log_read,
-	.llseek = no_llseek,
 	.poll = cros_ec_console_log_poll,
 	.release = cros_ec_console_log_release,
 };

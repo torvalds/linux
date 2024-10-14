@@ -17,7 +17,7 @@
 #include <linux/error-injection.h>
 #include <linux/crc32c.h>
 #include <linux/sched/mm.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/hash.h>
 #include "ctree.h"
 #include "disk-io.h"
@@ -525,7 +525,7 @@ static bool btree_release_folio(struct folio *folio, gfp_t gfp_flags)
 	if (folio_test_writeback(folio) || folio_test_dirty(folio))
 		return false;
 
-	return try_release_extent_buffer(&folio->page);
+	return try_release_extent_buffer(folio);
 }
 
 static void btree_invalidate_folio(struct folio *folio, size_t offset,
@@ -1285,7 +1285,6 @@ void btrfs_free_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_extent_buffer_leak_debug_check(fs_info);
 	kfree(fs_info->super_copy);
 	kfree(fs_info->super_for_commit);
-	kfree(fs_info->subpage_info);
 	kvfree(fs_info);
 }
 
@@ -3322,6 +3321,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->nodesize = nodesize;
 	fs_info->sectorsize = sectorsize;
 	fs_info->sectorsize_bits = ilog2(sectorsize);
+	fs_info->sectors_per_page = (PAGE_SIZE >> fs_info->sectorsize_bits);
 	fs_info->csums_per_leaf = BTRFS_MAX_ITEM_SIZE(fs_info) / fs_info->csum_size;
 	fs_info->stripesize = stripesize;
 
@@ -3346,20 +3346,10 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 */
 	fs_info->max_inline = min_t(u64, fs_info->max_inline, fs_info->sectorsize);
 
-	if (sectorsize < PAGE_SIZE) {
-		struct btrfs_subpage_info *subpage_info;
-
+	if (sectorsize < PAGE_SIZE)
 		btrfs_warn(fs_info,
 		"read-write for sector size %u with page size %lu is experimental",
 			   sectorsize, PAGE_SIZE);
-		subpage_info = kzalloc(sizeof(*subpage_info), GFP_KERNEL);
-		if (!subpage_info) {
-			ret = -ENOMEM;
-			goto fail_alloc;
-		}
-		btrfs_init_subpage_info(subpage_info, sectorsize);
-		fs_info->subpage_info = subpage_info;
-	}
 
 	ret = btrfs_init_workqueues(fs_info);
 	if (ret)
@@ -4264,6 +4254,17 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 
 	/* clear out the rbtree of defraggable inodes */
 	btrfs_cleanup_defrag_inodes(fs_info);
+
+	/*
+	 * Wait for any fixup workers to complete.
+	 * If we don't wait for them here and they are still running by the time
+	 * we call kthread_stop() against the cleaner kthread further below, we
+	 * get an use-after-free on the cleaner because the fixup worker adds an
+	 * inode to the list of delayed iputs and then attempts to wakeup the
+	 * cleaner kthread, which was already stopped and destroyed. We parked
+	 * already the cleaner, but below we run all pending delayed iputs.
+	 */
+	btrfs_flush_workqueue(fs_info->fixup_workers);
 
 	/*
 	 * After we parked the cleaner kthread, ordered extents may have

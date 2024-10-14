@@ -9,11 +9,11 @@
  */
 
 #include <linux/cleanup.h>
+#include <linux/intel_vsec.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "core.h"
-#include "../vsec.h"
 #include "../pmt/telemetry.h"
 
 #define SSRAM_HDR_SIZE		0x100
@@ -45,7 +45,7 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc)
 	struct telem_endpoint *ep;
 	const u8 *lpm_indices;
 	int num_maps, mode_offset = 0;
-	int ret, mode, i;
+	int ret, mode;
 	int lpm_size;
 	u32 guid;
 
@@ -116,7 +116,7 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc)
 	 *
 	 */
 	mode_offset = LPM_HEADER_OFFSET + LPM_MODE_OFFSET;
-	pmc_for_each_mode(i, mode, pmcdev) {
+	pmc_for_each_mode(mode, pmcdev) {
 		u32 *req_offset = pmc->lpm_req_regs + (mode * num_maps);
 		int m;
 

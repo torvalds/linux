@@ -205,34 +205,16 @@ static struct kobject erofs_feat = {
 int erofs_register_sysfs(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
-	char *name;
-	char *str = NULL;
 	int err;
 
-	if (erofs_is_fscache_mode(sb)) {
-		if (sbi->domain_id) {
-			str = kasprintf(GFP_KERNEL, "%s,%s", sbi->domain_id,
-					sbi->fsid);
-			if (!str)
-				return -ENOMEM;
-			name = str;
-		} else {
-			name = sbi->fsid;
-		}
-	} else {
-		name = sb->s_id;
-	}
 	sbi->s_kobj.kset = &erofs_root;
 	init_completion(&sbi->s_kobj_unregister);
-	err = kobject_init_and_add(&sbi->s_kobj, &erofs_sb_ktype, NULL, "%s", name);
-	kfree(str);
-	if (err)
-		goto put_sb_kobj;
-	return 0;
-
-put_sb_kobj:
-	kobject_put(&sbi->s_kobj);
-	wait_for_completion(&sbi->s_kobj_unregister);
+	err = kobject_init_and_add(&sbi->s_kobj, &erofs_sb_ktype, NULL, "%s",
+				   sb->s_sysfs_name);
+	if (err) {
+		kobject_put(&sbi->s_kobj);
+		wait_for_completion(&sbi->s_kobj_unregister);
+	}
 	return err;
 }
 

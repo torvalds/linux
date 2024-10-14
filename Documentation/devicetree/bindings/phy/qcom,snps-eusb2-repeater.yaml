@@ -43,7 +43,7 @@ properties:
 
   qcom,tune-usb2-amplitude:
     $ref: /schemas/types.yaml#/definitions/uint8
-    description: High-Speed trasmit amplitude
+    description: High-Speed transmit amplitude
     minimum: 0
     maximum: 15
     default: 8

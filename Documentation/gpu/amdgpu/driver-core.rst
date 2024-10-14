@@ -179,4 +179,4 @@ IP Blocks
    :doc: IP Blocks
 
 .. kernel-doc:: drivers/gpu/drm/amd/include/amd_shared.h
-   :identifiers: amd_ip_block_type amd_ip_funcs
+   :identifiers: amd_ip_block_type amd_ip_funcs DC_DEBUG_MASK

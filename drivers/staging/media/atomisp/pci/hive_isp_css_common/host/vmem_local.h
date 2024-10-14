@@ -20,8 +20,10 @@
 #include "vmem_global.h"
 
 typedef u16 t_vmem_elem;
+typedef s16 t_svmem_elem;
 
-#define VMEM_ARRAY(x, s)    t_vmem_elem x[s / ISP_NWAY][ISP_NWAY]
+#define VMEM_ARRAY(x, s)	t_vmem_elem x[(s) / ISP_NWAY][ISP_NWAY]
+#define SVMEM_ARRAY(x, s)	t_svmem_elem x[(s) / ISP_NWAY][ISP_NWAY]
 
 void isp_vmem_load(
     const isp_ID_t		ID,

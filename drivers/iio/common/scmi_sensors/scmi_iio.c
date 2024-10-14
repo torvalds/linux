@@ -158,7 +158,7 @@ static int scmi_iio_set_odr_val(struct iio_dev *iio_dev, int val, int val2)
 	 * To calculate the multiplier,we convert the sf into char string  and
 	 * count the number of characters
 	 */
-	sf = (u64)uHz * 0xFFFF;
+	sf = uHz * 0xFFFF;
 	do_div(sf,  MICROHZ_PER_HZ);
 	mult = scnprintf(buf, sizeof(buf), "%llu", sf) - 1;
 

@@ -7,7 +7,6 @@
 
 #include <linux/etherdevice.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <linux/jiffies.h>
 
 #include <rtw_wifi_regd.h>

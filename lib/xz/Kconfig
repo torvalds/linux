@@ -5,7 +5,8 @@ config XZ_DEC
 	help
 	  LZMA2 compression algorithm and BCJ filters are supported using
 	  the .xz file format as the container. For integrity checking,
-	  CRC32 is supported. See Documentation/staging/xz.rst for more information.
+	  CRC32 is supported. See Documentation/staging/xz.rst for more
+	  information.
 
 if XZ_DEC
 
@@ -29,8 +30,18 @@ config XZ_DEC_ARMTHUMB
 	default y
 	select XZ_DEC_BCJ
 
+config XZ_DEC_ARM64
+	bool "ARM64 BCJ filter decoder" if EXPERT
+	default y
+	select XZ_DEC_BCJ
+
 config XZ_DEC_SPARC
 	bool "SPARC BCJ filter decoder" if EXPERT
+	default y
+	select XZ_DEC_BCJ
+
+config XZ_DEC_RISCV
+	bool "RISC-V BCJ filter decoder" if EXPERT
 	default y
 	select XZ_DEC_BCJ
 

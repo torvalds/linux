@@ -220,7 +220,7 @@
 		#gpio-cells = <2>;
 		gpio-controller;
 
-		admin_led_lower {
+		admin-led-lower-hog {
 			gpio-hog;
 			gpios = <13 GPIO_ACTIVE_HIGH>;
 			output-low;
@@ -323,9 +323,9 @@
 				reg = <0x580000 0x40000>;
 			};
 
-			partition@5C0000 {
+			partition@5c0000 {
 				label = "dpc";
-				reg = <0x5C0000 0x40000>;
+				reg = <0x5c0000 0x40000>;
 			};
 
 			partition@600000 {

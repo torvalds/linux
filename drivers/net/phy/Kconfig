@@ -44,6 +44,9 @@ config LED_TRIGGER_PHY
 		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
 		for any speed known to the PHY.
 
+config OPEN_ALLIANCE_HELPERS
+	bool
+
 config PHYLIB_LEDS
 	def_bool OF
 	depends on LEDS_CLASS=y || LEDS_CLASS=PHYLIB
@@ -108,6 +111,13 @@ config ADIN1100_PHY
 	  Adds support for the Analog Devices Industrial T1L Ethernet PHYs.
 	  Currently supports the:
 	  - ADIN1100 - Robust,Industrial, Low Power 10BASE-T1L Ethernet PHY
+
+config AMCC_QT2025_PHY
+	tristate "AMCC QT2025 PHY"
+	depends on RUST_PHYLIB_ABSTRACTIONS
+	depends on RUST_FW_LOADER_ABSTRACTIONS
+	help
+	  Adds support for the Applied Micro Circuits Corporation QT2025 PHY.
 
 source "drivers/net/phy/aquantia/Kconfig"
 
@@ -414,6 +424,7 @@ config DP83TD510_PHY
 
 config DP83TG720_PHY
 	tristate "Texas Instruments DP83TG720 Ethernet 1000Base-T1 PHY"
+	select OPEN_ALLIANCE_HELPERS
 	help
 	  The DP83TG720S-Q1 is an automotive Ethernet physical layer
 	  transceiver compliant with IEEE 802.3bp and Open Alliance

@@ -116,9 +116,6 @@ static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
 }
 #endif
 
-extern int use_cop(unsigned long acop, struct mm_struct *mm);
-extern void drop_cop(unsigned long acop, struct mm_struct *mm);
-
 #ifdef CONFIG_PPC_BOOK3S_64
 static inline void inc_mm_active_cpus(struct mm_struct *mm)
 {
@@ -259,15 +256,6 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 #endif
 
 extern void arch_exit_mmap(struct mm_struct *mm);
-
-static inline void arch_unmap(struct mm_struct *mm,
-			      unsigned long start, unsigned long end)
-{
-	unsigned long vdso_base = (unsigned long)mm->context.vdso;
-
-	if (start <= vdso_base && vdso_base < end)
-		mm->context.vdso = NULL;
-}
 
 #ifdef CONFIG_PPC_MEM_KEYS
 bool arch_vma_access_permitted(struct vm_area_struct *vma, bool write,

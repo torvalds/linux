@@ -99,6 +99,10 @@ Sysfs entries for ina226, ina230 and ina231 only
 ------------------------------------------------
 
 ======================= ====================================================
+curr1_lcrit		Critical low current
+curr1_crit		Critical high current
+curr1_lcrit_alarm	Current critical low alarm
+curr1_crit_alarm	Current critical high alarm
 in0_lcrit		Critical low shunt voltage
 in0_crit		Critical high shunt voltage
 in0_lcrit_alarm		Shunt voltage critical low alarm

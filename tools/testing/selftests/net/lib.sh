@@ -125,6 +125,21 @@ slowwait_for_counter()
 	slowwait "$timeout" until_counter_is ">= $((base + delta))" "$@"
 }
 
+# Check for existence of tools which are built as part of selftests
+# but may also already exist in $PATH
+check_gen_prog()
+{
+	local prog_name=$1; shift
+
+	if ! which $prog_name >/dev/null 2>/dev/null; then
+		PATH=$PWD:$PATH
+		if ! which $prog_name >/dev/null; then
+			echo "'$prog_name' command not found; skipping tests"
+			exit $ksft_skip
+		fi
+	fi
+}
+
 remove_ns_list()
 {
 	local item=$1

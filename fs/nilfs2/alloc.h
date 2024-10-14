@@ -37,7 +37,7 @@ void *nilfs_palloc_block_get_entry(const struct inode *, __u64,
 int nilfs_palloc_count_max_entries(struct inode *, u64, u64 *);
 
 /**
- * nilfs_palloc_req - persistent allocator request and reply
+ * struct nilfs_palloc_req - persistent allocator request and reply
  * @pr_entry_nr: entry number (vblocknr or inode number)
  * @pr_desc_bh: buffer head of the buffer containing block group descriptors
  * @pr_bitmap_bh: buffer head of the buffer containing a block group bitmap

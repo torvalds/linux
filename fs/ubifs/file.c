@@ -211,7 +211,7 @@ static void release_existing_page_budget(struct ubifs_info *c)
 }
 
 static int write_begin_slow(struct address_space *mapping,
-			    loff_t pos, unsigned len, struct page **pagep)
+			    loff_t pos, unsigned len, struct folio **foliop)
 {
 	struct inode *inode = mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -298,7 +298,7 @@ static int write_begin_slow(struct address_space *mapping,
 			ubifs_release_dirty_inode_budget(c, ui);
 	}
 
-	*pagep = &folio->page;
+	*foliop = folio;
 	return 0;
 }
 
@@ -414,7 +414,7 @@ static int allocate_budget(struct ubifs_info *c, struct folio *folio,
  */
 static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 			     loff_t pos, unsigned len,
-			     struct page **pagep, void **fsdata)
+			     struct folio **foliop, void **fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -483,7 +483,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		folio_unlock(folio);
 		folio_put(folio);
 
-		return write_begin_slow(mapping, pos, len, pagep);
+		return write_begin_slow(mapping, pos, len, foliop);
 	}
 
 	/*
@@ -492,7 +492,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	 * with @ui->ui_mutex locked if we are appending pages, and unlocked
 	 * otherwise. This is an optimization (slightly hacky though).
 	 */
-	*pagep = &folio->page;
+	*foliop = folio;
 	return 0;
 }
 
@@ -524,9 +524,8 @@ static void cancel_budget(struct ubifs_info *c, struct folio *folio,
 
 static int ubifs_write_end(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
-			   struct page *page, void *fsdata)
+			   struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;

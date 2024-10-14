@@ -129,12 +129,9 @@ omapdss_of_find_source_for_first_ep(struct device_node *node)
 		return ERR_PTR(-EINVAL);
 
 	src_port = of_graph_get_remote_port(ep);
-	if (!src_port) {
-		of_node_put(ep);
-		return ERR_PTR(-EINVAL);
-	}
-
 	of_node_put(ep);
+	if (!src_port)
+		return ERR_PTR(-EINVAL);
 
 	src = omap_dss_find_output_by_port_node(src_port);
 

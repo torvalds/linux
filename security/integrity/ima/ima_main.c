@@ -1068,10 +1068,10 @@ void ima_kexec_cmdline(int kernel_fd, const void *buf, int size)
 		return;
 
 	f = fdget(kernel_fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return;
 
-	process_buffer_measurement(file_mnt_idmap(f.file), file_inode(f.file),
+	process_buffer_measurement(file_mnt_idmap(fd_file(f)), file_inode(fd_file(f)),
 				   buf, size, "kexec-cmdline", KEXEC_CMDLINE, 0,
 				   NULL, false, NULL, 0);
 	fdput(f);
@@ -1193,7 +1193,7 @@ static struct security_hook_list ima_hooks[] __ro_after_init = {
 #ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
 	LSM_HOOK_INIT(kernel_module_request, ima_kernel_module_request),
 #endif
-	LSM_HOOK_INIT(inode_free_security, ima_inode_free),
+	LSM_HOOK_INIT(inode_free_security_rcu, ima_inode_free_rcu),
 };
 
 static const struct lsm_id ima_lsmid = {

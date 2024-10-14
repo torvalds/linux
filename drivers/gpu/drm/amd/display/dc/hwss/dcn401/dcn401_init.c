@@ -38,7 +38,7 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn20_disable_plane,
 	.pipe_control_lock = dcn20_pipe_control_lock,
-	.interdependent_update_lock = dcn32_interdependent_update_lock,
+	.interdependent_update_lock = dcn401_interdependent_update_lock,
 	.cursor_lock = dcn10_cursor_lock,
 	.prepare_bandwidth = dcn401_prepare_bandwidth,
 	.optimize_bandwidth = dcn401_optimize_bandwidth,
@@ -99,12 +99,11 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.fams2_global_control_lock = dcn401_fams2_global_control_lock,
 	.fams2_update_config = dcn401_fams2_update_config,
 	.fams2_global_control_lock_fast = dcn401_fams2_global_control_lock_fast,
-	.power_down = dce110_power_down,
+	.program_outstanding_updates = dcn401_program_outstanding_updates,
 };
 
 static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.init_pipes = dcn10_init_pipes,
-	.update_plane_addr = dcn20_update_plane_addr,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.update_mpcc = dcn20_update_mpcc,
 	.set_input_transfer_func = dcn32_set_input_transfer_func,
@@ -115,8 +114,6 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.reset_hw_ctx_wrap = dcn20_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn401_enable_stream_timing,
 	.edp_backlight_control = dce110_edp_backlight_control,
-	.disable_stream_gating = dcn20_disable_stream_gating,
-	.enable_stream_gating = dcn20_enable_stream_gating,
 	.setup_vupdate_interrupt = dcn20_setup_vupdate_interrupt,
 	.did_underflow_occur = dcn10_did_underflow_occur,
 	.init_blank = dcn32_init_blank,
@@ -136,12 +133,11 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.dccg_init = dcn20_dccg_init,
 	.set_mcm_luts = dcn401_set_mcm_luts,
 	.program_mall_pipe_config = dcn32_program_mall_pipe_config,
-	.update_force_pstate = dcn32_update_force_pstate,
 	.update_mall_sel = dcn32_update_mall_sel,
 	.calculate_dccg_k1_k2_values = NULL,
 	.apply_single_controller_ctx_to_hw = dce110_apply_single_controller_ctx_to_hw,
 	.reset_back_end_for_pipe = dcn20_reset_back_end_for_pipe,
-	.populate_mcm_luts = dcn401_populate_mcm_luts,
+	.populate_mcm_luts = NULL,
 };
 
 void dcn401_hw_sequencer_init_functions(struct dc *dc)

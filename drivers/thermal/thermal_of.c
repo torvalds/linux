@@ -20,37 +20,6 @@
 
 /***   functions parsing device tree nodes   ***/
 
-static int of_find_trip_id(struct device_node *np, struct device_node *trip)
-{
-	struct device_node *trips;
-	struct device_node *t;
-	int i = 0;
-
-	trips = of_get_child_by_name(np, "trips");
-	if (!trips) {
-		pr_err("Failed to find 'trips' node\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Find the trip id point associated with the cooling device map
-	 */
-	for_each_child_of_node(trips, t) {
-
-		if (t == trip) {
-			of_node_put(t);
-			goto out;
-		}
-		i++;
-	}
-
-	i = -ENXIO;
-out:
-	of_node_put(trips);
-
-	return i;
-}
-
 /*
  * It maps 'enum thermal_trip_type' found in include/linux/thermal.h
  * into the device tree binding of 'trip', property type.
@@ -118,6 +87,8 @@ static int thermal_of_populate_trip(struct device_node *np,
 	}
 
 	trip->flags = THERMAL_TRIP_FLAG_RW_TEMP;
+
+	trip->priv = np;
 
 	return 0;
 }
@@ -291,39 +262,9 @@ static struct device_node *thermal_of_zone_get_by_name(struct thermal_zone_devic
 	return tz_np;
 }
 
-static int __thermal_of_unbind(struct device_node *map_np, int index, int trip_id,
-			       struct thermal_zone_device *tz, struct thermal_cooling_device *cdev)
-{
-	struct of_phandle_args cooling_spec;
-	int ret;
-
-	ret = of_parse_phandle_with_args(map_np, "cooling-device", "#cooling-cells",
-					 index, &cooling_spec);
-
-	if (ret < 0) {
-		pr_err("Invalid cooling-device entry\n");
-		return ret;
-	}
-
-	of_node_put(cooling_spec.np);
-
-	if (cooling_spec.args_count < 2) {
-		pr_err("wrong reference to cooling device, missing limits\n");
-		return -EINVAL;
-	}
-
-	if (cooling_spec.np != cdev->np)
-		return 0;
-
-	ret = thermal_zone_unbind_cooling_device(tz, trip_id, cdev);
-	if (ret)
-		pr_err("Failed to unbind '%s' with '%s': %d\n", tz->type, cdev->type, ret);
-
-	return ret;
-}
-
-static int __thermal_of_bind(struct device_node *map_np, int index, int trip_id,
-			     struct thermal_zone_device *tz, struct thermal_cooling_device *cdev)
+static bool thermal_of_get_cooling_spec(struct device_node *map_np, int index,
+					struct thermal_cooling_device *cdev,
+					struct cooling_spec *c)
 {
 	struct of_phandle_args cooling_spec;
 	int ret, weight = THERMAL_WEIGHT_DEFAULT;
@@ -335,104 +276,73 @@ static int __thermal_of_bind(struct device_node *map_np, int index, int trip_id,
 
 	if (ret < 0) {
 		pr_err("Invalid cooling-device entry\n");
-		return ret;
+		return false;
 	}
 
 	of_node_put(cooling_spec.np);
 
 	if (cooling_spec.args_count < 2) {
 		pr_err("wrong reference to cooling device, missing limits\n");
-		return -EINVAL;
+		return false;
 	}
 
 	if (cooling_spec.np != cdev->np)
-		return 0;
+		return false;
 
-	ret = thermal_zone_bind_cooling_device(tz, trip_id, cdev, cooling_spec.args[1],
-					       cooling_spec.args[0],
-					       weight);
-	if (ret)
-		pr_err("Failed to bind '%s' with '%s': %d\n", tz->type, cdev->type, ret);
+	c->lower = cooling_spec.args[0];
+	c->upper = cooling_spec.args[1];
+	c->weight = weight;
 
-	return ret;
+	return true;
 }
 
-static int thermal_of_for_each_cooling_device(struct device_node *tz_np, struct device_node *map_np,
-					      struct thermal_zone_device *tz, struct thermal_cooling_device *cdev,
-					      int (*action)(struct device_node *, int, int,
-							    struct thermal_zone_device *, struct thermal_cooling_device *))
-{
-	struct device_node *tr_np;
-	int count, i, trip_id;
-
-	tr_np = of_parse_phandle(map_np, "trip", 0);
-	if (!tr_np)
-		return -ENODEV;
-
-	trip_id = of_find_trip_id(tz_np, tr_np);
-	if (trip_id < 0)
-		return trip_id;
-
-	count = of_count_phandle_with_args(map_np, "cooling-device", "#cooling-cells");
-	if (count <= 0) {
-		pr_err("Add a cooling_device property with at least one device\n");
-		return -ENOENT;
-	}
-
-	/*
-	 * At this point, we don't want to bail out when there is an
-	 * error, we will try to bind/unbind as many as possible
-	 * cooling devices
-	 */
-	for (i = 0; i < count; i++)
-		action(map_np, i, trip_id, tz, cdev);
-
-	return 0;
-}
-
-static int thermal_of_for_each_cooling_maps(struct thermal_zone_device *tz,
-					    struct thermal_cooling_device *cdev,
-					    int (*action)(struct device_node *, int, int,
-							  struct thermal_zone_device *, struct thermal_cooling_device *))
+static bool thermal_of_should_bind(struct thermal_zone_device *tz,
+				   const struct thermal_trip *trip,
+				   struct thermal_cooling_device *cdev,
+				   struct cooling_spec *c)
 {
 	struct device_node *tz_np, *cm_np, *child;
-	int ret = 0;
+	bool result = false;
 
 	tz_np = thermal_of_zone_get_by_name(tz);
 	if (IS_ERR(tz_np)) {
 		pr_err("Failed to get node tz by name\n");
-		return PTR_ERR(tz_np);
+		return false;
 	}
 
 	cm_np = of_get_child_by_name(tz_np, "cooling-maps");
 	if (!cm_np)
 		goto out;
 
+	/* Look up the trip and the cdev in the cooling maps. */
 	for_each_child_of_node(cm_np, child) {
-		ret = thermal_of_for_each_cooling_device(tz_np, child, tz, cdev, action);
-		if (ret) {
-			of_node_put(child);
-			break;
+		struct device_node *tr_np;
+		int count, i;
+
+		tr_np = of_parse_phandle(child, "trip", 0);
+		if (tr_np != trip->priv)
+			continue;
+
+		/* The trip has been found, look up the cdev. */
+		count = of_count_phandle_with_args(child, "cooling-device", "#cooling-cells");
+		if (count <= 0)
+			pr_err("Add a cooling_device property with at least one device\n");
+
+		for (i = 0; i < count; i++) {
+			result = thermal_of_get_cooling_spec(child, i, cdev, c);
+			if (result)
+				break;
 		}
+
+		of_node_put(child);
+		break;
 	}
 
 	of_node_put(cm_np);
 out:
 	of_node_put(tz_np);
 
-	return ret;
-}
-
-static int thermal_of_bind(struct thermal_zone_device *tz,
-			   struct thermal_cooling_device *cdev)
-{
-	return thermal_of_for_each_cooling_maps(tz, cdev, __thermal_of_bind);
-}
-
-static int thermal_of_unbind(struct thermal_zone_device *tz,
-			     struct thermal_cooling_device *cdev)
-{
-	return thermal_of_for_each_cooling_maps(tz, cdev, __thermal_of_unbind);
+	return result;
 }
 
 /**
@@ -504,8 +414,7 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 
 	thermal_of_parameters_init(np, &tzp);
 
-	of_ops.bind = thermal_of_bind;
-	of_ops.unbind = thermal_of_unbind;
+	of_ops.should_bind = thermal_of_should_bind;
 
 	ret = of_property_read_string(np, "critical-action", &action);
 	if (!ret)

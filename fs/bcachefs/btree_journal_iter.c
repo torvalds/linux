@@ -530,6 +530,8 @@ static void __journal_keys_sort(struct journal_keys *keys)
 {
 	sort(keys->data, keys->nr, sizeof(keys->data[0]), journal_sort_key_cmp, NULL);
 
+	cond_resched();
+
 	struct journal_key *dst = keys->data;
 
 	darray_for_each(*keys, src) {

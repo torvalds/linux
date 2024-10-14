@@ -107,19 +107,18 @@ EXPORT_SYMBOL_GPL(usb_speed_string);
  */
 enum usb_device_speed usb_get_maximum_speed(struct device *dev)
 {
-	const char *maximum_speed;
+	const char *p = "maximum-speed";
 	int ret;
 
-	ret = device_property_read_string(dev, "maximum-speed", &maximum_speed);
-	if (ret < 0)
-		return USB_SPEED_UNKNOWN;
-
-	ret = match_string(ssp_rate, ARRAY_SIZE(ssp_rate), maximum_speed);
+	ret = device_property_match_property_string(dev, p, ssp_rate, ARRAY_SIZE(ssp_rate));
 	if (ret > 0)
 		return USB_SPEED_SUPER_PLUS;
 
-	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
-	return (ret < 0) ? USB_SPEED_UNKNOWN : ret;
+	ret = device_property_match_property_string(dev, p, speed_names, ARRAY_SIZE(speed_names));
+	if (ret > 0)
+		return ret;
+
+	return USB_SPEED_UNKNOWN;
 }
 EXPORT_SYMBOL_GPL(usb_get_maximum_speed);
 
@@ -276,14 +275,13 @@ EXPORT_SYMBOL_GPL(usb_decode_interval);
  */
 enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 {
-	struct device_node *controller = NULL;
+	struct device_node *controller;
 	struct of_phandle_args args;
 	const char *dr_mode;
 	int index;
 	int err;
 
-	do {
-		controller = of_find_node_with_property(controller, "phys");
+	for_each_node_with_property(controller, "phys") {
 		if (!of_device_is_available(controller))
 			continue;
 		index = 0;
@@ -306,7 +304,7 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 				goto finish;
 			index++;
 		} while (args.np);
-	} while (controller);
+	}
 
 finish:
 	err = of_property_read_string(controller, "dr_mode", &dr_mode);

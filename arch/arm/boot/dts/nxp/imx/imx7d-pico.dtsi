@@ -444,14 +444,14 @@
 		>;
 	};
 
-	pinctrl_can1: can1frp {
+	pinctrl_can1: can1frpgrp {
 		fsl,pins = <
 			MX7D_PAD_SAI1_RX_DATA__FLEXCAN1_RX	0x59
 			MX7D_PAD_SAI1_TX_BCLK__FLEXCAN1_TX	0x59
 		>;
 	};
 
-	pinctrl_can2: can2frp {
+	pinctrl_can2: can2frpgrp {
 		fsl,pins = <
 			MX7D_PAD_SAI1_TX_SYNC__FLEXCAN2_RX	0x59
 			MX7D_PAD_SAI1_TX_DATA__FLEXCAN2_TX	0x59
@@ -499,19 +499,19 @@
 		>;
 	};
 
-	pinctrl_pwm1: pwm1 {
+	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO08__PWM1_OUT	0x7f
 		>;
 	};
 
-	pinctrl_pwm2: pwm2 {
+	pinctrl_pwm2: pwm2grp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO09__PWM2_OUT	0x7f
 		>;
 	};
 
-	pinctrl_pwm3: pwm3 {
+	pinctrl_pwm3: pwm3grp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO10__PWM3_OUT	0x7f
 		>;
@@ -563,7 +563,7 @@
 		>;
 	};
 
-	pinctrl_usbotg1_pwr: usbotg_pwr {
+	pinctrl_usbotg1_pwr: usbotgpwrgrp {
 		fsl,pins = <
 			MX7D_PAD_UART3_TX_DATA__GPIO4_IO5	0x14
 		>;
@@ -581,7 +581,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp_100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1-100mhz-grp {
 		fsl,pins = <
 			MX7D_PAD_SD1_CMD__SD1_CMD		0x5a
 			MX7D_PAD_SD1_CLK__SD1_CLK		0x1a
@@ -593,7 +593,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp_200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1-200mhz-grp {
 		fsl,pins = <
 			MX7D_PAD_SD1_CMD__SD1_CMD		0x5b
 			MX7D_PAD_SD1_CLK__SD1_CLK		0x1b
@@ -631,7 +631,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_100mhz: usdhc3grp_100mhz {
+	pinctrl_usdhc3_100mhz: usdhc3-100mhz-grp {
 		fsl,pins = <
 			MX7D_PAD_SD3_CMD__SD3_CMD		0x5a
 			MX7D_PAD_SD3_CLK__SD3_CLK		0x1a
@@ -646,7 +646,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_200mhz: usdhc3grp_200mhz {
+	pinctrl_usdhc3_200mhz: usdhc3-200mhz-grp {
 		fsl,pins = <
 			MX7D_PAD_SD3_CMD__SD3_CMD		0x5b
 			MX7D_PAD_SD3_CLK__SD3_CLK		0x1b

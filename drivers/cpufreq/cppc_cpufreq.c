@@ -22,7 +22,7 @@
 #include <linux/vmalloc.h>
 #include <uapi/linux/sched/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <acpi/cppc_acpi.h>
 
@@ -224,9 +224,9 @@ static void __init cppc_freq_invariance_init(void)
 		 * Fake (unused) bandwidth; workaround to "fix"
 		 * priority inheritance.
 		 */
-		.sched_runtime	= 1000000,
-		.sched_deadline = 10000000,
-		.sched_period	= 10000000,
+		.sched_runtime	= NSEC_PER_MSEC,
+		.sched_deadline = 10 * NSEC_PER_MSEC,
+		.sched_period	= 10 * NSEC_PER_MSEC,
 	};
 	int ret;
 

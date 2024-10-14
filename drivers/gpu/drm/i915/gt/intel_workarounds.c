@@ -111,9 +111,8 @@ static void wa_init_finish(struct i915_wa_list *wal)
 {
 	/* Trim unused entries. */
 	if (!IS_ALIGNED(wal->count, WA_LIST_CHUNK)) {
-		struct i915_wa *list = kmemdup(wal->list,
-					       wal->count * sizeof(*list),
-					       GFP_KERNEL);
+		struct i915_wa *list = kmemdup_array(wal->list, wal->count,
+						     sizeof(*list), GFP_KERNEL);
 
 		if (list) {
 			kfree(wal->list);
@@ -974,7 +973,12 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 	if (ret)
 		return ret;
 
-	cs = intel_ring_begin(rq, (wal->count * 2 + 2));
+	if ((IS_GFX_GT_IP_RANGE(rq->engine->gt, IP_VER(12, 70), IP_VER(12, 74)) ||
+	     IS_DG2(rq->i915)) && rq->engine->class == RENDER_CLASS)
+		cs = intel_ring_begin(rq, (wal->count * 2 + 6));
+	else
+		cs = intel_ring_begin(rq, (wal->count * 2 + 2));
+
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1003,6 +1007,15 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 		*cs++ = val;
 	}
 	*cs++ = MI_NOOP;
+
+	/* Wa_14019789679 */
+	if ((IS_GFX_GT_IP_RANGE(rq->engine->gt, IP_VER(12, 70), IP_VER(12, 74)) ||
+	     IS_DG2(rq->i915)) && rq->engine->class == RENDER_CLASS) {
+		*cs++ = CMD_3DSTATE_MESH_CONTROL;
+		*cs++ = 0;
+		*cs++ = 0;
+		*cs++ = MI_NOOP;
+	}
 
 	intel_uncore_forcewake_put__locked(uncore, fw);
 	spin_unlock(&uncore->lock);
@@ -2058,7 +2071,7 @@ static void dg2_whitelist_build(struct intel_engine_cs *engine)
 	case RENDER_CLASS:
 		/* Required by recommended tuning setting (not a workaround) */
 		whitelist_mcr_reg(w, XEHP_COMMON_SLICE_CHICKEN3);
-
+		whitelist_reg(w, GEN7_COMMON_SLICE_CHICKEN1);
 		break;
 	default:
 		break;
@@ -2073,7 +2086,7 @@ static void xelpg_whitelist_build(struct intel_engine_cs *engine)
 	case RENDER_CLASS:
 		/* Required by recommended tuning setting (not a workaround) */
 		whitelist_mcr_reg(w, XEHP_COMMON_SLICE_CHICKEN3);
-
+		whitelist_reg(w, GEN7_COMMON_SLICE_CHICKEN1);
 		break;
 	default:
 		break;

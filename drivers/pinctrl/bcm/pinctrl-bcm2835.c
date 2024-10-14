@@ -1280,6 +1280,7 @@ static const struct of_device_id bcm2835_pinctrl_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, bcm2835_pinctrl_match);
 
 static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 {

@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "ieee80211_i.h"
 #include "rate.h"
 #include "mesh.h"
@@ -1301,3 +1301,4 @@ void ieee80211_purge_tx_queue(struct ieee80211_hw *hw,
 	while ((skb = __skb_dequeue(skbs)))
 		ieee80211_free_txskb(hw, skb);
 }
+EXPORT_SYMBOL(ieee80211_purge_tx_queue);

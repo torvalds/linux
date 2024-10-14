@@ -114,7 +114,7 @@ static ssize_t shrinker_debugfs_scan_write(struct file *file,
 	int nid;
 	char kbuf[72];
 
-	read_len = size < (sizeof(kbuf) - 1) ? size : (sizeof(kbuf) - 1);
+	read_len = min(size, sizeof(kbuf) - 1);
 	if (copy_from_user(kbuf, buf, read_len))
 		return -EFAULT;
 	kbuf[read_len] = '\0';

@@ -641,6 +641,32 @@ struct clk *devm_clk_get_optional_prepared(struct device *dev, const char *id);
 struct clk *devm_clk_get_optional_enabled(struct device *dev, const char *id);
 
 /**
+ * devm_clk_get_optional_enabled_with_rate - devm_clk_get_optional() +
+ *                                           clk_set_rate() +
+ *                                           clk_prepare_enable()
+ * @dev: device for clock "consumer"
+ * @id: clock consumer ID
+ * @rate: new clock rate
+ *
+ * Context: May sleep.
+ *
+ * Return: a struct clk corresponding to the clock producer, or
+ * valid IS_ERR() condition containing errno.  The implementation
+ * uses @dev and @id to determine the clock consumer, and thereby
+ * the clock producer.  If no such clk is found, it returns NULL
+ * which serves as a dummy clk.  That's the only difference compared
+ * to devm_clk_get_enabled().
+ *
+ * The returned clk (if valid) is prepared and enabled and rate was set.
+ *
+ * The clock will automatically be disabled, unprepared and freed
+ * when the device is unbound from the bus.
+ */
+struct clk *devm_clk_get_optional_enabled_with_rate(struct device *dev,
+						    const char *id,
+						    unsigned long rate);
+
+/**
  * devm_get_clk_from_child - lookup and obtain a managed reference to a
  *			     clock producer from child node.
  * @dev: device for clock "consumer"
@@ -978,6 +1004,13 @@ static inline struct clk *devm_clk_get_optional_prepared(struct device *dev,
 
 static inline struct clk *devm_clk_get_optional_enabled(struct device *dev,
 							const char *id)
+{
+	return NULL;
+}
+
+static inline struct clk *
+devm_clk_get_optional_enabled_with_rate(struct device *dev, const char *id,
+					unsigned long rate)
 {
 	return NULL;
 }

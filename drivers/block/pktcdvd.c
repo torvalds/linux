@@ -71,7 +71,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME	"pktcdvd"
 
@@ -498,8 +498,6 @@ static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
 	if (!pkt_debugfs_root)
 		return;
 	pd->dfs_d_root = debugfs_create_dir(pd->disk->disk_name, pkt_debugfs_root);
-	if (!pd->dfs_d_root)
-		return;
 
 	pd->dfs_f_info = debugfs_create_file("info", 0444, pd->dfs_d_root,
 					     pd, &pkt_seq_fops);
@@ -2837,7 +2835,6 @@ static const struct file_operations pkt_ctl_fops = {
 	.compat_ioctl	= pkt_ctl_compat_ioctl,
 #endif
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice pkt_misc = {

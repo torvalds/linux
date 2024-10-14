@@ -20,4 +20,4 @@ config X86_ANDROID_TABLETS
 	  are missing from the DSDT.
 
 	  If you have a x86 Android tablet say Y or M here, for a generic x86
-	  distro config say M here.
+	  distro configuration say M here.

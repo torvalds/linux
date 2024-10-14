@@ -16,16 +16,16 @@
 DAMON 爲不同的用戶提供了下面這些接口。
 
 - *DAMON用戶空間工具。*
-  `這 <https://github.com/awslabs/damo>`_ 爲有這特權的人， 如系統管理員，希望有一個剛好
+  `這 <https://github.com/damonitor/damo>`_ 爲有這特權的人， 如系統管理員，希望有一個剛好
   可以工作的人性化界面。
   使用它，用戶可以以人性化的方式使用DAMON的主要功能。不過，它可能不會爲特殊情況進行高度調整。
   它同時支持虛擬和物理地址空間的監測。更多細節，請參考它的 `使用文檔
-  <https://github.com/awslabs/damo/blob/next/USAGE.md>`_。
+  <https://github.com/damonitor/damo/blob/next/USAGE.md>`_。
 - *sysfs接口。*
   :ref:`這 <sysfs_interface>` 是爲那些希望更高級的使用DAMON的特權用戶空間程序員準備的。
   使用它，用戶可以通過讀取和寫入特殊的sysfs文件來使用DAMON的主要功能。因此，你可以編寫和使
   用你個性化的DAMON sysfs包裝程序，代替你讀/寫sysfs文件。  `DAMON用戶空間工具
-  <https://github.com/awslabs/damo>`_ 就是這種程序的一個例子  它同時支持虛擬和物理地址
+  <https://github.com/damonitor/damo>`_ 就是這種程序的一個例子  它同時支持虛擬和物理地址
   空間的監測。注意，這個界面只提供簡單的監測結果 :ref:`統計 <damos_stats>`。對於詳細的監測
   結果，DAMON提供了一個:ref:`跟蹤點 <tracepoint>`。
 - *debugfs interface.*
@@ -332,7 +332,7 @@ tried_regions/<N>/
     # echo 500 > watermarks/mid
     # echo 300 > watermarks/low
 
-請注意，我們強烈建議使用用戶空間的工具，如 `damo <https://github.com/awslabs/damo>`_ ，
+請注意，我們強烈建議使用用戶空間的工具，如 `damo <https://github.com/damonitor/damo>`_ ，
 而不是像上面那樣手動讀寫文件。以上只是一個例子。
 
 debugfs接口

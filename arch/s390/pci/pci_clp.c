@@ -657,7 +657,6 @@ static const struct file_operations clp_misc_fops = {
 	.release = clp_misc_release,
 	.unlocked_ioctl = clp_misc_ioctl,
 	.compat_ioctl = clp_misc_ioctl,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice clp_misc_device = {

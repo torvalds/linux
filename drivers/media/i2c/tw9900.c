@@ -753,7 +753,7 @@ static const struct dev_pm_ops tw9900_pm_ops = {
 };
 
 static const struct i2c_device_id tw9900_id[] = {
-	{ "tw9900", 0 },
+	{ "tw9900" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tw9900_id);

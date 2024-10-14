@@ -41,7 +41,7 @@ enum rtw_rx_desc_enc {
 #define GET_RX_DESC_TSFL(rxdesc)                                               \
 	le32_get_bits(*((__le32 *)(rxdesc) + 0x05), GENMASK(31, 0))
 #define GET_RX_DESC_BW(rxdesc)                                                 \
-	(le32_get_bits(*((__le32 *)(rxdesc) + 0x04), GENMASK(31, 24)))
+	(le32_get_bits(*((__le32 *)(rxdesc) + 0x04), GENMASK(5, 4)))
 
 void rtw_rx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 		  struct sk_buff *skb);
@@ -50,5 +50,18 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 			   struct ieee80211_hdr *hdr,
 			   struct ieee80211_rx_status *rx_status,
 			   u8 *phy_status);
+void rtw_update_rx_freq_from_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
+				struct ieee80211_rx_status *rx_status,
+				struct rtw_rx_pkt_stat *pkt_stat);
+
+static inline
+void rtw_update_rx_freq_for_invalid(struct rtw_dev *rtwdev, struct sk_buff *skb,
+				    struct ieee80211_rx_status *rx_status,
+				    struct rtw_rx_pkt_stat *pkt_stat)
+{
+	if (pkt_stat->channel_invalid)
+		rtw_update_rx_freq_from_ie(rtwdev, skb, rx_status, pkt_stat);
+}
+
 
 #endif

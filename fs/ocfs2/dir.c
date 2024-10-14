@@ -1932,6 +1932,7 @@ int ocfs2_readdir(struct file *file, struct dir_context *ctx)
 {
 	int error = 0;
 	struct inode *inode = file_inode(file);
+	struct ocfs2_file_private *fp = file->private_data;
 	int lock_level = 0;
 
 	trace_ocfs2_readdir((unsigned long long)OCFS2_I(inode)->ip_blkno);
@@ -1952,7 +1953,7 @@ int ocfs2_readdir(struct file *file, struct dir_context *ctx)
 		goto bail_nolock;
 	}
 
-	error = ocfs2_dir_foreach_blk(inode, &file->f_version, ctx, false);
+	error = ocfs2_dir_foreach_blk(inode, &fp->cookie, ctx, false);
 
 	ocfs2_inode_unlock(inode, lock_level);
 	if (error)
@@ -3511,16 +3512,6 @@ static int dx_leaf_sort_cmp(const void *a, const void *b)
 	return 0;
 }
 
-static void dx_leaf_sort_swap(void *a, void *b, int size)
-{
-	struct ocfs2_dx_entry *entry1 = a;
-	struct ocfs2_dx_entry *entry2 = b;
-
-	BUG_ON(size != sizeof(*entry1));
-
-	swap(*entry1, *entry2);
-}
-
 static int ocfs2_dx_leaf_same_major(struct ocfs2_dx_leaf *dx_leaf)
 {
 	struct ocfs2_dx_entry_list *dl_list = &dx_leaf->dl_list;
@@ -3781,7 +3772,7 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 	 */
 	sort(dx_leaf->dl_list.de_entries, num_used,
 	     sizeof(struct ocfs2_dx_entry), dx_leaf_sort_cmp,
-	     dx_leaf_sort_swap);
+	     NULL);
 
 	ocfs2_journal_dirty(handle, dx_leaf_bh);
 

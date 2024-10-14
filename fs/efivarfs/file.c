@@ -110,5 +110,4 @@ const struct file_operations efivarfs_file_operations = {
 	.open	= simple_open,
 	.read	= efivarfs_file_read,
 	.write	= efivarfs_file_write,
-	.llseek	= no_llseek,
 };

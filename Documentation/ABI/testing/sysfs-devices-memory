@@ -115,6 +115,6 @@ What:		/sys/devices/system/memory/crash_hotplug
 Date:		Aug 2023
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
-		(RO) indicates whether or not the kernel directly supports
-		modifying the crash elfcorehdr for memory hot un/plug and/or
-		on/offline changes.
+		(RO) indicates whether or not the kernel updates relevant kexec
+		segments on memory hot un/plug and/or on/offline events, avoiding the
+		need to reload kdump kernel.

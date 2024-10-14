@@ -571,7 +571,7 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	while (data_opts.kill_ptrs) {
 		unsigned i = 0, drop = __fls(data_opts.kill_ptrs);
 
-		bch2_bkey_drop_ptrs(bkey_i_to_s(n), ptr, i++ == drop);
+		bch2_bkey_drop_ptrs_noerror(bkey_i_to_s(n), ptr, i++ == drop);
 		data_opts.kill_ptrs ^= 1U << drop;
 	}
 
@@ -639,7 +639,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 	bch2_write_op_init(&m->op, c, io_opts);
 	m->op.pos	= bkey_start_pos(k.k);
-	m->op.version	= k.k->version;
+	m->op.version	= k.k->bversion;
 	m->op.target	= data_opts.target;
 	m->op.write_point = wp;
 	m->op.nr_replicas = 0;

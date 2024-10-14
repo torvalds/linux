@@ -227,7 +227,7 @@ TRACE_EVENT(oos_sync,
 #define GVT_CMD_STR_LEN 40
 TRACE_EVENT(gvt_command,
 	TP_PROTO(u8 vgpu_id, u8 ring_id, u32 ip_gma, u32 *cmd_va,
-		u32 cmd_len,  u32 buf_type, u32 buf_addr_type,
+		u32 cmd_len, u32 buf_type, u32 buf_addr_type,
 		void *workload, const char *cmd_name),
 
 	TP_ARGS(vgpu_id, ring_id, ip_gma, cmd_va, cmd_len, buf_type,

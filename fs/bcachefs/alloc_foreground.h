@@ -155,9 +155,10 @@ static inline bool bch2_bucket_is_open_safe(struct bch_fs *c, unsigned dev, u64 
 	return ret;
 }
 
+enum bch_write_flags;
 int bch2_bucket_alloc_set_trans(struct btree_trans *, struct open_buckets *,
 		      struct dev_stripe_state *, struct bch_devs_mask *,
-		      unsigned, unsigned *, bool *, unsigned,
+		      unsigned, unsigned *, bool *, enum bch_write_flags,
 		      enum bch_data_type, enum bch_watermark,
 		      struct closure *);
 
@@ -167,7 +168,7 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *,
 				   struct bch_devs_list *,
 				   unsigned, unsigned,
 				   enum bch_watermark,
-				   unsigned,
+				   enum bch_write_flags,
 				   struct closure *,
 				   struct write_point **);
 

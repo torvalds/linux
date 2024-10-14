@@ -127,7 +127,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (!rdev->ops->join_mesh)
 		return -EOPNOTSUPP;
 
-	if (wdev->cac_started)
+	if (wdev->links[0].cac_started)
 		return -EBUSY;
 
 	if (!setup->chandef.chan) {

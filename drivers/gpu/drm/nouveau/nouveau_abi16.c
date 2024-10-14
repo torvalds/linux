@@ -46,23 +46,9 @@ nouveau_abi16(struct drm_file *file_priv)
 		struct nouveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
 		if (cli->abi16) {
-			struct nv_device_v0 args = {
-				.device = ~0ULL,
-			};
-
+			abi16->cli = cli;
 			INIT_LIST_HEAD(&abi16->channels);
-
-			/* allocate device object targeting client's default
-			 * device (ie. the one that belongs to the fd it
-			 * opened)
-			 */
-			if (nvif_device_ctor(&cli->base.object, "abi16Device",
-					     0, NV_DEVICE, &args, sizeof(args),
-					     &abi16->device) == 0)
-				return cli->abi16;
-
-			kfree(cli->abi16);
-			cli->abi16 = NULL;
+			INIT_LIST_HEAD(&abi16->objects);
 		}
 	}
 	return cli->abi16;
@@ -82,9 +68,70 @@ nouveau_abi16_get(struct drm_file *file_priv)
 int
 nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
 {
-	struct nouveau_cli *cli = (void *)abi16->device.object.client;
+	struct nouveau_cli *cli = abi16->cli;
 	mutex_unlock(&cli->mutex);
 	return ret;
+}
+
+/* Tracks objects created via the DRM_NOUVEAU_NVIF ioctl.
+ *
+ * The only two types of object that userspace ever allocated via this
+ * interface are 'device', in order to retrieve basic device info, and
+ * 'engine objects', which instantiate HW classes on a channel.
+ *
+ * The remainder of what used to be available via DRM_NOUVEAU_NVIF has
+ * been removed, but these object types need to be tracked to maintain
+ * compatibility with userspace.
+ */
+struct nouveau_abi16_obj {
+	enum nouveau_abi16_obj_type {
+		DEVICE,
+		ENGOBJ,
+	} type;
+	u64 object;
+
+	struct nvif_object engobj;
+
+	struct list_head head; /* protected by nouveau_abi16.cli.mutex */
+};
+
+static struct nouveau_abi16_obj *
+nouveau_abi16_obj_find(struct nouveau_abi16 *abi16, u64 object)
+{
+	struct nouveau_abi16_obj *obj;
+
+	list_for_each_entry(obj, &abi16->objects, head) {
+		if (obj->object == object)
+			return obj;
+	}
+
+	return NULL;
+}
+
+static void
+nouveau_abi16_obj_del(struct nouveau_abi16_obj *obj)
+{
+	list_del(&obj->head);
+	kfree(obj);
+}
+
+static struct nouveau_abi16_obj *
+nouveau_abi16_obj_new(struct nouveau_abi16 *abi16, enum nouveau_abi16_obj_type type, u64 object)
+{
+	struct nouveau_abi16_obj *obj;
+
+	obj = nouveau_abi16_obj_find(abi16, object);
+	if (obj)
+		return ERR_PTR(-EEXIST);
+
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (!obj)
+		return ERR_PTR(-ENOMEM);
+
+	obj->type = type;
+	obj->object = object;
+	list_add_tail(&obj->head, &abi16->objects);
+	return obj;
 }
 
 s32
@@ -164,16 +211,19 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 void
 nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 {
-	struct nouveau_cli *cli = (void *)abi16->device.object.client;
+	struct nouveau_cli *cli = abi16->cli;
 	struct nouveau_abi16_chan *chan, *temp;
+	struct nouveau_abi16_obj *obj, *tmp;
+
+	/* cleanup objects */
+	list_for_each_entry_safe(obj, tmp, &abi16->objects, head) {
+		nouveau_abi16_obj_del(obj);
+	}
 
 	/* cleanup channels */
 	list_for_each_entry_safe(chan, temp, &abi16->channels, head) {
 		nouveau_abi16_chan_fini(abi16, chan);
 	}
-
-	/* destroy the device object */
-	nvif_device_dtor(&abi16->device);
 
 	kfree(cli->abi16);
 	cli->abi16 = NULL;
@@ -199,8 +249,8 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
-	struct nvkm_device *nvkm_device = nvxx_device(&drm->client.device);
-	struct nvkm_gr *gr = nvxx_gr(device);
+	struct nvkm_device *nvkm_device = nvxx_device(drm);
+	struct nvkm_gr *gr = nvxx_gr(drm);
 	struct drm_nouveau_getparam *getparam = data;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
@@ -291,7 +341,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
-	struct nvif_device *device;
+	struct nvif_device *device = &cli->device;
 	u64 engine, runm;
 	int ret;
 
@@ -308,7 +358,6 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	 */
 	__nouveau_cli_disable_uvmm_noinit(cli);
 
-	device = &abi16->device;
 	engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
 
 	/* hack to allow channel engine type specification on kepler */
@@ -356,7 +405,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	list_add(&chan->head, &abi16->channels);
 
 	/* create channel object and initialise dma and fence management */
-	ret = nouveau_channel_new(drm, device, false, runm, init->fb_ctxdma_handle,
+	ret = nouveau_channel_new(cli, false, runm, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);
 	if (ret)
 		goto done;
@@ -458,44 +507,6 @@ nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
 }
 
 int
-nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
-{
-	union {
-		struct nvif_ioctl_v0 v0;
-	} *args = data;
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16 *abi16;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		switch (args->v0.type) {
-		case NVIF_IOCTL_V0_NEW:
-		case NVIF_IOCTL_V0_MTHD:
-		case NVIF_IOCTL_V0_SCLASS:
-			break;
-		default:
-			return -EACCES;
-		}
-	} else
-		return ret;
-
-	if (!(abi16 = nouveau_abi16(file_priv)))
-		return -ENOMEM;
-
-	if (args->v0.token != ~0ULL) {
-		if (!(chan = nouveau_abi16_chan(abi16, args->v0.token)))
-			return -EINVAL;
-		args->v0.object = nvif_handle(&chan->chan->user);
-		args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
-		return 0;
-	}
-
-	args->v0.object = nvif_handle(&abi16->device.object);
-	args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
-	return 0;
-}
-
-int
 nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_channel_free *req = data;
@@ -519,7 +530,6 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
-	struct nvif_client *client;
 	struct nvif_sclass *sclass;
 	s32 oclass = 0;
 	int ret, i;
@@ -529,7 +539,6 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 
 	if (init->handle == ~0)
 		return nouveau_abi16_put(abi16, -EINVAL);
-	client = abi16->device.object.client;
 
 	chan = nouveau_abi16_chan(abi16, init->channel);
 	if (!chan)
@@ -594,10 +603,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 
 	list_add(&ntfy->head, &chan->notifiers);
 
-	client->route = NVDRM_OBJECT_ABI16;
 	ret = nvif_object_ctor(&chan->chan->user, "abi16EngObj", init->handle,
 			       oclass, NULL, 0, &ntfy->object);
-	client->route = NVDRM_OBJECT_NVIF;
 
 	if (ret)
 		nouveau_abi16_ntfy_fini(chan, ntfy);
@@ -612,18 +619,17 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
-	struct nvif_device *device = &abi16->device;
-	struct nvif_client *client;
+	struct nvif_device *device;
 	struct nv_dma_v0 args = {};
 	int ret;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
+	device = &abi16->cli->device;
 
 	/* completely unnecessary for these chipsets... */
 	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
 		return nouveau_abi16_put(abi16, -EINVAL);
-	client = abi16->device.object.client;
 
 	chan = nouveau_abi16_chan(abi16, info->channel);
 	if (!chan)
@@ -660,11 +666,9 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		args.limit += chan->ntfy->offset;
 	}
 
-	client->route = NVDRM_OBJECT_ABI16;
 	ret = nvif_object_ctor(&chan->chan->user, "abi16Ntfy", info->handle,
 			       NV_DMA_IN_MEMORY, &args, sizeof(args),
 			       &ntfy->object);
-	client->route = NVDRM_OBJECT_NVIF;
 	if (ret)
 		goto done;
 
@@ -703,4 +707,184 @@ nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 	}
 
 	return nouveau_abi16_put(abi16, ret);
+}
+
+static int
+nouveau_abi16_ioctl_mthd(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl, u32 argc)
+{
+	struct nouveau_cli *cli = abi16->cli;
+	struct nvif_ioctl_mthd_v0 *args;
+	struct nouveau_abi16_obj *obj;
+	struct nv_device_info_v0 *info;
+
+	if (ioctl->route || argc < sizeof(*args))
+		return -EINVAL;
+	args = (void *)ioctl->data;
+	argc -= sizeof(*args);
+
+	obj = nouveau_abi16_obj_find(abi16, ioctl->object);
+	if (!obj || obj->type != DEVICE)
+		return -EINVAL;
+
+	if (args->method != NV_DEVICE_V0_INFO ||
+	    argc != sizeof(*info))
+		return -EINVAL;
+
+	info = (void *)args->data;
+	if (info->version != 0x00)
+		return -EINVAL;
+
+	info = &cli->device.info;
+	memcpy(args->data, info, sizeof(*info));
+	return 0;
+}
+
+static int
+nouveau_abi16_ioctl_del(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl, u32 argc)
+{
+	struct nouveau_abi16_obj *obj;
+
+	if (ioctl->route || argc)
+		return -EINVAL;
+
+	obj = nouveau_abi16_obj_find(abi16, ioctl->object);
+	if (obj) {
+		if (obj->type == ENGOBJ)
+			nvif_object_dtor(&obj->engobj);
+		nouveau_abi16_obj_del(obj);
+	}
+
+	return 0;
+}
+
+static int
+nouveau_abi16_ioctl_new(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl, u32 argc)
+{
+	struct nvif_ioctl_new_v0 *args;
+	struct nouveau_abi16_chan *chan;
+	struct nouveau_abi16_obj *obj;
+	int ret;
+
+	if (argc < sizeof(*args))
+		return -EINVAL;
+	args = (void *)ioctl->data;
+	argc -= sizeof(*args);
+
+	if (args->version != 0)
+		return -EINVAL;
+
+	if (!ioctl->route) {
+		if (ioctl->object || args->oclass != NV_DEVICE)
+			return -EINVAL;
+
+		obj = nouveau_abi16_obj_new(abi16, DEVICE, args->object);
+		if (IS_ERR(obj))
+			return PTR_ERR(obj);
+
+		return 0;
+	}
+
+	chan = nouveau_abi16_chan(abi16, ioctl->token);
+	if (!chan)
+		return -EINVAL;
+
+	obj = nouveau_abi16_obj_new(abi16, ENGOBJ, args->object);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	ret = nvif_object_ctor(&chan->chan->user, "abi16EngObj", args->handle, args->oclass,
+			       NULL, 0, &obj->engobj);
+	if (ret)
+		nouveau_abi16_obj_del(obj);
+
+	return ret;
+}
+
+static int
+nouveau_abi16_ioctl_sclass(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl, u32 argc)
+{
+	struct nvif_ioctl_sclass_v0 *args;
+	struct nouveau_abi16_chan *chan;
+	struct nvif_sclass *sclass;
+	int ret;
+
+	if (!ioctl->route || argc < sizeof(*args))
+		return -EINVAL;
+	args = (void *)ioctl->data;
+	argc -= sizeof(*args);
+
+	if (argc != args->count * sizeof(args->oclass[0]))
+		return -EINVAL;
+
+	chan = nouveau_abi16_chan(abi16, ioctl->token);
+	if (!chan)
+		return -EINVAL;
+
+	ret = nvif_object_sclass_get(&chan->chan->user, &sclass);
+	if (ret < 0)
+		return ret;
+
+	for (int i = 0; i < min_t(u8, args->count, ret); i++) {
+		args->oclass[i].oclass = sclass[i].oclass;
+		args->oclass[i].minver = sclass[i].minver;
+		args->oclass[i].maxver = sclass[i].maxver;
+	}
+	args->count = ret;
+
+	nvif_object_sclass_put(&sclass);
+	return 0;
+}
+
+int
+nouveau_abi16_ioctl(struct drm_file *filp, void __user *user, u32 size)
+{
+	struct nvif_ioctl_v0 *ioctl;
+	struct nouveau_abi16 *abi16;
+	u32 argc = size;
+	int ret;
+
+	if (argc < sizeof(*ioctl))
+		return -EINVAL;
+	argc -= sizeof(*ioctl);
+
+	ioctl = kmalloc(size, GFP_KERNEL);
+	if (!ioctl)
+		return -ENOMEM;
+
+	ret = -EFAULT;
+	if (copy_from_user(ioctl, user, size))
+		goto done_free;
+
+	if (ioctl->version != 0x00 ||
+	    (ioctl->route && ioctl->route != 0xff)) {
+		ret = -EINVAL;
+		goto done_free;
+	}
+
+	abi16 = nouveau_abi16_get(filp);
+	if (unlikely(!abi16)) {
+		ret = -ENOMEM;
+		goto done_free;
+	}
+
+	switch (ioctl->type) {
+	case NVIF_IOCTL_V0_SCLASS: ret = nouveau_abi16_ioctl_sclass(abi16, ioctl, argc); break;
+	case NVIF_IOCTL_V0_NEW   : ret = nouveau_abi16_ioctl_new   (abi16, ioctl, argc); break;
+	case NVIF_IOCTL_V0_DEL   : ret = nouveau_abi16_ioctl_del   (abi16, ioctl, argc); break;
+	case NVIF_IOCTL_V0_MTHD  : ret = nouveau_abi16_ioctl_mthd  (abi16, ioctl, argc); break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	nouveau_abi16_put(abi16, 0);
+
+	if (ret == 0) {
+		if (copy_to_user(user, ioctl, size))
+			ret = -EFAULT;
+	}
+
+done_free:
+	kfree(ioctl);
+	return ret;
 }

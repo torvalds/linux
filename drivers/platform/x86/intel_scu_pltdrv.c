@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <asm/intel_scu_ipc.h>
+#include <linux/platform_data/x86/intel_scu_ipc.h>
 
 static int intel_scu_platform_probe(struct platform_device *pdev)
 {

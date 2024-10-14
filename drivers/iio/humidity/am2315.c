@@ -174,8 +174,7 @@ static irqreturn_t am2315_trigger_handler(int irq, void *p)
 		data->scan.chans[1] = sensor_data.temp_data;
 	} else {
 		i = 0;
-		for_each_set_bit(bit, indio_dev->active_scan_mask,
-				 indio_dev->masklength) {
+		iio_for_each_active_channel(indio_dev, bit) {
 			data->scan.chans[i] = (bit ? sensor_data.temp_data :
 					       sensor_data.hum_data);
 			i++;

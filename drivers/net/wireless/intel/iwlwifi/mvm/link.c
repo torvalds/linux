@@ -17,7 +17,8 @@
 	HOW(EXIT_COEX)			\
 	HOW(EXIT_BANDWIDTH)		\
 	HOW(EXIT_CSA)			\
-	HOW(EXIT_LINK_USAGE)
+	HOW(EXIT_LINK_USAGE)		\
+	HOW(EXIT_FAIL_ENTRY)
 
 static const char *const iwl_mvm_esr_states_names[] = {
 #define NAME_ENTRY(x) [ilog2(IWL_MVM_ESR_##x)] = #x,
@@ -233,10 +234,15 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		WARN_ON_ONCE(active == link_info->active);
 
 		/* When deactivating a link session protection should
-		 * be stopped
+		 * be stopped. Also let the firmware know if we can't Tx.
 		 */
-		if (!active && vif->type == NL80211_IFTYPE_STATION)
+		if (!active && vif->type == NL80211_IFTYPE_STATION) {
 			iwl_mvm_stop_session_protection(mvm, vif);
+			if (link_info->csa_block_tx) {
+				cmd.block_tx = 1;
+				link_info->csa_block_tx = false;
+			}
+		}
 	}
 
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
@@ -258,7 +264,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_ADHOC && link_conf->bssid)
 		memcpy(cmd.ibss_bssid_addr, link_conf->bssid, ETH_ALEN);
 
-	iwl_mvm_set_fw_basic_rates(mvm, vif, link_conf,
+	iwl_mvm_set_fw_basic_rates(mvm, vif, link_info,
 				   &cmd.cck_rates, &cmd.ofdm_rates);
 
 	cmd.cck_short_preamble = cpu_to_le32(link_conf->use_short_preamble);
@@ -291,6 +297,17 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			link_conf->uora_ocw_range & 0x7;
 		cmd.rand_alloc_ecwmax =
 			(link_conf->uora_ocw_range >> 3) & 0x7;
+	}
+
+	/* ap_sta may be NULL if we're disconnecting */
+	if (changes & LINK_CONTEXT_MODIFY_HE_PARAMS && mvmvif->ap_sta) {
+		struct ieee80211_link_sta *link_sta =
+			link_sta_dereference_check(mvmvif->ap_sta, link_id);
+
+		if (!WARN_ON(!link_sta) && link_sta->he_cap.has_he &&
+		    link_sta->he_cap.he_cap_elem.mac_cap_info[5] &
+		    IEEE80211_HE_MAC_CAP5_OM_CTRL_UL_MU_DATA_DIS_RX)
+			cmd.ul_mu_data_disable = 1;
 	}
 
 	/* TODO  how to set ndp_fdbk_buff_th_exp? */

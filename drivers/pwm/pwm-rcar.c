@@ -253,7 +253,7 @@ MODULE_DEVICE_TABLE(of, rcar_pwm_of_table);
 
 static struct platform_driver rcar_pwm_driver = {
 	.probe = rcar_pwm_probe,
-	.remove_new = rcar_pwm_remove,
+	.remove = rcar_pwm_remove,
 	.driver = {
 		.name = "pwm-rcar",
 		.of_match_table = rcar_pwm_of_table,

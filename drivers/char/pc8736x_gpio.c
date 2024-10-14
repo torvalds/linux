@@ -235,7 +235,6 @@ static const struct file_operations pc8736x_gpio_fileops = {
 	.open	= pc8736x_gpio_open,
 	.write	= nsc_gpio_write,
 	.read	= nsc_gpio_read,
-	.llseek = no_llseek,
 };
 
 static void __init pc8736x_init_shadow(void)

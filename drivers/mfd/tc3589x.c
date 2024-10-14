@@ -312,8 +312,6 @@ static int tc3589x_device_init(struct tc3589x *tc3589x)
 }
 
 static const struct of_device_id tc3589x_match[] = {
-	/* Legacy compatible string */
-	{ .compatible = "tc3589x", .data = (void *) TC3589X_UNKNOWN },
 	{ .compatible = "toshiba,tc35890", .data = (void *) TC3589X_TC35890 },
 	{ .compatible = "toshiba,tc35892", .data = (void *) TC3589X_TC35892 },
 	{ .compatible = "toshiba,tc35893", .data = (void *) TC3589X_TC35893 },

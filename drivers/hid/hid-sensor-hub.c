@@ -580,7 +580,7 @@ void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev)
 }
 EXPORT_SYMBOL_GPL(sensor_hub_device_close);
 
-static __u8 *sensor_hub_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *sensor_hub_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	/*

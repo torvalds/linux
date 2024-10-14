@@ -233,7 +233,6 @@ struct damos_quota {
 	unsigned long charge_addr_from;
 
 	/* For prioritization */
-	unsigned long histogram[DAMOS_MAX_SCORE + 1];
 	unsigned int min_score;
 
 	/* For feedback loop */
@@ -630,6 +629,8 @@ struct damon_ctx {
 	unsigned long next_ops_update_sis;
 	/* for waiting until the execution of the kdamond_fn is started */
 	struct completion kdamond_started;
+	/* for scheme quotas prioritization */
+	unsigned long *regions_score_histogram;
 
 /* public: */
 	struct task_struct *kdamond;

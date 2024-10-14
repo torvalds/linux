@@ -563,7 +563,6 @@ static int wdtpci_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations wdtpci_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= wdtpci_write,
 	.unlocked_ioctl	= wdtpci_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -579,7 +578,6 @@ static struct miscdevice wdtpci_miscdev = {
 
 static const struct file_operations wdtpci_temp_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= wdtpci_temp_read,
 	.open		= wdtpci_temp_open,
 	.release	= wdtpci_temp_release,

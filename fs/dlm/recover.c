@@ -452,10 +452,11 @@ static int recover_master(struct dlm_rsb *r, unsigned int *count, uint64_t seq)
 	int is_removed = 0;
 	int error;
 
-	if (is_master(r))
+	if (r->res_nodeid != -1 && is_master(r))
 		return 0;
 
-	is_removed = dlm_is_removed(ls, r->res_nodeid);
+	if (r->res_nodeid != -1)
+		is_removed = dlm_is_removed(ls, r->res_nodeid);
 
 	if (!is_removed && !rsb_flag(r, RSB_NEW_MASTER))
 		return 0;
@@ -664,7 +665,7 @@ int dlm_recover_locks(struct dlm_ls *ls, uint64_t seq,
 	int error, count = 0;
 
 	list_for_each_entry(r, root_list, res_root_list) {
-		if (is_master(r)) {
+		if (r->res_nodeid != -1 && is_master(r)) {
 			rsb_clear_flag(r, RSB_NEW_MASTER);
 			continue;
 		}
@@ -858,7 +859,7 @@ void dlm_recover_rsbs(struct dlm_ls *ls, const struct list_head *root_list)
 
 	list_for_each_entry(r, root_list, res_root_list) {
 		lock_rsb(r);
-		if (is_master(r)) {
+		if (r->res_nodeid != -1 && is_master(r)) {
 			if (rsb_flag(r, RSB_RECOVER_CONVERT))
 				recover_conversion(r);
 

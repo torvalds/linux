@@ -31,7 +31,7 @@
 static int
 wimmc37b_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	struct nvif_push *push = wndw->wimm.push;
+	struct nvif_push *push = &wndw->wimm.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 2)))
@@ -46,7 +46,7 @@ wimmc37b_update(struct nv50_wndw *wndw, u32 *interlock)
 static int
 wimmc37b_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	struct nvif_push *push = wndw->wimm.push;
+	struct nvif_push *push = &wndw->wimm.push;
 	int ret;
 
 	if ((ret = PUSH_WAIT(push, 2)))
@@ -71,10 +71,9 @@ wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	struct nvif_disp_chan_v0 args = {
 		.id = wndw->id,
 	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
 	int ret;
 
-	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
+	ret = nv50_dmac_create(drm,
 			       &oclass, 0, &args, sizeof(args), -1,
 			       &wndw->wimm);
 	if (ret) {

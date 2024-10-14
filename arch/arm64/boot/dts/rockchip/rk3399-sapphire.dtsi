@@ -6,7 +6,6 @@
 #include "dt-bindings/pwm/pwm.h"
 #include "dt-bindings/input/input.h"
 #include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";

@@ -640,7 +640,7 @@ static void reg_vif_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &reg_vif_netdev_ops;
 	dev->needs_free_netdev	= true;
-	dev->features		|= NETIF_F_NETNS_LOCAL;
+	dev->netns_local	= true;
 }
 
 static struct net_device *ip6mr_reg_vif(struct net *net, struct mr_table *mrt)
@@ -2431,8 +2431,7 @@ static void mr6_netlink_event(struct mr_table *mrt, struct mfc6_cache *mfc,
 
 errout:
 	kfree_skb(skb);
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_MROUTE, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_MROUTE, err);
 }
 
 static size_t mrt6msg_netlink_msgsize(size_t payloadlen)

@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Device tree overlay base for the WolfVision PF5 displays.
+ *
+ * Copyright (C) 2024 WolfVision GmbH.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3568-cru.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/soc/rockchip,vop2.h>
+
+&{/} {
+	display_backlight: backlight {
+		compatible = "pwm-backlight";
+		brightness-levels = <0 255>;
+		default-brightness-level = <255>;
+		num-interpolated-steps = <255>;
+		power-supply = <&vcc3v3_sd>;
+		pwms = <&pwm10 0 1000000 0>;
+	};
+
+	display_spi: spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cs-gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_LOW>;
+		miso-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_spi>;
+		sck-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+
+		st7789: panel@0 {
+			compatible = "sitronix,st7789v";
+			reg = <0>;
+			assigned-clocks = <&cru PLL_VPLL>;
+			assigned-clock-rates = <700000000>;
+			backlight = <&display_backlight>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&lcdc_clock &lcdc_data18 &lcd_rstn>;
+			power-supply = <&vcc3v3_sw>;
+			reset-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_LOW>;
+			spi-max-frequency = <100000>;
+
+			port {
+				panel_in_vp2: endpoint {
+					remote-endpoint = <&vp2_out_rgb>;
+				};
+			};
+		};
+	};
+};
+
+&i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	st1624: touchscreen@55 {
+		compatible = "sitronix,st1624", "sitronix,st1633";
+		reg = <0x55>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PB5 IRQ_TYPE_EDGE_FALLING>;
+		gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_int &touch_rstn>;
+		wakeup-source;
+	};
+};
+
+&pinctrl {
+	display: display-pinctrl {
+		lcd_rstn: lcd-rstn-pinctrl {
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		lcd_spi: lcd-spi-pinctrl {
+			rockchip,pins =
+				/* lcd_sdo */
+				<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* lcd_csn */
+				<3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* lcd_scl */
+				<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* lcd_sdi */
+				<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	touchscreen: touchscreen-pinctrl {
+		touch_int: touch-int-pinctrl {
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		touch_rstn: touch-rstn-pinctrl {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pwm10 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm10m1_pins>;
+	status = "okay";
+};
+
+&vp2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	vp2_out_rgb: endpoint@ROCKCHIP_VOP2_EP_RGB0 {
+		reg = <ROCKCHIP_VOP2_EP_RGB0>;
+		remote-endpoint = <&panel_in_vp2>;
+	};
+};

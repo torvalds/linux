@@ -1306,11 +1306,8 @@ err_exit:
 static irqreturn_t mtk_i2c_irq(int irqno, void *dev_id)
 {
 	struct mtk_i2c *i2c = dev_id;
-	u16 restart_flag = 0;
+	u16 restart_flag = i2c->auto_restart ? I2C_RS_TRANSFER : 0;
 	u16 intr_stat;
-
-	if (i2c->auto_restart)
-		restart_flag = I2C_RS_TRANSFER;
 
 	intr_stat = mtk_i2c_readw(i2c, OFFSET_INTR_STAT);
 	mtk_i2c_writew(i2c, intr_stat, OFFSET_INTR_STAT);

@@ -63,7 +63,7 @@ int snd_pt2258_reset(struct snd_pt2258 *pt)
 
       __error:
 	snd_i2c_unlock(pt->i2c_bus);
-	snd_printk(KERN_ERR "PT2258 reset failed\n");
+	dev_err(pt->card->dev, "PT2258 reset failed\n");
 	return -EIO;
 }
 
@@ -124,7 +124,7 @@ static int pt2258_stereo_volume_put(struct snd_kcontrol *kcontrol,
 
       __error:
 	snd_i2c_unlock(pt->i2c_bus);
-	snd_printk(KERN_ERR "PT2258 access failed\n");
+	dev_err(pt->card->dev, "PT2258 access failed\n");
 	return -EIO;
 }
 
@@ -161,7 +161,7 @@ static int pt2258_switch_put(struct snd_kcontrol *kcontrol,
 
       __error:
 	snd_i2c_unlock(pt->i2c_bus);
-	snd_printk(KERN_ERR "PT2258 access failed 2\n");
+	dev_err(pt->card->dev, "PT2258 access failed 2\n");
 	return -EIO;
 }
 

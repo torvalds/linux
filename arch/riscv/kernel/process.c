@@ -15,6 +15,7 @@
 #include <linux/tick.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
+#include <linux/personality.h>
 
 #include <asm/unistd.h>
 #include <asm/processor.h>
@@ -26,6 +27,7 @@
 #include <asm/cpuidle.h>
 #include <asm/vector.h>
 #include <asm/cpufeature.h>
+#include <asm/exec.h>
 
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
@@ -97,6 +99,13 @@ void show_regs(struct pt_regs *regs)
 	__show_regs(regs);
 	if (!user_mode(regs))
 		dump_backtrace(regs, NULL, KERN_DEFAULT);
+}
+
+unsigned long arch_align_stack(unsigned long sp)
+{
+	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+		sp -= get_random_u32_below(PAGE_SIZE);
+	return sp & ~0xf;
 }
 
 #ifdef CONFIG_COMPAT

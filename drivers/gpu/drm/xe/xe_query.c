@@ -9,7 +9,7 @@
 #include <linux/sched/clock.h>
 
 #include <drm/ttm/ttm_placement.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
@@ -518,7 +518,9 @@ static int query_gt_topology(struct xe_device *xe,
 		if (err)
 			return err;
 
-		topo.type = DRM_XE_TOPO_EU_PER_DSS;
+		topo.type = gt->fuse_topo.eu_type == XE_GT_EU_TYPE_SIMD16 ?
+			DRM_XE_TOPO_SIMD16_EU_PER_DSS :
+			DRM_XE_TOPO_EU_PER_DSS;
 		err = copy_mask(&query_ptr, &topo,
 				gt->fuse_topo.eu_mask_per_dss,
 				sizeof(gt->fuse_topo.eu_mask_per_dss));

@@ -876,7 +876,7 @@ static int vcodec_domains_get(struct venus_core *core)
 	if (!res->vcodec_pmdomains_num)
 		goto skip_pmdomains;
 
-	ret = dev_pm_domain_attach_list(dev, &vcodec_data, &core->pmdomains);
+	ret = devm_pm_domain_attach_list(dev, &vcodec_data, &core->pmdomains);
 	if (ret < 0)
 		return ret;
 
@@ -902,14 +902,11 @@ skip_pmdomains:
 	return 0;
 
 opp_attach_err:
-	dev_pm_domain_detach_list(core->pmdomains);
 	return ret;
 }
 
 static void vcodec_domains_put(struct venus_core *core)
 {
-	dev_pm_domain_detach_list(core->pmdomains);
-
 	if (!core->has_opp_table)
 		return;
 

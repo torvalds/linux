@@ -889,7 +889,7 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 		return ret;
 
 	/* register dynamic object */
-	sbe = (struct soc_bytes_ext *)&kc.private_value;
+	sbe = (struct soc_bytes_ext *)kc.private_value;
 
 	INIT_LIST_HEAD(&sbe->dobj.list);
 	sbe->dobj.type = SND_SOC_DOBJ_BYTES;
@@ -923,7 +923,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 		return ret;
 
 	/* register dynamic object */
-	sm = (struct soc_mixer_control *)&kc.private_value;
+	sm = (struct soc_mixer_control *)kc.private_value;
 
 	INIT_LIST_HEAD(&sm->dobj.list);
 	sm->dobj.type = SND_SOC_DOBJ_MIXER;
@@ -1894,7 +1894,7 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 		caps = &d->caps[SND_SOC_TPLG_STREAM_PLAYBACK];
 		ret = set_stream_info(tplg, stream, caps);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
 	if (d->capture) {
@@ -1902,7 +1902,7 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 		caps = &d->caps[SND_SOC_TPLG_STREAM_CAPTURE];
 		ret = set_stream_info(tplg, stream, caps);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
 	if (d->flag_mask)
@@ -1914,13 +1914,10 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 	ret = soc_tplg_dai_load(tplg, dai_drv, NULL, dai);
 	if (ret < 0) {
 		dev_err(tplg->dev, "ASoC: DAI loading failed\n");
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	return ret;
 }
 
 /* load physical DAI elements */

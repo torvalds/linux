@@ -117,3 +117,16 @@ __nh_stats_test_v6()
 			       $MZ -6 $h1 -A 2001:db8:1::2 -B 2001:db8:2::2
 	sysctl_restore net.ipv6.fib_multipath_hash_policy
 }
+
+check_nhgw16()
+{
+	local nhid=$1; shift
+
+	ip nexthop replace id 9999 group "$nhid,65535" &>/dev/null
+	if (( $? )); then
+		log_test_skip "16-bit multipath tests" \
+			      "iproute2 or the kernel do not support 16-bit next hop weights"
+		return 1
+	fi
+	ip nexthop del id 9999 ||:
+}

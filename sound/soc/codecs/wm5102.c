@@ -25,7 +25,7 @@
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "arizona.h"
 #include "wm5102.h"
@@ -2174,7 +2174,7 @@ static struct platform_driver wm5102_codec_driver = {
 		.name = "wm5102-codec",
 	},
 	.probe = wm5102_probe,
-	.remove_new = wm5102_remove,
+	.remove = wm5102_remove,
 };
 
 module_platform_driver(wm5102_codec_driver);

@@ -21,8 +21,8 @@ MODULE_LICENSE("GPL");
  * events it's actually sending. It claims to send array events but is instead
  * sending variable events.
  */
-static __u8 *topre_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				 unsigned int *rsize)
+static const __u8 *topre_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+				      unsigned int *rsize)
 {
 	if (*rsize >= 119 && rdesc[69] == 0x29 && rdesc[70] == 0xe7 &&
 						 rdesc[71] == 0x81 && rdesc[72] == 0x00) {

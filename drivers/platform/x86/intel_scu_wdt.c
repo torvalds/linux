@@ -9,12 +9,13 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/intel-mid_wdt.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/io_apic.h>
 #include <asm/hw_irq.h>
+
+#include <linux/platform_data/x86/intel-mid_wdt.h>
 
 #define TANGIER_EXT_TIMER0_MSI 12
 

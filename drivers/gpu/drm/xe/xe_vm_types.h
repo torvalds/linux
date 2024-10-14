@@ -21,18 +21,27 @@ struct xe_bo;
 struct xe_sync_entry;
 struct xe_user_fence;
 struct xe_vm;
+struct xe_vm_pgtable_update_op;
+
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+#define TEST_VM_OPS_ERROR
+#define FORCE_OP_ERROR	BIT(31)
+
+#define FORCE_OP_ERROR_LOCK	0
+#define FORCE_OP_ERROR_PREPARE	1
+#define FORCE_OP_ERROR_RUN	2
+#define FORCE_OP_ERROR_COUNT	3
+#endif
 
 #define XE_VMA_READ_ONLY	DRM_GPUVA_USERBITS
 #define XE_VMA_DESTROYED	(DRM_GPUVA_USERBITS << 1)
 #define XE_VMA_ATOMIC_PTE_BIT	(DRM_GPUVA_USERBITS << 2)
-#define XE_VMA_FIRST_REBIND	(DRM_GPUVA_USERBITS << 3)
-#define XE_VMA_LAST_REBIND	(DRM_GPUVA_USERBITS << 4)
-#define XE_VMA_PTE_4K		(DRM_GPUVA_USERBITS << 5)
-#define XE_VMA_PTE_2M		(DRM_GPUVA_USERBITS << 6)
-#define XE_VMA_PTE_1G		(DRM_GPUVA_USERBITS << 7)
-#define XE_VMA_PTE_64K		(DRM_GPUVA_USERBITS << 8)
-#define XE_VMA_PTE_COMPACT	(DRM_GPUVA_USERBITS << 9)
-#define XE_VMA_DUMPABLE		(DRM_GPUVA_USERBITS << 10)
+#define XE_VMA_PTE_4K		(DRM_GPUVA_USERBITS << 3)
+#define XE_VMA_PTE_2M		(DRM_GPUVA_USERBITS << 4)
+#define XE_VMA_PTE_1G		(DRM_GPUVA_USERBITS << 5)
+#define XE_VMA_PTE_64K		(DRM_GPUVA_USERBITS << 6)
+#define XE_VMA_PTE_COMPACT	(DRM_GPUVA_USERBITS << 7)
+#define XE_VMA_DUMPABLE		(DRM_GPUVA_USERBITS << 8)
 
 /** struct xe_userptr - User pointer */
 struct xe_userptr {
@@ -98,6 +107,9 @@ struct xe_vma {
 	 * in write mode.
 	 */
 	u8 tile_present;
+
+	/** @tile_staged: bind is staged for this VMA */
+	u8 tile_staged;
 
 	/**
 	 * @pat_index: The pat index to use when encoding the PTEs for this vma.
@@ -314,31 +326,18 @@ struct xe_vma_op_prefetch {
 
 /** enum xe_vma_op_flags - flags for VMA operation */
 enum xe_vma_op_flags {
-	/** @XE_VMA_OP_FIRST: first VMA operation for a set of syncs */
-	XE_VMA_OP_FIRST			= BIT(0),
-	/** @XE_VMA_OP_LAST: last VMA operation for a set of syncs */
-	XE_VMA_OP_LAST			= BIT(1),
 	/** @XE_VMA_OP_COMMITTED: VMA operation committed */
-	XE_VMA_OP_COMMITTED		= BIT(2),
+	XE_VMA_OP_COMMITTED		= BIT(0),
 	/** @XE_VMA_OP_PREV_COMMITTED: Previous VMA operation committed */
-	XE_VMA_OP_PREV_COMMITTED	= BIT(3),
+	XE_VMA_OP_PREV_COMMITTED	= BIT(1),
 	/** @XE_VMA_OP_NEXT_COMMITTED: Next VMA operation committed */
-	XE_VMA_OP_NEXT_COMMITTED	= BIT(4),
+	XE_VMA_OP_NEXT_COMMITTED	= BIT(2),
 };
 
 /** struct xe_vma_op - VMA operation */
 struct xe_vma_op {
 	/** @base: GPUVA base operation */
 	struct drm_gpuva_op base;
-	/** @q: exec queue for this operation */
-	struct xe_exec_queue *q;
-	/**
-	 * @syncs: syncs for this operation, only used on first and last
-	 * operation
-	 */
-	struct xe_sync_entry *syncs;
-	/** @num_syncs: number of syncs */
-	u32 num_syncs;
 	/** @link: async operation link */
 	struct list_head link;
 	/** @flags: operation flags */
@@ -362,12 +361,18 @@ struct xe_vma_ops {
 	struct list_head list;
 	/** @vm: VM */
 	struct xe_vm *vm;
-	/** @q: exec queue these operations */
+	/** @q: exec queue for VMA operations */
 	struct xe_exec_queue *q;
 	/** @syncs: syncs these operation */
 	struct xe_sync_entry *syncs;
 	/** @num_syncs: number of syncs */
 	u32 num_syncs;
+	/** @pt_update_ops: page table update operations */
+	struct xe_vm_pgtable_update_ops pt_update_ops[XE_MAX_TILES_PER_DEVICE];
+#ifdef TEST_VM_OPS_ERROR
+	/** @inject_error: inject error to test error handling */
+	bool inject_error;
+#endif
 };
 
 #endif

@@ -148,7 +148,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_output_report);
 
-u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
+u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, const u8 *rdesc, unsigned int *size)
 {
 	int ret;
 	struct hid_bpf_ctx_kern ctx_kern = {
@@ -179,9 +179,7 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 		*size = ret;
 	}
 
-	rdesc = krealloc(ctx_kern.data, *size, GFP_KERNEL);
-
-	return rdesc;
+	return krealloc(ctx_kern.data, *size, GFP_KERNEL);
 
  ignore_bpf:
 	kfree(ctx_kern.data);

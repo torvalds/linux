@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/nxp,sc18is.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP SC18IS602/SC18IS603 I2C to SPI bridge
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - nxp,sc18is602
+      - nxp,sc18is602b
+      - nxp,sc18is603
+
+  reg:
+    maxItems: 1
+
+  clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 7372000
+    description:
+      external oscillator clock frequency. The clock-frequency property is
+      relevant and needed only if the chip has an external oscillator
+      (SC18IS603).
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        spi@28 {
+            compatible = "nxp,sc18is603";
+            reg = <0x28>;
+            clock-frequency = <14744000>;
+        };
+    };
+

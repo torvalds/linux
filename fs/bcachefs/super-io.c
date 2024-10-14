@@ -418,6 +418,9 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2 &&
 		    !BCH_SB_ALLOCATOR_STUCK_TIMEOUT(sb))
 			SET_BCH_SB_ALLOCATOR_STUCK_TIMEOUT(sb, 30);
+
+		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2)
+			SET_BCH_SB_PROMOTE_WHOLE_EXTENTS(sb, true);
 	}
 
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
@@ -796,8 +799,10 @@ retry:
 	     i < layout.sb_offset + layout.nr_superblocks; i++) {
 		offset = le64_to_cpu(*i);
 
-		if (offset == opt_get(*opts, sb))
+		if (offset == opt_get(*opts, sb)) {
+			ret = -BCH_ERR_invalid;
 			continue;
+		}
 
 		ret = read_one_super(sb, offset, &err);
 		if (!ret)
@@ -1185,7 +1190,8 @@ static void bch2_sb_ext_to_text(struct printbuf *out, struct bch_sb *sb,
 		le_bitvector_to_cpu(errors_silent, (void *) e->errors_silent, sizeof(e->errors_silent) * 8);
 
 		prt_printf(out, "Errors to silently fix:\t");
-		prt_bitflags_vector(out, bch2_sb_error_strs, errors_silent, sizeof(e->errors_silent) * 8);
+		prt_bitflags_vector(out, bch2_sb_error_strs, errors_silent,
+				    min(BCH_FSCK_ERR_MAX, sizeof(e->errors_silent) * 8));
 		prt_newline(out);
 
 		kfree(errors_silent);
@@ -1292,14 +1298,8 @@ void bch2_sb_layout_to_text(struct printbuf *out, struct bch_sb_layout *l)
 void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		     bool print_layout, unsigned fields)
 {
-	u64 fields_have = 0;
-	unsigned nr_devices = 0;
-
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 44);
-
-	for (int i = 0; i < sb->nr_devices; i++)
-		nr_devices += bch2_member_exists(sb, i);
 
 	prt_printf(out, "External UUID:\t");
 	pr_uuid(out, sb->user_uuid.b);
@@ -1356,9 +1356,10 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_newline(out);
 
 	prt_printf(out, "Clean:\t%llu\n", BCH_SB_CLEAN(sb));
-	prt_printf(out, "Devices:\t%u\n", nr_devices);
+	prt_printf(out, "Devices:\t%u\n", bch2_sb_nr_devices(sb));
 
 	prt_printf(out, "Sections:\t");
+	u64 fields_have = 0;
 	vstruct_for_each(sb, f)
 		fields_have |= 1 << le32_to_cpu(f->type);
 	prt_bitflags(out, bch2_sb_fields, fields_have);

@@ -576,6 +576,12 @@ static int mmu_hw_do_operation_locked(struct panthor_device *ptdev, int as_nr,
 	if (as_nr < 0)
 		return 0;
 
+	/*
+	 * If the AS number is greater than zero, then we can be sure
+	 * the device is up and running, so we don't need to explicitly
+	 * power it up
+	 */
+
 	if (op != AS_COMMAND_UNLOCK)
 		lock_region(ptdev, as_nr, iova, size);
 
@@ -827,7 +833,7 @@ static void panthor_vm_stop(struct panthor_vm *vm)
 
 static void panthor_vm_start(struct panthor_vm *vm)
 {
-	drm_sched_start(&vm->sched, true);
+	drm_sched_start(&vm->sched);
 }
 
 /**
@@ -874,12 +880,21 @@ static int panthor_vm_flush_range(struct panthor_vm *vm, u64 iova, u64 size)
 	if (!drm_dev_enter(&ptdev->base, &cookie))
 		return 0;
 
-	/* Flush the PTs only if we're already awake */
-	if (pm_runtime_active(ptdev->base.dev))
-		ret = mmu_hw_do_operation(vm, iova, size, AS_COMMAND_FLUSH_PT);
+	ret = mmu_hw_do_operation(vm, iova, size, AS_COMMAND_FLUSH_PT);
 
 	drm_dev_exit(cookie);
 	return ret;
+}
+
+/**
+ * panthor_vm_flush_all() - Flush L2 caches for the entirety of a VM's AS
+ * @vm: VM whose cache to flush
+ *
+ * Return: 0 on success, a negative error code if flush failed.
+ */
+int panthor_vm_flush_all(struct panthor_vm *vm)
+{
+	return panthor_vm_flush_range(vm, vm->base.mm_start, vm->base.mm_range);
 }
 
 static int panthor_vm_unmap_pages(struct panthor_vm *vm, u64 iova, u64 size)
@@ -1236,9 +1251,17 @@ static int panthor_vm_prepare_map_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 		goto err_cleanup;
 	}
 
+	/* drm_gpuvm_bo_obtain_prealloc() will call drm_gpuvm_bo_put() on our
+	 * pre-allocated BO if the <BO,VM> association exists. Given we
+	 * only have one ref on preallocated_vm_bo, drm_gpuvm_bo_destroy() will
+	 * be called immediately, and we have to hold the VM resv lock when
+	 * calling this function.
+	 */
+	dma_resv_lock(panthor_vm_resv(vm), NULL);
 	mutex_lock(&bo->gpuva_list_lock);
 	op_ctx->map.vm_bo = drm_gpuvm_bo_obtain_prealloc(preallocated_vm_bo);
 	mutex_unlock(&bo->gpuva_list_lock);
+	dma_resv_unlock(panthor_vm_resv(vm));
 
 	/* If the a vm_bo for this <VM,BO> combination exists, it already
 	 * retains a pin ref, and we can release the one we took earlier.

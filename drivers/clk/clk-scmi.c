@@ -156,18 +156,28 @@ static void scmi_clk_atomic_disable(struct clk_hw *hw)
 	scmi_proto_clk_ops->disable(clk->ph, clk->id, ATOMIC);
 }
 
-static int scmi_clk_atomic_is_enabled(struct clk_hw *hw)
+static int __scmi_clk_is_enabled(struct clk_hw *hw, bool atomic)
 {
 	int ret;
 	bool enabled = false;
 	struct scmi_clk *clk = to_scmi_clk(hw);
 
-	ret = scmi_proto_clk_ops->state_get(clk->ph, clk->id, &enabled, ATOMIC);
+	ret = scmi_proto_clk_ops->state_get(clk->ph, clk->id, &enabled, atomic);
 	if (ret)
 		dev_warn(clk->dev,
 			 "Failed to get state for clock ID %d\n", clk->id);
 
 	return !!enabled;
+}
+
+static int scmi_clk_atomic_is_enabled(struct clk_hw *hw)
+{
+	return __scmi_clk_is_enabled(hw, ATOMIC);
+}
+
+static int scmi_clk_is_enabled(struct clk_hw *hw)
+{
+	return __scmi_clk_is_enabled(hw, NOT_ATOMIC);
 }
 
 static int scmi_clk_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
@@ -285,6 +295,8 @@ scmi_clk_ops_alloc(struct device *dev, unsigned long feats_key)
 
 	if (feats_key & BIT(SCMI_CLK_ATOMIC_SUPPORTED))
 		ops->is_enabled = scmi_clk_atomic_is_enabled;
+	else
+		ops->is_prepared = scmi_clk_is_enabled;
 
 	/* Rate ops */
 	ops->recalc_rate = scmi_clk_recalc_rate;

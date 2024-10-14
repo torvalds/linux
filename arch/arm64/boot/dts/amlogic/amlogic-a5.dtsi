@@ -4,6 +4,7 @@
  */
 
 #include "amlogic-a4-common.dtsi"
+#include <dt-bindings/power/amlogic,a5-pwrc.h>
 / {
 	cpus {
 		#address-cells = <2>;
@@ -35,6 +36,15 @@
 			compatible = "arm,cortex-a55";
 			reg = <0x0 0x300>;
 			enable-method = "psci";
+		};
+	};
+
+	sm: secure-monitor {
+		compatible = "amlogic,meson-gxbb-sm";
+
+		pwrc: power-controller {
+			compatible = "amlogic,a5-pwrc";
+			#power-domain-cells = <1>;
 		};
 	};
 };

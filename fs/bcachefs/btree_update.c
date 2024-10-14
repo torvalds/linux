@@ -374,7 +374,7 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 	i->key_cache_already_flushed = true;
 	i->flags |= BTREE_TRIGGER_norun;
 
-	btree_path_set_should_be_locked(btree_path);
+	btree_path_set_should_be_locked(trans, btree_path);
 	ret = bch2_trans_update_by_path(trans, path_idx, i->k, flags, ip);
 out:
 	bch2_path_put(trans, path_idx, true);
@@ -422,7 +422,9 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 			break;
 	}
 
-	if (!cmp && i < trans->updates + trans->nr_updates) {
+	bool overwrite = !cmp && i < trans->updates + trans->nr_updates;
+
+	if (overwrite) {
 		EBUG_ON(i->insert_trigger_run || i->overwrite_trigger_run);
 
 		bch2_path_put(trans, i->path, true);
@@ -449,7 +451,9 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 		}
 	}
 
-	__btree_path_get(trans->paths + i->path, true);
+	__btree_path_get(trans, trans->paths + i->path, true);
+
+	trace_update_by_path(trans, path, i, overwrite);
 
 	/*
 	 * If a key is present in the key cache, it must also exist in the
@@ -498,7 +502,7 @@ static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
 			return btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
 		}
 
-		btree_path_set_should_be_locked(trans->paths + iter->key_cache_path);
+		btree_path_set_should_be_locked(trans, trans->paths + iter->key_cache_path);
 	}
 
 	return 0;

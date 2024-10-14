@@ -117,12 +117,12 @@ void mwifiex_dfs_cac_work_queue(struct work_struct *work)
 				     dfs_cac_work);
 
 	chandef = priv->dfs_chandef;
-	if (priv->wdev.cac_started) {
+	if (priv->wdev.links[0].cac_started) {
 		mwifiex_dbg(priv->adapter, MSG,
 			    "CAC timer finished; No radar detected\n");
 		cfg80211_cac_event(priv->netdev, &chandef,
 				   NL80211_RADAR_CAC_FINISHED,
-				   GFP_KERNEL);
+				   GFP_KERNEL, 0);
 	}
 }
 
@@ -174,7 +174,7 @@ int mwifiex_stop_radar_detection(struct mwifiex_private *priv,
  */
 void mwifiex_abort_cac(struct mwifiex_private *priv)
 {
-	if (priv->wdev.cac_started) {
+	if (priv->wdev.links[0].cac_started) {
 		if (mwifiex_stop_radar_detection(priv, &priv->dfs_chandef))
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "failed to stop CAC in FW\n");
@@ -182,7 +182,8 @@ void mwifiex_abort_cac(struct mwifiex_private *priv)
 			    "Aborting delayed work for CAC.\n");
 		cancel_delayed_work_sync(&priv->dfs_cac_work);
 		cfg80211_cac_event(priv->netdev, &priv->dfs_chandef,
-				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL);
+				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL,
+				   0);
 	}
 }
 
@@ -221,7 +222,7 @@ int mwifiex_11h_handle_chanrpt_ready(struct mwifiex_private *priv,
 				cfg80211_cac_event(priv->netdev,
 						   &priv->dfs_chandef,
 						   NL80211_RADAR_DETECTED,
-						   GFP_KERNEL);
+						   GFP_KERNEL, 0);
 			}
 			break;
 		default:

@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/raid_class.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
@@ -112,9 +112,8 @@ static bool myrb_create_mempools(struct pci_dev *pdev, struct myrb_hba *cb)
 		return false;
 	}
 
-	snprintf(cb->work_q_name, sizeof(cb->work_q_name),
-		 "myrb_wq_%d", cb->host->host_no);
-	cb->work_q = create_singlethread_workqueue(cb->work_q_name);
+	cb->work_q = alloc_ordered_workqueue("myrb_wq_%d", WQ_MEM_RECLAIM,
+					     cb->host->host_no);
 	if (!cb->work_q) {
 		dma_pool_destroy(cb->dcdb_pool);
 		cb->dcdb_pool = NULL;

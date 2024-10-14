@@ -1662,23 +1662,20 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 	unsigned int max_cs = cqspi->num_chipselect - 1;
 	struct platform_device *pdev = cqspi->pdev;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct cqspi_flash_pdata *f_pdata;
 	unsigned int cs;
 	int ret;
 
 	/* Get flash device data */
-	for_each_available_child_of_node(dev->of_node, np) {
+	for_each_available_child_of_node_scoped(dev->of_node, np) {
 		ret = of_property_read_u32(np, "reg", &cs);
 		if (ret) {
 			dev_err(dev, "Couldn't determine chip select.\n");
-			of_node_put(np);
 			return ret;
 		}
 
 		if (cs >= cqspi->num_chipselect) {
 			dev_err(dev, "Chip select %d out of range.\n", cs);
-			of_node_put(np);
 			return -EINVAL;
 		} else if (cs < max_cs) {
 			max_cs = cs;
@@ -1689,10 +1686,8 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 		f_pdata->cs = cs;
 
 		ret = cqspi_of_get_flash_pdata(pdev, f_pdata, np);
-		if (ret) {
-			of_node_put(np);
+		if (ret)
 			return ret;
-		}
 	}
 
 	cqspi->num_chipselect = max_cs + 1;

@@ -82,5 +82,5 @@ static void mss2_power_off(void)
 void __init mss2_init(void)
 {
 	/* register mss2 specific power-off method */
-	pm_power_off = mss2_power_off;
+	register_platform_power_off(mss2_power_off);
 }

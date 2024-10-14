@@ -56,3 +56,32 @@ size_t hantro_g2_motion_vectors_offset(struct hantro_ctx *ctx)
 
 	return ALIGN((cr_offset * 3) / 2, G2_ALIGN);
 }
+
+static size_t hantro_g2_mv_size(struct hantro_ctx *ctx)
+{
+	const struct hantro_hevc_dec_ctrls *ctrls = &ctx->hevc_dec.ctrls;
+	const struct v4l2_ctrl_hevc_sps *sps = ctrls->sps;
+	unsigned int pic_width_in_ctbs, pic_height_in_ctbs;
+	unsigned int max_log2_ctb_size;
+
+	max_log2_ctb_size = sps->log2_min_luma_coding_block_size_minus3 + 3 +
+			    sps->log2_diff_max_min_luma_coding_block_size;
+	pic_width_in_ctbs = (sps->pic_width_in_luma_samples +
+			    (1 << max_log2_ctb_size) - 1) >> max_log2_ctb_size;
+	pic_height_in_ctbs = (sps->pic_height_in_luma_samples + (1 << max_log2_ctb_size) - 1)
+			     >> max_log2_ctb_size;
+
+	return pic_width_in_ctbs * pic_height_in_ctbs * (1 << (2 * (max_log2_ctb_size - 4))) * 16;
+}
+
+size_t hantro_g2_luma_compress_offset(struct hantro_ctx *ctx)
+{
+	return hantro_g2_motion_vectors_offset(ctx) +
+	       hantro_g2_mv_size(ctx);
+}
+
+size_t hantro_g2_chroma_compress_offset(struct hantro_ctx *ctx)
+{
+	return hantro_g2_luma_compress_offset(ctx) +
+	       hantro_hevc_luma_compressed_size(ctx->dst_fmt.width, ctx->dst_fmt.height);
+}

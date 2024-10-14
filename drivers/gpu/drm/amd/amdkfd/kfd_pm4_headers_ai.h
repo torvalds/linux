@@ -145,8 +145,9 @@ struct pm4_mes_map_process {
 
 	union {
 		struct {
-			uint32_t pasid:16;
-			uint32_t reserved1:2;
+			uint32_t pasid:16;		/* 0 - 15  */
+			uint32_t reserved1:1;		/* 16      */
+			uint32_t exec_cleaner_shader:1;	/* 17      */
 			uint32_t debug_vmid:4;
 			uint32_t new_debug:1;
 			uint32_t reserved2:1;

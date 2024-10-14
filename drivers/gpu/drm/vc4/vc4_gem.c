@@ -832,8 +832,8 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	 */
 	temp = kvmalloc_array(temp_size, 1, GFP_KERNEL);
 	if (!temp) {
-		DRM_ERROR("Failed to allocate storage for copying "
-			  "in bin/render CLs.\n");
+		drm_err(dev, "Failed to allocate storage for copying "
+			"in bin/render CLs.\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -866,7 +866,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 
 	bo = vc4_bo_create(dev, exec_size, true, VC4_BO_TYPE_BCL);
 	if (IS_ERR(bo)) {
-		DRM_ERROR("Couldn't allocate BO for binning\n");
+		drm_err(dev, "Couldn't allocate BO for binning\n");
 		ret = PTR_ERR(bo);
 		goto fail;
 	}
@@ -1153,10 +1153,9 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	exec = kcalloc(1, sizeof(*exec), GFP_KERNEL);
-	if (!exec) {
-		DRM_ERROR("malloc failure on exec struct\n");
+	if (!exec)
 		return -ENOMEM;
-	}
+
 	exec->dev = vc4;
 
 	ret = vc4_v3d_pm_get(vc4);

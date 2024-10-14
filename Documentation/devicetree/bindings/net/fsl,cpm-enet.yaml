@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,cpm-enet.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Network for cpm enet
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,cpm1-scc-enet
+          - fsl,cpm2-scc-enet
+          - fsl,cpm1-fec-enet
+          - fsl,cpm2-fcc-enet
+          - fsl,qe-enet
+      - items:
+          - enum:
+              - fsl,mpc8272-fcc-enet
+          - const: fsl,cpm2-fcc-enet
+
+  reg:
+    minItems: 1
+    maxItems: 3
+
+  interrupts:
+    maxItems: 1
+
+  fsl,cpm-command:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: cpm command
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+allOf:
+  - $ref: ethernet-controller.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet@11300 {
+        compatible = "fsl,mpc8272-fcc-enet",
+                     "fsl,cpm2-fcc-enet";
+        reg = <0x11300 0x20 0x8400 0x100 0x11390 1>;
+        local-mac-address = [ 00 00 00 00 00 00 ];
+        interrupts = <20 8>;
+        interrupt-parent = <&pic>;
+        phy-handle = <&phy0>;
+        fsl,cpm-command = <0x12000300>;
+    };
+

@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arc/snps,archs-pct.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARC HS Performance Counters
+
+maintainers:
+  - Aryabhatta Dey <aryabhattadey35@gmail.com>
+
+description:
+  The ARC HS can be configured with a pipeline performance monitor for counting
+  CPU and cache events like cache misses and hits. Like conventional PCT there
+  are 100+ hardware conditions dynamically mapped to up to 32 counters.
+  It also supports overflow interrupts.
+
+properties:
+  compatible:
+    const: snps,archs-pct
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+additionalProperties: false

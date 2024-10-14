@@ -115,7 +115,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 	int ret = 0;
 
 	if (k.k->type == KEY_TYPE_error)
-		return -EIO;
+		return -BCH_ERR_key_type_error;
 
 	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
@@ -133,7 +133,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 		 * read:
 		 */
 		if (!ret && !p.ptr.cached)
-			ret = -EIO;
+			ret = -BCH_ERR_no_device_to_read_from;
 
 		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
 
@@ -146,16 +146,13 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 				? f->idx
 				: f->idx + 1;
 
-		if (!p.idx && !ca)
+		if (!p.idx && (!ca || !bch2_dev_is_readable(ca)))
 			p.idx++;
 
 		if (!p.idx && p.has_ec && bch2_force_reconstruct_read)
 			p.idx++;
 
-		if (!p.idx && !bch2_dev_is_readable(ca))
-			p.idx++;
-
-		if (p.idx >= (unsigned) p.has_ec + 1)
+		if (p.idx > (unsigned) p.has_ec)
 			continue;
 
 		if (ret > 0 && !ptr_better(c, p, *pick))
@@ -781,13 +778,16 @@ static union bch_extent_entry *extent_entry_prev(struct bkey_ptrs ptrs,
 /*
  * Returns pointer to the next entry after the one being dropped:
  */
-union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s k,
-						   struct bch_extent_ptr *ptr)
+void bch2_bkey_drop_ptr_noerror(struct bkey_s k, struct bch_extent_ptr *ptr)
 {
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 	union bch_extent_entry *entry = to_entry(ptr), *next;
-	union bch_extent_entry *ret = entry;
 	bool drop_crc = true;
+
+	if (k.k->type == KEY_TYPE_stripe) {
+		ptr->dev = BCH_SB_MEMBER_INVALID;
+		return;
+	}
 
 	EBUG_ON(ptr < &ptrs.start->ptr ||
 		ptr >= &ptrs.end->ptr);
@@ -811,21 +811,28 @@ union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s k,
 			break;
 
 		if ((extent_entry_is_crc(entry) && drop_crc) ||
-		    extent_entry_is_stripe_ptr(entry)) {
-			ret = (void *) ret - extent_entry_bytes(entry);
+		    extent_entry_is_stripe_ptr(entry))
 			extent_entry_drop(k, entry);
-		}
 	}
-
-	return ret;
 }
 
-union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
-					   struct bch_extent_ptr *ptr)
+void bch2_bkey_drop_ptr(struct bkey_s k, struct bch_extent_ptr *ptr)
 {
+	if (k.k->type != KEY_TYPE_stripe) {
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k.s_c);
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
+
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+			if (p.ptr.dev == ptr->dev && p.has_ec) {
+				ptr->dev = BCH_SB_MEMBER_INVALID;
+				return;
+			}
+	}
+
 	bool have_dirty = bch2_bkey_dirty_devs(k.s_c).nr;
-	union bch_extent_entry *ret =
-		bch2_bkey_drop_ptr_noerror(k, ptr);
+
+	bch2_bkey_drop_ptr_noerror(k, ptr);
 
 	/*
 	 * If we deleted all the dirty pointers and there's still cached
@@ -837,14 +844,10 @@ union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
 	    !bch2_bkey_dirty_devs(k.s_c).nr) {
 		k.k->type = KEY_TYPE_error;
 		set_bkey_val_u64s(k.k, 0);
-		ret = NULL;
 	} else if (!bch2_bkey_nr_ptrs(k.s_c)) {
 		k.k->type = KEY_TYPE_deleted;
 		set_bkey_val_u64s(k.k, 0);
-		ret = NULL;
 	}
-
-	return ret;
 }
 
 void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
@@ -854,10 +857,7 @@ void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
 
 void bch2_bkey_drop_device_noerror(struct bkey_s k, unsigned dev)
 {
-	struct bch_extent_ptr *ptr = bch2_bkey_has_device(k, dev);
-
-	if (ptr)
-		bch2_bkey_drop_ptr_noerror(k, ptr);
+	bch2_bkey_drop_ptrs_noerror(k, ptr, ptr->dev == dev);
 }
 
 const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned dev)
@@ -1027,7 +1027,7 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 {
 	out->atomic++;
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
 	if (!ca) {
 		prt_printf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
 			   (u64) ptr->offset, ptr->gen,
@@ -1131,8 +1131,9 @@ static int extent_ptr_validate(struct bch_fs *c,
 {
 	int ret = 0;
 
+	/* bad pointers are repaired by check_fix_ptrs(): */
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
 	if (!ca) {
 		rcu_read_unlock();
 		return 0;

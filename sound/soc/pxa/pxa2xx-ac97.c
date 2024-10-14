@@ -286,7 +286,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops,
 
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_dev_probe,
-	.remove_new	= pxa2xx_ac97_dev_remove,
+	.remove		= pxa2xx_ac97_dev_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
 		.pm	= &pxa2xx_ac97_pm_ops,

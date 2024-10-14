@@ -1392,6 +1392,14 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 	if (!dsa_user_dev_check(act->dev))
 		return -EOPNOTSUPP;
 
+	to_dp = dsa_user_to_port(act->dev);
+
+	if (dp->ds != to_dp->ds) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cross-chip mirroring not implemented");
+		return -EOPNOTSUPP;
+	}
+
 	mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
 	if (!mall_tc_entry)
 		return -ENOMEM;
@@ -1399,9 +1407,6 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 	mall_tc_entry->cookie = cls->cookie;
 	mall_tc_entry->type = DSA_PORT_MALL_MIRROR;
 	mirror = &mall_tc_entry->mirror;
-
-	to_dp = dsa_user_to_port(act->dev);
-
 	mirror->to_local_port = to_dp->index;
 	mirror->ingress = ingress;
 
@@ -2642,11 +2647,12 @@ void dsa_user_setup_tagger(struct net_device *user)
 
 	user->features = conduit->vlan_features | NETIF_F_HW_TC;
 	user->hw_features |= NETIF_F_HW_TC;
-	user->features |= NETIF_F_LLTX;
 	if (user->needed_tailroom)
 		user->features &= ~(NETIF_F_SG | NETIF_F_FRAGLIST);
 	if (ds->needs_standalone_vlan_filtering)
 		user->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	user->lltx = true;
 }
 
 int dsa_user_suspend(struct net_device *user_dev)

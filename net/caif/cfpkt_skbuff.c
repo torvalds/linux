@@ -298,10 +298,8 @@ struct cfpkt *cfpkt_append(struct cfpkt *dstpkt,
 	if (unlikely(is_erronous(dstpkt) || is_erronous(addpkt))) {
 		return dstpkt;
 	}
-	if (expectlen > addlen)
-		neededtailspace = expectlen;
-	else
-		neededtailspace = addlen;
+
+	neededtailspace = max(expectlen, addlen);
 
 	if (dst->tail + neededtailspace > dst->end) {
 		/* Create a dumplicate of 'dst' with more tail space */

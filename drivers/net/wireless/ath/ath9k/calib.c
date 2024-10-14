@@ -32,11 +32,8 @@ static int16_t ath9k_hw_get_nf_hist_mid(int16_t *nfCalBuffer)
 
 	for (i = 0; i < ATH9K_NF_CAL_HIST_MAX - 1; i++) {
 		for (j = 1; j < ATH9K_NF_CAL_HIST_MAX - i; j++) {
-			if (sort[j] > sort[j - 1]) {
-				nfval = sort[j];
-				sort[j] = sort[j - 1];
-				sort[j - 1] = nfval;
-			}
+			if (sort[j] > sort[j - 1])
+				swap(sort[j], sort[j - 1]);
 		}
 	}
 	nfval = sort[(ATH9K_NF_CAL_HIST_MAX - 1) >> 1];

@@ -26,6 +26,17 @@
 #include "v3d_drv.h"
 #include "uapi/drm/v3d_drm.h"
 
+static enum drm_gem_object_status v3d_gem_status(struct drm_gem_object *obj)
+{
+	struct v3d_bo *bo = to_v3d_bo(obj);
+	enum drm_gem_object_status res = 0;
+
+	if (bo->base.pages)
+		res |= DRM_GEM_OBJECT_RESIDENT;
+
+	return res;
+}
+
 /* Called DRM core on the last userspace/kernel unreference of the
  * BO.
  */
@@ -63,6 +74,7 @@ static const struct drm_gem_object_funcs v3d_gem_funcs = {
 	.vmap = drm_gem_shmem_object_vmap,
 	.vunmap = drm_gem_shmem_object_vunmap,
 	.mmap = drm_gem_shmem_object_mmap,
+	.status = v3d_gem_status,
 	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 
@@ -279,7 +291,7 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 	else
 		args->timeout_ns = 0;
 
-	/* Asked to wait beyond the jiffie/scheduler precision? */
+	/* Asked to wait beyond the jiffy/scheduler precision? */
 	if (ret == -ETIME && args->timeout_ns)
 		ret = -EAGAIN;
 

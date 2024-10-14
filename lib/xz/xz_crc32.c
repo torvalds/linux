@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: 0BSD
+
 /*
  * CRC32 using the polynomial from IEEE-802.3
  *
  * Authors: Lasse Collin <lasse.collin@tukaani.org>
  *          Igor Pavlov <https://7-zip.org/>
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 /*
@@ -27,9 +26,9 @@
 
 STATIC_RW_DATA uint32_t xz_crc32_table[256];
 
-XZ_EXTERN void xz_crc32_init(void)
+void xz_crc32_init(void)
 {
-	const uint32_t poly = CRC32_POLY_LE;
+	const uint32_t poly = 0xEDB88320;
 
 	uint32_t i;
 	uint32_t j;
@@ -46,7 +45,7 @@ XZ_EXTERN void xz_crc32_init(void)
 	return;
 }
 
-XZ_EXTERN uint32_t xz_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+uint32_t xz_crc32(const uint8_t *buf, size_t size, uint32_t crc)
 {
 	crc = ~crc;
 

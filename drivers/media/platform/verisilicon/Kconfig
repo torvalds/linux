@@ -21,6 +21,14 @@ config VIDEO_HANTRO
 	  To compile this driver as a module, choose M here: the module
 	  will be called hantro-vpu.
 
+config VIDEO_HANTRO_HEVC_RFC
+	bool "Use reference frame compression for HEVC"
+	depends on VIDEO_HANTRO
+	default n
+	help
+	  Enable the reference frame compression feature for the HEVC codec.
+	  It will use more memory but save bandwidth on memory bus.
+
 config VIDEO_HANTRO_IMX8M
 	bool "Hantro VPU i.MX8M support"
 	depends on VIDEO_HANTRO

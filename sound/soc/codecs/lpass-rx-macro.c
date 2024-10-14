@@ -958,7 +958,7 @@ static const struct reg_default rx_defaults[] = {
 	{ CDC_RX_BCL_VBAT_PK_EST2, 0x01 },
 	{ CDC_RX_BCL_VBAT_PK_EST3, 0x40 },
 	{ CDC_RX_BCL_VBAT_RF_PROC1, 0x2A },
-	{ CDC_RX_BCL_VBAT_RF_PROC1, 0x00 },
+	{ CDC_RX_BCL_VBAT_RF_PROC2, 0x00 },
 	{ CDC_RX_BCL_VBAT_TAC1, 0x00 },
 	{ CDC_RX_BCL_VBAT_TAC2, 0x18 },
 	{ CDC_RX_BCL_VBAT_TAC3, 0x18 },
@@ -4024,7 +4024,7 @@ static struct platform_driver rx_macro_driver = {
 		.pm = &rx_macro_pm_ops,
 	},
 	.probe = rx_macro_probe,
-	.remove_new = rx_macro_remove,
+	.remove = rx_macro_remove,
 };
 
 module_platform_driver(rx_macro_driver);

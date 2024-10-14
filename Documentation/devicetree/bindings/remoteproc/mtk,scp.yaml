@@ -93,7 +93,7 @@ patternProperties:
       Each SCP core has own cache memory. The SRAM and L1TCM are shared by
       cores. The power of cache, SRAM and L1TCM power should be enabled
       before booting SCP cores. The size of cache, SRAM, and L1TCM are varied
-      on differnt SoCs.
+      on different SoCs.
 
       The SCP cores do not use an MMU, but has a set of registers to
       control the translations between 32-bit CPU addresses into system bus

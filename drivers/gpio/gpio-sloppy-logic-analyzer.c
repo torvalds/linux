@@ -217,7 +217,6 @@ static const struct file_operations fops_trigger = {
 	.owner = THIS_MODULE,
 	.open = trigger_open,
 	.write = trigger_write,
-	.llseek = no_llseek,
 	.release = single_release,
 };
 

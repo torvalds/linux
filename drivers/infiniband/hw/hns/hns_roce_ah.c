@@ -64,8 +64,10 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	u8 tc_mode = 0;
 	int ret;
 
-	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08 && udata)
-		return -EOPNOTSUPP;
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08 && udata) {
+		ret = -EOPNOTSUPP;
+		goto err_out;
+	}
 
 	ah->av.port = rdma_ah_get_port_num(ah_attr);
 	ah->av.gid_index = grh->sgid_index;
@@ -83,7 +85,7 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		ret = 0;
 
 	if (ret && grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
-		return ret;
+		goto err_out;
 
 	if (tc_mode == HNAE3_TC_MAP_MODE_DSCP &&
 	    grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
@@ -91,8 +93,10 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	else
 		ah->av.sl = rdma_ah_get_sl(ah_attr);
 
-	if (!check_sl_valid(hr_dev, ah->av.sl))
-		return -EINVAL;
+	if (!check_sl_valid(hr_dev, ah->av.sl)) {
+		ret = -EINVAL;
+		goto err_out;
+	}
 
 	memcpy(ah->av.dgid, grh->dgid.raw, HNS_ROCE_GID_SIZE);
 	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);

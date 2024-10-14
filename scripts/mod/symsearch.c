@@ -4,7 +4,7 @@
  * Helper functions for finding the symbol in an ELF which is "nearest"
  * to a given address.
  */
-
+#include <xalloc.h>
 #include "modpost.h"
 
 struct syminfo {
@@ -125,8 +125,8 @@ void symsearch_init(struct elf_info *elf)
 {
 	unsigned int table_size = symbol_count(elf);
 
-	elf->symsearch = NOFAIL(malloc(sizeof(struct symsearch) +
-				       sizeof(struct syminfo) * table_size));
+	elf->symsearch = xmalloc(sizeof(struct symsearch) +
+				       sizeof(struct syminfo) * table_size);
 	elf->symsearch->table_size = table_size;
 
 	symsearch_populate(elf, elf->symsearch->table, table_size);

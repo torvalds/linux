@@ -151,7 +151,7 @@ static inline u32 max_ordered_sum_bytes(const struct btrfs_fs_info *fs_info)
  * Calculate the total size needed to allocate for an ordered sum structure
  * spanning @bytes in the file.
  */
-static int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info, unsigned long bytes)
+static int btrfs_ordered_sum_size(const struct btrfs_fs_info *fs_info, unsigned long bytes)
 {
 	return sizeof(struct btrfs_ordered_sum) + bytes_to_csum_size(fs_info, bytes);
 }
@@ -1272,7 +1272,7 @@ out:
 
 void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				     const struct btrfs_path *path,
-				     struct btrfs_file_extent_item *fi,
+				     const struct btrfs_file_extent_item *fi,
 				     struct extent_map *em)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;

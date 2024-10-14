@@ -546,17 +546,14 @@ int fun_bind(struct fun_dev *fdev, enum fun_admin_bind_type type0,
 	     unsigned int id0, enum fun_admin_bind_type type1,
 	     unsigned int id1)
 {
-	struct {
-		struct fun_admin_bind_req req;
-		struct fun_admin_bind_entry entry[2];
-	} cmd = {
-		.req.common = FUN_ADMIN_REQ_COMMON_INIT2(FUN_ADMIN_OP_BIND,
-							 sizeof(cmd)),
-		.entry[0] = FUN_ADMIN_BIND_ENTRY_INIT(type0, id0),
-		.entry[1] = FUN_ADMIN_BIND_ENTRY_INIT(type1, id1),
-	};
+	DEFINE_RAW_FLEX(struct fun_admin_bind_req, cmd, entry, 2);
 
-	return fun_submit_admin_sync_cmd(fdev, &cmd.req.common, NULL, 0, 0);
+	cmd->common = FUN_ADMIN_REQ_COMMON_INIT2(FUN_ADMIN_OP_BIND,
+						 __struct_size(cmd));
+	cmd->entry[0] = FUN_ADMIN_BIND_ENTRY_INIT(type0, id0);
+	cmd->entry[1] = FUN_ADMIN_BIND_ENTRY_INIT(type1, id1);
+
+	return fun_submit_admin_sync_cmd(fdev, &cmd->common, NULL, 0, 0);
 }
 EXPORT_SYMBOL_GPL(fun_bind);
 

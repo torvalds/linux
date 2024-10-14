@@ -42,6 +42,7 @@ properties:
               - atmel,sama5d3-pmc
               - atmel,sama5d4-pmc
               - microchip,sam9x60-pmc
+              - microchip,sam9x7-pmc
               - microchip,sama7g5-pmc
           - const: syscon
 
@@ -88,6 +89,7 @@ allOf:
           contains:
             enum:
               - microchip,sam9x60-pmc
+              - microchip,sam9x7-pmc
               - microchip,sama7g5-pmc
     then:
       properties:

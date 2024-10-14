@@ -85,11 +85,17 @@ struct thermal_trip {
 
 struct thermal_zone_device;
 
+struct cooling_spec {
+	unsigned long upper;	/* Highest cooling state  */
+	unsigned long lower;	/* Lowest cooling state  */
+	unsigned int weight;	/* Cooling device weight */
+};
+
 struct thermal_zone_device_ops {
-	int (*bind) (struct thermal_zone_device *,
-		     struct thermal_cooling_device *);
-	int (*unbind) (struct thermal_zone_device *,
-		       struct thermal_cooling_device *);
+	bool (*should_bind) (struct thermal_zone_device *,
+			     const struct thermal_trip *,
+			     struct thermal_cooling_device *,
+			     struct cooling_spec *);
 	int (*get_temp) (struct thermal_zone_device *, int *);
 	int (*set_trips) (struct thermal_zone_device *, int, int);
 	int (*change_mode) (struct thermal_zone_device *,
@@ -203,15 +209,12 @@ static inline void devm_thermal_of_zone_unregister(struct device *dev,
 }
 #endif
 
-int thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
-			  struct thermal_trip *trip);
 int for_each_thermal_trip(struct thermal_zone_device *tz,
 			  int (*cb)(struct thermal_trip *, void *),
 			  void *data);
 int thermal_zone_for_each_trip(struct thermal_zone_device *tz,
 			       int (*cb)(struct thermal_trip *, void *),
 			       void *data);
-int thermal_zone_get_num_trips(struct thermal_zone_device *tz);
 void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 				struct thermal_trip *trip, int temp);
 
@@ -240,20 +243,6 @@ const char *thermal_zone_device_type(struct thermal_zone_device *tzd);
 int thermal_zone_device_id(struct thermal_zone_device *tzd);
 struct device *thermal_zone_device(struct thermal_zone_device *tzd);
 
-int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
-			      const struct thermal_trip *trip,
-			      struct thermal_cooling_device *cdev,
-			      unsigned long upper, unsigned long lower,
-			      unsigned int weight);
-int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
-				     struct thermal_cooling_device *,
-				     unsigned long, unsigned long,
-				     unsigned int);
-int thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
-				  const struct thermal_trip *trip,
-				  struct thermal_cooling_device *cdev);
-int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
-				       struct thermal_cooling_device *);
 void thermal_zone_device_update(struct thermal_zone_device *,
 				enum thermal_notify_event);
 

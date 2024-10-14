@@ -328,7 +328,7 @@ and an HDMI input, one input for each input type. Those are described in more
 detail below.
 
 Special attention has been given to the rate at which new frames become
-available. The jitter will be around 1 jiffie (that depends on the HZ
+available. The jitter will be around 1 jiffy (that depends on the HZ
 configuration of your kernel, so usually 1/100, 1/250 or 1/1000 of a second),
 but the long-term behavior is exactly following the framerate. So a
 framerate of 59.94 Hz is really different from 60 Hz. If the framerate
@@ -1343,7 +1343,7 @@ Some Future Improvements
 Just as a reminder and in no particular order:
 
 - Add a virtual alsa driver to test audio
-- Add virtual sub-devices and media controller support
+- Add virtual sub-devices
 - Some support for testing compressed video
 - Add support to loop raw VBI output to raw VBI input
 - Add support to loop teletext sliced VBI output to VBI input
@@ -1358,4 +1358,4 @@ Just as a reminder and in no particular order:
 - Make a thread for the RDS generation, that would help in particular for the
   "Controls" RDS Rx I/O Mode as the read-only RDS controls could be updated
   in real-time.
-- Changing the EDID should cause hotplug detect emulation to happen.
+- Changing the EDID doesn't wait 100 ms before setting the HPD signal.

@@ -594,12 +594,17 @@
 	(((v) << 18) & BM_PXP_CSC1_COEF0_C0)
 #define BP_PXP_CSC1_COEF0_UV_OFFSET      9
 #define BM_PXP_CSC1_COEF0_UV_OFFSET 0x0003FE00
+
+/*
+ * We use v * (1 << 9) instead of v << 9, to workaround a gcc5 bug.
+ * The compiler cannot understand that the expression is constant.
+ */
 #define BF_PXP_CSC1_COEF0_UV_OFFSET(v)  \
-	(((v) << 9) & BM_PXP_CSC1_COEF0_UV_OFFSET)
+	(((v) * (1 << 9)) & BM_PXP_CSC1_COEF0_UV_OFFSET)
 #define BP_PXP_CSC1_COEF0_Y_OFFSET      0
 #define BM_PXP_CSC1_COEF0_Y_OFFSET 0x000001FF
 #define BF_PXP_CSC1_COEF0_Y_OFFSET(v)  \
-	(((v) << 0) & BM_PXP_CSC1_COEF0_Y_OFFSET)
+	((v) & BM_PXP_CSC1_COEF0_Y_OFFSET)
 
 #define HW_PXP_CSC1_COEF1	(0x000001b0)
 

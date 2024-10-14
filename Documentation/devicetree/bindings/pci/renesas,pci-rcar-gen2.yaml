@@ -42,9 +42,13 @@ properties:
   interrupts:
     maxItems: 1
 
-  clocks: true
+  clocks:
+    minItems: 1
+    maxItems: 3
 
-  clock-names: true
+  clock-names:
+    minItems: 1
+    maxItems: 3
 
   resets:
     maxItems: 1

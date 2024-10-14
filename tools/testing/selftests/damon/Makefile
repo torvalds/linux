@@ -25,4 +25,6 @@ TEST_PROGS += debugfs_target_ids_pid_leak.sh
 TEST_PROGS += sysfs_update_removed_scheme_dir.sh
 TEST_PROGS += sysfs_update_schemes_tried_regions_hang.py
 
+EXTRA_CLEAN = __pycache__
+
 include ../lib.mk

@@ -270,7 +270,7 @@ int bch2_hash_set_in_snapshot(struct btree_trans *trans,
 				desc.hash_bkey(info, bkey_i_to_s_c(insert)),
 				snapshot),
 			   POS(insert->k.p.inode, U64_MAX),
-			   BTREE_ITER_slots|BTREE_ITER_intent, k, ret) {
+			   BTREE_ITER_slots|BTREE_ITER_intent|flags, k, ret) {
 		if (is_visible_key(desc, inum, k)) {
 			if (!desc.cmp_bkey(k, bkey_i_to_s_c(insert)))
 				goto found;

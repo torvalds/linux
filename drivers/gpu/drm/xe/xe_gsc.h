@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 
+struct drm_printer;
 struct xe_gsc;
 struct xe_gt;
 struct xe_hw_engine;
@@ -20,5 +21,7 @@ void xe_gsc_remove(struct xe_gsc *gsc);
 void xe_gsc_hwe_irq_handler(struct xe_hw_engine *hwe, u16 intr_vec);
 
 void xe_gsc_wa_14015076503(struct xe_gt *gt, bool prep);
+
+void xe_gsc_print_info(struct xe_gsc *gsc, struct drm_printer *p);
 
 #endif

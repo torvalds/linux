@@ -753,6 +753,9 @@ static struct clk_regmap toddr_d =
 	AUD_PCLK_GATE(toddr_d, AUDIO_CLK_GATE_EN1, 1);
 static struct clk_regmap loopback_b =
 	AUD_PCLK_GATE(loopback_b, AUDIO_CLK_GATE_EN1, 2);
+static struct clk_regmap earcrx =
+	AUD_PCLK_GATE(earcrx, AUDIO_CLK_GATE_EN1, 6);
+
 
 static struct clk_regmap sm1_mst_a_mclk_sel =
 	AUD_MST_MCLK_MUX(mst_a_mclk, AUDIO_SM1_MCLK_A_CTRL);
@@ -766,6 +769,10 @@ static struct clk_regmap sm1_mst_e_mclk_sel =
 	AUD_MST_MCLK_MUX(mst_e_mclk, AUDIO_SM1_MCLK_E_CTRL);
 static struct clk_regmap sm1_mst_f_mclk_sel =
 	AUD_MST_MCLK_MUX(mst_f_mclk, AUDIO_SM1_MCLK_F_CTRL);
+static struct clk_regmap sm1_earcrx_cmdc_clk_sel =
+	AUD_MST_MCLK_MUX(earcrx_cmdc_clk, AUDIO_EARCRX_CMDC_CLK_CTRL);
+static struct clk_regmap sm1_earcrx_dmac_clk_sel =
+	AUD_MST_MCLK_MUX(earcrx_dmac_clk, AUDIO_EARCRX_DMAC_CLK_CTRL);
 
 static struct clk_regmap sm1_mst_a_mclk_div =
 	AUD_MST_MCLK_DIV(mst_a_mclk, AUDIO_SM1_MCLK_A_CTRL);
@@ -779,6 +786,11 @@ static struct clk_regmap sm1_mst_e_mclk_div =
 	AUD_MST_MCLK_DIV(mst_e_mclk, AUDIO_SM1_MCLK_E_CTRL);
 static struct clk_regmap sm1_mst_f_mclk_div =
 	AUD_MST_MCLK_DIV(mst_f_mclk, AUDIO_SM1_MCLK_F_CTRL);
+static struct clk_regmap sm1_earcrx_cmdc_clk_div =
+	AUD_MST_MCLK_DIV(earcrx_cmdc_clk, AUDIO_EARCRX_CMDC_CLK_CTRL);
+static struct clk_regmap sm1_earcrx_dmac_clk_div =
+	AUD_MST_MCLK_DIV(earcrx_dmac_clk, AUDIO_EARCRX_DMAC_CLK_CTRL);
+
 
 static struct clk_regmap sm1_mst_a_mclk =
 	AUD_MST_MCLK_GATE(mst_a_mclk, AUDIO_SM1_MCLK_A_CTRL);
@@ -792,6 +804,10 @@ static struct clk_regmap sm1_mst_e_mclk =
 	AUD_MST_MCLK_GATE(mst_e_mclk, AUDIO_SM1_MCLK_E_CTRL);
 static struct clk_regmap sm1_mst_f_mclk =
 	AUD_MST_MCLK_GATE(mst_f_mclk, AUDIO_SM1_MCLK_F_CTRL);
+static struct clk_regmap sm1_earcrx_cmdc_clk =
+	AUD_MST_MCLK_GATE(earcrx_cmdc_clk, AUDIO_EARCRX_CMDC_CLK_CTRL);
+static struct clk_regmap sm1_earcrx_dmac_clk =
+	AUD_MST_MCLK_GATE(earcrx_dmac_clk, AUDIO_EARCRX_DMAC_CLK_CTRL);
 
 static struct clk_regmap sm1_tdm_mclk_pad_0 = AUD_TDM_PAD_CTRL(
 	tdm_mclk_pad_0, AUDIO_SM1_MST_PAD_CTRL0, 0, mclk_pad_ctrl_parent_data);
@@ -1232,6 +1248,13 @@ static struct clk_hw *sm1_audio_hw_clks[] = {
 	[AUD_CLKID_SYSCLK_A_EN]		= &sm1_sysclk_a_en.hw,
 	[AUD_CLKID_SYSCLK_B_DIV]	= &sm1_sysclk_b_div.hw,
 	[AUD_CLKID_SYSCLK_B_EN]		= &sm1_sysclk_b_en.hw,
+	[AUD_CLKID_EARCRX]		= &earcrx.hw,
+	[AUD_CLKID_EARCRX_CMDC_SEL]	= &sm1_earcrx_cmdc_clk_sel.hw,
+	[AUD_CLKID_EARCRX_CMDC_DIV]	= &sm1_earcrx_cmdc_clk_div.hw,
+	[AUD_CLKID_EARCRX_CMDC]		= &sm1_earcrx_cmdc_clk.hw,
+	[AUD_CLKID_EARCRX_DMAC_SEL]	= &sm1_earcrx_dmac_clk_sel.hw,
+	[AUD_CLKID_EARCRX_DMAC_DIV]	= &sm1_earcrx_dmac_clk_div.hw,
+	[AUD_CLKID_EARCRX_DMAC]		= &sm1_earcrx_dmac_clk.hw,
 };
 
 
@@ -1646,6 +1669,13 @@ static struct clk_regmap *const sm1_clk_regmaps[] = {
 	&sm1_sysclk_a_en,
 	&sm1_sysclk_b_div,
 	&sm1_sysclk_b_en,
+	&earcrx,
+	&sm1_earcrx_cmdc_clk_sel,
+	&sm1_earcrx_cmdc_clk_div,
+	&sm1_earcrx_cmdc_clk,
+	&sm1_earcrx_dmac_clk_sel,
+	&sm1_earcrx_dmac_clk_div,
+	&sm1_earcrx_dmac_clk,
 };
 
 struct axg_audio_reset_data {
@@ -1726,11 +1756,10 @@ static const struct reset_control_ops axg_audio_rstc_ops = {
 	.status = axg_audio_reset_status,
 };
 
-static const struct regmap_config axg_audio_regmap_cfg = {
+static struct regmap_config axg_audio_regmap_cfg = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
-	.max_register	= AUDIO_CLK_SPDIFOUT_B_CTRL,
 };
 
 struct audioclk_data {
@@ -1739,6 +1768,7 @@ struct audioclk_data {
 	struct meson_clk_hw_data hw_clks;
 	unsigned int reset_offset;
 	unsigned int reset_num;
+	unsigned int max_register;
 };
 
 static int axg_audio_clkc_probe(struct platform_device *pdev)
@@ -1760,6 +1790,7 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
+	axg_audio_regmap_cfg.max_register = data->max_register;
 	map = devm_regmap_init_mmio(dev, regs, &axg_audio_regmap_cfg);
 	if (IS_ERR(map)) {
 		dev_err(dev, "failed to init regmap: %ld\n", PTR_ERR(map));
@@ -1828,6 +1859,7 @@ static const struct audioclk_data axg_audioclk_data = {
 		.hws = axg_audio_hw_clks,
 		.num = ARRAY_SIZE(axg_audio_hw_clks),
 	},
+	.max_register = AUDIO_CLK_PDMIN_CTRL1,
 };
 
 static const struct audioclk_data g12a_audioclk_data = {
@@ -1839,6 +1871,7 @@ static const struct audioclk_data g12a_audioclk_data = {
 	},
 	.reset_offset = AUDIO_SW_RESET,
 	.reset_num = 26,
+	.max_register = AUDIO_CLK_SPDIFOUT_B_CTRL,
 };
 
 static const struct audioclk_data sm1_audioclk_data = {
@@ -1850,6 +1883,7 @@ static const struct audioclk_data sm1_audioclk_data = {
 	},
 	.reset_offset = AUDIO_SM1_SW_RESET0,
 	.reset_num = 39,
+	.max_register = AUDIO_EARCRX_DMAC_CLK_CTRL,
 };
 
 static const struct of_device_id clkc_match_table[] = {
@@ -1878,3 +1912,4 @@ module_platform_driver(axg_audio_driver);
 MODULE_DESCRIPTION("Amlogic AXG/G12A/SM1 Audio Clock driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CLK_MESON);

@@ -46,6 +46,9 @@ static int exfat_sync_fs(struct super_block *sb, int wait)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	int err = 0;
 
+	if (unlikely(exfat_forced_shutdown(sb)))
+		return 0;
+
 	if (!wait)
 		return 0;
 
@@ -167,6 +170,41 @@ static int exfat_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
+int exfat_force_shutdown(struct super_block *sb, u32 flags)
+{
+	int ret;
+	struct exfat_sb_info *sbi = sb->s_fs_info;
+	struct exfat_mount_options *opts = &sbi->options;
+
+	if (exfat_forced_shutdown(sb))
+		return 0;
+
+	switch (flags) {
+	case EXFAT_GOING_DOWN_DEFAULT:
+	case EXFAT_GOING_DOWN_FULLSYNC:
+		ret = bdev_freeze(sb->s_bdev);
+		if (ret)
+			return ret;
+		bdev_thaw(sb->s_bdev);
+		set_bit(EXFAT_FLAGS_SHUTDOWN, &sbi->s_exfat_flags);
+		break;
+	case EXFAT_GOING_DOWN_NOSYNC:
+		set_bit(EXFAT_FLAGS_SHUTDOWN, &sbi->s_exfat_flags);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (opts->discard)
+		opts->discard = 0;
+	return 0;
+}
+
+static void exfat_shutdown(struct super_block *sb)
+{
+	exfat_force_shutdown(sb, EXFAT_GOING_DOWN_NOSYNC);
+}
+
 static struct inode *exfat_alloc_inode(struct super_block *sb)
 {
 	struct exfat_inode_info *ei;
@@ -193,6 +231,7 @@ static const struct super_operations exfat_sops = {
 	.sync_fs	= exfat_sync_fs,
 	.statfs		= exfat_statfs,
 	.show_options	= exfat_show_options,
+	.shutdown	= exfat_shutdown,
 };
 
 enum {
@@ -370,8 +409,6 @@ static int exfat_read_root(struct inode *inode)
 
 	inode->i_blocks = round_up(i_size_read(inode), sbi->cluster_size) >> 9;
 	ei->i_pos = ((loff_t)sbi->root_dir << 32) | 0xffffffff;
-	ei->i_size_aligned = i_size_read(inode);
-	ei->i_size_ondisk = i_size_read(inode);
 
 	exfat_save_attr(inode, EXFAT_ATTR_SUBDIR);
 	ei->i_crtime = simple_inode_init_ts(inode);

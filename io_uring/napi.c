@@ -270,27 +270,6 @@ int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
 }
 
 /*
- * __io_napi_adjust_timeout() - adjust busy loop timeout
- * @ctx: pointer to io-uring context structure
- * @iowq: pointer to io wait queue
- * @ts: pointer to timespec or NULL
- *
- * Adjust the busy loop timeout according to timespec and busy poll timeout.
- * If the specified NAPI timeout is bigger than the wait timeout, then adjust
- * the NAPI timeout accordingly.
- */
-void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iowq,
-			      ktime_t to_wait)
-{
-	ktime_t poll_dt = READ_ONCE(ctx->napi_busy_poll_dt);
-
-	if (to_wait)
-		poll_dt = min(poll_dt, to_wait);
-
-	iowq->napi_busy_poll_dt = poll_dt;
-}
-
-/*
  * __io_napi_busy_loop() - execute busy poll loop
  * @ctx: pointer to io-uring context structure
  * @iowq: pointer to io wait queue
@@ -299,10 +278,18 @@ void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iow
  */
 void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq)
 {
-	iowq->napi_prefer_busy_poll = READ_ONCE(ctx->napi_prefer_busy_poll);
+	if (ctx->flags & IORING_SETUP_SQPOLL)
+		return;
 
-	if (!(ctx->flags & IORING_SETUP_SQPOLL))
-		io_napi_blocking_busy_loop(ctx, iowq);
+	iowq->napi_busy_poll_dt = READ_ONCE(ctx->napi_busy_poll_dt);
+	if (iowq->timeout != KTIME_MAX) {
+		ktime_t dt = ktime_sub(iowq->timeout, io_get_time(ctx));
+
+		iowq->napi_busy_poll_dt = min_t(u64, iowq->napi_busy_poll_dt, dt);
+	}
+
+	iowq->napi_prefer_busy_poll = READ_ONCE(ctx->napi_prefer_busy_poll);
+	io_napi_blocking_busy_loop(ctx, iowq);
 }
 
 /*

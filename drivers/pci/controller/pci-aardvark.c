@@ -50,7 +50,7 @@
 #define   PIO_COMPLETION_STATUS_MASK		GENMASK(9, 7)
 #define   PIO_COMPLETION_STATUS_OK		0
 #define   PIO_COMPLETION_STATUS_UR		1
-#define   PIO_COMPLETION_STATUS_CRS		2
+#define   PIO_COMPLETION_STATUS_RRS		2
 #define   PIO_COMPLETION_STATUS_CA		4
 #define   PIO_NON_POSTED_REQ			BIT(10)
 #define   PIO_ERR_STATUS			BIT(11)
@@ -262,7 +262,7 @@ enum {
 
 #define MSI_IRQ_NUM			32
 
-#define CFG_RD_CRS_VAL			0xffff0001
+#define CFG_RD_RRS_VAL			0xffff0001
 
 struct advk_pcie {
 	struct platform_device *pdev;
@@ -649,7 +649,7 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 	advk_pcie_train_link(pcie);
 }
 
-static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u32 *val)
+static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_rrs, u32 *val)
 {
 	struct device *dev = &pcie->pdev->dev;
 	u32 reg;
@@ -669,7 +669,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 	 * 2) value Unsupported Request(1) of COMPLETION_STATUS(bit9:7) only
 	 *    means a PIO write error, and for PIO read it is successful with
 	 *    a read value of 0xFFFFFFFF.
-	 * 3) value Completion Retry Status(CRS) of COMPLETION_STATUS(bit9:7)
+	 * 3) value Config Request Retry Status(RRS) of COMPLETION_STATUS(bit9:7)
 	 *    only means a PIO write error, and for PIO read it is successful
 	 *    with a read value of 0xFFFF0001.
 	 * 4) value Completer Abort (CA) of COMPLETION_STATUS(bit9:7) means
@@ -694,10 +694,10 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 		strcomp_status = "UR";
 		ret = -EOPNOTSUPP;
 		break;
-	case PIO_COMPLETION_STATUS_CRS:
-		if (allow_crs && val) {
-			/* PCIe r4.0, sec 2.3.2, says:
-			 * If CRS Software Visibility is enabled:
+	case PIO_COMPLETION_STATUS_RRS:
+		if (allow_rrs && val) {
+			/* PCIe r6.0, sec 2.3.2, says:
+			 * If Configuration RRS Software Visibility is enabled:
 			 * For a Configuration Read Request that includes both
 			 * bytes of the Vendor ID field of a device Function's
 			 * Configuration Space Header, the Root Complex must
@@ -706,22 +706,22 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 			 * all '1's for any additional bytes included in the
 			 * request.
 			 *
-			 * So CRS in this case is not an error status.
+			 * So RRS in this case is not an error status.
 			 */
-			*val = CFG_RD_CRS_VAL;
+			*val = CFG_RD_RRS_VAL;
 			strcomp_status = NULL;
 			ret = 0;
 			break;
 		}
-		/* PCIe r4.0, sec 2.3.2, says:
-		 * If CRS Software Visibility is not enabled, the Root Complex
+		/* PCIe r6.0, sec 2.3.2, says:
+		 * If RRS Software Visibility is not enabled, the Root Complex
 		 * must re-issue the Configuration Request as a new Request.
-		 * If CRS Software Visibility is enabled: For a Configuration
+		 * If RRS Software Visibility is enabled: For a Configuration
 		 * Write Request or for any other Configuration Read Request,
 		 * the Root Complex must re-issue the Configuration Request as
 		 * a new Request.
 		 * A Root Complex implementation may choose to limit the number
-		 * of Configuration Request/CRS Completion Status loops before
+		 * of Configuration Request/RRS Completion Status loops before
 		 * determining that something is wrong with the target of the
 		 * Request and taking appropriate action, e.g., complete the
 		 * Request to the host as a failed transaction.
@@ -729,7 +729,7 @@ static int advk_pcie_check_pio_status(struct advk_pcie *pcie, bool allow_crs, u3
 		 * So return -EAGAIN and caller (pci-aardvark.c driver) will
 		 * re-issue request again up to the PIO_RETRY_CNT retries.
 		 */
-		strcomp_status = "CRS";
+		strcomp_status = "RRS";
 		ret = -EAGAIN;
 		break;
 	case PIO_COMPLETION_STATUS_CA:
@@ -920,8 +920,8 @@ advk_pci_bridge_emul_pcie_conf_write(struct pci_bridge_emul *bridge,
 
 	case PCI_EXP_RTCTL: {
 		u16 rootctl = le16_to_cpu(bridge->pcie_conf.rootctl);
-		/* Only emulation of PMEIE and CRSSVE bits is provided */
-		rootctl &= PCI_EXP_RTCTL_PMEIE | PCI_EXP_RTCTL_CRSSVE;
+		/* Only emulation of PMEIE and RRS_SVE bits is provided */
+		rootctl &= PCI_EXP_RTCTL_PMEIE | PCI_EXP_RTCTL_RRS_SVE;
 		bridge->pcie_conf.rootctl = cpu_to_le16(rootctl);
 		break;
 	}
@@ -1075,7 +1075,7 @@ static int advk_sw_pci_bridge_init(struct advk_pcie *pcie)
 	bridge->pcie_conf.slotsta = cpu_to_le16(PCI_EXP_SLTSTA_PDS);
 
 	/* Indicates supports for Completion Retry Status */
-	bridge->pcie_conf.rootcap = cpu_to_le16(PCI_EXP_RTCAP_CRSVIS);
+	bridge->pcie_conf.rootcap = cpu_to_le16(PCI_EXP_RTCAP_RRS_SV);
 
 	bridge->subsystem_vendor_id = advk_readl(pcie, PCIE_CORE_SSDEV_ID_REG) & 0xffff;
 	bridge->subsystem_id = advk_readl(pcie, PCIE_CORE_SSDEV_ID_REG) >> 16;
@@ -1141,7 +1141,7 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 {
 	struct advk_pcie *pcie = bus->sysdata;
 	int retry_count;
-	bool allow_crs;
+	bool allow_rrs;
 	u32 reg;
 	int ret;
 
@@ -1153,16 +1153,16 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 						 size, val);
 
 	/*
-	 * Completion Retry Status is possible to return only when reading all
-	 * 4 bytes from PCI_VENDOR_ID and PCI_DEVICE_ID registers at once and
-	 * CRSSVE flag on Root Bridge is enabled.
+	 * Configuration Request Retry Status (RRS) is possible to return
+	 * only when reading both bytes from PCI_VENDOR_ID at once and
+	 * RRS_SVE flag on Root Port is enabled.
 	 */
-	allow_crs = (where == PCI_VENDOR_ID) && (size == 4) &&
+	allow_rrs = (where == PCI_VENDOR_ID) && (size >= 2) &&
 		    (le16_to_cpu(pcie->bridge.pcie_conf.rootctl) &
-		     PCI_EXP_RTCTL_CRSSVE);
+		     PCI_EXP_RTCTL_RRS_SVE);
 
 	if (advk_pcie_pio_is_running(pcie))
-		goto try_crs;
+		goto try_rrs;
 
 	/* Program the control register */
 	reg = advk_readl(pcie, PIO_CTRL);
@@ -1189,12 +1189,12 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 
 		ret = advk_pcie_wait_pio(pcie);
 		if (ret < 0)
-			goto try_crs;
+			goto try_rrs;
 
 		retry_count += ret;
 
 		/* Check PIO status and get the read result */
-		ret = advk_pcie_check_pio_status(pcie, allow_crs, val);
+		ret = advk_pcie_check_pio_status(pcie, allow_rrs, val);
 	} while (ret == -EAGAIN && retry_count < PIO_RETRY_CNT);
 
 	if (ret < 0)
@@ -1207,13 +1207,13 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 
 	return PCIBIOS_SUCCESSFUL;
 
-try_crs:
+try_rrs:
 	/*
-	 * If it is possible, return Completion Retry Status so that caller
-	 * tries to issue the request again instead of failing.
+	 * If it is possible, return Configuration Request Retry Status so
+	 * that caller tries to issue the request again instead of failing.
 	 */
-	if (allow_crs) {
-		*val = CFG_RD_CRS_VAL;
+	if (allow_rrs) {
+		*val = CFG_RD_RRS_VAL;
 		return PCIBIOS_SUCCESSFUL;
 	}
 
@@ -1304,12 +1304,6 @@ static void advk_msi_irq_compose_msi_msg(struct irq_data *data,
 	msg->data = data->hwirq;
 }
 
-static int advk_msi_set_affinity(struct irq_data *irq_data,
-				 const struct cpumask *mask, bool force)
-{
-	return -EINVAL;
-}
-
 static void advk_msi_irq_mask(struct irq_data *d)
 {
 	struct advk_pcie *pcie = d->domain->host_data;
@@ -1353,7 +1347,6 @@ static void advk_msi_top_irq_unmask(struct irq_data *d)
 static struct irq_chip advk_msi_bottom_irq_chip = {
 	.name			= "MSI",
 	.irq_compose_msi_msg	= advk_msi_irq_compose_msi_msg,
-	.irq_set_affinity	= advk_msi_set_affinity,
 	.irq_mask		= advk_msi_irq_mask,
 	.irq_unmask		= advk_msi_irq_unmask,
 };
@@ -1451,7 +1444,8 @@ static struct irq_chip advk_msi_irq_chip = {
 
 static struct msi_domain_info advk_msi_domain_info = {
 	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI |
+		  MSI_FLAG_PCI_MSIX,
 	.chip	= &advk_msi_irq_chip,
 };
 

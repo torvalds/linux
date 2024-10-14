@@ -948,7 +948,7 @@ static int gc08a3_start_streaming(struct gc08a3 *gc08a3)
 
 	ret = cci_write(gc08a3->regmap, GC08A3_STREAMING_REG, 1, NULL);
 	if (ret < 0) {
-		dev_err(gc08a3->dev, "write STRAEMING_REG failed: %d\n", ret);
+		dev_err(gc08a3->dev, "write STREAMING_REG failed: %d\n", ret);
 		goto err_rpm_put;
 	}
 

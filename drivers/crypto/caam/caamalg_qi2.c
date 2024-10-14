@@ -22,7 +22,7 @@
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
 #include <crypto/xts.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define CAAM_CRA_PRIORITY	2000
 
@@ -5006,9 +5006,13 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 	struct device *dev = &ls_dev->dev;
 	struct dpaa2_caam_priv *priv;
 	struct dpaa2_caam_priv_per_cpu *ppriv;
-	cpumask_t clean_mask;
+	cpumask_var_t clean_mask;
 	int err, cpu;
 	u8 i;
+
+	err = -ENOMEM;
+	if (!zalloc_cpumask_var(&clean_mask, GFP_KERNEL))
+		goto err_cpumask;
 
 	priv = dev_get_drvdata(dev);
 
@@ -5085,7 +5089,6 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 		}
 	}
 
-	cpumask_clear(&clean_mask);
 	i = 0;
 	for_each_online_cpu(cpu) {
 		u8 j;
@@ -5114,7 +5117,7 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 			err = -ENOMEM;
 			goto err_alloc_netdev;
 		}
-		cpumask_set_cpu(cpu, &clean_mask);
+		cpumask_set_cpu(cpu, clean_mask);
 		ppriv->net_dev->dev = *dev;
 
 		netif_napi_add_tx_weight(ppriv->net_dev, &ppriv->napi,
@@ -5122,15 +5125,19 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 					 DPAA2_CAAM_NAPI_WEIGHT);
 	}
 
-	return 0;
+	err = 0;
+	goto free_cpumask;
 
 err_alloc_netdev:
-	free_dpaa2_pcpu_netdev(priv, &clean_mask);
+	free_dpaa2_pcpu_netdev(priv, clean_mask);
 err_get_rx_queue:
 	dpaa2_dpseci_congestion_free(priv);
 err_get_vers:
 	dpseci_close(priv->mc_io, 0, ls_dev->mc_handle);
 err_open:
+free_cpumask:
+	free_cpumask_var(clean_mask);
+err_cpumask:
 	return err;
 }
 

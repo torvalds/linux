@@ -18,7 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
 #include <linux/nvme.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
@@ -1363,8 +1363,8 @@ static void nvme_rdma_set_sig_domain(struct blk_integrity *bi,
 	if (control & NVME_RW_PRINFO_PRCHK_REF)
 		domain->sig.dif.ref_remap = true;
 
-	domain->sig.dif.app_tag = le16_to_cpu(cmd->rw.apptag);
-	domain->sig.dif.apptag_check_mask = le16_to_cpu(cmd->rw.appmask);
+	domain->sig.dif.app_tag = le16_to_cpu(cmd->rw.lbat);
+	domain->sig.dif.apptag_check_mask = le16_to_cpu(cmd->rw.lbatm);
 	domain->sig.dif.app_escape = true;
 	if (pi_type == NVME_NS_DPS_PI_TYPE3)
 		domain->sig.dif.ref_escape = true;
@@ -1496,7 +1496,7 @@ static int nvme_rdma_dma_map_req(struct ib_device *ibdev, struct request *rq,
 		req->metadata_sgl->sg_table.sgl =
 			(struct scatterlist *)(req->metadata_sgl + 1);
 		ret = sg_alloc_table_chained(&req->metadata_sgl->sg_table,
-				blk_rq_count_integrity_sg(rq->q, rq->bio),
+				rq->nr_integrity_segments,
 				req->metadata_sgl->sg_table.sgl,
 				NVME_INLINE_METADATA_SG_CNT);
 		if (unlikely(ret)) {
@@ -1504,8 +1504,8 @@ static int nvme_rdma_dma_map_req(struct ib_device *ibdev, struct request *rq,
 			goto out_unmap_sg;
 		}
 
-		req->metadata_sgl->nents = blk_rq_map_integrity_sg(rq->q,
-				rq->bio, req->metadata_sgl->sg_table.sgl);
+		req->metadata_sgl->nents = blk_rq_map_integrity_sg(rq,
+				req->metadata_sgl->sg_table.sgl);
 		*pi_count = ib_dma_map_sg(ibdev,
 					  req->metadata_sgl->sg_table.sgl,
 					  req->metadata_sgl->nents,
@@ -1876,6 +1876,8 @@ static int nvme_rdma_route_resolved(struct nvme_rdma_queue *queue)
 		 */
 		priv.hrqsize = cpu_to_le16(queue->queue_size);
 		priv.hsqsize = cpu_to_le16(queue->ctrl->ctrl.sqsize);
+		/* cntlid should only be set when creating an I/O queue */
+		priv.cntlid = cpu_to_le16(ctrl->ctrl.cntlid);
 	}
 
 	ret = rdma_connect_locked(queue->cm_id, &param);

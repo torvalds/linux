@@ -161,14 +161,6 @@ bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
 	/* If this assert is hit then we have a link encoder dynamic management issue */
 	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
 
-	/* Count MST hubs once by treating only 1st remote sink in topology as an encoder */
-	if (pipe_ctx->stream->link && pipe_ctx->stream->link->remote_sinks[0]) {
-		return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
-			pipe_ctx->link_res.hpo_dp_link_enc &&
-			dc_is_dp_signal(pipe_ctx->stream->signal) &&
-			(pipe_ctx->stream->link->remote_sinks[0]->sink_id == pipe_ctx->stream->sink->sink_id));
-	}
-
 	return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
 		pipe_ctx->link_res.hpo_dp_link_enc &&
 		dc_is_dp_signal(pipe_ctx->stream->signal));
@@ -421,7 +413,7 @@ unsigned int dml2_calc_max_scaled_time(
 
 void dml2_extract_writeback_wm(struct dc_state *context, struct display_mode_lib_st *dml_core_ctx)
 {
-	int i, j = 0;;
+	int i, j = 0;
 	struct mcif_arb_params *wb_arb_params = NULL;
 	struct dcn_bw_writeback *bw_writeback = NULL;
 	enum mmhubbub_wbif_mode wbif_mode = PACKED_444_FP16; /*for now*/

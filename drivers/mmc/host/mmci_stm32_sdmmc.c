@@ -213,7 +213,8 @@ static int sdmmc_idma_setup(struct mmci_host *host)
 		host->mmc->max_seg_size = host->mmc->max_req_size;
 	}
 
-	return dma_set_max_seg_size(dev, host->mmc->max_seg_size);
+	dma_set_max_seg_size(dev, host->mmc->max_seg_size);
+	return 0;
 }
 
 static int sdmmc_idma_start(struct mmci_host *host, unsigned int *datactrl)

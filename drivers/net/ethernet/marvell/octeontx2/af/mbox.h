@@ -1856,8 +1856,9 @@ struct cpt_flt_eng_info_req {
 
 struct cpt_flt_eng_info_rsp {
 	struct mbox_msghdr hdr;
-	u64 flt_eng_map[CPT_10K_AF_INT_VEC_RVU];
-	u64 rcvrd_eng_map[CPT_10K_AF_INT_VEC_RVU];
+#define CPT_AF_MAX_FLT_INT_VECS 3
+	u64 flt_eng_map[CPT_AF_MAX_FLT_INT_VECS];
+	u64 rcvrd_eng_map[CPT_AF_MAX_FLT_INT_VECS];
 	u64 rsvd;
 };
 

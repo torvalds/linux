@@ -97,8 +97,9 @@ static void build_check_abi(void)
 	 */
 	ruleset_size = sizeof(ruleset_attr.handled_access_fs);
 	ruleset_size += sizeof(ruleset_attr.handled_access_net);
+	ruleset_size += sizeof(ruleset_attr.scoped);
 	BUILD_BUG_ON(sizeof(ruleset_attr) != ruleset_size);
-	BUILD_BUG_ON(sizeof(ruleset_attr) != 16);
+	BUILD_BUG_ON(sizeof(ruleset_attr) != 24);
 
 	path_beneath_size = sizeof(path_beneath_attr.allowed_access);
 	path_beneath_size += sizeof(path_beneath_attr.parent_fd);
@@ -149,7 +150,7 @@ static const struct file_operations ruleset_fops = {
 	.write = fop_dummy_write,
 };
 
-#define LANDLOCK_ABI_VERSION 5
+#define LANDLOCK_ABI_VERSION 6
 
 /**
  * sys_landlock_create_ruleset - Create a new ruleset
@@ -170,8 +171,9 @@ static const struct file_operations ruleset_fops = {
  * Possible returned errors are:
  *
  * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - %EINVAL: unknown @flags, or unknown access, or too small @size;
- * - %E2BIG or %EFAULT: @attr or @size inconsistencies;
+ * - %EINVAL: unknown @flags, or unknown access, or unknown scope, or too small @size;
+ * - %E2BIG: @attr or @size inconsistencies;
+ * - %EFAULT: @attr or @size inconsistencies;
  * - %ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
  */
 SYSCALL_DEFINE3(landlock_create_ruleset,
@@ -213,9 +215,14 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 	    LANDLOCK_MASK_ACCESS_NET)
 		return -EINVAL;
 
+	/* Checks IPC scoping content (and 32-bits cast). */
+	if ((ruleset_attr.scoped | LANDLOCK_MASK_SCOPE) != LANDLOCK_MASK_SCOPE)
+		return -EINVAL;
+
 	/* Checks arguments and transforms to kernel struct. */
 	ruleset = landlock_create_ruleset(ruleset_attr.handled_access_fs,
-					  ruleset_attr.handled_access_net);
+					  ruleset_attr.handled_access_net,
+					  ruleset_attr.scoped);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
@@ -238,19 +245,19 @@ static struct landlock_ruleset *get_ruleset_from_fd(const int fd,
 	struct landlock_ruleset *ruleset;
 
 	ruleset_f = fdget(fd);
-	if (!ruleset_f.file)
+	if (!fd_file(ruleset_f))
 		return ERR_PTR(-EBADF);
 
 	/* Checks FD type and access right. */
-	if (ruleset_f.file->f_op != &ruleset_fops) {
+	if (fd_file(ruleset_f)->f_op != &ruleset_fops) {
 		ruleset = ERR_PTR(-EBADFD);
 		goto out_fdput;
 	}
-	if (!(ruleset_f.file->f_mode & mode)) {
+	if (!(fd_file(ruleset_f)->f_mode & mode)) {
 		ruleset = ERR_PTR(-EPERM);
 		goto out_fdput;
 	}
-	ruleset = ruleset_f.file->private_data;
+	ruleset = fd_file(ruleset_f)->private_data;
 	if (WARN_ON_ONCE(ruleset->num_layers != 1)) {
 		ruleset = ERR_PTR(-EINVAL);
 		goto out_fdput;
@@ -277,22 +284,22 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 
 	/* Handles O_PATH. */
 	f = fdget_raw(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 	/*
 	 * Forbids ruleset FDs, internal filesystems (e.g. nsfs), including
 	 * pseudo filesystems that will never be mountable (e.g. sockfs,
 	 * pipefs).
 	 */
-	if ((f.file->f_op == &ruleset_fops) ||
-	    (f.file->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
-	    (f.file->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
-	    d_is_negative(f.file->f_path.dentry) ||
-	    IS_PRIVATE(d_backing_inode(f.file->f_path.dentry))) {
+	if ((fd_file(f)->f_op == &ruleset_fops) ||
+	    (fd_file(f)->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
+	    (fd_file(f)->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
+	    d_is_negative(fd_file(f)->f_path.dentry) ||
+	    IS_PRIVATE(d_backing_inode(fd_file(f)->f_path.dentry))) {
 		err = -EBADFD;
 		goto out_fdput;
 	}
-	*path = f.file->f_path;
+	*path = fd_file(f)->f_path;
 	path_get(path);
 
 out_fdput:

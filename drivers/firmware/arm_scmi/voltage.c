@@ -11,7 +11,7 @@
 #include "protocols.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
-#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20001
 
 #define VOLTAGE_DOMS_NUM_MASK		GENMASK(15, 0)
 #define REMAINING_LEVELS_MASK		GENMASK(31, 16)
@@ -229,8 +229,10 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 		/* Retrieve domain attributes at first ... */
 		put_unaligned_le32(dom, td->tx.buf);
 		/* Skip domain on comms error */
-		if (ph->xops->do_xfer(ph, td))
+		if (ph->xops->do_xfer(ph, td)) {
+			ph->xops->reset_rx_to_maxsz(ph, td);
 			continue;
+		}
 
 		v = vinfo->domains + dom;
 		v->id = dom;

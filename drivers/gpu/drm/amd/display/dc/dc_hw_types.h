@@ -763,13 +763,6 @@ enum scanning_type {
 	SCANNING_TYPE_UNDEFINED
 };
 
-enum chroma_cositing {
-	CHROMA_COSITING_NONE,
-	CHROMA_COSITING_LEFT,
-	CHROMA_COSITING_TOPLEFT,
-	CHROMA_COSITING_COUNT
-};
-
 struct dc_crtc_timing_flags {
 	uint32_t INTERLACE :1;
 	uint32_t HSYNC_POSITIVE_POLARITY :1; /* when set to 1,

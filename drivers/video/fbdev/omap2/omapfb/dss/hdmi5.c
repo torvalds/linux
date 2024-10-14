@@ -834,7 +834,7 @@ static const struct of_device_id hdmi_of_match[] = {
 
 static struct platform_driver omapdss_hdmihw_driver = {
 	.probe		= hdmi5_probe,
-	.remove_new	= hdmi5_remove,
+	.remove		= hdmi5_remove,
 	.driver         = {
 		.name   = "omapdss_hdmi5",
 		.pm	= &hdmi_pm_ops,

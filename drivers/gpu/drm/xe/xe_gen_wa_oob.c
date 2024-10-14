@@ -97,18 +97,26 @@ static int parse(FILE *input, FILE *csource, FILE *cheader)
 
 		if (name) {
 			fprintf(cheader, "\tXE_WA_OOB_%s = %u,\n", name, idx);
-			fprintf(csource, "{ XE_RTP_NAME(\"%s\"), XE_RTP_RULES(%s) },\n",
+
+			/* Close previous entry before starting a new one */
+			if (idx)
+				fprintf(csource, ") },\n");
+
+			fprintf(csource, "{ XE_RTP_NAME(\"%s\"),\n  XE_RTP_RULES(%s",
 				name, rules);
+			idx++;
 		} else {
-			fprintf(csource, "{ XE_RTP_NAME(NULL), XE_RTP_RULES(%s) },\n",
-				rules);
+			fprintf(csource, ", OR,\n\t%s", rules);
 		}
 
-		idx++;
 		lineno++;
 		if (!is_continuation)
 			prev_name = name;
 	}
+
+	/* Close last entry */
+	if (idx)
+		fprintf(csource, ") },\n");
 
 	fprintf(cheader, "\t_XE_WA_OOB_COUNT = %u\n", idx);
 

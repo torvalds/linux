@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 
 #include <media/v4l2-cci.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -24,6 +25,7 @@
 #define MAX96717_PORTS      2
 #define MAX96717_PAD_SINK   0
 #define MAX96717_PAD_SOURCE 1
+#define MAX96717_CSI_NLANES 4
 
 #define MAX96717_DEFAULT_CLKOUT_RATE	24000000UL
 
@@ -38,8 +40,34 @@
 #define MAX96717_DEV_REV_MASK GENMASK(3, 0)
 
 /* VID_TX Z */
+#define MAX96717_VIDEO_TX0 CCI_REG8(0x110)
+#define MAX96717_VIDEO_AUTO_BPP BIT(3)
 #define MAX96717_VIDEO_TX2 CCI_REG8(0x112)
 #define MAX96717_VIDEO_PCLKDET BIT(7)
+
+/* VTX_Z */
+#define MAX96717_VTX0                  CCI_REG8(0x24e)
+#define MAX96717_VTX1                  CCI_REG8(0x24f)
+#define MAX96717_PATTERN_CLK_FREQ      GENMASK(3, 1)
+#define MAX96717_VTX_VS_DLY            CCI_REG24(0x250)
+#define MAX96717_VTX_VS_HIGH           CCI_REG24(0x253)
+#define MAX96717_VTX_VS_LOW            CCI_REG24(0x256)
+#define MAX96717_VTX_V2H               CCI_REG24(0x259)
+#define MAX96717_VTX_HS_HIGH           CCI_REG16(0x25c)
+#define MAX96717_VTX_HS_LOW            CCI_REG16(0x25e)
+#define MAX96717_VTX_HS_CNT            CCI_REG16(0x260)
+#define MAX96717_VTX_V2D               CCI_REG24(0x262)
+#define MAX96717_VTX_DE_HIGH           CCI_REG16(0x265)
+#define MAX96717_VTX_DE_LOW            CCI_REG16(0x267)
+#define MAX96717_VTX_DE_CNT            CCI_REG16(0x269)
+#define MAX96717_VTX29                 CCI_REG8(0x26b)
+#define MAX96717_VTX_MODE              GENMASK(1, 0)
+#define MAX96717_VTX_GRAD_INC          CCI_REG8(0x26c)
+#define MAX96717_VTX_CHKB_COLOR_A      CCI_REG24(0x26d)
+#define MAX96717_VTX_CHKB_COLOR_B      CCI_REG24(0x270)
+#define MAX96717_VTX_CHKB_RPT_CNT_A    CCI_REG8(0x273)
+#define MAX96717_VTX_CHKB_RPT_CNT_B    CCI_REG8(0x274)
+#define MAX96717_VTX_CHKB_ALT          CCI_REG8(0x275)
 
 /* GPIO */
 #define MAX96717_NUM_GPIO         11
@@ -82,6 +110,12 @@
 /* MISC */
 #define PIO_SLEW_1 CCI_REG8(0x570)
 
+enum max96717_vpg_mode {
+	MAX96717_VPG_DISABLED = 0,
+	MAX96717_VPG_CHECKERBOARD = 1,
+	MAX96717_VPG_GRADIENT = 2,
+};
+
 struct max96717_priv {
 	struct i2c_client		  *client;
 	struct regmap			  *regmap;
@@ -89,6 +123,7 @@ struct max96717_priv {
 	struct v4l2_mbus_config_mipi_csi2 mipi_csi2;
 	struct v4l2_subdev                sd;
 	struct media_pad                  pads[MAX96717_PORTS];
+	struct v4l2_ctrl_handler          ctrl_handler;
 	struct v4l2_async_notifier        notifier;
 	struct v4l2_subdev                *source_sd;
 	u16                               source_sd_pad;
@@ -96,6 +131,7 @@ struct max96717_priv {
 	u8                                pll_predef_index;
 	struct clk_hw                     clk_hw;
 	struct gpio_chip                  gpio_chip;
+	enum max96717_vpg_mode            pattern;
 };
 
 static inline struct max96717_priv *sd_to_max96717(struct v4l2_subdev *sd)
@@ -130,6 +166,118 @@ static inline int max96717_start_csi(struct max96717_priv *priv, bool start)
 			       MAX96717_START_PORT_B,
 			       start ? MAX96717_START_PORT_B : 0, NULL);
 }
+
+static int max96717_apply_patgen_timing(struct max96717_priv *priv,
+					struct v4l2_subdev_state *state)
+{
+	struct v4l2_mbus_framefmt *fmt =
+		v4l2_subdev_state_get_format(state, MAX96717_PAD_SOURCE);
+	const u32 h_active = fmt->width;
+	const u32 h_fp = 88;
+	const u32 h_sw = 44;
+	const u32 h_bp = 148;
+	u32 h_tot;
+	const u32 v_active = fmt->height;
+	const u32 v_fp = 4;
+	const u32 v_sw = 5;
+	const u32 v_bp = 36;
+	u32 v_tot;
+	int ret = 0;
+
+	h_tot = h_active + h_fp + h_sw + h_bp;
+	v_tot = v_active + v_fp + v_sw + v_bp;
+
+	/* 75 Mhz pixel clock */
+	cci_update_bits(priv->regmap, MAX96717_VTX1,
+			MAX96717_PATTERN_CLK_FREQ, 0xa, &ret);
+
+	dev_info(&priv->client->dev, "height: %d width: %d\n", fmt->height,
+		 fmt->width);
+
+	cci_write(priv->regmap, MAX96717_VTX_VS_DLY, 0, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_VS_HIGH, v_sw * h_tot, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_VS_LOW,
+		  (v_active + v_fp + v_bp) * h_tot, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_HS_HIGH, h_sw, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_HS_LOW, h_active + h_fp + h_bp,
+		  &ret);
+	cci_write(priv->regmap, MAX96717_VTX_V2D,
+		  h_tot * (v_sw + v_bp) + (h_sw + h_bp), &ret);
+	cci_write(priv->regmap, MAX96717_VTX_HS_CNT, v_tot, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_DE_HIGH, h_active, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_DE_LOW, h_fp + h_sw + h_bp,
+		  &ret);
+	cci_write(priv->regmap, MAX96717_VTX_DE_CNT, v_active, &ret);
+	/* B G R */
+	cci_write(priv->regmap, MAX96717_VTX_CHKB_COLOR_A, 0xfecc00, &ret);
+	/* B G R */
+	cci_write(priv->regmap, MAX96717_VTX_CHKB_COLOR_B, 0x006aa7, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_CHKB_RPT_CNT_A, 0x3c, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_CHKB_RPT_CNT_B, 0x3c, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_CHKB_ALT, 0x3c, &ret);
+	cci_write(priv->regmap, MAX96717_VTX_GRAD_INC, 0x10, &ret);
+
+	return ret;
+}
+
+static int max96717_apply_patgen(struct max96717_priv *priv,
+				 struct v4l2_subdev_state *state)
+{
+	unsigned int val;
+	int ret = 0;
+
+	if (priv->pattern)
+		ret = max96717_apply_patgen_timing(priv, state);
+
+	cci_write(priv->regmap, MAX96717_VTX0, priv->pattern ? 0xfb : 0,
+		  &ret);
+
+	val = FIELD_PREP(MAX96717_VTX_MODE, priv->pattern);
+	cci_update_bits(priv->regmap, MAX96717_VTX29, MAX96717_VTX_MODE,
+			val, &ret);
+	return ret;
+}
+
+static int max96717_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct max96717_priv *priv =
+		container_of(ctrl->handler, struct max96717_priv, ctrl_handler);
+	int ret;
+
+	switch (ctrl->id) {
+	case V4L2_CID_TEST_PATTERN:
+		if (priv->enabled_source_streams)
+			return -EBUSY;
+		priv->pattern = ctrl->val;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Use bpp from bpp register */
+	ret = cci_update_bits(priv->regmap, MAX96717_VIDEO_TX0,
+			      MAX96717_VIDEO_AUTO_BPP,
+			      priv->pattern ? 0 : MAX96717_VIDEO_AUTO_BPP,
+			      NULL);
+
+	/*
+	 * Pattern generator doesn't work with tunnel mode.
+	 * Needs RGB color format and deserializer tunnel mode must be disabled.
+	 */
+	return cci_update_bits(priv->regmap, MAX96717_MIPI_RX_EXT11,
+			       MAX96717_TUN_MODE,
+			       priv->pattern ? 0 : MAX96717_TUN_MODE, &ret);
+}
+
+static const char * const max96717_test_pattern[] = {
+	"Disabled",
+	"Checkerboard",
+	"Gradient"
+};
+
+static const struct v4l2_ctrl_ops max96717_ctrl_ops = {
+	.s_ctrl = max96717_s_ctrl,
+};
 
 static int max96717_gpiochip_get(struct gpio_chip *gpiochip,
 				 unsigned int offset)
@@ -348,24 +496,28 @@ static int max96717_enable_streams(struct v4l2_subdev *sd,
 				   u64 streams_mask)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
-	struct device *dev = &priv->client->dev;
 	u64 sink_streams;
 	int ret;
-
-	sink_streams = v4l2_subdev_state_xlate_streams(state,
-						       MAX96717_PAD_SOURCE,
-						       MAX96717_PAD_SINK,
-						       &streams_mask);
 
 	if (!priv->enabled_source_streams)
 		max96717_start_csi(priv, true);
 
-	ret = v4l2_subdev_enable_streams(priv->source_sd, priv->source_sd_pad,
-					 sink_streams);
-	if (ret) {
-		dev_err(dev, "Fail to start streams:%llu on remote subdev\n",
-			sink_streams);
+	ret = max96717_apply_patgen(priv, state);
+	if (ret)
 		goto stop_csi;
+
+	if (!priv->pattern) {
+		sink_streams =
+			v4l2_subdev_state_xlate_streams(state,
+							MAX96717_PAD_SOURCE,
+							MAX96717_PAD_SINK,
+							&streams_mask);
+
+		ret = v4l2_subdev_enable_streams(priv->source_sd,
+						 priv->source_sd_pad,
+						 sink_streams);
+		if (ret)
+			goto stop_csi;
 	}
 
 	priv->enabled_source_streams |= streams_mask;
@@ -375,6 +527,7 @@ static int max96717_enable_streams(struct v4l2_subdev *sd,
 stop_csi:
 	if (!priv->enabled_source_streams)
 		max96717_start_csi(priv, false);
+
 	return ret;
 }
 
@@ -394,13 +547,23 @@ static int max96717_disable_streams(struct v4l2_subdev *sd,
 	if (!priv->enabled_source_streams)
 		max96717_start_csi(priv, false);
 
-	sink_streams = v4l2_subdev_state_xlate_streams(state,
-						       MAX96717_PAD_SOURCE,
-						       MAX96717_PAD_SINK,
-						       &streams_mask);
+	if (!priv->pattern) {
+		int ret;
 
-	return v4l2_subdev_disable_streams(priv->source_sd, priv->source_sd_pad,
-					   sink_streams);
+		sink_streams =
+			v4l2_subdev_state_xlate_streams(state,
+							MAX96717_PAD_SOURCE,
+							MAX96717_PAD_SINK,
+							&streams_mask);
+
+		ret = v4l2_subdev_disable_streams(priv->source_sd,
+						  priv->source_sd_pad,
+						  sink_streams);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static const struct v4l2_subdev_pad_ops max96717_pad_ops = {
@@ -513,6 +676,19 @@ static int max96717_subdev_init(struct max96717_priv *priv)
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max96717_subdev_ops);
 	priv->sd.internal_ops = &max96717_internal_ops;
 
+	v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
+	priv->sd.ctrl_handler = &priv->ctrl_handler;
+
+	v4l2_ctrl_new_std_menu_items(&priv->ctrl_handler,
+				     &max96717_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(max96717_test_pattern) - 1,
+				     0, 0, max96717_test_pattern);
+	if (priv->ctrl_handler.error) {
+		ret = priv->ctrl_handler.error;
+		goto err_free_ctrl;
+	}
+
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.ops = &max96717_entity_ops;
@@ -552,6 +728,8 @@ err_free_state:
 	v4l2_subdev_cleanup(&priv->sd);
 err_entity_cleanup:
 	media_entity_cleanup(&priv->sd.entity);
+err_free_ctrl:
+	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 
 	return ret;
 }
@@ -563,6 +741,7 @@ static void max96717_subdev_uninit(struct max96717_priv *priv)
 	v4l2_async_nf_cleanup(&priv->notifier);
 	v4l2_subdev_cleanup(&priv->sd);
 	media_entity_cleanup(&priv->sd.entity);
+	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 }
 
 struct max96717_pll_predef_freq {
@@ -588,11 +767,8 @@ max96717_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 static unsigned int max96717_clk_find_best_index(struct max96717_priv *priv,
 						 unsigned long rate)
 {
-	unsigned int i, idx;
-	unsigned long diff_new, diff_old;
-
-	diff_old = U32_MAX;
-	idx = 0;
+	unsigned int i, idx = 0;
+	unsigned long diff_new, diff_old = U32_MAX;
 
 	for (i = 0; i < ARRAY_SIZE(max96717_predef_freqs); i++) {
 		diff_new = abs(rate - max96717_predef_freqs[i].freq);
@@ -679,8 +855,7 @@ static int max96717_register_clkout(struct max96717_priv *priv)
 	struct clk_init_data init = { .ops = &max96717_clk_ops };
 	int ret;
 
-	init.name = kasprintf(GFP_KERNEL, "max96717.%s.clk_out",
-			      dev_name(dev));
+	init.name = kasprintf(GFP_KERNEL, "max96717.%s.clk_out", dev_name(dev));
 	if (!init.name)
 		return -ENOMEM;
 
@@ -763,8 +938,9 @@ static int max96717_init_csi_lanes(struct max96717_priv *priv)
 	 * Unused lanes need to be mapped as well to not have
 	 * the same lanes mapped twice.
 	 */
-	for (; lane < 4; lane++) {
-		unsigned int idx = find_first_zero_bit(&lanes_used, 4);
+	for (; lane < MAX96717_CSI_NLANES; lane++) {
+		unsigned int idx = find_first_zero_bit(&lanes_used,
+						       MAX96717_CSI_NLANES);
 
 		val |= idx << (lane * 2);
 		lanes_used |= BIT(idx);
@@ -818,9 +994,7 @@ static int max96717_hw_init(struct max96717_priv *priv)
 static int max96717_parse_dt(struct max96717_priv *priv)
 {
 	struct device *dev = &priv->client->dev;
-	struct v4l2_fwnode_endpoint vep = {
-		.bus_type = V4L2_MBUS_CSI2_DPHY
-	};
+	struct v4l2_fwnode_endpoint vep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	struct fwnode_handle *ep_fwnode;
 	unsigned char num_data_lanes;
 	int ret;
@@ -838,11 +1012,11 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 		return dev_err_probe(dev, ret, "Failed to parse sink endpoint");
 
 	num_data_lanes = vep.bus.mipi_csi2.num_data_lanes;
-	if (num_data_lanes < 1 || num_data_lanes > 4)
+	if (num_data_lanes < 1 || num_data_lanes > MAX96717_CSI_NLANES)
 		return dev_err_probe(dev, -EINVAL,
 				     "Invalid data lanes must be 1 to 4\n");
 
-	memcpy(&priv->mipi_csi2, &vep.bus.mipi_csi2, sizeof(priv->mipi_csi2));
+	priv->mipi_csi2 = vep.bus.mipi_csi2;
 
 	return 0;
 }

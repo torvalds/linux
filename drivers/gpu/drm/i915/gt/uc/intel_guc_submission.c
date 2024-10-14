@@ -2014,11 +2014,12 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc)
 
 	/*
 	 * Technically possible for either of these values to be non-zero here,
-	 * but very unlikely + harmless. Regardless let's add a warn so we can
+	 * but very unlikely + harmless. Regardless let's add an error so we can
 	 * see in CI if this happens frequently / a precursor to taking down the
 	 * machine.
 	 */
-	GEM_WARN_ON(atomic_read(&guc->outstanding_submission_g2h));
+	if (atomic_read(&guc->outstanding_submission_g2h))
+		guc_err(guc, "Unexpected outstanding GuC to Host in reset finish\n");
 	atomic_set(&guc->outstanding_submission_g2h, 0);
 
 	intel_guc_global_policies_update(guc);
@@ -2842,9 +2843,9 @@ static void prepare_context_registration_info_v70(struct intel_context *ce,
 		ce->parallel.guc.wqi_tail = 0;
 		ce->parallel.guc.wqi_head = 0;
 
-		wq_desc_offset = i915_ggtt_offset(ce->state) +
+		wq_desc_offset = (u64)i915_ggtt_offset(ce->state) +
 				 __get_parent_scratch_offset(ce);
-		wq_base_offset = i915_ggtt_offset(ce->state) +
+		wq_base_offset = (u64)i915_ggtt_offset(ce->state) +
 				 __get_wq_offset(ce);
 		info->wq_desc_lo = lower_32_bits(wq_desc_offset);
 		info->wq_desc_hi = upper_32_bits(wq_desc_offset);
@@ -4506,7 +4507,7 @@ static void guc_default_vfuncs(struct intel_engine_cs *engine)
 	/* Wa_16019325821 */
 	/* Wa_14019159160 */
 	if ((engine->class == COMPUTE_CLASS || engine->class == RENDER_CLASS) &&
-	    IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 70), IP_VER(12, 71)))
+	    IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 70), IP_VER(12, 74)))
 		engine->flags |= I915_ENGINE_USES_WA_HOLD_SWITCHOUT;
 
 	/*

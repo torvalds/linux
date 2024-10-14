@@ -14,6 +14,7 @@ struct xe_sa_manager {
 	struct xe_bo *bo;
 	u64 gpu_addr;
 	void *cpu_ptr;
+	bool is_iomem;
 };
 
 #endif

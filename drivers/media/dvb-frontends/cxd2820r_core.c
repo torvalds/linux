@@ -723,7 +723,7 @@ static void cxd2820r_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cxd2820r_id_table[] = {
-	{"cxd2820r", 0},
+	{ "cxd2820r" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cxd2820r_id_table);

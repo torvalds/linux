@@ -52,9 +52,3 @@ obj-$(CONFIG_BPF_PRELOAD) += preload/
 obj-$(CONFIG_BPF_SYSCALL) += relo_core.o
 obj-$(CONFIG_BPF_SYSCALL) += btf_iter.o
 obj-$(CONFIG_BPF_SYSCALL) += btf_relocate.o
-
-# Some source files are common to libbpf.
-vpath %.c $(srctree)/kernel/bpf:$(srctree)/tools/lib/bpf
-
-$(obj)/%.o: %.c FORCE
-	$(call if_changed_rule,cc_o_c)

@@ -1413,7 +1413,7 @@ recur:
 		return true;
 	case BTF_KIND_PTR:
 		/* just validate overall shape of the referenced type, so no
-		 * contents comparison for struct/union, and allowd fwd vs
+		 * contents comparison for struct/union, and allowed fwd vs
 		 * struct/union
 		 */
 		exact = false;
@@ -1962,7 +1962,7 @@ static int linker_append_elf_sym(struct bpf_linker *linker, struct src_obj *obj,
 
 		/* If existing symbol is a strong resolved symbol, bail out,
 		 * because we lost resolution battle have nothing to
-		 * contribute. We already checked abover that there is no
+		 * contribute. We already checked above that there is no
 		 * strong-strong conflict. We also already tightened binding
 		 * and visibility, so nothing else to contribute at that point.
 		 */
