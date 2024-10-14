@@ -606,7 +606,7 @@ void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_xcp_res_details *xcp_res;
 	struct amdgpu_xcp_cfg *xcp_cfg;
-	int i, r, j, rid;
+	int i, r, j, rid, mode;
 
 	if (!adev->xcp_mgr)
 		return;
@@ -625,11 +625,15 @@ void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev)
 	if (r)
 		goto err1;
 
-	r = amdgpu_xcp_get_res_info(xcp_cfg->xcp_mgr, xcp_cfg->xcp_mgr->mode, xcp_cfg);
+	mode = (xcp_cfg->xcp_mgr->mode ==
+		AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE) ?
+		       AMDGPU_SPX_PARTITION_MODE :
+		       xcp_cfg->xcp_mgr->mode;
+	r = amdgpu_xcp_get_res_info(xcp_cfg->xcp_mgr, mode, xcp_cfg);
 	if (r)
 		goto err1;
 
-	xcp_cfg->mode = xcp_cfg->xcp_mgr->mode;
+	xcp_cfg->mode = mode;
 	for (i = 0; i < xcp_cfg->num_res; i++) {
 		xcp_res = &xcp_cfg->xcp_res[i];
 		rid = xcp_res->id;
