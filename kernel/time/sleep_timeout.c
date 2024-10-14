@@ -110,8 +110,17 @@ signed long __sched schedule_timeout(signed long timeout)
 EXPORT_SYMBOL(schedule_timeout);
 
 /*
- * We can use __set_current_state() here because schedule_timeout() calls
- * schedule() unconditionally.
+ * __set_current_state() can be used in schedule_timeout_*() functions, because
+ * schedule_timeout() calls schedule() unconditionally.
+ */
+
+/**
+ * schedule_timeout_interruptible - sleep until timeout (interruptible)
+ * @timeout: timeout value in jiffies
+ *
+ * See schedule_timeout() for details.
+ *
+ * Task state is set to TASK_INTERRUPTIBLE before starting the timeout.
  */
 signed long __sched schedule_timeout_interruptible(signed long timeout)
 {
@@ -120,6 +129,14 @@ signed long __sched schedule_timeout_interruptible(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout_interruptible);
 
+/**
+ * schedule_timeout_killable - sleep until timeout (killable)
+ * @timeout: timeout value in jiffies
+ *
+ * See schedule_timeout() for details.
+ *
+ * Task state is set to TASK_KILLABLE before starting the timeout.
+ */
 signed long __sched schedule_timeout_killable(signed long timeout)
 {
 	__set_current_state(TASK_KILLABLE);
@@ -127,6 +144,14 @@ signed long __sched schedule_timeout_killable(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout_killable);
 
+/**
+ * schedule_timeout_uninterruptible - sleep until timeout (uninterruptible)
+ * @timeout: timeout value in jiffies
+ *
+ * See schedule_timeout() for details.
+ *
+ * Task state is set to TASK_UNINTERRUPTIBLE before starting the timeout.
+ */
 signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 {
 	__set_current_state(TASK_UNINTERRUPTIBLE);
@@ -134,9 +159,15 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
-/*
- * Like schedule_timeout_uninterruptible(), except this task will not contribute
- * to load average.
+/**
+ * schedule_timeout_idle - sleep until timeout (idle)
+ * @timeout: timeout value in jiffies
+ *
+ * See schedule_timeout() for details.
+ *
+ * Task state is set to TASK_IDLE before starting the timeout. It is similar to
+ * schedule_timeout_uninterruptible(), except this task will not contribute to
+ * load average.
  */
 signed long __sched schedule_timeout_idle(signed long timeout)
 {
@@ -151,6 +182,9 @@ EXPORT_SYMBOL(schedule_timeout_idle);
  * @delta:	slack in expires timeout (ktime_t)
  * @mode:	timer mode
  * @clock_id:	timer clock to be used
+ *
+ * Details are explained in schedule_hrtimeout_range() function description as
+ * this function is commonly used.
  */
 int __sched schedule_hrtimeout_range_clock(ktime_t *expires, u64 delta,
 					   const enum hrtimer_mode mode, clockid_t clock_id)
@@ -236,26 +270,8 @@ EXPORT_SYMBOL_GPL(schedule_hrtimeout_range);
  * @expires:	timeout value (ktime_t)
  * @mode:	timer mode
  *
- * Make the current task sleep until the given expiry time has
- * elapsed. The routine will return immediately unless
- * the current task state has been set (see set_current_state()).
- *
- * You can set the task state as follows -
- *
- * %TASK_UNINTERRUPTIBLE - at least @timeout time is guaranteed to
- * pass before the routine returns unless the current task is explicitly
- * woken up, (e.g. by wake_up_process()).
- *
- * %TASK_INTERRUPTIBLE - the routine may return early if a signal is
- * delivered to the current task or the current task is explicitly woken
- * up.
- *
- * The current task state is guaranteed to be TASK_RUNNING when this
- * routine returns.
- *
- * Returns: 0 when the timer has expired. If the task was woken before the
- * timer expired by a signal (only possible in state TASK_INTERRUPTIBLE) or
- * by an explicit wakeup, it returns -EINTR.
+ * See schedule_hrtimeout_range() for details. @delta argument of
+ * schedule_hrtimeout_range() is set to 0 and has therefore no impact.
  */
 int __sched schedule_hrtimeout(ktime_t *expires, const enum hrtimer_mode mode)
 {
