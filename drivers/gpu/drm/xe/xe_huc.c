@@ -229,7 +229,7 @@ bool xe_huc_is_authenticated(struct xe_huc *huc, enum xe_huc_auth_types type)
 {
 	struct xe_gt *gt = huc_to_gt(huc);
 
-	return xe_mmio_read32(gt, huc_auth_modes[type].reg) & huc_auth_modes[type].val;
+	return xe_mmio_read32(&gt->mmio, huc_auth_modes[type].reg) & huc_auth_modes[type].val;
 }
 
 int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
@@ -268,7 +268,7 @@ int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 		goto fail;
 	}
 
-	ret = xe_mmio_wait32(gt, huc_auth_modes[type].reg, huc_auth_modes[type].val,
+	ret = xe_mmio_wait32(&gt->mmio, huc_auth_modes[type].reg, huc_auth_modes[type].val,
 			     huc_auth_modes[type].val, 100000, NULL, false);
 	if (ret) {
 		xe_gt_err(gt, "HuC: firmware not verified: %pe\n", ERR_PTR(ret));
@@ -308,7 +308,7 @@ void xe_huc_print_info(struct xe_huc *huc, struct drm_printer *p)
 		return;
 
 	drm_printf(p, "\nHuC status: 0x%08x\n",
-		   xe_mmio_read32(gt, HUC_KERNEL_LOAD_INFO));
+		   xe_mmio_read32(&gt->mmio, HUC_KERNEL_LOAD_INFO));
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 }

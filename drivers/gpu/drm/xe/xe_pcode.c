@@ -44,7 +44,7 @@ static int pcode_mailbox_status(struct xe_tile *tile)
 		[PCODE_ERROR_MASK] = {-EPROTO, "Unknown"},
 	};
 
-	err = xe_mmio_read32(tile->primary_gt, PCODE_MAILBOX) & PCODE_ERROR_MASK;
+	err = xe_mmio_read32(&tile->mmio, PCODE_MAILBOX) & PCODE_ERROR_MASK;
 	if (err) {
 		drm_err(&tile_to_xe(tile)->drm, "PCODE Mailbox failed: %d %s", err,
 			err_decode[err].str ?: "Unknown");
@@ -58,7 +58,7 @@ static int __pcode_mailbox_rw(struct xe_tile *tile, u32 mbox, u32 *data0, u32 *d
 			      unsigned int timeout_ms, bool return_data,
 			      bool atomic)
 {
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_mmio *mmio = &tile->mmio;
 	int err;
 
 	if (tile_to_xe(tile)->info.skip_pcode)

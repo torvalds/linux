@@ -14,7 +14,6 @@
 
 #include "xe_devcoredump_types.h"
 #include "xe_heci_gsc.h"
-#include "xe_gt_types.h"
 #include "xe_lmtt_types.h"
 #include "xe_memirq_types.h"
 #include "xe_oa.h"
@@ -108,6 +107,45 @@ struct xe_mem_region {
 };
 
 /**
+ * struct xe_mmio - register mmio structure
+ *
+ * Represents an MMIO region that the CPU may use to access registers.  A
+ * region may share its IO map with other regions (e.g., all GTs within a
+ * tile share the same map with their parent tile, but represent different
+ * subregions of the overall IO space).
+ */
+struct xe_mmio {
+	/** @tile: Backpointer to tile, used for tracing */
+	struct xe_tile *tile;
+
+	/** @regs: Map used to access registers. */
+	void __iomem *regs;
+
+	/**
+	 * @sriov_vf_gt: Backpointer to GT.
+	 *
+	 * This pointer is only set for GT MMIO regions and only when running
+	 * as an SRIOV VF structure
+	 */
+	struct xe_gt *sriov_vf_gt;
+
+	/**
+	 * @regs_size: Length of the register region within the map.
+	 *
+	 * The size of the iomap set in *regs is generally larger than the
+	 * register mmio space since it includes unused regions and/or
+	 * non-register regions such as the GGTT PTEs.
+	 */
+	size_t regs_size;
+
+	/** @adj_limit: adjust MMIO address if address is below this value */
+	u32 adj_limit;
+
+	/** @adj_offset: offset to add to MMIO address when adjusting */
+	u32 adj_offset;
+};
+
+/**
  * struct xe_tile - hardware tile structure
  *
  * From a driver perspective, a "tile" is effectively a complete GPU, containing
@@ -148,26 +186,14 @@ struct xe_tile {
 	 * * 4MB-8MB: reserved
 	 * * 8MB-16MB: global GTT
 	 */
-	struct {
-		/** @mmio.size: size of tile's MMIO space */
-		size_t size;
-
-		/** @mmio.regs: pointer to tile's MMIO space (starting with registers) */
-		void __iomem *regs;
-	} mmio;
+	struct xe_mmio mmio;
 
 	/**
 	 * @mmio_ext: MMIO-extension info for a tile.
 	 *
 	 * Each tile has its own additional 256MB (28-bit) MMIO-extension space.
 	 */
-	struct {
-		/** @mmio_ext.size: size of tile's additional MMIO-extension space */
-		size_t size;
-
-		/** @mmio_ext.regs: pointer to tile's additional MMIO-extension space */
-		void __iomem *regs;
-	} mmio_ext;
+	struct xe_mmio mmio_ext;
 
 	/** @mem: memory management info for tile */
 	struct {
@@ -200,13 +226,13 @@ struct xe_tile {
 			struct xe_lmtt lmtt;
 		} pf;
 		struct {
-			/** @sriov.vf.memirq: Memory Based Interrupts. */
-			struct xe_memirq memirq;
-
 			/** @sriov.vf.ggtt_balloon: GGTT regions excluded from use. */
 			struct xe_ggtt_node *ggtt_balloon[2];
 		} vf;
 	} sriov;
+
+	/** @memirq: Memory Based Interrupts. */
+	struct xe_memirq memirq;
 
 	/** @pcode: tile's PCODE */
 	struct {
@@ -369,7 +395,7 @@ struct xe_device {
 		/** @usm.next_asid: next ASID, used to cyclical alloc asids */
 		u32 next_asid;
 		/** @usm.lock: protects UM state */
-		struct mutex lock;
+		struct rw_semaphore lock;
 	} usm;
 
 	/** @pinned: pinned BO state */
@@ -395,6 +421,9 @@ struct xe_device {
 
 	/** @unordered_wq: used to serialize unordered work, mostly display */
 	struct workqueue_struct *unordered_wq;
+
+	/** @destroy_wq: used to serialize user destroy work, like queue */
+	struct workqueue_struct *destroy_wq;
 
 	/** @tiles: device tiles */
 	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
@@ -567,15 +596,23 @@ struct xe_file {
 	struct {
 		/** @vm.xe: xarray to store VMs */
 		struct xarray xa;
-		/** @vm.lock: protects file VM state */
+		/**
+		 * @vm.lock: Protects VM lookup + reference and removal a from
+		 * file xarray. Not an intended to be an outer lock which does
+		 * thing while being held.
+		 */
 		struct mutex lock;
 	} vm;
 
 	/** @exec_queue: Submission exec queue state for file */
 	struct {
-		/** @exec_queue.xe: xarray to store engines */
+		/** @exec_queue.xa: xarray to store exece queues */
 		struct xarray xa;
-		/** @exec_queue.lock: protects file engine state */
+		/**
+		 * @exec_queue.lock: Protects exec queue lookup + reference and
+		 * removal a frommfile xarray. Not an intended to be an outer
+		 * lock which does thing while being held.
+		 */
 		struct mutex lock;
 	} exec_queue;
 

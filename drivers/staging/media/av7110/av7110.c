@@ -32,7 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/byteorder.h>
 
 #include <linux/dvb/frontend.h>

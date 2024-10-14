@@ -10,7 +10,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/mfd/syscon.h>
 #include <linux/soc/mediatek/mtk_wed.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mtk_wed_regs.h"
 #include "mtk_wed_wo.h"

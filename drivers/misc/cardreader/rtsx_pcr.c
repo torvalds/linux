@@ -19,7 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/rtsx_pci.h>
 #include <linux/mmc/card.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 

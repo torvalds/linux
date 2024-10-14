@@ -1477,6 +1477,7 @@ static const struct file_operations panthor_drm_driver_fops = {
 	.llseek = noop_llseek,
 	.mmap = panthor_mmap,
 	.show_fdinfo = drm_show_fdinfo,
+	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
 
 #ifdef CONFIG_DEBUG_FS

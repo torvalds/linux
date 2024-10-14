@@ -22,7 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/sizes.h>
 #include <linux/timer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define EXC3000_NUM_SLOTS		10
 #define EXC3000_SLOTS_PER_FRAME		5

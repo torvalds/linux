@@ -13,7 +13,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "nls_ucs2_utils.h"
 
 MODULE_DESCRIPTION("NLS UCS-2");

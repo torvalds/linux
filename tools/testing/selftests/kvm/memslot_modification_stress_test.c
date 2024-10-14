@@ -169,12 +169,14 @@ int main(int argc, char *argv[])
 		case 'i':
 			p.nr_iterations = atoi_positive("Number of iterations", optarg);
 			break;
+#ifdef __x86_64__
 		case 'q':
 			p.disable_slot_zap_quirk = true;
 
 			TEST_REQUIRE(kvm_check_cap(KVM_CAP_DISABLE_QUIRKS2) &
 				     KVM_X86_QUIRK_SLOT_ZAP_ALL);
 			break;
+#endif
 		case 'h':
 		default:
 			help(argv[0]);

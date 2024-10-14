@@ -1033,7 +1033,7 @@ static ssize_t iter_folioq_get_pages(struct iov_iter *iter,
 		if (maxpages == 0 || extracted >= maxsize)
 			break;
 
-		if (offset >= fsize) {
+		if (iov_offset >= fsize) {
 			iov_offset = 0;
 			slot++;
 			if (slot == folioq_nr_slots(folioq) && folioq->next) {

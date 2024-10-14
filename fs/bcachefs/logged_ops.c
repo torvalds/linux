@@ -34,8 +34,6 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 			    struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	const struct bch_logged_op_fn *fn = logged_op_fn(k.k->type);
-	struct bkey_buf sk;
 	u32 restart_count = trans->restart_count;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
@@ -46,13 +44,15 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 		    (bch2_bkey_val_to_text(&buf, c, k),
 		     buf.buf));
 
-	if (!fn)
-		return 0;
-
+	struct bkey_buf sk;
 	bch2_bkey_buf_init(&sk);
 	bch2_bkey_buf_reassemble(&sk, c, k);
 
-	fn->resume(trans, sk.k);
+	const struct bch_logged_op_fn *fn = logged_op_fn(sk.k->k.type);
+	if (fn)
+		fn->resume(trans, sk.k);
+
+	ret = bch2_logged_op_finish(trans, sk.k);
 
 	bch2_bkey_buf_exit(&sk, c);
 fsck_err:
@@ -93,7 +93,7 @@ int bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 			 __bch2_logged_op_start(trans, k));
 }
 
-void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
+int bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 {
 	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			    bch2_btree_delete(trans, BTREE_ID_logged_ops, k->k.p, 0));
@@ -113,4 +113,6 @@ void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 				    buf.buf, bch2_err_str(ret));
 		printbuf_exit(&buf);
 	}
+
+	return ret;
 }

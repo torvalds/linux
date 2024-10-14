@@ -17,8 +17,25 @@ enum xe_engine_class;
 struct xe_gt;
 struct xe_hw_engine;
 struct xe_lrc;
-struct xe_lrc_snapshot;
 struct xe_vm;
+
+struct xe_lrc_snapshot {
+	struct xe_bo *lrc_bo;
+	void *lrc_snapshot;
+	unsigned long lrc_size, lrc_offset;
+
+	u32 context_desc;
+	u32 indirect_context_desc;
+	u32 head;
+	struct {
+		u32 internal;
+		u32 memory;
+	} tail;
+	u32 start_seqno;
+	u32 seqno;
+	u32 ctx_timestamp;
+	u32 ctx_job_timestamp;
+};
 
 #define LRC_PPHWSP_SCRATCH_ADDR (0x34 * 4)
 

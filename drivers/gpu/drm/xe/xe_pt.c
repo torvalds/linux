@@ -2188,5 +2188,5 @@ void xe_pt_update_ops_abort(struct xe_tile *tile, struct xe_vma_ops *vops)
 					   pt_op->num_entries);
 	}
 
-	xe_bo_put_commit(&vops->pt_update_ops[tile->id].deferred);
+	xe_pt_update_ops_fini(tile, vops);
 }

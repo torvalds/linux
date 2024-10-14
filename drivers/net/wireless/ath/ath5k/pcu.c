@@ -24,7 +24,7 @@
 * Protocol Control Unit Functions *
 \*********************************/
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ath5k.h"
 #include "reg.h"

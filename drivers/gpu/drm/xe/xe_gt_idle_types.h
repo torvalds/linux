@@ -23,6 +23,8 @@ enum xe_gt_idle_state {
 struct xe_gt_idle {
 	/** @name: name */
 	char name[16];
+	/** @powergate_enable: copy of powergate enable bits */
+	u32 powergate_enable;
 	/** @residency_multiplier: residency multiplier in ns */
 	u32 residency_multiplier;
 	/** @cur_residency: raw driver copy of idle residency */

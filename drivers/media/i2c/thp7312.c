@@ -4,7 +4,7 @@
  * Copyright (C) 2023 Ideas on Board Oy
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>

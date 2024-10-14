@@ -14,7 +14,7 @@
 #include <crypto/internal/poly1305.h>
 #include <crypto/internal/simd.h>
 #include <linux/cpufeature.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/simd.h>
 #include <asm/switch_to.h>
 

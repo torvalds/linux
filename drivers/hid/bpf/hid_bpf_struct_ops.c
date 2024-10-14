@@ -276,9 +276,23 @@ static int __hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx)
 	return 0;
 }
 
+static int __hid_bpf_hw_request(struct hid_bpf_ctx *ctx, unsigned char reportnum,
+				enum hid_report_type rtype, enum hid_class_request reqtype,
+				u64 source)
+{
+	return 0;
+}
+
+static int __hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, u64 source)
+{
+	return 0;
+}
+
 static struct hid_bpf_ops __bpf_hid_bpf_ops = {
 	.hid_device_event = __hid_bpf_device_event,
 	.hid_rdesc_fixup = __hid_bpf_rdesc_fixup,
+	.hid_hw_request = __hid_bpf_hw_request,
+	.hid_hw_output_report = __hid_bpf_hw_output_report,
 };
 
 static struct bpf_struct_ops bpf_hid_bpf_ops = {

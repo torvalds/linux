@@ -262,7 +262,7 @@ static void pc_set_manual_rp_ctrl(struct xe_guc_pc *pc, bool enable)
 	u32 state = enable ? RPSWCTL_ENABLE : RPSWCTL_DISABLE;
 
 	/* Allow/Disallow punit to process software freq requests */
-	xe_mmio_write32(gt, RP_CONTROL, state);
+	xe_mmio_write32(&gt->mmio, RP_CONTROL, state);
 }
 
 static void pc_set_cur_freq(struct xe_guc_pc *pc, u32 freq)
@@ -274,7 +274,7 @@ static void pc_set_cur_freq(struct xe_guc_pc *pc, u32 freq)
 
 	/* Req freq is in units of 16.66 Mhz */
 	rpnswreq = REG_FIELD_PREP(REQ_RATIO_MASK, encode_freq(freq));
-	xe_mmio_write32(gt, RPNSWREQ, rpnswreq);
+	xe_mmio_write32(&gt->mmio, RPNSWREQ, rpnswreq);
 
 	/* Sleep for a small time to allow pcode to respond */
 	usleep_range(100, 300);
@@ -334,9 +334,9 @@ static void mtl_update_rpe_value(struct xe_guc_pc *pc)
 	u32 reg;
 
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MPE_FREQUENCY);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MPE_FREQUENCY);
 	else
-		reg = xe_mmio_read32(gt, MTL_GT_RPE_FREQUENCY);
+		reg = xe_mmio_read32(&gt->mmio, MTL_GT_RPE_FREQUENCY);
 
 	pc->rpe_freq = decode_freq(REG_FIELD_GET(MTL_RPE_MASK, reg));
 }
@@ -353,9 +353,9 @@ static void tgl_update_rpe_value(struct xe_guc_pc *pc)
 	 * PCODE at a different register
 	 */
 	if (xe->info.platform == XE_PVC)
-		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, FREQ_INFO_REC);
+		reg = xe_mmio_read32(&gt->mmio, FREQ_INFO_REC);
 
 	pc->rpe_freq = REG_FIELD_GET(RPE_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
@@ -392,10 +392,10 @@ u32 xe_guc_pc_get_act_freq(struct xe_guc_pc *pc)
 
 	/* When in RC6, actual frequency reported will be 0. */
 	if (GRAPHICS_VERx100(xe) >= 1270) {
-		freq = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
+		freq = xe_mmio_read32(&gt->mmio, MTL_MIRROR_TARGET_WP1);
 		freq = REG_FIELD_GET(MTL_CAGF_MASK, freq);
 	} else {
-		freq = xe_mmio_read32(gt, GT_PERF_STATUS);
+		freq = xe_mmio_read32(&gt->mmio, GT_PERF_STATUS);
 		freq = REG_FIELD_GET(CAGF_MASK, freq);
 	}
 
@@ -425,7 +425,7 @@ int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 	if (ret)
 		return ret;
 
-	*freq = xe_mmio_read32(gt, RPNSWREQ);
+	*freq = xe_mmio_read32(&gt->mmio, RPNSWREQ);
 
 	*freq = REG_FIELD_GET(REQ_RATIO_MASK, *freq);
 	*freq = decode_freq(*freq);
@@ -612,10 +612,10 @@ enum xe_gt_idle_state xe_guc_pc_c_status(struct xe_guc_pc *pc)
 	u32 reg, gt_c_state;
 
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
-		reg = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MIRROR_TARGET_WP1);
 		gt_c_state = REG_FIELD_GET(MTL_CC_MASK, reg);
 	} else {
-		reg = xe_mmio_read32(gt, GT_CORE_STATUS);
+		reg = xe_mmio_read32(&gt->mmio, GT_CORE_STATUS);
 		gt_c_state = REG_FIELD_GET(RCN_MASK, reg);
 	}
 
@@ -638,7 +638,7 @@ u64 xe_guc_pc_rc6_residency(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	u32 reg;
 
-	reg = xe_mmio_read32(gt, GT_GFX_RC6);
+	reg = xe_mmio_read32(&gt->mmio, GT_GFX_RC6);
 
 	return reg;
 }
@@ -652,7 +652,7 @@ u64 xe_guc_pc_mc6_residency(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	u64 reg;
 
-	reg = xe_mmio_read32(gt, MTL_MEDIA_MC6);
+	reg = xe_mmio_read32(&gt->mmio, MTL_MEDIA_MC6);
 
 	return reg;
 }
@@ -665,9 +665,9 @@ static void mtl_init_fused_rp_values(struct xe_guc_pc *pc)
 	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MEDIAP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MEDIAP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, MTL_RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, MTL_RP_STATE_CAP);
 
 	pc->rp0_freq = decode_freq(REG_FIELD_GET(MTL_RP0_CAP_MASK, reg));
 
@@ -683,9 +683,9 @@ static void tgl_init_fused_rp_values(struct xe_guc_pc *pc)
 	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	if (xe->info.platform == XE_PVC)
-		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, RP_STATE_CAP);
 	pc->rp0_freq = REG_FIELD_GET(RP0_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 	pc->rpn_freq = REG_FIELD_GET(RPN_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }

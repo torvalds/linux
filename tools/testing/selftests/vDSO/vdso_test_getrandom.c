@@ -59,10 +59,12 @@ static void *vgetrandom_get_state(void)
 		size_t page_size = getpagesize();
 		size_t new_cap;
 		size_t alloc_size, num = sysconf(_SC_NPROCESSORS_ONLN); /* Just a decent heuristic. */
+		size_t state_size_aligned, cache_line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE) ?: 1;
 		void *new_block, *new_states;
 
-		alloc_size = (num * vgrnd.params.size_of_opaque_state + page_size - 1) & (~(page_size - 1));
-		num = (page_size / vgrnd.params.size_of_opaque_state) * (alloc_size / page_size);
+		state_size_aligned = (vgrnd.params.size_of_opaque_state + cache_line_size - 1) & (~(cache_line_size - 1));
+		alloc_size = (num * state_size_aligned + page_size - 1) & (~(page_size - 1));
+		num = (page_size / state_size_aligned) * (alloc_size / page_size);
 		new_block = mmap(0, alloc_size, vgrnd.params.mmap_prot, vgrnd.params.mmap_flags, -1, 0);
 		if (new_block == MAP_FAILED)
 			goto out;
@@ -78,7 +80,7 @@ static void *vgetrandom_get_state(void)
 			if (((uintptr_t)new_block & (page_size - 1)) + vgrnd.params.size_of_opaque_state > page_size)
 				new_block = (void *)(((uintptr_t)new_block + page_size - 1) & (~(page_size - 1)));
 			vgrnd.states[i] = new_block;
-			new_block += vgrnd.params.size_of_opaque_state;
+			new_block += state_size_aligned;
 		}
 		vgrnd.len = num;
 		goto success;

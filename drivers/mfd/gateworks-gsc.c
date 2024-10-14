@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * The GSC suffers from an errata where occasionally during

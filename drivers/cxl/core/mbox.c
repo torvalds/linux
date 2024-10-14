@@ -4,7 +4,7 @@
 #include <linux/debugfs.h>
 #include <linux/ktime.h>
 #include <linux/mutex.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <cxlpci.h>
 #include <cxlmem.h>
 #include <cxl.h>

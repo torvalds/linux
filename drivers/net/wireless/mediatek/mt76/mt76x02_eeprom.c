@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mt76x02_eeprom.h"
 

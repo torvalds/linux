@@ -10,7 +10,7 @@
 
 #include <drm/drm_print.h>
 
-#include "xe_device_types.h"
+#include "xe_gt_types.h"
 #include "xe_step.h"
 
 /**

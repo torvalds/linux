@@ -128,7 +128,7 @@ struct xe_reg_mcr {
  *       options.
  */
 #define XE_REG_MCR(r_, ...)	((const struct xe_reg_mcr){					\
-				 .__reg = XE_REG_INITIALIZER(r_,  ##__VA_ARGS__, .mcr = 1)	\
+				 .__reg = XE_REG_INITIALIZER(r_, ##__VA_ARGS__, .mcr = 1)	\
 				 })
 
 static inline bool xe_reg_is_valid(struct xe_reg r)

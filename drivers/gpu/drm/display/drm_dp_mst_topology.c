@@ -6083,6 +6083,7 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 	struct drm_dp_aux *immediate_upstream_aux;
 	struct drm_dp_mst_port *fec_port;
 	struct drm_dp_desc desc = {};
+	u8 upstream_dsc;
 	u8 endpoint_fec;
 	u8 endpoint_dsc;
 
@@ -6109,8 +6110,6 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 
 	/* DP-to-DP peer device */
 	if (drm_dp_mst_is_virtual_dpcd(immediate_upstream_port)) {
-		u8 upstream_dsc;
-
 		if (drm_dp_dpcd_read(&port->aux,
 				     DP_DSC_SUPPORT, &endpoint_dsc, 1) != 1)
 			return NULL;
@@ -6155,6 +6154,13 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 
 	if (drm_dp_has_quirk(&desc, DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD)) {
 		u8 dpcd_ext[DP_RECEIVER_CAP_SIZE];
+
+		if (drm_dp_dpcd_read(immediate_upstream_aux,
+				     DP_DSC_SUPPORT, &upstream_dsc, 1) != 1)
+			return NULL;
+
+		if (!(upstream_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED))
+			return NULL;
 
 		if (drm_dp_read_dpcd_caps(immediate_upstream_aux, dpcd_ext) < 0)
 			return NULL;
