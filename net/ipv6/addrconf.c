@@ -7406,6 +7406,27 @@ static struct rtnl_af_ops inet6_ops __read_mostly = {
 	.set_link_af	  = inet6_set_link_af,
 };
 
+static const struct rtnl_msg_handler addrconf_rtnl_msg_handlers[] __initconst_or_module = {
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETLINK,
+	 .dumpit = inet6_dump_ifinfo, .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_NEWADDR,
+	 .doit = inet6_rtm_newaddr},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_DELADDR,
+	 .doit = inet6_rtm_deladdr},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETADDR,
+	 .doit = inet6_rtm_getaddr, .dumpit = inet6_dump_ifaddr,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETMULTICAST,
+	 .dumpit = inet6_dump_ifmcaddr,
+	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETANYCAST,
+	 .dumpit = inet6_dump_ifacaddr,
+	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_INET6, .msgtype = RTM_GETNETCONF,
+	 .doit = inet6_netconf_get_devconf, .dumpit = inet6_netconf_dump_devconf,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
+};
+
 /*
  *	Init / cleanup code
  */
@@ -7449,42 +7470,10 @@ int __init addrconf_init(void)
 
 	rtnl_af_register(&inet6_ops);
 
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETLINK,
-				   NULL, inet6_dump_ifinfo, RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
+	err = rtnl_register_many(addrconf_rtnl_msg_handlers);
+	if (err)
 		goto errout;
 
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_NEWADDR,
-				   inet6_rtm_newaddr, NULL, 0);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_DELADDR,
-				   inet6_rtm_deladdr, NULL, 0);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETADDR,
-				   inet6_rtm_getaddr, inet6_dump_ifaddr,
-				   RTNL_FLAG_DOIT_UNLOCKED |
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETMULTICAST,
-				   NULL, inet6_dump_ifmcaddr,
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETANYCAST,
-				   NULL, inet6_dump_ifacaddr,
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
-	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETNETCONF,
-				   inet6_netconf_get_devconf,
-				   inet6_netconf_dump_devconf,
-				   RTNL_FLAG_DOIT_UNLOCKED |
-				   RTNL_FLAG_DUMP_UNLOCKED);
-	if (err < 0)
-		goto errout;
 	err = ipv6_addr_label_rtnl_register();
 	if (err < 0)
 		goto errout;
