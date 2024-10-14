@@ -32,6 +32,10 @@ static inline int sys_mount(const char *src, const char *tgt, const char *fst,
 	return syscall(__NR_mount, src, tgt, fst, flags, data);
 }
 
+#ifndef MOVE_MOUNT_F_EMPTY_PATH
+#define MOVE_MOUNT_F_EMPTY_PATH 0x00000004 /* Empty from path permitted */
+#endif
+
 static inline int sys_move_mount(int from_dfd, const char *from_pathname,
 				 int to_dfd, const char *to_pathname,
 				 unsigned int flags)
