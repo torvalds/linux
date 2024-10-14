@@ -394,7 +394,7 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, u64 *result)
 int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 {
 	__u64 *start_time, cur_time, delta_start;
-	unsigned long val;
+	u64 val;
 	int fd, err = 0;
 	struct perf_counts_values *count, *old_count = NULL;
 	bool adjust = false;
