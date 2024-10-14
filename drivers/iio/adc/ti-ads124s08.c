@@ -21,7 +21,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/sysfs.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Commands */
 #define ADS124S08_CMD_NOP	0x00

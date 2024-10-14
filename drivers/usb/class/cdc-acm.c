@@ -35,7 +35,7 @@
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/idr.h>
 #include <linux/list.h>
 

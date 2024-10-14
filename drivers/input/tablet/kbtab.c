@@ -3,7 +3,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * Pressure-threshold modules param code from Alex Perry <alex.perry@ieee.org>

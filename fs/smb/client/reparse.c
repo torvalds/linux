@@ -14,6 +14,12 @@
 #include "fs_context.h"
 #include "reparse.h"
 
+static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
+					   const unsigned int xid,
+					   const char *full_path,
+					   const char *symname,
+					   bool *directory);
+
 int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				struct dentry *dentry, struct cifs_tcon *tcon,
 				const char *full_path, const char *symname)
@@ -24,6 +30,7 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	struct inode *new;
 	struct kvec iov;
 	__le16 *path;
+	bool directory;
 	char *sym, sep = CIFS_DIR_SEP(cifs_sb);
 	u16 len, plen;
 	int rc = 0;
@@ -44,6 +51,18 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 		rc = -ENOMEM;
 		goto out;
 	}
+
+	/*
+	 * SMB distinguish between symlink to directory and symlink to file.
+	 * They cannot be exchanged (symlink of file type which points to
+	 * directory cannot be resolved and vice-versa). Try to detect if
+	 * the symlink target could be a directory or not. When detection
+	 * fails then treat symlink as a file (non-directory) symlink.
+	 */
+	directory = false;
+	rc = detect_directory_symlink_target(cifs_sb, xid, full_path, symname, &directory);
+	if (rc < 0)
+		goto out;
 
 	plen = 2 * UniStrnlen((wchar_t *)path, PATH_MAX);
 	len = sizeof(*buf) + plen * 2;
@@ -69,7 +88,8 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	iov.iov_base = buf;
 	iov.iov_len = len;
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
-				     tcon, full_path, &iov, NULL);
+				     tcon, full_path, directory,
+				     &iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
 	else
@@ -79,6 +99,144 @@ out:
 	cifs_free_open_info(&data);
 	kfree(buf);
 	return rc;
+}
+
+static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
+					   const unsigned int xid,
+					   const char *full_path,
+					   const char *symname,
+					   bool *directory)
+{
+	char sep = CIFS_DIR_SEP(cifs_sb);
+	struct cifs_open_parms oparms;
+	struct tcon_link *tlink;
+	struct cifs_tcon *tcon;
+	const char *basename;
+	struct cifs_fid fid;
+	char *resolved_path;
+	int full_path_len;
+	int basename_len;
+	int symname_len;
+	char *path_sep;
+	__u32 oplock;
+	int open_rc;
+
+	/*
+	 * First do some simple check. If the original Linux symlink target ends
+	 * with slash, or last path component is dot or dot-dot then it is for
+	 * sure symlink to the directory.
+	 */
+	basename = kbasename(symname);
+	basename_len = strlen(basename);
+	if (basename_len == 0 || /* symname ends with slash */
+	    (basename_len == 1 && basename[0] == '.') || /* last component is "." */
+	    (basename_len == 2 && basename[0] == '.' && basename[1] == '.')) { /* or ".." */
+		*directory = true;
+		return 0;
+	}
+
+	/*
+	 * For absolute symlinks it is not possible to determinate
+	 * if it should point to directory or file.
+	 */
+	if (symname[0] == '/') {
+		cifs_dbg(FYI,
+			 "%s: cannot determinate if the symlink target path '%s' "
+			 "is directory or not, creating '%s' as file symlink\n",
+			 __func__, symname, full_path);
+		return 0;
+	}
+
+	/*
+	 * If it was not detected as directory yet and the symlink is relative
+	 * then try to resolve the path on the SMB server, check if the path
+	 * exists and determinate if it is a directory or not.
+	 */
+
+	full_path_len = strlen(full_path);
+	symname_len = strlen(symname);
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+
+	resolved_path = kzalloc(full_path_len + symname_len + 1, GFP_KERNEL);
+	if (!resolved_path) {
+		cifs_put_tlink(tlink);
+		return -ENOMEM;
+	}
+
+	/*
+	 * Compose the resolved SMB symlink path from the SMB full path
+	 * and Linux target symlink path.
+	 */
+	memcpy(resolved_path, full_path, full_path_len+1);
+	path_sep = strrchr(resolved_path, sep);
+	if (path_sep)
+		path_sep++;
+	else
+		path_sep = resolved_path;
+	memcpy(path_sep, symname, symname_len+1);
+	if (sep == '\\')
+		convert_delimiter(path_sep, sep);
+
+	tcon = tlink_tcon(tlink);
+	oparms = CIFS_OPARMS(cifs_sb, tcon, resolved_path,
+			     FILE_READ_ATTRIBUTES, FILE_OPEN, 0, ACL_NO_MODE);
+	oparms.fid = &fid;
+
+	/* Try to open as a directory (NOT_FILE) */
+	oplock = 0;
+	oparms.create_options = cifs_create_options(cifs_sb,
+						    CREATE_NOT_FILE | OPEN_REPARSE_POINT);
+	open_rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, NULL);
+	if (open_rc == 0) {
+		/* Successful open means that the target path is definitely a directory. */
+		*directory = true;
+		tcon->ses->server->ops->close(xid, tcon, &fid);
+	} else if (open_rc == -ENOTDIR) {
+		/* -ENOTDIR means that the target path is definitely a file. */
+		*directory = false;
+	} else if (open_rc == -ENOENT) {
+		/* -ENOENT means that the target path does not exist. */
+		cifs_dbg(FYI,
+			 "%s: symlink target path '%s' does not exist, "
+			 "creating '%s' as file symlink\n",
+			 __func__, symname, full_path);
+	} else {
+		/* Try to open as a file (NOT_DIR) */
+		oplock = 0;
+		oparms.create_options = cifs_create_options(cifs_sb,
+							    CREATE_NOT_DIR | OPEN_REPARSE_POINT);
+		open_rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, NULL);
+		if (open_rc == 0) {
+			/* Successful open means that the target path is definitely a file. */
+			*directory = false;
+			tcon->ses->server->ops->close(xid, tcon, &fid);
+		} else if (open_rc == -EISDIR) {
+			/* -EISDIR means that the target path is definitely a directory. */
+			*directory = true;
+		} else {
+			/*
+			 * This code branch is called when we do not have a permission to
+			 * open the resolved_path or some other client/process denied
+			 * opening the resolved_path.
+			 *
+			 * TODO: Try to use ops->query_dir_first on the parent directory
+			 * of resolved_path, search for basename of resolved_path and
+			 * check if the ATTR_DIRECTORY is set in fi.Attributes. In some
+			 * case this could work also when opening of the path is denied.
+			 */
+			cifs_dbg(FYI,
+				 "%s: cannot determinate if the symlink target path '%s' "
+				 "is directory or not, creating '%s' as file symlink\n",
+				 __func__, symname, full_path);
+		}
+	}
+
+	kfree(resolved_path);
+	cifs_put_tlink(tlink);
+	return 0;
 }
 
 static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
@@ -137,7 +295,7 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 	};
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
-				     tcon, full_path, &iov, NULL);
+				     tcon, full_path, false, &iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
 	else
@@ -283,7 +441,7 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 	data.wsl.eas_len = len;
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb,
-				     xid, tcon, full_path,
+				     xid, tcon, full_path, false,
 				     &reparse_iov, &xattr_iov);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
@@ -320,22 +478,51 @@ static int parse_reparse_posix(struct reparse_posix_data *buf,
 	unsigned int len;
 	u64 type;
 
+	len = le16_to_cpu(buf->ReparseDataLength);
+	if (len < sizeof(buf->InodeType)) {
+		cifs_dbg(VFS, "srv returned malformed nfs buffer\n");
+		return -EIO;
+	}
+
+	len -= sizeof(buf->InodeType);
+
 	switch ((type = le64_to_cpu(buf->InodeType))) {
 	case NFS_SPECFILE_LNK:
-		len = le16_to_cpu(buf->ReparseDataLength);
+		if (len == 0 || (len % 2)) {
+			cifs_dbg(VFS, "srv returned malformed nfs symlink buffer\n");
+			return -EIO;
+		}
+		/*
+		 * Check that buffer does not contain UTF-16 null codepoint
+		 * because Linux cannot process symlink with null byte.
+		 */
+		if (UniStrnlen((wchar_t *)buf->DataBuffer, len/2) != len/2) {
+			cifs_dbg(VFS, "srv returned null byte in nfs symlink target location\n");
+			return -EIO;
+		}
 		data->symlink_target = cifs_strndup_from_utf16(buf->DataBuffer,
 							       len, true,
 							       cifs_sb->local_nls);
 		if (!data->symlink_target)
 			return -ENOMEM;
-		convert_delimiter(data->symlink_target, '/');
 		cifs_dbg(FYI, "%s: target path: %s\n",
 			 __func__, data->symlink_target);
 		break;
 	case NFS_SPECFILE_CHR:
 	case NFS_SPECFILE_BLK:
+		/* DataBuffer for block and char devices contains two 32-bit numbers */
+		if (len != 8) {
+			cifs_dbg(VFS, "srv returned malformed nfs buffer for type: 0x%llx\n", type);
+			return -EIO;
+		}
+		break;
 	case NFS_SPECFILE_FIFO:
 	case NFS_SPECFILE_SOCK:
+		/* DataBuffer for fifos and sockets is empty */
+		if (len != 0) {
+			cifs_dbg(VFS, "srv returned malformed nfs buffer for type: 0x%llx\n", type);
+			return -EIO;
+		}
 		break;
 	default:
 		cifs_dbg(VFS, "%s: unhandled inode type: 0x%llx\n",
@@ -482,12 +669,18 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	u32 tag = data->reparse.tag;
 
 	if (tag == IO_REPARSE_TAG_NFS && buf) {
+		if (le16_to_cpu(buf->ReparseDataLength) < sizeof(buf->InodeType))
+			return false;
 		switch (le64_to_cpu(buf->InodeType)) {
 		case NFS_SPECFILE_CHR:
+			if (le16_to_cpu(buf->ReparseDataLength) != sizeof(buf->InodeType) + 8)
+				return false;
 			fattr->cf_mode |= S_IFCHR;
 			fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
 			break;
 		case NFS_SPECFILE_BLK:
+			if (le16_to_cpu(buf->ReparseDataLength) != sizeof(buf->InodeType) + 8)
+				return false;
 			fattr->cf_mode |= S_IFBLK;
 			fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
 			break;

@@ -55,7 +55,7 @@ struct smb3_sd {
 #define ACL_CONTROL_SI	0x0800	/* SACL Auto-Inherited */
 #define ACL_CONTROL_DI	0x0400	/* DACL Auto-Inherited */
 #define ACL_CONTROL_SC	0x0200	/* SACL computed through inheritance */
-#define ACL_CONTROL_DC	0x0100	/* DACL computed through inheritence */
+#define ACL_CONTROL_DC	0x0100	/* DACL computed through inheritance */
 #define ACL_CONTROL_SS	0x0080	/* Create server ACL */
 #define ACL_CONTROL_DT	0x0040	/* DACL provided by trusted source */
 #define ACL_CONTROL_SD	0x0020	/* SACL defaulted */

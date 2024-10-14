@@ -111,7 +111,7 @@ struct smbd_connection {
 	/* Used by transport to wait until all MRs are returned */
 	wait_queue_head_t wait_for_mr_cleanup;
 
-	/* Activity accoutning */
+	/* Activity accounting */
 	atomic_t send_pending;
 	wait_queue_head_t wait_send_pending;
 	wait_queue_head_t wait_post_send;

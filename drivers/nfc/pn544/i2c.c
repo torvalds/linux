@@ -17,7 +17,7 @@
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>

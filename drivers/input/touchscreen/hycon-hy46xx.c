@@ -15,7 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define HY46XX_CHKSUM_CODE		0x1
 #define HY46XX_FINGER_NUM		0x2

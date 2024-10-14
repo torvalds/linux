@@ -17,7 +17,7 @@
 #include <linux/sys_soc.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <dt-bindings/arm/qcom,ids.h>
 

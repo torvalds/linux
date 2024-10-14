@@ -7,7 +7,7 @@
 
 #include <asm/efi.h>
 #include <asm/sections.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "efistub.h"
 

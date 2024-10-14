@@ -12,7 +12,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define IMX258_REG_MODE_SELECT		CCI_REG8(0x0100)
 #define IMX258_MODE_STANDBY		0x00

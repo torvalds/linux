@@ -9,7 +9,7 @@
  * Copyright (C) 2010,2011 Igor M. Liplianin <liplianin@netup.ru>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/firmware.h>

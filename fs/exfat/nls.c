@@ -6,7 +6,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"

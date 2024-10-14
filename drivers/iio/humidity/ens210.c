@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* register definitions */
 #define ENS210_REG_PART_ID		0x00

@@ -22,7 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "protocols.h"
 #include "notify.h"

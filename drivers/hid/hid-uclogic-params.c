@@ -19,7 +19,7 @@
 #include "hid-ids.h"
 #include <linux/ctype.h>
 #include <linux/string.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /**
  * uclogic_params_pen_inrange_to_str() - Convert a pen in-range reporting type

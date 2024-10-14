@@ -20,7 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/units.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* ADF4377 REG0000 Map */
 #define ADF4377_0000_SOFT_RESET_R_MSK		BIT(7)
