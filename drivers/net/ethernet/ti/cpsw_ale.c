@@ -162,26 +162,38 @@ static inline void cpsw_ale_set_field(u32 *ale_entry, u32 start, u32 bits,
 	ale_entry[idx] |=  (value << start);
 }
 
-#define DEFINE_ALE_FIELD(name, start, bits)				\
+#define DEFINE_ALE_FIELD_GET(name, start, bits)				\
 static inline int cpsw_ale_get_##name(u32 *ale_entry)			\
 {									\
 	return cpsw_ale_get_field(ale_entry, start, bits);		\
-}									\
+}
+
+#define DEFINE_ALE_FIELD_SET(name, start, bits)				\
 static inline void cpsw_ale_set_##name(u32 *ale_entry, u32 value)	\
 {									\
 	cpsw_ale_set_field(ale_entry, start, bits, value);		\
 }
 
-#define DEFINE_ALE_FIELD1(name, start)					\
+#define DEFINE_ALE_FIELD(name, start, bits)				\
+DEFINE_ALE_FIELD_GET(name, start, bits)					\
+DEFINE_ALE_FIELD_SET(name, start, bits)
+
+#define DEFINE_ALE_FIELD1_GET(name, start)				\
 static inline int cpsw_ale_get_##name(u32 *ale_entry, u32 bits)		\
 {									\
 	return cpsw_ale_get_field(ale_entry, start, bits);		\
-}									\
+}
+
+#define DEFINE_ALE_FIELD1_SET(name, start)				\
 static inline void cpsw_ale_set_##name(u32 *ale_entry, u32 value,	\
 		u32 bits)						\
 {									\
 	cpsw_ale_set_field(ale_entry, start, bits, value);		\
 }
+
+#define DEFINE_ALE_FIELD1(name, start)					\
+DEFINE_ALE_FIELD1_GET(name, start)					\
+DEFINE_ALE_FIELD1_SET(name, start)
 
 enum {
 	ALE_ENT_VID_MEMBER_LIST = 0,
@@ -238,14 +250,14 @@ static const struct ale_entry_fld vlan_entry_k3_cpswxg[] = {
 
 DEFINE_ALE_FIELD(entry_type,		60,	2)
 DEFINE_ALE_FIELD(vlan_id,		48,	12)
-DEFINE_ALE_FIELD(mcast_state,		62,	2)
+DEFINE_ALE_FIELD_SET(mcast_state,	62,	2)
 DEFINE_ALE_FIELD1(port_mask,		66)
 DEFINE_ALE_FIELD(super,			65,	1)
 DEFINE_ALE_FIELD(ucast_type,		62,     2)
-DEFINE_ALE_FIELD1(port_num,		66)
-DEFINE_ALE_FIELD(blocked,		65,     1)
-DEFINE_ALE_FIELD(secure,		64,     1)
-DEFINE_ALE_FIELD(mcast,			40,	1)
+DEFINE_ALE_FIELD1_SET(port_num,		66)
+DEFINE_ALE_FIELD_SET(blocked,		65,     1)
+DEFINE_ALE_FIELD_SET(secure,		64,     1)
+DEFINE_ALE_FIELD_GET(mcast,		40,	1)
 
 #define NU_VLAN_UNREG_MCAST_IDX	1
 
