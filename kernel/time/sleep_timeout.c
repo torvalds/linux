@@ -364,6 +364,9 @@ void __sched usleep_range_state(unsigned long min, unsigned long max, unsigned i
 	ktime_t exp = ktime_add_us(ktime_get(), min);
 	u64 delta = (u64)(max - min) * NSEC_PER_USEC;
 
+	if (WARN_ON_ONCE(max < min))
+		delta = 0;
+
 	for (;;) {
 		__set_current_state(state);
 		/* Do not return before the requested sleep time has elapsed */
