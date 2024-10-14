@@ -13,9 +13,6 @@
 
 #include <vdso/page.h>
 
-#define _PAGE_SHIFT	PAGE_SHIFT
-#define _PAGE_SIZE	PAGE_SIZE
-#define _PAGE_MASK	PAGE_MASK
 #define PAGE_DEFAULT_ACC	_AC(0, UL)
 /* storage-protection override */
 #define PAGE_SPO_ACC		9
