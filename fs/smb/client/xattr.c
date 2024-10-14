@@ -32,6 +32,7 @@
  */
 #define SMB3_XATTR_CIFS_ACL "system.smb3_acl" /* DACL only */
 #define SMB3_XATTR_CIFS_NTSD_SACL "system.smb3_ntsd_sacl" /* SACL only */
+#define SMB3_XATTR_CIFS_NTSD_OWNER "system.smb3_ntsd_owner" /* owner only */
 #define SMB3_XATTR_CIFS_NTSD "system.smb3_ntsd" /* owner plus DACL */
 #define SMB3_XATTR_CIFS_NTSD_FULL "system.smb3_ntsd_full" /* owner/DACL/SACL */
 #define SMB3_XATTR_ATTRIB "smb3.dosattrib"  /* full name: user.smb3.dosattrib */
@@ -39,7 +40,7 @@
 /* BB need to add server (Samba e.g) support for security and trusted prefix */
 
 enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT,
-	XATTR_CIFS_NTSD_SACL,
+	XATTR_CIFS_NTSD_SACL, XATTR_CIFS_NTSD_OWNER,
 	XATTR_CIFS_NTSD, XATTR_CIFS_NTSD_FULL };
 
 static int cifs_attrib_set(unsigned int xid, struct cifs_tcon *pTcon,
@@ -163,6 +164,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 
 	case XATTR_CIFS_ACL:
 	case XATTR_CIFS_NTSD_SACL:
+	case XATTR_CIFS_NTSD_OWNER:
 	case XATTR_CIFS_NTSD:
 	case XATTR_CIFS_NTSD_FULL: {
 		struct smb_ntsd *pacl;
@@ -189,6 +191,10 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 					aclflags = (CIFS_ACL_OWNER |
 						    CIFS_ACL_GROUP |
 						    CIFS_ACL_DACL);
+					break;
+				case XATTR_CIFS_NTSD_OWNER:
+					aclflags = (CIFS_ACL_OWNER |
+						    CIFS_ACL_GROUP);
 					break;
 				case XATTR_CIFS_NTSD_SACL:
 					aclflags = CIFS_ACL_SACL;
@@ -315,6 +321,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 
 	case XATTR_CIFS_ACL:
 	case XATTR_CIFS_NTSD_SACL:
+	case XATTR_CIFS_NTSD_OWNER:
 	case XATTR_CIFS_NTSD:
 	case XATTR_CIFS_NTSD_FULL: {
 		/*
@@ -333,6 +340,9 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 			break;
 		case XATTR_CIFS_NTSD:
 			extra_info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO;
+			break;
+		case XATTR_CIFS_NTSD_OWNER:
+			extra_info = OWNER_SECINFO | GROUP_SECINFO;
 			break;
 		case XATTR_CIFS_NTSD_SACL:
 			extra_info = SACL_SECINFO;
@@ -465,6 +475,13 @@ static const struct xattr_handler smb3_ntsd_sacl_xattr_handler = {
 	.set = cifs_xattr_set,
 };
 
+static const struct xattr_handler smb3_ntsd_owner_xattr_handler = {
+	.name = SMB3_XATTR_CIFS_NTSD_OWNER,
+	.flags = XATTR_CIFS_NTSD_OWNER,
+	.get = cifs_xattr_get,
+	.set = cifs_xattr_set,
+};
+
 static const struct xattr_handler cifs_cifs_ntsd_xattr_handler = {
 	.name = CIFS_XATTR_CIFS_NTSD,
 	.flags = XATTR_CIFS_NTSD,
@@ -511,6 +528,7 @@ const struct xattr_handler * const cifs_xattr_handlers[] = {
 	&cifs_cifs_acl_xattr_handler,
 	&smb3_acl_xattr_handler, /* alias for above since avoiding "cifs" */
 	&smb3_ntsd_sacl_xattr_handler,
+	&smb3_ntsd_owner_xattr_handler,
 	&cifs_cifs_ntsd_xattr_handler,
 	&smb3_ntsd_xattr_handler, /* alias for above since avoiding "cifs" */
 	&cifs_cifs_ntsd_full_xattr_handler,
