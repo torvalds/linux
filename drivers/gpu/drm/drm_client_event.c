@@ -107,6 +107,66 @@ void drm_client_dev_restore(struct drm_device *dev)
 	mutex_unlock(&dev->clientlist_mutex);
 }
 
+static int drm_client_suspend(struct drm_client_dev *client, bool holds_console_lock)
+{
+	struct drm_device *dev = client->dev;
+	int ret = 0;
+
+	if (drm_WARN_ON_ONCE(dev, client->suspended))
+		return 0;
+
+	if (client->funcs && client->funcs->suspend)
+		ret = client->funcs->suspend(client, holds_console_lock);
+	drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
+
+	client->suspended = true;
+
+	return ret;
+}
+
+void drm_client_dev_suspend(struct drm_device *dev, bool holds_console_lock)
+{
+	struct drm_client_dev *client;
+
+	mutex_lock(&dev->clientlist_mutex);
+	list_for_each_entry(client, &dev->clientlist, list) {
+		if (!client->suspended)
+			drm_client_suspend(client, holds_console_lock);
+	}
+	mutex_unlock(&dev->clientlist_mutex);
+}
+EXPORT_SYMBOL(drm_client_dev_suspend);
+
+static int drm_client_resume(struct drm_client_dev *client, bool holds_console_lock)
+{
+	struct drm_device *dev = client->dev;
+	int ret = 0;
+
+	if (drm_WARN_ON_ONCE(dev, !client->suspended))
+		return 0;
+
+	if (client->funcs && client->funcs->resume)
+		ret = client->funcs->resume(client, holds_console_lock);
+	drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
+
+	client->suspended = false;
+
+	return ret;
+}
+
+void drm_client_dev_resume(struct drm_device *dev, bool holds_console_lock)
+{
+	struct drm_client_dev *client;
+
+	mutex_lock(&dev->clientlist_mutex);
+	list_for_each_entry(client, &dev->clientlist, list) {
+		if  (client->suspended)
+			drm_client_resume(client, holds_console_lock);
+	}
+	mutex_unlock(&dev->clientlist_mutex);
+}
+EXPORT_SYMBOL(drm_client_dev_resume);
+
 #ifdef CONFIG_DEBUG_FS
 static int drm_client_debugfs_internal_clients(struct seq_file *m, void *data)
 {
