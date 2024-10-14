@@ -3632,6 +3632,11 @@ static __net_initdata struct pernet_operations ipv4_inetpeer_ops = {
 struct ip_rt_acct __percpu *ip_rt_acct __read_mostly;
 #endif /* CONFIG_IP_ROUTE_CLASSID */
 
+static const struct rtnl_msg_handler ip_rt_rtnl_msg_handlers[] __initconst = {
+	{.protocol = PF_INET, .msgtype = RTM_GETROUTE,
+	 .doit = inet_rtm_getroute, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+};
+
 int __init ip_rt_init(void)
 {
 	void *idents_hash;
@@ -3689,8 +3694,7 @@ int __init ip_rt_init(void)
 	xfrm_init();
 	xfrm4_init();
 #endif
-	rtnl_register(PF_INET, RTM_GETROUTE, inet_rtm_getroute, NULL,
-		      RTNL_FLAG_DOIT_UNLOCKED);
+	rtnl_register_many(ip_rt_rtnl_msg_handlers);
 
 #ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&sysctl_route_ops);
