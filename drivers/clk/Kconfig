@@ -291,7 +291,7 @@ config CLK_TWL
 	help
 	  Enable support for controlling the clock resources on TWL family
 	  PMICs. These devices have some 32K clock outputs which can be
-	  controlled by software. For now, only the TWL6032 clocks are
+	  controlled by software. For now, the TWL6032 and TWL6030 clocks are
 	  supported.
 
 config CLK_TWL6040
