@@ -732,8 +732,6 @@ static const struct vb2_ops visl_qops = {
 	.buf_queue            = visl_buf_queue,
 	.start_streaming      = visl_start_streaming,
 	.stop_streaming       = visl_stop_streaming,
-	.wait_prepare         = vb2_ops_wait_prepare,
-	.wait_finish          = vb2_ops_wait_finish,
 	.buf_request_complete = visl_buf_request_complete,
 };
 
