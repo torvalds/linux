@@ -150,14 +150,14 @@ int rt_sdca_headset_detect(struct regmap *map, unsigned int entity_id)
 		goto io_error;
 
 	switch (det_mode) {
-	case 0x00:
-		jack_type = 0;
-		break;
 	case 0x03:
 		jack_type = SND_JACK_HEADPHONE;
 		break;
 	case 0x05:
 		jack_type = SND_JACK_HEADSET;
+		break;
+	default:
+		jack_type = 0;
 		break;
 	}
 
