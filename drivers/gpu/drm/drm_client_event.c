@@ -14,6 +14,8 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_print.h>
 
+#include "drm_internal.h"
+
 /**
  * drm_client_dev_unregister - Unregister clients
  * @dev: DRM device

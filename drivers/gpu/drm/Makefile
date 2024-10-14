@@ -40,9 +40,6 @@ drm-y := \
 	drm_blend.o \
 	drm_bridge.o \
 	drm_cache.o \
-	drm_client.o \
-	drm_client_event.o \
-	drm_client_modeset.o \
 	drm_color_mgmt.o \
 	drm_connector.o \
 	drm_crtc.o \
@@ -76,6 +73,10 @@ drm-y := \
 	drm_vblank_work.o \
 	drm_vma_manager.o \
 	drm_writeback.o
+drm-$(CONFIG_DRM_CLIENT) += \
+	drm_client.o \
+	drm_client_event.o \
+	drm_client_modeset.o
 drm-$(CONFIG_DRM_LIB_RANDOM) += lib/drm_random.o
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_DRM_PANEL) += drm_panel.o
