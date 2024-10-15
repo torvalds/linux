@@ -1499,6 +1499,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_queue_chunk);
 
 struct virtchnl_quanta_cfg {
 	u16 quanta_size;
+	u16 pad;
 	struct virtchnl_queue_chunk queue_select;
 };
 
