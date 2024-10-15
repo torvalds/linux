@@ -1122,10 +1122,11 @@ static void nx842_remove(struct vio_dev *viodev)
 
 	crypto_unregister_alg(&nx842_pseries_alg);
 
+	of_reconfig_notifier_unregister(&nx842_of_nb);
+
 	spin_lock_irqsave(&devdata_spinlock, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_spinlock));
-	of_reconfig_notifier_unregister(&nx842_of_nb);
 	RCU_INIT_POINTER(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_spinlock, flags);
 	synchronize_rcu();
