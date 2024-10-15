@@ -80,7 +80,6 @@ static struct test_suite *generic_tests[] = {
 	&suite__perf_evsel__tp_sched_test,
 	&suite__syscall_openat_tp_fields,
 #endif
-	&suite__attr,
 	&suite__hists_link,
 	&suite__python_use,
 	&suite__bp_signal,
