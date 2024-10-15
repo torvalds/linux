@@ -781,8 +781,7 @@ static void ravb_rx_csum_gbeth(struct sk_buff *skb)
 	else
 		skb_trim(skb, skb->len - 2 * sizeof(__sum16));
 
-	/* TODO: IPV6 Rx checksum */
-	if (skb->protocol == htons(ETH_P_IP) && !csum_proto)
+	if (!csum_proto)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
