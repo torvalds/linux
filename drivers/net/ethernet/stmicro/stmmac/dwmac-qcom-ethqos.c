@@ -2139,6 +2139,18 @@ static int ethqos_set_early_eth_param(struct stmmac_priv *priv,
 	return 0;
 }
 
+static void qcom_ethqos_disable_phy_clks(struct qcom_ethqos *ethqos)
+{
+	ETHQOSINFO("Enter\n");
+
+	if (ethqos->phyaux_clk)
+		clk_disable_unprepare(ethqos->phyaux_clk);
+	if (ethqos->sgmiref_clk)
+		clk_disable_unprepare(ethqos->sgmiref_clk);
+
+	ETHQOSINFO("Exit\n");
+}
+
 static void qcom_ethqos_request_phy_wol(void *plat_n)
 {
 	struct plat_stmmacenet_data *plat = plat_n;
@@ -2421,7 +2433,11 @@ err_clk:
 
 err_mem:
 	stmmac_remove_config_dt(pdev, plat_dat);
-
+	if (ethqos) {
+		ethqos->driver_load_fail = true;
+		qcom_ethqos_disable_phy_clks(ethqos);
+		ethqos_disable_regulators(ethqos);
+	}
 	return ret;
 }
 
@@ -2489,12 +2505,17 @@ static int qcom_ethqos_suspend(struct device *dev)
 		return 0;
 	}
 
-	if (pm_suspend_target_state == PM_SUSPEND_MEM)
-		return qcom_ethqos_hib_freeze(dev);
-
 	ethqos = get_stmmac_bsp_priv(dev);
 	if (!ethqos)
 		return -ENODEV;
+
+	if (ethqos->driver_load_fail) {
+		ETHQOSINFO("driver load failed\n");
+		return 0;
+	}
+
+	if (pm_suspend_target_state == PM_SUSPEND_MEM)
+		return qcom_ethqos_hib_freeze(dev);
 
 	ndev = dev_get_drvdata(dev);
 	if (!ndev)
@@ -2527,13 +2548,18 @@ static int qcom_ethqos_resume(struct device *dev)
 	if (of_device_is_compatible(dev->of_node, "qcom,emac-smmu-embedded"))
 		return 0;
 
-	if (pm_suspend_target_state == PM_SUSPEND_MEM)
-		return qcom_ethqos_hib_restore(dev);
-
 	ethqos = get_stmmac_bsp_priv(dev);
 
 	if (!ethqos)
 		return -ENODEV;
+
+	if (ethqos->driver_load_fail) {
+		ETHQOSINFO("driver load failed\n");
+		return 0;
+	}
+
+	if (pm_suspend_target_state == PM_SUSPEND_MEM)
+		return qcom_ethqos_hib_restore(dev);
 
 	if (ethqos->gdsc_off_on_suspend) {
 		ret = regulator_enable(ethqos->gdsc_emac);
