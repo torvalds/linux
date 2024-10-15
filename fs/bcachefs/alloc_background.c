@@ -2351,24 +2351,19 @@ int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 
 /* Bucket IO clocks: */
 
-int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
-			      size_t bucket_nr, int rw)
+static int __bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
+				size_t bucket_nr, int rw)
 {
 	struct bch_fs *c = trans->c;
+
 	struct btree_iter iter;
-	struct bkey_i_alloc_v4 *a;
-	u64 now;
-	int ret = 0;
-
-	if (bch2_trans_relock(trans))
-		bch2_trans_begin(trans);
-
-	a = bch2_trans_start_alloc_update_noupdate(trans, &iter, POS(dev, bucket_nr));
-	ret = PTR_ERR_OR_ZERO(a);
+	struct bkey_i_alloc_v4 *a =
+		bch2_trans_start_alloc_update_noupdate(trans, &iter, POS(dev, bucket_nr));
+	int ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		return ret;
 
-	now = bch2_current_io_time(c, rw);
+	u64 now = bch2_current_io_time(c, rw);
 	if (a->v.io_time[rw] == now)
 		goto out;
 
@@ -2379,6 +2374,15 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
+}
+
+int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
+			      size_t bucket_nr, int rw)
+{
+	if (bch2_trans_relock(trans))
+		bch2_trans_begin(trans);
+
+	return nested_lockrestart_do(trans, __bch2_bucket_io_time_reset(trans, dev, bucket_nr, rw));
 }
 
 /* Startup/shutdown (ro/rw): */
