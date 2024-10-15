@@ -2853,10 +2853,6 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 		break;
 	}
 
-	if (i >= ARRAY_SIZE(ccs_module_idents))
-		dev_warn(&client->dev,
-			 "no quirks for this module; let's hope it's fully compliant\n");
-
 	dev_dbg(&client->dev, "the sensor is called %s\n", minfo->name);
 
 	return 0;
