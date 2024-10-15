@@ -2063,17 +2063,24 @@ out_unlock:
 
 static bool ravb_can_tx_csum_gbeth(struct sk_buff *skb)
 {
-	struct iphdr *ip = ip_hdr(skb);
+	u8 inner_protocol;
 
 	/* TODO: Need to add support for VLAN tag 802.1Q */
 	if (skb_vlan_tag_present(skb))
 		return false;
 
-	/* TODO: Need to add hardware checksum for IPv6 */
-	if (skb->protocol != htons(ETH_P_IP))
+	switch (ntohs(skb->protocol)) {
+	case ETH_P_IP:
+		inner_protocol = ip_hdr(skb)->protocol;
+		break;
+	case ETH_P_IPV6:
+		inner_protocol = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
 		return false;
+	}
 
-	switch (ip->protocol) {
+	switch (inner_protocol) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
 		return true;
