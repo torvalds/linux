@@ -332,6 +332,8 @@
 				     <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp8_clks R7S72100_CLK_MMCIF>;
+			dmas = <&dmac 0x2cc9>, <&dmac 0x2cca>;
+			dma-names = "tx", "rx";
 			power-domains = <&cpg_clocks>;
 			status = "disabled";
 		};
