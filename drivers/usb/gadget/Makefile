@@ -10,3 +10,5 @@ libcomposite-y			:= usbstring.o config.o epautoconf.o
 libcomposite-y			+= composite.o functions.o configfs.o u_f.o
 
 obj-$(CONFIG_USB_GADGET)	+= udc/ function/ legacy/
+obj-$(CONFIG_USB_CI13XXX_MSM) 	+= ci13xxx.o
+ci13xxx-y := ci13xxx_udc.o ci13xxx_msm.o
