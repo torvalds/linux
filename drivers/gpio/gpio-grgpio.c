@@ -318,6 +318,13 @@ static void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	raw_spin_unlock_irqrestore(&priv->gc.bgpio_lock, flags);
 }
 
+static void grgpio_irq_domain_remove(void *data)
+{
+	struct irq_domain *domain = data;
+
+	irq_domain_remove(domain);
+}
+
 static const struct irq_domain_ops grgpio_irq_domain_ops = {
 	.map	= grgpio_irq_map,
 	.unmap	= grgpio_irq_unmap,
@@ -394,6 +401,11 @@ static int grgpio_probe(struct platform_device *ofdev)
 			return -EINVAL;
 		}
 
+		err = devm_add_action_or_reset(dev, grgpio_irq_domain_remove,
+					       priv->domain);
+		if (err)
+			return err;
+
 		for (i = 0; i < gc->ngpio; i++) {
 			struct grgpio_lirq *lirq;
 			int ret;
@@ -416,13 +428,9 @@ static int grgpio_probe(struct platform_device *ofdev)
 		}
 	}
 
-	platform_set_drvdata(ofdev, priv);
-
-	err = gpiochip_add_data(gc, priv);
+	err = devm_gpiochip_add_data(dev, gc, priv);
 	if (err) {
 		dev_err(dev, "Could not add gpiochip\n");
-		if (priv->domain)
-			irq_domain_remove(priv->domain);
 		return err;
 	}
 
@@ -430,16 +438,6 @@ static int grgpio_probe(struct platform_device *ofdev)
 		 priv->regs, gc->base, gc->ngpio, priv->domain ? "on" : "off");
 
 	return 0;
-}
-
-static void grgpio_remove(struct platform_device *ofdev)
-{
-	struct grgpio_priv *priv = platform_get_drvdata(ofdev);
-
-	gpiochip_remove(&priv->gc);
-
-	if (priv->domain)
-		irq_domain_remove(priv->domain);
 }
 
 static const struct of_device_id grgpio_match[] = {
@@ -456,7 +454,6 @@ static struct platform_driver grgpio_driver = {
 		.of_match_table = grgpio_match,
 	},
 	.probe = grgpio_probe,
-	.remove = grgpio_remove,
 };
 module_platform_driver(grgpio_driver);
 
