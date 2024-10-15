@@ -12,3 +12,4 @@ clk-qcom.ko
 gdsc-regulator.ko
 cmd-db.ko
 qcom_rpmh.ko
+stub-regulator.ko
