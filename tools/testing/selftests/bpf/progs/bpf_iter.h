@@ -24,6 +24,7 @@
 #define BTF_F_PTR_RAW BTF_F_PTR_RAW___not_used
 #define BTF_F_ZERO BTF_F_ZERO___not_used
 #define bpf_iter__ksym bpf_iter__ksym___not_used
+#define bpf_iter__kmem_cache bpf_iter__kmem_cache___not_used
 #include "vmlinux.h"
 #undef bpf_iter_meta
 #undef bpf_iter__bpf_map
@@ -48,6 +49,7 @@
 #undef BTF_F_PTR_RAW
 #undef BTF_F_ZERO
 #undef bpf_iter__ksym
+#undef bpf_iter__kmem_cache
 
 struct bpf_iter_meta {
 	struct seq_file *seq;
@@ -165,3 +167,8 @@ struct bpf_iter__ksym {
 	struct bpf_iter_meta *meta;
 	struct kallsym_iter *ksym;
 };
+
+struct bpf_iter__kmem_cache {
+	struct bpf_iter_meta *meta;
+	struct kmem_cache *s;
+} __attribute__((preserve_access_index));
