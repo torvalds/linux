@@ -28,8 +28,8 @@ struct posix_acl_entry {
 
 struct posix_acl {
 	refcount_t		a_refcount;
-	struct rcu_head		a_rcu;
 	unsigned int		a_count;
+	struct rcu_head		a_rcu;
 	struct posix_acl_entry	a_entries[];
 };
 
