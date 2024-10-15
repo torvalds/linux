@@ -584,7 +584,7 @@ void msft_register(struct hci_dev *hdev)
 	hdev->msft_data = msft;
 }
 
-void msft_unregister(struct hci_dev *hdev)
+void msft_release(struct hci_dev *hdev)
 {
 	struct msft_data *msft = hdev->msft_data;
 
