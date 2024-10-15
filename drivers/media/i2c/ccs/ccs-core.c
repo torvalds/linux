@@ -1588,7 +1588,6 @@ static int ccs_power_on(struct device *dev)
 	 * an error.
 	 */
 	if (!sensor->reset && !sensor->xshutdown) {
-		u8 retry = 100;
 		u32 reset;
 
 		rval = read_poll_timeout(ccs_write, rval, !rval,
@@ -1601,18 +1600,15 @@ static int ccs_power_on(struct device *dev)
 			goto out_cci_addr_fail;
 		}
 
-		do {
-			rval = ccs_read(sensor, SOFTWARE_RESET, &reset);
-			reset = !rval && reset == CCS_SOFTWARE_RESET_OFF;
-			if (reset)
-				break;
-
-			usleep_range(1000, 2000);
-		} while (--retry);
-
-		if (!reset) {
-			dev_err(dev, "software reset failed\n");
-			rval = -EIO;
+		rval = read_poll_timeout(ccs_read, rval,
+					 !rval &&
+						reset == CCS_SOFTWARE_RESET_OFF,
+					 CCS_RESET_DELAY_US,
+					 CCS_RESET_TIMEOUT_US, false, sensor,
+					 SOFTWARE_RESET, &reset);
+		if (rval < 0) {
+			dev_err_probe(dev, rval,
+				      "failed to respond after reset\n");
 			goto out_cci_addr_fail;
 		}
 	}
