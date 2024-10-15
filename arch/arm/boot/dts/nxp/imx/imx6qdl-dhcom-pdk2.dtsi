@@ -56,7 +56,6 @@
 	};
 
 	gpio-keys {
-		#size-cells = <0>;
 		compatible = "gpio-keys";
 
 		button-0 {
