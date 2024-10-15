@@ -15,22 +15,38 @@ else:
     print(f"cstate count error: return code: {cpu_cstates_count}")
 
 """
-Disable cstate (will fail if the above is 0, ex: a virtual machine)
+Disable cstate (will fail if the above returns is under 1, ex: a virtual machine)
 """
 cstate_disabled = p.cpuidle_state_disable(0, 0, 1)
-if cpu_cstates_count == 0:
-    print(f"CPU 0 has {cpu_cstates_count} c-states")
-else:
-    print(f"cstate count error: return code: {cpu_cstates_count}")
 
 match cstate_disabled:
     case 0:
         print(f"CPU state disabled")
     case -1:
         print(f"Idlestate not available")
+    case -2:
+        print(f"Disabling is not supported by the kernel")
+    case -3:
+        print(f"No write access to disable/enable C-states: try using sudo")
     case _:
-        print(f"Not documented")
+        print(f"Not documented: {cstate_disabled}")
 
+"""
+Test cstate is disabled
+"""
+is_cstate_disabled = p.cpuidle_is_state_disabled(0, 0)
+
+match is_cstate_disabled:
+    case 1:
+        print(f"CPU is disabled")
+    case 0:
+        print(f"CPU is enabled")
+    case -1:
+        print(f"Idlestate not available")
+    case -2:
+        print(f"Disabling is not supported by kernel")
+    case _:
+        print(f"Not documented: {is_cstate_disabled}")
 
 # Pointer example
 
