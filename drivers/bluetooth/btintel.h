@@ -53,6 +53,9 @@ struct intel_tlv {
 } __packed;
 
 #define BTINTEL_CNVI_BLAZARI		0x900
+#define BTINTEL_CNVI_BLAZARIW		0x901
+#define BTINTEL_CNVI_GAP		0x910
+#define BTINTEL_CNVI_BLAZARU		0x930
 
 #define BTINTEL_IMG_BOOTLOADER		0x01	/* Bootloader image */
 #define BTINTEL_IMG_IML			0x02	/* Intermediate image */
