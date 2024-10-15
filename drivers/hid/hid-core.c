@@ -802,9 +802,6 @@ static const u8 *fetch_item(const __u8 *start, const __u8 *end, struct hid_item 
 	case 4:
 		item->data.u32 = get_unaligned_le32(start);
 		break;
-
-	default:
-		unreachable();
 	}
 
 	return start + item->size;
