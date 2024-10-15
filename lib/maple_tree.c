@@ -1207,19 +1207,17 @@ static inline void mas_push_node(struct ma_state *mas, struct maple_node *used)
 
 	reuse->request_count = 0;
 	reuse->node_count = 0;
-	if (count && (head->node_count < MAPLE_ALLOC_SLOTS)) {
-		head->slot[head->node_count++] = reuse;
-		head->total++;
-		goto done;
-	}
-
-	reuse->total = 1;
-	if ((head) && !((unsigned long)head & 0x1)) {
+	if (count) {
+		if (head->node_count < MAPLE_ALLOC_SLOTS) {
+			head->slot[head->node_count++] = reuse;
+			head->total++;
+			goto done;
+		}
 		reuse->slot[0] = head;
 		reuse->node_count = 1;
-		reuse->total += head->total;
 	}
 
+	reuse->total = count + 1;
 	mas->alloc = reuse;
 done:
 	if (requested > 1)
