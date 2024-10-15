@@ -217,7 +217,7 @@ unsafe extern "C" fn fops_ioctl<T: MiscDevice>(
     // SAFETY: Ioctl calls can borrow the private data of the file.
     let device = unsafe { <T::Ptr as ForeignOwnable>::borrow(private) };
 
-    match T::ioctl(device, cmd as u32, arg as usize) {
+    match T::ioctl(device, cmd, arg as usize) {
         Ok(ret) => ret as c_long,
         Err(err) => err.to_errno() as c_long,
     }
@@ -234,7 +234,7 @@ unsafe extern "C" fn fops_compat_ioctl<T: MiscDevice>(
     // SAFETY: Ioctl calls can borrow the private data of the file.
     let device = unsafe { <T::Ptr as ForeignOwnable>::borrow(private) };
 
-    match T::compat_ioctl(device, cmd as u32, arg as usize) {
+    match T::compat_ioctl(device, cmd, arg as usize) {
         Ok(ret) => ret as c_long,
         Err(err) => err.to_errno() as c_long,
     }
