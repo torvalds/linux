@@ -249,6 +249,9 @@ config USB_F_FS_IPC_LOGGING
 	 userspace client. Separate IPC log contexts are created for each
 	 function instance at mount time.
 
+config USB_F_RMNET_BAM
+        tristate
+
 # this first set of drivers all depend on bulk-capable hardware.
 
 config USB_CONFIGFS
@@ -597,6 +600,18 @@ config USB_CONFIGFS_F_DIAG
 	  Diagnostics application running on Host receives  stream of log data
 	  over USB. Applications can also send commands to diagnostics client
 	  running on device.
+
+config USB_CONFIGFS_RMNET_BAM
+        bool "RMNET_BAM"
+        depends on USB_CONFIGFS
+        select USB_F_RMNET_BAM
+	help
+	   RmNet interface is a new logical device in QMI framework for data
+	   services. RmNet in accordance with QMI architecture uses Data I/O
+	   channel for IP data transfer and control I/O channel for QMI
+	   messaging (functionality similar to AT commands).
+	   RmNet interface is an alternative to standard CDC-ECM and windows
+	   RNDIS.
 
 source "drivers/usb/gadget/legacy/Kconfig"
 
