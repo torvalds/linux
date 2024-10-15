@@ -340,7 +340,6 @@ config GPIO_GRANITERAPIDS
 
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
-	depends on OF_GPIO
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
