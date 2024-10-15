@@ -21,7 +21,12 @@
 	_r->len - hbg_queue_used_num((head), (tail), _r) - 1; })
 #define hbg_queue_is_empty(head, tail, ring) \
 	(hbg_queue_used_num((head), (tail), (ring)) == 0)
+#define hbg_queue_is_full(head, tail, ring) \
+	(hbg_queue_left_num((head), (tail), (ring)) == 0)
 #define hbg_queue_next_prt(p, ring) (((p) + 1) % (ring)->len)
+#define hbg_queue_move_next(p, ring) ({ \
+	typeof(ring) _ring = (ring); \
+	_ring->p = hbg_queue_next_prt(_ring->p, _ring); })
 
 #define HBG_TX_STOP_THRS	2
 #define HBG_TX_START_THRS	(2 * HBG_TX_STOP_THRS)
@@ -124,6 +129,20 @@ static void hbg_buffer_free_skb(struct hbg_buffer *buffer)
 	buffer->skb = NULL;
 }
 
+static int hbg_buffer_alloc_skb(struct hbg_buffer *buffer)
+{
+	u32 len = hbg_spec_max_frame_len(buffer->priv, buffer->dir);
+	struct hbg_priv *priv = buffer->priv;
+
+	buffer->skb = netdev_alloc_skb(priv->netdev, len);
+	if (unlikely(!buffer->skb))
+		return -ENOMEM;
+
+	buffer->skb_len = len;
+	memset(buffer->skb->data, 0, HBG_PACKET_HEAD_SIZE);
+	return 0;
+}
+
 static void hbg_buffer_free(struct hbg_buffer *buffer)
 {
 	hbg_dma_unmap(buffer);
@@ -172,6 +191,92 @@ static int hbg_napi_tx_recycle(struct napi_struct *napi, int budget)
 	if (likely(packet_done < budget &&
 		   napi_complete_done(napi, packet_done)))
 		hbg_hw_irq_enable(priv, HBG_INT_MSK_TX_B, true);
+
+	return packet_done;
+}
+
+static int hbg_rx_fill_one_buffer(struct hbg_priv *priv)
+{
+	struct hbg_ring *ring = &priv->rx_ring;
+	struct hbg_buffer *buffer;
+	int ret;
+
+	if (hbg_queue_is_full(ring->ntc, ring->ntu, ring))
+		return 0;
+
+	buffer = &ring->queue[ring->ntu];
+	ret = hbg_buffer_alloc_skb(buffer);
+	if (unlikely(ret))
+		return ret;
+
+	ret = hbg_dma_map(buffer);
+	if (unlikely(ret)) {
+		hbg_buffer_free_skb(buffer);
+		return ret;
+	}
+
+	hbg_hw_fill_buffer(priv, buffer->skb_dma);
+	hbg_queue_move_next(ntu, ring);
+	return 0;
+}
+
+static bool hbg_sync_data_from_hw(struct hbg_priv *priv,
+				  struct hbg_buffer *buffer)
+{
+	struct hbg_rx_desc *rx_desc;
+
+	/* make sure HW write desc complete */
+	dma_rmb();
+
+	dma_sync_single_for_cpu(&priv->pdev->dev, buffer->skb_dma,
+				buffer->skb_len, DMA_FROM_DEVICE);
+
+	rx_desc = (struct hbg_rx_desc *)buffer->skb->data;
+	return FIELD_GET(HBG_RX_DESC_W2_PKT_LEN_M, rx_desc->word2) != 0;
+}
+
+static int hbg_napi_rx_poll(struct napi_struct *napi, int budget)
+{
+	struct hbg_ring *ring = container_of(napi, struct hbg_ring, napi);
+	struct hbg_priv *priv = ring->priv;
+	struct hbg_rx_desc *rx_desc;
+	struct hbg_buffer *buffer;
+	u32 packet_done = 0;
+	u32 pkt_len;
+
+	while (packet_done < budget) {
+		if (unlikely(hbg_queue_is_empty(ring->ntc, ring->ntu, ring)))
+			break;
+
+		buffer = &ring->queue[ring->ntc];
+		if (unlikely(!buffer->skb))
+			goto next_buffer;
+
+		if (unlikely(!hbg_sync_data_from_hw(priv, buffer)))
+			break;
+		rx_desc = (struct hbg_rx_desc *)buffer->skb->data;
+		pkt_len = FIELD_GET(HBG_RX_DESC_W2_PKT_LEN_M, rx_desc->word2);
+
+		hbg_dma_unmap(buffer);
+
+		skb_reserve(buffer->skb, HBG_PACKET_HEAD_SIZE + NET_IP_ALIGN);
+		skb_put(buffer->skb, pkt_len);
+		buffer->skb->protocol = eth_type_trans(buffer->skb,
+						       priv->netdev);
+
+		dev_sw_netstats_rx_add(priv->netdev, pkt_len);
+		napi_gro_receive(napi, buffer->skb);
+		buffer->skb = NULL;
+
+next_buffer:
+		hbg_rx_fill_one_buffer(priv);
+		hbg_queue_move_next(ntc, ring);
+		packet_done++;
+	}
+
+	if (likely(packet_done < budget &&
+		   napi_complete_done(napi, packet_done)))
+		hbg_hw_irq_enable(priv, HBG_INT_MSK_RX_B, true);
 
 	return packet_done;
 }
@@ -232,7 +337,11 @@ static int hbg_ring_init(struct hbg_priv *priv, struct hbg_ring *ring,
 	ring->ntu = 0;
 	ring->len = len;
 
-	netif_napi_add_tx(priv->netdev, &ring->napi, napi_poll);
+	if (dir == HBG_DIR_TX)
+		netif_napi_add_tx(priv->netdev, &ring->napi, napi_poll);
+	else
+		netif_napi_add(priv->netdev, &ring->napi, napi_poll);
+
 	napi_enable(&ring->napi);
 	return 0;
 }
@@ -252,14 +361,43 @@ static int hbg_tx_ring_init(struct hbg_priv *priv)
 	return hbg_ring_init(priv, tx_ring, hbg_napi_tx_recycle, HBG_DIR_TX);
 }
 
+static int hbg_rx_ring_init(struct hbg_priv *priv)
+{
+	int ret;
+	u32 i;
+
+	ret = hbg_ring_init(priv, &priv->rx_ring, hbg_napi_rx_poll, HBG_DIR_RX);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < priv->rx_ring.len - 1; i++) {
+		ret = hbg_rx_fill_one_buffer(priv);
+		if (ret) {
+			hbg_ring_uninit(&priv->rx_ring);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 int hbg_txrx_init(struct hbg_priv *priv)
 {
 	int ret;
 
 	ret = hbg_tx_ring_init(priv);
-	if (ret)
+	if (ret) {
 		dev_err(&priv->pdev->dev,
 			"failed to init tx ring, ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = hbg_rx_ring_init(priv);
+	if (ret) {
+		dev_err(&priv->pdev->dev,
+			"failed to init rx ring, ret = %d\n", ret);
+		hbg_ring_uninit(&priv->tx_ring);
+	}
 
 	return ret;
 }
@@ -267,4 +405,5 @@ int hbg_txrx_init(struct hbg_priv *priv)
 void hbg_txrx_uninit(struct hbg_priv *priv)
 {
 	hbg_ring_uninit(&priv->tx_ring);
+	hbg_ring_uninit(&priv->rx_ring);
 }
