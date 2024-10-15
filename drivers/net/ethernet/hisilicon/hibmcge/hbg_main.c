@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include "hbg_common.h"
 #include "hbg_hw.h"
+#include "hbg_irq.h"
 #include "hbg_mdio.h"
 
 static int hbg_init(struct hbg_priv *priv)
@@ -17,6 +18,10 @@ static int hbg_init(struct hbg_priv *priv)
 		return ret;
 
 	ret = hbg_hw_init(priv);
+	if (ret)
+		return ret;
+
+	ret = hbg_irq_init(priv);
 	if (ret)
 		return ret;
 

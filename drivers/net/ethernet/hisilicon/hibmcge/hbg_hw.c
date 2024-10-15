@@ -75,6 +75,63 @@ static int hbg_hw_dev_specs_init(struct hbg_priv *priv)
 	return 0;
 }
 
+u32 hbg_hw_get_irq_status(struct hbg_priv *priv)
+{
+	u32 status;
+
+	status = hbg_reg_read(priv, HBG_REG_CF_INTRPT_STAT_ADDR);
+
+	hbg_field_modify(status, HBG_INT_MSK_TX_B,
+			 hbg_reg_read(priv, HBG_REG_CF_IND_TXINT_STAT_ADDR));
+	hbg_field_modify(status, HBG_INT_MSK_RX_B,
+			 hbg_reg_read(priv, HBG_REG_CF_IND_RXINT_STAT_ADDR));
+
+	return status;
+}
+
+void hbg_hw_irq_clear(struct hbg_priv *priv, u32 mask)
+{
+	if (FIELD_GET(HBG_INT_MSK_TX_B, mask))
+		return hbg_reg_write(priv, HBG_REG_CF_IND_TXINT_CLR_ADDR, 0x1);
+
+	if (FIELD_GET(HBG_INT_MSK_RX_B, mask))
+		return hbg_reg_write(priv, HBG_REG_CF_IND_RXINT_CLR_ADDR, 0x1);
+
+	return hbg_reg_write(priv, HBG_REG_CF_INTRPT_CLR_ADDR, mask);
+}
+
+bool hbg_hw_irq_is_enabled(struct hbg_priv *priv, u32 mask)
+{
+	if (FIELD_GET(HBG_INT_MSK_TX_B, mask))
+		return hbg_reg_read(priv, HBG_REG_CF_IND_TXINT_MSK_ADDR);
+
+	if (FIELD_GET(HBG_INT_MSK_RX_B, mask))
+		return hbg_reg_read(priv, HBG_REG_CF_IND_RXINT_MSK_ADDR);
+
+	return hbg_reg_read(priv, HBG_REG_CF_INTRPT_MSK_ADDR) & mask;
+}
+
+void hbg_hw_irq_enable(struct hbg_priv *priv, u32 mask, bool enable)
+{
+	u32 value;
+
+	if (FIELD_GET(HBG_INT_MSK_TX_B, mask))
+		return hbg_reg_write(priv,
+				     HBG_REG_CF_IND_TXINT_MSK_ADDR, enable);
+
+	if (FIELD_GET(HBG_INT_MSK_RX_B, mask))
+		return hbg_reg_write(priv,
+				     HBG_REG_CF_IND_RXINT_MSK_ADDR, enable);
+
+	value = hbg_reg_read(priv, HBG_REG_CF_INTRPT_MSK_ADDR);
+	if (enable)
+		value |= mask;
+	else
+		value &= ~mask;
+
+	hbg_reg_write(priv, HBG_REG_CF_INTRPT_MSK_ADDR, value);
+}
+
 void hbg_hw_adjust_link(struct hbg_priv *priv, u32 speed, u32 duplex)
 {
 	hbg_reg_write_field(priv, HBG_REG_PORT_MODE_ADDR,
