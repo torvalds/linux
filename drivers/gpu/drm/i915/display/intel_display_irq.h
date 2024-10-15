@@ -33,7 +33,6 @@ void ibx_disable_display_interrupt(struct drm_i915_private *i915, u32 bits);
 
 void gen8_irq_power_well_post_enable(struct drm_i915_private *i915, u8 pipe_mask);
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *i915, u8 pipe_mask);
-u32 gen8_de_pipe_underrun_mask(struct drm_i915_private *i915);
 
 int i8xx_enable_vblank(struct drm_crtc *crtc);
 int i915gm_enable_vblank(struct drm_crtc *crtc);
