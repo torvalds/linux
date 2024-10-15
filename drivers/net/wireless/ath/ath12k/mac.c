@@ -5127,8 +5127,7 @@ exit:
 	return ret;
 }
 
-static int ath12k_mac_conf_tx(struct ath12k_link_vif *arvif,
-			      unsigned int link_id, u16 ac,
+static int ath12k_mac_conf_tx(struct ath12k_link_vif *arvif, u16 ac,
 			      const struct ieee80211_tx_queue_params *params)
 {
 	struct wmi_wmm_params_arg *p = NULL;
@@ -5188,16 +5187,16 @@ static int ath12k_mac_op_conf_tx(struct ieee80211_hw *hw,
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_link_vif *arvif;
 	struct ath12k_vif_cache *cache;
-	struct ath12k *ar;
 	int ret;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	arvif = &ahvif->deflink;
-	ar = ath12k_get_ar_by_vif(hw, vif);
-	if (!ar) {
-		/* cache the info and apply after vdev is created */
-		cache = ath12k_ahvif_get_link_cache(ahvif, ATH12K_DEFAULT_LINK_ID);
+	if (link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+		return -EINVAL;
+
+	arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+	if (!arvif || !arvif->is_created) {
+		cache = ath12k_ahvif_get_link_cache(ahvif, link_id);
 		if (!cache)
 			return -ENOSPC;
 
@@ -5208,7 +5207,7 @@ static int ath12k_mac_op_conf_tx(struct ieee80211_hw *hw,
 		return 0;
 	}
 
-	ret = ath12k_mac_conf_tx(arvif, link_id, ac, params);
+	ret = ath12k_mac_conf_tx(arvif, ac, params);
 
 	return ret;
 }
@@ -6962,7 +6961,7 @@ static void ath12k_mac_vif_cache_flush(struct ath12k *ar, struct ath12k_link_vif
 		return;
 
 	if (cache->tx_conf.changed) {
-		ret = ath12k_mac_conf_tx(arvif, 0, cache->tx_conf.ac,
+		ret = ath12k_mac_conf_tx(arvif, cache->tx_conf.ac,
 					 &cache->tx_conf.tx_queue_params);
 		if (ret)
 			ath12k_warn(ab,
