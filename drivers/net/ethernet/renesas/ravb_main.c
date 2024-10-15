@@ -749,13 +749,18 @@ static void ravb_get_tx_tstamp(struct net_device *ndev)
 static void ravb_rx_csum_gbeth(struct sk_buff *skb)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	__wsum csum_ip_hdr, csum_proto;
+	__wsum csum_proto;
 	skb_frag_t *last_frag;
 	u8 *hw_csum;
 
 	/* The hardware checksum status is contained in sizeof(__sum16) * 2 = 4
-	 * bytes appended to packet data. First 2 bytes is ip header checksum
-	 * and last 2 bytes is protocol checksum.
+	 * bytes appended to packet data.
+	 *
+	 * For ipv4, the first 2 bytes are the ip header checksum status. We can
+	 * ignore this as it will always be re-checked in inet_gro_receive().
+	 *
+	 * The last 2 bytes are the protocol checksum status which will be zero
+	 * if the checksum has been validated.
 	 */
 	if (unlikely(skb->len < sizeof(__sum16) * 2))
 		return;
@@ -771,16 +776,13 @@ static void ravb_rx_csum_gbeth(struct sk_buff *skb)
 	hw_csum -= sizeof(__sum16);
 	csum_proto = csum_unfold((__force __sum16)get_unaligned_le16(hw_csum));
 
-	hw_csum -= sizeof(__sum16);
-	csum_ip_hdr = csum_unfold((__force __sum16)get_unaligned_le16(hw_csum));
-
 	if (skb_is_nonlinear(skb))
 		skb_frag_size_sub(last_frag, 2 * sizeof(__sum16));
 	else
 		skb_trim(skb, skb->len - 2 * sizeof(__sum16));
 
 	/* TODO: IPV6 Rx checksum */
-	if (skb->protocol == htons(ETH_P_IP) && !csum_ip_hdr && !csum_proto)
+	if (skb->protocol == htons(ETH_P_IP) && !csum_proto)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
