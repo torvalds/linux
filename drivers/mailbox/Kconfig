@@ -127,7 +127,7 @@ config STI_MBOX
 
 config TI_MESSAGE_MANAGER
 	tristate "Texas Instruments Message Manager Driver"
-	depends on ARCH_KEYSTONE || ARCH_K3
+	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
 	default ARCH_K3
 	help
 	  An implementation of Message Manager slave driver for Keystone
