@@ -547,11 +547,22 @@ static void ath12k_get_arvif_iter(void *data, u8 *mac,
 {
 	struct ath12k_vif_iter *arvif_iter = data;
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
-	struct ath12k_link_vif *arvif = &ahvif->deflink;
+	unsigned long links_map = ahvif->links_map;
+	struct ath12k_link_vif *arvif;
+	u8 link_id;
 
-	if (arvif->vdev_id == arvif_iter->vdev_id &&
-	    arvif->ar == arvif_iter->ar)
-		arvif_iter->arvif = arvif;
+	for_each_set_bit(link_id, &links_map, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = rcu_dereference(ahvif->link[link_id]);
+
+		if (WARN_ON(!arvif))
+			continue;
+
+		if (arvif->vdev_id == arvif_iter->vdev_id &&
+		    arvif->ar == arvif_iter->ar) {
+			arvif_iter->arvif = arvif;
+			break;
+		}
+	}
 }
 
 struct ath12k_link_vif *ath12k_mac_get_arvif(struct ath12k *ar, u32 vdev_id)
