@@ -525,9 +525,11 @@ properties:
           - const: dfi,fs700e-m60
           - const: fsl,imx6dl
 
-      - description: i.MX6DL DHCOM PicoITX Board
+      - description: i.MX6DL DHCOM based Boards
         items:
-          - const: dh,imx6dl-dhcom-picoitx
+          - enum:
+              - dh,imx6dl-dhcom-pdk2         # i.MX6DL DHCOM SoM on PDK2 board
+              - dh,imx6dl-dhcom-picoitx      # i.MX6DL DHCOM SoM on PicoITX board
           - const: dh,imx6dl-dhcom-som
           - const: fsl,imx6dl
 
