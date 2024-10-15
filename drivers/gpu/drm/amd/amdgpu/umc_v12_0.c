@@ -177,7 +177,7 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ras_err_data *err_data,
 					struct ta_ras_query_address_input *addr_in)
 {
-	uint32_t col, row, row_xor, bank, channel_index;
+	uint32_t col, row, bank, channel_index;
 	uint64_t soc_pa, retired_page, column, err_addr;
 	struct ta_ras_query_address_output addr_out;
 
@@ -195,31 +195,27 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	channel_index = addr_out.pa.channel_idx;
 
 	col = (err_addr >> 1) & 0x1fULL;
-	row = (err_addr >> 10) & 0x3fffULL;
-	row_xor = row ^ (0x1ULL << 13);
 	/* clear [C3 C2] in soc physical address */
 	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
 	/* clear [C4] in soc physical address */
 	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
+	/* clear [R13] in soc physical address */
+	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_R13_BIT);
 
-	/* loop for all possibilities of [C4 C3 C2] */
-	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
+	/* loop for all possibilities of [R13 C4 C3 C2] */
+	for (column = 0; column < UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL; column++) {
 		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
 		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
+		retired_page |= (((column & 0x8) >> 3) << UMC_V12_0_PA_R13_BIT);
+
 		/* include column bit 0 and 1 */
 		col &= 0x3;
 		col |= (column << 2);
+		row = (retired_page >> UMC_V12_0_PA_R0_BIT) & 0x3fffULL;
+
 		dev_info(adev->dev,
 			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
 			retired_page, row, col, bank, channel_index);
-		amdgpu_umc_fill_error_record(err_data, err_addr,
-			retired_page, channel_index, addr_in->ma.umc_inst);
-
-		/* shift R13 bit */
-		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
-		dev_info(adev->dev,
-			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
-			retired_page, row_xor, col, bank, channel_index);
 		amdgpu_umc_fill_error_record(err_data, err_addr,
 			retired_page, channel_index, addr_in->ma.umc_inst);
 	}
@@ -229,7 +225,7 @@ static void umc_v12_0_dump_addr_info(struct amdgpu_device *adev,
 				struct ta_ras_query_address_output *addr_out,
 				uint64_t err_addr)
 {
-	uint32_t col, row, row_xor, bank, channel_index;
+	uint32_t col, row, bank, channel_index;
 	uint64_t soc_pa, retired_page, column;
 
 	soc_pa = addr_out->pa.pa;
@@ -237,29 +233,27 @@ static void umc_v12_0_dump_addr_info(struct amdgpu_device *adev,
 	channel_index = addr_out->pa.channel_idx;
 
 	col = (err_addr >> 1) & 0x1fULL;
-	row = (err_addr >> 10) & 0x3fffULL;
-	row_xor = row ^ (0x1ULL << 13);
 	/* clear [C3 C2] in soc physical address */
 	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
 	/* clear [C4] in soc physical address */
 	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
+	/* clear [R13] in soc physical address */
+	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_R13_BIT);
 
-	/* loop for all possibilities of [C4 C3 C2] */
-	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
+	/* loop for all possibilities of [R13 C4 C3 C2] */
+	for (column = 0; column < UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL; column++) {
 		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
 		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
+		retired_page |= (((column & 0x8) >> 3) << UMC_V12_0_PA_R13_BIT);
+
 		/* include column bit 0 and 1 */
 		col &= 0x3;
-		col |= (column << 2);
+		col |= ((column & 0x7) << 2);
+		row = (retired_page >> UMC_V12_0_PA_R0_BIT) & 0x3fffULL;
+
 		dev_info(adev->dev,
 			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
 			retired_page, row, col, bank, channel_index);
-
-		/* shift R13 bit */
-		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
-		dev_info(adev->dev,
-			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
-			retired_page, row_xor, col, bank, channel_index);
 	}
 }
 
@@ -274,23 +268,18 @@ static int umc_v12_0_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
 	/* clear [C4] in soc physical address */
 	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
+	/* clear [R13] in soc physical address */
+	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_R13_BIT);
 
 	/* loop for all possibilities of [C4 C3 C2] */
-	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
+	for (column = 0; column < UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL; column++) {
 		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
 		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
+		retired_page |= (((column & 0x8) >> 3) << UMC_V12_0_PA_R13_BIT);
 
 		if (pos >= len)
 			return 0;
 		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
-
-		/* shift R13 bit */
-		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
-
-		if (pos >= len)
-			return 0;
-		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
-
 	}
 
 	return pos;

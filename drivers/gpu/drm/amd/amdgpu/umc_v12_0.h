@@ -60,6 +60,7 @@
 #define UMC_V12_0_PA_C2_BIT 15
 #define UMC_V12_0_PA_C4_BIT 21
 /* row bits in SOC physical address */
+#define UMC_V12_0_PA_R0_BIT 22
 #define UMC_V12_0_PA_R13_BIT 35
 
 #define MCA_UMC_HWID_V12_0     0x96
