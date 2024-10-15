@@ -9438,7 +9438,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	 */
 	disk_num_bytes = ALIGN(orig_count, fs_info->sectorsize);
 	nr_folios = DIV_ROUND_UP(disk_num_bytes, PAGE_SIZE);
-	folios = kvcalloc(nr_folios, sizeof(struct page *), GFP_KERNEL_ACCOUNT);
+	folios = kvcalloc(nr_folios, sizeof(struct folio *), GFP_KERNEL_ACCOUNT);
 	if (!folios)
 		return -ENOMEM;
 	for (i = 0; i < nr_folios; i++) {
