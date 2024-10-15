@@ -36,8 +36,7 @@ void qpt_sysfs_notify(struct qpt_priv *qpt)
 
 static int qpt_suspend(struct device *dev)
 {
-	struct qpt_device *qpt_dev = dev_get_drvdata(dev);
-	struct qpt_priv *qpt = qpt_dev->priv;
+	struct qpt_priv *qpt = dev_get_drvdata(dev);
 
 	if (qpt->ops->suspend)
 		return qpt->ops->suspend(qpt);
@@ -47,8 +46,7 @@ static int qpt_suspend(struct device *dev)
 
 static int qpt_resume(struct device *dev)
 {
-	struct qpt_device *qpt_dev = dev_get_drvdata(dev);
-	struct qpt_priv *qpt = qpt_dev->priv;
+	struct qpt_priv *qpt = dev_get_drvdata(dev);
 
 	if (qpt->ops->resume)
 		return qpt->ops->resume(qpt);
