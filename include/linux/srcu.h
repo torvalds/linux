@@ -270,7 +270,8 @@ static inline int srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp)
  * synchronize_rcu_expedited(), IPIs and all.
  *
  * Note that srcu_read_lock_lite() can be invoked only from those contexts
- * where RCU is watching.  Otherwise, lockdep will complain.
+ * where RCU is watching, that is, from contexts where it would be legal
+ * to invoke rcu_read_lock().  Otherwise, lockdep will complain.
  */
 static inline int srcu_read_lock_lite(struct srcu_struct *ssp) __acquires(ssp)
 {
