@@ -9,6 +9,9 @@
 #include "hbg_hw.h"
 #include "hbg_irq.h"
 #include "hbg_mdio.h"
+#include "hbg_txrx.h"
+
+static void hbg_change_mtu(struct hbg_priv *priv, int new_mtu);
 
 static void hbg_all_irq_enable(struct hbg_priv *priv, bool enabled)
 {
@@ -24,11 +27,36 @@ static void hbg_all_irq_enable(struct hbg_priv *priv, bool enabled)
 static int hbg_net_open(struct net_device *netdev)
 {
 	struct hbg_priv *priv = netdev_priv(netdev);
+	int ret;
+
+	ret = hbg_txrx_init(priv);
+	if (ret)
+		return ret;
 
 	hbg_all_irq_enable(priv, true);
 	hbg_hw_mac_enable(priv, HBG_STATUS_ENABLE);
 	netif_start_queue(netdev);
 	hbg_phy_start(priv);
+
+	return 0;
+}
+
+/* This function only can be called after hbg_txrx_uninit() */
+static int hbg_hw_txrx_clear(struct hbg_priv *priv)
+{
+	int ret;
+
+	/* After ring buffers have been released,
+	 * do a reset to release hw fifo rx ring buffer
+	 */
+	ret = hbg_hw_event_notify(priv, HBG_HW_EVENT_RESET);
+	if (ret)
+		return ret;
+
+	/* After reset, regs need to be reconfigured */
+	hbg_hw_init(priv);
+	hbg_hw_set_uc_addr(priv, ether_addr_to_u64(priv->netdev->dev_addr));
+	hbg_change_mtu(priv, priv->netdev->mtu);
 
 	return 0;
 }
@@ -41,8 +69,8 @@ static int hbg_net_stop(struct net_device *netdev)
 	netif_stop_queue(netdev);
 	hbg_hw_mac_enable(priv, HBG_STATUS_DISABLE);
 	hbg_all_irq_enable(priv, false);
-
-	return 0;
+	hbg_txrx_uninit(priv);
+	return hbg_hw_txrx_clear(priv);
 }
 
 static int hbg_net_set_mac_address(struct net_device *netdev, void *addr)
@@ -86,12 +114,33 @@ static int hbg_net_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
+static void hbg_net_tx_timeout(struct net_device *netdev, unsigned int txqueue)
+{
+	struct hbg_priv *priv = netdev_priv(netdev);
+	struct hbg_ring *ring = &priv->tx_ring;
+	char *buf = ring->tout_log_buf;
+	u32 pos = 0;
+
+	pos += scnprintf(buf + pos, HBG_TX_TIMEOUT_BUF_LEN - pos,
+			 "ring used num: %u, fifo used num: %u\n",
+			 hbg_get_queue_used_num(ring),
+			 hbg_hw_get_fifo_used_num(priv, HBG_DIR_TX));
+	pos += scnprintf(buf + pos, HBG_TX_TIMEOUT_BUF_LEN - pos,
+			 "ntc: %u, ntu: %u, irq enabled: %u\n",
+			 ring->ntc, ring->ntu,
+			 hbg_hw_irq_is_enabled(priv, HBG_INT_MSK_TX_B));
+
+	netdev_info(netdev, "%s", buf);
+}
+
 static const struct net_device_ops hbg_netdev_ops = {
 	.ndo_open		= hbg_net_open,
 	.ndo_stop		= hbg_net_stop,
+	.ndo_start_xmit		= hbg_net_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= hbg_net_set_mac_address,
 	.ndo_change_mtu		= hbg_net_change_mtu,
+	.ndo_tx_timeout		= hbg_net_tx_timeout,
 };
 
 static int hbg_init(struct hbg_priv *priv)
@@ -170,6 +219,7 @@ static int hbg_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->max_mtu = priv->dev_specs.max_mtu;
 	netdev->min_mtu = priv->dev_specs.min_mtu;
 	netdev->netdev_ops = &hbg_netdev_ops;
+	netdev->watchdog_timeo = 5 * HZ;
 
 	hbg_change_mtu(priv, ETH_DATA_LEN);
 	hbg_net_set_mac_address(priv->netdev, &priv->dev_specs.mac_addr);

@@ -13,6 +13,12 @@ static void hbg_irq_handle_err(struct hbg_priv *priv,
 			"receive error interrupt: %s\n", irq_info->name);
 }
 
+static void hbg_irq_handle_tx(struct hbg_priv *priv,
+			      struct hbg_irq_info *irq_info)
+{
+	napi_schedule(&priv->tx_ring.napi);
+}
+
 #define HBG_TXRX_IRQ_I(name, handle) \
 	{#name, HBG_INT_MSK_##name##_B, false, false, 0, handle}
 #define HBG_ERR_IRQ_I(name, need_print) \
@@ -20,7 +26,7 @@ static void hbg_irq_handle_err(struct hbg_priv *priv,
 
 static struct hbg_irq_info hbg_irqs[] = {
 	HBG_TXRX_IRQ_I(RX, NULL),
-	HBG_TXRX_IRQ_I(TX, NULL),
+	HBG_TXRX_IRQ_I(TX, hbg_irq_handle_tx),
 	HBG_ERR_IRQ_I(MAC_MII_FIFO_ERR, true),
 	HBG_ERR_IRQ_I(MAC_PCS_RX_FIFO_ERR, true),
 	HBG_ERR_IRQ_I(MAC_PCS_TX_FIFO_ERR, true),
