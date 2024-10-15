@@ -476,18 +476,25 @@ static u8 ath12k_parse_mpdudensity(u8 mpdudensity)
 	}
 }
 
-static int ath12k_mac_vif_chan(struct ieee80211_vif *vif,
-			       struct cfg80211_chan_def *def)
+static int ath12k_mac_vif_link_chan(struct ieee80211_vif *vif, u8 link_id,
+				    struct cfg80211_chan_def *def)
 {
+	struct ieee80211_bss_conf *link_conf;
 	struct ieee80211_chanctx_conf *conf;
 
 	rcu_read_lock();
-	conf = rcu_dereference(vif->bss_conf.chanctx_conf);
+	link_conf = rcu_dereference(vif->link_conf[link_id]);
+
+	if (!link_conf) {
+		rcu_read_unlock();
+		return -ENOLINK;
+	}
+
+	conf = rcu_dereference(link_conf->chanctx_conf);
 	if (!conf) {
 		rcu_read_unlock();
 		return -ENOENT;
 	}
-
 	*def = conf->def;
 	rcu_read_unlock();
 
@@ -721,7 +728,7 @@ static u8 ath12k_mac_get_target_pdev_id_from_vif(struct ath12k_link_vif *arvif)
 	u8 pdev_id = ab->fw_pdev[0].pdev_id;
 	int i;
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return pdev_id;
 
 	band = def.chan->band;
@@ -1780,7 +1787,7 @@ static void ath12k_peer_assoc_h_crypto(struct ath12k *ar,
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return;
 
 	bss = cfg80211_get_bss(hw->wiphy, def.chan, info->bssid, NULL, 0,
@@ -1846,7 +1853,7 @@ static void ath12k_peer_assoc_h_rates(struct ath12k *ar,
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return;
 
 	band = def.chan->band;
@@ -1908,7 +1915,7 @@ static void ath12k_peer_assoc_h_ht(struct ath12k *ar,
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return;
 
 	if (!ht_cap->ht_supported)
@@ -2071,7 +2078,7 @@ static void ath12k_peer_assoc_h_vht(struct ath12k *ar,
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return;
 
 	if (!vht_cap->vht_supported)
@@ -2320,7 +2327,7 @@ static void ath12k_peer_assoc_h_he_6ghz(struct ath12k *ar,
 	enum nl80211_band band;
 	u8 ampdu_factor, mpdu_density;
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return;
 
 	band = def.chan->band;
@@ -2624,7 +2631,7 @@ static void ath12k_peer_assoc_h_phymode(struct ath12k *ar,
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(arsta->ahsta);
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return;
 
 	band = def.chan->band;
@@ -3369,7 +3376,7 @@ static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 	}
 
 	if (changed & BSS_CHANGED_MCAST_RATE &&
-	    !ath12k_mac_vif_chan(vif, &def)) {
+	    !ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)) {
 		band = def.chan->band;
 		mcast_rate = vif->bss_conf.mcast_rate[band];
 
@@ -3413,7 +3420,7 @@ static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES &&
-	    !ath12k_mac_vif_chan(vif, &def))
+	    !ath12k_mac_vif_link_chan(vif, arvif->link_id, &def))
 		ath12k_recalculate_mgmt_rate(ar, arvif, &def);
 
 	if (changed & BSS_CHANGED_TWT) {
@@ -4260,7 +4267,7 @@ static int ath12k_station_assoc(struct ath12k *ar,
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return -EPERM;
 
 	band = def.chan->band;
@@ -4384,7 +4391,7 @@ static void ath12k_sta_rc_update_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 	vif = ath12k_ahvif_to_vif(arvif->ahvif);
 	ar = arvif->ar;
 
-	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
 		return;
 
 	band = def.chan->band;
@@ -8348,7 +8355,7 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 	arvif = &ahvif->deflink;
 
 	ar = arvif->ar;
-	if (ath12k_mac_vif_chan(vif, &def)) {
+	if (ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)) {
 		ret = -EPERM;
 		goto out;
 	}
