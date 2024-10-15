@@ -578,7 +578,7 @@ static int txgbe_clock_register(struct txgbe *txgbe)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	clock = clkdev_create(clk, NULL, clk_name);
+	clock = clkdev_create(clk, NULL, "%s", clk_name);
 	if (!clock) {
 		clk_unregister(clk);
 		return -ENOMEM;
