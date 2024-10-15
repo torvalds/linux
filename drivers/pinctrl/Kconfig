@@ -271,6 +271,7 @@ config PINCTRL_K210
 config PINCTRL_K230
 	bool "Pinctrl driver for the Canaan Kendryte K230 SoC"
 	depends on OF
+	depends on ARCH_CANAAN || COMPILE_TEST
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
