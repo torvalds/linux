@@ -753,7 +753,24 @@ static const struct attribute *uv_prot_virt_attrs[] = {
 static struct kset *uv_query_kset;
 static struct kobject *uv_kobj;
 
-static int __init uv_info_init(void)
+static int __init uv_sysfs_dir_init(const struct attribute_group *grp,
+				    struct kset **uv_dir_kset, const char *name)
+{
+	struct kset *kset;
+	int rc;
+
+	kset = kset_create_and_add(name, NULL, uv_kobj);
+	if (!kset)
+		return -ENOMEM;
+	*uv_dir_kset = kset;
+
+	rc = sysfs_create_group(&kset->kobj, grp);
+	if (rc)
+		kset_unregister(kset);
+	return rc;
+}
+
+static int __init uv_sysfs_init(void)
 {
 	int rc = -ENOMEM;
 
@@ -768,17 +785,12 @@ static int __init uv_info_init(void)
 	if (rc)
 		goto out_kobj;
 
-	uv_query_kset = kset_create_and_add("query", NULL, uv_kobj);
-	if (!uv_query_kset) {
-		rc = -ENOMEM;
+	rc = uv_sysfs_dir_init(&uv_query_attr_group, &uv_query_kset, "query");
+	if (rc)
 		goto out_ind_files;
-	}
 
-	rc = sysfs_create_group(&uv_query_kset->kobj, &uv_query_attr_group);
-	if (!rc)
-		return 0;
+	return 0;
 
-	kset_unregister(uv_query_kset);
 out_ind_files:
 	sysfs_remove_files(uv_kobj, uv_prot_virt_attrs);
 out_kobj:
@@ -786,4 +798,4 @@ out_kobj:
 	kobject_put(uv_kobj);
 	return rc;
 }
-device_initcall(uv_info_init);
+device_initcall(uv_sysfs_init);
