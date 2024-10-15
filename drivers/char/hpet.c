@@ -162,6 +162,7 @@ static irqreturn_t hpet_interrupt(int irq, void *data)
 
 static void hpet_timer_set_irq(struct hpet_dev *devp)
 {
+	const unsigned int nr_irqs = irq_get_nr_irqs();
 	unsigned long v;
 	int irq, gsi;
 	struct hpet_timer __iomem *timer;
