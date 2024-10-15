@@ -17,17 +17,17 @@ struct __arch_ftrace_regs {
 struct ftrace_regs;
 
 #define ftrace_regs_get_instruction_pointer(fregs) \
-	instruction_pointer(arch_ftrace_get_regs(fregs))
+	instruction_pointer(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_get_argument(fregs, n) \
-	regs_get_kernel_argument(arch_ftrace_get_regs(fregs), n)
+	regs_get_kernel_argument(&arch_ftrace_regs(fregs)->regs, n)
 #define ftrace_regs_get_stack_pointer(fregs) \
-	kernel_stack_pointer(arch_ftrace_get_regs(fregs))
+	kernel_stack_pointer(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_return_value(fregs) \
-	regs_return_value(arch_ftrace_get_regs(fregs))
+	regs_return_value(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_set_return_value(fregs, ret) \
-	regs_set_return_value(arch_ftrace_get_regs(fregs), ret)
+	regs_set_return_value(&arch_ftrace_regs(fregs)->regs, ret)
 #define ftrace_override_function_with_return(fregs) \
-	override_function_with_return(arch_ftrace_get_regs(fregs))
+	override_function_with_return(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_query_register_offset(name) \
 	regs_query_register_offset(name)
 
