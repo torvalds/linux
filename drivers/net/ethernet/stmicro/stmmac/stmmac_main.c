@@ -7409,8 +7409,13 @@ int stmmac_dvr_probe(struct device *device,
 	u32 rxq;
 	int i, ret = 0;
 
-	ndev = devm_alloc_etherdev_mqs(device, sizeof(struct stmmac_priv),
-				       MTL_MAX_TX_QUEUES, MTL_MAX_RX_QUEUES);
+	if (of_property_read_bool(device->of_node, "virtio-mdio"))
+		ndev = alloc_netdev_mqs(sizeof(struct stmmac_priv), "eth2", NET_NAME_ENUM,
+					ether_setup, MTL_MAX_TX_QUEUES, MTL_MAX_TX_QUEUES);
+	else
+		ndev = devm_alloc_etherdev_mqs(device, sizeof(struct stmmac_priv),
+					       MTL_MAX_TX_QUEUES, MTL_MAX_TX_QUEUES);
+
 	if (!ndev)
 		return -ENOMEM;
 
