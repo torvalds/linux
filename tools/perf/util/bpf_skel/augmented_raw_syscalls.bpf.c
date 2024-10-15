@@ -477,6 +477,8 @@ static int augment_sys_enter(void *ctx, struct syscall_enter_args *args)
 				augmented = true;
 		} else if (size < 0 && size >= -6) { /* buffer */
 			index = -(size + 1);
+			barrier_var(index); // Prevent clang (noticed with v18) from removing the &= 7 trick.
+			index &= 7;	    // Satisfy the bounds checking with the verifier in some kernels.
 			aug_size = args->args[index];
 
 			if (aug_size > TRACE_AUG_MAX_BUF)
