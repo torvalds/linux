@@ -941,7 +941,7 @@ static void __hws_send_queues_close(struct mlx5hws_context *ctx, u16 queues)
 
 static void hws_send_queues_bwc_locks_destroy(struct mlx5hws_context *ctx)
 {
-	int bwc_queues = ctx->queues - 1;
+	int bwc_queues = mlx5hws_bwc_queues(ctx);
 	int i;
 
 	if (!mlx5hws_context_bwc_supported(ctx))
