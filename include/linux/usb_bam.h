@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2011-2017, 2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _USB_BAM_H_
@@ -17,6 +17,7 @@
 /* Supported USB controllers*/
 enum usb_ctrl {
 	USB_CTRL_UNUSED = 0,
+	CI_CTRL,        /* ChipIdea controller */
 	NUM_CTRL,
 };
 
@@ -191,6 +192,7 @@ int usb_bam_alloc_fifos(enum usb_ctrl cur_bam, u8 idx);
 int usb_bam_free_fifos(enum usb_ctrl cur_bam, u8 idx);
 int get_qdss_bam_info(enum usb_ctrl cur_bam, u8 idx,
 			phys_addr_t *p_addr, u32 *bam_size);
+static inline bool msm_usb_bam_enable(enum usb_ctrl ctrl, bool bam_enable);
 #else
 static inline int usb_bam_connect(enum usb_ctrl bam, u8 idx, u32 *bam_pipe_idx,
 							unsigned long iova)
@@ -263,6 +265,11 @@ static inline int get_qdss_bam_info(enum usb_ctrl cur_bam, u8 idx,
 				phys_addr_t *p_addr, u32 *bam_size)
 {
 	return false;
+}
+
+static inline bool msm_usb_bam_enable(enum usb_ctrl ctrl, bool bam_enable)
+{
+	return true;
 }
 #endif
 
