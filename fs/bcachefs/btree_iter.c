@@ -3261,6 +3261,9 @@ void bch2_trans_put(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 
+	if (trans->restarted)
+		bch2_trans_in_restart_error(trans);
+
 	bch2_trans_unlock(trans);
 
 	trans_for_each_update(trans, i)
