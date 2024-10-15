@@ -70,3 +70,5 @@ usb_f_diag-y			:= f_diag.o
 obj-$(CONFIG_USB_F_DIAG)	+= usb_f_diag.o
 usb_f_rmnet_bam-y               := f_rmnet.o u_ctrl_qti.o u_bam_dmux.o
 obj-$(CONFIG_USB_F_RMNET_BAM)   += usb_f_rmnet_bam.o
+usb_f_mbim-y               	:= f_mbim.o
+obj-$(CONFIG_USB_F_MBIM_BAM)	+= usb_f_mbim.o

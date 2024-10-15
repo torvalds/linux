@@ -252,6 +252,9 @@ config USB_F_FS_IPC_LOGGING
 config USB_F_RMNET_BAM
         tristate
 
+config USB_F_MBIM_BAM
+        tristate
+
 # this first set of drivers all depend on bulk-capable hardware.
 
 config USB_CONFIGFS
@@ -611,6 +614,18 @@ config USB_CONFIGFS_RMNET_BAM
 	   channel for IP data transfer and control I/O channel for QMI
 	   messaging (functionality similar to AT commands).
 	   RmNet interface is an alternative to standard CDC-ECM and windows
+	   RNDIS.
+
+config USB_CONFIGFS_MBIM_BAM
+        bool "MBIM_BAM"
+        depends on USB_CONFIGFS
+        select USB_F_MBIM_BAM
+	help
+	   Mbim interface is a new logical device in QMI framework for data
+	   services. Mbim in accordance with QMI architecture uses Data I/O
+	   channel for IP data transfer and control I/O channel for QMI
+	   messaging (functionality similar to AT commands).
+	   Mbim interface is an alternative to standard CDC-ECM and windows
 	   RNDIS.
 
 source "drivers/usb/gadget/legacy/Kconfig"
