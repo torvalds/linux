@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __GPIB_PCI_IDS_H
-#define __GPIB_LINUX_PCI_IDS_H
+#define __GPIB_PCI_IDS_H
 
 #ifndef PCI_VENDOR_ID_AMCC
 #define PCI_VENDOR_ID_AMCC	0x10e8
