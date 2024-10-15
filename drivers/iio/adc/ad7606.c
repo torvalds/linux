@@ -13,10 +13,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/property.h>
+#include <linux/pwm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/units.h>
 #include <linux/util_macros.h>
 
 #include <linux/iio/buffer.h>
@@ -299,6 +301,73 @@ static int ad7606_reg_access(struct iio_dev *indio_dev,
 	}
 }
 
+static int ad7606_pwm_set_high(struct ad7606_state *st)
+{
+	struct pwm_state cnvst_pwm_state;
+	int ret;
+
+	pwm_get_state(st->cnvst_pwm, &cnvst_pwm_state);
+	cnvst_pwm_state.enabled = true;
+	cnvst_pwm_state.duty_cycle = cnvst_pwm_state.period;
+
+	ret = pwm_apply_might_sleep(st->cnvst_pwm, &cnvst_pwm_state);
+	/* sleep 2 µS to let finish the current pulse */
+	fsleep(2);
+
+	return ret;
+}
+
+static int ad7606_pwm_set_low(struct ad7606_state *st)
+{
+	struct pwm_state cnvst_pwm_state;
+	int ret;
+
+	pwm_get_state(st->cnvst_pwm, &cnvst_pwm_state);
+	cnvst_pwm_state.enabled = true;
+	cnvst_pwm_state.duty_cycle = 0;
+
+	ret = pwm_apply_might_sleep(st->cnvst_pwm, &cnvst_pwm_state);
+	/* sleep 2 µS to let finish the current pulse */
+	fsleep(2);
+
+	return ret;
+}
+
+static bool ad7606_pwm_is_swinging(struct ad7606_state *st)
+{
+	struct pwm_state cnvst_pwm_state;
+
+	pwm_get_state(st->cnvst_pwm, &cnvst_pwm_state);
+
+	return cnvst_pwm_state.duty_cycle != cnvst_pwm_state.period &&
+	       cnvst_pwm_state.duty_cycle != 0;
+}
+
+static int ad7606_set_sampling_freq(struct ad7606_state *st, unsigned long freq)
+{
+	struct pwm_state cnvst_pwm_state;
+	bool is_swinging = ad7606_pwm_is_swinging(st);
+	bool is_high;
+
+	if (freq == 0)
+		return -EINVAL;
+
+	/* Retrieve the previous state. */
+	pwm_get_state(st->cnvst_pwm, &cnvst_pwm_state);
+	is_high = cnvst_pwm_state.duty_cycle == cnvst_pwm_state.period;
+
+	cnvst_pwm_state.period = DIV_ROUND_UP_ULL(NSEC_PER_SEC, freq);
+	cnvst_pwm_state.polarity = PWM_POLARITY_NORMAL;
+	if (is_high)
+		cnvst_pwm_state.duty_cycle = cnvst_pwm_state.period;
+	else if (is_swinging)
+		cnvst_pwm_state.duty_cycle = cnvst_pwm_state.period / 2;
+	else
+		cnvst_pwm_state.duty_cycle = 0;
+
+	return pwm_apply_might_sleep(st->cnvst_pwm, &cnvst_pwm_state);
+}
+
 static int ad7606_read_samples(struct ad7606_state *st)
 {
 	unsigned int num = st->chip_info->num_channels - 1;
@@ -324,7 +393,13 @@ static irqreturn_t ad7606_trigger_handler(int irq, void *p)
 error_ret:
 	iio_trigger_notify_done(indio_dev->trig);
 	/* The rising edge of the CONVST signal starts a new conversion. */
-	gpiod_set_value(st->gpio_convst, 1);
+	if (st->gpio_convst) {
+		gpiod_set_value(st->gpio_convst, 1);
+	} else {
+		ret = ad7606_pwm_set_high(st);
+		if (ret < 0)
+			dev_err(st->dev, "Could not set PWM to high.");
+	}
 
 	return IRQ_HANDLED;
 }
@@ -337,7 +412,13 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 	const struct iio_chan_spec *chan;
 	int ret;
 
-	gpiod_set_value(st->gpio_convst, 1);
+	if (st->gpio_convst) {
+		gpiod_set_value(st->gpio_convst, 1);
+	} else {
+		ret = ad7606_pwm_set_high(st);
+		if (ret < 0)
+			return ret;
+	}
 	ret = wait_for_completion_timeout(&st->completion,
 					  msecs_to_jiffies(1000));
 	if (!ret) {
@@ -363,6 +444,11 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 	}
 
 error_ret:
+	if (!st->gpio_convst) {
+		ret = ad7606_pwm_set_low(st);
+		if (ret < 0)
+			return ret;
+	}
 	gpiod_set_value(st->gpio_convst, 0);
 
 	return ret;
@@ -662,8 +748,9 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 {
 	struct device *dev = st->dev;
 
-	st->gpio_convst = devm_gpiod_get(dev, "adi,conversion-start",
-					 GPIOD_OUT_LOW);
+	st->gpio_convst = devm_gpiod_get_optional(dev, "adi,conversion-start",
+						  GPIOD_OUT_LOW);
+
 	if (IS_ERR(st->gpio_convst))
 		return PTR_ERR(st->gpio_convst);
 
@@ -705,14 +792,24 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 {
 	struct iio_dev *indio_dev = dev_id;
 	struct ad7606_state *st = iio_priv(indio_dev);
+	int ret;
 
 	if (iio_buffer_enabled(indio_dev)) {
-		gpiod_set_value(st->gpio_convst, 0);
+		if (st->gpio_convst) {
+			gpiod_set_value(st->gpio_convst, 0);
+		} else {
+			ret = ad7606_pwm_set_low(st);
+			if (ret < 0) {
+				dev_err(st->dev, "PWM set low failed");
+				goto done;
+			}
+		}
 		iio_trigger_poll_nested(st->trig);
 	} else {
 		complete(&st->completion);
 	}
 
+done:
 	return IRQ_HANDLED;
 };
 
@@ -731,7 +828,10 @@ static int ad7606_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	gpiod_set_value(st->gpio_convst, 1);
+	if (st->gpio_convst)
+		gpiod_set_value(st->gpio_convst, 1);
+	else
+		return ad7606_pwm_set_high(st);
 
 	return 0;
 }
@@ -740,7 +840,10 @@ static int ad7606_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	gpiod_set_value(st->gpio_convst, 0);
+	if (st->gpio_convst)
+		gpiod_set_value(st->gpio_convst, 0);
+	else
+		return ad7606_pwm_set_low(st);
 
 	return 0;
 }
@@ -874,6 +977,11 @@ static int ad7606_chan_scales_setup(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static void ad7606_pwm_disable(void *data)
+{
+	pwm_disable(data);
+}
+
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const char *name, unsigned int id,
 		 const struct ad7606_bus_ops *bops)
@@ -950,6 +1058,31 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	if (ret)
 		return ret;
 
+	/* If convst pin is not defined, setup PWM. */
+	if (!st->gpio_convst) {
+		st->cnvst_pwm = devm_pwm_get(dev, NULL);
+		if (IS_ERR(st->cnvst_pwm))
+			return PTR_ERR(st->cnvst_pwm);
+
+		/* The PWM is initialized at 1MHz to have a fast enough GPIO emulation. */
+		ret = ad7606_set_sampling_freq(st, 1 * MEGA);
+		if (ret)
+			return ret;
+
+		ret = ad7606_pwm_set_low(st);
+		if (ret)
+			return ret;
+
+		/*
+		 * PWM is not disabled when sampling stops, but instead its duty cycle is set
+		 * to 0% to be sure we have a "low" state. After we unload the driver, let's
+		 * disable the PWM.
+		 */
+		ret = devm_add_action_or_reset(dev, ad7606_pwm_disable,
+					       st->cnvst_pwm);
+		if (ret)
+			return ret;
+	}
 	st->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 					  indio_dev->name,
 					  iio_device_id(indio_dev));

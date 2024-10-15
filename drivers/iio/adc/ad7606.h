@@ -115,6 +115,7 @@ struct ad7606_chan_scale {
  * @bops		bus operations (SPI or parallel)
  * @chan_scales		scale configuration for channels
  * @oversampling	oversampling selection
+ * @cnvst_pwm		pointer to the PWM device connected to the cnvst pin
  * @base_address	address from where to read data in parallel operation
  * @sw_mode_en		software mode enabled
  * @oversampling_avail	pointer to the array which stores the available
@@ -142,6 +143,7 @@ struct ad7606_state {
 	const struct ad7606_bus_ops	*bops;
 	struct ad7606_chan_scale	chan_scales[AD760X_MAX_CHANNELS];
 	unsigned int			oversampling;
+	struct pwm_device		*cnvst_pwm;
 	void __iomem			*base_address;
 	bool				sw_mode_en;
 	const unsigned int		*oversampling_avail;
