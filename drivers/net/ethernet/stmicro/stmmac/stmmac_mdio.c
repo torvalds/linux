@@ -434,6 +434,76 @@ int stmmac_xpcs_setup(struct mii_bus *bus)
 }
 
 /**
+ * stmmac_get_phy_addr
+ * @priv: net device structure
+ * @new_bus: points to the mii_bus structure
+ * Description: it finds the PHY address from board and phy_type
+ */
+int stmmac_get_phy_addr(struct stmmac_priv *priv, struct mii_bus *new_bus,
+			struct net_device *ndev)
+{
+	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
+	struct device_node *np = priv->device->of_node;
+	unsigned int phyaddr;
+	int err = 0;
+
+	init_completion(&priv->plat->mdio_op);
+	new_bus->reset = &stmmac_mdio_reset;
+	new_bus->priv = ndev;
+
+	if (priv->plat->phy_type != -1) {
+		if (priv->plat->phy_type == PHY_1G) {
+			err = of_property_read_u32(np, "emac-1g-phy-addr", &phyaddr);
+			new_bus->read = &virtio_mdio_read;
+			new_bus->write = &virtio_mdio_write;
+		} else {
+			new_bus->read = &virtio_mdio_read_c45_indirect;
+			new_bus->write = &virtio_mdio_write_c45_indirect;
+			new_bus->probe_capabilities = MDIOBUS_C22_C45;
+			if (priv->plat->phy_type == PHY_25G &&
+			    priv->plat->board_type == STAR_BOARD) {
+				err = of_property_read_u32(np,
+							   "emac-star-cl45-phy-addr", &phyaddr);
+			} else {
+				err = of_property_read_u32(np,
+							   "emac-air-cl45-phy-addr", &phyaddr);
+			}
+		}
+	} else {
+		err = of_property_read_u32(np, "emac-1g-phy-addr", &phyaddr);
+		if (err) {
+			new_bus->phy_mask = mdio_bus_data->phy_mask;
+			return -1;
+		}
+		new_bus->read = &virtio_mdio_read;
+		new_bus->write = &virtio_mdio_write;
+		/* Do MDIO reset before the bus->read call */
+		err = new_bus->reset(new_bus);
+		if (err) {
+			new_bus->phy_mask = ~(1 << phyaddr);
+			return phyaddr;
+		}
+		/* 1G phy check */
+		err = new_bus->read(new_bus, phyaddr, MII_BMSR);
+		if (err == -EBUSY || err == 0xffff) {
+			/* 2.5 G PHY case */
+			new_bus->read = &virtio_mdio_read_c45_indirect;
+			new_bus->write = &virtio_mdio_write_c45_indirect;
+			new_bus->probe_capabilities = MDIOBUS_C22_C45;
+
+			err = of_property_read_u32(np,
+						   "emac-air-cl45-phy-addr", &phyaddr);
+			/* Board Type check */
+			err = new_bus->read(new_bus, phyaddr, MII_BMSR);
+			if (err == -EBUSY || !err || err == 0xffff)
+				err = of_property_read_u32(np,
+							   "emac-star-cl45-phy-addr", &phyaddr);
+		}
+	}
+	new_bus->phy_mask = ~(1 << phyaddr);
+	return phyaddr;
+}
+/**
  * stmmac_mdio_register
  * @ndev: net device structure
  * Description: it registers the MII bus
@@ -474,10 +544,9 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	err = of_property_read_bool(np, "virtio-mdio");
 	if (err) {
-		new_bus->read = &virtio_mdio_read;
-		new_bus->write = &virtio_mdio_write;
-		init_completion(&priv->plat->mdio_op);
+		phyaddr = stmmac_get_phy_addr(priv, new_bus, ndev);
 		max_addr = PHY_MAX_ADDR;
+		skip_phy_detect = 1;
 	} else if (priv->plat->has_xgmac) {
 		new_bus->read = &stmmac_xgmac2_mdio_read;
 		new_bus->write = &stmmac_xgmac2_mdio_write;
@@ -501,24 +570,6 @@ int stmmac_mdio_register(struct net_device *ndev)
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;
-	err = of_property_read_u32(np, "emac-phy-addr", &phyaddr);
-	if (err) {
-		new_bus->phy_mask = mdio_bus_data->phy_mask;
-	} else {
-		err = new_bus->read(new_bus, phyaddr, MII_BMSR);
-		if (err == -EBUSY || !err || err == 0xffff) {
-			err = of_property_read_u32(np, "emac-cl45-phy-addr", &phyaddr);
-			new_bus->phy_mask = ~(1 << phyaddr);
-			skip_phy_detect = 1;
-			new_bus->read = &virtio_mdio_read_c45_indirect;
-			new_bus->write = &virtio_mdio_write_c45_indirect;
-			new_bus->probe_capabilities = MDIOBUS_C22_C45;
-		} else {
-			new_bus->phy_mask = ~(1 << phyaddr);
-			skip_phy_detect = 1;
-		}
-	}
-
 	new_bus->parent = priv->device;
 
 	err = of_mdiobus_register(new_bus, mdio_node);
