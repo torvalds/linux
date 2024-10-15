@@ -69,6 +69,7 @@ typedef int (*ad7606_scale_setup_cb_t)(struct ad7606_state *st,
 /**
  * struct ad7606_chip_info - chip specific information
  * @channels:		channel specification
+ * @name		device name
  * @num_channels:	number of channels
  * @scale_setup_cb:	callback to setup the scales for each channel
  * @oversampling_avail	pointer to the array which stores the available
@@ -80,6 +81,7 @@ typedef int (*ad7606_scale_setup_cb_t)(struct ad7606_state *st,
  */
 struct ad7606_chip_info {
 	const struct iio_chan_spec	*channels;
+	const char			*name;
 	unsigned int			num_channels;
 	ad7606_scale_setup_cb_t		scale_setup_cb;
 	const unsigned int		*oversampling_avail;
@@ -199,22 +201,30 @@ struct ad7606_bus_ops {
 	u16 (*rd_wr_cmd)(int addr, char isWriteOp);
 };
 
+/**
+ * struct ad7606_bus_info - agregate ad7606_chip_info and ad7606_bus_ops
+ * @chip_info		entry in the table of chips that describes this device
+ * @bops		bus operations (SPI or parallel)
+ */
+struct ad7606_bus_info {
+	const struct ad7606_chip_info	*chip_info;
+	const struct ad7606_bus_ops	*bops;
+};
+
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
-		 const char *name, unsigned int id,
+		 const struct ad7606_chip_info *info,
 		 const struct ad7606_bus_ops *bops);
 
 int ad7606_reset(struct ad7606_state *st);
 
-enum ad7606_supported_device_ids {
-	ID_AD7605_4,
-	ID_AD7606_8,
-	ID_AD7606_6,
-	ID_AD7606_4,
-	ID_AD7606B,
-	ID_AD7606C_16,
-	ID_AD7606C_18,
-	ID_AD7616,
-};
+extern const struct ad7606_chip_info ad7605_4_info;
+extern const struct ad7606_chip_info ad7606_8_info;
+extern const struct ad7606_chip_info ad7606_6_info;
+extern const struct ad7606_chip_info ad7606_4_info;
+extern const struct ad7606_chip_info ad7606b_info;
+extern const struct ad7606_chip_info ad7606c_16_info;
+extern const struct ad7606_chip_info ad7606c_18_info;
+extern const struct ad7606_chip_info ad7616_info;
 
 #ifdef CONFIG_PM_SLEEP
 extern const struct dev_pm_ops ad7606_pm_ops;
