@@ -1268,7 +1268,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(ei->v.i_ino, start), 0);
 
-	while (true) {
+	while (!ret || bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
@@ -1276,14 +1276,14 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		u32 snapshot;
 		ret = bch2_subvolume_get_snapshot(trans, ei->ei_inum.subvol, &snapshot);
 		if (ret)
-			goto err;
+			continue;
 
 		bch2_btree_iter_set_snapshot(&iter, snapshot);
 
 		k = bch2_btree_iter_peek_upto(&iter, end);
 		ret = bkey_err(k);
 		if (ret)
-			goto err;
+			continue;
 
 		if (!k.k)
 			break;
@@ -1303,7 +1303,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		ret = bch2_read_indirect_extent(trans, &data_btree,
 					&offset_into_extent, &cur);
 		if (ret)
-			break;
+			continue;
 
 		k = bkey_i_to_s_c(cur.k);
 		bch2_bkey_buf_realloc(&prev, c, k.k->u64s);
@@ -1331,10 +1331,6 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 		bch2_btree_iter_set_pos(&iter,
 			POS(iter.pos.inode, iter.pos.offset + sectors));
-err:
-		if (ret &&
-		    !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			break;
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
