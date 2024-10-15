@@ -2075,20 +2075,11 @@ static bool ravb_can_tx_csum_gbeth(struct sk_buff *skb)
 
 	switch (ip->protocol) {
 	case IPPROTO_TCP:
-		break;
 	case IPPROTO_UDP:
-		/* If the checksum value in the UDP header field is 0, TOE does
-		 * not calculate checksum for UDP part of this frame as it is
-		 * optional function as per standards.
-		 */
-		if (udp_hdr(skb)->check == 0)
-			return false;
-		break;
+		return true;
 	default:
 		return false;
 	}
-
-	return true;
 }
 
 /* Packet transmit function for Ethernet AVB */
