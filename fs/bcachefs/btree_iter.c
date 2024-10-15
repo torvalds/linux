@@ -1427,9 +1427,17 @@ void __noreturn bch2_trans_restart_error(struct btree_trans *trans, u32 restart_
 
 void __noreturn bch2_trans_in_restart_error(struct btree_trans *trans)
 {
+#ifdef CONFIG_BCACHEFS_DEBUG
+	struct printbuf buf = PRINTBUF;
+	bch2_prt_backtrace(&buf, &trans->last_restarted_trace);
+	panic("in transaction restart: %s, last restarted by\n%s",
+	      bch2_err_str(trans->restarted),
+	      buf.buf);
+#else
 	panic("in transaction restart: %s, last restarted by %pS\n",
 	      bch2_err_str(trans->restarted),
 	      (void *) trans->last_restarted_ip);
+#endif
 }
 
 void __noreturn bch2_trans_unlocked_error(struct btree_trans *trans)
@@ -3286,6 +3294,10 @@ void bch2_trans_put(struct btree_trans *trans)
 	 */
 	closure_return_sync(&trans->ref);
 	trans->locking_wait.task = NULL;
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+	darray_exit(&trans->last_restarted_trace);
+#endif
 
 	unsigned long *paths_allocated = trans->paths_allocated;
 	trans->paths_allocated	= NULL;

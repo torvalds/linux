@@ -350,6 +350,10 @@ static int btree_trans_restart_ip(struct btree_trans *trans, int err, unsigned l
 
 	trans->restarted = err;
 	trans->last_restarted_ip = ip;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	darray_exit(&trans->last_restarted_trace);
+	bch2_save_backtrace(&trans->last_restarted_trace, current, 0, GFP_NOWAIT);
+#endif
 	return -err;
 }
 
