@@ -119,7 +119,7 @@ void skx_adxl_put(void)
 }
 EXPORT_SYMBOL_GPL(skx_adxl_put);
 
-static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_mem)
+static bool skx_adxl_decode(struct decoded_addr *res, enum error_source err_src)
 {
 	struct skx_dev *d;
 	int i, len = 0;
@@ -136,7 +136,7 @@ static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_me
 	}
 
 	res->socket  = (int)adxl_values[component_indices[INDEX_SOCKET]];
-	if (error_in_1st_level_mem) {
+	if (err_src == ERR_SRC_2LM_NM) {
 		res->imc     = (adxl_nm_bitmap & BIT_NM_MEMCTRL) ?
 			       (int)adxl_values[component_indices[INDEX_NM_MEMCTRL]] : -1;
 		res->channel = (adxl_nm_bitmap & BIT_NM_CHANNEL) ?
@@ -620,31 +620,27 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			     optype, skx_msg);
 }
 
-static bool skx_error_in_1st_level_mem(const struct mce *m)
+static enum error_source skx_error_source(const struct mce *m)
 {
-	u32 errcode;
+	u32 errcode = GET_BITFIELD(m->status, 0, 15) & MCACOD_MEM_ERR_MASK;
+
+	if (errcode != MCACOD_MEM_CTL_ERR && errcode != MCACOD_EXT_MEM_ERR)
+		return ERR_SRC_NOT_MEMORY;
 
 	if (!skx_mem_cfg_2lm)
-		return false;
+		return ERR_SRC_1LM;
 
-	errcode = GET_BITFIELD(m->status, 0, 15) & MCACOD_MEM_ERR_MASK;
+	if (errcode == MCACOD_EXT_MEM_ERR)
+		return ERR_SRC_2LM_NM;
 
-	return errcode == MCACOD_EXT_MEM_ERR;
-}
-
-static bool skx_error_in_mem(const struct mce *m)
-{
-	u32 errcode;
-
-	errcode = GET_BITFIELD(m->status, 0, 15) & MCACOD_MEM_ERR_MASK;
-
-	return (errcode == MCACOD_MEM_CTL_ERR || errcode == MCACOD_EXT_MEM_ERR);
+	return ERR_SRC_2LM_FM;
 }
 
 int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *mce = (struct mce *)data;
+	enum error_source err_src;
 	struct decoded_addr res;
 	struct mem_ctl_info *mci;
 	char *type;
@@ -652,8 +648,10 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (mce->kflags & MCE_HANDLED_CEC)
 		return NOTIFY_DONE;
 
+	err_src = skx_error_source(mce);
+
 	/* Ignore unless this is memory related with an address */
-	if (!skx_error_in_mem(mce) || !(mce->status & MCI_STATUS_ADDRV))
+	if (err_src == ERR_SRC_NOT_MEMORY || !(mce->status & MCI_STATUS_ADDRV))
 		return NOTIFY_DONE;
 
 	memset(&res, 0, sizeof(res));
@@ -667,7 +665,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	/* Try driver decoder first */
 	if (!(driver_decode && driver_decode(&res))) {
 		/* Then try firmware decoder (ACPI DSM methods) */
-		if (!(adxl_component_count && skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce))))
+		if (!(adxl_component_count && skx_adxl_decode(&res, err_src)))
 			return NOTIFY_DONE;
 	}
 
