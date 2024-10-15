@@ -409,8 +409,8 @@ retry:
 	bch2_trans_begin(trans);
 	rbio->bio.bi_status = 0;
 
-	k = bch2_btree_iter_peek_slot(&iter);
-	if (bkey_err(k))
+	ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+	if (ret)
 		goto err;
 
 	bch2_bkey_buf_reassemble(&sk, c, k);
