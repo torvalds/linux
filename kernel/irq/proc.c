@@ -457,11 +457,12 @@ int __weak arch_show_interrupts(struct seq_file *p, int prec)
 }
 
 #ifndef ACTUAL_NR_IRQS
-# define ACTUAL_NR_IRQS nr_irqs
+# define ACTUAL_NR_IRQS irq_get_nr_irqs()
 #endif
 
 int show_interrupts(struct seq_file *p, void *v)
 {
+	const unsigned int nr_irqs = irq_get_nr_irqs();
 	static int prec;
 
 	int i = *(loff_t *) v, j;
