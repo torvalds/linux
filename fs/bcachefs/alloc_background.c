@@ -2137,14 +2137,15 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 
 		struct bkey_s_c k = next_lru_key(trans, &iter, ca, &wrapped);
 		ret = bkey_err(k);
-		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			continue;
 		if (ret)
-			break;
+			goto restart_err;
 		if (!k.k)
 			break;
 
 		ret = invalidate_one_bucket(trans, &iter, k, &nr_to_invalidate);
+restart_err:
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
 		if (ret)
 			break;
 
