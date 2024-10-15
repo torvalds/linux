@@ -504,11 +504,10 @@ static void ravb_csum_init_gbeth(struct net_device *ndev)
 			ndev->features &= ~NETIF_F_RXCSUM;
 	} else {
 		if (tx_enable)
-			ravb_write(ndev, CSR1_TIP4 | CSR1_TTCP4 | CSR1_TUDP4, CSR1);
+			ravb_write(ndev, CSR1_CSUM_ENABLE, CSR1);
 
 		if (rx_enable)
-			ravb_write(ndev, CSR2_RIP4 | CSR2_RTCP4 | CSR2_RUDP4 | CSR2_RICMP4,
-				   CSR2);
+			ravb_write(ndev, CSR2_CSUM_ENABLE, CSR2);
 	}
 
 done:
@@ -2531,7 +2530,7 @@ static int ravb_set_features_gbeth(struct net_device *ndev,
 	spin_lock_irqsave(&priv->lock, flags);
 	if (changed & NETIF_F_RXCSUM) {
 		if (features & NETIF_F_RXCSUM)
-			val = CSR2_RIP4 | CSR2_RTCP4 | CSR2_RUDP4 | CSR2_RICMP4;
+			val = CSR2_CSUM_ENABLE;
 		else
 			val = 0;
 
@@ -2542,7 +2541,7 @@ static int ravb_set_features_gbeth(struct net_device *ndev,
 
 	if (changed & NETIF_F_HW_CSUM) {
 		if (features & NETIF_F_HW_CSUM)
-			val = CSR1_TIP4 | CSR1_TTCP4 | CSR1_TUDP4;
+			val = CSR1_CSUM_ENABLE;
 		else
 			val = 0;
 
