@@ -239,10 +239,8 @@ struct ath12k_rekey_data {
 	bool enable_offload;
 };
 
-struct ath12k_vif {
+struct ath12k_link_vif {
 	u32 vdev_id;
-	enum wmi_vdev_type vdev_type;
-	enum wmi_vdev_subtype vdev_subtype;
 	u32 beacon_interval;
 	u32 dtim_period;
 	u16 ast_hash;
@@ -252,13 +250,39 @@ struct ath12k_vif {
 	u8 search_type;
 
 	struct ath12k *ar;
-	struct ieee80211_vif *vif;
 
 	int bank_id;
 	u8 vdev_id_check_en;
 
 	struct wmi_wmm_params_all_arg wmm_params;
 	struct list_head list;
+
+	bool is_created;
+	bool is_started;
+	bool is_up;
+	u8 bssid[ETH_ALEN];
+	struct cfg80211_bitrate_mask bitrate_mask;
+	struct delayed_work connection_loss_work;
+	int num_legacy_stations;
+	int rtscts_prot_mode;
+	int txpower;
+	bool rsnie_present;
+	bool wpaie_present;
+	struct ieee80211_chanctx_conf chanctx;
+	u8 vdev_stats_id;
+	u32 punct_bitmap;
+	u8 link_id;
+	struct ath12k_vif *ahvif;
+	struct ath12k_vif_cache *cache;
+	struct ath12k_rekey_data rekey_data;
+};
+
+struct ath12k_vif {
+	enum wmi_vdev_type vdev_type;
+	enum wmi_vdev_subtype vdev_subtype;
+	struct ieee80211_vif *vif;
+	struct ath12k_hw *ah;
+
 	union {
 		struct {
 			u32 uapsd;
@@ -276,25 +300,15 @@ struct ath12k_vif {
 		} ap;
 	} u;
 
-	bool is_created;
-	bool is_started;
-	bool is_up;
 	u32 aid;
-	u8 bssid[ETH_ALEN];
-	struct cfg80211_bitrate_mask bitrate_mask;
-	struct delayed_work connection_loss_work;
-	int num_legacy_stations;
-	int rtscts_prot_mode;
-	int txpower;
-	bool rsnie_present;
-	bool wpaie_present;
 	u32 key_cipher;
 	u8 tx_encap_type;
-	u8 vdev_stats_id;
-	u32 punct_bitmap;
 	bool ps;
-	struct ath12k_vif_cache *cache;
-	struct ath12k_rekey_data rekey_data;
+
+	struct ath12k_link_vif deflink;
+	struct ath12k_link_vif __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+	/* indicates bitmap of link vif created in FW */
+	u16 links_map;
 
 	/* Must be last - ends in a flexible-array member.
 	 *
@@ -307,7 +321,7 @@ struct ath12k_vif {
 struct ath12k_vif_iter {
 	u32 vdev_id;
 	struct ath12k *ar;
-	struct ath12k_vif *arvif;
+	struct ath12k_link_vif *arvif;
 };
 
 #define HAL_AST_IDX_INVALID	0xFFFF
@@ -443,7 +457,7 @@ struct ath12k_wbm_tx_stats {
 };
 
 struct ath12k_sta {
-	struct ath12k_vif *arvif;
+	struct ath12k_link_vif *arvif;
 
 	/* the following are protected by ar->data_lock */
 	u32 changed; /* IEEE80211_RC_* */
@@ -565,7 +579,7 @@ struct ath12k {
 	bool monitor_present;
 
 	/* protects the radio specific data like debug stats, ppdu_stats_info stats,
-	 * vdev_stop_status info, scan data, ath12k_sta info, ath12k_vif info,
+	 * vdev_stop_status info, scan data, ath12k_sta info, ath12k_link_vif info,
 	 * channel context data, survey info, test mode data.
 	 */
 	spinlock_t data_lock;
@@ -664,6 +678,7 @@ struct ath12k_hw {
 	enum ath12k_hw_state state;
 	bool regd_updated;
 	bool use_6ghz_regd;
+
 	u8 num_radio;
 
 	/* Keep last */
@@ -1026,7 +1041,7 @@ static inline struct ath12k_skb_rxcb *ATH12K_SKB_RXCB(struct sk_buff *skb)
 	return (struct ath12k_skb_rxcb *)skb->cb;
 }
 
-static inline struct ath12k_vif *ath12k_vif_to_arvif(struct ieee80211_vif *vif)
+static inline struct ath12k_vif *ath12k_vif_to_ahvif(struct ieee80211_vif *vif)
 {
 	return (struct ath12k_vif *)vif->drv_priv;
 }
@@ -1034,6 +1049,11 @@ static inline struct ath12k_vif *ath12k_vif_to_arvif(struct ieee80211_vif *vif)
 static inline struct ath12k_sta *ath12k_sta_to_arsta(struct ieee80211_sta *sta)
 {
 	return (struct ath12k_sta *)sta->drv_priv;
+}
+
+static inline struct ieee80211_vif *ath12k_ahvif_to_vif(struct ath12k_vif *ahvif)
+{
+	return container_of((void *)ahvif, struct ieee80211_vif, drv_priv);
 }
 
 static inline struct ath12k *ath12k_ab_to_ar(struct ath12k_base *ab,
