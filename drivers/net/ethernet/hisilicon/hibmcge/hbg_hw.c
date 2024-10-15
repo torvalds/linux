@@ -11,6 +11,10 @@
 
 #define HBG_HW_EVENT_WAIT_TIMEOUT_US	(2 * 1000 * 1000)
 #define HBG_HW_EVENT_WAIT_INTERVAL_US	(10 * 1000)
+/* little endian or big endian.
+ * ctrl means packet description, data means skb packet data
+ */
+#define HBG_ENDIAN_CTRL_LE_DATA_BE	0x0
 
 static bool hbg_hw_spec_is_valid(struct hbg_priv *priv)
 {
@@ -71,7 +75,73 @@ static int hbg_hw_dev_specs_init(struct hbg_priv *priv)
 	return 0;
 }
 
+void hbg_hw_adjust_link(struct hbg_priv *priv, u32 speed, u32 duplex)
+{
+	hbg_reg_write_field(priv, HBG_REG_PORT_MODE_ADDR,
+			    HBG_REG_PORT_MODE_M, speed);
+	hbg_reg_write_field(priv, HBG_REG_DUPLEX_TYPE_ADDR,
+			    HBG_REG_DUPLEX_B, duplex);
+}
+
+static void hbg_hw_init_transmit_ctrl(struct hbg_priv *priv)
+{
+	u32 ctrl = 0;
+
+	ctrl |= FIELD_PREP(HBG_REG_TRANSMIT_CTRL_AN_EN_B, HBG_STATUS_ENABLE);
+	ctrl |= FIELD_PREP(HBG_REG_TRANSMIT_CTRL_CRC_ADD_B, HBG_STATUS_ENABLE);
+	ctrl |= FIELD_PREP(HBG_REG_TRANSMIT_CTRL_PAD_EN_B, HBG_STATUS_ENABLE);
+
+	hbg_reg_write(priv, HBG_REG_TRANSMIT_CTRL_ADDR, ctrl);
+}
+
+static void hbg_hw_init_rx_ctrl(struct hbg_priv *priv)
+{
+	u32 ctrl = 0;
+
+	ctrl |= FIELD_PREP(HBG_REG_RX_CTRL_RX_GET_ADDR_MODE_B,
+			   HBG_STATUS_ENABLE);
+	ctrl |= FIELD_PREP(HBG_REG_RX_CTRL_TIME_INF_EN_B, HBG_STATUS_DISABLE);
+	ctrl |= FIELD_PREP(HBG_REG_RX_CTRL_RXBUF_1ST_SKIP_SIZE_M, HBG_RX_SKIP1);
+	ctrl |= FIELD_PREP(HBG_REG_RX_CTRL_RXBUF_1ST_SKIP_SIZE2_M,
+			   HBG_RX_SKIP2);
+	ctrl |= FIELD_PREP(HBG_REG_RX_CTRL_RX_ALIGN_NUM_M, NET_IP_ALIGN);
+	ctrl |= FIELD_PREP(HBG_REG_RX_CTRL_PORT_NUM, priv->dev_specs.mac_id);
+
+	hbg_reg_write(priv, HBG_REG_RX_CTRL_ADDR, ctrl);
+}
+
+static void hbg_hw_init_rx_control(struct hbg_priv *priv)
+{
+	hbg_hw_init_rx_ctrl(priv);
+
+	/* parse from L2 layer */
+	hbg_reg_write_field(priv, HBG_REG_RX_PKT_MODE_ADDR,
+			    HBG_REG_RX_PKT_MODE_PARSE_MODE_M, 0x1);
+
+	hbg_reg_write_field(priv, HBG_REG_RECV_CTRL_ADDR,
+			    HBG_REG_RECV_CTRL_STRIP_PAD_EN_B,
+			    HBG_STATUS_ENABLE);
+	hbg_reg_write_field(priv, HBG_REG_RX_BUF_SIZE_ADDR,
+			    HBG_REG_RX_BUF_SIZE_M, priv->dev_specs.rx_buf_size);
+	hbg_reg_write_field(priv, HBG_REG_CF_CRC_STRIP_ADDR,
+			    HBG_REG_CF_CRC_STRIP_B, HBG_STATUS_DISABLE);
+}
+
 int hbg_hw_init(struct hbg_priv *priv)
 {
-	return hbg_hw_dev_specs_init(priv);
+	int ret;
+
+	ret = hbg_hw_dev_specs_init(priv);
+	if (ret)
+		return ret;
+
+	hbg_reg_write_field(priv, HBG_REG_BUS_CTRL_ADDR,
+			    HBG_REG_BUS_CTRL_ENDIAN_M,
+			    HBG_ENDIAN_CTRL_LE_DATA_BE);
+	hbg_reg_write_field(priv, HBG_REG_MODE_CHANGE_EN_ADDR,
+			    HBG_REG_MODE_CHANGE_EN_B, HBG_STATUS_ENABLE);
+
+	hbg_hw_init_rx_control(priv);
+	hbg_hw_init_transmit_ctrl(priv);
+	return 0;
 }

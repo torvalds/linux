@@ -27,8 +27,23 @@ static inline void hbg_reg_write64(struct hbg_priv *priv, u32 addr, u64 value)
 	lo_hi_writeq(value, priv->io_base + addr);
 }
 
+#define hbg_reg_read_field(priv, addr, mask) \
+		FIELD_GET(mask, hbg_reg_read(priv, addr))
+
+#define hbg_field_modify(reg_value, mask, value) ({	\
+		(reg_value) &= ~(mask);			\
+		(reg_value) |= FIELD_PREP(mask, value); })
+
+#define hbg_reg_write_field(priv, addr, mask, val) ({		\
+		typeof(priv) _priv = (priv);			\
+		typeof(addr) _addr = (addr);			\
+		u32 _value = hbg_reg_read(_priv, _addr);	\
+		hbg_field_modify(_value, mask, val);		\
+		hbg_reg_write(_priv, _addr, _value); })
+
 int hbg_hw_event_notify(struct hbg_priv *priv,
 			enum hbg_hw_event_type event_type);
 int hbg_hw_init(struct hbg_priv *priv);
+void hbg_hw_adjust_link(struct hbg_priv *priv, u32 speed, u32 duplex);
 
 #endif
