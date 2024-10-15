@@ -111,7 +111,7 @@ void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 	 * Some hardware gives randomly wrong interrupts.  Rather
 	 * than crashing, do something sensible.
 	 */
-	if (unlikely(!irq || irq >= nr_irqs))
+	if (unlikely(!irq || irq >= irq_get_nr_irqs()))
 		desc = NULL;
 	else
 		desc = irq_to_desc(irq);
@@ -151,7 +151,6 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SPARSE_IRQ
 int __init arch_probe_nr_irqs(void)
 {
-	nr_irqs = machine_desc->nr_irqs ? machine_desc->nr_irqs : NR_IRQS;
-	return nr_irqs;
+	return irq_set_nr_irqs(machine_desc->nr_irqs ? : NR_IRQS);
 }
 #endif
