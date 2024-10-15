@@ -564,6 +564,7 @@ config PINCTRL_TPS6594
 config PINCTRL_TH1520
 	tristate "Pinctrl driver for the T-Head TH1520 SoC"
 	depends on ARCH_THEAD || COMPILE_TEST
+	depends on OF
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
 	select PINMUX
