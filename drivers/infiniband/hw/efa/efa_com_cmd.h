@@ -71,7 +71,7 @@ struct efa_com_create_cq_params {
 	/* cq physical base address in OS memory */
 	dma_addr_t dma_addr;
 	/* completion queue depth in # of entries */
-	u16 cq_depth;
+	u16 sub_cq_depth;
 	u16 num_sub_cqs;
 	u16 uarn;
 	u16 eqn;

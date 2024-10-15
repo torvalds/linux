@@ -163,7 +163,7 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	EFA_SET(&create_cmd.cq_caps_2,
 		EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS,
 		params->entry_size_in_bytes / 4);
-	create_cmd.cq_depth = params->cq_depth;
+	create_cmd.sub_cq_depth = params->sub_cq_depth;
 	create_cmd.num_sub_cqs = params->num_sub_cqs;
 	create_cmd.uar = params->uarn;
 	if (params->interrupt_mode_enabled) {
@@ -191,7 +191,7 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	}
 
 	result->cq_idx = cmd_completion.cq_idx;
-	result->actual_depth = params->cq_depth;
+	result->actual_depth = params->sub_cq_depth;
 	result->db_off = cmd_completion.db_offset;
 	result->db_valid = EFA_GET(&cmd_completion.flags,
 				   EFA_ADMIN_CREATE_CQ_RESP_DB_VALID);
