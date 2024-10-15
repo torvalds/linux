@@ -797,7 +797,7 @@ static struct link_encoder *dcn201_link_encoder_create(
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_ATOMIC);
 	struct dcn10_link_encoder *enc10;
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	enc10 = &enc20->enc10;
