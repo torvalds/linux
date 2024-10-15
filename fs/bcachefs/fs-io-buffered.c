@@ -248,6 +248,7 @@ void bch2_readahead(struct readahead_control *ractl)
 	struct bch_io_opts opts;
 	struct folio *folio;
 	struct readpages_iter readpages_iter;
+	struct blk_plug plug;
 
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
@@ -255,6 +256,16 @@ void bch2_readahead(struct readahead_control *ractl)
 	if (ret)
 		return;
 
+	/*
+	 * Besides being a general performance optimization, plugging helps with
+	 * avoiding btree transaction srcu warnings - submitting a bio can
+	 * block, and we don't want todo that with the transaction locked.
+	 *
+	 * However, plugged bios are submitted when we schedule; we ideally
+	 * would have our own scheduler hook to call unlock_long() before
+	 * scheduling.
+	 */
+	blk_start_plug(&plug);
 	bch2_pagecache_add_get(inode);
 
 	struct btree_trans *trans = bch2_trans_get(c);
@@ -281,7 +292,7 @@ void bch2_readahead(struct readahead_control *ractl)
 	bch2_trans_put(trans);
 
 	bch2_pagecache_add_put(inode);
-
+	blk_finish_plug(&plug);
 	darray_exit(&readpages_iter.folios);
 }
 
@@ -296,8 +307,12 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_read_bio *rbio;
 	struct bch_io_opts opts;
+	struct blk_plug plug;
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(done);
+
+	BUG_ON(folio_test_uptodate(folio));
+	BUG_ON(folio_test_dirty(folio));
 
 	if (!bch2_folio_create(folio, GFP_KERNEL))
 		return -ENOMEM;
@@ -313,7 +328,9 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
 	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
+	blk_start_plug(&plug);
 	bch2_trans_run(c, (bchfs_read(trans, rbio, inode_inum(inode), NULL), 0));
+	blk_finish_plug(&plug);
 	wait_for_completion(&done);
 
 	ret = blk_status_to_errno(rbio->bio.bi_status);

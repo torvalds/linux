@@ -70,6 +70,7 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	struct bch_io_opts opts;
 	struct dio_read *dio;
 	struct bio *bio;
+	struct blk_plug plug;
 	loff_t offset = req->ki_pos;
 	bool sync = is_sync_kiocb(req);
 	size_t shorten;
@@ -128,6 +129,8 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	 */
 	dio->should_dirty = iter_is_iovec(iter);
 
+	blk_start_plug(&plug);
+
 	goto start;
 	while (iter->count) {
 		bio = bio_alloc_bioset(NULL,
@@ -159,6 +162,8 @@ start:
 
 		bch2_read(c, rbio_init(bio, opts), inode_inum(inode));
 	}
+
+	blk_finish_plug(&plug);
 
 	iter->count += shorten;
 
