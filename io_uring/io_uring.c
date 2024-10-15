@@ -3846,6 +3846,8 @@ static int __init io_uring_init(void)
 	struct kmem_cache_args kmem_args = {
 		.useroffset = offsetof(struct io_kiocb, cmd.data),
 		.usersize = sizeof_field(struct io_kiocb, cmd.data),
+		.freeptr_offset = offsetof(struct io_kiocb, work),
+		.use_freeptr_offset = true,
 	};
 
 #define __BUILD_BUG_VERIFY_OFFSET_SIZE(stype, eoffset, esize, ename) do { \
