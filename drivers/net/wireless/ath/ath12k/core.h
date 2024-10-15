@@ -221,8 +221,9 @@ struct ath12k_tx_conf {
 };
 
 struct ath12k_key_conf {
-	bool changed;
 	enum set_key_cmd cmd;
+	struct list_head list;
+	struct ieee80211_sta *sta;
 	struct ieee80211_key_conf *key;
 };
 
