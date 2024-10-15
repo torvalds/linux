@@ -1354,8 +1354,10 @@ static int ccs_change_cci_addr(struct ccs_sensor *sensor)
 
 	client->addr = sensor->hwcfg.i2c_addr_dfl;
 
-	rval = ccs_write(sensor, CCI_ADDRESS_CTRL,
-			 sensor->hwcfg.i2c_addr_alt << 1);
+	rval = read_poll_timeout(ccs_write, rval, !rval, CCS_RESET_DELAY_US,
+				 CCS_RESET_TIMEOUT_US, false, sensor,
+				 CCI_ADDRESS_CTRL,
+				 sensor->hwcfg.i2c_addr_alt << 1);
 	if (rval)
 		return rval;
 
@@ -1575,27 +1577,25 @@ static int ccs_power_on(struct device *dev)
 		if (ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA)
 			sleep = SMIAPP_RESET_DELAY(sensor->hwcfg.ext_clk);
 		else
-			sleep = 5000;
+			sleep = CCS_RESET_DELAY_US;
 
 		usleep_range(sleep, sleep);
 	}
 
 	/*
-	 * Failures to respond to the address change command have been noticed.
-	 * Those failures seem to be caused by the sensor requiring a longer
-	 * boot time than advertised. An additional 10ms delay seems to work
-	 * around the issue, but the SMIA++ I2C write retry hack makes the delay
-	 * unnecessary. The failures need to be investigated to find a proper
-	 * fix, and a delay will likely need to be added here if the I2C write
-	 * retry hack is reverted before the root cause of the boot time issue
-	 * is found.
+	 * Some devices take longer than the spec-defined time to respond
+	 * after reset. Try until some time has passed before flagging it
+	 * an error.
 	 */
-
 	if (!sensor->reset && !sensor->xshutdown) {
 		u8 retry = 100;
 		u32 reset;
 
-		rval = ccs_write(sensor, SOFTWARE_RESET, CCS_SOFTWARE_RESET_ON);
+		rval = read_poll_timeout(ccs_write, rval, !rval,
+					 CCS_RESET_DELAY_US,
+					 CCS_RESET_TIMEOUT_US,
+					 false, sensor, SOFTWARE_RESET,
+					 CCS_SOFTWARE_RESET_ON);
 		if (rval < 0) {
 			dev_err(dev, "software reset failed\n");
 			goto out_cci_addr_fail;
