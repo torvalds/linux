@@ -3905,7 +3905,7 @@ static struct platform_driver ti_sci_driver = {
 	.probe = ti_sci_probe,
 	.driver = {
 		   .name = "ti-sci",
-		   .of_match_table = of_match_ptr(ti_sci_of_match),
+		   .of_match_table = ti_sci_of_match,
 		   .suppress_bind_attrs = true,
 		   .pm = &ti_sci_pm_ops,
 	},
