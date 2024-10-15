@@ -363,8 +363,11 @@ int bch2_hash_delete(struct btree_trans *trans,
 	struct btree_iter iter;
 	struct bkey_s_c k = bch2_hash_lookup(trans, &iter, desc, info, inum, key,
 					     BTREE_ITER_intent);
-	int ret = bkey_err(k) ?:
-		  bch2_hash_delete_at(trans, desc, info, &iter, 0);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	ret = bch2_hash_delete_at(trans, desc, info, &iter, 0);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
