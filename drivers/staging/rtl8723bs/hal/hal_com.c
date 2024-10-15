@@ -867,7 +867,6 @@ void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 	int save_cnt = false;
 
 	/* switch counter to RX fifo */
-	/* printk("8723b or 8192e , MAC_667 set 0xf0\n"); */
 	rtw_write8(adapter, REG_RXERR_RPT+3, rtw_read8(adapter, REG_RXERR_RPT+3)|0xf0);
 	save_cnt = true;
 	/* todo: other chips */

@@ -53,8 +53,6 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 	u8 *bufferPtr = buffer;
 	u32 i = 0, offset = 0;
 
-/* 	printk("====>%s %d\n", __func__, __LINE__); */
-
 	/* 3 Phase #1 */
 	blockCount_p1 = buffSize / blockSize_p1;
 	remainSize_p1 = buffSize % blockSize_p1;
