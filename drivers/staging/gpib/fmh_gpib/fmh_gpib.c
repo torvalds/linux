@@ -922,7 +922,6 @@ static int fmh_gpib_fifo_read_countable(gpib_board_t *board, uint8_t *buffer,
 	struct fmh_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 	int retval = 0;
-	unsigned int residue;
 
 	//	printk("%s: enter, bus_address=0x%x, length=%i\n", __FUNCTION__,
 	// (unsigned)bus_address,
@@ -966,8 +965,8 @@ cleanup:
 		unsigned int data_value;
 
 		if ((*bytes_read) >= length) {
-			dev_err(board->dev, "unexpected extra bytes in rx fifo, discarding!  bytes_read=%d length=%d residue=%d\n",
-				(int)(*bytes_read), (int)length, (int)residue);
+			dev_err(board->dev, "unexpected extra bytes in rx fifo, discarding!  bytes_read=%d length=%d\n",
+				(int)(*bytes_read), (int)length);
 			break;
 		}
 		data_value = fifos_read(e_priv, FIFO_DATA_REG);
@@ -976,8 +975,8 @@ cleanup:
 			*end = 1;
 	}
 
-//	printk("\tbytes_read=%i, residue=%i, end=%i, retval=%i, wait_retval=%i\n",
-//		   *bytes_read, residue, *end, retval, wait_retval);
+//	printk("\tbytes_read=%i, end=%i, retval=%i, wait_retval=%i\n",
+//		   *bytes_read, *end, retval, wait_retval);
 
 	return retval;
 }
