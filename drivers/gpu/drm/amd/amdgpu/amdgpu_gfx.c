@@ -405,7 +405,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		}
 
 		/* prepare MQD backup */
-		kiq->mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
+		kiq->mqd_backup = kzalloc(mqd_size, GFP_KERNEL);
 		if (!kiq->mqd_backup) {
 			dev_warn(adev->dev,
 				 "no memory to create MQD backup for ring %s\n", ring->name);
@@ -428,7 +428,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 				ring->mqd_size = mqd_size;
 				/* prepare MQD backup */
-				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
+				adev->gfx.me.mqd_backup[i] = kzalloc(mqd_size, GFP_KERNEL);
 				if (!adev->gfx.me.mqd_backup[i]) {
 					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 					return -ENOMEM;
@@ -452,7 +452,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 			ring->mqd_size = mqd_size;
 			/* prepare MQD backup */
-			adev->gfx.mec.mqd_backup[j] = kmalloc(mqd_size, GFP_KERNEL);
+			adev->gfx.mec.mqd_backup[j] = kzalloc(mqd_size, GFP_KERNEL);
 			if (!adev->gfx.mec.mqd_backup[j]) {
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 				return -ENOMEM;
