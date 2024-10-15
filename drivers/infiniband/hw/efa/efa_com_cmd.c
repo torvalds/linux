@@ -31,6 +31,7 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 	create_qp_cmd.qp_alloc_size.recv_queue_depth =
 			params->rq_depth;
 	create_qp_cmd.uar = params->uarn;
+	create_qp_cmd.sl = params->sl;
 
 	if (params->unsolicited_write_recv)
 		EFA_SET(&create_qp_cmd.flags, EFA_ADMIN_CREATE_QP_CMD_UNSOLICITED_WRITE_RECV, 1);
