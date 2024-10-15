@@ -750,7 +750,6 @@ static void ravb_rx_csum_gbeth(struct sk_buff *skb)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	__wsum csum_proto;
-	skb_frag_t *last_frag;
 	u8 *hw_csum;
 
 	/* The hardware checksum status is contained in sizeof(__sum16) * 2 = 4
@@ -766,20 +765,18 @@ static void ravb_rx_csum_gbeth(struct sk_buff *skb)
 		return;
 
 	if (skb_is_nonlinear(skb)) {
-		last_frag = &shinfo->frags[shinfo->nr_frags - 1];
+		skb_frag_t *last_frag = &shinfo->frags[shinfo->nr_frags - 1];
+
 		hw_csum = skb_frag_address(last_frag) +
 			  skb_frag_size(last_frag);
+		skb_frag_size_sub(last_frag, 2 * sizeof(__sum16));
 	} else {
 		hw_csum = skb_tail_pointer(skb);
+		skb_trim(skb, skb->len - 2 * sizeof(__sum16));
 	}
 
 	hw_csum -= sizeof(__sum16);
 	csum_proto = csum_unfold((__force __sum16)get_unaligned_le16(hw_csum));
-
-	if (skb_is_nonlinear(skb))
-		skb_frag_size_sub(last_frag, 2 * sizeof(__sum16));
-	else
-		skb_trim(skb, skb->len - 2 * sizeof(__sum16));
 
 	if (!csum_proto)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
