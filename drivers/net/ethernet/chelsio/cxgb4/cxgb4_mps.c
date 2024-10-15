@@ -28,28 +28,6 @@ static int cxgb4_mps_ref_dec_by_mac(struct adapter *adap,
 	return ret;
 }
 
-static int cxgb4_mps_ref_dec(struct adapter *adap, u16 idx)
-{
-	struct mps_entries_ref *mps_entry, *tmp;
-	int ret = -EINVAL;
-
-	spin_lock(&adap->mps_ref_lock);
-	list_for_each_entry_safe(mps_entry, tmp, &adap->mps_ref, list) {
-		if (mps_entry->idx == idx) {
-			if (!refcount_dec_and_test(&mps_entry->refcnt)) {
-				spin_unlock(&adap->mps_ref_lock);
-				return -EBUSY;
-			}
-			list_del(&mps_entry->list);
-			kfree(mps_entry);
-			ret = 0;
-			break;
-		}
-	}
-	spin_unlock(&adap->mps_ref_lock);
-	return ret;
-}
-
 static int cxgb4_mps_ref_inc(struct adapter *adap, const u8 *mac_addr,
 			     u16 idx, const u8 *mask)
 {
@@ -138,82 +116,6 @@ int cxgb4_update_mac_filt(struct port_info *pi, unsigned int viid,
 		return ret;
 
 	cxgb4_mps_ref_inc(pi->adapter, addr, *tcam_idx, NULL);
-	return ret;
-}
-
-int cxgb4_free_raw_mac_filt(struct adapter *adap,
-			    unsigned int viid,
-			    const u8 *addr,
-			    const u8 *mask,
-			    unsigned int idx,
-			    u8 lookup_type,
-			    u8 port_id,
-			    bool sleep_ok)
-{
-	int ret = 0;
-
-	if (!cxgb4_mps_ref_dec(adap, idx))
-		ret = t4_free_raw_mac_filt(adap, viid, addr,
-					   mask, idx, lookup_type,
-					   port_id, sleep_ok);
-
-	return ret;
-}
-
-int cxgb4_alloc_raw_mac_filt(struct adapter *adap,
-			     unsigned int viid,
-			     const u8 *addr,
-			     const u8 *mask,
-			     unsigned int idx,
-			     u8 lookup_type,
-			     u8 port_id,
-			     bool sleep_ok)
-{
-	int ret;
-
-	ret = t4_alloc_raw_mac_filt(adap, viid, addr,
-				    mask, idx, lookup_type,
-				    port_id, sleep_ok);
-	if (ret < 0)
-		return ret;
-
-	if (cxgb4_mps_ref_inc(adap, addr, ret, mask)) {
-		ret = -ENOMEM;
-		t4_free_raw_mac_filt(adap, viid, addr,
-				     mask, idx, lookup_type,
-				     port_id, sleep_ok);
-	}
-
-	return ret;
-}
-
-int cxgb4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
-			      int idx, bool sleep_ok)
-{
-	int ret = 0;
-
-	if (!cxgb4_mps_ref_dec(adap, idx))
-		ret = t4_free_encap_mac_filt(adap, viid, idx, sleep_ok);
-
-	return ret;
-}
-
-int cxgb4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
-			       const u8 *addr, const u8 *mask,
-			       unsigned int vni, unsigned int vni_mask,
-			       u8 dip_hit, u8 lookup_type, bool sleep_ok)
-{
-	int ret;
-
-	ret = t4_alloc_encap_mac_filt(adap, viid, addr, mask, vni, vni_mask,
-				      dip_hit, lookup_type, sleep_ok);
-	if (ret < 0)
-		return ret;
-
-	if (cxgb4_mps_ref_inc(adap, addr, ret, mask)) {
-		ret = -ENOMEM;
-		t4_free_encap_mac_filt(adap, viid, ret, sleep_ok);
-	}
 	return ret;
 }
 
