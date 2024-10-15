@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# cnss device configuration
+#
+
+config CNSS
+	tristate "CNSS driver for wifi module"
+	select CNSS_UTILS
+	select CRYPTO
+	select CRYPTO_HASH
+	select CRYPTO_BLKCIPHER
+	help
+	 This module adds support for the CNSS connectivity subsystem used
+	 for wifi devices based on the QCA AR6320 chipset.
+	 This driver also adds support to integrate WLAN module to subsystem
+	 restart framework.
+
+config CNSS_SDIO
+	bool "Enable/disable cnss sdio platform driver for wifi module"
+	depends on CNSS
+	depends on MMC
+	help
+	 This module adds support for the CNSS wlan module interfaced
+	 with SDIO bus.
+	 This driver also adds support to integrate WLAN module to subsystem
+	 restart framework, power on WLAN chip and registered the WLAN module
+	 as a SDIO client device.
+
+config CNSS_MAC_BUG
+	bool "Enable/disable 0-4K memory initialization for QCA6174"
+	depends on CNSS
+	help
+	  If enabled, 0-4K memory is reserved for QCA6174 to address
+	  a MAC HW bug. MAC would do an invalid pointer fetch based on
+	  the data, that was read from 0 to 4K. So fill it with zero's;
+	  to an address for which PCIe root complex would honor the read
+	  without any errors.
+
+config CLD_DEBUG
+	bool "Enable/disable CLD debug features"
+	help
+	 WLAN CLD driver uses this config to enable certain debug features.
+	 Some of the debug features may affect performance or may compromise
+	 on security.
+
+	  Say N, if you are building a release kernel for production use.
+	  Only say Y, if you are building a kernel with debug support.
+
+config CLD_USB_CORE
+	tristate "Qualcomm Technologies Inc. Core wlan driver for QCA USB interface"
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select WEXT_CORE
+	select WEXT_SPY
+	select NL80211_TESTMODE
+	help
+	  This section contains the necessary modules needed to enable the
+	  core WLAN driver for Qualcomm Technologies Inc USB wlan chipset.
+	  Select Y to compile the driver in order to have WLAN functionality
+	  support.
+
+config CLD_HL_SDIO_CORE
+	tristate "Qualcomm Technologies Inc. Core wlan driver for QCA SDIO interface"
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select WEXT_CORE
+	select WEXT_SPY
+	select NL80211_TESTMODE
+	depends on ARCH_QCOM
+	depends on MMC
+
+config CLD_LL_CORE
+	tristate "Qualcomm Technologies Inc. Core wlan driver"
+	select NL80211_TESTMODE
+	select WEXT_CORE
+	select WEXT_PRIV
+	select WEXT_SPY
+	select WIRELESS_EXT
+	help
+	  This section contains the necessary modules needed to enable the
+	  core WLAN driver for Qualcomm Technologies Inc QCA6174 chipset.
+	  Select Y to compile the driver in order to have WLAN functionality
+	  support.
+
+config CNSS_SECURE_FW
+	bool "Enable/Disable Memory Allocation for Secure Firmware Feature"
+	depends on CNSS
+	help
+	  CLD Driver can use this for holding local copy of firmware
+	  binaries which is used for sha crypto computation.
+	  The Memory Allocation is done only if this Config Parameter is
+	  enabled
+
+config WLAN_FEATURE_RX_WAKELOCK
+        bool "Enable RX wake lock feature"
+        help
+        Enable WLAN_FEATURE_HOLD_RX_WAKELOCK which is required to take rx
+        wakelock when driver receives packets from fw.
+
