@@ -6683,8 +6683,24 @@ static void ath12k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif)
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
+	struct ath12k_link_vif *arvif;
+	unsigned long links;
+	int link_id;
 
 	lockdep_assert_wiphy(hw->wiphy);
+
+	if (vif->valid_links) {
+		links = vif->valid_links;
+		for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+			arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+			if (!(arvif && arvif->ar))
+				continue;
+
+			ath12k_mac_update_vif_offload(arvif);
+		}
+
+		return;
+	}
 
 	ath12k_mac_update_vif_offload(&ahvif->deflink);
 }
