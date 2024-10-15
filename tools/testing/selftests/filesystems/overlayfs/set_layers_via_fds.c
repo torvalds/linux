@@ -149,4 +149,69 @@ TEST_F(set_layers_via_fds, set_layers_via_fds)
 	ASSERT_EQ(fclose(f_mountinfo), 0);
 }
 
+TEST_F(set_layers_via_fds, set_500_layers_via_fds)
+{
+	int fd_context, fd_tmpfs, fd_overlay, fd_work, fd_upper, fd_lower;
+	int layer_fds[500] = { [0 ... 499] = -EBADF };
+
+	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
+	ASSERT_EQ(sys_mount(NULL, "/", NULL, MS_SLAVE | MS_REC, NULL), 0);
+
+	fd_context = sys_fsopen("tmpfs", 0);
+	ASSERT_GE(fd_context, 0);
+
+	ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_CMD_CREATE, NULL, NULL, 0), 0);
+	fd_tmpfs = sys_fsmount(fd_context, 0, 0);
+	ASSERT_GE(fd_tmpfs, 0);
+	ASSERT_EQ(close(fd_context), 0);
+
+	for (int i = 0; i < ARRAY_SIZE(layer_fds); i++) {
+		char path[100];
+
+		sprintf(path, "l%d", i);
+		ASSERT_EQ(mkdirat(fd_tmpfs, path, 0755), 0);
+		layer_fds[i] = openat(fd_tmpfs, path, O_DIRECTORY);
+		ASSERT_GE(layer_fds[i], 0);
+	}
+
+	ASSERT_EQ(mkdirat(fd_tmpfs, "w", 0755), 0);
+	fd_work = openat(fd_tmpfs, "w", O_DIRECTORY);
+	ASSERT_GE(fd_work, 0);
+
+	ASSERT_EQ(mkdirat(fd_tmpfs, "u", 0755), 0);
+	fd_upper = openat(fd_tmpfs, "u", O_DIRECTORY);
+	ASSERT_GE(fd_upper, 0);
+
+	ASSERT_EQ(mkdirat(fd_tmpfs, "l501", 0755), 0);
+	fd_lower = openat(fd_tmpfs, "l501", O_DIRECTORY);
+	ASSERT_GE(fd_lower, 0);
+
+	ASSERT_EQ(sys_move_mount(fd_tmpfs, "", -EBADF, "/tmp", MOVE_MOUNT_F_EMPTY_PATH), 0);
+	ASSERT_EQ(close(fd_tmpfs), 0);
+
+	fd_context = sys_fsopen("overlay", 0);
+	ASSERT_GE(fd_context, 0);
+
+	ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_SET_FD, "workdir",   NULL, fd_work), 0);
+	ASSERT_EQ(close(fd_work), 0);
+
+	ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_SET_FD, "upperdir",  NULL, fd_upper), 0);
+	ASSERT_EQ(close(fd_upper), 0);
+
+	for (int i = 0; i < ARRAY_SIZE(layer_fds); i++) {
+		ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_SET_FD, "lowerdir+", NULL, layer_fds[i]), 0);
+		ASSERT_EQ(close(layer_fds[i]), 0);
+	}
+
+	ASSERT_NE(sys_fsconfig(fd_context, FSCONFIG_SET_FD, "lowerdir+", NULL, fd_lower), 0);
+	ASSERT_EQ(close(fd_lower), 0);
+
+	ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_CMD_CREATE, NULL, NULL, 0), 0);
+
+	fd_overlay = sys_fsmount(fd_context, 0, 0);
+	ASSERT_GE(fd_overlay, 0);
+	ASSERT_EQ(close(fd_context), 0);
+	ASSERT_EQ(close(fd_overlay), 0);
+}
+
 TEST_HARNESS_MAIN
