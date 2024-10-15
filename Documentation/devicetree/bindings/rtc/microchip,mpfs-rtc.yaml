@@ -12,7 +12,6 @@ allOf:
 
 maintainers:
   - Daire McNamara <daire.mcnamara@microchip.com>
-  - Lewis Hanly <lewis.hanly@microchip.com>
 
 properties:
   compatible:
