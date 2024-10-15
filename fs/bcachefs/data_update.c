@@ -80,6 +80,7 @@ static bool bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struc
 					if (ptr2 == ptr)
 						break;
 
+					ca = bch2_dev_have_ref(c, ptr2->dev);
 					bucket = PTR_BUCKET_POS(ca, ptr2);
 					bch2_bucket_nocow_unlock(&c->nocow_locks, bucket, 0);
 				}
