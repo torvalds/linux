@@ -672,6 +672,12 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	    (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 4, 2)))
 		return 0;
 
+	/* Only print L2 fault status if the status register could be read and
+	 * contains useful information
+	 */
+	if (!status)
+		return 0;
+
 	if (!amdgpu_sriov_vf(adev))
 		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 

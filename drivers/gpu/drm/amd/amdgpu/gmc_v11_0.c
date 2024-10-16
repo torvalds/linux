@@ -144,7 +144,10 @@ static int gmc_v11_0_process_interrupt(struct amdgpu_device *adev,
 		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
 				addr, entry->client_id);
 
-		if (!amdgpu_sriov_vf(adev))
+		/* Only print L2 fault status if the status register could be read and
+		 * contains useful information
+		 */
+		if (status != 0)
 			hub->vmhub_funcs->print_l2_protection_fault_status(adev, status);
 	}
 

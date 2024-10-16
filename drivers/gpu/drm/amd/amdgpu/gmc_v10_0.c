@@ -175,7 +175,10 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 			addr, entry->client_id,
 			soc15_ih_clientid_name[entry->client_id]);
 
-	if (!amdgpu_sriov_vf(adev))
+	/* Only print L2 fault status if the status register could be read and
+	 * contains useful information
+	 */
+	if (status != 0)
 		hub->vmhub_funcs->print_l2_protection_fault_status(adev,
 								   status);
 
