@@ -88,8 +88,6 @@ unsigned int ines_t1_delay(gpib_board_t *board, unsigned int nano_sec)
 	return retval;
 }
 
-static const int in_fifo_size = 0xff;
-
 static inline unsigned short num_in_fifo_bytes(struct ines_priv *ines_priv)
 {
 	return ines_inb(ines_priv, IN_FIFO_COUNT);
@@ -885,6 +883,8 @@ int ines_pci_accel_attach(gpib_board_t *board, const gpib_board_config_t *config
 	return 0;
 }
 
+static const int ines_isa_iosize = 0x20;
+
 int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
@@ -994,6 +994,8 @@ static int pc_debug = PCMCIA_DEBUG;
 #else
 #define DEBUG(args...)
 #endif
+
+static const int ines_pcmcia_iosize = 0x20;
 
 /*    The event() function is this driver's Card Services event handler.
  *    It will be called by Card Services when an appropriate card status

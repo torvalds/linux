@@ -816,9 +816,6 @@ irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_pr
 }
 EXPORT_SYMBOL(tms9914_interrupt_have_status);
 
-// size of modbus pci memory io region
-static const int iomem_size = 0x2000;
-
 void tms9914_board_reset(struct tms9914_priv *priv)
 {
 	/* chip reset */

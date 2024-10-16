@@ -40,7 +40,9 @@ enum {
 	BSR = BCR,
 };
 
-static const int tnt_pagein_offset = 0x11;
+enum {
+	tnt_pagein_offset = 0x11,
+};
 
 /*============================================================*/
 

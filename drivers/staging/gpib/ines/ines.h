@@ -212,7 +212,4 @@ enum ines_auxd_bits {
 	INES_T6_50us = 0x10,
 };
 
-static const int ines_isa_iosize = 0x20;
-static const int ines_pcmcia_iosize = 0x20;
-
 #endif	// _INES_GPIB_H

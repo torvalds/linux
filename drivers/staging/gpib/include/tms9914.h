@@ -132,7 +132,9 @@ irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_pr
 					  int status1,	int status2);
 
 // tms9914 has 8 registers
-static const int tms9914_num_registers = 8;
+enum {
+	ms9914_num_registers = 8,
+};
 
 /* tms9914 register numbers (might need to be multiplied by
  * a board-dependent offset to get actually io address offset)

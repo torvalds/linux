@@ -100,7 +100,6 @@ static const int atgpib_reg_offset = 2;
 
 // number of ioports used
 static const int atgpib_iosize = 32;
-static const int pcmcia_gpib_iosize = 32;
 
 /* paged io */
 static inline unsigned int tnt_paged_readb(struct tnt4882_priv *priv, unsigned long offset)
@@ -1794,6 +1793,8 @@ void __exit exit_ni_gpib_cs(void)
 	DEBUG(0, "ni_gpib_cs: unloading\n");
 	pcmcia_unregister_driver(&ni_gpib_cs_driver);
 }
+
+static const int pcmcia_gpib_iosize = 32;
 
 int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {

@@ -46,12 +46,12 @@ enum ibsta_bits {
 	SRQI = (1 << SRQI_NUM),	/* SRQ is asserted */
 	END = (1 << END_NUM),	/* EOI or EOS encountered */
 	TIMO = (1 << TIMO_NUM),	/* Time limit on I/O or wait function exceeded */
-	ERR = (1 << ERR_NUM)	/* Function call terminated on error */
-};
+	ERR = (1 << ERR_NUM),	/* Function call terminated on error */
 
-static const int device_status_mask = ERR | TIMO | END | CMPL | RQS;
-static const int board_status_mask = ERR | TIMO | END | CMPL | SPOLL |
-	EVENT | LOK | REM | CIC | ATN | TACS | LACS | DTAS | DCAS | SRQI;
+	device_status_mask = ERR | TIMO | END | CMPL | RQS,
+	board_status_mask = ERR | TIMO | END | CMPL | SPOLL |
+		EVENT | LOK | REM | CIC | ATN | TACS | LACS | DTAS | DCAS | SRQI,
+};
 
 /* IBERR error codes */
 enum iberr_code {
@@ -209,7 +209,9 @@ static inline uint8_t CFGn(unsigned int meters)
 }
 
 /* mask of bits that actually matter in a command byte */
-static const uint8_t gpib_command_mask = 0x7f;
+enum {
+	gpib_command_mask = 0x7f,
+};
 
 static inline int is_PPE(uint8_t command)
 {
@@ -260,8 +262,6 @@ static inline int gpib_address_equal(unsigned int pad1, int sad1, unsigned int p
 
 	return 0;
 }
-
-static const int gpib_addr_max = 30;	/* max address for primary/secondary gpib addresses */
 
 enum ibask_option {
 	IbaPAD = 0x1,
@@ -341,7 +341,9 @@ enum t1_delays {
 	T1_DELAY_350ns = 3
 };
 
-static const int request_service_bit = 0x40;
+enum {
+	request_service_bit = 0x40,
+};
 
 enum gpib_events {
 	EventNone = 0,

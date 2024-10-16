@@ -17,9 +17,6 @@ enum nec7210_chipset {
 	TNT5004,	// NI (minor differences to TNT4882)
 };
 
-// nec7210 has 8 registers
-static const int nec7210_num_registers = 8;
-
 /* nec7210 register numbers (might need to be multiplied by
  * a board-dependent offset to get actually io address offset)
  */
@@ -33,6 +30,9 @@ enum nec7210_write_regs {
 	AUXMR,	// auxiliary mode
 	ADR,	// address
 	EOSR,	// end-of-string
+
+	// nec7210 has 8 registers
+	nec7210_num_registers = 8,
 };
 
 // read registers

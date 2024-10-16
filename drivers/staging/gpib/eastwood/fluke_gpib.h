@@ -136,6 +136,8 @@ enum cb7210_aux_cmds {
 	AUX_HI_SPEED = 0x41,
 };
 
-static const int fluke_reg_offset = 4;
-static const int fluke_num_regs = 8;
-static const unsigned int write_transfer_counter_mask = 0x7ff;
+enum {
+	fluke_reg_offset = 4,
+	fluke_num_regs = 8,
+	write_transfer_counter_mask = 0x7ff,
+};
