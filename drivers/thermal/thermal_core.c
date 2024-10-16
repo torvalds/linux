@@ -588,10 +588,6 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 			high = td->threshold;
 	}
 
-	thermal_thresholds_handle(tz, &low, &high);
-
-	thermal_zone_set_trips(tz, low, high);
-
 	list_for_each_entry_safe(td, next, &way_up_list, list_node) {
 		thermal_trip_crossed(tz, &td->trip, governor, true);
 		list_del_init(&td->list_node);
@@ -601,6 +597,10 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 		thermal_trip_crossed(tz, &td->trip, governor, false);
 		list_del_init(&td->list_node);
 	}
+
+	thermal_thresholds_handle(tz, &low, &high);
+
+	thermal_zone_set_trips(tz, low, high);
 
 	if (governor->manage)
 		governor->manage(tz);
