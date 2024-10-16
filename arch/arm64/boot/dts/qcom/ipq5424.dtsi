@@ -129,6 +129,14 @@
 			reg = <0x0 0x8a600000 0x0 0x200000>;
 			no-map;
 		};
+
+		smem@8a800000 {
+			compatible = "qcom,smem";
+			reg = <0x0 0x8a800000 0x0 0x32000>;
+			no-map;
+
+			hwlocks = <&tcsr_mutex 3>;
+		};
 	};
 
 	soc@0 {
@@ -168,6 +176,12 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#interconnect-cells = <1>;
+		};
+
+		tcsr_mutex: hwlock@1905000 {
+			compatible = "qcom,tcsr-mutex";
+			reg = <0 0x01905000 0 0x20000>;
+			#hwlock-cells = <1>;
 		};
 
 		qupv3: geniqup@1ac0000 {
