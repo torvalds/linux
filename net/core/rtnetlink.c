@@ -3549,7 +3549,7 @@ struct rtnl_newlink_tbs {
 
 static int rtnl_changelink(const struct sk_buff *skb, struct nlmsghdr *nlh,
 			   const struct rtnl_link_ops *ops,
-			   struct net_device *dev,
+			   struct net_device *dev, struct net *tgt_net,
 			   struct rtnl_newlink_tbs *tbs,
 			   struct nlattr **data,
 			   struct netlink_ext_ack *extack)
@@ -3613,10 +3613,10 @@ static int rtnl_changelink(const struct sk_buff *skb, struct nlmsghdr *nlh,
 }
 
 static int rtnl_group_changelink(const struct sk_buff *skb,
-		struct net *net, int group,
-		struct ifinfomsg *ifm,
-		struct netlink_ext_ack *extack,
-		struct nlattr **tb)
+				 struct net *net, struct net *tgt_net,
+				 int group, struct ifinfomsg *ifm,
+				 struct netlink_ext_ack *extack,
+				 struct nlattr **tb)
 {
 	struct net_device *dev, *aux;
 	int err;
@@ -3634,6 +3634,7 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 
 static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 			       const struct rtnl_link_ops *ops,
+			       struct net *tgt_net,
 			       const struct nlmsghdr *nlh,
 			       struct nlattr **tb, struct nlattr **data,
 			       struct netlink_ext_ack *extack)
@@ -3641,9 +3642,9 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 	unsigned char name_assign_type = NET_NAME_USER;
 	struct net *net = sock_net(skb->sk);
 	u32 portid = NETLINK_CB(skb).portid;
-	struct net *dest_net, *link_net;
 	struct net_device *dev;
 	char ifname[IFNAMSIZ];
+	struct net *link_net;
 	int err;
 
 	if (!ops->alloc && !ops->setup)
@@ -3656,14 +3657,10 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 		name_assign_type = NET_NAME_ENUM;
 	}
 
-	dest_net = rtnl_link_get_net_capable(skb, net, tb, CAP_NET_ADMIN);
-	if (IS_ERR(dest_net))
-		return PTR_ERR(dest_net);
-
 	if (tb[IFLA_LINK_NETNSID]) {
 		int id = nla_get_s32(tb[IFLA_LINK_NETNSID]);
 
-		link_net = get_net_ns_by_id(dest_net, id);
+		link_net = get_net_ns_by_id(tgt_net, id);
 		if (!link_net) {
 			NL_SET_ERR_MSG(extack, "Unknown network namespace id");
 			err =  -EINVAL;
@@ -3676,7 +3673,7 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 		link_net = NULL;
 	}
 
-	dev = rtnl_create_link(link_net ? : dest_net, ifname,
+	dev = rtnl_create_link(link_net ? : tgt_net, ifname,
 			       name_assign_type, ops, tb, extack);
 	if (IS_ERR(dev)) {
 		err = PTR_ERR(dev);
@@ -3698,7 +3695,7 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 	if (err < 0)
 		goto out_unregister;
 	if (link_net) {
-		err = dev_change_net_namespace(dev, dest_net, ifname);
+		err = dev_change_net_namespace(dev, tgt_net, ifname);
 		if (err < 0)
 			goto out_unregister;
 	}
@@ -3710,7 +3707,7 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 out:
 	if (link_net)
 		put_net(link_net);
-	put_net(dest_net);
+
 	return err;
 out_unregister:
 	if (ops->newlink) {
@@ -3726,6 +3723,7 @@ out_unregister:
 
 static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  const struct rtnl_link_ops *ops,
+			  struct net *tgt_net,
 			  struct rtnl_newlink_tbs *tbs,
 			  struct nlattr **data,
 			  struct netlink_ext_ack *extack)
@@ -3752,19 +3750,18 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	if (dev)
-		return rtnl_changelink(skb, nlh, ops, dev, tbs, data, extack);
+		return rtnl_changelink(skb, nlh, ops, dev, tgt_net, tbs, data, extack);
 
 	if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
 		/* No dev found and NLM_F_CREATE not set. Requested dev does not exist,
 		 * or it's for a group
 		*/
-		if (link_specified)
+		if (link_specified || !tb[IFLA_GROUP])
 			return -ENODEV;
-		if (tb[IFLA_GROUP])
-			return rtnl_group_changelink(skb, net,
-						nla_get_u32(tb[IFLA_GROUP]),
-						ifm, extack, tb);
-		return -ENODEV;
+
+		return rtnl_group_changelink(skb, net, tgt_net,
+					     nla_get_u32(tb[IFLA_GROUP]),
+					     ifm, extack, tb);
 	}
 
 	if (tb[IFLA_MAP] || tb[IFLA_PROTINFO])
@@ -3775,7 +3772,7 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EOPNOTSUPP;
 	}
 
-	return rtnl_newlink_create(skb, ifm, ops, nlh, tb, data, extack);
+	return rtnl_newlink_create(skb, ifm, ops, tgt_net, nlh, tb, data, extack);
 }
 
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -3784,6 +3781,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct nlattr **tb, **linkinfo, **data = NULL;
 	struct rtnl_link_ops *ops = NULL;
 	struct rtnl_newlink_tbs *tbs;
+	struct net *tgt_net;
 	int ops_srcu_index;
 	int ret;
 
@@ -3848,8 +3846,15 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 	}
 
-	ret = __rtnl_newlink(skb, nlh, ops, tbs, data, extack);
+	tgt_net = rtnl_link_get_net_capable(skb, sock_net(skb->sk), tb, CAP_NET_ADMIN);
+	if (IS_ERR(tgt_net)) {
+		ret = PTR_ERR(tgt_net);
+		goto put_ops;
+	}
 
+	ret = __rtnl_newlink(skb, nlh, ops, tgt_net, tbs, data, extack);
+
+	put_net(tgt_net);
 put_ops:
 	if (ops)
 		rtnl_link_ops_put(ops, ops_srcu_index);
