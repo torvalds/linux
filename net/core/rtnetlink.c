@@ -3707,15 +3707,6 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 #ifdef CONFIG_MODULES
 replay:
 #endif
-	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFLA_MAX,
-				     ifla_policy, extack);
-	if (err < 0)
-		return err;
-
-	err = rtnl_ensure_unique_netns(tb, extack, false);
-	if (err < 0)
-		return err;
-
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0) {
 		link_specified = true;
@@ -3729,16 +3720,6 @@ replay:
 	} else {
 		link_specified = false;
 		dev = NULL;
-	}
-
-	if (tb[IFLA_LINKINFO]) {
-		err = nla_parse_nested_deprecated(linkinfo, IFLA_INFO_MAX,
-						  tb[IFLA_LINKINFO],
-						  ifla_info_policy, NULL);
-		if (err < 0)
-			return err;
-	} else {
-		memset(linkinfo, 0, sizeof(tbs->linkinfo));
 	}
 
 	if (linkinfo[IFLA_INFO_KIND]) {
@@ -3809,6 +3790,7 @@ replay:
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	struct nlattr **tb, **linkinfo;
 	struct rtnl_newlink_tbs *tbs;
 	int ret;
 
@@ -3816,7 +3798,30 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!tbs)
 		return -ENOMEM;
 
+	tb = tbs->tb;
+	ret = nlmsg_parse_deprecated(nlh, sizeof(struct ifinfomsg), tb,
+				     IFLA_MAX, ifla_policy, extack);
+	if (ret < 0)
+		goto free;
+
+	ret = rtnl_ensure_unique_netns(tb, extack, false);
+	if (ret < 0)
+		goto free;
+
+	linkinfo = tbs->linkinfo;
+	if (tb[IFLA_LINKINFO]) {
+		ret = nla_parse_nested_deprecated(linkinfo, IFLA_INFO_MAX,
+						  tb[IFLA_LINKINFO],
+						  ifla_info_policy, NULL);
+		if (ret < 0)
+			goto free;
+	} else {
+		memset(linkinfo, 0, sizeof(tbs->linkinfo));
+	}
+
 	ret = __rtnl_newlink(skb, nlh, tbs, extack);
+
+free:
 	kfree(tbs);
 	return ret;
 }
