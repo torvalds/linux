@@ -4799,10 +4799,8 @@ static void rtl_task(struct work_struct *work)
 		container_of(work, struct rtl8169_private, wk.work);
 	int ret;
 
-	rtnl_lock();
-
 	if (!test_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags))
-		goto out_unlock;
+		return;
 
 	if (test_and_clear_bit(RTL_FLAG_TASK_TX_TIMEOUT, tp->wk.flags)) {
 		/* if chip isn't accessible, reset bus to revive it */
@@ -4811,7 +4809,7 @@ static void rtl_task(struct work_struct *work)
 			if (ret < 0) {
 				netdev_err(tp->dev, "Can't reset secondary PCI bus, detach NIC\n");
 				netif_device_detach(tp->dev);
-				goto out_unlock;
+				return;
 			}
 		}
 
@@ -4830,8 +4828,6 @@ reset:
 	} else if (test_and_clear_bit(RTL_FLAG_TASK_RESET_NO_QUEUE_WAKE, tp->wk.flags)) {
 		rtl_reset_work(tp);
 	}
-out_unlock:
-	rtnl_unlock();
 }
 
 static int rtl8169_poll(struct napi_struct *napi, int budget)
