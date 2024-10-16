@@ -216,22 +216,6 @@ static void ks8851_init_mac(struct ks8851_net *ks, struct device_node *np)
 }
 
 /**
- * ks8851_dbg_dumpkkt - dump initial packet contents to debug
- * @ks: The device state
- * @rxpkt: The data for the received packet
- *
- * Dump the initial data from the packet to dev_dbg().
- */
-static void ks8851_dbg_dumpkkt(struct ks8851_net *ks, u8 *rxpkt)
-{
-	netdev_dbg(ks->netdev,
-		   "pkt %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
-		   rxpkt[4], rxpkt[5], rxpkt[6], rxpkt[7],
-		   rxpkt[8], rxpkt[9], rxpkt[10], rxpkt[11],
-		   rxpkt[12], rxpkt[13], rxpkt[14], rxpkt[15]);
-}
-
-/**
  * ks8851_rx_pkts - receive packets from the host
  * @ks: The device information.
  * @rxq: Queue of packets received in this function.
@@ -296,8 +280,8 @@ static void ks8851_rx_pkts(struct ks8851_net *ks, struct sk_buff_head *rxq)
 
 				ks->rdfifo(ks, rxpkt, rxalign + 8);
 
-				if (netif_msg_pktdata(ks))
-					ks8851_dbg_dumpkkt(ks, rxpkt);
+				netif_dbg(ks, pktdata, ks->netdev,
+					  "pkt %12ph\n", &rxpkt[4]);
 
 				skb->protocol = eth_type_trans(skb, ks->netdev);
 				__skb_queue_tail(rxq, skb);
