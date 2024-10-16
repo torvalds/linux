@@ -96,6 +96,7 @@ config GPIB_CB7210
 	depends on HAS_IOPORT
 	depends on ISA_BUS || PCI || PCMCIA
        select GPIB_COMMON
+	select GPIB_NEC7210
        help
        Enable support for Measurement Computing (Computer Boards):
        CPCI_GPIB, ISA-GPIB, ISA-GPIB/LC, PCI-GPIB/1M, PCI-GPIB/300K and
