@@ -1184,7 +1184,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 			return;
 		}
 
-		pcs_changed = pcs && pl->pcs != pcs;
+		pcs_changed = pl->pcs != pcs;
 	}
 
 	phylink_pcs_poll_stop(pl);
