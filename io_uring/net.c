@@ -76,6 +76,7 @@ struct io_sr_msg {
 	/* initialised and used only by !msg send variants */
 	u16				addr_len;
 	u16				buf_group;
+	u16				buf_index;
 	void __user			*addr;
 	void __user			*msg_control;
 	/* used only for send zerocopy */
@@ -1254,16 +1255,6 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		}
 	}
 
-	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
-		unsigned idx = READ_ONCE(sqe->buf_index);
-
-		if (unlikely(idx >= ctx->nr_user_bufs))
-			return -EFAULT;
-		idx = array_index_nospec(idx, ctx->nr_user_bufs);
-		req->imu = READ_ONCE(ctx->user_bufs[idx]);
-		io_req_set_rsrc_node(notif, ctx);
-	}
-
 	if (req->opcode == IORING_OP_SEND_ZC) {
 		if (READ_ONCE(sqe->__pad3[0]))
 			return -EINVAL;
@@ -1279,6 +1270,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	zc->buf = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	zc->len = READ_ONCE(sqe->len);
 	zc->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL | MSG_ZEROCOPY;
+	zc->buf_index = READ_ONCE(sqe->buf_index);
 	if (zc->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
 
@@ -1339,13 +1331,31 @@ static int io_sg_from_iter(struct sk_buff *skb,
 	return ret;
 }
 
-static int io_send_zc_import(struct io_kiocb *req, struct io_async_msghdr *kmsg)
+static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+	struct io_async_msghdr *kmsg = req->async_data;
 	int ret;
 
 	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
-		ret = io_import_fixed(ITER_SOURCE, &kmsg->msg.msg_iter, req->imu,
+		struct io_ring_ctx *ctx = req->ctx;
+		struct io_mapped_ubuf *imu;
+		int idx;
+
+		ret = -EFAULT;
+		io_ring_submit_lock(ctx, issue_flags);
+		if (sr->buf_index < ctx->nr_user_bufs) {
+			idx = array_index_nospec(sr->buf_index, ctx->nr_user_bufs);
+			imu = READ_ONCE(ctx->user_bufs[idx]);
+			io_req_set_rsrc_node(sr->notif, ctx);
+			ret = 0;
+		}
+		io_ring_submit_unlock(ctx, issue_flags);
+
+		if (unlikely(ret))
+			return ret;
+
+		ret = io_import_fixed(ITER_SOURCE, &kmsg->msg.msg_iter, imu,
 					(u64)(uintptr_t)sr->buf, sr->len);
 		if (unlikely(ret))
 			return ret;
@@ -1382,7 +1392,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	if (!zc->done_io) {
-		ret = io_send_zc_import(req, kmsg);
+		ret = io_send_zc_import(req, issue_flags);
 		if (unlikely(ret))
 			return ret;
 	}
