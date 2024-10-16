@@ -7639,6 +7639,29 @@ release:
 }
 
 /**
+ * ufshcd_process_probe_result - Process the ufshcd_probe_hba() result.
+ * @hba: UFS host controller instance.
+ * @probe_start: time when the ufshcd_probe_hba() call started.
+ * @ret: ufshcd_probe_hba() return value.
+ */
+static void ufshcd_process_probe_result(struct ufs_hba *hba,
+					ktime_t probe_start, int ret)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	if (ret)
+		hba->ufshcd_state = UFSHCD_STATE_ERROR;
+	else if (hba->ufshcd_state == UFSHCD_STATE_RESET)
+		hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	trace_ufshcd_init(dev_name(hba->dev), ret,
+			  ktime_to_us(ktime_sub(ktime_get(), probe_start)),
+			  hba->curr_dev_pwr_mode, hba->uic_link_state);
+}
+
+/**
  * ufshcd_host_reset_and_restore - reset and restore host controller
  * @hba: per-adapter instance
  *
@@ -8804,7 +8827,6 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 static int ufshcd_probe_hba(struct ufs_hba *hba, bool init_dev_params)
 {
 	ktime_t start = ktime_get();
-	unsigned long flags;
 	int ret;
 
 	ret = ufshcd_device_init(hba, init_dev_params);
@@ -8850,16 +8872,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba, bool init_dev_params)
 	ufshcd_configure_auto_hibern8(hba);
 
 out:
-	spin_lock_irqsave(hba->host->host_lock, flags);
-	if (ret)
-		hba->ufshcd_state = UFSHCD_STATE_ERROR;
-	else if (hba->ufshcd_state == UFSHCD_STATE_RESET)
-		hba->ufshcd_state = UFSHCD_STATE_OPERATIONAL;
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
-
-	trace_ufshcd_init(dev_name(hba->dev), ret,
-		ktime_to_us(ktime_sub(ktime_get(), start)),
-		hba->curr_dev_pwr_mode, hba->uic_link_state);
+	ufshcd_process_probe_result(hba, start, ret);
 	return ret;
 }
 
