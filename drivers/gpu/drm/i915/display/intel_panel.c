@@ -681,6 +681,7 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 			      const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
@@ -692,6 +693,25 @@ static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 	if (adjusted_mode->crtc_hdisplay == pipe_src_w &&
 	    adjusted_mode->crtc_vdisplay == pipe_src_h)
 		goto out;
+
+	/*
+	 * TODO: implement downscaling for i965+. Need to account
+	 * for downscaling in intel_crtc_compute_pixel_rate().
+	 */
+	if (adjusted_mode->crtc_hdisplay < pipe_src_w) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] pfit horizontal downscaling (%d->%d) not supported\n",
+			    crtc->base.base.id, crtc->base.name,
+			    pipe_src_w, adjusted_mode->crtc_hdisplay);
+		return -EINVAL;
+	}
+	if (adjusted_mode->crtc_vdisplay < pipe_src_h) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] pfit vertical downscaling (%d->%d) not supported\n",
+			    crtc->base.base.id, crtc->base.name,
+			    pipe_src_h, adjusted_mode->crtc_vdisplay);
+		return -EINVAL;
+	}
 
 	switch (conn_state->scaling_mode) {
 	case DRM_MODE_SCALE_CENTER:
