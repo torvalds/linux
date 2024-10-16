@@ -9,7 +9,7 @@
 # German Gomez <german.gomez@arm.com>, 2021
 
 skip_if_no_arm_spe_event() {
-	perf list | grep -E -q 'arm_spe_[0-9]+//' && return 0
+	perf list pmu | grep -E -q 'arm_spe_[0-9]+//' && return 0
 
 	# arm_spe event doesn't exist
 	return 2

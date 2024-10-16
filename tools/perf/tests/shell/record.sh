@@ -94,7 +94,7 @@ test_per_thread() {
 
 test_register_capture() {
   echo "Register capture test"
-  if ! perf list | grep -q 'br_inst_retired.near_call'
+  if ! perf list pmu | grep -q 'br_inst_retired.near_call'
   then
     echo "Register capture test [Skipped missing event]"
     return

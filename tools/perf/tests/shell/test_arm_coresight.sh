@@ -12,7 +12,7 @@
 glb_err=0
 
 skip_if_no_cs_etm_event() {
-	perf list | grep -q 'cs_etm//' && return 0
+	perf list pmu | grep -q 'cs_etm//' && return 0
 
 	# cs_etm event doesn't exist
 	return 2

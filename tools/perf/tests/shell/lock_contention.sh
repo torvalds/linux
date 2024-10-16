@@ -27,7 +27,7 @@ check() {
 		exit
 	fi
 
-	if ! perf list | grep -q lock:contention_begin; then
+	if ! perf list tracepoint | grep -q lock:contention_begin; then
 		echo "[Skip] No lock contention tracepoints"
 		err=2
 		exit
