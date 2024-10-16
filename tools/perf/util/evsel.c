@@ -2143,9 +2143,9 @@ static void evsel__detect_missing_pmu_features(struct evsel *evsel)
 
 	/*
 	 * Must probe features in the order they were added to the
-	 * perf_event_attr interface.  These are PMU specific limitation
-	 * so we can detect with the given hardware event and stop on the
-	 * first one succeeded.
+	 * perf_event_attr interface.  These are kernel core limitation but
+	 * specific to PMUs with branch stack.  So we can detect with the given
+	 * hardware event and stop on the first one succeeded.
 	 */
 
 	/* Please add new feature detection here. */
@@ -2409,6 +2409,25 @@ check:
 	return false;
 }
 
+static bool evsel__handle_error_quirks(struct evsel *evsel, int error)
+{
+	/*
+	 * AMD core PMU tries to forward events with precise_ip to IBS PMU
+	 * implicitly.  But IBS PMU has more restrictions so it can fail with
+	 * supported event attributes.  Let's forward it back to the core PMU
+	 * by clearing precise_ip only if it's from precise_max (:P).
+	 */
+	if ((error == -EINVAL || error == -ENOENT) && x86__is_amd_cpu() &&
+	    evsel->core.attr.precise_ip && evsel->precise_max) {
+		evsel->core.attr.precise_ip = 0;
+		pr_debug2_peo("removing precise_ip on AMD\n");
+		display_attr(&evsel->core.attr);
+		return true;
+	}
+
+	return false;
+}
+
 static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads,
 		int start_cpu_map_idx, int end_cpu_map_idx)
@@ -2527,9 +2546,6 @@ retry_open:
 	return 0;
 
 try_fallback:
-	if (evsel__precise_ip_fallback(evsel))
-		goto retry_open;
-
 	if (evsel__ignore_missing_thread(evsel, perf_cpu_map__nr(cpus),
 					 idx, threads, thread, err)) {
 		/* We just removed 1 thread, so lower the upper nthreads limit. */
@@ -2546,11 +2562,15 @@ try_fallback:
 	if (err == -EMFILE && rlimit__increase_nofile(&set_rlimit))
 		goto retry_open;
 
-	if (err != -EINVAL || idx > 0 || thread > 0)
-		goto out_close;
+	if (err == -EOPNOTSUPP && evsel__precise_ip_fallback(evsel))
+		goto retry_open;
 
-	if (evsel__detect_missing_features(evsel))
+	if (err == -EINVAL && evsel__detect_missing_features(evsel))
 		goto fallback_missing_features;
+
+	if (evsel__handle_error_quirks(evsel, err))
+		goto retry_open;
+
 out_close:
 	if (err)
 		threads->err_thread = thread;
