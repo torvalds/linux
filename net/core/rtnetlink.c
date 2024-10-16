@@ -3368,14 +3368,14 @@ EXPORT_SYMBOL_GPL(rtnl_delete_link);
 static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	struct ifinfomsg *ifm = nlmsg_data(nlh);
 	struct net *net = sock_net(skb->sk);
 	u32 portid = NETLINK_CB(skb).portid;
-	struct net *tgt_net = net;
-	struct net_device *dev = NULL;
-	struct ifinfomsg *ifm;
 	struct nlattr *tb[IFLA_MAX+1];
-	int err;
+	struct net_device *dev = NULL;
+	struct net *tgt_net = net;
 	int netnsid = -1;
+	int err;
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFLA_MAX,
 				     ifla_policy, extack);
@@ -3393,27 +3393,20 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			return PTR_ERR(tgt_net);
 	}
 
-	err = -EINVAL;
-	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
 		dev = __dev_get_by_index(tgt_net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
 		dev = rtnl_dev_get(tgt_net, tb);
+
+	if (dev)
+		err = rtnl_delete_link(dev, portid, nlh);
+	else if (ifm->ifi_index > 0 || tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
+		err = -ENODEV;
 	else if (tb[IFLA_GROUP])
 		err = rtnl_group_dellink(tgt_net, nla_get_u32(tb[IFLA_GROUP]));
 	else
-		goto out;
+		err = -EINVAL;
 
-	if (!dev) {
-		if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME] || ifm->ifi_index > 0)
-			err = -ENODEV;
-
-		goto out;
-	}
-
-	err = rtnl_delete_link(dev, portid, nlh);
-
-out:
 	if (netnsid >= 0)
 		put_net(tgt_net);
 
