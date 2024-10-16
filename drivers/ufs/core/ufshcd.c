@@ -4826,50 +4826,43 @@ EXPORT_SYMBOL_GPL(ufshcd_hba_stop);
  */
 static int ufshcd_hba_execute_hce(struct ufs_hba *hba)
 {
-	int retry_outer = 3;
-	int retry_inner;
+	int retry;
 
-start:
-	if (ufshcd_is_hba_active(hba))
-		/* change controller state to "reset state" */
-		ufshcd_hba_stop(hba);
+	for (retry = 3; retry > 0; retry--) {
+		if (ufshcd_is_hba_active(hba))
+			/* change controller state to "reset state" */
+			ufshcd_hba_stop(hba);
 
-	/* UniPro link is disabled at this point */
-	ufshcd_set_link_off(hba);
+		/* UniPro link is disabled at this point */
+		ufshcd_set_link_off(hba);
 
-	ufshcd_vops_hce_enable_notify(hba, PRE_CHANGE);
+		ufshcd_vops_hce_enable_notify(hba, PRE_CHANGE);
 
-	/* start controller initialization sequence */
-	ufshcd_hba_start(hba);
+		/* start controller initialization sequence */
+		ufshcd_hba_start(hba);
 
-	/*
-	 * To initialize a UFS host controller HCE bit must be set to 1.
-	 * During initialization the HCE bit value changes from 1->0->1.
-	 * When the host controller completes initialization sequence
-	 * it sets the value of HCE bit to 1. The same HCE bit is read back
-	 * to check if the controller has completed initialization sequence.
-	 * So without this delay the value HCE = 1, set in the previous
-	 * instruction might be read back.
-	 * This delay can be changed based on the controller.
-	 */
-	ufshcd_delay_us(hba->vps->hba_enable_delay_us, 100);
+		/*
+		 * To initialize a UFS host controller HCE bit must be set to 1.
+		 * During initialization the HCE bit value changes from 1->0->1.
+		 * When the host controller completes initialization sequence
+		 * it sets the value of HCE bit to 1. The same HCE bit is read back
+		 * to check if the controller has completed initialization sequence.
+		 * So without this delay the value HCE = 1, set in the previous
+		 * instruction might be read back.
+		 * This delay can be changed based on the controller.
+		 */
+		ufshcd_delay_us(hba->vps->hba_enable_delay_us, 100);
 
-	/* wait for the host controller to complete initialization */
-	retry_inner = 50;
-	while (!ufshcd_is_hba_active(hba)) {
-		if (retry_inner) {
-			retry_inner--;
-		} else {
-			dev_err(hba->dev,
-				"Controller enable failed\n");
-			if (retry_outer) {
-				retry_outer--;
-				goto start;
-			}
-			return -EIO;
-		}
-		usleep_range(1000, 1100);
+		/* wait for the host controller to complete initialization */
+		if (!ufshcd_wait_for_register(hba, REG_CONTROLLER_ENABLE, CONTROLLER_ENABLE,
+					      CONTROLLER_ENABLE, 1000, 50))
+			break;
+
+		dev_err(hba->dev, "Enabling the controller failed\n");
 	}
+
+	if (!retry)
+		return -EIO;
 
 	/* enable UIC related interrupts */
 	ufshcd_enable_intr(hba, UFSHCD_UIC_MASK);
