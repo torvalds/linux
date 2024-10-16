@@ -383,15 +383,54 @@ void intel_panel_add_encoder_fixed_mode(struct intel_connector *connector,
 				   "current (BIOS)");
 }
 
+static int intel_pch_pfit_check_src_size(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	int pipe_src_w = drm_rect_width(&crtc_state->pipe_src);
+	int pipe_src_h = drm_rect_height(&crtc_state->pipe_src);
+	int max_src_w, max_src_h;
+
+	if (DISPLAY_VER(display) >= 8) {
+		max_src_w = 4096;
+		max_src_h = 4096;
+	} else if (DISPLAY_VER(display) >= 7) {
+		/*
+		 * PF0 7x5 capable
+		 * PF1 3x3 capable (could be switched to 7x5
+		 *                  mode on HSW when PF2 unused)
+		 * PF2 3x3 capable
+		 *
+		 * This assumes we use a 1:1 mapping between pipe and PF.
+		 */
+		max_src_w = crtc->pipe == PIPE_A ? 4096 : 2048;
+		max_src_h = 4096;
+	} else {
+		max_src_w = 4096;
+		max_src_h = 4096;
+	}
+
+	if (pipe_src_w > max_src_w || pipe_src_h > max_src_h) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] source size (%dx%d) exceeds pfit max (%dx%d)\n",
+			    crtc->base.base.id, crtc->base.name,
+			    pipe_src_w, pipe_src_h, max_src_w, max_src_h);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* adjusted_mode has been preset to be the panel's fixed mode */
 static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	int pipe_src_w = drm_rect_width(&crtc_state->pipe_src);
 	int pipe_src_h = drm_rect_height(&crtc_state->pipe_src);
-	int x, y, width, height;
+	int ret, x, y, width, height;
 
 	/* Native modes don't need fitting */
 	if (adjusted_mode->crtc_hdisplay == pipe_src_w &&
@@ -452,6 +491,17 @@ static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 	drm_rect_init(&crtc_state->pch_pfit.dst,
 		      x, y, width, height);
 	crtc_state->pch_pfit.enabled = true;
+
+	/*
+	 * SKL+ have unified scalers for pipes/planes so the
+	 * checks are done in a single place for all scalers.
+	 */
+	if (DISPLAY_VER(display) >= 9)
+		return 0;
+
+	ret = intel_pch_pfit_check_src_size(crtc_state);
+	if (ret)
+		return ret;
 
 	return 0;
 }
