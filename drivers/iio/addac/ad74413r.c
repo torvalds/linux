@@ -60,7 +60,7 @@ struct ad74413r_state {
 	unsigned int			num_gpo_gpios;
 	unsigned int			num_comparator_gpios;
 	u32				sense_resistor_ohms;
-
+	int				refin_reg_uv;
 	/*
 	 * Synchronize consecutive operations when doing a one-shot
 	 * conversion and when updating the ADC samples SPI message.
@@ -69,7 +69,6 @@ struct ad74413r_state {
 
 	const struct ad74413r_chip_info	*chip_info;
 	struct spi_device		*spi;
-	struct regulator		*refin_reg;
 	struct regmap			*regmap;
 	struct device			*dev;
 	struct iio_trigger		*trig;
@@ -664,7 +663,7 @@ static int ad74413r_get_output_voltage_scale(struct ad74413r_state *st,
 static int ad74413r_get_output_current_scale(struct ad74413r_state *st,
 					     int *val, int *val2)
 {
-	*val = regulator_get_voltage(st->refin_reg);
+	*val = st->refin_reg_uv;
 	*val2 = st->sense_resistor_ohms * AD74413R_DAC_CODE_MAX * 1000;
 
 	return IIO_VAL_FRACTIONAL;
@@ -1351,11 +1350,6 @@ static int ad74413r_setup_gpios(struct ad74413r_state *st)
 	return 0;
 }
 
-static void ad74413r_regulator_disable(void *regulator)
-{
-	regulator_disable(regulator);
-}
-
 static int ad74413r_probe(struct spi_device *spi)
 {
 	struct ad74413r_state *st;
@@ -1382,19 +1376,11 @@ static int ad74413r_probe(struct spi_device *spi)
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
 
-	st->refin_reg = devm_regulator_get(st->dev, "refin");
-	if (IS_ERR(st->refin_reg))
-		return dev_err_probe(st->dev, PTR_ERR(st->refin_reg),
-				     "Failed to get refin regulator\n");
-
-	ret = regulator_enable(st->refin_reg);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(st->dev, ad74413r_regulator_disable,
-				       st->refin_reg);
-	if (ret)
-		return ret;
+	ret = devm_regulator_get_enable_read_voltage(st->dev, "refin");
+	if (ret < 0)
+		return dev_err_probe(st->dev, ret,
+				     "Failed to get refin regulator voltage\n");
+	st->refin_reg_uv = ret;
 
 	st->sense_resistor_ohms = 100000000;
 	device_property_read_u32(st->dev, "shunt-resistor-micro-ohms",
