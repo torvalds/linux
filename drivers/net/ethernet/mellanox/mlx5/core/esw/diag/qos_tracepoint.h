@@ -9,6 +9,7 @@
 
 #include <linux/tracepoint.h>
 #include "eswitch.h"
+#include "qos.h"
 
 TRACE_EVENT(mlx5_esw_vport_qos_destroy,
 	    TP_PROTO(const struct mlx5_core_dev *dev, const struct mlx5_vport *vport),
@@ -19,7 +20,7 @@ TRACE_EVENT(mlx5_esw_vport_qos_destroy,
 			     ),
 	    TP_fast_assign(__assign_str(devname);
 		    __entry->vport_id = vport->vport;
-		    __entry->sched_elem_ix = vport->qos.esw_sched_elem_ix;
+		    __entry->sched_elem_ix = mlx5_esw_qos_vport_get_sched_elem_ix(vport);
 	    ),
 	    TP_printk("(%s) vport=%hu sched_elem_ix=%u\n",
 		      __get_str(devname), __entry->vport_id, __entry->sched_elem_ix
@@ -39,10 +40,10 @@ DECLARE_EVENT_CLASS(mlx5_esw_vport_qos_template,
 				     ),
 		    TP_fast_assign(__assign_str(devname);
 			    __entry->vport_id = vport->vport;
-			    __entry->sched_elem_ix = vport->qos.esw_sched_elem_ix;
+			    __entry->sched_elem_ix = mlx5_esw_qos_vport_get_sched_elem_ix(vport);
 			    __entry->bw_share = bw_share;
 			    __entry->max_rate = max_rate;
-			    __entry->parent = vport->qos.parent;
+			    __entry->parent = mlx5_esw_qos_vport_get_parent(vport);
 		    ),
 		    TP_printk("(%s) vport=%hu sched_elem_ix=%u bw_share=%u, max_rate=%u parent=%p\n",
 			      __get_str(devname), __entry->vport_id, __entry->sched_elem_ix,

@@ -216,15 +216,8 @@ struct mlx5_vport {
 	struct {
 		/* Initially false, set to true whenever any QoS features are used. */
 		bool enabled;
-		u32 esw_sched_elem_ix;
-		u32 min_rate;
-		u32 max_rate;
-		/* A computed value indicating relative min_rate between vports in a group. */
-		u32 bw_share;
-		/* The parent group of this vport scheduling element. */
-		struct mlx5_esw_sched_node *parent;
-		/* Membership in the parent 'members' list. */
-		struct list_head parent_entry;
+		/* Vport scheduling element node. */
+		struct mlx5_esw_sched_node *sched_node;
 	} qos;
 
 	u16 vport;
