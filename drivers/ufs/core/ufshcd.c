@@ -10593,7 +10593,61 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	ufshcd_set_ufs_dev_active(hba);
 
 	/* Initialize hba, detect and initialize UFS device */
-	err = ufshcd_device_init(hba, /*init_dev_params=*/true);
+	ktime_t probe_start = ktime_get();
+
+	hba->ufshcd_state = UFSHCD_STATE_RESET;
+
+	err = ufshcd_link_startup(hba);
+	if (err)
+		goto out_disable;
+
+	if (hba->quirks & UFSHCD_QUIRK_SKIP_PH_CONFIGURATION)
+		goto initialized;
+
+	/* Debug counters initialization */
+	ufshcd_clear_dbg_ufs_stats(hba);
+
+	/* UniPro link is active now */
+	ufshcd_set_link_active(hba);
+
+	/* Verify device initialization by sending NOP OUT UPIU */
+	err = ufshcd_verify_dev_init(hba);
+	if (err)
+		goto out_disable;
+
+	/* Initiate UFS initialization, and waiting until completion */
+	err = ufshcd_complete_dev_init(hba);
+	if (err)
+		goto out_disable;
+
+	err = ufshcd_device_params_init(hba);
+	if (err)
+		goto out_disable;
+
+	if (is_mcq_supported(hba)) {
+		ufshcd_mcq_enable(hba);
+		err = ufshcd_alloc_mcq(hba);
+		if (!err) {
+			ufshcd_config_mcq(hba);
+		} else {
+			/* Continue with SDB mode */
+			ufshcd_mcq_disable(hba);
+			use_mcq_mode = false;
+			dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
+				err);
+		}
+		err = scsi_add_host(host, hba->dev);
+		if (err) {
+			dev_err(hba->dev, "scsi_add_host failed\n");
+			goto out_disable;
+		}
+		hba->scsi_host_added = true;
+	}
+
+	err = ufshcd_post_device_init(hba);
+
+initialized:
+	ufshcd_process_probe_result(hba, probe_start, err);
 	if (err)
 		goto out_disable;
 
