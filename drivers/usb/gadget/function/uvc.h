@@ -71,6 +71,9 @@ extern unsigned int uvc_gadget_trace_param;
 
 #define UVCG_REQUEST_HEADER_LEN			12
 
+#define UVCG_REQ_MAX_INT_COUNT			16
+#define UVCG_REQ_MAX_ZERO_COUNT			(2 * UVCG_REQ_MAX_INT_COUNT)
+
 /* ------------------------------------------------------------------------
  * Structures
  */
@@ -90,6 +93,8 @@ struct uvc_video {
 
 	struct work_struct pump;
 	struct workqueue_struct *async_wq;
+
+	atomic_t queued;
 
 	/* Frame parameters */
 	u8 bpp;

@@ -269,6 +269,8 @@ static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
 		}
 	}
 
+	atomic_inc(&video->queued);
+
 	return ret;
 }
 
@@ -304,7 +306,7 @@ static int uvcg_video_usb_req_queue(struct uvc_video *video,
 		 */
 		if (list_empty(&video->req_free) || ureq->last_buf ||
 			!(video->req_int_count %
-			DIV_ROUND_UP(video->uvc_num_requests, 4))) {
+			min(DIV_ROUND_UP(video->uvc_num_requests, 4), UVCG_REQ_MAX_INT_COUNT))) {
 			video->req_int_count = 0;
 			req->no_interrupt = 0;
 		} else {
@@ -379,6 +381,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 	int ret = 0;
 
 	spin_lock_irqsave(&video->req_lock, flags);
+	atomic_dec(&video->queued);
 	if (!video->is_enabled) {
 		/*
 		 * When is_enabled is false, uvcg_video_disable() ensures
@@ -466,6 +469,16 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		 * happen.
 		 */
 		queue_work(video->async_wq, &video->pump);
+	} else if (atomic_read(&video->queued) > UVCG_REQ_MAX_ZERO_COUNT) {
+		list_add_tail(&to_queue->list, &video->req_free);
+		/*
+		 * There is a new free request - wake up the pump.
+		 */
+		queue_work(video->async_wq, &video->pump);
+
+		spin_unlock_irqrestore(&video->req_lock, flags);
+
+		return;
 	}
 	/*
 	 * Queue to the endpoint. The actual queueing to ep will
@@ -755,6 +768,8 @@ int uvcg_video_enable(struct uvc_video *video)
 			uvc_video_encode_isoc_sg : uvc_video_encode_isoc;
 
 	video->req_int_count = 0;
+
+	atomic_set(&video->queued, 0);
 
 	uvc_video_ep_queue_initial_requests(video);
 	queue_work(video->async_wq, &video->pump);
