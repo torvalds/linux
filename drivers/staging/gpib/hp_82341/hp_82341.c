@@ -459,10 +459,9 @@ return_to_local : hp_82341_return_to_local,
 
 int hp_82341_allocate_private(gpib_board_t *board)
 {
-	board->private_data = kmalloc(sizeof(struct hp_82341_priv), GFP_KERNEL);
+	board->private_data = kzalloc(sizeof(struct hp_82341_priv), GFP_KERNEL);
 	if (!board->private_data)
 		return -ENOMEM;
-	memset(board->private_data, 0, sizeof(struct hp_82341_priv));
 	return 0;
 }
 

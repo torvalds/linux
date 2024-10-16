@@ -1105,10 +1105,9 @@ static int bb_line_status(const gpib_board_t *board)
 
 static int allocate_private(gpib_board_t *board)
 {
-	board->private_data = kmalloc(sizeof(struct bb_priv), GFP_KERNEL);
+	board->private_data = kzalloc(sizeof(struct bb_priv), GFP_KERNEL);
 	if (!board->private_data)
 		return -1;
-	memset(board->private_data, 0, sizeof(struct bb_priv));
 	return 0;
 }
 
