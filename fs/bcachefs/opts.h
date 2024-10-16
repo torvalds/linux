@@ -501,7 +501,7 @@ enum fsck_err_opts {
 	  OPT_DEVICE,							\
 	  OPT_UINT(0, S64_MAX),						\
 	  BCH2_NO_SB_OPT,		0,				\
-	  "size",	"Size of filesystem on device")			\
+	  "size",	"Specifies the bucket size; must be greater than the btree node size")\
 	x(durability,			u8,				\
 	  OPT_DEVICE|OPT_SB_FIELD_ONE_BIAS,				\
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
