@@ -18,12 +18,19 @@ properties:
     enum:
       - st,stm32-rng
       - st,stm32mp13-rng
+      - st,stm32mp25-rng
 
   reg:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: core
+      - const: bus
 
   resets:
     maxItems: 1
@@ -56,6 +63,25 @@ allOf:
     then:
       properties:
         st,rng-lock-conf: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - st,stm32-rng
+              - st,stm32mp13-rng
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names: false
+    else:
+      properties:
+        clocks:
+          minItems: 2
+      required:
+        - clock-names
 
 additionalProperties: false
 
