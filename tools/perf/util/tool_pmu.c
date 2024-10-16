@@ -11,7 +11,6 @@
 #include "tsc.h"
 #include <api/fs/fs.h>
 #include <api/io.h>
-#include <api/io.h>
 #include <internal/threadmap.h>
 #include <perf/threadmap.h>
 #include <fcntl.h>
