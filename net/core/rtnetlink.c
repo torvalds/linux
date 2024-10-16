@@ -3505,6 +3505,78 @@ struct net_device *rtnl_create_link(struct net *net, const char *ifname,
 }
 EXPORT_SYMBOL(rtnl_create_link);
 
+struct rtnl_newlink_tbs {
+	struct nlattr *tb[IFLA_MAX + 1];
+	struct nlattr *linkinfo[IFLA_INFO_MAX + 1];
+	struct nlattr *attr[RTNL_MAX_TYPE + 1];
+	struct nlattr *slave_attr[RTNL_SLAVE_MAX_TYPE + 1];
+};
+
+static int rtnl_changelink(const struct sk_buff *skb, struct nlmsghdr *nlh,
+			   const struct rtnl_link_ops *ops,
+			   struct net_device *dev,
+			   struct rtnl_newlink_tbs *tbs,
+			   struct nlattr **data,
+			   struct netlink_ext_ack *extack)
+{
+	struct nlattr ** const linkinfo = tbs->linkinfo;
+	struct nlattr ** const tb = tbs->tb;
+	int status = 0;
+	int err;
+
+	if (nlh->nlmsg_flags & NLM_F_EXCL)
+		return -EEXIST;
+
+	if (nlh->nlmsg_flags & NLM_F_REPLACE)
+		return -EOPNOTSUPP;
+
+	if (linkinfo[IFLA_INFO_DATA]) {
+		if (!ops || ops != dev->rtnl_link_ops || !ops->changelink)
+			return -EOPNOTSUPP;
+
+		err = ops->changelink(dev, tb, data, extack);
+		if (err < 0)
+			return err;
+
+		status |= DO_SETLINK_NOTIFY;
+	}
+
+	if (linkinfo[IFLA_INFO_SLAVE_DATA]) {
+		const struct rtnl_link_ops *m_ops = NULL;
+		struct nlattr **slave_data = NULL;
+		struct net_device *master_dev;
+
+		master_dev = netdev_master_upper_dev_get(dev);
+		if (master_dev)
+			m_ops = master_dev->rtnl_link_ops;
+
+		if (!m_ops || !m_ops->slave_changelink)
+			return -EOPNOTSUPP;
+
+		if (m_ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE)
+			return -EINVAL;
+
+		if (m_ops->slave_maxtype) {
+			err = nla_parse_nested_deprecated(tbs->slave_attr,
+							  m_ops->slave_maxtype,
+							  linkinfo[IFLA_INFO_SLAVE_DATA],
+							  m_ops->slave_policy, extack);
+			if (err < 0)
+				return err;
+
+			slave_data = tbs->slave_attr;
+		}
+
+		err = m_ops->slave_changelink(master_dev, dev, tb, slave_data, extack);
+		if (err < 0)
+			return err;
+
+		status |= DO_SETLINK_NOTIFY;
+	}
+
+	return do_setlink(skb, dev, nlmsg_data(nlh), extack, tb, status);
+}
+
 static int rtnl_group_changelink(const struct sk_buff *skb,
 		struct net *net, int group,
 		struct ifinfomsg *ifm,
@@ -3617,24 +3689,14 @@ out_unregister:
 	goto out;
 }
 
-struct rtnl_newlink_tbs {
-	struct nlattr *tb[IFLA_MAX + 1];
-	struct nlattr *linkinfo[IFLA_INFO_MAX + 1];
-	struct nlattr *attr[RTNL_MAX_TYPE + 1];
-	struct nlattr *slave_attr[RTNL_SLAVE_MAX_TYPE + 1];
-};
-
 static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct rtnl_newlink_tbs *tbs,
 			  struct netlink_ext_ack *extack)
 {
 	struct nlattr ** const linkinfo = tbs->linkinfo;
 	struct nlattr ** const tb = tbs->tb;
-	const struct rtnl_link_ops *m_ops;
-	struct net_device *master_dev;
 	struct net *net = sock_net(skb->sk);
 	const struct rtnl_link_ops *ops;
-	struct nlattr **slave_data;
 	char kind[MODULE_NAME_LEN];
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
@@ -3667,14 +3729,6 @@ replay:
 	} else {
 		link_specified = false;
 		dev = NULL;
-	}
-
-	master_dev = NULL;
-	m_ops = NULL;
-	if (dev) {
-		master_dev = netdev_master_upper_dev_get(dev);
-		if (master_dev)
-			m_ops = master_dev->rtnl_link_ops;
 	}
 
 	if (tb[IFLA_LINKINFO]) {
@@ -3715,56 +3769,8 @@ replay:
 		}
 	}
 
-	slave_data = NULL;
-	if (m_ops) {
-		if (m_ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE)
-			return -EINVAL;
-
-		if (m_ops->slave_maxtype &&
-		    linkinfo[IFLA_INFO_SLAVE_DATA]) {
-			err = nla_parse_nested_deprecated(tbs->slave_attr,
-							  m_ops->slave_maxtype,
-							  linkinfo[IFLA_INFO_SLAVE_DATA],
-							  m_ops->slave_policy,
-							  extack);
-			if (err < 0)
-				return err;
-			slave_data = tbs->slave_attr;
-		}
-	}
-
-	if (dev) {
-		int status = 0;
-
-		if (nlh->nlmsg_flags & NLM_F_EXCL)
-			return -EEXIST;
-		if (nlh->nlmsg_flags & NLM_F_REPLACE)
-			return -EOPNOTSUPP;
-
-		if (linkinfo[IFLA_INFO_DATA]) {
-			if (!ops || ops != dev->rtnl_link_ops ||
-			    !ops->changelink)
-				return -EOPNOTSUPP;
-
-			err = ops->changelink(dev, tb, data, extack);
-			if (err < 0)
-				return err;
-			status |= DO_SETLINK_NOTIFY;
-		}
-
-		if (linkinfo[IFLA_INFO_SLAVE_DATA]) {
-			if (!m_ops || !m_ops->slave_changelink)
-				return -EOPNOTSUPP;
-
-			err = m_ops->slave_changelink(master_dev, dev, tb,
-						      slave_data, extack);
-			if (err < 0)
-				return err;
-			status |= DO_SETLINK_NOTIFY;
-		}
-
-		return do_setlink(skb, dev, ifm, extack, tb, status);
-	}
+	if (dev)
+		return rtnl_changelink(skb, nlh, ops, dev, tbs, data, extack);
 
 	if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
 		/* No dev found and NLM_F_CREATE not set. Requested dev does not exist,
