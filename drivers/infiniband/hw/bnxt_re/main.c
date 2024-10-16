@@ -911,6 +911,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.post_srq_recv = bnxt_re_post_srq_recv,
 	.query_ah = bnxt_re_query_ah,
 	.query_device = bnxt_re_query_device,
+	.modify_device = bnxt_re_modify_device,
 	.query_pkey = bnxt_re_query_pkey,
 	.query_port = bnxt_re_query_port,
 	.query_qp = bnxt_re_query_qp,
