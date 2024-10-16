@@ -262,6 +262,7 @@ struct rt_read_seg {
 	unsigned long rt_delay_ms;
 	unsigned long rt_delay_us;
 	bool rt_preempted;
+	int rt_cpu;
 };
 static int err_segs_recorded;
 static struct rt_read_seg err_segs[RCUTORTURE_RDR_MAX_SEGS];
@@ -1862,6 +1863,8 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 	WARN_ON_ONCE(idxold2 < 0);
 	WARN_ON_ONCE(idxold2 & ~RCUTORTURE_RDR_ALLBITS);
 	rtrsp->rt_readstate = newstate;
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
+		rtrsp->rt_cpu = raw_smp_processor_id();
 
 	/* First, put new protection in place to avoid critical-section gap. */
 	if (statesnew & RCUTORTURE_RDR_BH)
@@ -3559,8 +3562,10 @@ rcu_torture_cleanup(void)
 					err_segs[i].rt_delay_us);
 				firsttime = 0;
 			}
-			pr_cont("%s\n",
-				err_segs[i].rt_preempted ? "preempted" : "");
+			pr_cont("%s", err_segs[i].rt_preempted ? "preempted" : "");
+			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
+				pr_cont(" CPU %d", err_segs[i].rt_cpu);
+			pr_cont("\n");
 
 		}
 	}
