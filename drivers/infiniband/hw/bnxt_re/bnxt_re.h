@@ -156,6 +156,13 @@ struct bnxt_re_pacing {
 
 #define MAX_CQ_HASH_BITS		(16)
 #define MAX_SRQ_HASH_BITS		(16)
+
+static inline bool bnxt_re_chip_gen_p7(u16 chip_num)
+{
+	return (chip_num == CHIP_NUM_58818 ||
+		chip_num == CHIP_NUM_57608);
+}
+
 struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
@@ -195,6 +202,7 @@ struct bnxt_re_dev {
 	struct bnxt_qplib_ctx		qplib_ctx;
 	struct bnxt_qplib_res		qplib_res;
 	struct bnxt_qplib_dpi		dpi_privileged;
+	struct bnxt_qplib_cq_coal_param	cq_coalescing;
 
 	struct mutex			qp_lock;	/* protect qp list */
 	struct list_head		qp_list;

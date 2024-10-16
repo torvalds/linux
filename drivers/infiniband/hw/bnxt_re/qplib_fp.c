@@ -2182,6 +2182,7 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_create_cq req = {};
 	struct bnxt_qplib_pbl *pbl;
+	u32 coalescing = 0;
 	u32 pg_sz_lvl;
 	int rc;
 
@@ -2208,6 +2209,25 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	req.dpi = cpu_to_le32(cq->dpi->dpi);
 	req.cq_handle = cpu_to_le64(cq->cq_handle);
 	req.cq_size = cpu_to_le32(cq->max_wqe);
+
+	if (_is_cq_coalescing_supported(res->dattr->dev_cap_flags2)) {
+		req.flags |= cpu_to_le16(CMDQ_CREATE_CQ_FLAGS_COALESCING_VALID);
+		coalescing |= ((cq->coalescing->buf_maxtime <<
+				CMDQ_CREATE_CQ_BUF_MAXTIME_SFT) &
+			       CMDQ_CREATE_CQ_BUF_MAXTIME_MASK);
+		coalescing |= ((cq->coalescing->normal_maxbuf <<
+				CMDQ_CREATE_CQ_NORMAL_MAXBUF_SFT) &
+			       CMDQ_CREATE_CQ_NORMAL_MAXBUF_MASK);
+		coalescing |= ((cq->coalescing->during_maxbuf <<
+				CMDQ_CREATE_CQ_DURING_MAXBUF_SFT) &
+			       CMDQ_CREATE_CQ_DURING_MAXBUF_MASK);
+		if (cq->coalescing->en_ring_idle_mode)
+			coalescing |= CMDQ_CREATE_CQ_ENABLE_RING_IDLE_MODE;
+		else
+			coalescing &= ~CMDQ_CREATE_CQ_ENABLE_RING_IDLE_MODE;
+		req.coalescing = cpu_to_le32(coalescing);
+	}
+
 	pbl = &cq->hwq.pbl[PBL_LVL_0];
 	pg_sz_lvl = (bnxt_qplib_base_pg_size(&cq->hwq) <<
 		     CMDQ_CREATE_CQ_PG_SIZE_SFT);

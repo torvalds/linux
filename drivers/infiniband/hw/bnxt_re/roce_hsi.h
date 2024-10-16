@@ -1139,6 +1139,7 @@ struct cmdq_create_cq {
 	#define CMDQ_CREATE_CQ_FLAGS_DISABLE_CQ_OVERFLOW_DETECTION     0x1UL
 	#define CMDQ_CREATE_CQ_FLAGS_STEERING_TAG_VALID                0x2UL
 	#define CMDQ_CREATE_CQ_FLAGS_INFINITE_CQ_MODE                  0x4UL
+	#define CMDQ_CREATE_CQ_FLAGS_COALESCING_VALID                  0x8UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	reserved8;
@@ -1171,7 +1172,18 @@ struct cmdq_create_cq {
 	__le32	cq_size;
 	__le64	pbl;
 	__le16	steering_tag;
-	u8	reserved48[6];
+	u8	reserved48[2];
+	__le32  coalescing;
+	#define CMDQ_CREATE_CQ_BUF_MAXTIME_MASK          0x1ffUL
+	#define CMDQ_CREATE_CQ_BUF_MAXTIME_SFT           0
+	#define CMDQ_CREATE_CQ_NORMAL_MAXBUF_MASK        0x3e00UL
+	#define CMDQ_CREATE_CQ_NORMAL_MAXBUF_SFT         9
+	#define CMDQ_CREATE_CQ_DURING_MAXBUF_MASK        0x7c000UL
+	#define CMDQ_CREATE_CQ_DURING_MAXBUF_SFT         14
+	#define CMDQ_CREATE_CQ_ENABLE_RING_IDLE_MODE     0x80000UL
+	#define CMDQ_CREATE_CQ_UNUSED12_MASK             0xfff00000UL
+	#define CMDQ_CREATE_CQ_UNUSED12_SFT              20
+	__le64  reserved64;
 };
 
 /* creq_create_cq_resp (size:128b/16B) */
