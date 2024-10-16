@@ -15,6 +15,7 @@
 #include "tms9914.h"
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for Agilent 82357A/B usb adapter");
 
 #define MAX_NUM_82357A_INTERFACES 128
 static struct usb_interface *agilent_82357a_driver_interfaces[MAX_NUM_82357A_INTERFACES];

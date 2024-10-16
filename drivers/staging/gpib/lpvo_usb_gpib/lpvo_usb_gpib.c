@@ -31,6 +31,7 @@
 #include "gpibP.h"
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for LPVO usb devices");
 
 #define NAME "lpvo_usb_gpib"
 

@@ -21,6 +21,7 @@
 #include "quancom_pci.h"
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver Measurement Computing boards using cb7210.2 and cbi488.2");
 
 static inline int have_fifo_word(const struct cb7210_priv *cb_priv)
 {

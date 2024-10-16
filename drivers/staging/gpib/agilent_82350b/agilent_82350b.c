@@ -18,6 +18,7 @@
 #include <linux/wait.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for Agilent 82350b");
 
 int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
 			      size_t *bytes_read)

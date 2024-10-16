@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB Driver for Fluke cda devices");
 
 static int fluke_attach_holdoff_all(gpib_board_t *board, const gpib_board_config_t *config);
 static int fluke_attach_holdoff_end(gpib_board_t *board, const gpib_board_config_t *config);

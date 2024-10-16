@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for CEC PCI and PCMCIA boards");
 
 /*
  * GPIB interrupt service routines

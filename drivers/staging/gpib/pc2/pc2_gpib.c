@@ -47,6 +47,7 @@ static inline unsigned int CLEAR_INTR_REG(unsigned int irq)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for PC2/PC2a and compatible devices");
 
 static int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config);
 static int pc2a_attach(gpib_board_t *board, const gpib_board_config_t *config);

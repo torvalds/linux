@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB library code for NEC uPD7210");
 
 int nec7210_enable_eos(gpib_board_t *board, struct nec7210_priv *priv, uint8_t eos_byte,
 		       int compare_8_bits)

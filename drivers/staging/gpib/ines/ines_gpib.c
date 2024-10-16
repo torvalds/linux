@@ -19,6 +19,7 @@
 #include "gpib_pci_ids.h"
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for Ines iGPIB 72010");
 
 int ines_line_status(const gpib_board_t *board)
 {

@@ -191,6 +191,7 @@ static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, u
 }
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for National Instruments boards using tnt4882 or compatible chips");
 
 int tnt4882_line_status(const gpib_board_t *board)
 {

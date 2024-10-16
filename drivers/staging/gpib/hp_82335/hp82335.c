@@ -17,6 +17,7 @@
 #include <linux/init.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for HP 82335 interface cards");
 
 static int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config);
 

@@ -22,6 +22,7 @@
 #include "tms9914.h"
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB library for tms9914");
 
 static unsigned int update_status_nolock(gpib_board_t *board, struct tms9914_priv *priv);
 

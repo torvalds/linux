@@ -20,6 +20,7 @@
 #include <linux/uaccess.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB base support");
 MODULE_ALIAS_CHARDEV_MAJOR(GPIB_CODE);
 
 static int board_type_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board, unsigned long arg);

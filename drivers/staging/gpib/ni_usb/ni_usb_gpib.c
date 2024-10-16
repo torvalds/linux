@@ -14,6 +14,7 @@
 #include "tnt4882_registers.h"
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for National Instruments USB devices");
 
 #define MAX_NUM_NI_USB_INTERFACES 128
 static struct usb_interface *ni_usb_driver_interfaces[MAX_NUM_NI_USB_INTERFACES];

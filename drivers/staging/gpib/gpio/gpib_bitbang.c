@@ -368,6 +368,7 @@ static inline void SET_DIR_READ(struct bb_priv *priv);
 #define DIR_WRITE 1
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB helper functions for bitbanging I/O");
 
 /****  global variables	 ****/
 #ifdef CONFIG_GPIB_DEBUG
