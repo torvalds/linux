@@ -3795,6 +3795,52 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_tx_duty(struct rtw89_dev *rtwdev, u8 lv)
+{
+	struct rtw89_h2c_tx_duty *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	u16 pause, active;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c tx duty\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_tx_duty *)skb->data;
+
+	static_assert(RTW89_THERMAL_PROT_LV_MAX * RTW89_THERMAL_PROT_STEP < 100);
+
+	if (lv == 0 || lv > RTW89_THERMAL_PROT_LV_MAX) {
+		h2c->w1 = le32_encode_bits(1, RTW89_H2C_TX_DUTY_W1_STOP);
+	} else {
+		active = 100 - lv * RTW89_THERMAL_PROT_STEP;
+		pause = 100 - active;
+
+		h2c->w0 = le32_encode_bits(pause, RTW89_H2C_TX_DUTY_W0_PAUSE_INTVL_MASK) |
+			  le32_encode_bits(active, RTW89_H2C_TX_DUTY_W0_TX_INTVL_MASK);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
+			      H2C_FUNC_TX_DUTY, 0, 0, len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 int rtw89_fw_h2c_set_bcn_fltr_cfg(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link,
 				  bool connect)

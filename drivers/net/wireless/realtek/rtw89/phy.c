@@ -4836,11 +4836,36 @@ static void rtw89_phy_antdiv_init(struct rtw89_dev *rtwdev)
 	rtw89_phy_antdiv_reg_init(rtwdev);
 }
 
+static void rtw89_phy_thermal_protect(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_phy_stat *phystat = &rtwdev->phystat;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 th_max = phystat->last_thermal_max;
+	u8 lv = hal->thermal_prot_lv;
+
+	if (!hal->thermal_prot_th ||
+	    (hal->disabled_dm_bitmap & BIT(RTW89_DM_THERMAL_PROTECT)))
+		return;
+
+	if (th_max > hal->thermal_prot_th && lv < RTW89_THERMAL_PROT_LV_MAX)
+		lv++;
+	else if (th_max < hal->thermal_prot_th - 2 && lv > 0)
+		lv--;
+	else
+		return;
+
+	hal->thermal_prot_lv = lv;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK, "thermal protection lv=%d\n", lv);
+
+	rtw89_fw_h2c_tx_duty(rtwdev, hal->thermal_prot_lv);
+}
+
 static void rtw89_phy_stat_thermal_update(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_phy_stat *phystat = &rtwdev->phystat;
+	u8 th, th_max = 0;
 	int i;
-	u8 th;
 
 	for (i = 0; i < rtwdev->chip->rf_path_num; i++) {
 		th = rtw89_chip_get_thermal(rtwdev, i);
@@ -4850,7 +4875,11 @@ static void rtw89_phy_stat_thermal_update(struct rtw89_dev *rtwdev)
 		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
 			    "path(%d) thermal cur=%u avg=%ld", i, th,
 			    ewma_thermal_read(&phystat->avg_thermal[i]));
+
+		th_max = max(th_max, th);
 	}
+
+	phystat->last_thermal_max = th_max;
 }
 
 struct rtw89_phy_iter_rssi_data {
@@ -4923,6 +4952,8 @@ static void rtw89_phy_stat_init(struct rtw89_dev *rtwdev)
 	memset(&phystat->last_pkt_stat, 0, sizeof(phystat->last_pkt_stat));
 
 	ewma_rssi_init(&phystat->bcn_rssi);
+
+	rtwdev->hal.thermal_prot_lv = 0;
 }
 
 void rtw89_phy_stat_track(struct rtw89_dev *rtwdev)
@@ -4930,6 +4961,7 @@ void rtw89_phy_stat_track(struct rtw89_dev *rtwdev)
 	struct rtw89_phy_stat *phystat = &rtwdev->phystat;
 
 	rtw89_phy_stat_thermal_update(rtwdev);
+	rtw89_phy_thermal_protect(rtwdev);
 	rtw89_phy_stat_rssi_update(rtwdev);
 
 	phystat->last_pkt_stat = phystat->cur_pkt_stat;

@@ -5029,6 +5029,18 @@ rtw89_mac_c2h_pkt_ofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h,
 }
 
 static void
+rtw89_mac_c2h_tx_duty_rpt(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 len)
+{
+	struct rtw89_c2h_tx_duty_rpt *c2h =
+		(struct rtw89_c2h_tx_duty_rpt *)skb_c2h->data;
+	u8 err;
+
+	err = le32_get_bits(c2h->w2, RTW89_C2H_TX_DUTY_RPT_W2_TIMER_ERR);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK, "C2H TX duty rpt with err=%d\n", err);
+}
+
+static void
 rtw89_mac_c2h_tsf32_toggle_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 			       u32 len)
 {
@@ -5354,6 +5366,7 @@ void (* const rtw89_mac_c2h_ofld_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_MAC_C2H_FUNC_BCN_RESEND] = NULL,
 	[RTW89_MAC_C2H_FUNC_MACID_PAUSE] = rtw89_mac_c2h_macid_pause,
 	[RTW89_MAC_C2H_FUNC_SCANOFLD_RSP] = rtw89_mac_c2h_scanofld_rsp,
+	[RTW89_MAC_C2H_FUNC_TX_DUTY_RPT] = rtw89_mac_c2h_tx_duty_rpt,
 	[RTW89_MAC_C2H_FUNC_TSF32_TOGL_RPT] = rtw89_mac_c2h_tsf32_toggle_rpt,
 	[RTW89_MAC_C2H_FUNC_BCNFLTR_RPT] = rtw89_mac_c2h_bcn_fltr_rpt,
 };

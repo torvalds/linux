@@ -4244,6 +4244,7 @@ struct rtw89_chip_info {
 	u8 wde_qempty_acq_grpnum;
 	u8 wde_qempty_mgq_grpsel;
 	u32 rf_base_addr[2];
+	u8 thermal_th[2];
 	u8 support_macid_num;
 	u8 support_link_num;
 	u8 support_chanctx_num;
@@ -4651,7 +4652,11 @@ struct rtw89_edcca_bak {
 
 enum rtw89_dm_type {
 	RTW89_DM_DYNAMIC_EDCCA,
+	RTW89_DM_THERMAL_PROTECT,
 };
+
+#define RTW89_THERMAL_PROT_LV_MAX 5
+#define RTW89_THERMAL_PROT_STEP 19 /* -19% for each level */
 
 struct rtw89_hal {
 	u32 rx_fltr;
@@ -4679,6 +4684,9 @@ struct rtw89_hal {
 
 	struct rtw89_edcca_bak edcca_bak;
 	u32 disabled_dm_bitmap; /* bitmap of enum rtw89_dm_type */
+
+	u8 thermal_prot_th;
+	u8 thermal_prot_lv; /* 0 ~ RTW89_THERMAL_PROT_LV_MAX */
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128
@@ -4751,6 +4759,7 @@ DECLARE_EWMA(thermal, 4, 4);
 
 struct rtw89_phy_stat {
 	struct ewma_thermal avg_thermal[RF_PATH_MAX];
+	u8 last_thermal_max;
 	struct ewma_rssi bcn_rssi;
 	struct rtw89_pkt_stat cur_pkt_stat;
 	struct rtw89_pkt_stat last_pkt_stat;

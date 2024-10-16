@@ -2218,10 +2218,12 @@ static void rtw8922a_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 static u8 rtw8922a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
 {
 	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	int th;
 
-	/* read thermal only if debugging */
-	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_CFO | RTW89_DBG_RFK_TRACK))
+	/* read thermal only if debugging or thermal protection enabled */
+	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_CFO | RTW89_DBG_RFK_TRACK) &&
+	    !hal->thermal_prot_th)
 		return 80;
 
 	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
@@ -2652,6 +2654,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.wde_qempty_acq_grpnum	= 4,
 	.wde_qempty_mgq_grpsel	= 4,
 	.rf_base_addr		= {0xe000, 0xf000},
+	.thermal_th		= {0xad, 0xb4},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.bb_table		= NULL,
