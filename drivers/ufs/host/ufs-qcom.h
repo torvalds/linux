@@ -583,10 +583,11 @@ struct ufs_qcom_host {
 	struct qcom_bus_scale_data *qbsd;
 
 	bool vdd_hba_pc;
+	bool ufs_gen_type;
 	struct notifier_block vdd_hba_reg_nb;
 
 	struct ufs_vreg *vddp_ref_clk;
-	struct ufs_vreg *vccq_parent;
+	struct ufs_vreg *parent_vreg;
 	struct ufs_vreg *vccq_shutdown;
 	bool work_pending;
 	bool bypass_g4_cfgready;
