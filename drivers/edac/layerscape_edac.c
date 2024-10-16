@@ -21,6 +21,7 @@
 
 static const struct of_device_id fsl_ddr_mc_err_of_match[] = {
 	{ .compatible = "fsl,qoriq-memory-controller", },
+	{ .compatible = "nxp,imx9-memory-controller", .data = (void *)TYPE_IMX9, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, fsl_ddr_mc_err_of_match);

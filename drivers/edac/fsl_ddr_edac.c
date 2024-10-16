@@ -31,16 +31,28 @@
 
 static int edac_mc_idx;
 
+static inline void __iomem *ddr_reg_addr(struct fsl_mc_pdata *pdata, unsigned int off)
+{
+	if (pdata->flag == TYPE_IMX9 && off >= FSL_MC_DATA_ERR_INJECT_HI && off <= FSL_MC_ERR_SBE)
+		return pdata->inject_vbase + off - FSL_MC_DATA_ERR_INJECT_HI
+		       + IMX9_MC_DATA_ERR_INJECT_OFF;
+
+	if (pdata->flag == TYPE_IMX9 && off >= IMX9_MC_ERR_EN)
+		return pdata->inject_vbase + off - IMX9_MC_ERR_EN;
+
+	return pdata->mc_vbase + off;
+}
+
 static inline u32 ddr_in32(struct fsl_mc_pdata *pdata, unsigned int off)
 {
-	void __iomem *addr = pdata->mc_vbase + off;
+	void __iomem *addr = ddr_reg_addr(pdata, off);
 
 	return pdata->little_endian ? ioread32(addr) : ioread32be(addr);
 }
 
 static inline void ddr_out32(struct fsl_mc_pdata *pdata, unsigned int off, u32 value)
 {
-	void __iomem *addr = pdata->mc_vbase + off;
+	void __iomem *addr = ddr_reg_addr(pdata, off);
 
 	if (pdata->little_endian)
 		iowrite32(value, addr);
@@ -435,6 +447,9 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 		case 0x05000000:
 			mtype = MEM_DDR4;
 			break;
+		case 0x04000000:
+			mtype = MEM_LPDDR4;
+			break;
 		default:
 			mtype = MEM_UNKNOWN;
 			break;
@@ -468,7 +483,9 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 		dimm->grain = 8;
 		dimm->mtype = mtype;
 		dimm->dtype = DEV_UNKNOWN;
-		if (sdram_ctl & DSC_X32_EN)
+		if (pdata->flag == TYPE_IMX9)
+			dimm->dtype = DEV_X16;
+		else if (sdram_ctl & DSC_X32_EN)
 			dimm->dtype = DEV_X32;
 		dimm->edac_mode = EDAC_SECDED;
 	}
@@ -480,6 +497,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 	struct edac_mc_layer layers[2];
 	struct fsl_mc_pdata *pdata;
 	struct resource r;
+	u32 ecc_en_mask;
 	u32 sdram_ctl;
 	int res;
 
@@ -506,6 +524,8 @@ int fsl_mc_err_probe(struct platform_device *op)
 	dev_set_drvdata(mci->pdev, mci);
 	mci->ctl_name = pdata->name;
 	mci->dev_name = pdata->name;
+
+	pdata->flag = (unsigned long)device_get_match_data(&op->dev);
 
 	/*
 	 * Get the endianness of DDR controller registers.
@@ -535,8 +555,23 @@ int fsl_mc_err_probe(struct platform_device *op)
 		goto err;
 	}
 
-	sdram_ctl = ddr_in32(pdata, FSL_MC_DDR_SDRAM_CFG);
-	if (!(sdram_ctl & DSC_ECC_EN)) {
+	if (pdata->flag == TYPE_IMX9) {
+		pdata->inject_vbase = devm_platform_ioremap_resource_byname(op, "inject");
+		if (IS_ERR(pdata->inject_vbase)) {
+			res = -ENOMEM;
+			goto err;
+		}
+	}
+
+	if (pdata->flag == TYPE_IMX9) {
+		sdram_ctl = ddr_in32(pdata, IMX9_MC_ERR_EN);
+		ecc_en_mask = ERR_ECC_EN | ERR_INLINE_ECC;
+	} else {
+		sdram_ctl = ddr_in32(pdata, FSL_MC_DDR_SDRAM_CFG);
+		ecc_en_mask = DSC_ECC_EN;
+	}
+
+	if ((sdram_ctl & ecc_en_mask) != ecc_en_mask) {
 		/* no ECC */
 		pr_warn("%s: No ECC DIMMs discovered\n", __func__);
 		res = -ENODEV;
@@ -547,7 +582,8 @@ int fsl_mc_err_probe(struct platform_device *op)
 	mci->mtype_cap = MEM_FLAG_DDR | MEM_FLAG_RDDR |
 			 MEM_FLAG_DDR2 | MEM_FLAG_RDDR2 |
 			 MEM_FLAG_DDR3 | MEM_FLAG_RDDR3 |
-			 MEM_FLAG_DDR4 | MEM_FLAG_RDDR4;
+			 MEM_FLAG_DDR4 | MEM_FLAG_RDDR4 |
+			 MEM_FLAG_LPDDR4;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
