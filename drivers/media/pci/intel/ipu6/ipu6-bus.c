@@ -94,8 +94,6 @@ ipu6_bus_initialize_device(struct pci_dev *pdev, struct device *parent,
 	if (!adev)
 		return ERR_PTR(-ENOMEM);
 
-	adev->dma_mask = DMA_BIT_MASK(isp->secure_mode ? IPU6_MMU_ADDR_BITS :
-				      IPU6_MMU_ADDR_BITS_NON_SECURE);
 	adev->isp = isp;
 	adev->ctrl = ctrl;
 	adev->pdata = pdata;
@@ -106,10 +104,6 @@ ipu6_bus_initialize_device(struct pci_dev *pdev, struct device *parent,
 
 	auxdev->dev.parent = parent;
 	auxdev->dev.release = ipu6_bus_release;
-	auxdev->dev.dma_ops = &ipu6_dma_ops;
-	auxdev->dev.dma_mask = &adev->dma_mask;
-	auxdev->dev.dma_parms = pdev->dev.dma_parms;
-	auxdev->dev.coherent_dma_mask = adev->dma_mask;
 
 	ret = auxiliary_device_init(auxdev);
 	if (ret < 0) {

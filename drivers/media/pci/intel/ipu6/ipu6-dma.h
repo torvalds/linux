@@ -5,7 +5,13 @@
 #define IPU6_DMA_H
 
 #include <linux/dma-map-ops.h>
+#include <linux/dma-mapping.h>
 #include <linux/iova.h>
+#include <linux/iova.h>
+#include <linux/scatterlist.h>
+#include <linux/types.h>
+
+#include "ipu6-bus.h"
 
 struct ipu6_mmu_info;
 
@@ -14,6 +20,30 @@ struct ipu6_dma_mapping {
 	struct iova_domain iovad;
 };
 
-extern const struct dma_map_ops ipu6_dma_ops;
-
+void ipu6_dma_sync_single(struct ipu6_bus_device *sys, dma_addr_t dma_handle,
+			  size_t size);
+void ipu6_dma_sync_sg(struct ipu6_bus_device *sys, struct scatterlist *sglist,
+		      int nents);
+void ipu6_dma_sync_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt);
+void *ipu6_dma_alloc(struct ipu6_bus_device *sys, size_t size,
+		     dma_addr_t *dma_handle, gfp_t gfp,
+		     unsigned long attrs);
+void ipu6_dma_free(struct ipu6_bus_device *sys, size_t size, void *vaddr,
+		   dma_addr_t dma_handle, unsigned long attrs);
+int ipu6_dma_mmap(struct ipu6_bus_device *sys, struct vm_area_struct *vma,
+		  void *addr, dma_addr_t iova, size_t size,
+		  unsigned long attrs);
+int ipu6_dma_map_sg(struct ipu6_bus_device *sys, struct scatterlist *sglist,
+		    int nents, enum dma_data_direction dir,
+		    unsigned long attrs);
+void ipu6_dma_unmap_sg(struct ipu6_bus_device *sys, struct scatterlist *sglist,
+		       int nents, enum dma_data_direction dir,
+		       unsigned long attrs);
+int ipu6_dma_map_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt,
+			 enum dma_data_direction dir, unsigned long attrs);
+void ipu6_dma_unmap_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt,
+			    enum dma_data_direction dir, unsigned long attrs);
+int ipu6_dma_get_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt,
+			 void *cpu_addr, dma_addr_t handle, size_t size,
+			 unsigned long attrs);
 #endif /* IPU6_DMA_H */
