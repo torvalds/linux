@@ -19,6 +19,7 @@
 #include "uvc.h"
 #include "uvc_queue.h"
 #include "uvc_video.h"
+#include "uvc_trace.h"
 
 /* --------------------------------------------------------------------------
  * Video codecs
@@ -271,6 +272,8 @@ static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
 
 	atomic_inc(&video->queued);
 
+	trace_uvcg_video_queue(req, atomic_read(&video->queued));
+
 	return ret;
 }
 
@@ -407,6 +410,8 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 	 * happen. Since there are is a new free request wake up the pump.
 	 */
 	queue_work(video->async_wq, &video->pump);
+
+	trace_uvcg_video_complete(req, atomic_read(&video->queued));
 
 	spin_unlock_irqrestore(&video->req_lock, flags);
 
