@@ -474,6 +474,29 @@ static int intel_pch_pfit_check_timings(const struct intel_crtc_state *crtc_stat
 	return 0;
 }
 
+static int intel_pch_pfit_check_cloning(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	/*
+	 * The panel fitter is in the pipe and thus would affect every
+	 * cloned output. The relevant properties (scaling mode, TV
+	 * margins) are per-connector so we'd have to make sure each
+	 * output sets them up identically. Seems like a very niche use
+	 * case so let's just reject cloning entirely when pfit is used.
+	 */
+	if (crtc_state->uapi.encoder_mask &&
+	    !is_power_of_2(crtc_state->uapi.encoder_mask)) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] no pfit when cloning\n",
+			    crtc->base.base.id, crtc->base.name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* adjusted_mode has been preset to be the panel's fixed mode */
 static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
@@ -561,6 +584,10 @@ static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	ret = intel_pch_pfit_check_timings(crtc_state);
+	if (ret)
+		return ret;
+
+	ret = intel_pch_pfit_check_cloning(crtc_state);
 	if (ret)
 		return ret;
 
