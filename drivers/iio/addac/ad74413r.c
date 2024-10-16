@@ -9,6 +9,7 @@
 #include <linux/crc8.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
@@ -72,7 +73,6 @@ struct ad74413r_state {
 	struct regmap			*regmap;
 	struct device			*dev;
 	struct iio_trigger		*trig;
-	struct gpio_desc		*reset_gpio;
 
 	size_t			adc_active_channels;
 	struct spi_message	adc_samples_msg;
@@ -407,12 +407,16 @@ static int ad74413r_gpio_set_comp_config(struct gpio_chip *chip,
 
 static int ad74413r_reset(struct ad74413r_state *st)
 {
+	struct gpio_desc *reset_gpio;
 	int ret;
 
-	if (st->reset_gpio) {
-		gpiod_set_value_cansleep(st->reset_gpio, 1);
+	reset_gpio = devm_gpiod_get_optional(st->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpio))
+		return PTR_ERR(reset_gpio);
+
+	if (reset_gpio) {
 		fsleep(50);
-		gpiod_set_value_cansleep(st->reset_gpio, 0);
+		gpiod_set_value_cansleep(reset_gpio, 0);
 		return 0;
 	}
 
@@ -1377,10 +1381,6 @@ static int ad74413r_probe(struct spi_device *spi)
 				      &ad74413r_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
-
-	st->reset_gpio = devm_gpiod_get_optional(st->dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(st->reset_gpio))
-		return PTR_ERR(st->reset_gpio);
 
 	st->refin_reg = devm_regulator_get(st->dev, "refin");
 	if (IS_ERR(st->refin_reg))
