@@ -39,6 +39,11 @@ targets += stub_exe.dbg stub_exe $(stub_exe_objs-y)
 
 CFLAGS_stub.o := $(CFLAGS_NO_HARDENING)
 CFLAGS_stub_exe.o := $(CFLAGS_NO_HARDENING)
+
+# Clang will call memset() from __builtin_alloca() when stack variable
+# initialization is enabled, which is used in stub_exe.c.
+CFLAGS_stub_exe.o += $(call cc-option, -ftrivial-auto-var-init=uninitialized)
+
 UNPROFILE_OBJS := stub.o stub_exe.o
 KCOV_INSTRUMENT := n
 
