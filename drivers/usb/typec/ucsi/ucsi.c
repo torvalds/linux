@@ -1057,6 +1057,15 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 
 	con->partner = partner;
 
+	if ((con->ucsi->version >= UCSI_VERSION_3_0) &&
+	    (UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) &
+	     UCSI_CONSTAT_PARTNER_FLAG_USB4_GEN4))
+		typec_partner_set_usb_mode(partner, USB_MODE_USB4);
+	else if ((con->ucsi->version >= UCSI_VERSION_2_0) &&
+		 (UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) &
+		  UCSI_CONSTAT_PARTNER_FLAG_USB4_GEN3))
+		typec_partner_set_usb_mode(partner, USB_MODE_USB4);
+
 	return 0;
 }
 
