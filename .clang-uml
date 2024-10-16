@@ -5,7 +5,7 @@ add_compile_flags:
   - -Wno-gnu-variable-sized-type-not-at-end
   - -Wno-unknown-warning-option
   - -fparse-all-comments
-  - -fno-optimize-sibling-calls   # 禁用尾调用优化
+  - -fno-optimize-sibling-calls
   - -Wno-unknown-attributes
 remove_compile_flags:
   - "-mpreferred-stack-boundary=3"
