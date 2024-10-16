@@ -3692,16 +3692,14 @@ out_unregister:
 static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  const struct rtnl_link_ops *ops,
 			  struct rtnl_newlink_tbs *tbs,
+			  struct nlattr **data,
 			  struct netlink_ext_ack *extack)
 {
-	struct nlattr ** const linkinfo = tbs->linkinfo;
 	struct nlattr ** const tb = tbs->tb;
 	struct net *net = sock_net(skb->sk);
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
-	struct nlattr **data;
 	bool link_specified;
-	int err;
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0) {
@@ -3716,26 +3714,6 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	} else {
 		link_specified = false;
 		dev = NULL;
-	}
-
-	data = NULL;
-	if (ops) {
-		if (ops->maxtype > RTNL_MAX_TYPE)
-			return -EINVAL;
-
-		if (ops->maxtype && linkinfo[IFLA_INFO_DATA]) {
-			err = nla_parse_nested_deprecated(tbs->attr, ops->maxtype,
-							  linkinfo[IFLA_INFO_DATA],
-							  ops->policy, extack);
-			if (err < 0)
-				return err;
-			data = tbs->attr;
-		}
-		if (ops->validate) {
-			err = ops->validate(tb, data, extack);
-			if (err < 0)
-				return err;
-		}
 	}
 
 	if (dev)
@@ -3768,8 +3746,8 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	struct nlattr **tb, **linkinfo, **data = NULL;
 	const struct rtnl_link_ops *ops = NULL;
-	struct nlattr **tb, **linkinfo;
 	struct rtnl_newlink_tbs *tbs;
 	int ret;
 
@@ -3813,7 +3791,28 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 #endif
 	}
 
-	ret = __rtnl_newlink(skb, nlh, ops, tbs, extack);
+	if (ops) {
+		if (ops->maxtype > RTNL_MAX_TYPE)
+			return -EINVAL;
+
+		if (ops->maxtype && linkinfo[IFLA_INFO_DATA]) {
+			ret = nla_parse_nested_deprecated(tbs->attr, ops->maxtype,
+							  linkinfo[IFLA_INFO_DATA],
+							  ops->policy, extack);
+			if (ret < 0)
+				goto free;
+
+			data = tbs->attr;
+		}
+
+		if (ops->validate) {
+			ret = ops->validate(tb, data, extack);
+			if (ret < 0)
+				goto free;
+		}
+	}
+
+	ret = __rtnl_newlink(skb, nlh, ops, tbs, data, extack);
 
 free:
 	kfree(tbs);
