@@ -868,7 +868,7 @@ mv88e6xxx_mac_select_pcs(struct phylink_config *config,
 {
 	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct mv88e6xxx_chip *chip = dp->ds->priv;
-	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
+	struct phylink_pcs *pcs = NULL;
 
 	if (chip->info->ops->pcs_ops)
 		pcs = chip->info->ops->pcs_ops->pcs_select(chip, dp->index,
