@@ -460,11 +460,6 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
 			td->notify_temp = trip->temperature - trip->hysteresis;
 			move_trip_to_sorted_list(td, way_down_list);
-
-			if (trip->type == THERMAL_TRIP_PASSIVE) {
-				tz->passive--;
-				WARN_ON(tz->passive < 0);
-			}
 		} else {
 			td->threshold -= trip->hysteresis;
 		}
@@ -478,12 +473,6 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		move_trip_to_sorted_list(td, way_up_list);
 
 		td->threshold -= trip->hysteresis;
-
-		if (trip->type == THERMAL_TRIP_PASSIVE)
-			tz->passive++;
-		else if (trip->type == THERMAL_TRIP_CRITICAL ||
-			 trip->type == THERMAL_TRIP_HOT)
-			handle_critical_trips(tz, trip);
 	}
 }
 
@@ -533,9 +522,19 @@ static void thermal_trip_crossed(struct thermal_zone_device *tz,
 	const struct thermal_trip *trip = &td->trip;
 
 	if (crossed_up) {
+		if (trip->type == THERMAL_TRIP_PASSIVE)
+			tz->passive++;
+		else if (trip->type == THERMAL_TRIP_CRITICAL ||
+			 trip->type == THERMAL_TRIP_HOT)
+			handle_critical_trips(tz, trip);
+
 		thermal_notify_tz_trip_up(tz, trip);
 		thermal_debug_tz_trip_up(tz, trip);
 	} else {
+		if (trip->type == THERMAL_TRIP_PASSIVE) {
+			tz->passive--;
+			WARN_ON(tz->passive < 0);
+		}
 		thermal_notify_tz_trip_down(tz, trip);
 		thermal_debug_tz_trip_down(tz, trip);
 	}
