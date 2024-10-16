@@ -31,7 +31,7 @@ struct thermal_trip_attrs {
 struct thermal_trip_desc {
 	struct thermal_trip trip;
 	struct thermal_trip_attrs trip_attrs;
-	struct list_head notify_list_node;
+	struct list_head list_node;
 	struct list_head thermal_instances;
 	int notify_temp;
 	int threshold;

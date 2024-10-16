@@ -414,13 +414,13 @@ static void add_trip_to_sorted_list(struct thermal_trip_desc *td,
 	struct thermal_trip_desc *entry;
 
 	/* Assume that the new entry is likely to be the last one. */
-	list_for_each_entry_reverse(entry, list, notify_list_node) {
+	list_for_each_entry_reverse(entry, list, list_node) {
 		if (entry->notify_temp <= td->notify_temp) {
-			list_add(&td->notify_list_node, &entry->notify_list_node);
+			list_add(&td->list_node, &entry->list_node);
 			return;
 		}
 	}
-	list_add(&td->notify_list_node, list);
+	list_add(&td->list_node, list);
 }
 
 static void handle_thermal_trip(struct thermal_zone_device *tz,
@@ -586,10 +586,10 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 
 	thermal_zone_set_trips(tz, low, high);
 
-	list_for_each_entry(td, &way_up_list, notify_list_node)
+	list_for_each_entry(td, &way_up_list, list_node)
 		thermal_trip_crossed(tz, &td->trip, governor, true);
 
-	list_for_each_entry_reverse(td, &way_down_list, notify_list_node)
+	list_for_each_entry_reverse(td, &way_down_list, list_node)
 		thermal_trip_crossed(tz, &td->trip, governor, false);
 
 	if (governor->manage)
