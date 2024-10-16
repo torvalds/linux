@@ -407,10 +407,10 @@ static int esw_qos_create_node_sched_elem(struct mlx5_core_dev *dev, u32 parent_
 						  tsar_ix);
 }
 
-static int esw_qos_vport_create_sched_element(struct mlx5_vport *vport,
-					      u32 max_rate, u32 bw_share)
+static int
+esw_qos_vport_create_sched_element(struct mlx5_vport *vport, struct mlx5_esw_sched_node *parent,
+				   u32 max_rate, u32 bw_share, u32 *sched_elem_ix)
 {
-	struct mlx5_esw_sched_node *parent = vport->qos.parent;
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_core_dev *dev = parent->esw->dev;
 	void *attr;
@@ -432,7 +432,7 @@ static int esw_qos_vport_create_sched_element(struct mlx5_vport *vport,
 	err = mlx5_create_scheduling_element_cmd(dev,
 						 SCHEDULING_HIERARCHY_E_SWITCH,
 						 sched_ctx,
-						 &vport->qos.esw_sched_elem_ix);
+						 sched_elem_ix);
 	if (err) {
 		esw_warn(dev,
 			 "E-Switch create vport scheduling element failed (vport=%d,err=%d)\n",
@@ -459,21 +459,23 @@ static int esw_qos_update_node_scheduling_element(struct mlx5_vport *vport,
 		return err;
 	}
 
-	esw_qos_vport_set_parent(vport, new_node);
 	/* Use new node max rate if vport max rate is unlimited. */
 	max_rate = vport->qos.max_rate ? vport->qos.max_rate : new_node->max_rate;
-	err = esw_qos_vport_create_sched_element(vport, max_rate, vport->qos.bw_share);
+	err = esw_qos_vport_create_sched_element(vport, new_node, max_rate, vport->qos.bw_share,
+						 &vport->qos.esw_sched_elem_ix);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch vport node set failed.");
 		goto err_sched;
 	}
 
+	esw_qos_vport_set_parent(vport, new_node);
+
 	return 0;
 
 err_sched:
-	esw_qos_vport_set_parent(vport, curr_node);
 	max_rate = vport->qos.max_rate ? vport->qos.max_rate : curr_node->max_rate;
-	if (esw_qos_vport_create_sched_element(vport, max_rate, vport->qos.bw_share))
+	if (esw_qos_vport_create_sched_element(vport, curr_node, max_rate, vport->qos.bw_share,
+					       &vport->qos.esw_sched_elem_ix))
 		esw_warn(curr_node->esw->dev, "E-Switch vport node restore failed (vport=%d)\n",
 			 vport->vport);
 
@@ -717,12 +719,13 @@ static int esw_qos_vport_enable(struct mlx5_vport *vport,
 	if (err)
 		return err;
 
-	INIT_LIST_HEAD(&vport->qos.parent_entry);
-	esw_qos_vport_set_parent(vport, esw->qos.node0);
-
-	err = esw_qos_vport_create_sched_element(vport, max_rate, bw_share);
+	err = esw_qos_vport_create_sched_element(vport, esw->qos.node0, max_rate, bw_share,
+						 &vport->qos.esw_sched_elem_ix);
 	if (err)
 		goto err_out;
+
+	INIT_LIST_HEAD(&vport->qos.parent_entry);
+	esw_qos_vport_set_parent(vport, esw->qos.node0);
 
 	vport->qos.enabled = true;
 	trace_mlx5_esw_vport_qos_create(vport->dev, vport, bw_share, max_rate);
