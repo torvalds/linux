@@ -34,6 +34,7 @@
 
 #include "ipu6-bus.h"
 #include "ipu6-cpd.h"
+#include "ipu6-dma.h"
 #include "ipu6-isys.h"
 #include "ipu6-isys-csi2.h"
 #include "ipu6-mmu.h"
@@ -933,29 +934,27 @@ static const struct dev_pm_ops isys_pm_ops = {
 
 static void free_fw_msg_bufs(struct ipu6_isys *isys)
 {
-	struct device *dev = &isys->adev->auxdev.dev;
 	struct isys_fw_msgs *fwmsg, *safe;
 
 	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist, head)
-		dma_free_attrs(dev, sizeof(struct isys_fw_msgs), fwmsg,
-			       fwmsg->dma_addr, 0);
+		ipu6_dma_free(isys->adev, sizeof(struct isys_fw_msgs), fwmsg,
+			      fwmsg->dma_addr, 0);
 
 	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist_fw, head)
-		dma_free_attrs(dev, sizeof(struct isys_fw_msgs), fwmsg,
-			       fwmsg->dma_addr, 0);
+		ipu6_dma_free(isys->adev, sizeof(struct isys_fw_msgs), fwmsg,
+			      fwmsg->dma_addr, 0);
 }
 
 static int alloc_fw_msg_bufs(struct ipu6_isys *isys, int amount)
 {
-	struct device *dev = &isys->adev->auxdev.dev;
 	struct isys_fw_msgs *addr;
 	dma_addr_t dma_addr;
 	unsigned long flags;
 	unsigned int i;
 
 	for (i = 0; i < amount; i++) {
-		addr = dma_alloc_attrs(dev, sizeof(struct isys_fw_msgs),
-				       &dma_addr, GFP_KERNEL, 0);
+		addr = ipu6_dma_alloc(isys->adev, sizeof(*addr),
+				      &dma_addr, GFP_KERNEL, 0);
 		if (!addr)
 			break;
 		addr->dma_addr = dma_addr;
@@ -974,8 +973,8 @@ static int alloc_fw_msg_bufs(struct ipu6_isys *isys, int amount)
 					struct isys_fw_msgs, head);
 		list_del(&addr->head);
 		spin_unlock_irqrestore(&isys->listlock, flags);
-		dma_free_attrs(dev, sizeof(struct isys_fw_msgs), addr,
-			       addr->dma_addr, 0);
+		ipu6_dma_free(isys->adev, sizeof(struct isys_fw_msgs), addr,
+			      addr->dma_addr, 0);
 		spin_lock_irqsave(&isys->listlock, flags);
 	}
 	spin_unlock_irqrestore(&isys->listlock, flags);
