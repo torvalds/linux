@@ -172,7 +172,8 @@ void rtnl_link_unregister(struct rtnl_link_ops *ops);
 /**
  * 	struct rtnl_af_ops - rtnetlink address family operations
  *
- *	@list: Used internally
+ *	@list: Used internally, protected by RTNL and SRCU
+ *	@srcu: Used internally
  * 	@family: Address family
  * 	@fill_link_af: Function to fill IFLA_AF_SPEC with address family
  * 		       specific netlink attributes.
@@ -185,6 +186,8 @@ void rtnl_link_unregister(struct rtnl_link_ops *ops);
  */
 struct rtnl_af_ops {
 	struct list_head	list;
+	struct srcu_struct	srcu;
+
 	int			family;
 
 	int			(*fill_link_af)(struct sk_buff *skb,
