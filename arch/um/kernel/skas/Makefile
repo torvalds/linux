@@ -27,7 +27,7 @@ quiet_cmd_stub_exe = STUB_EXE $@
 			   $(KBUILD_CFLAGS) $(STUB_EXE_LDFLAGS) \
 			   $(filter %.o,$^)
 
-STUB_EXE_LDFLAGS = -n -static
+STUB_EXE_LDFLAGS = -Wl,-n -static
 
 targets += stub_exe.dbg stub_exe $(stub_exe_objs-y)
 
