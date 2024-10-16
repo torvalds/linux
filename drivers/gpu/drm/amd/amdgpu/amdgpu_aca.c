@@ -511,7 +511,7 @@ static int __aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *h
 		return -EINVAL;
 	}
 
-	/* udpate aca bank to aca source error_cache first */
+	/* update aca bank to aca source error_cache first */
 	ret = aca_banks_update(adev, smu_type, handler_aca_log_bank_error, qctx, NULL);
 	if (ret)
 		return ret;

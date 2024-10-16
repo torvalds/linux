@@ -7711,21 +7711,16 @@ int btf_new_fd(const union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 struct btf *btf_get_by_fd(int fd)
 {
 	struct btf *btf;
-	struct fd f;
+	CLASS(fd, f)(fd);
 
-	f = fdget(fd);
-
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 
-	if (fd_file(f)->f_op != &btf_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &btf_fops)
 		return ERR_PTR(-EINVAL);
-	}
 
 	btf = fd_file(f)->private_data;
 	refcount_inc(&btf->refcnt);
-	fdput(f);
 
 	return btf;
 }

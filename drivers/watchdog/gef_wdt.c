@@ -245,7 +245,6 @@ static int gef_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations gef_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.write = gef_wdt_write,
 	.unlocked_ioctl = gef_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

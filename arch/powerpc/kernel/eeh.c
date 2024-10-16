@@ -1574,6 +1574,104 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 }
 #endif /* CONFIG_PROC_FS */
 
+static int eeh_break_device(struct pci_dev *pdev)
+{
+	struct resource *bar = NULL;
+	void __iomem *mapped;
+	u16 old, bit;
+	int i, pos;
+
+	/* Do we have an MMIO BAR to disable? */
+	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
+		struct resource *r = &pdev->resource[i];
+
+		if (!r->flags || !r->start)
+			continue;
+		if (r->flags & IORESOURCE_IO)
+			continue;
+		if (r->flags & IORESOURCE_UNSET)
+			continue;
+
+		bar = r;
+		break;
+	}
+
+	if (!bar) {
+		pci_err(pdev, "Unable to find Memory BAR to cause EEH with\n");
+		return -ENXIO;
+	}
+
+	pci_err(pdev, "Going to break: %pR\n", bar);
+
+	if (pdev->is_virtfn) {
+#ifndef CONFIG_PCI_IOV
+		return -ENXIO;
+#else
+		/*
+		 * VFs don't have a per-function COMMAND register, so the best
+		 * we can do is clear the Memory Space Enable bit in the PF's
+		 * SRIOV control reg.
+		 *
+		 * Unfortunately, this requires that we have a PF (i.e doesn't
+		 * work for a passed-through VF) and it has the potential side
+		 * effect of also causing an EEH on every other VF under the
+		 * PF. Oh well.
+		 */
+		pdev = pdev->physfn;
+		if (!pdev)
+			return -ENXIO; /* passed through VFs have no PF */
+
+		pos  = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+		pos += PCI_SRIOV_CTRL;
+		bit  = PCI_SRIOV_CTRL_MSE;
+#endif /* !CONFIG_PCI_IOV */
+	} else {
+		bit = PCI_COMMAND_MEMORY;
+		pos = PCI_COMMAND;
+	}
+
+	/*
+	 * Process here is:
+	 *
+	 * 1. Disable Memory space.
+	 *
+	 * 2. Perform an MMIO to the device. This should result in an error
+	 *    (CA  / UR) being raised by the device which results in an EEH
+	 *    PE freeze. Using the in_8() accessor skips the eeh detection hook
+	 *    so the freeze hook so the EEH Detection machinery won't be
+	 *    triggered here. This is to match the usual behaviour of EEH
+	 *    where the HW will asynchronously freeze a PE and it's up to
+	 *    the kernel to notice and deal with it.
+	 *
+	 * 3. Turn Memory space back on. This is more important for VFs
+	 *    since recovery will probably fail if we don't. For normal
+	 *    the COMMAND register is reset as a part of re-initialising
+	 *    the device.
+	 *
+	 * Breaking stuff is the point so who cares if it's racy ;)
+	 */
+	pci_read_config_word(pdev, pos, &old);
+
+	mapped = ioremap(bar->start, PAGE_SIZE);
+	if (!mapped) {
+		pci_err(pdev, "Unable to map MMIO BAR %pR\n", bar);
+		return -ENXIO;
+	}
+
+	pci_write_config_word(pdev, pos, old & ~bit);
+	in_8(mapped);
+	pci_write_config_word(pdev, pos, old);
+
+	iounmap(mapped);
+
+	return 0;
+}
+
+int eeh_pe_inject_mmio_error(struct pci_dev *pdev)
+{
+	return eeh_break_device(pdev);
+}
+
 #ifdef CONFIG_DEBUG_FS
 
 
@@ -1725,99 +1823,6 @@ static const struct file_operations eeh_dev_check_fops = {
 	.read   = eeh_debugfs_dev_usage,
 };
 
-static int eeh_debugfs_break_device(struct pci_dev *pdev)
-{
-	struct resource *bar = NULL;
-	void __iomem *mapped;
-	u16 old, bit;
-	int i, pos;
-
-	/* Do we have an MMIO BAR to disable? */
-	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
-		struct resource *r = &pdev->resource[i];
-
-		if (!r->flags || !r->start)
-			continue;
-		if (r->flags & IORESOURCE_IO)
-			continue;
-		if (r->flags & IORESOURCE_UNSET)
-			continue;
-
-		bar = r;
-		break;
-	}
-
-	if (!bar) {
-		pci_err(pdev, "Unable to find Memory BAR to cause EEH with\n");
-		return -ENXIO;
-	}
-
-	pci_err(pdev, "Going to break: %pR\n", bar);
-
-	if (pdev->is_virtfn) {
-#ifndef CONFIG_PCI_IOV
-		return -ENXIO;
-#else
-		/*
-		 * VFs don't have a per-function COMMAND register, so the best
-		 * we can do is clear the Memory Space Enable bit in the PF's
-		 * SRIOV control reg.
-		 *
-		 * Unfortunately, this requires that we have a PF (i.e doesn't
-		 * work for a passed-through VF) and it has the potential side
-		 * effect of also causing an EEH on every other VF under the
-		 * PF. Oh well.
-		 */
-		pdev = pdev->physfn;
-		if (!pdev)
-			return -ENXIO; /* passed through VFs have no PF */
-
-		pos  = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
-		pos += PCI_SRIOV_CTRL;
-		bit  = PCI_SRIOV_CTRL_MSE;
-#endif /* !CONFIG_PCI_IOV */
-	} else {
-		bit = PCI_COMMAND_MEMORY;
-		pos = PCI_COMMAND;
-	}
-
-	/*
-	 * Process here is:
-	 *
-	 * 1. Disable Memory space.
-	 *
-	 * 2. Perform an MMIO to the device. This should result in an error
-	 *    (CA  / UR) being raised by the device which results in an EEH
-	 *    PE freeze. Using the in_8() accessor skips the eeh detection hook
-	 *    so the freeze hook so the EEH Detection machinery won't be
-	 *    triggered here. This is to match the usual behaviour of EEH
-	 *    where the HW will asynchronously freeze a PE and it's up to
-	 *    the kernel to notice and deal with it.
-	 *
-	 * 3. Turn Memory space back on. This is more important for VFs
-	 *    since recovery will probably fail if we don't. For normal
-	 *    the COMMAND register is reset as a part of re-initialising
-	 *    the device.
-	 *
-	 * Breaking stuff is the point so who cares if it's racy ;)
-	 */
-	pci_read_config_word(pdev, pos, &old);
-
-	mapped = ioremap(bar->start, PAGE_SIZE);
-	if (!mapped) {
-		pci_err(pdev, "Unable to map MMIO BAR %pR\n", bar);
-		return -ENXIO;
-	}
-
-	pci_write_config_word(pdev, pos, old & ~bit);
-	in_8(mapped);
-	pci_write_config_word(pdev, pos, old);
-
-	iounmap(mapped);
-
-	return 0;
-}
-
 static ssize_t eeh_dev_break_write(struct file *filp,
 				const char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -1829,7 +1834,7 @@ static ssize_t eeh_dev_break_write(struct file *filp,
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
-	ret = eeh_debugfs_break_device(pdev);
+	ret = eeh_break_device(pdev);
 	pci_dev_put(pdev);
 
 	if (ret < 0)
@@ -1843,11 +1848,6 @@ static const struct file_operations eeh_dev_break_fops = {
 	.write	= eeh_dev_break_write,
 	.read   = eeh_debugfs_dev_usage,
 };
-
-int eeh_pe_inject_mmio_error(struct pci_dev *pdev)
-{
-	return eeh_debugfs_break_device(pdev);
-}
 
 static ssize_t eeh_dev_can_recover(struct file *filp,
 				   const char __user *user_buf,

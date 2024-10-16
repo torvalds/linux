@@ -203,7 +203,7 @@ kallsymso=
 strip_debug=
 
 if is_enabled CONFIG_KALLSYMS; then
-	truncate -s0 .tmp_vmlinux.kallsyms0.syms
+	true > .tmp_vmlinux.kallsyms0.syms
 	kallsyms .tmp_vmlinux.kallsyms0.syms .tmp_vmlinux0.kallsyms
 fi
 

@@ -384,8 +384,8 @@ struct mlme_ext_priv {
 	unsigned char default_supported_mcs_set[16];
 
 	struct ss_res		sitesurvey_res;
-	struct mlme_ext_info mlmext_info;/* for sta/adhoc mode, including current scanning/connecting/connected related info. */
-                                                     /* for ap mode, network includes ap's cap_info */
+	struct mlme_ext_info mlmext_info;	/* for sta/adhoc mode, including current scanning/connecting/connected related info. */
+						/* for ap mode, network includes ap's cap_info */
 	struct timer_list		survey_timer;
 	struct timer_list		link_timer;
 	struct timer_list		sa_query_timer;
@@ -455,7 +455,7 @@ u8 rtw_get_center_ch(u8 channel, u8 chnl_bw, u8 chnl_offset);
 unsigned long rtw_get_on_cur_ch_time(struct adapter *adapter);
 
 void set_channel_bwmode(struct adapter *padapter, unsigned char channel, unsigned char channel_offset, unsigned short bwmode);
-void SelectChannel(struct adapter *padapter, unsigned char channel);
+void r8723bs_select_channel(struct adapter *padapter, unsigned char channel);
 
 unsigned int decide_wait_for_beacon_timeout(unsigned int bcn_interval);
 

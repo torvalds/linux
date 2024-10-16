@@ -13,6 +13,7 @@
 #include <linux/filelock.h>
 #include <linux/nfs4.h>
 #include <linux/percpu_counter.h>
+#include <linux/percpu-refcount.h>
 #include <linux/siphash.h>
 #include <linux/sunrpc/stats.h>
 
@@ -139,7 +140,9 @@ struct nfsd_net {
 
 	struct svc_info nfsd_info;
 #define nfsd_serv nfsd_info.serv
-
+	struct percpu_ref nfsd_serv_ref;
+	struct completion nfsd_serv_confirm_done;
+	struct completion nfsd_serv_free_done;
 
 	/*
 	 * clientid and stateid data for construction of net unique COPY
@@ -214,6 +217,10 @@ struct nfsd_net {
 	/* last time an admin-revoke happened for NFSv4.0 */
 	time64_t		nfs40_last_revoke;
 
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+	/* Local clients to be invalidated when net is shut down */
+	struct list_head	local_clients;
+#endif
 };
 
 /* Simple check to find out if a given net was properly initialized */
@@ -221,6 +228,9 @@ struct nfsd_net {
 
 extern bool nfsd_support_version(int vers);
 extern unsigned int nfsd_net_id;
+
+bool nfsd_serv_try_get(struct net *net);
+void nfsd_serv_put(struct net *net);
 
 void nfsd_copy_write_verifier(__be32 verf[2], struct nfsd_net *nn);
 void nfsd_reset_write_verifier(struct nfsd_net *nn);

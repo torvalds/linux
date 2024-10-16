@@ -407,7 +407,6 @@ static void upd78f0730_close(struct usb_serial_port *port)
 
 static struct usb_serial_driver upd78f0730_device = {
 	.driver	 = {
-		.owner	= THIS_MODULE,
 		.name	= "upd78f0730",
 	},
 	.id_table	= id_table,

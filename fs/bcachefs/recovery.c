@@ -151,7 +151,7 @@ static int bch2_journal_replay_accounting_key(struct btree_trans *trans,
 	struct bkey_s_c old = bch2_btree_path_peek_slot(btree_iter_path(trans, &iter), &u);
 
 	/* Has this delta already been applied to the btree? */
-	if (bversion_cmp(old.k->version, k->k->k.version) >= 0) {
+	if (bversion_cmp(old.k->bversion, k->k->k.bversion) >= 0) {
 		ret = 0;
 		goto out;
 	}
@@ -287,7 +287,8 @@ int bch2_journal_replay(struct bch_fs *c)
 				BCH_TRANS_COMMIT_no_enospc|
 				BCH_TRANS_COMMIT_journal_reclaim|
 				BCH_TRANS_COMMIT_skip_accounting_apply|
-				BCH_TRANS_COMMIT_no_journal_res,
+				BCH_TRANS_COMMIT_no_journal_res|
+				BCH_WATERMARK_reclaim,
 			     bch2_journal_replay_accounting_key(trans, k));
 		if (bch2_fs_fatal_err_on(ret, c, "error replaying accounting; %s", bch2_err_str(ret)))
 			goto err;
@@ -717,6 +718,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	if (c->opts.fsck)
 		set_bit(BCH_FS_fsck_running, &c->flags);
+	if (c->sb.clean)
+		set_bit(BCH_FS_clean_recovery, &c->flags);
 
 	ret = bch2_blacklist_table_initialize(c);
 	if (ret) {
@@ -861,6 +864,9 @@ use_clean:
 		goto err;
 
 	clear_bit(BCH_FS_fsck_running, &c->flags);
+
+	/* in case we don't run journal replay, i.e. norecovery mode */
+	set_bit(BCH_FS_accounting_replay_done, &c->flags);
 
 	/* fsync if we fixed errors */
 	if (test_bit(BCH_FS_errors_fixed, &c->flags) &&

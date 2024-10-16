@@ -22,7 +22,6 @@ static struct vfsmount *nsfs_mnt;
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg);
 static const struct file_operations ns_file_operations = {
-	.llseek		= no_llseek,
 	.unlocked_ioctl = ns_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 };

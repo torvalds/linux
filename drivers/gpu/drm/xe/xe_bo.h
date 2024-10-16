@@ -126,11 +126,7 @@ static inline struct xe_bo *xe_bo_get(struct xe_bo *bo)
 	return bo;
 }
 
-static inline void xe_bo_put(struct xe_bo *bo)
-{
-	if (bo)
-		drm_gem_object_put(&bo->ttm.base);
-}
+void xe_bo_put(struct xe_bo *bo);
 
 static inline void __xe_bo_unset_bulk_move(struct xe_bo *bo)
 {

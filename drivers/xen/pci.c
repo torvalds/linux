@@ -173,6 +173,19 @@ static int xen_remove_device(struct device *dev)
 	return r;
 }
 
+int xen_reset_device(const struct pci_dev *dev)
+{
+	struct pci_device_reset device = {
+		.dev.seg = pci_domain_nr(dev->bus),
+		.dev.bus = dev->bus->number,
+		.dev.devfn = dev->devfn,
+		.flags = PCI_DEVICE_RESET_FLR,
+	};
+
+	return HYPERVISOR_physdev_op(PHYSDEVOP_pci_device_reset, &device);
+}
+EXPORT_SYMBOL_GPL(xen_reset_device);
+
 static int xen_pci_notifier(struct notifier_block *nb,
 			    unsigned long action, void *data)
 {

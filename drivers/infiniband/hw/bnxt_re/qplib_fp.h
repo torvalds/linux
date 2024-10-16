@@ -105,6 +105,7 @@ struct bnxt_qplib_srq {
 	struct bnxt_qplib_sg_info	sg_info;
 	u16				eventq_hw_ring_id;
 	spinlock_t			lock; /* protect SRQE link list */
+	u8				toggle;
 };
 
 struct bnxt_qplib_sge {
@@ -251,6 +252,7 @@ struct bnxt_qplib_q {
 	struct bnxt_qplib_db_info	dbinfo;
 	struct bnxt_qplib_sg_info	sg_info;
 	u32				max_wqe;
+	u32				max_sw_wqe;
 	u16				wqe_size;
 	u16				q_full_delta;
 	u16				max_sge;
@@ -586,15 +588,22 @@ static inline void bnxt_qplib_swq_mod_start(struct bnxt_qplib_q *que, u32 idx)
 	que->swq_start = que->swq[idx].next_idx;
 }
 
-static inline u32 bnxt_qplib_get_depth(struct bnxt_qplib_q *que)
+static inline u32 bnxt_qplib_get_depth(struct bnxt_qplib_q *que, u8 wqe_mode, bool is_sq)
 {
-	return (que->wqe_size * que->max_wqe) / sizeof(struct sq_sge);
+	u32 slots;
+
+	/* Queue depth is the number of slots. */
+	slots = (que->wqe_size * que->max_wqe) / sizeof(struct sq_sge);
+	/* For variable WQE mode, need to align the slots to 256 */
+	if (wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE && is_sq)
+		slots = ALIGN(slots, BNXT_VAR_MAX_SLOT_ALIGN);
+	return slots;
 }
 
 static inline u32 bnxt_qplib_set_sq_size(struct bnxt_qplib_q *que, u8 wqe_mode)
 {
 	return (wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
-		que->max_wqe : bnxt_qplib_get_depth(que);
+		que->max_wqe : bnxt_qplib_get_depth(que, wqe_mode, true);
 }
 
 static inline u32 bnxt_qplib_set_sq_max_slot(u8 wqe_mode)
@@ -640,5 +649,15 @@ static inline __le64 bnxt_re_update_msn_tbl(u32 st_idx, u32 npsn, u32 start_psn)
 		SQ_MSN_SEARCH_NEXT_PSN_MASK) |
 		(((start_psn) << SQ_MSN_SEARCH_START_PSN_SFT) &
 		SQ_MSN_SEARCH_START_PSN_MASK));
+}
+
+static inline bool __is_var_wqe(struct bnxt_qplib_qp *qp)
+{
+	return (qp->wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE);
+}
+
+static inline bool __is_err_cqe_for_var_wqe(struct bnxt_qplib_qp *qp, u8 status)
+{
+	return (status != CQ_REQ_STATUS_OK) && __is_var_wqe(qp);
 }
 #endif /* __BNXT_QPLIB_FP_H__ */

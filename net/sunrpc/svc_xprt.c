@@ -268,7 +268,7 @@ static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 		spin_unlock(&svc_xprt_class_lock);
 		newxprt = xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
 		if (IS_ERR(newxprt)) {
-			trace_svc_xprt_create_err(serv->sv_program->pg_name,
+			trace_svc_xprt_create_err(serv->sv_programs->pg_name,
 						  xcl->xcl_name, sap, len,
 						  newxprt);
 			module_put(xcl->xcl_owner);

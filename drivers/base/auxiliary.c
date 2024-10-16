@@ -352,7 +352,7 @@ EXPORT_SYMBOL_GPL(__auxiliary_device_add);
  */
 struct auxiliary_device *auxiliary_find_device(struct device *start,
 					       const void *data,
-					       int (*match)(struct device *dev, const void *data))
+					       device_match_t match)
 {
 	struct device *dev;
 

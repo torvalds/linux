@@ -57,7 +57,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/barrier.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define CREATE_TRACE_POINTS
 #include "applespi.h"
@@ -1007,7 +1007,6 @@ static const struct file_operations applespi_tp_dim_fops = {
 	.owner = THIS_MODULE,
 	.open = applespi_tp_dim_open,
 	.read = applespi_tp_dim_read,
-	.llseek = no_llseek,
 };
 
 static void report_finger_data(struct input_dev *input, int slot,

@@ -181,12 +181,21 @@ static inline void rwsem_set_reader_owned(struct rw_semaphore *sem)
 	__rwsem_set_reader_owned(sem, current);
 }
 
+#ifdef CONFIG_DEBUG_RWSEMS
+/*
+ * Return just the real task structure pointer of the owner
+ */
+static inline struct task_struct *rwsem_owner(struct rw_semaphore *sem)
+{
+	return (struct task_struct *)
+		(atomic_long_read(&sem->owner) & ~RWSEM_OWNER_FLAGS_MASK);
+}
+
 /*
  * Return true if the rwsem is owned by a reader.
  */
 static inline bool is_rwsem_reader_owned(struct rw_semaphore *sem)
 {
-#ifdef CONFIG_DEBUG_RWSEMS
 	/*
 	 * Check the count to see if it is write-locked.
 	 */
@@ -194,11 +203,9 @@ static inline bool is_rwsem_reader_owned(struct rw_semaphore *sem)
 
 	if (count & RWSEM_WRITER_MASK)
 		return false;
-#endif
 	return rwsem_test_oflags(sem, RWSEM_READER_OWNED);
 }
 
-#ifdef CONFIG_DEBUG_RWSEMS
 /*
  * With CONFIG_DEBUG_RWSEMS configured, it will make sure that if there
  * is a task pointer in owner of a reader-owned rwsem, it will be the
@@ -263,15 +270,6 @@ static inline bool rwsem_write_trylock(struct rw_semaphore *sem)
 	}
 
 	return false;
-}
-
-/*
- * Return just the real task structure pointer of the owner
- */
-static inline struct task_struct *rwsem_owner(struct rw_semaphore *sem)
-{
-	return (struct task_struct *)
-		(atomic_long_read(&sem->owner) & ~RWSEM_OWNER_FLAGS_MASK);
 }
 
 /*

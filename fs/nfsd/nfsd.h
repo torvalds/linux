@@ -85,7 +85,7 @@ struct nfsd_genl_rqstp {
 	u32			rq_opnum[NFSD_MAX_OPS_PER_COMPOUND];
 };
 
-extern struct svc_program	nfsd_program;
+extern struct svc_program	nfsd_programs[];
 extern const struct svc_version	nfsd_version2, nfsd_version3, nfsd_version4;
 extern struct mutex		nfsd_mutex;
 extern spinlock_t		nfsd_drc_lock;
@@ -144,6 +144,10 @@ extern const struct svc_version nfsd_acl_version3;
 #else
 #define nfsd_acl_version3 NULL
 #endif
+#endif
+
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+extern const struct svc_version localio_version1;
 #endif
 
 struct nfsd_net;

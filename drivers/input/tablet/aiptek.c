@@ -63,7 +63,7 @@
 #include <linux/module.h>
 #include <linux/usb/input.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * Aiptek status packet:

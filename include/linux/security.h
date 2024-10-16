@@ -348,7 +348,7 @@ int security_dentry_create_files_as(struct dentry *dentry, int mode,
 					struct cred *new);
 int security_path_notify(const struct path *path, u64 mask,
 					unsigned int obj_type);
-int security_inode_alloc(struct inode *inode);
+int security_inode_alloc(struct inode *inode, gfp_t gfp);
 void security_inode_free(struct inode *inode);
 int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
@@ -789,7 +789,7 @@ static inline int security_path_notify(const struct path *path, u64 mask,
 	return 0;
 }
 
-static inline int security_inode_alloc(struct inode *inode)
+static inline int security_inode_alloc(struct inode *inode, gfp_t gfp)
 {
 	return 0;
 }
@@ -2182,7 +2182,7 @@ extern int security_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
 				  struct bpf_token *token);
 extern void security_bpf_prog_free(struct bpf_prog *prog);
 extern int security_bpf_token_create(struct bpf_token *token, union bpf_attr *attr,
-				     struct path *path);
+				     const struct path *path);
 extern void security_bpf_token_free(struct bpf_token *token);
 extern int security_bpf_token_cmd(const struct bpf_token *token, enum bpf_cmd cmd);
 extern int security_bpf_token_capable(const struct bpf_token *token, int cap);
@@ -2222,7 +2222,7 @@ static inline void security_bpf_prog_free(struct bpf_prog *prog)
 { }
 
 static inline int security_bpf_token_create(struct bpf_token *token, union bpf_attr *attr,
-				     struct path *path)
+					    const struct path *path)
 {
 	return 0;
 }

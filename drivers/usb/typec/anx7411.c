@@ -6,6 +6,7 @@
  * Copyright(c) 2022, Analogix Semiconductor. All rights reserved.
  *
  */
+#include <linux/bitfield.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -884,8 +885,8 @@ static void anx7411_chip_standby(struct anx7411_data *ctx)
 				OCM_RESET);
 	ret |= anx7411_reg_write(ctx->tcpc_client, ANALOG_CTRL_10, 0x80);
 	/* Set TCPC to RD and DRP enable */
-	cc1 = TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC1_SHIFT;
-	cc2 = TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC2_SHIFT;
+	cc1 = FIELD_PREP(TCPC_ROLE_CTRL_CC1, TCPC_ROLE_CTRL_CC_RD);
+	cc2 = FIELD_PREP(TCPC_ROLE_CTRL_CC2, TCPC_ROLE_CTRL_CC_RD);
 	ret |= anx7411_reg_write(ctx->tcpc_client, TCPC_ROLE_CTRL,
 				 TCPC_ROLE_CTRL_DRP | cc1 | cc2);
 
@@ -1571,6 +1572,7 @@ static const struct of_device_id anx_match_table[] = {
 	{.compatible = "analogix,anx7411",},
 	{},
 };
+MODULE_DEVICE_TABLE(of, anx_match_table);
 
 static struct i2c_driver anx7411_driver = {
 	.driver = {

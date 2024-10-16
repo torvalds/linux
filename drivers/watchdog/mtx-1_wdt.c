@@ -177,7 +177,6 @@ static ssize_t mtx1_wdt_write(struct file *file, const char *buf,
 
 static const struct file_operations mtx1_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.unlocked_ioctl	= mtx1_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= mtx1_wdt_open,

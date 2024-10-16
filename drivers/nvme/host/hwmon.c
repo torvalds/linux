@@ -6,7 +6,7 @@
 
 #include <linux/hwmon.h>
 #include <linux/units.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "nvme.h"
 

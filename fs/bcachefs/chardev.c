@@ -471,7 +471,6 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 static const struct file_operations bcachefs_data_ops = {
 	.release	= bch2_data_job_release,
 	.read		= bch2_data_job_read,
-	.llseek		= no_llseek,
 };
 
 static long bch2_ioctl_data(struct bch_fs *c,

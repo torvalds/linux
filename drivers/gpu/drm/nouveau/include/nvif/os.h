@@ -30,7 +30,7 @@
 #include <linux/iommu.h>
 #include <linux/of_device.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>

@@ -214,9 +214,9 @@ static __always_inline int bversion_cmp(struct bversion l, struct bversion r)
 #define ZERO_VERSION	((struct bversion) { .hi = 0, .lo = 0 })
 #define MAX_VERSION	((struct bversion) { .hi = ~0, .lo = ~0ULL })
 
-static __always_inline int bversion_zero(struct bversion v)
+static __always_inline bool bversion_zero(struct bversion v)
 {
-	return !bversion_cmp(v, ZERO_VERSION);
+	return bversion_cmp(v, ZERO_VERSION) == 0;
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -554,8 +554,8 @@ static inline void bch2_bkey_pack_test(void) {}
 	x(BKEY_FIELD_OFFSET,		p.offset)			\
 	x(BKEY_FIELD_SNAPSHOT,		p.snapshot)			\
 	x(BKEY_FIELD_SIZE,		size)				\
-	x(BKEY_FIELD_VERSION_HI,	version.hi)			\
-	x(BKEY_FIELD_VERSION_LO,	version.lo)
+	x(BKEY_FIELD_VERSION_HI,	bversion.hi)			\
+	x(BKEY_FIELD_VERSION_LO,	bversion.lo)
 
 struct bkey_format_state {
 	u64 field_min[BKEY_NR_FIELDS];

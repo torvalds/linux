@@ -302,7 +302,7 @@ allOf:
         reg-names:
           items:
             enum:
-              - scu
+              - sru
               - ssi
               - adg
   # for Gen2/Gen3

@@ -256,7 +256,6 @@ static int ibwdt_close(struct inode *inode, struct file *file)
 
 static const struct file_operations ibwdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= ibwdt_write,
 	.unlocked_ioctl	= ibwdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

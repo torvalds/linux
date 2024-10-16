@@ -483,7 +483,6 @@ static const struct file_operations v4l2_fops = {
 #endif
 	.release = v4l2_release,
 	.poll = v4l2_poll,
-	.llseek = no_llseek,
 };
 
 /**

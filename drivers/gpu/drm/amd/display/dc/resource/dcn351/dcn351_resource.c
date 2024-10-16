@@ -736,7 +736,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.hdmichar = true,
 			.dpstream = true,
 			.symclk32_se = true,
-			.symclk32_le = true,
+			.symclk32_le = false,
 			.symclk_fe = true,
 			.physymclk = false,
 			.dpiasymclk = true,
@@ -766,6 +766,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dmub_reallow_idle = false,
 	.static_screen_wait_frames = 2,
 	.notify_dpia_hr_bw = true,
+	.min_disp_clk_khz = 50000,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
@@ -2133,6 +2134,7 @@ static bool dcn351_resource_construct(
 
 	dc->dml2_options.max_segments_per_hubp = 24;
 	dc->dml2_options.det_segment_size = DCN3_2_DET_SEG_SIZE;/*todo*/
+	dc->dml2_options.override_det_buffer_size_kbytes = true;
 
 	if (dc->config.sdpif_request_limit_words_per_umc == 0)
 		dc->config.sdpif_request_limit_words_per_umc = 16;/*todo*/

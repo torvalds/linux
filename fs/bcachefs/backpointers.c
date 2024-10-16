@@ -501,7 +501,7 @@ found:
 	prt_printf(&buf, "\n  %s ", bch2_btree_id_str(o_btree));
 	bch2_bkey_val_to_text(&buf, c, extent2);
 
-	struct nonce nonce = extent_nonce(extent.k->version, p.crc);
+	struct nonce nonce = extent_nonce(extent.k->bversion, p.crc);
 	struct bch_csum csum = bch2_checksum(c, p.crc.csum_type, nonce, data_buf, bytes);
 	if (fsck_err_on(bch2_crc_cmp(csum, p.crc.csum),
 			trans, dup_backpointer_to_bad_csum_extent,

@@ -36,6 +36,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  mount-matrix:
+    description: an optional 3x3 mounting rotation matrix.
+
 additionalProperties: false
 
 required:

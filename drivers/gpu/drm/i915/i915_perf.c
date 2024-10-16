@@ -3751,7 +3751,6 @@ static int i915_perf_release(struct inode *inode, struct file *file)
 
 static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.release	= i915_perf_release,
 	.poll		= i915_perf_poll,
 	.read		= i915_perf_read,

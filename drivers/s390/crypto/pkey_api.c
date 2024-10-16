@@ -776,7 +776,6 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 static const struct file_operations pkey_fops = {
 	.owner		= THIS_MODULE,
 	.open		= nonseekable_open,
-	.llseek		= no_llseek,
 	.unlocked_ioctl = pkey_unlocked_ioctl,
 };
 

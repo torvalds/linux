@@ -35,6 +35,19 @@ struct test_ctx {
 	struct mgr_stats mgr_stats;
 };
 
+/*
+ * Wrappers to avoid cast warnings when passing action functions directly
+ * to kunit_add_action().
+ */
+KUNIT_DEFINE_ACTION_WRAPPER(fpga_image_info_free_wrapper, fpga_image_info_free,
+			    struct fpga_image_info *);
+
+KUNIT_DEFINE_ACTION_WRAPPER(fpga_bridge_unregister_wrapper, fpga_bridge_unregister,
+			    struct fpga_bridge *);
+
+KUNIT_DEFINE_ACTION_WRAPPER(fpga_region_unregister_wrapper, fpga_region_unregister,
+			    struct fpga_region *);
+
 static int op_write(struct fpga_manager *mgr, const char *buf, size_t count)
 {
 	struct mgr_stats *stats = mgr->priv;
@@ -111,6 +124,9 @@ static void fpga_region_test_program_fpga(struct kunit *test)
 	img_info = fpga_image_info_alloc(ctx->mgr_dev);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, img_info);
 
+	ret = kunit_add_action_or_reset(test, fpga_image_info_free_wrapper, img_info);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
 	img_info->buf = img_buf;
 	img_info->count = sizeof(img_buf);
 
@@ -130,8 +146,6 @@ static void fpga_region_test_program_fpga(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 2, ctx->bridge_stats.cycles_count);
 
 	fpga_bridges_put(&ctx->region->bridge_list);
-
-	fpga_image_info_free(img_info);
 }
 
 /*
@@ -144,6 +158,7 @@ static int fpga_region_test_init(struct kunit *test)
 {
 	struct test_ctx *ctx;
 	struct fpga_region_info region_info = { 0 };
+	int ret;
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
@@ -164,6 +179,9 @@ static int fpga_region_test_init(struct kunit *test)
 
 	ctx->bridge_stats.enable = true;
 
+	ret = kunit_add_action_or_reset(test, fpga_bridge_unregister_wrapper, ctx->bridge);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
 	ctx->region_dev = kunit_device_register(test, "fpga-region-test-dev");
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->region_dev);
 
@@ -174,22 +192,12 @@ static int fpga_region_test_init(struct kunit *test)
 	ctx->region = fpga_region_register_full(ctx->region_dev, &region_info);
 	KUNIT_ASSERT_FALSE(test, IS_ERR_OR_NULL(ctx->region));
 
+	ret = kunit_add_action_or_reset(test, fpga_region_unregister_wrapper, ctx->region);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
 	test->priv = ctx;
 
 	return 0;
-}
-
-static void fpga_region_test_exit(struct kunit *test)
-{
-	struct test_ctx *ctx = test->priv;
-
-	fpga_region_unregister(ctx->region);
-	kunit_device_unregister(test, ctx->region_dev);
-
-	fpga_bridge_unregister(ctx->bridge);
-	kunit_device_unregister(test, ctx->bridge_dev);
-
-	kunit_device_unregister(test, ctx->mgr_dev);
 }
 
 static struct kunit_case fpga_region_test_cases[] = {
@@ -199,9 +207,8 @@ static struct kunit_case fpga_region_test_cases[] = {
 };
 
 static struct kunit_suite fpga_region_suite = {
-	.name = "fpga_mgr",
+	.name = "fpga_region",
 	.init = fpga_region_test_init,
-	.exit = fpga_region_test_exit,
 	.test_cases = fpga_region_test_cases,
 };
 

@@ -421,18 +421,6 @@ config KEYBOARD_MAX7359
 	  To compile this driver as a module, choose M here: the
 	  module will be called max7359_keypad.
 
-config KEYBOARD_MCS
-	tristate "MELFAS MCS Touchkey"
-	depends on I2C
-	help
-	  Say Y here if you have the MELFAS MCS5000/5080 touchkey controller
-	  chip in your system.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mcs_touchkey.
-
 config KEYBOARD_MPR121
 	tristate "Freescale MPR121 Touchkey"
 	depends on I2C
@@ -495,17 +483,6 @@ config KEYBOARD_NEWTON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called newtonkbd.
-
-config KEYBOARD_NOMADIK
-	tristate "ST-Ericsson Nomadik SKE keyboard"
-	depends on (ARCH_NOMADIK || ARCH_U8500 || COMPILE_TEST)
-	select INPUT_MATRIXKMAP
-	help
-	  Say Y here if you want to use a keypad provided on the SKE controller
-	  used on the Ux500 and Nomadik platforms
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called nmk-ske-keypad.
 
 config KEYBOARD_NSPIRE
 	tristate "TI-NSPIRE built-in keyboard"

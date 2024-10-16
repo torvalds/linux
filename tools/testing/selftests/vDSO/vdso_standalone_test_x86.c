@@ -131,6 +131,8 @@ asm (
 	"_start:\n\t"
 #ifdef __x86_64__
 	"mov %rsp,%rdi\n\t"
+	"and $-16,%rsp\n\t"
+	"sub $8,%rsp\n\t"
 	"jmp c_main"
 #else
 	"push %esp\n\t"

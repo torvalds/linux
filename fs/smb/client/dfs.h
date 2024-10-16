@@ -19,6 +19,7 @@
 struct dfs_ref {
 	char *path;
 	char *full_path;
+	struct cifs_ses *ses;
 	struct dfs_cache_tgt_list tl;
 	struct dfs_cache_tgt_iterator *tit;
 };
@@ -38,6 +39,7 @@ struct dfs_ref_walk {
 #define ref_walk_path(w)	(ref_walk_cur(w)->path)
 #define ref_walk_fpath(w)	(ref_walk_cur(w)->full_path)
 #define ref_walk_tl(w)		(&ref_walk_cur(w)->tl)
+#define ref_walk_ses(w)	(ref_walk_cur(w)->ses)
 
 static inline struct dfs_ref_walk *ref_walk_alloc(void)
 {
@@ -60,14 +62,19 @@ static inline void __ref_walk_free(struct dfs_ref *ref)
 	kfree(ref->path);
 	kfree(ref->full_path);
 	dfs_cache_free_tgts(&ref->tl);
+	if (ref->ses)
+		cifs_put_smb_ses(ref->ses);
 	memset(ref, 0, sizeof(*ref));
 }
 
 static inline void ref_walk_free(struct dfs_ref_walk *rw)
 {
-	struct dfs_ref *ref = ref_walk_start(rw);
+	struct dfs_ref *ref;
 
-	for (; ref <= ref_walk_end(rw); ref++)
+	if (!rw)
+		return;
+
+	for (ref = ref_walk_start(rw); ref <= ref_walk_end(rw); ref++)
 		__ref_walk_free(ref);
 	kfree(rw);
 }
@@ -116,9 +123,22 @@ static inline void ref_walk_set_tgt_hint(struct dfs_ref_walk *rw)
 				       ref_walk_tit(rw));
 }
 
+static inline void ref_walk_set_tcon(struct dfs_ref_walk *rw,
+				     struct cifs_tcon *tcon)
+{
+	struct dfs_ref *ref = ref_walk_start(rw);
+
+	for (; ref <= ref_walk_cur(rw); ref++) {
+		if (WARN_ON_ONCE(!ref->ses))
+			continue;
+		list_add(&ref->ses->dlist, &tcon->dfs_ses_list);
+		ref->ses = NULL;
+	}
+}
+
 int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_param *ref,
 			      struct smb3_fs_context *ctx);
-int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs);
+int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx);
 
 static inline char *dfs_get_path(struct cifs_sb_info *cifs_sb, const char *path)
 {
@@ -142,20 +162,14 @@ static inline int dfs_get_referral(struct cifs_mount_ctx *mnt_ctx, const char *p
  * references of all DFS root sessions that were used across the mount process
  * in dfs_mount_share().
  */
-static inline void dfs_put_root_smb_sessions(struct cifs_mount_ctx *mnt_ctx)
+static inline void dfs_put_root_smb_sessions(struct list_head *head)
 {
-	const struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
-	struct cifs_ses *ses = ctx->dfs_root_ses;
-	struct cifs_ses *cur;
+	struct cifs_ses *ses, *n;
 
-	if (!ses)
-		return;
-
-	for (cur = ses; cur; cur = cur->dfs_root_ses) {
-		if (cur->dfs_root_ses)
-			cifs_put_smb_ses(cur->dfs_root_ses);
+	list_for_each_entry_safe(ses, n, head, dlist) {
+		list_del_init(&ses->dlist);
+		cifs_put_smb_ses(ses);
 	}
-	cifs_put_smb_ses(ses);
 }
 
 #endif /* _CIFS_DFS_H */

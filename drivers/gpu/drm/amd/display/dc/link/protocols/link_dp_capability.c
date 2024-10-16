@@ -1942,6 +1942,11 @@ static bool retrieve_link_cap(struct dc_link *link)
 			DC_LOG_DP2("\tFEC aggregated error counters are supported");
 	}
 
+	core_link_read_dpcd(link,
+			DPCD_MAX_UNCOMPRESSED_PIXEL_RATE_CAP,
+			link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw,
+			sizeof(link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw));
+
 	retrieve_cable_id(link);
 	dpcd_write_cable_id_to_dprx(link);
 

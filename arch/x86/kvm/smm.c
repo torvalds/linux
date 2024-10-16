@@ -624,17 +624,31 @@ int emulator_leave_smm(struct x86_emulate_ctxt *ctxt)
 #endif
 
 	/*
-	 * Give leave_smm() a chance to make ISA-specific changes to the vCPU
-	 * state (e.g. enter guest mode) before loading state from the SMM
-	 * state-save area.
+	 * FIXME: When resuming L2 (a.k.a. guest mode), the transition to guest
+	 * mode should happen _after_ loading state from SMRAM.  However, KVM
+	 * piggybacks the nested VM-Enter flows (which is wrong for many other
+	 * reasons), and so nSVM/nVMX would clobber state that is loaded from
+	 * SMRAM and from the VMCS/VMCB.
 	 */
 	if (kvm_x86_call(leave_smm)(vcpu, &smram))
 		return X86EMUL_UNHANDLEABLE;
 
 #ifdef CONFIG_X86_64
 	if (guest_cpuid_has(vcpu, X86_FEATURE_LM))
-		return rsm_load_state_64(ctxt, &smram.smram64);
+		ret = rsm_load_state_64(ctxt, &smram.smram64);
 	else
 #endif
-		return rsm_load_state_32(ctxt, &smram.smram32);
+		ret = rsm_load_state_32(ctxt, &smram.smram32);
+
+	/*
+	 * If RSM fails and triggers shutdown, architecturally the shutdown
+	 * occurs *before* the transition to guest mode.  But due to KVM's
+	 * flawed handling of RSM to L2 (see above), the vCPU may already be
+	 * in_guest_mode().  Force the vCPU out of guest mode before delivering
+	 * the shutdown, so that L1 enters shutdown instead of seeing a VM-Exit
+	 * that architecturally shouldn't be possible.
+	 */
+	if (ret != X86EMUL_CONTINUE && is_guest_mode(vcpu))
+		kvm_leave_nested(vcpu);
+	return ret;
 }

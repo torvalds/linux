@@ -1782,7 +1782,6 @@ static int mos7840_resume(struct usb_serial *serial)
 
 static struct usb_serial_driver moschip7840_4port_device = {
 	.driver = {
-		   .owner = THIS_MODULE,
 		   .name = "mos7840",
 		   },
 	.description = DRIVER_DESC,

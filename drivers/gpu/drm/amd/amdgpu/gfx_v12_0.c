@@ -202,10 +202,14 @@ static const struct amdgpu_hwip_reg_entry gc_gfx_queue_reg_list_12[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, regCP_IB1_BUFSZ)
 };
 
-static const struct soc15_reg_golden golden_settings_gc_12_0[] = {
+static const struct soc15_reg_golden golden_settings_gc_12_0_rev0[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regDB_MEM_CONFIG, 0x0000000f, 0x0000000f),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regCB_HW_CONTROL_1, 0x03000000, 0x03000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_CTRL5, 0x00000070, 0x00000020)
+};
+
+static const struct soc15_reg_golden golden_settings_gc_12_0[] = {
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regDB_MEM_CONFIG, 0x00008000, 0x00008000),
 };
 
 #define DEFAULT_SH_MEM_CONFIG \
@@ -3495,10 +3499,14 @@ static void gfx_v12_0_init_golden_registers(struct amdgpu_device *adev)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_12_0,
+						(const u32)ARRAY_SIZE(golden_settings_gc_12_0));
+
 		if (adev->rev_id == 0)
 			soc15_program_register_sequence(adev,
-					golden_settings_gc_12_0,
-					(const u32)ARRAY_SIZE(golden_settings_gc_12_0));
+					golden_settings_gc_12_0_rev0,
+					(const u32)ARRAY_SIZE(golden_settings_gc_12_0_rev0));
 		break;
 	default:
 		break;

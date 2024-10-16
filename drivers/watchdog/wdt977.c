@@ -419,7 +419,6 @@ static int wdt977_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations wdt977_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= wdt977_write,
 	.unlocked_ioctl	= wdt977_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

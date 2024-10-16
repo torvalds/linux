@@ -12,7 +12,7 @@
 
 #include <linux/sched.h>
 #include <linux/bsg-lib.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_netlink.h>
 #include <scsi/scsi_host.h>

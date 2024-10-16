@@ -743,6 +743,16 @@ config RTC_DRV_S5M
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-s5m.
 
+config RTC_DRV_SD2405AL
+	tristate "DFRobot SD2405AL"
+	select REGMAP_I2C
+	help
+	  If you say yes here you will get support for the
+	  DFRobot SD2405AL I2C RTC Module.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-sd2405al.
+
 config RTC_DRV_SD3078
 	tristate "ZXW Shenzhen whwave SD3078"
 	select REGMAP_I2C
@@ -1934,6 +1944,12 @@ config RTC_DRV_STM32
 	tristate "STM32 RTC"
 	select REGMAP_MMIO
 	depends on ARCH_STM32 || COMPILE_TEST
+	depends on OF
+	depends on PINCTRL
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	depends on COMMON_CLK
 	help
 	   If you say yes here you get support for the STM32 On-Chip
 	   Real Time Clock.

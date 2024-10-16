@@ -903,7 +903,6 @@ static const struct file_operations ipmi_wdog_fops = {
 	.open    = ipmi_open,
 	.release = ipmi_close,
 	.fasync  = ipmi_fasync,
-	.llseek  = no_llseek,
 };
 
 static struct miscdevice ipmi_wdog_miscdev = {

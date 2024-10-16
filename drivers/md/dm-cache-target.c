@@ -1368,7 +1368,7 @@ static void mg_copy(struct work_struct *ws)
 			 */
 			bool rb = bio_detain_shared(mg->cache, mg->op->oblock, mg->overwrite_bio);
 
-			BUG_ON(rb); /* An exclussive lock must _not_ be held for this block */
+			BUG_ON(rb); /* An exclusive lock must _not_ be held for this block */
 			mg->overwrite_bio = NULL;
 			inc_io_migrations(mg->cache);
 			mg_full_copy(ws);
@@ -3200,8 +3200,6 @@ static int parse_cblock_range(struct cache *cache, const char *str,
 	 * Try and parse form (ii) first.
 	 */
 	r = sscanf(str, "%llu-%llu%c", &b, &e, &dummy);
-	if (r < 0)
-		return r;
 
 	if (r == 2) {
 		result->begin = to_cblock(b);
@@ -3213,8 +3211,6 @@ static int parse_cblock_range(struct cache *cache, const char *str,
 	 * That didn't work, try form (i).
 	 */
 	r = sscanf(str, "%llu%c", &b, &dummy);
-	if (r < 0)
-		return r;
 
 	if (r == 1) {
 		result->begin = to_cblock(b);

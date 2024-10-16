@@ -517,7 +517,6 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		if (retval)
 			goto err_destroy_queue;
 
-		kfd_procfs_del_queue(pqn->q);
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval) {
@@ -527,6 +526,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 			if (retval != -ETIME)
 				goto err_destroy_queue;
 		}
+		kfd_procfs_del_queue(pqn->q);
 		kfd_queue_release_buffers(pdd, &pqn->q->properties);
 		pqm_clean_queue_resource(pqm, pqn);
 		uninit_queue(pqn->q);

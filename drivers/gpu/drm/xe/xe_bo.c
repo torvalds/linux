@@ -680,8 +680,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	tt_has_data = ttm && (ttm_tt_is_populated(ttm) ||
 			      (ttm->page_flags & TTM_TT_FLAG_SWAPPED));
 
-	move_lacks_source = handle_system_ccs ? (!bo->ccs_cleared)  :
-						(!mem_type_is_vram(old_mem_type) && !tt_has_data);
+	move_lacks_source = !old_mem || (handle_system_ccs ? (!bo->ccs_cleared) :
+					 (!mem_type_is_vram(old_mem_type) && !tt_has_data));
 
 	needs_clear = (ttm && ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) ||
 		(!ttm && ttm_bo->type == ttm_bo_type_device);
@@ -2318,6 +2318,20 @@ void xe_bo_put_commit(struct llist_head *deferred)
 
 	llist_for_each_entry_safe(bo, next, freed, freed)
 		drm_gem_object_free(&bo->ttm.base.refcount);
+}
+
+void xe_bo_put(struct xe_bo *bo)
+{
+	might_sleep();
+	if (bo) {
+#ifdef CONFIG_PROC_FS
+		if (bo->client)
+			might_lock(&bo->client->bos_lock);
+#endif
+		if (bo->ggtt_node && bo->ggtt_node->ggtt)
+			might_lock(&bo->ggtt_node->ggtt->lock);
+		drm_gem_object_put(&bo->ttm.base);
+	}
 }
 
 /**

@@ -3,10 +3,13 @@
 # Contributor: Jan Alexander Steffens (heftig) <heftig@archlinux.org>
 
 pkgbase=${PACMAN_PKGBASE:-linux-upstream}
-pkgname=("${pkgbase}" "${pkgbase}-api-headers")
-if grep -q CONFIG_MODULES=y include/config/auto.conf; then
-	pkgname+=("${pkgbase}-headers")
-fi
+pkgname=("${pkgbase}")
+
+_extrapackages=${PACMAN_EXTRAPACKAGES-headers api-headers debug}
+for pkg in $_extrapackages; do
+	pkgname+=("${pkgbase}-${pkg}")
+done
+
 pkgver="${KERNELRELEASE//-/_}"
 # The PKGBUILD is evaluated multiple times.
 # Running scripts/build-version from here would introduce inconsistencies.
@@ -33,11 +36,17 @@ makedepends=(
 )
 options=(!debug !strip !buildflags !makeflags)
 
-build() {
+_prologue() {
 	# MAKEFLAGS from makepkg.conf override the ones inherited from kbuild.
 	# Bypass this override with a custom variable.
 	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
+
+	# Kbuild works in the output directory, where this PKGBUILD is located.
+	cd "$(dirname "${BASH_SOURCE[0]}")"
+}
+
+build() {
+	_prologue
 
 	${MAKE} KERNELRELEASE="${KERNELRELEASE}" KBUILD_BUILD_VERSION="${pkgrel}"
 }
@@ -45,9 +54,9 @@ build() {
 _package() {
 	pkgdesc="The ${pkgdesc} kernel and modules"
 
-	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
 	local modulesdir="${pkgdir}/usr/${MODLIB}"
+
+	_prologue
 
 	echo "Installing boot image..."
 	# systemd expects to find the kernel here to allow hibernation
@@ -73,14 +82,17 @@ _package() {
 _package-headers() {
 	pkgdesc="Headers and scripts for building modules for the ${pkgdesc} kernel"
 
-	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
 	local builddir="${pkgdir}/usr/${MODLIB}/build"
 
-	echo "Installing build files..."
-	"${srctree}/scripts/package/install-extmod-build" "${builddir}"
+	_prologue
+
+	if grep -q CONFIG_MODULES=y include/config/auto.conf; then
+		echo "Installing build files..."
+		"${srctree}/scripts/package/install-extmod-build" "${builddir}"
+	fi
 
 	echo "Installing System.map and config..."
+	mkdir -p "${builddir}"
 	cp System.map "${builddir}/System.map"
 	cp .config "${builddir}/.config"
 
@@ -94,10 +106,22 @@ _package-api-headers() {
 	provides=(linux-api-headers)
 	conflicts=(linux-api-headers)
 
-	export MAKEFLAGS="${KBUILD_MAKEFLAGS}"
-	cd "${objtree}"
+	_prologue
 
 	${MAKE} headers_install INSTALL_HDR_PATH="${pkgdir}/usr"
+}
+
+_package-debug(){
+	pkgdesc="Non-stripped vmlinux file for the ${pkgdesc} kernel"
+
+	local debugdir="${pkgdir}/usr/src/debug/${pkgbase}"
+	local builddir="${pkgdir}/usr/${MODLIB}/build"
+
+	_prologue
+
+	install -Dt "${debugdir}" -m644 vmlinux
+	mkdir -p "${builddir}"
+	ln -sr "${debugdir}/vmlinux" "${builddir}/vmlinux"
 }
 
 for _p in "${pkgname[@]}"; do

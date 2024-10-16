@@ -799,8 +799,10 @@ retry:
 	     i < layout.sb_offset + layout.nr_superblocks; i++) {
 		offset = le64_to_cpu(*i);
 
-		if (offset == opt_get(*opts, sb))
+		if (offset == opt_get(*opts, sb)) {
+			ret = -BCH_ERR_invalid;
 			continue;
+		}
 
 		ret = read_one_super(sb, offset, &err);
 		if (!ret)
@@ -1188,7 +1190,8 @@ static void bch2_sb_ext_to_text(struct printbuf *out, struct bch_sb *sb,
 		le_bitvector_to_cpu(errors_silent, (void *) e->errors_silent, sizeof(e->errors_silent) * 8);
 
 		prt_printf(out, "Errors to silently fix:\t");
-		prt_bitflags_vector(out, bch2_sb_error_strs, errors_silent, sizeof(e->errors_silent) * 8);
+		prt_bitflags_vector(out, bch2_sb_error_strs, errors_silent,
+				    min(BCH_FSCK_ERR_MAX, sizeof(e->errors_silent) * 8));
 		prt_newline(out);
 
 		kfree(errors_silent);

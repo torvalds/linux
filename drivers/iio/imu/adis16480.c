@@ -193,8 +193,6 @@ module_param(low_rate_allow, bool, 0444);
 MODULE_PARM_DESC(low_rate_allow,
 		 "Allow IMU rates below the minimum advisable when external clk is used in PPS mode (default: N)");
 
-#ifdef CONFIG_DEBUG_FS
-
 static ssize_t adis16480_show_firmware_revision(struct file *file,
 		char __user *userbuf, size_t count, loff_t *ppos)
 {
@@ -304,10 +302,13 @@ static int adis16480_show_flash_count(void *arg, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(adis16480_flash_count_fops,
 	adis16480_show_flash_count, NULL, "%lld\n");
 
-static int adis16480_debugfs_init(struct iio_dev *indio_dev)
+static void adis16480_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16480 *adis16480 = iio_priv(indio_dev);
 	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
 
 	debugfs_create_file_unsafe("firmware_revision", 0400,
 		d, adis16480, &adis16480_firmware_revision_fops);
@@ -319,18 +320,7 @@ static int adis16480_debugfs_init(struct iio_dev *indio_dev)
 		d, adis16480, &adis16480_product_id_fops);
 	debugfs_create_file_unsafe("flash_count", 0400,
 		d, adis16480, &adis16480_flash_count_fops);
-
-	return 0;
 }
-
-#else
-
-static int adis16480_debugfs_init(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-#endif
 
 static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 {
@@ -1395,7 +1385,7 @@ static irqreturn_t adis16480_trigger_handler(int irq, void *p)
 		goto irq_done;
 	}
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		/*
 		 * When burst mode is used, temperature is the first data
 		 * channel in the sequence, but the temperature scan index

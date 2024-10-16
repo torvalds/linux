@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
+#include <linux/stringify.h>
 #include <linux/linkage.h>
 #include <asm/alternative.h>
+#include <asm/dwarf.h>
 #include <asm/fpu-insn.h>
 
 #define STATE0	%v0
@@ -12,9 +14,6 @@
 #define COPY1	%v5
 #define COPY2	%v6
 #define COPY3	%v7
-#define PERM4	%v16
-#define PERM8	%v17
-#define PERM12	%v18
 #define BEPERM	%v19
 #define TMP0	%v20
 #define TMP1	%v21
@@ -23,13 +22,11 @@
 
 	.section .rodata
 
-	.balign 128
-.Lconstants:
+	.balign 32
+SYM_DATA_START_LOCAL(chacha20_constants)
 	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574 # endian-neutral
-	.long	0x04050607,0x08090a0b,0x0c0d0e0f,0x00010203 # rotl  4 bytes
-	.long	0x08090a0b,0x0c0d0e0f,0x00010203,0x04050607 # rotl  8 bytes
-	.long	0x0c0d0e0f,0x00010203,0x04050607,0x08090a0b # rotl 12 bytes
 	.long	0x03020100,0x07060504,0x0b0a0908,0x0f0e0d0c # byte swap
+SYM_DATA_END(chacha20_constants)
 
 	.text
 /*
@@ -43,13 +40,14 @@
  *				       size_t nblocks)
  */
 SYM_FUNC_START(__arch_chacha20_blocks_nostack)
-	larl	%r1,.Lconstants
+	CFI_STARTPROC
+	larl	%r1,chacha20_constants
 
 	/* COPY0 = "expand 32-byte k" */
 	VL	COPY0,0,,%r1
 
-	/* PERM4-PERM12,BEPERM = byte selectors for VPERM */
-	VLM	PERM4,BEPERM,16,%r1
+	/* BEPERM = byte selectors for VPERM */
+	ALTERNATIVE __stringify(VL BEPERM,16,,%r1), "brcl 0,0", ALT_FACILITY(148)
 
 	/* COPY1,COPY2 = key */
 	VLM	COPY1,COPY2,0,%r3
@@ -89,11 +87,11 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	VERLLF	STATE1,STATE1,7
 
 	/* STATE1[0,1,2,3] = STATE1[1,2,3,0] */
-	VPERM	STATE1,STATE1,STATE1,PERM4
+	VSLDB	STATE1,STATE1,STATE1,4
 	/* STATE2[0,1,2,3] = STATE2[2,3,0,1] */
-	VPERM	STATE2,STATE2,STATE2,PERM8
+	VSLDB	STATE2,STATE2,STATE2,8
 	/* STATE3[0,1,2,3] = STATE3[3,0,1,2] */
-	VPERM	STATE3,STATE3,STATE3,PERM12
+	VSLDB	STATE3,STATE3,STATE3,12
 
 	/* STATE0 += STATE1, STATE3 = rotl32(STATE3 ^ STATE0, 16) */
 	VAF	STATE0,STATE0,STATE1
@@ -116,32 +114,38 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	VERLLF	STATE1,STATE1,7
 
 	/* STATE1[0,1,2,3] = STATE1[3,0,1,2] */
-	VPERM	STATE1,STATE1,STATE1,PERM12
+	VSLDB	STATE1,STATE1,STATE1,12
 	/* STATE2[0,1,2,3] = STATE2[2,3,0,1] */
-	VPERM	STATE2,STATE2,STATE2,PERM8
+	VSLDB	STATE2,STATE2,STATE2,8
 	/* STATE3[0,1,2,3] = STATE3[1,2,3,0] */
-	VPERM	STATE3,STATE3,STATE3,PERM4
+	VSLDB	STATE3,STATE3,STATE3,4
 	brctg	%r0,.Ldoubleround
 
-	/* OUTPUT0 = STATE0 + STATE0 */
+	/* OUTPUT0 = STATE0 + COPY0 */
 	VAF	STATE0,STATE0,COPY0
-	/* OUTPUT1 = STATE1 + STATE1 */
+	/* OUTPUT1 = STATE1 + COPY1 */
 	VAF	STATE1,STATE1,COPY1
-	/* OUTPUT2 = STATE2 + STATE2 */
+	/* OUTPUT2 = STATE2 + COPY2 */
 	VAF	STATE2,STATE2,COPY2
-	/* OUTPUT2 = STATE3 + STATE3 */
+	/* OUTPUT3 = STATE3 + COPY3 */
 	VAF	STATE3,STATE3,COPY3
 
-	/*
-	 * 32 bit wise little endian store to OUTPUT. If the vector
-	 * enhancement facility 2 is not installed use the slow path.
-	 */
-	ALTERNATIVE "brc 0xf,.Lstoreslow", "nop", ALT_FACILITY(148)
-	VSTBRF	STATE0,0,,%r2
-	VSTBRF	STATE1,16,,%r2
-	VSTBRF	STATE2,32,,%r2
-	VSTBRF	STATE3,48,,%r2
-.Lstoredone:
+	ALTERNATIVE							\
+		__stringify(						\
+		/* Convert STATE to little endian and store to OUTPUT */\
+		VPERM	TMP0,STATE0,STATE0,BEPERM;			\
+		VPERM	TMP1,STATE1,STATE1,BEPERM;			\
+		VPERM	TMP2,STATE2,STATE2,BEPERM;			\
+		VPERM	TMP3,STATE3,STATE3,BEPERM;			\
+		VSTM	TMP0,TMP3,0,%r2),				\
+		__stringify(						\
+		/* 32 bit wise little endian store to OUTPUT */		\
+		VSTBRF	STATE0,0,,%r2;					\
+		VSTBRF	STATE1,16,,%r2;					\
+		VSTBRF	STATE2,32,,%r2;					\
+		VSTBRF	STATE3,48,,%r2;					\
+		brcl	0,0),						\
+		ALT_FACILITY(148)
 
 	/* ++COPY3.COUNTER */
 	/* alsih %r3,1 */
@@ -173,13 +177,5 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	VZERO	TMP3
 
 	br	%r14
-
-.Lstoreslow:
-	/* Convert STATE to little endian format and store to OUTPUT */
-	VPERM	TMP0,STATE0,STATE0,BEPERM
-	VPERM	TMP1,STATE1,STATE1,BEPERM
-	VPERM	TMP2,STATE2,STATE2,BEPERM
-	VPERM	TMP3,STATE3,STATE3,BEPERM
-	VSTM	TMP0,TMP3,0,%r2
-	j	.Lstoredone
+	CFI_ENDPROC
 SYM_FUNC_END(__arch_chacha20_blocks_nostack)

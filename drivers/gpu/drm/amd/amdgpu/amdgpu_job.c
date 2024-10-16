@@ -107,8 +107,11 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	/*
 	 * Do the coredump immediately after a job timeout to get a very
 	 * close dump/snapshot/representation of GPU's current error status
+	 * Skip it for SRIOV, since VF FLR will be triggered by host driver
+	 * before job timeout
 	 */
-	amdgpu_job_core_dump(adev, job);
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_job_core_dump(adev, job);
 
 	if (amdgpu_gpu_recovery &&
 	    amdgpu_ring_soft_recovery(ring, job->vmid, s_job->s_fence->parent)) {

@@ -146,24 +146,37 @@ static void xt_cluster_mt_destroy(const struct xt_mtdtor_param *par)
 	nf_ct_netns_put(par->net, par->family);
 }
 
-static struct xt_match xt_cluster_match __read_mostly = {
-	.name		= "cluster",
-	.family		= NFPROTO_UNSPEC,
-	.match		= xt_cluster_mt,
-	.checkentry	= xt_cluster_mt_checkentry,
-	.matchsize	= sizeof(struct xt_cluster_match_info),
-	.destroy	= xt_cluster_mt_destroy,
-	.me		= THIS_MODULE,
+static struct xt_match xt_cluster_match[] __read_mostly = {
+	{
+		.name		= "cluster",
+		.family		= NFPROTO_IPV4,
+		.match		= xt_cluster_mt,
+		.checkentry	= xt_cluster_mt_checkentry,
+		.matchsize	= sizeof(struct xt_cluster_match_info),
+		.destroy	= xt_cluster_mt_destroy,
+		.me		= THIS_MODULE,
+	},
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	{
+		.name		= "cluster",
+		.family		= NFPROTO_IPV6,
+		.match		= xt_cluster_mt,
+		.checkentry	= xt_cluster_mt_checkentry,
+		.matchsize	= sizeof(struct xt_cluster_match_info),
+		.destroy	= xt_cluster_mt_destroy,
+		.me		= THIS_MODULE,
+	},
+#endif
 };
 
 static int __init xt_cluster_mt_init(void)
 {
-	return xt_register_match(&xt_cluster_match);
+	return xt_register_matches(xt_cluster_match, ARRAY_SIZE(xt_cluster_match));
 }
 
 static void __exit xt_cluster_mt_fini(void)
 {
-	xt_unregister_match(&xt_cluster_match);
+	xt_unregister_matches(xt_cluster_match, ARRAY_SIZE(xt_cluster_match));
 }
 
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");

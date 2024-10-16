@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.299"
+#define DC_VER "3.2.301"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -462,6 +462,7 @@ struct dc_config {
 	bool support_edp0_on_dp1;
 	unsigned int enable_fpo_flicker_detection;
 	bool disable_hbr_audio_dp2;
+	bool consolidated_dpia_dp_lt;
 };
 
 enum visual_confirm {
@@ -762,7 +763,8 @@ union dpia_debug_options {
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
-		uint32_t reserved:26;
+		uint32_t enable_consolidated_dpia_dp_lt:1; /* bit 6 */
+		uint32_t reserved:25;
 	} bits;
 	uint32_t raw;
 };
@@ -1056,6 +1058,9 @@ struct dc_debug_options {
 	unsigned int force_lls;
 	bool notify_dpia_hr_bw;
 	bool enable_ips_visual_confirm;
+	unsigned int sharpen_policy;
+	unsigned int scale_to_sharpness_policy;
+	bool skip_full_updated_if_possible;
 };
 
 
@@ -1269,6 +1274,7 @@ union surface_update_flags {
 		uint32_t tmz_changed:1;
 		uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
 		uint32_t full_update:1;
+		uint32_t sdr_white_level_nits:1;
 	} bits;
 
 	uint32_t raw;
@@ -1351,6 +1357,7 @@ struct dc_plane_state {
 	bool adaptive_sharpness_en;
 	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
+	unsigned int sdr_white_level_nits;
 };
 
 struct dc_plane_info {
@@ -1508,6 +1515,7 @@ struct dc_surface_update {
 	 */
 	struct dc_cm2_parameters *cm2_params;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
+	unsigned int sdr_white_level_nits;
 };
 
 /*
@@ -2519,6 +2527,8 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint32_t link_index,
 				uint8_t mst_alloc_slots,
 				uint8_t *mst_slots_in_use);
+
+void dc_process_dmub_dpia_set_tps_notification(const struct dc *dc, uint32_t link_index, uint8_t tps);
 
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);

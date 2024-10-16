@@ -382,8 +382,7 @@ static int ad7124_init_config_vref(struct ad7124_state *st, struct ad7124_channe
 		cfg->vref_mv = 2500;
 		st->adc_control &= ~AD7124_ADC_CTRL_REF_EN_MSK;
 		st->adc_control |= AD7124_ADC_CTRL_REF_EN(1);
-		return ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL,
-				      2, st->adc_control);
+		return 0;
 	default:
 		dev_err(&st->sd.spi->dev, "Invalid reference %d\n", refsel);
 		return -EINVAL;
@@ -401,24 +400,17 @@ static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_co
 
 	tmp = (cfg->buf_positive << 1) + cfg->buf_negative;
 	val = AD7124_CONFIG_BIPOLAR(cfg->bipolar) | AD7124_CONFIG_REF_SEL(cfg->refsel) |
-	      AD7124_CONFIG_IN_BUFF(tmp);
+	      AD7124_CONFIG_IN_BUFF(tmp) | AD7124_CONFIG_PGA(cfg->pga_bits);
+
 	ret = ad_sd_write_reg(&st->sd, AD7124_CONFIG(cfg->cfg_slot), 2, val);
 	if (ret < 0)
 		return ret;
 
-	tmp = AD7124_FILTER_TYPE_SEL(cfg->filter_type);
-	ret = ad7124_spi_write_mask(st, AD7124_FILTER(cfg->cfg_slot), AD7124_FILTER_TYPE_MSK,
-				    tmp, 3);
-	if (ret < 0)
-		return ret;
-
-	ret = ad7124_spi_write_mask(st, AD7124_FILTER(cfg->cfg_slot), AD7124_FILTER_FS_MSK,
-				    AD7124_FILTER_FS(cfg->odr_sel_bits), 3);
-	if (ret < 0)
-		return ret;
-
-	return ad7124_spi_write_mask(st, AD7124_CONFIG(cfg->cfg_slot), AD7124_CONFIG_PGA_MSK,
-				     AD7124_CONFIG_PGA(cfg->pga_bits), 2);
+	tmp = AD7124_FILTER_TYPE_SEL(cfg->filter_type) |
+	      AD7124_FILTER_FS(cfg->odr_sel_bits);
+	return ad7124_spi_write_mask(st, AD7124_FILTER(cfg->cfg_slot),
+				     AD7124_FILTER_TYPE_MSK | AD7124_FILTER_FS_MSK,
+				     tmp, 3);
 }
 
 static struct ad7124_channel_config *ad7124_pop_config(struct ad7124_state *st)
@@ -907,9 +899,9 @@ static int ad7124_setup(struct ad7124_state *st)
 	/* Set the power mode */
 	st->adc_control &= ~AD7124_ADC_CTRL_PWR_MSK;
 	st->adc_control |= AD7124_ADC_CTRL_PWR(power_mode);
-	ret = ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL, 2, st->adc_control);
-	if (ret < 0)
-		return ret;
+
+	st->adc_control &= ~AD7124_ADC_CTRL_MODE_MSK;
+	st->adc_control |= AD7124_ADC_CTRL_MODE(AD_SD_MODE_IDLE);
 
 	mutex_init(&st->cfgs_lock);
 	INIT_KFIFO(st->live_cfgs_fifo);
@@ -926,6 +918,10 @@ static int ad7124_setup(struct ad7124_state *st)
 		 */
 		ad7124_set_channel_odr(st, i, 10);
 	}
+
+	ret = ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL, 2, st->adc_control);
+	if (ret < 0)
+		return ret;
 
 	return ret;
 }
@@ -1016,14 +1012,14 @@ static const struct of_device_id ad7124_of_match[] = {
 		.data = &ad7124_chip_info_tbl[ID_AD7124_4], },
 	{ .compatible = "adi,ad7124-8",
 		.data = &ad7124_chip_info_tbl[ID_AD7124_8], },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7124_of_match);
 
 static const struct spi_device_id ad71124_ids[] = {
 	{ "ad7124-4", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_4] },
 	{ "ad7124-8", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_8] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad71124_ids);
 

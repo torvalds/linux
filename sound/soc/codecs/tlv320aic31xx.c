@@ -12,7 +12,7 @@
  * and mono/stereo Class-D speaker driver.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>

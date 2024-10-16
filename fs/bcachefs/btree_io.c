@@ -1195,6 +1195,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	set_btree_bset(b, b->set, &b->data->keys);
 
 	b->nr = bch2_key_sort_fix_overlapping(c, &sorted->keys, iter);
+	memset((uint8_t *)(sorted + 1) + b->nr.live_u64s * sizeof(u64), 0,
+			btree_buf_bytes(b) -
+			sizeof(struct btree_node) -
+			b->nr.live_u64s * sizeof(u64));
 
 	u64s = le16_to_cpu(sorted->keys.u64s);
 	*sorted = *b->data;
@@ -1219,7 +1223,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		ret = bch2_bkey_val_validate(c, u.s_c, READ);
 		if (ret == -BCH_ERR_fsck_delete_bkey ||
 		    (bch2_inject_invalid_keys &&
-		     !bversion_cmp(u.k->version, MAX_VERSION))) {
+		     !bversion_cmp(u.k->bversion, MAX_VERSION))) {
 			btree_keys_account_key_drop(&b->nr, 0, k);
 
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
@@ -1834,10 +1838,11 @@ static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
+
+	/* we don't need transaction context anymore after we got the lock. */
+	bch2_trans_put(trans);
 	__btree_node_write_done(c, b);
 	six_unlock_read(&b->c.lock);
-
-	bch2_trans_put(trans);
 }
 
 static void btree_node_write_work(struct work_struct *work)

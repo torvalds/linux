@@ -470,7 +470,6 @@ static int pc87413_notify_sys(struct notifier_block *this,
 
 static const struct file_operations pc87413_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= pc87413_write,
 	.unlocked_ioctl	= pc87413_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

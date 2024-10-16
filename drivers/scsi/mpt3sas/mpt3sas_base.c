@@ -8898,9 +8898,8 @@ _base_check_ioc_facts_changes(struct MPT3SAS_ADAPTER *ioc)
 		    ioc->device_remove_in_progress, pd_handles_sz, GFP_KERNEL);
 		if (!device_remove_in_progress) {
 			ioc_info(ioc,
-			    "Unable to allocate the memory for "
-			    "device_remove_in_progress of sz: %d\n "
-			    , pd_handles_sz);
+			    "Unable to allocate the memory for device_remove_in_progress of sz: %d\n",
+			    pd_handles_sz);
 			return -ENOMEM;
 		}
 		memset(device_remove_in_progress +

@@ -67,6 +67,7 @@
 #define MPI3_SECURITY_PGAD_SLOT_GROUP_MASK              (0x0000ff00)
 #define MPI3_SECURITY_PGAD_SLOT_GROUP_SHIFT		(8)
 #define MPI3_SECURITY_PGAD_SLOT_MASK                    (0x000000ff)
+#define MPI3_INSTANCE_PGAD_INSTANCE_MASK                (0x0000ffff)
 struct mpi3_config_request {
 	__le16             host_tag;
 	u8                 ioc_use_only02;
@@ -75,7 +76,8 @@ struct mpi3_config_request {
 	u8                 ioc_use_only06;
 	u8                 msg_flags;
 	__le16             change_count;
-	__le16             reserved0a;
+	u8                 proxy_ioc_number;
+	u8                 reserved0b;
 	u8                 page_version;
 	u8                 page_number;
 	u8                 page_type;
@@ -206,6 +208,9 @@ struct mpi3_config_page_header {
 #define MPI3_MFGPAGE_DEVID_SAS5116_MPI_MGMT		(0x00b5)
 #define MPI3_MFGPAGE_DEVID_SAS5116_NVME_MGMT		(0x00b6)
 #define MPI3_MFGPAGE_DEVID_SAS5116_PCIE_SWITCH		(0x00b8)
+#define MPI3_MFGPAGE_DEVID_SAS5248_MPI			(0x00f0)
+#define MPI3_MFGPAGE_DEVID_SAS5248_MPI_NS		(0x00f1)
+#define MPI3_MFGPAGE_DEVID_SAS5248_PCIE_SWITCH		(0x00f2)
 struct mpi3_man_page0 {
 	struct mpi3_config_page_header         header;
 	u8                                 chip_revision[8];
@@ -1074,6 +1079,8 @@ struct mpi3_io_unit_page8 {
 #define MPI3_IOUNIT8_SBSTATE_SVN_UPDATE_PENDING   (0x04)
 #define MPI3_IOUNIT8_SBSTATE_KEY_UPDATE_PENDING   (0x02)
 #define MPI3_IOUNIT8_SBSTATE_SECURE_BOOT_ENABLED  (0x01)
+#define MPI3_IOUNIT8_SBMODE_CURRENT_KEY_IOUNIT17	(0x10)
+#define MPI3_IOUNIT8_SBMODE_HARD_SECURE_RECERTIFIED	(0x08)
 struct mpi3_io_unit_page9 {
 	struct mpi3_config_page_header         header;
 	__le32                             flags;
@@ -1089,6 +1096,8 @@ struct mpi3_io_unit_page9 {
 #define MPI3_IOUNIT9_FLAGS_UBM_ENCLOSURE_ORDER_BACKPLANE_TYPE     (0x00000004)
 #define MPI3_IOUNIT9_FLAGS_VDFIRST_ENABLED                        (0x00000001)
 #define MPI3_IOUNIT9_FIRSTDEVICE_UNKNOWN                          (0xffff)
+#define MPI3_IOUNIT9_FIRSTDEVICE_IN_DRIVER_PAGE_0                 (0xfffe)
+
 struct mpi3_io_unit_page10 {
 	struct mpi3_config_page_header         header;
 	u8                                 flags;
@@ -1224,6 +1233,19 @@ struct mpi3_io_unit_page15 {
 #define MPI3_IOUNIT15_FLAGS_EPRSUPPORT_WITHOUT_POWER_BRAKE_GPIO     (0x01)
 #define MPI3_IOUNIT15_FLAGS_EPRSUPPORT_WITH_POWER_BRAKE_GPIO        (0x02)
 #define MPI3_IOUNIT15_NUMPOWERBUDGETDATA_POWER_BUDGETING_DISABLED   (0x00)
+
+struct mpi3_io_unit_page17 {
+	struct mpi3_config_page_header         header;
+	u8                                 num_instances;
+	u8                                 instance;
+	__le16                             reserved0a;
+	__le32                             reserved0c[4];
+	__le16                             key_length;
+	u8                                 encryption_algorithm;
+	u8                                 reserved1f;
+	__le32                             current_key[];
+};
+#define MPI3_IOUNIT17_PAGEVERSION		(0x00)
 struct mpi3_ioc_page0 {
 	struct mpi3_config_page_header         header;
 	__le32                             reserved08;
@@ -1311,7 +1333,7 @@ struct mpi3_driver_page0 {
 	u8                                 tur_interval;
 	u8                                 reserved10;
 	u8                                 security_key_timeout;
-	__le16                             reserved12;
+	__le16                             first_device;
 	__le32                             reserved14;
 	__le32                             reserved18;
 };
@@ -1324,10 +1346,13 @@ struct mpi3_driver_page0 {
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_IOC_AND_DEVS      (0x00000000)
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_IOC_ONLY          (0x00000001)
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_IOC_AND_INTERNAL_DEVS		(0x00000002)
+#define MPI3_DRIVER0_FIRSTDEVICE_IGNORE1                            (0x0000)
+#define MPI3_DRIVER0_FIRSTDEVICE_IGNORE2                            (0xffff)
 struct mpi3_driver_page1 {
 	struct mpi3_config_page_header         header;
 	__le32                             flags;
-	__le32                             reserved0c;
+	u8                                 time_stamp_update;
+	u8                                 reserved0d[3];
 	__le16                             host_diag_trace_max_size;
 	__le16                             host_diag_trace_min_size;
 	__le16                             host_diag_trace_decrement_size;
@@ -2347,6 +2372,10 @@ struct mpi3_device0_vd_format {
 #define MPI3_DEVICE0_VD_DEVICE_INFO_SAS                     (0x0001)
 #define MPI3_DEVICE0_VD_FLAGS_IO_THROTTLE_GROUP_QD_MASK     (0xf000)
 #define MPI3_DEVICE0_VD_FLAGS_IO_THROTTLE_GROUP_QD_SHIFT    (12)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_MASK               (0x0003)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_HDD                (0x0000)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_SSD                (0x0001)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_NO_GUIDANCE        (0x0002)
 union mpi3_device0_dev_spec_format {
 	struct mpi3_device0_sas_sata_format        sas_sata_format;
 	struct mpi3_device0_pcie_format            pcie_format;

@@ -164,7 +164,6 @@ module_param(low_rate_allow, bool, 0444);
 MODULE_PARM_DESC(low_rate_allow,
 		 "Allow IMU rates below the minimum advisable when external clk is used in SCALED mode (default: N)");
 
-#ifdef CONFIG_DEBUG_FS
 static ssize_t adis16475_show_firmware_revision(struct file *file,
 						char __user *userbuf,
 						size_t count, loff_t *ppos)
@@ -279,6 +278,9 @@ static void adis16475_debugfs_init(struct iio_dev *indio_dev)
 	struct adis16475 *st = iio_priv(indio_dev);
 	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
 
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
 	debugfs_create_file_unsafe("serial_number", 0400,
 				   d, st, &adis16475_serial_number_fops);
 	debugfs_create_file_unsafe("product_id", 0400,
@@ -290,11 +292,6 @@ static void adis16475_debugfs_init(struct iio_dev *indio_dev)
 	debugfs_create_file("firmware_date", 0400, d,
 			    st, &adis16475_firmware_date_fops);
 }
-#else
-static void adis16475_debugfs_init(struct iio_dev *indio_dev)
-{
-}
-#endif
 
 static int adis16475_get_freq(struct adis16475 *st, u32 *freq)
 {
@@ -1593,8 +1590,7 @@ static int adis16475_push_single_sample(struct iio_poll_func *pf)
 		return -EINVAL;
 	}
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		/*
 		 * When burst mode is used, system flags is the first data
 		 * channel in the sequence, but the scan index is 7.

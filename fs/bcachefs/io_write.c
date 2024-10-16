@@ -697,7 +697,7 @@ static void init_append_extent(struct bch_write_op *op,
 	e = bkey_extent_init(op->insert_keys.top);
 	e->k.p		= op->pos;
 	e->k.size	= crc.uncompressed_size;
-	e->k.version	= version;
+	e->k.bversion	= version;
 
 	if (crc.csum_type ||
 	    crc.compression_type ||
@@ -1544,7 +1544,7 @@ static void bch2_write_data_inline(struct bch_write_op *op, unsigned data_len)
 
 	id = bkey_inline_data_init(op->insert_keys.top);
 	id->k.p		= op->pos;
-	id->k.version	= op->version;
+	id->k.bversion	= op->version;
 	id->k.size	= sectors;
 
 	iter = bio->bi_iter;

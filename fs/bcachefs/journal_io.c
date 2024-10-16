@@ -605,7 +605,7 @@ static int journal_entry_data_usage_validate(struct bch_fs *c,
 		goto out;
 	}
 
-	if (journal_entry_err_on(bch2_replicas_entry_validate(&u->r, c->disk_sb.sb, &err),
+	if (journal_entry_err_on(bch2_replicas_entry_validate(&u->r, c, &err),
 				 c, version, jset, entry,
 				 journal_entry_data_usage_bad_size,
 				 "invalid journal entry usage: %s", err.buf)) {

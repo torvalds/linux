@@ -10,6 +10,7 @@
 #include <linux/ratelimit.h>
 #include <linux/nls.h>
 #include <linux/blkdev.h>
+#include <uapi/linux/exfat.h>
 
 #define EXFAT_ROOT_INO		1
 
@@ -148,6 +149,9 @@ enum {
 #define DIR_CACHE_SIZE		\
 	(DIV_ROUND_UP(EXFAT_DEN_TO_B(ES_MAX_ENTRY_NUM), SECTOR_SIZE) + 1)
 
+/* Superblock flags */
+#define EXFAT_FLAGS_SHUTDOWN	1
+
 struct exfat_dentry_namebuf {
 	char *lfn;
 	int lfnbuf_len; /* usually MAX_UNINAME_BUF_SIZE */
@@ -267,6 +271,8 @@ struct exfat_sb_info {
 	unsigned int clu_srch_ptr; /* cluster search pointer */
 	unsigned int used_clusters; /* number of used clusters */
 
+	unsigned long s_exfat_flags; /* Exfat superblock flags */
+
 	struct mutex s_lock; /* superblock lock */
 	struct mutex bitmap_lock; /* bitmap lock */
 	struct exfat_mount_options options;
@@ -309,13 +315,6 @@ struct exfat_inode_info {
 	/* for avoiding the race between alloc and free */
 	unsigned int cache_valid_id;
 
-	/*
-	 * NOTE: i_size_ondisk is 64bits, so must hold ->inode_lock to access.
-	 * physically allocated size.
-	 */
-	loff_t i_size_ondisk;
-	/* block-aligned i_size (used in cont_write_begin) */
-	loff_t i_size_aligned;
 	/* on-disk position of directory entry or 0 */
 	loff_t i_pos;
 	loff_t valid_size;
@@ -336,6 +335,11 @@ static inline struct exfat_sb_info *EXFAT_SB(struct super_block *sb)
 static inline struct exfat_inode_info *EXFAT_I(struct inode *inode)
 {
 	return container_of(inode, struct exfat_inode_info, vfs_inode);
+}
+
+static inline int exfat_forced_shutdown(struct super_block *sb)
+{
+	return test_bit(EXFAT_FLAGS_SHUTDOWN, &EXFAT_SB(sb)->s_exfat_flags);
 }
 
 /*
@@ -417,6 +421,11 @@ static inline bool is_valid_cluster(struct exfat_sb_info *sbi,
 	return clus >= EXFAT_FIRST_CLUSTER && clus < sbi->num_clusters;
 }
 
+static inline loff_t exfat_ondisk_size(const struct inode *inode)
+{
+	return ((loff_t)inode->i_blocks) << 9;
+}
+
 /* super.c */
 int exfat_set_volume_dirty(struct super_block *sb);
 int exfat_clear_volume_dirty(struct super_block *sb);
@@ -461,6 +470,7 @@ int exfat_file_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 long exfat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long exfat_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
+int exfat_force_shutdown(struct super_block *sb, u32 flags);
 
 /* namei.c */
 extern const struct dentry_operations exfat_dentry_ops;

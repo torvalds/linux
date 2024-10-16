@@ -23,6 +23,7 @@ static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 	p->max_transfer_size = 65535;
 	p->max_packet_count = 511;
 	p->ahbcfg = 0x10;
+	p->no_clock_gating = true;
 }
 
 static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
@@ -352,6 +353,7 @@ const struct of_device_id dwc2_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 
 const struct acpi_device_id dwc2_acpi_match[] = {
+	/* This ID refers to the same USB IP as of_device_id brcm,bcm2835-usb */
 	{ "BCM2848", (kernel_ulong_t)dwc2_set_bcm_params },
 	{ },
 };

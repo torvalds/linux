@@ -126,6 +126,7 @@ static int ceph_sync_fs(struct super_block *sb, int wait)
 	if (!wait) {
 		doutc(cl, "(non-blocking)\n");
 		ceph_flush_dirty_caps(fsc->mdsc);
+		ceph_flush_cap_releases(fsc->mdsc);
 		doutc(cl, "(non-blocking) done\n");
 		return 0;
 	}

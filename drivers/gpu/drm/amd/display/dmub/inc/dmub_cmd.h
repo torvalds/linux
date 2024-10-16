@@ -682,7 +682,7 @@ union dmub_fw_boot_options {
 		uint32_t gpint_scratch8: 1; /* 1 if GPINT is in scratch8*/
 		uint32_t usb4_cm_version: 1; /**< 1 CM support */
 		uint32_t dpia_hpd_int_enable_supported: 1; /* 1 if dpia hpd int enable supported */
-		uint32_t reserved0: 1;
+		uint32_t enable_non_transparent_setconfig: 1; /* 1 if dpia use conventional dp lt flow*/
 		uint32_t disable_clk_ds: 1; /* 1 if disallow dispclk_ds and dppclk_ds*/
 		uint32_t disable_timeout_recovery : 1; /* 1 if timeout recovery should be disabled */
 		uint32_t ips_pg_disable: 1; /* 1 to disable ONO domains power gating*/
@@ -1308,6 +1308,7 @@ enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
 	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1,
 	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
+	DMUB_CMD__DPIA_SET_TPS_NOTIFICATION = 3,
 };
 
 /* DMUB_OUT_CMD__DPIA_NOTIFICATION command types. */
@@ -2136,6 +2137,24 @@ struct dmub_cmd_mst_alloc_slots_control_data {
 struct dmub_rb_cmd_set_mst_alloc_slots {
 	struct dmub_cmd_header header; /* header */
 	struct dmub_cmd_mst_alloc_slots_control_data mst_slots_control; /* mst slots control */
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__SET_TPS_NOTIFICATION command.
+ */
+struct dmub_cmd_tps_notification_data {
+	uint8_t instance; /* DPIA instance */
+	uint8_t tps; /* requested training pattern */
+	uint8_t reserved1;
+	uint8_t reserved2;
+};
+
+/**
+ * DMUB command structure for SET_TPS_NOTIFICATION command.
+ */
+struct dmub_rb_cmd_set_tps_notification {
+	struct dmub_cmd_header header; /* header */
+	struct dmub_cmd_tps_notification_data tps_notification; /* set tps_notification data */
 };
 
 /**
@@ -5304,6 +5323,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__DPIA_MST_ALLOC_SLOTS command.
 	 */
 	struct dmub_rb_cmd_set_mst_alloc_slots set_mst_alloc_slots;
+	/**
+	 * Definition of a DMUB_CMD__DPIA_SET_TPS_NOTIFICATION command.
+	 */
+	struct dmub_rb_cmd_set_tps_notification set_tps_notification;
 	/**
 	 * Definition of a DMUB_CMD__EDID_CEA command.
 	 */

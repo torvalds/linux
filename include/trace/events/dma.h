@@ -176,9 +176,9 @@ TRACE_EVENT(dma_free,
 );
 
 TRACE_EVENT(dma_map_sg,
-	TP_PROTO(struct device *dev, struct scatterlist *sg, int nents,
+	TP_PROTO(struct device *dev, struct scatterlist *sgl, int nents,
 		 int ents, enum dma_data_direction dir, unsigned long attrs),
-	TP_ARGS(dev, sg, nents, ents, dir, attrs),
+	TP_ARGS(dev, sgl, nents, ents, dir, attrs),
 
 	TP_STRUCT__entry(
 		__string(device, dev_name(dev))
@@ -190,17 +190,17 @@ TRACE_EVENT(dma_map_sg,
 	),
 
 	TP_fast_assign(
+		struct scatterlist *sg;
 		int i;
 
 		__assign_str(device);
-		for (i = 0; i < nents; i++)
-			((u64 *)__get_dynamic_array(phys_addrs))[i] =
-				sg_phys(sg + i);
-		for (i = 0; i < ents; i++) {
+		for_each_sg(sgl, sg, nents, i)
+			((u64 *)__get_dynamic_array(phys_addrs))[i] = sg_phys(sg);
+		for_each_sg(sgl, sg, ents, i) {
 			((u64 *)__get_dynamic_array(dma_addrs))[i] =
-				sg_dma_address(sg + i);
+				sg_dma_address(sg);
 			((unsigned int *)__get_dynamic_array(lengths))[i] =
-				sg_dma_len(sg + i);
+				sg_dma_len(sg);
 		}
 		__entry->dir = dir;
 		__entry->attrs = attrs;
@@ -222,9 +222,9 @@ TRACE_EVENT(dma_map_sg,
 );
 
 TRACE_EVENT(dma_unmap_sg,
-	TP_PROTO(struct device *dev, struct scatterlist *sg, int nents,
+	TP_PROTO(struct device *dev, struct scatterlist *sgl, int nents,
 		 enum dma_data_direction dir, unsigned long attrs),
-	TP_ARGS(dev, sg, nents, dir, attrs),
+	TP_ARGS(dev, sgl, nents, dir, attrs),
 
 	TP_STRUCT__entry(
 		__string(device, dev_name(dev))
@@ -234,12 +234,12 @@ TRACE_EVENT(dma_unmap_sg,
 	),
 
 	TP_fast_assign(
+		struct scatterlist *sg;
 		int i;
 
 		__assign_str(device);
-		for (i = 0; i < nents; i++)
-			((u64 *)__get_dynamic_array(addrs))[i] =
-				sg_phys(sg + i);
+		for_each_sg(sgl, sg, nents, i)
+			((u64 *)__get_dynamic_array(addrs))[i] = sg_phys(sg);
 		__entry->dir = dir;
 		__entry->attrs = attrs;
 	),
@@ -290,9 +290,9 @@ DEFINE_EVENT(dma_sync_single, dma_sync_single_for_device,
 	TP_ARGS(dev, dma_addr, size, dir));
 
 DECLARE_EVENT_CLASS(dma_sync_sg,
-	TP_PROTO(struct device *dev, struct scatterlist *sg, int nents,
+	TP_PROTO(struct device *dev, struct scatterlist *sgl, int nents,
 		 enum dma_data_direction dir),
-	TP_ARGS(dev, sg, nents, dir),
+	TP_ARGS(dev, sgl, nents, dir),
 
 	TP_STRUCT__entry(
 		__string(device, dev_name(dev))
@@ -302,14 +302,15 @@ DECLARE_EVENT_CLASS(dma_sync_sg,
 	),
 
 	TP_fast_assign(
+		struct scatterlist *sg;
 		int i;
 
 		__assign_str(device);
-		for (i = 0; i < nents; i++) {
+		for_each_sg(sgl, sg, nents, i) {
 			((u64 *)__get_dynamic_array(dma_addrs))[i] =
-				sg_dma_address(sg + i);
+				sg_dma_address(sg);
 			((unsigned int *)__get_dynamic_array(lengths))[i] =
-				sg_dma_len(sg + i);
+				sg_dma_len(sg);
 		}
 		__entry->dir = dir;
 	),

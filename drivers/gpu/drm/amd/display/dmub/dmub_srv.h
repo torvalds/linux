@@ -300,6 +300,7 @@ struct dmub_srv_hw_params {
 	enum dmub_ips_disable_type disable_ips;
 	bool disallow_phy_access;
 	bool disable_sldo_opt;
+	bool enable_non_transparent_setconfig;
 };
 
 /**

@@ -275,7 +275,6 @@ static long thread_with_stdio_ioctl(struct file *file, unsigned int cmd, unsigne
 }
 
 static const struct file_operations thread_with_stdio_fops = {
-	.llseek		= no_llseek,
 	.read		= thread_with_stdio_read,
 	.write		= thread_with_stdio_write,
 	.poll		= thread_with_stdio_poll,
@@ -285,7 +284,6 @@ static const struct file_operations thread_with_stdio_fops = {
 };
 
 static const struct file_operations thread_with_stdout_fops = {
-	.llseek		= no_llseek,
 	.read		= thread_with_stdio_read,
 	.poll		= thread_with_stdout_poll,
 	.flush		= thread_with_stdio_flush,

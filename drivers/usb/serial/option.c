@@ -2381,7 +2381,6 @@ MODULE_DEVICE_TABLE(usb, option_ids);
 
 static struct usb_serial_driver option_1port_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"option1",
 	},
 	.description       = "GSM modem (1-port)",

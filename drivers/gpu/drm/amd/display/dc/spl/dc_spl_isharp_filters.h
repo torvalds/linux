@@ -20,11 +20,11 @@ uint16_t *spl_get_filter_isharp_bs_3tap_64p(void);
 const uint16_t *spl_get_filter_isharp_wide_6tap_64p(void);
 uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps);
 
-struct scale_ratio_to_sharpness_level_lookup {
+#define NUM_SHARPNESS_ADJ_LEVELS 6
+struct scale_ratio_to_sharpness_level_adj {
 	unsigned int ratio_numer;
 	unsigned int ratio_denom;
-	unsigned int sharpness_numer;
-	unsigned int sharpness_denom;
+	unsigned int level_down_adj; /* adjust sharpness level down */
 };
 
 struct isharp_1D_lut_pregen {
@@ -45,6 +45,7 @@ void spl_init_blur_scale_coeffs(void);
 void spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
 	const struct spl_scaler_data *data);
 
-void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup, struct adaptive_sharpness sharpness);
+void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup,
+	struct adaptive_sharpness sharpness, enum scale_to_sharpness_policy scale_to_sharpness_policy);
 uint32_t *spl_get_pregen_filter_isharp_1D_lut(enum system_setup setup);
 #endif /* __DC_SPL_ISHARP_FILTERS_H__ */

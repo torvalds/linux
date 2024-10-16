@@ -19,7 +19,7 @@
 #include <uapi/linux/papr_pdsm.h>
 #include <linux/papr_scm.h>
 #include <asm/mce.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/perf_event.h>
 
 #define BIND_ANY_ADDR (~0ul)

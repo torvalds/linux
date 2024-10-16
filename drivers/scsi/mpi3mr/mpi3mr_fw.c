@@ -728,7 +728,7 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 			    mpi3mr_process_op_reply_q(mrioc,
 				intr_info->op_reply_q);
 
-		usleep_range(MPI3MR_IRQ_POLL_SLEEP, 10 * MPI3MR_IRQ_POLL_SLEEP);
+		usleep_range(MPI3MR_IRQ_POLL_SLEEP, MPI3MR_IRQ_POLL_SLEEP + 1);
 
 	} while (atomic_read(&intr_info->op_reply_q->pend_ios) &&
 	    (num_op_reply < mrioc->max_host_ios));
@@ -1362,6 +1362,10 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 	int retval = 0;
 	enum mpi3mr_iocstate ioc_state;
 	u64 base_info;
+	u8 retry = 0;
+	u64 start_time, elapsed_time_sec;
+
+retry_bring_ioc_ready:
 
 	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
@@ -1380,26 +1384,23 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 	ioc_info(mrioc, "controller is in %s state during detection\n",
 	    mpi3mr_iocstate_name(ioc_state));
 
-	if (ioc_state == MRIOC_STATE_BECOMING_READY ||
-	    ioc_state == MRIOC_STATE_RESET_REQUESTED) {
-		timeout = mrioc->ready_timeout * 10;
-		do {
-			msleep(100);
-		} while (--timeout);
+	timeout = mrioc->ready_timeout * 10;
+
+	do {
+		ioc_state = mpi3mr_get_iocstate(mrioc);
+
+		if (ioc_state != MRIOC_STATE_BECOMING_READY &&
+		    ioc_state != MRIOC_STATE_RESET_REQUESTED)
+			break;
 
 		if (!pci_device_is_present(mrioc->pdev)) {
 			mrioc->unrecoverable = 1;
-			ioc_err(mrioc,
-			    "controller is not present while waiting to reset\n");
-			retval = -1;
+			ioc_err(mrioc, "controller is not present while waiting to reset\n");
 			goto out_device_not_present;
 		}
 
-		ioc_state = mpi3mr_get_iocstate(mrioc);
-		ioc_info(mrioc,
-		    "controller is in %s state after waiting to reset\n",
-		    mpi3mr_iocstate_name(ioc_state));
-	}
+		msleep(100);
+	} while (--timeout);
 
 	if (ioc_state == MRIOC_STATE_READY) {
 		ioc_info(mrioc, "issuing message unit reset (MUR) to bring to reset state\n");
@@ -1460,6 +1461,9 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 	ioc_config |= MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	writel(ioc_config, &mrioc->sysif_regs->ioc_configuration);
 
+	if (retry == 0)
+		start_time = jiffies;
+
 	timeout = mrioc->ready_timeout * 10;
 	do {
 		ioc_state = mpi3mr_get_iocstate(mrioc);
@@ -1469,6 +1473,12 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			    mpi3mr_iocstate_name(ioc_state));
 			return 0;
 		}
+		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
+		if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) ||
+		    (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT)) {
+			mpi3mr_print_fault_info(mrioc);
+			goto out_failed;
+		}
 		if (!pci_device_is_present(mrioc->pdev)) {
 			mrioc->unrecoverable = 1;
 			ioc_err(mrioc,
@@ -1477,9 +1487,19 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			goto out_device_not_present;
 		}
 		msleep(100);
-	} while (--timeout);
+		elapsed_time_sec = jiffies_to_msecs(jiffies - start_time)/1000;
+	} while (elapsed_time_sec < mrioc->ready_timeout);
 
 out_failed:
+	elapsed_time_sec = jiffies_to_msecs(jiffies - start_time)/1000;
+	if ((retry < 2) && (elapsed_time_sec < (mrioc->ready_timeout - 60))) {
+		retry++;
+
+		ioc_warn(mrioc, "retrying to bring IOC ready, retry_count:%d\n"
+				" elapsed time =%llu\n", retry, elapsed_time_sec);
+
+		goto retry_bring_ioc_ready;
+	}
 	ioc_state = mpi3mr_get_iocstate(mrioc);
 	ioc_err(mrioc,
 	    "failed to bring to ready state,  current state: %s\n",
@@ -2671,7 +2691,7 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 		return;
 	}
 
-	if (mrioc->ts_update_counter++ >= MPI3MR_TSUPDATE_INTERVAL) {
+	if (mrioc->ts_update_counter++ >= mrioc->ts_update_interval) {
 		mrioc->ts_update_counter = 0;
 		mpi3mr_sync_timestamp(mrioc);
 	}
@@ -3845,6 +3865,29 @@ static int mpi3mr_repost_diag_bufs(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_read_tsu_interval - Update time stamp interval
+ * @mrioc: Adapter instance reference
+ *
+ * Update time stamp interval if its defined in driver page 1,
+ * otherwise use default value.
+ *
+ * Return: Nothing
+ */
+static void
+mpi3mr_read_tsu_interval(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3_driver_page1 driver_pg1;
+	u16 pg_sz = sizeof(driver_pg1);
+	int retval = 0;
+
+	mrioc->ts_update_interval = MPI3MR_TSUPDATE_INTERVAL;
+
+	retval = mpi3mr_cfg_get_driver_pg1(mrioc, &driver_pg1, pg_sz);
+	if (!retval && driver_pg1.time_stamp_update)
+		mrioc->ts_update_interval = (driver_pg1.time_stamp_update * 60);
+}
+
+/**
  * mpi3mr_print_ioc_info - Display controller information
  * @mrioc: Adapter instance reference
  *
@@ -4140,6 +4183,7 @@ retry_init:
 		goto out_failed_noretry;
 	}
 
+	mpi3mr_read_tsu_interval(mrioc);
 	mpi3mr_print_ioc_info(mrioc);
 
 	if (!mrioc->cfg_page) {
@@ -4321,6 +4365,7 @@ retry_init:
 		goto out_failed_noretry;
 	}
 
+	mpi3mr_read_tsu_interval(mrioc);
 	mpi3mr_print_ioc_info(mrioc);
 
 	if (is_resume) {

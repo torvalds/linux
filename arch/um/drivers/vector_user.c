@@ -46,6 +46,9 @@
 #define TRANS_FD "fd"
 #define TRANS_FD_LEN strlen(TRANS_FD)
 
+#define TRANS_VDE "vde"
+#define TRANS_VDE_LEN strlen(TRANS_VDE)
+
 #define VNET_HDR_FAIL "could not enable vnet headers on fd %d"
 #define TUN_GET_F_FAIL "tapraw: TUNGETFEATURES failed: %s"
 #define L2TPV3_BIND_FAIL "l2tpv3_open : could not bind socket err=%i"
@@ -434,6 +437,84 @@ fd_cleanup:
 	return NULL;
 }
 
+/* enough char to store an int type */
+#define ENOUGH(type) ((CHAR_BIT * sizeof(type) - 1) / 3 + 2)
+#define ENOUGH_OCTAL(type) ((CHAR_BIT * sizeof(type) + 2) / 3)
+/* vde_plug --descr xx --port2 xx --mod2 xx --group2 xx seqpacket://NN vnl (NULL) */
+#define VDE_MAX_ARGC 12
+#define VDE_SEQPACKET_HEAD "seqpacket://"
+#define VDE_SEQPACKET_HEAD_LEN (sizeof(VDE_SEQPACKET_HEAD) - 1)
+#define VDE_DEFAULT_DESCRIPTION "UML"
+
+static struct vector_fds *user_init_vde_fds(struct arglist *ifspec)
+{
+	char seqpacketvnl[VDE_SEQPACKET_HEAD_LEN + ENOUGH(int) + 1];
+	char *argv[VDE_MAX_ARGC] = {"vde_plug"};
+	int argc = 1;
+	int rv;
+	int sv[2];
+	struct vector_fds *result = NULL;
+
+	char *vnl = uml_vector_fetch_arg(ifspec,"vnl");
+	char *descr = uml_vector_fetch_arg(ifspec,"descr");
+	char *port = uml_vector_fetch_arg(ifspec,"port");
+	char *mode = uml_vector_fetch_arg(ifspec,"mode");
+	char *group = uml_vector_fetch_arg(ifspec,"group");
+	if (descr == NULL) descr = VDE_DEFAULT_DESCRIPTION;
+
+	argv[argc++] = "--descr";
+	argv[argc++] = descr;
+	if (port != NULL) {
+		argv[argc++] = "--port2";
+		argv[argc++] = port;
+	}
+	if (mode != NULL) {
+		argv[argc++] = "--mod2";
+		argv[argc++] = mode;
+	}
+	if (group != NULL) {
+		argv[argc++] = "--group2";
+		argv[argc++] = group;
+	}
+	argv[argc++] = seqpacketvnl;
+	argv[argc++] = vnl;
+	argv[argc++] = NULL;
+
+	rv = socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sv);
+	if (rv  < 0) {
+		printk(UM_KERN_ERR "vde: seqpacket socketpair err %d", -errno);
+		return NULL;
+	}
+	rv = os_set_exec_close(sv[0]);
+	if (rv  < 0) {
+		printk(UM_KERN_ERR "vde: seqpacket socketpair cloexec err %d", -errno);
+		goto vde_cleanup_sv;
+	}
+	snprintf(seqpacketvnl, sizeof(seqpacketvnl), VDE_SEQPACKET_HEAD "%d", sv[1]);
+
+	run_helper(NULL, NULL, argv);
+
+	close(sv[1]);
+
+	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
+	if (result == NULL) {
+		printk(UM_KERN_ERR "fd open: allocation failed");
+		goto vde_cleanup;
+	}
+
+	result->rx_fd = sv[0];
+	result->tx_fd = sv[0];
+	result->remote_addr_size = 0;
+	result->remote_addr = NULL;
+	return result;
+
+vde_cleanup_sv:
+	close(sv[1]);
+vde_cleanup:
+	close(sv[0]);
+	return NULL;
+}
+
 static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 {
 	int rxfd = -1, txfd = -1;
@@ -673,6 +754,8 @@ struct vector_fds *uml_vector_user_open(
 		return user_init_unix_fds(parsed, ID_BESS);
 	if (strncmp(transport, TRANS_FD, TRANS_FD_LEN) == 0)
 		return user_init_fd_fds(parsed);
+	if (strncmp(transport, TRANS_VDE, TRANS_VDE_LEN) == 0)
+		return user_init_vde_fds(parsed);
 	return NULL;
 }
 

@@ -1439,8 +1439,8 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 	list_add_tail(&vm->vm_list_node,
 			&(vm->process_info->vm_list_head));
 	vm->process_info->n_vms++;
-
-	*ef = dma_fence_get(&vm->process_info->eviction_fence->base);
+	if (ef)
+		*ef = dma_fence_get(&vm->process_info->eviction_fence->base);
 	mutex_unlock(&vm->process_info->lock);
 
 	return 0;
@@ -1499,7 +1499,7 @@ static int amdgpu_amdkfd_gpuvm_pin_bo(struct amdgpu_bo *bo, u32 domain)
 		}
 	}
 
-	ret = amdgpu_bo_pin_restricted(bo, domain, 0, 0);
+	ret = amdgpu_bo_pin(bo, domain);
 	if (ret)
 		pr_err("Error in Pinning BO to domain: %d\n", domain);
 

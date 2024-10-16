@@ -49,6 +49,7 @@ enum nfs_param {
 	Opt_bsize,
 	Opt_clientaddr,
 	Opt_cto,
+	Opt_alignwrite,
 	Opt_fg,
 	Opt_fscache,
 	Opt_fscache_flag,
@@ -149,6 +150,7 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_u32   ("bsize",		Opt_bsize),
 	fsparam_string("clientaddr",	Opt_clientaddr),
 	fsparam_flag_no("cto",		Opt_cto),
+	fsparam_flag_no("alignwrite",	Opt_alignwrite),
 	fsparam_flag  ("fg",		Opt_fg),
 	fsparam_flag_no("fsc",		Opt_fscache_flag),
 	fsparam_string("fsc",		Opt_fscache),
@@ -591,6 +593,12 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			ctx->flags &= ~NFS_MOUNT_TRUNK_DISCOVERY;
 		else
 			ctx->flags |= NFS_MOUNT_TRUNK_DISCOVERY;
+		break;
+	case Opt_alignwrite:
+		if (result.negated)
+			ctx->flags |= NFS_MOUNT_NO_ALIGNWRITE;
+		else
+			ctx->flags &= ~NFS_MOUNT_NO_ALIGNWRITE;
 		break;
 	case Opt_ac:
 		if (result.negated)

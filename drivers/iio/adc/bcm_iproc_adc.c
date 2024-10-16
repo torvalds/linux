@@ -606,7 +606,7 @@ static void iproc_adc_remove(struct platform_device *pdev)
 
 static const struct of_device_id iproc_adc_of_match[] = {
 	{.compatible = "brcm,iproc-static-adc", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, iproc_adc_of_match);
 

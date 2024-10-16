@@ -14,7 +14,7 @@
 #include "test.h"
 #include <stdlib.h>
 #include <time.h>
-#include "linux/init.h"
+#include <linux/init.h>
 
 #define module_init(x)
 #define module_exit(x)

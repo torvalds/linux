@@ -2502,7 +2502,7 @@ refind_writable:
 			}
 		}
 	}
-	/* couldn't find useable FH with same pid, try any available */
+	/* couldn't find usable FH with same pid, try any available */
 	if (!any_available) {
 		any_available = true;
 		goto refind_writable;

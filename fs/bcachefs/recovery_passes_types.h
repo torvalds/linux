@@ -46,11 +46,12 @@
 	x(check_dirents,			27, PASS_FSCK)			\
 	x(check_xattrs,				28, PASS_FSCK)			\
 	x(check_root,				29, PASS_ONLINE|PASS_FSCK)	\
+	x(check_unreachable_inodes,		40, PASS_ONLINE|PASS_FSCK)	\
 	x(check_subvolume_structure,		36, PASS_ONLINE|PASS_FSCK)	\
 	x(check_directory_structure,		30, PASS_ONLINE|PASS_FSCK)	\
 	x(check_nlinks,				31, PASS_FSCK)			\
 	x(resume_logged_ops,			23, PASS_ALWAYS)		\
-	x(delete_dead_inodes,			32, PASS_FSCK|PASS_UNCLEAN)	\
+	x(delete_dead_inodes,			32, PASS_ALWAYS)		\
 	x(fix_reflink_p,			33, 0)				\
 	x(set_fs_needs_rebalance,		34, 0)				\
 

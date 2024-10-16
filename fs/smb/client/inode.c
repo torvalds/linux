@@ -629,10 +629,16 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 									       &symlink_len_utf16,
 									       &symlink_buf_utf16,
 									       &buf_type);
+					/*
+					 * Check that read buffer has valid length and does not
+					 * contain UTF-16 null codepoint (via UniStrnlen() call)
+					 * because Linux cannot process symlink with null byte.
+					 */
 					if ((rc == 0) &&
 					    (symlink_len_utf16 > 0) &&
 					    (symlink_len_utf16 < fattr->cf_eof-8 + 1) &&
-					    (symlink_len_utf16 % 2 == 0)) {
+					    (symlink_len_utf16 % 2 == 0) &&
+					    (UniStrnlen((wchar_t *)symlink_buf_utf16, symlink_len_utf16/2) == symlink_len_utf16/2)) {
 						fattr->cf_symlink_target =
 							cifs_strndup_from_utf16(symlink_buf_utf16,
 										symlink_len_utf16,
@@ -834,10 +840,6 @@ static void cifs_open_info_to_fattr(struct cifs_fattr *fattr,
 		fattr->cf_mode = S_IFREG | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_REG;
 
-		/* clear write bits if ATTR_READONLY is set */
-		if (fattr->cf_cifsattrs & ATTR_READONLY)
-			fattr->cf_mode &= ~(S_IWUGO);
-
 		/*
 		 * Don't accept zero nlink from non-unix servers unless
 		 * delete is pending.  Instead mark it as unknown.
@@ -849,6 +851,10 @@ static void cifs_open_info_to_fattr(struct cifs_fattr *fattr,
 			fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
 		}
 	}
+
+	/* clear write bits if ATTR_READONLY is set */
+	if (fattr->cf_cifsattrs & ATTR_READONLY)
+		fattr->cf_mode &= ~(S_IWUGO);
 
 out_reparse:
 	if (S_ISLNK(fattr->cf_mode)) {
@@ -1267,11 +1273,14 @@ handle_mnt_opt:
 				 __func__, rc);
 			goto out;
 		}
-	}
-
-	/* fill in remaining high mode bits e.g. SUID, VTX */
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
+	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
+		/* fill in remaining high mode bits e.g. SUID, VTX */
 		cifs_sfu_mode(fattr, full_path, cifs_sb, xid);
+	else if (!(tcon->posix_extensions))
+		/* clear write bits if ATTR_READONLY is set */
+		if (fattr->cf_cifsattrs & ATTR_READONLY)
+			fattr->cf_mode &= ~(S_IWUGO);
+
 
 	/* check for Minshall+French symlinks */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) {

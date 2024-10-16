@@ -1414,7 +1414,6 @@ out:
 static const struct file_operations nsim_nexthop_bucket_activity_fops = {
 	.open = simple_open,
 	.write = nsim_nexthop_bucket_activity_write,
-	.llseek = no_llseek,
 	.owner = THIS_MODULE,
 };
 

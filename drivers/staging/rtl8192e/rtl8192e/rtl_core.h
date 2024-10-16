@@ -300,7 +300,7 @@ struct r8192_priv {
 
 	u32 rf_reg_0value[4];
 	u8 num_total_rf_path;
-	bool brfpath_rxenable[4];
+	bool brfpath_rxenable[RF90_PATH_MAX];
 
 	bool tx_pwr_data_read_from_eeprom;
 

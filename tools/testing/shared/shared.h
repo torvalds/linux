@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __SHARED_H__
+#define __SHARED_H__
 
 #include <linux/types.h>
 #include <linux/bug.h>
@@ -31,3 +33,5 @@
 #ifndef dump_stack
 #define dump_stack()	assert(0)
 #endif
+
+#endif /* __SHARED_H__ */

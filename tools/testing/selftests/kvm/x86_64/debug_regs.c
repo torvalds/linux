@@ -47,15 +47,18 @@ static void guest_code(void)
 	/*
 	 * Single step test, covers 2 basic instructions and 2 emulated
 	 *
-	 * Enable interrupts during the single stepping to see that
-	 * pending interrupt we raised is not handled due to KVM_GUESTDBG_BLOCKIRQ
+	 * Enable interrupts during the single stepping to see that pending
+	 * interrupt we raised is not handled due to KVM_GUESTDBG_BLOCKIRQ.
+	 *
+	 * Write MSR_IA32_TSC_DEADLINE to verify that KVM's fastpath handler
+	 * exits to userspace due to single-step being enabled.
 	 */
 	asm volatile("ss_start: "
 		     "sti\n\t"
 		     "xor %%eax,%%eax\n\t"
 		     "cpuid\n\t"
-		     "movl $0x1a0,%%ecx\n\t"
-		     "rdmsr\n\t"
+		     "movl $" __stringify(MSR_IA32_TSC_DEADLINE) ", %%ecx\n\t"
+		     "wrmsr\n\t"
 		     "cli\n\t"
 		     : : : "eax", "ebx", "ecx", "edx");
 

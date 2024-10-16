@@ -297,9 +297,9 @@ static void put_child_connect_map(struct r8a66597 *r8a66597, int address)
 static void set_pipe_reg_addr(struct r8a66597_pipe *pipe, u8 dma_ch)
 {
 	u16 pipenum = pipe->info.pipenum;
-	const unsigned long fifoaddr[] = {D0FIFO, D1FIFO, CFIFO};
-	const unsigned long fifosel[] = {D0FIFOSEL, D1FIFOSEL, CFIFOSEL};
-	const unsigned long fifoctr[] = {D0FIFOCTR, D1FIFOCTR, CFIFOCTR};
+	static const unsigned long fifoaddr[] = {D0FIFO, D1FIFO, CFIFO};
+	static const unsigned long fifosel[] = {D0FIFOSEL, D1FIFOSEL, CFIFOSEL};
+	static const unsigned long fifoctr[] = {D0FIFOCTR, D1FIFOCTR, CFIFOCTR};
 
 	if (dma_ch > R8A66597_PIPE_NO_DMA)	/* dma fifo not use? */
 		dma_ch = R8A66597_PIPE_NO_DMA;

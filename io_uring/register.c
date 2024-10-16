@@ -542,11 +542,11 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			break;
 		ret = io_register_clock(ctx, arg);
 		break;
-	case IORING_REGISTER_COPY_BUFFERS:
+	case IORING_REGISTER_CLONE_BUFFERS:
 		ret = -EINVAL;
 		if (!arg || nr_args != 1)
 			break;
-		ret = io_register_copy_buffers(ctx, arg);
+		ret = io_register_clone_buffers(ctx, arg);
 		break;
 	default:
 		ret = -EINVAL;
@@ -561,7 +561,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
  * true, then the registered index is used. Otherwise, the normal fd table.
  * Caller must call fput() on the returned file, unless it's an ERR_PTR.
  */
-struct file *io_uring_register_get_file(int fd, bool registered)
+struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 {
 	struct file *file;
 

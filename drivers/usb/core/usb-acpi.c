@@ -142,6 +142,53 @@ int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
 }
 EXPORT_SYMBOL_GPL(usb_acpi_set_power_state);
 
+/**
+ * usb_acpi_add_usb4_devlink - add device link to USB4 Host Interface for tunneled USB3 devices
+ *
+ * @udev: Tunneled USB3 device connected to a roothub.
+ *
+ * Adds a device link between a tunneled USB3 device and the USB4 Host Interface
+ * device to ensure correct runtime PM suspend and resume order. This function
+ * should only be called for tunneled USB3 devices.
+ * The USB4 Host Interface this tunneled device depends on is found from the roothub
+ * port ACPI device specific data _DSD entry.
+ *
+ * Return: negative error code on failure, 0 otherwise
+ */
+static int usb_acpi_add_usb4_devlink(struct usb_device *udev)
+{
+	const struct device_link *link;
+	struct usb_port *port_dev;
+	struct usb_hub *hub;
+
+	if (!udev->parent || udev->parent->parent)
+		return 0;
+
+	hub = usb_hub_to_struct_hub(udev->parent);
+	port_dev = hub->ports[udev->portnum - 1];
+
+	struct fwnode_handle *nhi_fwnode __free(fwnode_handle) =
+		fwnode_find_reference(dev_fwnode(&port_dev->dev), "usb4-host-interface", 0);
+
+	if (IS_ERR(nhi_fwnode))
+		return 0;
+
+	link = device_link_add(&port_dev->child->dev, nhi_fwnode->dev,
+			       DL_FLAG_AUTOREMOVE_CONSUMER |
+			       DL_FLAG_RPM_ACTIVE |
+			       DL_FLAG_PM_RUNTIME);
+	if (!link) {
+		dev_err(&port_dev->dev, "Failed to created device link from %s to %s\n",
+			dev_name(&port_dev->child->dev), dev_name(nhi_fwnode->dev));
+		return -EINVAL;
+	}
+
+	dev_dbg(&port_dev->dev, "Created device link from %s to %s\n",
+		dev_name(&port_dev->child->dev), dev_name(nhi_fwnode->dev));
+
+	return 0;
+}
+
 /*
  * Private to usb-acpi, all the core needs to know is that
  * port_dev->location is non-zero when it has been set by the firmware.
@@ -261,6 +308,12 @@ usb_acpi_find_companion_for_device(struct usb_device *udev)
 	hub = usb_hub_to_struct_hub(udev->parent);
 	if (!hub)
 		return NULL;
+
+
+	/* Tunneled USB3 devices depend on USB4 Host Interface, set device link to it */
+	if (udev->speed >= USB_SPEED_SUPER &&
+	    udev->tunnel_mode != USB_LINK_NATIVE)
+		usb_acpi_add_usb4_devlink(udev);
 
 	/*
 	 * This is an embedded USB device connected to a port and such
