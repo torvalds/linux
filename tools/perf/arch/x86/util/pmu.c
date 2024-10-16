@@ -16,7 +16,7 @@
 #include "../../../util/fncache.h"
 #include "../../../util/pmus.h"
 #include "mem-events.h"
-#include "env.h"
+#include "util/env.h"
 
 void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 {
