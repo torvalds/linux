@@ -216,6 +216,7 @@ struct cmdq_initialize_fw {
 	__le16	flags;
 	#define CMDQ_INITIALIZE_FW_FLAGS_MRAV_RESERVATION_SPLIT          0x1UL
 	#define CMDQ_INITIALIZE_FW_FLAGS_HW_REQUESTER_RETX_SUPPORTED     0x2UL
+	#define CMDQ_INITIALIZE_FW_FLAGS_OPTIMIZE_MODIFY_QP_SUPPORTED    0x8UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	reserved8;
@@ -559,6 +560,7 @@ struct cmdq_modify_qp {
 	#define CMDQ_MODIFY_QP_OPCODE_LAST     CMDQ_MODIFY_QP_OPCODE_MODIFY_QP
 	u8	cmd_size;
 	__le16	flags;
+	 #define CMDQ_MODIFY_QP_FLAGS_SRQ_USED       0x1UL
 	__le16	cookie;
 	u8	resp_size;
 	u8	qp_type;
