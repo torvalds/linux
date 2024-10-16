@@ -462,8 +462,10 @@ void pc2_detach(gpib_board_t *board)
 
 	if (pc2_priv) {
 		nec_priv = &pc2_priv->nec7210_priv;
+#ifdef PC2_DMA
 		if (nec_priv->dma_channel)
 			free_dma(nec_priv->dma_channel);
+#endif
 		gpib_free_pseudo_irq(board);
 		if (pc2_priv->irq)
 			free_irq(pc2_priv->irq, board);
@@ -596,8 +598,10 @@ static void pc2a_common_detach(gpib_board_t *board, unsigned int num_registers)
 
 	if (pc2_priv) {
 		nec_priv = &pc2_priv->nec7210_priv;
+#ifdef PC2_DMA
 		if (nec_priv->dma_channel)
 			free_dma(nec_priv->dma_channel);
+#endif
 		gpib_free_pseudo_irq(board);
 		if (pc2_priv->irq)
 			free_irq(pc2_priv->irq, board);
