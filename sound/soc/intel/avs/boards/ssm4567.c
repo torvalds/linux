@@ -217,7 +217,6 @@ static int avs_ssm4567_probe(struct platform_device *pdev)
 	card->dapm_routes = routes;
 	card->num_dapm_routes = num_routes;
 	card->fully_routed = true;
-	card->disable_route_checks = true;
 
 	ret = snd_soc_fixup_dai_links_platform_name(card, pname);
 	if (ret)

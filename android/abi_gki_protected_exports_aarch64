@@ -22,6 +22,7 @@ bt_err_ratelimited
 bt_info
 bt_procfs_cleanup
 bt_procfs_init
+bt_sock_alloc
 bt_sock_ioctl
 bt_sock_link
 bt_sock_poll

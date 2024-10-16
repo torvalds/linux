@@ -373,6 +373,9 @@
   pci_sriov_set_totalvfs
   pci_num_vf
 
+# required by shrink memory module
+  shrink_slab
+
 #required by cifs.ko
   add_swap_extent
   asn1_ber_decoder
