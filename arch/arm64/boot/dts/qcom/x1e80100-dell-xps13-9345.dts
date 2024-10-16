@@ -560,9 +560,12 @@
 
 	aux-bus {
 		panel {
-			/* 1920x1200 IPS panel is SHP1593, PNP09FF compatible */
 			compatible = "edp-panel";
+			enable-gpios = <&tlmm 74 GPIO_ACTIVE_HIGH>;
 			power-supply = <&vreg_edp_3p3>;
+
+			pinctrl-0 = <&edp_bl_en>;
+			pinctrl-names = "default";
 
 			port {
 				edp_panel_in: endpoint {
@@ -672,6 +675,13 @@
 
 	cam_indicator_en: cam-indicator-en-state {
 		pins = "gpio110";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	edp_bl_en: edp-bl-en-state {
+		pins = "gpio74";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
