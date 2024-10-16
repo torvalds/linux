@@ -46,6 +46,7 @@
 #include "intel_dsi.h"
 #include "intel_dsi_vbt.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "intel_vdsc.h"
 #include "intel_vdsc_regs.h"
 #include "skl_scaler.h"

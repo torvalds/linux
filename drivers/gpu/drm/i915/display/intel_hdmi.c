@@ -62,6 +62,7 @@
 #include "intel_hdmi.h"
 #include "intel_lspcon.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "intel_snps_phy.h"
 
 static void

@@ -52,6 +52,7 @@
 #include "intel_lvds.h"
 #include "intel_lvds_regs.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "intel_pps_regs.h"
 
 /* Private structure for the integrated LVDS support */
