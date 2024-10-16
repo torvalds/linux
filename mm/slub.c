@@ -4718,34 +4718,66 @@ static __always_inline __realloc_size(2) void *
 __do_krealloc(const void *p, size_t new_size, gfp_t flags)
 {
 	void *ret;
-	size_t ks;
+	size_t ks = 0;
+	int orig_size = 0;
+	struct kmem_cache *s = NULL;
 
-	/* Check for double-free before calling ksize. */
-	if (likely(!ZERO_OR_NULL_PTR(p))) {
-		if (!kasan_check_byte(p))
-			return NULL;
-		ks = ksize(p);
-	} else
-		ks = 0;
+	if (unlikely(ZERO_OR_NULL_PTR(p)))
+		goto alloc_new;
 
-	/* If the object still fits, repoison it precisely. */
-	if (ks >= new_size) {
-		/* Zero out spare memory. */
-		if (want_init_on_alloc(flags)) {
-			kasan_disable_current();
-			memset(kasan_reset_tag(p) + new_size, 0, ks - new_size);
-			kasan_enable_current();
+	/* Check for double-free. */
+	if (!kasan_check_byte(p))
+		return NULL;
+
+	if (is_kfence_address(p)) {
+		ks = orig_size = kfence_ksize(p);
+	} else {
+		struct folio *folio;
+
+		folio = virt_to_folio(p);
+		if (unlikely(!folio_test_slab(folio))) {
+			/* Big kmalloc object */
+			WARN_ON(folio_size(folio) <= KMALLOC_MAX_CACHE_SIZE);
+			WARN_ON(p != folio_address(folio));
+			ks = folio_size(folio);
+		} else {
+			s = folio_slab(folio)->slab_cache;
+			orig_size = get_orig_size(s, (void *)p);
+			ks = s->object_size;
 		}
-
-		p = kasan_krealloc((void *)p, new_size, flags);
-		return (void *)p;
 	}
 
+	/* If the old object doesn't fit, allocate a bigger one */
+	if (new_size > ks)
+		goto alloc_new;
+
+	/* Zero out spare memory. */
+	if (want_init_on_alloc(flags)) {
+		kasan_disable_current();
+		if (orig_size && orig_size < new_size)
+			memset(kasan_reset_tag(p) + orig_size, 0, new_size - orig_size);
+		else
+			memset(kasan_reset_tag(p) + new_size, 0, ks - new_size);
+		kasan_enable_current();
+	}
+
+	/* Setup kmalloc redzone when needed */
+	if (s && slub_debug_orig_size(s)) {
+		set_orig_size(s, (void *)p, new_size);
+		if (s->flags & SLAB_RED_ZONE && new_size < ks)
+			memset_no_sanitize_memory(kasan_reset_tag(p) + new_size,
+						SLUB_RED_ACTIVE, ks - new_size);
+	}
+
+	p = kasan_krealloc(p, new_size, flags);
+	return (void *)p;
+
+alloc_new:
 	ret = kmalloc_node_track_caller_noprof(new_size, flags, NUMA_NO_NODE, _RET_IP_);
 	if (ret && p) {
 		/* Disable KASAN checks as the object's redzone is accessed. */
 		kasan_disable_current();
-		memcpy(ret, kasan_reset_tag(p), ks);
+		memcpy(ret, kasan_reset_tag(p), orig_size ?: ks);
 		kasan_enable_current();
 	}
 
@@ -4766,15 +4798,19 @@ __do_krealloc(const void *p, size_t new_size, gfp_t flags)
  * memory allocation is flagged with __GFP_ZERO. Otherwise, it is possible that
  * __GFP_ZERO is not fully honored by this API.
  *
- * This is the case, since krealloc() only knows about the bucket size of an
- * allocation (but not the exact size it was allocated with) and hence
- * implements the following semantics for shrinking and growing buffers with
- * __GFP_ZERO.
+ * When slub_debug_orig_size() is off, krealloc() only knows about the bucket
+ * size of an allocation (but not the exact size it was allocated with) and
+ * hence implements the following semantics for shrinking and growing buffers
+ * with __GFP_ZERO.
  *
  *         new             bucket
  * 0       size             size
  * |--------|----------------|
  * |  keep  |      zero      |
+ *
+ * Otherwise, the original allocation size 'orig_size' could be used to
+ * precisely clear the requested size, and the new size will also be stored
+ * as the new 'orig_size'.
  *
  * In any case, the contents of the object pointed to are preserved up to the
  * lesser of the new and old sizes.
