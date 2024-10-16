@@ -8753,7 +8753,8 @@ static int ufshcd_post_device_init(struct ufs_hba *hba)
 static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 {
 	int ret;
-	struct Scsi_Host *host = hba->host;
+
+	WARN_ON_ONCE(!hba->scsi_host_added);
 
 	hba->ufshcd_state = UFSHCD_STATE_RESET;
 
@@ -8794,27 +8795,8 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 		ret = ufshcd_device_params_init(hba);
 		if (ret)
 			return ret;
-		if (is_mcq_supported(hba) && !hba->scsi_host_added) {
-			ufshcd_mcq_enable(hba);
-			ret = ufshcd_alloc_mcq(hba);
-			if (!ret) {
-				ufshcd_config_mcq(hba);
-			} else {
-				/* Continue with SDB mode */
-				ufshcd_mcq_disable(hba);
-				use_mcq_mode = false;
-				dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
-					 ret);
-			}
-			ret = scsi_add_host(host, hba->dev);
-			if (ret) {
-				dev_err(hba->dev, "scsi_add_host failed\n");
-				return ret;
-			}
-			hba->scsi_host_added = true;
-		} else if (is_mcq_supported(hba) &&
-			   hba->quirks &
-				   UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH) {
+		if (is_mcq_supported(hba) &&
+		    hba->quirks & UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH) {
 			ufshcd_config_mcq(hba);
 			ufshcd_mcq_enable(hba);
 		}
