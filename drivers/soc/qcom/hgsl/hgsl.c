@@ -2282,7 +2282,7 @@ static int hgsl_ioctl_mem_alloc(
 	struct hgsl_priv *priv = filep->private_data;
 	struct hgsl_ioctl_mem_alloc_params *params = data;
 	struct qcom_hgsl *hgsl = priv->dev;
-	int ret = 0;
+	int ret = 0, mem_fd = -1;
 	struct hgsl_mem_node *mem_node = NULL;
 	struct hgsl_hab_channel_t *hab_channel = NULL;
 
@@ -2295,6 +2295,13 @@ static int hgsl_ioctl_mem_alloc(
 	if (params->sizebytes == 0) {
 		LOGE("requested size is 0");
 		ret = -EINVAL;
+		goto out;
+	}
+
+	mem_fd = get_unused_fd_flags(O_CLOEXEC);
+	if (mem_fd < 0) {
+		LOGE("no available fd %d", mem_fd);
+		ret = -EMFILE;
 		goto out;
 	}
 
@@ -2316,30 +2323,34 @@ static int hgsl_ioctl_mem_alloc(
 	if (ret)
 		goto out;
 
-	/* increase reference count before install fd. */
-	get_dma_buf(mem_node->dma_buf);
-	params->fd = dma_buf_fd(mem_node->dma_buf, O_CLOEXEC);
-
-	if (params->fd < 0) {
-		LOGE("dma_buf_fd failed, size 0x%x", mem_node->memdesc.size);
-		ret = -EINVAL;
-		dma_buf_put(mem_node->dma_buf);
-		goto out;
-	}
 	if (copy_to_user(USRPTR(params->memdesc),
 		&mem_node->memdesc, sizeof(mem_node->memdesc))) {
 		ret = -EFAULT;
 		goto out;
 	}
+
+	/* increase reference count before install fd. */
+	get_dma_buf(mem_node->dma_buf);
 	mutex_lock(&priv->lock);
-	list_add(&mem_node->node, &priv->mem_allocated);
-	hgsl_trace_gpu_mem_total(priv, mem_node->memdesc.size64);
+	ret = hgsl_mem_add_node(&priv->mem_allocated, mem_node);
+	if (unlikely(ret))
+		dma_buf_put(mem_node->dma_buf);
+	else {
+		params->fd = mem_fd;
+		fd_install(params->fd, mem_node->dma_buf->file);
+		hgsl_trace_gpu_mem_total(priv, mem_node->memdesc.size64);
+	}
 	mutex_unlock(&priv->lock);
 
 out:
-	if (ret && mem_node) {
-		hgsl_hyp_mem_unmap_smmu(hab_channel, mem_node);
-		hgsl_sharedmem_free(mem_node);
+	if (ret) {
+		if (mem_node) {
+			hgsl_hyp_mem_unmap_smmu(hab_channel, mem_node);
+			hgsl_sharedmem_free(mem_node);
+		}
+
+		if (mem_fd >= 0)
+			put_unused_fd(mem_fd);
 	}
 	hgsl_hyp_channel_pool_put(hab_channel);
 	return ret;
@@ -2354,7 +2365,6 @@ static int hgsl_ioctl_mem_free(
 	struct gsl_memdesc_t memdesc;
 	int ret = 0;
 	struct hgsl_mem_node *node_found = NULL;
-	struct hgsl_mem_node *tmp = NULL;
 	struct hgsl_hab_channel_t *hab_channel = NULL;
 
 	ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
@@ -2371,16 +2381,11 @@ static int hgsl_ioctl_mem_free(
 	}
 
 	mutex_lock(&priv->lock);
-	list_for_each_entry(tmp, &priv->mem_allocated, node) {
-		if ((tmp->memdesc.gpuaddr == memdesc.gpuaddr)
-			&& (tmp->memdesc.size == memdesc.size)) {
-			node_found = tmp;
-			list_del(&node_found->node);
-			break;
-		}
-	}
+	node_found = hgsl_mem_find_node_locked(&priv->mem_allocated,
+					memdesc.gpuaddr, memdesc.size64, true);
+	if (node_found)
+		rb_erase(&node_found->mem_rb_node, &priv->mem_allocated);
 	mutex_unlock(&priv->lock);
-
 	if (node_found) {
 		ret = hgsl_hyp_mem_unmap_smmu(hab_channel, node_found);
 		if (!ret) {
@@ -2390,14 +2395,14 @@ static int hgsl_ioctl_mem_free(
 		} else {
 			LOGE("hgsl_hyp_mem_unmap_smmu failed %d", ret);
 			mutex_lock(&priv->lock);
-			list_add(&node_found->node, &priv->mem_allocated);
+			ret = hgsl_mem_add_node(&priv->mem_allocated, node_found);
 			mutex_unlock(&priv->lock);
+			if (unlikely(ret))
+				LOGE("unlikely to get here! %d", ret);
 		}
-	} else {
+	} else
 		LOGE("can't find the memory 0x%llx, 0x%x",
 			memdesc.gpuaddr, memdesc.size);
-		goto out;
-	}
 
 out:
 	hgsl_hyp_channel_pool_put(hab_channel);
@@ -2413,6 +2418,7 @@ static int hgsl_ioctl_set_metainfo(
 	int ret = 0;
 	struct hgsl_mem_node *mem_node = NULL;
 	struct hgsl_mem_node *tmp = NULL;
+	struct rb_node *rb = NULL;
 	char metainfo[HGSL_MEM_META_MAX_SIZE] = {0};
 
 	if (params->metainfo_len > HGSL_MEM_META_MAX_SIZE) {
@@ -2429,7 +2435,8 @@ static int hgsl_ioctl_set_metainfo(
 	metainfo[HGSL_MEM_META_MAX_SIZE - 1] = '\0';
 
 	mutex_lock(&priv->lock);
-	list_for_each_entry(tmp, &priv->mem_allocated, node) {
+	for (rb = rb_first(&priv->mem_allocated); rb; rb = rb_next(rb)) {
+		tmp = rb_entry(rb, struct hgsl_mem_node, mem_rb_node);
 		if (tmp->memdesc.priv64 == params->memdesc_priv) {
 			mem_node = tmp;
 			break;
@@ -2482,18 +2489,20 @@ static int hgsl_ioctl_mem_map_smmu(
 	mem_node->memtype = params->memtype;
 
 	ret = hgsl_hyp_mem_map_smmu(hab_channel, params->size, params->offset, mem_node);
+	if (ret)
+		goto out;
 
-	if (ret == 0) {
-		if (copy_to_user(USRPTR(params->memdesc), &mem_node->memdesc,
-			sizeof(mem_node->memdesc))) {
-			ret = -EFAULT;
-			goto out;
-		}
-		mutex_lock(&priv->lock);
-		list_add(&mem_node->node, &priv->mem_mapped);
-		hgsl_trace_gpu_mem_total(priv, mem_node->memdesc.size64);
-		mutex_unlock(&priv->lock);
+	if (copy_to_user(USRPTR(params->memdesc), &mem_node->memdesc,
+		sizeof(mem_node->memdesc))) {
+		ret = -EFAULT;
+		goto out;
 	}
+
+	mutex_lock(&priv->lock);
+	ret = hgsl_mem_add_node(&priv->mem_mapped, mem_node);
+	if (likely(!ret))
+		hgsl_trace_gpu_mem_total(priv, mem_node->memdesc.size64);
+	mutex_unlock(&priv->lock);
 
 out:
 	if (ret) {
@@ -2512,7 +2521,6 @@ static int hgsl_ioctl_mem_unmap_smmu(
 	struct hgsl_ioctl_mem_unmap_smmu_params *params = data;
 	int ret = 0;
 	struct hgsl_mem_node *node_found = NULL;
-	struct hgsl_mem_node *tmp = NULL;
 	struct hgsl_hab_channel_t *hab_channel = NULL;
 
 	ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
@@ -2522,31 +2530,29 @@ static int hgsl_ioctl_mem_unmap_smmu(
 	}
 
 	mutex_lock(&priv->lock);
-	list_for_each_entry(tmp, &priv->mem_mapped, node) {
-		if ((tmp->memdesc.gpuaddr == params->gpuaddr)
-			&& (tmp->memdesc.size == params->size)) {
-			node_found = tmp;
-			list_del(&node_found->node);
-			break;
-		}
-	}
+	node_found = hgsl_mem_find_node_locked(&priv->mem_mapped,
+					params->gpuaddr, params->size, true);
+	if (node_found)
+		rb_erase(&node_found->mem_rb_node, &priv->mem_mapped);
 	mutex_unlock(&priv->lock);
 
 	if (node_found) {
 		hgsl_put_sgt(node_found, false);
 		ret = hgsl_hyp_mem_unmap_smmu(hab_channel, node_found);
-		if (ret) {
-			mutex_lock(&priv->lock);
-			list_add(&node_found->node, &priv->mem_mapped);
-			mutex_unlock(&priv->lock);
-		} else {
+		if (!ret) {
 			hgsl_trace_gpu_mem_total(priv,
 					-(node_found->memdesc.size64));
 			hgsl_free(node_found);
+		} else {
+			LOGE("hgsl_hyp_mem_unmap_smmu failed %d", ret);
+			mutex_lock(&priv->lock);
+			ret = hgsl_mem_add_node(&priv->mem_mapped, node_found);
+			mutex_unlock(&priv->lock);
+			if (unlikely(ret))
+				LOGE("unlikely to get here! %d", ret);
 		}
-	} else {
+	} else
 		ret = -EINVAL;
-	}
 
 out:
 	hgsl_hyp_channel_pool_put(hab_channel);
@@ -2573,15 +2579,16 @@ static int hgsl_ioctl_mem_cache_operation(
 	}
 
 	mutex_lock(&priv->lock);
-	node_found = hgsl_mem_find_base_locked(&priv->mem_allocated,
-					gpuaddr, params->sizebytes);
+	node_found = hgsl_mem_find_node_locked(&priv->mem_allocated,
+					gpuaddr, params->sizebytes, false);
 	if (node_found)
 		internal = true;
 	else {
-		node_found = hgsl_mem_find_base_locked(&priv->mem_mapped,
-					gpuaddr, params->sizebytes);
+		node_found = hgsl_mem_find_node_locked(&priv->mem_mapped,
+					gpuaddr, params->sizebytes, false);
 		if (!node_found) {
-			LOGE("failed to find node %d", ret);
+			LOGE("failed to find gpuaddr: 0x%llx size: 0x%llx",
+				gpuaddr, params->sizebytes);
 			ret = -EINVAL;
 			mutex_unlock(&priv->lock);
 			goto out;
@@ -2607,7 +2614,6 @@ static int hgsl_ioctl_mem_get_fd(
 	struct hgsl_ioctl_mem_get_fd_params *params = data;
 	struct gsl_memdesc_t memdesc;
 	struct hgsl_mem_node *node_found = NULL;
-	struct hgsl_mem_node *tmp = NULL;
 	int ret = 0;
 
 	if (copy_from_user(&memdesc, USRPTR(params->memdesc),
@@ -2618,28 +2624,25 @@ static int hgsl_ioctl_mem_get_fd(
 	}
 
 	mutex_lock(&priv->lock);
-	list_for_each_entry(tmp, &priv->mem_allocated, node) {
-		if ((tmp->memdesc.gpuaddr == memdesc.gpuaddr)
-			&& (tmp->memdesc.size == memdesc.size)) {
-			node_found = tmp;
-			break;
-		}
-	}
-	params->fd = -1;
-	if (node_found && node_found->dma_buf) {
+	node_found = hgsl_mem_find_node_locked(&priv->mem_allocated,
+				memdesc.gpuaddr, memdesc.size64, true);
+	if (node_found && node_found->dma_buf)
 		get_dma_buf(node_found->dma_buf);
+	else
+		ret = -EINVAL;
+	mutex_unlock(&priv->lock);
+
+	params->fd = -1;
+	if (!ret) {
 		params->fd = dma_buf_fd(node_found->dma_buf, O_CLOEXEC);
 		if (params->fd < 0) {
 			LOGE("dma buf to fd failed");
 			ret = -EINVAL;
 			dma_buf_put(node_found->dma_buf);
 		}
-	} else {
+	} else
 		LOGE("can't find the memory 0x%llx, 0x%x, node_found:%p",
 			 memdesc.gpuaddr, memdesc.size, node_found);
-		ret = -EINVAL;
-	}
-	mutex_unlock(&priv->lock);
 
 out:
 	return ret;
@@ -3251,8 +3254,8 @@ static int hgsl_open(struct inode *inodep, struct file *filep)
 		goto out;
 	}
 
-	INIT_LIST_HEAD(&priv->mem_mapped);
-	INIT_LIST_HEAD(&priv->mem_allocated);
+	priv->mem_mapped = RB_ROOT;
+	priv->mem_allocated = RB_ROOT;
 	mutex_init(&priv->lock);
 	priv->pid = pid_nr;
 
@@ -3279,13 +3282,11 @@ out:
 static int hgsl_cleanup(struct hgsl_priv *priv)
 {
 	struct hgsl_mem_node *node_found = NULL;
-	struct hgsl_mem_node *tmp = NULL;
+	struct rb_node *next = NULL;
 	int ret;
-	bool need_notify = (!list_empty(&priv->mem_mapped) ||
-				!list_empty(&priv->mem_allocated));
 	struct hgsl_hab_channel_t *hab_channel = NULL;
 
-	if (need_notify) {
+	if (!hgsl_mem_rb_empty(priv)) {
 		ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
 		if (ret)
 			LOGE("Failed to get channel %d", ret);
@@ -3298,14 +3299,15 @@ static int hgsl_cleanup(struct hgsl_priv *priv)
 	}
 
 	mutex_lock(&priv->lock);
-	if ((hab_channel == NULL) &&
-			(!list_empty(&priv->mem_mapped) || !list_empty(&priv->mem_allocated))) {
+	if (!hab_channel && !hgsl_mem_rb_empty(priv)) {
 		ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
 		if (ret)
 			LOGE("Failed to get channel %d", ret);
 	}
 
-	list_for_each_entry_safe(node_found, tmp, &priv->mem_mapped, node) {
+	next = rb_first(&priv->mem_mapped);
+	while (next) {
+		node_found = rb_entry(next, struct hgsl_mem_node, mem_rb_node);
 		hgsl_put_sgt(node_found, false);
 		ret = hgsl_hyp_mem_unmap_smmu(hab_channel, node_found);
 		if (ret)
@@ -3313,16 +3315,23 @@ static int hgsl_cleanup(struct hgsl_priv *priv)
 					node_found->export_id, node_found->memdesc.gpuaddr, ret);
 		else
 			hgsl_trace_gpu_mem_total(priv, -(node_found->memdesc.size64));
-		list_del(&node_found->node);
+
+		next = rb_next(&node_found->mem_rb_node);
+		rb_erase(&node_found->mem_rb_node, &priv->mem_mapped);
 		hgsl_free(node_found);
 	}
-	list_for_each_entry_safe(node_found, tmp, &priv->mem_allocated, node) {
+
+	next = rb_first(&priv->mem_allocated);
+	while (next) {
+		node_found = rb_entry(next, struct hgsl_mem_node, mem_rb_node);
 		ret = hgsl_hyp_mem_unmap_smmu(hab_channel, node_found);
 		if (ret)
 			LOGE("Failed to clean mapped buffer %u, 0x%llx, ret %d",
 					node_found->export_id, node_found->memdesc.gpuaddr, ret);
-		list_del(&node_found->node);
 		hgsl_trace_gpu_mem_total(priv, -(node_found->memdesc.size64));
+
+		next = rb_next(&node_found->mem_rb_node);
+		rb_erase(&node_found->mem_rb_node, &priv->mem_allocated);
 		hgsl_sharedmem_free(node_found);
 	}
 	mutex_unlock(&priv->lock);

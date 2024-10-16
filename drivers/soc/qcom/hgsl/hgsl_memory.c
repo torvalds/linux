@@ -612,24 +612,6 @@ void hgsl_sharedmem_free(struct hgsl_mem_node *mem_node)
 
 }
 
-struct hgsl_mem_node *hgsl_mem_find_base_locked(struct list_head *head,
-	uint64_t gpuaddr, uint64_t size)
-{
-	struct hgsl_mem_node *node_found = NULL;
-	struct hgsl_mem_node *tmp = NULL;
-	uint64_t end = gpuaddr + size;
-
-	list_for_each_entry(tmp, head, node) {
-		if ((tmp->memdesc.gpuaddr <= gpuaddr)
-			&& ((tmp->memdesc.gpuaddr + tmp->memdesc.size) >= end)) {
-			node_found = tmp;
-			break;
-		}
-	}
-
-	return node_found;
-}
-
 void *hgsl_mem_node_zalloc(bool iocoherency)
 {
 	struct hgsl_mem_node *mem_node = NULL;
@@ -642,6 +624,66 @@ void *hgsl_mem_node_zalloc(bool iocoherency)
 
 out:
 	return mem_node;
+}
+
+int hgsl_mem_add_node(struct rb_root *rb_root,
+		struct hgsl_mem_node *mem_node)
+{
+	struct rb_node **cur;
+	struct rb_node *parent = NULL;
+	struct hgsl_mem_node *node = NULL;
+	int ret = 0;
+
+	cur = &rb_root->rb_node;
+	while (*cur) {
+		parent = *cur;
+		node = rb_entry(parent, struct hgsl_mem_node, mem_rb_node);
+		if (mem_node->memdesc.gpuaddr > node->memdesc.gpuaddr)
+			cur = &parent->rb_right;
+		else if (mem_node->memdesc.gpuaddr < node->memdesc.gpuaddr)
+			cur = &parent->rb_left;
+		else {
+			LOGE("Duplicate gpuaddr: 0x%llx",
+				mem_node->memdesc.gpuaddr);
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+
+	rb_link_node(&mem_node->mem_rb_node, parent, cur);
+	rb_insert_color(&mem_node->mem_rb_node, rb_root);
+out:
+	return ret;
+}
+
+struct hgsl_mem_node *hgsl_mem_find_node_locked(
+		struct rb_root *rb_root, uint64_t gpuaddr,
+		uint64_t size, bool accurate)
+{
+	struct rb_node *cur = NULL;
+	struct hgsl_mem_node *node_found = NULL;
+
+	cur = rb_root->rb_node;
+	while (cur) {
+		node_found = rb_entry(cur, struct hgsl_mem_node, mem_rb_node);
+		if (hgsl_mem_range_inspect(
+				node_found->memdesc.gpuaddr, gpuaddr,
+				node_found->memdesc.size64, size,
+				accurate)) {
+			return node_found;
+		} else if (node_found->memdesc.gpuaddr < gpuaddr)
+			cur = cur->rb_right;
+		else if (node_found->memdesc.gpuaddr > gpuaddr)
+			cur = cur->rb_left;
+		else {
+			LOGE("Invalid addr: 0x%llx size: [0x%llx 0x%llx]",
+				gpuaddr, size, node_found->memdesc.size64);
+			goto out;
+		}
+	}
+
+out:
+	return NULL;
 }
 
 MODULE_IMPORT_NS(DMA_BUF);
