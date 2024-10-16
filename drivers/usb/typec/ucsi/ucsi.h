@@ -287,6 +287,14 @@ struct ucsi_connector_capability {
 	UCSI_SPEC_REVISION_TO_BCD(UCSI_CONCAP_FLAG_PARTNER_PD_MAJOR_REV(_f_))
 } __packed;
 
+#define UCSI_CONCAP_USB2_SUPPORT(_con_) ((_con_)->cap.op_mode & UCSI_CONCAP_OPMODE_USB2)
+#define UCSI_CONCAP_USB3_SUPPORT(_con_) ((_con_)->cap.op_mode & UCSI_CONCAP_OPMODE_USB3)
+#define UCSI_CONCAP_USB4_SUPPORT(_con_)					\
+	((_con_)->ucsi->version >= UCSI_VERSION_2_0 &&			\
+	 ((_con_)->cap.flags & (UCSI_CONCAP_EX_OP_MODE_USB4_GEN2 |	\
+				UCSI_CONCAP_EX_OP_MODE_USB4_GEN3 |	\
+				UCSI_CONCAP_EX_OP_MODE_USB4_GEN4)))
+
 struct ucsi_altmode {
 	u16 svid;
 	u32 mid;
