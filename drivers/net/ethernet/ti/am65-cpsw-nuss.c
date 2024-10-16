@@ -1341,6 +1341,7 @@ am65_cpsw_nuss_tx_compl_packet_xdp(struct am65_cpsw_common *common,
 
 	port = am65_common_get_port(common, port_id);
 	dev_sw_netstats_tx_add(port->ndev, 1, xdpf->len);
+	*ndev = port->ndev;
 
 	return xdpf;
 }
