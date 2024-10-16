@@ -2648,7 +2648,6 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 
 	if (!extent_buffer_uptodate(root_eb)) {
 		struct btrfs_tree_parent_check check = {
-			.has_first_key = false,
 			.transid = root_gen,
 			.level = root_level
 		};

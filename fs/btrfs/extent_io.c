@@ -4286,7 +4286,6 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 owner_root, u64 gen, int level)
 {
 	struct btrfs_tree_parent_check check = {
-		.has_first_key = 0,
 		.level = level,
 		.transid = gen
 	};
