@@ -5429,8 +5429,10 @@ bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips)
 
 void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const *caller_name)
 {
-	if (dc->debug.disable_idle_power_optimizations)
+	if (dc->debug.disable_idle_power_optimizations) {
+		DC_LOG_DEBUG("%s: disabled\n", __func__);
 		return;
+	}
 
 	if (allow != dc->idle_optimizations_allowed)
 		DC_LOG_IPS("%s: allow_idle old=%d new=%d (caller=%s)\n", __func__,
@@ -5447,8 +5449,10 @@ void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const 
 		return;
 
 	if (dc->hwss.apply_idle_power_optimizations && dc->clk_mgr != NULL &&
-	    dc->hwss.apply_idle_power_optimizations(dc, allow))
+	    dc->hwss.apply_idle_power_optimizations(dc, allow)) {
 		dc->idle_optimizations_allowed = allow;
+		DC_LOG_DEBUG("%s: %s\n", __func__, allow ? "enabled" : "disabled");
+	}
 }
 
 void dc_exit_ips_for_hw_access_internal(struct dc *dc, const char *caller_name)
