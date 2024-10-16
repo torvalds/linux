@@ -73,7 +73,7 @@ struct mlx5_pkt_reformat {
 	int reformat_type; /* from mlx5_ifc */
 	enum mlx5_flow_resource_owner owner;
 	union {
-		struct mlx5_fs_dr_action action;
+		struct mlx5_fs_dr_action fs_dr_action;
 		u32 id;
 	};
 };
