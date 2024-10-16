@@ -97,13 +97,21 @@ struct drm_sched_entity {
 	struct list_head		list;
 
 	/**
+	 * @lock:
+	 *
+	 * Lock protecting the run-queue (@rq) to which this entity belongs,
+	 * @priority and the list of schedulers (@sched_list, @num_sched_list).
+	 */
+	spinlock_t			lock;
+
+	/**
 	 * @rq:
 	 *
 	 * Runqueue on which this entity is currently scheduled.
 	 *
 	 * FIXME: Locking is very unclear for this. Writers are protected by
-	 * @rq_lock, but readers are generally lockless and seem to just race
-	 * with not even a READ_ONCE.
+	 * @lock, but readers are generally lockless and seem to just race with
+	 * not even a READ_ONCE.
 	 */
 	struct drm_sched_rq		*rq;
 
@@ -136,16 +144,9 @@ struct drm_sched_entity {
 	 * @priority:
 	 *
 	 * Priority of the entity. This can be modified by calling
-	 * drm_sched_entity_set_priority(). Protected by &rq_lock.
+	 * drm_sched_entity_set_priority(). Protected by @lock.
 	 */
 	enum drm_sched_priority         priority;
-
-	/**
-	 * @rq_lock:
-	 *
-	 * Lock to modify the runqueue to which this entity belongs.
-	 */
-	spinlock_t			rq_lock;
 
 	/**
 	 * @job_queue: the list of jobs of this entity.
