@@ -4177,6 +4177,36 @@ static int rtw89_pci_napi_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
+static
+void rtw89_check_pci_ssid_quirks(struct rtw89_dev *rtwdev,
+				 struct pci_dev *pdev,
+				 const struct rtw89_pci_ssid_quirk *ssid_quirks)
+{
+	int i;
+
+	if (!ssid_quirks)
+		return;
+
+	for (i = 0; i < 200; i++, ssid_quirks++) {
+		if (ssid_quirks->vendor == 0 && ssid_quirks->device == 0)
+			break;
+
+		if (ssid_quirks->vendor != pdev->vendor ||
+		    ssid_quirks->device != pdev->device ||
+		    ssid_quirks->subsystem_vendor != pdev->subsystem_vendor ||
+		    ssid_quirks->subsystem_device != pdev->subsystem_device)
+			continue;
+
+		bitmap_or(rtwdev->quirks, rtwdev->quirks, &ssid_quirks->bitmap,
+			  NUM_OF_RTW89_QUIRKS);
+		rtwdev->custid = ssid_quirks->custid;
+		break;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_HCI, "quirks=%*ph custid=%d\n",
+		    (int)sizeof(rtwdev->quirks), rtwdev->quirks, rtwdev->custid);
+}
+
 static int __maybe_unused rtw89_pci_suspend(struct device *dev)
 {
 	struct ieee80211_hw *hw = dev_get_drvdata(dev);
@@ -4351,6 +4381,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rtwdev->hci.cpwm_addr = pci_info->cpwm_addr;
 
 	rtw89_check_quirks(rtwdev, info->quirks);
+	rtw89_check_pci_ssid_quirks(rtwdev, pdev, pci_info->ssid_quirks);
 
 	SET_IEEE80211_DEV(rtwdev->hw, &pdev->dev);
 

@@ -4818,11 +4818,20 @@ static void rtw89_read_chip_ver(struct rtw89_dev *rtwdev)
 
 static void rtw89_core_setup_phycap(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
 	rtwdev->hal.support_cckpd =
 		!(rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv <= CHIP_CBV) &&
 		!(rtwdev->chip->chip_id == RTL8852B && rtwdev->hal.cv <= CHIP_CAV);
 	rtwdev->hal.support_igi =
 		rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv <= CHIP_CBV;
+
+	if (test_bit(RTW89_QUIRK_THERMAL_PROT_120C, rtwdev->quirks))
+		rtwdev->hal.thermal_prot_th = chip->thermal_th[1];
+	else if (test_bit(RTW89_QUIRK_THERMAL_PROT_110C, rtwdev->quirks))
+		rtwdev->hal.thermal_prot_th = chip->thermal_th[0];
+	else
+		rtwdev->hal.thermal_prot_th = 0;
 }
 
 static void rtw89_core_setup_rfe_parms(struct rtw89_dev *rtwdev)

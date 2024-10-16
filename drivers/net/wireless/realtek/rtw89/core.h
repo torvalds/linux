@@ -4719,8 +4719,20 @@ enum rtw89_flags {
 
 enum rtw89_quirks {
 	RTW89_QUIRK_PCI_BER,
+	RTW89_QUIRK_THERMAL_PROT_120C,
+	RTW89_QUIRK_THERMAL_PROT_110C,
 
 	NUM_OF_RTW89_QUIRKS,
+};
+
+enum rtw89_custid {
+	RTW89_CUSTID_NONE,
+	RTW89_CUSTID_ACER,
+	RTW89_CUSTID_AMD,
+	RTW89_CUSTID_ASUS,
+	RTW89_CUSTID_DELL,
+	RTW89_CUSTID_HP,
+	RTW89_CUSTID_LENOVO,
 };
 
 enum rtw89_pkt_drop_sel {
@@ -5520,6 +5532,7 @@ struct rtw89_dev {
 	struct rtw89_efuse efuse;
 	struct rtw89_traffic_stats stats;
 	struct rtw89_rfe_data *rfe_data;
+	enum rtw89_custid custid;
 
 	/* ensures exclusive access from mac80211 callbacks */
 	struct mutex mutex;

@@ -1292,6 +1292,19 @@ struct rtw89_pci_gen_def {
 	void (*disable_eq)(struct rtw89_dev *rtwdev);
 };
 
+#define RTW89_PCI_SSID(v, d, ssv, ssd, cust) \
+	.vendor = v, .device = d, .subsystem_vendor = ssv, .subsystem_device = ssd, \
+	.custid = RTW89_CUSTID_ ##cust
+
+struct rtw89_pci_ssid_quirk {
+	unsigned short vendor;
+	unsigned short device;
+	unsigned short subsystem_vendor;
+	unsigned short subsystem_device;
+	enum rtw89_custid custid;
+	unsigned long bitmap; /* bitmap of rtw89_quirks */
+};
+
 struct rtw89_pci_info {
 	const struct rtw89_pci_gen_def *gen_def;
 	enum mac_ax_bd_trunc_mode txbd_trunc_mode;
@@ -1345,6 +1358,8 @@ struct rtw89_pci_info {
 	void (*recognize_intrs)(struct rtw89_dev *rtwdev,
 				struct rtw89_pci *rtwpci,
 				struct rtw89_pci_isrs *isrs);
+
+	const struct rtw89_pci_ssid_quirk *ssid_quirks;
 };
 
 struct rtw89_pci_tx_data {
