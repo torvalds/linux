@@ -541,8 +541,13 @@ int snd_soc_tdm_params_to_bclk(const struct snd_pcm_hw_params *params,
 			       int tdm_width, int tdm_slots, int slot_multiple);
 
 /* set runtime hw params */
-int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
-	const struct snd_pcm_hardware *hw);
+static inline int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
+					       const struct snd_pcm_hardware *hw)
+{
+	substream->runtime->hw = *hw;
+
+	return 0;
+}
 
 struct snd_ac97 *snd_soc_alloc_ac97_component(struct snd_soc_component *component);
 struct snd_ac97 *snd_soc_new_ac97_component(struct snd_soc_component *component,
