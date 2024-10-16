@@ -48,7 +48,7 @@ Build-Depends:
  rust-src [amd64 arm64 armhf ppc64el riscv64 s390x],
  rustfmt [amd64 arm64 armhf ppc64el riscv64 s390x],
  bindgen [amd64 arm64 armhf ppc64el riscv64 s390x],
- libstdc++-dev,
+ libstdc++-14-dev,
 Build-Depends-Indep:
  xmlto <!stage1>,
  bzip2 <!stage1>,
