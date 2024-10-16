@@ -266,12 +266,12 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 	if (!deleting) {
 		a->stripe		= s.k->p.offset;
 		a->stripe_redundancy	= s.v->nr_redundant;
+		alloc_data_type_set(a, data_type);
 	} else {
 		a->stripe		= 0;
 		a->stripe_redundancy	= 0;
+		alloc_data_type_set(a, BCH_DATA_user);
 	}
-
-	alloc_data_type_set(a, data_type);
 err:
 	printbuf_exit(&buf);
 	return ret;
