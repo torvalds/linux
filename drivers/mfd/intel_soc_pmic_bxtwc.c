@@ -364,6 +364,7 @@ static ssize_t addr_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_ADMIN_RW(addr);
 
 static ssize_t val_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -400,23 +401,14 @@ static ssize_t val_store(struct device *dev,
 	}
 	return count;
 }
-
-static DEVICE_ATTR_ADMIN_RW(addr);
 static DEVICE_ATTR_ADMIN_RW(val);
+
 static struct attribute *bxtwc_attrs[] = {
 	&dev_attr_addr.attr,
 	&dev_attr_val.attr,
 	NULL
 };
-
-static const struct attribute_group bxtwc_group = {
-	.attrs = bxtwc_attrs,
-};
-
-static const struct attribute_group *bxtwc_groups[] = {
-	&bxtwc_group,
-	NULL
-};
+ATTRIBUTE_GROUPS(bxtwc);
 
 static const struct regmap_config bxtwc_regmap_config = {
 	.reg_bits = 16,
