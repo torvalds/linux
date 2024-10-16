@@ -15,12 +15,12 @@
     kconfig
     headers_install
     gcc-plugins
+    kbuild
 
 TODO:
 
 - kconfig-language
 - kconfig-macro-language
-- kbuild
 - makefiles
 - modules
 - issues
