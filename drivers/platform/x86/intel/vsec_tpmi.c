@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * intel-tpmi : Driver to enumerate TPMI features and create devices
+ * Driver to enumerate TPMI features and create devices
  *
  * Copyright (c) 2023, Intel Corporation.
  * All Rights Reserved.
