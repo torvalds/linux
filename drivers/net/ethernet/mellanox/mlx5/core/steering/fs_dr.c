@@ -372,9 +372,11 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		actions[num_actions++] = tmp_action;
 	}
 
-	if (fte->act_dests.action.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		actions[num_actions++] =
-			fte->act_dests.action.modify_hdr->action.dr_action;
+	if (fte->act_dests.action.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		struct mlx5_modify_hdr *modify_hdr = fte->act_dests.action.modify_hdr;
+
+		actions[num_actions++] = modify_hdr->fs_dr_action.dr_action;
+	}
 
 	if (fte->act_dests.action.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
 		tmp_action = create_action_push_vlan(domain, &fte->act_dests.action.vlan[0]);
@@ -705,7 +707,7 @@ static int mlx5_cmd_dr_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 	}
 
 	modify_hdr->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
-	modify_hdr->action.dr_action = action;
+	modify_hdr->fs_dr_action.dr_action = action;
 
 	return 0;
 }
@@ -713,7 +715,7 @@ static int mlx5_cmd_dr_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 static void mlx5_cmd_dr_modify_header_dealloc(struct mlx5_flow_root_namespace *ns,
 					      struct mlx5_modify_hdr *modify_hdr)
 {
-	mlx5dr_action_destroy(modify_hdr->action.dr_action);
+	mlx5dr_action_destroy(modify_hdr->fs_dr_action.dr_action);
 }
 
 static int
