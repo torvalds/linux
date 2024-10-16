@@ -768,6 +768,9 @@ static inline unsigned int get_orig_size(struct kmem_cache *s, void *object)
 {
 	void *p = kasan_reset_tag(object);
 
+	if (is_kfence_address(object))
+		return kfence_ksize(object);
+
 	if (!slub_debug_orig_size(s))
 		return s->object_size;
 
