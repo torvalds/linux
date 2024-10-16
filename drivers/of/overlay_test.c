@@ -65,6 +65,8 @@ static void of_overlay_apply_kunit_cleanup(struct kunit *test)
 	struct device_node *np;
 
 	of_root_kunit_skip(test);
+	if (!IS_ENABLED(CONFIG_OF_OVERLAY))
+		kunit_skip(test, "requires CONFIG_OF_OVERLAY to apply overlay");
 	if (!IS_ENABLED(CONFIG_OF_EARLY_FLATTREE))
 		kunit_skip(test, "requires CONFIG_OF_EARLY_FLATTREE for root node");
 
