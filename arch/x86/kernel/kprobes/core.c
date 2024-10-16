@@ -970,7 +970,7 @@ static int reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 	case KPROBE_HIT_SSDONE:
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SS:
-		kprobes_inc_nmissed_count(p);
+		kprobes_inc_nmissed_count(p, KPROBE_MISSED_SS);
 		setup_singlestep(p, regs, kcb, 1);
 		break;
 	case KPROBE_REENTER:
