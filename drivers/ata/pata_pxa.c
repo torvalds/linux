@@ -306,7 +306,7 @@ static void pxa_ata_remove(struct platform_device *pdev)
 
 static struct platform_driver pxa_ata_driver = {
 	.probe		= pxa_ata_probe,
-	.remove_new	= pxa_ata_remove,
+	.remove		= pxa_ata_remove,
 	.driver		= {
 		.name		= DRV_NAME,
 	},

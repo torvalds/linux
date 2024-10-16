@@ -225,8 +225,8 @@ static void pata_falcon_remove_one(struct platform_device *pdev)
 
 static struct platform_driver pata_falcon_driver = {
 	.probe = pata_falcon_init_one,
-	.remove_new = pata_falcon_remove_one,
-	.driver   = {
+	.remove = pata_falcon_remove_one,
+	.driver = {
 		.name	= "atari-falcon-ide",
 	},
 };
