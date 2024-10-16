@@ -389,7 +389,7 @@ static size_t __ipu6_mmu_unmap(struct ipu6_mmu_info *mmu_info,
 
 static int allocate_trash_buffer(struct ipu6_mmu *mmu)
 {
-	unsigned int n_pages = PHYS_PFN(PAGE_ALIGN(IPU6_MMUV2_TRASH_RANGE));
+	unsigned int n_pages = PFN_UP(IPU6_MMUV2_TRASH_RANGE);
 	struct iova *iova;
 	unsigned int i;
 	dma_addr_t dma;

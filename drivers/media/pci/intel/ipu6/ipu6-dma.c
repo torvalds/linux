@@ -139,7 +139,7 @@ void ipu6_dma_sync_sg(struct ipu6_bus_device *sys, struct scatterlist *sglist,
 	int i;
 
 	for_each_sg(sglist, sg, nents, i)
-		clflush_cache_range(page_to_virt(sg_page(sg)), sg->length);
+		clflush_cache_range(sg_virt(sg), sg->length);
 }
 EXPORT_SYMBOL_NS_GPL(ipu6_dma_sync_sg, INTEL_IPU6);
 
@@ -392,7 +392,7 @@ int ipu6_dma_map_sg(struct ipu6_bus_device *sys, struct scatterlist *sglist,
 	}
 
 	for_each_sg(sglist, sg, nents, i)
-		npages += PHYS_PFN(PAGE_ALIGN(sg_dma_len(sg)));
+		npages += PFN_UP(sg_dma_len(sg));
 
 	dev_dbg(dev, "dmamap trying to map %d ents %zu pages\n",
 		nents, npages);
@@ -422,7 +422,7 @@ int ipu6_dma_map_sg(struct ipu6_bus_device *sys, struct scatterlist *sglist,
 
 		sg_dma_address(sg) = PFN_PHYS(iova_addr);
 
-		iova_addr += PHYS_PFN(PAGE_ALIGN(sg_dma_len(sg)));
+		iova_addr += PFN_UP(sg_dma_len(sg));
 	}
 
 	dev_dbg(dev, "dmamap %d ents %zu pages mapped\n", nents, npages);
@@ -481,7 +481,7 @@ int ipu6_dma_get_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt,
 	if (WARN_ON(!info->pages))
 		return -ENOMEM;
 
-	n_pages = PHYS_PFN(PAGE_ALIGN(size));
+	n_pages = PFN_UP(size);
 
 	ret = sg_alloc_table_from_pages(sgt, info->pages, n_pages, 0, size,
 					GFP_KERNEL);

@@ -564,7 +564,7 @@ int ipu6_buttress_map_fw_image(struct ipu6_bus_device *sys,
 	if (!is_vmalloc && !virt_addr_valid(fw->data))
 		return -EDOM;
 
-	n_pages = PHYS_PFN(PAGE_ALIGN(fw->size));
+	n_pages = PFN_UP(fw->size);
 
 	pages = kmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
