@@ -3279,11 +3279,11 @@ static struct net_device *rtnl_dev_get(struct net *net,
 static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	struct ifinfomsg *ifm = nlmsg_data(nlh);
 	struct net *net = sock_net(skb->sk);
-	struct ifinfomsg *ifm;
-	struct net_device *dev;
-	int err;
 	struct nlattr *tb[IFLA_MAX+1];
+	struct net_device *dev = NULL;
+	int err;
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFLA_MAX,
 				     ifla_policy, extack);
@@ -3294,21 +3294,18 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout;
 
-	err = -EINVAL;
-	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
 		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
 		dev = rtnl_dev_get(net, tb);
 	else
-		goto errout;
+		err = -EINVAL;
 
-	if (dev == NULL) {
+	if (dev)
+		err = do_setlink(skb, dev, ifm, extack, tb, 0);
+	else if (!err)
 		err = -ENODEV;
-		goto errout;
-	}
 
-	err = do_setlink(skb, dev, ifm, extack, tb, 0);
 errout:
 	return err;
 }
