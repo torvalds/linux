@@ -8891,9 +8891,7 @@ static void ufshcd_async_scan(void *data, async_cookie_t cookie)
 	down(&hba->host_sem);
 	/* Initialize hba, detect and initialize UFS device */
 	probe_start = ktime_get();
-	ret = ufshcd_device_init(hba, /*init_dev_params=*/true);
-	if (ret == 0)
-		ret = ufshcd_probe_hba(hba, true);
+	ret = ufshcd_probe_hba(hba, true);
 	ufshcd_process_probe_result(hba, probe_start, ret);
 	up(&hba->host_sem);
 	if (ret)
@@ -10364,7 +10362,8 @@ static int ufshcd_add_scsi_host(struct ufs_hba *hba)
 {
 	int err;
 
-	if (!is_mcq_supported(hba)) {
+	if (!hba->scsi_host_added) {
+		WARN_ON_ONCE(is_mcq_supported(hba));
 		if (!hba->lsdb_sup) {
 			dev_err(hba->dev,
 				"%s: failed to initialize (legacy doorbell mode not supported)\n",
@@ -10592,6 +10591,11 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	 * ufshcd_probe_hba().
 	 */
 	ufshcd_set_ufs_dev_active(hba);
+
+	/* Initialize hba, detect and initialize UFS device */
+	err = ufshcd_device_init(hba, /*init_dev_params=*/true);
+	if (err)
+		goto out_disable;
 
 	err = ufshcd_add_scsi_host(hba);
 	if (err)
