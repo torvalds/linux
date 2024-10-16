@@ -455,7 +455,7 @@ static struct platform_driver grgpio_driver = {
 		.of_match_table = grgpio_match,
 	},
 	.probe = grgpio_probe,
-	.remove_new = grgpio_remove,
+	.remove = grgpio_remove,
 };
 module_platform_driver(grgpio_driver);
 

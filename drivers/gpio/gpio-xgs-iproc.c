@@ -316,7 +316,7 @@ static struct platform_driver bcm_iproc_gpio_driver = {
 		.of_match_table = bcm_iproc_gpio_of_match,
 	},
 	.probe = iproc_gpio_probe,
-	.remove_new = iproc_gpio_remove,
+	.remove = iproc_gpio_remove,
 };
 
 module_platform_driver(bcm_iproc_gpio_driver);

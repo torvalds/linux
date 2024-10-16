@@ -227,7 +227,7 @@ static struct platform_driver mb86s70_gpio_driver = {
 		.acpi_match_table = ACPI_PTR(mb86s70_gpio_acpi_ids),
 	},
 	.probe = mb86s70_gpio_probe,
-	.remove_new = mb86s70_gpio_remove,
+	.remove = mb86s70_gpio_remove,
 };
 module_platform_driver(mb86s70_gpio_driver);
 

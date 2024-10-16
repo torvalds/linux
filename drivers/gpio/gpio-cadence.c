@@ -277,7 +277,7 @@ static struct platform_driver cdns_gpio_driver = {
 		.of_match_table = cdns_of_ids,
 	},
 	.probe = cdns_gpio_probe,
-	.remove_new = cdns_gpio_remove,
+	.remove = cdns_gpio_remove,
 };
 module_platform_driver(cdns_gpio_driver);
 

@@ -1557,7 +1557,7 @@ static const struct dev_pm_ops gpio_pm_ops = {
 
 static struct platform_driver omap_gpio_driver = {
 	.probe		= omap_gpio_probe,
-	.remove_new	= omap_gpio_remove,
+	.remove		= omap_gpio_remove,
 	.driver		= {
 		.name	= "omap_gpio",
 		.pm	= &gpio_pm_ops,

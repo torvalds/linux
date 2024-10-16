@@ -325,7 +325,7 @@ static struct platform_driver xgene_gpio_sb_driver = {
 		   .acpi_match_table = ACPI_PTR(xgene_gpio_sb_acpi_match),
 		   },
 	.probe = xgene_gpio_sb_probe,
-	.remove_new = xgene_gpio_sb_remove,
+	.remove = xgene_gpio_sb_remove,
 };
 module_platform_driver(xgene_gpio_sb_driver);
 

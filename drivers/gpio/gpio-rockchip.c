@@ -795,7 +795,7 @@ static const struct of_device_id rockchip_gpio_match[] = {
 
 static struct platform_driver rockchip_gpio_driver = {
 	.probe		= rockchip_gpio_probe,
-	.remove_new	= rockchip_gpio_remove,
+	.remove		= rockchip_gpio_remove,
 	.driver		= {
 		.name	= "rockchip-gpio",
 		.of_match_table = rockchip_gpio_match,

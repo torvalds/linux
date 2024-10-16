@@ -350,6 +350,6 @@ static struct platform_driver ftgpio_gpio_driver = {
 		.of_match_table = ftgpio_gpio_of_match,
 	},
 	.probe = ftgpio_gpio_probe,
-	.remove_new = ftgpio_gpio_remove,
+	.remove = ftgpio_gpio_remove,
 };
 builtin_platform_driver(ftgpio_gpio_driver);

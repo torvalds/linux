@@ -336,7 +336,7 @@ static struct platform_driver altera_gpio_driver = {
 		.of_match_table = altera_gpio_of_match,
 	},
 	.probe		= altera_gpio_probe,
-	.remove_new	= altera_gpio_remove,
+	.remove		= altera_gpio_remove,
 };
 
 static int __init altera_gpio_init(void)
