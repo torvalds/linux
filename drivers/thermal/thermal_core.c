@@ -565,7 +565,7 @@ void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 		 * are needed to compensate for the lack of it going forward.
 		 */
 		if (tz->temperature >= td->threshold)
-			thermal_zone_trip_down(tz, td);
+			thermal_trip_crossed(tz, td, thermal_get_tz_governor(tz), false);
 
 		/*
 		 * Invalidate the threshold to avoid triggering a spurious
@@ -698,12 +698,6 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 		__thermal_zone_device_update(tz, event);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
-
-void thermal_zone_trip_down(struct thermal_zone_device *tz,
-			    struct thermal_trip_desc *td)
-{
-	thermal_trip_crossed(tz, td, thermal_get_tz_governor(tz), false);
-}
 
 int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
 			      void *data)
