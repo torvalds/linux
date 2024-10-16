@@ -618,7 +618,6 @@ struct rtl8169_tc_offsets {
 };
 
 enum rtl_flag {
-	RTL_FLAG_TASK_ENABLED = 0,
 	RTL_FLAG_TASK_RESET_PENDING,
 	RTL_FLAG_TASK_RESET_NO_QUEUE_WAKE,
 	RTL_FLAG_TASK_TX_TIMEOUT,
@@ -2503,11 +2502,9 @@ u16 rtl8168h_2_get_adc_bias_ioffset(struct rtl8169_private *tp)
 
 static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 {
-	if (!test_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags))
-		return;
-
 	set_bit(flag, tp->wk.flags);
-	schedule_work(&tp->wk.work);
+	if (!schedule_work(&tp->wk.work))
+		clear_bit(flag, tp->wk.flags);
 }
 
 static void rtl8169_init_phy(struct rtl8169_private *tp)
@@ -4799,9 +4796,6 @@ static void rtl_task(struct work_struct *work)
 		container_of(work, struct rtl8169_private, wk.work);
 	int ret;
 
-	if (!test_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags))
-		return;
-
 	if (test_and_clear_bit(RTL_FLAG_TASK_TX_TIMEOUT, tp->wk.flags)) {
 		/* if chip isn't accessible, reset bus to revive it */
 		if (RTL_R32(tp, TxConfig) == ~0) {
@@ -4885,6 +4879,7 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 
 static void rtl8169_down(struct rtl8169_private *tp)
 {
+	disable_work_sync(&tp->wk.work);
 	/* Clear all task flags */
 	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
 
@@ -4913,7 +4908,7 @@ static void rtl8169_up(struct rtl8169_private *tp)
 	phy_resume(tp->phydev);
 	rtl8169_init_phy(tp);
 	napi_enable(&tp->napi);
-	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
+	enable_work(&tp->wk.work);
 	rtl_reset_work(tp);
 
 	phy_start(tp->phydev);
@@ -4929,8 +4924,6 @@ static int rtl8169_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	rtl8169_down(tp);
 	rtl8169_rx_clear(tp);
-
-	cancel_work(&tp->wk.work);
 
 	free_irq(tp->irq, tp);
 
@@ -5164,7 +5157,7 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_get_noresume(&pdev->dev);
 
-	cancel_work_sync(&tp->wk.work);
+	disable_work_sync(&tp->wk.work);
 
 	if (IS_ENABLED(CONFIG_R8169_LEDS))
 		r8169_remove_leds(tp->leds);
@@ -5578,6 +5571,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->irq = pci_irq_vector(pdev, 0);
 
 	INIT_WORK(&tp->wk.work, rtl_task);
+	disable_work(&tp->wk.work);
 
 	rtl_init_mac_address(tp);
 
