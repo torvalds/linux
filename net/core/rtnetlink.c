@@ -2881,8 +2881,8 @@ static int do_set_proto_down(struct net_device *dev,
 #define DO_SETLINK_MODIFIED	0x01
 /* notify flag means notify + modified. */
 #define DO_SETLINK_NOTIFY	0x03
-static int do_setlink(const struct sk_buff *skb,
-		      struct net_device *dev, struct ifinfomsg *ifm,
+static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
+		      struct net *tgt_net, struct ifinfomsg *ifm,
 		      struct netlink_ext_ack *extack,
 		      struct nlattr **tb, int status)
 {
@@ -2899,27 +2899,19 @@ static int do_setlink(const struct sk_buff *skb,
 	else
 		ifname[0] = '\0';
 
-	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD] || tb[IFLA_TARGET_NETNSID]) {
+	if (!net_eq(tgt_net, dev_net(dev))) {
 		const char *pat = ifname[0] ? ifname : NULL;
-		struct net *net;
 		int new_ifindex;
-
-		net = rtnl_link_get_net_capable(skb, dev_net(dev),
-						tb, CAP_NET_ADMIN);
-		if (IS_ERR(net)) {
-			err = PTR_ERR(net);
-			goto errout;
-		}
 
 		if (tb[IFLA_NEW_IFINDEX])
 			new_ifindex = nla_get_s32(tb[IFLA_NEW_IFINDEX]);
 		else
 			new_ifindex = 0;
 
-		err = __dev_change_net_namespace(dev, net, pat, new_ifindex);
-		put_net(net);
+		err = __dev_change_net_namespace(dev, tgt_net, pat, new_ifindex);
 		if (err)
 			goto errout;
+
 		status |= DO_SETLINK_MODIFIED;
 	}
 
@@ -3283,6 +3275,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFLA_MAX+1];
 	struct net_device *dev = NULL;
+	struct net *tgt_net;
 	int err;
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFLA_MAX,
@@ -3294,6 +3287,12 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout;
 
+	tgt_net = rtnl_link_get_net_capable(skb, net, tb, CAP_NET_ADMIN);
+	if (IS_ERR(tgt_net)) {
+		err = PTR_ERR(tgt_net);
+		goto errout;
+	}
+
 	if (ifm->ifi_index > 0)
 		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
@@ -3302,10 +3301,11 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = -EINVAL;
 
 	if (dev)
-		err = do_setlink(skb, dev, ifm, extack, tb, 0);
+		err = do_setlink(skb, dev, tgt_net, ifm, extack, tb, 0);
 	else if (!err)
 		err = -ENODEV;
 
+	put_net(tgt_net);
 errout:
 	return err;
 }
@@ -3599,7 +3599,7 @@ static int rtnl_changelink(const struct sk_buff *skb, struct nlmsghdr *nlh,
 		status |= DO_SETLINK_NOTIFY;
 	}
 
-	return do_setlink(skb, dev, nlmsg_data(nlh), extack, tb, status);
+	return do_setlink(skb, dev, tgt_net, nlmsg_data(nlh), extack, tb, status);
 }
 
 static int rtnl_group_changelink(const struct sk_buff *skb,
@@ -3613,7 +3613,7 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 
 	for_each_netdev_safe(net, dev, aux) {
 		if (dev->group == group) {
-			err = do_setlink(skb, dev, ifm, extack, tb, 0);
+			err = do_setlink(skb, dev, tgt_net, ifm, extack, tb, 0);
 			if (err < 0)
 				return err;
 		}
