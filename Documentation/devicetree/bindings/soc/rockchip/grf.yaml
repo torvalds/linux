@@ -81,6 +81,7 @@ properties:
               - rockchip,rk3568-pmugrf
               - rockchip,rk3576-ioc-grf
               - rockchip,rk3576-pmu0-grf
+              - rockchip,rk3576-usb2phy-grf
               - rockchip,rk3588-usb2phy-grf
               - rockchip,rv1108-grf
               - rockchip,rv1108-pmugrf
@@ -234,6 +235,7 @@ allOf:
               - rockchip,rk3308-usb2phy-grf
               - rockchip,rk3328-usb2phy-grf
               - rockchip,rk3399-grf
+              - rockchip,rk3576-usb2phy-grf
               - rockchip,rk3588-usb2phy-grf
               - rockchip,rv1108-grf
 
