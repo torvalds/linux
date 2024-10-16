@@ -31,6 +31,29 @@
 #define _TRACE_PIPE_A	0
 #define _TRACE_PIPE_B	1
 #define _TRACE_PIPE_C	2
+#define _TRACE_PIPE_D	3
+
+/*
+ * FIXME: Several TP_printk() calls below display frame and scanline numbers for
+ * all possible pipes (regardless of whether they are available) and that is
+ * done with a constant format string. A better approach would be to generate
+ * that info dynamically based on available pipes, but, while we do not have
+ * that implemented yet, let's assert that the constant format string indeed
+ * covers all possible pipes.
+ */
+static_assert(I915_MAX_PIPES - 1 == _TRACE_PIPE_D);
+
+#define _PIPES_FRAME_AND_SCANLINE_FMT		\
+	"pipe A: frame=%u, scanline=%u"		\
+	", pipe B: frame=%u, scanline=%u"	\
+	", pipe C: frame=%u, scanline=%u"	\
+	", pipe D: frame=%u, scanline=%u"
+
+#define _PIPES_FRAME_AND_SCANLINE_VALUES					\
+	__entry->frame[_TRACE_PIPE_A], __entry->scanline[_TRACE_PIPE_A]		\
+	, __entry->frame[_TRACE_PIPE_B], __entry->scanline[_TRACE_PIPE_B]	\
+	, __entry->frame[_TRACE_PIPE_C], __entry->scanline[_TRACE_PIPE_C]	\
+	, __entry->frame[_TRACE_PIPE_D], __entry->scanline[_TRACE_PIPE_D]
 
 /*
  * Paranoid sanity check that at least the enumeration starts at the
@@ -63,11 +86,8 @@ TRACE_EVENT(intel_pipe_enable,
 			   __entry->pipe_name = pipe_name(crtc->pipe);
 			   ),
 
-	    TP_printk("dev %s, pipe %c enable, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
-		      __get_str(dev), __entry->pipe_name,
-		      __entry->frame[_TRACE_PIPE_A], __entry->scanline[_TRACE_PIPE_A],
-		      __entry->frame[_TRACE_PIPE_B], __entry->scanline[_TRACE_PIPE_B],
-		      __entry->frame[_TRACE_PIPE_C], __entry->scanline[_TRACE_PIPE_C])
+	    TP_printk("dev %s, pipe %c enable, " _PIPES_FRAME_AND_SCANLINE_FMT,
+		      __get_str(dev), __entry->pipe_name, _PIPES_FRAME_AND_SCANLINE_VALUES)
 );
 
 TRACE_EVENT(intel_pipe_disable,
@@ -96,11 +116,8 @@ TRACE_EVENT(intel_pipe_disable,
 			   __entry->pipe_name = pipe_name(crtc->pipe);
 			   ),
 
-	    TP_printk("dev %s, pipe %c disable, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
-		      __get_str(dev), __entry->pipe_name,
-		      __entry->frame[_TRACE_PIPE_A], __entry->scanline[_TRACE_PIPE_A],
-		      __entry->frame[_TRACE_PIPE_B], __entry->scanline[_TRACE_PIPE_B],
-		      __entry->frame[_TRACE_PIPE_C], __entry->scanline[_TRACE_PIPE_C])
+	    TP_printk("dev %s, pipe %c disable, " _PIPES_FRAME_AND_SCANLINE_FMT,
+		      __get_str(dev), __entry->pipe_name, _PIPES_FRAME_AND_SCANLINE_VALUES)
 );
 
 TRACE_EVENT(intel_crtc_flip_done,
@@ -230,11 +247,9 @@ TRACE_EVENT(intel_memory_cxsr,
 			   __entry->new = new;
 			   ),
 
-	    TP_printk("dev %s, cxsr %s->%s, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
+	    TP_printk("dev %s, cxsr %s->%s, " _PIPES_FRAME_AND_SCANLINE_FMT,
 		      __get_str(dev), str_on_off(__entry->old), str_on_off(__entry->new),
-		      __entry->frame[_TRACE_PIPE_A], __entry->scanline[_TRACE_PIPE_A],
-		      __entry->frame[_TRACE_PIPE_B], __entry->scanline[_TRACE_PIPE_B],
-		      __entry->frame[_TRACE_PIPE_C], __entry->scanline[_TRACE_PIPE_C])
+		      _PIPES_FRAME_AND_SCANLINE_VALUES)
 );
 
 TRACE_EVENT(g4x_wm,
