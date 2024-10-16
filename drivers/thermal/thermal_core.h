@@ -274,7 +274,7 @@ int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 			 const struct thermal_trip *trip);
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
 void thermal_zone_trip_down(struct thermal_zone_device *tz,
-			    const struct thermal_trip *trip);
+			    struct thermal_trip_desc *td);
 void thermal_zone_set_trip_hyst(struct thermal_zone_device *tz,
 				struct thermal_trip *trip, int hyst);
 

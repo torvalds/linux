@@ -526,10 +526,12 @@ static void thermal_governor_trip_crossed(struct thermal_governor *governor,
 }
 
 static void thermal_trip_crossed(struct thermal_zone_device *tz,
-				 const struct thermal_trip *trip,
+				 struct thermal_trip_desc *td,
 				 struct thermal_governor *governor,
 				 bool crossed_up)
 {
+	const struct thermal_trip *trip = &td->trip;
+
 	if (crossed_up) {
 		thermal_notify_tz_trip_up(tz, trip);
 		thermal_debug_tz_trip_up(tz, trip);
@@ -589,12 +591,12 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	}
 
 	list_for_each_entry_safe(td, next, &way_up_list, list_node) {
-		thermal_trip_crossed(tz, &td->trip, governor, true);
+		thermal_trip_crossed(tz, td, governor, true);
 		list_del_init(&td->list_node);
 	}
 
 	list_for_each_entry_safe_reverse(td, next, &way_down_list, list_node) {
-		thermal_trip_crossed(tz, &td->trip, governor, false);
+		thermal_trip_crossed(tz, td, governor, false);
 		list_del_init(&td->list_node);
 	}
 
@@ -664,9 +666,9 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
 
 void thermal_zone_trip_down(struct thermal_zone_device *tz,
-			    const struct thermal_trip *trip)
+			    struct thermal_trip_desc *td)
 {
-	thermal_trip_crossed(tz, trip, thermal_get_tz_governor(tz), false);
+	thermal_trip_crossed(tz, td, thermal_get_tz_governor(tz), false);
 }
 
 int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),

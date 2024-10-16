@@ -118,7 +118,7 @@ void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 				tz->passive--;
 				WARN_ON_ONCE(tz->passive < 0);
 			}
-			thermal_zone_trip_down(tz, trip);
+			thermal_zone_trip_down(tz, td);
 		}
 		/*
 		 * Invalidate the threshold to avoid triggering a spurious
