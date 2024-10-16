@@ -1077,12 +1077,9 @@ static void smu_v14_0_2_get_od_setting_limits(struct smu_context *smu,
 
 	switch (od_feature_bit) {
 	case PP_OD_FEATURE_GFXCLK_FMIN:
-		od_min_setting = overdrive_lowerlimits->GfxclkFmin;
-		od_max_setting = overdrive_upperlimits->GfxclkFmin;
-		break;
 	case PP_OD_FEATURE_GFXCLK_FMAX:
-		od_min_setting = overdrive_lowerlimits->GfxclkFmax;
-		od_max_setting = overdrive_upperlimits->GfxclkFmax;
+		od_min_setting = overdrive_lowerlimits->GfxclkFoffset;
+		od_max_setting = overdrive_upperlimits->GfxclkFoffset;
 		break;
 	case PP_OD_FEATURE_UCLK_FMIN:
 		od_min_setting = overdrive_lowerlimits->UclkFmin;
@@ -1269,10 +1266,16 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 							 PP_OD_FEATURE_GFXCLK_BIT))
 			break;
 
-		size += sysfs_emit_at(buf, size, "OD_SCLK:\n");
-		size += sysfs_emit_at(buf, size, "0: %uMhz\n1: %uMhz\n",
-					od_table->OverDriveTable.GfxclkFmin,
-					od_table->OverDriveTable.GfxclkFmax);
+		PPTable_t *pptable = smu->smu_table.driver_pptable;
+		const OverDriveLimits_t * const overdrive_upperlimits =
+					&pptable->SkuTable.OverDriveLimitsBasicMax;
+		const OverDriveLimits_t * const overdrive_lowerlimits =
+					&pptable->SkuTable.OverDriveLimitsBasicMin;
+
+		size += sysfs_emit_at(buf, size, "OD_SCLK_OFFSET:\n");
+		size += sysfs_emit_at(buf, size, "0: %dMhz\n1: %uMhz\n",
+					overdrive_lowerlimits->GfxclkFoffset,
+					overdrive_upperlimits->GfxclkFoffset);
 		break;
 
 	case SMU_OD_MCLK:
@@ -2158,7 +2161,7 @@ static ssize_t smu_v14_0_2_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->average_gfx_activity = metrics->AverageGfxActivity;
 	gpu_metrics->average_umc_activity = metrics->AverageUclkActivity;
-	gpu_metrics->average_mm_activity = max(metrics->Vcn0ActivityPercentage,
+	gpu_metrics->average_mm_activity = max(metrics->AverageVcn0ActivityPercentage,
 					       metrics->Vcn1ActivityPercentage);
 
 	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
@@ -2217,8 +2220,7 @@ static void smu_v14_0_2_dump_od_table(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	dev_dbg(adev->dev, "OD: Gfxclk: (%d, %d)\n", od_table->OverDriveTable.GfxclkFmin,
-						     od_table->OverDriveTable.GfxclkFmax);
+	dev_dbg(adev->dev, "OD: Gfxclk offset: (%d)\n", od_table->OverDriveTable.GfxclkFoffset);
 	dev_dbg(adev->dev, "OD: Uclk: (%d, %d)\n", od_table->OverDriveTable.UclkFmin,
 						   od_table->OverDriveTable.UclkFmax);
 }
@@ -2309,10 +2311,8 @@ static int smu_v14_0_2_set_default_od_settings(struct smu_context *smu)
 		memcpy(user_od_table,
 		       boot_od_table,
 		       sizeof(OverDriveTableExternal_t));
-		user_od_table->OverDriveTable.GfxclkFmin =
-				user_od_table_bak.OverDriveTable.GfxclkFmin;
-		user_od_table->OverDriveTable.GfxclkFmax =
-				user_od_table_bak.OverDriveTable.GfxclkFmax;
+		user_od_table->OverDriveTable.GfxclkFoffset =
+				user_od_table_bak.OverDriveTable.GfxclkFoffset;
 		user_od_table->OverDriveTable.UclkFmin =
 				user_od_table_bak.OverDriveTable.UclkFmin;
 		user_od_table->OverDriveTable.UclkFmax =
@@ -2441,22 +2441,6 @@ static int smu_v14_0_2_od_edit_dpm_table(struct smu_context *smu,
 			}
 
 			switch (input[i]) {
-			case 0:
-				smu_v14_0_2_get_od_setting_limits(smu,
-								  PP_OD_FEATURE_GFXCLK_FMIN,
-								  &minimum,
-								  &maximum);
-				if (input[i + 1] < minimum ||
-				    input[i + 1] > maximum) {
-					dev_info(adev->dev, "GfxclkFmin (%ld) must be within [%u, %u]!\n",
-						input[i + 1], minimum, maximum);
-					return -EINVAL;
-				}
-
-				od_table->OverDriveTable.GfxclkFmin = input[i + 1];
-				od_table->OverDriveTable.FeatureCtrlMask |= 1U << PP_OD_FEATURE_GFXCLK_BIT;
-				break;
-
 			case 1:
 				smu_v14_0_2_get_od_setting_limits(smu,
 								  PP_OD_FEATURE_GFXCLK_FMAX,
@@ -2469,7 +2453,7 @@ static int smu_v14_0_2_od_edit_dpm_table(struct smu_context *smu,
 					return -EINVAL;
 				}
 
-				od_table->OverDriveTable.GfxclkFmax = input[i + 1];
+				od_table->OverDriveTable.GfxclkFoffset = input[i + 1];
 				od_table->OverDriveTable.FeatureCtrlMask |= 1U << PP_OD_FEATURE_GFXCLK_BIT;
 				break;
 
@@ -2480,13 +2464,6 @@ static int smu_v14_0_2_od_edit_dpm_table(struct smu_context *smu,
 			}
 		}
 
-		if (od_table->OverDriveTable.GfxclkFmin > od_table->OverDriveTable.GfxclkFmax) {
-			dev_err(adev->dev,
-				"Invalid setting: GfxclkFmin(%u) is bigger than GfxclkFmax(%u)\n",
-				(uint32_t)od_table->OverDriveTable.GfxclkFmin,
-				(uint32_t)od_table->OverDriveTable.GfxclkFmax);
-			return -EINVAL;
-		}
 		break;
 
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
