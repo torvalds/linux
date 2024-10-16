@@ -2882,11 +2882,6 @@ static void enable_iommus_vapic(void)
 #endif
 }
 
-static void enable_iommus(void)
-{
-	early_enable_iommus();
-}
-
 static void disable_iommus(void)
 {
 	struct amd_iommu *iommu;
@@ -2913,7 +2908,8 @@ static void amd_iommu_resume(void)
 		iommu_apply_resume_quirks(iommu);
 
 	/* re-load the hardware */
-	enable_iommus();
+	for_each_iommu(iommu)
+		early_enable_iommu(iommu);
 
 	amd_iommu_enable_interrupts();
 }
