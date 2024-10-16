@@ -271,6 +271,30 @@ test_topdown_leader_sampling() {
   echo "Topdown leader sampling test [Success]"
 }
 
+test_precise_max() {
+  echo "precise_max attribute test"
+  if ! perf stat -e "cycles,instructions" true 2> /dev/null
+  then
+    echo "precise_max attribute [Skipped no hardware events]"
+    return
+  fi
+  # Just to make sure it doesn't fail
+  if ! perf record -o "${perfdata}" -e "cycles:P" true 2> /dev/null
+  then
+    echo "precise_max attribute [Failed cycles:P event]"
+    err=1
+    return
+  fi
+  # On AMD, cycles and instructions events are treated differently
+  if ! perf record -o "${perfdata}" -e "instructions:P" true 2> /dev/null
+  then
+    echo "precise_max attribute [Failed instructions:P event]"
+    err=1
+    return
+  fi
+  echo "precise_max attribute test [Success]"
+}
+
 # raise the limit of file descriptors to minimum
 if [[ $default_fd_limit -lt $min_fd_limit ]]; then
        ulimit -Sn $min_fd_limit
@@ -284,6 +308,7 @@ test_branch_counter
 test_cgroup
 test_leader_sampling
 test_topdown_leader_sampling
+test_precise_max
 
 # restore the default value
 ulimit -Sn $default_fd_limit
