@@ -759,7 +759,6 @@ static int ni_usb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	if (!out_data)
 		return -ENOMEM;
 	out_data[i++] = 0x0d;
-	complement_count = length;
 	complement_count = length - 1;
 	complement_count = ~complement_count;
 	out_data[i++] = complement_count & 0xff;
