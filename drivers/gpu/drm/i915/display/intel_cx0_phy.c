@@ -2003,12 +2003,13 @@ intel_c10pll_tables_get(struct intel_crtc_state *crtc_state,
 static void intel_c10pll_update_pll(struct intel_crtc_state *crtc_state,
 				    struct intel_encoder *encoder)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_cx0pll_state *pll_state = &crtc_state->dpll_hw_state.cx0pll;
 	int i;
 
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
-		if (intel_panel_use_ssc(i915)) {
+		if (intel_panel_use_ssc(display)) {
 			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 			pll_state->ssc_enabled =

@@ -45,10 +45,8 @@
 #include "intel_quirks.h"
 #include "intel_vrr.h"
 
-bool intel_panel_use_ssc(struct drm_i915_private *i915)
+bool intel_panel_use_ssc(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
-
 	if (display->params.panel_use_ssc >= 0)
 		return display->params.panel_use_ssc != 0;
 	return display->vbt.lvds_use_ssc &&
@@ -252,7 +250,7 @@ int intel_panel_compute_config(struct intel_connector *connector,
 
 static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connector)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	const struct drm_display_mode *preferred_mode =
 		intel_panel_preferred_fixed_mode(connector);
 	struct drm_display_mode *mode, *next;
@@ -261,7 +259,7 @@ static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connect
 		if (!is_alt_fixed_mode(mode, preferred_mode))
 			continue;
 
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "[CONNECTOR:%d:%s] using alternate EDID fixed mode: " DRM_MODE_FMT "\n",
 			    connector->base.base.id, connector->base.name,
 			    DRM_MODE_ARG(mode));
@@ -272,7 +270,7 @@ static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connect
 
 static void intel_panel_add_edid_preferred_mode(struct intel_connector *connector)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct drm_display_mode *scan, *fixed_mode = NULL;
 
 	if (list_empty(&connector->base.probed_modes))
@@ -290,7 +288,7 @@ static void intel_panel_add_edid_preferred_mode(struct intel_connector *connecto
 		fixed_mode = list_first_entry(&connector->base.probed_modes,
 					      typeof(*fixed_mode), head);
 
-	drm_dbg_kms(&dev_priv->drm,
+	drm_dbg_kms(display->drm,
 		    "[CONNECTOR:%d:%s] using %s EDID fixed mode: " DRM_MODE_FMT "\n",
 		    connector->base.base.id, connector->base.name,
 		    fixed_mode->type & DRM_MODE_TYPE_PREFERRED ? "preferred" : "first",
@@ -303,16 +301,16 @@ static void intel_panel_add_edid_preferred_mode(struct intel_connector *connecto
 
 static void intel_panel_destroy_probed_modes(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct drm_display_mode *mode, *next;
 
 	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "[CONNECTOR:%d:%s] not using EDID mode: " DRM_MODE_FMT "\n",
 			    connector->base.base.id, connector->base.name,
 			    DRM_MODE_ARG(mode));
 		list_del(&mode->head);
-		drm_mode_destroy(&i915->drm, mode);
+		drm_mode_destroy(display->drm, mode);
 	}
 }
 
@@ -329,7 +327,7 @@ static void intel_panel_add_fixed_mode(struct intel_connector *connector,
 				       struct drm_display_mode *fixed_mode,
 				       const char *type)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct drm_display_info *info = &connector->base.display_info;
 
 	if (!fixed_mode)
@@ -340,7 +338,7 @@ static void intel_panel_add_fixed_mode(struct intel_connector *connector,
 	info->width_mm = fixed_mode->width_mm;
 	info->height_mm = fixed_mode->height_mm;
 
-	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] using %s fixed mode: " DRM_MODE_FMT "\n",
+	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s] using %s fixed mode: " DRM_MODE_FMT "\n",
 		    connector->base.base.id, connector->base.name, type,
 		    DRM_MODE_ARG(fixed_mode));
 
@@ -349,7 +347,7 @@ static void intel_panel_add_fixed_mode(struct intel_connector *connector,
 
 void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	const struct drm_display_mode *mode;
 
 	mode = connector->panel.vbt.lfp_vbt_mode;
@@ -357,13 +355,13 @@ void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
 		return;
 
 	intel_panel_add_fixed_mode(connector,
-				   drm_mode_duplicate(&i915->drm, mode),
+				   drm_mode_duplicate(display->drm, mode),
 				   "VBT LFP");
 }
 
 void intel_panel_add_vbt_sdvo_fixed_mode(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	const struct drm_display_mode *mode;
 
 	mode = connector->panel.vbt.sdvo_lvds_vbt_mode;
@@ -371,7 +369,7 @@ void intel_panel_add_vbt_sdvo_fixed_mode(struct intel_connector *connector)
 		return;
 
 	intel_panel_add_fixed_mode(connector,
-				   drm_mode_duplicate(&i915->drm, mode),
+				   drm_mode_duplicate(display->drm, mode),
 				   "VBT SDVO");
 }
 
@@ -819,7 +817,6 @@ static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	int pipe_src_w = drm_rect_width(&crtc_state->pipe_src);
@@ -861,7 +858,7 @@ static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 		break;
 	case DRM_MODE_SCALE_ASPECT:
 		/* Scale but preserve the aspect ratio */
-		if (DISPLAY_VER(dev_priv) >= 4)
+		if (DISPLAY_VER(display) >= 4)
 			i965_scale_aspect(crtc_state, &pfit_control);
 		else
 			i9xx_scale_aspect(crtc_state, &pfit_control,
@@ -875,7 +872,7 @@ static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 		if (pipe_src_h != adjusted_mode->crtc_vdisplay ||
 		    pipe_src_w != adjusted_mode->crtc_hdisplay) {
 			pfit_control |= PFIT_ENABLE;
-			if (DISPLAY_VER(dev_priv) >= 4)
+			if (DISPLAY_VER(display) >= 4)
 				pfit_control |= PFIT_SCALING_AUTO;
 			else
 				pfit_control |= (PFIT_VERT_AUTO_SCALE |
@@ -891,7 +888,7 @@ static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 
 	/* 965+ wants fuzzy fitting */
 	/* FIXME: handle multiple panels by failing gracefully */
-	if (DISPLAY_VER(dev_priv) >= 4)
+	if (DISPLAY_VER(display) >= 4)
 		pfit_control |= PFIT_PIPE(crtc->pipe) | PFIT_FILTER_FUZZY;
 
 out:
@@ -901,7 +898,7 @@ out:
 	}
 
 	/* Make sure pre-965 set dither correctly for 18bpp panels. */
-	if (DISPLAY_VER(dev_priv) < 4 && crtc_state->pipe_bpp == 18)
+	if (DISPLAY_VER(display) < 4 && crtc_state->pipe_bpp == 18)
 		pfit_control |= PFIT_PANEL_8TO6_DITHER_ENABLE;
 
 	crtc_state->gmch_pfit.control = pfit_control;
@@ -917,10 +914,9 @@ out:
 int intel_panel_fitting(struct intel_crtc_state *crtc_state,
 			const struct drm_connector_state *conn_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (HAS_GMCH(i915))
+	if (HAS_GMCH(display))
 		return gmch_panel_fitting(crtc_state, conn_state);
 	else
 		return pch_panel_fitting(crtc_state, conn_state);
