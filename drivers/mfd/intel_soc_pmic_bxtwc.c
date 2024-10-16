@@ -434,15 +434,15 @@ static int bxtwc_add_chained_irq_chip(struct intel_soc_pmic *pmic,
 				const struct regmap_irq_chip *chip,
 				struct regmap_irq_chip_data **data)
 {
+	struct device *dev = pmic->dev;
 	int irq;
 
 	irq = regmap_irq_get_virq(pdata, pirq);
 	if (irq < 0)
-		return dev_err_probe(pmic->dev, irq, "Failed to get parent vIRQ(%d) for chip %s\n",
+		return dev_err_probe(dev, irq, "Failed to get parent vIRQ(%d) for chip %s\n",
 				     pirq, chip->name);
 
-	return devm_regmap_add_irq_chip(pmic->dev, pmic->regmap, irq, irq_flags,
-					0, chip, data);
+	return devm_regmap_add_irq_chip(dev, pmic->regmap, irq, irq_flags, 0, chip, data);
 }
 
 static int bxtwc_add_chained_devices(struct intel_soc_pmic *pmic,
