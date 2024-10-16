@@ -435,14 +435,18 @@ static int bxtwc_add_chained_irq_chip(struct intel_soc_pmic *pmic,
 				struct regmap_irq_chip_data **data)
 {
 	struct device *dev = pmic->dev;
-	int irq;
+	int irq, ret;
 
 	irq = regmap_irq_get_virq(pdata, pirq);
 	if (irq < 0)
 		return dev_err_probe(dev, irq, "Failed to get parent vIRQ(%d) for chip %s\n",
 				     pirq, chip->name);
 
-	return devm_regmap_add_irq_chip(dev, pmic->regmap, irq, irq_flags, 0, chip, data);
+	ret = devm_regmap_add_irq_chip(dev, pmic->regmap, irq, irq_flags, 0, chip, data);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to add %s IRQ chip\n", chip->name);
+
+	return 0;
 }
 
 static int bxtwc_add_chained_devices(struct intel_soc_pmic *pmic,
@@ -458,7 +462,7 @@ static int bxtwc_add_chained_devices(struct intel_soc_pmic *pmic,
 
 	ret = bxtwc_add_chained_irq_chip(pmic, pdata, pirq, irq_flags, chip, data);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to add %s IRQ chip\n", chip->name);
+		return ret;
 
 	domain = regmap_irq_get_domain(*data);
 
@@ -521,7 +525,7 @@ static int bxtwc_probe(struct platform_device *pdev)
 					 &bxtwc_regmap_irq_chip_pwrbtn,
 					 &pmic->irq_chip_data_pwrbtn);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to add PWRBTN IRQ chip\n");
+		return ret;
 
 	ret = bxtwc_add_chained_devices(pmic, bxt_wc_bcu_dev, ARRAY_SIZE(bxt_wc_bcu_dev),
 					pmic->irq_chip_data,
@@ -557,7 +561,7 @@ static int bxtwc_probe(struct platform_device *pdev)
 					 &bxtwc_regmap_irq_chip_crit,
 					 &pmic->irq_chip_data_crit);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to add CRIT IRQ chip\n");
+		return ret;
 
 	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, bxt_wc_dev, ARRAY_SIZE(bxt_wc_dev),
 				   NULL, 0, NULL);
