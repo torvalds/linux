@@ -34,6 +34,7 @@ config GPIB_COMMON
 
 config GPIB_AGILENT_82350B
 	tristate "Agilent 8235xx PCI(e) adapters"
+	depends on PCI
 	select GPIB_COMMON
 	select GPIB_TMS9914
 	help
@@ -57,6 +58,8 @@ config GPIB_AGILENT_82357A
 
 config GPIB_CEC_PCI
 	tristate "CEC PCI board"
+	depends on PCI
+	depends on HAS_IOPORT
 	select GPIB_COMMON
 	select GPIB_NEC7210
 	help
@@ -68,6 +71,7 @@ config GPIB_CEC_PCI
 
 config GPIB_NI_PCI_ISA
 	tristate "NI PCI/ISA compatible boards"
+	depends on ISA_BUS
 	select GPIB_COMMON
 	select GPIB_NEC7210
 	help
@@ -89,6 +93,8 @@ config GPIB_NI_PCI_ISA
 
 config GPIB_CB7210
        tristate "Measurement Computing compatible boards"
+	depends on HAS_IOPORT
+	depends on ISA_BUS || PCI || PCMCIA
        select GPIB_COMMON
        help
        Enable support for Measurement Computing (Computer Boards):
@@ -118,6 +124,7 @@ config GPIB_NI_USB
 
 config GPIB_FLUKE
        tristate "Fluke"
+	depends on OF
        select GPIB_COMMON
        select GPIB_NEC7210
        help
@@ -140,6 +147,7 @@ config GPIB_FMH
 
 config GPIB_GPIO
        tristate "RPi GPIO bitbang"
+	depends on ARCH_BCM2835 || COMPIlE_TEST
        select GPIB_COMMON
        help
          GPIB bitbang driver Raspberry Pi GPIO adapters
@@ -149,6 +157,7 @@ config GPIB_GPIO
 
 config GPIB_HP82335
        tristate "HP82335/HP27209"
+	depends on ISA_BUS
        select GPIB_COMMON
        select GPIB_TMS9914
        help
@@ -172,6 +181,8 @@ config GPIB_HP82341
 
 config GPIB_INES
        tristate "INES"
+	depends on PCI || ISA_BUS || PCMCIA
+	depends on HAS_IOPORT
        select GPIB_COMMON
        select GPIB_NEC7210
        help
@@ -210,6 +221,8 @@ config GPIB_LPVO
 
 config GPIB_PC2
        tristate "PC2 PC2a"
+	depends on ISA_BUS
+	depends on HAS_IOPORT
        select GPIB_COMMON
        select GPIB_NEC7210
        help
@@ -227,7 +240,7 @@ config GPIB_PC2
 
 
 config GPIB_TMS9914
-       tristate "TMS 9914 GPIB Chip driver"
+       tristate
        select GPIB_COMMON
        help
          Enable support for TMS 9914 chip.
@@ -236,7 +249,7 @@ config GPIB_TMS9914
 	 called tms9914
 
 config GPIB_NEC7210
-       tristate "NEC 7210 GPIB Chip driver"
+       tristate
        select GPIB_COMMON
        help
          Enable support for NEC 7210 compatible chips.
