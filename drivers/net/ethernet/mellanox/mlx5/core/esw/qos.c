@@ -742,7 +742,7 @@ static int esw_qos_vport_enable(struct mlx5_vport *vport,
 	int err;
 
 	esw_assert_qos_lock_held(esw);
-	if (vport->qos.enabled)
+	if (vport->qos.sched_node)
 		return 0;
 
 	err = esw_qos_get(esw, extack);
@@ -761,7 +761,6 @@ static int esw_qos_vport_enable(struct mlx5_vport *vport,
 		goto err_alloc;
 	}
 
-	vport->qos.enabled = true;
 	vport->qos.sched_node->vport = vport;
 
 	trace_mlx5_esw_vport_qos_create(vport->dev, vport, bw_share, max_rate);
@@ -787,9 +786,9 @@ void mlx5_esw_qos_vport_disable(struct mlx5_vport *vport)
 
 	lockdep_assert_held(&esw->state_lock);
 	esw_qos_lock(esw);
-	if (!vport->qos.enabled)
-		goto unlock;
 	vport_node = vport->qos.sched_node;
+	if (!vport_node)
+		goto unlock;
 	WARN(vport_node->parent != esw->qos.node0,
 	     "Disabling QoS on port before detaching it from node");
 
@@ -836,7 +835,7 @@ bool mlx5_esw_qos_get_vport_rate(struct mlx5_vport *vport, u32 *max_rate, u32 *m
 	bool enabled;
 
 	esw_qos_lock(esw);
-	enabled = vport->qos.enabled;
+	enabled = !!vport->qos.sched_node;
 	if (enabled) {
 		*max_rate = vport->qos.sched_node->max_rate;
 		*min_rate = vport->qos.sched_node->min_rate;
@@ -933,7 +932,7 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 	}
 
 	esw_qos_lock(esw);
-	if (!vport->qos.enabled) {
+	if (!vport->qos.sched_node) {
 		/* Eswitch QoS wasn't enabled yet. Enable it and vport QoS. */
 		err = esw_qos_vport_enable(vport, rate_mbps, 0, NULL);
 	} else {
@@ -1142,7 +1141,7 @@ int mlx5_esw_qos_vport_update_node(struct mlx5_vport *vport,
 	}
 
 	esw_qos_lock(esw);
-	if (!vport->qos.enabled && !node)
+	if (!vport->qos.sched_node && !node)
 		goto unlock;
 
 	err = esw_qos_vport_enable(vport, 0, 0, extack);

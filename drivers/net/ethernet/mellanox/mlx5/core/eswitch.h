@@ -214,8 +214,6 @@ struct mlx5_vport {
 
 	/* Protected with the E-Switch qos domain lock. */
 	struct {
-		/* Initially false, set to true whenever any QoS features are used. */
-		bool enabled;
 		/* Vport scheduling element node. */
 		struct mlx5_esw_sched_node *sched_node;
 	} qos;
