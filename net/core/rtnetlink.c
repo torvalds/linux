@@ -3622,6 +3622,7 @@ out_unregister:
 
 struct rtnl_newlink_tbs {
 	struct nlattr *tb[IFLA_MAX + 1];
+	struct nlattr *linkinfo[IFLA_INFO_MAX + 1];
 	struct nlattr *attr[RTNL_MAX_TYPE + 1];
 	struct nlattr *slave_attr[RTNL_SLAVE_MAX_TYPE + 1];
 };
@@ -3630,7 +3631,7 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct rtnl_newlink_tbs *tbs,
 			  struct netlink_ext_ack *extack)
 {
-	struct nlattr *linkinfo[IFLA_INFO_MAX + 1];
+	struct nlattr ** const linkinfo = tbs->linkinfo;
 	struct nlattr ** const tb = tbs->tb;
 	const struct rtnl_link_ops *m_ops;
 	struct net_device *master_dev;
@@ -3685,8 +3686,9 @@ replay:
 						  ifla_info_policy, NULL);
 		if (err < 0)
 			return err;
-	} else
-		memset(linkinfo, 0, sizeof(linkinfo));
+	} else {
+		memset(linkinfo, 0, sizeof(tbs->linkinfo));
+	}
 
 	if (linkinfo[IFLA_INFO_KIND]) {
 		nla_strscpy(kind, linkinfo[IFLA_INFO_KIND], sizeof(kind));
