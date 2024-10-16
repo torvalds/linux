@@ -11342,18 +11342,17 @@ static int tg3_request_irq(struct tg3 *tp, int irq_num)
 	else {
 		name = &tnapi->irq_lbl[0];
 		if (tnapi->tx_buffers && tnapi->rx_rcb)
-			snprintf(name, IFNAMSIZ,
+			snprintf(name, sizeof(tnapi->irq_lbl),
 				 "%s-txrx-%d", tp->dev->name, irq_num);
 		else if (tnapi->tx_buffers)
-			snprintf(name, IFNAMSIZ,
+			snprintf(name, sizeof(tnapi->irq_lbl),
 				 "%s-tx-%d", tp->dev->name, irq_num);
 		else if (tnapi->rx_rcb)
-			snprintf(name, IFNAMSIZ,
+			snprintf(name, sizeof(tnapi->irq_lbl),
 				 "%s-rx-%d", tp->dev->name, irq_num);
 		else
-			snprintf(name, IFNAMSIZ,
+			snprintf(name, sizeof(tnapi->irq_lbl),
 				 "%s-%d", tp->dev->name, irq_num);
-		name[IFNAMSIZ-1] = 0;
 	}
 
 	if (tg3_flag(tp, USING_MSI) || tg3_flag(tp, USING_MSIX)) {
