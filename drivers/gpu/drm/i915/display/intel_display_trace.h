@@ -23,6 +23,21 @@
 #define __dev_name_display(display) dev_name((display)->drm->dev)
 #define __dev_name_kms(obj) dev_name((obj)->base.dev->dev)
 
+/*
+ * Using identifiers from enum pipe in TP_printk() will confuse tools that
+ * parse /sys/kernel/debug/tracing/{xe,i915}/<event>/format. So we use CPP
+ * macros instead.
+ */
+#define _TRACE_PIPE_A	0
+#define _TRACE_PIPE_B	1
+#define _TRACE_PIPE_C	2
+
+/*
+ * Paranoid sanity check that at least the enumeration starts at the
+ * same value as _TRACE_PIPE_A.
+ */
+static_assert(PIPE_A == _TRACE_PIPE_A);
+
 TRACE_EVENT(intel_pipe_enable,
 	    TP_PROTO(struct intel_crtc *crtc),
 	    TP_ARGS(crtc),
@@ -50,9 +65,9 @@ TRACE_EVENT(intel_pipe_enable,
 
 	    TP_printk("dev %s, pipe %c enable, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
 		      __get_str(dev), __entry->pipe_name,
-		      __entry->frame[PIPE_A], __entry->scanline[PIPE_A],
-		      __entry->frame[PIPE_B], __entry->scanline[PIPE_B],
-		      __entry->frame[PIPE_C], __entry->scanline[PIPE_C])
+		      __entry->frame[_TRACE_PIPE_A], __entry->scanline[_TRACE_PIPE_A],
+		      __entry->frame[_TRACE_PIPE_B], __entry->scanline[_TRACE_PIPE_B],
+		      __entry->frame[_TRACE_PIPE_C], __entry->scanline[_TRACE_PIPE_C])
 );
 
 TRACE_EVENT(intel_pipe_disable,
@@ -83,9 +98,9 @@ TRACE_EVENT(intel_pipe_disable,
 
 	    TP_printk("dev %s, pipe %c disable, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
 		      __get_str(dev), __entry->pipe_name,
-		      __entry->frame[PIPE_A], __entry->scanline[PIPE_A],
-		      __entry->frame[PIPE_B], __entry->scanline[PIPE_B],
-		      __entry->frame[PIPE_C], __entry->scanline[PIPE_C])
+		      __entry->frame[_TRACE_PIPE_A], __entry->scanline[_TRACE_PIPE_A],
+		      __entry->frame[_TRACE_PIPE_B], __entry->scanline[_TRACE_PIPE_B],
+		      __entry->frame[_TRACE_PIPE_C], __entry->scanline[_TRACE_PIPE_C])
 );
 
 TRACE_EVENT(intel_crtc_flip_done,
@@ -217,9 +232,9 @@ TRACE_EVENT(intel_memory_cxsr,
 
 	    TP_printk("dev %s, cxsr %s->%s, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
 		      __get_str(dev), str_on_off(__entry->old), str_on_off(__entry->new),
-		      __entry->frame[PIPE_A], __entry->scanline[PIPE_A],
-		      __entry->frame[PIPE_B], __entry->scanline[PIPE_B],
-		      __entry->frame[PIPE_C], __entry->scanline[PIPE_C])
+		      __entry->frame[_TRACE_PIPE_A], __entry->scanline[_TRACE_PIPE_A],
+		      __entry->frame[_TRACE_PIPE_B], __entry->scanline[_TRACE_PIPE_B],
+		      __entry->frame[_TRACE_PIPE_C], __entry->scanline[_TRACE_PIPE_C])
 );
 
 TRACE_EVENT(g4x_wm,
