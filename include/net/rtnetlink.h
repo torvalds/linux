@@ -3,6 +3,7 @@
 #define __NET_RTNETLINK_H
 
 #include <linux/rtnetlink.h>
+#include <linux/srcu.h>
 #include <net/netlink.h>
 
 typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *,
@@ -69,7 +70,8 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
 /**
  *	struct rtnl_link_ops - rtnetlink link operations
  *
- *	@list: Used internally
+ *	@list: Used internally, protected by RTNL and SRCU
+ *	@srcu: Used internally
  *	@kind: Identifier
  *	@netns_refund: Physical device, move to init_net on netns exit
  *	@maxtype: Highest device specific netlink attribute number
@@ -100,6 +102,7 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
  */
 struct rtnl_link_ops {
 	struct list_head	list;
+	struct srcu_struct	srcu;
 
 	const char		*kind;
 
