@@ -220,6 +220,7 @@ struct typec_cable_desc {
  * @accessory: Audio, Debug or none.
  * @identity: Discover Identity command data
  * @pd_revision: USB Power Delivery Specification Revision if supported
+ * @usb_capability: Supported USB Modes
  * @attach: Notification about attached USB device
  * @deattach: Notification about removed USB device
  *
@@ -237,6 +238,7 @@ struct typec_partner_desc {
 	enum typec_accessory	accessory;
 	struct usb_pd_identity	*identity;
 	u16			pd_revision; /* 0300H = "3.0" */
+	u8			usb_capability;
 
 	void (*attach)(struct typec_partner *partner, struct device *dev);
 	void (*deattach)(struct typec_partner *partner, struct device *dev);
@@ -252,6 +254,7 @@ struct typec_partner_desc {
  * @pd_get: Get available USB Power Delivery Capabilities.
  * @pd_set: Set USB Power Delivery Capabilities.
  * @default_usb_mode_set: USB Mode to be used by default with Enter_USB Message
+ * @enter_usb_mode: Change the active USB Mode
  */
 struct typec_operations {
 	int (*try_role)(struct typec_port *port, int role);
@@ -263,6 +266,7 @@ struct typec_operations {
 	struct usb_power_delivery **(*pd_get)(struct typec_port *port);
 	int (*pd_set)(struct typec_port *port, struct usb_power_delivery *pd);
 	int (*default_usb_mode_set)(struct typec_port *port, enum usb_mode mode);
+	int (*enter_usb_mode)(struct typec_port *port, enum usb_mode mode);
 };
 
 enum usb_pd_svdm_ver {
@@ -365,6 +369,7 @@ int typec_port_set_usb_power_delivery(struct typec_port *port, struct usb_power_
 int typec_partner_set_usb_power_delivery(struct typec_partner *partner,
 					 struct usb_power_delivery *pd);
 
+void typec_partner_set_usb_mode(struct typec_partner *partner, enum usb_mode usb_mode);
 void typec_port_set_usb_mode(struct typec_port *port, enum usb_mode mode);
 
 /**

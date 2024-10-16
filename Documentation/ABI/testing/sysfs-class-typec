@@ -233,6 +233,20 @@ Description:
 		directory exists, it will have an attribute file for every VDO
 		in Discover Identity command result.
 
+What:		/sys/class/typec/<port>-partner/usb_mode
+Date:		November 2024
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:	The USB Modes that the partner device supports. The active mode
+		is displayed in brackets. The active USB mode can be changed by
+		writing to this file when the port driver is able to send Data
+		Reset Message to the partner. That requires USB Power Delivery
+		contract between the partner and the port.
+
+		Valid values:
+		- usb2 (USB 2.0)
+		- usb3 (USB 3.2)
+		- usb4 (USB4)
+
 USB Type-C cable devices (eg. /sys/class/typec/port0-cable/)
 
 Note: Electronically Marked Cables will have a device also for one cable plug
