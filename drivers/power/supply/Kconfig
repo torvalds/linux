@@ -493,6 +493,16 @@ config CHARGER_TWL4030
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
+config CHARGER_TWL6030
+	tristate "OMAP TWL6030 BCI charger driver"
+	depends on IIO && TWL4030_CORE
+	help
+	  Say Y here to enable support for TWL6030/6032 Battery Charge
+	  Interface.
+
+	  This driver can be build as a module. If so, the module will be
+	  called twl6030_charger.
+
 config CHARGER_LP8727
 	tristate "TI/National Semiconductor LP8727 charger driver"
 	depends on I2C
