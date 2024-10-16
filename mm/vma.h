@@ -241,15 +241,9 @@ static inline void vms_abort_munmap_vmas(struct vma_munmap_struct *vms,
 	 * failure method of leaving a gap where the MAP_FIXED mapping failed.
 	 */
 	mas_set_range(mas, vms->start, vms->end - 1);
-	if (unlikely(mas_store_gfp(mas, NULL, GFP_KERNEL))) {
-		pr_warn_once("%s: (%d) Unable to abort munmap() operation\n",
-			     current->comm, current->pid);
-		/* Leaving vmas detached and in-tree may hamper recovery */
-		reattach_vmas(mas_detach);
-	} else {
-		/* Clean up the insertion of the unfortunate gap */
-		vms_complete_munmap_vmas(vms, mas_detach);
-	}
+	mas_store_gfp(mas, NULL, GFP_KERNEL|__GFP_NOFAIL);
+	/* Clean up the insertion of the unfortunate gap */
+	vms_complete_munmap_vmas(vms, mas_detach);
 }
 
 int
