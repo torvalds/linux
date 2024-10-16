@@ -40,6 +40,7 @@ properties:
           - fsl,p1021-memory-controller
           - fsl,p2020-memory-controller
           - fsl,qoriq-memory-controller
+          - nxp,imx9-memory-controller
 
   interrupts:
     maxItems: 1
@@ -51,12 +52,40 @@ properties:
     type: boolean
 
   reg:
-    maxItems: 1
+    items:
+      - description: Controller register space
+      - description: Inject register space
+    minItems: 1
+
+  reg-names:
+    items:
+      - const: ctrl
+      - const: inject
+    minItems: 1
 
 required:
   - compatible
   - interrupts
   - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nxp,imx9-memory-controller
+    then:
+      properties:
+        reg:
+          minItems: 2
+        reg-names:
+          minItems: 2
+    else:
+      properties:
+        reg:
+          maxItems: 1
+        reg-names: false
 
 additionalProperties: false
 
