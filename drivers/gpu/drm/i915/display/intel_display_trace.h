@@ -9,6 +9,7 @@
 #if !defined(__INTEL_DISPLAY_TRACE_H__) || defined(TRACE_HEADER_MULTI_READ)
 #define __INTEL_DISPLAY_TRACE_H__
 
+#include <linux/string.h>
 #include <linux/string_helpers.h>
 #include <linux/types.h>
 #include <linux/tracepoint.h>
@@ -36,6 +37,10 @@ TRACE_EVENT(intel_pipe_enable,
 			   struct intel_display *display = to_intel_display(crtc);
 			   struct intel_crtc *it__;
 			   __assign_str(dev);
+			   memset(__entry->frame, 0,
+				  sizeof(__entry->frame[0]) * I915_MAX_PIPES);
+			   memset(__entry->scanline, 0,
+				  sizeof(__entry->scanline[0]) * I915_MAX_PIPES);
 			   for_each_intel_crtc(display->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
@@ -65,6 +70,10 @@ TRACE_EVENT(intel_pipe_disable,
 			   struct intel_display *display = to_intel_display(crtc);
 			   struct intel_crtc *it__;
 			   __assign_str(dev);
+			   memset(__entry->frame, 0,
+				  sizeof(__entry->frame[0]) * I915_MAX_PIPES);
+			   memset(__entry->scanline, 0,
+				  sizeof(__entry->scanline[0]) * I915_MAX_PIPES);
 			   for_each_intel_crtc(display->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
@@ -194,6 +203,10 @@ TRACE_EVENT(intel_memory_cxsr,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc;
 			   __assign_str(dev);
+			   memset(__entry->frame, 0,
+				  sizeof(__entry->frame[0]) * I915_MAX_PIPES);
+			   memset(__entry->scanline, 0,
+				  sizeof(__entry->scanline[0]) * I915_MAX_PIPES);
 			   for_each_intel_crtc(display->drm, crtc) {
 				   __entry->frame[crtc->pipe] = intel_crtc_get_vblank_counter(crtc);
 				   __entry->scanline[crtc->pipe] = intel_get_crtc_scanline(crtc);
