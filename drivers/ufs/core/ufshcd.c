@@ -10344,8 +10344,25 @@ static int ufshcd_add_scsi_host(struct ufs_hba *hba)
 {
 	int err;
 
-	if (!hba->scsi_host_added) {
-		WARN_ON_ONCE(is_mcq_supported(hba));
+	if (is_mcq_supported(hba)) {
+		ufshcd_mcq_enable(hba);
+		err = ufshcd_alloc_mcq(hba);
+		if (!err) {
+			ufshcd_config_mcq(hba);
+		} else {
+			/* Continue with SDB mode */
+			ufshcd_mcq_disable(hba);
+			use_mcq_mode = false;
+			dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
+				err);
+		}
+		err = scsi_add_host(hba->host, hba->dev);
+		if (err) {
+			dev_err(hba->dev, "scsi_add_host failed\n");
+			return err;
+		}
+		hba->scsi_host_added = true;
+	} else {
 		if (!hba->lsdb_sup) {
 			dev_err(hba->dev,
 				"%s: failed to initialize (legacy doorbell mode not supported)\n",
@@ -10605,26 +10622,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	err = ufshcd_device_params_init(hba);
 	if (err)
 		goto out_disable;
-
-	if (is_mcq_supported(hba)) {
-		ufshcd_mcq_enable(hba);
-		err = ufshcd_alloc_mcq(hba);
-		if (!err) {
-			ufshcd_config_mcq(hba);
-		} else {
-			/* Continue with SDB mode */
-			ufshcd_mcq_disable(hba);
-			use_mcq_mode = false;
-			dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
-				err);
-		}
-		err = scsi_add_host(host, hba->dev);
-		if (err) {
-			dev_err(hba->dev, "scsi_add_host failed\n");
-			goto out_disable;
-		}
-		hba->scsi_host_added = true;
-	}
 
 	err = ufshcd_post_device_init(hba);
 
