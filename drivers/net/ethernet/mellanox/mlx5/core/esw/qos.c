@@ -168,45 +168,18 @@ static int esw_qos_sched_elem_config(struct mlx5_esw_sched_node *node, u32 max_r
 	return 0;
 }
 
-static u32 esw_qos_calculate_node_min_rate_divider(struct mlx5_esw_sched_node *node)
+static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw,
+					      struct mlx5_esw_sched_node *parent)
 {
-	u32 fw_max_bw_share = MLX5_CAP_QOS(node->esw->dev, max_tsar_bw_share);
-	struct mlx5_esw_sched_node *vport_node;
-	u32 max_guarantee = 0;
-
-	/* Find max min_rate across all vports in this node.
-	 * This will correspond to fw_max_bw_share in the final bw_share calculation.
-	 */
-	list_for_each_entry(vport_node, &node->children, entry) {
-		if (vport_node->min_rate > max_guarantee)
-			max_guarantee = vport_node->min_rate;
-	}
-
-	if (max_guarantee)
-		return max_t(u32, max_guarantee / fw_max_bw_share, 1);
-
-	/* If vports max min_rate divider is 0 but their node has bw_share
-	 * configured, then set bw_share for vports to minimal value.
-	 */
-	if (node->bw_share)
-		return 1;
-
-	/* A divider of 0 sets bw_share for all node vports to 0,
-	 * effectively disabling min guarantees.
-	 */
-	return 0;
-}
-
-static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw)
-{
+	struct list_head *nodes = parent ? &parent->children : &esw->qos.domain->nodes;
 	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
 	struct mlx5_esw_sched_node *node;
 	u32 max_guarantee = 0;
 
-	/* Find max min_rate across all esw nodes.
+	/* Find max min_rate across all nodes.
 	 * This will correspond to fw_max_bw_share in the final bw_share calculation.
 	 */
-	list_for_each_entry(node, &esw->qos.domain->nodes, entry) {
+	list_for_each_entry(node, nodes, entry) {
 		if (node->esw == esw && node->ix != esw->qos.root_tsar_ix &&
 		    node->min_rate > max_guarantee)
 			max_guarantee = node->min_rate;
@@ -215,7 +188,14 @@ static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw)
 	if (max_guarantee)
 		return max_t(u32, max_guarantee / fw_max_bw_share, 1);
 
-	/* If no node has min_rate configured, a divider of 0 sets all
+	/* If nodes max min_rate divider is 0 but their parent has bw_share
+	 * configured, then set bw_share for nodes to minimal value.
+	 */
+
+	if (parent && parent->bw_share)
+		return 1;
+
+	/* If the node nodes has min_rate configured, a divider of 0 sets all
 	 * nodes' bw_share to 0, effectively disabling min guarantees.
 	 */
 	return 0;
@@ -228,59 +208,50 @@ static u32 esw_qos_calc_bw_share(u32 min_rate, u32 divider, u32 fw_max)
 	return min_t(u32, max_t(u32, DIV_ROUND_UP(min_rate, divider), MLX5_MIN_BW_SHARE), fw_max);
 }
 
-static int esw_qos_normalize_node_min_rate(struct mlx5_esw_sched_node *node,
-					   struct netlink_ext_ack *extack)
+static int esw_qos_update_sched_node_bw_share(struct mlx5_esw_sched_node *node,
+					      u32 divider,
+					      struct netlink_ext_ack *extack)
 {
 	u32 fw_max_bw_share = MLX5_CAP_QOS(node->esw->dev, max_tsar_bw_share);
-	u32 divider = esw_qos_calculate_node_min_rate_divider(node);
-	struct mlx5_esw_sched_node *vport_node;
 	u32 bw_share;
 	int err;
 
-	list_for_each_entry(vport_node, &node->children, entry) {
-		bw_share = esw_qos_calc_bw_share(vport_node->min_rate, divider, fw_max_bw_share);
+	bw_share = esw_qos_calc_bw_share(node->min_rate, divider, fw_max_bw_share);
 
-		if (bw_share == vport_node->bw_share)
-			continue;
+	if (bw_share == node->bw_share)
+		return 0;
 
-		err = esw_qos_sched_elem_config(vport_node, vport_node->max_rate, bw_share, extack);
-		if (err)
-			return err;
+	err = esw_qos_sched_elem_config(node, node->max_rate, bw_share, extack);
+	if (err)
+		return err;
 
-		vport_node->bw_share = bw_share;
-	}
+	node->bw_share = bw_share;
 
-	return 0;
+	return err;
 }
 
-static int esw_qos_normalize_min_rate(struct mlx5_eswitch *esw, struct netlink_ext_ack *extack)
+static int esw_qos_normalize_min_rate(struct mlx5_eswitch *esw,
+				      struct mlx5_esw_sched_node *parent,
+				      struct netlink_ext_ack *extack)
 {
-	u32 fw_max_bw_share = MLX5_CAP_QOS(esw->dev, max_tsar_bw_share);
-	u32 divider = esw_qos_calculate_min_rate_divider(esw);
+	struct list_head *nodes = parent ? &parent->children : &esw->qos.domain->nodes;
+	u32 divider = esw_qos_calculate_min_rate_divider(esw, parent);
 	struct mlx5_esw_sched_node *node;
-	u32 bw_share;
-	int err;
 
-	list_for_each_entry(node, &esw->qos.domain->nodes, entry) {
+	list_for_each_entry(node, nodes, entry) {
+		int err;
+
 		if (node->esw != esw || node->ix == esw->qos.root_tsar_ix)
 			continue;
-		bw_share = esw_qos_calc_bw_share(node->min_rate, divider,
-						 fw_max_bw_share);
 
-		if (bw_share == node->bw_share)
-			continue;
-
-		err = esw_qos_sched_elem_config(node, node->max_rate, bw_share, extack);
+		err = esw_qos_update_sched_node_bw_share(node, divider, extack);
 		if (err)
 			return err;
 
-		node->bw_share = bw_share;
+		if (list_empty(&node->children))
+			continue;
 
-		/* All the node's vports need to be set with default bw_share
-		 * to enable them with QOS
-		 */
-		err = esw_qos_normalize_node_min_rate(node, extack);
-
+		err = esw_qos_normalize_min_rate(node->esw, node, extack);
 		if (err)
 			return err;
 	}
@@ -307,7 +278,7 @@ static int esw_qos_set_vport_min_rate(struct mlx5_vport *vport,
 
 	previous_min_rate = vport_node->min_rate;
 	vport_node->min_rate = min_rate;
-	err = esw_qos_normalize_node_min_rate(vport_node->parent, extack);
+	err = esw_qos_normalize_min_rate(vport_node->parent->esw, vport_node->parent, extack);
 	if (err)
 		vport_node->min_rate = previous_min_rate;
 
@@ -357,13 +328,13 @@ static int esw_qos_set_node_min_rate(struct mlx5_esw_sched_node *node,
 
 	previous_min_rate = node->min_rate;
 	node->min_rate = min_rate;
-	err = esw_qos_normalize_min_rate(esw, extack);
+	err = esw_qos_normalize_min_rate(esw, NULL, extack);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch node min rate setting failed");
 
 		/* Attempt restoring previous configuration */
 		node->min_rate = previous_min_rate;
-		if (esw_qos_normalize_min_rate(esw, extack))
+		if (esw_qos_normalize_min_rate(esw, NULL, extack))
 			NL_SET_ERR_MSG_MOD(extack, "E-Switch BW share restore failed");
 	}
 
@@ -525,8 +496,8 @@ static int esw_qos_vport_update_node(struct mlx5_vport *vport,
 
 	/* Recalculate bw share weights of old and new nodes */
 	if (vport_node->bw_share || new_node->bw_share) {
-		esw_qos_normalize_node_min_rate(curr_node, extack);
-		esw_qos_normalize_node_min_rate(new_node, extack);
+		esw_qos_normalize_min_rate(curr_node->esw, curr_node, extack);
+		esw_qos_normalize_min_rate(new_node->esw, new_node, extack);
 	}
 
 	return 0;
@@ -581,7 +552,7 @@ __esw_qos_create_vports_sched_node(struct mlx5_eswitch *esw, struct mlx5_esw_sch
 		goto err_alloc_node;
 	}
 
-	err = esw_qos_normalize_min_rate(esw, extack);
+	err = esw_qos_normalize_min_rate(esw, NULL, extack);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch nodes normalization failed");
 		goto err_min_rate;
@@ -638,7 +609,7 @@ static int __esw_qos_destroy_node(struct mlx5_esw_sched_node *node, struct netli
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch destroy TSAR_ID failed");
 	__esw_qos_free_node(node);
 
-	err = esw_qos_normalize_min_rate(esw, extack);
+	err = esw_qos_normalize_min_rate(esw, NULL, extack);
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch nodes normalization failed");
 
