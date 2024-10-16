@@ -31,22 +31,18 @@
 
 static int edac_mc_idx;
 
-static u32 orig_ddr_err_disable;
-static u32 orig_ddr_err_sbe;
-static bool little_endian;
-
 static inline u32 ddr_in32(struct fsl_mc_pdata *pdata, unsigned int off)
 {
 	void __iomem *addr = pdata->mc_vbase + off;
 
-	return little_endian ? ioread32(addr) : ioread32be(addr);
+	return pdata->little_endian ? ioread32(addr) : ioread32be(addr);
 }
 
 static inline void ddr_out32(struct fsl_mc_pdata *pdata, unsigned int off, u32 value)
 {
 	void __iomem *addr = pdata->mc_vbase + off;
 
-	if (little_endian)
+	if (pdata->little_endian)
 		iowrite32(value, addr);
 	else
 		iowrite32be(value, addr);
@@ -511,7 +507,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 	 * Get the endianness of DDR controller registers.
 	 * Default is big endian.
 	 */
-	little_endian = of_property_read_bool(op->dev.of_node, "little-endian");
+	pdata->little_endian = of_property_read_bool(op->dev.of_node, "little-endian");
 
 	res = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (res) {
@@ -562,7 +558,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 	fsl_ddr_init_csrows(mci);
 
 	/* store the original error disable bits */
-	orig_ddr_err_disable = ddr_in32(pdata, FSL_MC_ERR_DISABLE);
+	pdata->orig_ddr_err_disable = ddr_in32(pdata, FSL_MC_ERR_DISABLE);
 	ddr_out32(pdata, FSL_MC_ERR_DISABLE, 0);
 
 	/* clear all error bits */
@@ -579,8 +575,8 @@ int fsl_mc_err_probe(struct platform_device *op)
 			  DDR_EIE_MBEE | DDR_EIE_SBEE);
 
 		/* store the original error management threshold */
-		orig_ddr_err_sbe = ddr_in32(pdata,
-					    FSL_MC_ERR_SBE) & 0xff0000;
+		pdata->orig_ddr_err_sbe = ddr_in32(pdata,
+						   FSL_MC_ERR_SBE) & 0xff0000;
 
 		/* set threshold to 1 error per interrupt */
 		ddr_out32(pdata, FSL_MC_ERR_SBE, 0x10000);
@@ -628,8 +624,9 @@ void fsl_mc_err_remove(struct platform_device *op)
 	}
 
 	ddr_out32(pdata, FSL_MC_ERR_DISABLE,
-		  orig_ddr_err_disable);
-	ddr_out32(pdata, FSL_MC_ERR_SBE, orig_ddr_err_sbe);
+		  pdata->orig_ddr_err_disable);
+	ddr_out32(pdata, FSL_MC_ERR_SBE, pdata->orig_ddr_err_sbe);
+
 
 	edac_mc_del_mc(&op->dev);
 	edac_mc_free(mci);

@@ -70,6 +70,9 @@ struct fsl_mc_pdata {
 	int edac_idx;
 	void __iomem *mc_vbase;
 	int irq;
+	u32 orig_ddr_err_disable;
+	u32 orig_ddr_err_sbe;
+	bool little_endian;
 };
 int fsl_mc_err_probe(struct platform_device *op);
 void fsl_mc_err_remove(struct platform_device *op);
