@@ -35,18 +35,18 @@ DECLARE_EVENT_CLASS(mlx5_esw_vport_qos_template,
 				     __field(unsigned int, sched_elem_ix)
 				     __field(unsigned int, bw_share)
 				     __field(unsigned int, max_rate)
-				     __field(void *, group)
+				     __field(void *, parent)
 				     ),
 		    TP_fast_assign(__assign_str(devname);
 			    __entry->vport_id = vport->vport;
 			    __entry->sched_elem_ix = vport->qos.esw_sched_elem_ix;
 			    __entry->bw_share = bw_share;
 			    __entry->max_rate = max_rate;
-			    __entry->group = vport->qos.group;
+			    __entry->parent = vport->qos.parent;
 		    ),
-		    TP_printk("(%s) vport=%hu sched_elem_ix=%u bw_share=%u, max_rate=%u group=%p\n",
+		    TP_printk("(%s) vport=%hu sched_elem_ix=%u bw_share=%u, max_rate=%u parent=%p\n",
 			      __get_str(devname), __entry->vport_id, __entry->sched_elem_ix,
-			      __entry->bw_share, __entry->max_rate, __entry->group
+			      __entry->bw_share, __entry->max_rate, __entry->parent
 			      )
 );
 

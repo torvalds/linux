@@ -221,8 +221,10 @@ struct mlx5_vport {
 		u32 max_rate;
 		/* A computed value indicating relative min_rate between vports in a group. */
 		u32 bw_share;
-		struct mlx5_esw_rate_group *group;
-		struct list_head group_entry;
+		/* The parent group of this vport scheduling element. */
+		struct mlx5_esw_rate_group *parent;
+		/* Membership in the parent 'members' list. */
+		struct list_head parent_entry;
 	} qos;
 
 	u16 vport;
