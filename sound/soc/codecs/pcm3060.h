@@ -2,7 +2,7 @@
 /*
  * PCM3060 codec driver
  *
- * Copyright (C) 2018 Kirill Marinushkin <kmarinushkin@birdec.com>
+ * Copyright (C) 2018 Kirill Marinushkin <k.marinushkin@gmail.com>
  */
 
 #ifndef _SND_SOC_PCM3060_H
