@@ -613,9 +613,6 @@ struct io_kiocb {
 	struct task_struct		*task;
 
 	union {
-		/* store used ubuf, so we can prevent reloading */
-		struct io_mapped_ubuf	*imu;
-
 		/* stores selected buf, valid IFF REQ_F_BUFFER_SELECTED is set */
 		struct io_buffer	*kbuf;
 
