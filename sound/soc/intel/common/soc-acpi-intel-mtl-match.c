@@ -6,9 +6,12 @@
  *
  */
 
+#include <linux/soundwire/sdw_intel.h>
+#include <sound/sdca.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/soc-acpi-intel-ssp-common.h>
+#include "soc-acpi-intel-sdca-quirks.h"
 #include "soc-acpi-intel-sdw-mockup-match.h"
 
 static const struct snd_soc_acpi_codecs mtl_rt5682_rt5682s_hp = {
@@ -133,6 +136,27 @@ static const struct snd_soc_acpi_endpoint rt712_endpoints[] = {
 	},
 };
 
+static const struct snd_soc_acpi_endpoint rt712_vb_endpoints[] = {
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
 /*
  * RT722 is a multi-function codec, three endpoints are created for
  * its headset, amp and dmic functions.
@@ -186,6 +210,15 @@ static const struct snd_soc_acpi_adr_device rt712_0_single_adr[] = {
 		.adr = 0x000030025D071201ull,
 		.num_endpoints = ARRAY_SIZE(rt712_endpoints),
 		.endpoints = rt712_endpoints,
+		.name_prefix = "rt712"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt712_vb_0_single_adr[] = {
+	{
+		.adr = 0x000030025D071201ull,
+		.num_endpoints = ARRAY_SIZE(rt712_vb_endpoints),
+		.endpoints = rt712_vb_endpoints,
 		.name_prefix = "rt712"
 	}
 };
@@ -359,6 +392,15 @@ static const struct snd_soc_acpi_link_adr mtl_712_l0[] = {
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt712_0_single_adr),
 		.adr_d = rt712_0_single_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr mtl_712_vb_l0[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt712_vb_0_single_adr),
+		.adr_d = rt712_vb_0_single_adr,
 	},
 	{}
 };
@@ -776,6 +818,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(0),
+		.links = mtl_712_vb_l0,
+		.drv_name = "sof_sdw",
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-mtl-rt712-vb-l0.tplg",
+	},
+	{
+		.link_mask = BIT(0),
 		.links = mtl_712_l0,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-rt712-l0.tplg",
@@ -843,3 +892,5 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_mtl_sdw_machines);
+
+MODULE_IMPORT_NS(SND_SOC_ACPI_INTEL_SDCA_QUIRKS);
