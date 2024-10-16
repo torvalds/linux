@@ -456,6 +456,24 @@ static int intel_pch_pfit_check_scaling(const struct intel_crtc_state *crtc_stat
 	return 0;
 }
 
+static int intel_pch_pfit_check_timings(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (adjusted_mode->crtc_vdisplay < 7) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] vertical active (%d) below minimum (%d) for pfit\n",
+			    crtc->base.base.id, crtc->base.name,
+			    adjusted_mode->crtc_vdisplay, 7);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* adjusted_mode has been preset to be the panel's fixed mode */
 static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
@@ -539,6 +557,10 @@ static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	ret = intel_pch_pfit_check_scaling(crtc_state);
+	if (ret)
+		return ret;
+
+	ret = intel_pch_pfit_check_timings(crtc_state);
 	if (ret)
 		return ret;
 
@@ -678,6 +700,38 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 	}
 }
 
+static int intel_gmch_pfit_check_timings(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int min;
+
+	if (DISPLAY_VER(display) >= 4)
+		min = 3;
+	else
+		min = 2;
+
+	if (adjusted_mode->crtc_hdisplay < min) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] horizontal active (%d) below minimum (%d) for pfit\n",
+			    crtc->base.base.id, crtc->base.name,
+			    adjusted_mode->crtc_hdisplay, min);
+		return -EINVAL;
+	}
+
+	if (adjusted_mode->crtc_vdisplay < min) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] vertical active (%d) below minimum (%d) for pfit\n",
+			    crtc->base.base.id, crtc->base.name,
+			    adjusted_mode->crtc_vdisplay, min);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 			      const struct drm_connector_state *conn_state)
 {
@@ -772,7 +826,10 @@ out:
 	crtc_state->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
 	crtc_state->gmch_pfit.lvds_border_bits = border;
 
-	return 0;
+	if ((pfit_control & PFIT_ENABLE) == 0)
+		return 0;
+
+	return intel_gmch_pfit_check_timings(crtc_state);
 }
 
 int intel_panel_fitting(struct intel_crtc_state *crtc_state,
