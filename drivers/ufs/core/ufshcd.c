@@ -10356,26 +10356,20 @@ static int ufshcd_add_scsi_host(struct ufs_hba *hba)
 			dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
 				err);
 		}
-		err = scsi_add_host(hba->host, hba->dev);
-		if (err) {
-			dev_err(hba->dev, "scsi_add_host failed\n");
-			return err;
-		}
-		hba->scsi_host_added = true;
-	} else {
-		if (!hba->lsdb_sup) {
-			dev_err(hba->dev,
-				"%s: failed to initialize (legacy doorbell mode not supported)\n",
-				__func__);
-			return -EINVAL;
-		}
-		err = scsi_add_host(hba->host, hba->dev);
-		if (err) {
-			dev_err(hba->dev, "scsi_add_host failed\n");
-			return err;
-		}
-		hba->scsi_host_added = true;
 	}
+	if (!is_mcq_supported(hba) && !hba->lsdb_sup) {
+		dev_err(hba->dev,
+			"%s: failed to initialize (legacy doorbell mode not supported)\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	err = scsi_add_host(hba->host, hba->dev);
+	if (err) {
+		dev_err(hba->dev, "scsi_add_host failed\n");
+		return err;
+	}
+	hba->scsi_host_added = true;
 
 	hba->tmf_tag_set = (struct blk_mq_tag_set) {
 		.nr_hw_queues	= 1,
