@@ -211,11 +211,15 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		struct io_ring_ctx *ctx = req->ctx;
 		u16 index;
 
-		req->buf_index = READ_ONCE(sqe->buf_index);
-		if (unlikely(req->buf_index >= ctx->nr_user_bufs))
+		index = READ_ONCE(sqe->buf_index);
+		if (unlikely(index >= ctx->nr_user_bufs))
 			return -EFAULT;
-		index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
-		req->imu = ctx->user_bufs[index];
+		req->buf_index = array_index_nospec(index, ctx->nr_user_bufs);
+		/*
+		 * Pi node upfront, prior to io_uring_cmd_import_fixed()
+		 * being called. This prevents destruction of the mapped buffer
+		 * we'll need at actual import time.
+		 */
 		io_req_set_rsrc_node(req, ctx, 0);
 	}
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
@@ -272,8 +276,17 @@ int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			      struct iov_iter *iter, void *ioucmd)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
+	struct io_ring_ctx *ctx = req->ctx;
 
-	return io_import_fixed(rw, iter, req->imu, ubuf, len);
+	/* Must have had rsrc_node assigned at prep time */
+	if (req->rsrc_node) {
+		struct io_mapped_ubuf *imu;
+
+		imu = READ_ONCE(ctx->user_bufs[req->buf_index]);
+		return io_import_fixed(rw, iter, imu, ubuf, len);
+	}
+
+	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_import_fixed);
 
