@@ -238,6 +238,9 @@ static int usbdev_mmap(struct file *file, struct vm_area_struct *vma)
 	dma_addr_t dma_handle = DMA_MAPPING_ERROR;
 	int ret;
 
+	if (!(file->f_mode & FMODE_WRITE))
+		return -EPERM;
+
 	ret = usbfs_increase_memory_usage(size + sizeof(struct usb_memory));
 	if (ret)
 		goto error;
