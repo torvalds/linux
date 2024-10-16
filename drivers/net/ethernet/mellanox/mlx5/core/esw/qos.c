@@ -66,6 +66,11 @@ enum sched_node_type {
 	SCHED_NODE_TYPE_VPORT,
 };
 
+static const char * const sched_node_type_str[] = {
+	[SCHED_NODE_TYPE_VPORTS_TSAR] = "vports TSAR",
+	[SCHED_NODE_TYPE_VPORT] = "vport",
+};
+
 struct mlx5_esw_sched_node {
 	u32 ix;
 	/* Bandwidth parameters. */
@@ -113,11 +118,27 @@ mlx5_esw_qos_vport_get_parent(const struct mlx5_vport *vport)
 	return vport->qos.sched_node->parent;
 }
 
-static int esw_qos_sched_elem_config(struct mlx5_core_dev *dev, u32 sched_elem_ix,
-				     u32 max_rate, u32 bw_share)
+static void esw_qos_sched_elem_config_warn(struct mlx5_esw_sched_node *node, int err)
+{
+	if (node->vport) {
+		esw_warn(node->esw->dev,
+			 "E-Switch modify %s scheduling element failed (vport=%d,err=%d)\n",
+			 sched_node_type_str[node->type], node->vport->vport, err);
+		return;
+	}
+
+	esw_warn(node->esw->dev,
+		 "E-Switch modify %s scheduling element failed (err=%d)\n",
+		 sched_node_type_str[node->type], err);
+}
+
+static int esw_qos_sched_elem_config(struct mlx5_esw_sched_node *node, u32 max_rate, u32 bw_share,
+				     struct netlink_ext_ack *extack)
 {
 	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
+	struct mlx5_core_dev *dev = node->esw->dev;
 	u32 bitmask = 0;
+	int err;
 
 	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, esw_scheduling))
 		return -EOPNOTSUPP;
@@ -127,46 +148,22 @@ static int esw_qos_sched_elem_config(struct mlx5_core_dev *dev, u32 sched_elem_i
 	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
 	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_BW_SHARE;
 
-	return mlx5_modify_scheduling_element_cmd(dev,
-						  SCHEDULING_HIERARCHY_E_SWITCH,
-						  sched_ctx,
-						  sched_elem_ix,
-						  bitmask);
-}
-
-static int esw_qos_node_config(struct mlx5_esw_sched_node *node,
-			       u32 max_rate, u32 bw_share, struct netlink_ext_ack *extack)
-{
-	struct mlx5_core_dev *dev = node->esw->dev;
-	int err;
-
-	err = esw_qos_sched_elem_config(dev, node->ix, max_rate, bw_share);
-	if (err)
-		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify node TSAR element failed");
-
-	trace_mlx5_esw_node_qos_config(dev, node, node->ix, bw_share, max_rate);
-
-	return err;
-}
-
-static int esw_qos_vport_config(struct mlx5_vport *vport,
-				u32 max_rate, u32 bw_share,
-				struct netlink_ext_ack *extack)
-{
-	struct mlx5_esw_sched_node *vport_node = vport->qos.sched_node;
-	struct mlx5_core_dev *dev = vport_node->parent->esw->dev;
-	int err;
-
-	err = esw_qos_sched_elem_config(dev, vport_node->ix, max_rate, bw_share);
+	err = mlx5_modify_scheduling_element_cmd(dev,
+						 SCHEDULING_HIERARCHY_E_SWITCH,
+						 sched_ctx,
+						 node->ix,
+						 bitmask);
 	if (err) {
-		esw_warn(dev,
-			 "E-Switch modify vport scheduling element failed (vport=%d,err=%d)\n",
-			 vport->vport, err);
-		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify vport scheduling element failed");
+		esw_qos_sched_elem_config_warn(node, err);
+		NL_SET_ERR_MSG_MOD(extack, "E-Switch modify scheduling element failed");
+
 		return err;
 	}
 
-	trace_mlx5_esw_vport_qos_config(dev, vport, bw_share, max_rate);
+	if (node->type == SCHED_NODE_TYPE_VPORTS_TSAR)
+		trace_mlx5_esw_node_qos_config(dev, node, node->ix, bw_share, max_rate);
+	else if (node->type == SCHED_NODE_TYPE_VPORT)
+		trace_mlx5_esw_vport_qos_config(dev, node->vport, bw_share, max_rate);
 
 	return 0;
 }
@@ -246,8 +243,7 @@ static int esw_qos_normalize_node_min_rate(struct mlx5_esw_sched_node *node,
 		if (bw_share == vport_node->bw_share)
 			continue;
 
-		err = esw_qos_vport_config(vport_node->vport, vport_node->max_rate, bw_share,
-					   extack);
+		err = esw_qos_sched_elem_config(vport_node, vport_node->max_rate, bw_share, extack);
 		if (err)
 			return err;
 
@@ -274,7 +270,7 @@ static int esw_qos_normalize_min_rate(struct mlx5_eswitch *esw, struct netlink_e
 		if (bw_share == node->bw_share)
 			continue;
 
-		err = esw_qos_node_config(node, node->max_rate, bw_share, extack);
+		err = esw_qos_sched_elem_config(node, node->max_rate, bw_share, extack);
 		if (err)
 			return err;
 
@@ -338,8 +334,7 @@ static int esw_qos_set_vport_max_rate(struct mlx5_vport *vport,
 	if (!max_rate)
 		act_max_rate = vport_node->parent->max_rate;
 
-	err = esw_qos_vport_config(vport, act_max_rate, vport_node->bw_share, extack);
-
+	err = esw_qos_sched_elem_config(vport_node, act_max_rate, vport_node->bw_share, extack);
 	if (!err)
 		vport_node->max_rate = max_rate;
 
@@ -384,7 +379,7 @@ static int esw_qos_set_node_max_rate(struct mlx5_esw_sched_node *node,
 	if (node->max_rate == max_rate)
 		return 0;
 
-	err = esw_qos_node_config(node, max_rate, node->bw_share, extack);
+	err = esw_qos_sched_elem_config(node, max_rate, node->bw_share, extack);
 	if (err)
 		return err;
 
@@ -395,8 +390,7 @@ static int esw_qos_set_node_max_rate(struct mlx5_esw_sched_node *node,
 		if (vport_node->max_rate)
 			continue;
 
-		err = esw_qos_vport_config(vport_node->vport, max_rate, vport_node->bw_share,
-					   extack);
+		err = esw_qos_sched_elem_config(vport_node, max_rate, vport_node->bw_share, extack);
 		if (err)
 			NL_SET_ERR_MSG_MOD(extack,
 					   "E-Switch vport implicit rate limit setting failed");
