@@ -140,6 +140,7 @@ unsigned int readw_wrapper(void *address)
 };
 EXPORT_SYMBOL(readw_wrapper);
 
+#ifdef CONFIG_HAS_IOPORT
 void outb_wrapper(unsigned int value, void *address)
 {
 	outb(value, (unsigned long)(address));
@@ -163,6 +164,7 @@ unsigned int inw_wrapper(void *address)
 	return inw((unsigned long)(address));
 };
 EXPORT_SYMBOL(inw_wrapper);
+#endif
 
 /* this is a function instead of a constant because of Suse
  * defining HZ to be a function call to get_hz()

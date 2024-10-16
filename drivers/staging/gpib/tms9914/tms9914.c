@@ -862,6 +862,7 @@ void tms9914_online(gpib_board_t *board, struct tms9914_priv *priv)
 }
 EXPORT_SYMBOL_GPL(tms9914_online);
 
+#ifdef CONFIG_HAS_IOPORT
 // wrapper for inb
 uint8_t tms9914_ioport_read_byte(struct tms9914_priv *priv, unsigned int register_num)
 {
@@ -877,6 +878,7 @@ void tms9914_ioport_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned
 		udelay(1);
 }
 EXPORT_SYMBOL_GPL(tms9914_ioport_write_byte);
+#endif
 
 // wrapper for readb
 uint8_t tms9914_iomem_read_byte(struct tms9914_priv *priv, unsigned int register_num)

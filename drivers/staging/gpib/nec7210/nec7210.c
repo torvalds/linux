@@ -1031,6 +1031,7 @@ void nec7210_board_online(struct nec7210_priv *priv, const gpib_board_t *board)
 }
 EXPORT_SYMBOL(nec7210_board_online);
 
+#ifdef CONFIG_HAS_IOPORT
 /* wrappers for io */
 uint8_t nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
@@ -1049,24 +1050,6 @@ void nec7210_ioport_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned
 		outb(data, (unsigned long)(priv->iobase) + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_ioport_write_byte);
-
-uint8_t nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
-{
-	return readb(priv->iobase + register_num * priv->offset);
-}
-EXPORT_SYMBOL(nec7210_iomem_read_byte);
-
-void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num)
-{
-	if (register_num == AUXMR)
-		/* locking makes absolutely sure noone accesses the
-		 * AUXMR register faster than once per microsecond
-		 */
-		nec7210_locking_iomem_write_byte(priv, data, register_num);
-	else
-		writeb(data, priv->iobase + register_num * priv->offset);
-}
-EXPORT_SYMBOL(nec7210_iomem_write_byte);
 
 /* locking variants of io wrappers, for chips that page-in registers */
 uint8_t nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
@@ -1093,6 +1076,25 @@ void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, uint8_t data,
 	spin_unlock_irqrestore(&priv->register_page_lock, flags);
 }
 EXPORT_SYMBOL(nec7210_locking_ioport_write_byte);
+#endif
+
+uint8_t nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+{
+	return readb(priv->iobase + register_num * priv->offset);
+}
+EXPORT_SYMBOL(nec7210_iomem_read_byte);
+
+void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num)
+{
+	if (register_num == AUXMR)
+		/* locking makes absolutely sure noone accesses the
+		 * AUXMR register faster than once per microsecond
+		 */
+		nec7210_locking_iomem_write_byte(priv, data, register_num);
+	else
+		writeb(data, priv->iobase + register_num * priv->offset);
+}
+EXPORT_SYMBOL(nec7210_iomem_write_byte);
 
 uint8_t nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
