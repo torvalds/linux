@@ -110,6 +110,8 @@ struct uvc_video {
 
 	unsigned int uvc_num_requests;
 
+	unsigned int reqs_per_frame;
+
 	/* Requests */
 	bool is_enabled; /* tracks whether video stream is enabled */
 	unsigned int req_size;
