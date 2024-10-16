@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
-#include <linux/list_sort.h>
 #include <linux/thermal.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
@@ -409,6 +408,21 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 		tz->ops.hot(tz);
 }
 
+static void add_trip_to_sorted_list(struct thermal_trip_desc *td,
+				    struct list_head *list)
+{
+	struct thermal_trip_desc *entry;
+
+	/* Assume that the new entry is likely to be the last one. */
+	list_for_each_entry_reverse(entry, list, notify_list_node) {
+		if (entry->notify_temp <= td->notify_temp) {
+			list_add(&td->notify_list_node, &entry->notify_list_node);
+			return;
+		}
+	}
+	list_add(&td->notify_list_node, list);
+}
+
 static void handle_thermal_trip(struct thermal_zone_device *tz,
 				struct thermal_trip_desc *td,
 				struct list_head *way_up_list,
@@ -438,8 +452,8 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * In that case, the trip temperature becomes the new threshold.
 		 */
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
-			list_add(&td->notify_list_node, way_down_list);
 			td->notify_temp = trip->temperature - trip->hysteresis;
+			add_trip_to_sorted_list(td, way_down_list);
 
 			if (trip->type == THERMAL_TRIP_PASSIVE) {
 				tz->passive--;
@@ -454,8 +468,9 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * if the zone temperature exceeds the trip one.  The new
 		 * threshold is then set to the low temperature of the trip.
 		 */
-		list_add_tail(&td->notify_list_node, way_up_list);
 		td->notify_temp = trip->temperature;
+		add_trip_to_sorted_list(td, way_up_list);
+
 		td->threshold -= trip->hysteresis;
 
 		if (trip->type == THERMAL_TRIP_PASSIVE)
@@ -519,16 +534,6 @@ static void thermal_trip_crossed(struct thermal_zone_device *tz,
 	thermal_governor_trip_crossed(governor, tz, trip, crossed_up);
 }
 
-static int thermal_trip_notify_cmp(void *not_used, const struct list_head *a,
-				   const struct list_head *b)
-{
-	struct thermal_trip_desc *tda = container_of(a, struct thermal_trip_desc,
-						     notify_list_node);
-	struct thermal_trip_desc *tdb = container_of(b, struct thermal_trip_desc,
-						     notify_list_node);
-	return tda->notify_temp - tdb->notify_temp;
-}
-
 void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event)
 {
@@ -581,11 +586,9 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 
 	thermal_zone_set_trips(tz, low, high);
 
-	list_sort(NULL, &way_up_list, thermal_trip_notify_cmp);
 	list_for_each_entry(td, &way_up_list, notify_list_node)
 		thermal_trip_crossed(tz, &td->trip, governor, true);
 
-	list_sort(NULL, &way_down_list, thermal_trip_notify_cmp);
 	list_for_each_entry_reverse(td, &way_down_list, notify_list_node)
 		thermal_trip_crossed(tz, &td->trip, governor, false);
 
