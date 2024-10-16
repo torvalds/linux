@@ -1575,13 +1575,6 @@ void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 	cpu_dp->tag_ops = tag_ops;
 }
 
-static struct phylink_pcs *
-dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
-				phy_interface_t interface)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
 static void dsa_port_phylink_mac_config(struct phylink_config *config,
 					unsigned int mode,
 					const struct phylink_link_state *state)
@@ -1604,7 +1597,6 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
-	.mac_select_pcs = dsa_port_phylink_mac_select_pcs,
 	.mac_config = dsa_port_phylink_mac_config,
 	.mac_link_down = dsa_port_phylink_mac_link_down,
 	.mac_link_up = dsa_port_phylink_mac_link_up,
