@@ -599,11 +599,9 @@ int ibopen(struct inode *inode, struct file *filep)
 	GPIB_DPRINTK("pid %i, gpib: opening minor %d\n", current->pid, minor);
 
 	if (board->use_count == 0) {
-		char module_string[32];
 		int retval;
 
-		snprintf(module_string, sizeof(module_string), "gpib%i", minor);
-		retval = request_module(module_string);
+		retval = request_module("gpib%i", minor);
 		if (retval) {
 			GPIB_DPRINTK("pid %i, gpib: request module returned %i\n",
 				     current->pid, retval);
