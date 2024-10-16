@@ -3937,6 +3937,19 @@ void f2fs_destroy_recovery_cache(void);
  * debug.c
  */
 #ifdef CONFIG_F2FS_STAT_FS
+enum {
+	DEVSTAT_INUSE,
+	DEVSTAT_DIRTY,
+	DEVSTAT_FULL,
+	DEVSTAT_FREE,
+	DEVSTAT_PREFREE,
+	DEVSTAT_MAX,
+};
+
+struct f2fs_dev_stats {
+	unsigned int devstats[2][DEVSTAT_MAX];		/* 0: segs, 1: secs */
+};
+
 struct f2fs_stat_info {
 	struct list_head stat_list;
 	struct f2fs_sb_info *sbi;
@@ -4000,6 +4013,7 @@ struct f2fs_stat_info {
 	unsigned int block_count[2];
 	unsigned int inplace_count;
 	unsigned long long base_mem, cache_mem, page_mem;
+	struct f2fs_dev_stats *dev_stats;
 };
 
 static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
