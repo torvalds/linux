@@ -88,38 +88,3 @@ int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 	 */
 	return trip_to_trip_desc(trip) - tz->trips;
 }
-
-void thermal_zone_set_trip_hyst(struct thermal_zone_device *tz,
-				struct thermal_trip *trip, int hyst)
-{
-	WRITE_ONCE(trip->hysteresis, hyst);
-	thermal_notify_tz_trip_change(tz, trip);
-}
-
-void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
-				struct thermal_trip *trip, int temp)
-{
-	if (trip->temperature == temp)
-		return;
-
-	WRITE_ONCE(trip->temperature, temp);
-	thermal_notify_tz_trip_change(tz, trip);
-
-	if (temp == THERMAL_TEMP_INVALID) {
-		struct thermal_trip_desc *td = trip_to_trip_desc(trip);
-
-		/*
-		 * If the trip has been crossed on the way up, some adjustments
-		 * are needed to compensate for the lack of it going forward.
-		 */
-		if (tz->temperature >= td->threshold)
-			thermal_zone_trip_down(tz, td);
-
-		/*
-		 * Invalidate the threshold to avoid triggering a spurious
-		 * trip crossing notification when the trip becomes valid.
-		 */
-		td->threshold = INT_MAX;
-	}
-}
-EXPORT_SYMBOL_GPL(thermal_zone_set_trip_temp);
