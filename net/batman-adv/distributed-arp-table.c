@@ -7,7 +7,6 @@
 #include "distributed-arp-table.h"
 #include "main.h"
 
-#include <linux/unaligned.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
@@ -32,6 +31,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/udp.h>
+#include <linux/unaligned.h>
 #include <linux/workqueue.h>
 #include <net/arp.h>
 #include <net/genetlink.h>
