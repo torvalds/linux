@@ -252,17 +252,16 @@ static struct sdw_intel_ctx
 			num_slaves++;
 	}
 
-	ctx->ids = kcalloc(num_slaves, sizeof(*ctx->ids), GFP_KERNEL);
-	if (!ctx->ids)
+	ctx->peripherals = kmalloc(struct_size(ctx->peripherals, array, num_slaves),
+				   GFP_KERNEL);
+	if (!ctx->peripherals)
 		goto err;
-
-	ctx->num_slaves = num_slaves;
+	ctx->peripherals->num_peripherals = num_slaves;
 	i = 0;
 	list_for_each_entry(link, &ctx->link_list, list) {
 		bus = &link->cdns->bus;
 		list_for_each_entry(slave, &bus->slaves, node) {
-			ctx->ids[i].id = slave->id;
-			ctx->ids[i].link_id = bus->link_id;
+			ctx->peripherals->array[i] = slave;
 			i++;
 		}
 	}
@@ -371,7 +370,7 @@ void sdw_intel_exit(struct sdw_intel_ctx *ctx)
 	}
 
 	sdw_intel_cleanup(ctx);
-	kfree(ctx->ids);
+	kfree(ctx->peripherals);
 	kfree(ctx->ldev);
 	kfree(ctx);
 }

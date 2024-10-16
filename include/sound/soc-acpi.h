@@ -233,7 +233,6 @@ static inline bool snd_soc_acpi_sof_parent(struct device *dev)
 
 bool snd_soc_acpi_sdw_link_slaves_found(struct device *dev,
 					const struct snd_soc_acpi_link_adr *link,
-					struct sdw_extended_slave_id *ids,
-					int num_slaves);
+					struct sdw_peripherals *peripherals);
 
 #endif
