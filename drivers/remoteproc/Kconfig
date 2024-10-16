@@ -329,7 +329,8 @@ config STM32_RPROC
 
 config TI_K3_DSP_REMOTEPROC
 	tristate "TI K3 DSP remoteproc support"
-	depends on ARCH_K3
+	depends on ARCH_K3 || COMPILE_TEST
+	depends on TI_SCI_PROTOCOL || (COMPILE_TEST && TI_SCI_PROTOCOL=n)
 	depends on OMAP2PLUS_MBOX
 	help
 	  Say m here to support TI's C66x and C71x DSP remote processor
