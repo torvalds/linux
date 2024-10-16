@@ -339,64 +339,13 @@ unlock:
 }
 
 /**
- * rtnl_register_module - Register a rtnetlink message type
- *
- * @owner: module registering the hook (THIS_MODULE)
- * @protocol: Protocol family or PF_UNSPEC
- * @msgtype: rtnetlink message type
- * @doit: Function pointer called for each request message
- * @dumpit: Function pointer called for each dump request (NLM_F_DUMP) message
- * @flags: rtnl_link_flags to modify behaviour of doit/dumpit functions
- *
- * Like rtnl_register, but for use by removable modules.
- */
-int rtnl_register_module(struct module *owner,
-			 int protocol, int msgtype,
-			 rtnl_doit_func doit, rtnl_dumpit_func dumpit,
-			 unsigned int flags)
-{
-	return rtnl_register_internal(owner, protocol, msgtype,
-				      doit, dumpit, flags);
-}
-EXPORT_SYMBOL_GPL(rtnl_register_module);
-
-/**
- * rtnl_register - Register a rtnetlink message type
- * @protocol: Protocol family or PF_UNSPEC
- * @msgtype: rtnetlink message type
- * @doit: Function pointer called for each request message
- * @dumpit: Function pointer called for each dump request (NLM_F_DUMP) message
- * @flags: rtnl_link_flags to modify behaviour of doit/dumpit functions
- *
- * Registers the specified function pointers (at least one of them has
- * to be non-NULL) to be called whenever a request message for the
- * specified protocol family and message type is received.
- *
- * The special protocol family PF_UNSPEC may be used to define fallback
- * function pointers for the case when no entry for the specific protocol
- * family exists.
- */
-void rtnl_register(int protocol, int msgtype,
-		   rtnl_doit_func doit, rtnl_dumpit_func dumpit,
-		   unsigned int flags)
-{
-	int err;
-
-	err = rtnl_register_internal(NULL, protocol, msgtype, doit, dumpit,
-				     flags);
-	if (err)
-		pr_err("Unable to register rtnetlink message handler, "
-		       "protocol = %d, message type = %d\n", protocol, msgtype);
-}
-
-/**
  * rtnl_unregister - Unregister a rtnetlink message type
  * @protocol: Protocol family or PF_UNSPEC
  * @msgtype: rtnetlink message type
  *
  * Returns 0 on success or a negative error code.
  */
-int rtnl_unregister(int protocol, int msgtype)
+static int rtnl_unregister(int protocol, int msgtype)
 {
 	struct rtnl_link __rcu **tab;
 	struct rtnl_link *link;
@@ -419,7 +368,6 @@ int rtnl_unregister(int protocol, int msgtype)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rtnl_unregister);
 
 /**
  * rtnl_unregister_all - Unregister all rtnetlink message type of a protocol
@@ -454,6 +402,26 @@ void rtnl_unregister_all(int protocol)
 }
 EXPORT_SYMBOL_GPL(rtnl_unregister_all);
 
+/**
+ * __rtnl_register_many - Register rtnetlink message types
+ * @handlers: Array of struct rtnl_msg_handlers
+ * @n: The length of @handlers
+ *
+ * Registers the specified function pointers (at least one of them has
+ * to be non-NULL) to be called whenever a request message for the
+ * specified protocol family and message type is received.
+ *
+ * The special protocol family PF_UNSPEC may be used to define fallback
+ * function pointers for the case when no entry for the specific protocol
+ * family exists.
+ *
+ * When one element of @handlers fails to register,
+ * 1) built-in: panics.
+ * 2) modules : the previous successful registrations are unwinded
+ *              and an error is returned.
+ *
+ * Use rtnl_register_many().
+ */
 int __rtnl_register_many(const struct rtnl_msg_handler *handlers, int n)
 {
 	const struct rtnl_msg_handler *handler;
@@ -464,6 +432,10 @@ int __rtnl_register_many(const struct rtnl_msg_handler *handlers, int n)
 					     handler->msgtype, handler->doit,
 					     handler->dumpit, handler->flags);
 		if (err) {
+			if (!handler->owner)
+				panic("Unable to register rtnetlink message "
+				      "handlers, %pS\n", handlers);
+
 			__rtnl_unregister_many(handlers, i);
 			break;
 		}
@@ -6839,6 +6811,38 @@ static struct pernet_operations rtnetlink_net_ops = {
 	.exit = rtnetlink_net_exit,
 };
 
+static const struct rtnl_msg_handler rtnetlink_rtnl_msg_handlers[] __initconst = {
+	{.msgtype = RTM_NEWLINK, .doit = rtnl_newlink},
+	{.msgtype = RTM_DELLINK, .doit = rtnl_dellink},
+	{.msgtype = RTM_GETLINK, .doit = rtnl_getlink,
+	 .dumpit = rtnl_dump_ifinfo, .flags = RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
+	{.msgtype = RTM_SETLINK, .doit = rtnl_setlink},
+	{.msgtype = RTM_GETADDR, .dumpit = rtnl_dump_all},
+	{.msgtype = RTM_GETROUTE, .dumpit = rtnl_dump_all},
+	{.msgtype = RTM_GETNETCONF, .dumpit = rtnl_dump_all},
+	{.msgtype = RTM_GETSTATS, .doit = rtnl_stats_get,
+	 .dumpit = rtnl_stats_dump},
+	{.msgtype = RTM_SETSTATS, .doit = rtnl_stats_set},
+	{.msgtype = RTM_NEWLINKPROP, .doit = rtnl_newlinkprop},
+	{.msgtype = RTM_DELLINKPROP, .doit = rtnl_dellinkprop},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_GETLINK,
+	 .dumpit = rtnl_bridge_getlink},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_DELLINK,
+	 .doit = rtnl_bridge_dellink},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_SETLINK,
+	 .doit = rtnl_bridge_setlink},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_NEWNEIGH, .doit = rtnl_fdb_add},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_DELNEIGH, .doit = rtnl_fdb_del,
+	 .flags = RTNL_FLAG_BULK_DEL_SUPPORTED},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_GETNEIGH, .doit = rtnl_fdb_get,
+	 .dumpit = rtnl_fdb_dump},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_NEWMDB, .doit = rtnl_mdb_add},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_DELMDB, .doit = rtnl_mdb_del,
+	 .flags = RTNL_FLAG_BULK_DEL_SUPPORTED},
+	{.protocol = PF_BRIDGE, .msgtype = RTM_GETMDB, .doit = rtnl_mdb_get,
+	 .dumpit = rtnl_mdb_dump},
+};
+
 void __init rtnetlink_init(void)
 {
 	if (register_pernet_subsys(&rtnetlink_net_ops))
@@ -6846,34 +6850,5 @@ void __init rtnetlink_init(void)
 
 	register_netdevice_notifier(&rtnetlink_dev_notifier);
 
-	rtnl_register(PF_UNSPEC, RTM_GETLINK, rtnl_getlink,
-		      rtnl_dump_ifinfo, RTNL_FLAG_DUMP_SPLIT_NLM_DONE);
-	rtnl_register(PF_UNSPEC, RTM_SETLINK, rtnl_setlink, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_NEWLINK, rtnl_newlink, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_DELLINK, rtnl_dellink, NULL, 0);
-
-	rtnl_register(PF_UNSPEC, RTM_GETADDR, NULL, rtnl_dump_all, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETROUTE, NULL, rtnl_dump_all, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETNETCONF, NULL, rtnl_dump_all, 0);
-
-	rtnl_register(PF_UNSPEC, RTM_NEWLINKPROP, rtnl_newlinkprop, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_DELLINKPROP, rtnl_dellinkprop, NULL, 0);
-
-	rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, rtnl_fdb_add, NULL, 0);
-	rtnl_register(PF_BRIDGE, RTM_DELNEIGH, rtnl_fdb_del, NULL,
-		      RTNL_FLAG_BULK_DEL_SUPPORTED);
-	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, rtnl_fdb_get, rtnl_fdb_dump, 0);
-
-	rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, rtnl_bridge_getlink, 0);
-	rtnl_register(PF_BRIDGE, RTM_DELLINK, rtnl_bridge_dellink, NULL, 0);
-	rtnl_register(PF_BRIDGE, RTM_SETLINK, rtnl_bridge_setlink, NULL, 0);
-
-	rtnl_register(PF_UNSPEC, RTM_GETSTATS, rtnl_stats_get, rtnl_stats_dump,
-		      0);
-	rtnl_register(PF_UNSPEC, RTM_SETSTATS, rtnl_stats_set, NULL, 0);
-
-	rtnl_register(PF_BRIDGE, RTM_GETMDB, rtnl_mdb_get, rtnl_mdb_dump, 0);
-	rtnl_register(PF_BRIDGE, RTM_NEWMDB, rtnl_mdb_add, NULL, 0);
-	rtnl_register(PF_BRIDGE, RTM_DELMDB, rtnl_mdb_del, NULL,
-		      RTNL_FLAG_BULK_DEL_SUPPORTED);
+	rtnl_register_many(rtnetlink_rtnl_msg_handlers);
 }

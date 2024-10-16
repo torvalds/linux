@@ -4042,25 +4042,30 @@ static struct pernet_operations nexthop_net_ops = {
 	.exit_batch_rtnl = nexthop_net_exit_batch_rtnl,
 };
 
+static const struct rtnl_msg_handler nexthop_rtnl_msg_handlers[] __initconst = {
+	{.msgtype = RTM_NEWNEXTHOP, .doit = rtm_new_nexthop},
+	{.msgtype = RTM_DELNEXTHOP, .doit = rtm_del_nexthop},
+	{.msgtype = RTM_GETNEXTHOP, .doit = rtm_get_nexthop,
+	 .dumpit = rtm_dump_nexthop},
+	{.msgtype = RTM_GETNEXTHOPBUCKET, .doit = rtm_get_nexthop_bucket,
+	 .dumpit = rtm_dump_nexthop_bucket},
+	{.protocol = PF_INET, .msgtype = RTM_NEWNEXTHOP,
+	 .doit = rtm_new_nexthop},
+	{.protocol = PF_INET, .msgtype = RTM_GETNEXTHOP,
+	 .dumpit = rtm_dump_nexthop},
+	{.protocol = PF_INET6, .msgtype = RTM_NEWNEXTHOP,
+	 .doit = rtm_new_nexthop},
+	{.protocol = PF_INET6, .msgtype = RTM_GETNEXTHOP,
+	 .dumpit = rtm_dump_nexthop},
+};
+
 static int __init nexthop_init(void)
 {
 	register_pernet_subsys(&nexthop_net_ops);
 
 	register_netdevice_notifier(&nh_netdev_notifier);
 
-	rtnl_register(PF_UNSPEC, RTM_NEWNEXTHOP, rtm_new_nexthop, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_DELNEXTHOP, rtm_del_nexthop, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETNEXTHOP, rtm_get_nexthop,
-		      rtm_dump_nexthop, 0);
-
-	rtnl_register(PF_INET, RTM_NEWNEXTHOP, rtm_new_nexthop, NULL, 0);
-	rtnl_register(PF_INET, RTM_GETNEXTHOP, NULL, rtm_dump_nexthop, 0);
-
-	rtnl_register(PF_INET6, RTM_NEWNEXTHOP, rtm_new_nexthop, NULL, 0);
-	rtnl_register(PF_INET6, RTM_GETNEXTHOP, NULL, rtm_dump_nexthop, 0);
-
-	rtnl_register(PF_UNSPEC, RTM_GETNEXTHOPBUCKET, rtm_get_nexthop_bucket,
-		      rtm_dump_nexthop_bucket, 0);
+	rtnl_register_many(nexthop_rtnl_msg_handlers);
 
 	return 0;
 }

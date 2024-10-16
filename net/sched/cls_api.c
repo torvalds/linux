@@ -4055,6 +4055,19 @@ static struct pernet_operations tcf_net_ops = {
 	.size = sizeof(struct tcf_net),
 };
 
+static const struct rtnl_msg_handler tc_filter_rtnl_msg_handlers[] __initconst = {
+	{.msgtype = RTM_NEWTFILTER, .doit = tc_new_tfilter,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.msgtype = RTM_DELTFILTER, .doit = tc_del_tfilter,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.msgtype = RTM_GETTFILTER, .doit = tc_get_tfilter,
+	 .dumpit = tc_dump_tfilter, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.msgtype = RTM_NEWCHAIN, .doit = tc_ctl_chain},
+	{.msgtype = RTM_DELCHAIN, .doit = tc_ctl_chain},
+	{.msgtype = RTM_GETCHAIN, .doit = tc_ctl_chain,
+	 .dumpit = tc_dump_chain},
+};
+
 static int __init tc_filter_init(void)
 {
 	int err;
@@ -4068,17 +4081,7 @@ static int __init tc_filter_init(void)
 		goto err_register_pernet_subsys;
 
 	xa_init_flags(&tcf_exts_miss_cookies_xa, XA_FLAGS_ALLOC1);
-
-	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_new_tfilter, NULL,
-		      RTNL_FLAG_DOIT_UNLOCKED);
-	rtnl_register(PF_UNSPEC, RTM_DELTFILTER, tc_del_tfilter, NULL,
-		      RTNL_FLAG_DOIT_UNLOCKED);
-	rtnl_register(PF_UNSPEC, RTM_GETTFILTER, tc_get_tfilter,
-		      tc_dump_tfilter, RTNL_FLAG_DOIT_UNLOCKED);
-	rtnl_register(PF_UNSPEC, RTM_NEWCHAIN, tc_ctl_chain, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_DELCHAIN, tc_ctl_chain, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETCHAIN, tc_ctl_chain,
-		      tc_dump_chain, 0);
+	rtnl_register_many(tc_filter_rtnl_msg_handlers);
 
 	return 0;
 
