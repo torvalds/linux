@@ -14270,12 +14270,13 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 	 * r1 += 0x1
 	 * if r2 < 1000 goto ...
 	 * use r1 in memory access
-	 * So remember constant delta between r2 and r1 and update r1 after
-	 * 'if' condition.
+	 * So for 64-bit alu remember constant delta between r2 and r1 and
+	 * update r1 after 'if' condition.
 	 */
-	if (env->bpf_capable && BPF_OP(insn->code) == BPF_ADD &&
-	    dst_reg->id && is_reg_const(src_reg, alu32)) {
-		u64 val = reg_const_value(src_reg, alu32);
+	if (env->bpf_capable &&
+	    BPF_OP(insn->code) == BPF_ADD && !alu32 &&
+	    dst_reg->id && is_reg_const(src_reg, false)) {
+		u64 val = reg_const_value(src_reg, false);
 
 		if ((dst_reg->id & BPF_ADD_CONST) ||
 		    /* prevent overflow in sync_linked_regs() later */
