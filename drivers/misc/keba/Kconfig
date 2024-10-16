@@ -2,6 +2,7 @@
 config KEBA_CP500
 	tristate "KEBA CP500 system FPGA support"
 	depends on PCI
+	depends on I2C
 	select AUXILIARY_BUS
 	help
 	  This driver supports the KEBA CP500 system FPGA, which is used in
