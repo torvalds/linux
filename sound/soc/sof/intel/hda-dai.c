@@ -302,6 +302,7 @@ static int __maybe_unused hda_dai_trigger(struct snd_pcm_substream *substream, i
 	}
 
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		ret = hda_link_dma_cleanup(substream, hext_stream, dai);
 		if (ret < 0) {
