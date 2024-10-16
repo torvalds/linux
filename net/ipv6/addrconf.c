@@ -7468,7 +7468,9 @@ int __init addrconf_init(void)
 
 	addrconf_verify(&init_net);
 
-	rtnl_af_register(&inet6_ops);
+	err = rtnl_af_register(&inet6_ops);
+	if (err)
+		goto erraf;
 
 	err = rtnl_register_many(addrconf_rtnl_msg_handlers);
 	if (err)
@@ -7482,6 +7484,7 @@ int __init addrconf_init(void)
 errout:
 	rtnl_unregister_all(PF_INET6);
 	rtnl_af_unregister(&inet6_ops);
+erraf:
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 errlo:
 	destroy_workqueue(addrconf_wq);

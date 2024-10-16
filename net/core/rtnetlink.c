@@ -686,11 +686,13 @@ static const struct rtnl_af_ops *rtnl_af_lookup(const int family)
  *
  * Returns 0 on success or a negative error code.
  */
-void rtnl_af_register(struct rtnl_af_ops *ops)
+int rtnl_af_register(struct rtnl_af_ops *ops)
 {
 	rtnl_lock();
 	list_add_tail_rcu(&ops->list, &rtnl_af_ops);
 	rtnl_unlock();
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rtnl_af_register);
 
