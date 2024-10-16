@@ -1369,7 +1369,6 @@ static int bch2_dev_alloc(struct bch_fs *c, unsigned dev_idx)
 {
 	struct bch_member member = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
 	struct bch_dev *ca = NULL;
-	int ret = 0;
 
 	if (bch2_fs_init_fault("dev_alloc"))
 		goto err;
@@ -1381,10 +1380,8 @@ static int bch2_dev_alloc(struct bch_fs *c, unsigned dev_idx)
 	ca->fs = c;
 
 	bch2_dev_attach(c, ca, dev_idx);
-	return ret;
+	return 0;
 err:
-	if (ca)
-		bch2_dev_free(ca);
 	return -BCH_ERR_ENOMEM_dev_alloc;
 }
 
