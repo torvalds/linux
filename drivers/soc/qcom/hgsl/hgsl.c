@@ -3283,28 +3283,23 @@ static int hgsl_cleanup(struct hgsl_priv *priv)
 {
 	struct hgsl_mem_node *node_found = NULL;
 	struct rb_node *next = NULL;
-	int ret;
+	int ret = 0;
 	struct hgsl_hab_channel_t *hab_channel = NULL;
 
-	if (!hgsl_mem_rb_empty(priv)) {
-		ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
-		if (ret)
-			LOGE("Failed to get channel %d", ret);
+	if (hgsl_mem_rb_empty(priv))
+		goto out;
 
-		ret = hgsl_hyp_notify_cleanup(hab_channel, HGSL_CLEANUP_WAIT_SLICE_IN_MS);
-		if (ret == -ETIMEDOUT) {
-			hgsl_hyp_channel_pool_put(hab_channel);
-			return ret;
-		}
+	ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
+	if (ret) {
+		LOGE("Failed to get channel %d", ret);
+		goto out;
 	}
+
+	ret = hgsl_hyp_notify_cleanup(hab_channel, HGSL_CLEANUP_WAIT_SLICE_IN_MS);
+	if (ret == -ETIMEDOUT)
+		goto out;
 
 	mutex_lock(&priv->lock);
-	if (!hab_channel && !hgsl_mem_rb_empty(priv)) {
-		ret = hgsl_hyp_channel_pool_get(&priv->hyp_priv, 0, &hab_channel);
-		if (ret)
-			LOGE("Failed to get channel %d", ret);
-	}
-
 	next = rb_first(&priv->mem_mapped);
 	while (next) {
 		node_found = rb_entry(next, struct hgsl_mem_node, mem_rb_node);
@@ -3336,8 +3331,9 @@ static int hgsl_cleanup(struct hgsl_priv *priv)
 	}
 	mutex_unlock(&priv->lock);
 
+out:
 	hgsl_hyp_channel_pool_put(hab_channel);
-	return 0;
+	return ret;
 }
 
 static int _hgsl_release(struct hgsl_priv *priv)
