@@ -8805,8 +8805,9 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 				return ret;
 			}
 			hba->scsi_host_added = true;
-		} else if (is_mcq_supported(hba)) {
-			/* UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH is set */
+		} else if (is_mcq_supported(hba) &&
+			   hba->quirks &
+				   UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH) {
 			ufshcd_config_mcq(hba);
 			ufshcd_mcq_enable(hba);
 		}
