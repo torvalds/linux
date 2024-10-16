@@ -511,6 +511,7 @@ __esw_qos_alloc_rate_group(struct mlx5_eswitch *esw, u32 tsar_ix, enum sched_nod
 			   struct mlx5_esw_rate_group *parent)
 {
 	struct mlx5_esw_rate_group *group;
+	struct list_head *parent_list;
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
@@ -521,7 +522,9 @@ __esw_qos_alloc_rate_group(struct mlx5_eswitch *esw, u32 tsar_ix, enum sched_nod
 	group->type = type;
 	group->parent = parent;
 	INIT_LIST_HEAD(&group->members);
-	list_add_tail(&group->parent_entry, &esw->qos.domain->groups);
+	parent_list = parent ? &parent->members : &esw->qos.domain->groups;
+	list_add_tail(&group->parent_entry, parent_list);
+
 	return group;
 }
 
