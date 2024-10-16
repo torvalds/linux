@@ -94,6 +94,9 @@ struct uvc_video {
 	struct work_struct pump;
 	struct workqueue_struct *async_wq;
 
+	struct kthread_worker   *kworker;
+	struct kthread_work     hw_submit;
+
 	atomic_t queued;
 
 	/* Frame parameters */
