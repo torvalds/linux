@@ -429,14 +429,6 @@ static void move_trip_to_sorted_list(struct thermal_trip_desc *td,
 	list_add(&td->list_node, list);
 }
 
-static void thermal_zone_device_check(struct work_struct *work)
-{
-	struct thermal_zone_device *tz = container_of(work, struct
-						      thermal_zone_device,
-						      poll_queue.work);
-	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
-}
-
 static void move_to_trips_high(struct thermal_zone_device *tz,
 			       struct thermal_trip_desc *td)
 {
@@ -456,39 +448,6 @@ static void move_to_trips_invalid(struct thermal_zone_device *tz,
 {
 	td->threshold = INT_MAX;
 	list_move(&td->list_node, &tz->trips_invalid);
-}
-
-static void thermal_zone_device_init(struct thermal_zone_device *tz)
-{
-	struct thermal_trip_desc *td, *next;
-
-	INIT_DELAYED_WORK(&tz->poll_queue, thermal_zone_device_check);
-
-	tz->temperature = THERMAL_TEMP_INIT;
-	tz->passive = 0;
-	tz->prev_low_trip = -INT_MAX;
-	tz->prev_high_trip = INT_MAX;
-	for_each_trip_desc(tz, td) {
-		struct thermal_instance *instance;
-
-		list_for_each_entry(instance, &td->thermal_instances, trip_node)
-			instance->initialized = false;
-	}
-	/*
-	 * At this point, all valid trips need to be moved to trips_high so that
-	 * mitigation can be started if the zone temperature is above them.
-	 */
-	list_for_each_entry_safe(td, next, &tz->trips_invalid, list_node) {
-		if (td->trip.temperature != THERMAL_TEMP_INVALID)
-			move_to_trips_high(tz, td);
-	}
-	/* The trips_reached list may not be empty during system resume. */
-	list_for_each_entry_safe(td, next, &tz->trips_reached, list_node) {
-		if (td->trip.temperature == THERMAL_TEMP_INVALID)
-			move_to_trips_invalid(tz, td);
-		else
-			move_to_trips_high(tz, td);
-	}
 }
 
 static void thermal_governor_trip_crossed(struct thermal_governor *governor,
@@ -1425,6 +1384,47 @@ int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_crit_temp);
+
+static void thermal_zone_device_check(struct work_struct *work)
+{
+	struct thermal_zone_device *tz = container_of(work, struct
+						      thermal_zone_device,
+						      poll_queue.work);
+	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+}
+
+static void thermal_zone_device_init(struct thermal_zone_device *tz)
+{
+	struct thermal_trip_desc *td, *next;
+
+	INIT_DELAYED_WORK(&tz->poll_queue, thermal_zone_device_check);
+
+	tz->temperature = THERMAL_TEMP_INIT;
+	tz->passive = 0;
+	tz->prev_low_trip = -INT_MAX;
+	tz->prev_high_trip = INT_MAX;
+	for_each_trip_desc(tz, td) {
+		struct thermal_instance *instance;
+
+		list_for_each_entry(instance, &td->thermal_instances, trip_node)
+			instance->initialized = false;
+	}
+	/*
+	 * At this point, all valid trips need to be moved to trips_high so that
+	 * mitigation can be started if the zone temperature is above them.
+	 */
+	list_for_each_entry_safe(td, next, &tz->trips_invalid, list_node) {
+		if (td->trip.temperature != THERMAL_TEMP_INVALID)
+			move_to_trips_high(tz, td);
+	}
+	/* The trips_reached list may not be empty during system resume. */
+	list_for_each_entry_safe(td, next, &tz->trips_reached, list_node) {
+		if (td->trip.temperature == THERMAL_TEMP_INVALID)
+			move_to_trips_invalid(tz, td);
+		else
+			move_to_trips_high(tz, td);
+	}
+}
 
 static int thermal_zone_init_governor(struct thermal_zone_device *tz)
 {
