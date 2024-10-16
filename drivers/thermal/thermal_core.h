@@ -33,7 +33,6 @@ struct thermal_trip_desc {
 	struct thermal_trip_attrs trip_attrs;
 	struct list_head list_node;
 	struct list_head thermal_instances;
-	int notify_temp;
 	int threshold;
 };
 
@@ -78,6 +77,9 @@ struct thermal_governor {
  * @device:	&struct device for this thermal zone
  * @removal:	removal completion
  * @resume:	resume completion
+ * @trips_high:	trips above the current zone temperature
+ * @trips_reached:	trips below or at the current zone temperature
+ * @trips_invalid:	trips with invalid temperature
  * @mode:		current mode of this thermal zone
  * @devdata:	private pointer for device private data
  * @num_trips:	number of trip points the thermal zone supports
@@ -118,6 +120,9 @@ struct thermal_zone_device {
 	struct completion removal;
 	struct completion resume;
 	struct attribute_group trips_attribute_group;
+	struct list_head trips_high;
+	struct list_head trips_reached;
+	struct list_head trips_invalid;
 	enum thermal_device_mode mode;
 	void *devdata;
 	int num_trips;
