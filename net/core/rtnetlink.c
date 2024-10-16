@@ -3690,23 +3690,19 @@ out_unregister:
 }
 
 static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  const struct rtnl_link_ops *ops,
 			  struct rtnl_newlink_tbs *tbs,
 			  struct netlink_ext_ack *extack)
 {
 	struct nlattr ** const linkinfo = tbs->linkinfo;
 	struct nlattr ** const tb = tbs->tb;
 	struct net *net = sock_net(skb->sk);
-	const struct rtnl_link_ops *ops;
-	char kind[MODULE_NAME_LEN];
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
 	struct nlattr **data;
 	bool link_specified;
 	int err;
 
-#ifdef CONFIG_MODULES
-replay:
-#endif
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0) {
 		link_specified = true;
@@ -3720,14 +3716,6 @@ replay:
 	} else {
 		link_specified = false;
 		dev = NULL;
-	}
-
-	if (linkinfo[IFLA_INFO_KIND]) {
-		nla_strscpy(kind, linkinfo[IFLA_INFO_KIND], sizeof(kind));
-		ops = rtnl_link_ops_get(kind);
-	} else {
-		kind[0] = '\0';
-		ops = NULL;
 	}
 
 	data = NULL;
@@ -3770,16 +3758,6 @@ replay:
 		return -EOPNOTSUPP;
 
 	if (!ops) {
-#ifdef CONFIG_MODULES
-		if (kind[0]) {
-			__rtnl_unlock();
-			request_module("rtnl-link-%s", kind);
-			rtnl_lock();
-			ops = rtnl_link_ops_get(kind);
-			if (ops)
-				goto replay;
-		}
-#endif
 		NL_SET_ERR_MSG(extack, "Unknown device type");
 		return -EOPNOTSUPP;
 	}
@@ -3790,6 +3768,7 @@ replay:
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	const struct rtnl_link_ops *ops = NULL;
 	struct nlattr **tb, **linkinfo;
 	struct rtnl_newlink_tbs *tbs;
 	int ret;
@@ -3819,7 +3798,22 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		memset(linkinfo, 0, sizeof(tbs->linkinfo));
 	}
 
-	ret = __rtnl_newlink(skb, nlh, tbs, extack);
+	if (linkinfo[IFLA_INFO_KIND]) {
+		char kind[MODULE_NAME_LEN];
+
+		nla_strscpy(kind, linkinfo[IFLA_INFO_KIND], sizeof(kind));
+		ops = rtnl_link_ops_get(kind);
+#ifdef CONFIG_MODULES
+		if (!ops) {
+			__rtnl_unlock();
+			request_module("rtnl-link-%s", kind);
+			rtnl_lock();
+			ops = rtnl_link_ops_get(kind);
+		}
+#endif
+	}
+
+	ret = __rtnl_newlink(skb, nlh, ops, tbs, extack);
 
 free:
 	kfree(tbs);
