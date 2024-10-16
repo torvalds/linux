@@ -421,6 +421,41 @@ static int intel_pch_pfit_check_src_size(const struct intel_crtc_state *crtc_sta
 	return 0;
 }
 
+static int intel_pch_pfit_check_scaling(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	const struct drm_rect *dst = &crtc_state->pch_pfit.dst;
+	int pipe_src_w = drm_rect_width(&crtc_state->pipe_src);
+	int pipe_src_h = drm_rect_height(&crtc_state->pipe_src);
+	int hscale, vscale, max_scale = 0x12000; /* 1.125 */
+	struct drm_rect src;
+
+	drm_rect_init(&src, 0, 0, pipe_src_w << 16, pipe_src_h << 16);
+
+	hscale = drm_rect_calc_hscale(&src, dst, 0, max_scale);
+	if (hscale < 0) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] pfit horizontal downscaling (%d->%d) exceeds max (0x%x)\n",
+			    crtc->base.base.id, crtc->base.name,
+			    pipe_src_w, drm_rect_width(dst),
+			    max_scale);
+		return hscale;
+	}
+
+	vscale = drm_rect_calc_vscale(&src, dst, 0, max_scale);
+	if (vscale < 0) {
+		drm_dbg_kms(display->drm,
+			    "[CRTC:%d:%s] pfit vertical downscaling (%d->%d) exceeds max (0x%x)\n",
+			    crtc->base.base.id, crtc->base.name,
+			    pipe_src_h, drm_rect_height(dst),
+			    max_scale);
+		return vscale;
+	}
+
+	return 0;
+}
+
 /* adjusted_mode has been preset to be the panel's fixed mode */
 static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
@@ -500,6 +535,10 @@ static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 		return 0;
 
 	ret = intel_pch_pfit_check_src_size(crtc_state);
+	if (ret)
+		return ret;
+
+	ret = intel_pch_pfit_check_scaling(crtc_state);
 	if (ret)
 		return ret;
 
