@@ -679,6 +679,23 @@ config TCP_CONG_BBR
 	  AQM schemes that do not provide a delay signal. It requires the fq
 	  ("Fair Queue") pacing packet scheduler.
 
+config TCP_CONG_AGILESD
+    	tristate "Agile-SD Congestion control"
+    	default n
+    	---help---
+    	This is version 1.0 of Agile-SD TCP a sender-side only.
+    	It reduces the sensitivity to packet losses, which in turn
+    	increases the throughput up to 55 percent.
+    	Agile-SD is a Loss-Based Congestion Control Algorithm for TCP v1.0.
+    	Agile-SD has been created by Mohamed A. Alrshah,
+    	at Faculty of Computer Science and Information Technology,
+    	Universiti Putra Malaysia.
+    	Agile-SD is based on the article, which is published in 2015 as below:
+    	Alrshah, M.A., Othman, M., Ali, B. and Hanapi, Z.M., 2015. 
+    	Agile-SD: a Linux-based TCP congestion control algorithm for supporting high-speed and short-distance networks.
+    	Journal of Network and Computer Applications, 55, pp.181-190.
+    
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
