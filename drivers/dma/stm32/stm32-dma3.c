@@ -222,6 +222,7 @@ enum stm32_dma3_port_data_width {
 #define STM32_DMA3_DT_PFREQ		BIT(9) /* CTR2_PFREQ */
 #define STM32_DMA3_DT_TCEM		GENMASK(13, 12) /* CTR2_TCEM */
 #define STM32_DMA3_DT_NOPACK		BIT(16) /* CTR1_PAM */
+#define STM32_DMA3_DT_NOREFACT		BIT(17)
 
 /* struct stm32_dma3_chan .config_set bitfield */
 #define STM32_DMA3_CFG_SET_DT		BIT(0)
@@ -1126,9 +1127,12 @@ static void stm32_dma3_free_chan_resources(struct dma_chan *c)
 	chan->config_set = 0;
 }
 
-static u32 stm32_dma3_get_ll_count(struct stm32_dma3_chan *chan, size_t len)
+static u32 stm32_dma3_get_ll_count(struct stm32_dma3_chan *chan, size_t len, bool prevent_refactor)
 {
 	u32 count;
+
+	if (prevent_refactor)
+		return DIV_ROUND_UP(len, STM32_DMA3_MAX_BLOCK_SIZE);
 
 	count = len / STM32_DMA3_MAX_BLOCK_SIZE;
 	len -= (len / STM32_DMA3_MAX_BLOCK_SIZE) * STM32_DMA3_MAX_BLOCK_SIZE;
@@ -1179,8 +1183,10 @@ static struct dma_async_tx_descriptor *stm32_dma3_prep_dma_memcpy(struct dma_cha
 	struct stm32_dma3_swdesc *swdesc;
 	size_t next_size, offset;
 	u32 count, i, ctr1, ctr2;
+	bool prevent_refactor = !!FIELD_GET(STM32_DMA3_DT_NOPACK, chan->dt_config.tr_conf) ||
+				!!FIELD_GET(STM32_DMA3_DT_NOREFACT, chan->dt_config.tr_conf);
 
-	count = stm32_dma3_get_ll_count(chan, len);
+	count = stm32_dma3_get_ll_count(chan, len, prevent_refactor);
 
 	swdesc = stm32_dma3_chan_desc_alloc(chan, count);
 	if (!swdesc)
@@ -1196,7 +1202,8 @@ static struct dma_async_tx_descriptor *stm32_dma3_prep_dma_memcpy(struct dma_cha
 		remaining = len - offset;
 		next_size = min_t(size_t, remaining, STM32_DMA3_MAX_BLOCK_SIZE);
 
-		if (next_size < STM32_DMA3_MAX_BLOCK_SIZE && next_size >= chan->max_burst)
+		if (!prevent_refactor &&
+		    (next_size < STM32_DMA3_MAX_BLOCK_SIZE && next_size >= chan->max_burst))
 			next_size = chan->max_burst * (remaining / chan->max_burst);
 
 		ret = stm32_dma3_chan_prep_hw(chan, DMA_MEM_TO_MEM, &swdesc->ccr, &ctr1, &ctr2,
@@ -1235,11 +1242,13 @@ static struct dma_async_tx_descriptor *stm32_dma3_prep_slave_sg(struct dma_chan 
 	size_t len;
 	dma_addr_t sg_addr, dev_addr, src, dst;
 	u32 i, j, count, ctr1, ctr2;
+	bool prevent_refactor = !!FIELD_GET(STM32_DMA3_DT_NOPACK, chan->dt_config.tr_conf) ||
+				!!FIELD_GET(STM32_DMA3_DT_NOREFACT, chan->dt_config.tr_conf);
 	int ret;
 
 	count = 0;
 	for_each_sg(sgl, sg, sg_len, i)
-		count += stm32_dma3_get_ll_count(chan, sg_dma_len(sg));
+		count += stm32_dma3_get_ll_count(chan, sg_dma_len(sg), prevent_refactor);
 
 	swdesc = stm32_dma3_chan_desc_alloc(chan, count);
 	if (!swdesc)
@@ -1256,7 +1265,8 @@ static struct dma_async_tx_descriptor *stm32_dma3_prep_slave_sg(struct dma_chan 
 		do {
 			size_t chunk = min_t(size_t, len, STM32_DMA3_MAX_BLOCK_SIZE);
 
-			if (chunk < STM32_DMA3_MAX_BLOCK_SIZE && chunk >= chan->max_burst)
+			if (!prevent_refactor &&
+			    (chunk < STM32_DMA3_MAX_BLOCK_SIZE && chunk >= chan->max_burst))
 				chunk = chan->max_burst * (len / chan->max_burst);
 
 			if (dir == DMA_MEM_TO_DEV) {
