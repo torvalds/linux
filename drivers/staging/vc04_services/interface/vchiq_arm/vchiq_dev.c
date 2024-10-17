@@ -289,7 +289,6 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 	struct vchiq_service *service;
 	struct bulk_waiter_node *waiter = NULL, *iter;
 	struct vchiq_bulk bulk_params = {};
-	void *userdata;
 	int status = 0;
 	int ret;
 
@@ -331,9 +330,9 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		}
 		dev_dbg(service->state->dev, "arm: found bulk_waiter %pK for pid %d\n",
 			waiter, current->pid);
-		userdata = &waiter->bulk_waiter;
 
-		status = vchiq_bulk_xfer_waiting(instance, args->handle, userdata);
+		status = vchiq_bulk_xfer_waiting(instance, args->handle,
+						 &waiter->bulk_waiter);
 	} else {
 		bulk_params.uoffset = args->data;
 		bulk_params.mode = args->mode;
