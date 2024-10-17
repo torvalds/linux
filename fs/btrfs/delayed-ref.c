@@ -9,6 +9,7 @@
 #include "messages.h"
 #include "ctree.h"
 #include "delayed-ref.h"
+#include "extent-tree.h"
 #include "transaction.h"
 #include "qgroup.h"
 #include "space-info.h"
@@ -1236,6 +1237,86 @@ bool btrfs_find_delayed_tree_ref(struct btrfs_delayed_ref_head *head,
 	}
 	spin_unlock(&head->lock);
 	return found;
+}
+
+void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
+				struct btrfs_fs_info *fs_info)
+{
+	struct rb_node *node;
+	struct btrfs_delayed_ref_root *delayed_refs = &trans->delayed_refs;
+
+	spin_lock(&delayed_refs->lock);
+	while ((node = rb_first_cached(&delayed_refs->href_root)) != NULL) {
+		struct btrfs_delayed_ref_head *head;
+		struct rb_node *n;
+		bool pin_bytes = false;
+
+		head = rb_entry(node, struct btrfs_delayed_ref_head,
+				href_node);
+		if (btrfs_delayed_ref_lock(delayed_refs, head))
+			continue;
+
+		spin_lock(&head->lock);
+		while ((n = rb_first_cached(&head->ref_tree)) != NULL) {
+			struct btrfs_delayed_ref_node *ref;
+
+			ref = rb_entry(n, struct btrfs_delayed_ref_node, ref_node);
+			rb_erase_cached(&ref->ref_node, &head->ref_tree);
+			RB_CLEAR_NODE(&ref->ref_node);
+			if (!list_empty(&ref->add_list))
+				list_del(&ref->add_list);
+			atomic_dec(&delayed_refs->num_entries);
+			btrfs_put_delayed_ref(ref);
+			btrfs_delayed_refs_rsv_release(fs_info, 1, 0);
+		}
+		if (head->must_insert_reserved)
+			pin_bytes = true;
+		btrfs_free_delayed_extent_op(head->extent_op);
+		btrfs_delete_ref_head(delayed_refs, head);
+		spin_unlock(&head->lock);
+		spin_unlock(&delayed_refs->lock);
+		mutex_unlock(&head->mutex);
+
+		if (pin_bytes) {
+			struct btrfs_block_group *bg;
+
+			bg = btrfs_lookup_block_group(fs_info, head->bytenr);
+			if (WARN_ON_ONCE(bg == NULL)) {
+				/*
+				 * Unexpected and there's nothing we can do here
+				 * because we are in a transaction abort path,
+				 * so any errors can only be ignored or reported
+				 * while attempting to cleanup all resources.
+				 */
+				btrfs_err(fs_info,
+"block group for delayed ref at %llu was not found while destroying ref head",
+					  head->bytenr);
+			} else {
+				spin_lock(&bg->space_info->lock);
+				spin_lock(&bg->lock);
+				bg->pinned += head->num_bytes;
+				btrfs_space_info_update_bytes_pinned(fs_info,
+								     bg->space_info,
+								     head->num_bytes);
+				bg->reserved -= head->num_bytes;
+				bg->space_info->bytes_reserved -= head->num_bytes;
+				spin_unlock(&bg->lock);
+				spin_unlock(&bg->space_info->lock);
+
+				btrfs_put_block_group(bg);
+			}
+
+			btrfs_error_unpin_extent_range(fs_info, head->bytenr,
+				head->bytenr + head->num_bytes - 1);
+		}
+		btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
+		btrfs_put_delayed_ref_head(head);
+		cond_resched();
+		spin_lock(&delayed_refs->lock);
+	}
+	btrfs_qgroup_destroy_extent_records(trans);
+
+	spin_unlock(&delayed_refs->lock);
 }
 
 void __cold btrfs_delayed_ref_exit(void)
