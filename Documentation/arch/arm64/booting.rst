@@ -41,6 +41,9 @@ to automatically locate and size all RAM, or it may use knowledge of
 the RAM in the machine, or any other method the boot loader designer
 sees fit.)
 
+For Arm Confidential Compute Realms this includes ensuring that all
+protected RAM has a Realm IPA state (RIPAS) of "RAM".
+
 
 2. Setup the device tree
 -------------------------

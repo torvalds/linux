@@ -10,6 +10,7 @@ ARM64 Architecture
     acpi_object_usage
     amu
     arm-acpi
+    arm-cca
     asymmetric-32bit
     booting
     cpu-feature-registers
