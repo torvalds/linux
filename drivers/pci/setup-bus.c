@@ -134,6 +134,7 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 	int i;
 
 	pci_dev_for_each_resource(dev, r, i) {
+		const char *r_name = pci_resource_name(dev, i);
 		struct pci_dev_resource *dev_res, *tmp;
 		resource_size_t r_align;
 		struct list_head *n;
@@ -146,8 +147,8 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 
 		r_align = pci_resource_alignment(dev, r);
 		if (!r_align) {
-			pci_warn(dev, "BAR %d: %pR has bogus alignment\n",
-				 i, r);
+			pci_warn(dev, "%s %pR: alignment must not be zero\n",
+				 r_name, r);
 			continue;
 		}
 
