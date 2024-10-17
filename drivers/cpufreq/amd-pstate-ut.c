@@ -227,10 +227,10 @@ static void amd_pstate_ut_check_freq(u32 index)
 			goto skip_test;
 		}
 
-		if (cpudata->min_freq != policy->min) {
+		if (cpudata->lowest_nonlinear_freq != policy->min) {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
-			pr_err("%s cpu%d cpudata_min_freq=%d policy_min=%d, they should be equal!\n",
-				__func__, cpu, cpudata->min_freq, policy->min);
+			pr_err("%s cpu%d cpudata_lowest_nonlinear_freq=%d policy_min=%d, they should be equal!\n",
+				__func__, cpu, cpudata->lowest_nonlinear_freq, policy->min);
 			goto skip_test;
 		}
 
