@@ -141,16 +141,10 @@ static int read_tile_config_fuse(struct ivpu_device *vdev, u32 *tile_fuse_config
 	}
 
 	config = REG_GET_FLD(VPU_HW_BTRS_LNL_TILE_FUSE, CONFIG, fuse);
-	if (!tile_disable_check(config)) {
-		ivpu_err(vdev, "Fuse: Invalid tile disable config (0x%x)\n", config);
-		return -EIO;
-	}
+	if (!tile_disable_check(config))
+		ivpu_warn(vdev, "More than 1 tile disabled, tile fuse config mask: 0x%x\n", config);
 
-	if (config)
-		ivpu_dbg(vdev, MISC, "Fuse: %d tiles enabled. Tile number %d disabled\n",
-			 BTRS_LNL_TILE_MAX_NUM - 1, ffs(config) - 1);
-	else
-		ivpu_dbg(vdev, MISC, "Fuse: All %d tiles enabled\n", BTRS_LNL_TILE_MAX_NUM);
+	ivpu_dbg(vdev, MISC, "Tile disable config mask: 0x%x\n", config);
 
 	*tile_fuse_config = config;
 	return 0;
