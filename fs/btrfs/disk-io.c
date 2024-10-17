@@ -4571,19 +4571,30 @@ static void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			struct btrfs_block_group *cache;
 
 			cache = btrfs_lookup_block_group(fs_info, head->bytenr);
-			BUG_ON(!cache);
+			if (WARN_ON_ONCE(cache == NULL)) {
+				/*
+				 * Unexpected and there's nothing we can do here
+				 * because we are in a transaction abort path,
+				 * so any errors can only be ignored or reported
+				 * while attempting to cleanup all resources.
+				 */
+				btrfs_err(fs_info,
+"block group for delayed ref at %llu was not found while destroying ref head",
+					  head->bytenr);
+			} else {
+				spin_lock(&cache->space_info->lock);
+				spin_lock(&cache->lock);
+				cache->pinned += head->num_bytes;
+				btrfs_space_info_update_bytes_pinned(fs_info,
+								     cache->space_info,
+								     head->num_bytes);
+				cache->reserved -= head->num_bytes;
+				cache->space_info->bytes_reserved -= head->num_bytes;
+				spin_unlock(&cache->lock);
+				spin_unlock(&cache->space_info->lock);
 
-			spin_lock(&cache->space_info->lock);
-			spin_lock(&cache->lock);
-			cache->pinned += head->num_bytes;
-			btrfs_space_info_update_bytes_pinned(fs_info,
-				cache->space_info, head->num_bytes);
-			cache->reserved -= head->num_bytes;
-			cache->space_info->bytes_reserved -= head->num_bytes;
-			spin_unlock(&cache->lock);
-			spin_unlock(&cache->space_info->lock);
-
-			btrfs_put_block_group(cache);
+				btrfs_put_block_group(cache);
+			}
 
 			btrfs_error_unpin_extent_range(fs_info, head->bytenr,
 				head->bytenr + head->num_bytes - 1);
