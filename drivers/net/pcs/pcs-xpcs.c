@@ -1104,41 +1104,32 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 	}
 }
 
-static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int neg_mode,
-			       int speed, int duplex)
+static void xpcs_link_up_sgmii_1000basex(struct dw_xpcs *xpcs,
+					 unsigned int neg_mode,
+					 phy_interface_t interface,
+					 int speed, int duplex)
 {
-	int val, ret;
+	int ret;
 
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		return;
 
-	val = mii_bmcr_encode_fixed(speed, duplex);
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR, val);
-	if (ret)
-		dev_err(&xpcs->mdiodev->dev, "%s: xpcs_write returned %pe\n",
-			__func__, ERR_PTR(ret));
-}
+	if (interface == PHY_INTERFACE_MODE_1000BASEX) {
+		if (speed != SPEED_1000) {
+			dev_err(&xpcs->mdiodev->dev,
+				"%s: speed %dMbps not supported\n",
+				__func__, speed);
+			return;
+		}
 
-static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
-				   int speed, int duplex)
-{
-	int val, ret;
-
-	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		return;
-
-	if (speed != SPEED_1000) {
-		dev_err(&xpcs->mdiodev->dev, "%s: speed %dMbps not supported\n",
-			__func__, speed);
-		return;
+		if (duplex != DUPLEX_FULL)
+			dev_err(&xpcs->mdiodev->dev,
+				"%s: half duplex not supported\n",
+				__func__);
 	}
 
-	if (duplex != DUPLEX_FULL)
-		dev_err(&xpcs->mdiodev->dev, "%s: half duplex not supported\n",
-			__func__);
-
-	val = mii_bmcr_encode_fixed(speed, duplex);
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR, val);
+	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+			 mii_bmcr_encode_fixed(speed, duplex));
 	if (ret)
 		dev_err(&xpcs->mdiodev->dev, "%s: xpcs_write returned %pe\n",
 			__func__, ERR_PTR(ret));
@@ -1151,10 +1142,11 @@ static void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 
 	if (interface == PHY_INTERFACE_MODE_USXGMII)
 		return xpcs_config_usxgmii(xpcs, speed);
-	if (interface == PHY_INTERFACE_MODE_SGMII)
-		return xpcs_link_up_sgmii(xpcs, neg_mode, speed, duplex);
-	if (interface == PHY_INTERFACE_MODE_1000BASEX)
-		return xpcs_link_up_1000basex(xpcs, neg_mode, speed, duplex);
+
+	if (interface == PHY_INTERFACE_MODE_SGMII ||
+	    interface == PHY_INTERFACE_MODE_1000BASEX)
+		return xpcs_link_up_sgmii_1000basex(xpcs, neg_mode, interface,
+						    speed, duplex);
 }
 
 static void xpcs_an_restart(struct phylink_pcs *pcs)
