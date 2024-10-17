@@ -504,7 +504,8 @@ headers_dir := $(CURDIR)/debian/linux-libc-dev
 
 .PHONY: install-arch-headers
 install-arch-headers:
-	@echo Debug: $@
+ifneq ($(build_arch),i386)
+@echo Debug: $@
 	dh_testdir
 	dh_testroot
 	$(call if_package, linux-libc-dev, dh_prep -plinux-libc-dev)
@@ -513,6 +514,7 @@ install-arch-headers:
 	mkdir $(headers_dir)/usr/include/$(DEB_HOST_MULTIARCH)
 	mv $(headers_dir)/usr/include/asm $(headers_dir)/usr/include/$(DEB_HOST_MULTIARCH)/
 	rm -rf $(headers_tmp)
+endif
 
 define dh_all
 	dh_installchangelogs -p$(1)
@@ -818,4 +820,3 @@ endif
 .PHONY: binary-arch
 binary-arch: $(binary-arch-deps-true)
 	@echo Debug: $@
-

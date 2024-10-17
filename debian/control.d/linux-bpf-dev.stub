@@ -1,5 +1,5 @@
 Package: linux-bpf-dev
-Architecture: amd64 armhf arm64 i386 ppc64el riscv64 s390x
+Architecture: amd64 armhf arm64 ppc64el riscv64 s390x
 Depends: ${misc:Depends}
 Multi-Arch: same
 Description: Headers for BPF development

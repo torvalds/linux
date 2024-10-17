@@ -262,7 +262,7 @@ Description: Linux kernel specific documentation for version 6.11.3
  compatibility reasons. It will be dropped in the future.
 
 Package: linux-bpf-dev
-Architecture: amd64 armhf arm64 i386 ppc64el riscv64 s390x
+Architecture: amd64 armhf arm64 ppc64el riscv64 s390x
 Depends: ${misc:Depends}
 Multi-Arch: same
 Description: Headers for BPF development
