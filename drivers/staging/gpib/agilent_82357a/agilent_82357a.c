@@ -208,20 +208,8 @@ static int agilent_82357a_receive_control_msg(struct agilent_82357a_priv *a_priv
 
 static void agilent_82357a_dump_raw_block(const u8 *raw_data, int length)
 {
-#define RAW_BUF_SIZE 256
-	int i, pos = 0;
-	char print_buf[RAW_BUF_SIZE];
-
 	pr_info("hex block dump\n");
-	for (i = 0; i < length; ++i) {
-		if (i && (i % 8 == 0)) {
-			pr_info("%s\n", print_buf);
-			pos = 0;
-		}
-		pos += snprintf(&print_buf[pos], RAW_BUF_SIZE, " %02x", raw_data[i]);
-	}
-	if (pos)
-		pr_info("%s\n", print_buf);
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 8, 1, raw_data, length, true);
 }
 
 static int agilent_82357a_write_registers(struct agilent_82357a_priv *a_priv,
