@@ -497,8 +497,8 @@ static const struct pci_epc_ops rockchip_pcie_epc_ops = {
 	.get_features	= rockchip_pcie_ep_get_features,
 };
 
-static int rockchip_pcie_parse_ep_dt(struct rockchip_pcie *rockchip,
-				     struct rockchip_pcie_ep *ep)
+static int rockchip_pcie_ep_get_resources(struct rockchip_pcie *rockchip,
+					  struct rockchip_pcie_ep *ep)
 {
 	struct device *dev = rockchip->dev;
 	int err;
@@ -560,7 +560,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	ep->epc = epc;
 	epc_set_drvdata(epc, ep);
 
-	err = rockchip_pcie_parse_ep_dt(rockchip, ep);
+	err = rockchip_pcie_ep_get_resources(rockchip, ep);
 	if (err)
 		return err;
 
