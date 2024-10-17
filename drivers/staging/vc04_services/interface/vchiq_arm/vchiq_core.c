@@ -1482,8 +1482,7 @@ is_adjacent_block(u32 *addrs, dma_addr_t addr, unsigned int k)
  * cached area.
  */
 static struct vchiq_pagelist_info *
-create_pagelist(struct vchiq_instance *instance, struct vchiq_bulk *bulk,
-		size_t count, unsigned short type)
+create_pagelist(struct vchiq_instance *instance, struct vchiq_bulk *bulk)
 {
 	struct vchiq_drv_mgmt *drv_mgmt;
 	struct pagelist *pagelist;
@@ -1497,6 +1496,9 @@ create_pagelist(struct vchiq_instance *instance, struct vchiq_bulk *bulk,
 	int dma_buffers;
 	unsigned int cache_line_size;
 	dma_addr_t dma_addr;
+	size_t count = bulk->size;
+	unsigned short type = (bulk->dir == VCHIQ_BULK_RECEIVE)
+			      ? PAGELIST_READ : PAGELIST_WRITE;
 
 	if (count >= INT_MAX - PAGE_SIZE)
 		return NULL;
@@ -1740,15 +1742,11 @@ free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagel
 }
 
 static int
-vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk,
-			int size, int dir)
+vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk)
 {
 	struct vchiq_pagelist_info *pagelistinfo;
 
-	pagelistinfo = create_pagelist(instance, bulk, size,
-				       (dir == VCHIQ_BULK_RECEIVE)
-				       ? PAGELIST_READ
-				       : PAGELIST_WRITE);
+	pagelistinfo = create_pagelist(instance, bulk);
 
 	if (!pagelistinfo)
 		return -ENOMEM;
@@ -3074,7 +3072,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	bulk->offset = offset;
 	bulk->uoffset = uoffset;
 
-	if (vchiq_prepare_bulk_data(service->instance, bulk, size, dir))
+	if (vchiq_prepare_bulk_data(service->instance, bulk))
 		goto unlock_error_exit;
 
 	/*
