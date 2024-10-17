@@ -432,6 +432,7 @@ int
 ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 			 u64 vpu_addr, struct sg_table *sgt,  bool llc_coherent)
 {
+	size_t start_vpu_addr = vpu_addr;
 	struct scatterlist *sg;
 	int ret;
 	u64 prot;
@@ -462,7 +463,7 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 		ret = ivpu_mmu_context_map_pages(vdev, ctx, vpu_addr, dma_addr, size, prot);
 		if (ret) {
 			ivpu_err(vdev, "Failed to map context pages\n");
-			goto err_unlock;
+			goto err_unmap_pages;
 		}
 		vpu_addr += size;
 	}
@@ -472,7 +473,7 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 		if (ret) {
 			ivpu_err(vdev, "Failed to set context descriptor for context %u: %d\n",
 				 ctx->id, ret);
-			goto err_unlock;
+			goto err_unmap_pages;
 		}
 		ctx->is_cd_valid = true;
 	}
@@ -480,17 +481,19 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 	/* Ensure page table modifications are flushed from wc buffers to memory */
 	wmb();
 
-	mutex_unlock(&ctx->lock);
-
 	ret = ivpu_mmu_invalidate_tlb(vdev, ctx->id);
-	if (ret)
+	if (ret) {
 		ivpu_err(vdev, "Failed to invalidate TLB for ctx %u: %d\n", ctx->id, ret);
-	return ret;
+		goto err_unmap_pages;
+	}
 
-err_unlock:
+	mutex_unlock(&ctx->lock);
+	return 0;
+
+err_unmap_pages:
+	ivpu_mmu_context_unmap_pages(ctx, start_vpu_addr, vpu_addr - start_vpu_addr);
 	mutex_unlock(&ctx->lock);
 	return ret;
-
 }
 
 void
