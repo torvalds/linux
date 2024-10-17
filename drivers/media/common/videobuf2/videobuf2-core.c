@@ -3218,10 +3218,17 @@ static int vb2_thread(void *data)
 				continue;
 			prequeue--;
 		} else {
-			call_void_qop(q, wait_finish, q);
-			if (!threadio->stop)
+			if (!threadio->stop) {
+				if (q->ops->wait_finish)
+					call_void_qop(q, wait_finish, q);
+				else if (q->lock)
+					mutex_lock(q->lock);
 				ret = vb2_core_dqbuf(q, &index, NULL, 0);
-			call_void_qop(q, wait_prepare, q);
+				if (q->ops->wait_prepare)
+					call_void_qop(q, wait_prepare, q);
+				else if (q->lock)
+					mutex_unlock(q->lock);
+			}
 			dprintk(q, 5, "file io: vb2_dqbuf result: %d\n", ret);
 			if (!ret)
 				vb = vb2_get_buffer(q, index);
@@ -3233,12 +3240,19 @@ static int vb2_thread(void *data)
 		if (vb->state != VB2_BUF_STATE_ERROR)
 			if (threadio->fnc(vb, threadio->priv))
 				break;
-		call_void_qop(q, wait_finish, q);
 		if (copy_timestamp)
 			vb->timestamp = ktime_get_ns();
-		if (!threadio->stop)
+		if (!threadio->stop) {
+			if (q->ops->wait_finish)
+				call_void_qop(q, wait_finish, q);
+			else if (q->lock)
+				mutex_lock(q->lock);
 			ret = vb2_core_qbuf(q, vb, NULL, NULL);
-		call_void_qop(q, wait_prepare, q);
+			if (q->ops->wait_prepare)
+				call_void_qop(q, wait_prepare, q);
+			else if (q->lock)
+				mutex_unlock(q->lock);
+		}
 		if (ret || threadio->stop)
 			break;
 	}
