@@ -245,52 +245,8 @@ SYM_FUNC_START(crypto_aegis128_aesni_ad)
 	movdqu 0x30(STATEP), STATE3
 	movdqu 0x40(STATEP), STATE4
 
-	mov SRC, %r8
-	and $0xF, %r8
-	jnz .Lad_u_loop
-
 .align 8
-.Lad_a_loop:
-	movdqa 0x00(SRC), MSG
-	aegis128_update
-	pxor MSG, STATE4
-	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_1
-
-	movdqa 0x10(SRC), MSG
-	aegis128_update
-	pxor MSG, STATE3
-	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_2
-
-	movdqa 0x20(SRC), MSG
-	aegis128_update
-	pxor MSG, STATE2
-	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_3
-
-	movdqa 0x30(SRC), MSG
-	aegis128_update
-	pxor MSG, STATE1
-	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_4
-
-	movdqa 0x40(SRC), MSG
-	aegis128_update
-	pxor MSG, STATE0
-	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_0
-
-	add $0x50, SRC
-	jmp .Lad_a_loop
-
-.align 8
-.Lad_u_loop:
+.Lad_loop:
 	movdqu 0x00(SRC), MSG
 	aegis128_update
 	pxor MSG, STATE4
@@ -327,7 +283,7 @@ SYM_FUNC_START(crypto_aegis128_aesni_ad)
 	jl .Lad_out_0
 
 	add $0x50, SRC
-	jmp .Lad_u_loop
+	jmp .Lad_loop
 
 	/* store the state: */
 .Lad_out_0:
@@ -380,15 +336,15 @@ SYM_FUNC_START(crypto_aegis128_aesni_ad)
 	RET
 SYM_FUNC_END(crypto_aegis128_aesni_ad)
 
-.macro encrypt_block a s0 s1 s2 s3 s4 i
-	movdq\a (\i * 0x10)(SRC), MSG
+.macro encrypt_block s0 s1 s2 s3 s4 i
+	movdqu (\i * 0x10)(SRC), MSG
 	movdqa MSG, T0
 	pxor \s1, T0
 	pxor \s4, T0
 	movdqa \s2, T1
 	pand \s3, T1
 	pxor T1, T0
-	movdq\a T0, (\i * 0x10)(DST)
+	movdqu T0, (\i * 0x10)(DST)
 
 	aegis128_update
 	pxor MSG, \s4
@@ -415,34 +371,17 @@ SYM_FUNC_START(crypto_aegis128_aesni_enc)
 	movdqu 0x30(STATEP), STATE3
 	movdqu 0x40(STATEP), STATE4
 
-	mov  SRC,  %r8
-	or   DST,  %r8
-	and $0xF, %r8
-	jnz .Lenc_u_loop
-
 .align 8
-.Lenc_a_loop:
-	encrypt_block a STATE0 STATE1 STATE2 STATE3 STATE4 0
-	encrypt_block a STATE4 STATE0 STATE1 STATE2 STATE3 1
-	encrypt_block a STATE3 STATE4 STATE0 STATE1 STATE2 2
-	encrypt_block a STATE2 STATE3 STATE4 STATE0 STATE1 3
-	encrypt_block a STATE1 STATE2 STATE3 STATE4 STATE0 4
+.Lenc_loop:
+	encrypt_block STATE0 STATE1 STATE2 STATE3 STATE4 0
+	encrypt_block STATE4 STATE0 STATE1 STATE2 STATE3 1
+	encrypt_block STATE3 STATE4 STATE0 STATE1 STATE2 2
+	encrypt_block STATE2 STATE3 STATE4 STATE0 STATE1 3
+	encrypt_block STATE1 STATE2 STATE3 STATE4 STATE0 4
 
 	add $0x50, SRC
 	add $0x50, DST
-	jmp .Lenc_a_loop
-
-.align 8
-.Lenc_u_loop:
-	encrypt_block u STATE0 STATE1 STATE2 STATE3 STATE4 0
-	encrypt_block u STATE4 STATE0 STATE1 STATE2 STATE3 1
-	encrypt_block u STATE3 STATE4 STATE0 STATE1 STATE2 2
-	encrypt_block u STATE2 STATE3 STATE4 STATE0 STATE1 3
-	encrypt_block u STATE1 STATE2 STATE3 STATE4 STATE0 4
-
-	add $0x50, SRC
-	add $0x50, DST
-	jmp .Lenc_u_loop
+	jmp .Lenc_loop
 
 	/* store the state: */
 .Lenc_out_0:
@@ -535,14 +474,14 @@ SYM_FUNC_START(crypto_aegis128_aesni_enc_tail)
 	RET
 SYM_FUNC_END(crypto_aegis128_aesni_enc_tail)
 
-.macro decrypt_block a s0 s1 s2 s3 s4 i
-	movdq\a (\i * 0x10)(SRC), MSG
+.macro decrypt_block s0 s1 s2 s3 s4 i
+	movdqu (\i * 0x10)(SRC), MSG
 	pxor \s1, MSG
 	pxor \s4, MSG
 	movdqa \s2, T1
 	pand \s3, T1
 	pxor T1, MSG
-	movdq\a MSG, (\i * 0x10)(DST)
+	movdqu MSG, (\i * 0x10)(DST)
 
 	aegis128_update
 	pxor MSG, \s4
@@ -569,34 +508,17 @@ SYM_FUNC_START(crypto_aegis128_aesni_dec)
 	movdqu 0x30(STATEP), STATE3
 	movdqu 0x40(STATEP), STATE4
 
-	mov  SRC, %r8
-	or   DST, %r8
-	and $0xF, %r8
-	jnz .Ldec_u_loop
-
 .align 8
-.Ldec_a_loop:
-	decrypt_block a STATE0 STATE1 STATE2 STATE3 STATE4 0
-	decrypt_block a STATE4 STATE0 STATE1 STATE2 STATE3 1
-	decrypt_block a STATE3 STATE4 STATE0 STATE1 STATE2 2
-	decrypt_block a STATE2 STATE3 STATE4 STATE0 STATE1 3
-	decrypt_block a STATE1 STATE2 STATE3 STATE4 STATE0 4
+.Ldec_loop:
+	decrypt_block STATE0 STATE1 STATE2 STATE3 STATE4 0
+	decrypt_block STATE4 STATE0 STATE1 STATE2 STATE3 1
+	decrypt_block STATE3 STATE4 STATE0 STATE1 STATE2 2
+	decrypt_block STATE2 STATE3 STATE4 STATE0 STATE1 3
+	decrypt_block STATE1 STATE2 STATE3 STATE4 STATE0 4
 
 	add $0x50, SRC
 	add $0x50, DST
-	jmp .Ldec_a_loop
-
-.align 8
-.Ldec_u_loop:
-	decrypt_block u STATE0 STATE1 STATE2 STATE3 STATE4 0
-	decrypt_block u STATE4 STATE0 STATE1 STATE2 STATE3 1
-	decrypt_block u STATE3 STATE4 STATE0 STATE1 STATE2 2
-	decrypt_block u STATE2 STATE3 STATE4 STATE0 STATE1 3
-	decrypt_block u STATE1 STATE2 STATE3 STATE4 STATE0 4
-
-	add $0x50, SRC
-	add $0x50, DST
-	jmp .Ldec_u_loop
+	jmp .Ldec_loop
 
 	/* store the state: */
 .Ldec_out_0:
