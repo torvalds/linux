@@ -4211,13 +4211,13 @@ static inline enum store_type mas_wr_store_type(struct ma_wr_state *wr_mas)
 	if (!wr_mas->entry)
 		mas_wr_extend_null(wr_mas);
 
-	new_end = mas_wr_new_end(wr_mas);
 	if ((wr_mas->r_min == mas->index) && (wr_mas->r_max == mas->last))
 		return wr_exact_fit;
 
 	if (unlikely(!mas->index && mas->last == ULONG_MAX))
 		return wr_new_root;
 
+	new_end = mas_wr_new_end(wr_mas);
 	/* Potential spanning rebalance collapsing a node */
 	if (new_end < mt_min_slots[wr_mas->type]) {
 		if (!mte_is_root(mas->node) && !(mas->mas_flags & MA_STATE_BULK))
