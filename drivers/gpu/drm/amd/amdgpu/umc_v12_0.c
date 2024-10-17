@@ -219,6 +219,8 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	/* clear [R13] in soc physical address */
 	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_R13_BIT);
 
+	paddr_out->pa.pa = soc_pa;
+
 	/* loop for all possibilities of [R13 C4 C3 C2] */
 	for (column = 0; column < UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL; column++) {
 		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
@@ -537,7 +539,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	ecc_err->status = status;
 	ecc_err->ipid = ipid;
 	ecc_err->addr = addr;
-	ecc_err->pa_pfn = UMC_V12_ADDR_MASK_BAD_COLS(pa_addr) >> AMDGPU_GPU_PAGE_SHIFT;
+	ecc_err->pa_pfn = pa_addr >> AMDGPU_GPU_PAGE_SHIFT;
 
 	/* If converted pa_pfn is 0, use pa C4 pfn. */
 	if (!ecc_err->pa_pfn)
