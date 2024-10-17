@@ -1151,6 +1151,7 @@ static int rtl_internal_nbaset_match_phy_device(struct phy_device *phydev)
 	case RTL_GENERIC_PHYID:
 	case RTL_8221B:
 	case RTL_8251B:
+	case 0x001cc841:
 		break;
 	default:
 		return false;
