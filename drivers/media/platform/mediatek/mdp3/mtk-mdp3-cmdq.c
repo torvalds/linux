@@ -114,19 +114,15 @@ static struct img_config *__get_config_offset(struct mdp_dev *mdp,
 	if (pp_idx >= mdp->mdp_data->pp_used)
 		goto err_param;
 
-	if (CFG_CHECK(MT8183, p_id))
+	if (CFG_CHECK(MT8183, p_id)) {
 		cfg_c = CFG_OFST(MT8183, param->config, pp_idx);
-	else if (CFG_CHECK(MT8195, p_id))
-		cfg_c = CFG_OFST(MT8195, param->config, pp_idx);
-	else
-		goto err_param;
-
-	if (CFG_CHECK(MT8183, p_id))
 		cfg_n = CFG_OFST(MT8183, param->config, pp_idx + 1);
-	else if (CFG_CHECK(MT8195, p_id))
+	} else if (CFG_CHECK(MT8195, p_id)) {
+		cfg_c = CFG_OFST(MT8195, param->config, pp_idx);
 		cfg_n = CFG_OFST(MT8195, param->config, pp_idx + 1);
-	else
+	} else {
 		goto err_param;
+	}
 
 	if ((long)cfg_n - (long)mdp->vpu.config > bound) {
 		dev_err(dev, "config offset %ld OOB %ld\n", (long)cfg_n, bound);
@@ -607,13 +603,6 @@ static struct mdp_cmdq_cmd *mdp_cmdq_prepare(struct mdp_dev *mdp,
 		goto err_uninit;
 	}
 
-	if (CFG_CHECK(MT8183, p_id))
-		num_comp = CFG_GET(MT8183, config, num_components);
-	else if (CFG_CHECK(MT8195, p_id))
-		num_comp = CFG_GET(MT8195, config, num_components);
-	else
-		goto err_uninit;
-
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
 		ret = -ENOMEM;
@@ -632,6 +621,7 @@ static struct mdp_cmdq_cmd *mdp_cmdq_prepare(struct mdp_dev *mdp,
 		ret = -EINVAL;
 		goto err_destroy_pkt;
 	}
+
 	comps = kcalloc(num_comp, sizeof(*comps), GFP_KERNEL);
 	if (!comps) {
 		ret = -ENOMEM;
