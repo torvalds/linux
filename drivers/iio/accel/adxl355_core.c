@@ -643,7 +643,7 @@ static irqreturn_t adxl355_trigger_handler(int irq, void *p)
 	 * The acceleration data is 24 bits and big endian. It has to be saved
 	 * in 32 bits, hence, it is saved in the 2nd byte of the 4 byte buffer.
 	 * The buf array is 14 bytes as it includes 3x4=12 bytes for
-	 * accelaration data of x, y, and z axis. It also includes 2 bytes for
+	 * acceleration data of x, y, and z axis. It also includes 2 bytes for
 	 * temperature data.
 	 */
 	ret = regmap_bulk_read(data->regmap, ADXL355_XDATA3_REG,
