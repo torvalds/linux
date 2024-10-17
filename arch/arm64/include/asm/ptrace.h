@@ -162,13 +162,9 @@ struct pt_regs {
 		};
 	};
 	u64 orig_x0;
-#ifdef __AARCH64EB__
-	u32 unused2;
 	s32 syscallno;
-#else
-	s32 syscallno;
-	u32 unused2;
-#endif
+	u32 unused;
+
 	u64 sdei_ttbr1;
 	/* Only valid when ARM64_HAS_GIC_PRIO_MASKING is enabled. */
 	u64 pmr_save;
