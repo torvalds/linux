@@ -200,6 +200,7 @@ static int snps_accel_open(struct inode *inode, struct file *filp)
 	fpriv->app = accel_app;
 	snps_accel_app_mem_init(accel_app->device, &fpriv->mem);
 
+	fpriv->handled_irq_event = atomic_read(&accel_app->irq_event);
 	filp->private_data = fpriv;
 
 	return 0;
