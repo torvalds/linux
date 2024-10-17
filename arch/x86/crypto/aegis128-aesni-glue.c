@@ -227,22 +227,11 @@ static int crypto_aegis128_aesni_decrypt(struct aead_request *req)
 	return crypto_memneq(tag.bytes, zeros.bytes, authsize) ? -EBADMSG : 0;
 }
 
-static int crypto_aegis128_aesni_init_tfm(struct crypto_aead *aead)
-{
-	return 0;
-}
-
-static void crypto_aegis128_aesni_exit_tfm(struct crypto_aead *aead)
-{
-}
-
 static struct aead_alg crypto_aegis128_aesni_alg = {
 	.setkey = crypto_aegis128_aesni_setkey,
 	.setauthsize = crypto_aegis128_aesni_setauthsize,
 	.encrypt = crypto_aegis128_aesni_encrypt,
 	.decrypt = crypto_aegis128_aesni_decrypt,
-	.init = crypto_aegis128_aesni_init_tfm,
-	.exit = crypto_aegis128_aesni_exit_tfm,
 
 	.ivsize = AEGIS128_NONCE_SIZE,
 	.maxauthsize = AEGIS128_MAX_AUTH_SIZE,
