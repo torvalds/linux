@@ -1140,13 +1140,20 @@ static void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
-	if (interface == PHY_INTERFACE_MODE_USXGMII)
-		return xpcs_link_up_usxgmii(xpcs, speed);
+	switch (interface) {
+	case PHY_INTERFACE_MODE_USXGMII:
+		xpcs_link_up_usxgmii(xpcs, speed);
+		break;
 
-	if (interface == PHY_INTERFACE_MODE_SGMII ||
-	    interface == PHY_INTERFACE_MODE_1000BASEX)
-		return xpcs_link_up_sgmii_1000basex(xpcs, neg_mode, interface,
-						    speed, duplex);
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+		xpcs_link_up_sgmii_1000basex(xpcs, neg_mode, interface, speed,
+					     duplex);
+		break;
+
+	default:
+		break;
+	}
 }
 
 static void xpcs_an_restart(struct phylink_pcs *pcs)
