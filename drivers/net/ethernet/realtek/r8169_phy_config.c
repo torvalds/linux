@@ -99,7 +99,6 @@ static void rtl8125a_config_eee_phy(struct phy_device *phydev)
 
 static void rtl8125b_config_eee_phy(struct phy_device *phydev)
 {
-	phy_modify_paged(phydev, 0xa6d, 0x12, 0x0001, 0x0000);
 	phy_modify_paged(phydev, 0xa6d, 0x14, 0x0010, 0x0000);
 	phy_modify_paged(phydev, 0xa42, 0x14, 0x0080, 0x0000);
 	phy_modify_paged(phydev, 0xa4a, 0x11, 0x0200, 0x0000);
