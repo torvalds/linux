@@ -62,7 +62,7 @@ static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
 		return;
 	}
 
-	len = min(sizeof(kbuf) - 1, *lenp);
+	len = min(sizeof(kbuf), *lenp);
 	len = scnprintf(kbuf, len, "%*pb", cpumask_pr_args(mask));
 	if (!len) {
 		*lenp = 0;
