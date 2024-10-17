@@ -6,7 +6,10 @@
 
 MAX_RETRIES=600
 RETRY_INTERVAL=".1"	# seconds
-SYSFS_KLP_DIR="/sys/kernel/livepatch"
+SYSFS_KERNEL_DIR="/sys/kernel"
+SYSFS_KLP_DIR="$SYSFS_KERNEL_DIR/livepatch"
+SYSFS_DEBUG_DIR="$SYSFS_KERNEL_DIR/debug"
+SYSFS_KPROBES_DIR="$SYSFS_DEBUG_DIR/kprobes"
 
 # Kselftest framework requirement - SKIP code is 4
 ksft_skip=4
@@ -55,22 +58,26 @@ function die() {
 }
 
 function push_config() {
-	DYNAMIC_DEBUG=$(grep '^kernel/livepatch' /sys/kernel/debug/dynamic_debug/control | \
+	DYNAMIC_DEBUG=$(grep '^kernel/livepatch' "$SYSFS_DEBUG_DIR/dynamic_debug/control" | \
 			awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
 	FTRACE_ENABLED=$(sysctl --values kernel.ftrace_enabled)
+	KPROBE_ENABLED=$(cat "$SYSFS_KPROBES_DIR/enabled")
 }
 
 function pop_config() {
 	if [[ -n "$DYNAMIC_DEBUG" ]]; then
-		echo -n "$DYNAMIC_DEBUG" > /sys/kernel/debug/dynamic_debug/control
+		echo -n "$DYNAMIC_DEBUG" > "$SYSFS_DEBUG_DIR/dynamic_debug/control"
 	fi
 	if [[ -n "$FTRACE_ENABLED" ]]; then
 		sysctl kernel.ftrace_enabled="$FTRACE_ENABLED" &> /dev/null
 	fi
+	if [[ -n "$KPROBE_ENABLED" ]]; then
+		echo "$KPROBE_ENABLED" > "$SYSFS_KPROBES_DIR/enabled"
+	fi
 }
 
 function set_dynamic_debug() {
-        cat <<-EOF > /sys/kernel/debug/dynamic_debug/control
+        cat <<-EOF > "$SYSFS_DEBUG_DIR/dynamic_debug/control"
 		file kernel/livepatch/* +p
 		func klp_try_switch_task -p
 		EOF

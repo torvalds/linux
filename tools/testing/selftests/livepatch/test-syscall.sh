@@ -27,9 +27,9 @@ pid_list=$(echo ${pids[@]} | tr ' ' ',')
 load_lp $MOD_SYSCALL klp_pids=$pid_list
 
 # wait for all tasks to transition to patched state
-loop_until 'grep -q '^0$' /sys/kernel/test_klp_syscall/npids'
+loop_until 'grep -q '^0$' $SYSFS_KERNEL_DIR/$MOD_SYSCALL/npids'
 
-pending_pids=$(cat /sys/kernel/test_klp_syscall/npids)
+pending_pids=$(cat $SYSFS_KERNEL_DIR/$MOD_SYSCALL/npids)
 log "$MOD_SYSCALL: Remaining not livepatched processes: $pending_pids"
 
 for pid in ${pids[@]}; do
