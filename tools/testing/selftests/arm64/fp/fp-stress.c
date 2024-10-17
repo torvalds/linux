@@ -651,7 +651,5 @@ int main(int argc, char **argv)
 
 	drain_output(true);
 
-	ksft_print_cnts();
-
-	return 0;
+	ksft_finished();
 }
