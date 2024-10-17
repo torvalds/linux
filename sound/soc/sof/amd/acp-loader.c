@@ -206,7 +206,10 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 		configure_pte_for_fw_loading(FW_SRAM_DATA_BIN, ACP_SRAM_PAGE_COUNT, adata);
 		src_addr = ACP_SYSTEM_MEMORY_WINDOW + ACP_DEFAULT_SRAM_LENGTH +
 			   (page_count * ACP_PAGE_SIZE);
-		dest_addr = ACP_SRAM_BASE_ADDRESS;
+		if (adata->pci_rev > ACP63_PCI_ID)
+			dest_addr = ACP7X_SRAM_BASE_ADDRESS;
+		else
+			dest_addr = ACP_SRAM_BASE_ADDRESS;
 
 		ret = configure_and_run_dma(adata, src_addr, dest_addr,
 					    adata->fw_sram_data_bin_size);
