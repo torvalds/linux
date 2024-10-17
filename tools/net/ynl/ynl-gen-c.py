@@ -167,7 +167,10 @@ class Type(SpecAttr):
         return '{ .type = ' + policy + ', }'
 
     def attr_policy(self, cw):
-        policy = c_upper('nla-' + self.attr['type'])
+        policy = f'NLA_{c_upper(self.type)}'
+        if self.attr.get('byte-order') == 'big-endian':
+            if self.type in {'u16', 'u32'}:
+                policy = f'NLA_BE{self.type[1:]}'
 
         spec = self._attr_policy(policy)
         cw.p(f"\t[{self.enum_name}] = {spec},")
