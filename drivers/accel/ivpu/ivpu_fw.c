@@ -584,8 +584,10 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->ipc_payload_area_start = ipc_mem_rx->vpu_addr + ivpu_bo_size(ipc_mem_rx) / 2;
 	boot_params->ipc_payload_area_size = ivpu_bo_size(ipc_mem_rx) / 2;
 
-	boot_params->global_aliased_pio_base = vdev->hw->ranges.user.start;
-	boot_params->global_aliased_pio_size = ivpu_hw_range_size(&vdev->hw->ranges.user);
+	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX) {
+		boot_params->global_aliased_pio_base = vdev->hw->ranges.user.start;
+		boot_params->global_aliased_pio_size = ivpu_hw_range_size(&vdev->hw->ranges.user);
+	}
 
 	/* Allow configuration for L2C_PAGE_TABLE with boot param value */
 	boot_params->autoconfig = 1;
