@@ -2699,7 +2699,6 @@ static __be32 nfsd4_encode_pathname4(struct xdr_stream *xdr,
 				     const struct path *path)
 {
 	struct path cur = *path;
-	__be32 *p;
 	struct dentry **components = NULL;
 	unsigned int ncomponents = 0;
 	__be32 err = nfserr_jukebox;
@@ -2730,24 +2729,19 @@ static __be32 nfsd4_encode_pathname4(struct xdr_stream *xdr,
 		components[ncomponents++] = cur.dentry;
 		cur.dentry = dget_parent(cur.dentry);
 	}
-	err = nfserr_resource;
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		goto out_free;
-	*p++ = cpu_to_be32(ncomponents);
 
+	err = nfserr_resource;
+	if (xdr_stream_encode_u32(xdr, ncomponents) != XDR_UNIT)
+		goto out_free;
 	while (ncomponents) {
 		struct dentry *dentry = components[ncomponents - 1];
-		unsigned int len;
 
 		spin_lock(&dentry->d_lock);
-		len = dentry->d_name.len;
-		p = xdr_reserve_space(xdr, len + 4);
-		if (!p) {
+		if (xdr_stream_encode_opaque(xdr, dentry->d_name.name,
+					     dentry->d_name.len) < 0) {
 			spin_unlock(&dentry->d_lock);
 			goto out_free;
 		}
-		p = xdr_encode_opaque(p, dentry->d_name.name, len);
 		dprintk("/%pd", dentry);
 		spin_unlock(&dentry->d_lock);
 		dput(dentry);
