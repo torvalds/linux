@@ -548,17 +548,15 @@ static bool shmem_confirm_swap(struct address_space *mapping,
 
 static int shmem_huge __read_mostly = SHMEM_HUGE_NEVER;
 
-static bool __shmem_huge_global_enabled(struct inode *inode, pgoff_t index,
-					loff_t write_end, bool shmem_huge_force,
-					struct vm_area_struct *vma,
-					unsigned long vm_flags)
+static bool shmem_huge_global_enabled(struct inode *inode, pgoff_t index,
+				      loff_t write_end, bool shmem_huge_force,
+				      unsigned long vm_flags)
 {
-	struct mm_struct *mm = vma ? vma->vm_mm : NULL;
 	loff_t i_size;
 
-	if (!S_ISREG(inode->i_mode))
+	if (HPAGE_PMD_ORDER > MAX_PAGECACHE_ORDER)
 		return false;
-	if (mm && ((vm_flags & VM_NOHUGEPAGE) || test_bit(MMF_DISABLE_THP, &mm->flags)))
+	if (!S_ISREG(inode->i_mode))
 		return false;
 	if (shmem_huge == SHMEM_HUGE_DENY)
 		return false;
@@ -576,23 +574,12 @@ static bool __shmem_huge_global_enabled(struct inode *inode, pgoff_t index,
 			return true;
 		fallthrough;
 	case SHMEM_HUGE_ADVISE:
-		if (mm && (vm_flags & VM_HUGEPAGE))
+		if (vm_flags & VM_HUGEPAGE)
 			return true;
 		fallthrough;
 	default:
 		return false;
 	}
-}
-
-static bool shmem_huge_global_enabled(struct inode *inode, pgoff_t index,
-		   loff_t write_end, bool shmem_huge_force,
-		   struct vm_area_struct *vma, unsigned long vm_flags)
-{
-	if (HPAGE_PMD_ORDER > MAX_PAGECACHE_ORDER)
-		return false;
-
-	return __shmem_huge_global_enabled(inode, index, write_end,
-					   shmem_huge_force, vma, vm_flags);
 }
 
 #if defined(CONFIG_SYSFS)
@@ -772,8 +759,8 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 }
 
 static bool shmem_huge_global_enabled(struct inode *inode, pgoff_t index,
-		loff_t write_end, bool shmem_huge_force,
-		struct vm_area_struct *vma, unsigned long vm_flags)
+				      loff_t write_end, bool shmem_huge_force,
+				      unsigned long vm_flags)
 {
 	return false;
 }
@@ -1170,7 +1157,7 @@ static int shmem_getattr(struct mnt_idmap *idmap,
 	generic_fillattr(idmap, request_mask, inode, stat);
 	inode_unlock_shared(inode);
 
-	if (shmem_huge_global_enabled(inode, 0, 0, false, NULL, 0))
+	if (shmem_huge_global_enabled(inode, 0, 0, false, 0))
 		stat->blksize = HPAGE_PMD_SIZE;
 
 	if (request_mask & STATX_BTIME) {
@@ -1687,7 +1674,7 @@ unsigned long shmem_allowable_huge_orders(struct inode *inode,
 		return 0;
 
 	global_huge = shmem_huge_global_enabled(inode, index, write_end,
-					shmem_huge_force, vma, vm_flags);
+						shmem_huge_force, vm_flags);
 	if (!vma || !vma_is_anon_shmem(vma)) {
 		/*
 		 * For tmpfs, we now only support PMD sized THP if huge page
