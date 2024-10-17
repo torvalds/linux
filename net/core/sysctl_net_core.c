@@ -69,8 +69,10 @@ static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
 		return;
 	}
 
-	if (len < *lenp)
-		kbuf[len++] = '\n';
+	/* scnprintf writes a trailing null char not counted in the returned
+	 * length, override it with a newline.
+	 */
+	kbuf[len++] = '\n';
 	memcpy(buffer, kbuf, len);
 	*lenp = len;
 	*ppos += len;
