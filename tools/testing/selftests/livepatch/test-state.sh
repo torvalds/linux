@@ -29,7 +29,7 @@ livepatch: '$MOD_LIVEPATCH': completing patching transition
 $MOD_LIVEPATCH: post_patch_callback: vmlinux
 $MOD_LIVEPATCH: fix_console_loglevel: fixing console_loglevel
 livepatch: '$MOD_LIVEPATCH': patching complete
-% echo 0 > /sys/kernel/livepatch/$MOD_LIVEPATCH/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_LIVEPATCH/enabled
 livepatch: '$MOD_LIVEPATCH': initializing unpatching transition
 $MOD_LIVEPATCH: pre_unpatch_callback: vmlinux
 $MOD_LIVEPATCH: restore_console_loglevel: restoring console_loglevel
@@ -72,7 +72,7 @@ $MOD_LIVEPATCH2: post_patch_callback: vmlinux
 $MOD_LIVEPATCH2: fix_console_loglevel: taking over the console_loglevel change
 livepatch: '$MOD_LIVEPATCH2': patching complete
 % rmmod $MOD_LIVEPATCH
-% echo 0 > /sys/kernel/livepatch/$MOD_LIVEPATCH2/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_LIVEPATCH2/enabled
 livepatch: '$MOD_LIVEPATCH2': initializing unpatching transition
 $MOD_LIVEPATCH2: pre_unpatch_callback: vmlinux
 $MOD_LIVEPATCH2: restore_console_loglevel: restoring console_loglevel
@@ -127,7 +127,7 @@ livepatch: '$MOD_LIVEPATCH2': completing patching transition
 $MOD_LIVEPATCH2: post_patch_callback: vmlinux
 $MOD_LIVEPATCH2: fix_console_loglevel: taking over the console_loglevel change
 livepatch: '$MOD_LIVEPATCH2': patching complete
-% echo 0 > /sys/kernel/livepatch/$MOD_LIVEPATCH2/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_LIVEPATCH2/enabled
 livepatch: '$MOD_LIVEPATCH2': initializing unpatching transition
 $MOD_LIVEPATCH2: pre_unpatch_callback: vmlinux
 $MOD_LIVEPATCH2: restore_console_loglevel: restoring console_loglevel
@@ -162,7 +162,7 @@ livepatch: '$MOD_LIVEPATCH2': patching complete
 % insmod test_modules/$MOD_LIVEPATCH.ko
 livepatch: Livepatch patch ($MOD_LIVEPATCH) is not compatible with the already installed livepatches.
 insmod: ERROR: could not insert module test_modules/$MOD_LIVEPATCH.ko: Invalid parameters
-% echo 0 > /sys/kernel/livepatch/$MOD_LIVEPATCH2/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_LIVEPATCH2/enabled
 livepatch: '$MOD_LIVEPATCH2': initializing unpatching transition
 $MOD_LIVEPATCH2: pre_unpatch_callback: vmlinux
 $MOD_LIVEPATCH2: restore_console_loglevel: restoring console_loglevel

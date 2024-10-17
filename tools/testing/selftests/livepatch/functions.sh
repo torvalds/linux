@@ -6,7 +6,7 @@
 
 MAX_RETRIES=600
 RETRY_INTERVAL=".1"	# seconds
-KLP_SYSFS_DIR="/sys/kernel/livepatch"
+SYSFS_KLP_DIR="/sys/kernel/livepatch"
 
 # Kselftest framework requirement - SKIP code is 4
 ksft_skip=4
@@ -183,7 +183,7 @@ function load_lp_nowait() {
 	__load_mod "$mod" "$@"
 
 	# Wait for livepatch in sysfs ...
-	loop_until '[[ -e "/sys/kernel/livepatch/$mod" ]]' ||
+	loop_until '[[ -e "$SYSFS_KLP_DIR/$mod" ]]' ||
 		die "failed to load module $mod (sysfs)"
 }
 
@@ -196,7 +196,7 @@ function load_lp() {
 	load_lp_nowait "$mod" "$@"
 
 	# Wait until the transition finishes ...
-	loop_until 'grep -q '^0$' /sys/kernel/livepatch/$mod/transition' ||
+	loop_until 'grep -q '^0$' $SYSFS_KLP_DIR/$mod/transition' ||
 		die "failed to complete transition"
 }
 
@@ -246,12 +246,12 @@ function unload_lp() {
 function disable_lp() {
 	local mod="$1"
 
-	log "% echo 0 > /sys/kernel/livepatch/$mod/enabled"
-	echo 0 > /sys/kernel/livepatch/"$mod"/enabled
+	log "% echo 0 > $SYSFS_KLP_DIR/$mod/enabled"
+	echo 0 > "$SYSFS_KLP_DIR/$mod/enabled"
 
 	# Wait until the transition finishes and the livepatch gets
 	# removed from sysfs...
-	loop_until '[[ ! -e "/sys/kernel/livepatch/$mod" ]]' ||
+	loop_until '[[ ! -e "$SYSFS_KLP_DIR/$mod" ]]' ||
 		die "failed to disable livepatch $mod"
 }
 
@@ -322,7 +322,7 @@ function check_sysfs_rights() {
 	local rel_path="$1"; shift
 	local expected_rights="$1"; shift
 
-	local path="$KLP_SYSFS_DIR/$mod/$rel_path"
+	local path="$SYSFS_KLP_DIR/$mod/$rel_path"
 	local rights=$(/bin/stat --format '%A' "$path")
 	if test "$rights" != "$expected_rights" ; then
 		die "Unexpected access rights of $path: $expected_rights vs. $rights"
@@ -338,7 +338,7 @@ function check_sysfs_value() {
 	local rel_path="$1"; shift
 	local expected_value="$1"; shift
 
-	local path="$KLP_SYSFS_DIR/$mod/$rel_path"
+	local path="$SYSFS_KLP_DIR/$mod/$rel_path"
 	local value=`cat $path`
 	if test "$value" != "$expected_value" ; then
 		die "Unexpected value in $path: $expected_value vs. $value"

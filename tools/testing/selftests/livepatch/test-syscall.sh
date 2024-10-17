@@ -46,7 +46,7 @@ livepatch: '$MOD_SYSCALL': starting patching transition
 livepatch: '$MOD_SYSCALL': completing patching transition
 livepatch: '$MOD_SYSCALL': patching complete
 $MOD_SYSCALL: Remaining not livepatched processes: 0
-% echo 0 > /sys/kernel/livepatch/$MOD_SYSCALL/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_SYSCALL/enabled
 livepatch: '$MOD_SYSCALL': initializing unpatching transition
 livepatch: '$MOD_SYSCALL': starting unpatching transition
 livepatch: '$MOD_SYSCALL': completing unpatching transition
