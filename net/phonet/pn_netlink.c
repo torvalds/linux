@@ -127,14 +127,17 @@ nla_put_failure:
 
 static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	int addr_idx = 0, addr_start_idx = cb->args[1];
+	int dev_idx = 0, dev_start_idx = cb->args[0];
 	struct phonet_device_list *pndevs;
 	struct phonet_device *pnd;
-	int dev_idx = 0, dev_start_idx = cb->args[0];
-	int addr_idx = 0, addr_start_idx = cb->args[1];
+	int err = 0;
 
 	pndevs = phonet_device_list(sock_net(skb->sk));
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(pnd, &pndevs->list, list) {
+		DECLARE_BITMAP(addrs, 64);
 		u8 addr;
 
 		if (dev_idx > dev_start_idx)
@@ -143,23 +146,26 @@ static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 
 		addr_idx = 0;
-		for_each_set_bit(addr, pnd->addrs, 64) {
+		memcpy(addrs, pnd->addrs, sizeof(pnd->addrs));
+
+		for_each_set_bit(addr, addrs, 64) {
 			if (addr_idx++ < addr_start_idx)
 				continue;
 
-			if (fill_addr(skb, pnd->netdev->ifindex, addr << 2,
-					 NETLINK_CB(cb->skb).portid,
-					cb->nlh->nlmsg_seq, RTM_NEWADDR) < 0)
+			err = fill_addr(skb, READ_ONCE(pnd->netdev->ifindex),
+					addr << 2, NETLINK_CB(cb->skb).portid,
+					cb->nlh->nlmsg_seq, RTM_NEWADDR);
+			if (err < 0)
 				goto out;
 		}
 	}
-
 out:
 	rcu_read_unlock();
+
 	cb->args[0] = dev_idx;
 	cb->args[1] = addr_idx;
 
-	return skb->len;
+	return err;
 }
 
 /* Routes handling */
@@ -298,7 +304,7 @@ static const struct rtnl_msg_handler phonet_rtnl_msg_handlers[] __initdata_or_mo
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_DELADDR,
 	 .doit = addr_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_GETADDR,
-	 .dumpit = getaddr_dumpit},
+	 .dumpit = getaddr_dumpit, .flags = RTNL_FLAG_DUMP_UNLOCKED},
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_NEWROUTE,
 	 .doit = route_doit},
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_DELROUTE,
