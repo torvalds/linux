@@ -1096,7 +1096,6 @@ static int sdma_v2_4_set_powergating_state(void *handle,
 static const struct amd_ip_funcs sdma_v2_4_ip_funcs = {
 	.name = "sdma_v2_4",
 	.early_init = sdma_v2_4_early_init,
-	.late_init = NULL,
 	.sw_init = sdma_v2_4_sw_init,
 	.sw_fini = sdma_v2_4_sw_fini,
 	.hw_init = sdma_v2_4_hw_init,
@@ -1108,8 +1107,6 @@ static const struct amd_ip_funcs sdma_v2_4_ip_funcs = {
 	.soft_reset = sdma_v2_4_soft_reset,
 	.set_clockgating_state = sdma_v2_4_set_clockgating_state,
 	.set_powergating_state = sdma_v2_4_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {

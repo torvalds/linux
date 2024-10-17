@@ -1076,7 +1076,6 @@ static int vce_v4_0_process_interrupt(struct amdgpu_device *adev,
 const struct amd_ip_funcs vce_v4_0_ip_funcs = {
 	.name = "vce_v4_0",
 	.early_init = vce_v4_0_early_init,
-	.late_init = NULL,
 	.sw_init = vce_v4_0_sw_init,
 	.sw_fini = vce_v4_0_sw_fini,
 	.hw_init = vce_v4_0_hw_init,

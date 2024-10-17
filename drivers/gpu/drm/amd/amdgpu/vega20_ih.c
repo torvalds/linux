@@ -690,7 +690,6 @@ static int vega20_ih_set_powergating_state(void *handle,
 const struct amd_ip_funcs vega20_ih_ip_funcs = {
 	.name = "vega20_ih",
 	.early_init = vega20_ih_early_init,
-	.late_init = NULL,
 	.sw_init = vega20_ih_sw_init,
 	.sw_fini = vega20_ih_sw_fini,
 	.hw_init = vega20_ih_hw_init,

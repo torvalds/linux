@@ -617,7 +617,6 @@ static int vce_v2_0_set_powergating_state(void *handle,
 static const struct amd_ip_funcs vce_v2_0_ip_funcs = {
 	.name = "vce_v2_0",
 	.early_init = vce_v2_0_early_init,
-	.late_init = NULL,
 	.sw_init = vce_v2_0_sw_init,
 	.sw_fini = vce_v2_0_sw_fini,
 	.hw_init = vce_v2_0_hw_init,
@@ -629,8 +628,6 @@ static const struct amd_ip_funcs vce_v2_0_ip_funcs = {
 	.soft_reset = vce_v2_0_soft_reset,
 	.set_clockgating_state = vce_v2_0_set_clockgating_state,
 	.set_powergating_state = vce_v2_0_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {

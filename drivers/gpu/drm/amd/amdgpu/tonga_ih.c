@@ -463,7 +463,6 @@ static int tonga_ih_set_powergating_state(void *handle,
 static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.name = "tonga_ih",
 	.early_init = tonga_ih_early_init,
-	.late_init = NULL,
 	.sw_init = tonga_ih_sw_init,
 	.sw_fini = tonga_ih_sw_fini,
 	.hw_init = tonga_ih_hw_init,
@@ -478,8 +477,6 @@ static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.post_soft_reset = tonga_ih_post_soft_reset,
 	.set_clockgating_state = tonga_ih_set_clockgating_state,
 	.set_powergating_state = tonga_ih_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ih_funcs tonga_ih_funcs = {

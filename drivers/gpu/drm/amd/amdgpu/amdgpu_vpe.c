@@ -906,14 +906,12 @@ static void vpe_set_ring_funcs(struct amdgpu_device *adev)
 const struct amd_ip_funcs vpe_ip_funcs = {
 	.name = "vpe_v6_1",
 	.early_init = vpe_early_init,
-	.late_init = NULL,
 	.sw_init = vpe_sw_init,
 	.sw_fini = vpe_sw_fini,
 	.hw_init = vpe_hw_init,
 	.hw_fini = vpe_hw_fini,
 	.suspend = vpe_suspend,
 	.resume = vpe_resume,
-	.soft_reset = NULL,
 	.set_clockgating_state = vpe_set_clockgating_state,
 	.set_powergating_state = vpe_set_powergating_state,
 };

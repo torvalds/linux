@@ -867,7 +867,6 @@ out:
 static const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 	.name = "uvd_v5_0",
 	.early_init = uvd_v5_0_early_init,
-	.late_init = NULL,
 	.sw_init = uvd_v5_0_sw_init,
 	.sw_fini = uvd_v5_0_sw_fini,
 	.hw_init = uvd_v5_0_hw_init,
@@ -881,8 +880,6 @@ static const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 	.set_clockgating_state = uvd_v5_0_set_clockgating_state,
 	.set_powergating_state = uvd_v5_0_set_powergating_state,
 	.get_clockgating_state = uvd_v5_0_get_clockgating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {

@@ -805,7 +805,6 @@ static int uvd_v3_1_set_powergating_state(void *handle,
 static const struct amd_ip_funcs uvd_v3_1_ip_funcs = {
 	.name = "uvd_v3_1",
 	.early_init = uvd_v3_1_early_init,
-	.late_init = NULL,
 	.sw_init = uvd_v3_1_sw_init,
 	.sw_fini = uvd_v3_1_sw_fini,
 	.hw_init = uvd_v3_1_hw_init,
@@ -818,8 +817,6 @@ static const struct amd_ip_funcs uvd_v3_1_ip_funcs = {
 	.soft_reset = uvd_v3_1_soft_reset,
 	.set_clockgating_state = uvd_v3_1_set_clockgating_state,
 	.set_powergating_state = uvd_v3_1_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version uvd_v3_1_ip_block = {

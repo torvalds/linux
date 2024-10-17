@@ -417,7 +417,6 @@ static int cik_ih_set_powergating_state(void *handle,
 static const struct amd_ip_funcs cik_ih_ip_funcs = {
 	.name = "cik_ih",
 	.early_init = cik_ih_early_init,
-	.late_init = NULL,
 	.sw_init = cik_ih_sw_init,
 	.sw_fini = cik_ih_sw_fini,
 	.hw_init = cik_ih_hw_init,
@@ -429,8 +428,6 @@ static const struct amd_ip_funcs cik_ih_ip_funcs = {
 	.soft_reset = cik_ih_soft_reset,
 	.set_clockgating_state = cik_ih_set_clockgating_state,
 	.set_powergating_state = cik_ih_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ih_funcs cik_ih_funcs = {

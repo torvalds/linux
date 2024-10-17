@@ -1789,7 +1789,6 @@ static int uvd_v7_0_set_clockgating_state(void *handle,
 const struct amd_ip_funcs uvd_v7_0_ip_funcs = {
 	.name = "uvd_v7_0",
 	.early_init = uvd_v7_0_early_init,
-	.late_init = NULL,
 	.sw_init = uvd_v7_0_sw_init,
 	.sw_fini = uvd_v7_0_sw_fini,
 	.hw_init = uvd_v7_0_hw_init,

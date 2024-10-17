@@ -741,7 +741,6 @@ static int jpeg_v4_0_5_process_interrupt(struct amdgpu_device *adev,
 static const struct amd_ip_funcs jpeg_v4_0_5_ip_funcs = {
 	.name = "jpeg_v4_0_5",
 	.early_init = jpeg_v4_0_5_early_init,
-	.late_init = NULL,
 	.sw_init = jpeg_v4_0_5_sw_init,
 	.sw_fini = jpeg_v4_0_5_sw_fini,
 	.hw_init = jpeg_v4_0_5_hw_init,
@@ -750,14 +749,8 @@ static const struct amd_ip_funcs jpeg_v4_0_5_ip_funcs = {
 	.resume = jpeg_v4_0_5_resume,
 	.is_idle = jpeg_v4_0_5_is_idle,
 	.wait_for_idle = jpeg_v4_0_5_wait_for_idle,
-	.check_soft_reset = NULL,
-	.pre_soft_reset = NULL,
-	.soft_reset = NULL,
-	.post_soft_reset = NULL,
 	.set_clockgating_state = jpeg_v4_0_5_set_clockgating_state,
 	.set_powergating_state = jpeg_v4_0_5_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs jpeg_v4_0_5_dec_ring_vm_funcs = {

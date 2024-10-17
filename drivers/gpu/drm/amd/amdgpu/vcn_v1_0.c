@@ -1987,7 +1987,6 @@ static void vcn_v1_0_dump_ip_state(struct amdgpu_ip_block *ip_block)
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.name = "vcn_v1_0",
 	.early_init = vcn_v1_0_early_init,
-	.late_init = NULL,
 	.sw_init = vcn_v1_0_sw_init,
 	.sw_fini = vcn_v1_0_sw_fini,
 	.hw_init = vcn_v1_0_hw_init,

@@ -603,8 +603,6 @@ static int acp_set_powergating_state(void *handle,
 
 static const struct amd_ip_funcs acp_ip_funcs = {
 	.name = "acp_ip",
-	.early_init = NULL,
-	.late_init = NULL,
 	.sw_init = acp_sw_init,
 	.sw_fini = acp_sw_fini,
 	.hw_init = acp_hw_init,
@@ -614,8 +612,6 @@ static const struct amd_ip_funcs acp_ip_funcs = {
 	.is_idle = acp_is_idle,
 	.set_clockgating_state = acp_set_clockgating_state,
 	.set_powergating_state = acp_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version acp_ip_block = {

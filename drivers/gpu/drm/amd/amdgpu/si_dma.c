@@ -691,7 +691,6 @@ static int si_dma_set_powergating_state(void *handle,
 static const struct amd_ip_funcs si_dma_ip_funcs = {
 	.name = "si_dma",
 	.early_init = si_dma_early_init,
-	.late_init = NULL,
 	.sw_init = si_dma_sw_init,
 	.sw_fini = si_dma_sw_fini,
 	.hw_init = si_dma_hw_init,
@@ -703,8 +702,6 @@ static const struct amd_ip_funcs si_dma_ip_funcs = {
 	.soft_reset = si_dma_soft_reset,
 	.set_clockgating_state = si_dma_set_clockgating_state,
 	.set_powergating_state = si_dma_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs si_dma_ring_funcs = {

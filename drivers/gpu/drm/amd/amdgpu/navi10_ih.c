@@ -694,7 +694,6 @@ static void navi10_ih_get_clockgating_state(void *handle, u64 *flags)
 static const struct amd_ip_funcs navi10_ih_ip_funcs = {
 	.name = "navi10_ih",
 	.early_init = navi10_ih_early_init,
-	.late_init = NULL,
 	.sw_init = navi10_ih_sw_init,
 	.sw_fini = navi10_ih_sw_fini,
 	.hw_init = navi10_ih_hw_init,
@@ -707,8 +706,6 @@ static const struct amd_ip_funcs navi10_ih_ip_funcs = {
 	.set_clockgating_state = navi10_ih_set_clockgating_state,
 	.set_powergating_state = navi10_ih_set_powergating_state,
 	.get_clockgating_state = navi10_ih_get_clockgating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ih_funcs navi10_ih_funcs = {

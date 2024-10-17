@@ -1918,7 +1918,6 @@ static void sdma_v5_2_dump_ip_state(struct amdgpu_ip_block *ip_block)
 static const struct amd_ip_funcs sdma_v5_2_ip_funcs = {
 	.name = "sdma_v5_2",
 	.early_init = sdma_v5_2_early_init,
-	.late_init = NULL,
 	.sw_init = sdma_v5_2_sw_init,
 	.sw_fini = sdma_v5_2_sw_fini,
 	.hw_init = sdma_v5_2_hw_init,

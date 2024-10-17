@@ -1213,7 +1213,6 @@ static int cik_sdma_set_powergating_state(void *handle,
 static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.name = "cik_sdma",
 	.early_init = cik_sdma_early_init,
-	.late_init = NULL,
 	.sw_init = cik_sdma_sw_init,
 	.sw_fini = cik_sdma_sw_fini,
 	.hw_init = cik_sdma_hw_init,
@@ -1225,8 +1224,6 @@ static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.soft_reset = cik_sdma_soft_reset,
 	.set_clockgating_state = cik_sdma_set_clockgating_state,
 	.set_powergating_state = cik_sdma_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {

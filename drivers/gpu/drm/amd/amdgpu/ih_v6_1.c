@@ -762,7 +762,6 @@ static void ih_v6_1_get_clockgating_state(void *handle, u64 *flags)
 static const struct amd_ip_funcs ih_v6_1_ip_funcs = {
 	.name = "ih_v6_1",
 	.early_init = ih_v6_1_early_init,
-	.late_init = NULL,
 	.sw_init = ih_v6_1_sw_init,
 	.sw_fini = ih_v6_1_sw_fini,
 	.hw_init = ih_v6_1_hw_init,
@@ -775,8 +774,6 @@ static const struct amd_ip_funcs ih_v6_1_ip_funcs = {
 	.set_clockgating_state = ih_v6_1_set_clockgating_state,
 	.set_powergating_state = ih_v6_1_set_powergating_state,
 	.get_clockgating_state = ih_v6_1_get_clockgating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ih_funcs ih_v6_1_funcs = {
