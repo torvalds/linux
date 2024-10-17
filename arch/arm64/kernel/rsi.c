@@ -6,6 +6,8 @@
 #include <linux/jump_label.h>
 #include <linux/memblock.h>
 #include <linux/psci.h>
+
+#include <asm/io.h>
 #include <asm/rsi.h>
 
 static struct realm_config config;
@@ -93,6 +95,16 @@ bool __arm64_is_protected_mmio(phys_addr_t base, size_t size)
 }
 EXPORT_SYMBOL(__arm64_is_protected_mmio);
 
+static int realm_ioremap_hook(phys_addr_t phys, size_t size, pgprot_t *prot)
+{
+	if (__arm64_is_protected_mmio(phys, size))
+		*prot = pgprot_encrypted(*prot);
+	else
+		*prot = pgprot_decrypted(*prot);
+
+	return 0;
+}
+
 void __init arm64_rsi_init(void)
 {
 	if (arm_smccc_1_1_get_conduit() != SMCCC_CONDUIT_SMC)
@@ -102,6 +114,9 @@ void __init arm64_rsi_init(void)
 	if (WARN_ON(rsi_get_realm_config(&config)))
 		return;
 	prot_ns_shared = BIT(config.ipa_bits - 1);
+
+	if (arm64_ioremap_prot_hook_register(realm_ioremap_hook))
+		return;
 
 	arm64_rsi_setup_memory();
 
