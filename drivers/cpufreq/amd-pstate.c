@@ -1843,20 +1843,14 @@ static int __init amd_pstate_init(void)
 		cppc_state = CONFIG_X86_AMD_PSTATE_DEFAULT_MODE;
 	}
 
-	switch (cppc_state) {
-	case AMD_PSTATE_DISABLE:
+	if (cppc_state == AMD_PSTATE_DISABLE) {
 		pr_info("driver load is disabled, boot with specific mode to enable this\n");
 		return -ENODEV;
-	case AMD_PSTATE_PASSIVE:
-	case AMD_PSTATE_ACTIVE:
-	case AMD_PSTATE_GUIDED:
-		ret = amd_pstate_set_driver(cppc_state);
-		if (ret)
-			return ret;
-		break;
-	default:
-		return -EINVAL;
 	}
+
+	ret = amd_pstate_set_driver(cppc_state);
+	if (ret)
+		return ret;
 
 	/* capability check */
 	if (cpu_feature_enabled(X86_FEATURE_CPPC)) {
