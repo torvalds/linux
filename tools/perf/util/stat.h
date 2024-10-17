@@ -154,8 +154,18 @@ struct evlist;
 extern struct stats walltime_nsecs_stats;
 extern struct rusage_stats ru_stats;
 
+enum metric_threshold_classify {
+	METRIC_THRESHOLD_UNKNOWN,
+	METRIC_THRESHOLD_BAD,
+	METRIC_THRESHOLD_NEARLY_BAD,
+	METRIC_THRESHOLD_LESS_GOOD,
+	METRIC_THRESHOLD_GOOD,
+};
+const char *metric_threshold_classify__color(enum metric_threshold_classify thresh);
+
 typedef void (*print_metric_t)(struct perf_stat_config *config,
-			       void *ctx, const char *color,
+			       void *ctx,
+			       enum metric_threshold_classify thresh,
 			       const char *fmt,
 			       const char *unit,
 			       double val);
