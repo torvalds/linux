@@ -937,19 +937,6 @@ static inline bool power_supply_is_watt_property(enum power_supply_property psp)
 	return false;
 }
 
-#ifdef CONFIG_POWER_SUPPLY_HWMON
-int power_supply_add_hwmon_sysfs(struct power_supply *psy);
-void power_supply_remove_hwmon_sysfs(struct power_supply *psy);
-#else
-static inline int power_supply_add_hwmon_sysfs(struct power_supply *psy)
-{
-	return 0;
-}
-
-static inline
-void power_supply_remove_hwmon_sysfs(struct power_supply *psy) {}
-#endif
-
 #ifdef CONFIG_SYSFS
 ssize_t power_supply_charge_behaviour_show(struct device *dev,
 					   unsigned int available_behaviours,
