@@ -480,3 +480,50 @@ void panthor_gpu_resume(struct panthor_device *ptdev)
 	panthor_gpu_irq_resume(&ptdev->gpu->irq, GPU_INTERRUPTS_MASK);
 	panthor_gpu_l2_power_on(ptdev);
 }
+
+/**
+ * panthor_gpu_read_64bit_counter() - Read a 64-bit counter at a given offset.
+ * @ptdev: Device.
+ * @reg: The offset of the register to read.
+ *
+ * Return: The counter value.
+ */
+static u64
+panthor_gpu_read_64bit_counter(struct panthor_device *ptdev, u32 reg)
+{
+	u32 hi, lo;
+
+	do {
+		hi = gpu_read(ptdev, reg + 0x4);
+		lo = gpu_read(ptdev, reg);
+	} while (hi != gpu_read(ptdev, reg + 0x4));
+
+	return ((u64)hi << 32) | lo;
+}
+
+/**
+ * panthor_gpu_read_timestamp() - Read the timestamp register.
+ * @ptdev: Device.
+ *
+ * Return: The GPU timestamp value.
+ */
+u64 panthor_gpu_read_timestamp(struct panthor_device *ptdev)
+{
+	return panthor_gpu_read_64bit_counter(ptdev, GPU_TIMESTAMP_LO);
+}
+
+/**
+ * panthor_gpu_read_timestamp_offset() - Read the timestamp offset register.
+ * @ptdev: Device.
+ *
+ * Return: The GPU timestamp offset value.
+ */
+u64 panthor_gpu_read_timestamp_offset(struct panthor_device *ptdev)
+{
+	u32 hi, lo;
+
+	hi = gpu_read(ptdev, GPU_TIMESTAMP_OFFSET_HI);
+	lo = gpu_read(ptdev, GPU_TIMESTAMP_OFFSET_LO);
+
+	return ((u64)hi << 32) | lo;
+}

@@ -4,7 +4,7 @@
  * Copyright (C) 2022 Jonathan Lemon <jonathan.lemon@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/ptp_classify.h>

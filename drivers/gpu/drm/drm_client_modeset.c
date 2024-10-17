@@ -145,7 +145,7 @@ drm_connector_fallback_non_tiled_mode(struct drm_connector *connector)
 }
 
 static struct drm_display_mode *
-drm_connector_has_preferred_mode(struct drm_connector *connector, int width, int height)
+drm_connector_preferred_mode(struct drm_connector *connector, int width, int height)
 {
 	struct drm_display_mode *mode;
 
@@ -157,6 +157,12 @@ drm_connector_has_preferred_mode(struct drm_connector *connector, int width, int
 			return mode;
 	}
 	return NULL;
+}
+
+static struct drm_display_mode *drm_connector_first_mode(struct drm_connector *connector)
+{
+	return list_first_entry_or_null(&connector->modes,
+					struct drm_display_mode, head);
 }
 
 static struct drm_display_mode *drm_connector_pick_cmdline_mode(struct drm_connector *connector)
@@ -331,7 +337,7 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 		if (!modes[i])
 			can_clone = false;
 	}
-	kfree(dmt_mode);
+	drm_mode_destroy(dev, dmt_mode);
 
 	if (can_clone) {
 		drm_dbg_kms(dev, "can clone using 1024x768\n");
@@ -441,13 +447,11 @@ retry:
 			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] looking for preferred mode, tile %d\n",
 				    connector->base.id, connector->name,
 				    connector->tile_group ? connector->tile_group->id : 0);
-			modes[i] = drm_connector_has_preferred_mode(connector, width, height);
+			modes[i] = drm_connector_preferred_mode(connector, width, height);
 		}
 		/* No preferred modes, pick one off the list */
-		if (!modes[i] && !list_empty(&connector->modes)) {
-			list_for_each_entry(modes[i], &connector->modes, head)
-				break;
-		}
+		if (!modes[i])
+			modes[i] = drm_connector_first_mode(connector);
 		/*
 		 * In case of tiled mode if all tiles not present fallback to
 		 * first available non tiled mode.
@@ -531,7 +535,7 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 		my_score++;
 	if (connector->cmdline_mode.specified)
 		my_score++;
-	if (drm_connector_has_preferred_mode(connector, width, height))
+	if (drm_connector_preferred_mode(connector, width, height))
 		my_score++;
 
 	/*
@@ -686,16 +690,14 @@ retry:
 				    "[CONNECTOR:%d:%s] looking for preferred mode, has tile: %s\n",
 				    connector->base.id, connector->name,
 				    str_yes_no(connector->has_tile));
-			modes[i] = drm_connector_has_preferred_mode(connector, width, height);
+			modes[i] = drm_connector_preferred_mode(connector, width, height);
 		}
 
 		/* No preferred mode marked by the EDID? Are there any modes? */
 		if (!modes[i] && !list_empty(&connector->modes)) {
 			drm_dbg_kms(dev, "[CONNECTOR:%d:%s] using first listed mode\n",
 				    connector->base.id, connector->name);
-			modes[i] = list_first_entry(&connector->modes,
-						    struct drm_display_mode,
-						    head);
+			modes[i] = drm_connector_first_mode(connector);
 		}
 
 		/* last resort: use current mode */
@@ -878,7 +880,7 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 				break;
 			}
 
-			kfree(modeset->mode);
+			drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = drm_mode_duplicate(dev, mode);
 			if (!modeset->mode) {
 				ret = -ENOMEM;

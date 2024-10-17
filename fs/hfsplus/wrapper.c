@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/cdrom.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"

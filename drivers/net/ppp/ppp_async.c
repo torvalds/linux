@@ -29,7 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/uaccess.h>
 #include <asm/string.h>
 

@@ -6,7 +6,7 @@
 #include <linux/crc32.h>
 #include <linux/base64.h>
 #include <linux/prandom.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/hash.h>
 #include <crypto/dh.h>
 #include "nvme.h"

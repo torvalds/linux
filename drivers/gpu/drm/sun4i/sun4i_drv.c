@@ -16,6 +16,7 @@
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
@@ -55,6 +56,7 @@ static const struct drm_driver sun4i_drv_driver = {
 
 	/* GEM Operations */
 	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(drm_sun4i_gem_dumb_create),
+	DRM_FBDEV_DMA_DRIVER_OPS,
 };
 
 static int sun4i_drv_bind(struct device *dev)
@@ -111,7 +113,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto finish_poll;
 
-	drm_fbdev_dma_setup(drm, 32);
+	drm_client_setup(drm, NULL);
 
 	dev_set_drvdata(dev, drm);
 

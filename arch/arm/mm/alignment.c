@@ -22,7 +22,7 @@
 
 #include <asm/cp15.h>
 #include <asm/system_info.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/opcodes.h>
 
 #include "fault.h"

@@ -18,7 +18,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
 #include <trace/events/bridge.h>

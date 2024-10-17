@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/imu/adis.h>

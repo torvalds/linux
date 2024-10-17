@@ -16,7 +16,6 @@
 #include <drm/drm_mode.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_prime.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include <drm/ttm/ttm_range_manager.h>
 #include <drm/ttm/ttm_tt.h>
@@ -685,50 +684,6 @@ drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
 	__drm_gem_vram_plane_helper_cleanup_fb(plane, old_state, fb->format->num_planes);
 }
 EXPORT_SYMBOL(drm_gem_vram_plane_helper_cleanup_fb);
-
-/*
- * Helpers for struct drm_simple_display_pipe_funcs
- */
-
-/**
- * drm_gem_vram_simple_display_pipe_prepare_fb() - Implements &struct
- *				   drm_simple_display_pipe_funcs.prepare_fb
- * @pipe:	a simple display pipe
- * @new_state:	the plane's new state
- *
- * During plane updates, this function pins the GEM VRAM
- * objects of the plane's new framebuffer to VRAM. Call
- * drm_gem_vram_simple_display_pipe_cleanup_fb() to unpin them.
- *
- * Returns:
- *	0 on success, or
- *	a negative errno code otherwise.
- */
-int drm_gem_vram_simple_display_pipe_prepare_fb(
-	struct drm_simple_display_pipe *pipe,
-	struct drm_plane_state *new_state)
-{
-	return drm_gem_vram_plane_helper_prepare_fb(&pipe->plane, new_state);
-}
-EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_prepare_fb);
-
-/**
- * drm_gem_vram_simple_display_pipe_cleanup_fb() - Implements &struct
- *						   drm_simple_display_pipe_funcs.cleanup_fb
- * @pipe:	a simple display pipe
- * @old_state:	the plane's old state
- *
- * During plane updates, this function unpins the GEM VRAM
- * objects of the plane's old framebuffer from VRAM. Complements
- * drm_gem_vram_simple_display_pipe_prepare_fb().
- */
-void drm_gem_vram_simple_display_pipe_cleanup_fb(
-	struct drm_simple_display_pipe *pipe,
-	struct drm_plane_state *old_state)
-{
-	drm_gem_vram_plane_helper_cleanup_fb(&pipe->plane, old_state);
-}
-EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_cleanup_fb);
 
 /*
  * PRIME helpers

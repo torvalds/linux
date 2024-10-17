@@ -2138,7 +2138,7 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   ts_cqe_metadata_size2wqe_counter[0x5];
 	u8	   reserved_at_250[0x10];
 
-	u8	   reserved_at_260[0x120];
+	u8	   reserved_at_260[0x20];
 
 	u8	   format_select_dw_gtpu_dw_0[0x8];
 	u8	   format_select_dw_gtpu_dw_1[0x8];

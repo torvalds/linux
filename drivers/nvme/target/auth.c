@@ -15,7 +15,7 @@
 #include <linux/ctype.h>
 #include <linux/random.h>
 #include <linux/nvme-auth.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "nvmet.h"
 

@@ -4,7 +4,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/bitfield.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <ufs/ufs.h>
 #include <ufs/unipro.h>

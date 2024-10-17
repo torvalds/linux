@@ -11,7 +11,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mod_devicetable.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ms5611.h"
 

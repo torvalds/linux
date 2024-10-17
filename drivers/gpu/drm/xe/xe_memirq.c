@@ -5,8 +5,8 @@
 
 #include <drm/drm_managed.h>
 
-#include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
+#include "regs/xe_irq_regs.h"
 #include "regs/xe_regs.h"
 
 #include "xe_assert.h"
@@ -19,15 +19,25 @@
 #include "xe_hw_engine.h"
 #include "xe_map.h"
 #include "xe_memirq.h"
-#include "xe_sriov.h"
-#include "xe_sriov_printk.h"
 
 #define memirq_assert(m, condition)	xe_tile_assert(memirq_to_tile(m), condition)
-#define memirq_debug(m, msg...)		xe_sriov_dbg_verbose(memirq_to_xe(m), "MEMIRQ: " msg)
+#define memirq_printk(m, _level, _fmt, ...)			\
+	drm_##_level(&memirq_to_xe(m)->drm, "MEMIRQ%u: " _fmt,	\
+		     memirq_to_tile(m)->id, ##__VA_ARGS__)
+
+#ifdef CONFIG_DRM_XE_DEBUG_MEMIRQ
+#define memirq_debug(m, _fmt, ...)	memirq_printk(m, dbg, _fmt, ##__VA_ARGS__)
+#else
+#define memirq_debug(...)
+#endif
+
+#define memirq_err(m, _fmt, ...)	memirq_printk(m, err, _fmt, ##__VA_ARGS__)
+#define memirq_err_ratelimited(m, _fmt, ...)	\
+	memirq_printk(m, err_ratelimited, _fmt, ##__VA_ARGS__)
 
 static struct xe_tile *memirq_to_tile(struct xe_memirq *memirq)
 {
-	return container_of(memirq, struct xe_tile, sriov.vf.memirq);
+	return container_of(memirq, struct xe_tile, memirq);
 }
 
 static struct xe_device *memirq_to_xe(struct xe_memirq *memirq)
@@ -105,6 +115,44 @@ static const char *guc_name(struct xe_guc *guc)
  *            |           |
  *            |           |
  *            +-----------+
+ *
+ *
+ * MSI-X use case
+ *
+ * When using MSI-X, hw engines report interrupt status and source to engine
+ * instance 0. For this scenario, in order to differentiate between the
+ * engines, we need to pass different status/source pointers in the LRC.
+ *
+ * The requirements on those pointers are:
+ * - Interrupt status should be 4KiB aligned
+ * - Interrupt source should be 64 bytes aligned
+ *
+ * To accommodate this, we duplicate the memirq page layout above -
+ * allocating a page for each engine instance and pass this page in the LRC.
+ * Note that the same page can be reused for different engine types.
+ * For example, an LRC executing on CCS #x will have pointers to page #x,
+ * and an LRC executing on BCS #x will have the same pointers.
+ *
+ * ::
+ *
+ *   0x0000   +==============================+  <== page for instance 0 (BCS0, CCS0, etc.)
+ *            | Interrupt Status Report Page |
+ *   0x0400   +==============================+
+ *            | Interrupt Source Report Page |
+ *   0x0440   +==============================+
+ *            | Interrupt Enable Mask        |
+ *            +==============================+
+ *            | Not used                     |
+ *   0x1000   +==============================+  <== page for instance 1 (BCS1, CCS1, etc.)
+ *            | Interrupt Status Report Page |
+ *   0x1400   +==============================+
+ *            | Interrupt Source Report Page |
+ *   0x1440   +==============================+
+ *            | Not used                     |
+ *   0x2000   +==============================+  <== page for instance 2 (BCS2, CCS2, etc.)
+ *            | ...                          |
+ *            +==============================+
+ *
  */
 
 static void __release_xe_bo(struct drm_device *drm, void *arg)
@@ -114,18 +162,30 @@ static void __release_xe_bo(struct drm_device *drm, void *arg)
 	xe_bo_unpin_map_no_vm(bo);
 }
 
+static inline bool hw_reports_to_instance_zero(struct xe_memirq *memirq)
+{
+	/*
+	 * When the HW engines are configured to use MSI-X,
+	 * they report interrupt status and source to the offset of
+	 * engine instance 0.
+	 */
+	return xe_device_has_msix(memirq_to_xe(memirq));
+}
+
 static int memirq_alloc_pages(struct xe_memirq *memirq)
 {
 	struct xe_device *xe = memirq_to_xe(memirq);
 	struct xe_tile *tile = memirq_to_tile(memirq);
+	size_t bo_size = hw_reports_to_instance_zero(memirq) ?
+		XE_HW_ENGINE_MAX_INSTANCE * SZ_4K : SZ_4K;
 	struct xe_bo *bo;
 	int err;
 
-	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_SOURCE_OFFSET, SZ_64));
-	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_STATUS_OFFSET, SZ_4K));
+	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_SOURCE_OFFSET(0), SZ_64));
+	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_STATUS_OFFSET(0), SZ_4K));
 
 	/* XXX: convert to managed bo */
-	bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4K,
+	bo = xe_bo_create_pin_map(xe, tile, NULL, bo_size,
 				  ttm_bo_type_kernel,
 				  XE_BO_FLAG_SYSTEM |
 				  XE_BO_FLAG_GGTT |
@@ -140,25 +200,25 @@ static int memirq_alloc_pages(struct xe_memirq *memirq)
 	memirq_assert(memirq, !xe_bo_is_vram(bo));
 	memirq_assert(memirq, !memirq->bo);
 
-	iosys_map_memset(&bo->vmap, 0, 0, SZ_4K);
+	iosys_map_memset(&bo->vmap, 0, 0, bo_size);
 
 	memirq->bo = bo;
-	memirq->source = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_SOURCE_OFFSET);
-	memirq->status = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_STATUS_OFFSET);
+	memirq->source = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_SOURCE_OFFSET(0));
+	memirq->status = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_STATUS_OFFSET(0));
 	memirq->mask = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_ENABLE_OFFSET);
 
 	memirq_assert(memirq, !memirq->source.is_iomem);
 	memirq_assert(memirq, !memirq->status.is_iomem);
 	memirq_assert(memirq, !memirq->mask.is_iomem);
 
-	memirq_debug(memirq, "page offsets: source %#x status %#x\n",
-		     xe_memirq_source_ptr(memirq), xe_memirq_status_ptr(memirq));
+	memirq_debug(memirq, "page offsets: bo %#x bo_size %zu source %#x status %#x\n",
+		     xe_bo_ggtt_addr(bo), bo_size, XE_MEMIRQ_SOURCE_OFFSET(0),
+		     XE_MEMIRQ_STATUS_OFFSET(0));
 
 	return drmm_add_action_or_reset(&xe->drm, __release_xe_bo, memirq->bo);
 
 out:
-	xe_sriov_err(memirq_to_xe(memirq),
-		     "Failed to allocate memirq page (%pe)\n", ERR_PTR(err));
+	memirq_err(memirq, "Failed to allocate memirq page (%pe)\n", ERR_PTR(err));
 	return err;
 }
 
@@ -178,9 +238,7 @@ static void memirq_set_enable(struct xe_memirq *memirq, bool enable)
  *
  * These allocations are managed and will be implicitly released on unload.
  *
- * Note: This function shall be called only by the VF driver.
- *
- * If this function fails then VF driver won't be able to operate correctly.
+ * If this function fails then the driver won't be able to operate correctly.
  * If `Memory Based Interrupts`_ are not used this function will return 0.
  *
  * Return: 0 on success or a negative error code on failure.
@@ -190,9 +248,7 @@ int xe_memirq_init(struct xe_memirq *memirq)
 	struct xe_device *xe = memirq_to_xe(memirq);
 	int err;
 
-	memirq_assert(memirq, IS_SRIOV_VF(xe));
-
-	if (!xe_device_has_memirq(xe))
+	if (!xe_device_uses_memirq(xe))
 		return 0;
 
 	err = memirq_alloc_pages(memirq);
@@ -205,55 +261,70 @@ int xe_memirq_init(struct xe_memirq *memirq)
 	return 0;
 }
 
+static u32 __memirq_source_page(struct xe_memirq *memirq, u16 instance)
+{
+	memirq_assert(memirq, instance <= XE_HW_ENGINE_MAX_INSTANCE);
+	memirq_assert(memirq, memirq->bo);
+
+	instance = hw_reports_to_instance_zero(memirq) ? instance : 0;
+	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_SOURCE_OFFSET(instance);
+}
+
 /**
  * xe_memirq_source_ptr - Get GGTT's offset of the `Interrupt Source Report Page`_.
  * @memirq: the &xe_memirq to query
+ * @hwe: the hw engine for which we want the report page
  *
- * Shall be called only on VF driver when `Memory Based Interrupts`_ are used
+ * Shall be called when `Memory Based Interrupts`_ are used
  * and xe_memirq_init() didn't fail.
  *
  * Return: GGTT's offset of the `Interrupt Source Report Page`_.
  */
-u32 xe_memirq_source_ptr(struct xe_memirq *memirq)
+u32 xe_memirq_source_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
 {
-	memirq_assert(memirq, IS_SRIOV_VF(memirq_to_xe(memirq)));
-	memirq_assert(memirq, xe_device_has_memirq(memirq_to_xe(memirq)));
+	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
+
+	return __memirq_source_page(memirq, hwe->instance);
+}
+
+static u32 __memirq_status_page(struct xe_memirq *memirq, u16 instance)
+{
+	memirq_assert(memirq, instance <= XE_HW_ENGINE_MAX_INSTANCE);
 	memirq_assert(memirq, memirq->bo);
 
-	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_SOURCE_OFFSET;
+	instance = hw_reports_to_instance_zero(memirq) ? instance : 0;
+	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_STATUS_OFFSET(instance);
 }
 
 /**
  * xe_memirq_status_ptr - Get GGTT's offset of the `Interrupt Status Report Page`_.
  * @memirq: the &xe_memirq to query
+ * @hwe: the hw engine for which we want the report page
  *
- * Shall be called only on VF driver when `Memory Based Interrupts`_ are used
+ * Shall be called when `Memory Based Interrupts`_ are used
  * and xe_memirq_init() didn't fail.
  *
  * Return: GGTT's offset of the `Interrupt Status Report Page`_.
  */
-u32 xe_memirq_status_ptr(struct xe_memirq *memirq)
+u32 xe_memirq_status_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
 {
-	memirq_assert(memirq, IS_SRIOV_VF(memirq_to_xe(memirq)));
-	memirq_assert(memirq, xe_device_has_memirq(memirq_to_xe(memirq)));
-	memirq_assert(memirq, memirq->bo);
+	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 
-	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_STATUS_OFFSET;
+	return __memirq_status_page(memirq, hwe->instance);
 }
 
 /**
  * xe_memirq_enable_ptr - Get GGTT's offset of the Interrupt Enable Mask.
  * @memirq: the &xe_memirq to query
  *
- * Shall be called only on VF driver when `Memory Based Interrupts`_ are used
+ * Shall be called when `Memory Based Interrupts`_ are used
  * and xe_memirq_init() didn't fail.
  *
  * Return: GGTT's offset of the Interrupt Enable Mask.
  */
 u32 xe_memirq_enable_ptr(struct xe_memirq *memirq)
 {
-	memirq_assert(memirq, IS_SRIOV_VF(memirq_to_xe(memirq)));
-	memirq_assert(memirq, xe_device_has_memirq(memirq_to_xe(memirq)));
+	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 	memirq_assert(memirq, memirq->bo);
 
 	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_ENABLE_OFFSET;
@@ -267,7 +338,7 @@ u32 xe_memirq_enable_ptr(struct xe_memirq *memirq)
  * Register `Interrupt Source Report Page`_ and `Interrupt Status Report Page`_
  * to be used by the GuC when `Memory Based Interrupts`_ are required.
  *
- * Shall be called only on VF driver when `Memory Based Interrupts`_ are used
+ * Shall be called when `Memory Based Interrupts`_ are used
  * and xe_memirq_init() didn't fail.
  *
  * Return: 0 on success or a negative error code on failure.
@@ -279,12 +350,10 @@ int xe_memirq_init_guc(struct xe_memirq *memirq, struct xe_guc *guc)
 	u32 source, status;
 	int err;
 
-	memirq_assert(memirq, IS_SRIOV_VF(memirq_to_xe(memirq)));
-	memirq_assert(memirq, xe_device_has_memirq(memirq_to_xe(memirq)));
-	memirq_assert(memirq, memirq->bo);
+	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 
-	source = xe_memirq_source_ptr(memirq) + offset;
-	status = xe_memirq_status_ptr(memirq) + offset * SZ_16;
+	source = __memirq_source_page(memirq, 0) + offset;
+	status = __memirq_status_page(memirq, 0) + offset * SZ_16;
 
 	err = xe_guc_self_cfg64(guc, GUC_KLV_SELF_CFG_MEMIRQ_SOURCE_ADDR_KEY,
 				source);
@@ -299,9 +368,8 @@ int xe_memirq_init_guc(struct xe_memirq *memirq, struct xe_guc *guc)
 	return 0;
 
 failed:
-	xe_sriov_err(memirq_to_xe(memirq),
-		     "Failed to setup report pages in %s (%pe)\n",
-		     guc_name(guc), ERR_PTR(err));
+	memirq_err(memirq, "Failed to setup report pages in %s (%pe)\n",
+		   guc_name(guc), ERR_PTR(err));
 	return err;
 }
 
@@ -311,13 +379,12 @@ failed:
  *
  * This is part of the driver IRQ setup flow.
  *
- * This function shall only be used by the VF driver on platforms that use
+ * This function shall only be used on platforms that use
  * `Memory Based Interrupts`_.
  */
 void xe_memirq_reset(struct xe_memirq *memirq)
 {
-	memirq_assert(memirq, IS_SRIOV_VF(memirq_to_xe(memirq)));
-	memirq_assert(memirq, xe_device_has_memirq(memirq_to_xe(memirq)));
+	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 
 	if (memirq->bo)
 		memirq_set_enable(memirq, false);
@@ -329,13 +396,12 @@ void xe_memirq_reset(struct xe_memirq *memirq)
  *
  * This is part of the driver IRQ setup flow.
  *
- * This function shall only be used by the VF driver on platforms that use
+ * This function shall only be used on platforms that use
  * `Memory Based Interrupts`_.
  */
 void xe_memirq_postinstall(struct xe_memirq *memirq)
 {
-	memirq_assert(memirq, IS_SRIOV_VF(memirq_to_xe(memirq)));
-	memirq_assert(memirq, xe_device_has_memirq(memirq_to_xe(memirq)));
+	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 
 	if (memirq->bo)
 		memirq_set_enable(memirq, true);
@@ -349,9 +415,9 @@ static bool memirq_received(struct xe_memirq *memirq, struct iosys_map *vector,
 	value = iosys_map_rd(vector, offset, u8);
 	if (value) {
 		if (value != 0xff)
-			xe_sriov_err_ratelimited(memirq_to_xe(memirq),
-						 "Unexpected memirq value %#x from %s at %u\n",
-						 value, name, offset);
+			memirq_err_ratelimited(memirq,
+					       "Unexpected memirq value %#x from %s at %u\n",
+					       value, name, offset);
 		iosys_map_wr(vector, offset, u8, 0x00);
 	}
 
@@ -376,6 +442,28 @@ static void memirq_dispatch_guc(struct xe_memirq *memirq, struct iosys_map *stat
 
 	if (memirq_received(memirq, status, ilog2(GUC_INTR_GUC2HOST), name))
 		xe_guc_irq_handler(guc, GUC_INTR_GUC2HOST);
+}
+
+/**
+ * xe_memirq_hwe_handler - Check and process interrupts for a specific HW engine.
+ * @memirq: the &xe_memirq
+ * @hwe: the hw engine to process
+ *
+ * This function reads and dispatches `Memory Based Interrupts` for the provided HW engine.
+ */
+void xe_memirq_hwe_handler(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
+{
+	u16 offset = hwe->irq_offset;
+	u16 instance = hw_reports_to_instance_zero(memirq) ? hwe->instance : 0;
+	struct iosys_map src_offset = IOSYS_MAP_INIT_OFFSET(&memirq->bo->vmap,
+							    XE_MEMIRQ_SOURCE_OFFSET(instance));
+
+	if (memirq_received(memirq, &src_offset, offset, "SRC")) {
+		struct iosys_map status_offset =
+			IOSYS_MAP_INIT_OFFSET(&memirq->bo->vmap,
+					      XE_MEMIRQ_STATUS_OFFSET(instance) + offset * SZ_16);
+		memirq_dispatch_engine(memirq, &status_offset, hwe);
+	}
 }
 
 /**
@@ -405,13 +493,8 @@ void xe_memirq_handler(struct xe_memirq *memirq)
 		if (gt->tile != tile)
 			continue;
 
-		for_each_hw_engine(hwe, gt, id) {
-			if (memirq_received(memirq, &memirq->source, hwe->irq_offset, "SRC")) {
-				map = IOSYS_MAP_INIT_OFFSET(&memirq->status,
-							    hwe->irq_offset * SZ_16);
-				memirq_dispatch_engine(memirq, &map, hwe);
-			}
-		}
+		for_each_hw_engine(hwe, gt, id)
+			xe_memirq_hwe_handler(memirq, hwe);
 	}
 
 	/* GuC and media GuC (if present) must be checked separately */

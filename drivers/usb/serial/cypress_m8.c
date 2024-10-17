@@ -36,7 +36,7 @@
 #include <linux/kfifo.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "cypress_m8.h"
 

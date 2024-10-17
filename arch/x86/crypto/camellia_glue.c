@@ -8,7 +8,7 @@
  *  Copyright (C) 2006 NTT (Nippon Telegraph and Telephone Corporation)
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>

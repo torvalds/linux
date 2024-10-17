@@ -26,7 +26,7 @@
 
 #include <net/switchdev.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ADIN1110_PHY_ID				0x1
 

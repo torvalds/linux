@@ -37,7 +37,7 @@
 
 #include <video/metronomefb.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Display specific information */
 #define DPY_W 832

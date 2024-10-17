@@ -40,9 +40,21 @@ config DRM_XE_DEBUG_VM
 
 	  If in doubt, say "N".
 
+config DRM_XE_DEBUG_MEMIRQ
+	bool "Enable extra memirq debugging"
+	default n
+	help
+	  Choose this option to enable additional debugging info for
+	  memory based interrupts.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
 config DRM_XE_DEBUG_SRIOV
 	bool "Enable extra SR-IOV debugging"
 	default n
+	select DRM_XE_DEBUG_MEMIRQ
 	help
 	  Enable extra SR-IOV debugging info.
 

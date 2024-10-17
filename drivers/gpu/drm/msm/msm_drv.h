@@ -36,6 +36,9 @@
 extern struct fault_attr fail_gem_alloc;
 extern struct fault_attr fail_gem_iova;
 
+struct drm_fb_helper;
+struct drm_fb_helper_surface_size;
+
 struct msm_kms;
 struct msm_gpu;
 struct msm_mmu;
@@ -290,11 +293,13 @@ struct drm_framebuffer * msm_alloc_stolen_fb(struct drm_device *dev,
 		int w, int h, int p, uint32_t format);
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-void msm_fbdev_setup(struct drm_device *dev);
+int msm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
+				 struct drm_fb_helper_surface_size *sizes);
+#define MSM_FBDEV_DRIVER_OPS \
+	.fbdev_probe = msm_fbdev_driver_fbdev_probe
 #else
-static inline void msm_fbdev_setup(struct drm_device *dev)
-{
-}
+#define MSM_FBDEV_DRIVER_OPS \
+	.fbdev_probe = NULL
 #endif
 
 struct hdmi;

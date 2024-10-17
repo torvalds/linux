@@ -1,14 +1,14 @@
 variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
-  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha d9849ac46623797a9f56fb9d46dc52460ac477de
+  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha c6a9a9c3bce90923f7700219354e0b6e5a3c9ba6
 
   UPSTREAM_REPO: https://gitlab.freedesktop.org/drm/kernel.git
   TARGET_BRANCH: drm-next
 
-  IGT_VERSION: f13702b8e4e847c56da3ef6f0969065d686049c5
+  IGT_VERSION: a73311079a5d8ac99eb25336a8369a2c3c6b519b
 
   DEQP_RUNNER_GIT_URL: https://gitlab.freedesktop.org/mesa/deqp-runner.git
-  DEQP_RUNNER_GIT_TAG: v0.15.0
+  DEQP_RUNNER_GIT_TAG: v0.20.0
 
   FDO_UPSTREAM_REPO: helen.fornazier/linux   # The repo where the git-archive daily runs
   MESA_TEMPLATES_COMMIT: &ci-templates-commit d5aa3941aa03c2f716595116354fb81eb8012acb
@@ -153,6 +153,14 @@ stages:
     # Pre-merge pipeline for Marge Bot
     - if: &is-pre-merge-for-marge '$GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event"'
       when: on_success
+    # Push to a branch on a fork
+    - &is-fork-push '$CI_PROJECT_NAMESPACE != "mesa" && $CI_PIPELINE_SOURCE == "push"'
+
+# Rules applied to every job in the pipeline
+.common-rules:
+  rules:
+    - if: *is-fork-push
+      when: manual
 
 .never-post-merge-rules:
   rules:

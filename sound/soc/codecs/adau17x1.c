@@ -19,7 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/regmap.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "sigmadsp.h"
 #include "adau17x1.h"

@@ -28,7 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/debugfs.h>
 #include <acpi/apei.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "apei-internal.h"
 

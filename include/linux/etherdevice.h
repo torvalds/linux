@@ -21,7 +21,7 @@
 #include <linux/netdevice.h>
 #include <linux/random.h>
 #include <linux/crc32.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/bitsperlong.h>
 
 #ifdef __KERNEL__

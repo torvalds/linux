@@ -7,7 +7,7 @@
 #include <linux/libfdt.h>
 
 #include <asm/efi.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "efistub.h"
 

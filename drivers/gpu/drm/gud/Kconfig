@@ -4,6 +4,7 @@ config DRM_GUD
 	tristate "GUD USB Display"
 	depends on DRM && USB && MMU
 	select LZ4_COMPRESS
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select DRM_GEM_SHMEM_HELPER
 	select BACKLIGHT_CLASS_DEVICE

@@ -4,6 +4,7 @@ config DRM_LOONGSON
 	tristate "DRM support for Loongson Graphics"
 	depends on DRM && PCI && MMU
 	depends on LOONGARCH || MIPS || COMPILE_TEST
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select DRM_TTM
 	select DRM_TTM_HELPER

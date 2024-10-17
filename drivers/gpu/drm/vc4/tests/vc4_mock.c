@@ -155,11 +155,11 @@ KUNIT_DEFINE_ACTION_WRAPPER(kunit_action_drm_dev_unregister,
 			    drm_dev_unregister,
 			    struct drm_device *);
 
-static struct vc4_dev *__mock_device(struct kunit *test, bool is_vc5)
+static struct vc4_dev *__mock_device(struct kunit *test, enum vc4_gen gen)
 {
 	struct drm_device *drm;
-	const struct drm_driver *drv = is_vc5 ? &vc5_drm_driver : &vc4_drm_driver;
-	const struct vc4_mock_desc *desc = is_vc5 ? &vc5_mock : &vc4_mock;
+	const struct drm_driver *drv = (gen == VC4_GEN_5) ? &vc5_drm_driver : &vc4_drm_driver;
+	const struct vc4_mock_desc *desc = (gen == VC4_GEN_5) ? &vc5_mock : &vc4_mock;
 	struct vc4_dev *vc4;
 	struct device *dev;
 	int ret;
@@ -173,9 +173,9 @@ static struct vc4_dev *__mock_device(struct kunit *test, bool is_vc5)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4);
 
 	vc4->dev = dev;
-	vc4->is_vc5 = is_vc5;
+	vc4->gen = gen;
 
-	vc4->hvs = __vc4_hvs_alloc(vc4, NULL);
+	vc4->hvs = __vc4_hvs_alloc(vc4, NULL, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4->hvs);
 
 	drm = &vc4->base;
@@ -198,10 +198,10 @@ static struct vc4_dev *__mock_device(struct kunit *test, bool is_vc5)
 
 struct vc4_dev *vc4_mock_device(struct kunit *test)
 {
-	return __mock_device(test, false);
+	return __mock_device(test, VC4_GEN_4);
 }
 
 struct vc4_dev *vc5_mock_device(struct kunit *test)
 {
-	return __mock_device(test, true);
+	return __mock_device(test, VC4_GEN_5);
 }
