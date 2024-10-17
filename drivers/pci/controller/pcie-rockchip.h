@@ -329,7 +329,7 @@ struct rockchip_pcie {
 	struct	regulator *vpcie3v3; /* 3.3V power supply */
 	struct	regulator *vpcie1v8; /* 1.8V power supply */
 	struct	regulator *vpcie0v9; /* 0.9V power supply */
-	struct	gpio_desc *ep_gpio;
+	struct	gpio_desc *perst_gpio;
 	u32	lanes;
 	u8      lanes_map;
 	int	link_gen;
