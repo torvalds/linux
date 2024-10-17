@@ -757,7 +757,7 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 		dev_info(&dev->dev, "adding root bus resource %pR (tainting kernel)\n",
 			 res);
 		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-		pci_bus_add_resource(dev->bus, res, 0);
+		pci_bus_add_resource(dev->bus, res);
 	}
 
 	base = ((res->start >> 8) & AMD_141b_MMIO_BASE_MMIOBASE_MASK) |

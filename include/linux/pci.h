@@ -633,18 +633,9 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge);
  * Use pci_bus_for_each_resource() to iterate through all the resources.
  */
 
-/*
- * PCI_SUBTRACTIVE_DECODE means the bridge forwards the window implicitly
- * and there's no way to program the bridge with the details of the window.
- * This does not apply to ACPI _CRS windows, even with the _DEC subtractive-
- * decode bit set, because they are explicit and can be programmed with _SRS.
- */
-#define PCI_SUBTRACTIVE_DECODE	0x1
-
 struct pci_bus_resource {
 	struct list_head	list;
 	struct resource		*res;
-	unsigned int		flags;
 };
 
 #define PCI_REGION_FLAG_MASK	0x0fU	/* These bits of resource flags tell us the PCI region flags */
@@ -1498,8 +1489,7 @@ void pci_add_resource(struct list_head *resources, struct resource *res);
 void pci_add_resource_offset(struct list_head *resources, struct resource *res,
 			     resource_size_t offset);
 void pci_free_resource_list(struct list_head *resources);
-void pci_bus_add_resource(struct pci_bus *bus, struct resource *res,
-			  unsigned int flags);
+void pci_bus_add_resource(struct pci_bus *bus, struct resource *res);
 struct resource *pci_bus_resource_n(const struct pci_bus *bus, int n);
 void pci_bus_remove_resources(struct pci_bus *bus);
 void pci_bus_remove_resource(struct pci_bus *bus, struct resource *res);

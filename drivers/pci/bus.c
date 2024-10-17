@@ -46,8 +46,7 @@ void pci_free_resource_list(struct list_head *resources)
 }
 EXPORT_SYMBOL(pci_free_resource_list);
 
-void pci_bus_add_resource(struct pci_bus *bus, struct resource *res,
-			  unsigned int flags)
+void pci_bus_add_resource(struct pci_bus *bus, struct resource *res)
 {
 	struct pci_bus_resource *bus_res;
 
@@ -58,7 +57,6 @@ void pci_bus_add_resource(struct pci_bus *bus, struct resource *res,
 	}
 
 	bus_res->res = res;
-	bus_res->flags = flags;
 	list_add_tail(&bus_res->list, &bus->resources);
 }
 
