@@ -23,27 +23,6 @@
 #define AEGIS128_MIN_AUTH_SIZE 8
 #define AEGIS128_MAX_AUTH_SIZE 16
 
-asmlinkage void crypto_aegis128_aesni_init(void *state, void *key, void *iv);
-
-asmlinkage void crypto_aegis128_aesni_ad(
-		void *state, unsigned int length, const void *data);
-
-asmlinkage void crypto_aegis128_aesni_enc(
-		void *state, unsigned int length, const void *src, void *dst);
-
-asmlinkage void crypto_aegis128_aesni_dec(
-		void *state, unsigned int length, const void *src, void *dst);
-
-asmlinkage void crypto_aegis128_aesni_enc_tail(
-		void *state, unsigned int length, const void *src, void *dst);
-
-asmlinkage void crypto_aegis128_aesni_dec_tail(
-		void *state, unsigned int length, const void *src, void *dst);
-
-asmlinkage void crypto_aegis128_aesni_final(
-		void *state, void *tag_xor, unsigned int cryptlen,
-		unsigned int assoclen);
-
 struct aegis_block {
 	u8 bytes[AEGIS128_BLOCK_SIZE] __aligned(AEGIS128_BLOCK_ALIGN);
 };
@@ -55,6 +34,32 @@ struct aegis_state {
 struct aegis_ctx {
 	struct aegis_block key;
 };
+
+asmlinkage void aegis128_aesni_init(struct aegis_state *state,
+				    const struct aegis_block *key,
+				    const u8 iv[AEGIS128_NONCE_SIZE]);
+
+asmlinkage void aegis128_aesni_ad(struct aegis_state *state, const u8 *data,
+				  unsigned int len);
+
+asmlinkage void aegis128_aesni_enc(struct aegis_state *state, const u8 *src,
+				   u8 *dst, unsigned int len);
+
+asmlinkage void aegis128_aesni_dec(struct aegis_state *state, const u8 *src,
+				   u8 *dst, unsigned int len);
+
+asmlinkage void aegis128_aesni_enc_tail(struct aegis_state *state,
+					const u8 *src, u8 *dst,
+					unsigned int len);
+
+asmlinkage void aegis128_aesni_dec_tail(struct aegis_state *state,
+					const u8 *src, u8 *dst,
+					unsigned int len);
+
+asmlinkage void aegis128_aesni_final(struct aegis_state *state,
+				     struct aegis_block *tag_xor,
+				     unsigned int assoclen,
+				     unsigned int cryptlen);
 
 static void crypto_aegis128_aesni_process_ad(
 		struct aegis_state *state, struct scatterlist *sg_src,
@@ -75,15 +80,14 @@ static void crypto_aegis128_aesni_process_ad(
 			if (pos > 0) {
 				unsigned int fill = AEGIS128_BLOCK_SIZE - pos;
 				memcpy(buf.bytes + pos, src, fill);
-				crypto_aegis128_aesni_ad(state,
-							 AEGIS128_BLOCK_SIZE,
-							 buf.bytes);
+				aegis128_aesni_ad(state, buf.bytes,
+						  AEGIS128_BLOCK_SIZE);
 				pos = 0;
 				left -= fill;
 				src += fill;
 			}
 
-			crypto_aegis128_aesni_ad(state, left, src);
+			aegis128_aesni_ad(state, src, left);
 
 			src += left & ~(AEGIS128_BLOCK_SIZE - 1);
 			left &= AEGIS128_BLOCK_SIZE - 1;
@@ -100,7 +104,7 @@ static void crypto_aegis128_aesni_process_ad(
 
 	if (pos > 0) {
 		memset(buf.bytes + pos, 0, AEGIS128_BLOCK_SIZE - pos);
-		crypto_aegis128_aesni_ad(state, AEGIS128_BLOCK_SIZE, buf.bytes);
+		aegis128_aesni_ad(state, buf.bytes, AEGIS128_BLOCK_SIZE);
 	}
 }
 
@@ -110,31 +114,27 @@ crypto_aegis128_aesni_process_crypt(struct aegis_state *state,
 {
 	while (walk->nbytes >= AEGIS128_BLOCK_SIZE) {
 		if (enc)
-			crypto_aegis128_aesni_enc(
-					state,
-					round_down(walk->nbytes,
-						   AEGIS128_BLOCK_SIZE),
-					walk->src.virt.addr,
-					walk->dst.virt.addr);
+			aegis128_aesni_enc(state, walk->src.virt.addr,
+					   walk->dst.virt.addr,
+					   round_down(walk->nbytes,
+						      AEGIS128_BLOCK_SIZE));
 		else
-			crypto_aegis128_aesni_dec(
-					state,
-					round_down(walk->nbytes,
-						   AEGIS128_BLOCK_SIZE),
-					walk->src.virt.addr,
-					walk->dst.virt.addr);
+			aegis128_aesni_dec(state, walk->src.virt.addr,
+					   walk->dst.virt.addr,
+					   round_down(walk->nbytes,
+						      AEGIS128_BLOCK_SIZE));
 		skcipher_walk_done(walk, walk->nbytes % AEGIS128_BLOCK_SIZE);
 	}
 
 	if (walk->nbytes) {
 		if (enc)
-			crypto_aegis128_aesni_enc_tail(state, walk->nbytes,
-						       walk->src.virt.addr,
-						       walk->dst.virt.addr);
+			aegis128_aesni_enc_tail(state, walk->src.virt.addr,
+						walk->dst.virt.addr,
+						walk->nbytes);
 		else
-			crypto_aegis128_aesni_dec_tail(state, walk->nbytes,
-						       walk->src.virt.addr,
-						       walk->dst.virt.addr);
+			aegis128_aesni_dec_tail(state, walk->src.virt.addr,
+						walk->dst.virt.addr,
+						walk->nbytes);
 		skcipher_walk_done(walk, 0);
 	}
 }
@@ -186,10 +186,10 @@ crypto_aegis128_aesni_crypt(struct aead_request *req,
 
 	kernel_fpu_begin();
 
-	crypto_aegis128_aesni_init(&state, ctx->key.bytes, req->iv);
+	aegis128_aesni_init(&state, &ctx->key, req->iv);
 	crypto_aegis128_aesni_process_ad(&state, req->src, req->assoclen);
 	crypto_aegis128_aesni_process_crypt(&state, &walk, enc);
-	crypto_aegis128_aesni_final(&state, tag_xor, req->assoclen, cryptlen);
+	aegis128_aesni_final(&state, tag_xor, req->assoclen, cryptlen);
 
 	kernel_fpu_end();
 }
