@@ -1799,7 +1799,7 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 	DpmActivityMonitorCoeffInt_t *activity_monitor =
 		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
 	int workload_type, ret = 0;
-
+	uint32_t current_profile_mode = smu->power_profile_mode;
 	smu->power_profile_mode = input[size];
 
 	if (smu->power_profile_mode >= PP_SMC_POWER_PROFILE_COUNT) {
@@ -1856,6 +1856,11 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 			return ret;
 		}
 	}
+
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE)
+		smu_v14_0_deep_sleep_control(smu, false);
+	else if (current_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE)
+		smu_v14_0_deep_sleep_control(smu, true);
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type = smu_cmn_to_asic_specific_index(smu,
