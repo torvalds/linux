@@ -1567,6 +1567,7 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 
 	if (drv_data->dmic_cpu_id == DMIC) {
 		links[i].name = "acp-dmic-codec";
+		links[i].stream_name = "DMIC capture";
 		links[i].id = DMIC_BE_ID;
 		links[i].codecs = dmic_codec;
 		links[i].num_codecs = ARRAY_SIZE(dmic_codec);
@@ -1759,6 +1760,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 
 	if (drv_data->dmic_cpu_id == DMIC) {
 		links[i].name = "acp-dmic-codec";
+		links[i].stream_name = "DMIC capture";
 		links[i].id = DMIC_BE_ID;
 		if (drv_data->dmic_codec_id == DMIC) {
 			links[i].codecs = dmic_codec;
