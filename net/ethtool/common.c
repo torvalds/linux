@@ -684,6 +684,54 @@ int ethtool_check_max_channel(struct net_device *dev,
 	return 0;
 }
 
+int ethtool_check_rss_ctx_busy(struct net_device *dev, u32 rss_context)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxnfc *info;
+	int rc, i, rule_cnt;
+
+	if (!ops->get_rxnfc)
+		return 0;
+
+	rule_cnt = ethtool_get_rxnfc_rule_count(dev);
+	if (!rule_cnt)
+		return 0;
+
+	if (rule_cnt < 0)
+		return -EINVAL;
+
+	info = kvzalloc(struct_size(info, rule_locs, rule_cnt), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->cmd = ETHTOOL_GRXCLSRLALL;
+	info->rule_cnt = rule_cnt;
+	rc = ops->get_rxnfc(dev, info, info->rule_locs);
+	if (rc)
+		goto out_free;
+
+	for (i = 0; i < rule_cnt; i++) {
+		struct ethtool_rxnfc rule_info = {
+			.cmd = ETHTOOL_GRXCLSRULE,
+			.fs.location = info->rule_locs[i],
+		};
+
+		rc = ops->get_rxnfc(dev, &rule_info, NULL);
+		if (rc)
+			goto out_free;
+
+		if (rule_info.fs.flow_type & FLOW_RSS &&
+		    rule_info.rss_context == rss_context) {
+			rc = -EBUSY;
+			goto out_free;
+		}
+	}
+
+out_free:
+	kvfree(info);
+	return rc;
+}
+
 int ethtool_check_ops(const struct ethtool_ops *ops)
 {
 	if (WARN_ON(ops->set_coalesce && !ops->supported_coalesce_params))
