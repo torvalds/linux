@@ -28,6 +28,14 @@ enum kunwind_source {
 	KUNWIND_SOURCE_REGS_PC,
 };
 
+union unwind_flags {
+	unsigned long	all;
+	struct {
+		unsigned long	fgraph : 1,
+				kretprobe : 1;
+	};
+};
+
 /*
  * Kernel unwind state
  *
@@ -46,6 +54,7 @@ struct kunwind_state {
 	struct llist_node *kr_cur;
 #endif
 	enum kunwind_source source;
+	union unwind_flags flags;
 };
 
 static __always_inline void
@@ -55,6 +64,7 @@ kunwind_init(struct kunwind_state *state,
 	unwind_init_common(&state->common);
 	state->task = task;
 	state->source = KUNWIND_SOURCE_UNKNOWN;
+	state->flags.all = 0;
 }
 
 /*
@@ -127,6 +137,7 @@ kunwind_recover_return_address(struct kunwind_state *state)
 		if (WARN_ON_ONCE(state->common.pc == orig_pc))
 			return -EINVAL;
 		state->common.pc = orig_pc;
+		state->flags.fgraph = 1;
 	}
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
@@ -137,6 +148,7 @@ kunwind_recover_return_address(struct kunwind_state *state)
 						  (void *)state->common.fp,
 						  &state->kr_cur);
 		state->common.pc = orig_pc;
+		state->flags.kretprobe = 1;
 	}
 #endif /* CONFIG_KRETPROBES */
 
@@ -156,6 +168,8 @@ kunwind_next(struct kunwind_state *state)
 	struct task_struct *tsk = state->task;
 	unsigned long fp = state->common.fp;
 	int err;
+
+	state->flags.all = 0;
 
 	/* Final frame; nothing to unwind */
 	if (fp == (unsigned long)&task_pt_regs(tsk)->stackframe)
@@ -331,12 +345,18 @@ static const char *state_source_string(const struct kunwind_state *state)
 static bool dump_backtrace_entry(const struct kunwind_state *state, void *arg)
 {
 	const char *source = state_source_string(state);
+	union unwind_flags flags = state->flags;
+	bool has_info = source || flags.all;
 	char *loglvl = arg;
-	printk("%s %pSb%s%s%s\n", loglvl,
+
+	printk("%s %pSb%s%s%s%s%s\n", loglvl,
 		(void *)state->common.pc,
-		source ? " (" : "",
+		has_info ? " (" : "",
 		source ? source : "",
-		source ? ")" : "");
+		flags.fgraph ? "F" : "",
+		flags.kretprobe ? "K" : "",
+		has_info ? ")" : "");
+
 	return true;
 }
 
