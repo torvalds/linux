@@ -687,9 +687,8 @@ static void arl_d3_fixup(void)
 static int arl_resume(struct pmc_dev *pmcdev)
 {
 	arl_d3_fixup();
-	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
 
-	return pmc_core_resume_common(pmcdev);
+	return cnl_resume(pmcdev);
 }
 
 int arl_core_init(struct pmc_dev *pmcdev)
