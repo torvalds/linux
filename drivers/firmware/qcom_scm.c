@@ -207,6 +207,10 @@ static enum qcom_scm_convention __get_convention(void)
 	 * Per the "SMC calling convention specification", the 64-bit calling
 	 * convention can only be used when the client is 64-bit, otherwise
 	 * system will encounter the undefined behaviour.
+	 * When running on 32bit kernel, SCM call with convention
+	 * SMC_CONVENTION_ARM_64 is causing the system crash. To avoid that
+	 * use SMC_CONVENTION_ARM_64 for 64bit kernel and SMC_CONVENTION_ARM_32
+	 * for 32bit kernel.
 	 */
 #if IS_ENABLED(CONFIG_ARM64)
 	/*
