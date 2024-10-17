@@ -382,9 +382,10 @@ static int rockchip_pcie_ep_send_msi_irq(struct rockchip_pcie_ep *ep, u8 fn,
 {
 	struct rockchip_pcie *rockchip = &ep->rockchip;
 	u32 flags, mme, data, data_mask;
+	size_t irq_pci_size, offset;
+	u64 irq_pci_addr;
 	u8 msi_count;
 	u64 pci_addr;
-	u32 r;
 
 	/* Check MSI enable bit */
 	flags = rockchip_pcie_read(&ep->rockchip,
@@ -420,18 +421,21 @@ static int rockchip_pcie_ep_send_msi_irq(struct rockchip_pcie_ep *ep, u8 fn,
 				       PCI_MSI_ADDRESS_LO);
 
 	/* Set the outbound region if needed. */
-	if (unlikely(ep->irq_pci_addr != (pci_addr & PCIE_ADDR_MASK) ||
+	irq_pci_size = ~PCIE_ADDR_MASK + 1;
+	irq_pci_addr = rockchip_pcie_ep_align_addr(ep->epc,
+						   pci_addr & PCIE_ADDR_MASK,
+						   &irq_pci_size, &offset);
+	if (unlikely(ep->irq_pci_addr != irq_pci_addr ||
 		     ep->irq_pci_fn != fn)) {
-		r = rockchip_ob_region(ep->irq_phys_addr);
-		rockchip_pcie_prog_ep_ob_atu(rockchip, fn, r,
-					     ep->irq_phys_addr,
-					     pci_addr & PCIE_ADDR_MASK,
-					     ~PCIE_ADDR_MASK + 1);
-		ep->irq_pci_addr = (pci_addr & PCIE_ADDR_MASK);
+		rockchip_pcie_prog_ep_ob_atu(rockchip, fn,
+					rockchip_ob_region(ep->irq_phys_addr),
+					ep->irq_phys_addr,
+					irq_pci_addr, irq_pci_size);
+		ep->irq_pci_addr = irq_pci_addr;
 		ep->irq_pci_fn = fn;
 	}
 
-	writew(data, ep->irq_cpu_addr + (pci_addr & ~PCIE_ADDR_MASK));
+	writew(data, ep->irq_cpu_addr + offset + (pci_addr & ~PCIE_ADDR_MASK));
 	return 0;
 }
 
