@@ -632,11 +632,6 @@ static bool amdgpu_vkms_is_idle(void *handle)
 	return true;
 }
 
-static int amdgpu_vkms_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int amdgpu_vkms_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
@@ -660,7 +655,6 @@ static const struct amd_ip_funcs amdgpu_vkms_ip_funcs = {
 	.suspend = amdgpu_vkms_suspend,
 	.resume = amdgpu_vkms_resume,
 	.is_idle = amdgpu_vkms_is_idle,
-	.soft_reset = amdgpu_vkms_soft_reset,
 	.set_clockgating_state = amdgpu_vkms_set_clockgating_state,
 	.set_powergating_state = amdgpu_vkms_set_powergating_state,
 	.dump_ip_state = NULL,

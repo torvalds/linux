@@ -7849,11 +7849,6 @@ static int si_dpm_wait_for_idle(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int si_dpm_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int si_dpm_set_clockgating_state(void *handle,
 					enum amd_clockgating_state state)
 {
@@ -8049,7 +8044,6 @@ static const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.resume = si_dpm_resume,
 	.is_idle = si_dpm_is_idle,
 	.wait_for_idle = si_dpm_wait_for_idle,
-	.soft_reset = si_dpm_soft_reset,
 	.set_clockgating_state = si_dpm_set_clockgating_state,
 	.set_powergating_state = si_dpm_set_powergating_state,
 	.dump_ip_state = NULL,

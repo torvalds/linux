@@ -128,11 +128,6 @@ static bool isp_is_idle(void *handle)
 	return true;
 }
 
-static int isp_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int isp_set_clockgating_state(void *handle,
 				     enum amd_clockgating_state state)
 {
@@ -152,7 +147,6 @@ static const struct amd_ip_funcs isp_ip_funcs = {
 	.hw_init = isp_hw_init,
 	.hw_fini = isp_hw_fini,
 	.is_idle = isp_is_idle,
-	.soft_reset = isp_soft_reset,
 	.set_clockgating_state = isp_set_clockgating_state,
 	.set_powergating_state = isp_set_powergating_state,
 };

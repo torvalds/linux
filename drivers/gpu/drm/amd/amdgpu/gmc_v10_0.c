@@ -1085,11 +1085,6 @@ static int gmc_v10_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gmc_v10_0_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int gmc_v10_0_set_clockgating_state(void *handle,
 					   enum amd_clockgating_state state)
 {
@@ -1151,7 +1146,6 @@ const struct amd_ip_funcs gmc_v10_0_ip_funcs = {
 	.resume = gmc_v10_0_resume,
 	.is_idle = gmc_v10_0_is_idle,
 	.wait_for_idle = gmc_v10_0_wait_for_idle,
-	.soft_reset = gmc_v10_0_soft_reset,
 	.set_clockgating_state = gmc_v10_0_set_clockgating_state,
 	.set_powergating_state = gmc_v10_0_set_powergating_state,
 	.get_clockgating_state = gmc_v10_0_get_clockgating_state,

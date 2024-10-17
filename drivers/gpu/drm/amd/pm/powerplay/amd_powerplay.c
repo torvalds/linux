@@ -244,11 +244,6 @@ static bool pp_is_idle(void *handle)
 	return false;
 }
 
-static int pp_sw_reset(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int pp_set_powergating_state(void *handle,
 				    enum amd_powergating_state state)
 {
@@ -290,7 +285,6 @@ static const struct amd_ip_funcs pp_ip_funcs = {
 	.suspend = pp_suspend,
 	.resume = pp_resume,
 	.is_idle = pp_is_idle,
-	.soft_reset = pp_sw_reset,
 	.set_clockgating_state = pp_set_clockgating_state,
 	.set_powergating_state = pp_set_powergating_state,
 	.dump_ip_state = NULL,
