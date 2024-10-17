@@ -648,6 +648,16 @@ static void ucsi_unregister_altmodes(struct ucsi_connector *con, u8 recipient)
 	}
 }
 
+static int ucsi_get_connector_status(struct ucsi_connector *con, bool conn_ack)
+{
+	u64 command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
+	struct ucsi *ucsi = con->ucsi;
+	int ret;
+
+	ret = ucsi_send_command_common(ucsi, command, &con->status, sizeof(con->status), conn_ack);
+	return ret < 0 ? ret : 0;
+}
+
 static int ucsi_read_pdos(struct ucsi_connector *con,
 			  enum typec_role role, int is_partner,
 			  u32 *pdos, int offset, int num_pdos)
@@ -1134,12 +1144,10 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 static int ucsi_check_connection(struct ucsi_connector *con)
 {
 	u8 prev_flags = con->status.flags;
-	u64 command;
 	int ret;
 
-	command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
-	ret = ucsi_send_command(con->ucsi, command, &con->status, sizeof(con->status));
-	if (ret < 0) {
+	ret = ucsi_get_connector_status(con, false);
+	if (ret) {
 		dev_err(con->ucsi->dev, "GET_CONNECTOR_STATUS failed (%d)\n", ret);
 		return ret;
 	}
@@ -1203,7 +1211,6 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 						  work);
 	struct ucsi *ucsi = con->ucsi;
 	enum typec_role role;
-	u64 command;
 	int ret;
 
 	mutex_lock(&con->lock);
@@ -1212,11 +1219,8 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 		dev_err_once(ucsi->dev, "%s entered without EVENT_PENDING\n",
 			     __func__);
 
-	command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
-
-	ret = ucsi_send_command_common(ucsi, command, &con->status,
-				       sizeof(con->status), true);
-	if (ret < 0) {
+	ret = ucsi_get_connector_status(con, true);
+	if (ret) {
 		dev_err(ucsi->dev, "%s: GET_CONNECTOR_STATUS failed (%d)\n",
 			__func__, ret);
 		clear_bit(EVENT_PENDING, &con->ucsi->flags);
@@ -1633,14 +1637,11 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	}
 
 	/* Get the status */
-	command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
-	ret = ucsi_send_command(ucsi, command, &con->status, sizeof(con->status));
-	if (ret < 0) {
+	ret = ucsi_get_connector_status(con, false);
+	if (ret) {
 		dev_err(ucsi->dev, "con%d: failed to get status\n", con->num);
-		ret = 0;
 		goto out;
 	}
-	ret = 0; /* ucsi_send_command() returns length on success */
 
 	if (ucsi->ops->connector_status)
 		ucsi->ops->connector_status(con);
