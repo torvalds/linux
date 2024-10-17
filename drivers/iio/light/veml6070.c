@@ -87,14 +87,14 @@ static const struct iio_chan_spec veml6070_channels[] = {
 	}
 };
 
-static int veml6070_to_uv_index(unsigned val)
+static int veml6070_to_uv_index(unsigned int val)
 {
 	/*
 	 * conversion of raw UV intensity values to UV index depends on
 	 * integration time (IT) and value of the resistor connected to
 	 * the RSET pin (default: 270 KOhm)
 	 */
-	unsigned uvi[11] = {
+	unsigned int uvi[11] = {
 		187, 373, 560, /* low */
 		746, 933, 1120, /* moderate */
 		1308, 1494, /* high */
