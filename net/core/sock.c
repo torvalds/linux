@@ -820,14 +820,11 @@ EXPORT_SYMBOL(sock_set_sndtimeo);
 
 static void __sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns)
 {
+	sock_valbool_flag(sk, SOCK_RCVTSTAMP, val);
+	sock_valbool_flag(sk, SOCK_RCVTSTAMPNS, val && ns);
 	if (val)  {
 		sock_valbool_flag(sk, SOCK_TSTAMP_NEW, new);
-		sock_valbool_flag(sk, SOCK_RCVTSTAMPNS, ns);
-		sock_set_flag(sk, SOCK_RCVTSTAMP);
 		sock_enable_timestamp(sk, SOCK_TIMESTAMP);
-	} else {
-		sock_reset_flag(sk, SOCK_RCVTSTAMP);
-		sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
 	}
 }
 
