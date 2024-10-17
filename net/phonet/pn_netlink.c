@@ -65,8 +65,6 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ASSERT_RTNL();
-
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
 				     ifa_phonet_policy, extack);
 	if (err < 0)
@@ -80,16 +78,24 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		/* Phonet addresses only have 6 high-order bits */
 		return -EINVAL;
 
-	dev = __dev_get_by_index(net, ifm->ifa_index);
-	if (dev == NULL)
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, ifm->ifa_index);
+	if (!dev) {
+		rcu_read_unlock();
 		return -ENODEV;
+	}
 
 	if (nlh->nlmsg_type == RTM_NEWADDR)
 		err = phonet_address_add(dev, pnaddr);
 	else
 		err = phonet_address_del(dev, pnaddr);
+
+	rcu_read_unlock();
+
 	if (!err)
 		phonet_address_notify(net, nlh->nlmsg_type, ifm->ifa_index, pnaddr);
+
 	return err;
 }
 
@@ -287,13 +293,18 @@ static int route_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 }
 
 static const struct rtnl_msg_handler phonet_rtnl_msg_handlers[] __initdata_or_module = {
-	{THIS_MODULE, PF_PHONET, RTM_NEWADDR, addr_doit, NULL, 0},
-	{THIS_MODULE, PF_PHONET, RTM_DELADDR, addr_doit, NULL, 0},
-	{THIS_MODULE, PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit, 0},
-	{THIS_MODULE, PF_PHONET, RTM_NEWROUTE, route_doit, NULL, 0},
-	{THIS_MODULE, PF_PHONET, RTM_DELROUTE, route_doit, NULL, 0},
-	{THIS_MODULE, PF_PHONET, RTM_GETROUTE, NULL, route_dumpit,
-	 RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_NEWADDR,
+	 .doit = addr_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_DELADDR,
+	 .doit = addr_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_GETADDR,
+	 .dumpit = getaddr_dumpit},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_NEWROUTE,
+	 .doit = route_doit},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_DELROUTE,
+	 .doit = route_doit},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_GETROUTE,
+	 .dumpit = route_dumpit, .flags = RTNL_FLAG_DUMP_UNLOCKED},
 };
 
 int __init phonet_netlink_register(void)
