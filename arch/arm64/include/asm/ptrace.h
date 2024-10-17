@@ -149,8 +149,7 @@ static inline unsigned long pstate_to_compat_psr(const unsigned long pstate)
 
 /*
  * This struct defines the way the registers are stored on the stack during an
- * exception. Note that sizeof(struct pt_regs) has to be a multiple of 16 (for
- * stack alignment). struct user_pt_regs must form a prefix of struct pt_regs.
+ * exception. struct user_pt_regs must form a prefix of struct pt_regs.
  */
 struct pt_regs {
 	union {
@@ -179,6 +178,9 @@ struct pt_regs {
 	u64 lockdep_hardirqs;
 	u64 exit_rcu;
 };
+
+/* For correct stack alignment, pt_regs has to be a multiple of 16 bytes. */
+static_assert(IS_ALIGNED(sizeof(struct pt_regs), 16));
 
 static inline bool in_syscall(struct pt_regs const *regs)
 {
