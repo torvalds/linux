@@ -156,7 +156,7 @@
 				status = "disabled";
 			};
 
-			iomuxc: iomuxc@43fac000 {
+			iomuxc: pinctrl@43fac000 {
 				compatible = "fsl,imx35-iomuxc";
 				reg = <0x43fac000 0x4000>;
 			};
