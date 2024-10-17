@@ -1191,16 +1191,32 @@ static void amd_pstate_driver_cleanup(void)
 	current_pstate_driver = NULL;
 }
 
+static int amd_pstate_set_driver(int mode_idx)
+{
+	if (mode_idx >= AMD_PSTATE_DISABLE && mode_idx < AMD_PSTATE_MAX) {
+		cppc_state = mode_idx;
+		if (cppc_state == AMD_PSTATE_DISABLE)
+			pr_info("driver is explicitly disabled\n");
+
+		if (cppc_state == AMD_PSTATE_ACTIVE)
+			current_pstate_driver = &amd_pstate_epp_driver;
+
+		if (cppc_state == AMD_PSTATE_PASSIVE || cppc_state == AMD_PSTATE_GUIDED)
+			current_pstate_driver = &amd_pstate_driver;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int amd_pstate_register_driver(int mode)
 {
 	int ret;
 
-	if (mode == AMD_PSTATE_PASSIVE || mode == AMD_PSTATE_GUIDED)
-		current_pstate_driver = &amd_pstate_driver;
-	else if (mode == AMD_PSTATE_ACTIVE)
-		current_pstate_driver = &amd_pstate_epp_driver;
-	else
-		return -EINVAL;
+	ret = amd_pstate_set_driver(mode);
+	if (ret)
+		return ret;
 
 	cppc_state = mode;
 
@@ -1725,25 +1741,6 @@ static struct cpufreq_driver amd_pstate_epp_driver = {
 	.name		= "amd-pstate-epp",
 	.attr		= amd_pstate_epp_attr,
 };
-
-static int __init amd_pstate_set_driver(int mode_idx)
-{
-	if (mode_idx >= AMD_PSTATE_DISABLE && mode_idx < AMD_PSTATE_MAX) {
-		cppc_state = mode_idx;
-		if (cppc_state == AMD_PSTATE_DISABLE)
-			pr_info("driver is explicitly disabled\n");
-
-		if (cppc_state == AMD_PSTATE_ACTIVE)
-			current_pstate_driver = &amd_pstate_epp_driver;
-
-		if (cppc_state == AMD_PSTATE_PASSIVE || cppc_state == AMD_PSTATE_GUIDED)
-			current_pstate_driver = &amd_pstate_driver;
-
-		return 0;
-	}
-
-	return -EINVAL;
-}
 
 /*
  * CPPC function is not supported for family ID 17H with model_ID ranging from 0x10 to 0x2F.
