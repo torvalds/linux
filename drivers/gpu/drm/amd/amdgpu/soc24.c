@@ -522,11 +522,6 @@ static bool soc24_common_is_idle(void *handle)
 	return true;
 }
 
-static int soc24_common_wait_for_idle(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int soc24_common_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
@@ -591,7 +586,6 @@ static const struct amd_ip_funcs soc24_common_ip_funcs = {
 	.suspend = soc24_common_suspend,
 	.resume = soc24_common_resume,
 	.is_idle = soc24_common_is_idle,
-	.wait_for_idle = soc24_common_wait_for_idle,
 	.soft_reset = soc24_common_soft_reset,
 	.set_clockgating_state = soc24_common_set_clockgating_state,
 	.set_powergating_state = soc24_common_set_powergating_state,

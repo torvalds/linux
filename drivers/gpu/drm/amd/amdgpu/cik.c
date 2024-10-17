@@ -2153,10 +2153,7 @@ static bool cik_common_is_idle(void *handle)
 	return true;
 }
 
-static int cik_common_wait_for_idle(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
+
 
 static int cik_common_soft_reset(struct amdgpu_ip_block *ip_block)
 {
@@ -2184,7 +2181,6 @@ static const struct amd_ip_funcs cik_common_ip_funcs = {
 	.hw_fini = cik_common_hw_fini,
 	.resume = cik_common_resume,
 	.is_idle = cik_common_is_idle,
-	.wait_for_idle = cik_common_wait_for_idle,
 	.soft_reset = cik_common_soft_reset,
 	.set_clockgating_state = cik_common_set_clockgating_state,
 	.set_powergating_state = cik_common_set_powergating_state,

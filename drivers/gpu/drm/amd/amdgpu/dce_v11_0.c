@@ -3086,11 +3086,6 @@ static bool dce_v11_0_is_idle(void *handle)
 	return true;
 }
 
-static int dce_v11_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int dce_v11_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 srbm_soft_reset = 0, tmp;
@@ -3462,7 +3457,6 @@ static const struct amd_ip_funcs dce_v11_0_ip_funcs = {
 	.suspend = dce_v11_0_suspend,
 	.resume = dce_v11_0_resume,
 	.is_idle = dce_v11_0_is_idle,
-	.wait_for_idle = dce_v11_0_wait_for_idle,
 	.soft_reset = dce_v11_0_soft_reset,
 	.set_clockgating_state = dce_v11_0_set_clockgating_state,
 	.set_powergating_state = dce_v11_0_set_powergating_state,

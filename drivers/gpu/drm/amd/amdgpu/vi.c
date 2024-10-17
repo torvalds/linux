@@ -1741,11 +1741,6 @@ static bool vi_common_is_idle(void *handle)
 	return true;
 }
 
-static int vi_common_wait_for_idle(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
 static int vi_common_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
@@ -2043,7 +2038,6 @@ static const struct amd_ip_funcs vi_common_ip_funcs = {
 	.suspend = vi_common_suspend,
 	.resume = vi_common_resume,
 	.is_idle = vi_common_is_idle,
-	.wait_for_idle = vi_common_wait_for_idle,
 	.soft_reset = vi_common_soft_reset,
 	.set_clockgating_state = vi_common_set_clockgating_state,
 	.set_powergating_state = vi_common_set_powergating_state,

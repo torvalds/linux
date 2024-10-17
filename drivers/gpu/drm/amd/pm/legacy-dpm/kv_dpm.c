@@ -3099,12 +3099,6 @@ static bool kv_dpm_is_idle(void *handle)
 	return true;
 }
 
-static int kv_dpm_wait_for_idle(struct amdgpu_ip_block *ip_block)
-{
-	return 0;
-}
-
-
 static int kv_dpm_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
@@ -3313,7 +3307,6 @@ static const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.suspend = kv_dpm_suspend,
 	.resume = kv_dpm_resume,
 	.is_idle = kv_dpm_is_idle,
-	.wait_for_idle = kv_dpm_wait_for_idle,
 	.soft_reset = kv_dpm_soft_reset,
 	.set_clockgating_state = kv_dpm_set_clockgating_state,
 	.set_powergating_state = kv_dpm_set_powergating_state,
