@@ -7,8 +7,10 @@
 #include <linux/memblock.h>
 #include <linux/psci.h>
 #include <linux/swiotlb.h>
+#include <linux/cc_platform.h>
 
 #include <asm/io.h>
+#include <asm/mem_encrypt.h>
 #include <asm/rsi.h>
 
 static struct realm_config config;
@@ -18,6 +20,17 @@ EXPORT_SYMBOL(prot_ns_shared);
 
 DEFINE_STATIC_KEY_FALSE_RO(rsi_present);
 EXPORT_SYMBOL(rsi_present);
+
+bool cc_platform_has(enum cc_attr attr)
+{
+	switch (attr) {
+	case CC_ATTR_MEM_ENCRYPT:
+		return is_realm_world();
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(cc_platform_has);
 
 static bool rsi_version_matches(void)
 {
@@ -117,6 +130,9 @@ void __init arm64_rsi_init(void)
 	prot_ns_shared = BIT(config.ipa_bits - 1);
 
 	if (arm64_ioremap_prot_hook_register(realm_ioremap_hook))
+		return;
+
+	if (realm_register_memory_enc_ops())
 		return;
 
 	arm64_rsi_setup_memory();
