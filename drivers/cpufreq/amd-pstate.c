@@ -1848,9 +1848,11 @@ static int __init amd_pstate_init(void)
 		return -ENODEV;
 	}
 
-	ret = amd_pstate_set_driver(cppc_state);
-	if (ret)
+	ret = amd_pstate_register_driver(cppc_state);
+	if (ret) {
+		pr_err("failed to register with return %d\n", ret);
 		return ret;
+	}
 
 	/* capability check */
 	if (cpu_feature_enabled(X86_FEATURE_CPPC)) {
@@ -1868,12 +1870,6 @@ static int __init amd_pstate_init(void)
 		ret = amd_detect_prefcore(&amd_pstate_prefcore);
 		if (ret)
 			return ret;
-	}
-
-	ret = amd_pstate_register_driver(cppc_state);
-	if (ret) {
-		pr_err("failed to register with return %d\n", ret);
-		return ret;
 	}
 
 	dev_root = bus_get_dev_root(&cpu_subsys);
