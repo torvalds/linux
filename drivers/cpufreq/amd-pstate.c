@@ -1879,17 +1879,10 @@ static int __init amd_pstate_init(void)
 			return ret;
 	}
 
-	/* enable amd pstate feature */
-	ret = amd_pstate_enable(true);
-	if (ret) {
-		pr_err("failed to enable driver mode(%d)\n", cppc_state);
-		return ret;
-	}
-
-	ret = cpufreq_register_driver(current_pstate_driver);
+	ret = amd_pstate_register_driver(cppc_state);
 	if (ret) {
 		pr_err("failed to register with return %d\n", ret);
-		goto disable_driver;
+		return ret;
 	}
 
 	dev_root = bus_get_dev_root(&cpu_subsys);
@@ -1906,7 +1899,6 @@ static int __init amd_pstate_init(void)
 
 global_attr_free:
 	cpufreq_unregister_driver(current_pstate_driver);
-disable_driver:
 	amd_pstate_enable(false);
 	return ret;
 }
