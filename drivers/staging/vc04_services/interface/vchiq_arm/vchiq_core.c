@@ -1482,7 +1482,7 @@ is_adjacent_block(u32 *addrs, dma_addr_t addr, unsigned int k)
  * cached area.
  */
 static struct vchiq_pagelist_info *
-create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
+create_pagelist(struct vchiq_instance *instance, struct vchiq_bulk *bulk,
 		size_t count, unsigned short type)
 {
 	struct vchiq_drv_mgmt *drv_mgmt;
@@ -1503,10 +1503,10 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 
 	drv_mgmt = dev_get_drvdata(instance->state->dev);
 
-	if (buf)
-		offset = (uintptr_t)buf & (PAGE_SIZE - 1);
+	if (bulk->offset)
+		offset = (uintptr_t)bulk->offset & (PAGE_SIZE - 1);
 	else
-		offset = (uintptr_t)ubuf & (PAGE_SIZE - 1);
+		offset = (uintptr_t)bulk->uoffset & (PAGE_SIZE - 1);
 	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
 
 	if ((size_t)num_pages > (SIZE_MAX - sizeof(struct pagelist) -
@@ -1554,14 +1554,14 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 	pagelistinfo->scatterlist = scatterlist;
 	pagelistinfo->scatterlist_mapped = 0;
 
-	if (buf) {
+	if (bulk->offset) {
 		unsigned long length = count;
 		unsigned int off = offset;
 
 		for (actual_pages = 0; actual_pages < num_pages;
 		     actual_pages++) {
 			struct page *pg =
-				vmalloc_to_page((buf +
+				vmalloc_to_page(((unsigned int *)bulk->offset +
 						 (actual_pages * PAGE_SIZE)));
 			size_t bytes = PAGE_SIZE - off;
 
@@ -1578,8 +1578,9 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 		}
 		/* do not try and release vmalloc pages */
 	} else {
-		actual_pages = pin_user_pages_fast((unsigned long)ubuf & PAGE_MASK, num_pages,
-						   type == PAGELIST_READ, pages);
+		actual_pages =
+			pin_user_pages_fast((unsigned long)bulk->uoffset & PAGE_MASK, num_pages,
+					    type == PAGELIST_READ, pages);
 
 		if (actual_pages != num_pages) {
 			dev_dbg(instance->state->dev, "arm: Only %d/%d pages locked\n",
@@ -1739,12 +1740,12 @@ free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagel
 }
 
 static int
-vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk, void *offset,
-			void __user *uoffset, int size, int dir)
+vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk,
+			int size, int dir)
 {
 	struct vchiq_pagelist_info *pagelistinfo;
 
-	pagelistinfo = create_pagelist(instance, offset, uoffset, size,
+	pagelistinfo = create_pagelist(instance, bulk, size,
 				       (dir == VCHIQ_BULK_RECEIVE)
 				       ? PAGELIST_READ
 				       : PAGELIST_WRITE);
@@ -3070,8 +3071,10 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	bulk->userdata = userdata;
 	bulk->size = size;
 	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
+	bulk->offset = offset;
+	bulk->uoffset = uoffset;
 
-	if (vchiq_prepare_bulk_data(service->instance, bulk, offset, uoffset, size, dir))
+	if (vchiq_prepare_bulk_data(service->instance, bulk, size, dir))
 		goto unlock_error_exit;
 
 	/*

@@ -120,6 +120,8 @@ struct vchiq_bulk {
 	void *remote_data;
 	int remote_size;
 	int actual;
+	void *offset;
+	void __user *uoffset;
 };
 
 struct vchiq_bulk_queue {
