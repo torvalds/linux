@@ -197,7 +197,7 @@ static struct platform_driver via_cputemp_driver = {
 		.name = DRVNAME,
 	},
 	.probe = via_cputemp_probe,
-	.remove_new = via_cputemp_remove,
+	.remove = via_cputemp_remove,
 };
 
 struct pdev_entry {

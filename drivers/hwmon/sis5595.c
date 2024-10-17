@@ -784,7 +784,7 @@ static struct platform_driver sis5595_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= sis5595_probe,
-	.remove_new	= sis5595_remove,
+	.remove		= sis5595_remove,
 };
 
 static int sis5595_pci_probe(struct pci_dev *dev,

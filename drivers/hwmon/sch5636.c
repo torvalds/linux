@@ -512,7 +512,7 @@ static struct platform_driver sch5636_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= sch5636_probe,
-	.remove_new	= sch5636_remove,
+	.remove		= sch5636_remove,
 	.id_table	= sch5636_device_id,
 };
 

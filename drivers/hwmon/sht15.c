@@ -1051,7 +1051,7 @@ static struct platform_driver sht15_driver = {
 		.of_match_table = of_match_ptr(sht15_dt_match),
 	},
 	.probe = sht15_probe,
-	.remove_new = sht15_remove,
+	.remove = sht15_remove,
 	.id_table = sht15_device_ids,
 };
 module_platform_driver(sht15_driver);

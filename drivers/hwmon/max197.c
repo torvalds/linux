@@ -332,7 +332,7 @@ static struct platform_driver max197_driver = {
 		.name = "max197",
 	},
 	.probe = max197_probe,
-	.remove_new = max197_remove,
+	.remove = max197_remove,
 	.id_table = max197_device_ids,
 };
 module_platform_driver(max197_driver);
