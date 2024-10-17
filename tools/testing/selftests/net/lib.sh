@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+net_dir=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
+source "$net_dir/lib/sh/defer.sh"
+
 ##############################################################################
 # Defines
 
