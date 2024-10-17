@@ -11,7 +11,7 @@
  *   - Clarett 2Pre/4Pre/8Pre USB
  *   - Clarett+ 2Pre/4Pre/8Pre
  *
- *   Copyright (c) 2018-2023 by Geoffrey D. Bennett <g at b4.vu>
+ *   Copyright (c) 2018-2024 by Geoffrey D. Bennett <g at b4.vu>
  *   Copyright (c) 2020-2021 by Vladimir Sadovnikov <sadko4u@gmail.com>
  *   Copyright (c) 2022 by Christian Colglazier <christian@cacolglazier.com>
  *
@@ -1079,6 +1079,9 @@ struct scarlett2_device_info {
 	/* minimum firmware version required */
 	u16 min_firmware_version;
 
+	/* has a downloadable device map */
+	u8 has_devmap;
+
 	/* support for main/alt speaker switching */
 	u8 has_speaker_switching;
 
@@ -1253,7 +1256,7 @@ struct scarlett2_data {
 	u8 phantom_switch[SCARLETT2_PHANTOM_SWITCH_MAX];
 	u8 phantom_persistence;
 	u8 input_select_switch;
-	u8 input_link_switch[SCARLETT2_INPUT_GAIN_MAX / 2];
+	u8 input_link_switch[SCARLETT2_INPUT_GAIN_MAX];
 	u8 gain[SCARLETT2_INPUT_GAIN_MAX];
 	u8 autogain_switch[SCARLETT2_INPUT_GAIN_MAX];
 	u8 autogain_status[SCARLETT2_INPUT_GAIN_MAX];
@@ -1284,7 +1287,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *input_mute_ctls[SCARLETT2_INPUT_MUTE_SWITCH_MAX];
 	struct snd_kcontrol *phantom_ctls[SCARLETT2_PHANTOM_SWITCH_MAX];
 	struct snd_kcontrol *input_select_ctl;
-	struct snd_kcontrol *input_link_ctls[SCARLETT2_INPUT_GAIN_MAX / 2];
+	struct snd_kcontrol *input_link_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *input_gain_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *autogain_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *autogain_status_ctls[SCARLETT2_INPUT_GAIN_MAX];
@@ -1773,6 +1776,7 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 static const struct scarlett2_device_info vocaster_one_info = {
 	.config_set = &scarlett2_config_set_vocaster,
 	.min_firmware_version = 1769,
+	.has_devmap = 1,
 
 	.phantom_count = 1,
 	.inputs_per_phantom = 1,
@@ -1815,6 +1819,7 @@ static const struct scarlett2_device_info vocaster_one_info = {
 static const struct scarlett2_device_info vocaster_two_info = {
 	.config_set = &scarlett2_config_set_vocaster,
 	.min_firmware_version = 1769,
+	.has_devmap = 1,
 
 	.phantom_count = 2,
 	.inputs_per_phantom = 1,
@@ -1858,6 +1863,7 @@ static const struct scarlett2_device_info vocaster_two_info = {
 static const struct scarlett2_device_info solo_gen4_info = {
 	.config_set = &scarlett2_config_set_gen4_solo,
 	.min_firmware_version = 2115,
+	.has_devmap = 1,
 
 	.level_input_count = 1,
 	.air_input_count = 1,
@@ -1912,6 +1918,7 @@ static const struct scarlett2_device_info solo_gen4_info = {
 static const struct scarlett2_device_info s2i2_gen4_info = {
 	.config_set = &scarlett2_config_set_gen4_2i2,
 	.min_firmware_version = 2115,
+	.has_devmap = 1,
 
 	.level_input_count = 2,
 	.air_input_count = 2,
@@ -1966,6 +1973,7 @@ static const struct scarlett2_device_info s2i2_gen4_info = {
 static const struct scarlett2_device_info s4i4_gen4_info = {
 	.config_set = &scarlett2_config_set_gen4_4i4,
 	.min_firmware_version = 2089,
+	.has_devmap = 1,
 
 	.level_input_count = 2,
 	.air_input_count = 2,
@@ -2264,6 +2272,8 @@ static int scarlett2_get_port_start_num(
 #define SCARLETT2_USB_GET_DATA      0x00800000
 #define SCARLETT2_USB_SET_DATA      0x00800001
 #define SCARLETT2_USB_DATA_CMD      0x00800002
+#define SCARLETT2_USB_INFO_DEVMAP   0x0080000c
+#define SCARLETT2_USB_GET_DEVMAP    0x0080000d
 
 #define SCARLETT2_USB_CONFIG_SAVE 6
 
@@ -2276,6 +2286,14 @@ static int scarlett2_get_port_start_num(
 
 #define SCARLETT2_SEGMENT_SETTINGS_NAME "App_Settings"
 #define SCARLETT2_SEGMENT_FIRMWARE_NAME "App_Upgrade"
+
+/* Gen 4 device firmware provides access to a base64-encoded
+ * zlib-compressed JSON description of the device's capabilities and
+ * configuration. This device map is made available in
+ * /proc/asound/cardX/device-map.json.zz.b64
+ */
+#define SCARLETT2_DEVMAP_BLOCK_SIZE 1024
+#define SCARLETT2_DEVMAP_FILENAME "device-map.json.zz.b64"
 
 /* proprietary request/response format */
 struct scarlett2_usb_packet {
@@ -3409,7 +3427,7 @@ static int scarlett2_update_autogain(struct usb_mixer_interface *mixer)
 				private->num_autogain_status_texts - 1;
 
 
-	for (int i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+	for (i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
 		if (scarlett2_has_config_item(private,
 					      scarlett2_ag_target_configs[i])) {
 			err = scarlett2_usb_get_config(
@@ -3420,7 +3438,7 @@ static int scarlett2_update_autogain(struct usb_mixer_interface *mixer)
 		}
 
 	/* convert from negative dBFS as used by the device */
-	for (int i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+	for (i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
 		private->ag_targets[i] = -ag_target_values[i];
 
 	return 0;
@@ -3439,7 +3457,7 @@ static void scarlett2_autogain_update_access(struct usb_mixer_interface *mixer)
 		scarlett2_set_ctl_access(private->input_select_ctl, val);
 	if (scarlett2_has_config_item(private,
 				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH))
-		for (i = 0; i < info->gain_input_count / 2; i++)
+		for (i = 0; i < info->gain_input_count; i++)
 			scarlett2_set_ctl_access(private->input_link_ctls[i],
 						 val);
 	for (i = 0; i < info->gain_input_count; i++)
@@ -3480,7 +3498,7 @@ static void scarlett2_autogain_notify_access(struct usb_mixer_interface *mixer)
 			       &private->input_select_ctl->id);
 	if (scarlett2_has_config_item(private,
 				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH))
-		for (i = 0; i < info->gain_input_count / 2; i++)
+		for (i = 0; i < info->gain_input_count; i++)
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
 				       &private->input_link_ctls[i]->id);
 	for (i = 0; i < info->gain_input_count; i++)
@@ -3825,7 +3843,7 @@ static int scarlett2_update_input_select(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
-	int link_count = info->gain_input_count / 2;
+	int link_count = info->gain_input_count;
 	int err;
 
 	private->input_select_updated = 0;
@@ -3846,10 +3864,6 @@ static int scarlett2_update_input_select(struct usb_mixer_interface *mixer)
 		link_count, private->input_link_switch);
 	if (err < 0)
 		return err;
-
-	/* simplified because no model yet has link_count > 1 */
-	if (private->input_link_switch[0])
-		private->input_select_switch = 0;
 
 	return 0;
 }
@@ -3887,9 +3901,9 @@ static int scarlett2_input_select_ctl_put(
 	struct usb_mixer_elem_info *elem = kctl->private_data;
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
 
 	int oval, val, err;
-	int max_val = private->input_link_switch[0] ? 0 : 1;
 
 	mutex_lock(&private->data_mutex);
 
@@ -3907,19 +3921,18 @@ static int scarlett2_input_select_ctl_put(
 
 	if (val < 0)
 		val = 0;
-	else if (val > max_val)
-		val = max_val;
+	else if (val >= info->gain_input_count)
+		val = info->gain_input_count - 1;
 
 	if (oval == val)
 		goto unlock;
 
 	private->input_select_switch = val;
 
-	/* Send switch change to the device if inputs not linked */
-	if (!private->input_link_switch[0])
-		err = scarlett2_usb_set_config(
-			mixer, SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
-			1, val);
+	/* Send new value to the device */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
+		0, val);
 	if (err == 0)
 		err = 1;
 
@@ -3936,8 +3949,7 @@ static int scarlett2_input_select_ctl_info(
 	struct scarlett2_data *private = mixer->private_data;
 
 	int inputs = private->info->gain_input_count;
-	int i, j;
-	int err;
+	int i, err;
 	char **values = kcalloc(inputs, sizeof(char *), GFP_KERNEL);
 
 	if (!values)
@@ -3954,21 +3966,11 @@ static int scarlett2_input_select_ctl_info(
 	if (err < 0)
 		goto unlock;
 
-	/* Loop through each input
-	 * Linked inputs have one value for the pair
-	 */
-	for (i = 0, j = 0; i < inputs; i++) {
-		if (private->input_link_switch[i / 2]) {
-			values[j++] = kasprintf(
-				GFP_KERNEL, "Input %d-%d", i + 1, i + 2);
-			i++;
-		} else {
-			values[j++] = kasprintf(
-				GFP_KERNEL, "Input %d", i + 1);
-		}
-	}
+	/* Loop through each input */
+	for (i = 0; i < inputs; i++)
+		values[i] = kasprintf(GFP_KERNEL, "Input %d", i + 1);
 
-	err = snd_ctl_enum_info(uinfo, 1, j,
+	err = snd_ctl_enum_info(uinfo, 1, i,
 				(const char * const *)values);
 
 unlock:
@@ -4077,18 +4079,8 @@ static int scarlett2_input_link_ctl_put(
 
 	private->input_link_switch[index] = val;
 
-	/* Notify of change in input select options available */
-	snd_ctl_notify(mixer->chip->card,
-		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
-		       &private->input_select_ctl->id);
-	private->input_select_updated = 1;
-
-	/* Send switch change to the device
-	 * Link for channels 1-2 is at index 1
-	 * No device yet has more than 2 channels linked
-	 */
 	err = scarlett2_usb_set_config(
-		mixer, SCARLETT2_CONFIG_INPUT_LINK_SWITCH, index + 1, val);
+		mixer, SCARLETT2_CONFIG_INPUT_LINK_SWITCH, index, val);
 	if (err == 0)
 		err = 1;
 
@@ -5385,6 +5377,8 @@ static int scarlett2_compressor_ctl_put(
 	int index = elem->control;
 	int channel = index / SCARLETT2_COMPRESSOR_PARAM_COUNT;
 	int param_index = index % SCARLETT2_COMPRESSOR_PARAM_COUNT;
+	const struct compressor_param *param = &compressor_params[param_index];
+
 	int oval, val, err;
 	s32 scaled_val;
 
@@ -5405,8 +5399,6 @@ static int scarlett2_compressor_ctl_put(
 		goto unlock;
 
 	private->compressor_values[index] = val;
-
-	const struct compressor_param *param = &compressor_params[param_index];
 
 	scaled_val = val << param->scale_bits;
 
@@ -6916,10 +6908,9 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 
 	if (scarlett2_has_config_item(private,
 				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH)) {
-		for (i = 0; i < info->gain_input_count / 2; i++) {
+		for (i = 0; i < info->gain_input_count; i++) {
 			scnprintf(s, sizeof(s),
-				  "Line In %d-%d Link Capture Switch",
-				  (i * 2) + 1, (i * 2) + 2);
+				  "Line In %d Link Capture Switch", i + 1);
 			err = scarlett2_add_new_ctl(
 				mixer, &scarlett2_input_link_ctl,
 				i, 1, s, &private->input_link_ctls[i]);
@@ -8246,7 +8237,7 @@ static void scarlett2_notify_input_select(struct usb_mixer_interface *mixer)
 		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 		       &private->input_select_ctl->id);
 
-	for (i = 0; i < info->gain_input_count / 2; i++)
+	for (i = 0; i < info->gain_input_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->input_link_ctls[i]->id);
 }
@@ -9518,7 +9509,7 @@ static long scarlett2_hwdep_write(struct snd_hwdep *hw,
 		     SCARLETT2_FLASH_BLOCK_SIZE;
 
 	if (count < 0 || *offset < 0 || *offset + count >= flash_size)
-		return -EINVAL;
+		return -ENOSPC;
 
 	if (!count)
 		return 0;
@@ -9591,6 +9582,116 @@ static int scarlett2_hwdep_init(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+/*** device-map file ***/
+
+static ssize_t scarlett2_devmap_read(
+	struct snd_info_entry *entry,
+	void                  *file_private_data,
+	struct file           *file,
+	char __user           *buf,
+	size_t                 count,
+	loff_t                 pos)
+{
+	struct usb_mixer_interface *mixer = entry->private_data;
+	u8           *resp_buf;
+	const size_t  block_size = SCARLETT2_DEVMAP_BLOCK_SIZE;
+	size_t        copied = 0;
+
+	if (pos >= entry->size)
+		return 0;
+
+	if (pos + count > entry->size)
+		count = entry->size - pos;
+
+	resp_buf = kmalloc(block_size, GFP_KERNEL);
+	if (!resp_buf)
+		return -ENOMEM;
+
+	while (count > 0) {
+		/* SCARLETT2_USB_GET_DEVMAP reads only on block boundaries,
+		 * so we need to read a whole block and copy the requested
+		 * chunk to userspace.
+		 */
+
+		__le32 req;
+		int    err;
+
+		/* offset within the block that we're reading */
+		size_t offset = pos % block_size;
+
+		/* read_size is block_size except for the last block */
+		size_t block_start = pos - offset;
+		size_t read_size = min_t(size_t,
+					 block_size,
+					 entry->size - block_start);
+
+		/* size of the chunk to copy to userspace */
+		size_t copy_size = min_t(size_t, count, read_size - offset);
+
+		/* request the block */
+		req = cpu_to_le32(pos / block_size);
+		err = scarlett2_usb(mixer, SCARLETT2_USB_GET_DEVMAP,
+				    &req, sizeof(req), resp_buf, read_size);
+		if (err < 0) {
+			kfree(resp_buf);
+			return copied ? copied : err;
+		}
+
+		if (copy_to_user(buf, resp_buf + offset, copy_size)) {
+			kfree(resp_buf);
+			return -EFAULT;
+		}
+
+		buf += copy_size;
+		pos += copy_size;
+		copied += copy_size;
+		count -= copy_size;
+	}
+
+	kfree(resp_buf);
+	return copied;
+}
+
+static const struct snd_info_entry_ops scarlett2_devmap_ops = {
+	.read = scarlett2_devmap_read,
+};
+
+static int scarlett2_devmap_init(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+	__le16 config_len_buf[2];
+	int config_len;
+	struct snd_info_entry *entry;
+	int err;
+
+	/* If the device doesn't support the DEVMAP commands, don't
+	 * create the /proc/asound/cardX/scarlett.json.zlib entry
+	 */
+	if (!info->has_devmap)
+		return 0;
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_INFO_DEVMAP,
+			    NULL, 0, &config_len_buf, sizeof(config_len_buf));
+	if (err < 0)
+		return err;
+
+	config_len = le16_to_cpu(config_len_buf[1]);
+
+	err = snd_card_proc_new(card, SCARLETT2_DEVMAP_FILENAME, &entry);
+	if (err < 0)
+		return err;
+
+	entry->content = SNDRV_INFO_CONTENT_DATA;
+	entry->private_data = mixer;
+	entry->c.ops = &scarlett2_devmap_ops;
+	entry->size = config_len;
+	entry->mode = S_IFREG | 0444;
+
+	return 0;
+}
+
 int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 {
 	struct snd_usb_audio *chip = mixer->chip;
@@ -9641,9 +9742,18 @@ int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 	}
 
 	err = scarlett2_hwdep_init(mixer);
-	if (err < 0)
+	if (err < 0) {
 		usb_audio_err(mixer->chip,
 			      "Error creating %s hwdep device: %d",
+			      entry->series_name,
+			      err);
+		return err;
+	}
+
+	err = scarlett2_devmap_init(mixer);
+	if (err < 0)
+		usb_audio_err(mixer->chip,
+			      "Error creating %s devmap entry: %d",
 			      entry->series_name,
 			      err);
 
