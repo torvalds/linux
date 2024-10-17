@@ -3897,7 +3897,8 @@ static inline void mas_wr_slot_store(struct ma_wr_state *wr_mas)
 			wr_mas->pivots[offset] = mas->index - 1;
 			mas->offset++; /* Keep mas accurate. */
 		}
-	} else if (!mt_in_rcu(mas->tree)) {
+	} else {
+		WARN_ON_ONCE(mt_in_rcu(mas->tree));
 		/*
 		 * Expand the range, only partially overwriting the previous and
 		 * next ranges
@@ -3907,8 +3908,6 @@ static inline void mas_wr_slot_store(struct ma_wr_state *wr_mas)
 		wr_mas->pivots[offset] = mas->index - 1;
 		wr_mas->pivots[offset + 1] = mas->last;
 		mas->offset++; /* Keep mas accurate. */
-	} else {
-		return;
 	}
 
 	trace_ma_write(__func__, mas, 0, wr_mas->entry);
