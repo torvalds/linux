@@ -52,6 +52,9 @@
 #define IVPU_NUM_PRIORITIES    4
 #define IVPU_NUM_CMDQS_PER_CTX (IVPU_NUM_PRIORITIES)
 
+#define IVPU_CMDQ_MIN_ID 1
+#define IVPU_CMDQ_MAX_ID 255
+
 #define IVPU_PLATFORM_SILICON 0
 #define IVPU_PLATFORM_SIMICS  2
 #define IVPU_PLATFORM_FPGA    3
@@ -168,13 +171,15 @@ struct ivpu_file_priv {
 	struct kref ref;
 	struct ivpu_device *vdev;
 	struct mutex lock; /* Protects cmdq */
-	struct ivpu_cmdq *cmdq[IVPU_NUM_CMDQS_PER_CTX];
+	struct xarray cmdq_xa;
 	struct ivpu_mmu_context ctx;
 	struct mutex ms_lock; /* Protects ms_instance_list, ms_info_bo */
 	struct list_head ms_instance_list;
 	struct ivpu_bo *ms_info_bo;
 	struct xa_limit job_limit;
 	u32 job_id_next;
+	struct xa_limit cmdq_limit;
+	u32 cmdq_id_next;
 	bool has_mmu_faults;
 	bool bound;
 	bool aborted;
