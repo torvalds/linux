@@ -12,12 +12,13 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 
 struct net;
 
 struct phonet_device_list {
 	struct list_head list;
-	struct mutex lock;
+	spinlock_t lock;
 };
 
 struct phonet_device_list *phonet_device_list(struct net *net);

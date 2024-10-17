@@ -54,7 +54,7 @@ static struct phonet_device *__phonet_device_alloc(struct net_device *dev)
 	pnd->netdev = dev;
 	bitmap_zero(pnd->addrs, 64);
 
-	BUG_ON(!mutex_is_locked(&pndevs->lock));
+	lockdep_assert_held(&pndevs->lock);
 	list_add_rcu(&pnd->list, &pndevs->list);
 	return pnd;
 }
@@ -64,7 +64,8 @@ static struct phonet_device *__phonet_get(struct net_device *dev)
 	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
 	struct phonet_device *pnd;
 
-	BUG_ON(!mutex_is_locked(&pndevs->lock));
+	lockdep_assert_held(&pndevs->lock);
+
 	list_for_each_entry(pnd, &pndevs->list, list) {
 		if (pnd->netdev == dev)
 			return pnd;
@@ -91,11 +92,13 @@ static void phonet_device_destroy(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	mutex_lock(&pndevs->lock);
+	spin_lock(&pndevs->lock);
+
 	pnd = __phonet_get(dev);
 	if (pnd)
 		list_del_rcu(&pnd->list);
-	mutex_unlock(&pndevs->lock);
+
+	spin_unlock(&pndevs->lock);
 
 	if (pnd) {
 		struct net *net = dev_net(dev);
@@ -136,7 +139,8 @@ int phonet_address_add(struct net_device *dev, u8 addr)
 	struct phonet_device *pnd;
 	int err = 0;
 
-	mutex_lock(&pndevs->lock);
+	spin_lock(&pndevs->lock);
+
 	/* Find or create Phonet-specific device data */
 	pnd = __phonet_get(dev);
 	if (pnd == NULL)
@@ -145,7 +149,9 @@ int phonet_address_add(struct net_device *dev, u8 addr)
 		err = -ENOMEM;
 	else if (test_and_set_bit(addr >> 2, pnd->addrs))
 		err = -EEXIST;
-	mutex_unlock(&pndevs->lock);
+
+	spin_unlock(&pndevs->lock);
+
 	return err;
 }
 
@@ -155,7 +161,8 @@ int phonet_address_del(struct net_device *dev, u8 addr)
 	struct phonet_device *pnd;
 	int err = 0;
 
-	mutex_lock(&pndevs->lock);
+	spin_lock(&pndevs->lock);
+
 	pnd = __phonet_get(dev);
 	if (!pnd || !test_and_clear_bit(addr >> 2, pnd->addrs)) {
 		err = -EADDRNOTAVAIL;
@@ -164,7 +171,8 @@ int phonet_address_del(struct net_device *dev, u8 addr)
 		list_del_rcu(&pnd->list);
 	else
 		pnd = NULL;
-	mutex_unlock(&pndevs->lock);
+
+	spin_unlock(&pndevs->lock);
 
 	if (pnd)
 		kfree_rcu(pnd, rcu);
@@ -313,7 +321,7 @@ static int __net_init phonet_init_net(struct net *net)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pnn->pndevs.list);
-	mutex_init(&pnn->pndevs.lock);
+	spin_lock_init(&pnn->pndevs.lock);
 	mutex_init(&pnn->routes.lock);
 	return 0;
 }
