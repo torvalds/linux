@@ -197,7 +197,7 @@ extern bool ivpu_force_snoop;
 #define IVPU_TEST_MODE_NULL_SUBMISSION    BIT(2)
 #define IVPU_TEST_MODE_D0I3_MSG_DISABLE   BIT(4)
 #define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
-#define IVPU_TEST_MODE_PREEMPTION_DISABLE BIT(6)
+#define IVPU_TEST_MODE_MIP_DISABLE        BIT(6)
 #define IVPU_TEST_MODE_DISABLE_TIMEOUTS   BIT(8)
 #define IVPU_TEST_MODE_TURBO		  BIT(9)
 extern int ivpu_test_mode;

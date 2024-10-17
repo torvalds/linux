@@ -35,7 +35,8 @@ static int ivpu_preemption_buffers_create(struct ivpu_device *vdev,
 	u64 primary_size = ALIGN(vdev->fw->primary_preempt_buf_size, PAGE_SIZE);
 	u64 secondary_size = ALIGN(vdev->fw->secondary_preempt_buf_size, PAGE_SIZE);
 
-	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW)
+	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW ||
+	    ivpu_test_mode & IVPU_TEST_MODE_MIP_DISABLE)
 		return 0;
 
 	cmdq->primary_preempt_buf = ivpu_bo_create(vdev, &file_priv->ctx, &vdev->hw->ranges.user,
@@ -347,8 +348,7 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_SUBMISSION))
 		entry->flags = VPU_JOB_FLAGS_NULL_SUBMISSION_MASK;
 
-	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW &&
-	    (unlikely(!(ivpu_test_mode & IVPU_TEST_MODE_PREEMPTION_DISABLE)))) {
+	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW) {
 		if (cmdq->primary_preempt_buf) {
 			entry->primary_preempt_buf_addr = cmdq->primary_preempt_buf->vpu_addr;
 			entry->primary_preempt_buf_size = ivpu_bo_size(cmdq->primary_preempt_buf);
