@@ -6,7 +6,6 @@ FILES=                                          \
          test-backtrace.bin                     \
          test-bionic.bin                        \
          test-libdw.bin                         \
-         test-dwarf_getlocations.bin            \
          test-dwarf_getcfi.bin                  \
          test-eventfd.bin                       \
          test-fortify-source.bin                \
@@ -186,9 +185,6 @@ ifeq ($(findstring -static,${LDFLAGS}),-static)
 endif
 
 $(OUTPUT)test-libdw.bin:
-	$(BUILD) $(DWLIBS)
-
-$(OUTPUT)test-dwarf_getlocations.bin:
 	$(BUILD) $(DWLIBS)
 
 $(OUTPUT)test-dwarf_getcfi.bin:
