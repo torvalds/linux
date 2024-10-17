@@ -33,6 +33,7 @@ properties:
               - rockchip,rk3576-usb-grf
               - rockchip,rk3576-usbdpphy-grf
               - rockchip,rk3576-vo0-grf
+              - rockchip,rk3576-vo1-grf
               - rockchip,rk3576-vop-grf
               - rockchip,rk3588-bigcore0-grf
               - rockchip,rk3588-bigcore1-grf
@@ -283,6 +284,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - rockchip,rk3576-vo1-grf
               - rockchip,rk3588-vo-grf
               - rockchip,rk3588-vo0-grf
               - rockchip,rk3588-vo1-grf
