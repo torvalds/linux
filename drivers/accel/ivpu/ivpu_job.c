@@ -247,8 +247,7 @@ static int ivpu_cmdq_fini(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cm
 static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u16 engine,
 					   u8 priority)
 {
-	int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
-	struct ivpu_cmdq *cmdq = file_priv->cmdq[cmdq_idx];
+	struct ivpu_cmdq *cmdq = file_priv->cmdq[priority];
 	int ret;
 
 	lockdep_assert_held(&file_priv->lock);
@@ -257,7 +256,7 @@ static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u16
 		cmdq = ivpu_cmdq_alloc(file_priv);
 		if (!cmdq)
 			return NULL;
-		file_priv->cmdq[cmdq_idx] = cmdq;
+		file_priv->cmdq[priority] = cmdq;
 	}
 
 	ret = ivpu_cmdq_init(file_priv, cmdq, engine, priority);
@@ -267,15 +266,14 @@ static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u16
 	return cmdq;
 }
 
-static void ivpu_cmdq_release_locked(struct ivpu_file_priv *file_priv, u16 engine, u8 priority)
+static void ivpu_cmdq_release_locked(struct ivpu_file_priv *file_priv, u8 priority)
 {
-	int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
-	struct ivpu_cmdq *cmdq = file_priv->cmdq[cmdq_idx];
+	struct ivpu_cmdq *cmdq = file_priv->cmdq[priority];
 
 	lockdep_assert_held(&file_priv->lock);
 
 	if (cmdq) {
-		file_priv->cmdq[cmdq_idx] = NULL;
+		file_priv->cmdq[priority] = NULL;
 		ivpu_cmdq_fini(file_priv, cmdq);
 		ivpu_cmdq_free(file_priv, cmdq);
 	}
@@ -283,14 +281,12 @@ static void ivpu_cmdq_release_locked(struct ivpu_file_priv *file_priv, u16 engin
 
 void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv)
 {
-	u16 engine;
 	u8 priority;
 
 	lockdep_assert_held(&file_priv->lock);
 
-	for (engine = 0; engine < IVPU_NUM_ENGINES; engine++)
-		for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++)
-			ivpu_cmdq_release_locked(file_priv, engine, priority);
+	for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++)
+		ivpu_cmdq_release_locked(file_priv, priority);
 }
 
 /*
@@ -301,19 +297,15 @@ void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv)
  */
 static void ivpu_cmdq_reset(struct ivpu_file_priv *file_priv)
 {
-	u16 engine;
 	u8 priority;
 
 	mutex_lock(&file_priv->lock);
 
-	for (engine = 0; engine < IVPU_NUM_ENGINES; engine++) {
-		for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++) {
-			int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
-			struct ivpu_cmdq *cmdq = file_priv->cmdq[cmdq_idx];
+	for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++) {
+		struct ivpu_cmdq *cmdq = file_priv->cmdq[priority];
 
-			if (cmdq)
-				cmdq->db_registered = false;
-		}
+		if (cmdq)
+			cmdq->db_registered = false;
 	}
 
 	mutex_unlock(&file_priv->lock);
@@ -334,16 +326,11 @@ void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev)
 
 static void ivpu_cmdq_fini_all(struct ivpu_file_priv *file_priv)
 {
-	u16 engine;
 	u8 priority;
 
-	for (engine = 0; engine < IVPU_NUM_ENGINES; engine++) {
-		for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++) {
-			int cmdq_idx = IVPU_CMDQ_INDEX(engine, priority);
-
-			if (file_priv->cmdq[cmdq_idx])
-				ivpu_cmdq_fini(file_priv, file_priv->cmdq[cmdq_idx]);
-		}
+	for (priority = 0; priority < IVPU_NUM_PRIORITIES; priority++) {
+		if (file_priv->cmdq[priority])
+			ivpu_cmdq_fini(file_priv, file_priv->cmdq[priority]);
 	}
 }
 
@@ -699,7 +686,7 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	int idx, ret;
 	u8 priority;
 
-	if (params->engine > DRM_IVPU_ENGINE_COPY)
+	if (params->engine != DRM_IVPU_ENGINE_COMPUTE)
 		return -EINVAL;
 
 	if (params->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
