@@ -161,7 +161,7 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *argv)
 	u64 *end;
 	u64 csum = 0;
 	int free, time = 1000000;
-	u32 wptr, size;
+	u32 wptr, size, step;
 	u32 off = 0;
 
 	argc = ALIGN(GSP_MSG_HDR_SIZE + argc, GSP_PAGE_SIZE);
@@ -195,7 +195,9 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *argv)
 		}
 
 		cqe = (void *)((u8 *)gsp->shm.cmdq.ptr + 0x1000 + wptr * 0x1000);
-		size = min_t(u32, argc, (gsp->cmdq.cnt - wptr) * GSP_PAGE_SIZE);
+		step = min_t(u32, free, (gsp->cmdq.cnt - wptr));
+		size = min_t(u32, argc, step * GSP_PAGE_SIZE);
+
 		memcpy(cqe, (u8 *)cmd + off, size);
 
 		wptr += DIV_ROUND_UP(size, 0x1000);
