@@ -87,8 +87,8 @@ static void crypto_aegis128_aesni_process_ad(
 				src += fill;
 			}
 
-			aegis128_aesni_ad(state, src, left);
-
+			aegis128_aesni_ad(state, src,
+					  left & ~(AEGIS128_BLOCK_SIZE - 1));
 			src += left & ~(AEGIS128_BLOCK_SIZE - 1);
 			left &= AEGIS128_BLOCK_SIZE - 1;
 		}

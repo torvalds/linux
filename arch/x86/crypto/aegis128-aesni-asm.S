@@ -190,6 +190,8 @@ SYM_FUNC_END(aegis128_aesni_init)
 /*
  * void aegis128_aesni_ad(struct aegis_state *state, const u8 *data,
  *			  unsigned int len);
+ *
+ * len must be a multiple of 16.
  */
 SYM_FUNC_START(aegis128_aesni_ad)
 	.set STATEP, %rdi
@@ -197,8 +199,8 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	.set LEN, %edx
 	FRAME_BEGIN
 
-	cmp $0x10, LEN
-	jb .Lad_out
+	test LEN, LEN
+	jz .Lad_out
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
@@ -213,36 +215,31 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	aegis128_update
 	pxor MSG, STATE4
 	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_1
+	jz .Lad_out_1
 
 	movdqu 0x10(SRC), MSG
 	aegis128_update
 	pxor MSG, STATE3
 	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_2
+	jz .Lad_out_2
 
 	movdqu 0x20(SRC), MSG
 	aegis128_update
 	pxor MSG, STATE2
 	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_3
+	jz .Lad_out_3
 
 	movdqu 0x30(SRC), MSG
 	aegis128_update
 	pxor MSG, STATE1
 	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_4
+	jz .Lad_out_4
 
 	movdqu 0x40(SRC), MSG
 	aegis128_update
 	pxor MSG, STATE0
 	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lad_out_0
+	jz .Lad_out_0
 
 	add $0x50, SRC
 	jmp .Lad_loop
@@ -312,13 +309,14 @@ SYM_FUNC_END(aegis128_aesni_ad)
 	pxor MSG, \s4
 
 	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Lenc_out_\i
+	jz .Lenc_out_\i
 .endm
 
 /*
  * void aegis128_aesni_enc(struct aegis_state *state, const u8 *src, u8 *dst,
  *			   unsigned int len);
+ *
+ * len must be nonzero and a multiple of 16.
  */
 SYM_FUNC_START(aegis128_aesni_enc)
 	.set STATEP, %rdi
@@ -326,9 +324,6 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	.set DST, %rdx
 	.set LEN, %ecx
 	FRAME_BEGIN
-
-	cmp $0x10, LEN
-	jb .Lenc_out
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
@@ -459,13 +454,14 @@ SYM_FUNC_END(aegis128_aesni_enc_tail)
 	pxor MSG, \s4
 
 	sub $0x10, LEN
-	cmp $0x10, LEN
-	jl .Ldec_out_\i
+	jz .Ldec_out_\i
 .endm
 
 /*
  * void aegis128_aesni_dec(struct aegis_state *state, const u8 *src, u8 *dst,
  *			   unsigned int len);
+ *
+ * len must be nonzero and a multiple of 16.
  */
 SYM_FUNC_START(aegis128_aesni_dec)
 	.set STATEP, %rdi
@@ -473,9 +469,6 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	.set DST, %rdx
 	.set LEN, %ecx
 	FRAME_BEGIN
-
-	cmp $0x10, LEN
-	jb .Ldec_out
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
