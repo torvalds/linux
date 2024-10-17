@@ -79,7 +79,7 @@ noinline static void real_init(void)
 	__builtin_unreachable();
 }
 
-void _start(void)
+__attribute__((naked)) void _start(void)
 {
 	char *alloc;
 
