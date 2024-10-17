@@ -8,8 +8,7 @@ NAME = Baby Opossum Posse
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
-# Comments in this file are targeted only to the developer, do not
-# expect to learn how to build the kernel reading this file.
+# Comments in this file are targeted only to the developer, do not expect to learn how to build the kernel reading this file.
 
 ifeq ($(filter output-sync,$(.FEATURES)),)
 $(error GNU Make >= 4.0 is required. Your Make version is $(MAKE_VERSION))
@@ -22,8 +21,7 @@ $(if $(filter __%, $(MAKECMDGOALS)), \
 PHONY := __all
 __all:
 
-# We are using a recursive build, so we need to do a little thinking
-# to get the ordering right.
+# We are using a recursive build, so we need to do a little thinking to get the ordering right.
 #
 # Most importantly: sub-Makefiles should only ever modify files in
 # their own directory. If in some directory we have a dependency on

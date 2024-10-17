@@ -12,7 +12,7 @@
 struct device;
 
 /**
- * Tegra SoC core device OPP table configuration
+ * Nvidia Tegra SoC core device OPP table configuration
  *
  * @init_state: pre-initialize OPP state of a device
  */
