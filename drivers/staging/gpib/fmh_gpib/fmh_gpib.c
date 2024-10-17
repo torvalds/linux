@@ -547,7 +547,7 @@ static int fmh_gpib_accel_write(gpib_board_t *board, uint8_t *buffer,
 	return 0;
 }
 
-static unsigned int fmh_gpib_get_dma_residue(struct dma_chan *chan, dma_cookie_t cookie)
+static int fmh_gpib_get_dma_residue(struct dma_chan *chan, dma_cookie_t cookie)
 {
 	struct dma_tx_state state;
 	int result;
@@ -555,7 +555,7 @@ static unsigned int fmh_gpib_get_dma_residue(struct dma_chan *chan, dma_cookie_t
 	result = dmaengine_pause(chan);
 	if (result < 0)	{
 		pr_err("fmh_gpib_gpib: dma pause failed?\n");
-		return -1;
+		return result;
 	}
 	dmaengine_tx_status(chan, cookie, &state);
 	// dma330 hardware doesn't support resume, so dont call this
@@ -717,7 +717,7 @@ static int fmh_gpib_dma_read(gpib_board_t *board, uint8_t *buffer,
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 	int retval = 0;
 	unsigned long flags;
-	unsigned int residue;
+	int residue;
 	int wait_retval;
 	dma_addr_t bus_address;
 	struct dma_async_tx_descriptor *tx_desc;
