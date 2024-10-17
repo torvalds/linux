@@ -2342,7 +2342,7 @@ static int airoha_dev_stop(struct net_device *dev)
 {
 	struct airoha_gdm_port *port = netdev_priv(dev);
 	struct airoha_qdma *qdma = port->qdma;
-	int err;
+	int i, err;
 
 	netif_tx_disable(dev);
 	err = airoha_set_gdm_ports(qdma->eth, false);
@@ -2352,6 +2352,14 @@ static int airoha_dev_stop(struct net_device *dev)
 	airoha_qdma_clear(qdma, REG_QDMA_GLOBAL_CFG,
 			  GLOBAL_CFG_TX_DMA_EN_MASK |
 			  GLOBAL_CFG_RX_DMA_EN_MASK);
+
+	for (i = 0; i < ARRAY_SIZE(qdma->q_tx); i++) {
+		if (!qdma->q_tx[i].ndesc)
+			continue;
+
+		airoha_qdma_cleanup_tx_queue(&qdma->q_tx[i]);
+		netdev_tx_reset_subqueue(dev, i);
+	}
 
 	return 0;
 }
