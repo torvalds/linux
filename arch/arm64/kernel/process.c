@@ -227,7 +227,7 @@ void __show_regs(struct pt_regs *regs)
 	printk("sp : %016llx\n", sp);
 
 	if (system_uses_irq_prio_masking())
-		printk("pmr: %08llx\n", regs->pmr);
+		printk("pmr: %08x\n", regs->pmr);
 
 	i = top_reg;
 

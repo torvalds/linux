@@ -163,11 +163,11 @@ struct pt_regs {
 	};
 	u64 orig_x0;
 	s32 syscallno;
-	u32 unused;
+	u32 pmr;
 
 	u64 sdei_ttbr1;
-	/* Only valid when ARM64_HAS_GIC_PRIO_MASKING is enabled. */
-	u64 pmr;
+	u64 unused;
+
 	u64 stackframe[2];
 
 	/* Only valid for some EL1 exceptions. */
