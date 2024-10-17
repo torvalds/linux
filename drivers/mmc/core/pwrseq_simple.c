@@ -17,6 +17,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/property.h>
+#include <linux/of.h>
+#include <linux/reset.h>
 
 #include <linux/mmc/host.h>
 
@@ -29,6 +31,8 @@ struct mmc_pwrseq_simple {
 	u32 power_off_delay_us;
 	struct clk *ext_clk;
 	struct gpio_descs *reset_gpios;
+	struct reset_control *reset_ctrl;
+	bool use_reset;
 };
 
 #define to_pwrseq_simple(p) container_of(p, struct mmc_pwrseq_simple, pwrseq)
@@ -67,14 +71,21 @@ static void mmc_pwrseq_simple_pre_power_on(struct mmc_host *host)
 		pwrseq->clk_enabled = true;
 	}
 
-	mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
+	if (pwrseq->use_reset) {
+		reset_control_deassert(pwrseq->reset_ctrl);
+		reset_control_assert(pwrseq->reset_ctrl);
+	} else
+		mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
 }
 
 static void mmc_pwrseq_simple_post_power_on(struct mmc_host *host)
 {
 	struct mmc_pwrseq_simple *pwrseq = to_pwrseq_simple(host->pwrseq);
 
-	mmc_pwrseq_simple_set_gpios_value(pwrseq, 0);
+	if (pwrseq->use_reset)
+		reset_control_deassert(pwrseq->reset_ctrl);
+	else
+		mmc_pwrseq_simple_set_gpios_value(pwrseq, 0);
 
 	if (pwrseq->post_power_on_delay_ms)
 		msleep(pwrseq->post_power_on_delay_ms);
@@ -84,7 +95,10 @@ static void mmc_pwrseq_simple_power_off(struct mmc_host *host)
 {
 	struct mmc_pwrseq_simple *pwrseq = to_pwrseq_simple(host->pwrseq);
 
-	mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
+	if (pwrseq->use_reset)
+		reset_control_assert(pwrseq->reset_ctrl);
+	else
+		mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
 
 	if (pwrseq->power_off_delay_us)
 		usleep_range(pwrseq->power_off_delay_us,
@@ -112,6 +126,7 @@ static int mmc_pwrseq_simple_probe(struct platform_device *pdev)
 {
 	struct mmc_pwrseq_simple *pwrseq;
 	struct device *dev = &pdev->dev;
+	int ngpio;
 
 	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
 	if (!pwrseq)
@@ -121,12 +136,23 @@ static int mmc_pwrseq_simple_probe(struct platform_device *pdev)
 	if (IS_ERR(pwrseq->ext_clk) && PTR_ERR(pwrseq->ext_clk) != -ENOENT)
 		return dev_err_probe(dev, PTR_ERR(pwrseq->ext_clk), "external clock not ready\n");
 
-	pwrseq->reset_gpios = devm_gpiod_get_array(dev, "reset",
-							GPIOD_OUT_HIGH);
-	if (IS_ERR(pwrseq->reset_gpios) &&
-	    PTR_ERR(pwrseq->reset_gpios) != -ENOENT &&
-	    PTR_ERR(pwrseq->reset_gpios) != -ENOSYS) {
-		return dev_err_probe(dev, PTR_ERR(pwrseq->reset_gpios), "reset GPIOs not ready\n");
+	ngpio = of_count_phandle_with_args(dev->of_node, "reset-gpios", "#gpio-cells");
+	if (ngpio == 1)
+		pwrseq->use_reset = true;
+
+	if (pwrseq->use_reset) {
+		pwrseq->reset_ctrl = devm_reset_control_get_optional_shared(dev, NULL);
+		if (IS_ERR(pwrseq->reset_ctrl))
+			return dev_err_probe(dev, PTR_ERR(pwrseq->reset_ctrl),
+					     "reset control not ready\n");
+	} else {
+		pwrseq->reset_gpios = devm_gpiod_get_array(dev, "reset", GPIOD_OUT_HIGH);
+		if (IS_ERR(pwrseq->reset_gpios) &&
+		    PTR_ERR(pwrseq->reset_gpios) != -ENOENT &&
+		    PTR_ERR(pwrseq->reset_gpios) != -ENOSYS) {
+			return dev_err_probe(dev, PTR_ERR(pwrseq->reset_gpios),
+					     "reset GPIOs not ready\n");
+		}
 	}
 
 	device_property_read_u32(dev, "post-power-on-delay-ms",
