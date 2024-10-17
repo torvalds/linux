@@ -315,7 +315,7 @@ alternative_if_not ARM64_HAS_GIC_PRIO_MASKING
 alternative_else_nop_endif
 
 	mrs_s	x20, SYS_ICC_PMR_EL1
-	str	x20, [sp, #S_PMR_SAVE]
+	str	x20, [sp, #S_PMR]
 	mov	x20, #GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET
 	msr_s	SYS_ICC_PMR_EL1, x20
 
@@ -342,7 +342,7 @@ alternative_if_not ARM64_HAS_GIC_PRIO_MASKING
 	b	.Lskip_pmr_restore\@
 alternative_else_nop_endif
 
-	ldr	x20, [sp, #S_PMR_SAVE]
+	ldr	x20, [sp, #S_PMR]
 	msr_s	SYS_ICC_PMR_EL1, x20
 
 	/* Ensure priority change is seen by redistributor */

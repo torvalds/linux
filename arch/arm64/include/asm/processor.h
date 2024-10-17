@@ -293,7 +293,7 @@ static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 	regs->pc = pc;
 
 	if (system_uses_irq_prio_masking())
-		regs->pmr_save = GIC_PRIO_IRQON;
+		regs->pmr = GIC_PRIO_IRQON;
 }
 
 static inline void start_thread(struct pt_regs *regs, unsigned long pc,

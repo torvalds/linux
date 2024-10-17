@@ -167,7 +167,7 @@ struct pt_regs {
 
 	u64 sdei_ttbr1;
 	/* Only valid when ARM64_HAS_GIC_PRIO_MASKING is enabled. */
-	u64 pmr_save;
+	u64 pmr;
 	u64 stackframe[2];
 
 	/* Only valid for some EL1 exceptions. */
@@ -211,7 +211,7 @@ static inline void forget_syscall(struct pt_regs *regs)
 
 #define irqs_priority_unmasked(regs)					\
 	(system_uses_irq_prio_masking() ?				\
-		(regs)->pmr_save == GIC_PRIO_IRQON :			\
+		(regs)->pmr == GIC_PRIO_IRQON :				\
 		true)
 
 #define interrupts_enabled(regs)			\
