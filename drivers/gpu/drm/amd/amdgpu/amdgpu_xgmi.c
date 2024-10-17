@@ -1586,26 +1586,30 @@ int amdgpu_xgmi_request_nps_change(struct amdgpu_device *adev,
 	 * devices don't request anymore.
 	 */
 	mutex_lock(&hive->hive_lock);
+	if (atomic_read(&hive->requested_nps_mode) ==
+	    UNKNOWN_MEMORY_PARTITION_MODE) {
+		dev_dbg(adev->dev, "Unexpected entry for hive NPS change");
+		mutex_unlock(&hive->hive_lock);
+		return 0;
+	}
 	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
 		r = adev->gmc.gmc_funcs->request_mem_partition_mode(
 			tmp_adev, req_nps_mode);
 		if (r)
-			goto err;
+			break;
+	}
+	if (r) {
+		/* Request back current mode if one of the requests failed */
+		cur_nps_mode =
+			adev->gmc.gmc_funcs->query_mem_partition_mode(tmp_adev);
+		list_for_each_entry_continue_reverse(
+			tmp_adev, &hive->device_list, gmc.xgmi.head)
+			adev->gmc.gmc_funcs->request_mem_partition_mode(
+				tmp_adev, cur_nps_mode);
 	}
 	/* Set to UNKNOWN so that other devices don't request anymore */
 	atomic_set(&hive->requested_nps_mode, UNKNOWN_MEMORY_PARTITION_MODE);
-
 	mutex_unlock(&hive->hive_lock);
-
-	return 0;
-err:
-	/* Request back current mode if one of the requests failed */
-	cur_nps_mode = adev->gmc.gmc_funcs->query_mem_partition_mode(tmp_adev);
-	list_for_each_entry_continue_reverse(tmp_adev, &hive->device_list,
-					     gmc.xgmi.head)
-		adev->gmc.gmc_funcs->request_mem_partition_mode(tmp_adev,
-								cur_nps_mode);
-	mutex_lock(&hive->hive_lock);
 
 	return r;
 }
