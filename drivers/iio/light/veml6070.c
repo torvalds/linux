@@ -9,6 +9,7 @@
  * TODO: integration time, ACK signal
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
@@ -28,7 +29,7 @@
 #define VEML6070_COMMAND_RSRVD	BIT(1) /* reserved, set to 1 */
 #define VEML6070_COMMAND_SD	BIT(0) /* shutdown mode when set */
 
-#define VEML6070_IT_10	0x04 /* integration time 1x */
+#define VEML6070_IT_10	0x01 /* integration time 1x */
 
 struct veml6070_data {
 	struct i2c_client *client1;
@@ -172,8 +173,8 @@ static int veml6070_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, PTR_ERR(data->client2),
 				     "i2c device for second chip address failed\n");
 
-	data->config = VEML6070_IT_10 | VEML6070_COMMAND_RSRVD |
-		VEML6070_COMMAND_SD;
+	data->config = FIELD_PREP(VEML6070_COMMAND_IT, VEML6070_IT_10) |
+		VEML6070_COMMAND_RSRVD | VEML6070_COMMAND_SD;
 	ret = i2c_smbus_write_byte(data->client1, data->config);
 	if (ret < 0)
 		return ret;
