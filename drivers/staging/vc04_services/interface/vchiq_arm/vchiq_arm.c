@@ -497,9 +497,14 @@ vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const 
 	switch (mode) {
 	case VCHIQ_BULK_MODE_NOCALLBACK:
 	case VCHIQ_BULK_MODE_CALLBACK:
-		ret = vchiq_bulk_xfer_callback(instance, handle, (void *)data,
-					       NULL, size, mode, userdata,
-					       VCHIQ_BULK_TRANSMIT);
+
+		bulk_params.offset = (void *)data;
+		bulk_params.mode = mode;
+		bulk_params.size = size;
+		bulk_params.userdata = userdata;
+		bulk_params.dir = VCHIQ_BULK_TRANSMIT;
+
+		ret = vchiq_bulk_xfer_callback(instance, handle, &bulk_params);
 		break;
 	case VCHIQ_BULK_MODE_BLOCKING:
 		bulk_params.offset = (void *)data;
@@ -527,8 +532,14 @@ int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
 	switch (mode) {
 	case VCHIQ_BULK_MODE_NOCALLBACK:
 	case VCHIQ_BULK_MODE_CALLBACK:
-		ret = vchiq_bulk_xfer_callback(instance, handle, (void *)data, NULL,
-					       size, mode, userdata, VCHIQ_BULK_RECEIVE);
+
+		bulk_params.offset = (void *)data;
+		bulk_params.mode = mode;
+		bulk_params.size = size;
+		bulk_params.userdata = userdata;
+		bulk_params.dir = VCHIQ_BULK_RECEIVE;
+
+		ret = vchiq_bulk_xfer_callback(instance, handle, &bulk_params);
 		break;
 	case VCHIQ_BULK_MODE_BLOCKING:
 		bulk_params.offset = (void *)data;

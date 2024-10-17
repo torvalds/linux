@@ -3502,9 +3502,7 @@ error_exit:
 
 int
 vchiq_bulk_xfer_callback(struct vchiq_instance *instance, unsigned int handle,
-			 void *offset, void __user *uoffset, int size,
-			 enum vchiq_bulk_mode mode, void *userdata,
-			 enum vchiq_bulk_dir dir)
+			 struct vchiq_bulk *bulk_params)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
 	int status = -EINVAL;
@@ -3512,21 +3510,22 @@ vchiq_bulk_xfer_callback(struct vchiq_instance *instance, unsigned int handle,
 	if (!service)
 		return -EINVAL;
 
-	if (mode != VCHIQ_BULK_MODE_CALLBACK &&
-	    mode != VCHIQ_BULK_MODE_NOCALLBACK)
+	if (bulk_params->mode != VCHIQ_BULK_MODE_CALLBACK &&
+	    bulk_params->mode != VCHIQ_BULK_MODE_NOCALLBACK)
 		goto error_exit;
 
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
 		goto error_exit;
 
-	if (!offset && !uoffset)
+	if (!bulk_params->offset && !bulk_params->uoffset)
 		goto error_exit;
 
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-	status = vchiq_bulk_xfer_queue_msg_killable(service, offset, uoffset,
-						    size, userdata, mode, dir);
+	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params->offset, bulk_params->uoffset,
+						    bulk_params->size, bulk_params->userdata,
+						    bulk_params->mode, bulk_params->dir);
 
 error_exit:
 	vchiq_service_put(service);
