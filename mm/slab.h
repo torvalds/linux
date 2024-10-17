@@ -310,7 +310,7 @@ struct kmem_cache {
 };
 
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_SLUB_TINY)
-#define SLAB_SUPPORTS_SYSFS
+#define SLAB_SUPPORTS_SYSFS 1
 void sysfs_slab_unlink(struct kmem_cache *s);
 void sysfs_slab_release(struct kmem_cache *s);
 #else
@@ -545,6 +545,12 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
 		return s->flags & flags;
 	return false;
 }
+
+#if IS_ENABLED(CONFIG_SLUB_DEBUG) && IS_ENABLED(CONFIG_KUNIT)
+bool slab_in_kunit_test(void);
+#else
+static inline bool slab_in_kunit_test(void) { return false; }
+#endif
 
 #ifdef CONFIG_SLAB_OBJ_EXT
 

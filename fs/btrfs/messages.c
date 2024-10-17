@@ -239,7 +239,8 @@ void __cold _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (__ratelimit(ratelimit)) {
+	/* Do not ratelimit if CONFIG_BTRFS_DEBUG is enabled. */
+	if (IS_ENABLED(CONFIG_BTRFS_DEBUG) || __ratelimit(ratelimit)) {
 		if (fs_info) {
 			char statestr[STATE_STRING_BUF_LEN];
 

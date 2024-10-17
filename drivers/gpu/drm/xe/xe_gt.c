@@ -874,7 +874,9 @@ int xe_gt_sanitize_freq(struct xe_gt *gt)
 	int ret = 0;
 
 	if ((!xe_uc_fw_is_available(&gt->uc.gsc.fw) ||
-	     xe_uc_fw_is_loaded(&gt->uc.gsc.fw)) && XE_WA(gt, 22019338487))
+	     xe_uc_fw_is_loaded(&gt->uc.gsc.fw) ||
+	     xe_uc_fw_is_in_error_state(&gt->uc.gsc.fw)) &&
+	    XE_WA(gt, 22019338487))
 		ret = xe_guc_pc_restore_stashed_freq(&gt->uc.guc.pc);
 
 	return ret;

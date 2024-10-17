@@ -46,7 +46,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "bmp280.h"
 

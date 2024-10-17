@@ -9,7 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/sm3.h>
 
 static const u32 ____cacheline_aligned K[64] = {

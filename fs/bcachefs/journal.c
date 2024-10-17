@@ -603,6 +603,19 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 {
 	int ret;
 
+	if (closure_wait_event_timeout(&j->async_wait,
+		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
+		   (flags & JOURNAL_RES_GET_NONBLOCK),
+		   HZ * 10))
+		return ret;
+
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct printbuf buf = PRINTBUF;
+	bch2_journal_debug_to_text(&buf, j);
+	bch_err(c, "Journal stuck? Waited for 10 seconds...\n%s",
+		buf.buf);
+	printbuf_exit(&buf);
+
 	closure_wait_event(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));

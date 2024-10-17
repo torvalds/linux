@@ -372,7 +372,7 @@ static struct platform_driver bw2_driver = {
 		.of_match_table = bw2_match,
 	},
 	.probe		= bw2_probe,
-	.remove_new	= bw2_remove,
+	.remove		= bw2_remove,
 };
 
 static int __init bw2_init(void)

@@ -657,7 +657,7 @@ xrep_ibt_build_new_trees(
 	 * Start by setting up the inobt staging cursor.
 	 */
 	fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-			XFS_IBT_BLOCK(sc->mp)),
+			XFS_IBT_BLOCK(sc->mp));
 	xrep_newbt_init_ag(&ri->new_inobt, sc, &XFS_RMAP_OINFO_INOBT, fsbno,
 			XFS_AG_RESV_NONE);
 	ri->new_inobt.bload.claim_block = xrep_ibt_claim_block;
@@ -678,7 +678,7 @@ xrep_ibt_build_new_trees(
 			resv = XFS_AG_RESV_NONE;
 
 		fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-				XFS_FIBT_BLOCK(sc->mp)),
+				XFS_FIBT_BLOCK(sc->mp));
 		xrep_newbt_init_ag(&ri->new_finobt, sc, &XFS_RMAP_OINFO_INOBT,
 				fsbno, resv);
 		ri->new_finobt.bload.claim_block = xrep_fibt_claim_block;

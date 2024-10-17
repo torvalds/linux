@@ -2391,12 +2391,18 @@ static struct attribute *dell_battery_attrs[] = {
 };
 ATTRIBUTE_GROUPS(dell_battery);
 
+static bool dell_battery_supported(struct power_supply *battery)
+{
+	/* We currently only support the primary battery */
+	return strcmp(battery->desc->name, "BAT0") == 0;
+}
+
 static int dell_battery_add(struct power_supply *battery,
 		struct acpi_battery_hook *hook)
 {
-	/* this currently only supports the primary battery */
-	if (strcmp(battery->desc->name, "BAT0") != 0)
-		return -ENODEV;
+	/* Return 0 instead of an error to avoid being unloaded */
+	if (!dell_battery_supported(battery))
+		return 0;
 
 	return device_add_groups(&battery->dev, dell_battery_groups);
 }
@@ -2404,6 +2410,9 @@ static int dell_battery_add(struct power_supply *battery,
 static int dell_battery_remove(struct power_supply *battery,
 		struct acpi_battery_hook *hook)
 {
+	if (!dell_battery_supported(battery))
+		return 0;
+
 	device_remove_groups(&battery->dev, dell_battery_groups);
 	return 0;
 }

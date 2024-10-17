@@ -12,7 +12,7 @@
  */
 
 #include <linux/gfp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "tpm.h"
 
 enum tpm2_handle_types {

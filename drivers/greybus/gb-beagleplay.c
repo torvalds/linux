@@ -6,7 +6,7 @@
  * Copyright (c) 2023 BeagleBoard.org Foundation
  */
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crc32.h>
 #include <linux/gpio/consumer.h>
 #include <linux/firmware.h>

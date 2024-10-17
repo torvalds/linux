@@ -5,7 +5,7 @@
  *
  * Copyright 2021 Analog Devices Inc.
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/device.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>

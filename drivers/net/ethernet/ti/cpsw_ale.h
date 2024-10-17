@@ -24,6 +24,7 @@ struct cpsw_ale_params {
 	 */
 	bool			nu_switch_ale;
 	const struct reg_field *reg_fields;
+	int			num_fields;
 	const char		*dev_id;
 	unsigned long		bus_freq;
 };

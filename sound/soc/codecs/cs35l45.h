@@ -507,7 +507,7 @@ extern const struct dev_pm_ops cs35l45_pm_ops;
 extern const struct regmap_config cs35l45_i2c_regmap;
 extern const struct regmap_config cs35l45_spi_regmap;
 int cs35l45_apply_patch(struct cs35l45_private *cs35l45);
-unsigned int cs35l45_get_clk_freq_id(unsigned int freq);
+int cs35l45_get_clk_freq_id(unsigned int freq);
 int cs35l45_probe(struct cs35l45_private *cs35l45);
 void cs35l45_remove(struct cs35l45_private *cs35l45);
 

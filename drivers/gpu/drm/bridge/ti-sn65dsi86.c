@@ -21,7 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <drm/display/drm_dp_aux_bus.h>
 #include <drm/display/drm_dp_helper.h>

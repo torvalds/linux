@@ -57,7 +57,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/barrier.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define CREATE_TRACE_POINTS
 #include "applespi.h"

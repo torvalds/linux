@@ -15,7 +15,7 @@
  */
 
 #include <linux/export.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ath.h"
 #include "reg.h"

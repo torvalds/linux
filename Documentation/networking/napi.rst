@@ -144,9 +144,8 @@ IRQ should only be unmasked after a successful call to napi_complete_done():
 
 napi_schedule_irqoff() is a variant of napi_schedule() which takes advantage
 of guarantees given by being invoked in IRQ context (no need to
-mask interrupts). Note that PREEMPT_RT forces all interrupts
-to be threaded so the interrupt may need to be marked ``IRQF_NO_THREAD``
-to avoid issues on real-time kernel configurations.
+mask interrupts). napi_schedule_irqoff() will fall back to napi_schedule() if
+IRQs are threaded (such as if ``PREEMPT_RT`` is enabled).
 
 Instance to queue mapping
 -------------------------

@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Bitmasks (for data[3]) */
 #define WACOM_TIP_SWITCH	BIT(0)

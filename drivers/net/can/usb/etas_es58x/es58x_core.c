@@ -10,7 +10,7 @@
  * Copyright (c) 2020-2022 Vincent Mailhol <mailhol.vincent@wanadoo.fr>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crc16.h>
 #include <linux/ethtool.h>
 #include <linux/kernel.h>

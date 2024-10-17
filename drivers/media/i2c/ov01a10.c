@@ -3,7 +3,7 @@
  * Copyright (c) 2023 Intel Corporation.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/acpi.h>
 #include <linux/bitfield.h>

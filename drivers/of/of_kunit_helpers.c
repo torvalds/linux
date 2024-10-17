@@ -10,6 +10,19 @@
 #include <kunit/test.h>
 #include <kunit/resource.h>
 
+#include "of_private.h"
+
+/**
+ * of_root_kunit_skip() - Skip test if the root node isn't populated
+ * @test: test to skip if the root node isn't populated
+ */
+void of_root_kunit_skip(struct kunit *test)
+{
+	if (IS_ENABLED(CONFIG_ARM64) && IS_ENABLED(CONFIG_ACPI) && !of_root)
+		kunit_skip(test, "arm64+acpi doesn't populate a root node");
+}
+EXPORT_SYMBOL_GPL(of_root_kunit_skip);
+
 #if defined(CONFIG_OF_OVERLAY) && defined(CONFIG_OF_EARLY_FLATTREE)
 
 static void of_overlay_fdt_apply_kunit_exit(void *ovcs_id)
@@ -35,6 +48,8 @@ int of_overlay_fdt_apply_kunit(struct kunit *test, void *overlay_fdt,
 {
 	int ret;
 	int *copy_id;
+
+	of_root_kunit_skip(test);
 
 	copy_id = kunit_kmalloc(test, sizeof(*copy_id), GFP_KERNEL);
 	if (!copy_id)

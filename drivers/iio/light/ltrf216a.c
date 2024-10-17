@@ -26,7 +26,7 @@
 
 #include <linux/iio/iio.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define LTRF216A_ALS_RESET_MASK		BIT(4)
 #define LTRF216A_ALS_DATA_STATUS	BIT(3)

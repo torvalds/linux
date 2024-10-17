@@ -369,7 +369,7 @@ struct xe_device {
 		/** @usm.next_asid: next ASID, used to cyclical alloc asids */
 		u32 next_asid;
 		/** @usm.lock: protects UM state */
-		struct mutex lock;
+		struct rw_semaphore lock;
 	} usm;
 
 	/** @pinned: pinned BO state */
@@ -395,6 +395,9 @@ struct xe_device {
 
 	/** @unordered_wq: used to serialize unordered work, mostly display */
 	struct workqueue_struct *unordered_wq;
+
+	/** @destroy_wq: used to serialize user destroy work, like queue */
+	struct workqueue_struct *destroy_wq;
 
 	/** @tiles: device tiles */
 	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
@@ -567,15 +570,23 @@ struct xe_file {
 	struct {
 		/** @vm.xe: xarray to store VMs */
 		struct xarray xa;
-		/** @vm.lock: protects file VM state */
+		/**
+		 * @vm.lock: Protects VM lookup + reference and removal a from
+		 * file xarray. Not an intended to be an outer lock which does
+		 * thing while being held.
+		 */
 		struct mutex lock;
 	} vm;
 
 	/** @exec_queue: Submission exec queue state for file */
 	struct {
-		/** @exec_queue.xe: xarray to store engines */
+		/** @exec_queue.xa: xarray to store exece queues */
 		struct xarray xa;
-		/** @exec_queue.lock: protects file engine state */
+		/**
+		 * @exec_queue.lock: Protects exec queue lookup + reference and
+		 * removal a frommfile xarray. Not an intended to be an outer
+		 * lock which does thing while being held.
+		 */
 		struct mutex lock;
 	} exec_queue;
 

@@ -54,7 +54,7 @@
 #include <linux/interrupt.h>
 #include <linux/raid_class.h>
 #include <linux/blk-mq-pci.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mpt3sas_base.h"
 

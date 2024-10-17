@@ -35,7 +35,7 @@
 #include <linux/gfp.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/ip_vs.h>
 

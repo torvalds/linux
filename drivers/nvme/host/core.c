@@ -22,7 +22,7 @@
 #include <linux/nvme_ioctl.h>
 #include <linux/pm_qos.h>
 #include <linux/ratelimit.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "nvme.h"
 #include "fabrics.h"

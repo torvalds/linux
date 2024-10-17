@@ -17,7 +17,7 @@
 
 #include <media/tuner.h>
 #include "tuner-simple.h"
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* debug */
 static int dvb_usb_m920x_debug;

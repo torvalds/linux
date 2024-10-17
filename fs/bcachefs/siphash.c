@@ -45,7 +45,7 @@
  */
 
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bitops.h>
 #include <linux/string.h>
 

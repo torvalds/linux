@@ -1716,7 +1716,7 @@ DECLARE_EVENT_CLASS(btrfs_qgroup_extent,
 	),
 
 	TP_fast_assign_btrfs(fs_info,
-		__entry->bytenr		= rec->bytenr,
+		__entry->bytenr		= rec->bytenr;
 		__entry->num_bytes	= rec->num_bytes;
 	),
 

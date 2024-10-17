@@ -81,7 +81,7 @@ static inline unsigned int folioq_count(struct folio_queue *folioq)
 }
 
 /**
- * folioq_count: Query if a folio queue segment is full
+ * folioq_full: Query if a folio queue segment is full
  * @folioq: The segment to query
  *
  * Query if a folio queue segment is fully occupied.  Note that this does not

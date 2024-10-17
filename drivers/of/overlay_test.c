@@ -11,6 +11,8 @@
 #include <kunit/of.h>
 #include <kunit/test.h>
 
+#include "of_private.h"
+
 static const char * const kunit_node_name = "kunit-test";
 static const char * const kunit_compatible = "test,empty";
 
@@ -62,6 +64,7 @@ static void of_overlay_apply_kunit_cleanup(struct kunit *test)
 	struct device *dev;
 	struct device_node *np;
 
+	of_root_kunit_skip(test);
 	if (!IS_ENABLED(CONFIG_OF_EARLY_FLATTREE))
 		kunit_skip(test, "requires CONFIG_OF_EARLY_FLATTREE for root node");
 
@@ -73,7 +76,7 @@ static void of_overlay_apply_kunit_cleanup(struct kunit *test)
 
 	np = of_find_node_by_name(NULL, kunit_node_name);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, np);
-	of_node_put_kunit(test, np);
+	of_node_put_kunit(&fake, np);
 
 	pdev = of_find_device_by_node(np);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pdev);
