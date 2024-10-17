@@ -311,7 +311,7 @@ static int xpcs_read_fault_c73(struct dw_xpcs *xpcs,
 	return 0;
 }
 
-static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
+static void xpcs_link_up_usxgmii(struct dw_xpcs *xpcs, int speed)
 {
 	int ret, speed_sel;
 
@@ -1141,7 +1141,7 @@ static void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
 	if (interface == PHY_INTERFACE_MODE_USXGMII)
-		return xpcs_config_usxgmii(xpcs, speed);
+		return xpcs_link_up_usxgmii(xpcs, speed);
 
 	if (interface == PHY_INTERFACE_MODE_SGMII ||
 	    interface == PHY_INTERFACE_MODE_1000BASEX)
