@@ -8,7 +8,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/frame.h>
 
 #define STATE0	%xmm0
 #define STATE1	%xmm1
@@ -146,7 +145,6 @@ SYM_FUNC_START(aegis128_aesni_init)
 	.set STATEP, %rdi
 	.set KEYP, %rsi
 	.set IVP, %rdx
-	FRAME_BEGIN
 
 	/* load IV: */
 	movdqu (IVP), T1
@@ -182,8 +180,6 @@ SYM_FUNC_START(aegis128_aesni_init)
 	movdqu STATE2, 0x20(STATEP)
 	movdqu STATE3, 0x30(STATEP)
 	movdqu STATE4, 0x40(STATEP)
-
-	FRAME_END
 	RET
 SYM_FUNC_END(aegis128_aesni_init)
 
@@ -197,7 +193,6 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	.set STATEP, %rdi
 	.set SRC, %rsi
 	.set LEN, %edx
-	FRAME_BEGIN
 
 	test LEN, LEN
 	jz .Lad_out
@@ -251,7 +246,6 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	movdqu STATE2, 0x20(STATEP)
 	movdqu STATE3, 0x30(STATEP)
 	movdqu STATE4, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lad_out_1:
@@ -260,7 +254,6 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	movdqu STATE1, 0x20(STATEP)
 	movdqu STATE2, 0x30(STATEP)
 	movdqu STATE3, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lad_out_2:
@@ -269,7 +262,6 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	movdqu STATE0, 0x20(STATEP)
 	movdqu STATE1, 0x30(STATEP)
 	movdqu STATE2, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lad_out_3:
@@ -278,7 +270,6 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	movdqu STATE4, 0x20(STATEP)
 	movdqu STATE0, 0x30(STATEP)
 	movdqu STATE1, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lad_out_4:
@@ -287,11 +278,9 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	movdqu STATE3, 0x20(STATEP)
 	movdqu STATE4, 0x30(STATEP)
 	movdqu STATE0, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lad_out:
-	FRAME_END
 	RET
 SYM_FUNC_END(aegis128_aesni_ad)
 
@@ -323,7 +312,6 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	.set SRC, %rsi
 	.set DST, %rdx
 	.set LEN, %ecx
-	FRAME_BEGIN
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
@@ -351,7 +339,6 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	movdqu STATE1, 0x20(STATEP)
 	movdqu STATE2, 0x30(STATEP)
 	movdqu STATE3, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lenc_out_1:
@@ -360,7 +347,6 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	movdqu STATE0, 0x20(STATEP)
 	movdqu STATE1, 0x30(STATEP)
 	movdqu STATE2, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lenc_out_2:
@@ -369,7 +355,6 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	movdqu STATE4, 0x20(STATEP)
 	movdqu STATE0, 0x30(STATEP)
 	movdqu STATE1, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lenc_out_3:
@@ -378,7 +363,6 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	movdqu STATE3, 0x20(STATEP)
 	movdqu STATE4, 0x30(STATEP)
 	movdqu STATE0, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lenc_out_4:
@@ -387,11 +371,9 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	movdqu STATE2, 0x20(STATEP)
 	movdqu STATE3, 0x30(STATEP)
 	movdqu STATE4, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Lenc_out:
-	FRAME_END
 	RET
 SYM_FUNC_END(aegis128_aesni_enc)
 
@@ -404,7 +386,6 @@ SYM_FUNC_START(aegis128_aesni_enc_tail)
 	.set SRC, %rsi
 	.set DST, %rdx
 	.set LEN, %ecx	/* {load,store}_partial rely on this being %ecx */
-	FRAME_BEGIN
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
@@ -436,8 +417,6 @@ SYM_FUNC_START(aegis128_aesni_enc_tail)
 	movdqu STATE1, 0x20(STATEP)
 	movdqu STATE2, 0x30(STATEP)
 	movdqu STATE3, 0x40(STATEP)
-
-	FRAME_END
 	RET
 SYM_FUNC_END(aegis128_aesni_enc_tail)
 
@@ -468,7 +447,6 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	.set SRC, %rsi
 	.set DST, %rdx
 	.set LEN, %ecx
-	FRAME_BEGIN
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
@@ -496,7 +474,6 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	movdqu STATE1, 0x20(STATEP)
 	movdqu STATE2, 0x30(STATEP)
 	movdqu STATE3, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Ldec_out_1:
@@ -505,7 +482,6 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	movdqu STATE0, 0x20(STATEP)
 	movdqu STATE1, 0x30(STATEP)
 	movdqu STATE2, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Ldec_out_2:
@@ -514,7 +490,6 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	movdqu STATE4, 0x20(STATEP)
 	movdqu STATE0, 0x30(STATEP)
 	movdqu STATE1, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Ldec_out_3:
@@ -523,7 +498,6 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	movdqu STATE3, 0x20(STATEP)
 	movdqu STATE4, 0x30(STATEP)
 	movdqu STATE0, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Ldec_out_4:
@@ -532,11 +506,9 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	movdqu STATE2, 0x20(STATEP)
 	movdqu STATE3, 0x30(STATEP)
 	movdqu STATE4, 0x40(STATEP)
-	FRAME_END
 	RET
 
 .Ldec_out:
-	FRAME_END
 	RET
 SYM_FUNC_END(aegis128_aesni_dec)
 
@@ -549,7 +521,6 @@ SYM_FUNC_START(aegis128_aesni_dec_tail)
 	.set SRC, %rsi
 	.set DST, %rdx
 	.set LEN, %ecx	/* {load,store}_partial rely on this being %ecx */
-	FRAME_BEGIN
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
@@ -586,8 +557,6 @@ SYM_FUNC_START(aegis128_aesni_dec_tail)
 	movdqu STATE1, 0x20(STATEP)
 	movdqu STATE2, 0x30(STATEP)
 	movdqu STATE3, 0x40(STATEP)
-
-	FRAME_END
 	RET
 SYM_FUNC_END(aegis128_aesni_dec_tail)
 
@@ -601,7 +570,6 @@ SYM_FUNC_START(aegis128_aesni_final)
 	.set TAG_XOR, %rsi
 	.set ASSOCLEN, %edx
 	.set CRYPTLEN, %ecx
-	FRAME_BEGIN
 
 	/* load the state: */
 	movdqu 0x00(STATEP), STATE0
@@ -636,7 +604,5 @@ SYM_FUNC_START(aegis128_aesni_final)
 	pxor STATE4, MSG
 
 	movdqu MSG, (TAG_XOR)
-
-	FRAME_END
 	RET
 SYM_FUNC_END(aegis128_aesni_final)
