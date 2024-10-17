@@ -11,7 +11,6 @@
 #define PN_DEV_H
 
 #include <linux/list.h>
-#include <linux/mutex.h>
 #include <linux/spinlock.h>
 
 struct net;
