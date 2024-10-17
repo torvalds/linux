@@ -257,7 +257,8 @@ static struct dma_buf *habmem_get_dma_buf_from_uva(unsigned long address,
 		int page_count)
 {
 	struct page **pages = NULL;
-	int i, ret = 0;
+	struct vm_area_struct *vma = NULL;
+	int i, ret, page_nr = 0;
 	struct dma_buf *dmabuf = NULL;
 	struct pages_list *pglist = NULL;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
@@ -276,14 +277,40 @@ static struct dma_buf *habmem_get_dma_buf_from_uva(unsigned long address,
 
 	mmap_read_lock(current->mm);
 
-	ret = get_user_pages(address, page_count, 0, pages, NULL);
+	/*
+	 * Need below sanity checks:
+	 * 1. input uva is covered by an existing VMA of the current process
+	 * 2. the given uva range is fully covered in the same VMA
+	 */
+	vma = vma_lookup(current->mm, address);
+	if (!range_in_vma(vma, address, address + page_count * PAGE_SIZE)) {
+		mmap_read_unlock(current->mm);
+		pr_err("input uva [0x%lx, 0x%lx) not covered in one VMA. UVA or size(%d) is invalid\n",
+			address, address + page_count * PAGE_SIZE, page_count * PAGE_SIZE);
+		ret = -EINVAL;
+		goto err;
+	}
+	page_nr = get_user_pages(address, page_count, 0, pages, NULL);
 
 	mmap_read_unlock(current->mm);
 
-	if (ret <= 0) {
+	if (page_nr <= 0) {
 		ret = -EINVAL;
 		pr_err("get %d user pages failed %d\n",
-			page_count, ret);
+			page_count, page_nr);
+		goto err;
+	}
+
+	/*
+	 * The actual number of the pinned pages is returned by get_user_pages.
+	 * It may not match with the requested number.
+	 */
+	if (page_nr != page_count) {
+		ret = -EINVAL;
+		pr_err("input page cnt %d not match with pinned %d\n", page_count, page_nr);
+		for (i = 0; i < page_nr; i++)
+			put_page(pages[i]);
+
 		goto err;
 	}
 
@@ -306,6 +333,7 @@ static struct dma_buf *habmem_get_dma_buf_from_uva(unsigned long address,
 		ret = PTR_ERR(dmabuf);
 		goto err;
 	}
+
 	return dmabuf;
 
 err:
