@@ -278,8 +278,6 @@ SYM_FUNC_START(aegis128_aesni_ad)
 	movdqu STATE3, 0x20(STATEP)
 	movdqu STATE4, 0x30(STATEP)
 	movdqu STATE0, 0x40(STATEP)
-	RET
-
 .Lad_out:
 	RET
 SYM_FUNC_END(aegis128_aesni_ad)
@@ -371,8 +369,6 @@ SYM_FUNC_START(aegis128_aesni_enc)
 	movdqu STATE2, 0x20(STATEP)
 	movdqu STATE3, 0x30(STATEP)
 	movdqu STATE4, 0x40(STATEP)
-	RET
-
 .Lenc_out:
 	RET
 SYM_FUNC_END(aegis128_aesni_enc)
@@ -506,8 +502,6 @@ SYM_FUNC_START(aegis128_aesni_dec)
 	movdqu STATE2, 0x20(STATEP)
 	movdqu STATE3, 0x30(STATEP)
 	movdqu STATE4, 0x40(STATEP)
-	RET
-
 .Ldec_out:
 	RET
 SYM_FUNC_END(aegis128_aesni_dec)
