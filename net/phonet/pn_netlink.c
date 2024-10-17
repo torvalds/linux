@@ -200,7 +200,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
+void rtm_phonet_notify(struct net *net, int event, u32 ifindex, u8 dst)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -210,17 +210,17 @@ void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
 	if (skb == NULL)
 		goto errout;
 
-	err = fill_route(skb, dev->ifindex, dst, 0, 0, event);
+	err = fill_route(skb, ifindex, dst, 0, 0, event);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, dev_net(dev), 0,
-			  RTNLGRP_PHONET_ROUTE, NULL, GFP_KERNEL);
+
+	rtnl_notify(skb, net, 0, RTNLGRP_PHONET_ROUTE, NULL, GFP_KERNEL);
 	return;
 errout:
-	rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_ROUTE, err);
+	rtnl_set_sk_err(net, RTNLGRP_PHONET_ROUTE, err);
 }
 
 static const struct nla_policy rtm_phonet_policy[RTA_MAX+1] = {
@@ -235,6 +235,7 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct nlattr *tb[RTA_MAX+1];
 	struct net_device *dev;
 	struct rtmsg *rtm;
+	u32 ifindex;
 	int err;
 	u8 dst;
 
@@ -260,7 +261,8 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (dst & 3) /* Phonet addresses only have 6 high-order bits */
 		return -EINVAL;
 
-	dev = __dev_get_by_index(net, nla_get_u32(tb[RTA_OIF]));
+	ifindex = nla_get_u32(tb[RTA_OIF]);
+	dev = __dev_get_by_index(net, ifindex);
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -269,7 +271,7 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	else
 		err = phonet_route_del(dev, dst);
 	if (!err)
-		rtm_phonet_notify(nlh->nlmsg_type, dev, dst);
+		rtm_phonet_notify(net, nlh->nlmsg_type, ifindex, dst);
 	return err;
 }
 

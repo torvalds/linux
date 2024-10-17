@@ -263,9 +263,13 @@ static int phonet_device_autoconf(struct net_device *dev)
 
 static void phonet_route_autodel(struct net_device *dev)
 {
-	struct phonet_net *pnn = phonet_pernet(dev_net(dev));
-	unsigned int i;
+	struct net *net = dev_net(dev);
 	DECLARE_BITMAP(deleted, 64);
+	u32 ifindex = dev->ifindex;
+	struct phonet_net *pnn;
+	unsigned int i;
+
+	pnn = phonet_pernet(net);
 
 	/* Remove left-over Phonet routes */
 	bitmap_zero(deleted, 64);
@@ -281,7 +285,7 @@ static void phonet_route_autodel(struct net_device *dev)
 		return; /* short-circuit RCU */
 	synchronize_rcu();
 	for_each_set_bit(i, deleted, 64) {
-		rtm_phonet_notify(RTM_DELROUTE, dev, i);
+		rtm_phonet_notify(net, RTM_DELROUTE, ifindex, i);
 		dev_put(dev);
 	}
 }
