@@ -3954,7 +3954,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	return status;
 
 out_expired_error:
-	old = NULL;
 	/*
 	 * Revert the slot seq_nr change so the server will process
 	 * the client's resend instead of returning a cached response.
@@ -3969,8 +3968,6 @@ out_cache_error:
 out_free_conn:
 	spin_unlock(&nn->client_lock);
 	free_conn(conn);
-	if (old)
-		expire_client(old);
 out_free_session:
 	__free_session(new);
 out_release_drc_mem:
