@@ -3022,29 +3022,26 @@ close_service_complete(struct vchiq_service *service, int failstate)
  */
 static int
 vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
-				   void *offset, void __user *uoffset,
-				   int size, void *userdata,
-				   enum vchiq_bulk_mode mode,
-				   enum vchiq_bulk_dir dir)
+				   struct vchiq_bulk *bulk_params)
 {
 	struct vchiq_bulk_queue *queue;
 	struct bulk_waiter *bulk_waiter = NULL;
 	struct vchiq_bulk *bulk;
 	struct vchiq_state *state = service->state;
-	const char dir_char = (dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';
-	const int dir_msgtype = (dir == VCHIQ_BULK_TRANSMIT) ?
+	const char dir_char = (bulk_params->dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';
+	const int dir_msgtype = (bulk_params->dir == VCHIQ_BULK_TRANSMIT) ?
 		VCHIQ_MSG_BULK_TX : VCHIQ_MSG_BULK_RX;
 	int status = -EINVAL;
 	int payload[2];
 
-	if (mode == VCHIQ_BULK_MODE_BLOCKING) {
-		bulk_waiter = userdata;
+	if (bulk_params->mode == VCHIQ_BULK_MODE_BLOCKING) {
+		bulk_waiter = bulk_params->userdata;
 		init_completion(&bulk_waiter->event);
 		bulk_waiter->actual = 0;
 		bulk_waiter->bulk = NULL;
 	}
 
-	queue = (dir == VCHIQ_BULK_TRANSMIT) ?
+	queue = (bulk_params->dir == VCHIQ_BULK_TRANSMIT) ?
 		&service->bulk_tx : &service->bulk_rx;
 
 	if (mutex_lock_killable(&service->bulk_mutex))
@@ -3064,13 +3061,14 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 
 	bulk = &queue->bulks[BULK_INDEX(queue->local_insert)];
 
-	bulk->mode = mode;
-	bulk->dir = dir;
-	bulk->userdata = userdata;
-	bulk->size = size;
+	/* Initiliaze the 'bulk' slot with bulk parameters passed in. */
+	bulk->mode = bulk_params->mode;
+	bulk->dir = bulk_params->dir;
+	bulk->userdata = bulk_params->userdata;
+	bulk->size = bulk_params->size;
+	bulk->offset = bulk_params->offset;
+	bulk->uoffset = bulk_params->uoffset;
 	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
-	bulk->offset = offset;
-	bulk->uoffset = uoffset;
 
 	if (vchiq_prepare_bulk_data(service->instance, bulk))
 		goto unlock_error_exit;
@@ -3083,7 +3081,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 
 	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %pK\n",
 		state->id, service->localport, service->remoteport,
-		dir_char, size, &bulk->data, userdata);
+		dir_char, bulk->size, &bulk->data, bulk->userdata);
 
 	/*
 	 * The slot mutex must be held when the service is being closed, so
@@ -3489,10 +3487,7 @@ vchiq_bulk_xfer_blocking(struct vchiq_instance *instance, unsigned int handle,
 		goto error_exit;
 
 
-	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params->offset,
-						    bulk_params->uoffset, bulk_params->size,
-						    bulk_params->userdata, bulk_params->mode,
-						    bulk_params->dir);
+	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params);
 
 error_exit:
 	vchiq_service_put(service);
@@ -3523,9 +3518,7 @@ vchiq_bulk_xfer_callback(struct vchiq_instance *instance, unsigned int handle,
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params->offset, bulk_params->uoffset,
-						    bulk_params->size, bulk_params->userdata,
-						    bulk_params->mode, bulk_params->dir);
+	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params);
 
 error_exit:
 	vchiq_service_put(service);
