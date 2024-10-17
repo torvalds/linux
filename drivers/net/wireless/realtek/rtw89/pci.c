@@ -2358,13 +2358,15 @@ static int rtw89_pci_deglitch_setting(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
+static void rtw89_pci_disable_eq_ax(struct rtw89_dev *rtwdev)
 {
 	u16 g1_oobs, g2_oobs;
 	u32 backup_aspm;
 	u32 phy_offset;
+	u16 offset_cal;
 	u16 oobs_val;
 	int ret;
+	u8 gen;
 
 	if (rtwdev->chip->chip_id != RTL8852C)
 		return;
@@ -2399,6 +2401,28 @@ static void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
 			   OOBS_SEN_MASK, oobs_val);
 	rtw89_write16_set(rtwdev, R_RAC_DIRECT_OFFSET_G2 + RAC_ANA09 * RAC_MULT,
 			  BAC_OOBS_SEL);
+
+	/* offset K */
+	for (gen = 1; gen <= 2; gen++) {
+		phy_offset = gen == 1 ? R_RAC_DIRECT_OFFSET_G1 :
+					R_RAC_DIRECT_OFFSET_G2;
+
+		rtw89_write16_clr(rtwdev, phy_offset + RAC_ANA19 * RAC_MULT,
+				  B_PCIE_BIT_RD_SEL);
+	}
+
+	offset_cal = rtw89_read16_mask(rtwdev, R_RAC_DIRECT_OFFSET_G1 +
+					       RAC_ANA1F * RAC_MULT, OFFSET_CAL_MASK);
+
+	for (gen = 1; gen <= 2; gen++) {
+		phy_offset = gen == 1 ? R_RAC_DIRECT_OFFSET_G1 :
+					R_RAC_DIRECT_OFFSET_G2;
+
+		rtw89_write16_mask(rtwdev, phy_offset + RAC_ANA0B * RAC_MULT,
+				   MANUAL_LVL_MASK, offset_cal);
+		rtw89_write16_clr(rtwdev, phy_offset + RAC_ANA0D * RAC_MULT,
+				  OFFSET_CAL_MODE);
+	}
 
 out:
 	rtw89_write32(rtwdev, R_AX_PCIE_MIX_CFG_V1, backup_aspm);
@@ -3724,19 +3748,16 @@ static void rtw89_pci_free_irq(struct rtw89_dev *rtwdev,
 	pci_free_irq_vectors(pdev);
 }
 
-static u16 gray_code_to_bin(u16 gray_code, u32 bit_num)
+static u16 gray_code_to_bin(u16 gray_code)
 {
-	u16 bin = 0, gray_bit;
-	u32 bit_idx;
+	u16 binary = gray_code;
 
-	for (bit_idx = 0; bit_idx < bit_num; bit_idx++) {
-		gray_bit = (gray_code >> bit_idx) & 0x1;
-		if (bit_num - bit_idx > 1)
-			gray_bit ^= (gray_code >> (bit_idx + 1)) & 0x1;
-		bin |= (gray_bit << bit_idx);
+	while (gray_code) {
+		gray_code >>= 1;
+		binary ^= gray_code;
 	}
 
-	return bin;
+	return binary;
 }
 
 static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
@@ -3772,7 +3793,7 @@ static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
 		val16 = rtw89_read16_mask(rtwdev,
 					  phy_offset + RAC_ANA1F * RAC_MULT,
 					  FILTER_OUT_EQ_MASK);
-		val16 = gray_code_to_bin(val16, hweight16(val16));
+		val16 = gray_code_to_bin(val16);
 		filter_out_val = rtw89_read16(rtwdev, phy_offset + RAC_ANA24 *
 					      RAC_MULT);
 		filter_out_val &= ~REG_FILTER_OUT_MASK;
@@ -4188,6 +4209,17 @@ static void rtw89_pci_l2_hci_ldo(struct rtw89_dev *rtwdev)
 				    RTW89_PCIE_BIT_CFG_RST_MSTATE);
 }
 
+void rtw89_pci_basic_cfg(struct rtw89_dev *rtwdev, bool resume)
+{
+	if (resume)
+		rtw89_pci_cfg_dac(rtwdev);
+
+	rtw89_pci_disable_eq(rtwdev);
+	rtw89_pci_filter_out(rtwdev);
+	rtw89_pci_link_cfg(rtwdev);
+	rtw89_pci_l1ss_cfg(rtwdev);
+}
+
 static int __maybe_unused rtw89_pci_resume(struct device *dev)
 {
 	struct ieee80211_hw *hw = dev_get_drvdata(dev);
@@ -4209,11 +4241,8 @@ static int __maybe_unused rtw89_pci_resume(struct device *dev)
 				  B_AX_SEL_REQ_ENTR_L1);
 	}
 	rtw89_pci_l2_hci_ldo(rtwdev);
-	rtw89_pci_disable_eq(rtwdev);
-	rtw89_pci_cfg_dac(rtwdev);
-	rtw89_pci_filter_out(rtwdev);
-	rtw89_pci_link_cfg(rtwdev);
-	rtw89_pci_l1ss_cfg(rtwdev);
+
+	rtw89_pci_basic_cfg(rtwdev, true);
 
 	return 0;
 }
@@ -4246,6 +4275,8 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 	.aspm_set = rtw89_pci_aspm_set_ax,
 	.clkreq_set = rtw89_pci_clkreq_set_ax,
 	.l1ss_set = rtw89_pci_l1ss_set_ax,
+
+	.disable_eq = rtw89_pci_disable_eq_ax,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_ax);
 
@@ -4345,10 +4376,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_clear_resource;
 	}
 
-	rtw89_pci_disable_eq(rtwdev);
-	rtw89_pci_filter_out(rtwdev);
-	rtw89_pci_link_cfg(rtwdev);
-	rtw89_pci_l1ss_cfg(rtwdev);
+	rtw89_pci_basic_cfg(rtwdev, false);
 
 	ret = rtw89_core_napi_init(rtwdev);
 	if (ret) {

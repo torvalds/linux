@@ -398,10 +398,9 @@ static void rtw89_phy_bb_wrap_ul_pwr(struct rtw89_dev *rtwdev)
 	}
 }
 
-static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
+static void __rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev,
+					enum rtw89_mac_idx mac_idx)
 {
-	enum rtw89_mac_idx mac_idx = RTW89_MAC_0;
-
 	rtw89_phy_bb_wrap_pwr_by_macid_init(rtwdev);
 	rtw89_phy_bb_wrap_tx_path_by_macid_init(rtwdev);
 	rtw89_phy_bb_wrap_listen_path_en_init(rtwdev);
@@ -409,6 +408,13 @@ static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
 	rtw89_phy_bb_wrap_ftm_init(rtwdev, mac_idx);
 	rtw89_phy_bb_wrap_tpu_set_all(rtwdev, mac_idx);
 	rtw89_phy_bb_wrap_ul_pwr(rtwdev);
+}
+
+static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
+{
+	__rtw89_phy_bb_wrap_init_be(rtwdev, RTW89_MAC_0);
+	if (rtwdev->dbcc_en)
+		__rtw89_phy_bb_wrap_init_be(rtwdev, RTW89_MAC_1);
 }
 
 static void rtw89_phy_ch_info_init_be(struct rtw89_dev *rtwdev)

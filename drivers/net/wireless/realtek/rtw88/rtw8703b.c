@@ -29,9 +29,6 @@
 #define TBTT_PROHIBIT_HOLD_TIME 0x80
 #define TBTT_PROHIBIT_HOLD_TIME_STOP_BCN 0x64
 
-/* raw pkt_stat->drv_info_sz is in unit of 8-bytes */
-#define RX_DRV_INFO_SZ_UNIT_8703B 8
-
 #define TRANS_SEQ_END			\
 	0xFFFF,				\
 	RTW_PWR_CUT_ALL_MSK,		\
@@ -481,14 +478,14 @@ static const struct rtw_pwr_seq_cmd trans_act_to_lps_8703b[] = {
 	{TRANS_SEQ_END},
 };
 
-static const struct rtw_pwr_seq_cmd *card_enable_flow_8703b[] = {
+static const struct rtw_pwr_seq_cmd * const card_enable_flow_8703b[] = {
 	trans_pre_enable_8703b,
 	trans_carddis_to_cardemu_8703b,
 	trans_cardemu_to_act_8703b,
 	NULL
 };
 
-static const struct rtw_pwr_seq_cmd *card_disable_flow_8703b[] = {
+static const struct rtw_pwr_seq_cmd * const card_disable_flow_8703b[] = {
 	trans_act_to_lps_8703b,
 	trans_act_to_reset_mcu_8703b,
 	trans_act_to_cardemu_8703b,
@@ -1030,57 +1027,6 @@ static void query_phy_status(struct rtw_dev *rtwdev, u8 *phy_status,
 		query_phy_status_cck(rtwdev, phy_status, pkt_stat);
 	else
 		query_phy_status_ofdm(rtwdev, phy_status, pkt_stat);
-}
-
-static void rtw8703b_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
-				   struct rtw_rx_pkt_stat *pkt_stat,
-				   struct ieee80211_rx_status *rx_status)
-{
-	struct ieee80211_hdr *hdr;
-	u32 desc_sz = rtwdev->chip->rx_pkt_desc_sz;
-	u8 *phy_status = NULL;
-
-	memset(pkt_stat, 0, sizeof(*pkt_stat));
-
-	pkt_stat->phy_status = GET_RX_DESC_PHYST(rx_desc);
-	pkt_stat->icv_err = GET_RX_DESC_ICV_ERR(rx_desc);
-	pkt_stat->crc_err = GET_RX_DESC_CRC32(rx_desc);
-	pkt_stat->decrypted = !GET_RX_DESC_SWDEC(rx_desc) &&
-			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_NONE;
-	pkt_stat->is_c2h = GET_RX_DESC_C2H(rx_desc);
-	pkt_stat->pkt_len = GET_RX_DESC_PKT_LEN(rx_desc);
-	pkt_stat->drv_info_sz = GET_RX_DESC_DRV_INFO_SIZE(rx_desc);
-	pkt_stat->shift = GET_RX_DESC_SHIFT(rx_desc);
-	pkt_stat->rate = GET_RX_DESC_RX_RATE(rx_desc);
-	pkt_stat->cam_id = GET_RX_DESC_MACID(rx_desc);
-	pkt_stat->ppdu_cnt = 0;
-	pkt_stat->tsf_low = GET_RX_DESC_TSFL(rx_desc);
-
-	pkt_stat->drv_info_sz *= RX_DRV_INFO_SZ_UNIT_8703B;
-
-	if (pkt_stat->is_c2h)
-		return;
-
-	hdr = (struct ieee80211_hdr *)(rx_desc + desc_sz + pkt_stat->shift +
-				       pkt_stat->drv_info_sz);
-
-	pkt_stat->bw = GET_RX_DESC_BW(rx_desc);
-
-	if (pkt_stat->phy_status) {
-		phy_status = rx_desc + desc_sz + pkt_stat->shift;
-		query_phy_status(rtwdev, phy_status, pkt_stat);
-	}
-
-	rtw_rx_fill_rx_status(rtwdev, pkt_stat, hdr, rx_status, phy_status);
-
-	/* Rtl8723cs driver checks for size < 14 or size > 8192 and
-	 * simply drops the packet. Maybe this should go into
-	 * rtw_rx_fill_rx_status()?
-	 */
-	if (pkt_stat->pkt_len == 0) {
-		rx_status->flag |= RX_FLAG_NO_PSDU;
-		rtw_dbg(rtwdev, RTW_DBG_RX, "zero length packet");
-	}
 }
 
 #define ADDA_ON_VAL_8703B 0x03c00014
@@ -1941,14 +1887,14 @@ static const struct coex_tdma_para tdma_sant_8703b[] = {
 	{ {0x61, 0x08, 0x03, 0x11, 0x11} },
 };
 
-static struct rtw_chip_ops rtw8703b_ops = {
+static const struct rtw_chip_ops rtw8703b_ops = {
 	.mac_init		= rtw8723x_mac_init,
 	.dump_fw_crash		= NULL,
 	.shutdown		= NULL,
 	.read_efuse		= rtw8703b_read_efuse,
 	.phy_set_param		= rtw8703b_phy_set_param,
 	.set_channel		= rtw8703b_set_channel,
-	.query_rx_desc		= rtw8703b_query_rx_desc,
+	.query_phy_status	= query_phy_status,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_tx_power_index	= rtw8723x_set_tx_power_index,

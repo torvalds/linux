@@ -228,7 +228,7 @@ static int rtw_sub_pwr_seq_parser(struct rtw_dev *rtwdev, u8 intf_mask,
 }
 
 static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
-			      const struct rtw_pwr_seq_cmd **cmd_seq)
+			      const struct rtw_pwr_seq_cmd * const *cmd_seq)
 {
 	u8 cut_mask;
 	u8 intf_mask;
@@ -271,7 +271,7 @@ static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
 static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	const struct rtw_pwr_seq_cmd **pwr_seq;
+	const struct rtw_pwr_seq_cmd * const *pwr_seq;
 	u32 imr = 0;
 	u8 rpwm;
 	bool cur_pwr;

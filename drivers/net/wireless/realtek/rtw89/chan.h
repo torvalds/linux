@@ -43,18 +43,21 @@ struct rtw89_entity_weight {
 	unsigned int active_roles;
 };
 
-static inline bool rtw89_get_entity_state(struct rtw89_dev *rtwdev)
+static inline bool rtw89_get_entity_state(struct rtw89_dev *rtwdev,
+					  enum rtw89_phy_idx phy_idx)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	return READ_ONCE(hal->entity_active);
+	return READ_ONCE(hal->entity_active[phy_idx]);
 }
 
-static inline void rtw89_set_entity_state(struct rtw89_dev *rtwdev, bool active)
+static inline void rtw89_set_entity_state(struct rtw89_dev *rtwdev,
+					  enum rtw89_phy_idx phy_idx,
+					  bool active)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	WRITE_ONCE(hal->entity_active, active);
+	WRITE_ONCE(hal->entity_active[phy_idx], active);
 }
 
 static inline
@@ -106,10 +109,10 @@ void rtw89_chanctx_ops_change(struct rtw89_dev *rtwdev,
 			      struct ieee80211_chanctx_conf *ctx,
 			      u32 changed);
 int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
-				 struct rtw89_vif *rtwvif,
+				 struct rtw89_vif_link *rtwvif_link,
 				 struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
-				    struct rtw89_vif *rtwvif,
+				    struct rtw89_vif_link *rtwvif_link,
 				    struct ieee80211_chanctx_conf *ctx);
 
 #endif

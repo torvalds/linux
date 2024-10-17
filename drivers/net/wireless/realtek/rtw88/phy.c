@@ -123,7 +123,7 @@ static void rtw_phy_cck_pd_init(struct rtw_dev *rtwdev)
 
 void rtw_phy_set_edcca_th(struct rtw_dev *rtwdev, u8 l2h, u8 h2l)
 {
-	struct rtw_hw_reg_offset *edcca_th = rtwdev->chip->edcca_th;
+	const struct rtw_hw_reg_offset *edcca_th = rtwdev->chip->edcca_th;
 
 	rtw_write32_mask(rtwdev,
 			 edcca_th[EDCCA_TH_L2H_IDX].hw_reg.addr,
