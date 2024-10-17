@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -67,7 +67,7 @@ int gh_update_vm_prop_table(enum gh_vm_names vm_name,
 	if (!vm_prop)
 		return -EINVAL;
 
-	if (vm_prop->vmid < 0 || vm_name < GH_SELF_VM || vm_name > GH_VM_MAX)
+	if (vm_prop->vmid < 0 || vm_name < GH_SELF_VM || vm_name >= GH_VM_MAX)
 		return -EINVAL;
 
 	spin_lock(&gh_vm_table_lock);
@@ -129,9 +129,8 @@ int ghd_rm_get_vmid(enum gh_vm_names vm_name, gh_vmid_t *vmid)
 	gh_vmid_t _vmid;
 	int ret = 0;
 
-	if (vm_name < GH_SELF_VM || vm_name > GH_VM_MAX)
+	if (vm_name < GH_SELF_VM || vm_name >= GH_VM_MAX)
 		return -EINVAL;
-
 
 	spin_lock(&gh_vm_table_lock);
 
@@ -196,11 +195,10 @@ int gh_rm_get_vminfo(enum gh_vm_names vm_name, struct gh_vminfo *vm)
 	if (!vm)
 		return -EINVAL;
 
-	spin_lock(&gh_vm_table_lock);
-	if (vm_name < GH_SELF_VM || vm_name > GH_VM_MAX) {
-		spin_unlock(&gh_vm_table_lock);
+	if (vm_name < GH_SELF_VM || vm_name >= GH_VM_MAX)
 		return -EINVAL;
-	}
+
+	spin_lock(&gh_vm_table_lock);
 
 	vm->guid = gh_vm_table[vm_name].guid;
 	vm->uri = gh_vm_table[vm_name].uri;
@@ -980,7 +978,7 @@ int gh_rm_vm_alloc_vmid(enum gh_vm_names vm_name, int *vmid)
 	/* Look up for the vm_name<->vmid pair if already present.
 	 * If so, return.
 	 */
-	if (vm_name < GH_SELF_VM || vm_name > GH_VM_MAX)
+	if (vm_name < GH_SELF_VM || vm_name >= GH_VM_MAX)
 		return -EINVAL;
 
 	spin_lock(&gh_vm_table_lock);
