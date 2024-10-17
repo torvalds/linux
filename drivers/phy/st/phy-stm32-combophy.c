@@ -223,7 +223,7 @@ static int stm32_combophy_pll_init(struct stm32_combophy *combophy)
 	default:
 		dev_err(combophy->dev, "Invalid rate 0x%x\n", clk_rate);
 		return -EINVAL;
-	};
+	}
 
 	cr1_mask |= SYSCFG_COMBOPHY_CR1_REFCLKDIV2;
 	cr1_val |= REFCLDIV_0;
