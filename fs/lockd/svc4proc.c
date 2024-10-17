@@ -142,18 +142,6 @@ __nlm4svc_proc_lock(struct svc_rqst *rqstp, struct nlm_res *resp)
 	if ((resp->status = nlm4svc_retrieve_args(rqstp, argp, &host, &file)))
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
 
-#if 0
-	/* If supplied state doesn't match current state, we assume it's
-	 * an old request that time-warped somehow. Any error return would
-	 * do in this case because it's irrelevant anyway.
-	 *
-	 * NB: We don't retrieve the remote host's state yet.
-	 */
-	if (host->h_nsmstate && host->h_nsmstate != argp->state) {
-		resp->status = nlm_lck_denied_nolocks;
-	} else
-#endif
-
 	/* Now try to lock the file */
 	resp->status = nlmsvc_lock(rqstp, file, host, &argp->lock,
 					argp->block, &argp->cookie,
