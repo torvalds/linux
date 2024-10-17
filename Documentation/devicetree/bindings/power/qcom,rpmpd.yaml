@@ -39,6 +39,7 @@ properties:
           - qcom,sa8155p-rpmhpd
           - qcom,sa8540p-rpmhpd
           - qcom,sa8775p-rpmhpd
+          - qcom,sar2130p-rpmhpd
           - qcom,sc7180-rpmhpd
           - qcom,sc7280-rpmhpd
           - qcom,sc8180x-rpmhpd
