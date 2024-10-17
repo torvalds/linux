@@ -597,6 +597,7 @@ static int usb_gpib_command(gpib_board_t *board,
 
 	set_timeout(board);
 
+	*bytes_written = 0;
 	for (i = 0 ; i < length ; i++) {
 		command[3] = buffer[i];
 		retval = send_command(board, command, 5);
