@@ -1060,12 +1060,16 @@ static struct notifier_block netconsole_netdev_notifier = {
 
 static void send_msg_no_fragmentation(struct netconsole_target *nt,
 				      const char *msg,
-				      const char *userdata,
 				      int msg_len,
 				      int release_len)
 {
 	static char buf[MAX_PRINT_CHUNK]; /* protected by target_list_lock */
+	const char *userdata = NULL;
 	const char *release;
+
+#ifdef CONFIG_NETCONSOLE_DYNAMIC
+	userdata = nt->userdata_complete;
+#endif
 
 	if (release_len) {
 		release = init_utsname()->release;
@@ -1094,7 +1098,6 @@ static void append_release(char *buf)
 
 static void send_msg_fragmented(struct netconsole_target *nt,
 				const char *msg,
-				const char *userdata,
 				int msg_len,
 				int release_len)
 {
@@ -1102,10 +1105,11 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 	static char buf[MAX_PRINT_CHUNK]; /* protected by target_list_lock */
 	int offset = 0, userdata_len = 0;
 	const char *header, *msgbody;
+	const char *userdata = NULL;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	if (userdata)
-		userdata_len = nt->userdata_length;
+	userdata = nt->userdata_complete;
+	userdata_len = nt->userdata_length;
 #endif
 
 	/* need to insert extra header fields, detect header and msgbody */
@@ -1208,12 +1212,10 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 			     int msg_len)
 {
-	char *userdata = NULL;
 	int userdata_len = 0;
 	int release_len = 0;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	userdata = nt->userdata_complete;
 	userdata_len = nt->userdata_length;
 #endif
 
@@ -1221,10 +1223,9 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 		release_len = strlen(init_utsname()->release) + 1;
 
 	if (msg_len + release_len + userdata_len <= MAX_PRINT_CHUNK)
-		return send_msg_no_fragmentation(nt, msg, userdata, msg_len,
-						 release_len);
+		return send_msg_no_fragmentation(nt, msg, msg_len, release_len);
 
-	return send_msg_fragmented(nt, msg, userdata, msg_len, release_len);
+	return send_msg_fragmented(nt, msg, msg_len, release_len);
 }
 
 static void write_ext_msg(struct console *con, const char *msg,
