@@ -1133,12 +1133,13 @@ static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
 		return;
 	}
 
+	if (duplex != DUPLEX_FULL)
+		dev_err(&xpcs->mdiodev->dev, "%s: half duplex not supported\n",
+			__func__);
+
 	val = BMCR_SPEED1000;
 	if (duplex == DUPLEX_FULL)
 		val |= BMCR_FULLDPLX;
-	else
-		dev_err(&xpcs->mdiodev->dev, "%s: half duplex not supported\n",
-			__func__);
 
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR, val);
 	if (ret)
