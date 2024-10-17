@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "generated/bit-length.h"
+
 #include "maple-shared.h"
 #include "vma_internal.h"
 
