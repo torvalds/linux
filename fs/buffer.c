@@ -855,8 +855,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
  * done a sync().  Just drop the buffers from the inode list.
  *
  * NOTE: we take the inode's blockdev's mapping's i_private_lock.  Which
- * assumes that all the buffers are against the blockdev.  Not true
- * for reiserfs.
+ * assumes that all the buffers are against the blockdev.
  */
 void invalidate_inode_buffers(struct inode *inode)
 {

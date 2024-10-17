@@ -177,7 +177,7 @@ settles down a bit.
 **mandatory**
 
 s_export_op is now required for exporting a filesystem.
-isofs, ext2, ext3, reiserfs, fat
+isofs, ext2, ext3, fat
 can be used as examples of very different filesystems.
 
 ---
