@@ -20,7 +20,7 @@
 #define NFSD_MAY_READ			0x004 /* == MAY_READ */
 #define NFSD_MAY_SATTR			0x008
 #define NFSD_MAY_TRUNC			0x010
-#define NFSD_MAY_LOCK			0x020
+#define NFSD_MAY_NLM			0x020 /* request is from lockd */
 #define NFSD_MAY_MASK			0x03f
 
 /* extra hints to permission and open routines: */
