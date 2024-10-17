@@ -528,7 +528,7 @@ static int fmh_gpib_accel_write(gpib_board_t *board, uint8_t *buffer,
 
 		/* wait until we are sure we will be able to write the data byte
 		 * into the chip before we send AUX_SEOI.  This prevents a timeout
-		 * scenerio where we send AUX_SEOI but then timeout without getting
+		 * scenario where we send AUX_SEOI but then timeout without getting
 		 * any bytes into the gpib chip.  This will result in the first byte
 		 * of the next write having a spurious EOI set on the first byte.
 		 */
