@@ -1127,18 +1127,13 @@ static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		return;
 
-	switch (speed) {
-	case SPEED_1000:
-		val = BMCR_SPEED1000;
-		break;
-	case SPEED_100:
-	case SPEED_10:
-	default:
-		dev_err(&xpcs->mdiodev->dev, "%s: speed = %d\n",
+	if (speed != SPEED_1000) {
+		dev_err(&xpcs->mdiodev->dev, "%s: speed %dMbps not supported\n",
 			__func__, speed);
 		return;
 	}
 
+	val = BMCR_SPEED1000;
 	if (duplex == DUPLEX_FULL)
 		val |= BMCR_FULLDPLX;
 	else
