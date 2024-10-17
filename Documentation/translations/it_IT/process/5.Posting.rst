@@ -208,11 +208,6 @@ di commit in un sistema di controllo di versione.  Sarà seguito da:
    l'opzione "-p" assocerà alla modifica il nome della funzione alla quale
    si riferisce, rendendo il risultato più facile da leggere per gli altri.
 
-Dovreste evitare di includere nelle patch delle modifiche per file
-irrilevanti (quelli generati dal processo di generazione, per esempio, o i file
-di backup del vostro editor).  Il file "dontdiff" nella cartella Documentation
-potrà esservi d'aiuto su questo punto; passatelo a diff con l'opzione "-X".
-
 Le etichette sopracitate danno un'idea di come una patch prende vita e sono
 descritte nel dettaglio nel documento
 :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`.
