@@ -86,7 +86,7 @@ static void file_priv_unbind(struct ivpu_device *vdev, struct ivpu_file_priv *fi
 
 		ivpu_cmdq_release_all_locked(file_priv);
 		ivpu_bo_unbind_all_bos_from_context(vdev, &file_priv->ctx);
-		ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
+		ivpu_mmu_context_fini(vdev, &file_priv->ctx);
 		file_priv->bound = false;
 		drm_WARN_ON(&vdev->drm, !xa_erase_irq(&vdev->context_xa, file_priv->ctx.id));
 	}
@@ -254,9 +254,7 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 		goto err_unlock;
 	}
 
-	ret = ivpu_mmu_user_context_init(vdev, &file_priv->ctx, ctx_id);
-	if (ret)
-		goto err_xa_erase;
+	ivpu_mmu_context_init(vdev, &file_priv->ctx, ctx_id);
 
 	file_priv->default_job_limit.min = FIELD_PREP(IVPU_JOB_ID_CONTEXT_MASK,
 						      (file_priv->ctx.id - 1));
@@ -273,8 +271,6 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 
 	return 0;
 
-err_xa_erase:
-	xa_erase_irq(&vdev->context_xa, ctx_id);
 err_unlock:
 	mutex_unlock(&vdev->context_list_lock);
 	mutex_destroy(&file_priv->ms_lock);
@@ -652,9 +648,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (ret)
 		goto err_shutdown;
 
-	ret = ivpu_mmu_global_context_init(vdev);
-	if (ret)
-		goto err_shutdown;
+	ivpu_mmu_global_context_init(vdev);
 
 	ret = ivpu_mmu_init(vdev);
 	if (ret)
