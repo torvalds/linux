@@ -170,8 +170,8 @@ out:
 
 /* Routes handling */
 
-static int fill_route(struct sk_buff *skb, struct net_device *dev, u8 dst,
-			u32 portid, u32 seq, int event)
+static int fill_route(struct sk_buff *skb, u32 ifindex, u8 dst,
+		      u32 portid, u32 seq, int event)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr *nlh;
@@ -190,8 +190,7 @@ static int fill_route(struct sk_buff *skb, struct net_device *dev, u8 dst,
 	rtm->rtm_scope = RT_SCOPE_UNIVERSE;
 	rtm->rtm_type = RTN_UNICAST;
 	rtm->rtm_flags = 0;
-	if (nla_put_u8(skb, RTA_DST, dst) ||
-	    nla_put_u32(skb, RTA_OIF, READ_ONCE(dev->ifindex)))
+	if (nla_put_u8(skb, RTA_DST, dst) || nla_put_u32(skb, RTA_OIF, ifindex))
 		goto nla_put_failure;
 	nlmsg_end(skb, nlh);
 	return 0;
@@ -210,7 +209,8 @@ void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
 			nla_total_size(1) + nla_total_size(4), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
-	err = fill_route(skb, dev, dst, 0, 0, event);
+
+	err = fill_route(skb, dev->ifindex, dst, 0, 0, event);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
@@ -286,7 +286,7 @@ static int route_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!dev)
 			continue;
 
-		err = fill_route(skb, dev, addr << 2,
+		err = fill_route(skb, READ_ONCE(dev->ifindex), addr << 2,
 				 NETLINK_CB(cb->skb).portid,
 				 cb->nlh->nlmsg_seq, RTM_NEWROUTE);
 		if (err < 0)
