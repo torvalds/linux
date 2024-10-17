@@ -749,10 +749,17 @@ static int ivpu_mmu_cdtab_entry_set(struct ivpu_device *vdev, u32 ssid, u64 cd_d
 
 	ret = ivpu_mmu_cmdq_write_cfgi_all(vdev);
 	if (ret)
-		goto unlock;
+		goto err_invalidate;
 
 	ret = ivpu_mmu_cmdq_sync(vdev);
+	if (ret)
+		goto err_invalidate;
 unlock:
+	mutex_unlock(&mmu->lock);
+	return 0;
+
+err_invalidate:
+	WRITE_ONCE(entry[0], 0);
 	mutex_unlock(&mmu->lock);
 	return ret;
 }
