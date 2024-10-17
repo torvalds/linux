@@ -2261,7 +2261,8 @@ static void ethosn_class_release(void)
 }
 
 static int __init ethosn_init(void)
-{
+{   
+    // 向内核注册字符设备和初始化设备类
 	int ret = ethosn_class_init();
 
 	if (ret)

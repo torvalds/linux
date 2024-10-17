@@ -49,6 +49,7 @@ ethosn_get_top_allocator(struct platform_device *pdev)
 	return top_allocator;
 }
 
+// 根据设备节点的名字来判断流类型
 static enum ethosn_stream_type get_stream_type(struct platform_device *pdev)
 {
 	const struct device_node *np = pdev->dev.of_node;

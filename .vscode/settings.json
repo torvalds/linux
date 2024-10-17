@@ -33,6 +33,10 @@
         {
             "filePath": "build/puml",
             "group": "Default"
+        },
+        {
+            "filePath": "drivers/misc/ethosn/juno-r2-ethosn-smmu.dts",
+            "group": "Default"
         }
     ],
     "favorites.sortOrder": "ASC",
