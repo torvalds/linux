@@ -576,9 +576,6 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	hyp_entry_exit_handler_fn ec_handler;
 	u8 esr_ec;
 
-	if (READ_ONCE(hyp_vcpu->power_state) == PSCI_0_2_AFFINITY_LEVEL_ON_PENDING)
-		pkvm_reset_vcpu(hyp_vcpu);
-
 	/*
 	 * If we deal with a non-protected guest and the state is potentially
 	 * dirty (from a host perspective), copy the state back into the hyp
@@ -823,19 +820,29 @@ static struct kvm_vcpu *__get_host_hyp_vcpus(struct kvm_vcpu *arg,
 		__get_host_hyp_vcpus(__vcpu, hyp_vcpup);			\
 	})
 
+static bool is_vcpu_runnable(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	return (!pkvm_hyp_vcpu_is_protected(hyp_vcpu) ||
+		hyp_vcpu->power_state == PSCI_0_2_AFFINITY_LEVEL_ON);
+}
+
 static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 {
 	struct pkvm_hyp_vcpu *hyp_vcpu;
 	struct kvm_vcpu *host_vcpu;
-	int ret;
+	int ret = ARM_EXCEPTION_IL;
 
 	host_vcpu = get_host_hyp_vcpus(host_ctxt, 1, &hyp_vcpu);
-	if (!host_vcpu) {
-		ret = -EINVAL;
+	if (!host_vcpu)
 		goto out;
-	}
 
 	if (unlikely(hyp_vcpu)) {
+		if (hyp_vcpu->power_state == PSCI_0_2_AFFINITY_LEVEL_ON_PENDING)
+			pkvm_reset_vcpu(hyp_vcpu);
+
+		if (unlikely(!is_vcpu_runnable(hyp_vcpu)))
+			goto out;
+
 		flush_hyp_vcpu(hyp_vcpu);
 
 		ret = __kvm_vcpu_run(&hyp_vcpu->vcpu);
