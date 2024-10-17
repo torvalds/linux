@@ -44,6 +44,7 @@ properties:
           - qcom,scm-qcm2290
           - qcom,scm-qdu1000
           - qcom,scm-sa8775p
+          - qcom,scm-sar2130p
           - qcom,scm-sc7180
           - qcom,scm-sc7280
           - qcom,scm-sc8180x
