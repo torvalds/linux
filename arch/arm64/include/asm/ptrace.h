@@ -168,9 +168,7 @@ struct pt_regs {
 	u32 pmr;
 
 	u64 sdei_ttbr1;
-	u64 unused;
-
-	struct frame_record stackframe;
+	struct frame_record_meta stackframe;
 
 	/* Only valid for some EL1 exceptions. */
 	u64 lockdep_hardirqs;

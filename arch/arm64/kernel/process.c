@@ -409,6 +409,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		 */
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->pstate = PSR_MODE_EL1h | PSR_IL_BIT;
+		childregs->stackframe.type = FRAME_META_TYPE_FINAL;
 
 		p->thread.cpu_context.x19 = (unsigned long)args->fn;
 		p->thread.cpu_context.x20 = (unsigned long)args->fn_arg;

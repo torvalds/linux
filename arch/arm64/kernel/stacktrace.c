@@ -26,6 +26,7 @@ enum kunwind_source {
 	KUNWIND_SOURCE_CALLER,
 	KUNWIND_SOURCE_TASK,
 	KUNWIND_SOURCE_REGS_PC,
+	KUNWIND_SOURCE_REGS_LR,
 };
 
 union unwind_flags {
@@ -55,6 +56,7 @@ struct kunwind_state {
 #endif
 	enum kunwind_source source;
 	union unwind_flags flags;
+	struct pt_regs *regs;
 };
 
 static __always_inline void
@@ -65,6 +67,7 @@ kunwind_init(struct kunwind_state *state,
 	state->task = task;
 	state->source = KUNWIND_SOURCE_UNKNOWN;
 	state->flags.all = 0;
+	state->regs = NULL;
 }
 
 /*
@@ -80,6 +83,7 @@ kunwind_init_from_regs(struct kunwind_state *state,
 {
 	kunwind_init(state, current);
 
+	state->regs = regs;
 	state->common.fp = regs->regs[29];
 	state->common.pc = regs->pc;
 	state->source = KUNWIND_SOURCE_REGS_PC;
@@ -155,6 +159,103 @@ kunwind_recover_return_address(struct kunwind_state *state)
 	return 0;
 }
 
+static __always_inline
+int kunwind_next_regs_pc(struct kunwind_state *state)
+{
+	struct stack_info *info;
+	unsigned long fp = state->common.fp;
+	struct pt_regs *regs;
+
+	regs = container_of((u64 *)fp, struct pt_regs, stackframe.record.fp);
+
+	info = unwind_find_stack(&state->common, (unsigned long)regs, sizeof(*regs));
+	if (!info)
+		return -EINVAL;
+
+	unwind_consume_stack(&state->common, info, (unsigned long)regs,
+			     sizeof(*regs));
+
+	state->regs = regs;
+	state->common.pc = regs->pc;
+	state->common.fp = regs->regs[29];
+	state->source = KUNWIND_SOURCE_REGS_PC;
+	return 0;
+}
+
+static __always_inline int
+kunwind_next_regs_lr(struct kunwind_state *state)
+{
+	/*
+	 * The stack for the regs was consumed by kunwind_next_regs_pc(), so we
+	 * cannot consume that again here, but we know the regs are safe to
+	 * access.
+	 */
+	state->common.pc = state->regs->regs[30];
+	state->common.fp = state->regs->regs[29];
+	state->regs = NULL;
+	state->source = KUNWIND_SOURCE_REGS_LR;
+
+	return 0;
+}
+
+static __always_inline int
+kunwind_next_frame_record_meta(struct kunwind_state *state)
+{
+	struct task_struct *tsk = state->task;
+	unsigned long fp = state->common.fp;
+	struct frame_record_meta *meta;
+	struct stack_info *info;
+
+	info = unwind_find_stack(&state->common, fp, sizeof(*meta));
+	if (!info)
+		return -EINVAL;
+
+	meta = (struct frame_record_meta *)fp;
+	switch (READ_ONCE(meta->type)) {
+	case FRAME_META_TYPE_FINAL:
+		if (meta == &task_pt_regs(tsk)->stackframe)
+			return -ENOENT;
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	case FRAME_META_TYPE_PT_REGS:
+		return kunwind_next_regs_pc(state);
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+}
+
+static __always_inline int
+kunwind_next_frame_record(struct kunwind_state *state)
+{
+	unsigned long fp = state->common.fp;
+	struct frame_record *record;
+	struct stack_info *info;
+	unsigned long new_fp, new_pc;
+
+	if (fp & 0x7)
+		return -EINVAL;
+
+	info = unwind_find_stack(&state->common, fp, sizeof(*record));
+	if (!info)
+		return -EINVAL;
+
+	record = (struct frame_record *)fp;
+	new_fp = READ_ONCE(record->fp);
+	new_pc = READ_ONCE(record->lr);
+
+	if (!new_fp && !new_pc)
+		return kunwind_next_frame_record_meta(state);
+
+	unwind_consume_stack(&state->common, info, fp, sizeof(*record));
+
+	state->common.fp = new_fp;
+	state->common.pc = new_pc;
+	state->source = KUNWIND_SOURCE_FRAME;
+
+	return 0;
+}
+
 /*
  * Unwind from one frame record (A) to the next frame record (B).
  *
@@ -165,29 +266,26 @@ kunwind_recover_return_address(struct kunwind_state *state)
 static __always_inline int
 kunwind_next(struct kunwind_state *state)
 {
-	struct task_struct *tsk = state->task;
-	unsigned long fp = state->common.fp;
 	int err;
 
 	state->flags.all = 0;
-
-	/* Final frame; nothing to unwind */
-	if (fp == (unsigned long)&task_pt_regs(tsk)->stackframe)
-		return -ENOENT;
 
 	switch (state->source) {
 	case KUNWIND_SOURCE_FRAME:
 	case KUNWIND_SOURCE_CALLER:
 	case KUNWIND_SOURCE_TASK:
+	case KUNWIND_SOURCE_REGS_LR:
+		err = kunwind_next_frame_record(state);
+		break;
 	case KUNWIND_SOURCE_REGS_PC:
-		err = unwind_next_frame_record(&state->common);
-		if (err)
-			return err;
-		state->source = KUNWIND_SOURCE_FRAME;
+		err = kunwind_next_regs_lr(state);
 		break;
 	default:
-		return -EINVAL;
+		err = -EINVAL;
 	}
+
+	if (err)
+		return err;
 
 	state->common.pc = ptrauth_strip_kernel_insn_pac(state->common.pc);
 
@@ -338,6 +436,7 @@ static const char *state_source_string(const struct kunwind_state *state)
 	case KUNWIND_SOURCE_CALLER:	return "C";
 	case KUNWIND_SOURCE_TASK:	return "T";
 	case KUNWIND_SOURCE_REGS_PC:	return "P";
+	case KUNWIND_SOURCE_REGS_LR:	return "L";
 	default:			return "U";
 	}
 }
