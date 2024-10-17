@@ -1417,7 +1417,7 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 							  PP_OD_FEATURE_GFXCLK_FMAX,
 							  NULL,
 							  &max_value);
-			size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "SCLK_OFFSET: %7dMhz %10uMhz\n",
 					      min_value, max_value);
 		}
 
