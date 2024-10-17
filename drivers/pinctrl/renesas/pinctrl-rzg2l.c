@@ -2433,21 +2433,6 @@ err:
 	return ret;
 }
 
-static int rzg2l_gpio_populate_parent_fwspec(struct gpio_chip *chip,
-					     union gpio_irq_fwspec *gfwspec,
-					     unsigned int parent_hwirq,
-					     unsigned int parent_type)
-{
-	struct irq_fwspec *fwspec = &gfwspec->fwspec;
-
-	fwspec->fwnode = chip->irq.parent_domain->fwnode;
-	fwspec->param_count = 2;
-	fwspec->param[0] = parent_hwirq;
-	fwspec->param[1] = parent_type;
-
-	return 0;
-}
-
 static void rzg2l_gpio_irq_restore(struct rzg2l_pinctrl *pctrl)
 {
 	struct irq_domain *domain = pctrl->gpio_chip.irq.domain;
@@ -2649,7 +2634,7 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 	girq->fwnode = dev_fwnode(pctrl->dev);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = rzg2l_gpio_child_to_parent_hwirq;
-	girq->populate_parent_alloc_arg = rzg2l_gpio_populate_parent_fwspec;
+	girq->populate_parent_alloc_arg = gpiochip_populate_parent_fwspec_twocell;
 	girq->child_irq_domain_ops.free = rzg2l_gpio_irq_domain_free;
 	girq->init_valid_mask = rzg2l_init_irq_valid_mask;
 
