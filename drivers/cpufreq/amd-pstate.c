@@ -529,8 +529,27 @@ cpufreq_policy_put:
 
 static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
 {
+	/*
+	 * Initialize lower frequency limit (i.e.policy->min) with
+	 * lowest_nonlinear_frequency which is the most energy efficient
+	 * frequency. Override the initial value set by cpufreq core and
+	 * amd-pstate qos_requests.
+	 */
+	if (policy_data->min == FREQ_QOS_MIN_DEFAULT_VALUE) {
+		struct cpufreq_policy *policy = cpufreq_cpu_get(policy_data->cpu);
+		struct amd_cpudata *cpudata;
+
+		if (!policy)
+			return -EINVAL;
+
+		cpudata = policy->driver_data;
+		policy_data->min = cpudata->lowest_nonlinear_freq;
+		cpufreq_cpu_put(policy);
+	}
+
 	cpufreq_verify_within_cpu_limits(policy_data);
 	pr_debug("policy_max =%d, policy_min=%d\n", policy_data->max, policy_data->min);
+
 	return 0;
 }
 
@@ -979,7 +998,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 		policy->fast_switch_possible = true;
 
 	ret = freq_qos_add_request(&policy->constraints, &cpudata->req[0],
-				   FREQ_QOS_MIN, policy->cpuinfo.min_freq);
+				   FREQ_QOS_MIN, FREQ_QOS_MIN_DEFAULT_VALUE);
 	if (ret < 0) {
 		dev_err(dev, "Failed to add min-freq constraint (%d)\n", ret);
 		goto free_cpudata1;
