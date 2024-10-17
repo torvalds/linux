@@ -5324,7 +5324,6 @@ err_disable:
 
 extern struct btf *btf_vmlinux;
 static const struct btf_type *task_struct_type;
-static u32 task_struct_type_id;
 
 static bool set_arg_maybe_null(const char *op, int arg_n, int off, int size,
 			       enum bpf_access_type type,
@@ -5376,7 +5375,7 @@ static bool set_arg_maybe_null(const char *op, int arg_n, int off, int size,
 		 */
 		info->reg_type = PTR_MAYBE_NULL | PTR_TO_BTF_ID | PTR_TRUSTED;
 		info->btf = btf_vmlinux;
-		info->btf_id = task_struct_type_id;
+		info->btf_id = btf_tracing_ids[BTF_TRACING_TYPE_TASK];
 
 		return true;
 	}
@@ -5528,13 +5527,7 @@ static void bpf_scx_unreg(void *kdata, struct bpf_link *link)
 
 static int bpf_scx_init(struct btf *btf)
 {
-	s32 type_id;
-
-	type_id = btf_find_by_name_kind(btf, "task_struct", BTF_KIND_STRUCT);
-	if (type_id < 0)
-		return -EINVAL;
-	task_struct_type = btf_type_by_id(btf, type_id);
-	task_struct_type_id = type_id;
+	task_struct_type = btf_type_by_id(btf, btf_tracing_ids[BTF_TRACING_TYPE_TASK]);
 
 	return 0;
 }
