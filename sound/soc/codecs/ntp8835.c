@@ -277,7 +277,7 @@ static int ntp8835_set_component_sysclk(struct snd_soc_component *component,
 		ntp8835->mclk_rate = 0;
 		dev_err(component->dev, "Unsupported MCLK value: %u", freq);
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
