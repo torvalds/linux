@@ -14,6 +14,7 @@ rename_devices.ko
 gh_msgq.ko
 gh_rm_drv.ko
 boot_stats.ko
+bootmarker_proxy.ko
 virtio_clk_lemans.ko
 virtio_clk_direwolf.ko
 virtio_clk_sa8195p.ko
