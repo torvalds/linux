@@ -18,6 +18,18 @@
 
 #include "pci.h"
 
+/*
+ * The first PCI_BRIDGE_RESOURCE_NUM PCI bus resources (those that correspond
+ * to P2P or CardBus bridge windows) go in a table.  Additional ones (for
+ * buses below host bridges or subtractive decode bridges) go in the list.
+ * Use pci_bus_for_each_resource() to iterate through all the resources.
+ */
+
+struct pci_bus_resource {
+	struct list_head	list;
+	struct resource		*res;
+};
+
 void pci_add_resource_offset(struct list_head *resources, struct resource *res,
 			     resource_size_t offset)
 {
