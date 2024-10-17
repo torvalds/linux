@@ -658,26 +658,6 @@ static int cnss_sdio_powerup(void)
 	return ret;
 }
 
-static int cnss_sdio_ramdump(void)
-{
-	struct cnss_ramdump_info *ramdump_info = &cnss_pdata->ramdump_info;
-	struct qcom_dump_segment segment;
-	struct list_head head;
-
-	if (!cnss_pdata)
-		return -ENODEV;
-
-	if (!cnss_pdata->ramdump_info.ramdump_size)
-		return -ENOENT;
-
-	INIT_LIST_HEAD(&head);
-	memset(&segment, 0, sizeof(segment));
-	segment.va = ramdump_info->ramdump_va;
-	segment.size = ramdump_info->ramdump_size;
-	list_add(&segment.node, &head);
-	return qcom_dump(&head, ramdump_info->ramdump_dev);
-}
-
 void cnss_sdio_device_self_recovery(void)
 {
 	cnss_sdio_shutdown();
@@ -703,10 +683,7 @@ void cnss_sdio_device_crashed(void)
 		return;
 	if (cnss_pdata->rproc->recovery_disabled)
 		panic("subsys-restart: Resetting the SoC wlan crashed\n");
-	cnss_sdio_shutdown();
-	cnss_sdio_ramdump();
-	msleep(WLAN_RECOVERY_DELAY);
-	cnss_sdio_powerup();
+	cnss_sdio_schedule_recovery_work();
 }
 
 static void cnss_sdio_crash_shutdown(void)
