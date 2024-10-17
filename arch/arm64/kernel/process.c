@@ -419,7 +419,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 * For the benefit of the unwinder, set up childregs->stackframe
 	 * as the final frame for the new task.
 	 */
-	p->thread.cpu_context.fp = (unsigned long)childregs->stackframe;
+	p->thread.cpu_context.fp = (unsigned long)&childregs->stackframe;
 
 	ptrace_hw_copy_thread(p);
 

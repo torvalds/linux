@@ -98,6 +98,8 @@
 #include <linux/bug.h>
 #include <linux/types.h>
 
+#include <asm/stacktrace/frame.h>
+
 /* sizeof(struct user) for AArch32 */
 #define COMPAT_USER_SZ	296
 
@@ -168,7 +170,7 @@ struct pt_regs {
 	u64 sdei_ttbr1;
 	u64 unused;
 
-	u64 stackframe[2];
+	struct frame_record stackframe;
 
 	/* Only valid for some EL1 exceptions. */
 	u64 lockdep_hardirqs;

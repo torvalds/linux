@@ -145,7 +145,7 @@ kunwind_next(struct kunwind_state *state)
 	int err;
 
 	/* Final frame; nothing to unwind */
-	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
+	if (fp == (unsigned long)&task_pt_regs(tsk)->stackframe)
 		return -ENOENT;
 
 	err = unwind_next_frame_record(&state->common);

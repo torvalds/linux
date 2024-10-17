@@ -137,21 +137,23 @@ found:
 static inline int
 unwind_next_frame_record(struct unwind_state *state)
 {
+	struct frame_record *record;
 	unsigned long fp = state->fp;
 	int err;
 
 	if (fp & 0x7)
 		return -EINVAL;
 
-	err = unwind_consume_stack(state, fp, 16);
+	err = unwind_consume_stack(state, fp, sizeof(*record));
 	if (err)
 		return err;
 
 	/*
 	 * Record this frame record's values.
 	 */
-	state->fp = READ_ONCE(*(unsigned long *)(fp));
-	state->pc = READ_ONCE(*(unsigned long *)(fp + 8));
+	record = (struct frame_record *)fp;
+	state->fp = READ_ONCE(record->fp);
+	state->pc = READ_ONCE(record->lr);
 
 	return 0;
 }

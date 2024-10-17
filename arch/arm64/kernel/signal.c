@@ -42,11 +42,6 @@ struct rt_sigframe {
 	struct ucontext uc;
 };
 
-struct frame_record {
-	u64 fp;
-	u64 lr;
-};
-
 struct rt_sigframe_user_layout {
 	struct rt_sigframe __user *sigframe;
 	struct frame_record __user *next_frame;
