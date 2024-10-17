@@ -54,9 +54,6 @@
 
 /* Clause 37 Defines */
 /* VR MII MMD registers offsets */
-#define DW_VR_MII_MMD_CTRL		0x0000
-#define DW_VR_MII_MMD_STS		0x0001
-#define DW_VR_MII_MMD_STS_LINK_STS	BIT(2)
 #define DW_VR_MII_DIG_CTRL1		0x8000
 #define DW_VR_MII_AN_CTRL		0x8001
 #define DW_VR_MII_AN_INTR_STS		0x8002
@@ -92,15 +89,6 @@
 #define DW_VR_MII_C37_ANSGM_SP_100		0x1
 #define DW_VR_MII_C37_ANSGM_SP_1000		0x2
 #define DW_VR_MII_C37_ANSGM_SP_LNKSTS		BIT(4)
-
-/* SR MII MMD Control defines */
-#define AN_CL37_EN			BIT(12)	/* Enable Clause 37 auto-nego */
-#define SGMII_SPEED_SS13		BIT(13)	/* SGMII speed along with SS6 */
-#define SGMII_SPEED_SS6			BIT(6)	/* SGMII speed along with SS13 */
-
-/* SR MII MMD AN Advertisement defines */
-#define DW_HALF_DUPLEX			BIT(6)
-#define DW_FULL_DUPLEX			BIT(5)
 
 /* VR MII EEE Control 0 defines */
 #define DW_VR_MII_EEE_LTX_EN			BIT(0)  /* LPI Tx Enable */
