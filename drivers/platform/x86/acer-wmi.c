@@ -2636,7 +2636,7 @@ static struct platform_driver acer_platform_driver = {
 		.pm = &acer_pm,
 	},
 	.probe = acer_platform_probe,
-	.remove_new = acer_platform_remove,
+	.remove = acer_platform_remove,
 	.shutdown = acer_platform_shutdown,
 };
 

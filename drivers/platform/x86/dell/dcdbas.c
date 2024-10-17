@@ -709,7 +709,7 @@ static struct platform_driver dcdbas_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= dcdbas_probe,
-	.remove_new	= dcdbas_remove,
+	.remove		= dcdbas_remove,
 };
 
 static const struct platform_device_info dcdbas_dev_info __initconst = {

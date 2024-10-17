@@ -372,7 +372,7 @@ static SIMPLE_DEV_PM_OPS(hp_accel_pm, lis3lv02d_suspend, lis3lv02d_resume);
 /* For the HP MDPS aka 3D Driveguard */
 static struct platform_driver lis3lv02d_driver = {
 	.probe	= lis3lv02d_probe,
-	.remove_new = lis3lv02d_remove,
+	.remove	= lis3lv02d_remove,
 	.driver	= {
 		.name	= "hp_accel",
 		.pm	= &hp_accel_pm,

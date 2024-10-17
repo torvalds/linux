@@ -536,7 +536,7 @@ static void yogabook_pdev_remove(struct platform_device *pdev)
 
 static struct platform_driver yogabook_pdev_driver = {
 	.probe = yogabook_pdev_probe,
-	.remove_new = yogabook_pdev_remove,
+	.remove = yogabook_pdev_remove,
 	.driver = {
 		.name = YB_PDEV_NAME,
 		.pm = pm_sleep_ptr(&yogabook_pm_ops),

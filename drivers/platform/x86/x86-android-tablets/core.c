@@ -456,7 +456,7 @@ static struct platform_driver x86_android_tablet_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},
-	.remove_new = x86_android_tablet_remove,
+	.remove = x86_android_tablet_remove,
 };
 
 static int __init x86_android_tablet_init(void)

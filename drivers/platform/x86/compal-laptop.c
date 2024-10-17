@@ -1023,8 +1023,8 @@ static struct platform_driver compal_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 	},
-	.probe	= compal_probe,
-	.remove_new = compal_remove,
+	.probe = compal_probe,
+	.remove = compal_remove,
 };
 
 static int __init compal_init(void)

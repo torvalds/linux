@@ -1328,7 +1328,7 @@ static struct platform_driver acpi_wmi_driver = {
 		.acpi_match_table = wmi_device_ids,
 	},
 	.probe = acpi_wmi_probe,
-	.remove_new = acpi_wmi_remove,
+	.remove = acpi_wmi_remove,
 };
 
 static int __init acpi_wmi_init(void)

@@ -747,7 +747,7 @@ static struct platform_driver intel_hid_pl_driver = {
 		.pm = &intel_hid_pl_pm_ops,
 	},
 	.probe = intel_hid_probe,
-	.remove_new = intel_hid_remove,
+	.remove = intel_hid_remove,
 };
 
 /*

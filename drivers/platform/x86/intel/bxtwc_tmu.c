@@ -131,7 +131,7 @@ MODULE_DEVICE_TABLE(platform, bxt_wcove_tmu_id_table);
 
 static struct platform_driver bxt_wcove_tmu_driver = {
 	.probe = bxt_wcove_tmu_probe,
-	.remove_new = bxt_wcove_tmu_remove,
+	.remove = bxt_wcove_tmu_remove,
 	.driver = {
 		.name = "bxt_wcove_tmu",
 		.pm     = &bxtwc_tmu_pm_ops,
