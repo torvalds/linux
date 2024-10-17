@@ -444,3 +444,66 @@ int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
 
 	return ret;
 }
+
+int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
+			uint64_t pa_addr, uint64_t *pfns, int len)
+{
+	uint32_t i, ret = 0, pos = 0;
+	struct ta_ras_query_address_output addr_out;
+	struct ras_err_data err_data;
+
+	err_data.err_addr =
+		kcalloc(adev->umc.max_ras_err_cnt_per_query,
+				sizeof(struct eeprom_table_record), GFP_KERNEL);
+	if (!err_data.err_addr) {
+		dev_warn(adev->dev, "Failed to alloc memory in bad page lookup!\n");
+		return 0;
+	}
+
+	addr_out.pa.pa = pa_addr;
+
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
+		adev->umc.ras->convert_ras_err_addr(adev, &err_data, NULL,
+				&addr_out, false);
+	else
+		goto out;
+
+	for (i = 0; i < adev->umc.max_ras_err_cnt_per_query; i++) {
+		if (pos >= len)
+			goto out;
+
+		pfns[pos] = err_data.err_addr[pos].retired_page;
+		pos++;
+	}
+	ret = pos;
+
+out:
+	kfree(err_data.err_addr);
+	return ret;
+}
+
+int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
+			uint64_t err_addr, uint32_t ch, uint32_t umc,
+			uint32_t node, uint32_t socket,
+			uint64_t *addr, bool dump_addr)
+{
+	struct ta_ras_query_address_input addr_in;
+	struct ta_ras_query_address_output addr_out;
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	addr_in.ma.err_addr = err_addr;
+	addr_in.ma.ch_inst = ch;
+	addr_in.ma.umc_inst = umc;
+	addr_in.ma.node_inst = node;
+	addr_in.ma.socket_id = socket;
+
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
+		adev->umc.ras->convert_ras_err_addr(adev, NULL, &addr_in,
+				&addr_out, dump_addr);
+	else
+		return 0;
+
+	*addr = addr_out.pa.pa;
+
+	return 0;
+}

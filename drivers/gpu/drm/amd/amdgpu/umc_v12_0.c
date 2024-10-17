@@ -243,61 +243,6 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	}
 }
 
-static int umc_v12_0_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
-			uint64_t pa_addr, uint64_t *pfns, int len)
-{
-	uint32_t i, ret = 0, pos = 0;
-	struct ta_ras_query_address_output addr_out;
-	struct ras_err_data err_data;
-
-	err_data.err_addr =
-		kcalloc(adev->umc.max_ras_err_cnt_per_query,
-				sizeof(struct eeprom_table_record), GFP_KERNEL);
-	if (!err_data.err_addr) {
-		dev_warn(adev->dev, "Failed to alloc memory in bad page lookup!\n");
-		return 0;
-	}
-
-	addr_out.pa.pa = pa_addr;
-	umc_v12_0_convert_error_address(adev, &err_data, NULL, &addr_out, false);
-
-	for (i = 0; i < adev->umc.max_ras_err_cnt_per_query; i++) {
-		if (pos >= len)
-			goto out;
-
-		pfns[pos] = err_data.err_addr[pos].retired_page;
-		pos++;
-	}
-	ret = pos;
-
-out:
-	kfree(err_data.err_addr);
-	return ret;
-}
-
-static int umc_v12_0_convert_mca_to_addr(struct amdgpu_device *adev,
-			uint64_t err_addr, uint32_t ch, uint32_t umc,
-			uint32_t node, uint32_t socket,
-			uint64_t *addr, bool dump_addr)
-{
-	struct ta_ras_query_address_input addr_in;
-	struct ta_ras_query_address_output addr_out;
-
-	memset(&addr_in, 0, sizeof(addr_in));
-	addr_in.ma.err_addr = err_addr;
-	addr_in.ma.ch_inst = ch;
-	addr_in.ma.umc_inst = umc;
-	addr_in.ma.node_inst = node;
-	addr_in.ma.socket_id = socket;
-	addr_in.addr_type = TA_RAS_MCA_TO_PA;
-
-	umc_v12_0_convert_error_address(adev, NULL, &addr_in, &addr_out, dump_addr);
-
-	*addr = addr_out.pa.pa;
-
-	return 0;
-}
-
 static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
 					uint32_t node_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
@@ -525,7 +470,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 		MCA_IPID_2_UMC_CH(ipid),
 		err_addr);
 
-	ret = umc_v12_0_convert_mca_to_addr(adev,
+	ret = amdgpu_umc_mca_to_addr(adev,
 			err_addr, MCA_IPID_2_UMC_CH(ipid),
 			MCA_IPID_2_UMC_INST(ipid), MCA_IPID_2_DIE_ID(ipid),
 			MCA_IPID_2_SOCKET_ID(ipid), &pa_addr, true);
@@ -559,7 +504,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	con->umc_ecc_log.de_queried_count++;
 
 	memset(page_pfn, 0, sizeof(page_pfn));
-	count = umc_v12_0_lookup_bad_pages_in_a_row(adev,
+	count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
 				pa_addr,
 				page_pfn, ARRAY_SIZE(page_pfn));
 	if (count <= 0) {
@@ -602,7 +547,7 @@ static int umc_v12_0_fill_error_record(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	memset(page_pfn, 0, sizeof(page_pfn));
-	count = umc_v12_0_lookup_bad_pages_in_a_row(adev,
+	count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
 				ecc_err->pa_pfn << AMDGPU_GPU_PAGE_SHIFT,
 				page_pfn, ARRAY_SIZE(page_pfn));
 
@@ -659,5 +604,6 @@ struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ecc_info_query_ras_error_address = umc_v12_0_query_ras_ecc_err_addr,
 	.check_ecc_err_status = umc_v12_0_check_ecc_err_status,
 	.update_ecc_status = umc_v12_0_update_ecc_status,
+	.convert_ras_err_addr = umc_v12_0_convert_error_address,
 };
 
