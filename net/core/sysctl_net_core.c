@@ -51,22 +51,32 @@ int sysctl_devconf_inherit_init_net __read_mostly;
 EXPORT_SYMBOL(sysctl_devconf_inherit_init_net);
 
 #if IS_ENABLED(CONFIG_NET_FLOW_LIMIT) || IS_ENABLED(CONFIG_RPS)
-static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
-			 struct cpumask *mask)
+static int dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
+			struct cpumask *mask)
 {
-	char kbuf[128];
+	char *kbuf;
 	int len;
 
 	if (*ppos || !*lenp) {
 		*lenp = 0;
-		return;
+		return 0;
 	}
 
-	len = min(sizeof(kbuf), *lenp);
+	/* CPUs are displayed as a hex bitmap + a comma between each groups of 8
+	 * nibbles (except the last one which has a newline instead).
+	 * Guesstimate the buffer size at the group granularity level.
+	 */
+	len = min(DIV_ROUND_UP(nr_cpumask_bits, 32) * (8 + 1), *lenp);
+	kbuf = kmalloc(len, GFP_KERNEL);
+	if (!kbuf) {
+		*lenp = 0;
+		return -ENOMEM;
+	}
+
 	len = scnprintf(kbuf, len, "%*pb", cpumask_pr_args(mask));
 	if (!len) {
 		*lenp = 0;
-		return;
+		goto free_buf;
 	}
 
 	/* scnprintf writes a trailing null char not counted in the returned
@@ -76,6 +86,10 @@ static void dump_cpumask(void *buffer, size_t *lenp, loff_t *ppos,
 	memcpy(buffer, kbuf, len);
 	*lenp = len;
 	*ppos += len;
+
+free_buf:
+	kfree(kbuf);
+	return 0;
 }
 #endif
 
@@ -119,8 +133,8 @@ static int rps_default_mask_sysctl(const struct ctl_table *table, int write,
 		if (err)
 			goto done;
 	} else {
-		dump_cpumask(buffer, lenp, ppos,
-			     net->core.rps_default_mask ? : cpu_none_mask);
+		err = dump_cpumask(buffer, lenp, ppos,
+				   net->core.rps_default_mask ? : cpu_none_mask);
 	}
 
 done:
@@ -249,7 +263,7 @@ write_unlock:
 		}
 		rcu_read_unlock();
 
-		dump_cpumask(buffer, lenp, ppos, mask);
+		ret = dump_cpumask(buffer, lenp, ppos, mask);
 	}
 
 done:
