@@ -245,8 +245,6 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ASSERT_RTNL();
-
 	err = nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
 				     rtm_phonet_policy, extack);
 	if (err < 0)
@@ -262,16 +260,25 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 
 	ifindex = nla_get_u32(tb[RTA_OIF]);
-	dev = __dev_get_by_index(net, ifindex);
-	if (dev == NULL)
+
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, ifindex);
+	if (!dev) {
+		rcu_read_unlock();
 		return -ENODEV;
+	}
 
 	if (nlh->nlmsg_type == RTM_NEWROUTE)
 		err = phonet_route_add(dev, dst);
 	else
 		err = phonet_route_del(dev, dst);
+
+	rcu_read_unlock();
+
 	if (!err)
 		rtm_phonet_notify(net, nlh->nlmsg_type, ifindex, dst);
+
 	return err;
 }
 
@@ -308,9 +315,9 @@ static const struct rtnl_msg_handler phonet_rtnl_msg_handlers[] __initdata_or_mo
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_GETADDR,
 	 .dumpit = getaddr_dumpit, .flags = RTNL_FLAG_DUMP_UNLOCKED},
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_NEWROUTE,
-	 .doit = route_doit},
+	 .doit = route_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_DELROUTE,
-	 .doit = route_doit},
+	 .doit = route_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
 	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_GETROUTE,
 	 .dumpit = route_dumpit, .flags = RTNL_FLAG_DUMP_UNLOCKED},
 };
