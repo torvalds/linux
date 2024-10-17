@@ -78,7 +78,4 @@ struct xe_bo {
 		struct list_head vram_userfault_link;
 };
 
-#define intel_bo_to_drm_bo(bo) (&(bo)->ttm.base)
-#define intel_bo_to_i915(bo) to_i915(intel_bo_to_drm_bo(bo)->dev)
-
 #endif

@@ -66,7 +66,7 @@ static intel_wakeref_t
 track_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
 {
 	if (!rpm->available || rpm->no_wakeref_tracking)
-		return -1;
+		return INTEL_WAKEREF_DEF;
 
 	return intel_ref_tracker_alloc(&rpm->debug);
 }
@@ -114,7 +114,7 @@ static void init_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
 static intel_wakeref_t
 track_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
 {
-	return -1;
+	return INTEL_WAKEREF_DEF;
 }
 
 static void untrack_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm,
@@ -250,7 +250,7 @@ static intel_wakeref_t __intel_runtime_pm_get_if_active(struct intel_runtime_pm 
 		     pm_runtime_get_if_active(rpm->kdev) <= 0) ||
 		    (!ignore_usecount &&
 		     pm_runtime_get_if_in_use(rpm->kdev) <= 0))
-			return 0;
+			return NULL;
 	}
 
 	intel_runtime_pm_acquire(rpm, true);
@@ -336,7 +336,7 @@ intel_runtime_pm_put_raw(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
  */
 void intel_runtime_pm_put_unchecked(struct intel_runtime_pm *rpm)
 {
-	__intel_runtime_pm_put(rpm, -1, true);
+	__intel_runtime_pm_put(rpm, INTEL_WAKEREF_DEF, true);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)

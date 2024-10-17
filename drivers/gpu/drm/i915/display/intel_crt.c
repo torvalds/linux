@@ -694,6 +694,7 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 static enum drm_connector_status
 intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 {
+	struct intel_display *display = to_intel_display(&crt->base);
 	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum transcoder cpu_transcoder = (enum transcoder)pipe;
@@ -734,7 +735,7 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 				      TRANSCONF(dev_priv, cpu_transcoder));
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
-		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
+		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(display, pipe));
 		st00 = intel_de_read8(dev_priv, _VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :

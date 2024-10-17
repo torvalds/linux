@@ -54,6 +54,7 @@ void gen11_display_irq_handler(struct drm_i915_private *i915);
 u32 gen11_gu_misc_irq_ack(struct drm_i915_private *i915, const u32 master_ctl);
 void gen11_gu_misc_irq_handler(struct drm_i915_private *i915, const u32 iir);
 
+void i9xx_display_irq_reset(struct drm_i915_private *i915);
 void vlv_display_irq_reset(struct drm_i915_private *i915);
 void gen8_display_irq_reset(struct drm_i915_private *i915);
 void gen11_display_irq_reset(struct drm_i915_private *i915);
@@ -68,15 +69,15 @@ u32 i915_pipestat_enable_mask(struct drm_i915_private *i915, enum pipe pipe);
 void i915_enable_pipestat(struct drm_i915_private *i915, enum pipe pipe, u32 status_mask);
 void i915_disable_pipestat(struct drm_i915_private *i915, enum pipe pipe, u32 status_mask);
 void i915_enable_asle_pipestat(struct drm_i915_private *i915);
-void i9xx_pipestat_irq_reset(struct drm_i915_private *i915);
 
 void i9xx_pipestat_irq_ack(struct drm_i915_private *i915, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
 
 void i915_pipestat_irq_handler(struct drm_i915_private *i915, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
 void i965_pipestat_irq_handler(struct drm_i915_private *i915, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
 void valleyview_pipestat_irq_handler(struct drm_i915_private *i915, u32 pipe_stats[I915_MAX_PIPES]);
-void i8xx_pipestat_irq_handler(struct drm_i915_private *i915, u16 iir, u32 pipe_stats[I915_MAX_PIPES]);
 
 void intel_display_irq_init(struct drm_i915_private *i915);
+
+void i915gm_irq_cstate_wa(struct drm_i915_private *i915, bool enable);
 
 #endif /* __INTEL_DISPLAY_IRQ_H__ */

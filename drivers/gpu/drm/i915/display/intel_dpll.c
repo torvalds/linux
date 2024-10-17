@@ -589,11 +589,14 @@ static bool intel_pll_is_valid(struct drm_i915_private *dev_priv,
 	if (clock->m1 < limit->m1.min || limit->m1.max < clock->m1)
 		return false;
 
-	if (!IS_PINEVIEW(dev_priv) && !IS_LP(dev_priv))
+	if (!IS_PINEVIEW(dev_priv) &&
+	    !IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
+	    !IS_BROXTON(dev_priv) && !IS_GEMINILAKE(dev_priv))
 		if (clock->m1 <= clock->m2)
 			return false;
 
-	if (!IS_LP(dev_priv)) {
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
+	    !IS_BROXTON(dev_priv) && !IS_GEMINILAKE(dev_priv)) {
 		if (clock->p < limit->p.min || limit->p.max < clock->p)
 			return false;
 		if (clock->m < limit->m.min || limit->m.max < clock->m)
@@ -780,7 +783,7 @@ g4x_find_best_dpll(const struct intel_limit *limit,
 	max_n = limit->n.max;
 	/* based on hardware requirement, prefer smaller n to precision */
 	for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
-		/* based on hardware requirement, prefere larger m1,m2 */
+		/* based on hardware requirement, prefer larger m1,m2 */
 		for (clock.m1 = limit->m1.max;
 		     clock.m1 >= limit->m1.min; clock.m1--) {
 			for (clock.m2 = limit->m2.max;
@@ -2212,7 +2215,8 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 		     const struct dpll *dpll)
 {
-	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
+	struct intel_display *display = &dev_priv->display;
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 	struct intel_crtc_state *crtc_state;
 
 	crtc_state = intel_crtc_state_alloc(crtc);

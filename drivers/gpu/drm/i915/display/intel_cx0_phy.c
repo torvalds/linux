@@ -923,10 +923,10 @@ static const struct intel_c20pll_state mtl_c20_dp_uhbr20 = {
 		},
 	.mplla = { 0x3104,	/* mplla cfg0 */
 		0xd105,		/* mplla cfg1 */
-		0xc025,		/* mplla cfg2 */
-		0xc025,		/* mplla cfg3 */
-		0xa6ab,		/* mplla cfg4 */
-		0x8c00,		/* mplla cfg5 */
+		0x9217,		/* mplla cfg2 */
+		0x9217,		/* mplla cfg3 */
+		0x8c00,		/* mplla cfg4 */
+		0x759a,		/* mplla cfg5 */
 		0x4000,		/* mplla cfg6 */
 		0x0003,		/* mplla cfg7 */
 		0x3555,		/* mplla cfg8 */

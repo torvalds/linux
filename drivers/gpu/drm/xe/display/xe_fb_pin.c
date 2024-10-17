@@ -84,7 +84,8 @@ static int __xe_pin_fb_vma_dpt(const struct intel_framebuffer *fb,
 	struct xe_device *xe = to_xe_device(fb->base.dev);
 	struct xe_tile *tile0 = xe_device_get_root_tile(xe);
 	struct xe_ggtt *ggtt = tile0->mem.ggtt;
-	struct xe_bo *bo = intel_fb_obj(&fb->base), *dpt;
+	struct drm_gem_object *obj = intel_fb_bo(&fb->base);
+	struct xe_bo *bo = gem_to_xe_bo(obj), *dpt;
 	u32 dpt_size, size = bo->ttm.base.size;
 
 	if (view->type == I915_GTT_VIEW_NORMAL)
@@ -185,7 +186,8 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 				const struct i915_gtt_view *view,
 				struct i915_vma *vma)
 {
-	struct xe_bo *bo = intel_fb_obj(&fb->base);
+	struct drm_gem_object *obj = intel_fb_bo(&fb->base);
+	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct xe_device *xe = to_xe_device(fb->base.dev);
 	struct xe_ggtt *ggtt = xe_device_get_root_tile(xe)->mem.ggtt;
 	u32 align;
@@ -269,7 +271,8 @@ static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 	struct drm_device *dev = fb->base.dev;
 	struct xe_device *xe = to_xe_device(dev);
 	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
-	struct xe_bo *bo = intel_fb_obj(&fb->base);
+	struct drm_gem_object *obj = intel_fb_bo(&fb->base);
+	struct xe_bo *bo = gem_to_xe_bo(obj);
 	int ret;
 
 	if (!vma)
@@ -366,7 +369,8 @@ void intel_fb_unpin_vma(struct i915_vma *vma, unsigned long flags)
 int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 {
 	struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct xe_bo *bo = intel_fb_obj(fb);
+	struct drm_gem_object *obj = intel_fb_bo(fb);
+	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct i915_vma *vma;
 
 	/* We reject creating !SCANOUT fb's, so this is weird.. */

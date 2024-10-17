@@ -21,6 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_debugfs.h>
@@ -33,6 +35,7 @@
 #include "intel_cursor_regs.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
+#include "intel_display_irq.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
@@ -762,7 +765,7 @@ static void _psr_enable_sink(struct intel_dp *intel_dp,
 			     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	u8 val = DP_PSR_ENABLE;
+	u8 val = 0;
 
 	if (crtc_state->has_sel_update) {
 		val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
@@ -782,7 +785,9 @@ static void _psr_enable_sink(struct intel_dp *intel_dp,
 
 	if (intel_dp->psr.entry_setup_frames > 0)
 		val |= DP_PSR_FRAME_CAPTURE;
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, val);
 
+	val |= DP_PSR_ENABLE;
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, val);
 }
 
@@ -1599,6 +1604,10 @@ _panel_replay_compute_config(struct intel_dp *intel_dp,
 
 	/* Remaining checks are for eDP only */
 
+	if (to_intel_crtc(crtc_state->uapi.crtc)->pipe != PIPE_A &&
+	    to_intel_crtc(crtc_state->uapi.crtc)->pipe != PIPE_B)
+		return false;
+
 	/* 128b/132b Panel Replay is not supported on eDP */
 	if (intel_dp_is_uhbr(crtc_state)) {
 		drm_dbg_kms(display->drm,
@@ -2114,7 +2123,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 			     ALPM_CTL_ALPM_AUX_LESS_ENABLE, 0);
 
 		intel_de_rmw(display,
-			     PORT_ALPM_CTL(display, cpu_transcoder),
+			     PORT_ALPM_CTL(cpu_transcoder),
 			     PORT_ALPM_CTL_ALPM_AUX_LESS_ENABLE, 0);
 	}
 
@@ -2219,6 +2228,36 @@ void intel_psr_resume(struct intel_dp *intel_dp)
 
 unlock:
 	mutex_unlock(&psr->lock);
+}
+
+/**
+ * intel_psr_needs_block_dc_vblank - Check if block dc entry is needed
+ * @crtc_state: CRTC status
+ *
+ * We need to block DC6 entry in case of Panel Replay as enabling VBI doesn't
+ * prevent it in case of Panel Replay. Panel Replay switches main link off on
+ * DC entry. This means vblank interrupts are not fired and is a problem if
+ * user-space is polling for vblank events.
+ */
+bool intel_psr_needs_block_dc_vblank(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_encoder *encoder;
+
+	for_each_encoder_on_crtc(crtc->base.dev, &crtc->base, encoder) {
+		struct intel_dp *intel_dp;
+
+		if (!intel_encoder_is_dp(encoder))
+			continue;
+
+		intel_dp = enc_to_intel_dp(encoder);
+
+		if (intel_dp_is_edp(intel_dp) &&
+		    CAN_PANEL_REPLAY(intel_dp))
+			return true;
+	}
+
+	return false;
 }
 
 static u32 man_trk_ctl_enable_bit_get(struct intel_display *display)
@@ -2480,11 +2519,60 @@ static bool psr2_sel_fetch_pipe_state_supported(const struct intel_crtc_state *c
 	return true;
 }
 
+/* Wa 14019834836 */
+static void intel_psr_apply_pr_link_on_su_wa(struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_encoder *encoder;
+	int hactive_limit;
+
+	if (crtc_state->psr2_su_area.y1 != 0 ||
+	    crtc_state->psr2_su_area.y2 != 0)
+		return;
+
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		hactive_limit = intel_dp_is_uhbr(crtc_state) ? 1230 : 546;
+	else
+		hactive_limit = intel_dp_is_uhbr(crtc_state) ? 615 : 273;
+
+	if (crtc_state->hw.adjusted_mode.hdisplay < hactive_limit)
+		return;
+
+	for_each_intel_encoder_mask_with_psr(display->drm, encoder,
+					     crtc_state->uapi.encoder_mask) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		if (!intel_dp_is_edp(intel_dp) &&
+		    intel_dp->psr.panel_replay_enabled &&
+		    intel_dp->psr.sel_update_enabled) {
+			crtc_state->psr2_su_area.y2++;
+			return;
+		}
+	}
+}
+
+static void
+intel_psr_apply_su_area_workarounds(struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	/* Wa_14014971492 */
+	if (!crtc_state->has_panel_replay &&
+	    ((IS_DISPLAY_VER_STEP(display, IP_VER(14, 0), STEP_A0, STEP_B0) ||
+	      IS_ALDERLAKE_P(i915) || IS_TIGERLAKE(i915))) &&
+	    crtc_state->splitter.enable)
+		crtc_state->psr2_su_area.y1 = 0;
+
+	/* Wa 14019834836 */
+	if (DISPLAY_VER(display) == 30)
+		intel_psr_apply_pr_link_on_su_wa(crtc_state);
+}
+
 int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_plane_state *new_plane_state, *old_plane_state;
 	struct intel_plane *plane;
@@ -2589,12 +2677,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	if (full_update)
 		goto skip_sel_fetch_set_loop;
 
-	/* Wa_14014971492 */
-	if (!crtc_state->has_panel_replay &&
-	    ((IS_DISPLAY_VER_STEP(display, IP_VER(14, 0), STEP_A0, STEP_B0) ||
-	      IS_ALDERLAKE_P(dev_priv) || IS_TIGERLAKE(dev_priv))) &&
-	    crtc_state->splitter.enable)
-		crtc_state->psr2_su_area.y1 = 0;
+	intel_psr_apply_su_area_workarounds(crtc_state);
 
 	ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
 	if (ret)
@@ -3848,10 +3931,8 @@ void intel_psr_connector_debugfs_add(struct intel_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct dentry *root = connector->base.debugfs_entry;
 
-	/* TODO: Add support for MST connectors as well. */
-	if ((connector->base.connector_type != DRM_MODE_CONNECTOR_eDP &&
-	     connector->base.connector_type != DRM_MODE_CONNECTOR_DisplayPort) ||
-	    connector->mst_port)
+	if (connector->base.connector_type != DRM_MODE_CONNECTOR_eDP &&
+	    connector->base.connector_type != DRM_MODE_CONNECTOR_DisplayPort)
 		return;
 
 	debugfs_create_file("i915_psr_sink_status", 0444, root,

@@ -9,7 +9,6 @@
 #include <linux/types.h>
 
 struct drm_printer;
-struct intel_display;
 
 /*
  * Invoke param, a function-like macro, for each intel display param, with
@@ -56,8 +55,8 @@ struct intel_display_params {
 };
 #undef MEMBER
 
-void intel_display_params_dump(struct intel_display *display,
-			       struct drm_printer *p);
+void intel_display_params_dump(const struct intel_display_params *params,
+			       const char *driver_name, struct drm_printer *p);
 void intel_display_params_copy(struct intel_display_params *dest);
 void intel_display_params_free(struct intel_display_params *params);
 

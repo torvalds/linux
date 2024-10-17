@@ -38,7 +38,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/intel/intel_lpe_audio.h>
+
+#include <media/cec-notifier.h>
 
 #include "g4x_hdmi.h"
 #include "i915_drv.h"
@@ -55,6 +58,7 @@
 #include "intel_gmbus.h"
 #include "intel_hdcp.h"
 #include "intel_hdcp_regs.h"
+#include "intel_hdcp_shim.h"
 #include "intel_hdmi.h"
 #include "intel_lspcon.h"
 #include "intel_panel.h"
@@ -1310,8 +1314,8 @@ static int intel_hdmi_hdcp_write(struct intel_digital_port *dig_port,
 	memcpy(&write_buf[1], buffer, size);
 
 	msg.addr = DRM_HDCP_DDC_ADDR;
-	msg.flags = 0,
-	msg.len = size + 1,
+	msg.flags = 0;
+	msg.len = size + 1;
 	msg.buf = write_buf;
 
 	ret = i2c_transfer(ddc, &msg, 1);
@@ -2053,7 +2057,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 			return status;
 	}
 
-	return intel_mode_valid_max_plane_size(dev_priv, mode, false);
+	return intel_mode_valid_max_plane_size(dev_priv, mode, 1);
 }
 
 bool intel_hdmi_bpc_possible(const struct intel_crtc_state *crtc_state,

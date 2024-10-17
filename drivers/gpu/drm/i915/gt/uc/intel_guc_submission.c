@@ -1339,7 +1339,7 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 	 * start_gt_clk is derived from GuC state. To get a consistent
 	 * view of activity, we query the GuC state only if gt is awake.
 	 */
-	wakeref = in_reset ? 0 : intel_gt_pm_get_if_awake(gt);
+	wakeref = in_reset ? NULL : intel_gt_pm_get_if_awake(gt);
 	if (wakeref) {
 		stats_saved = *stats;
 		gt_stamp_saved = guc->timestamp.gt_stamp;

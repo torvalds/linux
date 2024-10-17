@@ -37,6 +37,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -263,7 +264,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 		temp |= LVDS_PIPE_SEL(pipe);
 	}
 
-	/* set the corresponsding LVDS_BORDER bit */
+	/* set the corresponding LVDS_BORDER bit */
 	temp &= ~LVDS_BORDER_ENABLE;
 	temp |= crtc_state->gmch_pfit.lvds_border_bits;
 

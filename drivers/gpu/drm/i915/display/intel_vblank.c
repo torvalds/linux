@@ -3,6 +3,8 @@
  * Copyright © 2022-2023 Intel Corporation
  */
 
+#include <drm/drm_vblank.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_color.h"

@@ -109,10 +109,8 @@ static bool intel_dmc_wl_check_range(u32 address)
 
 static bool __intel_dmc_wl_supported(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (DISPLAY_VER(display) < 20 ||
-	    !intel_dmc_has_payload(i915) ||
+	    !intel_dmc_has_payload(display) ||
 	    !display->params.enable_dmc_wl)
 		return false;
 
