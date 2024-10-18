@@ -4127,6 +4127,14 @@ static int gfx_v11_0_gfx_mqd_init(struct amdgpu_device *adev, void *m,
 	/* active the queue */
 	mqd->cp_gfx_hqd_active = 1;
 
+	/* set gfx UQ items */
+	mqd->shadow_base_lo = lower_32_bits(prop->shadow_addr);
+	mqd->shadow_base_hi = upper_32_bits(prop->shadow_addr);
+	mqd->gds_bkup_base_lo = lower_32_bits(prop->gds_bkup_addr);
+	mqd->gds_bkup_base_hi = upper_32_bits(prop->gds_bkup_addr);
+	mqd->fw_work_area_base_lo = lower_32_bits(prop->csa_addr);
+	mqd->fw_work_area_base_hi = upper_32_bits(prop->csa_addr);
+
 	return 0;
 }
 
