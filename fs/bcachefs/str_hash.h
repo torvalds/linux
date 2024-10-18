@@ -46,8 +46,7 @@ bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 {
 	/* XXX ick */
 	struct bch_hash_info info = {
-		.type = (bi->bi_flags >> INODE_STR_HASH_OFFSET) &
-			~(~0U << INODE_STR_HASH_BITS),
+		.type = INODE_STR_HASH(bi),
 		.siphash_key = { .k0 = bi->bi_hash_seed }
 	};
 

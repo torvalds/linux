@@ -163,8 +163,8 @@ static noinline int bch2_inode_unpack_v1(struct bkey_s_c_inode inode,
 	unsigned fieldnr = 0, field_bits;
 	int ret;
 
-#define x(_name, _bits)					\
-	if (fieldnr++ == INODE_NR_FIELDS(inode.v)) {			\
+#define x(_name, _bits)							\
+	if (fieldnr++ == INODEv1_NR_FIELDS(inode.v)) {			\
 		unsigned offset = offsetof(struct bch_inode_unpacked, _name);\
 		memset((void *) unpacked + offset, 0,			\
 		       sizeof(*unpacked) - offset);			\
@@ -293,10 +293,10 @@ static noinline int bch2_inode_unpack_slowpath(struct bkey_s_c k,
 		unpacked->bi_flags	= le32_to_cpu(inode.v->bi_flags);
 		unpacked->bi_mode	= le16_to_cpu(inode.v->bi_mode);
 
-		if (INODE_NEW_VARINT(inode.v)) {
+		if (INODEv1_NEW_VARINT(inode.v)) {
 			return bch2_inode_unpack_v2(unpacked, inode.v->fields,
 						    bkey_val_end(inode),
-						    INODE_NR_FIELDS(inode.v));
+						    INODEv1_NR_FIELDS(inode.v));
 		} else {
 			return bch2_inode_unpack_v1(inode, unpacked);
 		}
@@ -471,10 +471,10 @@ int bch2_inode_validate(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 	int ret = 0;
 
-	bkey_fsck_err_on(INODE_STR_HASH(inode.v) >= BCH_STR_HASH_NR,
+	bkey_fsck_err_on(INODEv1_STR_HASH(inode.v) >= BCH_STR_HASH_NR,
 			 c, inode_str_hash_invalid,
 			 "invalid str hash type (%llu >= %u)",
-			 INODE_STR_HASH(inode.v), BCH_STR_HASH_NR);
+			 INODEv1_STR_HASH(inode.v), BCH_STR_HASH_NR);
 
 	ret = __bch2_inode_validate(c, k, flags);
 fsck_err:
@@ -800,10 +800,8 @@ void bch2_inode_init_early(struct bch_fs *c,
 
 	memset(inode_u, 0, sizeof(*inode_u));
 
-	/* ick */
-	inode_u->bi_flags |= str_hash << INODE_STR_HASH_OFFSET;
-	get_random_bytes(&inode_u->bi_hash_seed,
-			 sizeof(inode_u->bi_hash_seed));
+	SET_INODE_STR_HASH(inode_u, str_hash);
+	get_random_bytes(&inode_u->bi_hash_seed, sizeof(inode_u->bi_hash_seed));
 }
 
 void bch2_inode_init_late(struct bch_inode_unpacked *inode_u, u64 now,
