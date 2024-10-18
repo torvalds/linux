@@ -156,6 +156,7 @@ DEFINE_EVENT(dma_alloc_class, name, \
 
 DEFINE_ALLOC_EVENT(dma_alloc);
 DEFINE_ALLOC_EVENT(dma_alloc_pages);
+DEFINE_ALLOC_EVENT(dma_alloc_sgt_err);
 
 TRACE_EVENT(dma_alloc_sgt,
 	TP_PROTO(struct device *dev, struct sg_table *sgt, size_t size,
@@ -317,6 +318,41 @@ TRACE_EVENT(dma_map_sg,
 		__print_array(__get_dynamic_array(phys_addrs),
 			      __get_dynamic_array_len(phys_addrs) /
 				sizeof(u64), sizeof(u64)),
+		decode_dma_attrs(__entry->attrs))
+);
+
+TRACE_EVENT(dma_map_sg_err,
+	TP_PROTO(struct device *dev, struct scatterlist *sgl, int nents,
+		 int err, enum dma_data_direction dir, unsigned long attrs),
+	TP_ARGS(dev, sgl, nents, err, dir, attrs),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(dev))
+		__dynamic_array(u64, phys_addrs, nents)
+		__field(int, err)
+		__field(enum dma_data_direction, dir)
+		__field(unsigned long, attrs)
+	),
+
+	TP_fast_assign(
+		struct scatterlist *sg;
+		int i;
+
+		__assign_str(device);
+		for_each_sg(sgl, sg, nents, i)
+			((u64 *)__get_dynamic_array(phys_addrs))[i] = sg_phys(sg);
+		__entry->err = err;
+		__entry->dir = dir;
+		__entry->attrs = attrs;
+	),
+
+	TP_printk("%s dir=%s dma_addrs=%s err=%d attrs=%s",
+		__get_str(device),
+		decode_dma_data_direction(__entry->dir),
+		__print_array(__get_dynamic_array(phys_addrs),
+			      __get_dynamic_array_len(phys_addrs) /
+				sizeof(u64), sizeof(u64)),
+		__entry->err,
 		decode_dma_attrs(__entry->attrs))
 );
 
