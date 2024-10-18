@@ -2562,13 +2562,16 @@ EXPORT_SYMBOL_GPL(gpiochip_free_own_desc);
  * rely on gpio_request() having been called beforehand.
  */
 
-static int gpio_do_set_config(struct gpio_chip *gc, unsigned int offset,
-			      unsigned long config)
+static int gpio_do_set_config(struct gpio_desc *desc, unsigned long config)
 {
-	if (!gc->set_config)
+	CLASS(gpio_chip_guard, guard)(desc);
+	if (!guard.gc)
+		return -ENODEV;
+
+	if (!guard.gc->set_config)
 		return -ENOTSUPP;
 
-	return gc->set_config(gc, offset, config);
+	return guard.gc->set_config(guard.gc, gpio_chip_hwgpio(desc), config);
 }
 
 static int gpio_set_config_with_argument(struct gpio_desc *desc,
@@ -2577,12 +2580,8 @@ static int gpio_set_config_with_argument(struct gpio_desc *desc,
 {
 	unsigned long config;
 
-	CLASS(gpio_chip_guard, guard)(desc);
-	if (!guard.gc)
-		return -ENODEV;
-
 	config = pinconf_to_config_packed(mode, argument);
-	return gpio_do_set_config(guard.gc, gpio_chip_hwgpio(desc), config);
+	return gpio_do_set_config(desc, config);
 }
 
 static int gpio_set_config_with_argument_optional(struct gpio_desc *desc,
@@ -2944,11 +2943,7 @@ int gpiod_set_config(struct gpio_desc *desc, unsigned long config)
 {
 	VALIDATE_DESC(desc);
 
-	CLASS(gpio_chip_guard, guard)(desc);
-	if (!guard.gc)
-		return -ENODEV;
-
-	return gpio_do_set_config(guard.gc, gpio_chip_hwgpio(desc), config);
+	return gpio_do_set_config(desc, config);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_config);
 
