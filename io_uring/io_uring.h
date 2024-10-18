@@ -189,16 +189,15 @@ static __always_inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
 	if (unlikely(!io_get_cqe(ctx, &cqe)))
 		return false;
 
-	if (trace_io_uring_complete_enabled())
-		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-					req->cqe.res, req->cqe.flags,
-					req->big_cqe.extra1, req->big_cqe.extra2);
 
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
 	if (ctx->flags & IORING_SETUP_CQE32) {
 		memcpy(cqe->big_cqe, &req->big_cqe, sizeof(*cqe));
 		memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 	}
+
+	if (trace_io_uring_complete_enabled())
+		trace_io_uring_complete(req->ctx, req, cqe);
 	return true;
 }
 
