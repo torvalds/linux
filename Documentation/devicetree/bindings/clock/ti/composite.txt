@@ -17,7 +17,7 @@ merged to this clock. The component clocks shall be of one of the
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/clock/ti/mux.txt
-[3] Documentation/devicetree/bindings/clock/ti/divider.txt
+[3] Documentation/devicetree/bindings/clock/ti/ti,divider-clock.yaml
 [4] Documentation/devicetree/bindings/clock/ti/gate.txt
 
 Required properties:
