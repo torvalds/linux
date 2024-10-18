@@ -381,8 +381,8 @@ static bool mc_patch_matches(struct microcode_amd *mc, u16 eq_id)
 
 /*
  * This scans the ucode blob for the proper container as we can have multiple
- * containers glued together. Returns the equivalence ID from the equivalence
- * table or 0 if none found.
+ * containers glued together.
+ *
  * Returns the amount of bytes consumed while scanning. @desc contains all the
  * data we're going to use in later stages of the application.
  */
