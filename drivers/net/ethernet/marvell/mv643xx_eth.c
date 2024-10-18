@@ -1698,13 +1698,9 @@ static void mv643xx_eth_get_strings(struct net_device *dev,
 {
 	int i;
 
-	if (stringset == ETH_SS_STATS) {
-		for (i = 0; i < ARRAY_SIZE(mv643xx_eth_stats); i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-				mv643xx_eth_stats[i].stat_string,
-				ETH_GSTRING_LEN);
-		}
-	}
+	if (stringset == ETH_SS_STATS)
+		for (i = 0; i < ARRAY_SIZE(mv643xx_eth_stats); i++)
+			ethtool_puts(&data, mv643xx_eth_stats[i].stat_string);
 }
 
 static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
