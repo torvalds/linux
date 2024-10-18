@@ -23,6 +23,9 @@ description:
   More detailed documentation can be found in
   Documentation/devicetree/bindings/media/video-interfaces.txt .
 
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -58,16 +61,10 @@ properties:
       documentation.
     maxItems: 1
 
-  flash-leds:
-    description: Flash LED phandles. See ../video-interfaces.txt for details.
-
-  lens-focus:
-    description: Lens focus controller phandles. See ../video-interfaces.txt
-      for details.
+  flash-leds: true
+  lens-focus: true
 
   rotation:
-    description: Rotation of the sensor.  See ../video-interfaces.txt for
-      details.
     enum: [ 0, 180 ]
 
   port:
