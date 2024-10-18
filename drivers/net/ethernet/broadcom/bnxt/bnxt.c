@@ -12881,7 +12881,7 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 	if (features & NETIF_F_GRO_HW)
 		features &= ~NETIF_F_LRO;
 
-	/* Both CTAG and STAG VLAN accelaration on the RX side have to be
+	/* Both CTAG and STAG VLAN acceleration on the RX side have to be
 	 * turned on or off together.
 	 */
 	vlan_features = features & BNXT_HW_FEATURE_VLAN_ALL_RX;
@@ -16131,7 +16131,7 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
  * @pdev: Pointer to PCI device
  *
  * Restart the card from scratch, as if from a cold-boot.
- * At this point, the card has exprienced a hard reset,
+ * At this point, the card has experienced a hard reset,
  * followed by fixups by BIOS, and has its config space
  * set up identically to what it was at cold boot.
  */
@@ -16159,7 +16159,7 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 		pci_set_master(pdev);
 		/* Upon fatal error, our device internal logic that latches to
 		 * BAR value is getting reset and will restore only upon
-		 * rewritting the BARs.
+		 * rewriting the BARs.
 		 *
 		 * As pci_restore_state() does not re-write the BARs if the
 		 * value is same as saved value earlier, driver needs to

@@ -18275,7 +18275,7 @@ done:
  * @pdev: Pointer to PCI device
  *
  * Restart the card from scratch, as if from a cold-boot.
- * At this point, the card has exprienced a hard reset,
+ * At this point, the card has experienced a hard reset,
  * followed by fixups by BIOS, and has its config space
  * set up identically to what it was at cold boot.
  */
