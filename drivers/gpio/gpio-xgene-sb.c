@@ -299,14 +299,14 @@ static void xgene_gpio_sb_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id xgene_gpio_sb_of_match[] = {
-	{.compatible = "apm,xgene-gpio-sb", },
-	{},
+	{ .compatible = "apm,xgene-gpio-sb" },
+	{}
 };
 MODULE_DEVICE_TABLE(of, xgene_gpio_sb_of_match);
 
 static const struct acpi_device_id xgene_gpio_sb_acpi_match[] = {
-	{"APMC0D15", 0},
-	{},
+	{ "APMC0D15" },
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, xgene_gpio_sb_acpi_match);
 
