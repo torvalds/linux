@@ -28,6 +28,8 @@
 		serial1 = &lpuart5;
 		serial2 = &lpuart6;
 		serial3 = &lpuart7;
+		spi0 = &lpspi4;
+		spi1 = &lpspi5;
 	};
 
 	cpus {
