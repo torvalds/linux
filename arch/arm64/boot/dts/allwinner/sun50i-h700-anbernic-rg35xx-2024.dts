@@ -328,8 +328,17 @@
 				regulator-name = "boost";
 			};
 
+			/*
+			 * Regulator function is unknown, but reading
+			 * GPIO values in bootloader is inconsistent
+			 * on reboot if this is disabled. Setting to
+			 * default value from regulator OTP mem.
+			 */
 			reg_cpusldo: cpusldo {
-				/* unused */
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
 			};
 		};
 
