@@ -892,6 +892,9 @@ static int sdma_v6_0_mqd_init(struct amdgpu_device *adev, void *mqd,
 	m->sdmax_rlcx_rb_aql_cntl = regSDMA0_QUEUE0_RB_AQL_CNTL_DEFAULT;
 	m->sdmax_rlcx_dummy_reg = regSDMA0_QUEUE0_DUMMY_REG_DEFAULT;
 
+	m->sdmax_rlcx_csa_addr_lo = lower_32_bits(prop->csa_addr);
+	m->sdmax_rlcx_csa_addr_hi = upper_32_bits(prop->csa_addr);
+
 	return 0;
 }
 
