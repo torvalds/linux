@@ -30,6 +30,10 @@
 		gpio6 = &lsio_gpio6;
 		gpio7 = &lsio_gpio7;
 		mu1 = &lsio_mu1;
+		spi0 = &lpspi0;
+		spi1 = &lpspi1;
+		spi2 = &lpspi2;
+		spi3 = &lpspi3;
 	};
 
 	cpus: cpus {
