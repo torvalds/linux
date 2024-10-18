@@ -17,11 +17,6 @@
 
 #include "gpiolib-acpi.h"
 
-/* Common property names */
-#define XGENE_NIRQ_PROPERTY		"apm,nr-irqs"
-#define XGENE_NGPIO_PROPERTY		"apm,nr-gpios"
-#define XGENE_IRQ_START_PROPERTY	"apm,irq-start"
-
 #define XGENE_DFLT_MAX_NGPIO		22
 #define XGENE_DFLT_MAX_NIRQ		6
 #define XGENE_DFLT_IRQ_START_PIN	8
@@ -252,18 +247,17 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	/* Retrieve start irq pin, use default if property not found */
 	priv->irq_start = XGENE_DFLT_IRQ_START_PIN;
-	if (!device_property_read_u32(&pdev->dev,
-					XGENE_IRQ_START_PROPERTY, &val32))
+	if (!device_property_read_u32(&pdev->dev, "apm,irq-start", &val32))
 		priv->irq_start = val32;
 
 	/* Retrieve number irqs, use default if property not found */
 	priv->nirq = XGENE_DFLT_MAX_NIRQ;
-	if (!device_property_read_u32(&pdev->dev, XGENE_NIRQ_PROPERTY, &val32))
+	if (!device_property_read_u32(&pdev->dev, "apm,nr-irqs", &val32))
 		priv->nirq = val32;
 
 	/* Retrieve number gpio, use default if property not found */
 	priv->gc.ngpio = XGENE_DFLT_MAX_NGPIO;
-	if (!device_property_read_u32(&pdev->dev, XGENE_NGPIO_PROPERTY, &val32))
+	if (!device_property_read_u32(&pdev->dev, "apm,nr-gpios", &val32))
 		priv->gc.ngpio = val32;
 
 	dev_info(&pdev->dev, "Support %d gpios, %d irqs start from pin %d\n",
