@@ -181,5 +181,6 @@ void sdhci_uhs2_set_power(struct sdhci_host *host, unsigned char mode, unsigned 
 void sdhci_uhs2_set_timeout(struct sdhci_host *host, struct mmc_command *cmd);
 int sdhci_uhs2_add_host(struct sdhci_host *host);
 void sdhci_uhs2_remove_host(struct sdhci_host *host, int dead);
+void sdhci_uhs2_clear_set_irqs(struct sdhci_host *host, u32 clear, u32 set);
 
 #endif /* __SDHCI_UHS2_H */
