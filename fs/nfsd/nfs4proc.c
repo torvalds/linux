@@ -2780,6 +2780,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 		if (op->opdesc->op_get_currentstateid)
 			op->opdesc->op_get_currentstateid(cstate, &op->u);
 		op->status = op->opdesc->op_func(rqstp, cstate, &op->u);
+		trace_nfsd_compound_op_err(rqstp, op->opnum, op->status);
 
 		/* Only from SEQUENCE */
 		if (cstate->status == nfserr_replay_cache) {

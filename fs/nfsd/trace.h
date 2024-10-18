@@ -163,7 +163,7 @@ TRACE_EVENT(nfsd_compound_decode_err,
 		__entry->opnum, __entry->status)
 );
 
-TRACE_EVENT(nfsd_compound_encode_err,
+DECLARE_EVENT_CLASS(nfsd_compound_err_class,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,
 		u32 opnum,
@@ -183,6 +183,18 @@ TRACE_EVENT(nfsd_compound_encode_err,
 	TP_printk("opnum=%u status=%lu",
 		__entry->opnum, __entry->status)
 );
+
+#define DEFINE_NFSD_COMPOUND_ERR_EVENT(name)				\
+DEFINE_EVENT(nfsd_compound_err_class, nfsd_compound_##name##_err,	\
+	TP_PROTO(							\
+		const struct svc_rqst *rqstp,				\
+		u32 opnum,						\
+		__be32 status						\
+	),								\
+	TP_ARGS(rqstp, opnum, status))
+
+DEFINE_NFSD_COMPOUND_ERR_EVENT(op);
+DEFINE_NFSD_COMPOUND_ERR_EVENT(encode);
 
 #define show_fs_file_type(x) \
 	__print_symbolic(x, \
