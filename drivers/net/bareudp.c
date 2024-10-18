@@ -84,7 +84,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 		if (skb_copy_bits(skb, BAREUDP_BASE_HLEN, &ipversion,
 				  sizeof(ipversion))) {
-			DEV_STATS_INC(bareudp->dev, rx_dropped);
+			dev_core_stats_rx_dropped_inc(bareudp->dev);
 			goto drop;
 		}
 		ipversion >>= 4;
@@ -94,7 +94,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		} else if (ipversion == 6 && bareudp->multi_proto_mode) {
 			proto = htons(ETH_P_IPV6);
 		} else {
-			DEV_STATS_INC(bareudp->dev, rx_dropped);
+			dev_core_stats_rx_dropped_inc(bareudp->dev);
 			goto drop;
 		}
 	} else if (bareudp->ethertype == htons(ETH_P_MPLS_UC)) {
@@ -108,7 +108,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				   ipv4_is_multicast(tunnel_hdr->daddr)) {
 				proto = htons(ETH_P_MPLS_MC);
 			} else {
-				DEV_STATS_INC(bareudp->dev, rx_dropped);
+				dev_core_stats_rx_dropped_inc(bareudp->dev);
 				goto drop;
 			}
 		} else {
@@ -124,7 +124,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				   (addr_type & IPV6_ADDR_MULTICAST)) {
 				proto = htons(ETH_P_MPLS_MC);
 			} else {
-				DEV_STATS_INC(bareudp->dev, rx_dropped);
+				dev_core_stats_rx_dropped_inc(bareudp->dev);
 				goto drop;
 			}
 		}
@@ -136,7 +136,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				 proto,
 				 !net_eq(bareudp->net,
 				 dev_net(bareudp->dev)))) {
-		DEV_STATS_INC(bareudp->dev, rx_dropped);
+		dev_core_stats_rx_dropped_inc(bareudp->dev);
 		goto drop;
 	}
 
@@ -144,7 +144,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	tun_dst = udp_tun_rx_dst(skb, family, key, 0, 0);
 	if (!tun_dst) {
-		DEV_STATS_INC(bareudp->dev, rx_dropped);
+		dev_core_stats_rx_dropped_inc(bareudp->dev);
 		goto drop;
 	}
 	skb_dst_set(skb, &tun_dst->dst);
