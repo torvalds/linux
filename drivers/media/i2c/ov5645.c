@@ -1228,7 +1228,7 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ov5645_init_state(&ov5645->sd, NULL);
 
-	ret = v4l2_async_register_subdev(&ov5645->sd);
+	ret = v4l2_async_register_subdev_sensor(&ov5645->sd);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "could not register v4l2 device\n");
 		goto err_pm_runtime;
