@@ -127,6 +127,24 @@ pvr_context_get(struct pvr_context *ctx)
 }
 
 /**
+ * pvr_context_get_if_referenced() - Take an additional reference on a still
+ * referenced context.
+ * @ctx: Context pointer.
+ *
+ * Call pvr_context_put() to release.
+ *
+ * Returns:
+ *  * True on success, or
+ *  * false if no context pointer passed, or the context wasn't still
+ *  * referenced.
+ */
+static __always_inline bool
+pvr_context_get_if_referenced(struct pvr_context *ctx)
+{
+	return ctx != NULL && kref_get_unless_zero(&ctx->ref_count) != 0;
+}
+
+/**
  * pvr_context_lookup() - Lookup context pointer from handle and file.
  * @pvr_file: Pointer to pvr_file structure.
  * @handle: Context handle.

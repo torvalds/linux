@@ -450,11 +450,30 @@ pvr_context_destroy(struct pvr_file *pvr_file, u32 handle)
  */
 void pvr_destroy_contexts_for_file(struct pvr_file *pvr_file)
 {
+	struct pvr_device *pvr_dev = pvr_file->pvr_dev;
 	struct pvr_context *ctx;
 	unsigned long handle;
 
 	xa_for_each(&pvr_file->ctx_handles, handle, ctx)
 		pvr_context_destroy(pvr_file, handle);
+
+	spin_lock(&pvr_dev->ctx_list_lock);
+	ctx = list_first_entry(&pvr_file->contexts, struct pvr_context, file_link);
+
+	while (!list_entry_is_head(ctx, &pvr_file->contexts, file_link)) {
+		list_del_init(&ctx->file_link);
+
+		if (pvr_context_get_if_referenced(ctx)) {
+			spin_unlock(&pvr_dev->ctx_list_lock);
+
+			pvr_vm_unmap_all(ctx->vm_ctx);
+
+			pvr_context_put(ctx);
+			spin_lock(&pvr_dev->ctx_list_lock);
+		}
+		ctx = list_first_entry(&pvr_file->contexts, struct pvr_context, file_link);
+	}
+	spin_unlock(&pvr_dev->ctx_list_lock);
 }
 
 /**
