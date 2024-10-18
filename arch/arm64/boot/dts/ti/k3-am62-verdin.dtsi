@@ -1131,6 +1131,11 @@
 		};
 	};
 
+	tpm@2e {
+		compatible = "st,st33ktpm2xi2c", "tcg,tpm-tis-i2c";
+		reg = <0x2e>;
+	};
+
 	pmic@30 {
 		compatible = "ti,tps65219";
 		reg = <0x30>;
