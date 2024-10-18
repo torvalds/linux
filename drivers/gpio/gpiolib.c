@@ -2432,7 +2432,9 @@ static void gpiod_free_commit(struct gpio_desc *desc)
 #endif
 		desc_set_label(desc, NULL);
 		WRITE_ONCE(desc->flags, flags);
-
+#ifdef CONFIG_GPIO_CDEV
+		WRITE_ONCE(desc->debounce_period_us, 0);
+#endif
 		gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_RELEASED);
 	}
 }
@@ -2564,6 +2566,8 @@ EXPORT_SYMBOL_GPL(gpiochip_free_own_desc);
 
 static int gpio_do_set_config(struct gpio_desc *desc, unsigned long config)
 {
+	int ret;
+
 	CLASS(gpio_chip_guard, guard)(desc);
 	if (!guard.gc)
 		return -ENODEV;
@@ -2571,7 +2575,17 @@ static int gpio_do_set_config(struct gpio_desc *desc, unsigned long config)
 	if (!guard.gc->set_config)
 		return -ENOTSUPP;
 
-	return guard.gc->set_config(guard.gc, gpio_chip_hwgpio(desc), config);
+	ret = guard.gc->set_config(guard.gc, gpio_chip_hwgpio(desc), config);
+#ifdef CONFIG_GPIO_CDEV
+	/*
+	 * Special case - if we're setting debounce period, we need to store
+	 * it in the descriptor in case user-space wants to know it.
+	 */
+	if (!ret && pinconf_to_config_param(config) == PIN_CONFIG_INPUT_DEBOUNCE)
+		WRITE_ONCE(desc->debounce_period_us,
+			   pinconf_to_config_argument(config));
+#endif
+	return ret;
 }
 
 static int gpio_set_config_with_argument(struct gpio_desc *desc,

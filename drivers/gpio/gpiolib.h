@@ -165,6 +165,7 @@ struct gpio_desc_label {
  * @label:		Name of the consumer
  * @name:		Line name
  * @hog:		Pointer to the device node that hogs this line (if any)
+ * @debounce_period_us:	Debounce period in microseconds
  *
  * These are obtained using gpiod_get() and are preferable to the old
  * integer-based handles.
@@ -201,6 +202,10 @@ struct gpio_desc {
 	const char		*name;
 #ifdef CONFIG_OF_DYNAMIC
 	struct device_node	*hog;
+#endif
+#ifdef CONFIG_GPIO_CDEV
+	/* debounce period in microseconds */
+	unsigned int		debounce_period_us;
 #endif
 };
 

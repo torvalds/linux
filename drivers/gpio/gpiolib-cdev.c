@@ -23,7 +23,6 @@
 #include <linux/overflow.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/poll.h>
-#include <linux/rbtree.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/timekeeping.h>
@@ -421,7 +420,6 @@ out_free_lh:
 
 /**
  * struct line - contains the state of a requested line
- * @node: to store the object in supinfo_tree if supplemental
  * @desc: the GPIO descriptor for this line.
  * @req: the corresponding line request
  * @irq: the interrupt triggered in response to events on this GPIO
@@ -434,7 +432,6 @@ out_free_lh:
  * @line_seqno: the seqno for the current edge event in the sequence of
  * events for this line.
  * @work: the worker that implements software debouncing
- * @debounce_period_us: the debounce period in microseconds
  * @sw_debounced: flag indicating if the software debouncer is active
  * @level: the current debounced physical level of the line
  * @hdesc: the Hardware Timestamp Engine (HTE) descriptor
@@ -443,7 +440,6 @@ out_free_lh:
  * @last_seqno: the last sequence number before debounce period expires
  */
 struct line {
-	struct rb_node node;
 	struct gpio_desc *desc;
 	/*
 	 * -- edge detector specific fields --
@@ -478,15 +474,6 @@ struct line {
 	 */
 	struct delayed_work work;
 	/*
-	 * debounce_period_us is accessed by debounce_irq_handler() and
-	 * process_hw_ts() which are disabled when modified by
-	 * debounce_setup(), edge_detector_setup() or edge_detector_stop()
-	 * or can live with a stale version when updated by
-	 * edge_detector_update().
-	 * The modifying functions are themselves mutually exclusive.
-	 */
-	unsigned int debounce_period_us;
-	/*
 	 * sw_debounce is accessed by linereq_set_config(), which is the
 	 * only setter, and linereq_get_values(), which can live with a
 	 * slightly stale value.
@@ -518,17 +505,6 @@ struct line {
 #endif /* CONFIG_HTE */
 };
 
-/*
- * a rbtree of the struct lines containing supplemental info.
- * Used to populate gpio_v2_line_info with cdev specific fields not contained
- * in the struct gpio_desc.
- * A line is determined to contain supplemental information by
- * line_has_supinfo().
- */
-static struct rb_root supinfo_tree = RB_ROOT;
-/* covers supinfo_tree */
-static DEFINE_SPINLOCK(supinfo_lock);
-
 /**
  * struct linereq - contains the state of a userspace line request
  * @gdev: the GPIO device the line request pertains to
@@ -542,8 +518,7 @@ static DEFINE_SPINLOCK(supinfo_lock);
  * this line request.  Note that this is not used when @num_lines is 1, as
  * the line_seqno is then the same and is cheaper to calculate.
  * @config_mutex: mutex for serializing ioctl() calls to ensure consistency
- * of configuration, particularly multi-step accesses to desc flags and
- * changes to supinfo status.
+ * of configuration, particularly multi-step accesses to desc flags.
  * @lines: the lines held by this line request, with @num_lines elements.
  */
 struct linereq {
@@ -558,103 +533,6 @@ struct linereq {
 	struct mutex config_mutex;
 	struct line lines[] __counted_by(num_lines);
 };
-
-static void supinfo_insert(struct line *line)
-{
-	struct rb_node **new = &(supinfo_tree.rb_node), *parent = NULL;
-	struct line *entry;
-
-	guard(spinlock)(&supinfo_lock);
-
-	while (*new) {
-		entry = container_of(*new, struct line, node);
-
-		parent = *new;
-		if (line->desc < entry->desc) {
-			new = &((*new)->rb_left);
-		} else if (line->desc > entry->desc) {
-			new = &((*new)->rb_right);
-		} else {
-			/* this should never happen */
-			WARN(1, "duplicate line inserted");
-			return;
-		}
-	}
-
-	rb_link_node(&line->node, parent, new);
-	rb_insert_color(&line->node, &supinfo_tree);
-}
-
-static void supinfo_erase(struct line *line)
-{
-	guard(spinlock)(&supinfo_lock);
-
-	rb_erase(&line->node, &supinfo_tree);
-}
-
-static struct line *supinfo_find(struct gpio_desc *desc)
-{
-	struct rb_node *node = supinfo_tree.rb_node;
-	struct line *line;
-
-	while (node) {
-		line = container_of(node, struct line, node);
-		if (desc < line->desc)
-			node = node->rb_left;
-		else if (desc > line->desc)
-			node = node->rb_right;
-		else
-			return line;
-	}
-	return NULL;
-}
-
-static void supinfo_to_lineinfo(struct gpio_desc *desc,
-				struct gpio_v2_line_info *info)
-{
-	struct gpio_v2_line_attribute *attr;
-	struct line *line;
-
-	guard(spinlock)(&supinfo_lock);
-
-	line = supinfo_find(desc);
-	if (!line)
-		return;
-
-	attr = &info->attrs[info->num_attrs];
-	attr->id = GPIO_V2_LINE_ATTR_ID_DEBOUNCE;
-	attr->debounce_period_us = READ_ONCE(line->debounce_period_us);
-	info->num_attrs++;
-}
-
-static inline bool line_has_supinfo(struct line *line)
-{
-	return READ_ONCE(line->debounce_period_us);
-}
-
-/*
- * Checks line_has_supinfo() before and after the change to avoid unnecessary
- * supinfo_tree access.
- * Called indirectly by linereq_create() or linereq_set_config() so line
- * is already protected from concurrent changes.
- */
-static void line_set_debounce_period(struct line *line,
-				     unsigned int debounce_period_us)
-{
-	bool was_suppl = line_has_supinfo(line);
-
-	WRITE_ONCE(line->debounce_period_us, debounce_period_us);
-
-	/* if supinfo status is unchanged then we're done */
-	if (line_has_supinfo(line) == was_suppl)
-		return;
-
-	/* supinfo status has changed, so update the tree */
-	if (was_suppl)
-		supinfo_erase(line);
-	else
-		supinfo_insert(line);
-}
 
 #define GPIO_V2_LINE_BIAS_FLAGS \
 	(GPIO_V2_LINE_FLAG_BIAS_PULL_UP | \
@@ -823,7 +701,7 @@ static enum hte_return process_hw_ts(struct hte_ts_data *ts, void *p)
 		line->total_discard_seq++;
 		line->last_seqno = ts->seq;
 		mod_delayed_work(system_wq, &line->work,
-		  usecs_to_jiffies(READ_ONCE(line->debounce_period_us)));
+		  usecs_to_jiffies(READ_ONCE(line->desc->debounce_period_us)));
 	} else {
 		if (unlikely(ts->seq < line->line_seqno))
 			return HTE_CB_HANDLED;
@@ -964,7 +842,7 @@ static irqreturn_t debounce_irq_handler(int irq, void *p)
 	struct line *line = p;
 
 	mod_delayed_work(system_wq, &line->work,
-		usecs_to_jiffies(READ_ONCE(line->debounce_period_us)));
+		usecs_to_jiffies(READ_ONCE(line->desc->debounce_period_us)));
 
 	return IRQ_HANDLED;
 }
@@ -1047,7 +925,7 @@ static int debounce_setup(struct line *line, unsigned int debounce_period_us)
 	/* try hardware */
 	ret = gpiod_set_debounce(line->desc, debounce_period_us);
 	if (!ret) {
-		line_set_debounce_period(line, debounce_period_us);
+		WRITE_ONCE(line->desc->debounce_period_us, debounce_period_us);
 		return ret;
 	}
 	if (ret != -ENOTSUPP)
@@ -1132,7 +1010,8 @@ static void edge_detector_stop(struct line *line)
 	cancel_delayed_work_sync(&line->work);
 	WRITE_ONCE(line->sw_debounced, 0);
 	WRITE_ONCE(line->edflags, 0);
-	line_set_debounce_period(line, 0);
+	if (line->desc)
+		WRITE_ONCE(line->desc->debounce_period_us, 0);
 	/* do not change line->level - see comment in debounced_value() */
 }
 
@@ -1165,7 +1044,7 @@ static int edge_detector_setup(struct line *line,
 		ret = debounce_setup(line, debounce_period_us);
 		if (ret)
 			return ret;
-		line_set_debounce_period(line, debounce_period_us);
+		WRITE_ONCE(line->desc->debounce_period_us, debounce_period_us);
 	}
 
 	/* detection disabled or sw debouncer will provide edge detection */
@@ -1213,12 +1092,12 @@ static int edge_detector_update(struct line *line,
 			gpio_v2_line_config_debounce_period(lc, line_idx);
 
 	if ((active_edflags == edflags) &&
-	    (READ_ONCE(line->debounce_period_us) == debounce_period_us))
+	    (READ_ONCE(line->desc->debounce_period_us) == debounce_period_us))
 		return 0;
 
 	/* sw debounced and still will be...*/
 	if (debounce_period_us && READ_ONCE(line->sw_debounced)) {
-		line_set_debounce_period(line, debounce_period_us);
+		WRITE_ONCE(line->desc->debounce_period_us, debounce_period_us);
 		/*
 		 * ensure event fifo is initialised if edge detection
 		 * is now enabled.
@@ -1677,7 +1556,6 @@ static ssize_t linereq_read(struct file *file, char __user *buf,
 
 static void linereq_free(struct linereq *lr)
 {
-	struct line *line;
 	unsigned int i;
 
 	if (lr->device_unregistered_nb.notifier_call)
@@ -1685,14 +1563,10 @@ static void linereq_free(struct linereq *lr)
 						   &lr->device_unregistered_nb);
 
 	for (i = 0; i < lr->num_lines; i++) {
-		line = &lr->lines[i];
-		if (!line->desc)
-			continue;
-
-		edge_detector_stop(line);
-		if (line_has_supinfo(line))
-			supinfo_erase(line);
-		gpiod_free(line->desc);
+		if (lr->lines[i].desc) {
+			edge_detector_stop(&lr->lines[i]);
+			gpiod_free(lr->lines[i].desc);
+		}
 	}
 	kfifo_free(&lr->events);
 	kfree(lr->label);
@@ -2363,6 +2237,7 @@ static void gpio_v2_line_info_changed_to_v1(
 static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 				  struct gpio_v2_line_info *info)
 {
+	u32 debounce_period_us;
 	unsigned long dflags;
 	const char *label;
 
@@ -2435,6 +2310,14 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 		info->flags |= GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME;
 	else if (test_bit(FLAG_EVENT_CLOCK_HTE, &dflags))
 		info->flags |= GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE;
+
+	debounce_period_us = READ_ONCE(desc->debounce_period_us);
+	if (debounce_period_us) {
+		info->attrs[info->num_attrs].id = GPIO_V2_LINE_ATTR_ID_DEBOUNCE;
+		info->attrs[info->num_attrs].debounce_period_us =
+							debounce_period_us;
+		info->num_attrs++;
+	}
 }
 
 struct gpio_chardev_data {
@@ -2540,7 +2423,6 @@ static int lineinfo_get(struct gpio_chardev_data *cdev, void __user *ip,
 			return -EBUSY;
 	}
 	gpio_desc_to_lineinfo(desc, &lineinfo);
-	supinfo_to_lineinfo(desc, &lineinfo);
 
 	if (copy_to_user(ip, &lineinfo, sizeof(lineinfo))) {
 		if (watch)
@@ -2633,7 +2515,6 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	chg.event_type = action;
 	chg.timestamp_ns = ktime_get_ns();
 	gpio_desc_to_lineinfo(desc, &chg.info);
-	supinfo_to_lineinfo(desc, &chg.info);
 
 	ret = kfifo_in_spinlocked(&cdev->events, &chg, 1, &cdev->wait.lock);
 	if (ret)
