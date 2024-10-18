@@ -830,6 +830,9 @@ struct amdgpu_mqd_prop {
 	uint32_t hqd_queue_priority;
 	bool allow_tunneling;
 	bool hqd_active;
+	uint64_t shadow_addr;
+	uint64_t gds_bkup_addr;
+	uint64_t csa_addr;
 };
 
 struct amdgpu_mqd {
