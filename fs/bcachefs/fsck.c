@@ -1096,10 +1096,36 @@ fsck_err:
 	return ret;
 }
 
+static int get_snapshot_root_inode(struct btree_trans *trans,
+				   struct bch_inode_unpacked *root,
+				   u64 inum)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes,
+					     SPOS(0, inum, U32_MAX),
+					     BTREE_ITER_all_snapshots, k, ret) {
+		if (k.k->p.offset != inum)
+			break;
+		if (bkey_is_inode(k.k))
+			goto found_root;
+	}
+	if (ret)
+		goto err;
+	BUG();
+found_root:
+	BUG_ON(bch2_inode_unpack(k, root));
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
-		       struct bch_inode_unpacked *prev,
+		       struct bch_inode_unpacked *snapshot_root,
 		       struct snapshots_seen *s)
 {
 	struct bch_fs *c = trans->c;
@@ -1123,16 +1149,19 @@ static int check_inode(struct btree_trans *trans,
 
 	BUG_ON(bch2_inode_unpack(k, &u));
 
-	if (prev->bi_inum != u.bi_inum)
-		*prev = u;
+	if (snapshot_root->bi_inum != u.bi_inum) {
+		ret = get_snapshot_root_inode(trans, snapshot_root, u.bi_inum);
+		if (ret)
+			goto err;
+	}
 
-	if (fsck_err_on(prev->bi_hash_seed	!= u.bi_hash_seed ||
-			inode_d_type(prev)	!= inode_d_type(&u),
+	if (fsck_err_on(u.bi_hash_seed		!= snapshot_root->bi_hash_seed ||
+			INODE_STR_HASH(&u)	!= INODE_STR_HASH(snapshot_root),
 			trans, inode_snapshot_mismatch,
 			"inodes in different snapshots don't match")) {
-		bch_err(c, "repair not implemented yet");
-		ret = -BCH_ERR_fsck_repair_unimplemented;
-		goto err_noprint;
+		u.bi_hash_seed = snapshot_root->bi_hash_seed;
+		SET_INODE_STR_HASH(&u, INODE_STR_HASH(snapshot_root));
+		do_update = true;
 	}
 
 	if (u.bi_dir || u.bi_dir_offset) {
@@ -1285,7 +1314,7 @@ err_noprint:
 
 int bch2_check_inodes(struct bch_fs *c)
 {
-	struct bch_inode_unpacked prev = { 0 };
+	struct bch_inode_unpacked snapshot_root = {};
 	struct snapshots_seen s;
 
 	snapshots_seen_init(&s);
@@ -1295,7 +1324,7 @@ int bch2_check_inodes(struct bch_fs *c)
 				POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			check_inode(trans, &iter, k, &prev, &s)));
+			check_inode(trans, &iter, k, &snapshot_root, &s)));
 
 	snapshots_seen_exit(&s);
 	bch_err_fn(c, ret);
