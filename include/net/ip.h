@@ -690,6 +690,11 @@ static inline unsigned int ipv4_addr_hash(__be32 ip)
 	return (__force unsigned int) ip;
 }
 
+static inline u32 __ipv4_addr_hash(const __be32 ip, const u32 initval)
+{
+	return jhash_1word((__force u32)ip, initval);
+}
+
 static inline u32 ipv4_portaddr_hash(const struct net *net,
 				     __be32 saddr,
 				     unsigned int port)
