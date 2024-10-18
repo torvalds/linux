@@ -87,7 +87,7 @@ static int ethosn_main_allocator_pdev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-    // 这里分配了抽象设备数据机构 main_allocator 所需的内存空间，生命周期与平台设备pdev保持一致
+    // 注意到实际为该平台设备分配的并非 ethosn_dma_allocator 结构, 而是 ethosn_main_allocator
 	main_allocator = ethosn_dma_top_allocator_create(&pdev->dev,
 							 ETHOSN_ALLOCATOR_MAIN);
 
