@@ -452,8 +452,7 @@ int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 	struct ta_ras_query_address_output addr_out;
 	struct ras_err_data err_data;
 
-	err_data.err_addr =
-		kcalloc(adev->umc.max_ras_err_cnt_per_query,
+	err_data.err_addr = kcalloc(adev->umc.retire_unit,
 				sizeof(struct eeprom_table_record), GFP_KERNEL);
 	if (!err_data.err_addr) {
 		dev_warn(adev->dev, "Failed to alloc memory in bad page lookup!\n");
@@ -468,7 +467,7 @@ int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 	else
 		goto out;
 
-	for (i = 0; i < adev->umc.max_ras_err_cnt_per_query; i++) {
+	for (i = 0; i < adev->umc.retire_unit; i++) {
 		if (pos >= len)
 			goto out;
 
