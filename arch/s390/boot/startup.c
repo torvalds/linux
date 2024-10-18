@@ -480,7 +480,7 @@ void startup_kernel(void)
 	 * __vmlinux_relocs_64_end as the lower range address. However,
 	 * .amode31 section is written to by the decompressed kernel - at
 	 * that time the contents of .vmlinux.relocs is not needed anymore.
-	 * Conversly, .vmlinux.relocs is read only by the decompressor, even
+	 * Conversely, .vmlinux.relocs is read only by the decompressor, even
 	 * before the kernel started. Therefore, in case the two sections
 	 * overlap there is no risk of corrupting any data.
 	 */

@@ -1054,7 +1054,7 @@ static void cpumf_pmu_del(struct perf_event *event, int flags)
 	 *
 	 * When a new perf event has been added but not yet started, this can
 	 * clear enable control and resets all counters in a set.  Therefore,
-	 * cpumf_pmu_start() always has to reenable a counter set.
+	 * cpumf_pmu_start() always has to re-enable a counter set.
 	 */
 	for (i = CPUMF_CTR_SET_BASIC; i < CPUMF_CTR_SET_MAX; ++i)
 		if (!atomic_read(&cpuhw->ctr_set[i]))
@@ -1863,7 +1863,7 @@ static const struct attribute_group *cfdiag_attr_groups[] = {
 /* Performance monitoring unit for event CF_DIAG. Since this event
  * is also started and stopped via the perf_event_open() system call, use
  * the same event enable/disable call back functions. They do not
- * have a pointer to the perf_event strcture as first parameter.
+ * have a pointer to the perf_event structure as first parameter.
  *
  * The functions XXX_add, XXX_del, XXX_start and XXX_stop are also common.
  * Reuse them and distinguish the event (always first parameter) via
