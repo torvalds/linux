@@ -17,10 +17,14 @@
 
 #include <drm/drm_auth.h>
 #include <drm/drm_managed.h>
+
+#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/xarray.h>
@@ -354,6 +358,10 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 		return err;
 	}
 
+	spin_lock(&pvr_dev->ctx_list_lock);
+	list_add_tail(&ctx->file_link, &pvr_file->contexts);
+	spin_unlock(&pvr_dev->ctx_list_lock);
+
 	return 0;
 
 err_destroy_fw_obj:
@@ -379,6 +387,11 @@ pvr_context_release(struct kref *ref_count)
 	struct pvr_context *ctx =
 		container_of(ref_count, struct pvr_context, ref_count);
 	struct pvr_device *pvr_dev = ctx->pvr_dev;
+
+	WARN_ON(in_interrupt());
+	spin_lock(&pvr_dev->ctx_list_lock);
+	list_del(&ctx->file_link);
+	spin_unlock(&pvr_dev->ctx_list_lock);
 
 	xa_erase(&pvr_dev->ctx_ids, ctx->ctx_id);
 	pvr_context_destroy_queues(ctx);
@@ -451,6 +464,7 @@ void pvr_destroy_contexts_for_file(struct pvr_file *pvr_file)
 void pvr_context_device_init(struct pvr_device *pvr_dev)
 {
 	xa_init_flags(&pvr_dev->ctx_ids, XA_FLAGS_ALLOC1);
+	spin_lock_init(&pvr_dev->ctx_list_lock);
 }
 
 /**

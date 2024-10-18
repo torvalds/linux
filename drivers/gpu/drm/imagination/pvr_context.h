@@ -85,6 +85,9 @@ struct pvr_context {
 		/** @compute: Transfer queue. */
 		struct pvr_queue *transfer;
 	} queues;
+
+	/** @file_link: pvr_file PVR context list link. */
+	struct list_head file_link;
 };
 
 static __always_inline struct pvr_queue *
