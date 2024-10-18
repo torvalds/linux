@@ -143,7 +143,7 @@ struct xe_exec_queue {
 	/** @hw_engine_group_link: link into exec queues in the same hw engine group */
 	struct list_head hw_engine_group_link;
 	/** @lrc: logical ring context for this exec queue */
-	struct xe_lrc *lrc[];
+	struct xe_lrc *lrc[] __counted_by(width);
 };
 
 /**

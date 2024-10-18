@@ -63,7 +63,7 @@ struct xe_sched_job {
 
 struct xe_sched_job_snapshot {
 	u16 batch_addr_len;
-	u64 batch_addr[];
+	u64 batch_addr[] __counted_by(batch_addr_len);
 };
 
 #endif
