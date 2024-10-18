@@ -16,7 +16,7 @@ struct mxic_ecc_engine;
 
 #if IS_ENABLED(CONFIG_MTD_NAND_ECC_MXIC) && IS_REACHABLE(CONFIG_MTD_NAND_CORE)
 
-struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void);
+const struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void);
 struct nand_ecc_engine *mxic_ecc_get_pipelined_engine(struct platform_device *spi_pdev);
 void mxic_ecc_put_pipelined_engine(struct nand_ecc_engine *eng);
 int mxic_ecc_process_data_pipelined(struct nand_ecc_engine *eng,
@@ -24,7 +24,7 @@ int mxic_ecc_process_data_pipelined(struct nand_ecc_engine *eng,
 
 #else /* !CONFIG_MTD_NAND_ECC_MXIC */
 
-static inline struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void)
+static inline const struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void)
 {
 	return NULL;
 }
