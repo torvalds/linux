@@ -929,12 +929,19 @@ static const struct of_device_id ad8460_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ad8460_of_match);
 
+static const struct spi_device_id ad8460_spi_match[] = {
+	{ .name = "ad8460" },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, ad8460_spi_match);
+
 static struct spi_driver ad8460_driver = {
 	.driver = {
 		.name = "ad8460",
 		.of_match_table = ad8460_of_match,
 	},
 	.probe = ad8460_probe,
+	.id_table = ad8460_spi_match,
 };
 module_spi_driver(ad8460_driver);
 
