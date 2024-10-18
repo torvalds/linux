@@ -835,9 +835,6 @@ static u32 rzg2l_cru_format_bytesperline(struct v4l2_pix_format *pix)
 
 	fmt = rzg2l_cru_format_from_pixel(pix->pixelformat);
 
-	if (WARN_ON(!fmt))
-		return -EINVAL;
-
 	return pix->width * fmt->bpp[0];
 }
 
