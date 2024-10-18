@@ -263,7 +263,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, wdd);
 }
 
-static int __maybe_unused da9063_wdt_suspend(struct device *dev)
+static int da9063_wdt_suspend(struct device *dev)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 	struct da9063 *da9063 = watchdog_get_drvdata(wdd);
@@ -277,7 +277,7 @@ static int __maybe_unused da9063_wdt_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused da9063_wdt_resume(struct device *dev)
+static int da9063_wdt_resume(struct device *dev)
 {
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 	struct da9063 *da9063 = watchdog_get_drvdata(wdd);
@@ -291,14 +291,14 @@ static int __maybe_unused da9063_wdt_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(da9063_wdt_pm_ops,
-			da9063_wdt_suspend, da9063_wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(da9063_wdt_pm_ops, da9063_wdt_suspend,
+				da9063_wdt_resume);
 
 static struct platform_driver da9063_wdt_driver = {
 	.probe = da9063_wdt_probe,
 	.driver = {
 		.name = DA9063_DRVNAME_WATCHDOG,
-		.pm = &da9063_wdt_pm_ops,
+		.pm = pm_sleep_ptr(&da9063_wdt_pm_ops),
 	},
 };
 module_platform_driver(da9063_wdt_driver);
