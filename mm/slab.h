@@ -73,6 +73,11 @@ struct slab {
 						struct {
 							unsigned inuse:16;
 							unsigned objects:15;
+							/*
+							 * If slab debugging is enabled then the
+							 * frozen bit can be reused to indicate
+							 * that the slab was corrupted
+							 */
 							unsigned frozen:1;
 						};
 					};
