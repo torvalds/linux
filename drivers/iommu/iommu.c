@@ -1141,10 +1141,6 @@ map_end:
 		}
 
 	}
-
-	if (!list_empty(&mappings) && iommu_is_dma_domain(domain))
-		iommu_flush_iotlb_all(domain);
-
 out:
 	iommu_put_resv_regions(dev, &mappings);
 
