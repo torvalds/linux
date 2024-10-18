@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/pci-bwctrl.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -38,10 +39,12 @@
  * struct pcie_bwctrl_data - PCIe bandwidth controller
  * @set_speed_mutex:	Serializes link speed changes
  * @lbms_count:		Count for LBMS (since last reset)
+ * @cdev:		Thermal cooling device associated with the port
  */
 struct pcie_bwctrl_data {
 	struct mutex set_speed_mutex;
 	atomic_t lbms_count;
+	struct thermal_cooling_device *cdev;
 };
 
 /*
@@ -314,11 +317,20 @@ static int pcie_bwnotif_probe(struct pcie_device *srv)
 
 	pci_dbg(port, "enabled with IRQ %d\n", srv->irq);
 
+	/* Don't fail on errors. Don't leave IS_ERR() "pointer" into ->cdev */
+	port->link_bwctrl->cdev = pcie_cooling_device_register(port);
+	if (IS_ERR(port->link_bwctrl->cdev))
+		port->link_bwctrl->cdev = NULL;
+
 	return 0;
 }
 
 static void pcie_bwnotif_remove(struct pcie_device *srv)
 {
+	struct pcie_bwctrl_data *data = srv->port->link_bwctrl;
+
+	pcie_cooling_device_unregister(data->cdev);
+
 	pcie_bwnotif_disable(srv->port);
 
 	scoped_guard(rwsem_write, &pcie_bwctrl_setspeed_rwsem)
