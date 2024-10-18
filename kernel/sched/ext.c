@@ -3132,20 +3132,40 @@ static s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 	}
 
 	/*
-	 * If WAKE_SYNC, the waker's local DSQ is empty, and the system is
-	 * under utilized, wake up @p to the local DSQ of the waker. Checking
-	 * only for an empty local DSQ is insufficient as it could give the
-	 * wakee an unfair advantage when the system is oversaturated.
-	 * Checking only for the presence of idle CPUs is also insufficient as
-	 * the local DSQ of the waker could have tasks piled up on it even if
-	 * there is an idle core elsewhere on the system.
+	 * If WAKE_SYNC, try to migrate the wakee to the waker's CPU.
 	 */
-	cpu = smp_processor_id();
-	if ((wake_flags & SCX_WAKE_SYNC) &&
-	    !cpumask_empty(idle_masks.cpu) && !(current->flags & PF_EXITING) &&
-	    cpu_rq(cpu)->scx.local_dsq.nr == 0) {
-		if (cpumask_test_cpu(cpu, p->cpus_ptr))
+	if (wake_flags & SCX_WAKE_SYNC) {
+		cpu = smp_processor_id();
+
+		/*
+		 * If the waker's CPU is cache affine and prev_cpu is idle,
+		 * then avoid a migration.
+		 */
+		if (cpus_share_cache(cpu, prev_cpu) &&
+		    test_and_clear_cpu_idle(prev_cpu)) {
+			cpu = prev_cpu;
 			goto cpu_found;
+		}
+
+		/*
+		 * If the waker's local DSQ is empty, and the system is under
+		 * utilized, try to wake up @p to the local DSQ of the waker.
+		 *
+		 * Checking only for an empty local DSQ is insufficient as it
+		 * could give the wakee an unfair advantage when the system is
+		 * oversaturated.
+		 *
+		 * Checking only for the presence of idle CPUs is also
+		 * insufficient as the local DSQ of the waker could have tasks
+		 * piled up on it even if there is an idle core elsewhere on
+		 * the system.
+		 */
+		if (!cpumask_empty(idle_masks.cpu) &&
+		    !(current->flags & PF_EXITING) &&
+		    cpu_rq(cpu)->scx.local_dsq.nr == 0) {
+			if (cpumask_test_cpu(cpu, p->cpus_ptr))
+				goto cpu_found;
+		}
 	}
 
 	/*
