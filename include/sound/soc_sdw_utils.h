@@ -28,6 +28,7 @@
  *   - SOC_SDW_CODEC_SPKR | SOF_SIDECAR_AMPS - Not currently supported
  */
 #define SOC_SDW_SIDECAR_AMPS		BIT(16)
+#define SOC_SDW_CODEC_MIC		BIT(17)
 
 #define SOC_SDW_UNUSED_DAI_ID		-1
 #define SOC_SDW_JACK_OUT_DAI_ID		0
@@ -59,6 +60,7 @@ struct asoc_sdw_dai_info {
 	int (*rtd_init)(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 	bool rtd_init_done; /* Indicate that the rtd_init callback is done */
 	unsigned long quirk;
+	bool quirk_exclude;
 };
 
 struct asoc_sdw_codec_info {
