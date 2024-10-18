@@ -250,13 +250,6 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 	return ret;
 }
 
-static void dirent_copy_target(struct bkey_i_dirent *dst,
-			       struct bkey_s_c_dirent src)
-{
-	dst->v.d_inum = src.v->d_inum;
-	dst->v.d_type = src.v->d_type;
-}
-
 int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 			    struct bkey_s_c_dirent d, subvol_inum *target)
 {
