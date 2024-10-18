@@ -1241,18 +1241,19 @@ bool btrfs_find_delayed_tree_ref(struct btrfs_delayed_ref_head *head,
 
 void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 {
-	struct rb_node *node;
 	struct btrfs_delayed_ref_root *delayed_refs = &trans->delayed_refs;
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 
 	spin_lock(&delayed_refs->lock);
-	while ((node = rb_first_cached(&delayed_refs->href_root)) != NULL) {
+	while (true) {
 		struct btrfs_delayed_ref_head *head;
 		struct rb_node *n;
 		bool pin_bytes = false;
 
-		head = rb_entry(node, struct btrfs_delayed_ref_head,
-				href_node);
+		head = find_first_ref_head(delayed_refs);
+		if (!head)
+			break;
+
 		if (btrfs_delayed_ref_lock(delayed_refs, head))
 			continue;
 
