@@ -252,19 +252,20 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 }
 
 static __always_inline
-int bch2_hash_set_in_snapshot(struct btree_trans *trans,
+struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
+			   struct btree_iter *iter,
 			   const struct bch_hash_desc desc,
 			   const struct bch_hash_info *info,
 			   subvol_inum inum, u32 snapshot,
 			   struct bkey_i *insert,
 			   enum btree_iter_update_trigger_flags flags)
 {
-	struct btree_iter iter, slot = { NULL };
+	struct btree_iter slot = {};
 	struct bkey_s_c k;
 	bool found = false;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, iter, desc.btree_id,
+	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
 			   SPOS(insert->k.p.inode,
 				desc.hash_bkey(info, bkey_i_to_s_c(insert)),
 				snapshot),
@@ -279,7 +280,7 @@ int bch2_hash_set_in_snapshot(struct btree_trans *trans,
 		}
 
 		if (!slot.path && !(flags & STR_HASH_must_replace))
-			bch2_trans_copy_iter(&slot, &iter);
+			bch2_trans_copy_iter(&slot, iter);
 
 		if (k.k->type != KEY_TYPE_hash_whiteout)
 			goto not_found;
@@ -289,26 +290,47 @@ int bch2_hash_set_in_snapshot(struct btree_trans *trans,
 		ret = -BCH_ERR_ENOSPC_str_hash_create;
 out:
 	bch2_trans_iter_exit(trans, &slot);
-	bch2_trans_iter_exit(trans, &iter);
-
-	return ret;
+	bch2_trans_iter_exit(trans, iter);
+	return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 found:
 	found = true;
 not_found:
-
-	if (!found && (flags & STR_HASH_must_replace)) {
+	if (found && (flags & STR_HASH_must_create)) {
+		bch2_trans_iter_exit(trans, &slot);
+		return k;
+	} else if (!found && (flags & STR_HASH_must_replace)) {
 		ret = -BCH_ERR_ENOENT_str_hash_set_must_replace;
-	} else if (found && (flags & STR_HASH_must_create)) {
-		ret = -BCH_ERR_EEXIST_str_hash_set;
 	} else {
 		if (!found && slot.path)
-			swap(iter, slot);
+			swap(*iter, slot);
 
-		insert->k.p = iter.pos;
-		ret = bch2_trans_update(trans, &iter, insert, flags);
+		insert->k.p = iter->pos;
+		ret = bch2_trans_update(trans, iter, insert, flags);
 	}
 
 	goto out;
+}
+
+static __always_inline
+int bch2_hash_set_in_snapshot(struct btree_trans *trans,
+			   const struct bch_hash_desc desc,
+			   const struct bch_hash_info *info,
+			   subvol_inum inum, u32 snapshot,
+			   struct bkey_i *insert,
+			   enum btree_iter_update_trigger_flags flags)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_hash_set_or_get_in_snapshot(trans, &iter, desc, info, inum,
+							     snapshot, insert, flags);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+	if (k.k) {
+		bch2_trans_iter_exit(trans, &iter);
+		return -BCH_ERR_EEXIST_str_hash_set;
+	}
+
+	return 0;
 }
 
 static __always_inline
