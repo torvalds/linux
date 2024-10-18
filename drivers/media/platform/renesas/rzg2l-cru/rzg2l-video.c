@@ -210,7 +210,6 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru,
 					   struct v4l2_mbus_framefmt *ip_sd_fmt,
 					   u8 csi_vc)
 {
-	const struct v4l2_format_info *src_finfo, *dst_finfo;
 	const struct rzg2l_cru_ip_format *cru_video_fmt;
 	const struct rzg2l_cru_ip_format *cru_ip_fmt;
 
@@ -225,11 +224,8 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru,
 		return -EINVAL;
 	}
 
-	src_finfo = v4l2_format_info(cru_ip_fmt->format);
-	dst_finfo = v4l2_format_info(cru->format.pixelformat);
-
 	/* If input and output use same colorspace, do bypass mode */
-	if (v4l2_is_format_yuv(src_finfo) == v4l2_is_format_yuv(dst_finfo))
+	if (cru_ip_fmt->yuv == cru_video_fmt->yuv)
 		rzg2l_cru_write(cru, ICnMC,
 				rzg2l_cru_read(cru, ICnMC) | ICnMC_CSCTHR);
 	else

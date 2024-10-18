@@ -69,6 +69,7 @@ struct rzg2l_cru_ip {
  * @format: 4CC format identifier (V4L2_PIX_FMT_*)
  * @icndmr: ICnDMR register value
  * @bpp: bytes per pixel
+ * @yuv: Flag to indicate whether the format is YUV-based.
  */
 struct rzg2l_cru_ip_format {
 	u32 code;
@@ -76,6 +77,7 @@ struct rzg2l_cru_ip_format {
 	u32 format;
 	u32 icndmr;
 	u8 bpp;
+	bool yuv;
 };
 
 /**
