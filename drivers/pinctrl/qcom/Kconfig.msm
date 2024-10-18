@@ -227,6 +227,14 @@ config PINCTRL_SA8775P
 	  This is the pinctrl, pinmux and pinconf driver for the Qualcomm
 	  TLMM block found on the Qualcomm SA8775P platforms.
 
+config PINCTRL_SAR2130P
+	tristate "Qualcomm Technologies Inc SAR2130P pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc SAR2130P platform.
+
 config PINCTRL_SC7180
 	tristate "Qualcomm Technologies Inc SC7180 pin controller driver"
 	depends on ARM64 || COMPILE_TEST
