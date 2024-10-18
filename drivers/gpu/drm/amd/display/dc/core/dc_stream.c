@@ -292,7 +292,9 @@ bool dc_stream_set_cursor_attributes(
 	 * 2. If not subvp high refresh, for single display cases, if resolution is >= 5K and refresh rate < 120hz
 	 * 3. If not subvp high refresh, for multi display cases, if resolution is >= 4K and refresh rate < 120hz
 	 */
-	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384) {
+	if (dc->debug.allow_sw_cursor_fallback &&
+		attributes->height * attributes->width * 4 > 16384 &&
+		!stream->hw_cursor_req) {
 		if (check_subvp_sw_cursor_fallback_req(dc, stream))
 			return false;
 	}
