@@ -16,6 +16,7 @@
     headers_install
     gcc-plugins
     kbuild
+    reproducible-builds
 
 TODO:
 
@@ -24,7 +25,6 @@ TODO:
 - makefiles
 - modules
 - issues
-- reproducible-builds
 - llvm
 
 .. only::  subproject and html
