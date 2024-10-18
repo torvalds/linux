@@ -354,6 +354,9 @@ int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	if (err)
 		return err;
 
+	if (host->uhs2_sd_tran)
+		mmc_uhs2_prepare_cmd(host, mrq);
+
 	led_trigger_event(host->led, LED_FULL);
 	__mmc_start_request(host, mrq);
 
@@ -452,6 +455,9 @@ int mmc_cqe_start_req(struct mmc_host *host, struct mmc_request *mrq)
 	err = mmc_mrq_prep(host, mrq);
 	if (err)
 		goto out_err;
+
+	if (host->uhs2_sd_tran)
+		mmc_uhs2_prepare_cmd(host, mrq);
 
 	err = host->cqe_ops->cqe_request(host, mrq);
 	if (err)
@@ -1135,7 +1141,7 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 		return 0;
 	}
 
-	if (host->caps2 & MMC_CAP2_FULL_PWR_CYCLE) {
+	if (!mmc_card_uhs2(host) && host->caps2 & MMC_CAP2_FULL_PWR_CYCLE) {
 		bit = ffs(ocr) - 1;
 		ocr &= 3 << bit;
 		mmc_power_cycle(host, ocr);

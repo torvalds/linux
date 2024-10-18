@@ -127,6 +127,13 @@ struct sd_uhs2_caps {
 };
 
 enum sd_uhs2_operation {
+	UHS2_PHY_INIT = 0,
+	UHS2_SET_CONFIG,
+	UHS2_ENABLE_INT,
+	UHS2_DISABLE_INT,
+	UHS2_ENABLE_CLK,
+	UHS2_DISABLE_CLK,
+	UHS2_CHECK_DORMANT,
 	UHS2_SET_IOS,
 };
 
@@ -453,6 +460,8 @@ struct mmc_host {
 #endif
 #define MMC_CAP2_ALT_GPT_TEGRA	(1 << 28)	/* Host with eMMC that has GPT entry at a non-standard location */
 
+	bool			uhs2_sd_tran;	/* UHS-II flag for SD_TRAN state */
+	bool			uhs2_app_cmd;	/* UHS-II flag for APP command */
 	struct sd_uhs2_caps	uhs2_caps;	/* Host UHS-II capabilities */
 
 	int			fixed_drv_type;	/* fixed driver type for non-removable media */
@@ -712,6 +721,12 @@ static inline void mmc_debugfs_err_stats_inc(struct mmc_host *host,
 					     enum mmc_err_stat stat)
 {
 	host->err_stats[stat] += 1;
+}
+
+static inline int mmc_card_uhs2_hd_mode(struct mmc_host *host)
+{
+	return host->ios.timing == MMC_TIMING_UHS2_SPEED_A_HD ||
+	       host->ios.timing == MMC_TIMING_UHS2_SPEED_B_HD;
 }
 
 int mmc_sd_switch(struct mmc_card *card, bool mode, int group,

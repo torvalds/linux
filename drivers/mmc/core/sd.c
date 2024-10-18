@@ -200,7 +200,7 @@ static int mmc_decode_csd(struct mmc_card *card, bool is_sduc)
 /*
  * Given a 64-bit response, decode to our card SCR structure.
  */
-static int mmc_decode_scr(struct mmc_card *card)
+int mmc_decode_scr(struct mmc_card *card)
 {
 	struct sd_scr *scr = &card->scr;
 	unsigned int scr_struct;
@@ -903,7 +903,7 @@ int mmc_sd_get_csd(struct mmc_card *card, bool is_sduc)
 	return 0;
 }
 
-static int mmc_sd_get_ro(struct mmc_host *host)
+int mmc_sd_get_ro(struct mmc_host *host)
 {
 	int ro;
 
