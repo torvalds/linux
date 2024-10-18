@@ -1308,8 +1308,7 @@ static int dsa_user_set_pauseparam(struct net_device *dev,
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static int dsa_user_netpoll_setup(struct net_device *dev,
-				  struct netpoll_info *ni)
+static int dsa_user_netpoll_setup(struct net_device *dev)
 {
 	struct net_device *conduit = dsa_user_to_conduit(dev);
 	struct dsa_user_priv *p = netdev_priv(dev);
