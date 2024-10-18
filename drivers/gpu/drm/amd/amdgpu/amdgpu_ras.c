@@ -2821,10 +2821,20 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 		return -ENOMEM;
 
 	ret = amdgpu_ras_eeprom_read(control, bps, control->ras_num_recs);
-	if (ret)
+	if (ret) {
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
-	else
+	} else {
+		if (control->ras_num_recs > 1 &&
+		    adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
+			if ((bps[0].address == bps[1].address) &&
+			    (bps[0].mem_channel == bps[1].mem_channel))
+				control->rec_type = AMDGPU_RAS_EEPROM_REC_PA;
+			else
+				control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
+		}
+
 		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs);
+	}
 
 	kfree(bps);
 	return ret;
@@ -3205,13 +3215,14 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct amdgpu_ras_eeprom_control *control;
 	int ret;
 
 	if (!con || amdgpu_sriov_vf(adev))
 		return 0;
 
-	ret = amdgpu_ras_eeprom_init(&con->eeprom_control);
-
+	control = &con->eeprom_control;
+	ret = amdgpu_ras_eeprom_init(control);
 	if (ret)
 		return ret;
 
@@ -3219,17 +3230,25 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 	if (amdgpu_ras_is_rma(adev))
 		return -EHWPOISON;
 
-	if (con->eeprom_control.ras_num_recs) {
+	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
+		control->rec_type = AMDGPU_RAS_EEPROM_REC_PA;
+
+	/* default status is MCA storage */
+	if (control->ras_num_recs <= 1 &&
+	    adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
+		control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
+
+	if (control->ras_num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
 			return ret;
 
 		amdgpu_dpm_send_hbm_bad_pages_num(
-			adev, con->eeprom_control.ras_num_recs);
+			adev, control->ras_num_recs);
 
 		if (con->update_channel_flag == true) {
 			amdgpu_dpm_send_hbm_bad_channel_flag(
-				adev, con->eeprom_control.bad_channel_bitmap);
+				adev, control->bad_channel_bitmap);
 			con->update_channel_flag = false;
 		}
 	}
