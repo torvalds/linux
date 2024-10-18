@@ -685,8 +685,8 @@ struct page *dma_alloc_pages(struct device *dev, size_t size,
 	struct page *page = __dma_alloc_pages(dev, size, dma_handle, dir, gfp);
 
 	if (page) {
-		trace_dma_map_page(dev, page_to_phys(page), *dma_handle, size,
-				   dir, 0);
+		trace_dma_alloc_pages(dev, page_to_virt(page), *dma_handle,
+				      size, dir, gfp, 0);
 		debug_dma_map_page(dev, page, 0, size, dir, *dma_handle, 0);
 	}
 	return page;
@@ -710,7 +710,7 @@ static void __dma_free_pages(struct device *dev, size_t size, struct page *page,
 void dma_free_pages(struct device *dev, size_t size, struct page *page,
 		dma_addr_t dma_handle, enum dma_data_direction dir)
 {
-	trace_dma_unmap_page(dev, dma_handle, size, dir, 0);
+	trace_dma_free_pages(dev, page_to_virt(page), dma_handle, size, dir, 0);
 	debug_dma_unmap_page(dev, dma_handle, size, dir);
 	__dma_free_pages(dev, size, page, dma_handle, dir);
 }
@@ -770,7 +770,7 @@ struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
 
 	if (sgt) {
 		sgt->nents = 1;
-		trace_dma_map_sg(dev, sgt->sgl, sgt->orig_nents, 1, dir, attrs);
+		trace_dma_alloc_sgt(dev, sgt, size, dir, gfp, attrs);
 		debug_dma_map_sg(dev, sgt->sgl, sgt->orig_nents, 1, dir, attrs);
 	}
 	return sgt;
@@ -789,7 +789,7 @@ static void free_single_sgt(struct device *dev, size_t size,
 void dma_free_noncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt, enum dma_data_direction dir)
 {
-	trace_dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir, 0);
+	trace_dma_free_sgt(dev, sgt, size, dir);
 	debug_dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir);
 
 	if (use_dma_iommu(dev))
