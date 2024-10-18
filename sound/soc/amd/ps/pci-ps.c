@@ -302,8 +302,7 @@ static struct snd_soc_acpi_mach *acp63_sdw_machine_select(struct device *dev)
 			link = mach->links;
 			for (i = 0; i < acp_data->info.count && link->num_adr; link++, i++) {
 				if (!snd_soc_acpi_sdw_link_slaves_found(dev, link,
-									acp_data->sdw->ids,
-									acp_data->sdw->num_slaves))
+									acp_data->sdw->peripherals))
 					break;
 			}
 			if (i == acp_data->info.count || !link->num_adr)

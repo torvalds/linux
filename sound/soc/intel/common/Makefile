@@ -16,4 +16,7 @@ snd-soc-acpi-intel-match-y := soc-acpi-intel-byt-match.o soc-acpi-intel-cht-matc
 
 snd-soc-acpi-intel-match-y += soc-acpi-intel-ssp-common.o
 
+snd-soc-acpi-intel-sdca-quirks-y += soc-acpi-intel-sdca-quirks.o
+
 obj-$(CONFIG_SND_SOC_ACPI_INTEL_MATCH) += snd-soc-acpi-intel-match.o
+obj-$(CONFIG_SND_SOC_ACPI_INTEL_SDCA_QUIRKS) += snd-soc-acpi-intel-sdca-quirks.o

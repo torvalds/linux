@@ -115,19 +115,16 @@ struct sdw_amd_acpi_info {
  * struct sdw_amd_ctx - context allocated by the controller driver probe
  *
  * @count: link count
- * @num_slaves: total number of devices exposed across all enabled links
  * @link_mask: bit-wise mask listing SoundWire links reported by the
  * Controller
- * @ids: array of slave_id, representing Slaves exposed across all enabled
- * links
  * @pdev: platform device structure
+ * @peripherals: array representing Peripherals exposed across all enabled links
  */
 struct sdw_amd_ctx {
 	int count;
-	int num_slaves;
 	u32 link_mask;
-	struct sdw_extended_slave_id *ids;
 	struct platform_device *pdev[AMD_SDW_MAX_MANAGER_COUNT];
+	struct sdw_peripherals *peripherals;
 };
 
 /**

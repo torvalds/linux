@@ -5,6 +5,7 @@
 #include <linux/of.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <sound/sdca.h>
 #include "bus.h"
 #include "sysfs_local.h"
 
@@ -69,6 +70,17 @@ int sdw_slave_add(struct sdw_bus *bus,
 	mutex_lock(&bus->bus_lock);
 	list_add_tail(&slave->node, &bus->slaves);
 	mutex_unlock(&bus->bus_lock);
+
+	/*
+	 * The Soundwire driver probe may optionally register SDCA
+	 * sub-devices, one per Function. This means the information
+	 * on the SDCA revision and the number/type of Functions need
+	 * to be extracted from platform firmware before the SoundWire
+	 * driver probe, and as a consequence before the SoundWire
+	 * device_register() below.
+	 */
+	sdca_lookup_interface_revision(slave);
+	sdca_lookup_functions(slave);
 
 	ret = device_register(&slave->dev);
 	if (ret) {
@@ -259,3 +271,5 @@ int sdw_of_find_slaves(struct sdw_bus *bus)
 
 	return 0;
 }
+
+MODULE_IMPORT_NS(SND_SOC_SDCA);
