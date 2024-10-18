@@ -152,6 +152,7 @@ config DRM_PANIC_SCREEN
 config DRM_PANIC_SCREEN_QR_CODE
 	bool "Add a panic screen with a QR code"
 	depends on DRM_PANIC && RUST
+	select ZLIB_DEFLATE
 	help
 	  This option adds a QR code generator, and a panic screen with a QR
 	  code. The QR code will contain the last lines of kmsg and other debug

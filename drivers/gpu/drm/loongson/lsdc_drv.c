@@ -3,10 +3,10 @@
  * Copyright (C) 2023 Loongson Technology Corporation Limited
  */
 
+#include <linux/aperture.h>
 #include <linux/pci.h>
 #include <linux/vgaarb.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
@@ -215,9 +215,9 @@ lsdc_create_device(struct pci_dev *pdev,
 		return ERR_PTR(ret);
 	}
 
-	ret = drm_aperture_remove_conflicting_framebuffers(ldev->vram_base,
-							   ldev->vram_size,
-							   driver);
+	ret = aperture_remove_conflicting_devices(ldev->vram_base,
+						  ldev->vram_size,
+						  driver->name);
 	if (ret) {
 		drm_err(ddev, "Remove firmware framebuffers failed: %d\n", ret);
 		return ERR_PTR(ret);

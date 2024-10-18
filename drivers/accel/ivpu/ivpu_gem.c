@@ -384,6 +384,9 @@ int ivpu_bo_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	timeout = drm_timeout_abs_to_jiffies(args->timeout_ns);
 
+	/* Add 1 jiffy to ensure the wait function never times out before intended timeout_ns */
+	timeout += 1;
+
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -EINVAL;

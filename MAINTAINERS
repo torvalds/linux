@@ -7097,12 +7097,10 @@ M:	Javier Martinez Canillas <javierm@redhat.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
-F:	drivers/gpu/drm/drm_aperture.c
 F:	drivers/gpu/drm/tiny/ofdrm.c
 F:	drivers/gpu/drm/tiny/simpledrm.c
 F:	drivers/video/aperture.c
 F:	drivers/video/nomodeset.c
-F:	include/drm/drm_aperture.h
 F:	include/linux/aperture.h
 F:	include/video/nomodeset.h
 
@@ -7799,6 +7797,7 @@ F:	include/uapi/drm/v3d_drm.h
 DRM DRIVERS FOR VC4
 M:	Maxime Ripard <mripard@kernel.org>
 M:	Dave Stevenson <dave.stevenson@raspberrypi.com>
+R:	Maíra Canal <mcanal@igalia.com>
 R:	Raspberry Pi Kernel Maintenance <kernel-list@raspberrypi.com>
 S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git

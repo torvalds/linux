@@ -8,6 +8,7 @@ config DRM_ACCEL_IVPU
 	select FW_LOADER
 	select DRM_GEM_SHMEM_HELPER
 	select GENERIC_ALLOCATOR
+	select WANT_DEV_COREDUMP
 	help
 	  Choose this option if you have a system with an 14th generation
 	  Intel CPU (Meteor Lake) or newer. Intel NPU (formerly called Intel VPU)

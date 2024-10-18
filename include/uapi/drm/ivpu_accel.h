@@ -12,9 +12,6 @@
 extern "C" {
 #endif
 
-#define DRM_IVPU_DRIVER_MAJOR 1
-#define DRM_IVPU_DRIVER_MINOR 0
-
 #define DRM_IVPU_GET_PARAM		  0x00
 #define DRM_IVPU_SET_PARAM		  0x01
 #define DRM_IVPU_BO_CREATE		  0x02

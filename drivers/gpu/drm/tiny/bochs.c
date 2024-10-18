@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
@@ -711,13 +711,13 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	struct drm_device *dev;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &bochs_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, bochs_driver.name);
 	if (ret)
 		return ret;
 
 	bochs = devm_drm_dev_alloc(&pdev->dev, &bochs_driver, struct bochs_device, dev);
 	if (IS_ERR(bochs))
-		return PTR_ERR(dev);
+		return PTR_ERR(bochs);
 	dev = &bochs->dev;
 
 	ret = pcim_enable_device(pdev);

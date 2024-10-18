@@ -27,6 +27,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -39,7 +40,6 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/vt.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
@@ -485,7 +485,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_perf;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, dev_priv->drm.driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, dev_priv->drm.driver->name);
 	if (ret)
 		goto err_ggtt;
 

@@ -9,6 +9,7 @@
  *  ARM HDLCD Driver
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
@@ -21,7 +22,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_crtc.h>
@@ -287,7 +287,7 @@ static int hdlcd_drm_bind(struct device *dev)
 	 */
 	if (hdlcd_read(hdlcd, HDLCD_REG_COMMAND)) {
 		hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
-		drm_aperture_remove_framebuffers(&hdlcd_driver);
+		aperture_remove_all_conflicting_devices(hdlcd_driver.name);
 	}
 
 	drm_mode_config_reset(drm);

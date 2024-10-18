@@ -309,13 +309,13 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 		struct page *page = cma_pages;
 
 		while (nr_clear_pages > 0) {
-			void *vaddr = kmap_atomic(page);
+			void *vaddr = kmap_local_page(page);
 
 			memset(vaddr, 0, PAGE_SIZE);
-			kunmap_atomic(vaddr);
+			kunmap_local(vaddr);
 			/*
 			 * Avoid wasting time zeroing memory if the process
-			 * has been killed by by SIGKILL
+			 * has been killed by SIGKILL.
 			 */
 			if (fatal_signal_pending(current))
 				goto free_cma;
