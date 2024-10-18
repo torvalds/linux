@@ -481,11 +481,16 @@ static int ffa_msg_send_direct_req2(u16 src_id, u16 dst_id, const uuid_t *uuid,
 				    struct ffa_send_direct_data2 *data)
 {
 	u32 src_dst_ids = PACK_TARGET_INFO(src_id, dst_id);
+	union {
+		uuid_t uuid;
+		__le64 regs[2];
+	} uuid_regs = { .uuid = *uuid };
 	ffa_value_t ret, args = {
-		.a0 = FFA_MSG_SEND_DIRECT_REQ2, .a1 = src_dst_ids,
+		.a0 = FFA_MSG_SEND_DIRECT_REQ2,
+		.a1 = src_dst_ids,
+		.a2 = le64_to_cpu(uuid_regs.regs[0]),
+		.a3 = le64_to_cpu(uuid_regs.regs[1]),
 	};
-
-	export_uuid((u8 *)&args.a2, uuid);
 	memcpy((void *)&args + offsetof(ffa_value_t, a4), data, sizeof(*data));
 
 	invoke_ffa_fn(args, &ret);
@@ -496,7 +501,7 @@ static int ffa_msg_send_direct_req2(u16 src_id, u16 dst_id, const uuid_t *uuid,
 		return ffa_to_linux_errno((int)ret.a2);
 
 	if (ret.a0 == FFA_MSG_SEND_DIRECT_RESP2) {
-		memcpy(data, &ret.a4, sizeof(*data));
+		memcpy(data, (void *)&ret + offsetof(ffa_value_t, a4), sizeof(*data));
 		return 0;
 	}
 

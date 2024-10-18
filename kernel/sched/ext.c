@@ -9,7 +9,6 @@
 #define SCX_OP_IDX(op)		(offsetof(struct sched_ext_ops, op) / sizeof(void (*)(void)))
 
 enum scx_consts {
-	SCX_SLICE_BYPASS		= SCX_SLICE_DFL / 4,
 	SCX_DSP_DFL_MAX_BATCH		= 32,
 	SCX_DSP_MAX_LOOPS		= 32,
 	SCX_WATCHDOG_MAX_TIMEOUT	= 30 * HZ,
@@ -19,6 +18,12 @@ enum scx_consts {
 	SCX_EXIT_DUMP_DFL_LEN		= 32768,
 
 	SCX_CPUPERF_ONE			= SCHED_CAPACITY_SCALE,
+
+	/*
+	 * Iterating all tasks may take a while. Periodically drop
+	 * scx_tasks_lock to avoid causing e.g. CSD and RCU stalls.
+	 */
+	SCX_OPS_TASK_ITER_BATCH		= 32,
 };
 
 enum scx_exit_kind {
@@ -1274,86 +1279,104 @@ struct scx_task_iter {
 	struct task_struct		*locked;
 	struct rq			*rq;
 	struct rq_flags			rf;
+	u32				cnt;
 };
 
 /**
- * scx_task_iter_init - Initialize a task iterator
+ * scx_task_iter_start - Lock scx_tasks_lock and start a task iteration
  * @iter: iterator to init
  *
- * Initialize @iter. Must be called with scx_tasks_lock held. Once initialized,
- * @iter must eventually be exited with scx_task_iter_exit().
+ * Initialize @iter and return with scx_tasks_lock held. Once initialized, @iter
+ * must eventually be stopped with scx_task_iter_stop().
  *
- * scx_tasks_lock may be released between this and the first next() call or
- * between any two next() calls. If scx_tasks_lock is released between two
- * next() calls, the caller is responsible for ensuring that the task being
- * iterated remains accessible either through RCU read lock or obtaining a
- * reference count.
+ * scx_tasks_lock and the rq lock may be released using scx_task_iter_unlock()
+ * between this and the first next() call or between any two next() calls. If
+ * the locks are released between two next() calls, the caller is responsible
+ * for ensuring that the task being iterated remains accessible either through
+ * RCU read lock or obtaining a reference count.
  *
  * All tasks which existed when the iteration started are guaranteed to be
  * visited as long as they still exist.
  */
-static void scx_task_iter_init(struct scx_task_iter *iter)
+static void scx_task_iter_start(struct scx_task_iter *iter)
 {
-	lockdep_assert_held(&scx_tasks_lock);
-
 	BUILD_BUG_ON(__SCX_DSQ_ITER_ALL_FLAGS &
 		     ((1U << __SCX_DSQ_LNODE_PRIV_SHIFT) - 1));
+
+	spin_lock_irq(&scx_tasks_lock);
 
 	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
 	list_add(&iter->cursor.tasks_node, &scx_tasks);
 	iter->locked = NULL;
+	iter->cnt = 0;
 }
 
-/**
- * scx_task_iter_rq_unlock - Unlock rq locked by a task iterator
- * @iter: iterator to unlock rq for
- *
- * If @iter is in the middle of a locked iteration, it may be locking the rq of
- * the task currently being visited. Unlock the rq if so. This function can be
- * safely called anytime during an iteration.
- *
- * Returns %true if the rq @iter was locking is unlocked. %false if @iter was
- * not locking an rq.
- */
-static bool scx_task_iter_rq_unlock(struct scx_task_iter *iter)
+static void __scx_task_iter_rq_unlock(struct scx_task_iter *iter)
 {
 	if (iter->locked) {
 		task_rq_unlock(iter->rq, iter->locked, &iter->rf);
 		iter->locked = NULL;
-		return true;
-	} else {
-		return false;
 	}
 }
 
 /**
- * scx_task_iter_exit - Exit a task iterator
+ * scx_task_iter_unlock - Unlock rq and scx_tasks_lock held by a task iterator
+ * @iter: iterator to unlock
+ *
+ * If @iter is in the middle of a locked iteration, it may be locking the rq of
+ * the task currently being visited in addition to scx_tasks_lock. Unlock both.
+ * This function can be safely called anytime during an iteration.
+ */
+static void scx_task_iter_unlock(struct scx_task_iter *iter)
+{
+	__scx_task_iter_rq_unlock(iter);
+	spin_unlock_irq(&scx_tasks_lock);
+}
+
+/**
+ * scx_task_iter_relock - Lock scx_tasks_lock released by scx_task_iter_unlock()
+ * @iter: iterator to re-lock
+ *
+ * Re-lock scx_tasks_lock unlocked by scx_task_iter_unlock(). Note that it
+ * doesn't re-lock the rq lock. Must be called before other iterator operations.
+ */
+static void scx_task_iter_relock(struct scx_task_iter *iter)
+{
+	spin_lock_irq(&scx_tasks_lock);
+}
+
+/**
+ * scx_task_iter_stop - Stop a task iteration and unlock scx_tasks_lock
  * @iter: iterator to exit
  *
- * Exit a previously initialized @iter. Must be called with scx_tasks_lock held.
- * If the iterator holds a task's rq lock, that rq lock is released. See
- * scx_task_iter_init() for details.
+ * Exit a previously initialized @iter. Must be called with scx_tasks_lock held
+ * which is released on return. If the iterator holds a task's rq lock, that rq
+ * lock is also released. See scx_task_iter_start() for details.
  */
-static void scx_task_iter_exit(struct scx_task_iter *iter)
+static void scx_task_iter_stop(struct scx_task_iter *iter)
 {
-	lockdep_assert_held(&scx_tasks_lock);
-
-	scx_task_iter_rq_unlock(iter);
 	list_del_init(&iter->cursor.tasks_node);
+	scx_task_iter_unlock(iter);
 }
 
 /**
  * scx_task_iter_next - Next task
  * @iter: iterator to walk
  *
- * Visit the next task. See scx_task_iter_init() for details.
+ * Visit the next task. See scx_task_iter_start() for details. Locks are dropped
+ * and re-acquired every %SCX_OPS_TASK_ITER_BATCH iterations to avoid causing
+ * stalls by holding scx_tasks_lock for too long.
  */
 static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
 {
 	struct list_head *cursor = &iter->cursor.tasks_node;
 	struct sched_ext_entity *pos;
 
-	lockdep_assert_held(&scx_tasks_lock);
+	if (!(++iter->cnt % SCX_OPS_TASK_ITER_BATCH)) {
+		scx_task_iter_unlock(iter);
+		cond_resched();
+		scx_task_iter_relock(iter);
+	}
 
 	list_for_each_entry(pos, cursor, tasks_node) {
 		if (&pos->tasks_node == &scx_tasks)
@@ -1374,14 +1397,14 @@ static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
  * @include_dead: Whether we should include dead tasks in the iteration
  *
  * Visit the non-idle task with its rq lock held. Allows callers to specify
- * whether they would like to filter out dead tasks. See scx_task_iter_init()
+ * whether they would like to filter out dead tasks. See scx_task_iter_start()
  * for details.
  */
 static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 {
 	struct task_struct *p;
 
-	scx_task_iter_rq_unlock(iter);
+	__scx_task_iter_rq_unlock(iter);
 
 	while ((p = scx_task_iter_next(iter))) {
 		/*
@@ -1949,7 +1972,6 @@ static bool scx_rq_online(struct rq *rq)
 static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 			    int sticky_cpu)
 {
-	bool bypassing = scx_rq_bypassing(rq);
 	struct task_struct **ddsp_taskp;
 	unsigned long qseq;
 
@@ -1967,7 +1989,7 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	if (!scx_rq_online(rq))
 		goto local;
 
-	if (bypassing)
+	if (scx_rq_bypassing(rq))
 		goto global;
 
 	if (p->scx.ddsp_dsq_id != SCX_DSQ_INVALID)
@@ -2022,7 +2044,7 @@ local_norefill:
 
 global:
 	touch_core_sched(rq, p);	/* see the comment in local: */
-	p->scx.slice = bypassing ? SCX_SLICE_BYPASS : SCX_SLICE_DFL;
+	p->scx.slice = SCX_SLICE_DFL;
 	dispatch_enqueue(find_global_dsq(p), p, enq_flags);
 }
 
@@ -2958,8 +2980,8 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 
 		if (unlikely(!p->scx.slice)) {
 			if (!scx_rq_bypassing(rq) && !scx_warned_zero_slice) {
-				printk_deferred(KERN_WARNING "sched_ext: %s[%d] has zero slice in pick_next_task_scx()\n",
-						p->comm, p->pid);
+				printk_deferred(KERN_WARNING "sched_ext: %s[%d] has zero slice in %s()\n",
+						p->comm, p->pid, __func__);
 				scx_warned_zero_slice = true;
 			}
 			p->scx.slice = SCX_SLICE_DFL;
@@ -3064,11 +3086,6 @@ static s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 
 	*found = false;
 
-	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
-		scx_ops_error("built-in idle tracking is disabled");
-		return prev_cpu;
-	}
-
 	/*
 	 * If WAKE_SYNC, the waker's local DSQ is empty, and the system is
 	 * under utilized, wake up @p to the local DSQ of the waker. Checking
@@ -3133,7 +3150,7 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 	if (unlikely(wake_flags & WF_EXEC))
 		return prev_cpu;
 
-	if (SCX_HAS_OP(select_cpu)) {
+	if (SCX_HAS_OP(select_cpu) && !scx_rq_bypassing(task_rq(p))) {
 		s32 cpu;
 		struct task_struct **ddsp_taskp;
 
@@ -3198,7 +3215,7 @@ void __scx_update_idle(struct rq *rq, bool idle)
 {
 	int cpu = cpu_of(rq);
 
-	if (SCX_HAS_OP(update_idle)) {
+	if (SCX_HAS_OP(update_idle) && !scx_rq_bypassing(rq)) {
 		SCX_CALL_OP(SCX_KF_REST, update_idle, cpu_of(rq), idle);
 		if (!static_branch_unlikely(&scx_builtin_idle_enabled))
 			return;
@@ -4261,21 +4278,23 @@ bool task_should_scx(struct task_struct *p)
  * the DISABLING state and then cycling the queued tasks through dequeue/enqueue
  * to force global FIFO scheduling.
  *
- * a. ops.enqueue() is ignored and tasks are queued in simple global FIFO order.
- *    %SCX_OPS_ENQ_LAST is also ignored.
+ * - ops.select_cpu() is ignored and the default select_cpu() is used.
  *
- * b. ops.dispatch() is ignored.
+ * - ops.enqueue() is ignored and tasks are queued in simple global FIFO order.
+ *   %SCX_OPS_ENQ_LAST is also ignored.
  *
- * c. balance_scx() does not set %SCX_RQ_BAL_KEEP on non-zero slice as slice
- *    can't be trusted. Whenever a tick triggers, the running task is rotated to
- *    the tail of the queue with core_sched_at touched.
+ * - ops.dispatch() is ignored.
  *
- * d. pick_next_task() suppresses zero slice warning.
+ * - balance_scx() does not set %SCX_RQ_BAL_KEEP on non-zero slice as slice
+ *   can't be trusted. Whenever a tick triggers, the running task is rotated to
+ *   the tail of the queue with core_sched_at touched.
  *
- * e. scx_bpf_kick_cpu() is disabled to avoid irq_work malfunction during PM
- *    operations.
+ * - pick_next_task() suppresses zero slice warning.
  *
- * f. scx_prio_less() reverts to the default core_sched_at order.
+ * - scx_bpf_kick_cpu() is disabled to avoid irq_work malfunction during PM
+ *   operations.
+ *
+ * - scx_prio_less() reverts to the default core_sched_at order.
  */
 static void scx_ops_bypass(bool bypass)
 {
@@ -4345,7 +4364,7 @@ static void scx_ops_bypass(bool bypass)
 
 		rq_unlock_irqrestore(rq, &rf);
 
-		/* kick to restore ticks */
+		/* resched to restore ticks and idle state */
 		resched_cpu(cpu);
 	}
 }
@@ -4467,15 +4486,13 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 
 	scx_ops_init_task_enabled = false;
 
-	spin_lock_irq(&scx_tasks_lock);
-	scx_task_iter_init(&sti);
+	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
 		struct sched_enq_and_set_ctx ctx;
 
 		sched_deq_and_put_task(p, DEQUEUE_SAVE | DEQUEUE_MOVE, &ctx);
 
-		p->scx.slice = min_t(u64, p->scx.slice, SCX_SLICE_DFL);
 		__setscheduler_prio(p, p->prio);
 		check_class_changing(task_rq(p), p, old_class);
 
@@ -4484,8 +4501,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 		check_class_changed(task_rq(p), p, old_class, p->prio);
 		scx_ops_exit_task(p);
 	}
-	scx_task_iter_exit(&sti);
-	spin_unlock_irq(&scx_tasks_lock);
+	scx_task_iter_stop(&sti);
 	percpu_up_write(&scx_fork_rwsem);
 
 	/* no task is on scx, turn off all the switches and flush in-progress calls */
@@ -5136,8 +5152,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	if (ret)
 		goto err_disable_unlock_all;
 
-	spin_lock_irq(&scx_tasks_lock);
-	scx_task_iter_init(&sti);
+	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		/*
 		 * @p may already be dead, have lost all its usages counts and
@@ -5147,15 +5162,13 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		if (!tryget_task_struct(p))
 			continue;
 
-		scx_task_iter_rq_unlock(&sti);
-		spin_unlock_irq(&scx_tasks_lock);
+		scx_task_iter_unlock(&sti);
 
 		ret = scx_ops_init_task(p, task_group(p), false);
 		if (ret) {
 			put_task_struct(p);
-			spin_lock_irq(&scx_tasks_lock);
-			scx_task_iter_exit(&sti);
-			spin_unlock_irq(&scx_tasks_lock);
+			scx_task_iter_relock(&sti);
+			scx_task_iter_stop(&sti);
 			scx_ops_error("ops.init_task() failed (%d) for %s[%d]",
 				      ret, p->comm, p->pid);
 			goto err_disable_unlock_all;
@@ -5164,10 +5177,9 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		scx_set_task_state(p, SCX_TASK_READY);
 
 		put_task_struct(p);
-		spin_lock_irq(&scx_tasks_lock);
+		scx_task_iter_relock(&sti);
 	}
-	scx_task_iter_exit(&sti);
-	spin_unlock_irq(&scx_tasks_lock);
+	scx_task_iter_stop(&sti);
 	scx_cgroup_unlock();
 	percpu_up_write(&scx_fork_rwsem);
 
@@ -5184,14 +5196,14 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	 * scx_tasks_lock.
 	 */
 	percpu_down_write(&scx_fork_rwsem);
-	spin_lock_irq(&scx_tasks_lock);
-	scx_task_iter_init(&sti);
+	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
 		struct sched_enq_and_set_ctx ctx;
 
 		sched_deq_and_put_task(p, DEQUEUE_SAVE | DEQUEUE_MOVE, &ctx);
 
+		p->scx.slice = SCX_SLICE_DFL;
 		__setscheduler_prio(p, p->prio);
 		check_class_changing(task_rq(p), p, old_class);
 
@@ -5199,8 +5211,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 		check_class_changed(task_rq(p), p, old_class, p->prio);
 	}
-	scx_task_iter_exit(&sti);
-	spin_unlock_irq(&scx_tasks_lock);
+	scx_task_iter_stop(&sti);
 	percpu_up_write(&scx_fork_rwsem);
 
 	scx_ops_bypass(false);
@@ -5872,16 +5883,21 @@ __bpf_kfunc_start_defs();
 __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 				       u64 wake_flags, bool *is_idle)
 {
-	if (!scx_kf_allowed(SCX_KF_SELECT_CPU)) {
-		*is_idle = false;
-		return prev_cpu;
+	if (!static_branch_likely(&scx_builtin_idle_enabled)) {
+		scx_ops_error("built-in idle tracking is disabled");
+		goto prev_cpu;
 	}
+
+	if (!scx_kf_allowed(SCX_KF_SELECT_CPU))
+		goto prev_cpu;
+
 #ifdef CONFIG_SMP
 	return scx_select_cpu_dfl(p, prev_cpu, wake_flags, is_idle);
-#else
+#endif
+
+prev_cpu:
 	*is_idle = false;
 	return prev_cpu;
-#endif
 }
 
 __bpf_kfunc_end_defs();
