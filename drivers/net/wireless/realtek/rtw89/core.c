@@ -1858,30 +1858,56 @@ static void rtw89_core_rx_process_phy_sts(struct rtw89_dev *rtwdev,
 					  phy_ppdu);
 }
 
-static u8 rtw89_rxdesc_to_nl_he_eht_gi(struct rtw89_dev *rtwdev,
-				       u8 desc_info_gi,
-				       bool rx_status, bool eht)
+static u8 rtw89_rxdesc_to_nl_he_gi(struct rtw89_dev *rtwdev,
+				   u8 desc_info_gi,
+				   bool rx_status)
 {
 	switch (desc_info_gi) {
 	case RTW89_GILTF_SGI_4XHE08:
 	case RTW89_GILTF_2XHE08:
 	case RTW89_GILTF_1XHE08:
-		return eht ? NL80211_RATE_INFO_EHT_GI_0_8 :
-			     NL80211_RATE_INFO_HE_GI_0_8;
+		return NL80211_RATE_INFO_HE_GI_0_8;
 	case RTW89_GILTF_2XHE16:
 	case RTW89_GILTF_1XHE16:
-		return eht ? NL80211_RATE_INFO_EHT_GI_1_6 :
-			     NL80211_RATE_INFO_HE_GI_1_6;
+		return NL80211_RATE_INFO_HE_GI_1_6;
 	case RTW89_GILTF_LGI_4XHE32:
-		return eht ? NL80211_RATE_INFO_EHT_GI_3_2 :
-			     NL80211_RATE_INFO_HE_GI_3_2;
+		return NL80211_RATE_INFO_HE_GI_3_2;
 	default:
 		rtw89_warn(rtwdev, "invalid gi_ltf=%d", desc_info_gi);
 		if (rx_status)
-			return eht ? NL80211_RATE_INFO_EHT_GI_3_2 :
-				     NL80211_RATE_INFO_HE_GI_3_2;
+			return NL80211_RATE_INFO_HE_GI_3_2;
 		return U8_MAX;
 	}
+}
+
+static u8 rtw89_rxdesc_to_nl_eht_gi(struct rtw89_dev *rtwdev,
+				    u8 desc_info_gi,
+				    bool rx_status)
+{
+	switch (desc_info_gi) {
+	case RTW89_GILTF_SGI_4XHE08:
+	case RTW89_GILTF_2XHE08:
+	case RTW89_GILTF_1XHE08:
+		return NL80211_RATE_INFO_EHT_GI_0_8;
+	case RTW89_GILTF_2XHE16:
+	case RTW89_GILTF_1XHE16:
+		return NL80211_RATE_INFO_EHT_GI_1_6;
+	case RTW89_GILTF_LGI_4XHE32:
+		return NL80211_RATE_INFO_EHT_GI_3_2;
+	default:
+		rtw89_warn(rtwdev, "invalid gi_ltf=%d", desc_info_gi);
+		if (rx_status)
+			return NL80211_RATE_INFO_EHT_GI_3_2;
+		return U8_MAX;
+	}
+}
+
+static u8 rtw89_rxdesc_to_nl_he_eht_gi(struct rtw89_dev *rtwdev,
+				       u8 desc_info_gi,
+				       bool rx_status, bool eht)
+{
+	return eht ? rtw89_rxdesc_to_nl_eht_gi(rtwdev, desc_info_gi, rx_status) :
+		     rtw89_rxdesc_to_nl_he_gi(rtwdev, desc_info_gi, rx_status);
 }
 
 static
