@@ -70,7 +70,7 @@ struct amdgpu_umc_ras {
 			enum amdgpu_mca_error_type type, void *ras_error_status);
 	int (*update_ecc_status)(struct amdgpu_device *adev,
 			uint64_t status, uint64_t ipid, uint64_t addr);
-	void (*convert_ras_err_addr)(struct amdgpu_device *adev,
+	int (*convert_ras_err_addr)(struct amdgpu_device *adev,
 			struct ras_err_data *err_data,
 			struct ta_ras_query_address_input *addr_in,
 			struct ta_ras_query_address_output *addr_out,

@@ -461,11 +461,14 @@ int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 
 	addr_out.pa.pa = pa_addr;
 
-	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
-		adev->umc.ras->convert_ras_err_addr(adev, &err_data, NULL,
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
+		ret = adev->umc.ras->convert_ras_err_addr(adev, &err_data, NULL,
 				&addr_out, false);
-	else
+		if (ret)
+			goto out;
+	} else {
 		goto out;
+	}
 
 	for (i = 0; i < adev->umc.retire_unit; i++) {
 		if (pos >= len)
@@ -488,6 +491,7 @@ int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
 {
 	struct ta_ras_query_address_input addr_in;
 	struct ta_ras_query_address_output addr_out;
+	int ret;
 
 	memset(&addr_in, 0, sizeof(addr_in));
 	addr_in.ma.err_addr = err_addr;
@@ -496,11 +500,14 @@ int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
 	addr_in.ma.node_inst = node;
 	addr_in.ma.socket_id = socket;
 
-	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
-		adev->umc.ras->convert_ras_err_addr(adev, NULL, &addr_in,
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
+		ret = adev->umc.ras->convert_ras_err_addr(adev, NULL, &addr_in,
 				&addr_out, dump_addr);
-	else
+		if (ret)
+			return ret;
+	} else {
 		return 0;
+	}
 
 	*addr = addr_out.pa.pa;
 

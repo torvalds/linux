@@ -173,7 +173,7 @@ static void umc_v12_0_query_ras_error_count(struct amdgpu_device *adev,
 	umc_v12_0_reset_error_count(adev);
 }
 
-static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
+static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ras_err_data *err_data,
 					struct ta_ras_query_address_input *addr_in,
 					struct ta_ras_query_address_output *addr_out,
@@ -183,6 +183,7 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	uint64_t soc_pa, retired_page, column, err_addr;
 	struct ta_ras_query_address_output addr_out_tmp;
 	struct ta_ras_query_address_output *paddr_out;
+	int ret = 0;
 
 	if (!addr_out)
 		paddr_out = &addr_out_tmp;
@@ -193,11 +194,12 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	if (addr_in) {
 		err_addr = addr_in->ma.err_addr;
 		addr_in->addr_type = TA_RAS_MCA_TO_PA;
-		if (psp_ras_query_address(&adev->psp, addr_in, paddr_out)) {
+		ret = psp_ras_query_address(&adev->psp, addr_in, paddr_out);
+		if (ret) {
 			dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
 				err_addr);
 
-			return;
+			return ret;
 		}
 
 		bank = paddr_out->pa.bank;
@@ -209,7 +211,7 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	soc_pa = paddr_out->pa.pa;
 
 	if (!err_data && !dump_addr)
-		return;
+		return ret;
 
 	col = (err_addr >> 1) & 0x1fULL;
 	/* clear [C3 C2] in soc physical address */
@@ -241,6 +243,8 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 			amdgpu_umc_fill_error_record(err_data, err_addr,
 				retired_page, channel_index, umc_inst);
 	}
+
+	return ret;
 }
 
 static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
