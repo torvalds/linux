@@ -250,6 +250,7 @@ enum isharp_en	{
 	ISHARP_DISABLE,
 	ISHARP_ENABLE
 };
+#define ISHARP_LUT_TABLE_SIZE 32
 // Below struct holds values that can be directly used to program
 // hardware registers. No conversion/clamping is required
 struct dscl_prog_data {
@@ -400,7 +401,7 @@ struct dscl_prog_data {
 	uint32_t isharp_nl_en;  //      ISHARP_NL_EN ? TODO:check this
 	struct isharp_lba isharp_lba;   //      ISHARP_LBA
 	struct isharp_fmt isharp_fmt;   //      ISHARP_FMT
-	const uint32_t *isharp_delta;
+	uint32_t isharp_delta[ISHARP_LUT_TABLE_SIZE];
 	struct isharp_nldelta_sclip isharp_nldelta_sclip;       //      ISHARP_NLDELTA_SCLIP
 	/* blur and scale filter */
 	const uint16_t *filter_blur_scale_v;

@@ -1607,7 +1607,8 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 
 	spl_build_isharp_1dlut_from_reference_curve(ratio, setup, adp_sharpness,
 		scale_to_sharpness_policy);
-	dscl_prog_data->isharp_delta = spl_get_pregen_filter_isharp_1D_lut(setup);
+	memcpy(dscl_prog_data->isharp_delta, spl_get_pregen_filter_isharp_1D_lut(setup),
+		sizeof(uint32_t) * ISHARP_LUT_TABLE_SIZE);
 	dscl_prog_data->sharpness_level = adp_sharpness.sharpness_level;
 
 	dscl_prog_data->isharp_en = 1;	// ISHARP_EN
