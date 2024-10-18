@@ -238,6 +238,9 @@
 	clock-frequency = <400000>;
 
 	bridge@2c {
+		pinctrl-0 = <&irq0_pins>;
+		pinctrl-names = "default";
+
 		compatible = "ti,sn65dsi86";
 		reg = <0x2c>;
 
@@ -339,6 +342,11 @@
 	i2c1_pins: i2c1 {
 		groups = "i2c1";
 		function = "i2c1";
+	};
+
+	irq0_pins: irq0 {
+		groups = "intc_ex_irq0_a";
+		function = "intc_ex";
 	};
 
 	keys_pins: keys {
