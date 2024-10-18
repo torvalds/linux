@@ -546,6 +546,26 @@ static int mddev_set_closing_and_sync_blockdev(struct mddev *mddev, int opener_n
 	return 0;
 }
 
+/*
+ * The only difference from bio_chain_endio() is that the current
+ * bi_status of bio does not affect the bi_status of parent.
+ */
+static void md_end_flush(struct bio *bio)
+{
+	struct bio *parent = bio->bi_private;
+
+	/*
+	 * If any flush io error before the power failure,
+	 * disk data may be lost.
+	 */
+	if (bio->bi_status)
+		pr_err("md: %pg flush io error %d\n", bio->bi_bdev,
+			blk_status_to_errno(bio->bi_status));
+
+	bio_put(bio);
+	bio_endio(parent);
+}
+
 bool md_flush_request(struct mddev *mddev, struct bio *bio)
 {
 	struct md_rdev *rdev;
@@ -565,7 +585,9 @@ bool md_flush_request(struct mddev *mddev, struct bio *bio)
 		new = bio_alloc_bioset(rdev->bdev, 0,
 				       REQ_OP_WRITE | REQ_PREFLUSH, GFP_NOIO,
 				       &mddev->bio_set);
-		bio_chain(new, bio);
+		new->bi_private = bio;
+		new->bi_end_io = md_end_flush;
+		bio_inc_remaining(bio);
 		submit_bio(new);
 	}
 
