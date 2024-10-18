@@ -270,6 +270,10 @@ static int display_connector_probe(struct platform_device *pdev)
 	/* All the supported connector types support interlaced modes. */
 	conn->bridge.interlace_allowed = true;
 
+	if (type == DRM_MODE_CONNECTOR_HDMIA ||
+	    type == DRM_MODE_CONNECTOR_DisplayPort)
+		conn->bridge.ycbcr_420_allowed = true;
+
 	/* Get the optional connector label. */
 	of_property_read_string(pdev->dev.of_node, "label", &label);
 
