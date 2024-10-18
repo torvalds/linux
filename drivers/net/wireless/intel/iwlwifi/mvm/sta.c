@@ -4328,7 +4328,10 @@ int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	unsigned int wdg_timeout =
 		iwl_mvm_get_wd_timeout(mvm, vif);
 	bool mld = iwl_mvm_has_mld_api(mvm->fw);
-	u32 type = mld ? STATION_TYPE_PEER : IWL_STA_LINK;
+	u32 type = IWL_STA_LINK;
+
+	if (mld)
+		type = STATION_TYPE_PEER;
 
 	ret = iwl_mvm_allocate_int_sta(mvm, sta, 0,
 				       NL80211_IFTYPE_UNSPECIFIED, type);
