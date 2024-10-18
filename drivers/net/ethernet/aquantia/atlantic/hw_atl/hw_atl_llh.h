@@ -34,6 +34,27 @@ u32 hw_atl_ts_ready_latch_high_get(struct aq_hw_s *aq_hw);
 /* get temperature sense data */
 u32 hw_atl_ts_data_get(struct aq_hw_s *aq_hw);
 
+/* SMBUS0 bus busy */
+u32 hw_atl_smb0_bus_busy_get(struct aq_hw_s *aq_hw);
+
+/* SMBUS0 byte transfer complete */
+u32 hw_atl_smb0_byte_transfer_complete_get(struct aq_hw_s *aq_hw);
+
+/* SMBUS0 receive acknowledged */
+u32 hw_atl_smb0_receive_acknowledged_get(struct aq_hw_s *aq_hw);
+
+/* SMBUS0 set transmitted data (only leftmost byte of data valid) */
+void hw_atl_smb0_tx_data_set(struct aq_hw_s *aq_hw, u32 data);
+
+/* SMBUS0 provisioning2 command register */
+void hw_atl_smb0_provisioning2_set(struct aq_hw_s *aq_hw, u32 data);
+
+/* SMBUS0 repeated start detect */
+u32 hw_atl_smb0_repeated_start_detect_get(struct aq_hw_s *aq_hw);
+
+/* SMBUS0 received data register */
+u32 hw_atl_smb0_rx_data_get(struct aq_hw_s *aq_hw);
+
 /* global */
 
 /* set global microprocessor semaphore */
