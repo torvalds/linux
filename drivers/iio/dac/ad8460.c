@@ -924,7 +924,7 @@ static int ad8460_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ad8460_of_match[] = {
-	{ .compatible = "adi, ad8460" },
+	{ .compatible = "adi,ad8460" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad8460_of_match);
