@@ -266,6 +266,25 @@ TEST_F(tls_basic, bad_cipher)
 	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
 }
 
+TEST_F(tls_basic, recseq_wrap)
+{
+	struct tls_crypto_info_keys tls12;
+	char const *test_str = "test_read";
+	int send_len = 10;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	tls_crypto_info_init(TLS_1_2_VERSION, TLS_CIPHER_AES_GCM_128, &tls12);
+	memset(&tls12.aes128.rec_seq, 0xff, sizeof(tls12.aes128.rec_seq));
+
+	ASSERT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, tls12.len), 0);
+	ASSERT_EQ(setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls12, tls12.len), 0);
+
+	EXPECT_EQ(send(self->fd, test_str, send_len, 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+}
+
 FIXTURE(tls)
 {
 	int fd, cfd;
