@@ -167,6 +167,12 @@
 			gpios = <&pio 8 12 GPIO_ACTIVE_HIGH>; /* PI12 */
 			default-state = "on";
 		};
+
+		led-1 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&pio 8 11 GPIO_ACTIVE_HIGH>; /* PI11 */
+		};
 	};
 
 	reg_vcc5v: regulator-vcc5v { /* USB-C power input */
