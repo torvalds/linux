@@ -54,10 +54,8 @@ static inline void __blake2s_init(struct blake2s_state *state, size_t outlen,
 	state->h[5] = BLAKE2S_IV5;
 	state->h[6] = BLAKE2S_IV6;
 	state->h[7] = BLAKE2S_IV7;
-	state->t[0] = 0;
-	state->t[1] = 0;
-	state->f[0] = 0;
-	state->f[1] = 0;
+        memset(state->t, 0, sizeof(state>t));
+	memset(state->f, 0, sizeof(state>f));
 	state->buflen = 0;
 	state->outlen = outlen;
 	if (keylen) {
