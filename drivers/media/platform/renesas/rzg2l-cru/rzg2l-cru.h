@@ -63,6 +63,16 @@ struct rzg2l_cru_ip {
 };
 
 /**
+ * struct rzg2l_cru_ip_format - CRU IP format
+ * @code: Media bus code
+ * @datatype: MIPI CSI2 data type
+ */
+struct rzg2l_cru_ip_format {
+	u32 code;
+	u32 datatype;
+};
+
+/**
  * struct rzg2l_cru_dev - Renesas CRU device structure
  * @dev:		(OF) device
  * @base:		device I/O register space remapped to virtual memory
@@ -149,5 +159,7 @@ const struct v4l2_format_info *rzg2l_cru_format_from_pixel(u32 format);
 int rzg2l_cru_ip_subdev_register(struct rzg2l_cru_dev *cru);
 void rzg2l_cru_ip_subdev_unregister(struct rzg2l_cru_dev *cru);
 struct v4l2_mbus_framefmt *rzg2l_cru_ip_get_src_fmt(struct rzg2l_cru_dev *cru);
+
+const struct rzg2l_cru_ip_format *rzg2l_cru_ip_code_to_fmt(unsigned int code);
 
 #endif
