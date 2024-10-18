@@ -58,3 +58,5 @@ libcurve25519-y					+= curve25519-selftest.o
 endif
 
 obj-$(CONFIG_MPILIB) += mpi/
+
+obj-$(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)	+= simd.o
