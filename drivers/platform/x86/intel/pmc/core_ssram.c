@@ -29,7 +29,7 @@
 #define LPM_REG_COUNT		28
 #define LPM_MODE_OFFSET		1
 
-DEFINE_FREE(pmc_core_iounmap, void __iomem *, iounmap(_T));
+DEFINE_FREE(pmc_core_iounmap, void __iomem *, if (_T) iounmap(_T))
 
 static u32 pmc_core_find_guid(struct pmc_info *list, const struct pmc_reg_map *map)
 {
@@ -262,6 +262,8 @@ pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
 
 	ssram_base = ssram_pcidev->resource[0].start;
 	tmp_ssram = ioremap(ssram_base, SSRAM_HDR_SIZE);
+	if (!tmp_ssram)
+		return -ENOMEM;
 
 	if (pmc_idx != PMC_IDX_MAIN) {
 		/*
