@@ -2926,7 +2926,7 @@ static void spi_controller_release(struct device *dev)
 	kfree(ctlr);
 }
 
-static struct class spi_master_class = {
+static const struct class spi_master_class = {
 	.name		= "spi_master",
 	.dev_release	= spi_controller_release,
 	.dev_groups	= spi_master_groups,
@@ -3016,7 +3016,7 @@ static const struct attribute_group *spi_slave_groups[] = {
 	NULL,
 };
 
-static struct class spi_slave_class = {
+static const struct class spi_slave_class = {
 	.name		= "spi_slave",
 	.dev_release	= spi_controller_release,
 	.dev_groups	= spi_slave_groups,
