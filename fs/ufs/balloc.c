@@ -50,7 +50,7 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 	UFSD("ENTER, fragment %llu, count %u\n",
 	     (unsigned long long)fragment, count);
 	
-	if (ufs_fragnum(fragment) + count > uspi->s_fpg)
+	if (ufs_fragnum(fragment) + count > uspi->s_fpb)
 		ufs_error (sb, "ufs_free_fragments", "internal error");
 
 	mutex_lock(&UFS_SB(sb)->s_lock);
