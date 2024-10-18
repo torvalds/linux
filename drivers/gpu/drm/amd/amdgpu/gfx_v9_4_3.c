@@ -353,13 +353,17 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 
 		WREG32_SOC15(GC, dev_inst, regGB_ADDR_CONFIG,
 			     GOLDEN_GB_ADDR_CONFIG);
-		/* Golden settings applied by driver for ASIC with rev_id 0 */
-		if (adev->rev_id == 0) {
-			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
-					      REDUCE_FIFO_DEPTH_BY_2, 2);
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0)) {
+			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2, SPARE, 0x1);
 		} else {
-			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2,
-						SPARE, 0x1);
+			/* Golden settings applied by driver for ASIC with rev_id 0 */
+			if (adev->rev_id == 0) {
+				WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
+						      REDUCE_FIFO_DEPTH_BY_2, 2);
+			} else {
+				WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2,
+						      SPARE, 0x1);
+			}
 		}
 	}
 }
