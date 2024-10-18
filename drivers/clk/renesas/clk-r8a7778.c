@@ -67,7 +67,6 @@ r8a7778_cpg_register_clock(struct device_node *np, const char *name)
 	return ERR_PTR(-EINVAL);
 }
 
-
 static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 {
 	struct clk_onecell_data *data;
