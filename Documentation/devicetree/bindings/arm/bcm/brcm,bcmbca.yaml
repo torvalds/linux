@@ -115,6 +115,7 @@ properties:
         items:
           - enum:
               - brcm,bcm96846
+              - genexis,xg6846b
           - const: brcm,bcm6846
           - const: brcm,bcmbca
 
