@@ -223,5 +223,14 @@
 				reg = <0>;
 			};
 		};
+
+		mdio: mdio@2060 {
+			compatible = "brcm,bcm6846-mdio";
+			reg = <0x02060 0x10>, <0x5a068 0x4>;
+			reg-names = "mdio", "mdio_indir_rw";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
 	};
 };
