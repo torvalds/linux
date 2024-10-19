@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2024, Eugene Lepshy <fekz115@gmail.com>
+ */
+
+/dts-v1/;
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include "sm7325.dtsi"
+
+/delete-node/ &rmtfs_mem;
+
+/ {
+	model = "Samsung Galaxy A52s 5G";
+	compatible = "samsung,a52sxq", "qcom,sm7325";
+	qcom,msm-id = <0x1db 0x10000 0x203 0x10000>;
+	qcom,board-id = <0x1000b 0x00>;
+	chassis-type = "handset";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			alloc-ranges = <0x00 0x00 0x00 0xffffffff>;
+			reusable;
+			alignment = <0x00 0x400000>;
+			size = <0x00 0x2000000>;
+			linux,cma-default;
+		};
+
+		framebuffer_region@e1000000 {
+			reg = <0x0 0xe1000000 0x0 0x02400000>;
+			no-map;
+		};
+	};
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer@e1000000 {
+			compatible = "simple-framebuffer";
+			reg = <0x0 0xe1000000 0x0 (1080 * 2400 * 4)>;
+			width = <1080>;
+			height = <2400>;
+			stride = <(1080 * 4)>;
+			format = "a8r8g8b8";
+		};
+	};
+};
+
+&dispcc {
+	status = "disabled";
+};
+
+&gpu {
+	status = "disabled";
+};
