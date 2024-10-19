@@ -17,6 +17,24 @@
 		reg = <0x80000000 0x40000000>; /* 1024M */
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		device-chemistry = "lithium-ion";
+		charge-full-design-microamp-hours = <2720000>;
+		voltage-max-design-microvolt = <4200000>;
+		voltage-min-design-microvolt = <3300000>;
+
+		constant-charge-voltage-max-microvolt = <4200000>;
+		/*
+		 * vendor kernel says max charge 1400000, input limit 900000
+		 * and charges only with dcp chargers. So it is unclear what
+		 * is really allowed. Play safe for now and restrict things
+		 * here. Maybe 900000 is just the limit of the vendor charger?
+		 */
+		constant-charge-current-max-microamp = <900000>;
+		charge-term-current-microamp = <200000>;
+	};
+
 	backlight-left {
 		compatible = "pwm-backlight";
 		pwms = <&twl_pwm 1 7812500>;
@@ -198,6 +216,14 @@
 		#interrupt-cells = <1>;
 		system-power-controller;
 
+		charger {
+			compatible = "ti,twl6032-charger", "ti,twl6030-charger";
+			interrupts = <2>, <5>;
+			io-channels = <&gpadc 10>;
+			io-channel-names = "vusb";
+			monitored-battery = <&battery>;
+		};
+
 		rtc {
 			compatible = "ti,twl4030-rtc";
 			interrupts = <11>;
@@ -277,7 +303,7 @@
 			#pwm-cells = <2>;
 		};
 
-		gpadc {
+		gpadc: gpadc {
 			compatible = "ti,twl6032-gpadc";
 			interrupts = <3>;
 			#io-channel-cells = <1>;
