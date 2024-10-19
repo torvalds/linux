@@ -153,7 +153,7 @@ enum {
  * SHADOW_STACK_OFFSET:	The size in long words of the shadow stack
  * SHADOW_STACK_MAX_OFFSET: The max offset of the stack for a new frame to be added
  */
-#define SHADOW_STACK_SIZE	(PAGE_SIZE)
+#define SHADOW_STACK_SIZE	(4096)
 #define SHADOW_STACK_OFFSET	(SHADOW_STACK_SIZE / sizeof(long))
 /* Leave on a buffer at the end */
 #define SHADOW_STACK_MAX_OFFSET				\
