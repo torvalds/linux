@@ -1788,7 +1788,7 @@ static const struct dev_pm_ops lvts_pm_ops = {
 
 static struct platform_driver lvts_driver = {
 	.probe = lvts_probe,
-	.remove_new = lvts_remove,
+	.remove = lvts_remove,
 	.driver = {
 		.name = "mtk-lvts-thermal",
 		.of_match_table = lvts_of_match,
