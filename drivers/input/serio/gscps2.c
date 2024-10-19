@@ -198,8 +198,6 @@ static void gscps2_enable(struct gscps2port *ps2port, int enable)
 
 static void gscps2_reset(struct gscps2port *ps2port)
 {
-	unsigned long flags;
-
 	/* reset the interface */
 	guard(spinlock_irqsave)(&ps2port->lock);
 	gscps2_flush(ps2port);
@@ -218,7 +216,7 @@ static void gscps2_read_data(struct gscps2port *ps2port)
 		if (!(status & GSC_STAT_RBNE))
 			break;
 
-		ps2port->buffer[ps2port->append].ste = status;
+		ps2port->buffer[ps2port->append].str = status;
 		ps2port->buffer[ps2port->append].data =
 				gscps2_readb_input(ps2port->addr);
 	} while (true);
