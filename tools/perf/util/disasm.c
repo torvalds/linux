@@ -1785,7 +1785,7 @@ static int symbol__disassemble_raw(char *filename, struct symbol *sym,
 		sprintf(args->line, "%x", line[i]);
 		dl = disasm_line__new(args);
 		if (dl == NULL)
-			goto err;
+			break;
 
 		annotation_line__add(&dl->al, &notes->src->source);
 		offset += 4;
