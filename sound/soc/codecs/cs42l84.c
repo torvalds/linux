@@ -44,7 +44,8 @@ struct cs42l84_private {
 	struct gpio_desc *reset_gpio;
 	struct snd_soc_jack *jack;
 	struct mutex irq_lock;
-	u8 plug_state;
+	u8 tip_state;
+	u8 ring_state;
 	int pll_config;
 	int bclk;
 	u8 pll_mclk_f;
@@ -798,13 +799,23 @@ static void cs42l84_revert_hs(struct cs42l84_private *cs42l84)
 		FIELD_PREP(CS42L84_HS_DET_CTL2_SET, 2));
 }
 
+static void cs42l84_set_interrupt_masks(struct cs42l84_private *cs42l84,
+					unsigned int val)
+{
+	regmap_update_bits(cs42l84->regmap, CS42L84_TSRS_PLUG_INT_MASK,
+			CS42L84_RS_PLUG | CS42L84_RS_UNPLUG |
+			CS42L84_TS_PLUG | CS42L84_TS_UNPLUG,
+			val);
+}
+
 static irqreturn_t cs42l84_irq_thread(int irq, void *data)
 {
 	struct cs42l84_private *cs42l84 = (struct cs42l84_private *)data;
 	unsigned int stickies[1];
 	unsigned int masks[1];
 	unsigned int reg;
-	u8 current_plug_status;
+	u8 current_tip_state;
+	u8 current_ring_state;
 	int i;
 
 	mutex_lock(&cs42l84->irq_lock);
@@ -818,16 +829,24 @@ static irqreturn_t cs42l84_irq_thread(int irq, void *data)
 				irq_params_table[i].mask;
 	}
 
+	/* When handling plug sene IRQs, we only care about EITHER tip OR ring.
+	 * Ring is useless on remove, and is only useful on insert for
+	 * detecting if the plug state has changed AFTER we have handled the
+	 * tip sense IRQ, e.g. if the plug was not fully seated within the tip
+	 * sense debounce time.
+	 */
+
 	if ((~masks[0]) & irq_params_table[0].mask) {
 		regmap_read(cs42l84->regmap, CS42L84_TSRS_PLUG_STATUS, &reg);
-		current_plug_status = (((char) reg) &
+
+		current_tip_state = (((char) reg) &
 		      (CS42L84_TS_PLUG | CS42L84_TS_UNPLUG)) >>
 		      CS42L84_TS_PLUG_SHIFT;
 
-		switch (current_plug_status) {
-		case CS42L84_PLUG:
-			if (cs42l84->plug_state != CS42L84_PLUG) {
-				cs42l84->plug_state = CS42L84_PLUG;
+		if (current_tip_state != cs42l84->tip_state) {
+			cs42l84->tip_state = current_tip_state;
+			switch (current_tip_state) {
+			case CS42L84_PLUG:
 				dev_dbg(cs42l84->dev, "Plug event\n");
 
 				cs42l84_detect_hs(cs42l84);
@@ -840,45 +859,56 @@ static irqreturn_t cs42l84_irq_thread(int irq, void *data)
 				 * was disconnected at any point during the detection procedure.
 				 */
 				regmap_read(cs42l84->regmap, CS42L84_TSRS_PLUG_STATUS, &reg);
-				current_plug_status = (((char) reg) &
+				current_tip_state = (((char) reg) &
 				      (CS42L84_TS_PLUG | CS42L84_TS_UNPLUG)) >>
 				      CS42L84_TS_PLUG_SHIFT;
-				if (current_plug_status != CS42L84_PLUG) {
+				if (current_tip_state != CS42L84_PLUG) {
 					dev_dbg(cs42l84->dev, "Wobbly connection, detection invalidated\n");
-					cs42l84->plug_state = CS42L84_UNPLUG;
+					cs42l84->tip_state = CS42L84_UNPLUG;
 					cs42l84_revert_hs(cs42l84);
 				}
-			}
-			break;
 
-		case CS42L84_UNPLUG:
-			if (cs42l84->plug_state != CS42L84_UNPLUG) {
-				cs42l84->plug_state = CS42L84_UNPLUG;
+				/* Unmask ring sense interrupts */
+				cs42l84_set_interrupt_masks(cs42l84, 0);
+				break;
+			case CS42L84_UNPLUG:
+				cs42l84->ring_state = CS42L84_UNPLUG;
 				dev_dbg(cs42l84->dev, "Unplug event\n");
 
 				cs42l84_revert_hs(cs42l84);
 				cs42l84->hs_type = 0;
 				snd_soc_jack_report(cs42l84->jack, 0,
 						    SND_JACK_HEADSET);
-			}
-			break;
 
-		default:
-			if (cs42l84->plug_state != CS42L84_TRANS)
-				cs42l84->plug_state = CS42L84_TRANS;
+				/* Mask ring sense interrupts */
+				cs42l84_set_interrupt_masks(cs42l84,
+							    CS42L84_RS_PLUG | CS42L84_RS_UNPLUG);
+				break;
+			default:
+				cs42l84->ring_state = CS42L84_TRANS;
+				break;
+			}
+
+			mutex_unlock(&cs42l84->irq_lock);
+
+			return IRQ_HANDLED;
+		}
+
+		/* Tip state didn't change, we must've got a ring sense IRQ */
+		current_ring_state = (((char) reg) &
+		      (CS42L84_RS_PLUG | CS42L84_RS_UNPLUG)) >>
+		      CS42L84_RS_PLUG_SHIFT;
+
+		if (current_ring_state != cs42l84->ring_state) {
+			cs42l84->ring_state = current_ring_state;
+			if (current_ring_state == CS42L84_PLUG)
+				cs42l84_detect_hs(cs42l84);
 		}
 	}
+
 	mutex_unlock(&cs42l84->irq_lock);
 
 	return IRQ_HANDLED;
-}
-
-static void cs42l84_set_interrupt_masks(struct cs42l84_private *cs42l84)
-{
-	regmap_update_bits(cs42l84->regmap, CS42L84_TSRS_PLUG_INT_MASK,
-			CS42L84_RS_PLUG | CS42L84_RS_UNPLUG |
-			CS42L84_TS_PLUG | CS42L84_TS_UNPLUG,
-			CS42L84_RS_PLUG | CS42L84_RS_UNPLUG);
 }
 
 static void cs42l84_setup_plug_detect(struct cs42l84_private *cs42l84)
@@ -910,7 +940,7 @@ static void cs42l84_setup_plug_detect(struct cs42l84_private *cs42l84)
 
 	/* Save the initial status of the tip sense */
 	regmap_read(cs42l84->regmap, CS42L84_TSRS_PLUG_STATUS, &reg);
-	cs42l84->plug_state = (((char) reg) &
+	cs42l84->tip_state = (((char) reg) &
 		      (CS42L84_TS_PLUG | CS42L84_TS_UNPLUG)) >>
 		      CS42L84_TS_PLUG_SHIFT;
 
@@ -1017,8 +1047,8 @@ static int cs42l84_i2c_probe(struct i2c_client *i2c_client)
 	/* Setup plug detection */
 	cs42l84_setup_plug_detect(cs42l84);
 
-	/* Mask/Unmask Interrupts */
-	cs42l84_set_interrupt_masks(cs42l84);
+	/* Mask ring sense interrupts */
+	cs42l84_set_interrupt_masks(cs42l84, CS42L84_RS_PLUG | CS42L84_RS_UNPLUG);
 
 	/* Register codec for machine driver */
 	ret = devm_snd_soc_register_component(&i2c_client->dev,
