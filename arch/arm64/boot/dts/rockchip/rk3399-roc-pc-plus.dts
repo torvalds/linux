@@ -114,7 +114,6 @@
 	es8388: es8388@11 {
 		compatible = "everest,es8388";
 		reg = <0x11>;
-		clock-names = "mclk";
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		#sound-dai-cells = <0>;
 	};
