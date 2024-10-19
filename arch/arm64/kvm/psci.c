@@ -328,7 +328,7 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 
 	switch(psci_fn) {
 	case PSCI_0_2_FN_PSCI_VERSION:
-		val = minor == 0 ? KVM_ARM_PSCI_1_0 : KVM_ARM_PSCI_1_1;
+		val = PSCI_VERSION(1, minor);
 		break;
 	case PSCI_1_0_FN_PSCI_FEATURES:
 		arg = smccc_get_arg1(vcpu);
@@ -487,6 +487,10 @@ int kvm_psci_call(struct kvm_vcpu *vcpu)
 	}
 
 	switch (version) {
+	case KVM_ARM_PSCI_1_3:
+		return kvm_psci_1_x_call(vcpu, 3);
+	case KVM_ARM_PSCI_1_2:
+		return kvm_psci_1_x_call(vcpu, 2);
 	case KVM_ARM_PSCI_1_1:
 		return kvm_psci_1_x_call(vcpu, 1);
 	case KVM_ARM_PSCI_1_0:
