@@ -2709,6 +2709,9 @@ int cifs_query_reparse_point(const unsigned int xid,
 	if (cap_unix(tcon->ses))
 		return -EOPNOTSUPP;
 
+	if (!(le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS))
+		return -EOPNOTSUPP;
+
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
 		.cifs_sb = cifs_sb,
