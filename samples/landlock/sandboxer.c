@@ -290,6 +290,43 @@ out_unset:
 
 #define LANDLOCK_ABI_LAST 6
 
+#define XSTR(s) #s
+#define STR(s) XSTR(s)
+
+/* clang-format off */
+
+static const char help[] =
+	"usage: "
+	ENV_FS_RO_NAME "=\"...\" "
+	ENV_FS_RW_NAME "=\"...\" "
+	ENV_TCP_BIND_NAME "=\"...\" "
+	ENV_TCP_CONNECT_NAME "=\"...\" "
+	ENV_SCOPED_NAME "=\"...\" %1$s <cmd> [args]...\n"
+	"\n"
+	"Execute a command in a restricted environment.\n"
+	"\n"
+	"Environment variables containing paths and ports each separated by a colon:\n"
+	"* " ENV_FS_RO_NAME ": list of paths allowed to be used in a read-only way.\n"
+	"* " ENV_FS_RW_NAME ": list of paths allowed to be used in a read-write way.\n"
+	"\n"
+	"Environment variables containing ports are optional and could be skipped.\n"
+	"* " ENV_TCP_BIND_NAME ": list of ports allowed to bind (server).\n"
+	"* " ENV_TCP_CONNECT_NAME ": list of ports allowed to connect (client).\n"
+	"* " ENV_SCOPED_NAME ": list of scoped IPCs.\n"
+	"\n"
+	"example:\n"
+	ENV_FS_RO_NAME "=\"${PATH}:/lib:/usr:/proc:/etc:/dev/urandom\" "
+	ENV_FS_RW_NAME "=\"/dev/null:/dev/full:/dev/zero:/dev/pts:/tmp\" "
+	ENV_TCP_BIND_NAME "=\"9418\" "
+	ENV_TCP_CONNECT_NAME "=\"80:443\" "
+	ENV_SCOPED_NAME "=\"a:s\" "
+	"%1$s bash -i\n"
+	"\n"
+	"This sandboxer can use Landlock features up to ABI version "
+	STR(LANDLOCK_ABI_LAST) ".\n";
+
+/* clang-format on */
+
 int main(const int argc, char *const argv[], char *const *const envp)
 {
 	const char *cmd_path;
@@ -308,47 +345,7 @@ int main(const int argc, char *const argv[], char *const *const envp)
 	};
 
 	if (argc < 2) {
-		fprintf(stderr,
-			"usage: %s=\"...\" %s=\"...\" %s=\"...\" %s=\"...\" %s=\"...\" %s "
-			"<cmd> [args]...\n\n",
-			ENV_FS_RO_NAME, ENV_FS_RW_NAME, ENV_TCP_BIND_NAME,
-			ENV_TCP_CONNECT_NAME, ENV_SCOPED_NAME, argv[0]);
-		fprintf(stderr,
-			"Execute a command in a restricted environment.\n\n");
-		fprintf(stderr,
-			"Environment variables containing paths and ports "
-			"each separated by a colon:\n");
-		fprintf(stderr,
-			"* %s: list of paths allowed to be used in a read-only way.\n",
-			ENV_FS_RO_NAME);
-		fprintf(stderr,
-			"* %s: list of paths allowed to be used in a read-write way.\n\n",
-			ENV_FS_RW_NAME);
-		fprintf(stderr,
-			"Environment variables containing ports are optional "
-			"and could be skipped.\n");
-		fprintf(stderr,
-			"* %s: list of ports allowed to bind (server).\n",
-			ENV_TCP_BIND_NAME);
-		fprintf(stderr,
-			"* %s: list of ports allowed to connect (client).\n",
-			ENV_TCP_CONNECT_NAME);
-		fprintf(stderr, "* %s: list of scoped IPCs.\n",
-			ENV_SCOPED_NAME);
-		fprintf(stderr,
-			"\nexample:\n"
-			"%s=\"${PATH}:/lib:/usr:/proc:/etc:/dev/urandom\" "
-			"%s=\"/dev/null:/dev/full:/dev/zero:/dev/pts:/tmp\" "
-			"%s=\"9418\" "
-			"%s=\"80:443\" "
-			"%s=\"a:s\" "
-			"%s bash -i\n\n",
-			ENV_FS_RO_NAME, ENV_FS_RW_NAME, ENV_TCP_BIND_NAME,
-			ENV_TCP_CONNECT_NAME, ENV_SCOPED_NAME, argv[0]);
-		fprintf(stderr,
-			"This sandboxer can use Landlock features "
-			"up to ABI version %d.\n",
-			LANDLOCK_ABI_LAST);
+		fprintf(stderr, help, argv[0]);
 		return 1;
 	}
 
