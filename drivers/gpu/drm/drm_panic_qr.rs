@@ -489,7 +489,7 @@ impl EncodedMsg<'_> {
         data.fill(0);
 
         let mut em = EncodedMsg {
-            data: data,
+            data,
             ec_size,
             g1_blocks,
             g2_blocks,
