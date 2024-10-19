@@ -1674,6 +1674,22 @@ static inline bool bdev_can_atomic_write(struct block_device *bdev)
 	return true;
 }
 
+static inline unsigned int
+bdev_atomic_write_unit_min_bytes(struct block_device *bdev)
+{
+	if (!bdev_can_atomic_write(bdev))
+		return 0;
+	return queue_atomic_write_unit_min_bytes(bdev_get_queue(bdev));
+}
+
+static inline unsigned int
+bdev_atomic_write_unit_max_bytes(struct block_device *bdev)
+{
+	if (!bdev_can_atomic_write(bdev))
+		return 0;
+	return queue_atomic_write_unit_max_bytes(bdev_get_queue(bdev));
+}
+
 #define DEFINE_IO_COMP_BATCH(name)	struct io_comp_batch name = { }
 
 #endif /* _LINUX_BLKDEV_H */
