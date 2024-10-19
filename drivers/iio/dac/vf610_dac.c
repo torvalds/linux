@@ -272,7 +272,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(vf610_dac_pm_ops, vf610_dac_suspend,
 
 static struct platform_driver vf610_dac_driver = {
 	.probe          = vf610_dac_probe,
-	.remove_new     = vf610_dac_remove,
+	.remove         = vf610_dac_remove,
 	.driver         = {
 		.name   = "vf610-dac",
 		.of_match_table = vf610_dac_match,

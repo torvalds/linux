@@ -1103,8 +1103,7 @@ static int fxls8962af_irq_setup(struct iio_dev *indio_dev, int irq)
 	if (ret)
 		return ret;
 
-	irq_type = irqd_get_trigger_type(irq_get_irq_data(irq));
-
+	irq_type = irq_get_trigger_type(irq);
 	switch (irq_type) {
 	case IRQF_TRIGGER_HIGH:
 	case IRQF_TRIGGER_RISING:

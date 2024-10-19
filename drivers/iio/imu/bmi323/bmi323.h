@@ -141,7 +141,6 @@
 #define BMI323_STEP_SC1_REG			0x10
 #define BMI323_STEP_SC1_WTRMRK_MSK		GENMASK(9, 0)
 #define BMI323_STEP_SC1_RST_CNT_MSK		BIT(10)
-#define BMI323_STEP_SC1_REG			0x10
 #define BMI323_STEP_LEN				2
 
 /* Tap gesture config registers */

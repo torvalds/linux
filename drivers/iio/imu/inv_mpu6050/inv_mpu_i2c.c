@@ -188,6 +188,8 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"icm20602", INV_ICM20602},
 	{"icm20690", INV_ICM20690},
 	{"iam20680", INV_IAM20680},
+	{"iam20680hp", INV_IAM20680HP},
+	{"iam20680ht", INV_IAM20680HT},
 	{}
 };
 
@@ -253,6 +255,14 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,iam20680",
 		.data = (void *)INV_IAM20680
+	},
+	{
+		.compatible = "invensense,iam20680hp",
+		.data = (void *)INV_IAM20680HP
+	},
+	{
+		.compatible = "invensense,iam20680ht",
+		.data = (void *)INV_IAM20680HT
 	},
 	{ }
 };

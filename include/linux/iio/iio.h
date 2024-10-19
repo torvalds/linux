@@ -282,11 +282,11 @@ struct iio_chan_spec {
 	const struct iio_chan_spec_ext_info *ext_info;
 	const char		*extend_name;
 	const char		*datasheet_name;
-	unsigned		modified:1;
-	unsigned		indexed:1;
-	unsigned		output:1;
-	unsigned		differential:1;
-	unsigned		has_ext_scan_type:1;
+	unsigned int		modified:1;
+	unsigned int		indexed:1;
+	unsigned int		output:1;
+	unsigned int		differential:1;
+	unsigned int		has_ext_scan_type:1;
 };
 
 
@@ -541,13 +541,13 @@ struct iio_info {
 	int (*update_scan_mode)(struct iio_dev *indio_dev,
 				const unsigned long *scan_mask);
 	int (*debugfs_reg_access)(struct iio_dev *indio_dev,
-				  unsigned reg, unsigned writeval,
-				  unsigned *readval);
+				  unsigned int reg, unsigned int writeval,
+				  unsigned int *readval);
 	int (*fwnode_xlate)(struct iio_dev *indio_dev,
 			    const struct fwnode_reference_args *iiospec);
-	int (*hwfifo_set_watermark)(struct iio_dev *indio_dev, unsigned val);
+	int (*hwfifo_set_watermark)(struct iio_dev *indio_dev, unsigned int val);
 	int (*hwfifo_flush_to_buffer)(struct iio_dev *indio_dev,
-				      unsigned count);
+				      unsigned int count);
 };
 
 /**
@@ -609,7 +609,7 @@ struct iio_dev {
 	int				scan_bytes;
 
 	const unsigned long		*available_scan_masks;
-	unsigned			__private masklength;
+	unsigned int			__private masklength;
 	const unsigned long		*active_scan_mask;
 	bool				scan_timestamp;
 	struct iio_trigger		*trig;

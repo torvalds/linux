@@ -1881,7 +1881,6 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 	struct fwnode_handle *fwnode;
 	enum bmi323_irq_pin irq_pin;
 	int ret, irq, irq_type;
-	struct irq_data *desc;
 
 	fwnode = dev_fwnode(data->dev);
 	if (!fwnode)
@@ -1898,12 +1897,7 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 		irq_pin = BMI323_IRQ_INT2;
 	}
 
-	desc = irq_get_irq_data(irq);
-	if (!desc)
-		return dev_err_probe(data->dev, -EINVAL,
-				     "Could not find IRQ %d\n", irq);
-
-	irq_type = irqd_get_trigger_type(desc);
+	irq_type = irq_get_trigger_type(irq);
 	switch (irq_type) {
 	case IRQF_TRIGGER_RISING:
 		latch = false;

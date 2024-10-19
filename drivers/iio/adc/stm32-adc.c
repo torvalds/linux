@@ -2644,7 +2644,7 @@ MODULE_DEVICE_TABLE(of, stm32_adc_of_match);
 
 static struct platform_driver stm32_adc_driver = {
 	.probe = stm32_adc_probe,
-	.remove_new = stm32_adc_remove,
+	.remove = stm32_adc_remove,
 	.driver = {
 		.name = "stm32-adc",
 		.of_match_table = stm32_adc_of_match,

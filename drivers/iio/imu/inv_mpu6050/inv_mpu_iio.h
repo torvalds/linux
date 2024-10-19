@@ -85,6 +85,8 @@ enum inv_devices {
 	INV_ICM20602,
 	INV_ICM20690,
 	INV_IAM20680,
+	INV_IAM20680HP,
+	INV_IAM20680HT,
 	INV_NUM_PARTS
 };
 
@@ -424,6 +426,8 @@ struct inv_mpu6050_state {
 #define INV_ICM20602_WHOAMI_VALUE		0x12
 #define INV_ICM20690_WHOAMI_VALUE		0x20
 #define INV_IAM20680_WHOAMI_VALUE		0xA9
+#define INV_IAM20680HP_WHOAMI_VALUE		0xF8
+#define INV_IAM20680HT_WHOAMI_VALUE		0xFA
 
 /* scan element definition for generic MPU6xxx devices */
 enum inv_mpu6050_scan {

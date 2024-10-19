@@ -1,0 +1,164 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2024 Analog Devices Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad8460.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD8460 DAC
+
+maintainers:
+  - Mariel Tinaco <mariel.tinaco@analog.com>
+
+description: |
+  Analog Devices AD8460 110 V High Voltage, 1 A High Current,
+  Arbitrary Waveform Generator with Integrated 14-Bit High Speed DAC
+  https://www.analog.com/media/en/technical-documentation/data-sheets/ad8460.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,ad8460
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    items:
+      - const: tx
+
+  spi-max-frequency:
+    maximum: 20000000
+
+  hvcc-supply:
+    description: Positive high voltage power supply line
+
+  hvee-supply:
+    description: Negative high voltage power supply line
+
+  vcc-5v-supply:
+    description: Low voltage power supply
+
+  vref-5v-supply:
+    description: Reference voltage for analog low voltage
+
+  dvdd-3p3v-supply:
+    description: Digital supply bypass
+
+  avdd-3p3v-supply:
+    description: Analog supply bypass
+
+  refio-1p2v-supply:
+    description: Drive voltage in the range of 1.2V maximum to as low as
+      low as 0.12V through the REF_IO pin to adjust full scale output span
+
+  adi,external-resistor-ohms:
+    description: Specify value of external resistor connected to FS_ADJ pin
+      to establish internal HVDAC's reference current I_REF
+    minimum: 2000
+    maximum: 20000
+    default: 2000
+
+  adi,range-microvolt:
+    description: Voltage output range specified as <minimum, maximum>
+    items:
+      - minimum: -55000000
+        maximum: 0
+        default: 0
+      - minimum: 0
+        maximum: 55000000
+        default: 0
+
+  adi,range-microamp:
+    description: Current output range specified as <minimum, maximum>
+    items:
+      - minimum: -1000000
+        maximum: 0
+        default: 0
+      - minimum: 0
+        maximum: 1000000
+        default: 0
+
+  adi,max-millicelsius:
+    description: Overtemperature threshold
+    minimum: 0
+    maximum: 150000
+    default: 0
+
+  shutdown-reset-gpios:
+    description: Corresponds to SDN_RESET pin. To exit shutdown
+      or sleep mode, pulse SDN_RESET HIGH, then leave LOW.
+    maxItems: 1
+
+  reset-gpios:
+    description: Manual Power On Reset (POR). Pull this GPIO pin
+      LOW and then HIGH to reset all digital registers to default
+    maxItems: 1
+
+  shutdown-gpios:
+    description: Corresponds to SDN_IO pin. Shutdown may be
+      initiated by the user, by pulsing SDN_IO high. To exit shutdown,
+      pulse SDN_IO low, then float.
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - hvcc-supply
+  - hvee-supply
+  - vcc-5v-supply
+  - vref-5v-supply
+  - dvdd-3p3v-supply
+  - avdd-3p3v-supply
+  - refio-1p2v-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@0 {
+            compatible = "adi,ad8460";
+            reg = <0>;
+            spi-max-frequency = <8000000>;
+
+            dmas = <&tx_dma 0>;
+            dma-names = "tx";
+
+            shutdown-reset-gpios = <&gpio 86 GPIO_ACTIVE_HIGH>;
+            reset-gpios = <&gpio 91 GPIO_ACTIVE_LOW>;
+            shutdown-gpios = <&gpio 88 GPIO_ACTIVE_HIGH>;
+
+            clocks = <&sync_ext_clk>;
+
+            hvcc-supply = <&hvcc>;
+            hvee-supply = <&hvee>;
+            vcc-5v-supply = <&vcc_5>;
+            vref-5v-supply = <&vref_5>;
+            dvdd-3p3v-supply = <&dvdd_3_3>;
+            avdd-3p3v-supply = <&avdd_3_3>;
+            refio-1p2v-supply = <&refio_1_2>;
+
+            adi,external-resistor-ohms = <2000>;
+            adi,range-microvolt = <(-40000000) 40000000>;
+            adi,range-microamp = <0 50000>;
+            adi,max-millicelsius = <50000>;
+        };
+    };
+
+...

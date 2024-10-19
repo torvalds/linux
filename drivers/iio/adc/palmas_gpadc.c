@@ -456,7 +456,7 @@ static int palmas_gpadc_get_calibrated_code(struct palmas_gpadc *adc,
  *   raw high threshold = (ideal threshold + INL) * gain error + offset error
  *
  * The gain error include both gain error, as specified in the datasheet, and
- * the gain error drift. These paramenters vary depending on device and whether
+ * the gain error drift. These parameters vary depending on device and whether
  * the channel is calibrated (trimmed) or not.
  */
 static int palmas_gpadc_threshold_with_tolerance(int val, const int INL,

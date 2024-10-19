@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -392,7 +393,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 			if (data < 0)
 				return data;
 
-			data = (rxbuf[1] | rxbuf[0] << 8) &
+			data = get_unaligned_be16(rxbuf) &
 				((1 << st->chip_info->bits) - 1);
 		} else {
 			/* Get reading */

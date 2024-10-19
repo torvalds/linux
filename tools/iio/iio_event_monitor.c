@@ -449,6 +449,7 @@ error_free_chrdev_name:
 		enable_events(dev_dir_name, 0);
 
 	free(chrdev_name);
+	free(dev_dir_name);
 
 	return ret;
 }

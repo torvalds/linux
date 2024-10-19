@@ -868,6 +868,26 @@ static u8 sx9324_parse_phase_prop(struct device *dev,
 	return raw;
 }
 
+static void sx_common_get_raw_register_config(struct device *dev,
+					      struct sx_common_reg_default *reg_def)
+{
+#ifdef CONFIG_ACPI
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	u32 raw = 0, ret;
+	char prop[80];
+
+	if (!reg_def->property || !adev)
+		return;
+
+	snprintf(prop, ARRAY_SIZE(prop), "%s,reg_%s", acpi_device_hid(adev), reg_def->property);
+	ret = device_property_read_u32(dev, prop, &raw);
+	if (ret)
+		return;
+
+	reg_def->def = raw;
+#endif
+}
+
 static const struct sx_common_reg_default *
 sx9324_get_default_reg(struct device *dev, int idx,
 		       struct sx_common_reg_default *reg_def)

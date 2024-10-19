@@ -20,7 +20,7 @@
 
 struct iio_map_internal {
 	struct iio_dev *indio_dev;
-	struct iio_map *map;
+	const struct iio_map *map;
 	struct list_head l;
 };
 
@@ -42,7 +42,7 @@ static int iio_map_array_unregister_locked(struct iio_dev *indio_dev)
 	return ret;
 }
 
-int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
+int iio_map_array_register(struct iio_dev *indio_dev, const struct iio_map *maps)
 {
 	struct iio_map_internal *mapi;
 	int i = 0;
@@ -86,7 +86,8 @@ static void iio_map_array_unregister_cb(void *indio_dev)
 	iio_map_array_unregister(indio_dev);
 }
 
-int devm_iio_map_array_register(struct device *dev, struct iio_dev *indio_dev, struct iio_map *maps)
+int devm_iio_map_array_register(struct device *dev, struct iio_dev *indio_dev,
+				const struct iio_map *maps)
 {
 	int ret;
 

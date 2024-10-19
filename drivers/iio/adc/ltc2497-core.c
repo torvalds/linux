@@ -168,6 +168,7 @@ static const struct iio_info ltc2497core_info = {
 int ltc2497core_probe(struct device *dev, struct iio_dev *indio_dev)
 {
 	struct ltc2497core_driverdata *ddata = iio_priv(indio_dev);
+	struct iio_map *plat_data = dev_get_platdata(dev);
 	int ret;
 
 	/*
@@ -200,16 +201,10 @@ int ltc2497core_probe(struct device *dev, struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	if (dev->platform_data) {
-		struct iio_map *plat_data;
-
-		plat_data = (struct iio_map *)dev->platform_data;
-
-		ret = iio_map_array_register(indio_dev, plat_data);
-		if (ret) {
-			dev_err(&indio_dev->dev, "iio map err: %d\n", ret);
-			goto err_regulator_disable;
-		}
+	ret = iio_map_array_register(indio_dev, plat_data);
+	if (ret) {
+		dev_err(&indio_dev->dev, "iio map err: %d\n", ret);
+		goto err_regulator_disable;
 	}
 
 	ddata->addr_prev = LTC2497_CONFIG_DEFAULT;

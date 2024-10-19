@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/unaligned.h>
 
 #define ADI_SPI_IF_CONFIG_A		0x00
 #define ADI_SPI_IF_CONFIG_B		0x01
@@ -325,7 +326,7 @@ static int ad5770r_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return 0;
 
-		buf16 = st->transf_buf[0] + (st->transf_buf[1] << 8);
+		buf16 = get_unaligned_le16(st->transf_buf);
 		*val = buf16 >> 2;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:

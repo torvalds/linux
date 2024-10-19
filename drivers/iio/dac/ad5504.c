@@ -270,7 +270,7 @@ static const struct iio_chan_spec ad5504_channels[] = {
 
 static int ad5504_probe(struct spi_device *spi)
 {
-	struct ad5504_platform_data *pdata = spi->dev.platform_data;
+	const struct ad5504_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct iio_dev *indio_dev;
 	struct ad5504_state *st;
 	struct regulator *reg;

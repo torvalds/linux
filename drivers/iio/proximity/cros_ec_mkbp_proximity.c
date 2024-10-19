@@ -261,7 +261,7 @@ static struct platform_driver cros_ec_mkbp_proximity_driver = {
 		.pm = pm_sleep_ptr(&cros_ec_mkbp_proximity_pm_ops),
 	},
 	.probe = cros_ec_mkbp_proximity_probe,
-	.remove_new = cros_ec_mkbp_proximity_remove,
+	.remove = cros_ec_mkbp_proximity_remove,
 };
 module_platform_driver(cros_ec_mkbp_proximity_driver);
 

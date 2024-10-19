@@ -220,7 +220,7 @@ int xadc_write_event_value(struct iio_dev *indio_dev,
 		/*
 		 * Since we store the hysteresis as relative (to the threshold)
 		 * value, but the hardware expects an absolute value we need to
-		 * recalcualte this value whenever the hysteresis or the
+		 * recalculate this value whenever the hysteresis or the
 		 * threshold changes.
 		 */
 		if (xadc->threshold[offset] < xadc->temp_hysteresis)

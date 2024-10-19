@@ -318,7 +318,7 @@ static struct platform_driver cm3605_driver = {
 		.pm = pm_sleep_ptr(&cm3605_dev_pm_ops),
 	},
 	.probe = cm3605_probe,
-	.remove_new = cm3605_remove,
+	.remove = cm3605_remove,
 };
 module_platform_driver(cm3605_driver);
 

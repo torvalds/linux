@@ -611,10 +611,10 @@ static const struct of_device_id iproc_adc_of_match[] = {
 MODULE_DEVICE_TABLE(of, iproc_adc_of_match);
 
 static struct platform_driver iproc_adc_driver = {
-	.probe  = iproc_adc_probe,
-	.remove_new = iproc_adc_remove,
-	.driver	= {
-		.name	= "iproc-static-adc",
+	.probe = iproc_adc_probe,
+	.remove = iproc_adc_remove,
+	.driver = {
+		.name = "iproc-static-adc",
 		.of_match_table = iproc_adc_of_match,
 	},
 };
