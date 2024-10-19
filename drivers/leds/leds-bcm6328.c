@@ -113,7 +113,7 @@ static void bcm6328_led_mode(struct bcm6328_led *led, unsigned long value)
 	unsigned long val, shift;
 
 	shift = bcm6328_pin2shift(led->pin);
-	if (shift / 16)
+	if (shift >= 16)
 		mode = led->mem + BCM6328_REG_MODE_HI;
 	else
 		mode = led->mem + BCM6328_REG_MODE_LO;
@@ -357,7 +357,7 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 		break;
 	case LEDS_DEFSTATE_KEEP:
 		shift = bcm6328_pin2shift(led->pin);
-		if (shift / 16)
+		if (shift >= 16)
 			mode = mem + BCM6328_REG_MODE_HI;
 		else
 			mode = mem + BCM6328_REG_MODE_LO;
