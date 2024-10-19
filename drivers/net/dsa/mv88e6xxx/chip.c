@@ -3379,6 +3379,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 				break;
 			}
 		}
+		fwnode_handle_put(ports_fwnode);
 	} else {
 		dev_dbg(chip->dev, "no ethernet ports node defined for the device\n");
 	}
