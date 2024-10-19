@@ -26,6 +26,9 @@ page owner是用来追踪谁分配的每一个页面。它可以用来调试内�
 页面所有者也可以用于各种目的。例如，可以通过每个页面的gfp标志信息获得精确的碎片
 统计。如果启用了page owner，它就已经实现并激活了。我们非常欢迎其他用途。
 
+它也可以用来显示所有的栈以及它们当前分配的基础页面数，这让我们能够快速了解内存的
+使用情况，而无需浏览所有页面并匹配分配和释放操作。
+
 page owner在默认情况下是禁用的。所以，如果你想使用它，你需要在你的启动cmdline
 中加入"page_owner=on"。如果内核是用page owner构建的，并且由于没有启用启动
 选项而在运行时禁用page owner，那么运行时的开销是很小的。如果在运行时禁用，它不
@@ -59,6 +62,49 @@ page owner在默认情况下是禁用的。所以，如果你想使用它，你�
 3) 做你想调试的工作。
 
 4) 分析来自页面所有者的信息::
+
+	cat /sys/kernel/debug/page_owner_stacks/show_stacks > stacks.txt
+	cat stacks.txt
+	 post_alloc_hook+0x177/0x1a0
+	 get_page_from_freelist+0xd01/0xd80
+	 __alloc_pages+0x39e/0x7e0
+	 allocate_slab+0xbc/0x3f0
+	 ___slab_alloc+0x528/0x8a0
+	 kmem_cache_alloc+0x224/0x3b0
+	 sk_prot_alloc+0x58/0x1a0
+	 sk_alloc+0x32/0x4f0
+	 inet_create+0x427/0xb50
+	 __sock_create+0x2e4/0x650
+	 inet_ctl_sock_create+0x30/0x180
+	 igmp_net_init+0xc1/0x130
+	 ops_init+0x167/0x410
+	 setup_net+0x304/0xa60
+	 copy_net_ns+0x29b/0x4a0
+	 create_new_namespaces+0x4a1/0x820
+	nr_base_pages: 16
+	...
+	...
+	echo 7000 > /sys/kernel/debug/page_owner_stacks/count_threshold
+	cat /sys/kernel/debug/page_owner_stacks/show_stacks> stacks_7000.txt
+	cat stacks_7000.txt
+	 post_alloc_hook+0x177/0x1a0
+	 get_page_from_freelist+0xd01/0xd80
+	 __alloc_pages+0x39e/0x7e0
+	 alloc_pages_mpol+0x22e/0x490
+	 folio_alloc+0xd5/0x110
+	 filemap_alloc_folio+0x78/0x230
+	 page_cache_ra_order+0x287/0x6f0
+	 filemap_get_pages+0x517/0x1160
+	 filemap_read+0x304/0x9f0
+	 xfs_file_buffered_read+0xe6/0x1d0 [xfs]
+	 xfs_file_read_iter+0x1f0/0x380 [xfs]
+	 __kernel_read+0x3b9/0x730
+	 kernel_read_file+0x309/0x4d0
+	 __do_sys_finit_module+0x381/0x730
+	 do_syscall_64+0x8d/0x150
+	 entry_SYSCALL_64_after_hwframe+0x62/0x6a
+	nr_base_pages: 20824
+	...
 
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt
 	./page_owner_sort page_owner_full.txt sorted_page_owner.txt
