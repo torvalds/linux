@@ -143,8 +143,10 @@ static struct fwnode_handle *find_volume_fwnode(struct ubi_volume *vol)
 		    vol->vol_id != volid)
 			continue;
 
+		fwnode_handle_put(fw_vols);
 		return fw_vol;
 	}
+	fwnode_handle_put(fw_vols);
 
 	return NULL;
 }
