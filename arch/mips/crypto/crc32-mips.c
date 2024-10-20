@@ -123,20 +123,20 @@ static u32 crc32c_mips_le_hw(u32 crc_, const u8 *p, unsigned int len)
 		for (; len >= sizeof(u64); p += sizeof(u64), len -= sizeof(u64)) {
 			u64 value = get_unaligned_le64(p);
 
-			CRC32(crc, value, d);
+			CRC32C(crc, value, d);
 		}
 
 		if (len & sizeof(u32)) {
 			u32 value = get_unaligned_le32(p);
 
-			CRC32(crc, value, w);
+			CRC32C(crc, value, w);
 			p += sizeof(u32);
 		}
 	} else {
 		for (; len >= sizeof(u32); len -= sizeof(u32)) {
 			u32 value = get_unaligned_le32(p);
 
-			CRC32(crc, value, w);
+			CRC32C(crc, value, w);
 			p += sizeof(u32);
 		}
 	}
