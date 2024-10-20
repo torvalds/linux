@@ -27,6 +27,8 @@
 #define SERVER_ADDR_IPV4	"127.0.0.1"
 #define SERVER_ADDR_IPV6	"::1"
 #define SERVER_ADDR_DUAL	"::0"
+/* RFC791, 576 for minimal IPv4 datagram, minus 40 bytes of TCP header */
+#define MIN_IPV4_MSS		536
 
 static struct netns_obj *prepare_netns(struct test_btf_skc_cls_ingress *skel)
 {
@@ -71,6 +73,7 @@ static void reset_test(struct test_btf_skc_cls_ingress *skel)
 	skel->bss->recv_cookie = 0;
 	skel->bss->gen_cookie = 0;
 	skel->bss->linum = 0;
+	skel->bss->mss = 0;
 }
 
 static void print_err_line(struct test_btf_skc_cls_ingress *skel)
@@ -183,6 +186,10 @@ static void run_test(struct test_btf_skc_cls_ingress *skel, bool gen_cookies,
 			   "syncookie properly generated");
 		ASSERT_EQ(skel->bss->gen_cookie, skel->bss->recv_cookie,
 			  "matching syncookies on client and server");
+		ASSERT_GT(skel->bss->mss, MIN_IPV4_MSS,
+			  "MSS in cookie min value");
+		ASSERT_LT(skel->bss->mss, USHRT_MAX,
+			  "MSS in cookie max value");
 	}
 
 done:

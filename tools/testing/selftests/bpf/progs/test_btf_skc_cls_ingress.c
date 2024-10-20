@@ -15,6 +15,7 @@ __u16 listen_tp_sport = 0;
 __u16 req_sk_sport = 0;
 __u32 recv_cookie = 0;
 __u32 gen_cookie = 0;
+__u32 mss = 0;
 __u32 linum = 0;
 
 #define LOG() ({ if (!linum) linum = __LINE__; })
@@ -46,6 +47,7 @@ static void test_syncookie_helper(void *iphdr, int iphdr_size,
 				LOG();
 		} else {
 			gen_cookie = (__u32)mss_cookie;
+			mss = mss_cookie >> 32;
 		}
 	} else if (gen_cookie) {
 		/* It was in cookie mode */
