@@ -10,8 +10,8 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kvm_host.h>
-#include <asm/csr.h>
 #include <asm/cpufeature.h>
+#include <asm/kvm_nacl.h>
 #include <asm/sbi.h>
 
 long kvm_arch_dev_ioctl(struct file *filp,
@@ -22,6 +22,12 @@ long kvm_arch_dev_ioctl(struct file *filp,
 
 int kvm_arch_enable_virtualization_cpu(void)
 {
+	int rc;
+
+	rc = kvm_riscv_nacl_enable();
+	if (rc)
+		return rc;
+
 	csr_write(CSR_HEDELEG, KVM_HEDELEG_DEFAULT);
 	csr_write(CSR_HIDELEG, KVM_HIDELEG_DEFAULT);
 
@@ -49,17 +55,21 @@ void kvm_arch_disable_virtualization_cpu(void)
 	csr_write(CSR_HVIP, 0);
 	csr_write(CSR_HEDELEG, 0);
 	csr_write(CSR_HIDELEG, 0);
+
+	kvm_riscv_nacl_disable();
 }
 
 static void kvm_riscv_teardown(void)
 {
 	kvm_riscv_aia_exit();
+	kvm_riscv_nacl_exit();
 	kvm_unregister_perf_callbacks();
 }
 
 static int __init riscv_kvm_init(void)
 {
 	int rc;
+	char slist[64];
 	const char *str;
 
 	if (!riscv_isa_extension_available(NULL, h)) {
@@ -77,15 +87,52 @@ static int __init riscv_kvm_init(void)
 		return -ENODEV;
 	}
 
+	rc = kvm_riscv_nacl_init();
+	if (rc && rc != -ENODEV)
+		return rc;
+
 	kvm_riscv_gstage_mode_detect();
 
 	kvm_riscv_gstage_vmid_detect();
 
 	rc = kvm_riscv_aia_init();
-	if (rc && rc != -ENODEV)
+	if (rc && rc != -ENODEV) {
+		kvm_riscv_nacl_exit();
 		return rc;
+	}
 
 	kvm_info("hypervisor extension available\n");
+
+	if (kvm_riscv_nacl_available()) {
+		rc = 0;
+		slist[0] = '\0';
+		if (kvm_riscv_nacl_sync_csr_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "sync_csr");
+			rc++;
+		}
+		if (kvm_riscv_nacl_sync_hfence_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "sync_hfence");
+			rc++;
+		}
+		if (kvm_riscv_nacl_sync_sret_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "sync_sret");
+			rc++;
+		}
+		if (kvm_riscv_nacl_autoswap_csr_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "autoswap_csr");
+			rc++;
+		}
+		kvm_info("using SBI nested acceleration with %s\n",
+			 (rc) ? slist : "no features");
+	}
 
 	switch (kvm_riscv_gstage_mode()) {
 	case HGATP_MODE_SV32X4:
