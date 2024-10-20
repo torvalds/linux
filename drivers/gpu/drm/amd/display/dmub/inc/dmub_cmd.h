@@ -727,6 +727,7 @@ enum dmub_shared_state_feature_id {
 	DMUB_SHARED_SHARE_FEATURE__INVALID = 0,
 	DMUB_SHARED_SHARE_FEATURE__IPS_FW = 1,
 	DMUB_SHARED_SHARE_FEATURE__IPS_DRIVER = 2,
+	DMUB_SHARED_SHARE_FEATURE__DEBUG_SETUP = 3,
 	DMUB_SHARED_STATE_FEATURE__LAST, /* Total number of features. */
 };
 
@@ -763,6 +764,14 @@ union dmub_shared_state_ips_driver_signals {
  * IPS FW Version
  */
 #define DMUB_SHARED_STATE__IPS_FW_VERSION 1
+
+struct dmub_shared_state_debug_setup {
+	union {
+		struct {
+			uint32_t exclude_points[62];
+		} profile_mode;
+	};
+};
 
 /**
  * struct dmub_shared_state_ips_fw - Firmware state for IPS.
@@ -816,6 +825,7 @@ struct dmub_shared_state_feature_block {
 		struct dmub_shared_state_feature_common common; /**< Generic data */
 		struct dmub_shared_state_ips_fw ips_fw; /**< IPS firmware state */
 		struct dmub_shared_state_ips_driver ips_driver; /**< IPS driver state */
+		struct dmub_shared_state_debug_setup debug_setup; /**< Debug setup */
 	} data; /**< Shared state data. */
 }; /* 256-bytes, fixed */
 
@@ -1158,6 +1168,10 @@ enum dmub_gpint_command {
 	 * RETURN: Total residency in microseconds - upper 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_HI = 133,
+	/**
+	 * DESC: Setup debug configs.
+	 */
+	DMUB_GPINT__SETUP_DEBUG_MODE = 136,
 };
 
 /**
@@ -5172,7 +5186,34 @@ struct dmub_rb_cmd_get_usbc_cable_id {
 enum dmub_cmd_secure_display_type {
 	DMUB_CMD__SECURE_DISPLAY_TEST_CMD = 0,		/* test command to only check if inbox message works */
 	DMUB_CMD__SECURE_DISPLAY_CRC_STOP_UPDATE,
-	DMUB_CMD__SECURE_DISPLAY_CRC_WIN_NOTIFY
+	DMUB_CMD__SECURE_DISPLAY_CRC_WIN_NOTIFY,
+	DMUB_CMD__SECURE_DISPLAY_MULTIPLE_CRC_STOP_UPDATE,
+	DMUB_CMD__SECURE_DISPLAY_MULTIPLE_CRC_WIN_NOTIFY
+};
+
+#define MAX_ROI_NUM	2
+
+struct dmub_cmd_roi_info {
+	uint16_t x_start;
+	uint16_t x_end;
+	uint16_t y_start;
+	uint16_t y_end;
+	uint8_t otg_id;
+	uint8_t phy_id;
+};
+
+struct dmub_cmd_roi_window_ctl {
+	uint16_t x_start;
+	uint16_t x_end;
+	uint16_t y_start;
+	uint16_t y_end;
+	bool enable;
+};
+
+struct dmub_cmd_roi_ctl_info {
+	uint8_t otg_id;
+	uint8_t phy_id;
+	struct dmub_cmd_roi_window_ctl roi_ctl[MAX_ROI_NUM];
 };
 
 /**
@@ -5183,14 +5224,8 @@ struct dmub_rb_cmd_secure_display {
 	/**
 	 * Data passed from driver to dmub firmware.
 	 */
-	struct dmub_cmd_roi_info {
-		uint16_t x_start;
-		uint16_t x_end;
-		uint16_t y_start;
-		uint16_t y_end;
-		uint8_t otg_id;
-		uint8_t phy_id;
-	} roi_info;
+	struct dmub_cmd_roi_info roi_info;
+	struct dmub_cmd_roi_ctl_info mul_roi_ctl;
 };
 
 /**
