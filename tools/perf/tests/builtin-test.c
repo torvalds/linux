@@ -155,6 +155,9 @@ static struct test_workload *workloads[] = {
 	&workload__landlock,
 };
 
+#define workloads__for_each(workload) \
+	for (unsigned i = 0; i < ARRAY_SIZE(workloads) && ({ workload = workloads[i]; 1; }); i++)
+
 static int num_subtests(const struct test_suite *t)
 {
 	int num;
@@ -504,11 +507,9 @@ static int perf_test__list(int argc, const char **argv)
 
 static int run_workload(const char *work, int argc, const char **argv)
 {
-	unsigned int i = 0;
 	struct test_workload *twl;
 
-	for (i = 0; i < ARRAY_SIZE(workloads); i++) {
-		twl = workloads[i];
+	workloads__for_each(twl) {
 		if (!strcmp(twl->name, work))
 			return twl->func(argc, argv);
 	}
