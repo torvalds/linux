@@ -106,18 +106,10 @@ static struct platform_driver sparc_i8042_driver = {
 
 static bool i8042_is_mr_coffee(void)
 {
-	struct device_node *root;
-	const char *name;
-	bool is_mr_coffee;
+	struct device_node *root __free(device_node) = of_find_node_by_path("/");
+	const char *name = of_get_property(root, "name", NULL);
 
-	root = of_find_node_by_path("/");
-
-	name = of_get_property(root, "name", NULL);
-	is_mr_coffee = name && !strcmp(name, "SUNW,JavaStation-1");
-
-	of_node_put(root);
-
-	return is_mr_coffee;
+	return name && !strcmp(name, "SUNW,JavaStation-1");
 }
 
 static int __init i8042_platform_init(void)
