@@ -11,6 +11,7 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/types.h>
 #include <linux/acpi.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -250,7 +251,7 @@ struct kxcjk1013_data {
 	/* Ensure timestamp naturally aligned */
 	struct {
 		s16 chans[AXIS_MAX];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	u8 odr_bits;
 	u8 range;

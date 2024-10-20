@@ -115,7 +115,7 @@ struct bma400_data {
 	struct {
 		__le16 buff[3];
 		u8 temperature;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer __aligned(IIO_DMA_MINALIGN);
 	__le16 status;
 	__be16 duration;

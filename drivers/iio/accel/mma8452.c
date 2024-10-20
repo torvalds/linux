@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 
 #define MMA8452_STATUS				0x00
 #define  MMA8452_STATUS_DRDY			(BIT(2) | BIT(1) | BIT(0))
@@ -115,7 +116,7 @@ struct mma8452_data {
 	/* Ensure correct alignment of time stamp when present */
 	struct {
 		__be16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer;
 };
 
