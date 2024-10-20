@@ -1142,7 +1142,13 @@ struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *inode)
 void bch2_inode_opts_get(struct bch_io_opts *opts, struct bch_fs *c,
 			 struct bch_inode_unpacked *inode)
 {
-#define x(_name, _bits)		opts->_name = inode_opt_get(c, inode, _name);
+#define x(_name, _bits)							\
+	if ((inode)->bi_##_name) {					\
+		opts->_name = inode->bi_##_name - 1;			\
+		opts->_name##_from_inode = true;			\
+	} else {							\
+		opts->_name = c->opts._name;				\
+	}
 	BCH_INODE_OPTS()
 #undef x
 
