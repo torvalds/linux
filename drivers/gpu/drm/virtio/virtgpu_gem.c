@@ -112,15 +112,17 @@ int virtio_gpu_gem_object_open(struct drm_gem_object *obj,
 	/* the context might still be missing when the first ioctl is
 	 * DRM_IOCTL_MODE_CREATE_DUMB or DRM_IOCTL_PRIME_FD_TO_HANDLE
 	 */
-	virtio_gpu_create_context(obj->dev, file);
+	if (!vgdev->has_context_init)
+		virtio_gpu_create_context(obj->dev, file);
 
 	objs = virtio_gpu_array_alloc(1);
 	if (!objs)
 		return -ENOMEM;
 	virtio_gpu_array_add_obj(objs, obj);
 
-	virtio_gpu_cmd_context_attach_resource(vgdev, vfpriv->ctx_id,
-					       objs);
+	if (vfpriv->ctx_id)
+		virtio_gpu_cmd_context_attach_resource(vgdev, vfpriv->ctx_id, objs);
+
 out_notify:
 	virtio_gpu_notify(vgdev);
 	return 0;
