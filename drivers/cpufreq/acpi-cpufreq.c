@@ -1028,7 +1028,7 @@ static struct platform_driver acpi_cpufreq_platdrv = {
 	.driver = {
 		.name	= "acpi-cpufreq",
 	},
-	.remove_new	= acpi_cpufreq_remove,
+	.remove = acpi_cpufreq_remove,
 };
 
 static int __init acpi_cpufreq_init(void)

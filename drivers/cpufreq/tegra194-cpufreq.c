@@ -818,7 +818,7 @@ static struct platform_driver tegra194_ccplex_driver = {
 		.of_match_table = tegra194_cpufreq_of_match,
 	},
 	.probe = tegra194_cpufreq_probe,
-	.remove_new = tegra194_cpufreq_remove,
+	.remove = tegra194_cpufreq_remove,
 };
 module_platform_driver(tegra194_ccplex_driver);
 

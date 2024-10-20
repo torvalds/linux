@@ -386,7 +386,7 @@ static struct platform_driver loongson3_platform_driver = {
 	},
 	.id_table = cpufreq_id_table,
 	.probe = loongson3_cpufreq_probe,
-	.remove_new = loongson3_cpufreq_remove,
+	.remove = loongson3_cpufreq_remove,
 };
 module_platform_driver(loongson3_platform_driver);
 
