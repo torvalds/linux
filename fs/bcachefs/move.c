@@ -22,6 +22,7 @@
 #include "keylist.h"
 #include "move.h"
 #include "rebalance.h"
+#include "reflink.h"
 #include "replicas.h"
 #include "snapshot.h"
 #include "super-io.h"
@@ -389,6 +390,7 @@ err:
 
 static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 			  struct per_snapshot_io_opts *io_opts,
+			  struct bpos extent_pos, /* extent_iter, extent_k may be in reflink btree */
 			  struct btree_iter *extent_iter,
 			  struct bkey_s_c extent_k)
 {
@@ -400,12 +402,12 @@ static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 	if (extent_k.k->type == KEY_TYPE_reflink_v)
 		goto out;
 
-	if (io_opts->cur_inum != extent_k.k->p.inode) {
+	if (io_opts->cur_inum != extent_pos.inode) {
 		io_opts->d.nr = 0;
 
-		ret = for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),
+		ret = for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, extent_pos.inode),
 					 BTREE_ITER_all_snapshots, k, ({
-			if (k.k->p.offset != extent_k.k->p.inode)
+			if (k.k->p.offset != extent_pos.inode)
 				break;
 
 			if (!bkey_is_inode(k.k))
@@ -421,7 +423,7 @@ static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 
 			darray_push(&io_opts->d, e);
 		}));
-		io_opts->cur_inum = extent_k.k->p.inode;
+		io_opts->cur_inum = extent_pos.inode;
 	}
 
 	ret = ret ?: trans_was_restarted(trans, restart_count);
@@ -527,9 +529,15 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 	struct per_snapshot_io_opts snapshot_io_opts;
 	struct bch_io_opts *io_opts;
 	struct bkey_buf sk;
-	struct btree_iter iter;
+	struct btree_iter iter, reflink_iter = {};
 	struct bkey_s_c k;
 	struct data_update_opts data_opts;
+	/*
+	 * If we're moving a single file, also process reflinked data it points
+	 * to (this includes propagating changed io_opts from the inode to the
+	 * extent):
+	 */
+	bool walk_indirect = start.inode == end.inode;
 	int ret = 0, ret2;
 
 	per_snapshot_io_opts_init(&snapshot_io_opts, c);
@@ -549,6 +557,8 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		bch2_ratelimit_reset(ctxt->rate);
 
 	while (!bch2_move_ratelimit(ctxt)) {
+		struct btree_iter *extent_iter = &iter;
+
 		bch2_trans_begin(trans);
 
 		k = bch2_btree_iter_peek(&iter);
@@ -567,10 +577,36 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		if (ctxt->stats)
 			ctxt->stats->pos = BBPOS(iter.btree_id, iter.pos);
 
+		if (walk_indirect &&
+		    k.k->type == KEY_TYPE_reflink_p &&
+		    REFLINK_P_MAY_UPDATE_OPTIONS(bkey_s_c_to_reflink_p(k).v)) {
+			struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
+			s64 offset_into_extent	= iter.pos.offset - bkey_start_offset(k.k);
+
+			bch2_trans_iter_exit(trans, &reflink_iter);
+			k = bch2_lookup_indirect_extent(trans, &reflink_iter, &offset_into_extent, p, true, 0);
+			ret = bkey_err(k);
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				continue;
+			if (ret)
+				break;
+
+			if (bkey_deleted(k.k))
+				goto next_nondata;
+
+			/*
+			 * XXX: reflink pointers may point to multiple indirect
+			 * extents, so don't advance past the entire reflink
+			 * pointer - need to fixup iter->k
+			 */
+			extent_iter = &reflink_iter;
+		}
+
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
 
-		io_opts = bch2_move_get_io_opts(trans, &snapshot_io_opts, &iter, k);
+		io_opts = bch2_move_get_io_opts(trans, &snapshot_io_opts,
+						iter.pos, extent_iter, k);
 		ret = PTR_ERR_OR_ZERO(io_opts);
 		if (ret)
 			continue;
@@ -586,7 +622,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 
-		ret2 = bch2_move_extent(ctxt, NULL, &iter, k, *io_opts, data_opts);
+		ret2 = bch2_move_extent(ctxt, NULL, extent_iter, k, *io_opts, data_opts);
 		if (ret2) {
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
 				continue;
@@ -607,6 +643,7 @@ next_nondata:
 		bch2_btree_iter_advance(&iter);
 	}
 
+	bch2_trans_iter_exit(trans, &reflink_iter);
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_bkey_buf_exit(&sk, c);
 	per_snapshot_io_opts_exit(&snapshot_io_opts);
