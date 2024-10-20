@@ -151,7 +151,7 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 
 	ret = starfive_aes_register_algs();
 	if (ret)
-		goto err_algs_aes;
+		goto err_engine_start;
 
 	ret = starfive_hash_register_algs();
 	if (ret)
@@ -167,8 +167,6 @@ err_algs_rsa:
 	starfive_hash_unregister_algs();
 err_algs_hash:
 	starfive_aes_unregister_algs();
-err_algs_aes:
-	crypto_engine_stop(cryp->engine);
 err_engine_start:
 	crypto_engine_exit(cryp->engine);
 err_engine:
@@ -193,7 +191,6 @@ static void starfive_cryp_remove(struct platform_device *pdev)
 	starfive_hash_unregister_algs();
 	starfive_rsa_unregister_algs();
 
-	crypto_engine_stop(cryp->engine);
 	crypto_engine_exit(cryp->engine);
 
 	starfive_dma_cleanup(cryp);
