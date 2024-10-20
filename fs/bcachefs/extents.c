@@ -1161,11 +1161,11 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 
 			prt_str(out, "rebalance: target ");
 			if (c)
-				bch2_target_to_text(out, c, r->target);
+				bch2_target_to_text(out, c, r->background_target);
 			else
-				prt_printf(out, "%u", r->target);
+				prt_printf(out, "%u", r->background_target);
 			prt_str(out, " compression ");
-			bch2_compression_opt_to_text(out, r->compression);
+			bch2_compression_opt_to_text(out, r->background_compression);
 			break;
 		}
 		default:
@@ -1453,8 +1453,8 @@ u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
 	struct extent_ptr_decoded p;
 	u64 sectors = 0;
 
-	if (opts->compression) {
-		unsigned compression_type = bch2_compression_opt_to_type(opts->compression);
+	if (opts->background_compression) {
+		unsigned compression_type = bch2_compression_opt_to_type(opts->background_compression);
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
@@ -1468,10 +1468,10 @@ u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
 		}
 	}
 incompressible:
-	if (opts->target &&
-	    bch2_target_accepts_data(c, BCH_DATA_user, opts->target)) {
+	if (opts->background_target &&
+	    bch2_target_accepts_data(c, BCH_DATA_user, opts->background_target)) {
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-			if (!p.ptr.cached && !bch2_dev_in_target(c, p.ptr.dev, opts->target))
+			if (!p.ptr.cached && !bch2_dev_in_target(c, p.ptr.dev, opts->background_target))
 				sectors += p.crc.compressed_size;
 	}
 
@@ -1500,14 +1500,14 @@ int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
 			 * they're referenced by different inodes with different
 			 * options:
 			 */
-			if (r->target)
-				target = r->target;
-			if (r->compression)
-				compression = r->compression;
+			if (r->background_target)
+				target = r->background_target;
+			if (r->background_compression)
+				compression = r->background_compression;
 		}
 
-		r->target	= target;
-		r->compression	= compression;
+		r->background_target		= target;
+		r->background_compression	= compression;
 	}
 
 	needs_rebalance = bch2_bkey_ptrs_need_rebalance(c, k.s_c, target, compression);
@@ -1515,10 +1515,10 @@ int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
 	if (needs_rebalance && !r) {
 		union bch_extent_entry *new = bkey_val_end(k);
 
-		new->rebalance.type		= 1U << BCH_EXTENT_ENTRY_rebalance;
-		new->rebalance.compression	= compression;
-		new->rebalance.target		= target;
-		new->rebalance.unused		= 0;
+		new->rebalance.type			= 1U << BCH_EXTENT_ENTRY_rebalance;
+		new->rebalance.background_compression	= compression;
+		new->rebalance.background_target	= target;
+		new->rebalance.unused			= 0;
 		k.k->u64s += extent_entry_u64s(new);
 	} else if (!needs_rebalance && r && k.k->type != KEY_TYPE_reflink_v) {
 		/*
