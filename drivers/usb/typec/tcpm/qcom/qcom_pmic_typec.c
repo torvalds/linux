@@ -93,8 +93,10 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	bridge_dev = devm_drm_dp_hpd_bridge_alloc(tcpm->dev, to_of_node(tcpm->tcpc.fwnode));
-	if (IS_ERR(bridge_dev))
-		return PTR_ERR(bridge_dev);
+	if (IS_ERR(bridge_dev)) {
+		ret = PTR_ERR(bridge_dev);
+		goto fwnode_remove;
+	}
 
 	tcpm->tcpm_port = tcpm_register_port(tcpm->dev, &tcpm->tcpc);
 	if (IS_ERR(tcpm->tcpm_port)) {
