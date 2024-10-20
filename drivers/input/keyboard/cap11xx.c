@@ -416,7 +416,7 @@ static int cap11xx_led_set(struct led_classdev *cdev,
 static int cap11xx_init_leds(struct device *dev,
 			     struct cap11xx_priv *priv, int num_leds)
 {
-	struct device_node *node = dev->of_node, *child;
+	struct device_node *node = dev->of_node;
 	struct cap11xx_led *led;
 	int cnt = of_get_child_count(node);
 	int error;
@@ -445,7 +445,7 @@ static int cap11xx_init_leds(struct device *dev,
 	if (error)
 		return error;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_node_scoped(node, child) {
 		u32 reg;
 
 		led->cdev.name =
@@ -458,19 +458,15 @@ static int cap11xx_init_leds(struct device *dev,
 		led->cdev.brightness = LED_OFF;
 
 		error = of_property_read_u32(child, "reg", &reg);
-		if (error != 0 || reg >= num_leds) {
-			of_node_put(child);
+		if (error != 0 || reg >= num_leds)
 			return -EINVAL;
-		}
 
 		led->reg = reg;
 		led->priv = priv;
 
 		error = devm_led_classdev_register(dev, &led->cdev);
-		if (error) {
-			of_node_put(child);
+		if (error)
 			return error;
-		}
 
 		priv->num_leds++;
 		led++;
