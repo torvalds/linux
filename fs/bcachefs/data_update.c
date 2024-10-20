@@ -357,7 +357,7 @@ restart_drop_extra_replicas:
 						k.k->p, bkey_start_pos(&insert->k)) ?:
 			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, insert->k.p) ?:
-			bch2_bkey_set_needs_rebalance(c, insert, &op->opts) ?:
+			bch2_bkey_set_needs_rebalance(c, &op->opts, insert) ?:
 			bch2_trans_update(trans, &iter, insert,
 				BTREE_UPDATE_internal_snapshot_node) ?:
 			bch2_trans_commit(trans, &op->res,

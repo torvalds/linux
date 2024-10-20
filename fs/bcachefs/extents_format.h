@@ -215,6 +215,11 @@ struct bch_extent_rebalance {
 #endif
 };
 
+/* subset of BCH_INODE_OPTS */
+#define BCH_REBALANCE_OPTS()			\
+	x(background_compression)		\
+	x(background_target)
+
 union bch_extent_entry {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ||  __BITS_PER_LONG == 64
 	unsigned long			type;
