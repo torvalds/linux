@@ -19,11 +19,7 @@
 
 #define TEST_NS "skc_cls_ingress"
 
-static struct test_btf_skc_cls_ingress *skel;
-static struct sockaddr_in6 srv_sa6;
-static __u32 duration;
-
-static struct netns_obj *prepare_netns(void)
+static struct netns_obj *prepare_netns(struct test_btf_skc_cls_ingress *skel)
 {
 	LIBBPF_OPTS(bpf_tc_hook, qdisc_lo, .attach_point = BPF_TC_INGRESS);
 	LIBBPF_OPTS(bpf_tc_opts, tc_attach,
@@ -57,7 +53,7 @@ free_ns:
 	return NULL;
 }
 
-static void reset_test(void)
+static void reset_test(struct test_btf_skc_cls_ingress *skel)
 {
 	memset(&skel->bss->srv_sa6, 0, sizeof(skel->bss->srv_sa6));
 	skel->bss->listen_tp_sport = 0;
@@ -67,16 +63,17 @@ static void reset_test(void)
 	skel->bss->linum = 0;
 }
 
-static void print_err_line(void)
+static void print_err_line(struct test_btf_skc_cls_ingress *skel)
 {
 	if (skel->bss->linum)
 		printf("bpf prog error at line %u\n", skel->bss->linum);
 }
 
-static void run_test(bool gen_cookies)
+static void run_test(struct test_btf_skc_cls_ingress *skel, bool gen_cookies)
 {
 	const char *tcp_syncookies = gen_cookies ? "2" : "1";
 	int listen_fd = -1, cli_fd = -1, srv_fd = -1, err;
+	struct sockaddr_in6 srv_sa6;
 	socklen_t addrlen = sizeof(srv_sa6);
 	int srv_port;
 
@@ -84,57 +81,40 @@ static void run_test(bool gen_cookies)
 		return;
 
 	listen_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
-	if (CHECK_FAIL(listen_fd == -1))
+	if (!ASSERT_OK_FD(listen_fd, "start server"))
 		return;
 
 	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
-	if (CHECK(err, "getsockname(listen_fd)", "err:%d errno:%d\n", err,
-		  errno))
+	if (!ASSERT_OK(err, "getsockname(listen_fd)"))
 		goto done;
 	memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
 	srv_port = ntohs(srv_sa6.sin6_port);
 
 	cli_fd = connect_to_fd(listen_fd, 0);
-	if (CHECK_FAIL(cli_fd == -1))
+	if (!ASSERT_OK_FD(cli_fd, "connect client"))
 		goto done;
 
 	srv_fd = accept(listen_fd, NULL, NULL);
-	if (CHECK_FAIL(srv_fd == -1))
+	if (!ASSERT_OK_FD(srv_fd, "accept connection"))
 		goto done;
 
-	if (CHECK(skel->bss->listen_tp_sport != srv_port,
-		  "Unexpected listen tp src port",
-		  "listen_tp_sport:%u expected:%u\n",
-		  skel->bss->listen_tp_sport, srv_port))
-		goto done;
+	ASSERT_EQ(skel->bss->listen_tp_sport, srv_port, "listen tp src port");
 
 	if (!gen_cookies) {
-		if (CHECK(skel->bss->req_sk_sport != srv_port,
-			  "Unexpected req_sk src port",
-			  "req_sk_sport:%u expected:%u\n",
-			  skel->bss->req_sk_sport, srv_port))
-			goto done;
-		if (CHECK(skel->bss->gen_cookie || skel->bss->recv_cookie,
-			  "Unexpected syncookie states",
-			  "gen_cookie:%u recv_cookie:%u\n",
-			  skel->bss->gen_cookie, skel->bss->recv_cookie))
-			goto done;
+		ASSERT_EQ(skel->bss->req_sk_sport, srv_port,
+			  "request socket source port with syncookies disabled");
+		ASSERT_EQ(skel->bss->gen_cookie, 0,
+			  "generated syncookie with syncookies disabled");
+		ASSERT_EQ(skel->bss->recv_cookie, 0,
+			  "received syncookie with syncookies disabled");
 	} else {
-		if (CHECK(skel->bss->req_sk_sport,
-			  "Unexpected req_sk src port",
-			  "req_sk_sport:%u expected:0\n",
-			  skel->bss->req_sk_sport))
-			goto done;
-		if (CHECK(!skel->bss->gen_cookie ||
-			  skel->bss->gen_cookie != skel->bss->recv_cookie,
-			  "Unexpected syncookie states",
-			  "gen_cookie:%u recv_cookie:%u\n",
-			  skel->bss->gen_cookie, skel->bss->recv_cookie))
-			goto done;
+		ASSERT_EQ(skel->bss->req_sk_sport, 0,
+			  "request socket source port with syncookies enabled");
+		ASSERT_NEQ(skel->bss->gen_cookie, 0,
+			   "syncookie properly generated");
+		ASSERT_EQ(skel->bss->gen_cookie, skel->bss->recv_cookie,
+			  "matching syncookies on client and server");
 	}
-
-	CHECK(skel->bss->linum, "bpf prog detected error", "at line %u\n",
-	      skel->bss->linum);
 
 done:
 	if (listen_fd != -1)
@@ -145,19 +125,19 @@ done:
 		close(srv_fd);
 }
 
-static void test_conn(void)
+static void test_conn(struct test_btf_skc_cls_ingress *skel)
 {
-	run_test(false);
+	run_test(skel, false);
 }
 
-static void test_syncookie(void)
+static void test_syncookie(struct test_btf_skc_cls_ingress *skel)
 {
-	run_test(true);
+	run_test(skel, true);
 }
 
 struct test {
 	const char *desc;
-	void (*run)(void);
+	void (*run)(struct test_btf_skc_cls_ingress *skel);
 };
 
 #define DEF_TEST(name) { #name, test_##name }
@@ -168,25 +148,26 @@ static struct test tests[] = {
 
 void test_btf_skc_cls_ingress(void)
 {
+	struct test_btf_skc_cls_ingress *skel;
+	struct netns_obj *ns;
 	int i;
 
 	skel = test_btf_skc_cls_ingress__open_and_load();
-	struct netns_obj *ns;
-	if (CHECK(!skel, "test_btf_skc_cls_ingress__open_and_load", "failed\n"))
+	if (!ASSERT_OK_PTR(skel, "test_btf_skc_cls_ingress__open_and_load"))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		if (!test__start_subtest(tests[i].desc))
 			continue;
 
-		ns = prepare_netns();
+		ns = prepare_netns(skel);
 		if (!ns)
 			break;
 
-		tests[i].run();
+		tests[i].run(skel);
 
-		print_err_line();
-		reset_test();
+		print_err_line(skel);
+		reset_test(skel);
 		netns_free(ns);
 	}
 
