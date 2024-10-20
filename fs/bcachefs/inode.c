@@ -283,6 +283,8 @@ static noinline int bch2_inode_unpack_slowpath(struct bkey_s_c k,
 {
 	memset(unpacked, 0, sizeof(*unpacked));
 
+	unpacked->bi_snapshot = k.k->p.snapshot;
+
 	switch (k.k->type) {
 	case KEY_TYPE_inode: {
 		struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
