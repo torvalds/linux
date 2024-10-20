@@ -1442,16 +1442,19 @@ incompressible:
 	return rewrite_ptrs;
 }
 
-static u64 __bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
-				       unsigned target, unsigned compression)
+u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
 {
+	const struct bch_extent_rebalance *opts = bch2_bkey_rebalance_opts(k);
+	if (!opts)
+		return 0;
+
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 	u64 sectors = 0;
 
-	if (compression) {
-		unsigned compression_type = bch2_compression_opt_to_type(compression);
+	if (opts->compression) {
+		unsigned compression_type = bch2_compression_opt_to_type(opts->compression);
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
@@ -1465,20 +1468,14 @@ static u64 __bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c 
 		}
 	}
 incompressible:
-	if (target && bch2_target_accepts_data(c, BCH_DATA_user, target)) {
+	if (opts->target &&
+	    bch2_target_accepts_data(c, BCH_DATA_user, opts->target)) {
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-			if (!p.ptr.cached && !bch2_dev_in_target(c, p.ptr.dev, target))
+			if (!p.ptr.cached && !bch2_dev_in_target(c, p.ptr.dev, opts->target))
 				sectors += p.crc.compressed_size;
 	}
 
 	return sectors;
-}
-
-u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
-{
-	const struct bch_extent_rebalance *r = bch2_bkey_rebalance_opts(k);
-
-	return r ? __bch2_bkey_sectors_need_rebalance(c, k, r->target, r->compression) : 0;
 }
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
