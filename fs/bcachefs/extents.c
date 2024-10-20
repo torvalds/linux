@@ -1521,6 +1521,23 @@ incompressible:
 	return sectors;
 }
 
+bool bch2_bkey_rebalance_needs_update(struct bch_fs *c, struct bch_io_opts *opts,
+				      struct bkey_s_c k)
+{
+	if (!bkey_extent_is_direct_data(k.k))
+		return 0;
+
+	const struct bch_extent_rebalance *old = bch2_bkey_rebalance_opts(k);
+
+	if (k.k->type == KEY_TYPE_reflink_v ||
+	    bch2_bkey_ptrs_need_rebalance(c, k, opts->background_target, opts->background_compression)) {
+		struct bch_extent_rebalance new = io_opts_to_rebalance_opts(opts);
+		return old == NULL || memcmp(old, &new, sizeof(new));
+	} else {
+		return old != NULL;
+	}
+}
+
 int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bch_io_opts *opts,
 				  struct bkey_i *_k)
 {

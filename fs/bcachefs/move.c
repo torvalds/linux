@@ -379,13 +379,56 @@ err:
 	return ret;
 }
 
-struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
+static int get_update_rebalance_opts(struct btree_trans *trans,
+				     struct bch_io_opts *io_opts,
+				     struct btree_iter *iter,
+				     struct bkey_s_c k)
+{
+	BUG_ON(iter->flags & BTREE_ITER_is_extents);
+	BUG_ON(iter->flags & BTREE_ITER_filter_snapshots);
+
+	const struct bch_extent_rebalance *r = k.k->type == KEY_TYPE_reflink_v
+		? bch2_bkey_rebalance_opts(k) : NULL;
+	if (r) {
+#define x(_name)							\
+		if (r->_name##_from_inode) {				\
+			io_opts->_name = r->_name;			\
+			io_opts->_name##_from_inode = true;		\
+		}
+		BCH_REBALANCE_OPTS()
+#undef x
+	}
+
+	if (!bch2_bkey_rebalance_needs_update(trans->c, io_opts, k))
+		return 0;
+
+	struct bkey_i *n = bch2_trans_kmalloc(trans, bkey_bytes(k.k) + 8);
+	int ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		return ret;
+
+	bkey_reassemble(n, k);
+
+	/* On successfull transaction commit, @k was invalidated: */
+
+	return bch2_bkey_set_needs_rebalance(trans->c, io_opts, n) ?:
+		bch2_trans_update(trans, iter, n, BTREE_UPDATE_internal_snapshot_node) ?:
+		bch2_trans_commit(trans, NULL, NULL, 0) ?:
+		-BCH_ERR_transaction_restart_nested;
+}
+
+static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 			  struct per_snapshot_io_opts *io_opts,
+			  struct btree_iter *extent_iter,
 			  struct bkey_s_c extent_k)
 {
 	struct bch_fs *c = trans->c;
 	u32 restart_count = trans->restart_count;
+	struct bch_io_opts *opts_ret = &io_opts->fs_io_opts;
 	int ret = 0;
+
+	if (extent_k.k->type == KEY_TYPE_reflink_v)
+		goto out;
 
 	if (io_opts->cur_inum != extent_k.k->p.inode) {
 		io_opts->d.nr = 0;
@@ -415,43 +458,46 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 
 	if (extent_k.k->p.snapshot)
 		darray_for_each(io_opts->d, i)
-			if (bch2_snapshot_is_ancestor(c, extent_k.k->p.snapshot, i->snapshot))
-				return &i->io_opts;
-
-	return &io_opts->fs_io_opts;
+			if (bch2_snapshot_is_ancestor(c, extent_k.k->p.snapshot, i->snapshot)) {
+				opts_ret = &i->io_opts;
+				break;
+			}
+out:
+	ret = get_update_rebalance_opts(trans, opts_ret, extent_iter, extent_k);
+	if (ret)
+		return ERR_PTR(ret);
+	return opts_ret;
 }
 
 int bch2_move_get_io_opts_one(struct btree_trans *trans,
 			      struct bch_io_opts *io_opts,
+			      struct btree_iter *extent_iter,
 			      struct bkey_s_c extent_k)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
+	struct bch_fs *c = trans->c;
+
+	*io_opts = bch2_opts_to_inode_opts(c->opts);
 
 	/* reflink btree? */
-	if (!extent_k.k->p.inode) {
-		*io_opts = bch2_opts_to_inode_opts(trans->c->opts);
-		return 0;
-	}
+	if (!extent_k.k->p.inode)
+		goto out;
 
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+	struct btree_iter inode_iter;
+	struct bkey_s_c inode_k = bch2_bkey_get_iter(trans, &inode_iter, BTREE_ID_inodes,
 			       SPOS(0, extent_k.k->p.inode, extent_k.k->p.snapshot),
 			       BTREE_ITER_cached);
-	ret = bkey_err(k);
+	int ret = bkey_err(inode_k);
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		return ret;
 
-	if (!ret && bkey_is_inode(k.k)) {
+	if (!ret && bkey_is_inode(inode_k.k)) {
 		struct bch_inode_unpacked inode;
-		bch2_inode_unpack(k, &inode);
-		bch2_inode_opts_get(io_opts, trans->c, &inode);
-	} else {
-		*io_opts = bch2_opts_to_inode_opts(trans->c->opts);
+		bch2_inode_unpack(inode_k, &inode);
+		bch2_inode_opts_get(io_opts, c, &inode);
 	}
-
-	bch2_trans_iter_exit(trans, &iter);
-	return 0;
+	bch2_trans_iter_exit(trans, &inode_iter);
+out:
+	return get_update_rebalance_opts(trans, io_opts, extent_iter, extent_k);
 }
 
 int bch2_move_ratelimit(struct moving_context *ctxt)
@@ -552,7 +598,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
 
-		io_opts = bch2_move_get_io_opts(trans, &snapshot_io_opts, k);
+		io_opts = bch2_move_get_io_opts(trans, &snapshot_io_opts, &iter, k);
 		ret = PTR_ERR_OR_ZERO(io_opts);
 		if (ret)
 			continue;
@@ -728,7 +774,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			bch2_bkey_buf_reassemble(&sk, c, k);
 			k = bkey_i_to_s_c(sk.k);
 
-			ret = bch2_move_get_io_opts_one(trans, &io_opts, k);
+			ret = bch2_move_get_io_opts_one(trans, &io_opts, &iter, k);
 			if (ret) {
 				bch2_trans_iter_exit(trans, &iter);
 				continue;

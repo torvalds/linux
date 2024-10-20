@@ -216,7 +216,7 @@ static int do_rebalance_extent(struct moving_context *ctxt,
 	if (ret || !k.k)
 		goto out;
 
-	ret = bch2_move_get_io_opts_one(trans, &io_opts, k);
+	ret = bch2_move_get_io_opts_one(trans, &io_opts, extent_iter, k);
 	if (ret)
 		goto out;
 

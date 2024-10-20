@@ -715,6 +715,7 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bkey_s_c,
 				       unsigned, unsigned);
 u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *, struct bkey_s_c);
 
+bool bch2_bkey_rebalance_needs_update(struct bch_fs *, struct bch_io_opts *, struct bkey_s_c);
 int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bch_io_opts *, struct bkey_i *);
 
 /* Generic extent code: */
