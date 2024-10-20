@@ -71,68 +71,14 @@ static void print_err_line(void)
 		printf("bpf prog error at line %u\n", skel->bss->linum);
 }
 
-static void test_conn(void)
+static void run_test(bool gen_cookies)
 {
+	const char *tcp_syncookies = gen_cookies ? "2" : "1";
 	int listen_fd = -1, cli_fd = -1, srv_fd = -1, err;
 	socklen_t addrlen = sizeof(srv_sa6);
 	int srv_port;
 
-	if (write_sysctl("/proc/sys/net/ipv4/tcp_syncookies", "1"))
-		return;
-
-	listen_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
-	if (CHECK_FAIL(listen_fd == -1))
-		return;
-
-	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
-	if (CHECK(err, "getsockname(listen_fd)", "err:%d errno:%d\n", err,
-		  errno))
-		goto done;
-	memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
-	srv_port = ntohs(srv_sa6.sin6_port);
-
-	cli_fd = connect_to_fd(listen_fd, 0);
-	if (CHECK_FAIL(cli_fd == -1))
-		goto done;
-
-	srv_fd = accept(listen_fd, NULL, NULL);
-	if (CHECK_FAIL(srv_fd == -1))
-		goto done;
-
-	if (CHECK(skel->bss->listen_tp_sport != srv_port ||
-		  skel->bss->req_sk_sport != srv_port,
-		  "Unexpected sk src port",
-		  "listen_tp_sport:%u req_sk_sport:%u expected:%u\n",
-		  skel->bss->listen_tp_sport, skel->bss->req_sk_sport,
-		  srv_port))
-		goto done;
-
-	if (CHECK(skel->bss->gen_cookie || skel->bss->recv_cookie,
-		  "Unexpected syncookie states",
-		  "gen_cookie:%u recv_cookie:%u\n",
-		  skel->bss->gen_cookie, skel->bss->recv_cookie))
-		goto done;
-
-	CHECK(skel->bss->linum, "bpf prog detected error", "at line %u\n",
-	      skel->bss->linum);
-
-done:
-	if (listen_fd != -1)
-		close(listen_fd);
-	if (cli_fd != -1)
-		close(cli_fd);
-	if (srv_fd != -1)
-		close(srv_fd);
-}
-
-static void test_syncookie(void)
-{
-	int listen_fd = -1, cli_fd = -1, srv_fd = -1, err;
-	socklen_t addrlen = sizeof(srv_sa6);
-	int srv_port;
-
-	/* Enforce syncookie mode */
-	if (write_sysctl("/proc/sys/net/ipv4/tcp_syncookies", "2"))
+	if (write_sysctl("/proc/sys/net/ipv4/tcp_syncookies", tcp_syncookies))
 		return;
 
 	listen_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
@@ -155,23 +101,35 @@ static void test_syncookie(void)
 		goto done;
 
 	if (CHECK(skel->bss->listen_tp_sport != srv_port,
-		  "Unexpected tp src port",
+		  "Unexpected listen tp src port",
 		  "listen_tp_sport:%u expected:%u\n",
 		  skel->bss->listen_tp_sport, srv_port))
 		goto done;
 
-	if (CHECK(skel->bss->req_sk_sport,
-		  "Unexpected req_sk src port",
-		  "req_sk_sport:%u expected:0\n",
-		   skel->bss->req_sk_sport))
-		goto done;
-
-	if (CHECK(!skel->bss->gen_cookie ||
-		  skel->bss->gen_cookie != skel->bss->recv_cookie,
-		  "Unexpected syncookie states",
-		  "gen_cookie:%u recv_cookie:%u\n",
-		  skel->bss->gen_cookie, skel->bss->recv_cookie))
-		goto done;
+	if (!gen_cookies) {
+		if (CHECK(skel->bss->req_sk_sport != srv_port,
+			  "Unexpected req_sk src port",
+			  "req_sk_sport:%u expected:%u\n",
+			  skel->bss->req_sk_sport, srv_port))
+			goto done;
+		if (CHECK(skel->bss->gen_cookie || skel->bss->recv_cookie,
+			  "Unexpected syncookie states",
+			  "gen_cookie:%u recv_cookie:%u\n",
+			  skel->bss->gen_cookie, skel->bss->recv_cookie))
+			goto done;
+	} else {
+		if (CHECK(skel->bss->req_sk_sport,
+			  "Unexpected req_sk src port",
+			  "req_sk_sport:%u expected:0\n",
+			  skel->bss->req_sk_sport))
+			goto done;
+		if (CHECK(!skel->bss->gen_cookie ||
+			  skel->bss->gen_cookie != skel->bss->recv_cookie,
+			  "Unexpected syncookie states",
+			  "gen_cookie:%u recv_cookie:%u\n",
+			  skel->bss->gen_cookie, skel->bss->recv_cookie))
+			goto done;
+	}
 
 	CHECK(skel->bss->linum, "bpf prog detected error", "at line %u\n",
 	      skel->bss->linum);
@@ -183,6 +141,16 @@ done:
 		close(cli_fd);
 	if (srv_fd != -1)
 		close(srv_fd);
+}
+
+static void test_conn(void)
+{
+	run_test(false);
+}
+
+static void test_syncookie(void)
+{
+	run_test(true);
 }
 
 struct test {
