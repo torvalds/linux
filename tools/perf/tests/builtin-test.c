@@ -505,6 +505,17 @@ static int perf_test__list(int argc, const char **argv)
 	return 0;
 }
 
+static int workloads__fprintf_list(FILE *fp)
+{
+	struct test_workload *twl;
+	int printed = 0;
+
+	workloads__for_each(twl)
+		printed += fprintf(fp, "%s\n", twl->name);
+
+	return printed;
+}
+
 static int run_workload(const char *work, int argc, const char **argv)
 {
 	struct test_workload *twl;
@@ -535,6 +546,7 @@ int cmd_test(int argc, const char **argv)
 	};
 	const char *skip = NULL;
 	const char *workload = NULL;
+	bool list_workloads = false;
 	const struct option test_options[] = {
 	OPT_STRING('s', "skip", &skip, "tests", "tests to skip"),
 	OPT_INCR('v', "verbose", &verbose,
@@ -544,7 +556,8 @@ int cmd_test(int argc, const char **argv)
 	OPT_BOOLEAN('p', "parallel", &parallel, "Run the tests in parallel"),
 	OPT_BOOLEAN('S', "sequential", &sequential,
 		    "Run the tests one after another rather than in parallel"),
-	OPT_STRING('w', "workload", &workload, "work", "workload to run for testing"),
+	OPT_STRING('w', "workload", &workload, "work", "workload to run for testing, use '--list-workloads' to list the available ones."),
+	OPT_BOOLEAN(0, "list-workloads", &list_workloads, "List the available builtin workloads to use with -w/--workload"),
 	OPT_STRING(0, "dso", &dso_to_test, "dso", "dso to test"),
 	OPT_STRING(0, "objdump", &test_objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
@@ -569,6 +582,11 @@ int cmd_test(int argc, const char **argv)
 
 	if (workload)
 		return run_workload(workload, argc, argv);
+
+	if (list_workloads) {
+		workloads__fprintf_list(stdout);
+		return 0;
+	}
 
 	if (dont_fork)
 		sequential = true;
