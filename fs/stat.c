@@ -220,15 +220,10 @@ EXPORT_SYMBOL(vfs_getattr);
  */
 int vfs_fstat(int fd, struct kstat *stat)
 {
-	struct fd f;
-	int error;
-
-	f = fdget_raw(fd);
-	if (!fd_file(f))
+	CLASS(fd_raw, f)(fd);
+	if (fd_empty(f))
 		return -EBADF;
-	error = vfs_getattr(&fd_file(f)->f_path, stat, STATX_BASIC_STATS, 0);
-	fdput(f);
-	return error;
+	return vfs_getattr(&fd_file(f)->f_path, stat, STATX_BASIC_STATS, 0);
 }
 
 static int statx_lookup_flags(int flags)
@@ -275,7 +270,7 @@ static int vfs_statx_fd(int fd, int flags, struct kstat *stat,
 			  u32 request_mask)
 {
 	CLASS(fd_raw, f)(fd);
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 	return vfs_statx_path(&fd_file(f)->f_path, flags, stat, request_mask);
 }
