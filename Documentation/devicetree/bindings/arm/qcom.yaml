@@ -76,6 +76,7 @@ description: |
         sm6375
         sm7125
         sm7225
+        sm7325
         sm8150
         sm8250
         sm8350
@@ -989,6 +990,11 @@ properties:
           - enum:
               - fairphone,fp4
           - const: qcom,sm7225
+
+      - items:
+          - enum:
+              - nothing,spacewar
+          - const: qcom,sm7325
 
       - items:
           - enum:
