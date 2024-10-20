@@ -11283,10 +11283,10 @@ F:	security/integrity/
 F:	security/integrity/ima/
 
 INTEGRITY POLICY ENFORCEMENT (IPE)
-M:	Fan Wu <wufan@linux.microsoft.com>
+M:	Fan Wu <wufan@kernel.org>
 L:	linux-security-module@vger.kernel.org
 S:	Supported
-T:	git https://github.com/microsoft/ipe.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wufan/ipe.git
 F:	Documentation/admin-guide/LSM/ipe.rst
 F:	Documentation/security/ipe.rst
 F:	scripts/ipe/

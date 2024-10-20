@@ -29,6 +29,8 @@ static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 	if (ast_connector->physical_status == connector_status_connected) {
 		count = drm_connector_helper_get_modes(connector);
 	} else {
+		drm_edid_connector_update(connector, NULL);
+
 		/*
 		 * There's no EDID data without a connected monitor. Set BMC-
 		 * compatible modes in this case. The XGA default resolution
