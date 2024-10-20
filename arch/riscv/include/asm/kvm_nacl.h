@@ -12,6 +12,8 @@
 #include <asm/csr.h>
 #include <asm/sbi.h>
 
+struct kvm_vcpu_arch;
+
 DECLARE_STATIC_KEY_FALSE(kvm_riscv_nacl_available);
 #define kvm_riscv_nacl_available() \
 	static_branch_unlikely(&kvm_riscv_nacl_available)
@@ -42,6 +44,10 @@ void __kvm_riscv_nacl_hfence(void *shmem,
 			     unsigned long control,
 			     unsigned long page_num,
 			     unsigned long page_count);
+
+void __kvm_riscv_nacl_switch_to(struct kvm_vcpu_arch *vcpu_arch,
+				unsigned long sbi_ext_id,
+				unsigned long sbi_func_id);
 
 int kvm_riscv_nacl_enable(void);
 
