@@ -868,6 +868,50 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	return enable_isharp;
 }
 
+/* Calculate number of tap with adaptive scaling off */
+static void spl_get_taps_non_adaptive_scaler(
+	  struct spl_scratch *spl_scratch, const struct spl_taps *in_taps)
+{
+	if (in_taps->h_taps == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz) > 1)
+			spl_scratch->scl_data.taps.h_taps = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.horz), 8);
+		else
+			spl_scratch->scl_data.taps.h_taps = 4;
+	} else
+		spl_scratch->scl_data.taps.h_taps = in_taps->h_taps;
+
+	if (in_taps->v_taps == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 1)
+			spl_scratch->scl_data.taps.v_taps = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
+				spl_scratch->scl_data.ratios.vert, 2)), 8);
+		else
+			spl_scratch->scl_data.taps.v_taps = 4;
+	} else
+		spl_scratch->scl_data.taps.v_taps = in_taps->v_taps;
+
+	if (in_taps->v_taps_c == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c) > 1)
+			spl_scratch->scl_data.taps.v_taps_c = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
+				spl_scratch->scl_data.ratios.vert_c, 2)), 8);
+		else
+			spl_scratch->scl_data.taps.v_taps_c = 4;
+	} else
+		spl_scratch->scl_data.taps.v_taps_c = in_taps->v_taps_c;
+
+	if (in_taps->h_taps_c == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz_c) > 1)
+			spl_scratch->scl_data.taps.h_taps_c = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.horz_c), 8);
+		else
+			spl_scratch->scl_data.taps.h_taps_c = 4;
+	} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
+		/* Only 1 and even h_taps_c are supported by hw */
+		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c - 1;
+	else
+		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c;
+}
+
 /* Calculate optimal number of taps */
 static bool spl_get_optimal_number_of_taps(
 	  int max_downscale_src_width, struct spl_in *spl_in, struct spl_scratch *spl_scratch,
@@ -883,7 +927,7 @@ static bool spl_get_optimal_number_of_taps(
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
 		spl_scratch->scl_data.viewport.width > max_downscale_src_width) {
-		memcpy(&spl_scratch->scl_data.taps, in_taps, sizeof(struct spl_taps));
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
@@ -910,43 +954,9 @@ static bool spl_get_optimal_number_of_taps(
 	 * From programming guide: taps = min{ ceil(2*H_RATIO,1), 8} for downscaling
 	 * taps = 4 for upscaling
 	 */
-	if (skip_easf) {
-		if (in_taps->h_taps == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz) > 1)
-				spl_scratch->scl_data.taps.h_taps = spl_min(2 * spl_fixpt_ceil(
-					spl_scratch->scl_data.ratios.horz), 8);
-			else
-				spl_scratch->scl_data.taps.h_taps = 4;
-		} else
-			spl_scratch->scl_data.taps.h_taps = in_taps->h_taps;
-		if (in_taps->v_taps == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 1)
-				spl_scratch->scl_data.taps.v_taps = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-					spl_scratch->scl_data.ratios.vert, 2)), 8);
-			else
-				spl_scratch->scl_data.taps.v_taps = 4;
-		} else
-			spl_scratch->scl_data.taps.v_taps = in_taps->v_taps;
-		if (in_taps->v_taps_c == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c) > 1)
-				spl_scratch->scl_data.taps.v_taps_c = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-					spl_scratch->scl_data.ratios.vert_c, 2)), 8);
-			else
-				spl_scratch->scl_data.taps.v_taps_c = 4;
-		} else
-			spl_scratch->scl_data.taps.v_taps_c = in_taps->v_taps_c;
-		if (in_taps->h_taps_c == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz_c) > 1)
-				spl_scratch->scl_data.taps.h_taps_c = spl_min(2 * spl_fixpt_ceil(
-					spl_scratch->scl_data.ratios.horz_c), 8);
-			else
-				spl_scratch->scl_data.taps.h_taps_c = 4;
-		} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
-			/* Only 1 and even h_taps_c are supported by hw */
-			spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c - 1;
-		else
-			spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c;
-	} else {
+	if (skip_easf)
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+	else {
 		if (spl_is_yuv420(spl_in->basic_in.format)) {
 			spl_scratch->scl_data.taps.h_taps = 6;
 			spl_scratch->scl_data.taps.v_taps = 6;
