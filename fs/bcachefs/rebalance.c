@@ -121,6 +121,9 @@ static int bch2_bkey_clear_needs_rebalance(struct btree_trans *trans,
 					   struct btree_iter *iter,
 					   struct bkey_s_c k)
 {
+	if (!bch2_bkey_rebalance_opts(k))
+		return 0;
+
 	struct bkey_i *n = bch2_bkey_make_mut(trans, iter, &k, 0);
 	int ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
@@ -134,31 +137,27 @@ static int bch2_bkey_clear_needs_rebalance(struct btree_trans *trans,
 static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 			struct bpos work_pos,
 			struct btree_iter *extent_iter,
+			struct bch_io_opts *io_opts,
 			struct data_update_opts *data_opts)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k;
 
 	bch2_trans_iter_exit(trans, extent_iter);
 	bch2_trans_iter_init(trans, extent_iter,
 			     work_pos.inode ? BTREE_ID_extents : BTREE_ID_reflink,
 			     work_pos,
 			     BTREE_ITER_all_snapshots);
-	k = bch2_btree_iter_peek_slot(extent_iter);
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(extent_iter);
 	if (bkey_err(k))
 		return k;
 
-	const struct bch_extent_rebalance *r = k.k ? bch2_bkey_rebalance_opts(k) : NULL;
-	if (!r) {
-		/* raced due to btree write buffer, nothing to do */
-		return bkey_s_c_null;
-	}
+	int ret = bch2_move_get_io_opts_one(trans, io_opts, extent_iter, k);
+	if (ret)
+		return bkey_s_c_err(ret);
 
 	memset(data_opts, 0, sizeof(*data_opts));
-
-	data_opts->rewrite_ptrs		=
-		bch2_bkey_ptrs_need_rebalance(c, k, r->background_target, r->background_compression);
-	data_opts->target		= r->background_target;
+	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, io_opts, k);
+	data_opts->target		= io_opts->background_target;
 	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
 
 	if (!data_opts->rewrite_ptrs) {
@@ -179,9 +178,9 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 		struct printbuf buf = PRINTBUF;
 
 		prt_str(&buf, "target=");
-		bch2_target_to_text(&buf, c, r->background_target);
+		bch2_target_to_text(&buf, c, io_opts->background_target);
 		prt_str(&buf, " compression=");
-		bch2_compression_opt_to_text(&buf, r->background_compression);
+		bch2_compression_opt_to_text(&buf, io_opts->background_compression);
 		prt_str(&buf, " ");
 		bch2_bkey_val_to_text(&buf, c, k);
 
@@ -212,12 +211,8 @@ static int do_rebalance_extent(struct moving_context *ctxt,
 	bch2_bkey_buf_init(&sk);
 
 	ret = bkey_err(k = next_rebalance_extent(trans, work_pos,
-						 extent_iter, &data_opts));
+				extent_iter, &io_opts, &data_opts));
 	if (ret || !k.k)
-		goto out;
-
-	ret = bch2_move_get_io_opts_one(trans, &io_opts, extent_iter, k);
-	if (ret)
 		goto out;
 
 	atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
@@ -253,20 +248,8 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 			   struct bch_io_opts *io_opts,
 			   struct data_update_opts *data_opts)
 {
-	unsigned target, compression;
-
-	if (k.k->p.inode) {
-		target		= io_opts->background_target;
-		compression	= io_opts->background_compression;
-	} else {
-		const struct bch_extent_rebalance *r = bch2_bkey_rebalance_opts(k);
-
-		target		= r ? r->background_target : io_opts->background_target;
-		compression	= r ? r->background_compression : io_opts->background_compression;
-	}
-
-	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, k, target, compression);
-	data_opts->target		= target;
+	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, io_opts, k);
+	data_opts->target		= io_opts->background_target;
 	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
 	return data_opts->rewrite_ptrs != 0;
 }

@@ -711,8 +711,7 @@ static inline bool bch2_extent_ptr_eq(struct bch_extent_ptr ptr1,
 void bch2_ptr_swab(struct bkey_s);
 
 const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c);
-unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bkey_s_c,
-				       unsigned, unsigned);
+unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bch_io_opts *, struct bkey_s_c);
 u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *, struct bkey_s_c);
 
 bool bch2_bkey_rebalance_needs_update(struct bch_fs *, struct bch_io_opts *, struct bkey_s_c);

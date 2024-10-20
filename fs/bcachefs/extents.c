@@ -1447,14 +1447,15 @@ const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c k)
 	return NULL;
 }
 
-unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
-				       unsigned target, unsigned compression)
+unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c,
+				       struct bch_io_opts *opts,
+				       struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	unsigned rewrite_ptrs = 0;
 
-	if (compression) {
-		unsigned compression_type = bch2_compression_opt_to_type(compression);
+	if (opts->background_compression) {
+		unsigned compression_type = bch2_compression_opt_to_type(opts->background_compression);
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
 		unsigned ptr_bit = 1;
@@ -1472,11 +1473,12 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
 		}
 	}
 incompressible:
-	if (target && bch2_target_accepts_data(c, BCH_DATA_user, target)) {
+	if (opts->background_target &&
+	    bch2_target_accepts_data(c, BCH_DATA_user, opts->background_target)) {
 		unsigned ptr_bit = 1;
 
 		bkey_for_each_ptr(ptrs, ptr) {
-			if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, target))
+			if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, opts->background_target))
 				rewrite_ptrs |= ptr_bit;
 			ptr_bit <<= 1;
 		}
@@ -1529,8 +1531,7 @@ bool bch2_bkey_rebalance_needs_update(struct bch_fs *c, struct bch_io_opts *opts
 
 	const struct bch_extent_rebalance *old = bch2_bkey_rebalance_opts(k);
 
-	if (k.k->type == KEY_TYPE_reflink_v ||
-	    bch2_bkey_ptrs_need_rebalance(c, k, opts->background_target, opts->background_compression)) {
+	if (k.k->type == KEY_TYPE_reflink_v || bch2_bkey_ptrs_need_rebalance(c, opts, k)) {
 		struct bch_extent_rebalance new = io_opts_to_rebalance_opts(opts);
 		return old == NULL || memcmp(old, &new, sizeof(new));
 	} else {
@@ -1548,8 +1549,7 @@ int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bch_io_opts *opts,
 	struct bch_extent_rebalance *old =
 		(struct bch_extent_rebalance *) bch2_bkey_rebalance_opts(k.s_c);
 
-	if (k.k->type == KEY_TYPE_reflink_v ||
-	    bch2_bkey_ptrs_need_rebalance(c, k.s_c, opts->background_target, opts->background_compression)) {
+	if (k.k->type == KEY_TYPE_reflink_v || bch2_bkey_ptrs_need_rebalance(c, opts, k.s_c)) {
 		if (!old) {
 			old = bkey_val_end(k);
 			k.k->u64s += sizeof(*old) / sizeof(u64);
