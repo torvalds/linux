@@ -1504,7 +1504,7 @@ int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
 	struct bkey_s k = bkey_i_to_s(_k);
 	struct bch_extent_rebalance *r;
 	unsigned target = opts->background_target;
-	unsigned compression = background_compression(*opts);
+	unsigned compression = opts->background_compression;
 	bool needs_rebalance;
 
 	if (!bkey_extent_is_direct_data(k.k))

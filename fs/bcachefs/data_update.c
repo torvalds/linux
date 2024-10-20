@@ -535,7 +535,7 @@ void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
 	prt_newline(out);
 
 	prt_str(out, "compression:\t");
-	bch2_compression_opt_to_text(out, background_compression(*io_opts));
+	bch2_compression_opt_to_text(out, io_opts->background_compression);
 	prt_newline(out);
 
 	prt_str(out, "opts.replicas:\t");
@@ -647,7 +647,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		BCH_WRITE_DATA_ENCODED|
 		BCH_WRITE_MOVE|
 		m->data_opts.write_flags;
-	m->op.compression_opt	= background_compression(io_opts);
+	m->op.compression_opt	= io_opts.background_compression;
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;
 
 	unsigned durability_have = 0, durability_removing = 0;

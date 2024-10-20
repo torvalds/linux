@@ -257,12 +257,12 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 
 	if (k.k->p.inode) {
 		target		= io_opts->background_target;
-		compression	= background_compression(*io_opts);
+		compression	= io_opts->background_compression;
 	} else {
 		const struct bch_extent_rebalance *r = bch2_bkey_rebalance_opts(k);
 
 		target		= r ? r->target : io_opts->background_target;
-		compression	= r ? r->compression : background_compression(*io_opts);
+		compression	= r ? r->compression : io_opts->background_compression;
 	}
 
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, k, target, compression);

@@ -626,9 +626,17 @@ struct bch_io_opts {
 #undef x
 };
 
-static inline unsigned background_compression(struct bch_io_opts opts)
+static inline void bch2_io_opts_fixups(struct bch_io_opts *opts)
 {
-	return opts.background_compression ?: opts.compression;
+	if (!opts->background_target)
+		opts->background_target = opts->foreground_target;
+	if (!opts->background_compression)
+		opts->background_compression = opts->compression;
+	if (opts->nocow) {
+		opts->compression = opts->background_compression = 0;
+		opts->data_checksum = 0;
+		opts->erasure_code = 0;
+	}
 }
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);

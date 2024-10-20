@@ -14,6 +14,7 @@
 #include "extent_update.h"
 #include "fs.h"
 #include "inode.h"
+#include "opts.h"
 #include "str_hash.h"
 #include "snapshot.h"
 #include "subvolume.h"
@@ -1145,8 +1146,7 @@ void bch2_inode_opts_get(struct bch_io_opts *opts, struct bch_fs *c,
 	BCH_INODE_OPTS()
 #undef x
 
-	if (opts->nocow)
-		opts->compression = opts->background_compression = opts->data_checksum = opts->erasure_code = 0;
+	bch2_io_opts_fixups(opts);
 }
 
 int bch2_inum_opts_get(struct btree_trans *trans, subvol_inum inum, struct bch_io_opts *opts)
