@@ -19,6 +19,15 @@
 
 #define TEST_NS "skc_cls_ingress"
 
+#define BIT(n)		(1 << (n))
+#define TEST_MODE_IPV4	BIT(0)
+#define TEST_MODE_IPV6	BIT(1)
+#define TEST_MODE_DUAL	(TEST_MODE_IPV4 | TEST_MODE_IPV6)
+
+#define SERVER_ADDR_IPV4	"127.0.0.1"
+#define SERVER_ADDR_IPV6	"::1"
+#define SERVER_ADDR_DUAL	"::0"
+
 static struct netns_obj *prepare_netns(struct test_btf_skc_cls_ingress *skel)
 {
 	LIBBPF_OPTS(bpf_tc_hook, qdisc_lo, .attach_point = BPF_TC_INGRESS);
@@ -55,6 +64,7 @@ free_ns:
 
 static void reset_test(struct test_btf_skc_cls_ingress *skel)
 {
+	memset(&skel->bss->srv_sa4, 0, sizeof(skel->bss->srv_sa4));
 	memset(&skel->bss->srv_sa6, 0, sizeof(skel->bss->srv_sa6));
 	skel->bss->listen_tp_sport = 0;
 	skel->bss->req_sk_sport = 0;
@@ -69,26 +79,85 @@ static void print_err_line(struct test_btf_skc_cls_ingress *skel)
 		printf("bpf prog error at line %u\n", skel->bss->linum);
 }
 
-static void run_test(struct test_btf_skc_cls_ingress *skel, bool gen_cookies)
+static int v6only_true(int fd, void *opts)
+{
+	int mode = true;
+
+	return setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &mode, sizeof(mode));
+}
+
+static int v6only_false(int fd, void *opts)
+{
+	int mode = false;
+
+	return setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &mode, sizeof(mode));
+}
+
+static void run_test(struct test_btf_skc_cls_ingress *skel, bool gen_cookies,
+		     int ip_mode)
 {
 	const char *tcp_syncookies = gen_cookies ? "2" : "1";
 	int listen_fd = -1, cli_fd = -1, srv_fd = -1, err;
+	struct network_helper_opts opts = { 0 };
+	struct sockaddr_storage *addr;
 	struct sockaddr_in6 srv_sa6;
-	socklen_t addrlen = sizeof(srv_sa6);
+	struct sockaddr_in srv_sa4;
+	socklen_t addr_len;
+	int sock_family;
+	char *srv_addr;
 	int srv_port;
+
+	switch (ip_mode) {
+	case TEST_MODE_IPV4:
+		sock_family = AF_INET;
+		srv_addr = SERVER_ADDR_IPV4;
+		addr = (struct sockaddr_storage *)&srv_sa4;
+		addr_len = sizeof(srv_sa4);
+		break;
+	case TEST_MODE_IPV6:
+		opts.post_socket_cb = v6only_true;
+		sock_family = AF_INET6;
+		srv_addr = SERVER_ADDR_IPV6;
+		addr = (struct sockaddr_storage *)&srv_sa6;
+		addr_len = sizeof(srv_sa6);
+		break;
+	case TEST_MODE_DUAL:
+		opts.post_socket_cb = v6only_false;
+		sock_family = AF_INET6;
+		srv_addr = SERVER_ADDR_DUAL;
+		addr = (struct sockaddr_storage *)&srv_sa6;
+		addr_len = sizeof(srv_sa6);
+		break;
+	default:
+		PRINT_FAIL("Unknown IP mode %d", ip_mode);
+		return;
+	}
 
 	if (write_sysctl("/proc/sys/net/ipv4/tcp_syncookies", tcp_syncookies))
 		return;
 
-	listen_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
+	listen_fd = start_server_str(sock_family, SOCK_STREAM, srv_addr,  0,
+				     &opts);
 	if (!ASSERT_OK_FD(listen_fd, "start server"))
 		return;
 
-	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
+	err = getsockname(listen_fd, (struct sockaddr *)addr, &addr_len);
 	if (!ASSERT_OK(err, "getsockname(listen_fd)"))
 		goto done;
-	memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
-	srv_port = ntohs(srv_sa6.sin6_port);
+
+	switch (ip_mode) {
+	case TEST_MODE_IPV4:
+		memcpy(&skel->bss->srv_sa4, &srv_sa4, sizeof(srv_sa4));
+		srv_port = ntohs(srv_sa4.sin_port);
+		break;
+	case TEST_MODE_IPV6:
+	case TEST_MODE_DUAL:
+		memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
+		srv_port = ntohs(srv_sa6.sin6_port);
+		break;
+	default:
+		goto done;
+	}
 
 	cli_fd = connect_to_fd(listen_fd, 0);
 	if (!ASSERT_OK_FD(cli_fd, "connect client"))
@@ -125,14 +194,34 @@ done:
 		close(srv_fd);
 }
 
-static void test_conn(struct test_btf_skc_cls_ingress *skel)
+static void test_conn_ipv4(struct test_btf_skc_cls_ingress *skel)
 {
-	run_test(skel, false);
+	run_test(skel, false, TEST_MODE_IPV4);
 }
 
-static void test_syncookie(struct test_btf_skc_cls_ingress *skel)
+static void test_conn_ipv6(struct test_btf_skc_cls_ingress *skel)
 {
-	run_test(skel, true);
+	run_test(skel, false, TEST_MODE_IPV6);
+}
+
+static void test_conn_dual(struct test_btf_skc_cls_ingress *skel)
+{
+	run_test(skel, false, TEST_MODE_DUAL);
+}
+
+static void test_syncookie_ipv4(struct test_btf_skc_cls_ingress *skel)
+{
+	run_test(skel, true, TEST_MODE_IPV4);
+}
+
+static void test_syncookie_ipv6(struct test_btf_skc_cls_ingress *skel)
+{
+	run_test(skel, true, TEST_MODE_IPV6);
+}
+
+static void test_syncookie_dual(struct test_btf_skc_cls_ingress *skel)
+{
+	run_test(skel, true, TEST_MODE_DUAL);
 }
 
 struct test {
@@ -142,8 +231,12 @@ struct test {
 
 #define DEF_TEST(name) { #name, test_##name }
 static struct test tests[] = {
-	DEF_TEST(conn),
-	DEF_TEST(syncookie),
+	DEF_TEST(conn_ipv4),
+	DEF_TEST(conn_ipv6),
+	DEF_TEST(conn_dual),
+	DEF_TEST(syncookie_ipv4),
+	DEF_TEST(syncookie_ipv6),
+	DEF_TEST(syncookie_dual),
 };
 
 void test_btf_skc_cls_ingress(void)
