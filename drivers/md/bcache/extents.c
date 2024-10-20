@@ -266,20 +266,12 @@ static bool new_bch_extent_sort_cmp(const void *l, const void *r, void __always_
 	return !(c ? c > 0 : _l->k < _r->k);
 }
 
-static inline void new_btree_iter_swap(void *iter1, void *iter2, void __always_unused *args)
-{
-	struct btree_iter_set *_iter1 = iter1;
-	struct btree_iter_set *_iter2 = iter2;
-
-	swap(*_iter1, *_iter2);
-}
-
 static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 					  struct bkey *tmp)
 {
 	const struct min_heap_callbacks callbacks = {
 		.less = new_bch_extent_sort_cmp,
-		.swp = new_btree_iter_swap,
+		.swp = NULL,
 	};
 	while (iter->heap.nr > 1) {
 		struct btree_iter_set *top = iter->heap.data, *i = top + 1;
