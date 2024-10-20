@@ -14,17 +14,9 @@ static inline bool io_timer_cmp(const void *l, const void *r, void __always_unus
 	return (*_l)->expire < (*_r)->expire;
 }
 
-static inline void io_timer_swp(void *l, void *r, void __always_unused *args)
-{
-	struct io_timer **_l = (struct io_timer **)l;
-	struct io_timer **_r = (struct io_timer **)r;
-
-	swap(*_l, *_r);
-}
-
 static const struct min_heap_callbacks callbacks = {
 	.less = io_timer_cmp,
-	.swp = io_timer_swp,
+	.swp = NULL,
 };
 
 void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
