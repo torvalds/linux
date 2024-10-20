@@ -49,6 +49,11 @@ static int bmi270_spi_probe(struct spi_device *spi)
 {
 	struct regmap *regmap;
 	struct device *dev = &spi->dev;
+	const struct bmi270_chip_info *chip_info;
+
+	chip_info = spi_get_device_match_data(spi);
+	if (!chip_info)
+		return -ENODEV;
 
 	regmap = devm_regmap_init(dev, &bmi270_regmap_bus, dev,
 				  &bmi270_spi_regmap_config);
@@ -56,16 +61,16 @@ static int bmi270_spi_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(regmap),
 				     "Failed to init i2c regmap");
 
-	return bmi270_core_probe(dev, regmap);
+	return bmi270_core_probe(dev, regmap, chip_info);
 }
 
 static const struct spi_device_id bmi270_spi_id[] = {
-	{ "bmi270" },
+	{ "bmi270", (kernel_ulong_t)&bmi270_chip_info },
 	{ }
 };
 
 static const struct of_device_id bmi270_of_match[] = {
-	{ .compatible = "bosch,bmi270" },
+	{ .compatible = "bosch,bmi270", .data = &bmi270_chip_info },
 	{ }
 };
 

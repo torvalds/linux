@@ -10,10 +10,19 @@ struct device;
 struct bmi270_data {
 	struct device *dev;
 	struct regmap *regmap;
+	const struct bmi270_chip_info *chip_info;
+};
+
+struct bmi270_chip_info {
+	const char *name;
+	int chip_id;
+	const char *fw_name;
 };
 
 extern const struct regmap_config bmi270_regmap_config;
+extern const struct bmi270_chip_info bmi270_chip_info;
 
-int bmi270_core_probe(struct device *dev, struct regmap *regmap);
+int bmi270_core_probe(struct device *dev, struct regmap *regmap,
+		      const struct bmi270_chip_info *chip_info);
 
 #endif  /* BMI270_H_ */
