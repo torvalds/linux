@@ -244,7 +244,8 @@ static inline struct bkey_i *bch2_bkey_make_mut_noupdate(struct btree_trans *tra
 				KEY_TYPE_##_type, sizeof(struct bkey_i_##_type)))
 
 static inline struct bkey_i *__bch2_bkey_make_mut(struct btree_trans *trans, struct btree_iter *iter,
-					struct bkey_s_c *k, unsigned flags,
+					struct bkey_s_c *k,
+					enum btree_iter_update_trigger_flags flags,
 					unsigned type, unsigned min_bytes)
 {
 	struct bkey_i *mut = __bch2_bkey_make_mut_noupdate(trans, *k, type, min_bytes);
@@ -261,8 +262,9 @@ static inline struct bkey_i *__bch2_bkey_make_mut(struct btree_trans *trans, str
 	return mut;
 }
 
-static inline struct bkey_i *bch2_bkey_make_mut(struct btree_trans *trans, struct btree_iter *iter,
-						struct bkey_s_c *k, unsigned flags)
+static inline struct bkey_i *bch2_bkey_make_mut(struct btree_trans *trans,
+						struct btree_iter *iter, struct bkey_s_c *k,
+						enum btree_iter_update_trigger_flags flags)
 {
 	return __bch2_bkey_make_mut(trans, iter, k, flags, 0, 0);
 }
@@ -274,7 +276,8 @@ static inline struct bkey_i *bch2_bkey_make_mut(struct btree_trans *trans, struc
 static inline struct bkey_i *__bch2_bkey_get_mut_noupdate(struct btree_trans *trans,
 					 struct btree_iter *iter,
 					 unsigned btree_id, struct bpos pos,
-					 unsigned flags, unsigned type, unsigned min_bytes)
+					 enum btree_iter_update_trigger_flags flags,
+					 unsigned type, unsigned min_bytes)
 {
 	struct bkey_s_c k = __bch2_bkey_get_iter(trans, iter,
 				btree_id, pos, flags|BTREE_ITER_intent, type);
@@ -289,7 +292,7 @@ static inline struct bkey_i *__bch2_bkey_get_mut_noupdate(struct btree_trans *tr
 static inline struct bkey_i *bch2_bkey_get_mut_noupdate(struct btree_trans *trans,
 					       struct btree_iter *iter,
 					       unsigned btree_id, struct bpos pos,
-					       unsigned flags)
+					       enum btree_iter_update_trigger_flags flags)
 {
 	return __bch2_bkey_get_mut_noupdate(trans, iter, btree_id, pos, flags, 0, 0);
 }
@@ -297,7 +300,8 @@ static inline struct bkey_i *bch2_bkey_get_mut_noupdate(struct btree_trans *tran
 static inline struct bkey_i *__bch2_bkey_get_mut(struct btree_trans *trans,
 					 struct btree_iter *iter,
 					 unsigned btree_id, struct bpos pos,
-					 unsigned flags, unsigned type, unsigned min_bytes)
+					 enum btree_iter_update_trigger_flags flags,
+					 unsigned type, unsigned min_bytes)
 {
 	struct bkey_i *mut = __bch2_bkey_get_mut_noupdate(trans, iter,
 				btree_id, pos, flags|BTREE_ITER_intent, type, min_bytes);
@@ -318,7 +322,8 @@ static inline struct bkey_i *__bch2_bkey_get_mut(struct btree_trans *trans,
 static inline struct bkey_i *bch2_bkey_get_mut_minsize(struct btree_trans *trans,
 						       struct btree_iter *iter,
 						       unsigned btree_id, struct bpos pos,
-						       unsigned flags, unsigned min_bytes)
+						       enum btree_iter_update_trigger_flags flags,
+						       unsigned min_bytes)
 {
 	return __bch2_bkey_get_mut(trans, iter, btree_id, pos, flags, 0, min_bytes);
 }
@@ -326,7 +331,7 @@ static inline struct bkey_i *bch2_bkey_get_mut_minsize(struct btree_trans *trans
 static inline struct bkey_i *bch2_bkey_get_mut(struct btree_trans *trans,
 					       struct btree_iter *iter,
 					       unsigned btree_id, struct bpos pos,
-					       unsigned flags)
+					       enum btree_iter_update_trigger_flags flags)
 {
 	return __bch2_bkey_get_mut(trans, iter, btree_id, pos, flags, 0, 0);
 }
@@ -337,7 +342,8 @@ static inline struct bkey_i *bch2_bkey_get_mut(struct btree_trans *trans,
 			KEY_TYPE_##_type, sizeof(struct bkey_i_##_type)))
 
 static inline struct bkey_i *__bch2_bkey_alloc(struct btree_trans *trans, struct btree_iter *iter,
-					       unsigned flags, unsigned type, unsigned val_size)
+					       enum btree_iter_update_trigger_flags flags,
+					       unsigned type, unsigned val_size)
 {
 	struct bkey_i *k = bch2_trans_kmalloc(trans, sizeof(*k) + val_size);
 	int ret;
