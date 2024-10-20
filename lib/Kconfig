@@ -780,3 +780,6 @@ config FIRMWARE_TABLE
 
 config UNION_FIND
 	bool
+
+config MIN_HEAP
+	bool
