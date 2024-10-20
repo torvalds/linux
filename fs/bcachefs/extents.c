@@ -203,7 +203,8 @@ int bch2_btree_ptr_v2_validate(struct bch_fs *c, struct bkey_s_c k,
 			 c, btree_ptr_v2_min_key_bad,
 			 "min_key > key");
 
-	if (flags & BCH_VALIDATE_write)
+	if ((flags & BCH_VALIDATE_write) &&
+	    c->sb.version_min >= bcachefs_metadata_version_btree_ptr_sectors_written)
 		bkey_fsck_err_on(!bp.v->sectors_written,
 				 c, btree_ptr_v2_written_0,
 				 "sectors_written == 0");
