@@ -929,10 +929,6 @@ static int debounce_setup(struct line *line, unsigned int debounce_period_us)
 	ret = gpio_do_set_config(line->desc,
 			pinconf_to_config_packed(PIN_CONFIG_INPUT_DEBOUNCE,
 						 debounce_period_us));
-	if (!ret) {
-		WRITE_ONCE(line->desc->debounce_period_us, debounce_period_us);
-		return ret;
-	}
 	if (ret != -ENOTSUPP)
 		return ret;
 
