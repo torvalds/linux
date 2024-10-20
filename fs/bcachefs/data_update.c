@@ -110,11 +110,8 @@ static void trace_move_extent_fail2(struct data_update *m,
 {
 	struct bch_fs *c = m->op.c;
 	struct bkey_s_c old = bkey_i_to_s_c(m->k.k);
-	const union bch_extent_entry *entry;
-	struct bch_extent_ptr *ptr;
-	struct extent_ptr_decoded p;
 	struct printbuf buf = PRINTBUF;
-	unsigned i, rewrites_found = 0;
+	unsigned rewrites_found = 0;
 
 	if (!trace_move_extent_fail_enabled())
 		return;
@@ -122,27 +119,25 @@ static void trace_move_extent_fail2(struct data_update *m,
 	prt_str(&buf, msg);
 
 	if (insert) {
-		i = 0;
+		const union bch_extent_entry *entry;
+		struct bch_extent_ptr *ptr;
+		struct extent_ptr_decoded p;
+
+		unsigned ptr_bit = 1;
 		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry) {
-			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
+			if ((ptr_bit & m->data_opts.rewrite_ptrs) &&
 			    (ptr = bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) &&
 			    !ptr->cached)
-				rewrites_found |= 1U << i;
-			i++;
+				rewrites_found |= ptr_bit;
+			ptr_bit <<= 1;
 		}
 	}
 
-	prt_printf(&buf, "\nrewrite ptrs:   %u%u%u%u",
-		   (m->data_opts.rewrite_ptrs & (1 << 0)) != 0,
-		   (m->data_opts.rewrite_ptrs & (1 << 1)) != 0,
-		   (m->data_opts.rewrite_ptrs & (1 << 2)) != 0,
-		   (m->data_opts.rewrite_ptrs & (1 << 3)) != 0);
+	prt_str(&buf, "rewrites found:\t");
+	bch2_prt_u64_base2(&buf, rewrites_found);
+	prt_newline(&buf);
 
-	prt_printf(&buf, "\nrewrites found: %u%u%u%u",
-		   (rewrites_found & (1 << 0)) != 0,
-		   (rewrites_found & (1 << 1)) != 0,
-		   (rewrites_found & (1 << 2)) != 0,
-		   (rewrites_found & (1 << 3)) != 0);
+	bch2_data_update_opts_to_text(&buf, c, &m->op.opts, &m->data_opts);
 
 	prt_str(&buf, "\nold:    ");
 	bch2_bkey_val_to_text(&buf, c, old);
