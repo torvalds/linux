@@ -22,13 +22,13 @@ static inline void io_timer_swp(void *l, void *r, void __always_unused *args)
 	swap(*_l, *_r);
 }
 
+static const struct min_heap_callbacks callbacks = {
+	.less = io_timer_cmp,
+	.swp = io_timer_swp,
+};
+
 void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 {
-	const struct min_heap_callbacks callbacks = {
-		.less = io_timer_cmp,
-		.swp = io_timer_swp,
-	};
-
 	spin_lock(&clock->timer_lock);
 
 	if (time_after_eq64((u64) atomic64_read(&clock->now), timer->expire)) {
@@ -48,11 +48,6 @@ out:
 
 void bch2_io_timer_del(struct io_clock *clock, struct io_timer *timer)
 {
-	const struct min_heap_callbacks callbacks = {
-		.less = io_timer_cmp,
-		.swp = io_timer_swp,
-	};
-
 	spin_lock(&clock->timer_lock);
 
 	for (size_t i = 0; i < clock->timers.nr; i++)
@@ -142,10 +137,6 @@ void bch2_kthread_io_clock_wait(struct io_clock *clock,
 static struct io_timer *get_expired_timer(struct io_clock *clock, u64 now)
 {
 	struct io_timer *ret = NULL;
-	const struct min_heap_callbacks callbacks = {
-		.less = io_timer_cmp,
-		.swp = io_timer_swp,
-	};
 
 	if (clock->timers.nr &&
 	    time_after_eq64(now, clock->timers.data[0]->expire)) {
