@@ -19527,6 +19527,14 @@ S:	Maintained
 F:	Documentation/tools/rtla/
 F:	tools/tracing/rtla/
 
+Real-time Linux (PREEMPT_RT)
+M:	Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+M:	Clark Williams <clrkwllms@kernel.org>
+M:	Steven Rostedt <rostedt@goodmis.org>
+L:	linux-rt-devel@lists.linux.dev
+S:	Supported
+K:	PREEMPT_RT
+
 REALTEK AUDIO CODECS
 M:	Oder Chiou <oder_chiou@realtek.com>
 S:	Maintained
