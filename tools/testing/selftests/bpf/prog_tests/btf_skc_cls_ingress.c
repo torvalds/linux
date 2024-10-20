@@ -17,32 +17,30 @@
 #include "test_progs.h"
 #include "test_btf_skc_cls_ingress.skel.h"
 
+#define TEST_NS "skc_cls_ingress"
+
 static struct test_btf_skc_cls_ingress *skel;
 static struct sockaddr_in6 srv_sa6;
 static __u32 duration;
 
-static int prepare_netns(void)
+static struct netns_obj *prepare_netns(void)
 {
 	LIBBPF_OPTS(bpf_tc_hook, qdisc_lo, .attach_point = BPF_TC_INGRESS);
 	LIBBPF_OPTS(bpf_tc_opts, tc_attach,
 		    .prog_fd = bpf_program__fd(skel->progs.cls_ingress));
+	struct netns_obj *ns = NULL;
 
-	if (CHECK(unshare(CLONE_NEWNET), "create netns",
-		  "unshare(CLONE_NEWNET): %s (%d)",
-		  strerror(errno), errno))
-		return -1;
-
-	if (CHECK(system("ip link set dev lo up"),
-		  "ip link set dev lo up", "failed\n"))
-		return -1;
+	ns = netns_new(TEST_NS, true);
+	if (!ASSERT_OK_PTR(ns, "create and join netns"))
+		return ns;
 
 	qdisc_lo.ifindex = if_nametoindex("lo");
 	if (!ASSERT_OK(bpf_tc_hook_create(&qdisc_lo), "qdisc add dev lo clsact"))
-		return -1;
+		goto free_ns;
 
 	if (!ASSERT_OK(bpf_tc_attach(&qdisc_lo, &tc_attach),
 		       "filter add dev lo ingress"))
-		return -1;
+		goto free_ns;
 
 	/* Ensure 20 bytes options (i.e. in total 40 bytes tcp header) for the
 	 * bpf_tcp_gen_syncookie() helper.
@@ -50,9 +48,13 @@ static int prepare_netns(void)
 	if (write_sysctl("/proc/sys/net/ipv4/tcp_window_scaling", "1") ||
 	    write_sysctl("/proc/sys/net/ipv4/tcp_timestamps", "1") ||
 	    write_sysctl("/proc/sys/net/ipv4/tcp_sack", "1"))
-		return -1;
+		goto free_ns;
 
-	return 0;
+	return ns;
+
+free_ns:
+	netns_free(ns);
+	return NULL;
 }
 
 static void reset_test(void)
@@ -169,6 +171,7 @@ void test_btf_skc_cls_ingress(void)
 	int i;
 
 	skel = test_btf_skc_cls_ingress__open_and_load();
+	struct netns_obj *ns;
 	if (CHECK(!skel, "test_btf_skc_cls_ingress__open_and_load", "failed\n"))
 		return;
 
@@ -176,13 +179,15 @@ void test_btf_skc_cls_ingress(void)
 		if (!test__start_subtest(tests[i].desc))
 			continue;
 
-		if (prepare_netns())
+		ns = prepare_netns();
+		if (!ns)
 			break;
 
 		tests[i].run();
 
 		print_err_line();
 		reset_test();
+		netns_free(ns);
 	}
 
 	test_btf_skc_cls_ingress__destroy(skel);
