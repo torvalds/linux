@@ -11604,6 +11604,16 @@ F:	drivers/crypto/intel/keembay/keembay-ocs-hcu-core.c
 F:	drivers/crypto/intel/keembay/ocs-hcu.c
 F:	drivers/crypto/intel/keembay/ocs-hcu.h
 
+INTEL LA JOLLA COVE ADAPTER (LJCA) USB I/O EXPANDER DRIVERS
+M:	Wentong Wu <wentong.wu@intel.com>
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+S:	Maintained
+F:	drivers/gpio/gpio-ljca.c
+F:	drivers/i2c/busses/i2c-ljca.c
+F:	drivers/spi/spi-ljca.c
+F:	drivers/usb/misc/usb-ljca.c
+F:	include/linux/usb/ljca.h
+
 INTEL MANAGEMENT ENGINE (mei)
 M:	Tomas Winkler <tomas.winkler@intel.com>
 L:	linux-kernel@vger.kernel.org
@@ -24078,6 +24088,7 @@ USB RAW GADGET DRIVER
 R:	Andrey Konovalov <andreyknvl@gmail.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
+B:	https://github.com/xairy/raw-gadget/issues
 F:	Documentation/usb/raw-gadget.rst
 F:	drivers/usb/gadget/legacy/raw_gadget.c
 F:	include/uapi/linux/usb/raw_gadget.h
