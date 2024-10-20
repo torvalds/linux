@@ -189,7 +189,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		struct bpos next_pos;
 		bool should_check_enospc;
 		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
-		unsigned rewrites_found = 0, durability, i;
+		unsigned rewrites_found = 0, durability, ptr_bit;
 
 		bch2_trans_begin(trans);
 
@@ -226,16 +226,16 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		 *
 		 * Fist, drop rewrite_ptrs from @new:
 		 */
-		i = 0;
+		ptr_bit = 1;
 		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry_c) {
-			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
+			if ((ptr_bit & m->data_opts.rewrite_ptrs) &&
 			    (ptr = bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) &&
 			    !ptr->cached) {
 				bch2_extent_ptr_set_cached(c, &m->op.opts,
 							   bkey_i_to_s(insert), ptr);
-				rewrites_found |= 1U << i;
+				rewrites_found |= ptr_bit;
 			}
-			i++;
+			ptr_bit <<= 1;
 		}
 
 		if (m->data_opts.rewrite_ptrs &&
@@ -609,7 +609,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
-	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
+	unsigned reserve_sectors = k.k->size * data_opts.extra_replicas;
 	int ret = 0;
 
 	/*
@@ -652,17 +652,17 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 	unsigned durability_have = 0, durability_removing = 0;
 
-	i = 0;
+	unsigned ptr_bit = 1;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		if (!p.ptr.cached) {
 			rcu_read_lock();
-			if (BIT(i) & m->data_opts.rewrite_ptrs) {
+			if (ptr_bit & m->data_opts.rewrite_ptrs) {
 				if (crc_is_compressed(p.crc))
 					reserve_sectors += k.k->size;
 
 				m->op.nr_replicas += bch2_extent_ptr_desired_durability(c, &p);
 				durability_removing += bch2_extent_ptr_desired_durability(c, &p);
-			} else if (!(BIT(i) & m->data_opts.kill_ptrs)) {
+			} else if (!(ptr_bit & m->data_opts.kill_ptrs)) {
 				bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
 				durability_have += bch2_extent_ptr_durability(c, &p);
 			}
@@ -682,7 +682,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
 			m->op.incompressible = true;
 
-		i++;
+		ptr_bit <<= 1;
 	}
 
 	unsigned durability_required = max(0, (int) (io_opts.data_replicas - durability_have));
@@ -745,14 +745,14 @@ out:
 void bch2_data_update_opts_normalize(struct bkey_s_c k, struct data_update_opts *opts)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	unsigned i = 0;
+	unsigned ptr_bit = 1;
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		if ((opts->rewrite_ptrs & (1U << i)) && ptr->cached) {
-			opts->kill_ptrs |= 1U << i;
-			opts->rewrite_ptrs ^= 1U << i;
+		if ((opts->rewrite_ptrs & ptr_bit) && ptr->cached) {
+			opts->kill_ptrs |= ptr_bit;
+			opts->rewrite_ptrs ^= ptr_bit;
 		}
 
-		i++;
+		ptr_bit <<= 1;
 	}
 }

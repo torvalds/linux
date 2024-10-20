@@ -231,11 +231,11 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 		update_opts.target = opts.foreground_target;
 
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-		unsigned i = 0;
+		unsigned ptr_bit = 1;
 		bkey_for_each_ptr(ptrs, ptr) {
 			if (bch2_dev_io_failures(failed, ptr->dev))
-				update_opts.rewrite_ptrs |= BIT(i);
-			i++;
+				update_opts.rewrite_ptrs |= ptr_bit;
+			ptr_bit <<= 1;
 		}
 	}
 

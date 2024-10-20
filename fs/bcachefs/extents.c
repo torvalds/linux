@@ -1414,7 +1414,7 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
 		unsigned compression_type = bch2_compression_opt_to_type(compression);
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
-		unsigned i = 0;
+		unsigned ptr_bit = 1;
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
@@ -1424,18 +1424,18 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
 			}
 
 			if (!p.ptr.cached && p.crc.compression_type != compression_type)
-				rewrite_ptrs |= 1U << i;
-			i++;
+				rewrite_ptrs |= ptr_bit;
+			ptr_bit <<= 1;
 		}
 	}
 incompressible:
 	if (target && bch2_target_accepts_data(c, BCH_DATA_user, target)) {
-		unsigned i = 0;
+		unsigned ptr_bit = 1;
 
 		bkey_for_each_ptr(ptrs, ptr) {
 			if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, target))
-				rewrite_ptrs |= 1U << i;
-			i++;
+				rewrite_ptrs |= ptr_bit;
+			ptr_bit <<= 1;
 		}
 	}
 
