@@ -244,6 +244,11 @@ properties:
               - friendlyarm,nanopi-r2s-plus
           - const: rockchip,rk3328
 
+      - description: FriendlyElec NanoPi R3S
+        items:
+          - const: friendlyarm,nanopi-r3s
+          - const: rockchip,rk3566
+
       - description: FriendlyElec NanoPi4 series boards
         items:
           - enum:
