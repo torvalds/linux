@@ -647,23 +647,20 @@ static int bme680_gas_config(struct bme680_data *data)
 	return ret;
 }
 
-static int bme680_read_temp(struct bme680_data *data, int *val)
+static int bme680_read_temp(struct bme680_data *data, s16 *comp_temp)
 {
 	int ret;
 	u32 adc_temp;
-	s16 comp_temp;
 
 	ret = bme680_read_temp_adc(data, &adc_temp);
 	if (ret)
 		return ret;
 
-	comp_temp = bme680_compensate_temp(data, adc_temp);
-	*val = comp_temp * 10; /* Centidegrees to millidegrees */
-	return IIO_VAL_INT;
+	*comp_temp = bme680_compensate_temp(data, adc_temp);
+	return 0;
 }
 
-static int bme680_read_press(struct bme680_data *data,
-			     int *val, int *val2)
+static int bme680_read_press(struct bme680_data *data, u32 *comp_press)
 {
 	int ret;
 	u32 adc_press;
@@ -677,16 +674,14 @@ static int bme680_read_press(struct bme680_data *data,
 	if (ret)
 		return ret;
 
-	*val = bme680_compensate_press(data, adc_press, t_fine);
-	*val2 = 1000;
-	return IIO_VAL_FRACTIONAL;
+	*comp_press = bme680_compensate_press(data, adc_press, t_fine);
+	return 0;
 }
 
-static int bme680_read_humid(struct bme680_data *data,
-			     int *val, int *val2)
+static int bme680_read_humid(struct bme680_data *data, u32 *comp_humidity)
 {
 	int ret;
-	u32 adc_humidity, comp_humidity;
+	u32 adc_humidity;
 	s32 t_fine;
 
 	ret = bme680_get_t_fine(data, &t_fine);
@@ -697,15 +692,11 @@ static int bme680_read_humid(struct bme680_data *data,
 	if (ret)
 		return ret;
 
-	comp_humidity = bme680_compensate_humid(data, adc_humidity, t_fine);
-
-	*val = comp_humidity;
-	*val2 = 1000;
-	return IIO_VAL_FRACTIONAL;
+	*comp_humidity = bme680_compensate_humid(data, adc_humidity, t_fine);
+	return 0;
 }
 
-static int bme680_read_gas(struct bme680_data *data,
-			   int *val)
+static int bme680_read_gas(struct bme680_data *data, int *comp_gas_res)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
@@ -740,9 +731,8 @@ static int bme680_read_gas(struct bme680_data *data,
 	}
 
 	gas_range = FIELD_GET(BME680_GAS_RANGE_MASK, gas_regs_val);
-
-	*val = bme680_compensate_gas(data, adc_gas_res, gas_range);
-	return IIO_VAL_INT;
+	*comp_gas_res = bme680_compensate_gas(data, adc_gas_res, gas_range);
+	return 0;
 }
 
 static int bme680_read_raw(struct iio_dev *indio_dev,
@@ -750,7 +740,7 @@ static int bme680_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct bme680_data *data = iio_priv(indio_dev);
-	int ret;
+	int chan_val, ret;
 
 	guard(mutex)(&data->lock);
 
@@ -767,13 +757,35 @@ static int bme680_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_TEMP:
-			return bme680_read_temp(data, val);
+			ret = bme680_read_temp(data, (s16 *)&chan_val);
+			if (ret)
+				return ret;
+
+			*val = chan_val * 10;
+			return IIO_VAL_INT;
 		case IIO_PRESSURE:
-			return bme680_read_press(data, val, val2);
+			ret = bme680_read_press(data, &chan_val);
+			if (ret)
+				return ret;
+
+			*val = chan_val;
+			*val2 = 1000;
+			return IIO_VAL_FRACTIONAL;
 		case IIO_HUMIDITYRELATIVE:
-			return bme680_read_humid(data, val, val2);
+			ret = bme680_read_humid(data, &chan_val);
+			if (ret)
+				return ret;
+
+			*val = chan_val;
+			*val2 = 1000;
+			return IIO_VAL_FRACTIONAL;
 		case IIO_RESISTANCE:
-			return bme680_read_gas(data, val);
+			ret = bme680_read_gas(data, &chan_val);
+			if (ret)
+				return ret;
+
+			*val = chan_val;
+			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
 		}
