@@ -1314,7 +1314,7 @@ out:
 
 int inet_gifconf(struct net_device *dev, char __user *buf, int len, int size)
 {
-	struct in_device *in_dev = __in_dev_get_rtnl(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl_net(dev);
 	const struct in_ifaddr *ifa;
 	struct ifreq ifr;
 	int done = 0;
@@ -1325,7 +1325,7 @@ int inet_gifconf(struct net_device *dev, char __user *buf, int len, int size)
 	if (!in_dev)
 		goto out;
 
-	in_dev_for_each_ifa_rtnl(ifa, in_dev) {
+	in_dev_for_each_ifa_rtnl_net(dev_net(dev), ifa, in_dev) {
 		if (!buf) {
 			done += size;
 			continue;
