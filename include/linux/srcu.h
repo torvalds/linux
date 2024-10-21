@@ -232,13 +232,14 @@ static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
  * a mutex that is held elsewhere while calling synchronize_srcu() or
  * synchronize_srcu_expedited().
  *
- * The return value from srcu_read_lock() must be passed unaltered
- * to the matching srcu_read_unlock().  Note that srcu_read_lock() and
- * the matching srcu_read_unlock() must occur in the same context, for
- * example, it is illegal to invoke srcu_read_unlock() in an irq handler
- * if the matching srcu_read_lock() was invoked in process context.  Or,
- * for that matter to invoke srcu_read_unlock() from one task and the
- * matching srcu_read_lock() from another.
+ * The return value from srcu_read_lock() is guaranteed to be
+ * non-negative.  This value must be passed unaltered to the matching
+ * srcu_read_unlock().  Note that srcu_read_lock() and the matching
+ * srcu_read_unlock() must occur in the same context, for example, it is
+ * illegal to invoke srcu_read_unlock() in an irq handler if the matching
+ * srcu_read_lock() was invoked in process context.  Or, for that matter to
+ * invoke srcu_read_unlock() from one task and the matching srcu_read_lock()
+ * from another.
  */
 static inline int srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp)
 {

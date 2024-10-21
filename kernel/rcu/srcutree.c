@@ -738,7 +738,8 @@ EXPORT_SYMBOL_GPL(__srcu_check_read_flavor);
 /*
  * Counts the new reader in the appropriate per-CPU element of the
  * srcu_struct.
- * Returns an index that must be passed to the matching srcu_read_unlock().
+ * Returns a guaranteed non-negative index that must be passed to the
+ * matching __srcu_read_unlock().
  */
 int __srcu_read_lock(struct srcu_struct *ssp)
 {
