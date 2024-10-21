@@ -1442,7 +1442,8 @@ again:
 		 */
 		delayed_refs = &ctx->trans->transaction->delayed_refs;
 		spin_lock(&delayed_refs->lock);
-		head = btrfs_find_delayed_ref_head(delayed_refs, ctx->bytenr);
+		head = btrfs_find_delayed_ref_head(ctx->fs_info, delayed_refs,
+						   ctx->bytenr);
 		if (head) {
 			if (!mutex_trylock(&head->mutex)) {
 				refcount_inc(&head->refs);

@@ -367,7 +367,8 @@ void btrfs_merge_delayed_refs(struct btrfs_fs_info *fs_info,
 			      struct btrfs_delayed_ref_head *head);
 
 struct btrfs_delayed_ref_head *
-btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+btrfs_find_delayed_ref_head(const struct btrfs_fs_info *fs_info,
+			    struct btrfs_delayed_ref_root *delayed_refs,
 			    u64 bytenr);
 static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
 {
@@ -377,6 +378,7 @@ void btrfs_delete_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 			   struct btrfs_delayed_ref_head *head);
 
 struct btrfs_delayed_ref_head *btrfs_select_ref_head(
+		const struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs);
 void btrfs_unselect_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 			     struct btrfs_delayed_ref_head *head);

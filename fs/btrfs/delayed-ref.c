@@ -399,6 +399,7 @@ static struct btrfs_delayed_ref_head *find_first_ref_head(
  * is given, the next bigger entry is returned if no exact match is found.
  */
 static struct btrfs_delayed_ref_head *find_ref_head(
+		const struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *dr, u64 bytenr,
 		bool return_bigger)
 {
@@ -558,6 +559,7 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 }
 
 struct btrfs_delayed_ref_head *btrfs_select_ref_head(
+		const struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs)
 {
 	struct btrfs_delayed_ref_head *head;
@@ -565,8 +567,8 @@ struct btrfs_delayed_ref_head *btrfs_select_ref_head(
 
 	spin_lock(&delayed_refs->lock);
 again:
-	head = find_ref_head(delayed_refs, delayed_refs->run_delayed_start,
-			     true);
+	head = find_ref_head(fs_info, delayed_refs,
+			     delayed_refs->run_delayed_start, true);
 	if (!head && delayed_refs->run_delayed_start != 0) {
 		delayed_refs->run_delayed_start = 0;
 		head = find_first_ref_head(delayed_refs);
@@ -1188,11 +1190,13 @@ void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
  * head node if found, or NULL if not.
  */
 struct btrfs_delayed_ref_head *
-btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 bytenr)
+btrfs_find_delayed_ref_head(const struct btrfs_fs_info *fs_info,
+			    struct btrfs_delayed_ref_root *delayed_refs,
+			    u64 bytenr)
 {
 	lockdep_assert_held(&delayed_refs->lock);
 
-	return find_ref_head(delayed_refs, bytenr, false);
+	return find_ref_head(fs_info, delayed_refs, bytenr, false);
 }
 
 static int find_comp(struct btrfs_delayed_ref_node *entry, u64 root, u64 parent)
