@@ -641,7 +641,7 @@ static void cfe_sof_isr(struct cfe_node *node)
 	 * Unfortunately, there is not enough hardware state to tell if this
 	 * may have occurred.
 	 */
-	if (WARN(node->cur_frm, "%s: [%s] Orphanded frame at seq %u\n",
+	if (WARN(node->cur_frm, "%s: [%s] Orphaned frame at seq %u\n",
 		 __func__, node_desc[node->id].name, node->fs_count))
 		cfe_process_buffer_complete(node, VB2_BUF_STATE_ERROR);
 
