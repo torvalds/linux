@@ -1637,7 +1637,8 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			/* Mark the destination transport address as
 			 * active if it is not so marked.
 			 */
-			if ((transport->state == SCTP_INACTIVE ||
+			if ((transport->state == SCTP_PF ||
+			     transport->state == SCTP_INACTIVE ||
 			     transport->state == SCTP_UNCONFIRMED) &&
 			    sctp_cmp_addr_exact(&transport->ipaddr, saddr)) {
 				sctp_assoc_control_transport(
