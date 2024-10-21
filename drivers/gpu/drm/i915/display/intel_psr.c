@@ -233,7 +233,9 @@ static bool psr_global_enabled(struct intel_dp *intel_dp)
 	switch (intel_dp->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
 	case I915_PSR_DEBUG_DEFAULT:
 		if (display->params.enable_psr == -1)
-			return connector->panel.vbt.psr.enable;
+			return intel_dp_is_edp(intel_dp) ?
+				connector->panel.vbt.psr.enable :
+				true;
 		return display->params.enable_psr;
 	case I915_PSR_DEBUG_DISABLE:
 		return false;
