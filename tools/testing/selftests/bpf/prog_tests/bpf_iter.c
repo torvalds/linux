@@ -226,7 +226,7 @@ static void test_task_common_nocheck(struct bpf_iter_attach_opts *opts,
 	ASSERT_OK(pthread_create(&thread_id, NULL, &do_nothing_wait, NULL),
 		  "pthread_create");
 
-	skel->bss->tid = getpid();
+	skel->bss->tid = gettid();
 
 	do_dummy_read_opts(skel->progs.dump_task, opts);
 
@@ -249,25 +249,42 @@ static void test_task_common(struct bpf_iter_attach_opts *opts, int num_unknown,
 	ASSERT_EQ(num_known_tid, num_known, "check_num_known_tid");
 }
 
-static void test_task_tid(void)
+static void *run_test_task_tid(void *arg)
 {
 	LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	union bpf_iter_link_info linfo;
 	int num_unknown_tid, num_known_tid;
 
+	ASSERT_NEQ(getpid(), gettid(), "check_new_thread_id");
+
 	memset(&linfo, 0, sizeof(linfo));
-	linfo.task.tid = getpid();
+	linfo.task.tid = gettid();
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 	test_task_common(&opts, 0, 1);
 
 	linfo.task.tid = 0;
 	linfo.task.pid = getpid();
-	test_task_common(&opts, 1, 1);
+	/* This includes the parent thread, this thread,
+	 * and the do_nothing_wait thread
+	 */
+	test_task_common(&opts, 2, 1);
 
 	test_task_common_nocheck(NULL, &num_unknown_tid, &num_known_tid);
-	ASSERT_GT(num_unknown_tid, 1, "check_num_unknown_tid");
+	ASSERT_GT(num_unknown_tid, 2, "check_num_unknown_tid");
 	ASSERT_EQ(num_known_tid, 1, "check_num_known_tid");
+
+	return NULL;
+}
+
+static void test_task_tid(void)
+{
+	pthread_t thread_id;
+
+	/* Create a new thread so pid and tid aren't the same */
+	ASSERT_OK(pthread_create(&thread_id, NULL, &run_test_task_tid, NULL),
+		  "pthread_create");
+	ASSERT_FALSE(pthread_join(thread_id, NULL), "pthread_join");
 }
 
 static void test_task_pid(void)

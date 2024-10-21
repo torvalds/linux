@@ -106,8 +106,7 @@ static struct elevator_type *__elevator_find(const char *name)
 	return NULL;
 }
 
-static struct elevator_type *elevator_find_get(struct request_queue *q,
-		const char *name)
+static struct elevator_type *elevator_find_get(const char *name)
 {
 	struct elevator_type *e;
 
@@ -551,7 +550,7 @@ EXPORT_SYMBOL_GPL(elv_unregister);
 static inline bool elv_support_iosched(struct request_queue *q)
 {
 	if (!queue_is_mq(q) ||
-	    (q->tag_set && (q->tag_set->flags & BLK_MQ_F_NO_SCHED)))
+	    (q->tag_set->flags & BLK_MQ_F_NO_SCHED))
 		return false;
 	return true;
 }
@@ -562,14 +561,14 @@ static inline bool elv_support_iosched(struct request_queue *q)
  */
 static struct elevator_type *elevator_get_default(struct request_queue *q)
 {
-	if (q->tag_set && q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
+	if (q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
 		return NULL;
 
 	if (q->nr_hw_queues != 1 &&
 	    !blk_mq_is_shared_tags(q->tag_set->flags))
 		return NULL;
 
-	return elevator_find_get(q, "mq-deadline");
+	return elevator_find_get("mq-deadline");
 }
 
 /*
@@ -697,7 +696,7 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	if (q->elevator && elevator_match(q->elevator->type, elevator_name))
 		return 0;
 
-	e = elevator_find_get(q, elevator_name);
+	e = elevator_find_get(elevator_name);
 	if (!e)
 		return -EINVAL;
 	ret = elevator_switch(q, e);
@@ -709,13 +708,21 @@ int elv_iosched_load_module(struct gendisk *disk, const char *buf,
 			    size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
+	struct elevator_type *found;
+	const char *name;
 
 	if (!elv_support_iosched(disk->queue))
 		return -EOPNOTSUPP;
 
 	strscpy(elevator_name, buf, sizeof(elevator_name));
+	name = strstrip(elevator_name);
 
-	request_module("%s-iosched", strstrip(elevator_name));
+	spin_lock(&elv_list_lock);
+	found = __elevator_find(name);
+	spin_unlock(&elv_list_lock);
+
+	if (!found)
+		request_module("%s-iosched", name);
 
 	return 0;
 }

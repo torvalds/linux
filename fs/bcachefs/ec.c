@@ -124,6 +124,11 @@ int bch2_stripe_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "incorrect value size (%zu < %u)",
 			 bkey_val_u64s(k.k), stripe_val_u64s(s));
 
+	bkey_fsck_err_on(s->csum_granularity_bits >= 64,
+			 c, stripe_csum_granularity_bad,
+			 "invalid csum granularity (%u >= 64)",
+			 s->csum_granularity_bits);
+
 	ret = bch2_bkey_ptrs_validate(c, k, flags);
 fsck_err:
 	return ret;
@@ -145,7 +150,11 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 		   nr_data,
 		   s.nr_redundant);
 	bch2_prt_csum_type(out, s.csum_type);
-	prt_printf(out, " gran %u", 1U << s.csum_granularity_bits);
+	prt_str(out, " gran ");
+	if (s.csum_granularity_bits < 64)
+		prt_printf(out, "%llu", 1ULL << s.csum_granularity_bits);
+	else
+		prt_printf(out, "(invalid shift %u)", s.csum_granularity_bits);
 
 	if (s.disk_label) {
 		prt_str(out, " label");
@@ -1197,47 +1206,62 @@ void bch2_do_stripe_deletes(struct bch_fs *c)
 /* stripe creation: */
 
 static int ec_stripe_key_update(struct btree_trans *trans,
-				struct bkey_i_stripe *new,
-				bool create)
+				struct bkey_i_stripe *old,
+				struct bkey_i_stripe *new)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
+	bool create = !old;
 
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_stripes,
-			       new->k.p, BTREE_ITER_intent);
-	ret = bkey_err(k);
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_stripes,
+					       new->k.p, BTREE_ITER_intent);
+	int ret = bkey_err(k);
 	if (ret)
 		goto err;
 
-	if (k.k->type != (create ? KEY_TYPE_deleted : KEY_TYPE_stripe)) {
-		bch2_fs_inconsistent(c, "error %s stripe: got existing key type %s",
-				     create ? "creating" : "updating",
-				     bch2_bkey_types[k.k->type]);
+	if (bch2_fs_inconsistent_on(k.k->type != (create ? KEY_TYPE_deleted : KEY_TYPE_stripe),
+				    c, "error %s stripe: got existing key type %s",
+				    create ? "creating" : "updating",
+				    bch2_bkey_types[k.k->type])) {
 		ret = -EINVAL;
 		goto err;
 	}
 
 	if (k.k->type == KEY_TYPE_stripe) {
-		const struct bch_stripe *old = bkey_s_c_to_stripe(k).v;
-		unsigned i;
+		const struct bch_stripe *v = bkey_s_c_to_stripe(k).v;
 
-		if (old->nr_blocks != new->v.nr_blocks) {
-			bch_err(c, "error updating stripe: nr_blocks does not match");
-			ret = -EINVAL;
-			goto err;
-		}
+		BUG_ON(old->v.nr_blocks != new->v.nr_blocks);
+		BUG_ON(old->v.nr_blocks != v->nr_blocks);
 
-		for (i = 0; i < new->v.nr_blocks; i++) {
-			unsigned v = stripe_blockcount_get(old, i);
+		for (unsigned i = 0; i < new->v.nr_blocks; i++) {
+			unsigned sectors = stripe_blockcount_get(v, i);
 
-			BUG_ON(v &&
-			       (old->ptrs[i].dev != new->v.ptrs[i].dev ||
-				old->ptrs[i].gen != new->v.ptrs[i].gen ||
-				old->ptrs[i].offset != new->v.ptrs[i].offset));
+			if (!bch2_extent_ptr_eq(old->v.ptrs[i], new->v.ptrs[i]) && sectors) {
+				struct printbuf buf = PRINTBUF;
 
-			stripe_blockcount_set(&new->v, i, v);
+				prt_printf(&buf, "stripe changed nonempty block %u", i);
+				prt_str(&buf, "\nold: ");
+				bch2_bkey_val_to_text(&buf, c, k);
+				prt_str(&buf, "\nnew: ");
+				bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&new->k_i));
+				bch2_fs_inconsistent(c, "%s", buf.buf);
+				printbuf_exit(&buf);
+				ret = -EINVAL;
+				goto err;
+			}
+
+			/*
+			 * If the stripe ptr changed underneath us, it must have
+			 * been dev_remove_stripes() -> * invalidate_stripe_to_dev()
+			 */
+			if (!bch2_extent_ptr_eq(old->v.ptrs[i], v->ptrs[i])) {
+				BUG_ON(v->ptrs[i].dev != BCH_SB_MEMBER_INVALID);
+
+				if (bch2_extent_ptr_eq(old->v.ptrs[i], new->v.ptrs[i]))
+					new->v.ptrs[i].dev = BCH_SB_MEMBER_INVALID;
+			}
+
+			stripe_blockcount_set(&new->v, i, sectors);
 		}
 	}
 
@@ -1499,8 +1523,10 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 			    BCH_TRANS_COMMIT_no_check_rw|
 			    BCH_TRANS_COMMIT_no_enospc,
 			    ec_stripe_key_update(trans,
-					bkey_i_to_stripe(&s->new_stripe.key),
-					!s->have_existing_stripe));
+					s->have_existing_stripe
+					? bkey_i_to_stripe(&s->existing_stripe.key)
+					: NULL,
+					bkey_i_to_stripe(&s->new_stripe.key)));
 	bch_err_msg(c, ret, "creating stripe key");
 	if (ret) {
 		goto err;
@@ -1876,7 +1902,15 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 	bitmap_and(devs.d, devs.d, c->rw_devs[BCH_DATA_user].d, BCH_SB_MEMBERS_MAX);
 
 	for_each_set_bit(i, h->s->blocks_gotten, v->nr_blocks) {
-		__clear_bit(v->ptrs[i].dev, devs.d);
+		/*
+		 * Note: we don't yet repair invalid blocks (failed/removed
+		 * devices) when reusing stripes - we still need a codepath to
+		 * walk backpointers and update all extents that point to that
+		 * block when updating the stripe
+		 */
+		if (v->ptrs[i].dev != BCH_SB_MEMBER_INVALID)
+			__clear_bit(v->ptrs[i].dev, devs.d);
+
 		if (i < h->s->nr_data)
 			nr_have_data++;
 		else

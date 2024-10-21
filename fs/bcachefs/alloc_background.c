@@ -639,6 +639,16 @@ int bch2_alloc_read(struct bch_fs *c)
 				continue;
 			}
 
+			if (k.k->p.offset < ca->mi.first_bucket) {
+				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode, ca->mi.first_bucket));
+				continue;
+			}
+
+			if (k.k->p.offset >= ca->mi.nbuckets) {
+				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
+				continue;
+			}
+
 			struct bch_alloc_v4 a;
 			*bucket_gen(ca, k.k->p.offset) = bch2_alloc_to_v4(k, &a)->gen;
 			0;

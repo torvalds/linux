@@ -736,13 +736,15 @@ int __ksmbd_override_fsids(struct ksmbd_work *work,
 		struct ksmbd_share_config *share)
 {
 	struct ksmbd_session *sess = work->sess;
+	struct ksmbd_user *user = sess->user;
 	struct cred *cred;
 	struct group_info *gi;
 	unsigned int uid;
 	unsigned int gid;
+	int i;
 
-	uid = user_uid(sess->user);
-	gid = user_gid(sess->user);
+	uid = user_uid(user);
+	gid = user_gid(user);
 	if (share->force_uid != KSMBD_SHARE_INVALID_UID)
 		uid = share->force_uid;
 	if (share->force_gid != KSMBD_SHARE_INVALID_GID)
@@ -755,11 +757,18 @@ int __ksmbd_override_fsids(struct ksmbd_work *work,
 	cred->fsuid = make_kuid(&init_user_ns, uid);
 	cred->fsgid = make_kgid(&init_user_ns, gid);
 
-	gi = groups_alloc(0);
+	gi = groups_alloc(user->ngroups);
 	if (!gi) {
 		abort_creds(cred);
 		return -ENOMEM;
 	}
+
+	for (i = 0; i < user->ngroups; i++)
+		gi->gid[i] = make_kgid(&init_user_ns, user->sgid[i]);
+
+	if (user->ngroups)
+		groups_sort(gi);
+
 	set_groups(cred, gi);
 	put_group_info(gi);
 

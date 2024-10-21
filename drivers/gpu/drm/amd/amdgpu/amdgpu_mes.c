@@ -1203,8 +1203,10 @@ int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 
 	r = amdgpu_ring_init(adev, ring, 1024, NULL, 0,
 			     AMDGPU_RING_PRIO_DEFAULT, NULL);
-	if (r)
+	if (r) {
+		amdgpu_mes_unlock(&adev->mes);
 		goto clean_up_memory;
+	}
 
 	amdgpu_mes_ring_to_queue_props(adev, ring, &qprops);
 
@@ -1237,7 +1239,6 @@ clean_up_ring:
 	amdgpu_ring_fini(ring);
 clean_up_memory:
 	kfree(ring);
-	amdgpu_mes_unlock(&adev->mes);
 	return r;
 }
 

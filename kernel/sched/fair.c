@@ -1247,7 +1247,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 
 	account_cfs_rq_runtime(cfs_rq, delta_exec);
 
-	if (rq->nr_running == 1)
+	if (cfs_rq->nr_running == 1)
 		return;
 
 	if (resched || did_preempt_short(cfs_rq, curr)) {
@@ -6058,10 +6058,13 @@ void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 	for_each_sched_entity(se) {
 		struct cfs_rq *qcfs_rq = cfs_rq_of(se);
 
-		if (se->on_rq) {
-			SCHED_WARN_ON(se->sched_delayed);
+		/* Handle any unfinished DELAY_DEQUEUE business first. */
+		if (se->sched_delayed) {
+			int flags = DEQUEUE_SLEEP | DEQUEUE_DELAYED;
+
+			dequeue_entity(qcfs_rq, se, flags);
+		} else if (se->on_rq)
 			break;
-		}
 		enqueue_entity(qcfs_rq, se, ENQUEUE_WAKEUP);
 
 		if (cfs_rq_is_idle(group_cfs_rq(se)))
@@ -13174,22 +13177,6 @@ static void attach_task_cfs_rq(struct task_struct *p)
 static void switched_from_fair(struct rq *rq, struct task_struct *p)
 {
 	detach_task_cfs_rq(p);
-	/*
-	 * Since this is called after changing class, this is a little weird
-	 * and we cannot use DEQUEUE_DELAYED.
-	 */
-	if (p->se.sched_delayed) {
-		/* First, dequeue it from its new class' structures */
-		dequeue_task(rq, p, DEQUEUE_NOCLOCK | DEQUEUE_SLEEP);
-		/*
-		 * Now, clean up the fair_sched_class side of things
-		 * related to sched_delayed being true and that wasn't done
-		 * due to the generic dequeue not using DEQUEUE_DELAYED.
-		 */
-		finish_delayed_dequeue_entity(&p->se);
-		p->se.rel_deadline = 0;
-		__block_task(rq, p);
-	}
 }
 
 static void switched_to_fair(struct rq *rq, struct task_struct *p)

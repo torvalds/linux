@@ -80,6 +80,8 @@ config ENS160
 	tristate "ScioSense ENS160 sensor driver"
 	depends on (I2C || SPI)
 	select REGMAP
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	select ENS160_I2C if I2C
 	select ENS160_SPI if SPI
 	help
