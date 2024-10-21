@@ -256,6 +256,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 {
 	struct mlx5dr_domain *domain = ns->fs_dr_domain.dr_domain;
 	struct mlx5dr_action_dest *term_actions;
+	struct mlx5_pkt_reformat *pkt_reformat;
 	struct mlx5dr_match_parameters params;
 	struct mlx5_core_dev *dev = ns->dev;
 	struct mlx5dr_action **fs_dr_actions;
@@ -332,18 +333,19 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	if (fte->act_dests.action.action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
 		bool is_decap;
 
-		if (fte->act_dests.action.pkt_reformat->owner == MLX5_FLOW_RESOURCE_OWNER_FW) {
+		pkt_reformat = fte->act_dests.action.pkt_reformat;
+		if (pkt_reformat->owner == MLX5_FLOW_RESOURCE_OWNER_FW) {
 			err = -EINVAL;
 			mlx5dr_err(domain, "FW-owned reformat can't be used in SW rule\n");
 			goto free_actions;
 		}
 
-		is_decap = fte->act_dests.action.pkt_reformat->reformat_type ==
+		is_decap = pkt_reformat->reformat_type ==
 			   MLX5_REFORMAT_TYPE_L3_TUNNEL_TO_L2;
 
 		if (is_decap)
 			actions[num_actions++] =
-				fte->act_dests.action.pkt_reformat->action.dr_action;
+				pkt_reformat->fs_dr_action.dr_action;
 		else
 			delay_encap_set = true;
 	}
@@ -370,9 +372,11 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		actions[num_actions++] = tmp_action;
 	}
 
-	if (fte->act_dests.action.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		actions[num_actions++] =
-			fte->act_dests.action.modify_hdr->action.dr_action;
+	if (fte->act_dests.action.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		struct mlx5_modify_hdr *modify_hdr = fte->act_dests.action.modify_hdr;
+
+		actions[num_actions++] = modify_hdr->fs_dr_action.dr_action;
+	}
 
 	if (fte->act_dests.action.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
 		tmp_action = create_action_push_vlan(domain, &fte->act_dests.action.vlan[0]);
@@ -395,8 +399,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	}
 
 	if (delay_encap_set)
-		actions[num_actions++] =
-			fte->act_dests.action.pkt_reformat->action.dr_action;
+		actions[num_actions++] = pkt_reformat->fs_dr_action.dr_action;
 
 	/* The order of the actions below is not important */
 
@@ -458,9 +461,11 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				term_actions[num_term_actions].dest = tmp_action;
 
 				if (dst->dest_attr.vport.flags &
-				    MLX5_FLOW_DEST_VPORT_REFORMAT_ID)
+				    MLX5_FLOW_DEST_VPORT_REFORMAT_ID) {
+					pkt_reformat = dst->dest_attr.vport.pkt_reformat;
 					term_actions[num_term_actions].reformat =
-						dst->dest_attr.vport.pkt_reformat->action.dr_action;
+						pkt_reformat->fs_dr_action.dr_action;
+				}
 
 				num_term_actions++;
 				break;
@@ -671,7 +676,7 @@ static int mlx5_cmd_dr_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns
 	}
 
 	pkt_reformat->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
-	pkt_reformat->action.dr_action = action;
+	pkt_reformat->fs_dr_action.dr_action = action;
 
 	return 0;
 }
@@ -679,7 +684,7 @@ static int mlx5_cmd_dr_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns
 static void mlx5_cmd_dr_packet_reformat_dealloc(struct mlx5_flow_root_namespace *ns,
 						struct mlx5_pkt_reformat *pkt_reformat)
 {
-	mlx5dr_action_destroy(pkt_reformat->action.dr_action);
+	mlx5dr_action_destroy(pkt_reformat->fs_dr_action.dr_action);
 }
 
 static int mlx5_cmd_dr_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
@@ -702,7 +707,7 @@ static int mlx5_cmd_dr_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 	}
 
 	modify_hdr->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
-	modify_hdr->action.dr_action = action;
+	modify_hdr->fs_dr_action.dr_action = action;
 
 	return 0;
 }
@@ -710,7 +715,7 @@ static int mlx5_cmd_dr_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 static void mlx5_cmd_dr_modify_header_dealloc(struct mlx5_flow_root_namespace *ns,
 					      struct mlx5_modify_hdr *modify_hdr)
 {
-	mlx5dr_action_destroy(modify_hdr->action.dr_action);
+	mlx5dr_action_destroy(modify_hdr->fs_dr_action.dr_action);
 }
 
 static int
@@ -836,7 +841,7 @@ int mlx5_fs_dr_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat
 	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
 	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
 	case MLX5_REFORMAT_TYPE_INSERT_HDR:
-		return mlx5dr_action_get_pkt_reformat_id(pkt_reformat->action.dr_action);
+		return mlx5dr_action_get_pkt_reformat_id(pkt_reformat->fs_dr_action.dr_action);
 	}
 	return -EOPNOTSUPP;
 }

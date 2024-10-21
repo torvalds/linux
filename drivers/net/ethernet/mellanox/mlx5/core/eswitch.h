@@ -214,15 +214,8 @@ struct mlx5_vport {
 
 	/* Protected with the E-Switch qos domain lock. */
 	struct {
-		/* Initially false, set to true whenever any QoS features are used. */
-		bool enabled;
-		u32 esw_sched_elem_ix;
-		u32 min_rate;
-		u32 max_rate;
-		/* A computed value indicating relative min_rate between vports in a group. */
-		u32 bw_share;
-		struct mlx5_esw_rate_group *group;
-		struct list_head group_entry;
+		/* Vport scheduling element node. */
+		struct mlx5_esw_sched_node *sched_node;
 	} qos;
 
 	u16 vport;
@@ -370,11 +363,11 @@ struct mlx5_eswitch {
 		refcount_t refcnt;
 		u32 root_tsar_ix;
 		struct mlx5_qos_domain *domain;
-		/* Contains all vports with QoS enabled but no explicit group.
-		 * Cannot be NULL if QoS is enabled, but may be a fake group
-		 * referencing the root TSAR if the esw doesn't support groups.
+		/* Contains all vports with QoS enabled but no explicit node.
+		 * Cannot be NULL if QoS is enabled, but may be a fake node
+		 * referencing the root TSAR if the esw doesn't support nodes.
 		 */
-		struct mlx5_esw_rate_group *group0;
+		struct mlx5_esw_sched_node *node0;
 	} qos;
 
 	struct mlx5_esw_bridge_offloads *br_offloads;
@@ -434,9 +427,9 @@ int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 				 u16 vport_num, bool setting);
 int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, u16 vport,
 				u32 max_rate, u32 min_rate);
-int mlx5_esw_qos_vport_update_group(struct mlx5_vport *vport,
-				    struct mlx5_esw_rate_group *group,
-				    struct netlink_ext_ack *extack);
+int mlx5_esw_qos_vport_update_node(struct mlx5_vport *vport,
+				   struct mlx5_esw_sched_node *node,
+				   struct netlink_ext_ack *extack);
 int mlx5_eswitch_set_vepa(struct mlx5_eswitch *esw, u8 setting);
 int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,

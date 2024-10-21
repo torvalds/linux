@@ -9,6 +9,7 @@
 
 #include <linux/tracepoint.h>
 #include "eswitch.h"
+#include "qos.h"
 
 TRACE_EVENT(mlx5_esw_vport_qos_destroy,
 	    TP_PROTO(const struct mlx5_core_dev *dev, const struct mlx5_vport *vport),
@@ -19,7 +20,7 @@ TRACE_EVENT(mlx5_esw_vport_qos_destroy,
 			     ),
 	    TP_fast_assign(__assign_str(devname);
 		    __entry->vport_id = vport->vport;
-		    __entry->sched_elem_ix = vport->qos.esw_sched_elem_ix;
+		    __entry->sched_elem_ix = mlx5_esw_qos_vport_get_sched_elem_ix(vport);
 	    ),
 	    TP_printk("(%s) vport=%hu sched_elem_ix=%u\n",
 		      __get_str(devname), __entry->vport_id, __entry->sched_elem_ix
@@ -35,18 +36,18 @@ DECLARE_EVENT_CLASS(mlx5_esw_vport_qos_template,
 				     __field(unsigned int, sched_elem_ix)
 				     __field(unsigned int, bw_share)
 				     __field(unsigned int, max_rate)
-				     __field(void *, group)
+				     __field(void *, parent)
 				     ),
 		    TP_fast_assign(__assign_str(devname);
 			    __entry->vport_id = vport->vport;
-			    __entry->sched_elem_ix = vport->qos.esw_sched_elem_ix;
+			    __entry->sched_elem_ix = mlx5_esw_qos_vport_get_sched_elem_ix(vport);
 			    __entry->bw_share = bw_share;
 			    __entry->max_rate = max_rate;
-			    __entry->group = vport->qos.group;
+			    __entry->parent = mlx5_esw_qos_vport_get_parent(vport);
 		    ),
-		    TP_printk("(%s) vport=%hu sched_elem_ix=%u bw_share=%u, max_rate=%u group=%p\n",
+		    TP_printk("(%s) vport=%hu sched_elem_ix=%u bw_share=%u, max_rate=%u parent=%p\n",
 			      __get_str(devname), __entry->vport_id, __entry->sched_elem_ix,
-			      __entry->bw_share, __entry->max_rate, __entry->group
+			      __entry->bw_share, __entry->max_rate, __entry->parent
 			      )
 );
 
@@ -62,57 +63,57 @@ DEFINE_EVENT(mlx5_esw_vport_qos_template, mlx5_esw_vport_qos_config,
 	     TP_ARGS(dev, vport, bw_share, max_rate)
 	     );
 
-DECLARE_EVENT_CLASS(mlx5_esw_group_qos_template,
+DECLARE_EVENT_CLASS(mlx5_esw_node_qos_template,
 		    TP_PROTO(const struct mlx5_core_dev *dev,
-			     const struct mlx5_esw_rate_group *group,
+			     const struct mlx5_esw_sched_node *node,
 			     unsigned int tsar_ix),
-		    TP_ARGS(dev, group, tsar_ix),
+		    TP_ARGS(dev, node, tsar_ix),
 		    TP_STRUCT__entry(__string(devname, dev_name(dev->device))
-				     __field(const void *, group)
+				     __field(const void *, node)
 				     __field(unsigned int, tsar_ix)
 				     ),
 		    TP_fast_assign(__assign_str(devname);
-			    __entry->group = group;
+			    __entry->node = node;
 			    __entry->tsar_ix = tsar_ix;
 		    ),
-		    TP_printk("(%s) group=%p tsar_ix=%u\n",
-			      __get_str(devname), __entry->group, __entry->tsar_ix
+		    TP_printk("(%s) node=%p tsar_ix=%u\n",
+			      __get_str(devname), __entry->node, __entry->tsar_ix
 			      )
 );
 
-DEFINE_EVENT(mlx5_esw_group_qos_template, mlx5_esw_group_qos_create,
+DEFINE_EVENT(mlx5_esw_node_qos_template, mlx5_esw_node_qos_create,
 	     TP_PROTO(const struct mlx5_core_dev *dev,
-		      const struct mlx5_esw_rate_group *group,
+		      const struct mlx5_esw_sched_node *node,
 		      unsigned int tsar_ix),
-	     TP_ARGS(dev, group, tsar_ix)
+	     TP_ARGS(dev, node, tsar_ix)
 	     );
 
-DEFINE_EVENT(mlx5_esw_group_qos_template, mlx5_esw_group_qos_destroy,
+DEFINE_EVENT(mlx5_esw_node_qos_template, mlx5_esw_node_qos_destroy,
 	     TP_PROTO(const struct mlx5_core_dev *dev,
-		      const struct mlx5_esw_rate_group *group,
+		      const struct mlx5_esw_sched_node *node,
 		      unsigned int tsar_ix),
-	     TP_ARGS(dev, group, tsar_ix)
+	     TP_ARGS(dev, node, tsar_ix)
 	     );
 
-TRACE_EVENT(mlx5_esw_group_qos_config,
+TRACE_EVENT(mlx5_esw_node_qos_config,
 	    TP_PROTO(const struct mlx5_core_dev *dev,
-		     const struct mlx5_esw_rate_group *group,
+		     const struct mlx5_esw_sched_node *node,
 		     unsigned int tsar_ix, u32 bw_share, u32 max_rate),
-	    TP_ARGS(dev, group, tsar_ix, bw_share, max_rate),
+	    TP_ARGS(dev, node, tsar_ix, bw_share, max_rate),
 	    TP_STRUCT__entry(__string(devname, dev_name(dev->device))
-			     __field(const void *, group)
+			     __field(const void *, node)
 			     __field(unsigned int, tsar_ix)
 			     __field(unsigned int, bw_share)
 			     __field(unsigned int, max_rate)
 			     ),
 	    TP_fast_assign(__assign_str(devname);
-		    __entry->group = group;
+		    __entry->node = node;
 		    __entry->tsar_ix = tsar_ix;
 		    __entry->bw_share = bw_share;
 		    __entry->max_rate = max_rate;
 	    ),
-	    TP_printk("(%s) group=%p tsar_ix=%u bw_share=%u max_rate=%u\n",
-		      __get_str(devname), __entry->group, __entry->tsar_ix,
+	    TP_printk("(%s) node=%p tsar_ix=%u bw_share=%u max_rate=%u\n",
+		      __get_str(devname), __entry->node, __entry->tsar_ix,
 		      __entry->bw_share, __entry->max_rate
 		      )
 );
