@@ -2898,7 +2898,7 @@ trace_function(struct trace_array *tr, unsigned long ip, unsigned long
 /* Allow 4 levels of nesting: normal, softirq, irq, NMI */
 #define FTRACE_KSTACK_NESTING	4
 
-#define FTRACE_KSTACK_ENTRIES	(PAGE_SIZE / FTRACE_KSTACK_NESTING)
+#define FTRACE_KSTACK_ENTRIES	(SZ_4K / FTRACE_KSTACK_NESTING)
 
 struct ftrace_stack {
 	unsigned long		calls[FTRACE_KSTACK_ENTRIES];
