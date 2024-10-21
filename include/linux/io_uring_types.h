@@ -416,6 +416,13 @@ struct io_ring_ctx {
 	unsigned			evfd_last_cq_tail;
 
 	/*
+	 * Protection for resize vs mmap races - both the mmap and resize
+	 * side will need to grab this lock, to prevent either side from
+	 * being run concurrently with the other.
+	 */
+	struct mutex			resize_lock;
+
+	/*
 	 * If IORING_SETUP_NO_MMAP is used, then the below holds
 	 * the gup'ed pages for the two rings, and the sqes.
 	 */
