@@ -2641,6 +2641,7 @@ int cmd_stat(int argc, const char **argv)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		stat_config.big_num = false;
 
+	target.inherit = !stat_config.no_inherit;
 	err = target__validate(&target);
 	if (err) {
 		target__strerror(&target, err, errbuf, BUFSIZ);
