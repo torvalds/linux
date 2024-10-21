@@ -1261,13 +1261,7 @@ void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 			struct btrfs_delayed_ref_node *ref;
 
 			ref = rb_entry(n, struct btrfs_delayed_ref_node, ref_node);
-			rb_erase_cached(&ref->ref_node, &head->ref_tree);
-			RB_CLEAR_NODE(&ref->ref_node);
-			if (!list_empty(&ref->add_list))
-				list_del(&ref->add_list);
-			atomic_dec(&delayed_refs->num_entries);
-			btrfs_put_delayed_ref(ref);
-			btrfs_delayed_refs_rsv_release(fs_info, 1, 0);
+			drop_delayed_ref(fs_info, delayed_refs, head, ref);
 		}
 		if (head->must_insert_reserved)
 			pin_bytes = true;
