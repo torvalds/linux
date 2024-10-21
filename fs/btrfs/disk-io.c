@@ -4183,7 +4183,7 @@ static void warn_about_uncommitted_trans(struct btrfs_fs_info *fs_info)
 		btrfs_warn(fs_info,
 	"transaction %llu (with %llu dirty metadata bytes) is not committed",
 			   trans->transid, dirty_bytes);
-		btrfs_cleanup_one_transaction(trans, fs_info);
+		btrfs_cleanup_one_transaction(trans);
 
 		if (trans == fs_info->running_transaction)
 			fs_info->running_transaction = NULL;
@@ -4734,9 +4734,9 @@ static void btrfs_free_all_qgroup_pertrans(struct btrfs_fs_info *fs_info)
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 }
 
-void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
-				   struct btrfs_fs_info *fs_info)
+void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans)
 {
+	struct btrfs_fs_info *fs_info = cur_trans->fs_info;
 	struct btrfs_device *dev, *tmp;
 
 	btrfs_cleanup_dirty_bgs(cur_trans, fs_info);
@@ -4794,7 +4794,7 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 		} else {
 			spin_unlock(&fs_info->trans_lock);
 		}
-		btrfs_cleanup_one_transaction(t, fs_info);
+		btrfs_cleanup_one_transaction(t);
 
 		spin_lock(&fs_info->trans_lock);
 		if (t == fs_info->running_transaction)

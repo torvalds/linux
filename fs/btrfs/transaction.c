@@ -2052,7 +2052,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 
 	spin_unlock(&fs_info->trans_lock);
 
-	btrfs_cleanup_one_transaction(trans->transaction, fs_info);
+	btrfs_cleanup_one_transaction(trans->transaction);
 
 	spin_lock(&fs_info->trans_lock);
 	if (cur_trans == fs_info->running_transaction)

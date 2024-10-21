@@ -126,8 +126,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *trans,
 			     struct btrfs_fs_info *fs_info);
-void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans,
-				  struct btrfs_fs_info *fs_info);
+void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans);
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     u64 objectid);
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
