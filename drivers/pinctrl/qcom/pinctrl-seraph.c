@@ -255,6 +255,11 @@ static const struct pinctrl_pin_desc seraph_pins[] = {
 	PINCTRL_PIN(129, "GPIO_129"),
 	PINCTRL_PIN(130, "GPIO_130"),
 	PINCTRL_PIN(131, "GPIO_131"),
+	PINCTRL_PIN(132, "SDC1_RCLK"),
+	PINCTRL_PIN(133, "SDC1_CLK"),
+	PINCTRL_PIN(134, "SDC1_CMD"),
+	PINCTRL_PIN(135, "SDC1_DATA"),
+
 };
 
 #define DECLARE_MSM_GPIO_PINS(pin) \
@@ -392,6 +397,10 @@ DECLARE_MSM_GPIO_PINS(129);
 DECLARE_MSM_GPIO_PINS(130);
 DECLARE_MSM_GPIO_PINS(131);
 
+static const unsigned int sdc1_rclk_pins[] = { 132 };
+static const unsigned int sdc1_clk_pins[] = { 133 };
+static const unsigned int sdc1_cmd_pins[] = { 134 };
+static const unsigned int sdc1_data_pins[] = { 135 };
 
 enum seraph_functions {
 	msm_mux_gpio,
@@ -2125,6 +2134,11 @@ static const struct msm_pingroup seraph_groups[] = {
 			 NA, 0, -1),
 	[131] = PINGROUP(131, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
 			 0x8401C, 3),
+	[132] = SDC_QDSD_PINGROUP(sdc1_rclk, 0x189000, 0, 0),
+	[133] = SDC_QDSD_PINGROUP(sdc1_clk, 0x188000, 13, 6),
+	[134] = SDC_QDSD_PINGROUP(sdc1_cmd, 0x188000, 11, 3),
+	[135] = SDC_QDSD_PINGROUP(sdc1_data, 0x188000, 9, 0),
+
 };
 
 static struct pinctrl_qup seraph_qup_regs[] = {
