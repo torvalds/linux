@@ -1176,7 +1176,8 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 	for (i = 0; i < nbufs; i++) {
 		struct io_mapped_ubuf *src = src_ctx->user_bufs[i];
 
-		refcount_inc(&src->refs);
+		if (src != &dummy_ubuf)
+			refcount_inc(&src->refs);
 		user_bufs[i] = src;
 	}
 

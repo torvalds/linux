@@ -388,7 +388,7 @@ config NFS_COMMON
 
 config NFS_COMMON_LOCALIO_SUPPORT
 	tristate
-	default n
+	depends on NFS_LOCALIO
 	default y if NFSD=y || NFS_FS=y
 	default m if NFSD=m && NFS_FS=m
 	select SUNRPC

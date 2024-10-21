@@ -275,6 +275,7 @@ static void _dpu_encoder_phys_wb_update_flush(struct dpu_encoder_phys *phys_enc)
 	struct dpu_hw_pingpong *hw_pp;
 	struct dpu_hw_cdm *hw_cdm;
 	u32 pending_flush = 0;
+	u32 mode_3d;
 
 	if (!phys_enc)
 		return;
@@ -283,6 +284,7 @@ static void _dpu_encoder_phys_wb_update_flush(struct dpu_encoder_phys *phys_enc)
 	hw_pp = phys_enc->hw_pp;
 	hw_ctl = phys_enc->hw_ctl;
 	hw_cdm = phys_enc->hw_cdm;
+	mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
 
 	DPU_DEBUG("[wb:%d]\n", hw_wb->idx - WB_0);
 
@@ -294,7 +296,8 @@ static void _dpu_encoder_phys_wb_update_flush(struct dpu_encoder_phys *phys_enc)
 	if (hw_ctl->ops.update_pending_flush_wb)
 		hw_ctl->ops.update_pending_flush_wb(hw_ctl, hw_wb->idx);
 
-	if (hw_ctl->ops.update_pending_flush_merge_3d && hw_pp && hw_pp->merge_3d)
+	if (mode_3d && hw_ctl->ops.update_pending_flush_merge_3d &&
+	    hw_pp && hw_pp->merge_3d)
 		hw_ctl->ops.update_pending_flush_merge_3d(hw_ctl,
 				hw_pp->merge_3d->idx);
 
