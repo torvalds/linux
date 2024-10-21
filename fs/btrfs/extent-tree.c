@@ -1959,7 +1959,7 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 	struct btrfs_delayed_ref_root *delayed_refs =
 		&trans->transaction->delayed_refs;
 	struct btrfs_delayed_ref_head *head = NULL;
-	int ret;
+	bool locked;
 
 	spin_lock(&delayed_refs->lock);
 	head = btrfs_select_ref_head(delayed_refs);
@@ -1972,7 +1972,7 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 	 * Grab the lock that says we are going to process all the refs for
 	 * this head
 	 */
-	ret = btrfs_delayed_ref_lock(delayed_refs, head);
+	locked = btrfs_delayed_ref_lock(delayed_refs, head);
 	spin_unlock(&delayed_refs->lock);
 
 	/*
@@ -1980,7 +1980,7 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 	 * that might have given someone else time to free the head.  If that's
 	 * true, it has been removed from our list and we can move on.
 	 */
-	if (ret == -EAGAIN)
+	if (!locked)
 		head = ERR_PTR(-EAGAIN);
 
 	return head;

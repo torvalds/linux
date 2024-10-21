@@ -431,12 +431,12 @@ static struct btrfs_delayed_ref_head *find_ref_head(
 	return NULL;
 }
 
-int btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
-			   struct btrfs_delayed_ref_head *head)
+bool btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
+			    struct btrfs_delayed_ref_head *head)
 {
 	lockdep_assert_held(&delayed_refs->lock);
 	if (mutex_trylock(&head->mutex))
-		return 0;
+		return true;
 
 	refcount_inc(&head->refs);
 	spin_unlock(&delayed_refs->lock);
@@ -446,10 +446,10 @@ int btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
 	if (RB_EMPTY_NODE(&head->href_node)) {
 		mutex_unlock(&head->mutex);
 		btrfs_put_delayed_ref_head(head);
-		return -EAGAIN;
+		return false;
 	}
 	btrfs_put_delayed_ref_head(head);
-	return 0;
+	return true;
 }
 
 static inline void drop_delayed_ref(struct btrfs_fs_info *fs_info,
@@ -1250,7 +1250,7 @@ void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 		if (!head)
 			break;
 
-		if (btrfs_delayed_ref_lock(delayed_refs, head))
+		if (!btrfs_delayed_ref_lock(delayed_refs, head))
 			continue;
 
 		spin_lock(&head->lock);
