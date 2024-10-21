@@ -508,11 +508,6 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 
 	ASSERT_RTNL();
 
-	if (!ifa->ifa_local) {
-		inet_free_ifa(ifa);
-		return 0;
-	}
-
 	ifa->ifa_flags &= ~IFA_F_SECONDARY;
 	last_primary = &in_dev->ifa_list;
 
@@ -584,6 +579,11 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 
 static int inet_insert_ifa(struct in_ifaddr *ifa)
 {
+	if (!ifa->ifa_local) {
+		inet_free_ifa(ifa);
+		return 0;
+	}
+
 	return __inet_insert_ifa(ifa, NULL, 0, NULL);
 }
 
@@ -953,15 +953,13 @@ static struct in_ifaddr *find_matching_ifa(struct in_ifaddr *ifa)
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct in_ifaddr *ifa1;
 
-	if (!ifa->ifa_local)
-		return NULL;
-
 	in_dev_for_each_ifa_rtnl(ifa1, in_dev) {
 		if (ifa1->ifa_mask == ifa->ifa_mask &&
 		    inet_ifa_match(ifa1->ifa_address, ifa) &&
 		    ifa1->ifa_local == ifa->ifa_local)
 			return ifa1;
 	}
+
 	return NULL;
 }
 
@@ -981,6 +979,9 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	ret = inet_validate_rtm(nlh, tb, extack, &valid_lft, &prefered_lft);
 	if (ret < 0)
 		return ret;
+
+	if (!nla_get_in_addr(tb[IFA_LOCAL]))
+		return 0;
 
 	ifa = inet_rtm_to_ifa(net, nlh, tb, extack);
 	if (IS_ERR(ifa))
