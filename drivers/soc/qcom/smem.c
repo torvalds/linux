@@ -499,6 +499,8 @@ static int qcom_smem_alloc_global(struct qcom_smem *smem,
  *
  * Allocate space for a given smem item of size @size, given that the item is
  * not yet allocated.
+ *
+ * Return: 0 on success, negative errno on failure.
  */
 int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 {
@@ -677,6 +679,8 @@ invalid_canary:
  *
  * Looks up smem item and returns pointer to it. Size of smem
  * item is returned in @size.
+ *
+ * Return: a pointer to an SMEM item on success, ERR_PTR() on failure.
  */
 void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 {
@@ -709,6 +713,8 @@ EXPORT_SYMBOL_GPL(qcom_smem_get);
  *
  * To be used by smem clients as a quick way to determine if any new
  * allocations has been made.
+ *
+ * Return: number of available bytes on success, negative errno on failure.
  */
 int qcom_smem_get_free_space(unsigned host)
 {
@@ -758,7 +764,7 @@ static bool addr_in_range(void __iomem *base, size_t size, void *addr)
  * with an smem item pointer (previously returned by qcom_smem_get()
  * @p:	the virtual address to convert
  *
- * Returns 0 if the pointer provided is not within any smem region.
+ * Return: physical address of the SMEM item (if found), 0 otherwise
  */
 phys_addr_t qcom_smem_virt_to_phys(void *p)
 {
