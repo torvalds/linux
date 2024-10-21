@@ -334,12 +334,19 @@ struct hantro_vp9_decoded_buffer_info {
 	u32 bit_depth : 4;
 };
 
+struct hantro_av1_decoded_buffer_info {
+	/* Info needed when the decoded frame serves as a reference frame. */
+	size_t chroma_offset;
+	size_t mv_offset;
+};
+
 struct hantro_decoded_buffer {
 	/* Must be the first field in this struct. */
 	struct v4l2_m2m_buffer base;
 
 	union {
 		struct hantro_vp9_decoded_buffer_info vp9;
+		struct hantro_av1_decoded_buffer_info av1;
 	};
 };
 
