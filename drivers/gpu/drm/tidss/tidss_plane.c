@@ -18,6 +18,14 @@
 #include "tidss_drv.h"
 #include "tidss_plane.h"
 
+void tidss_plane_error_irq(struct drm_plane *plane, u64 irqstatus)
+{
+	struct tidss_plane *tplane = to_tidss_plane(plane);
+
+	dev_err_ratelimited(plane->dev->dev, "Plane%u underflow (irq %llx)\n",
+			    tplane->hw_plane_id, irqstatus);
+}
+
 /* drm_plane_helper_funcs */
 
 static int tidss_plane_atomic_check(struct drm_plane *plane,

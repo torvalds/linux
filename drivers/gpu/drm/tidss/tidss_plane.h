@@ -22,4 +22,6 @@ struct tidss_plane *tidss_plane_create(struct tidss_device *tidss,
 				       u32 crtc_mask, const u32 *formats,
 				       u32 num_formats);
 
+void tidss_plane_error_irq(struct drm_plane *plane, u64 irqstatus);
+
 #endif
