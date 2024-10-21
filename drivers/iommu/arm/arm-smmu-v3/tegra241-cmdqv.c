@@ -800,7 +800,7 @@ out_fallback:
 	return 0;
 }
 
-struct dentry *cmdqv_debugfs_dir;
+static struct dentry *cmdqv_debugfs_dir;
 
 static struct arm_smmu_device *
 __tegra241_cmdqv_probe(struct arm_smmu_device *smmu, struct resource *res,
