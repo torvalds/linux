@@ -717,7 +717,7 @@ static struct resource_table *k3_r5_get_loaded_rsc_table(struct rproc *rproc,
 	 * the hard-coded value suffices to support the IPC-only mode.
 	 */
 	*rsc_table_sz = 256;
-	return (struct resource_table *)kproc->rmem[0].cpu_addr;
+	return (__force struct resource_table *)kproc->rmem[0].cpu_addr;
 }
 
 /*
