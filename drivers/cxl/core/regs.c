@@ -52,7 +52,7 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 	cap_array = readl(base + CXL_CM_CAP_HDR_OFFSET);
 
 	if (FIELD_GET(CXL_CM_CAP_HDR_ID_MASK, cap_array) != CM_CAP_HDR_CAP_ID) {
-		dev_err(dev,
+		dev_dbg(dev,
 			"Couldn't locate the CXL.cache and CXL.mem capability array header.\n");
 		return;
 	}
