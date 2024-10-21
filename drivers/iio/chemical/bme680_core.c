@@ -438,15 +438,15 @@ static u32 bme680_compensate_gas(struct bme680_data *data, u16 gas_res_adc,
 	u32 calc_gas_res;
 
 	/* Look up table for the possible gas range values */
-	static const u32 lookupTable[16] = {2147483647u, 2147483647u,
-				2147483647u, 2147483647u, 2147483647u,
-				2126008810u, 2147483647u, 2130303777u,
-				2147483647u, 2147483647u, 2143188679u,
-				2136746228u, 2147483647u, 2126008810u,
-				2147483647u, 2147483647u};
+	static const u32 lookup_table[16] = {
+		2147483647u, 2147483647u, 2147483647u, 2147483647u,
+		2147483647u, 2126008810u, 2147483647u, 2130303777u,
+		2147483647u, 2147483647u, 2143188679u, 2136746228u,
+		2147483647u, 2126008810u, 2147483647u, 2147483647u
+	};
 
 	var1 = ((1340 + (5 * (s64) calib->range_sw_err)) *
-			((s64) lookupTable[gas_range])) >> 16;
+			((s64)lookup_table[gas_range])) >> 16;
 	var2 = ((gas_res_adc << 15) - 16777216) + var1;
 	var3 = ((125000 << (15 - gas_range)) * var1) >> 9;
 	var3 += (var2 >> 1);
