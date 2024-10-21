@@ -6721,6 +6721,8 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev,
 	if (!rtwvif_link)
 		return;
 
+	rtw89_chanctx_proceed(rtwdev);
+
 	rtwvif = rtwvif_link->rtwvif;
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, rtwvif_link->mac_idx);
@@ -6738,8 +6740,6 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev,
 	scan_info->last_chan_idx = 0;
 	scan_info->scanning_vif = NULL;
 	scan_info->abort = false;
-
-	rtw89_chanctx_proceed(rtwdev);
 }
 
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev,
