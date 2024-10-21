@@ -2377,6 +2377,41 @@ int xe_gt_sriov_pf_config_print_dbs(struct xe_gt *gt, struct drm_printer *p)
 }
 
 /**
+ * xe_gt_sriov_pf_config_print_lmem - Print LMEM configurations.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Print LMEM allocations across all VFs.
+ * VFs without LMEM allocation are skipped.
+ *
+ * This function can only be called on PF.
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_print_lmem(struct xe_gt *gt, struct drm_printer *p)
+{
+	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(gt_to_xe(gt));
+	const struct xe_gt_sriov_config *config;
+	char buf[10];
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+
+	for (n = 1; n <= total_vfs; n++) {
+		config = &gt->sriov.pf.vfs[n].config;
+		if (!config->lmem_obj)
+			continue;
+
+		string_get_size(config->lmem_obj->size, 1, STRING_UNITS_2,
+				buf, sizeof(buf));
+		drm_printf(p, "VF%u:\t%zu\t(%s)\n",
+			   n, config->lmem_obj->size, buf);
+	}
+
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+	return 0;
+}
+
+/**
  * xe_gt_sriov_pf_config_print_available_ggtt - Print available GGTT ranges.
  * @gt: the &xe_gt
  * @p: the &drm_printer

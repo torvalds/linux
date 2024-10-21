@@ -65,6 +65,7 @@ void xe_gt_sriov_pf_config_restart(struct xe_gt *gt);
 int xe_gt_sriov_pf_config_print_ggtt(struct xe_gt *gt, struct drm_printer *p);
 int xe_gt_sriov_pf_config_print_ctxs(struct xe_gt *gt, struct drm_printer *p);
 int xe_gt_sriov_pf_config_print_dbs(struct xe_gt *gt, struct drm_printer *p);
+int xe_gt_sriov_pf_config_print_lmem(struct xe_gt *gt, struct drm_printer *p);
 
 int xe_gt_sriov_pf_config_print_available_ggtt(struct xe_gt *gt, struct drm_printer *p);
 
