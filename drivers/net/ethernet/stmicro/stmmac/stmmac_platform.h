@@ -11,6 +11,8 @@
 
 #include "stmmac.h"
 
+void stmmac_set_phytype(int p_type);
+
 struct plat_stmmacenet_data *
 stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac);
 void stmmac_remove_config_dt(struct platform_device *pdev,
