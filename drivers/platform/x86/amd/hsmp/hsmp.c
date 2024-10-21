@@ -35,8 +35,7 @@
 
 #define DRIVER_VERSION		"2.3"
 
-struct hsmp_plat_device hsmp_pdev;
-EXPORT_SYMBOL_NS_GPL(hsmp_pdev, AMD_HSMP);
+static struct hsmp_plat_device hsmp_pdev;
 
 /*
  * Send a message to the HSMP port via PCI-e config space registers
@@ -383,6 +382,12 @@ void hsmp_misc_deregister(void)
 	misc_deregister(&hsmp_pdev.mdev);
 }
 EXPORT_SYMBOL_NS_GPL(hsmp_misc_deregister, AMD_HSMP);
+
+struct hsmp_plat_device *get_hsmp_pdev(void)
+{
+	return &hsmp_pdev;
+}
+EXPORT_SYMBOL_NS_GPL(get_hsmp_pdev, AMD_HSMP);
 
 MODULE_DESCRIPTION("AMD HSMP Common driver");
 MODULE_VERSION(DRIVER_VERSION);

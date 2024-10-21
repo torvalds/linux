@@ -35,6 +35,8 @@
 #define MSG_ARGOFF_STR		"MsgArgOffset"
 #define MSG_RESPOFF_STR		"MsgRspOffset"
 
+static struct hsmp_plat_device *hsmp_pdev;
+
 static int amd_hsmp_acpi_rdwr(struct hsmp_socket *sock, u32 offset,
 			      u32 *value, bool write)
 {
@@ -203,7 +205,7 @@ static int hsmp_read_acpi_crs(struct hsmp_socket *sock)
 /* Parse the ACPI table to read the data */
 static int hsmp_parse_acpi_table(struct device *dev, u16 sock_ind)
 {
-	struct hsmp_socket *sock = &hsmp_pdev.sock[sock_ind];
+	struct hsmp_socket *sock = &hsmp_pdev->sock[sock_ind];
 	int ret;
 
 	sock->sock_ind		= sock_ind;
@@ -236,7 +238,7 @@ static ssize_t hsmp_metric_tbl_acpi_read(struct file *filp, struct kobject *kobj
 static umode_t hsmp_is_sock_attr_visible(struct kobject *kobj,
 					 struct bin_attribute *battr, int id)
 {
-	if (hsmp_pdev.proto_ver == HSMP_PROTO_VER6)
+	if (hsmp_pdev->proto_ver == HSMP_PROTO_VER6)
 		return battr->attr.mode;
 
 	return 0;
@@ -250,7 +252,7 @@ static int init_acpi(struct device *dev)
 	ret = hsmp_get_uid(dev, &sock_ind);
 	if (ret)
 		return ret;
-	if (sock_ind >= hsmp_pdev.num_sockets)
+	if (sock_ind >= hsmp_pdev->num_sockets)
 		return -EINVAL;
 
 	ret = hsmp_parse_acpi_table(dev, sock_ind);
@@ -274,7 +276,7 @@ static int init_acpi(struct device *dev)
 		return ret;
 	}
 
-	if (hsmp_pdev.proto_ver == HSMP_PROTO_VER6) {
+	if (hsmp_pdev->proto_ver == HSMP_PROTO_VER6) {
 		ret = hsmp_get_tbl_dram_base(sock_ind);
 		if (ret)
 			dev_err(dev, "Failed to init metric table\n");
@@ -314,15 +316,19 @@ static int hsmp_acpi_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	if (!hsmp_pdev.is_probed) {
-		hsmp_pdev.num_sockets = amd_nb_num();
-		if (hsmp_pdev.num_sockets == 0 || hsmp_pdev.num_sockets > MAX_AMD_SOCKETS)
+	hsmp_pdev = get_hsmp_pdev();
+	if (!hsmp_pdev)
+		return -ENOMEM;
+
+	if (!hsmp_pdev->is_probed) {
+		hsmp_pdev->num_sockets = amd_nb_num();
+		if (hsmp_pdev->num_sockets == 0 || hsmp_pdev->num_sockets > MAX_AMD_SOCKETS)
 			return -ENODEV;
 
-		hsmp_pdev.sock = devm_kcalloc(&pdev->dev, hsmp_pdev.num_sockets,
-					      sizeof(*hsmp_pdev.sock),
-					      GFP_KERNEL);
-		if (!hsmp_pdev.sock)
+		hsmp_pdev->sock = devm_kcalloc(&pdev->dev, hsmp_pdev->num_sockets,
+					       sizeof(*hsmp_pdev->sock),
+					       GFP_KERNEL);
+		if (!hsmp_pdev->sock)
 			return -ENOMEM;
 	}
 
@@ -332,11 +338,11 @@ static int hsmp_acpi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (!hsmp_pdev.is_probed) {
+	if (!hsmp_pdev->is_probed) {
 		ret = hsmp_misc_register(&pdev->dev);
 		if (ret)
 			return ret;
-		hsmp_pdev.is_probed = true;
+		hsmp_pdev->is_probed = true;
 	}
 
 	return 0;
@@ -348,9 +354,9 @@ static void hsmp_acpi_remove(struct platform_device *pdev)
 	 * We register only one misc_device even on multi-socket system.
 	 * So, deregister should happen only once.
 	 */
-	if (hsmp_pdev.is_probed) {
+	if (hsmp_pdev->is_probed) {
 		hsmp_misc_deregister();
-		hsmp_pdev.is_probed = false;
+		hsmp_pdev->is_probed = false;
 	}
 }
 

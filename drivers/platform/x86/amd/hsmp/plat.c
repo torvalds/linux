@@ -37,6 +37,8 @@
 #define HSMP_INDEX_REG		0xc4
 #define HSMP_DATA_REG		0xc8
 
+static struct hsmp_plat_device *hsmp_pdev;
+
 static int amd_hsmp_pci_rdwr(struct hsmp_socket *sock, u32 offset,
 			     u32 *value, bool write)
 {
@@ -64,10 +66,10 @@ static ssize_t hsmp_metric_tbl_plat_read(struct file *filp, struct kobject *kobj
 	u16 sock_ind;
 
 	sock_ind = (uintptr_t)bin_attr->private;
-	if (sock_ind >= hsmp_pdev.num_sockets)
+	if (sock_ind >= hsmp_pdev->num_sockets)
 		return -EINVAL;
 
-	sock = &hsmp_pdev.sock[sock_ind];
+	sock = &hsmp_pdev->sock[sock_ind];
 
 	return hsmp_metric_tbl_read(sock, buf, count);
 }
@@ -79,10 +81,10 @@ static umode_t hsmp_is_sock_attr_visible(struct kobject *kobj,
 
 	sock_ind = (uintptr_t)battr->private;
 
-	if (id == 0 && sock_ind >= hsmp_pdev.num_sockets)
+	if (id == 0 && sock_ind >= hsmp_pdev->num_sockets)
 		return SYSFS_GROUP_INVISIBLE;
 
-	if (hsmp_pdev.proto_ver == HSMP_PROTO_VER6)
+	if (hsmp_pdev->proto_ver == HSMP_PROTO_VER6)
 		return battr->attr.mode;
 
 	return 0;
@@ -156,10 +158,10 @@ static int init_platform_device(struct device *dev)
 	struct hsmp_socket *sock;
 	int ret, i;
 
-	for (i = 0; i < hsmp_pdev.num_sockets; i++) {
+	for (i = 0; i < hsmp_pdev->num_sockets; i++) {
 		if (!node_to_amd_nb(i))
 			return -ENODEV;
-		sock = &hsmp_pdev.sock[i];
+		sock = &hsmp_pdev->sock[i];
 		sock->root			= node_to_amd_nb(i)->root;
 		sock->sock_ind			= i;
 		sock->dev			= dev;
@@ -194,7 +196,7 @@ static int init_platform_device(struct device *dev)
 			return ret;
 		}
 
-		if (hsmp_pdev.proto_ver == HSMP_PROTO_VER6) {
+		if (hsmp_pdev->proto_ver == HSMP_PROTO_VER6) {
 			ret = hsmp_get_tbl_dram_base(i);
 			if (ret)
 				dev_err(dev, "Failed to init metric table\n");
@@ -208,10 +210,10 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	hsmp_pdev.sock = devm_kcalloc(&pdev->dev, hsmp_pdev.num_sockets,
-				      sizeof(*hsmp_pdev.sock),
-				      GFP_KERNEL);
-	if (!hsmp_pdev.sock)
+	hsmp_pdev->sock = devm_kcalloc(&pdev->dev, hsmp_pdev->num_sockets,
+				       sizeof(*hsmp_pdev->sock),
+				       GFP_KERNEL);
+	if (!hsmp_pdev->sock)
 		return -ENOMEM;
 
 	ret = init_platform_device(&pdev->dev);
@@ -298,12 +300,16 @@ static int __init hsmp_plt_init(void)
 		return ret;
 	}
 
+	hsmp_pdev = get_hsmp_pdev();
+	if (!hsmp_pdev)
+		return -ENOMEM;
+
 	/*
 	 * amd_nb_num() returns number of SMN/DF interfaces present in the system
 	 * if we have N SMN/DF interfaces that ideally means N sockets
 	 */
-	hsmp_pdev.num_sockets = amd_nb_num();
-	if (hsmp_pdev.num_sockets == 0 || hsmp_pdev.num_sockets > MAX_AMD_SOCKETS)
+	hsmp_pdev->num_sockets = amd_nb_num();
+	if (hsmp_pdev->num_sockets == 0 || hsmp_pdev->num_sockets > MAX_AMD_SOCKETS)
 		return ret;
 
 	ret = platform_driver_register(&amd_hsmp_driver);
