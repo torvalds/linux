@@ -609,3 +609,5 @@
 #include "imx8qm-ss-lvds.dtsi"
 #include "imx8qm-ss-mipi.dtsi"
 #include "imx8qm-ss-hsio.dtsi"
+
+/delete-node/ &dsp;
