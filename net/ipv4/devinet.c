@@ -645,7 +645,7 @@ static int ip_mc_autojoin_config(struct net *net, bool join,
 	struct sock *sk = net->ipv4.mc_autojoin_sk;
 	int ret;
 
-	ASSERT_RTNL();
+	ASSERT_RTNL_NET(net);
 
 	lock_sock(sk);
 	if (join)
@@ -671,22 +671,24 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct in_ifaddr *ifa;
 	int err;
 
-	ASSERT_RTNL();
-
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
 				     ifa_ipv4_policy, extack);
 	if (err < 0)
-		goto errout;
+		goto out;
 
 	ifm = nlmsg_data(nlh);
+
+	rtnl_net_lock(net);
+
 	in_dev = inetdev_by_index(net, ifm->ifa_index);
 	if (!in_dev) {
 		NL_SET_ERR_MSG(extack, "ipv4: Device not found");
 		err = -ENODEV;
-		goto errout;
+		goto unlock;
 	}
 
-	for (ifap = &in_dev->ifa_list; (ifa = rtnl_dereference(*ifap)) != NULL;
+	for (ifap = &in_dev->ifa_list;
+	     (ifa = rtnl_net_dereference(net, *ifap)) != NULL;
 	     ifap = &ifa->ifa_next) {
 		if (tb[IFA_LOCAL] &&
 		    ifa->ifa_local != nla_get_in_addr(tb[IFA_LOCAL]))
@@ -702,13 +704,16 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 		if (ipv4_is_multicast(ifa->ifa_address))
 			ip_mc_autojoin_config(net, false, ifa);
+
 		__inet_del_ifa(in_dev, ifap, 1, nlh, NETLINK_CB(skb).portid);
-		return 0;
+		goto unlock;
 	}
 
 	NL_SET_ERR_MSG(extack, "ipv4: Address not found");
 	err = -EADDRNOTAVAIL;
-errout:
+unlock:
+	rtnl_net_unlock(net);
+out:
 	return err;
 }
 
@@ -2832,7 +2837,8 @@ static struct rtnl_af_ops inet_af_ops __read_mostly = {
 static const struct rtnl_msg_handler devinet_rtnl_msg_handlers[] __initconst = {
 	{.protocol = PF_INET, .msgtype = RTM_NEWADDR, .doit = inet_rtm_newaddr,
 	 .flags = RTNL_FLAG_DOIT_PERNET},
-	{.protocol = PF_INET, .msgtype = RTM_DELADDR, .doit = inet_rtm_deladdr},
+	{.protocol = PF_INET, .msgtype = RTM_DELADDR, .doit = inet_rtm_deladdr,
+	 .flags = RTNL_FLAG_DOIT_PERNET},
 	{.protocol = PF_INET, .msgtype = RTM_GETADDR, .dumpit = inet_dump_ifaddr,
 	 .flags = RTNL_FLAG_DUMP_UNLOCKED | RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
 	{.protocol = PF_INET, .msgtype = RTM_GETNETCONF,
