@@ -974,8 +974,6 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct in_ifaddr *ifa;
 	int ret;
 
-	ASSERT_RTNL();
-
 	ret = inet_validate_rtm(nlh, tb, extack, &valid_lft, &prefered_lft);
 	if (ret < 0)
 		return ret;
@@ -983,9 +981,13 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!nla_get_in_addr(tb[IFA_LOCAL]))
 		return 0;
 
+	rtnl_net_lock(net);
+
 	ifa = inet_rtm_to_ifa(net, nlh, tb, extack);
-	if (IS_ERR(ifa))
-		return PTR_ERR(ifa);
+	if (IS_ERR(ifa)) {
+		ret = PTR_ERR(ifa);
+		goto unlock;
+	}
 
 	ifa_existing = find_matching_ifa(ifa);
 	if (!ifa_existing) {
@@ -998,11 +1000,11 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if (ret < 0) {
 				NL_SET_ERR_MSG(extack, "ipv4: Multicast auto join failed");
 				inet_free_ifa(ifa);
-				return ret;
+				goto unlock;
 			}
 		}
-		return __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid,
-					 extack);
+
+		ret = __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid, extack);
 	} else {
 		u32 new_metric = ifa->ifa_rt_priority;
 		u8 new_proto = ifa->ifa_proto;
@@ -1012,7 +1014,8 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (nlh->nlmsg_flags & NLM_F_EXCL ||
 		    !(nlh->nlmsg_flags & NLM_F_REPLACE)) {
 			NL_SET_ERR_MSG(extack, "ipv4: Address already assigned");
-			return -EEXIST;
+			ret = -EEXIST;
+			goto unlock;
 		}
 		ifa = ifa_existing;
 
@@ -1029,7 +1032,11 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 				   &net->ipv4.addr_chk_work, 0);
 		rtmsg_ifa(RTM_NEWADDR, ifa, nlh, NETLINK_CB(skb).portid);
 	}
-	return 0;
+
+unlock:
+	rtnl_net_unlock(net);
+
+	return ret;
 }
 
 /*
@@ -2823,7 +2830,8 @@ static struct rtnl_af_ops inet_af_ops __read_mostly = {
 };
 
 static const struct rtnl_msg_handler devinet_rtnl_msg_handlers[] __initconst = {
-	{.protocol = PF_INET, .msgtype = RTM_NEWADDR, .doit = inet_rtm_newaddr},
+	{.protocol = PF_INET, .msgtype = RTM_NEWADDR, .doit = inet_rtm_newaddr,
+	 .flags = RTNL_FLAG_DOIT_PERNET},
 	{.protocol = PF_INET, .msgtype = RTM_DELADDR, .doit = inet_rtm_deladdr},
 	{.protocol = PF_INET, .msgtype = RTM_GETADDR, .dumpit = inet_dump_ifaddr,
 	 .flags = RTNL_FLAG_DUMP_UNLOCKED | RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
