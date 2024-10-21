@@ -629,7 +629,7 @@ static void hgafb_remove(struct platform_device *pdev)
 
 static struct platform_driver hgafb_driver = {
 	.probe = hgafb_probe,
-	.remove_new = hgafb_remove,
+	.remove = hgafb_remove,
 	.driver = {
 		.name = "hgafb",
 	},

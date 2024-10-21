@@ -1652,7 +1652,7 @@ static SIMPLE_DEV_PM_OPS(fb_pm_ops, fb_suspend, fb_resume);
 
 static struct platform_driver da8xx_fb_driver = {
 	.probe = fb_probe,
-	.remove_new = fb_remove,
+	.remove = fb_remove,
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .pm	= &fb_pm_ops,
