@@ -603,7 +603,7 @@ static struct platform_driver stm32_rng_driver = {
 		.of_match_table = stm32_rng_match,
 	},
 	.probe = stm32_rng_probe,
-	.remove_new = stm32_rng_remove,
+	.remove = stm32_rng_remove,
 };
 
 module_platform_driver(stm32_rng_driver);
