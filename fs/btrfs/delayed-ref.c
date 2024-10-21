@@ -431,8 +431,8 @@ static struct btrfs_delayed_ref_head *find_ref_head(
 	return NULL;
 }
 
-bool btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
-			    struct btrfs_delayed_ref_head *head)
+static bool btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
+				   struct btrfs_delayed_ref_head *head)
 {
 	lockdep_assert_held(&delayed_refs->lock);
 	if (mutex_trylock(&head->mutex))
@@ -561,8 +561,9 @@ struct btrfs_delayed_ref_head *btrfs_select_ref_head(
 		struct btrfs_delayed_ref_root *delayed_refs)
 {
 	struct btrfs_delayed_ref_head *head;
+	bool locked;
 
-	lockdep_assert_held(&delayed_refs->lock);
+	spin_lock(&delayed_refs->lock);
 again:
 	head = find_ref_head(delayed_refs, delayed_refs->run_delayed_start,
 			     true);
@@ -570,16 +571,20 @@ again:
 		delayed_refs->run_delayed_start = 0;
 		head = find_first_ref_head(delayed_refs);
 	}
-	if (!head)
+	if (!head) {
+		spin_unlock(&delayed_refs->lock);
 		return NULL;
+	}
 
 	while (head->processing) {
 		struct rb_node *node;
 
 		node = rb_next(&head->href_node);
 		if (!node) {
-			if (delayed_refs->run_delayed_start == 0)
+			if (delayed_refs->run_delayed_start == 0) {
+				spin_unlock(&delayed_refs->lock);
 				return NULL;
+			}
 			delayed_refs->run_delayed_start = 0;
 			goto again;
 		}
@@ -592,6 +597,18 @@ again:
 	delayed_refs->num_heads_ready--;
 	delayed_refs->run_delayed_start = head->bytenr +
 		head->num_bytes;
+
+	locked = btrfs_delayed_ref_lock(delayed_refs, head);
+	spin_unlock(&delayed_refs->lock);
+
+	/*
+	 * We may have dropped the spin lock to get the head mutex lock, and
+	 * that might have given someone else time to free the head.  If that's
+	 * true, it has been removed from our list and we can move on.
+	 */
+	if (!locked)
+		return ERR_PTR(-EAGAIN);
+
 	return head;
 }
 

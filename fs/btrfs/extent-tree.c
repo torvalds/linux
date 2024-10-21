@@ -1953,39 +1953,6 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
-					struct btrfs_trans_handle *trans)
-{
-	struct btrfs_delayed_ref_root *delayed_refs =
-		&trans->transaction->delayed_refs;
-	struct btrfs_delayed_ref_head *head = NULL;
-	bool locked;
-
-	spin_lock(&delayed_refs->lock);
-	head = btrfs_select_ref_head(delayed_refs);
-	if (!head) {
-		spin_unlock(&delayed_refs->lock);
-		return head;
-	}
-
-	/*
-	 * Grab the lock that says we are going to process all the refs for
-	 * this head
-	 */
-	locked = btrfs_delayed_ref_lock(delayed_refs, head);
-	spin_unlock(&delayed_refs->lock);
-
-	/*
-	 * We may have dropped the spin lock to get the head mutex lock, and
-	 * that might have given someone else time to free the head.  If that's
-	 * true, it has been removed from our list and we can move on.
-	 */
-	if (!locked)
-		head = ERR_PTR(-EAGAIN);
-
-	return head;
-}
-
 static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 					   struct btrfs_delayed_ref_head *locked_ref,
 					   u64 *bytes_released)
@@ -2092,7 +2059,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 
 	do {
 		if (!locked_ref) {
-			locked_ref = btrfs_obtain_ref_head(trans);
+			locked_ref = btrfs_select_ref_head(delayed_refs);
 			if (IS_ERR_OR_NULL(locked_ref)) {
 				if (PTR_ERR(locked_ref) == -EAGAIN) {
 					continue;
