@@ -3458,6 +3458,10 @@ extern int generic_ci_match(const struct inode *parent,
 			    const u8 *de_name, u32 de_name_len);
 
 #if IS_ENABLED(CONFIG_UNICODE)
+int generic_ci_d_hash(const struct dentry *dentry, struct qstr *str);
+int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
+			 const char *str, const struct qstr *name);
+
 /**
  * generic_ci_validate_strict_name - Check if a given name is suitable
  * for a directory
