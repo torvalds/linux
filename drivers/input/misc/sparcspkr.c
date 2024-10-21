@@ -183,46 +183,39 @@ static int bbc_beep_probe(struct platform_device *op)
 	struct sparcspkr_state *state;
 	struct bbc_beep_info *info;
 	struct device_node *dp;
-	int err = -ENOMEM;
+	int err;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc(&op->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		goto out_err;
+		return -ENOMEM;
 
 	state->name = "Sparc BBC Speaker";
 	state->event = bbc_spkr_event;
 	spin_lock_init(&state->lock);
 
 	dp = of_find_node_by_path("/");
-	err = -ENODEV;
 	if (!dp)
-		goto out_free;
+		return -ENODEV;
 
 	info = &state->u.bbc;
 	info->clock_freq = of_getintprop_default(dp, "clock-frequency", 0);
 	of_node_put(dp);
 	if (!info->clock_freq)
-		goto out_free;
+		return -ENODEV;
 
 	info->regs = of_ioremap(&op->resource[0], 0, 6, "bbc beep");
 	if (!info->regs)
-		goto out_free;
+		return -ENODEV;
 
 	platform_set_drvdata(op, state);
 
 	err = sparcspkr_probe(&op->dev);
-	if (err)
-		goto out_clear_drvdata;
+	if (err) {
+		of_iounmap(&op->resource[0], info->regs, 6);
+		return err;
+	}
 
 	return 0;
-
-out_clear_drvdata:
-	of_iounmap(&op->resource[0], info->regs, 6);
-
-out_free:
-	kfree(state);
-out_err:
-	return err;
 }
 
 static void bbc_remove(struct platform_device *op)
@@ -237,8 +230,6 @@ static void bbc_remove(struct platform_device *op)
 	input_unregister_device(input_dev);
 
 	of_iounmap(&op->resource[0], info->regs, 6);
-
-	kfree(state);
 }
 
 static const struct of_device_id bbc_beep_match[] = {
@@ -266,9 +257,9 @@ static int grover_beep_probe(struct platform_device *op)
 	struct grover_beep_info *info;
 	int err = -ENOMEM;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc(&op->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		goto out_err;
+		return err;
 
 	state->name = "Sparc Grover Speaker";
 	state->event = grover_spkr_event;
@@ -277,7 +268,7 @@ static int grover_beep_probe(struct platform_device *op)
 	info = &state->u.grover;
 	info->freq_regs = of_ioremap(&op->resource[2], 0, 2, "grover beep freq");
 	if (!info->freq_regs)
-		goto out_free;
+		return err;
 
 	info->enable_reg = of_ioremap(&op->resource[3], 0, 1, "grover beep enable");
 	if (!info->enable_reg)
@@ -296,9 +287,7 @@ out_clear_drvdata:
 
 out_unmap_freq_regs:
 	of_iounmap(&op->resource[2], info->freq_regs, 2);
-out_free:
-	kfree(state);
-out_err:
+
 	return err;
 }
 
@@ -315,8 +304,6 @@ static void grover_remove(struct platform_device *op)
 
 	of_iounmap(&op->resource[3], info->enable_reg, 1);
 	of_iounmap(&op->resource[2], info->freq_regs, 2);
-
-	kfree(state);
 }
 
 static const struct of_device_id grover_beep_match[] = {
