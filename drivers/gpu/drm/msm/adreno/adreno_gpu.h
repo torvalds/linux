@@ -470,6 +470,11 @@ static inline int adreno_is_a680(const struct adreno_gpu *gpu)
 	return adreno_is_revn(gpu, 680);
 }
 
+static inline int adreno_is_a663(const struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x06060300;
+}
+
 static inline int adreno_is_a690(const struct adreno_gpu *gpu)
 {
 	return gpu->info->chip_ids[0] == 0x06090000;
