@@ -37,12 +37,12 @@ except:
     exit(1)
 
 try:
-    os.sched_setaffinity(0, affinity_mask);
+    os.sched_setaffinity(0, affinity_mask)
 except:
     print("Error setting affinity")
     exit(1)
 
-if (args.prio):
+if args.prio:
     try:
         param = os.sched_param(int(args.prio))
         os.sched_setscheduler(0, os.SCHED_FIFO, param)
@@ -51,21 +51,21 @@ if (args.prio):
         exit(1)
 
 try:
-    timerlat_path = "/sys/kernel/tracing/osnoise/per_cpu/cpu" + args.cpu + "/timerlat_fd"
+    timerlat_path = f"/sys/kernel/tracing/osnoise/per_cpu/cpu{args.cpu}/timerlat_fd"
     timerlat_fd = open(timerlat_path, 'r')
 except:
     print("Error opening timerlat fd, did you run timerlat -U?")
     exit(1)
 
 try:
-    data_fd = open("/dev/full", 'r');
+    data_fd = open("/dev/full", 'r')
 except:
     print("Error opening data fd")
 
 while True:
     try:
         timerlat_fd.read(1)
-        data_fd.read(20*1024*1024)
+        data_fd.read(20 * 1024 * 1024)
     except:
         print("Leaving")
         break
