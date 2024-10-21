@@ -546,7 +546,7 @@ static int bme680_wait_for_eoc(struct bme680_data *data)
 			   data->oversampling_humid) * 1936) + (477 * 4) +
 			   (477 * 5) + 1000 + (data->heater_dur * 1000);
 
-	usleep_range(wait_eoc_us, wait_eoc_us + 100);
+	fsleep(wait_eoc_us);
 
 	ret = regmap_read(data->regmap, BME680_REG_MEAS_STAT_0, &data->check);
 	if (ret) {
@@ -894,7 +894,7 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to reset chip\n");
 
-	usleep_range(BME680_STARTUP_TIME_US, BME680_STARTUP_TIME_US + 1000);
+	fsleep(BME680_STARTUP_TIME_US);
 
 	ret = regmap_read(regmap, BME680_REG_CHIP_ID, &data->check);
 	if (ret < 0)
