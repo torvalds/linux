@@ -846,34 +846,53 @@ static void set_ifa_lifetime(struct in_ifaddr *ifa, __u32 valid_lft,
 		WRITE_ONCE(ifa->ifa_cstamp, ifa->ifa_tstamp);
 }
 
-static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
-				       __u32 *pvalid_lft, __u32 *pprefered_lft,
-				       struct netlink_ext_ack *extack)
+static int inet_validate_rtm(struct nlmsghdr *nlh, struct nlattr **tb,
+			     struct netlink_ext_ack *extack,
+			     __u32 *valid_lft, __u32 *prefered_lft)
 {
-	struct nlattr *tb[IFA_MAX+1];
-	struct in_ifaddr *ifa;
-	struct ifaddrmsg *ifm;
-	struct net_device *dev;
-	struct in_device *in_dev;
+	struct ifaddrmsg *ifm = nlmsg_data(nlh);
 	int err;
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
 				     ifa_ipv4_policy, extack);
 	if (err < 0)
-		goto errout;
-
-	ifm = nlmsg_data(nlh);
-	err = -EINVAL;
+		return err;
 
 	if (ifm->ifa_prefixlen > 32) {
 		NL_SET_ERR_MSG(extack, "ipv4: Invalid prefix length");
-		goto errout;
+		return -EINVAL;
 	}
 
 	if (!tb[IFA_LOCAL]) {
 		NL_SET_ERR_MSG(extack, "ipv4: Local address is not supplied");
-		goto errout;
+		return -EINVAL;
 	}
+
+	if (tb[IFA_CACHEINFO]) {
+		struct ifa_cacheinfo *ci;
+
+		ci = nla_data(tb[IFA_CACHEINFO]);
+		if (!ci->ifa_valid || ci->ifa_prefered > ci->ifa_valid) {
+			NL_SET_ERR_MSG(extack, "ipv4: address lifetime invalid");
+			return -EINVAL;
+		}
+
+		*valid_lft = ci->ifa_valid;
+		*prefered_lft = ci->ifa_prefered;
+	}
+
+	return 0;
+}
+
+static struct in_ifaddr *inet_rtm_to_ifa(struct net *net, struct nlmsghdr *nlh,
+					 struct nlattr **tb,
+					 struct netlink_ext_ack *extack)
+{
+	struct ifaddrmsg *ifm = nlmsg_data(nlh);
+	struct in_device *in_dev;
+	struct net_device *dev;
+	struct in_ifaddr *ifa;
+	int err;
 
 	dev = __dev_get_by_index(net, ifm->ifa_index);
 	err = -ENODEV;
@@ -923,23 +942,8 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
 	if (tb[IFA_PROTO])
 		ifa->ifa_proto = nla_get_u8(tb[IFA_PROTO]);
 
-	if (tb[IFA_CACHEINFO]) {
-		struct ifa_cacheinfo *ci;
-
-		ci = nla_data(tb[IFA_CACHEINFO]);
-		if (!ci->ifa_valid || ci->ifa_prefered > ci->ifa_valid) {
-			NL_SET_ERR_MSG(extack, "ipv4: address lifetime invalid");
-			err = -EINVAL;
-			goto errout_free;
-		}
-		*pvalid_lft = ci->ifa_valid;
-		*pprefered_lft = ci->ifa_prefered;
-	}
-
 	return ifa;
 
-errout_free:
-	inet_free_ifa(ifa);
 errout:
 	return ERR_PTR(err);
 }
@@ -964,15 +968,21 @@ static struct in_ifaddr *find_matching_ifa(struct in_ifaddr *ifa)
 static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 			    struct netlink_ext_ack *extack)
 {
-	struct net *net = sock_net(skb->sk);
-	struct in_ifaddr *ifa;
-	struct in_ifaddr *ifa_existing;
-	__u32 valid_lft = INFINITY_LIFE_TIME;
 	__u32 prefered_lft = INFINITY_LIFE_TIME;
+	__u32 valid_lft = INFINITY_LIFE_TIME;
+	struct net *net = sock_net(skb->sk);
+	struct in_ifaddr *ifa_existing;
+	struct nlattr *tb[IFA_MAX + 1];
+	struct in_ifaddr *ifa;
+	int ret;
 
 	ASSERT_RTNL();
 
-	ifa = rtm_to_ifaddr(net, nlh, &valid_lft, &prefered_lft, extack);
+	ret = inet_validate_rtm(nlh, tb, extack, &valid_lft, &prefered_lft);
+	if (ret < 0)
+		return ret;
+
+	ifa = inet_rtm_to_ifa(net, nlh, tb, extack);
 	if (IS_ERR(ifa))
 		return PTR_ERR(ifa);
 
@@ -983,8 +993,7 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		 */
 		set_ifa_lifetime(ifa, valid_lft, prefered_lft);
 		if (ifa->ifa_flags & IFA_F_MCAUTOJOIN) {
-			int ret = ip_mc_autojoin_config(net, true, ifa);
-
+			ret = ip_mc_autojoin_config(net, true, ifa);
 			if (ret < 0) {
 				NL_SET_ERR_MSG(extack, "ipv4: Multicast auto join failed");
 				inet_free_ifa(ifa);
