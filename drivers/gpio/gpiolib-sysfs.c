@@ -463,7 +463,7 @@ static ssize_t export_store(const struct class *class,
 	desc = gpio_to_desc(gpio);
 	/* reject invalid GPIOs */
 	if (!desc) {
-		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
+		pr_debug_ratelimited("%s: invalid GPIO %ld\n", __func__, gpio);
 		return -EINVAL;
 	}
 
@@ -473,7 +473,7 @@ static ssize_t export_store(const struct class *class,
 
 	offset = gpio_chip_hwgpio(desc);
 	if (!gpiochip_line_is_valid(guard.gc, offset)) {
-		pr_warn("%s: GPIO %ld masked\n", __func__, gpio);
+		pr_debug_ratelimited("%s: GPIO %ld masked\n", __func__, gpio);
 		return -EINVAL;
 	}
 
@@ -520,7 +520,7 @@ static ssize_t unexport_store(const struct class *class,
 	desc = gpio_to_desc(gpio);
 	/* reject bogus commands (gpiod_unexport() ignores them) */
 	if (!desc) {
-		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
+		pr_debug_ratelimited("%s: invalid GPIO %ld\n", __func__, gpio);
 		return -EINVAL;
 	}
 
