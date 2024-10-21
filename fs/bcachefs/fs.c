@@ -1261,7 +1261,6 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf cur, prev;
-	unsigned offset_into_extent, sectors;
 	bool have_extent = false;
 	int ret = 0;
 
@@ -1308,9 +1307,8 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 			continue;
 		}
 
-		offset_into_extent	= iter.pos.offset -
-			bkey_start_offset(k.k);
-		sectors			= k.k->size - offset_into_extent;
+		s64 offset_into_extent	= iter.pos.offset - bkey_start_offset(k.k);
+		unsigned sectors	= k.k->size - offset_into_extent;
 
 		bch2_bkey_buf_reassemble(&cur, c, k);
 
@@ -1322,7 +1320,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		k = bkey_i_to_s_c(cur.k);
 		bch2_bkey_buf_realloc(&prev, c, k.k->u64s);
 
-		sectors = min(sectors, k.k->size - offset_into_extent);
+		sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
 
 		bch2_cut_front(POS(k.k->p.inode,
 				   bkey_start_offset(k.k) +

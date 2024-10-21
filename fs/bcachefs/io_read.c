@@ -21,6 +21,7 @@
 #include "io_read.h"
 #include "io_misc.h"
 #include "io_write.h"
+#include "reflink.h"
 #include "subvolume.h"
 #include "trace.h"
 
@@ -750,41 +751,6 @@ static void bch2_read_endio(struct bio *bio)
 	bch2_rbio_punt(rbio, __bch2_read_endio, context, wq);
 }
 
-int __bch2_read_indirect_extent(struct btree_trans *trans,
-				unsigned *offset_into_extent,
-				struct bkey_buf *orig_k)
-{
-	struct bkey_i_reflink_p *p = bkey_i_to_reflink_p(orig_k->k);
-	u64 reflink_offset = REFLINK_P_IDX(&p->v) + *offset_into_extent;
-
-	struct btree_iter iter;
-	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_reflink,
-			       POS(0, reflink_offset), 0);
-	int ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	if (k.k->type != KEY_TYPE_reflink_v &&
-	    k.k->type != KEY_TYPE_indirect_inline_data) {
-		bch_err_inum_offset_ratelimited(trans->c,
-			orig_k->k->k.p.inode,
-			orig_k->k->k.p.offset << 9,
-			"%llu len %u points to nonexistent indirect extent %llu",
-			orig_k->k->k.p.offset,
-			orig_k->k->k.size,
-			reflink_offset);
-		bch2_inconsistent_error(trans->c);
-		ret = -BCH_ERR_missing_indirect_extent;
-		goto err;
-	}
-
-	*offset_into_extent = iter.pos.offset - bkey_start_offset(k.k);
-	bch2_bkey_buf_reassemble(orig_k, trans->c, k);
-err:
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
 static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 						   struct bch_dev *ca,
 						   struct bkey_s_c k,
@@ -1160,7 +1126,6 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 			     BTREE_ITER_slots);
 
 	while (1) {
-		unsigned bytes, sectors, offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
@@ -1180,9 +1145,9 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 		if (ret)
 			goto err;
 
-		offset_into_extent = iter.pos.offset -
+		s64 offset_into_extent = iter.pos.offset -
 			bkey_start_offset(k.k);
-		sectors = k.k->size - offset_into_extent;
+		unsigned sectors = k.k->size - offset_into_extent;
 
 		bch2_bkey_buf_reassemble(&sk, c, k);
 
@@ -1197,9 +1162,9 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 		 * With indirect extents, the amount of data to read is the min
 		 * of the original extent and the indirect extent:
 		 */
-		sectors = min(sectors, k.k->size - offset_into_extent);
+		sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
 
-		bytes = min(sectors, bvec_iter_sectors(bvec_iter)) << 9;
+		unsigned bytes = min(sectors, bvec_iter_sectors(bvec_iter)) << 9;
 		swap(bvec_iter.bi_size, bytes);
 
 		if (bvec_iter.bi_size == bytes)

@@ -164,7 +164,8 @@ static void bchfs_read(struct btree_trans *trans,
 			     BTREE_ITER_slots);
 	while (1) {
 		struct bkey_s_c k;
-		unsigned bytes, sectors, offset_into_extent;
+		unsigned bytes, sectors;
+		s64 offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
@@ -197,7 +198,7 @@ static void bchfs_read(struct btree_trans *trans,
 
 		k = bkey_i_to_s_c(sk.k);
 
-		sectors = min(sectors, k.k->size - offset_into_extent);
+		sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
 
 		if (readpages_iter) {
 			ret = readpage_bio_extend(trans, readpages_iter, &rbio->bio, sectors,

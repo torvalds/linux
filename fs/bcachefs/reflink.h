@@ -73,6 +73,10 @@ static inline __le64 *bkey_refcount(struct bkey_s k)
 	}
 }
 
+struct bkey_s_c bch2_lookup_indirect_extent(struct btree_trans *, struct btree_iter *,
+					    s64 *, struct bkey_s_c_reflink_p,
+					    bool, unsigned);
+
 s64 bch2_remap_range(struct bch_fs *, subvol_inum, u64,
 		     subvol_inum, u64, u64, u64, s64 *);
 

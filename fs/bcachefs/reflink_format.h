@@ -18,6 +18,7 @@ struct bch_reflink_p {
 } __packed __aligned(8);
 
 LE64_BITMASK(REFLINK_P_IDX,	struct bch_reflink_p, idx_flags,  0, 56);
+LE64_BITMASK(REFLINK_P_ERROR,	struct bch_reflink_p, idx_flags, 56, 57);
 
 struct bch_reflink_v {
 	struct bch_val		v;
