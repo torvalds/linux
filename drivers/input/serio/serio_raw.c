@@ -185,7 +185,7 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
 {
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
-	int written;
+	int written = 0;
 	unsigned char c;
 
 	scoped_guard(mutex_intr, &serio_raw_mutex) {
