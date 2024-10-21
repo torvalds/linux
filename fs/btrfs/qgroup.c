@@ -2005,16 +2005,26 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 				struct btrfs_qgroup_extent_record *record)
 {
 	struct btrfs_qgroup_extent_record *existing, *ret;
-	unsigned long bytenr = record->bytenr;
+	const unsigned long index = (record->bytenr >> fs_info->sectorsize_bits);
 
 	if (!btrfs_qgroup_full_accounting(fs_info))
 		return 1;
+
+#if BITS_PER_LONG == 32
+	if (record->bytenr >= MAX_LFS_FILESIZE) {
+		btrfs_err_rl(fs_info,
+"qgroup record for extent at %llu is beyond 32bit page cache and xarray index limit",
+			     record->bytenr);
+		btrfs_err_32bit_limit(fs_info);
+		return -EOVERFLOW;
+	}
+#endif
 
 	lockdep_assert_held(&delayed_refs->lock);
 	trace_btrfs_qgroup_trace_extent(fs_info, record);
 
 	xa_lock(&delayed_refs->dirty_extents);
-	existing = xa_load(&delayed_refs->dirty_extents, bytenr);
+	existing = xa_load(&delayed_refs->dirty_extents, index);
 	if (existing) {
 		if (record->data_rsv && !existing->data_rsv) {
 			existing->data_rsv = record->data_rsv;
@@ -2024,7 +2034,7 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 		return 1;
 	}
 
-	ret = __xa_store(&delayed_refs->dirty_extents, record->bytenr, record, GFP_ATOMIC);
+	ret = __xa_store(&delayed_refs->dirty_extents, index, record, GFP_ATOMIC);
 	xa_unlock(&delayed_refs->dirty_extents);
 	if (xa_is_err(ret)) {
 		qgroup_mark_inconsistent(fs_info);
@@ -2129,6 +2139,7 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_qgroup_extent_record *record;
 	struct btrfs_delayed_ref_root *delayed_refs;
+	const unsigned long index = (bytenr >> fs_info->sectorsize_bits);
 	int ret;
 
 	if (!btrfs_qgroup_full_accounting(fs_info) || bytenr == 0 || num_bytes == 0)
@@ -2137,7 +2148,7 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	if (!record)
 		return -ENOMEM;
 
-	if (xa_reserve(&trans->transaction->delayed_refs.dirty_extents, bytenr, GFP_NOFS)) {
+	if (xa_reserve(&trans->transaction->delayed_refs.dirty_extents, index, GFP_NOFS)) {
 		kfree(record);
 		return -ENOMEM;
 	}
@@ -2152,7 +2163,7 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	spin_unlock(&delayed_refs->lock);
 	if (ret) {
 		/* Clean up if insertion fails or item exists. */
-		xa_release(&delayed_refs->dirty_extents, record->bytenr);
+		xa_release(&delayed_refs->dirty_extents, index);
 		kfree(record);
 		return 0;
 	}

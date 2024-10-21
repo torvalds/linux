@@ -677,7 +677,7 @@ static struct platform_driver simplefb_driver = {
 		.of_match_table = simplefb_of_match,
 	},
 	.probe = simplefb_probe,
-	.remove_new = simplefb_remove,
+	.remove = simplefb_remove,
 };
 
 module_platform_driver(simplefb_driver);

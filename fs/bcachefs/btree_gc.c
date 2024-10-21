@@ -1224,17 +1224,20 @@ int bch2_gc_gens(struct bch_fs *c)
 	u64 b, start_time = local_clock();
 	int ret;
 
-	/*
-	 * Ideally we would be using state_lock and not gc_gens_lock here, but that
-	 * introduces a deadlock in the RO path - we currently take the state
-	 * lock at the start of going RO, thus the gc thread may get stuck:
-	 */
 	if (!mutex_trylock(&c->gc_gens_lock))
 		return 0;
 
 	trace_and_count(c, gc_gens_start, c);
 
-	down_read(&c->state_lock);
+	/*
+	 * We have to use trylock here. Otherwise, we would
+	 * introduce a deadlock in the RO path - we take the
+	 * state lock at the start of going RO.
+	 */
+	if (!down_read_trylock(&c->state_lock)) {
+		mutex_unlock(&c->gc_gens_lock);
+		return 0;
+	}
 
 	for_each_member_device(c, ca) {
 		struct bucket_gens *gens = bucket_gens(ca);

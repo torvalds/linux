@@ -166,7 +166,6 @@ static int collect_sample(const struct iov_iter *iter, ssize_t max, u8 *sample)
 	loff_t start = iter->xarray_start + iter->iov_offset;
 	pgoff_t last, index = start / PAGE_SIZE;
 	size_t len, off, foff;
-	ssize_t ret = 0;
 	void *p;
 	int s = 0;
 
@@ -192,9 +191,6 @@ static int collect_sample(const struct iov_iter *iter, ssize_t max, u8 *sample)
 				p = kmap_local_page(folio_page(folio, j));
 				memcpy(&sample[s], p, len2);
 				kunmap_local(p);
-
-				if (ret < 0)
-					return ret;
 
 				s += len2;
 
