@@ -78,9 +78,6 @@ static irqreturn_t tidss_irq_handler(int irq, void *arg)
 			tidss_crtc_error_irq(crtc, irqstatus);
 	}
 
-	if (irqstatus & DSS_IRQ_DEVICE_OCP_ERR)
-		dev_err_ratelimited(tidss->dev, "OCP error\n");
-
 	return IRQ_HANDLED;
 }
 
@@ -105,7 +102,7 @@ int tidss_irq_install(struct drm_device *ddev, unsigned int irq)
 	if (ret)
 		return ret;
 
-	tidss->irq_mask = DSS_IRQ_DEVICE_OCP_ERR;
+	tidss->irq_mask = 0;
 
 	for (unsigned int i = 0; i < tidss->num_crtcs; ++i) {
 		struct tidss_crtc *tcrtc = to_tidss_crtc(tidss->crtcs[i]);
