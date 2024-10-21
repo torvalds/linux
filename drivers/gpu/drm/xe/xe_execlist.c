@@ -313,7 +313,7 @@ execlist_run_job(struct drm_sched_job *drm_job)
 	q->ring_ops->emit_job(job);
 	xe_execlist_make_active(exl);
 
-	return dma_fence_get(job->fence);
+	return job->fence;
 }
 
 static void execlist_job_free(struct drm_sched_job *drm_job)
