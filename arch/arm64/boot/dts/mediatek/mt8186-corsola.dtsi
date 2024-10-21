@@ -1336,7 +1336,7 @@
 				regulator-allowed-modes = <MT6397_BUCK_MODE_AUTO
 							   MT6397_BUCK_MODE_FORCE_PWM>;
 				regulator-coupled-with = <&mt6366_vsram_gpu_reg>;
-				regulator-coupled-max-spread = <10000>;
+				regulator-coupled-max-spread = <100000>;
 			};
 
 			mt6366_vproc11_reg: vproc11 {
@@ -1545,7 +1545,7 @@
 				regulator-ramp-delay = <6250>;
 				regulator-enable-ramp-delay = <240>;
 				regulator-coupled-with = <&mt6366_vgpu_reg>;
-				regulator-coupled-max-spread = <10000>;
+				regulator-coupled-max-spread = <100000>;
 			};
 
 			mt6366_vsram_others_reg: vsram-others {
