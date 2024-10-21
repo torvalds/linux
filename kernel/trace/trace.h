@@ -2172,4 +2172,11 @@ static inline int rv_init_interface(void)
 }
 #endif
 
+/*
+ * This is used only to distinguish
+ * function address from trampoline code.
+ * So this value has no meaning.
+ */
+#define FTRACE_TRAMPOLINE_MARKER  ((unsigned long) INT_MAX)
+
 #endif /* _LINUX_KERNEL_TRACE_H */
