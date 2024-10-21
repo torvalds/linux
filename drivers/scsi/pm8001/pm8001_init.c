@@ -451,9 +451,6 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	}
 	for (i = 0; i < PM8001_MAX_DEVICES; i++) {
 		pm8001_ha->devices[i].dev_type = SAS_PHY_UNUSED;
-		pm8001_ha->devices[i].id = i;
-		pm8001_ha->devices[i].device_id = PM8001_MAX_DEVICES;
-		atomic_set(&pm8001_ha->devices[i].running_req, 0);
 	}
 	pm8001_ha->flags = PM8001F_INIT_TIME;
 	return 0;
