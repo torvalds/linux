@@ -59,6 +59,9 @@
 
 &gmac0 {
 	status = "okay";
+
+	nvmem-cells = <&macaddr_board_config_66>;
+	nvmem-cell-names = "mac-address";
 };
 
 &gmac1 {
@@ -102,8 +105,25 @@
 		};
 
 		partition@800000 {
+			compatible = "linux,ubi";
 			label = "ubi";
 			reg = <0x800000 0x7780000>;
+
+			volumes {
+				ubi-volume-board-config {
+					volname = "board-config";
+
+					nvmem-layout {
+						compatible = "fixed-layout";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						macaddr_board_config_66: macaddr@66 {
+							reg = <0x66 0x6>;
+						};
+					};
+				};
+			};
 		};
 	};
 };
