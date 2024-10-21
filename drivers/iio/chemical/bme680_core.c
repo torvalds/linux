@@ -224,7 +224,7 @@ static int bme680_read_calib(struct bme680_data *data,
 	calib->res_heat_val = data->bme680_cal_buf_3[RES_HEAT_VAL];
 
 	calib->res_heat_range = FIELD_GET(BME680_RHRANGE_MASK,
-					data->bme680_cal_buf_3[RES_HEAT_RANGE]);
+					  data->bme680_cal_buf_3[RES_HEAT_RANGE]);
 
 	calib->range_sw_err = FIELD_GET(BME680_RSERROR_MASK,
 					data->bme680_cal_buf_3[RANGE_SW_ERR]);
@@ -445,12 +445,12 @@ static u32 bme680_compensate_gas(struct bme680_data *data, u16 gas_res_adc,
 		2147483647u, 2126008810u, 2147483647u, 2147483647u
 	};
 
-	var1 = ((1340 + (5 * (s64) calib->range_sw_err)) *
-			((s64)lookup_table[gas_range])) >> 16;
+	var1 = ((1340LL + (5 * calib->range_sw_err)) *
+			(lookup_table[gas_range])) >> 16;
 	var2 = ((gas_res_adc << 15) - 16777216) + var1;
 	var3 = ((125000 << (15 - gas_range)) * var1) >> 9;
 	var3 += (var2 >> 1);
-	calc_gas_res = div64_s64(var3, (s64) var2);
+	calc_gas_res = div64_s64(var3, (s64)var2);
 
 	return calc_gas_res;
 }
@@ -468,7 +468,7 @@ static u8 bme680_calc_heater_res(struct bme680_data *data, u16 temp)
 	if (temp > 400) /* Cap temperature */
 		temp = 400;
 
-	var1 = (((s32) BME680_AMB_TEMP * calib->par_gh3) / 1000) * 256;
+	var1 = (((s32)BME680_AMB_TEMP * calib->par_gh3) / 1000) * 256;
 	var2 = (calib->par_gh1 + 784) * (((((calib->par_gh2 + 154009) *
 						temp * 5) / 100)
 						+ 3276800) / 10);
@@ -571,9 +571,8 @@ static int bme680_chip_config(struct bme680_data *data)
 	int ret;
 	u8 osrs;
 
-	osrs = FIELD_PREP(
-		BME680_OSRS_HUMIDITY_MASK,
-		bme680_oversampling_to_reg(data->oversampling_humid));
+	osrs = FIELD_PREP(BME680_OSRS_HUMIDITY_MASK,
+			  bme680_oversampling_to_reg(data->oversampling_humid));
 	/*
 	 * Highly recommended to set oversampling of humidity before
 	 * temperature/pressure oversampling.
@@ -587,8 +586,7 @@ static int bme680_chip_config(struct bme680_data *data)
 
 	/* IIR filter settings */
 	ret = regmap_update_bits(data->regmap, BME680_REG_CONFIG,
-				 BME680_FILTER_MASK,
-				 BME680_FILTER_COEFF_VAL);
+				 BME680_FILTER_MASK, BME680_FILTER_COEFF_VAL);
 	if (ret < 0) {
 		dev_err(dev, "failed to write config register\n");
 		return ret;
@@ -889,8 +887,7 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	data->heater_temp = 320; /* degree Celsius */
 	data->heater_dur = 150;  /* milliseconds */
 
-	ret = regmap_write(regmap, BME680_REG_SOFT_RESET,
-			   BME680_CMD_SOFTRESET);
+	ret = regmap_write(regmap, BME680_REG_SOFT_RESET, BME680_CMD_SOFTRESET);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to reset chip\n");
 
