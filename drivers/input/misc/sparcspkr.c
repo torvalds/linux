@@ -182,7 +182,6 @@ static int bbc_beep_probe(struct platform_device *op)
 {
 	struct sparcspkr_state *state;
 	struct bbc_beep_info *info;
-	struct device_node *dp;
 	int err;
 
 	state = devm_kzalloc(&op->dev, sizeof(*state), GFP_KERNEL);
@@ -193,13 +192,12 @@ static int bbc_beep_probe(struct platform_device *op)
 	state->event = bbc_spkr_event;
 	spin_lock_init(&state->lock);
 
-	dp = of_find_node_by_path("/");
+	struct device_node *dp __free(device_node) = of_find_node_by_path("/");
 	if (!dp)
 		return -ENODEV;
 
 	info = &state->u.bbc;
 	info->clock_freq = of_getintprop_default(dp, "clock-frequency", 0);
-	of_node_put(dp);
 	if (!info->clock_freq)
 		return -ENODEV;
 
