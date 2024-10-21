@@ -354,11 +354,19 @@ static void divvy_up_power(struct power_actor *power, int num_actors,
 	u32 extra_power = 0;
 	int i;
 
-	/*
-	 * Prevent division by 0 if none of the actors request power.
-	 */
-	if (!total_req_power)
-		total_req_power = 1;
+	if (!total_req_power) {
+		/*
+		 * Nobody requested anything, just give everybody
+		 * the maximum power
+		 */
+		for (i = 0; i < num_actors; i++) {
+			struct power_actor *pa = &power[i];
+
+			pa->granted_power = pa->max_power;
+		}
+
+		return;
+	}
 
 	for (i = 0; i < num_actors; i++) {
 		struct power_actor *pa = &power[i];
