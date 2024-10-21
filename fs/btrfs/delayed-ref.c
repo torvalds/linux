@@ -612,6 +612,16 @@ again:
 	return head;
 }
 
+void btrfs_unselect_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+			     struct btrfs_delayed_ref_head *head)
+{
+	spin_lock(&delayed_refs->lock);
+	head->processing = false;
+	delayed_refs->num_heads_ready++;
+	spin_unlock(&delayed_refs->lock);
+	btrfs_delayed_ref_unlock(head);
+}
+
 void btrfs_delete_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 			   struct btrfs_delayed_ref_head *head)
 {
