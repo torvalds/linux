@@ -83,7 +83,7 @@ pub trait Module: Sized + Sync + Send {
 
 /// Equivalent to `THIS_MODULE` in the C API.
 ///
-/// C header: [`include/linux/export.h`](srctree/include/linux/export.h)
+/// C header: [`include/linux/init.h`](srctree/include/linux/init.h)
 pub struct ThisModule(*mut bindings::module);
 
 // SAFETY: `THIS_MODULE` may be used from all threads within a module.
