@@ -11,6 +11,7 @@
 #include <linux/ratelimit.h>
 #include <linux/error-injection.h>
 #include <linux/sched/mm.h>
+#include <linux/string_choices.h>
 #include "ctree.h"
 #include "fs.h"
 #include "messages.h"
@@ -2935,12 +2936,11 @@ void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 		if (info->bytes >= bytes && !block_group->ro)
 			count++;
 		btrfs_crit(fs_info, "entry offset %llu, bytes %llu, bitmap %s",
-			   info->offset, info->bytes,
-		       (info->bitmap) ? "yes" : "no");
+			   info->offset, info->bytes, str_yes_no(info->bitmap));
 	}
 	spin_unlock(&ctl->tree_lock);
 	btrfs_info(fs_info, "block group has cluster?: %s",
-	       list_empty(&block_group->cluster_list) ? "no" : "yes");
+	       str_no_yes(list_empty(&block_group->cluster_list)));
 	btrfs_info(fs_info,
 		   "%d free space entries at or bigger than %llu bytes",
 		   count, bytes);
