@@ -525,7 +525,7 @@
 					anatop-enable-bit = <0>;
 				};
 
-				tempmon: temperature-sensor {
+				tempmon: tempmon {
 					compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
 					interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-parent = <&gpc>;
@@ -533,6 +533,7 @@
 					nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
 					nvmem-cell-names = "calib", "temp_grade";
 					clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
+					#thermal-sensor-cells = <0>;
 				};
 			};
 
