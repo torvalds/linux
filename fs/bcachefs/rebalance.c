@@ -33,7 +33,7 @@ static const char * const bch2_rebalance_state_strs[] = {
 #undef x
 };
 
-static int __bch2_set_rebalance_needs_scan(struct btree_trans *trans, u64 inum)
+int bch2_set_rebalance_needs_scan_trans(struct btree_trans *trans, u64 inum)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -73,7 +73,7 @@ int bch2_set_rebalance_needs_scan(struct bch_fs *c, u64 inum)
 	int ret = bch2_trans_commit_do(c, NULL, NULL,
 				       BCH_TRANS_COMMIT_no_enospc|
 				       BCH_TRANS_COMMIT_lazy_rw,
-			    __bch2_set_rebalance_needs_scan(trans, inum));
+			    bch2_set_rebalance_needs_scan_trans(trans, inum));
 	rebalance_wakeup(c);
 	return ret;
 }

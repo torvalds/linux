@@ -4,6 +4,7 @@
 
 #include "rebalance_types.h"
 
+int bch2_set_rebalance_needs_scan_trans(struct btree_trans *, u64);
 int bch2_set_rebalance_needs_scan(struct bch_fs *, u64 inum);
 int bch2_set_fs_needs_rebalance(struct bch_fs *);
 

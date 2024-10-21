@@ -23,6 +23,7 @@
 #include "journal.h"
 #include "keylist.h"
 #include "quota.h"
+#include "rebalance.h"
 #include "snapshot.h"
 #include "super.h"
 #include "xattr.h"
@@ -89,10 +90,25 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 retry:
 	bch2_trans_begin(trans);
 
-	ret   = bch2_inode_peek(trans, &iter, &inode_u, inode_inum(inode),
-				BTREE_ITER_intent) ?:
-		(set ? set(trans, inode, &inode_u, p) : 0) ?:
-		bch2_inode_write(trans, &iter, &inode_u) ?:
+	ret = bch2_inode_peek(trans, &iter, &inode_u, inode_inum(inode), BTREE_ITER_intent);
+	if (ret)
+		goto err;
+
+	struct bch_extent_rebalance old_r = bch2_inode_rebalance_opts_get(c, &inode_u);
+
+	ret = (set ? set(trans, inode, &inode_u, p) : 0);
+	if (ret)
+		goto err;
+
+	struct bch_extent_rebalance new_r = bch2_inode_rebalance_opts_get(c, &inode_u);
+
+	if (memcmp(&old_r, &new_r, sizeof(new_r))) {
+		ret = bch2_set_rebalance_needs_scan_trans(trans, inode_u.bi_inum);
+		if (ret)
+			goto err;
+	}
+
+	ret   = bch2_inode_write(trans, &iter, &inode_u) ?:
 		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 
 	/*
@@ -101,7 +117,7 @@ retry:
 	 */
 	if (!ret)
 		bch2_inode_update_after_write(trans, inode, &inode_u, fields);
-
+err:
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
