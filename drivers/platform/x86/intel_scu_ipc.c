@@ -317,12 +317,15 @@ static int pwr_reg_rdwr(struct intel_scu_ipc_dev *scu, u16 *addr, u8 *data,
 	}
 
 	err = intel_scu_ipc_check_status(scu);
-	if (!err) { /* Read rbuf */
-		for (nc = 0, offset = 0; nc < 4; nc++, offset += 4)
-			wbuf[nc] = ipc_data_readl(scu, offset);
-		memcpy(data, wbuf, count);
-	}
-	return err;
+	if (err)
+		return err;
+
+	/* Read rbuf */
+	for (nc = 0, offset = 0; nc < 4; nc++, offset += 4)
+		wbuf[nc] = ipc_data_readl(scu, offset);
+	memcpy(data, wbuf, count);
+
+	return 0;
 }
 
 /**
@@ -480,7 +483,7 @@ int intel_scu_ipc_dev_command_with_size(struct intel_scu_ipc_dev *scu, int cmd,
 {
 	size_t outbuflen = DIV_ROUND_UP(outlen, sizeof(u32));
 	size_t inbuflen = DIV_ROUND_UP(inlen, sizeof(u32));
-	u32 cmdval, inbuf[4] = {};
+	u32 cmdval, inbuf[4] = {}, outbuf[4] = {};
 	int i, err;
 
 	if (inbuflen > 4 || outbuflen > 4)
@@ -499,19 +502,17 @@ int intel_scu_ipc_dev_command_with_size(struct intel_scu_ipc_dev *scu, int cmd,
 	cmdval = (size << 16) | (sub << 12) | cmd;
 	ipc_command(scu, cmdval);
 	err = intel_scu_ipc_check_status(scu);
-
-	if (!err) {
-		u32 outbuf[4] = {};
-
-		for (i = 0; i < outbuflen; i++)
-			outbuf[i] = ipc_data_readl(scu, 4 * i);
-
-		memcpy(out, outbuf, outlen);
+	if (err) {
+		dev_err(&scu->dev, "IPC command %#x failed with %d\n", cmdval, err);
+		return err;
 	}
 
-	if (err)
-		dev_err(&scu->dev, "IPC command %#x failed with %d\n", cmdval, err);
-	return err;
+	for (i = 0; i < outbuflen; i++)
+		outbuf[i] = ipc_data_readl(scu, 4 * i);
+
+	memcpy(out, outbuf, outlen);
+
+	return 0;
 }
 EXPORT_SYMBOL(intel_scu_ipc_dev_command_with_size);
 
