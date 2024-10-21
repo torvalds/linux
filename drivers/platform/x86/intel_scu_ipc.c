@@ -57,11 +57,11 @@
 
 struct intel_scu_ipc_dev {
 	struct device dev;
-	struct resource mem;
 	struct module *owner;
-	int irq;
 	void __iomem *ipc_base;
 	struct completion cmd_complete;
+
+	struct intel_scu_ipc_data data;
 };
 
 #define IPC_STATUS		0x04
@@ -255,7 +255,7 @@ static inline int ipc_wait_for_interrupt(struct intel_scu_ipc_dev *scu)
 
 static int intel_scu_ipc_check_status(struct intel_scu_ipc_dev *scu)
 {
-	return scu->irq > 0 ? ipc_wait_for_interrupt(scu) : busy_loop(scu);
+	return scu->data.irq > 0 ? ipc_wait_for_interrupt(scu) : busy_loop(scu);
 }
 
 static struct intel_scu_ipc_dev *intel_scu_ipc_get(struct intel_scu_ipc_dev *scu)
@@ -536,13 +536,13 @@ static irqreturn_t ioc(int irq, void *dev_id)
 
 static void intel_scu_ipc_release(struct device *dev)
 {
-	struct intel_scu_ipc_dev *scu;
+	struct intel_scu_ipc_dev *scu = container_of(dev, struct intel_scu_ipc_dev, dev);
+	struct intel_scu_ipc_data *data = &scu->data;
 
-	scu = container_of(dev, struct intel_scu_ipc_dev, dev);
-	if (scu->irq > 0)
-		free_irq(scu->irq, scu);
+	if (data->irq > 0)
+		free_irq(data->irq, scu);
 	iounmap(scu->ipc_base);
-	release_mem_region(scu->mem.start, resource_size(&scu->mem));
+	release_mem_region(data->mem.start, resource_size(&data->mem));
 	kfree(scu);
 }
 
@@ -563,6 +563,7 @@ __intel_scu_ipc_register(struct device *parent,
 			 struct module *owner)
 {
 	int err;
+	struct intel_scu_ipc_data *data;
 	struct intel_scu_ipc_dev *scu;
 	void __iomem *ipc_base;
 
@@ -581,25 +582,25 @@ __intel_scu_ipc_register(struct device *parent,
 	scu->dev.class = &intel_scu_ipc_class;
 	scu->dev.release = intel_scu_ipc_release;
 
-	if (!request_mem_region(scu_data->mem.start, resource_size(&scu_data->mem),
-				"intel_scu_ipc")) {
+	memcpy(&scu->data, scu_data, sizeof(scu->data));
+	data = &scu->data;
+
+	if (!request_mem_region(data->mem.start, resource_size(&data->mem), "intel_scu_ipc")) {
 		err = -EBUSY;
 		goto err_free;
 	}
 
-	ipc_base = ioremap(scu_data->mem.start, resource_size(&scu_data->mem));
+	ipc_base = ioremap(data->mem.start, resource_size(&data->mem));
 	if (!ipc_base) {
 		err = -ENOMEM;
 		goto err_release;
 	}
 
 	scu->ipc_base = ipc_base;
-	scu->mem = scu_data->mem;
-	scu->irq = scu_data->irq;
 	init_completion(&scu->cmd_complete);
 
-	if (scu->irq > 0) {
-		err = request_irq(scu->irq, ioc, 0, "intel_scu_ipc", scu);
+	if (data->irq > 0) {
+		err = request_irq(data->irq, ioc, 0, "intel_scu_ipc", scu);
 		if (err)
 			goto err_unmap;
 	}
@@ -622,7 +623,7 @@ __intel_scu_ipc_register(struct device *parent,
 err_unmap:
 	iounmap(ipc_base);
 err_release:
-	release_mem_region(scu_data->mem.start, resource_size(&scu_data->mem));
+	release_mem_region(data->mem.start, resource_size(&data->mem));
 err_free:
 	kfree(scu);
 	return ERR_PTR(err);
