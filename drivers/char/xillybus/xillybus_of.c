@@ -74,7 +74,7 @@ static void xilly_drv_remove(struct platform_device *op)
 
 static struct platform_driver xillybus_platform_driver = {
 	.probe = xilly_drv_probe,
-	.remove_new = xilly_drv_remove,
+	.remove = xilly_drv_remove,
 	.driver = {
 		.name = xillyname,
 		.of_match_table = xillybus_of_match,
