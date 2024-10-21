@@ -1,0 +1,4 @@
+test_kallsyms_a.c
+test_kallsyms_b.c
+test_kallsyms_c.c
+test_kallsyms_d.c
