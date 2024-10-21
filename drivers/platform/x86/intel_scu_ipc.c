@@ -325,7 +325,7 @@ static int pwr_reg_rdwr(struct intel_scu_ipc_dev *scu, u16 *addr, u8 *data,
 	}
 
 	err = intel_scu_ipc_check_status(scu);
-	if (!err && id == IPC_CMD_PCNTRL_R) { /* Read rbuf */
+	if (!err) { /* Read rbuf */
 		/* Workaround: values are read as 0 without memcpy_fromio */
 		memcpy_fromio(cbuf, scu->ipc_base + 0x90, 16);
 		for (nc = 0; nc < count; nc++)
