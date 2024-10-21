@@ -217,12 +217,6 @@ static inline u8 ipc_read_status(struct intel_scu_ipc_dev *scu)
 	return __raw_readl(scu->ipc_base + IPC_STATUS);
 }
 
-/* Read ipc byte data */
-static inline u8 ipc_data_readb(struct intel_scu_ipc_dev *scu, u32 offset)
-{
-	return readb(scu->ipc_base + IPC_READ_BUFFER + offset);
-}
-
 /* Read ipc u32 data */
 static inline u32 ipc_data_readl(struct intel_scu_ipc_dev *scu, u32 offset)
 {
@@ -326,10 +320,9 @@ static int pwr_reg_rdwr(struct intel_scu_ipc_dev *scu, u16 *addr, u8 *data,
 
 	err = intel_scu_ipc_check_status(scu);
 	if (!err) { /* Read rbuf */
-		/* Workaround: values are read as 0 without memcpy_fromio */
-		memcpy_fromio(cbuf, scu->ipc_base + 0x90, 16);
-		for (nc = 0; nc < count; nc++)
-			data[nc] = ipc_data_readb(scu, nc);
+		for (nc = 0, offset = 0; nc < 4; nc++, offset += 4)
+			wbuf[nc] = ipc_data_readl(scu, offset);
+		memcpy(data, wbuf, count);
 	}
 	mutex_unlock(&ipclock);
 	return err;
