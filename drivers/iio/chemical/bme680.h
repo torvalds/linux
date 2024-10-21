@@ -2,6 +2,8 @@
 #ifndef BME680_H_
 #define BME680_H_
 
+#include <linux/regmap.h>
+
 #define BME680_REG_CHIP_ID			0xD0
 #define   BME680_CHIP_ID_VAL			0x61
 #define BME680_REG_SOFT_RESET			0xE0
