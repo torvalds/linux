@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2024 NXP
+ */
+
+&hsio_subsys {
+	phyx1_lpcg: clock-controller@5f090000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f090000 0x10000>;
+		clocks = <&hsio_refb_clk>, <&hsio_per_clk>,
+			 <&hsio_per_clk>, <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_1>,
+				<IMX_LPCG_CLK_2>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_phyx1_pclk",
+				     "hsio_phyx1_epcs_tx_clk",
+				     "hsio_phyx1_epcs_rx_clk",
+				     "hsio_phyx1_apb_clk";
+		power-domains = <&pd IMX_SC_R_SERDES_1>;
+	};
+
+	hsio_phy: phy@5f1a0000 {
+		compatible = "fsl,imx8qxp-hsio";
+		reg = <0x5f1a0000 0x10000>,
+		      <0x5f120000 0x10000>,
+		      <0x5f140000 0x10000>,
+		      <0x5f160000 0x10000>;
+		reg-names = "reg", "phy", "ctrl", "misc";
+		clocks = <&phyx1_lpcg IMX_LPCG_CLK_0>,
+			 <&phyx1_lpcg IMX_LPCG_CLK_4>,
+			 <&phyx1_crr1_lpcg IMX_LPCG_CLK_4>,
+			 <&pcieb_crr3_lpcg IMX_LPCG_CLK_4>,
+			 <&misc_crr5_lpcg IMX_LPCG_CLK_4>;
+		clock-names = "pclk0", "apb_pclk0", "phy0_crr", "ctl0_crr",
+			      "misc_crr";
+		#phy-cells = <3>;
+		power-domains = <&pd IMX_SC_R_SERDES_1>;
+		status = "disabled";
+	};
+};
+
+&pcieb {
+	#interrupt-cells = <1>;
+	interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "msi";
+	interrupt-map = <0 0 0 1 &gic 0 47 4>,
+			 <0 0 0 2 &gic 0 48 4>,
+			 <0 0 0 3 &gic 0 49 4>,
+			 <0 0 0 4 &gic 0 50 4>;
+	interrupt-map-mask = <0 0 0 0x7>;
+};
