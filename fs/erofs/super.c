@@ -191,10 +191,14 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		if (IS_ERR(file))
 			return PTR_ERR(file);
 
-		dif->file = file;
-		if (!erofs_is_fileio_mode(sbi))
+		if (!erofs_is_fileio_mode(sbi)) {
 			dif->dax_dev = fs_dax_get_by_bdev(file_bdev(file),
 					&dif->dax_part_off, NULL, NULL);
+		} else if (!S_ISREG(file_inode(file)->i_mode)) {
+			fput(file);
+			return -EINVAL;
+		}
+		dif->file = file;
 	}
 
 	dif->blocks = le32_to_cpu(dis->blocks);
@@ -714,7 +718,10 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 		if (IS_ERR(sbi->fdev))
 			return PTR_ERR(sbi->fdev);
 
-		return get_tree_nodev(fc, erofs_fc_fill_super);
+		if (S_ISREG(file_inode(sbi->fdev)->i_mode) &&
+		    sbi->fdev->f_mapping->a_ops->read_folio)
+			return get_tree_nodev(fc, erofs_fc_fill_super);
+		fput(sbi->fdev);
 	}
 #endif
 	return ret;

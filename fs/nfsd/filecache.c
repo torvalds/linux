@@ -398,7 +398,7 @@ nfsd_file_put(struct nfsd_file *nf)
  * reference to the associated nn->nfsd_serv.
  */
 void
-nfsd_file_put_local(struct nfsd_file *nf)
+nfsd_file_put_local(struct nfsd_file *nf) __must_hold(rcu)
 {
 	struct net *net = nf->nf_net;
 

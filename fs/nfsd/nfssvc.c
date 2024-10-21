@@ -214,14 +214,14 @@ int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change
 	return 0;
 }
 
-bool nfsd_serv_try_get(struct net *net)
+bool nfsd_serv_try_get(struct net *net) __must_hold(rcu)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	return (nn && percpu_ref_tryget_live(&nn->nfsd_serv_ref));
 }
 
-void nfsd_serv_put(struct net *net)
+void nfsd_serv_put(struct net *net) __must_hold(rcu)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 

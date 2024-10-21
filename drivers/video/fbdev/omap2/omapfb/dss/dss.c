@@ -1278,7 +1278,7 @@ MODULE_DEVICE_TABLE(of, dss_of_match);
 
 static struct platform_driver omap_dsshw_driver = {
 	.probe		= dss_probe,
-	.remove_new	= dss_remove,
+	.remove		= dss_remove,
 	.driver         = {
 		.name   = "omapdss_dss",
 		.pm	= &dss_pm_ops,
