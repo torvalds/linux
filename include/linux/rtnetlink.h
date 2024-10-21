@@ -101,6 +101,7 @@ void __rtnl_net_lock(struct net *net);
 void __rtnl_net_unlock(struct net *net);
 void rtnl_net_lock(struct net *net);
 void rtnl_net_unlock(struct net *net);
+int rtnl_net_trylock(struct net *net);
 int rtnl_net_lock_cmp_fn(const struct lockdep_map *a, const struct lockdep_map *b);
 
 bool rtnl_net_is_locked(struct net *net);
@@ -130,6 +131,11 @@ static inline void rtnl_net_lock(struct net *net)
 static inline void rtnl_net_unlock(struct net *net)
 {
 	rtnl_unlock();
+}
+
+static inline int rtnl_net_trylock(struct net *net)
+{
+	return rtnl_trylock();
 }
 
 static inline void ASSERT_RTNL_NET(struct net *net)
