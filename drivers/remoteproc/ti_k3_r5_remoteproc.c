@@ -487,10 +487,10 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 	 * can be effective on all TCM addresses.
 	 */
 	dev_dbg(dev, "zeroing out ATCM memory\n");
-	memset(core->mem[0].cpu_addr, 0x00, core->mem[0].size);
+	memset_io(core->mem[0].cpu_addr, 0x00, core->mem[0].size);
 
 	dev_dbg(dev, "zeroing out BTCM memory\n");
-	memset(core->mem[1].cpu_addr, 0x00, core->mem[1].size);
+	memset_io(core->mem[1].cpu_addr, 0x00, core->mem[1].size);
 
 	return 0;
 }
