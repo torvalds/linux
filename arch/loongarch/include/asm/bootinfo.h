@@ -25,6 +25,10 @@ struct loongson_board_info {
 	const char *board_vendor;
 };
 
+/*
+ * The "core" of cores_per_node and cores_per_package stands for a
+ * logical core, which means in a SMT system it stands for a thread.
+ */
 struct loongson_system_configuration {
 	int nr_cpus;
 	int nr_nodes;
