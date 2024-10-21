@@ -304,7 +304,7 @@ static ssize_t qat_vf_resume_write(struct file *filp, const char __user *buf,
 	offs = &filp->f_pos;
 
 	if (*offs < 0 ||
-	    check_add_overflow((loff_t)len, *offs, &end))
+	    check_add_overflow(len, *offs, &end))
 		return -EOVERFLOW;
 
 	if (end > mig_dev->state_size)
