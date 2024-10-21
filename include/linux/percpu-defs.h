@@ -221,7 +221,10 @@ do {									\
 } while (0)
 
 #define PERCPU_PTR(__p)							\
-	(typeof(*(__p)) __force __kernel *)(__p);
+({									\
+	unsigned long __pcpu_ptr = (__force unsigned long)(__p);	\
+	(typeof(*(__p)) __force __kernel *)(__pcpu_ptr);		\
+})
 
 #ifdef CONFIG_SMP
 
