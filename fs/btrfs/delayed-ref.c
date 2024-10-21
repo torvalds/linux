@@ -1239,11 +1239,11 @@ bool btrfs_find_delayed_tree_ref(struct btrfs_delayed_ref_head *head,
 	return found;
 }
 
-void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
-				struct btrfs_fs_info *fs_info)
+void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 {
 	struct rb_node *node;
 	struct btrfs_delayed_ref_root *delayed_refs = &trans->delayed_refs;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 
 	spin_lock(&delayed_refs->lock);
 	while ((node = rb_first_cached(&delayed_refs->href_root)) != NULL) {
