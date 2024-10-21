@@ -1832,10 +1832,10 @@ static int __init amd_pstate_init(void)
 	if (cppc_state == AMD_PSTATE_UNDEFINED) {
 		/* Disable on the following configs by default:
 		 * 1. Undefined platforms
-		 * 2. Server platforms
+		 * 2. Server platforms with CPUs older than Family 0x1A.
 		 */
 		if (amd_pstate_acpi_pm_profile_undefined() ||
-		    amd_pstate_acpi_pm_profile_server()) {
+		    (amd_pstate_acpi_pm_profile_server() && boot_cpu_data.x86 < 0x1A)) {
 			pr_info("driver load is disabled, boot with specific mode to enable this\n");
 			return -ENODEV;
 		}
