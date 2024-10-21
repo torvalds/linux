@@ -901,7 +901,7 @@ static struct in_ifaddr *inet_rtm_to_ifa(struct net *net, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
-	in_dev = __in_dev_get_rtnl(dev);
+	in_dev = __in_dev_get_rtnl_net(dev);
 	err = -ENOBUFS;
 	if (!in_dev)
 		goto errout;
@@ -948,12 +948,12 @@ errout:
 	return ERR_PTR(err);
 }
 
-static struct in_ifaddr *find_matching_ifa(struct in_ifaddr *ifa)
+static struct in_ifaddr *find_matching_ifa(struct net *net, struct in_ifaddr *ifa)
 {
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct in_ifaddr *ifa1;
 
-	in_dev_for_each_ifa_rtnl(ifa1, in_dev) {
+	in_dev_for_each_ifa_rtnl_net(net, ifa1, in_dev) {
 		if (ifa1->ifa_mask == ifa->ifa_mask &&
 		    inet_ifa_match(ifa1->ifa_address, ifa) &&
 		    ifa1->ifa_local == ifa->ifa_local)
@@ -989,7 +989,7 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto unlock;
 	}
 
-	ifa_existing = find_matching_ifa(ifa);
+	ifa_existing = find_matching_ifa(net, ifa);
 	if (!ifa_existing) {
 		/* It would be best to check for !NLM_F_CREATE here but
 		 * userspace already relies on not having to provide this.
