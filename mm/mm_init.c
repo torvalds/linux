@@ -723,6 +723,9 @@ static void __meminit init_reserved_page(unsigned long pfn, int nid)
 			break;
 	}
 	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
+
+	if (pageblock_aligned(pfn))
+		set_pageblock_migratetype(pfn_to_page(pfn), MIGRATE_MOVABLE);
 }
 #else
 static inline void pgdat_set_deferred_range(pg_data_t *pgdat) {}
