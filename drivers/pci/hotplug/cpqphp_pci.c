@@ -12,8 +12,11 @@
  *
  */
 
+#define pr_fmt(fmt) "cpqphp: " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/printk.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -190,8 +193,7 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 *dev_
 {
 	u16 tdevice;
 	u32 work;
-	int ret;
-	u8 tbus;
+	int ret = -1;
 
 	ctrl->pci_bus->number = bus_num;
 
@@ -208,26 +210,20 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 *dev_
 			*dev_num = tdevice;
 			dbg("found it !\n");
 			return 0;
-		}
-	}
-	for (tdevice = 0; tdevice < 0xFF; tdevice++) {
-		/* Scan for access first */
-		if (!pci_bus_read_dev_vendor_id(ctrl->pci_bus, tdevice, &work, 0))
-			continue;
-		ret = pci_bus_read_config_dword(ctrl->pci_bus, tdevice, PCI_CLASS_REVISION, &work);
-		if (ret)
-			continue;
-		dbg("Looking for bridge bus_num %d dev_num %d\n", bus_num, tdevice);
-		/* Yep we got one. bridge ? */
-		if ((work >> 8) == PCI_TO_PCI_BRIDGE_CLASS) {
-			pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(tdevice, 0), PCI_SECONDARY_BUS, &tbus);
-			/* XXX: no recursion, wtf? */
-			dbg("Recurse on bus_num %d tdevice %d\n", tbus, tdevice);
-			return 0;
+		} else {
+			/*
+			 * XXX: Code whose debug printout indicated
+			 * recursion to buses underneath bridges might be
+			 * necessary was removed because it never did
+			 * any recursion.
+			 */
+			ret = 0;
+			pr_warn("missing feature: bridge scan recursion not implemented\n");
 		}
 	}
 
-	return -1;
+
+	return ret;
 }
 
 
