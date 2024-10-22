@@ -49,7 +49,6 @@
 enum fault_type {
 	KERNEL_FAULT,
 	USER_FAULT,
-	GMAP_FAULT,
 };
 
 static DEFINE_STATIC_KEY_FALSE(have_store_indication);
@@ -72,10 +71,6 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 	if (likely(teid.as == PSW_BITS_AS_PRIMARY)) {
 		if (user_mode(regs))
 			return USER_FAULT;
-		if (!IS_ENABLED(CONFIG_PGSTE))
-			return KERNEL_FAULT;
-		if (test_pt_regs_flag(regs, PIF_GUEST_FAULT))
-			return GMAP_FAULT;
 		return KERNEL_FAULT;
 	}
 	if (teid.as == PSW_BITS_AS_SECONDARY)
@@ -184,10 +179,6 @@ static void dump_fault_info(struct pt_regs *regs)
 		asce = get_lowcore()->user_asce.val;
 		pr_cont("user ");
 		break;
-	case GMAP_FAULT:
-		asce = regs->cr1;
-		pr_cont("gmap ");
-		break;
 	case KERNEL_FAULT:
 		asce = get_lowcore()->kernel_asce.val;
 		pr_cont("kernel ");
@@ -285,7 +276,6 @@ static void do_exception(struct pt_regs *regs, int access)
 	struct mm_struct *mm;
 	enum fault_type type;
 	unsigned int flags;
-	struct gmap *gmap;
 	vm_fault_t fault;
 	bool is_write;
 
@@ -304,7 +294,6 @@ static void do_exception(struct pt_regs *regs, int access)
 	case KERNEL_FAULT:
 		return handle_fault_error_nolock(regs, 0);
 	case USER_FAULT:
-	case GMAP_FAULT:
 		if (faulthandler_disabled() || !mm)
 			return handle_fault_error_nolock(regs, 0);
 		break;
@@ -348,18 +337,6 @@ static void do_exception(struct pt_regs *regs, int access)
 	}
 lock_mmap:
 	mmap_read_lock(mm);
-	gmap = NULL;
-	if (IS_ENABLED(CONFIG_PGSTE) && type == GMAP_FAULT) {
-		gmap = (struct gmap *)get_lowcore()->gmap;
-		current->thread.gmap_addr = address;
-		current->thread.gmap_write_flag = !!(flags & FAULT_FLAG_WRITE);
-		current->thread.gmap_int_code = regs->int_code & 0xffff;
-		address = __gmap_translate(gmap, address);
-		if (address == -EFAULT)
-			return handle_fault_error(regs, SEGV_MAPERR);
-		if (gmap->pfault_enabled)
-			flags |= FAULT_FLAG_RETRY_NOWAIT;
-	}
 retry:
 	vma = find_vma(mm, address);
 	if (!vma)
@@ -375,49 +352,21 @@ retry:
 		return handle_fault_error(regs, SEGV_ACCERR);
 	fault = handle_mm_fault(vma, address, flags, regs);
 	if (fault_signal_pending(fault, regs)) {
-		if (flags & FAULT_FLAG_RETRY_NOWAIT)
-			mmap_read_unlock(mm);
 		if (!user_mode(regs))
 			handle_fault_error_nolock(regs, 0);
 		return;
 	}
 	/* The fault is fully completed (including releasing mmap lock) */
-	if (fault & VM_FAULT_COMPLETED) {
-		if (gmap) {
-			mmap_read_lock(mm);
-			goto gmap;
-		}
+	if (fault & VM_FAULT_COMPLETED)
 		return;
-	}
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mmap_read_unlock(mm);
 		goto error;
 	}
 	if (fault & VM_FAULT_RETRY) {
-		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&	(flags & FAULT_FLAG_RETRY_NOWAIT)) {
-			/*
-			 * FAULT_FLAG_RETRY_NOWAIT has been set,
-			 * mmap_lock has not been released
-			 */
-			current->thread.gmap_pfault = 1;
-			return handle_fault_error(regs, 0);
-		}
-		flags &= ~FAULT_FLAG_RETRY_NOWAIT;
 		flags |= FAULT_FLAG_TRIED;
 		mmap_read_lock(mm);
 		goto retry;
-	}
-gmap:
-	if (IS_ENABLED(CONFIG_PGSTE) && gmap) {
-		address =  __gmap_link(gmap, current->thread.gmap_addr,
-				       address);
-		if (address == -EFAULT)
-			return handle_fault_error(regs, SEGV_MAPERR);
-		if (address == -ENOMEM) {
-			fault = VM_FAULT_OOM;
-			mmap_read_unlock(mm);
-			goto error;
-		}
 	}
 	mmap_read_unlock(mm);
 	return;
@@ -494,7 +443,6 @@ void do_secure_storage_access(struct pt_regs *regs)
 	struct folio_walk fw;
 	struct mm_struct *mm;
 	struct folio *folio;
-	struct gmap *gmap;
 	int rc;
 
 	/*
@@ -520,15 +468,6 @@ void do_secure_storage_access(struct pt_regs *regs)
 		panic("Unexpected PGM 0x3d with TEID bit 61=0");
 	}
 	switch (get_fault_type(regs)) {
-	case GMAP_FAULT:
-		mm = current->mm;
-		gmap = (struct gmap *)get_lowcore()->gmap;
-		mmap_read_lock(mm);
-		addr = __gmap_translate(gmap, addr);
-		mmap_read_unlock(mm);
-		if (IS_ERR_VALUE(addr))
-			return handle_fault_error_nolock(regs, SEGV_MAPERR);
-		fallthrough;
 	case USER_FAULT:
 		mm = current->mm;
 		mmap_read_lock(mm);
@@ -563,41 +502,5 @@ void do_secure_storage_access(struct pt_regs *regs)
 	}
 }
 NOKPROBE_SYMBOL(do_secure_storage_access);
-
-void do_non_secure_storage_access(struct pt_regs *regs)
-{
-	struct gmap *gmap = (struct gmap *)get_lowcore()->gmap;
-	unsigned long gaddr = get_fault_address(regs);
-
-	if (WARN_ON_ONCE(get_fault_type(regs) != GMAP_FAULT))
-		return handle_fault_error_nolock(regs, SEGV_MAPERR);
-	if (gmap_convert_to_secure(gmap, gaddr) == -EINVAL)
-		send_sig(SIGSEGV, current, 0);
-}
-NOKPROBE_SYMBOL(do_non_secure_storage_access);
-
-void do_secure_storage_violation(struct pt_regs *regs)
-{
-	struct gmap *gmap = (struct gmap *)get_lowcore()->gmap;
-	unsigned long gaddr = get_fault_address(regs);
-
-	/*
-	 * If the VM has been rebooted, its address space might still contain
-	 * secure pages from the previous boot.
-	 * Clear the page so it can be reused.
-	 */
-	if (!gmap_destroy_page(gmap, gaddr))
-		return;
-	/*
-	 * Either KVM messed up the secure guest mapping or the same
-	 * page is mapped into multiple secure guests.
-	 *
-	 * This exception is only triggered when a guest 2 is running
-	 * and can therefore never occur in kernel context.
-	 */
-	pr_warn_ratelimited("Secure storage violation in task: %s, pid %d\n",
-			    current->comm, current->pid);
-	send_sig(SIGSEGV, current, 0);
-}
 
 #endif /* CONFIG_PGSTE */
