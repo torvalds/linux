@@ -4982,7 +4982,7 @@ static void sdhci_msm_set_caps(struct sdhci_msm_host *msm_host)
 static int sdhci_msm_prepare_hibernation(struct sdhci_msm_host *msm_host)
 {
 	struct mmc_host *mhost = msm_host->mmc;
-	int ret = 0;
+	int ret = 0, irq = 0;
 
 	if (!mhost->card)
 		return ret;
@@ -5027,7 +5027,9 @@ out:
 
 	mmc_put_card(mhost->card, NULL);
 	/* Free cd-gpio IRQ before going into Hibernation */
-	devm_free_irq(mhost->parent, mhost->slot.cd_irq, mhost);
+	irq = mhost->slot.cd_irq;
+	if (irq >= 0)
+		devm_free_irq(mhost->parent, mhost->slot.cd_irq, mhost);
 
 	return ret;
 }
@@ -5036,7 +5038,7 @@ static int sdhci_msm_post_hibernation(struct sdhci_msm_host *msm_host)
 {
 	struct mmc_host *mhost = msm_host->mmc;
 	struct mmc_gpio *ctx = (struct mmc_gpio *) mhost->slot.handler_priv;
-	int irq, ret = 0;
+	int irq = 0, ret = 0;
 
 	if (!mhost->card)
 		return ret;
@@ -5607,13 +5609,16 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		register_trace_android_rvh_mmc_suspend(sdhci_msm_mmc_suspend, NULL);
 		register_trace_android_rvh_mmc_resume(sdhci_msm_mmc_resume, NULL);
 	}
-	msm_host->sdhci_msm_pm_notifier.notifier_call
-		= sdhci_msm_hibernation_notifier;
-	ret = register_pm_notifier(&msm_host->sdhci_msm_pm_notifier);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: register pm notifier failed: %d\n",
-				__func__, ret);
-		goto pm_runtime_disable;
+	if ((host->mmc->caps2 & MMC_CAP2_NO_SDIO) &&
+			(host->mmc->caps2 & MMC_CAP2_NO_MMC)) {
+		msm_host->sdhci_msm_pm_notifier.notifier_call
+			= sdhci_msm_hibernation_notifier;
+		ret = register_pm_notifier(&msm_host->sdhci_msm_pm_notifier);
+		if (ret) {
+			dev_err(&pdev->dev, "%s: register pm notifier failed: %d\n",
+					__func__, ret);
+			goto pm_runtime_disable;
+		}
 	}
 
 	return 0;
@@ -5665,8 +5670,9 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 
 	dead = (readl_relaxed(host->ioaddr + SDHCI_INT_STATUS) ==
 		    0xffffffff);
-
-	unregister_pm_notifier(&msm_host->sdhci_msm_pm_notifier);
+	if ((host->mmc->caps2 & MMC_CAP2_NO_SDIO) &&
+			(host->mmc->caps2 & MMC_CAP2_NO_MMC))
+		unregister_pm_notifier(&msm_host->sdhci_msm_pm_notifier);
 
 	sdhci_remove_host(host, dead);
 
