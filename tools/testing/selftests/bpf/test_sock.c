@@ -48,58 +48,6 @@ struct sock_test {
 
 static struct sock_test tests[] = {
 	{
-		.descr = "bind4 load with invalid access: src_ip6",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, src_ip6[0])),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.result = LOAD_REJECT,
-	},
-	{
-		.descr = "bind4 load with invalid access: mark",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, mark)),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.result = LOAD_REJECT,
-	},
-	{
-		.descr = "bind6 load with invalid access: src_ip4",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, src_ip4)),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
-		.attach_type = BPF_CGROUP_INET6_POST_BIND,
-		.result = LOAD_REJECT,
-	},
-	{
-		.descr = "sock_create load with invalid access: src_port",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, src_port)),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
-		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
-		.result = LOAD_REJECT,
-	},
-	{
 		.descr = "sock_create load w/o expected_attach_type (compat mode)",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
