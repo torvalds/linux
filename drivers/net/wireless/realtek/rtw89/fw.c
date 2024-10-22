@@ -5306,7 +5306,7 @@ fail:
 
 int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
+	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
 	struct rtw89_fw_h2c_rf_get_mccch *mccch;
 	struct sk_buff *skb;
 	int ret;
@@ -5353,7 +5353,7 @@ int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
 	struct rtw89_fw_h2c_rfk_pre_info_v0 *h2c_v0;
 	struct rtw89_fw_h2c_rfk_pre_info *h2c;
-	u8 tbl_sel = rfk_mcc->table_idx;
+	u8 tbl_sel[NUM_OF_RTW89_FW_RFK_PATH];
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	u8 ver = U8_MAX;
@@ -5377,19 +5377,24 @@ int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 	h2c->common.mlo_mode = cpu_to_le32(rtwdev->mlo_dbcc_mode);
 
 	BUILD_BUG_ON(NUM_OF_RTW89_FW_RFK_TBL > RTW89_RFK_CHS_NR);
+	BUILD_BUG_ON(ARRAY_SIZE(rfk_mcc->data) < NUM_OF_RTW89_FW_RFK_PATH);
 
 	for (tbl = 0; tbl < NUM_OF_RTW89_FW_RFK_TBL; tbl++) {
 		for (path = 0; path < NUM_OF_RTW89_FW_RFK_PATH; path++) {
 			h2c->common.dbcc.ch[path][tbl] =
-				cpu_to_le32(rfk_mcc->ch[tbl]);
+				cpu_to_le32(rfk_mcc->data[path].ch[tbl]);
 			h2c->common.dbcc.band[path][tbl] =
-				cpu_to_le32(rfk_mcc->band[tbl]);
+				cpu_to_le32(rfk_mcc->data[path].band[tbl]);
 		}
 	}
 
 	for (path = 0; path < NUM_OF_RTW89_FW_RFK_PATH; path++) {
-		h2c->common.tbl.cur_ch[path] = cpu_to_le32(rfk_mcc->ch[tbl_sel]);
-		h2c->common.tbl.cur_band[path] = cpu_to_le32(rfk_mcc->band[tbl_sel]);
+		tbl_sel[path] = rfk_mcc->data[path].table_idx;
+
+		h2c->common.tbl.cur_ch[path] =
+			cpu_to_le32(rfk_mcc->data[path].ch[tbl_sel[path]]);
+		h2c->common.tbl.cur_band[path] =
+			cpu_to_le32(rfk_mcc->data[path].band[tbl_sel[path]]);
 	}
 
 	h2c->common.phy_idx = cpu_to_le32(phy_idx);
@@ -5397,9 +5402,9 @@ int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 	if (ver == 0) { /* RFK_PRE_NOTIFY_V0 */
 		h2c_v0 = (struct rtw89_fw_h2c_rfk_pre_info_v0 *)skb->data;
 
-		h2c_v0->cur_band = cpu_to_le32(rfk_mcc->band[tbl_sel]);
-		h2c_v0->cur_bw = cpu_to_le32(rfk_mcc->bw[tbl_sel]);
-		h2c_v0->cur_center_ch = cpu_to_le32(rfk_mcc->ch[tbl_sel]);
+		h2c_v0->cur_band = cpu_to_le32(rfk_mcc->data[0].band[tbl_sel[0]]);
+		h2c_v0->cur_bw = cpu_to_le32(rfk_mcc->data[0].bw[tbl_sel[0]]);
+		h2c_v0->cur_center_ch = cpu_to_le32(rfk_mcc->data[0].ch[tbl_sel[0]]);
 
 		val32 = rtw89_phy_read32_mask(rtwdev, R_COEF_SEL, B_COEF_SEL_IQC_V1);
 		h2c_v0->ktbl_sel0 = cpu_to_le32(val32);

@@ -4828,11 +4828,15 @@ enum rtw89_rfk_chs_nrs {
 	RTW89_RFK_CHS_NR = __RTW89_RFK_CHS_NR_V1,
 };
 
-struct rtw89_rfk_mcc_info {
+struct rtw89_rfk_mcc_info_data {
 	u8 ch[RTW89_RFK_CHS_NR];
 	u8 band[RTW89_RFK_CHS_NR];
 	u8 bw[RTW89_RFK_CHS_NR];
 	u8 table_idx;
+};
+
+struct rtw89_rfk_mcc_info {
+	struct rtw89_rfk_mcc_info_data data[2];
 };
 
 #define RTW89_IQK_CHS_NR 2

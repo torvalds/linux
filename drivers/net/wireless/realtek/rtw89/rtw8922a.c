@@ -2,6 +2,7 @@
 /* Copyright(c) 2023  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "efuse.h"
@@ -1745,7 +1746,7 @@ static void rtw8922a_digital_pwr_comp(struct rtw89_dev *rtwdev,
 
 static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode mode)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	const struct rtw89_chan *chan0, *chan1;
 
 	if (mode == MLO_1_PLUS_1_1RF || mode == DBCC_LEGACY) {
 		rtw89_phy_write32_mask(rtwdev, R_DBCC, B_DBCC_EN, 0x1);
@@ -1758,12 +1759,19 @@ static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode 
 		return -EOPNOTSUPP;
 	}
 
-	if (mode == MLO_2_PLUS_0_1RF) {
-		rtw8922a_ctrl_afe_dac(rtwdev, chan->band_width, RF_PATH_A);
-		rtw8922a_ctrl_afe_dac(rtwdev, chan->band_width, RF_PATH_B);
+	if (mode == MLO_1_PLUS_1_1RF) {
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+	} else if (mode == MLO_0_PLUS_2_1RF) {
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+		chan0 = chan1;
 	} else {
-		rtw89_warn(rtwdev, "unsupported MLO mode %d\n", mode);
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = chan0;
 	}
+
+	rtw8922a_ctrl_afe_dac(rtwdev, chan0->band_width, RF_PATH_A);
+	rtw8922a_ctrl_afe_dac(rtwdev, chan1->band_width, RF_PATH_B);
 
 	rtw89_phy_write32_mask(rtwdev, R_EMLSR, B_EMLSR_PARM, 0x6180);
 
