@@ -86,7 +86,7 @@ static int userio_char_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	userio->serio->write = userio_device_write;
-	userio->serio->port_data = userio;;
+	userio->serio->port_data = userio;
 
 	file->private_data = no_free_ptr(userio);
 
