@@ -2318,13 +2318,8 @@ static int alpha_pll_lucid_evo_enable(struct clk_hw *hw)
 	}
 
 	/* Check if PLL is already enabled */
-	ret = trion_pll_is_enabled(pll, regmap);
-	if (ret < 0) {
-		return ret;
-	} else if (ret) {
-		pr_warn("%s PLL is already enabled\n", clk_hw_get_name(&pll->clkr.hw));
+	if (trion_pll_is_enabled(pll, regmap))
 		return 0;
-	}
 
 	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_RESET_N, PLL_RESET_N);
 	if (ret)
