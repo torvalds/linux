@@ -427,9 +427,9 @@ static void ath12k_pci_sync_ce_irqs(struct ath12k_base *ab)
 	}
 }
 
-static void ath12k_pci_ce_tasklet(struct tasklet_struct *t)
+static void ath12k_pci_ce_workqueue(struct work_struct *work)
 {
-	struct ath12k_ce_pipe *ce_pipe = from_tasklet(ce_pipe, t, intr_tq);
+	struct ath12k_ce_pipe *ce_pipe = from_work(ce_pipe, work, intr_wq);
 	int irq_idx = ATH12K_PCI_IRQ_CE0_OFFSET + ce_pipe->pipe_num;
 
 	ath12k_ce_per_engine_service(ce_pipe->ab, ce_pipe->pipe_num);
@@ -451,7 +451,7 @@ static irqreturn_t ath12k_pci_ce_interrupt_handler(int irq, void *arg)
 
 	disable_irq_nosync(ab->irq_num[irq_idx]);
 
-	tasklet_schedule(&ce_pipe->intr_tq);
+	queue_work(system_bh_wq, &ce_pipe->intr_wq);
 
 	return IRQ_HANDLED;
 }
@@ -677,7 +677,7 @@ static int ath12k_pci_config_irq(struct ath12k_base *ab)
 
 		irq_idx = ATH12K_PCI_IRQ_CE0_OFFSET + i;
 
-		tasklet_setup(&ce_pipe->intr_tq, ath12k_pci_ce_tasklet);
+		INIT_WORK(&ce_pipe->intr_wq, ath12k_pci_ce_workqueue);
 
 		ret = request_irq(irq, ath12k_pci_ce_interrupt_handler,
 				  ab_pci->irq_flags, irq_name[irq_idx],
@@ -964,7 +964,7 @@ static void ath12k_pci_aspm_restore(struct ath12k_pci *ab_pci)
 						   PCI_EXP_LNKCTL_ASPMC);
 }
 
-static void ath12k_pci_kill_tasklets(struct ath12k_base *ab)
+static void ath12k_pci_cancel_workqueue(struct ath12k_base *ab)
 {
 	int i;
 
@@ -974,7 +974,7 @@ static void ath12k_pci_kill_tasklets(struct ath12k_base *ab)
 		if (ath12k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
 
-		tasklet_kill(&ce_pipe->intr_tq);
+		cancel_work_sync(&ce_pipe->intr_wq);
 	}
 }
 
@@ -982,7 +982,7 @@ static void ath12k_pci_ce_irq_disable_sync(struct ath12k_base *ab)
 {
 	ath12k_pci_ce_irqs_disable(ab);
 	ath12k_pci_sync_ce_irqs(ab);
-	ath12k_pci_kill_tasklets(ab);
+	ath12k_pci_cancel_workqueue(ab);
 }
 
 int ath12k_pci_map_service_to_pipe(struct ath12k_base *ab, u16 service_id,
