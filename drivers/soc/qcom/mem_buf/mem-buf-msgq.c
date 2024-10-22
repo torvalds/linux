@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/completion.h>
@@ -350,11 +350,13 @@ static void mem_buf_process_alloc_resp(struct mem_buf_msgq_desc *desc, void *buf
 		 * allocator know that the memory is not in use, so that
 		 * it can be reclaimed.
 		 */
+		mutex_unlock(&desc->idr_mutex);
 		if (!alloc_resp->ret) {
 			desc->msgq_ops->relinquish_memparcel_hdl(desc->hdlr_data,
 								 alloc_resp->obj_id,
 								 alloc_resp->hdl);
 		}
+		mutex_lock(&desc->idr_mutex);
 	} else {
 		txn->txn_ret = desc->msgq_ops->alloc_resp_hdlr(desc->hdlr_data, buf, size,
 							       txn->resp_buf);
