@@ -308,18 +308,10 @@ static void do_exception(struct pt_regs *regs, int access)
 		return;
 	}
 lock_mmap:
-	mmap_read_lock(mm);
 retry:
-	vma = find_vma(mm, address);
+	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		return handle_fault_error(regs, SEGV_MAPERR);
-	if (unlikely(vma->vm_start > address)) {
-		if (!(vma->vm_flags & VM_GROWSDOWN))
-			return handle_fault_error(regs, SEGV_MAPERR);
-		vma = expand_stack(mm, address);
-		if (!vma)
-			return handle_fault_error_nolock(regs, SEGV_MAPERR);
-	}
+		return handle_fault_error_nolock(regs, SEGV_MAPERR);
 	if (unlikely(!(vma->vm_flags & access)))
 		return handle_fault_error(regs, SEGV_ACCERR);
 	fault = handle_mm_fault(vma, address, flags, regs);
@@ -337,7 +329,6 @@ retry:
 	}
 	if (fault & VM_FAULT_RETRY) {
 		flags |= FAULT_FLAG_TRIED;
-		mmap_read_lock(mm);
 		goto retry;
 	}
 	mmap_read_unlock(mm);
