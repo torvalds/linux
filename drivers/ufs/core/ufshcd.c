@@ -7488,7 +7488,6 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 	int err;
 	int poll_cnt;
 	u8 resp = 0xF;
-	u32 reg;
 
 	for (poll_cnt = 100; poll_cnt; poll_cnt--) {
 		err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
@@ -7503,32 +7502,17 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 			 * cmd not pending in the device, check if it is
 			 * in transition.
 			 */
-			dev_err(hba->dev, "%s: cmd at tag %d not pending in the device.\n",
+			dev_info(
+				hba->dev,
+				"%s: cmd with tag %d not pending in the device.\n",
 				__func__, tag);
-			if (hba->mcq_enabled) {
-				/* MCQ mode */
-				if (ufshcd_cmd_inflight(lrbp->cmd)) {
-					/* sleep for max. 200us same delay as in SDB mode */
-					usleep_range(100, 200);
-					continue;
-				}
-				/* command completed already */
-				dev_err(hba->dev, "%s: cmd at tag=%d is cleared.\n",
-					__func__, tag);
+			if (!ufshcd_cmd_inflight(lrbp->cmd)) {
+				dev_info(hba->dev,
+					 "%s: cmd with tag=%d completed.\n",
+					 __func__, tag);
 				return 0;
 			}
-
-			/* Single Doorbell Mode */
-			reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
-			if (reg & (1 << tag)) {
-				/* sleep for max. 200us to stabilize */
-				usleep_range(100, 200);
-				continue;
-			}
-			/* command completed already */
-			dev_err(hba->dev, "%s: cmd at tag %d successfully cleared from DB.\n",
-				__func__, tag);
-			return 0;
+			usleep_range(100, 200);
 		} else {
 			dev_err(hba->dev,
 				"%s: no response from device. tag = %d, err %d\n",
