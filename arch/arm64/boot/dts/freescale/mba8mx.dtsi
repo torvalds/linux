@@ -317,11 +317,6 @@
 	};
 };
 
-&mipi_dsi {
-	samsung,burst-clock-frequency = <891000000>;
-	samsung,esc-clock-frequency = <20000000>;
-};
-
 &mipi_dsi_out {
 	data-lanes = <1 2 3 4>;
 	remote-endpoint = <&lvds_bridge_in>;
