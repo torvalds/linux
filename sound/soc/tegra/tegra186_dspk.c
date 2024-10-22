@@ -245,6 +245,7 @@ static int tegra186_dspk_hw_params(struct snd_pcm_substream *substream,
 		cif_conf.audio_bits = TEGRA_ACIF_BITS_16;
 		cif_conf.client_bits = TEGRA_ACIF_BITS_16;
 		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		cif_conf.audio_bits = TEGRA_ACIF_BITS_32;
 		cif_conf.client_bits = TEGRA_ACIF_BITS_24;
@@ -313,6 +314,7 @@ static struct snd_soc_dai_driver tegra186_dspk_dais[] = {
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
+			   SNDRV_PCM_FMTBIT_S24_LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	    },
 	},
@@ -324,6 +326,7 @@ static struct snd_soc_dai_driver tegra186_dspk_dais[] = {
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
+			   SNDRV_PCM_FMTBIT_S24_LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	    },
 	    .ops = &tegra186_dspk_dai_ops,

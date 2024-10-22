@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * tegra210_i2s.h - Definitions for Tegra210 I2S driver
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2024 NVIDIA CORPORATION & AFFILIATES.
+ * All rights reserved.
  *
- * Copyright (c) 2020 NVIDIA CORPORATION. All rights reserved.
+ * tegra210_i2s.h - Definitions for Tegra210 I2S driver
  *
  */
 
@@ -87,6 +87,7 @@
 
 #define I2S_BITS_8				1
 #define I2S_BITS_16				3
+#define I2S_BITS_24				5
 #define I2S_BITS_32				7
 #define I2S_CTRL_BIT_SIZE_MASK			0x7
 
