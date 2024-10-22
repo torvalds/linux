@@ -265,7 +265,7 @@ struct rintc_data {
 };
 
 static u32 nr_rintc;
-static struct rintc_data *rintc_acpi_data[NR_CPUS];
+static struct rintc_data **rintc_acpi_data;
 
 #define for_each_matching_plic(_plic_id)				\
 	unsigned int _plic;						\
@@ -329,12 +329,29 @@ int acpi_rintc_get_imsic_mmio_info(u32 index, struct resource *res)
 	return 0;
 }
 
+static int __init riscv_intc_acpi_match(union acpi_subtable_headers *header,
+					const unsigned long end)
+{
+	return 0;
+}
+
 static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 				       const unsigned long end)
 {
 	struct acpi_madt_rintc *rintc;
 	struct fwnode_handle *fn;
+	int count;
 	int rc;
+
+	if (!rintc_acpi_data) {
+		count = acpi_table_parse_madt(ACPI_MADT_TYPE_RINTC, riscv_intc_acpi_match, 0);
+		if (count <= 0)
+			return -EINVAL;
+
+		rintc_acpi_data = kcalloc(count, sizeof(*rintc_acpi_data), GFP_KERNEL);
+		if (!rintc_acpi_data)
+			return -ENOMEM;
+	}
 
 	rintc = (struct acpi_madt_rintc *)header;
 	rintc_acpi_data[nr_rintc] = kzalloc(sizeof(*rintc_acpi_data[0]), GFP_KERNEL);

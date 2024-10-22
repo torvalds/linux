@@ -347,7 +347,7 @@ static struct platform_driver p9100_driver = {
 		.of_match_table = p9100_match,
 	},
 	.probe		= p9100_probe,
-	.remove_new	= p9100_remove,
+	.remove		= p9100_remove,
 };
 
 static int __init p9100_init(void)

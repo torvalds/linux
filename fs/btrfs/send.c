@@ -7190,13 +7190,11 @@ static int changed_extent(struct send_ctx *sctx,
 
 static int changed_verity(struct send_ctx *sctx, enum btrfs_compare_tree_result result)
 {
-	int ret = 0;
-
 	if (!sctx->cur_inode_new_gen && !sctx->cur_inode_deleted) {
 		if (result == BTRFS_COMPARE_TREE_NEW)
 			sctx->cur_inode_needs_verity = true;
 	}
-	return ret;
+	return 0;
 }
 
 static int dir_changed(struct send_ctx *sctx, u64 dir)

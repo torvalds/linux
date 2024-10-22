@@ -5642,32 +5642,43 @@ regulator_register(struct device *dev,
 		goto clean;
 	}
 
-	init_data = regulator_of_get_init_data(dev, regulator_desc, config,
-					       &rdev->dev.of_node);
+	if (config->init_data) {
+		/*
+		 * Providing of_match means the framework is expected to parse
+		 * DT to get the init_data. This would conflict with provided
+		 * init_data, if set. Warn if it happens.
+		 */
+		if (regulator_desc->of_match)
+			dev_warn(dev, "Using provided init data - OF match ignored\n");
 
-	/*
-	 * Sometimes not all resources are probed already so we need to take
-	 * that into account. This happens most the time if the ena_gpiod comes
-	 * from a gpio extender or something else.
-	 */
-	if (PTR_ERR(init_data) == -EPROBE_DEFER) {
-		ret = -EPROBE_DEFER;
-		goto clean;
-	}
-
-	/*
-	 * We need to keep track of any GPIO descriptor coming from the
-	 * device tree until we have handled it over to the core. If the
-	 * config that was passed in to this function DOES NOT contain
-	 * a descriptor, and the config after this call DOES contain
-	 * a descriptor, we definitely got one from parsing the device
-	 * tree.
-	 */
-	if (!cfg->ena_gpiod && config->ena_gpiod)
-		dangling_of_gpiod = true;
-	if (!init_data) {
 		init_data = config->init_data;
 		rdev->dev.of_node = of_node_get(config->of_node);
+
+	} else {
+		init_data = regulator_of_get_init_data(dev, regulator_desc,
+						       config,
+						       &rdev->dev.of_node);
+
+		/*
+		 * Sometimes not all resources are probed already so we need to
+		 * take that into account. This happens most the time if the
+		 * ena_gpiod comes from a gpio extender or something else.
+		 */
+		if (PTR_ERR(init_data) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto clean;
+		}
+
+		/*
+		 * We need to keep track of any GPIO descriptor coming from the
+		 * device tree until we have handled it over to the core. If the
+		 * config that was passed in to this function DOES NOT contain a
+		 * descriptor, and the config after this call DOES contain a
+		 * descriptor, we definitely got one from parsing the device
+		 * tree.
+		 */
+		if (!cfg->ena_gpiod && config->ena_gpiod)
+			dangling_of_gpiod = true;
 	}
 
 	ww_mutex_init(&rdev->mutex, &regulator_ww_class);
@@ -5708,6 +5719,12 @@ regulator_register(struct device *dev,
 		goto wash;
 	}
 
+	if (regulator_desc->init_cb) {
+		ret = regulator_desc->init_cb(rdev, config);
+		if (ret < 0)
+			goto wash;
+	}
+
 	if ((rdev->supply_name && !rdev->supply) &&
 		(rdev->constraints->always_on ||
 		 rdev->constraints->boot_on)) {
@@ -5717,13 +5734,6 @@ regulator_register(struct device *dev,
 					 ERR_PTR(ret));
 
 		resolved_early = true;
-	}
-
-	/* perform any regulator specific init */
-	if (init_data && init_data->regulator_init) {
-		ret = init_data->regulator_init(rdev->reg_data);
-		if (ret < 0)
-			goto wash;
 	}
 
 	if (config->ena_gpiod) {
