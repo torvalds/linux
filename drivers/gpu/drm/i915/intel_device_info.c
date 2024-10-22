@@ -25,7 +25,7 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_print.h>
-#include <drm/intel/i915_pciids.h>
+#include <drm/intel/pciids.h>
 
 #include "gt/intel_gt_regs.h"
 #include "i915_drv.h"
