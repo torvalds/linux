@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <dt-bindings/interconnect/qcom,mdm9x07.h>
@@ -793,6 +793,7 @@ static int qnoc_probe(struct platform_device *pdev)
 	provider->set = qcom_icc_rpm_set;
 	provider->pre_aggregate = qcom_icc_rpm_pre_aggregate;
 	provider->aggregate = qcom_icc_rpm_aggregate;
+	provider->get_bw = qcom_icc_get_bw_stub;
 	provider->xlate = of_icc_xlate_onecell;
 	INIT_LIST_HEAD(&provider->nodes);
 	provider->data = data;
