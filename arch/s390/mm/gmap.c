@@ -281,37 +281,6 @@ void gmap_remove(struct gmap *gmap)
 }
 EXPORT_SYMBOL_GPL(gmap_remove);
 
-/**
- * gmap_enable - switch primary space to the guest address space
- * @gmap: pointer to the guest address space structure
- */
-void gmap_enable(struct gmap *gmap)
-{
-	get_lowcore()->gmap = (unsigned long)gmap;
-}
-EXPORT_SYMBOL_GPL(gmap_enable);
-
-/**
- * gmap_disable - switch back to the standard primary address space
- * @gmap: pointer to the guest address space structure
- */
-void gmap_disable(struct gmap *gmap)
-{
-	get_lowcore()->gmap = 0UL;
-}
-EXPORT_SYMBOL_GPL(gmap_disable);
-
-/**
- * gmap_get_enabled - get a pointer to the currently enabled gmap
- *
- * Returns a pointer to the currently enabled gmap. 0 if none is enabled.
- */
-struct gmap *gmap_get_enabled(void)
-{
-	return (struct gmap *)get_lowcore()->gmap;
-}
-EXPORT_SYMBOL_GPL(gmap_get_enabled);
-
 /*
  * gmap_alloc_table is assumed to be called with mmap_lock held
  */
