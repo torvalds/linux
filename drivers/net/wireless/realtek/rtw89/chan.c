@@ -299,6 +299,64 @@ static void rtw89_normalize_link_chanctx(struct rtw89_dev *rtwdev,
 	rtw89_swap_chanctx(rtwdev, rtwvif_link->chanctx_idx, cur->chanctx_idx);
 }
 
+const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
+					       const char *caller_message,
+					       u8 link_index)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
+	enum rtw89_chanctx_idx chanctx_idx;
+	enum rtw89_chanctx_idx roc_idx;
+	enum rtw89_entity_mode mode;
+	u8 role_index;
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	if (unlikely(link_index >= __RTW89_MLD_MAX_LINK_NUM)) {
+		WARN(1, "link index %u is invalid (max link inst num: %d)\n",
+		     link_index, __RTW89_MLD_MAX_LINK_NUM);
+		goto dflt;
+	}
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	case RTW89_ENTITY_MODE_SCC_OR_SMLD:
+	case RTW89_ENTITY_MODE_MCC:
+		role_index = 0;
+		break;
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		role_index = 1;
+		break;
+	default:
+		WARN(1, "Invalid ent mode: %d\n", mode);
+		goto dflt;
+	}
+
+	chanctx_idx = mgnt->chanctx_tbl[role_index][link_index];
+	if (chanctx_idx == RTW89_CHANCTX_IDLE)
+		goto dflt;
+
+	roc_idx = atomic_read(&hal->roc_chanctx_idx);
+	if (roc_idx != RTW89_CHANCTX_IDLE) {
+		/* ROC is ongoing (given ROC runs on RTW89_ROC_BY_LINK_INDEX).
+		 * If @link_index is the same as RTW89_ROC_BY_LINK_INDEX, get
+		 * the ongoing ROC chanctx.
+		 */
+		if (link_index == RTW89_ROC_BY_LINK_INDEX)
+			chanctx_idx = roc_idx;
+	}
+
+	return rtw89_chan_get(rtwdev, chanctx_idx);
+
+dflt:
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "%s (%s): prefetch NULL on link index %u\n",
+		    __func__, caller_message ?: "", link_index);
+
+	return rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+}
+EXPORT_SYMBOL(__rtw89_mgnt_chan_get);
+
 static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
@@ -306,12 +364,17 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 	struct rtw89_vif_link *link;
 	struct rtw89_vif *role;
 	u8 pos = 0;
-	int i;
+	int i, j;
 
 	lockdep_assert_held(&rtwdev->mutex);
 
 	for (i = 0; i < RTW89_MAX_INTERFACE_NUM; i++)
 		mgnt->active_roles[i] = NULL;
+
+	for (i = 0; i < RTW89_MAX_INTERFACE_NUM; i++) {
+		for (j = 0; j < __RTW89_MLD_MAX_LINK_NUM; j++)
+			mgnt->chanctx_tbl[i][j] = RTW89_CHANCTX_IDLE;
+	}
 
 	/* To be consistent with legacy behavior, expect the first active role
 	 * which uses RTW89_CHANCTX_0 to put at position 0, and make its first
@@ -339,6 +402,14 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 				   "%s: active roles are over max iface num\n",
 				   __func__);
 			break;
+		}
+
+		for (i = 0; i < role->links_inst_valid_num; i++) {
+			link = rtw89_vif_get_link_inst(role, i);
+			if (!link || !link->chanctx_assigned)
+				continue;
+
+			mgnt->chanctx_tbl[pos][i] = link->chanctx_idx;
 		}
 
 		mgnt->active_roles[pos++] = role;
@@ -371,9 +442,14 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 		set_bit(RTW89_CHANCTX_0, recalc_map);
 		fallthrough;
 	case 1:
-		mode = RTW89_ENTITY_MODE_SCC;
+		mode = RTW89_ENTITY_MODE_SCC_OR_SMLD;
 		break;
 	case 2 ... NUM_OF_RTW89_CHANCTX:
+		if (w.active_roles == 1) {
+			mode = RTW89_ENTITY_MODE_SCC_OR_SMLD;
+			break;
+		}
+
 		if (w.active_roles != NUM_OF_RTW89_MCC_ROLES) {
 			rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 				    "unhandled ent: %d chanctxs %d roles\n",

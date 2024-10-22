@@ -341,84 +341,47 @@ void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
 	rtw89_chan_create(chan, center_chan, channel->hw_value, band, bandwidth);
 }
 
-void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
+static void __rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev,
+					const struct rtw89_chan *chan,
+					enum rtw89_phy_idx phy_idx)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	const struct rtw89_chan *chan;
-	enum rtw89_chanctx_idx chanctx_idx;
-	enum rtw89_chanctx_idx roc_idx;
-	enum rtw89_phy_idx phy_idx;
-	enum rtw89_entity_mode mode;
 	bool entity_active;
-
-	mode = rtw89_get_entity_mode(rtwdev);
-	switch (mode) {
-	case RTW89_ENTITY_MODE_SCC:
-	case RTW89_ENTITY_MODE_MCC:
-		chanctx_idx = RTW89_CHANCTX_0;
-		break;
-	case RTW89_ENTITY_MODE_MCC_PREPARE:
-		chanctx_idx = RTW89_CHANCTX_1;
-		break;
-	default:
-		WARN(1, "Invalid ent mode: %d\n", mode);
-		return;
-	}
-
-	roc_idx = atomic_read(&hal->roc_chanctx_idx);
-	if (roc_idx != RTW89_CHANCTX_IDLE)
-		chanctx_idx = roc_idx;
-
-	phy_idx = RTW89_PHY_0;
 
 	entity_active = rtw89_get_entity_state(rtwdev, phy_idx);
 	if (!entity_active)
 		return;
 
-	chan = rtw89_chan_get(rtwdev, chanctx_idx);
 	chip->ops->set_txpwr(rtwdev, chan, phy_idx);
 }
 
-int rtw89_set_channel(struct rtw89_dev *rtwdev)
+void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan;
+
+	chan = rtw89_mgnt_chan_get(rtwdev, 0);
+	__rtw89_core_set_chip_txpwr(rtwdev, chan, RTW89_PHY_0);
+
+	if (!rtwdev->support_mlo)
+		return;
+
+	chan = rtw89_mgnt_chan_get(rtwdev, 1);
+	__rtw89_core_set_chip_txpwr(rtwdev, chan, RTW89_PHY_1);
+}
+
+static void __rtw89_set_channel(struct rtw89_dev *rtwdev,
+				const struct rtw89_chan *chan,
+				enum rtw89_mac_idx mac_idx,
+				enum rtw89_phy_idx phy_idx)
+{
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_chan_rcd *chan_rcd;
-	const struct rtw89_chan *chan;
-	enum rtw89_chanctx_idx chanctx_idx;
-	enum rtw89_chanctx_idx roc_idx;
-	enum rtw89_mac_idx mac_idx;
-	enum rtw89_phy_idx phy_idx;
 	struct rtw89_channel_help_params bak;
-	enum rtw89_entity_mode mode;
 	bool entity_active;
-
-	mode = rtw89_entity_recalc(rtwdev);
-	switch (mode) {
-	case RTW89_ENTITY_MODE_SCC:
-	case RTW89_ENTITY_MODE_MCC:
-		chanctx_idx = RTW89_CHANCTX_0;
-		break;
-	case RTW89_ENTITY_MODE_MCC_PREPARE:
-		chanctx_idx = RTW89_CHANCTX_1;
-		break;
-	default:
-		WARN(1, "Invalid ent mode: %d\n", mode);
-		return -EINVAL;
-	}
-
-	roc_idx = atomic_read(&hal->roc_chanctx_idx);
-	if (roc_idx != RTW89_CHANCTX_IDLE)
-		chanctx_idx = roc_idx;
-
-	mac_idx = RTW89_MAC_0;
-	phy_idx = RTW89_PHY_0;
 
 	entity_active = rtw89_get_entity_state(rtwdev, phy_idx);
 
-	chan = rtw89_chan_get(rtwdev, chanctx_idx);
-	chan_rcd = rtw89_chan_rcd_get(rtwdev, chanctx_idx);
+	chan_rcd = rtw89_chan_rcd_get_by_chan(chan);
 
 	rtw89_chip_set_channel_prepare(rtwdev, &bak, chan, mac_idx, phy_idx);
 
@@ -434,6 +397,28 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_set_entity_state(rtwdev, phy_idx, true);
+}
+
+int rtw89_set_channel(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chan *chan;
+	enum rtw89_entity_mode mode;
+
+	mode = rtw89_entity_recalc(rtwdev);
+	if (mode < 0 || mode >= NUM_OF_RTW89_ENTITY_MODE) {
+		WARN(1, "Invalid ent mode: %d\n", mode);
+		return -EINVAL;
+	}
+
+	chan = rtw89_mgnt_chan_get(rtwdev, 0);
+	__rtw89_set_channel(rtwdev, chan, RTW89_MAC_0, RTW89_PHY_0);
+
+	if (!rtwdev->support_mlo)
+		return 0;
+
+	chan = rtw89_mgnt_chan_get(rtwdev, 1);
+	__rtw89_set_channel(rtwdev, chan, RTW89_MAC_1, RTW89_PHY_1);
+
 	return 0;
 }
 
@@ -3204,9 +3189,10 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_leave_ips_by_hwflags(rtwdev);
 	rtw89_leave_lps(rtwdev);
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, RTW89_ROC_BY_LINK_INDEX);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "roc start: find no link on HW-0\n");
+		rtw89_err(rtwdev, "roc start: find no link on HW-%u\n",
+			  RTW89_ROC_BY_LINK_INDEX);
 		return;
 	}
 
@@ -3259,9 +3245,10 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_leave_ips_by_hwflags(rtwdev);
 	rtw89_leave_lps(rtwdev);
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, RTW89_ROC_BY_LINK_INDEX);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "roc end: find no link on HW-0\n");
+		rtw89_err(rtwdev, "roc end: find no link on HW-%u\n",
+			  RTW89_ROC_BY_LINK_INDEX);
 		return;
 	}
 
