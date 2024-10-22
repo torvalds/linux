@@ -3808,32 +3808,20 @@ static void ibmvnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++, data += ETH_GSTRING_LEN)
-		memcpy(data, ibmvnic_stats[i].name, ETH_GSTRING_LEN);
+	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++)
+		ethtool_puts(&data, ibmvnic_stats[i].name);
 
 	for (i = 0; i < adapter->req_tx_queues; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "tx%d_batched_packets", i);
-		data += ETH_GSTRING_LEN;
-
-		snprintf(data, ETH_GSTRING_LEN, "tx%d_direct_packets", i);
-		data += ETH_GSTRING_LEN;
-
-		snprintf(data, ETH_GSTRING_LEN, "tx%d_bytes", i);
-		data += ETH_GSTRING_LEN;
-
-		snprintf(data, ETH_GSTRING_LEN, "tx%d_dropped_packets", i);
-		data += ETH_GSTRING_LEN;
+		ethtool_sprintf(&data, "tx%d_batched_packets", i);
+		ethtool_sprintf(&data, "tx%d_direct_packets", i);
+		ethtool_sprintf(&data, "tx%d_bytes", i);
+		ethtool_sprintf(&data, "tx%d_dropped_packets", i);
 	}
 
 	for (i = 0; i < adapter->req_rx_queues; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "rx%d_packets", i);
-		data += ETH_GSTRING_LEN;
-
-		snprintf(data, ETH_GSTRING_LEN, "rx%d_bytes", i);
-		data += ETH_GSTRING_LEN;
-
-		snprintf(data, ETH_GSTRING_LEN, "rx%d_interrupts", i);
-		data += ETH_GSTRING_LEN;
+		ethtool_sprintf(&data, "rx%d_packets", i);
+		ethtool_sprintf(&data, "rx%d_bytes", i);
+		ethtool_sprintf(&data, "rx%d_interrupts", i);
 	}
 }
 
