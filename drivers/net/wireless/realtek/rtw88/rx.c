@@ -234,10 +234,14 @@ static void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 	else
 		rx_status->bw = RATE_INFO_BW_20;
 
-	rx_status->signal = pkt_stat->signal_power;
-	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
-		rx_status->chains |= BIT(path);
-		rx_status->chain_signal[path] = pkt_stat->rx_power[path];
+	if (pkt_stat->phy_status) {
+		rx_status->signal = pkt_stat->signal_power;
+		for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+			rx_status->chains |= BIT(path);
+			rx_status->chain_signal[path] = pkt_stat->rx_power[path];
+		}
+	} else {
+		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 	}
 
 	rtw_rx_addr_match(rtwdev, pkt_stat, hdr);
