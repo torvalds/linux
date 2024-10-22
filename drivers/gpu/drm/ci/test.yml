@@ -286,6 +286,15 @@ i915:tgl:
     GPU_VERSION: tgl
     RUNNER_TAG: mesa-ci-x86-64-lava-acer-cp514-2h-1130g7-volteer
 
+i915:jsl:
+  extends:
+    - .i915
+  parallel: 4
+  variables:
+    DEVICE_TYPE: acer-cb317-1h-c3z6-dedede
+    GPU_VERSION: jsl
+    RUNNER_TAG: mesa-ci-x86-64-lava-acer-cb317-1h-c3z6-dedede
+
 .amdgpu:
   extends:
     - .lava-igt:x86_64
