@@ -165,8 +165,7 @@ struct lowcore {
 	__u64	percpu_offset;			/* 0x03b8 */
 	__u8	pad_0x03c0[0x03c8-0x03c0];	/* 0x03c0 */
 	__u64	machine_flags;			/* 0x03c8 */
-	__u64	gmap;				/* 0x03d0 */
-	__u8	pad_0x03d8[0x0400-0x03d8];	/* 0x03d8 */
+	__u8	pad_0x03d0[0x0400-0x03d0];	/* 0x03d0 */
 
 	__u32	return_lpswe;			/* 0x0400 */
 	__u32	return_mcck_lpswe;		/* 0x0404 */
