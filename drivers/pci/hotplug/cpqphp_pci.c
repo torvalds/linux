@@ -132,20 +132,6 @@ int cpqhp_unconfigure_device(struct pci_func *func)
 	return 0;
 }
 
-static int PCI_RefinedAccessConfig(struct pci_bus *bus, unsigned int devfn, u8 offset, u32 *value)
-{
-	u32 vendID = 0;
-	int ret;
-
-	ret = pci_bus_read_config_dword(bus, devfn, PCI_VENDOR_ID, &vendID);
-	if (ret != PCIBIOS_SUCCESSFUL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (PCI_POSSIBLE_ERROR(vendID))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	return pci_bus_read_config_dword(bus, devfn, offset, value);
-}
-
-
 /*
  * cpqhp_set_irq
  *
@@ -211,7 +197,9 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 *dev_
 
 	for (tdevice = 0; tdevice < 0xFF; tdevice++) {
 		/* Scan for access first */
-		ret = PCI_RefinedAccessConfig(ctrl->pci_bus, tdevice, 0x08, &work);
+		if (!pci_bus_read_dev_vendor_id(ctrl->pci_bus, tdevice, &work, 0))
+			continue;
+		ret = pci_bus_read_config_dword(ctrl->pci_bus, tdevice, 0x08, &work);
 		if (ret)
 			continue;
 		dbg("Looking for nonbridge bus_num %d dev_num %d\n", bus_num, tdevice);
@@ -224,7 +212,9 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 *dev_
 	}
 	for (tdevice = 0; tdevice < 0xFF; tdevice++) {
 		/* Scan for access first */
-		ret = PCI_RefinedAccessConfig(ctrl->pci_bus, tdevice, 0x08, &work);
+		if (!pci_bus_read_dev_vendor_id(ctrl->pci_bus, tdevice, &work, 0))
+			continue;
+		ret = pci_bus_read_config_dword(ctrl->pci_bus, tdevice, 0x08, &work);
 		if (ret)
 			continue;
 		dbg("Looking for bridge bus_num %d dev_num %d\n", bus_num, tdevice);
