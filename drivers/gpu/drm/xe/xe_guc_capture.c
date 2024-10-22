@@ -1590,6 +1590,9 @@ xe_engine_manual_capture(struct xe_hw_engine *hwe, struct xe_hw_engine_snapshot 
 	u16 guc_id = 0;
 	u32 lrca = 0;
 
+	if (IS_SRIOV_VF(xe))
+		return;
+
 	new = guc_capture_get_prealloc_node(guc);
 	if (!new)
 		return;
@@ -1820,7 +1823,7 @@ xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
 		return NULL;
 
 	xe = gt_to_xe(q->gt);
-	if (xe->wedged.mode >= 2 || !xe_device_uc_enabled(xe))
+	if (xe->wedged.mode >= 2 || !xe_device_uc_enabled(xe) || IS_SRIOV_VF(xe))
 		return NULL;
 
 	ss = &xe->devcoredump.snapshot;
@@ -1875,6 +1878,9 @@ xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 	u32 adj_logical_mask = q->logical_mask;
+
+	if (IS_SRIOV_VF(xe))
+		return;
 
 	for_each_hw_engine(hwe, q->gt, id) {
 		if (hwe->class != q->hwe->class ||
