@@ -49,170 +49,170 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		CPU0: cpu@100 {
+		cpu0: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
-			L2_1: l2-cache {
+			next-level-cache = <&l2_1>;
+			l2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
 			};
 		};
 
-		CPU1: cpu@101 {
+		cpu1: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
+			next-level-cache = <&l2_1>;
 		};
 
-		CPU2: cpu@102 {
+		cpu2: cpu@102 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
+			next-level-cache = <&l2_1>;
 		};
 
-		CPU3: cpu@103 {
+		cpu3: cpu@103 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
-			cpu-idle-states = <&PERF_CPU_SLEEP_0
-						&PERF_CPU_SLEEP_1
-						&PERF_CLUSTER_SLEEP_0
-						&PERF_CLUSTER_SLEEP_1
-						&PERF_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&perf_cpu_sleep_0
+						&perf_cpu_sleep_1
+						&perf_cluster_sleep_0
+						&perf_cluster_sleep_1
+						&perf_cluster_sleep_2>;
 			capacity-dmips-mhz = <1126>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_1>;
+			next-level-cache = <&l2_1>;
 		};
 
-		CPU4: cpu@0 {
+		cpu4: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
-			L2_0: l2-cache {
+			next-level-cache = <&l2_0>;
+			l2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
 			};
 		};
 
-		CPU5: cpu@1 {
+		cpu5: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
+			next-level-cache = <&l2_0>;
 		};
 
-		CPU6: cpu@2 {
+		cpu6: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
+			next-level-cache = <&l2_0>;
 		};
 
-		CPU7: cpu@3 {
+		cpu7: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			cpu-idle-states = <&PWR_CPU_SLEEP_0
-						&PWR_CPU_SLEEP_1
-						&PWR_CLUSTER_SLEEP_0
-						&PWR_CLUSTER_SLEEP_1
-						&PWR_CLUSTER_SLEEP_2>;
+			cpu-idle-states = <&pwr_cpu_sleep_0
+						&pwr_cpu_sleep_1
+						&pwr_cluster_sleep_0
+						&pwr_cluster_sleep_1
+						&pwr_cluster_sleep_2>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
-			next-level-cache = <&L2_0>;
+			next-level-cache = <&l2_0>;
 		};
 
 		cpu-map {
 			cluster0 {
 				core0 {
-					cpu = <&CPU4>;
+					cpu = <&cpu4>;
 				};
 
 				core1 {
-					cpu = <&CPU5>;
+					cpu = <&cpu5>;
 				};
 
 				core2 {
-					cpu = <&CPU6>;
+					cpu = <&cpu6>;
 				};
 
 				core3 {
-					cpu = <&CPU7>;
+					cpu = <&cpu7>;
 				};
 			};
 
 			cluster1 {
 				core0 {
-					cpu = <&CPU0>;
+					cpu = <&cpu0>;
 				};
 
 				core1 {
-					cpu = <&CPU1>;
+					cpu = <&cpu1>;
 				};
 
 				core2 {
-					cpu = <&CPU2>;
+					cpu = <&cpu2>;
 				};
 
 				core3 {
-					cpu = <&CPU3>;
+					cpu = <&cpu3>;
 				};
 			};
 		};
@@ -220,7 +220,7 @@
 		idle-states {
 			entry-method = "psci";
 
-			PWR_CPU_SLEEP_0: cpu-sleep-0-0 {
+			pwr_cpu_sleep_0: cpu-sleep-0-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-retention";
 				arm,psci-suspend-param = <0x40000002>;
@@ -229,7 +229,7 @@
 				min-residency-us = <200>;
 			};
 
-			PWR_CPU_SLEEP_1: cpu-sleep-0-1 {
+			pwr_cpu_sleep_1: cpu-sleep-0-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-power-collapse";
 				arm,psci-suspend-param = <0x40000003>;
@@ -239,7 +239,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CPU_SLEEP_0: cpu-sleep-1-0 {
+			perf_cpu_sleep_0: cpu-sleep-1-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-retention";
 				arm,psci-suspend-param = <0x40000002>;
@@ -248,7 +248,7 @@
 				min-residency-us = <200>;
 			};
 
-			PERF_CPU_SLEEP_1: cpu-sleep-1-1 {
+			perf_cpu_sleep_1: cpu-sleep-1-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-power-collapse";
 				arm,psci-suspend-param = <0x40000003>;
@@ -258,7 +258,7 @@
 				local-timer-stop;
 			};
 
-			PWR_CLUSTER_SLEEP_0: cluster-sleep-0-0 {
+			pwr_cluster_sleep_0: cluster-sleep-0-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-dynamic-retention";
 				arm,psci-suspend-param = <0x400000F2>;
@@ -268,7 +268,7 @@
 				local-timer-stop;
 			};
 
-			PWR_CLUSTER_SLEEP_1: cluster-sleep-0-1 {
+			pwr_cluster_sleep_1: cluster-sleep-0-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-retention";
 				arm,psci-suspend-param = <0x400000F3>;
@@ -278,7 +278,7 @@
 				local-timer-stop;
 			};
 
-			PWR_CLUSTER_SLEEP_2: cluster-sleep-0-2 {
+			pwr_cluster_sleep_2: cluster-sleep-0-2 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-retention";
 				arm,psci-suspend-param = <0x400000F4>;
@@ -288,7 +288,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CLUSTER_SLEEP_0: cluster-sleep-1-0 {
+			perf_cluster_sleep_0: cluster-sleep-1-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-dynamic-retention";
 				arm,psci-suspend-param = <0x400000F2>;
@@ -298,7 +298,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CLUSTER_SLEEP_1: cluster-sleep-1-1 {
+			perf_cluster_sleep_1: cluster-sleep-1-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-retention";
 				arm,psci-suspend-param = <0x400000F3>;
@@ -308,7 +308,7 @@
 				local-timer-stop;
 			};
 
-			PERF_CLUSTER_SLEEP_2: cluster-sleep-1-2 {
+			perf_cluster_sleep_2: cluster-sleep-1-2 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-retention";
 				arm,psci-suspend-param = <0x400000F4>;
