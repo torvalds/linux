@@ -3124,9 +3124,39 @@ found:
 		goto retry;
 }
 
+#ifdef CONFIG_SCHED_MC
+/*
+ * Return the cpumask of CPUs usable by task @p in the same LLC domain of @cpu,
+ * or NULL if the LLC domain cannot be determined.
+ */
+static const struct cpumask *llc_domain(const struct task_struct *p, s32 cpu)
+{
+	struct sched_domain *sd = rcu_dereference(per_cpu(sd_llc, cpu));
+	const struct cpumask *llc_cpus = sd ? sched_domain_span(sd) : NULL;
+
+	/*
+	 * Return the LLC domain only if the task is allowed to run on all
+	 * CPUs.
+	 */
+	return p->nr_cpus_allowed == nr_cpu_ids ? llc_cpus : NULL;
+}
+#else /* CONFIG_SCHED_MC */
+static inline const struct cpumask *llc_domain(struct task_struct *p, s32 cpu)
+{
+	return NULL;
+}
+#endif /* CONFIG_SCHED_MC */
+
+/*
+ * Built-in cpu idle selection policy.
+ *
+ * NOTE: tasks that can only run on 1 CPU are excluded by this logic, because
+ * we never call ops.select_cpu() for them, see select_task_rq().
+ */
 static s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 			      u64 wake_flags, bool *found)
 {
+	const struct cpumask *llc_cpus = llc_domain(p, prev_cpu);
 	s32 cpu;
 
 	*found = false;
@@ -3178,22 +3208,52 @@ static s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 	 * partially idle @prev_cpu.
 	 */
 	if (sched_smt_active()) {
+		/*
+		 * Keep using @prev_cpu if it's part of a fully idle core.
+		 */
 		if (cpumask_test_cpu(prev_cpu, idle_masks.smt) &&
 		    test_and_clear_cpu_idle(prev_cpu)) {
 			cpu = prev_cpu;
 			goto cpu_found;
 		}
 
+		/*
+		 * Search for any fully idle core in the same LLC domain.
+		 */
+		if (llc_cpus) {
+			cpu = scx_pick_idle_cpu(llc_cpus, SCX_PICK_IDLE_CORE);
+			if (cpu >= 0)
+				goto cpu_found;
+		}
+
+		/*
+		 * Search for any full idle core usable by the task.
+		 */
 		cpu = scx_pick_idle_cpu(p->cpus_ptr, SCX_PICK_IDLE_CORE);
 		if (cpu >= 0)
 			goto cpu_found;
 	}
 
+	/*
+	 * Use @prev_cpu if it's idle.
+	 */
 	if (test_and_clear_cpu_idle(prev_cpu)) {
 		cpu = prev_cpu;
 		goto cpu_found;
 	}
 
+	/*
+	 * Search for any idle CPU in the same LLC domain.
+	 */
+	if (llc_cpus) {
+		cpu = scx_pick_idle_cpu(llc_cpus, 0);
+		if (cpu >= 0)
+			goto cpu_found;
+	}
+
+	/*
+	 * Search for any idle CPU usable by the task.
+	 */
 	cpu = scx_pick_idle_cpu(p->cpus_ptr, 0);
 	if (cpu >= 0)
 		goto cpu_found;
