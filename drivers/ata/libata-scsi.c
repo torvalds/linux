@@ -3388,12 +3388,16 @@ static unsigned int ata_scsiop_maint_in(struct ata_scsi_args *args, u8 *rbuf)
 	struct ata_device *dev = args->dev;
 	u8 *cdb = args->cmd->cmnd;
 	u8 supported = 0, cdlp = 0, rwcdlp = 0;
-	unsigned int err = 0;
+
+	if ((cdb[1] & 0x1f) != MI_REPORT_SUPPORTED_OPERATION_CODES) {
+		ata_scsi_set_invalid_field(dev, args->cmd, 1, 0xff);
+		return 1;
+	}
 
 	if (cdb[2] != 1 && cdb[2] != 3) {
 		ata_dev_warn(dev, "invalid command format %d\n", cdb[2]);
-		err = 2;
-		goto out;
+		ata_scsi_set_invalid_field(dev, args->cmd, 1, 0xff);
+		return 1;
 	}
 
 	switch (cdb[3]) {
@@ -3461,11 +3465,12 @@ static unsigned int ata_scsiop_maint_in(struct ata_scsi_args *args, u8 *rbuf)
 	default:
 		break;
 	}
-out:
+
 	/* One command format */
 	rbuf[0] = rwcdlp;
 	rbuf[1] = cdlp | supported;
-	return err;
+
+	return 0;
 }
 
 /**
@@ -4377,10 +4382,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		break;
 
 	case MAINTENANCE_IN:
-		if ((scsicmd[1] & 0x1f) == MI_REPORT_SUPPORTED_OPERATION_CODES)
-			ata_scsi_rbuf_fill(&args, ata_scsiop_maint_in);
-		else
-			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		ata_scsi_rbuf_fill(&args, ata_scsiop_maint_in);
 		break;
 
 	/* all other commands */
