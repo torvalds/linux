@@ -295,6 +295,9 @@ int uvc_status_init(struct uvc_device *dev)
 
 void uvc_status_unregister(struct uvc_device *dev)
 {
+	if (!dev->status)
+		return;
+
 	uvc_status_suspend(dev);
 	uvc_input_unregister(dev);
 }
