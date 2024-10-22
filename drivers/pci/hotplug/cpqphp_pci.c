@@ -199,7 +199,7 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 *dev_
 		/* Scan for access first */
 		if (!pci_bus_read_dev_vendor_id(ctrl->pci_bus, tdevice, &work, 0))
 			continue;
-		ret = pci_bus_read_config_dword(ctrl->pci_bus, tdevice, 0x08, &work);
+		ret = pci_bus_read_config_dword(ctrl->pci_bus, tdevice, PCI_CLASS_REVISION, &work);
 		if (ret)
 			continue;
 		dbg("Looking for nonbridge bus_num %d dev_num %d\n", bus_num, tdevice);
@@ -214,7 +214,7 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 *dev_
 		/* Scan for access first */
 		if (!pci_bus_read_dev_vendor_id(ctrl->pci_bus, tdevice, &work, 0))
 			continue;
-		ret = pci_bus_read_config_dword(ctrl->pci_bus, tdevice, 0x08, &work);
+		ret = pci_bus_read_config_dword(ctrl->pci_bus, tdevice, PCI_CLASS_REVISION, &work);
 		if (ret)
 			continue;
 		dbg("Looking for bridge bus_num %d dev_num %d\n", bus_num, tdevice);
