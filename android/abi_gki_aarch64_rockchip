@@ -2105,6 +2105,7 @@
 # required by pcie-dw-rockchip.ko
   device_release_driver
   dw_pcie_find_ext_capability
+  dw_pcie_host_deinit
   dw_pcie_host_init
   dw_pcie_link_up
   dw_pcie_read
