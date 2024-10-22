@@ -187,6 +187,16 @@ enum mce_notifier_prios {
 	MCE_PRIO_HIGHEST = MCE_PRIO_CEC
 };
 
+/**
+ * struct mce_hw_err - Hardware Error Record.
+ * @m:		Machine Check record.
+ */
+struct mce_hw_err {
+	struct mce m;
+};
+
+#define	to_mce_hw_err(mce) container_of(mce, struct mce_hw_err, m)
+
 struct notifier_block;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
@@ -221,8 +231,8 @@ static inline int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info,
 					     u64 lapic_id) { return -EINVAL; }
 #endif
 
-void mce_prep_record(struct mce *m);
-void mce_log(struct mce *m);
+void mce_prep_record(struct mce_hw_err *err);
+void mce_log(struct mce_hw_err *err);
 DECLARE_PER_CPU(struct device *, mce_device);
 
 /* Maximum number of MCA banks per CPU. */

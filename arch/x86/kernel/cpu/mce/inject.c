@@ -502,8 +502,9 @@ static void prepare_msrs(void *info)
 
 static void do_inject(void)
 {
-	u64 mcg_status = 0;
 	unsigned int cpu = i_mce.extcpu;
+	struct mce_hw_err err;
+	u64 mcg_status = 0;
 	u8 b = i_mce.bank;
 
 	i_mce.tsc = rdtsc_ordered();
@@ -517,7 +518,8 @@ static void do_inject(void)
 		i_mce.status |= MCI_STATUS_SYNDV;
 
 	if (inj_type == SW_INJ) {
-		mce_log(&i_mce);
+		err.m = i_mce;
+		mce_log(&err);
 		return;
 	}
 
