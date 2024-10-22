@@ -708,7 +708,7 @@ static void rtnl_af_put(struct rtnl_af_ops *ops, int srcu_index)
  * rtnl_af_register - Register rtnl_af_ops with rtnetlink.
  * @ops: struct rtnl_af_ops * to register
  *
- * Returns 0 on success or a negative error code.
+ * Return: 0 on success or a negative error code.
  */
 int rtnl_af_register(struct rtnl_af_ops *ops)
 {
