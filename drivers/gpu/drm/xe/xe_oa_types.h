@@ -239,6 +239,9 @@ struct xe_oa_stream {
 	/** @no_preempt: Whether preemption and timeslicing is disabled for stream exec_q */
 	u32 no_preempt;
 
+	/** @last_fence: fence to use in stream destroy when needed */
+	struct dma_fence *last_fence;
+
 	/** @num_syncs: size of @syncs array */
 	u32 num_syncs;
 
