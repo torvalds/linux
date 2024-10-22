@@ -46,11 +46,6 @@
 #include <asm/uv.h>
 #include "../kernel/entry.h"
 
-enum fault_type {
-	KERNEL_FAULT,
-	USER_FAULT,
-};
-
 static DEFINE_STATIC_KEY_FALSE(have_store_indication);
 
 static int __init fault_init(void)
@@ -64,15 +59,15 @@ early_initcall(fault_init);
 /*
  * Find out which address space caused the exception.
  */
-static enum fault_type get_fault_type(struct pt_regs *regs)
+static bool is_kernel_fault(struct pt_regs *regs)
 {
 	union teid teid = { .val = regs->int_parm_long };
 
 	if (user_mode(regs))
-		return USER_FAULT;
+		return false;
 	if (teid.as == PSW_BITS_AS_SECONDARY)
-		return USER_FAULT;
-	return KERNEL_FAULT;
+		return false;
+	return true;
 }
 
 static unsigned long get_fault_address(struct pt_regs *regs)
@@ -167,17 +162,12 @@ static void dump_fault_info(struct pt_regs *regs)
 		break;
 	}
 	pr_cont("mode while using ");
-	switch (get_fault_type(regs)) {
-	case USER_FAULT:
-		asce = get_lowcore()->user_asce.val;
-		pr_cont("user ");
-		break;
-	case KERNEL_FAULT:
+	if (is_kernel_fault(regs)) {
 		asce = get_lowcore()->kernel_asce.val;
 		pr_cont("kernel ");
-		break;
-	default:
-		unreachable();
+	} else {
+		asce = get_lowcore()->user_asce.val;
+		pr_cont("user ");
 	}
 	pr_cont("ASCE.\n");
 	dump_pagetable(asce, get_fault_address(regs));
@@ -212,7 +202,6 @@ static void do_sigsegv(struct pt_regs *regs, int si_code)
 
 static void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
 {
-	enum fault_type fault_type;
 	unsigned long address;
 	bool is_write;
 
@@ -223,17 +212,15 @@ static void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
 	}
 	if (fixup_exception(regs))
 		return;
-	fault_type = get_fault_type(regs);
-	if (fault_type == KERNEL_FAULT) {
+	if (is_kernel_fault(regs)) {
 		address = get_fault_address(regs);
 		is_write = fault_is_write(regs);
 		if (kfence_handle_page_fault(address, is_write, regs))
 			return;
-	}
-	if (fault_type == KERNEL_FAULT)
 		pr_alert("Unable to handle kernel pointer dereference in virtual kernel address space\n");
-	else
+	} else {
 		pr_alert("Unable to handle kernel paging request in virtual user address space\n");
+	}
 	dump_fault_info(regs);
 	die(regs, "Oops");
 }
@@ -267,7 +254,6 @@ static void do_exception(struct pt_regs *regs, int access)
 	struct vm_area_struct *vma;
 	unsigned long address;
 	struct mm_struct *mm;
-	enum fault_type type;
 	unsigned int flags;
 	vm_fault_t fault;
 	bool is_write;
@@ -282,15 +268,8 @@ static void do_exception(struct pt_regs *regs, int access)
 	mm = current->mm;
 	address = get_fault_address(regs);
 	is_write = fault_is_write(regs);
-	type = get_fault_type(regs);
-	switch (type) {
-	case KERNEL_FAULT:
+	if (is_kernel_fault(regs) || faulthandler_disabled() || !mm)
 		return handle_fault_error_nolock(regs, 0);
-	case USER_FAULT:
-		if (faulthandler_disabled() || !mm)
-			return handle_fault_error_nolock(regs, 0);
-		break;
-	}
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
@@ -460,8 +439,15 @@ void do_secure_storage_access(struct pt_regs *regs)
 		 */
 		panic("Unexpected PGM 0x3d with TEID bit 61=0");
 	}
-	switch (get_fault_type(regs)) {
-	case USER_FAULT:
+	if (is_kernel_fault(regs)) {
+		folio = phys_to_folio(addr);
+		if (unlikely(!folio_try_get(folio)))
+			return;
+		rc = arch_make_folio_accessible(folio);
+		folio_put(folio);
+		if (rc)
+			BUG();
+	} else {
 		mm = current->mm;
 		mmap_read_lock(mm);
 		vma = find_vma(mm, addr);
@@ -470,7 +456,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		folio = folio_walk_start(&fw, vma, addr, 0);
 		if (!folio) {
 			mmap_read_unlock(mm);
-			break;
+			return;
 		}
 		/* arch_make_folio_accessible() needs a raised refcount. */
 		folio_get(folio);
@@ -480,18 +466,6 @@ void do_secure_storage_access(struct pt_regs *regs)
 		if (rc)
 			send_sig(SIGSEGV, current, 0);
 		mmap_read_unlock(mm);
-		break;
-	case KERNEL_FAULT:
-		folio = phys_to_folio(addr);
-		if (unlikely(!folio_try_get(folio)))
-			break;
-		rc = arch_make_folio_accessible(folio);
-		folio_put(folio);
-		if (rc)
-			BUG();
-		break;
-	default:
-		unreachable();
 	}
 }
 NOKPROBE_SYMBOL(do_secure_storage_access);
