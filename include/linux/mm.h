@@ -4207,7 +4207,7 @@ static inline void pgalloc_tag_copy(struct folio *new, struct folio *old)
 	/* Clear the old ref to the original allocation tag. */
 	clear_page_tag_ref(&old->page);
 	/* Decrement the counters of the tag on get_new_folio. */
-	alloc_tag_sub(ref, folio_nr_pages(new));
+	alloc_tag_sub(ref, folio_size(new));
 
 	__alloc_tag_ref_set(ref, tag);
 
