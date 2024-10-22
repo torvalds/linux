@@ -74,10 +74,8 @@ struct io_sr_msg {
 	unsigned			nr_multishot_loops;
 	u16				flags;
 	/* initialised and used only by !msg send variants */
-	u16				addr_len;
 	u16				buf_group;
 	u16				buf_index;
-	void __user			*addr;
 	void __user			*msg_control;
 	/* used only for send zerocopy */
 	struct io_kiocb 		*notif;
@@ -357,11 +355,16 @@ void io_sendmsg_recvmsg_cleanup(struct io_kiocb *req)
 	io_netmsg_iovec_free(io);
 }
 
-static int io_send_setup(struct io_kiocb *req)
+static int io_send_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
+	void __user *addr;
+	u16 addr_len;
 	int ret;
+
+	if (READ_ONCE(sqe->__pad3[0]))
+		return -EINVAL;
 
 	kmsg->msg.msg_name = NULL;
 	kmsg->msg.msg_namelen = 0;
@@ -369,12 +372,14 @@ static int io_send_setup(struct io_kiocb *req)
 	kmsg->msg.msg_controllen = 0;
 	kmsg->msg.msg_ubuf = NULL;
 
-	if (sr->addr) {
-		ret = move_addr_to_kernel(sr->addr, sr->addr_len, &kmsg->addr);
+	addr = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+	addr_len = READ_ONCE(sqe->addr_len);
+	if (addr) {
+		ret = move_addr_to_kernel(addr, addr_len, &kmsg->addr);
 		if (unlikely(ret < 0))
 			return ret;
 		kmsg->msg.msg_name = &kmsg->addr;
-		kmsg->msg.msg_namelen = sr->addr_len;
+		kmsg->msg.msg_namelen = addr_len;
 	}
 	if (!io_do_buffer_select(req)) {
 		ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len,
@@ -404,13 +409,9 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	sr->done_io = 0;
 
-	if (req->opcode == IORING_OP_SEND) {
-		if (READ_ONCE(sqe->__pad3[0]))
+	if (req->opcode != IORING_OP_SEND) {
+		if (sqe->addr2 || sqe->file_index)
 			return -EINVAL;
-		sr->addr = u64_to_user_ptr(READ_ONCE(sqe->addr2));
-		sr->addr_len = READ_ONCE(sqe->addr_len);
-	} else if (sqe->addr2 || sqe->file_index) {
-		return -EINVAL;
 	}
 
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -438,7 +439,7 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (unlikely(!io_msg_alloc_async(req)))
 		return -ENOMEM;
 	if (req->opcode != IORING_OP_SENDMSG)
-		return io_send_setup(req);
+		return io_send_setup(req, sqe);
 	return io_sendmsg_setup(req);
 }
 
@@ -1254,12 +1255,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		}
 	}
 
-	if (req->opcode == IORING_OP_SEND_ZC) {
-		if (READ_ONCE(sqe->__pad3[0]))
-			return -EINVAL;
-		zc->addr = u64_to_user_ptr(READ_ONCE(sqe->addr2));
-		zc->addr_len = READ_ONCE(sqe->addr_len);
-	} else {
+	if (req->opcode != IORING_OP_SEND_ZC) {
 		if (unlikely(sqe->addr2 || sqe->file_index))
 			return -EINVAL;
 		if (unlikely(zc->flags & IORING_RECVSEND_FIXED_BUF))
@@ -1280,7 +1276,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (unlikely(!io_msg_alloc_async(req)))
 		return -ENOMEM;
 	if (req->opcode != IORING_OP_SENDMSG_ZC)
-		return io_send_setup(req);
+		return io_send_setup(req, sqe);
 	return io_sendmsg_setup(req);
 }
 
