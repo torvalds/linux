@@ -435,7 +435,6 @@ void pci_walk_bus_locked(struct pci_bus *top, int (*cb)(struct pci_dev *, void *
 
 	__pci_walk_bus(top, cb, userdata);
 }
-EXPORT_SYMBOL_GPL(pci_walk_bus_locked);
 
 struct pci_bus *pci_bus_get(struct pci_bus *bus)
 {

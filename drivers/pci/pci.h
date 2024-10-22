@@ -323,6 +323,9 @@ void __pci_bus_assign_resources(const struct pci_bus *bus,
 				struct list_head *realloc_head,
 				struct list_head *fail_head);
 bool pci_bus_clip_resource(struct pci_dev *dev, int idx);
+void pci_walk_bus_locked(struct pci_bus *top,
+			 int (*cb)(struct pci_dev *, void *),
+			 void *userdata);
 
 const char *pci_resource_name(struct pci_dev *dev, unsigned int i);
 
