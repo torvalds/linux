@@ -417,13 +417,6 @@ void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba)
 }
 EXPORT_SYMBOL_GPL(ufshcd_mcq_make_queues_operational);
 
-void ufshcd_mcq_enable_esi(struct ufs_hba *hba)
-{
-	ufshcd_writel(hba, ufshcd_readl(hba, REG_UFS_MEM_CFG) | 0x2,
-		      REG_UFS_MEM_CFG);
-}
-EXPORT_SYMBOL_GPL(ufshcd_mcq_enable_esi);
-
 void ufshcd_mcq_enable(struct ufs_hba *hba)
 {
 	ufshcd_rmwl(hba, MCQ_MODE_SELECT, MCQ_MODE_SELECT, REG_UFS_MEM_CFG);
@@ -436,6 +429,13 @@ void ufshcd_mcq_disable(struct ufs_hba *hba)
 	ufshcd_rmwl(hba, MCQ_MODE_SELECT, 0, REG_UFS_MEM_CFG);
 	hba->mcq_enabled = false;
 }
+
+void ufshcd_mcq_enable_esi(struct ufs_hba *hba)
+{
+	ufshcd_writel(hba, ufshcd_readl(hba, REG_UFS_MEM_CFG) | 0x2,
+		      REG_UFS_MEM_CFG);
+}
+EXPORT_SYMBOL_GPL(ufshcd_mcq_enable_esi);
 
 void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg)
 {
