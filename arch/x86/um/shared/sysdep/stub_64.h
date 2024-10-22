@@ -126,4 +126,12 @@ static __always_inline void *get_stub_data(void)
 
 	return (void *)ret;
 }
+
+#define stub_start(fn)							\
+	asm volatile (							\
+		"subq %0,%%rsp ;"					\
+		"movq %1,%%rax ;"					\
+		"call *%%rax ;"						\
+		:: "i" ((1 + STUB_DATA_PAGES) * UM_KERN_PAGE_SIZE),	\
+		   "i" (&fn))
 #endif

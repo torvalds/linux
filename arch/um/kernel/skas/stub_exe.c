@@ -81,11 +81,15 @@ noinline static void real_init(void)
 
 __attribute__((naked)) void _start(void)
 {
-	char *alloc;
-
-	/* Make enough space for the stub (including space for alignment) */
-	alloc = __builtin_alloca((1 + 2 * STUB_DATA_PAGES - 1) * UM_KERN_PAGE_SIZE);
-	asm volatile("" : "+r,m"(alloc) : : "memory");
-
-	real_init();
+	/*
+	 * Since the stack after exec() starts at the top-most address,
+	 * but that's exactly where we also want to map the stub data
+	 * and code, this must:
+	 *  - push the stack by 1 code and STUB_DATA_PAGES data pages
+	 *  - call real_init()
+	 * This way, real_init() can use the stack normally, while the
+	 * original stack further down (higher address) will become
+	 * inaccessible after the mmap() calls above.
+	 */
+	stub_start(real_init);
 }
