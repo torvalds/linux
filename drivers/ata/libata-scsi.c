@@ -2579,6 +2579,7 @@ saving_not_supp:
 static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 {
 	struct ata_device *dev = args->dev;
+	u8 *scsicmd = args->cmd->cmnd;
 	u64 last_lba = dev->n_sectors - 1; /* LBA of the last block */
 	u32 sector_size; /* physical sector size in bytes */
 	u8 log2_per_phys;
@@ -2588,7 +2589,7 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 	log2_per_phys = ata_id_log2_per_physical_sector(dev->id);
 	lowest_aligned = ata_id_logical_sector_offset(dev->id, log2_per_phys);
 
-	if (args->cmd->cmnd[0] == READ_CAPACITY) {
+	if (scsicmd[0] == READ_CAPACITY) {
 		if (last_lba >= 0xffffffffULL)
 			last_lba = 0xffffffff;
 
@@ -2603,42 +2604,52 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 		rbuf[5] = sector_size >> (8 * 2);
 		rbuf[6] = sector_size >> (8 * 1);
 		rbuf[7] = sector_size;
-	} else {
-		/* sector count, 64-bit */
-		rbuf[0] = last_lba >> (8 * 7);
-		rbuf[1] = last_lba >> (8 * 6);
-		rbuf[2] = last_lba >> (8 * 5);
-		rbuf[3] = last_lba >> (8 * 4);
-		rbuf[4] = last_lba >> (8 * 3);
-		rbuf[5] = last_lba >> (8 * 2);
-		rbuf[6] = last_lba >> (8 * 1);
-		rbuf[7] = last_lba;
 
-		/* sector size */
-		rbuf[ 8] = sector_size >> (8 * 3);
-		rbuf[ 9] = sector_size >> (8 * 2);
-		rbuf[10] = sector_size >> (8 * 1);
-		rbuf[11] = sector_size;
-
-		rbuf[12] = 0;
-		rbuf[13] = log2_per_phys;
-		rbuf[14] = (lowest_aligned >> 8) & 0x3f;
-		rbuf[15] = lowest_aligned;
-
-		if (ata_id_has_trim(args->id) &&
-		    !(dev->quirks & ATA_QUIRK_NOTRIM)) {
-			rbuf[14] |= 0x80; /* LBPME */
-
-			if (ata_id_has_zero_after_trim(args->id) &&
-			    dev->quirks & ATA_QUIRK_ZERO_AFTER_TRIM) {
-				ata_dev_info(dev, "Enabling discard_zeroes_data\n");
-				rbuf[14] |= 0x40; /* LBPRZ */
-			}
-		}
-		if (ata_id_zoned_cap(args->id) ||
-		    args->dev->class == ATA_DEV_ZAC)
-			rbuf[12] = (1 << 4); /* RC_BASIS */
+		return 0;
 	}
+
+	/*
+	 * READ CAPACITY 16 command is defined as a service action
+	 * (SERVICE_ACTION_IN_16 command).
+	 */
+	if (scsicmd[0] != SERVICE_ACTION_IN_16 ||
+	    (scsicmd[1] & 0x1f) != SAI_READ_CAPACITY_16) {
+		ata_scsi_set_invalid_field(dev, args->cmd, 1, 0xff);
+		return 1;
+	}
+
+	/* sector count, 64-bit */
+	rbuf[0] = last_lba >> (8 * 7);
+	rbuf[1] = last_lba >> (8 * 6);
+	rbuf[2] = last_lba >> (8 * 5);
+	rbuf[3] = last_lba >> (8 * 4);
+	rbuf[4] = last_lba >> (8 * 3);
+	rbuf[5] = last_lba >> (8 * 2);
+	rbuf[6] = last_lba >> (8 * 1);
+	rbuf[7] = last_lba;
+
+	/* sector size */
+	rbuf[ 8] = sector_size >> (8 * 3);
+	rbuf[ 9] = sector_size >> (8 * 2);
+	rbuf[10] = sector_size >> (8 * 1);
+	rbuf[11] = sector_size;
+
+	if (ata_id_zoned_cap(args->id) || args->dev->class == ATA_DEV_ZAC)
+		rbuf[12] = (1 << 4); /* RC_BASIS */
+	rbuf[13] = log2_per_phys;
+	rbuf[14] = (lowest_aligned >> 8) & 0x3f;
+	rbuf[15] = lowest_aligned;
+
+	if (ata_id_has_trim(args->id) && !(dev->quirks & ATA_QUIRK_NOTRIM)) {
+		rbuf[14] |= 0x80; /* LBPME */
+
+		if (ata_id_has_zero_after_trim(args->id) &&
+		    dev->quirks & ATA_QUIRK_ZERO_AFTER_TRIM) {
+			ata_dev_info(dev, "Enabling discard_zeroes_data\n");
+			rbuf[14] |= 0x40; /* LBPRZ */
+		}
+	}
+
 	return 0;
 }
 
@@ -4333,14 +4344,8 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		break;
 
 	case READ_CAPACITY:
-		ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
-		break;
-
 	case SERVICE_ACTION_IN_16:
-		if ((scsicmd[1] & 0x1f) == SAI_READ_CAPACITY_16)
-			ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
-		else
-			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
 		break;
 
 	case REPORT_LUNS:
