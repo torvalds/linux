@@ -2188,7 +2188,7 @@ static struct cpuhp_step cpuhp_hp_states[] = {
 		.teardown.single	= tick_cpu_dying,
 	},
 	/* Entry state on starting. Interrupts enabled from here on. Transient
-	 * state for synchronsization */
+	 * state for synchronization */
 	[CPUHP_AP_ONLINE] = {
 		.name			= "ap:online",
 	},
@@ -2321,7 +2321,7 @@ static int cpuhp_store_callbacks(enum cpuhp_state state, const char *name,
 	 * CPUHP_AP_ONLINE_DYN and CPUHP_BP_PREPARE_DYN are handed out on
 	 * the first allocation from these dynamic ranges, so the removal
 	 * would trigger a new allocation and clear the wrong (already
-	 * empty) state, leaving the callbacks of the to be cleared state
+	 * empty) state, leaving the callbacks of the to-be-cleared state
 	 * dangling, which causes wreckage on the next hotplug operation.
 	 */
 	if (name && (state == CPUHP_AP_ONLINE_DYN ||
@@ -2359,7 +2359,7 @@ static int cpuhp_issue_call(int cpu, enum cpuhp_state state, bool bringup,
 	int ret;
 
 	/*
-	 * If there's nothing to do, we done.
+	 * If there's nothing to do, we are done.
 	 * Relies on the union for multi_instance.
 	 */
 	if (cpuhp_step_empty(bringup, sp))
@@ -2425,7 +2425,7 @@ int __cpuhp_state_add_instance_cpuslocked(enum cpuhp_state state,
 
 	/*
 	 * Try to call the startup callback for each present cpu
-	 * depending on the hotplug state of the cpu.
+	 * depending on the hotplug state of the CPU.
 	 */
 	for_each_present_cpu(cpu) {
 		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
@@ -2593,7 +2593,7 @@ remove:
 EXPORT_SYMBOL_GPL(__cpuhp_state_remove_instance);
 
 /**
- * __cpuhp_remove_state_cpuslocked - Remove the callbacks for an hotplug machine state
+ * __cpuhp_remove_state_cpuslocked - Remove the callbacks for a hotplug machine state
  * @state:	The state to remove
  * @invoke:	If true, the teardown function is invoked for cpus where
  *		cpu state >= @state
@@ -2654,7 +2654,7 @@ static void cpuhp_offline_cpu_device(unsigned int cpu)
 	struct device *dev = get_cpu_device(cpu);
 
 	dev->offline = true;
-	/* Tell user space about the state change */
+	/* Tell user-space about the state change */
 	kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
 }
 
@@ -2663,7 +2663,7 @@ static void cpuhp_online_cpu_device(unsigned int cpu)
 	struct device *dev = get_cpu_device(cpu);
 
 	dev->offline = false;
-	/* Tell user space about the state change */
+	/* Tell user-space about the state change */
 	kobject_uevent(&dev->kobj, KOBJ_ONLINE);
 }
 
@@ -2688,7 +2688,7 @@ int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval)
 		 * As this needs to hold the cpu maps lock it's impossible
 		 * to call device_offline() because that ends up calling
 		 * cpu_down() which takes cpu maps lock. cpu maps lock
-		 * needs to be held as this might race against in kernel
+		 * needs to be held as this might race against in-kernel
 		 * abusers of the hotplug machinery (thermal management).
 		 *
 		 * So nothing would update device:offline state. That would
