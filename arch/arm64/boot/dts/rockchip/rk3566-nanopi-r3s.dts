@@ -149,10 +149,6 @@
 		     &gmac1m0_rx_bus2
 		     &gmac1m0_rgmii_clk_level2
 		     &gmac1m0_rgmii_bus_level3>;
-	snps,reset-gpio = <&gpio4 RK_PC2 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
-	snps,reset-delays-us = <0 20000 100000>;
 	status = "okay";
 };
 
@@ -414,6 +410,9 @@
 		interrupts = <RK_PC3 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&eth_phy_reset_pin>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_LOW>;
 	};
 };
 
