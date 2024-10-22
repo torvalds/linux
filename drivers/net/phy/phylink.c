@@ -764,8 +764,8 @@ static int phylink_validate(struct phylink *pl, unsigned long *supported,
 static int phylink_parse_fixedlink(struct phylink *pl,
 				   const struct fwnode_handle *fwnode)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct fwnode_handle *fixed_node;
-	bool pause, asym_pause, autoneg;
 	const struct phy_setting *s;
 	struct gpio_desc *desc;
 	u32 speed;
@@ -838,22 +838,15 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 	linkmode_copy(pl->link_config.advertising, pl->supported);
 	phylink_validate(pl, pl->supported, &pl->link_config);
 
-	pause = phylink_test(pl->supported, Pause);
-	asym_pause = phylink_test(pl->supported, Asym_Pause);
-	autoneg = phylink_test(pl->supported, Autoneg);
 	s = phy_lookup_setting(pl->link_config.speed, pl->link_config.duplex,
 			       pl->supported, true);
-	linkmode_zero(pl->supported);
+
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mask);
+	linkmode_and(pl->supported, pl->supported, mask);
+
 	phylink_set(pl->supported, MII);
-
-	if (pause)
-		phylink_set(pl->supported, Pause);
-
-	if (asym_pause)
-		phylink_set(pl->supported, Asym_Pause);
-
-	if (autoneg)
-		phylink_set(pl->supported, Autoneg);
 
 	if (s) {
 		__set_bit(s->bit, pl->supported);
