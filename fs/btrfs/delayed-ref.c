@@ -624,7 +624,8 @@ void btrfs_unselect_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 	btrfs_delayed_ref_unlock(head);
 }
 
-void btrfs_delete_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
+void btrfs_delete_ref_head(const struct btrfs_fs_info *fs_info,
+			   struct btrfs_delayed_ref_root *delayed_refs,
 			   struct btrfs_delayed_ref_head *head)
 {
 	lockdep_assert_held(&delayed_refs->lock);
@@ -1294,7 +1295,7 @@ void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 		if (head->must_insert_reserved)
 			pin_bytes = true;
 		btrfs_free_delayed_extent_op(head->extent_op);
-		btrfs_delete_ref_head(delayed_refs, head);
+		btrfs_delete_ref_head(fs_info, delayed_refs, head);
 		spin_unlock(&head->lock);
 		spin_unlock(&delayed_refs->lock);
 		mutex_unlock(&head->mutex);
