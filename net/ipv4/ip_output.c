@@ -77,6 +77,7 @@
 #include <net/inetpeer.h>
 #include <net/inet_ecn.h>
 #include <net/lwtunnel.h>
+#include <net/inet_dscp.h>
 #include <linux/bpf-cgroup.h>
 #include <linux/igmp.h>
 #include <linux/netfilter_ipv4.h>
@@ -493,7 +494,7 @@ int __ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 					   inet->inet_dport,
 					   inet->inet_sport,
 					   sk->sk_protocol,
-					   RT_TOS(tos),
+					   tos & INET_DSCP_MASK,
 					   sk->sk_bound_dev_if);
 		if (IS_ERR(rt))
 			goto no_route;
@@ -1621,7 +1622,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 
 	flowi4_init_output(&fl4, oif,
 			   IP4_REPLY_MARK(net, skb->mark) ?: sk->sk_mark,
-			   RT_TOS(arg->tos),
+			   arg->tos & INET_DSCP_MASK,
 			   RT_SCOPE_UNIVERSE, ip_hdr(skb)->protocol,
 			   ip_reply_arg_flowi_flags(arg),
 			   daddr, saddr,

@@ -25,6 +25,10 @@
 /* RX mailbox client buffer max length */
 #define MBOX_CLIENT_BUF_MAX	(IPI_BUF_LEN_MAX + \
 				 sizeof(struct zynqmp_ipi_message))
+
+#define RSC_TBL_XLNX_MAGIC	((uint32_t)'x' << 24 | (uint32_t)'a' << 16 | \
+				 (uint32_t)'m' << 8 | (uint32_t)'p')
+
 /*
  * settings for RPU cluster mode which
  * reflects possible values of xlnx,cluster-mode dt-property
@@ -73,6 +77,26 @@ struct mbox_info {
 	struct mbox_chan *rx_chan;
 };
 
+/**
+ * struct rsc_tbl_data
+ *
+ * Platform specific data structure used to sync resource table address.
+ * It's important to maintain order and size of each field on remote side.
+ *
+ * @version: version of data structure
+ * @magic_num: 32-bit magic number.
+ * @comp_magic_num: complement of above magic number
+ * @rsc_tbl_size: resource table size
+ * @rsc_tbl: resource table address
+ */
+struct rsc_tbl_data {
+	const int version;
+	const u32 magic_num;
+	const u32 comp_magic_num;
+	const u32 rsc_tbl_size;
+	const uintptr_t rsc_tbl;
+} __packed;
+
 /*
  * Hardcoded TCM bank values. This will stay in driver to maintain backward
  * compatibility with device-tree that does not have TCM information.
@@ -95,20 +119,24 @@ static const struct mem_bank_data zynqmp_tcm_banks_lockstep[] = {
 /**
  * struct zynqmp_r5_core
  *
+ * @rsc_tbl_va: resource table virtual address
  * @dev: device of RPU instance
  * @np: device node of RPU instance
  * @tcm_bank_count: number TCM banks accessible to this RPU
  * @tcm_banks: array of each TCM bank data
  * @rproc: rproc handle
+ * @rsc_tbl_size: resource table size retrieved from remote
  * @pm_domain_id: RPU CPU power domain id
  * @ipi: pointer to mailbox information
  */
 struct zynqmp_r5_core {
+	void __iomem *rsc_tbl_va;
 	struct device *dev;
 	struct device_node *np;
 	int tcm_bank_count;
 	struct mem_bank_data **tcm_banks;
 	struct rproc *rproc;
+	u32 rsc_tbl_size;
 	u32 pm_domain_id;
 	struct mbox_info *ipi;
 };
@@ -557,6 +585,14 @@ static int add_tcm_banks(struct rproc *rproc)
 		dev_dbg(dev, "TCM carveout %s addr=%llx, da=0x%x, size=0x%lx",
 			bank_name, bank_addr, da, bank_size);
 
+		/*
+		 * In DETACHED state firmware is already running so no need to
+		 * request add TCM registers. However, request TCM PD node to let
+		 * platform management firmware know that TCM is in use.
+		 */
+		if (rproc->state == RPROC_DETACHED)
+			continue;
+
 		rproc_mem = rproc_mem_entry_init(dev, NULL, bank_addr,
 						 bank_size, da,
 						 tcm_mem_map, tcm_mem_unmap,
@@ -662,6 +698,107 @@ static int zynqmp_r5_rproc_unprepare(struct rproc *rproc)
 	return 0;
 }
 
+static struct resource_table *zynqmp_r5_get_loaded_rsc_table(struct rproc *rproc,
+							     size_t *size)
+{
+	struct zynqmp_r5_core *r5_core;
+
+	r5_core = rproc->priv;
+
+	*size = r5_core->rsc_tbl_size;
+
+	return (struct resource_table *)r5_core->rsc_tbl_va;
+}
+
+static int zynqmp_r5_get_rsc_table_va(struct zynqmp_r5_core *r5_core)
+{
+	struct resource_table *rsc_tbl_addr;
+	struct device *dev = r5_core->dev;
+	struct rsc_tbl_data *rsc_data_va;
+	struct resource res_mem;
+	struct device_node *np;
+	int ret;
+
+	/*
+	 * It is expected from remote processor firmware to provide resource
+	 * table address via struct rsc_tbl_data data structure.
+	 * Start address of first entry under "memory-region" property list
+	 * contains that data structure which holds resource table address, size
+	 * and some magic number to validate correct resource table entry.
+	 */
+	np = of_parse_phandle(r5_core->np, "memory-region", 0);
+	if (!np) {
+		dev_err(dev, "failed to get memory region dev node\n");
+		return -EINVAL;
+	}
+
+	ret = of_address_to_resource(np, 0, &res_mem);
+	of_node_put(np);
+	if (ret) {
+		dev_err(dev, "failed to get memory-region resource addr\n");
+		return -EINVAL;
+	}
+
+	rsc_data_va = (struct rsc_tbl_data *)ioremap_wc(res_mem.start,
+							sizeof(struct rsc_tbl_data));
+	if (!rsc_data_va) {
+		dev_err(dev, "failed to map resource table data address\n");
+		return -EIO;
+	}
+
+	/*
+	 * If RSC_TBL_XLNX_MAGIC number and its complement isn't found then
+	 * do not consider resource table address valid and don't attach
+	 */
+	if (rsc_data_va->magic_num != RSC_TBL_XLNX_MAGIC ||
+	    rsc_data_va->comp_magic_num != ~RSC_TBL_XLNX_MAGIC) {
+		dev_dbg(dev, "invalid magic number, won't attach\n");
+		return -EINVAL;
+	}
+
+	r5_core->rsc_tbl_va = ioremap_wc(rsc_data_va->rsc_tbl,
+					 rsc_data_va->rsc_tbl_size);
+	if (!r5_core->rsc_tbl_va) {
+		dev_err(dev, "failed to get resource table va\n");
+		return -EINVAL;
+	}
+
+	rsc_tbl_addr = (struct resource_table *)r5_core->rsc_tbl_va;
+
+	/*
+	 * As of now resource table version 1 is expected. Don't fail to attach
+	 * but warn users about it.
+	 */
+	if (rsc_tbl_addr->ver != 1)
+		dev_warn(dev, "unexpected resource table version %d\n",
+			 rsc_tbl_addr->ver);
+
+	r5_core->rsc_tbl_size = rsc_data_va->rsc_tbl_size;
+
+	iounmap((void __iomem *)rsc_data_va);
+
+	return 0;
+}
+
+static int zynqmp_r5_attach(struct rproc *rproc)
+{
+	dev_dbg(&rproc->dev, "rproc %d attached\n", rproc->index);
+
+	return 0;
+}
+
+static int zynqmp_r5_detach(struct rproc *rproc)
+{
+	/*
+	 * Generate last notification to remote after clearing virtio flag.
+	 * Remote can avoid polling on virtio reset flag if kick is generated
+	 * during detach by host and check virtio reset flag on kick interrupt.
+	 */
+	zynqmp_r5_rproc_kick(rproc, 0);
+
+	return 0;
+}
+
 static const struct rproc_ops zynqmp_r5_rproc_ops = {
 	.prepare	= zynqmp_r5_rproc_prepare,
 	.unprepare	= zynqmp_r5_rproc_unprepare,
@@ -673,6 +810,9 @@ static const struct rproc_ops zynqmp_r5_rproc_ops = {
 	.sanity_check	= rproc_elf_sanity_check,
 	.get_boot_addr	= rproc_elf_get_boot_addr,
 	.kick		= zynqmp_r5_rproc_kick,
+	.get_loaded_rsc_table = zynqmp_r5_get_loaded_rsc_table,
+	.attach		= zynqmp_r5_attach,
+	.detach		= zynqmp_r5_detach,
 };
 
 /**
@@ -722,6 +862,16 @@ static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
 		dev_err(cdev, "failed to add r5 remoteproc\n");
 		goto free_rproc;
 	}
+
+	/*
+	 * If firmware is already available in the memory then move rproc state
+	 * to DETACHED. Firmware can be preloaded via debugger or by any other
+	 * agent (processors) in the system.
+	 * If firmware isn't available in the memory and resource table isn't
+	 * found, then rproc state remains OFFLINE.
+	 */
+	if (!zynqmp_r5_get_rsc_table_va(r5_core))
+		r5_rproc->state = RPROC_DETACHED;
 
 	r5_core->rproc = r5_rproc;
 	return r5_core;
@@ -1134,6 +1284,7 @@ static void zynqmp_r5_cluster_exit(void *data)
 	for (i = 0; i < cluster->core_count; i++) {
 		r5_core = cluster->r5_cores[i];
 		zynqmp_r5_free_mbox(r5_core->ipi);
+		iounmap(r5_core->rsc_tbl_va);
 		of_reserved_mem_device_release(r5_core->dev);
 		put_device(r5_core->dev);
 		rproc_del(r5_core->rproc);

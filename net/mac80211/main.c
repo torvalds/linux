@@ -1051,9 +1051,9 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 			return 0;
 
 		/* Driver provides cipher suites, but we need to exclude WEP */
-		suites = kmemdup(local->hw.wiphy->cipher_suites,
-				 sizeof(u32) * local->hw.wiphy->n_cipher_suites,
-				 GFP_KERNEL);
+		suites = kmemdup_array(local->hw.wiphy->cipher_suites,
+				       local->hw.wiphy->n_cipher_suites,
+				       sizeof(u32), GFP_KERNEL);
 		if (!suites)
 			return -ENOMEM;
 

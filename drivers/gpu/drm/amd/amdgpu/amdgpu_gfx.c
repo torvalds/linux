@@ -509,6 +509,16 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	int i, r = 0;
 	int j;
 
+	if (adev->enable_mes) {
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			j = i + xcc_id * adev->gfx.num_compute_rings;
+			amdgpu_mes_unmap_legacy_queue(adev,
+						   &adev->gfx.compute_ring[j],
+						   RESET_QUEUES, 0, 0);
+		}
+		return 0;
+	}
+
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
@@ -550,6 +560,18 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	int i, r = 0;
 	int j;
+
+	if (adev->enable_mes) {
+		if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {
+			for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+				j = i + xcc_id * adev->gfx.num_gfx_rings;
+				amdgpu_mes_unmap_legacy_queue(adev,
+						      &adev->gfx.gfx_ring[j],
+						      PREEMPT_QUEUES, 0, 0);
+			}
+		}
+		return 0;
+	}
 
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
@@ -635,7 +657,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 	uint64_t queue_mask = 0;
 	int r, i, j;
 
-	if (adev->enable_mes)
+	if (adev->mes.enable_legacy_queue_map)
 		return amdgpu_gfx_mes_enable_kcq(adev, xcc_id);
 
 	if (!kiq->pmf || !kiq->pmf->kiq_map_queues || !kiq->pmf->kiq_set_resources)
@@ -697,7 +719,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	if (adev->enable_mes) {
+	if (adev->mes.enable_legacy_queue_map) {
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_gfx_rings;
 			r = amdgpu_mes_map_legacy_queue(adev,
@@ -995,7 +1017,7 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_
 	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
-	if (adev->mes.ring.sched.ready)
+	if (adev->mes.ring[0].sched.ready)
 		return amdgpu_mes_rreg(adev, reg);
 
 	BUG_ON(!ring->funcs->emit_rreg);
@@ -1065,7 +1087,7 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint3
 	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
-	if (adev->mes.ring.sched.ready) {
+	if (adev->mes.ring[0].sched.ready) {
 		amdgpu_mes_wreg(adev, reg, v);
 		return;
 	}

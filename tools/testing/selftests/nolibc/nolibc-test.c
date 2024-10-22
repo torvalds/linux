@@ -542,7 +542,7 @@ int expect_strzr(const char *expr, int llen)
 {
 	int ret = 0;
 
-	llen += printf(" = <%s> ", expr);
+	llen += printf(" = <%s> ", expr ? expr : "(null)");
 	if (expr) {
 		ret = 1;
 		result(llen, FAIL);
@@ -561,7 +561,7 @@ int expect_strnz(const char *expr, int llen)
 {
 	int ret = 0;
 
-	llen += printf(" = <%s> ", expr);
+	llen += printf(" = <%s> ", expr ? expr : "(null)");
 	if (!expr) {
 		ret = 1;
 		result(llen, FAIL);
@@ -686,9 +686,10 @@ static void constructor1(void)
 }
 
 __attribute__((constructor))
-static void constructor2(void)
+static void constructor2(int argc, char **argv, char **envp)
 {
-	constructor_test_value *= 2;
+	if (argc && argv && envp)
+		constructor_test_value *= 2;
 }
 
 int run_startup(int min, int max)

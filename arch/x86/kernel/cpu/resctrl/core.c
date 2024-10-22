@@ -119,6 +119,14 @@ struct rdt_hw_resource rdt_resources_all[] = {
 	},
 };
 
+u32 resctrl_arch_system_num_rmid_idx(void)
+{
+	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_L3].r_resctrl;
+
+	/* RMID are independent numbers for x86. num_rmid_idx == num_rmid */
+	return r->num_rmid;
+}
+
 /*
  * cache_alloc_hsw_probe() - Have to probe for Intel haswell server CPUs
  * as they do not have CPUID enumeration support for Cache allocation.

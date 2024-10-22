@@ -150,29 +150,15 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 	if (IS_ERR(rc->base))
 		return PTR_ERR(rc->base);
 
-	rc->clk_reg = devm_clk_get(&pdev->dev, "reg");
-	if (IS_ERR(rc->clk_reg)) {
-		dev_err(&pdev->dev, "reg clock not found\n");
-		return PTR_ERR(rc->clk_reg);
-	}
+	rc->clk_reg = devm_clk_get_enabled(&pdev->dev, "reg");
+	if (IS_ERR(rc->clk_reg))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rc->clk_reg),
+				     "reg clock not found\n");
 
-	rc->clk_delay = devm_clk_get(&pdev->dev, "delay");
-	if (IS_ERR(rc->clk_delay)) {
-		dev_err(&pdev->dev, "delay clock not found\n");
-		return PTR_ERR(rc->clk_delay);
-	}
-
-	ret = clk_prepare_enable(rc->clk_reg);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to enable reg clock\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(rc->clk_delay);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to enable delay clock\n");
-		goto dis_clk_reg;
-	}
+	rc->clk_delay = devm_clk_get_enabled(&pdev->dev, "delay");
+	if (IS_ERR(rc->clk_delay))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rc->clk_delay),
+				     "delay clock not found\n");
 
 	fcclk = clk_get_rate(rc->clk_reg) / USEC_PER_SEC;
 	firc = clk_get_rate(rc->clk_delay) / USEC_PER_SEC;
@@ -189,10 +175,8 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 	rc->rcdev.of_node = pdev->dev.of_node;
 
 	ret = reset_controller_register(&rc->rcdev);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register device\n");
-		goto dis_clks;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "unable to register device\n");
 
 	rc->restart_nb.priority = 192,
 	rc->restart_nb.notifier_call = lpc18xx_rgu_restart,
@@ -201,13 +185,6 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "failed to register restart handler\n");
 
 	return 0;
-
-dis_clks:
-	clk_disable_unprepare(rc->clk_delay);
-dis_clk_reg:
-	clk_disable_unprepare(rc->clk_reg);
-
-	return ret;
 }
 
 static const struct of_device_id lpc18xx_rgu_match[] = {

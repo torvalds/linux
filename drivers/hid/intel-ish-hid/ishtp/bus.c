@@ -236,7 +236,7 @@ static int ishtp_cl_device_probe(struct device *dev)
  *
  * Return: 1 if dev & drv matches, 0 otherwise.
  */
-static int ishtp_cl_bus_match(struct device *dev, struct device_driver *drv)
+static int ishtp_cl_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
 	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(drv);

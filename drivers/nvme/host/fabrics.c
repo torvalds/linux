@@ -665,7 +665,7 @@ static struct key *nvmf_parse_key(int key_id)
 		return ERR_PTR(-EINVAL);
 	}
 
-	key = key_lookup(key_id);
+	key = nvme_tls_key_lookup(key_id);
 	if (IS_ERR(key))
 		pr_err("key id %08x not found\n", key_id);
 	else
@@ -1403,10 +1403,10 @@ static void __nvmf_concat_opt_tokens(struct seq_file *seq_file)
 		tok = &opt_tokens[idx];
 		if (tok->token == NVMF_OPT_ERR)
 			continue;
-		seq_puts(seq_file, ",");
+		seq_putc(seq_file, ',');
 		seq_puts(seq_file, tok->pattern);
 	}
-	seq_puts(seq_file, "\n");
+	seq_putc(seq_file, '\n');
 }
 
 static int nvmf_dev_show(struct seq_file *seq_file, void *private)

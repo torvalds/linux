@@ -6,7 +6,10 @@
 
 MAX_RETRIES=600
 RETRY_INTERVAL=".1"	# seconds
-KLP_SYSFS_DIR="/sys/kernel/livepatch"
+SYSFS_KERNEL_DIR="/sys/kernel"
+SYSFS_KLP_DIR="$SYSFS_KERNEL_DIR/livepatch"
+SYSFS_DEBUG_DIR="$SYSFS_KERNEL_DIR/debug"
+SYSFS_KPROBES_DIR="$SYSFS_DEBUG_DIR/kprobes"
 
 # Kselftest framework requirement - SKIP code is 4
 ksft_skip=4
@@ -55,22 +58,26 @@ function die() {
 }
 
 function push_config() {
-	DYNAMIC_DEBUG=$(grep '^kernel/livepatch' /sys/kernel/debug/dynamic_debug/control | \
+	DYNAMIC_DEBUG=$(grep '^kernel/livepatch' "$SYSFS_DEBUG_DIR/dynamic_debug/control" | \
 			awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
 	FTRACE_ENABLED=$(sysctl --values kernel.ftrace_enabled)
+	KPROBE_ENABLED=$(cat "$SYSFS_KPROBES_DIR/enabled")
 }
 
 function pop_config() {
 	if [[ -n "$DYNAMIC_DEBUG" ]]; then
-		echo -n "$DYNAMIC_DEBUG" > /sys/kernel/debug/dynamic_debug/control
+		echo -n "$DYNAMIC_DEBUG" > "$SYSFS_DEBUG_DIR/dynamic_debug/control"
 	fi
 	if [[ -n "$FTRACE_ENABLED" ]]; then
 		sysctl kernel.ftrace_enabled="$FTRACE_ENABLED" &> /dev/null
 	fi
+	if [[ -n "$KPROBE_ENABLED" ]]; then
+		echo "$KPROBE_ENABLED" > "$SYSFS_KPROBES_DIR/enabled"
+	fi
 }
 
 function set_dynamic_debug() {
-        cat <<-EOF > /sys/kernel/debug/dynamic_debug/control
+        cat <<-EOF > "$SYSFS_DEBUG_DIR/dynamic_debug/control"
 		file kernel/livepatch/* +p
 		func klp_try_switch_task -p
 		EOF
@@ -183,7 +190,7 @@ function load_lp_nowait() {
 	__load_mod "$mod" "$@"
 
 	# Wait for livepatch in sysfs ...
-	loop_until '[[ -e "/sys/kernel/livepatch/$mod" ]]' ||
+	loop_until '[[ -e "$SYSFS_KLP_DIR/$mod" ]]' ||
 		die "failed to load module $mod (sysfs)"
 }
 
@@ -196,7 +203,7 @@ function load_lp() {
 	load_lp_nowait "$mod" "$@"
 
 	# Wait until the transition finishes ...
-	loop_until 'grep -q '^0$' /sys/kernel/livepatch/$mod/transition' ||
+	loop_until 'grep -q '^0$' $SYSFS_KLP_DIR/$mod/transition' ||
 		die "failed to complete transition"
 }
 
@@ -246,12 +253,12 @@ function unload_lp() {
 function disable_lp() {
 	local mod="$1"
 
-	log "% echo 0 > /sys/kernel/livepatch/$mod/enabled"
-	echo 0 > /sys/kernel/livepatch/"$mod"/enabled
+	log "% echo 0 > $SYSFS_KLP_DIR/$mod/enabled"
+	echo 0 > "$SYSFS_KLP_DIR/$mod/enabled"
 
 	# Wait until the transition finishes and the livepatch gets
 	# removed from sysfs...
-	loop_until '[[ ! -e "/sys/kernel/livepatch/$mod" ]]' ||
+	loop_until '[[ ! -e "$SYSFS_KLP_DIR/$mod" ]]' ||
 		die "failed to disable livepatch $mod"
 }
 
@@ -322,7 +329,7 @@ function check_sysfs_rights() {
 	local rel_path="$1"; shift
 	local expected_rights="$1"; shift
 
-	local path="$KLP_SYSFS_DIR/$mod/$rel_path"
+	local path="$SYSFS_KLP_DIR/$mod/$rel_path"
 	local rights=$(/bin/stat --format '%A' "$path")
 	if test "$rights" != "$expected_rights" ; then
 		die "Unexpected access rights of $path: $expected_rights vs. $rights"
@@ -338,7 +345,7 @@ function check_sysfs_value() {
 	local rel_path="$1"; shift
 	local expected_value="$1"; shift
 
-	local path="$KLP_SYSFS_DIR/$mod/$rel_path"
+	local path="$SYSFS_KLP_DIR/$mod/$rel_path"
 	local value=`cat $path`
 	if test "$value" != "$expected_value" ; then
 		die "Unexpected value in $path: $expected_value vs. $value"

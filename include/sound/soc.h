@@ -815,6 +815,7 @@ struct snd_soc_dai_link {
 	/* This DAI link can route to other DAI links at runtime (Frontend)*/
 	unsigned int dynamic:1;
 
+	/* REMOVE ME */
 	/* DPCM capture and Playback support */
 	unsigned int dpcm_capture:1;
 	unsigned int dpcm_playback:1;
@@ -1206,11 +1207,11 @@ struct snd_soc_pcm_runtime {
 	/* bit field */
 	unsigned int pop_wait:1;
 	unsigned int fe_compr:1; /* for Dynamic PCM */
+	unsigned int initialized:1;
 
-	bool initialized;
-
+	/* CPU/Codec/Platform */
 	int num_components;
-	struct snd_soc_component *components[]; /* CPU/Codec/Platform */
+	struct snd_soc_component *components[] __counted_by(num_components);
 };
 
 /* see soc_new_pcm_runtime()  */

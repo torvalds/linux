@@ -1026,6 +1026,9 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	if (host->caps & UFS_MTK_CAP_DISABLE_AH8)
 		hba->caps |= UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
 
+	if (host->caps & UFS_MTK_CAP_DISABLE_MCQ)
+		hba->quirks |= UFSHCD_QUIRK_BROKEN_LSDBS_CAP;
+
 	ufs_mtk_init_clocks(hba);
 
 	/*

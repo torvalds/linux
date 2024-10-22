@@ -254,7 +254,7 @@ static inline void llc_pdu_header_init(struct sk_buff *skb, u8 type,
 }
 
 /**
- *	llc_pdu_decode_sa - extracs source address (MAC) of input frame
+ *	llc_pdu_decode_sa - extracts, source address (MAC) of input frame
  *	@skb: input skb that source address must be extracted from it.
  *	@sa: pointer to source address (6 byte array).
  *

@@ -417,10 +417,8 @@ static void __kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kfree(vgic_cpu->private_irqs);
 	vgic_cpu->private_irqs = NULL;
 
-	if (vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
-		vgic_unregister_redist_iodev(vcpu);
+	if (vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
 		vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
-	}
 }
 
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
@@ -438,17 +436,21 @@ void kvm_vgic_destroy(struct kvm *kvm)
 	unsigned long i;
 
 	mutex_lock(&kvm->slots_lock);
+	mutex_lock(&kvm->arch.config_lock);
 
 	vgic_debug_destroy(kvm);
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		__kvm_vgic_vcpu_destroy(vcpu);
 
-	mutex_lock(&kvm->arch.config_lock);
-
 	kvm_vgic_dist_destroy(kvm);
 
 	mutex_unlock(&kvm->arch.config_lock);
+
+	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+		kvm_for_each_vcpu(i, vcpu, kvm)
+			vgic_unregister_redist_iodev(vcpu);
+
 	mutex_unlock(&kvm->slots_lock);
 }
 

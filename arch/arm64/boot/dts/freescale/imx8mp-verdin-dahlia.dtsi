@@ -65,6 +65,11 @@
 	};
 };
 
+/* Verdin HDMI_1 Audio */
+&aud2htx {
+	status = "okay";
+};
+
 &backlight {
 	power-supply = <&reg_3p3v>;
 };
@@ -216,6 +221,11 @@
 	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <24576000>;
 	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
+/* Verdin HDMI_1 Audio */
+&sound_hdmi {
 	status = "okay";
 };
 

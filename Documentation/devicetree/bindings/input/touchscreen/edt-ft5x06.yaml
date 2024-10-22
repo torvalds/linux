@@ -42,6 +42,7 @@ properties:
       - focaltech,ft5426
       - focaltech,ft5452
       - focaltech,ft6236
+      - focaltech,ft8201
       - focaltech,ft8719
 
   reg:

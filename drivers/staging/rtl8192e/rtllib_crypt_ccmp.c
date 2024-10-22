@@ -378,7 +378,7 @@ static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 		   ccmp->dot11rsna_stats_ccmp_decrypt_errors);
 }
 
-static struct lib80211_crypto_ops rtllib_crypt_ccmp = {
+static const struct lib80211_crypto_ops rtllib_crypt_ccmp = {
 	.name			= "R-CCMP",
 	.init			= rtllib_ccmp_init,
 	.deinit			= rtllib_ccmp_deinit,

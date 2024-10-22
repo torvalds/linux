@@ -1260,7 +1260,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	}
 
 	if (!had_entries)
-		j->last_empty_seq = cur_seq;
+		j->last_empty_seq = cur_seq - 1; /* to match j->seq */
 
 	spin_lock(&j->lock);
 

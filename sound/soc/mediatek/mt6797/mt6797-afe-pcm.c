@@ -890,7 +890,7 @@ static struct platform_driver mt6797_afe_pcm_driver = {
 		   .pm = &mt6797_afe_pm_ops,
 	},
 	.probe = mt6797_afe_pcm_dev_probe,
-	.remove_new = mt6797_afe_pcm_dev_remove,
+	.remove = mt6797_afe_pcm_dev_remove,
 };
 
 module_platform_driver(mt6797_afe_pcm_driver);

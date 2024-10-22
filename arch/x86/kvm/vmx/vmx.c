@@ -7659,13 +7659,11 @@ u8 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 
 	/*
 	 * Force WB and ignore guest PAT if the VM does NOT have a non-coherent
-	 * device attached and the CPU doesn't support self-snoop.  Letting the
-	 * guest control memory types on Intel CPUs without self-snoop may
-	 * result in unexpected behavior, and so KVM's (historical) ABI is to
-	 * trust the guest to behave only as a last resort.
+	 * device attached.  Letting the guest control memory types on Intel
+	 * CPUs may result in unexpected behavior, and so KVM's ABI is to trust
+	 * the guest to behave only as a last resort.
 	 */
-	if (!static_cpu_has(X86_FEATURE_SELFSNOOP) &&
-	    !kvm_arch_has_noncoherent_dma(vcpu->kvm))
+	if (!kvm_arch_has_noncoherent_dma(vcpu->kvm))
 		return (MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT) | VMX_EPT_IPAT_BIT;
 
 	return (MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT);

@@ -1636,6 +1636,48 @@ static int phylink_register_sfp(struct phylink *pl,
 }
 
 /**
+ * phylink_set_fixed_link() - set the fixed link
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @state: a pointer to a struct phylink_link_state.
+ *
+ * This function is used when the link parameters are known and do not change,
+ * making it suitable for certain types of network connections.
+ *
+ * Returns: zero on success or negative error code.
+ */
+int phylink_set_fixed_link(struct phylink *pl,
+			   const struct phylink_link_state *state)
+{
+	const struct phy_setting *s;
+	unsigned long *adv;
+
+	if (pl->cfg_link_an_mode != MLO_AN_PHY || !state ||
+	    !test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state))
+		return -EINVAL;
+
+	s = phy_lookup_setting(state->speed, state->duplex,
+			       pl->supported, true);
+	if (!s)
+		return -EINVAL;
+
+	adv = pl->link_config.advertising;
+	linkmode_zero(adv);
+	linkmode_set_bit(s->bit, adv);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, adv);
+
+	pl->link_config.speed = state->speed;
+	pl->link_config.duplex = state->duplex;
+	pl->link_config.link = 1;
+	pl->link_config.an_complete = 1;
+
+	pl->cfg_link_an_mode = MLO_AN_FIXED;
+	pl->cur_link_an_mode = pl->cfg_link_an_mode;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(phylink_set_fixed_link);
+
+/**
  * phylink_create() - create a phylink instance
  * @config: a pointer to the target &struct phylink_config
  * @fwnode: a pointer to a &struct fwnode_handle describing the network
@@ -3423,7 +3465,8 @@ static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 	return ret;
 }
 
-static void phylink_sfp_disconnect_phy(void *upstream)
+static void phylink_sfp_disconnect_phy(void *upstream,
+				       struct phy_device *phydev)
 {
 	phylink_disconnect_phy(upstream);
 }

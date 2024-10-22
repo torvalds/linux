@@ -184,7 +184,10 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 static void intel_mm_free_notifier(struct mmu_notifier *mn)
 {
-	kfree(container_of(mn, struct dmar_domain, notifier));
+	struct dmar_domain *domain = container_of(mn, struct dmar_domain, notifier);
+
+	kfree(domain->qi_batch);
+	kfree(domain);
 }
 
 static const struct mmu_notifier_ops intel_mmuops = {
@@ -311,7 +314,7 @@ void intel_drain_pasid_prq(struct device *dev, u32 pasid)
 	domain = info->domain;
 	pdev = to_pci_dev(dev);
 	sid = PCI_DEVID(info->bus, info->devfn);
-	did = domain_id_iommu(domain, iommu);
+	did = domain ? domain_id_iommu(domain, iommu) : FLPT_DEFAULT_DID;
 	qdep = pci_ats_queue_depth(pdev);
 
 	/*

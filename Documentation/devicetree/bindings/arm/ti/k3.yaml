@@ -140,6 +140,7 @@ properties:
       - description: K3 J722S SoC and Boards
         items:
           - enum:
+              - beagle,am67a-beagley-ai
               - ti,j722s-evm
           - const: ti,j722s
 

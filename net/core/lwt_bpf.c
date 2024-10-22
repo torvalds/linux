@@ -12,6 +12,7 @@
 #include <net/gre.h>
 #include <net/ip6_route.h>
 #include <net/ipv6_stubs.h>
+#include <net/inet_dscp.h>
 
 struct bpf_lwt_prog {
 	struct bpf_prog *prog;
@@ -205,7 +206,7 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 		fl4.flowi4_oif = oif;
 		fl4.flowi4_mark = skb->mark;
 		fl4.flowi4_uid = sock_net_uid(net, sk);
-		fl4.flowi4_tos = RT_TOS(iph->tos);
+		fl4.flowi4_tos = iph->tos & INET_DSCP_MASK;
 		fl4.flowi4_flags = FLOWI_FLAG_ANYSRC;
 		fl4.flowi4_proto = iph->protocol;
 		fl4.daddr = iph->daddr;

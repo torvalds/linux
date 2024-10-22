@@ -81,6 +81,9 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->bcn_avg_factor = DEFAULT_BCN_AVG_FACTOR;
 	priv->data_avg_factor = DEFAULT_DATA_AVG_FACTOR;
 
+	priv->auth_flag = 0;
+	priv->auth_alg = WLAN_AUTH_NONE;
+
 	priv->sec_info.wep_enabled = 0;
 	priv->sec_info.authentication_mode = NL80211_AUTHTYPE_OPEN_SYSTEM;
 	priv->sec_info.encryption_mode = 0;
@@ -220,6 +223,9 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->cmd_resp_received = false;
 	adapter->event_received = false;
 	adapter->data_received = false;
+	adapter->assoc_resp_received = false;
+	adapter->priv_link_lost = NULL;
+	adapter->host_mlme_link_lost = false;
 
 	clear_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags);
 
@@ -362,15 +368,13 @@ static void mwifiex_invalidate_lists(struct mwifiex_adapter *adapter)
 		list_del(&adapter->bss_prio_tbl[i].bss_prio_head);
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			priv = adapter->priv[i];
-			for (j = 0; j < MAX_NUM_TID; ++j)
-				list_del(&priv->wmm.tid_tbl_ptr[j].ra_list);
-			list_del(&priv->tx_ba_stream_tbl_ptr);
-			list_del(&priv->rx_reorder_tbl_ptr);
-			list_del(&priv->sta_list);
-			list_del(&priv->auto_tdls_list);
-		}
+		priv = adapter->priv[i];
+		for (j = 0; j < MAX_NUM_TID; ++j)
+			list_del(&priv->wmm.tid_tbl_ptr[j].ra_list);
+		list_del(&priv->tx_ba_stream_tbl_ptr);
+		list_del(&priv->rx_reorder_tbl_ptr);
+		list_del(&priv->sta_list);
+		list_del(&priv->auto_tdls_list);
 	}
 }
 
@@ -419,13 +423,11 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->mwifiex_cmd_lock);
 	spin_lock_init(&adapter->queue_lock);
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			priv = adapter->priv[i];
-			spin_lock_init(&priv->wmm.ra_list_spinlock);
-			spin_lock_init(&priv->curr_bcn_buf_lock);
-			spin_lock_init(&priv->sta_list_spinlock);
-			spin_lock_init(&priv->auto_tdls_lock);
-		}
+		priv = adapter->priv[i];
+		spin_lock_init(&priv->wmm.ra_list_spinlock);
+		spin_lock_init(&priv->curr_bcn_buf_lock);
+		spin_lock_init(&priv->sta_list_spinlock);
+		spin_lock_init(&priv->auto_tdls_lock);
 	}
 
 	/* Initialize cmd_free_q */
@@ -449,8 +451,6 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	}
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (!adapter->priv[i])
-			continue;
 		priv = adapter->priv[i];
 		for (j = 0; j < MAX_NUM_TID; ++j)
 			INIT_LIST_HEAD(&priv->wmm.tid_tbl_ptr[j].ra_list);
@@ -500,31 +500,24 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 	mwifiex_init_adapter(adapter);
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			priv = adapter->priv[i];
+		priv = adapter->priv[i];
 
-			/* Initialize private structure */
-			ret = mwifiex_init_priv(priv);
-			if (ret)
-				return -1;
-		}
+		/* Initialize private structure */
+		ret = mwifiex_init_priv(priv);
+		if (ret)
+			return -1;
 	}
 	if (adapter->mfg_mode) {
 		adapter->hw_status = MWIFIEX_HW_STATUS_READY;
 		ret = -EINPROGRESS;
 	} else {
 		for (i = 0; i < adapter->priv_num; i++) {
-			if (adapter->priv[i]) {
-				ret = mwifiex_sta_init_cmd(adapter->priv[i],
-							   first_sta, true);
-				if (ret == -1)
-					return -1;
+			ret = mwifiex_sta_init_cmd(adapter->priv[i],
+						   first_sta, true);
+			if (ret == -1)
+				return -1;
 
-				first_sta = false;
-			}
-
-
-
+			first_sta = false;
 		}
 	}
 
@@ -631,13 +624,11 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 
 	/* Clean up Tx/Rx queues and delete BSS priority table */
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			priv = adapter->priv[i];
+		priv = adapter->priv[i];
 
-			mwifiex_clean_auto_tdls(priv);
-			mwifiex_abort_cac(priv);
-			mwifiex_free_priv(priv);
-		}
+		mwifiex_clean_auto_tdls(priv);
+		mwifiex_abort_cac(priv);
+		mwifiex_free_priv(priv);
 	}
 
 	atomic_set(&adapter->tx_queued, 0);

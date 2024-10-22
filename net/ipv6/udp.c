@@ -114,7 +114,7 @@ void udp_v6_rehash(struct sock *sk)
 	udp_lib_rehash(sk, new_hash);
 }
 
-static int compute_score(struct sock *sk, struct net *net,
+static int compute_score(struct sock *sk, const struct net *net,
 			 const struct in6_addr *saddr, __be16 sport,
 			 const struct in6_addr *daddr, unsigned short hnum,
 			 int dif, int sdif)
@@ -160,7 +160,7 @@ static int compute_score(struct sock *sk, struct net *net,
 }
 
 /* called with rcu_read_lock() */
-static struct sock *udp6_lib_lookup2(struct net *net,
+static struct sock *udp6_lib_lookup2(const struct net *net,
 		const struct in6_addr *saddr, __be16 sport,
 		const struct in6_addr *daddr, unsigned int hnum,
 		int dif, int sdif, struct udp_hslot *hslot2,
@@ -217,7 +217,7 @@ rescore:
 }
 
 /* rcu_read_lock() must be held */
-struct sock *__udp6_lib_lookup(struct net *net,
+struct sock *__udp6_lib_lookup(const struct net *net,
 			       const struct in6_addr *saddr, __be16 sport,
 			       const struct in6_addr *daddr, __be16 dport,
 			       int dif, int sdif, struct udp_table *udptable,
@@ -300,7 +300,7 @@ struct sock *udp6_lib_lookup_skb(const struct sk_buff *skb,
  * Does increment socket refcount.
  */
 #if IS_ENABLED(CONFIG_NF_TPROXY_IPV6) || IS_ENABLED(CONFIG_NF_SOCKET_IPV6)
-struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be16 sport,
+struct sock *udp6_lib_lookup(const struct net *net, const struct in6_addr *saddr, __be16 sport,
 			     const struct in6_addr *daddr, __be16 dport, int dif)
 {
 	struct sock *sk;

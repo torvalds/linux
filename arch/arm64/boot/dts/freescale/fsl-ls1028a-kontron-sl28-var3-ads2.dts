@@ -26,6 +26,13 @@
 		cooling-levels = <1 128 192 255>;
 	};
 
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	sound {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -107,6 +114,11 @@
 		clock-names = "mclk";
 		assigned-clocks = <&mclk>;
 		assigned-clock-rates = <1250000>;
+		AVDD-supply = <&reg_3p3v>;
+		CPVDD-supply = <&reg_3p3v>;
+		DBVDD-supply = <&reg_3p3v>;
+		DCVDD-supply = <&reg_3p3v>;
+		MICVDD-supply = <&reg_3p3v>;
 	};
 };
 

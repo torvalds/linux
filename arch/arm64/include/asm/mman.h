@@ -7,7 +7,7 @@
 #include <uapi/asm/mman.h>
 
 static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
-	unsigned long pkey __always_unused)
+	unsigned long pkey)
 {
 	unsigned long ret = 0;
 
@@ -16,6 +16,14 @@ static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
 
 	if (system_supports_mte() && (prot & PROT_MTE))
 		ret |= VM_MTE;
+
+#ifdef CONFIG_ARCH_HAS_PKEYS
+	if (system_supports_poe()) {
+		ret |= pkey & BIT(0) ? VM_PKEY_BIT0 : 0;
+		ret |= pkey & BIT(1) ? VM_PKEY_BIT1 : 0;
+		ret |= pkey & BIT(2) ? VM_PKEY_BIT2 : 0;
+	}
+#endif
 
 	return ret;
 }

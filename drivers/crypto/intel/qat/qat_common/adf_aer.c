@@ -44,7 +44,7 @@ static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
 	adf_pf2vf_notify_restarting(accel_dev);
 	adf_pf2vf_wait_for_restarting_complete(accel_dev);
 	pci_clear_master(pdev);
-	adf_dev_down(accel_dev, false);
+	adf_dev_down(accel_dev);
 
 	return PCI_ERS_RESULT_NEED_RESET;
 }

@@ -82,6 +82,14 @@ static inline bool bucket_data_type_mismatch(enum bch_data_type bucket,
 		bucket_data_type(bucket) != bucket_data_type(ptr);
 }
 
+/*
+ * It is my general preference to use unsigned types for unsigned quantities -
+ * however, these helpers are used in disk accounting calculations run by
+ * triggers where the output will be negated and added to an s64. unsigned is
+ * right out even though all these quantities will fit in 32 bits, since it
+ * won't be sign extended correctly; u64 will negate "correctly", but s64 is the
+ * simpler option here.
+ */
 static inline s64 bch2_bucket_sectors_total(struct bch_alloc_v4 a)
 {
 	return a.stripe_sectors + a.dirty_sectors + a.cached_sectors;
@@ -142,7 +150,9 @@ static inline void alloc_data_type_set(struct bch_alloc_v4 *a, enum bch_data_typ
 
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
-	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
+	return a.data_type == BCH_DATA_cached
+		? a.io_time[READ] & LRU_TIME_MAX
+		: 0;
 }
 
 #define DATA_TYPES_MOVABLE		\
@@ -166,8 +176,8 @@ static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 	 * avoid overflowing LRU_TIME_BITS on a corrupted fs, when
 	 * bucket_sectors_dirty is (much) bigger than bucket_size
 	 */
-	u64 d = min(bch2_bucket_sectors_dirty(a),
-		    ca->mi.bucket_size);
+	u64 d = min_t(s64, bch2_bucket_sectors_dirty(a),
+		      ca->mi.bucket_size);
 
 	return div_u64(d * (1ULL << 31), ca->mi.bucket_size);
 }
@@ -232,52 +242,48 @@ struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *, struct bkey_s
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
-int bch2_alloc_v1_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int bch2_alloc_v2_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int bch2_alloc_v3_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int bch2_alloc_v4_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
+int bch2_alloc_v1_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_alloc_v2_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_alloc_v3_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_alloc_v4_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
 void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_alloc ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v1_invalid,	\
+	.key_validate	= bch2_alloc_v1_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v2 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v2_invalid,	\
+	.key_validate	= bch2_alloc_v2_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v3 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v3_invalid,	\
+	.key_validate	= bch2_alloc_v3_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 16,				\
 })
 
 #define bch2_bkey_ops_alloc_v4 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v4_invalid,	\
+	.key_validate	= bch2_alloc_v4_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.swab		= bch2_alloc_v4_swab,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 48,				\
 })
 
-int bch2_bucket_gens_invalid(struct bch_fs *, struct bkey_s_c,
-			     enum bch_validate_flags, struct printbuf *);
+int bch2_bucket_gens_validate(struct bch_fs *, struct bkey_s_c,
+			     enum bch_validate_flags);
 void bch2_bucket_gens_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_bucket_gens ((struct bkey_ops) {	\
-	.key_invalid	= bch2_bucket_gens_invalid,	\
+	.key_validate	= bch2_bucket_gens_validate,	\
 	.val_to_text	= bch2_bucket_gens_to_text,	\
 })
 

@@ -231,9 +231,7 @@ if X86
 source "drivers/cpufreq/Kconfig.x86"
 endif
 
-if ARM || ARM64
 source "drivers/cpufreq/Kconfig.arm"
-endif
 
 if PPC32 || PPC64
 source "drivers/cpufreq/Kconfig.powerpc"

@@ -466,6 +466,17 @@ config KEYBOARD_IMX
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx_keypad.
 
+config KEYBOARD_IMX_BBM_SCMI
+	tristate "IMX BBM SCMI Key Driver"
+	depends on IMX_SCMI_BBM_EXT || COMPILE_TEST
+	default y if ARCH_MXC
+	help
+	  This is the BBM key driver for NXP i.MX SoCs managed through
+	  SCMI protocol.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called scmi-imx-bbm-key.
+
 config KEYBOARD_IMX_SC_KEY
 	tristate "IMX SCU Key Driver"
 	depends on IMX_SCU

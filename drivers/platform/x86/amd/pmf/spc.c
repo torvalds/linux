@@ -150,36 +150,26 @@ static int amd_pmf_get_slider_info(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 	return 0;
 }
 
-static int amd_pmf_get_sensor_info(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in)
+static void amd_pmf_get_sensor_info(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in)
 {
 	struct amd_sfh_info sfh_info;
-	int ret;
+
+	/* Get the latest information from SFH */
+	in->ev_info.user_present = false;
 
 	/* Get ALS data */
-	ret = amd_get_sfh_info(&sfh_info, MT_ALS);
-	if (!ret)
+	if (!amd_get_sfh_info(&sfh_info, MT_ALS))
 		in->ev_info.ambient_light = sfh_info.ambient_light;
 	else
-		return ret;
+		dev_dbg(dev->dev, "ALS is not enabled/detected\n");
 
 	/* get HPD data */
-	ret = amd_get_sfh_info(&sfh_info, MT_HPD);
-	if (ret)
-		return ret;
-
-	switch (sfh_info.user_present) {
-	case SFH_NOT_DETECTED:
-		in->ev_info.user_present = 0xff; /* assume no sensors connected */
-		break;
-	case SFH_USER_PRESENT:
-		in->ev_info.user_present = 1;
-		break;
-	case SFH_USER_AWAY:
-		in->ev_info.user_present = 0;
-		break;
+	if (!amd_get_sfh_info(&sfh_info, MT_HPD)) {
+		if (sfh_info.user_present == SFH_USER_PRESENT)
+			in->ev_info.user_present = true;
+	} else {
+		dev_dbg(dev->dev, "HPD is not enabled/detected\n");
 	}
-
-	return 0;
 }
 
 void amd_pmf_populate_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in)

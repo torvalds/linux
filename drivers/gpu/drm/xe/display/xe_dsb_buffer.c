@@ -7,6 +7,8 @@
 #include "intel_display_types.h"
 #include "intel_dsb_buffer.h"
 #include "xe_bo.h"
+#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_gt.h"
 
 u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
@@ -16,7 +18,10 @@ u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
 
 void intel_dsb_buffer_write(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val)
 {
+	struct xe_device *xe = dsb_buf->vma->bo->tile->xe;
+
 	iosys_map_wr(&dsb_buf->vma->bo->vmap, idx * 4, u32, val);
+	xe_device_l2_flush(xe);
 }
 
 u32 intel_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
@@ -26,9 +31,12 @@ u32 intel_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
 
 void intel_dsb_buffer_memset(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val, size_t size)
 {
+	struct xe_device *xe = dsb_buf->vma->bo->tile->xe;
+
 	WARN_ON(idx > (dsb_buf->buf_size - size) / sizeof(*dsb_buf->cmd_buf));
 
 	iosys_map_memset(&dsb_buf->vma->bo->vmap, idx * 4, val, size);
+	xe_device_l2_flush(xe);
 }
 
 bool intel_dsb_buffer_create(struct intel_crtc *crtc, struct intel_dsb_buffer *dsb_buf, size_t size)

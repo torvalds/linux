@@ -18,6 +18,7 @@ properties:
   compatible:
     enum:
       - qcom,qca6390-pmu
+      - qcom,wcn6855-pmu
       - qcom,wcn7850-pmu
 
   vdd-supply:
@@ -65,7 +66,11 @@ properties:
 
   bt-enable-gpios:
     maxItems: 1
-    description: GPIO line enabling the ATH11K Bluetooth module supplied by the PMU
+    description: GPIO line enabling the Bluetooth module supplied by the PMU
+
+  swctrl-gpios:
+    maxItems: 1
+    description: GPIO line indicating the state of the clock supply to the BT module
 
   clocks:
     maxItems: 1
@@ -104,6 +109,21 @@ allOf:
         - vddpcie1p3-supply
         - vddpcie1p9-supply
         - vddio-supply
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,wcn6855-pmu
+    then:
+      required:
+        - vddio-supply
+        - vddaon-supply
+        - vddpmu-supply
+        - vddrfa0p95-supply
+        - vddrfa1p3-supply
+        - vddrfa1p9-supply
+        - vddpcie1p3-supply
+        - vddpcie1p9-supply
   - if:
       properties:
         compatible:

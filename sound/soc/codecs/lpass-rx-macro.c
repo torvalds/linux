@@ -4024,7 +4024,7 @@ static struct platform_driver rx_macro_driver = {
 		.pm = &rx_macro_pm_ops,
 	},
 	.probe = rx_macro_probe,
-	.remove_new = rx_macro_remove,
+	.remove = rx_macro_remove,
 };
 
 module_platform_driver(rx_macro_driver);

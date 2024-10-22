@@ -915,7 +915,7 @@ static void pc_init_pcode_freq(struct xe_guc_pc *pc)
 	u32 min = DIV_ROUND_CLOSEST(pc->rpn_freq, GT_FREQUENCY_MULTIPLIER);
 	u32 max = DIV_ROUND_CLOSEST(pc->rp0_freq, GT_FREQUENCY_MULTIPLIER);
 
-	XE_WARN_ON(xe_pcode_init_min_freq_table(pc_to_gt(pc), min, max));
+	XE_WARN_ON(xe_pcode_init_min_freq_table(gt_to_tile(pc_to_gt(pc)), min, max));
 }
 
 static int pc_init_freqs(struct xe_guc_pc *pc)

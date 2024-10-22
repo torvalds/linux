@@ -562,7 +562,8 @@ Description:	Control Symmetric Multi Threading (SMT)
 			 ================ =========================================
 
 			 If control status is "forceoff" or "notsupported" writes
-			 are rejected.
+			 are rejected. Note that enabling SMT on PowerPC skips
+			 offline cores.
 
 What:		/sys/devices/system/cpu/cpuX/power/energy_perf_bias
 Date:		March 2019

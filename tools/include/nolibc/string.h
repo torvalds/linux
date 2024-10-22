@@ -7,6 +7,7 @@
 #ifndef _NOLIBC_STRING_H
 #define _NOLIBC_STRING_H
 
+#include "arch.h"
 #include "std.h"
 
 static void *malloc(size_t len);

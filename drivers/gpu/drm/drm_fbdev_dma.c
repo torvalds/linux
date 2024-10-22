@@ -36,20 +36,11 @@ static int drm_fbdev_dma_fb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-FB_GEN_DEFAULT_DEFERRED_DMAMEM_OPS(drm_fbdev_dma,
-				   drm_fb_helper_damage_range,
-				   drm_fb_helper_damage_area);
-
 static int drm_fbdev_dma_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_framebuffer *fb = fb_helper->fb;
-	struct drm_gem_dma_object *dma = drm_fb_dma_get_gem_obj(fb, 0);
 
-	if (!dma->map_noncoherent)
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-	return fb_deferred_io_mmap(info, vma);
+	return drm_gem_prime_mmap(fb_helper->buffer->gem, vma);
 }
 
 static void drm_fbdev_dma_fb_destroy(struct fb_info *info)
@@ -73,10 +64,37 @@ static const struct fb_ops drm_fbdev_dma_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = drm_fbdev_dma_fb_open,
 	.fb_release = drm_fbdev_dma_fb_release,
+	__FB_DEFAULT_DMAMEM_OPS_RDWR,
+	DRM_FB_HELPER_DEFAULT_OPS,
+	__FB_DEFAULT_DMAMEM_OPS_DRAW,
+	.fb_mmap = drm_fbdev_dma_fb_mmap,
+	.fb_destroy = drm_fbdev_dma_fb_destroy,
+};
+
+FB_GEN_DEFAULT_DEFERRED_DMAMEM_OPS(drm_fbdev_dma,
+				   drm_fb_helper_damage_range,
+				   drm_fb_helper_damage_area);
+
+static int drm_fbdev_dma_deferred_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
+	struct drm_gem_dma_object *dma = drm_fb_dma_get_gem_obj(fb, 0);
+
+	if (!dma->map_noncoherent)
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+
+	return fb_deferred_io_mmap(info, vma);
+}
+
+static const struct fb_ops drm_fbdev_dma_deferred_fb_ops = {
+	.owner = THIS_MODULE,
+	.fb_open = drm_fbdev_dma_fb_open,
+	.fb_release = drm_fbdev_dma_fb_release,
 	__FB_DEFAULT_DEFERRED_OPS_RDWR(drm_fbdev_dma),
 	DRM_FB_HELPER_DEFAULT_OPS,
 	__FB_DEFAULT_DEFERRED_OPS_DRAW(drm_fbdev_dma),
-	.fb_mmap = drm_fbdev_dma_fb_mmap,
+	.fb_mmap = drm_fbdev_dma_deferred_fb_mmap,
 	.fb_destroy = drm_fbdev_dma_fb_destroy,
 };
 
@@ -89,6 +107,7 @@ static int drm_fbdev_dma_helper_fb_probe(struct drm_fb_helper *fb_helper,
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
+	bool use_deferred_io = false;
 	struct drm_client_buffer *buffer;
 	struct drm_gem_dma_object *dma_obj;
 	struct drm_framebuffer *fb;
@@ -111,6 +130,15 @@ static int drm_fbdev_dma_helper_fb_probe(struct drm_fb_helper *fb_helper,
 
 	fb = buffer->fb;
 
+	/*
+	 * Deferred I/O requires struct page for framebuffer memory,
+	 * which is not guaranteed for all DMA ranges. We thus only
+	 * install deferred I/O if we have a framebuffer that requires
+	 * it.
+	 */
+	if (fb->funcs->dirty)
+		use_deferred_io = true;
+
 	ret = drm_client_buffer_vmap(buffer, &map);
 	if (ret) {
 		goto err_drm_client_buffer_delete;
@@ -130,7 +158,10 @@ static int drm_fbdev_dma_helper_fb_probe(struct drm_fb_helper *fb_helper,
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
-	info->fbops = &drm_fbdev_dma_fb_ops;
+	if (use_deferred_io)
+		info->fbops = &drm_fbdev_dma_deferred_fb_ops;
+	else
+		info->fbops = &drm_fbdev_dma_fb_ops;
 
 	/* screen */
 	info->flags |= FBINFO_VIRTFB; /* system memory */
@@ -144,14 +175,28 @@ static int drm_fbdev_dma_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	}
 	info->fix.smem_len = info->screen_size;
 
-	/* deferred I/O */
-	fb_helper->fbdefio.delay = HZ / 20;
-	fb_helper->fbdefio.deferred_io = drm_fb_helper_deferred_io;
+	/*
+	 * Only set up deferred I/O if the screen buffer supports
+	 * it. If this disagrees with the previous test for ->dirty,
+	 * mmap on the /dev/fb file might not work correctly.
+	 */
+	if (!is_vmalloc_addr(info->screen_buffer) && info->fix.smem_start) {
+		unsigned long pfn = info->fix.smem_start >> PAGE_SHIFT;
 
-	info->fbdefio = &fb_helper->fbdefio;
-	ret = fb_deferred_io_init(info);
-	if (ret)
-		goto err_drm_fb_helper_release_info;
+		if (drm_WARN_ON(dev, !pfn_to_page(pfn)))
+			use_deferred_io = false;
+	}
+
+	/* deferred I/O */
+	if (use_deferred_io) {
+		fb_helper->fbdefio.delay = HZ / 20;
+		fb_helper->fbdefio.deferred_io = drm_fb_helper_deferred_io;
+
+		info->fbdefio = &fb_helper->fbdefio;
+		ret = fb_deferred_io_init(info);
+		if (ret)
+			goto err_drm_fb_helper_release_info;
+	}
 
 	return 0;
 

@@ -110,7 +110,8 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 	struct maple_tree *mt = map->cache;
 	MA_STATE(mas, mt, min, max);
 	unsigned long *entry, *lower, *upper;
-	unsigned long lower_index, lower_last;
+	/* initialized to work around false-positive -Wuninitialized warning */
+	unsigned long lower_index = 0, lower_last = 0;
 	unsigned long upper_index, upper_last;
 	int ret = 0;
 
@@ -347,7 +348,7 @@ static int regcache_maple_init(struct regmap *map)
 	int ret;
 	int range_start;
 
-	mt = kmalloc(sizeof(*mt), GFP_KERNEL);
+	mt = kmalloc(sizeof(*mt), map->alloc_flags);
 	if (!mt)
 		return -ENOMEM;
 	map->cache = mt;

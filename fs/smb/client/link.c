@@ -588,6 +588,7 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		rc = PTR_ERR(tlink);
+		/* BB could be clearer if skipped put_tlink on error here, but harmless */
 		goto symlink_exit;
 	}
 	pTcon = tlink_tcon(tlink);

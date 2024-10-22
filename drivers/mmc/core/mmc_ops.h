@@ -56,5 +56,19 @@ int mmc_cmdq_enable(struct mmc_card *card);
 int mmc_cmdq_disable(struct mmc_card *card);
 int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms);
 
+static inline u32 unstuff_bits(const u32 *resp, int start, int size)
+{
+	const int __size = size;
+	const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1;
+	const int __off = 3 - (start / 32);
+	const int __shft = start & 31;
+	u32 __res = resp[__off] >> __shft;
+
+	if (__size + __shft > 32)
+		__res |= resp[__off - 1] << ((32 - __shft) % 32);
+
+	return __res & __mask;
+}
+
 #endif
 

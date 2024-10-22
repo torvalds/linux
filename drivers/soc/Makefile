@@ -32,5 +32,5 @@ obj-y				+= sunxi/
 obj-$(CONFIG_ARCH_TEGRA)	+= tegra/
 obj-y				+= ti/
 obj-$(CONFIG_ARCH_U8500)	+= ux500/
-obj-$(CONFIG_PLAT_VERSATILE)	+= versatile/
+obj-y				+= versatile/
 obj-y				+= xilinx/

@@ -130,7 +130,7 @@ struct page_pool;
 #define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x2
 
 #define MLX5E_DEFAULT_LRO_TIMEOUT                       32
-#define MLX5E_LRO_TIMEOUT_ARR_SIZE                      4
+#define MLX5E_DEFAULT_SHAMPO_TIMEOUT			1024
 
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC      0x10
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE 0x3
@@ -998,6 +998,7 @@ void mlx5e_build_ptys2ethtool_map(void);
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift,
 					    enum mlx5e_mpwrq_umr_mode umr_mode);
 
+void mlx5e_shampo_fill_umr(struct mlx5e_rq *rq, int len);
 void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
@@ -1172,14 +1173,16 @@ void mlx5e_ethtool_get_ringparam(struct mlx5e_priv *priv,
 				 struct ethtool_ringparam *param,
 				 struct kernel_ethtool_ringparam *kernel_param);
 int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
-				struct ethtool_ringparam *param);
+				struct ethtool_ringparam *param,
+				struct netlink_ext_ack *extack);
 void mlx5e_ethtool_get_channels(struct mlx5e_priv *priv,
 				struct ethtool_channels *ch);
 int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 			       struct ethtool_channels *ch);
 int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal,
-			       struct kernel_ethtool_coalesce *kernel_coal);
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack);
 int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal,
 			       struct kernel_ethtool_coalesce *kernel_coal,

@@ -698,15 +698,24 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 		return 0;
 
 	e = elevator_find_get(q, elevator_name);
-	if (!e) {
-		request_module("%s-iosched", elevator_name);
-		e = elevator_find_get(q, elevator_name);
-		if (!e)
-			return -EINVAL;
-	}
+	if (!e)
+		return -EINVAL;
 	ret = elevator_switch(q, e);
 	elevator_put(e);
 	return ret;
+}
+
+int elv_iosched_load_module(struct gendisk *disk, const char *buf,
+			    size_t count)
+{
+	char elevator_name[ELV_NAME_MAX];
+
+	if (!elv_support_iosched(disk->queue))
+		return -EOPNOTSUPP;
+
+	strscpy(elevator_name, buf, sizeof(elevator_name));
+
+	return request_module("%s-iosched", strstrip(elevator_name));
 }
 
 ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,

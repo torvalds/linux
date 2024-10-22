@@ -147,16 +147,6 @@ static const struct snd_pcm_hw_constraint_list hw_constraints_capture_buffer_siz
 	.mask = 0
 };
 
-static const unsigned int capture_rates[8] = {
-	8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000
-};
-
-static const struct snd_pcm_hw_constraint_list hw_constraints_capture_rates = {
-	.count = 8,
-	.list = capture_rates,
-	.mask = 0
-};
-
 static unsigned int snd_emu10k1_capture_rate_reg(unsigned int rate)
 {
 	switch (rate) {
@@ -173,16 +163,6 @@ static unsigned int snd_emu10k1_capture_rate_reg(unsigned int rate)
 			return ADCCR_SAMPLERATE_8;
 	}
 }
-
-static const unsigned int audigy_capture_rates[9] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
-};
-
-static const struct snd_pcm_hw_constraint_list hw_constraints_audigy_capture_rates = {
-	.count = 9,
-	.list = audigy_capture_rates,
-	.mask = 0
-};
 
 static unsigned int snd_emu10k1_audigy_capture_rate_reg(unsigned int rate)
 {
@@ -207,17 +187,16 @@ static void snd_emu10k1_constrain_capture_rates(struct snd_emu10k1 *emu,
 {
 	if (emu->card_capabilities->emu_model &&
 	    emu->emu1010.word_clock == 44100) {
-		// This also sets the rate constraint by deleting SNDRV_PCM_RATE_KNOT
 		runtime->hw.rates = SNDRV_PCM_RATE_11025 | \
 				    SNDRV_PCM_RATE_22050 | \
 				    SNDRV_PCM_RATE_44100;
 		runtime->hw.rate_min = 11025;
 		runtime->hw.rate_max = 44100;
-		return;
+	} else if (emu->audigy) {
+		runtime->hw.rates = SNDRV_PCM_RATE_8000_48000 |
+				    SNDRV_PCM_RATE_12000 |
+				    SNDRV_PCM_RATE_24000;
 	}
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				   emu->audigy ? &hw_constraints_audigy_capture_rates :
-						 &hw_constraints_capture_rates);
 }
 
 static void snd_emu1010_constrain_efx_rate(struct snd_emu10k1 *emu,
@@ -1053,7 +1032,7 @@ static const struct snd_pcm_hardware snd_emu10k1_capture =
 				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KNOT,
+	.rates =		SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_24000,
 	.rate_min =		8000,
 	.rate_max =		48000,
 	.channels_min =		1,

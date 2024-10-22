@@ -152,8 +152,10 @@ static int starfive_wdt_enable_clock(struct starfive_wdt *wdt)
 		return dev_err_probe(wdt->wdd.parent, ret, "failed to enable apb clock\n");
 
 	ret = clk_prepare_enable(wdt->core_clk);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(wdt->apb_clk);
 		return dev_err_probe(wdt->wdd.parent, ret, "failed to enable core clock\n");
+	}
 
 	return 0;
 }

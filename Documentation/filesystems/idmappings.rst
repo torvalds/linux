@@ -821,7 +821,7 @@ the same idmapping to the mount. We now perform three steps:
       /* Map the userspace id down into a kernel id in the filesystem's idmapping. */
       make_kuid(u0:k20000:r10000, u1000) = k21000
 
-2. Verify that the caller's kernel ids can be mapped to userspace ids in the
+3. Verify that the caller's kernel ids can be mapped to userspace ids in the
    filesystem's idmapping::
 
     from_kuid(u0:k20000:r10000, k21000) = u1000
@@ -854,10 +854,10 @@ The same translation algorithm works with the third example.
        /* Map the userspace id down into a kernel id in the filesystem's idmapping. */
        make_kuid(u0:k0:r4294967295, u1000) = k1000
 
-2. Verify that the caller's kernel ids can be mapped to userspace ids in the
+3. Verify that the caller's kernel ids can be mapped to userspace ids in the
    filesystem's idmapping::
 
-    from_kuid(u0:k0:r4294967295, k21000) = u1000
+    from_kuid(u0:k0:r4294967295, k1000) = u1000
 
 So the ownership that lands on disk will be ``u1000``.
 
@@ -994,7 +994,7 @@ from above:::
       /* Map the userspace id down into a kernel id in the filesystem's idmapping. */
       make_kuid(u0:k0:r4294967295, u1000) = k1000
 
-2. Verify that the caller's filesystem ids can be mapped to userspace ids in the
+3. Verify that the caller's filesystem ids can be mapped to userspace ids in the
    filesystem's idmapping::
 
     from_kuid(u0:k0:r4294967295, k1000) = u1000

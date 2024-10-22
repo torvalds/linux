@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: GPL-2.0
+// Fastopen client zerocopy test:
+//
+// send data with MSG_FASTOPEN | MSG_ZEROCOPY and verify that the
+// kernel returns the notification ID.
+//
+// Fastopen requires a stored cookie. Create two sockets. The first
+// one will have no data in the initial send. On return 0 the
+// zerocopy notification counter is not incremented. Verify this too.
+
+`./defaults.sh`
+
+// Send a FastOpen request, no cookie yet so no data in SYN
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_ZEROCOPY, [1], 4) = 0
+   +0 sendto(3, ..., 500, MSG_FASTOPEN|MSG_ZEROCOPY, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0 > S 0:0(0) <mss 1460,sackOK,TS val 1000 ecr 0,nop,wscale 8,FO,nop,nop>
+ +.01 < S. 123:123(0) ack 1 win 14600 <mss 940,TS val 2000 ecr 1000,sackOK,nop,wscale 6, FO abcd1234,nop,nop>
+   +0 > . 1:1(0) ack 1 <nop,nop,TS val 1001 ecr 2000>
+
+// Read from error queue: no zerocopy notification
+   +1 recvmsg(3, {msg_name(...)=...,
+                    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE,
+                    msg_control=[]}, MSG_ERRQUEUE) = -1 EAGAIN (Resource temporarily unavailable)
+
+ +.01 close(3) = 0
+   +0 > F. 1:1(0) ack 1 <nop,nop,TS val 1002 ecr 2000>
+ +.01 < F. 1:1(0) ack 2 win 92 <nop,nop,TS val 2001 ecr 1002>
+   +0 > .  2:2(0) ack 2 <nop,nop,TS val 1003 ecr 2001>
+
+// Send another Fastopen request, now SYN will have data
+ +.07 `sysctl -q net.ipv4.tcp_timestamps=0`
+  +.1 socket(..., SOCK_STREAM, IPPROTO_TCP) = 5
+   +0 fcntl(5, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+   +0 setsockopt(5, SOL_SOCKET, SO_ZEROCOPY, [1], 4) = 0
+   +0 sendto(5, ..., 500, MSG_FASTOPEN|MSG_ZEROCOPY, ..., ...) = 500
+   +0 > S 0:500(500) <mss 1460,nop,nop,sackOK,nop,wscale 8,FO abcd1234,nop,nop>
+ +.05 < S. 5678:5678(0) ack 501 win 14600 <mss 1460,nop,nop,sackOK,nop,wscale 6>
+   +0 > . 501:501(0) ack 1
+
+// Read from error queue: now has first zerocopy notification
+   +0.5 recvmsg(5, {msg_name(...)=...,
+                    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE,
+                    msg_control=[
+                        {cmsg_level=CMSG_LEVEL_IP,
+                         cmsg_type=CMSG_TYPE_RECVERR,
+                         cmsg_data={ee_errno=0,
+                                    ee_origin=SO_EE_ORIGIN_ZEROCOPY,
+                                    ee_type=0,
+                                    ee_code=SO_EE_CODE_ZEROCOPY_COPIED,
+                                    ee_info=0,
+                                    ee_data=0}}
+                   ]}, MSG_ERRQUEUE) = 0

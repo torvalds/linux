@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 // Copyright 2018 IBM Corp
 /*
- * A FSI master controller, using a simple GPIO bit-banging interface
+ * A FSI master based on Aspeed ColdFire coprocessor
  */
 
 #include <linux/crc4.h>
@@ -1412,15 +1412,13 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 }
 
 
-static int fsi_master_acf_remove(struct platform_device *pdev)
+static void fsi_master_acf_remove(struct platform_device *pdev)
 {
 	struct fsi_master_acf *master = platform_get_drvdata(pdev);
 
 	device_remove_file(master->dev, &dev_attr_external_mode);
 
 	fsi_master_unregister(&master->master);
-
-	return 0;
 }
 
 static const struct of_device_id fsi_master_acf_match[] = {
@@ -1436,9 +1434,10 @@ static struct platform_driver fsi_master_acf = {
 		.of_match_table	= fsi_master_acf_match,
 	},
 	.probe	= fsi_master_acf_probe,
-	.remove = fsi_master_acf_remove,
+	.remove_new = fsi_master_acf_remove,
 };
 
 module_platform_driver(fsi_master_acf);
+MODULE_DESCRIPTION("A FSI master based on Aspeed ColdFire coprocessor");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FW_FILE_NAME);

@@ -80,7 +80,8 @@ static uint32_t mmhub_v4_1_0_get_invalidate_req(unsigned int vmid,
 	/* invalidate using legacy mode on vmid*/
 	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ,
 			    PER_VMID_INVALIDATE_REQ, 1 << vmid);
-	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, flush_type);
+	/* Only use legacy inv on mmhub side */
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, 0);
 	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
 	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
 	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);

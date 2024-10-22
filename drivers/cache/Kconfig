@@ -18,6 +18,7 @@ config STARFIVE_STARLINK_CACHE
 	bool "StarFive StarLink Cache controller"
 	depends on RISCV
 	depends on ARCH_STARFIVE
+	depends on 64BIT
 	select RISCV_DMA_NONCOHERENT
 	select RISCV_NONSTANDARD_CACHE_OPS
 	help

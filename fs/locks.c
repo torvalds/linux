@@ -1451,7 +1451,7 @@ int lease_modify(struct file_lease *fl, int arg, struct list_head *dispose)
 		struct file *filp = fl->c.flc_file;
 
 		f_delown(filp);
-		filp->f_owner.signum = 0;
+		file_f_owner(filp)->signum = 0;
 		fasync_helper(0, fl->c.flc_file, 0, &fl->fl_fasync);
 		if (fl->fl_fasync != NULL) {
 			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
@@ -1782,6 +1782,10 @@ generic_add_lease(struct file *filp, int arg, struct file_lease **flp, void **pr
 
 	lease = *flp;
 	trace_generic_add_lease(inode, lease);
+
+	error = file_f_owner_allocate(filp);
+	if (error)
+		return error;
 
 	/* Note that arg is never F_UNLCK here */
 	ctx = locks_get_lock_context(inode, arg);
@@ -2570,8 +2574,9 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 	error = do_lock_file_wait(filp, cmd, file_lock);
 
 	/*
-	 * Attempt to detect a close/fcntl race and recover by releasing the
-	 * lock that was just acquired. There is no need to do that when we're
+	 * Detect close/fcntl races and recover by zapping all POSIX locks
+	 * associated with this file and our files_struct, just like on
+	 * filp_flush(). There is no need to do that when we're
 	 * unlocking though, or for OFD locks.
 	 */
 	if (!error && file_lock->c.flc_type != F_UNLCK &&
@@ -2586,9 +2591,7 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 		f = files_lookup_fd_locked(files, fd);
 		spin_unlock(&files->file_lock);
 		if (f != filp) {
-			file_lock->c.flc_type = F_UNLCK;
-			error = do_lock_file_wait(filp, cmd, file_lock);
-			WARN_ON_ONCE(error);
+			locks_remove_posix(filp, files);
 			error = -EBADF;
 		}
 	}
@@ -2985,7 +2988,7 @@ static int __init filelock_init(void)
 	filelock_cache = kmem_cache_create("file_lock_cache",
 			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);
 
-	filelease_cache = kmem_cache_create("file_lock_cache",
+	filelease_cache = kmem_cache_create("file_lease_cache",
 			sizeof(struct file_lease), 0, SLAB_PANIC, NULL);
 
 	for_each_possible_cpu(i) {

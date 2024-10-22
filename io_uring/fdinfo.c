@@ -221,7 +221,19 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 			   cqe->user_data, cqe->res, cqe->flags);
 
 	}
-
 	spin_unlock(&ctx->completion_lock);
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	if (ctx->napi_enabled) {
+		seq_puts(m, "NAPI:\tenabled\n");
+		seq_printf(m, "napi_busy_poll_dt:\t%llu\n", ctx->napi_busy_poll_dt);
+		if (ctx->napi_prefer_busy_poll)
+			seq_puts(m, "napi_prefer_busy_poll:\ttrue\n");
+		else
+			seq_puts(m, "napi_prefer_busy_poll:\tfalse\n");
+	} else {
+		seq_puts(m, "NAPI:\tdisabled\n");
+	}
+#endif
 }
 #endif

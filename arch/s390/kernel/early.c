@@ -48,6 +48,7 @@ decompressor_handled_param(dfltcc);
 decompressor_handled_param(facilities);
 decompressor_handled_param(nokaslr);
 decompressor_handled_param(cmma);
+decompressor_handled_param(relocate_lowcore);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
 #endif
@@ -190,13 +191,6 @@ static noinline __init void setup_lowcore_early(void)
 	get_lowcore()->preempt_count = INIT_PREEMPT_COUNT;
 }
 
-static noinline __init void setup_facility_list(void)
-{
-	memcpy(alt_stfle_fac_list, stfle_fac_list, sizeof(alt_stfle_fac_list));
-	if (!IS_ENABLED(CONFIG_KERNEL_NOBP))
-		__clear_facility(82, alt_stfle_fac_list);
-}
-
 static __init void detect_diag9c(void)
 {
 	unsigned int cpu_address;
@@ -291,7 +285,6 @@ void __init startup_init(void)
 	lockdep_off();
 	sort_amode31_extable();
 	setup_lowcore_early();
-	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
 	setup_boot_command_line();

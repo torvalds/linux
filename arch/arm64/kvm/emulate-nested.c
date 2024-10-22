@@ -83,14 +83,20 @@ enum cgt_group_id {
 	CGT_CPTR_TAM,
 	CGT_CPTR_TCPAC,
 
+	CGT_HCRX_EnFPM,
 	CGT_HCRX_TCR2En,
+
+	CGT_ICH_HCR_TC,
+	CGT_ICH_HCR_TALL0,
+	CGT_ICH_HCR_TALL1,
+	CGT_ICH_HCR_TDIR,
 
 	/*
 	 * Anything after this point is a combination of coarse trap
 	 * controls, which must all be evaluated to decide what to do.
 	 */
 	__MULTIPLE_CONTROL_BITS__,
-	CGT_HCR_IMO_FMO = __MULTIPLE_CONTROL_BITS__,
+	CGT_HCR_IMO_FMO_ICH_HCR_TC = __MULTIPLE_CONTROL_BITS__,
 	CGT_HCR_TID2_TID4,
 	CGT_HCR_TTLB_TTLBIS,
 	CGT_HCR_TTLB_TTLBOS,
@@ -104,6 +110,8 @@ enum cgt_group_id {
 	CGT_MDCR_TDE_TDOSA,
 	CGT_MDCR_TDE_TDRA,
 	CGT_MDCR_TDCC_TDE_TDA,
+
+	CGT_ICH_HCR_TC_TDIR,
 
 	/*
 	 * Anything after this point requires a callback evaluating a
@@ -372,10 +380,40 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.mask		= CPTR_EL2_TCPAC,
 		.behaviour	= BEHAVE_FORWARD_ANY,
 	},
+	[CGT_HCRX_EnFPM] = {
+		.index		= HCRX_EL2,
+		.value 		= 0,
+		.mask		= HCRX_EL2_EnFPM,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
 	[CGT_HCRX_TCR2En] = {
 		.index		= HCRX_EL2,
 		.value 		= 0,
 		.mask		= HCRX_EL2_TCR2En,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
+	[CGT_ICH_HCR_TC] = {
+		.index		= ICH_HCR_EL2,
+		.value		= ICH_HCR_TC,
+		.mask		= ICH_HCR_TC,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
+	[CGT_ICH_HCR_TALL0] = {
+		.index		= ICH_HCR_EL2,
+		.value		= ICH_HCR_TALL0,
+		.mask		= ICH_HCR_TALL0,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
+	[CGT_ICH_HCR_TALL1] = {
+		.index		= ICH_HCR_EL2,
+		.value		= ICH_HCR_TALL1,
+		.mask		= ICH_HCR_TALL1,
+		.behaviour	= BEHAVE_FORWARD_ANY,
+	},
+	[CGT_ICH_HCR_TDIR] = {
+		.index		= ICH_HCR_EL2,
+		.value		= ICH_HCR_TDIR,
+		.mask		= ICH_HCR_TDIR,
 		.behaviour	= BEHAVE_FORWARD_ANY,
 	},
 };
@@ -387,7 +425,6 @@ static const struct trap_bits coarse_trap_bits[] = {
 		}
 
 static const enum cgt_group_id *coarse_control_combo[] = {
-	MCB(CGT_HCR_IMO_FMO,		CGT_HCR_IMO, CGT_HCR_FMO),
 	MCB(CGT_HCR_TID2_TID4,		CGT_HCR_TID2, CGT_HCR_TID4),
 	MCB(CGT_HCR_TTLB_TTLBIS,	CGT_HCR_TTLB, CGT_HCR_TTLBIS),
 	MCB(CGT_HCR_TTLB_TTLBOS,	CGT_HCR_TTLB, CGT_HCR_TTLBOS),
@@ -402,6 +439,9 @@ static const enum cgt_group_id *coarse_control_combo[] = {
 	MCB(CGT_MDCR_TDE_TDOSA,		CGT_MDCR_TDE, CGT_MDCR_TDOSA),
 	MCB(CGT_MDCR_TDE_TDRA,		CGT_MDCR_TDE, CGT_MDCR_TDRA),
 	MCB(CGT_MDCR_TDCC_TDE_TDA,	CGT_MDCR_TDCC, CGT_MDCR_TDE, CGT_MDCR_TDA),
+
+	MCB(CGT_HCR_IMO_FMO_ICH_HCR_TC,	CGT_HCR_IMO, CGT_HCR_FMO, CGT_ICH_HCR_TC),
+	MCB(CGT_ICH_HCR_TC_TDIR,	CGT_ICH_HCR_TC, CGT_ICH_HCR_TDIR),
 };
 
 typedef enum trap_behaviour (*complex_condition_check)(struct kvm_vcpu *);
@@ -536,9 +576,9 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(SYS_CSSELR_EL1,		CGT_HCR_TID2_TID4),
 	SR_RANGE_TRAP(SYS_ID_PFR0_EL1,
 		      sys_reg(3, 0, 0, 7, 7), CGT_HCR_TID3),
-	SR_TRAP(SYS_ICC_SGI0R_EL1,	CGT_HCR_IMO_FMO),
-	SR_TRAP(SYS_ICC_ASGI1R_EL1,	CGT_HCR_IMO_FMO),
-	SR_TRAP(SYS_ICC_SGI1R_EL1,	CGT_HCR_IMO_FMO),
+	SR_TRAP(SYS_ICC_SGI0R_EL1,	CGT_HCR_IMO_FMO_ICH_HCR_TC),
+	SR_TRAP(SYS_ICC_ASGI1R_EL1,	CGT_HCR_IMO_FMO_ICH_HCR_TC),
+	SR_TRAP(SYS_ICC_SGI1R_EL1,	CGT_HCR_IMO_FMO_ICH_HCR_TC),
 	SR_RANGE_TRAP(sys_reg(3, 0, 11, 0, 0),
 		      sys_reg(3, 0, 11, 15, 7), CGT_HCR_TIDCP),
 	SR_RANGE_TRAP(sys_reg(3, 1, 11, 0, 0),
@@ -786,6 +826,7 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(OP_AT_S12E1W,		CGT_HCR_NV),
 	SR_TRAP(OP_AT_S12E0R,		CGT_HCR_NV),
 	SR_TRAP(OP_AT_S12E0W,		CGT_HCR_NV),
+	SR_TRAP(OP_AT_S1E2A,		CGT_HCR_NV),
 	SR_TRAP(OP_TLBI_IPAS2E1,	CGT_HCR_NV),
 	SR_TRAP(OP_TLBI_RIPAS2E1,	CGT_HCR_NV),
 	SR_TRAP(OP_TLBI_IPAS2LE1,	CGT_HCR_NV),
@@ -867,6 +908,7 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(OP_AT_S1E0W, 		CGT_HCR_AT),
 	SR_TRAP(OP_AT_S1E1RP, 		CGT_HCR_AT),
 	SR_TRAP(OP_AT_S1E1WP, 		CGT_HCR_AT),
+	SR_TRAP(OP_AT_S1E1A,		CGT_HCR_AT),
 	SR_TRAP(SYS_ERXPFGF_EL1,	CGT_HCR_nFIEN),
 	SR_TRAP(SYS_ERXPFGCTL_EL1,	CGT_HCR_nFIEN),
 	SR_TRAP(SYS_ERXPFGCDN_EL1,	CGT_HCR_nFIEN),
@@ -1108,6 +1150,35 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(SYS_CNTP_CTL_EL0,	CGT_CNTHCTL_EL1PTEN),
 	SR_TRAP(SYS_CNTPCT_EL0,		CGT_CNTHCTL_EL1PCTEN),
 	SR_TRAP(SYS_CNTPCTSS_EL0,	CGT_CNTHCTL_EL1PCTEN),
+	SR_TRAP(SYS_FPMR,		CGT_HCRX_EnFPM),
+	/*
+	 * IMPDEF choice:
+	 * We treat ICC_SRE_EL2.{SRE,Enable) and ICV_SRE_EL1.SRE as
+	 * RAO/WI. We therefore never consider ICC_SRE_EL2.Enable for
+	 * ICC_SRE_EL1 access, and always handle it locally.
+	 */
+	SR_TRAP(SYS_ICC_AP0R0_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_AP0R1_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_AP0R2_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_AP0R3_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_AP1R0_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_AP1R1_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_AP1R2_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_AP1R3_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_BPR0_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_BPR1_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_CTLR_EL1,	CGT_ICH_HCR_TC),
+	SR_TRAP(SYS_ICC_DIR_EL1,	CGT_ICH_HCR_TC_TDIR),
+	SR_TRAP(SYS_ICC_EOIR0_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_EOIR1_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_HPPIR0_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_HPPIR1_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_IAR0_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_IAR1_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_IGRPEN0_EL1,	CGT_ICH_HCR_TALL0),
+	SR_TRAP(SYS_ICC_IGRPEN1_EL1,	CGT_ICH_HCR_TALL1),
+	SR_TRAP(SYS_ICC_PMR_EL1,	CGT_ICH_HCR_TC),
+	SR_TRAP(SYS_ICC_RPR_EL1,	CGT_ICH_HCR_TC),
 };
 
 static DEFINE_XARRAY(sr_forward_xa);

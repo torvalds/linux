@@ -53,13 +53,13 @@ static inline bool kfence_protect_page(unsigned long addr, bool protect)
 {
 	pte_t *pte = virt_to_kpte(addr);
 
-	if (WARN_ON(!pte) || pte_none(*pte))
+	if (WARN_ON(!pte) || pte_none(ptep_get(pte)))
 		return false;
 
 	if (protect)
-		set_pte(pte, __pte(pte_val(*pte) & ~(_PAGE_VALID | _PAGE_PRESENT)));
+		set_pte(pte, __pte(pte_val(ptep_get(pte)) & ~(_PAGE_VALID | _PAGE_PRESENT)));
 	else
-		set_pte(pte, __pte(pte_val(*pte) | (_PAGE_VALID | _PAGE_PRESENT)));
+		set_pte(pte, __pte(pte_val(ptep_get(pte)) | (_PAGE_VALID | _PAGE_PRESENT)));
 
 	preempt_disable();
 	local_flush_tlb_one(addr);

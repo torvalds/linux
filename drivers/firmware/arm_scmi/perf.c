@@ -310,7 +310,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		}
 		if (!dom_info->mult_factor)
 			dev_warn(ph->dev,
-			         "Wrong sustained perf/frequency(domain %d)\n",
+				 "Wrong sustained perf/frequency(domain %d)\n",
 				 dom_info->id);
 
 		strscpy(dom_info->info.name, attr->name,

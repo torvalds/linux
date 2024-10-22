@@ -43,15 +43,6 @@
 			sound-dai = <&mcasp0>;
 		};
 	};
-
-	reg_usb_hub: regulator-usb-hub {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
-		gpio = <&main_gpio0 31 GPIO_ACTIVE_HIGH>;
-		regulator-boot-on;
-		regulator-name = "HUB_PWR_EN";
-	};
 };
 
 /* Verdin ETHs */
@@ -193,11 +184,6 @@
 	status = "okay";
 };
 
-/* Do not force CTRL_SLEEP_MOCI# always enabled */
-&reg_force_sleep_moci {
-	status = "disabled";
-};
-
 /* Verdin SD_1 */
 &sdhci1 {
 	status = "okay";
@@ -218,15 +204,7 @@
 };
 
 &usb1 {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	status = "okay";
-
-	usb-hub@1 {
-		compatible = "usb424,2744";
-		reg = <1>;
-		vdd-supply = <&reg_usb_hub>;
-	};
 };
 
 /* Verdin CTRL_WAKE1_MICO# */

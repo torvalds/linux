@@ -799,7 +799,7 @@ xchk_parent_pptr(
 	}
 
 	if (pp->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		goto out_pp;
+		goto out_names;
 
 	/*
 	 * Complain if the number of parent pointers doesn't match the link

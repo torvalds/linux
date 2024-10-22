@@ -900,7 +900,7 @@ static bool iomap_write_end(struct iomap_iter *iter, loff_t pos, size_t len,
 		size_t bh_written;
 
 		bh_written = block_write_end(NULL, iter->inode->i_mapping, pos,
-					len, copied, &folio->page, NULL);
+					len, copied, folio, NULL);
 		WARN_ON_ONCE(bh_written != copied && bh_written != 0);
 		return bh_written == copied;
 	}

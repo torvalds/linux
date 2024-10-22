@@ -302,7 +302,7 @@ void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc)
 {
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
 
-	if (!intel_uc_fw_is_loadable(&gsc->fw))
+	if (!intel_uc_fw_is_loadable(&gsc->fw) || intel_uc_fw_is_in_error(&gsc->fw))
 		return;
 
 	if (intel_gsc_uc_fw_init_done(gsc))

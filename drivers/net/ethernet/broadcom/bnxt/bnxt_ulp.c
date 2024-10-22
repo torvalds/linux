@@ -176,11 +176,17 @@ EXPORT_SYMBOL(bnxt_unregister_dev);
 
 static int bnxt_set_dflt_ulp_msix(struct bnxt *bp)
 {
-	u32 roce_msix = BNXT_VF(bp) ?
-			BNXT_MAX_VF_ROCE_MSIX : BNXT_MAX_ROCE_MSIX;
+	int roce_msix = BNXT_MAX_ROCE_MSIX;
 
-	return ((bp->flags & BNXT_FLAG_ROCE_CAP) ?
-		min_t(u32, roce_msix, num_online_cpus()) : 0);
+	if (BNXT_VF(bp))
+		roce_msix = BNXT_MAX_ROCE_MSIX_VF;
+	else if (bp->port_partition_type)
+		roce_msix = BNXT_MAX_ROCE_MSIX_NPAR_PF;
+
+	/* NQ MSIX vectors should match the number of CPUs plus 1 more for
+	 * the CREQ MSIX, up to the default.
+	 */
+	return min_t(int, roce_msix, num_online_cpus() + 1);
 }
 
 int bnxt_send_msg(struct bnxt_en_dev *edev,
@@ -239,7 +245,7 @@ void bnxt_ulp_stop(struct bnxt *bp)
 
 		adev = &aux_priv->aux_dev;
 		if (adev->dev.driver) {
-			struct auxiliary_driver *adrv;
+			const struct auxiliary_driver *adrv;
 			pm_message_t pm = {};
 
 			adrv = to_auxiliary_drv(adev->dev.driver);
@@ -277,7 +283,7 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 
 		adev = &aux_priv->aux_dev;
 		if (adev->dev.driver) {
-			struct auxiliary_driver *adrv;
+			const struct auxiliary_driver *adrv;
 
 			adrv = to_auxiliary_drv(adev->dev.driver);
 			edev->en_state = bp->state;

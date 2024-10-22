@@ -713,7 +713,7 @@ static bool vma_ksm_compatible(struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & (VM_SHARED  | VM_MAYSHARE   | VM_PFNMAP  |
 			     VM_IO      | VM_DONTEXPAND | VM_HUGETLB |
-			     VM_MIXEDMAP))
+			     VM_MIXEDMAP| VM_DROPPABLE))
 		return false;		/* just ignore the advice */
 
 	if (vma_is_dax(vma))

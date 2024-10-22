@@ -166,6 +166,7 @@ config QCOM_PIL_INFO
 
 config QCOM_RPROC_COMMON
 	tristate
+	select AUXILIARY_BUS
 
 config QCOM_Q6V5_COMMON
 	tristate

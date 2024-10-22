@@ -158,7 +158,7 @@ struct ap_driver {
 				 struct ap_config_info *old_config_info);
 };
 
-#define to_ap_drv(x) container_of((x), struct ap_driver, driver)
+#define to_ap_drv(x) container_of_const((x), struct ap_driver, driver)
 
 int ap_driver_register(struct ap_driver *, struct module *, char *);
 void ap_driver_unregister(struct ap_driver *);

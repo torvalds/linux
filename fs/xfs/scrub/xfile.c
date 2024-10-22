@@ -293,7 +293,7 @@ xfile_get_folio(
 	 * (potentially last) reference in xfile_put_folio.
 	 */
 	if (flags & XFILE_ALLOC)
-		folio_set_dirty(folio);
+		folio_mark_dirty(folio);
 	return folio;
 }
 

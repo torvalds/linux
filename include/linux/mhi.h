@@ -528,7 +528,7 @@ struct mhi_driver {
 	struct device_driver driver;
 };
 
-#define to_mhi_driver(drv) container_of(drv, struct mhi_driver, driver)
+#define to_mhi_driver(drv) container_of_const(drv, struct mhi_driver, driver)
 #define to_mhi_device(dev) container_of(dev, struct mhi_device, dev)
 
 /**

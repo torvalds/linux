@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 6
-PATCHLEVEL = 10
+PATCHLEVEL = 11
 SUBLEVEL = 0
 EXTRAVERSION =
 NAME = Baby Opossum Posse
@@ -11,8 +11,8 @@ NAME = Baby Opossum Posse
 # Comments in this file are targeted only to the developer, do not
 # expect to learn how to build the kernel reading this file.
 
-ifeq ($(filter undefine,$(.FEATURES)),)
-$(error GNU Make >= 3.82 is required. Your Make version is $(MAKE_VERSION))
+ifeq ($(filter output-sync,$(.FEATURES)),)
+$(error GNU Make >= 4.0 is required. Your Make version is $(MAKE_VERSION))
 endif
 
 $(if $(filter __%, $(MAKECMDGOALS)), \
@@ -93,15 +93,7 @@ endif
 
 # If the user is running make -s (silent mode), suppress echoing of
 # commands
-# make-4.0 (and later) keep single letter options in the 1st word of MAKEFLAGS.
-
-ifeq ($(filter 3.%,$(MAKE_VERSION)),)
-short-opts := $(firstword -$(MAKEFLAGS))
-else
-short-opts := $(filter-out --%,$(MAKEFLAGS))
-endif
-
-ifneq ($(findstring s,$(short-opts)),)
+ifneq ($(findstring s,$(firstword -$(MAKEFLAGS))),)
 quiet=silent_
 override KBUILD_VERBOSE :=
 endif
@@ -199,14 +191,6 @@ endif # ifneq ($(KBUILD_OUTPUT),)
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
 $(error source directory cannot contain spaces or colons)
-endif
-
-ifneq ($(filter 3.%,$(MAKE_VERSION)),)
-# 'MAKEFLAGS += -rR' does not immediately become effective for GNU Make 3.x
-# We need to invoke sub-make to avoid implicit rules in the top Makefile.
-need-sub-make := 1
-# Cancel implicit rules for this Makefile.
-$(this-makefile): ;
 endif
 
 export sub_make_done := 1
@@ -461,21 +445,24 @@ KBUILD_USERLDFLAGS := $(USERLDFLAGS)
 # host programs.
 export rust_common_flags := --edition=2021 \
 			    -Zbinary_dep_depinfo=y \
-			    -Dunsafe_op_in_unsafe_fn -Drust_2018_idioms \
-			    -Dunreachable_pub -Dnon_ascii_idents \
+			    -Astable_features \
+			    -Dunsafe_op_in_unsafe_fn \
+			    -Dnon_ascii_idents \
+			    -Wrust_2018_idioms \
+			    -Wunreachable_pub \
 			    -Wmissing_docs \
-			    -Drustdoc::missing_crate_level_docs \
-			    -Dclippy::correctness -Dclippy::style \
-			    -Dclippy::suspicious -Dclippy::complexity \
-			    -Dclippy::perf \
-			    -Dclippy::let_unit_value -Dclippy::mut_mut \
-			    -Dclippy::needless_bitwise_bool \
-			    -Dclippy::needless_continue \
-			    -Dclippy::no_mangle_with_rust_abi \
+			    -Wrustdoc::missing_crate_level_docs \
+			    -Wclippy::all \
+			    -Wclippy::mut_mut \
+			    -Wclippy::needless_bitwise_bool \
+			    -Wclippy::needless_continue \
+			    -Wclippy::no_mangle_with_rust_abi \
 			    -Wclippy::dbg_macro
 
-KBUILD_HOSTCFLAGS   := $(KBUILD_USERHOSTCFLAGS) $(HOST_LFS_CFLAGS) $(HOSTCFLAGS)
-KBUILD_HOSTCXXFLAGS := -Wall -O2 $(HOST_LFS_CFLAGS) $(HOSTCXXFLAGS)
+KBUILD_HOSTCFLAGS   := $(KBUILD_USERHOSTCFLAGS) $(HOST_LFS_CFLAGS) \
+		       $(HOSTCFLAGS) -I $(srctree)/scripts/include
+KBUILD_HOSTCXXFLAGS := -Wall -O2 $(HOST_LFS_CFLAGS) $(HOSTCXXFLAGS) \
+		       -I $(srctree)/scripts/include
 KBUILD_HOSTRUSTFLAGS := $(rust_common_flags) -O -Cstrip=debuginfo \
 			-Zallow-features= $(HOSTRUSTFLAGS)
 KBUILD_HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS) $(HOSTLDFLAGS)
@@ -507,7 +494,6 @@ RUSTDOC		= rustdoc
 RUSTFMT		= rustfmt
 CLIPPY_DRIVER	= clippy-driver
 BINDGEN		= bindgen
-CARGO		= cargo
 PAHOLE		= pahole
 RESOLVE_BTFIDS	= $(objtree)/tools/bpf/resolve_btfids/resolve_btfids
 LEX		= flex
@@ -573,7 +559,7 @@ KBUILD_RUSTFLAGS := $(rust_common_flags) \
 		    -Csymbol-mangling-version=v0 \
 		    -Crelocation-model=static \
 		    -Zfunction-sections=n \
-		    -Dclippy::float_arithmetic
+		    -Wclippy::float_arithmetic
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
@@ -601,7 +587,7 @@ endif
 export RUSTC_BOOTSTRAP := 1
 
 export ARCH SRCARCH CONFIG_SHELL BASH HOSTCC KBUILD_HOSTCFLAGS CROSS_COMPILE LD CC HOSTPKG_CONFIG
-export RUSTC RUSTDOC RUSTFMT RUSTC_OR_CLIPPY_QUIET RUSTC_OR_CLIPPY BINDGEN CARGO
+export RUSTC RUSTDOC RUSTFMT RUSTC_OR_CLIPPY_QUIET RUSTC_OR_CLIPPY BINDGEN
 export HOSTRUSTC KBUILD_HOSTRUSTFLAGS
 export CPP AR NM STRIP OBJCOPY OBJDUMP READELF PAHOLE RESOLVE_BTFIDS LEX YACC AWK INSTALLKERNEL
 export PERL PYTHON3 CHECK CHECKFLAGS MAKE UTS_MACHINE HOSTCXX
@@ -1344,6 +1330,12 @@ prepare: tools/bpf/resolve_btfids
 endif
 endif
 
+# The tools build system is not a part of Kbuild and tends to introduce
+# its own unique issues. If you need to integrate a new tool into Kbuild,
+# please consider locating that tool outside the tools/ tree and using the
+# standard Kbuild "hostprogs" syntax instead of adding a new tools/* entry
+# here. See Documentation/kbuild/makefiles.rst for details.
+
 PHONY += resolve_btfids_clean
 
 resolve_btfids_O = $(abspath $(objtree))/tools/bpf/resolve_btfids
@@ -1497,7 +1489,7 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
 # Directories & files removed with 'make mrproper'
 MRPROPER_FILES += include/config include/generated          \
 		  arch/$(SRCARCH)/include/generated .objdiff \
-		  debian snap tar-install \
+		  debian snap tar-install PKGBUILD pacman \
 		  .config .config.old .version \
 		  Module.symvers \
 		  certs/signing_key.pem \
@@ -1967,9 +1959,12 @@ quiet_cmd_tags = GEN     $@
 tags TAGS cscope gtags: FORCE
 	$(call cmd,tags)
 
-# IDE support targets
+# Generate rust-project.json (a file that describes the structure of non-Cargo
+# Rust projects) for rust-analyzer (an implementation of the Language Server
+# Protocol).
 PHONY += rust-analyzer
 rust-analyzer:
+	+$(Q)$(CONFIG_SHELL) $(srctree)/scripts/rust_is_available.sh
 	$(Q)$(MAKE) $(build)=rust $@
 
 # Script to generate missing namespace dependencies
@@ -1986,7 +1981,7 @@ nsdeps: modules
 quiet_cmd_gen_compile_commands = GEN     $@
       cmd_gen_compile_commands = $(PYTHON3) $< -a $(AR) -o $@ $(filter-out $<, $(real-prereqs))
 
-$(extmod_prefix)compile_commands.json: scripts/clang-tools/gen_compile_commands.py \
+$(extmod_prefix)compile_commands.json: $(srctree)/scripts/clang-tools/gen_compile_commands.py \
 	$(if $(KBUILD_EXTMOD),, vmlinux.a $(KBUILD_VMLINUX_LIBS)) \
 	$(if $(CONFIG_MODULES), $(MODORDER)) FORCE
 	$(call if_changed,gen_compile_commands)

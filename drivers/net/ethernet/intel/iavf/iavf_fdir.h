@@ -117,17 +117,26 @@ struct iavf_fdir_fltr {
 
 	u32 flow_id;
 
+	u32 cls_u32_handle; /* for FDIR added via tc u32 */
 	u32 loc;	/* Rule location inside the flow table */
 	u32 q_index;
 
 	struct virtchnl_fdir_add vc_add_msg;
 };
 
+static inline bool iavf_is_raw_fdir(struct iavf_fdir_fltr *fltr)
+{
+	return !fltr->vc_add_msg.rule_cfg.proto_hdrs.count;
+}
+
 int iavf_validate_fdir_fltr_masks(struct iavf_adapter *adapter,
 				  struct iavf_fdir_fltr *fltr);
 int iavf_fill_fdir_add_msg(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr);
 void iavf_print_fdir_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr);
 bool iavf_fdir_is_dup_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr);
-void iavf_fdir_list_add_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr);
-struct iavf_fdir_fltr *iavf_find_fdir_fltr_by_loc(struct iavf_adapter *adapter, u32 loc);
+int iavf_fdir_add_fltr(struct iavf_adapter *adapter,
+		       struct iavf_fdir_fltr *fltr);
+int iavf_fdir_del_fltr(struct iavf_adapter *adapter, bool is_raw, u32 data);
+struct iavf_fdir_fltr *iavf_find_fdir_fltr(struct iavf_adapter *adapter,
+					   bool is_raw, u32 data);
 #endif /* _IAVF_FDIR_H_ */

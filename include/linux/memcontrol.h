@@ -109,6 +109,7 @@ struct mem_cgroup_per_node {
 
 	/* Fields which get updated often at the end. */
 	struct lruvec		lruvec;
+	CACHELINE_PADDING(_pad2_);
 	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
 	struct mem_cgroup_reclaim_iter	iter;
 };

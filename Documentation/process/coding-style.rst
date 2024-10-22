@@ -629,18 +629,6 @@ The preferred style for long (multi-line) comments is:
 	 * with beginning and ending almost-blank lines.
 	 */
 
-For files in net/ and drivers/net/ the preferred style for long (multi-line)
-comments is a little different.
-
-.. code-block:: c
-
-	/* The preferred comment style for files in net/ and drivers/net
-	 * looks like this.
-	 *
-	 * It is nearly the same as the generally preferred comment style,
-	 * but there is no initial almost-blank line.
-	 */
-
 It's also important to comment data, whether they are basic types or derived
 types.  To this end, use just one data declaration per line (no commas for
 multiple data declarations).  This leaves you room for a small comment on each
@@ -998,7 +986,7 @@ that can go into these 5 milliseconds.
 
 A reasonable rule of thumb is to not put inline at functions that have more
 than 3 lines of code in them. An exception to this rule are the cases where
-a parameter is known to be a compiletime constant, and as a result of this
+a parameter is known to be a compile time constant, and as a result of this
 constantness you *know* the compiler will be able to optimize most of your
 function away at compile time. For a good example of this later case, see
 the kmalloc() inline function.

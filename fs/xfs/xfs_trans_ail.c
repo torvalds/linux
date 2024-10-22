@@ -644,7 +644,12 @@ xfsaild(
 	set_freezable();
 
 	while (1) {
-		if (tout)
+		/*
+		 * Long waits of 50ms or more occur when we've run out of items
+		 * to push, so we only want uninterruptible state if we're
+		 * actually blocked on something.
+		 */
+		if (tout && tout <= 20)
 			set_current_state(TASK_KILLABLE|TASK_FREEZABLE);
 		else
 			set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);

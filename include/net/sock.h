@@ -337,6 +337,7 @@ struct sk_filter;
   *	@sk_txtime_report_errors: set report errors mode for SO_TXTIME
   *	@sk_txtime_unused: unused txtime flags
   *	@ns_tracker: tracker for netns reference
+  *	@sk_user_frags: xarray of pages the user is holding a reference on.
   */
 struct sock {
 	/*
@@ -542,6 +543,7 @@ struct sock {
 #endif
 	struct rcu_head		sk_rcu;
 	netns_tracker		ns_tracker;
+	struct xarray		sk_user_frags;
 };
 
 struct sock_bh_locked {
@@ -1624,7 +1626,7 @@ bool __lock_sock_fast(struct sock *sk) __acquires(&sk->sk_lock.slock);
  * lock_sock_fast - fast version of lock_sock
  * @sk: socket
  *
- * This version should be used for very small section, where process wont block
+ * This version should be used for very small section, where process won't block
  * return false if fast path is taken:
  *
  *   sk_lock.slock locked, owned = 0, BH disabled
@@ -2546,7 +2548,7 @@ struct sock_skb_cb {
 
 /* Store sock_skb_cb at the end of skb->cb[] so protocol families
  * using skb->cb[] would keep using it directly and utilize its
- * alignement guarantee.
+ * alignment guarantee.
  */
 #define SOCK_SKB_CB_OFFSET ((sizeof_field(struct sk_buff, cb) - \
 			    sizeof(struct sock_skb_cb)))

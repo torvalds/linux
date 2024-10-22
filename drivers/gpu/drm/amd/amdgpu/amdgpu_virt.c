@@ -858,7 +858,7 @@ void amdgpu_virt_post_reset(struct amdgpu_device *adev)
 		adev->gfx.is_poweron = false;
 	}
 
-	adev->mes.ring.sched.ready = false;
+	adev->mes.ring[0].sched.ready = false;
 }
 
 bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev, uint32_t ucode_id)

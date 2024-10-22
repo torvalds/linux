@@ -486,6 +486,9 @@ static int mctp_ioctl_droptag(struct mctp_sock *msk, bool tagv2,
 	tag = ctl.tag & MCTP_TAG_MASK;
 	rc = -EINVAL;
 
+	if (ctl.peer_addr == MCTP_ADDR_NULL)
+		ctl.peer_addr = MCTP_ADDR_ANY;
+
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
 		/* we do an irqsave here, even though we know the irq state,

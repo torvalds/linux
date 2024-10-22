@@ -416,6 +416,19 @@ void unpin_user_pages(struct page **pages, unsigned long npages)
 EXPORT_SYMBOL(unpin_user_pages);
 
 /**
+ * unpin_user_folio() - release pages of a folio
+ * @folio:  pointer to folio to be released
+ * @npages: number of pages of same folio
+ *
+ * Release npages of the folio
+ */
+void unpin_user_folio(struct folio *folio, unsigned long npages)
+{
+	gup_put_folio(folio, npages, FOLL_PIN);
+}
+EXPORT_SYMBOL(unpin_user_folio);
+
+/**
  * unpin_folios() - release an array of gup-pinned folios.
  * @folios:  array of folios to be marked dirty and released.
  * @nfolios: number of folios in the @folios array.

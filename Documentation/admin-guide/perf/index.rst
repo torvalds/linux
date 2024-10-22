@@ -16,6 +16,7 @@ Performance monitor support
    starfive_starlink_pmu
    arm-ccn
    arm-cmn
+   arm-ni
    xgene-pmu
    arm_dsu_pmu
    thunderx2-pmu

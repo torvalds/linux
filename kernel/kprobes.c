@@ -939,7 +939,7 @@ static void unoptimize_all_kprobes(void)
 
 static DEFINE_MUTEX(kprobe_sysctl_mutex);
 static int sysctl_kprobes_optimization;
-static int proc_kprobes_optimization_handler(struct ctl_table *table,
+static int proc_kprobes_optimization_handler(const struct ctl_table *table,
 					     int write, void *buffer,
 					     size_t *length, loff_t *ppos)
 {
@@ -1557,8 +1557,8 @@ static bool is_cfi_preamble_symbol(unsigned long addr)
 	if (lookup_symbol_name(addr, symbuf))
 		return false;
 
-	return str_has_prefix("__cfi_", symbuf) ||
-		str_has_prefix("__pfx_", symbuf);
+	return str_has_prefix(symbuf, "__cfi_") ||
+		str_has_prefix(symbuf, "__pfx_");
 }
 
 static int check_kprobe_address_safe(struct kprobe *p,

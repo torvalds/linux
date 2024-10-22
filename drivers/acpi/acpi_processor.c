@@ -436,8 +436,8 @@ static int acpi_processor_add(struct acpi_device *device,
 	}
 
 	pr->handle = device->handle;
-	strcpy(acpi_device_name(device), ACPI_PROCESSOR_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_PROCESSOR_CLASS);
+	strscpy(acpi_device_name(device), ACPI_PROCESSOR_DEVICE_NAME);
+	strscpy(acpi_device_class(device), ACPI_PROCESSOR_CLASS);
 	device->driver_data = pr;
 
 	result = acpi_processor_get_info(device);
@@ -985,7 +985,7 @@ int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
 		memcpy(&info->states[++last_index], &cx, sizeof(cx));
 	}
 
-	acpi_handle_info(handle, "Found %d idle states\n", last_index);
+	acpi_handle_debug(handle, "Found %d idle states\n", last_index);
 
 	info->count = last_index;
 

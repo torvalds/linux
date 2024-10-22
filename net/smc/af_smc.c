@@ -1466,10 +1466,6 @@ connect_abort:
 static int smc_connect_check_aclc(struct smc_init_info *ini,
 				  struct smc_clc_msg_accept_confirm *aclc)
 {
-	if (aclc->hdr.typev1 != SMC_TYPE_R &&
-	    aclc->hdr.typev1 != SMC_TYPE_D)
-		return SMC_CLC_DECL_MODEUNSUPP;
-
 	if (aclc->hdr.version >= SMC_V2) {
 		if ((aclc->hdr.typev1 == SMC_TYPE_R &&
 		     !smcr_indicated(ini->smc_type_v2)) ||
@@ -1523,10 +1519,6 @@ static int __smc_connect(struct smc_sock *smc)
 		ini->smcd_version &= ~SMC_V1;
 		ini->smcr_version = 0;
 		ini->smc_type_v1 = SMC_TYPE_N;
-		if (!ini->smcd_version) {
-			rc = SMC_CLC_DECL_GETVLANERR;
-			goto fallback;
-		}
 	}
 
 	rc = smc_find_proposal_devices(smc, ini);
@@ -3319,10 +3311,8 @@ int smc_create_clcsk(struct net *net, struct sock *sk, int family)
 
 	rc = sock_create_kern(net, family, SOCK_STREAM, IPPROTO_TCP,
 			      &smc->clcsock);
-	if (rc) {
-		sk_common_release(sk);
+	if (rc)
 		return rc;
-	}
 
 	/* smc_clcsock_release() does not wait smc->clcsock->sk's
 	 * destruction;  its sk_state might not be TCP_CLOSE after
@@ -3368,6 +3358,9 @@ static int __smc_create(struct net *net, struct socket *sock, int protocol,
 		smc->clcsock = clcsock;
 	else
 		rc = smc_create_clcsk(net, sk, family);
+
+	if (rc)
+		sk_common_release(sk);
 out:
 	return rc;
 }

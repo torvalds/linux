@@ -39,7 +39,7 @@ livepatch: '$MOD_LIVEPATCH1': initializing patching transition
 livepatch: '$MOD_LIVEPATCH1': starting patching transition
 livepatch: '$MOD_LIVEPATCH1': completing patching transition
 livepatch: '$MOD_LIVEPATCH1': patching complete
-% echo 0 > /sys/kernel/livepatch/$MOD_LIVEPATCH1/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_LIVEPATCH1/enabled
 livepatch: '$MOD_LIVEPATCH1': initializing unpatching transition
 livepatch: '$MOD_LIVEPATCH1': starting unpatching transition
 livepatch: '$MOD_LIVEPATCH1': completing unpatching transition
@@ -92,14 +92,14 @@ livepatch: '$MOD_REPLACE': completing patching transition
 livepatch: '$MOD_REPLACE': patching complete
 $MOD_LIVEPATCH1: this has been live patched
 $MOD_REPLACE: this has been live patched
-% echo 0 > /sys/kernel/livepatch/$MOD_REPLACE/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_REPLACE/enabled
 livepatch: '$MOD_REPLACE': initializing unpatching transition
 livepatch: '$MOD_REPLACE': starting unpatching transition
 livepatch: '$MOD_REPLACE': completing unpatching transition
 livepatch: '$MOD_REPLACE': unpatching complete
 % rmmod $MOD_REPLACE
 $MOD_LIVEPATCH1: this has been live patched
-% echo 0 > /sys/kernel/livepatch/$MOD_LIVEPATCH1/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_LIVEPATCH1/enabled
 livepatch: '$MOD_LIVEPATCH1': initializing unpatching transition
 livepatch: '$MOD_LIVEPATCH1': starting unpatching transition
 livepatch: '$MOD_LIVEPATCH1': completing unpatching transition
@@ -128,7 +128,7 @@ for mod in $MOD_LIVEPATCH2 $MOD_LIVEPATCH3; do
 	load_lp "$mod"
 done
 
-mods=(/sys/kernel/livepatch/*)
+mods=($SYSFS_KLP_DIR/*)
 nmods=${#mods[@]}
 if [ "$nmods" -ne 3 ]; then
 	die "Expecting three modules listed, found $nmods"
@@ -139,7 +139,7 @@ load_lp $MOD_REPLACE replace=1
 grep 'live patched' /proc/cmdline > /dev/kmsg
 grep 'live patched' /proc/meminfo > /dev/kmsg
 
-loop_until 'mods=(/sys/kernel/livepatch/*); nmods=${#mods[@]}; [[ "$nmods" -eq 1 ]]' ||
+loop_until 'mods=($SYSFS_KLP_DIR/*); nmods=${#mods[@]}; [[ "$nmods" -eq 1 ]]' ||
         die "Expecting only one moduled listed, found $nmods"
 
 # These modules were disabled by the atomic replace
@@ -188,7 +188,7 @@ $MOD_REPLACE: this has been live patched
 % rmmod $MOD_LIVEPATCH2
 % rmmod $MOD_LIVEPATCH1
 $MOD_REPLACE: this has been live patched
-% echo 0 > /sys/kernel/livepatch/$MOD_REPLACE/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_REPLACE/enabled
 livepatch: '$MOD_REPLACE': initializing unpatching transition
 livepatch: '$MOD_REPLACE': starting unpatching transition
 livepatch: '$MOD_REPLACE': completing unpatching transition

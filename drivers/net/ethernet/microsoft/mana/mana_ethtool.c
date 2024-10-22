@@ -345,27 +345,101 @@ static int mana_set_channels(struct net_device *ndev,
 	struct mana_port_context *apc = netdev_priv(ndev);
 	unsigned int new_count = channels->combined_count;
 	unsigned int old_count = apc->num_queues;
-	int err, err2;
+	int err;
+
+	err = mana_pre_alloc_rxbufs(apc, ndev->mtu, new_count);
+	if (err) {
+		netdev_err(ndev, "Insufficient memory for new allocations");
+		return err;
+	}
 
 	err = mana_detach(ndev, false);
 	if (err) {
 		netdev_err(ndev, "mana_detach failed: %d\n", err);
-		return err;
+		goto out;
 	}
 
 	apc->num_queues = new_count;
 	err = mana_attach(ndev);
-	if (!err)
-		return 0;
+	if (err) {
+		apc->num_queues = old_count;
+		netdev_err(ndev, "mana_attach failed: %d\n", err);
+	}
 
-	netdev_err(ndev, "mana_attach failed: %d\n", err);
+out:
+	mana_pre_dealloc_rxbufs(apc);
+	return err;
+}
 
-	/* Try to roll it back to the old configuration. */
-	apc->num_queues = old_count;
-	err2 = mana_attach(ndev);
-	if (err2)
-		netdev_err(ndev, "mana re-attach failed: %d\n", err2);
+static void mana_get_ringparam(struct net_device *ndev,
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
+{
+	struct mana_port_context *apc = netdev_priv(ndev);
 
+	ring->rx_pending = apc->rx_queue_size;
+	ring->tx_pending = apc->tx_queue_size;
+	ring->rx_max_pending = MAX_RX_BUFFERS_PER_QUEUE;
+	ring->tx_max_pending = MAX_TX_BUFFERS_PER_QUEUE;
+}
+
+static int mana_set_ringparam(struct net_device *ndev,
+			      struct ethtool_ringparam *ring,
+			      struct kernel_ethtool_ringparam *kernel_ring,
+			      struct netlink_ext_ack *extack)
+{
+	struct mana_port_context *apc = netdev_priv(ndev);
+	u32 new_tx, new_rx;
+	u32 old_tx, old_rx;
+	int err;
+
+	old_tx = apc->tx_queue_size;
+	old_rx = apc->rx_queue_size;
+
+	if (ring->tx_pending < MIN_TX_BUFFERS_PER_QUEUE) {
+		NL_SET_ERR_MSG_FMT(extack, "tx:%d less than the min:%d", ring->tx_pending,
+				   MIN_TX_BUFFERS_PER_QUEUE);
+		return -EINVAL;
+	}
+
+	if (ring->rx_pending < MIN_RX_BUFFERS_PER_QUEUE) {
+		NL_SET_ERR_MSG_FMT(extack, "rx:%d less than the min:%d", ring->rx_pending,
+				   MIN_RX_BUFFERS_PER_QUEUE);
+		return -EINVAL;
+	}
+
+	new_rx = roundup_pow_of_two(ring->rx_pending);
+	new_tx = roundup_pow_of_two(ring->tx_pending);
+	netdev_info(ndev, "Using nearest power of 2 values for Txq:%d Rxq:%d\n",
+		    new_tx, new_rx);
+
+	/* pre-allocating new buffers to prevent failures in mana_attach() later */
+	apc->rx_queue_size = new_rx;
+	err = mana_pre_alloc_rxbufs(apc, ndev->mtu, apc->num_queues);
+	apc->rx_queue_size = old_rx;
+	if (err) {
+		netdev_err(ndev, "Insufficient memory for new allocations\n");
+		return err;
+	}
+
+	err = mana_detach(ndev, false);
+	if (err) {
+		netdev_err(ndev, "mana_detach failed: %d\n", err);
+		goto out;
+	}
+
+	apc->tx_queue_size = new_tx;
+	apc->rx_queue_size = new_rx;
+
+	err = mana_attach(ndev);
+	if (err) {
+		netdev_err(ndev, "mana_attach failed: %d\n", err);
+		apc->tx_queue_size = old_tx;
+		apc->rx_queue_size = old_rx;
+	}
+out:
+	mana_pre_dealloc_rxbufs(apc);
 	return err;
 }
 
@@ -380,4 +454,6 @@ const struct ethtool_ops mana_ethtool_ops = {
 	.set_rxfh		= mana_set_rxfh,
 	.get_channels		= mana_get_channels,
 	.set_channels		= mana_set_channels,
+	.get_ringparam          = mana_get_ringparam,
+	.set_ringparam          = mana_set_ringparam,
 };

@@ -699,6 +699,8 @@ static const struct sfp_upstream_ops qca807x_sfp_ops = {
 	.detach = phy_sfp_detach,
 	.module_insert = qca807x_sfp_insert,
 	.module_remove = qca807x_sfp_remove,
+	.connect_phy = phy_sfp_connect_phy,
+	.disconnect_phy = phy_sfp_disconnect_phy,
 };
 
 static int qca807x_probe(struct phy_device *phydev)
@@ -733,16 +735,6 @@ static int qca807x_probe(struct phy_device *phydev)
 								     "qcom,dac-disable-bias-current-tweak");
 
 #if IS_ENABLED(CONFIG_GPIOLIB)
-	/* Make sure we don't have mixed leds node and gpio-controller
-	 * to prevent registering leds and having gpio-controller usage
-	 * conflicting with them.
-	 */
-	if (of_find_property(node, "leds", NULL) &&
-	    of_find_property(node, "gpio-controller", NULL)) {
-		phydev_err(phydev, "Invalid property detected. LEDs and gpio-controller are mutually exclusive.");
-		return -EINVAL;
-	}
-
 	/* Do not register a GPIO controller unless flagged for it */
 	if (of_property_read_bool(node, "gpio-controller")) {
 		ret = qca807x_gpio(phydev);

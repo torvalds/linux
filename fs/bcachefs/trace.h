@@ -988,10 +988,33 @@ TRACE_EVENT(trans_restart_split_race,
 		  __entry->u64s_remaining)
 );
 
-DEFINE_EVENT(transaction_event,	trans_blocked_journal_reclaim,
+TRACE_EVENT(trans_blocked_journal_reclaim,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+	TP_ARGS(trans, caller_ip),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+
+		__field(unsigned long,		key_cache_nr_keys	)
+		__field(unsigned long,		key_cache_nr_dirty	)
+		__field(long,			must_wait		)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__entry->key_cache_nr_keys	= atomic_long_read(&trans->c->btree_key_cache.nr_keys);
+		__entry->key_cache_nr_dirty	= atomic_long_read(&trans->c->btree_key_cache.nr_dirty);
+		__entry->must_wait		= __bch2_btree_key_cache_must_wait(trans->c);
+	),
+
+	TP_printk("%s %pS key cache keys %lu dirty %lu must_wait %li",
+		  __entry->trans_fn, (void *) __entry->caller_ip,
+		  __entry->key_cache_nr_keys,
+		  __entry->key_cache_nr_dirty,
+		  __entry->must_wait)
 );
 
 TRACE_EVENT(trans_restart_journal_preres_get,

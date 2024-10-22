@@ -20,7 +20,6 @@
 #define _ATOM_ISP_H
 
 #include <linux/types.h>
-#include <linux/version.h>
 
 /* struct media_device_info.hw_revision */
 #define ATOMISP_HW_REVISION_MASK	0x0000ff00

@@ -1445,6 +1445,7 @@ void regmap_exit(struct regmap *map)
 	struct regmap_async *async;
 
 	regcache_exit(map);
+
 	regmap_debugfs_exit(map);
 	regmap_range_exit(map);
 	if (map->bus && map->bus->free_context)

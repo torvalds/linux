@@ -151,8 +151,6 @@ enum {
 	Opt_mode,
 	Opt_fault_injection,
 	Opt_fault_type,
-	Opt_lazytime,
-	Opt_nolazytime,
 	Opt_quota,
 	Opt_noquota,
 	Opt_usrquota,
@@ -229,8 +227,6 @@ static match_table_t f2fs_tokens = {
 	{Opt_mode, "mode=%s"},
 	{Opt_fault_injection, "fault_injection=%u"},
 	{Opt_fault_type, "fault_type=%u"},
-	{Opt_lazytime, "lazytime"},
-	{Opt_nolazytime, "nolazytime"},
 	{Opt_quota, "quota"},
 	{Opt_noquota, "noquota"},
 	{Opt_usrquota, "usrquota"},
@@ -918,12 +914,6 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			f2fs_info(sbi, "fault_type options not supported");
 			break;
 #endif
-		case Opt_lazytime:
-			sb->s_flags |= SB_LAZYTIME;
-			break;
-		case Opt_nolazytime:
-			sb->s_flags &= ~SB_LAZYTIME;
-			break;
 #ifdef CONFIG_QUOTA
 		case Opt_quota:
 		case Opt_usrquota:
@@ -2687,7 +2677,7 @@ static ssize_t f2fs_quota_write(struct super_block *sb, int type,
 	const struct address_space_operations *a_ops = mapping->a_ops;
 	int offset = off & (sb->s_blocksize - 1);
 	size_t towrite = len;
-	struct page *page;
+	struct folio *folio;
 	void *fsdata = NULL;
 	int err = 0;
 	int tocopy;
@@ -2697,7 +2687,7 @@ static ssize_t f2fs_quota_write(struct super_block *sb, int type,
 								towrite);
 retry:
 		err = a_ops->write_begin(NULL, mapping, off, tocopy,
-							&page, &fsdata);
+							&folio, &fsdata);
 		if (unlikely(err)) {
 			if (err == -ENOMEM) {
 				f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
@@ -2707,10 +2697,10 @@ retry:
 			break;
 		}
 
-		memcpy_to_page(page, offset, data, tocopy);
+		memcpy_to_folio(folio, offset_in_folio(folio, off), data, tocopy);
 
 		a_ops->write_end(NULL, mapping, off, tocopy, tocopy,
-						page, fsdata);
+						folio, fsdata);
 		offset = 0;
 		towrite -= tocopy;
 		off += tocopy;
@@ -4481,6 +4471,7 @@ try_onemore:
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 		(test_opt(sbi, POSIX_ACL) ? SB_POSIXACL : 0);
 	super_set_uuid(sb, (void *) raw_super->uuid, sizeof(raw_super->uuid));
+	super_set_sysfs_name_bdev(sb);
 	sb->s_iflags |= SB_I_CGROUPWB;
 
 	/* init f2fs-specific super block info */

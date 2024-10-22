@@ -964,7 +964,8 @@ config CMDLINE
 	  most cases you will need to specify the root device here.
 
 choice
-	prompt "Kernel command line type" if CMDLINE != ""
+	prompt "Kernel command line type"
+	depends on CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
 
 config CMDLINE_FROM_BOOTLOADER
@@ -1024,6 +1025,10 @@ config PPC_MEM_KEYS
 	  For details, see Documentation/core-api/protection-keys.rst
 
 	  If unsure, say y.
+
+config ARCH_PKEY_BITS
+	int
+	default 5
 
 config PPC_SECURE_BOOT
 	prompt "Enable secure boot support"

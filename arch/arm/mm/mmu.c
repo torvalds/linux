@@ -1638,7 +1638,7 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 {
 	pgtables_remap *lpae_pgtables_remap;
 	unsigned long pa_pgd;
-	unsigned int cr, ttbcr;
+	u32 cr, ttbcr, tmp;
 	long long offset;
 
 	if (!mdesc->pv_fixup)
@@ -1688,7 +1688,9 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	cr = get_cr();
 	set_cr(cr & ~(CR_I | CR_C));
 	ttbcr = cpu_get_ttbcr();
-	cpu_set_ttbcr(ttbcr & ~(3 << 8 | 3 << 10));
+	/* Disable all kind of caching of the translation table */
+	tmp = ttbcr & ~(TTBCR_ORGN0_MASK | TTBCR_IRGN0_MASK);
+	cpu_set_ttbcr(tmp);
 	flush_cache_all();
 
 	/*

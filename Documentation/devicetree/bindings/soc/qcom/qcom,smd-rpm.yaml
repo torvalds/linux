@@ -30,31 +30,37 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - qcom,rpm-apq8084
-      - qcom,rpm-ipq6018
-      - qcom,rpm-ipq9574
-      - qcom,rpm-mdm9607
-      - qcom,rpm-msm8226
-      - qcom,rpm-msm8610
-      - qcom,rpm-msm8909
-      - qcom,rpm-msm8916
-      - qcom,rpm-msm8917
-      - qcom,rpm-msm8936
-      - qcom,rpm-msm8937
-      - qcom,rpm-msm8952
-      - qcom,rpm-msm8953
-      - qcom,rpm-msm8974
-      - qcom,rpm-msm8976
-      - qcom,rpm-msm8994
-      - qcom,rpm-msm8996
-      - qcom,rpm-msm8998
-      - qcom,rpm-qcm2290
-      - qcom,rpm-qcs404
-      - qcom,rpm-sdm660
-      - qcom,rpm-sm6115
-      - qcom,rpm-sm6125
-      - qcom,rpm-sm6375
+    oneOf:
+      - items:
+          - enum:
+              - qcom,rpm-apq8084
+              - qcom,rpm-mdm9607
+              - qcom,rpm-msm8226
+              - qcom,rpm-msm8610
+              - qcom,rpm-msm8909
+              - qcom,rpm-msm8916
+              - qcom,rpm-msm8917
+              - qcom,rpm-msm8936
+              - qcom,rpm-msm8937
+              - qcom,rpm-msm8952
+              - qcom,rpm-msm8953
+              - qcom,rpm-msm8974
+              - qcom,rpm-msm8976
+              - qcom,rpm-msm8994
+          - const: qcom,smd-rpm
+      - items:
+          - enum:
+              - qcom,rpm-ipq6018
+              - qcom,rpm-ipq9574
+              - qcom,rpm-msm8996
+              - qcom,rpm-msm8998
+              - qcom,rpm-qcm2290
+              - qcom,rpm-qcs404
+              - qcom,rpm-sdm660
+              - qcom,rpm-sm6115
+              - qcom,rpm-sm6125
+              - qcom,rpm-sm6375
+          - const: qcom,glink-smd-rpm
 
   clock-controller:
     $ref: /schemas/clock/qcom,rpmcc.yaml#
@@ -84,21 +90,7 @@ if:
   properties:
     compatible:
       contains:
-        enum:
-          - qcom,rpm-apq8084
-          - qcom,rpm-mdm9607
-          - qcom,rpm-msm8226
-          - qcom,rpm-msm8610
-          - qcom,rpm-msm8909
-          - qcom,rpm-msm8916
-          - qcom,rpm-msm8917
-          - qcom,rpm-msm8936
-          - qcom,rpm-msm8937
-          - qcom,rpm-msm8952
-          - qcom,rpm-msm8953
-          - qcom,rpm-msm8974
-          - qcom,rpm-msm8976
-          - qcom,rpm-msm8994
+        const: qcom,smd-rpm
 then:
   properties:
     qcom,glink-channels: false
@@ -129,7 +121,7 @@ examples:
             qcom,smd-edge = <15>;
 
             rpm-requests {
-                compatible = "qcom,rpm-msm8916";
+                compatible = "qcom,rpm-msm8916", "qcom,smd-rpm";
                 qcom,smd-channels = "rpm_requests";
 
                 clock-controller {

@@ -17,7 +17,9 @@
 #include <linux/efi.h>
 #include <linux/io.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/pci.h>
+#include <linux/serial_core.h>
 
 int acpi_noirq = 1;		/* skip ACPI IRQ initialization */
 int acpi_disabled = 1;
@@ -131,7 +133,7 @@ void __init acpi_boot_table_init(void)
 	if (param_acpi_off ||
 	    (!param_acpi_on && !param_acpi_force &&
 	     efi.acpi20 == EFI_INVALID_TABLE_ADDR))
-		return;
+		goto done;
 
 	/*
 	 * ACPI is disabled at this point. Enable it in order to parse
@@ -150,6 +152,14 @@ void __init acpi_boot_table_init(void)
 		pr_err("Failed to init ACPI tables\n");
 		if (!param_acpi_force)
 			disable_acpi();
+	}
+
+done:
+	if (acpi_disabled) {
+		if (earlycon_acpi_spcr_enable)
+			early_init_dt_scan_chosen_stdout();
+	} else {
+		acpi_parse_spcr(earlycon_acpi_spcr_enable, true);
 	}
 }
 
@@ -189,11 +199,6 @@ void __init acpi_init_rintc_map(void)
 struct acpi_madt_rintc *acpi_cpu_get_madt_rintc(int cpu)
 {
 	return &cpu_madt_rintc[cpu];
-}
-
-u32 get_acpi_id_for_cpu(int cpu)
-{
-	return acpi_cpu_get_madt_rintc(cpu)->uid;
 }
 
 /*
@@ -306,29 +311,26 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 #ifdef CONFIG_PCI
 
 /*
- * These interfaces are defined just to enable building ACPI core.
- * TODO: Update it with actual implementation when external interrupt
- * controller support is added in RISC-V ACPI.
+ * raw_pci_read/write - Platform-specific PCI config space access.
  */
-int raw_pci_read(unsigned int domain, unsigned int bus, unsigned int devfn,
-		 int reg, int len, u32 *val)
+int raw_pci_read(unsigned int domain, unsigned int bus,
+		 unsigned int devfn, int reg, int len, u32 *val)
 {
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	struct pci_bus *b = pci_find_bus(domain, bus);
+
+	if (!b)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	return b->ops->read(b, devfn, reg, len, val);
 }
 
-int raw_pci_write(unsigned int domain, unsigned int bus, unsigned int devfn,
-		  int reg, int len, u32 val)
+int raw_pci_write(unsigned int domain, unsigned int bus,
+		  unsigned int devfn, int reg, int len, u32 val)
 {
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	struct pci_bus *b = pci_find_bus(domain, bus);
+
+	if (!b)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	return b->ops->write(b, devfn, reg, len, val);
 }
 
-int acpi_pci_bus_find_domain_nr(struct pci_bus *bus)
-{
-	return -1;
-}
-
-struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
-{
-	return NULL;
-}
 #endif	/* CONFIG_PCI */

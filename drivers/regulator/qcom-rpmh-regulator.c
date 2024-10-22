@@ -158,7 +158,7 @@ struct rpmh_vreg_init_data {
  * @wait_for_ack:	Boolean indicating if execution must wait until the
  *			request has been acknowledged as complete
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, or a negative error number on failure
  */
 static int rpmh_regulator_send_request(struct rpmh_vreg *vreg,
 			struct tcs_cmd *cmd, bool wait_for_ack)
@@ -317,7 +317,7 @@ static unsigned int rpmh_regulator_vrm_get_mode(struct regulator_dev *rdev)
  * This function is used in the regulator_ops for VRM type RPMh regulator
  * devices.
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, or a negative error number on failure
  */
 static unsigned int rpmh_regulator_vrm_get_optimum_mode(
 	struct regulator_dev *rdev, int input_uV, int output_uV, int load_uA)
@@ -409,7 +409,7 @@ static const struct regulator_ops rpmh_regulator_xob_ops = {
  * @pmic_rpmh_data:	Pointer to a null-terminated array of rpmh-regulator
  *			resources defined for the top level PMIC device
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, or a negative error number on failure
  */
 static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 			struct device_node *node, const char *pmic_id,
@@ -1537,7 +1537,6 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct rpmh_vreg_init_data *vreg_data;
-	struct device_node *node;
 	struct rpmh_vreg *vreg;
 	const char *pmic_id;
 	int ret;
@@ -1552,19 +1551,15 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	for_each_available_child_of_node(dev->of_node, node) {
+	for_each_available_child_of_node_scoped(dev->of_node, node) {
 		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
-		if (!vreg) {
-			of_node_put(node);
+		if (!vreg)
 			return -ENOMEM;
-		}
 
 		ret = rpmh_regulator_init_vreg(vreg, dev, node, pmic_id,
 						vreg_data);
-		if (ret < 0) {
-			of_node_put(node);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	return 0;

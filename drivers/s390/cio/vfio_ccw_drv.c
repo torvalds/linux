@@ -488,4 +488,5 @@ static void __exit vfio_ccw_sch_exit(void)
 module_init(vfio_ccw_sch_init);
 module_exit(vfio_ccw_sch_exit);
 
+MODULE_DESCRIPTION("VFIO based Subchannel device driver");
 MODULE_LICENSE("GPL v2");

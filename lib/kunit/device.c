@@ -89,7 +89,7 @@ struct device_driver *kunit_driver_create(struct kunit *test, const char *name)
 	if (!driver)
 		return ERR_PTR(err);
 
-	driver->name = name;
+	driver->name = kunit_kstrdup_const(test, name, GFP_KERNEL);
 	driver->bus = &kunit_bus_type;
 	driver->owner = THIS_MODULE;
 
@@ -192,8 +192,11 @@ void kunit_device_unregister(struct kunit *test, struct device *dev)
 	const struct device_driver *driver = to_kunit_device(dev)->driver;
 
 	kunit_release_action(test, device_unregister_wrapper, dev);
-	if (driver)
+	if (driver) {
+		const char *driver_name = driver->name;
 		kunit_release_action(test, driver_unregister_wrapper, (void *)driver);
+		kunit_kfree_const(test, driver_name);
+	}
 }
 EXPORT_SYMBOL_GPL(kunit_device_unregister);
 

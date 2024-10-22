@@ -10,6 +10,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/gfp.h>
 #include <linux/dma-mapping.h>
+#include <linux/completion.h>
 
 /**
  * struct virtqueue - a queue to register buffers for sending or receiving.
@@ -109,13 +110,17 @@ struct virtio_admin_cmd {
 	__le64 group_member_id;
 	struct scatterlist *data_sg;
 	struct scatterlist *result_sg;
+	struct completion completion;
+	int ret;
 };
 
 /**
  * struct virtio_device - representation of a device using virtio
  * @index: unique position on the virtio bus
  * @failed: saved value for VIRTIO_CONFIG_S_FAILED bit (for restore)
- * @config_enabled: configuration change reporting enabled
+ * @config_core_enabled: configuration change reporting enabled by core
+ * @config_driver_disabled: configuration change reporting disabled by
+ *                          a driver
  * @config_change_pending: configuration change reported while disabled
  * @config_lock: protects configuration change reporting
  * @vqs_list_lock: protects @vqs.
@@ -132,7 +137,8 @@ struct virtio_admin_cmd {
 struct virtio_device {
 	int index;
 	bool failed;
-	bool config_enabled;
+	bool config_core_enabled;
+	bool config_driver_disabled;
 	bool config_change_pending;
 	spinlock_t config_lock;
 	spinlock_t vqs_list_lock;
@@ -163,6 +169,10 @@ void __virtqueue_break(struct virtqueue *_vq);
 void __virtqueue_unbreak(struct virtqueue *_vq);
 
 void virtio_config_changed(struct virtio_device *dev);
+
+void virtio_config_driver_disable(struct virtio_device *dev);
+void virtio_config_driver_enable(struct virtio_device *dev);
+
 #ifdef CONFIG_PM_SLEEP
 int virtio_device_freeze(struct virtio_device *dev);
 int virtio_device_restore(struct virtio_device *dev);
@@ -209,10 +219,7 @@ struct virtio_driver {
 	int (*restore)(struct virtio_device *dev);
 };
 
-static inline struct virtio_driver *drv_to_virtio(struct device_driver *drv)
-{
-	return container_of(drv, struct virtio_driver, driver);
-}
+#define drv_to_virtio(__drv)	container_of_const(__drv, struct virtio_driver, driver)
 
 /* use a macro to avoid include chaining to get THIS_MODULE */
 #define register_virtio_driver(drv) \

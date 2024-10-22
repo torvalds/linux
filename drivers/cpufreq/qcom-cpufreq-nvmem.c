@@ -611,7 +611,7 @@ static struct platform_driver qcom_cpufreq_driver = {
 	},
 };
 
-static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
+static const struct of_device_id qcom_cpufreq_match_list[] __initconst __maybe_unused = {
 	{ .compatible = "qcom,apq8096", .data = &match_data_kryo },
 	{ .compatible = "qcom,msm8909", .data = &match_data_msm8909 },
 	{ .compatible = "qcom,msm8996", .data = &match_data_kryo },

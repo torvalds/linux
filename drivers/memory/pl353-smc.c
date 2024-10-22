@@ -74,73 +74,39 @@ static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 	struct device_node *of_node = adev->dev.of_node;
 	const struct of_device_id *match = NULL;
 	struct pl353_smc_data *pl353_smc;
-	struct device_node *child;
-	int err;
 
 	pl353_smc = devm_kzalloc(&adev->dev, sizeof(*pl353_smc), GFP_KERNEL);
 	if (!pl353_smc)
 		return -ENOMEM;
 
-	pl353_smc->aclk = devm_clk_get(&adev->dev, "apb_pclk");
-	if (IS_ERR(pl353_smc->aclk)) {
-		dev_err(&adev->dev, "aclk clock not found.\n");
-		return PTR_ERR(pl353_smc->aclk);
-	}
+	pl353_smc->aclk = devm_clk_get_enabled(&adev->dev, "apb_pclk");
+	if (IS_ERR(pl353_smc->aclk))
+		return dev_err_probe(&adev->dev, PTR_ERR(pl353_smc->aclk),
+				     "aclk clock not found.\n");
 
-	pl353_smc->memclk = devm_clk_get(&adev->dev, "memclk");
-	if (IS_ERR(pl353_smc->memclk)) {
-		dev_err(&adev->dev, "memclk clock not found.\n");
-		return PTR_ERR(pl353_smc->memclk);
-	}
-
-	err = clk_prepare_enable(pl353_smc->aclk);
-	if (err) {
-		dev_err(&adev->dev, "Unable to enable AXI clock.\n");
-		return err;
-	}
-
-	err = clk_prepare_enable(pl353_smc->memclk);
-	if (err) {
-		dev_err(&adev->dev, "Unable to enable memory clock.\n");
-		goto disable_axi_clk;
-	}
+	pl353_smc->memclk = devm_clk_get_enabled(&adev->dev, "memclk");
+	if (IS_ERR(pl353_smc->memclk))
+		return dev_err_probe(&adev->dev, PTR_ERR(pl353_smc->memclk),
+				     "memclk clock not found.\n");
 
 	amba_set_drvdata(adev, pl353_smc);
 
 	/* Find compatible children. Only a single child is supported */
-	for_each_available_child_of_node(of_node, child) {
+	for_each_available_child_of_node_scoped(of_node, child) {
 		match = of_match_node(pl353_smc_supported_children, child);
 		if (!match) {
 			dev_warn(&adev->dev, "unsupported child node\n");
 			continue;
 		}
+		of_platform_device_create(child, NULL, &adev->dev);
 		break;
 	}
 	if (!match) {
-		err = -ENODEV;
 		dev_err(&adev->dev, "no matching children\n");
-		goto disable_mem_clk;
+		return -ENODEV;
 	}
 
-	of_platform_device_create(child, NULL, &adev->dev);
-	of_node_put(child);
-
 	return 0;
-
-disable_mem_clk:
-	clk_disable_unprepare(pl353_smc->memclk);
-disable_axi_clk:
-	clk_disable_unprepare(pl353_smc->aclk);
-
-	return err;
-}
-
-static void pl353_smc_remove(struct amba_device *adev)
-{
-	struct pl353_smc_data *pl353_smc = amba_get_drvdata(adev);
-
-	clk_disable_unprepare(pl353_smc->memclk);
-	clk_disable_unprepare(pl353_smc->aclk);
 }
 
 static const struct amba_id pl353_ids[] = {
@@ -159,7 +125,6 @@ static struct amba_driver pl353_smc_driver = {
 	},
 	.id_table = pl353_ids,
 	.probe = pl353_smc_probe,
-	.remove = pl353_smc_remove,
 };
 
 module_amba_driver(pl353_smc_driver);

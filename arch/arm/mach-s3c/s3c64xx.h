@@ -23,17 +23,6 @@ struct device_node;
 void s3c64xx_set_xtal_freq(unsigned long freq);
 void s3c64xx_set_xusbxti_freq(unsigned long freq);
 
-#ifdef CONFIG_CPU_S3C6400
-
-extern  int s3c6400_init(void);
-extern void s3c6400_init_irq(void);
-extern void s3c6400_map_io(void);
-
-#else
-#define s3c6400_map_io NULL
-#define s3c6400_init NULL
-#endif
-
 #ifdef CONFIG_CPU_S3C6410
 
 extern  int s3c6410_init(void);

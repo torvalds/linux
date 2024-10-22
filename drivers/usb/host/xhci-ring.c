@@ -2910,6 +2910,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		process_isoc_td(xhci, ep, ep_ring, td, ep_trb, event);
 	else
 		process_bulk_intr_td(xhci, ep, ep_ring, td, ep_trb, event);
+	return 0;
 
 check_endpoint_halted:
 	if (xhci_halted_host_endpoint(ep_ctx, trb_comp_code))

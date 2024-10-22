@@ -535,20 +535,20 @@ static int exfat_file_zeroed_range(struct file *file, loff_t start, loff_t end)
 
 	while (start < end) {
 		u32 zerofrom, len;
-		struct page *page = NULL;
+		struct folio *folio;
 
 		zerofrom = start & (PAGE_SIZE - 1);
 		len = PAGE_SIZE - zerofrom;
 		if (start + len > end)
 			len = end - start;
 
-		err = ops->write_begin(file, mapping, start, len, &page, NULL);
+		err = ops->write_begin(file, mapping, start, len, &folio, NULL);
 		if (err)
 			goto out;
 
-		zero_user_segment(page, zerofrom, zerofrom + len);
+		folio_zero_range(folio, offset_in_folio(folio, start), len);
 
-		err = ops->write_end(file, mapping, start, len, len, page, NULL);
+		err = ops->write_end(file, mapping, start, len, len, folio, NULL);
 		if (err < 0)
 			goto out;
 		start += len;

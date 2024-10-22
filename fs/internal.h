@@ -337,3 +337,4 @@ static inline bool path_mounted(const struct path *path)
 {
 	return path->mnt->mnt_root == path->dentry;
 }
+void file_f_owner_release(struct file *file);

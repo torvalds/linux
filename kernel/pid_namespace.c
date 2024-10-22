@@ -261,7 +261,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-static int pid_ns_ctl_handler(struct ctl_table *table, int write,
+static int pid_ns_ctl_handler(const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);

@@ -507,7 +507,7 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 	return ret;
 }
 
-static int emulation_proc_handler(struct ctl_table *table, int write,
+static int emulation_proc_handler(const struct ctl_table *table, int write,
 				  void *buffer, size_t *lenp,
 				  loff_t *ppos)
 {

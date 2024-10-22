@@ -4,6 +4,7 @@
  * Copyright (c) 2011-2014, Intel Corporation.
  */
 
+#include <linux/async.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-integrity.h>
@@ -36,6 +37,7 @@ struct nvme_ns_info {
 	struct nvme_ns_ids ids;
 	u32 nsid;
 	__le32 anagrpid;
+	u8 pi_offset;
 	bool is_shared;
 	bool is_readonly;
 	bool is_ready;
@@ -986,8 +988,8 @@ static inline blk_status_t nvme_setup_rw(struct nvme_ns *ns,
 	cmnd->rw.length =
 		cpu_to_le16((blk_rq_bytes(req) >> ns->head->lba_shift) - 1);
 	cmnd->rw.reftag = 0;
-	cmnd->rw.apptag = 0;
-	cmnd->rw.appmask = 0;
+	cmnd->rw.lbat = 0;
+	cmnd->rw.lbatm = 0;
 
 	if (ns->head->ms) {
 		/*
@@ -1757,8 +1759,8 @@ int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head,
-		struct queue_limits *lim)
+static bool nvme_init_integrity(struct nvme_ns_head *head,
+		struct queue_limits *lim, struct nvme_ns_info *info)
 {
 	struct blk_integrity *bi = &lim->integrity;
 
@@ -1816,7 +1818,7 @@ static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head,
 	}
 
 	bi->tuple_size = head->ms;
-	bi->pi_offset = head->pi_offset;
+	bi->pi_offset = info->pi_offset;
 	return true;
 }
 
@@ -1876,12 +1878,18 @@ static void nvme_configure_pi_elbas(struct nvme_ns_head *head,
 		struct nvme_id_ns *id, struct nvme_id_ns_nvm *nvm)
 {
 	u32 elbaf = le32_to_cpu(nvm->elbaf[nvme_lbaf_index(id->flbas)]);
+	u8 guard_type;
 
 	/* no support for storage tag formats right now */
 	if (nvme_elbaf_sts(elbaf))
 		return;
 
-	head->guard_type = nvme_elbaf_guard_type(elbaf);
+	guard_type = nvme_elbaf_guard_type(elbaf);
+	if ((nvm->pic & NVME_ID_NS_NVM_QPIFS) &&
+	     guard_type == NVME_NVM_NS_QTYPE_GUARD)
+		guard_type = nvme_elbaf_qualified_guard_type(elbaf);
+
+	head->guard_type = guard_type;
 	switch (head->guard_type) {
 	case NVME_NVM_NS_64B_GUARD:
 		head->pi_size = sizeof(struct crc64_pi_tuple);
@@ -1896,12 +1904,11 @@ static void nvme_configure_pi_elbas(struct nvme_ns_head *head,
 
 static void nvme_configure_metadata(struct nvme_ctrl *ctrl,
 		struct nvme_ns_head *head, struct nvme_id_ns *id,
-		struct nvme_id_ns_nvm *nvm)
+		struct nvme_id_ns_nvm *nvm, struct nvme_ns_info *info)
 {
 	head->features &= ~(NVME_NS_METADATA_SUPPORTED | NVME_NS_EXT_LBAS);
 	head->pi_type = 0;
 	head->pi_size = 0;
-	head->pi_offset = 0;
 	head->ms = le16_to_cpu(id->lbaf[nvme_lbaf_index(id->flbas)].ms);
 	if (!head->ms || !(ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
 		return;
@@ -1916,7 +1923,7 @@ static void nvme_configure_metadata(struct nvme_ctrl *ctrl,
 	if (head->pi_size && head->ms >= head->pi_size)
 		head->pi_type = id->dps & NVME_NS_DPS_PI_MASK;
 	if (!(id->dps & NVME_NS_DPS_PI_FIRST))
-		head->pi_offset = head->ms - head->pi_size;
+		info->pi_offset = head->ms - head->pi_size;
 
 	if (ctrl->ops->flags & NVME_F_FABRICS) {
 		/*
@@ -2150,7 +2157,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 
 	lim = queue_limits_start_update(ns->disk->queue);
 	nvme_set_ctrl_limits(ns->ctrl, &lim);
-	nvme_configure_metadata(ns->ctrl, ns->head, id, nvm);
+	nvme_configure_metadata(ns->ctrl, ns->head, id, nvm, info);
 	nvme_set_chunk_sectors(ns, id, &lim);
 	if (!nvme_update_disk_info(ns, id, &lim))
 		capacity = 0;
@@ -2170,7 +2177,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	 * I/O to namespaces with metadata except when the namespace supports
 	 * PI, as it can strip/insert in that case.
 	 */
-	if (!nvme_init_integrity(ns->disk, ns->head, &lim))
+	if (!nvme_init_integrity(ns->head, &lim, info))
 		capacity = 0;
 
 	ret = queue_limits_commit_update(ns->disk->queue, &lim);
@@ -2274,7 +2281,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		if (unsupported)
 			ns->head->disk->flags |= GENHD_FL_HIDDEN;
 		else
-			nvme_init_integrity(ns->head->disk, ns->head, &lim);
+			nvme_init_integrity(ns->head, &lim, info);
 		ret = queue_limits_commit_update(ns->head->disk->queue, &lim);
 
 		set_capacity_and_notify(ns->head->disk, get_capacity(ns->disk));
@@ -4034,6 +4041,35 @@ static void nvme_scan_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	}
 }
 
+/**
+ * struct async_scan_info - keeps track of controller & NSIDs to scan
+ * @ctrl:	Controller on which namespaces are being scanned
+ * @next_nsid:	Index of next NSID to scan in ns_list
+ * @ns_list:	Pointer to list of NSIDs to scan
+ *
+ * Note: There is a single async_scan_info structure shared by all instances
+ * of nvme_scan_ns_async() scanning a given controller, so the atomic
+ * operations on next_nsid are critical to ensure each instance scans a unique
+ * NSID.
+ */
+struct async_scan_info {
+	struct nvme_ctrl *ctrl;
+	atomic_t next_nsid;
+	__le32 *ns_list;
+};
+
+static void nvme_scan_ns_async(void *data, async_cookie_t cookie)
+{
+	struct async_scan_info *scan_info = data;
+	int idx;
+	u32 nsid;
+
+	idx = (u32)atomic_fetch_inc(&scan_info->next_nsid);
+	nsid = le32_to_cpu(scan_info->ns_list[idx]);
+
+	nvme_scan_ns(scan_info->ctrl, nsid);
+}
+
 static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 					unsigned nsid)
 {
@@ -4060,11 +4096,15 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 	__le32 *ns_list;
 	u32 prev = 0;
 	int ret = 0, i;
+	ASYNC_DOMAIN(domain);
+	struct async_scan_info scan_info;
 
 	ns_list = kzalloc(NVME_IDENTIFY_DATA_SIZE, GFP_KERNEL);
 	if (!ns_list)
 		return -ENOMEM;
 
+	scan_info.ctrl = ctrl;
+	scan_info.ns_list = ns_list;
 	for (;;) {
 		struct nvme_command cmd = {
 			.identify.opcode	= nvme_admin_identify,
@@ -4080,19 +4120,23 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 			goto free;
 		}
 
+		atomic_set(&scan_info.next_nsid, 0);
 		for (i = 0; i < nr_entries; i++) {
 			u32 nsid = le32_to_cpu(ns_list[i]);
 
 			if (!nsid)	/* end of the list? */
 				goto out;
-			nvme_scan_ns(ctrl, nsid);
+			async_schedule_domain(nvme_scan_ns_async, &scan_info,
+						&domain);
 			while (++prev < nsid)
 				nvme_ns_remove_by_nsid(ctrl, prev);
 		}
+		async_synchronize_full_domain(&domain);
 	}
  out:
 	nvme_remove_invalid_namespaces(ctrl, prev);
  free:
+	async_synchronize_full_domain(&domain);
 	kfree(ns_list);
 	return ret;
 }
@@ -4431,7 +4475,8 @@ static bool nvme_handle_aen_notice(struct nvme_ctrl *ctrl, u32 result)
 
 static void nvme_handle_aer_persistent_error(struct nvme_ctrl *ctrl)
 {
-	dev_warn(ctrl->device, "resetting controller due to AER\n");
+	dev_warn(ctrl->device,
+		"resetting controller due to persistent internal error\n");
 	nvme_reset_ctrl(ctrl);
 }
 
@@ -4561,7 +4606,7 @@ int nvme_alloc_io_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
 	set->flags = BLK_MQ_F_SHOULD_MERGE;
 	if (ctrl->ops->flags & NVME_F_BLOCKING)
 		set->flags |= BLK_MQ_F_BLOCKING;
-	set->cmd_size = cmd_size,
+	set->cmd_size = cmd_size;
 	set->driver_data = ctrl;
 	set->nr_hw_queues = ctrl->queue_count - 1;
 	set->timeout = NVME_IO_TIMEOUT;
@@ -4606,7 +4651,6 @@ void nvme_stop_ctrl(struct nvme_ctrl *ctrl)
 {
 	nvme_mpath_stop(ctrl);
 	nvme_auth_stop(ctrl);
-	nvme_stop_keep_alive(ctrl);
 	nvme_stop_failfast_work(ctrl);
 	flush_work(&ctrl->async_event_work);
 	cancel_work_sync(&ctrl->fw_act_work);
@@ -4642,6 +4686,7 @@ EXPORT_SYMBOL_GPL(nvme_start_ctrl);
 
 void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
 {
+	nvme_stop_keep_alive(ctrl);
 	nvme_hwmon_exit(ctrl);
 	nvme_fault_inject_fini(&ctrl->fault_inject);
 	dev_pm_qos_hide_latency_tolerance(ctrl->device);
@@ -4671,7 +4716,6 @@ static void nvme_free_ctrl(struct device *dev)
 
 	if (!subsys || ctrl->instance != subsys->instance)
 		ida_free(&nvme_instance_ida, ctrl->instance);
-	key_put(ctrl->tls_key);
 	nvme_free_cels(ctrl);
 	nvme_mpath_uninit(ctrl);
 	cleanup_srcu_struct(&ctrl->srcu);

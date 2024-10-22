@@ -407,7 +407,7 @@ int swsusp_arch_resume(void)
 					  void *, phys_addr_t, phys_addr_t);
 	struct trans_pgd_info trans_info = {
 		.trans_alloc_page	= hibernate_page_alloc,
-		.trans_alloc_arg	= (void *)GFP_ATOMIC,
+		.trans_alloc_arg	= (__force void *)GFP_ATOMIC,
 	};
 
 	/*

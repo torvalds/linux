@@ -27,7 +27,8 @@
 
 #pragma pack(push, 1)
 
-#define SMU_14_0_2_TABLE_FORMAT_REVISION 3
+#define SMU_14_0_2_TABLE_FORMAT_REVISION 23
+#define SMU_14_0_2_CUSTOM_TABLE_FORMAT_REVISION 1
 
 // POWERPLAYTABLE::ulPlatformCaps
 #define SMU_14_0_2_PP_PLATFORM_CAP_POWERPLAY        0x1     // This cap indicates whether CCC need to show Powerplay page.
@@ -43,6 +44,7 @@
 #define SMU_14_0_2_PP_THERMALCONTROLLER_NONE        0
 
 #define SMU_14_0_2_PP_OVERDRIVE_VERSION             0x1     // TODO: FIX OverDrive Version TBD
+#define SMU_14_0_2_PP_CUSTOM_OVERDRIVE_VERSION 0x1
 #define SMU_14_0_2_PP_POWERSAVINGCLOCK_VERSION      0x01    // Power Saving Clock Table Version 1.00
 
 enum SMU_14_0_2_OD_SW_FEATURE_CAP
@@ -107,6 +109,7 @@ enum SMU_14_0_2_PWRMODE_SETTING
     SMU_14_0_2_PMSETTING_ACOUSTIC_LIMIT_RPM_BALANCE,
     SMU_14_0_2_PMSETTING_ACOUSTIC_LIMIT_RPM_TURBO,
     SMU_14_0_2_PMSETTING_ACOUSTIC_LIMIT_RPM_RAGE,
+	SMU_14_0_2_PMSETTING_COUNT
 };
 #define SMU_14_0_2_MAX_PMSETTING 32 // Maximum Number of PowerMode Settings
 
@@ -127,17 +130,24 @@ struct smu_14_0_2_overdrive_table
     int16_t pm_setting[SMU_14_0_2_MAX_PMSETTING];                               // Optimized power mode feature settings
 };
 
+enum smu_14_0_3_pptable_source {
+	PPTABLE_SOURCE_IFWI             = 0,
+	PPTABLE_SOURCE_DRIVER_HARDCODED = 1,
+	PPTABLE_SOURCE_PPGEN_REGISTRY   = 2,
+	PPTABLE_SOURCE_MAX              = PPTABLE_SOURCE_PPGEN_REGISTRY,
+};
+
 struct smu_14_0_2_powerplay_table
 {
     struct atom_common_table_header header;                 // header.format_revision = 3 (HAS TO MATCH SMU_14_0_2_TABLE_FORMAT_REVISION), header.content_revision = ? structuresize is calculated by PPGen.
     uint8_t table_revision;                                 // PPGen use only: table_revision = 3
-    uint8_t padding;                                        // Padding 1 byte to align table_size offset to 6 bytes (pmfw_start_offset, for PMFW to know the starting offset of PPTable_t).
+	uint8_t pptable_source;                      			// PPGen UI dropdown box
     uint16_t pmfw_pptable_start_offset;                     // The start offset of the pmfw portion. i.e. start of PPTable_t (start of SkuTable_t)
     uint16_t pmfw_pptable_size;                             // The total size of pmfw_pptable, i.e PPTable_t.
-    uint16_t pmfw_pfe_table_start_offset;                   // The start offset of the PFE_Settings_t within pmfw_pptable.
-    uint16_t pmfw_pfe_table_size;                           // The size of PFE_Settings_t.
-    uint16_t pmfw_board_table_start_offset;                 // The start offset of the BoardTable_t within pmfw_pptable.
-    uint16_t pmfw_board_table_size;                         // The size of BoardTable_t.
+	uint16_t pmfw_sku_table_start_offset;        			// DO NOT CHANGE ORDER; The absolute start offset of the SkuTable_t (within smu_14_0_3_powerplay_table).
+	uint16_t pmfw_sku_table_size;                			// DO NOT CHANGE ORDER; The size of SkuTable_t.
+	uint16_t pmfw_board_table_start_offset;                 // The start offset of the BoardTable_t
+	uint16_t pmfw_board_table_size;                         // The size of BoardTable_t.
     uint16_t pmfw_custom_sku_table_start_offset;            // The start offset of the CustomSkuTable_t within pmfw_pptable.
     uint16_t pmfw_custom_sku_table_size;                    // The size of the CustomSkuTable_t.
     uint32_t golden_pp_id;                                  // PPGen use only: PP Table ID on the Golden Data Base
@@ -157,6 +167,36 @@ struct smu_14_0_2_powerplay_table
     struct smu_14_0_2_overdrive_table overdrive_table;
 
     PPTable_t smc_pptable;                          // PPTable_t in driver_if.h -- as requested by PMFW, this offset should start at a 32-byte boundary, and the table_size above should remain at offset=6 bytes
+};
+
+enum SMU_14_0_2_CUSTOM_OD_SW_FEATURE_CAP {
+    SMU_14_0_2_CUSTOM_ODCAP_POWER_MODE = 0,
+	SMU_14_0_2_CUSTOM_ODCAP_COUNT
+};
+
+enum SMU_14_0_2_CUSTOM_OD_FEATURE_SETTING_ID {
+	SMU_14_0_2_CUSTOM_ODSETTING_POWER_MODE = 0,
+	SMU_14_0_2_CUSTOM_ODSETTING_COUNT,
+};
+
+struct smu_14_0_2_custom_overdrive_table {
+	uint8_t revision;
+	uint8_t reserve[3];
+	uint8_t cap[SMU_14_0_2_CUSTOM_ODCAP_COUNT];
+	int32_t max[SMU_14_0_2_CUSTOM_ODSETTING_COUNT];
+	int32_t min[SMU_14_0_2_CUSTOM_ODSETTING_COUNT];
+	int16_t pm_setting[SMU_14_0_2_PMSETTING_COUNT];
+};
+
+struct smu_14_0_3_custom_powerplay_table {
+    uint8_t custom_table_revision;
+    uint16_t custom_table_size;
+    uint16_t custom_sku_table_offset;
+    uint32_t custom_platform_caps;
+    uint16_t software_shutdown_temp;
+    struct smu_14_0_2_custom_overdrive_table custom_overdrive_table;
+    uint32_t reserve[8];
+    CustomSkuTable_t custom_sku_table_pmfw;
 };
 
 #pragma pack(pop)

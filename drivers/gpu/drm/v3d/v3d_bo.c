@@ -279,7 +279,7 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 	else
 		args->timeout_ns = 0;
 
-	/* Asked to wait beyond the jiffie/scheduler precision? */
+	/* Asked to wait beyond the jiffy/scheduler precision? */
 	if (ret == -ETIME && args->timeout_ns)
 		ret = -EAGAIN;
 

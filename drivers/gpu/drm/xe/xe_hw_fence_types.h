@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+struct xe_device;
 struct xe_gt;
 
 /**
@@ -61,8 +62,10 @@ struct xe_hw_fence_ctx {
 struct xe_hw_fence {
 	/** @dma: base dma fence for hardware fence context */
 	struct dma_fence dma;
-	/** @ctx: hardware fence context */
-	struct xe_hw_fence_ctx *ctx;
+	/** @xe: Xe device for hw fence driver name */
+	struct xe_device *xe;
+	/** @name: name of hardware fence context */
+	char name[MAX_FENCE_NAME_LEN];
 	/** @seqno_map: I/O map for seqno */
 	struct iosys_map seqno_map;
 	/** @irq_link: Link in struct xe_hw_fence_irq.pending */

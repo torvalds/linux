@@ -168,6 +168,7 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
+	unsigned int data_offset = 0;
 	dma_addr_t start_hdr_phys;
 	u16 length, amsdu_pad;
 	u8 *start_hdr;
@@ -260,7 +261,8 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 			int ret;
 
 			tb_len = min_t(unsigned int, tso.size, data_left);
-			tb_phys = iwl_pcie_get_sgt_tb_phys(sgt, tso.data);
+			tb_phys = iwl_pcie_get_sgt_tb_phys(sgt, data_offset,
+							   tb_len);
 			/* Not a real mapping error, use direct comparison */
 			if (unlikely(tb_phys == DMA_MAPPING_ERROR))
 				goto out_err;
@@ -272,6 +274,7 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 				goto out_err;
 
 			data_left -= tb_len;
+			data_offset += tb_len;
 			tso_build_data(skb, &tso, tb_len);
 		}
 	}

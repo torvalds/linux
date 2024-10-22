@@ -485,6 +485,9 @@ enum {
 	NVME_ID_NS_NVM_STS_MASK		= 0x7f,
 	NVME_ID_NS_NVM_GUARD_SHIFT	= 7,
 	NVME_ID_NS_NVM_GUARD_MASK	= 0x3,
+	NVME_ID_NS_NVM_QPIF_SHIFT	= 9,
+	NVME_ID_NS_NVM_QPIF_MASK	= 0xf,
+	NVME_ID_NS_NVM_QPIFS		= 1 << 3,
 };
 
 static inline __u8 nvme_elbaf_sts(__u32 elbaf)
@@ -495,6 +498,11 @@ static inline __u8 nvme_elbaf_sts(__u32 elbaf)
 static inline __u8 nvme_elbaf_guard_type(__u32 elbaf)
 {
 	return (elbaf >> NVME_ID_NS_NVM_GUARD_SHIFT) & NVME_ID_NS_NVM_GUARD_MASK;
+}
+
+static inline __u8 nvme_elbaf_qualified_guard_type(__u32 elbaf)
+{
+	return (elbaf >> NVME_ID_NS_NVM_QPIF_SHIFT) & NVME_ID_NS_NVM_QPIF_MASK;
 }
 
 struct nvme_id_ctrl_nvm {
@@ -576,6 +584,7 @@ enum {
 	NVME_NVM_NS_16B_GUARD	= 0,
 	NVME_NVM_NS_32B_GUARD	= 1,
 	NVME_NVM_NS_64B_GUARD	= 2,
+	NVME_NVM_NS_QTYPE_GUARD	= 3,
 };
 
 static inline __u8 nvme_lbaf_index(__u8 flbas)
@@ -978,8 +987,8 @@ struct nvme_rw_command {
 	__le16			control;
 	__le32			dsmgmt;
 	__le32			reftag;
-	__le16			apptag;
-	__le16			appmask;
+	__le16			lbat;
+	__le16			lbatm;
 };
 
 enum {
@@ -1048,8 +1057,8 @@ struct nvme_write_zeroes_cmd {
 	__le16			control;
 	__le32			dsmgmt;
 	__le32			reftag;
-	__le16			apptag;
-	__le16			appmask;
+	__le16			lbat;
+	__le16			lbatm;
 };
 
 enum nvme_zone_mgmt_action {

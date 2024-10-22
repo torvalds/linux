@@ -142,7 +142,7 @@ static int mt7925u_probe(struct usb_interface *usb_intf,
 		.rx_skb = mt7925_queue_rx_skb,
 		.rx_check = mt7925_rx_check,
 		.sta_add = mt7925_mac_sta_add,
-		.sta_assoc = mt7925_mac_sta_assoc,
+		.sta_event = mt7925_mac_sta_event,
 		.sta_remove = mt7925_mac_sta_remove,
 		.update_survey = mt792x_update_channel,
 	};

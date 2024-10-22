@@ -148,20 +148,20 @@ static const char *xe_hw_fence_get_driver_name(struct dma_fence *dma_fence)
 {
 	struct xe_hw_fence *fence = to_xe_hw_fence(dma_fence);
 
-	return dev_name(gt_to_xe(fence->ctx->gt)->drm.dev);
+	return dev_name(fence->xe->drm.dev);
 }
 
 static const char *xe_hw_fence_get_timeline_name(struct dma_fence *dma_fence)
 {
 	struct xe_hw_fence *fence = to_xe_hw_fence(dma_fence);
 
-	return fence->ctx->name;
+	return fence->name;
 }
 
 static bool xe_hw_fence_signaled(struct dma_fence *dma_fence)
 {
 	struct xe_hw_fence *fence = to_xe_hw_fence(dma_fence);
-	struct xe_device *xe = gt_to_xe(fence->ctx->gt);
+	struct xe_device *xe = fence->xe;
 	u32 seqno = xe_map_rd(xe, &fence->seqno_map, 0, u32);
 
 	return dma_fence->error ||
@@ -253,7 +253,8 @@ void xe_hw_fence_init(struct dma_fence *fence, struct xe_hw_fence_ctx *ctx,
 	struct  xe_hw_fence *hw_fence =
 		container_of(fence, typeof(*hw_fence), dma);
 
-	hw_fence->ctx = ctx;
+	hw_fence->xe = gt_to_xe(ctx->gt);
+	snprintf(hw_fence->name, sizeof(hw_fence->name), "%s", ctx->name);
 	hw_fence->seqno_map = seqno_map;
 	INIT_LIST_HEAD(&hw_fence->irq_link);
 

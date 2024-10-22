@@ -1,22 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 """
 Basic choice tests.
-
-The handling of 'choice' is a bit complicated part in Kconfig.
-
-The behavior of 'y' choice is intuitive.  If choice values are tristate,
-the choice can be 'm' where each value can be enabled independently.
 """
 
 
 def test_oldask0(conf):
     assert conf.oldaskconfig() == 0
     assert conf.stdout_contains('oldask0_expected_stdout')
-
-
-def test_oldask1(conf):
-    assert conf.oldaskconfig('oldask1_config') == 0
-    assert conf.stdout_contains('oldask1_expected_stdout')
 
 
 def test_allyes(conf):

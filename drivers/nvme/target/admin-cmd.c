@@ -587,6 +587,16 @@ static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 	u16 status = 0;
 	int i = 0;
 
+	/*
+	 * NSID values 0xFFFFFFFE and NVME_NSID_ALL are invalid
+	 * See NVMe Base Specification, Active Namespace ID list (CNS 02h).
+	 */
+	if (min_nsid == 0xFFFFFFFE || min_nsid == NVME_NSID_ALL) {
+		req->error_loc = offsetof(struct nvme_identify, nsid);
+		status = NVME_SC_INVALID_NS | NVME_STATUS_DNR;
+		goto out;
+	}
+
 	list = kzalloc(buf_size, GFP_KERNEL);
 	if (!list) {
 		status = NVME_SC_INTERNAL;
@@ -1005,8 +1015,6 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 
 	if (nvme_is_fabrics(cmd))
 		return nvmet_parse_fabrics_admin_cmd(req);
-	if (unlikely(!nvmet_check_auth_status(req)))
-		return NVME_SC_AUTH_REQUIRED | NVME_STATUS_DNR;
 	if (nvmet_is_disc_subsys(nvmet_req_subsys(req)))
 		return nvmet_parse_discovery_cmd(req);
 

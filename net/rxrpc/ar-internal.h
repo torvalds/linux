@@ -856,7 +856,6 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 			     struct rxrpc_connection *conn,
 			     struct sockaddr_rxrpc *peer_srx,
 			     struct sk_buff *skb);
-void rxrpc_accept_incoming_calls(struct rxrpc_local *);
 int rxrpc_user_charge_accept(struct rxrpc_sock *, unsigned long);
 
 /*
@@ -969,7 +968,6 @@ void rxrpc_connect_client_calls(struct rxrpc_local *local);
 void rxrpc_expose_client_call(struct rxrpc_call *);
 void rxrpc_disconnect_client_call(struct rxrpc_bundle *, struct rxrpc_call *);
 void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle);
-void rxrpc_put_client_conn(struct rxrpc_connection *, enum rxrpc_conn_trace);
 void rxrpc_discard_expired_client_conns(struct rxrpc_local *local);
 void rxrpc_clean_up_local_conns(struct rxrpc_local *);
 

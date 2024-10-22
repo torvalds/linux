@@ -476,7 +476,7 @@ static struct platform_driver rk3036_codec_platform_driver = {
 		.of_match_table = of_match_ptr(rk3036_codec_of_match),
 	},
 	.probe = rk3036_codec_platform_probe,
-	.remove_new = rk3036_codec_platform_remove,
+	.remove = rk3036_codec_platform_remove,
 };
 
 module_platform_driver(rk3036_codec_platform_driver);

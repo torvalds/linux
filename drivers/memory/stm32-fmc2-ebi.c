@@ -1573,29 +1573,22 @@ static int stm32_fmc2_ebi_setup_cs(struct stm32_fmc2_ebi *ebi,
 static int stm32_fmc2_ebi_parse_dt(struct stm32_fmc2_ebi *ebi)
 {
 	struct device *dev = ebi->dev;
-	struct device_node *child;
 	bool child_found = false;
 	u32 bank;
 	int ret;
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_node_scoped(dev->of_node, child) {
 		ret = of_property_read_u32(child, "reg", &bank);
-		if (ret) {
-			dev_err(dev, "could not retrieve reg property: %d\n",
-				ret);
-			of_node_put(child);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "could not retrieve reg property\n");
 
 		if (bank >= FMC2_MAX_BANKS) {
 			dev_err(dev, "invalid reg value: %d\n", bank);
-			of_node_put(child);
 			return -EINVAL;
 		}
 
 		if (ebi->bank_assigned & BIT(bank)) {
 			dev_err(dev, "bank already assigned: %d\n", bank);
-			of_node_put(child);
 			return -EINVAL;
 		}
 
@@ -1603,19 +1596,15 @@ static int stm32_fmc2_ebi_parse_dt(struct stm32_fmc2_ebi *ebi)
 			ret = ebi->data->check_rif(ebi, bank + 1);
 			if (ret) {
 				dev_err(dev, "bank access failed: %d\n", bank);
-				of_node_put(child);
 				return ret;
 			}
 		}
 
 		if (bank < FMC2_MAX_EBI_CE) {
 			ret = stm32_fmc2_ebi_setup_cs(ebi, child, bank);
-			if (ret) {
-				dev_err(dev, "setup chip select %d failed: %d\n",
-					bank, ret);
-				of_node_put(child);
-				return ret;
-			}
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "setup chip select %d failed\n", bank);
 		}
 
 		ebi->bank_assigned |= BIT(bank);

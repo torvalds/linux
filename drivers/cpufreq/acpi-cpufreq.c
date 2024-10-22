@@ -642,10 +642,16 @@ static u64 get_max_boost_ratio(unsigned int cpu)
 		return 0;
 	}
 
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		highest_perf = amd_get_highest_perf();
-	else
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+		ret = amd_get_boost_ratio_numerator(cpu, &highest_perf);
+		if (ret) {
+			pr_debug("CPU%d: Unable to get boost ratio numerator (%d)\n",
+				 cpu, ret);
+			return 0;
+		}
+	} else {
 		highest_perf = perf_caps.highest_perf;
+	}
 
 	nominal_perf = perf_caps.nominal_perf;
 

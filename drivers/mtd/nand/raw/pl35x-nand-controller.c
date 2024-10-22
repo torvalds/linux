@@ -1111,7 +1111,7 @@ static void pl35x_nand_chips_cleanup(struct pl35x_nandc *nfc)
 
 static int pl35x_nand_chips_init(struct pl35x_nandc *nfc)
 {
-	struct device_node *np = nfc->dev->of_node, *nand_np;
+	struct device_node *np = nfc->dev->of_node;
 	int nchips = of_get_child_count(np);
 	int ret;
 
@@ -1121,10 +1121,9 @@ static int pl35x_nand_chips_init(struct pl35x_nandc *nfc)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, nand_np) {
+	for_each_child_of_node_scoped(np, nand_np) {
 		ret = pl35x_nand_chip_init(nfc, nand_np);
 		if (ret) {
-			of_node_put(nand_np);
 			pl35x_nand_chips_cleanup(nfc);
 			break;
 		}

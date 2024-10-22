@@ -868,7 +868,7 @@ bool usb_driver_applicable(struct usb_device *udev,
 	return false;
 }
 
-static int usb_device_match(struct device *dev, struct device_driver *drv)
+static int usb_device_match(struct device *dev, const struct device_driver *drv)
 {
 	/* devices and interfaces are handled separately */
 	if (is_usb_device(dev)) {

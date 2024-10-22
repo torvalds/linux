@@ -274,24 +274,24 @@
 
 		led@0 {
 			chan-name = "R";
-			led-cur = /bits/ 8 <0x20>;
-			max-cur = /bits/ 8 <0x60>;
+			led-cur = /bits/ 8 <0x6e>;
+			max-cur = /bits/ 8 <0xc8>;
 			reg = <0>;
 			color = <LED_COLOR_ID_RED>;
 		};
 
 		led@1 {
 			chan-name = "G";
-			led-cur = /bits/ 8 <0x20>;
-			max-cur = /bits/ 8 <0x60>;
+			led-cur = /bits/ 8 <0xbe>;
+			max-cur = /bits/ 8 <0xc8>;
 			reg = <1>;
 			color = <LED_COLOR_ID_GREEN>;
 		};
 
 		led@2 {
 			chan-name = "B";
-			led-cur = /bits/ 8 <0x20>;
-			max-cur = /bits/ 8 <0x60>;
+			led-cur = /bits/ 8 <0xbe>;
+			max-cur = /bits/ 8 <0xc8>;
 			reg = <2>;
 			color = <LED_COLOR_ID_BLUE>;
 		};

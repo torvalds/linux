@@ -172,10 +172,10 @@ peci_bus_match_device_id(const struct peci_device_id *id, struct peci_device *de
 	return NULL;
 }
 
-static int peci_bus_device_match(struct device *dev, struct device_driver *drv)
+static int peci_bus_device_match(struct device *dev, const struct device_driver *drv)
 {
 	struct peci_device *device = to_peci_device(dev);
-	struct peci_driver *peci_drv = to_peci_driver(drv);
+	const struct peci_driver *peci_drv = to_peci_driver(drv);
 
 	if (dev->type != &peci_device_type)
 		return 0;

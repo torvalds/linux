@@ -1578,15 +1578,14 @@ static int check_memory_region_flags(struct kvm *kvm,
 	if (mem->flags & KVM_MEM_GUEST_MEMFD)
 		valid_flags &= ~KVM_MEM_LOG_DIRTY_PAGES;
 
-#ifdef CONFIG_HAVE_KVM_READONLY_MEM
 	/*
 	 * GUEST_MEMFD is incompatible with read-only memslots, as writes to
 	 * read-only memslots have emulated MMIO, not page fault, semantics,
 	 * and KVM doesn't allow emulated MMIO for private memory.
 	 */
-	if (!(mem->flags & KVM_MEM_GUEST_MEMFD))
+	if (kvm_arch_has_readonly_mem(kvm) &&
+	    !(mem->flags & KVM_MEM_GUEST_MEMFD))
 		valid_flags |= KVM_MEM_READONLY;
-#endif
 
 	if (mem->flags & ~valid_flags)
 		return -EINVAL;
@@ -2398,48 +2397,47 @@ static int kvm_vm_ioctl_clear_dirty_log(struct kvm *kvm,
 #endif /* CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT */
 
 #ifdef CONFIG_KVM_GENERIC_MEMORY_ATTRIBUTES
-/*
- * Returns true if _all_ gfns in the range [@start, @end) have attributes
- * matching @attrs.
- */
-bool kvm_range_has_memory_attributes(struct kvm *kvm, gfn_t start, gfn_t end,
-				     unsigned long attrs)
-{
-	XA_STATE(xas, &kvm->mem_attr_array, start);
-	unsigned long index;
-	bool has_attrs;
-	void *entry;
-
-	rcu_read_lock();
-
-	if (!attrs) {
-		has_attrs = !xas_find(&xas, end - 1);
-		goto out;
-	}
-
-	has_attrs = true;
-	for (index = start; index < end; index++) {
-		do {
-			entry = xas_next(&xas);
-		} while (xas_retry(&xas, entry));
-
-		if (xas.xa_index != index || xa_to_value(entry) != attrs) {
-			has_attrs = false;
-			break;
-		}
-	}
-
-out:
-	rcu_read_unlock();
-	return has_attrs;
-}
-
 static u64 kvm_supported_mem_attributes(struct kvm *kvm)
 {
 	if (!kvm || kvm_arch_has_private_mem(kvm))
 		return KVM_MEMORY_ATTRIBUTE_PRIVATE;
 
 	return 0;
+}
+
+/*
+ * Returns true if _all_ gfns in the range [@start, @end) have attributes
+ * such that the bits in @mask match @attrs.
+ */
+bool kvm_range_has_memory_attributes(struct kvm *kvm, gfn_t start, gfn_t end,
+				     unsigned long mask, unsigned long attrs)
+{
+	XA_STATE(xas, &kvm->mem_attr_array, start);
+	unsigned long index;
+	void *entry;
+
+	mask &= kvm_supported_mem_attributes(kvm);
+	if (attrs & ~mask)
+		return false;
+
+	if (end == start + 1)
+		return (kvm_get_memory_attributes(kvm, start) & mask) == attrs;
+
+	guard(rcu)();
+	if (!attrs)
+		return !xas_find(&xas, end - 1);
+
+	for (index = start; index < end; index++) {
+		do {
+			entry = xas_next(&xas);
+		} while (xas_retry(&xas, entry));
+
+		if (xas.xa_index != index ||
+		    (xa_to_value(entry) & mask) != attrs)
+			return false;
+	}
+
+	return true;
 }
 
 static __always_inline void kvm_handle_gfn_range(struct kvm *kvm,
@@ -2534,7 +2532,7 @@ static int kvm_vm_set_mem_attributes(struct kvm *kvm, gfn_t start, gfn_t end,
 	mutex_lock(&kvm->slots_lock);
 
 	/* Nothing to do if the entire range as the desired attributes. */
-	if (kvm_range_has_memory_attributes(kvm, start, end, attributes))
+	if (kvm_range_has_memory_attributes(kvm, start, end, ~0, attributes))
 		goto out_unlock;
 
 	/*

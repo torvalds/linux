@@ -106,6 +106,4 @@ static inline struct t3c_tid_entry *lookup_atid(const struct tid_info *t,
 	return &e->t3c_tid;
 }
 
-int attach_t3cdev(struct t3cdev *dev);
-void detach_t3cdev(struct t3cdev *dev);
 #endif

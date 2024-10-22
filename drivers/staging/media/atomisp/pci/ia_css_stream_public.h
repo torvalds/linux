@@ -27,12 +27,16 @@
 #include "ia_css_prbs.h"
 #include "ia_css_input_port.h"
 
-/* Input modes, these enumerate all supported input modes.
- *  Note that not all ISP modes support all input modes.
+/*
+ * Input modes, these enumerate all supported input modes.
+ * This enum is part of the atomisp firmware ABI and must
+ * NOT be changed!
+ * Note that not all ISP modes support all input modes.
  */
 enum ia_css_input_mode {
 	IA_CSS_INPUT_MODE_SENSOR, /** data from sensor */
 	IA_CSS_INPUT_MODE_FIFO,   /** data from input-fifo */
+	IA_CSS_INPUT_MODE_TPG,    /** data from test-pattern generator */
 	IA_CSS_INPUT_MODE_PRBS,   /** data from pseudo-random bit stream */
 	IA_CSS_INPUT_MODE_MEMORY, /** data from a frame in memory */
 	IA_CSS_INPUT_MODE_BUFFERED_SENSOR /** data is sent through mipi buffer */

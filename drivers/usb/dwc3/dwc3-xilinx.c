@@ -327,9 +327,14 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 		goto err_pm_set_suspended;
 
 	pm_suspend_ignore_children(dev, false);
-	return pm_runtime_resume_and_get(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		goto err_pm_set_suspended;
+
+	return 0;
 
 err_pm_set_suspended:
+	of_platform_depopulate(dev);
 	pm_runtime_set_suspended(dev);
 
 err_clk_put:

@@ -10,9 +10,10 @@
 #include "vstructs.h"
 
 enum bch_validate_flags {
-	BCH_VALIDATE_write		= (1U << 0),
-	BCH_VALIDATE_commit		= (1U << 1),
-	BCH_VALIDATE_journal		= (1U << 2),
+	BCH_VALIDATE_write		= BIT(0),
+	BCH_VALIDATE_commit		= BIT(1),
+	BCH_VALIDATE_journal		= BIT(2),
+	BCH_VALIDATE_silent		= BIT(3),
 };
 
 #if 0

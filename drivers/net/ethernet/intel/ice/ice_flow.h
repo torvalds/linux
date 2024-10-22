@@ -5,6 +5,7 @@
 #define _ICE_FLOW_H_
 
 #include "ice_flex_type.h"
+#include "ice_parser.h"
 
 #define ICE_FLOW_ENTRY_HANDLE_INVAL	0
 #define ICE_FLOW_FLD_OFF_INVAL		0xffff
@@ -326,6 +327,7 @@ enum ice_rss_cfg_hdr_type {
 	ICE_RSS_ANY_HEADERS
 };
 
+struct ice_vsi;
 struct ice_rss_hash_cfg {
 	u32 addl_hdrs; /* protocol header fields */
 	u64 hash_flds; /* hash bit field (ICE_FLOW_HASH_*) to configure */
@@ -444,6 +446,9 @@ ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 		  struct ice_flow_seg_info *segs, u8 segs_cnt,
 		  bool symm, struct ice_flow_prof **prof);
 int ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id);
+int
+ice_flow_set_parser_prof(struct ice_hw *hw, u16 dest_vsi, u16 fdir_vsi,
+			 struct ice_parser_profile *prof, enum ice_block blk);
 int
 ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
 		   u64 entry_id, u16 vsi, enum ice_flow_priority prio,

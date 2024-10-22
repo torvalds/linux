@@ -239,6 +239,9 @@ struct io_ring_ctx {
 		struct io_rings		*rings;
 		struct percpu_ref	refs;
 
+		clockid_t		clockid;
+		enum tk_offsets		clock_offset;
+
 		enum task_work_notify_mode	notify_method;
 		unsigned			sq_thread_idle;
 	} ____cacheline_aligned_in_smp;
@@ -404,7 +407,7 @@ struct io_ring_ctx {
 	spinlock_t		napi_lock;	/* napi_list lock */
 
 	/* napi busy poll default timeout */
-	unsigned int		napi_busy_poll_to;
+	ktime_t			napi_busy_poll_dt;
 	bool			napi_prefer_busy_poll;
 	bool			napi_enabled;
 
@@ -461,7 +464,6 @@ enum {
 	REQ_F_SUPPORT_NOWAIT_BIT,
 	REQ_F_ISREG_BIT,
 	REQ_F_POLL_NO_LAZY_BIT,
-	REQ_F_CANCEL_SEQ_BIT,
 	REQ_F_CAN_POLL_BIT,
 	REQ_F_BL_EMPTY_BIT,
 	REQ_F_BL_NO_RECYCLE_BIT,
@@ -536,8 +538,6 @@ enum {
 	REQ_F_HASH_LOCKED	= IO_REQ_FLAG(REQ_F_HASH_LOCKED_BIT),
 	/* don't use lazy poll wake for this request */
 	REQ_F_POLL_NO_LAZY	= IO_REQ_FLAG(REQ_F_POLL_NO_LAZY_BIT),
-	/* cancel sequence is set and valid */
-	REQ_F_CANCEL_SEQ	= IO_REQ_FLAG(REQ_F_CANCEL_SEQ_BIT),
 	/* file is pollable */
 	REQ_F_CAN_POLL		= IO_REQ_FLAG(REQ_F_CAN_POLL_BIT),
 	/* buffer list was empty after selection of buffer */

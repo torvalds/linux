@@ -980,7 +980,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			ipmi_ssif_unlock_cond(ssif_info, flags);
 			start_get(ssif_info);
 		} else {
-			/* Wait a jiffie then request the next message */
+			/* Wait a jiffy then request the next message */
 			ssif_info->waiting_alert = true;
 			ssif_info->retries_left = SSIF_RECV_RETRIES;
 			if (!ssif_info->stopping)

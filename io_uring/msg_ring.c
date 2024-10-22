@@ -110,10 +110,10 @@ static struct io_kiocb *io_msg_get_kiocb(struct io_ring_ctx *ctx)
 	if (spin_trylock(&ctx->msg_lock)) {
 		req = io_alloc_cache_get(&ctx->msg_cache);
 		spin_unlock(&ctx->msg_lock);
+		if (req)
+			return req;
 	}
-	if (req)
-		return req;
-	return kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN);
+	return kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 }
 
 static int io_msg_data_remote(struct io_kiocb *req)

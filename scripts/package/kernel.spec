@@ -27,7 +27,7 @@ The Linux Kernel, the operating system core itself
 %package headers
 Summary: Header files for the Linux kernel for use by glibc
 Group: Development/System
-Obsoletes: kernel-headers
+Obsoletes: kernel-headers < %{version}
 Provides: kernel-headers = %{version}
 %description headers
 Kernel-headers includes the C header files that specify the interface
@@ -74,7 +74,7 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 	echo "/lib/modules/%{KERNELRELEASE}"
 
 	for x in alias alias.bin builtin.alias.bin builtin.bin dep dep.bin \
-					devname softdep symbols symbols.bin; do
+				devname softdep symbols symbols.bin weakdep; do
 		echo "%ghost /lib/modules/%{KERNELRELEASE}/modules.${x}"
 	done
 

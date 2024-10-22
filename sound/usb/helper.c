@@ -130,3 +130,37 @@ snd_usb_get_host_interface(struct snd_usb_audio *chip, int ifnum, int altsetting
 		return NULL;
 	return usb_altnum_to_altsetting(iface, altsetting);
 }
+
+int snd_usb_add_ctrl_interface_link(struct snd_usb_audio *chip, int ifnum,
+		int ctrlif)
+{
+	struct usb_device *dev = chip->dev;
+	struct usb_host_interface *host_iface;
+
+	if (chip->num_intf_to_ctrl >= MAX_CARD_INTERFACES) {
+		dev_info(&dev->dev, "Too many interfaces assigned to the single USB-audio card\n");
+		return -EINVAL;
+	}
+
+	/* find audiocontrol interface */
+	host_iface = &usb_ifnum_to_if(dev, ctrlif)->altsetting[0];
+
+	chip->intf_to_ctrl[chip->num_intf_to_ctrl].interface = ifnum;
+	chip->intf_to_ctrl[chip->num_intf_to_ctrl].ctrl_intf = host_iface;
+	chip->num_intf_to_ctrl++;
+
+	return 0;
+}
+
+struct usb_host_interface *snd_usb_find_ctrl_interface(struct snd_usb_audio *chip,
+							int ifnum)
+{
+	int i;
+
+	for (i = 0; i < chip->num_intf_to_ctrl; ++i)
+		if (chip->intf_to_ctrl[i].interface == ifnum)
+			return chip->intf_to_ctrl[i].ctrl_intf;
+
+	/* Fallback to first audiocontrol interface */
+	return chip->ctrl_intf;
+}

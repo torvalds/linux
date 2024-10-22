@@ -138,12 +138,6 @@
 		vin-supply = <&reg_1v8>;
 	};
 
-	/*
-	 * By default we enable CTRL_SLEEP_MOCI#, this is required to have
-	 * peripherals on the carrier board powered.
-	 * If more granularity or power saving is required this can be disabled
-	 * in the carrier board device tree files.
-	 */
 	reg_force_sleep_moci: regulator-force-sleep-moci {
 		compatible = "regulator-fixed";
 		enable-active-high;

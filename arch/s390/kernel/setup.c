@@ -149,13 +149,12 @@ unsigned long __bootdata_preserved(max_mappable);
 struct physmem_info __bootdata(physmem_info);
 
 struct vm_layout __bootdata_preserved(vm_layout);
-EXPORT_SYMBOL_GPL(vm_layout);
+EXPORT_SYMBOL(vm_layout);
 int __bootdata_preserved(__kaslr_enabled);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
 u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
-u64 alt_stfle_fac_list[16];
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
 unsigned long VMALLOC_START;
@@ -406,6 +405,7 @@ static void __init setup_lowcore(void)
 		panic("%s: Failed to allocate %zu bytes align=%zx\n",
 		      __func__, sizeof(*lc), sizeof(*lc));
 
+	lc->pcpu = (unsigned long)per_cpu_ptr(&pcpu_devices, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
 	lc->restart_psw.addr = __pa(restart_int_handler);
 	lc->external_new_psw.mask = PSW_KERNEL_BITS;
@@ -734,7 +734,23 @@ static void __init memblock_add_physmem_info(void)
 }
 
 /*
- * Reserve memory used for lowcore/command line/kernel image.
+ * Reserve memory used for lowcore.
+ */
+static void __init reserve_lowcore(void)
+{
+	void *lowcore_start = get_lowcore();
+	void *lowcore_end = lowcore_start + sizeof(struct lowcore);
+	void *start, *end;
+
+	if ((void *)__identity_base < lowcore_end) {
+		start = max(lowcore_start, (void *)__identity_base);
+		end = min(lowcore_end, (void *)(__identity_base + ident_map_size));
+		memblock_reserve(__pa(start), __pa(end));
+	}
+}
+
+/*
+ * Reserve memory used for absolute lowcore/command line/kernel image.
  */
 static void __init reserve_kernel(void)
 {
@@ -889,6 +905,9 @@ void __init setup_arch(char **cmdline_p)
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
 
+	if (have_relocated_lowcore())
+		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
+
 	log_component_list();
 
 	/* Have one command line that is parsed and saved in /proc/cmdline */
@@ -915,6 +934,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_pgtables();
+	reserve_lowcore();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();

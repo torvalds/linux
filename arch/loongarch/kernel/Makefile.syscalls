@@ -1,3 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
 
-syscall_abis_64 += newstat
+# No special ABIs on loongarch so far
+syscall_abis_64 +=

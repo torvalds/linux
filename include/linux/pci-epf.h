@@ -107,8 +107,7 @@ struct pci_epf_driver {
 	const struct pci_epf_device_id	*id_table;
 };
 
-#define to_pci_epf_driver(drv) (container_of((drv), struct pci_epf_driver, \
-				driver))
+#define to_pci_epf_driver(drv) container_of_const((drv), struct pci_epf_driver, driver)
 
 /**
  * struct pci_epf_bar - represents the BAR of EPF device

@@ -315,7 +315,7 @@ static struct omap_device *omap_device_alloc(struct platform_device *pdev,
 
 	od->hwmods_cnt = oh_cnt;
 
-	hwmods = kmemdup(ohs, sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);
+	hwmods = kmemdup_array(ohs, oh_cnt, sizeof(*hwmods), GFP_KERNEL);
 	if (!hwmods)
 		goto oda_exit2;
 

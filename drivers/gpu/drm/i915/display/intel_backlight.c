@@ -1449,6 +1449,9 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 
 static int cnp_num_backlight_controllers(struct drm_i915_private *i915)
 {
+	if (INTEL_PCH_TYPE(i915) >= PCH_MTL)
+		return 2;
+
 	if (INTEL_PCH_TYPE(i915) >= PCH_DG1)
 		return 1;
 

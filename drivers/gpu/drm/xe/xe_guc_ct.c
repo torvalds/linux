@@ -327,6 +327,8 @@ static void xe_guc_ct_set_state(struct xe_guc_ct *ct,
 	xe_gt_assert(ct_to_gt(ct), ct->g2h_outstanding == 0 ||
 		     state == XE_GUC_CT_STATE_STOPPED);
 
+	if (ct->g2h_outstanding)
+		xe_pm_runtime_put(ct_to_xe(ct));
 	ct->g2h_outstanding = 0;
 	ct->state = state;
 
@@ -495,9 +497,14 @@ static void h2g_reserve_space(struct xe_guc_ct *ct, u32 cmd_len)
 static void __g2h_reserve_space(struct xe_guc_ct *ct, u32 g2h_len, u32 num_g2h)
 {
 	xe_gt_assert(ct_to_gt(ct), g2h_len <= ct->ctbs.g2h.info.space);
+	xe_gt_assert(ct_to_gt(ct), (!g2h_len && !num_g2h) ||
+		     (g2h_len && num_g2h));
 
 	if (g2h_len) {
 		lockdep_assert_held(&ct->fast_lock);
+
+		if (!ct->g2h_outstanding)
+			xe_pm_runtime_get_noresume(ct_to_xe(ct));
 
 		ct->ctbs.g2h.info.space -= g2h_len;
 		ct->g2h_outstanding += num_g2h;
@@ -511,7 +518,8 @@ static void __g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)
 		     ct->ctbs.g2h.info.size - ct->ctbs.g2h.info.resv_space);
 
 	ct->ctbs.g2h.info.space += g2h_len;
-	--ct->g2h_outstanding;
+	if (!--ct->g2h_outstanding)
+		xe_pm_runtime_put(ct_to_xe(ct));
 }
 
 static void g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)

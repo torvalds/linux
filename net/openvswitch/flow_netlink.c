@@ -2491,7 +2491,7 @@ static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 
 	acts = nla_alloc_flow_actions(new_acts_size);
 	if (IS_ERR(acts))
-		return (void *)acts;
+		return ERR_CAST(acts);
 
 	memcpy(acts->actions, (*sfa)->actions, (*sfa)->actions_len);
 	acts->actions_len = (*sfa)->actions_len;

@@ -203,6 +203,12 @@ struct xe_tile {
 		} vf;
 	} sriov;
 
+	/** @pcode: tile's PCODE */
+	struct {
+		/** @pcode.lock: protecting tile's PCODE mailbox data */
+		struct mutex lock;
+	} pcode;
+
 	/** @migrate: Migration helper for vram blits and clearing */
 	struct xe_migrate *migrate;
 
@@ -566,6 +572,9 @@ struct xe_file {
 
 	/** @client: drm client */
 	struct xe_drm_client *client;
+
+	/** @refcount: ref count of this xe file */
+	struct kref refcount;
 };
 
 #endif

@@ -96,10 +96,7 @@ struct peci_driver {
 	const struct peci_device_id *id_table;
 };
 
-static inline struct peci_driver *to_peci_driver(struct device_driver *d)
-{
-	return container_of(d, struct peci_driver, driver);
-}
+#define to_peci_driver(__drv)	container_of_const(__drv, struct peci_driver, driver)
 
 int __peci_driver_register(struct peci_driver *driver, struct module *owner,
 			   const char *mod_name);

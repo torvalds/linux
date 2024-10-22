@@ -476,7 +476,7 @@ static void spdif_remove(struct platform_device *pdev)
 
 static struct platform_driver samsung_spdif_driver = {
 	.probe	= spdif_probe,
-	.remove_new = spdif_remove,
+	.remove = spdif_remove,
 	.driver	= {
 		.name	= "samsung-spdif",
 	},

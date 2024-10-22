@@ -127,6 +127,9 @@ enum intel_platform {
 #define INTEL_SUBPLATFORM_N    1
 #define INTEL_SUBPLATFORM_RPLU  2
 
+/* MTL */
+#define INTEL_SUBPLATFORM_ARL	0
+
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
 	INTEL_PPGTT_ALIASING = I915_GEM_PPGTT_ALIASING,

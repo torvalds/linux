@@ -88,25 +88,16 @@ struct max6639_data {
 
 static int max6639_temp_read_input(struct device *dev, int channel, long *temp)
 {
+	u32 regs[2] = { MAX6639_REG_TEMP_EXT(channel), MAX6639_REG_TEMP(channel) };
 	struct max6639_data *data = dev_get_drvdata(dev);
-	unsigned int val;
+	u8 regvals[2];
 	int res;
 
-	/*
-	 * Lock isn't needed as MAX6639_REG_TEMP wpnt change for at least 250ms after reading
-	 * MAX6639_REG_TEMP_EXT
-	 */
-	res = regmap_read(data->regmap, MAX6639_REG_TEMP_EXT(channel), &val);
+	res = regmap_multi_reg_read(data->regmap, regs, regvals, 2);
 	if (res < 0)
 		return res;
 
-	*temp = val >> 5;
-	res = regmap_read(data->regmap, MAX6639_REG_TEMP(channel), &val);
-	if (res < 0)
-		return res;
-
-	*temp |= val << 3;
-	*temp *= 125;
+	*temp = ((regvals[0] >> 5) | (regvals[1] << 3)) * 125;
 
 	return 0;
 }
@@ -290,8 +281,10 @@ static umode_t max6639_fan_is_visible(const void *_data, u32 attr, int channel)
 static int max6639_read_pwm(struct device *dev, u32 attr, int channel,
 			    long *pwm_val)
 {
+	u32 regs[2] = { MAX6639_REG_FAN_CONFIG3(channel), MAX6639_REG_GCONFIG };
 	struct max6639_data *data = dev_get_drvdata(dev);
 	unsigned int val;
+	u8 regvals[2];
 	int res;
 	u8 i;
 
@@ -303,26 +296,13 @@ static int max6639_read_pwm(struct device *dev, u32 attr, int channel,
 		*pwm_val = val * 255 / 120;
 		return 0;
 	case hwmon_pwm_freq:
-		mutex_lock(&data->update_lock);
-		res = regmap_read(data->regmap, MAX6639_REG_FAN_CONFIG3(channel), &val);
-		if (res < 0) {
-			mutex_unlock(&data->update_lock);
+		res = regmap_multi_reg_read(data->regmap, regs, regvals, 2);
+		if (res < 0)
 			return res;
-		}
-		i = val & MAX6639_FAN_CONFIG3_FREQ_MASK;
-
-		res = regmap_read(data->regmap, MAX6639_REG_GCONFIG, &val);
-		if (res < 0) {
-			mutex_unlock(&data->update_lock);
-			return res;
-		}
-
-		if (val & MAX6639_GCONFIG_PWM_FREQ_HI)
+		i = regvals[0] & MAX6639_FAN_CONFIG3_FREQ_MASK;
+		if (regvals[1] & MAX6639_GCONFIG_PWM_FREQ_HI)
 			i |= 0x4;
-		i &= 0x7;
 		*pwm_val = freq_table[i];
-
-		mutex_unlock(&data->update_lock);
 		return 0;
 	default:
 		return -EOPNOTSUPP;

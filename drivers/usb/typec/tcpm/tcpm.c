@@ -4515,7 +4515,7 @@ static inline enum tcpm_state hard_reset_state(struct tcpm_port *port)
 		return ERROR_RECOVERY;
 	if (port->pwr_role == TYPEC_SOURCE)
 		return SRC_UNATTACHED;
-	if (port->state == SNK_WAIT_CAPABILITIES)
+	if (port->state == SNK_WAIT_CAPABILITIES_TIMEOUT)
 		return SNK_READY;
 	return SNK_UNATTACHED;
 }
@@ -5655,7 +5655,6 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case PORT_RESET:
 		tcpm_reset_port(port);
-		port->pd_events = 0;
 		if (port->self_powered)
 			tcpm_set_cc(port, TYPEC_CC_OPEN);
 		else
@@ -7484,12 +7483,6 @@ static int tcpm_psy_prop_writeable(struct power_supply *psy,
 	}
 }
 
-static enum power_supply_usb_type tcpm_psy_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_C,
-	POWER_SUPPLY_USB_TYPE_PD,
-	POWER_SUPPLY_USB_TYPE_PD_PPS,
-};
-
 static const char *tcpm_psy_name_prefix = "tcpm-source-psy-";
 
 static int devm_tcpm_psy_register(struct tcpm_port *port)
@@ -7510,8 +7503,9 @@ static int devm_tcpm_psy_register(struct tcpm_port *port)
 		 port_dev_name);
 	port->psy_desc.name = psy_name;
 	port->psy_desc.type = POWER_SUPPLY_TYPE_USB;
-	port->psy_desc.usb_types = tcpm_psy_usb_types;
-	port->psy_desc.num_usb_types = ARRAY_SIZE(tcpm_psy_usb_types);
+	port->psy_desc.usb_types = BIT(POWER_SUPPLY_USB_TYPE_C)  |
+				   BIT(POWER_SUPPLY_USB_TYPE_PD) |
+				   BIT(POWER_SUPPLY_USB_TYPE_PD_PPS);
 	port->psy_desc.properties = tcpm_psy_props;
 	port->psy_desc.num_properties = ARRAY_SIZE(tcpm_psy_props);
 	port->psy_desc.get_property = tcpm_psy_get_prop;

@@ -154,6 +154,51 @@ err_out:
 	close(sfd);
 }
 
+static void test_nonstandard_opt(int family)
+{
+	struct setget_sockopt__bss *bss = skel->bss;
+	struct bpf_link *getsockopt_link = NULL;
+	int sfd = -1, fd = -1, cfd = -1, flags;
+	socklen_t flagslen = sizeof(flags);
+
+	memset(bss, 0, sizeof(*bss));
+
+	sfd = start_server(family, SOCK_STREAM,
+			   family == AF_INET6 ? addr6_str : addr4_str, 0, 0);
+	if (!ASSERT_GE(sfd, 0, "start_server"))
+		return;
+
+	fd = connect_to_fd(sfd, 0);
+	if (!ASSERT_GE(fd, 0, "connect_to_fd_server"))
+		goto err_out;
+
+	/* cgroup/getsockopt prog will intercept getsockopt() below and
+	 * retrieve the tcp socket bpf_sock_ops_cb_flags value for the
+	 * accept()ed socket; this was set earlier in the passive established
+	 * callback for the accept()ed socket via bpf_setsockopt().
+	 */
+	getsockopt_link = bpf_program__attach_cgroup(skel->progs._getsockopt, cg_fd);
+	if (!ASSERT_OK_PTR(getsockopt_link, "getsockopt prog"))
+		goto err_out;
+
+	cfd = accept(sfd, NULL, 0);
+	if (!ASSERT_GE(cfd, 0, "accept"))
+		goto err_out;
+
+	if (!ASSERT_OK(getsockopt(cfd, SOL_TCP, TCP_BPF_SOCK_OPS_CB_FLAGS, &flags, &flagslen),
+		       "getsockopt_flags"))
+		goto err_out;
+	ASSERT_EQ(flags & BPF_SOCK_OPS_STATE_CB_FLAG, BPF_SOCK_OPS_STATE_CB_FLAG,
+		  "cb_flags_set");
+err_out:
+	close(sfd);
+	if (fd != -1)
+		close(fd);
+	if (cfd != -1)
+		close(cfd);
+	bpf_link__destroy(getsockopt_link);
+}
+
 void test_setget_sockopt(void)
 {
 	cg_fd = test__join_cgroup(CG_NAME);
@@ -191,6 +236,8 @@ void test_setget_sockopt(void)
 	test_udp(AF_INET);
 	test_ktls(AF_INET6);
 	test_ktls(AF_INET);
+	test_nonstandard_opt(AF_INET);
+	test_nonstandard_opt(AF_INET6);
 
 done:
 	setget_sockopt__destroy(skel);

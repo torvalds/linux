@@ -258,6 +258,48 @@ struct gc_info_v1_2 {
 	uint32_t gc_gl2c_per_gpu;
 };
 
+struct gc_info_v1_3 {
+    struct gpu_info_header header;
+    uint32_t gc_num_se;
+    uint32_t gc_num_wgp0_per_sa;
+    uint32_t gc_num_wgp1_per_sa;
+    uint32_t gc_num_rb_per_se;
+    uint32_t gc_num_gl2c;
+    uint32_t gc_num_gprs;
+    uint32_t gc_num_max_gs_thds;
+    uint32_t gc_gs_table_depth;
+    uint32_t gc_gsprim_buff_depth;
+    uint32_t gc_parameter_cache_depth;
+    uint32_t gc_double_offchip_lds_buffer;
+    uint32_t gc_wave_size;
+    uint32_t gc_max_waves_per_simd;
+    uint32_t gc_max_scratch_slots_per_cu;
+    uint32_t gc_lds_size;
+    uint32_t gc_num_sc_per_se;
+    uint32_t gc_num_sa_per_se;
+    uint32_t gc_num_packer_per_sc;
+    uint32_t gc_num_gl2a;
+    uint32_t gc_num_tcp_per_sa;
+    uint32_t gc_num_sdp_interface;
+    uint32_t gc_num_tcps;
+    uint32_t gc_num_tcp_per_wpg;
+    uint32_t gc_tcp_l1_size;
+    uint32_t gc_num_sqc_per_wgp;
+    uint32_t gc_l1_instruction_cache_size_per_sqc;
+    uint32_t gc_l1_data_cache_size_per_sqc;
+    uint32_t gc_gl1c_per_sa;
+    uint32_t gc_gl1c_size_per_instance;
+    uint32_t gc_gl2c_per_gpu;
+    uint32_t gc_tcp_size_per_cu;
+    uint32_t gc_tcp_cache_line_size;
+    uint32_t gc_instruction_cache_size_per_sqc;
+    uint32_t gc_instruction_cache_line_size;
+    uint32_t gc_scalar_data_cache_size_per_sqc;
+    uint32_t gc_scalar_data_cache_line_size;
+    uint32_t gc_tcc_size;
+    uint32_t gc_tcc_cache_line_size;
+};
+
 struct gc_info_v2_0 {
 	struct gpu_info_header header;
 

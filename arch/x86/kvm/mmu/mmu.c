@@ -4335,7 +4335,7 @@ static u8 kvm_max_private_mapping_level(struct kvm *kvm, kvm_pfn_t pfn,
 	if (req_max_level)
 		max_level = min(max_level, req_max_level);
 
-	return req_max_level;
+	return max_level;
 }
 
 static int kvm_faultin_pfn_private(struct kvm_vcpu *vcpu,
@@ -4674,16 +4674,14 @@ out_unlock:
 bool kvm_mmu_may_ignore_guest_pat(void)
 {
 	/*
-	 * When EPT is enabled (shadow_memtype_mask is non-zero), the CPU does
-	 * not support self-snoop (or is affected by an erratum), and the VM
+	 * When EPT is enabled (shadow_memtype_mask is non-zero), and the VM
 	 * has non-coherent DMA (DMA doesn't snoop CPU caches), KVM's ABI is to
 	 * honor the memtype from the guest's PAT so that guest accesses to
 	 * memory that is DMA'd aren't cached against the guest's wishes.  As a
 	 * result, KVM _may_ ignore guest PAT, whereas without non-coherent DMA,
-	 * KVM _always_ ignores or honors guest PAT, i.e. doesn't toggle SPTE
-	 * bits in response to non-coherent device (un)registration.
+	 * KVM _always_ ignores guest PAT (when EPT is enabled).
 	 */
-	return !static_cpu_has(X86_FEATURE_SELFSNOOP) && shadow_memtype_mask;
+	return shadow_memtype_mask;
 }
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
@@ -4743,11 +4741,16 @@ long kvm_arch_vcpu_pre_fault_memory(struct kvm_vcpu *vcpu,
 	u64 end;
 	int r;
 
+	if (!vcpu->kvm->arch.pre_fault_allowed)
+		return -EOPNOTSUPP;
+
 	/*
 	 * reload is efficient when called repeatedly, so we can do it on
 	 * every iteration.
 	 */
-	kvm_mmu_reload(vcpu);
+	r = kvm_mmu_reload(vcpu);
+	if (r)
+		return r;
 
 	if (kvm_arch_has_private_mem(vcpu->kvm) &&
 	    kvm_mem_is_private(vcpu->kvm, gpa_to_gfn(range->gpa)))
@@ -7510,7 +7513,7 @@ static bool hugepage_has_attrs(struct kvm *kvm, struct kvm_memory_slot *slot,
 	const unsigned long end = start + KVM_PAGES_PER_HPAGE(level);
 
 	if (level == PG_LEVEL_2M)
-		return kvm_range_has_memory_attributes(kvm, start, end, attrs);
+		return kvm_range_has_memory_attributes(kvm, start, end, ~0, attrs);
 
 	for (gfn = start; gfn < end; gfn += KVM_PAGES_PER_HPAGE(level - 1)) {
 		if (hugepage_test_mixed(slot, gfn, level - 1) ||

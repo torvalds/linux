@@ -54,6 +54,8 @@ properties:
       - description: ST STM32MP151 based Boards
         items:
           - enum:
+              - prt,mecio1r0 # Protonic MECIO1r0
+              - prt,mect1s   # Protonic MECT1S
               - prt,prtt1a   # Protonic PRTT1A
               - prt,prtt1c   # Protonic PRTT1C
               - prt,prtt1s   # Protonic PRTT1S
@@ -70,6 +72,12 @@ properties:
           - const: dh,stm32mp151a-dhcor-testbench
           - const: dh,stm32mp151a-dhcor-som
           - const: st,stm32mp151
+
+      - description: ST STM32MP153 based Boards
+        items:
+          - enum:
+              - prt,mecio1r1   # Protonic MECIO1r1
+          - const: st,stm32mp153
 
       - description: DH STM32MP153 DHCOM SoM based Boards
         items:

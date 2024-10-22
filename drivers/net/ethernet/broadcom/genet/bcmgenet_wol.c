@@ -42,19 +42,15 @@ void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
 
-	if (dev->phydev) {
+	if (dev->phydev)
 		phy_ethtool_get_wol(dev->phydev, wol);
-		if (wol->supported)
-			return;
-	}
 
-	if (!device_can_wakeup(kdev)) {
-		wol->supported = 0;
-		wol->wolopts = 0;
+	/* MAC is not wake-up capable, return what the PHY does */
+	if (!device_can_wakeup(kdev))
 		return;
-	}
 
-	wol->supported = WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER;
+	/* Overlay MAC capabilities with that of the PHY queried before */
+	wol->supported |= WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER;
 	wol->wolopts = priv->wolopts;
 	memset(wol->sopass, 0, sizeof(wol->sopass));
 

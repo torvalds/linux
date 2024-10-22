@@ -36,6 +36,7 @@
 #include <net/route.h>
 #include <net/netfilter/br_netfilter.h>
 #include <net/netns/generic.h>
+#include <net/inet_dscp.h>
 
 #include <linux/uaccess.h>
 #include "br_private.h"
@@ -402,7 +403,7 @@ static int br_nf_pre_routing_finish(struct net *net, struct sock *sk, struct sk_
 				goto free_skb;
 
 			rt = ip_route_output(net, iph->daddr, 0,
-					     RT_TOS(iph->tos), 0,
+					     iph->tos & INET_DSCP_MASK, 0,
 					     RT_SCOPE_UNIVERSE);
 			if (!IS_ERR(rt)) {
 				/* - Bridged-and-DNAT'ed traffic doesn't
@@ -622,8 +623,12 @@ static unsigned int br_nf_local_in(void *priv,
 	if (likely(nf_ct_is_confirmed(ct)))
 		return NF_ACCEPT;
 
+	if (WARN_ON_ONCE(refcount_read(&nfct->use) != 1)) {
+		nf_reset_ct(skb);
+		return NF_ACCEPT;
+	}
+
 	WARN_ON_ONCE(skb_shared(skb));
-	WARN_ON_ONCE(refcount_read(&nfct->use) != 1);
 
 	/* We can't call nf_confirm here, it would create a dependency
 	 * on nf_conntrack module.
@@ -1189,7 +1194,7 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 
 #ifdef CONFIG_SYSCTL
 static
-int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
+int brnf_sysctl_call_tables(const struct ctl_table *ctl, int write,
 			    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;

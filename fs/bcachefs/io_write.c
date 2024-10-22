@@ -1503,10 +1503,7 @@ err:
 	if ((op->flags & BCH_WRITE_SYNC) ||
 	    (!(op->flags & BCH_WRITE_SUBMITTED) &&
 	     !(op->flags & BCH_WRITE_IN_WORKER))) {
-		if (closure_sync_timeout(&op->cl, HZ * 10)) {
-			bch2_print_allocator_stuck(c);
-			closure_sync(&op->cl);
-		}
+		bch2_wait_on_allocator(c, &op->cl);
 
 		__bch2_write_index(op);
 

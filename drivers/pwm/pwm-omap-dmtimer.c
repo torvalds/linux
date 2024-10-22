@@ -355,7 +355,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 		goto err_platdata;
 	}
 
-	if (!of_get_property(timer, "ti,timer-pwm", NULL)) {
+	if (!of_property_read_bool(timer, "ti,timer-pwm")) {
 		dev_err(&pdev->dev, "Missing ti,timer-pwm capability\n");
 		ret = -ENODEV;
 		goto err_timer_property;
@@ -455,7 +455,7 @@ static struct platform_driver pwm_omap_dmtimer_driver = {
 		.of_match_table = pwm_omap_dmtimer_of_match,
 	},
 	.probe = pwm_omap_dmtimer_probe,
-	.remove_new = pwm_omap_dmtimer_remove,
+	.remove = pwm_omap_dmtimer_remove,
 };
 module_platform_driver(pwm_omap_dmtimer_driver);
 

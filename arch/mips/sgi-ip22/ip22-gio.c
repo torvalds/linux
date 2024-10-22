@@ -111,7 +111,7 @@ void gio_device_unregister(struct gio_device *giodev)
 }
 EXPORT_SYMBOL_GPL(gio_device_unregister);
 
-static int gio_bus_match(struct device *dev, struct device_driver *drv)
+static int gio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct gio_device *gio_dev = to_gio_device(dev);
 	struct gio_driver *gio_drv = to_gio_driver(drv);

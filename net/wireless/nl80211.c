@@ -6066,7 +6066,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->start_ap)
 		return -EOPNOTSUPP;
 
-	if (wdev->cac_started)
+	if (wdev->links[link_id].cac_started)
 		return -EBUSY;
 
 	if (wdev->links[link_id].ap.beacon_interval)
@@ -9778,7 +9778,8 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 		return ERR_PTR(-ENOMEM);
 
 	if (n_ssids)
-		request->ssids = (void *)&request->channels[n_channels];
+		request->ssids = (void *)request +
+			struct_size(request, channels, n_channels);
 	request->n_ssids = n_ssids;
 	if (ie_len) {
 		if (n_ssids)
@@ -10072,6 +10073,7 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	int link_id = nl80211_link_id(info->attrs);
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_chan_def chandef;
 	enum nl80211_dfs_regions dfs_region;
@@ -10121,7 +10123,20 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 		goto unlock;
 	}
 
-	if (cfg80211_beaconing_iface_active(wdev) || wdev->cac_started) {
+	if (cfg80211_beaconing_iface_active(wdev)) {
+		/* During MLO other link(s) can beacon, only the current link
+		 * can not already beacon
+		 */
+		if (wdev->valid_links &&
+		    !wdev->links[link_id].ap.beacon_interval) {
+			/* nothing */
+		} else {
+			err = -EBUSY;
+			goto unlock;
+		}
+	}
+
+	if (wdev->links[link_id].cac_started) {
 		err = -EBUSY;
 		goto unlock;
 	}
@@ -10141,12 +10156,26 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	if (WARN_ON(!cac_time_ms))
 		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
 
-	err = rdev_start_radar_detection(rdev, dev, &chandef, cac_time_ms);
+	err = rdev_start_radar_detection(rdev, dev, &chandef, cac_time_ms,
+					 link_id);
 	if (!err) {
-		wdev->links[0].ap.chandef = chandef;
-		wdev->cac_started = true;
-		wdev->cac_start_time = jiffies;
-		wdev->cac_time_ms = cac_time_ms;
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+			wdev->links[0].ap.chandef = chandef;
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			wdev->u.ibss.chandef = chandef;
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			wdev->u.mesh.chandef = chandef;
+			break;
+		default:
+			break;
+		}
+		wdev->links[link_id].cac_started = true;
+		wdev->links[link_id].cac_start_time = jiffies;
+		wdev->links[link_id].cac_time_ms = cac_time_ms;
 	}
 unlock:
 	wiphy_unlock(wiphy);
@@ -10494,17 +10523,21 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 				NL80211_BSS_CHAIN_SIGNAL))
 		goto nla_put_failure;
 
-	switch (rdev->wiphy.signal_type) {
-	case CFG80211_SIGNAL_TYPE_MBM:
-		if (nla_put_u32(msg, NL80211_BSS_SIGNAL_MBM, res->signal))
-			goto nla_put_failure;
-		break;
-	case CFG80211_SIGNAL_TYPE_UNSPEC:
-		if (nla_put_u8(msg, NL80211_BSS_SIGNAL_UNSPEC, res->signal))
-			goto nla_put_failure;
-		break;
-	default:
-		break;
+	if (intbss->bss_source != BSS_SOURCE_STA_PROFILE) {
+		switch (rdev->wiphy.signal_type) {
+		case CFG80211_SIGNAL_TYPE_MBM:
+			if (nla_put_u32(msg, NL80211_BSS_SIGNAL_MBM,
+					res->signal))
+				goto nla_put_failure;
+			break;
+		case CFG80211_SIGNAL_TYPE_UNSPEC:
+			if (nla_put_u8(msg, NL80211_BSS_SIGNAL_UNSPEC,
+				       res->signal))
+				goto nla_put_failure;
+			break;
+		default:
+			break;
+		}
 	}
 
 	switch (wdev->iftype) {
@@ -16498,10 +16531,10 @@ nl80211_set_ttlm(struct sk_buff *skb, struct genl_info *info)
 	SELECTOR(__sel, NETDEV_UP_NOTMX,		\
 		 NL80211_FLAG_NEED_NETDEV_UP |		\
 		 NL80211_FLAG_NO_WIPHY_MTX)		\
-	SELECTOR(__sel, NETDEV_UP_NOTMX_NOMLO,		\
+	SELECTOR(__sel, NETDEV_UP_NOTMX_MLO,		\
 		 NL80211_FLAG_NEED_NETDEV_UP |		\
 		 NL80211_FLAG_NO_WIPHY_MTX |		\
-		 NL80211_FLAG_MLO_UNSUPPORTED)		\
+		 NL80211_FLAG_MLO_VALID_LINK_ID)	\
 	SELECTOR(__sel, NETDEV_UP_CLEAR,		\
 		 NL80211_FLAG_NEED_NETDEV_UP |		\
 		 NL80211_FLAG_CLEAR_SKB)		\
@@ -17396,7 +17429,7 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.flags = GENL_UNS_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP |
 					 NL80211_FLAG_NO_WIPHY_MTX |
-					 NL80211_FLAG_MLO_UNSUPPORTED),
+					 NL80211_FLAG_MLO_VALID_LINK_ID),
 	},
 	{
 		.cmd = NL80211_CMD_GET_PROTOCOL_FEATURES,

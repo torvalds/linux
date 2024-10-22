@@ -577,8 +577,6 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 
 	/* Set parameters for the netfs library */
 	netfs_inode_init(&ci->netfs, &ceph_netfs_ops, false);
-	/* [DEPRECATED] Use PG_private_2 to mark folio being written to the cache. */
-	__set_bit(NETFS_ICTX_USE_PGPRIV2, &ci->netfs.flags);
 
 	spin_lock_init(&ci->i_ceph_lock);
 
@@ -697,6 +695,7 @@ void ceph_evict_inode(struct inode *inode)
 
 	percpu_counter_dec(&mdsc->metric.total_inodes);
 
+	netfs_wait_for_outstanding_io(inode);
 	truncate_inode_pages_final(&inode->i_data);
 	if (inode->i_state & I_PINNING_NETFS_WB)
 		ceph_fscache_unuse_cookie(inode, true);

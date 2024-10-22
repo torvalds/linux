@@ -242,10 +242,9 @@ static const struct regmap_irq_chip wcd937x_regmap_irq_chip = {
 
 static void wcd937x_reset(struct wcd937x_priv *wcd937x)
 {
-	usleep_range(20, 30);
-
 	gpiod_set_value(wcd937x->reset_gpio, 1);
-
+	usleep_range(20, 30);
+	gpiod_set_value(wcd937x->reset_gpio, 0);
 	usleep_range(20, 30);
 }
 
@@ -2958,7 +2957,7 @@ MODULE_DEVICE_TABLE(of, wcd937x_of_match);
 
 static struct platform_driver wcd937x_codec_driver = {
 	.probe = wcd937x_probe,
-	.remove_new = wcd937x_remove,
+	.remove = wcd937x_remove,
 	.driver = {
 		.name = "wcd937x_codec",
 		.of_match_table = of_match_ptr(wcd937x_of_match),

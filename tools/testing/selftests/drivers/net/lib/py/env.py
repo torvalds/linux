@@ -4,6 +4,7 @@ import os
 import time
 from pathlib import Path
 from lib.py import KsftSkipEx, KsftXfailEx
+from lib.py import ksft_setup
 from lib.py import cmd, ethtool, ip
 from lib.py import NetNS, NetdevSimDev
 from .remote import Remote
@@ -14,7 +15,7 @@ def _load_env_file(src_path):
 
     src_dir = Path(src_path).parent.resolve()
     if not (src_dir / "net.config").exists():
-        return env
+        return ksft_setup(env)
 
     with open((src_dir / "net.config").as_posix(), 'r') as fp:
         for line in fp.readlines():
@@ -30,7 +31,7 @@ def _load_env_file(src_path):
             if len(pair) != 2:
                 raise Exception("Can't parse configuration line:", full_file)
             env[pair[0]] = pair[1]
-    return env
+    return ksft_setup(env)
 
 
 class NetDrvEnv:

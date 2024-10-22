@@ -13,8 +13,9 @@
 #include <linux/platform_device.h>
 #include <linux/if_vlan.h>
 #include <linux/crash_dump.h>
-#include <net/ipv6.h>
+
 #include <net/rtnetlink.h>
+
 #include "hclge_cmd.h"
 #include "hclge_dcb.h"
 #include "hclge_main.h"
@@ -2653,8 +2654,17 @@ static int hclge_cfg_mac_speed_dup_h(struct hnae3_handle *handle, int speed,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	int ret;
 
-	return hclge_cfg_mac_speed_dup(hdev, speed, duplex, lane_num);
+	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex, lane_num);
+
+	if (ret)
+		return ret;
+
+	hdev->hw.mac.req_speed = speed;
+	hdev->hw.mac.req_duplex = duplex;
+
+	return 0;
 }
 
 static int hclge_set_autoneg_en(struct hclge_dev *hdev, bool enable)
@@ -2956,13 +2966,16 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	if (!test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
 		hdev->hw.mac.duplex = HCLGE_MAC_FULL;
 
-	ret = hclge_cfg_mac_speed_dup_hw(hdev, hdev->hw.mac.speed,
-					 hdev->hw.mac.duplex, hdev->hw.mac.lane_num);
-	if (ret)
-		return ret;
-
 	if (hdev->hw.mac.support_autoneg) {
 		ret = hclge_set_autoneg_en(hdev, hdev->hw.mac.autoneg);
+		if (ret)
+			return ret;
+	}
+
+	if (!hdev->hw.mac.autoneg) {
+		ret = hclge_cfg_mac_speed_dup_hw(hdev, hdev->hw.mac.req_speed,
+						 hdev->hw.mac.req_duplex,
+						 hdev->hw.mac.lane_num);
 		if (ret)
 			return ret;
 	}
@@ -6278,15 +6291,15 @@ static void hclge_fd_get_ip4_tuple(struct ethtool_rx_flow_spec *fs,
 static void hclge_fd_get_tcpip6_tuple(struct ethtool_rx_flow_spec *fs,
 				      struct hclge_fd_rule *rule, u8 ip_proto)
 {
-	be32_to_cpu_array(rule->tuples.src_ip, fs->h_u.tcp_ip6_spec.ip6src,
-			  IPV6_SIZE);
-	be32_to_cpu_array(rule->tuples_mask.src_ip, fs->m_u.tcp_ip6_spec.ip6src,
-			  IPV6_SIZE);
+	ipv6_addr_be32_to_cpu(rule->tuples.src_ip,
+			      fs->h_u.tcp_ip6_spec.ip6src);
+	ipv6_addr_be32_to_cpu(rule->tuples_mask.src_ip,
+			      fs->m_u.tcp_ip6_spec.ip6src);
 
-	be32_to_cpu_array(rule->tuples.dst_ip, fs->h_u.tcp_ip6_spec.ip6dst,
-			  IPV6_SIZE);
-	be32_to_cpu_array(rule->tuples_mask.dst_ip, fs->m_u.tcp_ip6_spec.ip6dst,
-			  IPV6_SIZE);
+	ipv6_addr_be32_to_cpu(rule->tuples.dst_ip,
+			      fs->h_u.tcp_ip6_spec.ip6dst);
+	ipv6_addr_be32_to_cpu(rule->tuples_mask.dst_ip,
+			      fs->m_u.tcp_ip6_spec.ip6dst);
 
 	rule->tuples.src_port = be16_to_cpu(fs->h_u.tcp_ip6_spec.psrc);
 	rule->tuples_mask.src_port = be16_to_cpu(fs->m_u.tcp_ip6_spec.psrc);
@@ -6307,15 +6320,15 @@ static void hclge_fd_get_tcpip6_tuple(struct ethtool_rx_flow_spec *fs,
 static void hclge_fd_get_ip6_tuple(struct ethtool_rx_flow_spec *fs,
 				   struct hclge_fd_rule *rule)
 {
-	be32_to_cpu_array(rule->tuples.src_ip, fs->h_u.usr_ip6_spec.ip6src,
-			  IPV6_SIZE);
-	be32_to_cpu_array(rule->tuples_mask.src_ip, fs->m_u.usr_ip6_spec.ip6src,
-			  IPV6_SIZE);
+	ipv6_addr_be32_to_cpu(rule->tuples.src_ip,
+			      fs->h_u.usr_ip6_spec.ip6src);
+	ipv6_addr_be32_to_cpu(rule->tuples_mask.src_ip,
+			      fs->m_u.usr_ip6_spec.ip6src);
 
-	be32_to_cpu_array(rule->tuples.dst_ip, fs->h_u.usr_ip6_spec.ip6dst,
-			  IPV6_SIZE);
-	be32_to_cpu_array(rule->tuples_mask.dst_ip, fs->m_u.usr_ip6_spec.ip6dst,
-			  IPV6_SIZE);
+	ipv6_addr_be32_to_cpu(rule->tuples.dst_ip,
+			      fs->h_u.usr_ip6_spec.ip6dst);
+	ipv6_addr_be32_to_cpu(rule->tuples_mask.dst_ip,
+			      fs->m_u.usr_ip6_spec.ip6dst);
 
 	rule->tuples.ip_proto = fs->h_u.usr_ip6_spec.l4_proto;
 	rule->tuples_mask.ip_proto = fs->m_u.usr_ip6_spec.l4_proto;
@@ -6744,21 +6757,19 @@ static void hclge_fd_get_tcpip6_info(struct hclge_fd_rule *rule,
 				     struct ethtool_tcpip6_spec *spec,
 				     struct ethtool_tcpip6_spec *spec_mask)
 {
-	cpu_to_be32_array(spec->ip6src,
-			  rule->tuples.src_ip, IPV6_SIZE);
-	cpu_to_be32_array(spec->ip6dst,
-			  rule->tuples.dst_ip, IPV6_SIZE);
+	ipv6_addr_cpu_to_be32(spec->ip6src, rule->tuples.src_ip);
+	ipv6_addr_cpu_to_be32(spec->ip6dst, rule->tuples.dst_ip);
 	if (rule->unused_tuple & BIT(INNER_SRC_IP))
 		memset(spec_mask->ip6src, 0, sizeof(spec_mask->ip6src));
 	else
-		cpu_to_be32_array(spec_mask->ip6src, rule->tuples_mask.src_ip,
-				  IPV6_SIZE);
+		ipv6_addr_cpu_to_be32(spec_mask->ip6src,
+				      rule->tuples_mask.src_ip);
 
 	if (rule->unused_tuple & BIT(INNER_DST_IP))
 		memset(spec_mask->ip6dst, 0, sizeof(spec_mask->ip6dst));
 	else
-		cpu_to_be32_array(spec_mask->ip6dst, rule->tuples_mask.dst_ip,
-				  IPV6_SIZE);
+		ipv6_addr_cpu_to_be32(spec_mask->ip6dst,
+				      rule->tuples_mask.dst_ip);
 
 	spec->tclass = rule->tuples.ip_tos;
 	spec_mask->tclass = rule->unused_tuple & BIT(INNER_IP_TOS) ?
@@ -6777,19 +6788,19 @@ static void hclge_fd_get_ip6_info(struct hclge_fd_rule *rule,
 				  struct ethtool_usrip6_spec *spec,
 				  struct ethtool_usrip6_spec *spec_mask)
 {
-	cpu_to_be32_array(spec->ip6src, rule->tuples.src_ip, IPV6_SIZE);
-	cpu_to_be32_array(spec->ip6dst, rule->tuples.dst_ip, IPV6_SIZE);
+	ipv6_addr_cpu_to_be32(spec->ip6src, rule->tuples.src_ip);
+	ipv6_addr_cpu_to_be32(spec->ip6dst, rule->tuples.dst_ip);
 	if (rule->unused_tuple & BIT(INNER_SRC_IP))
 		memset(spec_mask->ip6src, 0, sizeof(spec_mask->ip6src));
 	else
-		cpu_to_be32_array(spec_mask->ip6src,
-				  rule->tuples_mask.src_ip, IPV6_SIZE);
+		ipv6_addr_cpu_to_be32(spec_mask->ip6src,
+				      rule->tuples_mask.src_ip);
 
 	if (rule->unused_tuple & BIT(INNER_DST_IP))
 		memset(spec_mask->ip6dst, 0, sizeof(spec_mask->ip6dst));
 	else
-		cpu_to_be32_array(spec_mask->ip6dst,
-				  rule->tuples_mask.dst_ip, IPV6_SIZE);
+		ipv6_addr_cpu_to_be32(spec_mask->ip6dst,
+				      rule->tuples_mask.dst_ip);
 
 	spec->tclass = rule->tuples.ip_tos;
 	spec_mask->tclass = rule->unused_tuple & BIT(INNER_IP_TOS) ?
@@ -7007,7 +7018,7 @@ static void hclge_fd_get_flow_tuples(const struct flow_keys *fkeys,
 	} else {
 		int i;
 
-		for (i = 0; i < IPV6_SIZE; i++) {
+		for (i = 0; i < IPV6_ADDR_WORDS; i++) {
 			tuples->src_ip[i] = be32_to_cpu(flow_ip6_src[i]);
 			tuples->dst_ip[i] = be32_to_cpu(flow_ip6_dst[i]);
 		}
@@ -7262,14 +7273,14 @@ static int hclge_get_cls_key_ip(const struct flow_rule *flow,
 		struct flow_match_ipv6_addrs match;
 
 		flow_rule_match_ipv6_addrs(flow, &match);
-		be32_to_cpu_array(rule->tuples.src_ip, match.key->src.s6_addr32,
-				  IPV6_SIZE);
-		be32_to_cpu_array(rule->tuples_mask.src_ip,
-				  match.mask->src.s6_addr32, IPV6_SIZE);
-		be32_to_cpu_array(rule->tuples.dst_ip, match.key->dst.s6_addr32,
-				  IPV6_SIZE);
-		be32_to_cpu_array(rule->tuples_mask.dst_ip,
-				  match.mask->dst.s6_addr32, IPV6_SIZE);
+		ipv6_addr_be32_to_cpu(rule->tuples.src_ip,
+				      match.key->src.s6_addr32);
+		ipv6_addr_be32_to_cpu(rule->tuples_mask.src_ip,
+				      match.mask->src.s6_addr32);
+		ipv6_addr_be32_to_cpu(rule->tuples.dst_ip,
+				      match.key->dst.s6_addr32);
+		ipv6_addr_be32_to_cpu(rule->tuples_mask.dst_ip,
+				      match.mask->dst.s6_addr32);
 	} else {
 		rule->unused_tuple |= BIT(INNER_SRC_IP);
 		rule->unused_tuple |= BIT(INNER_DST_IP);
@@ -11444,7 +11455,7 @@ static void hclge_pci_uninit(struct hclge_dev *hdev)
 
 	pcim_iounmap(pdev, hdev->hw.hw.io_base);
 	pci_free_irq_vectors(pdev);
-	pci_release_mem_regions(pdev);
+	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
@@ -11516,8 +11527,8 @@ static void hclge_reset_done(struct hnae3_ae_dev *ae_dev)
 		dev_err(&hdev->pdev->dev, "fail to rebuild, ret=%d\n", ret);
 
 	hdev->reset_type = HNAE3_NONE_RESET;
-	clear_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
-	up(&hdev->reset_sem);
+	if (test_and_clear_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		up(&hdev->reset_sem);
 }
 
 static void hclge_clear_resetting_state(struct hclge_dev *hdev)

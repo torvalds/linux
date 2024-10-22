@@ -10,14 +10,13 @@
 #include "recovery.h"
 
 /* KEY_TYPE_lru is obsolete: */
-int bch2_lru_invalid(struct bch_fs *c, struct bkey_s_c k,
-		     enum bch_validate_flags flags,
-		     struct printbuf *err)
+int bch2_lru_validate(struct bch_fs *c, struct bkey_s_c k,
+		     enum bch_validate_flags flags)
 {
 	int ret = 0;
 
-	bkey_fsck_err_on(!lru_pos_time(k.k->p), c, err,
-			 lru_entry_at_time_0,
+	bkey_fsck_err_on(!lru_pos_time(k.k->p),
+			 c, lru_entry_at_time_0,
 			 "lru entry at time=0");
 fsck_err:
 	return ret;

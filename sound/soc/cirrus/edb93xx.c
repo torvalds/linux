@@ -105,7 +105,7 @@ static struct platform_driver edb93xx_driver = {
 		.name	= "edb93xx-audio",
 	},
 	.probe		= edb93xx_probe,
-	.remove_new	= edb93xx_remove,
+	.remove		= edb93xx_remove,
 };
 
 module_platform_driver(edb93xx_driver);

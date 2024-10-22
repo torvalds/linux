@@ -321,6 +321,9 @@ int string_unescape(char *src, char *dst, size_t size, unsigned int flags)
 {
 	char *out = dst;
 
+	if (!size)
+		size = SIZE_MAX;
+
 	while (*src && --size) {
 		if (src[0] == '\\' && src[1] != '\0' && size > 1) {
 			src++;

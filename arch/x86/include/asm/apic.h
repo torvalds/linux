@@ -18,6 +18,11 @@
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
+/* Macros for apic_extnmi which controls external NMI masking */
+#define APIC_EXTNMI_BSP		0 /* Default */
+#define APIC_EXTNMI_ALL		1
+#define APIC_EXTNMI_NONE	2
+
 /*
  * Debugging macros
  */
@@ -25,22 +30,22 @@
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
-/* Macros for apic_extnmi which controls external NMI masking */
-#define APIC_EXTNMI_BSP		0 /* Default */
-#define APIC_EXTNMI_ALL		1
-#define APIC_EXTNMI_NONE	2
-
 /*
- * Define the default level of output to be very little
- * This can be turned up by using apic=verbose for more
- * information and apic=debug for _lots_ of information.
- * apic_verbosity is defined in apic.c
+ * Define the default level of output to be very little This can be turned
+ * up by using apic=verbose for more information and apic=debug for _lots_
+ * of information.  apic_verbosity is defined in apic.c
  */
-#define apic_printk(v, s, a...) do {       \
-		if ((v) <= apic_verbosity) \
-			printk(s, ##a);    \
-	} while (0)
+#define apic_printk(v, s, a...)			\
+do {						\
+	if ((v) <= apic_verbosity)		\
+		printk(s, ##a);			\
+} while (0)
 
+#define apic_pr_verbose(s, a...)	apic_printk(APIC_VERBOSE, KERN_INFO s, ##a)
+#define apic_pr_debug(s, a...)		apic_printk(APIC_DEBUG, KERN_DEBUG s, ##a)
+#define apic_pr_debug_cont(s, a...)	apic_printk(APIC_DEBUG, KERN_CONT s, ##a)
+/* Unconditional debug prints for code which is guarded by apic_verbosity already */
+#define apic_dbg(s, a...)		printk(KERN_DEBUG s, ##a)
 
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
 extern void x86_32_probe_apic(void);
@@ -121,8 +126,6 @@ static inline bool apic_is_x2apic_enabled(void)
 }
 
 extern void enable_IR_x2apic(void);
-
-extern int get_physical_broadcast(void);
 
 extern int lapic_get_maxlvt(void);
 extern void clear_local_APIC(void);
@@ -345,19 +348,11 @@ extern struct apic *apic;
  * APIC drivers are probed based on how they are listed in the .apicdrivers
  * section. So the order is important and enforced by the ordering
  * of different apic driver files in the Makefile.
- *
- * For the files having two apic drivers, we use apic_drivers()
- * to enforce the order with in them.
  */
 #define apic_driver(sym)					\
 	static const struct apic *__apicdrivers_##sym __used		\
 	__aligned(sizeof(struct apic *))			\
 	__section(".apicdrivers") = { &sym }
-
-#define apic_drivers(sym1, sym2)					\
-	static struct apic *__apicdrivers_##sym1##sym2[2] __used	\
-	__aligned(sizeof(struct apic *))				\
-	__section(".apicdrivers") = { &sym1, &sym2 }
 
 extern struct apic *__apicdrivers[], *__apicdrivers_end[];
 
@@ -484,7 +479,6 @@ static inline u64 apic_icr_read(void) { return 0; }
 static inline void apic_icr_write(u32 low, u32 high) { }
 static inline void apic_wait_icr_idle(void) { }
 static inline u32 safe_apic_wait_icr_idle(void) { return 0; }
-static inline void apic_set_eoi_cb(void (*eoi)(void)) {}
 static inline void apic_native_eoi(void) { WARN_ON_ONCE(1); }
 static inline void apic_setup_apic_calls(void) { }
 
@@ -512,8 +506,6 @@ static inline bool is_vector_pending(unsigned int vector)
 #define TRAMPOLINE_PHYS_LOW		0x467
 #define TRAMPOLINE_PHYS_HIGH		0x469
 
-extern void generic_bigsmp_probe(void);
-
 #ifdef CONFIG_X86_LOCAL_APIC
 
 #include <asm/smp.h>
@@ -535,8 +527,6 @@ extern void x86_64_probe_apic(void);
 static inline int default_acpi_madt_oem_check(char *a, char *b) { return 0; }
 static inline void x86_64_probe_apic(void) { }
 #endif
-
-extern int default_apic_id_valid(u32 apicid);
 
 extern u32 apic_default_calc_apicid(unsigned int cpu);
 extern u32 apic_flat_calc_apicid(unsigned int cpu);

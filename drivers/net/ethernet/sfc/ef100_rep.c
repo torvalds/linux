@@ -233,8 +233,8 @@ static struct efx_rep *efx_ef100_rep_create_netdev(struct efx_nic *efx,
 	net_dev->ethtool_ops = &efx_ef100_rep_ethtool_ops;
 	net_dev->min_mtu = EFX_MIN_MTU;
 	net_dev->max_mtu = EFX_MAX_MTU;
-	net_dev->features |= NETIF_F_LLTX;
-	net_dev->hw_features |= NETIF_F_LLTX;
+	net_dev->lltx = true;
+
 	return efv;
 fail1:
 	free_netdev(net_dev);

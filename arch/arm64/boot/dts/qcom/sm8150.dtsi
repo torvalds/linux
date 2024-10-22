@@ -17,6 +17,7 @@
 #include <dt-bindings/clock/qcom,videocc-sm8150.h>
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
 #include <dt-bindings/interconnect/qcom,sm8150.h>
+#include <dt-bindings/clock/qcom,sm8150-camcc.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -3757,6 +3758,18 @@
 			reg = <0 0x0ac00000 0 0x1000>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		camcc: clock-controller@ad00000 {
+			compatible = "qcom,sm8150-camcc";
+			reg = <0 0x0ad00000 0 0x10000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_CAMERA_AHB_CLK>;
+			power-domains = <&rpmhpd SM8150_MMCX>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 		};
 
 		mdss: display-subsystem@ae00000 {

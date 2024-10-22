@@ -246,7 +246,7 @@ static void notrace start_secondary(void *unused)
 		__flush_tlb_all();
 	}
 
-	cpu_init_exception_handling();
+	cpu_init_exception_handling(false);
 
 	/*
 	 * Load the microcode before reaching the AP alive synchronization

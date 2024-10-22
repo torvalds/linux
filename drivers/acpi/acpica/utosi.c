@@ -75,6 +75,7 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 	{"Windows 2019", NULL, 0, ACPI_OSI_WIN_10_19H1},	/* Windows 10 version 1903 - Added 08/2019 */
 	{"Windows 2020", NULL, 0, ACPI_OSI_WIN_10_20H1},	/* Windows 10 version 2004 - Added 08/2021 */
 	{"Windows 2021", NULL, 0, ACPI_OSI_WIN_11},	/* Windows 11 - Added 01/2022 */
+	{"Windows 2022", NULL, 0, ACPI_OSI_WIN_11_22H2},	/* Windows 11 version 22H2 - Added 04/2024 */
 
 	/* Feature Group Strings */
 

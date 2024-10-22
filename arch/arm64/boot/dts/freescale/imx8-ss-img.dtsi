@@ -26,7 +26,6 @@ img_subsys: bus@58000000 {
 		assigned-clock-rates = <200000000>, <200000000>;
 		power-domains = <&pd IMX_SC_R_MJPEG_DEC_MP>,
 				<&pd IMX_SC_R_MJPEG_DEC_S0>;
-		slot = <0>;
 	};
 
 	jpegenc: jpegenc@58450000 {
@@ -39,7 +38,6 @@ img_subsys: bus@58000000 {
 		assigned-clock-rates = <200000000>, <200000000>;
 		power-domains = <&pd IMX_SC_R_MJPEG_ENC_MP>,
 				<&pd IMX_SC_R_MJPEG_ENC_S0>;
-		slot = <0>;
 	};
 
 	img_jpeg_dec_lpcg: clock-controller@585d0000 {

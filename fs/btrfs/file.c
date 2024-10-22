@@ -1612,6 +1612,13 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret = 0, err;
 	u64 len;
 	bool full_sync;
+	bool skip_ilock = false;
+
+	if (current->journal_info == BTRFS_TRANS_DIO_WRITE_STUB) {
+		skip_ilock = true;
+		current->journal_info = NULL;
+		btrfs_assert_inode_locked(inode);
+	}
 
 	trace_btrfs_sync_file(file, datasync);
 
@@ -1639,7 +1646,10 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		goto out;
 
-	btrfs_inode_lock(inode, BTRFS_ILOCK_MMAP);
+	if (skip_ilock)
+		down_write(&inode->i_mmap_lock);
+	else
+		btrfs_inode_lock(inode, BTRFS_ILOCK_MMAP);
 
 	atomic_inc(&root->log_batch);
 
@@ -1663,7 +1673,10 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	ret = start_ordered_ops(inode, start, end);
 	if (ret) {
-		btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+		if (skip_ilock)
+			up_write(&inode->i_mmap_lock);
+		else
+			btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
 		goto out;
 	}
 
@@ -1788,7 +1801,10 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * file again, but that will end up using the synchronization
 	 * inside btrfs_sync_log to keep things safe.
 	 */
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+	if (skip_ilock)
+		up_write(&inode->i_mmap_lock);
+	else
+		btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
 
 	if (ret == BTRFS_NO_LOG_SYNC) {
 		ret = btrfs_end_transaction(trans);
@@ -1857,7 +1873,10 @@ out:
 
 out_release_extents:
 	btrfs_release_log_ctx_extents(&ctx);
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+	if (skip_ilock)
+		up_write(&inode->i_mmap_lock);
+	else
+		btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
 	goto out;
 }
 
@@ -1901,8 +1920,8 @@ static vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	reserved_space = PAGE_SIZE;
 
 	sb_start_pagefault(inode->i_sb);
-	page_start = page_offset(page);
-	page_end = page_start + PAGE_SIZE - 1;
+	page_start = folio_pos(folio);
+	page_end = page_start + folio_size(folio) - 1;
 	end = page_end;
 
 	/*
@@ -1930,18 +1949,18 @@ static vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	ret = VM_FAULT_NOPAGE;
 again:
 	down_read(&BTRFS_I(inode)->i_mmap_lock);
-	lock_page(page);
+	folio_lock(folio);
 	size = i_size_read(inode);
 
-	if ((page->mapping != inode->i_mapping) ||
+	if ((folio->mapping != inode->i_mapping) ||
 	    (page_start >= size)) {
 		/* Page got truncated out from underneath us. */
 		goto out_unlock;
 	}
-	wait_on_page_writeback(page);
+	folio_wait_writeback(folio);
 
 	lock_extent(io_tree, page_start, page_end, &cached_state);
-	ret2 = set_page_extent_mapped(page);
+	ret2 = set_folio_extent_mapped(folio);
 	if (ret2 < 0) {
 		ret = vmf_error(ret2);
 		unlock_extent(io_tree, page_start, page_end, &cached_state);
@@ -1955,14 +1974,14 @@ again:
 	ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), page_start, PAGE_SIZE);
 	if (ordered) {
 		unlock_extent(io_tree, page_start, page_end, &cached_state);
-		unlock_page(page);
+		folio_unlock(folio);
 		up_read(&BTRFS_I(inode)->i_mmap_lock);
 		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
 
-	if (page->index == ((size - 1) >> PAGE_SHIFT)) {
+	if (folio->index == ((size - 1) >> PAGE_SHIFT)) {
 		reserved_space = round_up(size - page_start, fs_info->sectorsize);
 		if (reserved_space < PAGE_SIZE) {
 			end = page_start + reserved_space - 1;
@@ -1992,13 +2011,13 @@ again:
 	}
 
 	/* Page is wholly or partially inside EOF. */
-	if (page_start + PAGE_SIZE > size)
-		zero_start = offset_in_page(size);
+	if (page_start + folio_size(folio) > size)
+		zero_start = offset_in_folio(folio, size);
 	else
 		zero_start = PAGE_SIZE;
 
 	if (zero_start != PAGE_SIZE)
-		memzero_page(page, zero_start, PAGE_SIZE - zero_start);
+		folio_zero_range(folio, zero_start, folio_size(folio) - zero_start);
 
 	btrfs_folio_clear_checked(fs_info, folio, page_start, PAGE_SIZE);
 	btrfs_folio_set_dirty(fs_info, folio, page_start, end + 1 - page_start);
@@ -2015,7 +2034,7 @@ again:
 	return VM_FAULT_LOCKED;
 
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	up_read(&BTRFS_I(inode)->i_mmap_lock);
 out:
 	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);

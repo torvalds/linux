@@ -150,7 +150,8 @@ static inline bool inet_bound_dev_eq(bool l3mdev_accept, int bound_dev_if,
 	return bound_dev_if == dif || bound_dev_if == sdif;
 }
 
-static inline bool inet_sk_bound_dev_eq(struct net *net, int bound_dev_if,
+static inline bool inet_sk_bound_dev_eq(const struct net *net,
+					int bound_dev_if,
 					int dif, int sdif)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)

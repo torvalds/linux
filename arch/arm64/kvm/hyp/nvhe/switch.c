@@ -173,9 +173,8 @@ static void __pmu_switch_to_host(struct kvm_vcpu *vcpu)
 static bool kvm_handle_pvm_sys64(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	/*
-	 * Make sure we handle the exit for workarounds and ptrauth
-	 * before the pKVM handling, as the latter could decide to
-	 * UNDEF.
+	 * Make sure we handle the exit for workarounds before the pKVM
+	 * handling, as the latter could decide to UNDEF.
 	 */
 	return (kvm_hyp_handle_sysreg(vcpu, exit_code) ||
 		kvm_handle_pvm_sysreg(vcpu, exit_code));
@@ -197,6 +196,15 @@ static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
 
 	} else {
 		__fpsimd_save_state(*host_data_ptr(fpsimd_state));
+	}
+
+	if (kvm_has_fpmr(kern_hyp_va(vcpu->kvm))) {
+		u64 val = read_sysreg_s(SYS_FPMR);
+
+		if (unlikely(is_protected_kvm_enabled()))
+			*host_data_ptr(fpmr) = val;
+		else
+			**host_data_ptr(fpmr_ptr) = val;
 	}
 }
 

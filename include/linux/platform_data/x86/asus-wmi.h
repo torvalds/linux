@@ -62,6 +62,7 @@
 #define ASUS_WMI_DEVID_KBD_BACKLIGHT	0x00050021
 #define ASUS_WMI_DEVID_LIGHT_SENSOR	0x00050022 /* ?? */
 #define ASUS_WMI_DEVID_LIGHTBAR		0x00050025
+#define ASUS_WMI_DEVID_OOBE		0x0005002F
 /* This can only be used to disable the screen, not re-enable */
 #define ASUS_WMI_DEVID_SCREENPAD_POWER	0x00050031
 /* Writing a brightness re-enables the screen if disabled */

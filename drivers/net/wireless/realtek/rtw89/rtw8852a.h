@@ -97,10 +97,10 @@ extern const struct rtw89_chip_info rtw8852a_chip_info;
 void rtw8852a_bb_set_plcp_tx(struct rtw89_dev *rtwdev);
 void rtw8852a_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 			     struct rtw8852a_bb_pmac_info *tx_info,
-			     enum rtw89_phy_idx idx);
+			     enum rtw89_phy_idx idx, const struct rtw89_chan *chan);
 void rtw8852a_bb_set_pmac_pkt_tx(struct rtw89_dev *rtwdev, u8 enable,
 				 u16 tx_cnt, u16 period, u16 tx_time,
-				 enum rtw89_phy_idx idx);
+				 enum rtw89_phy_idx idx, const struct rtw89_chan *chan);
 void rtw8852a_bb_set_power(struct rtw89_dev *rtwdev, s16 pwr_dbm,
 			   enum rtw89_phy_idx idx);
 void rtw8852a_bb_cfg_tx_path(struct rtw89_dev *rtwdev, u8 tx_path);

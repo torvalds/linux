@@ -166,7 +166,7 @@ static enum fw_upload_err mpfs_auto_update_poll_complete(struct fw_upload *fw_up
 	 */
 	ret = wait_for_completion_timeout(&priv->programming_complete,
 					  msecs_to_jiffies(AUTO_UPDATE_TIMEOUT_MS));
-	if (ret)
+	if (!ret)
 		return FW_UPLOAD_ERR_TIMEOUT;
 
 	return FW_UPLOAD_ERR_NONE;

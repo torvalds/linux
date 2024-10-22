@@ -15,6 +15,14 @@
 		status = "disabled";
 	};
 
+	mcu_esm: esm@4100000 {
+		compatible = "ti,j721e-esm";
+		reg = <0x0 0x4100000 0x0 0x1000>;
+		bootph-pre-ram;
+		/* Interrupt sources: esm0_cfg, esm0_hi, esm0_low, mrti0 */
+		ti,esm-pins = <0>, <1>, <2>, <85>;
+	};
+
 	/*
 	 * The MCU domain timer interrupts are routed only to the ESM module,
 	 * and not currently available for Linux. The MCU domain timers are

@@ -23,6 +23,7 @@
 struct queue_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct gendisk *disk, char *page);
+	int (*load_module)(struct gendisk *disk, const char *page, size_t count);
 	ssize_t (*store)(struct gendisk *disk, const char *page, size_t count);
 };
 
@@ -413,6 +414,14 @@ static struct queue_sysfs_entry _prefix##_entry = {	\
 	.store	= _prefix##_store,			\
 };
 
+#define QUEUE_RW_LOAD_MODULE_ENTRY(_prefix, _name)		\
+static struct queue_sysfs_entry _prefix##_entry = {		\
+	.attr		= { .name = _name, .mode = 0644 },	\
+	.show		= _prefix##_show,			\
+	.load_module	= _prefix##_load_module,		\
+	.store		= _prefix##_store,			\
+}
+
 QUEUE_RW_ENTRY(queue_requests, "nr_requests");
 QUEUE_RW_ENTRY(queue_ra, "read_ahead_kb");
 QUEUE_RW_ENTRY(queue_max_sectors, "max_sectors_kb");
@@ -420,7 +429,7 @@ QUEUE_RO_ENTRY(queue_max_hw_sectors, "max_hw_sectors_kb");
 QUEUE_RO_ENTRY(queue_max_segments, "max_segments");
 QUEUE_RO_ENTRY(queue_max_integrity_segments, "max_integrity_segments");
 QUEUE_RO_ENTRY(queue_max_segment_size, "max_segment_size");
-QUEUE_RW_ENTRY(elv_iosched, "scheduler");
+QUEUE_RW_LOAD_MODULE_ENTRY(elv_iosched, "scheduler");
 
 QUEUE_RO_ENTRY(queue_logical_block_size, "logical_block_size");
 QUEUE_RO_ENTRY(queue_physical_block_size, "physical_block_size");
@@ -669,6 +678,17 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	if (!entry->store)
 		return -EIO;
+
+	/*
+	 * If the attribute needs to load a module, do it before freezing the
+	 * queue to ensure that the module file can be read when the request
+	 * queue is the one for the device storing the module file.
+	 */
+	if (entry->load_module) {
+		res = entry->load_module(disk, page, length);
+		if (res)
+			return res;
+	}
 
 	blk_mq_freeze_queue(q);
 	mutex_lock(&q->sysfs_lock);

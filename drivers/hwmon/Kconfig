@@ -1511,9 +1511,10 @@ config SENSORS_LM90
 config SENSORS_LM92
 	tristate "National Semiconductor LM92 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM92
-	  and Maxim MAX6635 sensor chips.
+	  and LM76 as well as Maxim MAX6633/6634/6635 sensor chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lm92.
@@ -1532,6 +1533,7 @@ config SENSORS_LM93
 config SENSORS_LM95234
 	tristate "National Semiconductor LM95234 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the LM95233 and LM95234
 	  temperature sensor chips.
@@ -2066,6 +2068,17 @@ config SENSORS_SFCTEMP
 	  This driver can also be built as a module.  If so, the module
 	  will be called sfctemp.
 
+config SENSORS_SG2042_MCU
+	tristate "Sophgo onboard MCU support"
+	depends on I2C
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	help
+	  Support for onboard MCU of Sophgo SG2042 SoCs. This mcu provides
+	  power control and some basic information.
+
+	  This driver can be built as a module. If so, the module
+	  will be called sg2042-mcu.
+
 config SENSORS_SURFACE_FAN
 	tristate "Surface Fan Driver"
 	depends on SURFACE_AGGREGATOR
@@ -2079,6 +2092,17 @@ config SENSORS_SURFACE_FAN
 	  responsible for that, this driver merely provides monitoring.
 
 	  Select M or Y here, if you want to be able to read the fan's speed.
+
+config SENSORS_SURFACE_TEMP
+	tristate "Microsoft Surface Thermal Sensor Driver"
+	depends on SURFACE_AGGREGATOR
+	depends on SURFACE_AGGREGATOR_BUS
+	help
+	  Driver for monitoring thermal sensors connected via the Surface
+	  Aggregator Module (embedded controller) on Microsoft Surface devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called surface_temp.
 
 config SENSORS_ADC128D818
 	tristate "Texas Instruments ADC128D818"

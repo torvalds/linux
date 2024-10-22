@@ -928,7 +928,7 @@ int mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
 			MLX5_SET(wq, wq, log_headers_entry_size,
 				 mlx5e_shampo_get_log_hd_entry_size(mdev, params));
 			MLX5_SET(rqc, rqc, reservation_timeout,
-				 params->packet_merge.timeout);
+				 mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_SHAMPO_TIMEOUT));
 			MLX5_SET(rqc, rqc, shampo_match_criteria_type,
 				 params->packet_merge.shampo.match_criteria_type);
 			MLX5_SET(rqc, rqc, shampo_no_match_alignment_granularity,
@@ -1085,6 +1085,20 @@ static u32 mlx5e_shampo_icosq_sz(struct mlx5_core_dev *mdev,
 		wqebbs += MLX5E_KSM_UMR_WQEBBS(rest);
 	wqebbs *= wq_size;
 	return wqebbs;
+}
+
+#define MLX5E_LRO_TIMEOUT_ARR_SIZE                      4
+
+u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
+{
+	int i;
+
+	/* The supported periods are organized in ascending order */
+	for (i = 0; i < MLX5E_LRO_TIMEOUT_ARR_SIZE - 1; i++)
+		if (MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]) >= wanted_timeout)
+			break;
+
+	return MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]);
 }
 
 static u32 mlx5e_mpwrq_total_umr_wqebbs(struct mlx5_core_dev *mdev,

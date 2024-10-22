@@ -826,7 +826,7 @@ static int get_info(struct net *net, void __user *user, const int *len)
 		       sizeof(info.underflow));
 		info.num_entries = private->number;
 		info.size = private->size;
-		strcpy(info.name, name);
+		strscpy(info.name, name);
 
 		if (copy_to_user(user, &info, *len) != 0)
 			ret = -EFAULT;
@@ -1547,7 +1547,7 @@ int arpt_register_table(struct net *net,
 		goto out_free;
 	}
 
-	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
+	ops = kmemdup_array(template_ops, num_ops, sizeof(*ops), GFP_KERNEL);
 	if (!ops) {
 		ret = -ENOMEM;
 		goto out_free;

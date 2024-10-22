@@ -260,7 +260,7 @@ struct bdx_priv {
 	int tx_update_mark;
 	int tx_noupd;
 #endif
-	spinlock_t tx_lock;	/* NETIF_F_LLTX mode */
+	spinlock_t tx_lock;	/* dev->lltx mode */
 
 	/* rarely used */
 	u8 port;

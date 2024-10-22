@@ -18,7 +18,7 @@
 
 enum testunit_cmds {
 	TU_CMD_READ_BYTES = 1,	/* save 0 for ABORT, RESET or similar */
-	TU_CMD_HOST_NOTIFY,
+	TU_CMD_SMBUS_HOST_NOTIFY,
 	TU_CMD_SMBUS_BLOCK_PROC_CALL,
 	TU_NUM_CMDS
 };
@@ -60,7 +60,7 @@ static void i2c_slave_testunit_work(struct work_struct *work)
 		msg.len = tu->regs[TU_REG_DATAH];
 		break;
 
-	case TU_CMD_HOST_NOTIFY:
+	case TU_CMD_SMBUS_HOST_NOTIFY:
 		msg.addr = 0x08;
 		msg.flags = 0;
 		msg.len = 3;

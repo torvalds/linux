@@ -2642,11 +2642,12 @@ void dsa_user_setup_tagger(struct net_device *user)
 
 	user->features = conduit->vlan_features | NETIF_F_HW_TC;
 	user->hw_features |= NETIF_F_HW_TC;
-	user->features |= NETIF_F_LLTX;
 	if (user->needed_tailroom)
 		user->features &= ~(NETIF_F_SG | NETIF_F_FRAGLIST);
 	if (ds->needs_standalone_vlan_filtering)
 		user->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	user->lltx = true;
 }
 
 int dsa_user_suspend(struct net_device *user_dev)

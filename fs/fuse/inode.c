@@ -1332,11 +1332,16 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 			 * on a stacked fs (e.g. overlayfs) themselves and with
 			 * max_stack_depth == 1, FUSE fs can be stacked as the
 			 * underlying fs of a stacked fs (e.g. overlayfs).
+			 *
+			 * Also don't allow the combination of FUSE_PASSTHROUGH
+			 * and FUSE_WRITEBACK_CACHE, current design doesn't handle
+			 * them together.
 			 */
 			if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) &&
 			    (flags & FUSE_PASSTHROUGH) &&
 			    arg->max_stack_depth > 0 &&
-			    arg->max_stack_depth <= FILESYSTEM_MAX_STACK_DEPTH) {
+			    arg->max_stack_depth <= FILESYSTEM_MAX_STACK_DEPTH &&
+			    !(flags & FUSE_WRITEBACK_CACHE))  {
 				fc->passthrough = 1;
 				fc->max_stack_depth = arg->max_stack_depth;
 				fm->sb->s_stack_depth = arg->max_stack_depth;

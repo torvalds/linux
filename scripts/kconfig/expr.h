@@ -12,12 +12,11 @@ extern "C" {
 
 #include <assert.h>
 #include <stdio.h>
-#include "list_types.h"
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif
 
-#include "list_types.h"
+#include <list_types.h>
 
 typedef enum tristate {
 	no, mod, yes
@@ -26,7 +25,7 @@ typedef enum tristate {
 enum expr_type {
 	E_NONE, E_OR, E_AND, E_NOT,
 	E_EQUAL, E_UNEQUAL, E_LTH, E_LEQ, E_GTH, E_GEQ,
-	E_LIST, E_SYMBOL, E_RANGE
+	E_SYMBOL, E_RANGE
 };
 
 union expr_data {
@@ -42,9 +41,6 @@ struct expr {
 #define EXPR_OR(dep1, dep2)	(((dep1)>(dep2))?(dep1):(dep2))
 #define EXPR_AND(dep1, dep2)	(((dep1)<(dep2))?(dep1):(dep2))
 #define EXPR_NOT(dep)		(2-(dep))
-
-#define expr_list_for_each_sym(l, e, s) \
-	for (e = (l); e && (s = e->right.sym); e = e->left.expr)
 
 struct expr_value {
 	struct expr *expr;
@@ -73,6 +69,8 @@ enum {
  * Represents a configuration symbol.
  *
  * Choices are represented as a special kind of symbol with null name.
+ *
+ * @choice_link: linked to menu::choice_members
  */
 struct symbol {
 	/* link node for the hash table */
@@ -110,6 +108,8 @@ struct symbol {
 	/* config entries associated with this symbol */
 	struct list_head menus;
 
+	struct list_head choice_link;
+
 	/* SYMBOL_* flags */
 	int flags;
 
@@ -130,10 +130,8 @@ struct symbol {
 
 #define SYMBOL_CONST      0x0001  /* symbol is const */
 #define SYMBOL_CHECK      0x0008  /* used during dependency checking */
-#define SYMBOL_CHOICEVAL  0x0020  /* used as a value in a choice block */
 #define SYMBOL_VALID      0x0080  /* set when symbol.curr is calculated */
 #define SYMBOL_WRITE      0x0200  /* write symbol to file (KCONFIG_CONFIG) */
-#define SYMBOL_CHANGED    0x0400  /* ? */
 #define SYMBOL_WRITTEN    0x0800  /* track info to avoid double-write to .config */
 #define SYMBOL_CHECKED    0x2000  /* used during dependency checking */
 #define SYMBOL_WARNED     0x8000  /* warning has been issued */
@@ -144,9 +142,6 @@ struct symbol {
 #define SYMBOL_DEF_AUTO   0x20000  /* symbol.def[S_DEF_AUTO] is valid */
 #define SYMBOL_DEF3       0x40000  /* symbol.def[S_DEF_3] is valid */
 #define SYMBOL_DEF4       0x80000  /* symbol.def[S_DEF_4] is valid */
-
-/* choice values need to be set before calculating this symbol value */
-#define SYMBOL_NEED_SET_CHOICE_VALUES  0x100000
 
 #define SYMBOL_MAXLENGTH	256
 
@@ -170,7 +165,6 @@ enum prop_type {
 	P_COMMENT,  /* text associated with a comment */
 	P_MENU,     /* prompt associated with a menu or menuconfig symbol */
 	P_DEFAULT,  /* default y */
-	P_CHOICE,   /* choice value */
 	P_SELECT,   /* select BAR */
 	P_IMPLY,    /* imply BAR */
 	P_RANGE,    /* range 7..100 (for a symbol) */
@@ -184,7 +178,7 @@ struct property {
 	struct expr_value visible;
 	struct expr *expr;         /* the optional conditional part of the property */
 	struct menu *menu;         /* the menu the property are associated with
-	                            * valid for: P_SELECT, P_RANGE, P_CHOICE,
+	                            * valid for: P_SELECT, P_RANGE,
 	                            * P_PROMPT, P_DEFAULT, P_MENU, P_COMMENT */
 	const char *filename;      /* what file was this property defined */
 	int lineno;                /* what lineno was this property defined */
@@ -194,7 +188,6 @@ struct property {
 	for (st = sym->prop; st; st = st->next) \
 		if (st->type == (tok))
 #define for_all_defaults(sym, st) for_all_properties(sym, st, P_DEFAULT)
-#define for_all_choices(sym, st) for_all_properties(sym, st, P_CHOICE)
 #define for_all_prompts(sym, st) \
 	for (st = sym->prop; st; st = st->next) \
 		if (st->text)
@@ -204,6 +197,8 @@ struct property {
  * for all front ends). Each symbol, menu, etc. defined in the Kconfig files
  * gets a node. A symbol defined in multiple locations gets one node at each
  * location.
+ *
+ * @choice_members: list of choice members with priority.
  */
 struct menu {
 	/* The next menu node at the same level */
@@ -222,6 +217,8 @@ struct menu {
 	struct symbol *sym;
 
 	struct list_head link;	/* link to symbol::menus */
+
+	struct list_head choice_members;
 
 	/*
 	 * The prompt associated with the node. This holds the prompt for a
@@ -292,11 +289,11 @@ struct expr *expr_trans_compare(struct expr *e, enum expr_type type, struct symb
 
 void expr_fprint(struct expr *e, FILE *out);
 struct gstr; /* forward */
-void expr_gstr_print(struct expr *e, struct gstr *gs);
+void expr_gstr_print(const struct expr *e, struct gstr *gs);
 void expr_gstr_print_revdep(struct expr *e, struct gstr *gs,
 			    tristate pr_type, const char *title);
 
-static inline int expr_is_yes(struct expr *e)
+static inline int expr_is_yes(const struct expr *e)
 {
 	return !e || (e->type == E_SYMBOL && e->left.sym == &symbol_yes);
 }

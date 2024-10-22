@@ -11,9 +11,9 @@ struct hwbm_pool {
 	int frag_size;
 	/* Number of buffers currently used by this pool */
 	int buf_num;
-	/* constructor called during alocation */
+	/* constructor called during allocation */
 	int (*construct)(struct hwbm_pool *bm_pool, void *buf);
-	/* protect acces to the buffer counter*/
+	/* protect access to the buffer counter*/
 	struct mutex buf_lock;
 	/* private data */
 	void *priv;

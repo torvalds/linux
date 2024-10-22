@@ -426,7 +426,7 @@ static struct platform_driver sun50i_dmic_driver = {
 		.pm     = &sun50i_dmic_pm,
 	},
 	.probe          = sun50i_dmic_probe,
-	.remove_new     = sun50i_dmic_remove,
+	.remove         = sun50i_dmic_remove,
 };
 
 module_platform_driver(sun50i_dmic_driver);

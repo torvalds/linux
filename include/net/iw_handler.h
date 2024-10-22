@@ -23,7 +23,7 @@
  * to handle wireless statistics.
  *
  * The initial APIs served us well and has proven a reasonably good design.
- * However, there is a few shortcommings :
+ * However, there are a few shortcomings :
  *	o No events, everything is a request to the driver.
  *	o Large ioctl function in driver with gigantic switch statement
  *	  (i.e. spaghetti code).
@@ -38,13 +38,13 @@
  * -------------------------------
  * The new driver API is just a bunch of standard functions (handlers),
  * each handling a specific Wireless Extension. The driver just export
- * the list of handler it supports, and those will be called apropriately.
+ * the list of handler it supports, and those will be called appropriately.
  *
  * I tried to keep the main advantage of the previous API (simplicity,
  * efficiency and light weight), and also I provide a good dose of backward
  * compatibility (most structures are the same, driver can use both API
  * simultaneously, ...).
- * Hopefully, I've also addressed the shortcomming of the initial API.
+ * Hopefully, I've also addressed the shortcoming of the initial API.
  *
  * The advantage of the new API are :
  *	o Handling of Extensions in driver broken in small contained functions
@@ -84,7 +84,7 @@
 
 /* ---------------------- THE IMPLEMENTATION ---------------------- */
 /*
- * Some of the choice I've made are pretty controversials. Defining an
+ * Some of the choice I've made are pretty controversial. Defining an
  * API is very much weighting compromises. This goes into some of the
  * details and the thinking behind the implementation.
  *
@@ -140,7 +140,7 @@
  * example to distinguish setting max rate and basic rate), I would
  * break the prototype. Using iwreq_data is more flexible.
  * 3) Also, the above form is not generic (see above).
- * 4) I don't expect driver developper using the wrong field of the
+ * 4) I don't expect driver developer using the wrong field of the
  * union (Doh !), so static typechecking doesn't add much value.
  * 5) Lastly, you can skip the union by doing :
  *	static int mydriver_ioctl_setrate(struct net_device *dev,
@@ -459,7 +459,7 @@ int iw_handler_get_thrspy(struct net_device *dev, struct iw_request_info *info,
 void wireless_spy_update(struct net_device *dev, unsigned char *address,
 			 struct iw_quality *wstats);
 
-/************************* INLINE FUNTIONS *************************/
+/************************* INLINE FUNCTIONS *************************/
 /*
  * Function that are so simple that it's more efficient inlining them
  */

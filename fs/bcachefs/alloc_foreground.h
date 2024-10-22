@@ -223,7 +223,7 @@ static inline struct write_point_specifier writepoint_ptr(struct write_point *wp
 void bch2_fs_allocator_foreground_init(struct bch_fs *);
 
 void bch2_open_bucket_to_text(struct printbuf *, struct bch_fs *, struct open_bucket *);
-void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *);
+void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *, struct bch_dev *);
 void bch2_open_buckets_partial_to_text(struct printbuf *, struct bch_fs *);
 
 void bch2_write_points_to_text(struct printbuf *, struct bch_fs *);
@@ -231,6 +231,11 @@ void bch2_write_points_to_text(struct printbuf *, struct bch_fs *);
 void bch2_fs_alloc_debug_to_text(struct printbuf *, struct bch_fs *);
 void bch2_dev_alloc_debug_to_text(struct printbuf *, struct bch_dev *);
 
-void bch2_print_allocator_stuck(struct bch_fs *);
+void __bch2_wait_on_allocator(struct bch_fs *, struct closure *);
+static inline void bch2_wait_on_allocator(struct bch_fs *c, struct closure *cl)
+{
+	if (cl->closure_get_happened)
+		__bch2_wait_on_allocator(c, cl);
+}
 
 #endif /* _BCACHEFS_ALLOC_FOREGROUND_H */

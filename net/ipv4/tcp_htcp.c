@@ -185,7 +185,7 @@ static inline void htcp_alpha_update(struct htcp *ca)
 		u32 scale = (HZ << 3) / (10 * minRTT);
 
 		/* clamping ratio to interval [0.5,10]<<3 */
-		scale = min(max(scale, 1U << 2), 10U << 3);
+		scale = clamp(scale, 1U << 2, 10U << 3);
 		factor = (factor << 3) / scale;
 		if (!factor)
 			factor = 1;

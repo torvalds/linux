@@ -252,40 +252,39 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (offset < 0 || len <= 0)
 		return -EINVAL;
 
-	/* Return error if mode is not supported */
-	if (mode & ~FALLOC_FL_SUPPORTED_MASK)
+	if (mode & ~(FALLOC_FL_MODE_MASK | FALLOC_FL_KEEP_SIZE))
 		return -EOPNOTSUPP;
 
-	/* Punch hole and zero range are mutually exclusive */
-	if ((mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)) ==
-	    (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE))
+	/*
+	 * Modes are exclusive, even if that is not obvious from the encoding
+	 * as bit masks and the mix with the flag in the same namespace.
+	 *
+	 * To make things even more complicated, FALLOC_FL_ALLOCATE_RANGE is
+	 * encoded as no bit set.
+	 */
+	switch (mode & FALLOC_FL_MODE_MASK) {
+	case FALLOC_FL_ALLOCATE_RANGE:
+	case FALLOC_FL_UNSHARE_RANGE:
+	case FALLOC_FL_ZERO_RANGE:
+		break;
+	case FALLOC_FL_PUNCH_HOLE:
+		if (!(mode & FALLOC_FL_KEEP_SIZE))
+			return -EOPNOTSUPP;
+		break;
+	case FALLOC_FL_COLLAPSE_RANGE:
+	case FALLOC_FL_INSERT_RANGE:
+		if (mode & FALLOC_FL_KEEP_SIZE)
+			return -EOPNOTSUPP;
+		break;
+	default:
 		return -EOPNOTSUPP;
-
-	/* Punch hole must have keep size set */
-	if ((mode & FALLOC_FL_PUNCH_HOLE) &&
-	    !(mode & FALLOC_FL_KEEP_SIZE))
-		return -EOPNOTSUPP;
-
-	/* Collapse range should only be used exclusively. */
-	if ((mode & FALLOC_FL_COLLAPSE_RANGE) &&
-	    (mode & ~FALLOC_FL_COLLAPSE_RANGE))
-		return -EINVAL;
-
-	/* Insert range should only be used exclusively. */
-	if ((mode & FALLOC_FL_INSERT_RANGE) &&
-	    (mode & ~FALLOC_FL_INSERT_RANGE))
-		return -EINVAL;
-
-	/* Unshare range should only be used with allocate mode. */
-	if ((mode & FALLOC_FL_UNSHARE_RANGE) &&
-	    (mode & ~(FALLOC_FL_UNSHARE_RANGE | FALLOC_FL_KEEP_SIZE)))
-		return -EINVAL;
+	}
 
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
 
 	/*
-	 * We can only allow pure fallocate on append only files
+	 * On append-only files only space preallocation is supported.
 	 */
 	if ((mode & ~FALLOC_FL_KEEP_SIZE) && IS_APPEND(inode))
 		return -EPERM;

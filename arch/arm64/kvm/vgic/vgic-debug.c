@@ -45,7 +45,8 @@ static void iter_next(struct kvm *kvm, struct vgic_state_iter *iter)
 	 * Let the xarray drive the iterator after the last SPI, as the iterator
 	 * has exhausted the sequentially-allocated INTID space.
 	 */
-	if (iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS - 1)) {
+	if (iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS - 1) &&
+	    iter->nr_lpis) {
 		if (iter->lpi_idx < iter->nr_lpis)
 			xa_find_after(&dist->lpi_xa, &iter->intid,
 				      VGIC_LPI_MAX_INTID,
@@ -84,7 +85,7 @@ static void iter_unmark_lpis(struct kvm *kvm)
 	struct vgic_irq *irq;
 	unsigned long intid;
 
-	xa_for_each(&dist->lpi_xa, intid, irq) {
+	xa_for_each_marked(&dist->lpi_xa, intid, irq, LPI_XA_MARK_DEBUG_ITER) {
 		xa_clear_mark(&dist->lpi_xa, intid, LPI_XA_MARK_DEBUG_ITER);
 		vgic_put_irq(kvm, irq);
 	}
@@ -112,7 +113,7 @@ static bool end_of_vgic(struct vgic_state_iter *iter)
 	return iter->dist_id > 0 &&
 		iter->vcpu_id == iter->nr_cpus &&
 		iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS) &&
-		iter->lpi_idx > iter->nr_lpis;
+		(!iter->nr_lpis || iter->lpi_idx > iter->nr_lpis);
 }
 
 static void *vgic_debug_start(struct seq_file *s, loff_t *pos)

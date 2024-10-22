@@ -25,8 +25,13 @@
 #define ACP_REG_POLL_TIMEOUT_US                 2000
 #define ACP_DMA_COMPLETE_TIMEOUT_US		5000
 
-#define ACP_PGFSM_CNTL_POWER_ON_MASK		0x01
-#define ACP_PGFSM_STATUS_MASK			0x03
+#define ACP3X_PGFSM_CNTL_POWER_ON_MASK		0x01
+#define ACP3X_PGFSM_STATUS_MASK			0x03
+#define ACP6X_PGFSM_CNTL_POWER_ON_MASK		0x07
+#define ACP6X_PGFSM_STATUS_MASK			0x0F
+#define ACP70_PGFSM_CNTL_POWER_ON_MASK		0x1F
+#define ACP70_PGFSM_STATUS_MASK			0xFF
+
 #define ACP_POWERED_ON				0x00
 #define ACP_ASSERT_RESET			0x01
 #define ACP_RELEASE_RESET			0x00
@@ -39,6 +44,7 @@
 #define ACP3X_SRAM_PTE_OFFSET			0x02050000
 #define ACP5X_SRAM_PTE_OFFSET			0x02050000
 #define ACP6X_SRAM_PTE_OFFSET			0x03800000
+#define ACP70_SRAM_PTE_OFFSET			ACP6X_SRAM_PTE_OFFSET
 #define PAGE_SIZE_4K_ENABLE			0x2
 #define ACP_PAGE_SIZE				0x1000
 #define ACP_DMA_CH_RUN				0x02
@@ -60,17 +66,20 @@
 #define ACP_DRAM_BASE_ADDRESS			0x01000000
 #define ACP_DRAM_PAGE_COUNT			128
 #define ACP_SRAM_BASE_ADDRESS			0x3806000
+#define ACP7X_SRAM_BASE_ADDRESS			0x380C000
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
 #define ACP_RN_PCI_ID				0x01
 #define ACP_VANGOGH_PCI_ID			0x50
 #define ACP_RMB_PCI_ID				0x6F
 #define ACP63_PCI_ID				0x63
+#define ACP70_PCI_ID				0x70
 
 #define HOST_BRIDGE_CZN				0x1630
 #define HOST_BRIDGE_VGH				0x1645
 #define HOST_BRIDGE_RMB				0x14B5
 #define HOST_BRIDGE_ACP63			0x14E8
+#define HOST_BRIDGE_ACP70			0x1507
 #define ACP_SHA_STAT				0x8000
 #define ACP_PSP_TIMEOUT_US			1000000
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
@@ -187,7 +196,6 @@ struct acp_dsp_stream {
 };
 
 struct sof_amd_acp_desc {
-	unsigned int rev;
 	const char *name;
 	unsigned int host_bridge_id;
 	u32 pgfsm_base;
@@ -203,6 +211,8 @@ struct sof_amd_acp_desc {
 	u32 probe_reg_offset;
 	u32 reg_start_addr;
 	u32 reg_end_addr;
+	u32 acp_error_stat;
+	u32 acp_sw0_i2s_err_reason;
 	u32 sdw_max_link_count;
 	u64 sdw_acpi_dev_addr;
 };
@@ -251,6 +261,7 @@ struct acp_dev_data {
 	bool is_dram_in_use;
 	bool is_sram_in_use;
 	bool sdw_en_stat;
+	unsigned int pci_rev;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -320,6 +331,9 @@ extern struct snd_sof_dsp_ops sof_rembrandt_ops;
 int sof_rembrandt_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_acp63_ops;
 int sof_acp63_ops_init(struct snd_sof_dev *sdev);
+
+extern struct snd_sof_dsp_ops sof_acp70_ops;
+int sof_acp70_ops_init(struct snd_sof_dev *sdev);
 
 struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev);
 /* Machine configuration */

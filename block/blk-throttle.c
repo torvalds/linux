@@ -31,14 +31,6 @@ static struct workqueue_struct *kthrotld_workqueue;
 
 #define rb_entry_tg(node)	rb_entry((node), struct throtl_grp, rb_node)
 
-/* We measure latency for request size from <= 4k to >= 1M */
-#define LATENCY_BUCKET_SIZE 9
-
-struct latency_bucket {
-	unsigned long total_latency; /* ns / 1024 */
-	int samples;
-};
-
 struct throtl_data
 {
 	/* service tree for active throtl groups */
@@ -115,9 +107,6 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 
 	return tg->iops[rw];
 }
-
-#define request_bucket_index(sectors) \
-	clamp_t(int, order_base_2(sectors) - 3, 0, LATENCY_BUCKET_SIZE - 1)
 
 /**
  * throtl_log - log debug message via blktrace
@@ -1595,6 +1584,22 @@ void blk_throtl_cancel_bios(struct gendisk *disk)
 	spin_unlock_irq(&q->queue_lock);
 }
 
+static bool tg_within_limit(struct throtl_grp *tg, struct bio *bio, bool rw)
+{
+	/* throtl is FIFO - if bios are already queued, should queue */
+	if (tg->service_queue.nr_queued[rw])
+		return false;
+
+	return tg_may_dispatch(tg, bio, NULL);
+}
+
+static void tg_dispatch_in_debt(struct throtl_grp *tg, struct bio *bio, bool rw)
+{
+	if (!bio_flagged(bio, BIO_BPS_THROTTLED))
+		tg->carryover_bytes[rw] -= throtl_bio_data_size(bio);
+	tg->carryover_ios[rw]--;
+}
+
 bool __blk_throtl_bio(struct bio *bio)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
@@ -1611,33 +1616,34 @@ bool __blk_throtl_bio(struct bio *bio)
 	sq = &tg->service_queue;
 
 	while (true) {
-		if (tg->last_low_overflow_time[rw] == 0)
-			tg->last_low_overflow_time[rw] = jiffies;
-		/* throtl is FIFO - if bios are already queued, should queue */
-		if (sq->nr_queued[rw])
-			break;
+		if (tg_within_limit(tg, bio, rw)) {
+			/* within limits, let's charge and dispatch directly */
+			throtl_charge_bio(tg, bio);
 
-		/* if above limits, break to queue */
-		if (!tg_may_dispatch(tg, bio, NULL)) {
-			tg->last_low_overflow_time[rw] = jiffies;
+			/*
+			 * We need to trim slice even when bios are not being
+			 * queued otherwise it might happen that a bio is not
+			 * queued for a long time and slice keeps on extending
+			 * and trim is not called for a long time. Now if limits
+			 * are reduced suddenly we take into account all the IO
+			 * dispatched so far at new low rate and * newly queued
+			 * IO gets a really long dispatch time.
+			 *
+			 * So keep on trimming slice even if bio is not queued.
+			 */
+			throtl_trim_slice(tg, rw);
+		} else if (bio_issue_as_root_blkg(bio)) {
+			/*
+			 * IOs which may cause priority inversions are
+			 * dispatched directly, even if they're over limit.
+			 * Debts are handled by carryover_bytes/ios while
+			 * calculating wait time.
+			 */
+			tg_dispatch_in_debt(tg, bio, rw);
+		} else {
+			/* if above limits, break to queue */
 			break;
 		}
-
-		/* within limits, let's charge and dispatch directly */
-		throtl_charge_bio(tg, bio);
-
-		/*
-		 * We need to trim slice even when bios are not being queued
-		 * otherwise it might happen that a bio is not queued for
-		 * a long time and slice keeps on extending and trim is not
-		 * called for a long time. Now if limits are reduced suddenly
-		 * we take into account all the IO dispatched so far at new
-		 * low rate and * newly queued IO gets a really long dispatch
-		 * time.
-		 *
-		 * So keep on trimming slice even if bio is not queued.
-		 */
-		throtl_trim_slice(tg, rw);
 
 		/*
 		 * @bio passed through this layer without being throttled.
@@ -1660,8 +1666,6 @@ bool __blk_throtl_bio(struct bio *bio)
 		   tg_bps_limit(tg, rw),
 		   tg->io_disp[rw], tg_iops_limit(tg, rw),
 		   sq->nr_queued[READ], sq->nr_queued[WRITE]);
-
-	tg->last_low_overflow_time[rw] = jiffies;
 
 	td->nr_queued[rw]++;
 	throtl_add_bio_tg(bio, qn, tg);

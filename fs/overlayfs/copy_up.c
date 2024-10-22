@@ -115,12 +115,12 @@ int ovl_copy_xattr(struct super_block *sb, const struct path *oldpath, struct de
 			continue;
 
 		error = security_inode_copy_up_xattr(old, name);
-		if (error < 0 && error != -EOPNOTSUPP)
-			break;
-		if (error == 1) {
+		if (error == -ECANCELED) {
 			error = 0;
 			continue; /* Discard */
 		}
+		if (error < 0 && error != -EOPNOTSUPP)
+			break;
 
 		if (is_posix_acl_xattr(name)) {
 			error = ovl_copy_acl(OVL_FS(sb), oldpath, new, name);

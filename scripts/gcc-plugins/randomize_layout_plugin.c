@@ -19,10 +19,6 @@
 #include "gcc-common.h"
 #include "randomize_layout_seed.h"
 
-#if BUILDING_GCC_MAJOR < 4 || (BUILDING_GCC_MAJOR == 4 && BUILDING_GCC_MINOR < 7)
-#error "The RANDSTRUCT plugin requires GCC 4.7 or newer."
-#endif
-
 #define ORIG_TYPE_NAME(node) \
 	(TYPE_NAME(TYPE_MAIN_VARIANT(node)) != NULL_TREE ? ((const unsigned char *)IDENTIFIER_POINTER(TYPE_NAME(TYPE_MAIN_VARIANT(node)))) : (const unsigned char *)"anonymous")
 

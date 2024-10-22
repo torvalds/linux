@@ -103,4 +103,18 @@ struct amd_cpudata {
 	bool	boost_state;
 };
 
+/*
+ * enum amd_pstate_mode - driver working mode of amd pstate
+ */
+enum amd_pstate_mode {
+	AMD_PSTATE_UNDEFINED = 0,
+	AMD_PSTATE_DISABLE,
+	AMD_PSTATE_PASSIVE,
+	AMD_PSTATE_ACTIVE,
+	AMD_PSTATE_GUIDED,
+	AMD_PSTATE_MAX,
+};
+const char *amd_pstate_get_mode_string(enum amd_pstate_mode mode);
+int amd_pstate_update_status(const char *buf, size_t size);
+
 #endif /* _LINUX_AMD_PSTATE_H */

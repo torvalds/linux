@@ -105,8 +105,9 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	p = netdev_priv(skb->dev);
 
-	if (unlikely(cpu_dp->ds->untag_bridge_pvid)) {
-		nskb = dsa_untag_bridge_pvid(skb);
+	if (unlikely(cpu_dp->ds->untag_bridge_pvid ||
+		     cpu_dp->ds->untag_vlan_aware_bridge_pvid)) {
+		nskb = dsa_software_vlan_untag(skb);
 		if (!nskb) {
 			kfree_skb(skb);
 			return 0;

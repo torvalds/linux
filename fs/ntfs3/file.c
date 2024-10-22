@@ -182,7 +182,7 @@ static int ntfs_extend_initialized_size(struct file *file,
 
 	for (;;) {
 		u32 zerofrom, len;
-		struct page *page;
+		struct folio *folio;
 		u8 bits;
 		CLST vcn, lcn, clen;
 
@@ -208,14 +208,13 @@ static int ntfs_extend_initialized_size(struct file *file,
 		if (pos + len > new_valid)
 			len = new_valid - pos;
 
-		err = ntfs_write_begin(file, mapping, pos, len, &page, NULL);
+		err = ntfs_write_begin(file, mapping, pos, len, &folio, NULL);
 		if (err)
 			goto out;
 
-		zero_user_segment(page, zerofrom, PAGE_SIZE);
+		folio_zero_range(folio, zerofrom, folio_size(folio));
 
-		/* This function in any case puts page. */
-		err = ntfs_write_end(file, mapping, pos, len, len, page, NULL);
+		err = ntfs_write_end(file, mapping, pos, len, len, folio, NULL);
 		if (err < 0)
 			goto out;
 		pos += len;

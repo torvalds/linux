@@ -187,31 +187,11 @@ static void test_perf_kallsyms_lookup_name(void)
 		stat.min, stat.max, div_u64(stat.sum, stat.real_cnt));
 }
 
-static bool match_cleanup_name(const char *s, const char *name)
-{
-	char *p;
-	int len;
-
-	if (!IS_ENABLED(CONFIG_LTO_CLANG))
-		return false;
-
-	p = strstr(s, ".llvm.");
-	if (!p)
-		return false;
-
-	len = strlen(name);
-	if (p - s != len)
-		return false;
-
-	return !strncmp(s, name, len);
-}
-
 static int find_symbol(void *data, const char *name, unsigned long addr)
 {
 	struct test_stat *stat = (struct test_stat *)data;
 
-	if (strcmp(name, stat->name) == 0 ||
-	    (!stat->perf && match_cleanup_name(name, stat->name))) {
+	if (!strcmp(name, stat->name)) {
 		stat->real_cnt++;
 		stat->addr = addr;
 

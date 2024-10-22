@@ -955,11 +955,6 @@ static int bnxt_set_channels(struct net_device *dev,
 		}
 		tx_xdp = req_rx_rings;
 	}
-	rc = bnxt_check_rings(bp, req_tx_rings, req_rx_rings, sh, tcs, tx_xdp);
-	if (rc) {
-		netdev_warn(dev, "Unable to allocate the requested rings\n");
-		return rc;
-	}
 
 	if (bnxt_get_nr_rss_ctxs(bp, req_rx_rings) !=
 	    bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) &&
@@ -968,9 +963,12 @@ static int bnxt_set_channels(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	bnxt_clear_usr_fltrs(bp, true);
-	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp);
+	rc = bnxt_check_rings(bp, req_tx_rings, req_rx_rings, sh, tcs, tx_xdp);
+	if (rc) {
+		netdev_warn(dev, "Unable to allocate the requested rings\n");
+		return rc;
+	}
+
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
 			/* TODO CHIMP_FW: Send message to all VF's
@@ -1863,8 +1861,14 @@ static void bnxt_modify_rss(struct bnxt *bp, struct ethtool_rxfh_context *ctx,
 }
 
 static int bnxt_rxfh_context_check(struct bnxt *bp,
+				   const struct ethtool_rxfh_param *rxfh,
 				   struct netlink_ext_ack *extack)
 {
+	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP) {
+		NL_SET_ERR_MSG_MOD(extack, "RSS hash function not supported");
+		return -EOPNOTSUPP;
+	}
+
 	if (!BNXT_SUPPORTS_MULTI_RSS_CTX(bp)) {
 		NL_SET_ERR_MSG_MOD(extack, "RSS contexts not supported");
 		return -EOPNOTSUPP;
@@ -1888,7 +1892,7 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 	struct bnxt_vnic_info *vnic;
 	int rc;
 
-	rc = bnxt_rxfh_context_check(bp, extack);
+	rc = bnxt_rxfh_context_check(bp, rxfh, extack);
 	if (rc)
 		return rc;
 
@@ -1915,8 +1919,12 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 	if (rc)
 		goto out;
 
+	/* Populate defaults in the context */
 	bnxt_set_dflt_rss_indir_tbl(bp, ctx);
+	ctx->hfunc = ETH_RSS_HASH_TOP;
 	memcpy(vnic->rss_hash_key, bp->rss_hash_key, HW_HASH_KEY_SIZE);
+	memcpy(ethtool_rxfh_context_key(ctx),
+	       bp->rss_hash_key, HW_HASH_KEY_SIZE);
 
 	rc = bnxt_hwrm_vnic_alloc(bp, vnic, 0, bp->rx_nr_rings);
 	if (rc) {
@@ -1953,7 +1961,7 @@ static int bnxt_modify_rxfh_context(struct net_device *dev,
 	struct bnxt_rss_ctx *rss_ctx;
 	int rc;
 
-	rc = bnxt_rxfh_context_check(bp, extack);
+	rc = bnxt_rxfh_context_check(bp, rxfh, extack);
 	if (rc)
 		return rc;
 
@@ -1990,7 +1998,6 @@ static int bnxt_set_rxfh(struct net_device *dev,
 
 	bnxt_modify_rss(bp, NULL, NULL, rxfh);
 
-	bnxt_clear_usr_fltrs(bp, false);
 	if (netif_running(bp->dev)) {
 		bnxt_close_nic(bp, false, false);
 		rc = bnxt_open_nic(bp, false, false);
@@ -4151,7 +4158,7 @@ static void bnxt_get_pkgver(struct net_device *dev)
 
 	if (!bnxt_get_pkginfo(dev, buf, sizeof(buf))) {
 		len = strlen(bp->fw_ver_str);
-		snprintf(bp->fw_ver_str + len, FW_VER_STR_LEN - len - 1,
+		snprintf(bp->fw_ver_str + len, FW_VER_STR_LEN - len,
 			 "/pkg %s", buf);
 	}
 }
@@ -4983,9 +4990,16 @@ static int bnxt_set_dump(struct net_device *dev, struct ethtool_dump *dump)
 		return -EINVAL;
 	}
 
-	if (!IS_ENABLED(CONFIG_TEE_BNXT_FW) && dump->flag == BNXT_DUMP_CRASH) {
-		netdev_info(dev, "Cannot collect crash dump as TEE_BNXT_FW config option is not enabled.\n");
-		return -EOPNOTSUPP;
+	if (dump->flag == BNXT_DUMP_CRASH) {
+		if (bp->fw_dbg_cap & DBG_QCAPS_RESP_FLAGS_CRASHDUMP_SOC_DDR &&
+		    (!IS_ENABLED(CONFIG_TEE_BNXT_FW))) {
+			netdev_info(dev,
+				    "Cannot collect crash dump as TEE_BNXT_FW config option is not enabled.\n");
+			return -EOPNOTSUPP;
+		} else if (!(bp->fw_dbg_cap & DBG_QCAPS_RESP_FLAGS_CRASHDUMP_HOST_DDR)) {
+			netdev_info(dev, "Crash dump collection from host memory is not supported on this interface.\n");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	bp->dump_flag = dump->flag;
@@ -5030,11 +5044,8 @@ static int bnxt_get_ts_info(struct net_device *dev,
 	struct bnxt_ptp_cfg *ptp;
 
 	ptp = bp->ptp_cfg;
-	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE;
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE;
 
-	info->phc_index = -1;
 	if (!ptp)
 		return 0;
 
@@ -5279,8 +5290,8 @@ void bnxt_ethtool_free(struct bnxt *bp)
 
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.cap_link_lanes_supported	= 1,
-	.cap_rss_ctx_supported		= 1,
-	.rxfh_max_context_id		= BNXT_MAX_ETH_RSS_CTX,
+	.rxfh_per_ctx_key		= 1,
+	.rxfh_max_num_contexts		= BNXT_MAX_ETH_RSS_CTX + 1,
 	.rxfh_indir_space		= BNXT_MAX_RSS_TABLE_ENTRIES_P5,
 	.rxfh_priv_size			= sizeof(struct bnxt_rss_ctx),
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |

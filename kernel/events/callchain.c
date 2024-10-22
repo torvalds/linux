@@ -270,7 +270,7 @@ exit_put:
  * Used for sysctl_perf_event_max_stack and
  * sysctl_perf_event_max_contexts_per_stack.
  */
-int perf_event_max_stack_handler(struct ctl_table *table, int write,
+int perf_event_max_stack_handler(const struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *value = table->data;

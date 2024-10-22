@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 syscall_abis_32 +=
-syscall_abis_64 += renameat newstat rlimit memfd_secret
+syscall_abis_64 += renameat rlimit memfd_secret
 
 syscalltbl = arch/arm64/tools/syscall_%.tbl

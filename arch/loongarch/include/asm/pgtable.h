@@ -106,6 +106,9 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define KFENCE_AREA_START	(VMEMMAP_END + 1)
 #define KFENCE_AREA_END		(KFENCE_AREA_START + KFENCE_AREA_SIZE - 1)
 
+#define ptep_get(ptep) READ_ONCE(*(ptep))
+#define pmdp_get(pmdp) READ_ONCE(*(pmdp))
+
 #define pte_ERROR(e) \
 	pr_err("%s:%d: bad pte %016lx.\n", __FILE__, __LINE__, pte_val(e))
 #ifndef __PAGETABLE_PMD_FOLDED
@@ -147,11 +150,6 @@ static inline int p4d_present(p4d_t p4d)
 	return p4d_val(p4d) != (unsigned long)invalid_pud_table;
 }
 
-static inline void p4d_clear(p4d_t *p4dp)
-{
-	p4d_val(*p4dp) = (unsigned long)invalid_pud_table;
-}
-
 static inline pud_t *p4d_pgtable(p4d_t p4d)
 {
 	return (pud_t *)p4d_val(p4d);
@@ -159,7 +157,12 @@ static inline pud_t *p4d_pgtable(p4d_t p4d)
 
 static inline void set_p4d(p4d_t *p4d, p4d_t p4dval)
 {
-	*p4d = p4dval;
+	WRITE_ONCE(*p4d, p4dval);
+}
+
+static inline void p4d_clear(p4d_t *p4dp)
+{
+	set_p4d(p4dp, __p4d((unsigned long)invalid_pud_table));
 }
 
 #define p4d_phys(p4d)		PHYSADDR(p4d_val(p4d))
@@ -193,17 +196,20 @@ static inline int pud_present(pud_t pud)
 	return pud_val(pud) != (unsigned long)invalid_pmd_table;
 }
 
-static inline void pud_clear(pud_t *pudp)
-{
-	pud_val(*pudp) = ((unsigned long)invalid_pmd_table);
-}
-
 static inline pmd_t *pud_pgtable(pud_t pud)
 {
 	return (pmd_t *)pud_val(pud);
 }
 
-#define set_pud(pudptr, pudval) do { *(pudptr) = (pudval); } while (0)
+static inline void set_pud(pud_t *pud, pud_t pudval)
+{
+	WRITE_ONCE(*pud, pudval);
+}
+
+static inline void pud_clear(pud_t *pudp)
+{
+	set_pud(pudp, __pud((unsigned long)invalid_pmd_table));
+}
 
 #define pud_phys(pud)		PHYSADDR(pud_val(pud))
 #define pud_page(pud)		(pfn_to_page(pud_phys(pud) >> PAGE_SHIFT))
@@ -231,12 +237,15 @@ static inline int pmd_present(pmd_t pmd)
 	return pmd_val(pmd) != (unsigned long)invalid_pte_table;
 }
 
-static inline void pmd_clear(pmd_t *pmdp)
+static inline void set_pmd(pmd_t *pmd, pmd_t pmdval)
 {
-	pmd_val(*pmdp) = ((unsigned long)invalid_pte_table);
+	WRITE_ONCE(*pmd, pmdval);
 }
 
-#define set_pmd(pmdptr, pmdval) do { *(pmdptr) = (pmdval); } while (0)
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	set_pmd(pmdp, __pmd((unsigned long)invalid_pte_table));
+}
 
 #define pmd_phys(pmd)		PHYSADDR(pmd_val(pmd))
 
@@ -314,7 +323,8 @@ extern void paging_init(void);
 
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
-	*ptep = pteval;
+	WRITE_ONCE(*ptep, pteval);
+
 	if (pte_val(pteval) & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
@@ -341,8 +351,8 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
 		: [global] "r" (page_global));
 #else /* !CONFIG_SMP */
-		if (pte_none(*buddy))
-			pte_val(*buddy) = pte_val(*buddy) | _PAGE_GLOBAL;
+		if (pte_none(ptep_get(buddy)))
+			WRITE_ONCE(*buddy, __pte(pte_val(ptep_get(buddy)) | _PAGE_GLOBAL));
 #endif /* CONFIG_SMP */
 	}
 }
@@ -350,7 +360,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	/* Preserve global status for the pair */
-	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
+	if (pte_val(ptep_get(ptep_buddy(ptep))) & _PAGE_GLOBAL)
 		set_pte(ptep, __pte(_PAGE_GLOBAL));
 	else
 		set_pte(ptep, __pte(0));
@@ -603,7 +613,7 @@ static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 					    unsigned long address, pmd_t *pmdp)
 {
-	pmd_t old = *pmdp;
+	pmd_t old = pmdp_get(pmdp);
 
 	pmd_clear(pmdp);
 

@@ -959,10 +959,8 @@ struct pci_driver {
 	bool driver_managed_dma;
 };
 
-static inline struct pci_driver *to_pci_driver(struct device_driver *drv)
-{
-    return drv ? container_of(drv, struct pci_driver, driver) : NULL;
-}
+#define to_pci_driver(__drv)	\
+	( __drv ? container_of_const(__drv, struct pci_driver, driver) : NULL )
 
 /**
  * PCI_DEVICE - macro used to describe a specific PCI device

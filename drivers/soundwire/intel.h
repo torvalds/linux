@@ -59,6 +59,11 @@ struct sdw_intel {
 };
 
 struct sdw_intel_prop {
+	u16 clde;
+	u16 doaise2;
+	u16 dodse2;
+	u16 clds;
+	u16 clss;
 	u16 doaise;
 	u16 doais;
 	u16 dodse;
@@ -215,6 +220,13 @@ static inline bool sdw_intel_sync_check_cmdsync_unlocked(struct sdw_intel *sdw)
 	if (SDW_INTEL_CHECK_OPS(sdw, sync_check_cmdsync_unlocked))
 		return SDW_INTEL_OPS(sdw, sync_check_cmdsync_unlocked)(sdw);
 	return false;
+}
+
+static inline int sdw_intel_get_link_count(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, get_link_count))
+		return SDW_INTEL_OPS(sdw, get_link_count)(sdw);
+	return 4; /* default on older generations */
 }
 
 /* common bus management */

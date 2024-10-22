@@ -354,12 +354,14 @@ static int cpu_map_kthread_run(void *data)
 
 			list_add_tail(&skb->list, &list);
 		}
-		netif_receive_skb_list(&list);
 
-		/* Feedback loop via tracepoint */
+		/* Feedback loop via tracepoint.
+		 * NB: keep before recv to allow measuring enqueue/dequeue latency.
+		 */
 		trace_xdp_cpumap_kthread(rcpu->map_id, n, kmem_alloc_drops,
 					 sched, &stats);
 
+		netif_receive_skb_list(&list);
 		local_bh_enable(); /* resched point, may call do_softirq() */
 	}
 	__set_current_state(TASK_RUNNING);

@@ -476,6 +476,8 @@ enum iwl_fw_ini_region_device_memory_subtype {
  * @IWL_FW_INI_TIME_POINT_PRESET_OVERRIDE_START: start handling override preset
  *	request
  * @IWL_FW_INI_TIME_SCAN_FAILURE: failed scan channel list
+ * @IWL_FW_INI_TIME_ESR_LINK_UP: EMLSR is active (several links are activated)
+ * @IWL_FW_INI_TIME_ESR_LINK_DOWN: EMLSR is inactive (only one active link left)
  * @IWL_FW_INI_TIME_POINT_NUM: number of time points
  */
 enum iwl_fw_ini_time_point {
@@ -509,6 +511,8 @@ enum iwl_fw_ini_time_point {
 	IWL_FW_INI_TIME_POINT_PRESET_OVERRIDE_EXT_REQ,
 	IWL_FW_INI_TIME_POINT_PRESET_OVERRIDE_START,
 	IWL_FW_INI_TIME_SCAN_FAILURE,
+	IWL_FW_INI_TIME_ESR_LINK_UP,
+	IWL_FW_INI_TIME_ESR_LINK_DOWN,
 	IWL_FW_INI_TIME_POINT_NUM,
 }; /* FW_TLV_DEBUG_TIME_POINT_API_E */
 

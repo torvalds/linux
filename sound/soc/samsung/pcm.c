@@ -590,7 +590,7 @@ static void s3c_pcm_dev_remove(struct platform_device *pdev)
 
 static struct platform_driver s3c_pcm_driver = {
 	.probe  = s3c_pcm_dev_probe,
-	.remove_new = s3c_pcm_dev_remove,
+	.remove = s3c_pcm_dev_remove,
 	.driver = {
 		.name = "samsung-pcm",
 	},

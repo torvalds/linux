@@ -2763,6 +2763,8 @@
 			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA234_CLK_UARTA>;
 			resets = <&bpmp TEGRA234_RESET_UARTA>;
+			dmas = <&gpcdma 8>, <&gpcdma 8>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -4837,6 +4839,37 @@
 			iommu-map-mask = <0x0>;
 			dma-coherent;
 
+			status = "disabled";
+		};
+
+		pcie-ep@14160000 {
+			compatible = "nvidia,tegra234-pcie-ep";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_PCIEX4BB>;
+			reg = <0x00 0x14160000 0x0 0x00020000     /* appl registers (128K)      */
+				0x00 0x36040000 0x0 0x00040000    /* iATU_DMA reg space (256K)  */
+				0x00 0x36080000 0x0 0x00040000    /* DBI space (256K)           */
+				0x21 0x40000000 0x3 0x00000000>;  /* Address Space (12G)        */
+			reg-names = "appl", "atu_dma", "dbi", "addr_space";
+			num-lanes = <4>;
+			clocks = <&bpmp TEGRA234_CLK_PEX0_C4_CORE>;
+			clock-names = "core";
+			resets = <&bpmp TEGRA234_RESET_PEX0_CORE_4_APB>,
+			       <&bpmp TEGRA234_RESET_PEX0_CORE_4>;
+			reset-names = "apb", "core";
+
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;  /* controller interrupt */
+			interrupt-names = "intr";
+			nvidia,bpmp = <&bpmp 4>;
+			nvidia,enable-ext-refclk;
+			nvidia,aspm-cmrt-us = <60>;
+			nvidia,aspm-pwr-on-t-us = <20>;
+			nvidia,aspm-l0s-entrance-latency-us = <3>;
+
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_PCIE4R &emc>,
+				      <&mc TEGRA234_MEMORY_CLIENT_PCIE4W &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso0 TEGRA234_SID_PCIE4>;
+			dma-coherent;
 			status = "disabled";
 		};
 

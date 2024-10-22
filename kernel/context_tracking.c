@@ -28,34 +28,34 @@
 
 DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
-	.dynticks_nesting = 1,
-	.dynticks_nmi_nesting = DYNTICK_IRQ_NONIDLE,
+	.nesting = 1,
+	.nmi_nesting = CT_NESTING_IRQ_NONIDLE,
 #endif
-	.state = ATOMIC_INIT(RCU_DYNTICKS_IDX),
+	.state = ATOMIC_INIT(CT_RCU_WATCHING),
 };
 EXPORT_SYMBOL_GPL(context_tracking);
 
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
 #define TPS(x)  tracepoint_string(x)
 
-/* Record the current task on dyntick-idle entry. */
-static __always_inline void rcu_dynticks_task_enter(void)
+/* Record the current task on exiting RCU-tasks (dyntick-idle entry). */
+static __always_inline void rcu_task_exit(void)
 {
 #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL)
 	WRITE_ONCE(current->rcu_tasks_idle_cpu, smp_processor_id());
 #endif /* #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL) */
 }
 
-/* Record no current task on dyntick-idle exit. */
-static __always_inline void rcu_dynticks_task_exit(void)
+/* Record no current task on entering RCU-tasks (dyntick-idle exit). */
+static __always_inline void rcu_task_enter(void)
 {
 #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL)
 	WRITE_ONCE(current->rcu_tasks_idle_cpu, -1);
 #endif /* #if defined(CONFIG_TASKS_RCU) && defined(CONFIG_NO_HZ_FULL) */
 }
 
-/* Turn on heavyweight RCU tasks trace readers on idle/user entry. */
-static __always_inline void rcu_dynticks_task_trace_enter(void)
+/* Turn on heavyweight RCU tasks trace readers on kernel exit. */
+static __always_inline void rcu_task_trace_heavyweight_enter(void)
 {
 #ifdef CONFIG_TASKS_TRACE_RCU
 	if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB))
@@ -63,8 +63,8 @@ static __always_inline void rcu_dynticks_task_trace_enter(void)
 #endif /* #ifdef CONFIG_TASKS_TRACE_RCU */
 }
 
-/* Turn off heavyweight RCU tasks trace readers on idle/user exit. */
-static __always_inline void rcu_dynticks_task_trace_exit(void)
+/* Turn off heavyweight RCU tasks trace readers on kernel entry. */
+static __always_inline void rcu_task_trace_heavyweight_exit(void)
 {
 #ifdef CONFIG_TASKS_TRACE_RCU
 	if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB))
@@ -87,10 +87,10 @@ static noinstr void ct_kernel_exit_state(int offset)
 	 * critical sections, and we also must force ordering with the
 	 * next idle sojourn.
 	 */
-	rcu_dynticks_task_trace_enter();  // Before ->dynticks update!
+	rcu_task_trace_heavyweight_enter();  // Before CT state update!
 	seq = ct_state_inc(offset);
 	// RCU is no longer watching.  Better be in extended quiescent state!
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && (seq & RCU_DYNTICKS_IDX));
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && (seq & CT_RCU_WATCHING));
 }
 
 /*
@@ -109,15 +109,15 @@ static noinstr void ct_kernel_enter_state(int offset)
 	 */
 	seq = ct_state_inc(offset);
 	// RCU is now watching.  Better not be in an extended quiescent state!
-	rcu_dynticks_task_trace_exit();  // After ->dynticks update!
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !(seq & RCU_DYNTICKS_IDX));
+	rcu_task_trace_heavyweight_exit();  // After CT state update!
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !(seq & CT_RCU_WATCHING));
 }
 
 /*
  * Enter an RCU extended quiescent state, which can be either the
  * idle loop or adaptive-tickless usermode execution.
  *
- * We crowbar the ->dynticks_nmi_nesting field to zero to allow for
+ * We crowbar the ->nmi_nesting field to zero to allow for
  * the possibility of usermode upcalls having messed up our count
  * of interrupt nesting level during the prior busy period.
  */
@@ -125,19 +125,19 @@ static void noinstr ct_kernel_exit(bool user, int offset)
 {
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
 
-	WARN_ON_ONCE(ct_dynticks_nmi_nesting() != DYNTICK_IRQ_NONIDLE);
-	WRITE_ONCE(ct->dynticks_nmi_nesting, 0);
+	WARN_ON_ONCE(ct_nmi_nesting() != CT_NESTING_IRQ_NONIDLE);
+	WRITE_ONCE(ct->nmi_nesting, 0);
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     ct_dynticks_nesting() == 0);
-	if (ct_dynticks_nesting() != 1) {
+		     ct_nesting() == 0);
+	if (ct_nesting() != 1) {
 		// RCU will still be watching, so just do accounting and leave.
-		ct->dynticks_nesting--;
+		ct->nesting--;
 		return;
 	}
 
 	instrumentation_begin();
 	lockdep_assert_irqs_disabled();
-	trace_rcu_dyntick(TPS("Start"), ct_dynticks_nesting(), 0, ct_dynticks());
+	trace_rcu_watching(TPS("End"), ct_nesting(), 0, ct_rcu_watching());
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
 	rcu_preempt_deferred_qs(current);
 
@@ -145,18 +145,18 @@ static void noinstr ct_kernel_exit(bool user, int offset)
 	instrument_atomic_write(&ct->state, sizeof(ct->state));
 
 	instrumentation_end();
-	WRITE_ONCE(ct->dynticks_nesting, 0); /* Avoid irq-access tearing. */
+	WRITE_ONCE(ct->nesting, 0); /* Avoid irq-access tearing. */
 	// RCU is watching here ...
 	ct_kernel_exit_state(offset);
 	// ... but is no longer watching here.
-	rcu_dynticks_task_enter();
+	rcu_task_exit();
 }
 
 /*
  * Exit an RCU extended quiescent state, which can be either the
  * idle loop or adaptive-tickless usermode execution.
  *
- * We crowbar the ->dynticks_nmi_nesting field to DYNTICK_IRQ_NONIDLE to
+ * We crowbar the ->nmi_nesting field to CT_NESTING_IRQ_NONIDLE to
  * allow for the possibility of usermode upcalls messing up our count of
  * interrupt nesting level during the busy period that is just now starting.
  */
@@ -166,14 +166,14 @@ static void noinstr ct_kernel_enter(bool user, int offset)
 	long oldval;
 
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !raw_irqs_disabled());
-	oldval = ct_dynticks_nesting();
+	oldval = ct_nesting();
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && oldval < 0);
 	if (oldval) {
 		// RCU was already watching, so just do accounting and leave.
-		ct->dynticks_nesting++;
+		ct->nesting++;
 		return;
 	}
-	rcu_dynticks_task_exit();
+	rcu_task_enter();
 	// RCU is not watching here ...
 	ct_kernel_enter_state(offset);
 	// ... but is watching here.
@@ -182,11 +182,11 @@ static void noinstr ct_kernel_enter(bool user, int offset)
 	// instrumentation for the noinstr ct_kernel_enter_state()
 	instrument_atomic_write(&ct->state, sizeof(ct->state));
 
-	trace_rcu_dyntick(TPS("End"), ct_dynticks_nesting(), 1, ct_dynticks());
+	trace_rcu_watching(TPS("Start"), ct_nesting(), 1, ct_rcu_watching());
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
-	WRITE_ONCE(ct->dynticks_nesting, 1);
-	WARN_ON_ONCE(ct_dynticks_nmi_nesting());
-	WRITE_ONCE(ct->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
+	WRITE_ONCE(ct->nesting, 1);
+	WARN_ON_ONCE(ct_nmi_nesting());
+	WRITE_ONCE(ct->nmi_nesting, CT_NESTING_IRQ_NONIDLE);
 	instrumentation_end();
 }
 
@@ -194,7 +194,7 @@ static void noinstr ct_kernel_enter(bool user, int offset)
  * ct_nmi_exit - inform RCU of exit from NMI context
  *
  * If we are returning from the outermost NMI handler that interrupted an
- * RCU-idle period, update ct->state and ct->dynticks_nmi_nesting
+ * RCU-idle period, update ct->state and ct->nmi_nesting
  * to let the RCU grace-period handling know that the CPU is back to
  * being RCU-idle.
  *
@@ -207,47 +207,47 @@ void noinstr ct_nmi_exit(void)
 
 	instrumentation_begin();
 	/*
-	 * Check for ->dynticks_nmi_nesting underflow and bad ->dynticks.
+	 * Check for ->nmi_nesting underflow and bad CT state.
 	 * (We are exiting an NMI handler, so RCU better be paying attention
 	 * to us!)
 	 */
-	WARN_ON_ONCE(ct_dynticks_nmi_nesting() <= 0);
-	WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs());
+	WARN_ON_ONCE(ct_nmi_nesting() <= 0);
+	WARN_ON_ONCE(!rcu_is_watching_curr_cpu());
 
 	/*
 	 * If the nesting level is not 1, the CPU wasn't RCU-idle, so
 	 * leave it in non-RCU-idle state.
 	 */
-	if (ct_dynticks_nmi_nesting() != 1) {
-		trace_rcu_dyntick(TPS("--="), ct_dynticks_nmi_nesting(), ct_dynticks_nmi_nesting() - 2,
-				  ct_dynticks());
-		WRITE_ONCE(ct->dynticks_nmi_nesting, /* No store tearing. */
-			   ct_dynticks_nmi_nesting() - 2);
+	if (ct_nmi_nesting() != 1) {
+		trace_rcu_watching(TPS("--="), ct_nmi_nesting(), ct_nmi_nesting() - 2,
+				  ct_rcu_watching());
+		WRITE_ONCE(ct->nmi_nesting, /* No store tearing. */
+			   ct_nmi_nesting() - 2);
 		instrumentation_end();
 		return;
 	}
 
 	/* This NMI interrupted an RCU-idle CPU, restore RCU-idleness. */
-	trace_rcu_dyntick(TPS("Startirq"), ct_dynticks_nmi_nesting(), 0, ct_dynticks());
-	WRITE_ONCE(ct->dynticks_nmi_nesting, 0); /* Avoid store tearing. */
+	trace_rcu_watching(TPS("Endirq"), ct_nmi_nesting(), 0, ct_rcu_watching());
+	WRITE_ONCE(ct->nmi_nesting, 0); /* Avoid store tearing. */
 
 	// instrumentation for the noinstr ct_kernel_exit_state()
 	instrument_atomic_write(&ct->state, sizeof(ct->state));
 	instrumentation_end();
 
 	// RCU is watching here ...
-	ct_kernel_exit_state(RCU_DYNTICKS_IDX);
+	ct_kernel_exit_state(CT_RCU_WATCHING);
 	// ... but is no longer watching here.
 
 	if (!in_nmi())
-		rcu_dynticks_task_enter();
+		rcu_task_exit();
 }
 
 /**
  * ct_nmi_enter - inform RCU of entry to NMI context
  *
  * If the CPU was idle from RCU's viewpoint, update ct->state and
- * ct->dynticks_nmi_nesting to let the RCU grace-period handling know
+ * ct->nmi_nesting to let the RCU grace-period handling know
  * that the CPU is active.  This implementation permits nested NMIs, as
  * long as the nesting level does not overflow an int.  (You will probably
  * run out of stack space first.)
@@ -261,27 +261,27 @@ void noinstr ct_nmi_enter(void)
 	struct context_tracking *ct = this_cpu_ptr(&context_tracking);
 
 	/* Complain about underflow. */
-	WARN_ON_ONCE(ct_dynticks_nmi_nesting() < 0);
+	WARN_ON_ONCE(ct_nmi_nesting() < 0);
 
 	/*
-	 * If idle from RCU viewpoint, atomically increment ->dynticks
-	 * to mark non-idle and increment ->dynticks_nmi_nesting by one.
-	 * Otherwise, increment ->dynticks_nmi_nesting by two.  This means
-	 * if ->dynticks_nmi_nesting is equal to one, we are guaranteed
+	 * If idle from RCU viewpoint, atomically increment CT state
+	 * to mark non-idle and increment ->nmi_nesting by one.
+	 * Otherwise, increment ->nmi_nesting by two.  This means
+	 * if ->nmi_nesting is equal to one, we are guaranteed
 	 * to be in the outermost NMI handler that interrupted an RCU-idle
 	 * period (observation due to Andy Lutomirski).
 	 */
-	if (rcu_dynticks_curr_cpu_in_eqs()) {
+	if (!rcu_is_watching_curr_cpu()) {
 
 		if (!in_nmi())
-			rcu_dynticks_task_exit();
+			rcu_task_enter();
 
 		// RCU is not watching here ...
-		ct_kernel_enter_state(RCU_DYNTICKS_IDX);
+		ct_kernel_enter_state(CT_RCU_WATCHING);
 		// ... but is watching here.
 
 		instrumentation_begin();
-		// instrumentation for the noinstr rcu_dynticks_curr_cpu_in_eqs()
+		// instrumentation for the noinstr rcu_is_watching_curr_cpu()
 		instrument_atomic_read(&ct->state, sizeof(ct->state));
 		// instrumentation for the noinstr ct_kernel_enter_state()
 		instrument_atomic_write(&ct->state, sizeof(ct->state));
@@ -294,12 +294,12 @@ void noinstr ct_nmi_enter(void)
 		instrumentation_begin();
 	}
 
-	trace_rcu_dyntick(incby == 1 ? TPS("Endirq") : TPS("++="),
-			  ct_dynticks_nmi_nesting(),
-			  ct_dynticks_nmi_nesting() + incby, ct_dynticks());
+	trace_rcu_watching(incby == 1 ? TPS("Startirq") : TPS("++="),
+			  ct_nmi_nesting(),
+			  ct_nmi_nesting() + incby, ct_rcu_watching());
 	instrumentation_end();
-	WRITE_ONCE(ct->dynticks_nmi_nesting, /* Prevent store tearing. */
-		   ct_dynticks_nmi_nesting() + incby);
+	WRITE_ONCE(ct->nmi_nesting, /* Prevent store tearing. */
+		   ct_nmi_nesting() + incby);
 	barrier();
 }
 
@@ -317,7 +317,7 @@ void noinstr ct_nmi_enter(void)
 void noinstr ct_idle_enter(void)
 {
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !raw_irqs_disabled());
-	ct_kernel_exit(false, RCU_DYNTICKS_IDX + CONTEXT_IDLE);
+	ct_kernel_exit(false, CT_RCU_WATCHING + CT_STATE_IDLE);
 }
 EXPORT_SYMBOL_GPL(ct_idle_enter);
 
@@ -335,7 +335,7 @@ void noinstr ct_idle_exit(void)
 	unsigned long flags;
 
 	raw_local_irq_save(flags);
-	ct_kernel_enter(false, RCU_DYNTICKS_IDX - CONTEXT_IDLE);
+	ct_kernel_enter(false, CT_RCU_WATCHING - CT_STATE_IDLE);
 	raw_local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(ct_idle_exit);
@@ -485,7 +485,7 @@ void noinstr __ct_user_enter(enum ctx_state state)
 			 * user_exit() or ct_irq_enter(). Let's remove RCU's dependency
 			 * on the tick.
 			 */
-			if (state == CONTEXT_USER) {
+			if (state == CT_STATE_USER) {
 				instrumentation_begin();
 				trace_user_enter(0);
 				vtime_user_enter(current);
@@ -504,7 +504,7 @@ void noinstr __ct_user_enter(enum ctx_state state)
 			 * CPU doesn't need to maintain the tick for RCU maintenance purposes
 			 * when the CPU runs in userspace.
 			 */
-			ct_kernel_exit(true, RCU_DYNTICKS_IDX + state);
+			ct_kernel_exit(true, CT_RCU_WATCHING + state);
 
 			/*
 			 * Special case if we only track user <-> kernel transitions for tickless
@@ -534,7 +534,7 @@ void noinstr __ct_user_enter(enum ctx_state state)
 				/*
 				 * Tracking for vtime and RCU EQS. Make sure we don't race
 				 * with NMIs. OTOH we don't care about ordering here since
-				 * RCU only requires RCU_DYNTICKS_IDX increments to be fully
+				 * RCU only requires CT_RCU_WATCHING increments to be fully
 				 * ordered.
 				 */
 				raw_atomic_add(state, &ct->state);
@@ -620,8 +620,8 @@ void noinstr __ct_user_exit(enum ctx_state state)
 			 * Exit RCU idle mode while entering the kernel because it can
 			 * run a RCU read side critical section anytime.
 			 */
-			ct_kernel_enter(true, RCU_DYNTICKS_IDX - state);
-			if (state == CONTEXT_USER) {
+			ct_kernel_enter(true, CT_RCU_WATCHING - state);
+			if (state == CT_STATE_USER) {
 				instrumentation_begin();
 				vtime_user_exit(current);
 				trace_user_exit(0);
@@ -634,17 +634,17 @@ void noinstr __ct_user_exit(enum ctx_state state)
 			 * In this we case we don't care about any concurrency/ordering.
 			 */
 			if (!IS_ENABLED(CONFIG_CONTEXT_TRACKING_IDLE))
-				raw_atomic_set(&ct->state, CONTEXT_KERNEL);
+				raw_atomic_set(&ct->state, CT_STATE_KERNEL);
 
 		} else {
 			if (!IS_ENABLED(CONFIG_CONTEXT_TRACKING_IDLE)) {
 				/* Tracking for vtime only, no concurrent RCU EQS accounting */
-				raw_atomic_set(&ct->state, CONTEXT_KERNEL);
+				raw_atomic_set(&ct->state, CT_STATE_KERNEL);
 			} else {
 				/*
 				 * Tracking for vtime and RCU EQS. Make sure we don't race
 				 * with NMIs. OTOH we don't care about ordering here since
-				 * RCU only requires RCU_DYNTICKS_IDX increments to be fully
+				 * RCU only requires CT_RCU_WATCHING increments to be fully
 				 * ordered.
 				 */
 				raw_atomic_sub(state, &ct->state);

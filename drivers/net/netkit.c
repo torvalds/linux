@@ -65,6 +65,7 @@ static struct netkit *netkit_priv(const struct net_device *dev)
 
 static netdev_tx_t netkit_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	struct bpf_net_context __bpf_net_ctx, *bpf_net_ctx;
 	struct netkit *nk = netkit_priv(dev);
 	enum netkit_action ret = READ_ONCE(nk->policy);
 	netdev_tx_t ret_dev = NET_XMIT_SUCCESS;
@@ -72,6 +73,7 @@ static netdev_tx_t netkit_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_device *peer;
 	int len = skb->len;
 
+	bpf_net_ctx = bpf_net_ctx_set(&__bpf_net_ctx);
 	rcu_read_lock();
 	peer = rcu_dereference(nk->peer);
 	if (unlikely(!peer || !(peer->flags & IFF_UP) ||
@@ -110,6 +112,7 @@ drop_stats:
 		break;
 	}
 	rcu_read_unlock();
+	bpf_net_ctx_clear(bpf_net_ctx);
 	return ret_dev;
 }
 
@@ -255,11 +258,13 @@ static void netkit_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	dev->priv_flags |= IFF_PHONY_HEADROOM;
 	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_DISABLE_NETPOLL;
+	dev->lltx = true;
 
 	dev->ethtool_ops = &netkit_ethtool_ops;
 	dev->netdev_ops  = &netkit_netdev_ops;
 
-	dev->features |= netkit_features | NETIF_F_LLTX;
+	dev->features |= netkit_features;
 	dev->hw_features = netkit_features;
 	dev->hw_enc_features = netkit_features;
 	dev->mpls_features = NETIF_F_HW_CSUM | NETIF_F_GSO_SOFTWARE;

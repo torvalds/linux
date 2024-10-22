@@ -17,6 +17,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - fsl,imx95-flexcan
           - fsl,imx93-flexcan
           - fsl,imx8qm-flexcan
           - fsl,imx8mp-flexcan
@@ -38,9 +39,6 @@ properties:
               - fsl,imx6ul-flexcan
               - fsl,imx6sx-flexcan
           - const: fsl,imx6q-flexcan
-      - items:
-          - const: fsl,imx95-flexcan
-          - const: fsl,imx93-flexcan
       - items:
           - enum:
               - fsl,ls1028ar1-flexcan
@@ -79,6 +77,10 @@ properties:
       optional property.i.e. if this property is not present in device tree
       node then controller is assumed to be little endian. If this property is
       present then controller is assumed to be big endian.
+
+  can-transceiver:
+    $ref: can-transceiver.yaml#
+    unevaluatedProperties: false
 
   fsl,stop-mode:
     description: |

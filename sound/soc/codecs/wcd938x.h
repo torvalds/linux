@@ -585,8 +585,6 @@
 #define WCD938X_DIGITAL_DEM_BYPASS_DATA3        (0x34D8)
 #define WCD938X_MAX_REGISTER			(WCD938X_DIGITAL_DEM_BYPASS_DATA3)
 
-#define WCD938X_MAX_SWR_PORTS	5
-#define WCD938X_MAX_TX_SWR_PORTS 4
 #define WCD938X_MAX_SWR_CH_IDS	15
 
 struct wcd938x_sdw_ch_info {
@@ -606,6 +604,7 @@ enum wcd938x_tx_sdw_ports {
 	/* DMIC0_0, DMIC0_1, DMIC1_0, DMIC1_1 */
 	WCD938X_DMIC_0_3_MBHC_PORT,
 	WCD938X_DMIC_4_7_PORT,
+	WCD938X_MAX_TX_SWR_PORTS = WCD938X_DMIC_4_7_PORT,
 };
 
 enum wcd938x_tx_sdw_channels {
@@ -630,6 +629,7 @@ enum wcd938x_rx_sdw_ports {
 	WCD938X_COMP_PORT,
 	WCD938X_LO_PORT,
 	WCD938X_DSD_PORT,
+	WCD938X_MAX_SWR_PORTS = WCD938X_DSD_PORT,
 };
 
 enum wcd938x_rx_sdw_channels {

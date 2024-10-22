@@ -98,10 +98,12 @@ struct v3d_perfmon {
 struct v3d_dev {
 	struct drm_device drm;
 
-	/* Short representation (e.g. 33, 41) of the V3D tech version
-	 * and revision.
-	 */
+	/* Short representation (e.g. 33, 41) of the V3D tech version */
 	int ver;
+
+	/* Short representation (e.g. 5, 6) of the V3D tech revision */
+	int rev;
+
 	bool single_irq_line;
 
 	/* Different revisions of V3D have different total number of performance
@@ -563,6 +565,10 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo);
 void v3d_mmu_remove_ptes(struct v3d_bo *bo);
 
 /* v3d_sched.c */
+void v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info,
+				   unsigned int count);
+void v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
+				     unsigned int count);
 void v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue);
 int v3d_sched_init(struct v3d_dev *v3d);
 void v3d_sched_fini(struct v3d_dev *v3d);

@@ -32,9 +32,9 @@ Description:	(RW) The front button on the Turris Omnia router can be
 		interrupt.
 
 		This file switches between these two modes:
-		- "mcu" makes the button press event be handled by the MCU to
-		  change the LEDs panel intensity.
-		- "cpu" makes the button press event be handled by the CPU.
+		 - ``mcu`` makes the button press event be handled by the MCU to
+		   change the LEDs panel intensity.
+		 - ``cpu`` makes the button press event be handled by the CPU.
 
 		Format: %s.
 

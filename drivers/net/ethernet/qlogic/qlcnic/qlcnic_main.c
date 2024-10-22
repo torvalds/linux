@@ -4146,7 +4146,7 @@ qlcnic_inetaddr_event(struct notifier_block *this,
 
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 
-	dev = ifa->ifa_dev ? ifa->ifa_dev->dev : NULL;
+	dev = ifa->ifa_dev->dev;
 
 recheck:
 	if (dev == NULL)

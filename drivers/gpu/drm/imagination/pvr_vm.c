@@ -114,6 +114,8 @@ struct pvr_vm_gpuva {
 	struct drm_gpuva base;
 };
 
+#define to_pvr_vm_gpuva(va) container_of_const(va, struct pvr_vm_gpuva, base)
+
 enum pvr_vm_bind_type {
 	PVR_VM_BIND_TYPE_MAP,
 	PVR_VM_BIND_TYPE_UNMAP,
@@ -386,6 +388,7 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 
 	drm_gpuva_unmap(&op->unmap);
 	drm_gpuva_unlink(op->unmap.va);
+	kfree(to_pvr_vm_gpuva(op->unmap.va));
 
 	return 0;
 }
@@ -433,6 +436,7 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 	}
 
 	drm_gpuva_unlink(op->remap.unmap->va);
+	kfree(to_pvr_vm_gpuva(op->remap.unmap->va));
 
 	return 0;
 }

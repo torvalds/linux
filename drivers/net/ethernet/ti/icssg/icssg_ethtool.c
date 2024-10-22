@@ -68,9 +68,13 @@ static int emac_nway_reset(struct net_device *ndev)
 
 static int emac_get_sset_count(struct net_device *ndev, int stringset)
 {
+	struct prueth_emac *emac = netdev_priv(ndev);
 	switch (stringset) {
 	case ETH_SS_STATS:
-		return ICSSG_NUM_ETHTOOL_STATS;
+		if (emac->prueth->pa_stats)
+			return ICSSG_NUM_ETHTOOL_STATS;
+		else
+			return ICSSG_NUM_ETHTOOL_STATS - ICSSG_NUM_PA_STATS;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -78,18 +82,18 @@ static int emac_get_sset_count(struct net_device *ndev, int stringset)
 
 static void emac_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
+	struct prueth_emac *emac = netdev_priv(ndev);
 	u8 *p = data;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < ARRAY_SIZE(icssg_all_stats); i++) {
-			if (!icssg_all_stats[i].standard_stats) {
-				memcpy(p, icssg_all_stats[i].name,
-				       ETH_GSTRING_LEN);
-				p += ETH_GSTRING_LEN;
-			}
-		}
+		for (i = 0; i < ARRAY_SIZE(icssg_all_miig_stats); i++)
+			if (!icssg_all_miig_stats[i].standard_stats)
+				ethtool_puts(&p, icssg_all_miig_stats[i].name);
+		if (emac->prueth->pa_stats)
+			for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++)
+				ethtool_puts(&p, icssg_all_pa_stats[i].name);
 		break;
 	default:
 		break;
@@ -104,9 +108,13 @@ static void emac_get_ethtool_stats(struct net_device *ndev,
 
 	emac_update_hardware_stats(emac);
 
-	for (i = 0; i < ARRAY_SIZE(icssg_all_stats); i++)
-		if (!icssg_all_stats[i].standard_stats)
+	for (i = 0; i < ARRAY_SIZE(icssg_all_miig_stats); i++)
+		if (!icssg_all_miig_stats[i].standard_stats)
 			*(data++) = emac->stats[i];
+
+	if (emac->prueth->pa_stats)
+		for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++)
+			*(data++) = emac->pa_stats[i];
 }
 
 static int emac_get_ts_info(struct net_device *ndev,
@@ -118,8 +126,6 @@ static int emac_get_ts_info(struct net_device *ndev,
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
-		SOF_TIMESTAMPING_RX_SOFTWARE |
-		SOF_TIMESTAMPING_SOFTWARE |
 		SOF_TIMESTAMPING_RAW_HARDWARE;
 
 	info->phc_index = icss_iep_get_ptp_clock_idx(emac->iep);

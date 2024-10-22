@@ -61,7 +61,7 @@
 #define DA9034_MDTV2		(0x33)
 #define DA9034_MVRC		(0x34)
 
-/* DA9035 Registers. DA9034 Registers are comptabile to DA9035. */
+/* DA9035 Registers. DA9034 Registers are compatible to DA9035. */
 #define DA9035_OVER3		(0x12)
 #define DA9035_VCC2		(0x1f)
 #define DA9035_3DTV1		(0x2c)

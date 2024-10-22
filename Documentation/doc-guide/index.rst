@@ -12,6 +12,7 @@ How to write kernel documentation
    parse-headers
    contributing
    maintainer-profile
+   checktransupdate
 
 .. only::  subproject and html
 

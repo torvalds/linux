@@ -58,6 +58,7 @@
 #define PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L2	0xc88
 #define PARF_DEVICE_TYPE			0x1000
 #define PARF_BDF_TO_SID_CFG			0x2c00
+#define PARF_INT_ALL_5_MASK			0x2dcc
 
 /* PARF_INT_ALL_{STATUS/CLEAR/MASK} register fields */
 #define PARF_INT_ALL_LINK_DOWN			BIT(1)
@@ -127,6 +128,9 @@
 /* PARF_CFG_BITS register fields */
 #define PARF_CFG_BITS_REQ_EXIT_L1SS_MSI_LTR_EN	BIT(1)
 
+/* PARF_INT_ALL_5_MASK fields */
+#define PARF_INT_ALL_5_MHI_RAM_DATA_PARITY_ERR	BIT(0)
+
 /* ELBI registers */
 #define ELBI_SYS_STTS				0x08
 #define ELBI_CS2_ENABLE				0xa4
@@ -158,10 +162,12 @@ enum qcom_pcie_ep_link_status {
  * struct qcom_pcie_ep_cfg - Per SoC config struct
  * @hdma_support: HDMA support on this SoC
  * @override_no_snoop: Override NO_SNOOP attribute in TLP to enable cache snooping
+ * @disable_mhi_ram_parity_check: Disable MHI RAM data parity error check
  */
 struct qcom_pcie_ep_cfg {
 	bool hdma_support;
 	bool override_no_snoop;
+	bool disable_mhi_ram_parity_check;
 };
 
 /**
@@ -479,6 +485,12 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
 	      PARF_INT_ALL_PM_TURNOFF | PARF_INT_ALL_DSTATE_CHANGE |
 	      PARF_INT_ALL_LINK_UP | PARF_INT_ALL_EDMA;
 	writel_relaxed(val, pcie_ep->parf + PARF_INT_ALL_MASK);
+
+	if (pcie_ep->cfg && pcie_ep->cfg->disable_mhi_ram_parity_check) {
+		val = readl_relaxed(pcie_ep->parf + PARF_INT_ALL_5_MASK);
+		val &= ~PARF_INT_ALL_5_MHI_RAM_DATA_PARITY_ERR;
+		writel_relaxed(val, pcie_ep->parf + PARF_INT_ALL_5_MASK);
+	}
 
 	ret = dw_pcie_ep_init_registers(&pcie_ep->pci.ep);
 	if (ret) {
@@ -901,6 +913,7 @@ static void qcom_pcie_ep_remove(struct platform_device *pdev)
 static const struct qcom_pcie_ep_cfg cfg_1_34_0 = {
 	.hdma_support = true,
 	.override_no_snoop = true,
+	.disable_mhi_ram_parity_check = true,
 };
 
 static const struct of_device_id qcom_pcie_ep_match[] = {

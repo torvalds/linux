@@ -1894,7 +1894,7 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 		caps = &d->caps[SND_SOC_TPLG_STREAM_PLAYBACK];
 		ret = set_stream_info(tplg, stream, caps);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
 	if (d->capture) {
@@ -1902,7 +1902,7 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 		caps = &d->caps[SND_SOC_TPLG_STREAM_CAPTURE];
 		ret = set_stream_info(tplg, stream, caps);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
 	if (d->flag_mask)
@@ -1914,13 +1914,10 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 	ret = soc_tplg_dai_load(tplg, dai_drv, NULL, dai);
 	if (ret < 0) {
 		dev_err(tplg->dev, "ASoC: DAI loading failed\n");
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	return ret;
 }
 
 /* load physical DAI elements */

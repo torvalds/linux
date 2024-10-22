@@ -79,6 +79,7 @@
 #include <linux/seq_file.h>
 #include <linux/inetdevice.h>
 #include <linux/btf_ids.h>
+#include <linux/skbuff_ref.h>
 
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
@@ -96,6 +97,8 @@ EXPORT_SYMBOL(tcp_hashinfo);
 static DEFINE_PER_CPU(struct sock_bh_locked, ipv4_tcp_sk) = {
 	.bh_lock = INIT_LOCAL_LOCK(bh_lock),
 };
+
+static DEFINE_MUTEX(tcp_exit_batch_mutex);
 
 static u32 tcp_v4_init_seq(const struct sk_buff *skb)
 {
@@ -117,6 +120,9 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 	const struct tcp_timewait_sock *tcptw = tcp_twsk(sktw);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int ts_recent_stamp;
+
+	if (READ_ONCE(tw->tw_substate) == TCP_FIN_WAIT2)
+		reuse = 0;
 
 	if (reuse == 2) {
 		/* Still does not detect *everything* that goes through
@@ -1068,7 +1074,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	}
 
 	tcp_v4_send_ack(sk, skb,
-			tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
+			tcptw->tw_snd_nxt, READ_ONCE(tcptw->tw_rcv_nxt),
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
 			tcp_tw_tsval(tcptw),
 			READ_ONCE(tcptw->tw_ts_recent),
@@ -2507,9 +2513,24 @@ static void tcp_md5sig_info_free_rcu(struct rcu_head *head)
 }
 #endif
 
+static void tcp_release_user_frags(struct sock *sk)
+{
+#ifdef CONFIG_PAGE_POOL
+	unsigned long index;
+	void *netmem;
+
+	xa_for_each(&sk->sk_user_frags, index, netmem)
+		WARN_ON_ONCE(!napi_pp_put_page((__force netmem_ref)netmem));
+#endif
+}
+
 void tcp_v4_destroy_sock(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+
+	tcp_release_user_frags(sk);
+
+	xa_destroy(&sk->sk_user_frags);
 
 	trace_tcp_destroy_sock(sk);
 
@@ -2943,7 +2964,7 @@ static void get_timewait4_sock(const struct inet_timewait_sock *tw,
 
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d %pK",
-		i, src, srcp, dest, destp, tw->tw_substate, 0, 0,
+		i, src, srcp, dest, destp, READ_ONCE(tw->tw_substate), 0, 0,
 		3, jiffies_delta_to_clock_t(delta), 0, 0, 0, 0,
 		refcount_read(&tw->tw_refcnt), tw);
 }
@@ -3514,6 +3535,16 @@ static void __net_exit tcp_sk_exit_batch(struct list_head *net_exit_list)
 {
 	struct net *net;
 
+	/* make sure concurrent calls to tcp_sk_exit_batch from net_cleanup_work
+	 * and failed setup_net error unwinding path are serialized.
+	 *
+	 * tcp_twsk_purge() handles twsk in any dead netns, not just those in
+	 * net_exit_list, the thread that dismantles a particular twsk must
+	 * do so without other thread progressing to refcount_dec_and_test() of
+	 * tcp_death_row.tw_refcount.
+	 */
+	mutex_lock(&tcp_exit_batch_mutex);
+
 	tcp_twsk_purge(net_exit_list);
 
 	list_for_each_entry(net, net_exit_list, exit_list) {
@@ -3521,6 +3552,8 @@ static void __net_exit tcp_sk_exit_batch(struct list_head *net_exit_list)
 		WARN_ON_ONCE(!refcount_dec_and_test(&net->ipv4.tcp_death_row.tw_refcount));
 		tcp_fastopen_ctx_destroy(net);
 	}
+
+	mutex_unlock(&tcp_exit_batch_mutex);
 }
 
 static struct pernet_operations __net_initdata tcp_sk_ops = {

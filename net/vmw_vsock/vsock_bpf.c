@@ -64,9 +64,9 @@ static int __vsock_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int 
 	int err;
 
 	if (sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET)
-		err = vsock_connectible_recvmsg(sock, msg, len, flags);
+		err = __vsock_connectible_recvmsg(sock, msg, len, flags);
 	else if (sk->sk_type == SOCK_DGRAM)
-		err = vsock_dgram_recvmsg(sock, msg, len, flags);
+		err = __vsock_dgram_recvmsg(sock, msg, len, flags);
 	else
 		err = -EPROTOTYPE;
 

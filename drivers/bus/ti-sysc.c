@@ -126,7 +126,6 @@ static const char * const clock_names[SYSC_MAX_CLOCKS] = {
  * @enabled: sysc runtime enabled status
  * @needs_resume: runtime resume needed on resume from suspend
  * @child_needs_resume: runtime resume needed for child on resume from suspend
- * @disable_on_idle: status flag used for disabling modules with resets
  * @idle_work: work structure used to perform delayed idle on a module
  * @pre_reset_quirk: module specific pre-reset quirk
  * @post_reset_quirk: module specific post-reset quirk
@@ -2291,11 +2290,9 @@ static int sysc_init_idlemode(struct sysc *ddata, u8 *idlemodes,
 			      const char *name)
 {
 	struct device_node *np = ddata->dev->of_node;
-	struct property *prop;
-	const __be32 *p;
 	u32 val;
 
-	of_property_for_each_u32(np, name, prop, p, val) {
+	of_property_for_each_u32(np, name, val) {
 		if (val >= SYSC_NR_IDLEMODES) {
 			dev_err(ddata->dev, "invalid idlemode: %i\n", val);
 			return -EINVAL;
@@ -2571,14 +2568,12 @@ static const struct sysc_dts_quirk sysc_dts_quirks[] = {
 static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
 				  bool is_child)
 {
-	const struct property *prop;
-	int i, len;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sysc_dts_quirks); i++) {
 		const char *name = sysc_dts_quirks[i].name;
 
-		prop = of_get_property(np, name, &len);
-		if (!prop)
+		if (!of_property_present(np, name))
 			continue;
 
 		ddata->cfg.quirks |= sysc_dts_quirks[i].mask;

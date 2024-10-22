@@ -5,8 +5,10 @@
  * Copyright (c) 2023 Bootlin, Kory Maincent <kory.maincent@bootlin.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -29,6 +31,8 @@
 #define TPS23881_REG_TPON	BIT(0)
 #define TPS23881_REG_FWREV	0x41
 #define TPS23881_REG_DEVID	0x43
+#define TPS23881_REG_DEVID_MASK	0xF0
+#define TPS23881_DEVICE_ID	0x02
 #define TPS23881_REG_SRAM_CTRL	0x60
 #define TPS23881_REG_SRAM_DATA	0x61
 
@@ -734,6 +738,7 @@ static int tps23881_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct tps23881_priv *priv;
+	struct gpio_desc *reset;
 	int ret;
 	u8 val;
 
@@ -746,11 +751,30 @@ static int tps23881_i2c_probe(struct i2c_client *client)
 	if (!priv)
 		return -ENOMEM;
 
+	reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset))
+		return dev_err_probe(&client->dev, PTR_ERR(reset), "Failed to get reset GPIO\n");
+
+	if (reset) {
+		/* TPS23880 datasheet (Rev G) indicates minimum reset pulse is 5us */
+		usleep_range(5, 10);
+		gpiod_set_value_cansleep(reset, 0); /* De-assert reset */
+
+		/* TPS23880 datasheet indicates the minimum time after power on reset
+		 * should be 20ms, but the document describing how to load SRAM ("How
+		 * to Load TPS2388x SRAM and Parity Code over I2C" (Rev E))
+		 * indicates we should delay that programming by at least 50ms. So
+		 * we'll wait the entire 50ms here to ensure we're safe to go to the
+		 * SRAM loading proceedure.
+		 */
+		msleep(50);
+	}
+
 	ret = i2c_smbus_read_byte_data(client, TPS23881_REG_DEVID);
 	if (ret < 0)
 		return ret;
 
-	if (ret != 0x22) {
+	if (FIELD_GET(TPS23881_REG_DEVID_MASK, ret) != TPS23881_DEVICE_ID) {
 		dev_err(dev, "Wrong device ID\n");
 		return -ENXIO;
 	}

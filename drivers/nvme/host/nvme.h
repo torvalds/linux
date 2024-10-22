@@ -91,6 +91,11 @@ enum nvme_quirks {
 	NVME_QUIRK_NO_DEEPEST_PS		= (1 << 5),
 
 	/*
+	 *  Problems seen with concurrent commands
+	 */
+	NVME_QUIRK_QDEPTH_ONE			= (1 << 6),
+
+	/*
 	 * Set MEDIUM priority on SQ creation
 	 */
 	NVME_QUIRK_MEDIUM_PRIO_SQ		= (1 << 7),
@@ -301,7 +306,6 @@ struct nvme_ctrl {
 
 	struct opal_dev *opal_dev;
 
-	char name[12];
 	u16 cntlid;
 
 	u16 mtfa;
@@ -373,7 +377,7 @@ struct nvme_ctrl {
 	struct nvme_dhchap_key *ctrl_key;
 	u16 transaction;
 #endif
-	struct key *tls_key;
+	key_serial_t tls_pskid;
 
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
@@ -462,20 +466,19 @@ struct nvme_ns_head {
 	struct srcu_struct      srcu;
 	struct nvme_subsystem	*subsys;
 	struct nvme_ns_ids	ids;
+	u8			lba_shift;
+	u16			ms;
+	u16			pi_size;
+	u8			pi_type;
+	u8			guard_type;
 	struct list_head	entry;
 	struct kref		ref;
 	bool			shared;
 	bool			passthru_err_log_enabled;
-	int			instance;
 	struct nvme_effects_log *effects;
 	u64			nuse;
 	unsigned		ns_id;
-	int			lba_shift;
-	u16			ms;
-	u16			pi_size;
-	u8			pi_type;
-	u8			pi_offset;
-	u8			guard_type;
+	int			instance;
 #ifdef CONFIG_BLK_DEV_ZONED
 	u64			zsze;
 #endif

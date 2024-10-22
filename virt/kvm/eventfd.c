@@ -97,18 +97,19 @@ irqfd_resampler_shutdown(struct kvm_kernel_irqfd *irqfd)
 	mutex_lock(&kvm->irqfds.resampler_lock);
 
 	list_del_rcu(&irqfd->resampler_link);
-	synchronize_srcu(&kvm->irq_srcu);
 
 	if (list_empty(&resampler->list)) {
 		list_del_rcu(&resampler->link);
 		kvm_unregister_irq_ack_notifier(kvm, &resampler->notifier);
 		/*
-		 * synchronize_srcu(&kvm->irq_srcu) already called
+		 * synchronize_srcu_expedited(&kvm->irq_srcu) already called
 		 * in kvm_unregister_irq_ack_notifier().
 		 */
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
 			    resampler->notifier.gsi, 0, false);
 		kfree(resampler);
+	} else {
+		synchronize_srcu_expedited(&kvm->irq_srcu);
 	}
 
 	mutex_unlock(&kvm->irqfds.resampler_lock);
@@ -126,7 +127,7 @@ irqfd_shutdown(struct work_struct *work)
 	u64 cnt;
 
 	/* Make sure irqfd has been initialized in assign path. */
-	synchronize_srcu(&kvm->irq_srcu);
+	synchronize_srcu_expedited(&kvm->irq_srcu);
 
 	/*
 	 * Synchronize with the wait-queue and unhook ourselves to prevent
@@ -384,7 +385,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		}
 
 		list_add_rcu(&irqfd->resampler_link, &irqfd->resampler->list);
-		synchronize_srcu(&kvm->irq_srcu);
+		synchronize_srcu_expedited(&kvm->irq_srcu);
 
 		mutex_unlock(&kvm->irqfds.resampler_lock);
 	}
@@ -523,7 +524,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 	mutex_lock(&kvm->irq_lock);
 	hlist_del_init_rcu(&kian->link);
 	mutex_unlock(&kvm->irq_lock);
-	synchronize_srcu(&kvm->irq_srcu);
+	synchronize_srcu_expedited(&kvm->irq_srcu);
 	kvm_arch_post_irq_ack_notifier_list_update(kvm);
 }
 
@@ -608,7 +609,7 @@ kvm_irqfd_release(struct kvm *kvm)
 
 /*
  * Take note of a change in irq routing.
- * Caller must invoke synchronize_srcu(&kvm->irq_srcu) afterwards.
+ * Caller must invoke synchronize_srcu_expedited(&kvm->irq_srcu) afterwards.
  */
 void kvm_irq_routing_update(struct kvm *kvm)
 {

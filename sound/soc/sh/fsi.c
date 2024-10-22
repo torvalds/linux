@@ -2107,7 +2107,7 @@ static struct platform_driver fsi_driver = {
 		.of_match_table = fsi_of_match,
 	},
 	.probe		= fsi_probe,
-	.remove_new	= fsi_remove,
+	.remove		= fsi_remove,
 	.id_table	= fsi_id_table,
 };
 

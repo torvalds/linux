@@ -118,7 +118,9 @@ static __be32 decode_bitmap(struct xdr_stream *xdr, uint32_t *bitmap)
 	if (likely(attrlen > 0))
 		bitmap[0] = ntohl(*p++);
 	if (attrlen > 1)
-		bitmap[1] = ntohl(*p);
+		bitmap[1] = ntohl(*p++);
+	if (attrlen > 2)
+		bitmap[2] = ntohl(*p);
 	return 0;
 }
 
@@ -446,7 +448,7 @@ static __be32 decode_recallany_args(struct svc_rqst *rqstp,
 				      void *argp)
 {
 	struct cb_recallanyargs *args = argp;
-	uint32_t bitmap[2];
+	uint32_t bitmap[3];
 	__be32 *p, status;
 
 	p = xdr_inline_decode(xdr, 4);

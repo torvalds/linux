@@ -19,7 +19,7 @@
 
 static DEFINE_IDA(ffa_bus_id);
 
-static int ffa_device_match(struct device *dev, struct device_driver *drv)
+static int ffa_device_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct ffa_device_id *id_table;
 	struct ffa_device *ffa_dev;

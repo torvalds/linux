@@ -49,6 +49,7 @@ Library functionality that is used throughout the kernel.
    wrappers/atomic_t
    wrappers/atomic_bitops
    floating-point
+   union_find
 
 Low level entry and exit
 ========================

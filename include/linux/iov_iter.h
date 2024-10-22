@@ -10,6 +10,7 @@
 
 #include <linux/uio.h>
 #include <linux/bvec.h>
+#include <linux/folio_queue.h>
 
 typedef size_t (*iov_step_f)(void *iter_base, size_t progress, size_t len,
 			     void *priv, void *priv2);
@@ -141,6 +142,60 @@ size_t iterate_bvec(struct iov_iter *iter, size_t len, void *priv, void *priv2,
 }
 
 /*
+ * Handle ITER_FOLIOQ.
+ */
+static __always_inline
+size_t iterate_folioq(struct iov_iter *iter, size_t len, void *priv, void *priv2,
+		      iov_step_f step)
+{
+	const struct folio_queue *folioq = iter->folioq;
+	unsigned int slot = iter->folioq_slot;
+	size_t progress = 0, skip = iter->iov_offset;
+
+	if (slot == folioq_nr_slots(folioq)) {
+		/* The iterator may have been extended. */
+		folioq = folioq->next;
+		slot = 0;
+	}
+
+	do {
+		struct folio *folio = folioq_folio(folioq, slot);
+		size_t part, remain, consumed;
+		size_t fsize;
+		void *base;
+
+		if (!folio)
+			break;
+
+		fsize = folioq_folio_size(folioq, slot);
+		base = kmap_local_folio(folio, skip);
+		part = umin(len, PAGE_SIZE - skip % PAGE_SIZE);
+		remain = step(base, progress, part, priv, priv2);
+		kunmap_local(base);
+		consumed = part - remain;
+		len -= consumed;
+		progress += consumed;
+		skip += consumed;
+		if (skip >= fsize) {
+			skip = 0;
+			slot++;
+			if (slot == folioq_nr_slots(folioq) && folioq->next) {
+				folioq = folioq->next;
+				slot = 0;
+			}
+		}
+		if (remain)
+			break;
+	} while (len);
+
+	iter->folioq_slot = slot;
+	iter->folioq = folioq;
+	iter->iov_offset = skip;
+	iter->count -= progress;
+	return progress;
+}
+
+/*
  * Handle ITER_XARRAY.
  */
 static __always_inline
@@ -249,6 +304,8 @@ size_t iterate_and_advance2(struct iov_iter *iter, size_t len, void *priv,
 		return iterate_bvec(iter, len, priv, priv2, step);
 	if (iov_iter_is_kvec(iter))
 		return iterate_kvec(iter, len, priv, priv2, step);
+	if (iov_iter_is_folioq(iter))
+		return iterate_folioq(iter, len, priv, priv2, step);
 	if (iov_iter_is_xarray(iter))
 		return iterate_xarray(iter, len, priv, priv2, step);
 	return iterate_discard(iter, len, priv, priv2, step);
@@ -269,6 +326,53 @@ size_t iterate_and_advance(struct iov_iter *iter, size_t len, void *priv,
 			   iov_ustep_f ustep, iov_step_f step)
 {
 	return iterate_and_advance2(iter, len, priv, NULL, ustep, step);
+}
+
+/**
+ * iterate_and_advance_kernel - Iterate over a kernel-internal iterator
+ * @iter: The iterator to iterate over.
+ * @len: The amount to iterate over.
+ * @priv: Data for the step functions.
+ * @priv2: More data for the step functions.
+ * @step: Function for other iterators; given kernel addresses.
+ *
+ * Iterate over the next part of an iterator, up to the specified length.  The
+ * buffer is presented in segments, which for kernel iteration are broken up by
+ * physical pages and mapped, with the mapped address being presented.
+ *
+ * [!] Note This will only handle BVEC, KVEC, FOLIOQ, XARRAY and DISCARD-type
+ * iterators; it will not handle UBUF or IOVEC-type iterators.
+ *
+ * A step functions, @step, must be provided, one for handling mapped kernel
+ * addresses and the other is given user addresses which have the potential to
+ * fault since no pinning is performed.
+ *
+ * The step functions are passed the address and length of the segment, @priv,
+ * @priv2 and the amount of data so far iterated over (which can, for example,
+ * be added to @priv to point to the right part of a second buffer).  The step
+ * functions should return the amount of the segment they didn't process (ie. 0
+ * indicates complete processsing).
+ *
+ * This function returns the amount of data processed (ie. 0 means nothing was
+ * processed and the value of @len means processes to completion).
+ */
+static __always_inline
+size_t iterate_and_advance_kernel(struct iov_iter *iter, size_t len, void *priv,
+				  void *priv2, iov_step_f step)
+{
+	if (unlikely(iter->count < len))
+		len = iter->count;
+	if (unlikely(!len))
+		return 0;
+	if (iov_iter_is_bvec(iter))
+		return iterate_bvec(iter, len, priv, priv2, step);
+	if (iov_iter_is_kvec(iter))
+		return iterate_kvec(iter, len, priv, priv2, step);
+	if (iov_iter_is_folioq(iter))
+		return iterate_folioq(iter, len, priv, priv2, step);
+	if (iov_iter_is_xarray(iter))
+		return iterate_xarray(iter, len, priv, priv2, step);
+	return iterate_discard(iter, len, priv, priv2, step);
 }
 
 #endif /* _LINUX_IOV_ITER_H */

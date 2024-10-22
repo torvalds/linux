@@ -278,20 +278,32 @@ static struct thermal_zone_params tzone_params = {
 
 static bool msi_irq;
 
+static void proc_thermal_free_msi(struct pci_dev *pdev, struct proc_thermal_pci *pci_info)
+{
+	int i;
+
+	for (i = 0; i < MSI_THERMAL_MAX; i++) {
+		if (proc_thermal_msi_map[i])
+			devm_free_irq(&pdev->dev, proc_thermal_msi_map[i], pci_info);
+	}
+
+	pci_free_irq_vectors(pdev);
+}
+
 static int proc_thermal_setup_msi(struct pci_dev *pdev, struct proc_thermal_pci *pci_info)
 {
-	int ret, i, irq;
+	int ret, i, irq, count;
 
-	ret = pci_alloc_irq_vectors(pdev, 1, MSI_THERMAL_MAX, PCI_IRQ_MSI | PCI_IRQ_MSIX);
-	if (ret < 0) {
+	count = pci_alloc_irq_vectors(pdev, 1, MSI_THERMAL_MAX, PCI_IRQ_MSI | PCI_IRQ_MSIX);
+	if (count < 0) {
 		dev_err(&pdev->dev, "Failed to allocate vectors!\n");
-		return ret;
+		return count;
 	}
 
 	dev_info(&pdev->dev, "msi enabled:%d msix enabled:%d\n", pdev->msi_enabled,
 		 pdev->msix_enabled);
 
-	for (i = 0; i < MSI_THERMAL_MAX; i++) {
+	for (i = 0; i < count; i++) {
 		irq =  pci_irq_vector(pdev, i);
 
 		ret = devm_request_threaded_irq(&pdev->dev, irq, proc_thermal_irq_handler,
@@ -310,7 +322,7 @@ static int proc_thermal_setup_msi(struct pci_dev *pdev, struct proc_thermal_pci 
 	return 0;
 
 err_free_msi_vectors:
-	pci_free_irq_vectors(pdev);
+	proc_thermal_free_msi(pdev, pci_info);
 
 	return ret;
 }
@@ -397,7 +409,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 
 err_free_vectors:
 	if (msi_irq)
-		pci_free_irq_vectors(pdev);
+		proc_thermal_free_msi(pdev, pci_info);
 err_ret_tzone:
 	thermal_zone_device_unregister(pci_info->tzone);
 err_del_legacy:
@@ -418,6 +430,9 @@ static void proc_thermal_pci_remove(struct pci_dev *pdev)
 
 	proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_THRES_0, 0);
 	proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
+
+	if (msi_irq)
+		proc_thermal_free_msi(pdev, pci_info);
 
 	thermal_zone_device_unregister(pci_info->tzone);
 	proc_thermal_mmio_remove(pdev, pci_info->proc_priv);

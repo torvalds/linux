@@ -772,15 +772,18 @@
 	INTEL_ATS_M75_IDS(MACRO__, ## __VA_ARGS__)
 
 /* MTL */
-#define INTEL_MTL_IDS(MACRO__, ...) \
-	MACRO__(0x7D40, ## __VA_ARGS__), \
+#define INTEL_ARL_IDS(MACRO__, ...) \
 	MACRO__(0x7D41, ## __VA_ARGS__), \
-	MACRO__(0x7D45, ## __VA_ARGS__), \
 	MACRO__(0x7D51, ## __VA_ARGS__), \
+	MACRO__(0x7D67, ## __VA_ARGS__), \
+	MACRO__(0x7DD1, ## __VA_ARGS__)
+
+#define INTEL_MTL_IDS(MACRO__, ...) \
+	INTEL_ARL_IDS(MACRO__, ## __VA_ARGS__), \
+	MACRO__(0x7D40, ## __VA_ARGS__), \
+	MACRO__(0x7D45, ## __VA_ARGS__), \
 	MACRO__(0x7D55, ## __VA_ARGS__), \
 	MACRO__(0x7D60, ## __VA_ARGS__), \
-	MACRO__(0x7D67, ## __VA_ARGS__), \
-	MACRO__(0x7DD1, ## __VA_ARGS__), \
 	MACRO__(0x7DD5, ## __VA_ARGS__)
 
 /* LNL */

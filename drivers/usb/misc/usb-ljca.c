@@ -169,6 +169,7 @@ static const struct acpi_device_id ljca_gpio_hids[] = {
 	{ "INTC1096" },
 	{ "INTC100B" },
 	{ "INTC10D1" },
+	{ "INTC10B5" },
 	{},
 };
 

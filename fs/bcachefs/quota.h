@@ -8,12 +8,11 @@
 enum bch_validate_flags;
 extern const struct bch_sb_field_ops bch_sb_field_ops_quota;
 
-int bch2_quota_invalid(struct bch_fs *, struct bkey_s_c,
-		       enum bch_validate_flags, struct printbuf *);
+int bch2_quota_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
 void bch2_quota_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_quota ((struct bkey_ops) {	\
-	.key_invalid	= bch2_quota_invalid,		\
+	.key_validate	= bch2_quota_validate,		\
 	.val_to_text	= bch2_quota_to_text,		\
 	.min_val_size	= 32,				\
 })

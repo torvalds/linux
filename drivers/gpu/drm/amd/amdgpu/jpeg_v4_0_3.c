@@ -25,12 +25,16 @@
 #include "amdgpu_jpeg.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "jpeg_v2_0.h"
 #include "jpeg_v4_0_3.h"
 #include "mmsch_v4_0_3.h"
 
 #include "vcn/vcn_4_0_3_offset.h"
 #include "vcn/vcn_4_0_3_sh_mask.h"
 #include "ivsrcid/vcn/irqsrcs_vcn_4_0.h"
+
+#define NORMALIZE_JPEG_REG_OFFSET(offset) \
+		(offset & 0x1FFFF)
 
 enum jpeg_engin_status {
 	UVD_PGFSM_STATUS__UVDJ_PWR_ON  = 0,
@@ -621,6 +625,13 @@ static uint64_t jpeg_v4_0_3_dec_ring_get_wptr(struct amdgpu_ring *ring)
 			ring->pipe ? (0x40 * ring->pipe - 0xc80) : 0);
 }
 
+static void jpeg_v4_0_3_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+{
+	/* JPEG engine access for HDP flush doesn't work when RRMT is enabled.
+	 * This is a workaround to avoid any HDP flush through JPEG ring.
+	 */
+}
+
 /**
  * jpeg_v4_0_3_dec_ring_set_wptr - set write pointer
  *
@@ -772,11 +783,15 @@ void jpeg_v4_0_3_dec_ring_emit_ib(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, PACKETJ(regUVD_LMI_JRBC_IB_VMID_INTERNAL_OFFSET,
 		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, (vmid | (vmid << 4)));
+
+	if (ring->funcs->parse_cs)
+		amdgpu_ring_write(ring, 0);
+	else
+		amdgpu_ring_write(ring, (vmid | (vmid << 4) | (vmid << 8)));
 
 	amdgpu_ring_write(ring, PACKETJ(regUVD_LMI_JPEG_VMID_INTERNAL_OFFSET,
 		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, (vmid | (vmid << 4)));
+	amdgpu_ring_write(ring, (vmid | (vmid << 4) | (vmid << 8)));
 
 	amdgpu_ring_write(ring,	PACKETJ(regUVD_LMI_JRBC_IB_64BIT_BAR_LOW_INTERNAL_OFFSET,
 		0, 0, PACKETJ_TYPE0));
@@ -817,7 +832,13 @@ void jpeg_v4_0_3_dec_ring_emit_ib(struct amdgpu_ring *ring,
 void jpeg_v4_0_3_dec_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 				uint32_t val, uint32_t mask)
 {
-	uint32_t reg_offset = (reg << 2);
+	uint32_t reg_offset;
+
+	/* For VF, only local offsets should be used */
+	if (amdgpu_sriov_vf(ring->adev))
+		reg = NORMALIZE_JPEG_REG_OFFSET(reg);
+
+	reg_offset = (reg << 2);
 
 	amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_RB_COND_RD_TIMER_INTERNAL_OFFSET,
 		0, 0, PACKETJ_TYPE0));
@@ -858,7 +879,13 @@ void jpeg_v4_0_3_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 void jpeg_v4_0_3_dec_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
 {
-	uint32_t reg_offset = (reg << 2);
+	uint32_t reg_offset;
+
+	/* For VF, only local offsets should be used */
+	if (amdgpu_sriov_vf(ring->adev))
+		reg = NORMALIZE_JPEG_REG_OFFSET(reg);
+
+	reg_offset = (reg << 2);
 
 	amdgpu_ring_write(ring,	PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 		0, 0, PACKETJ_TYPE0));
@@ -1062,6 +1089,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_3_dec_ring_vm_funcs = {
 	.get_rptr = jpeg_v4_0_3_dec_ring_get_rptr,
 	.get_wptr = jpeg_v4_0_3_dec_ring_get_wptr,
 	.set_wptr = jpeg_v4_0_3_dec_ring_set_wptr,
+	.parse_cs = jpeg_v2_dec_ring_parse_cs,
 	.emit_frame_size =
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
@@ -1072,6 +1100,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_3_dec_ring_vm_funcs = {
 	.emit_ib = jpeg_v4_0_3_dec_ring_emit_ib,
 	.emit_fence = jpeg_v4_0_3_dec_ring_emit_fence,
 	.emit_vm_flush = jpeg_v4_0_3_dec_ring_emit_vm_flush,
+	.emit_hdp_flush = jpeg_v4_0_3_ring_emit_hdp_flush,
 	.test_ring = amdgpu_jpeg_dec_ring_test_ring,
 	.test_ib = amdgpu_jpeg_dec_ring_test_ib,
 	.insert_nop = jpeg_v4_0_3_dec_ring_nop,

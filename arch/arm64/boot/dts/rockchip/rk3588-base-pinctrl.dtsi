@@ -2449,15 +2449,15 @@
 				/* sdio_clk_m1 */
 				<3 RK_PA5 2 &pcfg_pull_none>,
 				/* sdio_cmd_m1 */
-				<3 RK_PA4 2 &pcfg_pull_none>,
+				<3 RK_PA4 2 &pcfg_pull_up>,
 				/* sdio_d0_m1 */
-				<3 RK_PA0 2 &pcfg_pull_none>,
+				<3 RK_PA0 2 &pcfg_pull_up>,
 				/* sdio_d1_m1 */
-				<3 RK_PA1 2 &pcfg_pull_none>,
+				<3 RK_PA1 2 &pcfg_pull_up>,
 				/* sdio_d2_m1 */
-				<3 RK_PA2 2 &pcfg_pull_none>,
+				<3 RK_PA2 2 &pcfg_pull_up>,
 				/* sdio_d3_m1 */
-				<3 RK_PA3 2 &pcfg_pull_none>;
+				<3 RK_PA3 2 &pcfg_pull_up>;
 		};
 	};
 

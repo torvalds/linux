@@ -804,6 +804,8 @@ patternProperties:
     description: Lantiq Semiconductor
   "^lattice,.*":
     description: Lattice Semiconductor
+  "^lckfb,.*":
+    description: Shenzhen JLC Technology Group Co., Ltd.
   "^lctech,.*":
     description: Shenzen LC Technology Co., Ltd.
   "^leadtek,.*":

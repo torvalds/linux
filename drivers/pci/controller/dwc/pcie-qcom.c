@@ -261,6 +261,7 @@ struct qcom_pcie {
 	const struct qcom_pcie_cfg *cfg;
 	struct dentry *debugfs;
 	bool suspended;
+	bool use_pm_opp;
 };
 
 #define to_qcom_pcie(x)		dev_get_drvdata((x)->dev)
@@ -1433,7 +1434,7 @@ static void qcom_pcie_icc_opp_update(struct qcom_pcie *pcie)
 			dev_err(pci->dev, "Failed to set bandwidth for PCIe-MEM interconnect path: %d\n",
 				ret);
 		}
-	} else {
+	} else if (pcie->use_pm_opp) {
 		freq_mbps = pcie_dev_speed_mbps(pcie_link_speed[speed]);
 		if (freq_mbps < 0)
 			return;
@@ -1592,6 +1593,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				      max_freq);
 			goto err_pm_runtime_put;
 		}
+
+		pcie->use_pm_opp = true;
 	} else {
 		/* Skip ICC init if OPP is supported as it is handled by OPP */
 		ret = qcom_pcie_icc_init(pcie);
@@ -1683,7 +1686,7 @@ static int qcom_pcie_suspend_noirq(struct device *dev)
 		if (ret)
 			dev_err(dev, "Failed to disable CPU-PCIe interconnect path: %d\n", ret);
 
-		if (!pcie->icc_mem)
+		if (pcie->use_pm_opp)
 			dev_pm_opp_set_opp(pcie->pci->dev, NULL);
 	}
 	return ret;

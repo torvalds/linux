@@ -174,6 +174,12 @@ extern void cleanup_module(void);
 #define MODULE_SOFTDEP(_softdep) MODULE_INFO(softdep, _softdep)
 
 /*
+ * Weak module dependencies. See man modprobe.d for details.
+ * Example: MODULE_WEAKDEP("module-foo")
+ */
+#define MODULE_WEAKDEP(_weakdep) MODULE_INFO(weakdep, _weakdep)
+
+/*
  * MODULE_FILE is used for generating modules.builtin
  * So, make it no-op when this is being built as a module
  */

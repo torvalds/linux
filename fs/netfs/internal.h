@@ -7,6 +7,7 @@
 
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/folio_queue.h>
 #include <linux/netfs.h>
 #include <linux/fscache.h>
 #include <linux/fscache-cache.h>
@@ -22,18 +23,13 @@
 /*
  * buffered_read.c
  */
-void netfs_rreq_unlock_folios(struct netfs_io_request *rreq);
 int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 			     size_t offset, size_t len);
 
 /*
- * io.c
- */
-int netfs_begin_read(struct netfs_io_request *rreq, bool sync);
-
-/*
  * main.c
  */
+extern unsigned int netfs_debug;
 extern struct list_head netfs_io_requests;
 extern spinlock_t netfs_proc_lock;
 extern mempool_t netfs_request_pool;
@@ -62,6 +58,11 @@ static inline void netfs_proc_del_rreq(struct netfs_io_request *rreq) {}
 /*
  * misc.c
  */
+int netfs_buffer_append_folio(struct netfs_io_request *rreq, struct folio *folio,
+			      bool needs_put);
+struct folio_queue *netfs_delete_buffer_head(struct netfs_io_request *wreq);
+void netfs_clear_buffer(struct netfs_io_request *rreq);
+void netfs_reset_iter(struct netfs_io_subrequest *subreq);
 
 /*
  * objects.c
@@ -81,6 +82,28 @@ static inline void netfs_see_request(struct netfs_io_request *rreq,
 {
 	trace_netfs_rreq_ref(rreq->debug_id, refcount_read(&rreq->ref), what);
 }
+
+/*
+ * read_collect.c
+ */
+void netfs_read_termination_worker(struct work_struct *work);
+void netfs_rreq_terminated(struct netfs_io_request *rreq, bool was_async);
+
+/*
+ * read_pgpriv2.c
+ */
+void netfs_pgpriv2_mark_copy_to_cache(struct netfs_io_subrequest *subreq,
+				      struct netfs_io_request *rreq,
+				      struct folio_queue *folioq,
+				      int slot);
+void netfs_pgpriv2_write_to_the_cache(struct netfs_io_request *rreq);
+bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq);
+
+/*
+ * read_retry.c
+ */
+void netfs_retry_reads(struct netfs_io_request *rreq);
+void netfs_unlock_abandoned_read_pages(struct netfs_io_request *rreq);
 
 /*
  * stats.c
@@ -109,6 +132,7 @@ extern atomic_t netfs_n_wh_buffered_write;
 extern atomic_t netfs_n_wh_writethrough;
 extern atomic_t netfs_n_wh_dio_write;
 extern atomic_t netfs_n_wh_writepages;
+extern atomic_t netfs_n_wh_copy_to_cache;
 extern atomic_t netfs_n_wh_wstream_conflict;
 extern atomic_t netfs_n_wh_upload;
 extern atomic_t netfs_n_wh_upload_done;
@@ -116,6 +140,9 @@ extern atomic_t netfs_n_wh_upload_failed;
 extern atomic_t netfs_n_wh_write;
 extern atomic_t netfs_n_wh_write_done;
 extern atomic_t netfs_n_wh_write_failed;
+extern atomic_t netfs_n_wb_lock_skip;
+extern atomic_t netfs_n_wb_lock_wait;
+extern atomic_t netfs_n_folioq;
 
 int netfs_stats_show(struct seq_file *m, void *v);
 
@@ -149,7 +176,10 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 						loff_t start,
 						enum netfs_io_origin origin);
 void netfs_reissue_write(struct netfs_io_stream *stream,
-			 struct netfs_io_subrequest *subreq);
+			 struct netfs_io_subrequest *subreq,
+			 struct iov_iter *source);
+void netfs_issue_write(struct netfs_io_request *wreq,
+		       struct netfs_io_stream *stream);
 int netfs_advance_write(struct netfs_io_request *wreq,
 			struct netfs_io_stream *stream,
 			loff_t start, size_t len, bool to_eof);
@@ -353,11 +383,41 @@ void fscache_create_volume(struct fscache_volume *volume, bool wait);
  * debug tracing
  */
 #define dbgprintk(FMT, ...) \
-	pr_debug("[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
+	printk("[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
 
 #define kenter(FMT, ...) dbgprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) dbgprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
 #define kdebug(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
+
+#ifdef __KDEBUG
+#define _enter(FMT, ...) kenter(FMT, ##__VA_ARGS__)
+#define _leave(FMT, ...) kleave(FMT, ##__VA_ARGS__)
+#define _debug(FMT, ...) kdebug(FMT, ##__VA_ARGS__)
+
+#elif defined(CONFIG_NETFS_DEBUG)
+#define _enter(FMT, ...)			\
+do {						\
+	if (netfs_debug)			\
+		kenter(FMT, ##__VA_ARGS__);	\
+} while (0)
+
+#define _leave(FMT, ...)			\
+do {						\
+	if (netfs_debug)			\
+		kleave(FMT, ##__VA_ARGS__);	\
+} while (0)
+
+#define _debug(FMT, ...)			\
+do {						\
+	if (netfs_debug)			\
+		kdebug(FMT, ##__VA_ARGS__);	\
+} while (0)
+
+#else
+#define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#endif
 
 /*
  * assertions

@@ -45,7 +45,6 @@
 #define I10NM_NUM_CHANNELS	MAX(I10NM_NUM_DDR_CHANNELS, I10NM_NUM_HBM_CHANNELS)
 #define I10NM_NUM_DIMMS		MAX(I10NM_NUM_DDR_DIMMS, I10NM_NUM_HBM_DIMMS)
 
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
 #define NUM_IMC		MAX(SKX_NUM_IMC, I10NM_NUM_IMC)
 #define NUM_CHANNELS	MAX(SKX_NUM_CHANNELS, I10NM_NUM_CHANNELS)
 #define NUM_DIMMS	MAX(SKX_NUM_DIMMS, I10NM_NUM_DIMMS)
@@ -259,5 +258,13 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 			void *data);
 
 void skx_remove(void);
+
+#ifdef CONFIG_EDAC_DEBUG
+void skx_setup_debug(const char *name);
+void skx_teardown_debug(void);
+#else
+static inline void skx_setup_debug(const char *name) {}
+static inline void skx_teardown_debug(void) {}
+#endif
 
 #endif /* _SKX_COMM_EDAC_H */

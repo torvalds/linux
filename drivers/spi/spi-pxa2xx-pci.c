@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/sprintf.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -297,11 +298,23 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		return ret;
 	ssp->irq = pci_irq_vector(dev, 0);
 
-	return pxa2xx_spi_probe(&dev->dev, ssp);
+	ret = pxa2xx_spi_probe(&dev->dev, ssp, pdata);
+	if (ret)
+		return ret;
+
+	pm_runtime_set_autosuspend_delay(&dev->dev, 50);
+	pm_runtime_use_autosuspend(&dev->dev);
+	pm_runtime_put_autosuspend(&dev->dev);
+	pm_runtime_allow(&dev->dev);
+
+	return 0;
 }
 
 static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 {
+	pm_runtime_forbid(&dev->dev);
+	pm_runtime_get_noresume(&dev->dev);
+
 	pxa2xx_spi_remove(&dev->dev);
 }
 

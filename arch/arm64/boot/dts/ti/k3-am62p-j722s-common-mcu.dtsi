@@ -26,9 +26,9 @@
 	mcu_esm: esm@4100000 {
 		compatible = "ti,j721e-esm";
 		reg = <0x00 0x4100000 0x00 0x1000>;
-		ti,esm-pins = <0>, <1>, <2>, <85>;
-		status = "reserved";
 		bootph-pre-ram;
+		/* Interrupt sources: esm0_cfg, esm0_hi, esm0_low, mrti0, wrti0 */
+		ti,esm-pins = <0>, <1>, <2>, <85>, <86>;
 	};
 
 	/*
@@ -146,6 +146,8 @@
 		power-domains = <&k3_pds 79 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 79 0>;
 		clock-names = "gpio";
+		gpio-ranges = <&mcu_pmx0 0 0 21>, <&mcu_pmx0 21 23 1>,
+			      <&mcu_pmx0 22 32 2>;
 	};
 
 	mcu_rti0: watchdog@4880000 {

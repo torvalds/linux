@@ -1171,8 +1171,6 @@ static void dpu_encoder_virt_atomic_mode_set(struct drm_encoder *drm_enc,
 
 	cstate->num_mixers = num_lm;
 
-	dpu_enc->connector = conn_state->connector;
-
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
 
@@ -1269,6 +1267,8 @@ static void dpu_encoder_virt_atomic_enable(struct drm_encoder *drm_enc,
 	mutex_lock(&dpu_enc->enc_lock);
 
 	dpu_enc->commit_done_timedout = false;
+
+	dpu_enc->connector = drm_atomic_get_new_connector_for_encoder(state, drm_enc);
 
 	cur_mode = &dpu_enc->base.crtc->state->adjusted_mode;
 

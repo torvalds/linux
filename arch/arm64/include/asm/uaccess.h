@@ -188,7 +188,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 #define __get_mem_asm(load, reg, x, addr, label, type)			\
 	asm_goto_output(						\
 	"1:	" load "	" reg "0, [%1]\n"			\
-	_ASM_EXTABLE_##type##ACCESS_ERR(1b, %l2, %w0)			\
+	_ASM_EXTABLE_##type##ACCESS(1b, %l2)				\
 	: "=r" (x)							\
 	: "r" (addr) : : label)
 #else

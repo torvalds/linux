@@ -115,21 +115,26 @@ struct mt76_connac2_mcu_uni_txd {
 } __packed __aligned(4);
 
 struct mt76_connac2_mcu_rxd {
-	__le32 rxd[6];
+	/* New members MUST be added within the struct_group() macro below. */
+	struct_group_tagged(mt76_connac2_mcu_rxd_hdr, hdr,
+		__le32 rxd[6];
 
-	__le16 len;
-	__le16 pkt_type_id;
+		__le16 len;
+		__le16 pkt_type_id;
 
-	u8 eid;
-	u8 seq;
-	u8 option;
-	u8 rsv;
-	u8 ext_eid;
-	u8 rsv1[2];
-	u8 s2d_index;
+		u8 eid;
+		u8 seq;
+		u8 option;
+		u8 rsv;
+		u8 ext_eid;
+		u8 rsv1[2];
+		u8 s2d_index;
+	);
 
 	u8 tlv[];
 };
+static_assert(offsetof(struct mt76_connac2_mcu_rxd, tlv) == sizeof(struct mt76_connac2_mcu_rxd_hdr),
+	      "struct member likely outside of struct_group_tagged()");
 
 struct mt76_connac2_patch_hdr {
 	char build_date[16];
@@ -1898,7 +1903,7 @@ int mt76_connac_mcu_set_vif_ps(struct mt76_dev *dev, struct ieee80211_vif *vif);
 void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_link_sta *link_sta,
-				   bool enable, bool newly);
+				   int state, bool newly);
 void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta, void *sta_wtbl,
@@ -2032,6 +2037,7 @@ void mt76_connac_mcu_wtbl_smps_tlv(struct sk_buff *skb,
 				   void *sta_wtbl, void *wtbl_tlv);
 int mt76_connac_mcu_set_pm(struct mt76_dev *dev, int band, int enter);
 int mt76_connac_mcu_restart(struct mt76_dev *dev);
+int mt76_connac_mcu_del_wtbl_all(struct mt76_dev *dev);
 int mt76_connac_mcu_rdd_cmd(struct mt76_dev *dev, int cmd, u8 index,
 			    u8 rx_sel, u8 val);
 int mt76_connac_mcu_sta_wed_update(struct mt76_dev *dev, struct sk_buff *skb);

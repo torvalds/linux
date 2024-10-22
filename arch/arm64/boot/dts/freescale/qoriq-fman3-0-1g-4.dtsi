@@ -26,6 +26,7 @@ fman@1a00000 {
 		fsl,fman-ports = <&fman0_rx_0x0c &fman0_tx_0x2c>;
 		ptp-timer = <&ptp_timer0>;
 		pcsphy-handle = <&pcsphy4>;
+		pcs-handle = <&pcsphy4>;
 	};
 
 	mdio@e9000 {

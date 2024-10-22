@@ -108,7 +108,7 @@ static __always_inline void enter_from_user_mode(struct pt_regs *regs)
 	arch_enter_from_user_mode(regs);
 	lockdep_hardirqs_off(CALLER_ADDR0);
 
-	CT_WARN_ON(__ct_state() != CONTEXT_USER);
+	CT_WARN_ON(__ct_state() != CT_STATE_USER);
 	user_exit_irqoff();
 
 	instrumentation_begin();

@@ -361,8 +361,24 @@ static const u8 besteffort[] = {
 static const u8 normal_order[] = {0, 1, 2, 3, 4, 5, 6, 7};
 static const u8 bulk_order[] = {1, 0, 2, 3};
 
+/* There is a big difference in timing between the accurate values placed in the
+ * cache and the approximations given by a single Newton step for small count
+ * values, particularly when stepping from count 1 to 2 or vice versa. Hence,
+ * these values are calculated using eight Newton steps, using the
+ * implementation below. Above 16, a single Newton step gives sufficient
+ * accuracy in either direction, given the precision stored.
+ *
+ * The magnitude of the error when stepping up to count 2 is such as to give the
+ * value that *should* have been produced at count 4.
+ */
+
 #define REC_INV_SQRT_CACHE (16)
-static u32 cobalt_rec_inv_sqrt_cache[REC_INV_SQRT_CACHE] = {0};
+static const u32 inv_sqrt_cache[REC_INV_SQRT_CACHE] = {
+		~0,         ~0, 3037000500, 2479700525,
+	2147483647, 1920767767, 1753413056, 1623345051,
+	1518500250, 1431655765, 1358187914, 1294981364,
+	1239850263, 1191209601, 1147878294, 1108955788
+};
 
 /* http://en.wikipedia.org/wiki/Methods_of_computing_square_roots
  * new_invsqrt = (invsqrt / 2) * (3 - count * invsqrt^2)
@@ -388,47 +404,14 @@ static void cobalt_newton_step(struct cobalt_vars *vars)
 static void cobalt_invsqrt(struct cobalt_vars *vars)
 {
 	if (vars->count < REC_INV_SQRT_CACHE)
-		vars->rec_inv_sqrt = cobalt_rec_inv_sqrt_cache[vars->count];
+		vars->rec_inv_sqrt = inv_sqrt_cache[vars->count];
 	else
 		cobalt_newton_step(vars);
-}
-
-/* There is a big difference in timing between the accurate values placed in
- * the cache and the approximations given by a single Newton step for small
- * count values, particularly when stepping from count 1 to 2 or vice versa.
- * Above 16, a single Newton step gives sufficient accuracy in either
- * direction, given the precision stored.
- *
- * The magnitude of the error when stepping up to count 2 is such as to give
- * the value that *should* have been produced at count 4.
- */
-
-static void cobalt_cache_init(void)
-{
-	struct cobalt_vars v;
-
-	memset(&v, 0, sizeof(v));
-	v.rec_inv_sqrt = ~0U;
-	cobalt_rec_inv_sqrt_cache[0] = v.rec_inv_sqrt;
-
-	for (v.count = 1; v.count < REC_INV_SQRT_CACHE; v.count++) {
-		cobalt_newton_step(&v);
-		cobalt_newton_step(&v);
-		cobalt_newton_step(&v);
-		cobalt_newton_step(&v);
-
-		cobalt_rec_inv_sqrt_cache[v.count] = v.rec_inv_sqrt;
-	}
 }
 
 static void cobalt_vars_init(struct cobalt_vars *vars)
 {
 	memset(vars, 0, sizeof(*vars));
-
-	if (!cobalt_rec_inv_sqrt_cache[0]) {
-		cobalt_cache_init();
-		cobalt_rec_inv_sqrt_cache[0] = ~0;
-	}
 }
 
 /* CoDel control_law is t + interval/sqrt(count)
@@ -786,12 +769,15 @@ skip_hash:
 		 * queue, accept the collision, update the host tags.
 		 */
 		q->way_collisions++;
-		if (q->flows[outer_hash + k].set == CAKE_SET_BULK) {
-			q->hosts[q->flows[reduced_hash].srchost].srchost_bulk_flow_count--;
-			q->hosts[q->flows[reduced_hash].dsthost].dsthost_bulk_flow_count--;
-		}
 		allocate_src = cake_dsrc(flow_mode);
 		allocate_dst = cake_ddst(flow_mode);
+
+		if (q->flows[outer_hash + k].set == CAKE_SET_BULK) {
+			if (allocate_src)
+				q->hosts[q->flows[reduced_hash].srchost].srchost_bulk_flow_count--;
+			if (allocate_dst)
+				q->hosts[q->flows[reduced_hash].dsthost].dsthost_bulk_flow_count--;
+		}
 found:
 		/* reserve queue for future packets in same flow */
 		reduced_hash = outer_hash + k;

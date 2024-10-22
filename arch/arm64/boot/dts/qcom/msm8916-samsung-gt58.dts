@@ -75,6 +75,7 @@
 
 		touchscreen-size-x = <768>;
 		touchscreen-size-y = <1024>;
+		linux,keycodes = <KEY_APPSELECT KEY_BACK>;
 
 		vcca-supply = <&reg_vdd_tsp>;
 		vdd-supply = <&pm8916_l6>;

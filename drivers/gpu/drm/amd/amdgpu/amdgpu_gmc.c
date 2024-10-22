@@ -589,7 +589,8 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 		ring = adev->rings[i];
 		vmhub = ring->vm_hub;
 
-		if (ring == &adev->mes.ring ||
+		if (ring == &adev->mes.ring[0] ||
+		    ring == &adev->mes.ring[1] ||
 		    ring == &adev->umsch_mm.ring)
 			continue;
 
@@ -761,7 +762,7 @@ void amdgpu_gmc_fw_reg_write_reg_wait(struct amdgpu_device *adev,
 	unsigned long flags;
 	uint32_t seq;
 
-	if (adev->mes.ring.sched.ready) {
+	if (adev->mes.ring[0].sched.ready) {
 		amdgpu_mes_reg_write_reg_wait(adev, reg0, reg1,
 					      ref, mask);
 		return;

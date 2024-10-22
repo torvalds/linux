@@ -1458,7 +1458,6 @@ int blkcg_init_disk(struct gendisk *disk)
 	struct request_queue *q = disk->queue;
 	struct blkcg_gq *new_blkg, *blkg;
 	bool preloaded;
-	int ret;
 
 	new_blkg = blkg_alloc(&blkcg_root, disk, GFP_KERNEL);
 	if (!new_blkg)
@@ -1478,15 +1477,8 @@ int blkcg_init_disk(struct gendisk *disk)
 	if (preloaded)
 		radix_tree_preload_end();
 
-	ret = blk_ioprio_init(disk);
-	if (ret)
-		goto err_destroy_all;
-
 	return 0;
 
-err_destroy_all:
-	blkg_destroy_all(disk);
-	return ret;
 err_unlock:
 	spin_unlock_irq(&q->queue_lock);
 	if (preloaded)
@@ -1553,6 +1545,14 @@ int blkcg_activate_policy(struct gendisk *disk, const struct blkcg_policy *pol)
 
 	if (blkcg_policy_enabled(q, pol))
 		return 0;
+
+	/*
+	 * Policy is allowed to be registered without pd_alloc_fn/pd_free_fn,
+	 * for example, ioprio. Such policy will work on blkcg level, not disk
+	 * level, and don't need to be activated.
+	 */
+	if (WARN_ON_ONCE(!pol->pd_alloc_fn || !pol->pd_free_fn))
+		return -EINVAL;
 
 	if (queue_is_mq(q))
 		blk_mq_freeze_queue(q);
@@ -1733,9 +1733,12 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 		goto err_unlock;
 	}
 
-	/* Make sure cpd/pd_alloc_fn and cpd/pd_free_fn in pairs */
+	/*
+	 * Make sure cpd/pd_alloc_fn and cpd/pd_free_fn in pairs, and policy
+	 * without pd_alloc_fn/pd_free_fn can't be activated.
+	 */
 	if ((!pol->cpd_alloc_fn ^ !pol->cpd_free_fn) ||
-		(!pol->pd_alloc_fn ^ !pol->pd_free_fn))
+	    (!pol->pd_alloc_fn ^ !pol->pd_free_fn))
 		goto err_unlock;
 
 	/* register @pol */

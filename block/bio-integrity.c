@@ -167,10 +167,6 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 
-	if (((bip->bip_iter.bi_size + len) >> SECTOR_SHIFT) >
-	    queue_max_hw_sectors(q))
-		return 0;
-
 	if (bip->bip_vcnt > 0) {
 		struct bio_vec *bv = &bip->bip_vec[bip->bip_vcnt - 1];
 		bool same_page = false;

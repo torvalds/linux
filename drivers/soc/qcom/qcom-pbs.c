@@ -3,6 +3,7 @@
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -148,11 +149,11 @@ EXPORT_SYMBOL_GPL(qcom_pbs_trigger_event);
  */
 struct pbs_dev *get_pbs_client_device(struct device *dev)
 {
-	struct device_node *pbs_dev_node;
 	struct platform_device *pdev;
 	struct pbs_dev *pbs;
 
-	pbs_dev_node = of_parse_phandle(dev->of_node, "qcom,pbs", 0);
+	struct device_node *pbs_dev_node __free(device_node) = of_parse_phandle(dev->of_node,
+										"qcom,pbs", 0);
 	if (!pbs_dev_node) {
 		dev_err(dev, "Missing qcom,pbs property\n");
 		return ERR_PTR(-ENODEV);
@@ -161,28 +162,23 @@ struct pbs_dev *get_pbs_client_device(struct device *dev)
 	pdev = of_find_device_by_node(pbs_dev_node);
 	if (!pdev) {
 		dev_err(dev, "Unable to find PBS dev_node\n");
-		pbs = ERR_PTR(-EPROBE_DEFER);
-		goto out;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	pbs = platform_get_drvdata(pdev);
 	if (!pbs) {
 		dev_err(dev, "Cannot get pbs instance from %s\n", dev_name(&pdev->dev));
 		platform_device_put(pdev);
-		pbs = ERR_PTR(-EPROBE_DEFER);
-		goto out;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	pbs->link = device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER);
 	if (!pbs->link) {
 		dev_err(&pdev->dev, "Failed to create device link to consumer %s\n", dev_name(dev));
 		platform_device_put(pdev);
-		pbs = ERR_PTR(-EINVAL);
-		goto out;
+		return ERR_PTR(-EINVAL);
 	}
 
-out:
-	of_node_put(pbs_dev_node);
 	return pbs;
 }
 EXPORT_SYMBOL_GPL(get_pbs_client_device);

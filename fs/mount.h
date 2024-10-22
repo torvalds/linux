@@ -153,5 +153,17 @@ static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 	list_add_tail(&mnt->mnt_list, dt_list);
 }
 
-extern void mnt_cursor_del(struct mnt_namespace *ns, struct mount *cursor);
 bool has_locked_children(struct mount *mnt, struct dentry *dentry);
+struct mnt_namespace *__lookup_next_mnt_ns(struct mnt_namespace *mnt_ns, bool previous);
+static inline struct mnt_namespace *lookup_next_mnt_ns(struct mnt_namespace *mntns)
+{
+	return __lookup_next_mnt_ns(mntns, false);
+}
+static inline struct mnt_namespace *lookup_prev_mnt_ns(struct mnt_namespace *mntns)
+{
+	return __lookup_next_mnt_ns(mntns, true);
+}
+static inline struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct mnt_namespace, ns);
+}

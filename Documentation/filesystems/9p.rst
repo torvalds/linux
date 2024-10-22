@@ -31,7 +31,7 @@ Other applications are described in the following papers:
 	* PROSE I/O: Using 9p to enable Application Partitions
 	  http://plan9.escet.urjc.es/iwp9/cready/PROSE_iwp9_2006.pdf
 	* VirtFS: A Virtualization Aware File System pass-through
-	  http://goo.gl/3WPDg
+	  https://kernel.org/doc/ols/2010/ols2010-pages-109-120.pdf
 
 Usage
 =====

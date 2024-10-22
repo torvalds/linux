@@ -901,7 +901,7 @@ static int ntfs_get_block_write_begin(struct inode *inode, sector_t vbn,
 }
 
 int ntfs_write_begin(struct file *file, struct address_space *mapping,
-		     loff_t pos, u32 len, struct page **pagep, void **fsdata)
+		     loff_t pos, u32 len, struct folio **foliop, void **fsdata)
 {
 	int err;
 	struct inode *inode = mapping->host;
@@ -910,7 +910,6 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
 		return -EIO;
 
-	*pagep = NULL;
 	if (is_resident(ni)) {
 		struct folio *folio = __filemap_get_folio(
 			mapping, pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
@@ -926,7 +925,7 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 		ni_unlock(ni);
 
 		if (!err) {
-			*pagep = &folio->page;
+			*foliop = folio;
 			goto out;
 		}
 		folio_unlock(folio);
@@ -936,7 +935,7 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 			goto out;
 	}
 
-	err = block_write_begin(mapping, pos, len, pagep,
+	err = block_write_begin(mapping, pos, len, foliop,
 				ntfs_get_block_write_begin);
 
 out:
@@ -947,9 +946,8 @@ out:
  * ntfs_write_end - Address_space_operations::write_end.
  */
 int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
-		   u32 len, u32 copied, struct page *page, void *fsdata)
+		   u32 len, u32 copied, struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	u64 valid = ni->i_valid;
@@ -979,7 +977,7 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		folio_unlock(folio);
 		folio_put(folio);
 	} else {
-		err = generic_write_end(file, mapping, pos, len, copied, page,
+		err = generic_write_end(file, mapping, pos, len, copied, folio,
 					fsdata);
 	}
 
@@ -1004,45 +1002,6 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		if (dirty)
 			mark_inode_dirty(inode);
 	}
-
-	return err;
-}
-
-int reset_log_file(struct inode *inode)
-{
-	int err;
-	loff_t pos = 0;
-	u32 log_size = inode->i_size;
-	struct address_space *mapping = inode->i_mapping;
-
-	for (;;) {
-		u32 len;
-		void *kaddr;
-		struct page *page;
-
-		len = pos + PAGE_SIZE > log_size ? (log_size - pos) : PAGE_SIZE;
-
-		err = block_write_begin(mapping, pos, len, &page,
-					ntfs_get_block_write_begin);
-		if (err)
-			goto out;
-
-		kaddr = kmap_atomic(page);
-		memset(kaddr, -1, len);
-		kunmap_atomic(kaddr);
-		flush_dcache_page(page);
-
-		err = block_write_end(NULL, mapping, pos, len, len, page, NULL);
-		if (err < 0)
-			goto out;
-		pos += len;
-
-		if (pos >= log_size)
-			break;
-		balance_dirty_pages_ratelimited(mapping);
-	}
-out:
-	mark_inode_dirty_sync(inode);
 
 	return err;
 }

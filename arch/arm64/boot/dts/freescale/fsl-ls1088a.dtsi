@@ -126,12 +126,13 @@
 		its: msi-controller@6020000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0x6020000 0 0x20000>;
 		};
 	};
 
 	thermal-zones {
-		core-cluster-thermal {
+		cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -575,7 +576,7 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x20 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x20 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&its>;
+			msi-parent = <&its 0>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic 0 0 0 109 IRQ_TYPE_LEVEL_HIGH>,
@@ -587,7 +588,7 @@
 		};
 
 		pcie_ep1: pcie-ep@3400000 {
-			compatible = "fsl,ls1088a-pcie-ep", "fsl,ls-pcie-ep";
+			compatible = "fsl,ls1088a-pcie-ep";
 			reg = <0x00 0x03400000 0x0 0x00100000>,
 			      <0x20 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -614,7 +615,7 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x28 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x28 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&its>;
+			msi-parent = <&its 0>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic 0 0 0 114 IRQ_TYPE_LEVEL_HIGH>,
@@ -626,7 +627,7 @@
 		};
 
 		pcie_ep2: pcie-ep@3500000 {
-			compatible = "fsl,ls1088a-pcie-ep", "fsl,ls-pcie-ep";
+			compatible = "fsl,ls1088a-pcie-ep";
 			reg = <0x00 0x03500000 0x0 0x00100000>,
 			      <0x28 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -652,7 +653,7 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x30 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x30 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&its>;
+			msi-parent = <&its 0>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic 0 0 0 119 IRQ_TYPE_LEVEL_HIGH>,
@@ -664,7 +665,7 @@
 		};
 
 		pcie_ep3: pcie-ep@3600000 {
-			compatible = "fsl,ls1088a-pcie-ep", "fsl,ls-pcie-ep";
+			compatible = "fsl,ls1088a-pcie-ep";
 			reg = <0x00 0x03600000 0x0 0x00100000>,
 			      <0x30 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -964,7 +965,7 @@
 			compatible = "fsl,qoriq-mc";
 			reg = <0x00000008 0x0c000000 0 0x40>,	 /* MC portal base */
 			      <0x00000000 0x08340000 0 0x40000>; /* MC control reg */
-			msi-parent = <&its>;
+			msi-parent = <&its 0>;
 			iommu-map = <0 &smmu 0 0>;	/* This is fixed-up by u-boot */
 			dma-coherent;
 			#address-cells = <3>;
@@ -1033,7 +1034,7 @@
 			};
 		};
 
-		rcpm: power-controller@1e34040 {
+		rcpm: wakeup-controller@1e34040 {
 			compatible = "fsl,ls1088a-rcpm", "fsl,qoriq-rcpm-2.1+";
 			reg = <0x0 0x1e34040 0x0 0x18>;
 			#fsl,rcpm-wakeup-cells = <6>;

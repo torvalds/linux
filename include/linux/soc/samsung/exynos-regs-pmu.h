@@ -660,5 +660,7 @@
 /* For Tensor GS101 */
 #define GS101_SYSIP_DAT0					(0x810)
 #define GS101_SYSTEM_CONFIGURATION				(0x3A00)
+#define GS101_PHY_CTRL_USB20					(0x3EB0)
+#define GS101_PHY_CTRL_USBDP					(0x3EB4)
 
 #endif /* __LINUX_SOC_EXYNOS_REGS_PMU_H */

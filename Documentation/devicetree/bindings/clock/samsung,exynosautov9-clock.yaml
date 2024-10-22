@@ -35,6 +35,7 @@ properties:
       - samsung,exynosautov9-cmu-top
       - samsung,exynosautov9-cmu-busmc
       - samsung,exynosautov9-cmu-core
+      - samsung,exynosautov9-cmu-dpum
       - samsung,exynosautov9-cmu-fsys0
       - samsung,exynosautov9-cmu-fsys1
       - samsung,exynosautov9-cmu-fsys2
@@ -108,6 +109,24 @@ allOf:
           items:
             - const: oscclk
             - const: dout_clkcmu_core_bus
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynosautov9-cmu-dpum
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: DPU Main bus clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
 
   - if:
       properties:

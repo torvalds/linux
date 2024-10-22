@@ -130,7 +130,7 @@ static struct platform_driver pwm_clk_driver = {
 		.of_match_table = pwm_clk_dt_ids,
 	},
 	.probe = pwm_clk_probe,
-	.remove_new = pwm_clk_remove,
+	.remove = pwm_clk_remove,
 };
 module_platform_driver(pwm_clk_driver);
 

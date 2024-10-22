@@ -125,7 +125,6 @@ struct btrfs_inode;
  * Record a dirty extent, and info qgroup to update quota on it
  */
 struct btrfs_qgroup_extent_record {
-	struct rb_node node;
 	u64 bytenr;
 	u64 num_bytes;
 

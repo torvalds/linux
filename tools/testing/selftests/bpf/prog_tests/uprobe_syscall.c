@@ -216,7 +216,7 @@ static void test_uretprobe_regs_change(void)
 }
 
 #ifndef __NR_uretprobe
-#define __NR_uretprobe 467
+#define __NR_uretprobe 335
 #endif
 
 __naked unsigned long uretprobe_syscall_call_1(void)
@@ -253,7 +253,7 @@ static void test_uretprobe_syscall_call(void)
 	struct uprobe_syscall_executed *skel;
 	int pid, status, err, go[2], c;
 
-	if (ASSERT_OK(pipe(go), "pipe"))
+	if (!ASSERT_OK(pipe(go), "pipe"))
 		return;
 
 	skel = uprobe_syscall_executed__open_and_load();

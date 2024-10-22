@@ -233,6 +233,49 @@ static void ee1004_cleanup_bus_data(void *data)
 	mutex_unlock(&ee1004_bus_lock);
 }
 
+static int ee1004_init_bus_data(struct i2c_client *client)
+{
+	struct ee1004_bus_data *bd;
+	int err, cnr = 0;
+
+	bd = ee1004_get_bus_data(client->adapter);
+	if (!bd)
+		return dev_err_probe(&client->dev, -ENOSPC, "Only %d busses supported",
+				     EE1004_MAX_BUSSES);
+
+	i2c_set_clientdata(client, bd);
+
+	if (++bd->dev_count == 1) {
+		/* Use 2 dummy devices for page select command */
+		for (cnr = 0; cnr < EE1004_NUM_PAGES; cnr++) {
+			struct i2c_client *cl;
+
+			cl = i2c_new_dummy_device(client->adapter, EE1004_ADDR_SET_PAGE + cnr);
+			if (IS_ERR(cl)) {
+				err = PTR_ERR(cl);
+				goto err_out;
+			}
+
+			bd->set_page[cnr] = cl;
+		}
+
+		/* Remember current page to avoid unneeded page select */
+		err = ee1004_get_current_page(bd);
+		if (err < 0)
+			goto err_out;
+
+		dev_dbg(&client->dev, "Currently selected page: %d\n", err);
+		bd->current_page = err;
+	}
+
+	return 0;
+
+err_out:
+	ee1004_cleanup(cnr, bd);
+
+	return err;
+}
+
 static int ee1004_probe(struct i2c_client *client)
 {
 	struct nvmem_config config = {
@@ -251,9 +294,8 @@ static int ee1004_probe(struct i2c_client *client)
 		.compat = true,
 		.base_dev = &client->dev,
 	};
-	struct ee1004_bus_data *bd;
 	struct nvmem_device *ndev;
-	int err, cnr = 0;
+	int err;
 
 	/* Make sure we can operate on this adapter */
 	if (!i2c_check_functionality(client->adapter,
@@ -264,45 +306,20 @@ static int ee1004_probe(struct i2c_client *client)
 
 	mutex_lock(&ee1004_bus_lock);
 
-	bd = ee1004_get_bus_data(client->adapter);
-	if (!bd) {
+	err = ee1004_init_bus_data(client);
+	if (err < 0) {
 		mutex_unlock(&ee1004_bus_lock);
-		return dev_err_probe(&client->dev, -ENOSPC,
-				     "Only %d busses supported", EE1004_MAX_BUSSES);
-	}
-
-	err = devm_add_action_or_reset(&client->dev, ee1004_cleanup_bus_data, bd);
-	if (err < 0)
 		return err;
-
-	i2c_set_clientdata(client, bd);
-
-	if (++bd->dev_count == 1) {
-		/* Use 2 dummy devices for page select command */
-		for (cnr = 0; cnr < EE1004_NUM_PAGES; cnr++) {
-			struct i2c_client *cl;
-
-			cl = i2c_new_dummy_device(client->adapter, EE1004_ADDR_SET_PAGE + cnr);
-			if (IS_ERR(cl)) {
-				mutex_unlock(&ee1004_bus_lock);
-				return PTR_ERR(cl);
-			}
-			bd->set_page[cnr] = cl;
-		}
-
-		/* Remember current page to avoid unneeded page select */
-		err = ee1004_get_current_page(bd);
-		if (err < 0) {
-			mutex_unlock(&ee1004_bus_lock);
-			return err;
-		}
-		dev_dbg(&client->dev, "Currently selected page: %d\n", err);
-		bd->current_page = err;
 	}
 
 	ee1004_probe_temp_sensor(client);
 
 	mutex_unlock(&ee1004_bus_lock);
+
+	err = devm_add_action_or_reset(&client->dev, ee1004_cleanup_bus_data,
+				       i2c_get_clientdata(client));
+	if (err < 0)
+		return err;
 
 	ndev = devm_nvmem_register(&client->dev, &config);
 	if (IS_ERR(ndev))

@@ -22,6 +22,7 @@
 #include "perfmon.h"
 
 MODULE_VERSION(IDXD_DRIVER_VERSION);
+MODULE_DESCRIPTION("Intel Data Streaming Accelerator and In-Memory Analytics Accelerator common driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
 MODULE_IMPORT_NS(IDXD);
@@ -877,8 +878,6 @@ static int __init idxd_init_module(void)
 	else
 		support_enqcmd = true;
 
-	perfmon_init();
-
 	err = idxd_driver_register(&idxd_drv);
 	if (err < 0)
 		goto err_idxd_driver_register;
@@ -927,7 +926,6 @@ static void __exit idxd_exit_module(void)
 	idxd_driver_unregister(&idxd_drv);
 	pci_unregister_driver(&idxd_pci_driver);
 	idxd_cdev_remove();
-	perfmon_exit();
 	idxd_remove_debugfs();
 }
 module_exit(idxd_exit_module);

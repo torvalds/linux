@@ -26,7 +26,7 @@ bool irq_fixup_move_pending(struct irq_desc *desc, bool force_clear)
 	 * The outgoing CPU might be the last online target in a pending
 	 * interrupt move. If that's the case clear the pending move bit.
 	 */
-	if (cpumask_any_and(desc->pending_mask, cpu_online_mask) >= nr_cpu_ids) {
+	if (!cpumask_intersects(desc->pending_mask, cpu_online_mask)) {
 		irqd_clr_move_pending(data);
 		return false;
 	}
@@ -74,7 +74,7 @@ void irq_move_masked_irq(struct irq_data *idata)
 	 * For correct operation this depends on the caller
 	 * masking the irqs.
 	 */
-	if (cpumask_any_and(desc->pending_mask, cpu_online_mask) < nr_cpu_ids) {
+	if (cpumask_intersects(desc->pending_mask, cpu_online_mask)) {
 		int ret;
 
 		ret = irq_do_set_affinity(data, desc->pending_mask, false);

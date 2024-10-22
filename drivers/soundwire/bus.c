@@ -1410,7 +1410,7 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 		}
 	}
 	if ((slave->bus->prop.quirks & SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY) &&
-	    !(slave->prop.quirks & SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY)) {
+	    !(prop->quirks & SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY)) {
 		/* Clear parity interrupt before enabling interrupt mask */
 		status = sdw_read_no_pm(slave, SDW_SCP_INT1);
 		if (status < 0) {
@@ -1436,7 +1436,7 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 	 * device-dependent, it might e.g. only be enabled in
 	 * steady-state after a couple of frames.
 	 */
-	val = slave->prop.scp_int1_mask;
+	val = prop->scp_int1_mask;
 
 	/* Enable SCP interrupts */
 	ret = sdw_update_no_pm(slave, SDW_SCP_INTMASK1, val, val);
@@ -1447,7 +1447,7 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 	}
 
 	/* No need to continue if DP0 is not present */
-	if (!slave->prop.dp0_prop)
+	if (!prop->dp0_prop)
 		return 0;
 
 	/* Enable DP0 interrupts */

@@ -53,6 +53,7 @@
 39	common	umount2				sys_umount
 40	common	mount				sys_mount
 41	common	pivot_root			sys_pivot_root
+42	common	nfsservctl			sys_ni_syscall
 43	32	statfs64			sys_statfs64			compat_sys_statfs64
 43	64	statfs				sys_statfs
 44	32	fstatfs64			sys_fstatfs64			compat_sys_fstatfs64
@@ -98,9 +99,9 @@
 77	common	tee				sys_tee
 78	common	readlinkat			sys_readlinkat
 79	stat64	fstatat64			sys_fstatat64
-79	newstat	fstatat				sys_newfstatat
+79	64	newfstatat			sys_newfstatat
 80	stat64	fstat64				sys_fstat64
-80	newstat	fstat				sys_newfstat
+80	64	fstat				sys_newfstat
 81	common	sync				sys_sync
 82	common	fsync				sys_fsync
 83	common	fdatasync			sys_fdatasync
@@ -402,4 +403,3 @@
 460	common	lsm_set_self_attr		sys_lsm_set_self_attr
 461	common	lsm_list_modules		sys_lsm_list_modules
 462	common	mseal				sys_mseal
-467	common	uretprobe			sys_uretprobe

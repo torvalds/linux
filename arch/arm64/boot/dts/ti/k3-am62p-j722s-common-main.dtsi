@@ -260,8 +260,9 @@
 	main_esm: esm@420000 {
 		compatible = "ti,j721e-esm";
 		reg = <0x00 0x420000 0x00 0x1000>;
-		ti,esm-pins = <160>, <161>, <162>, <163>, <177>, <178>;
 		bootph-pre-ram;
+		/* Interrupt sources: rti0, rti1, wrti0 rti2, rti3, rti15 */
+		ti,esm-pins = <224>, <225>, <227>, <241>, <242>, <248>;
 	};
 
 	main_timer0: timer@2400000 {

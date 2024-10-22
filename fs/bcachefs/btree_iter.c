@@ -1900,6 +1900,7 @@ err:
 	goto out;
 }
 
+/* Only kept for -tools */
 struct btree *bch2_btree_iter_peek_node_and_restart(struct btree_iter *iter)
 {
 	struct btree *b;
@@ -1920,6 +1921,11 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	EBUG_ON(trans->paths[iter->path].cached);
 	bch2_trans_verify_not_in_restart(trans);
 	bch2_btree_iter_verify(iter);
+
+	ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
+	if (ret)
+		goto err;
+
 
 	struct btree_path *path = btree_iter_path(trans, iter);
 

@@ -314,7 +314,7 @@ static void __init qnap_ts209_init(void)
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 
 	/* register tsx09 specific power-off method */
-	pm_power_off = qnap_tsx09_power_off;
+	register_platform_power_off(qnap_tsx09_power_off);
 }
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")

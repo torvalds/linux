@@ -57,6 +57,8 @@ static struct sof_flag sof_flags[] = {
 	SOF_FLAG(SOF_TIMESTAMPING_SOFTWARE),
 	SOF_FLAG(SOF_TIMESTAMPING_RX_SOFTWARE),
 	SOF_FLAG(SOF_TIMESTAMPING_RX_HARDWARE),
+	SOF_FLAG(SOF_TIMESTAMPING_OPT_RX_FILTER),
+	SOF_FLAG(SOF_TIMESTAMPING_RAW_HARDWARE),
 };
 
 static struct socket_type socket_types[] = {
@@ -96,6 +98,22 @@ static struct test_case test_cases[] = {
 		{ .so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE
 			| SOF_TIMESTAMPING_RX_HARDWARE },
 		{}
+	},
+	{
+		{ .so_timestamping = SOF_TIMESTAMPING_RAW_HARDWARE
+			| SOF_TIMESTAMPING_OPT_RX_FILTER },
+		{}
+	},
+	{
+		{ .so_timestamping = SOF_TIMESTAMPING_SOFTWARE
+			| SOF_TIMESTAMPING_OPT_RX_FILTER },
+		{}
+	},
+	{
+		{ .so_timestamping = SOF_TIMESTAMPING_SOFTWARE
+			| SOF_TIMESTAMPING_RX_SOFTWARE
+			| SOF_TIMESTAMPING_OPT_RX_FILTER },
+		{ .swtstamp = true }
 	},
 	{
 		{ .so_timestamping = SOF_TIMESTAMPING_SOFTWARE

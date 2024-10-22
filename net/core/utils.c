@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	Generic address resultion entity
+ *	Generic address resolution entity
  *
  *	Authors:
  *	net_random Alan Cox

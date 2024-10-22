@@ -9,6 +9,7 @@
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_migrate.h"
+#include "xe_pcode.h"
 #include "xe_sa.h"
 #include "xe_tile.h"
 #include "xe_tile_sysfs.h"
@@ -123,6 +124,8 @@ int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id)
 	tile->primary_gt = xe_gt_alloc(tile);
 	if (IS_ERR(tile->primary_gt))
 		return PTR_ERR(tile->primary_gt);
+
+	xe_pcode_init(tile);
 
 	return 0;
 }

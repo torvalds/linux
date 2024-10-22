@@ -416,7 +416,7 @@ static struct platform_driver img_pwm_driver = {
 		.of_match_table = img_pwm_of_match,
 	},
 	.probe = img_pwm_probe,
-	.remove_new = img_pwm_remove,
+	.remove = img_pwm_remove,
 };
 module_platform_driver(img_pwm_driver);
 

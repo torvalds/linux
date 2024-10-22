@@ -406,6 +406,7 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 	bch2_trans_iter_init(trans, &iter, rbio->data_btree,
 			     rbio->read_pos, BTREE_ITER_slots);
 retry:
+	bch2_trans_begin(trans);
 	rbio->bio.bi_status = 0;
 
 	k = bch2_btree_iter_peek_slot(&iter);

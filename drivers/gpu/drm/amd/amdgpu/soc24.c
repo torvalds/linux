@@ -406,6 +406,7 @@ static int soc24_common_early_init(void *handle)
 			AMD_CG_SUPPORT_ATHUB_MGCG |
 			AMD_CG_SUPPORT_ATHUB_LS |
 			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_HDP_SD |
 			AMD_CG_SUPPORT_MC_LS;
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_JPEG |
@@ -424,6 +425,7 @@ static int soc24_common_early_init(void *handle)
 			AMD_CG_SUPPORT_ATHUB_MGCG |
 			AMD_CG_SUPPORT_ATHUB_LS |
 			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_HDP_SD |
 			AMD_CG_SUPPORT_MC_LS;
 
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
@@ -484,6 +486,10 @@ static int soc24_common_hw_init(void *handle)
 	 */
 	if (adev->nbio.funcs->remap_hdp_registers)
 		adev->nbio.funcs->remap_hdp_registers(adev);
+
+	if (adev->df.funcs->hw_init)
+		adev->df.funcs->hw_init(adev);
+
 	/* enable the doorbell aperture */
 	soc24_enable_doorbell_aperture(adev, true);
 

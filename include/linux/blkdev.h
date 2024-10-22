@@ -1187,7 +1187,8 @@ static inline unsigned int queue_max_segment_size(const struct request_queue *q)
 	return q->limits.max_segment_size;
 }
 
-static inline unsigned int queue_limits_max_zone_append_sectors(struct queue_limits *l)
+static inline unsigned int
+queue_limits_max_zone_append_sectors(const struct queue_limits *l)
 {
 	unsigned int max_sectors = min(l->chunk_sectors, l->max_hw_sectors);
 
@@ -1296,12 +1297,7 @@ bdev_max_secure_erase_sectors(struct block_device *bdev)
 
 static inline unsigned int bdev_write_zeroes_sectors(struct block_device *bdev)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (q)
-		return q->limits.max_write_zeroes_sectors;
-
-	return 0;
+	return bdev_get_queue(bdev)->limits.max_write_zeroes_sectors;
 }
 
 static inline bool bdev_nonrot(struct block_device *bdev)

@@ -1540,8 +1540,15 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		vma_pagesize = min(vma_pagesize, (long)max_map_size);
 	}
 
-	if (vma_pagesize == PMD_SIZE || vma_pagesize == PUD_SIZE)
+	/*
+	 * Both the canonical IPA and fault IPA must be hugepage-aligned to
+	 * ensure we find the right PFN and lay down the mapping in the right
+	 * place.
+	 */
+	if (vma_pagesize == PMD_SIZE || vma_pagesize == PUD_SIZE) {
 		fault_ipa &= ~(vma_pagesize - 1);
+		ipa &= ~(vma_pagesize - 1);
+	}
 
 	gfn = ipa >> PAGE_SHIFT;
 	mte_allowed = kvm_vma_mte_allowed(vma);

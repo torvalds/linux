@@ -753,7 +753,6 @@ static void imx_rpmsg_pcm_remove(struct platform_device *pdev)
 		destroy_workqueue(info->rpmsg_wq);
 }
 
-#ifdef CONFIG_PM
 static int imx_rpmsg_pcm_runtime_resume(struct device *dev)
 {
 	struct rpmsg_info *info = dev_get_drvdata(dev);
@@ -771,9 +770,7 @@ static int imx_rpmsg_pcm_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static int imx_rpmsg_pcm_suspend(struct device *dev)
 {
 	struct rpmsg_info *info = dev_get_drvdata(dev);
@@ -809,14 +806,11 @@ static int imx_rpmsg_pcm_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops imx_rpmsg_pcm_pm_ops = {
-	SET_RUNTIME_PM_OPS(imx_rpmsg_pcm_runtime_suspend,
-			   imx_rpmsg_pcm_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(imx_rpmsg_pcm_suspend,
-				imx_rpmsg_pcm_resume)
+	RUNTIME_PM_OPS(imx_rpmsg_pcm_runtime_suspend,
+		       imx_rpmsg_pcm_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(imx_rpmsg_pcm_suspend, imx_rpmsg_pcm_resume)
 };
 
 static const struct platform_device_id imx_rpmsg_pcm_id_table[] = {
@@ -828,11 +822,11 @@ MODULE_DEVICE_TABLE(platform, imx_rpmsg_pcm_id_table);
 
 static struct platform_driver imx_pcm_rpmsg_driver = {
 	.probe  = imx_rpmsg_pcm_probe,
-	.remove_new = imx_rpmsg_pcm_remove,
+	.remove = imx_rpmsg_pcm_remove,
 	.id_table = imx_rpmsg_pcm_id_table,
 	.driver = {
 		.name = IMX_PCM_DRV_NAME,
-		.pm = &imx_rpmsg_pcm_pm_ops,
+		.pm = pm_ptr(&imx_rpmsg_pcm_pm_ops),
 	},
 };
 module_platform_driver(imx_pcm_rpmsg_driver);

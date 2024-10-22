@@ -163,4 +163,5 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 module_usb_serial_driver(serial_drivers, id_table);
+MODULE_DESCRIPTION("USB Serial 'Simple' driver");
 MODULE_LICENSE("GPL v2");

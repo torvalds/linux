@@ -26,51 +26,6 @@ struct qseecom_client {
 };
 
 /**
- * qseecom_scm_dev() - Get the SCM device associated with the QSEECOM client.
- * @client: The QSEECOM client device.
- *
- * Returns the SCM device under which the provided QSEECOM client device
- * operates. This function is intended to be used for DMA allocations.
- */
-static inline struct device *qseecom_scm_dev(struct qseecom_client *client)
-{
-	return client->aux_dev.dev.parent->parent;
-}
-
-/**
- * qseecom_dma_alloc() - Allocate DMA memory for a QSEECOM client.
- * @client:     The QSEECOM client to allocate the memory for.
- * @size:       The number of bytes to allocate.
- * @dma_handle: Pointer to where the DMA address should be stored.
- * @gfp:        Allocation flags.
- *
- * Wrapper function for dma_alloc_coherent(), allocating DMA memory usable for
- * TZ/QSEECOM communication. Refer to dma_alloc_coherent() for details.
- */
-static inline void *qseecom_dma_alloc(struct qseecom_client *client, size_t size,
-				      dma_addr_t *dma_handle, gfp_t gfp)
-{
-	return dma_alloc_coherent(qseecom_scm_dev(client), size, dma_handle, gfp);
-}
-
-/**
- * dma_free_coherent() - Free QSEECOM DMA memory.
- * @client:     The QSEECOM client for which the memory has been allocated.
- * @size:       The number of bytes allocated.
- * @cpu_addr:   Virtual memory address to free.
- * @dma_handle: DMA memory address to free.
- *
- * Wrapper function for dma_free_coherent(), freeing memory previously
- * allocated with qseecom_dma_alloc(). Refer to dma_free_coherent() for
- * details.
- */
-static inline void qseecom_dma_free(struct qseecom_client *client, size_t size,
-				    void *cpu_addr, dma_addr_t dma_handle)
-{
-	return dma_free_coherent(qseecom_scm_dev(client), size, cpu_addr, dma_handle);
-}
-
-/**
  * qcom_qseecom_app_send() - Send to and receive data from a given QSEE app.
  * @client:   The QSEECOM client associated with the target app.
  * @req:      Request buffer sent to the app (must be TZ memory).

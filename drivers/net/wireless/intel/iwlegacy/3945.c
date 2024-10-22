@@ -527,7 +527,7 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status = {};
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il3945_rx_frame_stats *rx_stats = IL_RX_STATS(pkt);
+	struct il3945_rx_frame_stats_hdr *rx_stats = IL_RX_STATS(pkt);
 	struct il3945_rx_frame_hdr *rx_hdr = IL_RX_HDR(pkt);
 	struct il3945_rx_frame_end *rx_end = IL_RX_END(pkt);
 	u16 rx_stats_sig_avg __maybe_unused = le16_to_cpu(rx_stats->sig_avg);

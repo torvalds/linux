@@ -89,12 +89,14 @@ enum {
 	Opt_uid,
 	Opt_gid,
 	Opt_mode,
+	Opt_source,
 };
 
 static const struct fs_parameter_spec debugfs_param_specs[] = {
 	fsparam_gid	("gid",		Opt_gid),
 	fsparam_u32oct	("mode",	Opt_mode),
 	fsparam_uid	("uid",		Opt_uid),
+	fsparam_string	("source",	Opt_source),
 	{}
 };
 
@@ -125,6 +127,12 @@ static int debugfs_parse_param(struct fs_context *fc, struct fs_parameter *param
 		break;
 	case Opt_mode:
 		opts->mode = result.uint_32 & S_IALLUGO;
+		break;
+	case Opt_source:
+		if (fc->source)
+			return invalfc(fc, "Multiple sources specified");
+		fc->source = param->string;
+		param->string = NULL;
 		break;
 	/*
 	 * We might like to report bad mount options here;

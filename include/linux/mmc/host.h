@@ -264,16 +264,6 @@ struct mmc_cqe_ops {
 	void	(*cqe_recovery_finish)(struct mmc_host *host);
 };
 
-struct mmc_async_req {
-	/* active mmc request */
-	struct mmc_request	*mrq;
-	/*
-	 * Check error status of completed mmc request.
-	 * Returns 0 if success otherwise non zero.
-	 */
-	enum mmc_blk_status (*err_check)(struct mmc_card *, struct mmc_async_req *);
-};
-
 /**
  * struct mmc_slot - MMC slot functions
  *
@@ -289,20 +279,6 @@ struct mmc_slot {
 	int cd_irq;
 	bool cd_wake_enabled;
 	void *handler_priv;
-};
-
-/**
- * mmc_context_info - synchronization details for mmc context
- * @is_done_rcv		wake up reason was done request
- * @is_new_req		wake up reason was new request
- * @is_waiting_last_req	mmc context waiting for single running request
- * @wait		wait queue
- */
-struct mmc_context_info {
-	bool			is_done_rcv;
-	bool			is_new_req;
-	bool			is_waiting_last_req;
-	wait_queue_head_t	wait;
 };
 
 struct regulator;
@@ -672,7 +648,8 @@ static inline void mmc_debugfs_err_stats_inc(struct mmc_host *host,
 	host->err_stats[stat] += 1;
 }
 
-int mmc_sd_switch(struct mmc_card *card, int mode, int group, u8 value, u8 *resp);
+int mmc_sd_switch(struct mmc_card *card, bool mode, int group,
+		u8 value, u8 *resp);
 int mmc_send_status(struct mmc_card *card, u32 *status);
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
 int mmc_send_abort_tuning(struct mmc_host *host, u32 opcode);

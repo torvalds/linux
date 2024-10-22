@@ -661,10 +661,6 @@
 	memory-region = <&gfx_memory>;
 };
 
-&pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
-};
-
 &wdt1 {
 	aspeed,reset-type = "none";
 	aspeed,external-signal;
@@ -694,11 +690,6 @@
 &video {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
-};
-
-&xdma {
-	status = "okay";
-	memory-region = <&vga_memory>;
 };
 
 #include "ibm-power9-dual.dtsi"

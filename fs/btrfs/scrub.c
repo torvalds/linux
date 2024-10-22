@@ -838,7 +838,7 @@ static void scrub_stripe_submit_repair_read(struct scrub_stripe *stripe,
 			     bbio->bio.bi_iter.bi_size >= blocksize)) {
 			ASSERT(bbio->bio.bi_iter.bi_size);
 			atomic_inc(&stripe->pending_io);
-			btrfs_submit_bio(bbio, mirror);
+			btrfs_submit_bbio(bbio, mirror);
 			if (wait)
 				wait_scrub_stripe_io(stripe);
 			bbio = NULL;
@@ -857,7 +857,7 @@ static void scrub_stripe_submit_repair_read(struct scrub_stripe *stripe,
 	if (bbio) {
 		ASSERT(bbio->bio.bi_iter.bi_size);
 		atomic_inc(&stripe->pending_io);
-		btrfs_submit_bio(bbio, mirror);
+		btrfs_submit_bbio(bbio, mirror);
 		if (wait)
 			wait_scrub_stripe_io(stripe);
 	}
@@ -1648,14 +1648,20 @@ static void scrub_reset_stripe(struct scrub_stripe *stripe)
 	}
 }
 
+static u32 stripe_length(const struct scrub_stripe *stripe)
+{
+	ASSERT(stripe->bg);
+
+	return min(BTRFS_STRIPE_LEN,
+		   stripe->bg->start + stripe->bg->length - stripe->logical);
+}
+
 static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 					    struct scrub_stripe *stripe)
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct btrfs_bio *bbio = NULL;
-	unsigned int nr_sectors = min(BTRFS_STRIPE_LEN, stripe->bg->start +
-				      stripe->bg->length - stripe->logical) >>
-				  fs_info->sectorsize_bits;
+	unsigned int nr_sectors = stripe_length(stripe) >> fs_info->sectorsize_bits;
 	u64 stripe_len = BTRFS_STRIPE_LEN;
 	int mirror = stripe->mirror_num;
 	int i;
@@ -1677,7 +1683,7 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 		     bbio->bio.bi_iter.bi_size >= stripe_len)) {
 			ASSERT(bbio->bio.bi_iter.bi_size);
 			atomic_inc(&stripe->pending_io);
-			btrfs_submit_bio(bbio, mirror);
+			btrfs_submit_bbio(bbio, mirror);
 			bbio = NULL;
 		}
 
@@ -1688,7 +1694,7 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 					    (i << fs_info->sectorsize_bits);
 			int err;
 
-			io_stripe.is_scrub = true;
+			io_stripe.rst_search_commit_root = true;
 			stripe_len = (nr_sectors - i) << fs_info->sectorsize_bits;
 			/*
 			 * For RST cases, we need to manually split the bbio to
@@ -1714,7 +1720,7 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 	if (bbio) {
 		ASSERT(bbio->bio.bi_iter.bi_size);
 		atomic_inc(&stripe->pending_io);
-		btrfs_submit_bio(bbio, mirror);
+		btrfs_submit_bbio(bbio, mirror);
 	}
 
 	if (atomic_dec_and_test(&stripe->pending_io)) {
@@ -1729,9 +1735,7 @@ static void scrub_submit_initial_read(struct scrub_ctx *sctx,
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_bio *bbio;
-	unsigned int nr_sectors = min(BTRFS_STRIPE_LEN, stripe->bg->start +
-				      stripe->bg->length - stripe->logical) >>
-				  fs_info->sectorsize_bits;
+	unsigned int nr_sectors = stripe_length(stripe) >> fs_info->sectorsize_bits;
 	int mirror = stripe->mirror_num;
 
 	ASSERT(stripe->bg);
@@ -1772,7 +1776,7 @@ static void scrub_submit_initial_read(struct scrub_ctx *sctx,
 
 		mirror = calc_next_mirror(mirror, num_copies);
 	}
-	btrfs_submit_bio(bbio, mirror);
+	btrfs_submit_bbio(bbio, mirror);
 }
 
 static bool stripe_has_metadata_error(struct scrub_stripe *stripe)
@@ -1871,6 +1875,9 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 		stripe = &sctx->stripes[i];
 
 		wait_scrub_stripe_io(stripe);
+		spin_lock(&sctx->stat_lock);
+		sctx->stat.last_physical = stripe->physical + stripe_length(stripe);
+		spin_unlock(&sctx->stat_lock);
 		scrub_reset_stripe(stripe);
 	}
 out:
@@ -2139,7 +2146,9 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 					 cur_physical, &found_logical);
 		if (ret > 0) {
 			/* No more extent, just update the accounting */
+			spin_lock(&sctx->stat_lock);
 			sctx->stat.last_physical = physical + logical_length;
+			spin_unlock(&sctx->stat_lock);
 			ret = 0;
 			break;
 		}
@@ -2336,6 +2345,10 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			stripe_logical += chunk_logical;
 			ret = scrub_raid56_parity_stripe(sctx, scrub_dev, bg,
 							 map, stripe_logical);
+			spin_lock(&sctx->stat_lock);
+			sctx->stat.last_physical = min(physical + BTRFS_STRIPE_LEN,
+						       physical_end);
+			spin_unlock(&sctx->stat_lock);
 			if (ret)
 				goto out;
 			goto next;

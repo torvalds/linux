@@ -611,11 +611,7 @@ void __init parisc_setup_cache_timing(void)
 		threshold/1024);
 
 set_tlb_threshold:
-	if (threshold > FLUSH_TLB_THRESHOLD)
-		parisc_tlb_flush_threshold = threshold;
-	else
-		parisc_tlb_flush_threshold = FLUSH_TLB_THRESHOLD;
-
+	parisc_tlb_flush_threshold = max(threshold, FLUSH_TLB_THRESHOLD);
 	printk(KERN_INFO "TLB flush threshold set to %lu KiB\n",
 		parisc_tlb_flush_threshold/1024);
 }

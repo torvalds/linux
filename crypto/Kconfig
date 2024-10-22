@@ -1305,7 +1305,7 @@ config CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE
 config CRYPTO_JITTERENTROPY_OSR
 	int "CPU Jitter RNG Oversampling Rate"
 	range 1 15
-	default 1
+	default 3
 	help
 	  The Jitter RNG allows the specification of an oversampling rate (OSR).
 	  The Jitter RNG operation requires a fixed amount of timing

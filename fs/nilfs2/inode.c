@@ -250,7 +250,7 @@ void nilfs_write_failed(struct address_space *mapping, loff_t to)
 
 static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 			     loff_t pos, unsigned len,
-			     struct page **pagep, void **fsdata)
+			     struct folio **foliop, void **fsdata)
 
 {
 	struct inode *inode = mapping->host;
@@ -259,7 +259,7 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	err = block_write_begin(mapping, pos, len, pagep, nilfs_get_block);
+	err = block_write_begin(mapping, pos, len, foliop, nilfs_get_block);
 	if (unlikely(err)) {
 		nilfs_write_failed(mapping, pos + len);
 		nilfs_transaction_abort(inode->i_sb);
@@ -269,16 +269,16 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 
 static int nilfs_write_end(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
-			   struct page *page, void *fsdata)
+			   struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	unsigned int start = pos & (PAGE_SIZE - 1);
 	unsigned int nr_dirty;
 	int err;
 
-	nr_dirty = nilfs_page_count_clean_buffers(page, start,
+	nr_dirty = nilfs_page_count_clean_buffers(&folio->page, start,
 						  start + copied);
-	copied = generic_write_end(file, mapping, pos, len, copied, page,
+	copied = generic_write_end(file, mapping, pos, len, copied, folio,
 				   fsdata);
 	nilfs_set_file_dirty(inode, nr_dirty);
 	err = nilfs_transaction_commit(inode->i_sb);

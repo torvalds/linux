@@ -17,6 +17,7 @@
 #include <linux/writeback.h>
 #include <linux/mount.h>
 #include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/namei.h>
 #include "hostfs.h"
 #include <init.h>
@@ -455,7 +456,7 @@ static int hostfs_read_folio(struct file *file, struct folio *folio)
 	if (bytes_read < 0)
 		ret = bytes_read;
 	else
-		buffer = folio_zero_tail(folio, bytes_read, buffer);
+		buffer = folio_zero_tail(folio, bytes_read, buffer + bytes_read);
 	kunmap_local(buffer);
 
 	folio_end_read(folio, ret == 0);
@@ -464,31 +465,32 @@ static int hostfs_read_folio(struct file *file, struct folio *folio)
 
 static int hostfs_write_begin(struct file *file, struct address_space *mapping,
 			      loff_t pos, unsigned len,
-			      struct page **pagep, void **fsdata)
+			      struct folio **foliop, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
 
-	*pagep = grab_cache_page_write_begin(mapping, index);
-	if (!*pagep)
+	*foliop = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (!*foliop)
 		return -ENOMEM;
 	return 0;
 }
 
 static int hostfs_write_end(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned copied,
-			    struct page *page, void *fsdata)
+			    struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	void *buffer;
-	unsigned from = pos & (PAGE_SIZE - 1);
+	size_t from = offset_in_folio(folio, pos);
 	int err;
 
-	buffer = kmap_local_page(page);
-	err = write_file(FILE_HOSTFS_I(file)->fd, &pos, buffer + from, copied);
+	buffer = kmap_local_folio(folio, from);
+	err = write_file(FILE_HOSTFS_I(file)->fd, &pos, buffer, copied);
 	kunmap_local(buffer);
 
-	if (!PageUptodate(page) && err == PAGE_SIZE)
-		SetPageUptodate(page);
+	if (!folio_test_uptodate(folio) && err == folio_size(folio))
+		folio_mark_uptodate(folio);
 
 	/*
 	 * If err > 0, write_file has added err to pos, so we are comparing
@@ -496,8 +498,8 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 	 */
 	if (err > 0 && (pos > inode->i_size))
 		inode->i_size = pos;
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return err;
 }
@@ -532,10 +534,11 @@ static int hostfs_inode_update(struct inode *ino, const struct hostfs_stat *st)
 static int hostfs_inode_set(struct inode *ino, void *data)
 {
 	struct hostfs_stat *st = data;
-	dev_t rdev;
+	dev_t dev, rdev;
 
 	/* Reencode maj and min with the kernel encoding.*/
-	rdev = MKDEV(st->maj, st->min);
+	rdev = MKDEV(st->rdev.maj, st->rdev.min);
+	dev = MKDEV(st->dev.maj, st->dev.min);
 
 	switch (st->mode & S_IFMT) {
 	case S_IFLNK:
@@ -561,7 +564,7 @@ static int hostfs_inode_set(struct inode *ino, void *data)
 		return -EIO;
 	}
 
-	HOSTFS_I(ino)->dev = st->dev;
+	HOSTFS_I(ino)->dev = dev;
 	ino->i_ino = st->ino;
 	ino->i_mode = st->mode;
 	return hostfs_inode_update(ino, st);
@@ -570,8 +573,9 @@ static int hostfs_inode_set(struct inode *ino, void *data)
 static int hostfs_inode_test(struct inode *inode, void *data)
 {
 	const struct hostfs_stat *st = data;
+	dev_t dev = MKDEV(st->dev.maj, st->dev.min);
 
-	return inode->i_ino == st->ino && HOSTFS_I(inode)->dev == st->dev;
+	return inode->i_ino == st->ino && HOSTFS_I(inode)->dev == dev;
 }
 
 static struct inode *hostfs_iget(struct super_block *sb, char *name)
@@ -927,7 +931,6 @@ static const struct inode_operations hostfs_link_iops = {
 static int hostfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct hostfs_fs_info *fsi = sb->s_fs_info;
-	const char *host_root = fc->source;
 	struct inode *root_inode;
 	int err;
 
@@ -940,15 +943,6 @@ static int hostfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	err = super_setup_bdi(sb);
 	if (err)
 		return err;
-
-	/* NULL is printed as '(null)' by printf(): avoid that. */
-	if (fc->source == NULL)
-		host_root = "";
-
-	fsi->host_root_path =
-		kasprintf(GFP_KERNEL, "%s/%s", root_ino, host_root);
-	if (fsi->host_root_path == NULL)
-		return -ENOMEM;
 
 	root_inode = hostfs_iget(sb, fsi->host_root_path);
 	if (IS_ERR(root_inode))
@@ -975,6 +969,58 @@ static int hostfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	return 0;
 }
 
+enum hostfs_parma {
+	Opt_hostfs,
+};
+
+static const struct fs_parameter_spec hostfs_param_specs[] = {
+	fsparam_string_empty("hostfs",		Opt_hostfs),
+	{}
+};
+
+static int hostfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	struct hostfs_fs_info *fsi = fc->s_fs_info;
+	struct fs_parse_result result;
+	char *host_root;
+	int opt;
+
+	opt = fs_parse(fc, hostfs_param_specs, param, &result);
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
+	case Opt_hostfs:
+		host_root = param->string;
+		if (!*host_root)
+			host_root = "";
+		fsi->host_root_path =
+			kasprintf(GFP_KERNEL, "%s/%s", root_ino, host_root);
+		if (fsi->host_root_path == NULL)
+			return -ENOMEM;
+		break;
+	}
+
+	return 0;
+}
+
+static int hostfs_parse_monolithic(struct fs_context *fc, void *data)
+{
+	struct hostfs_fs_info *fsi = fc->s_fs_info;
+	char *host_root = (char *)data;
+
+	/* NULL is printed as '(null)' by printf(): avoid that. */
+	if (host_root == NULL)
+		host_root = "";
+
+	fsi->host_root_path =
+		kasprintf(GFP_KERNEL, "%s/%s", root_ino, host_root);
+	if (fsi->host_root_path == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int hostfs_fc_get_tree(struct fs_context *fc)
 {
 	return get_tree_nodev(fc, hostfs_fill_super);
@@ -992,6 +1038,8 @@ static void hostfs_fc_free(struct fs_context *fc)
 }
 
 static const struct fs_context_operations hostfs_context_ops = {
+	.parse_monolithic = hostfs_parse_monolithic,
+	.parse_param	= hostfs_parse_param,
 	.get_tree	= hostfs_fc_get_tree,
 	.free		= hostfs_fc_free,
 };
@@ -1040,4 +1088,5 @@ static void __exit exit_hostfs(void)
 
 module_init(init_hostfs)
 module_exit(exit_hostfs)
+MODULE_DESCRIPTION("User-Mode Linux Host filesystem");
 MODULE_LICENSE("GPL");

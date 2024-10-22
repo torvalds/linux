@@ -6,6 +6,7 @@
  */
 #include <linux/module.h>
 #include <linux/highmem.h>
+#include <linux/folio_queue.h>
 #include "smbdirect.h"
 #include "cifs_debug.h"
 #include "cifsproto.h"
@@ -406,7 +407,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 			else
 				response = get_empty_queue_buffer(info);
 			if (!response) {
-				/* now switch to emtpy packet queue */
+				/* now switch to empty packet queue */
 				if (use_receive_queue) {
 					use_receive_queue = 0;
 					continue;
@@ -618,7 +619,7 @@ out:
 
 /*
  * Test if FRWR (Fast Registration Work Requests) is supported on the device
- * This implementation requries FRWR on RDMA read/write
+ * This implementation requires FRWR on RDMA read/write
  * return value: true if it is supported
  */
 static bool frwr_is_supported(struct ib_device_attr *attrs)
@@ -2177,7 +2178,7 @@ cleanup_entries:
  * MR available in the list. It may access the list while the
  * smbd_mr_recovery_work is recovering the MR list. This doesn't need a lock
  * as they never modify the same places. However, there may be several CPUs
- * issueing I/O trying to get MR at the same time, mr_list_lock is used to
+ * issuing I/O trying to get MR at the same time, mr_list_lock is used to
  * protect this situation.
  */
 static struct smbd_mr *get_mr(struct smbd_connection *info)
@@ -2311,7 +2312,7 @@ struct smbd_mr *smbd_register_mr(struct smbd_connection *info,
 	/*
 	 * There is no need for waiting for complemtion on ib_post_send
 	 * on IB_WR_REG_MR. Hardware enforces a barrier and order of execution
-	 * on the next ib_post_send when we actaully send I/O to remote peer
+	 * on the next ib_post_send when we actually send I/O to remote peer
 	 */
 	rc = ib_post_send(info->id->qp, &reg_wr->wr, NULL);
 	if (!rc)
@@ -2463,6 +2464,8 @@ static ssize_t smb_extract_bvec_to_rdma(struct iov_iter *iter,
 		start = 0;
 	}
 
+	if (ret > 0)
+		iov_iter_advance(iter, ret);
 	return ret;
 }
 
@@ -2519,50 +2522,65 @@ static ssize_t smb_extract_kvec_to_rdma(struct iov_iter *iter,
 		start = 0;
 	}
 
+	if (ret > 0)
+		iov_iter_advance(iter, ret);
 	return ret;
 }
 
 /*
- * Extract folio fragments from an XARRAY-class iterator and add them to an
- * RDMA list.  The folios are not pinned.
+ * Extract folio fragments from a FOLIOQ-class iterator and add them to an RDMA
+ * list.  The folios are not pinned.
  */
-static ssize_t smb_extract_xarray_to_rdma(struct iov_iter *iter,
+static ssize_t smb_extract_folioq_to_rdma(struct iov_iter *iter,
 					  struct smb_extract_to_rdma *rdma,
 					  ssize_t maxsize)
 {
-	struct xarray *xa = iter->xarray;
-	struct folio *folio;
-	loff_t start = iter->xarray_start + iter->iov_offset;
-	pgoff_t index = start / PAGE_SIZE;
+	const struct folio_queue *folioq = iter->folioq;
+	unsigned int slot = iter->folioq_slot;
 	ssize_t ret = 0;
-	size_t off, len;
-	XA_STATE(xas, xa, index);
+	size_t offset = iter->iov_offset;
 
-	rcu_read_lock();
+	BUG_ON(!folioq);
 
-	xas_for_each(&xas, folio, ULONG_MAX) {
-		if (xas_retry(&xas, folio))
-			continue;
-		if (WARN_ON(xa_is_value(folio)))
-			break;
-		if (WARN_ON(folio_test_hugetlb(folio)))
-			break;
-
-		off = offset_in_folio(folio, start);
-		len = min_t(size_t, maxsize, folio_size(folio) - off);
-
-		if (!smb_set_sge(rdma, folio_page(folio, 0), off, len)) {
-			rcu_read_unlock();
+	if (slot >= folioq_nr_slots(folioq)) {
+		folioq = folioq->next;
+		if (WARN_ON_ONCE(!folioq))
 			return -EIO;
-		}
-
-		maxsize -= len;
-		ret += len;
-		if (rdma->nr_sge >= rdma->max_sge || maxsize <= 0)
-			break;
+		slot = 0;
 	}
 
-	rcu_read_unlock();
+	do {
+		struct folio *folio = folioq_folio(folioq, slot);
+		size_t fsize = folioq_folio_size(folioq, slot);
+
+		if (offset < fsize) {
+			size_t part = umin(maxsize - ret, fsize - offset);
+
+			if (!smb_set_sge(rdma, folio_page(folio, 0), offset, part))
+				return -EIO;
+
+			offset += part;
+			ret += part;
+		}
+
+		if (offset >= fsize) {
+			offset = 0;
+			slot++;
+			if (slot >= folioq_nr_slots(folioq)) {
+				if (!folioq->next) {
+					WARN_ON_ONCE(ret < iter->count);
+					break;
+				}
+				folioq = folioq->next;
+				slot = 0;
+			}
+		}
+	} while (rdma->nr_sge < rdma->max_sge || maxsize > 0);
+
+	iter->folioq = folioq;
+	iter->folioq_slot = slot;
+	iter->iov_offset = offset;
+	iter->count -= ret;
 	return ret;
 }
 
@@ -2590,17 +2608,15 @@ static ssize_t smb_extract_iter_to_rdma(struct iov_iter *iter, size_t len,
 	case ITER_KVEC:
 		ret = smb_extract_kvec_to_rdma(iter, rdma, len);
 		break;
-	case ITER_XARRAY:
-		ret = smb_extract_xarray_to_rdma(iter, rdma, len);
+	case ITER_FOLIOQ:
+		ret = smb_extract_folioq_to_rdma(iter, rdma, len);
 		break;
 	default:
 		WARN_ON_ONCE(1);
 		return -EIO;
 	}
 
-	if (ret > 0) {
-		iov_iter_advance(iter, ret);
-	} else if (ret < 0) {
+	if (ret < 0) {
 		while (rdma->nr_sge > before) {
 			struct ib_sge *sge = &rdma->sge[rdma->nr_sge--];
 

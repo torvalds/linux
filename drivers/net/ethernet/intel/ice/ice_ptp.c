@@ -1477,6 +1477,10 @@ void ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup)
 	/* Update cached link status for this port immediately */
 	ptp_port->link_up = linkup;
 
+	/* Skip HW writes if reset is in progress */
+	if (pf->hw.reset_ongoing)
+		return;
+
 	switch (hw->ptp.phy_model) {
 	case ICE_PHY_E810:
 		/* Do not reconfigure E810 PHY */
@@ -2915,7 +2919,7 @@ static struct ice_pf *
 ice_ptp_aux_dev_to_owner_pf(struct auxiliary_device *aux_dev)
 {
 	struct ice_ptp_port_owner *ports_owner;
-	struct auxiliary_driver *aux_drv;
+	const struct auxiliary_driver *aux_drv;
 	struct ice_ptp *owner_ptp;
 
 	if (!aux_dev->dev.driver)

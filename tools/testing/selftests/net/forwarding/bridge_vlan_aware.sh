@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding vlan_deletion extern_learn"
+ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding vlan_deletion extern_learn other_tpid"
 NUM_NETIFS=4
 CHECK_TC="yes"
 source lib.sh
@@ -140,6 +140,58 @@ extern_learn()
 
 	bridge fdb del de:ad:be:ef:13:37 dev $swp2 master vlan 1 &> /dev/null
 	bridge fdb del de:ad:be:ef:13:37 dev $swp1 master vlan 1 &> /dev/null
+}
+
+other_tpid()
+{
+	local mac=de:ad:be:ef:13:37
+
+	# Test that packets with TPID 802.1ad VID 3 + TPID 802.1Q VID 5 are
+	# classified as untagged by a bridge with vlan_protocol 802.1Q, and
+	# are processed in the PVID of the ingress port (here 1). Not VID 3,
+	# and not VID 5.
+	RET=0
+
+	tc qdisc add dev $h2 clsact
+	tc filter add dev $h2 ingress protocol all pref 1 handle 101 \
+		flower dst_mac $mac action drop
+	ip link set $h2 promisc on
+	ethtool -K $h2 rx-vlan-filter off rx-vlan-stag-filter off
+
+	$MZ -q $h1 -c 1 -b $mac -a own "88:a8 00:03 81:00 00:05 08:00 aa-aa-aa-aa-aa-aa-aa-aa-aa"
+	sleep 1
+
+	# Match on 'self' addresses as well, for those drivers which
+	# do not push their learned addresses to the bridge software
+	# database
+	bridge -j fdb show $swp1 | \
+		jq -e ".[] | select(.mac == \"$(mac_get $h1)\") | select(.vlan == 1)" &> /dev/null
+	check_err $? "FDB entry was not learned when it should"
+
+	log_test "FDB entry in PVID for VLAN-tagged with other TPID"
+
+	RET=0
+	tc -j -s filter show dev $h2 ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	check_err $? "Packet was not forwarded when it should"
+	log_test "Reception of VLAN with other TPID as untagged"
+
+	bridge vlan del dev $swp1 vid 1
+
+	$MZ -q $h1 -c 1 -b $mac -a own "88:a8 00:03 81:00 00:05 08:00 aa-aa-aa-aa-aa-aa-aa-aa-aa"
+	sleep 1
+
+	RET=0
+	tc -j -s filter show dev $h2 ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	check_err $? "Packet was forwarded when should not"
+	log_test "Reception of VLAN with other TPID as untagged (no PVID)"
+
+	bridge vlan add dev $swp1 vid 1 pvid untagged
+	ip link set $h2 promisc off
+	tc qdisc del dev $h2 clsact
 }
 
 trap cleanup EXIT

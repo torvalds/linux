@@ -324,7 +324,7 @@ static struct platform_driver ecap_pwm_driver = {
 		.pm = pm_ptr(&ecap_pwm_pm_ops),
 	},
 	.probe = ecap_pwm_probe,
-	.remove_new = ecap_pwm_remove,
+	.remove = ecap_pwm_remove,
 };
 module_platform_driver(ecap_pwm_driver);
 

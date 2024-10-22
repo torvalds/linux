@@ -45,9 +45,9 @@ static bool match_service_id(const struct tb_service_id *id,
 }
 
 static const struct tb_service_id *__tb_service_match(struct device *dev,
-						      struct device_driver *drv)
+						      const struct device_driver *drv)
 {
-	struct tb_service_driver *driver;
+	const struct tb_service_driver *driver;
 	const struct tb_service_id *ids;
 	struct tb_service *svc;
 
@@ -55,7 +55,7 @@ static const struct tb_service_id *__tb_service_match(struct device *dev,
 	if (!svc)
 		return NULL;
 
-	driver = container_of(drv, struct tb_service_driver, driver);
+	driver = container_of_const(drv, struct tb_service_driver, driver);
 	if (!driver->id_table)
 		return NULL;
 
@@ -67,7 +67,7 @@ static const struct tb_service_id *__tb_service_match(struct device *dev,
 	return NULL;
 }
 
-static int tb_service_match(struct device *dev, struct device_driver *drv)
+static int tb_service_match(struct device *dev, const struct device_driver *drv)
 {
 	return !!__tb_service_match(dev, drv);
 }

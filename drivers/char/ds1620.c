@@ -421,4 +421,5 @@ static void __exit ds1620_exit(void)
 module_init(ds1620_init);
 module_exit(ds1620_exit);
 
+MODULE_DESCRIPTION("Dallas Semiconductor DS1620 thermometer driver");
 MODULE_LICENSE("GPL");

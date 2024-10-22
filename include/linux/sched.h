@@ -1243,7 +1243,6 @@ struct task_struct {
 	/* Sequence number to catch updates: */
 	seqcount_spinlock_t		mems_allowed_seq;
 	int				cpuset_mem_spread_rotor;
-	int				cpuset_slab_spread_rotor;
 #endif
 #ifdef CONFIG_CGROUPS
 	/* Control Group info protected by css_set_lock: */

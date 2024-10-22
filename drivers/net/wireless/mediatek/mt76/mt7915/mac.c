@@ -1448,6 +1448,7 @@ mt7915_mac_full_reset(struct mt7915_dev *dev)
 
 	dev->recovery.hw_full_reset = true;
 
+	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
 	ieee80211_stop_queues(mt76_hw(dev));
 	if (ext_phy)
@@ -1462,26 +1463,27 @@ mt7915_mac_full_reset(struct mt7915_dev *dev)
 		if (!mt7915_mac_restart(dev))
 			break;
 	}
-	mutex_unlock(&dev->mt76.mutex);
 
 	if (i == 10)
 		dev_err(dev->mt76.dev, "chip full reset failed\n");
 
+	spin_lock_bh(&dev->mt76.sta_poll_lock);
+	while (!list_empty(&dev->mt76.sta_poll_list))
+		list_del_init(dev->mt76.sta_poll_list.next);
+	spin_unlock_bh(&dev->mt76.sta_poll_lock);
+
+	memset(dev->mt76.wcid_mask, 0, sizeof(dev->mt76.wcid_mask));
+	dev->mt76.vif_mask = 0;
+
+	i = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
+	dev->mt76.global_wcid.idx = i;
+	dev->recovery.hw_full_reset = false;
+
+	mutex_unlock(&dev->mt76.mutex);
+
 	ieee80211_restart_hw(mt76_hw(dev));
 	if (ext_phy)
 		ieee80211_restart_hw(ext_phy->hw);
-
-	ieee80211_wake_queues(mt76_hw(dev));
-	if (ext_phy)
-		ieee80211_wake_queues(ext_phy->hw);
-
-	dev->recovery.hw_full_reset = false;
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
-				     MT7915_WATCHDOG_TIME);
-	if (ext_phy)
-		ieee80211_queue_delayed_work(ext_phy->hw,
-					     &ext_phy->mac_work,
-					     MT7915_WATCHDOG_TIME);
 }
 
 /* system error recovery */
@@ -1537,12 +1539,14 @@ void mt7915_mac_reset_work(struct work_struct *work)
 		set_bit(MT76_RESET, &phy2->mt76->state);
 		cancel_delayed_work_sync(&phy2->mt76->mac_work);
 	}
+
+	mutex_lock(&dev->mt76.mutex);
+
 	mt76_worker_disable(&dev->mt76.tx_worker);
 	mt76_for_each_q_rx(&dev->mt76, i)
 		napi_disable(&dev->mt76.napi[i]);
 	napi_disable(&dev->mt76.tx_napi);
 
-	mutex_lock(&dev->mt76.mutex);
 
 	if (mtk_wed_device_active(&dev->mt76.mmio.wed))
 		mtk_wed_device_stop(&dev->mt76.mmio.wed);
@@ -1690,6 +1694,11 @@ void mt7915_reset(struct mt7915_dev *dev)
 		mt7915_irq_disable(dev, MT_INT_MCU_CMD);
 		queue_work(dev->mt76.wq, &dev->dump_work);
 		return;
+	}
+
+	if ((READ_ONCE(dev->recovery.state) & MT_MCU_CMD_STOP_DMA)) {
+		set_bit(MT76_MCU_RESET, &dev->mphy.state);
+		wake_up(&dev->mt76.mcu.wait);
 	}
 
 	queue_work(dev->mt76.wq, &dev->reset_work);

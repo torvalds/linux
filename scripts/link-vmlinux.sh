@@ -45,7 +45,6 @@ info()
 
 # Link of vmlinux
 # ${1} - output file
-# ${2}, ${3}, ... - optional extra .o files
 vmlinux_link()
 {
 	local output=${1}
@@ -90,7 +89,7 @@ vmlinux_link()
 	ldflags="${ldflags} ${wl}--script=${objtree}/${KBUILD_LDS}"
 
 	# The kallsyms linking does not need debug symbols included.
-	if [ "$output" != "${output#.tmp_vmlinux.kallsyms}" ] ; then
+	if [ -n "${strip_debug}" ] ; then
 		ldflags="${ldflags} ${wl}--strip-debug"
 	fi
 
@@ -101,15 +100,15 @@ vmlinux_link()
 	${ld} ${ldflags} -o ${output}					\
 		${wl}--whole-archive ${objs} ${wl}--no-whole-archive	\
 		${wl}--start-group ${libs} ${wl}--end-group		\
-		$@ ${ldlibs}
+		${kallsymso} ${btf_vmlinux_bin_o} ${ldlibs}
 }
 
 # generate .BTF typeinfo from DWARF debuginfo
 # ${1} - vmlinux image
-# ${2} - file to dump raw BTF data into
 gen_btf()
 {
 	local pahole_ver
+	local btf_data=${1}.btf.o
 
 	if ! [ -x "$(command -v ${PAHOLE})" ]; then
 		echo >&2 "BTF: ${1}: pahole (${PAHOLE}) is not available"
@@ -122,18 +121,16 @@ gen_btf()
 		return 1
 	fi
 
-	vmlinux_link ${1}
-
-	info "BTF" ${2}
+	info BTF "${btf_data}"
 	LLVM_OBJCOPY="${OBJCOPY}" ${PAHOLE} -J ${PAHOLE_FLAGS} ${1}
 
-	# Create ${2} which contains just .BTF section but no symbols. Add
+	# Create ${btf_data} which contains just .BTF section but no symbols. Add
 	# SHF_ALLOC because .BTF will be part of the vmlinux image. --strip-all
 	# deletes all symbols including __start_BTF and __stop_BTF, which will
 	# be redefined in the linker script. Add 2>/dev/null to suppress GNU
 	# objcopy warnings: "empty loadable segment detected at ..."
 	${OBJCOPY} --only-section=.BTF --set-section-flags .BTF=alloc,readonly \
-		--strip-all ${1} ${2} 2>/dev/null
+		--strip-all ${1} "${btf_data}" 2>/dev/null
 	# Change e_type to ET_REL so that it can be used to link final vmlinux.
 	# GNU ld 2.35+ and lld do not allow an ET_EXEC input.
 	if is_enabled CONFIG_CPU_BIG_ENDIAN; then
@@ -141,10 +138,12 @@ gen_btf()
 	else
 		et_rel='\1\0'
 	fi
-	printf "${et_rel}" | dd of=${2} conv=notrunc bs=1 seek=16 status=none
+	printf "${et_rel}" | dd of="${btf_data}" conv=notrunc bs=1 seek=16 status=none
+
+	btf_vmlinux_bin_o=${btf_data}
 }
 
-# Create ${2} .S file with all symbols from the ${1} object file
+# Create ${2}.o file with all symbols from the ${1} object file
 kallsyms()
 {
 	local kallsymopt;
@@ -157,35 +156,23 @@ kallsyms()
 		kallsymopt="${kallsymopt} --absolute-percpu"
 	fi
 
-	if is_enabled CONFIG_KALLSYMS_BASE_RELATIVE; then
-		kallsymopt="${kallsymopt} --base-relative"
-	fi
+	info KSYMS "${2}.S"
+	scripts/kallsyms ${kallsymopt} "${1}" > "${2}.S"
 
-	if is_enabled CONFIG_LTO_CLANG; then
-		kallsymopt="${kallsymopt} --lto-clang"
-	fi
+	info AS "${2}.o"
+	${CC} ${NOSTDINC_FLAGS} ${LINUXINCLUDE} ${KBUILD_CPPFLAGS} \
+	      ${KBUILD_AFLAGS} ${KBUILD_AFLAGS_KERNEL} -c -o "${2}.o" "${2}.S"
 
-	info KSYMS ${2}
-	scripts/kallsyms ${kallsymopt} ${1} > ${2}
+	kallsymso=${2}.o
 }
 
-# Perform one step in kallsyms generation, including temporary linking of
-# vmlinux.
-kallsyms_step()
+# Perform kallsyms for the given temporary vmlinux.
+sysmap_and_kallsyms()
 {
-	kallsymso_prev=${kallsymso}
-	kallsyms_vmlinux=.tmp_vmlinux.kallsyms${1}
-	kallsymso=${kallsyms_vmlinux}.o
-	kallsyms_S=${kallsyms_vmlinux}.S
+	mksysmap "${1}" "${1}.syms"
+	kallsyms "${1}.syms" "${1}.kallsyms"
 
-	vmlinux_link ${kallsyms_vmlinux} "${kallsymso_prev}" ${btf_vmlinux_bin_o}
-	mksysmap ${kallsyms_vmlinux} ${kallsyms_vmlinux}.syms
-	kallsyms ${kallsyms_vmlinux}.syms ${kallsyms_S}
-
-	info AS ${kallsymso}
-	${CC} ${NOSTDINC_FLAGS} ${LINUXINCLUDE} ${KBUILD_CPPFLAGS} \
-	      ${KBUILD_AFLAGS} ${KBUILD_AFLAGS_KERNEL} \
-	      -c -o ${kallsymso} ${kallsyms_S}
+	kallsyms_sysmap=${1}.syms
 }
 
 # Create map file with all symbols from ${1}
@@ -223,26 +210,41 @@ fi
 
 ${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init init/version-timestamp.o
 
-btf_vmlinux_bin_o=""
+btf_vmlinux_bin_o=
+kallsymso=
+strip_debug=
+
+if is_enabled CONFIG_KALLSYMS; then
+	truncate -s0 .tmp_vmlinux.kallsyms0.syms
+	kallsyms .tmp_vmlinux.kallsyms0.syms .tmp_vmlinux0.kallsyms
+fi
+
+if is_enabled CONFIG_KALLSYMS || is_enabled CONFIG_DEBUG_INFO_BTF; then
+
+	# The kallsyms linking does not need debug symbols, but the BTF does.
+	if ! is_enabled CONFIG_DEBUG_INFO_BTF; then
+		strip_debug=1
+	fi
+
+	vmlinux_link .tmp_vmlinux1
+fi
+
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
-	btf_vmlinux_bin_o=.btf.vmlinux.bin.o
-	if ! gen_btf .tmp_vmlinux.btf $btf_vmlinux_bin_o ; then
+	if ! gen_btf .tmp_vmlinux1; then
 		echo >&2 "Failed to generate BTF for vmlinux"
 		echo >&2 "Try to disable CONFIG_DEBUG_INFO_BTF"
 		exit 1
 	fi
 fi
 
-kallsymso=""
-kallsymso_prev=""
-kallsyms_vmlinux=""
 if is_enabled CONFIG_KALLSYMS; then
 
 	# kallsyms support
 	# Generate section listing all symbols and add it into vmlinux
-	# It's a three step process:
+	# It's a four step process:
+	# 0)  Generate a dummy __kallsyms with empty symbol list.
 	# 1)  Link .tmp_vmlinux.kallsyms1 so it has all symbols and sections,
-	#     but __kallsyms is empty.
+	#     with a dummy __kallsyms.
 	#     Running kallsyms on that gives us .tmp_kallsyms1.o with
 	#     the right size
 	# 2)  Link .tmp_vmlinux.kallsyms2 so it now has a __kallsyms section of
@@ -261,19 +263,25 @@ if is_enabled CONFIG_KALLSYMS; then
 	# a)  Verify that the System.map from vmlinux matches the map from
 	#     ${kallsymso}.
 
-	kallsyms_step 1
-	kallsyms_step 2
+	# The kallsyms linking does not need debug symbols included.
+	strip_debug=1
 
-	# step 3
-	size1=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" ${kallsymso_prev})
+	sysmap_and_kallsyms .tmp_vmlinux1
+	size1=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" ${kallsymso})
+
+	vmlinux_link .tmp_vmlinux2
+	sysmap_and_kallsyms .tmp_vmlinux2
 	size2=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" ${kallsymso})
 
 	if [ $size1 -ne $size2 ] || [ -n "${KALLSYMS_EXTRA_PASS}" ]; then
-		kallsyms_step 3
+		vmlinux_link .tmp_vmlinux3
+		sysmap_and_kallsyms .tmp_vmlinux3
 	fi
 fi
 
-vmlinux_link vmlinux "${kallsymso}" ${btf_vmlinux_bin_o}
+strip_debug=
+
+vmlinux_link vmlinux
 
 # fill in BTF IDs
 if is_enabled CONFIG_DEBUG_INFO_BTF && is_enabled CONFIG_BPF; then
@@ -293,7 +301,7 @@ fi
 
 # step a (see comment above)
 if is_enabled CONFIG_KALLSYMS; then
-	if ! cmp -s System.map ${kallsyms_vmlinux}.syms; then
+	if ! cmp -s System.map "${kallsyms_sysmap}"; then
 		echo >&2 Inconsistent kallsyms data
 		echo >&2 'Try "make KALLSYMS_EXTRA_PASS=1" as a workaround'
 		exit 1

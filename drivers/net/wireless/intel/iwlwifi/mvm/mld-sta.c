@@ -46,7 +46,7 @@ u32 iwl_mvm_sta_fw_id_mask(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 }
 
 static int iwl_mvm_mld_send_sta_cmd(struct iwl_mvm *mvm,
-				    struct iwl_mvm_sta_cfg_cmd *cmd)
+				    struct iwl_sta_cfg_cmd *cmd)
 {
 	int ret = iwl_mvm_send_cmd_pdu(mvm,
 				       WIDE_ID(MAC_CONF_GROUP, STA_CONFIG_CMD),
@@ -63,7 +63,7 @@ static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
 					 struct iwl_mvm_int_sta *sta,
 					 const u8 *addr, int link_id)
 {
-	struct iwl_mvm_sta_cfg_cmd cmd;
+	struct iwl_sta_cfg_cmd cmd;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -94,7 +94,7 @@ static int iwl_mvm_mld_add_int_sta_to_fw(struct iwl_mvm *mvm,
  */
 static int iwl_mvm_mld_rm_sta_from_fw(struct iwl_mvm *mvm, u32 sta_id)
 {
-	struct iwl_mvm_remove_sta_cmd rm_sta_cmd = {
+	struct iwl_remove_sta_cmd rm_sta_cmd = {
 		.sta_id = cpu_to_le32(sta_id),
 	};
 	int ret;
@@ -216,7 +216,7 @@ int iwl_mvm_mld_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	const u8 *baddr = _baddr;
 	unsigned int wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+		iwl_mvm_get_wd_timeout(mvm, vif);
 	u16 *queue;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -254,7 +254,7 @@ int iwl_mvm_mld_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_int_sta *msta = &mvm_link->mcast_sta;
 	static const u8 _maddr[] = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
 	const u8 *maddr = _maddr;
-	unsigned int timeout = iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+	unsigned int timeout = iwl_mvm_get_wd_timeout(mvm, vif);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -438,7 +438,7 @@ static int iwl_mvm_mld_cfg_sta(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_vif_link_info *link_info =
 					mvm_vif->link[link_conf->link_id];
-	struct iwl_mvm_sta_cfg_cmd cmd = {
+	struct iwl_sta_cfg_cmd cmd = {
 		.sta_id = cpu_to_le32(mvm_link_sta->sta_id),
 		.station_type = cpu_to_le32(mvm_sta->sta_type),
 	};
