@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2019, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 /*
@@ -2081,7 +2081,7 @@ static int i2c_msm_pm_clk_prepare(struct i2c_msm_ctrl *ctrl)
 static void i2c_msm_pm_clk_disable(struct i2c_msm_ctrl *ctrl)
 {
 	clk_disable(ctrl->rsrcs.core_clk);
-//	clk_disable(ctrl->rsrcs.iface_clk);
+	clk_disable(ctrl->rsrcs.iface_clk);
 }
 
 static int i2c_msm_pm_clk_enable(struct i2c_msm_ctrl *ctrl)
@@ -2842,7 +2842,7 @@ static int i2c_msm_probe(struct platform_device *pdev)
 		dev_err(ctrl->dev, "error on qup software reset\n");
 
 	i2c_msm_pm_clk_disable(ctrl);
-//	i2c_msm_pm_clk_unprepare(ctrl);
+	i2c_msm_pm_clk_unprepare(ctrl);
 	i2c_msm_clk_path_unvote(ctrl);
 
 	ret = i2c_msm_rsrcs_gpio_pinctrl_init(ctrl);
