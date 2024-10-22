@@ -167,8 +167,6 @@ void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 
 struct strfilter;
 
-int del_perf_probe_events(struct strfilter *filter);
-
 int show_perf_probe_event(const char *group, const char *event,
 			  struct perf_probe_event *pev,
 			  const char *module, bool use_stdout);

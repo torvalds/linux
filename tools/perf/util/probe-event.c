@@ -3754,41 +3754,6 @@ void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 	}
 }
 
-int del_perf_probe_events(struct strfilter *filter)
-{
-	int ret, ret2, ufd = -1, kfd = -1;
-	char *str = strfilter__string(filter);
-
-	if (!str)
-		return -EINVAL;
-
-	/* Get current event names */
-	ret = probe_file__open_both(&kfd, &ufd, PF_FL_RW);
-	if (ret < 0)
-		goto out;
-
-	ret = probe_file__del_events(kfd, filter);
-	if (ret < 0 && ret != -ENOENT)
-		goto error;
-
-	ret2 = probe_file__del_events(ufd, filter);
-	if (ret2 < 0 && ret2 != -ENOENT) {
-		ret = ret2;
-		goto error;
-	}
-	ret = 0;
-
-error:
-	if (kfd >= 0)
-		close(kfd);
-	if (ufd >= 0)
-		close(ufd);
-out:
-	free(str);
-
-	return ret;
-}
-
 int show_available_funcs(const char *target, struct nsinfo *nsi,
 			 struct strfilter *_filter, bool user)
 {
