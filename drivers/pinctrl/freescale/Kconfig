@@ -9,7 +9,7 @@ config PINCTRL_IMX
 
 config PINCTRL_IMX_SCMI
 	tristate "i.MX95 pinctrl driver using SCMI protocol interface"
-	depends on ARM_SCMI_PROTOCOL && OF || COMPILE_TEST
+	depends on ARM_SCMI_PROTOCOL && OF
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
