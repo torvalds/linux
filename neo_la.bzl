@@ -128,6 +128,7 @@ def define_neo_la():
         "drivers/soc/qcom/minidump.ko",
         "drivers/soc/qcom/msm_performance.ko",
         "drivers/soc/qcom/pdr_interface.ko",
+        "drivers/soc/qcom/power_state.ko",
         "drivers/soc/qcom/qcom_aoss.ko",
         "drivers/soc/qcom/qcom_cpu_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_cpuss_sleep_stats.ko",
