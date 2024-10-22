@@ -25,7 +25,7 @@
 	};
 
 	clocks {
-		clk40M: can-clk {
+		clk40m: can-clk {
 			compatible = "fixed-clock";
 			clock-frequency = <40000000>;
 			#clock-cells = <0>;
@@ -537,7 +537,7 @@
 		compatible = "microchip,mcp2518fd";
 		reg = <0>;
 		interrupts-extended = <&tlmm 39 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&clk40M>;
+		clocks = <&clk40m>;
 		spi-max-frequency = <10000000>;
 		vdd-supply = <&vdc_5v>;
 		xceiver-supply = <&vdc_5v>;
