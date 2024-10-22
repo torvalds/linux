@@ -165,6 +165,7 @@ const fn create_vtable<T: MiscDevice>() -> &'static bindings::file_operations {
             } else {
                 None
             },
+            // SAFETY: All zeros is a valid value for `bindings::file_operations`.
             ..unsafe { MaybeUninit::zeroed().assume_init() }
         };
     }
@@ -172,6 +173,10 @@ const fn create_vtable<T: MiscDevice>() -> &'static bindings::file_operations {
     &VtableHelper::<T>::VTABLE
 }
 
+/// # Safety
+///
+/// `file` and `inode` must be the file and inode for a file that is undergoing initialization.
+/// The file must be associated with a `MiscDeviceRegistration<T>`.
 unsafe extern "C" fn fops_open<T: MiscDevice>(
     inode: *mut bindings::inode,
     file: *mut bindings::file,
@@ -193,6 +198,10 @@ unsafe extern "C" fn fops_open<T: MiscDevice>(
     0
 }
 
+/// # Safety
+///
+/// `file` and `inode` must be the file and inode for a file that is being released. The file must
+/// be associated with a `MiscDeviceRegistration<T>`.
 unsafe extern "C" fn fops_release<T: MiscDevice>(
     _inode: *mut bindings::inode,
     file: *mut bindings::file,
@@ -207,6 +216,9 @@ unsafe extern "C" fn fops_release<T: MiscDevice>(
     0
 }
 
+/// # Safety
+///
+/// `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
 unsafe extern "C" fn fops_ioctl<T: MiscDevice>(
     file: *mut bindings::file,
     cmd: c_uint,
@@ -223,6 +235,9 @@ unsafe extern "C" fn fops_ioctl<T: MiscDevice>(
     }
 }
 
+/// # Safety
+///
+/// `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
 #[cfg(CONFIG_COMPAT)]
 unsafe extern "C" fn fops_compat_ioctl<T: MiscDevice>(
     file: *mut bindings::file,
