@@ -109,6 +109,7 @@ int netfs_start_io_write(struct inode *inode)
 		up_write(&inode->i_rwsem);
 		return -ERESTARTSYS;
 	}
+	downgrade_write(&inode->i_rwsem);
 	return 0;
 }
 EXPORT_SYMBOL(netfs_start_io_write);
@@ -123,7 +124,7 @@ EXPORT_SYMBOL(netfs_start_io_write);
 void netfs_end_io_write(struct inode *inode)
 	__releases(inode->i_rwsem)
 {
-	up_write(&inode->i_rwsem);
+	up_read(&inode->i_rwsem);
 }
 EXPORT_SYMBOL(netfs_end_io_write);
 

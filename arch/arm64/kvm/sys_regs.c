@@ -1527,6 +1527,14 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE);
 
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_SME);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_RNDR_trap);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_NMI);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE_frac);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_GCS);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_THE);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTEX);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_DF2);
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_PFAR);
 		break;
 	case SYS_ID_AA64PFR2_EL1:
 		/* We only expose FPMR */
@@ -1550,7 +1558,8 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		val &= ~ID_AA64MMFR2_EL1_CCIDX_MASK;
 		break;
 	case SYS_ID_AA64MMFR3_EL1:
-		val &= ID_AA64MMFR3_EL1_TCRX | ID_AA64MMFR3_EL1_S1POE;
+		val &= ID_AA64MMFR3_EL1_TCRX | ID_AA64MMFR3_EL1_S1POE |
+			ID_AA64MMFR3_EL1_S1PIE;
 		break;
 	case SYS_ID_MMFR4_EL1:
 		val &= ~ARM64_FEATURE_MASK(ID_MMFR4_EL1_CCIDX);
@@ -1985,7 +1994,7 @@ static u64 reset_clidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	 * one cache line.
 	 */
 	if (kvm_has_mte(vcpu->kvm))
-		clidr |= 2 << CLIDR_TTYPE_SHIFT(loc);
+		clidr |= 2ULL << CLIDR_TTYPE_SHIFT(loc);
 
 	__vcpu_sys_reg(vcpu, r->reg) = clidr;
 
@@ -2376,7 +2385,19 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 		   ID_AA64PFR0_EL1_RAS |
 		   ID_AA64PFR0_EL1_AdvSIMD |
 		   ID_AA64PFR0_EL1_FP), },
-	ID_SANITISED(ID_AA64PFR1_EL1),
+	ID_WRITABLE(ID_AA64PFR1_EL1, ~(ID_AA64PFR1_EL1_PFAR |
+				       ID_AA64PFR1_EL1_DF2 |
+				       ID_AA64PFR1_EL1_MTEX |
+				       ID_AA64PFR1_EL1_THE |
+				       ID_AA64PFR1_EL1_GCS |
+				       ID_AA64PFR1_EL1_MTE_frac |
+				       ID_AA64PFR1_EL1_NMI |
+				       ID_AA64PFR1_EL1_RNDR_trap |
+				       ID_AA64PFR1_EL1_SME |
+				       ID_AA64PFR1_EL1_RES0 |
+				       ID_AA64PFR1_EL1_MPAM_frac |
+				       ID_AA64PFR1_EL1_RAS_frac |
+				       ID_AA64PFR1_EL1_MTE)),
 	ID_WRITABLE(ID_AA64PFR2_EL1, ID_AA64PFR2_EL1_FPMR),
 	ID_UNALLOCATED(4,3),
 	ID_WRITABLE(ID_AA64ZFR0_EL1, ~ID_AA64ZFR0_EL1_RES0),
@@ -2390,7 +2411,21 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  .get_user = get_id_reg,
 	  .set_user = set_id_aa64dfr0_el1,
 	  .reset = read_sanitised_id_aa64dfr0_el1,
-	  .val = ID_AA64DFR0_EL1_PMUVer_MASK |
+	/*
+	 * Prior to FEAT_Debugv8.9, the architecture defines context-aware
+	 * breakpoints (CTX_CMPs) as the highest numbered breakpoints (BRPs).
+	 * KVM does not trap + emulate the breakpoint registers, and as such
+	 * cannot support a layout that misaligns with the underlying hardware.
+	 * While it may be possible to describe a subset that aligns with
+	 * hardware, just prevent changes to BRPs and CTX_CMPs altogether for
+	 * simplicity.
+	 *
+	 * See DDI0487K.a, section D2.8.3 Breakpoint types and linking
+	 * of breakpoints for more details.
+	 */
+	  .val = ID_AA64DFR0_EL1_DoubleLock_MASK |
+		 ID_AA64DFR0_EL1_WRPs_MASK |
+		 ID_AA64DFR0_EL1_PMUVer_MASK |
 		 ID_AA64DFR0_EL1_DebugVer_MASK, },
 	ID_SANITISED(ID_AA64DFR1_EL1),
 	ID_UNALLOCATED(5,2),
@@ -2433,6 +2468,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 					ID_AA64MMFR2_EL1_NV |
 					ID_AA64MMFR2_EL1_CCIDX)),
 	ID_WRITABLE(ID_AA64MMFR3_EL1, (ID_AA64MMFR3_EL1_TCRX	|
+				       ID_AA64MMFR3_EL1_S1PIE   |
 				       ID_AA64MMFR3_EL1_S1POE)),
 	ID_SANITISED(ID_AA64MMFR4_EL1),
 	ID_UNALLOCATED(7,5),
@@ -2903,7 +2939,7 @@ static bool handle_alle1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	 * Drop all shadow S2s, resulting in S1/S2 TLBIs for each of the
 	 * corresponding VMIDs.
 	 */
-	kvm_nested_s2_unmap(vcpu->kvm);
+	kvm_nested_s2_unmap(vcpu->kvm, true);
 
 	write_unlock(&vcpu->kvm->mmu_lock);
 
@@ -2955,7 +2991,30 @@ union tlbi_info {
 static void s2_mmu_unmap_range(struct kvm_s2_mmu *mmu,
 			       const union tlbi_info *info)
 {
-	kvm_stage2_unmap_range(mmu, info->range.start, info->range.size);
+	/*
+	 * The unmap operation is allowed to drop the MMU lock and block, which
+	 * means that @mmu could be used for a different context than the one
+	 * currently being invalidated.
+	 *
+	 * This behavior is still safe, as:
+	 *
+	 *  1) The vCPU(s) that recycled the MMU are responsible for invalidating
+	 *     the entire MMU before reusing it, which still honors the intent
+	 *     of a TLBI.
+	 *
+	 *  2) Until the guest TLBI instruction is 'retired' (i.e. increment PC
+	 *     and ERET to the guest), other vCPUs are allowed to use stale
+	 *     translations.
+	 *
+	 *  3) Accidentally unmapping an unrelated MMU context is nonfatal, and
+	 *     at worst may cause more aborts for shadow stage-2 fills.
+	 *
+	 * Dropping the MMU lock also implies that shadow stage-2 fills could
+	 * happen behind the back of the TLBI. This is still safe, though, as
+	 * the L1 needs to put its stage-2 in a consistent state before doing
+	 * the TLBI.
+	 */
+	kvm_stage2_unmap_range(mmu, info->range.start, info->range.size, true);
 }
 
 static bool handle_vmalls12e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
@@ -3050,7 +3109,11 @@ static void s2_mmu_unmap_ipa(struct kvm_s2_mmu *mmu,
 	max_size = compute_tlb_inval_range(mmu, info->ipa.addr);
 	base_addr &= ~(max_size - 1);
 
-	kvm_stage2_unmap_range(mmu, base_addr, max_size);
+	/*
+	 * See comment in s2_mmu_unmap_range() for why this is allowed to
+	 * reschedule.
+	 */
+	kvm_stage2_unmap_range(mmu, base_addr, max_size, true);
 }
 
 static bool handle_ipas2e1is(struct kvm_vcpu *vcpu, struct sys_reg_params *p,

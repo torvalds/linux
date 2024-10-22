@@ -77,7 +77,7 @@ static int seq_fdinfo_open(struct inode *inode, struct file *file)
 	return single_open(file, seq_show, inode);
 }
 
-/**
+/*
  * Shared /proc/pid/fdinfo and /proc/pid/fdinfo/fd permission helper to ensure
  * that the current task has PTRACE_MODE_READ in addition to the normal
  * POSIX-like checks.
