@@ -8983,12 +8983,16 @@ static ssize_t btrfs_encoded_read_inline(
 	unsigned long ptr;
 	void *tmp;
 	ssize_t ret;
+	const bool nowait = (iocb->ki_flags & IOCB_NOWAIT);
 
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	path->nowait = nowait;
+
 	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(inode),
 				       extent_start, 0);
 	if (ret) {
@@ -9198,11 +9202,15 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	u64 start, lockend;
 	struct extent_map *em;
+	const bool nowait = (iocb->ki_flags & IOCB_NOWAIT);
 	bool unlocked = false;
 
 	file_accessed(iocb->ki_filp);
 
-	btrfs_inode_lock(inode, BTRFS_ILOCK_SHARED);
+	ret = btrfs_inode_lock(inode,
+			       BTRFS_ILOCK_SHARED | (nowait ? BTRFS_ILOCK_TRY : 0));
+	if (ret)
+		return ret;
 
 	if (iocb->ki_pos >= inode->vfs_inode.i_size) {
 		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
@@ -9215,21 +9223,46 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 	 */
 	lockend = start + BTRFS_MAX_UNCOMPRESSED - 1;
 
-	for (;;) {
+	if (nowait) {
 		struct btrfs_ordered_extent *ordered;
 
-		ret = btrfs_wait_ordered_range(inode, start,
-					       lockend - start + 1);
-		if (ret)
+		if (filemap_range_needs_writeback(inode->vfs_inode.i_mapping,
+						  start, lockend)) {
+			ret = -EAGAIN;
 			goto out_unlock_inode;
-		lock_extent(io_tree, start, lockend, cached_state);
+		}
+
+		if (!try_lock_extent(io_tree, start, lockend, cached_state)) {
+			ret = -EAGAIN;
+			goto out_unlock_inode;
+		}
+
 		ordered = btrfs_lookup_ordered_range(inode, start,
 						     lockend - start + 1);
-		if (!ordered)
-			break;
-		btrfs_put_ordered_extent(ordered);
-		unlock_extent(io_tree, start, lockend, cached_state);
-		cond_resched();
+		if (ordered) {
+			btrfs_put_ordered_extent(ordered);
+			unlock_extent(io_tree, start, lockend, cached_state);
+			ret = -EAGAIN;
+			goto out_unlock_inode;
+		}
+	} else {
+		for (;;) {
+			struct btrfs_ordered_extent *ordered;
+
+			ret = btrfs_wait_ordered_range(inode, start,
+						       lockend - start + 1);
+			if (ret)
+				goto out_unlock_inode;
+
+			lock_extent(io_tree, start, lockend, cached_state);
+			ordered = btrfs_lookup_ordered_range(inode, start,
+							     lockend - start + 1);
+			if (!ordered)
+				break;
+			btrfs_put_ordered_extent(ordered);
+			unlock_extent(io_tree, start, lockend, cached_state);
+			cond_resched();
+		}
 	}
 
 	em = btrfs_get_extent(inode, NULL, start, lockend - start + 1);
