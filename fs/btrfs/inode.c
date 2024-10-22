@@ -9251,7 +9251,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 		ret = btrfs_encoded_read_inline(iocb, iter, start, lockend,
 						&cached_state, extent_start,
 						count, encoded, &unlocked);
-		goto out;
+		goto out_em;
 	}
 
 	/*
@@ -9317,9 +9317,6 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 						 &unlocked);
 	}
 
-out:
-	if (ret >= 0)
-		iocb->ki_pos += encoded->len;
 out_em:
 	free_extent_map(em);
 out_unlock_extent:
