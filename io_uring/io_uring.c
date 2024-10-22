@@ -2495,9 +2495,10 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 
 struct ext_arg {
 	size_t argsz;
-	struct __kernel_timespec __user *ts;
+	struct timespec64 ts;
 	const sigset_t __user *sig;
 	ktime_t min_time;
+	bool ts_set;
 };
 
 /*
@@ -2535,13 +2536,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events, u32 flags,
 	iowq.timeout = KTIME_MAX;
 	start_time = io_get_time(ctx);
 
-	if (ext_arg->ts) {
-		struct timespec64 ts;
-
-		if (get_timespec64(&ts, ext_arg->ts))
-			return -EFAULT;
-
-		iowq.timeout = timespec64_to_ktime(ts);
+	if (ext_arg->ts_set) {
+		iowq.timeout = timespec64_to_ktime(ext_arg->ts);
 		if (!(flags & IORING_ENTER_ABS_TIMER))
 			iowq.timeout = ktime_add(iowq.timeout, start_time);
 	}
@@ -3252,7 +3248,6 @@ static int io_get_ext_arg(unsigned flags, const void __user *argp,
 	 */
 	if (!(flags & IORING_ENTER_EXT_ARG)) {
 		ext_arg->sig = (const sigset_t __user *) argp;
-		ext_arg->ts = NULL;
 		return 0;
 	}
 
@@ -3267,7 +3262,11 @@ static int io_get_ext_arg(unsigned flags, const void __user *argp,
 	ext_arg->min_time = arg.min_wait_usec * NSEC_PER_USEC;
 	ext_arg->sig = u64_to_user_ptr(arg.sigmask);
 	ext_arg->argsz = arg.sigmask_sz;
-	ext_arg->ts = u64_to_user_ptr(arg.ts);
+	if (arg.ts) {
+		if (get_timespec64(&ext_arg->ts, u64_to_user_ptr(arg.ts)))
+			return -EFAULT;
+		ext_arg->ts_set = true;
+	}
 	return 0;
 }
 
