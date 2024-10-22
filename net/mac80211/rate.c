@@ -249,9 +249,8 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 				       ref->ops->name, len);
 }
 
-const struct file_operations rcname_ops = {
+const struct debugfs_short_fops rcname_ops = {
 	.read = rcname_read,
-	.open = simple_open,
 	.llseek = default_llseek,
 };
 #endif
