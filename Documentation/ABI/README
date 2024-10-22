@@ -1,4 +1,4 @@
-This directory attempts to document the ABI between the Linux kernel and
+This directary attempts to document the ABI between the Linux kernel and
 userspace, and the relative stability of these interfaces.  Due to the
 everchanging nature of Linux, and the differing maturity levels, these
 interfaces should be used by userspace programs in different ways.
@@ -10,7 +10,7 @@ of stability according to the rules described below.
 The different levels of stability are:
 
   stable/
-	This directory documents the interfaces that the developer has
+	This directary documents the interfaces that the developer has
 	defined to be stable.  Userspace programs are free to use these
 	interfaces with no restrictions, and backward compatibility for
 	them will be guaranteed for at least 2 years.  Most interfaces
