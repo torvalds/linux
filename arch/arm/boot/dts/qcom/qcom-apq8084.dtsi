@@ -32,10 +32,10 @@
 			compatible = "qcom,krait";
 			reg = <0>;
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
 		cpu@1 {
@@ -43,10 +43,10 @@
 			compatible = "qcom,krait";
 			reg = <1>;
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
 		cpu@2 {
@@ -54,10 +54,10 @@
 			compatible = "qcom,krait";
 			reg = <2>;
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc2>;
 			qcom,saw = <&saw2>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
 		cpu@3 {
@@ -65,13 +65,13 @@
 			compatible = "qcom,krait";
 			reg = <3>;
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc3>;
 			qcom,saw = <&saw3>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
@@ -79,7 +79,7 @@
 		};
 
 		idle-states {
-			CPU_SPC: cpu-spc {
+			cpu_spc: cpu-spc {
 				compatible = "qcom,idle-state-spc",
 						"arm,idle-state";
 				entry-latency-us = <150>;

@@ -47,7 +47,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
 			reg = <0x0>;
@@ -61,7 +61,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
 			reg = <0x1>;
@@ -75,7 +75,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc2>;
 			qcom,saw = <&saw2>;
 			reg = <0x2>;
@@ -89,7 +89,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc3>;
 			qcom,saw = <&saw3>;
 			reg = <0x3>;
@@ -99,7 +99,7 @@
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
