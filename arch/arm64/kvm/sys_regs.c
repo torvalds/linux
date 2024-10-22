@@ -1881,6 +1881,34 @@ static int set_id_aa64pfr1_el1(struct kvm_vcpu *vcpu,
 	return set_id_reg(vcpu, rd, user_val);
 }
 
+static int set_ctr_el0(struct kvm_vcpu *vcpu,
+		       const struct sys_reg_desc *rd, u64 user_val)
+{
+	u8 user_L1Ip = SYS_FIELD_GET(CTR_EL0, L1Ip, user_val);
+
+	/*
+	 * Both AIVIVT (0b01) and VPIPT (0b00) are documented as reserved.
+	 * Hence only allow to set VIPT(0b10) or PIPT(0b11) for L1Ip based
+	 * on what hardware reports.
+	 *
+	 * Using a VIPT software model on PIPT will lead to over invalidation,
+	 * but still correct. Hence, we can allow downgrading PIPT to VIPT,
+	 * but not the other way around. This is handled via arm64_ftr_safe_value()
+	 * as CTR_EL0 ftr_bits has L1Ip field with type FTR_EXACT and safe value
+	 * set as VIPT.
+	 */
+	switch (user_L1Ip) {
+	case CTR_EL0_L1Ip_RESERVED_VPIPT:
+	case CTR_EL0_L1Ip_RESERVED_AIVIVT:
+		return -EINVAL;
+	case CTR_EL0_L1Ip_VIPT:
+	case CTR_EL0_L1Ip_PIPT:
+		return set_id_reg(vcpu, rd, user_val);
+	default:
+		return -ENOENT;
+	}
+}
+
 /*
  * cpufeature ID register user accessors
  *
@@ -2651,10 +2679,12 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_CCSIDR2_EL1), undef_access },
 	{ SYS_DESC(SYS_SMIDR_EL1), undef_access },
 	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unknown, CSSELR_EL1 },
-	ID_WRITABLE(CTR_EL0, CTR_EL0_DIC_MASK |
-			     CTR_EL0_IDC_MASK |
-			     CTR_EL0_DminLine_MASK |
-			     CTR_EL0_IminLine_MASK),
+	ID_FILTERED(CTR_EL0, ctr_el0,
+		    CTR_EL0_DIC_MASK |
+		    CTR_EL0_IDC_MASK |
+		    CTR_EL0_DminLine_MASK |
+		    CTR_EL0_L1Ip_MASK |
+		    CTR_EL0_IminLine_MASK),
 	{ SYS_DESC(SYS_SVCR), undef_access, reset_val, SVCR, 0, .visibility = sme_visibility  },
 	{ SYS_DESC(SYS_FPMR), undef_access, reset_val, FPMR, 0, .visibility = fp8_visibility },
 
