@@ -265,7 +265,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
  * scsi_alloc_sdev - allocate and setup a scsi_Device
  * @starget: which target to allocate a &scsi_device for
  * @lun: which lun
- * @hostdata: usually NULL and set by ->slave_alloc instead
+ * @hostdata: usually NULL and set by ->sdev_init instead
  *
  * Description:
  *     Allocate, initialize for io, and return a pointer to a scsi_Device.
@@ -312,7 +312,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	sdev->sdev_gendev.parent = get_device(&starget->dev);
 	sdev->sdev_target = starget;
 
-	/* usually NULL and set by ->slave_alloc instead */
+	/* usually NULL and set by ->sdev_init instead */
 	sdev->hostdata = hostdata;
 
 	/* if the device needs this changing, it may do so in the
@@ -363,8 +363,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	scsi_sysfs_device_initialize(sdev);
 
-	if (shost->hostt->slave_alloc) {
-		ret = shost->hostt->slave_alloc(sdev);
+	if (shost->hostt->sdev_init) {
+		ret = shost->hostt->sdev_init(sdev);
 		if (ret) {
 			/*
 			 * if LLDD reports slave not present, don't clutter

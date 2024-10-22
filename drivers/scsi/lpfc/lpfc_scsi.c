@@ -6226,7 +6226,7 @@ error:
 }
 
 /**
- * lpfc_slave_alloc - scsi_host_template slave_alloc entry point
+ * lpfc_sdev_init - scsi_host_template sdev_init entry point
  * @sdev: Pointer to scsi_device.
  *
  * This routine populates the cmds_per_lun count + 2 scsi_bufs into  this host's
@@ -6239,7 +6239,7 @@ error:
  *   0 - Success
  **/
 static int
-lpfc_slave_alloc(struct scsi_device *sdev)
+lpfc_sdev_init(struct scsi_device *sdev)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
@@ -6371,13 +6371,13 @@ lpfc_slave_configure(struct scsi_device *sdev)
 }
 
 /**
- * lpfc_slave_destroy - slave_destroy entry point of SHT data structure
+ * lpfc_sdev_destroy - sdev_destroy entry point of SHT data structure
  * @sdev: Pointer to scsi_device.
  *
  * This routine sets @sdev hostatdata filed to null.
  **/
 static void
-lpfc_slave_destroy(struct scsi_device *sdev)
+lpfc_sdev_destroy(struct scsi_device *sdev)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
@@ -6737,7 +6737,7 @@ lpfc_no_command(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 }
 
 static int
-lpfc_no_slave(struct scsi_device *sdev)
+lpfc_no_sdev(struct scsi_device *sdev)
 {
 	return -ENODEV;
 }
@@ -6748,8 +6748,8 @@ struct scsi_host_template lpfc_template_nvme = {
 	.proc_name		= LPFC_DRIVER_NAME,
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_no_command,
-	.slave_alloc		= lpfc_no_slave,
-	.slave_configure	= lpfc_no_slave,
+	.sdev_init		= lpfc_no_sdev,
+	.slave_configure	= lpfc_no_sdev,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= 1,
@@ -6772,9 +6772,9 @@ struct scsi_host_template lpfc_template = {
 	.eh_device_reset_handler = lpfc_device_reset_handler,
 	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_host_reset_handler  = lpfc_host_reset_handler,
-	.slave_alloc		= lpfc_slave_alloc,
+	.sdev_init		= lpfc_sdev_init,
 	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
+	.sdev_destroy		= lpfc_sdev_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
@@ -6799,9 +6799,9 @@ struct scsi_host_template lpfc_vport_template = {
 	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_bus_reset_handler	= NULL,
 	.eh_host_reset_handler	= NULL,
-	.slave_alloc		= lpfc_slave_alloc,
+	.sdev_init		= lpfc_sdev_init,
 	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
+	.sdev_destroy		= lpfc_sdev_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,

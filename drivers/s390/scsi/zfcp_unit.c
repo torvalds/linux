@@ -170,7 +170,7 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	write_unlock_irq(&port->unit_list_lock);
 	/*
 	 * lock order: shost->scan_mutex before zfcp_sysfs_port_units_mutex
-	 * due to      zfcp_unit_scsi_scan() => zfcp_scsi_slave_alloc()
+	 * due to      zfcp_unit_scsi_scan() => zfcp_scsi_sdev_init()
 	 */
 	mutex_unlock(&zfcp_sysfs_port_units_mutex);
 

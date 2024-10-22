@@ -125,7 +125,7 @@ MODULE_DEVICE_TABLE(pci, pmcraid_pci_table);
 
 
 /**
- * pmcraid_slave_alloc - Prepare for commands to a device
+ * pmcraid_sdev_init - Prepare for commands to a device
  * @scsi_dev: scsi device struct
  *
  * This function is called by mid-layer prior to sending any command to the new
@@ -136,7 +136,7 @@ MODULE_DEVICE_TABLE(pci, pmcraid_pci_table);
  * Return value:
  *	  0 on success / -ENXIO if device does not exist
  */
-static int pmcraid_slave_alloc(struct scsi_device *scsi_dev)
+static int pmcraid_sdev_init(struct scsi_device *scsi_dev)
 {
 	struct pmcraid_resource_entry *temp, *res = NULL;
 	struct pmcraid_instance *pinstance;
@@ -248,17 +248,17 @@ static int pmcraid_device_configure(struct scsi_device *scsi_dev,
 }
 
 /**
- * pmcraid_slave_destroy - Unconfigure a SCSI device before removing it
+ * pmcraid_sdev_destroy - Unconfigure a SCSI device before removing it
  *
  * @scsi_dev: scsi device struct
  *
  * This is called by mid-layer before removing a device. Pointer assignments
- * done in pmcraid_slave_alloc will be reset to NULL here.
+ * done in pmcraid_sdev_init will be reset to NULL here.
  *
  * Return value
  *   none
  */
-static void pmcraid_slave_destroy(struct scsi_device *scsi_dev)
+static void pmcraid_sdev_destroy(struct scsi_device *scsi_dev)
 {
 	struct pmcraid_resource_entry *res;
 
@@ -3668,9 +3668,9 @@ static const struct scsi_host_template pmcraid_host_template = {
 	.eh_device_reset_handler = pmcraid_eh_device_reset_handler,
 	.eh_host_reset_handler = pmcraid_eh_host_reset_handler,
 
-	.slave_alloc = pmcraid_slave_alloc,
+	.sdev_init = pmcraid_sdev_init,
 	.device_configure = pmcraid_device_configure,
-	.slave_destroy = pmcraid_slave_destroy,
+	.sdev_destroy = pmcraid_sdev_destroy,
 	.change_queue_depth = pmcraid_change_queue_depth,
 	.can_queue = PMCRAID_MAX_IO_CMD,
 	.this_id = -1,

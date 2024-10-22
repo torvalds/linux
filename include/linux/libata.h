@@ -1199,10 +1199,10 @@ extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern void ata_scsi_unlock_native_capacity(struct scsi_device *sdev);
-extern int ata_scsi_slave_alloc(struct scsi_device *sdev);
+extern int ata_scsi_sdev_init(struct scsi_device *sdev);
 int ata_scsi_device_configure(struct scsi_device *sdev,
 		struct queue_limits *lim);
-extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
+extern void ata_scsi_sdev_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 				       int queue_depth);
 extern int ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
@@ -1458,8 +1458,8 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.this_id		= ATA_SHT_THIS_ID,		\
 	.emulated		= ATA_SHT_EMULATED,		\
 	.proc_name		= drv_name,			\
-	.slave_alloc		= ata_scsi_slave_alloc,		\
-	.slave_destroy		= ata_scsi_slave_destroy,	\
+	.sdev_init		= ata_scsi_sdev_init,		\
+	.sdev_destroy		= ata_scsi_sdev_destroy,	\
 	.bios_param		= ata_std_bios_param,		\
 	.unlock_native_capacity	= ata_scsi_unlock_native_capacity,\
 	.max_sectors		= ATA_MAX_SECTORS_LBA48

@@ -703,7 +703,7 @@ int sas_eh_device_reset_handler(struct scsi_cmnd *cmd);
 int sas_eh_target_reset_handler(struct scsi_cmnd *cmd);
 
 extern void sas_target_destroy(struct scsi_target *);
-extern int sas_slave_alloc(struct scsi_device *);
+extern int sas_sdev_init(struct scsi_device *);
 extern int sas_ioctl(struct scsi_device *sdev, unsigned int cmd,
 		     void __user *arg);
 extern int sas_drain_work(struct sas_ha_struct *ha);
@@ -751,7 +751,7 @@ void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 
 #define LIBSAS_SHT_BASE			_LIBSAS_SHT_BASE		\
 	.device_configure		= sas_device_configure,		\
-	.slave_alloc			= sas_slave_alloc,		\
+	.sdev_init			= sas_sdev_init,		\
 
 #define LIBSAS_SHT_BASE_NO_SLAVE_INIT	_LIBSAS_SHT_BASE
 

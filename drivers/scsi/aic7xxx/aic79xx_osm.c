@@ -672,7 +672,7 @@ ahd_linux_target_destroy(struct scsi_target *starget)
 }
 
 static int
-ahd_linux_slave_alloc(struct scsi_device *sdev)
+ahd_linux_sdev_init(struct scsi_device *sdev)
 {
 	struct	ahd_softc *ahd =
 		*((struct ahd_softc **)sdev->host->hostdata);
@@ -906,7 +906,7 @@ struct scsi_host_template aic79xx_driver_template = {
 	.this_id		= -1,
 	.max_sectors		= 8192,
 	.cmd_per_lun		= 2,
-	.slave_alloc		= ahd_linux_slave_alloc,
+	.sdev_init		= ahd_linux_sdev_init,
 	.slave_configure	= ahd_linux_slave_configure,
 	.target_alloc		= ahd_linux_target_alloc,
 	.target_destroy		= ahd_linux_target_destroy,

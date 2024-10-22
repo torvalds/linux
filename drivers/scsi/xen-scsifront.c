@@ -777,7 +777,7 @@ static const struct scsi_host_template scsifront_sht = {
 	.eh_abort_handler	= scsifront_eh_abort_handler,
 	.eh_device_reset_handler = scsifront_dev_reset_handler,
 	.slave_configure	= scsifront_sdev_configure,
-	.slave_destroy		= scsifront_sdev_destroy,
+	.sdev_destroy		= scsifront_sdev_destroy,
 	.cmd_per_lun		= VSCSIIF_DEFAULT_CMD_PER_LUN,
 	.can_queue		= VSCSIIF_MAX_REQS,
 	.this_id		= -1,
@@ -1075,7 +1075,7 @@ static void scsifront_do_lun_hotplug(struct vscsifrnt_info *info, int op)
 
 		/*
 		 * Front device state path, used in slave_configure called
-		 * on successfull scsi_add_device, and in slave_destroy called
+		 * on successfull scsi_add_device, and in sdev_destroy called
 		 * on remove of a device.
 		 */
 		snprintf(info->dev_state_path, sizeof(info->dev_state_path),

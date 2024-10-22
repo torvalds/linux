@@ -805,13 +805,13 @@ static int hisi_sas_init_device(struct domain_device *device)
 	return rc;
 }
 
-int hisi_sas_slave_alloc(struct scsi_device *sdev)
+int hisi_sas_sdev_init(struct scsi_device *sdev)
 {
 	struct domain_device *ddev = sdev_to_domain_dev(sdev);
 	struct hisi_sas_device *sas_dev = ddev->lldd_dev;
 	int rc;
 
-	rc = sas_slave_alloc(sdev);
+	rc = sas_sdev_init(sdev);
 	if (rc)
 		return rc;
 
@@ -821,7 +821,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_sas_slave_alloc);
+EXPORT_SYMBOL_GPL(hisi_sas_sdev_init);
 
 static int hisi_sas_dev_found(struct domain_device *device)
 {

@@ -1757,7 +1757,7 @@ static const struct scsi_host_template sht_v1_hw = {
 	.scan_finished		= hisi_sas_scan_finished,
 	.scan_start		= hisi_sas_scan_start,
 	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
-	.slave_alloc		= hisi_sas_slave_alloc,
+	.sdev_init		= hisi_sas_sdev_init,
 	.shost_groups		= host_v1_hw_groups,
 	.host_reset             = hisi_sas_host_reset,
 };

@@ -1194,14 +1194,14 @@ void sas_task_abort(struct sas_task *task)
 }
 EXPORT_SYMBOL_GPL(sas_task_abort);
 
-int sas_slave_alloc(struct scsi_device *sdev)
+int sas_sdev_init(struct scsi_device *sdev)
 {
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sas_slave_alloc);
+EXPORT_SYMBOL_GPL(sas_sdev_init);
 
 void sas_target_destroy(struct scsi_target *starget)
 {

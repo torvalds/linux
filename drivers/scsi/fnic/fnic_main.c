@@ -87,7 +87,7 @@ static struct libfc_function_template fnic_transport_template = {
 	.exch_mgr_reset = fnic_exch_mgr_reset
 };
 
-static int fnic_slave_alloc(struct scsi_device *sdev)
+static int fnic_sdev_init(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 
@@ -106,7 +106,7 @@ static const struct scsi_host_template fnic_host_template = {
 	.eh_abort_handler = fnic_abort_cmd,
 	.eh_device_reset_handler = fnic_device_reset,
 	.eh_host_reset_handler = fnic_host_reset,
-	.slave_alloc = fnic_slave_alloc,
+	.sdev_init = fnic_sdev_init,
 	.change_queue_depth = scsi_change_queue_depth,
 	.this_id = -1,
 	.cmd_per_lun = 3,
