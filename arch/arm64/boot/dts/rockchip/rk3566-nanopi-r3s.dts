@@ -3,7 +3,7 @@
  * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * Copyright (c) 2024 FriendlyElec Computer Tech. Co., Ltd.
- * (http://www.friendlyarm.com)
+ * (http://www.friendlyelec.com)
  *
  * Copyright (c) 2024 Tianling Shen <cnsztl@gmail.com>
  */
@@ -17,7 +17,7 @@
 #include "rk3566.dtsi"
 
 / {
-	model = "FriendlyARM NanoPi R3S";
+	model = "FriendlyElec NanoPi R3S";
 	compatible = "friendlyarm,nanopi-r3s", "rockchip,rk3566";
 
 	aliases {
