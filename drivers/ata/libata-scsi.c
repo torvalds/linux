@@ -1815,7 +1815,7 @@ static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 }
 
 /**
- *	ata_scsiop_inq_std - Simulate INQUIRY command
+ *	ata_scsiop_inq_std - Simulate standard INQUIRY command
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
@@ -2121,6 +2121,11 @@ static unsigned int ata_scsiop_inq_b2(struct ata_scsi_args *args, u8 *rbuf)
 
 static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
 {
+	if (!(args->dev->flags & ATA_DFLAG_ZAC)) {
+		ata_scsi_set_invalid_field(args->dev, args->cmd, 2, 0xff);
+		return 1;
+	}
+
 	/*
 	 * zbc-r05 SCSI Zoned Block device characteristics VPD page
 	 */
@@ -2145,6 +2150,11 @@ static unsigned int ata_scsiop_inq_b9(struct ata_scsi_args *args, u8 *rbuf)
 	u8 *desc = &rbuf[64];
 	int i;
 
+	if (!cpr_log) {
+		ata_scsi_set_invalid_field(args->dev, args->cmd, 2, 0xff);
+		return 1;
+	}
+
 	/* SCSI Concurrent Positioning Ranges VPD page: SBC-5 rev 1 or later */
 	rbuf[1] = 0xb9;
 	put_unaligned_be16(64 + (int)cpr_log->nr_cpr * 32 - 4, &rbuf[2]);
@@ -2157,6 +2167,57 @@ static unsigned int ata_scsiop_inq_b9(struct ata_scsi_args *args, u8 *rbuf)
 	}
 
 	return 0;
+}
+
+/**
+ *	ata_scsiop_inquiry - Simulate INQUIRY command
+ *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Returns data associated with an INQUIRY command output.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_inquiry(struct ata_scsi_args *args, u8 *rbuf)
+{
+	struct ata_device *dev = args->dev;
+	struct scsi_cmnd *cmd = args->cmd;
+	const u8 *scsicmd = cmd->cmnd;
+
+	/* is CmdDt set?  */
+	if (scsicmd[1] & 2) {
+		ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		return 1;
+	}
+
+	/* Is EVPD clear? */
+	if ((scsicmd[1] & 1) == 0)
+		return ata_scsiop_inq_std(args, rbuf);
+
+	switch (scsicmd[2]) {
+	case 0x00:
+		return ata_scsiop_inq_00(args, rbuf);
+	case 0x80:
+		return ata_scsiop_inq_80(args, rbuf);
+	case 0x83:
+		return ata_scsiop_inq_83(args, rbuf);
+	case 0x89:
+		return ata_scsiop_inq_89(args, rbuf);
+	case 0xb0:
+		return ata_scsiop_inq_b0(args, rbuf);
+	case 0xb1:
+		return ata_scsiop_inq_b1(args, rbuf);
+	case 0xb2:
+		return ata_scsiop_inq_b2(args, rbuf);
+	case 0xb6:
+		return ata_scsiop_inq_b6(args, rbuf);
+	case 0xb9:
+		return ata_scsiop_inq_b9(args, rbuf);
+	default:
+		ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
+		return 1;
+	}
 }
 
 /**
@@ -4263,48 +4324,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 
 	switch(scsicmd[0]) {
 	case INQUIRY:
-		if (scsicmd[1] & 2)		   /* is CmdDt set?  */
-			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
-		else if ((scsicmd[1] & 1) == 0)    /* is EVPD clear? */
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_std);
-		else switch (scsicmd[2]) {
-		case 0x00:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_00);
-			break;
-		case 0x80:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_80);
-			break;
-		case 0x83:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_83);
-			break;
-		case 0x89:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_89);
-			break;
-		case 0xb0:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b0);
-			break;
-		case 0xb1:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b1);
-			break;
-		case 0xb2:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b2);
-			break;
-		case 0xb6:
-			if (dev->flags & ATA_DFLAG_ZAC)
-				ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b6);
-			else
-				ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
-			break;
-		case 0xb9:
-			if (dev->cpr_log)
-				ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b9);
-			else
-				ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
-			break;
-		default:
-			ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
-			break;
-		}
+		ata_scsi_rbuf_fill(&args, ata_scsiop_inquiry);
 		break;
 
 	case MODE_SENSE:
