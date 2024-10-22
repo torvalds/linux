@@ -1403,8 +1403,15 @@ tests_run()
 	local current_test
 
 	for current_test in ${TESTS:-$ALL_TESTS}; do
-		$current_test
+		in_defer_scope \
+			$current_test
 	done
+}
+
+cleanup()
+{
+	pre_cleanup
+	defer_scopes_cleanup
 }
 
 multipath_eval()
@@ -1761,8 +1768,10 @@ start_tcp_traffic()
 
 stop_traffic()
 {
+	local pid=${1-%%}; shift
+
 	# Suppress noise from killing mausezahn.
-	{ kill %% && wait %%; } 2>/dev/null
+	{ kill $pid && wait $pid; } 2>/dev/null
 }
 
 declare -A cappid
