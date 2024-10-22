@@ -1132,6 +1132,8 @@ struct replay_config {
 	bool low_rr_activated;
 	/* Replay low refresh rate supported*/
 	bool low_rr_supported;
+	/* Replay Video Conferencing Optimization Enabled */
+	bool replay_video_conferencing_optimization_enabled;
 };
 
 /* Replay feature flags*/
