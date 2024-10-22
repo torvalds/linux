@@ -389,37 +389,23 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_add_devices);
 
-static void __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
-			   void *userdata)
+static int __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
+			  void *userdata)
 {
 	struct pci_dev *dev;
-	struct pci_bus *bus;
-	struct list_head *next;
-	int retval;
+	int ret = 0;
 
-	bus = top;
-	next = top->devices.next;
-	for (;;) {
-		if (next == &bus->devices) {
-			/* end of this bus, go up or finish */
-			if (bus == top)
-				break;
-			next = bus->self->bus_list.next;
-			bus = bus->self->bus;
-			continue;
-		}
-		dev = list_entry(next, struct pci_dev, bus_list);
-		if (dev->subordinate) {
-			/* this is a pci-pci bridge, do its devices next */
-			next = dev->subordinate->devices.next;
-			bus = dev->subordinate;
-		} else
-			next = dev->bus_list.next;
-
-		retval = cb(dev, userdata);
-		if (retval)
+	list_for_each_entry(dev, &top->devices, bus_list) {
+		ret = cb(dev, userdata);
+		if (ret)
 			break;
+		if (dev->subordinate) {
+			ret = __pci_walk_bus(dev->subordinate, cb, userdata);
+			if (ret)
+				break;
+		}
 	}
+	return ret;
 }
 
 /**
