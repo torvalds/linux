@@ -25,6 +25,19 @@
  * all the stream ids for the various devices attached to the same smmu.
  */
 / {
+    interrupt-controller@2c010000 {
+        compatible = "arm,gic-v3";
+        reg = <0x2c010000 0x1000>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        v2m@0 {
+            compatible = "arm,gic-v2m-frame";
+            reg = <0x2c01a000 0x1000>;
+            msi-controller;
+            #msi-cells = <1>;
+        };
+    };
+
 	smmu_ethosn0: iommu@6f400000 {
 		compatible = "arm,smmu-v3";
 		reg = <0 0x6f400000 0 0x80000>;

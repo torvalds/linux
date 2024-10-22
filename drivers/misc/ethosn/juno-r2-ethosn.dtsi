@@ -20,6 +20,8 @@
  *
  */
 
+/dts-v1/;
+
 / {
 
 	reserved-memory {
