@@ -385,16 +385,11 @@ static int io_send_setup(struct io_kiocb *req)
 	return 0;
 }
 
-static int io_sendmsg_prep_setup(struct io_kiocb *req, int is_msg)
+static int io_sendmsg_setup(struct io_kiocb *req)
 {
-	struct io_async_msghdr *kmsg;
+	struct io_async_msghdr *kmsg = req->async_data;
 	int ret;
 
-	kmsg = io_msg_alloc_async(req);
-	if (unlikely(!kmsg))
-		return -ENOMEM;
-	if (!is_msg)
-		return io_send_setup(req);
 	ret = io_sendmsg_copy_hdr(req, kmsg);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
@@ -440,7 +435,11 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->ctx->compat)
 		sr->msg_flags |= MSG_CMSG_COMPAT;
 #endif
-	return io_sendmsg_prep_setup(req, req->opcode == IORING_OP_SENDMSG);
+	if (unlikely(!io_msg_alloc_async(req)))
+		return -ENOMEM;
+	if (req->opcode != IORING_OP_SENDMSG)
+		return io_send_setup(req);
+	return io_sendmsg_setup(req);
 }
 
 static void io_req_msg_cleanup(struct io_kiocb *req,
@@ -1278,7 +1277,11 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->ctx->compat)
 		zc->msg_flags |= MSG_CMSG_COMPAT;
 #endif
-	return io_sendmsg_prep_setup(req, req->opcode == IORING_OP_SENDMSG_ZC);
+	if (unlikely(!io_msg_alloc_async(req)))
+		return -ENOMEM;
+	if (req->opcode != IORING_OP_SENDMSG_ZC)
+		return io_send_setup(req);
+	return io_sendmsg_setup(req);
 }
 
 static int io_sg_from_iter_iovec(struct sk_buff *skb,
