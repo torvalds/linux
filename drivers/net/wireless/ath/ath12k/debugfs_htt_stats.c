@@ -2542,14 +2542,6 @@ ath12k_htt_print_pdev_obss_pd_stats_tlv(const void *tag_buf, u16 tag_len,
 	stats_req->buf_len = len;
 }
 
-static u64 ath12k_le32hilo_to_u64(__le32 hi, __le32 lo)
-{
-	u64 hi64 = le32_to_cpu(hi);
-	u64 lo64 = le32_to_cpu(lo);
-
-	return (hi64 << 32) | lo64;
-}
-
 static void
 ath12k_htt_print_dmac_reset_stats_tlv(const void *tag_buf, u16 tag_len,
 				      struct debug_htt_stats_req *stats_req)
