@@ -39,6 +39,7 @@ properties:
           - qcom,sm8450-ipcc
           - qcom,sm8550-ipcc
           - qcom,sm8650-ipcc
+          - qcom,sm8750-ipcc
           - qcom,x1e80100-ipcc
       - const: qcom,ipcc
 
