@@ -10,6 +10,10 @@
 #include "ps.h"
 #include "util.h"
 
+static void rtw89_swap_chanctx(struct rtw89_dev *rtwdev,
+			       enum rtw89_chanctx_idx idx1,
+			       enum rtw89_chanctx_idx idx2);
+
 static enum rtw89_subband rtw89_get_subband_type(enum rtw89_band band,
 						 u8 center_chan)
 {
@@ -226,11 +230,15 @@ static void rtw89_config_default_chandef(struct rtw89_dev *rtwdev)
 void rtw89_entity_init(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 
 	hal->entity_pause = false;
 	bitmap_zero(hal->entity_map, NUM_OF_RTW89_CHANCTX);
 	bitmap_zero(hal->changes, NUM_OF_RTW89_CHANCTX_CHANGES);
 	atomic_set(&hal->roc_chanctx_idx, RTW89_CHANCTX_IDLE);
+
+	INIT_LIST_HEAD(&mgnt->active_list);
+
 	rtw89_config_default_chandef(rtwdev);
 }
 
@@ -269,6 +277,71 @@ static void rtw89_entity_calculate_weight(struct rtw89_dev *rtwdev,
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		if (rtw89_vif_is_active_role(rtwvif))
 			w->active_roles++;
+	}
+}
+
+static void rtw89_normalize_link_chanctx(struct rtw89_dev *rtwdev,
+					 struct rtw89_vif_link *rtwvif_link)
+{
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct rtw89_vif_link *cur;
+
+	if (unlikely(!rtwvif_link->chanctx_assigned))
+		return;
+
+	cur = rtw89_vif_get_link_inst(rtwvif, 0);
+	if (!cur || !cur->chanctx_assigned)
+		return;
+
+	if (cur == rtwvif_link)
+		return;
+
+	rtw89_swap_chanctx(rtwdev, rtwvif_link->chanctx_idx, cur->chanctx_idx);
+}
+
+static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
+	struct rtw89_vif_link *link;
+	struct rtw89_vif *role;
+	u8 pos = 0;
+	int i;
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	for (i = 0; i < RTW89_MAX_INTERFACE_NUM; i++)
+		mgnt->active_roles[i] = NULL;
+
+	/* To be consistent with legacy behavior, expect the first active role
+	 * which uses RTW89_CHANCTX_0 to put at position 0, and make its first
+	 * link instance take RTW89_CHANCTX_0. (normalizing)
+	 */
+	list_for_each_entry(role, &mgnt->active_list, mgnt_entry) {
+		for (i = 0; i < role->links_inst_valid_num; i++) {
+			link = rtw89_vif_get_link_inst(role, i);
+			if (!link || !link->chanctx_assigned)
+				continue;
+
+			if (link->chanctx_idx == RTW89_CHANCTX_0) {
+				rtw89_normalize_link_chanctx(rtwdev, link);
+
+				list_del(&role->mgnt_entry);
+				list_add(&role->mgnt_entry, &mgnt->active_list);
+				break;
+			}
+		}
+	}
+
+	list_for_each_entry(role, &mgnt->active_list, mgnt_entry) {
+		if (unlikely(pos >= RTW89_MAX_INTERFACE_NUM)) {
+			rtw89_warn(rtwdev,
+				   "%s: active roles are over max iface num\n",
+				   __func__);
+			break;
+		}
+
+		mgnt->active_roles[pos++] = role;
 	}
 }
 
@@ -326,6 +399,8 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 
 		rtw89_assign_entity_chan(rtwdev, idx, &chan);
 	}
+
+	rtw89_entity_recalc_mgnt_roles(rtwdev);
 
 	if (hal->entity_pause)
 		return rtw89_get_entity_mode(rtwdev);
@@ -716,6 +791,7 @@ struct rtw89_mcc_fill_role_selector {
 };
 
 static_assert((u8)NUM_OF_RTW89_CHANCTX >= NUM_OF_RTW89_MCC_ROLES);
+static_assert(RTW89_MAX_INTERFACE_NUM >= NUM_OF_RTW89_MCC_ROLES);
 
 static int rtw89_mcc_fill_role_iterator(struct rtw89_dev *rtwdev,
 					struct rtw89_mcc_role *mcc_role,
@@ -745,14 +821,18 @@ static int rtw89_mcc_fill_role_iterator(struct rtw89_dev *rtwdev,
 
 static int rtw89_mcc_fill_all_roles(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	struct rtw89_mcc_fill_role_selector sel = {};
 	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_vif *rtwvif;
 	int ret;
+	int i;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
-		if (!rtw89_vif_is_active_role(rtwvif))
-			continue;
+	for (i = 0; i < NUM_OF_RTW89_MCC_ROLES; i++) {
+		rtwvif = mgnt->active_roles[i];
+		if (!rtwvif)
+			break;
 
 		rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
 		if (unlikely(!rtwvif_link)) {
@@ -760,14 +840,7 @@ static int rtw89_mcc_fill_all_roles(struct rtw89_dev *rtwdev)
 			continue;
 		}
 
-		if (sel.bind_vif[rtwvif_link->chanctx_idx]) {
-			rtw89_warn(rtwdev,
-				   "MCC skip extra vif <macid %d> on chanctx[%d]\n",
-				   rtwvif_link->mac_id, rtwvif_link->chanctx_idx);
-			continue;
-		}
-
-		sel.bind_vif[rtwvif_link->chanctx_idx] = rtwvif_link;
+		sel.bind_vif[i] = rtwvif_link;
 	}
 
 	ret = rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_fill_role_iterator, &sel);
@@ -2501,11 +2574,17 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 				 struct ieee80211_chanctx_conf *ctx)
 {
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	struct rtw89_entity_weight w = {};
 
 	rtwvif_link->chanctx_idx = cfg->idx;
 	rtwvif_link->chanctx_assigned = true;
 	cfg->ref_count++;
+
+	if (list_empty(&rtwvif->mgnt_entry))
+		list_add_tail(&rtwvif->mgnt_entry, &mgnt->active_list);
 
 	if (cfg->idx == RTW89_CHANCTX_0)
 		goto out;
@@ -2526,6 +2605,7 @@ void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 				    struct ieee80211_chanctx_conf *ctx)
 {
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_chanctx_idx roll;
 	enum rtw89_entity_mode cur;
@@ -2535,6 +2615,9 @@ void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 	rtwvif_link->chanctx_idx = RTW89_CHANCTX_0;
 	rtwvif_link->chanctx_assigned = false;
 	cfg->ref_count--;
+
+	if (!rtw89_vif_is_active_role(rtwvif))
+		list_del_init(&rtwvif->mgnt_entry);
 
 	if (cfg->ref_count != 0)
 		goto out;

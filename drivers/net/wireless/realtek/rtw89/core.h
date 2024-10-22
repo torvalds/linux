@@ -4635,6 +4635,14 @@ enum rtw89_entity_mode {
 	RTW89_ENTITY_MODE_UNHANDLED = -ESRCH,
 };
 
+#define RTW89_MAX_INTERFACE_NUM 2
+
+/* only valid when running with chanctx_ops */
+struct rtw89_entity_mgnt {
+	struct list_head active_list;
+	struct rtw89_vif *active_roles[RTW89_MAX_INTERFACE_NUM];
+};
+
 struct rtw89_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct rtw89_chan chan;
@@ -4682,6 +4690,7 @@ struct rtw89_hal {
 	bool entity_active[RTW89_PHY_MAX];
 	bool entity_pause;
 	enum rtw89_entity_mode entity_mode;
+	struct rtw89_entity_mgnt entity_mgnt;
 
 	struct rtw89_edcca_bak edcca_bak;
 	u32 disabled_dm_bitmap; /* bitmap of enum rtw89_dm_type */
@@ -5636,6 +5645,7 @@ struct rtw89_dev {
 struct rtw89_vif {
 	struct rtw89_dev *rtwdev;
 	struct list_head list;
+	struct list_head mgnt_entry;
 
 	u8 mac_addr[ETH_ALEN];
 	__be32 ip_addr;

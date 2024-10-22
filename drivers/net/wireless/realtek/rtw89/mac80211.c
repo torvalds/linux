@@ -192,6 +192,8 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	if (!rtw89_rtwvif_in_list(rtwdev, rtwvif))
 		list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
 
+	INIT_LIST_HEAD(&rtwvif->mgnt_entry);
+
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 
 	rtwvif->offchan = false;
