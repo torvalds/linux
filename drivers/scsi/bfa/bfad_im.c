@@ -783,7 +783,7 @@ bfad_thread_workq(struct bfad_s *bfad)
  * Return non-zero if fails.
  */
 static int
-bfad_im_slave_configure(struct scsi_device *sdev)
+bfad_im_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	scsi_change_queue_depth(sdev, bfa_lun_queue_depth);
 	return 0;
@@ -801,7 +801,7 @@ struct scsi_host_template bfad_im_scsi_host_template = {
 	.eh_target_reset_handler = bfad_im_reset_target_handler,
 
 	.sdev_init = bfad_im_sdev_init,
-	.slave_configure = bfad_im_slave_configure,
+	.sdev_configure = bfad_im_sdev_configure,
 	.sdev_destroy = bfad_im_sdev_destroy,
 
 	.this_id = -1,
@@ -824,7 +824,7 @@ struct scsi_host_template bfad_im_vport_template = {
 	.eh_target_reset_handler = bfad_im_reset_target_handler,
 
 	.sdev_init = bfad_im_sdev_init,
-	.slave_configure = bfad_im_slave_configure,
+	.sdev_configure = bfad_im_sdev_configure,
 	.sdev_destroy = bfad_im_sdev_destroy,
 
 	.this_id = -1,

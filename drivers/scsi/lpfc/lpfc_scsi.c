@@ -6342,8 +6342,9 @@ lpfc_sdev_init(struct scsi_device *sdev)
 }
 
 /**
- * lpfc_slave_configure - scsi_host_template slave_configure entry point
+ * lpfc_sdev_configure - scsi_host_template sdev_configure entry point
  * @sdev: Pointer to scsi_device.
+ * @lim: Request queue limits.
  *
  * This routine configures following items
  *   - Tag command queuing support for @sdev if supported.
@@ -6353,7 +6354,7 @@ lpfc_sdev_init(struct scsi_device *sdev)
  *   0 - Success
  **/
 static int
-lpfc_slave_configure(struct scsi_device *sdev)
+lpfc_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
@@ -6737,7 +6738,13 @@ lpfc_no_command(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 }
 
 static int
-lpfc_no_sdev(struct scsi_device *sdev)
+lpfc_init_no_sdev(struct scsi_device *sdev)
+{
+	return -ENODEV;
+}
+
+static int
+lpfc_config_no_sdev(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	return -ENODEV;
 }
@@ -6748,8 +6755,8 @@ struct scsi_host_template lpfc_template_nvme = {
 	.proc_name		= LPFC_DRIVER_NAME,
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_no_command,
-	.sdev_init		= lpfc_no_sdev,
-	.slave_configure	= lpfc_no_sdev,
+	.sdev_init		= lpfc_init_no_sdev,
+	.sdev_configure		= lpfc_config_no_sdev,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= 1,
@@ -6773,7 +6780,7 @@ struct scsi_host_template lpfc_template = {
 	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_host_reset_handler  = lpfc_host_reset_handler,
 	.sdev_init		= lpfc_sdev_init,
-	.slave_configure	= lpfc_slave_configure,
+	.sdev_configure		= lpfc_sdev_configure,
 	.sdev_destroy		= lpfc_sdev_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
@@ -6800,7 +6807,7 @@ struct scsi_host_template lpfc_vport_template = {
 	.eh_bus_reset_handler	= NULL,
 	.eh_host_reset_handler	= NULL,
 	.sdev_init		= lpfc_sdev_init,
-	.slave_configure	= lpfc_slave_configure,
+	.sdev_configure		= lpfc_sdev_configure,
 	.sdev_destroy		= lpfc_sdev_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,

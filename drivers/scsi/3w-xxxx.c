@@ -172,7 +172,7 @@
                  Initialize queues correctly when loading with no valid units.
    1.02.00.034 - Fix tw_decode_bits() to handle multiple errors.
                  Add support for user configurable cmd_per_lun.
-                 Add support for sht->slave_configure().
+                 Add support for sht->sdev_configure().
    1.02.00.035 - Improve tw_allocate_memory() memory allocation.
                  Fix tw_chrdev_ioctl() to sleep correctly.
    1.02.00.036 - Increase character ioctl timeout to 60 seconds.
@@ -2221,13 +2221,13 @@ static void tw_shutdown(struct pci_dev *pdev)
 } /* End tw_shutdown() */
 
 /* This function gets called when a disk is coming online */
-static int tw_slave_configure(struct scsi_device *sdev)
+static int tw_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	/* Force 60 second timeout */
 	blk_queue_rq_timeout(sdev->request_queue, 60 * HZ);
 
 	return 0;
-} /* End tw_slave_configure() */
+} /* End tw_sdev_configure() */
 
 static const struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
@@ -2237,7 +2237,7 @@ static const struct scsi_host_template driver_template = {
 	.bios_param		= tw_scsi_biosparam,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= TW_Q_LENGTH-2,
-	.slave_configure	= tw_slave_configure,
+	.sdev_configure		= tw_sdev_configure,
 	.this_id		= -1,
 	.sg_tablesize		= TW_MAX_SGL_LENGTH,
 	.max_sectors		= TW_MAX_SECTORS,

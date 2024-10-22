@@ -57,11 +57,11 @@ snic_sdev_init(struct scsi_device *sdev)
 }
 
 /*
- * snic_slave_configure : callback function to SCSI Mid Layer, called on
+ * snic_sdev_configure : callback function to SCSI Mid Layer, called on
  * scsi device initialization.
  */
 static int
-snic_slave_configure(struct scsi_device *sdev)
+snic_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct snic *snic = shost_priv(sdev->host);
 	u32 qdepth = 0, max_ios = 0;
@@ -108,7 +108,7 @@ static const struct scsi_host_template snic_host_template = {
 	.eh_device_reset_handler = snic_device_reset,
 	.eh_host_reset_handler = snic_host_reset,
 	.sdev_init = snic_sdev_init,
-	.slave_configure = snic_slave_configure,
+	.sdev_configure = snic_sdev_configure,
 	.change_queue_depth = snic_change_queue_depth,
 	.this_id = -1,
 	.cmd_per_lun = SNIC_DFLT_QUEUE_DEPTH,

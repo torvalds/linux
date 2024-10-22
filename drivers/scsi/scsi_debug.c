@@ -5888,14 +5888,15 @@ static int scsi_debug_sdev_init(struct scsi_device *sdp)
 	return 0;
 }
 
-static int scsi_debug_slave_configure(struct scsi_device *sdp)
+static int scsi_debug_sdev_configure(struct scsi_device *sdp,
+				     struct queue_limits *lim)
 {
 	struct sdebug_dev_info *devip =
 			(struct sdebug_dev_info *)sdp->hostdata;
 	struct dentry *dentry;
 
 	if (sdebug_verbose)
-		pr_info("slave_configure <%u %u %u %llu>\n",
+		pr_info("sdev_configure <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (sdp->host->max_cmd_len != SDEBUG_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = SDEBUG_MAX_CMD_LEN;
@@ -8713,8 +8714,8 @@ static struct scsi_host_template sdebug_driver_template = {
 	.name =			"SCSI DEBUG",
 	.info =			scsi_debug_info,
 	.sdev_init =		scsi_debug_sdev_init,
-	.slave_configure =	scsi_debug_slave_configure,
-	.sdev_destroy =	scsi_debug_sdev_destroy,
+	.sdev_configure =	scsi_debug_sdev_configure,
+	.sdev_destroy =		scsi_debug_sdev_destroy,
 	.ioctl =		scsi_debug_ioctl,
 	.queuecommand =		scsi_debug_queuecommand,
 	.change_queue_depth =	sdebug_change_qdepth,

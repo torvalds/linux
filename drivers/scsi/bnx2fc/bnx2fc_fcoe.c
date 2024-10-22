@@ -2652,7 +2652,8 @@ static int bnx2fc_cpu_offline(unsigned int cpu)
 	return 0;
 }
 
-static int bnx2fc_slave_configure(struct scsi_device *sdev)
+static int bnx2fc_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	if (!bnx2fc_queue_depth)
 		return 0;
@@ -2959,7 +2960,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.dma_boundary           = 0x7fff,
 	.max_sectors		= 0x3fbf,
 	.track_queue_depth	= 1,
-	.slave_configure	= bnx2fc_slave_configure,
+	.sdev_configure		= bnx2fc_sdev_configure,
 	.shost_groups		= bnx2fc_host_groups,
 	.cmd_size		= sizeof(struct bnx2fc_priv),
 };

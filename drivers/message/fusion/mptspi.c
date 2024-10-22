@@ -746,7 +746,8 @@ static int mptspi_sdev_init(struct scsi_device *sdev)
 	return 0;
 }
 
-static int mptspi_slave_configure(struct scsi_device *sdev)
+static int mptspi_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	struct _MPT_SCSI_HOST *hd = shost_priv(sdev->host);
 	VirtTarget *vtarget = scsi_target(sdev)->hostdata;
@@ -754,7 +755,7 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 
 	mptspi_initTarget(hd, vtarget, sdev);
 
-	ret = mptscsih_slave_configure(sdev);
+	ret = mptscsih_sdev_configure(sdev, lim);
 
 	if (ret)
 		return ret;
@@ -829,7 +830,7 @@ static const struct scsi_host_template mptspi_driver_template = {
 	.queuecommand			= mptspi_qcmd,
 	.target_alloc			= mptspi_target_alloc,
 	.sdev_init			= mptspi_sdev_init,
-	.slave_configure		= mptspi_slave_configure,
+	.sdev_configure			= mptspi_sdev_configure,
 	.target_destroy			= mptspi_target_destroy,
 	.sdev_destroy			= mptspi_sdev_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,

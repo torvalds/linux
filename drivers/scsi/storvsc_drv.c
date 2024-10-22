@@ -1574,7 +1574,8 @@ static int storvsc_device_alloc(struct scsi_device *sdevice)
 	return 0;
 }
 
-static int storvsc_device_configure(struct scsi_device *sdevice)
+static int storvsc_sdev_configure(struct scsi_device *sdevice,
+				  struct queue_limits *lim)
 {
 	blk_queue_rq_timeout(sdevice->request_queue, (storvsc_timeout * HZ));
 
@@ -1876,7 +1877,7 @@ static struct scsi_host_template scsi_driver = {
 	.proc_name =		"storvsc_host",
 	.eh_timed_out =		storvsc_eh_timed_out,
 	.sdev_init =		storvsc_device_alloc,
-	.slave_configure =	storvsc_device_configure,
+	.sdev_configure =	storvsc_sdev_configure,
 	.cmd_per_lun =		2048,
 	.this_id =		-1,
 	/* Ensure there are no gaps in presented sgls */

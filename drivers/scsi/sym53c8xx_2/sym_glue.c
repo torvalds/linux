@@ -825,7 +825,8 @@ out:
 /*
  * Linux entry point for device queue sizing.
  */
-static int sym53c8xx_slave_configure(struct scsi_device *sdev)
+static int sym53c8xx_sdev_configure(struct scsi_device *sdev,
+				    struct queue_limits *lim)
 {
 	struct sym_hcb *np = sym_get_hcb(sdev->host);
 	struct sym_tcb *tp = &np->target[sdev->id];
@@ -1685,7 +1686,7 @@ static const struct scsi_host_template sym2_template = {
 	.cmd_size		= sizeof(struct sym_ucmd),
 	.queuecommand		= sym53c8xx_queue_command,
 	.sdev_init		= sym53c8xx_sdev_init,
-	.slave_configure	= sym53c8xx_slave_configure,
+	.sdev_configure		= sym53c8xx_sdev_configure,
 	.sdev_destroy		= sym53c8xx_sdev_destroy,
 	.eh_abort_handler	= sym53c8xx_eh_abort_handler,
 	.eh_target_reset_handler = sym53c8xx_eh_target_reset_handler,

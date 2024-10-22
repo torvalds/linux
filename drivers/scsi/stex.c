@@ -584,7 +584,7 @@ static void return_abnormal_state(struct st_hba *hba, int status)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 }
 static int
-stex_slave_config(struct scsi_device *sdev)
+stex_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
@@ -1481,7 +1481,7 @@ static const struct scsi_host_template driver_template = {
 	.proc_name			= DRV_NAME,
 	.bios_param			= stex_biosparam,
 	.queuecommand			= stex_queuecommand,
-	.slave_configure		= stex_slave_config,
+	.sdev_configure			= stex_sdev_configure,
 	.eh_abort_handler		= stex_abort,
 	.eh_host_reset_handler		= stex_reset,
 	.this_id			= -1,

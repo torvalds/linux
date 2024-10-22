@@ -1715,7 +1715,8 @@ static int myrb_sdev_init(struct scsi_device *sdev)
 	return myrb_pdev_sdev_init(sdev);
 }
 
-static int myrb_slave_configure(struct scsi_device *sdev)
+static int myrb_sdev_configure(struct scsi_device *sdev,
+			       struct queue_limits *lim)
 {
 	struct myrb_ldev_info *ldev_info;
 
@@ -2209,7 +2210,7 @@ static const struct scsi_host_template myrb_template = {
 	.queuecommand		= myrb_queuecommand,
 	.eh_host_reset_handler	= myrb_host_reset,
 	.sdev_init		= myrb_sdev_init,
-	.slave_configure	= myrb_slave_configure,
+	.sdev_configure		= myrb_sdev_configure,
 	.sdev_destroy		= myrb_sdev_destroy,
 	.bios_param		= myrb_biosparam,
 	.cmd_size		= sizeof(struct myrb_cmdblk),

@@ -1882,7 +1882,8 @@ static int myrs_sdev_init(struct scsi_device *sdev)
 	return 0;
 }
 
-static int myrs_slave_configure(struct scsi_device *sdev)
+static int myrs_sdev_configure(struct scsi_device *sdev,
+			       struct queue_limits *lim)
 {
 	struct myrs_hba *cs = shost_priv(sdev->host);
 	struct myrs_ldev_info *ldev_info;
@@ -1922,7 +1923,7 @@ static const struct scsi_host_template myrs_template = {
 	.queuecommand		= myrs_queuecommand,
 	.eh_host_reset_handler	= myrs_host_reset,
 	.sdev_init		= myrs_sdev_init,
-	.slave_configure	= myrs_slave_configure,
+	.sdev_configure		= myrs_sdev_configure,
 	.sdev_destroy		= myrs_sdev_destroy,
 	.cmd_size		= sizeof(struct myrs_cmdblk),
 	.shost_groups		= myrs_shost_groups,

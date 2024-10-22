@@ -6558,7 +6558,8 @@ static inline bool pqi_is_tape_changer_device(struct pqi_scsi_dev *device)
 	return device->devtype == TYPE_TAPE || device->devtype == TYPE_MEDIUM_CHANGER;
 }
 
-static int pqi_slave_configure(struct scsi_device *sdev)
+static int pqi_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	int rc = 0;
 	struct pqi_scsi_dev *device;
@@ -7550,7 +7551,7 @@ static const struct scsi_host_template pqi_driver_template = {
 	.eh_abort_handler = pqi_eh_abort_handler,
 	.ioctl = pqi_ioctl,
 	.sdev_init = pqi_sdev_init,
-	.slave_configure = pqi_slave_configure,
+	.sdev_configure = pqi_sdev_configure,
 	.sdev_destroy = pqi_sdev_destroy,
 	.map_queues = pqi_map_queues,
 	.sdev_groups = pqi_sdev_groups,

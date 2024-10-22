@@ -701,7 +701,7 @@ ahd_linux_sdev_init(struct scsi_device *sdev)
 }
 
 static int
-ahd_linux_slave_configure(struct scsi_device *sdev)
+ahd_linux_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	if (bootverbose)
 		sdev_printk(KERN_INFO, sdev, "Slave Configure\n");
@@ -907,7 +907,7 @@ struct scsi_host_template aic79xx_driver_template = {
 	.max_sectors		= 8192,
 	.cmd_per_lun		= 2,
 	.sdev_init		= ahd_linux_sdev_init,
-	.slave_configure	= ahd_linux_slave_configure,
+	.sdev_configure		= ahd_linux_sdev_configure,
 	.target_alloc		= ahd_linux_target_alloc,
 	.target_destroy		= ahd_linux_target_destroy,
 };

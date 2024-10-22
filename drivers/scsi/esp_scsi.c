@@ -2261,7 +2261,7 @@ static void esp_init_swstate(struct esp *esp)
 	INIT_LIST_HEAD(&esp->active_cmds);
 	INIT_LIST_HEAD(&esp->esp_cmd_pool);
 
-	/* Start with a clear state, domain validation (via ->slave_configure,
+	/* Start with a clear state, domain validation (via ->sdev_configure,
 	 * spi_dv_device()) will attempt to enable SYNC, WIDE, and tagged
 	 * commands.
 	 */
@@ -2463,7 +2463,7 @@ static int esp_sdev_init(struct scsi_device *dev)
 	return 0;
 }
 
-static int esp_slave_configure(struct scsi_device *dev)
+static int esp_sdev_configure(struct scsi_device *dev, struct queue_limits *lim)
 {
 	struct esp *esp = shost_priv(dev->host);
 	struct esp_target_data *tp = &esp->target[dev->id];
@@ -2668,7 +2668,7 @@ const struct scsi_host_template scsi_esp_template = {
 	.target_alloc		= esp_target_alloc,
 	.target_destroy		= esp_target_destroy,
 	.sdev_init		= esp_sdev_init,
-	.slave_configure	= esp_slave_configure,
+	.sdev_configure		= esp_sdev_configure,
 	.sdev_destroy		= esp_sdev_destroy,
 	.eh_abort_handler	= esp_eh_abort_handler,
 	.eh_bus_reset_handler	= esp_eh_bus_reset_handler,

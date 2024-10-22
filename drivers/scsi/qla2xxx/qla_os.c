@@ -1947,7 +1947,7 @@ qla2xxx_sdev_init(struct scsi_device *sdev)
 }
 
 static int
-qla2xxx_slave_configure(struct scsi_device *sdev)
+qla2xxx_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	scsi_qla_host_t *vha = shost_priv(sdev->host);
 	struct req_que *req = vha->req;
@@ -8086,7 +8086,7 @@ struct scsi_host_template qla2xxx_driver_template = {
 	.eh_bus_reset_handler	= qla2xxx_eh_bus_reset,
 	.eh_host_reset_handler	= qla2xxx_eh_host_reset,
 
-	.slave_configure	= qla2xxx_slave_configure,
+	.sdev_configure		= qla2xxx_sdev_configure,
 
 	.sdev_init		= qla2xxx_sdev_init,
 	.sdev_destroy		= qla2xxx_sdev_destroy,

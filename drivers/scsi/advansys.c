@@ -4496,7 +4496,7 @@ static int AdvInitAsc3550Driver(ADV_DVC_VAR *asc_dvc)
 
 	/*
 	 * Microcode operating variables for WDTR, SDTR, and command tag
-	 * queuing will be set in slave_configure() based on what a
+	 * queuing will be set in sdev_configure() based on what a
 	 * device reports it is capable of in Inquiry byte 7.
 	 *
 	 * If SCSI Bus Resets have been disabled, then directly set
@@ -5013,7 +5013,7 @@ static int AdvInitAsc38C0800Driver(ADV_DVC_VAR *asc_dvc)
 
 	/*
 	 * Microcode operating variables for WDTR, SDTR, and command tag
-	 * queuing will be set in slave_configure() based on what a
+	 * queuing will be set in sdev_configure() based on what a
 	 * device reports it is capable of in Inquiry byte 7.
 	 *
 	 * If SCSI Bus Resets have been disabled, then directly set
@@ -5508,7 +5508,7 @@ static int AdvInitAsc38C1600Driver(ADV_DVC_VAR *asc_dvc)
 
 	/*
 	 * Microcode operating variables for WDTR, SDTR, and command tag
-	 * queuing will be set in slave_configure() based on what a
+	 * queuing will be set in sdev_configure() based on what a
 	 * device reports it is capable of in Inquiry byte 7.
 	 *
 	 * If SCSI Bus Resets have been disabled, then directly set
@@ -7219,7 +7219,7 @@ static void AscAsyncFix(ASC_DVC_VAR *asc_dvc, struct scsi_device *sdev)
 }
 
 static void
-advansys_narrow_slave_configure(struct scsi_device *sdev, ASC_DVC_VAR *asc_dvc)
+advansys_narrow_sdev_configure(struct scsi_device *sdev, ASC_DVC_VAR *asc_dvc)
 {
 	ASC_SCSI_BIT_ID_TYPE tid_bit = 1 << sdev->id;
 	ASC_SCSI_BIT_ID_TYPE orig_use_tagged_qng = asc_dvc->use_tagged_qng;
@@ -7345,7 +7345,7 @@ static void advansys_wide_enable_ppr(ADV_DVC_VAR *adv_dvc,
 }
 
 static void
-advansys_wide_slave_configure(struct scsi_device *sdev, ADV_DVC_VAR *adv_dvc)
+advansys_wide_sdev_configure(struct scsi_device *sdev, ADV_DVC_VAR *adv_dvc)
 {
 	AdvPortAddr iop_base = adv_dvc->iop_base;
 	unsigned short tidmask = 1 << sdev->id;
@@ -7391,16 +7391,17 @@ advansys_wide_slave_configure(struct scsi_device *sdev, ADV_DVC_VAR *adv_dvc)
  * Set the number of commands to queue per device for the
  * specified host adapter.
  */
-static int advansys_slave_configure(struct scsi_device *sdev)
+static int advansys_sdev_configure(struct scsi_device *sdev,
+				   struct queue_limits *lim)
 {
 	struct asc_board *boardp = shost_priv(sdev->host);
 
 	if (ASC_NARROW_BOARD(boardp))
-		advansys_narrow_slave_configure(sdev,
-						&boardp->dvc_var.asc_dvc_var);
+		advansys_narrow_sdev_configure(sdev,
+					       &boardp->dvc_var.asc_dvc_var);
 	else
-		advansys_wide_slave_configure(sdev,
-						&boardp->dvc_var.adv_dvc_var);
+		advansys_wide_sdev_configure(sdev,
+					     &boardp->dvc_var.adv_dvc_var);
 
 	return 0;
 }
@@ -10612,7 +10613,7 @@ static const struct scsi_host_template advansys_template = {
 	.queuecommand = advansys_queuecommand,
 	.eh_host_reset_handler = advansys_reset,
 	.bios_param = advansys_biosparam,
-	.slave_configure = advansys_slave_configure,
+	.sdev_configure = advansys_sdev_configure,
 	.cmd_size = sizeof(struct advansys_cmd),
 };
 
