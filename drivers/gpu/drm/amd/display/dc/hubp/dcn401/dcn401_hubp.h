@@ -340,4 +340,27 @@ int hubp401_get_3dlut_fl_done(struct hubp *hubp);
 
 void hubp401_set_unbounded_requesting(struct hubp *hubp, bool enable);
 
+void hubp401_update_3dlut_fl_bias_scale(struct hubp *hubp, uint16_t bias, uint16_t scale);
+
+void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_y_g,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r);
+
+void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, bool protection_enabled);
+
+void hubp401_program_3dlut_fl_width(struct hubp *hubp, enum hubp_3dlut_fl_width width);
+
+void hubp401_program_3dlut_fl_addressing_mode(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode);
+
+void hubp401_enable_3dlut_fl(struct hubp *hubp, bool enable);
+
+void hubp401_program_3dlut_fl_dlg_param(struct hubp *hubp, int refcyc_per_3dlut_group);
+
+void hubp401_program_3dlut_fl_addr(struct hubp *hubp, const struct dc_plane_address address);
+
+void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_format format);
+
+void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode);
+
 #endif /* __DC_HUBP_DCN401_H__ */

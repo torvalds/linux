@@ -40,7 +40,7 @@
 #define FN(reg_name, field_name) \
 	hubp2->hubp_shift->field_name, hubp2->hubp_mask->field_name
 
-static void hubp401_program_3dlut_fl_addr(struct hubp *hubp,
+void hubp401_program_3dlut_fl_addr(struct hubp *hubp,
 	const struct dc_plane_address address)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -49,14 +49,14 @@ static void hubp401_program_3dlut_fl_addr(struct hubp *hubp,
 	REG_WRITE(HUBP_3DLUT_ADDRESS_LOW, address.lut3d.addr.low_part);
 }
 
-static void hubp401_program_3dlut_fl_dlg_param(struct hubp *hubp, int refcyc_per_3dlut_group)
+void hubp401_program_3dlut_fl_dlg_param(struct hubp *hubp, int refcyc_per_3dlut_group)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_DLG_PARAM, REFCYC_PER_3DLUT_GROUP, refcyc_per_3dlut_group);
 }
 
-static void hubp401_enable_3dlut_fl(struct hubp *hubp, bool enable)
+void hubp401_enable_3dlut_fl(struct hubp *hubp, bool enable)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -72,28 +72,28 @@ int hubp401_get_3dlut_fl_done(struct hubp *hubp)
 	return ret;
 }
 
-static void hubp401_program_3dlut_fl_addressing_mode(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode)
+void hubp401_program_3dlut_fl_addressing_mode(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_CONTROL, HUBP_3DLUT_ADDRESSING_MODE, addr_mode);
 }
 
-static void hubp401_program_3dlut_fl_width(struct hubp *hubp, enum hubp_3dlut_fl_width width)
+void hubp401_program_3dlut_fl_width(struct hubp *hubp, enum hubp_3dlut_fl_width width)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_CONTROL, HUBP_3DLUT_WIDTH, width);
 }
 
-static void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, bool protection_enabled)
+void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, bool protection_enabled)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_CONTROL, HUBP_3DLUT_TMZ, protection_enabled ? 1 : 0);
 }
 
-static void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
+void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_y_g,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r)
@@ -106,21 +106,21 @@ static void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
 			HUBP_3DLUT_CROSSBAR_SELECT_CR_R, bit_slice_cr_r);
 }
 
-static void hubp401_update_3dlut_fl_bias_scale(struct hubp *hubp, uint16_t bias, uint16_t scale)
+void hubp401_update_3dlut_fl_bias_scale(struct hubp *hubp, uint16_t bias, uint16_t scale)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE_2(_3DLUT_FL_BIAS_SCALE, HUBP0_3DLUT_FL_BIAS, bias, HUBP0_3DLUT_FL_SCALE, scale);
 }
 
-static void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode)
+void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(_3DLUT_FL_CONFIG, HUBP0_3DLUT_FL_MODE, mode);
 }
 
-static void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_format format)
+void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_format format)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
