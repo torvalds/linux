@@ -1903,9 +1903,8 @@ static int alpha_pll_lucid_5lpe_enable(struct clk_hw *hw)
 	}
 
 	/* Check if PLL is already enabled, return if enabled */
-	ret = trion_pll_is_enabled(pll, pll->clkr.regmap);
-	if (ret < 0)
-		return ret;
+	if (trion_pll_is_enabled(pll, pll->clkr.regmap))
+		return 0;
 
 	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), PLL_RESET_N, PLL_RESET_N);
 	if (ret)
