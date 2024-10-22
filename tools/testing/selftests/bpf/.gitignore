@@ -16,7 +16,6 @@ fixdep
 /test_progs-cpuv4
 test_verifier_log
 feature
-test_sock
 urandom_read
 test_sockmap
 test_lirc_mode2_user
