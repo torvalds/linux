@@ -162,6 +162,22 @@ msm:sdm845:
   script:
     - ./install/bare-metal/cros-servo.sh
 
+msm:sm8350-hdk:
+  extends:
+    - .lava-igt:arm64
+  stage: msm
+  parallel: 4
+  variables:
+    BOOT_METHOD: fastboot
+    DEVICE_TYPE: sm8350-hdk
+    DRIVER_NAME: msm
+    DTB: ${DEVICE_TYPE}
+    FARM: collabora
+    GPU_VERSION: ${DEVICE_TYPE}
+    KERNEL_IMAGE_NAME: "Image.gz"
+    KERNEL_IMAGE_TYPE: ""
+    RUNNER_TAG: mesa-ci-x86-64-lava-sm8350-hdk
+
 .rockchip-device:
   variables:
     DTB: ${DEVICE_TYPE}
