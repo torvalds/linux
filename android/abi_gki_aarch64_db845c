@@ -578,6 +578,7 @@
   prepare_to_wait_event
   print_hex_dump
   _printk
+  __pskb_copy_fclone
   pskb_expand_head
   __pskb_pull_tail
   put_device
