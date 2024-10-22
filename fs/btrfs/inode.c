@@ -9177,13 +9177,11 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 	return blk_status_to_errno(READ_ONCE(priv.status));
 }
 
-static ssize_t btrfs_encoded_read_regular(struct kiocb *iocb,
-					  struct iov_iter *iter,
-					  u64 start, u64 lockend,
-					  struct extent_state **cached_state,
-					  u64 disk_bytenr, u64 disk_io_size,
-					  size_t count, bool compressed,
-					  bool *unlocked)
+ssize_t btrfs_encoded_read_regular(struct kiocb *iocb, struct iov_iter *iter,
+				   u64 start, u64 lockend,
+				   struct extent_state **cached_state,
+				   u64 disk_bytenr, u64 disk_io_size,
+				   size_t count, bool compressed, bool *unlocked)
 {
 	struct btrfs_inode *inode = BTRFS_I(file_inode(iocb->ki_filp));
 	struct extent_io_tree *io_tree = &inode->io_tree;
@@ -9244,15 +9242,16 @@ out:
 }
 
 ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
-			   struct btrfs_ioctl_encoded_io_args *encoded)
+			   struct btrfs_ioctl_encoded_io_args *encoded,
+			   struct extent_state **cached_state,
+			   u64 *disk_bytenr, u64 *disk_io_size)
 {
 	struct btrfs_inode *inode = BTRFS_I(file_inode(iocb->ki_filp));
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_io_tree *io_tree = &inode->io_tree;
 	ssize_t ret;
 	size_t count = iov_iter_count(iter);
-	u64 start, lockend, disk_bytenr, disk_io_size;
-	struct extent_state *cached_state = NULL;
+	u64 start, lockend;
 	struct extent_map *em;
 	bool unlocked = false;
 
@@ -9278,13 +9277,13 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 					       lockend - start + 1);
 		if (ret)
 			goto out_unlock_inode;
-		lock_extent(io_tree, start, lockend, &cached_state);
+		lock_extent(io_tree, start, lockend, cached_state);
 		ordered = btrfs_lookup_ordered_range(inode, start,
 						     lockend - start + 1);
 		if (!ordered)
 			break;
 		btrfs_put_ordered_extent(ordered);
-		unlock_extent(io_tree, start, lockend, &cached_state);
+		unlock_extent(io_tree, start, lockend, cached_state);
 		cond_resched();
 	}
 
@@ -9304,7 +9303,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 		free_extent_map(em);
 		em = NULL;
 		ret = btrfs_encoded_read_inline(iocb, iter, start, lockend,
-						&cached_state, extent_start,
+						cached_state, extent_start,
 						count, encoded, &unlocked);
 		goto out;
 	}
@@ -9317,12 +9316,12 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 			     inode->vfs_inode.i_size) - iocb->ki_pos;
 	if (em->disk_bytenr == EXTENT_MAP_HOLE ||
 	    (em->flags & EXTENT_FLAG_PREALLOC)) {
-		disk_bytenr = EXTENT_MAP_HOLE;
+		*disk_bytenr = EXTENT_MAP_HOLE;
 		count = min_t(u64, count, encoded->len);
 		encoded->len = count;
 		encoded->unencoded_len = count;
 	} else if (extent_map_is_compressed(em)) {
-		disk_bytenr = em->disk_bytenr;
+		*disk_bytenr = em->disk_bytenr;
 		/*
 		 * Bail if the buffer isn't large enough to return the whole
 		 * compressed extent.
@@ -9331,7 +9330,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 			ret = -ENOBUFS;
 			goto out_em;
 		}
-		disk_io_size = em->disk_num_bytes;
+		*disk_io_size = em->disk_num_bytes;
 		count = em->disk_num_bytes;
 		encoded->unencoded_len = em->ram_bytes;
 		encoded->unencoded_offset = iocb->ki_pos - (em->start - em->offset);
@@ -9341,35 +9340,32 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 			goto out_em;
 		encoded->compression = ret;
 	} else {
-		disk_bytenr = extent_map_block_start(em) + (start - em->start);
+		*disk_bytenr = extent_map_block_start(em) + (start - em->start);
 		if (encoded->len > count)
 			encoded->len = count;
 		/*
 		 * Don't read beyond what we locked. This also limits the page
 		 * allocations that we'll do.
 		 */
-		disk_io_size = min(lockend + 1, iocb->ki_pos + encoded->len) - start;
-		count = start + disk_io_size - iocb->ki_pos;
+		*disk_io_size = min(lockend + 1, iocb->ki_pos + encoded->len) - start;
+		count = start + *disk_io_size - iocb->ki_pos;
 		encoded->len = count;
 		encoded->unencoded_len = count;
-		disk_io_size = ALIGN(disk_io_size, fs_info->sectorsize);
+		*disk_io_size = ALIGN(*disk_io_size, fs_info->sectorsize);
 	}
 	free_extent_map(em);
 	em = NULL;
 
-	if (disk_bytenr == EXTENT_MAP_HOLE) {
-		unlock_extent(io_tree, start, lockend, &cached_state);
+	if (*disk_bytenr == EXTENT_MAP_HOLE) {
+		unlock_extent(io_tree, start, lockend, cached_state);
 		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 		unlocked = true;
 		ret = iov_iter_zero(count, iter);
 		if (ret != count)
 			ret = -EFAULT;
 	} else {
-		ret = btrfs_encoded_read_regular(iocb, iter, start, lockend,
-						 &cached_state, disk_bytenr,
-						 disk_io_size, count,
-						 encoded->compression,
-						 &unlocked);
+		ret = -EIOCBQUEUED;
+		goto out_em;
 	}
 
 out:
@@ -9378,10 +9374,11 @@ out:
 out_em:
 	free_extent_map(em);
 out_unlock_extent:
-	if (!unlocked)
-		unlock_extent(io_tree, start, lockend, &cached_state);
+	/* Leave inode and extent locked if we need to do a read. */
+	if (!unlocked && ret != -EIOCBQUEUED)
+		unlock_extent(io_tree, start, lockend, cached_state);
 out_unlock_inode:
-	if (!unlocked)
+	if (!unlocked && ret != -EIOCBQUEUED)
 		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 	return ret;
 }
