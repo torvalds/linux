@@ -1151,7 +1151,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	current->thread.gmap_int_code = 0;
 	barrier();
 	if (!kvm_s390_vcpu_sie_inhibited(vcpu))
-		rc = sie64a(scb_s, vcpu->run->s.regs.gprs, gmap_get_enabled()->asce);
+		rc = sie64a(scb_s, vcpu->run->s.regs.gprs, vsie_page->gmap->asce);
 	barrier();
 	vcpu->arch.sie_block->prog0c &= ~PROG_IN_SIE;
 
@@ -1296,10 +1296,8 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (!rc)
 			rc = map_prefix(vcpu, vsie_page);
 		if (!rc) {
-			gmap_enable(vsie_page->gmap);
 			update_intervention_requests(vsie_page);
 			rc = do_vsie_run(vcpu, vsie_page);
-			gmap_enable(vcpu->arch.gmap);
 		}
 		atomic_andnot(PROG_BLOCK_SIE, &scb_s->prog20);
 

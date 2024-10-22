@@ -3719,7 +3719,6 @@ __u64 kvm_s390_get_cpu_timer(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 
-	gmap_enable(vcpu->arch.enabled_gmap);
 	kvm_s390_set_cpuflags(vcpu, CPUSTAT_RUNNING);
 	if (vcpu->arch.cputm_enabled && !is_vcpu_idle(vcpu))
 		__start_cpu_timer_accounting(vcpu);
@@ -3732,8 +3731,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.cputm_enabled && !is_vcpu_idle(vcpu))
 		__stop_cpu_timer_accounting(vcpu);
 	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_RUNNING);
-	vcpu->arch.enabled_gmap = gmap_get_enabled();
-	gmap_disable(vcpu->arch.enabled_gmap);
 
 }
 
@@ -3751,8 +3748,6 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 	}
 	if (test_kvm_facility(vcpu->kvm, 74) || vcpu->kvm->arch.user_instr0)
 		vcpu->arch.sie_block->ictl |= ICTL_OPEREXC;
-	/* make vcpu_load load the right gmap on the first trigger */
-	vcpu->arch.enabled_gmap = vcpu->arch.gmap;
 }
 
 static bool kvm_has_pckmo_subfunc(struct kvm *kvm, unsigned long nr)
@@ -4900,7 +4895,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		}
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs,
-				     gmap_get_enabled()->asce);
+				     vcpu->arch.gmap->asce);
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
 			memcpy(vcpu->run->s.regs.gprs,
 			       sie_page->pv_grregs,
