@@ -248,7 +248,6 @@ config SENSORS_ISL29018
 	tristate "Intersil 29018 light and proximity sensor"
 	depends on I2C
 	select REGMAP_I2C
-	default n
 	help
 	  If you say yes here you get support for ambient light sensing and
 	  proximity infrared sensing from Intersil ISL29018.
