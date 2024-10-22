@@ -2052,6 +2052,16 @@ static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 }
 
+/**
+ *	ata_scsiop_inq_b0 - Simulate INQUIRY VPD page B0, Block Limits
+ *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B0h (Block Limits).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
 static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
 {
 	struct ata_device *dev = args->dev;
@@ -2092,6 +2102,17 @@ static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 }
 
+/**
+ *	ata_scsiop_inq_b1 - Simulate INQUIRY VPD page B1, Block Device
+ *			    Characteristics
+ *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B1h (Block Device Characteristics).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
 static unsigned int ata_scsiop_inq_b1(struct ata_scsi_args *args, u8 *rbuf)
 {
 	int form_factor = ata_id_form_factor(args->id);
@@ -2109,6 +2130,17 @@ static unsigned int ata_scsiop_inq_b1(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 }
 
+/**
+ *	ata_scsiop_inq_b2 - Simulate INQUIRY VPD page B2, Logical Block
+ *			    Provisioning
+ *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B2h (Logical Block Provisioning).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
 static unsigned int ata_scsiop_inq_b2(struct ata_scsi_args *args, u8 *rbuf)
 {
 	/* SCSI Thin Provisioning VPD page: SBC-3 rev 22 or later */
@@ -2119,6 +2151,17 @@ static unsigned int ata_scsiop_inq_b2(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 }
 
+/**
+ *	ata_scsiop_inq_b6 - Simulate INQUIRY VPD page B6, Zoned Block Device
+ *			    Characteristics
+ *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B2h (Zoned Block Device Characteristics).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
 static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
 {
 	if (!(args->dev->flags & ATA_DFLAG_ZAC)) {
@@ -2144,6 +2187,17 @@ static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 }
 
+/**
+ *	ata_scsiop_inq_b9 - Simulate INQUIRY VPD page B9, Concurrent Positioning
+ *			    Ranges
+ *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B9h (Concurrent Positioning Ranges).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
 static unsigned int ata_scsiop_inq_b9(struct ata_scsi_args *args, u8 *rbuf)
 {
 	struct ata_cpr_log *cpr_log = args->dev->cpr_log;
