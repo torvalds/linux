@@ -1541,14 +1541,6 @@ config SBC7240_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called sbc7240_wdt.
 
-config CPU5_WDT
-	tristate "SMA CPU5 Watchdog"
-	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
-	help
-	  TBD.
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpu5wdt.
-
 config SMSC_SCH311X_WDT
 	tristate "SMSC SCH311X Watchdog Timer"
 	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
