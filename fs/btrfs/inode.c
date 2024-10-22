@@ -9136,16 +9136,21 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 					  struct page **pages)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_encoded_read_private priv = {
-		.pending = ATOMIC_INIT(1),
-	};
+	struct btrfs_encoded_read_private *priv;
 	unsigned long i = 0;
 	struct btrfs_bio *bbio;
+	int ret;
 
-	init_waitqueue_head(&priv.wait);
+	priv = kmalloc(sizeof(struct btrfs_encoded_read_private), GFP_NOFS);
+	if (!priv)
+		return -ENOMEM;
+
+	init_waitqueue_head(&priv->wait);
+	atomic_set(&priv->pending, 1);
+	priv->status = 0;
 
 	bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, fs_info,
-			       btrfs_encoded_read_endio, &priv);
+			       btrfs_encoded_read_endio, priv);
 	bbio->bio.bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 	bbio->inode = inode;
 
@@ -9153,11 +9158,11 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 		size_t bytes = min_t(u64, disk_io_size, PAGE_SIZE);
 
 		if (bio_add_page(&bbio->bio, pages[i], bytes, 0) < bytes) {
-			atomic_inc(&priv.pending);
+			atomic_inc(&priv->pending);
 			btrfs_submit_bbio(bbio, 0);
 
 			bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, fs_info,
-					       btrfs_encoded_read_endio, &priv);
+					       btrfs_encoded_read_endio, priv);
 			bbio->bio.bi_iter.bi_sector = disk_bytenr >> SECTOR_SHIFT;
 			bbio->inode = inode;
 			continue;
@@ -9168,13 +9173,15 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 		disk_io_size -= bytes;
 	} while (disk_io_size);
 
-	atomic_inc(&priv.pending);
+	atomic_inc(&priv->pending);
 	btrfs_submit_bbio(bbio, 0);
 
-	if (atomic_dec_return(&priv.pending))
-		io_wait_event(priv.wait, !atomic_read(&priv.pending));
+	if (atomic_dec_return(&priv->pending))
+		io_wait_event(priv->wait, !atomic_read(&priv->pending));
 	/* See btrfs_encoded_read_endio() for ordering. */
-	return blk_status_to_errno(READ_ONCE(priv.status));
+	ret = blk_status_to_errno(READ_ONCE(priv->status));
+	kfree(priv);
+	return ret;
 }
 
 ssize_t btrfs_encoded_read_regular(struct kiocb *iocb, struct iov_iter *iter,
