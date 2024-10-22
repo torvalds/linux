@@ -327,13 +327,23 @@ SYM_CODE_START(pgm_check_handler)
 	GET_LC	%r13
 	stpt	__LC_SYS_ENTER_TIMER(%r13)
 	BPOFF
-	lgr	%r10,%r15
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW(%r13)
+	xgr	%r10,%r10
+	xgr	%r12,%r12
 	tmhh	%r8,0x0001		# coming from user space?
 	jno	.Lpgm_skip_asce
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
 	j	3f			# -> fault in user space
 .Lpgm_skip_asce:
+#if IS_ENABLED(CONFIG_KVM)
+	lg	%r11,__LC_CURRENT(%r13)
+	tm	__TI_sie(%r11),0xff
+	jz	1f
+	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
+	SIEEXIT __SF_SIE_CONTROL(%r15),%r13
+	lg	%r12,__SF_SIE_GUEST_ASCE(%r15)
+	lghi	%r10,_PIF_GUEST_FAULT
+#endif
 1:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	2f			# -> enabled, can't be a double fault
 	tm	__LC_PGM_ILC+3(%r13),0x80	# check for per exception
@@ -344,21 +354,13 @@ SYM_CODE_START(pgm_check_handler)
 	CHECK_VMAP_STACK __LC_SAVE_AREA,%r13,4f
 3:	lg	%r15,__LC_KERNEL_STACK(%r13)
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
+	stg	%r10,__PT_FLAGS(%r11)
+	stg	%r12,__PT_CR1(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA(%r13)
 	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK(%r13)
-	stctg	%c1,%c1,__PT_CR1(%r11)
-#if IS_ENABLED(CONFIG_KVM)
-	ltg	%r12,__LC_GMAP(%r13)
-	jz	5f
-	clc	__GMAP_ASCE(8,%r12), __PT_CR1(%r11)
-	jne	5f
-	BPENTER	__SF_SIE_FLAGS(%r10),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r10),%r13
-#endif
-5:	stmg	%r8,%r9,__PT_PSW(%r11)
+	stmg	%r8,%r9,__PT_PSW(%r11)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
 	xgr	%r1,%r1

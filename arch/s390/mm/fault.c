@@ -68,15 +68,13 @@ early_initcall(fault_init);
 static enum fault_type get_fault_type(struct pt_regs *regs)
 {
 	union teid teid = { .val = regs->int_parm_long };
-	struct gmap *gmap;
 
 	if (likely(teid.as == PSW_BITS_AS_PRIMARY)) {
 		if (user_mode(regs))
 			return USER_FAULT;
 		if (!IS_ENABLED(CONFIG_PGSTE))
 			return KERNEL_FAULT;
-		gmap = (struct gmap *)get_lowcore()->gmap;
-		if (gmap && gmap->asce == regs->cr1)
+		if (test_pt_regs_flag(regs, PIF_GUEST_FAULT))
 			return GMAP_FAULT;
 		return KERNEL_FAULT;
 	}
@@ -187,7 +185,7 @@ static void dump_fault_info(struct pt_regs *regs)
 		pr_cont("user ");
 		break;
 	case GMAP_FAULT:
-		asce = ((struct gmap *)get_lowcore()->gmap)->asce;
+		asce = regs->cr1;
 		pr_cont("gmap ");
 		break;
 	case KERNEL_FAULT:
