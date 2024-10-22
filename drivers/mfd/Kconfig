@@ -25,7 +25,7 @@ config MFD_ADP5585
 	select MFD_CORE
 	select REGMAP_I2C
 	depends on I2C
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  Say yes here to add support for the Analog Devices ADP5585 GPIO
 	  expander, PWM and keypad controller. This includes the I2C driver and
