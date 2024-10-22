@@ -32,6 +32,11 @@ static inline int secure_computing(void)
 }
 #else
 extern void secure_computing_strict(int this_syscall);
+static inline int __secure_computing(const struct seccomp_data *sd)
+{
+	secure_computing_strict(sd->nr);
+	return 0;
+}
 #endif
 
 extern long prctl_get_seccomp(void);
