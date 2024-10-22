@@ -348,7 +348,7 @@ void pci_bus_add_device(struct pci_dev *dev)
 	if (retval < 0 && retval != -EPROBE_DEFER)
 		pci_warn(dev, "device attach failed (%d)\n", retval);
 
-	pci_dev_assign_added(dev, true);
+	pci_dev_assign_added(dev);
 
 	if (dev_of_node(&dev->dev) && pci_is_bridge(dev)) {
 		retval = of_platform_populate(dev_of_node(&dev->dev), NULL, NULL,
