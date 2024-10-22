@@ -283,8 +283,9 @@ void blk_mq_quiesce_tagset(struct blk_mq_tag_set *set)
 		if (!blk_queue_skip_tagset_quiesce(q))
 			blk_mq_quiesce_queue_nowait(q);
 	}
-	blk_mq_wait_quiesce_done(set);
 	mutex_unlock(&set->tag_list_lock);
+
+	blk_mq_wait_quiesce_done(set);
 }
 EXPORT_SYMBOL_GPL(blk_mq_quiesce_tagset);
 
