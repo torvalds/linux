@@ -227,7 +227,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 
 	/*
 	 * realloc if new shift is calculated, which is caused by setting
-	 * up one new default queue depth after calling ->device_configure
+	 * up one new default queue depth after calling ->sdev_configure
 	 */
 	if (!need_alloc && new_shift != sdev->budget_map.shift)
 		need_alloc = need_free = true;
@@ -1074,8 +1074,8 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	else if (*bflags & BLIST_MAX_1024)
 		lim.max_hw_sectors = 1024;
 
-	if (hostt->device_configure)
-		ret = hostt->device_configure(sdev, &lim);
+	if (hostt->sdev_configure)
+		ret = hostt->sdev_configure(sdev, &lim);
 	else if (hostt->slave_configure)
 		ret = hostt->slave_configure(sdev);
 	if (ret) {
@@ -1097,12 +1097,12 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	}
 
 	/*
-	 * The queue_depth is often changed in ->device_configure.
+	 * The queue_depth is often changed in ->sdev_configure.
 	 *
 	 * Set up budget map again since memory consumption of the map depends
 	 * on actual queue depth.
 	 */
-	if (hostt->device_configure || hostt->slave_configure)
+	if (hostt->sdev_configure || hostt->slave_configure)
 		scsi_realloc_sdev_budget_map(sdev, sdev->queue_depth);
 
 	if (sdev->scsi_level >= SCSI_3)

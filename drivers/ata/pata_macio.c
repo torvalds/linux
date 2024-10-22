@@ -812,8 +812,8 @@ static void pata_macio_reset_hw(struct pata_macio_priv *priv, int resume)
 /* Hook the standard slave config to fixup some HW related alignment
  * restrictions
  */
-static int pata_macio_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int pata_macio_sdev_configure(struct scsi_device *sdev,
+				     struct queue_limits *lim)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct pata_macio_priv *priv = ap->private_data;
@@ -822,7 +822,7 @@ static int pata_macio_device_configure(struct scsi_device *sdev,
 	int rc;
 
 	/* First call original */
-	rc = ata_scsi_device_configure(sdev, lim);
+	rc = ata_scsi_sdev_configure(sdev, lim);
 	if (rc)
 		return rc;
 
@@ -932,7 +932,7 @@ static const struct scsi_host_template pata_macio_sht = {
 	/* We may not need that strict one */
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.max_segment_size	= PATA_MACIO_MAX_SEGMENT_SIZE,
-	.device_configure	= pata_macio_device_configure,
+	.sdev_configure		= pata_macio_sdev_configure,
 	.sdev_groups		= ata_common_sdev_groups,
 	.can_queue		= ATA_DEF_QUEUE,
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,

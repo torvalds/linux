@@ -1169,7 +1169,7 @@ int ata_scsi_sdev_init(struct scsi_device *sdev)
 EXPORT_SYMBOL_GPL(ata_scsi_sdev_init);
 
 /**
- *	ata_scsi_device_configure - Set SCSI device attributes
+ *	ata_scsi_sdev_configure - Set SCSI device attributes
  *	@sdev: SCSI device to examine
  *	@lim: queue limits
  *
@@ -1181,8 +1181,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_sdev_init);
  *	Defined by SCSI layer.  We don't really care.
  */
 
-int ata_scsi_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+int ata_scsi_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
@@ -1192,7 +1191,7 @@ int ata_scsi_device_configure(struct scsi_device *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ata_scsi_device_configure);
+EXPORT_SYMBOL_GPL(ata_scsi_sdev_configure);
 
 /**
  *	ata_scsi_sdev_destroy - SCSI device is about to be destroyed

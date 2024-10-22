@@ -2908,12 +2908,12 @@ static ssize_t iopoll_q_cnt_v3_hw_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(iopoll_q_cnt_v3_hw);
 
-static int device_configure_v3_hw(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int sdev_configure_v3_hw(struct scsi_device *sdev,
+				struct queue_limits *lim)
 {
 	struct Scsi_Host *shost = dev_to_shost(&sdev->sdev_gendev);
 	struct hisi_hba *hisi_hba = shost_priv(shost);
-	int ret = hisi_sas_device_configure(sdev, lim);
+	int ret = hisi_sas_sdev_configure(sdev, lim);
 	struct device *dev = hisi_hba->dev;
 
 	if (ret)
@@ -3336,7 +3336,7 @@ static void hisi_sas_map_queues(struct Scsi_Host *shost)
 
 static const struct scsi_host_template sht_v3_hw = {
 	LIBSAS_SHT_BASE_NO_SLAVE_INIT
-	.device_configure	= device_configure_v3_hw,
+	.sdev_configure		= sdev_configure_v3_hw,
 	.scan_finished		= hisi_sas_scan_finished,
 	.scan_start		= hisi_sas_scan_start,
 	.map_queues		= hisi_sas_map_queues,

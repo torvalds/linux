@@ -197,7 +197,7 @@ static int pmcraid_sdev_init(struct scsi_device *scsi_dev)
 }
 
 /**
- * pmcraid_device_configure - Configures a SCSI device
+ * pmcraid_sdev_configure - Configures a SCSI device
  * @scsi_dev: scsi device struct
  * @lim: queue limits
  *
@@ -210,8 +210,8 @@ static int pmcraid_sdev_init(struct scsi_device *scsi_dev)
  * Return value:
  *	  0 on success
  */
-static int pmcraid_device_configure(struct scsi_device *scsi_dev,
-		struct queue_limits *lim)
+static int pmcraid_sdev_configure(struct scsi_device *scsi_dev,
+				  struct queue_limits *lim)
 {
 	struct pmcraid_resource_entry *res = scsi_dev->hostdata;
 
@@ -3669,7 +3669,7 @@ static const struct scsi_host_template pmcraid_host_template = {
 	.eh_host_reset_handler = pmcraid_eh_host_reset_handler,
 
 	.sdev_init = pmcraid_sdev_init,
-	.device_configure = pmcraid_device_configure,
+	.sdev_configure = pmcraid_sdev_configure,
 	.sdev_destroy = pmcraid_sdev_destroy,
 	.change_queue_depth = pmcraid_change_queue_depth,
 	.can_queue = PMCRAID_MAX_IO_CMD,

@@ -1506,8 +1506,8 @@ static int sbp2_scsi_sdev_init(struct scsi_device *sdev)
 	return 0;
 }
 
-static int sbp2_scsi_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int sbp2_scsi_sdev_configure(struct scsi_device *sdev,
+				    struct queue_limits *lim)
 {
 	struct sbp2_logical_unit *lu = sdev->hostdata;
 
@@ -1591,7 +1591,7 @@ static const struct scsi_host_template scsi_driver_template = {
 	.proc_name		= "sbp2",
 	.queuecommand		= sbp2_scsi_queuecommand,
 	.sdev_init		= sbp2_scsi_sdev_init,
-	.device_configure	= sbp2_scsi_device_configure,
+	.sdev_configure		= sbp2_scsi_sdev_configure,
 	.eh_abort_handler	= sbp2_scsi_abort,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,

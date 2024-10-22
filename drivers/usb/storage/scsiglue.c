@@ -88,7 +88,7 @@ static int sdev_init (struct scsi_device *sdev)
 	return 0;
 }
 
-static int device_configure(struct scsi_device *sdev, struct queue_limits *lim)
+static int sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct us_data *us = host_to_us(sdev->host);
 	struct device *dev = us->pusb_dev->bus->sysdev;
@@ -638,7 +638,7 @@ static const struct scsi_host_template usb_stor_host_template = {
 	.this_id =			-1,
 
 	.sdev_init =			sdev_init,
-	.device_configure =		device_configure,
+	.sdev_configure =		sdev_configure,
 	.target_alloc =			target_alloc,
 
 	/* lots of sg segments can be handled */

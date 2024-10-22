@@ -868,11 +868,10 @@ err_out:
 	return rc;
 }
 
-int hisi_sas_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+int hisi_sas_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
-	int ret = sas_device_configure(sdev, lim);
+	int ret = sas_sdev_configure(sdev, lim);
 
 	if (ret)
 		return ret;
@@ -881,7 +880,7 @@ int hisi_sas_device_configure(struct scsi_device *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_sas_device_configure);
+EXPORT_SYMBOL_GPL(hisi_sas_sdev_configure);
 
 void hisi_sas_scan_start(struct Scsi_Host *shost)
 {

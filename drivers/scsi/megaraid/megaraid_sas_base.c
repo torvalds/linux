@@ -2068,8 +2068,8 @@ static void megasas_set_static_target_properties(struct scsi_device *sdev,
 }
 
 
-static int megasas_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int megasas_sdev_configure(struct scsi_device *sdev,
+				  struct queue_limits *lim)
 {
 	u16 pd_index = 0;
 	struct megasas_instance *instance;
@@ -3510,7 +3510,7 @@ static const struct scsi_host_template megasas_template = {
 	.module = THIS_MODULE,
 	.name = "Avago SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
-	.device_configure = megasas_device_configure,
+	.sdev_configure = megasas_sdev_configure,
 	.sdev_init = megasas_sdev_init,
 	.sdev_destroy = megasas_sdev_destroy,
 	.queuecommand = megasas_queue_command,

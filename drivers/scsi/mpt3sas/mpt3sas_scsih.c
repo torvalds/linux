@@ -2497,7 +2497,7 @@ _scsih_enable_tlr(struct MPT3SAS_ADAPTER *ioc, struct scsi_device *sdev)
 }
 
 /**
- * scsih_device_configure - device configure routine.
+ * scsih_sdev_configure - device configure routine.
  * @sdev: scsi device struct
  * @lim: queue limits
  *
@@ -2505,7 +2505,7 @@ _scsih_enable_tlr(struct MPT3SAS_ADAPTER *ioc, struct scsi_device *sdev)
  * the device is ignored.
  */
 static int
-scsih_device_configure(struct scsi_device *sdev, struct queue_limits *lim)
+scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct Scsi_Host *shost = sdev->host;
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
@@ -11906,7 +11906,7 @@ static const struct scsi_host_template mpt2sas_driver_template = {
 	.queuecommand			= scsih_qcmd,
 	.target_alloc			= scsih_target_alloc,
 	.sdev_init			= scsih_sdev_init,
-	.device_configure		= scsih_device_configure,
+	.sdev_configure			= scsih_sdev_configure,
 	.target_destroy			= scsih_target_destroy,
 	.sdev_destroy			= scsih_sdev_destroy,
 	.scan_finished			= scsih_scan_finished,
@@ -11944,7 +11944,7 @@ static const struct scsi_host_template mpt3sas_driver_template = {
 	.queuecommand			= scsih_qcmd,
 	.target_alloc			= scsih_target_alloc,
 	.sdev_init			= scsih_sdev_init,
-	.device_configure		= scsih_device_configure,
+	.sdev_configure			= scsih_sdev_configure,
 	.target_destroy			= scsih_target_destroy,
 	.sdev_destroy			= scsih_sdev_destroy,
 	.scan_finished			= scsih_scan_finished,

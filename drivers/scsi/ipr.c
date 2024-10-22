@@ -4769,7 +4769,7 @@ static void ipr_sdev_destroy(struct scsi_device *sdev)
 }
 
 /**
- * ipr_device_configure - Configure a SCSI device
+ * ipr_sdev_configure - Configure a SCSI device
  * @sdev:	scsi device struct
  * @lim:	queue limits
  *
@@ -4778,8 +4778,8 @@ static void ipr_sdev_destroy(struct scsi_device *sdev)
  * Return value:
  * 	0 on success
  **/
-static int ipr_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int ipr_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) sdev->host->hostdata;
 	struct ipr_resource_entry *res;
@@ -6399,7 +6399,7 @@ static const struct scsi_host_template driver_template = {
 	.eh_device_reset_handler = ipr_eh_dev_reset,
 	.eh_host_reset_handler = ipr_eh_host_reset,
 	.sdev_init = ipr_sdev_init,
-	.device_configure = ipr_device_configure,
+	.sdev_configure = ipr_sdev_configure,
 	.sdev_destroy = ipr_sdev_destroy,
 	.scan_finished = ipr_scan_finished,
 	.target_destroy = ipr_target_destroy,

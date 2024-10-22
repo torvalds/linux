@@ -4552,7 +4552,7 @@ static void mpi3mr_target_destroy(struct scsi_target *starget)
 }
 
 /**
- * mpi3mr_device_configure - Slave configure callback handler
+ * mpi3mr_sdev_configure - Slave configure callback handler
  * @sdev: SCSI device reference
  * @lim: queue limits
  *
@@ -4561,8 +4561,8 @@ static void mpi3mr_target_destroy(struct scsi_target *starget)
  *
  * Return: 0 always.
  */
-static int mpi3mr_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int mpi3mr_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	struct scsi_target *starget;
 	struct Scsi_Host *shost;
@@ -5063,7 +5063,7 @@ static const struct scsi_host_template mpi3mr_driver_template = {
 	.queuecommand			= mpi3mr_qcmd,
 	.target_alloc			= mpi3mr_target_alloc,
 	.sdev_init			= mpi3mr_sdev_init,
-	.device_configure		= mpi3mr_device_configure,
+	.sdev_configure			= mpi3mr_sdev_configure,
 	.target_destroy			= mpi3mr_target_destroy,
 	.sdev_destroy			= mpi3mr_sdev_destroy,
 	.scan_finished			= mpi3mr_scan_finished,

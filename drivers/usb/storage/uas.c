@@ -832,8 +832,8 @@ static int uas_sdev_init(struct scsi_device *sdev)
 	return 0;
 }
 
-static int uas_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int uas_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	struct uas_dev_info *devinfo = sdev->hostdata;
 
@@ -906,7 +906,7 @@ static const struct scsi_host_template uas_host_template = {
 	.queuecommand = uas_queuecommand,
 	.target_alloc = uas_target_alloc,
 	.sdev_init = uas_sdev_init,
-	.device_configure = uas_device_configure,
+	.sdev_configure = uas_sdev_configure,
 	.eh_abort_handler = uas_eh_abort_handler,
 	.eh_device_reset_handler = uas_eh_device_reset_handler,
 	.this_id = -1,
