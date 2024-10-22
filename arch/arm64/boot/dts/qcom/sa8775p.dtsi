@@ -39,21 +39,21 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		CPU0: cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
-			next-level-cache = <&L2_0>;
+			next-level-cache = <&l2_0>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_0: l2-cache {
+			l2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_0>;
-				L3_0: l3-cache {
+				next-level-cache = <&l3_0>;
+				l3_0: l3-cache {
 					compatible = "cache";
 					cache-level = <3>;
 					cache-unified;
@@ -61,72 +61,72 @@
 			};
 		};
 
-		CPU1: cpu@100 {
+		cpu1: cpu@100 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
-			next-level-cache = <&L2_1>;
+			next-level-cache = <&l2_1>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_1: l2-cache {
+			l2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_0>;
+				next-level-cache = <&l3_0>;
 			};
 		};
 
-		CPU2: cpu@200 {
+		cpu2: cpu@200 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x200>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
-			next-level-cache = <&L2_2>;
+			next-level-cache = <&l2_2>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_2: l2-cache {
+			l2_2: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_0>;
+				next-level-cache = <&l3_0>;
 			};
 		};
 
-		CPU3: cpu@300 {
+		cpu3: cpu@300 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x300>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
-			next-level-cache = <&L2_3>;
+			next-level-cache = <&l2_3>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_3: l2-cache {
+			l2_3: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_0>;
+				next-level-cache = <&l3_0>;
 			};
 		};
 
-		CPU4: cpu@10000 {
+		cpu4: cpu@10000 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x10000>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
-			next-level-cache = <&L2_4>;
+			next-level-cache = <&l2_4>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_4: l2-cache {
+			l2_4: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_1>;
-				L3_1: l3-cache {
+				next-level-cache = <&l3_1>;
+				l3_1: l3-cache {
 					compatible = "cache";
 					cache-level = <3>;
 					cache-unified;
@@ -135,91 +135,91 @@
 			};
 		};
 
-		CPU5: cpu@10100 {
+		cpu5: cpu@10100 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x10100>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
-			next-level-cache = <&L2_5>;
+			next-level-cache = <&l2_5>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_5: l2-cache {
+			l2_5: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_1>;
+				next-level-cache = <&l3_1>;
 			};
 		};
 
-		CPU6: cpu@10200 {
+		cpu6: cpu@10200 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x10200>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
-			next-level-cache = <&L2_6>;
+			next-level-cache = <&l2_6>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_6: l2-cache {
+			l2_6: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_1>;
+				next-level-cache = <&l3_1>;
 			};
 		};
 
-		CPU7: cpu@10300 {
+		cpu7: cpu@10300 {
 			device_type = "cpu";
 			compatible = "qcom,kryo";
 			reg = <0x0 0x10300>;
 			enable-method = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
-			next-level-cache = <&L2_7>;
+			next-level-cache = <&l2_7>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
-			L2_7: l2-cache {
+			l2_7: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				cache-unified;
-				next-level-cache = <&L3_1>;
+				next-level-cache = <&l3_1>;
 			};
 		};
 
 		cpu-map {
 			cluster0 {
 				core0 {
-					cpu = <&CPU0>;
+					cpu = <&cpu0>;
 				};
 
 				core1 {
-					cpu = <&CPU1>;
+					cpu = <&cpu1>;
 				};
 
 				core2 {
-					cpu = <&CPU2>;
+					cpu = <&cpu2>;
 				};
 
 				core3 {
-					cpu = <&CPU3>;
+					cpu = <&cpu3>;
 				};
 			};
 
 			cluster1 {
 				core0 {
-					cpu = <&CPU4>;
+					cpu = <&cpu4>;
 				};
 
 				core1 {
-					cpu = <&CPU5>;
+					cpu = <&cpu5>;
 				};
 
 				core2 {
-					cpu = <&CPU6>;
+					cpu = <&cpu6>;
 				};
 
 				core3 {
-					cpu = <&CPU7>;
+					cpu = <&cpu7>;
 				};
 			};
 		};
@@ -227,7 +227,7 @@
 		idle-states {
 			entry-method = "psci";
 
-			GOLD_CPU_SLEEP_0: cpu-sleep-0 {
+			gold_cpu_sleep_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "gold-power-collapse";
 				arm,psci-suspend-param = <0x40000003>;
@@ -237,7 +237,7 @@
 				local-timer-stop;
 			};
 
-			GOLD_RAIL_CPU_SLEEP_0: cpu-sleep-1 {
+			gold_rail_cpu_sleep_0: cpu-sleep-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "gold-rail-power-collapse";
 				arm,psci-suspend-param = <0x40000004>;
@@ -249,7 +249,7 @@
 		};
 
 		domain-idle-states {
-			CLUSTER_SLEEP_GOLD: cluster-sleep-0 {
+			cluster_sleep_gold: cluster-sleep-0 {
 				compatible = "domain-idle-state";
 				arm,psci-suspend-param = <0x41000044>;
 				entry-latency-us = <2752>;
@@ -257,7 +257,7 @@
 				min-residency-us = <6118>;
 			};
 
-			CLUSTER_SLEEP_APSS_RSC_PC: cluster-sleep-1 {
+			cluster_sleep_apss_rsc_pc: cluster-sleep-1 {
 				compatible = "domain-idle-state";
 				arm,psci-suspend-param = <0x42000144>;
 				entry-latency-us = <3263>;
@@ -396,77 +396,77 @@
 		compatible = "arm,psci-1.0";
 		method = "smc";
 
-		CPU_PD0: power-domain-cpu0 {
+		cpu_pd0: power-domain-cpu0 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_0_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_0_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CPU_PD1: power-domain-cpu1 {
+		cpu_pd1: power-domain-cpu1 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_0_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_0_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CPU_PD2: power-domain-cpu2 {
+		cpu_pd2: power-domain-cpu2 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_0_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_0_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CPU_PD3: power-domain-cpu3 {
+		cpu_pd3: power-domain-cpu3 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_0_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_0_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CPU_PD4: power-domain-cpu4 {
+		cpu_pd4: power-domain-cpu4 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_1_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_1_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CPU_PD5: power-domain-cpu5 {
+		cpu_pd5: power-domain-cpu5 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_1_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_1_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CPU_PD6: power-domain-cpu6 {
+		cpu_pd6: power-domain-cpu6 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_1_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_1_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CPU_PD7: power-domain-cpu7 {
+		cpu_pd7: power-domain-cpu7 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_1_PD>;
-			domain-idle-states = <&GOLD_CPU_SLEEP_0>,
-					     <&GOLD_RAIL_CPU_SLEEP_0>;
+			power-domains = <&cluster_1_pd>;
+			domain-idle-states = <&gold_cpu_sleep_0>,
+					     <&gold_rail_cpu_sleep_0>;
 		};
 
-		CLUSTER_0_PD: power-domain-cluster0 {
+		cluster_0_pd: power-domain-cluster0 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_2_PD>;
-			domain-idle-states = <&CLUSTER_SLEEP_GOLD>;
+			power-domains = <&cluster_2_pd>;
+			domain-idle-states = <&cluster_sleep_gold>;
 		};
 
-		CLUSTER_1_PD: power-domain-cluster1 {
+		cluster_1_pd: power-domain-cluster1 {
 			#power-domain-cells = <0>;
-			power-domains = <&CLUSTER_2_PD>;
-			domain-idle-states = <&CLUSTER_SLEEP_GOLD>;
+			power-domains = <&cluster_2_pd>;
+			domain-idle-states = <&cluster_sleep_gold>;
 		};
 
-		CLUSTER_2_PD: power-domain-cluster2 {
+		cluster_2_pd: power-domain-cluster2 {
 			#power-domain-cells = <0>;
-			domain-idle-states = <&CLUSTER_SLEEP_APSS_RSC_PC>;
+			domain-idle-states = <&cluster_sleep_apss_rsc_pc>;
 		};
 	};
 
@@ -2882,7 +2882,7 @@
 		etm@6040000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6040000 0x0 0x1000>;
-			cpu = <&CPU0>;
+			cpu = <&cpu0>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -2902,7 +2902,7 @@
 		etm@6140000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6140000 0x0 0x1000>;
-			cpu = <&CPU1>;
+			cpu = <&cpu1>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -2922,7 +2922,7 @@
 		etm@6240000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6240000 0x0 0x1000>;
-			cpu = <&CPU2>;
+			cpu = <&cpu2>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -2942,7 +2942,7 @@
 		etm@6340000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6340000 0x0 0x1000>;
-			cpu = <&CPU3>;
+			cpu = <&cpu3>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -2962,7 +2962,7 @@
 		etm@6440000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6440000 0x0 0x1000>;
-			cpu = <&CPU4>;
+			cpu = <&cpu4>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -2982,7 +2982,7 @@
 		etm@6540000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6540000 0x0 0x1000>;
-			cpu = <&CPU5>;
+			cpu = <&cpu5>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -3002,7 +3002,7 @@
 		etm@6640000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6640000 0x0 0x1000>;
-			cpu = <&CPU6>;
+			cpu = <&cpu6>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
@@ -3022,7 +3022,7 @@
 		etm@6740000 {
 			compatible = "arm,primecell";
 			reg = <0x0 0x6740000 0x0 0x1000>;
-			cpu = <&CPU7>;
+			cpu = <&cpu7>;
 
 			clocks = <&aoss_qmp>;
 			clock-names = "apb_pclk";
