@@ -7485,7 +7485,7 @@ static void ufshcd_set_req_abort_skip(struct ufs_hba *hba, unsigned long bitmap)
 int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 {
 	struct ufshcd_lrb *lrbp = &hba->lrb[tag];
-	int err = 0;
+	int err;
 	int poll_cnt;
 	u8 resp = 0xF;
 	u32 reg;
@@ -7515,7 +7515,7 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 				/* command completed already */
 				dev_err(hba->dev, "%s: cmd at tag=%d is cleared.\n",
 					__func__, tag);
-				goto out;
+				return 0;
 			}
 
 			/* Single Doorbell Mode */
@@ -7528,21 +7528,17 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 			/* command completed already */
 			dev_err(hba->dev, "%s: cmd at tag %d successfully cleared from DB.\n",
 				__func__, tag);
-			goto out;
+			return 0;
 		} else {
 			dev_err(hba->dev,
 				"%s: no response from device. tag = %d, err %d\n",
 				__func__, tag, err);
-			if (!err)
-				err = resp; /* service response error */
-			goto out;
+			return err ? : resp;
 		}
 	}
 
-	if (!poll_cnt) {
-		err = -EBUSY;
-		goto out;
-	}
+	if (!poll_cnt)
+		return -EBUSY;
 
 	err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
 			UFS_ABORT_TASK, &resp);
@@ -7552,7 +7548,7 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 			dev_err(hba->dev, "%s: issued. tag = %d, err %d\n",
 				__func__, tag, err);
 		}
-		goto out;
+		return err;
 	}
 
 	err = ufshcd_clear_cmd(hba, tag);
@@ -7560,7 +7556,6 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 		dev_err(hba->dev, "%s: Failed clearing cmd at tag %d, err %d\n",
 			__func__, tag, err);
 
-out:
 	return err;
 }
 
