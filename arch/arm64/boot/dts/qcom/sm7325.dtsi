@@ -7,11 +7,11 @@
 #include "sc7280.dtsi"
 
 /* SM7325 uses Kryo 670 */
-&CPU0 { compatible = "qcom,kryo670"; };
-&CPU1 { compatible = "qcom,kryo670"; };
-&CPU2 { compatible = "qcom,kryo670"; };
-&CPU3 { compatible = "qcom,kryo670"; };
-&CPU4 { compatible = "qcom,kryo670"; };
-&CPU5 { compatible = "qcom,kryo670"; };
-&CPU6 { compatible = "qcom,kryo670"; };
-&CPU7 { compatible = "qcom,kryo670"; };
+&cpu0 { compatible = "qcom,kryo670"; };
+&cpu1 { compatible = "qcom,kryo670"; };
+&cpu2 { compatible = "qcom,kryo670"; };
+&cpu3 { compatible = "qcom,kryo670"; };
+&cpu4 { compatible = "qcom,kryo670"; };
+&cpu5 { compatible = "qcom,kryo670"; };
+&cpu6 { compatible = "qcom,kryo670"; };
+&cpu7 { compatible = "qcom,kryo670"; };
