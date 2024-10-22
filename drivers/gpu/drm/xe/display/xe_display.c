@@ -379,7 +379,7 @@ void xe_display_pm_shutdown(struct xe_device *xe)
 
 	intel_opregion_suspend(display, PCI_D3cold);
 
-	intel_dmc_suspend(xe);
+	intel_dmc_suspend(display);
 }
 
 void xe_display_pm_runtime_suspend(struct xe_device *xe)
