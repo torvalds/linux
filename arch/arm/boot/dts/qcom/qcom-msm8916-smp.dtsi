@@ -25,7 +25,7 @@
 	};
 };
 
-&CPU_SLEEP_0 {
+&cpu_sleep_0 {
 	compatible = "qcom,idle-state-spc", "arm,idle-state";
 };
 
