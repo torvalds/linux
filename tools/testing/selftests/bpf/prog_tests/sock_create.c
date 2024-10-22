@@ -237,6 +237,19 @@ static struct sock_create_test {
 
 		.error = DENY_CREATE,
 	},
+	{
+		.descr = "load w/o expected_attach_type (compat mode)",
+		.insns = {
+			/* return 1 */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.expected_attach_type = 0,
+		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+
+		.domain = AF_INET,
+		.type = SOCK_STREAM,
+	},
 };
 
 static int load_prog(const struct bpf_insn *insns,
@@ -291,16 +304,18 @@ static int run_test(int cgroup_fd, struct sock_create_test *test)
 		goto detach_prog;
 	}
 
-	err = getsockopt(sock_fd, SOL_SOCKET, test->optname, &optval, &optlen);
-	if (err) {
-		log_err("Failed to call getsockopt");
-		goto cleanup;
-	}
+	if (test->optname) {
+		err = getsockopt(sock_fd, SOL_SOCKET, test->optname, &optval, &optlen);
+		if (err) {
+			log_err("Failed to call getsockopt");
+			goto cleanup;
+		}
 
-	if (optval != test->optval) {
-		errno = 0;
-		log_err("getsockopt returned unexpected optval");
-		goto cleanup;
+		if (optval != test->optval) {
+			errno = 0;
+			log_err("getsockopt returned unexpected optval");
+			goto cleanup;
+		}
 	}
 
 	ret = test->error != OK;

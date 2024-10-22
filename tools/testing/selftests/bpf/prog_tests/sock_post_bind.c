@@ -1,132 +1,35 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Facebook
-
-#include <stdio.h>
-#include <unistd.h>
-
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-
-#include <linux/filter.h>
-
-#include <bpf/bpf.h>
-
+#include <linux/bpf.h>
+#include <test_progs.h>
 #include "cgroup_helpers.h"
-#include <bpf/bpf_endian.h>
-#include "bpf_util.h"
 
-#define CG_PATH		"/foo"
-#define MAX_INSNS	512
+#define TEST_NS "sock_post_bind"
 
-char bpf_log_buf[BPF_LOG_BUF_SIZE];
-static bool verbose = false;
+static char bpf_log_buf[4096];
 
-struct sock_test {
-	const char *descr;
+static struct sock_post_bind_test {
+	const char			*descr;
 	/* BPF prog properties */
-	struct bpf_insn	insns[MAX_INSNS];
-	enum bpf_attach_type expected_attach_type;
-	enum bpf_attach_type attach_type;
+	const struct bpf_insn		insns[64];
+	enum bpf_attach_type		attach_type;
+	enum bpf_attach_type		expected_attach_type;
 	/* Socket properties */
-	int domain;
-	int type;
+	int				domain;
+	int				type;
 	/* Endpoint to bind() to */
 	const char *ip;
 	unsigned short port;
 	unsigned short port_retry;
+
 	/* Expected test result */
 	enum {
-		LOAD_REJECT,
 		ATTACH_REJECT,
 		BIND_REJECT,
 		SUCCESS,
 		RETRY_SUCCESS,
 		RETRY_REJECT
 	} result;
-};
-
-static struct sock_test tests[] = {
-	{
-		.descr = "bind4 load with invalid access: src_ip6",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, src_ip6[0])),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.result = LOAD_REJECT,
-	},
-	{
-		.descr = "bind4 load with invalid access: mark",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, mark)),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.attach_type = BPF_CGROUP_INET4_POST_BIND,
-		.result = LOAD_REJECT,
-	},
-	{
-		.descr = "bind6 load with invalid access: src_ip4",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, src_ip4)),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
-		.attach_type = BPF_CGROUP_INET6_POST_BIND,
-		.result = LOAD_REJECT,
-	},
-	{
-		.descr = "sock_create load with invalid access: src_port",
-		.insns = {
-			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-				    offsetof(struct bpf_sock, src_port)),
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
-		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
-		.result = LOAD_REJECT,
-	},
-	{
-		.descr = "sock_create load w/o expected_attach_type (compat mode)",
-		.insns = {
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = 0,
-		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
-		.domain = AF_INET,
-		.type = SOCK_STREAM,
-		.ip = "127.0.0.1",
-		.port = 8097,
-		.result = SUCCESS,
-	},
-	{
-		.descr = "sock_create load w/ expected_attach_type",
-		.insns = {
-			BPF_MOV64_IMM(BPF_REG_0, 1),
-			BPF_EXIT_INSN(),
-		},
-		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
-		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
-		.domain = AF_INET,
-		.type = SOCK_STREAM,
-		.ip = "127.0.0.1",
-		.port = 8097,
-		.result = SUCCESS,
-	},
+} tests[] = {
 	{
 		.descr = "attach type mismatch bind4 vs bind6",
 		.insns = {
@@ -374,40 +277,29 @@ static struct sock_test tests[] = {
 	},
 };
 
-static size_t probe_prog_length(const struct bpf_insn *fp)
+static int load_prog(const struct bpf_insn *insns,
+		     enum bpf_attach_type expected_attach_type)
 {
-	size_t len;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		    .expected_attach_type = expected_attach_type,
+		    .log_level = 2,
+		    .log_buf = bpf_log_buf,
+		    .log_size = sizeof(bpf_log_buf),
+	);
+	int fd, insns_cnt = 0;
 
-	for (len = MAX_INSNS - 1; len > 0; --len)
-		if (fp[len].code != 0 || fp[len].imm != 0)
-			break;
-	return len + 1;
-}
+	for (;
+	     insns[insns_cnt].code != (BPF_JMP | BPF_EXIT);
+	     insns_cnt++) {
+	}
+	insns_cnt++;
 
-static int load_sock_prog(const struct bpf_insn *prog,
-			  enum bpf_attach_type attach_type)
-{
-	LIBBPF_OPTS(bpf_prog_load_opts, opts);
-	int ret, insn_cnt;
-
-	insn_cnt = probe_prog_length(prog);
-
-	opts.expected_attach_type = attach_type;
-	opts.log_buf = bpf_log_buf;
-	opts.log_size = BPF_LOG_BUF_SIZE;
-	opts.log_level = 2;
-
-	ret = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCK, NULL, "GPL", prog, insn_cnt, &opts);
-	if (verbose && ret < 0)
+	fd = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCK, NULL, "GPL", insns,
+			   insns_cnt, &opts);
+	if (fd < 0)
 		fprintf(stderr, "%s\n", bpf_log_buf);
 
-	return ret;
-}
-
-static int attach_sock_prog(int cgfd, int progfd,
-			    enum bpf_attach_type attach_type)
-{
-	return bpf_prog_attach(progfd, cgfd, attach_type, BPF_F_ALLOW_OVERRIDE);
+	return fd;
 }
 
 static int bind_sock(int domain, int type, const char *ip,
@@ -477,22 +369,16 @@ out:
 	return res;
 }
 
-static int run_test_case(int cgfd, const struct sock_test *test)
+static int run_test(int cgroup_fd, struct sock_post_bind_test *test)
 {
-	int progfd = -1;
-	int err = 0;
-	int res;
+	int err, prog_fd, res, ret = 0;
 
-	printf("Test case: %s .. ", test->descr);
-	progfd = load_sock_prog(test->insns, test->expected_attach_type);
-	if (progfd < 0) {
-		if (test->result == LOAD_REJECT)
-			goto out;
-		else
-			goto err;
-	}
+	prog_fd = load_prog(test->insns, test->expected_attach_type);
+	if (prog_fd < 0)
+		goto err;
 
-	if (attach_sock_prog(cgfd, progfd, test->attach_type) < 0) {
+	err = bpf_prog_attach(prog_fd, cgroup_fd, test->attach_type, 0);
+	if (err < 0) {
 		if (test->result == ATTACH_REJECT)
 			goto out;
 		else
@@ -503,54 +389,38 @@ static int run_test_case(int cgfd, const struct sock_test *test)
 			test->port_retry);
 	if (res > 0 && test->result == res)
 		goto out;
-
 err:
-	err = -1;
+	ret = -1;
 out:
 	/* Detaching w/o checking return code: best effort attempt. */
-	if (progfd != -1)
-		bpf_prog_detach(cgfd, test->attach_type);
-	close(progfd);
-	printf("[%s]\n", err ? "FAIL" : "PASS");
-	return err;
+	if (prog_fd != -1)
+		bpf_prog_detach(cgroup_fd, test->attach_type);
+	close(prog_fd);
+	return ret;
 }
 
-static int run_tests(int cgfd)
+void test_sock_post_bind(void)
 {
-	int passes = 0;
-	int fails = 0;
+	struct netns_obj *ns;
+	int cgroup_fd;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(tests); ++i) {
-		if (run_test_case(cgfd, &tests[i]))
-			++fails;
-		else
-			++passes;
+	cgroup_fd = test__join_cgroup("/post_bind");
+	if (!ASSERT_OK_FD(cgroup_fd, "join_cgroup"))
+		return;
+
+	ns = netns_new(TEST_NS, true);
+	if (!ASSERT_OK_PTR(ns, "netns_new"))
+		goto cleanup;
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		if (!test__start_subtest(tests[i].descr))
+			continue;
+
+		ASSERT_OK(run_test(cgroup_fd, &tests[i]), tests[i].descr);
 	}
-	printf("Summary: %d PASSED, %d FAILED\n", passes, fails);
-	return fails ? -1 : 0;
-}
 
-int main(int argc, char **argv)
-{
-	int cgfd = -1;
-	int err = 0;
-
-	cgfd = cgroup_setup_and_join(CG_PATH);
-	if (cgfd < 0)
-		goto err;
-
-	/* Use libbpf 1.0 API mode */
-	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
-
-	if (run_tests(cgfd))
-		goto err;
-
-	goto out;
-err:
-	err = -1;
-out:
-	close(cgfd);
-	cleanup_cgroup_environment();
-	return err;
+cleanup:
+	netns_free(ns);
+	close(cgroup_fd);
 }
