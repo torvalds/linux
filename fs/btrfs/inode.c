@@ -9056,6 +9056,7 @@ out:
 
 struct btrfs_encoded_read_private {
 	wait_queue_head_t wait;
+	void *uring_ctx;
 	atomic_t pending;
 	blk_status_t status;
 };
@@ -9075,14 +9076,22 @@ static void btrfs_encoded_read_endio(struct btrfs_bio *bbio)
 		 */
 		WRITE_ONCE(priv->status, bbio->bio.bi_status);
 	}
-	if (!atomic_dec_return(&priv->pending))
-		wake_up(&priv->wait);
+	if (atomic_dec_return(&priv->pending) == 0) {
+		int err = blk_status_to_errno(READ_ONCE(priv->status));
+
+		if (priv->uring_ctx) {
+			btrfs_uring_read_extent_endio(priv->uring_ctx, err);
+			kfree(priv);
+		} else {
+			wake_up(&priv->wait);
+		}
+	}
 	bio_put(&bbio->bio);
 }
 
 int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 					  u64 disk_bytenr, u64 disk_io_size,
-					  struct page **pages)
+					  struct page **pages, void *uring_ctx)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_encoded_read_private *priv;
@@ -9097,6 +9106,7 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 	init_waitqueue_head(&priv->wait);
 	atomic_set(&priv->pending, 1);
 	priv->status = 0;
+	priv->uring_ctx = uring_ctx;
 
 	bbio = btrfs_bio_alloc(BIO_MAX_VECS, REQ_OP_READ, fs_info,
 			       btrfs_encoded_read_endio, priv);
@@ -9125,12 +9135,23 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
 	atomic_inc(&priv->pending);
 	btrfs_submit_bbio(bbio, 0);
 
-	if (atomic_dec_return(&priv->pending))
-		io_wait_event(priv->wait, !atomic_read(&priv->pending));
-	/* See btrfs_encoded_read_endio() for ordering. */
-	ret = blk_status_to_errno(READ_ONCE(priv->status));
-	kfree(priv);
-	return ret;
+	if (uring_ctx) {
+		if (atomic_dec_return(&priv->pending) == 0) {
+			ret = blk_status_to_errno(READ_ONCE(priv->status));
+			btrfs_uring_read_extent_endio(uring_ctx, ret);
+			kfree(priv);
+			return ret;
+		}
+
+		return -EIOCBQUEUED;
+	} else {
+		if (atomic_dec_return(&priv->pending) != 0)
+			io_wait_event(priv->wait, !atomic_read(&priv->pending));
+		/* See btrfs_encoded_read_endio() for ordering. */
+		ret = blk_status_to_errno(READ_ONCE(priv->status));
+		kfree(priv);
+		return ret;
+	}
 }
 
 ssize_t btrfs_encoded_read_regular(struct kiocb *iocb, struct iov_iter *iter,
@@ -9158,7 +9179,7 @@ ssize_t btrfs_encoded_read_regular(struct kiocb *iocb, struct iov_iter *iter,
 		}
 
 	ret = btrfs_encoded_read_regular_fill_pages(inode, disk_bytenr,
-						    disk_io_size, pages);
+						    disk_io_size, pages, NULL);
 	if (ret)
 		goto out;
 

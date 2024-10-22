@@ -5669,7 +5669,8 @@ static int send_encoded_extent(struct send_ctx *sctx, struct btrfs_path *path,
 	ret = btrfs_encoded_read_regular_fill_pages(BTRFS_I(inode),
 						    disk_bytenr, disk_num_bytes,
 						    sctx->send_buf_pages +
-						    (data_offset >> PAGE_SHIFT));
+						    (data_offset >> PAGE_SHIFT),
+						    NULL);
 	if (ret)
 		goto out;
 
