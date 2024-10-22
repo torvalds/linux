@@ -641,6 +641,9 @@ static int cxl_endpoint_gather_bandwidth(struct cxl_region *cxlr,
 	void *ptr;
 	int rc;
 
+	if (!dev_is_pci(cxlds->dev))
+		return -ENODEV;
+
 	if (cxlds->rcd)
 		return -ENODEV;
 
