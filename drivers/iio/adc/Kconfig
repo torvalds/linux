@@ -1620,7 +1620,6 @@ config TWL4030_MADC
 config TWL6030_GPADC
 	tristate "TWL6030 GPADC (General Purpose A/D Converter) Support"
 	depends on TWL4030_CORE
-	default n
 	help
 	  Say yes here if you want support for the TWL6030/TWL6032 General
 	  Purpose A/D Converter. This will add support for battery type
