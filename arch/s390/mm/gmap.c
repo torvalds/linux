@@ -718,13 +718,12 @@ retry:
 	if (IS_ERR_VALUE(vmaddr))
 		return vmaddr;
 
-	if (fault_flags & FAULT_FLAG_RETRY_NOWAIT) {
+	if (fault_flags & FAULT_FLAG_RETRY_NOWAIT)
 		rc = fixup_user_fault_nowait(gmap->mm, vmaddr, fault_flags, &unlocked);
-		if (rc)
-			return rc;
-	} else if (fixup_user_fault(gmap->mm, vmaddr, fault_flags, &unlocked)) {
-		return -EFAULT;
-	}
+	else
+		rc = fixup_user_fault(gmap->mm, vmaddr, fault_flags, &unlocked);
+	if (rc)
+		return rc;
 	/*
 	 * In the case that fixup_user_fault unlocked the mmap_lock during
 	 * fault-in, redo __gmap_translate() to avoid racing with a
