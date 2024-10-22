@@ -262,6 +262,7 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 			   struct user_msghdr *msg, int ddir)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+	struct user_msghdr __user *umsg = sr->umsg;
 	struct iovec *iov;
 	int ret, nr_segs;
 
@@ -273,16 +274,16 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 		nr_segs = 1;
 	}
 
-	if (!user_access_begin(sr->umsg, sizeof(*sr->umsg)))
+	if (!user_access_begin(umsg, sizeof(*umsg)))
 		return -EFAULT;
 
 	ret = -EFAULT;
-	unsafe_get_user(msg->msg_name, &sr->umsg->msg_name, ua_end);
-	unsafe_get_user(msg->msg_namelen, &sr->umsg->msg_namelen, ua_end);
-	unsafe_get_user(msg->msg_iov, &sr->umsg->msg_iov, ua_end);
-	unsafe_get_user(msg->msg_iovlen, &sr->umsg->msg_iovlen, ua_end);
-	unsafe_get_user(msg->msg_control, &sr->umsg->msg_control, ua_end);
-	unsafe_get_user(msg->msg_controllen, &sr->umsg->msg_controllen, ua_end);
+	unsafe_get_user(msg->msg_name, &umsg->msg_name, ua_end);
+	unsafe_get_user(msg->msg_namelen, &umsg->msg_namelen, ua_end);
+	unsafe_get_user(msg->msg_iov, &umsg->msg_iov, ua_end);
+	unsafe_get_user(msg->msg_iovlen, &umsg->msg_iovlen, ua_end);
+	unsafe_get_user(msg->msg_control, &umsg->msg_control, ua_end);
+	unsafe_get_user(msg->msg_controllen, &umsg->msg_controllen, ua_end);
 	msg->msg_flags = 0;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
