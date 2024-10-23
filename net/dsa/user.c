@@ -1382,8 +1382,7 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 	if (!ds->ops->port_mirror_add)
 		return -EOPNOTSUPP;
 
-	if (!flow_action_basic_hw_stats_check(&cls->rule->action,
-					      cls->common.extack))
+	if (!flow_action_basic_hw_stats_check(&cls->rule->action, extack))
 		return -EOPNOTSUPP;
 
 	act = &cls->rule->action.entries[0];
@@ -1449,8 +1448,7 @@ dsa_user_add_cls_matchall_police(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	if (!flow_action_basic_hw_stats_check(&cls->rule->action,
-					      cls->common.extack))
+	if (!flow_action_basic_hw_stats_check(&cls->rule->action, extack))
 		return -EOPNOTSUPP;
 
 	list_for_each_entry(mall_tc_entry, &p->mall_tc_list, list) {
