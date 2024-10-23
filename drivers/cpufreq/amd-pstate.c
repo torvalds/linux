@@ -1658,6 +1658,7 @@ static void amd_pstate_epp_offline(struct cpufreq_policy *policy)
 		wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
 	} else {
 		perf_ctrls.desired_perf = 0;
+		perf_ctrls.min_perf = min_perf;
 		perf_ctrls.max_perf = min_perf;
 		cppc_set_perf(cpudata->cpu, &perf_ctrls);
 		perf_ctrls.energy_perf = AMD_CPPC_ENERGY_PERF_PREF(HWP_EPP_BALANCE_POWERSAVE);
