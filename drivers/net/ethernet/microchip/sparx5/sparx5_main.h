@@ -552,7 +552,7 @@ struct sparx5_sdlb_group *sparx5_get_sdlb_group(int idx);
 int sparx5_sdlb_pup_token_get(struct sparx5 *sparx5, u32 pup_interval,
 			      u64 rate);
 
-int sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5);
+u64 sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5);
 int sparx5_sdlb_group_get_by_rate(struct sparx5 *sparx5, u32 rate, u32 burst);
 int sparx5_sdlb_group_get_by_index(struct sparx5 *sparx5, u32 idx, u32 *group);
 
