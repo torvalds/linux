@@ -380,11 +380,11 @@ static ssize_t chpids_show(struct device *dev,
 	for (chp = 0; chp < 8; chp++) {
 		mask = 0x80 >> chp;
 		if (ssd->path_mask & mask)
-			ret += sprintf(buf + ret, "%02x ", ssd->chpid[chp].id);
+			ret += sysfs_emit_at(buf, ret, "%02x ", ssd->chpid[chp].id);
 		else
-			ret += sprintf(buf + ret, "00 ");
+			ret += sysfs_emit_at(buf, ret, "00 ");
 	}
-	ret += sprintf(buf + ret, "\n");
+	ret += sysfs_emit_at(buf, ret, "\n");
 	return ret;
 }
 static DEVICE_ATTR_RO(chpids);
