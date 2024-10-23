@@ -628,23 +628,35 @@ nfs_fattr_fixup_delegated(struct inode *inode, struct nfs_fattr *fattr)
 	}
 }
 
+static void nfs_update_timestamps(struct inode *inode, unsigned int ia_valid)
+{
+	enum file_time_flags time_flags = 0;
+	unsigned int cache_flags = 0;
+
+	if (ia_valid & ATTR_MTIME) {
+		time_flags |= S_MTIME | S_CTIME;
+		cache_flags |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
+	}
+	if (ia_valid & ATTR_ATIME) {
+		time_flags |= S_ATIME;
+		cache_flags |= NFS_INO_INVALID_ATIME;
+	}
+	inode_update_timestamps(inode, time_flags);
+	NFS_I(inode)->cache_validity &= ~cache_flags;
+}
+
 void nfs_update_delegated_atime(struct inode *inode)
 {
 	spin_lock(&inode->i_lock);
-	if (nfs_have_delegated_atime(inode)) {
-		inode_update_timestamps(inode, S_ATIME);
-		NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_ATIME;
-	}
+	if (nfs_have_delegated_atime(inode))
+		nfs_update_timestamps(inode, ATTR_ATIME);
 	spin_unlock(&inode->i_lock);
 }
 
 void nfs_update_delegated_mtime_locked(struct inode *inode)
 {
-	if (nfs_have_delegated_mtime(inode)) {
-		inode_update_timestamps(inode, S_CTIME | S_MTIME);
-		NFS_I(inode)->cache_validity &= ~(NFS_INO_INVALID_CTIME |
-						  NFS_INO_INVALID_MTIME);
-	}
+	if (nfs_have_delegated_mtime(inode))
+		nfs_update_timestamps(inode, ATTR_MTIME);
 }
 
 void nfs_update_delegated_mtime(struct inode *inode)
@@ -682,15 +694,16 @@ nfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			attr->ia_valid &= ~ATTR_SIZE;
 	}
 
-	if (nfs_have_delegated_mtime(inode)) {
-		if (attr->ia_valid & ATTR_MTIME) {
-			nfs_update_delegated_mtime(inode);
-			attr->ia_valid &= ~ATTR_MTIME;
-		}
-		if (attr->ia_valid & ATTR_ATIME) {
-			nfs_update_delegated_atime(inode);
-			attr->ia_valid &= ~ATTR_ATIME;
-		}
+	if (nfs_have_delegated_mtime(inode) && attr->ia_valid & ATTR_MTIME) {
+		spin_lock(&inode->i_lock);
+		nfs_update_timestamps(inode, attr->ia_valid);
+		spin_unlock(&inode->i_lock);
+		attr->ia_valid &= ~(ATTR_MTIME | ATTR_ATIME);
+	} else if (nfs_have_delegated_atime(inode) &&
+		   attr->ia_valid & ATTR_ATIME &&
+		   !(attr->ia_valid & ATTR_MTIME)) {
+		nfs_update_delegated_atime(inode);
+		attr->ia_valid &= ~ATTR_ATIME;
 	}
 
 	/* Optimization: if the end result is no change, don't RPC */
