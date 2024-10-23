@@ -240,7 +240,6 @@ static int ad5624r_probe(struct spi_device *spi)
 	external_vref = ret != -ENODEV;
 	st->vref_mv = external_vref ? ret / 1000 : st->chip_info->int_vref_mv;
 
-	spi_set_drvdata(spi, indio_dev);
 	st->chip_info =
 		&ad5624r_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
@@ -257,14 +256,7 @@ static int ad5624r_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	return iio_device_register(indio_dev);
-}
-
-static void ad5624r_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad5624r_id[] = {
@@ -283,7 +275,6 @@ static struct spi_driver ad5624r_driver = {
 		   .name = "ad5624r",
 		   },
 	.probe = ad5624r_probe,
-	.remove = ad5624r_remove,
 	.id_table = ad5624r_id,
 };
 module_spi_driver(ad5624r_driver);
