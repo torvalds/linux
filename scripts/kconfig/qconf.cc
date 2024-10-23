@@ -1001,7 +1001,7 @@ void ConfigInfoView::menuInfo(void)
 			if (sym->name) {
 				stream << " (";
 				if (showDebug())
-					stream << "<a href=\"s" << sym->name << "\">";
+					stream << "<a href=\"" << sym->name << "\">";
 				stream << print_filter(sym->name);
 				if (showDebug())
 					stream << "</a>";
@@ -1010,7 +1010,7 @@ void ConfigInfoView::menuInfo(void)
 		} else if (sym->name) {
 			stream << "<big><b>";
 			if (showDebug())
-				stream << "<a href=\"s" << sym->name << "\">";
+				stream << "<a href=\"" << sym->name << "\">";
 			stream << print_filter(sym->name);
 			if (showDebug())
 				stream << "</a>";
@@ -1124,7 +1124,7 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 	QTextStream *stream = reinterpret_cast<QTextStream *>(data);
 
 	if (sym && sym->name && !(sym->flags & SYMBOL_CONST)) {
-		*stream << "<a href=\"s" << sym->name << "\">";
+		*stream << "<a href=\"" << sym->name << "\">";
 		*stream << print_filter(str);
 		*stream << "</a>";
 	} else {
@@ -1134,39 +1134,11 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 
 void ConfigInfoView::clicked(const QUrl &url)
 {
-	QByteArray str = url.toEncoded();
-	const std::size_t count = str.size();
-	char *data = new char[count + 2];  // '$' + '\0'
-	struct symbol **result;
-	struct menu *m = NULL;
+	struct menu *m;
 
-	if (count < 1) {
-		delete[] data;
-		return;
-	}
+	sym = sym_find(url.toEncoded().constData());
 
-	memcpy(data, str.constData(), count);
-	data[count] = '\0';
-
-	/* Seek for exact match */
-	data[0] = '^';
-	strcat(data, "$");
-	result = sym_re_search(data);
-	if (!result) {
-		delete[] data;
-		return;
-	}
-
-	sym = *result;
-
-	/* Seek for the menu which holds the symbol */
-	for (struct property *prop = sym->prop; prop; prop = prop->next) {
-		    if (prop->type != P_PROMPT && prop->type != P_MENU)
-			    continue;
-		    m = prop->menu;
-		    break;
-	}
-
+	m = sym_get_prompt_menu(sym);
 	if (!m) {
 		/* Symbol is not visible as a menu */
 		symbolInfo();
@@ -1174,9 +1146,6 @@ void ConfigInfoView::clicked(const QUrl &url)
 	} else {
 		emit menuSelected(m);
 	}
-
-	free(result);
-	delete[] data;
 }
 
 void ConfigInfoView::contextMenuEvent(QContextMenuEvent *event)
