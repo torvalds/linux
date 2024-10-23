@@ -1715,7 +1715,7 @@ struct rtw_dm_info {
 	bool pwr_trk_init_trigger;
 	struct ewma_thermal avg_thermal[RTW_RF_PATH_MAX];
 	s8 txagc_remnant_cck;
-	s8 txagc_remnant_ofdm;
+	s8 txagc_remnant_ofdm[RTW_RF_PATH_MAX];
 	u8 rx_cck_agc_report_type;
 
 	/* backup dack results for each path and I/Q */
