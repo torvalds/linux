@@ -345,7 +345,7 @@ int devl_resource_register(struct devlink *devlink,
 
 	resource = devlink_resource_find(devlink, NULL, resource_id);
 	if (resource)
-		return -EINVAL;
+		return -EEXIST;
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
 	if (!resource)
