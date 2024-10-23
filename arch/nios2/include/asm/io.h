@@ -28,9 +28,6 @@
 void __iomem *ioremap(unsigned long physaddr, unsigned long size);
 void iounmap(void __iomem *addr);
 
-/* Pages to physical address... */
-#define page_to_phys(page)	virt_to_phys(page_to_virt(page))
-
 /* Macros used for converting between virtual and physical mappings. */
 #define phys_to_virt(vaddr)	\
 	((void *)((unsigned long)(vaddr) | CONFIG_NIOS2_KERNEL_REGION_BASE))

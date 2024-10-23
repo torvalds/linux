@@ -354,12 +354,6 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
 
 /*
- * Convert a page to/from a physical address
- */
-#define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
-#define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
-
-/*
  * Note: Drivers should NOT use these.  They are the wrong
  * translation for translating DMA addresses.  Use the driver
  * DMA support - see dma-mapping.h.

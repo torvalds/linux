@@ -81,9 +81,6 @@ struct page *tlb_virt_to_page(unsigned long kaddr);
 #define pfn_to_phys(pfn)	__pfn_to_phys(pfn)
 #define phys_to_pfn(paddr)	__phys_to_pfn(paddr)
 
-#define page_to_phys(page)	pfn_to_phys(page_to_pfn(page))
-#define phys_to_page(paddr)	pfn_to_page(phys_to_pfn(paddr))
-
 #ifndef CONFIG_KFENCE
 
 #define page_to_virt(page)	__va(page_to_phys(page))
