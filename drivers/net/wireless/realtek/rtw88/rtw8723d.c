@@ -1390,6 +1390,8 @@ static void rtw8723d_pwr_track(struct rtw_dev *rtwdev)
 }
 
 static const struct rtw_chip_ops rtw8723d_ops = {
+	.power_on		= rtw_power_on,
+	.power_off		= rtw_power_off,
 	.phy_set_param		= rtw8723d_phy_set_param,
 	.read_efuse		= rtw8723x_read_efuse,
 	.query_phy_status	= query_phy_status,

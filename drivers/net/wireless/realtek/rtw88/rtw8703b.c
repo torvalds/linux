@@ -1888,6 +1888,8 @@ static const struct coex_tdma_para tdma_sant_8703b[] = {
 };
 
 static const struct rtw_chip_ops rtw8703b_ops = {
+	.power_on		= rtw_power_on,
+	.power_off		= rtw_power_off,
 	.mac_init		= rtw8723x_mac_init,
 	.dump_fw_crash		= NULL,
 	.shutdown		= NULL,

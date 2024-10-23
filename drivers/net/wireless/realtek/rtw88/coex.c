@@ -2753,16 +2753,19 @@ void rtw_coex_power_on_setting(struct rtw_dev *rtwdev)
 	rtw_write8(rtwdev, 0xff1a, 0x0);
 	rtw_coex_set_gnt_debug(rtwdev);
 }
+EXPORT_SYMBOL(rtw_coex_power_on_setting);
 
 void rtw_coex_power_off_setting(struct rtw_dev *rtwdev)
 {
 	rtw_write16(rtwdev, REG_WIFI_BT_INFO, BIT_BT_INT_EN);
 }
+EXPORT_SYMBOL(rtw_coex_power_off_setting);
 
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 {
 	__rtw_coex_init_hw_config(rtwdev, wifi_only);
 }
+EXPORT_SYMBOL(rtw_coex_init_hw_config);
 
 void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type)
 {

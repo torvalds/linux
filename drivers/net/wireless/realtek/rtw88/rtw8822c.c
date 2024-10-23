@@ -4947,6 +4947,8 @@ static const struct rtw_prioq_addrs prioq_addrs_8822c = {
 };
 
 static const struct rtw_chip_ops rtw8822c_ops = {
+	.power_on		= rtw_power_on,
+	.power_off		= rtw_power_off,
 	.phy_set_param		= rtw8822c_phy_set_param,
 	.read_efuse		= rtw8822c_read_efuse,
 	.query_phy_status	= query_phy_status,
