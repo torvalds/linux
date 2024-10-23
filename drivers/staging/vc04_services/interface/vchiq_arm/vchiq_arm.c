@@ -501,7 +501,7 @@ vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const 
 		bulk_params.offset = (void *)data;
 		bulk_params.mode = mode;
 		bulk_params.size = size;
-		bulk_params.userdata = userdata;
+		bulk_params.cb_data = userdata;
 		bulk_params.dir = VCHIQ_BULK_TRANSMIT;
 
 		ret = vchiq_bulk_xfer_callback(instance, handle, &bulk_params);
@@ -536,7 +536,7 @@ int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
 		bulk_params.offset = (void *)data;
 		bulk_params.mode = mode;
 		bulk_params.size = size;
-		bulk_params.userdata = userdata;
+		bulk_params.cb_data = userdata;
 		bulk_params.dir = VCHIQ_BULK_RECEIVE;
 
 		ret = vchiq_bulk_xfer_callback(instance, handle, &bulk_params);

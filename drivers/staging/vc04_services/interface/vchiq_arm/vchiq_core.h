@@ -114,7 +114,7 @@ enum vchiq_bulk_dir {
 struct vchiq_bulk {
 	short mode;
 	short dir;
-	void *userdata;
+	void *cb_data;
 	struct bulk_waiter *waiter;
 	dma_addr_t dma_addr;
 	int size;

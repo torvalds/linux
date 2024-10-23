@@ -338,7 +338,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		bulk_params.mode = args->mode;
 		bulk_params.size = args->size;
 		bulk_params.dir = dir;
-		bulk_params.userdata = args->userdata;
+		bulk_params.cb_data = args->userdata;
 
 		status = vchiq_bulk_xfer_callback(instance, args->handle,
 						  &bulk_params);

@@ -455,15 +455,15 @@ mark_service_closing(struct vchiq_service *service)
 
 static inline int
 make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
-		      struct vchiq_header *header, void *bulk_userdata)
+		      struct vchiq_header *header, void *cb_data)
 {
 	int status;
 
 	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %pK, %pK)\n",
 		service->state->id, service->localport, reason_names[reason],
-		header, bulk_userdata);
+		header, cb_data);
 	status = service->base.callback(service->instance, reason, header, service->handle,
-					bulk_userdata);
+					cb_data);
 	if (status && (status != -EAGAIN)) {
 		dev_warn(service->state->dev,
 			 "core: %d: ignoring ERROR from callback to service %x\n",
@@ -1340,7 +1340,7 @@ static int service_notify_bulk(struct vchiq_service *service,
 		enum vchiq_reason reason = get_bulk_reason(bulk);
 
 		return make_service_callback(service, reason, NULL,
-					     bulk->userdata);
+					     bulk->cb_data);
 	}
 
 	return 0;
@@ -3065,7 +3065,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	bulk->mode = bulk_params->mode;
 	bulk->dir = bulk_params->dir;
 	bulk->waiter = bulk_params->waiter;
-	bulk->userdata = bulk_params->userdata;
+	bulk->cb_data = bulk_params->cb_data;
 	bulk->size = bulk_params->size;
 	bulk->offset = bulk_params->offset;
 	bulk->uoffset = bulk_params->uoffset;
@@ -3082,7 +3082,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 
 	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %pK\n",
 		state->id, service->localport, service->remoteport,
-		dir_char, bulk->size, &bulk->dma_addr, bulk->userdata);
+		dir_char, bulk->size, &bulk->dma_addr, bulk->cb_data);
 
 	/*
 	 * The slot mutex must be held when the service is being closed, so
