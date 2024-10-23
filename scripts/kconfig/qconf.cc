@@ -1475,6 +1475,9 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(helpText, &ConfigInfoView::menuSelected,
 		this, &ConfigMainWindow::setMenuLink);
 
+	connect(configApp, &QApplication::aboutToQuit,
+		this, &ConfigMainWindow::saveSettings);
+
 	conf_read(NULL);
 
 	QString listMode = configSettings->value("/listMode", "symbol").toString();
@@ -1863,7 +1866,6 @@ int main(int ac, char** av)
 	v = new ConfigMainWindow();
 
 	//zconfdump(stdout);
-	configApp->connect(configApp, SIGNAL(aboutToQuit()), v, SLOT(saveSettings()));
 
 	v->show();
 	configApp->exec();
