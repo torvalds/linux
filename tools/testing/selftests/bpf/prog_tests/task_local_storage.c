@@ -17,6 +17,7 @@
 #include "task_storage_nodeadlock.skel.h"
 #include "uptr_test_common.h"
 #include "task_ls_uptr.skel.h"
+#include "uptr_update_failure.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -408,6 +409,48 @@ out:
 	munmap(mem, page_size * 2);
 }
 
+static void test_uptr_update_failure(void)
+{
+	struct value_lock_type value = {};
+	struct uptr_update_failure *skel;
+	int err, task_fd, map_fd;
+
+	task_fd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_OK_FD(task_fd, "task_fd"))
+		return;
+
+	skel = uptr_update_failure__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		goto out;
+
+	map_fd = bpf_map__fd(skel->maps.datamap);
+
+	value.udata = &udata;
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_F_LOCK);
+	if (!ASSERT_ERR(err, "update_elem(udata, BPF_F_LOCK)"))
+		goto out;
+	ASSERT_EQ(errno, EOPNOTSUPP, "errno");
+
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_EXIST);
+	if (!ASSERT_ERR(err, "update_elem(udata, BPF_EXIST)"))
+		goto out;
+	ASSERT_EQ(errno, ENOENT, "errno");
+
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_NOEXIST);
+	if (!ASSERT_OK(err, "update_elem(udata, BPF_NOEXIST)"))
+		goto out;
+
+	value.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, BPF_NOEXIST);
+	if (!ASSERT_ERR(err, "update_elem(udata2, BPF_NOEXIST)"))
+		goto out;
+	ASSERT_EQ(errno, EEXIST, "errno");
+
+out:
+	uptr_update_failure__destroy(skel);
+	close(task_fd);
+}
+
 void test_task_local_storage(void)
 {
 	if (test__start_subtest("sys_enter_exit"))
@@ -422,4 +465,6 @@ void test_task_local_storage(void)
 		test_uptr_basic();
 	if (test__start_subtest("uptr_across_pages"))
 		test_uptr_across_pages();
+	if (test__start_subtest("uptr_update_failure"))
+		test_uptr_update_failure();
 }

@@ -32,4 +32,9 @@ struct value_type {
 	struct nested_udata nested;
 };
 
+struct value_lock_type {
+	struct user_data __uptr *udata;
+	struct bpf_spin_lock lock;
+};
+
 #endif
