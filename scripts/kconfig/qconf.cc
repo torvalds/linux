@@ -1065,9 +1065,9 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 		switch (prop->type) {
 		case P_PROMPT:
 		case P_MENU:
-			stream << "prompt: <a href=\"m" << sym->name << "\">";
+			stream << "prompt: ";
 			stream << print_filter(prop->text);
-			stream << "</a><br>";
+			stream << "<br>";
 			break;
 		case P_DEFAULT:
 		case P_SELECT:
