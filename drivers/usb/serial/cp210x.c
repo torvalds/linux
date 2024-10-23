@@ -254,6 +254,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x3195, 0xF281) }, /* Link Instruments MSO-28 */
 	{ USB_DEVICE(0x3923, 0x7A0B) }, /* National Instruments USB Serial Console */
 	{ USB_DEVICE(0x413C, 0x9500) }, /* DW700 GPS USB interface */
+	{ USB_DEVICE(0x155A, 0x1005) }, /* ELDAT Easywave Transceiver */
+	{ USB_DEVICE(0x155A, 0x1006) }, /* ELDAT USB Transceiver Easywave*/
 	{ } /* Terminating Entry */
 };
 
