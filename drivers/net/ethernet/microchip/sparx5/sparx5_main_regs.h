@@ -2666,6 +2666,44 @@ extern const struct sparx5_regs *regs;
 #define CPU_PROC_CTRL_ACP_DISABLE_GET(x)\
 	FIELD_GET(CPU_PROC_CTRL_ACP_DISABLE, x)
 
+/* DEV1G:PHASE_DETECTOR_CTRL:PHAD_CTRL */
+#define DEV2G5_PHAD_CTRL(t, g)                                                 \
+	__REG(TARGET_DEV2G5, t, regs->tsize[TC_DEV2G5], 200, g, 2,             \
+	      regs->gsize[GW_DEV2G5_PHASE_DETECTOR_CTRL], 0, 0, 1, 4)
+
+#define DEV2G5_PHAD_CTRL_PHAD_ENA\
+	BIT(regs->fpos[FP_DEV2G5_PHAD_CTRL_PHAD_ENA])
+#define DEV2G5_PHAD_CTRL_PHAD_ENA_SET(x)\
+	spx5_field_prep(DEV2G5_PHAD_CTRL_PHAD_ENA, x)
+#define DEV2G5_PHAD_CTRL_PHAD_ENA_GET(x)\
+	spx5_field_get(DEV2G5_PHAD_CTRL_PHAD_ENA, x)
+
+/* LAN969X ONLY */
+#define DEV2G5_PHAD_CTRL_DIV_CFG                 GENMASK(11, 9)
+#define DEV2G5_PHAD_CTRL_DIV_CFG_SET(x)\
+	FIELD_PREP(DEV2G5_PHAD_CTRL_DIV_CFG, x)
+#define DEV2G5_PHAD_CTRL_DIV_CFG_GET(x)\
+	FIELD_GET(DEV2G5_PHAD_CTRL_DIV_CFG, x)
+
+/* DEV1G:PHASE_DETECTOR_CTRL:PHAD_CTRL */
+#define DEV2G5_PHAD_CTRL(t, g)                                                 \
+	__REG(TARGET_DEV2G5, t, regs->tsize[TC_DEV2G5], 200, g, 2,             \
+	      regs->gsize[GW_DEV2G5_PHASE_DETECTOR_CTRL], 0, 0, 1, 4)
+
+#define DEV2G5_PHAD_CTRL_PHAD_ENA\
+	BIT(regs->fpos[FP_DEV2G5_PHAD_CTRL_PHAD_ENA])
+#define DEV2G5_PHAD_CTRL_PHAD_ENA_SET(x)\
+	spx5_field_prep(DEV2G5_PHAD_CTRL_PHAD_ENA, x)
+#define DEV2G5_PHAD_CTRL_PHAD_ENA_GET(x)\
+	spx5_field_get(DEV2G5_PHAD_CTRL_PHAD_ENA, x)
+
+/* LAN969X ONLY */
+#define DEV2G5_PHAD_CTRL_DIV_CFG                 GENMASK(11, 9)
+#define DEV2G5_PHAD_CTRL_DIV_CFG_SET(x)\
+	FIELD_PREP(DEV2G5_PHAD_CTRL_DIV_CFG, x)
+#define DEV2G5_PHAD_CTRL_DIV_CFG_GET(x)\
+	FIELD_GET(DEV2G5_PHAD_CTRL_DIV_CFG, x)
+
 /* DEV10G:MAC_CFG_STATUS:MAC_ENA_CFG */
 #define DEV10G_MAC_ENA_CFG(t)                                                  \
 	__REG(TARGET_DEV10G, t, regs->tsize[TC_DEV10G], 0, 0, 1, 60, 0, 0, 1,  \
@@ -2868,6 +2906,11 @@ extern const struct sparx5_regs *regs;
 	FIELD_PREP(DEV10G_DEV_RST_CTRL_MAC_RX_RST, x)
 #define DEV10G_DEV_RST_CTRL_MAC_RX_RST_GET(x)\
 	FIELD_GET(DEV10G_DEV_RST_CTRL_MAC_RX_RST, x)
+
+/* DEV10G:DEV_CFG_STATUS:PTP_STAMPER_CFG */
+#define DEV10G_PTP_STAMPER_CFG(t)                                              \
+	__REG(TARGET_DEV10G, t, regs->tsize[TC_DEV10G], 436, 0, 1, 52, 20, 0,  \
+	      1, 4)
 
 /* DEV10G:PCS25G_CFG_STATUS:PCS25G_CFG */
 #define DEV10G_PCS25G_CFG(t)                                                   \
@@ -4267,6 +4310,11 @@ extern const struct sparx5_regs *regs;
 #define DEV5G_DEV_RST_CTRL_MAC_RX_RST_GET(x)\
 	FIELD_GET(DEV5G_DEV_RST_CTRL_MAC_RX_RST, x)
 
+/* DEV10G:DEV_CFG_STATUS:PTP_STAMPER_CFG */
+#define DEV5G_PTP_STAMPER_CFG(t)                                               \
+	__REG(TARGET_DEV5G, t, regs->tsize[TC_DEV5G], 436, 0, 1, 52, 20, 0, 1, \
+	      4)
+
 /* DSM:RAM_CTRL:RAM_INIT */
 #define DSM_RAM_INIT                                                           \
 	__REG(TARGET_DSM, 0, 1, 0, 0, 1, 4, 0, 0, 1, 4)
@@ -4443,6 +4491,27 @@ extern const struct sparx5_regs *regs;
 	FIELD_PREP(DSM_TAXI_CAL_CFG_CAL_PGM_ENA, x)
 #define DSM_TAXI_CAL_CFG_CAL_PGM_ENA_GET(x)\
 	FIELD_GET(DSM_TAXI_CAL_CFG_CAL_PGM_ENA, x)
+
+/* LAN969X ONLY */
+#define DSM_TAXI_CAL_CFG_CAL_SEL_STAT            BIT(23)
+#define DSM_TAXI_CAL_CFG_CAL_SEL_STAT_SET(x)\
+	FIELD_PREP(DSM_TAXI_CAL_CFG_CAL_SEL_STAT, x)
+#define DSM_TAXI_CAL_CFG_CAL_SEL_STAT_GET(x)\
+	FIELD_GET(DSM_TAXI_CAL_CFG_CAL_SEL_STAT, x)
+
+/* LAN969X ONLY */
+#define DSM_TAXI_CAL_CFG_CAL_SWITCH              BIT(22)
+#define DSM_TAXI_CAL_CFG_CAL_SWITCH_SET(x)\
+	FIELD_PREP(DSM_TAXI_CAL_CFG_CAL_SWITCH, x)
+#define DSM_TAXI_CAL_CFG_CAL_SWITCH_GET(x)\
+	FIELD_GET(DSM_TAXI_CAL_CFG_CAL_SWITCH, x)
+
+/* LAN969X ONLY */
+#define DSM_TAXI_CAL_CFG_CAL_PGM_SEL             BIT(21)
+#define DSM_TAXI_CAL_CFG_CAL_PGM_SEL_SET(x)\
+	FIELD_PREP(DSM_TAXI_CAL_CFG_CAL_PGM_SEL, x)
+#define DSM_TAXI_CAL_CFG_CAL_PGM_SEL_GET(x)\
+	FIELD_GET(DSM_TAXI_CAL_CFG_CAL_PGM_SEL, x)
 
 /* EACL:ES2_KEY_SELECT_PROFILE:VCAP_ES2_KEY_SEL */
 #define EACL_VCAP_ES2_KEY_SEL(g, r)                                            \
@@ -6719,6 +6788,69 @@ extern const struct sparx5_regs *regs;
 	__REG(TARGET_PTP, 0, 1, regs->gaddr[GA_PTP_PHASE_DETECTOR_CTRL], g,    \
 	      regs->gcnt[GC_PTP_PHASE_DETECTOR_CTRL],                          \
 	      regs->gsize[GW_PTP_PHASE_DETECTOR_CTRL], 4, 0, 1, 4)
+
+/* LAN969X ONLY */
+/* DEVCPU_PTP:PTP_TS_FIFO:PTP_TWOSTEP_CTRL */
+#define PTP_TWOSTEP_CTRL                                                       \
+	__REG(TARGET_PTP, 0, 1, 612, 0, 1, 16, 0, 0, 1, 4)
+
+#define PTP_TWOSTEP_CTRL_PTP_OVWR_ENA            BIT(12)
+#define PTP_TWOSTEP_CTRL_PTP_OVWR_ENA_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_CTRL_PTP_OVWR_ENA, x)
+#define PTP_TWOSTEP_CTRL_PTP_OVWR_ENA_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_CTRL_PTP_OVWR_ENA, x)
+
+#define PTP_TWOSTEP_CTRL_PTP_NXT                 BIT(11)
+#define PTP_TWOSTEP_CTRL_PTP_NXT_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_CTRL_PTP_NXT, x)
+#define PTP_TWOSTEP_CTRL_PTP_NXT_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_CTRL_PTP_NXT, x)
+
+#define PTP_TWOSTEP_CTRL_PTP_VLD                 BIT(10)
+#define PTP_TWOSTEP_CTRL_PTP_VLD_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_CTRL_PTP_VLD, x)
+#define PTP_TWOSTEP_CTRL_PTP_VLD_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_CTRL_PTP_VLD, x)
+
+#define PTP_TWOSTEP_CTRL_STAMP_TX                BIT(9)
+#define PTP_TWOSTEP_CTRL_STAMP_TX_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_CTRL_STAMP_TX, x)
+#define PTP_TWOSTEP_CTRL_STAMP_TX_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_CTRL_STAMP_TX, x)
+
+#define PTP_TWOSTEP_CTRL_STAMP_PORT              GENMASK(8, 1)
+#define PTP_TWOSTEP_CTRL_STAMP_PORT_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_CTRL_STAMP_PORT, x)
+#define PTP_TWOSTEP_CTRL_STAMP_PORT_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_CTRL_STAMP_PORT, x)
+
+#define PTP_TWOSTEP_CTRL_PTP_OVFL                BIT(0)
+#define PTP_TWOSTEP_CTRL_PTP_OVFL_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_CTRL_PTP_OVFL, x)
+#define PTP_TWOSTEP_CTRL_PTP_OVFL_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_CTRL_PTP_OVFL, x)
+
+/* LAN969X ONLY */
+/* DEVCPU_PTP:PTP_TS_FIFO:PTP_TWOSTEP_STAMP_NSEC */
+#define PTP_TWOSTEP_STAMP_NSEC                                                 \
+	__REG(TARGET_PTP, 0, 1, 612, 0, 1, 16, 4, 0, 1, 4)
+
+#define PTP_TWOSTEP_STAMP_NSEC_NS                GENMASK(29, 0)
+#define PTP_TWOSTEP_STAMP_NSEC_NS_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_STAMP_NSEC_NS, x)
+#define PTP_TWOSTEP_STAMP_NSEC_NS_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_STAMP_NSEC_NS, x)
+
+/* LAN969X ONLY */
+/* DEVCPU_PTP:PTP_TS_FIFO:PTP_TWOSTEP_STAMP_SUBNS */
+#define PTP_TWOSTEP_STAMP_SUBNS                                                \
+	__REG(TARGET_PTP, 0, 1, 612, 0, 1, 16, 8, 0, 1, 4)
+
+#define PTP_TWOSTEP_STAMP_SUBNS_NS               GENMASK(7, 0)
+#define PTP_TWOSTEP_STAMP_SUBNS_NS_SET(x)\
+	FIELD_PREP(PTP_TWOSTEP_STAMP_SUBNS_NS, x)
+#define PTP_TWOSTEP_STAMP_SUBNS_NS_GET(x)\
+	FIELD_GET(PTP_TWOSTEP_STAMP_SUBNS_NS, x)
 
 /* QFWD:SYSTEM:SWITCH_PORT_MODE */
 #define QFWD_SWITCH_PORT_MODE(r)                                               \
