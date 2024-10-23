@@ -784,7 +784,7 @@ intel_dp_mst_hdcp_stream_encryption(struct intel_connector *connector,
 			  stream_enc_status, enable ? stream_enc_status : 0,
 			  HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		drm_err(&i915->drm, "Timed out waiting for transcoder: %s stream encryption %s\n",
-			transcoder_name(cpu_transcoder), enable ? "enabled" : "disabled");
+			transcoder_name(cpu_transcoder), str_enabled_disabled(enable));
 		return -ETIMEDOUT;
 	}
 
@@ -818,7 +818,7 @@ intel_dp_mst_hdcp2_stream_encryption(struct intel_connector *connector,
 			  enable ? STREAM_ENCRYPTION_STATUS : 0,
 			  HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		drm_err(&i915->drm, "Timed out waiting for transcoder: %s stream encryption %s\n",
-			transcoder_name(cpu_transcoder), enable ? "enabled" : "disabled");
+			transcoder_name(cpu_transcoder), str_enabled_disabled(enable));
 		return -ETIMEDOUT;
 	}
 

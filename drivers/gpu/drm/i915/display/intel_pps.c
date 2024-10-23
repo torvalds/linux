@@ -1148,7 +1148,7 @@ void intel_pps_backlight_power(struct intel_connector *connector, bool enable)
 		return;
 
 	drm_dbg_kms(display->drm, "panel power control backlight %s\n",
-		    enable ? "enable" : "disable");
+		    str_enable_disable(enable));
 
 	if (enable)
 		intel_pps_backlight_on(intel_dp);
