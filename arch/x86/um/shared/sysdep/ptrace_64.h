@@ -8,8 +8,6 @@
 #ifndef __SYSDEP_X86_64_PTRACE_H
 #define __SYSDEP_X86_64_PTRACE_H
 
-#define MAX_FP_NR HOST_FP_SIZE
-
 #define REGS_R8(r) ((r)[HOST_R8])
 #define REGS_R9(r) ((r)[HOST_R9])
 #define REGS_R10(r) ((r)[HOST_R10])
@@ -56,7 +54,5 @@
 #define UPT_SYSCALL_ARG4(r) UPT_R10(r)
 #define UPT_SYSCALL_ARG5(r) UPT_R8(r)
 #define UPT_SYSCALL_ARG6(r) UPT_R9(r)
-
-extern void arch_init_registers(int pid);
 
 #endif

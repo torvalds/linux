@@ -187,6 +187,13 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
+int arch_dup_task_struct(struct task_struct *dst,
+			 struct task_struct *src)
+{
+	memcpy(dst, src, arch_task_struct_size);
+	return 0;
+}
+
 void um_idle_sleep(void)
 {
 	if (time_travel_mode != TT_MODE_OFF)
@@ -287,18 +294,3 @@ unsigned long __get_wchan(struct task_struct *p)
 
 	return 0;
 }
-
-int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
-{
-#ifdef CONFIG_X86_32
-	extern int have_fpx_regs;
-
-	/* FIXME: A plain copy does not work on i386 with have_fpx_regs */
-	if (have_fpx_regs)
-		return 0;
-#endif
-	memcpy(fpu, &t->thread.regs.regs.fp, sizeof(*fpu));
-
-	return 1;
-}
-

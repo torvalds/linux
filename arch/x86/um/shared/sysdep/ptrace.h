@@ -56,12 +56,16 @@ struct syscall_args {
 				     UPT_SYSCALL_ARG5(r),	 \
 				     UPT_SYSCALL_ARG6(r) } } )
 
+extern unsigned long host_fp_size;
+
 struct uml_pt_regs {
 	unsigned long gp[MAX_REG_NR];
-	unsigned long fp[MAX_FP_NR];
 	struct faultinfo faultinfo;
 	long syscall;
 	int is_user;
+
+	/* Dynamically sized FP registers (holds an XSTATE) */
+	unsigned long fp[];
 };
 
 #define EMPTY_UML_PT_REGS { }
@@ -71,5 +75,7 @@ struct uml_pt_regs {
 #define UPT_IS_USER(r) ((r)->is_user)
 
 extern int user_context(unsigned long sp);
+
+extern int arch_init_registers(int pid);
 
 #endif /* __SYSDEP_X86_PTRACE_H */

@@ -20,7 +20,6 @@ struct task_struct;
 struct mm_struct;
 
 struct thread_struct {
-	struct pt_regs regs;
 	struct pt_regs *segv_regs;
 	struct task_struct *prev_sched;
 	struct arch_thread arch;
@@ -31,6 +30,9 @@ struct thread_struct {
 			void *arg;
 		} thread;
 	} request;
+
+	/* Contains variable sized FP registers */
+	struct pt_regs regs;
 };
 
 #define INIT_THREAD \

@@ -402,6 +402,8 @@ int __init linux_main(int argc, char **argv, char **envp)
 		os_info("Kernel virtual memory size shrunk to %lu bytes\n",
 			virtmem_size);
 
+	arch_task_struct_size = sizeof(struct task_struct) + host_fp_size;
+
 	os_flush_stdout();
 
 	return start_uml();
