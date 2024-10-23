@@ -103,11 +103,32 @@ static const struct sparx5_regs lan969x_regs = {
 	.fsize = lan969x_fsize,
 };
 
+static const struct sparx5_consts lan969x_consts = {
+	.n_ports             = 30,
+	.n_ports_all         = 35,
+	.n_hsch_l1_elems     = 32,
+	.n_hsch_queues       = 4,
+	.n_lb_groups         = 5,
+	.n_pgids             = 1054, /* (1024 + n_ports) */
+	.n_sio_clks          = 1,
+	.n_own_upsids        = 1,
+	.n_auto_cals         = 4,
+	.n_filters           = 256,
+	.n_gates             = 256,
+	.n_sdlbs             = 496,
+	.n_dsm_cal_taxis     = 5,
+	.buf_size            = 1572864,
+	.qres_max_prio_idx   = 315,
+	.qres_max_colour_idx = 323,
+	.tod_pin             = 4,
+};
+
 const struct sparx5_match_data lan969x_desc = {
 	.iomap      = lan969x_main_iomap,
 	.iomap_size = ARRAY_SIZE(lan969x_main_iomap),
 	.ioranges   = 2,
 	.regs       = &lan969x_regs,
+	.consts     = &lan969x_consts,
 };
 EXPORT_SYMBOL_GPL(lan969x_desc);
 
