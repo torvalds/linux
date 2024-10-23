@@ -54,7 +54,8 @@ int __init init_vdso_image(const struct vdso_image *image)
 
 	apply_alternatives((struct alt_instr *)(image->data + image->alt),
 			   (struct alt_instr *)(image->data + image->alt +
-						image->alt_len));
+						image->alt_len),
+			   NULL);
 
 	return 0;
 }

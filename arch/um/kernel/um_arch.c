@@ -435,24 +435,25 @@ void __init arch_cpu_finalize_init(void)
 	os_check_bugs();
 }
 
-void apply_seal_endbr(s32 *start, s32 *end)
+void apply_seal_endbr(s32 *start, s32 *end, struct module *mod)
 {
 }
 
-void apply_retpolines(s32 *start, s32 *end)
+void apply_retpolines(s32 *start, s32 *end, struct module *mod)
 {
 }
 
-void apply_returns(s32 *start, s32 *end)
+void apply_returns(s32 *start, s32 *end, struct module *mod)
 {
 }
 
 void apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
-		   s32 *start_cfi, s32 *end_cfi)
+		   s32 *start_cfi, s32 *end_cfi, struct module *mod)
 {
 }
 
-void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
+void apply_alternatives(struct alt_instr *start, struct alt_instr *end,
+			struct module *mod)
 {
 }
 
