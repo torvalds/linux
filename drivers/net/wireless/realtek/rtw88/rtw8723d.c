@@ -2020,11 +2020,6 @@ static const struct rtw_intf_phy_para_table phy_para_table_8723d = {
 	.n_gen1_para	= ARRAY_SIZE(pcie_gen1_param_8723d),
 };
 
-static const struct rtw_rfe_def rtw8723d_rfe_defs[] = {
-	[0] = { .phy_pg_tbl	= &rtw8723d_bb_pg_tbl,
-		.txpwr_lmt_tbl	= &rtw8723d_txpwr_lmt_tbl,},
-};
-
 static const u8 rtw8723d_pwrtrk_2gb_n[] = {
 	0, 0, 1, 1, 1, 2, 2, 3, 4, 4, 4, 4, 5, 5, 5,
 	6, 6, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 10
@@ -2086,6 +2081,12 @@ static const struct rtw_pwr_track_tbl rtw8723d_rtw_pwr_track_tbl = {
 	.pwrtrk_2g_ccka_p = rtw8723d_pwrtrk_2g_cck_a_p,
 	.pwrtrk_xtal_p = rtw8723d_pwrtrk_xtal_p,
 	.pwrtrk_xtal_n = rtw8723d_pwrtrk_xtal_n,
+};
+
+static const struct rtw_rfe_def rtw8723d_rfe_defs[] = {
+	[0] = { .phy_pg_tbl	= &rtw8723d_bb_pg_tbl,
+		.txpwr_lmt_tbl	= &rtw8723d_txpwr_lmt_tbl,
+		.pwr_track_tbl	= &rtw8723d_rtw_pwr_track_tbl, },
 };
 
 static const struct rtw_reg_domain coex_info_hw_regs_8723d[] = {
@@ -2159,7 +2160,6 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.rfe_defs = rtw8723d_rfe_defs,
 	.rfe_defs_size = ARRAY_SIZE(rtw8723d_rfe_defs),
 	.rx_ldpc = false,
-	.pwr_track_tbl = &rtw8723d_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
 	.max_scan_ie_len = IEEE80211_MAX_DATA_LEN,
