@@ -431,7 +431,7 @@ static int __wwan_port_dev_assign_name(struct wwan_port *port, const char *fmt)
 		return -ENFILE;
 	}
 
-	return dev_set_name(&port->dev, buf);
+	return dev_set_name(&port->dev, "%s", buf);
 }
 
 struct wwan_port *wwan_create_port(struct device *parent,
