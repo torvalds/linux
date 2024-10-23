@@ -75,6 +75,11 @@ enum sparx5_cal_bw {
 	SPX5_CAL_SPEED_12G5 = 7
 };
 
+enum sparx5_feature {
+	SPX5_FEATURE_PSFP = BIT(0),
+	SPX5_FEATURE_PTP  = BIT(1),
+};
+
 #define SPX5_PORTS             65
 #define SPX5_PORTS_ALL         70 /* Total number of ports */
 
@@ -337,6 +342,7 @@ struct sparx5 {
 	struct device *dev;
 	u32 chip_id;
 	enum spx5_target_chiptype target_ct;
+	u32 features;
 	void __iomem *regs[NUM_TARGETS];
 	int port_count;
 	struct mutex lock; /* MAC reg lock */
@@ -404,6 +410,7 @@ struct sparx5 {
 
 /* sparx5_main.c */
 bool is_sparx5(struct sparx5 *sparx5);
+bool sparx5_has_feature(struct sparx5 *sparx5, enum sparx5_feature feature);
 
 /* sparx5_switchdev.c */
 int sparx5_register_notifier_blocks(struct sparx5 *sparx5);

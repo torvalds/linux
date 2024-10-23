@@ -1284,6 +1284,11 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 
 	/* Setup PSFP */
 	if (tc_sg_idx >= 0 || tc_pol_idx >= 0) {
+		if (!sparx5_has_feature(sparx5, SPX5_FEATURE_PSFP)) {
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+
 		err = sparx5_tc_flower_psfp_setup(sparx5, vrule, tc_sg_idx,
 						  tc_pol_idx, &sg, &fm, &sf);
 		if (err)
