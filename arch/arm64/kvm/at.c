@@ -440,6 +440,8 @@ struct mmu_config {
 	u64	tcr2;
 	u64	pir;
 	u64	pire0;
+	u64	por_el0;
+	u64	por_el1;
 	u64	sctlr;
 	u64	vttbr;
 	u64	vtcr;
@@ -457,6 +459,10 @@ static void __mmu_config_save(struct mmu_config *config)
 		if (cpus_have_final_cap(ARM64_HAS_S1PIE)) {
 			config->pir	= read_sysreg_el1(SYS_PIR);
 			config->pire0	= read_sysreg_el1(SYS_PIRE0);
+		}
+		if (system_supports_poe()) {
+			config->por_el1	= read_sysreg_el1(SYS_POR);
+			config->por_el0	= read_sysreg_s(SYS_POR_EL0);
 		}
 	}
 	config->sctlr	= read_sysreg_el1(SYS_SCTLR);
@@ -484,6 +490,10 @@ static void __mmu_config_restore(struct mmu_config *config)
 		if (cpus_have_final_cap(ARM64_HAS_S1PIE)) {
 			write_sysreg_el1(config->pir, SYS_PIR);
 			write_sysreg_el1(config->pire0, SYS_PIRE0);
+		}
+		if (system_supports_poe()) {
+			write_sysreg_el1(config->por_el1, SYS_POR);
+			write_sysreg_s(config->por_el0, SYS_POR_EL0);
 		}
 	}
 	write_sysreg_el1(config->sctlr,	SYS_SCTLR);
@@ -1104,6 +1114,10 @@ static u64 __kvm_at_s1e01_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		if (kvm_has_s1pie(vcpu->kvm)) {
 			write_sysreg_el1(vcpu_read_sys_reg(vcpu, PIR_EL1), SYS_PIR);
 			write_sysreg_el1(vcpu_read_sys_reg(vcpu, PIRE0_EL1), SYS_PIRE0);
+		}
+		if (kvm_has_s1poe(vcpu->kvm)) {
+			write_sysreg_el1(vcpu_read_sys_reg(vcpu, POR_EL1), SYS_POR);
+			write_sysreg_s(vcpu_read_sys_reg(vcpu, POR_EL0), SYS_POR_EL0);
 		}
 	}
 	write_sysreg_el1(vcpu_read_sys_reg(vcpu, SCTLR_EL1),	SYS_SCTLR);
