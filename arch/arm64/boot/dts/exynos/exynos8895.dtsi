@@ -218,6 +218,19 @@
 				      "usi1", "usi2", "usi3";
 		};
 
+		serial_0: serial@10430000 {
+			compatible = "samsung,exynos8895-uart";
+			reg = <0x10430000 0x100>;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_UART_DBG_PCLK>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_UART_DBG_EXT_UCLK>;
+			clock-names = "uart", "clk_uart_baud0";
+			interrupts = <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_bus>;
+			samsung,uart-fifosize = <256>;
+			status = "disabled";
+		};
+
 		pinctrl_peric0: pinctrl@104d0000 {
 			compatible = "samsung,exynos8895-pinctrl";
 			reg = <0x104d0000 0x1000>;
@@ -248,6 +261,19 @@
 				      "cam1", "uart", "usi4", "usi5",
 				      "usi6", "usi7", "usi8", "usi9",
 				      "usi10", "usi11", "usi12", "usi13";
+		};
+
+		serial_1: serial@10830000 {
+			compatible = "samsung,exynos8895-uart";
+			reg = <0x10830000 0x100>;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_UART_BT_PCLK>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_UART_BT_EXT_UCLK>;
+			clock-names = "uart", "clk_uart_baud0";
+			interrupts = <GIC_SPI 389 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_bus>;
+			samsung,uart-fifosize = <256>;
+			status = "disabled";
 		};
 
 		pinctrl_peric1: pinctrl@10980000 {
