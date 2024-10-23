@@ -794,7 +794,6 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-names = "irq";
-		extcon = <&usb3_phy0>;
 		wakeup-source;
 
 		connector {
