@@ -305,7 +305,7 @@ void __init x86_flattree_get_config(void)
 			map_len = size;
 		}
 
-		early_init_dt_verify(dt);
+		early_init_dt_verify(dt, __pa(dt));
 	}
 
 	unflatten_and_copy_device_tree();

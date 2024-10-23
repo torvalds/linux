@@ -17,7 +17,7 @@ void uml_dtb_init(void)
 
 	area = uml_load_file(dtb, &size);
 	if (area) {
-		if (!early_init_dt_scan(area)) {
+		if (!early_init_dt_scan(area, __pa(area))) {
 			pr_err("invalid DTB %s\n", dtb);
 			memblock_free(area, size);
 			return;

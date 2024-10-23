@@ -18,7 +18,7 @@ void __init early_init_devtree(void *params)
 {
 	pr_debug(" -> early_init_devtree(%p)\n", params);
 
-	early_init_dt_scan(params);
+	early_init_dt_scan(params, __pa(params));
 	if (!strlen(boot_command_line))
 		strscpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 
