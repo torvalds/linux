@@ -257,7 +257,8 @@ static int ethosn_debug_monitor_channel_init(struct ethosn_core *core)
  * Return: 0 on success, else error code.
  */
 static int mailbox_alloc(struct ethosn_core *core)
-{
+{   
+    // 核心core的主分配器所管辖的内存空间为: 1. 加载固件所需的内存空间; 2. 与NPU之间进行数据交互所需环形缓冲区
 	struct ethosn_dma_allocator *allocator = core->main_allocator;
 	resource_size_t mailbox_end;
 	resource_size_t request_end;

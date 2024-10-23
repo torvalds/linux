@@ -127,8 +127,12 @@ struct ethosn_core {
 	struct dentry *debug_dir;
 	struct debugfs_regset32 debug_regset;
 
+    // 当前core映射的虚拟io地址
 	void __iomem *top_regs;
+    // 当前core在memory map中的物理地址
 	uintptr_t phys_addr;
+
+    // 当前core所设计的环形缓冲区的长度
 	int queue_size;
 	uint32_t set_alloc_id;
 
@@ -208,8 +212,13 @@ struct ethosn_core {
 	 * the .dts and used when booting the firmware.
 	 */
 	bool force_firmware_level_interrupts;
+
+    /* 下面的两个成员主要用于配合中断处理程序的下半部 */
+    // 当前core绑定的中断等待队列
 	struct workqueue_struct *irq_wq;
+    // 当前core绑定的中断工作队列
 	struct work_struct irq_work;
+
 	atomic_t irq_status;
 
 	struct ethosn_inference *current_inference;

@@ -60,12 +60,33 @@ diagrams:
     exclude:
       paths:
         - include/linux/
-        # - include/linux/printk.h
-        # - include/linux/fs.h
-        # - include/linux/device/class.h
-        # - include/linux/kconfig.h
     from:
       - function: "ethosn_pdev_probe(struct platform_device *)"
+  ethosn_device_init_sequence_diagram:
+    type: sequence
+    title: ethosn_device_init() sequence diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    generate_condition_statements: true
+    generate_return_types: true
+    combine_free_functions_into_file_participants: true
+    include:
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+        - include/linux/
+    exclude:
+      elements:
+        - "ethosn_major_cleanup()"
+      paths:
+        - include/linux/printk.h
+        - include/linux/fs.h
+        - include/linux/device/class.h
+    from:
+      - function: "ethosn_device_init(struct ethosn_core *)"
+
   # ethosn_device_core_class:
   #   type: class
   #   title: struct ethosn_device_core diagram
