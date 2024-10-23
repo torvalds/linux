@@ -141,8 +141,7 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 	WARN_ON(refcount_read(&transaction->use_count) == 0);
 	if (refcount_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
-		WARN_ON(!RB_EMPTY_ROOT(
-				&transaction->delayed_refs.href_root.rb_root));
+		WARN_ON(!xa_empty(&transaction->delayed_refs.head_refs));
 		WARN_ON(!xa_empty(&transaction->delayed_refs.dirty_extents));
 		if (transaction->delayed_refs.pending_csums)
 			btrfs_err(transaction->fs_info,
@@ -349,7 +348,7 @@ loop:
 
 	memset(&cur_trans->delayed_refs, 0, sizeof(cur_trans->delayed_refs));
 
-	cur_trans->delayed_refs.href_root = RB_ROOT_CACHED;
+	xa_init(&cur_trans->delayed_refs.head_refs);
 	xa_init(&cur_trans->delayed_refs.dirty_extents);
 
 	/*

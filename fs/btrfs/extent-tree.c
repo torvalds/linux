@@ -2196,7 +2196,7 @@ again:
 		btrfs_create_pending_block_groups(trans);
 
 		spin_lock(&delayed_refs->lock);
-		if (RB_EMPTY_ROOT(&delayed_refs->href_root.rb_root)) {
+		if (xa_empty(&delayed_refs->head_refs)) {
 			spin_unlock(&delayed_refs->lock);
 			return 0;
 		}

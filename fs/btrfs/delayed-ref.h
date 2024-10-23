@@ -123,12 +123,6 @@ struct btrfs_delayed_ref_head {
 	u64 bytenr;
 	u64 num_bytes;
 	/*
-	 * For insertion into struct btrfs_delayed_ref_root::href_root.
-	 * Keep it in the same cache line as 'bytenr' for more efficient
-	 * searches in the rbtree.
-	 */
-	struct rb_node href_node;
-	/*
 	 * the mutex is held while running the refs, and it is also
 	 * held when checking the sum of reference modifications.
 	 */
@@ -191,6 +185,11 @@ struct btrfs_delayed_ref_head {
 	bool is_data;
 	bool is_system;
 	bool processing;
+	/*
+	 * Indicate if it's currently in the data structure that tracks head
+	 * refs (struct btrfs_delayed_ref_root::head_refs).
+	 */
+	bool tracked;
 };
 
 enum btrfs_delayed_ref_flags {
@@ -199,22 +198,27 @@ enum btrfs_delayed_ref_flags {
 };
 
 struct btrfs_delayed_ref_root {
-	/* head ref rbtree */
-	struct rb_root_cached href_root;
-
 	/*
-	 * Track dirty extent records.
+	 * Track head references.
 	 * The keys correspond to the logical address of the extent ("bytenr")
 	 * right shifted by fs_info->sectorsize_bits. This is both to get a more
 	 * dense index space (optimizes xarray structure) and because indexes in
 	 * xarrays are of "unsigned long" type, meaning they are 32 bits wide on
 	 * 32 bits platforms, limiting the extent range to 4G which is too low
 	 * and makes it unusable (truncated index values) on 32 bits platforms.
+	 * Protected by the spinlock 'lock' defined below.
+	 */
+	struct xarray head_refs;
+
+	/*
+	 * Track dirty extent records.
+	 * The keys correspond to the logical address of the extent ("bytenr")
+	 * right shifted by fs_info->sectorsize_bits, for same reasons as above.
 	 */
 	struct xarray dirty_extents;
 
 	/*
-	 * Protects the rbtree href_root, its entries and the following fields:
+	 * Protects the xarray head_refs, its entries and the following fields:
 	 * num_heads, num_heads_ready, pending_csums and run_delayed_start.
 	 */
 	spinlock_t lock;
