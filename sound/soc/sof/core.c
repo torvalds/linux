@@ -19,10 +19,46 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sof.h>
 
+/* Module parameters for firmware, topology and IPC type override */
+static char *override_fw_path;
+module_param_named(fw_path, override_fw_path, charp, 0444);
+MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
+
+static char *override_fw_filename;
+module_param_named(fw_filename, override_fw_filename, charp, 0444);
+MODULE_PARM_DESC(fw_filename, "alternate filename for SOF firmware.");
+
+static char *override_lib_path;
+module_param_named(lib_path, override_lib_path, charp, 0444);
+MODULE_PARM_DESC(lib_path, "alternate path for SOF firmware libraries.");
+
+static char *override_tplg_path;
+module_param_named(tplg_path, override_tplg_path, charp, 0444);
+MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
+
+static char *override_tplg_filename;
+module_param_named(tplg_filename, override_tplg_filename, charp, 0444);
+MODULE_PARM_DESC(tplg_filename, "alternate filename for SOF topology.");
+
+static int override_ipc_type = -1;
+module_param_named(ipc_type, override_ipc_type, int, 0444);
+MODULE_PARM_DESC(ipc_type, "Force SOF IPC type. 0 - IPC3, 1 - IPC4");
+
 /* see SOF_DBG_ flags */
 static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
 module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
+static unsigned int sof_ipc_timeout_ms;
+static unsigned int sof_boot_timeout_ms;
+module_param_named(ipc_timeout, sof_ipc_timeout_ms, uint, 0444);
+MODULE_PARM_DESC(ipc_timeout,
+		 "Set the IPC timeout value in ms (0 to use the platform default)");
+module_param_named(boot_timeout, sof_boot_timeout_ms, uint, 0444);
+MODULE_PARM_DESC(boot_timeout,
+		 "Set the DSP boot timeout value in ms (0 to use the platform default)");
+#endif
 
 /* SOF defaults if not provided by the platform in ms */
 #define TIMEOUT_DEFAULT_IPC_MS  500
@@ -570,6 +606,23 @@ static void sof_probe_work(struct work_struct *work)
 	}
 }
 
+static void
+sof_apply_profile_override(struct sof_loadable_file_profile *path_override)
+{
+	if (override_ipc_type >= 0 && override_ipc_type < SOF_IPC_TYPE_COUNT)
+		path_override->ipc_type = override_ipc_type;
+	if (override_fw_path)
+		path_override->fw_path = override_fw_path;
+	if (override_fw_filename)
+		path_override->fw_name = override_fw_filename;
+	if (override_lib_path)
+		path_override->fw_lib_path = override_lib_path;
+	if (override_tplg_path)
+		path_override->tplg_path = override_tplg_path;
+	if (override_tplg_filename)
+		path_override->tplg_name = override_tplg_filename;
+}
+
 int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 {
 	struct snd_sof_dev *sdev;
@@ -601,6 +654,8 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		}
 	}
 
+	sof_apply_profile_override(&plat_data->ipc_file_profile_base);
+
 	/* Initialize sof_ops based on the initial selected IPC version */
 	ret = sof_init_sof_ops(sdev);
 	if (ret)
@@ -631,6 +686,15 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		sdev->boot_timeout = TIMEOUT_DEFAULT_BOOT_MS;
 	else
 		sdev->boot_timeout = plat_data->desc->boot_timeout;
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
+	/* Override the timeout values with module parameter, if set */
+	if (sof_ipc_timeout_ms)
+		sdev->ipc_timeout = sof_ipc_timeout_ms;
+
+	if (sof_boot_timeout_ms)
+		sdev->boot_timeout = sof_boot_timeout_ms;
+#endif
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
 
