@@ -662,7 +662,7 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	completion->reason = reason;
 	/* N.B. service_userdata is updated while processing AWAIT_COMPLETION */
 	completion->service_userdata = user_service->service;
-	completion->bulk_userdata = bulk_userdata;
+	completion->cb_data = bulk_userdata;
 
 	if (reason == VCHIQ_SERVICE_CLOSED) {
 		/*

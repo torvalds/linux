@@ -414,7 +414,7 @@ struct vchiq_completion_data32 {
 	enum vchiq_reason reason;
 	compat_uptr_t header;
 	compat_uptr_t service_userdata;
-	compat_uptr_t bulk_userdata;
+	compat_uptr_t cb_data;
 };
 
 static int vchiq_put_completion(struct vchiq_completion_data __user *buf,
@@ -428,7 +428,7 @@ static int vchiq_put_completion(struct vchiq_completion_data __user *buf,
 			.reason		  = completion->reason,
 			.header		  = ptr_to_compat(completion->header),
 			.service_userdata = ptr_to_compat(completion->service_userdata),
-			.bulk_userdata	  = ptr_to_compat(completion->bulk_userdata),
+			.cb_data	  = ptr_to_compat(completion->cb_userdata),
 		};
 		if (copy_to_user(&buf32[index], &tmp, sizeof(tmp)))
 			return -EFAULT;
@@ -550,10 +550,10 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 			vchiq_service_put(service);
 
 		/*
-		 * FIXME: address space mismatch, does bulk_userdata
+		 * FIXME: address space mismatch, does cb_data
 		 * actually point to user or kernel memory?
 		 */
-		user_completion.bulk_userdata = completion->bulk_userdata;
+		user_completion.cb_userdata = completion->cb_data;
 
 		if (vchiq_put_completion(args->buf, &user_completion, ret)) {
 			if (ret == 0)
