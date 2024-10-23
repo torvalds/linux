@@ -256,6 +256,36 @@
 			interrupts = <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		spi_0: spi@109d0000 {
+			compatible = "samsung,exynos8895-spi",
+				     "samsung,exynos850-spi";
+			reg = <0x109d0000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_SPI_CAM0_PCLK>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_SPI_CAM0_SPI_EXT_CLK>;
+			clock-names = "spi", "spi_busclk0";
+			interrupts = <GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-0 = <&spi0_bus>;
+			pinctrl-names = "default";
+			status = "disabled";
+		};
+
+		spi_1: spi@109e0000 {
+			compatible = "samsung,exynos8895-spi",
+				     "samsung,exynos850-spi";
+			reg = <0x109e0000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_SPI_CAM1_PCLK>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_SPI_CAM1_SPI_EXT_CLK>;
+			clock-names = "spi", "spi_busclk0";
+			interrupts = <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-0 = <&spi1_bus>;
+			pinctrl-names = "default";
+			status = "disabled";
+		};
+
 		cmu_fsys0: clock-controller@11000000 {
 			compatible = "samsung,exynos8895-cmu-fsys0";
 			reg = <0x11000000 0x8000>;
