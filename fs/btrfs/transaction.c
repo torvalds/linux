@@ -351,7 +351,6 @@ loop:
 
 	cur_trans->delayed_refs.href_root = RB_ROOT_CACHED;
 	xa_init(&cur_trans->delayed_refs.dirty_extents);
-	atomic_set(&cur_trans->delayed_refs.num_entries, 0);
 
 	/*
 	 * although the tree mod log is per file system and not per transaction,

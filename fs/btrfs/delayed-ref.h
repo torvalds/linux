@@ -216,11 +216,6 @@ struct btrfs_delayed_ref_root {
 	/* this spin lock protects the rbtree and the entries inside */
 	spinlock_t lock;
 
-	/* how many delayed ref updates we've queued, used by the
-	 * throttling code
-	 */
-	atomic_t num_entries;
-
 	/* total number of head nodes in tree */
 	unsigned long num_heads;
 
