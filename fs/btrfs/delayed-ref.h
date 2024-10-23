@@ -213,19 +213,33 @@ struct btrfs_delayed_ref_root {
 	 */
 	struct xarray dirty_extents;
 
-	/* this spin lock protects the rbtree and the entries inside */
+	/*
+	 * Protects the rbtree href_root, its entries and the following fields:
+	 * num_heads, num_heads_ready, pending_csums and run_delayed_start.
+	 */
 	spinlock_t lock;
 
-	/* total number of head nodes in tree */
+	/* Total number of head refs, protected by the spinlock 'lock'. */
 	unsigned long num_heads;
 
-	/* total number of head nodes ready for processing */
+	/*
+	 * Total number of head refs ready for processing, protected by the
+	 * spinlock 'lock'.
+	 */
 	unsigned long num_heads_ready;
 
+	/*
+	 * Track space reserved for deleting csums of data extents.
+	 * Protected by the spinlock 'lock'.
+	 */
 	u64 pending_csums;
 
 	unsigned long flags;
 
+	/*
+	 * Track from which bytenr to start searching ref heads.
+	 * Protected by the spinlock 'lock'.
+	 */
 	u64 run_delayed_start;
 
 	/*
