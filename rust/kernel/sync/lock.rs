@@ -13,6 +13,9 @@ use macros::pin_data;
 pub mod mutex;
 pub mod spinlock;
 
+pub(super) mod global;
+pub use global::{GlobalGuard, GlobalLock, GlobalLockBackend, GlobalLockedBy};
+
 /// The "backend" of a lock.
 ///
 /// It is the actual implementation of the lock, without the need to repeat patterns used in all
