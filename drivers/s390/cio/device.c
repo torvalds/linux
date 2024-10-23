@@ -201,10 +201,9 @@ devtype_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device_id *id = &(cdev->id);
 
 	if (id->dev_type != 0)
-		return sprintf(buf, "%04x/%02x\n",
-				id->dev_type, id->dev_model);
+		return sysfs_emit(buf, "%04x/%02x\n", id->dev_type, id->dev_model);
 	else
-		return sprintf(buf, "n/a\n");
+		return sysfs_emit(buf, "n/a\n");
 }
 
 static ssize_t
@@ -213,8 +212,7 @@ cutype_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_device_id *id = &(cdev->id);
 
-	return sprintf(buf, "%04x/%02x\n",
-		       id->cu_type, id->cu_model);
+	return sysfs_emit(buf, "%04x/%02x\n", id->cu_type, id->cu_model);
 }
 
 static ssize_t
@@ -234,7 +232,7 @@ online_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 
-	return sprintf(buf, cdev->online ? "1\n" : "0\n");
+	return sysfs_emit(buf, cdev->online ? "1\n" : "0\n");
 }
 
 int ccw_device_is_orphan(struct ccw_device *cdev)
@@ -546,21 +544,21 @@ available_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct subchannel *sch;
 
 	if (ccw_device_is_orphan(cdev))
-		return sprintf(buf, "no device\n");
+		return sysfs_emit(buf, "no device\n");
 	switch (cdev->private->state) {
 	case DEV_STATE_BOXED:
-		return sprintf(buf, "boxed\n");
+		return sysfs_emit(buf, "boxed\n");
 	case DEV_STATE_DISCONNECTED:
 	case DEV_STATE_DISCONNECTED_SENSE_ID:
 	case DEV_STATE_NOT_OPER:
 		sch = to_subchannel(dev->parent);
 		if (!sch->lpm)
-			return sprintf(buf, "no path\n");
+			return sysfs_emit(buf, "no path\n");
 		else
-			return sprintf(buf, "no device\n");
+			return sysfs_emit(buf, "no device\n");
 	default:
 		/* All other states considered fine. */
-		return sprintf(buf, "good\n");
+		return sysfs_emit(buf, "good\n");
 	}
 }
 
@@ -587,7 +585,7 @@ static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
 {
 	struct subchannel *sch = to_subchannel(dev);
 
-	return sprintf(buf, "%02x\n", sch->vpm);
+	return sysfs_emit(buf, "%02x\n", sch->vpm);
 }
 
 static DEVICE_ATTR_RO(devtype);
