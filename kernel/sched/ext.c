@@ -217,6 +217,11 @@ struct sched_ext_ops {
 	 * is dispatched, the ops.enqueue() callback will be skipped. Finally,
 	 * if @p is dispatched to SCX_DSQ_LOCAL, it will be dispatched to the
 	 * local DSQ of whatever CPU is returned by this callback.
+	 *
+	 * Note that select_cpu() is never called for tasks that can only run
+	 * on a single CPU or tasks with migration disabled, as they don't have
+	 * the option to select a different CPU. See select_task_rq() for
+	 * details.
 	 */
 	s32 (*select_cpu)(struct task_struct *p, s32 prev_cpu, u64 wake_flags);
 
