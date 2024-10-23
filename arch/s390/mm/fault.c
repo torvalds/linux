@@ -293,14 +293,11 @@ static void do_exception(struct pt_regs *regs, int access)
 		vma_end_read(vma);
 	if (!(fault & VM_FAULT_RETRY)) {
 		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
-		if (unlikely(fault & VM_FAULT_ERROR))
-			goto error;
-		return;
+		goto done;
 	}
 	count_vm_vma_lock_event(VMA_LOCK_RETRY);
 	if (fault & VM_FAULT_MAJOR)
 		flags |= FAULT_FLAG_TRIED;
-
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
@@ -323,17 +320,14 @@ retry:
 	/* The fault is fully completed (including releasing mmap lock) */
 	if (fault & VM_FAULT_COMPLETED)
 		return;
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		mmap_read_unlock(mm);
-		goto error;
-	}
 	if (fault & VM_FAULT_RETRY) {
 		flags |= FAULT_FLAG_TRIED;
 		goto retry;
 	}
 	mmap_read_unlock(mm);
-	return;
-error:
+done:
+	if (!(fault & VM_FAULT_ERROR))
+		return;
 	if (fault & VM_FAULT_OOM) {
 		if (!user_mode(regs))
 			handle_fault_error_nolock(regs, 0);
