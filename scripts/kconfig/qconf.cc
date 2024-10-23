@@ -1616,9 +1616,6 @@ void ConfigMainWindow::listFocusChanged(void)
 
 void ConfigMainWindow::goBack(void)
 {
-	if (configList->rootEntry == &rootmenu)
-		return;
-
 	configList->setParentMenu();
 }
 
