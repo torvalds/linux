@@ -5333,6 +5333,7 @@ const struct rtw_chip_info rtw8822c_hw_spec = {
 	.usb_tx_agg_desc_num = 3,
 	.hw_feature_report = true,
 	.c2h_ra_report_size = 7,
+	.old_datarate_fb_limit = false,
 	.default_1ss_tx_path = BB_PATH_A,
 	.path_div_supported = true,
 	.ht_supported = true,
