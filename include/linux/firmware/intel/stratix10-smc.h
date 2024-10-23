@@ -3,6 +3,8 @@
  * Copyright (C) 2017-2018, Intel Corporation
  */
 
+#pragma once
+
 #ifndef __STRATIX10_SMC_H
 #define __STRATIX10_SMC_H
 
