@@ -114,6 +114,8 @@ enum sparx5_vlan_port_type {
 #define SPX5_DSM_CAL_LEN               64
 #define SPX5_DSM_CAL_MAX_DEVS_PER_TAXI 13
 
+#define SPARX5_MAX_PTP_ID	512
+
 struct sparx5;
 
 struct sparx5_calendar_data {
@@ -499,6 +501,9 @@ void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 				 struct sk_buff *skb);
 irqreturn_t sparx5_ptp_irq_handler(int irq, void *args);
 int sparx5_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
+void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
+			    struct timespec64 *ts,
+			    u32 nsec);
 
 /* sparx5_vcap_impl.c */
 int sparx5_vcap_init(struct sparx5 *sparx5);

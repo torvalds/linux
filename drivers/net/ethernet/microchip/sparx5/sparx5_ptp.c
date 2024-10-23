@@ -11,8 +11,6 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 
-#define SPARX5_MAX_PTP_ID	512
-
 #define TOD_ACC_PIN		0x4
 
 enum {
@@ -275,9 +273,9 @@ void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 	spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
 }
 
-static void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
-				   struct timespec64 *ts,
-				   u32 nsec)
+void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
+			    struct timespec64 *ts,
+			    u32 nsec)
 {
 	/* Read current PTP time to get seconds */
 	const struct sparx5_consts *consts = sparx5->data->consts;
@@ -305,6 +303,7 @@ static void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
 
 	spin_unlock_irqrestore(&sparx5->ptp_clock_lock, flags);
 }
+EXPORT_SYMBOL_GPL(sparx5_get_hwtimestamp);
 
 irqreturn_t sparx5_ptp_irq_handler(int irq, void *args)
 {
