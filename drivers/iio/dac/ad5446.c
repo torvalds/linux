@@ -233,7 +233,6 @@ static int ad5446_probe(struct device *dev, const char *name,
 	st = iio_priv(indio_dev);
 	st->chip_info = chip_info;
 
-	dev_set_drvdata(dev, indio_dev);
 	st->dev = dev;
 
 	indio_dev->name = name;
@@ -258,14 +257,7 @@ static int ad5446_probe(struct device *dev, const char *name,
 		st->vref_mv = ret / 1000;
 	}
 
-	return iio_device_register(indio_dev);
-}
-
-static void ad5446_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	iio_device_unregister(indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 #if IS_ENABLED(CONFIG_SPI_MASTER)
@@ -466,18 +458,12 @@ static int ad5446_spi_probe(struct spi_device *spi)
 		&ad5446_spi_chip_info[id->driver_data]);
 }
 
-static void ad5446_spi_remove(struct spi_device *spi)
-{
-	ad5446_remove(&spi->dev);
-}
-
 static struct spi_driver ad5446_spi_driver = {
 	.driver = {
 		.name	= "ad5446",
 		.of_match_table = ad5446_of_ids,
 	},
 	.probe		= ad5446_spi_probe,
-	.remove		= ad5446_spi_remove,
 	.id_table	= ad5446_spi_ids,
 };
 
@@ -550,11 +536,6 @@ static int ad5446_i2c_probe(struct i2c_client *i2c)
 		&ad5446_i2c_chip_info[id->driver_data]);
 }
 
-static void ad5446_i2c_remove(struct i2c_client *i2c)
-{
-	ad5446_remove(&i2c->dev);
-}
-
 static const struct i2c_device_id ad5446_i2c_ids[] = {
 	{"ad5301", ID_AD5602},
 	{"ad5311", ID_AD5612},
@@ -571,7 +552,6 @@ static struct i2c_driver ad5446_i2c_driver = {
 		   .name = "ad5446",
 	},
 	.probe = ad5446_i2c_probe,
-	.remove = ad5446_i2c_remove,
 	.id_table = ad5446_i2c_ids,
 };
 
