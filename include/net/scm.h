@@ -109,10 +109,9 @@ static inline void scm_passec(struct socket *sock, struct msghdr *msg, struct sc
 	int err;
 
 	if (test_bit(SOCK_PASSSEC, &sock->flags)) {
-		err = security_secid_to_secctx(scm->secid, &ctx.context,
-					       &ctx.len);
+		err = security_secid_to_secctx(scm->secid, &ctx);
 
-		if (!err) {
+		if (err >= 0) {
 			put_cmsg(msg, SOL_SOCKET, SCM_SECURITY, ctx.len,
 				 ctx.context);
 			security_release_secctx(&ctx);

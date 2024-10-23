@@ -136,8 +136,8 @@ static void ip_cmsg_recv_security(struct msghdr *msg, struct sk_buff *skb)
 	if (err)
 		return;
 
-	err = security_secid_to_secctx(secid, &ctx.context, &ctx.len);
-	if (err)
+	err = security_secid_to_secctx(secid, &ctx);
+	if (err < 0)
 		return;
 
 	put_cmsg(msg, SOL_IP, SCM_SECURITY, ctx.len, ctx.context);

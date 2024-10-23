@@ -4818,40 +4818,47 @@ static int smack_ismaclabel(const char *name)
 }
 
 /**
+ * smack_to_secctx - fill a lsm_context
+ * @skp: Smack label
+ * @cp: destination
+ *
+ * Fill the passed @cp and return the length of the string
+ */
+static int smack_to_secctx(struct smack_known *skp, struct lsm_context *cp)
+{
+	int len = strlen(skp->smk_known);
+
+	if (cp) {
+		cp->context = skp->smk_known;
+		cp->len = len;
+		cp->id = LSM_ID_SMACK;
+	}
+	return len;
+}
+
+/**
  * smack_secid_to_secctx - return the smack label for a secid
  * @secid: incoming integer
- * @secdata: destination
- * @seclen: how long it is
+ * @cp: destination
  *
  * Exists for networking code.
  */
-static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+static int smack_secid_to_secctx(u32 secid, struct lsm_context *cp)
 {
-	struct smack_known *skp = smack_from_secid(secid);
-
-	if (secdata)
-		*secdata = skp->smk_known;
-	*seclen = strlen(skp->smk_known);
-	return 0;
+	return smack_to_secctx(smack_from_secid(secid), cp);
 }
 
 /**
  * smack_lsmprop_to_secctx - return the smack label
  * @prop: includes incoming Smack data
- * @secdata: destination
- * @seclen: how long it is
+ * @cp: destination
  *
  * Exists for audit code.
  */
-static int smack_lsmprop_to_secctx(struct lsm_prop *prop, char **secdata,
-				   u32 *seclen)
+static int smack_lsmprop_to_secctx(struct lsm_prop *prop,
+				   struct lsm_context *cp)
 {
-	struct smack_known *skp = prop->smack.skp;
-
-	if (secdata)
-		*secdata = skp->smk_known;
-	*seclen = strlen(skp->smk_known);
-	return 0;
+	return smack_to_secctx(prop->smack.skp, cp);
 }
 
 /**

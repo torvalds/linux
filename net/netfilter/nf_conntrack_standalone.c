@@ -175,8 +175,8 @@ static void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 	struct lsm_context ctx;
 	int ret;
 
-	ret = security_secid_to_secctx(ct->secmark, &ctx.context, &ctx.len);
-	if (ret)
+	ret = security_secid_to_secctx(ct->secmark, &ctx);
+	if (ret < 0)
 		return;
 
 	seq_printf(s, "secctx=%s ", ctx.context);

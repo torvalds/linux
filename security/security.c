@@ -4304,40 +4304,36 @@ EXPORT_SYMBOL(security_ismaclabel);
 /**
  * security_secid_to_secctx() - Convert a secid to a secctx
  * @secid: secid
- * @secdata: secctx
- * @seclen: secctx length
+ * @cp: the LSM context
  *
- * Convert secid to security context.  If @secdata is NULL the length of the
- * result will be returned in @seclen, but no @secdata will be returned.  This
+ * Convert secid to security context.  If @cp is NULL the length of the
+ * result will be returned, but no data will be returned.  This
  * does mean that the length could change between calls to check the length and
- * the next call which actually allocates and returns the @secdata.
+ * the next call which actually allocates and returns the data.
  *
- * Return: Return 0 on success, error on failure.
+ * Return: Return length of data on success, error on failure.
  */
-int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+int security_secid_to_secctx(u32 secid, struct lsm_context *cp)
 {
-	return call_int_hook(secid_to_secctx, secid, secdata, seclen);
+	return call_int_hook(secid_to_secctx, secid, cp);
 }
 EXPORT_SYMBOL(security_secid_to_secctx);
 
 /**
  * security_lsmprop_to_secctx() - Convert a lsm_prop to a secctx
  * @prop: lsm specific information
- * @secdata: secctx
- * @seclen: secctx length
+ * @cp: the LSM context
  *
- * Convert a @prop entry to security context.  If @secdata is NULL the
- * length of the result will be returned in @seclen, but no @secdata
- * will be returned.  This does mean that the length could change between
- * calls to check the length and the next call which actually allocates
- * and returns the @secdata.
+ * Convert a @prop entry to security context.  If @cp is NULL the
+ * length of the result will be returned. This does mean that the
+ * length could change between calls to check the length and the
+ * next call which actually allocates and returns the @cp.
  *
- * Return: Return 0 on success, error on failure.
+ * Return: Return length of data on success, error on failure.
  */
-int security_lsmprop_to_secctx(struct lsm_prop *prop, char **secdata,
-			       u32 *seclen)
+int security_lsmprop_to_secctx(struct lsm_prop *prop, struct lsm_context *cp)
 {
-	return call_int_hook(lsmprop_to_secctx, prop, secdata, seclen);
+	return call_int_hook(lsmprop_to_secctx, prop, cp);
 }
 EXPORT_SYMBOL(security_lsmprop_to_secctx);
 
