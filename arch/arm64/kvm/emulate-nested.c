@@ -79,7 +79,6 @@ enum cgt_group_id {
 	CGT_MDCR_E2TB,
 	CGT_MDCR_TDCC,
 
-	CGT_CPACR_E0POE,
 	CGT_CPTR_TAM,
 	CGT_CPTR_TCPAC,
 
@@ -360,12 +359,6 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TDCC,
 		.mask		= MDCR_EL2_TDCC,
-		.behaviour	= BEHAVE_FORWARD_ANY,
-	},
-	[CGT_CPACR_E0POE] = {
-		.index		= CPTR_EL2,
-		.value		= CPACR_ELx_E0POE,
-		.mask		= CPACR_ELx_E0POE,
 		.behaviour	= BEHAVE_FORWARD_ANY,
 	},
 	[CGT_CPTR_TAM] = {
@@ -1141,7 +1134,6 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(SYS_AMEVTYPER1_EL0(13),	CGT_CPTR_TAM),
 	SR_TRAP(SYS_AMEVTYPER1_EL0(14),	CGT_CPTR_TAM),
 	SR_TRAP(SYS_AMEVTYPER1_EL0(15),	CGT_CPTR_TAM),
-	SR_TRAP(SYS_POR_EL0,		CGT_CPACR_E0POE),
 	/* op0=2, op1=1, and CRn<0b1000 */
 	SR_RANGE_TRAP(sys_reg(2, 1, 0, 0, 0),
 		      sys_reg(2, 1, 7, 15, 7), CGT_CPTR_TTA),
