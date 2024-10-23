@@ -99,9 +99,12 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
 	}
 
 	if (selem) {
-		if (value)
+		if (value) {
+			/* No need to call check_and_init_map_value as memory is zero init */
 			copy_map_value(&smap->map, SDATA(selem)->data, value);
-		/* No need to call check_and_init_map_value as memory is zero init */
+			if (swap_uptrs)
+				bpf_obj_swap_uptrs(smap->map.record, SDATA(selem)->data, value);
+		}
 		return selem;
 	}
 
