@@ -175,17 +175,16 @@ void ConfigItem::updateMenu(void)
 		setText(dataColIdx, sym_get_string_value(sym));
 		break;
 	}
-	if (!sym_has_value(sym) && visible)
+	if (!sym_has_value(sym))
 		prompt += " (NEW)";
 set_prompt:
 	setText(promptColIdx, prompt);
 }
 
-void ConfigItem::testUpdateMenu(bool v)
+void ConfigItem::testUpdateMenu(void)
 {
 	ConfigItem* i;
 
-	visible = v;
 	if (!menu)
 		return;
 
@@ -429,7 +428,7 @@ void ConfigList::updateList()
 			item = (ConfigItem*)(*it);
 			if (!item->menu)
 				continue;
-			item->testUpdateMenu(menu_is_visible(item->menu));
+			item->testUpdateMenu();
 
 			++it;
 		}
@@ -439,16 +438,16 @@ void ConfigList::updateList()
 	if (rootEntry != &rootmenu && mode == singleMode) {
 		item = (ConfigItem *)topLevelItem(0);
 		if (!item)
-			item = new ConfigItem(this, 0, true);
+			item = new ConfigItem(this, 0);
 		last = item;
 	}
 	if ((mode == singleMode || (mode == symbolMode && !(rootEntry->flags & MENU_ROOT))) &&
 	    rootEntry->sym && rootEntry->prompt) {
 		item = last ? last->nextSibling() : nullptr;
 		if (!item)
-			item = new ConfigItem(this, last, rootEntry, true);
+			item = new ConfigItem(this, last, rootEntry);
 		else
-			item->testUpdateMenu(true);
+			item->testUpdateMenu();
 
 		updateMenuList(item, rootEntry);
 		update();
@@ -597,7 +596,6 @@ void ConfigList::updateMenuList(ConfigItem *parent, struct menu* menu)
 	struct menu* child;
 	ConfigItem* item;
 	ConfigItem* last;
-	bool visible;
 	enum prop_type type;
 
 	if (!menu) {
@@ -629,14 +627,13 @@ void ConfigList::updateMenuList(ConfigItem *parent, struct menu* menu)
 			break;
 		}
 
-		visible = menu_is_visible(child);
 		if (!menuSkip(child)) {
 			if (!child->sym && !child->list && !child->prompt)
 				continue;
 			if (!item || item->menu != child)
-				item = new ConfigItem(parent, last, child, visible);
+				item = new ConfigItem(parent, last, child);
 			else
-				item->testUpdateMenu(visible);
+				item->testUpdateMenu();
 
 			if (mode == fullMode || mode == menuMode || type != P_MENU)
 				updateMenuList(item, child);
@@ -662,7 +659,6 @@ void ConfigList::updateMenuList(struct menu *menu)
 	struct menu* child;
 	ConfigItem* item;
 	ConfigItem* last;
-	bool visible;
 	enum prop_type type;
 
 	if (!menu) {
@@ -694,14 +690,13 @@ void ConfigList::updateMenuList(struct menu *menu)
 			break;
 		}
 
-		visible = menu_is_visible(child);
 		if (!menuSkip(child)) {
 			if (!child->sym && !child->list && !child->prompt)
 				continue;
 			if (!item || item->menu != child)
-				item = new ConfigItem(this, last, child, visible);
+				item = new ConfigItem(this, last, child);
 			else
-				item->testUpdateMenu(visible);
+				item->testUpdateMenu();
 
 			if (mode == fullMode || mode == menuMode || type != P_MENU)
 				updateMenuList(item, child);
@@ -1274,8 +1269,7 @@ void ConfigSearchWindow::search(void)
 		return;
 	for (p = result; *p; p++) {
 		for_all_prompts((*p), prop)
-			lastItem = new ConfigItem(list, lastItem, prop->menu,
-						  menu_is_visible(prop->menu));
+			lastItem = new ConfigItem(list, lastItem, prop->menu);
 	}
 }
 

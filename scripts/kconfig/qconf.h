@@ -114,25 +114,25 @@ public:
 class ConfigItem : public QTreeWidgetItem {
 	typedef class QTreeWidgetItem Parent;
 public:
-	ConfigItem(ConfigList *parent, ConfigItem *after, struct menu *m, bool v)
-	: Parent(parent, after), nextItem(0), menu(m), visible(v), goParent(false)
+	ConfigItem(ConfigList *parent, ConfigItem *after, struct menu *m)
+	: Parent(parent, after), nextItem(0), menu(m), goParent(false)
 	{
 		init();
 	}
-	ConfigItem(ConfigItem *parent, ConfigItem *after, struct menu *m, bool v)
-	: Parent(parent, after), nextItem(0), menu(m), visible(v), goParent(false)
+	ConfigItem(ConfigItem *parent, ConfigItem *after, struct menu *m)
+	: Parent(parent, after), nextItem(0), menu(m), goParent(false)
 	{
 		init();
 	}
-	ConfigItem(ConfigList *parent, ConfigItem *after, bool v)
-	: Parent(parent, after), nextItem(0), menu(0), visible(v), goParent(true)
+	ConfigItem(ConfigList *parent, ConfigItem *after)
+	: Parent(parent, after), nextItem(0), menu(0), goParent(true)
 	{
 		init();
 	}
 	~ConfigItem(void);
 	void init(void);
 	void updateMenu(void);
-	void testUpdateMenu(bool v);
+	void testUpdateMenu(void);
 	ConfigList* listView() const
 	{
 		return (ConfigList*)Parent::treeWidget();
@@ -159,7 +159,6 @@ public:
 
 	ConfigItem* nextItem;
 	struct menu *menu;
-	bool visible;
 	bool goParent;
 
 	static QIcon symbolYesIcon, symbolModIcon, symbolNoIcon;
