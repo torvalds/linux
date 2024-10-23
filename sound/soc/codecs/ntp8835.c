@@ -428,7 +428,7 @@ static int ntp8835_i2c_probe(struct i2c_client *i2c)
 
 	ret = reset_control_deassert(ntp8835->reset);
 	if (ret)
-		return dev_err_probe(&i2c->dev, PTR_ERR(ntp8835->reset),
+		return dev_err_probe(&i2c->dev, ret,
 				     "Failed to deassert reset\n");
 
 	dev_set_drvdata(&i2c->dev, ntp8835);
