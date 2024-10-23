@@ -478,6 +478,7 @@ static int rtw_usb_write_data_rsvd_page(struct rtw_dev *rtwdev, u8 *buf,
 	pkt_info.tx_pkt_size = size;
 	pkt_info.qsel = TX_DESC_QSEL_BEACON;
 	pkt_info.offset = chip->tx_pkt_desc_sz;
+	pkt_info.ls = true;
 
 	return rtw_usb_write_data(rtwdev, &pkt_info, buf);
 }
