@@ -40,9 +40,11 @@ struct s1_walk_result {
 			u8	APTable;
 			bool	UXNTable;
 			bool	PXNTable;
+			bool	uov;
 			bool	ur;
 			bool	uw;
 			bool	ux;
+			bool	pov;
 			bool	pr;
 			bool	pw;
 			bool	px;
@@ -881,6 +883,9 @@ static void compute_s1_direct_permissions(struct kvm_vcpu *vcpu,
 		/* XN maps to UXN */
 		wr->px = !(wr->desc & PTE_UXN);
 	}
+
+	wr->pov = wi->poe;
+	wr->uov = wi->e0poe;
 }
 
 static void compute_s1_hierarchical_permissions(struct kvm_vcpu *vcpu,
@@ -1016,10 +1021,55 @@ static void compute_s1_indirect_permissions(struct kvm_vcpu *vcpu,
 	else
 		set_unpriv_perms(wr, false, false, false);
 
+	wr->pov = wi->poe && !(pp & BIT(3));
+	wr->uov = wi->e0poe && !(up & BIT(3));
+
 	/* R_VFPJF */
 	if (wr->px && wr->uw) {
 		set_priv_perms(wr, false, false, false);
 		set_unpriv_perms(wr, false, false, false);
+	}
+}
+
+static void compute_s1_overlay_permissions(struct kvm_vcpu *vcpu,
+					   struct s1_walk_info *wi,
+					   struct s1_walk_result *wr)
+{
+	u8 idx, pov_perms, uov_perms;
+
+	idx = FIELD_GET(PTE_PO_IDX_MASK, wr->desc);
+
+	switch (wi->regime) {
+	case TR_EL10:
+		pov_perms = perm_idx(vcpu, POR_EL1, idx);
+		uov_perms = perm_idx(vcpu, POR_EL0, idx);
+		break;
+	case TR_EL20:
+		pov_perms = perm_idx(vcpu, POR_EL2, idx);
+		uov_perms = perm_idx(vcpu, POR_EL0, idx);
+		break;
+	case TR_EL2:
+		pov_perms = perm_idx(vcpu, POR_EL2, idx);
+		uov_perms = 0;
+		break;
+	}
+
+	if (pov_perms & ~POE_RXW)
+		pov_perms = POE_NONE;
+
+	if (wi->poe && wr->pov) {
+		wr->pr &= pov_perms & POE_R;
+		wr->px &= pov_perms & POE_X;
+		wr->pw &= pov_perms & POE_W;
+	}
+
+	if (uov_perms & ~POE_RXW)
+		uov_perms = POE_NONE;
+
+	if (wi->e0poe && wr->uov) {
+		wr->ur &= uov_perms & POE_R;
+		wr->ux &= uov_perms & POE_X;
+		wr->uw &= uov_perms & POE_W;
 	}
 }
 
@@ -1036,6 +1086,9 @@ static void compute_s1_permissions(struct kvm_vcpu *vcpu,
 
 	if (!wi->hpd)
 		compute_s1_hierarchical_permissions(vcpu, wi, wr);
+
+	if (wi->poe || wi->e0poe)
+		compute_s1_overlay_permissions(vcpu, wi, wr);
 
 	pan = wi->pan && (wr->ur || wr->uw ||
 			  (pan3_enabled(vcpu, wi->regime) && wr->ux));
