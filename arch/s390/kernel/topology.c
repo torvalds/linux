@@ -412,7 +412,7 @@ static ssize_t dispatching_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	count = sprintf(buf, "%d\n", cpu_management);
+	count = sysfs_emit(buf, "%d\n", cpu_management);
 	mutex_unlock(&smp_cpu_state_mutex);
 	return count;
 }
@@ -443,19 +443,19 @@ static ssize_t cpu_polarization_show(struct device *dev,
 	mutex_lock(&smp_cpu_state_mutex);
 	switch (smp_cpu_get_polarization(cpu)) {
 	case POLARIZATION_HRZ:
-		count = sprintf(buf, "horizontal\n");
+		count = sysfs_emit(buf, "horizontal\n");
 		break;
 	case POLARIZATION_VL:
-		count = sprintf(buf, "vertical:low\n");
+		count = sysfs_emit(buf, "vertical:low\n");
 		break;
 	case POLARIZATION_VM:
-		count = sprintf(buf, "vertical:medium\n");
+		count = sysfs_emit(buf, "vertical:medium\n");
 		break;
 	case POLARIZATION_VH:
-		count = sprintf(buf, "vertical:high\n");
+		count = sysfs_emit(buf, "vertical:high\n");
 		break;
 	default:
-		count = sprintf(buf, "unknown\n");
+		count = sysfs_emit(buf, "unknown\n");
 		break;
 	}
 	mutex_unlock(&smp_cpu_state_mutex);
@@ -479,7 +479,7 @@ static ssize_t cpu_dedicated_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	count = sprintf(buf, "%d\n", topology_cpu_dedicated(cpu));
+	count = sysfs_emit(buf, "%d\n", topology_cpu_dedicated(cpu));
 	mutex_unlock(&smp_cpu_state_mutex);
 	return count;
 }
