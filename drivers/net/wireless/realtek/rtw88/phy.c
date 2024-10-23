@@ -530,6 +530,13 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 	 */
 	rtw_phy_dig_recorder(dm_info, cur_igi, fa_cnt);
 
+	/* Mitigate beacon loss and connectivity issues, mainly (only?)
+	 * in the 5 GHz band
+	 */
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8812A && rtwdev->beacon_loss &&
+	    linked && dm_info->total_fa_cnt < DIG_PERF_FA_TH_EXTRA_HIGH)
+		cur_igi = DIG_CVRG_MIN;
+
 	if (cur_igi != pre_igi)
 		rtw_phy_dig_write(rtwdev, cur_igi);
 }
