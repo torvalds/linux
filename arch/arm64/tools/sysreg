@@ -2907,6 +2907,10 @@ Sysreg	POR_EL1		3	0	10	2	4
 Fields	PIRx_ELx
 EndSysreg
 
+Sysreg	POR_EL2		3	4	10	2	4
+Fields	PIRx_ELx
+EndSysreg
+
 Sysreg	POR_EL12	3	5	10	2	4
 Fields	PIRx_ELx
 EndSysreg
