@@ -55,9 +55,7 @@ public:
 
 protected:
 	void keyPressEvent(QKeyEvent *e);
-	void mousePressEvent(QMouseEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
 	void mouseDoubleClickEvent(QMouseEvent *e);
 	void focusInEvent(QFocusEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);

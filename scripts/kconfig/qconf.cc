@@ -781,13 +781,6 @@ void ConfigList::keyPressEvent(QKeyEvent* ev)
 	ev->accept();
 }
 
-void ConfigList::mousePressEvent(QMouseEvent* e)
-{
-	//QPoint p(contentsToViewport(e->pos()));
-	//printf("contentsMousePressEvent: %d,%d\n", p.x(), p.y());
-	Parent::mousePressEvent(e);
-}
-
 void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 {
 	QPoint p = e->pos();
@@ -832,13 +825,6 @@ void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 skip:
 	//printf("contentsMouseReleaseEvent: %d,%d\n", p.x(), p.y());
 	Parent::mouseReleaseEvent(e);
-}
-
-void ConfigList::mouseMoveEvent(QMouseEvent* e)
-{
-	//QPoint p(contentsToViewport(e->pos()));
-	//printf("contentsMouseMoveEvent: %d,%d\n", p.x(), p.y());
-	Parent::mouseMoveEvent(e);
 }
 
 void ConfigList::mouseDoubleClickEvent(QMouseEvent* e)
