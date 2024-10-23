@@ -18,6 +18,7 @@
 #include "uptr_test_common.h"
 #include "task_ls_uptr.skel.h"
 #include "uptr_update_failure.skel.h"
+#include "uptr_failure.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -467,4 +468,5 @@ void test_task_local_storage(void)
 		test_uptr_across_pages();
 	if (test__start_subtest("uptr_update_failure"))
 		test_uptr_update_failure();
+	RUN_TESTS(uptr_failure);
 }
