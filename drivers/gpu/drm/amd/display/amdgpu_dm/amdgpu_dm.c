@@ -10119,6 +10119,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	for (i = 0; i < crtc_disable_count; i++)
 		pm_runtime_put_autosuspend(dev->dev);
 	pm_runtime_mark_last_busy(dev->dev);
+
+	trace_amdgpu_dm_atomic_commit_tail_finish(state);
 }
 
 static int dm_force_atomic_commit(struct drm_connector *connector)
