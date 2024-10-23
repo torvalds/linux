@@ -2342,9 +2342,11 @@ static int cfe_probe(struct platform_device *pdev)
 
 	/* TODO: Enable clock only when running. */
 	cfe->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(cfe->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(cfe->clk),
-				     "clock not found\n");
+	if (IS_ERR(cfe->clk)) {
+		ret = dev_err_probe(&pdev->dev, PTR_ERR(cfe->clk),
+				    "clock not found\n");
+		goto err_cfe_put;
+	}
 
 	cfe->mdev.dev = &pdev->dev;
 	cfe->mdev.ops = &cfe_media_device_ops;
