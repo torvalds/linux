@@ -2408,6 +2408,21 @@ int phylink_ethtool_set_wol(struct phylink *pl, struct ethtool_wolinfo *wol)
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_set_wol);
 
+static phy_interface_t phylink_sfp_select_interface(struct phylink *pl,
+						const unsigned long *link_modes)
+{
+	phy_interface_t interface;
+
+	interface = sfp_select_interface(pl->sfp_bus, link_modes);
+	if (interface == PHY_INTERFACE_MODE_NA)
+		phylink_err(pl,
+			    "selection of interface failed, advertisement %*pb\n",
+			    __ETHTOOL_LINK_MODE_MASK_NBITS,
+			    link_modes);
+
+	return interface;
+}
+
 static void phylink_merge_link_mode(unsigned long *dst, const unsigned long *b)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask);
@@ -2590,15 +2605,10 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	 * link can be configured correctly.
 	 */
 	if (pl->sfp_bus) {
-		config.interface = sfp_select_interface(pl->sfp_bus,
+		config.interface = phylink_sfp_select_interface(pl,
 							config.advertising);
-		if (config.interface == PHY_INTERFACE_MODE_NA) {
-			phylink_err(pl,
-				    "selection of interface failed, advertisement %*pb\n",
-				    __ETHTOOL_LINK_MODE_MASK_NBITS,
-				    config.advertising);
+		if (config.interface == PHY_INTERFACE_MODE_NA)
 			return -EINVAL;
-		}
 
 		/* Revalidate with the selected interface */
 		linkmode_copy(support, pl->supported);
@@ -3227,13 +3237,9 @@ static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
 		return ret;
 	}
 
-	iface = sfp_select_interface(pl->sfp_bus, config.advertising);
-	if (iface == PHY_INTERFACE_MODE_NA) {
-		phylink_err(pl,
-			    "selection of interface failed, advertisement %*pb\n",
-			    __ETHTOOL_LINK_MODE_MASK_NBITS, config.advertising);
+	iface = phylink_sfp_select_interface(pl, config.advertising);
+	if (iface == PHY_INTERFACE_MODE_NA)
 		return -EINVAL;
-	}
 
 	config.interface = iface;
 	linkmode_copy(support1, support);
