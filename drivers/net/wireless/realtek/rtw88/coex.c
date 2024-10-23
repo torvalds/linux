@@ -446,7 +446,7 @@ static void rtw_coex_check_rfk(struct rtw_dev *rtwdev)
 	}
 }
 
-static void rtw_coex_query_bt_info(struct rtw_dev *rtwdev)
+void rtw_coex_query_bt_info(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
