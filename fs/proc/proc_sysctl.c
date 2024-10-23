@@ -704,11 +704,11 @@ static bool proc_sys_fill_cache(struct file *file,
 			res = d_splice_alias(inode, child);
 			d_lookup_done(child);
 			if (unlikely(res)) {
-				if (IS_ERR(res)) {
-					dput(child);
-					return false;
-				}
 				dput(child);
+
+				if (IS_ERR(res))
+					return false;
+
 				child = res;
 			}
 		}
