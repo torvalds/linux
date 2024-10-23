@@ -1923,6 +1923,7 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 			    __func__, q2spi_pkt);
 		return 0;
 	} else if (ret == -EINVAL) {
+		q2spi_unmap_var_bufs(q2spi, q2spi_pkt);
 		return -EINVAL;
 	} else if (ret) {
 		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p __q2spi_send_messages ret:%d\n",
