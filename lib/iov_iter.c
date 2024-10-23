@@ -1021,15 +1021,18 @@ static ssize_t iter_folioq_get_pages(struct iov_iter *iter,
 		size_t offset = iov_offset, fsize = folioq_folio_size(folioq, slot);
 		size_t part = PAGE_SIZE - offset % PAGE_SIZE;
 
-		part = umin(part, umin(maxsize - extracted, fsize - offset));
-		count -= part;
-		iov_offset += part;
-		extracted += part;
+		if (offset < fsize) {
+			part = umin(part, umin(maxsize - extracted, fsize - offset));
+			count -= part;
+			iov_offset += part;
+			extracted += part;
 
-		*pages = folio_page(folio, offset / PAGE_SIZE);
-		get_page(*pages);
-		pages++;
-		maxpages--;
+			*pages = folio_page(folio, offset / PAGE_SIZE);
+			get_page(*pages);
+			pages++;
+			maxpages--;
+		}
+
 		if (maxpages == 0 || extracted >= maxsize)
 			break;
 
