@@ -2433,8 +2433,9 @@ void tcp_plb_update_state_upon_rto(struct sock *sk, struct tcp_plb_state *plb);
 static inline void tcp_warn_once(const struct sock *sk, bool cond, const char *str)
 {
 	WARN_ONCE(cond,
-		  "%sout:%u sacked:%u lost:%u retrans:%u tlp_high_seq:%u sk_state:%u ca_state:%u advmss:%u mss_cache:%u pmtu:%u\n",
+		  "%scwn:%u out:%u sacked:%u lost:%u retrans:%u tlp_high_seq:%u sk_state:%u ca_state:%u advmss:%u mss_cache:%u pmtu:%u\n",
 		  str,
+		  tcp_snd_cwnd(tcp_sk(sk)),
 		  tcp_sk(sk)->packets_out, tcp_sk(sk)->sacked_out,
 		  tcp_sk(sk)->lost_out, tcp_sk(sk)->retrans_out,
 		  tcp_sk(sk)->tlp_high_seq, sk->sk_state,

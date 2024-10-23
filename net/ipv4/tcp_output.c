@@ -2954,9 +2954,7 @@ void tcp_send_loss_probe(struct sock *sk)
 	}
 	skb = skb_rb_last(&sk->tcp_rtx_queue);
 	if (unlikely(!skb)) {
-		WARN_ONCE(tp->packets_out,
-			  "invalid inflight: %u state %u cwnd %u mss %d\n",
-			  tp->packets_out, sk->sk_state, tcp_snd_cwnd(tp), mss);
+		tcp_warn_once(sk, tp->packets_out, "invalid inflight: ");
 		smp_store_release(&inet_csk(sk)->icsk_pending, 0);
 		return;
 	}
