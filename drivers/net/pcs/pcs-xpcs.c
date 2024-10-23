@@ -223,8 +223,8 @@ static int xpcs_poll_reset(struct dw_xpcs *xpcs, int dev)
 	int ret, val;
 
 	ret = read_poll_timeout(xpcs_read, val,
-				val < 0 || !(val & MDIO_CTRL1_RESET),
-				50000, 600000, true, xpcs, dev, MDIO_CTRL1);
+				val < 0 || !(val & BMCR_RESET),
+				50000, 600000, true, xpcs, dev, MII_BMCR);
 	if (val < 0)
 		ret = val;
 
@@ -250,7 +250,7 @@ static int xpcs_soft_reset(struct dw_xpcs *xpcs,
 		return -EINVAL;
 	}
 
-	ret = xpcs_write(xpcs, dev, MDIO_CTRL1, MDIO_CTRL1_RESET);
+	ret = xpcs_write(xpcs, dev, MII_BMCR, BMCR_RESET);
 	if (ret < 0)
 		return ret;
 
@@ -311,7 +311,7 @@ static int xpcs_read_fault_c73(struct dw_xpcs *xpcs,
 	return 0;
 }
 
-static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
+static void xpcs_link_up_usxgmii(struct dw_xpcs *xpcs, int speed)
 {
 	int ret, speed_sel;
 
@@ -343,7 +343,7 @@ static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 	if (ret < 0)
 		goto out;
 
-	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, DW_USXGMII_SS_MASK,
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR, DW_USXGMII_SS_MASK,
 			  speed_sel | DW_USXGMII_FULL);
 	if (ret < 0)
 		goto out;
@@ -646,19 +646,21 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 	 *    speed/duplex mode change by HW after SGMII AN complete)
 	 * 5) VR_MII_MMD_CTRL Bit(12) [AN_ENABLE] = 1b (Enable SGMII AN)
 	 *
+	 * Note that VR_MII_MMD_CTRL is MII_BMCR.
+	 *
 	 * Note: Since it is MAC side SGMII, there is no need to set
 	 *	 SR_MII_AN_ADV. MAC side SGMII receives AN Tx Config from
 	 *	 PHY about the link state change after C28 AN is completed
 	 *	 between PHY and Link Partner. There is also no need to
 	 *	 trigger AN restart for MAC-side SGMII.
 	 */
-	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL);
+	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMCR);
 	if (mdio_ctrl < 0)
 		return mdio_ctrl;
 
-	if (mdio_ctrl & AN_CL37_EN) {
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl & ~AN_CL37_EN);
+	if (mdio_ctrl & BMCR_ANENABLE) {
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl & ~BMCR_ANENABLE);
 		if (ret < 0)
 			return ret;
 	}
@@ -696,8 +698,8 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 		return ret;
 
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl | AN_CL37_EN);
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl | BMCR_ANENABLE);
 
 	return ret;
 }
@@ -715,14 +717,16 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 	 * be disabled first:-
 	 * 1) VR_MII_MMD_CTRL Bit(12)[AN_ENABLE] = 0b
 	 * 2) VR_MII_AN_CTRL Bit(2:1)[PCS_MODE] = 00b (1000BASE-X C37)
+	 *
+	 * Note that VR_MII_MMD_CTRL is MII_BMCR.
 	 */
-	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL);
+	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMCR);
 	if (mdio_ctrl < 0)
 		return mdio_ctrl;
 
-	if (mdio_ctrl & AN_CL37_EN) {
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl & ~AN_CL37_EN);
+	if (mdio_ctrl & BMCR_ANENABLE) {
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl & ~BMCR_ANENABLE);
 		if (ret < 0)
 			return ret;
 	}
@@ -760,8 +764,8 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 		return ret;
 
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
-		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-				 mdio_ctrl | AN_CL37_EN);
+		ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+				 mdio_ctrl | BMCR_ANENABLE);
 		if (ret < 0)
 			return ret;
 	}
@@ -780,9 +784,9 @@ static int xpcs_config_2500basex(struct dw_xpcs *xpcs)
 	if (ret < 0)
 		return ret;
 
-	return xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL,
-			   AN_CL37_EN | SGMII_SPEED_SS6 | SGMII_SPEED_SS13,
-			   SGMII_SPEED_SS6);
+	return xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+			   BMCR_ANENABLE | BMCR_SPEED1000 | BMCR_SPEED100,
+			   BMCR_SPEED1000);
 }
 
 static int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
@@ -972,14 +976,14 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 
 		state->link = true;
 
-		speed = xpcs_read(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1);
+		speed = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMCR);
 		if (speed < 0)
 			return speed;
 
-		speed &= SGMII_SPEED_SS13 | SGMII_SPEED_SS6;
-		if (speed == SGMII_SPEED_SS6)
+		speed &= BMCR_SPEED100 | BMCR_SPEED1000;
+		if (speed == BMCR_SPEED1000)
 			state->speed = SPEED_1000;
-		else if (speed == SGMII_SPEED_SS13)
+		else if (speed == BMCR_SPEED100)
 			state->speed = SPEED_100;
 		else if (speed == 0)
 			state->speed = SPEED_10;
@@ -988,9 +992,9 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 		if (duplex < 0)
 			return duplex;
 
-		if (duplex & DW_FULL_DUPLEX)
+		if (duplex & ADVERTISE_1000XFULL)
 			state->duplex = DUPLEX_FULL;
-		else if (duplex & DW_HALF_DUPLEX)
+		else if (duplex & ADVERTISE_1000XHALF)
 			state->duplex = DUPLEX_HALF;
 
 		xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_INTR_STS, 0);
@@ -1039,13 +1043,13 @@ static int xpcs_get_state_2500basex(struct dw_xpcs *xpcs,
 {
 	int ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_STS);
+	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_BMSR);
 	if (ret < 0) {
 		state->link = 0;
 		return ret;
 	}
 
-	state->link = !!(ret & DW_VR_MII_MMD_STS_LINK_STS);
+	state->link = !!(ret & BMSR_LSTATUS);
 	if (!state->link)
 		return 0;
 
@@ -1100,48 +1104,32 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 	}
 }
 
-static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int neg_mode,
-			       int speed, int duplex)
+static void xpcs_link_up_sgmii_1000basex(struct dw_xpcs *xpcs,
+					 unsigned int neg_mode,
+					 phy_interface_t interface,
+					 int speed, int duplex)
 {
-	int val, ret;
+	int ret;
 
 	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		return;
 
-	val = mii_bmcr_encode_fixed(speed, duplex);
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
-	if (ret)
-		dev_err(&xpcs->mdiodev->dev, "%s: xpcs_write returned %pe\n",
-			__func__, ERR_PTR(ret));
-}
+	if (interface == PHY_INTERFACE_MODE_1000BASEX) {
+		if (speed != SPEED_1000) {
+			dev_err(&xpcs->mdiodev->dev,
+				"%s: speed %dMbps not supported\n",
+				__func__, speed);
+			return;
+		}
 
-static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
-				   int speed, int duplex)
-{
-	int val, ret;
-
-	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
-		return;
-
-	switch (speed) {
-	case SPEED_1000:
-		val = BMCR_SPEED1000;
-		break;
-	case SPEED_100:
-	case SPEED_10:
-	default:
-		dev_err(&xpcs->mdiodev->dev, "%s: speed = %d\n",
-			__func__, speed);
-		return;
+		if (duplex != DUPLEX_FULL)
+			dev_err(&xpcs->mdiodev->dev,
+				"%s: half duplex not supported\n",
+				__func__);
 	}
 
-	if (duplex == DUPLEX_FULL)
-		val |= BMCR_FULLDPLX;
-	else
-		dev_err(&xpcs->mdiodev->dev, "%s: half duplex not supported\n",
-			__func__);
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
+	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+			 mii_bmcr_encode_fixed(speed, duplex));
 	if (ret)
 		dev_err(&xpcs->mdiodev->dev, "%s: xpcs_write returned %pe\n",
 			__func__, ERR_PTR(ret));
@@ -1152,19 +1140,27 @@ static void xpcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
-	if (interface == PHY_INTERFACE_MODE_USXGMII)
-		return xpcs_config_usxgmii(xpcs, speed);
-	if (interface == PHY_INTERFACE_MODE_SGMII)
-		return xpcs_link_up_sgmii(xpcs, neg_mode, speed, duplex);
-	if (interface == PHY_INTERFACE_MODE_1000BASEX)
-		return xpcs_link_up_1000basex(xpcs, neg_mode, speed, duplex);
+	switch (interface) {
+	case PHY_INTERFACE_MODE_USXGMII:
+		xpcs_link_up_usxgmii(xpcs, speed);
+		break;
+
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+		xpcs_link_up_sgmii_1000basex(xpcs, neg_mode, interface, speed,
+					     duplex);
+		break;
+
+	default:
+		break;
+	}
 }
 
 static void xpcs_an_restart(struct phylink_pcs *pcs)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
-	xpcs_modify(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, BMCR_ANRESTART,
+	xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR, BMCR_ANRESTART,
 		    BMCR_ANRESTART);
 }
 
