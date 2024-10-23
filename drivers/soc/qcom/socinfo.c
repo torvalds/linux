@@ -262,6 +262,8 @@ static const char *const pmic_models[] = {
 	[52] = "PMR735B",
 	[58] = "PM8450",
 	[65] = "PM8010",
+	[78] = "PMM8650",
+	[79] = "PMM8650",
 };
 #endif /* CONFIG_DEBUG_FS */
 
