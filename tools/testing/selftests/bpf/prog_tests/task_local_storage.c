@@ -7,12 +7,15 @@
 #include <pthread.h>
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #include <sys/types.h>
+#include <sys/eventfd.h>
 #include <test_progs.h>
 #include "task_local_storage_helpers.h"
 #include "task_local_storage.skel.h"
 #include "task_local_storage_exit_creds.skel.h"
 #include "task_ls_recursion.skel.h"
 #include "task_storage_nodeadlock.skel.h"
+#include "uptr_test_common.h"
+#include "task_ls_uptr.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -227,6 +230,143 @@ done:
 	sched_setaffinity(getpid(), sizeof(old), &old);
 }
 
+static struct user_data udata __attribute__((aligned(16))) = {
+	.a = 1,
+	.b = 2,
+};
+
+static struct user_data udata2 __attribute__((aligned(16))) = {
+	.a = 3,
+	.b = 4,
+};
+
+static void check_udata2(int expected)
+{
+	udata2.result = udata2.nested_result = 0;
+	usleep(1);
+	ASSERT_EQ(udata2.result, expected, "udata2.result");
+	ASSERT_EQ(udata2.nested_result, expected, "udata2.nested_result");
+}
+
+static void test_uptr_basic(void)
+{
+	int map_fd, parent_task_fd, ev_fd;
+	struct value_type value = {};
+	struct task_ls_uptr *skel;
+	pid_t child_pid, my_tid;
+	__u64 ev_dummy_data = 1;
+	int err;
+
+	my_tid = syscall(SYS_gettid);
+	parent_task_fd = sys_pidfd_open(my_tid, 0);
+	if (!ASSERT_OK_FD(parent_task_fd, "parent_task_fd"))
+		return;
+
+	ev_fd = eventfd(0, 0);
+	if (!ASSERT_OK_FD(ev_fd, "ev_fd")) {
+		close(parent_task_fd);
+		return;
+	}
+
+	skel = task_ls_uptr__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		goto out;
+
+	map_fd = bpf_map__fd(skel->maps.datamap);
+	value.udata = &udata;
+	value.nested.udata = &udata;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_NOEXIST);
+	if (!ASSERT_OK(err, "update_elem(udata)"))
+		goto out;
+
+	err = task_ls_uptr__attach(skel);
+	if (!ASSERT_OK(err, "skel_attach"))
+		goto out;
+
+	child_pid = fork();
+	if (!ASSERT_NEQ(child_pid, -1, "fork"))
+		goto out;
+
+	/* Call syscall in the child process, but access the map value of
+	 * the parent process in the BPF program to check if the user kptr
+	 * is translated/mapped correctly.
+	 */
+	if (child_pid == 0) {
+		/* child */
+
+		/* Overwrite the user_data in the child process to check if
+		 * the BPF program accesses the user_data of the parent.
+		 */
+		udata.a = 0;
+		udata.b = 0;
+
+		/* Wait for the parent to set child_pid */
+		read(ev_fd, &ev_dummy_data, sizeof(ev_dummy_data));
+		exit(0);
+	}
+
+	skel->bss->parent_pid = my_tid;
+	skel->bss->target_pid = child_pid;
+
+	write(ev_fd, &ev_dummy_data, sizeof(ev_dummy_data));
+
+	err = waitpid(child_pid, NULL, 0);
+	ASSERT_EQ(err, child_pid, "waitpid");
+	ASSERT_EQ(udata.result, MAGIC_VALUE + udata.a + udata.b, "udata.result");
+	ASSERT_EQ(udata.nested_result, MAGIC_VALUE + udata.a + udata.b, "udata.nested_result");
+
+	skel->bss->target_pid = my_tid;
+
+	/* update_elem: uptr changes from udata1 to udata2 */
+	value.udata = &udata2;
+	value.nested.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_EXIST);
+	if (!ASSERT_OK(err, "update_elem(udata2)"))
+		goto out;
+	check_udata2(MAGIC_VALUE + udata2.a + udata2.b);
+
+	/* update_elem: uptr changes from udata2 uptr to NULL */
+	memset(&value, 0, sizeof(value));
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_EXIST);
+	if (!ASSERT_OK(err, "update_elem(udata2)"))
+		goto out;
+	check_udata2(0);
+
+	/* update_elem: uptr changes from NULL to udata2 */
+	value.udata = &udata2;
+	value.nested.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_EXIST);
+	if (!ASSERT_OK(err, "update_elem(udata2)"))
+		goto out;
+	check_udata2(MAGIC_VALUE + udata2.a + udata2.b);
+
+	/* Check if user programs can access the value of user kptrs
+	 * through bpf_map_lookup_elem(). Make sure the kernel value is not
+	 * leaked.
+	 */
+	err = bpf_map_lookup_elem(map_fd, &parent_task_fd, &value);
+	if (!ASSERT_OK(err, "bpf_map_lookup_elem"))
+		goto out;
+	ASSERT_EQ(value.udata, NULL, "value.udata");
+	ASSERT_EQ(value.nested.udata, NULL, "value.nested.udata");
+
+	/* delete_elem */
+	err = bpf_map_delete_elem(map_fd, &parent_task_fd);
+	ASSERT_OK(err, "delete_elem(udata2)");
+	check_udata2(0);
+
+	/* update_elem: add uptr back to test map_free */
+	value.udata = &udata2;
+	value.nested.udata = &udata2;
+	err = bpf_map_update_elem(map_fd, &parent_task_fd, &value, BPF_NOEXIST);
+	ASSERT_OK(err, "update_elem(udata2)");
+
+out:
+	task_ls_uptr__destroy(skel);
+	close(ev_fd);
+	close(parent_task_fd);
+}
+
 void test_task_local_storage(void)
 {
 	if (test__start_subtest("sys_enter_exit"))
@@ -237,4 +377,6 @@ void test_task_local_storage(void)
 		test_recursion();
 	if (test__start_subtest("nodeadlock"))
 		test_nodeadlock();
+	if (test__start_subtest("uptr_basic"))
+		test_uptr_basic();
 }
