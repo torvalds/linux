@@ -96,9 +96,9 @@ description:
   Capability:
       which KVM extension provides this ioctl.  Can be 'basic',
       which means that is will be provided by any kernel that supports
-      API version 12 (see section 4.1), or a KVM_CAP_xyz constant, which
-      means availability needs to be checked with KVM_CHECK_EXTENSION
-      (see section 4.4).
+      API version 12 (see :ref:`KVM_GET_API_VERSION <KVM_GET_API_VERSION>`),
+      or a KVM_CAP_xyz constant that can be checked with
+      :ref:`KVM_CHECK_EXTENSION <KVM_CHECK_EXTENSION>`.
 
   Architectures:
       which instruction set architectures provide this ioctl.
@@ -114,6 +114,8 @@ description:
       the return value.  General error numbers (EBADF, ENOMEM, EINVAL)
       are not detailed, but errors with specific meanings are.
 
+
+.. _KVM_GET_API_VERSION:
 
 4.1 KVM_GET_API_VERSION
 -----------------------
@@ -243,6 +245,8 @@ This list also varies by kvm version and host processor, but does not change
 otherwise.
 
 
+.. _KVM_CHECK_EXTENSION:
+
 4.4 KVM_CHECK_EXTENSION
 -----------------------
 
@@ -285,7 +289,7 @@ the VCPU file descriptor can be mmap-ed, including:
 
 - if KVM_CAP_DIRTY_LOG_RING is available, a number of pages at
   KVM_DIRTY_LOG_PAGE_OFFSET * PAGE_SIZE.  For more information on
-  KVM_CAP_DIRTY_LOG_RING, see section 8.3.
+  KVM_CAP_DIRTY_LOG_RING, see :ref:`KVM_CAP_DIRTY_LOG_RING`.
 
 
 4.7 KVM_CREATE_VCPU
@@ -1426,6 +1430,8 @@ because of a quirk in the virtualization implementation (see the internals
 documentation when it pops into existence).
 
 
+.. _KVM_ENABLE_CAP:
+
 4.37 KVM_ENABLE_CAP
 -------------------
 
@@ -2563,7 +2569,7 @@ Specifically:
 ======================= ========= ===== =======================================
 
 .. [1] These encodings are not accepted for SVE-enabled vcpus.  See
-       KVM_ARM_VCPU_INIT.
+       :ref:`KVM_ARM_VCPU_INIT`.
 
        The equivalent register content can be accessed via bits [127:0] of
        the corresponding SVE Zn registers instead for vcpus that have SVE
@@ -5075,8 +5081,8 @@ Recognised values for feature:
 Finalizes the configuration of the specified vcpu feature.
 
 The vcpu must already have been initialised, enabling the affected feature, by
-means of a successful KVM_ARM_VCPU_INIT call with the appropriate flag set in
-features[].
+means of a successful :ref:`KVM_ARM_VCPU_INIT <KVM_ARM_VCPU_INIT>` call with the
+appropriate flag set in features[].
 
 For affected vcpu features, this is a mandatory step that must be performed
 before the vcpu is fully usable.
@@ -6425,6 +6431,8 @@ the capability to be present.
 `flags` must currently be zero.
 
 
+.. _kvm_run:
+
 5. The kvm_run structure
 ========================
 
@@ -7144,11 +7152,15 @@ primary storage for certain register types. Therefore, the kernel may use the
 values in kvm_run even if the corresponding bit in kvm_dirty_regs is not set.
 
 
+.. _cap_enable:
+
 6. Capabilities that can be enabled on vCPUs
 ============================================
 
 There are certain capabilities that change the behavior of the virtual CPU or
-the virtual machine when enabled. To enable them, please see section 4.37.
+the virtual machine when enabled. To enable them, please see
+:ref:`KVM_ENABLE_CAP`.
+
 Below you can find a list of capabilities and what their effect on the vCPU or
 the virtual machine is when enabling them.
 
@@ -7357,7 +7369,7 @@ KVM API and also from the guest.
           sets are supported
           (bitfields defined in arch/x86/include/uapi/asm/kvm.h).
 
-As described above in the kvm_sync_regs struct info in section 5 (kvm_run):
+As described above in the kvm_sync_regs struct info in section :ref:`kvm_run`,
 KVM_CAP_SYNC_REGS "allow[s] userspace to access certain guest registers
 without having to call SET/GET_*REGS". This reduces overhead by eliminating
 repeated ioctl calls for setting and/or getting register values. This is
@@ -7403,13 +7415,15 @@ Unused bitfields in the bitarrays must be set to zero.
 
 This capability connects the vcpu to an in-kernel XIVE device.
 
+.. _cap_enable_vm:
+
 7. Capabilities that can be enabled on VMs
 ==========================================
 
 There are certain capabilities that change the behavior of the virtual
-machine when enabled. To enable them, please see section 4.37. Below
-you can find a list of capabilities and what their effect on the VM
-is when enabling them.
+machine when enabled. To enable them, please see section
+:ref:`KVM_ENABLE_CAP`. Below you can find a list of capabilities and
+what their effect on the VM is when enabling them.
 
 The following information is provided along with the description:
 
@@ -8569,6 +8583,8 @@ When enabled, KVM will disable paravirtual features provided to the
 guest according to the bits in the KVM_CPUID_FEATURES CPUID leaf
 (0x40000001). Otherwise, a guest may use the paravirtual features
 regardless of what has actually been exposed through the CPUID leaf.
+
+.. _KVM_CAP_DIRTY_LOG_RING:
 
 8.29 KVM_CAP_DIRTY_LOG_RING/KVM_CAP_DIRTY_LOG_RING_ACQ_REL
 ----------------------------------------------------------
