@@ -3644,8 +3644,12 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 
 out:
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	if (args.context)
-		security_release_secctx(args.context, args.contextlen);
+	if (args.context) {
+		struct lsm_context scaff; /* scaffolding */
+
+		lsmcontext_init(&scaff, args.context, args.contextlen, 0);
+		security_release_secctx(&scaff);
+	}
 #endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 	kfree(args.acl);
 	if (tempfh) {
