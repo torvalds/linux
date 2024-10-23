@@ -2159,8 +2159,9 @@ static void intel_c10pll_dump_hw_state(struct drm_i915_private *i915,
 			    i + 2, hw_state->pll[i + 2], i + 3, hw_state->pll[i + 3]);
 }
 
-static int intel_c20_compute_hdmi_tmds_pll(u64 pixel_clock, struct intel_c20pll_state *pll_state)
+static int intel_c20_compute_hdmi_tmds_pll(struct intel_crtc_state *crtc_state)
 {
+	struct intel_c20pll_state *pll_state = &crtc_state->dpll_hw_state.cx0pll.c20;
 	u64 datarate;
 	u64 mpll_tx_clk_div;
 	u64 vco_freq_shift;
@@ -2172,10 +2173,10 @@ static int intel_c20_compute_hdmi_tmds_pll(u64 pixel_clock, struct intel_c20pll_
 	u8  mpllb_ana_freq_vco;
 	u8  mpll_div_multiplier;
 
-	if (pixel_clock < 25175 || pixel_clock > 600000)
+	if (crtc_state->port_clock < 25175 || crtc_state->port_clock > 600000)
 		return -EINVAL;
 
-	datarate = ((u64)pixel_clock * 1000) * 10;
+	datarate = ((u64)crtc_state->port_clock * 1000) * 10;
 	mpll_tx_clk_div = ilog2(div64_u64((u64)CLOCK_9999MHZ, (u64)datarate));
 	vco_freq_shift = ilog2(div64_u64((u64)CLOCK_4999MHZ * (u64)256, (u64)datarate));
 	vco_freq = (datarate << vco_freq_shift) >> 8;
@@ -2197,7 +2198,7 @@ static int intel_c20_compute_hdmi_tmds_pll(u64 pixel_clock, struct intel_c20pll_
 	else
 		mpllb_ana_freq_vco = MPLLB_ANA_FREQ_VCO_0;
 
-	pll_state->clock	= pixel_clock;
+	pll_state->clock	= crtc_state->port_clock;
 	pll_state->tx[0]	= 0xbe88;
 	pll_state->tx[1]	= 0x9800;
 	pll_state->tx[2]	= 0x0000;
@@ -2287,8 +2288,7 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 
 	/* try computed C20 HDMI tables before using consolidated tables */
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		if (intel_c20_compute_hdmi_tmds_pll(crtc_state->port_clock,
-						    &crtc_state->dpll_hw_state.cx0pll.c20) == 0)
+		if (intel_c20_compute_hdmi_tmds_pll(crtc_state) == 0)
 			return 0;
 	}
 
