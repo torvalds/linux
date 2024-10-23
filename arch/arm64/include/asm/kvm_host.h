@@ -480,6 +480,7 @@ enum vcpu_sysreg {
 	TCR_EL2,	/* Translation Control Register (EL2) */
 	PIRE0_EL2,	/* Permission Indirection Register 0 (EL2) */
 	PIR_EL2,	/* Permission Indirection Register 1 (EL2) */
+	POR_EL2,	/* Permission Overlay Register 2 (EL2) */
 	SPSR_EL2,	/* EL2 saved program status register */
 	ELR_EL2,	/* EL2 exception link register */
 	AFSR0_EL2,	/* Auxiliary Fault Status Register 0 (EL2) */
@@ -1050,6 +1051,7 @@ static inline bool __vcpu_read_sys_reg_from_cpu(int reg, u64 *val)
 	case TCR2_EL1:		*val = read_sysreg_s(SYS_TCR2_EL12);	break;
 	case PIR_EL1:		*val = read_sysreg_s(SYS_PIR_EL12);	break;
 	case PIRE0_EL1:		*val = read_sysreg_s(SYS_PIRE0_EL12);	break;
+	case POR_EL1:		*val = read_sysreg_s(SYS_POR_EL12);	break;
 	case ESR_EL1:		*val = read_sysreg_s(SYS_ESR_EL12);	break;
 	case AFSR0_EL1:		*val = read_sysreg_s(SYS_AFSR0_EL12);	break;
 	case AFSR1_EL1:		*val = read_sysreg_s(SYS_AFSR1_EL12);	break;
@@ -1099,6 +1101,7 @@ static inline bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 	case TCR2_EL1:		write_sysreg_s(val, SYS_TCR2_EL12);	break;
 	case PIR_EL1:		write_sysreg_s(val, SYS_PIR_EL12);	break;
 	case PIRE0_EL1:		write_sysreg_s(val, SYS_PIRE0_EL12);	break;
+	case POR_EL1:		write_sysreg_s(val, SYS_POR_EL12);	break;
 	case ESR_EL1:		write_sysreg_s(val, SYS_ESR_EL12);	break;
 	case AFSR0_EL1:		write_sysreg_s(val, SYS_AFSR0_EL12);	break;
 	case AFSR1_EL1:		write_sysreg_s(val, SYS_AFSR1_EL12);	break;
