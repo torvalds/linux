@@ -37,6 +37,12 @@ struct s1_walk_result {
 			u8	APTable;
 			bool	UXNTable;
 			bool	PXNTable;
+			bool	ur;
+			bool	uw;
+			bool	ux;
+			bool	pr;
+			bool	pw;
+			bool	px;
 		};
 		struct {
 			u8	fst;
@@ -764,11 +770,103 @@ static bool pan3_enabled(struct kvm_vcpu *vcpu, enum trans_regime regime)
 	return sctlr & SCTLR_EL1_EPAN;
 }
 
+static void compute_s1_direct_permissions(struct kvm_vcpu *vcpu,
+					  struct s1_walk_info *wi,
+					  struct s1_walk_result *wr)
+{
+	/* Non-hierarchical part of AArch64.S1DirectBasePermissions() */
+	if (wi->regime != TR_EL2) {
+		switch (FIELD_GET(PTE_USER | PTE_RDONLY, wr->desc)) {
+		case 0b00:
+			wr->pr = wr->pw = true;
+			wr->ur = wr->uw = false;
+			break;
+		case 0b01:
+			wr->pr = wr->pw = wr->ur = wr->uw = true;
+			break;
+		case 0b10:
+			wr->pr = true;
+			wr->pw = wr->ur = wr->uw = false;
+			break;
+		case 0b11:
+			wr->pr = wr->ur = true;
+			wr->pw = wr->uw = false;
+			break;
+		}
+
+		/* We don't use px for anything yet, but hey... */
+		wr->px = !((wr->desc & PTE_PXN) || wr->uw);
+		wr->ux = !(wr->desc & PTE_UXN);
+	} else {
+		wr->ur = wr->uw = wr->ux = false;
+
+		if (!(wr->desc & PTE_RDONLY)) {
+			wr->pr = wr->pw = true;
+		} else {
+			wr->pr = true;
+			wr->pw = false;
+		}
+
+		/* XN maps to UXN */
+		wr->px = !(wr->desc & PTE_UXN);
+	}
+}
+
+static void compute_s1_hierarchical_permissions(struct kvm_vcpu *vcpu,
+						struct s1_walk_info *wi,
+						struct s1_walk_result *wr)
+{
+	/* Hierarchical part of AArch64.S1DirectBasePermissions() */
+	if (wi->regime != TR_EL2) {
+		switch (wr->APTable) {
+		case 0b00:
+			break;
+		case 0b01:
+			wr->ur = wr->uw = false;
+			break;
+		case 0b10:
+			wr->pw = wr->uw = false;
+			break;
+		case 0b11:
+			wr->pw = wr->ur = wr->uw = false;
+			break;
+		}
+
+		wr->px &= !wr->PXNTable;
+		wr->ux &= !wr->UXNTable;
+	} else {
+		if (wr->APTable & BIT(1))
+			wr->pw = false;
+
+		/* XN maps to UXN */
+		wr->px &= !wr->UXNTable;
+	}
+}
+
+static void compute_s1_permissions(struct kvm_vcpu *vcpu, u32 op,
+				   struct s1_walk_info *wi,
+				   struct s1_walk_result *wr)
+{
+	compute_s1_direct_permissions(vcpu, wi, wr);
+
+	if (!wi->hpd)
+		compute_s1_hierarchical_permissions(vcpu, wi, wr);
+
+	if (op == OP_AT_S1E1RP || op == OP_AT_S1E1WP) {
+		bool pan;
+
+		pan = *vcpu_cpsr(vcpu) & PSR_PAN_BIT;
+		pan &= wr->ur || wr->uw || (pan3_enabled(vcpu, wi->regime) && wr->ux);
+		wr->pw &= !pan;
+		wr->pr &= !pan;
+	}
+}
+
 static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
-	bool perm_fail, ur, uw, ux, pr, pw, px;
 	struct s1_walk_result wr = {};
 	struct s1_walk_info wi = {};
+	bool perm_fail = false;
 	int ret, idx;
 
 	ret = setup_s1_walk(vcpu, op, &wi, &wr, vaddr);
@@ -787,88 +885,24 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	if (ret)
 		goto compute_par;
 
-	/* FIXME: revisit when adding indirect permission support */
-	/* AArch64.S1DirectBasePermissions() */
-	if (wi.regime != TR_EL2) {
-		switch (FIELD_GET(PTE_USER | PTE_RDONLY, wr.desc)) {
-		case 0b00:
-			pr = pw = true;
-			ur = uw = false;
-			break;
-		case 0b01:
-			pr = pw = ur = uw = true;
-			break;
-		case 0b10:
-			pr = true;
-			pw = ur = uw = false;
-			break;
-		case 0b11:
-			pr = ur = true;
-			pw = uw = false;
-			break;
-		}
-
-		switch (wr.APTable) {
-		case 0b00:
-			break;
-		case 0b01:
-			ur = uw = false;
-			break;
-		case 0b10:
-			pw = uw = false;
-			break;
-		case 0b11:
-			pw = ur = uw = false;
-			break;
-		}
-
-		/* We don't use px for anything yet, but hey... */
-		px = !((wr.desc & PTE_PXN) || wr.PXNTable || uw);
-		ux = !((wr.desc & PTE_UXN) || wr.UXNTable);
-
-		if (op == OP_AT_S1E1RP || op == OP_AT_S1E1WP) {
-			bool pan;
-
-			pan = *vcpu_cpsr(vcpu) & PSR_PAN_BIT;
-			pan &= ur || uw || (pan3_enabled(vcpu, wi.regime) && ux);
-			pw &= !pan;
-			pr &= !pan;
-		}
-	} else {
-		ur = uw = ux = false;
-
-		if (!(wr.desc & PTE_RDONLY)) {
-			pr = pw = true;
-		} else {
-			pr = true;
-			pw = false;
-		}
-
-		if (wr.APTable & BIT(1))
-			pw = false;
-
-		/* XN maps to UXN */
-		px = !((wr.desc & PTE_UXN) || wr.UXNTable);
-	}
-
-	perm_fail = false;
+	compute_s1_permissions(vcpu, op, &wi, &wr);
 
 	switch (op) {
 	case OP_AT_S1E1RP:
 	case OP_AT_S1E1R:
 	case OP_AT_S1E2R:
-		perm_fail = !pr;
+		perm_fail = !wr.pr;
 		break;
 	case OP_AT_S1E1WP:
 	case OP_AT_S1E1W:
 	case OP_AT_S1E2W:
-		perm_fail = !pw;
+		perm_fail = !wr.pw;
 		break;
 	case OP_AT_S1E0R:
-		perm_fail = !ur;
+		perm_fail = !wr.ur;
 		break;
 	case OP_AT_S1E0W:
-		perm_fail = !uw;
+		perm_fail = !wr.uw;
 		break;
 	case OP_AT_S1E1A:
 	case OP_AT_S1E2A:
