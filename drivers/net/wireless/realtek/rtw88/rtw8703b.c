@@ -1961,6 +1961,7 @@ const struct rtw_chip_info rtw8703b_hw_spec = {
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
 	.usb_tx_agg_desc_num = 1, /* Not sure if this chip has USB interface */
 	.hw_feature_report = true,
+	.c2h_ra_report_size = 7,
 
 	.path_div_supported = false,
 	.ht_supported = true,

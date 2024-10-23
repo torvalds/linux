@@ -139,25 +139,30 @@ static u16 get_max_amsdu_len(u32 bit_rate)
 struct rtw_fw_iter_ra_data {
 	struct rtw_dev *rtwdev;
 	u8 *payload;
+	u8 length;
 };
 
 static void rtw_fw_ra_report_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw_fw_iter_ra_data *ra_data = data;
+	struct rtw_c2h_ra_rpt *ra_rpt = (struct rtw_c2h_ra_rpt *)ra_data->payload;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
 	u8 mac_id, rate, sgi, bw;
 	u8 mcs, nss;
 	u32 bit_rate;
 
-	mac_id = GET_RA_REPORT_MACID(ra_data->payload);
+	mac_id = ra_rpt->mac_id;
 	if (si->mac_id != mac_id)
 		return;
 
 	si->ra_report.txrate.flags = 0;
 
-	rate = GET_RA_REPORT_RATE(ra_data->payload);
-	sgi = GET_RA_REPORT_SGI(ra_data->payload);
-	bw = GET_RA_REPORT_BW(ra_data->payload);
+	rate = u8_get_bits(ra_rpt->rate_sgi, RTW_C2H_RA_RPT_RATE);
+	sgi = u8_get_bits(ra_rpt->rate_sgi, RTW_C2H_RA_RPT_SGI);
+	if (ra_data->length >= offsetofend(typeof(*ra_rpt), bw))
+		bw = ra_rpt->bw;
+	else
+		bw = si->bw_mode;
 
 	if (rate < DESC_RATEMCS0) {
 		si->ra_report.txrate.legacy = rtw_desc_to_bitrate(rate);
@@ -197,14 +202,18 @@ legacy:
 static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
 				    u8 length)
 {
+	struct rtw_c2h_ra_rpt *ra_rpt = (struct rtw_c2h_ra_rpt *)payload;
 	struct rtw_fw_iter_ra_data ra_data;
 
-	if (WARN(length < 7, "invalid ra report c2h length\n"))
+	if (WARN(length < rtwdev->chip->c2h_ra_report_size,
+		 "invalid ra report c2h length %d\n", length))
 		return;
 
-	rtwdev->dm_info.tx_rate = GET_RA_REPORT_RATE(payload);
+	rtwdev->dm_info.tx_rate = u8_get_bits(ra_rpt->rate_sgi,
+					      RTW_C2H_RA_RPT_RATE);
 	ra_data.rtwdev = rtwdev;
 	ra_data.payload = payload;
+	ra_data.length = length;
 	rtw_iterate_stas_atomic(rtwdev, rtw_fw_ra_report_iter, &ra_data);
 }
 

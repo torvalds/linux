@@ -1201,6 +1201,7 @@ struct rtw_chip_info {
 
 	u8 usb_tx_agg_desc_num;
 	bool hw_feature_report;
+	u8 c2h_ra_report_size;
 
 	u8 default_1ss_tx_path;
 
