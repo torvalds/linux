@@ -886,6 +886,7 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 	bool qrecord_inserted = false;
 
 	delayed_refs = &trans->transaction->delayed_refs;
+	lockdep_assert_held(&delayed_refs->lock);
 
 	/* Record qgroup extent info if provided */
 	if (qrecord) {
