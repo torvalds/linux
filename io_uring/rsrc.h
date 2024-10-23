@@ -107,14 +107,10 @@ static inline void __io_req_set_rsrc_node(struct io_kiocb *req,
 }
 
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,
-					struct io_ring_ctx *ctx,
-					unsigned int issue_flags)
+					struct io_ring_ctx *ctx)
 {
-	if (!req->rsrc_node) {
-		io_ring_submit_lock(ctx, issue_flags);
+	if (!req->rsrc_node)
 		__io_req_set_rsrc_node(req, ctx);
-		io_ring_submit_unlock(ctx, issue_flags);
-	}
 }
 
 static inline u64 *io_get_tag_slot(struct io_rsrc_data *data, unsigned int idx)

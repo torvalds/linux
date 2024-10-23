@@ -343,7 +343,7 @@ static int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe
 		return -EFAULT;
 	index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
 	imu = ctx->user_bufs[index];
-	io_req_set_rsrc_node(req, ctx, 0);
+	io_req_set_rsrc_node(req, ctx);
 
 	io = req->async_data;
 	ret = io_import_fixed(ddir, &io->iter, imu, rw->addr, rw->len);

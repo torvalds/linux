@@ -1261,7 +1261,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			return -EFAULT;
 		idx = array_index_nospec(idx, ctx->nr_user_bufs);
 		req->imu = READ_ONCE(ctx->user_bufs[idx]);
-		io_req_set_rsrc_node(notif, ctx, 0);
+		io_req_set_rsrc_node(notif, ctx);
 	}
 
 	if (req->opcode == IORING_OP_SEND_ZC) {
