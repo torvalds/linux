@@ -80,7 +80,8 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <6 8>;
 		irq-gpios = <&gpio1 6 0>;
-		power-supply = <&reg_vcc_panel>;
+		AVDD28-supply = <&reg_vcc_panel>;
+		VDDIO-supply = <&reg_vcc_panel>;
 		reset-gpios = <&gpio1 7 0>;
 	};
 };
