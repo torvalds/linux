@@ -145,8 +145,6 @@ static int mb86s70_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 		irq = platform_get_irq(to_platform_device(gc->parent), index);
 		if (irq < 0)
 			return irq;
-		if (irq == 0)
-			break;
 		if (irq_get_irq_data(irq)->hwirq == offset)
 			return irq;
 	}
