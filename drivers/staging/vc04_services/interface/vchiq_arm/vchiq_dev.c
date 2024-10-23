@@ -338,7 +338,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		bulk_params.mode = args->mode;
 		bulk_params.size = args->size;
 		bulk_params.dir = dir;
-		bulk_params.cb_data = args->userdata;
+		bulk_params.cb_userdata = args->userdata;
 
 		status = vchiq_bulk_xfer_callback(instance, args->handle,
 						  &bulk_params);
@@ -549,11 +549,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 		    !instance->use_close_delivered)
 			vchiq_service_put(service);
 
-		/*
-		 * FIXME: address space mismatch, does cb_data
-		 * actually point to user or kernel memory?
-		 */
-		user_completion.cb_userdata = completion->cb_data;
+		user_completion.cb_userdata = completion->cb_userdata;
 
 		if (vchiq_put_completion(args->buf, &user_completion, ret)) {
 			if (ret == 0)

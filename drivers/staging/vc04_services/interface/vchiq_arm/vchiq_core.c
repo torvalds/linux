@@ -458,20 +458,23 @@ make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
 		      struct vchiq_header *header, struct vchiq_bulk *bulk)
 {
 	void *cb_data = NULL;
+	void __user *cb_userdata = NULL;
 	int status;
 
 	/*
-	 * If a bulk transfer is in progress, pass bulk->cb_data to the
+	 * If a bulk transfer is in progress, pass bulk->cb_*data to the
 	 * callback function.
 	 */
-	if (bulk)
+	if (bulk) {
 		cb_data = bulk->cb_data;
+		cb_userdata = bulk->cb_userdata;
+	}
 
-	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %pK, %pK)\n",
+	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %pK, %pK %pK)\n",
 		service->state->id, service->localport, reason_names[reason],
-		header, cb_data);
+		header, cb_data, cb_userdata);
 	status = service->base.callback(service->instance, reason, header, service->handle,
-					cb_data);
+					cb_data, cb_userdata);
 	if (status && (status != -EAGAIN)) {
 		dev_warn(service->state->dev,
 			 "core: %d: ignoring ERROR from callback to service %x\n",
@@ -3073,6 +3076,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	bulk->dir = bulk_params->dir;
 	bulk->waiter = bulk_params->waiter;
 	bulk->cb_data = bulk_params->cb_data;
+	bulk->cb_userdata = bulk_params->cb_userdata;
 	bulk->size = bulk_params->size;
 	bulk->offset = bulk_params->offset;
 	bulk->uoffset = bulk_params->uoffset;

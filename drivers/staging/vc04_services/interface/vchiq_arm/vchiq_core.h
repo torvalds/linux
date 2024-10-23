@@ -115,6 +115,7 @@ struct vchiq_bulk {
 	short mode;
 	short dir;
 	void *cb_data;
+	void __user *cb_userdata;
 	struct bulk_waiter *waiter;
 	dma_addr_t dma_addr;
 	int size;

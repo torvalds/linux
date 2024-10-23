@@ -632,7 +632,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 static int
 add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	       struct vchiq_header *header, struct user_service *user_service,
-	       void *bulk_userdata)
+	       void *cb_data, void __user *cb_userdata)
 {
 	struct vchiq_completion_data_kernel *completion;
 	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(instance->state->dev);
@@ -662,7 +662,8 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	completion->reason = reason;
 	/* N.B. service_userdata is updated while processing AWAIT_COMPLETION */
 	completion->service_userdata = user_service->service;
-	completion->cb_data = bulk_userdata;
+	completion->cb_data = cb_data;
+	completion->cb_userdata = cb_userdata;
 
 	if (reason == VCHIQ_SERVICE_CLOSED) {
 		/*
@@ -693,8 +694,8 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 
 static int
 service_single_message(struct vchiq_instance *instance,
-		       enum vchiq_reason reason,
-		       struct vchiq_service *service, void *bulk_userdata)
+		       enum vchiq_reason reason, struct vchiq_service *service,
+		       void *cb_data, void __user *cb_userdata)
 {
 	struct user_service *user_service;
 
@@ -712,7 +713,7 @@ service_single_message(struct vchiq_instance *instance,
 		dev_dbg(instance->state->dev,
 			"arm: Inserting extra MESSAGE_AVAILABLE\n");
 		ret = add_completion(instance, reason, NULL, user_service,
-				     bulk_userdata);
+				     cb_data, cb_userdata);
 		if (ret)
 			return ret;
 	}
@@ -730,7 +731,8 @@ service_single_message(struct vchiq_instance *instance,
 
 int
 service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
-		 struct vchiq_header *header, unsigned int handle, void *bulk_userdata)
+		 struct vchiq_header *header, unsigned int handle,
+		 void *cb_data, void __user *cb_userdata)
 {
 	/*
 	 * How do we ensure the callback goes to the right client?
@@ -769,9 +771,9 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 	rcu_read_unlock();
 
 	dev_dbg(service->state->dev,
-		"arm: service %p(%d,%p), reason %d, header %p, instance %p, bulk_userdata %p\n",
+		"arm: service %p(%d,%p), reason %d, header %p, instance %p, cb_data %p, cb_userdata %p\n",
 		user_service, service->localport, user_service->userdata,
-		reason, header, instance, bulk_userdata);
+		reason, header, instance, cb_data, cb_userdata);
 
 	if (header && user_service->is_vchi) {
 		spin_lock(&service->state->msg_queue_spinlock);
@@ -783,8 +785,8 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 			DEBUG_COUNT(MSG_QUEUE_FULL_COUNT);
 
-			ret = service_single_message(instance, reason,
-						     service, bulk_userdata);
+			ret = service_single_message(instance, reason, service,
+						     cb_data, cb_userdata);
 			if (ret) {
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 				vchiq_service_put(service);
@@ -822,7 +824,7 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 		return 0;
 
 	return add_completion(instance, reason, header, user_service,
-		bulk_userdata);
+			      cb_data, cb_userdata);
 }
 
 void vchiq_dump_platform_instances(struct vchiq_state *state, struct seq_file *f)
@@ -909,7 +911,8 @@ static int
 vchiq_keepalive_vchiq_callback(struct vchiq_instance *instance,
 			       enum vchiq_reason reason,
 			       struct vchiq_header *header,
-			       unsigned int service_user, void *bulk_user)
+			       unsigned int service_user,
+			       void *cb_data, void __user *cb_userdata)
 {
 	dev_err(instance->state->dev, "suspend: %s: callback reason %d\n",
 		__func__, reason);
