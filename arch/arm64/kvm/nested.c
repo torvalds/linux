@@ -1105,7 +1105,7 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		res0 |= (HFGxTR_EL2_nSMPRI_EL1 | HFGxTR_EL2_nTPIDR2_EL0);
 	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, THE, IMP))
 		res0 |= HFGxTR_EL2_nRCWMASK_EL1;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S1PIE, IMP))
+	if (!kvm_has_s1pie(kvm))
 		res0 |= (HFGxTR_EL2_nPIRE0_EL1 | HFGxTR_EL2_nPIR_EL1);
 	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S1POE, IMP))
 		res0 |= (HFGxTR_EL2_nPOR_EL0 | HFGxTR_EL2_nPOR_EL1);
@@ -1219,7 +1219,7 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		res0 |= TCR2_EL2_AIE;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S1POE, IMP))
 		res0 |= TCR2_EL2_POE | TCR2_EL2_E0POE;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S1PIE, IMP))
+	if (!kvm_has_s1pie(kvm))
 		res0 |= TCR2_EL2_PIE;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, VH, IMP))
 		res0 |= (TCR2_EL2_E0POE | TCR2_EL2_D128 |

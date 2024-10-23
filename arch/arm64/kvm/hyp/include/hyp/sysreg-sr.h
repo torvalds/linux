@@ -58,7 +58,7 @@ static inline bool ctxt_has_s1pie(struct kvm_cpu_context *ctxt)
 		return false;
 
 	vcpu = ctxt_to_vcpu(ctxt);
-	return kvm_has_feat(kern_hyp_va(vcpu->kvm), ID_AA64MMFR3_EL1, S1PIE, IMP);
+	return kvm_has_s1pie(kern_hyp_va(vcpu->kvm));
 }
 
 static inline bool ctxt_has_tcrx(struct kvm_cpu_context *ctxt)
