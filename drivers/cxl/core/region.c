@@ -232,8 +232,8 @@ static int cxl_region_invalidate_memregion(struct cxl_region *cxlr)
 				"Bypassing cpu_cache_invalidate_memregion() for testing!\n");
 			return 0;
 		} else {
-			dev_err(&cxlr->dev,
-				"Failed to synchronize CPU cache state\n");
+			dev_WARN(&cxlr->dev,
+				 "Failed to synchronize CPU cache state\n");
 			return -ENXIO;
 		}
 	}
@@ -242,19 +242,17 @@ static int cxl_region_invalidate_memregion(struct cxl_region *cxlr)
 	return 0;
 }
 
-static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
+static void cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 {
 	struct cxl_region_params *p = &cxlr->params;
-	int i, rc = 0;
+	int i;
 
 	/*
-	 * Before region teardown attempt to flush, and if the flush
-	 * fails cancel the region teardown for data consistency
-	 * concerns
+	 * Before region teardown attempt to flush, evict any data cached for
+	 * this region, or scream loudly about missing arch / platform support
+	 * for CXL teardown.
 	 */
-	rc = cxl_region_invalidate_memregion(cxlr);
-	if (rc)
-		return rc;
+	cxl_region_invalidate_memregion(cxlr);
 
 	for (i = count - 1; i >= 0; i--) {
 		struct cxl_endpoint_decoder *cxled = p->targets[i];
@@ -277,23 +275,17 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 			cxl_rr = cxl_rr_load(iter, cxlr);
 			cxld = cxl_rr->decoder;
 			if (cxld->reset)
-				rc = cxld->reset(cxld);
-			if (rc)
-				return rc;
+				cxld->reset(cxld);
 			set_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
 		}
 
 endpoint_reset:
-		rc = cxled->cxld.reset(&cxled->cxld);
-		if (rc)
-			return rc;
+		cxled->cxld.reset(&cxled->cxld);
 		set_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
 	}
 
 	/* all decoders associated with this region have been torn down */
 	clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
-
-	return 0;
 }
 
 static int commit_decoder(struct cxl_decoder *cxld)
@@ -409,16 +401,8 @@ static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
 		 * still pending.
 		 */
 		if (p->state == CXL_CONFIG_RESET_PENDING) {
-			rc = cxl_region_decode_reset(cxlr, p->interleave_ways);
-			/*
-			 * Revert to committed since there may still be active
-			 * decoders associated with this region, or move forward
-			 * to active to mark the reset successful
-			 */
-			if (rc)
-				p->state = CXL_CONFIG_COMMIT;
-			else
-				p->state = CXL_CONFIG_ACTIVE;
+			cxl_region_decode_reset(cxlr, p->interleave_ways);
+			p->state = CXL_CONFIG_ACTIVE;
 		}
 	}
 
@@ -2054,13 +2038,7 @@ static int cxl_region_detach(struct cxl_endpoint_decoder *cxled)
 	get_device(&cxlr->dev);
 
 	if (p->state > CXL_CONFIG_ACTIVE) {
-		/*
-		 * TODO: tear down all impacted regions if a device is
-		 * removed out of order
-		 */
-		rc = cxl_region_decode_reset(cxlr, p->interleave_ways);
-		if (rc)
-			goto out;
+		cxl_region_decode_reset(cxlr, p->interleave_ways);
 		p->state = CXL_CONFIG_ACTIVE;
 	}
 
