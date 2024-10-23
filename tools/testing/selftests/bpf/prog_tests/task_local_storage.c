@@ -10,6 +10,7 @@
 #include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <test_progs.h>
+#include <bpf/btf.h>
 #include "task_local_storage_helpers.h"
 #include "task_local_storage.skel.h"
 #include "task_local_storage_exit_creds.skel.h"
@@ -19,6 +20,7 @@
 #include "task_ls_uptr.skel.h"
 #include "uptr_update_failure.skel.h"
 #include "uptr_failure.skel.h"
+#include "uptr_map_failure.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -452,6 +454,40 @@ out:
 	close(task_fd);
 }
 
+static void test_uptr_map_failure(const char *map_name, int expected_errno)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, create_attr);
+	struct uptr_map_failure *skel;
+	struct bpf_map *map;
+	struct btf *btf;
+	int map_fd, err;
+
+	skel = uptr_map_failure__open();
+	if (!ASSERT_OK_PTR(skel, "uptr_map_failure__open"))
+		return;
+
+	map = bpf_object__find_map_by_name(skel->obj, map_name);
+	btf = bpf_object__btf(skel->obj);
+	err = btf__load_into_kernel(btf);
+	if (!ASSERT_OK(err, "btf__load_into_kernel"))
+		goto done;
+
+	create_attr.map_flags = bpf_map__map_flags(map);
+	create_attr.btf_fd = btf__fd(btf);
+	create_attr.btf_key_type_id = bpf_map__btf_key_type_id(map);
+	create_attr.btf_value_type_id = bpf_map__btf_value_type_id(map);
+	map_fd = bpf_map_create(bpf_map__type(map), map_name,
+				bpf_map__key_size(map), bpf_map__value_size(map),
+				0, &create_attr);
+	if (ASSERT_ERR_FD(map_fd, "map_create"))
+		ASSERT_EQ(errno, expected_errno, "errno");
+	else
+		close(map_fd);
+
+done:
+	uptr_map_failure__destroy(skel);
+}
+
 void test_task_local_storage(void)
 {
 	if (test__start_subtest("sys_enter_exit"))
@@ -468,5 +504,15 @@ void test_task_local_storage(void)
 		test_uptr_across_pages();
 	if (test__start_subtest("uptr_update_failure"))
 		test_uptr_update_failure();
+	if (test__start_subtest("uptr_map_failure_e2big")) {
+		if (getpagesize() == PAGE_SIZE)
+			test_uptr_map_failure("large_uptr_map", E2BIG);
+		else
+			test__skip();
+	}
+	if (test__start_subtest("uptr_map_failure_size0"))
+		test_uptr_map_failure("empty_uptr_map", EINVAL);
+	if (test__start_subtest("uptr_map_failure_kstruct"))
+		test_uptr_map_failure("kstruct_uptr_map", EINVAL);
 	RUN_TESTS(uptr_failure);
 }
