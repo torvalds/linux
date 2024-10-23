@@ -1122,28 +1122,19 @@ QString ConfigInfoView::print_filter(const QString &str)
 {
 	QRegularExpression re("[<>&\"\\n]");
 	QString res = str;
+
+	QHash<QChar, QString> patterns;
+	patterns['<'] = "&lt;";
+	patterns['>'] = "&gt;";
+	patterns['&'] = "&amp;";
+	patterns['"'] = "&quot;";
+	patterns['\n'] = "<br>";
+
 	for (int i = 0; (i = res.indexOf(re, i)) >= 0;) {
-		switch (res[i].toLatin1()) {
-		case '<':
-			res.replace(i, 1, "&lt;");
-			i += 4;
-			break;
-		case '>':
-			res.replace(i, 1, "&gt;");
-			i += 4;
-			break;
-		case '&':
-			res.replace(i, 1, "&amp;");
-			i += 5;
-			break;
-		case '"':
-			res.replace(i, 1, "&quot;");
-			i += 6;
-			break;
-		case '\n':
-			res.replace(i, 1, "<br>");
-			i += 4;
-			break;
+		const QString n = patterns.value(res[i], QString());
+		if (!n.isEmpty()) {
+			res.replace(i, 1, n);
+			i += n.length();
 		}
 	}
 	return res;
