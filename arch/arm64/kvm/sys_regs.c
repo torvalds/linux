@@ -2323,7 +2323,7 @@ static bool access_zcr_el2(struct kvm_vcpu *vcpu,
 static unsigned int s1poe_visibility(const struct kvm_vcpu *vcpu,
 				     const struct sys_reg_desc *rd)
 {
-	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR3_EL1, S1POE, IMP))
+	if (kvm_has_s1poe(vcpu->kvm))
 		return 0;
 
 	return REG_HIDDEN;
@@ -4862,7 +4862,7 @@ void kvm_calculate_traps(struct kvm_vcpu *vcpu)
 		kvm->arch.fgu[HFGxTR_GROUP] |= (HFGxTR_EL2_nPIRE0_EL1 |
 						HFGxTR_EL2_nPIR_EL1);
 
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S1POE, IMP))
+	if (!kvm_has_s1poe(kvm))
 		kvm->arch.fgu[HFGxTR_GROUP] |= (HFGxTR_EL2_nPOR_EL1 |
 						HFGxTR_EL2_nPOR_EL0);
 

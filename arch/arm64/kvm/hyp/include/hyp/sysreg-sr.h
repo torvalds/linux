@@ -80,7 +80,7 @@ static inline bool ctxt_has_s1poe(struct kvm_cpu_context *ctxt)
 		return false;
 
 	vcpu = ctxt_to_vcpu(ctxt);
-	return kvm_has_feat(kern_hyp_va(vcpu->kvm), ID_AA64MMFR3_EL1, S1POE, IMP);
+	return kvm_has_s1poe(kern_hyp_va(vcpu->kvm));
 }
 
 static inline void __sysreg_save_el1_state(struct kvm_cpu_context *ctxt)
