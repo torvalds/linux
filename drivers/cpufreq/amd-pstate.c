@@ -1616,8 +1616,9 @@ static void amd_pstate_epp_reenable(struct amd_cpudata *cpudata)
 		wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
 	} else {
 		perf_ctrls.max_perf = max_perf;
-		perf_ctrls.energy_perf = AMD_CPPC_ENERGY_PERF_PREF(cpudata->epp_cached);
 		cppc_set_perf(cpudata->cpu, &perf_ctrls);
+		perf_ctrls.energy_perf = AMD_CPPC_ENERGY_PERF_PREF(cpudata->epp_cached);
+		cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
 	}
 }
 
@@ -1658,8 +1659,9 @@ static void amd_pstate_epp_offline(struct cpufreq_policy *policy)
 	} else {
 		perf_ctrls.desired_perf = 0;
 		perf_ctrls.max_perf = min_perf;
-		perf_ctrls.energy_perf = AMD_CPPC_ENERGY_PERF_PREF(HWP_EPP_BALANCE_POWERSAVE);
 		cppc_set_perf(cpudata->cpu, &perf_ctrls);
+		perf_ctrls.energy_perf = AMD_CPPC_ENERGY_PERF_PREF(HWP_EPP_BALANCE_POWERSAVE);
+		cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
 	}
 	mutex_unlock(&amd_pstate_limits_lock);
 }
