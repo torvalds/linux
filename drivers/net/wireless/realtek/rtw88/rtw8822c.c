@@ -5329,6 +5329,7 @@ const struct rtw_chip_info rtw8822c_hw_spec = {
 	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x20,
 	.usb_tx_agg_desc_num = 3,
+	.hw_feature_report = true,
 	.default_1ss_tx_path = BB_PATH_A,
 	.path_div_supported = true,
 	.ht_supported = true,

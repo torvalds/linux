@@ -1200,6 +1200,7 @@ struct rtw_chip_info {
 	const struct rtw_fwcd_segs *fwcd_segs;
 
 	u8 usb_tx_agg_desc_num;
+	bool hw_feature_report;
 
 	u8 default_1ss_tx_path;
 

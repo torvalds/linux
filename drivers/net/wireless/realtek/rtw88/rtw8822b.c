@@ -2509,6 +2509,7 @@ const struct rtw_chip_info rtw8822b_hw_spec = {
 	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x1c,
 	.usb_tx_agg_desc_num = 3,
+	.hw_feature_report = true,
 	.ht_supported = true,
 	.vht_supported = true,
 	.lps_deep_mode_supported = BIT(LPS_DEEP_MODE_LCLK),
