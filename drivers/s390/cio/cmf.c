@@ -977,8 +977,7 @@ static struct cmb_operations cmbops_extended = {
 
 static ssize_t cmb_show_attr(struct device *dev, char *buf, enum cmb_index idx)
 {
-	return sprintf(buf, "%lld\n",
-		(unsigned long long) cmf_read(to_ccwdev(dev), idx));
+	return sysfs_emit(buf, "%lld\n", cmf_read(to_ccwdev(dev), idx));
 }
 
 static ssize_t cmb_show_avg_sample_interval(struct device *dev,
@@ -998,7 +997,7 @@ static ssize_t cmb_show_avg_sample_interval(struct device *dev,
 	} else
 		interval = -1;
 	spin_unlock_irq(cdev->ccwlock);
-	return sprintf(buf, "%ld\n", interval);
+	return sysfs_emit(buf, "%ld\n", interval);
 }
 
 static ssize_t cmb_show_avg_utilization(struct device *dev,
@@ -1007,7 +1006,7 @@ static ssize_t cmb_show_avg_utilization(struct device *dev,
 {
 	unsigned long u = cmf_read(to_ccwdev(dev), avg_utilization);
 
-	return sprintf(buf, "%02lu.%01lu%%\n", u / 10, u % 10);
+	return sysfs_emit(buf, "%02lu.%01lu%%\n", u / 10, u % 10);
 }
 
 #define cmf_attr(name) \
@@ -1080,7 +1079,7 @@ static ssize_t cmb_enable_show(struct device *dev,
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 
-	return sprintf(buf, "%d\n", cmf_enabled(cdev));
+	return sysfs_emit(buf, "%d\n", cmf_enabled(cdev));
 }
 
 static ssize_t cmb_enable_store(struct device *dev,
