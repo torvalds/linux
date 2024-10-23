@@ -26,16 +26,28 @@
 
 /* Target chip type */
 enum spx5_target_chiptype {
-	SPX5_TARGET_CT_7546    = 0x7546,  /* SparX-5-64  Enterprise */
-	SPX5_TARGET_CT_7549    = 0x7549,  /* SparX-5-90  Enterprise */
-	SPX5_TARGET_CT_7552    = 0x7552,  /* SparX-5-128 Enterprise */
-	SPX5_TARGET_CT_7556    = 0x7556,  /* SparX-5-160 Enterprise */
-	SPX5_TARGET_CT_7558    = 0x7558,  /* SparX-5-200 Enterprise */
-	SPX5_TARGET_CT_7546TSN = 0x47546, /* SparX-5-64i Industrial */
-	SPX5_TARGET_CT_7549TSN = 0x47549, /* SparX-5-90i Industrial */
-	SPX5_TARGET_CT_7552TSN = 0x47552, /* SparX-5-128i Industrial */
-	SPX5_TARGET_CT_7556TSN = 0x47556, /* SparX-5-160i Industrial */
-	SPX5_TARGET_CT_7558TSN = 0x47558, /* SparX-5-200i Industrial */
+	SPX5_TARGET_CT_7546       = 0x7546,  /* SparX-5-64  Enterprise */
+	SPX5_TARGET_CT_7549       = 0x7549,  /* SparX-5-90  Enterprise */
+	SPX5_TARGET_CT_7552       = 0x7552,  /* SparX-5-128 Enterprise */
+	SPX5_TARGET_CT_7556       = 0x7556,  /* SparX-5-160 Enterprise */
+	SPX5_TARGET_CT_7558       = 0x7558,  /* SparX-5-200 Enterprise */
+	SPX5_TARGET_CT_7546TSN    = 0x47546, /* SparX-5-64i Industrial */
+	SPX5_TARGET_CT_7549TSN    = 0x47549, /* SparX-5-90i Industrial */
+	SPX5_TARGET_CT_7552TSN    = 0x47552, /* SparX-5-128i Industrial */
+	SPX5_TARGET_CT_7556TSN    = 0x47556, /* SparX-5-160i Industrial */
+	SPX5_TARGET_CT_7558TSN    = 0x47558, /* SparX-5-200i Industrial */
+	SPX5_TARGET_CT_LAN9694    = 0x9694,  /* lan969x-40 */
+	SPX5_TARGET_CT_LAN9691VAO = 0x9691,  /* lan969x-40-VAO */
+	SPX5_TARGET_CT_LAN9694TSN = 0x9695,  /* lan969x-40-TSN */
+	SPX5_TARGET_CT_LAN9694RED = 0x969A,  /* lan969x-40-RED */
+	SPX5_TARGET_CT_LAN9696    = 0x9696,  /* lan969x-60 */
+	SPX5_TARGET_CT_LAN9692VAO = 0x9692,  /* lan969x-65-VAO */
+	SPX5_TARGET_CT_LAN9696TSN = 0x9697,  /* lan969x-60-TSN */
+	SPX5_TARGET_CT_LAN9696RED = 0x969B,  /* lan969x-60-RED */
+	SPX5_TARGET_CT_LAN9698    = 0x9698,  /* lan969x-100 */
+	SPX5_TARGET_CT_LAN9693VAO = 0x9693,  /* lan969x-100-VAO */
+	SPX5_TARGET_CT_LAN9698TSN = 0x9699,  /* lan969x-100-TSN */
+	SPX5_TARGET_CT_LAN9698RED = 0x969C,  /* lan969x-100-RED */
 };
 
 enum sparx5_port_max_tags {
@@ -192,6 +204,7 @@ struct sparx5_port {
 enum sparx5_core_clockfreq {
 	SPX5_CORE_CLOCK_DEFAULT,  /* Defaults to the highest supported frequency */
 	SPX5_CORE_CLOCK_250MHZ,   /* 250MHZ core clock frequency */
+	SPX5_CORE_CLOCK_328MHZ,   /* 328MHZ core clock frequency */
 	SPX5_CORE_CLOCK_500MHZ,   /* 500MHZ core clock frequency */
 	SPX5_CORE_CLOCK_625MHZ,   /* 625MHZ core clock frequency */
 };
@@ -641,6 +654,8 @@ static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
 	switch (cclock) {
 	case SPX5_CORE_CLOCK_250MHZ:
 		return 4000;
+	case SPX5_CORE_CLOCK_328MHZ:
+		return 3048;
 	case SPX5_CORE_CLOCK_500MHZ:
 		return 2000;
 	case SPX5_CORE_CLOCK_625MHZ:
