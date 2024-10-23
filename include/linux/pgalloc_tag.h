@@ -11,29 +11,118 @@
 
 #include <linux/page_ext.h>
 
+extern struct page_ext_operations page_alloc_tagging_ops;
+extern unsigned long alloc_tag_ref_mask;
+extern int alloc_tag_ref_offs;
+extern struct alloc_tag_kernel_section kernel_tags;
+
+DECLARE_STATIC_KEY_FALSE(mem_profiling_compressed);
+
+typedef u16	pgalloc_tag_idx;
+
 union pgtag_ref_handle {
 	union codetag_ref *ref;	/* reference in page extension */
+	struct page *page;	/* reference in page flags */
 };
 
-extern struct page_ext_operations page_alloc_tagging_ops;
+/* Reserved indexes */
+#define CODETAG_ID_NULL		0
+#define CODETAG_ID_EMPTY	1
+#define CODETAG_ID_FIRST	2
+
+#ifdef CONFIG_MODULES
+
+extern struct alloc_tag_module_section module_tags;
+
+static inline struct alloc_tag *module_idx_to_tag(pgalloc_tag_idx idx)
+{
+	return &module_tags.first_tag[idx - kernel_tags.count];
+}
+
+static inline pgalloc_tag_idx module_tag_to_idx(struct alloc_tag *tag)
+{
+	return CODETAG_ID_FIRST + kernel_tags.count + (tag - module_tags.first_tag);
+}
+
+#else /* CONFIG_MODULES */
+
+static inline struct alloc_tag *module_idx_to_tag(pgalloc_tag_idx idx)
+{
+	pr_warn("invalid page tag reference %lu\n", (unsigned long)idx);
+	return NULL;
+}
+
+static inline pgalloc_tag_idx module_tag_to_idx(struct alloc_tag *tag)
+{
+	pr_warn("invalid page tag 0x%lx\n", (unsigned long)tag);
+	return CODETAG_ID_NULL;
+}
+
+#endif /* CONFIG_MODULES */
+
+static inline void idx_to_ref(pgalloc_tag_idx idx, union codetag_ref *ref)
+{
+	switch (idx) {
+	case (CODETAG_ID_NULL):
+		ref->ct = NULL;
+		break;
+	case (CODETAG_ID_EMPTY):
+		set_codetag_empty(ref);
+		break;
+	default:
+		idx -= CODETAG_ID_FIRST;
+		ref->ct = idx < kernel_tags.count ?
+			&kernel_tags.first_tag[idx].ct :
+			&module_idx_to_tag(idx)->ct;
+		break;
+	}
+}
+
+static inline pgalloc_tag_idx ref_to_idx(union codetag_ref *ref)
+{
+	struct alloc_tag *tag;
+
+	if (!ref->ct)
+		return CODETAG_ID_NULL;
+
+	if (is_codetag_empty(ref))
+		return CODETAG_ID_EMPTY;
+
+	tag = ct_to_alloc_tag(ref->ct);
+	if (tag >= kernel_tags.first_tag && tag < kernel_tags.first_tag + kernel_tags.count)
+		return CODETAG_ID_FIRST + (tag - kernel_tags.first_tag);
+
+	return module_tag_to_idx(tag);
+}
+
+
 
 /* Should be called only if mem_alloc_profiling_enabled() */
 static inline bool get_page_tag_ref(struct page *page, union codetag_ref *ref,
 				    union pgtag_ref_handle *handle)
 {
-	struct page_ext *page_ext;
-	union codetag_ref *tmp;
-
 	if (!page)
 		return false;
 
-	page_ext = page_ext_get(page);
-	if (!page_ext)
-		return false;
+	if (static_key_enabled(&mem_profiling_compressed)) {
+		pgalloc_tag_idx idx;
 
-	tmp = (union codetag_ref *)page_ext_data(page_ext, &page_alloc_tagging_ops);
-	ref->ct = tmp->ct;
-	handle->ref = tmp;
+		idx = (page->flags >> alloc_tag_ref_offs) & alloc_tag_ref_mask;
+		idx_to_ref(idx, ref);
+		handle->page = page;
+	} else {
+		struct page_ext *page_ext;
+		union codetag_ref *tmp;
+
+		page_ext = page_ext_get(page);
+		if (!page_ext)
+			return false;
+
+		tmp = (union codetag_ref *)page_ext_data(page_ext, &page_alloc_tagging_ops);
+		ref->ct = tmp->ct;
+		handle->ref = tmp;
+	}
+
 	return true;
 }
 
@@ -42,16 +131,35 @@ static inline void put_page_tag_ref(union pgtag_ref_handle handle)
 	if (WARN_ON(!handle.ref))
 		return;
 
-	page_ext_put((void *)handle.ref - page_alloc_tagging_ops.offset);
+	if (!static_key_enabled(&mem_profiling_compressed))
+		page_ext_put((void *)handle.ref - page_alloc_tagging_ops.offset);
 }
 
-static inline void update_page_tag_ref(union pgtag_ref_handle handle,
-				       union codetag_ref *ref)
+static inline void update_page_tag_ref(union pgtag_ref_handle handle, union codetag_ref *ref)
 {
-	if (WARN_ON(!handle.ref || !ref))
-		return;
+	if (static_key_enabled(&mem_profiling_compressed)) {
+		struct page *page = handle.page;
+		unsigned long old_flags;
+		unsigned long flags;
+		unsigned long idx;
 
-	handle.ref->ct = ref->ct;
+		if (WARN_ON(!page || !ref))
+			return;
+
+		idx = (unsigned long)ref_to_idx(ref);
+		idx = (idx & alloc_tag_ref_mask) << alloc_tag_ref_offs;
+		do {
+			old_flags = READ_ONCE(page->flags);
+			flags = old_flags;
+			flags &= ~(alloc_tag_ref_mask << alloc_tag_ref_offs);
+			flags |= idx;
+		} while (unlikely(!try_cmpxchg(&page->flags, &old_flags, flags)));
+	} else {
+		if (WARN_ON(!handle.ref || !ref))
+			return;
+
+		handle.ref->ct = ref->ct;
+	}
 }
 
 static inline void clear_page_tag_ref(struct page *page)
@@ -122,6 +230,8 @@ static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr)
 		this_cpu_sub(tag->counters->bytes, PAGE_SIZE * nr);
 }
 
+void __init alloc_tag_sec_init(void);
+
 #else /* CONFIG_MEM_ALLOC_PROFILING */
 
 static inline void clear_page_tag_ref(struct page *page) {}
@@ -130,6 +240,7 @@ static inline void pgalloc_tag_add(struct page *page, struct task_struct *task,
 static inline void pgalloc_tag_sub(struct page *page, unsigned int nr) {}
 static inline struct alloc_tag *pgalloc_tag_get(struct page *page) { return NULL; }
 static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr) {}
+static inline void alloc_tag_sec_init(void) {}
 
 #endif /* CONFIG_MEM_ALLOC_PROFILING */
 

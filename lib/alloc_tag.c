@@ -3,6 +3,7 @@
 #include <linux/execmem.h>
 #include <linux/fs.h>
 #include <linux/gfp.h>
+#include <linux/kallsyms.h>
 #include <linux/module.h>
 #include <linux/page_ext.h>
 #include <linux/proc_fs.h>
@@ -12,6 +13,8 @@
 
 #define ALLOCINFO_FILE_NAME		"allocinfo"
 #define MODULE_ALLOC_TAG_VMAP_SIZE	(100000UL * sizeof(struct alloc_tag))
+#define SECTION_START(NAME)		(CODETAG_SECTION_START_PREFIX NAME)
+#define SECTION_STOP(NAME)		(CODETAG_SECTION_STOP_PREFIX NAME)
 
 #ifdef CONFIG_MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT
 static bool mem_profiling_support = true;
@@ -26,6 +29,11 @@ EXPORT_SYMBOL(_shared_alloc_tag);
 
 DEFINE_STATIC_KEY_MAYBE(CONFIG_MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT,
 			mem_alloc_profiling_key);
+DEFINE_STATIC_KEY_FALSE(mem_profiling_compressed);
+
+struct alloc_tag_kernel_section kernel_tags = { NULL, 0 };
+unsigned long alloc_tag_ref_mask;
+int alloc_tag_ref_offs;
 
 struct allocinfo_private {
 	struct codetag_iterator iter;
@@ -155,7 +163,7 @@ size_t alloc_tag_top_users(struct codetag_bytes *tags, size_t count, bool can_sl
 	return nr;
 }
 
-static void shutdown_mem_profiling(void)
+static void shutdown_mem_profiling(bool remove_file)
 {
 	if (mem_alloc_profiling_enabled())
 		static_branch_disable(&mem_alloc_profiling_key);
@@ -163,6 +171,8 @@ static void shutdown_mem_profiling(void)
 	if (!mem_profiling_support)
 		return;
 
+	if (remove_file)
+		remove_proc_entry(ALLOCINFO_FILE_NAME, NULL);
 	mem_profiling_support = false;
 }
 
@@ -173,8 +183,38 @@ static void __init procfs_init(void)
 
 	if (!proc_create_seq(ALLOCINFO_FILE_NAME, 0400, NULL, &allocinfo_seq_op)) {
 		pr_err("Failed to create %s file\n", ALLOCINFO_FILE_NAME);
-		shutdown_mem_profiling();
+		shutdown_mem_profiling(false);
 	}
+}
+
+void __init alloc_tag_sec_init(void)
+{
+	struct alloc_tag *last_codetag;
+
+	if (!mem_profiling_support)
+		return;
+
+	if (!static_key_enabled(&mem_profiling_compressed))
+		return;
+
+	kernel_tags.first_tag = (struct alloc_tag *)kallsyms_lookup_name(
+					SECTION_START(ALLOC_TAG_SECTION_NAME));
+	last_codetag = (struct alloc_tag *)kallsyms_lookup_name(
+					SECTION_STOP(ALLOC_TAG_SECTION_NAME));
+	kernel_tags.count = last_codetag - kernel_tags.first_tag;
+
+	/* Check if kernel tags fit into page flags */
+	if (kernel_tags.count > (1UL << NR_UNUSED_PAGEFLAG_BITS)) {
+		shutdown_mem_profiling(false); /* allocinfo file does not exist yet */
+		pr_err("%lu allocation tags cannot be references using %d available page flag bits. Memory allocation profiling is disabled!\n",
+			kernel_tags.count, NR_UNUSED_PAGEFLAG_BITS);
+		return;
+	}
+
+	alloc_tag_ref_offs = (LRU_REFS_PGOFF - NR_UNUSED_PAGEFLAG_BITS);
+	alloc_tag_ref_mask = ((1UL << NR_UNUSED_PAGEFLAG_BITS) - 1);
+	pr_debug("Memory allocation profiling compression is using %d page flag bits!\n",
+		 NR_UNUSED_PAGEFLAG_BITS);
 }
 
 #ifdef CONFIG_MODULES
@@ -186,10 +226,59 @@ static struct module unloaded_mod;
 /* A dummy object used to indicate a module prepended area */
 static struct module prepend_mod;
 
-static struct alloc_tag_module_section module_tags;
+struct alloc_tag_module_section module_tags;
+
+static inline unsigned long alloc_tag_align(unsigned long val)
+{
+	if (!static_key_enabled(&mem_profiling_compressed)) {
+		/* No alignment requirements when we are not indexing the tags */
+		return val;
+	}
+
+	if (val % sizeof(struct alloc_tag) == 0)
+		return val;
+	return ((val / sizeof(struct alloc_tag)) + 1) * sizeof(struct alloc_tag);
+}
+
+static bool ensure_alignment(unsigned long align, unsigned int *prepend)
+{
+	if (!static_key_enabled(&mem_profiling_compressed)) {
+		/* No alignment requirements when we are not indexing the tags */
+		return true;
+	}
+
+	/*
+	 * If alloc_tag size is not a multiple of required alignment, tag
+	 * indexing does not work.
+	 */
+	if (!IS_ALIGNED(sizeof(struct alloc_tag), align))
+		return false;
+
+	/* Ensure prepend consumes multiple of alloc_tag-sized blocks */
+	if (*prepend)
+		*prepend = alloc_tag_align(*prepend);
+
+	return true;
+}
+
+static inline bool tags_addressable(void)
+{
+	unsigned long tag_idx_count;
+
+	if (!static_key_enabled(&mem_profiling_compressed))
+		return true; /* with page_ext tags are always addressable */
+
+	tag_idx_count = CODETAG_ID_FIRST + kernel_tags.count +
+			module_tags.size / sizeof(struct alloc_tag);
+
+	return tag_idx_count < (1UL << NR_UNUSED_PAGEFLAG_BITS);
+}
 
 static bool needs_section_mem(struct module *mod, unsigned long size)
 {
+	if (!mem_profiling_support)
+		return false;
+
 	return size >= sizeof(struct alloc_tag);
 }
 
@@ -300,6 +389,13 @@ static void *reserve_module_tags(struct module *mod, unsigned long size,
 	if (!align)
 		align = 1;
 
+	if (!ensure_alignment(align, &prepend)) {
+		shutdown_mem_profiling(true);
+		pr_err("%s: alignment %lu is incompatible with allocation tag indexing. Memory allocation profiling is disabled!\n",
+			mod->name, align);
+		return ERR_PTR(-EINVAL);
+	}
+
 	mas_lock(&mas);
 	if (!find_aligned_area(&mas, section_size, size, prepend, align)) {
 		ret = ERR_PTR(-ENOMEM);
@@ -343,9 +439,15 @@ unlock:
 		int grow_res;
 
 		module_tags.size = offset + size;
+		if (mem_alloc_profiling_enabled() && !tags_addressable()) {
+			shutdown_mem_profiling(true);
+			pr_warn("With module %s there are too many tags to fit in %d page flag bits. Memory allocation profiling is disabled!\n",
+				mod->name, NR_UNUSED_PAGEFLAG_BITS);
+		}
+
 		grow_res = vm_module_tags_populate();
 		if (grow_res) {
-			shutdown_mem_profiling();
+			shutdown_mem_profiling(true);
 			pr_err("Failed to allocate memory for allocation tags in the module %s. Memory allocation profiling is disabled!\n",
 			       mod->name);
 			return ERR_PTR(grow_res);
@@ -429,6 +531,8 @@ static int __init alloc_mod_tags_mem(void)
 
 	module_tags.start_addr = (unsigned long)vm_module_tags->addr;
 	module_tags.end_addr = module_tags.start_addr + MODULE_ALLOC_TAG_VMAP_SIZE;
+	/* Ensure the base is alloc_tag aligned when required for indexing */
+	module_tags.start_addr = alloc_tag_align(module_tags.start_addr);
 
 	return 0;
 }
@@ -451,8 +555,10 @@ static inline void free_mod_tags_mem(void) {}
 
 #endif /* CONFIG_MODULES */
 
+/* See: Documentation/mm/allocation-profiling.rst */
 static int __init setup_early_mem_profiling(char *str)
 {
+	bool compressed = false;
 	bool enable;
 
 	if (!str || !str[0])
@@ -461,21 +567,36 @@ static int __init setup_early_mem_profiling(char *str)
 	if (!strncmp(str, "never", 5)) {
 		enable = false;
 		mem_profiling_support = false;
+		pr_info("Memory allocation profiling is disabled!\n");
 	} else {
-		int res;
+		char *token = strsep(&str, ",");
 
-		res = kstrtobool(str, &enable);
-		if (res)
-			return res;
+		if (kstrtobool(token, &enable))
+			return -EINVAL;
 
+		if (str) {
+
+			if (strcmp(str, "compressed"))
+				return -EINVAL;
+
+			compressed = true;
+		}
 		mem_profiling_support = true;
+		pr_info("Memory allocation profiling is enabled %s compression and is turned %s!\n",
+			compressed ? "with" : "without", enable ? "on" : "off");
 	}
 
-	if (enable != static_key_enabled(&mem_alloc_profiling_key)) {
+	if (enable != mem_alloc_profiling_enabled()) {
 		if (enable)
 			static_branch_enable(&mem_alloc_profiling_key);
 		else
 			static_branch_disable(&mem_alloc_profiling_key);
+	}
+	if (compressed != static_key_enabled(&mem_profiling_compressed)) {
+		if (compressed)
+			static_branch_enable(&mem_profiling_compressed);
+		else
+			static_branch_disable(&mem_profiling_compressed);
 	}
 
 	return 0;
@@ -484,6 +605,9 @@ early_param("sysctl.vm.mem_profiling", setup_early_mem_profiling);
 
 static __init bool need_page_alloc_tagging(void)
 {
+	if (static_key_enabled(&mem_profiling_compressed))
+		return false;
+
 	return mem_profiling_support;
 }
 
