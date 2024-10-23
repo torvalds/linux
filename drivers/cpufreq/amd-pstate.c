@@ -306,7 +306,7 @@ static int amd_pstate_set_energy_pref_index(struct amd_cpudata *cpudata,
 	return ret;
 }
 
-static inline int msr_enable(bool enable)
+static inline int msr_cppc_enable(bool enable)
 {
 	int ret, cpu;
 	unsigned long logical_proc_id_mask = 0;
@@ -332,7 +332,7 @@ static inline int msr_enable(bool enable)
 	return 0;
 }
 
-static int shmem_enable(bool enable)
+static int shmem_cppc_enable(bool enable)
 {
 	int cpu, ret = 0;
 	struct cppc_perf_ctrls perf_ctrls;
@@ -359,11 +359,11 @@ static int shmem_enable(bool enable)
 	return ret;
 }
 
-DEFINE_STATIC_CALL(amd_pstate_enable, msr_enable);
+DEFINE_STATIC_CALL(amd_pstate_cppc_enable, msr_cppc_enable);
 
-static inline int amd_pstate_enable(bool enable)
+static inline int amd_pstate_cppc_enable(bool enable)
 {
-	return static_call(amd_pstate_enable)(enable);
+	return static_call(amd_pstate_cppc_enable)(enable);
 }
 
 static int msr_init_perf(struct amd_cpudata *cpudata)
@@ -1042,7 +1042,7 @@ static int amd_pstate_cpu_resume(struct cpufreq_policy *policy)
 {
 	int ret;
 
-	ret = amd_pstate_enable(true);
+	ret = amd_pstate_cppc_enable(true);
 	if (ret)
 		pr_err("failed to enable amd-pstate during resume, return %d\n", ret);
 
@@ -1053,7 +1053,7 @@ static int amd_pstate_cpu_suspend(struct cpufreq_policy *policy)
 {
 	int ret;
 
-	ret = amd_pstate_enable(false);
+	ret = amd_pstate_cppc_enable(false);
 	if (ret)
 		pr_err("failed to disable amd-pstate during suspend, return %d\n", ret);
 
@@ -1186,7 +1186,7 @@ static ssize_t show_energy_performance_preference(
 
 static void amd_pstate_driver_cleanup(void)
 {
-	amd_pstate_enable(false);
+	amd_pstate_cppc_enable(false);
 	cppc_state = AMD_PSTATE_DISABLE;
 	current_pstate_driver = NULL;
 }
@@ -1220,7 +1220,7 @@ static int amd_pstate_register_driver(int mode)
 
 	cppc_state = mode;
 
-	ret = amd_pstate_enable(true);
+	ret = amd_pstate_cppc_enable(true);
 	if (ret) {
 		pr_err("failed to enable cppc during amd-pstate driver registration, return %d\n",
 		       ret);
@@ -1599,7 +1599,7 @@ static void amd_pstate_epp_reenable(struct amd_cpudata *cpudata)
 	u64 value, max_perf;
 	int ret;
 
-	ret = amd_pstate_enable(true);
+	ret = amd_pstate_cppc_enable(true);
 	if (ret)
 		pr_err("failed to enable amd pstate during resume, return %d\n", ret);
 
@@ -1686,7 +1686,7 @@ static int amd_pstate_epp_suspend(struct cpufreq_policy *policy)
 	cpudata->suspended = true;
 
 	/* disable CPPC in lowlevel firmware */
-	ret = amd_pstate_enable(false);
+	ret = amd_pstate_cppc_enable(false);
 	if (ret)
 		pr_err("failed to suspend, return %d\n", ret);
 
@@ -1861,7 +1861,7 @@ static int __init amd_pstate_init(void)
 			current_pstate_driver->adjust_perf = amd_pstate_adjust_perf;
 	} else {
 		pr_debug("AMD CPPC shared memory based functionality is supported\n");
-		static_call_update(amd_pstate_enable, shmem_enable);
+		static_call_update(amd_pstate_cppc_enable, shmem_cppc_enable);
 		static_call_update(amd_pstate_init_perf, shmem_init_perf);
 		static_call_update(amd_pstate_update_perf, shmem_update_perf);
 	}
@@ -1886,7 +1886,7 @@ static int __init amd_pstate_init(void)
 
 global_attr_free:
 	cpufreq_unregister_driver(current_pstate_driver);
-	amd_pstate_enable(false);
+	amd_pstate_cppc_enable(false);
 	return ret;
 }
 device_initcall(amd_pstate_init);
