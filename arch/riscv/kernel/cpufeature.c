@@ -20,7 +20,8 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/hwcap.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
+#include <asm/hwprobe.h>
 #include <asm/processor.h>
 #include <asm/sbi.h>
 #include <asm/vector.h>

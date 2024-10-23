@@ -23,7 +23,7 @@
 #include <linux/list.h>
 
 #include <asm/cacheflush.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/ftrace.h>
 #include <asm/syscall.h>
 #include <asm/inst.h>

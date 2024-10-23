@@ -19,7 +19,7 @@
 #include <asm/cacheflush.h>
 #include <asm/debug-monitors.h>
 #include <asm/insn.h>
-#include <asm/patching.h>
+#include <asm/text-patching.h>
 #include <asm/set_memory.h>
 
 #include "bpf_jit.h"

@@ -2,7 +2,7 @@
 #include <linux/memory.h>
 #include <linux/static_call.h>
 
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 
 void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 {

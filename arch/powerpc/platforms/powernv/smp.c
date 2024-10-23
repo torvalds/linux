@@ -28,7 +28,7 @@
 #include <asm/xive.h>
 #include <asm/opal.h>
 #include <asm/runlatch.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/dbell.h>
 #include <asm/kvm_ppc.h>
 #include <asm/ppc-opcode.h>

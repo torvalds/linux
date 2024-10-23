@@ -10,7 +10,7 @@
 #include <asm/fixmap.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
-#include <asm/patching.h>
+#include <asm/text-patching.h>
 #include <asm/sections.h>
 
 static DEFINE_RAW_SPINLOCK(patch_lock);

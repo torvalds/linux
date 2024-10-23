@@ -9,7 +9,7 @@
 #include <linux/of_fdt.h>
 #include <asm/epapr_hcalls.h>
 #include <asm/cacheflush.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/machdep.h>
 #include <asm/inst.h>
 

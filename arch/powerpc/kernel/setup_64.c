@@ -60,7 +60,7 @@
 #include <asm/xmon.h>
 #include <asm/udbg.h>
 #include <asm/kexec.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/ftrace.h>
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
