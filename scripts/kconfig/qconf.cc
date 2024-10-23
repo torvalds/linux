@@ -1361,21 +1361,22 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configList->setFocus();
 
 	backAction = new QAction(QPixmap(xpm_back), "Back", this);
+	backAction->setShortcut(QKeySequence::Back);
 	connect(backAction, &QAction::triggered,
 		this, &ConfigMainWindow::goBack);
 
 	QAction *quitAction = new QAction("&Quit", this);
-	quitAction->setShortcut(Qt::CTRL | Qt::Key_Q);
+	quitAction->setShortcut(QKeySequence::Quit);
 	connect(quitAction, &QAction::triggered,
 		this, &ConfigMainWindow::close);
 
-	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Load", this);
-	loadAction->setShortcut(Qt::CTRL | Qt::Key_L);
+	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Open", this);
+	loadAction->setShortcut(QKeySequence::Open);
 	connect(loadAction, &QAction::triggered,
 		this, &ConfigMainWindow::loadConfig);
 
 	saveAction = new QAction(QPixmap(xpm_save), "&Save", this);
-	saveAction->setShortcut(Qt::CTRL | Qt::Key_S);
+	saveAction->setShortcut(QKeySequence::Save);
 	connect(saveAction, &QAction::triggered,
 		this, &ConfigMainWindow::saveConfig);
 
@@ -1384,10 +1385,11 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configname = conf_get_configname();
 
 	QAction *saveAsAction = new QAction("Save &As...", this);
+	saveAsAction->setShortcut(QKeySequence::SaveAs);
 	connect(saveAsAction, &QAction::triggered,
 		this, &ConfigMainWindow::saveConfigAs);
 	QAction *searchAction = new QAction("&Find", this);
-	searchAction->setShortcut(Qt::CTRL | Qt::Key_F);
+	searchAction->setShortcut(QKeySequence::Find);
 	connect(searchAction, &QAction::triggered,
 		this, &ConfigMainWindow::searchConfig);
 	singleViewAction = new QAction(QPixmap(xpm_single_view), "Single View", this);
