@@ -210,8 +210,7 @@ void gve_free_to_page_pool(struct gve_rx_ring *rx,
 	if (!page)
 		return;
 
-	page_pool_put_page(page->pp, page, buf_state->page_info.buf_size,
-			   allow_direct);
+	page_pool_put_full_page(page->pp, page, allow_direct);
 	buf_state->page_info.page = NULL;
 }
 
