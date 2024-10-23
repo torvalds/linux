@@ -230,7 +230,7 @@ static ssize_t chp_status_show(struct device *dev,
 	status = chp->state;
 	mutex_unlock(&chp->lock);
 
-	return status ? sprintf(buf, "online\n") : sprintf(buf, "offline\n");
+	return status ? sysfs_emit(buf, "online\n") : sysfs_emit(buf, "offline\n");
 }
 
 static ssize_t chp_status_write(struct device *dev,
@@ -311,7 +311,7 @@ static ssize_t chp_type_show(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&chp->lock);
 	type = chp->desc.desc;
 	mutex_unlock(&chp->lock);
-	return sprintf(buf, "%x\n", type);
+	return sysfs_emit(buf, "%x\n", type);
 }
 
 static DEVICE_ATTR(type, 0444, chp_type_show, NULL);
@@ -324,8 +324,8 @@ static ssize_t chp_cmg_show(struct device *dev, struct device_attribute *attr,
 	if (!chp)
 		return 0;
 	if (chp->cmg == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
-	return sprintf(buf, "%d\n", chp->cmg);
+		return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "%d\n", chp->cmg);
 }
 
 static DEVICE_ATTR(cmg, 0444, chp_cmg_show, NULL);
@@ -338,8 +338,8 @@ static ssize_t chp_shared_show(struct device *dev,
 	if (!chp)
 		return 0;
 	if (chp->shared == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
-	return sprintf(buf, "%x\n", chp->shared);
+		return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "%x\n", chp->shared);
 }
 
 static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
@@ -352,7 +352,7 @@ static ssize_t chp_chid_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&chp->lock);
 	if (chp->desc_fmt1.flags & 0x10)
-		rc = sprintf(buf, "%04x\n", chp->desc_fmt1.chid);
+		rc = sysfs_emit(buf, "%04x\n", chp->desc_fmt1.chid);
 	else
 		rc = 0;
 	mutex_unlock(&chp->lock);
@@ -369,7 +369,7 @@ static ssize_t chp_chid_external_show(struct device *dev,
 
 	mutex_lock(&chp->lock);
 	if (chp->desc_fmt1.flags & 0x10)
-		rc = sprintf(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
+		rc = sysfs_emit(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
 	else
 		rc = 0;
 	mutex_unlock(&chp->lock);
@@ -385,7 +385,7 @@ static ssize_t chp_esc_show(struct device *dev,
 	ssize_t rc;
 
 	mutex_lock(&chp->lock);
-	rc = sprintf(buf, "%x\n", chp->desc_fmt1.esc);
+	rc = sysfs_emit(buf, "%x\n", chp->desc_fmt1.esc);
 	mutex_unlock(&chp->lock);
 
 	return rc;
