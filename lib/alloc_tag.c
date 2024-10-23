@@ -8,14 +8,15 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_buf.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 
 #define ALLOCINFO_FILE_NAME		"allocinfo"
 #define MODULE_ALLOC_TAG_VMAP_SIZE	(100000UL * sizeof(struct alloc_tag))
 
 #ifdef CONFIG_MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT
-static bool mem_profiling_support __meminitdata = true;
+static bool mem_profiling_support = true;
 #else
-static bool mem_profiling_support __meminitdata;
+static bool mem_profiling_support;
 #endif
 
 static struct codetag_type *alloc_tag_cttype;
@@ -154,7 +155,7 @@ size_t alloc_tag_top_users(struct codetag_bytes *tags, size_t count, bool can_sl
 	return nr;
 }
 
-static void __init shutdown_mem_profiling(void)
+static void shutdown_mem_profiling(void)
 {
 	if (mem_alloc_profiling_enabled())
 		static_branch_disable(&mem_alloc_profiling_key);
@@ -179,6 +180,7 @@ static void __init procfs_init(void)
 #ifdef CONFIG_MODULES
 
 static struct maple_tree mod_area_mt = MTREE_INIT(mod_area_mt, MT_FLAGS_ALLOC_RANGE);
+static struct vm_struct *vm_module_tags;
 /* A dummy object used to indicate an unloaded module */
 static struct module unloaded_mod;
 /* A dummy object used to indicate a module prepended area */
@@ -252,6 +254,33 @@ repeat:
 	return false;
 }
 
+static int vm_module_tags_populate(void)
+{
+	unsigned long phys_size = vm_module_tags->nr_pages << PAGE_SHIFT;
+
+	if (phys_size < module_tags.size) {
+		struct page **next_page = vm_module_tags->pages + vm_module_tags->nr_pages;
+		unsigned long addr = module_tags.start_addr + phys_size;
+		unsigned long more_pages;
+		unsigned long nr;
+
+		more_pages = ALIGN(module_tags.size - phys_size, PAGE_SIZE) >> PAGE_SHIFT;
+		nr = alloc_pages_bulk_array_node(GFP_KERNEL | __GFP_NOWARN,
+						 NUMA_NO_NODE, more_pages, next_page);
+		if (nr < more_pages ||
+		    vmap_pages_range(addr, addr + (nr << PAGE_SHIFT), PAGE_KERNEL,
+				     next_page, PAGE_SHIFT) < 0) {
+			/* Clean up and error out */
+			for (int i = 0; i < nr; i++)
+				__free_page(next_page[i]);
+			return -ENOMEM;
+		}
+		vm_module_tags->nr_pages += nr;
+	}
+
+	return 0;
+}
+
 static void *reserve_module_tags(struct module *mod, unsigned long size,
 				 unsigned int prepend, unsigned long align)
 {
@@ -310,8 +339,18 @@ unlock:
 	if (IS_ERR(ret))
 		return ret;
 
-	if (module_tags.size < offset + size)
+	if (module_tags.size < offset + size) {
+		int grow_res;
+
 		module_tags.size = offset + size;
+		grow_res = vm_module_tags_populate();
+		if (grow_res) {
+			shutdown_mem_profiling();
+			pr_err("Failed to allocate memory for allocation tags in the module %s. Memory allocation profiling is disabled!\n",
+			       mod->name);
+			return ERR_PTR(grow_res);
+		}
+	}
 
 	return (struct alloc_tag *)(module_tags.start_addr + offset);
 }
@@ -372,12 +411,23 @@ static void replace_module(struct module *mod, struct module *new_mod)
 
 static int __init alloc_mod_tags_mem(void)
 {
-	/* Allocate space to copy allocation tags */
-	module_tags.start_addr = (unsigned long)execmem_alloc(EXECMEM_MODULE_DATA,
-							      MODULE_ALLOC_TAG_VMAP_SIZE);
-	if (!module_tags.start_addr)
+	/* Map space to copy allocation tags */
+	vm_module_tags = execmem_vmap(MODULE_ALLOC_TAG_VMAP_SIZE);
+	if (!vm_module_tags) {
+		pr_err("Failed to map %lu bytes for module allocation tags\n",
+			MODULE_ALLOC_TAG_VMAP_SIZE);
+		module_tags.start_addr = 0;
 		return -ENOMEM;
+	}
 
+	vm_module_tags->pages = kmalloc_array(get_vm_area_size(vm_module_tags) >> PAGE_SHIFT,
+					sizeof(struct page *), GFP_KERNEL | __GFP_ZERO);
+	if (!vm_module_tags->pages) {
+		free_vm_area(vm_module_tags);
+		return -ENOMEM;
+	}
+
+	module_tags.start_addr = (unsigned long)vm_module_tags->addr;
 	module_tags.end_addr = module_tags.start_addr + MODULE_ALLOC_TAG_VMAP_SIZE;
 
 	return 0;
@@ -385,8 +435,13 @@ static int __init alloc_mod_tags_mem(void)
 
 static void __init free_mod_tags_mem(void)
 {
-	execmem_free((void *)module_tags.start_addr);
+	int i;
+
 	module_tags.start_addr = 0;
+	for (i = 0; i < vm_module_tags->nr_pages; i++)
+		__free_page(vm_module_tags->pages[i]);
+	kfree(vm_module_tags->pages);
+	free_vm_area(vm_module_tags);
 }
 
 #else /* CONFIG_MODULES */
