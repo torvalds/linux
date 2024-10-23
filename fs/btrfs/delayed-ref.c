@@ -407,6 +407,8 @@ static struct btrfs_delayed_ref_head *find_ref_head(
 	struct rb_node *n;
 	struct btrfs_delayed_ref_head *entry;
 
+	lockdep_assert_held(&dr->lock);
+
 	n = root->rb_node;
 	entry = NULL;
 	while (n) {
@@ -1195,8 +1197,6 @@ btrfs_find_delayed_ref_head(const struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_root *delayed_refs,
 			    u64 bytenr)
 {
-	lockdep_assert_held(&delayed_refs->lock);
-
 	return find_ref_head(fs_info, delayed_refs, bytenr, false);
 }
 
