@@ -309,6 +309,7 @@ enum mes_misc_opcode {
 	MES_MISC_OP_WRM_REG_WAIT,
 	MES_MISC_OP_WRM_REG_WR_WAIT,
 	MES_MISC_OP_SET_SHADER_DEBUGGER,
+	MES_MISC_OP_CHANGE_CONFIG,
 };
 
 struct mes_misc_op_input {
@@ -347,6 +348,21 @@ struct mes_misc_op_input {
 			uint32_t tcp_watch_cntl[4];
 			uint32_t trap_en;
 		} set_shader_debugger;
+
+		struct {
+			union {
+				struct {
+					uint32_t limit_single_process : 1;
+					uint32_t enable_hws_logging_buffer : 1;
+					uint32_t reserved : 30;
+				};
+				uint32_t all;
+			} option;
+			struct {
+				uint32_t tdr_level;
+				uint32_t tdr_delay;
+			} tdr_config;
+		} change_config;
 	};
 };
 
@@ -517,4 +533,7 @@ static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 }
 
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev);
+
+int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_id, bool enable);
+
 #endif /* __AMDGPU_MES_H__ */

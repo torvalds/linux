@@ -1678,6 +1678,29 @@ bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev)
 	return is_supported;
 }
 
+/* Fix me -- node_id is used to identify the correct MES instances in the future */
+int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_id, bool enable)
+{
+	struct mes_misc_op_input op_input = {0};
+	int r;
+
+	op_input.op = MES_MISC_OP_CHANGE_CONFIG;
+	op_input.change_config.option.limit_single_process = enable ? 1 : 0;
+
+	if (!adev->mes.funcs->misc_op) {
+		dev_err(adev->dev, "mes change config is not supported!\n");
+		r = -EINVAL;
+		goto error;
+	}
+
+	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
+	if (r)
+		dev_err(adev->dev, "failed to change_config.\n");
+
+error:
+	return r;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 static int amdgpu_debugfs_mes_event_log_show(struct seq_file *m, void *unused)

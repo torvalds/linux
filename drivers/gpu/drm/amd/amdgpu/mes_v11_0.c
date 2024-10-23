@@ -644,6 +644,18 @@ static int mes_v11_0_misc_op(struct amdgpu_mes *mes,
 				sizeof(misc_pkt.set_shader_debugger.tcp_watch_cntl));
 		misc_pkt.set_shader_debugger.trap_en = input->set_shader_debugger.trap_en;
 		break;
+	case MES_MISC_OP_CHANGE_CONFIG:
+		if ((mes->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) < 0x63) {
+			dev_err(mes->adev->dev, "MES FW versoin must be larger than 0x63 to support limit single process feature.\n");
+			return -EINVAL;
+		}
+		misc_pkt.opcode = MESAPI_MISC__CHANGE_CONFIG;
+		misc_pkt.change_config.opcode =
+				MESAPI_MISC__CHANGE_CONFIG_OPTION_LIMIT_SINGLE_PROCESS;
+		misc_pkt.change_config.option.bits.limit_single_process =
+				input->change_config.option.limit_single_process;
+		break;
+
 	default:
 		DRM_ERROR("unsupported misc op (%d) \n", input->op);
 		return -EINVAL;
@@ -707,6 +719,9 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 		mes_set_hw_res_pkt.event_intr_history_gpu_mc_ptr =
 					mes->event_log_gpu_addr;
 	}
+
+	if (enforce_isolation)
+		mes_set_hw_res_pkt.limit_single_process = 1;
 
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
