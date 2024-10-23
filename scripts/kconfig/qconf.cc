@@ -159,7 +159,7 @@ void ConfigItem::updateMenu(void)
 			ch = 'M';
 			break;
 		default:
-			if (sym_is_choice_value(sym) && type == S_BOOLEAN)
+			if (sym_is_choice_value(sym))
 				setIcon(promptColIdx, choiceNoIcon);
 			else
 				setIcon(promptColIdx, symbolNoIcon);
