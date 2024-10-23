@@ -147,7 +147,7 @@ static long bpf_pid_task_storage_update_elem(struct bpf_map *map, void *key,
 	bpf_task_storage_lock();
 	sdata = bpf_local_storage_update(
 		task, (struct bpf_local_storage_map *)map, value, map_flags,
-		GFP_ATOMIC);
+		false, GFP_ATOMIC);
 	bpf_task_storage_unlock();
 
 	err = PTR_ERR_OR_ZERO(sdata);
@@ -219,7 +219,7 @@ static void *__bpf_task_storage_get(struct bpf_map *map,
 	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE) && nobusy) {
 		sdata = bpf_local_storage_update(
 			task, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST, gfp_flags);
+			BPF_NOEXIST, false, gfp_flags);
 		return IS_ERR(sdata) ? NULL : sdata->data;
 	}
 
