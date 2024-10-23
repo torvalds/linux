@@ -222,6 +222,7 @@
 	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_type)			\
 	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_nr_superblocks)	\
 	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_superblocks_overlap)	\
+	x(BCH_ERR_invalid_sb_layout,    invalid_sb_layout_sb_max_size_bits)     \
 	x(BCH_ERR_invalid_sb,		invalid_sb_members_missing)		\
 	x(BCH_ERR_invalid_sb,		invalid_sb_members)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_disk_groups)			\
