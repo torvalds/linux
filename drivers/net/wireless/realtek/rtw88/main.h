@@ -1835,6 +1835,20 @@ struct rtw_phy_cond {
 	#define BRANCH_ENDIF	3
 };
 
+struct rtw_phy_cond2 {
+#ifdef __LITTLE_ENDIAN
+	u8 type_glna;
+	u8 type_gpa;
+	u8 type_alna;
+	u8 type_apa;
+#else
+	u8 type_apa;
+	u8 type_alna;
+	u8 type_gpa;
+	u8 type_glna;
+#endif
+};
+
 struct rtw_fifo_conf {
 	/* tx fifo information */
 	u16 rsvd_boundary;
@@ -1916,6 +1930,7 @@ struct rtw_hal {
 	u8 oem_id;
 	u8 pkg_type;
 	struct rtw_phy_cond phy_cond;
+	struct rtw_phy_cond2 phy_cond2;
 	bool rfe_btg;
 
 	u8 ps_mode;
