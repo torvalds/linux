@@ -455,9 +455,17 @@ mark_service_closing(struct vchiq_service *service)
 
 static inline int
 make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
-		      struct vchiq_header *header, void *cb_data)
+		      struct vchiq_header *header, struct vchiq_bulk *bulk)
 {
+	void *cb_data = NULL;
 	int status;
+
+	/*
+	 * If a bulk transfer is in progress, pass bulk->cb_data to the
+	 * callback function.
+	 */
+	if (bulk)
+		cb_data = bulk->cb_data;
 
 	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %pK, %pK)\n",
 		service->state->id, service->localport, reason_names[reason],
@@ -1339,8 +1347,7 @@ static int service_notify_bulk(struct vchiq_service *service,
 	} else if (bulk->mode == VCHIQ_BULK_MODE_CALLBACK) {
 		enum vchiq_reason reason = get_bulk_reason(bulk);
 
-		return make_service_callback(service, reason, NULL,
-					     bulk->cb_data);
+		return make_service_callback(service, reason, NULL, bulk);
 	}
 
 	return 0;
