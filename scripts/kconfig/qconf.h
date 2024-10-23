@@ -237,7 +237,7 @@ protected:
 class ConfigMainWindow : public QMainWindow {
 	Q_OBJECT
 
-	char *configname;
+	QString configname;
 	static QAction *saveAction;
 	static void conf_changed(bool);
 public:
