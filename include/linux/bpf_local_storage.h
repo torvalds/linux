@@ -77,7 +77,13 @@ struct bpf_local_storage_elem {
 	struct hlist_node map_node;	/* Linked to bpf_local_storage_map */
 	struct hlist_node snode;	/* Linked to bpf_local_storage */
 	struct bpf_local_storage __rcu *local_storage;
-	struct rcu_head rcu;
+	union {
+		struct rcu_head rcu;
+		struct hlist_node free_node;	/* used to postpone
+						 * bpf_selem_free
+						 * after raw_spin_unlock
+						 */
+	};
 	/* 8 bytes hole */
 	/* The data is stored in another cacheline to minimize
 	 * the number of cachelines access during a cache hit.

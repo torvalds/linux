@@ -246,13 +246,30 @@ void bpf_selem_free(struct bpf_local_storage_elem *selem,
 	}
 }
 
+static void bpf_selem_free_list(struct hlist_head *list, bool reuse_now)
+{
+	struct bpf_local_storage_elem *selem;
+	struct bpf_local_storage_map *smap;
+	struct hlist_node *n;
+
+	/* The "_safe" iteration is needed.
+	 * The loop is not removing the selem from the list
+	 * but bpf_selem_free will use the selem->rcu_head
+	 * which is union-ized with the selem->free_node.
+	 */
+	hlist_for_each_entry_safe(selem, n, list, free_node) {
+		smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
+		bpf_selem_free(selem, smap, reuse_now);
+	}
+}
+
 /* local_storage->lock must be held and selem->local_storage == local_storage.
  * The caller must ensure selem->smap is still valid to be
  * dereferenced for its smap->elem_size and smap->cache_idx.
  */
 static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
 					    struct bpf_local_storage_elem *selem,
-					    bool uncharge_mem, bool reuse_now)
+					    bool uncharge_mem, struct hlist_head *free_selem_list)
 {
 	struct bpf_local_storage_map *smap;
 	bool free_local_storage;
@@ -296,7 +313,7 @@ static bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_stor
 	    SDATA(selem))
 		RCU_INIT_POINTER(local_storage->cache[smap->cache_idx], NULL);
 
-	bpf_selem_free(selem, smap, reuse_now);
+	hlist_add_head(&selem->free_node, free_selem_list);
 
 	if (rcu_access_pointer(local_storage->smap) == smap)
 		RCU_INIT_POINTER(local_storage->smap, NULL);
@@ -345,6 +362,7 @@ static void bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem,
 	struct bpf_local_storage_map *storage_smap;
 	struct bpf_local_storage *local_storage;
 	bool bpf_ma, free_local_storage = false;
+	HLIST_HEAD(selem_free_list);
 	unsigned long flags;
 
 	if (unlikely(!selem_linked_to_storage_lockless(selem)))
@@ -360,8 +378,10 @@ static void bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem,
 	raw_spin_lock_irqsave(&local_storage->lock, flags);
 	if (likely(selem_linked_to_storage(selem)))
 		free_local_storage = bpf_selem_unlink_storage_nolock(
-			local_storage, selem, true, reuse_now);
+			local_storage, selem, true, &selem_free_list);
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
+
+	bpf_selem_free_list(&selem_free_list, reuse_now);
 
 	if (free_local_storage)
 		bpf_local_storage_free(local_storage, storage_smap, bpf_ma, reuse_now);
@@ -529,6 +549,7 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 	struct bpf_local_storage_data *old_sdata = NULL;
 	struct bpf_local_storage_elem *alloc_selem, *selem = NULL;
 	struct bpf_local_storage *local_storage;
+	HLIST_HEAD(old_selem_free_list);
 	unsigned long flags;
 	int err;
 
@@ -624,11 +645,12 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 	if (old_sdata) {
 		bpf_selem_unlink_map(SELEM(old_sdata));
 		bpf_selem_unlink_storage_nolock(local_storage, SELEM(old_sdata),
-						true, false);
+						true, &old_selem_free_list);
 	}
 
 unlock:
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
+	bpf_selem_free_list(&old_selem_free_list, false);
 	if (alloc_selem) {
 		mem_uncharge(smap, owner, smap->elem_size);
 		bpf_selem_free(alloc_selem, smap, true);
@@ -706,6 +728,7 @@ void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 	struct bpf_local_storage_map *storage_smap;
 	struct bpf_local_storage_elem *selem;
 	bool bpf_ma, free_storage = false;
+	HLIST_HEAD(free_selem_list);
 	struct hlist_node *n;
 	unsigned long flags;
 
@@ -734,9 +757,11 @@ void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 		 * of the loop will set the free_cgroup_storage to true.
 		 */
 		free_storage = bpf_selem_unlink_storage_nolock(
-			local_storage, selem, true, true);
+			local_storage, selem, true, &free_selem_list);
 	}
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
+
+	bpf_selem_free_list(&free_selem_list, true);
 
 	if (free_storage)
 		bpf_local_storage_free(local_storage, storage_smap, bpf_ma, true);
