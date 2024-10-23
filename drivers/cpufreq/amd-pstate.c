@@ -311,6 +311,12 @@ static inline int msr_cppc_enable(bool enable)
 	int ret, cpu;
 	unsigned long logical_proc_id_mask = 0;
 
+       /*
+        * MSR_AMD_CPPC_ENABLE is write-once, once set it cannot be cleared.
+        */
+	if (!enable)
+		return 0;
+
 	if (enable == cppc_enabled)
 		return 0;
 
