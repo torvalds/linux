@@ -1369,7 +1369,7 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 		 * Only generate callbacks for non-dummy bulk
 		 * requests, and non-terminated services
 		 */
-		if (bulk->data && service->instance) {
+		if (bulk->dma_addr && service->instance) {
 			status = service_notify_bulk(service, bulk);
 			if (status == -EAGAIN)
 				break;
@@ -1751,7 +1751,7 @@ vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk
 	if (!pagelistinfo)
 		return -ENOMEM;
 
-	bulk->data = pagelistinfo->dma_addr;
+	bulk->dma_addr = pagelistinfo->dma_addr;
 
 	/*
 	 * Store the pagelistinfo address in remote_data,
@@ -1807,7 +1807,7 @@ abort_outstanding_bulks(struct vchiq_service *service,
 				service->remoteport, bulk->size, bulk->remote_size);
 		} else {
 			/* fabricate a matching dummy bulk */
-			bulk->data = 0;
+			bulk->dma_addr = 0;
 			bulk->size = 0;
 			bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 			bulk->dir = is_tx ? VCHIQ_BULK_TRANSMIT :
@@ -2112,7 +2112,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 
 			dev_dbg(state->dev, "core: %d: prs %s@%pK (%d->%d) %x@%pad\n",
 				state->id, msg_type_str(type), header, remoteport,
-				localport, bulk->actual, &bulk->data);
+				localport, bulk->actual, &bulk->dma_addr);
 
 			dev_dbg(state->dev, "core: %d: prs:%d %cx li=%x ri=%x p=%x\n",
 				state->id, localport,
@@ -3081,7 +3081,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 
 	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %pK\n",
 		state->id, service->localport, service->remoteport,
-		dir_char, bulk->size, &bulk->data, bulk->userdata);
+		dir_char, bulk->size, &bulk->dma_addr, bulk->userdata);
 
 	/*
 	 * The slot mutex must be held when the service is being closed, so
@@ -3095,7 +3095,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
 		goto unlock_both_error_exit;
 
-	payload[0] = lower_32_bits(bulk->data);
+	payload[0] = lower_32_bits(bulk->dma_addr);
 	payload[1] = bulk->size;
 	status = queue_message(state,
 			       NULL,
