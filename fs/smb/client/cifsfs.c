@@ -1780,7 +1780,7 @@ static int cifs_init_netfs(void)
 nomem_subreqpool:
 	kmem_cache_destroy(cifs_io_subrequest_cachep);
 nomem_subreq:
-	mempool_destroy(&cifs_io_request_pool);
+	mempool_exit(&cifs_io_request_pool);
 nomem_reqpool:
 	kmem_cache_destroy(cifs_io_request_cachep);
 nomem_req:
