@@ -992,11 +992,8 @@ void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	 * switching context behind everybody's back, disable interrupts...
 	 */
 	scoped_guard(write_lock_irqsave, &vcpu->kvm->mmu_lock) {
-		struct kvm_s2_mmu *mmu;
 		u64 val, hcr;
 		bool fail;
-
-		mmu = &vcpu->kvm->arch.mmu;
 
 		val = hcr = read_sysreg(hcr_el2);
 		val &= ~HCR_TGE;
