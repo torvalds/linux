@@ -77,7 +77,7 @@ static int devlink_nl_region_snapshot_id_put(struct sk_buff *msg,
 
 	snap_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_REGION_SNAPSHOT);
 	if (!snap_attr)
-		return -EINVAL;
+		return -EMSGSIZE;
 
 	err = nla_put_u32(msg, DEVLINK_ATTR_REGION_SNAPSHOT_ID, snapshot->id);
 	if (err)
@@ -102,7 +102,7 @@ static int devlink_nl_region_snapshots_id_put(struct sk_buff *msg,
 	snapshots_attr = nla_nest_start_noflag(msg,
 					       DEVLINK_ATTR_REGION_SNAPSHOTS);
 	if (!snapshots_attr)
-		return -EINVAL;
+		return -EMSGSIZE;
 
 	list_for_each_entry(snapshot, &region->snapshot_list, list) {
 		err = devlink_nl_region_snapshot_id_put(msg, devlink, snapshot);
