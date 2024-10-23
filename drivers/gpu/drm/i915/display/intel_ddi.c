@@ -3513,6 +3513,13 @@ static void intel_ddi_update_pipe_dp(struct intel_atomic_state *state,
 	drm_connector_update_privacy_screen(conn_state);
 }
 
+static void intel_ddi_update_pipe_hdmi(struct intel_encoder *encoder,
+				       const struct intel_crtc_state *crtc_state,
+				       const struct drm_connector_state *conn_state)
+{
+	intel_hdmi_fastset_infoframes(encoder, crtc_state, conn_state);
+}
+
 void intel_ddi_update_pipe(struct intel_atomic_state *state,
 			   struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
@@ -3523,6 +3530,10 @@ void intel_ddi_update_pipe(struct intel_atomic_state *state,
 	    !intel_encoder_is_mst(encoder))
 		intel_ddi_update_pipe_dp(state, encoder, crtc_state,
 					 conn_state);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		intel_ddi_update_pipe_hdmi(encoder, crtc_state,
+					   conn_state);
 
 	intel_hdcp_update_pipe(state, encoder, crtc_state, conn_state);
 }
