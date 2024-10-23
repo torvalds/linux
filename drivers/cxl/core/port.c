@@ -2084,11 +2084,18 @@ static void cxl_bus_remove(struct device *dev)
 
 static struct workqueue_struct *cxl_bus_wq;
 
+static int cxl_rescan_attach(struct device *dev, void *data)
+{
+	int rc = device_attach(dev);
+
+	dev_vdbg(dev, "rescan: %s\n", rc ? "attach" : "detached");
+
+	return 0;
+}
+
 static void cxl_bus_rescan_queue(struct work_struct *w)
 {
-	int rc = bus_rescan_devices(&cxl_bus_type);
-
-	pr_debug("CXL bus rescan result: %d\n", rc);
+	bus_for_each_dev(&cxl_bus_type, NULL, NULL, cxl_rescan_attach);
 }
 
 void cxl_bus_rescan(void)
