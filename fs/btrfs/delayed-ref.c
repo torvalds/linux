@@ -384,6 +384,8 @@ static struct btrfs_delayed_ref_head *find_first_ref_head(
 	struct rb_node *n;
 	struct btrfs_delayed_ref_head *entry;
 
+	lockdep_assert_held(&dr->lock);
+
 	n = rb_first_cached(&dr->href_root);
 	if (!n)
 		return NULL;
