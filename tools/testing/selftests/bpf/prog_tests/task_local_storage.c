@@ -8,6 +8,7 @@
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #include <sys/types.h>
 #include <sys/eventfd.h>
+#include <sys/mman.h>
 #include <test_progs.h>
 #include "task_local_storage_helpers.h"
 #include "task_local_storage.skel.h"
@@ -367,6 +368,46 @@ out:
 	close(parent_task_fd);
 }
 
+static void test_uptr_across_pages(void)
+{
+	int page_size = getpagesize();
+	struct value_type value = {};
+	struct task_ls_uptr *skel;
+	int err, task_fd, map_fd;
+	void *mem;
+
+	task_fd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_OK_FD(task_fd, "task_fd"))
+		return;
+
+	mem = mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (!ASSERT_OK_PTR(mem, "mmap(page_size * 2)")) {
+		close(task_fd);
+		return;
+	}
+
+	skel = task_ls_uptr__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		goto out;
+
+	map_fd = bpf_map__fd(skel->maps.datamap);
+	value.udata = mem + page_size - offsetof(struct user_data, b);
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, 0);
+	if (!ASSERT_ERR(err, "update_elem(udata)"))
+		goto out;
+	ASSERT_EQ(errno, EOPNOTSUPP, "errno");
+
+	value.udata = mem + page_size - sizeof(struct user_data);
+	err = bpf_map_update_elem(map_fd, &task_fd, &value, 0);
+	ASSERT_OK(err, "update_elem(udata)");
+
+out:
+	task_ls_uptr__destroy(skel);
+	close(task_fd);
+	munmap(mem, page_size * 2);
+}
+
 void test_task_local_storage(void)
 {
 	if (test__start_subtest("sys_enter_exit"))
@@ -379,4 +420,6 @@ void test_task_local_storage(void)
 		test_nodeadlock();
 	if (test__start_subtest("uptr_basic"))
 		test_uptr_basic();
+	if (test__start_subtest("uptr_across_pages"))
+		test_uptr_across_pages();
 }
