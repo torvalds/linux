@@ -307,7 +307,6 @@ ConfigList::ConfigList(QWidget *parent, const char *name)
 {
 	setObjectName(name);
 	setSortingEnabled(false);
-	setRootIsDecorated(true);
 
 	setVerticalScrollMode(ScrollPerPixel);
 	setHorizontalScrollMode(ScrollPerPixel);
