@@ -22,6 +22,7 @@ properties:
       - allwinner,sun8i-a23-codec
       - allwinner,sun8i-h3-codec
       - allwinner,sun8i-v3s-codec
+      - allwinner,sun50i-h616-codec
 
   reg:
     maxItems: 1
@@ -40,14 +41,20 @@ properties:
       - const: codec
 
   dmas:
-    items:
-      - description: RX DMA Channel
-      - description: TX DMA Channel
+    oneOf:
+      - items:
+          - description: RX DMA Channel
+          - description: TX DMA Channel
+      - items:
+          - description: TX DMA Channel
 
   dma-names:
-    items:
-      - const: rx
-      - const: tx
+    oneOf:
+      - items:
+          - const: rx
+          - const: tx
+      - items:
+          - const: tx
 
   resets:
     maxItems: 1
@@ -228,6 +235,40 @@ allOf:
               - Line Out
               - Mic
               - Speaker
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - allwinner,sun50i-h616-codec
+
+    then:
+      properties:
+        allwinner,audio-routing:
+          items:
+            enum:
+              - LINEOUT
+              - Line Out
+
+        dmas:
+          items:
+            - description: TX DMA Channel
+
+        dma-names:
+          items:
+            - const: tx
+
+    else:
+      properties:
+        dmas:
+          items:
+            - description: RX DMA Channel
+            - description: TX DMA Channel
+
+        dma-names:
+          items:
+            - const: rx
+            - const: tx
 
 unevaluatedProperties: false
 
