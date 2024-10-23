@@ -2231,21 +2231,16 @@ STALE_CLIENTID(clientid_t *clid, struct nfsd_net *nn)
 	return 1;
 }
 
-/* 
- * XXX Should we use a slab cache ?
- * This type of memory management is somewhat inefficient, but we use it
- * anyway since SETCLIENTID is not a common operation.
- */
 static struct nfs4_client *alloc_client(struct xdr_netobj name,
 				struct nfsd_net *nn)
 {
 	struct nfs4_client *clp;
 	int i;
 
-	if (atomic_read(&nn->nfs4_client_count) >= nn->nfs4_max_clients) {
+	if (atomic_read(&nn->nfs4_client_count) >= nn->nfs4_max_clients &&
+	    atomic_read(&nn->nfsd_courtesy_clients) > 0)
 		mod_delayed_work(laundry_wq, &nn->laundromat_work, 0);
-		return NULL;
-	}
+
 	clp = kmem_cache_zalloc(client_slab, GFP_KERNEL);
 	if (clp == NULL)
 		return NULL;
