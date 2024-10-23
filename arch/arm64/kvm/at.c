@@ -412,6 +412,9 @@ struct mmu_config {
 	u64	ttbr1;
 	u64	tcr;
 	u64	mair;
+	u64	tcr2;
+	u64	pir;
+	u64	pire0;
 	u64	sctlr;
 	u64	vttbr;
 	u64	vtcr;
@@ -424,6 +427,13 @@ static void __mmu_config_save(struct mmu_config *config)
 	config->ttbr1	= read_sysreg_el1(SYS_TTBR1);
 	config->tcr	= read_sysreg_el1(SYS_TCR);
 	config->mair	= read_sysreg_el1(SYS_MAIR);
+	if (cpus_have_final_cap(ARM64_HAS_TCR2)) {
+		config->tcr2	= read_sysreg_el1(SYS_TCR2);
+		if (cpus_have_final_cap(ARM64_HAS_S1PIE)) {
+			config->pir	= read_sysreg_el1(SYS_PIR);
+			config->pire0	= read_sysreg_el1(SYS_PIRE0);
+		}
+	}
 	config->sctlr	= read_sysreg_el1(SYS_SCTLR);
 	config->vttbr	= read_sysreg(vttbr_el2);
 	config->vtcr	= read_sysreg(vtcr_el2);
@@ -444,6 +454,13 @@ static void __mmu_config_restore(struct mmu_config *config)
 	write_sysreg_el1(config->ttbr1,	SYS_TTBR1);
 	write_sysreg_el1(config->tcr,	SYS_TCR);
 	write_sysreg_el1(config->mair,	SYS_MAIR);
+	if (cpus_have_final_cap(ARM64_HAS_TCR2)) {
+		write_sysreg_el1(config->tcr2, SYS_TCR2);
+		if (cpus_have_final_cap(ARM64_HAS_S1PIE)) {
+			write_sysreg_el1(config->pir, SYS_PIR);
+			write_sysreg_el1(config->pire0, SYS_PIRE0);
+		}
+	}
 	write_sysreg_el1(config->sctlr,	SYS_SCTLR);
 	write_sysreg(config->vttbr,	vttbr_el2);
 	write_sysreg(config->vtcr,	vtcr_el2);
@@ -914,6 +931,13 @@ static u64 __kvm_at_s1e01_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	write_sysreg_el1(vcpu_read_sys_reg(vcpu, TTBR1_EL1),	SYS_TTBR1);
 	write_sysreg_el1(vcpu_read_sys_reg(vcpu, TCR_EL1),	SYS_TCR);
 	write_sysreg_el1(vcpu_read_sys_reg(vcpu, MAIR_EL1),	SYS_MAIR);
+	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR3_EL1, TCRX, IMP)) {
+		write_sysreg_el1(vcpu_read_sys_reg(vcpu, TCR2_EL1), SYS_TCR2);
+		if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR3_EL1, S1PIE, IMP)) {
+			write_sysreg_el1(vcpu_read_sys_reg(vcpu, PIR_EL1), SYS_PIR);
+			write_sysreg_el1(vcpu_read_sys_reg(vcpu, PIRE0_EL1), SYS_PIRE0);
+		}
+	}
 	write_sysreg_el1(vcpu_read_sys_reg(vcpu, SCTLR_EL1),	SYS_SCTLR);
 	__load_stage2(mmu, mmu->arch);
 
