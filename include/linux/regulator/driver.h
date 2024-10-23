@@ -269,6 +269,11 @@ enum regulator_type {
  *               config but it cannot store it for later usage.
  *               Callback should return 0 on success or negative ERRNO
  *               indicating failure.
+ * @init_cb: Optional callback called after the parsing of init_data.
+ *           Allows the regulator to perform runtime init if necessary,
+ *           such as synching the regulator and the parsed constraints.
+ *           Callback should return 0 on success or negative ERRNO
+ *           indicating failure.
  * @id: Numerical identifier for the regulator.
  * @ops: Regulator operations table.
  * @irq: Interrupt number for the regulator.
