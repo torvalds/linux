@@ -92,10 +92,22 @@ static const struct sparx5_main_io_resource lan969x_main_iomap[] =  {
 	{ TARGET_ASM,                 0x3200000, 1 }, /* 0xe3200000 */
 };
 
+static const struct sparx5_regs lan969x_regs = {
+	.tsize = lan969x_tsize,
+	.gaddr = lan969x_gaddr,
+	.gcnt  = lan969x_gcnt,
+	.gsize = lan969x_gsize,
+	.raddr = lan969x_raddr,
+	.rcnt  = lan969x_rcnt,
+	.fpos  = lan969x_fpos,
+	.fsize = lan969x_fsize,
+};
+
 const struct sparx5_match_data lan969x_desc = {
 	.iomap      = lan969x_main_iomap,
 	.iomap_size = ARRAY_SIZE(lan969x_main_iomap),
 	.ioranges   = 2,
+	.regs       = &lan969x_regs,
 };
 EXPORT_SYMBOL_GPL(lan969x_desc);
 
