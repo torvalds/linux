@@ -17,6 +17,7 @@
     gcc-plugins
     kbuild
     reproducible-builds
+    llvm
 
 TODO:
 
@@ -25,7 +26,7 @@ TODO:
 - makefiles
 - modules
 - issues
-- llvm
+
 
 .. only::  subproject and html
 
