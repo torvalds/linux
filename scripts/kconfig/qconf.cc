@@ -110,7 +110,7 @@ void ConfigItem::updateMenu(void)
 
 	if (prop) switch (prop->type) {
 	case P_MENU:
-		if (list->mode == singleMode || list->mode == symbolMode) {
+		if (list->mode == singleMode) {
 			/* a menuconfig entry is displayed differently
 			 * depending whether it's at the view root or a child.
 			 */
