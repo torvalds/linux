@@ -58,6 +58,9 @@ static void __sysreg_save_vel2_state(struct kvm_vcpu *vcpu)
 				__vcpu_sys_reg(vcpu, PIRE0_EL2) = read_sysreg_el1(SYS_PIRE0);
 				__vcpu_sys_reg(vcpu, PIR_EL2) = read_sysreg_el1(SYS_PIR);
 			}
+
+			if (ctxt_has_s1poe(&vcpu->arch.ctxt))
+				__vcpu_sys_reg(vcpu, POR_EL2) = read_sysreg_el1(SYS_POR);
 		}
 
 		/*
@@ -123,6 +126,9 @@ static void __sysreg_restore_vel2_state(struct kvm_vcpu *vcpu)
 			write_sysreg_el1(__vcpu_sys_reg(vcpu, PIR_EL2), SYS_PIR);
 			write_sysreg_el1(__vcpu_sys_reg(vcpu, PIRE0_EL2), SYS_PIRE0);
 		}
+
+		if (ctxt_has_s1poe(&vcpu->arch.ctxt))
+			write_sysreg_el1(__vcpu_sys_reg(vcpu, POR_EL2), SYS_POR);
 	}
 
 	write_sysreg_el1(__vcpu_sys_reg(vcpu, ESR_EL2),		SYS_ESR);
