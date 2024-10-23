@@ -1364,7 +1364,7 @@ dsa_user_mall_tc_entry_find(struct net_device *dev, unsigned long cookie)
 static int
 dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 				 struct tc_cls_matchall_offload *cls,
-				 bool ingress)
+				 bool ingress, bool ingress_target)
 {
 	struct netlink_ext_ack *extack = cls->common.extack;
 	struct dsa_port *dp = dsa_user_to_port(dev);
@@ -1396,10 +1396,30 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 	if (!act->dev)
 		return -EINVAL;
 
-	if (!dsa_user_dev_check(act->dev))
-		return -EOPNOTSUPP;
-
-	to_dp = dsa_user_to_port(act->dev);
+	if (dsa_user_dev_check(act->dev)) {
+		if (ingress_target) {
+			/* We can only fulfill this using software assist */
+			if (cls->common.skip_sw) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Can only mirred to ingress of DSA user port if filter also runs in software");
+				return -EOPNOTSUPP;
+			}
+			to_dp = dp->cpu_dp;
+		} else {
+			to_dp = dsa_user_to_port(act->dev);
+		}
+	} else {
+		/* Handle mirroring to foreign target ports as a mirror towards
+		 * the CPU. The software tc rule will take the packets from
+		 * there.
+		 */
+		if (cls->common.skip_sw) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Can only mirred to CPU if filter also runs in software");
+			return -EOPNOTSUPP;
+		}
+		to_dp = dp->cpu_dp;
+	}
 
 	if (dp->ds != to_dp->ds) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -1503,7 +1523,11 @@ static int dsa_user_add_cls_matchall(struct net_device *dev,
 
 	switch (action->entries[0].id) {
 	case FLOW_ACTION_MIRRED:
-		return dsa_user_add_cls_matchall_mirred(dev, cls, ingress);
+		return dsa_user_add_cls_matchall_mirred(dev, cls, ingress,
+							false);
+	case FLOW_ACTION_MIRRED_INGRESS:
+		return dsa_user_add_cls_matchall_mirred(dev, cls, ingress,
+							true);
 	case FLOW_ACTION_POLICE:
 		return dsa_user_add_cls_matchall_police(dev, cls, ingress);
 	default:
