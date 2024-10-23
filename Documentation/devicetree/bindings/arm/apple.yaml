@@ -27,6 +27,10 @@ description: |
   - iPod touch 6
   - Apple TV HD
 
+  Device based on the "A8X" SoC:
+
+  - iPad Air 2
+
   Devices based on the "M1" SoC:
 
   - Mac mini (M1, 2020)
@@ -107,6 +111,14 @@ properties:
               - apple,n61  # iPhone 6
               - apple,n102 # iPod touch 6
           - const: apple,t7000
+          - const: apple,arm-platform
+
+      - description: Apple A8X SoC based platforms
+        items:
+          - enum:
+              - apple,j81 # iPad Air 2 (Wi-Fi)
+              - apple,j82 # iPad Air 2 (Cellular)
+          - const: apple,t7001
           - const: apple,arm-platform
 
       - description: Apple M1 SoC based platforms
