@@ -6,6 +6,9 @@
 
 #include "lan969x.h"
 
+#define LAN969X_SDLB_GRP_CNT 5
+#define LAN969X_HSCH_LEAK_GRP_CNT 4
+
 static const struct sparx5_main_io_resource lan969x_main_iomap[] =  {
 	{ TARGET_CPU,                   0xc0000, 0 }, /* 0xe00c0000 */
 	{ TARGET_FDMA,                  0xc0400, 0 }, /* 0xe00c0400 */
@@ -92,6 +95,112 @@ static const struct sparx5_main_io_resource lan969x_main_iomap[] =  {
 	{ TARGET_ASM,                 0x3200000, 1 }, /* 0xe3200000 */
 };
 
+static struct sparx5_sdlb_group lan969x_sdlb_groups[LAN969X_SDLB_GRP_CNT] = {
+	{ 1000000000,  8192 / 2, 64 }, /*    1 G */
+	{  500000000,  8192 / 2, 64 }, /*  500 M */
+	{  100000000,  8192 / 4, 64 }, /*  100 M */
+	{   50000000,  8192 / 4, 64 }, /*   50 M */
+	{    5000000,  8192 / 8, 64 }, /*   10 M */
+};
+
+static u32 lan969x_hsch_max_group_rate[LAN969X_HSCH_LEAK_GRP_CNT] = {
+	655355, 1048568, 6553550, 10485680
+};
+
+static struct sparx5_sdlb_group *lan969x_get_sdlb_group(int idx)
+{
+	return &lan969x_sdlb_groups[idx];
+}
+
+static u32 lan969x_get_hsch_max_group_rate(int grp)
+{
+	return lan969x_hsch_max_group_rate[grp];
+}
+
+static u32 lan969x_get_dev_mode_bit(struct sparx5 *sparx5, int port)
+{
+	if (lan969x_port_is_2g5(port) || lan969x_port_is_5g(port))
+		return port;
+
+	/* 10G */
+	switch (port) {
+	case 0:
+		return 12;
+	case 4:
+		return 13;
+	case 8:
+		return 14;
+	case 12:
+		return 0;
+	default:
+		return port;
+	}
+}
+
+static u32 lan969x_port_dev_mapping(struct sparx5 *sparx5, int port)
+{
+	if (lan969x_port_is_5g(port)) {
+		switch (port) {
+		case 9:
+			return 0;
+		case 13:
+			return 1;
+		case 17:
+			return 2;
+		case 21:
+			return 3;
+		}
+	}
+
+	if (lan969x_port_is_10g(port)) {
+		switch (port) {
+		case 0:
+			return 0;
+		case 4:
+			return 1;
+		case 8:
+			return 2;
+		case 12:
+			return 3;
+		case 16:
+			return 4;
+		case 20:
+			return 5;
+		case 24:
+			return 6;
+		case 25:
+			return 7;
+		case 26:
+			return 8;
+		case 27:
+			return 9;
+		}
+	}
+
+	/* 2g5 port */
+	return port;
+}
+
+static int lan969x_port_mux_set(struct sparx5 *sparx5, struct sparx5_port *port,
+				struct sparx5_port_config *conf)
+{
+	u32 portno = port->portno;
+	u32 inst;
+
+	if (port->conf.portmode == conf->portmode)
+		return 0; /* Nothing to do */
+
+	switch (conf->portmode) {
+	case PHY_INTERFACE_MODE_QSGMII: /* QSGMII: 4x2G5 devices. Mode Q'  */
+		inst = (portno - portno % 4) / 4;
+		spx5_rmw(BIT(inst), BIT(inst), sparx5, PORT_CONF_QSGMII_ENA);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static const struct sparx5_regs lan969x_regs = {
 	.tsize = lan969x_tsize,
 	.gaddr = lan969x_gaddr,
@@ -123,12 +232,25 @@ static const struct sparx5_consts lan969x_consts = {
 	.tod_pin             = 4,
 };
 
+static const struct sparx5_ops lan969x_ops = {
+	.is_port_2g5             = &lan969x_port_is_2g5,
+	.is_port_5g              = &lan969x_port_is_5g,
+	.is_port_10g             = &lan969x_port_is_10g,
+	.is_port_25g             = &lan969x_port_is_25g,
+	.get_port_dev_index      = &lan969x_port_dev_mapping,
+	.get_port_dev_bit        = &lan969x_get_dev_mode_bit,
+	.get_hsch_max_group_rate = &lan969x_get_hsch_max_group_rate,
+	.get_sdlb_group          = &lan969x_get_sdlb_group,
+	.set_port_mux            = &lan969x_port_mux_set,
+};
+
 const struct sparx5_match_data lan969x_desc = {
 	.iomap      = lan969x_main_iomap,
 	.iomap_size = ARRAY_SIZE(lan969x_main_iomap),
 	.ioranges   = 2,
 	.regs       = &lan969x_regs,
 	.consts     = &lan969x_consts,
+	.ops        = &lan969x_ops,
 };
 EXPORT_SYMBOL_GPL(lan969x_desc);
 

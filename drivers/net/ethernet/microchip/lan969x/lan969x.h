@@ -23,4 +23,32 @@ extern const unsigned int lan969x_gsize[GSIZE_LAST];
 extern const unsigned int lan969x_fpos[FPOS_LAST];
 extern const unsigned int lan969x_fsize[FSIZE_LAST];
 
+static inline bool lan969x_port_is_2g5(int portno)
+{
+	return portno == 1  || portno == 2  || portno == 3  ||
+	       portno == 5  || portno == 6  || portno == 7  ||
+	       portno == 10 || portno == 11 || portno == 14 ||
+	       portno == 15 || portno == 18 || portno == 19 ||
+	       portno == 22 || portno == 23;
+}
+
+static inline bool lan969x_port_is_5g(int portno)
+{
+	return portno == 9 || portno == 13 || portno == 17 ||
+	       portno == 21;
+}
+
+static inline bool lan969x_port_is_10g(int portno)
+{
+	return portno == 0  || portno == 4  || portno == 8  ||
+	       portno == 12 || portno == 16 || portno == 20 ||
+	       portno == 24 || portno == 25 || portno == 26 ||
+	       portno == 27;
+}
+
+static inline bool lan969x_port_is_25g(int portno)
+{
+	return false;
+}
+
 #endif
