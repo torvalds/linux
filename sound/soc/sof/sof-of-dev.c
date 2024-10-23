@@ -16,19 +16,19 @@
 
 static char *fw_path;
 module_param(fw_path, charp, 0444);
-MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
+MODULE_PARM_DESC(fw_path, "deprecated - moved to snd-sof module.");
 
 static char *fw_filename;
 module_param(fw_filename, charp, 0444);
-MODULE_PARM_DESC(fw_filename, "alternate filename for SOF firmware.");
+MODULE_PARM_DESC(fw_filename, "deprecated - moved to snd-sof module.");
 
 static char *tplg_path;
 module_param(tplg_path, charp, 0444);
-MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
+MODULE_PARM_DESC(tplg_path, "deprecated - moved to snd-sof module.");
 
 static char *tplg_filename;
 module_param(tplg_filename, charp, 0444);
-MODULE_PARM_DESC(tplg_filename, "alternate filename for SOF topology.");
+MODULE_PARM_DESC(tplg_filename, "deprecated - moved to snd-sof module.");
 
 const struct dev_pm_ops sof_of_pm = {
 	.prepare = snd_sof_prepare,
