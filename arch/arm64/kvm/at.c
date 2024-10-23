@@ -24,6 +24,8 @@ struct s1_walk_info {
 	unsigned int		txsz;
 	int 	     		sl;
 	bool	     		hpd;
+	bool			e0poe;
+	bool			poe;
 	bool	     		be;
 	bool	     		s2;
 };
@@ -107,6 +109,34 @@ static bool s1pie_enabled(struct kvm_vcpu *vcpu, enum trans_regime regime)
 			(__vcpu_sys_reg(vcpu, TCR2_EL1) & TCR2_EL1x_PIE);
 	default:
 		BUG();
+	}
+}
+
+static void compute_s1poe(struct kvm_vcpu *vcpu, struct s1_walk_info *wi)
+{
+	u64 val;
+
+	if (!kvm_has_s1poe(vcpu->kvm)) {
+		wi->poe = wi->e0poe = false;
+		return;
+	}
+
+	switch (wi->regime) {
+	case TR_EL2:
+	case TR_EL20:
+		val = vcpu_read_sys_reg(vcpu, TCR2_EL2);
+		wi->poe = val & TCR2_EL2_POE;
+		wi->e0poe = (wi->regime == TR_EL20) && (val & TCR2_EL2_E0POE);
+		break;
+	case TR_EL10:
+		if (__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TCR2En) {
+			wi->poe = wi->e0poe = false;
+			return;
+		}
+
+		val = __vcpu_sys_reg(vcpu, TCR2_EL1);
+		wi->poe = val & TCR2_EL1x_POE;
+		wi->e0poe = val & TCR2_EL1x_E0POE;
 	}
 }
 
@@ -205,6 +235,12 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 		     FIELD_GET(TCR_HPD0, tcr)));
 	/* R_JHSVW */
 	wi->hpd |= s1pie_enabled(vcpu, wi->regime);
+
+	/* Do we have POE? */
+	compute_s1poe(vcpu, wi);
+
+	/* R_BVXDG */
+	wi->hpd |= (wi->poe || wi->e0poe);
 
 	/* Someone was silly enough to encode TG0/TG1 differently */
 	if (va55) {
