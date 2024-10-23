@@ -5094,6 +5094,7 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 	enum libbpf_map_type map_type = map->libbpf_type;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int err, zero = 0;
+	size_t mmap_sz;
 
 	if (obj->gen_loader) {
 		bpf_gen__map_update_elem(obj->gen_loader, map - obj->maps,
@@ -5107,8 +5108,8 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 	if (err) {
 		err = -errno;
 		cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
-		pr_warn("Error setting initial map(%s) contents: %s\n",
-			map->name, cp);
+		pr_warn("map '%s': failed to set initial contents: %s\n",
+			bpf_map__name(map), cp);
 		return err;
 	}
 
@@ -5118,11 +5119,43 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 		if (err) {
 			err = -errno;
 			cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
-			pr_warn("Error freezing map(%s) as read-only: %s\n",
-				map->name, cp);
+			pr_warn("map '%s': failed to freeze as read-only: %s\n",
+				bpf_map__name(map), cp);
 			return err;
 		}
 	}
+
+	/* Remap anonymous mmap()-ed "map initialization image" as
+	 * a BPF map-backed mmap()-ed memory, but preserving the same
+	 * memory address. This will cause kernel to change process'
+	 * page table to point to a different piece of kernel memory,
+	 * but from userspace point of view memory address (and its
+	 * contents, being identical at this point) will stay the
+	 * same. This mapping will be released by bpf_object__close()
+	 * as per normal clean up procedure.
+	 */
+	mmap_sz = bpf_map_mmap_sz(map);
+	if (map->def.map_flags & BPF_F_MMAPABLE) {
+		void *mmaped;
+		int prot;
+
+		if (map->def.map_flags & BPF_F_RDONLY_PROG)
+			prot = PROT_READ;
+		else
+			prot = PROT_READ | PROT_WRITE;
+		mmaped = mmap(map->mmaped, mmap_sz, prot, MAP_SHARED | MAP_FIXED, map->fd, 0);
+		if (mmaped == MAP_FAILED) {
+			err = -errno;
+			pr_warn("map '%s': failed to re-mmap() contents: %d\n",
+				bpf_map__name(map), err);
+			return err;
+		}
+		map->mmaped = mmaped;
+	} else if (map->mmaped) {
+		munmap(map->mmaped, mmap_sz);
+		map->mmaped = NULL;
+	}
+
 	return 0;
 }
 
@@ -5439,8 +5472,7 @@ retry:
 				err = bpf_object__populate_internal_map(obj, map);
 				if (err < 0)
 					goto err_out;
-			}
-			if (map->def.type == BPF_MAP_TYPE_ARENA) {
+			} else if (map->def.type == BPF_MAP_TYPE_ARENA) {
 				map->mmaped = mmap((void *)(long)map->map_extra,
 						   bpf_map_mmap_sz(map), PROT_READ | PROT_WRITE,
 						   map->map_extra ? MAP_SHARED | MAP_FIXED : MAP_SHARED,
@@ -13881,46 +13913,11 @@ int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
 	for (i = 0; i < s->map_cnt; i++) {
 		struct bpf_map_skeleton *map_skel = (void *)s->maps + i * s->map_skel_sz;
 		struct bpf_map *map = *map_skel->map;
-		size_t mmap_sz = bpf_map_mmap_sz(map);
-		int prot, map_fd = map->fd;
-		void **mmaped = map_skel->mmaped;
 
-		if (!mmaped)
+		if (!map_skel->mmaped)
 			continue;
 
-		if (!(map->def.map_flags & BPF_F_MMAPABLE)) {
-			*mmaped = NULL;
-			continue;
-		}
-
-		if (map->def.type == BPF_MAP_TYPE_ARENA) {
-			*mmaped = map->mmaped;
-			continue;
-		}
-
-		if (map->def.map_flags & BPF_F_RDONLY_PROG)
-			prot = PROT_READ;
-		else
-			prot = PROT_READ | PROT_WRITE;
-
-		/* Remap anonymous mmap()-ed "map initialization image" as
-		 * a BPF map-backed mmap()-ed memory, but preserving the same
-		 * memory address. This will cause kernel to change process'
-		 * page table to point to a different piece of kernel memory,
-		 * but from userspace point of view memory address (and its
-		 * contents, being identical at this point) will stay the
-		 * same. This mapping will be released by bpf_object__close()
-		 * as per normal clean up procedure, so we don't need to worry
-		 * about it from skeleton's clean up perspective.
-		 */
-		*mmaped = mmap(map->mmaped, mmap_sz, prot, MAP_SHARED | MAP_FIXED, map_fd, 0);
-		if (*mmaped == MAP_FAILED) {
-			err = -errno;
-			*mmaped = NULL;
-			pr_warn("failed to re-mmap() map '%s': %d\n",
-				 bpf_map__name(map), err);
-			return libbpf_err(err);
-		}
+		*map_skel->mmaped = map->mmaped;
 	}
 
 	return 0;
