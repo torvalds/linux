@@ -603,8 +603,11 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		hid_dbg(sd->hdev,
 			"Parsing raw event for Arctis 1 headset (%*ph)\n", size, read_buf);
 		if (size < ARCTIS_1_BATTERY_RESPONSE_LEN ||
-		    memcmp (read_buf, arctis_1_battery_request, sizeof(arctis_1_battery_request)))
+		    memcmp(read_buf, arctis_1_battery_request, sizeof(arctis_1_battery_request))) {
+			if (!delayed_work_pending(&sd->battery_work))
+				goto request_battery;
 			return 0;
+		}
 		if (read_buf[2] == 0x01) {
 			connected = false;
 			capacity = 100;
@@ -631,6 +634,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 		power_supply_changed(sd->battery);
 	}
 
+request_battery:
 	spin_lock_irqsave(&sd->lock, flags);
 	if (!sd->removed)
 		schedule_delayed_work(&sd->battery_work,
