@@ -781,6 +781,9 @@ static bool pan3_enabled(struct kvm_vcpu *vcpu, enum trans_regime regime)
 	if (!kvm_has_feat(vcpu->kvm, ID_AA64MMFR1_EL1, PAN, PAN3))
 		return false;
 
+	if (s1pie_enabled(vcpu, regime))
+		return true;
+
 	if (regime == TR_EL10)
 		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
 	else
@@ -862,11 +865,123 @@ static void compute_s1_hierarchical_permissions(struct kvm_vcpu *vcpu,
 	}
 }
 
+#define perm_idx(v, r, i)	((vcpu_read_sys_reg((v), (r)) >> ((i) * 4)) & 0xf)
+
+#define set_priv_perms(wr, r, w, x)	\
+	do {				\
+		(wr)->pr = (r);		\
+		(wr)->pw = (w);		\
+		(wr)->px = (x);		\
+	} while (0)
+
+#define set_unpriv_perms(wr, r, w, x)	\
+	do {				\
+		(wr)->ur = (r);		\
+		(wr)->uw = (w);		\
+		(wr)->ux = (x);		\
+	} while (0)
+
+/* Similar to AArch64.S1IndirectBasePermissions(), without GCS  */
+#define set_perms(w, wr, ip)						\
+	do {								\
+		/* R_LLZDZ */						\
+		switch ((ip)) {						\
+		case 0b0000:						\
+			set_ ## w ## _perms((wr), false, false, false);	\
+			break;						\
+		case 0b0001:						\
+			set_ ## w ## _perms((wr), true , false, false);	\
+			break;						\
+		case 0b0010:						\
+			set_ ## w ## _perms((wr), false, false, true );	\
+			break;						\
+		case 0b0011:						\
+			set_ ## w ## _perms((wr), true , false, true );	\
+			break;						\
+		case 0b0100:						\
+			set_ ## w ## _perms((wr), false, false, false);	\
+			break;						\
+		case 0b0101:						\
+			set_ ## w ## _perms((wr), true , true , false);	\
+			break;						\
+		case 0b0110:						\
+			set_ ## w ## _perms((wr), true , true , true );	\
+			break;						\
+		case 0b0111:						\
+			set_ ## w ## _perms((wr), true , true , true );	\
+			break;						\
+		case 0b1000:						\
+			set_ ## w ## _perms((wr), true , false, false);	\
+			break;						\
+		case 0b1001:						\
+			set_ ## w ## _perms((wr), true , false, false);	\
+			break;						\
+		case 0b1010:						\
+			set_ ## w ## _perms((wr), true , false, true );	\
+			break;						\
+		case 0b1011:						\
+			set_ ## w ## _perms((wr), false, false, false);	\
+			break;						\
+		case 0b1100:						\
+			set_ ## w ## _perms((wr), true , true , false);	\
+			break;						\
+		case 0b1101:						\
+			set_ ## w ## _perms((wr), false, false, false);	\
+			break;						\
+		case 0b1110:						\
+			set_ ## w ## _perms((wr), true , true , true );	\
+			break;						\
+		case 0b1111:						\
+			set_ ## w ## _perms((wr), false, false, false);	\
+			break;						\
+		}							\
+	} while (0)
+
+static void compute_s1_indirect_permissions(struct kvm_vcpu *vcpu,
+					    struct s1_walk_info *wi,
+					    struct s1_walk_result *wr)
+{
+	u8 up, pp, idx;
+
+	idx = pte_pi_index(wr->desc);
+
+	switch (wi->regime) {
+	case TR_EL10:
+		pp = perm_idx(vcpu, PIR_EL1, idx);
+		up = perm_idx(vcpu, PIRE0_EL1, idx);
+		break;
+	case TR_EL20:
+		pp = perm_idx(vcpu, PIR_EL2, idx);
+		up = perm_idx(vcpu, PIRE0_EL2, idx);
+		break;
+	case TR_EL2:
+		pp = perm_idx(vcpu, PIR_EL2, idx);
+		up = 0;
+		break;
+	}
+
+	set_perms(priv, wr, pp);
+
+	if (wi->regime != TR_EL2)
+		set_perms(unpriv, wr, up);
+	else
+		set_unpriv_perms(wr, false, false, false);
+
+	/* R_VFPJF */
+	if (wr->px && wr->uw) {
+		set_priv_perms(wr, false, false, false);
+		set_unpriv_perms(wr, false, false, false);
+	}
+}
+
 static void compute_s1_permissions(struct kvm_vcpu *vcpu, u32 op,
 				   struct s1_walk_info *wi,
 				   struct s1_walk_result *wr)
 {
-	compute_s1_direct_permissions(vcpu, wi, wr);
+	if (!s1pie_enabled(vcpu, wi->regime))
+		compute_s1_direct_permissions(vcpu, wi, wr);
+	else
+		compute_s1_indirect_permissions(vcpu, wi, wr);
 
 	if (!wi->hpd)
 		compute_s1_hierarchical_permissions(vcpu, wi, wr);
