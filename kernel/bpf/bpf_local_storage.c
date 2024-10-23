@@ -209,8 +209,12 @@ static void __bpf_selem_free(struct bpf_local_storage_elem *selem,
 static void bpf_selem_free_rcu(struct rcu_head *rcu)
 {
 	struct bpf_local_storage_elem *selem;
+	struct bpf_local_storage_map *smap;
 
 	selem = container_of(rcu, struct bpf_local_storage_elem, rcu);
+	/* The bpf_local_storage_map_free will wait for rcu_barrier */
+	smap = rcu_dereference_check(SDATA(selem)->smap, 1);
+	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
 	bpf_mem_cache_raw_free(selem);
 }
 
@@ -226,16 +230,25 @@ void bpf_selem_free(struct bpf_local_storage_elem *selem,
 		    struct bpf_local_storage_map *smap,
 		    bool reuse_now)
 {
-	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
-
 	if (!smap->bpf_ma) {
+		/* Only task storage has uptrs and task storage
+		 * has moved to bpf_mem_alloc. Meaning smap->bpf_ma == true
+		 * for task storage, so this bpf_obj_free_fields() won't unpin
+		 * any uptr.
+		 */
+		bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
 		__bpf_selem_free(selem, reuse_now);
 		return;
 	}
 
-	if (!reuse_now) {
-		call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_trace_rcu);
-	} else {
+	if (reuse_now) {
+		/* reuse_now == true only happens when the storage owner
+		 * (e.g. task_struct) is being destructed or the map itself
+		 * is being destructed (ie map_free). In both cases,
+		 * no bpf prog can have a hold on the selem. It is
+		 * safe to unpin the uptrs and free the selem now.
+		 */
+		bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
 		/* Instead of using the vanilla call_rcu(),
 		 * bpf_mem_cache_free will be able to reuse selem
 		 * immediately.
@@ -243,7 +256,10 @@ void bpf_selem_free(struct bpf_local_storage_elem *selem,
 		migrate_disable();
 		bpf_mem_cache_free(&smap->selem_ma, selem);
 		migrate_enable();
+		return;
 	}
+
+	call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_trace_rcu);
 }
 
 static void bpf_selem_free_list(struct hlist_head *list, bool reuse_now)
@@ -908,6 +924,9 @@ void bpf_local_storage_map_free(struct bpf_map *map,
 	synchronize_rcu();
 
 	if (smap->bpf_ma) {
+		rcu_barrier_tasks_trace();
+		if (!rcu_trace_implies_rcu_gp())
+			rcu_barrier();
 		bpf_mem_alloc_destroy(&smap->selem_ma);
 		bpf_mem_alloc_destroy(&smap->storage_ma);
 	}
