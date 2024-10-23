@@ -436,8 +436,7 @@ void ConfigList::updateList()
 		return;
 	}
 
-	if (rootEntry != &rootmenu && (mode == singleMode ||
-	    (mode == symbolMode && rootEntry->parent != &rootmenu))) {
+	if (rootEntry != &rootmenu && mode == singleMode) {
 		item = (ConfigItem *)topLevelItem(0);
 		if (!item)
 			item = new ConfigItem(this, 0, true);
