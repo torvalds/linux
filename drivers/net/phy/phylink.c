@@ -3224,10 +3224,8 @@ static void phylink_sfp_set_config(struct phylink *pl, u8 mode,
 static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
 				  struct phy_device *phy)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(support1);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support);
 	struct phylink_link_state config;
-	phy_interface_t iface;
 	int ret;
 
 	linkmode_copy(support, phy->supported);
@@ -3248,20 +3246,21 @@ static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
 		return ret;
 	}
 
-	iface = phylink_sfp_select_interface(pl, config.advertising);
-	if (iface == PHY_INTERFACE_MODE_NA)
+	config.interface = phylink_sfp_select_interface(pl, config.advertising);
+	if (config.interface == PHY_INTERFACE_MODE_NA)
 		return -EINVAL;
 
-	config.interface = iface;
-	linkmode_copy(support1, support);
-	ret = phylink_validate(pl, support1, &config);
-	if (ret) {
-		phylink_err(pl,
-			    "validation of %s/%s with support %*pb failed: %pe\n",
-			    phylink_an_mode_str(mode),
-			    phy_modes(config.interface),
-			    __ETHTOOL_LINK_MODE_MASK_NBITS, support,
-			    ERR_PTR(ret));
+	/* Attach the PHY so that the PHY is present when we do the major
+	 * configuration step.
+	 */
+	ret = phylink_attach_phy(pl, phy, config.interface);
+	if (ret < 0)
+		return ret;
+
+	/* This will validate the configuration for us. */
+	ret = phylink_bringup_phy(pl, phy, config.interface);
+	if (ret < 0) {
+		phy_detach(phy);
 		return ret;
 	}
 
@@ -3419,9 +3418,7 @@ static bool phylink_phy_no_inband(struct phy_device *phy)
 static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 {
 	struct phylink *pl = upstream;
-	phy_interface_t interface;
 	u8 mode;
-	int ret;
 
 	/*
 	 * This is the new way of dealing with flow control for PHYs,
@@ -3442,20 +3439,7 @@ static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 			  pl->config->supported_interfaces);
 
 	/* Do the initial configuration */
-	ret = phylink_sfp_config_phy(pl, mode, phy);
-	if (ret < 0)
-		return ret;
-
-	interface = pl->link_config.interface;
-	ret = phylink_attach_phy(pl, phy, interface);
-	if (ret < 0)
-		return ret;
-
-	ret = phylink_bringup_phy(pl, phy, interface);
-	if (ret)
-		phy_detach(phy);
-
-	return ret;
+	return phylink_sfp_config_phy(pl, mode, phy);
 }
 
 static void phylink_sfp_disconnect_phy(void *upstream,
