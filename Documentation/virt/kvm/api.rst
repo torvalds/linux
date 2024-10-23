@@ -96,12 +96,9 @@ description:
   Capability:
       which KVM extension provides this ioctl.  Can be 'basic',
       which means that is will be provided by any kernel that supports
-      API version 12 (see section 4.1), a KVM_CAP_xyz constant, which
+      API version 12 (see section 4.1), or a KVM_CAP_xyz constant, which
       means availability needs to be checked with KVM_CHECK_EXTENSION
-      (see section 4.4), or 'none' which means that while not all kernels
-      support this ioctl, there's no capability bit to check its
-      availability: for kernels that don't support the ioctl,
-      the ioctl returns -ENOTTY.
+      (see section 4.4).
 
   Architectures:
       which instruction set architectures provide this ioctl.
@@ -338,8 +335,8 @@ KVM_S390_SIE_PAGE_OFFSET in order to obtain a memory map of the virtual
 cpu's hardware control block.
 
 
-4.8 KVM_GET_DIRTY_LOG (vm ioctl)
---------------------------------
+4.8 KVM_GET_DIRTY_LOG
+---------------------
 
 :Capability: basic
 :Architectures: all
@@ -1298,7 +1295,7 @@ See KVM_GET_VCPU_EVENTS for the data structure.
 
 :Capability: KVM_CAP_DEBUGREGS
 :Architectures: x86
-:Type: vm ioctl
+:Type: vcpu ioctl
 :Parameters: struct kvm_debugregs (out)
 :Returns: 0 on success, -1 on error
 
@@ -1320,7 +1317,7 @@ Reads debug registers from the vcpu.
 
 :Capability: KVM_CAP_DEBUGREGS
 :Architectures: x86
-:Type: vm ioctl
+:Type: vcpu ioctl
 :Parameters: struct kvm_debugregs (in)
 :Returns: 0 on success, -1 on error
 
@@ -2116,8 +2113,8 @@ TLB, prior to calling KVM_RUN on the associated vcpu.
 
 The "bitmap" field is the userspace address of an array.  This array
 consists of a number of bits, equal to the total number of TLB entries as
-determined by the last successful call to KVM_CONFIG_TLB, rounded up to the
-nearest multiple of 64.
+determined by the last successful call to ``KVM_ENABLE_CAP(KVM_CAP_SW_TLB)``,
+rounded up to the nearest multiple of 64.
 
 Each bit corresponds to one TLB entry, ordered the same as in the shared TLB
 array.
@@ -3557,6 +3554,27 @@ Errors:
 This ioctl returns the guest registers that are supported for the
 KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
 
+Note that s390 does not support KVM_GET_REG_LIST for historical reasons
+(read: nobody cared).  The set of registers in kernels 4.x and newer is:
+
+- KVM_REG_S390_TODPR
+
+- KVM_REG_S390_EPOCHDIFF
+
+- KVM_REG_S390_CPU_TIMER
+
+- KVM_REG_S390_CLOCK_COMP
+
+- KVM_REG_S390_PFTOKEN
+
+- KVM_REG_S390_PFCOMPARE
+
+- KVM_REG_S390_PFSELECT
+
+- KVM_REG_S390_PP
+
+- KVM_REG_S390_GBEA
+
 
 4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
 -----------------------------------------
@@ -4920,8 +4938,8 @@ Coalesced pio is based on coalesced mmio. There is little difference
 between coalesced mmio and pio except that coalesced pio records accesses
 to I/O ports.
 
-4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
-------------------------------------
+4.117 KVM_CLEAR_DIRTY_LOG
+-------------------------
 
 :Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
 :Architectures: x86, arm64, mips
@@ -5230,7 +5248,7 @@ the cpu reset definition in the POP (Principles Of Operation).
 4.123 KVM_S390_INITIAL_RESET
 ----------------------------
 
-:Capability: none
+:Capability: basic
 :Architectures: s390
 :Type: vcpu ioctl
 :Parameters: none
@@ -6169,7 +6187,7 @@ applied.
 .. _KVM_ARM_GET_REG_WRITABLE_MASKS:
 
 4.139 KVM_ARM_GET_REG_WRITABLE_MASKS
--------------------------------------------
+------------------------------------
 
 :Capability: KVM_CAP_ARM_SUPPORTED_REG_MASK_RANGES
 :Architectures: arm64
