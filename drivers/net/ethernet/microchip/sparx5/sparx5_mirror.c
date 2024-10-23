@@ -24,8 +24,14 @@ static u32 sparx5_mirror_to_dir(bool ingress)
 /* Get ports belonging to this mirror */
 static u64 sparx5_mirror_port_get(struct sparx5 *sparx5, u32 idx)
 {
-	return (u64)spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG1(idx)) << 32 |
-	       spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG(idx));
+	u64 val;
+
+	val = spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG(idx));
+
+	if (is_sparx5(sparx5))
+		val |= (u64)spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG1(idx)) << 32;
+
+	return val;
 }
 
 /* Add port to mirror (only front ports) */

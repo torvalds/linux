@@ -43,7 +43,8 @@ void sparx5_ifh_parse(struct sparx5 *sparx5, u32 *ifh, struct frame_info *info)
 		((u32)xtr_hdr[29] <<  8) |
 		((u32)xtr_hdr[30] <<  0);
 	fwd = (fwd >> 5);
-	info->src_port = FIELD_GET(GENMASK(7, 1), fwd);
+	info->src_port = spx5_field_get(GENMASK(is_sparx5(sparx5) ? 7 : 6, 1),
+					fwd);
 
 	/*
 	 * Bit 270-271 are occasionally unexpectedly set by the hardware,

@@ -538,10 +538,11 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 	sparx5->coreclock = freq;
 	clk_period = sparx5_clk_period(freq);
 
-	spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),
-		 HSCH_SYS_CLK_PER_100PS,
-		 sparx5,
-		 HSCH_SYS_CLK_PER);
+	if (is_sparx5(sparx5))
+		spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),
+			 HSCH_SYS_CLK_PER_100PS,
+			 sparx5,
+			 HSCH_SYS_CLK_PER);
 
 	spx5_rmw(ANA_AC_POL_BDLB_DLB_CTRL_CLK_PERIOD_01NS_SET(clk_period / 100),
 		 ANA_AC_POL_BDLB_DLB_CTRL_CLK_PERIOD_01NS,
@@ -731,15 +732,17 @@ static int sparx5_start(struct sparx5 *sparx5)
 	if (err)
 		return err;
 
-	err = sparx5_vcap_init(sparx5);
-	if (err) {
-		sparx5_unregister_notifier_blocks(sparx5);
-		return err;
+	if (is_sparx5(sparx5)) {
+		err = sparx5_vcap_init(sparx5);
+		if (err) {
+			sparx5_unregister_notifier_blocks(sparx5);
+			return err;
+		}
 	}
 
 	/* Start Frame DMA with fallback to register based INJ/XTR */
 	err = -ENXIO;
-	if (sparx5->fdma_irq >= 0) {
+	if (sparx5->fdma_irq >= 0 && is_sparx5(sparx5)) {
 		if (GCB_CHIP_ID_REV_ID_GET(sparx5->chip_id) > 0)
 			err = devm_request_threaded_irq(sparx5->dev,
 							sparx5->fdma_irq,

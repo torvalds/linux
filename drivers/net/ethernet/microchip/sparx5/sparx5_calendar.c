@@ -531,8 +531,18 @@ check_err:
 static int sparx5_dsm_calendar_update(struct sparx5 *sparx5, u32 taxi,
 				      struct sparx5_calendar_data *data)
 {
-	u32 idx;
-	u32 cal_len = sparx5_dsm_cal_len(data->schedule), len;
+	u32 cal_len = sparx5_dsm_cal_len(data->schedule), len, idx;
+
+	if (!is_sparx5(sparx5)) {
+		u32 val, act;
+
+		val = spx5_rd(sparx5, DSM_TAXI_CAL_CFG(taxi));
+		act = DSM_TAXI_CAL_CFG_CAL_SEL_STAT_GET(val);
+
+		spx5_rmw(DSM_TAXI_CAL_CFG_CAL_PGM_SEL_SET(!act),
+			 DSM_TAXI_CAL_CFG_CAL_PGM_SEL,
+			 sparx5, DSM_TAXI_CAL_CFG(taxi));
+	}
 
 	spx5_rmw(DSM_TAXI_CAL_CFG_CAL_PGM_ENA_SET(1),
 		 DSM_TAXI_CAL_CFG_CAL_PGM_ENA,
@@ -556,6 +566,13 @@ static int sparx5_dsm_calendar_update(struct sparx5 *sparx5, u32 taxi,
 						       DSM_TAXI_CAL_CFG(taxi)));
 	if (len != cal_len - 1)
 		goto update_err;
+
+	if (!is_sparx5(sparx5)) {
+		spx5_rmw(DSM_TAXI_CAL_CFG_CAL_SWITCH_SET(1),
+			 DSM_TAXI_CAL_CFG_CAL_SWITCH,
+			 sparx5, DSM_TAXI_CAL_CFG(taxi));
+	}
+
 	return 0;
 update_err:
 	dev_err(sparx5->dev, "Incorrect calendar length: %u\n", len);
