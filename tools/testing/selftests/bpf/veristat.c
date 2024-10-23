@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
+#include <bpf/bpf.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <float.h>
@@ -1109,6 +1110,35 @@ skip_freplace_fixup:
 	return;
 }
 
+static int max_verifier_log_size(void)
+{
+	const int SMALL_LOG_SIZE = UINT_MAX >> 8;
+	const int BIG_LOG_SIZE = UINT_MAX >> 2;
+	struct bpf_insn insns[] = {
+		{ .code = BPF_ALU | BPF_MOV | BPF_X, .dst_reg = BPF_REG_0, },
+		{ .code  = BPF_JMP | BPF_EXIT, },
+	};
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		    .log_size = BIG_LOG_SIZE,
+		    .log_buf = (void *)-1,
+		    .log_level = 4
+	);
+	int ret, insn_cnt = ARRAY_SIZE(insns);
+	static int log_size;
+
+	if (log_size != 0)
+		return log_size;
+
+	ret = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, &opts);
+
+	if (ret == -EFAULT)
+		log_size = BIG_LOG_SIZE;
+	else /* ret == -EINVAL, big log size is not supported by the verifier */
+		log_size = SMALL_LOG_SIZE;
+
+	return log_size;
+}
+
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
 	const char *base_filename = basename(strdupa(filename));
@@ -1132,7 +1162,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	memset(stats, 0, sizeof(*stats));
 
 	if (env.verbose || env.top_src_lines > 0) {
-		buf_sz = env.log_size ? env.log_size : 16 * 1024 * 1024;
+		buf_sz = env.log_size ? env.log_size : max_verifier_log_size();
 		buf = malloc(buf_sz);
 		if (!buf)
 			return -ENOMEM;
