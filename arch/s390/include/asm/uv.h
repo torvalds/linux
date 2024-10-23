@@ -31,6 +31,7 @@
 #define UVC_RC_NEED_DESTROY	0x8000
 
 #define UVC_CMD_QUI			0x0001
+#define UVC_CMD_QUERY_KEYS		0x0002
 #define UVC_CMD_INIT_UV			0x000f
 #define UVC_CMD_CREATE_SEC_CONF		0x0100
 #define UVC_CMD_DESTROY_SEC_CONF	0x0101
@@ -94,6 +95,7 @@ enum uv_cmds_inst {
 	BIT_UVC_CMD_ADD_SECRET = 29,
 	BIT_UVC_CMD_LIST_SECRETS = 30,
 	BIT_UVC_CMD_LOCK_SECRETS = 31,
+	BIT_UVC_CMD_QUERY_KEYS = 34,
 };
 
 enum uv_feat_ind {
@@ -144,6 +146,21 @@ struct uv_cb_qui {
 	u16 max_secrets;			/* 0x0110 */
 	u8 reserved112[0x120 - 0x112];		/* 0x0112 */
 } __packed __aligned(8);
+
+struct uv_key_hash {
+	u64 dword[4];
+} __packed __aligned(8);
+
+#define UVC_QUERY_KEYS_IDX_HK		0
+#define UVC_QUERY_KEYS_IDX_BACK_HK	1
+
+/* Query Ultravisor Keys */
+struct uv_cb_query_keys {
+	struct uv_cb_header header;		/* 0x0000 */
+	u64 reserved08[3];			/* 0x0008 */
+	struct uv_key_hash key_hashes[15];	/* 0x0020 */
+} __packed __aligned(8);
+static_assert(sizeof(struct uv_cb_query_keys) == 0x200);
 
 /* Initialize Ultravisor */
 struct uv_cb_init {

@@ -722,8 +722,74 @@ static struct attribute *uv_query_attrs[] = {
 	NULL,
 };
 
+static inline struct uv_cb_query_keys uv_query_keys(void)
+{
+	struct uv_cb_query_keys uvcb = {
+		.header.cmd = UVC_CMD_QUERY_KEYS,
+		.header.len = sizeof(uvcb)
+	};
+
+	uv_call(0, (uint64_t)&uvcb);
+	return uvcb;
+}
+
+static inline ssize_t emit_hash(struct uv_key_hash *hash, char *buf, int at)
+{
+	return sysfs_emit_at(buf, at, "%016llx%016llx%016llx%016llx\n",
+			    hash->dword[0], hash->dword[1], hash->dword[2], hash->dword[3]);
+}
+
+static ssize_t uv_keys_host_key(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
+{
+	struct uv_cb_query_keys uvcb = uv_query_keys();
+
+	return emit_hash(&uvcb.key_hashes[UVC_QUERY_KEYS_IDX_HK], buf, 0);
+}
+
+static struct kobj_attribute uv_keys_host_key_attr =
+	__ATTR(host_key, 0444, uv_keys_host_key, NULL);
+
+static ssize_t uv_keys_backup_host_key(struct kobject *kobj,
+				       struct kobj_attribute *attr, char *buf)
+{
+	struct uv_cb_query_keys uvcb = uv_query_keys();
+
+	return emit_hash(&uvcb.key_hashes[UVC_QUERY_KEYS_IDX_BACK_HK], buf, 0);
+}
+
+static struct kobj_attribute uv_keys_backup_host_key_attr =
+	__ATTR(backup_host_key, 0444, uv_keys_backup_host_key, NULL);
+
+static ssize_t uv_keys_all(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	struct uv_cb_query_keys uvcb = uv_query_keys();
+	ssize_t len = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(uvcb.key_hashes); i++)
+		len += emit_hash(uvcb.key_hashes + i, buf, len);
+
+	return len;
+}
+
+static struct kobj_attribute uv_keys_all_attr =
+	__ATTR(all, 0444, uv_keys_all, NULL);
+
 static struct attribute_group uv_query_attr_group = {
 	.attrs = uv_query_attrs,
+};
+
+static struct attribute *uv_keys_attrs[] = {
+	&uv_keys_host_key_attr.attr,
+	&uv_keys_backup_host_key_attr.attr,
+	&uv_keys_all_attr.attr,
+	NULL,
+};
+
+static struct attribute_group uv_keys_attr_group = {
+	.attrs = uv_keys_attrs,
 };
 
 static ssize_t uv_is_prot_virt_guest(struct kobject *kobj,
@@ -751,6 +817,7 @@ static const struct attribute *uv_prot_virt_attrs[] = {
 };
 
 static struct kset *uv_query_kset;
+static struct kset *uv_keys_kset;
 static struct kobject *uv_kobj;
 
 static int __init uv_sysfs_dir_init(const struct attribute_group *grp,
@@ -788,6 +855,10 @@ static int __init uv_sysfs_init(void)
 	rc = uv_sysfs_dir_init(&uv_query_attr_group, &uv_query_kset, "query");
 	if (rc)
 		goto out_ind_files;
+
+	/* Get installed key hashes if available, ignore any errors */
+	if (test_bit_inv(BIT_UVC_CMD_QUERY_KEYS, uv_info.inst_calls_list))
+		uv_sysfs_dir_init(&uv_keys_attr_group, &uv_keys_kset, "keys");
 
 	return 0;
 
