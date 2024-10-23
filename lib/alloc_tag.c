@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/alloc_tag.h>
+#include <linux/execmem.h>
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
@@ -9,6 +10,7 @@
 #include <linux/seq_file.h>
 
 #define ALLOCINFO_FILE_NAME		"allocinfo"
+#define MODULE_ALLOC_TAG_VMAP_SIZE	(100000UL * sizeof(struct alloc_tag))
 
 #ifdef CONFIG_MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT
 static bool mem_profiling_support __meminitdata = true;
@@ -174,30 +176,225 @@ static void __init procfs_init(void)
 	}
 }
 
-static bool alloc_tag_module_unload(struct codetag_type *cttype,
-				    struct codetag_module *cmod)
+#ifdef CONFIG_MODULES
+
+static struct maple_tree mod_area_mt = MTREE_INIT(mod_area_mt, MT_FLAGS_ALLOC_RANGE);
+/* A dummy object used to indicate an unloaded module */
+static struct module unloaded_mod;
+/* A dummy object used to indicate a module prepended area */
+static struct module prepend_mod;
+
+static struct alloc_tag_module_section module_tags;
+
+static bool needs_section_mem(struct module *mod, unsigned long size)
 {
-	struct codetag_iterator iter = codetag_get_ct_iter(cttype);
-	struct alloc_tag_counters counter;
-	bool module_unused = true;
-	struct alloc_tag *tag;
-	struct codetag *ct;
+	return size >= sizeof(struct alloc_tag);
+}
 
-	for (ct = codetag_next_ct(&iter); ct; ct = codetag_next_ct(&iter)) {
-		if (iter.cmod != cmod)
-			continue;
+static struct alloc_tag *find_used_tag(struct alloc_tag *from, struct alloc_tag *to)
+{
+	while (from <= to) {
+		struct alloc_tag_counters counter;
 
-		tag = ct_to_alloc_tag(ct);
-		counter = alloc_tag_read(tag);
-
-		if (WARN(counter.bytes,
-			 "%s:%u module %s func:%s has %llu allocated at module unload",
-			 ct->filename, ct->lineno, ct->modname, ct->function, counter.bytes))
-			module_unused = false;
+		counter = alloc_tag_read(from);
+		if (counter.bytes)
+			return from;
+		from++;
 	}
 
-	return module_unused;
+	return NULL;
 }
+
+/* Called with mod_area_mt locked */
+static void clean_unused_module_areas_locked(void)
+{
+	MA_STATE(mas, &mod_area_mt, 0, module_tags.size);
+	struct module *val;
+
+	mas_for_each(&mas, val, module_tags.size) {
+		if (val != &unloaded_mod)
+			continue;
+
+		/* Release area if all tags are unused */
+		if (!find_used_tag((struct alloc_tag *)(module_tags.start_addr + mas.index),
+				   (struct alloc_tag *)(module_tags.start_addr + mas.last)))
+			mas_erase(&mas);
+	}
+}
+
+/* Called with mod_area_mt locked */
+static bool find_aligned_area(struct ma_state *mas, unsigned long section_size,
+			      unsigned long size, unsigned int prepend, unsigned long align)
+{
+	bool cleanup_done = false;
+
+repeat:
+	/* Try finding exact size and hope the start is aligned */
+	if (!mas_empty_area(mas, 0, section_size - 1, prepend + size)) {
+		if (IS_ALIGNED(mas->index + prepend, align))
+			return true;
+
+		/* Try finding larger area to align later */
+		mas_reset(mas);
+		if (!mas_empty_area(mas, 0, section_size - 1,
+				    size + prepend + align - 1))
+			return true;
+	}
+
+	/* No free area, try cleanup stale data and repeat the search once */
+	if (!cleanup_done) {
+		clean_unused_module_areas_locked();
+		cleanup_done = true;
+		mas_reset(mas);
+		goto repeat;
+	}
+
+	return false;
+}
+
+static void *reserve_module_tags(struct module *mod, unsigned long size,
+				 unsigned int prepend, unsigned long align)
+{
+	unsigned long section_size = module_tags.end_addr - module_tags.start_addr;
+	MA_STATE(mas, &mod_area_mt, 0, section_size - 1);
+	unsigned long offset;
+	void *ret = NULL;
+
+	/* If no tags return error */
+	if (size < sizeof(struct alloc_tag))
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * align is always power of 2, so we can use IS_ALIGNED and ALIGN.
+	 * align 0 or 1 means no alignment, to simplify set to 1.
+	 */
+	if (!align)
+		align = 1;
+
+	mas_lock(&mas);
+	if (!find_aligned_area(&mas, section_size, size, prepend, align)) {
+		ret = ERR_PTR(-ENOMEM);
+		goto unlock;
+	}
+
+	/* Mark found area as reserved */
+	offset = mas.index;
+	offset += prepend;
+	offset = ALIGN(offset, align);
+	if (offset != mas.index) {
+		unsigned long pad_start = mas.index;
+
+		mas.last = offset - 1;
+		mas_store(&mas, &prepend_mod);
+		if (mas_is_err(&mas)) {
+			ret = ERR_PTR(xa_err(mas.node));
+			goto unlock;
+		}
+		mas.index = offset;
+		mas.last = offset + size - 1;
+		mas_store(&mas, mod);
+		if (mas_is_err(&mas)) {
+			mas.index = pad_start;
+			mas_erase(&mas);
+			ret = ERR_PTR(xa_err(mas.node));
+		}
+	} else {
+		mas.last = offset + size - 1;
+		mas_store(&mas, mod);
+		if (mas_is_err(&mas))
+			ret = ERR_PTR(xa_err(mas.node));
+	}
+unlock:
+	mas_unlock(&mas);
+
+	if (IS_ERR(ret))
+		return ret;
+
+	if (module_tags.size < offset + size)
+		module_tags.size = offset + size;
+
+	return (struct alloc_tag *)(module_tags.start_addr + offset);
+}
+
+static void release_module_tags(struct module *mod, bool used)
+{
+	MA_STATE(mas, &mod_area_mt, module_tags.size, module_tags.size);
+	struct alloc_tag *tag;
+	struct module *val;
+
+	mas_lock(&mas);
+	mas_for_each_rev(&mas, val, 0)
+		if (val == mod)
+			break;
+
+	if (!val) /* module not found */
+		goto out;
+
+	if (!used)
+		goto release_area;
+
+	/* Find out if the area is used */
+	tag = find_used_tag((struct alloc_tag *)(module_tags.start_addr + mas.index),
+			    (struct alloc_tag *)(module_tags.start_addr + mas.last));
+	if (tag) {
+		struct alloc_tag_counters counter = alloc_tag_read(tag);
+
+		pr_info("%s:%u module %s func:%s has %llu allocated at module unload\n",
+			tag->ct.filename, tag->ct.lineno, tag->ct.modname,
+			tag->ct.function, counter.bytes);
+	} else {
+		used = false;
+	}
+release_area:
+	mas_store(&mas, used ? &unloaded_mod : NULL);
+	val = mas_prev_range(&mas, 0);
+	if (val == &prepend_mod)
+		mas_store(&mas, NULL);
+out:
+	mas_unlock(&mas);
+}
+
+static void replace_module(struct module *mod, struct module *new_mod)
+{
+	MA_STATE(mas, &mod_area_mt, 0, module_tags.size);
+	struct module *val;
+
+	mas_lock(&mas);
+	mas_for_each(&mas, val, module_tags.size) {
+		if (val != mod)
+			continue;
+
+		mas_store_gfp(&mas, new_mod, GFP_KERNEL);
+		break;
+	}
+	mas_unlock(&mas);
+}
+
+static int __init alloc_mod_tags_mem(void)
+{
+	/* Allocate space to copy allocation tags */
+	module_tags.start_addr = (unsigned long)execmem_alloc(EXECMEM_MODULE_DATA,
+							      MODULE_ALLOC_TAG_VMAP_SIZE);
+	if (!module_tags.start_addr)
+		return -ENOMEM;
+
+	module_tags.end_addr = module_tags.start_addr + MODULE_ALLOC_TAG_VMAP_SIZE;
+
+	return 0;
+}
+
+static void __init free_mod_tags_mem(void)
+{
+	execmem_free((void *)module_tags.start_addr);
+	module_tags.start_addr = 0;
+}
+
+#else /* CONFIG_MODULES */
+
+static inline int alloc_mod_tags_mem(void) { return 0; }
+static inline void free_mod_tags_mem(void) {}
+
+#endif /* CONFIG_MODULES */
 
 static int __init setup_early_mem_profiling(char *str)
 {
@@ -274,14 +471,26 @@ static inline void sysctl_init(void) {}
 static int __init alloc_tag_init(void)
 {
 	const struct codetag_type_desc desc = {
-		.section	= "alloc_tags",
-		.tag_size	= sizeof(struct alloc_tag),
-		.module_unload	= alloc_tag_module_unload,
+		.section		= ALLOC_TAG_SECTION_NAME,
+		.tag_size		= sizeof(struct alloc_tag),
+#ifdef CONFIG_MODULES
+		.needs_section_mem	= needs_section_mem,
+		.alloc_section_mem	= reserve_module_tags,
+		.free_section_mem	= release_module_tags,
+		.module_replaced	= replace_module,
+#endif
 	};
+	int res;
+
+	res = alloc_mod_tags_mem();
+	if (res)
+		return res;
 
 	alloc_tag_cttype = codetag_register_type(&desc);
-	if (IS_ERR(alloc_tag_cttype))
+	if (IS_ERR(alloc_tag_cttype)) {
+		free_mod_tags_mem();
 		return PTR_ERR(alloc_tag_cttype);
+	}
 
 	sysctl_init();
 	procfs_init();
