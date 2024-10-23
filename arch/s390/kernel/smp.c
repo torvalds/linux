@@ -1011,7 +1011,7 @@ static ssize_t cpu_configure_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	count = sprintf(buf, "%d\n", per_cpu(pcpu_devices, dev->id).state);
+	count = sysfs_emit(buf, "%d\n", per_cpu(pcpu_devices, dev->id).state);
 	mutex_unlock(&smp_cpu_state_mutex);
 	return count;
 }
@@ -1083,7 +1083,7 @@ static DEVICE_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
 static ssize_t show_cpu_address(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", per_cpu(pcpu_devices, dev->id).address);
+	return sysfs_emit(buf, "%d\n", per_cpu(pcpu_devices, dev->id).address);
 }
 static DEVICE_ATTR(address, 0444, show_cpu_address, NULL);
 
