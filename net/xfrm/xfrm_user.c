@@ -3282,6 +3282,20 @@ static int xfrm_reject_unused_attr(int type, struct nlattr **attrs,
 		}
 	}
 
+	if (attrs[XFRMA_SA_PCPU]) {
+		switch (type) {
+		case XFRM_MSG_NEWSA:
+		case XFRM_MSG_UPDSA:
+		case XFRM_MSG_ALLOCSPI:
+		case XFRM_MSG_ACQUIRE:
+
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Invalid attribute SA_PCPU");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
