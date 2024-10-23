@@ -307,7 +307,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		bulk_params.mode = args->mode;
 		bulk_params.size = args->size;
 		bulk_params.dir = dir;
-		bulk_params.userdata = &waiter->bulk_waiter;
+		bulk_params.waiter = &waiter->bulk_waiter;
 
 		status = vchiq_bulk_xfer_blocking(instance, args->handle,
 						  &bulk_params);
@@ -354,7 +354,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		if (waiter->bulk_waiter.bulk) {
 			/* Cancel the signal when the transfer completes. */
 			spin_lock(&service->state->bulk_waiter_spinlock);
-			waiter->bulk_waiter.bulk->userdata = NULL;
+			waiter->bulk_waiter.bulk->waiter = NULL;
 			spin_unlock(&service->state->bulk_waiter_spinlock);
 		}
 		kfree(waiter);

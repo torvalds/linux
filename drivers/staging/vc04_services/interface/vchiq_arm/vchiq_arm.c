@@ -594,7 +594,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 				 * Cancel the signal when the transfer completes.
 				 */
 				spin_lock(&service->state->bulk_waiter_spinlock);
-				bulk->userdata = NULL;
+				bulk->waiter = NULL;
 				spin_unlock(&service->state->bulk_waiter_spinlock);
 			}
 		}
@@ -604,7 +604,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 			return -ENOMEM;
 	}
 
-	bulk_params->userdata = &waiter->bulk_waiter;
+	bulk_params->waiter = &waiter->bulk_waiter;
 
 	ret = vchiq_bulk_xfer_blocking(instance, handle, bulk_params);
 	if ((ret != -EAGAIN) || fatal_signal_pending(current) || !waiter->bulk_waiter.bulk) {
@@ -613,7 +613,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 		if (bulk) {
 			/* Cancel the signal when the transfer completes. */
 			spin_lock(&service->state->bulk_waiter_spinlock);
-			bulk->userdata = NULL;
+			bulk->waiter = NULL;
 			spin_unlock(&service->state->bulk_waiter_spinlock);
 		}
 		kfree(waiter);

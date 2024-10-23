@@ -1330,7 +1330,7 @@ static int service_notify_bulk(struct vchiq_service *service,
 		struct bulk_waiter *waiter;
 
 		spin_lock(&service->state->bulk_waiter_spinlock);
-		waiter = bulk->userdata;
+		waiter = bulk->waiter;
 		if (waiter) {
 			waiter->actual = bulk->actual;
 			complete(&waiter->event);
@@ -3035,7 +3035,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	int payload[2];
 
 	if (bulk_params->mode == VCHIQ_BULK_MODE_BLOCKING) {
-		bulk_waiter = bulk_params->userdata;
+		bulk_waiter = bulk_params->waiter;
 		init_completion(&bulk_waiter->event);
 		bulk_waiter->actual = 0;
 		bulk_waiter->bulk = NULL;
@@ -3064,6 +3064,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	/* Initiliaze the 'bulk' slot with bulk parameters passed in. */
 	bulk->mode = bulk_params->mode;
 	bulk->dir = bulk_params->dir;
+	bulk->waiter = bulk_params->waiter;
 	bulk->userdata = bulk_params->userdata;
 	bulk->size = bulk_params->size;
 	bulk->offset = bulk_params->offset;
@@ -3532,7 +3533,7 @@ error_exit:
  */
 int
 vchiq_bulk_xfer_waiting(struct vchiq_instance *instance,
-			unsigned int handle, struct bulk_waiter *userdata)
+			unsigned int handle, struct bulk_waiter *waiter)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
 	struct bulk_waiter *bulk_waiter;
@@ -3541,7 +3542,7 @@ vchiq_bulk_xfer_waiting(struct vchiq_instance *instance,
 	if (!service)
 		return -EINVAL;
 
-	if (!userdata)
+	if (!waiter)
 		goto error_exit;
 
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
@@ -3550,7 +3551,7 @@ vchiq_bulk_xfer_waiting(struct vchiq_instance *instance,
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-	bulk_waiter = userdata;
+	bulk_waiter = waiter;
 
 	vchiq_service_put(service);
 
