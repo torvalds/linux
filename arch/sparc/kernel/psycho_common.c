@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/numa.h>
+#include <linux/platform_device.h>
 
 #include <asm/upa.h>
 

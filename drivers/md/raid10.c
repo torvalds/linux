@@ -920,6 +920,7 @@ static void flush_pending_writes(struct r10conf *conf)
 
 			raid1_submit_write(bio);
 			bio = next;
+			cond_resched();
 		}
 		blk_finish_plug(&plug);
 	} else
@@ -1130,6 +1131,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 		raid1_submit_write(bio);
 		bio = next;
+		cond_resched();
 	}
 	kfree(plug);
 }

@@ -11,6 +11,7 @@
 #ifndef DM_VERITY_H
 #define DM_VERITY_H
 
+#include <linux/dm-io.h>
 #include <linux/dm-bufio.h>
 #include <linux/device-mapper.h>
 #include <linux/interrupt.h>
@@ -68,6 +69,9 @@ struct dm_verity {
 	unsigned long *validated_blocks; /* bitset blocks validated */
 
 	char *signature_key_desc; /* signature keyring reference */
+
+	struct dm_io_client *io;
+	mempool_t recheck_pool;
 };
 
 struct dm_verity_io {
@@ -76,14 +80,15 @@ struct dm_verity_io {
 	/* original value of bio->bi_end_io */
 	bio_end_io_t *orig_bi_end_io;
 
+	struct bvec_iter iter;
+
 	sector_t block;
 	unsigned int n_blocks;
 	bool in_tasklet;
 
-	struct bvec_iter iter;
-
 	struct work_struct work;
-	struct tasklet_struct tasklet;
+
+	char *recheck_buffer;
 
 	/*
 	 * Three variably-size fields follow this struct:

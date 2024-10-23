@@ -2,6 +2,7 @@
   alt_cb_patch_nops
   __arch_copy_from_user
   __arch_copy_to_user
+  _atomic_dec_and_lock
   autoremove_wake_function
   balance_dirty_pages_ratelimited
   bcmp
@@ -14,12 +15,14 @@
   bit_waitqueue
   blkdev_issue_discard
   blkdev_issue_flush
+  blkdev_issue_zeroout
   blk_finish_plug
   blk_start_plug
   __blockdev_direct_IO
   block_dirty_folio
   block_invalidate_folio
   block_is_partially_uptodate
+  block_write_full_page
   __breadahead
   __bread_gfp
   __brelse
@@ -30,8 +33,10 @@
   __check_object_size
   clean_bdev_aliases
   clear_inode
+  clear_nlink
   clear_page
   clear_page_dirty_for_io
+  cont_write_begin
   copy_page_from_iter_atomic
   cpu_hwcaps
   create_empty_buffers
@@ -39,6 +44,7 @@
   d_add
   d_add_ci
   d_instantiate
+  dirty_writeback_interval
   d_make_root
   d_obtain_alias
   down_read
@@ -57,6 +63,7 @@
   fget
   fiemap_fill_next_extent
   fiemap_prep
+  fileattr_fill_flags
   file_check_and_advance_wb_err
   filemap_add_folio
   filemap_dirty_folio
@@ -65,6 +72,7 @@
   filemap_fdatawrite
   filemap_fdatawrite_range
   filemap_flush
+  filemap_release_folio
   __filemap_set_wb_err
   filemap_write_and_wait_range
   file_remove_privs
@@ -83,6 +91,7 @@
   freezer_active
   freezing_slow_path
   fs_bio_set
+  generic_cont_expand_simple
   generic_error_remove_page
   generic_file_direct_write
   generic_file_llseek
@@ -90,14 +99,17 @@
   generic_file_open
   generic_file_read_iter
   generic_file_splice_read
+  generic_file_write_iter
   generic_fillattr
   generic_perform_write
   generic_read_dir
   generic_write_checks
+  generic_write_end
   __getblk_gfp
   gic_nonsecure_priorities
   grab_cache_page_write_begin
   iget5_locked
+  iget_locked
   igrab
   ihold
   ilookup5
@@ -107,11 +119,15 @@
   init_special_inode
   init_wait_entry
   __init_waitqueue_head
+  inode_add_bytes
   inode_dio_wait
+  inode_get_bytes
   inode_init_once
   inode_init_owner
   inode_maybe_inc_iversion
   inode_newsize_ok
+  inode_set_bytes
+  inode_set_ctime_current
   inode_set_flags
   __insert_inode_hash
   invalidate_bdev
@@ -158,16 +174,20 @@
   mark_buffer_write_io_error
   __mark_inode_dirty
   mark_page_accessed
+  match_octal
+  match_strdup
   memcmp
   memcpy
   memmove
   memset
+  migrate_folio
   mktime64
   mnt_drop_write_file
   mnt_want_write_file
   mount_bdev
   mpage_readahead
   mpage_read_folio
+  mpage_writepages
   __msecs_to_jiffies
   __mutex_init
   mutex_lock
@@ -178,8 +198,10 @@
   pagecache_get_page
   page_cache_next_miss
   page_cache_prev_miss
+  page_get_link
   page_pinner_inited
   __page_pinner_put_page
+  page_symlink
   pagevec_lookup_range_tag
   __pagevec_release
   page_zero_new_buffers
@@ -217,7 +239,9 @@
   schedule_timeout
   schedule_timeout_interruptible
   security_inode_init_security
+  seq_escape_mem
   seq_printf
+  setattr_copy
   setattr_prepare
   set_freezable
   set_nlink
@@ -257,6 +281,7 @@
   truncate_inode_pages_final
   truncate_pagecache
   truncate_setsize
+  try_to_free_buffers
   try_to_writeback_inodes_sb
   unload_nls
   unlock_buffer
@@ -265,6 +290,8 @@
   unregister_filesystem
   up_read
   up_write
+  utf32_to_utf8
+  utf8_to_utf32
   vfree
   vfs_fsync_range
   __vmalloc

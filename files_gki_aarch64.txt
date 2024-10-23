@@ -632,6 +632,7 @@ drivers/android/binder_alloc.h
 drivers/android/binder_internal.h
 drivers/android/binder_trace.h
 drivers/android/binderfs.c
+drivers/android/dbitmap.h
 drivers/android/debug_kinfo.c
 drivers/android/debug_kinfo.h
 drivers/android/vendor_hooks.c
@@ -1676,6 +1677,7 @@ drivers/tty/pty.c
 drivers/tty/serdev/core.c
 drivers/tty/serdev/serdev-ttyport.c
 drivers/tty/serial/8250/8250.h
+drivers/tty/serial/8250/8250_bcm7271.c
 drivers/tty/serial/8250/8250_core.c
 drivers/tty/serial/8250/8250_dma.c
 drivers/tty/serial/8250/8250_dw.c
@@ -3414,6 +3416,7 @@ include/linux/personality.h
 include/linux/pfn.h
 include/linux/pfn_t.h
 include/linux/pgsize_migration.h
+include/linux/pgsize_migration_inline.h
 include/linux/pgtable.h
 include/linux/pgtable_api.h
 include/linux/phy.h

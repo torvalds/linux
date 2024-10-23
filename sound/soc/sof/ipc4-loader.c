@@ -17,9 +17,8 @@
 static size_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
-	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct sof_man4_fw_binary_header *fw_header;
-	const struct firmware *fw = plat_data->fw;
+	const struct firmware *fw = sdev->basefw.fw;
 	struct sof_ext_manifest4_hdr *ext_man_hdr;
 	struct sof_man4_module_config *fm_config;
 	struct sof_ipc4_fw_module *fw_module;
@@ -138,9 +137,8 @@ static int sof_ipc4_validate_firmware(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	u32 fw_hdr_offset = ipc4_data->manifest_fw_hdr_offset;
-	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct sof_man4_fw_binary_header *fw_header;
-	const struct firmware *fw = plat_data->fw;
+	const struct firmware *fw = sdev->basefw.fw;
 	struct sof_ext_manifest4_hdr *ext_man_hdr;
 
 	ext_man_hdr = (struct sof_ext_manifest4_hdr *)fw->data;

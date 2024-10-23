@@ -153,14 +153,17 @@ static inline int usb4_switch_op_data(struct tb_switch *sw, u16 opcode,
 				tx_dwords, rx_data, rx_dwords);
 }
 
-static void usb4_switch_check_wakes(struct tb_switch *sw)
+/**
+ * usb4_switch_check_wakes() - Check for wakes and notify PM core about them
+ * @sw: Router whose wakes to check
+ *
+ * Checks wakes occurred during suspend and notify the PM core about them.
+ */
+void usb4_switch_check_wakes(struct tb_switch *sw)
 {
 	struct tb_port *port;
 	bool wakeup = false;
 	u32 val;
-
-	if (!device_may_wakeup(&sw->dev))
-		return;
 
 	if (tb_route(sw)) {
 		if (tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_6, 1))
@@ -225,8 +228,6 @@ int usb4_switch_setup(struct tb_switch *sw)
 	bool tbt3, xhci;
 	u32 val = 0;
 	int ret;
-
-	usb4_switch_check_wakes(sw);
 
 	if (!tb_route(sw))
 		return 0;

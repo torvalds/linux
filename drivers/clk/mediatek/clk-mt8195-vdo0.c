@@ -104,7 +104,8 @@ static int clk_mt8195_vdo0_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates(node, vdo0_clks, ARRAY_SIZE(vdo0_clks), clk_data);
+	r = mtk_clk_register_gates(&pdev->dev, node, vdo0_clks,
+				   ARRAY_SIZE(vdo0_clks), clk_data);
 	if (r)
 		goto free_vdo0_data;
 

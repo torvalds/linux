@@ -1522,7 +1522,7 @@
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <0>;
-			status = "disabled";
+			qcom,controlled-remotely;
 		};
 
 		blsp1_uart1: serial@78af000 {

@@ -230,7 +230,7 @@ alternative_has_feature_likely(unsigned long feature)
 	compiletime_assert(feature < ARM64_NCAPS,
 			   "feature must be < ARM64_NCAPS");
 
-	asm_volatile_goto(
+	asm goto(
 	ALTERNATIVE_CB("b	%l[l_no]", %[feature], alt_cb_patch_nops)
 	:
 	: [feature] "i" (feature)
@@ -248,7 +248,7 @@ alternative_has_feature_unlikely(unsigned long feature)
 	compiletime_assert(feature < ARM64_NCAPS,
 			   "feature must be < ARM64_NCAPS");
 
-	asm_volatile_goto(
+	asm goto(
 	ALTERNATIVE("nop", "b	%l[l_yes]", %[feature])
 	:
 	: [feature] "i" (feature)

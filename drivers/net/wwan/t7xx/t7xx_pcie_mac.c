@@ -75,7 +75,7 @@ static void t7xx_pcie_mac_atr_tables_dis(void __iomem *pbase, enum t7xx_atr_src_
 	for (i = 0; i < ATR_TABLE_NUM_PER_ATR; i++) {
 		offset = ATR_PORT_OFFSET * port + ATR_TABLE_OFFSET * i;
 		reg = pbase + ATR_PCIE_WIN0_T0_ATR_PARAM_SRC_ADDR + offset;
-		iowrite64(0, reg);
+		iowrite64_lo_hi(0, reg);
 	}
 }
 
@@ -112,17 +112,17 @@ static int t7xx_pcie_mac_atr_cfg(struct t7xx_pci_dev *t7xx_dev, struct t7xx_atr_
 
 	reg = pbase + ATR_PCIE_WIN0_T0_TRSL_ADDR + offset;
 	value = cfg->trsl_addr & ATR_PCIE_WIN0_ADDR_ALGMT;
-	iowrite64(value, reg);
+	iowrite64_lo_hi(value, reg);
 
 	reg = pbase + ATR_PCIE_WIN0_T0_TRSL_PARAM + offset;
 	iowrite32(cfg->trsl_id, reg);
 
 	reg = pbase + ATR_PCIE_WIN0_T0_ATR_PARAM_SRC_ADDR + offset;
 	value = (cfg->src_addr & ATR_PCIE_WIN0_ADDR_ALGMT) | (atr_size << 1) | BIT(0);
-	iowrite64(value, reg);
+	iowrite64_lo_hi(value, reg);
 
 	/* Ensure ATR is set */
-	ioread64(reg);
+	ioread64_lo_hi(reg);
 	return 0;
 }
 

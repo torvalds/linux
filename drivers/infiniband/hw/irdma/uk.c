@@ -1415,6 +1415,78 @@ static void irdma_setup_connection_wqes(struct irdma_qp_uk *qp,
 }
 
 /**
+ * irdma_uk_calc_shift_wq - calculate WQE shift for both SQ and RQ
+ * @ukinfo: qp initialization info
+ * @sq_shift: Returns shift of SQ
+ * @rq_shift: Returns shift of RQ
+ */
+void irdma_uk_calc_shift_wq(struct irdma_qp_uk_init_info *ukinfo, u8 *sq_shift,
+			    u8 *rq_shift)
+{
+	bool imm_support = ukinfo->uk_attrs->hw_rev >= IRDMA_GEN_2;
+
+	irdma_get_wqe_shift(ukinfo->uk_attrs,
+			    imm_support ? ukinfo->max_sq_frag_cnt + 1 :
+					  ukinfo->max_sq_frag_cnt,
+			    ukinfo->max_inline_data, sq_shift);
+
+	irdma_get_wqe_shift(ukinfo->uk_attrs, ukinfo->max_rq_frag_cnt, 0,
+			    rq_shift);
+
+	if (ukinfo->uk_attrs->hw_rev == IRDMA_GEN_1) {
+		if (ukinfo->abi_ver > 4)
+			*rq_shift = IRDMA_MAX_RQ_WQE_SHIFT_GEN1;
+	}
+}
+
+/**
+ * irdma_uk_calc_depth_shift_sq - calculate depth and shift for SQ size.
+ * @ukinfo: qp initialization info
+ * @sq_depth: Returns depth of SQ
+ * @sq_shift: Returns shift of SQ
+ */
+int irdma_uk_calc_depth_shift_sq(struct irdma_qp_uk_init_info *ukinfo,
+				 u32 *sq_depth, u8 *sq_shift)
+{
+	bool imm_support = ukinfo->uk_attrs->hw_rev >= IRDMA_GEN_2;
+	int status;
+
+	irdma_get_wqe_shift(ukinfo->uk_attrs,
+			    imm_support ? ukinfo->max_sq_frag_cnt + 1 :
+			    ukinfo->max_sq_frag_cnt,
+			    ukinfo->max_inline_data, sq_shift);
+	status = irdma_get_sqdepth(ukinfo->uk_attrs, ukinfo->sq_size,
+				   *sq_shift, sq_depth);
+
+	return status;
+}
+
+/**
+ * irdma_uk_calc_depth_shift_rq - calculate depth and shift for RQ size.
+ * @ukinfo: qp initialization info
+ * @rq_depth: Returns depth of RQ
+ * @rq_shift: Returns shift of RQ
+ */
+int irdma_uk_calc_depth_shift_rq(struct irdma_qp_uk_init_info *ukinfo,
+				 u32 *rq_depth, u8 *rq_shift)
+{
+	int status;
+
+	irdma_get_wqe_shift(ukinfo->uk_attrs, ukinfo->max_rq_frag_cnt, 0,
+			    rq_shift);
+
+	if (ukinfo->uk_attrs->hw_rev == IRDMA_GEN_1) {
+		if (ukinfo->abi_ver > 4)
+			*rq_shift = IRDMA_MAX_RQ_WQE_SHIFT_GEN1;
+	}
+
+	status = irdma_get_rqdepth(ukinfo->uk_attrs, ukinfo->rq_size,
+				   *rq_shift, rq_depth);
+
+	return status;
+}
+
+/**
  * irdma_uk_qp_init - initialize shared qp
  * @qp: hw qp (user and kernel)
  * @info: qp initialization info
@@ -1428,23 +1500,12 @@ int irdma_uk_qp_init(struct irdma_qp_uk *qp, struct irdma_qp_uk_init_info *info)
 {
 	int ret_code = 0;
 	u32 sq_ring_size;
-	u8 sqshift, rqshift;
 
 	qp->uk_attrs = info->uk_attrs;
 	if (info->max_sq_frag_cnt > qp->uk_attrs->max_hw_wq_frags ||
 	    info->max_rq_frag_cnt > qp->uk_attrs->max_hw_wq_frags)
 		return -EINVAL;
 
-	irdma_get_wqe_shift(qp->uk_attrs, info->max_rq_frag_cnt, 0, &rqshift);
-	if (qp->uk_attrs->hw_rev == IRDMA_GEN_1) {
-		irdma_get_wqe_shift(qp->uk_attrs, info->max_sq_frag_cnt,
-				    info->max_inline_data, &sqshift);
-		if (info->abi_ver > 4)
-			rqshift = IRDMA_MAX_RQ_WQE_SHIFT_GEN1;
-	} else {
-		irdma_get_wqe_shift(qp->uk_attrs, info->max_sq_frag_cnt + 1,
-				    info->max_inline_data, &sqshift);
-	}
 	qp->qp_caps = info->qp_caps;
 	qp->sq_base = info->sq;
 	qp->rq_base = info->rq;
@@ -1458,7 +1519,7 @@ int irdma_uk_qp_init(struct irdma_qp_uk *qp, struct irdma_qp_uk_init_info *info)
 	qp->sq_size = info->sq_size;
 	qp->push_mode = false;
 	qp->max_sq_frag_cnt = info->max_sq_frag_cnt;
-	sq_ring_size = qp->sq_size << sqshift;
+	sq_ring_size = qp->sq_size << info->sq_shift;
 	IRDMA_RING_INIT(qp->sq_ring, sq_ring_size);
 	IRDMA_RING_INIT(qp->initial_ring, sq_ring_size);
 	if (info->first_sq_wq) {
@@ -1473,9 +1534,9 @@ int irdma_uk_qp_init(struct irdma_qp_uk *qp, struct irdma_qp_uk_init_info *info)
 	qp->rq_size = info->rq_size;
 	qp->max_rq_frag_cnt = info->max_rq_frag_cnt;
 	qp->max_inline_data = info->max_inline_data;
-	qp->rq_wqe_size = rqshift;
+	qp->rq_wqe_size = info->rq_shift;
 	IRDMA_RING_INIT(qp->rq_ring, qp->rq_size);
-	qp->rq_wqe_size_multiplier = 1 << rqshift;
+	qp->rq_wqe_size_multiplier = 1 << info->rq_shift;
 	if (qp->uk_attrs->hw_rev == IRDMA_GEN_1)
 		qp->wqe_ops = iw_wqe_uk_ops_gen_1;
 	else

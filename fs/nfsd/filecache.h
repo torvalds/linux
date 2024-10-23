@@ -29,9 +29,8 @@ struct nfsd_file_mark {
  * never be dereferenced, only used for comparison.
  */
 struct nfsd_file {
-	struct rhash_head	nf_rhash;
-	struct list_head	nf_lru;
-	struct rcu_head		nf_rcu;
+	struct rhlist_head	nf_rlist;
+	void			*nf_inode;
 	struct file		*nf_file;
 	const struct cred	*nf_cred;
 	struct net		*nf_net;
@@ -40,10 +39,12 @@ struct nfsd_file {
 #define NFSD_FILE_REFERENCED	(2)
 #define NFSD_FILE_GC		(3)
 	unsigned long		nf_flags;
-	struct inode		*nf_inode;	/* don't deref */
 	refcount_t		nf_ref;
 	unsigned char		nf_may;
+
 	struct nfsd_file_mark	*nf_mark;
+	struct list_head	nf_lru;
+	struct rcu_head		nf_rcu;
 	ktime_t			nf_birthtime;
 };
 

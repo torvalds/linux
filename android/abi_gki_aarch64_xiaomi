@@ -233,6 +233,7 @@
   __traceiter_android_vh_sched_setaffinity_early
   __traceiter_android_rvh_set_cpus_allowed_comm
   __traceiter_android_rvh_dequeue_task
+  __traceiter_android_vh_rwsem_read_trylock_failed
   __tracepoint_android_vh_rwsem_read_wait_start
   __tracepoint_android_vh_rwsem_write_wait_start
   __tracepoint_android_vh_mutex_wait_start
@@ -241,6 +242,7 @@
   __tracepoint_android_vh_sched_setaffinity_early
   __tracepoint_android_rvh_set_cpus_allowed_comm
   __tracepoint_android_rvh_dequeue_task
+  __tracepoint_android_vh_rwsem_read_trylock_failed
   cpuset_cpus_allowed
   cpufreq_update_policy
 
@@ -371,6 +373,9 @@
   pci_sriov_set_totalvfs
   pci_num_vf
 
+# required by shrink memory module
+  shrink_slab
+
 #required by cifs.ko
   add_swap_extent
   asn1_ber_decoder
@@ -455,3 +460,17 @@
   __break_lease
   __d_lookup_unhash_wake
   __fs_parse
+  __filemap_get_folio
+
+#required by mi_async_reclaim.ko
+__traceiter_android_vh_handle_trylock_failed_folio
+__tracepoint_android_vh_handle_trylock_failed_folio
+__traceiter_android_vh_folio_trylock_set
+__tracepoint_android_vh_folio_trylock_set
+__traceiter_android_vh_folio_trylock_clear
+__tracepoint_android_vh_folio_trylock_clear
+__traceiter_android_vh_get_folio_trylock_result
+__tracepoint_android_vh_get_folio_trylock_result
+__traceiter_android_vh_do_folio_trylock
+__tracepoint_android_vh_do_folio_trylock
+reclaim_pages

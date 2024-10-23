@@ -258,6 +258,7 @@ struct idxd_driver_data {
 	struct device_type *dev_type;
 	int compl_size;
 	int align;
+	bool user_submission_safe;
 };
 
 struct idxd_device {
@@ -316,6 +317,8 @@ struct idxd_device {
 	struct idxd_pmu *idxd_pmu;
 
 	unsigned long *opcap_bmap;
+
+	bool user_submission_safe;
 };
 
 /* IDXD software descriptor */

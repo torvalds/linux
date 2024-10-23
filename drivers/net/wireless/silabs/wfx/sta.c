@@ -362,6 +362,7 @@ static int wfx_set_mfp_ap(struct wfx_vif *wvif)
 	const int pairwise_cipher_suite_count_offset = 8 / sizeof(u16);
 	const int pairwise_cipher_suite_size = 4 / sizeof(u16);
 	const int akm_suite_size = 4 / sizeof(u16);
+	int ret = -EINVAL;
 	const u16 *ptr;
 
 	if (unlikely(!skb))
@@ -370,22 +371,26 @@ static int wfx_set_mfp_ap(struct wfx_vif *wvif)
 	ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN, skb->data + ieoffset,
 				      skb->len - ieoffset);
 	if (unlikely(!ptr))
-		return -EINVAL;
+		goto free_skb;
 
 	ptr += pairwise_cipher_suite_count_offset;
 	if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
-		return -EINVAL;
+		goto free_skb;
 
 	ptr += 1 + pairwise_cipher_suite_size * *ptr;
 	if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
-		return -EINVAL;
+		goto free_skb;
 
 	ptr += 1 + akm_suite_size * *ptr;
 	if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
-		return -EINVAL;
+		goto free_skb;
 
 	wfx_hif_set_mfp(wvif, *ptr & BIT(7), *ptr & BIT(6));
-	return 0;
+	ret = 0;
+
+free_skb:
+	dev_kfree_skb(skb);
+	return ret;
 }
 
 int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

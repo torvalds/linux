@@ -191,6 +191,8 @@
   gic_nonsecure_priorities
   gpiochip_add_data_with_key
   gpiochip_find
+  gpiochip_generic_free
+  gpiochip_generic_request
   gpiochip_get_data
   gpiochip_remove
   gpiod_get_value_cansleep
@@ -353,8 +355,8 @@
   nr_cpu_ids
   ns_capable
   of_address_to_resource
-  of_alias_get_id
   of_clk_get_by_name
+  of_count_phandle_with_args
   of_device_get_match_data
   of_device_is_available
   of_device_is_big_endian
@@ -419,7 +421,6 @@
   __platform_driver_register
   platform_driver_unregister
   platform_get_irq
-  platform_get_irq_byname
   platform_get_irq_byname_optional
   platform_get_irq_optional
   platform_get_resource
@@ -490,6 +491,7 @@
   register_pernet_device
   register_pernet_subsys
   register_pm_notifier
+  register_reboot_notifier
   register_syscore_ops
   regulator_bulk_disable
   regulator_bulk_enable
@@ -660,6 +662,7 @@
   unregister_pernet_device
   unregister_pernet_subsys
   unregister_pm_notifier
+  unregister_reboot_notifier
   up_read
   up_write
   usb_alloc_urb
@@ -742,18 +745,6 @@
   vlan_vid_add
   vlan_vid_del
 
-# required by 8250_bcm7271.ko
-  serial8250_do_set_termios
-  serial8250_do_shutdown
-  serial8250_do_startup
-  serial8250_get_port
-  serial8250_handle_irq
-  serial8250_register_8250_port
-  serial8250_resume_port
-  serial8250_suspend_port
-  serial8250_unregister_port
-  uart_write_wakeup
-
 # required by ahci_brcm.ko
   phy_calibrate
 
@@ -792,6 +783,7 @@
   dma_sync_single_for_cpu
   of_get_ethdev_address
   of_platform_populate
+  platform_get_irq_byname
   __skb_pad
   synchronize_irq
 
@@ -816,7 +808,6 @@
   dma_pool_create
   dma_pool_destroy
   dma_pool_free
-  of_count_phandle_with_args
   usb_add_gadget_udc
   usb_del_gadget_udc
   usb_ep_set_maxpacket_limit
@@ -1065,6 +1056,7 @@
   netif_schedule_queue
   netif_set_real_num_rx_queues
   netif_set_real_num_tx_queues
+  of_alias_get_id
   of_get_compatible_child
   of_phy_find_device
   phy_attach
@@ -1353,6 +1345,7 @@
   scsi_remove_device
   scsi_remove_host
   scsi_rescan_device
+  scsi_resume_device
   scsi_schedule_eh
   scsi_sense_desc_find
   scsi_set_sense_field_pointer
@@ -1449,8 +1442,6 @@
   gpiochip_disable_irq
   gpiochip_enable_irq
   gpiochip_generic_config
-  gpiochip_generic_free
-  gpiochip_generic_request
   gpiochip_irq_relres
   gpiochip_irq_reqres
   of_pinctrl_get
@@ -1527,6 +1518,9 @@
   usb_set_configuration
   work_busy
 
+# required by reboot_data_save.ko
+  ktime_get_real_ts64
+
 # required by rfcomm.ko
   kthread_should_stop
   kthread_stop
@@ -1543,11 +1537,9 @@
 # required by rtc-brcmstb-waketimer.ko
   devm_rtc_allocate_device
   __devm_rtc_register_device
-  register_reboot_notifier
   rtc_time64_to_tm
   rtc_tm_to_time64
   rtc_update_irq
-  unregister_reboot_notifier
 
 # required by rtl8150.ko
   usb_control_msg_send

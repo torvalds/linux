@@ -54,8 +54,11 @@ struct scsi_pointer {
 #define SCMD_INITIALIZED	(1 << 1)
 #define SCMD_LAST		(1 << 2)
 #define SCMD_FAIL_IF_RECOVERING	(1 << 4)
+/* If set, retry a passthrough command in case of a unit attention. */
+#define SCMD_RETRY_PASSTHROUGH	(1 << 5)
 /* flags preserved across unprep / reprep */
-#define SCMD_PRESERVED_FLAGS	(SCMD_INITIALIZED | SCMD_FAIL_IF_RECOVERING)
+#define SCMD_PRESERVED_FLAGS	\
+	(SCMD_INITIALIZED | SCMD_FAIL_IF_RECOVERING | SCMD_RETRY_PASSTHROUGH)
 
 /* for scmd->state */
 #define SCMD_STATE_COMPLETE	0

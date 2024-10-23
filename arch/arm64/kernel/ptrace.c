@@ -43,6 +43,8 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(sys_exit);
+
 struct pt_regs_offset {
 	const char *name;
 	int offset;
@@ -1450,7 +1452,8 @@ static const struct user_regset aarch64_regsets[] = {
 #ifdef CONFIG_ARM64_SVE
 	[REGSET_SVE] = { /* Scalable Vector Extension */
 		.core_note_type = NT_ARM_SVE,
-		.n = DIV_ROUND_UP(SVE_PT_SIZE(SVE_VQ_MAX, SVE_PT_REGS_SVE),
+		.n = DIV_ROUND_UP(SVE_PT_SIZE(ARCH_SVE_VQ_MAX,
+					      SVE_PT_REGS_SVE),
 				  SVE_VQ_BYTES),
 		.size = SVE_VQ_BYTES,
 		.align = SVE_VQ_BYTES,

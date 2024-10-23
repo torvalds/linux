@@ -27,18 +27,6 @@ use proc_macro::TokenStream;
 ///     author: b"Rust for Linux Contributors",
 ///     description: b"My very own kernel module!",
 ///     license: b"GPL",
-///     params: {
-///        my_i32: i32 {
-///            default: 42,
-///            permissions: 0o000,
-///            description: b"Example of i32",
-///        },
-///        writeable_i32: i32 {
-///            default: 42,
-///            permissions: 0o644,
-///            description: b"Example of i32",
-///        },
-///    },
 /// }
 ///
 /// struct MyModule;
