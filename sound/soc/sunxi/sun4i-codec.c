@@ -1571,6 +1571,7 @@ struct sun4i_codec_quirks {
 	unsigned int reg_dac_txdata;	/* TX FIFO offset for DMA config */
 	unsigned int reg_adc_rxdata;	/* RX FIFO offset for DMA config */
 	bool has_reset;
+	bool playback_only;
 };
 
 static const struct sun4i_codec_quirks sun4i_codec_quirks = {
@@ -1779,10 +1780,13 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	scodec->playback_dma_data.maxburst = 8;
 	scodec->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
-	/* DMA configuration for RX FIFO */
-	scodec->capture_dma_data.addr = res->start + quirks->reg_adc_rxdata;
-	scodec->capture_dma_data.maxburst = 8;
-	scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	if (!quirks->playback_only) {
+		/* DMA configuration for RX FIFO */
+		scodec->capture_dma_data.addr = res->start +
+						quirks->reg_adc_rxdata;
+		scodec->capture_dma_data.maxburst = 8;
+		scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev, quirks->codec,
 				     &sun4i_codec_dai, 1);
