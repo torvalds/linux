@@ -226,6 +226,43 @@
 #define SUN8I_H3_CODEC_DAC_DBG			(0x48)
 #define SUN8I_H3_CODEC_ADC_DBG			(0x4c)
 
+/* H616 specific registers */
+#define SUN50I_H616_CODEC_DAC_FIFOC		(0x10)
+
+#define SUN50I_DAC_FIFO_STA			(0x14)
+#define SUN50I_DAC_TXE_INT			(3)
+#define SUN50I_DAC_TXU_INT			(2)
+#define SUN50I_DAC_TXO_INT			(1)
+
+#define SUN50I_DAC_CNT				(0x24)
+#define SUN50I_DAC_DG_REG			(0x28)
+#define SUN50I_DAC_DAP_CTL			(0xf0)
+
+#define SUN50I_H616_DAC_AC_DAC_REG		(0x310)
+#define SUN50I_H616_DAC_LEN			(15)
+#define SUN50I_H616_DAC_REN			(14)
+#define SUN50I_H616_LINEOUTL_EN			(13)
+#define SUN50I_H616_LMUTE			(12)
+#define SUN50I_H616_LINEOUTR_EN			(11)
+#define SUN50I_H616_RMUTE			(10)
+#define SUN50I_H616_RSWITCH			(9)
+#define SUN50I_H616_RAMPEN			(8)
+#define SUN50I_H616_LINEOUTL_SEL		(6)
+#define SUN50I_H616_LINEOUTR_SEL		(5)
+#define SUN50I_H616_LINEOUT_VOL			(0)
+
+#define SUN50I_H616_DAC_AC_MIXER_REG		(0x314)
+#define SUN50I_H616_LMIX_LDAC			(21)
+#define SUN50I_H616_LMIX_RDAC			(20)
+#define SUN50I_H616_RMIX_RDAC			(17)
+#define SUN50I_H616_RMIX_LDAC			(16)
+#define SUN50I_H616_LMIXEN			(11)
+#define SUN50I_H616_RMIXEN			(10)
+
+#define SUN50I_H616_DAC_AC_RAMP_REG		(0x31c)
+#define SUN50I_H616_RAMP_STEP			(4)
+#define SUN50I_H616_RDEN			(0)
+
 /* TODO H3 DAP (Digital Audio Processing) bits */
 
 struct sun4i_codec {
@@ -1520,6 +1557,150 @@ static struct snd_soc_card *sun8i_v3s_codec_create_card(struct device *dev)
 	return card;
 };
 
+static const struct snd_kcontrol_new sun50i_h616_codec_codec_controls[] = {
+	SOC_SINGLE_TLV("DAC Playback Volume", SUN4I_CODEC_DAC_DPC,
+		       SUN4I_CODEC_DAC_DPC_DVOL, 0x3f, 1,
+		       sun6i_codec_dvol_scale),
+	SOC_SINGLE_TLV("Line Out Playback Volume",
+		       SUN50I_H616_DAC_AC_DAC_REG,
+		       SUN50I_H616_LINEOUT_VOL, 0x1f, 0,
+		       sun6i_codec_lineout_vol_scale),
+	SOC_DOUBLE("Line Out Playback Switch",
+		   SUN50I_H616_DAC_AC_DAC_REG,
+		   SUN50I_H616_LINEOUTL_EN,
+		   SUN50I_H616_LINEOUTR_EN, 1, 0),
+};
+
+static const struct snd_kcontrol_new sun50i_h616_codec_mixer_controls[] = {
+	SOC_DAPM_DOUBLE("DAC Playback Switch",
+			SUN50I_H616_DAC_AC_MIXER_REG,
+			SUN50I_H616_LMIX_LDAC,
+			SUN50I_H616_RMIX_RDAC, 1, 0),
+	SOC_DAPM_DOUBLE("DAC Reversed Playback Switch",
+			SUN50I_H616_DAC_AC_MIXER_REG,
+			SUN50I_H616_LMIX_RDAC,
+			SUN50I_H616_RMIX_LDAC, 1, 0),
+};
+
+static SOC_ENUM_DOUBLE_DECL(sun50i_h616_codec_lineout_src_enum,
+			    SUN50I_H616_DAC_AC_DAC_REG,
+			    SUN50I_H616_LINEOUTL_SEL,
+			    SUN50I_H616_LINEOUTR_SEL,
+			    sun6i_codec_lineout_src_enum_text);
+
+static const struct snd_kcontrol_new sun50i_h616_codec_lineout_src[] = {
+		SOC_DAPM_ENUM("Line Out Source Playback Route",
+			      sun50i_h616_codec_lineout_src_enum),
+};
+
+static const struct snd_soc_dapm_widget sun50i_h616_codec_codec_widgets[] = {
+	/* Digital parts of the DACs */
+	SND_SOC_DAPM_SUPPLY("DAC Enable", SUN4I_CODEC_DAC_DPC,
+			    SUN4I_CODEC_DAC_DPC_EN_DA, 0,
+			    NULL, 0),
+
+	/* Analog parts of the DACs */
+	SND_SOC_DAPM_DAC("Left DAC", "Codec Playback",
+			 SUN50I_H616_DAC_AC_DAC_REG,
+			 SUN50I_H616_DAC_LEN, 0),
+	SND_SOC_DAPM_DAC("Right DAC", "Codec Playback",
+			 SUN50I_H616_DAC_AC_DAC_REG,
+			 SUN50I_H616_DAC_REN, 0),
+
+	/* Mixers */
+	SOC_MIXER_ARRAY("Left Mixer", SUN50I_H616_DAC_AC_MIXER_REG,
+			SUN50I_H616_LMIXEN, 0,
+			sun50i_h616_codec_mixer_controls),
+	SOC_MIXER_ARRAY("Right Mixer", SUN50I_H616_DAC_AC_MIXER_REG,
+			SUN50I_H616_RMIXEN, 0,
+			sun50i_h616_codec_mixer_controls),
+
+	/* Line Out path */
+	SND_SOC_DAPM_MUX("Line Out Source Playback Route",
+			 SND_SOC_NOPM, 0, 0, sun50i_h616_codec_lineout_src),
+	SND_SOC_DAPM_OUT_DRV("Line Out Ramp Controller",
+			     SUN50I_H616_DAC_AC_RAMP_REG,
+			     SUN50I_H616_RDEN, 0, NULL, 0),
+	SND_SOC_DAPM_OUTPUT("LINEOUT"),
+};
+
+static const struct snd_soc_component_driver sun50i_h616_codec_codec = {
+	.controls   = sun50i_h616_codec_codec_controls,
+	.num_controls   = ARRAY_SIZE(sun50i_h616_codec_codec_controls),
+	.dapm_widgets   = sun50i_h616_codec_codec_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(sun50i_h616_codec_codec_widgets),
+	.idle_bias_on   = 1,
+	.use_pmdown_time  = 1,
+	.endianness   = 1,
+};
+
+static const struct snd_kcontrol_new sun50i_h616_card_controls[] = {
+	SOC_DAPM_PIN_SWITCH("LINEOUT"),
+};
+
+static const struct snd_soc_dapm_widget sun50i_h616_codec_card_dapm_widgets[] = {
+	SND_SOC_DAPM_LINE("Line Out", NULL),
+	SND_SOC_DAPM_SPK("Speaker", sun4i_codec_spk_event),
+};
+
+/* Connect digital side enables to analog side widgets */
+static const struct snd_soc_dapm_route sun50i_h616_codec_card_routes[] = {
+	/* DAC Routes */
+	{ "Left DAC", NULL, "DAC Enable" },
+	{ "Right DAC", NULL, "DAC Enable" },
+
+	/* Left Mixer Routes */
+	{ "Left Mixer", "DAC Playback Switch", "Left DAC" },
+	{ "Left Mixer", "DAC Reversed Playback Switch", "Right DAC" },
+
+	/* Right Mixer Routes */
+	{ "Right Mixer", "DAC Playback Switch", "Right DAC" },
+	{ "Right Mixer", "DAC Reversed Playback Switch", "Left DAC" },
+
+	/* Line Out Routes */
+	{ "Line Out Source Playback Route", "Stereo", "Left Mixer" },
+	{ "Line Out Source Playback Route", "Stereo", "Right Mixer" },
+	{ "Line Out Source Playback Route", "Mono Differential", "Left Mixer" },
+	{ "Line Out Source Playback Route", "Mono Differential", "Right Mixer" },
+	{ "Line Out Ramp Controller", NULL, "Line Out Source Playback Route" },
+	{ "LINEOUT", NULL, "Line Out Ramp Controller" },
+};
+
+static struct snd_soc_card *sun50i_h616_codec_create_card(struct device *dev)
+{
+	struct snd_soc_card *card;
+	int ret;
+
+	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
+	if (!card)
+		return ERR_PTR(-ENOMEM);
+
+	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
+	if (!card->dai_link)
+		return ERR_PTR(-ENOMEM);
+
+	card->dai_link->playback_only = true;
+	card->dai_link->capture_only = false;
+
+	card->dev		= dev;
+	card->owner		= THIS_MODULE;
+	card->name		= "H616 Audio Codec";
+	card->driver_name	= "sun4i-codec";
+	card->controls		= sun50i_h616_card_controls;
+	card->num_controls	= ARRAY_SIZE(sun50i_h616_card_controls);
+	card->dapm_widgets	= sun50i_h616_codec_card_dapm_widgets;
+	card->num_dapm_widgets	= ARRAY_SIZE(sun50i_h616_codec_card_dapm_widgets);
+	card->dapm_routes	= sun50i_h616_codec_card_routes;
+	card->num_dapm_routes	= ARRAY_SIZE(sun50i_h616_codec_card_routes);
+	card->fully_routed	= true;
+
+	ret = snd_soc_of_parse_audio_routing(card, "allwinner,audio-routing");
+	if (ret)
+		dev_warn(dev, "failed to parse audio-routing: %d\n", ret);
+
+	return card;
+};
+
 static const struct regmap_config sun4i_codec_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
@@ -1560,6 +1741,14 @@ static const struct regmap_config sun8i_v3s_codec_regmap_config = {
 	.reg_stride	= 4,
 	.val_bits	= 32,
 	.max_register	= SUN8I_H3_CODEC_ADC_DBG,
+};
+
+static const struct regmap_config sun50i_h616_codec_regmap_config = {
+	.reg_bits	= 32,
+	.reg_stride	= 4,
+	.val_bits	= 32,
+	.max_register	= SUN50I_H616_DAC_AC_RAMP_REG,
+	.cache_type	= REGCACHE_NONE,
 };
 
 struct sun4i_codec_quirks {
@@ -1647,6 +1836,15 @@ static const struct sun4i_codec_quirks sun8i_v3s_codec_quirks = {
 	.has_reset	= true,
 };
 
+static const struct sun4i_codec_quirks sun50i_h616_codec_quirks = {
+	.regmap_config	= &sun50i_h616_codec_regmap_config,
+	.codec		= &sun50i_h616_codec_codec,
+	.create_card	= sun50i_h616_codec_create_card,
+	.reg_dac_fifoc	= REG_FIELD(SUN50I_H616_CODEC_DAC_FIFOC, 0, 31),
+	.reg_dac_txdata	= SUN8I_H3_CODEC_DAC_TXDATA,
+	.has_reset	= true,
+};
+
 static const struct of_device_id sun4i_codec_of_match[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-codec",
@@ -1671,6 +1869,10 @@ static const struct of_device_id sun4i_codec_of_match[] = {
 	{
 		.compatible = "allwinner,sun8i-v3s-codec",
 		.data = &sun8i_v3s_codec_quirks,
+	},
+	{
+		.compatible = "allwinner,sun50i-h616-codec",
+		.data = &sun50i_h616_codec_quirks,
 	},
 	{}
 };
@@ -1860,4 +2062,5 @@ MODULE_AUTHOR("Emilio López <emilio@elopez.com.ar>");
 MODULE_AUTHOR("Jon Smirl <jonsmirl@gmail.com>");
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
 MODULE_AUTHOR("Chen-Yu Tsai <wens@csie.org>");
+MODULE_AUTHOR("Ryan Walklin <ryan@testtoast.com");
 MODULE_LICENSE("GPL");
