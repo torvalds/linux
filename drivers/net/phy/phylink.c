@@ -2414,11 +2414,22 @@ static phy_interface_t phylink_sfp_select_interface(struct phylink *pl,
 	phy_interface_t interface;
 
 	interface = sfp_select_interface(pl->sfp_bus, link_modes);
-	if (interface == PHY_INTERFACE_MODE_NA)
+	if (interface == PHY_INTERFACE_MODE_NA) {
 		phylink_err(pl,
 			    "selection of interface failed, advertisement %*pb\n",
 			    __ETHTOOL_LINK_MODE_MASK_NBITS,
 			    link_modes);
+		return interface;
+	}
+
+	if (!test_bit(interface, pl->config->supported_interfaces)) {
+		phylink_err(pl,
+			    "selection of interface failed, SFP selected %s (%u) but MAC supports %*pbl\n",
+			    phy_modes(interface), interface,
+			    (int)PHY_INTERFACE_MODE_MAX,
+			    pl->config->supported_interfaces);
+		return PHY_INTERFACE_MODE_NA;
+	}
 
 	return interface;
 }
