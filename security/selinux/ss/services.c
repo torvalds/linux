@@ -946,7 +946,7 @@ static void avd_init(struct selinux_policy *policy, struct av_decision *avd)
 }
 
 static void update_xperms_extended_data(u8 specified,
-					struct extended_perms_data *from,
+					const struct extended_perms_data *from,
 					struct extended_perms_data *xp_data)
 {
 	unsigned int i;
@@ -967,6 +967,8 @@ static void update_xperms_extended_data(u8 specified,
 void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
 					struct avtab_node *node)
 {
+	u16 specified;
+
 	switch (node->datum.u.xperms->specified) {
 	case AVTAB_XPERMS_IOCTLFUNCTION:
 	case AVTAB_XPERMS_NLMSG:
@@ -982,17 +984,19 @@ void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
 		BUG();
 	}
 
-	if (node->key.specified == AVTAB_XPERMS_ALLOWED) {
+	specified = node->key.specified & ~(AVTAB_ENABLED | AVTAB_ENABLED_OLD);
+
+	if (specified == AVTAB_XPERMS_ALLOWED) {
 		xpermd->used |= XPERMS_ALLOWED;
 		update_xperms_extended_data(node->datum.u.xperms->specified,
 					    &node->datum.u.xperms->perms,
 					    xpermd->allowed);
-	} else if (node->key.specified == AVTAB_XPERMS_AUDITALLOW) {
+	} else if (specified == AVTAB_XPERMS_AUDITALLOW) {
 		xpermd->used |= XPERMS_AUDITALLOW;
 		update_xperms_extended_data(node->datum.u.xperms->specified,
 					    &node->datum.u.xperms->perms,
 					    xpermd->auditallow);
-	} else if (node->key.specified == AVTAB_XPERMS_DONTAUDIT) {
+	} else if (specified == AVTAB_XPERMS_DONTAUDIT) {
 		xpermd->used |= XPERMS_DONTAUDIT;
 		update_xperms_extended_data(node->datum.u.xperms->specified,
 					    &node->datum.u.xperms->perms,

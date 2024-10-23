@@ -339,7 +339,7 @@ static const uint16_t spec_order[] = {
 int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		    int (*insertf)(struct avtab *a, const struct avtab_key *k,
 				   const struct avtab_datum *d, void *p),
-		    void *p)
+		    void *p, bool conditional)
 {
 	__le16 buf16[4];
 	u16 enabled;
@@ -457,6 +457,13 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		       "was specified\n",
 		       vers);
 		return -EINVAL;
+	} else if ((vers < POLICYDB_VERSION_COND_XPERMS) &&
+		   (key.specified & AVTAB_XPERMS) && conditional) {
+		pr_err("SELinux:  avtab:  policy version %u does not "
+		       "support extended permissions rules in conditional "
+		       "policies and one was specified\n",
+		       vers);
+		return -EINVAL;
 	} else if (key.specified & AVTAB_XPERMS) {
 		memset(&xperms, 0, sizeof(struct avtab_extended_perms));
 		rc = next_entry(&xperms.specified, fp, sizeof(u8));
@@ -523,7 +530,7 @@ int avtab_read(struct avtab *a, void *fp, struct policydb *pol)
 		goto bad;
 
 	for (i = 0; i < nel; i++) {
-		rc = avtab_read_item(a, fp, pol, avtab_insertf, NULL);
+		rc = avtab_read_item(a, fp, pol, avtab_insertf, NULL, false);
 		if (rc) {
 			if (rc == -ENOMEM)
 				pr_err("SELinux: avtab: out of memory\n");
