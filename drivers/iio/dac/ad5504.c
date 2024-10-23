@@ -279,7 +279,6 @@ static int ad5504_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
 
 	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vcc");
@@ -315,14 +314,7 @@ static int ad5504_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	return iio_device_register(indio_dev);
-}
-
-static void ad5504_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad5504_id[] = {
@@ -337,7 +329,6 @@ static struct spi_driver ad5504_driver = {
 		   .name = "ad5504",
 		   },
 	.probe = ad5504_probe,
-	.remove = ad5504_remove,
 	.id_table = ad5504_id,
 };
 module_spi_driver(ad5504_driver);
