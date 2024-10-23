@@ -5,6 +5,7 @@
  * Copyright (c) 2024, Ivaylo Ivanov <ivo.ivanov.ivanov1@gmail.com>
  */
 
+#include <dt-bindings/clock/samsung,exynos8895.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
@@ -159,6 +160,15 @@
 			reg = <0x10000000 0x24>;
 		};
 
+		cmu_peris: clock-controller@10010000 {
+			compatible = "samsung,exynos8895-cmu-peris";
+			reg = <0x10010000 0x8000>;
+			#clock-cells = <1>;
+			clocks = <&oscclk>,
+				 <&cmu_top CLK_DOUT_CMU_PERIS_BUS>;
+			clock-names = "oscclk", "bus";
+		};
+
 		gic: interrupt-controller@10201000 {
 			compatible = "arm,gic-400";
 			reg = <0x10201000 0x1000>,
@@ -173,10 +183,51 @@
 			#size-cells = <1>;
 		};
 
+		cmu_peric0: clock-controller@10400000 {
+			compatible = "samsung,exynos8895-cmu-peric0";
+			reg = <0x10400000 0x8000>;
+			#clock-cells = <1>;
+			clocks = <&oscclk>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC0_BUS>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC0_UART_DBG>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC0_USI00>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC0_USI01>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC0_USI02>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC0_USI03>;
+			clock-names = "oscclk", "bus", "uart", "usi0",
+				      "usi1", "usi2", "usi3";
+		};
+
 		pinctrl_peric0: pinctrl@104d0000 {
 			compatible = "samsung,exynos8895-pinctrl";
 			reg = <0x104d0000 0x1000>;
 			interrupts = <GIC_SPI 386 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_peric1: clock-controller@10800000 {
+			compatible = "samsung,exynos8895-cmu-peric1";
+			reg = <0x10800000 0x8000>;
+			#clock-cells = <1>;
+			clocks = <&oscclk>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_BUS>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_SPEEDY2>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_SPI_CAM0>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_SPI_CAM1>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_UART_BT>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI04>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI05>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI06>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI07>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI08>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI09>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI10>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI11>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI12>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_USI13>;
+			clock-names = "oscclk", "bus", "speedy", "cam0",
+				      "cam1", "uart", "usi4", "usi5",
+				      "usi6", "usi7", "usi8", "usi9",
+				      "usi10", "usi11", "usi12", "usi13";
 		};
 
 		pinctrl_peric1: pinctrl@10980000 {
@@ -185,10 +236,36 @@
 			interrupts = <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		cmu_fsys0: clock-controller@11000000 {
+			compatible = "samsung,exynos8895-cmu-fsys0";
+			reg = <0x11000000 0x8000>;
+			#clock-cells = <1>;
+			clocks = <&oscclk>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS0_BUS>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS0_DPGTC>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS0_MMC_EMBD>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS0_UFS_EMBD>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS0_USBDRD30>;
+			clock-names = "oscclk", "bus", "dpgtc", "mmc",
+				      "ufs", "usbdrd30";
+		};
+
 		pinctrl_fsys0: pinctrl@11050000 {
 			compatible = "samsung,exynos8895-pinctrl";
 			reg = <0x11050000 0x1000>;
 			interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_fsys1: clock-controller@11400000 {
+			compatible = "samsung,exynos8895-cmu-fsys1";
+			reg = <0x11400000 0x8000>;
+			#clock-cells = <1>;
+			clocks = <&oscclk>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS1_BUS>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS1_PCIE>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS1_UFS_CARD>,
+				 <&cmu_top CLK_DOUT_CMU_FSYS1_MMC_CARD>;
+			clock-names = "oscclk", "bus", "pcie", "ufs", "mmc";
 		};
 
 		pinctrl_fsys1: pinctrl@11430000 {
@@ -211,6 +288,14 @@
 			compatible = "samsung,exynos8895-pinctrl";
 			reg = <0x15a30000 0x1000>;
 			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_top: clock-controller@15a80000 {
+			compatible = "samsung,exynos8895-cmu-top";
+			reg = <0x15a80000 0x8000>;
+			#clock-cells = <1>;
+			clocks = <&oscclk>;
+			clock-names = "oscclk";
 		};
 
 		pmu_system_controller: system-controller@16480000 {
