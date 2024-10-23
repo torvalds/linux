@@ -1370,6 +1370,8 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 		break;
 	case pll_1417x:
 	case pll_1418x:
+	case pll_1051x:
+	case pll_1052x:
 	case pll_0818x:
 	case pll_0822x:
 	case pll_0516x:
