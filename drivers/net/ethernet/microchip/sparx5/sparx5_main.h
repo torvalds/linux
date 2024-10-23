@@ -63,6 +63,18 @@ enum sparx5_vlan_port_type {
 	SPX5_VLAN_PORT_TYPE_S_CUSTOM /* S-port using custom type */
 };
 
+/* This is used in calendar configuration */
+enum sparx5_cal_bw {
+	SPX5_CAL_SPEED_NONE = 0,
+	SPX5_CAL_SPEED_1G   = 1,
+	SPX5_CAL_SPEED_2G5  = 2,
+	SPX5_CAL_SPEED_5G   = 3,
+	SPX5_CAL_SPEED_10G  = 4,
+	SPX5_CAL_SPEED_25G  = 5,
+	SPX5_CAL_SPEED_0G5  = 6,
+	SPX5_CAL_SPEED_12G5 = 7
+};
+
 #define SPX5_PORTS             65
 #define SPX5_PORTS_ALL         70 /* Total number of ports */
 
@@ -113,6 +125,7 @@ enum sparx5_vlan_port_type {
 
 #define SPX5_DSM_CAL_LEN               64
 #define SPX5_DSM_CAL_MAX_DEVS_PER_TAXI 13
+#define SPX5_DSM_CAL_EMPTY             0xFFFF
 
 #define SPARX5_MAX_PTP_ID	512
 
@@ -454,6 +467,8 @@ int sparx5_config_auto_calendar(struct sparx5 *sparx5);
 int sparx5_config_dsm_calendar(struct sparx5 *sparx5);
 int sparx5_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 			     struct sparx5_calendar_data *data);
+u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed);
+enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5, u32 portno);
 
 
 /* sparx5_ethtool.c */

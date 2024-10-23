@@ -332,6 +332,7 @@ static const struct sparx5_ops lan969x_ops = {
 	.get_sdlb_group          = &lan969x_get_sdlb_group,
 	.set_port_mux            = &lan969x_port_mux_set,
 	.ptp_irq_handler         = &lan969x_ptp_irq_handler,
+	.dsm_calendar_calc       = &lan969x_dsm_calendar_calc,
 };
 
 const struct sparx5_match_data lan969x_desc = {

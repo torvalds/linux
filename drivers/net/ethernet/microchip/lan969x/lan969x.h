@@ -51,4 +51,7 @@ static inline bool lan969x_port_is_25g(int portno)
 	return false;
 }
 
+/* lan969x_calendar.c */
+int lan969x_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
+			      struct sparx5_calendar_data *data);
 #endif

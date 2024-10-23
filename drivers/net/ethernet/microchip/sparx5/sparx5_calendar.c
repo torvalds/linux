@@ -15,7 +15,6 @@
 #define SPX5_CALBITS_PER_PORT          3   /* Bit per port in calendar register */
 
 /* DSM calendar information */
-#define SPX5_DSM_CAL_EMPTY             0xFFFF
 #define SPX5_DSM_CAL_TAXIS             8
 #define SPX5_DSM_CAL_BW_LOSS           553
 
@@ -74,18 +73,6 @@ static u32 sparx5_target_bandwidth(struct sparx5 *sparx5)
 	}
 }
 
-/* This is used in calendar configuration */
-enum sparx5_cal_bw {
-	SPX5_CAL_SPEED_NONE = 0,
-	SPX5_CAL_SPEED_1G   = 1,
-	SPX5_CAL_SPEED_2G5  = 2,
-	SPX5_CAL_SPEED_5G   = 3,
-	SPX5_CAL_SPEED_10G  = 4,
-	SPX5_CAL_SPEED_25G  = 5,
-	SPX5_CAL_SPEED_0G5  = 6,
-	SPX5_CAL_SPEED_12G5 = 7
-};
-
 static u32 sparx5_clk_to_bandwidth(enum sparx5_core_clockfreq cclock)
 {
 	switch (cclock) {
@@ -98,7 +85,7 @@ static u32 sparx5_clk_to_bandwidth(enum sparx5_core_clockfreq cclock)
 	return 0;
 }
 
-static u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed)
+u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed)
 {
 	switch (speed) {
 	case SPX5_CAL_SPEED_1G:   return 1000;
@@ -111,6 +98,7 @@ static u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed)
 	default: return 0;
 	}
 }
+EXPORT_SYMBOL_GPL(sparx5_cal_speed_to_value);
 
 static u32 sparx5_bandwidth_to_calendar(u32 bw)
 {
@@ -128,8 +116,7 @@ static u32 sparx5_bandwidth_to_calendar(u32 bw)
 	}
 }
 
-static enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5,
-						    u32 portno)
+enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5, u32 portno)
 {
 	struct sparx5_port *port;
 
@@ -163,6 +150,7 @@ static enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5,
 		return SPX5_CAL_SPEED_NONE;
 	return sparx5_bandwidth_to_calendar(port->conf.bandwidth);
 }
+EXPORT_SYMBOL_GPL(sparx5_get_port_cal_speed);
 
 /* Auto configure the QSYS calendar based on port configuration */
 int sparx5_config_auto_calendar(struct sparx5 *sparx5)
