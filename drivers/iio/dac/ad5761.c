@@ -302,7 +302,6 @@ static int ad5761_probe(struct spi_device *spi)
 	st = iio_priv(iio_dev);
 
 	st->spi = spi;
-	spi_set_drvdata(spi, iio_dev);
 
 	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
 	if (ret < 0 && ret != -ENODEV)
@@ -341,14 +340,7 @@ static int ad5761_probe(struct spi_device *spi)
 	iio_dev->num_channels = 1;
 	iio_dev->name = spi_get_device_id(st->spi)->name;
 
-	return iio_device_register(iio_dev);
-}
-
-static void ad5761_remove(struct spi_device *spi)
-{
-	struct iio_dev *iio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(iio_dev);
+	return devm_iio_device_register(&spi->dev, iio_dev);
 }
 
 static const struct spi_device_id ad5761_id[] = {
@@ -365,7 +357,6 @@ static struct spi_driver ad5761_driver = {
 		   .name = "ad5761",
 		   },
 	.probe = ad5761_probe,
-	.remove = ad5761_remove,
 	.id_table = ad5761_id,
 };
 module_spi_driver(ad5761_driver);
