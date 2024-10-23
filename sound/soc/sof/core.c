@@ -24,6 +24,17 @@ static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE
 module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
+static unsigned int sof_ipc_timeout_ms;
+static unsigned int sof_boot_timeout_ms;
+module_param_named(ipc_timeout, sof_ipc_timeout_ms, uint, 0444);
+MODULE_PARM_DESC(ipc_timeout,
+		 "Set the IPC timeout value in ms (0 to use the platform default)");
+module_param_named(boot_timeout, sof_boot_timeout_ms, uint, 0444);
+MODULE_PARM_DESC(boot_timeout,
+		 "Set the DSP boot timeout value in ms (0 to use the platform default)");
+#endif
+
 /* SOF defaults if not provided by the platform in ms */
 #define TIMEOUT_DEFAULT_IPC_MS  500
 #define TIMEOUT_DEFAULT_BOOT_MS 2000
@@ -631,6 +642,15 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		sdev->boot_timeout = TIMEOUT_DEFAULT_BOOT_MS;
 	else
 		sdev->boot_timeout = plat_data->desc->boot_timeout;
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
+	/* Override the timeout values with module parameter, if set */
+	if (sof_ipc_timeout_ms)
+		sdev->ipc_timeout = sof_ipc_timeout_ms;
+
+	if (sof_boot_timeout_ms)
+		sdev->boot_timeout = sof_boot_timeout_ms;
+#endif
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
 
