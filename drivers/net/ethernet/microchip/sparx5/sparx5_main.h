@@ -401,7 +401,7 @@ struct frame_info {
 };
 
 void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp);
-void sparx5_ifh_parse(u32 *ifh, struct frame_info *info);
+void sparx5_ifh_parse(struct sparx5 *sparx5, u32 *ifh, struct frame_info *info);
 irqreturn_t sparx5_xtr_handler(int irq, void *_priv);
 netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev);
 int sparx5_manual_injection_mode(struct sparx5 *sparx5);
@@ -469,10 +469,13 @@ static inline int sparx5_dcb_init(struct sparx5 *sparx5)
 #endif
 
 /* sparx5_netdev.c */
-void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp);
+void sparx5_set_port_ifh_timestamp(struct sparx5 *sparx5, void *ifh_hdr,
+				   u64 timestamp);
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
-void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type);
-void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset);
+void sparx5_set_port_ifh_pdu_type(struct sparx5 *sparx5, void *ifh_hdr,
+				  u32 pdu_type);
+void sparx5_set_port_ifh_pdu_w16_offset(struct sparx5 *sparx5, void *ifh_hdr,
+					u32 pdu_w16_offset);
 void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno);
 bool sparx5_netdevice_check(const struct net_device *dev);
 struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);

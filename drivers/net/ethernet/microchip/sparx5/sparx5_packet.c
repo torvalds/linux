@@ -32,7 +32,7 @@ void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp)
 	spx5_wr(0, sparx5, QS_XTR_FLUSH);
 }
 
-void sparx5_ifh_parse(u32 *ifh, struct frame_info *info)
+void sparx5_ifh_parse(struct sparx5 *sparx5, u32 *ifh, struct frame_info *info)
 {
 	u8 *xtr_hdr = (u8 *)ifh;
 
@@ -72,7 +72,7 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 		ifh[i] = spx5_rd(sparx5, QS_XTR_RD(grp));
 
 	/* Decode IFH (what's needed) */
-	sparx5_ifh_parse(ifh, &fi);
+	sparx5_ifh_parse(sparx5, ifh, &fi);
 
 	/* Map to port netdev */
 	port = fi.src_port < sparx5->data->consts->n_ports ?
@@ -242,9 +242,12 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_BUSY;
 
 		sparx5_set_port_ifh_rew_op(ifh, SPARX5_SKB_CB(skb)->rew_op);
-		sparx5_set_port_ifh_pdu_type(ifh, SPARX5_SKB_CB(skb)->pdu_type);
-		sparx5_set_port_ifh_pdu_w16_offset(ifh, SPARX5_SKB_CB(skb)->pdu_w16_offset);
-		sparx5_set_port_ifh_timestamp(ifh, SPARX5_SKB_CB(skb)->ts_id);
+		sparx5_set_port_ifh_pdu_type(sparx5, ifh,
+					     SPARX5_SKB_CB(skb)->pdu_type);
+		sparx5_set_port_ifh_pdu_w16_offset(sparx5, ifh,
+						   SPARX5_SKB_CB(skb)->pdu_w16_offset);
+		sparx5_set_port_ifh_timestamp(sparx5, ifh,
+					      SPARX5_SKB_CB(skb)->ts_id);
 	}
 
 	skb_tx_timestamp(skb);
