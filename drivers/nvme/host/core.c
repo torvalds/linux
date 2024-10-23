@@ -92,6 +92,17 @@ MODULE_PARM_DESC(apst_secondary_latency_tol_us,
 	"secondary APST latency tolerance in us");
 
 /*
+ * Older kernels didn't enable protection information if it was at an offset.
+ * Newer kernels do, so it breaks reads on the upgrade if such formats were
+ * used in prior kernels since the metadata written did not contain a valid
+ * checksum.
+ */
+static bool disable_pi_offsets = false;
+module_param(disable_pi_offsets, bool, 0444);
+MODULE_PARM_DESC(disable_pi_offsets,
+	"disable protection information if it has an offset");
+
+/*
  * nvme_wq - hosts nvme related works that are not reset or delete
  * nvme_reset_wq - hosts nvme reset works
  * nvme_delete_wq - hosts nvme delete works
@@ -1926,8 +1937,12 @@ static void nvme_configure_metadata(struct nvme_ctrl *ctrl,
 
 	if (head->pi_size && head->ms >= head->pi_size)
 		head->pi_type = id->dps & NVME_NS_DPS_PI_MASK;
-	if (!(id->dps & NVME_NS_DPS_PI_FIRST))
-		info->pi_offset = head->ms - head->pi_size;
+	if (!(id->dps & NVME_NS_DPS_PI_FIRST)) {
+		if (disable_pi_offsets)
+			head->pi_type = 0;
+		else
+			info->pi_offset = head->ms - head->pi_size;
+	}
 
 	if (ctrl->ops->flags & NVME_F_FABRICS) {
 		/*
