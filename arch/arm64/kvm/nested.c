@@ -1054,7 +1054,7 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		res0 |= HCRX_EL2_PTTWI;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, SCTLRX, IMP))
 		res0 |= HCRX_EL2_SCTLR2En;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, TCRX, IMP))
+	if (!kvm_has_tcr2(kvm))
 		res0 |= HCRX_EL2_TCR2En;
 	if (!kvm_has_feat(kvm, ID_AA64ISAR2_EL1, MOPS, IMP))
 		res0 |= (HCRX_EL2_MSCEn | HCRX_EL2_MCE2);
