@@ -2819,8 +2819,7 @@ Field	13	AMEC1
 Field	12	AMEC0
 Field	11	HAFT
 Field	10	PTTWI
-Field	9:8	SKL1
-Field	7:6	SKL0
+Res0	9:6
 Field	5	D128
 Field	4	AIE
 Field	3	POE
