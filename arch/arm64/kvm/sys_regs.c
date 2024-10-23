@@ -2303,16 +2303,18 @@ static u64 reset_hcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	return __vcpu_sys_reg(vcpu, r->reg) = val;
 }
 
+static unsigned int __el2_visibility(const struct kvm_vcpu *vcpu,
+				     const struct sys_reg_desc *rd,
+				     unsigned int (*fn)(const struct kvm_vcpu *,
+							const struct sys_reg_desc *))
+{
+	return el2_visibility(vcpu, rd) ?: fn(vcpu, rd);
+}
+
 static unsigned int sve_el2_visibility(const struct kvm_vcpu *vcpu,
 				       const struct sys_reg_desc *rd)
 {
-	unsigned int r;
-
-	r = el2_visibility(vcpu, rd);
-	if (r)
-		return r;
-
-	return sve_visibility(vcpu, rd);
+	return __el2_visibility(vcpu, rd, sve_visibility);
 }
 
 static bool access_zcr_el2(struct kvm_vcpu *vcpu,
