@@ -1187,7 +1187,7 @@ struct rtw_chip_info {
 	u32 fw_rxff_size;
 	u16 rsvd_drv_pg_num;
 	u8 band;
-	u8 page_size;
+	u16 page_size;
 	u8 csi_buf_pg_num;
 	u8 dig_max;
 	u8 dig_min;

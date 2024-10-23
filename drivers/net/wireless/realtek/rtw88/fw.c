@@ -1293,13 +1293,13 @@ static void rtw_fill_rsvd_page_desc(struct rtw_dev *rtwdev, struct sk_buff *skb,
 	rtw_tx_fill_tx_desc(rtwdev, &pkt_info, skb);
 }
 
-static inline u8 rtw_len_to_page(unsigned int len, u8 page_size)
+static inline u8 rtw_len_to_page(unsigned int len, u16 page_size)
 {
 	return DIV_ROUND_UP(len, page_size);
 }
 
-static void rtw_rsvd_page_list_to_buf(struct rtw_dev *rtwdev, u8 page_size,
-				      u8 page_margin, u32 page, u8 *buf,
+static void rtw_rsvd_page_list_to_buf(struct rtw_dev *rtwdev, u16 page_size,
+				      u16 page_margin, u32 page, u8 *buf,
 				      struct rtw_rsvd_page *rsvd_pkt)
 {
 	struct sk_buff *skb = rsvd_pkt->skb;
@@ -1601,13 +1601,13 @@ static int  __rtw_build_rsvd_page_from_vifs(struct rtw_dev *rtwdev)
 
 static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev, u32 *size)
 {
-	struct ieee80211_hw *hw = rtwdev->hw;
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	struct sk_buff *iter;
+	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw_rsvd_page *rsvd_pkt;
-	u32 page = 0;
+	struct sk_buff *iter;
+	u16 page_size, page_margin, tx_desc_sz;
 	u8 total_page = 0;
-	u8 page_size, page_margin, tx_desc_sz;
+	u32 page = 0;
 	u8 *buf;
 	int ret;
 
@@ -2013,12 +2013,13 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb, *tmp;
-	u8 page_offset = 1, *buf, page_size = chip->page_size;
 	u16 pg_addr = rtwdev->fifo.rsvd_h2c_info_addr, loc;
-	u16 buf_offset = page_size * page_offset;
 	u8 tx_desc_sz = chip->tx_pkt_desc_sz;
-	u8 page_cnt, pages;
+	u16 page_size = chip->page_size;
+	u8 page_offset = 1, *buf;
+	u16 buf_offset = page_size * page_offset;
 	unsigned int pkt_len;
+	u8 page_cnt, pages;
 	int ret;
 
 	if (rtw_fw_feature_ext_check(&rtwdev->fw, FW_FEATURE_EXT_OLD_PAGE_NUM))
