@@ -85,6 +85,7 @@
 #define EEPROM_INDICATOR		(0xA5)
 #define EEPROM_MAC_OFFSET		(0x01)
 #define MAX_EEPROM_SIZE			512
+#define MAX_OTP_SIZE			512
 #define OTP_INDICATOR_1			(0xF3)
 #define OTP_INDICATOR_2			(0xF7)
 
@@ -172,6 +173,7 @@
 #define INT_EP_GPIO_2			(2)
 #define INT_EP_GPIO_1			(1)
 #define INT_EP_GPIO_0			(0)
+#define LAN78XX_NET_FLAG_OTP		BIT(0)
 
 static const char lan78xx_gstrings[][ETH_GSTRING_LEN] = {
 	"RX FCS Errors",
@@ -446,6 +448,7 @@ struct lan78xx_net {
 	unsigned int		burst_cap;
 
 	unsigned long		flags;
+	u32			priv_flags;
 
 	wait_queue_head_t	*wait;
 	unsigned char		suspend_count;
@@ -1542,6 +1545,10 @@ static void lan78xx_status(struct lan78xx_net *dev, struct urb *urb)
 
 static int lan78xx_ethtool_get_eeprom_len(struct net_device *netdev)
 {
+	struct lan78xx_net *dev = netdev_priv(netdev);
+
+	if (dev->priv_flags & LAN78XX_NET_FLAG_OTP)
+		return MAX_OTP_SIZE;
 	return MAX_EEPROM_SIZE;
 }
 
@@ -1555,9 +1562,10 @@ static int lan78xx_ethtool_get_eeprom(struct net_device *netdev,
 	if (ret)
 		return ret;
 
-	ee->magic = LAN78XX_EEPROM_MAGIC;
-
-	ret = lan78xx_read_raw_eeprom(dev, ee->offset, ee->len, data);
+	if (dev->priv_flags & LAN78XX_NET_FLAG_OTP)
+		ret = lan78xx_read_raw_otp(dev, ee->offset, ee->len, data);
+	else
+		ret = lan78xx_read_raw_eeprom(dev, ee->offset, ee->len, data);
 
 	usb_autopm_put_interface(dev->intf);
 
@@ -1577,30 +1585,39 @@ static int lan78xx_ethtool_set_eeprom(struct net_device *netdev,
 	/* Invalid EEPROM_INDICATOR at offset zero will result in a failure
 	 * to load data from EEPROM
 	 */
-	if (ee->magic == LAN78XX_EEPROM_MAGIC)
-		ret = lan78xx_write_raw_eeprom(dev, ee->offset, ee->len, data);
-	else if ((ee->magic == LAN78XX_OTP_MAGIC) &&
-		 (ee->offset == 0) &&
-		 (ee->len == 512) &&
-		 (data[0] == OTP_INDICATOR_1))
-		ret = lan78xx_write_raw_otp(dev, ee->offset, ee->len, data);
+	if (dev->priv_flags & LAN78XX_NET_FLAG_OTP) {
+		/* Beware!  OTP is One Time Programming ONLY! */
+		if (ee->magic == LAN78XX_OTP_MAGIC)
+		    ret = lan78xx_write_raw_otp(dev, ee->offset, ee->len, data);
+	} else {
+		if (ee->magic == LAN78XX_EEPROM_MAGIC)
+		    ret = lan78xx_write_raw_eeprom(dev, ee->offset, ee->len, data);
+	}
 
 	usb_autopm_put_interface(dev->intf);
 
 	return ret;
 }
 
+static const char lan78xx_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	"OTP_ACCESS",
+};
+
 static void lan78xx_get_strings(struct net_device *netdev, u32 stringset,
 				u8 *data)
 {
 	if (stringset == ETH_SS_STATS)
 		memcpy(data, lan78xx_gstrings, sizeof(lan78xx_gstrings));
+	else if (stringset == ETH_SS_PRIV_FLAGS)
+		memcpy(data, lan78xx_priv_flags_strings, sizeof(lan78xx_priv_flags_strings));
 }
 
 static int lan78xx_get_sset_count(struct net_device *netdev, int sset)
 {
 	if (sset == ETH_SS_STATS)
 		return ARRAY_SIZE(lan78xx_gstrings);
+	else if (sset == ETH_SS_PRIV_FLAGS)
+		return ARRAY_SIZE(lan78xx_priv_flags_strings);
 	else
 		return -EOPNOTSUPP;
 }
@@ -1615,6 +1632,22 @@ static void lan78xx_get_stats(struct net_device *netdev,
 	mutex_lock(&dev->stats.access_lock);
 	memcpy(data, &dev->stats.curr_stat, sizeof(dev->stats.curr_stat));
 	mutex_unlock(&dev->stats.access_lock);
+}
+
+static u32 lan78xx_ethtool_get_priv_flags(struct net_device *netdev)
+{
+	struct lan78xx_net *dev = netdev_priv(netdev);
+
+	return dev->priv_flags;
+}
+
+static int lan78xx_ethtool_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct lan78xx_net *dev = netdev_priv(netdev);
+
+	dev->priv_flags = flags;
+
+	return 0;
 }
 
 static void lan78xx_get_wol(struct net_device *netdev,
@@ -1905,6 +1938,8 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.get_eeprom	= lan78xx_ethtool_get_eeprom,
 	.set_eeprom	= lan78xx_ethtool_set_eeprom,
 	.get_ethtool_stats = lan78xx_get_stats,
+	.get_priv_flags = lan78xx_ethtool_get_priv_flags,
+	.set_priv_flags = lan78xx_ethtool_set_priv_flags,
 	.get_sset_count = lan78xx_get_sset_count,
 	.get_strings	= lan78xx_get_strings,
 	.get_wol	= lan78xx_get_wol,
