@@ -44,6 +44,16 @@
 #define MINIMUM_SPAN		(250 * MB)
 
 /*
+ * Memory bandwidth (in MiB) below which the bandwidth comparisons
+ * between iMC and resctrl are considered unreliable. For example RAS
+ * features or memory performance features that generate memory traffic
+ * may drive accesses that are counted differently by performance counters
+ * and MBM respectively, for instance generating "overhead" traffic which
+ * is not counted against any specific RMID.
+ */
+#define THROTTLE_THRESHOLD	750
+
+/*
  * fill_buf_param:	"fill_buf" benchmark parameters
  * @buf_size:		Size (in bytes) of buffer used in benchmark.
  *			"fill_buf" allocates and initializes buffer of
