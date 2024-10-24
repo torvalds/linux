@@ -20,17 +20,22 @@ int thermal_thresholds_init(struct thermal_zone_device *tz)
 	return 0;
 }
 
-void thermal_thresholds_flush(struct thermal_zone_device *tz)
+static void __thermal_thresholds_flush(struct thermal_zone_device *tz)
 {
 	struct list_head *thresholds = &tz->user_thresholds;
 	struct user_threshold *entry, *tmp;
-
-	lockdep_assert_held(&tz->lock);
 
 	list_for_each_entry_safe(entry, tmp, thresholds, list_node) {
 		list_del(&entry->list_node);
 		kfree(entry);
 	}
+}
+
+void thermal_thresholds_flush(struct thermal_zone_device *tz)
+{
+	lockdep_assert_held(&tz->lock);
+
+	__thermal_thresholds_flush(tz);
 
 	thermal_notify_threshold_flush(tz);
 
@@ -39,7 +44,7 @@ void thermal_thresholds_flush(struct thermal_zone_device *tz)
 
 void thermal_thresholds_exit(struct thermal_zone_device *tz)
 {
-	thermal_thresholds_flush(tz);
+	__thermal_thresholds_flush(tz);
 }
 
 static int __thermal_thresholds_cmp(void *data,
