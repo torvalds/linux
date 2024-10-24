@@ -622,8 +622,8 @@ close_fp:
  */
 static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 {
-	int operation, ret, memflush;
 	char **benchmark_cmd;
+	int ret, memflush;
 	size_t span;
 	FILE *fp;
 
@@ -643,9 +643,8 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 		/* Execute default fill_buf benchmark */
 		span = strtoul(benchmark_cmd[1], NULL, 10);
 		memflush =  atoi(benchmark_cmd[2]);
-		operation = atoi(benchmark_cmd[3]);
 
-		if (run_fill_buf(span, memflush, operation))
+		if (run_fill_buf(span, memflush))
 			fprintf(stderr, "Error in running fill buffer\n");
 	} else {
 		/* Execute specified benchmark */

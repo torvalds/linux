@@ -88,18 +88,6 @@ static int fill_one_span_read(unsigned char *buf, size_t buf_size)
 	return sum;
 }
 
-static void fill_one_span_write(unsigned char *buf, size_t buf_size)
-{
-	unsigned char *end_ptr = buf + buf_size;
-	unsigned char *p;
-
-	p = buf;
-	while (p < end_ptr) {
-		*p = '1';
-		p += (CL_SIZE / 2);
-	}
-}
-
 void fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
 {
 	int ret = 0;
@@ -112,15 +100,6 @@ void fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
 
 	/* Consume read result so that reading memory is not optimized out. */
 	*value_sink = ret;
-}
-
-static void fill_cache_write(unsigned char *buf, size_t buf_size, bool once)
-{
-	while (1) {
-		fill_one_span_write(buf, buf_size);
-		if (once)
-			break;
-	}
 }
 
 unsigned char *alloc_buffer(size_t buf_size, int memflush)
@@ -151,7 +130,7 @@ unsigned char *alloc_buffer(size_t buf_size, int memflush)
 	return buf;
 }
 
-int run_fill_buf(size_t buf_size, int memflush, int op)
+int run_fill_buf(size_t buf_size, int memflush)
 {
 	unsigned char *buf;
 
@@ -159,10 +138,7 @@ int run_fill_buf(size_t buf_size, int memflush, int op)
 	if (!buf)
 		return -1;
 
-	if (op == 0)
-		fill_cache_read(buf, buf_size, false);
-	else
-		fill_cache_write(buf, buf_size, false);
+	fill_cache_read(buf, buf_size, false);
 
 	free(buf);
 

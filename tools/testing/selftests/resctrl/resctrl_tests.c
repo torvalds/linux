@@ -265,13 +265,16 @@ last_arg:
 			ksft_exit_fail_msg("Out of memory!\n");
 		uparams.benchmark_cmd[1] = span_str;
 		uparams.benchmark_cmd[2] = "1";
-		uparams.benchmark_cmd[3] = "0";
 		/*
+		 * Third parameter was previously used for "operation"
+		 * (read/write) of which only (now default) "read"/"0"
+		 * works.
 		 * Fourth parameter was previously used to indicate
 		 * how long "fill_buf" should run for, with "false"
 		 * ("fill_buf" will keep running until terminated)
 		 * the only option that works.
 		 */
+		uparams.benchmark_cmd[3] = NULL;
 		uparams.benchmark_cmd[4] = NULL;
 	}
 
