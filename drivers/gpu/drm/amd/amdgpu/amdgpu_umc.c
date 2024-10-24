@@ -445,11 +445,27 @@ int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
 	return ret;
 }
 
+int amdgpu_umc_pages_in_a_row(struct amdgpu_device *adev,
+			struct ras_err_data *err_data, uint64_t pa_addr)
+{
+	struct ta_ras_query_address_output addr_out;
+
+	/* reinit err_data */
+	err_data->err_addr_cnt = 0;
+	err_data->err_addr_len = adev->umc.retire_unit;
+
+	addr_out.pa.pa = pa_addr;
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
+		return adev->umc.ras->convert_ras_err_addr(adev, err_data, NULL,
+				&addr_out, false);
+	else
+		return -EINVAL;
+}
+
 int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 			uint64_t pa_addr, uint64_t *pfns, int len)
 {
-	uint32_t i, ret = 0, pos = 0;
-	struct ta_ras_query_address_output addr_out;
+	int i, ret;
 	struct ras_err_data err_data;
 
 	err_data.err_addr = kcalloc(adev->umc.retire_unit,
@@ -459,25 +475,17 @@ int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 		return 0;
 	}
 
-	addr_out.pa.pa = pa_addr;
-
-	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
-		ret = adev->umc.ras->convert_ras_err_addr(adev, &err_data, NULL,
-				&addr_out, false);
-		if (ret)
-			goto out;
-	} else {
+	ret = amdgpu_umc_pages_in_a_row(adev, &err_data, pa_addr);
+	if (ret)
 		goto out;
-	}
 
 	for (i = 0; i < adev->umc.retire_unit; i++) {
-		if (pos >= len)
+		if (i >= len)
 			goto out;
 
-		pfns[pos] = err_data.err_addr[pos].retired_page;
-		pos++;
+		pfns[i] = err_data.err_addr[i].retired_page;
 	}
-	ret = pos;
+	ret = i;
 
 out:
 	kfree(err_data.err_addr);

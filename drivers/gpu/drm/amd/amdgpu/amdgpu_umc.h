@@ -139,6 +139,8 @@ int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
 
 void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			void *ras_error_status);
+int amdgpu_umc_pages_in_a_row(struct amdgpu_device *adev,
+			struct ras_err_data *err_data, uint64_t pa_addr);
 int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 			uint64_t pa_addr, uint64_t *pfns, int len);
 int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
