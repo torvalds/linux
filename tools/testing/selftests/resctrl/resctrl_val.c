@@ -625,7 +625,6 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 	int operation, ret, memflush;
 	char **benchmark_cmd;
 	size_t span;
-	bool once;
 	FILE *fp;
 
 	benchmark_cmd = info->si_ptr;
@@ -645,16 +644,8 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 		span = strtoul(benchmark_cmd[1], NULL, 10);
 		memflush =  atoi(benchmark_cmd[2]);
 		operation = atoi(benchmark_cmd[3]);
-		if (!strcmp(benchmark_cmd[4], "true")) {
-			once = true;
-		} else if (!strcmp(benchmark_cmd[4], "false")) {
-			once = false;
-		} else {
-			ksft_print_msg("Invalid once parameter\n");
-			parent_exit(ppid);
-		}
 
-		if (run_fill_buf(span, memflush, operation, once))
+		if (run_fill_buf(span, memflush, operation))
 			fprintf(stderr, "Error in running fill buffer\n");
 	} else {
 		/* Execute specified benchmark */

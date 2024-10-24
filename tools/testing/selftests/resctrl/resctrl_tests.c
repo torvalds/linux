@@ -266,8 +266,13 @@ last_arg:
 		uparams.benchmark_cmd[1] = span_str;
 		uparams.benchmark_cmd[2] = "1";
 		uparams.benchmark_cmd[3] = "0";
-		uparams.benchmark_cmd[4] = "false";
-		uparams.benchmark_cmd[5] = NULL;
+		/*
+		 * Fourth parameter was previously used to indicate
+		 * how long "fill_buf" should run for, with "false"
+		 * ("fill_buf" will keep running until terminated)
+		 * the only option that works.
+		 */
+		uparams.benchmark_cmd[4] = NULL;
 	}
 
 	ksft_set_plan(tests);

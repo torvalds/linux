@@ -151,7 +151,7 @@ unsigned char *alloc_buffer(size_t buf_size, int memflush)
 	return buf;
 }
 
-int run_fill_buf(size_t buf_size, int memflush, int op, bool once)
+int run_fill_buf(size_t buf_size, int memflush, int op)
 {
 	unsigned char *buf;
 
@@ -160,9 +160,10 @@ int run_fill_buf(size_t buf_size, int memflush, int op, bool once)
 		return -1;
 
 	if (op == 0)
-		fill_cache_read(buf, buf_size, once);
+		fill_cache_read(buf, buf_size, false);
 	else
-		fill_cache_write(buf, buf_size, once);
+		fill_cache_write(buf, buf_size, false);
+
 	free(buf);
 
 	return 0;
