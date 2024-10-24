@@ -2225,7 +2225,7 @@ static void rtl8169_get_eth_mac_stats(struct net_device *dev,
 		le64_to_cpu(tp->counters->tx_broadcast64);
 	mac_stats->MulticastFramesReceivedOK =
 		le64_to_cpu(tp->counters->rx_multicast64);
-	 mac_stats->FrameTooLongErrors =
+	mac_stats->FrameTooLongErrors =
 		le32_to_cpu(tp->counters->rx_frame_too_long);
 }
 
