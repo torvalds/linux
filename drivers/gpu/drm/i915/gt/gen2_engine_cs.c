@@ -169,7 +169,7 @@ static u32 *__gen2_emit_breadcrumb(struct i915_request *rq, u32 *cs,
 	return cs;
 }
 
-u32 *gen3_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+u32 *gen2_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	return __gen2_emit_breadcrumb(rq, cs, 16, 8);
 }
@@ -248,7 +248,7 @@ int i830_emit_bb_start(struct i915_request *rq,
 	return 0;
 }
 
-int gen3_emit_bb_start(struct i915_request *rq,
+int gen2_emit_bb_start(struct i915_request *rq,
 		       u64 offset, u32 len,
 		       unsigned int dispatch_flags)
 {
@@ -292,29 +292,12 @@ int gen4_emit_bb_start(struct i915_request *rq,
 
 void gen2_irq_enable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *i915 = engine->i915;
-
-	i915->irq_mask &= ~engine->irq_enable_mask;
-	intel_uncore_write16(&i915->uncore, GEN2_IMR, i915->irq_mask);
-	ENGINE_POSTING_READ16(engine, RING_IMR);
-}
-
-void gen2_irq_disable(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *i915 = engine->i915;
-
-	i915->irq_mask |= engine->irq_enable_mask;
-	intel_uncore_write16(&i915->uncore, GEN2_IMR, i915->irq_mask);
-}
-
-void gen3_irq_enable(struct intel_engine_cs *engine)
-{
 	engine->i915->irq_mask &= ~engine->irq_enable_mask;
 	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
 	intel_uncore_posting_read_fw(engine->uncore, GEN2_IMR);
 }
 
-void gen3_irq_disable(struct intel_engine_cs *engine)
+void gen2_irq_disable(struct intel_engine_cs *engine)
 {
 	engine->i915->irq_mask |= engine->irq_enable_mask;
 	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
