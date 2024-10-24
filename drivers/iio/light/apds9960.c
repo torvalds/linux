@@ -762,8 +762,6 @@ static int apds9960_write_event_config(struct iio_dev *indio_dev,
 	struct apds9960_data *data = iio_priv(indio_dev);
 	int ret;
 
-	state = !!state;
-
 	switch (chan->type) {
 	case IIO_PROXIMITY:
 		if (data->pxs_int == state)
