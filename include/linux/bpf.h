@@ -203,6 +203,7 @@ enum btf_field_type {
 	BPF_GRAPH_ROOT = BPF_RB_ROOT | BPF_LIST_HEAD,
 	BPF_REFCOUNT   = (1 << 9),
 	BPF_WORKQUEUE  = (1 << 10),
+	BPF_UPTR       = (1 << 11),
 };
 
 typedef void (*btf_dtor_kfunc_t)(void *);
@@ -322,6 +323,8 @@ static inline const char *btf_field_type_name(enum btf_field_type type)
 		return "kptr";
 	case BPF_KPTR_PERCPU:
 		return "percpu_kptr";
+	case BPF_UPTR:
+		return "uptr";
 	case BPF_LIST_HEAD:
 		return "bpf_list_head";
 	case BPF_LIST_NODE:
@@ -350,6 +353,7 @@ static inline u32 btf_field_type_size(enum btf_field_type type)
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 	case BPF_KPTR_PERCPU:
+	case BPF_UPTR:
 		return sizeof(u64);
 	case BPF_LIST_HEAD:
 		return sizeof(struct bpf_list_head);
@@ -379,6 +383,7 @@ static inline u32 btf_field_type_align(enum btf_field_type type)
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 	case BPF_KPTR_PERCPU:
+	case BPF_UPTR:
 		return __alignof__(u64);
 	case BPF_LIST_HEAD:
 		return __alignof__(struct bpf_list_head);
@@ -419,6 +424,7 @@ static inline void bpf_obj_init_field(const struct btf_field *field, void *addr)
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 	case BPF_KPTR_PERCPU:
+	case BPF_UPTR:
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -505,6 +511,25 @@ static inline void copy_map_value(struct bpf_map *map, void *dst, void *src)
 static inline void copy_map_value_long(struct bpf_map *map, void *dst, void *src)
 {
 	bpf_obj_memcpy(map->record, dst, src, map->value_size, true);
+}
+
+static inline void bpf_obj_swap_uptrs(const struct btf_record *rec, void *dst, void *src)
+{
+	unsigned long *src_uptr, *dst_uptr;
+	const struct btf_field *field;
+	int i;
+
+	if (!btf_record_has_field(rec, BPF_UPTR))
+		return;
+
+	for (i = 0, field = rec->fields; i < rec->cnt; i++, field++) {
+		if (field->type != BPF_UPTR)
+			continue;
+
+		src_uptr = src + field->offset;
+		dst_uptr = dst + field->offset;
+		swap(*src_uptr, *dst_uptr);
+	}
 }
 
 static inline void bpf_obj_memzero(struct btf_record *rec, void *dst, u32 size)
