@@ -1754,18 +1754,9 @@ rusttest: prepare
 # Formatting targets
 PHONY += rustfmt rustfmtcheck
 
-# We skip `rust/alloc` since we want to minimize the diff w.r.t. upstream.
-#
-# We match using absolute paths since `find` does not resolve them
-# when matching, which is a problem when e.g. `srctree` is `..`.
-# We `grep` afterwards in order to remove the directory entry itself.
 rustfmt:
-	$(Q)find $(abs_srctree) -type f -name '*.rs' \
-		-o -path $(abs_srctree)/rust/alloc -prune \
-		-o -path $(abs_objtree)/rust/test -prune \
-		| grep -Fv $(abs_srctree)/rust/alloc \
-		| grep -Fv $(abs_objtree)/rust/test \
-		| grep -Fv generated \
+	$(Q)find $(srctree) $(RCS_FIND_IGNORE) \
+		-type f -a -name '*.rs' -a ! -name '*generated*' -print \
 		| xargs $(RUSTFMT) $(rustfmt_flags)
 
 rustfmtcheck: rustfmt_flags = --check
