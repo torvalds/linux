@@ -3062,7 +3062,6 @@ bool ufshcd_cmd_inflight(struct scsi_cmnd *cmd)
 static int ufshcd_clear_cmd(struct ufs_hba *hba, u32 task_tag)
 {
 	u32 mask;
-	unsigned long flags;
 	int err;
 
 	if (hba->mcq_enabled) {
@@ -3082,9 +3081,7 @@ static int ufshcd_clear_cmd(struct ufs_hba *hba, u32 task_tag)
 	mask = 1U << task_tag;
 
 	/* clear outstanding transaction before retry */
-	spin_lock_irqsave(hba->host->host_lock, flags);
 	ufshcd_utrl_clear(hba, mask);
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	/*
 	 * wait for h/w to clear corresponding bit in door-bell.
