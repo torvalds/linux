@@ -204,11 +204,15 @@ static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 		/* Don't allow mmap if the ring was setup without it */
 		if (ctx->flags & IORING_SETUP_NO_MMAP)
 			return ERR_PTR(-EINVAL);
+		if (!ctx->rings)
+			return ERR_PTR(-EFAULT);
 		return ctx->rings;
 	case IORING_OFF_SQES:
 		/* Don't allow mmap if the ring was setup without it */
 		if (ctx->flags & IORING_SETUP_NO_MMAP)
 			return ERR_PTR(-EINVAL);
+		if (!ctx->sq_sqes)
+			return ERR_PTR(-EFAULT);
 		return ctx->sq_sqes;
 	case IORING_OFF_PBUF_RING: {
 		struct io_buffer_list *bl;
