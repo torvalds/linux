@@ -28,17 +28,21 @@ bool iio_read_acpi_mount_matrix(struct device *dev,
 				char *acpi_method)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_device *adev = ACPI_COMPANION(dev);
 	char *str;
 	union acpi_object *obj, *elements;
+	acpi_handle handle;
 	acpi_status status;
 	int i, j, val[3];
 	bool ret = false;
 
-	if (!adev || !acpi_has_method(adev->handle, acpi_method))
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
 		return false;
 
-	status = acpi_evaluate_object(adev->handle, acpi_method, NULL, &buffer);
+	if (!acpi_has_method(handle, acpi_method))
+		return false;
+
+	status = acpi_evaluate_object(handle, acpi_method, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		dev_err(dev, "Failed to get ACPI mount matrix: %d\n", status);
 		return false;
