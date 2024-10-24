@@ -445,9 +445,10 @@ MODULE_DEVICE_TABLE(acpi, kx_acpi_match);
 static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
 			      enum kxcjk1013_mode mode)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_ctrl1\n");
 		return ret;
@@ -458,7 +459,7 @@ static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
 	else
 		ret |= KXCJK1013_REG_CTRL1_BIT_PC1;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_ctrl1\n");
 		return ret;
@@ -470,9 +471,10 @@ static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
 static int kxcjk1013_get_mode(struct kxcjk1013_data *data,
 			      enum kxcjk1013_mode *mode)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_ctrl1\n");
 		return ret;
@@ -488,9 +490,10 @@ static int kxcjk1013_get_mode(struct kxcjk1013_data *data,
 
 static int kxcjk1013_set_range(struct kxcjk1013_data *data, int range_index)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_ctrl1\n");
 		return ret;
@@ -501,7 +504,7 @@ static int kxcjk1013_set_range(struct kxcjk1013_data *data, int range_index)
 	ret |= (KXCJK1013_scale_table[range_index].gsel_0 << 3);
 	ret |= (KXCJK1013_scale_table[range_index].gsel_1 << 4);
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_ctrl1\n");
 		return ret;
@@ -514,6 +517,7 @@ static int kxcjk1013_set_range(struct kxcjk1013_data *data, int range_index)
 
 static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 
 #ifdef CONFIG_ACPI
@@ -535,7 +539,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_ctrl1\n");
 		return ret;
@@ -544,7 +548,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	/* Set 12 bit mode */
 	ret |= KXCJK1013_REG_CTRL1_BIT_RES;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_ctrl\n");
 		return ret;
@@ -555,7 +559,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->data_ctrl);
+	ret = i2c_smbus_read_byte_data(data->client, regs->data_ctrl);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_data_ctrl\n");
 		return ret;
@@ -564,7 +568,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	data->odr_bits = ret;
 
 	/* Set up INT polarity */
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->int_ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->int_ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_int_ctrl1\n");
 		return ret;
@@ -575,7 +579,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	else
 		ret &= ~KXCJK1013_REG_INT_CTRL1_BIT_IEA;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->int_ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->int_ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_int_ctrl1\n");
 		return ret;
@@ -637,18 +641,17 @@ static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 
 static int kxcjk1013_chip_update_thresholds(struct kxcjk1013_data *data)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->wake_timer,
-					data->wake_dur);
+	ret = i2c_smbus_write_byte_data(data->client, regs->wake_timer, data->wake_dur);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"Error writing reg_wake_timer\n");
 		return ret;
 	}
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->wake_thres,
-					data->wake_thres);
+	ret = i2c_smbus_write_byte_data(data->client, regs->wake_thres, data->wake_thres);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_wake_thres\n");
 		return ret;
@@ -660,6 +663,7 @@ static int kxcjk1013_chip_update_thresholds(struct kxcjk1013_data *data)
 static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
 						bool status)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 	enum kxcjk1013_mode store_mode;
 
@@ -676,7 +680,7 @@ static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->int_ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->int_ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_int_ctrl1\n");
 		return ret;
@@ -687,13 +691,13 @@ static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
 	else
 		ret &= ~KXCJK1013_REG_INT_CTRL1_BIT_IEN;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->int_ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->int_ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_int_ctrl1\n");
 		return ret;
 	}
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_ctrl1\n");
 		return ret;
@@ -704,7 +708,7 @@ static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
 	else
 		ret &= ~KXCJK1013_REG_CTRL1_BIT_WUFE;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_ctrl1\n");
 		return ret;
@@ -722,6 +726,7 @@ static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
 static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
 					      bool status)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 	enum kxcjk1013_mode store_mode;
 
@@ -734,7 +739,7 @@ static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->int_ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->int_ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_int_ctrl1\n");
 		return ret;
@@ -745,13 +750,13 @@ static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
 	else
 		ret &= ~KXCJK1013_REG_INT_CTRL1_BIT_IEN;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->int_ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->int_ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_int_ctrl1\n");
 		return ret;
 	}
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->ctrl1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_ctrl1\n");
 		return ret;
@@ -762,7 +767,7 @@ static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
 	else
 		ret &= ~KXCJK1013_REG_CTRL1_BIT_DRDY;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->ctrl1, ret);
+	ret = i2c_smbus_write_byte_data(data->client, regs->ctrl1, ret);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_ctrl1\n");
 		return ret;
@@ -809,6 +814,7 @@ static int kxcjk1013_convert_odr_value(const struct kx_odr_map *map,
 
 static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 {
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 	enum kxcjk1013_mode store_mode;
 	const struct kx_odr_map *odr_setting;
@@ -834,7 +840,7 @@ static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->data_ctrl,
+	ret = i2c_smbus_write_byte_data(data->client, regs->data_ctrl,
 					odr_setting->odr_bits);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing data_ctrl\n");
@@ -843,7 +849,7 @@ static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 
 	data->odr_bits = odr_setting->odr_bits;
 
-	ret = i2c_smbus_write_byte_data(data->client, data->regs->wuf_ctrl,
+	ret = i2c_smbus_write_byte_data(data->client, regs->wuf_ctrl,
 					odr_setting->wuf_bits);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_ctrl2\n");
@@ -1245,9 +1251,10 @@ static void kxcjk1013_trig_reen(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->int_rel);
+	ret = i2c_smbus_read_byte_data(data->client, regs->int_rel);
 	if (ret < 0)
 		dev_err(&data->client->dev, "Error reading reg_int_rel\n");
 }
@@ -1299,8 +1306,9 @@ static const struct iio_trigger_ops kxcjk1013_trigger_ops = {
 static void kxcjk1013_report_motion_event(struct iio_dev *indio_dev)
 {
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
+	const struct kx_chipset_regs *regs = data->regs;
 
-	int ret = i2c_smbus_read_byte_data(data->client, data->regs->int_src2);
+	int ret = i2c_smbus_read_byte_data(data->client, regs->int_src2);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_int_src2\n");
 		return;
@@ -1365,9 +1373,10 @@ static irqreturn_t kxcjk1013_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
+	const struct kx_chipset_regs *regs = data->regs;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->int_src1);
+	ret = i2c_smbus_read_byte_data(data->client, regs->int_src1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_int_src1\n");
 		goto ack_intr;
@@ -1390,7 +1399,7 @@ ack_intr:
 	if (data->dready_trigger_on)
 		return IRQ_HANDLED;
 
-	ret = i2c_smbus_read_byte_data(data->client, data->regs->int_rel);
+	ret = i2c_smbus_read_byte_data(data->client, regs->int_rel);
 	if (ret < 0)
 		dev_err(&data->client->dev, "Error reading reg_int_rel\n");
 
