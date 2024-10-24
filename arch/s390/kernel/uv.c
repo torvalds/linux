@@ -2,7 +2,7 @@
 /*
  * Common Ultravisor functions and initialization
  *
- * Copyright IBM Corp. 2019, 2020
+ * Copyright IBM Corp. 2019, 2024
  */
 #define KMSG_COMPONENT "prot_virt"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
@@ -870,3 +870,130 @@ out_kobj:
 	return rc;
 }
 device_initcall(uv_sysfs_init);
+
+/*
+ * Find the secret with the secret_id in the provided list.
+ *
+ * Context: might sleep.
+ */
+static int find_secret_in_page(const u8 secret_id[UV_SECRET_ID_LEN],
+			       const struct uv_secret_list *list,
+			       struct uv_secret_list_item_hdr *secret)
+{
+	u16 i;
+
+	for (i = 0; i < list->total_num_secrets; i++) {
+		if (memcmp(secret_id, list->secrets[i].id, UV_SECRET_ID_LEN) == 0) {
+			*secret = list->secrets[i].hdr;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+/*
+ * Do the actual search for `uv_get_secret_metadata`.
+ *
+ * Context: might sleep.
+ */
+static int find_secret(const u8 secret_id[UV_SECRET_ID_LEN],
+		       struct uv_secret_list *list,
+		       struct uv_secret_list_item_hdr *secret)
+{
+	u16 start_idx = 0;
+	u16 list_rc;
+	int ret;
+
+	do {
+		uv_list_secrets(list, start_idx, &list_rc, NULL);
+		if (list_rc != UVC_RC_EXECUTED && list_rc != UVC_RC_MORE_DATA) {
+			if (list_rc == UVC_RC_INV_CMD)
+				return -ENODEV;
+			else
+				return -EIO;
+		}
+		ret = find_secret_in_page(secret_id, list, secret);
+		if (ret == 0)
+			return ret;
+		start_idx = list->next_secret_idx;
+	} while (list_rc == UVC_RC_MORE_DATA && start_idx < list->next_secret_idx);
+
+	return -ENOENT;
+}
+
+/**
+ * uv_get_secret_metadata() - get secret metadata for a given secret id.
+ * @secret_id: search pattern.
+ * @secret: output data, containing the secret's metadata.
+ *
+ * Search for a secret with the given secret_id in the Ultravisor secret store.
+ *
+ * Context: might sleep.
+ *
+ * Return:
+ * * %0:	- Found entry; secret->idx and secret->type are valid.
+ * * %ENOENT	- No entry found.
+ * * %ENODEV:	- Not supported: UV not available or command not available.
+ * * %EIO:	- Other unexpected UV error.
+ */
+int uv_get_secret_metadata(const u8 secret_id[UV_SECRET_ID_LEN],
+			   struct uv_secret_list_item_hdr *secret)
+{
+	struct uv_secret_list *buf;
+	int rc;
+
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	rc = find_secret(secret_id, buf, secret);
+	kfree(buf);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(uv_get_secret_metadata);
+
+/**
+ * uv_retrieve_secret() - get the secret value for the secret index.
+ * @secret_idx: Secret index for which the secret should be retrieved.
+ * @buf: Buffer to store retrieved secret.
+ * @buf_size: Size of the buffer. The correct buffer size is reported as part of
+ * the result from `uv_get_secret_metadata`.
+ *
+ * Calls the Retrieve Secret UVC and translates the UV return code into an errno.
+ *
+ * Context: might sleep.
+ *
+ * Return:
+ * * %0		- Entry found; buffer contains a valid secret.
+ * * %ENOENT:	- No entry found or secret at the index is non-retrievable.
+ * * %ENODEV:	- Not supported: UV not available or command not available.
+ * * %EINVAL:	- Buffer too small for content.
+ * * %EIO:	- Other unexpected UV error.
+ */
+int uv_retrieve_secret(u16 secret_idx, u8 *buf, size_t buf_size)
+{
+	struct uv_cb_retr_secr uvcb = {
+		.header.len = sizeof(uvcb),
+		.header.cmd = UVC_CMD_RETR_SECRET,
+		.secret_idx = secret_idx,
+		.buf_addr = (u64)buf,
+		.buf_size = buf_size,
+	};
+
+	uv_call_sched(0, (u64)&uvcb);
+
+	switch (uvcb.header.rc) {
+	case UVC_RC_EXECUTED:
+		return 0;
+	case UVC_RC_INV_CMD:
+		return -ENODEV;
+	case UVC_RC_RETR_SECR_STORE_EMPTY:
+	case UVC_RC_RETR_SECR_INV_SECRET:
+	case UVC_RC_RETR_SECR_INV_IDX:
+		return -ENOENT;
+	case UVC_RC_RETR_SECR_BUF_SMALL:
+		return -EINVAL;
+	default:
+		return -EIO;
+	}
+}
+EXPORT_SYMBOL_GPL(uv_retrieve_secret);
