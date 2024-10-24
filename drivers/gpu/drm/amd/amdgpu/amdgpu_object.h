@@ -142,7 +142,6 @@ struct amdgpu_bo_vm {
 struct amdgpu_mem_stats {
 	struct drm_memory_stats drm;
 
-	uint64_t total;
 	uint64_t visible;
 	uint64_t evicted;
 	uint64_t evicted_visible;

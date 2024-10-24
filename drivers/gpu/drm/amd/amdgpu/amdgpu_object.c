@@ -1224,7 +1224,6 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 
 	/* DRM stats common fields: */
 
-	stats[type].total += size;
 	if (drm_gem_object_is_shared_for_memory_stats(obj))
 		stats[type].drm.shared += size;
 	else

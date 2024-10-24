@@ -33,6 +33,7 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_file.h>
 
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
@@ -95,11 +96,11 @@ void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 
 	/* Legacy amdgpu keys, alias to drm-resident-memory-: */
 	drm_printf(p, "drm-memory-vram:\t%llu KiB\n",
-		   stats[TTM_PL_VRAM].total/1024UL);
+		   stats[TTM_PL_VRAM].drm.resident/1024UL);
 	drm_printf(p, "drm-memory-gtt: \t%llu KiB\n",
-		   stats[TTM_PL_TT].total/1024UL);
+		   stats[TTM_PL_TT].drm.resident/1024UL);
 	drm_printf(p, "drm-memory-cpu: \t%llu KiB\n",
-		   stats[TTM_PL_SYSTEM].total/1024UL);
+		   stats[TTM_PL_SYSTEM].drm.resident/1024UL);
 
 	/* Amdgpu specific memory accounting keys: */
 	drm_printf(p, "amd-memory-visible-vram:\t%llu KiB\n",
