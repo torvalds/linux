@@ -44,7 +44,7 @@ static int imcs;
 static struct imc_counter_config imc_counters_config[MAX_IMCS][2];
 static const struct resctrl_test *current_test;
 
-void membw_initialize_perf_event_attr(int i, int j)
+static void membw_initialize_perf_event_attr(int i, int j)
 {
 	memset(&imc_counters_config[i][j].pe, 0,
 	       sizeof(struct perf_event_attr));
@@ -61,13 +61,13 @@ void membw_initialize_perf_event_attr(int i, int j)
 		PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
 }
 
-void membw_ioctl_perf_event_ioc_reset_enable(int i, int j)
+static void membw_ioctl_perf_event_ioc_reset_enable(int i, int j)
 {
 	ioctl(imc_counters_config[i][j].fd, PERF_EVENT_IOC_RESET, 0);
 	ioctl(imc_counters_config[i][j].fd, PERF_EVENT_IOC_ENABLE, 0);
 }
 
-void membw_ioctl_perf_event_ioc_disable(int i, int j)
+static void membw_ioctl_perf_event_ioc_disable(int i, int j)
 {
 	ioctl(imc_counters_config[i][j].fd, PERF_EVENT_IOC_DISABLE, 0);
 }
@@ -78,7 +78,7 @@ void membw_ioctl_perf_event_ioc_disable(int i, int j)
  * @count:		iMC number
  * @op:			Operation (read/write)
  */
-void get_event_and_umask(char *cas_count_cfg, int count, bool op)
+static void get_event_and_umask(char *cas_count_cfg, int count, bool op)
 {
 	char *token[MAX_TOKENS];
 	int i = 0;
