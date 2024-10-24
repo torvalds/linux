@@ -73,7 +73,7 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum,
 {
 	u64 sectors = 0;
 
-	int ret = for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
+	int ret = for_each_btree_key_max(trans, iter, BTREE_ID_extents,
 				SPOS(inum, 0, snapshot),
 				POS(inum, U64_MAX),
 				0, k, ({
@@ -90,7 +90,7 @@ static s64 bch2_count_subdirs(struct btree_trans *trans, u64 inum,
 {
 	u64 subdirs = 0;
 
-	int ret = for_each_btree_key_upto(trans, iter, BTREE_ID_dirents,
+	int ret = for_each_btree_key_max(trans, iter, BTREE_ID_dirents,
 				    SPOS(inum, 0, snapshot),
 				    POS(inum, U64_MAX),
 				    0, k, ({
@@ -1751,7 +1751,7 @@ static int overlapping_extents_found(struct btree_trans *trans,
 	bch2_trans_iter_init(trans, &iter1, btree, pos1,
 			     BTREE_ITER_all_snapshots|
 			     BTREE_ITER_not_extents);
-	k1 = bch2_btree_iter_peek_upto(&iter1, POS(pos1.inode, U64_MAX));
+	k1 = bch2_btree_iter_peek_max(&iter1, POS(pos1.inode, U64_MAX));
 	ret = bkey_err(k1);
 	if (ret)
 		goto err;
@@ -1776,7 +1776,7 @@ static int overlapping_extents_found(struct btree_trans *trans,
 	while (1) {
 		bch2_btree_iter_advance(&iter2);
 
-		k2 = bch2_btree_iter_peek_upto(&iter2, POS(pos1.inode, U64_MAX));
+		k2 = bch2_btree_iter_peek_max(&iter2, POS(pos1.inode, U64_MAX));
 		ret = bkey_err(k2);
 		if (ret)
 			goto err;

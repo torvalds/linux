@@ -43,7 +43,7 @@ static inline int journal_key_cmp(const struct journal_key *l, const struct jour
 	return __journal_key_cmp(l->btree_id, l->level, l->k->k.p, r);
 }
 
-struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *, enum btree_id,
+struct bkey_i *bch2_journal_keys_peek_max(struct bch_fs *, enum btree_id,
 				unsigned, struct bpos, struct bpos, size_t *);
 struct bkey_i *bch2_journal_keys_peek_slot(struct bch_fs *, enum btree_id,
 					   unsigned, struct bpos);

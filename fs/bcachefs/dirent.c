@@ -500,7 +500,7 @@ int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 subvol, u32 
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_max_norestart(trans, iter, BTREE_ID_dirents,
 			   SPOS(dir, 0, snapshot),
 			   POS(dir, U64_MAX), 0, k, ret)
 		if (k.k->type == KEY_TYPE_dirent) {
@@ -549,7 +549,7 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 	bch2_bkey_buf_init(&sk);
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_dirents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_dirents,
 				   POS(inum.inum, ctx->pos),
 				   POS(inum.inum, U64_MAX),
 				   inum.subvol, 0, k, ({

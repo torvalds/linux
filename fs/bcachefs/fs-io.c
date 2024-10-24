@@ -222,7 +222,7 @@ static inline int range_has_data(struct bch_fs *c, u32 subvol,
 				 struct bpos end)
 {
 	return bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents, start, end,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents, start, end,
 						    subvol, 0, k, ({
 			bkey_extent_is_data(k.k) && !bkey_extent_is_unwritten(k);
 		})));
@@ -806,7 +806,7 @@ static int quota_reserve_range(struct bch_inode_info *inode,
 	u64 sectors = end - start;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter,
+		for_each_btree_key_in_subvolume_max(trans, iter,
 				BTREE_ID_extents,
 				POS(inode->v.i_ino, start),
 				POS(inode->v.i_ino, end - 1),
@@ -922,7 +922,7 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 		return -ENXIO;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents,
 				   POS(inode->v.i_ino, offset >> 9),
 				   POS(inode->v.i_ino, U64_MAX),
 				   inum.subvol, 0, k, ({
@@ -958,7 +958,7 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 		return -ENXIO;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents,
 				   POS(inode->v.i_ino, offset >> 9),
 				   POS(inode->v.i_ino, U64_MAX),
 				   inum.subvol, BTREE_ITER_slots, k, ({

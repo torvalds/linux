@@ -164,7 +164,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 
 	bch2_trans_copy_iter(&iter, extent_iter);
 
-	for_each_btree_key_upto_continue_norestart(iter,
+	for_each_btree_key_max_continue_norestart(iter,
 				new->k.p, BTREE_ITER_slots, old, ret) {
 		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
 			max(bkey_start_offset(&new->k),
@@ -1165,7 +1165,7 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	for_each_keylist_key(&op->insert_keys, orig) {
-		int ret = for_each_btree_key_upto_commit(trans, iter, BTREE_ID_extents,
+		int ret = for_each_btree_key_max_commit(trans, iter, BTREE_ID_extents,
 				     bkey_start_pos(&orig->k), orig->k.p,
 				     BTREE_ITER_intent, k,
 				     NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({

@@ -1294,7 +1294,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 		bch2_btree_iter_set_snapshot(&iter, snapshot);
 
-		k = bch2_btree_iter_peek_upto(&iter, end);
+		k = bch2_btree_iter_peek_max(&iter, end);
 		ret = bkey_err(k);
 		if (ret)
 			continue;

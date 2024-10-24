@@ -1045,7 +1045,7 @@ static struct bkey_s_c bch2_get_key_or_hole(struct btree_iter *iter, struct bpos
 		 * btree node min/max is a closed interval, upto takes a half
 		 * open interval:
 		 */
-		k = bch2_btree_iter_peek_upto(&iter2, end);
+		k = bch2_btree_iter_peek_max(&iter2, end);
 		next = iter2.pos;
 		bch2_trans_iter_exit(iter->trans, &iter2);
 
@@ -1886,7 +1886,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 	 * successful commit:
 	 */
 	ret = bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter,
+		for_each_btree_key_max(trans, iter,
 				   BTREE_ID_need_discard,
 				   POS(ca->dev_idx, 0),
 				   POS(ca->dev_idx, U64_MAX), 0, k,
@@ -2101,7 +2101,7 @@ static struct bkey_s_c next_lru_key(struct btree_trans *trans, struct btree_iter
 {
 	struct bkey_s_c k;
 again:
-	k = bch2_btree_iter_peek_upto(iter, lru_pos(ca->dev_idx, U64_MAX, LRU_TIME_MAX));
+	k = bch2_btree_iter_peek_max(iter, lru_pos(ca->dev_idx, U64_MAX, LRU_TIME_MAX));
 	if (!k.k && !*wrapped) {
 		bch2_btree_iter_set_pos(iter, lru_pos(ca->dev_idx, 0, 0));
 		*wrapped = true;

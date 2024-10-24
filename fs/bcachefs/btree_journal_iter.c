@@ -61,7 +61,7 @@ static size_t bch2_journal_key_search(struct journal_keys *keys,
 }
 
 /* Returns first non-overwritten key >= search key: */
-struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *c, enum btree_id btree_id,
+struct bkey_i *bch2_journal_keys_peek_max(struct bch_fs *c, enum btree_id btree_id,
 					   unsigned level, struct bpos pos,
 					   struct bpos end_pos, size_t *idx)
 {
@@ -112,7 +112,7 @@ struct bkey_i *bch2_journal_keys_peek_slot(struct bch_fs *c, enum btree_id btree
 {
 	size_t idx = 0;
 
-	return bch2_journal_keys_peek_upto(c, btree_id, level, pos, pos, &idx);
+	return bch2_journal_keys_peek_max(c, btree_id, level, pos, pos, &idx);
 }
 
 static void journal_iter_verify(struct journal_iter *iter)

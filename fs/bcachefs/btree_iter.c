@@ -2113,7 +2113,7 @@ static struct bkey_i *bch2_btree_journal_peek(struct btree_trans *trans,
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 
-	return bch2_journal_keys_peek_upto(trans->c, iter->btree_id,
+	return bch2_journal_keys_peek_max(trans->c, iter->btree_id,
 					   path->level,
 					   path->pos,
 					   end_pos,
@@ -2291,14 +2291,14 @@ out:
 }
 
 /**
- * bch2_btree_iter_peek_upto() - returns first key greater than or equal to
+ * bch2_btree_iter_peek_max() - returns first key greater than or equal to
  * iterator's current position
  * @iter:	iterator to peek from
  * @end:	search limit: returns keys less than or equal to @end
  *
  * Returns:	key if found, or an error extractable with bkey_err().
  */
-struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos end)
+struct bkey_s_c bch2_btree_iter_peek_max(struct btree_iter *iter, struct bpos end)
 {
 	struct btree_trans *trans = iter->trans;
 	struct bpos search_key = btree_iter_search_key(iter);
@@ -2682,7 +2682,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 			struct btree_iter iter2;
 
 			bch2_trans_copy_iter(&iter2, iter);
-			k = bch2_btree_iter_peek_upto(&iter2, end);
+			k = bch2_btree_iter_peek_max(&iter2, end);
 
 			if (k.k && !bkey_err(k)) {
 				swap(iter->key_cache_path, iter2.key_cache_path);
@@ -2693,7 +2693,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		} else {
 			struct bpos pos = iter->pos;
 
-			k = bch2_btree_iter_peek_upto(iter, end);
+			k = bch2_btree_iter_peek_max(iter, end);
 			if (unlikely(bkey_err(k)))
 				bch2_btree_iter_set_pos(iter, pos);
 			else

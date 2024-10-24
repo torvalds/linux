@@ -2299,7 +2299,7 @@ err:
 int bch2_dev_remove_stripes(struct bch_fs *c, unsigned dev_idx)
 {
 	return bch2_trans_run(c,
-		for_each_btree_key_upto_commit(trans, iter,
+		for_each_btree_key_max_commit(trans, iter,
 				  BTREE_ID_alloc, POS(dev_idx, 0), POS(dev_idx, U64_MAX),
 				  BTREE_ITER_intent, k,
 				  NULL, NULL, 0, ({

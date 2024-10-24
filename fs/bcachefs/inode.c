@@ -618,7 +618,7 @@ bch2_bkey_get_iter_snapshot_parent(struct btree_trans *trans, struct btree_iter 
 	struct bkey_s_c k;
 	int ret = 0;
 
-	for_each_btree_key_upto_norestart(trans, *iter, btree,
+	for_each_btree_key_max_norestart(trans, *iter, btree,
 					  bpos_successor(pos),
 					  SPOS(pos.inode, pos.offset, U32_MAX),
 					  flags|BTREE_ITER_all_snapshots, k, ret)
@@ -653,7 +653,7 @@ int __bch2_inode_has_child_snapshots(struct btree_trans *trans, struct bpos pos)
 	struct bkey_s_c k;
 	int ret = 0;
 
-	for_each_btree_key_upto_norestart(trans, iter,
+	for_each_btree_key_max_norestart(trans, iter,
 			BTREE_ID_inodes, POS(0, pos.offset), bpos_predecessor(pos),
 			BTREE_ITER_all_snapshots|
 			BTREE_ITER_with_updates, k, ret)
@@ -967,7 +967,7 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 
 		bch2_btree_iter_set_snapshot(&iter, snapshot);
 
-		k = bch2_btree_iter_peek_upto(&iter, end);
+		k = bch2_btree_iter_peek_max(&iter, end);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;

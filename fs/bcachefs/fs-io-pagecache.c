@@ -199,7 +199,7 @@ int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
 	unsigned folio_idx = 0;
 
 	return bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents,
 				   POS(inum.inum, offset),
 				   POS(inum.inum, U64_MAX),
 				   inum.subvol, BTREE_ITER_slots, k, ({

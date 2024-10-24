@@ -164,9 +164,9 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		bch2_btree_iter_set_snapshot(iter, snapshot);
 
 		/*
-		 * peek_upto() doesn't have ideal semantics for extents:
+		 * peek_max() doesn't have ideal semantics for extents:
 		 */
-		k = bch2_btree_iter_peek_upto(iter, end_pos);
+		k = bch2_btree_iter_peek_max(iter, end_pos);
 		if (!k.k)
 			break;
 
@@ -427,7 +427,7 @@ case LOGGED_OP_FINSERT_shift_extents:
 
 		k = insert
 			? bch2_btree_iter_peek_prev(&iter)
-			: bch2_btree_iter_peek_upto(&iter, POS(inum.inum, U64_MAX));
+			: bch2_btree_iter_peek_max(&iter, POS(inum.inum, U64_MAX));
 		if ((ret = bkey_err(k)))
 			goto btree_err;
 

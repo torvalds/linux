@@ -309,7 +309,7 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	u64 offset = 0, inum = inode->ei_inode.bi_inum;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_xattrs,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_xattrs,
 				   POS(inum, offset),
 				   POS(inum, U64_MAX),
 				   inode->ei_inum.subvol, 0, k, ({
