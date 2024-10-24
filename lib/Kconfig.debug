@@ -1502,7 +1502,7 @@ config LOCKDEP_SMALL
 	bool
 
 config LOCKDEP_BITS
-	int "Bitsize for MAX_LOCKDEP_ENTRIES"
+	int "Size for MAX_LOCKDEP_ENTRIES (as Nth power of 2)"
 	depends on LOCKDEP && !LOCKDEP_SMALL
 	range 10 24
 	default 15
@@ -1510,7 +1510,7 @@ config LOCKDEP_BITS
 	  Try increasing this value if you hit "BUG: MAX_LOCKDEP_ENTRIES too low!" message.
 
 config LOCKDEP_CHAINS_BITS
-	int "Bitsize for MAX_LOCKDEP_CHAINS"
+	int "Size for MAX_LOCKDEP_CHAINS (as Nth power of 2)"
 	depends on LOCKDEP && !LOCKDEP_SMALL
 	range 10 21
 	default 16
@@ -1518,7 +1518,7 @@ config LOCKDEP_CHAINS_BITS
 	  Try increasing this value if you hit "BUG: MAX_LOCKDEP_CHAINS too low!" message.
 
 config LOCKDEP_STACK_TRACE_BITS
-	int "Bitsize for MAX_STACK_TRACE_ENTRIES"
+	int "Size for MAX_STACK_TRACE_ENTRIES (as Nth power of 2)"
 	depends on LOCKDEP && !LOCKDEP_SMALL
 	range 10 26
 	default 19
@@ -1526,7 +1526,7 @@ config LOCKDEP_STACK_TRACE_BITS
 	  Try increasing this value if you hit "BUG: MAX_STACK_TRACE_ENTRIES too low!" message.
 
 config LOCKDEP_STACK_TRACE_HASH_BITS
-	int "Bitsize for STACK_TRACE_HASH_SIZE"
+	int "Size for STACK_TRACE_HASH_SIZE (as Nth power of 2)"
 	depends on LOCKDEP && !LOCKDEP_SMALL
 	range 10 26
 	default 14
@@ -1534,7 +1534,7 @@ config LOCKDEP_STACK_TRACE_HASH_BITS
 	  Try increasing this value if you need large STACK_TRACE_HASH_SIZE.
 
 config LOCKDEP_CIRCULAR_QUEUE_BITS
-	int "Bitsize for elements in circular_queue struct"
+	int "Size for elements in circular_queue struct (as Nth power of 2)"
 	depends on LOCKDEP
 	range 10 26
 	default 12
