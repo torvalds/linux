@@ -469,7 +469,12 @@ static ssize_t new_password_store(struct kobject *kobj,
 		if (ret)
 			goto out;
 
-		if (tlmi_priv.pwd_admin->pwd_enabled) {
+		/*
+		 * Note admin password is not always required if SMPControl enabled in BIOS,
+		 * So only set if it's configured.
+		 * Let BIOS figure it out - we'll get an error if operation is not permitted
+		 */
+		if (tlmi_priv.pwd_admin->pwd_enabled && strlen(tlmi_priv.pwd_admin->password)) {
 			ret = tlmi_opcode_setting("WmiOpcodePasswordAdmin",
 					tlmi_priv.pwd_admin->password);
 			if (ret)
