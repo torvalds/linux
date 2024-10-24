@@ -14,13 +14,14 @@
 
 #define PAGE_SIZE	(_AC(1,UL) << CONFIG_PAGE_SHIFT)
 
-#if defined(CONFIG_PHYS_ADDR_T_64BIT) && !defined(CONFIG_64BIT)
+#if !defined(CONFIG_64BIT)
 /*
- * Applies only to 32-bit architectures with a 64-bit phys_addr_t.
+ * Applies only to 32-bit architectures.
  *
  * Subtle: (1 << CONFIG_PAGE_SHIFT) is an int, not an unsigned long.
  * So if we assign PAGE_MASK to a larger type it gets extended the
- * way we want (i.e. with 1s in the high bits)
+ * way we want (i.e. with 1s in the high bits) while masking a
+ * 64-bit value such as phys_addr_t.
  */
 #define PAGE_MASK	(~((1 << CONFIG_PAGE_SHIFT) - 1))
 #else
