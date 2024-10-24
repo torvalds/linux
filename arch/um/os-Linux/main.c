@@ -10,7 +10,6 @@
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
-#include <limits.h>
 #include <sys/resource.h>
 #include <sys/personality.h>
 #include <as-layout.h>
@@ -114,7 +113,7 @@ int __init main(int argc, char **argv, char **envp)
 	ret = personality(PER_LINUX | ADDR_NO_RANDOMIZE);
 	if (ret >= 0 && (ret & (PER_LINUX | ADDR_NO_RANDOMIZE)) !=
 			 (PER_LINUX | ADDR_NO_RANDOMIZE)) {
-		char buf[PATH_MAX] = {};
+		char buf[4096] = {};
 		ssize_t ret;
 
 		ret = readlink("/proc/self/exe", buf, sizeof(buf));
