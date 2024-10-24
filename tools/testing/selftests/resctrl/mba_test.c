@@ -39,7 +39,8 @@ static int mba_setup(const struct resctrl_test *test,
 		     const struct user_params *uparams,
 		     struct resctrl_val_param *p)
 {
-	static int runs_per_allocation, allocation = 100;
+	static unsigned int allocation = ALLOCATION_MIN;
+	static int runs_per_allocation;
 	char allocation_str[64];
 	int ret;
 
@@ -50,7 +51,7 @@ static int mba_setup(const struct resctrl_test *test,
 	if (runs_per_allocation++ != 0)
 		return 0;
 
-	if (allocation < ALLOCATION_MIN || allocation > ALLOCATION_MAX)
+	if (allocation > ALLOCATION_MAX)
 		return END_OF_TESTS;
 
 	sprintf(allocation_str, "%d", allocation);
@@ -59,7 +60,7 @@ static int mba_setup(const struct resctrl_test *test,
 	if (ret < 0)
 		return ret;
 
-	allocation -= ALLOCATION_STEP;
+	allocation += ALLOCATION_STEP;
 
 	return 0;
 }
@@ -72,8 +73,9 @@ static int mba_measure(const struct user_params *uparams,
 
 static bool show_mba_info(unsigned long *bw_imc, unsigned long *bw_resc)
 {
-	int allocation, runs;
+	unsigned int allocation;
 	bool ret = false;
+	int runs;
 
 	ksft_print_msg("Results are displayed in (MB)\n");
 	/* Memory bandwidth from 100% down to 10% */
@@ -103,7 +105,7 @@ static bool show_mba_info(unsigned long *bw_imc, unsigned long *bw_resc)
 			       avg_diff_per > MAX_DIFF_PERCENT ?
 			       "Fail:" : "Pass:",
 			       MAX_DIFF_PERCENT,
-			       ALLOCATION_MAX - ALLOCATION_STEP * allocation);
+			       ALLOCATION_MIN + ALLOCATION_STEP * allocation);
 
 		ksft_print_msg("avg_diff_per: %d%%\n", avg_diff_per);
 		ksft_print_msg("avg_bw_imc: %lu\n", avg_bw_imc);
