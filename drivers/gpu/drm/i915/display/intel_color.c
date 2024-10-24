@@ -2055,8 +2055,7 @@ void intel_color_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (display->funcs.color->get_config)
-		display->funcs.color->get_config(crtc_state);
+	display->funcs.color->get_config(crtc_state);
 
 	display->funcs.color->read_luts(crtc_state);
 
