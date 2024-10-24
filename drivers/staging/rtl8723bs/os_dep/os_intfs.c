@@ -381,34 +381,6 @@ u16 rtw_recv_select_queue(struct sk_buff *skb)
 	return rtw_1d_to_queue[priority];
 }
 
-static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state, void *ptr)
-{
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-
-	if (dev->netdev_ops->ndo_do_ioctl != rtw_ioctl)
-		return NOTIFY_DONE;
-
-	netdev_dbg(dev, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev),
-		    state);
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rtw_ndev_notifier = {
-	.notifier_call = rtw_ndev_notifier_call,
-};
-
-int rtw_ndev_notifier_register(void)
-{
-	return register_netdevice_notifier(&rtw_ndev_notifier);
-}
-
-void rtw_ndev_notifier_unregister(void)
-{
-	unregister_netdevice_notifier(&rtw_ndev_notifier);
-}
-
-
 static int rtw_ndev_init(struct net_device *dev)
 {
 	struct adapter *adapter = rtw_netdev_priv(dev);
