@@ -9897,6 +9897,12 @@ void cmdline(int argc, char **argv)
 			break;
 		case 'D':
 			dump_only++;
+			/*
+			 * Force the no_perf early to prevent using it as a source.
+			 * User asks for raw values, but perf returns them relative
+			 * to the opening of the file descriptor.
+			 */
+			no_perf = 1;
 			break;
 		case 'e':
 			/* --enable specified counter */
