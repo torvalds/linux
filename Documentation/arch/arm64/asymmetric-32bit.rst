@@ -153,3 +153,11 @@ asymmetric system, a broken guest at EL1 could still attempt to execute
 mode will return to host userspace with an ``exit_reason`` of
 ``KVM_EXIT_FAIL_ENTRY`` and will remain non-runnable until successfully
 re-initialised by a subsequent ``KVM_ARM_VCPU_INIT`` operation.
+
+NOHZ FULL
+---------
+
+To avoid perturbing an adaptive-ticks CPU (specified using
+``nohz_full=``) when a 32-bit task is forcefully migrated, these CPUs
+are treated as 64-bit-only when support for asymmetric 32-bit systems
+is enabled.
