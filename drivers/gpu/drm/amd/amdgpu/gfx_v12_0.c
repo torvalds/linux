@@ -910,6 +910,34 @@ static void gfx_v12_0_select_me_pipe_q(struct amdgpu_device *adev,
 	soc24_grbm_select(adev, me, pipe, q, vm);
 }
 
+/* all sizes are in bytes */
+#define MQD_SHADOW_BASE_SIZE      73728
+#define MQD_SHADOW_BASE_ALIGNMENT 256
+#define MQD_FWWORKAREA_SIZE       484
+#define MQD_FWWORKAREA_ALIGNMENT  256
+
+static void gfx_v12_0_get_gfx_shadow_info_nocheck(struct amdgpu_device *adev,
+						  struct amdgpu_gfx_shadow_info *shadow_info)
+{
+	shadow_info->shadow_size = MQD_SHADOW_BASE_SIZE;
+	shadow_info->shadow_alignment = MQD_SHADOW_BASE_ALIGNMENT;
+	shadow_info->csa_size = MQD_FWWORKAREA_SIZE;
+	shadow_info->csa_alignment = MQD_FWWORKAREA_ALIGNMENT;
+}
+
+static int gfx_v12_0_get_gfx_shadow_info(struct amdgpu_device *adev,
+					 struct amdgpu_gfx_shadow_info *shadow_info,
+					 bool skip_check)
+{
+	if (adev->gfx.cp_gfx_shadow || skip_check) {
+		gfx_v12_0_get_gfx_shadow_info_nocheck(adev, shadow_info);
+		return 0;
+	}
+
+	memset(shadow_info, 0, sizeof(struct amdgpu_gfx_shadow_info));
+	return -EINVAL;
+}
+
 static const struct amdgpu_gfx_funcs gfx_v12_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v12_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v12_0_select_se_sh,
@@ -918,6 +946,7 @@ static const struct amdgpu_gfx_funcs gfx_v12_0_gfx_funcs = {
 	.read_wave_vgprs = &gfx_v12_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v12_0_select_me_pipe_q,
 	.update_perfmon_mgcg = &gfx_v12_0_update_perf_clk,
+	.get_gfx_shadow_info = &gfx_v12_0_get_gfx_shadow_info,
 };
 
 static int gfx_v12_0_gpu_early_init(struct amdgpu_device *adev)
