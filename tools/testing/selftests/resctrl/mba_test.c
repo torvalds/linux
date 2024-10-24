@@ -86,18 +86,14 @@ static bool show_mba_info(unsigned long *bw_imc, unsigned long *bw_resc)
 		int avg_diff_per;
 		float avg_diff;
 
-		/*
-		 * The first run is discarded due to inaccurate value from
-		 * phase transition.
-		 */
-		for (runs = NUM_OF_RUNS * allocation + 1;
+		for (runs = NUM_OF_RUNS * allocation;
 		     runs < NUM_OF_RUNS * allocation + NUM_OF_RUNS ; runs++) {
 			sum_bw_imc += bw_imc[runs];
 			sum_bw_resc += bw_resc[runs];
 		}
 
-		avg_bw_imc = sum_bw_imc / (NUM_OF_RUNS - 1);
-		avg_bw_resc = sum_bw_resc / (NUM_OF_RUNS - 1);
+		avg_bw_imc = sum_bw_imc / NUM_OF_RUNS;
+		avg_bw_resc = sum_bw_resc / NUM_OF_RUNS;
 		if (avg_bw_imc < THROTTLE_THRESHOLD || avg_bw_resc < THROTTLE_THRESHOLD) {
 			ksft_print_msg("Bandwidth below threshold (%d MiB). Dropping results from MBA schemata %u.\n",
 				       THROTTLE_THRESHOLD,
