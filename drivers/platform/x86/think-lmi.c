@@ -524,6 +524,10 @@ static struct kobj_attribute auth_max_pass_length = __ATTR_RO(max_password_lengt
 static ssize_t mechanism_show(struct kobject *kobj, struct kobj_attribute *attr,
 			 char *buf)
 {
+	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
+
+	if (setting->cert_installed)
+		return sysfs_emit(buf, "certificate\n");
 	return sysfs_emit(buf, "password\n");
 }
 static struct kobj_attribute auth_mechanism = __ATTR_RO(mechanism);
