@@ -826,9 +826,6 @@ static int veml6030_write_interrupt_config(struct iio_dev *indio_dev,
 	int ret;
 	struct veml6030_data *data = iio_priv(indio_dev);
 
-	if (state < 0 || state > 1)
-		return -EINVAL;
-
 	ret = veml6030_als_shut_down(data);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
