@@ -346,10 +346,9 @@ static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 
 	plus = fuse_use_readdirplus(inode, ctx);
 	ap->args.out_pages = true;
-	ap->uses_folios = true;
 	ap->num_folios = 1;
 	ap->folios = &folio;
-	ap->folio_descs = &desc;
+	ap->descs = &desc;
 	if (plus) {
 		attr_version = fuse_get_attr_version(fm->fc);
 		fuse_read_args_fill(&ia, file, ctx->pos, PAGE_SIZE,

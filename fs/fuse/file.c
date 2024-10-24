@@ -742,7 +742,7 @@ static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 	kref_put(&io->refcnt, fuse_io_release);
 }
 
-static struct fuse_io_args *fuse_io_folios_alloc(struct fuse_io_priv *io,
+static struct fuse_io_args *fuse_io_alloc(struct fuse_io_priv *io,
 						 unsigned int nfolios)
 {
 	struct fuse_io_args *ia;
@@ -750,9 +750,8 @@ static struct fuse_io_args *fuse_io_folios_alloc(struct fuse_io_priv *io,
 	ia = kzalloc(sizeof(*ia), GFP_KERNEL);
 	if (ia) {
 		ia->io = io;
-		ia->ap.uses_folios = true;
 		ia->ap.folios = fuse_folios_alloc(nfolios, GFP_KERNEL,
-						  &ia->ap.folio_descs);
+						  &ia->ap.descs);
 		if (!ia->ap.folios) {
 			kfree(ia);
 			ia = NULL;
@@ -761,7 +760,7 @@ static struct fuse_io_args *fuse_io_folios_alloc(struct fuse_io_priv *io,
 	return ia;
 }
 
-static void fuse_io_folios_free(struct fuse_io_args *ia)
+static void fuse_io_free(struct fuse_io_args *ia)
 {
 	kfree(ia->ap.folios);
 	kfree(ia);
@@ -797,7 +796,7 @@ static void fuse_aio_complete_req(struct fuse_mount *fm, struct fuse_args *args,
 	fuse_release_user_pages(&ia->ap, err ?: nres, io->should_dirty);
 
 	fuse_aio_complete(io, err, pos);
-	fuse_io_folios_free(ia);
+	fuse_io_free(ia);
 }
 
 static ssize_t fuse_async_req_send(struct fuse_mount *fm,
@@ -880,10 +879,9 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio)
 	struct fuse_io_args ia = {
 		.ap.args.page_zeroing = true,
 		.ap.args.out_pages = true,
-		.ap.uses_folios = true,
 		.ap.num_folios = 1,
 		.ap.folios = &folio,
-		.ap.folio_descs = &desc,
+		.ap.descs = &desc,
 	};
 	ssize_t res;
 	u64 attr_ver;
@@ -962,7 +960,7 @@ static void fuse_readpages_end(struct fuse_mount *fm, struct fuse_args *args,
 	if (ia->ff)
 		fuse_file_put(ia->ff, false);
 
-	fuse_io_folios_free(ia);
+	fuse_io_free(ia);
 }
 
 static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
@@ -983,7 +981,7 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 	/* Don't overflow end offset */
 	if (pos + (count - 1) == LLONG_MAX) {
 		count--;
-		ap->folio_descs[ap->num_folios - 1].length--;
+		ap->descs[ap->num_folios - 1].length--;
 	}
 	WARN_ON((loff_t) (pos + count) < 0);
 
@@ -1044,7 +1042,7 @@ static void fuse_readahead(struct readahead_control *rac)
 			 */
 			break;
 
-		ia = fuse_io_folios_alloc(NULL, cur_pages);
+		ia = fuse_io_alloc(NULL, cur_pages);
 		if (!ia)
 			return;
 		ap = &ia->ap;
@@ -1052,7 +1050,7 @@ static void fuse_readahead(struct readahead_control *rac)
 		while (ap->num_folios < cur_pages) {
 			folio = readahead_folio(rac);
 			ap->folios[ap->num_folios] = folio;
-			ap->folio_descs[ap->num_folios].length = folio_size(folio);
+			ap->descs[ap->num_folios].length = folio_size(folio);
 			ap->num_folios++;
 		}
 		fuse_send_readpages(ia, rac->file);
@@ -1186,7 +1184,7 @@ static ssize_t fuse_send_write_pages(struct fuse_io_args *ia,
 		err = -EIO;
 
 	short_write = ia->write.out.size < count;
-	offset = ap->folio_descs[0].offset;
+	offset = ap->descs[0].offset;
 	count = ia->write.out.size;
 	for (i = 0; i < ap->num_folios; i++) {
 		struct folio *folio = ap->folios[i];
@@ -1224,7 +1222,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 	int err;
 
 	ap->args.in_pages = true;
-	ap->folio_descs[0].offset = offset;
+	ap->descs[0].offset = offset;
 
 	do {
 		size_t tmp;
@@ -1261,7 +1259,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 
 		err = 0;
 		ap->folios[ap->num_folios] = folio;
-		ap->folio_descs[ap->num_folios].length = tmp;
+		ap->descs[ap->num_folios].length = tmp;
 		ap->num_folios++;
 		nr_pages++;
 
@@ -1318,8 +1316,7 @@ static ssize_t fuse_perform_write(struct kiocb *iocb, struct iov_iter *ii)
 		unsigned int nr_pages = fuse_wr_pages(pos, iov_iter_count(ii),
 						      fc->max_pages);
 
-		ap->uses_folios = true;
-		ap->folios = fuse_folios_alloc(nr_pages, GFP_KERNEL, &ap->folio_descs);
+		ap->folios = fuse_folios_alloc(nr_pages, GFP_KERNEL, &ap->descs);
 		if (!ap->folios) {
 			err = -ENOMEM;
 			break;
@@ -1564,13 +1561,13 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 		/* Currently, all folios in FUSE are one page */
 		nfolios = DIV_ROUND_UP(ret, PAGE_SIZE);
 
-		ap->folio_descs[ap->num_folios].offset = start;
-		fuse_folio_descs_length_init(ap->folio_descs, ap->num_folios, nfolios);
+		ap->descs[ap->num_folios].offset = start;
+		fuse_folio_descs_length_init(ap->descs, ap->num_folios, nfolios);
 		for (i = 0; i < nfolios; i++)
 			ap->folios[i + ap->num_folios] = page_folio(pages[i]);
 
 		ap->num_folios += nfolios;
-		ap->folio_descs[ap->num_folios - 1].length -=
+		ap->descs[ap->num_folios - 1].length -=
 			(PAGE_SIZE - ret) & (PAGE_SIZE - 1);
 		nr_pages += nfolios;
 	}
@@ -1614,14 +1611,14 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	bool fopen_direct_io = ff->open_flags & FOPEN_DIRECT_IO;
 
 	max_pages = iov_iter_npages(iter, fc->max_pages);
-	ia = fuse_io_folios_alloc(io, max_pages);
+	ia = fuse_io_alloc(io, max_pages);
 	if (!ia)
 		return -ENOMEM;
 
 	if (fopen_direct_io && fc->direct_io_allow_mmap) {
 		res = filemap_write_and_wait_range(mapping, pos, pos + count - 1);
 		if (res) {
-			fuse_io_folios_free(ia);
+			fuse_io_free(ia);
 			return res;
 		}
 	}
@@ -1636,7 +1633,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	if (fopen_direct_io && write) {
 		res = invalidate_inode_pages2_range(mapping, idx_from, idx_to);
 		if (res) {
-			fuse_io_folios_free(ia);
+			fuse_io_free(ia);
 			return res;
 		}
 	}
@@ -1663,7 +1660,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 
 		if (!io->async || nres < 0) {
 			fuse_release_user_pages(&ia->ap, nres, io->should_dirty);
-			fuse_io_folios_free(ia);
+			fuse_io_free(ia);
 		}
 		ia = NULL;
 		if (nres < 0) {
@@ -1682,13 +1679,13 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		}
 		if (count) {
 			max_pages = iov_iter_npages(iter, fc->max_pages);
-			ia = fuse_io_folios_alloc(io, max_pages);
+			ia = fuse_io_alloc(io, max_pages);
 			if (!ia)
 				break;
 		}
 	}
 	if (ia)
-		fuse_io_folios_free(ia);
+		fuse_io_free(ia);
 	if (res > 0)
 		*ppos = pos;
 
@@ -2093,8 +2090,7 @@ static struct fuse_writepage_args *fuse_writepage_args_alloc(void)
 	if (wpa) {
 		ap = &wpa->ia.ap;
 		ap->num_folios = 0;
-		ap->uses_folios = true;
-		ap->folios = fuse_folios_alloc(1, GFP_NOFS, &ap->folio_descs);
+		ap->folios = fuse_folios_alloc(1, GFP_NOFS, &ap->descs);
 		if (!ap->folios) {
 			kfree(wpa);
 			wpa = NULL;
@@ -2127,8 +2123,8 @@ static void fuse_writepage_args_page_fill(struct fuse_writepage_args *wpa, struc
 	folio_copy(tmp_folio, folio);
 
 	ap->folios[folio_index] = tmp_folio;
-	ap->folio_descs[folio_index].offset = 0;
-	ap->folio_descs[folio_index].length = PAGE_SIZE;
+	ap->descs[folio_index].offset = 0;
+	ap->descs[folio_index].length = PAGE_SIZE;
 
 	inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
 	node_stat_add_folio(tmp_folio, NR_WRITEBACK_TEMP);
@@ -2234,10 +2230,10 @@ static bool fuse_pages_realloc(struct fuse_fill_wb_data *data)
 		return false;
 
 	memcpy(folios, ap->folios, sizeof(struct folio *) * ap->num_folios);
-	memcpy(descs, ap->folio_descs, sizeof(struct fuse_folio_desc) * ap->num_folios);
+	memcpy(descs, ap->descs, sizeof(struct fuse_folio_desc) * ap->num_folios);
 	kfree(ap->folios);
 	ap->folios = folios;
-	ap->folio_descs = descs;
+	ap->descs = descs;
 	data->max_folios = nfolios;
 
 	return true;

@@ -251,12 +251,12 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	BUILD_BUG_ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
 
 	err = -ENOMEM;
-	ap.folios = fuse_folios_alloc(fm->fc->max_pages, GFP_KERNEL, &ap.folio_descs);
+	ap.folios = fuse_folios_alloc(fm->fc->max_pages, GFP_KERNEL, &ap.descs);
 	iov_page = (struct iovec *) __get_free_page(GFP_KERNEL);
 	if (!ap.folios || !iov_page)
 		goto out;
 
-	fuse_folio_descs_length_init(ap.folio_descs, 0, fm->fc->max_pages);
+	fuse_folio_descs_length_init(ap.descs, 0, fm->fc->max_pages);
 
 	/*
 	 * If restricted, initialize IO parameters as encoded in @cmd.
@@ -306,7 +306,6 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	err = -ENOMEM;
 	if (max_pages > fm->fc->max_pages)
 		goto out;
-	ap.uses_folios = true;
 	while (ap.num_folios < max_pages) {
 		ap.folios[ap.num_folios] = folio_alloc(GFP_KERNEL | __GFP_HIGHMEM, 0);
 		if (!ap.folios[ap.num_folios])

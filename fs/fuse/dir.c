@@ -1590,10 +1590,9 @@ static int fuse_readlink_page(struct inode *inode, struct folio *folio)
 	struct fuse_mount *fm = get_fuse_mount(inode);
 	struct fuse_folio_desc desc = { .length = PAGE_SIZE - 1 };
 	struct fuse_args_pages ap = {
-		.uses_folios = true,
 		.num_folios = 1,
 		.folios = &folio,
-		.folio_descs = &desc,
+		.descs = &desc,
 	};
 	char *link;
 	ssize_t res;

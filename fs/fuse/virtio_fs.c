@@ -765,7 +765,6 @@ static void virtio_fs_request_complete(struct fuse_req *req,
 	struct fuse_args *args;
 	struct fuse_args_pages *ap;
 	unsigned int len, i, thislen;
-	struct page *page;
 	struct folio *folio;
 
 	/*
@@ -778,29 +777,15 @@ static void virtio_fs_request_complete(struct fuse_req *req,
 	if (args->out_pages && args->page_zeroing) {
 		len = args->out_args[args->out_numargs - 1].size;
 		ap = container_of(args, typeof(*ap), args);
-		if (ap->uses_folios) {
-			for (i = 0; i < ap->num_folios; i++) {
-				thislen = ap->folio_descs[i].length;
-				if (len < thislen) {
-					WARN_ON(ap->folio_descs[i].offset);
-					folio = ap->folios[i];
-					folio_zero_segment(folio, len, thislen);
-					len = 0;
-				} else {
-					len -= thislen;
-				}
-			}
-		} else {
-			for (i = 0; i < ap->num_pages; i++) {
-				thislen = ap->descs[i].length;
-				if (len < thislen) {
-					WARN_ON(ap->descs[i].offset);
-					page = ap->pages[i];
-					zero_user_segment(page, len, thislen);
-					len = 0;
-				} else {
-					len -= thislen;
-				}
+		for (i = 0; i < ap->num_folios; i++) {
+			thislen = ap->descs[i].length;
+			if (len < thislen) {
+				WARN_ON(ap->descs[i].offset);
+				folio = ap->folios[i];
+				folio_zero_segment(folio, len, thislen);
+				len = 0;
+			} else {
+				len -= thislen;
 			}
 		}
 	}
@@ -1287,22 +1272,16 @@ static void virtio_fs_send_interrupt(struct fuse_iqueue *fiq, struct fuse_req *r
 }
 
 /* Count number of scatter-gather elements required */
-static unsigned int sg_count_fuse_pages(struct fuse_args_pages *ap,
-					unsigned int total_len)
+static unsigned int sg_count_fuse_folios(struct fuse_folio_desc *folio_descs,
+					 unsigned int num_folios,
+					 unsigned int total_len)
 {
 	unsigned int i;
 	unsigned int this_len;
 
-	if (ap->uses_folios) {
-		for (i = 0; i < ap->num_folios && total_len; i++) {
-			this_len =  min(ap->folio_descs[i].length, total_len);
-			total_len -= this_len;
-		}
-	} else {
-		for (i = 0; i < ap->num_pages && total_len; i++) {
-			this_len =  min(ap->descs[i].length, total_len);
-			total_len -= this_len;
-		}
+	for (i = 0; i < num_folios && total_len; i++) {
+		this_len =  min(folio_descs[i].length, total_len);
+		total_len -= this_len;
 	}
 
 	return i;
@@ -1320,7 +1299,8 @@ static unsigned int sg_count_fuse_req(struct fuse_req *req)
 
 	if (args->in_pages) {
 		size = args->in_args[args->in_numargs - 1].size;
-		total_sgs += sg_count_fuse_pages(ap, size);
+		total_sgs += sg_count_fuse_folios(ap->descs, ap->num_folios,
+						  size);
 	}
 
 	if (!test_bit(FR_ISREPLY, &req->flags))
@@ -1333,35 +1313,28 @@ static unsigned int sg_count_fuse_req(struct fuse_req *req)
 
 	if (args->out_pages) {
 		size = args->out_args[args->out_numargs - 1].size;
-		total_sgs += sg_count_fuse_pages(ap, size);
+		total_sgs += sg_count_fuse_folios(ap->descs, ap->num_folios,
+						  size);
 	}
 
 	return total_sgs;
 }
 
-/* Add pages/folios to scatter-gather list and return number of elements used */
-static unsigned int sg_init_fuse_pages(struct scatterlist *sg,
-				       struct fuse_args_pages *ap,
-				       unsigned int total_len)
+/* Add folios to scatter-gather list and return number of elements used */
+static unsigned int sg_init_fuse_folios(struct scatterlist *sg,
+					struct folio **folios,
+					struct fuse_folio_desc *folio_descs,
+					unsigned int num_folios,
+				        unsigned int total_len)
 {
 	unsigned int i;
 	unsigned int this_len;
 
-	if (ap->uses_folios) {
-		for (i = 0; i < ap->num_folios && total_len; i++) {
-			sg_init_table(&sg[i], 1);
-			this_len =  min(ap->folio_descs[i].length, total_len);
-			sg_set_folio(&sg[i], ap->folios[i], this_len,
-				     ap->folio_descs[i].offset);
-			total_len -= this_len;
-		}
-	} else {
-		for (i = 0; i < ap->num_pages && total_len; i++) {
-			sg_init_table(&sg[i], 1);
-			this_len =  min(ap->descs[i].length, total_len);
-			sg_set_page(&sg[i], ap->pages[i], this_len, ap->descs[i].offset);
-			total_len -= this_len;
-		}
+	for (i = 0; i < num_folios && total_len; i++) {
+		sg_init_table(&sg[i], 1);
+		this_len =  min(folio_descs[i].length, total_len);
+		sg_set_folio(&sg[i], folios[i], this_len, folio_descs[i].offset);
+		total_len -= this_len;
 	}
 
 	return i;
@@ -1385,8 +1358,10 @@ static unsigned int sg_init_fuse_args(struct scatterlist *sg,
 		sg_init_one(&sg[total_sgs++], argbuf, len);
 
 	if (argpages)
-		total_sgs += sg_init_fuse_pages(&sg[total_sgs], ap,
-						args[numargs - 1].size);
+		total_sgs += sg_init_fuse_folios(&sg[total_sgs],
+						 ap->folios, ap->descs,
+						 ap->num_folios,
+						 args[numargs - 1].size);
 
 	if (len_used)
 		*len_used = len;

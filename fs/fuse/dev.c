@@ -1028,41 +1028,27 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 	struct fuse_req *req = cs->req;
 	struct fuse_args_pages *ap = container_of(req->args, typeof(*ap), args);
 
-	if (ap->uses_folios) {
-		for (i = 0; i < ap->num_folios && (nbytes || zeroing); i++) {
-			int err;
-			unsigned int offset = ap->folio_descs[i].offset;
-			unsigned int count = min(nbytes, ap->folio_descs[i].length);
-			struct page *orig, *pagep;
+	for (i = 0; i < ap->num_folios && (nbytes || zeroing); i++) {
+		int err;
+		unsigned int offset = ap->descs[i].offset;
+		unsigned int count = min(nbytes, ap->descs[i].length);
+		struct page *orig, *pagep;
 
-			orig = pagep = &ap->folios[i]->page;
+		orig = pagep = &ap->folios[i]->page;
 
-			err = fuse_copy_page(cs, &pagep, offset, count, zeroing);
-			if (err)
-				return err;
+		err = fuse_copy_page(cs, &pagep, offset, count, zeroing);
+		if (err)
+			return err;
 
-			nbytes -= count;
+		nbytes -= count;
 
-			/*
-			 *  fuse_copy_page may have moved a page from a pipe
-			 *  instead of copying into our given page, so update
-			 *  the folios if it was replaced.
-			 */
-			if (pagep != orig)
-				ap->folios[i] = page_folio(pagep);
-		}
-	} else {
-		for (i = 0; i < ap->num_pages && (nbytes || zeroing); i++) {
-			int err;
-			unsigned int offset = ap->descs[i].offset;
-			unsigned int count = min(nbytes, ap->descs[i].length);
-
-			err = fuse_copy_page(cs, &ap->pages[i], offset, count, zeroing);
-			if (err)
-				return err;
-
-			nbytes -= count;
-		}
+		/*
+		 *  fuse_copy_page may have moved a page from a pipe instead of
+		 *  copying into our given page, so update the folios if it was
+		 *  replaced.
+		 */
+		if (pagep != orig)
+			ap->folios[i] = page_folio(pagep);
 	}
 	return 0;
 }
@@ -1761,7 +1747,7 @@ static int fuse_retrieve(struct fuse_mount *fm, struct inode *inode,
 	num_pages = (num + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	num_pages = min(num_pages, fc->max_pages);
 
-	args_size += num_pages * (sizeof(ap->folios[0]) + sizeof(ap->folio_descs[0]));
+	args_size += num_pages * (sizeof(ap->folios[0]) + sizeof(ap->descs[0]));
 
 	ra = kzalloc(args_size, GFP_KERNEL);
 	if (!ra)
@@ -1769,8 +1755,7 @@ static int fuse_retrieve(struct fuse_mount *fm, struct inode *inode,
 
 	ap = &ra->ap;
 	ap->folios = (void *) (ra + 1);
-	ap->folio_descs = (void *) (ap->folios + num_pages);
-	ap->uses_folios = true;
+	ap->descs = (void *) (ap->folios + num_pages);
 
 	args = &ap->args;
 	args->nodeid = outarg->nodeid;
@@ -1791,8 +1776,8 @@ static int fuse_retrieve(struct fuse_mount *fm, struct inode *inode,
 
 		this_num = min_t(unsigned, num, PAGE_SIZE - offset);
 		ap->folios[ap->num_folios] = folio;
-		ap->folio_descs[ap->num_folios].offset = offset;
-		ap->folio_descs[ap->num_folios].length = this_num;
+		ap->descs[ap->num_folios].offset = offset;
+		ap->descs[ap->num_folios].length = this_num;
 		ap->num_folios++;
 		cur_pages++;
 
