@@ -57,6 +57,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AW8738
 	imply SND_SOC_AW87390
 	imply SND_SOC_AW88395
+	imply SND_SOC_AW88081
 	imply SND_SOC_AW88261
 	imply SND_SOC_AW88399
 	imply SND_SOC_BT_SCO
@@ -688,6 +689,17 @@ config SND_SOC_AW88261
 	  digital Smart K audio amplifier. The output voltage of
 	  boost converter can be adjusted smartly according to
 	  the input amplitude.
+
+config SND_SOC_AW88081
+	tristate "Soc Audio for awinic aw88081"
+	depends on I2C
+	select REGMAP_I2C
+	select SND_SOC_AW88395_LIB
+	help
+	  This option enables support for aw88081 Smart PA.
+	  The awinic AW88081 is an I2S/TDM input, high efficiency
+	  digital Smart K audio amplifier. Due to its 9uV noise
+	  floor and ultra-low distortion, clean listening is guaranteed.
 
 config SND_SOC_AW87390
 	tristate "Soc Audio for awinic aw87390"
