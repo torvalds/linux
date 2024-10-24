@@ -1211,7 +1211,7 @@ static const struct iio_buffer_setup_ops kxcjk1013_buffer_setup_ops = {
 	.postdisable		= kxcjk1013_buffer_postdisable,
 };
 
-static const struct iio_info kxcjk1013_info = {
+static const struct iio_info kxcjk1013_iio_info = {
 	.attrs			= &kxcjk1013_attrs_group,
 	.read_raw		= kxcjk1013_read_raw,
 	.write_raw		= kxcjk1013_write_raw,
@@ -1533,7 +1533,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 	indio_dev->available_scan_masks = kxcjk1013_scan_masks;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->info = &kxcjk1013_info;
+	indio_dev->info = &kxcjk1013_iio_info;
 
 	if (client->irq > 0 && data->acpi_type != ACPI_SMO8500) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
