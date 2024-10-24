@@ -656,7 +656,7 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	struct bch_hash_info hash = bch2_hash_info_init(c, &dir->ei_inode);
 
 	struct bch_inode_info *inode;
-	bch2_trans_do(c, NULL, NULL, 0,
+	bch2_trans_do(c,
 		PTR_ERR_OR_ZERO(inode = bch2_lookup_trans(trans, inode_inum(dir),
 							  &hash, &dentry->d_name)));
 	if (IS_ERR(inode))
@@ -869,7 +869,7 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 	ret   = bch2_subvol_is_ro_trans(trans, src_dir->ei_inum.subvol) ?:
 		bch2_subvol_is_ro_trans(trans, dst_dir->ei_inum.subvol);
 	if (ret)
-		goto err;
+		goto err_tx_restart;
 
 	if (inode_attr_changing(dst_dir, src_inode, Inode_opt_project)) {
 		ret = bch2_fs_quota_transfer(c, src_inode,
@@ -1266,7 +1266,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(ei->v.i_ino, start), 0);
 
-	while (true) {
+	while (!ret || bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
@@ -1274,14 +1274,14 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		u32 snapshot;
 		ret = bch2_subvolume_get_snapshot(trans, ei->ei_inum.subvol, &snapshot);
 		if (ret)
-			goto err;
+			continue;
 
 		bch2_btree_iter_set_snapshot(&iter, snapshot);
 
 		k = bch2_btree_iter_peek_upto(&iter, end);
 		ret = bkey_err(k);
 		if (ret)
-			goto err;
+			continue;
 
 		if (!k.k)
 			break;
@@ -1301,7 +1301,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		ret = bch2_read_indirect_extent(trans, &data_btree,
 					&offset_into_extent, &cur);
 		if (ret)
-			break;
+			continue;
 
 		k = bkey_i_to_s_c(cur.k);
 		bch2_bkey_buf_realloc(&prev, c, k.k->u64s);
@@ -1329,10 +1329,6 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 		bch2_btree_iter_set_pos(&iter,
 			POS(iter.pos.inode, iter.pos.offset + sectors));
-err:
-		if (ret &&
-		    !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			break;
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
@@ -2040,7 +2036,7 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 	bch2_opts_to_text(&buf, c->opts, c, c->disk_sb.sb,
 			  OPT_MOUNT, OPT_HIDDEN, OPT_SHOW_MOUNT_STYLE);
 	printbuf_nul_terminate(&buf);
-	seq_puts(seq, buf.buf);
+	seq_printf(seq, ",%s", buf.buf);
 
 	int ret = buf.allocation_failure ? -ENOMEM : 0;
 	printbuf_exit(&buf);

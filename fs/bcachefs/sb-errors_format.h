@@ -267,8 +267,8 @@ enum bch_fsck_flags {
 	x(journal_entry_dup_same_device,			246,	0)		\
 	x(inode_bi_subvol_missing,				247,	0)		\
 	x(inode_bi_subvol_wrong,				248,	0)		\
-	x(inode_points_to_missing_dirent,			249,	0)		\
-	x(inode_points_to_wrong_dirent,				250,	0)		\
+	x(inode_points_to_missing_dirent,			249,	FSCK_AUTOFIX)	\
+	x(inode_points_to_wrong_dirent,				250,	FSCK_AUTOFIX)	\
 	x(inode_bi_parent_nonzero,				251,	0)		\
 	x(dirent_to_missing_parent_subvol,			252,	0)		\
 	x(dirent_not_visible_in_parent_subvol,			253,	0)		\

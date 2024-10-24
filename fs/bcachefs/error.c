@@ -251,7 +251,10 @@ int __bch2_fsck_err(struct bch_fs *c,
 	 *   delete the key)
 	 * - and we don't need to warn if we're not prompting
 	 */
-	WARN_ON(!(flags & FSCK_AUTOFIX) && !trans && bch2_current_has_btree_trans(c));
+	WARN_ON((flags & FSCK_CAN_FIX) &&
+		!(flags & FSCK_AUTOFIX) &&
+		!trans &&
+		bch2_current_has_btree_trans(c));
 
 	if ((flags & FSCK_CAN_FIX) &&
 	    test_bit(err, c->sb.errors_silent))
