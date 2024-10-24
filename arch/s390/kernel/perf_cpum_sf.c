@@ -818,7 +818,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	/* Use AUX buffer. No need to allocate it by ourself */
 	if (attr->config == PERF_EVENT_CPUM_SF_DIAG)
-		return 0;
+		goto out;
 
 	/* Allocate the per-CPU sampling buffer using the CPU information
 	 * from the event.  If the event is not pinned to a particular
