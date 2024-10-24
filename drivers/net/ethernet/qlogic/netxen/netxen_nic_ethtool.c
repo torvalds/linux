@@ -648,18 +648,18 @@ netxen_nic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 static void
 netxen_nic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
-	int index;
+	const char *str;
+	int i;
 
 	switch (stringset) {
 	case ETH_SS_TEST:
-		memcpy(data, *netxen_nic_gstrings_test,
-		       NETXEN_NIC_TEST_LEN * ETH_GSTRING_LEN);
+		for (i = 0; i < NETXEN_NIC_TEST_LEN; i++)
+			ethtool_puts(&data, netxen_nic_gstrings_test[i]);
 		break;
 	case ETH_SS_STATS:
-		for (index = 0; index < NETXEN_NIC_STATS_LEN; index++) {
-			memcpy(data + index * ETH_GSTRING_LEN,
-			       netxen_nic_gstrings_stats[index].stat_string,
-			       ETH_GSTRING_LEN);
+		for (i = 0; i < NETXEN_NIC_STATS_LEN; i++) {
+			str = netxen_nic_gstrings_stats[i].stat_string;
+			ethtool_puts(&data, str);
 		}
 		break;
 	}
