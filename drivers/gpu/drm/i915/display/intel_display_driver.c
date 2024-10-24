@@ -194,7 +194,7 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 
 	intel_display_irq_init(i915);
 	intel_dkl_phy_init(i915);
-	intel_color_init_hooks(i915);
+	intel_color_init_hooks(&i915->display);
 	intel_init_cdclk_hooks(&i915->display);
 	intel_audio_hooks_init(i915);
 	intel_dpll_init_clock_hook(i915);
@@ -249,7 +249,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	ret = intel_color_init(i915);
+	ret = intel_color_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
