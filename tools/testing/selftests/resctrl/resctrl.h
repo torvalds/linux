@@ -41,7 +41,7 @@
 
 #define BENCHMARK_ARGS		64
 
-#define DEFAULT_SPAN		(250 * MB)
+#define MINIMUM_SPAN		(250 * MB)
 
 /*
  * fill_buf_param:	"fill_buf" benchmark parameters
@@ -169,6 +169,7 @@ int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 unsigned char *alloc_buffer(size_t buf_size, bool memflush);
 void mem_flush(unsigned char *buf, size_t buf_size);
 void fill_cache_read(unsigned char *buf, size_t buf_size, bool once);
+ssize_t get_fill_buf_size(int cpu_no, const char *cache_type);
 int initialize_read_mem_bw_imc(void);
 int measure_read_mem_bw(const struct user_params *uparams,
 			struct resctrl_val_param *param, pid_t bm_pid);

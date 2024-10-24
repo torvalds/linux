@@ -189,7 +189,7 @@ static struct fill_buf_param *alloc_fill_buf_param(struct user_params *uparams)
 			ksft_exit_skip("Unable to parse benchmark buffer size.\n");
 		}
 	} else {
-		fill_param->buf_size = DEFAULT_SPAN;
+		fill_param->buf_size = MINIMUM_SPAN;
 	}
 
 	if (uparams->benchmark_cmd[2] && *uparams->benchmark_cmd[2] != '\0') {

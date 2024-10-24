@@ -149,7 +149,12 @@ static int mbm_run_test(const struct resctrl_test *test, const struct user_param
 		fill_buf.memflush = uparams->fill_buf->memflush;
 		param.fill_buf = &fill_buf;
 	} else if (!uparams->benchmark_cmd[0]) {
-		fill_buf.buf_size = DEFAULT_SPAN;
+		ssize_t buf_size;
+
+		buf_size = get_fill_buf_size(uparams->cpu, "L3");
+		if (buf_size < 0)
+			return buf_size;
+		fill_buf.buf_size = buf_size;
 		fill_buf.memflush = true;
 		param.fill_buf = &fill_buf;
 	}

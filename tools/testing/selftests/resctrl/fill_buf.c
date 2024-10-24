@@ -129,3 +129,16 @@ unsigned char *alloc_buffer(size_t buf_size, bool memflush)
 
 	return buf;
 }
+
+ssize_t get_fill_buf_size(int cpu_no, const char *cache_type)
+{
+	unsigned long cache_total_size = 0;
+	int ret;
+
+	ret = get_cache_size(cpu_no, cache_type, &cache_total_size);
+	if (ret)
+		return ret;
+
+	return cache_total_size * 2 > MINIMUM_SPAN ?
+			cache_total_size * 2 : MINIMUM_SPAN;
+}
