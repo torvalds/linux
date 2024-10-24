@@ -887,7 +887,7 @@ module_param_named(visualconfirm, amdgpu_dc_visual_confirm, uint, 0444);
  * the ABM algorithm, with 1 being the least reduction and 4 being the most
  * reduction.
  *
- * Defaults to -1, or disabled. Userspace can only override this level after
+ * Defaults to -1, or auto. Userspace can only override this level after
  * boot if it's set to auto.
  */
 int amdgpu_dm_abm_level = -1;
