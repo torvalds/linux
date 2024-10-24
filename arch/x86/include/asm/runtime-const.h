@@ -6,7 +6,7 @@
 	typeof(sym) __ret;					\
 	asm_inline("mov %1,%0\n1:\n"				\
 		".pushsection runtime_ptr_" #sym ",\"a\"\n\t"	\
-		".long 1b - %c2 - .\n\t"			\
+		".long 1b - %c2 - .\n"				\
 		".popsection"					\
 		:"=r" (__ret)					\
 		:"i" ((unsigned long)0x0123456789abcdefull),	\
@@ -20,7 +20,7 @@
 	typeof(0u+(val)) __ret = (val);				\
 	asm_inline("shrl $12,%k0\n1:\n"				\
 		".pushsection runtime_shift_" #sym ",\"a\"\n\t"	\
-		".long 1b - 1 - .\n\t"				\
+		".long 1b - 1 - .\n"				\
 		".popsection"					\
 		:"+r" (__ret));					\
 	__ret; })
