@@ -1029,6 +1029,18 @@ static inline struct page **fuse_pages_alloc(unsigned int npages, gfp_t flags,
 	return pages;
 }
 
+static inline struct folio **fuse_folios_alloc(unsigned int nfolios, gfp_t flags,
+					       struct fuse_folio_desc **desc)
+{
+	struct folio **folios;
+
+	folios = kzalloc(nfolios * (sizeof(struct folio *) +
+				    sizeof(struct fuse_folio_desc)), flags);
+	*desc = (void *) (folios + nfolios);
+
+	return folios;
+}
+
 static inline void fuse_page_descs_length_init(struct fuse_page_desc *descs,
 					       unsigned int index,
 					       unsigned int nr_pages)

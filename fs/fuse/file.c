@@ -760,9 +760,34 @@ static struct fuse_io_args *fuse_io_alloc(struct fuse_io_priv *io,
 	return ia;
 }
 
+static struct fuse_io_args *fuse_io_folios_alloc(struct fuse_io_priv *io,
+						 unsigned int nfolios)
+{
+	struct fuse_io_args *ia;
+
+	ia = kzalloc(sizeof(*ia), GFP_KERNEL);
+	if (ia) {
+		ia->io = io;
+		ia->ap.uses_folios = true;
+		ia->ap.folios = fuse_folios_alloc(nfolios, GFP_KERNEL,
+						  &ia->ap.folio_descs);
+		if (!ia->ap.folios) {
+			kfree(ia);
+			ia = NULL;
+		}
+	}
+	return ia;
+}
+
 static void fuse_io_free(struct fuse_io_args *ia)
 {
 	kfree(ia->ap.pages);
+	kfree(ia);
+}
+
+static void fuse_io_folios_free(struct fuse_io_args *ia)
+{
+	kfree(ia->ap.folios);
 	kfree(ia);
 }
 
@@ -865,7 +890,7 @@ static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
 	 * reached the client fs yet.  So the hole is not present there.
 	 */
 	if (!fc->writeback_cache) {
-		loff_t pos = page_offset(ap->pages[0]) + num_read;
+		loff_t pos = folio_pos(ap->folios[0]) + num_read;
 		fuse_read_update_size(inode, pos, attr_ver);
 	}
 }
@@ -875,14 +900,14 @@ static int fuse_do_readfolio(struct file *file, struct folio *folio)
 	struct inode *inode = folio->mapping->host;
 	struct fuse_mount *fm = get_fuse_mount(inode);
 	loff_t pos = folio_pos(folio);
-	struct fuse_page_desc desc = { .length = PAGE_SIZE };
-	struct page *page = &folio->page;
+	struct fuse_folio_desc desc = { .length = PAGE_SIZE };
 	struct fuse_io_args ia = {
 		.ap.args.page_zeroing = true,
 		.ap.args.out_pages = true,
-		.ap.num_pages = 1,
-		.ap.pages = &page,
-		.ap.descs = &desc,
+		.ap.uses_folios = true,
+		.ap.num_folios = 1,
+		.ap.folios = &folio,
+		.ap.folio_descs = &desc,
 	};
 	ssize_t res;
 	u64 attr_ver;
@@ -941,8 +966,8 @@ static void fuse_readpages_end(struct fuse_mount *fm, struct fuse_args *args,
 	size_t num_read = args->out_args[0].size;
 	struct address_space *mapping = NULL;
 
-	for (i = 0; mapping == NULL && i < ap->num_pages; i++)
-		mapping = ap->pages[i]->mapping;
+	for (i = 0; mapping == NULL && i < ap->num_folios; i++)
+		mapping = ap->folios[i]->mapping;
 
 	if (mapping) {
 		struct inode *inode = mapping->host;
@@ -956,15 +981,12 @@ static void fuse_readpages_end(struct fuse_mount *fm, struct fuse_args *args,
 		fuse_invalidate_atime(inode);
 	}
 
-	for (i = 0; i < ap->num_pages; i++) {
-		struct folio *folio = page_folio(ap->pages[i]);
-
-		folio_end_read(folio, !err);
-	}
+	for (i = 0; i < ap->num_folios; i++)
+		folio_end_read(ap->folios[i], !err);
 	if (ia->ff)
 		fuse_file_put(ia->ff, false);
 
-	fuse_io_free(ia);
+	fuse_io_folios_free(ia);
 }
 
 static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
@@ -972,8 +994,9 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 	struct fuse_file *ff = file->private_data;
 	struct fuse_mount *fm = ff->fm;
 	struct fuse_args_pages *ap = &ia->ap;
-	loff_t pos = page_offset(ap->pages[0]);
-	size_t count = ap->num_pages << PAGE_SHIFT;
+	loff_t pos = folio_pos(ap->folios[0]);
+	/* Currently, all folios in FUSE are one page */
+	size_t count = ap->num_folios << PAGE_SHIFT;
 	ssize_t res;
 	int err;
 
@@ -984,7 +1007,7 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 	/* Don't overflow end offset */
 	if (pos + (count - 1) == LLONG_MAX) {
 		count--;
-		ap->descs[ap->num_pages - 1].length--;
+		ap->folio_descs[ap->num_folios - 1].length--;
 	}
 	WARN_ON((loff_t) (pos + count) < 0);
 
@@ -1045,16 +1068,16 @@ static void fuse_readahead(struct readahead_control *rac)
 			 */
 			break;
 
-		ia = fuse_io_alloc(NULL, cur_pages);
+		ia = fuse_io_folios_alloc(NULL, cur_pages);
 		if (!ia)
 			return;
 		ap = &ia->ap;
 
-		while (ap->num_pages < cur_pages) {
+		while (ap->num_folios < cur_pages) {
 			folio = readahead_folio(rac);
-			ap->pages[ap->num_pages] = &folio->page;
-			ap->descs[ap->num_pages].length = folio_size(folio);
-			ap->num_pages++;
+			ap->folios[ap->num_folios] = folio;
+			ap->folio_descs[ap->num_folios].length = folio_size(folio);
+			ap->num_folios++;
 		}
 		fuse_send_readpages(ia, rac->file);
 		nr_pages -= cur_pages;
