@@ -1197,8 +1197,8 @@ static ssize_t fuse_send_write_pages(struct fuse_io_args *ia,
 	bool short_write;
 	int err;
 
-	for (i = 0; i < ap->num_pages; i++)
-		fuse_wait_on_page_writeback(inode, ap->pages[i]->index);
+	for (i = 0; i < ap->num_folios; i++)
+		fuse_wait_on_folio_writeback(inode, ap->folios[i]);
 
 	fuse_write_args_fill(ia, ff, pos, count);
 	ia->write.in.flags = fuse_write_flags(iocb);
@@ -1210,10 +1210,10 @@ static ssize_t fuse_send_write_pages(struct fuse_io_args *ia,
 		err = -EIO;
 
 	short_write = ia->write.out.size < count;
-	offset = ap->descs[0].offset;
+	offset = ap->folio_descs[0].offset;
 	count = ia->write.out.size;
-	for (i = 0; i < ap->num_pages; i++) {
-		struct folio *folio = page_folio(ap->pages[i]);
+	for (i = 0; i < ap->num_folios; i++) {
+		struct folio *folio = ap->folios[i];
 
 		if (err) {
 			folio_clear_uptodate(folio);
@@ -1227,7 +1227,7 @@ static ssize_t fuse_send_write_pages(struct fuse_io_args *ia,
 			}
 			offset = 0;
 		}
-		if (ia->write.page_locked && (i == ap->num_pages - 1))
+		if (ia->write.folio_locked && (i == ap->num_folios - 1))
 			folio_unlock(folio);
 		folio_put(folio);
 	}
@@ -1243,11 +1243,12 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 	struct fuse_args_pages *ap = &ia->ap;
 	struct fuse_conn *fc = get_fuse_conn(mapping->host);
 	unsigned offset = pos & (PAGE_SIZE - 1);
+	unsigned int nr_pages = 0;
 	size_t count = 0;
 	int err;
 
 	ap->args.in_pages = true;
-	ap->descs[0].offset = offset;
+	ap->folio_descs[0].offset = offset;
 
 	do {
 		size_t tmp;
@@ -1283,9 +1284,10 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 		}
 
 		err = 0;
-		ap->pages[ap->num_pages] = &folio->page;
-		ap->descs[ap->num_pages].length = tmp;
-		ap->num_pages++;
+		ap->folios[ap->num_folios] = folio;
+		ap->folio_descs[ap->num_folios].length = tmp;
+		ap->num_folios++;
+		nr_pages++;
 
 		count += tmp;
 		pos += tmp;
@@ -1300,13 +1302,13 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 		if (folio_test_uptodate(folio)) {
 			folio_unlock(folio);
 		} else {
-			ia->write.page_locked = true;
+			ia->write.folio_locked = true;
 			break;
 		}
 		if (!fc->big_writes)
 			break;
 	} while (iov_iter_count(ii) && count < fc->max_write &&
-		 ap->num_pages < max_pages && offset == 0);
+		 nr_pages < max_pages && offset == 0);
 
 	return count > 0 ? count : err;
 }
@@ -1340,8 +1342,9 @@ static ssize_t fuse_perform_write(struct kiocb *iocb, struct iov_iter *ii)
 		unsigned int nr_pages = fuse_wr_pages(pos, iov_iter_count(ii),
 						      fc->max_pages);
 
-		ap->pages = fuse_pages_alloc(nr_pages, GFP_KERNEL, &ap->descs);
-		if (!ap->pages) {
+		ap->uses_folios = true;
+		ap->folios = fuse_folios_alloc(nr_pages, GFP_KERNEL, &ap->folio_descs);
+		if (!ap->folios) {
 			err = -ENOMEM;
 			break;
 		}
@@ -1363,7 +1366,7 @@ static ssize_t fuse_perform_write(struct kiocb *iocb, struct iov_iter *ii)
 					err = -EIO;
 			}
 		}
-		kfree(ap->pages);
+		kfree(ap->folios);
 	} while (!err && iov_iter_count(ii));
 
 	fuse_write_update_attr(inode, pos, res);
