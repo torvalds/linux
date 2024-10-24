@@ -809,7 +809,6 @@ bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp)
 void intel_pps_vdd_on(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	intel_wakeref_t wakeref;
 	bool vdd;
 
@@ -819,10 +818,10 @@ void intel_pps_vdd_on(struct intel_dp *intel_dp)
 	vdd = false;
 	with_intel_pps_lock(intel_dp, wakeref)
 		vdd = intel_pps_vdd_on_unlocked(intel_dp);
-	I915_STATE_WARN(i915, !vdd, "[ENCODER:%d:%s] %s VDD already requested on\n",
-			dp_to_dig_port(intel_dp)->base.base.base.id,
-			dp_to_dig_port(intel_dp)->base.base.name,
-			pps_name(intel_dp));
+	INTEL_DISPLAY_STATE_WARN(display, !vdd, "[ENCODER:%d:%s] %s VDD already requested on\n",
+				 dp_to_dig_port(intel_dp)->base.base.base.id,
+				 dp_to_dig_port(intel_dp)->base.base.name,
+				 pps_name(intel_dp));
 }
 
 static void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
@@ -929,18 +928,17 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 void intel_pps_vdd_off_unlocked(struct intel_dp *intel_dp, bool sync)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
 	lockdep_assert_held(&display->pps.mutex);
 
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	I915_STATE_WARN(dev_priv, !intel_dp->pps.want_panel_vdd,
-			"[ENCODER:%d:%s] %s VDD not forced on",
-			dp_to_dig_port(intel_dp)->base.base.base.id,
-			dp_to_dig_port(intel_dp)->base.base.name,
-			pps_name(intel_dp));
+	INTEL_DISPLAY_STATE_WARN(display, !intel_dp->pps.want_panel_vdd,
+				 "[ENCODER:%d:%s] %s VDD not forced on",
+				 dp_to_dig_port(intel_dp)->base.base.base.id,
+				 dp_to_dig_port(intel_dp)->base.base.name,
+				 pps_name(intel_dp));
 
 	intel_dp->pps.want_panel_vdd = false;
 
@@ -1878,7 +1876,7 @@ void assert_pps_unlocked(struct intel_display *display, enum pipe pipe)
 	    ((val & PANEL_UNLOCK_MASK) == PANEL_UNLOCK_REGS))
 		locked = false;
 
-	I915_STATE_WARN(dev_priv, panel_pipe == pipe && locked,
-			"panel assertion failure, pipe %c regs locked\n",
-			pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display, panel_pipe == pipe && locked,
+				 "panel assertion failure, pipe %c regs locked\n",
+				 pipe_name(pipe));
 }

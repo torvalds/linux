@@ -2331,12 +2331,13 @@ void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe)
 static void assert_pll(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, bool state)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 
-	cur_state = intel_de_read(dev_priv, DPLL(dev_priv, pipe)) & DPLL_VCO_ENABLE;
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"PLL state assertion failure (expected %s, current %s)\n",
-			str_on_off(state), str_on_off(cur_state));
+	cur_state = intel_de_read(display, DPLL(display, pipe)) & DPLL_VCO_ENABLE;
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "PLL state assertion failure (expected %s, current %s)\n",
+				 str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)

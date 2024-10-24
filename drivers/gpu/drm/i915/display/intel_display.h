@@ -585,18 +585,17 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 bool assert_port_valid(struct drm_i915_private *i915, enum port port);
 
 /*
- * Use I915_STATE_WARN(x) (rather than WARN() and WARN_ON()) for hw state sanity
- * checks to check for unexpected conditions which may not necessarily be a user
- * visible problem. This will either WARN() or DRM_ERROR() depending on the
- * verbose_state_checks module param, to enable distros and users to tailor
- * their preferred amount of i915 abrt spam.
+ * Use INTEL_DISPLAY_STATE_WARN(x) (rather than WARN() and WARN_ON()) for hw
+ * state sanity checks to check for unexpected conditions which may not
+ * necessarily be a user visible problem. This will either drm_WARN() or
+ * drm_err() depending on the verbose_state_checks module param, to enable
+ * distros and users to tailor their preferred amount of i915 abrt spam.
  */
-#define I915_STATE_WARN(__i915, condition, format...) ({		\
-	struct drm_device *drm = &(__i915)->drm;			\
+#define INTEL_DISPLAY_STATE_WARN(__display, condition, format...) ({	\
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
-		if (!drm_WARN(drm, __i915->display.params.verbose_state_checks, format)) \
-			drm_err(drm, format);				\
+		if (!drm_WARN((__display)->drm, (__display)->params.verbose_state_checks, format)) \
+			drm_err((__display)->drm, format);		\
 	unlikely(__ret_warn_on);					\
 })
 
