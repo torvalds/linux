@@ -23,3 +23,6 @@ qcom_dma_heaps.ko
 msm_dma_iommu_mapping.ko
 mem-offline.ko
 qcom_iommu_debug.ko
+phy-qcom-emu.ko
+phy-generic.ko
+dwc3-msm.ko
