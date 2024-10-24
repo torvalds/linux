@@ -4,11 +4,12 @@
  * Copyright (c) 2014, Intel Corporation.
  */
 
-#include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -471,23 +472,6 @@ static int kiox010a_dsm(struct device *dev, int fn_index)
 	return 0;
 }
 
-static const struct acpi_device_id kx_acpi_match[] = {
-	{ "KIOX0008", (kernel_ulong_t)&kxcj91008_info },
-	{ "KIOX0009", (kernel_ulong_t)&kxtj21009_info },
-	{ "KIOX000A", (kernel_ulong_t)&kxcj91008_info },
-	/* KXCJ91008 in the display of a yoga 2-in-1 */
-	{ "KIOX010A", (kernel_ulong_t)&kxcj91008_kiox010a_info },
-	/* KXCJ91008 in the base of a yoga 2-in-1 */
-	{ "KIOX020A", (kernel_ulong_t)&kxcj91008_kiox020a_info },
-	{ "KXCJ1008", (kernel_ulong_t)&kxcj91008_info },
-	{ "KXCJ1013", (kernel_ulong_t)&kxcjk1013_info },
-	{ "KXCJ9000", (kernel_ulong_t)&kxcj91008_info },
-	{ "KXJ2109",  (kernel_ulong_t)&kxtj21009_info },
-	{ "KXTJ1009", (kernel_ulong_t)&kxtj21009_info },
-	{ "SMO8500",  (kernel_ulong_t)&kxcj91008_smo8500_info },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, kx_acpi_match);
 #endif
 
 static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
@@ -1740,10 +1724,28 @@ static const struct of_device_id kxcjk1013_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, kxcjk1013_of_match);
 
+static const struct acpi_device_id kx_acpi_match[] = {
+	{ "KIOX0008", (kernel_ulong_t)&kxcj91008_info },
+	{ "KIOX0009", (kernel_ulong_t)&kxtj21009_info },
+	{ "KIOX000A", (kernel_ulong_t)&kxcj91008_info },
+	/* KXCJ91008 in the display of a yoga 2-in-1 */
+	{ "KIOX010A", (kernel_ulong_t)&kxcj91008_kiox010a_info },
+	/* KXCJ91008 in the base of a yoga 2-in-1 */
+	{ "KIOX020A", (kernel_ulong_t)&kxcj91008_kiox020a_info },
+	{ "KXCJ1008", (kernel_ulong_t)&kxcj91008_info },
+	{ "KXCJ1013", (kernel_ulong_t)&kxcjk1013_info },
+	{ "KXCJ9000", (kernel_ulong_t)&kxcj91008_info },
+	{ "KXJ2109",  (kernel_ulong_t)&kxtj21009_info },
+	{ "KXTJ1009", (kernel_ulong_t)&kxtj21009_info },
+	{ "SMO8500",  (kernel_ulong_t)&kxcj91008_smo8500_info },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, kx_acpi_match);
+
 static struct i2c_driver kxcjk1013_driver = {
 	.driver = {
 		.name	= KXCJK1013_DRV_NAME,
-		.acpi_match_table = ACPI_PTR(kx_acpi_match),
+		.acpi_match_table = kx_acpi_match,
 		.of_match_table = kxcjk1013_of_match,
 		.pm	= pm_ptr(&kxcjk1013_pm_ops),
 	},
