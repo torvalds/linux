@@ -391,25 +391,6 @@ size_t nilfs_palloc_entry_offset(const struct inode *inode, __u64 nr,
 }
 
 /**
- * nilfs_palloc_block_get_entry - get kernel address of an entry
- * @inode: inode of metadata file using this allocator
- * @nr: serial number of the entry (e.g. inode number)
- * @bh: buffer head of the buffer storing the entry block
- * @kaddr: kernel address mapped for the page including the buffer
- */
-void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
-				   const struct buffer_head *bh, void *kaddr)
-{
-	unsigned long entry_offset, group_offset;
-
-	nilfs_palloc_group(inode, nr, &group_offset);
-	entry_offset = group_offset % NILFS_MDT(inode)->mi_entries_per_block;
-
-	return kaddr + bh_offset(bh) +
-		entry_offset * NILFS_MDT(inode)->mi_entry_size;
-}
-
-/**
  * nilfs_palloc_find_available_slot - find available slot in a group
  * @bitmap: bitmap of the group
  * @target: offset number of an entry in the group (start point)
