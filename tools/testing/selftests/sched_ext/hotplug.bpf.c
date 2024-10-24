@@ -46,16 +46,16 @@ void BPF_STRUCT_OPS_SLEEPABLE(hotplug_cpu_offline, s32 cpu)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops hotplug_cb_ops = {
-	.cpu_online		= hotplug_cpu_online,
-	.cpu_offline		= hotplug_cpu_offline,
-	.exit			= hotplug_exit,
+	.cpu_online		= (void *) hotplug_cpu_online,
+	.cpu_offline		= (void *) hotplug_cpu_offline,
+	.exit			= (void *) hotplug_exit,
 	.name			= "hotplug_cbs",
 	.timeout_ms		= 1000U,
 };
 
 SEC(".struct_ops.link")
 struct sched_ext_ops hotplug_nocb_ops = {
-	.exit			= hotplug_exit,
+	.exit			= (void *) hotplug_exit,
 	.name			= "hotplug_nocbs",
 	.timeout_ms		= 1000U,
 };

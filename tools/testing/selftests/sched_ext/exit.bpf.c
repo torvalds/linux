@@ -72,13 +72,13 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(exit_init)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops exit_ops = {
-	.select_cpu		= exit_select_cpu,
-	.enqueue		= exit_enqueue,
-	.dispatch		= exit_dispatch,
-	.init_task		= exit_init_task,
-	.enable			= exit_enable,
-	.exit			= exit_exit,
-	.init			= exit_init,
+	.select_cpu		= (void *) exit_select_cpu,
+	.enqueue		= (void *) exit_enqueue,
+	.dispatch		= (void *) exit_dispatch,
+	.init_task		= (void *) exit_init_task,
+	.enable			= (void *) exit_enable,
+	.exit			= (void *) exit_exit,
+	.init			= (void *) exit_init,
 	.name			= "exit",
 	.timeout_ms		= 1000U,
 };

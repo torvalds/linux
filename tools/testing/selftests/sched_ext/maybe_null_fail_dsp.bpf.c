@@ -19,7 +19,7 @@ void BPF_STRUCT_OPS(maybe_null_fail_dispatch, s32 cpu, struct task_struct *p)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops maybe_null_fail = {
-	.dispatch               = maybe_null_fail_dispatch,
-	.enable			= maybe_null_running,
+	.dispatch               = (void *) maybe_null_fail_dispatch,
+	.enable			= (void *) maybe_null_running,
 	.name			= "maybe_null_fail_dispatch",
 };
