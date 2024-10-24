@@ -66,6 +66,15 @@ config TYPEC_MUX_PTN36502
 	  Say Y or M if your system has a NXP PTN36502 Type-C redriver chip
 	  found on some devices with a Type-C port.
 
+config TYPEC_MUX_TUSB1046
+	tristate "TI TUSB1046 Type-C crosspoint switch driver"
+	depends on I2C
+	help
+	  Driver for the Texas Instruments TUSB1046-DCI crosspoint switch.
+	  Supports flipping USB-C SuperSpeed lanes to adapt to orientation
+	  changes, as well as muxing DisplayPort and sideband signals to a
+	  common Type-C connector.
+
 config TYPEC_MUX_WCD939X_USBSS
 	tristate "Qualcomm WCD939x USBSS Analog Audio Switch driver"
 	depends on I2C
