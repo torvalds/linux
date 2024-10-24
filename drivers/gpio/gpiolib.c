@@ -2695,6 +2695,8 @@ int gpiod_direction_input(struct gpio_desc *desc)
 {
 	int ret;
 
+	VALIDATE_DESC(desc);
+
 	ret = gpiod_direction_input_nonotify(desc);
 	if (ret == 0)
 		gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_CONFIG);
@@ -2706,8 +2708,6 @@ EXPORT_SYMBOL_GPL(gpiod_direction_input);
 int gpiod_direction_input_nonotify(struct gpio_desc *desc)
 {
 	int ret = 0;
-
-	VALIDATE_DESC(desc);
 
 	CLASS(gpio_chip_guard, guard)(desc);
 	if (!guard.gc)
@@ -2841,6 +2841,8 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 {
 	int ret;
 
+	VALIDATE_DESC(desc);
+
 	ret = gpiod_direction_output_nonotify(desc, value);
 	if (ret == 0)
 		gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_CONFIG);
@@ -2853,8 +2855,6 @@ int gpiod_direction_output_nonotify(struct gpio_desc *desc, int value)
 {
 	unsigned long flags;
 	int ret;
-
-	VALIDATE_DESC(desc);
 
 	flags = READ_ONCE(desc->flags);
 
