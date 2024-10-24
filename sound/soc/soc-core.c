@@ -558,7 +558,8 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 */
 	rtd->card	= card;
 	rtd->dai_link	= dai_link;
-	rtd->num	= card->num_rtd++;
+	rtd->id		= card->num_rtd++;
+	rtd->num	= rtd->id;			/* REMOVE ME */
 	rtd->pmdown_time = pmdown_time;			/* default power off timeout */
 
 	/* see for_each_card_rtds */
@@ -1458,7 +1459,7 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_component *component;
-	int ret, num, i;
+	int ret, id, i;
 
 	/* do machine specific initialization */
 	ret = snd_soc_link_init(rtd);
@@ -1473,7 +1474,7 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 	/* add DPCM sysfs entries */
 	soc_dpcm_debugfs_add(rtd);
 
-	num = rtd->num;
+	id = rtd->id;
 
 	/*
 	 * most drivers will register their PCMs using DAI link ordering but
@@ -1485,18 +1486,18 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 			continue;
 
 		if (rtd->dai_link->no_pcm)
-			num += component->driver->be_pcm_base;
+			id += component->driver->be_pcm_base;
 		else
-			num = rtd->dai_link->id;
+			id = rtd->dai_link->id;
 	}
 
 	/* create compress_device if possible */
-	ret = snd_soc_dai_compress_new(cpu_dai, rtd, num);
+	ret = snd_soc_dai_compress_new(cpu_dai, rtd, id);
 	if (ret != -ENOTSUPP)
 		goto err;
 
 	/* create the pcm */
-	ret = soc_new_pcm(rtd, num);
+	ret = soc_new_pcm(rtd, id);
 	if (ret < 0) {
 		dev_err(card->dev, "ASoC: can't create pcm %s :%d\n",
 			dai_link->stream_name, ret);
