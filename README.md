@@ -1,5 +1,10 @@
-Linux kernel
-============
+# GNU/Mikux
+
+It's simply fork of torvalds/linux. We don't need Linus now. 
+
+The world need MORE Miku
+
+----
 
 There are several guides for kernel developers and users. These guides can
 be rendered in a number of formats, like HTML and PDF. Please read
