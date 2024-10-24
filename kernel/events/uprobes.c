@@ -27,6 +27,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/khugepaged.h>
 #include <linux/rcupdate_trace.h>
+#include <linux/workqueue.h>
 
 #include <linux/uprobes.h>
 
@@ -61,7 +62,10 @@ struct uprobe {
 	struct list_head	pending_list;
 	struct list_head	consumers;
 	struct inode		*inode;		/* Also hold a ref to inode */
-	struct rcu_head		rcu;
+	union {
+		struct rcu_head		rcu;
+		struct work_struct	work;
+	};
 	loff_t			offset;
 	loff_t			ref_ctr_offset;
 	unsigned long		flags;		/* "unsigned long" so bitops work */
@@ -625,10 +629,9 @@ static void uprobe_free_rcu(struct rcu_head *rcu)
 	kfree(uprobe);
 }
 
-static void put_uprobe(struct uprobe *uprobe)
+static void uprobe_free_deferred(struct work_struct *work)
 {
-	if (!refcount_dec_and_test(&uprobe->ref))
-		return;
+	struct uprobe *uprobe = container_of(work, struct uprobe, work);
 
 	write_lock(&uprobes_treelock);
 
@@ -650,6 +653,15 @@ static void put_uprobe(struct uprobe *uprobe)
 	mutex_unlock(&delayed_uprobe_lock);
 
 	call_rcu_tasks_trace(&uprobe->rcu, uprobe_free_rcu);
+}
+
+static void put_uprobe(struct uprobe *uprobe)
+{
+	if (!refcount_dec_and_test(&uprobe->ref))
+		return;
+
+	INIT_WORK(&uprobe->work, uprobe_free_deferred);
+	schedule_work(&uprobe->work);
 }
 
 static __always_inline
