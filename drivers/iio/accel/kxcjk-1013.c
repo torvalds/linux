@@ -179,80 +179,89 @@ enum kx_chipset {
 };
 
 /* Refer to section 4 of the specification */
-static const struct {
+struct kx_odr_start_up_time {
 	int odr_bits;
 	int usec;
-} odr_start_up_times[KX_MAX_CHIPS][12] = {
-	/* KXCJK-1013 */
-	[KXCJK1013] = {
-		{0x08, 100000},
-		{0x09, 100000},
-		{0x0A, 100000},
-		{0x0B, 100000},
-		{0, 80000},
-		{0x01, 41000},
-		{0x02, 21000},
-		{0x03, 11000},
-		{0x04, 6400},
-		{0x05, 3900},
-		{0x06, 2700},
-		{0x07, 2100},
-	},
-	/* KXCJ9-1008 */
-	[KXCJ91008] = {
-		{0x08, 100000},
-		{0x09, 100000},
-		{0x0A, 100000},
-		{0x0B, 100000},
-		{0, 80000},
-		{0x01, 41000},
-		{0x02, 21000},
-		{0x03, 11000},
-		{0x04, 6400},
-		{0x05, 3900},
-		{0x06, 2700},
-		{0x07, 2100},
-	},
-	/* KXCTJ2-1009 */
-	[KXTJ21009] = {
-		{0x08, 1240000},
-		{0x09, 621000},
-		{0x0A, 309000},
-		{0x0B, 151000},
-		{0, 80000},
-		{0x01, 41000},
-		{0x02, 21000},
-		{0x03, 11000},
-		{0x04, 6000},
-		{0x05, 4000},
-		{0x06, 3000},
-		{0x07, 2000},
-	},
-	/* KXTF9 */
-	[KXTF9] = {
-		{0x01, 81000},
-		{0x02, 41000},
-		{0x03, 21000},
-		{0x04, 11000},
-		{0x05, 5100},
-		{0x06, 2700},
-	},
-	/* KX023-1025 */
-	[KX0231025] = {
-		/* First 4 are not in datasheet, taken from KXCTJ2-1009 */
-		{0x08, 1240000},
-		{0x09, 621000},
-		{0x0A, 309000},
-		{0x0B, 151000},
-		{0, 81000},
-		{0x01, 40000},
-		{0x02, 22000},
-		{0x03, 12000},
-		{0x04, 7000},
-		{0x05, 4400},
-		{0x06, 3000},
-		{0x07, 3000},
-	},
+};
+
+/* KXCJK-1013 */
+static const struct kx_odr_start_up_time kxcjk1013_odr_start_up_times[] = {
+	{ 0x08, 100000 },
+	{ 0x09, 100000 },
+	{ 0x0A, 100000 },
+	{ 0x0B, 100000 },
+	{ 0x00, 80000 },
+	{ 0x01, 41000 },
+	{ 0x02, 21000 },
+	{ 0x03, 11000 },
+	{ 0x04, 6400 },
+	{ 0x05, 3900 },
+	{ 0x06, 2700 },
+	{ 0x07, 2100 },
+	{ }
+};
+
+/* KXCJ9-1008 */
+static const struct kx_odr_start_up_time kxcj91008_odr_start_up_times[] = {
+	{ 0x08, 100000 },
+	{ 0x09, 100000 },
+	{ 0x0A, 100000 },
+	{ 0x0B, 100000 },
+	{ 0x00, 80000 },
+	{ 0x01, 41000 },
+	{ 0x02, 21000 },
+	{ 0x03, 11000 },
+	{ 0x04, 6400 },
+	{ 0x05, 3900 },
+	{ 0x06, 2700 },
+	{ 0x07, 2100 },
+	{ }
+};
+
+/* KXCTJ2-1009 */
+static const struct kx_odr_start_up_time kxtj21009_odr_start_up_times[] = {
+	{ 0x08, 1240000 },
+	{ 0x09, 621000 },
+	{ 0x0A, 309000 },
+	{ 0x0B, 151000 },
+	{ 0x00, 80000 },
+	{ 0x01, 41000 },
+	{ 0x02, 21000 },
+	{ 0x03, 11000 },
+	{ 0x04, 6000 },
+	{ 0x05, 4000 },
+	{ 0x06, 3000 },
+	{ 0x07, 2000 },
+	{ }
+};
+
+/* KXTF9 */
+static const struct kx_odr_start_up_time kxtf9_odr_start_up_times[] = {
+	{ 0x01, 81000 },
+	{ 0x02, 41000 },
+	{ 0x03, 21000 },
+	{ 0x04, 11000 },
+	{ 0x05, 5100 },
+	{ 0x06, 2700 },
+	{ }
+};
+
+/* KX023-1025 */
+static const struct kx_odr_start_up_time kx0231025_odr_start_up_times[] = {
+	/* First 4 are not in datasheet, taken from KXCTJ2-1009 */
+	{ 0x08, 1240000 },
+	{ 0x09, 621000 },
+	{ 0x0A, 309000 },
+	{ 0x0B, 151000 },
+	{ 0x00, 81000 },
+	{ 0x01, 40000 },
+	{ 0x02, 22000 },
+	{ 0x03, 12000 },
+	{ 0x04, 7000 },
+	{ 0x05, 4400 },
+	{ 0x06, 3000 },
+	{ 0x07, 3000 },
+	{ }
 };
 
 enum kx_acpi_type {
@@ -313,50 +322,59 @@ static const struct kx_chipset_regs kx0231025_regs = {
 
 struct kx_chipset_info {
 	const struct kx_chipset_regs *regs;
+	const struct kx_odr_start_up_time *times;
 	enum kx_chipset chipset;
 	enum kx_acpi_type acpi_type;
 };
 
 static const struct kx_chipset_info kxcjk1013_info = {
 	.regs = &kxcjk1013_regs,
+	.times = pm_ptr(kxcjk1013_odr_start_up_times),
 	.chipset = KXCJK1013,
 };
 
 static const struct kx_chipset_info kxcj91008_info = {
 	.regs = &kxcjk1013_regs,
+	.times = pm_ptr(kxcj91008_odr_start_up_times),
 	.chipset = KXCJ91008,
 };
 
 static const struct kx_chipset_info kxcj91008_kiox010a_info = {
 	.regs = &kxcjk1013_regs,
+	.times = pm_ptr(kxcj91008_odr_start_up_times),
 	.chipset = KXCJ91008,
 	.acpi_type = ACPI_KIOX010A,
 };
 
 static const struct kx_chipset_info kxcj91008_kiox020a_info = {
 	.regs = &kxcjk1013_regs,
+	.times = pm_ptr(kxcj91008_odr_start_up_times),
 	.chipset = KXCJ91008,
 	.acpi_type = ACPI_GENERIC,
 };
 
 static const struct kx_chipset_info kxcj91008_smo8500_info = {
 	.regs = &kxcjk1013_regs,
+	.times = pm_ptr(kxcj91008_odr_start_up_times),
 	.chipset = KXCJ91008,
 	.acpi_type = ACPI_SMO8500,
 };
 
 static const struct kx_chipset_info kxtj21009_info = {
 	.regs = &kxcjk1013_regs,
+	.times = pm_ptr(kxtj21009_odr_start_up_times),
 	.chipset = KXTJ21009,
 };
 
 static const struct kx_chipset_info kxtf9_info = {
 	.regs = &kxtf9_regs,
+	.times = pm_ptr(kxtf9_odr_start_up_times),
 	.chipset = KXTF9,
 };
 
 static const struct kx_chipset_info kx0231025_info = {
 	.regs = &kx0231025_regs,
+	.times = pm_ptr(kx0231025_odr_start_up_times),
 	.chipset = KX0231025,
 };
 
@@ -655,12 +673,11 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 
 static int kxcjk1013_get_startup_times(struct kxcjk1013_data *data)
 {
-	int idx = data->info->chipset;
-	int i;
+	const struct kx_odr_start_up_time *times;
 
-	for (i = 0; i < ARRAY_SIZE(odr_start_up_times[idx]); ++i) {
-		if (odr_start_up_times[idx][i].odr_bits == data->odr_bits)
-			return odr_start_up_times[idx][i].usec;
+	for (times = data->info->times; times->usec; times++) {
+		if (times->odr_bits == data->odr_bits)
+			return times->usec;
 	}
 
 	return KXCJK1013_MAX_STARTUP_TIME_US;
