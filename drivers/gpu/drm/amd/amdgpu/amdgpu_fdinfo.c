@@ -66,6 +66,10 @@ void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 		[TTM_PL_VRAM] = "vram",
 		[TTM_PL_TT] = "gtt",
 		[TTM_PL_SYSTEM] = "cpu",
+		[AMDGPU_PL_GDS] = "gds",
+		[AMDGPU_PL_GWS] = "gws",
+		[AMDGPU_PL_OA] = "oa",
+		[AMDGPU_PL_DOORBELL] = "doorbell",
 	};
 	unsigned int hw_ip, i;
 	int ret;
@@ -87,12 +91,16 @@ void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 
 	drm_printf(p, "pasid:\t%u\n", fpriv->vm.pasid);
 
-	for (i = 0; i < TTM_PL_PRIV; i++)
+	for (i = 0; i < ARRAY_SIZE(pl_name); i++) {
+		if (!pl_name[i])
+			continue;
+
 		drm_print_memory_stats(p,
 				       &stats[i].drm,
 				       DRM_GEM_OBJECT_RESIDENT |
 				       DRM_GEM_OBJECT_PURGEABLE,
 				       pl_name[i]);
+	}
 
 	/* Legacy amdgpu keys, alias to drm-resident-memory-: */
 	drm_printf(p, "drm-memory-vram:\t%llu KiB\n",
