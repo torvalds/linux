@@ -2733,26 +2733,27 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 			return MICREL_KSZ8_P1_ERRATA;
 		break;
 	case KSZ8567_CHIP_ID:
+		/* KSZ8567R Errata DS80000752C Module 4 */
+	case KSZ8765_CHIP_ID:
+	case KSZ8794_CHIP_ID:
+	case KSZ8795_CHIP_ID:
+		/* KSZ879x/KSZ877x/KSZ876x Errata DS80000687C Module 2 */
 	case KSZ9477_CHIP_ID:
+		/* KSZ9477S Errata DS80000754A Module 4 */
 	case KSZ9567_CHIP_ID:
+		/* KSZ9567S Errata DS80000756A Module 4 */
 	case KSZ9896_CHIP_ID:
+		/* KSZ9896C Errata DS80000757A Module 3 */
 	case KSZ9897_CHIP_ID:
-		/* KSZ9477 Errata DS80000754C
-		 *
-		 * Module 4: Energy Efficient Ethernet (EEE) feature select must
-		 * be manually disabled
+		/* KSZ9897R Errata DS80000758C Module 4 */
+		/* Energy Efficient Ethernet (EEE) feature select must be manually disabled
 		 *   The EEE feature is enabled by default, but it is not fully
 		 *   operational. It must be manually disabled through register
 		 *   controls. If not disabled, the PHY ports can auto-negotiate
 		 *   to enable EEE, and this feature can cause link drops when
 		 *   linked to another device supporting EEE.
 		 *
-		 * The same item appears in the errata for the KSZ9567, KSZ9896,
-		 * and KSZ9897.
-		 *
-		 * A similar item appears in the errata for the KSZ8567, but
-		 * provides an alternative workaround. For now, use the simple
-		 * workaround of disabling the EEE feature for this device too.
+		 * The same item appears in the errata for all switches above.
 		 */
 		return MICREL_NO_EEE;
 	}
