@@ -399,10 +399,9 @@ int nilfs_mdt_fetch_dirty(struct inode *inode)
 	return test_bit(NILFS_I_DIRTY, &ii->i_state);
 }
 
-static int
-nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
+static int nilfs_mdt_write_folio(struct folio *folio,
+		struct writeback_control *wbc)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = folio->mapping->host;
 	struct super_block *sb;
 	int err = 0;
@@ -435,11 +434,23 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 	return err;
 }
 
+static int nilfs_mdt_writeback(struct address_space *mapping,
+		struct writeback_control *wbc)
+{
+	struct folio *folio = NULL;
+	int error;
+
+	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
+		error = nilfs_mdt_write_folio(folio, wbc);
+
+	return error;
+}
 
 static const struct address_space_operations def_mdt_aops = {
 	.dirty_folio		= block_dirty_folio,
 	.invalidate_folio	= block_invalidate_folio,
-	.writepage		= nilfs_mdt_write_page,
+	.writepages		= nilfs_mdt_writeback,
+	.migrate_folio		= buffer_migrate_folio_norefs,
 };
 
 static const struct inode_operations def_mdt_iops;
