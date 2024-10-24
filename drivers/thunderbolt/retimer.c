@@ -531,6 +531,8 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 
 	max = i;
 	ret = 0;
+	if (!IS_ENABLED(CONFIG_USB4_DEBUGFS_MARGINING))
+		max = min(last_idx, max);
 
 	/* Add retimers if they do not exist already */
 	for (i = 1; i <= max; i++) {
