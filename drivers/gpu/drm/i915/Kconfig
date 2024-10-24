@@ -123,9 +123,8 @@ config DRM_I915_USERPTR
 config DRM_I915_GVT_KVMGT
 	tristate "Enable KVM host support Intel GVT-g graphics virtualization"
 	depends on DRM_I915
-	depends on X86
+	depends on KVM_X86
 	depends on 64BIT
-	depends on KVM
 	depends on VFIO
 	select DRM_I915_GVT
 	select KVM_EXTERNAL_WRITE_TRACKING
