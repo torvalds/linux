@@ -315,7 +315,7 @@ static const char *const kxtf9_samp_freq_avail =
 	"25 50 100 200 400 800";
 
 /* Refer to section 4 of the specification */
-static __maybe_unused const struct {
+static const struct {
 	int odr_bits;
 	int usec;
 } odr_start_up_times[KX_MAX_CHIPS][12] = {
@@ -601,7 +601,6 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int kxcjk1013_get_startup_times(struct kxcjk1013_data *data)
 {
 	int i;
@@ -614,7 +613,6 @@ static int kxcjk1013_get_startup_times(struct kxcjk1013_data *data)
 
 	return KXCJK1013_MAX_STARTUP_TIME_US;
 }
-#endif
 
 static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 {
@@ -1636,7 +1634,6 @@ static void kxcjk1013_remove(struct i2c_client *client)
 	mutex_unlock(&data->mutex);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int kxcjk1013_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -1664,9 +1661,7 @@ static int kxcjk1013_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int kxcjk1013_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -1700,12 +1695,10 @@ static int kxcjk1013_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops kxcjk1013_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(kxcjk1013_suspend, kxcjk1013_resume)
-	SET_RUNTIME_PM_OPS(kxcjk1013_runtime_suspend,
-			   kxcjk1013_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(kxcjk1013_suspend, kxcjk1013_resume)
+	RUNTIME_PM_OPS(kxcjk1013_runtime_suspend, kxcjk1013_runtime_resume, NULL)
 };
 
 static const struct i2c_device_id kxcjk1013_id[] = {
@@ -1734,7 +1727,7 @@ static struct i2c_driver kxcjk1013_driver = {
 		.name	= KXCJK1013_DRV_NAME,
 		.acpi_match_table = ACPI_PTR(kx_acpi_match),
 		.of_match_table = kxcjk1013_of_match,
-		.pm	= &kxcjk1013_pm_ops,
+		.pm	= pm_ptr(&kxcjk1013_pm_ops),
 	},
 	.probe		= kxcjk1013_probe,
 	.remove		= kxcjk1013_remove,
