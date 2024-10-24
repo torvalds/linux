@@ -275,7 +275,7 @@ static unsigned long akcodec_get_mclk_rate(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct imx_card_data *data = snd_soc_card_get_drvdata(rtd->card);
 	const struct imx_card_plat_data *plat_data = data->plat_data;
-	struct dai_link_data *link_data = &data->link_data[rtd->num];
+	struct dai_link_data *link_data = &data->link_data[rtd->id];
 	unsigned int width = slots * slot_width;
 	unsigned int rate = params_rate(params);
 	int i;
@@ -313,7 +313,7 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_card *card = rtd->card;
 	struct imx_card_data *data = snd_soc_card_get_drvdata(card);
-	struct dai_link_data *link_data = &data->link_data[rtd->num];
+	struct dai_link_data *link_data = &data->link_data[rtd->id];
 	struct imx_card_plat_data *plat_data = data->plat_data;
 	struct device *dev = card->dev;
 	struct snd_soc_dai *codec_dai;
@@ -435,7 +435,7 @@ static int imx_aif_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct imx_card_data *data = snd_soc_card_get_drvdata(card);
-	struct dai_link_data *link_data = &data->link_data[rtd->num];
+	struct dai_link_data *link_data = &data->link_data[rtd->id];
 	static struct snd_pcm_hw_constraint_list constraint_rates;
 	static struct snd_pcm_hw_constraint_list constraint_channels;
 	int ret = 0;
