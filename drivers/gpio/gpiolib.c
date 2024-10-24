@@ -24,7 +24,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/srcu.h>
 #include <linux/string.h>
 
@@ -1223,11 +1222,6 @@ struct gpio_device *gpio_device_find(const void *data,
 	struct gpio_device *gdev;
 	struct gpio_chip *gc;
 
-	/*
-	 * Not yet but in the future the spinlock below will become a mutex.
-	 * Annotate this function before anyone tries to use it in interrupt
-	 * context like it happened with gpiochip_find().
-	 */
 	might_sleep();
 
 	guard(srcu)(&gpio_devices_srcu);
