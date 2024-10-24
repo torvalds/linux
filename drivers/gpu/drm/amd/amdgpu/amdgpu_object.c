@@ -1209,17 +1209,6 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 		type = res->mem_type;
 	}
 
-	/* Squash some into 'cpu' to keep the legacy userspace view. */
-	switch (type) {
-	case TTM_PL_VRAM:
-	case TTM_PL_TT:
-	case TTM_PL_SYSTEM:
-		break;
-	default:
-		type = TTM_PL_SYSTEM;
-		break;
-	}
-
 	if (drm_WARN_ON_ONCE(&adev->ddev, type >= sz))
 		return;
 
