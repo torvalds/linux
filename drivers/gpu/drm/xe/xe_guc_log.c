@@ -171,9 +171,9 @@ struct xe_guc_log_snapshot *xe_guc_log_snapshot_capture(struct xe_guc_log *log, 
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref) {
-		snapshot->stamp = ~0;
+		snapshot->stamp = ~0ULL;
 	} else {
-		snapshot->stamp = xe_mmio_read32(&gt->mmio, GUC_PMTIMESTAMP);
+		snapshot->stamp = xe_mmio_read64_2x32(&gt->mmio, GUC_PMTIMESTAMP_LO);
 		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	}
 	snapshot->ktime = ktime_get_boottime_ns();
@@ -205,7 +205,7 @@ void xe_guc_log_snapshot_print(struct xe_guc_log_snapshot *snapshot, struct drm_
 		   snapshot->ver_found.major, snapshot->ver_found.minor, snapshot->ver_found.patch,
 		   snapshot->ver_want.major, snapshot->ver_want.minor, snapshot->ver_want.patch);
 	drm_printf(p, "Kernel timestamp: 0x%08llX [%llu]\n", snapshot->ktime, snapshot->ktime);
-	drm_printf(p, "GuC timestamp: 0x%08X [%u]\n", snapshot->stamp, snapshot->stamp);
+	drm_printf(p, "GuC timestamp: 0x%08llX [%llu]\n", snapshot->stamp, snapshot->stamp);
 	drm_printf(p, "Log level: %u\n", snapshot->level);
 
 	remain = snapshot->size;
