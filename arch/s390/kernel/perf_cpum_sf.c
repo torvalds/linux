@@ -404,7 +404,7 @@ static void sfb_init_allocs(unsigned long num, struct hw_perf_event *hwc)
 
 static void deallocate_buffers(struct cpu_hw_sf *cpuhw)
 {
-	if (cpuhw->sfb.sdbt)
+	if (sf_buffer_available(cpuhw))
 		free_sampling_buffer(&cpuhw->sfb);
 }
 
@@ -1793,7 +1793,7 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	if (cpuhw->flags & PMU_F_IN_USE)
 		return -EAGAIN;
 
-	if (!SAMPL_DIAG_MODE(&event->hw) && !cpuhw->sfb.sdbt)
+	if (!SAMPL_DIAG_MODE(&event->hw) && !sf_buffer_available(cpuhw))
 		return -EINVAL;
 
 	perf_pmu_disable(event->pmu);
