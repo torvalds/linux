@@ -1017,18 +1017,6 @@ static inline bool fuse_is_bad(struct inode *inode)
 	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
 }
 
-static inline struct page **fuse_pages_alloc(unsigned int npages, gfp_t flags,
-					     struct fuse_page_desc **desc)
-{
-	struct page **pages;
-
-	pages = kzalloc(npages * (sizeof(struct page *) +
-				  sizeof(struct fuse_page_desc)), flags);
-	*desc = (void *) (pages + npages);
-
-	return pages;
-}
-
 static inline struct folio **fuse_folios_alloc(unsigned int nfolios, gfp_t flags,
 					       struct fuse_folio_desc **desc)
 {
@@ -1039,16 +1027,6 @@ static inline struct folio **fuse_folios_alloc(unsigned int nfolios, gfp_t flags
 	*desc = (void *) (folios + nfolios);
 
 	return folios;
-}
-
-static inline void fuse_page_descs_length_init(struct fuse_page_desc *descs,
-					       unsigned int index,
-					       unsigned int nr_pages)
-{
-	int i;
-
-	for (i = index; i < index + nr_pages; i++)
-		descs[i].length = PAGE_SIZE - descs[i].offset;
 }
 
 static inline void fuse_folio_descs_length_init(struct fuse_folio_desc *descs,
