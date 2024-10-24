@@ -643,41 +643,37 @@ static int bh1745_write_event_config(struct iio_dev *indio_dev,
 	struct bh1745_data *data = iio_priv(indio_dev);
 	int value;
 
-	if (state == 0)
+	if (!state)
 		return regmap_clear_bits(data->regmap,
 					 BH1745_INTR, BH1745_INTR_ENABLE);
 
-	if (state == 1) {
-		/* Latch is always enabled when enabling interrupt */
-		value = BH1745_INTR_ENABLE;
+	/* Latch is always enabled when enabling interrupt */
+	value = BH1745_INTR_ENABLE;
 
-		switch (chan->channel2) {
-		case IIO_MOD_LIGHT_RED:
-			return regmap_write(data->regmap, BH1745_INTR,
-					    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
-							       BH1745_INTR_SOURCE_RED));
+	switch (chan->channel2) {
+	case IIO_MOD_LIGHT_RED:
+		return regmap_write(data->regmap, BH1745_INTR,
+				    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
+						       BH1745_INTR_SOURCE_RED));
 
-		case IIO_MOD_LIGHT_GREEN:
-			return regmap_write(data->regmap, BH1745_INTR,
-					    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
-							       BH1745_INTR_SOURCE_GREEN));
+	case IIO_MOD_LIGHT_GREEN:
+		return regmap_write(data->regmap, BH1745_INTR,
+				    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
+						       BH1745_INTR_SOURCE_GREEN));
 
-		case IIO_MOD_LIGHT_BLUE:
-			return regmap_write(data->regmap, BH1745_INTR,
-					    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
-							       BH1745_INTR_SOURCE_BLUE));
+	case IIO_MOD_LIGHT_BLUE:
+		return regmap_write(data->regmap, BH1745_INTR,
+				    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
+						       BH1745_INTR_SOURCE_BLUE));
 
-		case IIO_MOD_LIGHT_CLEAR:
-			return regmap_write(data->regmap, BH1745_INTR,
-					    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
-							       BH1745_INTR_SOURCE_CLEAR));
+	case IIO_MOD_LIGHT_CLEAR:
+		return regmap_write(data->regmap, BH1745_INTR,
+				    value | FIELD_PREP(BH1745_INTR_SOURCE_MASK,
+						       BH1745_INTR_SOURCE_CLEAR));
 
-		default:
-			return -EINVAL;
-		}
+	default:
+		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static int bh1745_read_avail(struct iio_dev *indio_dev,
