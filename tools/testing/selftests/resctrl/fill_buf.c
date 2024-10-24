@@ -129,18 +129,3 @@ unsigned char *alloc_buffer(size_t buf_size, bool memflush)
 
 	return buf;
 }
-
-int run_fill_buf(size_t buf_size, bool memflush)
-{
-	unsigned char *buf;
-
-	buf = alloc_buffer(buf_size, memflush);
-	if (!buf)
-		return -1;
-
-	fill_cache_read(buf, buf_size, false);
-
-	free(buf);
-
-	return 0;
-}
