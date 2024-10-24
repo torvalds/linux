@@ -559,7 +559,6 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	rtd->card	= card;
 	rtd->dai_link	= dai_link;
 	rtd->id		= card->num_rtd++;
-	rtd->num	= rtd->id;			/* REMOVE ME */
 	rtd->pmdown_time = pmdown_time;			/* default power off timeout */
 
 	/* see for_each_card_rtds */
