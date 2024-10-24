@@ -40,6 +40,7 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_vram_mgr.h"
+#include "amdgpu_vm.h"
 
 /**
  * DOC: amdgpu_object
@@ -1236,23 +1237,14 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 			stats[type].drm.active += size;
 		else if (bo->flags & AMDGPU_GEM_CREATE_DISCARDABLE)
 			stats[type].drm.purgeable += size;
-
-		if (type == TTM_PL_VRAM && amdgpu_res_cpu_visible(adev, res))
-			stats[type].visible += size;
 	}
 
 	/* amdgpu specific stats: */
 
 	if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) {
 		stats[TTM_PL_VRAM].requested += size;
-		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-			stats[TTM_PL_VRAM].requested_visible += size;
-
-		if (type != TTM_PL_VRAM) {
+		if (type != TTM_PL_VRAM)
 			stats[TTM_PL_VRAM].evicted += size;
-			if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-				stats[TTM_PL_VRAM].evicted_visible += size;
-		}
 	} else if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_GTT) {
 		stats[TTM_PL_TT].requested += size;
 	}
