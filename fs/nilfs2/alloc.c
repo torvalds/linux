@@ -177,12 +177,14 @@ nilfs_palloc_entry_blkoff(const struct inode *inode, __u64 nr)
  * nilfs_palloc_desc_block_init - initialize buffer of a group descriptor block
  * @inode: inode of metadata file
  * @bh: buffer head of the buffer to be initialized
- * @kaddr: kernel address mapped for the page including the buffer
+ * @from: kernel address mapped for a chunk of the block
+ *
+ * This function does not yet support the case where block size > PAGE_SIZE.
  */
 static void nilfs_palloc_desc_block_init(struct inode *inode,
-					 struct buffer_head *bh, void *kaddr)
+					 struct buffer_head *bh, void *from)
 {
-	struct nilfs_palloc_group_desc *desc = kaddr + bh_offset(bh);
+	struct nilfs_palloc_group_desc *desc = from;
 	unsigned long n = nilfs_palloc_groups_per_desc_block(inode);
 	__le32 nfrees;
 
