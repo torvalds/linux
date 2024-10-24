@@ -2,7 +2,8 @@
 /* IIO ACPI helper functions */
 
 #include <linux/acpi.h>
-#include <linux/dev_printk.h>
+#include <linux/device.h>
+#include <linux/export.h>
 #include <linux/iio/iio.h>
 #include <linux/sprintf.h>
 
@@ -87,3 +88,38 @@ out_free_buffer:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iio_read_acpi_mount_matrix);
+
+/**
+ * iio_get_acpi_device_name_and_data() - Return ACPI device instance name and driver data
+ * @dev:		Device structure
+ * @data:		Optional pointer to return driver data
+ *
+ * When device was enumerated by ACPI ID matching, the user might
+ * want to set description for the physical chip. In such cases
+ * the ACPI device instance name might be used. This call may be
+ * performed to retrieve this information.
+ *
+ * NOTE: This helper function exists only for backward compatibility,
+ * do not use in a new code!
+ *
+ * Returns: ACPI device instance name or %NULL.
+ */
+const char *iio_get_acpi_device_name_and_data(struct device *dev, const void **data)
+{
+	const struct acpi_device_id *id;
+	acpi_handle handle;
+
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
+		return NULL;
+
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return NULL;
+
+	if (data)
+		*data = (const void *)id->driver_data;
+
+	return dev_name(dev);
+}
+EXPORT_SYMBOL_GPL(iio_get_acpi_device_name_and_data);
