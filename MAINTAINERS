@@ -134,14 +134,6 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/realtek/r8169*
 
-8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-L:	linux-serial@vger.kernel.org
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty.git
-F:	drivers/tty/serial/8250*
-F:	include/linux/serial_8250.h
-
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
 L:	netdev@vger.kernel.org
 S:	Orphan / Obsolete
@@ -1558,20 +1550,6 @@ M:	Samuel Holland <samuel.holland@sifive.com>
 S:	Supported
 F:	drivers/clk/analogbits/*
 F:	include/linux/clk/analogbits*
-
-ANDROID DRIVERS
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-M:	Arve Hjønnevåg <arve@android.com>
-M:	Todd Kjos <tkjos@android.com>
-M:	Martijn Coenen <maco@android.com>
-M:	Joel Fernandes <joel@joelfernandes.org>
-M:	Christian Brauner <christian@brauner.io>
-M:	Carlos Llamas <cmllamas@google.com>
-M:	Suren Baghdasaryan <surenb@google.com>
-L:	linux-kernel@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
-F:	drivers/android/
 
 ANDROID GOLDFISH PIC DRIVER
 M:	Miodrag Dinic <miodrag.dinic@mips.com>
@@ -3665,16 +3643,6 @@ F:	kernel/audit*
 F:	lib/*audit.c
 K:	\baudit_[a-z_0-9]\+\b
 
-AUXILIARY BUS DRIVER
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-R:	Dave Ertman <david.m.ertman@intel.com>
-R:	Ira Weiny <ira.weiny@intel.com>
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
-F:	Documentation/driver-api/auxiliary_bus.rst
-F:	drivers/base/auxiliary.c
-F:	include/linux/auxiliary_bus.h
-
 AUXILIARY DISPLAY DRIVERS
 M:	Andy Shevchenko <andy@kernel.org>
 R:	Geert Uytterhoeven <geert@linux-m68k.org>
@@ -5246,20 +5214,6 @@ S:	Maintained
 F:	drivers/auxdisplay/cfag12864bfb.c
 F:	include/linux/cfag12864b.h
 
-CHAR and MISC DRIVERS
-M:	Arnd Bergmann <arnd@arndb.de>
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
-F:	drivers/char/
-F:	drivers/misc/
-F:	include/linux/miscdevice.h
-X:	drivers/char/agp/
-X:	drivers/char/hw_random/
-X:	drivers/char/ipmi/
-X:	drivers/char/random.c
-X:	drivers/char/tpm/
-
 CHARGERLAB POWER-Z HARDWARE MONITOR DRIVER
 M:	Thomas Weißschuh <linux@weissschuh.net>
 L:	linux-hwmon@vger.kernel.org
@@ -5612,12 +5566,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/coda.yaml
 F:	drivers/media/platform/chips-media/coda
 
-CODE OF CONDUCT
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-S:	Supported
-F:	Documentation/process/code-of-conduct-interpretation.rst
-F:	Documentation/process/code-of-conduct.rst
-
 CODE TAGGING
 M:	Suren Baghdasaryan <surenb@google.com>
 M:	Kent Overstreet <kent.overstreet@linux.dev>
@@ -5738,12 +5686,6 @@ T:	git git://git.infradead.org/users/hch/configfs.git
 F:	fs/configfs/
 F:	include/linux/configfs.h
 F:	samples/configfs/
-
-CONSOLE SUBSYSTEM
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-S:	Supported
-F:	drivers/video/console/
-F:	include/linux/console*
 
 CONTEXT TRACKING
 M:	Frederic Weisbecker <frederic@kernel.org>
@@ -6944,22 +6886,6 @@ DRIVER COMPONENT FRAMEWORK
 L:	dri-devel@lists.freedesktop.org
 F:	drivers/base/component.c
 F:	include/linux/component.h
-
-DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-R:	"Rafael J. Wysocki" <rafael@kernel.org>
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
-F:	Documentation/core-api/kobject.rst
-F:	drivers/base/
-F:	fs/debugfs/
-F:	fs/sysfs/
-F:	include/linux/debugfs.h
-F:	include/linux/fwnode.h
-F:	include/linux/kobj*
-F:	include/linux/property.h
-F:	lib/kobj*
-F:	rust/kernel/device.rs
 
 DRIVERS FOR OMAP ADAPTIVE VOLTAGE SCALING (AVS)
 M:	Nishanth Menon <nm@ti.com>
@@ -9809,7 +9735,6 @@ F:	drivers/greybus/gb-beagleplay.c
 GREYBUS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
 M:	Alex Elder <elder@kernel.org>
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	greybus-dev@lists.linaro.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/greybus/
@@ -11113,7 +11038,6 @@ F:	Documentation/process/kernel-docs.rst
 INDUSTRY PACK SUBSYSTEM (IPACK)
 M:	Vaibhav Gupta <vaibhavgupta40@gmail.com>
 M:	Jens Taprogge <jens.taprogge@taprogge.org>
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	industrypack-devel@lists.sourceforge.net
 S:	Maintained
 W:	http://industrypack.sourceforge.net
@@ -12551,14 +12475,6 @@ F:	arch/x86/kvm/*/
 F:	tools/testing/selftests/kvm/*/x86_64/
 F:	tools/testing/selftests/kvm/x86_64/
 
-KERNFS
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-M:	Tejun Heo <tj@kernel.org>
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
-F:	fs/kernfs/
-F:	include/linux/kernfs.h
-
 KEXEC
 M:	Eric Biederman <ebiederm@xmission.com>
 L:	kexec@lists.infradead.org
@@ -13034,19 +12950,6 @@ L:	linux-kernel@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm.git mm-nonmm-unstable
 F:	lib/*
-
-LICENSES and SPDX stuff
-M:	Thomas Gleixner <tglx@linutronix.de>
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-L:	linux-spdx@vger.kernel.org
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/spdx.git
-F:	COPYING
-F:	Documentation/process/license-rules.rst
-F:	LICENSES/
-F:	scripts/spdxcheck-test.sh
-F:	scripts/spdxcheck.py
-F:	scripts/spdxexclude
 
 LINEAR RANGES HELPERS
 M:	Mark Brown <broonie@kernel.org>
@@ -21774,7 +21677,6 @@ F:	Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml
 F:	drivers/iio/proximity/vl53l0x-i2c.c
 
 STABLE BRANCH
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Sasha Levin <sashal@kernel.org>
 L:	stable@vger.kernel.org
 S:	Supported
@@ -21844,13 +21746,6 @@ STAGING - VIA VT665X DRIVERS
 M:	Philipp Hortmann <philipp.g.hortmann@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/vt665?/
-
-STAGING SUBSYSTEM
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-L:	linux-staging@lists.linux.dev
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
-F:	drivers/staging/
 
 STANDALONE CACHE CONTROLLER DRIVERS
 M:	Conor Dooley <conor@kernel.org>
@@ -22581,7 +22476,6 @@ F:	tools/testing/selftests/drivers/net/team/
 
 TECHNICAL ADVISORY BOARD PROCESS DOCS
 M:	"Theodore Ts'o" <tytso@mit.edu>
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	tech-board-discuss@lists.linux.dev
 S:	Maintained
 F:	Documentation/process/contribution-maturity-model.rst
@@ -23441,27 +23335,6 @@ S:	Maintained
 F:	Documentation/tee/ts-tee.rst
 F:	drivers/tee/tstee/
 
-TTY LAYER AND SERIAL DRIVERS
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-M:	Jiri Slaby <jirislaby@kernel.org>
-L:	linux-kernel@vger.kernel.org
-L:	linux-serial@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty.git
-F:	Documentation/devicetree/bindings/serial/
-F:	Documentation/driver-api/serial/
-F:	drivers/tty/
-F:	include/linux/selection.h
-F:	include/linux/serial.h
-F:	include/linux/serial_core.h
-F:	include/linux/sysrq.h
-F:	include/linux/tty*.h
-F:	include/linux/vt.h
-F:	include/linux/vt_*.h
-F:	include/uapi/linux/serial.h
-F:	include/uapi/linux/serial_core.h
-F:	include/uapi/linux/tty.h
-
 TUA9001 MEDIA DRIVER
 L:	linux-media@vger.kernel.org
 S:	Orphan
@@ -23947,20 +23820,6 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/usb/smsc95xx.*
 
-USB SUBSYSTEM
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-L:	linux-usb@vger.kernel.org
-S:	Supported
-W:	http://www.linux-usb.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb.git
-F:	Documentation/devicetree/bindings/usb/
-F:	Documentation/usb/
-F:	drivers/usb/
-F:	include/dt-bindings/usb/
-F:	include/linux/usb.h
-F:	include/linux/usb/
-F:	include/uapi/linux/usb/
-
 USB TYPEC BUS FOR ALTERNATE MODES
 M:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 L:	linux-usb@vger.kernel.org
@@ -24065,14 +23924,6 @@ S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	drivers/dma-buf/udmabuf.c
 F:	include/uapi/linux/udmabuf.h
-
-USERSPACE I/O (UIO)
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
-F:	Documentation/driver-api/uio-howto.rst
-F:	drivers/uio/
-F:	include/linux/uio_driver.h
 
 UTIL-LINUX PACKAGE
 M:	Karel Zak <kzak@redhat.com>
@@ -24522,7 +24373,6 @@ F:	sound/virtio/*
 VIRTUAL BOX GUEST DEVICE DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 M:	Arnd Bergmann <arnd@arndb.de>
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
 F:	drivers/virt/vboxguest/
 F:	include/linux/vbox_utils.h
@@ -24606,13 +24456,6 @@ W:	http://www.linux-mm.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
 F:	include/linux/vmalloc.h
 F:	mm/vmalloc.c
-
-VME SUBSYSTEM
-L:	linux-kernel@vger.kernel.org
-S:	Orphan
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
-F:	Documentation/driver-api/vme.rst
-F:	drivers/staging/vme_user/
 
 VMWARE BALLOON DRIVER
 M:	Jerrin Shaji George <jerrin.shaji-george@broadcom.com>
@@ -25601,11 +25444,3 @@ M:	bo liu <bo.liu@senarytech.com>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/pci/hda/patch_senarytech.c
-
-THE REST
-M:	Linus Torvalds <torvalds@linux-foundation.org>
-L:	linux-kernel@vger.kernel.org
-S:	Buried alive in reporters
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-F:	*
-F:	*/
