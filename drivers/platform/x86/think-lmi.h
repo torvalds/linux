@@ -41,6 +41,10 @@ enum save_mode {
 };
 
 /* password configuration details */
+#define TLMI_PWDCFG_MODE_LEGACY    0
+#define TLMI_PWDCFG_MODE_PASSWORD  1
+#define TLMI_PWDCFG_MODE_MULTICERT 3
+
 struct tlmi_pwdcfg_core {
 	uint32_t password_mode;
 	uint32_t password_state;

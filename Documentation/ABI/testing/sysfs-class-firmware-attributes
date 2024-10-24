@@ -303,6 +303,7 @@ Description:
 					being configured allowing anyone to make changes.
 					After any of these operations the system must reboot for the changes to
 					take effect.
+					Admin and System certificates are supported from 2025 systems onward.
 
 		certificate_thumbprint:
 					Read only attribute used to display the MD5, SHA1 and SHA256 thumbprints
