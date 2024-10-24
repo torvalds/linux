@@ -98,7 +98,7 @@ int nilfs_ifile_delete_inode(struct inode *ifile, ino_t ino)
 		.pr_entry_nr = ino, .pr_entry_bh = NULL
 	};
 	struct nilfs_inode *raw_inode;
-	void *kaddr;
+	size_t offset;
 	int ret;
 
 	ret = nilfs_palloc_prepare_free_entry(ifile, &req);
@@ -113,11 +113,11 @@ int nilfs_ifile_delete_inode(struct inode *ifile, ino_t ino)
 		return ret;
 	}
 
-	kaddr = kmap_local_page(req.pr_entry_bh->b_page);
-	raw_inode = nilfs_palloc_block_get_entry(ifile, req.pr_entry_nr,
-						 req.pr_entry_bh, kaddr);
+	offset = nilfs_palloc_entry_offset(ifile, req.pr_entry_nr,
+					   req.pr_entry_bh);
+	raw_inode = kmap_local_folio(req.pr_entry_bh->b_folio, offset);
 	raw_inode->i_flags = 0;
-	kunmap_local(kaddr);
+	kunmap_local(raw_inode);
 
 	mark_buffer_dirty(req.pr_entry_bh);
 	brelse(req.pr_entry_bh);
