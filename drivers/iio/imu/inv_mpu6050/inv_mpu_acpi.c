@@ -104,14 +104,11 @@ static int inv_mpu_process_acpi_config(struct i2c_client *client,
 				       unsigned short *secondary_addr)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
-	const struct acpi_device_id *id;
 	u32 i2c_addr = 0;
 	LIST_HEAD(resources);
 	int ret;
 
-	id = acpi_match_device(client->dev.driver->acpi_match_table,
-			       &client->dev);
-	if (!id)
+	if (!is_acpi_device_node(dev_fwnode(&client->dev)))
 		return -ENODEV;
 
 	ret = acpi_dev_get_resources(adev, &resources,
