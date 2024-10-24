@@ -400,6 +400,17 @@
 	status = "okay";
 };
 
+&sdhci {
+	bus-width = <8>;
+	no-sdio;
+	no-sd;
+	non-removable;
+	max-frequency = <200000000>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	status = "disabled";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-sd-highspeed;
