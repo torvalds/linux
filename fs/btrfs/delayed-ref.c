@@ -355,34 +355,6 @@ static struct btrfs_delayed_ref_head *find_first_ref_head(
 	return xa_find(&dr->head_refs, &from, ULONG_MAX, XA_PRESENT);
 }
 
-/*
- * Find a head entry based on bytenr. This returns the delayed ref head if it
- * was able to find one, or NULL if nothing was in that spot.  If return_bigger
- * is given, the next bigger entry is returned if no exact match is found.
- */
-static struct btrfs_delayed_ref_head *find_ref_head(
-		const struct btrfs_fs_info *fs_info,
-		struct btrfs_delayed_ref_root *dr, u64 bytenr,
-		bool return_bigger)
-{
-	const unsigned long target_index = (bytenr >> fs_info->sectorsize_bits);
-	unsigned long found_index = target_index;
-	struct btrfs_delayed_ref_head *entry;
-
-	lockdep_assert_held(&dr->lock);
-
-	entry = xa_find(&dr->head_refs, &found_index, ULONG_MAX, XA_PRESENT);
-	if (!entry)
-		return NULL;
-
-	ASSERT(found_index >= target_index);
-
-	if (found_index != target_index && !return_bigger)
-		return NULL;
-
-	return entry;
-}
-
 static bool btrfs_delayed_ref_lock(struct btrfs_delayed_ref_root *delayed_refs,
 				   struct btrfs_delayed_ref_head *head)
 {
@@ -1184,7 +1156,11 @@ btrfs_find_delayed_ref_head(const struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_root *delayed_refs,
 			    u64 bytenr)
 {
-	return find_ref_head(fs_info, delayed_refs, bytenr, false);
+	const unsigned long index = (bytenr >> fs_info->sectorsize_bits);
+
+	lockdep_assert_held(&delayed_refs->lock);
+
+	return xa_load(&delayed_refs->head_refs, index);
 }
 
 static int find_comp(struct btrfs_delayed_ref_node *entry, u64 root, u64 parent)
