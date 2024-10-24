@@ -76,7 +76,7 @@ EXPORT_SYMBOL_GPL(rt_sdca_index_read);
  * @nid: Realtek-defined ID.
  * @reg: register.
  * @mask: Bitmask to change
- * @value: New value for bitmask
+ * @val: New value for bitmask
  *
  * A value of zero will be returned on success, a negative errno will
  * be returned in error cases.
