@@ -486,11 +486,11 @@ struct snd_soc_component *snd_soc_lookup_component_nolocked(struct device *dev,
 struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 						   const char *driver_name);
 
-int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int id);
+int soc_new_pcm(struct snd_soc_pcm_runtime *rtd);
 #ifdef CONFIG_SND_SOC_COMPRESS
-int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int id);
+int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd);
 #else
-static inline int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int id)
+static inline int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd)
 {
 	return 0;
 }

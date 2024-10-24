@@ -2891,7 +2891,7 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 
 static int soc_create_pcm(struct snd_pcm **pcm,
 			  struct snd_soc_pcm_runtime *rtd,
-			  int playback, int capture, int id)
+			  int playback, int capture)
 {
 	char new_name[64];
 	int ret;
@@ -2901,13 +2901,13 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 		snprintf(new_name, sizeof(new_name), "codec2codec(%s)",
 			 rtd->dai_link->stream_name);
 
-		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, id,
+		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, rtd->id,
 					   playback, capture, pcm);
 	} else if (rtd->dai_link->no_pcm) {
 		snprintf(new_name, sizeof(new_name), "(%s)",
 			rtd->dai_link->stream_name);
 
-		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, id,
+		ret = snd_pcm_new_internal(rtd->card->snd_card, new_name, rtd->id,
 				playback, capture, pcm);
 	} else {
 		if (rtd->dai_link->dynamic)
@@ -2916,9 +2916,9 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 		else
 			snprintf(new_name, sizeof(new_name), "%s %s-%d",
 				rtd->dai_link->stream_name,
-				soc_codec_dai_name(rtd), id);
+				soc_codec_dai_name(rtd), rtd->id);
 
-		ret = snd_pcm_new(rtd->card->snd_card, new_name, id, playback,
+		ret = snd_pcm_new(rtd->card->snd_card, new_name, rtd->id, playback,
 			capture, pcm);
 	}
 	if (ret < 0) {
@@ -2926,13 +2926,13 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 			new_name, rtd->dai_link->name, ret);
 		return ret;
 	}
-	dev_dbg(rtd->card->dev, "ASoC: registered pcm #%d %s\n", id, new_name);
+	dev_dbg(rtd->card->dev, "ASoC: registered pcm #%d %s\n", rtd->id, new_name);
 
 	return 0;
 }
 
 /* create a new pcm */
-int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int id)
+int soc_new_pcm(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component;
 	struct snd_pcm *pcm;
@@ -2943,7 +2943,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int id)
 	if (ret < 0)
 		return ret;
 
-	ret = soc_create_pcm(&pcm, rtd, playback, capture, id);
+	ret = soc_create_pcm(&pcm, rtd, playback, capture);
 	if (ret < 0)
 		return ret;
 

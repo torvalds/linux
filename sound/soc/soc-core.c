@@ -1479,7 +1479,7 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
-	int ret, id;
+	int ret;
 
 	/* do machine specific initialization */
 	ret = snd_soc_link_init(rtd);
@@ -1494,15 +1494,13 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 	/* add DPCM sysfs entries */
 	soc_dpcm_debugfs_add(rtd);
 
-	id = rtd->id;
-
 	/* create compress_device if possible */
-	ret = snd_soc_dai_compress_new(cpu_dai, rtd, id);
+	ret = snd_soc_dai_compress_new(cpu_dai, rtd);
 	if (ret != -ENOTSUPP)
 		goto err;
 
 	/* create the pcm */
-	ret = soc_new_pcm(rtd, id);
+	ret = soc_new_pcm(rtd);
 	if (ret < 0) {
 		dev_err(card->dev, "ASoC: can't create pcm %s :%d\n",
 			dai_link->stream_name, ret);
