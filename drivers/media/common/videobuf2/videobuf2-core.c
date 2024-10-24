@@ -2329,7 +2329,7 @@ int vb2_core_streamon(struct vb2_queue *q, unsigned int type)
 	}
 
 	if (q_num_bufs < q->min_queued_buffers) {
-		dprintk(q, 1, "need at least %u queued buffers\n",
+		dprintk(q, 1, "need at least %u allocated buffers\n",
 			q->min_queued_buffers);
 		return -EINVAL;
 	}
