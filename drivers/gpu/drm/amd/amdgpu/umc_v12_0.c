@@ -179,10 +179,13 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ta_ras_query_address_output *addr_out,
 					bool dump_addr)
 {
-	uint32_t col, row, bank, channel_index, umc_inst = 0;
-	uint64_t soc_pa, retired_page, column, err_addr;
+	uint32_t col, col_lower, row, row_lower, bank;
+	uint32_t channel_index, umc_inst = 0;
+	uint32_t i, loop_bits[UMC_V12_0_RETIRE_LOOP_BITS];
+	uint64_t soc_pa, column, err_addr;
 	struct ta_ras_query_address_output addr_out_tmp;
 	struct ta_ras_query_address_output *paddr_out;
+	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
 	int ret = 0;
 
 	if (!addr_out)
@@ -199,7 +202,7 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 			dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
 				err_addr);
 
-			return ret;
+			goto out;
 		}
 
 		bank = paddr_out->pa.bank;
@@ -208,42 +211,57 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 		umc_inst = addr_in->ma.umc_inst;
 	}
 
+	loop_bits[0] = UMC_V12_0_PA_C2_BIT;
+	loop_bits[1] = UMC_V12_0_PA_C3_BIT;
+	loop_bits[2] = UMC_V12_0_PA_C4_BIT;
+	loop_bits[3] = UMC_V12_0_PA_R13_BIT;
+
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+
+	/* other nps modes are taken as nps1 */
+	if (nps == AMDGPU_NPS4_PARTITION_MODE) {
+		loop_bits[0] = UMC_V12_0_PA_CH4_BIT;
+		loop_bits[1] = UMC_V12_0_PA_CH5_BIT;
+		loop_bits[2] = UMC_V12_0_PA_B0_BIT;
+		loop_bits[3] = UMC_V12_0_PA_R11_BIT;
+	}
+
 	soc_pa = paddr_out->pa.pa;
-
-	if (!err_data && !dump_addr)
-		return ret;
-
-	col = (err_addr >> 1) & 0x1fULL;
-	/* clear [C3 C2] in soc physical address */
-	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
-	/* clear [C4] in soc physical address */
-	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
-	/* clear [R13] in soc physical address */
-	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_R13_BIT);
+	/* clear loop bits in soc physical address */
+	for (i = 0; i < UMC_V12_0_RETIRE_LOOP_BITS; i++)
+		soc_pa &= ~BIT_ULL(loop_bits[i]);
 
 	paddr_out->pa.pa = soc_pa;
+	/* get column bit 0 and 1 in mca address */
+	col_lower = (err_addr >> 1) & 0x3ULL;
+	/* MA_R13_BIT will be handled later */
+	row_lower = (err_addr >> UMC_V12_0_MA_R0_BIT) & 0x1fffULL;
 
-	/* loop for all possibilities of [R13 C4 C3 C2] */
+	if (!err_data && !dump_addr)
+		goto out;
+
+	/* loop for all possibilities of retired bits */
 	for (column = 0; column < UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL; column++) {
-		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
-		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
-		retired_page |= (((column & 0x8) >> 3) << UMC_V12_0_PA_R13_BIT);
+		soc_pa = paddr_out->pa.pa;
+		for (i = 0; i < UMC_V12_0_RETIRE_LOOP_BITS; i++)
+			soc_pa |= (((column >> i) & 0x1ULL) << loop_bits[i]);
 
-		/* include column bit 0 and 1 */
-		col &= 0x3;
-		col |= (column << 2);
-		row = (retired_page >> UMC_V12_0_PA_R0_BIT) & 0x3fffULL;
+		col = ((column & 0x7) << 2) | col_lower;
+		/* add row bit 13 */
+		row = ((column >> 3) << 13) | row_lower;
 
 		if (dump_addr)
 			dev_info(adev->dev,
 				"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
-				retired_page, row, col, bank, channel_index);
+				soc_pa, row, col, bank, channel_index);
 
 		if (err_data)
 			amdgpu_umc_fill_error_record(err_data, err_addr,
-				retired_page, channel_index, umc_inst);
+				soc_pa, channel_index, umc_inst);
 	}
 
+out:
 	return ret;
 }
 
