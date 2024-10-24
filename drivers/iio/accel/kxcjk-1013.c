@@ -1717,7 +1717,6 @@ static const struct i2c_device_id kxcjk1013_id[] = {
 	{"kxtf9",     KXTF9},
 	{"kx022-1020", KX0221020},
 	{"kx023-1025", KX0231025},
-	{"SMO8500",   KXCJ91008},
 	{}
 };
 
