@@ -4043,13 +4043,6 @@ L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/arm64/net/
 
-BPF JIT for LOONGARCH
-M:	Tiezhu Yang <yangtiezhu@loongson.cn>
-R:	Hengqi Chen <hengqi.chen@gmail.com>
-L:	bpf@vger.kernel.org
-S:	Maintained
-F:	arch/loongarch/net/
-
 BPF JIT for MIPS (32-BIT AND 64-BIT)
 M:	Johan Almbladh <johan.almbladh@anyfinetworks.com>
 M:	Paul Burton <paulburton@kernel.org>
@@ -5281,12 +5274,6 @@ M:	Lukas Bulwahn <lukas.bulwahn@gmail.com>
 R:	Joe Perches <joe@perches.com>
 S:	Maintained
 F:	Documentation/dev-tools/checkpatch.rst
-
-CHINESE DOCUMENTATION
-M:	Alex Shi <alexs@kernel.org>
-M:	Yanteng Si <siyanteng@loongson.cn>
-S:	Maintained
-F:	Documentation/translations/zh_CN/
 
 CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
 M:	Peter Chen <peter.chen@kernel.org>
@@ -7633,13 +7620,6 @@ S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	drivers/gpu/drm/lima/
 F:	include/uapi/drm/lima_drm.h
-
-DRM DRIVERS FOR LOONGSON
-M:	Sui Jingfeng <suijingfeng@loongson.cn>
-L:	dri-devel@lists.freedesktop.org
-S:	Supported
-T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
-F:	drivers/gpu/drm/loongson/
 
 DRM DRIVERS FOR MEDIATEK
 M:	Chun-Kuang Hu <chunkuang.hu@kernel.org>
@@ -10518,12 +10498,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/input/touchscreen/hycon,hy46xx.yaml
 F:	drivers/input/touchscreen/hycon-hy46xx.c
 
-HYGON PROCESSOR SUPPORT
-M:	Pu Wen <puwen@hygon.cn>
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-F:	arch/x86/kernel/cpu/hygon.c
-
 HYNIX HI556 SENSOR DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
@@ -12461,19 +12435,6 @@ F:	include/kvm/arm_*
 F:	tools/testing/selftests/kvm/*/aarch64/
 F:	tools/testing/selftests/kvm/aarch64/
 
-KERNEL VIRTUAL MACHINE FOR LOONGARCH (KVM/LoongArch)
-M:	Tianrui Zhao <zhaotianrui@loongson.cn>
-M:	Bibo Mao <maobibo@loongson.cn>
-M:	Huacai Chen <chenhuacai@kernel.org>
-L:	kvm@vger.kernel.org
-L:	loongarch@lists.linux.dev
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
-F:	Documentation/virt/kvm/loongarch/
-F:	arch/loongarch/include/asm/kvm*
-F:	arch/loongarch/include/uapi/asm/kvm*
-F:	arch/loongarch/kvm/
-
 KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
 M:	Huacai Chen <chenhuacai@kernel.org>
 L:	linux-mips@vger.kernel.org
@@ -13327,75 +13288,6 @@ F:	Documentation/translations/zh_CN/arch/loongarch/
 F:	arch/loongarch/
 F:	drivers/*/*loongarch*
 F:	drivers/cpufreq/loongson3_cpufreq.c
-
-LOONGSON GPIO DRIVER
-M:	Yinbo Zhu <zhuyinbo@loongson.cn>
-L:	linux-gpio@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/gpio/loongson,ls-gpio.yaml
-F:	drivers/gpio/gpio-loongson-64bit.c
-
-LOONGSON LS2X APB DMA DRIVER
-M:	Binbin Zhou <zhoubinbin@loongson.cn>
-L:	dmaengine@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/dma/loongson,ls2x-apbdma.yaml
-F:	drivers/dma/ls2x-apb-dma.c
-
-LOONGSON LS2X I2C DRIVER
-M:	Binbin Zhou <zhoubinbin@loongson.cn>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/loongson,ls2x-i2c.yaml
-F:	drivers/i2c/busses/i2c-ls2x.c
-
-LOONGSON-2 SOC SERIES CLOCK DRIVER
-M:	Yinbo Zhu <zhuyinbo@loongson.cn>
-L:	linux-clk@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/clock/loongson,ls2k-clk.yaml
-F:	drivers/clk/clk-loongson2.c
-F:	include/dt-bindings/clock/loongson,ls2k-clk.h
-
-LOONGSON SPI DRIVER
-M:	Yinbo Zhu <zhuyinbo@loongson.cn>
-L:	linux-spi@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/spi/loongson,ls2k-spi.yaml
-F:	drivers/spi/spi-loongson-core.c
-F:	drivers/spi/spi-loongson-pci.c
-F:	drivers/spi/spi-loongson-plat.c
-F:	drivers/spi/spi-loongson.h
-
-LOONGSON-2 SOC SERIES GUTS DRIVER
-M:	Yinbo Zhu <zhuyinbo@loongson.cn>
-L:	loongarch@lists.linux.dev
-S:	Maintained
-F:	Documentation/devicetree/bindings/hwinfo/loongson,ls2k-chipid.yaml
-F:	drivers/soc/loongson/loongson2_guts.c
-
-LOONGSON-2 SOC SERIES PM DRIVER
-M:	Yinbo Zhu <zhuyinbo@loongson.cn>
-L:	linux-pm@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/soc/loongson/loongson,ls2k-pmc.yaml
-F:	drivers/soc/loongson/loongson2_pm.c
-
-LOONGSON-2 SOC SERIES PINCTRL DRIVER
-M:	zhanghongchen <zhanghongchen@loongson.cn>
-M:	Yinbo Zhu <zhuyinbo@loongson.cn>
-L:	linux-gpio@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/pinctrl/loongson,ls2k-pinctrl.yaml
-F:	drivers/pinctrl/pinctrl-loongson2.c
-
-LOONGSON-2 SOC SERIES THERMAL DRIVER
-M:	zhanghongchen <zhanghongchen@loongson.cn>
-M:	Yinbo Zhu <zhuyinbo@loongson.cn>
-L:	linux-pm@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/thermal/loongson,ls2k-thermal.yaml
-F:	drivers/thermal/loongson2_thermal.c
 
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Sathya Prakash <sathya.prakash@broadcom.com>
@@ -19168,17 +19060,6 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/radio/radio-shark2.c
 F:	drivers/media/radio/radio-tea5777.c
 
-RADOS BLOCK DEVICE (RBD)
-M:	Ilya Dryomov <idryomov@gmail.com>
-R:	Dongsheng Yang <dongsheng.yang@easystack.cn>
-L:	ceph-devel@vger.kernel.org
-S:	Supported
-W:	http://ceph.com/
-T:	git https://github.com/ceph/ceph-client.git
-F:	Documentation/ABI/testing/sysfs-bus-rbd
-F:	drivers/block/rbd.c
-F:	drivers/block/rbd_types.h
-
 RAGE128 FRAMEBUFFER DISPLAY DRIVER
 L:	linux-fbdev@vger.kernel.org
 S:	Orphan
@@ -23416,13 +23297,6 @@ F:	kernel/trace/trace_hwlat.c
 F:	kernel/trace/trace_irqsoff.c
 F:	kernel/trace/trace_osnoise.c
 F:	kernel/trace/trace_sched_wakeup.c
-
-TRADITIONAL CHINESE DOCUMENTATION
-M:	Hu Haowen <2023002089@link.tyut.edu.cn>
-S:	Maintained
-W:	https://github.com/srcres258/linux-doc
-T:	git git://github.com/srcres258/linux-doc.git doc-zh-tw
-F:	Documentation/translations/zh_TW/
 
 TRUSTED SECURITY MODULE (TSM) ATTESTATION REPORTS
 M:	Dan Williams <dan.j.williams@intel.com>
