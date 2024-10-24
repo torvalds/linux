@@ -1981,7 +1981,7 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 
 	/* Invalid sampling buffer entry */
 	if (alert & (CPU_MF_INT_SF_IAE|CPU_MF_INT_SF_ISE)) {
-		pr_err("A sampling buffer entry is incorrect (alert=0x%x)\n",
+		pr_err("A sampling buffer entry is incorrect (alert=%#x)\n",
 		       alert);
 		cpuhw->flags |= PMU_F_ERR_IBE;
 		sf_disable();
