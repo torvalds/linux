@@ -169,15 +169,6 @@
 
 #define KXCJK1013_DEFAULT_WAKE_THRES	1
 
-enum kx_chipset {
-	KXCJK1013,
-	KXCJ91008,
-	KXTJ21009,
-	KXTF9,
-	KX0231025,
-	KX_MAX_CHIPS /* this must be last */
-};
-
 /* Refer to section 4 of the specification */
 struct kx_odr_start_up_time {
 	int odr_bits;
@@ -323,59 +314,50 @@ static const struct kx_chipset_regs kx0231025_regs = {
 struct kx_chipset_info {
 	const struct kx_chipset_regs *regs;
 	const struct kx_odr_start_up_time *times;
-	enum kx_chipset chipset;
 	enum kx_acpi_type acpi_type;
 };
 
 static const struct kx_chipset_info kxcjk1013_info = {
 	.regs = &kxcjk1013_regs,
 	.times = pm_ptr(kxcjk1013_odr_start_up_times),
-	.chipset = KXCJK1013,
 };
 
 static const struct kx_chipset_info kxcj91008_info = {
 	.regs = &kxcjk1013_regs,
 	.times = pm_ptr(kxcj91008_odr_start_up_times),
-	.chipset = KXCJ91008,
 };
 
 static const struct kx_chipset_info kxcj91008_kiox010a_info = {
 	.regs = &kxcjk1013_regs,
 	.times = pm_ptr(kxcj91008_odr_start_up_times),
-	.chipset = KXCJ91008,
 	.acpi_type = ACPI_KIOX010A,
 };
 
 static const struct kx_chipset_info kxcj91008_kiox020a_info = {
 	.regs = &kxcjk1013_regs,
 	.times = pm_ptr(kxcj91008_odr_start_up_times),
-	.chipset = KXCJ91008,
 	.acpi_type = ACPI_GENERIC,
 };
 
 static const struct kx_chipset_info kxcj91008_smo8500_info = {
 	.regs = &kxcjk1013_regs,
 	.times = pm_ptr(kxcj91008_odr_start_up_times),
-	.chipset = KXCJ91008,
 	.acpi_type = ACPI_SMO8500,
 };
 
 static const struct kx_chipset_info kxtj21009_info = {
 	.regs = &kxcjk1013_regs,
 	.times = pm_ptr(kxtj21009_odr_start_up_times),
-	.chipset = KXTJ21009,
 };
 
 static const struct kx_chipset_info kxtf9_info = {
 	.regs = &kxtf9_regs,
 	.times = pm_ptr(kxtf9_odr_start_up_times),
-	.chipset = KXTF9,
 };
 
 static const struct kx_chipset_info kx0231025_info = {
 	.regs = &kx0231025_regs,
 	.times = pm_ptr(kx0231025_odr_start_up_times),
-	.chipset = KX0231025,
 };
 
 enum kxcjk1013_axis {
@@ -652,7 +634,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	}
 
 	/* On KX023, route all used interrupts to INT1 for now */
-	if (data->info->chipset == KX0231025 && data->client->irq > 0) {
+	if (data->info == &kx0231025_info && data->client->irq > 0) {
 		ret = i2c_smbus_write_byte_data(data->client, KX023_REG_INC4,
 						KX023_REG_INC4_DRDY1 |
 						KX023_REG_INC4_WUFI1);
@@ -888,7 +870,7 @@ static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 	if (ret < 0)
 		return ret;
 
-	if (data->info->chipset == KXTF9)
+	if (data->info == &kxtf9_info)
 		odr_setting = kxcjk1013_find_odr_value(kxtf9_samp_freq_table,
 						       ARRAY_SIZE(kxtf9_samp_freq_table),
 						       val, val2);
@@ -932,7 +914,7 @@ static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 
 static int kxcjk1013_get_odr(struct kxcjk1013_data *data, int *val, int *val2)
 {
-	if (data->info->chipset == KXTF9)
+	if (data->info == &kxtf9_info)
 		return kxcjk1013_convert_odr_value(kxtf9_samp_freq_table,
 						   ARRAY_SIZE(kxtf9_samp_freq_table),
 						   data->odr_bits, val, val2);
@@ -1199,7 +1181,7 @@ static ssize_t kxcjk1013_get_samp_freq_avail(struct device *dev,
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
 	const char *str;
 
-	if (data->info->chipset == KXTF9)
+	if (data->info == &kxtf9_info)
 		str = kxtf9_samp_freq_avail;
 	else
 		str = kxcjk1013_samp_freq_avail;
@@ -1448,7 +1430,7 @@ static irqreturn_t kxcjk1013_event_handler(int irq, void *private)
 	}
 
 	if (ret & KXCJK1013_REG_INT_SRC1_BIT_WUFS) {
-		if (data->info->chipset == KXTF9)
+		if (data->info == &kxtf9_info)
 			iio_push_event(indio_dev,
 				       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 				       0,
