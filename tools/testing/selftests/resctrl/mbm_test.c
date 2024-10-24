@@ -139,26 +139,26 @@ static int mbm_run_test(const struct resctrl_test *test, const struct user_param
 		.setup		= mbm_setup,
 		.measure	= mbm_measure,
 	};
-	char *endptr = NULL;
-	size_t span = 0;
+	struct fill_buf_param fill_buf = {};
 	int ret;
 
 	remove(RESULT_FILE_NAME);
 
-	if (uparams->benchmark_cmd[0] && strcmp(uparams->benchmark_cmd[0], "fill_buf") == 0) {
-		if (uparams->benchmark_cmd[1] && *uparams->benchmark_cmd[1] != '\0') {
-			errno = 0;
-			span = strtoul(uparams->benchmark_cmd[1], &endptr, 10);
-			if (errno || *endptr != '\0')
-				return -EINVAL;
-		}
+	if (uparams->fill_buf) {
+		fill_buf.buf_size = uparams->fill_buf->buf_size;
+		fill_buf.memflush = uparams->fill_buf->memflush;
+		param.fill_buf = &fill_buf;
+	} else if (!uparams->benchmark_cmd[0]) {
+		fill_buf.buf_size = DEFAULT_SPAN;
+		fill_buf.memflush = true;
+		param.fill_buf = &fill_buf;
 	}
 
-	ret = resctrl_val(test, uparams, uparams->benchmark_cmd, &param);
+	ret = resctrl_val(test, uparams, &param);
 	if (ret)
 		return ret;
 
-	ret = check_results(span);
+	ret = check_results(param.fill_buf ? param.fill_buf->buf_size : 0);
 	if (ret && (get_vendor() == ARCH_INTEL))
 		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
 

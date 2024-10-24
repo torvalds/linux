@@ -535,6 +535,11 @@ close_fp:
 	return ret;
 }
 
+struct benchmark_info {
+	const struct user_params *uparams;
+	struct resctrl_val_param *param;
+};
+
 /*
  * run_benchmark - Run a specified benchmark or fill_buf (default benchmark)
  *		   in specified signal. Direct benchmark stdio to /dev/null.
@@ -544,12 +549,11 @@ close_fp:
  */
 static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 {
-	char **benchmark_cmd;
-	int ret, memflush;
-	size_t span;
+	struct benchmark_info *benchmark_info = info->si_ptr;
+	const struct user_params *uparams = benchmark_info->uparams;
+	struct resctrl_val_param *param = benchmark_info->param;
 	FILE *fp;
-
-	benchmark_cmd = info->si_ptr;
+	int ret;
 
 	/*
 	 * Direct stdio of child to /dev/null, so that only parent writes to
@@ -561,16 +565,13 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 		parent_exit(ppid);
 	}
 
-	if (strcmp(benchmark_cmd[0], "fill_buf") == 0) {
-		/* Execute default fill_buf benchmark */
-		span = strtoul(benchmark_cmd[1], NULL, 10);
-		memflush =  atoi(benchmark_cmd[2]);
-
-		if (run_fill_buf(span, memflush))
+	if (param->fill_buf) {
+		if (run_fill_buf(param->fill_buf->buf_size,
+				 param->fill_buf->memflush))
 			fprintf(stderr, "Error in running fill buffer\n");
-	} else {
+	} else if (uparams->benchmark_cmd[0]) {
 		/* Execute specified benchmark */
-		ret = execvp(benchmark_cmd[0], benchmark_cmd);
+		ret = execvp(uparams->benchmark_cmd[0], (char **)uparams->benchmark_cmd);
 		if (ret)
 			ksft_perror("execvp");
 	}
@@ -585,16 +586,15 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
  *			the benchmark
  * @test:		test information structure
  * @uparams:		user supplied parameters
- * @benchmark_cmd:	benchmark command and its arguments
  * @param:		parameters passed to resctrl_val()
  *
  * Return:		0 when the test was run, < 0 on error.
  */
 int resctrl_val(const struct resctrl_test *test,
 		const struct user_params *uparams,
-		const char * const *benchmark_cmd,
 		struct resctrl_val_param *param)
 {
+	struct benchmark_info benchmark_info;
 	struct sigaction sigact;
 	int ret = 0, pipefd[2];
 	char pipe_message = 0;
@@ -609,6 +609,9 @@ int resctrl_val(const struct resctrl_test *test,
 		ksft_print_msg("Could not get domain ID\n");
 		return ret;
 	}
+
+	benchmark_info.uparams = uparams;
+	benchmark_info.param = param;
 
 	/*
 	 * If benchmark wasn't successfully started by child, then child should
@@ -671,13 +674,7 @@ int resctrl_val(const struct resctrl_test *test,
 
 	ksft_print_msg("Benchmark PID: %d\n", (int)bm_pid);
 
-	/*
-	 * The cast removes constness but nothing mutates benchmark_cmd within
-	 * the context of this process. At the receiving process, it becomes
-	 * argv, which is mutable, on exec() but that's after fork() so it
-	 * doesn't matter for the process running the tests.
-	 */
-	value.sival_ptr = (void *)benchmark_cmd;
+	value.sival_ptr = (void *)&benchmark_info;
 
 	/* Taskset benchmark to specified cpu */
 	ret = taskset_benchmark(bm_pid, uparams->cpu, NULL);

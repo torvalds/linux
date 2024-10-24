@@ -44,15 +44,35 @@
 #define DEFAULT_SPAN		(250 * MB)
 
 /*
+ * fill_buf_param:	"fill_buf" benchmark parameters
+ * @buf_size:		Size (in bytes) of buffer used in benchmark.
+ *			"fill_buf" allocates and initializes buffer of
+ *			@buf_size. User can change value via command line.
+ * @memflush:		If false the buffer will not be flushed after
+ *			allocation and initialization, otherwise the
+ *			buffer will be flushed. User can change value via
+ *			command line (via integers with 0 interpreted as
+ *			false and anything else as true).
+ */
+struct fill_buf_param {
+	size_t		buf_size;
+	bool		memflush;
+};
+
+/*
  * user_params:		User supplied parameters
  * @cpu:		CPU number to which the benchmark will be bound to
  * @bits:		Number of bits used for cache allocation size
  * @benchmark_cmd:	Benchmark command to run during (some of the) tests
+ * @fill_buf:		Pointer to user provided parameters for "fill_buf",
+ *			NULL if user did not provide parameters and test
+ *			specific defaults should be used.
  */
 struct user_params {
 	int cpu;
 	int bits;
 	const char *benchmark_cmd[BENCHMARK_ARGS];
+	const struct fill_buf_param *fill_buf;
 };
 
 /*
@@ -87,21 +107,29 @@ struct resctrl_test {
  * @init:		Callback function to initialize test environment
  * @setup:		Callback function to setup per test run environment
  * @measure:		Callback that performs the measurement (a single test)
+ * @fill_buf:		Parameters for default "fill_buf" benchmark.
+ *			Initialized with user provided parameters, possibly
+ *			adapted to be relevant to the test. If user does
+ *			not provide parameters for "fill_buf" nor a
+ *			replacement benchmark then initialized with defaults
+ *			appropriate for test. NULL if user provided
+ *			benchmark.
  */
 struct resctrl_val_param {
-	const char	*ctrlgrp;
-	const char	*mongrp;
-	char		filename[64];
-	unsigned long	mask;
-	int		num_of_runs;
-	int		(*init)(const struct resctrl_val_param *param,
-				int domain_id);
-	int		(*setup)(const struct resctrl_test *test,
-				 const struct user_params *uparams,
-				 struct resctrl_val_param *param);
-	int		(*measure)(const struct user_params *uparams,
-				   struct resctrl_val_param *param,
-				   pid_t bm_pid);
+	const char		*ctrlgrp;
+	const char		*mongrp;
+	char			filename[64];
+	unsigned long		mask;
+	int			num_of_runs;
+	int			(*init)(const struct resctrl_val_param *param,
+					int domain_id);
+	int			(*setup)(const struct resctrl_test *test,
+					 const struct user_params *uparams,
+					 struct resctrl_val_param *param);
+	int			(*measure)(const struct user_params *uparams,
+					   struct resctrl_val_param *param,
+					   pid_t bm_pid);
+	struct fill_buf_param	*fill_buf;
 };
 
 struct perf_event_read {
@@ -138,10 +166,10 @@ int write_schemata(const char *ctrlgrp, char *schemata, int cpu_no,
 int write_bm_pid_to_resctrl(pid_t bm_pid, const char *ctrlgrp, const char *mongrp);
 int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 		    int group_fd, unsigned long flags);
-unsigned char *alloc_buffer(size_t buf_size, int memflush);
+unsigned char *alloc_buffer(size_t buf_size, bool memflush);
 void mem_flush(unsigned char *buf, size_t buf_size);
 void fill_cache_read(unsigned char *buf, size_t buf_size, bool once);
-int run_fill_buf(size_t buf_size, int memflush);
+int run_fill_buf(size_t buf_size, bool memflush);
 int initialize_read_mem_bw_imc(void);
 int measure_read_mem_bw(const struct user_params *uparams,
 			struct resctrl_val_param *param, pid_t bm_pid);
@@ -149,7 +177,6 @@ void initialize_mem_bw_resctrl(const struct resctrl_val_param *param,
 			       int domain_id);
 int resctrl_val(const struct resctrl_test *test,
 		const struct user_params *uparams,
-		const char * const *benchmark_cmd,
 		struct resctrl_val_param *param);
 unsigned long create_bit_mask(unsigned int start, unsigned int len);
 unsigned int count_contiguous_bits(unsigned long val, unsigned int *start);

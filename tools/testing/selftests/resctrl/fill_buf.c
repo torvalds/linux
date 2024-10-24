@@ -102,7 +102,7 @@ void fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
 	*value_sink = ret;
 }
 
-unsigned char *alloc_buffer(size_t buf_size, int memflush)
+unsigned char *alloc_buffer(size_t buf_size, bool memflush)
 {
 	void *buf = NULL;
 	uint64_t *p64;
@@ -130,7 +130,7 @@ unsigned char *alloc_buffer(size_t buf_size, int memflush)
 	return buf;
 }
 
-int run_fill_buf(size_t buf_size, int memflush)
+int run_fill_buf(size_t buf_size, bool memflush)
 {
 	unsigned char *buf;
 

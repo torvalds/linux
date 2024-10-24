@@ -172,11 +172,22 @@ static int mba_run_test(const struct resctrl_test *test, const struct user_param
 		.setup		= mba_setup,
 		.measure	= mba_measure,
 	};
+	struct fill_buf_param fill_buf = {};
 	int ret;
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(test, uparams, uparams->benchmark_cmd, &param);
+	if (uparams->fill_buf) {
+		fill_buf.buf_size = uparams->fill_buf->buf_size;
+		fill_buf.memflush = uparams->fill_buf->memflush;
+		param.fill_buf = &fill_buf;
+	} else if (!uparams->benchmark_cmd[0]) {
+		fill_buf.buf_size = DEFAULT_SPAN;
+		fill_buf.memflush = true;
+		param.fill_buf = &fill_buf;
+	}
+
+	ret = resctrl_val(test, uparams, &param);
 	if (ret)
 		return ret;
 
