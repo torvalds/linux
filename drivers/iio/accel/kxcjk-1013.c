@@ -1471,26 +1471,6 @@ static irqreturn_t kxcjk1013_data_rdy_trig_poll(int irq, void *private)
 		return IRQ_HANDLED;
 }
 
-static const char *kxcjk1013_match_acpi_device(struct device *dev,
-					       const struct kx_chipset_info **info,
-					       const char **label)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-
-	if (strcmp(id->id, "KIOX010A") == 0)
-		*label = "accel-display";
-	else if (strcmp(id->id, "KIOX020A") == 0)
-		*label = "accel-base";
-
-	*info = (const struct kx_chipset_info *)id->driver_data;
-
-	return dev_name(dev);
-}
-
 static int kxcjk1013_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
@@ -1498,6 +1478,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 	struct kxcjk1013_data *data;
 	struct iio_dev *indio_dev;
 	struct kxcjk_1013_platform_data *pdata;
+	const void *ddata = NULL;
 	const char *name;
 	int ret;
 
@@ -1540,14 +1521,16 @@ static int kxcjk1013_probe(struct i2c_client *client)
 	if (id) {
 		name = id->name;
 		data->info = (const struct kx_chipset_info *)(id->driver_data);
-	} else if (ACPI_HANDLE(&client->dev)) {
-		name = kxcjk1013_match_acpi_device(&client->dev, &data->info,
-						   &indio_dev->label);
-	} else
+	} else {
+		name = iio_get_acpi_device_name_and_data(&client->dev, &ddata);
+		data->info = ddata;
+		if (data->info == &kxcj91008_kiox010a_info)
+			indio_dev->label = "accel-display";
+		else if (data->info == &kxcj91008_kiox020a_info)
+			indio_dev->label = "accel-base";
+	}
+	if (!name)
 		return -ENODEV;
-
-	if (!data->info)
-		return -EINVAL;
 
 	ret = kxcjk1013_chip_init(data);
 	if (ret < 0)
