@@ -2172,9 +2172,10 @@ static u32 intel_degamma_lut_size(const struct intel_crtc_state *crtc_state)
 	return DISPLAY_INFO(i915)->color.degamma_lut_size;
 }
 
-static int check_lut_size(struct drm_i915_private *i915,
+static int check_lut_size(struct intel_crtc *crtc, const char *lut_name,
 			  const struct drm_property_blob *lut, int expected)
 {
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	int len;
 
 	if (!lut)
@@ -2182,8 +2183,9 @@ static int check_lut_size(struct drm_i915_private *i915,
 
 	len = drm_color_lut_size(lut);
 	if (len != expected) {
-		drm_dbg_kms(&i915->drm, "Invalid LUT size; got %d, expected %d\n",
-			    len, expected);
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] Invalid %s LUT size; got %d, expected %d\n",
+			    crtc->base.base.id, crtc->base.name, lut_name, len, expected);
 		return -EINVAL;
 	}
 
@@ -2193,7 +2195,8 @@ static int check_lut_size(struct drm_i915_private *i915,
 static int _check_luts(const struct intel_crtc_state *crtc_state,
 		       u32 degamma_tests, u32 gamma_tests)
 {
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
 	const struct drm_property_blob *degamma_lut = crtc_state->hw.degamma_lut;
 	int gamma_length, degamma_length;
@@ -2201,15 +2204,16 @@ static int _check_luts(const struct intel_crtc_state *crtc_state,
 	/* C8 relies on its palette being stored in the legacy LUT */
 	if (crtc_state->c8_planes && !lut_is_legacy(crtc_state->hw.gamma_lut)) {
 		drm_dbg_kms(&i915->drm,
-			    "C8 pixelformat requires the legacy LUT\n");
+			    "[CRTC:%d:%s] C8 pixelformat requires the legacy LUT\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
 	degamma_length = intel_degamma_lut_size(crtc_state);
 	gamma_length = intel_gamma_lut_size(crtc_state);
 
-	if (check_lut_size(i915, degamma_lut, degamma_length) ||
-	    check_lut_size(i915, gamma_lut, gamma_length))
+	if (check_lut_size(crtc, "degamma", degamma_lut, degamma_length) ||
+	    check_lut_size(crtc, "gamma", gamma_lut, gamma_length))
 		return -EINVAL;
 
 	if (drm_color_lut_check(degamma_lut, degamma_tests) ||
@@ -2241,9 +2245,10 @@ static int i9xx_lut_10_diff(u16 a, u16 b)
 		drm_color_lut_extract(b, 10);
 }
 
-static int i9xx_check_lut_10(struct drm_i915_private *dev_priv,
+static int i9xx_check_lut_10(struct intel_crtc *crtc,
 			     const struct drm_property_blob *blob)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_color_lut *lut = blob->data;
 	int lut_size = drm_color_lut_size(blob);
 	const struct drm_color_lut *a = &lut[lut_size - 2];
@@ -2252,7 +2257,9 @@ static int i9xx_check_lut_10(struct drm_i915_private *dev_priv,
 	if (i9xx_lut_10_diff(b->red, a->red) > 0x7f ||
 	    i9xx_lut_10_diff(b->green, a->green) > 0x7f ||
 	    i9xx_lut_10_diff(b->blue, a->blue) > 0x7f) {
-		drm_dbg_kms(&dev_priv->drm, "Last gamma LUT entry exceeds max slope\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "[CRTC:%d:%s] Last gamma LUT entry exceeds max slope\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
@@ -2317,7 +2324,7 @@ static int i9xx_color_check(struct intel_atomic_state *state,
 
 	if (DISPLAY_VER(i915) < 4 &&
 	    crtc_state->gamma_mode == GAMMA_MODE_MODE_10BIT) {
-		ret = i9xx_check_lut_10(i915, crtc_state->hw.gamma_lut);
+		ret = i9xx_check_lut_10(crtc, crtc_state->hw.gamma_lut);
 		if (ret)
 			return ret;
 	}
@@ -2534,14 +2541,16 @@ static int ilk_color_check(struct intel_atomic_state *state,
 
 	if (crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "Degamma and gamma together are not possible\n");
+			    "[CRTC:%d:%s] Degamma and gamma together are not possible\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.ctm) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and CTM together are not possible\n");
+			    "[CRTC:%d:%s] YCbCr and CTM together are not possible\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
@@ -2638,21 +2647,24 @@ static int ivb_color_check(struct intel_atomic_state *state,
 
 	if (crtc_state->c8_planes && crtc_state->hw.degamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "C8 pixelformat and degamma together are not possible\n");
+			    "[CRTC:%d:%s] C8 pixelformat and degamma together are not possible\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.ctm) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and CTM together are not possible\n");
+			    "[CRTC:%d:%s] YCbCr and CTM together are not possible\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and degamma+gamma together are not possible\n");
+			    "[CRTC:%d:%s] YCbCr and degamma+gamma together are not possible\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
@@ -2773,14 +2785,16 @@ static int glk_color_check(struct intel_atomic_state *state,
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.ctm) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and CTM together are not possible\n");
+			    "[CRTC:%d:%s] YCbCr and CTM together are not possible\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut) {
 		drm_dbg_kms(&i915->drm,
-			    "YCbCr and degamma+gamma together are not possible\n");
+			    "[CRTC:%d:%s] YCbCr and degamma+gamma together are not possible\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
