@@ -350,9 +350,9 @@ static int bch2_copygc_thread(void *arg)
 		bch2_trans_unlock_long(ctxt.trans);
 		cond_resched();
 
-		if (!c->copy_gc_enabled) {
+		if (!c->opts.copygc_enabled) {
 			move_buckets_wait(&ctxt, buckets, true);
-			kthread_wait_freezable(c->copy_gc_enabled ||
+			kthread_wait_freezable(c->opts.copygc_enabled ||
 					       kthread_should_stop());
 		}
 

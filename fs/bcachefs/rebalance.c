@@ -338,9 +338,9 @@ static int do_rebalance(struct moving_context *ctxt)
 			     BTREE_ITER_all_snapshots);
 
 	while (!bch2_move_ratelimit(ctxt)) {
-		if (!r->enabled) {
+		if (!c->opts.rebalance_enabled) {
 			bch2_moving_ctxt_flush_all(ctxt);
-			kthread_wait_freezable(r->enabled ||
+			kthread_wait_freezable(c->opts.rebalance_enabled ||
 					       kthread_should_stop());
 		}
 
