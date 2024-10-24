@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/bug.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
@@ -95,12 +96,17 @@ struct bochs_device {
 
 /* ---------------------------------------------------------------------- */
 
+static __always_inline bool bochs_uses_mmio(struct bochs_device *bochs)
+{
+	return !IS_ENABLED(CONFIG_HAS_IOPORT) || bochs->mmio;
+}
+
 static void bochs_vga_writeb(struct bochs_device *bochs, u16 ioport, u8 val)
 {
 	if (WARN_ON(ioport < 0x3c0 || ioport > 0x3df))
 		return;
 
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = ioport - 0x3c0 + 0x400;
 
 		writeb(val, bochs->mmio + offset);
@@ -114,7 +120,7 @@ static u8 bochs_vga_readb(struct bochs_device *bochs, u16 ioport)
 	if (WARN_ON(ioport < 0x3c0 || ioport > 0x3df))
 		return 0xff;
 
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = ioport - 0x3c0 + 0x400;
 
 		return readb(bochs->mmio + offset);
@@ -127,7 +133,7 @@ static u16 bochs_dispi_read(struct bochs_device *bochs, u16 reg)
 {
 	u16 ret = 0;
 
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = 0x500 + (reg << 1);
 
 		ret = readw(bochs->mmio + offset);
@@ -140,7 +146,7 @@ static u16 bochs_dispi_read(struct bochs_device *bochs, u16 reg)
 
 static void bochs_dispi_write(struct bochs_device *bochs, u16 reg, u16 val)
 {
-	if (bochs->mmio) {
+	if (bochs_uses_mmio(bochs)) {
 		int offset = 0x500 + (reg << 1);
 
 		writew(val, bochs->mmio + offset);
@@ -228,7 +234,7 @@ static int bochs_hw_init(struct drm_device *dev)
 			DRM_ERROR("Cannot map mmio region\n");
 			return -ENOMEM;
 		}
-	} else {
+	} else if (IS_ENABLED(CONFIG_HAS_IOPORT)) {
 		ioaddr = VBE_DISPI_IOPORT_INDEX;
 		iosize = 2;
 		if (!request_region(ioaddr, iosize, "bochs-drm")) {
@@ -236,6 +242,9 @@ static int bochs_hw_init(struct drm_device *dev)
 			return -EBUSY;
 		}
 		bochs->ioports = 1;
+	} else {
+		dev_err(dev->dev, "I/O ports are not supported\n");
+		return -EIO;
 	}
 
 	id = bochs_dispi_read(bochs, VBE_DISPI_INDEX_ID);
