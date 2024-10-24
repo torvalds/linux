@@ -127,8 +127,9 @@ static bool show_mba_info(unsigned long *bw_imc, unsigned long *bw_resc)
 
 static int check_results(void)
 {
+	unsigned long bw_resc[NUM_OF_RUNS * ALLOCATION_MAX / ALLOCATION_STEP];
+	unsigned long bw_imc[NUM_OF_RUNS * ALLOCATION_MAX / ALLOCATION_STEP];
 	char *token_array[8], output[] = RESULT_FILE_NAME, temp[512];
-	unsigned long bw_imc[1024], bw_resc[1024];
 	int runs;
 	FILE *fp;
 
