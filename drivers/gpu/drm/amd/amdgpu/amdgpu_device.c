@@ -3308,7 +3308,7 @@ static void amdgpu_ip_block_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
 
-	if (ip_block->version->funcs->hw_fini) {
+	if (!ip_block->version->funcs->hw_fini) {
 		DRM_ERROR("hw_fini of IP block <%s> not defined\n",
 			  ip_block->version->funcs->name);
 	} else {
