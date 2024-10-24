@@ -230,6 +230,9 @@ static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr)
 		this_cpu_sub(tag->counters->bytes, PAGE_SIZE * nr);
 }
 
+void pgalloc_tag_split(struct folio *folio, int old_order, int new_order);
+void pgalloc_tag_copy(struct folio *new, struct folio *old);
+
 void __init alloc_tag_sec_init(void);
 
 #else /* CONFIG_MEM_ALLOC_PROFILING */
@@ -241,6 +244,8 @@ static inline void pgalloc_tag_sub(struct page *page, unsigned int nr) {}
 static inline struct alloc_tag *pgalloc_tag_get(struct page *page) { return NULL; }
 static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr) {}
 static inline void alloc_tag_sec_init(void) {}
+static inline void pgalloc_tag_split(struct folio *folio, int old_order, int new_order) {}
+static inline void pgalloc_tag_copy(struct folio *new, struct folio *old) {}
 
 #endif /* CONFIG_MEM_ALLOC_PROFILING */
 
