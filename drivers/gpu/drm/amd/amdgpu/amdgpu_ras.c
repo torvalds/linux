@@ -2765,9 +2765,10 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 	struct ras_err_handler_data *data;
 	struct ras_err_data err_data;
 	struct eeprom_table_record *err_rec;
+	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
 	int ret = 0;
 	uint32_t i, j, loop_cnt = 1;
-	bool is_mca_add = true;
+	bool is_mca_add = true, find_pages_per_pa = false;
 
 	if (!con || !con->eh_data || !bps || pages <= 0)
 		return 0;
@@ -2797,12 +2798,33 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		}
 
 		loop_cnt = adev->umc.retire_unit;
+		if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+			nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 	}
 
 	for (i = 0; i < pages; i++) {
 		if (is_mca_add) {
-			if (amdgpu_ras_mca2pa(adev, &bps[i], &err_data))
-				goto free;
+			if (!find_pages_per_pa) {
+				if (amdgpu_ras_mca2pa(adev, &bps[i], &err_data)) {
+					if (!i && nps == AMDGPU_NPS1_PARTITION_MODE) {
+						/* may use old RAS TA, use PA to find pages in
+						 * one row
+						 */
+						if (amdgpu_umc_pages_in_a_row(adev, &err_data,
+								bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+							goto free;
+						else
+							find_pages_per_pa = true;
+					} else {
+						/* unsupported cases */
+						goto free;
+					}
+				}
+			} else {
+				if (amdgpu_umc_pages_in_a_row(adev, &err_data,
+						bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+					goto free;
+			}
 
 			err_rec = err_data.err_addr;
 		} else {
