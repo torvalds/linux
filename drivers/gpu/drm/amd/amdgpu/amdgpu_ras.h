@@ -99,7 +99,8 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__IH,
 	AMDGPU_RAS_BLOCK__MPIO,
 
-	AMDGPU_RAS_BLOCK__LAST
+	AMDGPU_RAS_BLOCK__LAST,
+	AMDGPU_RAS_BLOCK__ANY = -1
 };
 
 enum amdgpu_ras_mca_block {
@@ -558,8 +559,8 @@ struct amdgpu_ras {
 	struct ras_ecc_log_info  umc_ecc_log;
 	struct delayed_work page_retirement_dwork;
 
-	/* Fatal error detected flag */
-	atomic_t fed;
+	/* ras errors detected */
+	unsigned long ras_err_state;
 
 	/* RAS event manager */
 	struct ras_event_manager __event_mgr;
@@ -952,6 +953,10 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 
 void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status);
 bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev);
+void amdgpu_ras_set_err_poison(struct amdgpu_device *adev,
+			       enum amdgpu_ras_block block);
+void amdgpu_ras_clear_err_state(struct amdgpu_device *adev);
+bool amdgpu_ras_is_err_state(struct amdgpu_device *adev, int block);
 
 u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type);
 int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_type type,
