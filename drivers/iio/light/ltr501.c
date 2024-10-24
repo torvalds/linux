@@ -1082,10 +1082,6 @@ static int ltr501_write_event_config(struct iio_dev *indio_dev,
 	struct ltr501_data *data = iio_priv(indio_dev);
 	int ret;
 
-	/* only 1 and 0 are valid inputs */
-	if (state != 1  && state != 0)
-		return -EINVAL;
-
 	switch (chan->type) {
 	case IIO_INTENSITY:
 		mutex_lock(&data->lock_als);
