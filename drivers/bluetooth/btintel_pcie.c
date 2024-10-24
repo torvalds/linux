@@ -968,13 +968,9 @@ static int btintel_pcie_config_pcie(struct pci_dev *pdev,
 			return err;
 	}
 
-	err = pcim_iomap_regions(pdev, BIT(0), KBUILD_MODNAME);
-	if (err)
-		return err;
-
-	data->base_addr = pcim_iomap_table(pdev)[0];
-	if (!data->base_addr)
-		return -ENODEV;
+	data->base_addr = pcim_iomap_region(pdev, 0, KBUILD_MODNAME);
+	if (IS_ERR(data->base_addr))
+		return PTR_ERR(data->base_addr);
 
 	err = btintel_pcie_setup_irq(data);
 	if (err)
