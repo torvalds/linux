@@ -795,7 +795,6 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	if (insert) {
 		extra_size = btrfs_extent_inline_ref_size(want);
 		path->search_for_extension = 1;
-		path->keep_locks = 1;
 	} else
 		extra_size = -1;
 
@@ -946,6 +945,25 @@ again:
 			ret = -EAGAIN;
 			goto out;
 		}
+
+		if (path->slots[0] + 1 < btrfs_header_nritems(path->nodes[0])) {
+			struct btrfs_key tmp_key;
+
+			btrfs_item_key_to_cpu(path->nodes[0], &tmp_key, path->slots[0] + 1);
+			if (tmp_key.objectid == bytenr &&
+			    tmp_key.type < BTRFS_BLOCK_GROUP_ITEM_KEY) {
+				ret = -EAGAIN;
+				goto out;
+			}
+			goto out_no_entry;
+		}
+
+		if (!path->keep_locks) {
+			btrfs_release_path(path);
+			path->keep_locks = 1;
+			goto again;
+		}
+
 		/*
 		 * To add new inline back ref, we have to make sure
 		 * there is no corresponding back ref item.
@@ -959,13 +977,15 @@ again:
 			goto out;
 		}
 	}
+out_no_entry:
 	*ref_ret = (struct btrfs_extent_inline_ref *)ptr;
 out:
-	if (insert) {
+	if (path->keep_locks) {
 		path->keep_locks = 0;
-		path->search_for_extension = 0;
 		btrfs_unlock_up_safe(path, 1);
 	}
+	if (insert)
+		path->search_for_extension = 0;
 	return ret;
 }
 
