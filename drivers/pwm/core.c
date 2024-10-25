@@ -852,9 +852,7 @@ static struct pwm_chip *pwmchip_find_by_name(const char *name)
 	guard(mutex)(&pwm_lock);
 
 	idr_for_each_entry_ul(&pwm_chips, chip, tmp, id) {
-		const char *chip_name = dev_name(pwmchip_parent(chip));
-
-		if (chip_name && strcmp(chip_name, name) == 0)
+		if (device_match_name(pwmchip_parent(chip), name))
 			return chip;
 	}
 
