@@ -718,6 +718,16 @@ static void rcu_exp_sel_wait_wake(unsigned long s)
 	rcu_exp_wait_wake(s);
 }
 
+/* Request an expedited quiescent state. */
+static void rcu_exp_need_qs(void)
+{
+	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
+	/* Store .exp before .rcu_urgent_qs. */
+	smp_store_release(this_cpu_ptr(&rcu_data.rcu_urgent_qs), true);
+	set_tsk_need_resched(current);
+	set_preempt_need_resched();
+}
+
 #ifdef CONFIG_PREEMPT_RCU
 
 /*
@@ -742,13 +752,10 @@ static void rcu_exp_handler(void *unused)
 	 */
 	if (!depth) {
 		if (!(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK)) ||
-		    rcu_is_cpu_rrupt_from_idle()) {
+		    rcu_is_cpu_rrupt_from_idle())
 			rcu_report_exp_rdp(rdp);
-		} else {
-			WRITE_ONCE(rdp->cpu_no_qs.b.exp, true);
-			set_tsk_need_resched(t);
-			set_preempt_need_resched();
-		}
+		else
+			rcu_exp_need_qs();
 		return;
 	}
 
@@ -840,16 +847,6 @@ static void rcu_exp_print_detail_task_stall_rnp(struct rcu_node *rnp)
 }
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
-
-/* Request an expedited quiescent state. */
-static void rcu_exp_need_qs(void)
-{
-	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
-	/* Store .exp before .rcu_urgent_qs. */
-	smp_store_release(this_cpu_ptr(&rcu_data.rcu_urgent_qs), true);
-	set_tsk_need_resched(current);
-	set_preempt_need_resched();
-}
 
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
 static void rcu_exp_handler(void *unused)
