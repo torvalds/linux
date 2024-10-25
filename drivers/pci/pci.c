@@ -5158,6 +5158,8 @@ static void pci_dev_save_and_disable(struct pci_dev *dev)
 	 */
 	if (err_handler && err_handler->reset_prepare)
 		err_handler->reset_prepare(dev);
+	else if (dev->driver)
+		pci_warn(dev, "resetting");
 
 	/*
 	 * Wake-up device prior to save.  PM registers default to D0 after
@@ -5191,6 +5193,8 @@ static void pci_dev_restore(struct pci_dev *dev)
 	 */
 	if (err_handler && err_handler->reset_done)
 		err_handler->reset_done(dev);
+	else if (dev->driver)
+		pci_warn(dev, "reset done");
 }
 
 /* dev->reset_methods[] is a 0-terminated list of indices into this array */
