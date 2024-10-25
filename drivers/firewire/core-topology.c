@@ -204,7 +204,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 				// the node->ports array where the parent node should be.  Later,
 				// when we handle the parent node, we fix up the reference.
 				++parent_count;
-				node->color = i;
+				node->color = port_index;
 				break;
 
 			case PHY_PACKET_SELF_ID_PORT_STATUS_CHILD:
