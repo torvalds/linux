@@ -507,12 +507,9 @@
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				reg_3p0: regulator-3p0@20c8120 {
+				reg_3p0: regulator-3p0 {
 					compatible = "fsl,anatop-regulator";
-					reg = <0x20c8120>;
 					regulator-name = "vdd3p0";
 					regulator-min-microvolt = <2625000>;
 					regulator-max-microvolt = <3400000>;
