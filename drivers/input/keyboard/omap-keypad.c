@@ -156,15 +156,15 @@ static ssize_t omap_kp_enable_store(struct device *dev, struct device_attribute 
 	if ((state != 1) && (state != 0))
 		return -EINVAL;
 
-	mutex_lock(&kp_enable_mutex);
-	if (state != kp_enable) {
-		if (state)
-			enable_irq(omap_kp->irq);
-		else
-			disable_irq(omap_kp->irq);
-		kp_enable = state;
+	scoped_guard(mutex, &kp_enable_mutex) {
+		if (state != kp_enable) {
+			if (state)
+				enable_irq(omap_kp->irq);
+			else
+				disable_irq(omap_kp->irq);
+			kp_enable = state;
+		}
 	}
-	mutex_unlock(&kp_enable_mutex);
 
 	return strnlen(buf, count);
 }
