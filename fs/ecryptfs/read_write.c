@@ -41,30 +41,29 @@ int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 /**
  * ecryptfs_write_lower_page_segment
  * @ecryptfs_inode: The eCryptfs inode
- * @page_for_lower: The page containing the data to be written to the
+ * @folio_for_lower: The folio containing the data to be written to the
  *                  lower file
- * @offset_in_page: The offset in the @page_for_lower from which to
+ * @offset_in_page: The offset in the @folio_for_lower from which to
  *                  start writing the data
- * @size: The amount of data from @page_for_lower to write to the
+ * @size: The amount of data from @folio_for_lower to write to the
  *        lower file
  *
  * Determines the byte offset in the file for the given page and
  * offset within the page, maps the page, and makes the call to write
- * the contents of @page_for_lower to the lower inode.
+ * the contents of @folio_for_lower to the lower inode.
  *
  * Returns zero on success; non-zero otherwise
  */
 int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
-				      struct page *page_for_lower,
+				      struct folio *folio_for_lower,
 				      size_t offset_in_page, size_t size)
 {
 	char *virt;
 	loff_t offset;
 	int rc;
 
-	offset = ((((loff_t)page_for_lower->index) << PAGE_SHIFT)
-		  + offset_in_page);
-	virt = kmap_local_page(page_for_lower);
+	offset = (loff_t)folio_for_lower->index * PAGE_SIZE + offset_in_page;
+	virt = kmap_local_folio(folio_for_lower, 0);
 	rc = ecryptfs_write_lower(ecryptfs_inode, virt, offset, size);
 	if (rc > 0)
 		rc = 0;
@@ -172,7 +171,7 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 			rc = ecryptfs_encrypt_page(&ecryptfs_folio->page);
 		else
 			rc = ecryptfs_write_lower_page_segment(ecryptfs_inode,
-						&ecryptfs_folio->page,
+						ecryptfs_folio,
 						start_offset_in_page,
 						data_offset);
 		folio_put(ecryptfs_folio);
