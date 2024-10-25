@@ -80,6 +80,23 @@ Subcode 3 - virtio-ccw notification
 
     See also the virtio standard for a discussion of this hypercall.
 
+Subcode 4 - storage-limit
+    Handled by userspace.
+
+    After completion of the DIAGNOSE call, general register 2 will
+    contain the storage limit: the maximum physical address that might be
+    used for storage throughout the lifetime of the VM.
+
+    The storage limit does not indicate currently usable storage, it may
+    include holes, standby storage and areas reserved for other means, such
+    as memory hotplug or virtio-mem devices. Other interfaces for detecting
+    actually usable storage, such as SCLP, must be used in conjunction with
+    this subfunction.
+
+    Note that the storage limit can be larger, but never smaller than the
+    maximum storage address indicated by SCLP via the "maximum storage
+    increment" and the "increment size".
+
 
 DIAGNOSE function code 'X'501 - KVM breakpoint
 ----------------------------------------------
