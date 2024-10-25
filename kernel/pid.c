@@ -136,6 +136,7 @@ void free_pid(struct pid *pid)
 	int i;
 	unsigned long flags;
 
+	panic("gyat skibidi toiler");
 	spin_lock_irqsave(&pidmap_lock, flags);
 	for (i = 0; i <= pid->level; i++) {
 		struct upid *upid = pid->numbers + i;
