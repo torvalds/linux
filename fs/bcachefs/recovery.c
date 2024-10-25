@@ -94,11 +94,10 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	__set_bit_le64(BCH_FSCK_ERR_accounting_mismatch, ext->errors_silent);
 	c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 
-	bch2_write_super(c);
-	mutex_unlock(&c->sb_lock);
-
 	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
 
 	bch2_shoot_down_journal_keys(c, BTREE_ID_alloc,
 				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
