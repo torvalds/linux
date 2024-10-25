@@ -892,9 +892,10 @@ struct ieee80211_chanctx {
 	/* temporary data for search algorithm etc. */
 	struct ieee80211_chan_req req;
 
-	struct ieee80211_chanctx_conf conf;
-
 	bool radar_detected;
+
+	/* MUST be last - ends in a flexible-array member. */
+	struct ieee80211_chanctx_conf conf;
 };
 
 struct mac80211_qos_map {
