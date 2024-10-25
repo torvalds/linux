@@ -16,9 +16,10 @@
 
 enum trap_behaviour {
 	BEHAVE_HANDLE_LOCALLY	= 0,
+
 	BEHAVE_FORWARD_READ	= BIT(0),
 	BEHAVE_FORWARD_WRITE	= BIT(1),
-	BEHAVE_FORWARD_ANY	= BEHAVE_FORWARD_READ | BEHAVE_FORWARD_WRITE,
+	BEHAVE_FORWARD_RW	= BEHAVE_FORWARD_READ | BEHAVE_FORWARD_WRITE,
 };
 
 struct trap_bits {
@@ -138,7 +139,7 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.index		= HCR_EL2,
 		.value 		= HCR_TID2,
 		.mask		= HCR_TID2,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TID3] = {
 		.index		= HCR_EL2,
@@ -162,37 +163,37 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TIDCP,
 		.mask		= HCR_TIDCP,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TACR] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TACR,
 		.mask		= HCR_TACR,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TSW] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TSW,
 		.mask		= HCR_TSW,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TPC] = { /* Also called TCPC when FEAT_DPB is implemented */
 		.index		= HCR_EL2,
 		.value		= HCR_TPC,
 		.mask		= HCR_TPC,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TPU] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TPU,
 		.mask		= HCR_TPU,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TTLB] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TTLB,
 		.mask		= HCR_TTLB,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TVM] = {
 		.index		= HCR_EL2,
@@ -204,7 +205,7 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TDZ,
 		.mask		= HCR_TDZ,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TRVM] = {
 		.index		= HCR_EL2,
@@ -216,205 +217,205 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TLOR,
 		.mask		= HCR_TLOR,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TERR] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TERR,
 		.mask		= HCR_TERR,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_APK] = {
 		.index		= HCR_EL2,
 		.value		= 0,
 		.mask		= HCR_APK,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_NV] = {
 		.index		= HCR_EL2,
 		.value		= HCR_NV,
 		.mask		= HCR_NV,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_NV_nNV2] = {
 		.index		= HCR_EL2,
 		.value		= HCR_NV,
 		.mask		= HCR_NV | HCR_NV2,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_NV1_nNV2] = {
 		.index		= HCR_EL2,
 		.value		= HCR_NV | HCR_NV1,
 		.mask		= HCR_NV | HCR_NV1 | HCR_NV2,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_AT] = {
 		.index		= HCR_EL2,
 		.value		= HCR_AT,
 		.mask		= HCR_AT,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_nFIEN] = {
 		.index		= HCR_EL2,
 		.value		= 0,
 		.mask		= HCR_FIEN,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TID4] = {
 		.index		= HCR_EL2,
 		.value 		= HCR_TID4,
 		.mask		= HCR_TID4,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TICAB] = {
 		.index		= HCR_EL2,
 		.value 		= HCR_TICAB,
 		.mask		= HCR_TICAB,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TOCU] = {
 		.index		= HCR_EL2,
 		.value 		= HCR_TOCU,
 		.mask		= HCR_TOCU,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_ENSCXT] = {
 		.index		= HCR_EL2,
 		.value 		= 0,
 		.mask		= HCR_ENSCXT,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TTLBIS] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TTLBIS,
 		.mask		= HCR_TTLBIS,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCR_TTLBOS] = {
 		.index		= HCR_EL2,
 		.value		= HCR_TTLBOS,
 		.mask		= HCR_TTLBOS,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TPMCR] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TPMCR,
 		.mask		= MDCR_EL2_TPMCR,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TPM] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TPM,
 		.mask		= MDCR_EL2_TPM,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TDE] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TDE,
 		.mask		= MDCR_EL2_TDE,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TDA] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TDA,
 		.mask		= MDCR_EL2_TDA,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TDOSA] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TDOSA,
 		.mask		= MDCR_EL2_TDOSA,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TDRA] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TDRA,
 		.mask		= MDCR_EL2_TDRA,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_E2PB] = {
 		.index		= MDCR_EL2,
 		.value		= 0,
 		.mask		= BIT(MDCR_EL2_E2PB_SHIFT),
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TPMS] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TPMS,
 		.mask		= MDCR_EL2_TPMS,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TTRF] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TTRF,
 		.mask		= MDCR_EL2_TTRF,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_E2TB] = {
 		.index		= MDCR_EL2,
 		.value		= 0,
 		.mask		= BIT(MDCR_EL2_E2TB_SHIFT),
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_MDCR_TDCC] = {
 		.index		= MDCR_EL2,
 		.value		= MDCR_EL2_TDCC,
 		.mask		= MDCR_EL2_TDCC,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_CPACR_E0POE] = {
 		.index		= CPTR_EL2,
 		.value		= CPACR_ELx_E0POE,
 		.mask		= CPACR_ELx_E0POE,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_CPTR_TAM] = {
 		.index		= CPTR_EL2,
 		.value		= CPTR_EL2_TAM,
 		.mask		= CPTR_EL2_TAM,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_CPTR_TCPAC] = {
 		.index		= CPTR_EL2,
 		.value		= CPTR_EL2_TCPAC,
 		.mask		= CPTR_EL2_TCPAC,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCRX_EnFPM] = {
 		.index		= HCRX_EL2,
 		.value 		= 0,
 		.mask		= HCRX_EL2_EnFPM,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_HCRX_TCR2En] = {
 		.index		= HCRX_EL2,
 		.value 		= 0,
 		.mask		= HCRX_EL2_TCR2En,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_ICH_HCR_TC] = {
 		.index		= ICH_HCR_EL2,
 		.value		= ICH_HCR_TC,
 		.mask		= ICH_HCR_TC,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_ICH_HCR_TALL0] = {
 		.index		= ICH_HCR_EL2,
 		.value		= ICH_HCR_TALL0,
 		.mask		= ICH_HCR_TALL0,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_ICH_HCR_TALL1] = {
 		.index		= ICH_HCR_EL2,
 		.value		= ICH_HCR_TALL1,
 		.mask		= ICH_HCR_TALL1,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_ICH_HCR_TDIR] = {
 		.index		= ICH_HCR_EL2,
 		.value		= ICH_HCR_TDIR,
 		.mask		= ICH_HCR_TDIR,
-		.behaviour	= BEHAVE_FORWARD_ANY,
+		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 };
 
@@ -474,7 +475,7 @@ static enum trap_behaviour check_cnthctl_el1pcten(struct kvm_vcpu *vcpu)
 	if (get_sanitized_cnthctl(vcpu) & (CNTHCTL_EL1PCTEN << 10))
 		return BEHAVE_HANDLE_LOCALLY;
 
-	return BEHAVE_FORWARD_ANY;
+	return BEHAVE_FORWARD_RW;
 }
 
 static enum trap_behaviour check_cnthctl_el1pten(struct kvm_vcpu *vcpu)
@@ -482,7 +483,7 @@ static enum trap_behaviour check_cnthctl_el1pten(struct kvm_vcpu *vcpu)
 	if (get_sanitized_cnthctl(vcpu) & (CNTHCTL_EL1PCEN << 10))
 		return BEHAVE_HANDLE_LOCALLY;
 
-	return BEHAVE_FORWARD_ANY;
+	return BEHAVE_FORWARD_RW;
 }
 
 static enum trap_behaviour check_cptr_tta(struct kvm_vcpu *vcpu)
@@ -493,7 +494,7 @@ static enum trap_behaviour check_cptr_tta(struct kvm_vcpu *vcpu)
 		val = translate_cptr_el2_to_cpacr_el1(val);
 
 	if (val & CPACR_ELx_TTA)
-		return BEHAVE_FORWARD_ANY;
+		return BEHAVE_FORWARD_RW;
 
 	return BEHAVE_HANDLE_LOCALLY;
 }
