@@ -695,7 +695,6 @@
 
 		port {
 			ov5675_ep: endpoint {
-				clock-lanes = <0>;
 				data-lanes = <1 2>;
 				link-frequencies = /bits/ 64 <450000000>;
 				remote-endpoint = <&csiphy0_lanes01_ep>;
