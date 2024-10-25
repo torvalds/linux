@@ -259,19 +259,29 @@ exuberant()
 	    CTAGS_EXTRA="extras"
 	fi
 	setup_regex exuberant asm c
-	all_target_sources | xargs $1 -a                        \
-	-I __initdata,__exitdata,__initconst,__ro_after_init	\
-	-I __initdata_memblock					\
-	-I __refdata,__attribute,__maybe_unused,__always_unused \
-	-I __acquires,__releases,__deprecated,__always_inline	\
-	-I __read_mostly,__aligned,____cacheline_aligned        \
-	-I ____cacheline_aligned_in_smp                         \
-	-I __cacheline_aligned,__cacheline_aligned_in_smp	\
-	-I ____cacheline_internodealigned_in_smp                \
-	-I __used,__packed,__packed2__,__must_check,__must_hold	\
-	-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL,ACPI_EXPORT_SYMBOL   \
-	-I DEFINE_TRACE,EXPORT_TRACEPOINT_SYMBOL,EXPORT_TRACEPOINT_SYMBOL_GPL \
-	-I static,const						\
+	# identifiers to ignore by ctags
+	local ign=(
+		ACPI_EXPORT_SYMBOL
+		DEFINE_TRACE
+		EXPORT_SYMBOL EXPORT_SYMBOL_GPL
+		EXPORT_TRACEPOINT_SYMBOL EXPORT_TRACEPOINT_SYMBOL_GPL
+		____cacheline_aligned ____cacheline_aligned_in_smp
+		____cacheline_internodealigned_in_smp
+		__acquires __aligned __always_inline __always_unused
+		__attribute
+		__cacheline_aligned __cacheline_aligned_in_smp
+		__deprecated
+		__exitdata
+		__initconst __initdata __initdata_memblock
+		__maybe_unused __must_check __must_hold
+		__packed __packed2__
+		__read_mostly __refdata __releases __ro_after_init
+		__used
+		const
+		static
+	)
+	all_target_sources | \
+	xargs $1 -a -I "$(IFS=','; echo "${ign[*]}")" \
 	--$CTAGS_EXTRA=+fq --c-kinds=+px --fields=+iaS --langmap=c:+.h \
 	"${regex[@]}"
 
